@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+# 仓库根在 BlueWhale/，前端工作区在 web/ —— 先切到 web 再执行。
+cd "$(git rev-parse --show-toplevel)/web" || exit 1
+pnpm commitlint --edit "$1"
+

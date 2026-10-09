@@ -1,0 +1,9 @@
+node_modules/
+dist/
+coverage/
+.turbo/
+*.local
+*.log
+
+# Husky 内部生成目录（由 prepare 钩子生成，不入库）
+.husky/_/

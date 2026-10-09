@@ -1,0 +1,27 @@
+{
+  "name": "common-config",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "前端共享工程配置：ESLint / Stylelint / TypeScript",
+  "exports": {
+    "./eslint": "./src/eslint.js",
+    "./stylelint": "./src/stylelint.js",
+    "./tsconfig.base.json": "./src/tsconfig.base.json",
+    "./tsconfig.react.json": "./src/tsconfig.react.json"
+  },
+  "dependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "globals": "^17.13.0",
+    "postcss-less": "^6.0.0",
+    "stylelint-config-standard": "^40.0.0",
+    "typescript-eslint": "^8.71.1"
+  },
+  "peerDependencies": {
+    "eslint": "^10.0.0",
+    "stylelint": "^17.0.0"
+  }
+}

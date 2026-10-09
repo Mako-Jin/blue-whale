@@ -1,0 +1,31 @@
+.basic-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+
+  &__header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    height: 56px;
+    padding: 0 24px;
+    background: @bg-elevated;
+    border-bottom: 1px solid @border-color;
+  }
+
+  &__brand {
+    font-size: 16px;
+    font-weight: 500;
+    color: @text-primary;
+  }
+
+  &__subtitle {
+    font-size: 13px;
+    color: @text-tertiary;
+  }
+
+  &__main {
+    flex: 1;
+    padding: 24px;
+  }
+}

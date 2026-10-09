@@ -1,0 +1,45 @@
+# ---- 前端 ----
+node_modules/
+dist/
+dist-ssr/
+*.local
+.pnpm-store/
+web/**/.turbo/
+
+# ---- Husky 内部生成目录 ----
+web/.husky/_/
+
+# ---- 后端 ----
+target/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/timing.properties
+
+# ---- 环境变量与密钥 ----
+.env
+.env.local
+.env.*.local
+*.p12
+*.keystore
+
+# ---- 自动生成的 API 客户端（由 docs/api 契约生成，不入库）----
+web/packages/common-api/src/generated/*
+!web/packages/common-api/src/generated/.gitkeep
+
+# ---- IDE ----
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# ---- 系统 ----
+.DS_Store
+Thumbs.db
+
+# ---- 日志 ----
+*.log
+logs/
+
+# ---- 第三方独立仓库（自带 .git，各自维护，不纳入主仓）----
+blender_mcp/
