@@ -2,7 +2,9 @@ import {
   CONTRAST_THEME,
   DEFAULT_THEME,
   type LogLevelThreshold,
+  type LogRecord,
   type TimestampFormat,
+  configureLogger,
   createLogger,
   setLoggerSink,
 } from '../src/logger';
@@ -27,6 +29,94 @@ setLoggerSink((method, args) => {
 const app = createLogger('bluewhale').child('portal');
 // 演示页默认全开，方便一次看清所有级别
 app.configure({ level: 'trace' });
+
+// ==================== 结构化记录面板 ====================
+
+const recordOutput = must(document.querySelector<HTMLElement>('#record-output'), '#record-output');
+const recordCounter = must(
+  document.querySelector<HTMLElement>('#record-counter'),
+  '#record-counter',
+);
+
+/** 缓冲上限：对应上报链路里的环形缓冲，超出丢弃最旧的记录。 */
+const RECORD_BUFFER_LIMIT = 80;
+
+/** 级别标签配色。与日志主题无关，这里只为在页面上区分级别。 */
+const RECORD_LEVEL_COLOR: Record<LogRecord['level'], string> = {
+  trace: '#64748b',
+  debug: '#38bdf8',
+  perf: '#a78bfa',
+  info: '#4ade80',
+  success: '#22d3ee',
+  warn: '#facc15',
+  error: '#f87171',
+};
+
+/** 上报元数据字段，存在才展示。 */
+const META_KEYS = ['traceId', 'sessionId', 'route', 'release'] as const;
+
+let receivedRecords = 0;
+
+function renderRecord(record: LogRecord): void {
+  const row = document.createElement('div');
+  row.className = 'record';
+
+  const head = document.createElement('div');
+  head.className = 'record-head';
+
+  const time = document.createElement('span');
+  time.className = 'record-time';
+  time.textContent = new Date(record.timestamp).toLocaleTimeString('zh-CN', { hour12: false });
+
+  const level = document.createElement('span');
+  level.className = 'record-level';
+  level.textContent = record.level;
+  level.style.background = RECORD_LEVEL_COLOR[record.level];
+
+  const namespace = document.createElement('span');
+  namespace.className = 'record-ns';
+  namespace.textContent = record.namespace;
+
+  const message = document.createElement('span');
+  message.className = 'record-msg';
+  message.textContent = record.message;
+
+  head.append(time, level, namespace, message);
+  row.append(head);
+
+  // data / context / 上报元数据 —— 这些才是上报真正拿到、且无需反向解析的内容
+  const payload: Record<string, unknown> = {};
+  if (record.data.length > 0) payload.data = record.data;
+  if (record.context) payload.context = record.context;
+  for (const key of META_KEYS) {
+    const value = record[key];
+    if (value !== undefined) payload[key] = value;
+  }
+
+  if (Object.keys(payload).length > 0) {
+    const json = document.createElement('code');
+    json.className = 'record-json';
+    json.textContent = JSON.stringify(payload);
+    row.append(json);
+  }
+
+  recordOutput.append(row);
+}
+
+function pushRecord(record: LogRecord): void {
+  receivedRecords += 1;
+  renderRecord(record);
+
+  while (recordOutput.childElementCount > RECORD_BUFFER_LIMIT) {
+    recordOutput.firstElementChild?.remove();
+  }
+
+  recordCounter.textContent = `已接收 ${receivedRecords} 条 · 缓冲保留最近 ${recordOutput.childElementCount} 条`;
+  recordOutput.scrollTop = recordOutput.scrollHeight;
+}
+
+// 全局注册：所有 logger 产生的结构化记录都会进入面板
+configureLogger({ onRecord: pushRecord });
 
 // ==================== 工具栏组件 ====================
 
@@ -269,6 +359,42 @@ action(configGroup, '演示：全部级别一览', () => {
   app.warn('warn');
   app.error('error');
 });
+
+// ==================== 结构化记录 ====================
+
+const recordGroup = group('结构化记录（onRecord）');
+
+action(recordGroup, '带元数据上报', () => {
+  app
+    .child('report', {
+      traceId: 'trace-8f2a1c',
+      sessionId: 'sess-3d91',
+      route: '/orders/42',
+      release: '0.1.0',
+    })
+    .error('订单创建失败', { orderId: 'A-1001', retryable: true });
+});
+
+action(recordGroup, '同场景 · 无元数据（对比）', () => {
+  app.child('report').error('订单创建失败', { orderId: 'A-1001', retryable: true });
+});
+
+action(recordGroup, '阈值压制 → 不产生记录', () => {
+  const quiet = app.child('quiet', { level: 'error' });
+  quiet.info('这条被阈值压掉，右栏不会新增记录');
+  quiet.error('这条会记录 —— 注意右栏只多了 1 条');
+});
+
+action(
+  recordGroup,
+  '清空记录面板',
+  () => {
+    recordOutput.replaceChildren();
+    receivedRecords = 0;
+    recordCounter.textContent = '尚未收到记录';
+  },
+  'btn--danger',
+);
 
 // 首次进入给一段引导输出
 app.banner({ title: 'BlueWhale', subtitle: 'Logger Playground', version: '0.1.0' });

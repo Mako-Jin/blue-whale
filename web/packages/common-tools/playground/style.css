@@ -64,7 +64,7 @@ body {
 
 main {
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
+  grid-template-columns: 300px minmax(0, 1fr) minmax(0, 1fr);
   gap: 16px;
   padding: 16px 24px 32px;
   align-items: start;
@@ -185,11 +185,68 @@ main {
   letter-spacing: 1px;
 }
 
+.panel-note {
+  margin: 0;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11px;
+}
+
 #console-output {
   padding: 12px 16px;
   font-family: SFMono-Regular, Consolas, 'Courier New', monospace;
   font-size: 12.5px;
   line-height: 1.85;
+}
+
+#record-output {
+  max-height: 620px;
+  padding: 8px 14px;
+  overflow-y: auto;
+  font-family: SFMono-Regular, Consolas, 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.record {
+  padding: 6px 0;
+  border-bottom: 1px solid rgb(148 163 184 / 8%);
+}
+
+.record-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.record-time {
+  color: #64748b;
+}
+
+.record-level {
+  padding: 0 5px;
+  border-radius: 3px;
+  color: #0b1120;
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.record-ns {
+  color: #a78bfa;
+}
+
+.record-msg {
+  color: var(--text);
+}
+
+.record-json {
+  display: block;
+  margin-top: 3px;
+  color: #7dd3fc;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .mirror-line {

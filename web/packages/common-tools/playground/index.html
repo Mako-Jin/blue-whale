@@ -11,7 +11,8 @@
       <div>
         <h1>Logger Playground</h1>
         <p class="hint">
-          左侧点击触发日志，右侧是<b>真实控制台输出</b>的镜像 —— 页面上看到的颜色、对齐、层级与控制台完全一致。
+          左侧点击触发日志：中栏是<b>真实控制台输出</b>的镜像；右栏是 <code>onRecord</code>
+          收到的<b>结构化记录</b> —— 上报链路真正拿到的就是它。
         </p>
       </div>
       <code class="usage">import { createLogger } from 'common-tools/logger';</code>
@@ -19,12 +20,22 @@
 
     <main>
       <aside id="toolbar"></aside>
+
       <section class="panel">
         <div class="panel-head">
           <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-          <span class="panel-title">Console</span>
+          <span class="panel-title">Console · sink</span>
         </div>
         <div id="console-output"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="panel-title">Structured records · onRecord</span>
+        </div>
+        <p id="record-counter" class="panel-note">尚未收到记录</p>
+        <div id="record-output"></div>
       </section>
     </main>
 
