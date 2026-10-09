@@ -101,11 +101,11 @@ server/  ──生成──▶  docs/api/openapi.json  ──生成──▶  we
 | 前端工程 | pnpm workspace + Turborepo |
 | 样式 | Less（设计令牌注入） |
 | 代码规范 | ESLint 10 + Prettier 3 + Stylelint 17 + commitlint + Husky + Vitest |
-| 后端 | Java 21 + Spring Boot 3.3.5 |
-| 后端构建 | Maven 多模块（聚合根 `server/pom.xml`） |
-| 数据访问 | MyBatis-Plus 3.5.9（H2 内存库开发，`MODE=MySQL`） |
-| 后端接口文档 | springdoc-openapi 2.6.0（`/swagger-ui.html`） |
-| 接口契约 | OpenAPI 3（`docs/api/`，由代码生成） |
+| 后端 | Java 21 + Spring Boot 4.1（Spring Framework 7 · Tomcat 11 · Jackson 3） |
+| 后端构建 | Maven 多模块（聚合根 `server/pom.xml`，enforcer 强制 JDK 21+） |
+| 数据访问 | MyBatis-Plus 3.5.17（H2 内存库开发，`MODE=MySQL`） |
+| 后端接口文档 | springdoc-openapi 3.1.1（`/swagger-ui.html`） |
+| 接口契约 | OpenAPI 3.1（`docs/api/`，由代码生成） |
 
 > TypeScript 锁定在 **6.0.3**：`typescript-eslint` 的 peer 约束为 `<6.1.0`，7.x 尚不被支持。
 

@@ -10,8 +10,8 @@
 |------|------|------|
 | Node.js | >= 20 | 前端工作区 |
 | pnpm | 10.x（`packageManager` 已锁定 10.33.0） | 前端包管理 |
-| JDK | **21** | 后端工作区（`sts-parent` 声明 `maven.compiler.release=21`） |
-| Maven | 3.8+ | 后端构建（已在 3.8.1 验证） |
+| JDK | **21+** | 后端工作区（enforcer 在构建期强制，低于 21 直接失败） |
+| Maven | 3.6.3+ | 后端构建（enforcer 同样检查；已在 3.8.1 验证） |
 | Git | 2.40+ | 版本控制 |
 
 ---
@@ -163,8 +163,10 @@ mvn clean install -DskipTests                # 构建全部模块
 java -jar sts-app/sts-app-server/target/sts-app-server-0.0.1-SNAPSHOT.jar   # 启动（默认 8080）
 ```
 
-> **Maven 实际使用的 JDK 必须是 21**，用 `mvn -v` 可查看当前指向。
-> 机器上装了多个 JDK 时，`JAVA_HOME` 很可能指向旧版本（此时会报 `release version 21 not supported`），需显式指定：
+> **Maven 实际使用的 JDK 必须是 21+**，低于 21 时构建会在 enforcer 阶段直接失败并给出中文提示
+> （不再依赖编译器那句含混的 `release version 21 not supported`）。用 `mvn -v` 可查看当前指向。
+> 注意：enforcer 只保护 `mvn` 构建；直接运行 `java -jar` 或 `scripts/export-openapi.sh` 时
+> 版本检查由脚本自查，`JAVA_HOME` 指向旧版本仍会失败：
 >
 > ```bash
 > JAVA_HOME=/path/to/jdk-21 mvn clean install

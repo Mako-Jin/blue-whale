@@ -2,6 +2,7 @@ import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 
 import { createApiClient } from '../src/client';
 import type { ClientLogItem, ClientLogPage, ClientLogQuery, ClientLogVO, LogApi } from '../src/log';
+import type { JsonArray, JsonObject } from '../src/types';
 
 function fakeResponse(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
   const map = new Map(Object.entries(headers).map(([k, v]) => [k.toLowerCase(), v]));
@@ -116,6 +117,23 @@ describe('common-api · 契约即类型', () => {
   it('分页结果带上服务端算好的总页数', () => {
     expectTypeOf<ClientLogPage>().toHaveProperty('pages');
     expectTypeOf<ClientLogPage>().toHaveProperty('total');
+  });
+
+  it('分页记录的元素与单条日志是同一种类型', () => {
+    // 契约生成的 `PageResult<ClientLogVO>` 里的元素，与外面对外导出的 ClientLogVO
+    // 曾不是同一个类型（前者未经"任意值字段"收紧）。这个裂缝在 OpenAPI 3.0 时代
+    // 被 `Record<string, never>` 的可赋值性掩盖，规范升到 3.1 后立刻变成编译错误 ——
+    // 从分页结果里取出的记录再也传不进任何期望 ClientLogVO 的地方。
+    // 钉住它：分页里取出的记录必须能直接当 ClientLogVO 用。
+    expectTypeOf<ClientLogPage['records']>().toEqualTypeOf<ClientLogVO[]>();
+  });
+
+  it('任意值字段被收紧为 JSON 值，而不是放任 unknown', () => {
+    // 生成器（OpenAPI 3.1）给的是 `unknown`，过宽：函数、Symbol 都能通过编译，
+    // 而它们正是 JSON.stringify 会抛错的东西 —— 一条脏数据就能让整批上报失败。
+    // 这里钉住"收紧"这一事实，防止有人图省事把 JsonValue 换成 unknown。
+    expectTypeOf<ClientLogVO['data']>().toEqualTypeOf<JsonArray | undefined>();
+    expectTypeOf<ClientLogItem['context']>().toEqualTypeOf<JsonObject | undefined>();
   });
 
   it('上报条目的形状与前端 LogRecord 对齐', () => {

@@ -20,7 +20,7 @@
 4. **不混用两端构建体系**：前端只用 pnpm，后端只用 Maven。
 5. **不手写前端 SDK**——它由 `docs/api` 的 OpenAPI 契约生成。改后端接口后必须跑 `scripts/export-openapi.sh` + `pnpm --filter common-api gen:api`，并与代码同一次提交（流程见 `CONTRIBUTING.md` 第七节）。
 6. **前端调接口一律走 `common-api`**，禁止直接 `fetch`；错误按 `HttpError.kind` 分支处理，禁止匹配错误文案。
-7. **后端只用 JDK 21** —— 本机 `JAVA_HOME` 可能指向 JDK 17，构建前用 `mvn -v` 确认，必要时显式 `JAVA_HOME=/path/to/jdk-21`。
+7. **后端只用 JDK 21+** —— enforcer 已在构建期强制（低于 21 会直接失败并给出提示），但**运行 `java -jar` / 脚本时没有这道门**：本机 `JAVA_HOME` 可能指向 JDK 17，启动或跑 `scripts/export-openapi.sh` 前用 `mvn -v` / `java -version` 确认。
 8. **重大技术决策要写 ADR**，模板见 `docs/decisions/TEMPLATE.md`。
 
 ## 已知的环境坑（排查前先看这里）
@@ -30,6 +30,9 @@
 | `java -jar` 启动报「Port 56491 already in use」 | 执行环境注入了 `SERVER__PORT` 环境变量 | 命令行显式覆盖：`--server.port=8080`（命令行参数优先级最高） |
 | `curl localhost` 报 `upstream connect failed` | 请求走了环境的 HTTP 代理 | 加 `--noproxy '*'` |
 | 本机后端启动失败 / 端口异常 | 同上两类问题 | 先区分是代码问题还是环境问题，**不要**对着端口反复排查 |
+| `mvn clean` 报「另一个程序正在使用此文件」 | 正在运行的后端进程持有 target 下的 jar | 先结束 java 进程再构建；Windows 下运行中的 jar 无法删除 |
+| Boot 4 应用启动失败，`NoClassDefFoundError: ...WebMvcProperties` | springdoc 用了 2.x（只支持 Boot 3） | springdoc 必须用 3.x；版本对应表见 `docs/decisions/0008` |
+| 依赖树里同时出现 `tools.jackson` 与 `com.fasterxml.jackson.databind` | Boot 4 的常态：Jackson 3 是默认，Jackson 2 由 springdoc / MyBatis 传递引入 | 代码 import 一律用 `tools.jackson.*`；注解（`@JsonIgnore`）继续用 `com.fasterxml.jackson.annotation`（包名没变） |
 
 ## 目录边界（勿越界）
 

@@ -27,10 +27,13 @@
           本模块本身不提供 Web 能力，引入它的模块必然是要做数据访问的，
           不存在"被无关方拖进 Web 依赖"那类污染。
           但这也意味着：**只有真正需要数据库的服务模块才应依赖它**。
+
+          starter 的坐标跟着 Spring Boot 大版本走（Boot 4 → boot4-starter）——
+          见 sts-parent 的 dependencyManagement。
         -->
         <dependency>
             <groupId>com.baomidou</groupId>
-            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+            <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
         </dependency>
 
         <!-- 分页 / 防全表更新删除等拦截器所在坐标，3.5.9 起不再由 starter 传递 -->

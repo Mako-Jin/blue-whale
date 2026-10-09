@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.3.5</version>
+        <version>4.1.1</version>
         <relativePath/>
     </parent>
 
@@ -27,14 +27,23 @@
       第三方版本尽量交给 spring-boot-starter-parent 管理，这里只声明它没管的。
     -->
     <properties>
+        <!--
+          编译目标固定 JDK 21。
+          Spring Boot 4 的基线是 Java 17，但本项目选择 21（当前 LTS）：
+          虚拟线程、记录模式、模式匹配 switch 都可用，且 4.x 对 21 的虚拟线程
+          有专门的自动配置（Tomcat 线程池默认切到虚拟线程）。
+        -->
         <java.version>21</java.version>
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
+        <!-- 构建期环境门禁插件版本 -->
+        <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
+
         <!-- 第三方版本：spring-boot-starter-parent 没管的，在这里集中声明 -->
-        <mybatis-plus.version>3.5.9</mybatis-plus.version>
-        <springdoc.version>2.6.0</springdoc.version>
+        <mybatis-plus.version>3.5.17</mybatis-plus.version>
+        <springdoc.version>3.1.1</springdoc.version>
     </properties>
 
     <dependencyManagement>
@@ -62,9 +71,17 @@
             </dependency>
 
             <!-- ===== 第三方：只声明版本，不在此处引入依赖 ===== -->
+            <!--
+              MyBatis-Plus 按 Spring Boot 大版本提供各自的 starter：
+                mybatis-plus-spring-boot-starter    → Boot 2
+                mybatis-plus-spring-boot3-starter   → Boot 3
+                mybatis-plus-spring-boot4-starter   → Boot 4   ← 本项目用这个
+              用错 starter 的典型症状是启动时自动配置静默失效（Mapper 扫不到、
+              SqlSessionFactory 不存在），而不是编译错误 —— 所以坐标必须跟着 Boot 大版本走。
+            -->
             <dependency>
                 <groupId>com.baomidou</groupId>
-                <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+                <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
                 <version>${mybatis-plus.version}</version>
             </dependency>
             <!--
@@ -83,6 +100,11 @@
               - common：只提供 @Tag/@Operation/@Schema 等注解，供各服务模块编译期使用；
               - webmvc-ui：提供 /v3/api-docs 端点与 Swagger UI，只由可启动应用引入。
               这样领域服务不必背上一个 UI 依赖，而接口文档的暴露开关留在应用层（可按环境关闭）。
+
+              **版本必须跟着 Boot 大版本走**：springdoc 3.x 才支持 Boot 4。
+              用 2.x 配 Boot 4 会在启动时直接失败 —— Boot 4 把 WebMvcProperties 移到了新包，
+              springdoc 2.x 的 SwaggerConfig 引用旧包，报 NoClassDefFoundError:
+              org/springframework/boot/autoconfigure/web/servlet/WebMvcProperties。
             -->
             <dependency>
                 <groupId>org.springdoc</groupId>
@@ -157,6 +179,52 @@
                 </plugin>
             </plugins>
         </pluginManagement>
+
+        <!--
+          环境门禁：把"必须用 JDK 21 构建"变成构建期强制，而不是只写在文档里。
+
+          开发机常同时装多个 JDK，JAVA_HOME 指向旧版本时，若不拦截，报错会是编译器的
+          "release version 21 not supported" —— 信息含混，且不同 Maven 版本表现不一致；
+          更糟的情况是构建明明成功、跑起来却因字节码版本不符而失败。
+          这一条在任何模块上都会先跑，直接说清"当前是几、需要几、怎么改"。
+
+          规则继承给所有子模块（未设 inherited=false）：单独构建某个模块
+          （mvn -pl :sts-app-server）时同样受保护，而不只是在全量构建时才生效。
+        -->
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>${maven-enforcer-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>enforce-build-environment</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireJavaVersion>
+                                    <version>[21,)</version>
+                                    <!--
+                                      消息里不要写 ${java.version}：它会被 Maven 的属性插值先吃掉，
+                                      取到的是本 POM 里定义的那行 <java.version>21</java.version>，
+                                      而不是运行 Maven 的 JVM 版本 —— 于是失败提示会自相矛盾地
+                                      显示"要求 21，当前 21"。真正检测到的版本由规则自己判断，
+                                      这里只给可执行的动作。
+                                    -->
+                                    <message>后端要求 JDK 21 及以上。请把 JAVA_HOME 指向 JDK 21 后重试（用 mvn -v 可确认当前指向的是哪个 JDK），例如：JAVA_HOME=/path/to/jdk-21 mvn clean install</message>
+                                </requireJavaVersion>
+                                <requireMavenVersion>
+                                    <version>[3.6.3,)</version>
+                                    <message>后端要求 Maven 3.6.3 及以上（Spring Boot 4 的最低要求）。</message>
+                                </requireMavenVersion>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
 
 </project>

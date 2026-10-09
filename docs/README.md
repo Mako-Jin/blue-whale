@@ -33,6 +33,7 @@
 | 修改契约的生成或消费流程（导出脚本、生成器、类型修正） | `api/README.md` · `decisions/0006-接口契约的生成与消费.md` |
 | 调整配置分层或新增配置层 | `decisions/0003-配置分域与自研边界.md` |
 | 新增 / 删除第三方依赖 | `web/pnpm-workspace.yaml` 的 `catalog:` · `CONTRIBUTING.md` 依赖治理 |
+| 升级后端框架大版本（Spring Boot / JDK 基线） | `decisions/0008-Spring-Boot-4升级与JDK21门禁.md` · `server/README.md` 版本一览 |
 | 新增 / 删除后端模块 | `server/README.md` 模块表 · 根 `README.md` 结构图 |
 | 调整后端分层或依赖方向 | `decisions/0005-后端模块划分与依赖约束.md` · `architecture/后端分层与依赖方向.md` · `server/README.md` |
 | 修改统一响应结构或错误码 | `server/README.md` 错误码表 · `docs/api/openapi.json` |
@@ -70,6 +71,7 @@ docs/decisions/NNNN-简短标题.md
 | `decisions/0005-后端模块划分与依赖约束.md` | 五层依赖方向、groupId 分级、分包方式、统一响应契约 |
 | `decisions/0006-接口契约的生成与消费.md` | 契约由代码生成、生成物入库、任意值字段的类型修正 |
 | `decisions/0007-前端请求分层与错误模型.md` | 传输内核与契约装配的分工、六类错误、重试幂等边界 |
+| `decisions/0008-Spring-Boot-4升级与JDK21门禁.md` | Boot 4.1 升级的破坏性变更清单、starter 坐标对应关系、JDK 21 构建门禁 |
 | `architecture/后端分层与依赖方向.md` | 后端分层落地细则、依赖矩阵、前后端结构对照 |
 | `api/README.md` | 契约接口清单、更新流程、任意值字段的处理 |
 | `../web/packages/common-tools/README.md` | 公共能力包（logger / env / http）使用说明与修复清单 |

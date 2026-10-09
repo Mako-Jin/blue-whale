@@ -151,14 +151,14 @@ git config core.hooksPath web/.husky
 
 各项目均通过全部校验（逐包直跑）。
 
-| 校验项                  | platform-portal | common-tools             | common-api  | platform-log-console             |
-| ----------------------- | --------------- | ------------------------ | ----------- | -------------------------------- |
-| `tsc --noEmit` 类型检查 | 通过            | 通过                     | 通过        | 通过                             |
-| `eslint .`              | 通过            | 通过                     | 通过        | 通过                             |
-| `stylelint`             | 通过            | 通过（playground）       | —           | 通过（含 `App.less`）            |
-| `vitest run` 单元测试   | 通过（1/1）     | 通过（101/101）          | 通过（9/9） | 通过（25/25，含浏览器渲染测试）  |
-| `vite build` 生产构建   | 通过            | 通过（14.76 kB）         | —           | 通过（CSS 11.92 kB · JS 257 kB） |
-| dev server 启动         | 通过（:3000）   | playground 通过（:3100） | —           | 通过（:3200）                    |
+| 校验项                  | platform-portal | common-tools             | common-api    | platform-log-console             |
+| ----------------------- | --------------- | ------------------------ | ------------- | -------------------------------- |
+| `tsc --noEmit` 类型检查 | 通过            | 通过                     | 通过          | 通过                             |
+| `eslint .`              | 通过            | 通过                     | 通过          | 通过                             |
+| `stylelint`             | 通过            | 通过（playground）       | —             | 通过（含 `App.less`）            |
+| `vitest run` 单元测试   | 通过（1/1）     | 通过（101/101）          | 通过（11/11） | 通过（25/25，含浏览器渲染测试）  |
+| `vite build` 生产构建   | 通过            | 通过（14.76 kB）         | —             | 通过（CSS 11.92 kB · JS 257 kB） |
+| dev server 启动         | 通过（:3000）   | playground 通过（:3100） | —             | 通过（:3200）                    |
 
 > **关于 `turbo run`**：本次验证时 turbo 报 `os error 231`（管道句柄耗尽，`unable to spawn child process`）。这是当前运行环境的进程创建限制，**不是工程配置问题**——上表中的每个任务脚本逐个直跑全部通过，同一配置在此前也能通过 turbo 编排。本地正常终端下 `pnpm dev` / `pnpm build` 等不受影响。
 

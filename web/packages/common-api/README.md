@@ -116,27 +116,34 @@ platform/*               应用 —— 只调用 api.log.xxx / api.system.xxx
 
 ## 五、契约里"任意值"的处理
 
-日志的 `data` / `context` 在后端声明为 `Object`，springdoc 只能推到 `{"type": "object"}`，而 `openapi-typescript` 会把它渲染成 `Record<string, never>` —— 语义变成"一个不允许有任何字段的对象"，于是 `{ orderId: 'SO-2026-0001' }` 这种最普通的日志数据在编译期就被拒了。
+日志的 `data` / `context` 在后端声明为 `Object`，OpenAPI 的单层 schema 表达不了"任意 JSON"，生成器只能给出保守形态——而且两代生成链的形态**都不理想**：
 
-这不是调用方姿势不对，而是生成器对"任意值"的表达能力缺口。因此在 `src/types.ts` 里补一次：
+| 生成链                                 | 渲染结果                | 问题                                                                                                    |
+| -------------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------- |
+| springdoc 2.x（OpenAPI 3.0）           | `Record<string, never>` | "不允许有任何字段的对象"，`{ orderId: '…' }` 编译期就被拒                                               |
+| springdoc 3.x（OpenAPI 3.1，**当前**） | `unknown`               | 过宽：函数、Symbol 也能通过编译，而它们正是 `JSON.stringify` 会抛错的东西——一条脏数据就能让整批上报失败 |
+
+因此在 `src/types.ts` 里做一次**收紧**（既容纳任意 JSON 结构，又挡住不可序列化的值）：
 
 ```ts
 export type JsonValue =
   string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 export type JsonArray = JsonValue[];
 export type JsonObject = { [key: string]: JsonValue };
-```
 
-`log.ts` 用它只替换那两个字段：
-
-```ts
-type WithJsonPayload<T> = Omit<T, 'data' | 'context'> & {
+export type WithJsonPayload<T> = Omit<T, 'data' | 'context'> & {
   data?: JsonArray;
   context?: JsonObject;
 };
 ```
 
-`Omit` 之后其余字段仍完全来自契约 —— **这是全链路唯一需要人工介入类型的位置**。
+`WithJsonPayload`（在 `types.ts`，供各域复用）`Omit` 之后其余字段仍完全来自契约——**这是全链路唯一需要人工介入类型的位置**。
+
+> **一个曾经被掩盖的裂缝**：契约生成的 `PageResult<ClientLogVO>` 里 `records` 的元素，
+> 与导出的 `ClientLogVO` 不是同一个类型（前者未经收紧）。OpenAPI 3.0 时代
+> `Record<string, never>` 恰好可赋值给 `JsonValue`，错误被掩盖；升到 3.1 后 `unknown`
+> 不再兼容，立刻变成编译错误。分页结果已用 `WithJsonRecords` 同样收紧，
+> 且 `tests/log.test.ts` 有断言钉住——从分页里取出的记录必须能直接当 `ClientLogVO` 用。
 
 ---
 

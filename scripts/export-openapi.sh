@@ -32,11 +32,43 @@ if [ ! -f "$JAR" ]; then
   exit 1
 fi
 
+# ---------------------------------------------------------------------------
+# JDK 版本门禁
+#
+# 与构建侧保持一致（见 server/sts-parent 的 enforcer 规则）：JDK 21 是硬要求。
+# 开发机常同时装多个 JDK，PATH 上的 java 未必是 21。若直接用旧版本跑这个 jar，
+# 报错是 UnsupportedClassVersionError —— 它指向"jar 打不开"，
+# 而真正的原因在"JDK 太旧"，两者之间的关联不看错误码第 3 行是发现不了的。
+# 在这里先查一次，把话说明白。
+# ---------------------------------------------------------------------------
+JAVA_BIN="${JAVA_HOME:+$JAVA_HOME/bin/java}"
+if [ ! -x "$JAVA_BIN" ]; then
+  JAVA_BIN="$(command -v java || true)"
+fi
+if [ -z "$JAVA_BIN" ]; then
+  echo "错误：未找到 java。请安装 JDK 21 并设置 JAVA_HOME。" >&2
+  exit 1
+fi
+
+# 用 java.specification.version 而不是解析 `java -version` 的文本：
+# 后者在 8 与 9+ 之间格式改过一次，且不同厂商的输出措辞不一。
+JAVA_SPEC="$("$JAVA_BIN" -XshowSettings:properties -version 2>&1 \
+  | sed -n 's/^ *java\.specification\.version = //p' | head -1)"
+
+case "$JAVA_SPEC" in
+  2[1-9]|[3-9][0-9]) ;;
+  *)
+    echo "错误：导出契约需要 JDK 21 及以上，当前 java 是 ${JAVA_SPEC:-未知}（$JAVA_BIN）。" >&2
+    echo "提示：JAVA_HOME=/path/to/jdk-21 bash scripts/export-openapi.sh" >&2
+    exit 1
+    ;;
+esac
+
 mkdir -p "$(dirname "$OUT")"
 
-echo "启动应用（端口 $PORT）以导出契约 ..."
+echo "启动应用（端口 $PORT，JDK $JAVA_SPEC）以导出契约 ..."
 # shellcheck disable=SC2086
-java -jar "$JAR" --server.port="$PORT" --springdoc.api-docs.enabled=true > "$LOG" 2>&1 &
+"$JAVA_BIN" -jar "$JAR" --server.port="$PORT" --springdoc.api-docs.enabled=true > "$LOG" 2>&1 &
 APP_PID=$!
 trap 'kill "$APP_PID" 2>/dev/null || true' EXIT
 

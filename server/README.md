@@ -1,6 +1,6 @@
 # server — 后端工作区
 
-Maven 多模块 · Java 21 · Spring Boot 3.3。包名统一 `com.bluewhale.sts`。
+Maven 多模块 · Java 21 · Spring Boot 4.1。包名统一 `com.bluewhale.sts`。升级决策与破坏性变更清单见 `docs/decisions/0008`。
 
 后端**按业务域切分，不按前端的两端切分** —— 管理端与用户端操作的是同一批业务对象、同一套状态机，按端切成两套等于把领域逻辑复制两份，改一条规则要改两处，两边还会逐渐跑偏。两端差异由接口面隔离。详见 `docs/decisions/0001`。
 
@@ -49,7 +49,9 @@ server/
 
 `sts-common-basic` 刻意保持**零依赖**：它处在依赖链最底层，任何引入都会扩散到全仓。
 
-> **MyBatis-Plus 3.5.9 的坑**：依赖 JSqlParser 的拦截器（分页、防全表更新）被拆到独立坐标 `mybatis-plus-jsqlparser`。只引 `mybatis-plus-spring-boot3-starter` 会在**运行时**才报 `ClassNotFoundException: PaginationInnerInterceptor`，编译期看不出来。
+> **MyBatis-Plus 的两个坑**：
+> ① starter 坐标跟着 Spring Boot 大版本走（Boot 4 → `mybatis-plus-spring-boot4-starter`）。用错 starter 的症状是**自动配置静默失效**（Mapper 扫不到、`SqlSessionFactory` 不存在），不报编译错误，最难排查。
+> ② 依赖 JSqlParser 的拦截器（分页、防全表更新）在独立坐标 `mybatis-plus-jsqlparser`，漏引会在**运行时**才报 `ClassNotFoundException: PaginationInnerInterceptor`，编译期看不出来。
 
 ---
 
@@ -176,14 +178,24 @@ curl http://localhost:8080/api/health
 
 | 工具 | 版本 | 说明 |
 |------|------|------|
-| JDK | **21** | `sts-parent` 声明 `maven.compiler.release=21` |
-| Maven | 3.8+ | 已在 3.8.1 上验证 |
+| JDK | **21+** | 由 `maven-enforcer-plugin` 在构建期强制（`requireJavaVersion [21,)`），任何模块上都会先跑 |
+| Maven | 3.6.3+ | Boot 4 的最低要求，同样由 enforcer 检查（本机已在 3.8.1 验证） |
 
-> **若构建报版本错误**，先确认 Maven 实际使用的是 JDK 21 —— `mvn -v` 会打印 `Java version`。
-> 机器上同时存在多个 JDK 时，`JAVA_HOME` 可能指向旧版本（例如本机默认指向 JDK 17），需显式指定：
+> **版本不符时**：构建会在 enforcer 阶段直接失败，并提示 `JAVA_HOME` 的设置方法——
+> 这是有意的：与其让编译器报一句含混的 `release version 21 not supported`
+> （不同 Maven 版本表现还不一致），不如一开始就说清"当前是几、需要几、怎么改"。
 >
 > ```bash
 > JAVA_HOME=/path/to/jdk-21 mvn clean install
 > ```
 >
-> 症状：编译期报 release 21 不受支持，或运行 `java -jar` 时抛 `UnsupportedClassVersionError`。
+> 脚本同样受保护：`scripts/export-openapi.sh` 会先检查 java 版本，低于 21 直接拒绝。
+
+### 版本一览（由 `sts-parent` 统一收口）
+
+| 组件 | 版本 | 备注 |
+|------|------|------|
+| Spring Boot | 4.1.1 | Spring Framework 7.0.9 · Tomcat 11 · Jakarta EE 11 · JUnit 6 |
+| springdoc-openapi | 3.1.1 | 3.x 才支持 Boot 4；契约规范为 **OpenAPI 3.1** |
+| MyBatis-Plus | 3.5.17 | 坐标 `mybatis-plus-spring-boot4-starter` |
+| Jackson | 3.x（`tools.jackson.*`） | 注解仍是 `com.fasterxml.jackson.annotation`，包名没变 |

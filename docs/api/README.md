@@ -1,6 +1,6 @@
 # docs/api — 前后端契约
 
-本目录存放**跨端唯一真相源**：OpenAPI 3 契约文件。
+本目录存放**跨端唯一真相源**：OpenAPI 3.1 契约文件。
 
 ```
 docs/api/openapi.json
@@ -85,9 +85,18 @@ OPENAPI_PORT=18081 bash scripts/export-openapi.sh
 
 ## 四、契约里"任意值"字段的处理
 
-日志的 `data` / `context` 在后端声明为 `Object`，springdoc 只能推到 `{"type": "object"}`，而 `openapi-typescript` 会把它渲染成 `Record<string, never>` —— 语义变成"一个不允许有任何字段的对象"，导致 `{ orderId: 'SO-2026-0001' }` 在编译期就被拒。
+日志的 `data` / `context` 在后端声明为 `Object`，OpenAPI 的单层 schema 表达不了"任意 JSON"，生成器只能给出保守形态——而且两代生成链给出的形态**都不理想**：
 
-这一缺口在 `web/packages/common-api/src/types.ts` 用 `JsonValue` **一次性修正**，且只替换那两个字段，其余字段继续完全由契约生成。详见 ADR-0006 第 4 条。
+| 生成链 | 对"任意值"的渲染 | 问题 |
+|--------|------------------|------|
+| springdoc 2.x（OpenAPI 3.0） | `Record<string, never>` | 语义是"不允许有任何字段的对象"，`{ orderId: '…' }` 编译期就被拒 |
+| springdoc 3.x（OpenAPI 3.1，**当前**） | `unknown` | 过宽：函数、Symbol 也能通过编译，而它们会让 `JSON.stringify` 抛错，一条脏数据就能让整批上报失败 |
+
+因此这一缺口在 `web/packages/common-api/src/types.ts` 用 `JsonValue` **收紧**（既容纳任意 JSON 结构，又挡住不可序列化的值），且只替换 `data` / `context` 两个字段，其余字段继续完全由契约生成。详见 ADR-0006 第 4 条与 ADR-0008 第 5 条。
+
+> 升到 OpenAPI 3.1 还有一个连带修复：分页结果 `records` 的元素与导出的 `ClientLogVO`
+> 曾不是同一个类型（前者未经收紧）。这个裂缝在 3.0 时代被 `Record<string, never>` 的
+> 可赋值性掩盖，3.1 后立刻变成编译错误——已用 `WithJsonRecords` 修复，并有类型断言钉住。
 
 ---
 

@@ -34,4 +34,4 @@ export { createSystemApi } from './system';
 export type { Health, HealthDependencyStatus, SystemApi } from './system';
 
 export type { ApiPaths, ApiSchemas, BodyOf, DataOf, EnvelopeOf, PathOf, QueryOf } from './types';
-export type { JsonArray, JsonObject, JsonValue } from './types';
+export type { JsonArray, JsonObject, JsonValue, WithJsonPayload } from './types';

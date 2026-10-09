@@ -26,10 +26,14 @@
           provided：Spring Web 由**最终可部署的服务**提供，本模块只编译期引用。
           若写成 compile，任何依赖本模块的库都会被强行拖入一份 Web 依赖，
           对纯后台任务模块是多余的 —— 这类污染会随依赖层级逐级放大。
+
+          坐标是 spring-boot-starter-webmvc 而不是 spring-boot-starter-web：
+          Boot 4 把 Web starter 改名为 ...-webmvc，旧名已标记 deprecated（仍能用，但会打警告）。
+          新名字也更准确 —— 它对应的是 Spring MVC，与 WebFlux 明确区分开。
         -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
             <scope>provided</scope>
         </dependency>
 

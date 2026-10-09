@@ -1,5 +1,5 @@
 {
-  "openapi": "3.0.1",
+  "openapi": "3.1.0",
   "info": {
     "title": "BlueWhale 服务端 API",
     "description": "统一响应约定：**业务结果只由 `code` 表达，业务失败同样返回 HTTP 200**，\n调用方统一判断 `code === 0`。传输层失败（401/403/404/5xx）由框架按标准返回，不套统一包装。\n",
@@ -98,8 +98,8 @@
             "required": false,
             "schema": {
               "type": "integer",
-              "description": "起始时间（毫秒，含）；缺省为 endTime 之前 7 天",
-              "format": "int64"
+              "format": "int64",
+              "description": "起始时间（毫秒，含）；缺省为 endTime 之前 7 天"
             }
           },
           {
@@ -109,8 +109,8 @@
             "required": false,
             "schema": {
               "type": "integer",
-              "description": "结束时间（毫秒，含）；缺省为当前时间",
-              "format": "int64"
+              "format": "int64",
+              "description": "结束时间（毫秒，含）；缺省为当前时间"
             }
           },
           {
@@ -268,8 +268,8 @@
             "required": false,
             "schema": {
               "type": "integer",
-              "description": "起始时间（毫秒，含）；缺省为 endTime 之前 7 天",
-              "format": "int64"
+              "format": "int64",
+              "description": "起始时间（毫秒，含）；缺省为 endTime 之前 7 天"
             }
           },
           {
@@ -279,8 +279,8 @@
             "required": false,
             "schema": {
               "type": "integer",
-              "description": "结束时间（毫秒，含）；缺省为当前时间",
-              "format": "int64"
+              "format": "int64",
+              "description": "结束时间（毫秒，含）；缺省为当前时间"
             }
           }
         ],
@@ -325,6 +325,7 @@
     "schemas": {
       "ClientLogItem": {
         "type": "object",
+        "description": "单条客户端日志",
         "properties": {
           "level": {
             "type": "string",
@@ -338,8 +339,8 @@
           },
           "timestamp": {
             "type": "integer",
-            "description": "客户端时间戳（毫秒），服务端仅作参考不用于排序",
-            "format": "int64"
+            "format": "int64",
+            "description": "客户端时间戳（毫秒），服务端仅作参考不用于排序"
           },
           "message": {
             "type": "string",
@@ -349,17 +350,11 @@
           "data": {
             "type": "array",
             "description": "随消息附带的原始数据",
-            "items": {
-              "type": "object",
-              "description": "随消息附带的原始数据"
-            }
+            "items": {}
           },
           "context": {
             "type": "object",
-            "additionalProperties": {
-              "type": "object",
-              "description": "结构化上下文"
-            },
+            "additionalProperties": {},
             "description": "结构化上下文"
           },
           "traceId": {
@@ -378,63 +373,62 @@
             "type": "string",
             "description": "应用版本 / 构建号"
           }
-        },
-        "description": "单条客户端日志"
+        }
       },
       "ClientLogReportRequest": {
-        "required": [
-          "app",
-          "logs"
-        ],
         "type": "object",
+        "description": "客户端日志批量上报请求",
         "properties": {
           "app": {
-            "maxLength": 64,
-            "minLength": 0,
             "type": "string",
             "description": "上报方应用标识",
-            "example": "platform-log-console"
+            "example": "platform-log-console",
+            "maxLength": 64,
+            "minLength": 0
           },
           "release": {
-            "maxLength": 64,
-            "minLength": 0,
             "type": "string",
             "description": "应用版本 / 构建号",
-            "example": "0.1.0"
+            "example": "0.1.0",
+            "maxLength": 64,
+            "minLength": 0
           },
           "sessionId": {
-            "maxLength": 64,
-            "minLength": 0,
             "type": "string",
-            "description": "会话标识，批次级默认值"
+            "description": "会话标识，批次级默认值",
+            "maxLength": 64,
+            "minLength": 0
           },
           "logs": {
-            "maxItems": 500,
-            "minItems": 0,
             "type": "array",
             "description": "日志条目，单批最多 500 条",
             "items": {
               "$ref": "#/components/schemas/ClientLogItem"
-            }
+            },
+            "maxItems": 500,
+            "minItems": 0
           }
         },
-        "description": "客户端日志批量上报请求"
+        "required": [
+          "app",
+          "logs"
+        ]
       },
       "ClientLogReportResultVO": {
         "type": "object",
+        "description": "批量上报结果",
         "properties": {
           "accepted": {
             "type": "integer",
-            "description": "成功落库的条数",
-            "format": "int32"
+            "format": "int32",
+            "description": "成功落库的条数"
           },
           "rejected": {
             "type": "integer",
-            "description": "被拒绝的条数（级别非法、消息为空等）",
-            "format": "int32"
+            "format": "int32",
+            "description": "被拒绝的条数（级别非法、消息为空等）"
           }
-        },
-        "description": "批量上报结果"
+        }
       },
       "RClientLogReportResultVO": {
         "type": "object",
@@ -457,11 +451,12 @@
       },
       "ClientLogVO": {
         "type": "object",
+        "description": "客户端日志",
         "properties": {
           "id": {
             "type": "integer",
-            "description": "日志主键",
-            "format": "int64"
+            "format": "int64",
+            "description": "日志主键"
           },
           "app": {
             "type": "string",
@@ -482,17 +477,11 @@
           "data": {
             "type": "array",
             "description": "随消息附带的原始数据",
-            "items": {
-              "type": "object",
-              "description": "随消息附带的原始数据"
-            }
+            "items": {}
           },
           "context": {
             "type": "object",
-            "additionalProperties": {
-              "type": "object",
-              "description": "结构化上下文"
-            },
+            "additionalProperties": {},
             "description": "结构化上下文"
           },
           "traceId": {
@@ -513,20 +502,19 @@
           },
           "timestamp": {
             "type": "integer",
-            "description": "客户端时间戳（毫秒），不可信，仅供展示",
-            "format": "int64"
+            "format": "int64",
+            "description": "客户端时间戳（毫秒），不可信，仅供展示"
           },
           "serverTime": {
             "type": "integer",
-            "description": "服务端接收时间戳（毫秒）",
-            "format": "int64"
+            "format": "int64",
+            "description": "服务端接收时间戳（毫秒）"
           },
           "ip": {
             "type": "string",
             "description": "上报方 IP"
           }
-        },
-        "description": "客户端日志"
+        }
       },
       "PageResultClientLogVO": {
         "type": "object",
@@ -625,26 +613,26 @@
             "type": "integer",
             "format": "int64"
           }
-        },
-        "description": "按级别分布，**包含条数为 0 的级别**，便于直接绘图"
+        }
       },
       "ClientLogStatsVO": {
         "type": "object",
+        "description": "客户端日志聚合结果",
         "properties": {
           "total": {
             "type": "integer",
-            "description": "时间窗内总条数",
-            "format": "int64"
+            "format": "int64",
+            "description": "时间窗内总条数"
           },
           "startTime": {
             "type": "integer",
-            "description": "实际生效的起始时间（毫秒）",
-            "format": "int64"
+            "format": "int64",
+            "description": "实际生效的起始时间（毫秒）"
           },
           "endTime": {
             "type": "integer",
-            "description": "实际生效的结束时间（毫秒）",
-            "format": "int64"
+            "format": "int64",
+            "description": "实际生效的结束时间（毫秒）"
           },
           "levels": {
             "type": "array",
@@ -653,8 +641,7 @@
               "$ref": "#/components/schemas/ClientLogLevelCount"
             }
           }
-        },
-        "description": "客户端日志聚合结果"
+        }
       },
       "RClientLogStatsVO": {
         "type": "object",
@@ -677,6 +664,7 @@
       },
       "HealthVO": {
         "type": "object",
+        "description": "服务健康状态",
         "properties": {
           "application": {
             "type": "string"
@@ -700,8 +688,7 @@
               "type": "string"
             }
           }
-        },
-        "description": "服务健康状态"
+        }
       },
       "RHealthVO": {
         "type": "object",

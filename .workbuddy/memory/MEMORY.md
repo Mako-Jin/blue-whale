@@ -24,8 +24,14 @@
 - 前端：React 19 + Vite 8 + TS **6.0.3**（7.x 不被 typescript-eslint 支持）+ React Router 7
 - 微前端 qiankun 2.x；包管理 pnpm workspace + Turborepo；样式 Less
 - 规范：ESLint 10（flat config）+ Prettier 3 + Stylelint 17 + commitlint/Husky/lint-staged + Vitest 5
-- 后端：Java 21 + Spring Boot 3.3.5 + Spring Cloud 2023.0.3 + MyBatis-Plus 3.5.9（Maven 多模块）
-- 契约：OpenAPI 3（`docs/api/`）
+- 后端：Java 21（enforcer 强制）+ Spring Boot 4.1.1（Spring 7 · Tomcat 11 · Jackson 3）+ MyBatis-Plus 3.5.17（Maven 多模块）
+- 契约：OpenAPI 3.1（`docs/api/`，springdoc 3.1.1 生成）
+
+## Spring Boot 4 升级要点（2026-10-09 定 · ADR-0008）
+- **starter 坐标三处随 Boot 大版本一起动**：`web→webmvc`、`boot3-starter→boot4-starter`、springdoc `2.x→3.x`（2.x 配 Boot 4 启动即失败：WebMvcProperties 换包）；MockMvc 测试需另加 `spring-boot-starter-webmvc-test`，注解换包到 `org.springframework.boot.webmvc.test.autoconfigure`
+- **Jackson 3**：databind/core 迁到 `tools.jackson.*`，**注解仍在** `com.fasterxml.jackson.annotation`（包名与 2.x 共用）；classpath 上 Jackson 2 因 springdoc/MyBatis 传递仍在，import 认准 tools.jackson；`JacksonException` 是 unchecked
+- **enforcer**：`requireJavaVersion [21,)` 继承到所有子模块；message 里**禁写 `${java.version}`**——会被 Maven 属性插值吃掉（取到 POM 里的 21，不是运行 JVM），提示会自相矛盾
+- **契约升 OpenAPI 3.1**：任意值字段从 `Record<string, never>` 变 `unknown`；`common-api` 的 JsonValue 收紧层保留，分页 records 元素类型裂缝已用 `WithJsonRecords` 修复并加断言
 
 ## 前端结构
 - `packages/` 公共包（`common-*`）、`platform/` 应用、`elemental/` 预留
@@ -83,7 +89,7 @@ server/  pom.xml(聚合) → sts-parent
 - groupId **按层分级**（`com.bluewhale.sts.common.basic`…），`<version>` 只在 `sts-parent` 出现
 - `sts-common-basic`：`R<T>` · `ResultCode`（5 位 = HTTP 3 位 + 业务 2 位）· `BusinessException`；**刻意零依赖**，唯一例外是 `jackson-annotations`（provided，仅为 `@JsonIgnore`）
 - `sts-common-web`：`GlobalExceptionHandler` + CORS + 自动配置（`AutoConfiguration.imports`），依赖即生效
-- `sts-common-db`：MyBatis-Plus 3.5.9 拦截器；**分页/防全表更新需另引 `mybatis-plus-jsqlparser`**，漏引运行时才报错
+- `sts-common-db`：MyBatis-Plus 3.5.17 拦截器（坐标 `mybatis-plus-spring-boot4-starter`）；**分页/防全表更新需另引 `mybatis-plus-jsqlparser`**，漏引运行时才报错
 - 模块内按**特性（feature）分包**（`clientlog/` 下 Controller/Service/Mapper/VO），**不用** `controller/service/repository` 顶层分包
 - `sts-components/` **尚未创建**，按需再建，不预置空壳
 

@@ -28,13 +28,13 @@
         </dependency>
 
         <!--
-          spring-boot-starter-web 在此**显式声明**，虽然 sts-server-log 已经带来了一份：
+          spring-boot-starter-webmvc 在此**显式声明**，虽然 sts-server-log 已经带来了一份：
           可部署进程的需求不靠传递依赖表达。哪天 sts-server-log 换了实现（比如改用 WebFlux），
           传递来的依赖就没了，而本模块的启动会以一种"莫名其妙"的方式失败。
         -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
         </dependency>
 
         <!--
@@ -56,6 +56,20 @@
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <scope>runtime</scope>
+        </dependency>
+
+        <!--
+          MockMvc 测试支持。Boot 4 把测试设施也按技术栈拆开了：
+          @AutoConfigureMockMvc / @WebMvcTest 从 spring-boot-test-autoconfigure
+          挪到了独立的 spring-boot-webmvc-test 模块（注解也随之换包）。
+          只引 spring-boot-starter-test 会在编译测试代码时报"找不到符号"。
+
+          test 范围：只在测试里生效，不进产物。
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc-test</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
