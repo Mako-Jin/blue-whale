@@ -85,7 +85,42 @@ git add --renormalize .
 
 ---
 
-## 六、常用命令
+## 六、依赖治理
+
+### 公共依赖的版本
+
+第三方依赖的版本**只写一处**——`web/pnpm-workspace.yaml` 的 `catalog:` 段。`package.json` 里出现具体版本号即视为违规：
+
+```json
+{ "devDependencies": { "typescript": "catalog:" } }
+```
+
+新增依赖的正确流程：
+
+```bash
+# 1. 在 web/pnpm-workspace.yaml 的 catalog 里加一行
+# 2. 在用到它的 package.json 里写 "catalog:"
+cd web && pnpm install
+```
+
+> 为什么不是"再建一个包放依赖"：那会产生**幽灵依赖**——某个库能被引用到，却没出现在引用方的 `package.json` 里，运行时解析不到、IDE 也提示不出来。catalog 只统一版本号，依赖归属关系仍留在各自的 `package.json`。详见 `docs/decisions/0002-前端公共包与公共依赖治理.md`。
+
+### 公共代码
+
+自研公共代码放 `web/packages/common-<能力>/`。建包前先问一句：**这份代码是不是只有一个应用会用？** 是则不建包。
+
+当前已有的公共包：
+
+| 包 | 内容 |
+|----|------|
+| `common-config` | 共享 ESLint / Stylelint / TypeScript 配置 |
+| `common-tools` | 日志（`logger`）与环境探测（`env`） |
+
+> `common-tools` 与框架无关（不依赖 React），应用、构建脚本、Node 工具链都能直接用。本地演示：`pnpm --filter common-tools playground`。
+
+---
+
+## 七、常用命令
 
 ```bash
 cd web
@@ -102,7 +137,7 @@ pnpm format           # Prettier 格式化
 
 ---
 
-## 七、目录归属速查
+## 八、目录归属速查
 
 | 我想加… | 放哪 |
 |---------|------|

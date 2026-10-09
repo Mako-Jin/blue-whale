@@ -24,7 +24,9 @@
 |----------|----------------|
 | 新增 / 删除前端应用 | 根 `README.md` 结构图 · `web/README.md` 目录结构 |
 | 修改前端规范工具链（ESLint/Prettier/Stylelint…） | `web/README.md` 规范章节 · `packages/common-config/README.md` |
-| 新增 / 删除公共包 | `web/README.md` · 根 `README.md` |
+| 新增 / 删除公共包 | `web/README.md` · 根 `README.md` · 该包的 `README.md` |
+| 新增 / 修改公共包对外 API | 该包的 `README.md` |
+| 新增 / 删除第三方依赖 | `web/pnpm-workspace.yaml` 的 `catalog:` · `CONTRIBUTING.md` 依赖治理 |
 | 新增 / 删除后端模块 | `server/README.md` 模块表 · 根 `README.md` 结构图 |
 | 新增 / 修改后端接口 | `docs/api/openapi.json` → 重新生成前端 SDK |
 | 变更顶层目录或横向层 | 根 `README.md` |
@@ -54,6 +56,8 @@ docs/decisions/NNNN-简短标题.md
 | 文档 | 说明 |
 |------|------|
 | `decisions/0001-架构基线与技术选型.md` | 仓库结构、前后端分离、技术栈基线 |
+| `decisions/0002-前端公共包与公共依赖治理.md` | pnpm catalog、`common-*` 包划分、logger 重写决策 |
+| `../web/packages/common-tools/README.md` | 公共能力包（logger / env）使用说明与修复清单 |
 | `api/` | 待后端契约产出后填充 |
 | `architecture/` | 待系统成形后填充 |
 

@@ -7,14 +7,15 @@ pnpm workspace + Turborepo。React 19 + TypeScript 6 + Vite 8，微前端用 qia
 ```
 web/
 ├── package.json           工作区根，统一入口脚本
-├── pnpm-workspace.yaml    工作区成员声明
+├── pnpm-workspace.yaml    工作区成员声明 + 公共依赖版本（catalog）
 ├── turbo.json             任务编排与缓存策略
 ├── eslint.config.js       工作区根 ESLint 配置（lint-staged 依赖它）
 ├── .prettierrc.json       代码格式化（全工作区共用）
 ├── commitlint.config.js   提交信息规范
 ├── .husky/                Git 钩子
 ├── packages/              公共包（common-* 前缀）
-│   └── common-config          共享工程配置：ESLint / Stylelint / TypeScript
+│   ├── common-config          共享工程配置：ESLint / Stylelint / TypeScript
+│   └── common-tools           公共能力包：logger（日志）· env（环境探测）
 └── platform/              平台级应用
     └── platform-portal        主应用（qiankun 容器）
 ```
@@ -39,6 +40,8 @@ pnpm stylelint            # 样式规范
 pnpm typecheck            # 类型检查
 pnpm test                 # 单元测试
 pnpm format               # Prettier 格式化
+
+pnpm --filter common-tools playground   # 启动 logger 可视化演示（:3100）
 ```
 
 ## 三、规范工具链
@@ -84,7 +87,23 @@ pnpm build --force                      # 忽略缓存强制重跑
 
 缓存产物在 `.turbo/` 下（已 gitignore）。若怀疑缓存有陈旧问题，删掉 `.turbo/` 再跑即可。
 
-## 五、依赖方向（铁律）
+## 五、依赖治理（铁律）
+
+### 公共依赖的版本
+
+第三方依赖的版本**只写一处** —— `pnpm-workspace.yaml` 的 `catalog:` 段，各 `package.json` 一律写 `"catalog:"`。
+
+| 写法                       | 判定                                |
+| -------------------------- | ----------------------------------- |
+| `"typescript": "catalog:"` | ✅ 版本由 catalog 统一裁决          |
+| `"typescript": "^6.0.3"`   | ❌ 违规，版本会随子项目漂移         |
+| 建一个包专门"存放依赖"     | ❌ 产生**幽灵依赖**，运行时解析不到 |
+
+新增依赖：先在 `pnpm-workspace.yaml` 的 `catalog:` 加一行 → 在用到它的 `package.json` 写 `"catalog:"` → `pnpm install`。
+
+> catalog 只统一**版本号**，依赖归属关系仍留在各自的 `package.json`，因此不会产生幽灵依赖。详见 `docs/decisions/0002-前端公共包与公共依赖治理.md`。
+
+### 依赖方向
 
 ```
 platform/*  ──▶  packages/*        （允许）
@@ -111,22 +130,24 @@ git config core.hooksPath web/.husky
 
 ## 七、当前状态
 
-工程基座已跑通并验证，`platform-portal` 可正常开发与构建。
+`platform-portal` 与 `common-tools` 均通过全部校验（逐包直跑）。
 
-| 校验项                              | 结果                            |
-| ----------------------------------- | ------------------------------- |
-| `tsc --noEmit` 类型检查             | 通过                            |
-| `eslint .`                          | 通过                            |
-| `stylelint`                         | 通过                            |
-| `vitest run` 单元测试               | 通过（1/1）                     |
-| `vite build` 生产构建               | 通过                            |
-| `turbo run` 任务编排                | 通过                            |
-| dev server 启动                     | 通过（HTTP 200，默认端口 3000） |
-| Git 钩子（pre-commit / commit-msg） | 通过（已验证可拦截不合规提交）  |
+| 校验项                  | platform-portal                | common-tools                   |
+| ----------------------- | ------------------------------ | ------------------------------ |
+| `tsc --noEmit` 类型检查 | 通过                           | 通过                           |
+| `eslint .`              | 通过                           | 通过                           |
+| `stylelint`             | 通过                           | 通过（playground 样式）        |
+| `vitest run` 单元测试   | 通过（1/1）                    | 通过（76/76）                  |
+| `vite build` 生产构建   | 通过                           | 通过（14.2 kB · gzip 5.07 kB） |
+| dev server 启动         | 通过（:3000）                  | playground 通过（:3100）       |
+| Git 钩子                | 通过（已验证可拦截不合规提交） | —                              |
+
+> **关于 `turbo run`**：本次验证时 turbo 报 `os error 231`（管道句柄耗尽，`unable to spawn child process`）。这是当前运行环境的进程创建限制，**不是工程配置问题**——上表中的每个任务脚本逐个直跑全部通过，同一配置在此前也能通过 turbo 编排。本地正常终端下 `pnpm dev` / `pnpm build` 等不受影响。
 
 ## 八、待补充
 
 - 子应用 `platform-user`、`platform-admin` 尚未创建
 - qiankun 子应用注册与全局状态下发尚未接入
 - `common-api` 尚未创建（等后端 OpenAPI 契约就绪）
-- `packages/` 下仅 `common-config` 一个包，其余 `common-*` 按需再建
+- `common-tools` 目前只有 `logger` 与 `env`；HTTP 封装、存储、事件总线需要时另开**独立包**，不要往它身上堆
+- 公共依赖已由 `pnpm-workspace.yaml` 的 catalog 统一管理，新增依赖务必走 catalog

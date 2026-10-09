@@ -20,17 +20,21 @@ pnpm workspace + Turborepo，按**业务域**分组。
 ```
 web/
 ├── turbo.json            任务编排与缓存策略
+├── pnpm-workspace.yaml   工作区成员 + 公共依赖版本（catalog）
 ├── eslint.config.js      工作区根 ESLint 配置（lint-staged 依赖它）
 ├── packages/             公共包（common-* 前缀）
-│   └── common-config         共享 ESLint / Stylelint / TypeScript 配置
+│   ├── common-config         共享 ESLint / Stylelint / TypeScript 配置
+│   └── common-tools          公共能力包：日志（logger）· 环境探测（env）
 ├── platform/             平台级应用
 │   └── platform-portal       主应用（qiankun 容器，负责挂载与导航）
 └── elemental/            通用元素（预留）
 ```
 
-规划中的子应用与公共包（`platform-user`、`platform-admin`、`common-tools`、`common-theme`、`common-components`、`common-api`）**按业务需要创建**，不在骨架里预置。
+规划中的其余子应用与公共包（`platform-user`、`platform-admin`、`common-theme`、`common-components`、`common-api`）**按业务需要创建**，不在骨架里预置。
 
 **微前端结构**：`platform-portal` 是唯一的容器应用，负责登录态、导航骨架与子应用挂载；用户端与管理端作为互相隔离的子应用接入，各自独立构建、独立发布。
+
+`packages/common-tools` 与框架无关（不依赖 React），应用、构建脚本、Node 工具链都能直接使用。本地演示：`pnpm --filter common-tools playground`。
 
 ---
 
@@ -94,6 +98,16 @@ server/  ──生成──▶  docs/api/openapi.json  ──生成──▶  we
 | 接口契约 | OpenAPI 3（`docs/api/`） |
 
 > TypeScript 锁定在 **6.0.3**：`typescript-eslint` 的 peer 约束为 `<6.1.0`，7.x 尚不被支持。
+
+### 依赖治理
+
+第三方依赖的版本统一写在 `web/pnpm-workspace.yaml` 的 `catalog:` 段，各 `package.json` 一律写 `"catalog:"`。
+
+- **一个版本只写一处**，升级不必满仓库查找。
+- **不建"存放依赖的包"**——那会产生**幽灵依赖**（库能被引用到、却没在引用方的 `package.json` 里声明，运行时解析不到）。catalog 只统一版本号，依赖归属关系仍留在各自的 `package.json`。
+- **自研公共代码**走 `packages/common-*`，与依赖版本是两件不同的事，不要混在一起。
+
+详见 `docs/decisions/0002-前端公共包与公共依赖治理.md`。
 
 ---
 

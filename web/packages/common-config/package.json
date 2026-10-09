@@ -11,14 +11,14 @@
     "./tsconfig.react.json": "./src/tsconfig.react.json"
   },
   "dependencies": {
-    "@eslint/js": "^10.0.1",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.7",
-    "globals": "^17.13.0",
-    "postcss-less": "^6.0.0",
-    "stylelint-config-standard": "^40.0.0",
-    "typescript-eslint": "^8.71.1"
+    "@eslint/js": "catalog:",
+    "eslint-config-prettier": "catalog:",
+    "eslint-plugin-react-hooks": "catalog:",
+    "eslint-plugin-react-refresh": "catalog:",
+    "globals": "catalog:",
+    "postcss-less": "catalog:",
+    "stylelint-config-standard": "catalog:",
+    "typescript-eslint": "catalog:"
   },
   "peerDependencies": {
     "eslint": "^10.0.0",
