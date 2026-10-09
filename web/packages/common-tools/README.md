@@ -39,7 +39,7 @@ packages/common-tools/
 │   │   └── logger.ts         Logger 类与全局配置
 │   └── env/
 │       └── index.ts          运行环境与调试模式
-├── tests/                    Vitest 单元测试（76 例）
+├── tests/                    Vitest 单元测试（88 例）
 ├── playground/               可视化演示（纯 DOM，可运行）
 ├── eslint.config.js          引用 common-config，额外放行本包的 console 调用
 ├── stylelint.config.js       一行 re-export common-config 共享配置
@@ -179,20 +179,25 @@ Logger 会按运行环境自动选择渲染方式，**同一套代码在浏览�
 
 解析顺序：**内置默认 → 环境推导 → 全局配置 → 实例配置**，每层只覆盖显式设置过的字段（`undefined` 不参与覆盖）。
 
-| 配置                 | 默认             | 说明                                |
-| -------------------- | ---------------- | ----------------------------------- |
-| `level`              | 环境推导         | 过滤阈值，`'silent'` 关闭全部       |
-| `showTimestamp`      | `true`           | 是否输出时间戳                      |
-| `timestampFormat`    | `'HH:mm:ss.SSS'` | 也可传自定义函数 `(date) => string` |
-| `showNamespace`      | `true`           | 是否输出命名空间                    |
-| `showLevel`          | `true`           | 是否输出级别标签                    |
-| `colorize`           | 环境推导         | 是否着色                            |
-| `theme`              | `DEFAULT_THEME`  | 主题覆盖（深合并）                  |
-| `namespaceSeparator` | `' › '`          | 层级分隔符                          |
-| `context`            | —                | 结构化上下文，以 `k=v` 追加在行尾   |
-| `sink`               | —                | 实例级输出通道，优先于全局 sink     |
-| `maxTableRows`       | `50`             | 表格最大行数，`0` 表示不限          |
-| `enableGrouping`     | `true`           | 是否使用 console 分组               |
+| 配置                 | 默认             | 说明                                 |
+| -------------------- | ---------------- | ------------------------------------ |
+| `level`              | 环境推导         | 过滤阈值，`'silent'` 关闭全部        |
+| `showTimestamp`      | `true`           | 是否输出时间戳                       |
+| `timestampFormat`    | `'HH:mm:ss.SSS'` | 也可传自定义函数 `(date) => string`  |
+| `showNamespace`      | `true`           | 是否输出命名空间                     |
+| `showLevel`          | `true`           | 是否输出级别标签                     |
+| `colorize`           | 环境推导         | 是否着色                             |
+| `theme`              | `DEFAULT_THEME`  | 主题覆盖（深合并）                   |
+| `namespaceSeparator` | `' › '`          | 层级分隔符                           |
+| `context`            | —                | 结构化上下文，以 `k=v` 追加在行尾    |
+| `sink`               | —                | 实例级输出通道，优先于全局 sink      |
+| `onRecord`           | —                | 结构化记录钩子（上报 / 落库 / 聚合） |
+| `traceId`            | —                | 链路标识，随每条记录发出             |
+| `sessionId`          | —                | 会话标识，随每条记录发出             |
+| `route`              | —                | 当前路由，随每条记录发出             |
+| `release`            | —                | 应用版本 / 构建号，随每条记录发出    |
+| `maxTableRows`       | `50`             | 表格最大行数，`0` 表示不限           |
+| `enableGrouping`     | `true`           | 是否使用 console 分组                |
 
 时间戳格式：`HH:mm:ss` / `HH:mm:ss.SSS` / `YYYY-MM-DD HH:mm:ss` / `YYYY-MM-DD HH:mm:ss.SSS` / `ISO`。
 
@@ -202,22 +207,52 @@ Logger 会按运行环境自动选择渲染方式，**同一套代码在浏览�
 logger.configure({ level: 'debug', showTimestamp: false });
 ```
 
-### 输出通道（sink）
+### 输出通道：sink 与 onRecord 的分工
+
+两个钩子消费的对象不同，**不要混用**：
+
+| 通道       | 消费对象                                   | 用途                               |
+| ---------- | ------------------------------------------ | ---------------------------------- |
+| `sink`     | **渲染后的样子**（浏览器下含 `%c` 样式串） | 控制台输出、单元测试捕获、页面镜像 |
+| `onRecord` | **结构化事实**（`LogRecord`）              | 上报、落库、聚合                   |
+
+#### sink —— 消费「样子」
 
 sink 本质是一个 console 代理，可替换成任意实现：
 
 ```ts
-import { setLoggerSink, type ConsoleMethod } from 'common-tools/logger';
+import { setLoggerSink } from 'common-tools/logger';
 
 setLoggerSink((method, args) => {
-  // 1. 转发给真实 console
   (console[method] as (...a: unknown[]) => void)(...args);
-  // 2. 同时上报或落库
-  report({ method, args });
 });
 ```
 
-用途：单元测试断言、页面内可视化镜像（`playground/` 即用此机制）、远端上报。
+`playground/` 正是用这个机制把控制台输出镜像到页面。
+
+#### onRecord —— 消费「事实」
+
+**上报必须走这里。** sink 拿不到结构化的级别与元数据（`info` / `success` 都被压成 `'log'`，命名空间与时间戳被拼进字符串），拿它做上报只能反向解析自己的格式：
+
+```ts
+import { configureLogger } from 'common-tools/logger';
+
+configureLogger({
+  onRecord: (record) => {
+    // record.level 保真：info 与 success 分得开
+    // record.data 保持原始形态，对象不被 stringify
+    queue.push(record);
+  },
+  traceId: currentTraceId,
+  release: __APP_VERSION__,
+});
+```
+
+派发时机固定在**级别过滤之后、格式化之前**：被压制的日志不产生任何开销，且即便渲染环节抛错，记录也已经交出去了。
+
+钩子内部的异常会被**静默吞掉**——上报失败若再产生一条日志、又触发一次上报，就会形成雪崩。日志系统的故障不允许反噬业务。
+
+> 采集之外的部分（批量、采样、脱敏、`sendBeacon` 传输）本期**未实现**，边界与理由见 `docs/decisions/0004-前端日志上报架构.md`。
 
 ### 展示型输出
 
@@ -244,24 +279,24 @@ logger.error(new Error('远程服务不可用')); // 自动带上错误对象以
 
 本包的结构参照 `platform-terminator/packages/common-tools`，logger 在其基础上重写。以下是**原实现中真实存在的问题**，均已修复并有测试覆盖：
 
-| #   | 原实现                                             | 后果                                                            | 现在                                            |
-| --- | -------------------------------------------------- | --------------------------------------------------------------- | ----------------------------------------------- |
-| 1   | 所有级别都走 `console.log`                         | DevTools 的级别筛选失效，错误日志拿不到堆栈定位                 | 按级别映射到 `debug` / `log` / `warn` / `error` |
-| 2   | `timestampFormat` 的分支被整段注释掉               | 配置形同虚设，永远输出全量日期                                  | 五种格式真正生效，并支持自定义函数              |
-| 3   | 只有 `debugMode` 一个布尔开关                      | 无法压制 info，也无法"只看 warn 以上"                           | 引入 7 级严重度 + 阈值过滤                      |
-| 4   | 主题是浅合并                                       | 只传 `{ info: { fg } }` 会让该级别的 bg / border 变成 undefined | 按级别、按字段深合并                            |
-| 5   | 时间戳、命名空间等色值硬编码在各方法里             | 换主题换不掉                                                    | 统一收敛到 `palette`                            |
-| 6   | 只用 `%c` 渲染                                     | Node / CI 里打印出一堆 `%c color:#...` 噪音                     | 按环境自动降级到 ANSI / 纯文本                  |
-| 7   | 全局配置只在构造时读取                             | `configure()` 之后再创建的实例与已有单例行为不一致              | 惰性解析 + 版本失效，配置可热更新               |
-| 8   | 消息直接拼进格式串                                 | 消息里的 `%o`、`%c` 会吞掉后续参数                              | 针对性转义说明符，普通 `%` 不受影响             |
-| 9   | `singleton` 挂在 `(LoggerFactory as any)` 上       | 类型不安全，且无法重置                                          | 显式 `logger` 根实例 + `resetLogger()`          |
-| 10  | `showBanner` 默认 `console.clear()`                | 清掉控制台里别人的输出                                          | 默认不清屏，需要时传 `clear: true`              |
-| 11  | `showBanner` 内部 `fetch` ASCII 文件               | 日志组件发网络请求，且是假异步                                  | 改为由调用方传入字符串                          |
-| 12  | `debugger.ts` 里的默认域名规则被未闭合注释整块吞掉 | `DEFAULT_PRODUCTION_PATTERNS` 恒为 `[]`，这段配置从未生效       | 显式声明规则，默认空数组                        |
-| 13  | `isDebugMode` 直接访问 `window`                    | Node / SSR / 构建脚本里调用即抛错                               | 全部走能力探测，任何环境可安全调用              |
-| 14  | `ColorScheme` 接口在 types.ts 里重复声明两次       | 无害但说明无人维护                                              | 单一来源                                        |
-| 15  | 无输出通道抽象                                     | 测试只能 spy 全局 console，页面无法镜像                         | 引入 `LogSink`，可捕获、可上报、可镜像          |
-| 16  | 无命名空间层级                                     | 只能靠字符串手写 `'a › b'`                                      | `child()` 逐级派生并继承配置                    |
+| #   | 原实现                                             | 后果                                                            | 现在                                                                |
+| --- | -------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------- |
+| 1   | 所有级别都走 `console.log`                         | DevTools 的级别筛选失效，错误日志拿不到堆栈定位                 | 按级别映射到 `debug` / `log` / `warn` / `error`                     |
+| 2   | `timestampFormat` 的分支被整段注释掉               | 配置形同虚设，永远输出全量日期                                  | 五种格式真正生效，并支持自定义函数                                  |
+| 3   | 只有 `debugMode` 一个布尔开关                      | 无法压制 info，也无法"只看 warn 以上"                           | 引入 7 级严重度 + 阈值过滤                                          |
+| 4   | 主题是浅合并                                       | 只传 `{ info: { fg } }` 会让该级别的 bg / border 变成 undefined | 按级别、按字段深合并                                                |
+| 5   | 时间戳、命名空间等色值硬编码在各方法里             | 换主题换不掉                                                    | 统一收敛到 `palette`                                                |
+| 6   | 只用 `%c` 渲染                                     | Node / CI 里打印出一堆 `%c color:#...` 噪音                     | 按环境自动降级到 ANSI / 纯文本                                      |
+| 7   | 全局配置只在构造时读取                             | `configure()` 之后再创建的实例与已有单例行为不一致              | 惰性解析 + 版本失效，配置可热更新                                   |
+| 8   | 消息直接拼进格式串                                 | 消息里的 `%o`、`%c` 会吞掉后续参数                              | 针对性转义说明符，普通 `%` 不受影响                                 |
+| 9   | `singleton` 挂在 `(LoggerFactory as any)` 上       | 类型不安全，且无法重置                                          | 显式 `logger` 根实例 + `resetLogger()`                              |
+| 10  | `showBanner` 默认 `console.clear()`                | 清掉控制台里别人的输出                                          | 默认不清屏，需要时传 `clear: true`                                  |
+| 11  | `showBanner` 内部 `fetch` ASCII 文件               | 日志组件发网络请求，且是假异步                                  | 改为由调用方传入字符串                                              |
+| 12  | `debugger.ts` 里的默认域名规则被未闭合注释整块吞掉 | `DEFAULT_PRODUCTION_PATTERNS` 恒为 `[]`，这段配置从未生效       | 显式声明规则，默认空数组                                            |
+| 13  | `isDebugMode` 直接访问 `window`                    | Node / SSR / 构建脚本里调用即抛错                               | 全部走能力探测，任何环境可安全调用                                  |
+| 14  | `ColorScheme` 接口在 types.ts 里重复声明两次       | 无害但说明无人维护                                              | 单一来源                                                            |
+| 15  | 无输出通道抽象                                     | 测试只能 spy 全局 console，页面无法镜像                         | 引入 `LogSink`（渲染侧）与 `onRecord`（结构化侧）两个分工明确的钩子 |
+| 16  | 无命名空间层级                                     | 只能靠字符串手写 `'a › b'`                                      | `child()` 逐级派生并继承配置                                        |
 
 ---
 
@@ -277,4 +312,4 @@ logger.error(new Error('远程服务不可用')); // 自动带上错误对象以
 ## 七、待补充
 
 - `common-tools` 目前只有 `logger` 与 `env`；HTTP 封装、存储、事件总线需要时再建**独立包**，不要往本包堆
-- 尚未接入远端日志上报（sink 已预留接口）
+- 日志上报目前只到**采集契约**（`onRecord` + `LogRecord`）；聚合与传输随服务端日志服务一起实现，见 `docs/decisions/0004-前端日志上报架构.md`

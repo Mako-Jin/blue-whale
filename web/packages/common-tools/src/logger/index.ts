@@ -42,6 +42,8 @@ export type {
   KeyValueOptions,
   LogLevel,
   LogLevelThreshold,
+  LogRecord,
+  LogRecordHandler,
   LogSegment,
   LogSink,
   LoggerConfig,

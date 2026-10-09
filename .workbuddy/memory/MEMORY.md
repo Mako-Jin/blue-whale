@@ -48,6 +48,20 @@
 - 参考实现共修复 16 项问题，清单见 `web/packages/common-tools/README.md`
 - 演示：`pnpm --filter common-tools playground`（:3100），把控制台输出镜像渲染到页面
 
+## 输出通道两个钩子，分工不可混（2026-10-09 定 · ADR-0004）
+- `LogSink` 消费**渲染后的样子**（含 `%c` 样式串）→ 控制台、测试捕获、页面镜像
+- `onRecord` 消费**结构化事实** `LogRecord` → 上报、落库、聚合
+- **上报必须走 `onRecord`**：sink 级别有损（`info`/`success` 都压成 `'log'`），元数据被拼进字符串，只能反向解析
+- `onRecord` 派发点在**级别过滤之后、格式化之前**；内部异常**静默吞掉**（防上报失败递归成雪崩）
+- `LogRecord` 含 `level/namespace/timestamp/message/data/context` + `traceId/sessionId/route/release`
+- 传输与聚合**未实现**，等后端日志服务；生产优先复用成熟 APM（Sentry/RUM）
+
+## 配置分域（2026-10-09 定 · ADR-0003）
+- 三层：**密钥级**（Vault/KMS）· **部署级**（Nacos/Apollo）· **业务运行期**（自研，走 OpenAPI 契约）
+- **自研范围只有业务运行期配置**；下两层自研是浪费，密钥层写错就是安全事故
+- 客户端配置五条底线：首屏零阻塞、兜底默认值在客户端、版本化+缓存+变更通知、配置项有 schema 与类型、环境物理隔离
+- 禁止：万能配置接口（长成上帝对象）、命名风格并存、无变更审计、两端各自解释语义
+
 ## 前端踩坑备忘
 - stylelint 的 `extends` 必须 `require.resolve` 转绝对路径（pnpm 隔离）
 - TS 6 起 `baseUrl` 弃用

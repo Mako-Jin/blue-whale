@@ -14,6 +14,7 @@ import type {
   CreditLink,
   KeyValueOptions,
   LogLevel,
+  LogRecord,
   LogSegment,
   LogSink,
   LoggerConfig,
@@ -120,6 +121,11 @@ function resolveConfig(local: LoggerConfig | undefined): ResolvedLoggerConfig {
     namespaceSeparator: merged.namespaceSeparator ?? ' › ',
     context: merged.context,
     sink: merged.sink,
+    onRecord: merged.onRecord,
+    traceId: merged.traceId,
+    sessionId: merged.sessionId,
+    route: merged.route,
+    release: merged.release,
     maxTableRows: merged.maxTableRows ?? 50,
     enableGrouping: merged.enableGrouping ?? true,
   };
@@ -404,9 +410,47 @@ export class Logger {
   // ==================== 内部实现 ====================
 
   private emit(level: LogLevel, message: string, data: unknown[]): void {
+    const cfg = this.cfg;
     // 过滤前置于格式化：被压制的日志不产生任何字符串拼接开销
-    if (!isLevelEnabled(level, this.cfg.level)) return;
+    if (!isLevelEnabled(level, cfg.level)) return;
+
+    // 先派发结构化记录、再渲染：上报消费「事实」，控制台消费「样子」。
+    // 顺序不可颠倒 —— 即便渲染环节抛错，记录也已经交出去了。
+    this.dispatch(level, message, data, cfg);
+
     this.output(LEVEL_CONSOLE_METHOD[level], this.segments(level, message), data);
+  }
+
+  /** 构造并派发结构化记录（未设置 onRecord 时零开销）。 */
+  private dispatch(
+    level: LogLevel,
+    message: string,
+    data: unknown[],
+    cfg: ResolvedLoggerConfig,
+  ): void {
+    const handler = cfg.onRecord;
+    if (!handler) return;
+
+    const context = cfg.context;
+    const record: LogRecord = {
+      level,
+      namespace: this.namespace,
+      timestamp: Date.now(),
+      message,
+      data,
+      context: context && Object.keys(context).length > 0 ? { ...context } : undefined,
+      traceId: cfg.traceId,
+      sessionId: cfg.sessionId,
+      route: cfg.route,
+      release: cfg.release,
+    };
+
+    try {
+      handler(record);
+    } catch {
+      // 上报通道自身的异常必须静默吞掉：否则「上报失败」会再产生一条日志、
+      // 又触发一次上报，形成雪崩。日志系统的故障绝不允许反噬业务。
+    }
   }
 
   /** 把一行日志拆成带样式的片段。 */

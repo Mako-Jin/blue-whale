@@ -132,15 +132,15 @@ git config core.hooksPath web/.husky
 
 `platform-portal` 与 `common-tools` 均通过全部校验（逐包直跑）。
 
-| 校验项                  | platform-portal                | common-tools                   |
-| ----------------------- | ------------------------------ | ------------------------------ |
-| `tsc --noEmit` 类型检查 | 通过                           | 通过                           |
-| `eslint .`              | 通过                           | 通过                           |
-| `stylelint`             | 通过                           | 通过（playground 样式）        |
-| `vitest run` 单元测试   | 通过（1/1）                    | 通过（76/76）                  |
-| `vite build` 生产构建   | 通过                           | 通过（14.2 kB · gzip 5.07 kB） |
-| dev server 启动         | 通过（:3000）                  | playground 通过（:3100）       |
-| Git 钩子                | 通过（已验证可拦截不合规提交） | —                              |
+| 校验项                  | platform-portal                | common-tools                    |
+| ----------------------- | ------------------------------ | ------------------------------- |
+| `tsc --noEmit` 类型检查 | 通过                           | 通过                            |
+| `eslint .`              | 通过                           | 通过                            |
+| `stylelint`             | 通过                           | 通过（playground 样式）         |
+| `vitest run` 单元测试   | 通过（1/1）                    | 通过（88/88）                   |
+| `vite build` 生产构建   | 通过                           | 通过（14.76 kB · gzip 5.25 kB） |
+| dev server 启动         | 通过（:3000）                  | playground 通过（:3100）        |
+| Git 钩子                | 通过（已验证可拦截不合规提交） | —                               |
 
 > **关于 `turbo run`**：本次验证时 turbo 报 `os error 231`（管道句柄耗尽，`unable to spawn child process`）。这是当前运行环境的进程创建限制，**不是工程配置问题**——上表中的每个任务脚本逐个直跑全部通过，同一配置在此前也能通过 turbo 编排。本地正常终端下 `pnpm dev` / `pnpm build` 等不受影响。
 

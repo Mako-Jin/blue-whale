@@ -26,6 +26,8 @@
 | 修改前端规范工具链（ESLint/Prettier/Stylelint…） | `web/README.md` 规范章节 · `packages/common-config/README.md` |
 | 新增 / 删除公共包 | `web/README.md` · 根 `README.md` · 该包的 `README.md` |
 | 新增 / 修改公共包对外 API | 该包的 `README.md` |
+| 新增日志上报维度或上报通道 | `packages/common-tools/README.md`（`LogRecord` 章节） |
+| 调整配置分层或新增配置层 | `decisions/0003-配置分域与自研边界.md` |
 | 新增 / 删除第三方依赖 | `web/pnpm-workspace.yaml` 的 `catalog:` · `CONTRIBUTING.md` 依赖治理 |
 | 新增 / 删除后端模块 | `server/README.md` 模块表 · 根 `README.md` 结构图 |
 | 新增 / 修改后端接口 | `docs/api/openapi.json` → 重新生成前端 SDK |
@@ -57,6 +59,8 @@ docs/decisions/NNNN-简短标题.md
 |------|------|
 | `decisions/0001-架构基线与技术选型.md` | 仓库结构、前后端分离、技术栈基线 |
 | `decisions/0002-前端公共包与公共依赖治理.md` | pnpm catalog、`common-*` 包划分、logger 重写决策 |
+| `decisions/0003-配置分域与自研边界.md` | 配置三层分域、自研边界、客户端配置五条底线 |
+| `decisions/0004-前端日志上报架构.md` | 采集与传输分层、`LogRecord` 契约、采样与脱敏约束 |
 | `../web/packages/common-tools/README.md` | 公共能力包（logger / env）使用说明与修复清单 |
 | `api/` | 待后端契约产出后填充 |
 | `architecture/` | 待系统成形后填充 |

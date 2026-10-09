@@ -86,14 +86,48 @@ export type ConsoleMethod =
   | 'clear';
 
 /**
- * 输出通道。
+ * 输出通道 —— 本质是 console 代理。
  *
- * 默认写真实 console；替换后可实现：
+ * 拿到的是**已渲染**的参数（浏览器下还夹着 `%c` 样式串），因此只适合消费"样子"：
  * - 单元测试断言（捕获而非打印）
  * - 页面内的可视化镜像
- * - 上报到远端日志服务
+ *
+ * 适合消费"事实"（结构化字段、上报、落库、聚合）的是 {@link LogRecordHandler}，
+ * 不要用本通道做上报 —— 它拿不到级别与元数据的结构化形态，只能反向解析字符串。
  */
 export type LogSink = (method: ConsoleMethod, args: unknown[]) => void;
+
+/**
+ * 结构化日志记录。
+ *
+ * 这是「事实」本身，与渲染无关：`LogSink` 拿到的是渲染后的样子，
+ * `onRecord` 拿到的是这条记录。上报 / 落库 / 聚合一律消费这个结构。
+ */
+export interface LogRecord {
+  /** 级别。注意与 {@link ConsoleMethod} 的差异：`info` 与 `success` 在这里是分得开的 */
+  level: LogLevel;
+  /** 命名空间，形如 `app › auth › login` */
+  namespace: string;
+  /** 毫秒时间戳 */
+  timestamp: number;
+  /** 消息正文，未经着色与格式拼接 */
+  message: string;
+  /** 随消息附带的原始数据（对象保持对象形态，不被 stringify） */
+  data: unknown[];
+  /** 结构化上下文 */
+  context?: Record<string, unknown>;
+  /** 链路标识，用于跨端串联同一次请求的日志 */
+  traceId?: string;
+  /** 会话标识 */
+  sessionId?: string;
+  /** 当前路由 */
+  route?: string;
+  /** 应用版本 / 构建号 */
+  release?: string;
+}
+
+/** 结构化记录钩子。 */
+export type LogRecordHandler = (record: LogRecord) => void;
 
 /** 样式表：键为 CSS 属性名。 */
 export type StyleMap = Record<string, string | number>;
@@ -131,6 +165,24 @@ export interface LoggerConfig {
   context?: Record<string, unknown>;
   /** 本实例专属的输出通道，优先级高于全局 sink */
   sink?: LogSink;
+  /**
+   * 结构化记录钩子。
+   *
+   * 与 {@link LoggerConfig.sink} 的分工：
+   * - `sink` 消费**渲染后的样子**（控制台、测试捕获、页面镜像）；
+   * - `onRecord` 消费**结构化事实**（上报、落库、聚合）。
+   *
+   * 两者可同时设置、互不影响；都不设置时只走默认 console。
+   */
+  onRecord?: LogRecordHandler;
+  /** 链路标识，随每条记录发出（通常由请求层注入） */
+  traceId?: string;
+  /** 会话标识，随每条记录发出 */
+  sessionId?: string;
+  /** 当前路由，随每条记录发出 */
+  route?: string;
+  /** 应用版本 / 构建号，随每条记录发出 */
+  release?: string;
   /** console.table 最多显示行数，0 表示不限制，默认 50 */
   maxTableRows?: number;
   /** 是否启用 console 分组，默认 true */
@@ -150,6 +202,11 @@ export interface ResolvedLoggerConfig {
   namespaceSeparator: string;
   context: Record<string, unknown> | undefined;
   sink: LogSink | undefined;
+  onRecord: LogRecordHandler | undefined;
+  traceId: string | undefined;
+  sessionId: string | undefined;
+  route: string | undefined;
+  release: string | undefined;
   maxTableRows: number;
   enableGrouping: boolean;
 }
