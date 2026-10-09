@@ -20,6 +20,7 @@ pnpm workspace + Turborepo，按**业务域**分组。
 ```
 web/
 ├── turbo.json            任务编排与缓存策略
+├── eslint.config.js      工作区根 ESLint 配置（lint-staged 依赖它）
 ├── packages/             公共包（common-* 前缀）
 │   └── common-config         共享 ESLint / Stylelint / TypeScript 配置
 ├── platform/             平台级应用
@@ -82,15 +83,17 @@ server/  ──生成──▶  docs/api/openapi.json  ──生成──▶  we
 
 | 端 | 选型 |
 |----|------|
-| 前端 | React 19 + Vite 8 + TypeScript 7 + React Router 7 |
+| 前端 | React 19 + Vite 8 + TypeScript 6.0.3 + React Router 7 |
 | 微前端 | qiankun 2.x |
 | 前端工程 | pnpm workspace + Turborepo |
 | 样式 | Less（设计令牌注入） |
-| 代码规范 | ESLint 10 + Prettier 3 + Stylelint 17 + commitlint + Husky |
+| 代码规范 | ESLint 10 + Prettier 3 + Stylelint 17 + commitlint + Husky + Vitest |
 | 后端 | Java 21 + Spring Boot 3.3 |
 | 后端构建 | Maven 多模块 |
 | 数据访问 | MyBatis-Plus |
 | 接口契约 | OpenAPI 3（`docs/api/`） |
+
+> TypeScript 锁定在 **6.0.3**：`typescript-eslint` 的 peer 约束为 `<6.1.0`，7.x 尚不被支持。
 
 ---
 
@@ -98,7 +101,7 @@ server/  ──生成──▶  docs/api/openapi.json  ──生成──▶  we
 
 ```bash
 # 前端
-cd web && pnpm install
+cd web && pnpm install                # prepare 钩子会自动挂载 Git 钩子
 pnpm dev                              # 启动全部应用（turbo 聚合日志）
 pnpm dev --filter platform-portal     # 只启动主应用
 
@@ -106,12 +109,38 @@ pnpm dev --filter platform-portal     # 只启动主应用
 cd server && mvn clean install -DskipTests
 ```
 
+### Git 钩子
+
+钩子脚本在 `web/.husky/`，通过 Git 原生 `core.hooksPath` 挂载（不是 `.git/hooks/`）。
+
+- `pre-commit` —— 对暂存文件跑 lint-staged（ESLint / Prettier / Stylelint）
+- `commit-msg` —— 校验提交信息符合 Conventional Commits
+
+若钩子未生效，手动挂载：
+
+```bash
+git config core.hooksPath web/.husky
+```
+
 ---
 
-## 七、延伸阅读
+## 七、文档与约定
+
+| 文档 | 内容 |
+|------|------|
+| `docs/README.md` | 文档规范：「改动 → 需同步哪些文档」对照表 |
+| `CONTRIBUTING.md` | 环境、Git 钩子、提交规范、目录归属速查 |
+| `AGENTS.md` | AI 助手协作约定 |
+| `docs/decisions/` | 架构决策记录（ADR） |
+
+**核心要求：改代码必须同步改文档，且在同一次提交里完成。**
+
+---
+
+## 八、延伸阅读
 
 - `web/README.md` — 前端工作区与微前端约定
 - `server/README.md` — 后端模块分层与依赖规则
-- `docs/api/` — 接口契约
+- `docs/README.md` — 文档规范与索引
 - `docs/decisions/` — 架构决策记录
 - `infra/README.md` — 部署与环境

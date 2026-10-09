@@ -1,6 +1,6 @@
 # web — 前端工作区
 
-pnpm workspace + Turborepo。React 19 + TypeScript + Vite，微前端用 qiankun。
+pnpm workspace + Turborepo。React 19 + TypeScript 6 + Vite 8，微前端用 qiankun。
 
 ## 一、目录结构
 
@@ -9,6 +9,7 @@ web/
 ├── package.json           工作区根，统一入口脚本
 ├── pnpm-workspace.yaml    工作区成员声明
 ├── turbo.json             任务编排与缓存策略
+├── eslint.config.js       工作区根 ESLint 配置（lint-staged 依赖它）
 ├── .prettierrc.json       代码格式化（全工作区共用）
 ├── commitlint.config.js   提交信息规范
 ├── .husky/                Git 钩子
@@ -51,9 +52,12 @@ pnpm format               # Prettier 格式化
 | Husky + lint-staged | 提交前只检查改动文件                 | `.husky/` + 根 `package.json`             |
 | Vitest 5            | 单元测试                             | 各应用 `vite.config.ts` 的 `test` 字段    |
 
-**规则只维护一份。** 子项目的 `stylelint.config.js` 是一行 re-export；`eslint.config.js` 是两行——因为 ESLint 要求默认导出为**配置数组**，需调用 `createEslintConfig()`。要改规则就改 `common-config`。
+**规则只维护一份。** 子项目的 `stylelint.config.js` 是一行 re-export；`eslint.config.js` 必须**调用工厂函数**（ESLint 要求默认导出为配置数组）。要改规则就改 `common-config`。
 
-> pnpm 依赖隔离的坑：共享包里的 `stylelint` 配置若用字符串写 `extends`，子项目解析时会找不到包。`common-config` 已用 `require.resolve` 解析为绝对路径规避。
+> **pnpm 依赖隔离的两个坑**（已在 `common-config` 里规避，改配置时勿踩回去）：
+>
+> 1. Stylelint 的 `extends` 若用字符串写包名，子项目解析不到——已改用 `require.resolve` 解析为绝对路径。
+> 2. ESLint 只从**当前工作目录**向上找配置，故工作区根也需要一份 `eslint.config.js`（lint-staged 在 `web/` 下执行 `eslint`）。
 
 **Prettier 例外。** 它会自动向上查找最近的配置文件，所以用工作区根那份即可，子项目不用配。
 
@@ -88,24 +92,41 @@ packages/*  ──▶  platform/*        （禁止）
 应用之间相互引用                     （禁止，复用内容下沉到 packages/）
 ```
 
-## 六、当前状态
+## 六、Git 钩子
+
+钩子脚本在 `web/.husky/`，通过 Git 原生 `core.hooksPath` 挂载——仓库根是 `BlueWhale/`，前端只是其中一个工作区。
+
+| 钩子         | 作用                                                                      |
+| ------------ | ------------------------------------------------------------------------- |
+| `pre-commit` | 对暂存文件跑 lint-staged：ESLint --fix、Prettier --write、Stylelint --fix |
+| `commit-msg` | 校验提交信息符合 Conventional Commits，不合规直接拦截                     |
+
+`pnpm install` 时由 `prepare` 脚本自动挂载。若钩子未生效，在**仓库根**执行：
+
+```bash
+git config core.hooksPath web/.husky
+```
+
+> 钩子脚本内部会先 `cd` 到 `web/`——因为 Git 执行钩子时的当前目录是仓库根。
+
+## 七、当前状态
 
 工程基座已跑通并验证，`platform-portal` 可正常开发与构建。
 
-| 校验项                  | 结果                            |
-| ----------------------- | ------------------------------- |
-| `tsc --noEmit` 类型检查 | 通过                            |
-| `eslint .`              | 通过                            |
-| `stylelint`             | 通过                            |
-| `vitest run` 单元测试   | 通过（1/1）                     |
-| `vite build` 生产构建   | 通过                            |
-| `turbo run` 任务编排    | 通过                            |
-| dev server 启动         | 通过（HTTP 200，默认端口 3000） |
+| 校验项                              | 结果                            |
+| ----------------------------------- | ------------------------------- |
+| `tsc --noEmit` 类型检查             | 通过                            |
+| `eslint .`                          | 通过                            |
+| `stylelint`                         | 通过                            |
+| `vitest run` 单元测试               | 通过（1/1）                     |
+| `vite build` 生产构建               | 通过                            |
+| `turbo run` 任务编排                | 通过                            |
+| dev server 启动                     | 通过（HTTP 200，默认端口 3000） |
+| Git 钩子（pre-commit / commit-msg） | 通过（已验证可拦截不合规提交）  |
 
-## 七、待补充
+## 八、待补充
 
 - 子应用 `platform-user`、`platform-admin` 尚未创建
 - qiankun 子应用注册与全局状态下发尚未接入
 - `common-api` 尚未创建（等后端 OpenAPI 契约就绪）
 - `packages/` 下仅 `common-config` 一个包，其余 `common-*` 按需再建
-- 尚未初始化 Git 仓库（Husky 钩子需要 Git 才生效）
