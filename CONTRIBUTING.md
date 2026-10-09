@@ -10,8 +10,8 @@
 |------|------|------|
 | Node.js | >= 20 | 前端工作区 |
 | pnpm | 10.x（`packageManager` 已锁定 10.33.0） | 前端包管理 |
-| JDK | 21 | 后端工作区 |
-| Maven | 3.9+ | 后端构建 |
+| JDK | **21** | 后端工作区（`sts-parent` 声明 `maven.compiler.release=21`） |
+| Maven | 3.8+ | 后端构建（已在 3.8.1 验证） |
 | Git | 2.40+ | 版本控制 |
 
 ---
@@ -122,6 +122,8 @@ cd web && pnpm install
 
 ## 七、常用命令
 
+### 前端
+
 ```bash
 cd web
 
@@ -135,6 +137,22 @@ pnpm test             # 单元测试
 pnpm format           # Prettier 格式化
 ```
 
+### 后端
+
+```bash
+cd server
+
+mvn clean install -DskipTests                # 构建全部模块
+mvn -pl :sts-server-system spring-boot:run   # 启动系统域服务（默认 8080）
+```
+
+> **Maven 实际使用的 JDK 必须是 21**，用 `mvn -v` 可查看当前指向。
+> 机器上装了多个 JDK 时，`JAVA_HOME` 很可能指向旧版本（此时会报 `release version 21 not supported`），需显式指定：
+>
+> ```bash
+> JAVA_HOME=/path/to/jdk-21 mvn clean install
+> ```
+
 ---
 
 ## 八、目录归属速查
@@ -143,7 +161,7 @@ pnpm format           # Prettier 格式化
 |---------|------|
 | 一个新的前端应用 | `web/platform/<应用名>/` |
 | 一个跨应用复用的前端包 | `web/packages/common-<名字>/` |
-| 一个新的后端业务模块 | `server/sts-app/` 或对应层次的聚合模块下 |
+| 一个新的后端业务模块 | `server/` 下按层次归位，规则见 `docs/decisions/0005` |
 | 一份架构决策 | `docs/decisions/NNNN-短标题.md` |
 | 一个跨端脚本 | `scripts/` |
 | 一份部署 / CI 配置 | `infra/` |

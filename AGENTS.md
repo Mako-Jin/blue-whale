@@ -10,6 +10,7 @@
 | `docs/README.md` | 文档规范（「改动 → 需同步哪些文档」对照表） |
 | `CONTRIBUTING.md` | 环境、Git 钩子、提交规范 |
 | `docs/decisions/` | 已定架构决策（ADR），动手前先看有没有相关约束 |
+| `docs/architecture/` | 分层与依赖方向的落地细则（后端改模块前必看） |
 
 ## 硬性要求
 
@@ -25,7 +26,8 @@
 ```
 web/packages/*  ──▶ 被引用，不可反向依赖 web/platform/*
 web/platform/*  ──▶ 应用，互不引用
-server/         ──▶ sts-app → sts-server → sts-components → sts-common
+server/         ──▶ sts-app → sts-server → sts-components → sts-common → sts-parent
+                    （单向；禁止反向、禁止跨层跳跃，细则见 docs/decisions/0005）
 ```
 
 ## 项目记忆

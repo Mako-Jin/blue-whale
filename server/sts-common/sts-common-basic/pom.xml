@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.bluewhale.sts.common</groupId>
+        <artifactId>sts-common</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>sts-common-basic</artifactId>
+
+    <name>sts-common-basic</name>
+    <description>最基础的公共契约：统一响应、错误码、业务异常 —— 不依赖 Web</description>
+
+    <dependencies>
+        <!--
+          本模块唯一的依赖，且是 provided。
+          R 是序列化契约类，需要用 @JsonIgnore 声明"哪些方法不进 JSON"——
+          否则 Jackson 会把 isSuccess() 也当成 getter，凭空多出一个 success 字段。
+          provided 不进依赖树，纯 Java 使用方不受影响。
+        -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+</project>

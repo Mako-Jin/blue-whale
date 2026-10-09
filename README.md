@@ -40,20 +40,24 @@ web/
 
 ## 二、后端工作区 `server/`
 
-Maven 多模块，按**能力层次**聚合。包名统一 `com.bluewhale.sts`。
+Maven 多模块，**按能力层次单向依赖**。包名统一 `com.bluewhale.sts`。
 
 ```
 server/
-├── pom.xml               聚合 POM
-├── sts-parent/           父 POM · 依赖版本统一治理
-├── sts-common/           基础能力层（9 个模块）
-├── sts-components/       通用组件层（4 个模块）
-├── sts-server/           服务实现层（2 个模块）
-├── sts-app/              业务应用层（2 个模块）
-└── sts-gateway/          API 网关（独立服务）
+├── pom.xml               聚合根 · 只列模块，不做依赖管理
+├── sts-parent/           父 POM · 依赖版本统一治理（零代码）
+├── sts-common/           技术底座层
+│   ├── sts-common-basic      统一响应 R · 错误码 · 业务异常
+│   └── sts-common-web        全局异常处理 + 自动配置
+└── sts-server/           服务层
+    └── sts-server-system     系统域服务
 ```
 
-详见 `server/README.md`。
+依赖方向：`sts-app → sts-server → sts-components → sts-common → sts-parent`，**禁止反向依赖，禁止跨层跳跃**。
+
+规划中的 `sts-components/`（通用能力组件）与 `sts-app/`（业务应用）**按需创建**，不在骨架里预置空壳 —— 与前端 `packages/` 是同一约定。
+
+详见 `server/README.md` 与 `docs/architecture/后端分层与依赖方向.md`。
 
 ---
 
@@ -92,9 +96,9 @@ server/  ──生成──▶  docs/api/openapi.json  ──生成──▶  we
 | 前端工程 | pnpm workspace + Turborepo |
 | 样式 | Less（设计令牌注入） |
 | 代码规范 | ESLint 10 + Prettier 3 + Stylelint 17 + commitlint + Husky + Vitest |
-| 后端 | Java 21 + Spring Boot 3.3 |
-| 后端构建 | Maven 多模块 |
-| 数据访问 | MyBatis-Plus |
+| 后端 | Java 21 + Spring Boot 3.3.5 |
+| 后端构建 | Maven 多模块（聚合根 `server/pom.xml`） |
+| 数据访问 | MyBatis-Plus（尚未引入） |
 | 接口契约 | OpenAPI 3（`docs/api/`） |
 
 > TypeScript 锁定在 **6.0.3**：`typescript-eslint` 的 peer 约束为 `<6.1.0`，7.x 尚不被支持。

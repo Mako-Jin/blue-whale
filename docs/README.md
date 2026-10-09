@@ -30,6 +30,8 @@
 | 调整配置分层或新增配置层 | `decisions/0003-配置分域与自研边界.md` |
 | 新增 / 删除第三方依赖 | `web/pnpm-workspace.yaml` 的 `catalog:` · `CONTRIBUTING.md` 依赖治理 |
 | 新增 / 删除后端模块 | `server/README.md` 模块表 · 根 `README.md` 结构图 |
+| 调整后端分层或依赖方向 | `decisions/0005-后端模块划分与依赖约束.md` · `architecture/后端分层与依赖方向.md` · `server/README.md` |
+| 修改统一响应结构或错误码 | `server/README.md` 错误码表 · `docs/api/openapi.json` |
 | 新增 / 修改后端接口 | `docs/api/openapi.json` → 重新生成前端 SDK |
 | 变更顶层目录或横向层 | 根 `README.md` |
 | 技术选型 / 架构决策 | 新增 `docs/decisions/NNNN-*.md` |
@@ -61,9 +63,11 @@ docs/decisions/NNNN-简短标题.md
 | `decisions/0002-前端公共包与公共依赖治理.md` | pnpm catalog、`common-*` 包划分、logger 重写决策 |
 | `decisions/0003-配置分域与自研边界.md` | 配置三层分域、自研边界、客户端配置五条底线 |
 | `decisions/0004-前端日志上报架构.md` | 采集与传输分层、`LogRecord` 契约、采样与脱敏约束 |
+| `decisions/0005-后端模块划分与依赖约束.md` | 五层依赖方向、groupId 分级、分包方式、统一响应契约 |
+| `architecture/后端分层与依赖方向.md` | 后端分层落地细则、依赖矩阵、前后端结构对照 |
 | `../web/packages/common-tools/README.md` | 公共能力包（logger / env）使用说明与修复清单 |
-| `api/` | 待后端契约产出后填充 |
-| `architecture/` | 待系统成形后填充 |
+| `../server/README.md` | 后端模块表、统一响应与错误码、构建命令 |
+| `api/` | 待后端契约产出后填充（S2 阶段） |
 
 ---
 

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.bluewhale.sts</groupId>
+    <artifactId>bluewhale-server</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>bluewhale-server</name>
+    <description>后端聚合根 —— 一次构建产出全部后端模块</description>
+
+    <!--
+      聚合根只负责列出模块，不做任何依赖管理 —— 依赖版本统一交给 sts-parent。
+      模块顺序不重要，Maven 会按实际依赖关系自行排序。
+    -->
+    <modules>
+        <module>sts-parent</module>
+        <module>sts-common</module>
+        <module>sts-server</module>
+    </modules>
+
+</project>

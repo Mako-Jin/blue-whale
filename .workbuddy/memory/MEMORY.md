@@ -73,6 +73,24 @@
 ## 后端分层（依赖只能自上而下）
 `sts-app` → `sts-server` → `sts-components` → `sts-common` → `sts-parent`；`sts-parent` 零代码，版本号只出现一次
 
+### 已落地模块（2026-10-09 · ADR-0005）
+```
+server/  pom.xml(聚合) → sts-parent → sts-common/{sts-common-basic, sts-common-web} → sts-server/sts-server-system
+```
+- groupId **按层分级**（`com.bluewhale.sts.common.basic`…），`<version>` 只在 `sts-parent` 出现
+- `sts-common-basic`：`R<T>` · `ResultCode`（5 位 = HTTP 3 位 + 业务 2 位）· `BusinessException`；**刻意零依赖**，唯一例外是 `jackson-annotations`（provided，仅为 `@JsonIgnore`）
+- `sts-common-web`：`GlobalExceptionHandler` + 自动配置（`AutoConfiguration.imports`），依赖即生效
+- 模块内按**特性（feature）分包**（`health/` 下 Controller/Service/VO），**不用** `controller/service/repository` 顶层分包
+- `sts-app/` `sts-components/` **尚未创建**，按需再建，不预置空壳
+- 约定：**业务失败也返回 HTTP 200**，结果只由 `code` 表达（前端判 `code === 0`）；`R.isSuccess()` 必须 `@JsonIgnore` 否则泄漏 `success` 字段
+- 构建：PATH 上是 JDK 17，**必须** `JAVA_HOME="D:/tools/installer/jdk/java21" mvn …`
+
+## 日志双管道：技术日志 ≠ 审计日志（2026-10-09 定）
+- **技术日志**（前端上报）：排查故障 · 短保留期 · 采样 · 前端驱动
+- **审计日志**：合规追溯 · 长保留期 · 全量不可改 · **后端拦截器自动产生**（前端不知道最终是否落库成功，且易被篡改；前端上报只作"业务意图"补充）
+- 推进顺序：**S1 后端骨架（已完成）→ S2 OpenAPI 契约 → S3 日志服务垂直切片**
+- S1 刻意不上 Nacos/网关/Feign/Sentinel，等真需要跨服务调用再引
+
 ## 六条铁律
 1. 两端不共用构建体系（pnpm / Maven 互不侵入）
 2. 跨端只认 OpenAPI 契约；前端 SDK 禁止手写
