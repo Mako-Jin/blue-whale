@@ -3,8 +3,12 @@ package com.bluewhale.sts.common.web.config;
 import com.bluewhale.sts.common.web.advice.GlobalExceptionHandler;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
  * Web 公共能力的自动装配入口。
@@ -19,6 +23,7 @@ import org.springframework.context.annotation.Bean;
  */
 @AutoConfiguration
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
+@EnableConfigurationProperties(CorsProperties.class)
 public class WebAutoConfiguration {
 
     /**
@@ -31,6 +36,30 @@ public class WebAutoConfiguration {
     @ConditionalOnMissingBean
     public GlobalExceptionHandler globalExceptionHandler() {
         return new GlobalExceptionHandler();
+    }
+
+    /**
+     * 跨域支持，仅在 {@code bluewhale.web.cors.enabled=true} 时注册。
+     *
+     * <p><b>刻意不加 {@link ConditionalOnMissingBean}：</b>{@code WebMvcConfigurer} 是**叠加**语义，
+     * 应用声明自己的配置类时，本配置仍然应该生效。若加了这个条件，应用只要有一个
+     * {@code WebMvcConfigurer}（很常见），跨域就会静默失效 —— 而失效的表现是
+     * "浏览器报跨域错误"，看起来完全不像配置问题。
+     */
+    @Bean
+    @ConditionalOnProperty(prefix = "bluewhale.web.cors", name = "enabled", havingValue = "true")
+    public WebMvcConfigurer bluewhaleCorsConfigurer(CorsProperties properties) {
+        return new WebMvcConfigurer() {
+            @Override
+            public void addCorsMappings(CorsRegistry registry) {
+                registry.addMapping("/**")
+                        .allowedOriginPatterns(properties.getAllowedOriginPatterns().toArray(String[]::new))
+                        .allowedMethods(properties.getAllowedMethods().toArray(String[]::new))
+                        .allowedHeaders(properties.getAllowedHeaders().toArray(String[]::new))
+                        .allowCredentials(properties.isAllowCredentials())
+                        .maxAge(properties.getMaxAge());
+            }
+        };
     }
 
 }

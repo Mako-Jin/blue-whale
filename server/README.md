@@ -23,9 +23,12 @@ server/
 ├── sts-parent/                    父 POM —— 依赖版本统一治理（零代码）
 ├── sts-common/                    技术底座层
 │   ├── sts-common-basic/              统一响应 · 错误码 · 业务异常
-│   └── sts-common-web/                全局异常处理 + Web 自动配置
-└── sts-server/                    服务层
-    └── sts-server-system/             系统域服务
+│   ├── sts-common-web/                全局异常处理 + CORS + Web 自动配置
+│   └── sts-common-db/                 MyBatis-Plus 配置（分页 / 乐观锁 / 防全表更新）
+├── sts-server/                    服务层
+│   └── sts-server-log/                日志域服务（客户端日志上报与查询）
+└── sts-app/                       业务应用层
+    └── sts-app-server/                唯一可启动进程（装配 + 健康检查 + 接口文档）
 ```
 
 | 模块 | 打包 | 职责 | 依赖 |
@@ -33,14 +36,20 @@ server/
 | `bluewhale-server` | pom | 聚合根，一次构建产出全部模块 | — |
 | `sts-parent` | pom | 依赖版本与全局插件配置，不含任何代码 | `spring-boot-starter-parent` |
 | `sts-common-basic` | jar | `R<T>` 统一响应、`ResultCode` 错误码、`BusinessException` | **零依赖** |
-| `sts-common-web` | jar | `GlobalExceptionHandler` + 自动配置 | `sts-common-basic`、Spring Web（provided） |
-| `sts-server-system` | jar | 系统域服务，当前提供健康检查 | `sts-common-web`、Spring Web |
+| `sts-common-web` | jar | `GlobalExceptionHandler`、CORS 配置 + 自动配置 | `sts-common-basic`、Spring Web（provided）、springdoc 注解、Bean Validation |
+| `sts-common-db` | jar | MyBatis-Plus 拦截器（分页 / 乐观锁 / 防全表更新）+ 自动配置 | `sts-common-basic`、MyBatis-Plus |
+| `sts-server-log` | jar | 客户端日志的上报 / 分页 / 详情 / 链路 / 聚合 | `sts-common-web`、`sts-common-db` |
+| `sts-app-server` | jar | 可执行应用：装配各域服务、健康检查、`application.yml` | `sts-server-log`、springdoc UI、H2（runtime） |
 
-> **规划中但尚未创建的层**：`sts-components/`（通用能力组件，如后续的审计、文件）、`sts-app/`（业务应用）。
+> **为什么需要 `sts-app` 这一层**：`sts-server-*` 是"可部署的服务能力"，但**不是进程** —— 它们不知道自己的端口、数据源，也不知道要暴露哪些接口文档。必须有一个应用层把这些装配成一个能 `java -jar` 跑起来的东西。这层**只做装配，不写业务逻辑**：一旦出现业务代码，就该下沉到 `sts-server` 或 `sts-components`。
+>
+> **规划中但尚未创建的层**：`sts-components/`（通用能力组件，如后续的审计、文件）。
 > 遵循「**模块按需创建，不预置空壳**」——空模块会让构建变慢、索引变重，而且"以后放什么"的意图很快就没人记得。
 > 创建时无需改动任何已有模块的坐标。
 
 `sts-common-basic` 刻意保持**零依赖**：它处在依赖链最底层，任何引入都会扩散到全仓。
+
+> **MyBatis-Plus 3.5.9 的坑**：依赖 JSqlParser 的拦截器（分页、防全表更新）被拆到独立坐标 `mybatis-plus-jsqlparser`。只引 `mybatis-plus-spring-boot3-starter` 会在**运行时**才报 `ClassNotFoundException: PaginationInnerInterceptor`，编译期看不出来。
 
 ---
 
@@ -98,17 +107,30 @@ throw new BusinessException(ResultCode.CONFLICT);   // 用枚举默认文案
 模块间按**业务域**切分，模块内按**特性（feature）**分包：
 
 ```
-com.bluewhale.sts.system
-├── SystemApplication.java
-└── health/                          ← 特性包
-    ├── HealthController.java            接口层
-    ├── HealthService.java               应用层
-    └── HealthVO.java                    出参模型
+com.bluewhale.sts.log                    ← sts-server-log，包名用业务域（不带 server）
+└── clientlog/                           ← 特性包
+    ├── ClientLogController.java             接口层
+    ├── ClientLogService.java                应用层
+    ├── ClientLogMapper.java                 数据访问
+    ├── ClientLogEntity.java / *VO.java      模型
+    └── ...                                  约十个类，尚未到拆分阈值
 ```
 
 **为什么不用 `controller/` `service/` `repository/` 作顶层分包**：改动一个功能要跨四个包来回跳；更要紧的是包之间没有任何边界——谁都可以从 `controller` 直接调 `repository` 绕过业务规则，编译器和评审都拦不住。按特性分包后，特性包本身就是天然的模块化候选点，将来拆服务只需整个包搬走。
 
 单个特性超过约 10 个类时，再在其内部按 `domain` / `application` / `infrastructure` 细分。
+
+### 日志域的几条硬规则
+
+| 规则 | 原因 |
+|------|------|
+| **逐条校验，不整批拒绝** | 一条畸形数据若能让整批 500 条全被拒，客户端日志会成片丢失，且丢的正是"出事那一刻最需要的那批"。信封级问题（`app` 为空、批次超限）才整体 400 —— 那是调用方写错了代码 |
+| **超长截断而不是丢弃** | 超长的通常是消息夹带整段响应体，丢弃等于丢掉"这里出过事"这个事实，截断至少保留开头 |
+| **级别解析不兜底成 `INFO`** | 把非法值悄悄变成合法值，上游的拼写错误就永远暴露不出来。识别不了 → 该条计入 `rejected` |
+| **排序用 `serverTime` + `id` 双键** | 同一毫秒内的多条记录若只按时间排序，翻页时顺序不稳定，会出现"某条在第 1 页和第 2 页都出现" |
+| **`clientTime` 仅作参考** | 客户端时钟不可信；排序、时间窗、统计一律用服务端接收时间 |
+
+**技术日志与审计日志是两条管道。** 本模块处理的是技术日志（排查故障用：量大、短保留、可采样、可丢弃）。审计日志（谁在何时对哪个资源做了什么）走另一条管道，且**权威来源必须是后端拦截器** —— 这些事实前端根本不知道，客户端上报的内容也不可信。见 `docs/decisions/0004`。
 
 ---
 
@@ -128,19 +150,25 @@ com.bluewhale.sts.system
 cd server
 
 mvn clean install -DskipTests                      # 构建全部模块
-mvn clean install                                  # 含测试
+mvn clean install                                  # 含测试（当前 22 例）
 
-# 启动系统域服务（在 server/ 目录下执行）
-mvn -pl :sts-server-system spring-boot:run
-# 或先打包再运行
-java -jar sts-server/sts-server-system/target/sts-server-system-0.0.1-SNAPSHOT.jar
+# 启动应用（在 server/ 目录下执行，需要 JDK 21）
+java -jar sts-app/sts-app-server/target/sts-app-server-0.0.1-SNAPSHOT.jar
+# 或用 Maven 插件
+mvn -pl :sts-app-server spring-boot:run
+# 需要换端口时（命令行参数优先级最高）
+java -jar sts-app/sts-app-server/target/sts-app-server-0.0.1-SNAPSHOT.jar --server.port=18080
 ```
 
-服务默认监听 `8080`。
+服务默认监听 `8080`。数据源是 **H2 内存库**（`MODE=MySQL`），零外部依赖，clone 下来就能跑；换生产库只改 `application.yml` 的数据源几行 + 驱动依赖，代码不动。
 
 ```bash
 curl http://localhost:8080/api/health
 ```
+
+接口文档（springdoc）：`http://localhost:8080/swagger-ui.html`；H2 控制台：`/h2-console`（JDBC URL 填 `jdbc:h2:mem:bluewhale`，用户 `sa`，密码留空）。
+
+日志接口的完整清单与契约见 `docs/api/README.md`；前端配套的演示页见 `web/platform/platform-log-console`。
 
 ---
 
@@ -152,8 +180,10 @@ curl http://localhost:8080/api/health
 | Maven | 3.8+ | 已在 3.8.1 上验证 |
 
 > **若构建报版本错误**，先确认 Maven 实际使用的是 JDK 21 —— `mvn -v` 会打印 `Java version`。
-> 机器上同时存在多个 JDK 时，`JAVA_HOME` 可能指向旧版本，需显式指定：
+> 机器上同时存在多个 JDK 时，`JAVA_HOME` 可能指向旧版本（例如本机默认指向 JDK 17），需显式指定：
 >
 > ```bash
 > JAVA_HOME=/path/to/jdk-21 mvn clean install
 > ```
+>
+> 症状：编译期报 release 21 不受支持，或运行 `java -jar` 时抛 `UnsupportedClassVersionError`。

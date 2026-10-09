@@ -54,7 +54,7 @@
 - **上报必须走 `onRecord`**：sink 级别有损（`info`/`success` 都压成 `'log'`），元数据被拼进字符串，只能反向解析
 - `onRecord` 派发点在**级别过滤之后、格式化之前**；内部异常**静默吞掉**（防上报失败递归成雪崩）
 - `LogRecord` 含 `level/namespace/timestamp/message/data/context` + `traceId/sessionId/route/release`
-- 传输与聚合**未实现**，等后端日志服务；生产优先复用成熟 APM（Sentry/RUM）
+- 服务端聚合与查询**已实现**（`sts-server-log`）；**采样与脱敏未实现**，等有真实生产流量再做；生产可复用成熟 APM（Sentry/RUM）
 
 ## 配置分域（2026-10-09 定 · ADR-0003）
 - 三层：**密钥级**（Vault/KMS）· **部署级**（Nacos/Apollo）· **业务运行期**（自研，走 OpenAPI 契约）
@@ -75,13 +75,41 @@
 
 ### 已落地模块（2026-10-09 · ADR-0005）
 ```
-server/  pom.xml(聚合) → sts-parent → sts-common/{sts-common-basic, sts-common-web} → sts-server/sts-server-system
+server/  pom.xml(聚合) → sts-parent
+  → sts-common/{basic, web, db}
+  → sts-server/sts-server-log（日志域）
+  → sts-app/sts-app-server（唯一可启动进程，H2 内存库）
 ```
 - groupId **按层分级**（`com.bluewhale.sts.common.basic`…），`<version>` 只在 `sts-parent` 出现
 - `sts-common-basic`：`R<T>` · `ResultCode`（5 位 = HTTP 3 位 + 业务 2 位）· `BusinessException`；**刻意零依赖**，唯一例外是 `jackson-annotations`（provided，仅为 `@JsonIgnore`）
-- `sts-common-web`：`GlobalExceptionHandler` + 自动配置（`AutoConfiguration.imports`），依赖即生效
-- 模块内按**特性（feature）分包**（`health/` 下 Controller/Service/VO），**不用** `controller/service/repository` 顶层分包
-- `sts-app/` `sts-components/` **尚未创建**，按需再建，不预置空壳
+- `sts-common-web`：`GlobalExceptionHandler` + CORS + 自动配置（`AutoConfiguration.imports`），依赖即生效
+- `sts-common-db`：MyBatis-Plus 3.5.9 拦截器；**分页/防全表更新需另引 `mybatis-plus-jsqlparser`**，漏引运行时才报错
+- 模块内按**特性（feature）分包**（`clientlog/` 下 Controller/Service/Mapper/VO），**不用** `controller/service/repository` 顶层分包
+- `sts-components/` **尚未创建**，按需再建，不预置空壳
+
+## 契约链（2026-10-09 定 · ADR-0006）
+- 代码 → springdoc → `scripts/export-openapi.sh`（端口 18080）→ `docs/api/openapi.json` → `openapi-typescript` → `common-api/src/generated/schema.d.ts`
+- 生成物**入库**：前端构建不依赖后端可运行；契约变化在 review 里显式可见
+- 路径常量 `satisfies keyof paths`；`startTime` 等字段用 `expectTypeOf` 钉住（springdoc 会把 query 位带 `@Schema` 的 `Long` 推平成 string）
+- **openapi-typescript 的坑**：`Object` 字段渲染成 `Record<string, never>` → `common-api/types.ts` 的 `JsonValue` 只对 `data`/`context`/`logs` 修正
+- openapi-typescript 7.13 peer 要 TS ^5.x，项目是 6.0.3 → 有警告但功能正常
+
+## 前端请求分层（2026-10-09 定 · ADR-0007）
+- `common-tools/http` = 传输内核（不认识业务接口）；`common-api` = 契约装配（只做接线）
+- 三件收口：解包 `R<T>`、`code!==0` 抛异常、超时+取消合并一个 AbortController
+- 六类错误 `business/http/network/timeout/abort/parse` + `retryable` 判据；**内核不做自动重试**（幂等边界属业务语义）
+- **超时必须先于取消分类**（两者都是 abort 实现）；`traceIdProvider` 注入 X-Trace-Id，不自动生成
+- 日志上报通道 `LogReporter`：批量 20 / 3s / 缓冲 500 / 退避封顶 30s / 不抛异常不自我记录
+
+## 日志控制台 demo（platform-log-console，:3200）
+- 左栏客户端视角 / 右栏服务端视角并排 —— 只看一边无法判断上报成没成
+- `emit` 不能写 `logger[level](...)`：`perf` 签名是 `(label,value,unit)`，须显式 switch 分派
+- 已用真实浏览器（Chrome headless + CDP）验证全链路：点击 → 上报 → 落库 → 表格刷新
+
+## 环境坑（已查清，勿再排查）
+- 后端启动报 Port 56491：沙箱注入 `SERVER__PORT` 环境变量 → 命令行 `--server.port=8080` 覆盖
+- `curl localhost` 报 upstream connect failed：环境 HTTP 代理 → 加 `--noproxy '*'`
+- 本机 `JAVA_HOME` 默认 JDK 17 → 后端构建须 `JAVA_HOME=/d/tools/installer/jdk/java21`
 - 约定：**业务失败也返回 HTTP 200**，结果只由 `code` 表达（前端判 `code === 0`）；`R.isSuccess()` 必须 `@JsonIgnore` 否则泄漏 `success` 字段
 - 构建：PATH 上是 JDK 17，**必须** `JAVA_HOME="D:/tools/installer/jdk/java21" mvn …`
 

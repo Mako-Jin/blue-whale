@@ -1,0 +1,1018 @@
+// 日志控制台的页面样式。
+//
+// 组织方式：按"组件块"自顶向下排列，块内用 Less 的 `&__element` / `&--modifier` 嵌套，
+// 与 platform-portal 的 BasicLayout.less 保持同一套写法。
+// 设计令牌（颜色、字体、圆角）全部来自 styles/variables.less，
+// 由 vite.config.ts 注入，本文件不 @import。
+
+/* ------------------------------------------------------------------ 复用规则 */
+
+// 级别配色。同一套"文字色 + 浅底 + 同色描边"要同时用在列表标签和按级别产生按钮上，
+// 因此抽成 mixin。将来调整级别的视觉重量，只改这一处。
+.level-tone(@color) {
+  color: @color;
+  background: fade(@color, 8%);
+  border-color: fade(@color, 30%);
+}
+
+/* -------------------------------------------------------------- 整体骨架 */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 100vh;
+  padding: 16px 20px 24px;
+}
+
+/* ---------------------------------------------------------------- 顶栏 */
+
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  background: @bg-elevated;
+  border: 1px solid @border-color;
+  border-radius: @radius-lg;
+  box-shadow: @shadow-card;
+}
+
+.topbar__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.topbar__logo {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, @brand-color, #37b1ff);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgb(22 93 255 / 35%);
+}
+
+.topbar__title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+.topbar__subtitle {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: @text-tertiary;
+}
+
+.topbar__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 状态胶囊：后端连通性、依赖、会话标识共用一种外观 */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+  color: @text-secondary;
+  white-space: nowrap;
+  background: @bg-sunken;
+  border: 1px solid @border-color;
+  border-radius: 999px;
+
+  &--ok {
+    color: #0b8a22;
+    background: #e8ffea;
+    border-color: #aff0b5;
+  }
+
+  &--ok .pill__dot {
+    background: @level-success;
+  }
+
+  &--err {
+    color: #cb2634;
+    background: #ffece8;
+    border-color: #fdcdc5;
+  }
+
+  &--err .pill__dot {
+    background: @level-error;
+  }
+}
+
+.pill__dot {
+  width: 6px;
+  height: 6px;
+  background: @text-tertiary;
+  border-radius: 50%;
+}
+
+/* ---------------------------------------------------------------- 按钮 */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 12px;
+  font-family: inherit;
+  font-size: 13px;
+  color: @text-primary;
+  text-decoration: none;
+  background: @bg-elevated;
+  border: 1px solid @border-strong;
+  border-radius: @radius-sm;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+
+  &:hover {
+    color: @brand-color;
+    border-color: @brand-color;
+  }
+
+  // 无障碍：键盘聚焦必须有可见反馈，仅靠 hover 会让纯键盘用户完全失去位置感
+  &:focus-visible {
+    outline: 2px solid @brand-color;
+    outline-offset: 1px;
+  }
+
+  &:disabled {
+    color: @text-tertiary;
+    background: @bg-sunken;
+    border-color: @border-color;
+    cursor: not-allowed;
+  }
+
+  &:disabled:hover {
+    color: @text-tertiary;
+    border-color: @border-color;
+  }
+
+  &--primary {
+    color: #fff;
+    background: @brand-color;
+    border-color: @brand-color;
+  }
+
+  &--primary:hover {
+    color: #fff;
+    background: #0e4bd6;
+    border-color: #0e4bd6;
+  }
+
+  // 链接型按钮：表格里的时间、链路 id 用它，长在文本里但不能像普通文本那样只靠颜色区分
+  &--link {
+    height: auto;
+    padding: 0;
+    color: @brand-color;
+    background: none;
+    border: none;
+    border-radius: 0;
+  }
+
+  &--link:hover {
+    color: #0e4bd6;
+    text-decoration: underline;
+  }
+
+  // 按级别产生的按钮：底色由下方的 .lv-* 规则给，这里只定尺寸
+  &--level {
+    min-width: 64px;
+    padding: 0 10px;
+    font-weight: 500;
+  }
+}
+
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ------------------------------------------------------------ 级别配色 */
+
+.level-tag.lv-trace,
+.btn--level.lv-trace {
+  .level-tone(@level-trace);
+}
+
+.level-tag.lv-debug,
+.btn--level.lv-debug {
+  .level-tone(@level-debug);
+}
+
+.level-tag.lv-perf,
+.btn--level.lv-perf {
+  .level-tone(@level-perf);
+}
+
+.level-tag.lv-info,
+.btn--level.lv-info {
+  .level-tone(@level-info);
+}
+
+.level-tag.lv-success,
+.btn--level.lv-success {
+  .level-tone(@level-success);
+}
+
+.level-tag.lv-warn,
+.btn--level.lv-warn {
+  .level-tone(@level-warn);
+}
+
+.level-tag.lv-error,
+.btn--level.lv-error {
+  .level-tone(@level-error);
+}
+
+// 服务端将来新增了级别而前端元数据还没跟上时的兜底，不能显示成透明
+.level-tag.lv-unknown {
+  .level-tone(@text-tertiary);
+}
+
+.level-tag {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  height: 18px;
+  padding: 0 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  background: @bg-sunken;
+  border: 1px solid @border-color;
+  border-radius: 3px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 7px;
+  font-size: 11px;
+  color: @text-secondary;
+  background: @bg-sunken;
+  border: 1px solid @border-color;
+  border-radius: 9px;
+}
+
+/* ------------------------------------------------------------ 提示条 */
+
+.alert {
+  padding: 8px 12px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #a8071a;
+  background: #fff1f0;
+  border: 1px solid #ffccc7;
+  border-radius: @radius-sm;
+
+  // 整页级提示（后端连不上）比面板内的局部提示更醒目一档
+  &--block {
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+
+  code {
+    padding: 1px 5px;
+    background: rgb(255 255 255 / 70%);
+    border-radius: 3px;
+  }
+}
+
+.muted {
+  font-size: 12px;
+  color: @text-tertiary;
+}
+
+/* -------------------------------------------------------------- 两栏布局 */
+
+// 左栏产生、右栏查看，两栏都按内容高度收缩并顶端对齐；
+// 内部滚动（本地缓冲、日志表格）各自负责，页面不会被长列表撑坏。
+.layout {
+  display: grid;
+  grid-template-columns: minmax(340px, 400px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+// 详情抽屉打开时多出一列，因此列定义整体切换 ——
+// 用"隐藏第三列"而不是"抽屉浮在内容上"，是为了避免遮挡右栏正在看的表格。
+.layout--with-drawer {
+  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr) minmax(340px, 420px);
+}
+
+@media (width <= 1180px) {
+  .layout,
+  .layout--with-drawer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  background: @bg-elevated;
+  border: 1px solid @border-color;
+  border-radius: @radius-lg;
+  box-shadow: @shadow-card;
+}
+
+.panel__head {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid @border-color;
+}
+
+.panel__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.panel__hint {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: @text-tertiary;
+}
+
+.panel__body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px 16px;
+}
+
+/* ---------------------------------------------------------- 日志产生器 */
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: @bg-sunken;
+  border-radius: @radius-md;
+}
+
+.field__label {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.field__note {
+  font-size: 12px;
+  color: @text-tertiary;
+}
+
+// 复选框做成开关：一眼能看出当前是"开"还是"关"，
+// 而原生 checkbox 的勾选态在低对比度屏幕上很容易看漏。
+.switch {
+  position: relative;
+  flex: none;
+  width: 36px;
+  height: 20px;
+  margin: 0;
+  appearance: none;
+  background: @border-strong;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+
+  &::after {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.15s ease;
+    content: '';
+  }
+}
+
+.switch:checked {
+  background: @brand-color;
+}
+
+.switch:checked::after {
+  transform: translateX(16px);
+}
+
+.switch:focus-visible {
+  outline: 2px solid @brand-color;
+  outline-offset: 1px;
+}
+
+.generator__group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.generator__group--grow {
+  flex: 1;
+  min-height: 0;
+}
+
+.generator__group-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: @text-secondary;
+}
+
+// "清空"按钮推到组标题行的最右端
+.generator__group-title .btn--link {
+  margin-left: auto;
+}
+
+.trace-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  background: #f0f6ff;
+  border: 1px solid #cfe0ff;
+  border-radius: @radius-md;
+}
+
+.trace-hint__label {
+  color: @text-tertiary;
+}
+
+.trace-hint__id {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: @brand-color;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.local-list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  max-height: 300px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  background: @bg-sunken;
+  border: 1px solid @border-color;
+  border-radius: @radius-md;
+}
+
+.local-list__empty {
+  padding: 28px 12px;
+  font-size: 12px;
+  color: @text-tertiary;
+  text-align: center;
+}
+
+.local-list__item {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  border-bottom: 1px solid @border-color;
+  cursor: pointer;
+}
+
+.local-list__item:last-child {
+  border-bottom: none;
+}
+
+.local-list__item:hover {
+  background: @bg-elevated;
+}
+
+.local-list__time {
+  flex: none;
+  color: @text-tertiary;
+}
+
+.local-list__ns {
+  flex: none;
+  max-width: 96px;
+  overflow: hidden;
+  font-size: 11px;
+  color: @text-tertiary;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.local-list__msg {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------- 上报状态计数 */
+
+.generator__stats {
+  display: flex;
+  gap: 6px;
+  padding: 10px 16px;
+  border-top: 1px solid @border-color;
+}
+
+.stat {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 4px;
+  background: @bg-sunken;
+  border-radius: @radius-sm;
+
+  &--ok .stat__value {
+    color: @level-success;
+  }
+
+  &--warn .stat__value {
+    color: @level-warn;
+  }
+
+  &--err .stat__value {
+    color: @level-error;
+  }
+}
+
+.stat__value {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.stat__label {
+  font-size: 11px;
+  color: @text-tertiary;
+}
+
+.generator__error {
+  padding: 8px 16px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #cb2634;
+}
+
+/* ------------------------------------------------------------ 级别分布 */
+
+.stats {
+  display: flex;
+  align-items: flex-end;
+  gap: 20px;
+  padding: 12px 16px;
+  background: @bg-sunken;
+  border-bottom: 1px solid @border-color;
+}
+
+.stats__summary {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stats__total {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1;
+  color: @brand-color;
+}
+
+.stats__unit {
+  margin-left: 4px;
+  font-size: 12px;
+  color: @text-tertiary;
+}
+
+.stats__window {
+  font-size: 11px;
+  color: @text-tertiary;
+}
+
+.stats__bars {
+  display: flex;
+  flex: 1;
+  align-items: flex-end;
+  gap: 4px;
+  min-width: 0;
+}
+
+.stats__item {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  font-family: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.stats__count {
+  font-size: 11px;
+  color: @text-secondary;
+}
+
+.stats__track {
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  height: 40px;
+  background: rgb(0 0 0 / 4%);
+  border-radius: 3px;
+}
+
+.stats__bar {
+  width: 100%;
+  border-radius: 3px;
+  transition: height 0.25s ease;
+}
+
+.stats__bar.lv-trace {
+  background: @level-trace;
+}
+
+.stats__bar.lv-debug {
+  background: @level-debug;
+}
+
+.stats__bar.lv-perf {
+  background: @level-perf;
+}
+
+.stats__bar.lv-info {
+  background: @level-info;
+}
+
+.stats__bar.lv-success {
+  background: @level-success;
+}
+
+.stats__bar.lv-warn {
+  background: @level-warn;
+}
+
+.stats__bar.lv-error {
+  background: @level-error;
+}
+
+.stats__bar.lv-unknown {
+  background: @text-tertiary;
+}
+
+.stats__label {
+  font-size: 10px;
+  letter-spacing: 0.3px;
+  color: @text-tertiary;
+}
+
+/* -------------------------------------------------------------- 筛选区 */
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid @border-color;
+}
+
+.input {
+  height: 28px;
+  padding: 0 10px;
+  font-family: inherit;
+  font-size: 13px;
+  color: @text-primary;
+  background: @bg-elevated;
+  border: 1px solid @border-strong;
+  border-radius: @radius-sm;
+  outline: none;
+  transition: border-color 0.15s ease;
+
+  &:focus {
+    border-color: @brand-color;
+    box-shadow: 0 0 0 2px rgb(22 93 255 / 12%);
+  }
+
+  &::placeholder {
+    color: @text-tertiary;
+  }
+}
+
+.filters select.input {
+  flex: none;
+  width: 124px;
+}
+
+.filters input.input {
+  flex: 1 1 160px;
+  min-width: 140px;
+}
+
+/* -------------------------------------------------------------- 日志表 */
+
+.table-wrap {
+  max-height: 560px;
+  overflow: auto;
+}
+
+.table {
+  width: 100%;
+  font-size: 12px;
+  border-collapse: collapse;
+
+  th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: @text-secondary;
+    text-align: left;
+    white-space: nowrap;
+    background: @bg-sunken;
+    border-bottom: 1px solid @border-color;
+  }
+
+  td {
+    padding: 7px 12px;
+    vertical-align: top;
+    border-bottom: 1px solid @border-color;
+  }
+}
+
+.table__row:hover {
+  background: #f7f9ff;
+}
+
+.table__col-time {
+  width: 128px;
+}
+
+.table__col-level {
+  width: 76px;
+}
+
+.table__col-ns {
+  width: 160px;
+}
+
+.table__col-trace {
+  width: 120px;
+}
+
+.table__empty {
+  padding: 40px 16px;
+  font-size: 13px;
+  color: @text-tertiary;
+  text-align: center;
+}
+
+.table__relative {
+  display: block;
+  font-size: 11px;
+  color: @text-tertiary;
+}
+
+.table__ns {
+  max-width: 160px;
+  overflow: hidden;
+  color: @text-secondary;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table__msg {
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* -------------------------------------------------------------- 分页 */
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  font-size: 12px;
+  color: @text-secondary;
+  border-top: 1px solid @border-color;
+}
+
+.pager__actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ------------------------------------------------------------ 详情抽屉 */
+
+.drawer {
+  position: sticky;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 48px);
+  overflow: hidden;
+  background: @bg-elevated;
+  border: 1px solid @border-color;
+  border-radius: @radius-lg;
+  box-shadow: @shadow-card;
+}
+
+.drawer__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid @border-color;
+}
+
+.drawer__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.drawer__body {
+  flex: 1;
+  min-height: 0;
+  padding: 14px 16px;
+  overflow-y: auto;
+}
+
+.drawer__section {
+  margin-top: 16px;
+}
+
+.drawer__subtitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: @text-secondary;
+}
+
+.drawer__trace {
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 400;
+  color: @brand-color;
+  background: #f0f6ff;
+  border-radius: 3px;
+}
+
+.drawer__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+/* 详情字段表。使用 dl > div > dt/dd，语义上仍是"键值对"，
+   但每行是一个 div，才能让 flex 布局与边框正常生效。 */
+.kv {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid @border-color;
+  border-radius: @radius-md;
+}
+
+.kv__row {
+  display: flex;
+  gap: 12px;
+  padding: 6px 10px;
+  font-size: 12px;
+  border-bottom: 1px solid @border-color;
+}
+
+.kv__row:last-child {
+  border-bottom: none;
+}
+
+.kv__key {
+  flex: none;
+  width: 84px;
+  color: @text-tertiary;
+}
+
+.kv__value {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.kv__note {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: @text-tertiary;
+}
+
+.code {
+  max-height: 220px;
+  margin: 0;
+  padding: 10px 12px;
+  overflow: auto;
+  font-family: @font-mono;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  background: @bg-sunken;
+  border: 1px solid @border-color;
+  border-radius: @radius-md;
+}
+
+/* --------------------------------------------------------------- 链路 */
+
+.trace-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trace-list__item {
+  border: 1px solid transparent;
+  border-radius: @radius-sm;
+}
+
+// 当前正在看的那条，在链路序列里高亮出来
+.trace-list__item--current {
+  background: #f0f6ff;
+  border-color: #cfe0ff;
+}
+
+.trace-list__btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: 12px;
+  color: @text-primary;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.trace-list__time {
+  flex: none;
+  font-size: 11px;
+  color: @text-tertiary;
+}
+
+.trace-list__msg {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

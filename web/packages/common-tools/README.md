@@ -2,12 +2,13 @@
 
 与框架无关的通用工具集。**不依赖 React / Vue，不依赖任何运行时第三方库**，因此应用、构建脚本、Node 工具链都能直接用。
 
-当前包含两个模块：
+当前包含三个模块：
 
 | 模块     | 入口                  | 内容                                           |
 | -------- | --------------------- | ---------------------------------------------- |
 | `logger` | `common-tools/logger` | 分级日志、命名空间层级、主题配色、同构渲染     |
 | `env`    | `common-tools/env`    | 运行环境探测、构建模式、调试模式与生产域名兜底 |
+| `http`   | `common-tools/http`   | 请求内核：发请求、解包统一响应、错误分类       |
 
 ---
 
@@ -37,9 +38,14 @@ packages/common-tools/
 │   │   ├── themes.ts         内置主题与主题深合并
 │   │   ├── format.ts         时间戳 / CSS / ANSI / 渲染模式探测
 │   │   └── logger.ts         Logger 类与全局配置
-│   └── env/
-│       └── index.ts          运行环境与调试模式
-├── tests/                    Vitest 单元测试（88 例）
+│   ├── env/
+│   │   └── index.ts          运行环境与调试模式
+│   └── http/
+│       ├── index.ts          模块出口
+│       ├── types.ts          客户端配置、单次请求选项、统一响应信封
+│       ├── errors.ts         六类错误 + HttpError 基类 + retryable 判据
+│       └── client.ts         请求内核（刻意不认识任何业务接口）
+├── tests/                    Vitest 单元测试（101 例）
 ├── playground/               可视化演示（纯 DOM，可运行）
 ├── eslint.config.js          引用 common-config，额外放行本包的 console 调用
 ├── stylelint.config.js       一行 re-export common-config 共享配置
@@ -277,7 +283,105 @@ logger.error(new Error('远程服务不可用')); // 自动带上错误对象以
 
 ---
 
-## 五、相对参考实现的修复
+## 五、HTTP 请求内核
+
+**这个模块刻意不认识任何业务接口。** 它只回答两个问题：怎么把一次请求发出去、怎么把响应翻译成结果或错误。接口路径与出入参类型由契约生成（见 `web/packages/common-api`）。
+
+> **边界规则**：不认识业务接口的传输能力（发请求、解包、错误分类、重试判据）在本包；一旦某段代码知道"`/api/logs/client` 是什么"，它就必须待在上面那层，不能进本包。
+
+### 快速开始
+
+```ts
+import { createHttpClient, isHttpError } from 'common-tools/http';
+
+const http = createHttpClient({
+  baseUrl: '/api',
+  timeout: 10_000,
+  traceIdProvider: () => currentTraceId, // 注入 X-Trace-Id，前后端日志可串
+  onError: (error) => reportToMonitor(error),
+});
+
+const page = await http.get<ClientLogPage>('/api/logs/client', {
+  query: { level: 'error', page: 1, size: 20 },
+});
+```
+
+### 一次性收口的三件事
+
+调用方拿到的直接是 `data`，不必人人写一遍 `res.code === 0 ? res.data : ...`：
+
+| 收口内容                               | 为什么必须在传输层做                                                               |
+| -------------------------------------- | ---------------------------------------------------------------------------------- |
+| 解开统一响应 `R<T>`                    | 每个调用点各写一遍，迟早在某一处写漏                                               |
+| `code !== 0` 抛异常                    | 用返回值表达失败必然有人漏判，漏判的表现是"页面显示 undefined"，比抛异常难排查得多 |
+| 超时与取消合并成一个 `AbortController` | 两套中断机制并存时，总有一边忘了清定时器                                           |
+
+### 六类错误
+
+| `kind`     | 含义                                                       | `retryable`       |
+| ---------- | ---------------------------------------------------------- | ----------------- |
+| `business` | HTTP 200 但 `code !== 0`：请求完全正常，是业务规则拒绝了它 | ❌                |
+| `http`     | 状态码非 2xx                                               | 仅 `429` 与 `5xx` |
+| `network`  | 请求没发出去或没收到响应（DNS、连接被拒、CORS 被拦）       | ✅                |
+| `timeout`  | 超过约定时间                                               | ✅                |
+| `abort`    | 调用方主动取消                                             | ❌                |
+| `parse`    | 响应不是合法 JSON 或不符合统一响应结构                     | ❌                |
+
+```ts
+try {
+  await api.log.page({ page: 1 });
+} catch (error) {
+  if (!isHttpError(error)) throw error;
+  switch (error.kind) {
+    case 'business':
+      toast(error.message);
+      break; // 提示用户，改输入
+    case 'abort':
+      break; // 静默忽略
+    default:
+      if (error.retryable) scheduleRetry();
+      break;
+  }
+}
+```
+
+**判断必须用结构化字段（`kind` / `status` / `code`），不要匹配 `message` 文案** —— 文案改一个字，判断就静默失效。
+
+### 内核不做自动重试
+
+`retryable` 只给出判据，**是否重试由调用方决定**。原因是**幂等边界是业务语义**：日志上报的 `POST` 重试是安全的，而"下单""支付"的 `POST` 重试就是重复扣款 —— 传输层无法从 `POST /orders` 这个路径推断出它是否幂等。
+
+需要重试的调用点必须**同时**满足两条：`error.retryable === true`，且该操作确认幂等。
+
+### 超时必须先于取消分类
+
+超时也是通过 `abort()` 实现的，两者抛出的都是 `AbortError`。因此判断顺序是 `timedOut → AbortError → NetworkError`。若先按 `AbortError` 归类，超时会被报成"被主动取消"，排查时会去找"谁取消了这个请求"，而真正的原因（服务端太慢）被完全掩盖。
+
+### 日志与静默开关
+
+- `business` 失败记 **warn**，其余记 **error** —— 业务拒绝是预期行为，若也记 error，真正的故障告警会被正常业务拒绝淹没；
+- `silent: true` 用于已知会失败、由调用方自行处理的探测类请求（如健康检查），避免每 10 秒往错误日志里写一条；
+- `logger: null` 可整体关闭本客户端的日志。
+
+### 配置项
+
+| 配置                                   | 默认                   | 说明                                       |
+| -------------------------------------- | ---------------------- | ------------------------------------------ |
+| `baseUrl`                              | `''`                   | 基地址；路径以 `http(s)://` 开头时原样使用 |
+| `timeout`                              | `15000`                | 毫秒，`0` 表示不超时                       |
+| `successCode`                          | `0`                    | 视为业务成功的 `code`                      |
+| `headers`                              | `{}`                   | 默认请求头                                 |
+| `unwrap`                               | `true`                 | 是否默认解开统一响应包装                   |
+| `traceIdProvider`                      | —                      | 返回非空值时注入 `X-Trace-Id`              |
+| `fetchImpl`                            | 全局 `fetch`           | 测试注入用                                 |
+| `logger`                               | `logger.child('http')` | 传 `null` 关闭                             |
+| `onRequest` / `onResponse` / `onError` | —                      | 钩子，用于补签名头、埋点、上报             |
+
+单次请求可用 `RequestOptions` 覆盖 `timeout` / `unwrap` / `silent` / `headers` / `signal`。
+
+---
+
+## 六、相对参考实现的修复
 
 本包的结构参照 `platform-terminator/packages/common-tools`，logger 在其基础上重写。以下是**原实现中真实存在的问题**，均已修复并有测试覆盖：
 
@@ -302,16 +406,18 @@ logger.error(new Error('远程服务不可用')); // 自动带上错误对象以
 
 ---
 
-## 六、设计取舍
+## 七、设计取舍
 
 - **不引入渐变。** 原实现的级别标签用了 `linear-gradient`，浏览器里好看，但 ANSI 无法表达，会导致两种环境观感割裂。改用纯色，换来三态一致。
 - **不做内部 `fetch`。** 需要 ASCII 资源时由调用方读取后传入字符串，日志组件保持纯粹。
 - **等级标签统一 7 字符宽**（`SUCCESS` 的长度），让多行日志的列严格对齐。
 - **`time()` 返回停止函数**，而不是 `console.time` / `timeEnd` 的全局标签池——后者在并发或同名嵌套时会互相覆盖，且未匹配时静默失败。
+- **HTTP 走自建而非 axios。** 需要的能力（JSON 收发、超时、取消、解包、错误分类）用 `fetch` + 约 250 行封装即可覆盖，且不引入运行时依赖。更要紧的是 axios 自带一套 `AxiosError` 与拦截器生态，引入后项目里会同时存在两套错误判断方式，最终还是绕不开归一到一套分类上。详见 `docs/decisions/0007`。
+- **HTTP 内核留在了 `common-tools` 而不是另开包。** 本包的定义是"与框架无关的通用能力"，传输内核符合；`common-*` 包的数量按能力边界增长，而不是按"类别的名字听起来不同"增长。这条边界由一句话守住：**认识业务接口的代码一律不能进本包。**
 
 ---
 
-## 七、待补充
+## 八、待补充
 
-- `common-tools` 目前只有 `logger` 与 `env`；HTTP 封装、存储、事件总线需要时再建**独立包**，不要往本包堆
-- 日志上报目前只到**采集契约**（`onRecord` + `LogRecord`）；聚合与传输随服务端日志服务一起实现，见 `docs/decisions/0004-前端日志上报架构.md`
+- 日志上报目前只到**采集契约**（`onRecord` + `LogRecord`）与**前端传输**（`LogReporter`）；服务端的存储与聚合查询已实现（`sts-server-log`），跨端串联靠 `X-Trace-Id`
+- 其余能力（存储、事件总线、并发去重、请求缓存）需要时再议，仍按同一句话判断该不该进本包

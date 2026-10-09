@@ -1,0 +1,75 @@
+server:
+  port: 8080
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
+spring:
+  application:
+    name: bluewhale-server
+
+  # ---------------------------------------------------------------------------
+  # 数据源：H2 内存库（开发 / 演示）。零外部依赖，clone 下来就能跑。
+  # 换生产库时只改这几行 + 换驱动依赖，代码不动 —— 这是 sts-common-db 不写死 DbType 的原因。
+  #
+  # MODE=MySQL          ：语法尽量贴近 MySQL，减少换库时的意外
+  # DATABASE_TO_LOWER   ：标识符统一小写，避免大小写敏感带来的"本地能跑、线上报表不存在"
+  # DB_CLOSE_DELAY=-1   ：最后一个连接关闭后不销毁库，否则连接池回收一次数据就没了
+  # ---------------------------------------------------------------------------
+  datasource:
+    url: jdbc:h2:mem:bluewhale;DB_CLOSE_DELAY=-1;MODE=MySQL;DATABASE_TO_LOWER=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+
+  # 建表脚本在各领域模块内自带（classpath:db/schema/*.sql），应用负责把它们列出来。
+  # 显式列出而非用通配符：这样"这个库到底有哪些表"能直接从配置读出来。
+  # 生产环境的表结构变更将交给迁移工具（Flyway），不靠这一机制 —— 见 docs/decisions/0006。
+  sql:
+    init:
+      mode: always
+      schema-locations:
+        - classpath:db/schema/client-log.sql
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+mybatis-plus:
+  configuration:
+    # 下划线转驼峰：level_count → levelCount。关掉它就得给每个聚合列写 @Results
+    map-underscore-to-camel-case: true
+  global-config:
+    banner: false
+
+# -----------------------------------------------------------------------------
+# 跨域：默认关闭，这里为本地前端联调打开。
+# 前端 dev server 已经配了 /api 代理（同源），理论上用不到；
+# 但直接打开构建产物、或用别的端口调试时就需要它。
+# 生产环境由网关统一处理，此项保持 false。
+# -----------------------------------------------------------------------------
+bluewhale:
+  web:
+    cors:
+      enabled: true
+
+# -----------------------------------------------------------------------------
+# 接口文档：/v3/api-docs 是契约的产出源，scripts/export-openapi.sh 从这里取。
+# 生产环境建议 api-docs.enabled=false，避免把内部接口清单公开。
+# -----------------------------------------------------------------------------
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+    display-request-duration: true
+
+logging:
+  level:
+    root: info
+    com.bluewhale.sts: debug

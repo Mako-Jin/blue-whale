@@ -114,13 +114,30 @@ cd web && pnpm install
 | 包 | 内容 |
 |----|------|
 | `common-config` | 共享 ESLint / Stylelint / TypeScript 配置 |
-| `common-tools` | 日志（`logger`）与环境探测（`env`） |
+| `common-tools` | 日志（`logger`）· 环境探测（`env`）· 请求内核（`http`） |
+| `common-api` | 契约包：OpenAPI 生成的类型 + 接口装配 |
 
-> `common-tools` 与框架无关（不依赖 React），应用、构建脚本、Node 工具链都能直接用。本地演示：`pnpm --filter common-tools playground`。
+> `common-tools` 与框架无关（不依赖 React），应用、构建脚本、Node 工具链都能直接用。本地演示：`pnpm --filter common-tools playground`（logger）、`pnpm --filter platform-log-console dev`（日志上报全链路）。
 
 ---
 
-## 七、常用命令
+## 七、接口契约的更新流程（改后端接口必走）
+
+```bash
+cd server && mvn -DskipTests install     # 1. 构建后端
+cd .. && bash scripts/export-openapi.sh  # 2. 从运行中的应用导出契约（默认端口 18080）
+cd web && pnpm --filter common-api gen:api   # 3. 重新生成前端类型
+```
+
+三步的产物（`docs/api/openapi.json` 与 `common-api/src/generated/schema.d.ts`）都入库，且**必须与接口代码同一次提交**。
+
+- 契约由代码生成，**不要手改** `docs/api/openapi.json` 或 `generated/` 下的任何文件；
+- 唯一允许人工介入类型的位置是 `common-api/src/types.ts` 的 `JsonValue` 修正（生成器表达不了"任意值"），细则见 `docs/decisions/0006`；
+- 前端调用接口一律走 `common-api`，**禁止**直接 `fetch`。
+
+---
+
+## 八、常用命令
 
 ### 前端
 
@@ -143,7 +160,7 @@ pnpm format           # Prettier 格式化
 cd server
 
 mvn clean install -DskipTests                # 构建全部模块
-mvn -pl :sts-server-system spring-boot:run   # 启动系统域服务（默认 8080）
+java -jar sts-app/sts-app-server/target/sts-app-server-0.0.1-SNAPSHOT.jar   # 启动（默认 8080）
 ```
 
 > **Maven 实际使用的 JDK 必须是 21**，用 `mvn -v` 可查看当前指向。
@@ -155,13 +172,14 @@ mvn -pl :sts-server-system spring-boot:run   # 启动系统域服务（默认 80
 
 ---
 
-## 八、目录归属速查
+## 九、目录归属速查
 
 | 我想加… | 放哪 |
 |---------|------|
 | 一个新的前端应用 | `web/platform/<应用名>/` |
 | 一个跨应用复用的前端包 | `web/packages/common-<名字>/` |
 | 一个新的后端业务模块 | `server/` 下按层次归位，规则见 `docs/decisions/0005` |
+| 一个新的后端接口 | `sts-server-<域>` 的对应特性包内，随后走第七节流程更新契约 |
 | 一份架构决策 | `docs/decisions/NNNN-短标题.md` |
 | 一个跨端脚本 | `scripts/` |
 | 一份部署 / CI 配置 | `infra/` |

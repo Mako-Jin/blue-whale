@@ -31,6 +31,10 @@
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+        <!-- 第三方版本：spring-boot-starter-parent 没管的，在这里集中声明 -->
+        <mybatis-plus.version>3.5.9</mybatis-plus.version>
+        <springdoc.version>2.6.0</springdoc.version>
     </properties>
 
     <dependencyManagement>
@@ -45,6 +49,50 @@
                 <groupId>com.bluewhale.sts.common</groupId>
                 <artifactId>sts-common-web</artifactId>
                 <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.bluewhale.sts.common</groupId>
+                <artifactId>sts-common-db</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.bluewhale.sts.server</groupId>
+                <artifactId>sts-server-log</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <!-- ===== 第三方：只声明版本，不在此处引入依赖 ===== -->
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+            <!--
+              MyBatis-Plus 自 3.5.9 起把依赖 JSqlParser 的能力（分页、防全表更新删除等拦截器）
+              拆到了独立坐标，starter 不再传递引入。不显式加这一条，
+              代码里 import 那些拦截器会直接编译失败 —— 报错信息只提"找不到符号"，
+              很容易误判成版本写错。
+            -->
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-jsqlparser</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+            <!--
+              springdoc 拆成两个坐标：
+              - common：只提供 @Tag/@Operation/@Schema 等注解，供各服务模块编译期使用；
+              - webmvc-ui：提供 /v3/api-docs 端点与 Swagger UI，只由可启动应用引入。
+              这样领域服务不必背上一个 UI 依赖，而接口文档的暴露开关留在应用层（可按环境关闭）。
+            -->
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-common</artifactId>
+                <version>${springdoc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${springdoc.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.bluewhale.sts.app</groupId>
+        <artifactId>sts-app</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>sts-app-server</artifactId>
+
+    <name>sts-app-server</name>
+    <description>服务端应用 —— 唯一的可启动进程，组装全部后端服务模块</description>
+
+    <!--
+      本模块是"组装层"：只写依赖、配置与启动类，不写业务代码。
+      业务代码一律在 sts-server-* 里 —— 把业务逻辑写进应用模块，
+      等于把所有域耦合到一个不可复用的坐标上，将来拆分服务就无从下手。
+    -->
+    <dependencies>
+        <dependency>
+            <groupId>com.bluewhale.sts.server</groupId>
+            <artifactId>sts-server-log</artifactId>
+        </dependency>
+
+        <!--
+          spring-boot-starter-web 在此**显式声明**，虽然 sts-server-log 已经带来了一份：
+          可部署进程的需求不靠传递依赖表达。哪天 sts-server-log 换了实现（比如改用 WebFlux），
+          传递来的依赖就没了，而本模块的启动会以一种"莫名其妙"的方式失败。
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!--
+          springdoc 的 UI 与 /v3/api-docs 端点只在这个可启动应用里存在：
+          领域服务只需要注解（由 sts-common-web 传递），不需要对外暴露文档端点。
+          生产环境可通过 springdoc.api-docs.enabled=false 直接关掉。
+        -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+        </dependency>
+
+        <!--
+          H2：开发 / 演示用的内存库，零外部依赖即可跑起来。
+          runtime 范围 —— 编译期代码里不该出现任何 H2 的类，
+          否则"换数据库"就会变成一件需要改代码的事。
+        -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- 打可执行 jar，mvn package 后可直接 java -jar 启动 -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

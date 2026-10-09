@@ -21,6 +21,7 @@
     <modules>
         <module>sts-common-basic</module>
         <module>sts-common-web</module>
+        <module>sts-common-db</module>
     </modules>
 
 </project>

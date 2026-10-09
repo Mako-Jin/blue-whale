@@ -20,6 +20,7 @@
         <module>sts-parent</module>
         <module>sts-common</module>
         <module>sts-server</module>
+        <module>sts-app</module>
     </modules>
 
 </project>

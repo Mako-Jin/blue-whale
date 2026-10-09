@@ -19,7 +19,7 @@
     <description>服务实现层 —— 按业务域切分的可部署服务</description>
 
     <modules>
-        <module>sts-server-system</module>
+        <module>sts-server-log</module>
     </modules>
 
 </project>

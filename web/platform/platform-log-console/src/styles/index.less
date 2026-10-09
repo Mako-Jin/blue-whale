@@ -1,0 +1,29 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family:
+    -apple-system, blinkmacsystemfont, 'segoe ui', 'pingfang sc', 'hiragino sans gb',
+    'microsoft yahei', sans-serif;
+  font-size: 14px;
+  color: @text-primary;
+  background: @bg-base;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* 等宽字体：日志内容必须用等宽，否则数字列对不齐、阅读成本陡增 */
+.mono {
+  font-family: @font-mono;
+  font-variant-numeric: tabular-nums;
+}

@@ -27,12 +27,16 @@
 | 新增 / 删除公共包 | `web/README.md` · 根 `README.md` · 该包的 `README.md` |
 | 新增 / 修改公共包对外 API | 该包的 `README.md` |
 | 新增日志上报维度或上报通道 | `packages/common-tools/README.md`（`LogRecord` 章节） |
+| 修改请求传输策略（错误分类、超时、重试、鉴权钩子） | `packages/common-tools/README.md`（HTTP 章节） · `decisions/0007-前端请求分层与错误模型.md` |
+| 修改客户端日志上报通道（批量、退避、缓冲上限） | `decisions/0004-前端日志上报架构.md` |
+| 调整客户端日志的校验 / 截断 / 存储策略 | `server/README.md`（日志域硬规则表） |
+| 修改契约的生成或消费流程（导出脚本、生成器、类型修正） | `api/README.md` · `decisions/0006-接口契约的生成与消费.md` |
 | 调整配置分层或新增配置层 | `decisions/0003-配置分域与自研边界.md` |
 | 新增 / 删除第三方依赖 | `web/pnpm-workspace.yaml` 的 `catalog:` · `CONTRIBUTING.md` 依赖治理 |
 | 新增 / 删除后端模块 | `server/README.md` 模块表 · 根 `README.md` 结构图 |
 | 调整后端分层或依赖方向 | `decisions/0005-后端模块划分与依赖约束.md` · `architecture/后端分层与依赖方向.md` · `server/README.md` |
 | 修改统一响应结构或错误码 | `server/README.md` 错误码表 · `docs/api/openapi.json` |
-| 新增 / 修改后端接口 | `docs/api/openapi.json` → 重新生成前端 SDK |
+| 新增 / 修改后端接口 | `docs/api/openapi.json`（用 `scripts/export-openapi.sh` 导出）→ `pnpm --filter common-api gen:api` |
 | 变更顶层目录或横向层 | 根 `README.md` |
 | 技术选型 / 架构决策 | 新增 `docs/decisions/NNNN-*.md` |
 | 引入新的全局工程约定 | `CONTRIBUTING.md` |
@@ -64,10 +68,13 @@ docs/decisions/NNNN-简短标题.md
 | `decisions/0003-配置分域与自研边界.md` | 配置三层分域、自研边界、客户端配置五条底线 |
 | `decisions/0004-前端日志上报架构.md` | 采集与传输分层、`LogRecord` 契约、采样与脱敏约束 |
 | `decisions/0005-后端模块划分与依赖约束.md` | 五层依赖方向、groupId 分级、分包方式、统一响应契约 |
+| `decisions/0006-接口契约的生成与消费.md` | 契约由代码生成、生成物入库、任意值字段的类型修正 |
+| `decisions/0007-前端请求分层与错误模型.md` | 传输内核与契约装配的分工、六类错误、重试幂等边界 |
 | `architecture/后端分层与依赖方向.md` | 后端分层落地细则、依赖矩阵、前后端结构对照 |
-| `../web/packages/common-tools/README.md` | 公共能力包（logger / env）使用说明与修复清单 |
-| `../server/README.md` | 后端模块表、统一响应与错误码、构建命令 |
-| `api/` | 待后端契约产出后填充（S2 阶段） |
+| `api/README.md` | 契约接口清单、更新流程、任意值字段的处理 |
+| `../web/packages/common-tools/README.md` | 公共能力包（logger / env / http）使用说明与修复清单 |
+| `../web/packages/common-api/README.md` | 前端契约包的使用方式与分层边界 |
+| `../server/README.md` | 后端模块表、统一响应与错误码、日志域硬规则、构建命令 |
 
 ---
 

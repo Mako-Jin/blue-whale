@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "公共能力包 · 与框架无关的工具集（日志 / 环境探测）",
+  "description": "公共能力包 · 与框架无关的工具集（日志 / 环境探测 / 请求内核）",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
@@ -18,6 +18,10 @@
     "./env": {
       "types": "./src/env/index.ts",
       "import": "./src/env/index.ts"
+    },
+    "./http": {
+      "types": "./src/http/index.ts",
+      "import": "./src/http/index.ts"
     }
   },
   "files": [

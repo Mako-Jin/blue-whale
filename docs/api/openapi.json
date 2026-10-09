@@ -1,0 +1,727 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "BlueWhale 服务端 API",
+    "description": "统一响应约定：**业务结果只由 `code` 表达，业务失败同样返回 HTTP 200**，\n调用方统一判断 `code === 0`。传输层失败（401/403/404/5xx）由框架按标准返回，不套统一包装。\n",
+    "version": "0.1.0"
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:18080",
+      "description": "Generated server url"
+    }
+  ],
+  "tags": [
+    {
+      "name": "客户端日志",
+      "description": "接收前端上报的技术日志、查询与聚合；审计日志不走本接口"
+    },
+    {
+      "name": "系统",
+      "description": "服务自身状态"
+    }
+  ],
+  "paths": {
+    "/api/logs/client": {
+      "get": {
+        "tags": [
+          "客户端日志"
+        ],
+        "summary": "分页查询客户端日志",
+        "description": "按服务端接收时间倒序。时间窗缺省为最近 7 天。",
+        "operationId": "page",
+        "parameters": [
+          {
+            "name": "app",
+            "in": "query",
+            "description": "上报方应用标识",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "上报方应用标识"
+            }
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "description": "级别精确匹配，取值 trace/debug/perf/info/success/warn/error",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "级别精确匹配，取值 trace/debug/perf/info/success/warn/error"
+            }
+          },
+          {
+            "name": "namespace",
+            "in": "query",
+            "description": "命名空间精确匹配",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "命名空间精确匹配"
+            }
+          },
+          {
+            "name": "traceId",
+            "in": "query",
+            "description": "链路标识精确匹配",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "链路标识精确匹配"
+            }
+          },
+          {
+            "name": "sessionId",
+            "in": "query",
+            "description": "会话标识精确匹配",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "会话标识精确匹配"
+            }
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "description": "消息正文模糊匹配",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "消息正文模糊匹配"
+            }
+          },
+          {
+            "name": "startTime",
+            "in": "query",
+            "description": "起始时间（毫秒，含）；缺省为 endTime 之前 7 天",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "起始时间（毫秒，含）；缺省为 endTime 之前 7 天",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "endTime",
+            "in": "query",
+            "description": "结束时间（毫秒，含）；缺省为当前时间",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "结束时间（毫秒，含）；缺省为当前时间",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RPageResultClientLogVO"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "客户端日志"
+        ],
+        "summary": "批量上报客户端日志",
+        "description": "单批最多 500 条。信封级错误整批拒绝（40000）；条目级错误逐条跳过并在返回值中计数。",
+        "operationId": "report",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientLogReportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RClientLogReportResultVO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/logs/client/{id}": {
+      "get": {
+        "tags": [
+          "客户端日志"
+        ],
+        "summary": "查询日志详情",
+        "operationId": "detail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "日志主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RClientLogVO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/logs/client/trace/{traceId}": {
+      "get": {
+        "tags": [
+          "客户端日志"
+        ],
+        "summary": "按链路标识查询整条链路",
+        "description": "按发生时间**升序**返回，便于直接按顺序阅读。",
+        "operationId": "listByTraceId",
+        "parameters": [
+          {
+            "name": "traceId",
+            "in": "path",
+            "description": "链路标识",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RListClientLogVO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/logs/client/stats": {
+      "get": {
+        "tags": [
+          "客户端日志"
+        ],
+        "summary": "按级别聚合统计",
+        "description": "返回时间窗内的总条数与各级别分布，包含条数为 0 的级别。",
+        "operationId": "stats",
+        "parameters": [
+          {
+            "name": "app",
+            "in": "query",
+            "description": "上报方应用标识",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "上报方应用标识"
+            }
+          },
+          {
+            "name": "startTime",
+            "in": "query",
+            "description": "起始时间（毫秒，含）；缺省为 endTime 之前 7 天",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "起始时间（毫秒，含）；缺省为 endTime 之前 7 天",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "endTime",
+            "in": "query",
+            "description": "结束时间（毫秒，含）；缺省为当前时间",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "结束时间（毫秒，含）；缺省为当前时间",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RClientLogStatsVO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "tags": [
+          "系统"
+        ],
+        "summary": "服务健康检查",
+        "description": "逐依赖探测并聚合；依赖不可用时 data.status 为 DOWN",
+        "operationId": "health",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RHealthVO"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ClientLogItem": {
+        "type": "object",
+        "properties": {
+          "level": {
+            "type": "string",
+            "description": "级别，取值 trace/debug/perf/info/success/warn/error",
+            "example": "info"
+          },
+          "namespace": {
+            "type": "string",
+            "description": "命名空间，形如 app › auth › login",
+            "example": "app › auth"
+          },
+          "timestamp": {
+            "type": "integer",
+            "description": "客户端时间戳（毫秒），服务端仅作参考不用于排序",
+            "format": "int64"
+          },
+          "message": {
+            "type": "string",
+            "description": "消息正文",
+            "example": "用户登录成功"
+          },
+          "data": {
+            "type": "array",
+            "description": "随消息附带的原始数据",
+            "items": {
+              "type": "object",
+              "description": "随消息附带的原始数据"
+            }
+          },
+          "context": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "description": "结构化上下文"
+            },
+            "description": "结构化上下文"
+          },
+          "traceId": {
+            "type": "string",
+            "description": "链路标识"
+          },
+          "sessionId": {
+            "type": "string",
+            "description": "会话标识"
+          },
+          "route": {
+            "type": "string",
+            "description": "触发日志时的路由"
+          },
+          "release": {
+            "type": "string",
+            "description": "应用版本 / 构建号"
+          }
+        },
+        "description": "单条客户端日志"
+      },
+      "ClientLogReportRequest": {
+        "required": [
+          "app",
+          "logs"
+        ],
+        "type": "object",
+        "properties": {
+          "app": {
+            "maxLength": 64,
+            "minLength": 0,
+            "type": "string",
+            "description": "上报方应用标识",
+            "example": "platform-log-console"
+          },
+          "release": {
+            "maxLength": 64,
+            "minLength": 0,
+            "type": "string",
+            "description": "应用版本 / 构建号",
+            "example": "0.1.0"
+          },
+          "sessionId": {
+            "maxLength": 64,
+            "minLength": 0,
+            "type": "string",
+            "description": "会话标识，批次级默认值"
+          },
+          "logs": {
+            "maxItems": 500,
+            "minItems": 0,
+            "type": "array",
+            "description": "日志条目，单批最多 500 条",
+            "items": {
+              "$ref": "#/components/schemas/ClientLogItem"
+            }
+          }
+        },
+        "description": "客户端日志批量上报请求"
+      },
+      "ClientLogReportResultVO": {
+        "type": "object",
+        "properties": {
+          "accepted": {
+            "type": "integer",
+            "description": "成功落库的条数",
+            "format": "int32"
+          },
+          "rejected": {
+            "type": "integer",
+            "description": "被拒绝的条数（级别非法、消息为空等）",
+            "format": "int32"
+          }
+        },
+        "description": "批量上报结果"
+      },
+      "RClientLogReportResultVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ClientLogReportResultVO"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ClientLogVO": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "日志主键",
+            "format": "int64"
+          },
+          "app": {
+            "type": "string",
+            "description": "上报方应用标识"
+          },
+          "level": {
+            "type": "string",
+            "description": "级别"
+          },
+          "namespace": {
+            "type": "string",
+            "description": "命名空间"
+          },
+          "message": {
+            "type": "string",
+            "description": "消息正文"
+          },
+          "data": {
+            "type": "array",
+            "description": "随消息附带的原始数据",
+            "items": {
+              "type": "object",
+              "description": "随消息附带的原始数据"
+            }
+          },
+          "context": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "description": "结构化上下文"
+            },
+            "description": "结构化上下文"
+          },
+          "traceId": {
+            "type": "string",
+            "description": "链路标识"
+          },
+          "sessionId": {
+            "type": "string",
+            "description": "会话标识"
+          },
+          "route": {
+            "type": "string",
+            "description": "触发日志时的路由"
+          },
+          "release": {
+            "type": "string",
+            "description": "应用版本 / 构建号"
+          },
+          "timestamp": {
+            "type": "integer",
+            "description": "客户端时间戳（毫秒），不可信，仅供展示",
+            "format": "int64"
+          },
+          "serverTime": {
+            "type": "integer",
+            "description": "服务端接收时间戳（毫秒）",
+            "format": "int64"
+          },
+          "ip": {
+            "type": "string",
+            "description": "上报方 IP"
+          }
+        },
+        "description": "客户端日志"
+      },
+      "PageResultClientLogVO": {
+        "type": "object",
+        "properties": {
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClientLogVO"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pages": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "RPageResultClientLogVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageResultClientLogVO"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "RClientLogVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ClientLogVO"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "RListClientLogVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClientLogVO"
+            }
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ClientLogLevelCount": {
+        "type": "object",
+        "properties": {
+          "level": {
+            "type": "string"
+          },
+          "levelCount": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "description": "按级别分布，**包含条数为 0 的级别**，便于直接绘图"
+      },
+      "ClientLogStatsVO": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "description": "时间窗内总条数",
+            "format": "int64"
+          },
+          "startTime": {
+            "type": "integer",
+            "description": "实际生效的起始时间（毫秒）",
+            "format": "int64"
+          },
+          "endTime": {
+            "type": "integer",
+            "description": "实际生效的结束时间（毫秒）",
+            "format": "int64"
+          },
+          "levels": {
+            "type": "array",
+            "description": "按级别分布，**包含条数为 0 的级别**，便于直接绘图",
+            "items": {
+              "$ref": "#/components/schemas/ClientLogLevelCount"
+            }
+          }
+        },
+        "description": "客户端日志聚合结果"
+      },
+      "RClientLogStatsVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ClientLogStatsVO"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "HealthVO": {
+        "type": "object",
+        "properties": {
+          "application": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "profile": {
+            "type": "string"
+          },
+          "uptimeMillis": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "serverTime": {
+            "type": "string"
+          },
+          "dependencies": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "服务健康状态"
+      },
+      "RHealthVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/HealthVO"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      }
+    }
+  }
+}

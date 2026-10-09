@@ -15,14 +15,18 @@ web/
 ├── .husky/                Git 钩子
 ├── packages/              公共包（common-* 前缀）
 │   ├── common-config          共享工程配置：ESLint / Stylelint / TypeScript
-│   └── common-tools           公共能力包：logger（日志）· env（环境探测）
+│   ├── common-tools           公共能力包：logger（日志）· env（环境探测）· http（请求内核）
+│   └── common-api             契约包：由 docs/api/openapi.json 生成的类型 + 接口装配
 └── platform/              平台级应用
-    └── platform-portal        主应用（qiankun 容器）
+    ├── platform-portal        主应用（qiankun 容器）
+    └── platform-log-console   日志控制台（端到端演示，见下方说明）
 ```
 
 `packages/` 放**被引用但跑不起来**的包；`platform/` 放**能独立启动**的应用。这条线不能模糊。
 
 新增应用时直接建目录，`pnpm-workspace.yaml` 用的是通配符，不需要改配置。
+
+> `platform-log-console` 的定位是**可运行的验证工具**，不是产品功能：它把「前端产生日志 → 批量上报 → 服务端落库 → 查询与链路追踪」这条链路完整跑通并可视化，左栏显示客户端视角、右栏显示服务端视角，两者对照才能判断上报到底成没成。它同时也是 `common-tools/http` 与 `common-api` 的活体示例。
 
 ## 二、命令
 
@@ -42,7 +46,22 @@ pnpm test                 # 单元测试
 pnpm format               # Prettier 格式化
 
 pnpm --filter common-tools playground   # 启动 logger 可视化演示（:3100）
+pnpm --filter platform-log-console dev  # 启动日志控制台（:3200，需后端在 :8080）
+pnpm --filter common-api gen:api        # 从 docs/api/openapi.json 重新生成前端类型
 ```
+
+### 日志控制台怎么跑
+
+```bash
+# 1. 起后端（在 server/ 目录）
+mvn -DskipTests install
+java -jar sts-app/sts-app-server/target/sts-app-server-0.0.1-SNAPSHOT.jar
+
+# 2. 起前端（在 web/ 目录）
+pnpm --filter platform-log-console dev   # http://127.0.0.1:3200
+```
+
+开发期 `/api` 由 vite 代理到 `127.0.0.1:8080`，请求与服务端同源 —— 排查日志功能时被跨域问题挡住是最不划算的事。
 
 ## 三、规范工具链
 
@@ -130,24 +149,25 @@ git config core.hooksPath web/.husky
 
 ## 七、当前状态
 
-`platform-portal` 与 `common-tools` 均通过全部校验（逐包直跑）。
+各项目均通过全部校验（逐包直跑）。
 
-| 校验项                  | platform-portal                | common-tools                    |
-| ----------------------- | ------------------------------ | ------------------------------- |
-| `tsc --noEmit` 类型检查 | 通过                           | 通过                            |
-| `eslint .`              | 通过                           | 通过                            |
-| `stylelint`             | 通过                           | 通过（playground 样式）         |
-| `vitest run` 单元测试   | 通过（1/1）                    | 通过（88/88）                   |
-| `vite build` 生产构建   | 通过                           | 通过（14.76 kB · gzip 5.25 kB） |
-| dev server 启动         | 通过（:3000）                  | playground 通过（:3100）        |
-| Git 钩子                | 通过（已验证可拦截不合规提交） | —                               |
+| 校验项                  | platform-portal | common-tools             | common-api  | platform-log-console             |
+| ----------------------- | --------------- | ------------------------ | ----------- | -------------------------------- |
+| `tsc --noEmit` 类型检查 | 通过            | 通过                     | 通过        | 通过                             |
+| `eslint .`              | 通过            | 通过                     | 通过        | 通过                             |
+| `stylelint`             | 通过            | 通过（playground）       | —           | 通过（含 `App.less`）            |
+| `vitest run` 单元测试   | 通过（1/1）     | 通过（101/101）          | 通过（9/9） | 通过（25/25，含浏览器渲染测试）  |
+| `vite build` 生产构建   | 通过            | 通过（14.76 kB）         | —           | 通过（CSS 11.92 kB · JS 257 kB） |
+| dev server 启动         | 通过（:3000）   | playground 通过（:3100） | —           | 通过（:3200）                    |
 
 > **关于 `turbo run`**：本次验证时 turbo 报 `os error 231`（管道句柄耗尽，`unable to spawn child process`）。这是当前运行环境的进程创建限制，**不是工程配置问题**——上表中的每个任务脚本逐个直跑全部通过，同一配置在此前也能通过 turbo 编排。本地正常终端下 `pnpm dev` / `pnpm build` 等不受影响。
+
+> **`openapi-typescript` 的 peer 警告**：其 peer 约束为 `typescript@^5.x`，本项目用 6.0.3，`pnpm install` 会打一条警告。生成功能已验证正常，升级生成器时需重新确认（见 `packages/common-api/README.md`）。
 
 ## 八、待补充
 
 - 子应用 `platform-user`、`platform-admin` 尚未创建
 - qiankun 子应用注册与全局状态下发尚未接入
-- `common-api` 尚未创建（等后端 OpenAPI 契约就绪）
-- `common-tools` 目前只有 `logger` 与 `env`；HTTP 封装、存储、事件总线需要时另开**独立包**，不要往它身上堆
+- `common-tools` 的 http 内核目前没有自动重试、请求缓存与并发去重 —— 需要时按 `docs/decisions/0007` 的边界补，不要在各接口里散写
+- 客户端日志目前只有采集与上报；**采样与脱敏**尚未实现，等有真实生产流量再做
 - 公共依赖已由 `pnpm-workspace.yaml` 的 catalog 统一管理，新增依赖务必走 catalog

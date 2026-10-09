@@ -32,6 +32,29 @@
             <artifactId>spring-boot-starter-web</artifactId>
             <scope>provided</scope>
         </dependency>
+
+        <!--
+          compile：参数校验是**每个**服务模块都要用的公共契约。
+          若不放这里，每个业务模块都得自己引一遍 spring-boot-starter-validation，
+          漏引时的表现是 @Valid 静默失效 —— 校验注解还在、代码照常编译、
+          非法请求却能一路进到业务逻辑。
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!--
+          compile 而非 provided：**接口文档注解是契约的一部分**，每个服务模块都要用它标注
+          自己的接口。provided 不传递，若声明为 provided，每个服务模块都得重复引一行
+          同一个坐标 —— 重复的依赖声明迟早有人漏写，然后靠"这个接口为什么没出现在文档里"
+          来发现。这里只引 common（注解与模型），生成端点与 Swagger UI 的 webmvc-ui
+          留在应用层，由应用决定是否对外暴露。
+        -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-common</artifactId>
+        </dependency>
     </dependencies>
 
 </project>

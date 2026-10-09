@@ -24,17 +24,19 @@ web/
 ├── eslint.config.js      工作区根 ESLint 配置（lint-staged 依赖它）
 ├── packages/             公共包（common-* 前缀）
 │   ├── common-config         共享 ESLint / Stylelint / TypeScript 配置
-│   └── common-tools          公共能力包：日志（logger）· 环境探测（env）
+│   ├── common-tools          公共能力包：日志（logger）· 环境探测（env）· 请求内核（http）
+│   └── common-api            契约包：由 docs/api/openapi.json 生成的类型 + 接口装配
 ├── platform/             平台级应用
-│   └── platform-portal       主应用（qiankun 容器，负责挂载与导航）
+│   ├── platform-portal       主应用（qiankun 容器，负责挂载与导航）
+│   └── platform-log-console  日志控制台（端到端演示：上报 → 落库 → 查询）
 └── elemental/            通用元素（预留）
 ```
 
-规划中的其余子应用与公共包（`platform-user`、`platform-admin`、`common-theme`、`common-components`、`common-api`）**按业务需要创建**，不在骨架里预置。
+规划中的其余子应用与公共包（`platform-user`、`platform-admin`、`common-theme`、`common-components`）**按业务需要创建**，不在骨架里预置。
 
 **微前端结构**：`platform-portal` 是唯一的容器应用，负责登录态、导航骨架与子应用挂载；用户端与管理端作为互相隔离的子应用接入，各自独立构建、独立发布。
 
-`packages/common-tools` 与框架无关（不依赖 React），应用、构建脚本、Node 工具链都能直接使用。本地演示：`pnpm --filter common-tools playground`。
+`packages/common-tools` 与框架无关（不依赖 React），应用、构建脚本、Node 工具链都能直接使用。本地演示：`pnpm --filter common-tools playground`（logger，:3100）、`pnpm --filter platform-log-console dev`（日志上报全链路，:3200，需后端在 :8080）。
 
 ---
 
@@ -48,14 +50,17 @@ server/
 ├── sts-parent/           父 POM · 依赖版本统一治理（零代码）
 ├── sts-common/           技术底座层
 │   ├── sts-common-basic      统一响应 R · 错误码 · 业务异常
-│   └── sts-common-web        全局异常处理 + 自动配置
-└── sts-server/           服务层
-    └── sts-server-system     系统域服务
+│   ├── sts-common-web        全局异常处理 + CORS + 自动配置
+│   └── sts-common-db         MyBatis-Plus 配置（分页 / 乐观锁 / 防全表更新）
+├── sts-server/           服务层
+│   └── sts-server-log        日志域服务（客户端日志上报与查询）
+└── sts-app/              业务应用层
+    └── sts-app-server        唯一可启动进程（装配 + 健康检查 + 接口文档）
 ```
 
 依赖方向：`sts-app → sts-server → sts-components → sts-common → sts-parent`，**禁止反向依赖，禁止跨层跳跃**。
 
-规划中的 `sts-components/`（通用能力组件）与 `sts-app/`（业务应用）**按需创建**，不在骨架里预置空壳 —— 与前端 `packages/` 是同一约定。
+规划中的 `sts-components/`（通用能力组件）**按需创建**，不在骨架里预置空壳 —— 与前端 `packages/` 是同一约定。
 
 详见 `server/README.md` 与 `docs/architecture/后端分层与依赖方向.md`。
 
@@ -98,8 +103,9 @@ server/  ──生成──▶  docs/api/openapi.json  ──生成──▶  we
 | 代码规范 | ESLint 10 + Prettier 3 + Stylelint 17 + commitlint + Husky + Vitest |
 | 后端 | Java 21 + Spring Boot 3.3.5 |
 | 后端构建 | Maven 多模块（聚合根 `server/pom.xml`） |
-| 数据访问 | MyBatis-Plus（尚未引入） |
-| 接口契约 | OpenAPI 3（`docs/api/`） |
+| 数据访问 | MyBatis-Plus 3.5.9（H2 内存库开发，`MODE=MySQL`） |
+| 后端接口文档 | springdoc-openapi 2.6.0（`/swagger-ui.html`） |
+| 接口契约 | OpenAPI 3（`docs/api/`，由代码生成） |
 
 > TypeScript 锁定在 **6.0.3**：`typescript-eslint` 的 peer 约束为 `<6.1.0`，7.x 尚不被支持。
 
@@ -117,15 +123,26 @@ server/  ──生成──▶  docs/api/openapi.json  ──生成──▶  we
 
 ## 六、快速开始
 
-```bash
-# 前端
-cd web && pnpm install                # prepare 钩子会自动挂载 Git 钩子
-pnpm dev                              # 启动全部应用（turbo 聚合日志）
-pnpm dev --filter platform-portal     # 只启动主应用
+### 后端
 
-# 后端
-cd server && mvn clean install -DskipTests
+```bash
+cd server && mvn clean install -DskipTests       # 构建（需 JDK 21）
+java -jar sts-app/sts-app-server/target/sts-app-server-0.0.1-SNAPSHOT.jar
+# → http://localhost:8080/api/health
+# → http://localhost:8080/swagger-ui.html
 ```
+
+### 前端
+
+```bash
+cd web && pnpm install                           # prepare 钩子会自动挂载 Git 钩子
+pnpm dev --filter platform-portal                # 主应用
+pnpm dev --filter platform-log-console           # 日志控制台（:3200，需后端在 :8080）
+```
+
+### 日志端到端演示
+
+启动后端与日志控制台后，打开 <http://127.0.0.1:3200>：左栏点级别按钮产生日志，等自动上报后右栏就会出现同样的记录 —— 左边产生、右边出现，链路才算打通。
 
 ### Git 钩子
 

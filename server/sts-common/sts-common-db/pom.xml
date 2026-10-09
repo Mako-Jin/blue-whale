@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.bluewhale.sts.common</groupId>
+        <artifactId>sts-common</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>sts-common-db</artifactId>
+
+    <name>sts-common-db</name>
+    <description>数据访问层公共契约：MyBatis-Plus 拦截器与分页 —— 通过自动配置生效</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.bluewhale.sts.common</groupId>
+            <artifactId>sts-common-basic</artifactId>
+        </dependency>
+
+        <!--
+          compile 范围（不同于 sts-common-web 的 provided）：
+          本模块本身不提供 Web 能力，引入它的模块必然是要做数据访问的，
+          不存在"被无关方拖进 Web 依赖"那类污染。
+          但这也意味着：**只有真正需要数据库的服务模块才应依赖它**。
+        -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+        </dependency>
+
+        <!-- 分页 / 防全表更新删除等拦截器所在坐标，3.5.9 起不再由 starter 传递 -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-jsqlparser</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>
