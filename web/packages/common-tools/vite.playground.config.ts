@@ -15,7 +15,10 @@ export default defineConfig({
     open: false,
   },
   build: {
-    outDir: fileURLToPath(new URL('./dist-playground', import.meta.url)),
+    // 产物落进 playground/dist —— 与包内其它构建产物同名，
+    // 可直接复用共享 ESLint 配置里的 `**/dist/**` 忽略规则与 .gitignore，
+    // 无需再为它单独加例外。
+    outDir: fileURLToPath(new URL('./playground/dist', import.meta.url)),
     emptyOutDir: true,
   },
 });
