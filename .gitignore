@@ -43,3 +43,4 @@ logs/
 
 # ---- 第三方独立仓库（自带 .git，各自维护，不纳入主仓）----
 blender_mcp/
+.workbuddy/tmp-shots/
