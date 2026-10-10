@@ -105,6 +105,14 @@ cd web && pnpm install
 
 > 为什么不是"再建一个包放依赖"：那会产生**幽灵依赖**——某个库能被引用到，却没出现在引用方的 `package.json` 里，运行时解析不到、IDE 也提示不出来。catalog 只统一版本号，依赖归属关系仍留在各自的 `package.json`。详见 `docs/decisions/0002-前端公共包与公共依赖治理.md`。
 
+### 后端依赖的版本
+
+后端是 Maven，没有 catalog，但规矩同样只有一条：**版本只写一处 —— `server/sts-parent/pom.xml`**。
+
+- 子模块的 `<dependency>` **一律不写 `<version>`**
+- Boot 已经纳管的（MySQL 驱动、Flyway、Jackson…）交给 `spring-boot-starter-parent` 的 BOM
+- Boot **没有**纳管的（MyBatis-Plus、springdoc、达梦驱动）在 `sts-parent` 的 `<properties>` + `dependencyManagement` 里各声明一次
+
 ### 公共代码
 
 自研公共代码放 `web/packages/common-<能力>/`。建包前先问一句：**这份代码是不是只有一个应用会用？** 是则不建包。
@@ -167,11 +175,15 @@ java -jar sts-app/sts-app-server/target/sts-app-server-0.0.1-SNAPSHOT.jar
 # 连本机 MySQL（数据落磁盘，重启后仍在）。库要先建好，见 server/README.md 第六节
 BW_DB_PASSWORD=<密码> java -jar sts-app/sts-app-server/target/sts-app-server-0.0.1-SNAPSHOT.jar \
     --spring.profiles.active=mysql
+
+# 连达梦 DM8（国产库）。表结构不由应用创建，需先执行交付脚本
+BW_DB_USERNAME=<用户> BW_DB_PASSWORD=<密码> java -jar sts-app/sts-app-server/target/sts-app-server-0.0.1-SNAPSHOT.jar \
+    --spring.profiles.active=dameng
 ```
 
 > **数据源由 profile 决定，凭据走环境变量**，两者都不要写进文件 ——
 > 用哪个库应当是启动参数（显式可见），密码进版本库则会永久留在 git 历史里。
-> 详见 `docs/decisions/0009`。
+> 详见 `docs/decisions/0009`（H2 / MySQL）与 `docs/decisions/0010`（达梦）。
 
 > **Maven 实际使用的 JDK 必须是 21+**，低于 21 时构建会在 enforcer 阶段直接失败并给出中文提示
 > （不再依赖编译器那句含混的 `release version 21 not supported`）。用 `mvn -v` 可查看当前指向。

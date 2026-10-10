@@ -25,7 +25,7 @@
 - 微前端 qiankun 2.x；包管理 pnpm workspace + Turborepo；样式 Less
 - 规范：ESLint 10（flat config）+ Prettier 3 + Stylelint 17 + commitlint/Husky/lint-staged + Vitest 5
 - 后端：Java 21（enforcer 强制）+ Spring Boot 4.1.1（Spring 7 · Tomcat 11 · Jackson 3）+ MyBatis-Plus 3.5.17（Maven 多模块）
-- 数据源：H2 内存库（默认 profile）+ 本机 MySQL 8.0.26（`mysql` profile）；表结构由 **Flyway 12** 管理
+- 数据源：H2 内存库（默认 profile）+ 本机 MySQL 8.0.26（`mysql` profile）+ **达梦 DM8**（`dameng` profile，国产库）；H2/MySQL 表结构由 **Flyway 12** 管理，达梦走交付脚本
 - 契约：OpenAPI 3.1（`docs/api/`，springdoc 3.1.1 生成）
 
 ## Spring Boot 4 升级要点（2026-10-09 定 · ADR-0008）
@@ -110,6 +110,14 @@ server/  pom.xml(聚合) → sts-parent
   - 守卫：`ClientLogEntityMappingTest` 直接断言生成的 SQL 含 `app_release`、不含 `AS release`（H2 测不出来，只能对生成物断言）
 - **迁移脚本一旦执行过就不能改**（校验和不匹配拒绝启动）；本地重建库绕过，有数据的环境新增 V2
 - `#{it.xxx}` 这类 OGNL 属性引用**编译器管不到**，实体改属性名后要全局搜一遍
+
+## 达梦 DM8（2026-10-10 定 · ADR-0010）
+- 三 profile 并列：`h2`（默认）/ `mysql` / `dameng`；驱动 `com.dameng:DmJdbcDriver18`（**Boot 的 BOM 不纳管**，`sts-parent` 手工收口），驱动类 `dm.jdbc.driver.DmDriver`
+- **MyBatis-Plus 原生内置 `DbType.DM`**（`JdbcUtils` 正则 `:dm\d*:` 匹配 URL）→ 分页/防全表更新**零代码改动**；枚举里还有 `KINGBASE_ES`/`OPENGAUSS`/`GAUSS`/`OCEAN_BASE`/`XU_GU`/`SINODB` 等一串国产库，**换库先查这张表**
+- **Flyway 官方无达梦模块**（42 个 `flyway-*` 构件里没有）→ 达梦 profile `flyway.enabled=false`，DDL 走 `scripts/init-dameng.sh` 交付脚本；已否决"引第三方 db-migration"与"自研 DatabaseType（300–400 行、绑 Flyway internal API）"
+- 方言：`IDENTITY(1,1)` · **`VARCHAR(n CHAR)`（默认按字节，中文会「数据超长」）** · `COMMENT ON COLUMN` 独立语句 · 无 ENGINE/CHARSET · 标识符不加引号转大写
+- 保留字：本表零冲突；**`RELEASE` 达梦不认、`LEVEL` 是达梦非保留关键字** → 两库结论**不可互推**
+- `DatasourceDialectTest` 钉住三 profile 的 URL → `DbType`；**达梦本身未经真实实例验证**（10 条清单在 ADR-0010）
 
 ## 契约链（2026-10-09 定 · ADR-0006）
 - 代码 → springdoc → `scripts/export-openapi.sh`（端口 18080）→ `docs/api/openapi.json` → `openapi-typescript` → `common-api/src/generated/schema.d.ts`

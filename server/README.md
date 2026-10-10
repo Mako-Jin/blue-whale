@@ -39,7 +39,7 @@ server/
 | `sts-common-web` | jar | `GlobalExceptionHandler`、CORS 配置 + 自动配置 | `sts-common-basic`、Spring Web（provided）、springdoc 注解、Bean Validation |
 | `sts-common-db` | jar | MyBatis-Plus 拦截器（分页 / 乐观锁 / 防全表更新）+ 自动配置 | `sts-common-basic`、MyBatis-Plus |
 | `sts-server-log` | jar | 客户端日志的上报 / 分页 / 详情 / 链路 / 聚合 | `sts-common-web`、`sts-common-db` |
-| `sts-app-server` | jar | 可执行应用：装配各域服务、健康检查、`application.yml` | `sts-server-log`、springdoc UI、H2 + MySQL 驱动（runtime）、Flyway |
+| `sts-app-server` | jar | 可执行应用：装配各域服务、健康检查、`application.yml` | `sts-server-log`、springdoc UI、H2 + MySQL + 达梦驱动（runtime）、Flyway |
 
 > **为什么需要 `sts-app` 这一层**：`sts-server-*` 是"可部署的服务能力"，但**不是进程** —— 它们不知道自己的端口、数据源，也不知道要暴露哪些接口文档。必须有一个应用层把这些装配成一个能 `java -jar` 跑起来的东西。这层**只做装配，不写业务逻辑**：一旦出现业务代码，就该下沉到 `sts-server` 或 `sts-components`。
 >
@@ -58,6 +58,9 @@ server/
 > | mysql profile 启动报 `Unsupported Database: MySQL 8.0` | Flyway 10 起各数据库支持拆成独立模块，`flyway-core` 只内置 H2 / SQLite | 显式引 `flyway-mysql` |
 >
 > 共同规律：**starter 不再传递引入全部能力，谁用谁声明**。详见 `docs/decisions/0009` 第 4 条。
+>
+> 还有一类更彻底的情况：**依赖根本不存在**。达梦就是如此 —— Flyway 官方没有达梦模块，
+> 引什么坐标都不管用。这类问题没有"补一条依赖"的解法，见第六节与 `docs/decisions/0010`。
 
 ---
 
@@ -165,6 +168,9 @@ java -jar sts-app/sts-app-server/target/sts-app-server-0.0.1-SNAPSHOT.jar
 # 连本机 MySQL（数据落在磁盘上）—— 凭据走环境变量
 BW_DB_PASSWORD=<密码> java -jar sts-app/sts-app-server/target/sts-app-server-0.0.1-SNAPSHOT.jar \
     --spring.profiles.active=mysql
+# 连达梦 DM8（国产库）—— 表结构需先执行脚本，见第六节
+BW_DB_USERNAME=<用户> BW_DB_PASSWORD=<密码> java -jar sts-app/sts-app-server/target/sts-app-server-0.0.1-SNAPSHOT.jar \
+    --spring.profiles.active=dameng
 # 需要换端口时（命令行参数优先级最高）
 java -jar sts-app/sts-app-server/target/sts-app-server-0.0.1-SNAPSHOT.jar --server.port=18080
 ```
@@ -189,15 +195,17 @@ curl http://localhost:8080/api/health
 |---------|--------|------|------|-----------|
 | `h2`（**默认**） | `jdbc:h2:mem:bluewhale`（`MODE=MySQL`） | 开发、演示、CI | **进程内存，重启即失** | 开启 `/h2-console`（用户 `sa`，密码留空） |
 | `mysql` | `jdbc:mysql://127.0.0.1:3306/bluewhale` | 本地联调 | 磁盘，重启后仍在 | 关闭 |
+| `dameng` | `jdbc:dm://127.0.0.1:5236` | 信创环境 | 磁盘 | 关闭 |
 
 **默认必须是 h2** —— 它保证"clone 下来不装任何数据库就能跑"，`HealthControllerTest` 里有断言钉住这一点。
 
-### 表结构由 Flyway 管理
+### 表结构怎么建：H2 / MySQL 走 Flyway，达梦走交付脚本
 
 ```
 sts-server-log/src/main/resources/db/migration/
 ├── h2/V1__create_bw_client_log.sql       H2 方言
-└── mysql/V1__create_bw_client_log.sql    MySQL 方言
+├── mysql/V1__create_bw_client_log.sql    MySQL 方言
+└── dameng/V1__create_bw_client_log.sql   达梦方言（不由 Flyway 执行，见下）
 ```
 
 - 迁移脚本由**领域模块自带**（谁拥有表结构谁写脚本），`spring.flyway.locations` 按 profile 指向对应厂商目录
@@ -215,12 +223,23 @@ mysql profile 需要**先建好库**（Flyway 只建表、不建库）：
 CREATE DATABASE bluewhale DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 ```
 
+**达梦没有 Flyway 支持**，该 profile 下 `flyway.enabled=false`，表结构走**交付脚本**：
+
+```bash
+BW_DB_PASSWORD=xxx bash scripts/init-dameng.sh     # 需要达梦客户端 disql 在 PATH 中
+# 或由 DBA 直接执行 db/migration/dameng/V1__create_bw_client_log.sql
+```
+
+为什么不做自研 Flyway 扩展（约 300–400 行、全部绑定 Flyway 内部 API、升级即可能破损），
+以及达梦在 DDL 上的方言差异清单，见 `docs/decisions/0010`。
+
 > **迁移脚本一旦在真实环境执行过就不可修改。** `validate-on-migrate: true` 会因校验和不匹配而拒绝启动 —— 这是特性不是麻烦：迁移脚本是历史，改了历史就该新增一条，不是覆盖它。本地开发可以重建库绕过；有数据的环境必须追加新版本。
 
-### 两条必须先查的规矩
+### 三条必须先查的规矩
 
 1. **新增会落库的字段前，先查一遍 MySQL 保留字。** `release`（发布版本号）是自然的领域命名，但 `RELEASE` 是 MySQL 8 的保留字，而 **H2 不认它** —— 同一个列名在 H2 上一切正常、在 MySQL 上 `ERROR 1064`。这是最难查的一类差异。
 2. **别用 `@TableField` 把列名映射成另一个名字。** MyBatis-Plus 发现"列名与属性名不一致"会**自动补 `列名 AS 属性名` 的别名**，别名若撞了保留字照样报错。正确做法是让属性名与列名同构（`appRelease → app_release`，与 `traceId → trace_id` 一致），不产生别名。`ClientLogEntityMappingTest` 直接断言生成的 SQL 里不出现 `AS release`。
+3. **新增字段也要查一遍达梦保留字 —— 两个库的结论不可互推。** `RELEASE` 是 MySQL 8 的保留字，达梦却完全不认它；反过来 `LEVEL` 是达梦的关键字（属非保留，可作列名），MySQL 也不管。查法：`SELECT KEYWORD FROM V$RESERVED_WORDS WHERE RESERVED='Y'`。当前表的 14 个列名已逐列核对过、无冲突，详见 `docs/decisions/0010`。
 
 > 为什么这条要靠测试而不是靠跑用例？因为**默认跑在 H2 上，而 H2 不认这个保留字** —— 所有接口测试都会是绿的，直到换 MySQL 才炸。这类差异只能对生成物本身做断言。
 
@@ -252,4 +271,5 @@ CREATE DATABASE bluewhale DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_
 | MyBatis-Plus | 3.5.17 | 坐标 `mybatis-plus-spring-boot4-starter` |
 | Flyway | 12.4.0 | `flyway-core` + **`flyway-mysql`**（后者别漏，见第一节三个坑） |
 | MySQL 驱动 | 9.7.0 | 坐标 `com.mysql:mysql-connector-j`，`runtime` 范围 |
+| 达梦驱动 | 8.1.3.140 | 坐标 `com.dameng:DmJdbcDriver18`，`runtime` 范围。**Boot 的 BOM 不纳管**，版本由 `sts-parent` 手工收口 |
 | Jackson | 3.x（`tools.jackson.*`） | 注解仍是 `com.fasterxml.jackson.annotation`，包名没变 |

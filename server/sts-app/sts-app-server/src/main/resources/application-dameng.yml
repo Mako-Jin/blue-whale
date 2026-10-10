@@ -1,0 +1,68 @@
+# =============================================================================
+# profile: dameng —— 达梦 DM8（国产库）
+#
+# 启用方式：
+#   BW_DB_USERNAME=xxx BW_DB_PASSWORD=xxx java -jar sts-app-server.jar \
+#     --spring.profiles.active=dameng
+#
+# 与 h2 / mysql 的关系：三者并存，用启动参数选择，互不影响。
+#
+# -----------------------------------------------------------------------------
+# 【重要】本 profile 下 Flyway **关闭**，表结构不由应用自动创建。
+#
+# 原因：Flyway 官方没有达梦模块 —— 中央仓里 42 个 flyway-* 构件中没有一个是达梦的
+# （国产库里只有 OceanBase 与 TiDB 有官方模块，而它们本质是 MySQL 协议）。
+# 要让 Flyway 认达梦只有两条路：
+#   a) 引入第三方扩展（如社区 db-migration）—— 为一个库引入个人维护的外部依赖；
+#   b) 自研一套 DatabaseType —— 该接口位于 org.flywaydb.core.internal.* 包，
+#      BaseDatabaseType 尚有 8 个抽象方法，且 createDatabase / createParser 需要配套的
+#      Database、Schema、Parser 子类，合计约 300-400 行，全部绑定 Flyway 内部 API，
+#      Flyway 每次升级都可能改签名。
+# 在当前**没有达梦实例可验证**的前提下，两条路都是纯负债，因此本轮都不做。
+#
+# 表结构改由交付脚本提供，部署时执行一次：
+#   db/migration/dameng/V1__create_bw_client_log.sql
+# 辅助脚本：scripts/init-dameng.sh（需要达梦客户端 disql 在 PATH 中）
+#
+# 这同时也是信创交付的常规做法：DDL 作为交付物提交，由 DBA 审核后执行，
+# 应用不擅自变更库结构。若将来确需在达梦上恢复自动迁移，备选路径见
+# docs/decisions/0010-达梦DM8支持与Flyway的边界.md
+# -----------------------------------------------------------------------------
+#
+# 【当前状态】本 profile **尚未在真实达梦实例上验证过**
+# （开发机没有达梦、没有 Docker，wsl 亦不可用）。
+# 已逐项核对但未经实测的清单，见 docs/decisions/0010 的"未验证清单"一节 ——
+# 首次接入真实实例时，请按那份清单逐条确认，不要假定它是通的。
+# =============================================================================
+
+spring:
+  datasource:
+    # ---------------------------------------------------------------------------
+    # 达梦默认端口 5236。
+    #
+    # URL 不带 schema 参数时，默认模式由**连接用户名**决定：达梦每个用户有同名模式，
+    # 行为与 Oracle 一致。因此建议为应用单独建一个用户，而不是直接用 SYSDBA ——
+    # 用 SYSDBA 会让业务表与系统表躺在同一个模式里，既难区分也违背最小权限原则。
+    #
+    # 若确实需要显式指定模式，达梦 URL 支持 ?schema=XXX，但**要与连接用户拥有
+    # 该模式的权限**配合，否则会以"表或视图不存在"的形式失败，而报错不会提及权限。
+    #
+    # 刻意不写 characterEncoding 之类的参数：达梦的中文与 emoji 能力由**库初始化时的
+    # 字符集**决定（dminit 的 CHARSET 参数，UTF-8 才能存 emoji），
+    # 在连接串上补参数解决不了这个问题，写上去只会造成"已经处理过"的错觉。
+    # ---------------------------------------------------------------------------
+    url: jdbc:dm://127.0.0.1:5236
+    driver-class-name: dm.jdbc.driver.DmDriver
+
+    # 凭据走环境变量，不写进仓库（依据 docs/decisions/0003）
+    username: ${BW_DB_USERNAME:SYSDBA}
+    password: ${BW_DB_PASSWORD:}
+
+  # 见文件头的说明：达梦下不启用 Flyway，表结构走交付脚本
+  flyway:
+    enabled: false
+
+  # H2 控制台在达梦下没有意义，显式关掉而不是靠"反正没人访问"
+  h2:
+    console:
+      enabled: false

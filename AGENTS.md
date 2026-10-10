@@ -36,14 +36,18 @@
 | mysql profile 启动报 `Unsupported Database: MySQL 8.0` | Flyway 10 起各数据库支持拆成独立模块，`flyway-core` 只内置 H2 / SQLite | 必须显式引 `org.flywaydb:flyway-mysql`（H2 profile 一切正常，只在切库时炸） |
 | 启动报 `Migration checksum mismatch for migration version 1` | **修改了已执行过的迁移脚本**。Flyway 用校验和守护"迁移脚本是历史" | 正确做法是新增 `V2__xxx.sql`；本地开发库可重建（`DROP DATABASE bluewhale; CREATE ...`）绕过，有数据的环境不行 |
 | 某个查询在 H2 上正常、切 MySQL 报 `ERROR 1064` | 列名或**别名**撞了 MySQL 保留字（如 `release`）。H2 不认这些保留字，所以接口测试全绿 | 见下条——这是本项目最隐蔽的一类差异 |
+| 切到达梦后报「表或视图不存在」 | 达梦 profile 下 **Flyway 是关闭的**（Flyway 官方没有达梦模块），表结构不由应用创建 | 先执行交付脚本：`BW_DB_PASSWORD=xxx bash scripts/init-dameng.sh`，或由 DBA 执行 `db/migration/dameng/V1__*.sql`。见 `docs/decisions/0010` |
+| 达梦上插入中文报「数据超长」，但字数明明没超 | 达梦 `VARCHAR(n)` 默认按**字节**算，而 Java 侧的截断按**字符**算（UTF-8 汉字 3 字节） | 达梦脚本用 `VARCHAR(n CHAR)` 显式声明字符语义（`dameng/V1__*.sql` 已处理） |
+| 达梦分页查询变慢、`Page` 似乎没生效 | URL 没写成 `jdbc:dm://` 开头，MyBatis-Plus 认不出方言，分页拦截器**静默跳过**（不报错） | 保持 `jdbc:dm://` 前缀；`DatasourceDialectTest` 会断言这一点 |
 
-## 写数据库相关的代码前，先记住三件事
+## 写数据库相关的代码前，先记住四件事
 
 1. **新增落库字段，先查 MySQL 保留字。** `release`、`rank`、`groups`、`system`、`window` 都是常见踩坑词。`RELEASE` 是 MySQL 8 的保留字而 H2 不认——写错了表现为"H2 正常、MySQL 建表失败"。
 2. **不要用 `@TableField` 把列名映射成与属性名不同的名字。** MyBatis-Plus 会**自动补 `列名 AS 属性名` 的别名**，别名若撞保留字照样 1064。让属性名与列名同构（`appRelease → app_release`，与 `traceId → trace_id` 一致）。
 3. **这类问题不要指望业务用例发现** —— 默认 profile 是 H2，它不认这些保留字，所有接口测试都会是绿的。只能对**生成的 SQL** 做断言（见 `ClientLogEntityMappingTest`）。
+4. **现在有两个库要查保留字，而且结论不可互推。** `RELEASE` 是 MySQL 8 的保留字，达梦完全不认；反过来 `LEVEL` 是达梦的关键字（属非保留、可作列名），MySQL 也不管。达梦的查法：`SELECT KEYWORD FROM V$RESERVED_WORDS WHERE RESERVED='Y'`。
 
-> 数据源、profile 与表结构变更的完整说明见 `server/README.md` 第六节与 `docs/decisions/0009`。
+> 数据源、profile 与表结构变更的完整说明见 `server/README.md` 第六节、`docs/decisions/0009`（H2 / MySQL）与 `docs/decisions/0010`（达梦）。
 
 ## 目录边界（勿越界）
 

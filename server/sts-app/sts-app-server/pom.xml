@@ -97,6 +97,20 @@
         </dependency>
 
         <!--
+          达梦 DM8 驱动：dameng profile 用。同样只放 runtime —— 代码里没有任何一处
+          引用达梦的类（dm.jdbc.*），"用哪个库"始终是启动参数决定的。
+          版本由 sts-parent 统一收口（Boot 的 BOM 不纳管 com.dameng）。
+
+          注意这里**没有**、也不该有 flyway-dameng 这种坐标：Flyway 官方不存在达梦模块。
+          达梦下不启用 Flyway，表结构走交付脚本，理由见 application-dameng.yml。
+        -->
+        <dependency>
+            <groupId>com.dameng</groupId>
+            <artifactId>DmJdbcDriver18</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!--
           MockMvc 测试支持。Boot 4 把测试设施也按技术栈拆开了：
           @AutoConfigureMockMvc / @WebMvcTest 从 spring-boot-test-autoconfigure
           挪到了独立的 spring-boot-webmvc-test 模块（注解也随之换包）。

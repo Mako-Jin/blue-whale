@@ -103,8 +103,8 @@ server/  ──生成──▶  docs/api/openapi.json  ──生成──▶  we
 | 代码规范 | ESLint 10 + Prettier 3 + Stylelint 17 + commitlint + Husky + Vitest |
 | 后端 | Java 21 + Spring Boot 4.1（Spring Framework 7 · Tomcat 11 · Jackson 3） |
 | 后端构建 | Maven 多模块（聚合根 `server/pom.xml`，enforcer 强制 JDK 21+） |
-| 数据访问 | MyBatis-Plus 3.5.17（H2 内存库为默认，可切本机 MySQL） |
-| 表结构管理 | Flyway 12（迁移脚本按数据库厂商分目录） |
+| 数据访问 | MyBatis-Plus 3.5.17（H2 内存库为默认，可切本机 MySQL / 达梦 DM8） |
+| 表结构管理 | Flyway 12（迁移脚本按数据库厂商分目录；达梦无官方模块，改走交付脚本，见 ADR-0010） |
 | 后端接口文档 | springdoc-openapi 3.1.1（`/swagger-ui.html`） |
 | 接口契约 | OpenAPI 3.1（`docs/api/`，由代码生成） |
 
@@ -137,6 +137,9 @@ java -jar sts-app/sts-app-server/target/sts-app-server-0.0.1-SNAPSHOT.jar
 # 连本机 MySQL：数据落在磁盘上，重启后仍在（需先建库，见 server/README.md）
 BW_DB_PASSWORD=<密码> java -jar sts-app/sts-app-server/target/sts-app-server-0.0.1-SNAPSHOT.jar \
     --spring.profiles.active=mysql
+# 连达梦 DM8（国产库）：表结构不由应用创建，需先执行交付脚本（见 server/README.md 第六节）
+BW_DB_USERNAME=<用户> BW_DB_PASSWORD=<密码> java -jar sts-app/sts-app-server/target/sts-app-server-0.0.1-SNAPSHOT.jar \
+    --spring.profiles.active=dameng
 ```
 
 ### 前端

@@ -44,6 +44,12 @@
         <!-- 第三方版本：spring-boot-starter-parent 没管的，在这里集中声明 -->
         <mybatis-plus.version>3.5.17</mybatis-plus.version>
         <springdoc.version>3.1.1</springdoc.version>
+        <!--
+          达梦 DM8 JDBC 驱动。
+          Spring Boot 的依赖 BOM 只纳管它官方支持的数据库，com.dameng 不在其中 ——
+          版本必须在这里自己收口，否则子模块就得各写一遍，正是"版本只出现一处"要避免的。
+        -->
+        <dameng.version>8.1.3.140</dameng.version>
     </properties>
 
     <dependencyManagement>
@@ -115,6 +121,19 @@
                 <groupId>org.springdoc</groupId>
                 <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
                 <version>${springdoc.version}</version>
+            </dependency>
+            <!--
+              达梦 DM8 驱动。坐标的 artifactId 是大驼峰 DmJdbcDriver18，别按惯例写成小写 ——
+              Maven 坐标区分大小写，写错只会得到"找不到构件"，看不出是大小写的问题。
+              驱动类名是 dm.jdbc.driver.DmDriver。
+
+              版本取中央仓当前最新 8.1.3.140。实际交付时若与目标实例版本不一致，
+              以达梦官方配套的驱动为准（驱动版本不宜低于数据库版本）。
+            -->
+            <dependency>
+                <groupId>com.dameng</groupId>
+                <artifactId>DmJdbcDriver18</artifactId>
+                <version>${dameng.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
