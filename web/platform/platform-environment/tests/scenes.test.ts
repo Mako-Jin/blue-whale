@@ -1,0 +1,219 @@
+import { describe, expect, it, vi } from 'vitest';
+import { Mesh, MeshStandardMaterial, type BufferGeometry, type Object3D } from 'three';
+import { localSceneCatalog, type SceneDefinition } from '@/scene';
+
+/**
+ * 场景实现的通用契约。
+ *
+ * 刻意**遍历注册表**而不是逐个场景手写一遍：新增场景时这套断言会自动覆盖它，
+ * 而"忘记给新场景写测试"恰恰是最容易发生的事。
+ */
+
+const SCENES = localSceneCatalog().scenes;
+
+function meshesOf(root: Object3D): Mesh[] {
+  const found: Mesh[] = [];
+  root.traverse((child) => {
+    if (child instanceof Mesh) {
+      found.push(child);
+    }
+  });
+  return found;
+}
+
+/**
+ * 把整棵树的位姿拍成一个字符串。
+ *
+ * 精度截到 1e-6：够检出"布局变了"，又不会被浮点末位噪声误报。
+ */
+function poseFingerprint(root: Object3D): string {
+  const values: number[] = [];
+  root.traverse((child) => {
+    values.push(
+      child.position.x,
+      child.position.y,
+      child.position.z,
+      child.rotation.x,
+      child.rotation.y,
+      child.rotation.z,
+    );
+  });
+  return values.map((value) => value.toFixed(6)).join(',');
+}
+
+describe('场景注册表', () => {
+  it('至少包含舰长点名的四类场景，外加渲染基线', () => {
+    const ids = SCENES.map((definition) => definition.meta.id);
+
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        'ancient-architecture',
+        'primeval-jungle',
+        'modern-office',
+        'spacecraft',
+        'baseline-lab',
+      ]),
+    );
+  });
+
+  it('按 order 升序排列 —— 这个顺序就是选择器里的展示顺序', () => {
+    const orders = SCENES.map((definition) => definition.meta.order);
+
+    expect(orders).toEqual([...orders].sort((left, right) => left - right));
+  });
+
+  it('id 唯一', () => {
+    const ids = SCENES.map((definition) => definition.meta.id);
+
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('每个场景都有展示所需的元数据', () => {
+    SCENES.forEach(({ meta }) => {
+      expect(meta.title.length).toBeGreaterThan(0);
+      // 描述会显示在卡片上，太长会把卡片撑变形
+      expect(meta.summary.length).toBeGreaterThan(0);
+      expect(meta.summary.length).toBeLessThanOrEqual(28);
+      expect(meta.tags.length).toBeGreaterThan(0);
+      expect(meta.accent).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(meta.background).toMatch(/^#[0-9a-f]{6}$/i);
+    });
+  });
+
+  it('相机取景合法：拉近上限严格小于拉远上限', () => {
+    SCENES.forEach(({ meta }) => {
+      expect(meta.distance[0]).toBeLessThan(meta.distance[1]);
+    });
+  });
+});
+
+SCENES.forEach((definition: SceneDefinition) => {
+  const { meta } = definition;
+
+  describe(`场景实现：${meta.title}`, () => {
+    it('能构建出带背景的场景图', () => {
+      const build = definition.create();
+
+      expect(build.scene.background).not.toBeNull();
+      // 空场景说明工厂没干活 —— 这类"看起来正常但什么都没有"最坑
+      expect(build.scene.children.length).toBeGreaterThan(0);
+
+      build.dispose();
+    });
+
+    it('取景高度为正，不会把主体顶出画面或压到地下', () => {
+      expect(meta.camera.position[1]).toBeGreaterThan(0);
+    });
+
+    it('update 是 elapsed 的纯函数：同一时刻推两次结果完全一致', () => {
+      const build = definition.create();
+
+      build.update(3.5);
+      const first = poseFingerprint(build.scene);
+      build.update(3.5);
+      const second = poseFingerprint(build.scene);
+
+      expect(second).toBe(first);
+
+      build.dispose();
+    });
+
+    it('update 会让画面动起来', () => {
+      const build = definition.create();
+
+      build.update(0);
+      const before = poseFingerprint(build.scene);
+      build.update(2.4);
+      const after = poseFingerprint(build.scene);
+
+      expect(after).not.toBe(before);
+
+      build.dispose();
+    });
+
+    it('setWireframe 切换场景内所有实体材质', () => {
+      const build = definition.create();
+      const materials: MeshStandardMaterial[] = [];
+      build.scene.traverse((child) => {
+        if (child instanceof Mesh && child.material instanceof MeshStandardMaterial) {
+          materials.push(child.material);
+        }
+      });
+      expect(materials.length).toBeGreaterThan(0);
+
+      build.setWireframe(true);
+      expect(materials.every((material) => material.wireframe)).toBe(true);
+
+      build.setWireframe(false);
+      expect(materials.every((material) => !material.wireframe)).toBe(true);
+
+      build.dispose();
+    });
+
+    it('setGridVisible 不会抛错（地面/太空类场景可以是空实现）', () => {
+      const build = definition.create();
+
+      expect(() => {
+        build.setGridVisible(false);
+        build.setGridVisible(true);
+      }).not.toThrow();
+
+      build.dispose();
+    });
+
+    it('dispose 释放全部几何体并清空场景', () => {
+      const build = definition.create();
+      // 去重：同一场景内多个构件共享几何体，重复 spy 同一个对象会直接报错
+      const geometries = [...new Set(meshesOf(build.scene).map((mesh) => mesh.geometry))];
+      expect(geometries.length).toBeGreaterThan(0);
+
+      const spies = geometries.map((geometry: BufferGeometry) => vi.spyOn(geometry, 'dispose'));
+      build.dispose();
+
+      spies.forEach((spy) => expect(spy).toHaveBeenCalled());
+      expect(build.scene.children).toHaveLength(0);
+    });
+
+    it('两次构建的布局逐字一致（散布走固定种子，不用 Math.random）', () => {
+      const first = definition.create();
+      const second = definition.create();
+
+      first.update(1.5);
+      second.update(1.5);
+
+      expect(poseFingerprint(second.scene)).toBe(poseFingerprint(first.scene));
+
+      first.dispose();
+      second.dispose();
+    });
+  });
+});
+
+describe('场景各自的取舍', () => {
+  const byId = new Map(SCENES.map((definition) => [definition.meta.id, definition]));
+
+  it('太空场景不加雾 —— 真空里没有散射介质，加雾就成了雾天', () => {
+    const build = byId.get('spacecraft')?.create();
+
+    expect(build?.scene.fog).toBeNull();
+
+    build?.dispose();
+  });
+
+  it('丛林场景必须有雾 —— 丛林纵深感几乎全靠它', () => {
+    const build = byId.get('primeval-jungle')?.create();
+
+    expect(build?.scene.fog).not.toBeNull();
+
+    build?.dispose();
+  });
+
+  it('丛林与太空不默认显示网格辅助线', () => {
+    expect(byId.get('primeval-jungle')?.meta.options?.showGrid).toBe(false);
+    expect(byId.get('spacecraft')?.meta.options?.showGrid).toBe(false);
+  });
+
+  it('现代写字楼默认显示网格 —— 它正好充当广场铺装的分格', () => {
+    expect(byId.get('modern-office')?.meta.options?.showGrid).toBe(true);
+  });
+});

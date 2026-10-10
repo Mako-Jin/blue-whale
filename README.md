@@ -30,7 +30,7 @@ web/
 │   ├── platform-portal       主应用（qiankun 容器，唯一入口，:3000）
 │   ├── platform-log-console  日志控制台（子应用 + 可独立运行，:3200）
 │   ├── platform-event-console 行为事件控制台（子应用 + 可独立运行，:3300）
-│   └── platform-environment  三维环境应用（子应用 + 可独立运行，:3400，three.js，与业务无关）
+│   └── platform-environment  三维环境应用（子应用 + 可独立运行，:3400，three.js 多场景，与业务无关）
 └── elemental/            通用元素（预留）
 ```
 
@@ -108,6 +108,7 @@ server/  ──生成──▶  docs/api/openapi.json  ──生成──▶  we
 | 数据访问     | MyBatis-Plus 3.5.17（H2 内存库为默认，可切本机 MySQL / 达梦 DM8）                                                                             |
 | 表结构管理   | Flyway 12（迁移脚本按数据库厂商分目录，**版本号全仓唯一**；达梦无官方模块，改走交付脚本，见 ADR-0010）                                        |
 | 前端埋点     | `common-tools/events` 语义化 `track()` + 内部总线（中间件：补齐上下文 / 屏蔽 / 脱敏）；上报复用 `common-tools/report` 的批量通道，见 ADR-0011 |
+| 三维渲染     | three.js（r186）—— 环境应用 `platform-environment`，程序化生成多场景，见 ADR-0013 / ADR-0014                                                  |
 | 后端接口文档 | springdoc-openapi 3.1.1（`/swagger-ui.html`）                                                                                                 |
 | 接口契约     | OpenAPI 3.1（`docs/api/`，由代码生成）                                                                                                        |
 
@@ -184,6 +185,16 @@ node scripts/verify-micro-frontend.mjs          # 需上面各服务已在跑
 - **身份缝合** —— 点「登录」后新产生的事件立刻带上 `userId`，而 `deviceId` 不变：两者同时挂在新事件上，分析侧才能把匿名期与登录期并成同一个人
 - **脱敏** —— 点「查看联系方式」，`phone` / `email` 在**离开浏览器之前**就被打码，明文从未出现在任何一次请求里
 - **屏蔽** —— 点某个事件的 chip，命中后该事件在进入缓冲之前就被丢弃，左栏不会出现、服务端更不会收到
+
+### 三维环境端到端演示
+
+打开 <http://127.0.0.1:3400>（或基座的 <http://127.0.0.1:3000/environment>）：顶部是卡片式场景选择器（古建筑 / 原始丛林 / 现代写字楼 / 太空飞船 / 渲染基线），点卡片即切换场景，右侧 HUD 实时显示帧率、绘制调用与三角面数。
+
+反复切换场景不会产生第二个 WebGL 上下文、也不会累积 GPU 资源（切场景只换场景图，渲染器与画布复用），可用脚本断言：
+
+```bash
+node scripts/verify-scene-switching.mjs         # 需 :3400 在跑；可传截图目录
+```
 
 ### Git 钩子
 

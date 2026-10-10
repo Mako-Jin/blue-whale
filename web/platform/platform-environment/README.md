@@ -41,18 +41,21 @@
 
 ## 三、three.js 层（`src/scene/`）
 
-| 文件          | 职责                                                                                           |
-| ------------- | ---------------------------------------------------------------------------------------------- |
-| `world.ts`    | 场景图：灯光、地面网格、几何体、动画。**不碰渲染器**                                           |
-| `renderer.ts` | `WebGLRenderer` 装配：颜色空间、色调映射、阴影贴图类型、尺寸同步、上下文释放                   |
-| `stage.ts`    | 装配：世界 + 渲染器 + 相机控制器 + 动画循环 + 尺寸监听，对外只有 `start()`、开关和 `dispose()` |
-| `viewport.ts` | 容器尺寸 → 绘制缓冲分辨率的纯函数（jsdom 可测）                                                |
-| `options.ts`  | 场景开关类型与默认值（组件与舞台共用，避免类型归属地二义）                                     |
+| 文件          | 职责                                                                                    |
+| ------------- | --------------------------------------------------------------------------------------- |
+| `types.ts`    | `SceneId` / `SceneMeta` / `SceneDefinition` / `SceneBuild` —— 场景的类型契约            |
+| `catalog.ts`  | 注册表与清单：`Record<SceneId, …>` 钉住完整性、`loadSceneCatalog()`、远端覆盖合并       |
+| `common.ts`   | 各场景共用的构建工具：释放、材质、光照、雾、确定性伪随机、单位盒                        |
+| `scenes/*.ts` | 五个场景实现：元数据 + 工厂，**不碰渲染器**                                             |
+| `stage.ts`    | 装配：场景图 + 渲染器 + 相机控制器 + 动画循环 + 尺寸监听 + **切场景**，对外只有少量方法 |
+| `renderer.ts` | `WebGLRenderer` 装配：颜色空间、色调映射、阴影贴图类型、尺寸同步、上下文释放            |
+| `viewport.ts` | 容器尺寸 → 绘制缓冲分辨率的纯函数（jsdom 可测）                                         |
+| `options.ts`  | 场景开关类型与默认值（组件与舞台共用，避免类型归属地二义）                              |
 
 ### 分层的动机
 
 `WebGLRenderer` 构造时就要 WebGL 上下文，**在没有 GPU 的环境（jsdom、CI）里直接抛错**。
-把"场景里有什么、动画怎么推进、资源怎么释放"放进不碰渲染器的 `world.ts`，
+把"场景里有什么、动画怎么推进、资源怎么释放"放进不碰渲染器的 `scenes/` 与 `common.ts`，
 这些逻辑全部可以跑单元测试；真正需要 GPU 的只有 `renderer.ts` 与 `stage.ts`，留给真实浏览器验证。
 
 ### 渲染生命周期：四条硬规则
@@ -73,16 +76,58 @@
    `getDelta()`/`getElapsed()` 在同一帧内可反复读且值一致，`connect(document)` 借
    Page Visibility API 兜住"切标签页再切回来"的巨大 delta。
 
+---
+
+## 四、多场景：注册表、切换与三条护栏
+
+场景 = **实现**（`scenes/*.ts`，three.js 代码，后端给不了）+ **元数据**（`SceneMeta`，纯数据）。
+"清单放前端还是后端"的三选一只对元数据有意义。当前用**前端注册表**，
+依据与升级路径见 **ADR-0014**，这里只列落地时最容易踩的三条护栏：
+
+1. **组件只认 `localSceneCatalog()`（首屏同步兜底）与 `loadSceneCatalog()`（最终来源）**，
+   不直接引用注册表内部 —— 数据来源必须可替换，将来接后端字典时调用方一行不改。
+2. **远端只能覆盖、不能发明**（`mergeCatalogOverrides`）：认不出的 id 记入 `unknownIds`
+   交上层告警，绝不凭空造一个场景 —— 造出来只会在选中时白屏。
+3. **`SceneId` 字面量 ↔ 实现文件一一对应**：注册表用 `Record<SceneId, SceneDefinition>` 承接，
+   漏实现或拼错 id 都是编译期报错。新增场景的顺序：实现 → 加字面量 → 注册一行。
+
+### 切换管线
+
+`stage.loadScene(definition, options)` **只换场景图**：释放旧场景 → 构建新场景 →
+相机搬到该场景的取景位。渲染器、画布、相机、控制器、PMREM 环境贴图**全部复用**，
+不存在第二个 WebGL 上下文。**先释放旧场景、后构建新场景**（反过来峰值显存是两份之和）。
+
+每个场景必须自带：相机位姿、拉近/拉远范围、IBL 环境光强度、默认渲染选项覆盖
+（`SceneMeta`）—— 构图差着数量级，共用一套取景必然有场景取不对。
+**切场景同时重置渲染选项**：网格辅助线对广场是参照、对丛林是干扰，
+沿用上一个场景的开关只会让人以为"开关坏了"。
+
+### 两个贯穿所有场景的约定
+
+- **散布用固定种子的伪随机**（`common.ts` 的 `createPrng`），**禁用 `Math.random()`**：
+  每次挂载画面都不同就既没法断言、也没法复现用户截图里的那一帧。
+  测试里有一条"两次构建位姿指纹逐字一致"的断言钉住这条约定。
+- **方盒构件共享一个单位 `BoxGeometry`**，尺寸靠 `mesh.scale` ——
+  古建筑 127 次绘制调用只用了 6 份几何体。共享几何体被重复 `dispose()` 是安全的。
+
+### 释放是否干净，可断言
+
+`stage.diagnostics()` 暴露 three 维护的**当前在 GPU 上**的几何体/纹理计数。
+`scripts/verify-scene-switching.mjs` 靠它断言：同一场景第二轮切回来时 GPU 几何体数
+与第一轮一致（无累积）。看画面是看不出泄漏的 —— 泄漏要攒到上下文上限才突然白屏。
+
 ### 已知坑（写进代码注释，也写进 `AGENTS.md`）
 
 - `PCFSoftShadowMap` 在 three r186 **已被移除**，写上只会得到一条运行时警告并静默退回
   `PCFShadowMap` —— 看起来生效了，其实什么都没设。显式写 `PCFShadowMap`。
 - PMREM 环境贴图（`RoomEnvironment`）与 `PMREMGenerator` 不在场景图里，
   `traverse` 释放不到，必须各自释放。
+- 相机远裁剪面给到 400：太空场景星点场半径接近 100，默认 200 会把它们**整片切掉**
+  且不报错 —— 表现只是"星星突然少了一半"。
 
 ---
 
-## 四、全局状态订阅：必须走桥，不要直接调 props
+## 五、全局状态订阅：必须走桥，不要直接调 props
 
 订阅基座状态用 `common-tools/micro` 的 `onHostGlobalStateChange()`，
 **不要直接调 `props.onGlobalStateChange`**：qiankun 每个子应用只保留**一个**回调，
@@ -92,7 +137,7 @@
 
 ---
 
-## 五、目录结构
+## 六、目录结构
 
 ```
 platform-environment/
@@ -101,39 +146,56 @@ platform-environment/
 ├── src/
 │   ├── main.tsx               入口：renderWithQiankun 生命周期 + 独立运行分支
 │   ├── mount.ts               挂载点解析（基座容器 / 自建容器）
-│   ├── App.tsx                页面装配：徽标、全局状态订阅、降级面板
+│   ├── App.tsx                页面装配：场景选择器、徽标、全局状态订阅、降级面板
 │   ├── format.ts              统计数字的格式化（千分位、分辨率）
 │   ├── scene/                 three.js 层（见上表）
+│   │   └── scenes/            ancient-architecture · primeval-jungle ·
+│   │                          modern-office · spacecraft · baseline-lab
 │   ├── components/
 │   │   ├── SceneView.tsx      画布组件：只管舞台生命周期，不渲染 <canvas>
+│   │   ├── SceneSwitcher.tsx  卡片式场景选择器（横排，含氛围色块与图标）
 │   │   └── ControlPanel.tsx   HUD 面板：开关与帧率/绘制调用/三角面统计
 │   └── styles/                Less 令牌与全局样式
-└── tests/                     31 例：mount / viewport / world / format / App 降级
+└── tests/                     93 例：catalog / scenes 契约 / 选择器 / mount / viewport / format / App 降级
 ```
 
 ---
 
-## 六、命令
+## 七、命令
 
 ```bash
 pnpm --filter platform-environment dev    # 独立启动 :3400
 pnpm --filter platform-environment build  # 生产构建（产物 base = /environment/）
-node scripts/verify-micro-frontend.mjs    # 端到端验证（需基座 :3000 与各子应用在跑）
+node scripts/verify-scene-switching.mjs   # 场景切换端到端验证（需 :3400 在跑；可传截图目录）
+node scripts/verify-micro-frontend.mjs    # 微前端全链路验证（需基座 :3000 与各子应用在跑）
 ```
 
 调试入口：基座 `http://127.0.0.1:3000/environment`，或独立 `http://localhost:3400`。
 
+### 新增一个场景
+
+1. 新建 `src/scene/scenes/<id>.ts`：导出 `SceneDefinition`（`meta` + `create()`）。
+   散布必须用 `createPrng(seed)`，方盒构件用 `addBox`（共享单位盒）。
+2. 在 `src/scene/types.ts` 的 `SceneId` 联合里加 id 字面量。
+3. 在 `src/scene/catalog.ts` 的 `REGISTRY` 里注册一行。
+4. 跑 `pnpm test` —— `scenes.test.ts` 会自动把通用契约（纯函数动画、确定性布局、
+   释放干净、线框开关）套到新场景上，不用手写第二遍。
+
 ---
 
-## 七、尚未实现（别误以为已有）
+## 八、尚未实现（别误以为已有）
 
-- **场景内容由空到有**：当前是演示用的几何体，真正的"环境"（地形/天空/大气）等需求来了再做
-- **资源加载**：没有 GLTF/HDRI 等外部资源与加载进度管理
+- **场景深化**：五个场景都是"可辨识的简化版"（全基础几何体），瓦垄、彩画、
+  植被多样性、舱内细节等逐场景深化时再做
+- **远端清单**：`loadSceneCatalog()` 尚无后端来源，接通时同步契约与缓存策略（ADR-0014）
+- **场景级参数运行时调整**（时间/天气/雾浓度）：等需求来了再进 `SceneMeta`
+- **资源加载**：没有 GLTF/HDRI 等外部资源与加载进度管理 —— 当前全部程序化生成
 - **性能档位**：像素比封顶、阴影分辨率分档等降级策略未做
 - **多人/物理**：与实时协同、物理引擎均无关，本应用不承担这些
 
 ## 相关
 
+- `docs/decisions/0014-多场景架构与切换管线.md` —— 清单落地方式与切换管线（本轮决策）
 - `docs/decisions/0012-微前端接入与子应用改造.md` —— 微前端整体决策
 - `web/platform/platform-portal/README.md` —— 基座如何挂载子应用、新增子应用的步骤
 - `web/packages/common-tools/README.md` —— `micro` 桥接与全局状态多路复用

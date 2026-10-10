@@ -67,7 +67,14 @@
 - **子应用的 `base` 分环境**：dev 必须是 `/`（否则热更新静默失效），build 才带前缀。不要"顺手统一"。
 - **子应用必须能独立跑**：入口判断 `qiankunWindow.__POWERED_BY_QIANKUN__` 做分支，通信一律走 `common-tools/micro`，不要在子应用里 `import` 基座的任何东西（违反铁律 5）。
 - **全局状态订阅必须走桥**：`onHostGlobalStateChange()`，不要直接调 `props.onGlobalStateChange`（单槽位，会互相覆盖）。
-- **决策不许散写成实现细节**：挂载方式、沙箱策略、全局状态、`vite-plugin-qiankun` 的取舍在 `docs/decisions/0012`；三维应用与 WebGL 渲染生命周期在 `docs/decisions/0013`。改这些先改 ADR。
+- **决策不许散写成实现细节**：挂载方式、沙箱策略、全局状态、`vite-plugin-qiankun` 的取舍在 `docs/decisions/0012`；三维应用与 WebGL 渲染生命周期在 `docs/decisions/0013`；多场景注册表与切换管线在 `docs/decisions/0014`。改这些先改 ADR。
+
+## 三维场景（改 `platform-environment` 前先看）
+
+- **加场景的顺序**：实现 `src/scene/scenes/<id>.ts` → 在 `types.ts` 的 `SceneId` 加字面量 → 在 `catalog.ts` 的 `REGISTRY` 注册一行。注册表用 `Record<SceneId, SceneDefinition>` 承接，漏实现或拼错 id 是**编译期报错**（不是运行时白屏）。
+- **切场景只换场景图，不换渲染器**：`stage.loadScene()` 里先释放旧场景、后构建新场景（反过来峰值显存是两份之和）。渲染器 / 画布 / 相机 / 控制器 / 环境贴图必须复用，否则会积累 WebGL 上下文。切场景要**重置渲染选项**为该场景声明的默认值。
+- **散布禁用 `Math.random()`**：一律用 `common.ts` 的 `createPrng(seed)`（固定种子），否则画面不可复现、无法断言。测试里有"两次构建位姿指纹逐字一致"的断言钉住。
+- **新增场景后先跑 `pnpm --filter platform-environment test`**：`scenes.test.ts` 会把通用契约（纯函数动画、确定性布局、释放干净、线框开关）自动套到新场景上。
 
 ## 目录边界（勿越界）
 

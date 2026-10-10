@@ -145,8 +145,21 @@ cd web && pnpm install
 改完跑一次端到端验证（各服务都在跑时）：
 
 ```bash
-node scripts/verify-micro-frontend.mjs
+node scripts/verify-micro-frontend.mjs    # 微前端全链路（基座 :3000 + 三个子应用）
+node scripts/verify-scene-switching.mjs   # 三维应用多场景切换与显存释放（仅需 :3400）
 ```
+
+### 三维场景相关的改动
+
+`platform-environment` 的场景实现与元数据分离：**实现**（three.js 代码）只能在前端，**元数据**（`SceneMeta`）才是"放前端还是后端"的对象。当前用**前端注册表**，依据见 `docs/decisions/0014`。
+
+| 我想改…                              | 必须同时确认                                                                                                         |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| **新增场景**                         | 顺序：`scenes/<id>.ts` 实现 → `types.ts` 加 `SceneId` 字面量 → `catalog.ts` 注册一行（顺序错是编译期报错，不是白屏） |
+| 场景的**清单来源 / 覆盖**            | 三条护栏见 `docs/decisions/0014`：调用方只认 `loadSceneCatalog()`、远端只能覆盖不能发明、`SceneId` 与实现一一对应    |
+| **渲染生命周期**（画布/上下文/释放） | `docs/decisions/0013` 第 1–4 条要同步更新（画布与上下文同生共死、`dispose()` 必 `forceContextLoss()`）               |
+| 场景里的**散布 / 随机**              | 一律用 `common.ts` 的 `createPrng(seed)`，禁用 `Math.random()`（可复现、可断言）                                     |
+| **切场景管线**                       | `stage.loadScene()` 只换场景图，渲染器/画布/相机/环境贴图复用；切场景要重置渲染选项为该场景默认值                    |
 
 ---
 
@@ -188,6 +201,7 @@ pnpm dev --filter platform-portal --filter platform-log-console --filter platfor
 ```
 
 > 微前端端到端验证：各服务都起来后执行 `node scripts/verify-micro-frontend.mjs`（用真实 Chrome 走完整链路，见 `scripts/README.md`）。
+> 三维应用多场景验证：`:3400` 起来后执行 `node scripts/verify-scene-switching.mjs`（断言反复切场景不耗尽显存）。
 
 ### 后端
 

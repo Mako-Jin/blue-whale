@@ -1,0 +1,143 @@
+.scene-switcher {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 16px 12px;
+  background: @bg-elevated;
+  border-bottom: 1px solid @border-color;
+
+  &__head {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 500;
+    color: @text-primary;
+  }
+
+  &__count {
+    font-family: @font-mono;
+    font-size: 11px;
+    color: @text-tertiary;
+  }
+
+  &__source {
+    padding: 1px 8px;
+    margin-left: auto;
+    font-size: 11px;
+    color: @text-tertiary;
+    background: @bg-base;
+    border: 1px solid @border-color;
+    border-radius: 999px;
+  }
+
+  &__list {
+    display: flex;
+    gap: 10px;
+    padding: 2px;
+    margin: 0;
+    overflow-x: auto;
+    list-style: none;
+    // 细滚动条：横排卡片下面挂一条粗滚动条会抢走太多视觉重量
+    scrollbar-width: thin;
+  }
+
+  &__item {
+    flex: 0 0 auto;
+  }
+
+  &__tags {
+    display: flex;
+    gap: 6px;
+    margin: 0;
+  }
+
+  &__tag {
+    padding: 1px 7px;
+    font-size: 11px;
+    color: @text-secondary;
+    background: @bg-base;
+    border-radius: @radius-sm;
+  }
+}
+
+.scene-card {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 212px;
+  padding: 8px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: @bg-elevated;
+  border: 1px solid @border-color;
+  border-radius: @radius-md;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+
+  &:hover {
+    border-color: @text-tertiary;
+  }
+
+  &:focus-visible {
+    outline: 2px solid @brand-color;
+    outline-offset: 1px;
+  }
+
+  // 选中态用场景自己的主色描边，而不是统一的高亮色 ——
+  // 卡片之间本来就有色差，统一色反而分不清是哪张被选中
+  &--active {
+    border-color: var(--scene-accent);
+    box-shadow: 0 0 0 1px var(--scene-accent);
+  }
+
+  &__thumb {
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: 46px;
+    height: 46px;
+    // 主色 → 该场景背景色。没有真实截图，但每种场景的配色本身就有足够区分度
+    background: linear-gradient(155deg, var(--scene-accent), var(--scene-bg));
+    border-radius: @radius-sm;
+
+    svg {
+      width: 26px;
+      height: 26px;
+      stroke: rgb(255 255 255 / 88%);
+      stroke-width: 1.4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  &__title {
+    font-size: 13px;
+    font-weight: 500;
+    color: @text-primary;
+  }
+
+  &__summary {
+    // 两行封顶：`max-height` 是行高的整数倍，多出来的第三行整行裁掉，
+    // 不会出现"半行字"这种看起来像渲染坏了的中间态
+    max-height: 2.9em;
+    overflow: hidden;
+    font-size: 11px;
+    line-height: 1.45;
+    color: @text-tertiary;
+  }
+}

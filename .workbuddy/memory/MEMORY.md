@@ -183,12 +183,26 @@ server/  pom.xml(聚合) → sts-parent
 ## 三维环境应用（2026-10-10 定 · ADR-0013）
 - **`platform-environment`**（:3400，`/environment`）：与任何业务域无关的环境应用，three.js + `@types/three`（版本进 catalog）
 - 两种运行方式一条渲染路径：`src/mount.ts` 的 `resolveMountPoint()` 返回 `{element, mode}`，被基座加载用传入容器（内部 `ensureChild` 再套一层 `#root`，不跟 qiankun 的清空动作抢节点）、独立启动用自建容器
-- `src/scene/` 分层：`world`（场景图/动画，**不碰渲染器**）与 `renderer`/`stage` 分开 —— WebGLRenderer 构造即要上下文，jsdom 直接抛错，分层让场景逻辑全部可单测
+- `src/scene/` 分层：`scenes/*.ts` + `common.ts`（场景图/动画/工具，**不碰渲染器**）与 `renderer`/`stage` 分开 —— WebGLRenderer 构造即要上下文，jsdom 直接抛错，分层让场景逻辑全部可单测
 - **画布与上下文同生共死（最关键）**：canvas 由 `createStage` 创建并随 `dispose()` 移除，**不接受外部传入**。`forceContextLoss()` 后同一张 canvas 的上下文永久 lost，`getShaderPrecisionFormat()` 返回 null → 再建 WebGLRenderer 抛 `Cannot read properties of null (reading 'precision')`；React StrictMode 双跑 effect 必踩，jsdom 测不出（走降级分支）
 - `dispose()` 必须含 `forceContextLoss()`：否则上下文攒到上限（~16 个）后浏览器回收最旧的，表现为"切换几次后画面变白且无报错"。端到端脚本用 `gl.isContextLost()` 断言
 - GPU 资源不会随 GC 释放：`disposeSubtree()` 递归释放并可断言；**PMREMGenerator 与 RoomEnvironment 不在场景图里**，traverse 不到，必须各自释放
 - three r186：**`PCFSoftShadowMap` 已移除**（写上只警告并静默退回）、**`Clock` 弃用**改用核心 `Timer`（`connect(document)` 借 Page Visibility 兜住切标签页的巨大 delta；`dispose()` 必须断开，否则每次挂载漏一个监听器）
-- 构建产物 gzip 约 218 kB —— 三维依赖重是独立成子应用的原因之一；未做：真实环境内容（地形/天空）、GLTF/HDRI、性能档位
+- 构建产物 gzip 约 225 kB —— 三维依赖重是独立成子应用的原因之一
+- **多场景见下方「多场景架构（ADR-0014）」**
+
+## 多场景架构（2026-10-10 定 · ADR-0014）
+- 背景：要承载古建筑 / 原始丛林 / 现代写字楼 / 太空飞船等多类场景；舰长问"清单放前端 / 后端字典 / 管理端"
+- **一个场景 = 实现（`scenes/*.ts` three.js 代码，后端下发不了）+ 元数据（`SceneMeta` 纯数据）**，三选一只对元数据有意义。故此"新增场景必发前端版本"，后端字典当下净收益为 0（改代码 + 改一条库记录 ⇒ 两地不同步风险升高）
+- **当前用前端注册表**：依据 = ADR-0003 把场景目录判为「业务运行期配置」层且底线第 2 条要求"内置兜底永久在客户端"+ 应用立身前提是"可独立运行"（依赖后端则独立开 :3400 选择器为空）
+- **三条护栏（让将来升级不重写）**：A 调用方只认 `loadSceneCatalog(): Promise<SceneCatalog>`（首屏走 `localSceneCatalog()` 同步兜底），禁止直接引用注册表内部；B `mergeCatalogOverrides()` 远端**只能覆盖不能发明**（认不出的 id 记 `unknownIds` 交上层，可覆盖字段限展示层）；C `SceneId` 手写字面量联合 + `Record<SceneId, SceneDefinition>` 承接 ⇒ 漏实现/拼错 id 是**编译期**报错
+- **选择器用卡片不用下拉框**：场景是视觉选项，"长什么样"是主要依据；`SceneMeta.icon` 只是**枚举**，图形归组件渲染（元数据保持纯数据）
+- **切换 = 只换场景图**：`stage.loadScene()` 释放旧图 → 建新图 → 相机搬到新取景位；渲染器/画布/相机/控制器/PMREM 环境贴图**全部复用**（重建画布撞 ADR-0013 第一条硬规则）。**先释放旧、后建新**，反过来峰值显存是两份之和
+- **取景随场景走**：每个 `SceneMeta` 自带相机位姿、拉近拉远范围、IBL 强度、默认选项覆盖；**切场景要重置渲染选项**（网格辅助线对广场是参照、对丛林是干扰）
+- **散布禁用 `Math.random()`**：一律 `createPrng(seed)`（mulberry32），否则画面不可复现/不可断言；测试有"两次构建位姿指纹逐字一致"钉住
+- **释放可断言**：`stage.diagnostics()` 暴露 GPU 上几何体/纹理计数；`scripts/verify-scene-switching.mjs`（Chrome + CDP :9334）断言第二轮切回 GPU 几何体数不增长
+- 单位盒 + `scale`：方盒构件共享一个 `BoxGeometry`（古建筑 127 绘制调用只 6 份几何体）；共享几何体重复 dispose 安全
+- 新增场景顺序：`scenes/<id>.ts` → `types.ts` 加 `SceneId` 字面量 → `catalog.ts` 注册一行；`scenes.test.ts` 自动把通用契约套到新场景
 
 ## 环境坑（已查清，勿再排查）
 - 后端启动报 Port 56491：沙箱注入 `SERVER__PORT` 环境变量 → 命令行 `--server.port=8080` 覆盖

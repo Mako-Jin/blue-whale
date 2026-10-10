@@ -6,11 +6,12 @@
 
 ## 现有脚本
 
-| 脚本                        | 用途                                                      | 前置条件                                                                          | 说明见                |
-| --------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------- | --------------------- |
-| `export-openapi.sh`         | 从运行中的应用导出 OpenAPI 契约到 `docs/api/openapi.json` | 后端可构建且 JDK 21（脚本自查 `JAVA_HOME`）；临时以 18080 端口启动一次            | `docs/decisions/0006` |
-| `init-dameng.sh`            | 在达梦 DM8 上应用交付用的建表脚本（Flyway 无达梦模块）    | 可达的 DM8 实例；凭据走环境变量 `BW_DB_USERNAME` / `BW_DB_PASSWORD`               | `docs/decisions/0010` |
-| `verify-micro-frontend.mjs` | 用真实 Chrome 验证微前端全链路                            | 四个 dev server 都在跑（:3000 / :3200 / :3300 / :3400），且本机装有 Google Chrome | `docs/decisions/0012` |
+| 脚本                         | 用途                                                      | 前置条件                                                                          | 说明见                |
+| ---------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------- | --------------------- |
+| `export-openapi.sh`          | 从运行中的应用导出 OpenAPI 契约到 `docs/api/openapi.json` | 后端可构建且 JDK 21（脚本自查 `JAVA_HOME`）；临时以 18080 端口启动一次            | `docs/decisions/0006` |
+| `init-dameng.sh`             | 在达梦 DM8 上应用交付用的建表脚本（Flyway 无达梦模块）    | 可达的 DM8 实例；凭据走环境变量 `BW_DB_USERNAME` / `BW_DB_PASSWORD`               | `docs/decisions/0010` |
+| `verify-micro-frontend.mjs`  | 用真实 Chrome 验证微前端全链路                            | 四个 dev server 都在跑（:3000 / :3200 / :3300 / :3400），且本机装有 Google Chrome | `docs/decisions/0012` |
+| `verify-scene-switching.mjs` | 用真实 Chrome 验证三维应用的多场景切换与显存释放          | :3400 在跑，且本机装有 Google Chrome；可选传截图目录                              | `docs/decisions/0014` |
 
 ### `verify-micro-frontend.mjs` 做什么
 

@@ -4,9 +4,9 @@ import type { Viewport } from './viewport';
 /**
  * 渲染器装配。
  *
- * 与 `world.ts` 分开的原因很实际：`WebGLRenderer` 构造时就会去要 WebGL 上下文，
- * 在没有 GPU 的环境（jsdom、CI）里**直接抛错**。把这一步单独隔出来，
- * 场景图的逻辑就都能在无 GPU 环境下测试。
+ * 与场景实现（`scenes/`）分开的原因很实际：`WebGLRenderer` 构造时就会去要
+ * WebGL 上下文，在没有 GPU 的环境（jsdom、CI）里**直接抛错**。把这一步单独隔出来，
+ * 「场景里有什么、动画怎么推进、资源怎么释放」就都能在无 GPU 环境下测试。
  *
  * **本函数只负责 GPU 资源，不碰 DOM** —— 画布由调用方（`stage.ts`）创建并持有。
  * 调用方必须保证：`dispose()` 之后的画布**不得再次使用**，要重建就换一张新的。

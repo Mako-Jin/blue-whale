@@ -1,13 +1,21 @@
-import { PMREMGenerator, Timer, type Material, type WebGLRenderTarget } from 'three';
+import {
+  PMREMGenerator,
+  PerspectiveCamera,
+  Timer,
+  type Material,
+  type WebGLRenderTarget,
+} from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { disposeSubtree } from './common';
 import { createRenderer } from './renderer';
 import { resolveViewport, type Viewport } from './viewport';
-import { createWorld, disposeSubtree } from './world';
+import type { SceneBuild, SceneDefinition, SceneId } from './types';
+import type { SceneOptions } from './options';
 
 /**
  * 舞台：把场景图、渲染器、相机控制器和一个动画循环装在一起，对外只暴露
- * `start()` 与一组开关、一个 `dispose()`。
+ * `start()`、`loadScene()`、一组开关和一个 `dispose()`。
  *
  * React 组件只需要管两件事：**挂载时建、卸载时毁**。所有和帧、和 GPU 打交道的
  * 细节都封在这里，组件不会因为多写一个 effect 就漏掉一次释放。
@@ -24,7 +32,32 @@ export type StageStats = {
   triangles: number;
 };
 
+/**
+ * 舞台的运行时诊断。
+ *
+ * `geometries` / `textures` 是**当前真正待在 GPU 上的资源数**（three 内部维护）。
+ * 它们的价值在于：切场景之后这两个数应当**回落**而不是累加。
+ * 「资源释放干净了没有」平时只能靠看画面正不正常来猜，
+ * 有了这两个计数，它就变成一条可断言的数字 —— 端到端脚本正是靠它证明
+ * 反复切场景不会把显存吃光。
+ */
+export type StageDiagnostics = {
+  sceneId: SceneId;
+  /** 当前上传到 GPU 的几何体数量 */
+  geometries: number;
+  /** 当前上传到 GPU 的纹理数量 */
+  textures: number;
+  /** 已编译的着色器程序数量 */
+  programs: number;
+  drawCalls: number;
+  triangles: number;
+};
+
 export type StageOptions = {
+  /** 初始场景 */
+  scene: SceneDefinition;
+  /** 初始渲染选项 */
+  options: SceneOptions;
   onStats?: (stats: StageStats) => void;
   /** 统计回调的最小间隔（毫秒），默认 500 */
   statsInterval?: number;
@@ -32,6 +65,18 @@ export type StageOptions = {
 
 export type Stage = {
   start(): void;
+  /**
+   * 切换场景。
+   *
+   * 内部只在**场景图**这一层做替换：渲染器、画布、相机、相机控制器、
+   * 环境贴图全部复用。重建它们的代价不只是性能 —— 重建相机意味着要改
+   * `OrbitControls.object` 并复位它的内部球坐标状态，那是一条只会引入偶发 bug 的路。
+   */
+  loadScene(scene: SceneDefinition, options: SceneOptions): void;
+  /** 当前场景 id。界面用它高亮当前选中的卡片 */
+  readonly sceneId: SceneId;
+  /** 取一次运行时诊断（GPU 资源计数、绘制统计） */
+  diagnostics(): StageDiagnostics;
   /** 相机绕场景自动环绕 */
   setAutoRotate(enabled: boolean): void;
   setShadows(enabled: boolean): void;
@@ -51,8 +96,8 @@ const DEFAULT_STATS_INTERVAL = 500;
  */
 const CANVAS_CLASS = 'scene-view__canvas';
 
-export function createStage(host: HTMLElement, options: StageOptions = {}): Stage {
-  const statsInterval = options.statsInterval ?? DEFAULT_STATS_INTERVAL;
+export function createStage(host: HTMLElement, stageOptions: StageOptions): Stage {
+  const statsInterval = stageOptions.statsInterval ?? DEFAULT_STATS_INTERVAL;
 
   /**
    * 画布在这里创建，**不接受外部传入**。
@@ -72,7 +117,6 @@ export function createStage(host: HTMLElement, options: StageOptions = {}): Stag
   canvas.className = CANVAS_CLASS;
   host.appendChild(canvas);
 
-  const world = createWorld();
   const { renderer, resize, dispose: disposeRenderer } = createRenderer(canvas);
 
   /**
@@ -81,27 +125,35 @@ export function createStage(host: HTMLElement, options: StageOptions = {}): Stag
    * 没有它，`MeshStandardMaterial` 的金属部分没有东西可反射，会渲染成一团死黑 ——
    * 这是"用了 PBR 材质但看起来比 Phong 还差"最常见的原因。
    * `RoomEnvironment` 是 three 自带的一个程序化室内环境，不需要外部 HDRI 文件。
+   *
+   * **只生成一次**：切场景时把同一份 texture 挂到新场景上即可，
+   * 每个场景重建一次纯属浪费（`fromScene` 要跑完整的卷积）。
    */
   const pmrem = new PMREMGenerator(renderer);
   const roomEnvironment = new RoomEnvironment();
   const environmentTarget: WebGLRenderTarget = pmrem.fromScene(roomEnvironment, 0.04);
-  world.scene.environment = environmentTarget.texture;
-  // 环境光只是补细节，强度压在主光之下，否则画面会变得又平又亮
-  world.scene.environmentIntensity = 0.35;
-  // 两个都不在场景图里，traverse 找不到它们，必须各自释放
+  // 两者都不在场景图里，traverse 找不到，必须各自释放
   pmrem.dispose();
   disposeSubtree(roomEnvironment);
 
-  const controls = new OrbitControls(world.camera, canvas);
-  controls.target.set(0, 1.8, 0);
+  /**
+   * 远裁剪面给到 400。
+   *
+   * 太空场景的星点场半径接近 100、行星在 70 开外，默认的 200 会把它们**整片切掉**
+   * 而且不报任何错 —— 表现只是"星星突然少了一半"。近裁剪面维持 0.1
+   * （飞船贴到最近距离时要看舷窗），近远比 4000 对数深度下没有问题。
+   */
+  const camera = new PerspectiveCamera(50, 1, 0.1, 400);
+
+  const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
   controls.dampingFactor = 0.06;
   controls.autoRotateSpeed = 0.6;
-  controls.minDistance = 6;
-  controls.maxDistance = 48;
   // 限制俯仰角上限，相机就不会钻到地面以下 —— 从地底看场景没有意义，还容易迷向
   controls.maxPolarAngle = Math.PI / 2 - 0.03;
-  controls.update();
+
+  let currentBuild: SceneBuild | null = null;
+  let currentSceneId: SceneId = stageOptions.scene.meta.id;
 
   let currentViewport: Viewport | null = null;
 
@@ -119,10 +171,64 @@ export function createStage(host: HTMLElement, options: StageOptions = {}): Stag
     }
     currentViewport = next;
 
-    world.camera.aspect = next.width / next.height;
-    world.camera.updateProjectionMatrix();
+    camera.aspect = next.width / next.height;
+    camera.updateProjectionMatrix();
     resize(next);
   }
+
+  /**
+   * 开关阴影会让所有材质的着色器变体失效，必须显式要求重新编译。
+   * 漏掉这一步的表现是"关掉阴影后画面变暗/花屏"，而不是没变化。
+   */
+  function compileMaterials(): void {
+    currentBuild?.scene.traverse((child) => {
+      const holder = child as { material?: Material | Material[] };
+      if (!holder.material) {
+        return;
+      }
+      const materials = Array.isArray(holder.material) ? holder.material : [holder.material];
+      materials.forEach((material) => {
+        material.needsUpdate = true;
+      });
+    });
+  }
+
+  /** 安装一个场景：建新的、装旧的、把相机搬到该场景的取景位。 */
+  function installScene(definition: SceneDefinition, options: SceneOptions): void {
+    // 先释放旧场景。**顺序不能反**：新场景若先建，峰值显存会是两份场景之和
+    currentBuild?.dispose();
+
+    const build = definition.create();
+    build.scene.environment = environmentTarget.texture;
+    build.scene.environmentIntensity = definition.meta.environmentIntensity;
+    currentBuild = build;
+    currentSceneId = definition.meta.id;
+
+    const [positionX, positionY, positionZ] = definition.meta.camera.position;
+    const [targetX, targetY, targetZ] = definition.meta.camera.target;
+    camera.position.set(positionX, positionY, positionZ);
+    controls.target.set(targetX, targetY, targetZ);
+    controls.minDistance = definition.meta.distance[0];
+    controls.maxDistance = definition.meta.distance[1];
+    controls.update();
+
+    // 选项要**在场景图就位之后**应用：线框与网格都是作用在具体物体上的
+    applyOptions(options, build);
+  }
+
+  function applyOptions(options: SceneOptions, build: SceneBuild | null = currentBuild): void {
+    if (!build) {
+      return;
+    }
+    controls.autoRotate = options.autoRotate;
+    renderer.shadowMap.enabled = options.shadows;
+    renderer.shadowMap.needsUpdate = true;
+    build.setWireframe(options.wireframe);
+    build.setGridVisible(options.showGrid);
+    compileMaterials();
+  }
+
+  installScene(stageOptions.scene, stageOptions.options);
 
   /**
    * 观察**容器**而不是 window。
@@ -162,15 +268,19 @@ export function createStage(host: HTMLElement, options: StageOptions = {}): Stag
     rafId = requestAnimationFrame(frame);
 
     timer.update(timestamp);
-    world.update(timer.getElapsed());
+    const build = currentBuild;
+    if (!build) {
+      return;
+    }
+    build.update(timer.getElapsed());
     // 阻尼与自动环绕都依赖 deltaTime，传进去才能做到"掉帧时速度不变"
     controls.update(timer.getDelta());
-    renderer.render(world.scene, world.camera);
+    renderer.render(build.scene, camera);
 
     framesInWindow += 1;
     const windowElapsed = timestamp - statsWindowStart;
     if (windowElapsed >= statsInterval) {
-      options.onStats?.({
+      stageOptions.onStats?.({
         fps: Math.round((framesInWindow * 1000) / windowElapsed),
         width: currentViewport?.width ?? 0,
         height: currentViewport?.height ?? 0,
@@ -184,6 +294,23 @@ export function createStage(host: HTMLElement, options: StageOptions = {}): Stag
   }
 
   return {
+    get sceneId(): SceneId {
+      return currentSceneId;
+    },
+
+    diagnostics(): StageDiagnostics {
+      return {
+        sceneId: currentSceneId,
+        // `info.memory` 是 three 维护的"当前在 GPU 上的资源数"，
+        // 不是"累计创建过多少"—— 所以它才是判断释放是否干净的可靠依据
+        geometries: renderer.info.memory.geometries,
+        textures: renderer.info.memory.textures,
+        programs: renderer.info.programs?.length ?? 0,
+        drawCalls: renderer.info.render.calls,
+        triangles: renderer.info.render.triangles,
+      };
+    },
+
     start(): void {
       if (running) {
         return;
@@ -195,6 +322,12 @@ export function createStage(host: HTMLElement, options: StageOptions = {}): Stag
       rafId = requestAnimationFrame(frame);
     },
 
+    loadScene(scene: SceneDefinition, options: SceneOptions): void {
+      installScene(scene, options);
+      // 场景刚建好，尺寸可能与上一次不同（比如基座布局变了），顺手校一次
+      applyViewport();
+    },
+
     setAutoRotate(enabled: boolean): void {
       controls.autoRotate = enabled;
     },
@@ -202,28 +335,15 @@ export function createStage(host: HTMLElement, options: StageOptions = {}): Stag
     setShadows(enabled: boolean): void {
       renderer.shadowMap.enabled = enabled;
       renderer.shadowMap.needsUpdate = true;
-      /**
-       * 开关阴影会让所有材质的着色器变体失效，必须显式要求重新编译。
-       * 漏掉这一步的表现是"关掉阴影后画面变暗/花屏"，而不是没变化。
-       */
-      world.scene.traverse((child) => {
-        const holder = child as { material?: Material | Material[] };
-        if (!holder.material) {
-          return;
-        }
-        const materials = Array.isArray(holder.material) ? holder.material : [holder.material];
-        materials.forEach((material) => {
-          material.needsUpdate = true;
-        });
-      });
+      compileMaterials();
     },
 
     setWireframe(enabled: boolean): void {
-      world.setWireframe(enabled);
+      currentBuild?.setWireframe(enabled);
     },
 
     setGridVisible(visible: boolean): void {
-      world.setGridVisible(visible);
+      currentBuild?.setGridVisible(visible);
     },
 
     dispose(): void {
@@ -236,8 +356,8 @@ export function createStage(host: HTMLElement, options: StageOptions = {}): Stag
 
       controls.dispose();
       environmentTarget.dispose();
-      world.scene.environment = null;
-      world.dispose();
+      currentBuild?.dispose();
+      currentBuild = null;
       disposeRenderer();
       // 画布随上下文一起丢：留着它只会诱使后来者复用一个已经 lost 的 canvas
       canvas.remove();

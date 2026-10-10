@@ -2,8 +2,20 @@ import { useCallback, useEffect, useState } from 'react';
 import { getHostGlobalState, isMicroApp, onHostGlobalStateChange } from 'common-tools/micro';
 import type { HostGlobalState } from 'common-tools/micro';
 import ControlPanel from '@/components/ControlPanel';
+import SceneSwitcher from '@/components/SceneSwitcher';
 import SceneView from '@/components/SceneView';
-import { DEFAULT_SCENE_OPTIONS, type SceneOptions, type StageStats } from '@/scene';
+import {
+  defaultScene,
+  findScene,
+  loadSceneCatalog,
+  localSceneCatalog,
+  sceneOptions,
+  type SceneCatalog,
+  type SceneDefinition,
+  type SceneId,
+  type SceneOptions,
+  type StageStats,
+} from '@/scene';
 import type { MountMode } from '@/mount';
 import './App.less';
 
@@ -36,13 +48,50 @@ function WebGLFallback({ message }: { message: string }) {
 }
 
 export default function App({ mode }: AppProps) {
-  const [options, setOptions] = useState<SceneOptions>(DEFAULT_SCENE_OPTIONS);
+  /**
+   * 首屏用**同步**的内置清单起步，异步加载的结果到了再替换。
+   *
+   * 这是 ADR-0003 客户端底线第 1 条的落地：不允许首屏等配置接口。
+   * 今天 `loadSceneCatalog()` 返回的就是这份内置清单，看着像多此一举 ——
+   * 但等它真接了后端，这段代码一个字都不用改，也不会出现"白屏等接口"。
+   */
+  const [catalog, setCatalog] = useState<SceneCatalog>(() => localSceneCatalog());
+  const [activeScene, setActiveScene] = useState<SceneDefinition>(() => defaultScene());
+  const [options, setOptions] = useState<SceneOptions>(() => sceneOptions(defaultScene().meta));
   const [stats, setStats] = useState<StageStats | null>(null);
   const [error, setError] = useState<string | null>(null);
   // 初值直接读一次，避免为了"首帧就有值"而在 effect 里同步 setState
   const [globalState, setGlobalState] = useState<HostGlobalState>(() => getHostGlobalState());
 
-  const update = useCallback((patch: Partial<SceneOptions>) => {
+  useEffect(() => {
+    let cancelled = false;
+    void loadSceneCatalog().then((next) => {
+      if (!cancelled) {
+        setCatalog(next);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /**
+   * 切换场景。
+   *
+   * 换场景**同时换选项**：网格辅助线对广场铺装是有意义的参照，
+   * 对丛林与太空则纯属干扰。沿用上一个场景的开关会让人以为
+   * "这个场景的开关坏了"—— 每个场景在 `SceneMeta.options` 里声明自己的默认值。
+   */
+  const handleSelect = useCallback((id: SceneId) => {
+    const definition = findScene(id);
+    if (!definition) {
+      return;
+    }
+    setActiveScene(definition);
+    setOptions(sceneOptions(definition.meta));
+  }, []);
+
+  const handleOptionsChange = useCallback((patch: Partial<SceneOptions>) => {
     setOptions((previous) => ({ ...previous, ...patch }));
   }, []);
 
@@ -79,7 +128,7 @@ export default function App({ mode }: AppProps) {
       <header className="env-app__bar">
         <div className="env-app__heading">
           <h1 className="env-app__title">三维环境</h1>
-          <span className="env-app__subtitle">three.js · 场景渲染与渲染生命周期</span>
+          <span className="env-app__subtitle">three.js · 多场景渲染与生命周期</span>
         </div>
 
         <div className="env-app__badges">
@@ -101,13 +150,25 @@ export default function App({ mode }: AppProps) {
         </div>
       </header>
 
+      <SceneSwitcher
+        scenes={catalog.scenes}
+        activeId={activeScene.meta.id}
+        onSelect={handleSelect}
+        source={catalog.source}
+      />
+
       <div className="env-app__stage">
         {error ? (
           <WebGLFallback message={error} />
         ) : (
-          <SceneView options={options} onStats={handleStats} onError={handleError} />
+          <SceneView
+            scene={activeScene}
+            options={options}
+            onStats={handleStats}
+            onError={handleError}
+          />
         )}
-        <ControlPanel options={options} onChange={update} stats={stats} />
+        <ControlPanel options={options} onChange={handleOptionsChange} stats={stats} />
       </div>
     </div>
   );
