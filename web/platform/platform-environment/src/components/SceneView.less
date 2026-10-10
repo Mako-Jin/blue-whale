@@ -1,0 +1,17 @@
+.scene-view {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: #0b1020;
+
+  // 这张画布由 scene/stage.ts 创建（类名常量 CANVAS_CLASS）——
+  // 它必须和 WebGL 上下文同生共死，所以不能由组件用 JSX 持有。
+  &__canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    // 让浏览器把 canvas 当作图形层处理，缩放时不会有一帧的模糊
+    touch-action: none;
+  }
+}

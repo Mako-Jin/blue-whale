@@ -26,6 +26,13 @@ export type HostProps = {
   basename?: string;
   getGlobalState?: () => HostGlobalState;
   setGlobalState?: (state: Partial<HostGlobalState>) => void;
+  /**
+   * 基座原生的全局状态监听。
+   *
+   * **不要直接用它**，除非你确定整个子应用只有这一处消费者：qiankun 每个子应用
+   * 只保留一个回调，第二次注册会覆盖第一个，先注册的那个静默失效。
+   * 一律改用 `onHostGlobalStateChange()`（同一模块导出），它做了多路复用。
+   */
   onGlobalStateChange?: (
     callback: (state: HostGlobalState, prevState: HostGlobalState) => void,
     fireImmediately?: boolean,

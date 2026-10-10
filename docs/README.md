@@ -33,6 +33,8 @@
 | 调整身份拼接（deviceId / userId）、脱敏与屏蔽规则                | `decisions/0011` 第 4 条 · `platform/platform-event-console/README.md`                                                                           |
 | 新增 / 删除 qiankun 子应用（微前端）                             | `decisions/0012-微前端接入与子应用改造.md` · `web/README.md` · 该子应用的 `README.md`                                                            |
 | 调整主应用的挂载方式、沙箱策略、全局状态下发或子应用 entry       | `decisions/0012` 第 1 / 2 / 6 / 9 条 · `platform/platform-portal/README.md`                                                                      |
+| 修改三维应用 / WebGL 场景与渲染生命周期                          | `decisions/0013-三维环境应用与WebGL渲染生命周期.md` · `platform/platform-environment/README.md`                                                  |
+| 在子应用里订阅 / 回写基座全局状态                                | `packages/common-tools/README.md`（micro 章节） · `decisions/0013` 第 7 条                                                                       |
 | 修改跨应用共享的 Vite 配置片段                                   | `packages/common-config/README.md` · `decisions/0012` 第 10 条                                                                                   |
 | 调整客户端日志的校验 / 截断 / 存储策略                           | `server/README.md`（日志域硬规则表）                                                                                                             |
 | 修改契约的生成或消费流程（导出脚本、生成器、类型修正）           | `api/README.md` · `decisions/0006-接口契约的生成与消费.md`                                                                                       |
@@ -73,28 +75,30 @@ docs/decisions/NNNN-简短标题.md
 
 ## 四、当前文档索引
 
-| 文档                                             | 说明                                                                                                                                                                                                         |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `decisions/0001-架构基线与技术选型.md`           | 仓库结构、前后端分离、技术栈基线                                                                                                                                                                             |
-| `decisions/0002-前端公共包与公共依赖治理.md`     | pnpm catalog、`common-*` 包划分、logger 重写决策                                                                                                                                                             |
-| `decisions/0003-配置分域与自研边界.md`           | 配置三层分域、自研边界、客户端配置五条底线                                                                                                                                                                   |
-| `decisions/0004-前端日志上报架构.md`             | 采集与传输分层、`LogRecord` 契约、采样与脱敏约束                                                                                                                                                             |
-| `decisions/0005-后端模块划分与依赖约束.md`       | 五层依赖方向、groupId 分级、分包方式、统一响应契约                                                                                                                                                           |
-| `decisions/0006-接口契约的生成与消费.md`         | 契约由代码生成、生成物入库、任意值字段的类型修正                                                                                                                                                             |
-| `decisions/0007-前端请求分层与错误模型.md`       | 传输内核与契约装配的分工、六类错误、重试幂等边界                                                                                                                                                             |
-| `decisions/0008-Spring-Boot-4升级与JDK21门禁.md` | Boot 4.1 升级的破坏性变更清单、starter 坐标对应关系、JDK 21 构建门禁                                                                                                                                         |
-| `decisions/0009-多数据源共存与Flyway迁移.md`     | H2 / MySQL 双 profile、Flyway 迁移按厂商分目录、MySQL 保留字与 MP 别名的双重陷阱                                                                                                                             |
-| `decisions/0010-达梦DM8支持与Flyway的边界.md`    | 国产库达梦 DM8 接入、Flyway 无达梦模块时的取舍、达梦方言差异与**未验证清单**                                                                                                                                 |
-| `decisions/0011-行为事件管道与前端埋点内核.md`   | 行为事件是第三条独立管道、传输通道与脱敏逻辑的下沉复用、语义化 `track()` 与内部总线、事件名/双时间戳/属性版本的永久契约、卸载兜底、大数据接入预留点                                                          |
-| `decisions/0012-微前端接入与子应用改造.md`       | 主应用用 `loadMicroApp` 挂载、关 JS 沙箱的理由、`vite-plugin-qiankun` 的取舍、子应用必须保留独立运行分支、CORS 与端口锁定、全局状态下发、样式隔离不指望框架、preamble 修复、**React 组件级热更新的已知限制** |
-| `architecture/后端分层与依赖方向.md`             | 后端分层落地细则、依赖矩阵、前后端结构对照                                                                                                                                                                   |
-| `api/README.md`                                  | 契约接口清单、更新流程、任意值字段的处理                                                                                                                                                                     |
-| `../web/packages/common-config/README.md`        | 共享工程配置（ESLint / Stylelint / TypeScript / Vite）                                                                                                                                                       |
-| `../web/packages/common-tools/README.md`         | 公共能力包（logger / env / http / json / report / events / micro）使用说明与修复清单                                                                                                                         |
-| `../web/packages/common-api/README.md`           | 前端契约包的使用方式与分层边界                                                                                                                                                                               |
-| `../web/platform/platform-portal/README.md`      | qiankun 主应用：挂载方式、全局状态、新增子应用的步骤                                                                                                                                                         |
-| `../scripts/README.md`                           | 跨端脚本清单（契约导出 / 达梦初始化 / 微前端端到端验证）与硬性约束                                                                                                                                           |
-| `../server/README.md`                            | 后端模块表、统一响应与错误码、日志域硬规则、构建命令                                                                                                                                                         |
+| 文档                                                | 说明                                                                                                                                                                                                         |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `decisions/0001-架构基线与技术选型.md`              | 仓库结构、前后端分离、技术栈基线                                                                                                                                                                             |
+| `decisions/0002-前端公共包与公共依赖治理.md`        | pnpm catalog、`common-*` 包划分、logger 重写决策                                                                                                                                                             |
+| `decisions/0003-配置分域与自研边界.md`              | 配置三层分域、自研边界、客户端配置五条底线                                                                                                                                                                   |
+| `decisions/0004-前端日志上报架构.md`                | 采集与传输分层、`LogRecord` 契约、采样与脱敏约束                                                                                                                                                             |
+| `decisions/0005-后端模块划分与依赖约束.md`          | 五层依赖方向、groupId 分级、分包方式、统一响应契约                                                                                                                                                           |
+| `decisions/0006-接口契约的生成与消费.md`            | 契约由代码生成、生成物入库、任意值字段的类型修正                                                                                                                                                             |
+| `decisions/0007-前端请求分层与错误模型.md`          | 传输内核与契约装配的分工、六类错误、重试幂等边界                                                                                                                                                             |
+| `decisions/0008-Spring-Boot-4升级与JDK21门禁.md`    | Boot 4.1 升级的破坏性变更清单、starter 坐标对应关系、JDK 21 构建门禁                                                                                                                                         |
+| `decisions/0009-多数据源共存与Flyway迁移.md`        | H2 / MySQL 双 profile、Flyway 迁移按厂商分目录、MySQL 保留字与 MP 别名的双重陷阱                                                                                                                             |
+| `decisions/0010-达梦DM8支持与Flyway的边界.md`       | 国产库达梦 DM8 接入、Flyway 无达梦模块时的取舍、达梦方言差异与**未验证清单**                                                                                                                                 |
+| `decisions/0011-行为事件管道与前端埋点内核.md`      | 行为事件是第三条独立管道、传输通道与脱敏逻辑的下沉复用、语义化 `track()` 与内部总线、事件名/双时间戳/属性版本的永久契约、卸载兜底、大数据接入预留点                                                          |
+| `decisions/0012-微前端接入与子应用改造.md`          | 主应用用 `loadMicroApp` 挂载、关 JS 沙箱的理由、`vite-plugin-qiankun` 的取舍、子应用必须保留独立运行分支、CORS 与端口锁定、全局状态下发、样式隔离不指望框架、preamble 修复、**React 组件级热更新的已知限制** |
+| `decisions/0013-三维环境应用与WebGL渲染生命周期.md` | 环境应用独立成域的理由、画布与上下文同生共死（StrictMode 双跑的坑）、`forceContextLoss` 与上下文上限、GPU 资源可断言释放、`Timer`/`PCFShadowMap` 替代、全局状态订阅的多路复用修复                            |
+| `architecture/后端分层与依赖方向.md`                | 后端分层落地细则、依赖矩阵、前后端结构对照                                                                                                                                                                   |
+| `api/README.md`                                     | 契约接口清单、更新流程、任意值字段的处理                                                                                                                                                                     |
+| `../web/packages/common-config/README.md`           | 共享工程配置（ESLint / Stylelint / TypeScript / Vite）                                                                                                                                                       |
+| `../web/packages/common-tools/README.md`            | 公共能力包（logger / env / http / json / report / events / micro）使用说明与修复清单                                                                                                                         |
+| `../web/packages/common-api/README.md`              | 前端契约包的使用方式与分层边界                                                                                                                                                                               |
+| `../web/platform/platform-portal/README.md`         | qiankun 主应用：挂载方式、全局状态、新增子应用的步骤                                                                                                                                                         |
+| `../web/platform/platform-environment/README.md`    | 三维环境应用：两种运行方式一条渲染路径、`src/scene/` 分层、渲染生命周期四条硬规则                                                                                                                            |
+| `../scripts/README.md`                              | 跨端脚本清单（契约导出 / 达梦初始化 / 微前端端到端验证）与硬性约束                                                                                                                                           |
+| `../server/README.md`                               | 后端模块表、统一响应与错误码、日志域硬规则、构建命令                                                                                                                                                         |
 
 ---
 

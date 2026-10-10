@@ -125,23 +125,24 @@ cd web && pnpm install
 | `common-tools`  | 日志（`logger`）· 环境探测（`env`）· 请求内核（`http`）· JSON 安全层（`json`）· 批量上报通道（`report`）· 行为事件内核（`events`）· 微前端桥接（`micro`） |
 | `common-api`    | 契约包：OpenAPI 生成的类型 + 接口装配                                                                                                                     |
 
-> `common-tools` 与框架无关（不依赖 React），应用、构建脚本、Node 工具链都能直接用。本地演示：`pnpm --filter common-tools playground`（logger）、`pnpm --filter platform-log-console dev`（日志上报全链路，:3200）、`pnpm --filter platform-event-console dev`（行为事件全链路，:3300）。
+> `common-tools` 与框架无关（不依赖 React），应用、构建脚本、Node 工具链都能直接用。本地演示：`pnpm --filter common-tools playground`（logger）、`pnpm --filter platform-log-console dev`（日志上报全链路，:3200）、`pnpm --filter platform-event-console dev`（行为事件全链路，:3300）、`pnpm --filter platform-environment dev`（三维环境，:3400）。
 >
-> **`common-tools/micro` 为什么在公共包里**：它是子应用侧的代码，但两个子应用都要用，而**子应用之间禁止互相引用**（铁律 5），复用内容只能下沉到 `packages/`。它按结构化描述实现、不引入 qiankun 类型，因此不破坏本包"不依赖任何运行时第三方库"的约束。
+> **`common-tools/micro` 为什么在公共包里**：它是子应用侧的代码，但所有子应用都要用，而**子应用之间禁止互相引用**（铁律 5），复用内容只能下沉到 `packages/`。它按结构化描述实现、不引入 qiankun 类型，因此不破坏本包"不依赖任何运行时第三方库"的约束。
 
 ### 微前端相关的改动
 
-微前端跨越三个应用（基座 + 两个子应用），改动时最容易漏掉配合项：
+微前端跨越多个应用（基座 + 三个子应用），改动时最容易漏掉配合项：
 
-| 我想改…                         | 必须同时确认                                                                  |
-| ------------------------------- | ----------------------------------------------------------------------------- |
-| 子应用的**应用名**              | 基座 `src/micro/apps.ts` 的 `name` 逐字一致（不一致不报错，只会卡在"加载中"） |
-| 子应用的**端口**                | 基座 `apps.ts` 的 `devPort`、`vite.config.ts` 的 `server.port` 两处一致       |
-| 子应用的**路由前缀**            | 基座 `apps.ts` 的 `routePath` 与子应用 `base`（仅 build）一致                 |
-| 主应用的**挂载方式 / 沙箱策略** | `docs/decisions/0012` 第 1、2 条要同步更新（这是决策，不是实现细节）          |
-| 跨应用共享的 **Vite 片段**      | `packages/common-config/README.md` · `docs/decisions/0012` 第 10 条           |
+| 我想改…                         | 必须同时确认                                                                                                                     |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| 子应用的**应用名**              | 基座 `src/micro/apps.ts` 的 `name` 逐字一致（不一致不报错，只会卡在"加载中"）                                                    |
+| 子应用的**端口**                | 基座 `apps.ts` 的 `devPort`、`vite.config.ts` 的 `server.port` 两处一致                                                          |
+| 子应用的**路由前缀**            | 基座 `apps.ts` 的 `routePath` 与子应用 `base`（仅 build）一致                                                                    |
+| 主应用的**挂载方式 / 沙箱策略** | `docs/decisions/0012` 第 1、2 条要同步更新（这是决策，不是实现细节）                                                             |
+| 跨应用共享的 **Vite 片段**      | `packages/common-config/README.md` · `docs/decisions/0012` 第 10 条                                                              |
+| 子应用里的**全局状态订阅**      | 一律用 `common-tools/micro` 的 `onHostGlobalStateChange()`，不要直接调 `props.onGlobalStateChange`（qiankun 单槽位，会互相覆盖） |
 
-改完跑一次端到端验证（三个服务都在跑时）：
+改完跑一次端到端验证（各服务都在跑时）：
 
 ```bash
 node scripts/verify-micro-frontend.mjs
@@ -182,11 +183,11 @@ pnpm typecheck        # 类型检查
 pnpm test             # 单元测试
 pnpm format           # Prettier 格式化
 
-# 调试微前端：基座 + 两个子应用是三个独立 dev server，需同时启动
-pnpm dev --filter platform-portal --filter platform-log-console --filter platform-event-console
+# 调试微前端：基座 + 三个子应用是四个独立 dev server，需同时启动
+pnpm dev --filter platform-portal --filter platform-log-console --filter platform-event-console --filter platform-environment
 ```
 
-> 微前端端到端验证：三个服务都起来后执行 `node scripts/verify-micro-frontend.mjs`（用真实 Chrome 走完整链路，见 `scripts/README.md`）。
+> 微前端端到端验证：各服务都起来后执行 `node scripts/verify-micro-frontend.mjs`（用真实 Chrome 走完整链路，见 `scripts/README.md`）。
 
 ### 后端
 

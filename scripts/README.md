@@ -6,11 +6,11 @@
 
 ## 现有脚本
 
-| 脚本                        | 用途                                                      | 前置条件                                                                  | 说明见                |
-| --------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------- | --------------------- |
-| `export-openapi.sh`         | 从运行中的应用导出 OpenAPI 契约到 `docs/api/openapi.json` | 后端可构建且 JDK 21（脚本自查 `JAVA_HOME`）；临时以 18080 端口启动一次    | `docs/decisions/0006` |
-| `init-dameng.sh`            | 在达梦 DM8 上应用交付用的建表脚本（Flyway 无达梦模块）    | 可达的 DM8 实例；凭据走环境变量 `BW_DB_USERNAME` / `BW_DB_PASSWORD`       | `docs/decisions/0010` |
-| `verify-micro-frontend.mjs` | 用真实 Chrome 验证微前端全链路                            | 三个 dev server 都在跑（:3000 / :3200 / :3300），且本机装有 Google Chrome | `docs/decisions/0012` |
+| 脚本                        | 用途                                                      | 前置条件                                                                          | 说明见                |
+| --------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------- | --------------------- |
+| `export-openapi.sh`         | 从运行中的应用导出 OpenAPI 契约到 `docs/api/openapi.json` | 后端可构建且 JDK 21（脚本自查 `JAVA_HOME`）；临时以 18080 端口启动一次            | `docs/decisions/0006` |
+| `init-dameng.sh`            | 在达梦 DM8 上应用交付用的建表脚本（Flyway 无达梦模块）    | 可达的 DM8 实例；凭据走环境变量 `BW_DB_USERNAME` / `BW_DB_PASSWORD`               | `docs/decisions/0010` |
+| `verify-micro-frontend.mjs` | 用真实 Chrome 验证微前端全链路                            | 四个 dev server 都在跑（:3000 / :3200 / :3300 / :3400），且本机装有 Google Chrome | `docs/decisions/0012` |
 
 ### `verify-micro-frontend.mjs` 做什么
 
@@ -21,8 +21,10 @@
 3. **改源码**探测子应用热更新；**改样式**探测样式热更新（测完自动还原）
 4. 点基座的「全局主题」「登录」按钮 → 断言子应用标记跟着变化（全局状态下发）
 5. 在子应用里 `fetch('/api/health')` → 验证子应用经基座代理请求后端
-6. 切换到事件控制台 → 返回首页 → 断言容器被清空、标记移除、`window.__MICRO_HOST__` 归 `undefined`（卸载干净）
-7. 汇总浏览器侧错误与 4xx/5xx
+6. 切换到事件控制台 → 切换到三维环境应用 → 断言画布存在、渲染统计产生，并**抓住 WebGL 上下文引用**
+7. 返回首页 → 断言容器被清空、标记移除、`window.__MICRO_HOST__` 归 `undefined`，
+   并且对之前抓住的上下文断言 `isContextLost() === true`（GPU 资源确实被主动释放，见 `docs/decisions/0013` 第 4 条）
+8. 汇总浏览器侧错误与 4xx/5xx
 
 > **为什么用真实浏览器而不是 jsdom。** 微前端的问题几乎都只在真实运行时才暴露：脚本的执行方式（`import-html-entry` 用 `eval` 执行脚本文本）、生命周期对接、容器挂载与卸载、样式隔离。这些在 jsdom 里都不会重现 —— 第一版实现时 Fast Refresh preamble 抛的 `SyntaxError` 就是只有真实浏览器才看得见的错误。
 

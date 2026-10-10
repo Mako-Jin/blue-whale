@@ -26,6 +26,14 @@ export const MICRO_APPS: MicroAppMeta[] = [
     prodEntry: '/event-console/',
     summary: '行为事件管道：埋点 → 上报 → 落库 → 行为分析查询',
   },
+  {
+    name: 'platform-environment',
+    routePath: '/environment',
+    title: '三维环境',
+    devPort: 3400,
+    prodEntry: '/environment/',
+    summary: 'three.js 三维场景：渲染循环、相机控制与 GPU 资源释放',
+  },
 ];
 
 export function findMicroApp(name: string): MicroAppMeta | undefined {

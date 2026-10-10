@@ -1,0 +1,128 @@
+.env-app {
+  display: flex;
+  flex-direction: column;
+  min-height: 560px;
+  background: @bg-elevated;
+
+  /*
+    两种运行方式的高度来源不同：
+    - 独立运行：页面归自己，铺满视口；
+    - 被基座加载：高度由基座的内容区决定，只能用百分比 + 最小高度。
+  */
+  &--standalone {
+    height: 100vh;
+  }
+
+  &--host {
+    height: 100%;
+  }
+
+  &__bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    align-items: center;
+    padding: 12px 16px;
+    background: @bg-elevated;
+    border-bottom: 1px solid @border-color;
+  }
+
+  &__heading {
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 500;
+    color: @text-primary;
+  }
+
+  &__subtitle {
+    font-size: 12px;
+    color: @text-tertiary;
+  }
+
+  &__badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-left: auto;
+  }
+
+  &__badge {
+    padding: 2px 8px;
+    font-family: @font-mono;
+    font-size: 11px;
+    color: @text-secondary;
+    background: @bg-base;
+    border: 1px solid @border-color;
+    border-radius: 999px;
+
+    &--host {
+      color: @accent-color;
+      background: rgb(114 46 209 / 8%);
+      border-color: rgb(114 46 209 / 28%);
+    }
+
+    &--standalone {
+      color: @brand-color;
+      background: rgb(22 93 255 / 8%);
+      border-color: rgb(22 93 255 / 28%);
+    }
+
+    &--linked {
+      color: @success-color;
+      background: rgb(0 180 42 / 8%);
+      border-color: rgb(0 180 42 / 28%);
+    }
+  }
+
+  &__stage {
+    position: relative;
+    display: flex;
+    flex: 1;
+    min-height: 0;
+  }
+
+  &__fallback {
+    flex: 1;
+    padding: 24px;
+    background: #0b1020;
+    border: 1px dashed @warn-color;
+  }
+
+  &__fallback-title {
+    margin: 0 0 8px;
+    font-size: 15px;
+    font-weight: 500;
+    color: @warn-color;
+  }
+
+  &__fallback-text {
+    max-width: 620px;
+    margin: 0 0 12px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: @hud-text;
+  }
+
+  &__fallback-list {
+    margin: 0 0 12px;
+    font-size: 12px;
+    line-height: 1.8;
+    color: @hud-text-dim;
+  }
+
+  &__fallback-detail {
+    display: inline-block;
+    padding: 6px 10px;
+    margin: 0;
+    font-size: 12px;
+    color: @hud-text-dim;
+    background: rgb(255 255 255 / 6%);
+    border-radius: @radius-sm;
+  }
+}

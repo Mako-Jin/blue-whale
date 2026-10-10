@@ -559,14 +559,15 @@ unbindHost();
 const { theme, userId } = getHostGlobalState();
 ```
 
-| 导出                    | 作用                                                                  |
-| ----------------------- | --------------------------------------------------------------------- |
-| `bindHost(props, name)` | 接管基座 props；挂调试标记；订阅全局状态变化                          |
-| `unbindHost()`          | 断开连接；清调试标记与 `window.__MICRO_HOST__`                        |
-| `isMicroApp()`          | 当前是否跑在基座里（`false` = 独立运行）                              |
-| `getHostProps()`        | 取原始 props（需要基座新加的字段时用）                                |
-| `getHostGlobalState()`  | 读全局状态；独立运行或基座未提供时返回 `{}`                           |
-| `setHostGlobalState(s)` | 主动回写全局状态（如子应用内登录后补齐 `userId`）；独立运行时是 no-op |
+| 导出                                 | 作用                                                                  |
+| ------------------------------------ | --------------------------------------------------------------------- |
+| `bindHost(props, name)`              | 接管基座 props；挂调试标记；订阅全局状态变化                          |
+| `unbindHost()`                       | 断开连接；清调试标记、订阅者与 `window.__MICRO_HOST__`                |
+| `isMicroApp()`                       | 当前是否跑在基座里（`false` = 独立运行）                              |
+| `onHostGlobalStateChange(cb, opts?)` | 订阅全局状态，**返回取消订阅函数**；见下面"单槽位"一节                |
+| `getHostProps()`                     | 取原始 props（需要基座新加的字段时用）                                |
+| `getHostGlobalState()`               | 读全局状态；独立运行或基座未提供时返回 `{}`                           |
+| `setHostGlobalState(s)`              | 主动回写全局状态（如子应用内登录后补齐 `userId`）；独立运行时是 no-op |
 
 ### 独立运行时这套 API 全部安全
 
@@ -587,6 +588,34 @@ const { theme, userId } = getHostGlobalState();
 
 > **标记挂进基座给的容器，而不是 `document.body`。** 容器卸载时会被 qiankun 清空，标记跟着一起走，不会出现"子应用已卸载但标记还留在页面上"的错觉。
 
+### 全局状态订阅：必须走桥，不要直接调 props（单槽位坑）
+
+qiankun 的 `onGlobalStateChange` 为每个子应用只保存**一个**回调，第二次注册直接覆盖第一个 ——
+源码原话：「每个子应用只有一个激活状态的全局监听，新监听覆盖旧监听」，而且**只打一条 `console.warn`，不报错**。
+
+子应用里通常不止一个消费者：调试标记、业务状态、埋点上下文。谁后注册谁生效，先注册的那个**静默失效** ——
+这个 bug 在本项目真实出现过，症状是"应用里的徽标变了，右下角的标记不变"。
+
+所以桥做了多路复用：`bindHost` 只注册**一次**原生回调，再分发给所有本地订阅者。
+
+```ts
+const unsubscribe = onHostGlobalStateChange((state) => setTheme(state.theme));
+
+// React 里配合 useEffect：
+useEffect(() => onHostGlobalStateChange(setState), []);
+
+// 需要立即拿到当前值时显式声明（默认不回灌 —— effect 里同步 setState 是多余的一次渲染）
+onHostGlobalStateChange(render, { fireImmediately: true });
+
+unsubscribe();
+```
+
+`unbindHost()` 会**清空全部订阅者并注销原生回调**。这条必须做：子应用的模块在多次挂载之间是复用的
+（模块级变量不重置），上一轮若漏了解绑，下一轮同一个回调会被执行两次、三次……
+
+测试替身也按真实行为建模（单槽位 + 覆盖计数），`tests/micro.test.ts` 共 13 条用例把"多订阅者都能收到"
+"解绑后不重放"这些约束钉住 —— **替身比真实实现宽容，恰恰会放过这类 bug**。
+
 ### 一个顺序坑
 
 `unbindHost()` 里**先取父节点、再清 `hostProps`**：
@@ -597,7 +626,7 @@ hostProps = null; // ← 后清
 parent?.querySelector(`#${INDICATOR_ID}`)?.remove();
 ```
 
-反过来写会退化成 `document.body`，容器里的标记搜不到，留下一个"卸载不干净"的假象 —— 而这恰好是微前端最容易误判的一类问题。`tests/micro.test.ts` 用 7 条用例把这条顺序钉住了。
+反过来写会退化成 `document.body`，容器里的标记搜不到，留下一个"卸载不干净"的假象 —— 而这恰好是微前端最容易误判的一类问题。`tests/micro.test.ts` 把这条顺序钉住了。
 
 ---
 

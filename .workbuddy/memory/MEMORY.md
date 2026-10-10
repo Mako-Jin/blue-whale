@@ -176,8 +176,19 @@ server/  pom.xml(聚合) → sts-parent
 - 样式隔离**指望不上框架**（`experimentalStyleIsolation` 依赖 `<style>` 在入口 HTML 里，Vite dev 由 JS 插入 `document.head` 且跑在真实 window 上）
 - **已知限制（根因未定位）**：被基座加载时子应用 **React 组件级热更新不生效**（样式热更新正常、子应用独立运行正常）。A/B 对照确认与 preamble 修复无关。当前工作方式：改组件时单独跑子应用
 - 端到端验证脚本 `scripts/verify-micro-frontend.mjs`（真实 Chrome + CDP，端口 9333，会就地改源码探 HMR 再还原）
-- 端口：基座 :3000 · 日志 :3200 · 事件 :3300；子应用须 `strictPort: true` + `cors: true`（基座按固定端口找它）
+- 端口：基座 :3000 · 日志 :3200 · 事件 :3300 · 环境 :3400；子应用须 `strictPort: true` + `cors: true`（基座按固定端口找它）
+- **全局状态订阅必须走桥的 `onHostGlobalStateChange()`**：qiankun 每个子应用**只保存一个回调**，第二次注册覆盖第一个（只 console.warn），先注册的静默失效 —— 实际踩过：应用内徽标变了、右下角标记不变。桥在 `bindHost` 注册一次原生回调再分发，`unbindHost` 清空订阅者（模块在多次挂载间复用，不清会重复回调）
 - **未做**：`platform-user`/`platform-admin` 未创建 · 生产部署静态目录与网关规则 · 子应用样式前缀去重 · 子应用错误边界
+
+## 三维环境应用（2026-10-10 定 · ADR-0013）
+- **`platform-environment`**（:3400，`/environment`）：与任何业务域无关的环境应用，three.js + `@types/three`（版本进 catalog）
+- 两种运行方式一条渲染路径：`src/mount.ts` 的 `resolveMountPoint()` 返回 `{element, mode}`，被基座加载用传入容器（内部 `ensureChild` 再套一层 `#root`，不跟 qiankun 的清空动作抢节点）、独立启动用自建容器
+- `src/scene/` 分层：`world`（场景图/动画，**不碰渲染器**）与 `renderer`/`stage` 分开 —— WebGLRenderer 构造即要上下文，jsdom 直接抛错，分层让场景逻辑全部可单测
+- **画布与上下文同生共死（最关键）**：canvas 由 `createStage` 创建并随 `dispose()` 移除，**不接受外部传入**。`forceContextLoss()` 后同一张 canvas 的上下文永久 lost，`getShaderPrecisionFormat()` 返回 null → 再建 WebGLRenderer 抛 `Cannot read properties of null (reading 'precision')`；React StrictMode 双跑 effect 必踩，jsdom 测不出（走降级分支）
+- `dispose()` 必须含 `forceContextLoss()`：否则上下文攒到上限（~16 个）后浏览器回收最旧的，表现为"切换几次后画面变白且无报错"。端到端脚本用 `gl.isContextLost()` 断言
+- GPU 资源不会随 GC 释放：`disposeSubtree()` 递归释放并可断言；**PMREMGenerator 与 RoomEnvironment 不在场景图里**，traverse 不到，必须各自释放
+- three r186：**`PCFSoftShadowMap` 已移除**（写上只警告并静默退回）、**`Clock` 弃用**改用核心 `Timer`（`connect(document)` 借 Page Visibility 兜住切标签页的巨大 delta；`dispose()` 必须断开，否则每次挂载漏一个监听器）
+- 构建产物 gzip 约 218 kB —— 三维依赖重是独立成子应用的原因之一；未做：真实环境内容（地形/天空）、GLTF/HDRI、性能档位
 
 ## 环境坑（已查清，勿再排查）
 - 后端启动报 Port 56491：沙箱注入 `SERVER__PORT` 环境变量 → 命令行 `--server.port=8080` 覆盖

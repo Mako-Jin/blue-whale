@@ -1,0 +1,30 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family:
+    -apple-system, blinkmacsystemfont, 'segoe ui', 'pingfang sc', 'hiragino sans gb',
+    'microsoft yahei', sans-serif;
+  font-size: 14px;
+  color: @text-primary;
+  background: @bg-base;
+  -webkit-font-smoothing: antialiased;
+}
+
+// 独立运行时 #root 是页面唯一的根；被基座加载时它在基座给的容器里，
+// 高度由基座决定 —— 因此这里只给最小高度，不给死高度。
+#root {
+  min-height: 100%;
+}
+
+.mono {
+  font-family: @font-mono;
+  font-variant-numeric: tabular-nums;
+}

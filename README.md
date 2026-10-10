@@ -29,15 +29,16 @@ web/
 ├── platform/             平台级应用
 │   ├── platform-portal       主应用（qiankun 容器，唯一入口，:3000）
 │   ├── platform-log-console  日志控制台（子应用 + 可独立运行，:3200）
-│   └── platform-event-console 行为事件控制台（子应用 + 可独立运行，:3300）
+│   ├── platform-event-console 行为事件控制台（子应用 + 可独立运行，:3300）
+│   └── platform-environment  三维环境应用（子应用 + 可独立运行，:3400，three.js，与业务无关）
 └── elemental/            通用元素（预留）
 ```
 
 规划中的其余子应用与公共包（`platform-user`、`platform-admin`、`common-theme`、`common-components`）**按业务需要创建**，不在骨架里预置。
 
-**微前端结构**：`platform-portal` 是唯一的容器应用，负责导航骨架与全局状态，并通过 `loadMicroApp` 在路由出口处挂载子应用（而不是 `registerMicroApps` + 常驻容器 —— 理由见 `docs/decisions/0012`）。子应用各自独立构建、独立发布，**并且都能脱离基座单独启动**：调试微前端时第一件事就是区分"子应用本身坏了"还是"基座加载链路坏了"，没有这条退路就只能盲猜。接线方式：基座侧集中在 `platform-portal/src/micro/`，子应用侧只依赖 `common-tools/micro` 的三个函数。
+**微前端结构**：`platform-portal` 是唯一的容器应用，负责导航骨架与全局状态，并通过 `loadMicroApp` 在路由出口处挂载子应用（而不是 `registerMicroApps` + 常驻容器 —— 理由见 `docs/decisions/0012`）。子应用各自独立构建、独立发布，**并且都能脱离基座单独启动**：调试微前端时第一件事就是区分"子应用本身坏了"还是"基座加载链路坏了"，没有这条退路就只能盲猜。接线方式：基座侧集中在 `platform-portal/src/micro/`，子应用侧只依赖 `common-tools/micro`。
 
-`packages/common-tools` 与框架无关（不依赖 React），应用、构建脚本、Node 工具链都能直接使用。本地演示：`pnpm --filter common-tools playground`（logger，:3100）、`pnpm --filter platform-log-console dev`（日志上报全链路，:3200，需后端在 :8080）、`pnpm --filter platform-event-console dev`（行为事件全链路，:3300，需后端在 :8080）。
+`packages/common-tools` 与框架无关（不依赖 React），应用、构建脚本、Node 工具链都能直接使用。本地演示：`pnpm --filter common-tools playground`（logger，:3100）、`pnpm --filter platform-log-console dev`（日志上报全链路，:3200，需后端在 :8080）、`pnpm --filter platform-event-console dev`（行为事件全链路，:3300，需后端在 :8080）、`pnpm --filter platform-environment dev`（三维环境，:3400，无后端依赖）。
 
 ---
 
@@ -151,25 +152,26 @@ cd web && pnpm install                           # prepare 钩子会自动挂载
 pnpm dev --filter platform-portal                # 主应用（qiankun 基座，:3000）
 pnpm dev --filter platform-log-console           # 日志控制台（:3200，需后端在 :8080）
 pnpm dev --filter platform-event-console         # 行为事件控制台（:3300，需后端在 :8080）
+pnpm dev --filter platform-environment           # 三维环境应用（:3400，无后端依赖）
 ```
 
 ### 微前端端到端演示
 
-调试微前端要**同时起三个 dev server**（基座按固定端口去找子应用）：
+调试微前端要**同时起各应用的 dev server**（基座按固定端口去找子应用）：
 
 ```bash
-pnpm dev --filter platform-portal --filter platform-log-console --filter platform-event-console
+pnpm dev --filter platform-portal --filter platform-log-console --filter platform-event-console --filter platform-environment
 ```
 
 打开 <http://127.0.0.1:3000>，点导航即可挂载子应用；顶栏的「全局主题」「登录」按钮用来验证**全局状态下发** —— 子应用右下角的调试标记会跟着变（`theme=dark · userId=u-xxx`），这是"状态确实传下去了"最直接的证据。
 
-一键验证（用真实 Chrome 走完整链路：挂载 → 状态下发 → 子应用经基座代理请求后端 → 切换子应用 → 返回首页验证卸载清理）：
+一键验证（用真实 Chrome 走完整链路：挂载 → 状态下发 → 子应用经基座代理请求后端 → 切换子应用 → 返回首页验证卸载清理；三维应用额外断言 WebGL 上下文已释放）：
 
 ```bash
-node scripts/verify-micro-frontend.mjs          # 需上面三个服务已在跑
+node scripts/verify-micro-frontend.mjs          # 需上面各服务已在跑
 ```
 
-> **子应用单独跑是常态。** 直接开 :3200 / :3300 能立刻区分"问题在子应用本身"还是"问题在基座加载链路"。另：被基座加载时子应用的 **React 组件级热更新不生效**（样式正常），改组件时单独跑更快 —— 这是已记录的已知限制，见 `docs/decisions/0012`。
+> **子应用单独跑是常态。** 直接开 :3200 / :3300 / :3400 能立刻区分"问题在子应用本身"还是"问题在基座加载链路"。另：被基座加载时子应用的 **React 组件级热更新不生效**（样式正常），改组件时单独跑更快 —— 这是已记录的已知限制，见 `docs/decisions/0012`。
 
 ### 日志端到端演示
 

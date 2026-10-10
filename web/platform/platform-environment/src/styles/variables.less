@@ -1,0 +1,40 @@
+// 设计令牌 —— 只定义变量，不产生 CSS 输出。
+// 由 vite.config.ts 的 less.additionalData 注入到每个 .less，无需手动 @import。
+//
+// 本应用的令牌**自成一套**：跨应用引用别人的变量会在生产构建时才失败
+// （dev server 按需编译、单元测试不碰样式，两边都不会报错），见 AGENTS 环境坑表。
+
+// 文字
+@text-primary: #1f2329;
+@text-secondary: #4e5969;
+@text-tertiary: #86909c;
+@text-inverse: #e8eaed;
+
+// 背景
+@bg-base: #f2f3f5;
+@bg-elevated: #ffffff;
+@border-color: #e5e6eb;
+
+// 品牌与语义色
+@brand-color: #165dff;
+@accent-color: #722ed1;
+@success-color: #00b42a;
+@warn-color: #ff7d00;
+@danger-color: #f53f3f;
+
+// 画布上的浮层（HUD）。三维场景底色本来就深，浮层用半透明深色比浅色面板更耐看，
+// 也不会把画面挡成一块块白斑。
+@hud-bg: rgb(15 20 32 / 82%);
+@hud-border: rgb(255 255 255 / 14%);
+@hud-text: @text-inverse;
+@hud-text-dim: #a9b1c2;
+
+// 字体
+@font-mono: 'sf mono', 'jetbrains mono', consolas, 'courier new', monospace;
+
+// 圆角与阴影
+@radius-sm: 4px;
+@radius-md: 8px;
+@radius-lg: 12px;
+@shadow-card: 0 1px 3px rgb(0 0 0 / 6%);
+@shadow-hud: 0 6px 20px rgb(0 0 0 / 35%);

@@ -1,9 +1,16 @@
 /**
  * 用 Chrome DevTools Protocol 驱动真实浏览器验证微前端链路：
- *   主应用(:3000) → 按路由加载子应用(:3200 / :3300) → 全局状态下发 → 切换路由卸载。
+ *   主应用(:3000) → 按路由加载子应用(:3200 / :3300 / :3400) → 全局状态下发 →
+ *   切换路由卸载（含三维应用的 WebGL 上下文释放）。
  *
  * 全程走真实浏览器，不依赖任何测试替身 —— 微前端的问题（脚本执行方式、
  * 生命周期对接、容器挂载）几乎都只在真实运行时才暴露。
+ *
+ * 前置：四个应用都已启动
+ *   pnpm --filter platform-portal dev        (:3000)
+ *   pnpm --filter platform-log-console dev   (:3200)
+ *   pnpm --filter platform-event-console dev (:3300)
+ *   pnpm --filter platform-environment dev   (:3400)
  */
 import { spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
@@ -282,18 +289,56 @@ async function main() {
       })`),
     );
 
-    /* ---------------- 返回首页：确认卸载 ---------------- */
+    /* ---------------- 三维环境：WebGL 上下文 ---------------- */
+
+    await evaluate(
+      `[...document.querySelectorAll('.basic-layout__link')].find(a => a.textContent.includes('三维环境')).click()`,
+    );
+    await sleep(6000);
+
+    step(
+      "6. 挂载三维环境应用",
+      await evaluate(`JSON.stringify({
+        url: location.pathname,
+        phase: document.querySelector('.micro-app__phase')?.textContent,
+        modeBadge: document.querySelector('.env-app__badge')?.textContent,
+        bridgeBadge: document.querySelectorAll('.env-app__badge')[1]?.textContent,
+        globalStateBadge: document.querySelectorAll('.env-app__badge')[2]?.textContent,
+        canvas: document.querySelectorAll('.scene-view__canvas').length,
+        stats: [...document.querySelectorAll('.render-panel__metric-value')].map(e => e.textContent),
+      })`),
+    );
+
+    // 抓住上下文引用（不能靠返回值带出来，WebGL 上下文不可结构化克隆），
+    // 卸载之后再用同一份引用判断是否已被主动丢弃。
+    step(
+      "6b. 承接 WebGL 上下文引用",
+      await evaluate(`(() => {
+        const canvas = document.querySelector('.scene-view__canvas');
+        window.__envCanvas = canvas;
+        window.__envGl = canvas ? (canvas.getContext('webgl2') || canvas.getContext('webgl')) : null;
+        return JSON.stringify({
+          hasCanvas: !!canvas,
+          hasContext: !!window.__envGl,
+          lostYet: window.__envGl ? window.__envGl.isContextLost() : null,
+        });
+      })()`),
+    );
+
+    /* ---------------- 返回首页：确认卸载与 GPU 释放 ---------------- */
 
     await evaluate(
       `[...document.querySelectorAll('.basic-layout__link')].find(a => a.textContent.includes('概览')).click()`,
     );
-    await sleep(1500);
+    await sleep(2000);
 
     step(
-      "6. 返回首页后子应用是否清理干净",
+      "7. 返回首页后子应用是否清理干净",
       await evaluate(`JSON.stringify({
         url: location.pathname,
         microAppNode: document.querySelectorAll('.micro-app').length,
+        envCanvasLeft: document.querySelectorAll('.scene-view__canvas').length,
+        contextLostAfterUnmount: window.__envGl ? window.__envGl.isContextLost() : '未取到引用',
         indicator: document.getElementById('micro-host-indicator')?.textContent ?? null,
         hostProps: typeof window.__MICRO_HOST__,
       })`),
@@ -307,14 +352,14 @@ async function main() {
         !e.includes("favicon.ico"),
     );
     step(
-      "7. 浏览器侧错误",
+      "8. 浏览器侧错误",
       relevantErrors.length ? relevantErrors.join("\n---\n") : "（无）",
     );
     step(
-      "7b. 4xx/5xx 请求",
+      "8b. 4xx/5xx 请求",
       badResponses.length ? [...new Set(badResponses)].join("\n") : "（无）",
     );
-    step("8. 控制台输出摘录", logs.slice(0, 25).join("\n"));
+    step("9. 控制台输出摘录", logs.slice(0, 25).join("\n"));
 
     await ws.close();
   } finally {

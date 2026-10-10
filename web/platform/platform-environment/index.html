@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="BlueWhale 三维环境应用 · three.js 场景渲染与渲染生命周期" />
+    <title>BlueWhale · 三维环境</title>
+  </head>
+  <body>
+    <!--
+      独立运行时的挂载点。
+      被基座加载时用的是基座传入的容器（见 src/mount.ts），
+      那份 HTML 里同样有这个 #root —— qiankun 会把本文件的 body 插入到容器内。
+    -->
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

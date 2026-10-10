@@ -1,0 +1,98 @@
+.render-panel {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  width: 236px;
+  padding: 12px;
+  color: @hud-text;
+  background: @hud-bg;
+  border: 1px solid @hud-border;
+  border-radius: @radius-md;
+  box-shadow: @shadow-hud;
+  backdrop-filter: blur(6px);
+
+  &__header {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 10px;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  &__note {
+    font-size: 11px;
+    color: @hud-text-dim;
+  }
+
+  &__toggles {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  &__toggle {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  &__label {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    cursor: pointer;
+  }
+
+  &__checkbox {
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    cursor: pointer;
+    accent-color: @brand-color;
+  }
+
+  &__label-text {
+    font-size: 12px;
+  }
+
+  &__hint {
+    padding-left: 22px;
+    font-size: 11px;
+    color: @hud-text-dim;
+  }
+
+  &__metrics {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 4px 8px;
+    padding-top: 10px;
+    margin: 10px 0 0;
+    border-top: 1px solid @hud-border;
+  }
+
+  &__metric {
+    display: contents;
+  }
+
+  &__metric-label,
+  &__metric-value {
+    margin: 0;
+    font-size: 11px;
+  }
+
+  &__metric-label {
+    color: @hud-text-dim;
+  }
+
+  &__metric-value {
+    text-align: right;
+  }
+}
