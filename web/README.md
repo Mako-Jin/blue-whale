@@ -15,11 +15,12 @@ web/
 ├── .husky/                Git 钩子
 ├── packages/              公共包（common-* 前缀）
 │   ├── common-config          共享工程配置：ESLint / Stylelint / TypeScript
-│   ├── common-tools           公共能力包：logger（日志）· env（环境探测）· http（请求内核）
+│   ├── common-tools           公共能力包：logger · env · http · json · report · events
 │   └── common-api             契约包：由 docs/api/openapi.json 生成的类型 + 接口装配
 └── platform/              平台级应用
     ├── platform-portal        主应用（qiankun 容器）
-    └── platform-log-console   日志控制台（端到端演示，见下方说明）
+    ├── platform-log-console   日志控制台（端到端演示，见下方说明）
+    └── platform-event-console 行为事件控制台（端到端演示，见下方说明）
 ```
 
 `packages/` 放**被引用但跑不起来**的包；`platform/` 放**能独立启动**的应用。这条线不能模糊。
@@ -27,6 +28,8 @@ web/
 新增应用时直接建目录，`pnpm-workspace.yaml` 用的是通配符，不需要改配置。
 
 > `platform-log-console` 的定位是**可运行的验证工具**，不是产品功能：它把「前端产生日志 → 批量上报 → 服务端落库 → 查询与链路追踪」这条链路完整跑通并可视化，左栏显示客户端视角、右栏显示服务端视角，两者对照才能判断上报到底成没成。它同时也是 `common-tools/http` 与 `common-api` 的活体示例。
+
+> `platform-event-console` 是同一个思路用在**行为事件**上：左栏点按钮产生事件、右栏看服务端落库结果。它额外演示三件事——**身份缝合**（匿名 `deviceId` 与登录 `userId` 同时挂在事件上）、**中间件脱敏**、**中间件屏蔽**。日志与事件是两条独立管道，因此这是两个应用而不是一个应用里的两个页签。
 
 ## 二、命令
 
@@ -47,21 +50,27 @@ pnpm format               # Prettier 格式化
 
 pnpm --filter common-tools playground   # 启动 logger 可视化演示（:3100）
 pnpm --filter platform-log-console dev  # 启动日志控制台（:3200，需后端在 :8080）
+pnpm --filter platform-event-console dev # 启动行为事件控制台（:3300，需后端在 :8080）
 pnpm --filter common-api gen:api        # 从 docs/api/openapi.json 重新生成前端类型
 ```
 
-### 日志控制台怎么跑
+### 两个控制台怎么跑
+
+两个演示页都只依赖同一个后端，起一次即可：
 
 ```bash
 # 1. 起后端（在 server/ 目录）
 mvn -DskipTests install
 java -jar sts-app/sts-app-server/target/sts-app-server-0.0.1-SNAPSHOT.jar
 
-# 2. 起前端（在 web/ 目录）
-pnpm --filter platform-log-console dev   # http://127.0.0.1:3200
+# 2. 起前端（在 web/ 目录，按需二选一或都起）
+pnpm --filter platform-log-console dev    # http://127.0.0.1:3200  日志管道
+pnpm --filter platform-event-console dev  # http://127.0.0.1:3300  事件管道
 ```
 
 开发期 `/api` 由 vite 代理到 `127.0.0.1:8080`，请求与服务端同源 —— 排查日志功能时被跨域问题挡住是最不划算的事。
+
+> **同源对事件管道不只是方便。** 页面卸载时的兜底发送走 `fetch(..., { keepalive: true })`；若前端与服务端不同源，这个请求会带上预检，而预检在卸载阶段无法完成 → 静默丢数据。因此代理配置是这条链路的一部分，不是可选的调试便利。
 
 ## 三、规范工具链
 
@@ -151,14 +160,16 @@ git config core.hooksPath web/.husky
 
 各项目均通过全部校验（逐包直跑）。
 
-| 校验项                  | platform-portal | common-tools             | common-api    | platform-log-console             |
-| ----------------------- | --------------- | ------------------------ | ------------- | -------------------------------- |
-| `tsc --noEmit` 类型检查 | 通过            | 通过                     | 通过          | 通过                             |
-| `eslint .`              | 通过            | 通过                     | 通过          | 通过                             |
-| `stylelint`             | 通过            | 通过（playground）       | —             | 通过（含 `App.less`）            |
-| `vitest run` 单元测试   | 通过（1/1）     | 通过（101/101）          | 通过（11/11） | 通过（25/25，含浏览器渲染测试）  |
-| `vite build` 生产构建   | 通过            | 通过（14.76 kB）         | —             | 通过（CSS 11.92 kB · JS 257 kB） |
-| dev server 启动         | 通过（:3000）   | playground 通过（:3100） | —             | 通过（:3200）                    |
+| 校验项                  | platform-portal | common-tools             | common-api    | platform-log-console             | platform-event-console          |
+| ----------------------- | --------------- | ------------------------ | ------------- | -------------------------------- | ------------------------------- |
+| `tsc --noEmit` 类型检查 | 通过            | 通过                     | 通过          | 通过                             | 通过                            |
+| `eslint .`              | 通过            | 通过                     | 通过          | 通过                             | 通过                            |
+| `stylelint`             | 通过            | 通过（playground）       | —             | 通过（含 `App.less`）            | 通过（含 `App.less`）           |
+| `vitest run` 单元测试   | 通过（1/1）     | 通过（124/124）          | 通过（20/20） | 通过（25/25，含浏览器渲染测试）  | 通过（12/12，含浏览器渲染测试） |
+| `vite build` 生产构建   | 通过            | 通过（26.53 kB）         | —             | 通过（CSS 11.92 · JS 258.61 kB） | 通过（CSS 5.41 · JS 255.68 kB） |
+| dev server 启动         | 通过（:3000）   | playground 通过（:3100） | —             | 通过（:3200）                    | 通过（:3300）                   |
+
+> **`vite build` 不是"顺手跑一下"。** `platform-event-console` 首次交付时，它与 `platform-log-console` 共用一套版式，其中 `.pill--err` 引用了后者才有的 LESS 令牌 `@level-error`。dev server 与单元测试**都不会报错**（前者按需编译没人访问的样式分支，后者不碰样式），只有生产构建会失败：`variable @level-error is undefined`。**新增/复制版式的应用，构建这一项必须实际跑过。**
 
 > **关于 `turbo run`**：本次验证时 turbo 报 `os error 231`（管道句柄耗尽，`unable to spawn child process`）。这是当前运行环境的进程创建限制，**不是工程配置问题**——上表中的每个任务脚本逐个直跑全部通过，同一配置在此前也能通过 turbo 编排。本地正常终端下 `pnpm dev` / `pnpm build` 等不受影响。
 
@@ -170,4 +181,5 @@ git config core.hooksPath web/.husky
 - qiankun 子应用注册与全局状态下发尚未接入
 - `common-tools` 的 http 内核目前没有自动重试、请求缓存与并发去重 —— 需要时按 `docs/decisions/0007` 的边界补，不要在各接口里散写
 - 客户端日志目前只有采集与上报；**采样与脱敏**尚未实现，等有真实生产流量再做
+- 行为事件的**采样、服务端二次脱敏、事件注册表**尚未实现；当前落库到普通数据库，接入数仓时替换落点即可（`docs/decisions/0011` 列了完整清单）
 - 公共依赖已由 `pnpm-workspace.yaml` 的 catalog 统一管理，新增依赖务必走 catalog

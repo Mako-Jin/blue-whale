@@ -1,0 +1,40 @@
+{
+  "name": "platform-event-console",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "行为事件控制台 · 打通「埋点 → 上报 → 落库 → 分析查询」的端到端演示",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "lint": "eslint .",
+    "stylelint": "stylelint \"src/**/*.{less,css}\"",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "common-api": "workspace:*",
+    "common-tools": "workspace:*",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "catalog:",
+    "@testing-library/react": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "common-config": "workspace:*",
+    "eslint": "catalog:",
+    "jsdom": "catalog:",
+    "less": "catalog:",
+    "stylelint": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

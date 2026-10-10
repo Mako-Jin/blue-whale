@@ -1,0 +1,37 @@
+// 设计令牌 —— 只定义变量，不产生 CSS 输出。
+// 由 vite.config.ts 的 less.additionalData 注入到每个 .less，无需手动 @import。
+
+// 文字
+@text-primary: #1f2329;
+@text-secondary: #4e5969;
+@text-tertiary: #86909c;
+
+// 背景
+@bg-base: #f2f3f5;
+@bg-elevated: #ffffff;
+@bg-sunken: #f7f8fa;
+
+// 描边
+@border-color: #e5e6eb;
+@border-strong: #c9cdd4;
+
+// 品牌
+@brand-color: #165dff;
+
+// 事件相关的语义色。四档按"这条事件最后怎么了"划分，而不是按严重度分级 ——
+// 事件没有"级别"，套用日志那套七色只会让人误以为事件也分 warn / debug。
+// accent 已发布 · mask 被脱敏 · dropped 被丢弃 · ok 已落库 · error 上报失败。
+@event-accent: #165dff;
+@event-mask: #722ed1;
+@event-dropped: #ff7d00;
+@event-ok: #00b42a;
+@event-error: #f53f3f;
+
+// 字体
+@font-mono: 'sf mono', 'jetbrains mono', consolas, 'courier new', monospace;
+
+// 圆角与阴影
+@radius-sm: 4px;
+@radius-md: 8px;
+@radius-lg: 12px;
+@shadow-card: 0 1px 3px rgb(0 0 0 / 6%);

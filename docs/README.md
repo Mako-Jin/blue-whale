@@ -6,11 +6,11 @@
 
 ## 一、目录结构
 
-| 目录 | 内容 | 何时必须更新 |
-|------|------|--------------|
-| `architecture/` | 系统架构、分层图、部署拓扑、关键时序 | 组件划分、分层关系或数据流发生变化时 |
-| `api/` | OpenAPI 契约文件（**跨端唯一真相源**） | 后端接口有任何增删改时（与代码**同一次提交**） |
-| `decisions/` | 架构决策记录（ADR） | 做出不可逆或影响面大的技术决策时 |
+| 目录            | 内容                                   | 何时必须更新                                   |
+| --------------- | -------------------------------------- | ---------------------------------------------- |
+| `architecture/` | 系统架构、分层图、部署拓扑、关键时序   | 组件划分、分层关系或数据流发生变化时           |
+| `api/`          | OpenAPI 契约文件（**跨端唯一真相源**） | 后端接口有任何增删改时（与代码**同一次提交**） |
+| `decisions/`    | 架构决策记录（ADR）                    | 做出不可逆或影响面大的技术决策时               |
 
 ---
 
@@ -20,31 +20,34 @@
 
 每次改动，按下表自查必须同步哪些文档：
 
-| 改动类型 | 必须同步的文档 |
-|----------|----------------|
-| 新增 / 删除前端应用 | 根 `README.md` 结构图 · `web/README.md` 目录结构 |
-| 修改前端规范工具链（ESLint/Prettier/Stylelint…） | `web/README.md` 规范章节 · `packages/common-config/README.md` |
-| 新增 / 删除公共包 | `web/README.md` · 根 `README.md` · 该包的 `README.md` |
-| 新增 / 修改公共包对外 API | 该包的 `README.md` |
-| 新增日志上报维度或上报通道 | `packages/common-tools/README.md`（`LogRecord` 章节） |
-| 修改请求传输策略（错误分类、超时、重试、鉴权钩子） | `packages/common-tools/README.md`（HTTP 章节） · `decisions/0007-前端请求分层与错误模型.md` |
-| 修改客户端日志上报通道（批量、退避、缓冲上限） | `decisions/0004-前端日志上报架构.md` |
-| 调整客户端日志的校验 / 截断 / 存储策略 | `server/README.md`（日志域硬规则表） |
-| 修改契约的生成或消费流程（导出脚本、生成器、类型修正） | `api/README.md` · `decisions/0006-接口契约的生成与消费.md` |
-| 调整配置分层或新增配置层 | `decisions/0003-配置分域与自研边界.md` |
-| 新增 / 删除第三方依赖 | `web/pnpm-workspace.yaml` 的 `catalog:` · `CONTRIBUTING.md` 依赖治理 |
-| 升级后端框架大版本（Spring Boot / JDK 基线） | `decisions/0008-Spring-Boot-4升级与JDK21门禁.md` · `server/README.md` 版本一览 |
-| 新增 / 删除后端模块 | `server/README.md` 模块表 · 根 `README.md` 结构图 |
-| 调整后端分层或依赖方向 | `decisions/0005-后端模块划分与依赖约束.md` · `architecture/后端分层与依赖方向.md` · `server/README.md` |
-| 修改统一响应结构或错误码 | `server/README.md` 错误码表 · `docs/api/openapi.json` |
-| 变更数据源、切换 / 新增数据库 profile | `server/README.md` 第六节 · `decisions/0009`（H2 / MySQL）· `decisions/0010`（达梦） |
-| 新增 / 修改表结构（迁移脚本） | `server/README.md` 第六节 · 迁移脚本放在表结构所属模块的 `db/migration/<vendor>/` |
-| 新增落库字段（**MySQL 与达梦的保留字都要查，结论不可互推**） | `decisions/0009` 第 3 条 · `decisions/0010` · `server/README.md` 第六节 |
-| 新增一种数据库厂商的支持 | `decisions/0010-达梦DM8支持与Flyway的边界.md` · `server/README.md` 第六节与版本一览 |
-| 新增 / 修改后端接口 | `docs/api/openapi.json`（用 `scripts/export-openapi.sh` 导出）→ `pnpm --filter common-api gen:api` |
-| 变更顶层目录或横向层 | 根 `README.md` |
-| 技术选型 / 架构决策 | 新增 `docs/decisions/NNNN-*.md` |
-| 引入新的全局工程约定 | `CONTRIBUTING.md` |
+| 改动类型                                                         | 必须同步的文档                                                                                                                                   |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 新增 / 删除前端应用                                              | 根 `README.md` 结构图 · `web/README.md` 目录结构                                                                                                 |
+| 修改前端规范工具链（ESLint/Prettier/Stylelint…）                 | `web/README.md` 规范章节 · `packages/common-config/README.md`                                                                                    |
+| 新增 / 删除公共包                                                | `web/README.md` · 根 `README.md` · 该包的 `README.md`                                                                                            |
+| 新增 / 修改公共包对外 API                                        | 该包的 `README.md`                                                                                                                               |
+| 新增日志上报维度或上报通道                                       | `packages/common-tools/README.md`（`LogRecord` 章节）                                                                                            |
+| 修改请求传输策略（错误分类、超时、重试、鉴权钩子）               | `packages/common-tools/README.md`（HTTP 章节） · `decisions/0007-前端请求分层与错误模型.md`                                                      |
+| 修改客户端日志上报通道（批量、退避、缓冲上限）                   | `decisions/0004-前端日志上报架构.md` · `packages/common-tools/README.md`（批量通道章节）                                                         |
+| 新增 / 修改行为事件（埋点）与事件上报                            | `decisions/0011-行为事件管道与前端埋点内核.md` · `packages/common-tools/README.md`（事件内核章节） · `platform/platform-event-console/README.md` |
+| 调整身份拼接（deviceId / userId）、脱敏与屏蔽规则                | `decisions/0011` 第 4 条 · `platform/platform-event-console/README.md`                                                                           |
+| 调整客户端日志的校验 / 截断 / 存储策略                           | `server/README.md`（日志域硬规则表）                                                                                                             |
+| 修改契约的生成或消费流程（导出脚本、生成器、类型修正）           | `api/README.md` · `decisions/0006-接口契约的生成与消费.md`                                                                                       |
+| 调整配置分层或新增配置层                                         | `decisions/0003-配置分域与自研边界.md`                                                                                                           |
+| 新增 / 删除第三方依赖                                            | `web/pnpm-workspace.yaml` 的 `catalog:` · `CONTRIBUTING.md` 依赖治理                                                                             |
+| 升级后端框架大版本（Spring Boot / JDK 基线）                     | `decisions/0008-Spring-Boot-4升级与JDK21门禁.md` · `server/README.md` 版本一览                                                                   |
+| 新增 / 删除后端模块                                              | `server/README.md` 模块表 · 根 `README.md` 结构图                                                                                                |
+| 调整后端分层或依赖方向                                           | `decisions/0005-后端模块划分与依赖约束.md` · `architecture/后端分层与依赖方向.md` · `server/README.md`                                           |
+| 修改统一响应结构或错误码                                         | `server/README.md` 错误码表 · `docs/api/openapi.json`                                                                                            |
+| 变更数据源、切换 / 新增数据库 profile                            | `server/README.md` 第六节 · `decisions/0009`（H2 / MySQL）· `decisions/0010`（达梦）                                                             |
+| 新增 / 修改表结构（迁移脚本）                                    | `server/README.md` 第六节 · 迁移脚本放在表结构所属模块的 `db/migration/<vendor>/`                                                                |
+| 新增一条建表迁移脚本（**版本号在全仓唯一**，不是各模块从 V1 起） | `decisions/0009` 的「补充」章节 · `server/README.md` 第六节                                                                                      |
+| 新增落库字段（**MySQL 与达梦的保留字都要查，结论不可互推**）     | `decisions/0009` 第 3 条 · `decisions/0010` · `server/README.md` 第六节                                                                          |
+| 新增一种数据库厂商的支持                                         | `decisions/0010-达梦DM8支持与Flyway的边界.md` · `server/README.md` 第六节与版本一览                                                              |
+| 新增 / 修改后端接口                                              | `docs/api/openapi.json`（用 `scripts/export-openapi.sh` 导出）→ `pnpm --filter common-api gen:api`                                               |
+| 变更顶层目录或横向层                                             | 根 `README.md`                                                                                                                                   |
+| 技术选型 / 架构决策                                              | 新增 `docs/decisions/NNNN-*.md`                                                                                                                  |
+| 引入新的全局工程约定                                             | `CONTRIBUTING.md`                                                                                                                                |
 
 ---
 
@@ -66,23 +69,24 @@ docs/decisions/NNNN-简短标题.md
 
 ## 四、当前文档索引
 
-| 文档 | 说明 |
-|------|------|
-| `decisions/0001-架构基线与技术选型.md` | 仓库结构、前后端分离、技术栈基线 |
-| `decisions/0002-前端公共包与公共依赖治理.md` | pnpm catalog、`common-*` 包划分、logger 重写决策 |
-| `decisions/0003-配置分域与自研边界.md` | 配置三层分域、自研边界、客户端配置五条底线 |
-| `decisions/0004-前端日志上报架构.md` | 采集与传输分层、`LogRecord` 契约、采样与脱敏约束 |
-| `decisions/0005-后端模块划分与依赖约束.md` | 五层依赖方向、groupId 分级、分包方式、统一响应契约 |
-| `decisions/0006-接口契约的生成与消费.md` | 契约由代码生成、生成物入库、任意值字段的类型修正 |
-| `decisions/0007-前端请求分层与错误模型.md` | 传输内核与契约装配的分工、六类错误、重试幂等边界 |
-| `decisions/0008-Spring-Boot-4升级与JDK21门禁.md` | Boot 4.1 升级的破坏性变更清单、starter 坐标对应关系、JDK 21 构建门禁 |
-| `decisions/0009-多数据源共存与Flyway迁移.md` | H2 / MySQL 双 profile、Flyway 迁移按厂商分目录、MySQL 保留字与 MP 别名的双重陷阱 |
-| `decisions/0010-达梦DM8支持与Flyway的边界.md` | 国产库达梦 DM8 接入、Flyway 无达梦模块时的取舍、达梦方言差异与**未验证清单** |
-| `architecture/后端分层与依赖方向.md` | 后端分层落地细则、依赖矩阵、前后端结构对照 |
-| `api/README.md` | 契约接口清单、更新流程、任意值字段的处理 |
-| `../web/packages/common-tools/README.md` | 公共能力包（logger / env / http）使用说明与修复清单 |
-| `../web/packages/common-api/README.md` | 前端契约包的使用方式与分层边界 |
-| `../server/README.md` | 后端模块表、统一响应与错误码、日志域硬规则、构建命令 |
+| 文档                                             | 说明                                                                                                                                                |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `decisions/0001-架构基线与技术选型.md`           | 仓库结构、前后端分离、技术栈基线                                                                                                                    |
+| `decisions/0002-前端公共包与公共依赖治理.md`     | pnpm catalog、`common-*` 包划分、logger 重写决策                                                                                                    |
+| `decisions/0003-配置分域与自研边界.md`           | 配置三层分域、自研边界、客户端配置五条底线                                                                                                          |
+| `decisions/0004-前端日志上报架构.md`             | 采集与传输分层、`LogRecord` 契约、采样与脱敏约束                                                                                                    |
+| `decisions/0005-后端模块划分与依赖约束.md`       | 五层依赖方向、groupId 分级、分包方式、统一响应契约                                                                                                  |
+| `decisions/0006-接口契约的生成与消费.md`         | 契约由代码生成、生成物入库、任意值字段的类型修正                                                                                                    |
+| `decisions/0007-前端请求分层与错误模型.md`       | 传输内核与契约装配的分工、六类错误、重试幂等边界                                                                                                    |
+| `decisions/0008-Spring-Boot-4升级与JDK21门禁.md` | Boot 4.1 升级的破坏性变更清单、starter 坐标对应关系、JDK 21 构建门禁                                                                                |
+| `decisions/0009-多数据源共存与Flyway迁移.md`     | H2 / MySQL 双 profile、Flyway 迁移按厂商分目录、MySQL 保留字与 MP 别名的双重陷阱                                                                    |
+| `decisions/0010-达梦DM8支持与Flyway的边界.md`    | 国产库达梦 DM8 接入、Flyway 无达梦模块时的取舍、达梦方言差异与**未验证清单**                                                                        |
+| `decisions/0011-行为事件管道与前端埋点内核.md`   | 行为事件是第三条独立管道、传输通道与脱敏逻辑的下沉复用、语义化 `track()` 与内部总线、事件名/双时间戳/属性版本的永久契约、卸载兜底、大数据接入预留点 |
+| `architecture/后端分层与依赖方向.md`             | 后端分层落地细则、依赖矩阵、前后端结构对照                                                                                                          |
+| `api/README.md`                                  | 契约接口清单、更新流程、任意值字段的处理                                                                                                            |
+| `../web/packages/common-tools/README.md`         | 公共能力包（logger / env / http / json / report / events）使用说明与修复清单                                                                        |
+| `../web/packages/common-api/README.md`           | 前端契约包的使用方式与分层边界                                                                                                                      |
+| `../server/README.md`                            | 后端模块表、统一响应与错误码、日志域硬规则、构建命令                                                                                                |
 
 ---
 

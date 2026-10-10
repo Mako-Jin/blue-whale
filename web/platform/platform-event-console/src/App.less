@@ -1,0 +1,451 @@
+/* 行为事件控制台版式。与日志控制台共用同一套设计令牌，
+   但结构更简单：这里是两条管道（客户端 / 服务端）并排，而不是三栏加抽屉。 */
+
+.app {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid @border-color;
+  background: @bg-elevated;
+  gap: 16px;
+}
+
+.topbar__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.topbar__logo {
+  width: 28px;
+  height: 28px;
+  border-radius: @radius-md;
+  background: linear-gradient(135deg, @event-accent, @event-mask);
+}
+
+.topbar__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.topbar__subtitle {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: @text-tertiary;
+}
+
+.topbar__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border: 1px solid @border-color;
+  border-radius: 999px;
+  font-size: 12px;
+  color: @text-secondary;
+  background: @bg-sunken;
+}
+
+.pill--ok {
+  border-color: @event-ok;
+  color: @event-ok;
+  background: rgb(0 180 42 / 8%);
+}
+
+.pill--err {
+  border-color: @event-error;
+  color: @event-error;
+  background: rgb(245 63 63 / 8%);
+}
+
+.pill--warn {
+  border-color: @event-dropped;
+  color: @event-dropped;
+  background: rgb(255 125 0 / 8%);
+}
+
+.pill__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentcolor;
+}
+
+.btn {
+  padding: 5px 12px;
+  border: 1px solid @border-strong;
+  border-radius: @radius-sm;
+  background: @bg-elevated;
+  color: @text-primary;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn--sm {
+  padding: 3px 10px;
+  font-size: 12px;
+}
+
+.btn--accent {
+  border-color: @event-mask;
+  color: @event-mask;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.alert {
+  margin: 12px 20px 0;
+  padding: 10px 14px;
+  border: 1px solid @event-dropped;
+  border-radius: @radius-md;
+  background: rgb(255 125 0 / 8%);
+  color: @text-primary;
+  font-size: 13px;
+}
+
+.alert--block {
+  display: block;
+}
+
+.layout {
+  display: grid;
+  flex: 1;
+  gap: 16px;
+  padding: 16px 20px;
+  align-items: start;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+}
+
+.panel {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid @border-color;
+  border-radius: @radius-lg;
+  background: @bg-elevated;
+  box-shadow: @shadow-card;
+}
+
+.panel__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.panel__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.panel__hint {
+  margin: 0;
+  font-size: 12px;
+  color: @text-tertiary;
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid @border-color;
+  border-radius: @radius-md;
+  background: @bg-sunken;
+}
+
+.block--grow {
+  min-height: 0;
+  flex: 1;
+}
+
+.block__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: @text-secondary;
+}
+
+.block__count {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: @bg-base;
+  font-size: 11px;
+  color: @text-tertiary;
+}
+
+.block__note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: @text-tertiary;
+}
+
+.block__note--warn {
+  color: @event-dropped;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.row--wrap {
+  flex-wrap: wrap;
+}
+
+.tag {
+  padding: 2px 10px;
+  border: 1px dashed @border-strong;
+  border-radius: 999px;
+  font-size: 12px;
+  color: @text-tertiary;
+}
+
+.tag--on {
+  border-style: solid;
+  border-color: @event-ok;
+  color: @event-ok;
+}
+
+.input {
+  min-width: 0;
+  flex: 1;
+  padding: 5px 10px;
+  border: 1px solid @border-strong;
+  border-radius: @radius-sm;
+  background: @bg-elevated;
+  font-size: 12px;
+  color: @text-primary;
+}
+
+.chip {
+  padding: 3px 10px;
+  border: 1px solid @border-strong;
+  border-radius: 999px;
+  background: @bg-elevated;
+  font-size: 12px;
+  color: @text-secondary;
+  cursor: pointer;
+}
+
+.chip--on {
+  border-color: @event-dropped;
+  background: rgb(255 125 0 / 10%);
+  color: @event-dropped;
+}
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 400;
+  color: @text-tertiary;
+}
+
+.errors {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: @event-dropped;
+}
+
+.events {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+  max-height: 460px;
+}
+
+.events__empty {
+  padding: 16px 0;
+  font-size: 12px;
+  text-align: center;
+  color: @text-tertiary;
+}
+
+.events__item {
+  padding: 6px 8px;
+  border: 1px solid @border-color;
+  border-radius: @radius-sm;
+  background: @bg-elevated;
+}
+
+.events__line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.events__time {
+  font-size: 11px;
+  color: @text-tertiary;
+}
+
+.events__name {
+  font-size: 12px;
+  font-weight: 600;
+  color: @event-accent;
+}
+
+.events__meta {
+  margin-left: auto;
+  font-size: 11px;
+  color: @text-tertiary;
+}
+
+.events__props {
+  margin-top: 3px;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+  color: @text-secondary;
+}
+
+.bars {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+}
+
+.bars__row {
+  display: grid;
+  align-items: center;
+  gap: 8px;
+  grid-template-columns: 160px minmax(0, 1fr) 48px;
+}
+
+.bars__label {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  color: @text-secondary;
+}
+
+.bars__track {
+  height: 8px;
+  border-radius: 999px;
+  background: @bg-base;
+  overflow: hidden;
+}
+
+.bars__fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: @event-accent;
+}
+
+.bars__value {
+  font-size: 12px;
+  text-align: right;
+  color: @text-secondary;
+}
+
+.tablewrap {
+  overflow-x: auto;
+  border: 1px solid @border-color;
+  border-radius: @radius-md;
+  background: @bg-elevated;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.table th {
+  padding: 7px 10px;
+  border-bottom: 1px solid @border-color;
+  background: @bg-sunken;
+  font-weight: 600;
+  text-align: left;
+  color: @text-secondary;
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid @border-color;
+  color: @text-primary;
+  white-space: nowrap;
+}
+
+.table__empty {
+  padding: 24px 0;
+  text-align: center;
+  color: @text-tertiary;
+}
+
+.cell--props {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.pager__info {
+  font-size: 12px;
+  color: @text-tertiary;
+}
+
+.contextbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  border-top: 1px solid @border-color;
+  background: @bg-elevated;
+  font-size: 12px;
+}
+
+.contextbar__title {
+  flex: none;
+  color: @text-tertiary;
+}
+
+@media (width <= 1100px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

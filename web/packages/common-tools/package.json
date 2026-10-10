@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "公共能力包 · 与框架无关的工具集（日志 / 环境探测 / 请求内核）",
+  "description": "公共能力包 · 与框架无关的工具集（日志 / 环境探测 / 请求内核 / 批量通道 / 行为事件）",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
@@ -22,6 +22,18 @@
     "./http": {
       "types": "./src/http/index.ts",
       "import": "./src/http/index.ts"
+    },
+    "./json": {
+      "types": "./src/json/index.ts",
+      "import": "./src/json/index.ts"
+    },
+    "./report": {
+      "types": "./src/report/index.ts",
+      "import": "./src/report/index.ts"
+    },
+    "./events": {
+      "types": "./src/events/index.ts",
+      "import": "./src/events/index.ts"
     }
   },
   "files": [

@@ -28,6 +28,16 @@
         </dependency>
 
         <!--
+          行为事件域。它与日志域**并列**而不是合并：两者数据性质（技术切片 vs 业务事实）、
+          保留期、采样策略、消费方全都不同，是两条独立管道 —— 详见 ADR-0011。
+          合成一个模块只会让"日志的清理任务误删事件"这类事故变得可能。
+        -->
+        <dependency>
+            <groupId>com.bluewhale.sts.server</groupId>
+            <artifactId>sts-server-track</artifactId>
+        </dependency>
+
+        <!--
           spring-boot-starter-webmvc 在此**显式声明**，虽然 sts-server-log 已经带来了一份：
           可部署进程的需求不靠传递依赖表达。哪天 sts-server-log 换了实现（比如改用 WebFlux），
           传递来的依赖就没了，而本模块的启动会以一种"莫名其妙"的方式失败。

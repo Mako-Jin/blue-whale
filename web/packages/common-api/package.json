@@ -14,6 +14,10 @@
     "./log": {
       "types": "./src/log.ts",
       "import": "./src/log.ts"
+    },
+    "./events": {
+      "types": "./src/events.ts",
+      "import": "./src/events.ts"
     }
   },
   "files": [

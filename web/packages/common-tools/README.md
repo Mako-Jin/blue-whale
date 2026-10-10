@@ -2,13 +2,18 @@
 
 与框架无关的通用工具集。**不依赖 React / Vue，不依赖任何运行时第三方库**，因此应用、构建脚本、Node 工具链都能直接用。
 
-当前包含三个模块：
+当前包含六个模块：
 
-| 模块     | 入口                  | 内容                                           |
-| -------- | --------------------- | ---------------------------------------------- |
-| `logger` | `common-tools/logger` | 分级日志、命名空间层级、主题配色、同构渲染     |
-| `env`    | `common-tools/env`    | 运行环境探测、构建模式、调试模式与生产域名兜底 |
-| `http`   | `common-tools/http`   | 请求内核：发请求、解包统一响应、错误分类       |
+| 模块     | 入口                  | 内容                                                 |
+| -------- | --------------------- | ---------------------------------------------------- |
+| `logger` | `common-tools/logger` | 分级日志、命名空间层级、主题配色、同构渲染           |
+| `env`    | `common-tools/env`    | 运行环境探测、构建模式、调试模式与生产域名兜底       |
+| `http`   | `common-tools/http`   | 请求内核：发请求、解包统一响应、错误分类             |
+| `json`   | `common-tools/json`   | JSON 安全层：把任意值修剪成可序列化形态              |
+| `report` | `common-tools/report` | 通用批量上报通道：批量、有界、退避、不抛异常         |
+| `events` | `common-tools/events` | 行为事件内核：`track()` 语义化发布 + 内部总线 + 订阅 |
+
+后三个模块是**行为事件管道**的底座（见 `docs/decisions/0011`）。它们被拆成三层而不是合成一个 "analytics" 包，原因是复用面完全不同：`json` 与 `report` 是**通道属性**，日志管道也在用；`events` 才是事件语义本身。
 
 ---
 
@@ -40,12 +45,20 @@ packages/common-tools/
 │   │   └── logger.ts         Logger 类与全局配置
 │   ├── env/
 │   │   └── index.ts          运行环境与调试模式
-│   └── http/
+│   ├── http/
+│   │   ├── index.ts          模块出口
+│   │   ├── types.ts          客户端配置、单次请求选项、统一响应信封
+│   │   ├── errors.ts         六类错误 + HttpError 基类 + retryable 判据
+│   │   └── client.ts         请求内核（刻意不认识任何业务接口）
+│   ├── json/
+│   │   └── index.ts          JsonValue 类型 + sanitize / sanitizeObject
+│   ├── report/
+│   │   └── index.ts          BatchChannel：与内容无关的批量上报通道
+│   └── events/
 │       ├── index.ts          模块出口
-│       ├── types.ts          客户端配置、单次请求选项、统一响应信封
-│       ├── errors.ts         六类错误 + HttpError 基类 + retryable 判据
-│       └── client.ts         请求内核（刻意不认识任何业务接口）
-├── tests/                    Vitest 单元测试（101 例）
+│       ├── types.ts          EventEnvelope / 中间件 / 订阅者 / 事件名校验
+│       └── tracker.ts        createTracker：发布、总线、上下文
+├── tests/                    Vitest 单元测试（124 例）
 ├── playground/               可视化演示（纯 DOM，可运行）
 ├── eslint.config.js          引用 common-config，额外放行本包的 console 调用
 ├── stylelint.config.js       一行 re-export common-config 共享配置
@@ -381,7 +394,149 @@ try {
 
 ---
 
-## 六、相对参考实现的修复
+## 六、JSON 安全层
+
+日志的 `data` / `context` 与事件的 `props` 都是"调用方随手塞进来的任意值"。这一层负责把它们修剪成**一定可以 `JSON.stringify`** 的形态。
+
+```ts
+import { sanitize, sanitizeObject } from 'common-tools/json';
+
+sanitize({ orderId: 'SO-1', at: () => Date.now() }); // { orderId: 'SO-1', at: '[function]' }
+```
+
+**为什么必须有：** `JSON.stringify` 遇到函数、Symbol、循环引用、`BigInt` 会**直接抛错**。一条脏数据夹在里面，结果不是丢这一条，而是**整批上报失败** —— 另外 499 条正常数据一起遭殃。在这里递归转成安全值，让脏数据只影响它自己。
+
+转换规则：
+
+| 输入               | 输出                                 | 理由                                                             |
+| ------------------ | ------------------------------------ | ---------------------------------------------------------------- |
+| 函数 / Symbol      | `'[function]'` / `'[symbol]'` 字符串 | 保留"这里有过东西"的事实，比直接抹掉更利于排查                   |
+| `BigInt`           | 字符串（不转 number）                | 转 number 会静默丢精度                                           |
+| `NaN` / `Infinity` | 字符串                               | 它们是非法 JSON；静默变 `null` 会让"数据异常"和"字段不存在"混淆  |
+| `Error`            | `{ name, message, stack? }`          | 直接 stringify 一个 Error 会得到 `{}`                            |
+| `Date`             | ISO 字符串                           |                                                                  |
+| 超深嵌套（> 4 层） | `'[depth]'`                          | 4 层以上通常意味着把整个响应体塞了进来，没人会读，开销却是确定的 |
+| 循环引用           | 由深度上限兜住                       | 单独检测环会拖慢正常路径                                         |
+
+> 这一层同时提供 `JsonValue` / `JsonArray` / `JsonObject` 三个类型。契约里"原样透传"的字段用它们收口 —— 理由见 `web/packages/common-api/README.md` 第五节。
+
+---
+
+## 七、批量上报通道
+
+**这个模块不认识日志，也不认识事件。** 它只做一件事：把"随时零星产生的条目"攒成"有界、可退避、失败不抛出的一批批请求"。
+
+```ts
+import { BatchChannel } from 'common-tools/report';
+
+const channel = new BatchChannel({
+  buildBody: (items) => ({ items }),
+  send: (body) => http.post('/api/events/client', body),
+  resolveCounts: (result) => ({ accepted: result.accepted, rejected: result.rejected }),
+  sendOnUnload: (body) => sendWithKeepalive(body), // 见下方「卸载兜底」
+  onChange: (state) => render(state),
+});
+
+channel.push(event);
+channel.flush();
+```
+
+**四条约束全部来自真实故障，不是理论：**
+
+| 约束                   | 不这么做的后果                                                      |
+| ---------------------- | ------------------------------------------------------------------- |
+| **批量**               | 一条一个请求，请求量 = 条目数 × 用户数，后端被自己的客户端打挂      |
+| **有界**（丢最旧）     | 上报通道因自身积压把页面拖垮，比丢几条数据严重得多                  |
+| **指数退避**           | 后端已倒下时按固定间隔重试，等于持续冲击一个正在恢复的服务          |
+| **不抛异常、不自记录** | 上报失败写进日志 / 事件通道 → 再次触发上报 → 客户端与服务端之间雪崩 |
+
+默认值集中在 `BATCH_DEFAULTS`：批量 20 / 间隔 3 s / 缓冲 500 / 退避封顶 30 s。
+
+`BatchChannelState` 只暴露事实（`pending` / `sent` / `rejected` / `failedBatches` / `dropped` / `lastError` / `backoffMs`），**通道自己不做任何呈现** —— 调用方据此渲染"上报健康度"。
+
+### 卸载兜底：`sendOnUnload` vs `sendBeacon`
+
+页面关闭是这条通道最大的数据损失来源：定时器还没到点，缓冲里那一批随页面一起消失，而"用户离开"往往正是最值得记录的行为。
+
+`sendOnUnload` 只能**同步**发出（卸载阶段没有 `await` 的机会），因此传输方式交给调用方决定。两个可选实现差异很大：
+
+| 方式                              | 结果                                                                                                              |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `navigator.sendBeacon`            | 发 `Blob` 且带自定义 `Content-Type: application/json` 时**会触发 CORS 预检**，而预检在卸载阶段无法完成 → 静默失败 |
+| `fetch(url, { keepalive: true })` | 明确返回 Promise，可以判定是否交出去了；代价是请求体有 **64 KB 上限**                                             |
+
+所以实际用法是 `keepalive` + 按体积裁剪，且**优先保住最近的批次**（旧数据价值低于新数据）。
+
+`bindUnload(target)` 同时监听 `pagehide` 与 `visibilitychange`：**不能只依赖 `beforeunload`** —— 移动端浏览器切后台时可能直接冻结页面，`beforeunload` 根本不触发，而"切后台"比"关页签"频繁得多。
+
+> 本模块在 `platform-log-console` 与 `platform-event-console` 中被两条管道共用。之所以要抽出来：那四条约束是**通道本身的属性**，与上报的内容无关；各写一份的结果是两份实现立刻开始漂移 —— 一份修了并发缺陷，另一份没修。
+
+---
+
+## 八、行为事件内核
+
+业务代码只需要认识一个方法：`track()`。
+
+```ts
+import { createTracker } from 'common-tools/events';
+
+const tracker = createTracker({
+  context: { sessionId, deviceId },
+  middlewares: [blockMiddleware, maskMiddleware],
+  onError: (error, stage) => logger.warn('埋点异常', { stage, error }),
+});
+
+tracker.track('order.submit', { orderId: 'SO-1', amount: 199 });
+```
+
+### 为什么是「语义化 track」而不是通用全局事件总线
+
+通用总线（`emit('any-string', any)`）在这个场景下是错的：**事件名一旦上报过就是永久契约**。改名不会报错，只会让历史数据的含义在某一刻断裂 —— 而这种断裂要到月底看报表时才被发现。因此内核把约束前移：
+
+- 事件名必须匹配 `^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$`（小写、点分、至少两段），形如 `order.submit`；
+- 非法名字**直接丢弃**，并**只报一次** —— 同一个拼错的名字会在每次交互里重复出现，每次都报会把真正的问题淹掉；
+- 所以内核对外只暴露 `track(name, props, options)` 这一个入口，不暴露 `emit`。
+
+> 这条正则与后端 `ClientEventService` 的校验规则**必须完全一致**。两边各写一套的后果是客户端放行、服务端逐条拒绝，表现为"接口返回成功但一条也没落库"。
+
+### 订阅与中间件都在内核内部
+
+业务只发布；**补齐上下文、屏蔽、脱敏、交给谁、怎么发**全是 SDK 内部实现，业务看不到也不需要知道：
+
+| 能力                   | 做法                                                                                                                                                                    |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `subscribe(listener)`  | 多订阅者，逐个 `try/catch`，一个订阅者抛错不影响其余                                                                                                                    |
+| `use(middleware)`      | 中间件拿到 `(event, next)`，可改写，也可返回 `null` 终止整条链（屏蔽 / 脱敏靠它实现）                                                                                   |
+| `updateContext(patch)` | 合并式更新（登录、跳路由时调用）                                                                                                                                        |
+| `clearUser()`          | 单独开一个方法而不是让调用方 `updateContext({ userId: undefined })` —— 登出是最容易漏的一步，漏了的后果是"登出后的事件仍记在上一个人名下"，在共享设备场景下就是数据事故 |
+
+`contextProvider` 做成**每次求值**而不是启动时快照：用户登录、路由跳转都发生在运行期，快照会让登录后的事件仍带着登录前的身份，而且不会有任何报错。
+
+### 与日志管道的关系：复用传输层，但不共用通道
+
+`EventEnvelope` 与 `LogRecord` 都在"前端产生 → 服务端落库"，但数据性质完全不同：
+
+|            | 技术日志     | 行为事件                           |
+| ---------- | ------------ | ---------------------------------- |
+| 回答的问题 | 系统在干什么 | 用户做了什么                       |
+| 保留期     | 短           | 长（用于同比 / 留存）              |
+| 采样       | 可以         | **不可以**（采样后漏斗就对不上了） |
+| 契约稳定性 | 可自由加字段 | 改一个字段名就永久断代             |
+| 消费方     | 运维 / 开发  | 分析 / 数仓                        |
+
+因此是**两条独立管道、独立表**，只在传输层（`json` + `report`）复用。详见 `docs/decisions/0011`。
+
+### 身份缝合
+
+`deviceId`（匿名期）与 `userId`（登录期）**同时挂在每条事件上**。缺了 `deviceId`，"匿名期浏览 → 登录 → 下单"这条转化漏斗的漏斗底永远对不上漏斗口。
+
+### 刻意没有 `traceId`
+
+日志管道有它（排查一次失败请求的完整链路），但事件的关联维度是**人**（漏斗、留存、分群），靠 `userId` / `deviceId` / `sessionId` 就够。更关键的是：**契约没有这一列**，加了它就是一条"发出去也没人接"的假字段 —— 而字段一旦写进契约就是永久的，宁可不加。
+
+---
+
+## 九、相对参考实现的修复
 
 本包的结构参照 `platform-terminator/packages/common-tools`，logger 在其基础上重写。以下是**原实现中真实存在的问题**，均已修复并有测试覆盖：
 
@@ -406,7 +561,7 @@ try {
 
 ---
 
-## 七、设计取舍
+## 十、设计取舍
 
 - **不引入渐变。** 原实现的级别标签用了 `linear-gradient`，浏览器里好看，但 ANSI 无法表达，会导致两种环境观感割裂。改用纯色，换来三态一致。
 - **不做内部 `fetch`。** 需要 ASCII 资源时由调用方读取后传入字符串，日志组件保持纯粹。
@@ -417,7 +572,8 @@ try {
 
 ---
 
-## 八、待补充
+## 十一、待补充
 
-- 日志上报目前只到**采集契约**（`onRecord` + `LogRecord`）与**前端传输**（`LogReporter`）；服务端的存储与聚合查询已实现（`sts-server-log`），跨端串联靠 `X-Trace-Id`
-- 其余能力（存储、事件总线、并发去重、请求缓存）需要时再议，仍按同一句话判断该不该进本包
+- 日志上报目前只到**采集契约**（`onRecord` + `LogRecord`）与**前端传输**（`BatchChannel`）；服务端的存储与聚合查询已实现（`sts-server-log`），跨端串联靠 `X-Trace-Id`
+- 行为事件链路已打通到落库与聚合查询（`sts-server-track` + `platform-event-console`），但**采样、服务端二次脱敏、事件注册表**尚未实现，等有真实流量再做；清单见 `docs/decisions/0011`
+- 其余能力（并发去重、请求缓存）需要时再议，仍按同一句话判断该不该进本包：**认识业务接口的代码一律不能进本包**

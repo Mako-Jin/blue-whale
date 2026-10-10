@@ -20,6 +20,7 @@
 
     <modules>
         <module>sts-server-log</module>
+        <module>sts-server-track</module>
     </modules>
 
 </project>

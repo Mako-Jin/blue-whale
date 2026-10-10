@@ -1,6 +1,7 @@
 import { createApiClient } from 'common-api';
-import type { ClientLogItem, JsonObject, JsonValue } from 'common-api';
+import type { ClientLogItem } from 'common-api';
 import type { LogRecord } from 'common-tools';
+import { sanitize, sanitizeObject } from 'common-tools/json';
 
 import { LogSource } from './log-source';
 import { LogReporter } from './reporter';
@@ -127,46 +128,7 @@ function toReportItem(record: LogRecord): ClientLogItem {
 /**
  * 把日志数据裁剪成可 JSON 序列化的形态。
  *
- * <p>日志数据里出现函数、循环引用、DOM 节点是常事，而 `JSON.stringify` 遇到它们会直接抛错，
- * 结果是**整批上报失败** —— 一条日志夹了个不可序列化的值，其余 499 条一起遭殃。
- * 在这里递归转成安全值，让脏数据只影响它自己。
- *
- * <p>返回类型直接声明为 {@link JsonValue} 而不是 `unknown`：脏数据在这里被一次性
- * 洗干净，调用方不再需要任何断言 —— 有断言就有"洗没洗干净"没人管的风险。
+ * <p>实现已下沉到 `common-tools/json`（{@link sanitize} / {@link sanitizeObject}）：
+ * 行为事件管道有**逐字相同**的需求，各留一份的结果是两份实现开始漂移。
+ * 本文件只负责把它接到日志的字段上。
  */
-function sanitize(value: unknown, depth = 0): JsonValue {
-  if (depth > 4) return '[层级过深]';
-
-  // undefined 与 null 都归为 null：JSON 里没有 undefined，如实降级比留个空洞更好
-  if (value === null || value === undefined) return null;
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number') return value;
-  if (typeof value === 'boolean') return value;
-  if (typeof value === 'bigint') return value.toString();
-  // 函数与 Symbol 无法序列化，转成可读标记，而不是让它们炸掉整批上报
-  if (typeof value === 'function' || typeof value === 'symbol') return `[${typeof value}]`;
-
-  if (value instanceof Error) {
-    return { name: value.name, message: value.message, stack: value.stack ?? '' };
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((item) => sanitize(item, depth + 1));
-  }
-
-  const result: JsonObject = {};
-  for (const [key, item] of Object.entries(value)) {
-    result[key] = sanitize(item, depth + 1);
-  }
-  return result;
-}
-
-/** `context` 在契约里是对象，因此单独收口一次，避免把整体断言成对象 */
-function sanitizeObject(value: Record<string, unknown> | undefined): JsonObject | undefined {
-  if (!value) return undefined;
-  const result: JsonObject = {};
-  for (const [key, item] of Object.entries(value)) {
-    result[key] = sanitize(item, 1);
-  }
-  return result;
-}

@@ -36,9 +36,13 @@
 
 ## 前端结构
 - `packages/` 公共包（`common-*`）、`platform/` 应用、`elemental/` 预留
-- 实际存在：`common-config`（共享工程配置）、`common-tools`（公共能力包）、`platform-portal`（qiankun 主应用）、根 `web/eslint.config.js`
-- 规划的 `common-{theme,components,api}`、`platform-{user,admin}` **按需再建**，不空建
+- 实际存在：`common-config`（共享工程配置）· `common-tools`（公共能力包，6 模块：
+  logger / env / http / json / report / events）· `common-api`（契约装配）·
+  `platform-portal`（:3000 qiankun 主应用）· `platform-log-console`（:3200 日志演示）·
+  `platform-event-console`（:3300 行为事件演示）；根 `web/eslint.config.js`
+- 规划的 `common-{theme,components}`、`platform-{user,admin}` **按需再建**，不空建
 - 规范只维护一份在 `common-config`：子项目 `stylelint.config.js` 一行 re-export；`eslint.config.js` 须调用 `createEslintConfig()`
+- **各应用的 LESS 语义令牌各自一份**（`src/styles/variables.less`），**禁止跨应用引用** —— 引了只有 `vite build` 会报，dev 与测试都发现不了
 
 ## 公共依赖与公共包治理（2026-10-09 定 · ADR-0002）
 - **依赖版本统一**：`web/pnpm-workspace.yaml` 的 `catalog:` 段是唯一来源，各 `package.json` 写 `"catalog:"`
@@ -133,10 +137,28 @@ server/  pom.xml(聚合) → sts-parent
 - **超时必须先于取消分类**（两者都是 abort 实现）；`traceIdProvider` 注入 X-Trace-Id，不自动生成
 - 日志上报通道 `LogReporter`：批量 20 / 3s / 缓冲 500 / 退避封顶 30s / 不抛异常不自我记录
 
+## 行为事件管道：第三条独立管道（2026-10-10 定 · ADR-0011）
+- 三条管道并列：**技术日志**（排查故障/可采样）· **审计日志**（合规/后端拦截器为权威）· **行为事件**（分析用户行为/**不可采样**/契约极稳定）
+- **内容不同 ⇒ 独立模块独立表；通道相同 ⇒ 必须复用** `common-tools/json` + `common-tools/report`
+- 前端形态：**语义化 `track()` + 内部总线**，不做通用全局事件总线
+  - 事件名**永久契约**：`^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$`，前后端**同一条正则**；非法名丢弃且只报一次
+  - 中间件（补齐上下文/屏蔽/脱敏）与多订阅者都是**内核内部实现**，业务只见 `track()`
+  - **登录先 updateContext 再 track；登出先 track 再 clearUser()** —— 顺序反了不报错，只丢"谁登出了"
+- 关键边界：**双时间戳**（`clientTime` 不可信仅展示 / `serverTime` 是排序过滤唯一依据）·
+  `event_id` **不建唯一索引**（一条重复不能让整批 INSERT 失败）· `propsVersion` **按次传** ·
+  无 `traceId`（契约没这列）· `deviceId` + `userId` **同时挂**（否则漏斗口底对不上）
+- 卸载兜底用 `fetch(keepalive)` **不用** `sendBeacon`（后者发 JSON 触发预检 → 静默失败）；keepalive 上限 64KB，按体积裁剪且优先保住最近批次
+- 前端 `EventEnvelope.clientTime` ↔ 契约 `ClientEventItem.timestamp`，改名在接线层 `toReportItem`；**写错不报错，只有该列为空**
+- 聚合接口**刻意不接受 `eventName` 过滤**（它本身按事件名分组）；返回字段是 `eventNameCount`
+- 后端模块 `sts-server-track`，表 `bw_client_event`（维度列 + `props_json`），`V2__create_bw_client_event.sql`
+- **未做**（ADR-0011 列了 8 条）：采样 · 服务端二次脱敏 · 事件注册表 · Kafka/ClickHouse · 数据生命周期 · 同意管理与按用户删除 · 服务端 propsVersion 校验 · 达梦事件表实例验证
+
 ## 日志控制台 demo（platform-log-console，:3200）
 - 左栏客户端视角 / 右栏服务端视角并排 —— 只看一边无法判断上报成没成
 - `emit` 不能写 `logger[level](...)`：`perf` 签名是 `(label,value,unit)`，须显式 switch 分派
 - 已用真实浏览器（Chrome headless + CDP）验证全链路：点击 → 上报 → 落库 → 表格刷新
+- 姊妹页 `platform-event-console`（:3300）是同一思路用于**行为事件**：演示身份缝合 / 脱敏 / 屏蔽；
+  两条管道独立 ⇒ 两个应用，不是一个应用里两个页签
 
 ## 环境坑（已查清，勿再排查）
 - 后端启动报 Port 56491：沙箱注入 `SERVER__PORT` 环境变量 → 命令行 `--server.port=8080` 覆盖
@@ -144,6 +166,10 @@ server/  pom.xml(聚合) → sts-parent
 - 本机 `JAVA_HOME` 默认 JDK 17 → 后端构建须 `JAVA_HOME=/d/tools/installer/jdk/java21`
 - 约定：**业务失败也返回 HTTP 200**，结果只由 `code` 表达（前端判 `code === 0`）；`R.isSuccess()` 必须 `@JsonIgnore` 否则泄漏 `success` 字段
 - 构建：PATH 上是 JDK 17，**必须** `JAVA_HOME="D:/tools/installer/jdk/java21" mvn …`
+- `mvn clean` 报「另一个程序正在使用此文件」：上一轮启动的后端占着 jar →
+  `jps -l` 找到 PID 后 `taskkill //F //PID <pid>`（Git Bash 里斜杠写 `//`）
+- **PowerShell 工具在本沙箱不可用**（`LsSDK_CreateSandbox(ConPTY) 失败`）→ 改用 Bash
+- Maven 本地仓库在 **`D:\repository\maven`**（不是 `~/.m2`）
 
 ## 日志双管道：技术日志 ≠ 审计日志（2026-10-09 定）
 - **技术日志**（前端上报）：排查故障 · 短保留期 · 采样 · 前端驱动

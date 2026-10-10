@@ -12,36 +12,57 @@ docs/api/openapi.json
 
 ## 一、当前接口清单
 
-契约版本 `0.1.0`，标题「BlueWhale 服务端 API」，共 **6 个接口**。
+契约版本 `0.1.0`，标题「BlueWhale 服务端 API」，共 **8 个接口**。
 
 ### 日志域（`sts-server-log`）
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| `POST` | `/api/logs/client` | 批量上报客户端日志，单批最多 500 条 |
-| `GET` | `/api/logs/client` | 分页查询，支持级别 / 命名空间 / 关键词 / 时间窗过滤 |
-| `GET` | `/api/logs/client/{id}` | 查询单条日志详情 |
-| `GET` | `/api/logs/client/trace/{traceId}` | 按链路标识取整条链路，按时间升序 |
-| `GET` | `/api/logs/client/stats` | 按级别聚合统计 |
+| 方法   | 路径                               | 说明                                                |
+| ------ | ---------------------------------- | --------------------------------------------------- |
+| `POST` | `/api/logs/client`                 | 批量上报客户端日志，单批最多 500 条                 |
+| `GET`  | `/api/logs/client`                 | 分页查询，支持级别 / 命名空间 / 关键词 / 时间窗过滤 |
+| `GET`  | `/api/logs/client/{id}`            | 查询单条日志详情                                    |
+| `GET`  | `/api/logs/client/trace/{traceId}` | 按链路标识取整条链路，按时间升序                    |
+| `GET`  | `/api/logs/client/stats`           | 按级别聚合统计                                      |
+
+### 行为事件域（`sts-server-track`）
+
+| 方法   | 路径                       | 说明                                                                            |
+| ------ | -------------------------- | ------------------------------------------------------------------------------- |
+| `POST` | `/api/events/client`       | 批量上报行为事件，单批最多 500 条；逐条校验事件名，返回 `accepted` / `rejected` |
+| `GET`  | `/api/events/client`       | 分页查询，支持事件名 / 用户 / 设备 / 会话 / 应用 / 时间窗过滤                   |
+| `GET`  | `/api/events/client/{id}`  | 查询单条事件详情                                                                |
+| `GET`  | `/api/events/client/stats` | 按**事件名**分组聚合                                                            |
+
+> **聚合接口刻意不接受 `eventName` 过滤参数。** 它本身就是"按事件名分组"，再传一个 `eventName` 去过滤是自相矛盾的；要看单个事件名的量，用分页查询的 `total`。
+
+> **排序与时间窗一律用服务端接收时间**（`serverTime`）。客户端上报的 `clientTime` 也存下来，但只用于展示与归因参考 —— 用户会改系统时间。
+
+> **一个易踩的改名**：前端 `EventEnvelope` 里的字段叫 `clientTime`，契约里叫 `timestamp`（与日志域的 `ClientLogItem` 对齐）。改名发生在接线层（`platform-event-console/src/events.ts` 的 `toReportItem`）。**字段名写错不会有任何报错** —— 请求照样 200、事件照样落库，只有客户端时间这一列静默为空。前后端字段名不一致是这类"静默丢字段"的高发区。
 
 ### 系统域（`sts-app-server`）
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
+| 方法  | 路径          | 说明                           |
+| ----- | ------------- | ------------------------------ |
 | `GET` | `/api/health` | 服务健康检查，含数据库探活结果 |
 
 ### 关键数据模型
 
-| 模型 | 说明 |
-|------|------|
-| `ClientLogItem` | 单条上报日志（`level` / `namespace` / `timestamp` / `message` / `data` / `context` / `traceId` / `sessionId` / `route` / `release`） |
-| `ClientLogReportRequest` | 批量上报请求体：`app` / `release` / `sessionId` / `logs[]` |
-| `ClientLogReportResultVO` | 上报结果：`accepted` / `rejected` |
-| `ClientLogVO` | 服务端返回的日志记录（含服务端生成的 `id` / `serverTime` / `ip`） |
-| `ClientLogStatsVO` | 聚合结果：`total` / `levels[]` / `startTime` / `endTime` |
-| `PageResultClientLogVO` | 分页结果：`records` / `total` / `page` / `size` / `pages` |
-| `HealthVO` | 健康检查：`status` / `application` / `dependencies` |
-| `R*` 前缀 | 统一响应包装 `R<T>`：`code` / `message` / `data` / `timestamp` |
+| 模型                        | 说明                                                                                                                                         |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ClientLogItem`             | 单条上报日志（`level` / `namespace` / `timestamp` / `message` / `data` / `context` / `traceId` / `sessionId` / `route` / `release`）         |
+| `ClientLogReportRequest`    | 批量上报请求体：`app` / `release` / `sessionId` / `logs[]`                                                                                   |
+| `ClientLogReportResultVO`   | 上报结果：`accepted` / `rejected`                                                                                                            |
+| `ClientLogVO`               | 服务端返回的日志记录（含服务端生成的 `id` / `serverTime` / `ip`）                                                                            |
+| `ClientLogStatsVO`          | 聚合结果：`total` / `levels[]` / `startTime` / `endTime`                                                                                     |
+| `PageResultClientLogVO`     | 分页结果：`records` / `total` / `page` / `size` / `pages`                                                                                    |
+| `ClientEventItem`           | 单条上报事件（`eventId` / `eventName` / `userId` / `deviceId` / `sessionId` / `route` / `release` / `props` / `propsVersion` / `timestamp`） |
+| `ClientEventReportRequest`  | 批量上报请求体：`app`（必填） / `release` / `sessionId` / `events[]`（必填）                                                                 |
+| `ClientEventReportResultVO` | 上报结果：`accepted` / `rejected`                                                                                                            |
+| `ClientEventVO`             | 服务端返回的事件记录（含服务端生成的 `id` / `serverTime` / `ip`）                                                                            |
+| `ClientEventStatsVO`        | 聚合结果：`total` / `names[]`（`ClientEventNameCount`） / `startTime` / `endTime`                                                            |
+| `PageResultClientEventVO`   | 分页结果，结构同日志域                                                                                                                       |
+| `HealthVO`                  | 健康检查：`status` / `application` / `dependencies`                                                                                          |
+| `R*` 前缀                   | 统一响应包装 `R<T>`：`code` / `message` / `data` / `timestamp`                                                                               |
 
 > **业务失败同样返回 HTTP 200。** 契约的 `description` 里写明了这一点：结果只由 `code` 表达，调用方统一判断 `code === 0`。传输层失败（401/403/404/5xx）由框架按标准返回，不套统一包装。
 
@@ -64,10 +85,10 @@ cd web && pnpm --filter common-api gen:api
 
 产物：
 
-| 文件 | 是否入库 | 说明 |
-|------|----------|------|
-| `docs/api/openapi.json` | ✅ 入库 | 跨端唯一真相源 |
-| `web/packages/common-api/src/generated/schema.d.ts` | ✅ 入库 | 前端类型，**禁止手改** |
+| 文件                                                | 是否入库 | 说明                   |
+| --------------------------------------------------- | -------- | ---------------------- |
+| `docs/api/openapi.json`                             | ✅ 入库  | 跨端唯一真相源         |
+| `web/packages/common-api/src/generated/schema.d.ts` | ✅ 入库  | 前端类型，**禁止手改** |
 
 生成物入库的目的有两个：前端构建不依赖后端可运行；契约变更在 code review 里显式出现为一个 diff。
 
@@ -85,18 +106,22 @@ OPENAPI_PORT=18081 bash scripts/export-openapi.sh
 
 ## 四、契约里"任意值"字段的处理
 
-日志的 `data` / `context` 在后端声明为 `Object`，OpenAPI 的单层 schema 表达不了"任意 JSON"，生成器只能给出保守形态——而且两代生成链给出的形态**都不理想**：
+日志的 `data` / `context` 与事件的 `props` 在后端声明为 `Object`，OpenAPI 的单层 schema 表达不了"任意 JSON"，生成器只能给出保守形态——而且两代生成链给出的形态**都不理想**：
 
-| 生成链 | 对"任意值"的渲染 | 问题 |
-|--------|------------------|------|
-| springdoc 2.x（OpenAPI 3.0） | `Record<string, never>` | 语义是"不允许有任何字段的对象"，`{ orderId: '…' }` 编译期就被拒 |
-| springdoc 3.x（OpenAPI 3.1，**当前**） | `unknown` | 过宽：函数、Symbol 也能通过编译，而它们会让 `JSON.stringify` 抛错，一条脏数据就能让整批上报失败 |
+| 生成链                                 | 对"任意值"的渲染        | 问题                                                                                            |
+| -------------------------------------- | ----------------------- | ----------------------------------------------------------------------------------------------- |
+| springdoc 2.x（OpenAPI 3.0）           | `Record<string, never>` | 语义是"不允许有任何字段的对象"，`{ orderId: '…' }` 编译期就被拒                                 |
+| springdoc 3.x（OpenAPI 3.1，**当前**） | `unknown`               | 过宽：函数、Symbol 也能通过编译，而它们会让 `JSON.stringify` 抛错，一条脏数据就能让整批上报失败 |
 
-因此这一缺口在 `web/packages/common-api/src/types.ts` 用 `JsonValue` **收紧**（既容纳任意 JSON 结构，又挡住不可序列化的值），且只替换 `data` / `context` 两个字段，其余字段继续完全由契约生成。详见 ADR-0006 第 4 条与 ADR-0008 第 5 条。
+因此这一缺口分两处收紧：**类型本体**（`JsonValue` / `JsonArray` / `JsonObject`）与 `sanitize` 函数放在 `web/packages/common-tools/src/json`，`common-api` 只做转出并按字段名替换（日志用 `WithJsonPayload` 换 `data` / `context`，事件用 `WithJsonProps` 换 `props`），其余字段继续完全由契约生成。详见 ADR-0006 第 4 条与 ADR-0008 第 5 条。
 
 > 升到 OpenAPI 3.1 还有一个连带修复：分页结果 `records` 的元素与导出的 `ClientLogVO`
 > 曾不是同一个类型（前者未经收紧）。这个裂缝在 3.0 时代被 `Record<string, never>` 的
 > 可赋值性掩盖，3.1 后立刻变成编译错误——已用 `WithJsonRecords` 修复，并有类型断言钉住。
+>
+> **事件域踩了同一个坑**：分页结果的 `records` 元素、上报请求体的 `events` 数组元素
+> 都未经收紧。**新增任何带"任意 JSON 字段"的域时，这三处（本体 / 分页元素 / 请求体数组元素）
+> 必须一并收紧** —— 只改第一处会被类型系统放过。
 
 ---
 

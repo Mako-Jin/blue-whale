@@ -1,4 +1,5 @@
 import type { components, paths } from './generated/schema';
+import type { JsonArray, JsonObject } from 'common-tools/json';
 
 /**
  * 契约类型工具。
@@ -52,32 +53,17 @@ export type DataOf<T> = EnvelopeOf<T> extends { data?: infer D } ? D : EnvelopeO
 /* ---------------------------------------------------------------- 任意 JSON 值 */
 
 /**
- * 任意 JSON 值。
+ * 任意 JSON 值：{@link JsonValue} / {@link JsonArray} / {@link JsonObject}。
  *
- * <p><b>为什么需要它：</b>契约里"原样透传的日志数据"这类字段，后端声明是 `Object`。
- * OpenAPI 的单层 schema 表达不了"任意 JSON"，只能用空 schema；
- * 而对空 schema 的保守处理就是"不声明形状"，等价于"不知道"。
+ * <p><b>为什么定义在下游的 common-tools、这里只做转出：</b>它们不是契约生成物，
+ * 而是**人工收紧**的产物 —— 契约里"原样透传"的字段声明为 `Object`，生成链给出的
+ * `Record<string, never>`（OpenAPI 3.0）或 `unknown`（3.1）都不合适。
+ * 日志的 `data`/`context` 与事件的 `props` 都要用它，而"把任意值修剪成可序列化形态"
+ * 这个动作（`sanitize`）也必须共用一份，因此类型与函数一起放在 common-tools 侧。
  *
- * <p>这个"不知道"落到 TypeScript 上是什么，两代生成链给出了两种都不理想的答案：
- *   - springdoc 2.x（OpenAPI 3.0）：`Record<string, never>` —— 语义变成
- *     "一个不允许有任何字段的对象"，于是 `{ orderId: 'SO-2026-0001' }`
- *     这种最普通的日志数据在编译期就被拒了；
- *   - springdoc 3.x（OpenAPI 3.1）：`unknown` —— 又过宽了：函数、Symbol、
- *     DOM 节点都能通过编译，而这些恰恰是 `JSON.stringify` 会抛错的东西，
- *     一条脏数据就能让整批上报失败（500 条一起丢）。
- *
- * <p>两种都不合适，所以在这里做一次**收紧**：既容纳任意 JSON 结构，
- * 又挡住不可序列化的值。这是**唯一**需要人工介入的类型位置，
- * 且只作用于确实声明为 `Object` 的字段，其余字段继续完全由契约生成。
+ * <p>完整的取舍过程见 `common-tools/src/json/index.ts` 的注释。
  */
-export type JsonValue =
-  string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
-
-/** 任意 JSON 值的数组，对应契约里的 `data` */
-export type JsonArray = JsonValue[];
-
-/** 任意 JSON 值的对象，对应契约里的 `context` */
-export type JsonObject = { [key: string]: JsonValue };
+export type { JsonArray, JsonObject, JsonValue } from 'common-tools/json';
 
 /**
  * 把模型中的 `data` / `context` 两个字段替换为真正的 JSON 值类型。
@@ -88,4 +74,14 @@ export type JsonObject = { [key: string]: JsonValue };
 export type WithJsonPayload<T> = Omit<T, 'data' | 'context'> & {
   data?: JsonArray;
   context?: JsonObject;
+};
+
+/**
+ * 把模型中的 `props` 字段替换为真正的 JSON 值类型。
+ *
+ * <p>与 {@link WithJsonPayload} 同理，只是字段名不同：行为事件把结构化载荷放在
+ * `props` 里（与日志的 `data` + `context` 对应）。
+ */
+export type WithJsonProps<T> = Omit<T, 'props'> & {
+  props?: JsonObject;
 };

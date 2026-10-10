@@ -6,13 +6,13 @@
 
 ## 一、环境要求
 
-| 工具 | 版本 | 用途 |
-|------|------|------|
-| Node.js | >= 20 | 前端工作区 |
-| pnpm | 10.x（`packageManager` 已锁定 10.33.0） | 前端包管理 |
-| JDK | **21+** | 后端工作区（enforcer 在构建期强制，低于 21 直接失败） |
-| Maven | 3.6.3+ | 后端构建（enforcer 同样检查；已在 3.8.1 验证） |
-| Git | 2.40+ | 版本控制 |
+| 工具    | 版本                                    | 用途                                                  |
+| ------- | --------------------------------------- | ----------------------------------------------------- |
+| Node.js | >= 20                                   | 前端工作区                                            |
+| pnpm    | 10.x（`packageManager` 已锁定 10.33.0） | 前端包管理                                            |
+| JDK     | **21+**                                 | 后端工作区（enforcer 在构建期强制，低于 21 直接失败） |
+| Maven   | 3.6.3+                                  | 后端构建（enforcer 同样检查；已在 3.8.1 验证）        |
+| Git     | 2.40+                                   | 版本控制                                              |
 
 ---
 
@@ -37,10 +37,10 @@ cd server && mvn clean install -DskipTests
 git config core.hooksPath web/.husky
 ```
 
-| 钩子 | 作用 |
-|------|------|
+| 钩子         | 作用                                                                          |
+| ------------ | ----------------------------------------------------------------------------- |
 | `pre-commit` | 对**暂存文件**跑 lint-staged：ESLint --fix、Prettier --write、Stylelint --fix |
-| `commit-msg` | 校验提交信息符合 Conventional Commits，不合规直接拦截 |
+| `commit-msg` | 校验提交信息符合 Conventional Commits，不合规直接拦截                         |
 
 ---
 
@@ -119,13 +119,13 @@ cd web && pnpm install
 
 当前已有的公共包：
 
-| 包 | 内容 |
-|----|------|
-| `common-config` | 共享 ESLint / Stylelint / TypeScript 配置 |
-| `common-tools` | 日志（`logger`）· 环境探测（`env`）· 请求内核（`http`） |
-| `common-api` | 契约包：OpenAPI 生成的类型 + 接口装配 |
+| 包              | 内容                                                                                                                               |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `common-config` | 共享 ESLint / Stylelint / TypeScript 配置                                                                                          |
+| `common-tools`  | 日志（`logger`）· 环境探测（`env`）· 请求内核（`http`）· JSON 安全层（`json`）· 批量上报通道（`report`）· 行为事件内核（`events`） |
+| `common-api`    | 契约包：OpenAPI 生成的类型 + 接口装配                                                                                              |
 
-> `common-tools` 与框架无关（不依赖 React），应用、构建脚本、Node 工具链都能直接用。本地演示：`pnpm --filter common-tools playground`（logger）、`pnpm --filter platform-log-console dev`（日志上报全链路）。
+> `common-tools` 与框架无关（不依赖 React），应用、构建脚本、Node 工具链都能直接用。本地演示：`pnpm --filter common-tools playground`（logger）、`pnpm --filter platform-log-console dev`（日志上报全链路，:3200）、`pnpm --filter platform-event-console dev`（行为事件全链路，:3300）。
 
 ---
 
@@ -140,7 +140,8 @@ cd web && pnpm --filter common-api gen:api   # 3. 重新生成前端类型
 三步的产物（`docs/api/openapi.json` 与 `common-api/src/generated/schema.d.ts`）都入库，且**必须与接口代码同一次提交**。
 
 - 契约由代码生成，**不要手改** `docs/api/openapi.json` 或 `generated/` 下的任何文件；
-- 唯一允许人工介入类型的位置是 `common-api/src/types.ts` 的 `JsonValue` 修正（生成器表达不了"任意值"），细则见 `docs/decisions/0006`；
+- 唯一允许人工介入类型的位置是 `common-api/src/types.ts` 里的**字段替换工具**（`WithJsonPayload` / `WithJsonProps`，生成器表达不了"任意值"）。`JsonValue` 等类型本体与 `sanitize` 函数住在 `common-tools/json`，本包只做转出。细则见 `docs/decisions/0006`；
+- **新增带"任意 JSON 字段"的域时，三处都要收紧**：类型本体、分页结果的 `records` 元素、请求体的数组元素。只改第一处会被类型系统放过，然后在跨域取值时以 `unknown` 的形态暴露出来；
 - 前端调用接口一律走 `common-api`，**禁止**直接 `fetch`。
 
 ---
@@ -198,12 +199,12 @@ BW_DB_USERNAME=<用户> BW_DB_PASSWORD=<密码> java -jar sts-app/sts-app-server
 
 ## 九、目录归属速查
 
-| 我想加… | 放哪 |
-|---------|------|
-| 一个新的前端应用 | `web/platform/<应用名>/` |
-| 一个跨应用复用的前端包 | `web/packages/common-<名字>/` |
-| 一个新的后端业务模块 | `server/` 下按层次归位，规则见 `docs/decisions/0005` |
-| 一个新的后端接口 | `sts-server-<域>` 的对应特性包内，随后走第七节流程更新契约 |
-| 一份架构决策 | `docs/decisions/NNNN-短标题.md` |
-| 一个跨端脚本 | `scripts/` |
-| 一份部署 / CI 配置 | `infra/` |
+| 我想加…                | 放哪                                                       |
+| ---------------------- | ---------------------------------------------------------- |
+| 一个新的前端应用       | `web/platform/<应用名>/`                                   |
+| 一个跨应用复用的前端包 | `web/packages/common-<名字>/`                              |
+| 一个新的后端业务模块   | `server/` 下按层次归位，规则见 `docs/decisions/0005`       |
+| 一个新的后端接口       | `sts-server-<域>` 的对应特性包内，随后走第七节流程更新契约 |
+| 一份架构决策           | `docs/decisions/NNNN-短标题.md`                            |
+| 一个跨端脚本           | `scripts/`                                                 |
+| 一份部署 / CI 配置     | `infra/`                                                   |

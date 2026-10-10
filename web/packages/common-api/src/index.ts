@@ -30,8 +30,23 @@ export type {
   LogApi,
 } from './log';
 
+export { createEventApi } from './events';
+export type {
+  ClientEventItem,
+  ClientEventNameCount,
+  ClientEventPage,
+  ClientEventQuery,
+  ClientEventReportBody,
+  ClientEventReportRequest,
+  ClientEventReportResult,
+  ClientEventStats,
+  ClientEventStatsQuery,
+  ClientEventVO,
+  EventApi,
+} from './events';
+
 export { createSystemApi } from './system';
 export type { Health, HealthDependencyStatus, SystemApi } from './system';
 
 export type { ApiPaths, ApiSchemas, BodyOf, DataOf, EnvelopeOf, PathOf, QueryOf } from './types';
-export type { JsonArray, JsonObject, JsonValue, WithJsonPayload } from './types';
+export type { JsonArray, JsonObject, JsonValue, WithJsonPayload, WithJsonProps } from './types';

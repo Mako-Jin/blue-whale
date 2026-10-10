@@ -75,6 +75,11 @@
                 <artifactId>sts-server-log</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>com.bluewhale.sts.server</groupId>
+                <artifactId>sts-server-track</artifactId>
+                <version>${project.version}</version>
+            </dependency>
 
             <!-- ===== 第三方：只声明版本，不在此处引入依赖 ===== -->
             <!--

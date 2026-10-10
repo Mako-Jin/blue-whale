@@ -19,6 +19,10 @@
     {
       "name": "系统",
       "description": "服务自身状态"
+    },
+    {
+      "name": "客户端行为事件",
+      "description": "接收前端上报的行为事件、查询与按事件名聚合"
     }
   ],
   "paths": {
@@ -176,6 +180,150 @@
         }
       }
     },
+    "/api/events/client": {
+      "get": {
+        "tags": [
+          "客户端行为事件"
+        ],
+        "summary": "分页查询客户端行为事件",
+        "description": "按服务端接收时间倒序。时间窗缺省为最近 7 天。",
+        "operationId": "page_1",
+        "parameters": [
+          {
+            "name": "app",
+            "in": "query",
+            "description": "上报方应用标识",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "上报方应用标识"
+            }
+          },
+          {
+            "name": "eventName",
+            "in": "query",
+            "description": "事件名精确匹配，形如 order.submit",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "事件名精确匹配，形如 order.submit"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "query",
+            "description": "登录用户标识精确匹配",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "登录用户标识精确匹配"
+            }
+          },
+          {
+            "name": "deviceId",
+            "in": "query",
+            "description": "匿名设备标识精确匹配",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "匿名设备标识精确匹配"
+            }
+          },
+          {
+            "name": "sessionId",
+            "in": "query",
+            "description": "会话标识精确匹配",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "会话标识精确匹配"
+            }
+          },
+          {
+            "name": "startTime",
+            "in": "query",
+            "description": "起始时间（毫秒，含）；缺省为 endTime 之前 7 天",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "description": "起始时间（毫秒，含）；缺省为 endTime 之前 7 天"
+            }
+          },
+          {
+            "name": "endTime",
+            "in": "query",
+            "description": "结束时间（毫秒，含）；缺省为当前时间",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "description": "结束时间（毫秒，含）；缺省为当前时间"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RPageResultClientEventVO"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "客户端行为事件"
+        ],
+        "summary": "批量上报客户端行为事件",
+        "description": "单批最多 500 条。信封级错误整批拒绝（40000）；条目级错误逐条跳过并在返回值中计数。",
+        "operationId": "report_1",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientEventReportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RClientEventReportResultVO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/logs/client/{id}": {
       "get": {
         "tags": [
@@ -319,6 +467,95 @@
           }
         }
       }
+    },
+    "/api/events/client/{id}": {
+      "get": {
+        "tags": [
+          "客户端行为事件"
+        ],
+        "summary": "查询事件详情",
+        "operationId": "detail_1",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "事件主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RClientEventVO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/events/client/stats": {
+      "get": {
+        "tags": [
+          "客户端行为事件"
+        ],
+        "summary": "按事件名聚合统计",
+        "description": "返回时间窗内的总条数与各事件名分布，只包含出现过的名称。",
+        "operationId": "stats_1",
+        "parameters": [
+          {
+            "name": "app",
+            "in": "query",
+            "description": "上报方应用标识",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "上报方应用标识"
+            }
+          },
+          {
+            "name": "startTime",
+            "in": "query",
+            "description": "起始时间（毫秒，含）；缺省为 endTime 之前 7 天",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "description": "起始时间（毫秒，含）；缺省为 endTime 之前 7 天"
+            }
+          },
+          {
+            "name": "endTime",
+            "in": "query",
+            "description": "结束时间（毫秒，含）；缺省为当前时间",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "description": "结束时间（毫秒，含）；缺省为当前时间"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RClientEventStatsVO"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -442,6 +679,132 @@
           },
           "data": {
             "$ref": "#/components/schemas/ClientLogReportResultVO"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ClientEventItem": {
+        "type": "object",
+        "description": "单条客户端行为事件",
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "description": "客户端生成的事件唯一 id，用于幂等去重",
+            "example": "01J8Z0QW7X9K3M"
+          },
+          "eventName": {
+            "type": "string",
+            "description": "事件名，小写点分、至少两段，形如 order.submit",
+            "example": "order.submit"
+          },
+          "userId": {
+            "type": "string",
+            "description": "登录用户标识，未登录时为空"
+          },
+          "deviceId": {
+            "type": "string",
+            "description": "匿名设备标识"
+          },
+          "sessionId": {
+            "type": "string",
+            "description": "会话标识"
+          },
+          "route": {
+            "type": "string",
+            "description": "触发事件时的路由"
+          },
+          "release": {
+            "type": "string",
+            "description": "应用版本 / 构建号"
+          },
+          "props": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "事件属性"
+          },
+          "propsVersion": {
+            "type": "integer",
+            "format": "int32",
+            "description": "属性结构版本，props 结构变化必须递增",
+            "example": 1
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64",
+            "description": "客户端时间戳（毫秒），服务端仅作参考不用于排序"
+          }
+        }
+      },
+      "ClientEventReportRequest": {
+        "type": "object",
+        "description": "客户端行为事件批量上报请求",
+        "properties": {
+          "app": {
+            "type": "string",
+            "description": "上报方应用标识",
+            "example": "platform-web",
+            "maxLength": 64,
+            "minLength": 0
+          },
+          "release": {
+            "type": "string",
+            "description": "应用版本 / 构建号",
+            "example": "0.1.0",
+            "maxLength": 64,
+            "minLength": 0
+          },
+          "sessionId": {
+            "type": "string",
+            "description": "会话标识，批次级默认值",
+            "maxLength": 64,
+            "minLength": 0
+          },
+          "events": {
+            "type": "array",
+            "description": "事件条目，单批最多 500 条",
+            "items": {
+              "$ref": "#/components/schemas/ClientEventItem"
+            },
+            "maxItems": 500,
+            "minItems": 0
+          }
+        },
+        "required": [
+          "app",
+          "events"
+        ]
+      },
+      "ClientEventReportResultVO": {
+        "type": "object",
+        "description": "批量上报结果",
+        "properties": {
+          "accepted": {
+            "type": "integer",
+            "format": "int32",
+            "description": "成功落库的条数"
+          },
+          "rejected": {
+            "type": "integer",
+            "format": "int32",
+            "description": "被拒绝的条数（事件名为空 / 长度超限 / 格式非法等）"
+          }
+        }
+      },
+      "RClientEventReportResultVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ClientEventReportResultVO"
           },
           "timestamp": {
             "type": "integer",
@@ -702,6 +1065,197 @@
           },
           "data": {
             "$ref": "#/components/schemas/HealthVO"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ClientEventVO": {
+        "type": "object",
+        "description": "客户端行为事件",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "事件主键"
+          },
+          "eventId": {
+            "type": "string",
+            "description": "客户端生成的事件唯一 id"
+          },
+          "eventName": {
+            "type": "string",
+            "description": "事件名"
+          },
+          "app": {
+            "type": "string",
+            "description": "上报方应用标识"
+          },
+          "userId": {
+            "type": "string",
+            "description": "登录用户标识"
+          },
+          "deviceId": {
+            "type": "string",
+            "description": "匿名设备标识"
+          },
+          "sessionId": {
+            "type": "string",
+            "description": "会话标识"
+          },
+          "route": {
+            "type": "string",
+            "description": "触发事件时的路由"
+          },
+          "release": {
+            "type": "string",
+            "description": "应用版本 / 构建号"
+          },
+          "props": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "事件属性"
+          },
+          "propsVersion": {
+            "type": "integer",
+            "format": "int32",
+            "description": "属性结构版本"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64",
+            "description": "客户端时间戳（毫秒），不可信，仅供展示"
+          },
+          "serverTime": {
+            "type": "integer",
+            "format": "int64",
+            "description": "服务端接收时间戳（毫秒）"
+          },
+          "ip": {
+            "type": "string",
+            "description": "上报方 IP"
+          }
+        }
+      },
+      "PageResultClientEventVO": {
+        "type": "object",
+        "properties": {
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClientEventVO"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pages": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "RPageResultClientEventVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageResultClientEventVO"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "RClientEventVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ClientEventVO"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ClientEventNameCount": {
+        "type": "object",
+        "properties": {
+          "eventName": {
+            "type": "string"
+          },
+          "eventNameCount": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ClientEventStatsVO": {
+        "type": "object",
+        "description": "客户端行为事件聚合结果",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "description": "时间窗内总条数"
+          },
+          "startTime": {
+            "type": "integer",
+            "format": "int64",
+            "description": "实际生效的起始时间（毫秒）"
+          },
+          "endTime": {
+            "type": "integer",
+            "format": "int64",
+            "description": "实际生效的结束时间（毫秒）"
+          },
+          "names": {
+            "type": "array",
+            "description": "按事件名分布，只包含时间窗内出现过的名称",
+            "items": {
+              "$ref": "#/components/schemas/ClientEventNameCount"
+            }
+          }
+        }
+      },
+      "RClientEventStatsVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ClientEventStatsVO"
           },
           "timestamp": {
             "type": "integer",

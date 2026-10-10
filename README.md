@@ -24,11 +24,12 @@ web/
 ├── eslint.config.js      工作区根 ESLint 配置（lint-staged 依赖它）
 ├── packages/             公共包（common-* 前缀）
 │   ├── common-config         共享 ESLint / Stylelint / TypeScript 配置
-│   ├── common-tools          公共能力包：日志（logger）· 环境探测（env）· 请求内核（http）
+│   ├── common-tools          公共能力包：日志 · 环境探测 · 请求内核 · JSON 安全层 · 批量通道 · 行为事件内核
 │   └── common-api            契约包：由 docs/api/openapi.json 生成的类型 + 接口装配
 ├── platform/             平台级应用
 │   ├── platform-portal       主应用（qiankun 容器，负责挂载与导航）
-│   └── platform-log-console  日志控制台（端到端演示：上报 → 落库 → 查询）
+│   ├── platform-log-console  日志控制台（端到端演示：上报 → 落库 → 查询）
+│   └── platform-event-console 行为事件控制台（端到端演示：埋点 → 上报 → 落库 → 分析查询）
 └── elemental/            通用元素（预留）
 ```
 
@@ -36,7 +37,7 @@ web/
 
 **微前端结构**：`platform-portal` 是唯一的容器应用，负责登录态、导航骨架与子应用挂载；用户端与管理端作为互相隔离的子应用接入，各自独立构建、独立发布。
 
-`packages/common-tools` 与框架无关（不依赖 React），应用、构建脚本、Node 工具链都能直接使用。本地演示：`pnpm --filter common-tools playground`（logger，:3100）、`pnpm --filter platform-log-console dev`（日志上报全链路，:3200，需后端在 :8080）。
+`packages/common-tools` 与框架无关（不依赖 React），应用、构建脚本、Node 工具链都能直接使用。本地演示：`pnpm --filter common-tools playground`（logger，:3100）、`pnpm --filter platform-log-console dev`（日志上报全链路，:3200，需后端在 :8080）、`pnpm --filter platform-event-console dev`（行为事件全链路，:3300，需后端在 :8080）。
 
 ---
 
@@ -94,19 +95,20 @@ server/  ──生成──▶  docs/api/openapi.json  ──生成──▶  we
 
 ## 五、技术栈
 
-| 端 | 选型 |
-|----|------|
-| 前端 | React 19 + Vite 8 + TypeScript 6.0.3 + React Router 7 |
-| 微前端 | qiankun 2.x |
-| 前端工程 | pnpm workspace + Turborepo |
-| 样式 | Less（设计令牌注入） |
-| 代码规范 | ESLint 10 + Prettier 3 + Stylelint 17 + commitlint + Husky + Vitest |
-| 后端 | Java 21 + Spring Boot 4.1（Spring Framework 7 · Tomcat 11 · Jackson 3） |
-| 后端构建 | Maven 多模块（聚合根 `server/pom.xml`，enforcer 强制 JDK 21+） |
-| 数据访问 | MyBatis-Plus 3.5.17（H2 内存库为默认，可切本机 MySQL / 达梦 DM8） |
-| 表结构管理 | Flyway 12（迁移脚本按数据库厂商分目录；达梦无官方模块，改走交付脚本，见 ADR-0010） |
-| 后端接口文档 | springdoc-openapi 3.1.1（`/swagger-ui.html`） |
-| 接口契约 | OpenAPI 3.1（`docs/api/`，由代码生成） |
+| 端           | 选型                                                                                                                                          |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| 前端         | React 19 + Vite 8 + TypeScript 6.0.3 + React Router 7                                                                                         |
+| 微前端       | qiankun 2.x                                                                                                                                   |
+| 前端工程     | pnpm workspace + Turborepo                                                                                                                    |
+| 样式         | Less（设计令牌注入）                                                                                                                          |
+| 代码规范     | ESLint 10 + Prettier 3 + Stylelint 17 + commitlint + Husky + Vitest                                                                           |
+| 后端         | Java 21 + Spring Boot 4.1（Spring Framework 7 · Tomcat 11 · Jackson 3）                                                                       |
+| 后端构建     | Maven 多模块（聚合根 `server/pom.xml`，enforcer 强制 JDK 21+）                                                                                |
+| 数据访问     | MyBatis-Plus 3.5.17（H2 内存库为默认，可切本机 MySQL / 达梦 DM8）                                                                             |
+| 表结构管理   | Flyway 12（迁移脚本按数据库厂商分目录，**版本号全仓唯一**；达梦无官方模块，改走交付脚本，见 ADR-0010）                                        |
+| 前端埋点     | `common-tools/events` 语义化 `track()` + 内部总线（中间件：补齐上下文 / 屏蔽 / 脱敏）；上报复用 `common-tools/report` 的批量通道，见 ADR-0011 |
+| 后端接口文档 | springdoc-openapi 3.1.1（`/swagger-ui.html`）                                                                                                 |
+| 接口契约     | OpenAPI 3.1（`docs/api/`，由代码生成）                                                                                                        |
 
 > TypeScript 锁定在 **6.0.3**：`typescript-eslint` 的 peer 约束为 `<6.1.0`，7.x 尚不被支持。
 
@@ -148,11 +150,20 @@ BW_DB_USERNAME=<用户> BW_DB_PASSWORD=<密码> java -jar sts-app/sts-app-server
 cd web && pnpm install                           # prepare 钩子会自动挂载 Git 钩子
 pnpm dev --filter platform-portal                # 主应用
 pnpm dev --filter platform-log-console           # 日志控制台（:3200，需后端在 :8080）
+pnpm dev --filter platform-event-console         # 行为事件控制台（:3300，需后端在 :8080）
 ```
 
 ### 日志端到端演示
 
 启动后端与日志控制台后，打开 <http://127.0.0.1:3200>：左栏点级别按钮产生日志，等自动上报后右栏就会出现同样的记录 —— 左边产生、右边出现，链路才算打通。
+
+### 行为事件端到端演示
+
+启动后端与行为事件控制台后，打开 <http://127.0.0.1:3300>：左栏点「触发语义化事件」产生埋点，等自动上报后右栏按事件名聚合与明细分页就会刷新。左栏还可以现场演示三件事：
+
+- **身份缝合** —— 点「登录」后新产生的事件立刻带上 `userId`，而 `deviceId` 不变：两者同时挂在新事件上，分析侧才能把匿名期与登录期并成同一个人
+- **脱敏** —— 点「查看联系方式」，`phone` / `email` 在**离开浏览器之前**就被打码，明文从未出现在任何一次请求里
+- **屏蔽** —— 点某个事件的 chip，命中后该事件在进入缓冲之前就被丢弃，左栏不会出现、服务端更不会收到
 
 ### Git 钩子
 
@@ -171,12 +182,12 @@ git config core.hooksPath web/.husky
 
 ## 七、文档与约定
 
-| 文档 | 内容 |
-|------|------|
-| `docs/README.md` | 文档规范：「改动 → 需同步哪些文档」对照表 |
-| `CONTRIBUTING.md` | 环境、Git 钩子、提交规范、目录归属速查 |
-| `AGENTS.md` | AI 助手协作约定 |
-| `docs/decisions/` | 架构决策记录（ADR） |
+| 文档              | 内容                                      |
+| ----------------- | ----------------------------------------- |
+| `docs/README.md`  | 文档规范：「改动 → 需同步哪些文档」对照表 |
+| `CONTRIBUTING.md` | 环境、Git 钩子、提交规范、目录归属速查    |
+| `AGENTS.md`       | AI 助手协作约定                           |
+| `docs/decisions/` | 架构决策记录（ADR）                       |
 
 **核心要求：改代码必须同步改文档，且在同一次提交里完成。**
 

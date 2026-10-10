@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.bluewhale.sts.server</groupId>
+        <artifactId>sts-server</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <!--
+      groupId / version 均从父模块继承，这里只写 artifactId ——
+      与 sts-server-log 一致：版本号全仓只出现一处（sts-parent），
+      子模块重复声明只会制造"两处不一致"的可能。
+    -->
+    <artifactId>sts-server-track</artifactId>
+
+    <name>sts-server-track</name>
+    <description>行为事件域服务：接收客户端上报的行为事件、落库、查询与聚合</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.bluewhale.sts.common</groupId>
+            <artifactId>sts-common-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.bluewhale.sts.common</groupId>
+            <artifactId>sts-common-db</artifactId>
+        </dependency>
+
+        <!--
+          服务模块自己声明 Web 依赖，不从 sts-common-web 传递 ——
+          后者用的是 provided 范围（它只提供"契约"，不提供"运行时"），
+          这是有意的：谁需要运行时谁声明，依赖树才说得清。
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>
