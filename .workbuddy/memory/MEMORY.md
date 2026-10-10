@@ -4,18 +4,19 @@
 
 ## 1 铁律与工作空间
 
-- 工作空间 **`F:\workspace\blue-whale`**（旧址 `D:\workspace\BlueWhale` 已迁走，勿再引用）；分支 `main`；远端 `github.com/Mako-Jin/blue-whale`
+- 分支 `main`；远端 **`github.com/Mako-Jin/blue-whale`**（2026-10-10 首推，现已转私有）。**分机布局差异**：另一台机器在 `F:\workspace\blue-whale`（在那台机器上旧址 `D:\workspace\BlueWhale` 已迁走）；**本机没有 F 盘**，工作空间仍是 `D:\workspace\BlueWhale`，Maven 本地仓库 `D:\repository\maven`
 - `web/`（pnpm）· `server/`（Maven，包名 `com.bluewhale.sts`）· `docs/ scripts/ infra/`（横向层）
 - 结构范本（舰长指定）：`D:\workspace\platform-terminator`（前端）、`D:\workspace\SystemTerminator`（后端）
 - **六条铁律**：① 两端不共用构建 ② 跨端只认 OpenAPI 契约（前端 SDK 禁手写）③ 跨端共享物只放 `docs/` ④ `packages/*` 不反向依赖 `platform/*` ⑤ `platform-user` / `admin` 互不引用，复用下沉 `packages/` ⑥ 后端禁反向依赖与跨层跳跃
 - **每步完善文档**：对照表 `docs/README.md`；改代码同步改文档，同一次提交。Husky 脚本在 `web/.husky`（自动装报 `spawn git EBUSY`）；`.gitattributes` 强制 LF；Conventional Commits
 - **当前工作空间 `core.hooksPath` 未设置** → 钩子**不生效**，`pnpm lint-staged` / `commitlint` 都不跑（只有 `.sample`）。提交信息全靠手工守规，别以为被拦过
+- HTTPS 凭据在 `~/.git-credentials`（store 助手）；**绝不要用命令行解析该文件**（`cut` / `sed` / `grep` / `cat` 都会把明文令牌打进输出，已踩过）；`helper-selector` 助手在非交互环境会卡住 → 无人值守操作加 `-c credential.helper= -c credential.helper=store`
 
 ## 2 坑表（已查清，勿再排查）
 
 **环境** —— 一律用 **Bash**（PowerShell 在本沙箱不可用）· Node `spawn git`→`EBUSY`、`turbo run`→`os error 231`（逐包直跑正常）· 后端报 Port 56491 → 沙箱注入 `SERVER__PORT`，用 `--server.port=8080` 覆盖 · `curl localhost` 报 upstream connect failed → 加 `--noproxy '*'` · dev server 用 `&` 会被杀 → 长驻服务必须后台任务起 · 废弃 Chrome 占 CDP 端口 → 换端口 / `taskkill`
 
-**后端** —— 构建必须 `JAVA_HOME="D:/tools/installer/jdk/java21" mvn …`（PATH 上是 JDK 17；权限域另记 `D:/java`，两处都以 `mvn -v` 实测为准）· `mvn clean` 报文件占用 → `jps -l` 找 PID + `taskkill //F //PID` · Maven 本地仓库 **`F:\respository\maven`（拼写是 respository）**，Maven 在 `D:\maven`
+**后端** —— 构建必须 `JAVA_HOME="D:/tools/installer/jdk/java21" mvn …`（PATH 上是 JDK 17；权限域另记 `D:/java`，两处都以 `mvn -v` 实测为准）· `mvn clean` 报文件占用 → `jps -l` 找 PID + `taskkill //F //PID` · Maven 本地仓库分机不同：一台在 **`F:\respository\maven`（拼写是 respository）**、Maven 装在 `D:\maven`；本机在 `D:\repository\maven`
 
 **前端** —— stylelint `extends` 须 `require.resolve` 转绝对路径 · TS 6 起 `baseUrl` 弃用 · ESLint 10 flat config 须默认导出数组 · ESLint 只从 cwd 向上找配置 → 工作区根也要 `eslint.config.js` · typescript-eslint 须显式 `tsconfigRootDir`
 
