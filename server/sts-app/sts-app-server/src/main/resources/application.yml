@@ -11,32 +11,35 @@ spring:
     name: bluewhale-server
 
   # ---------------------------------------------------------------------------
-  # 数据源：H2 内存库（开发 / 演示）。零外部依赖，clone 下来就能跑。
-  # 换生产库时只改这几行 + 换驱动依赖，代码不动 —— 这是 sts-common-db 不写死 DbType 的原因。
+  # 默认 profile：h2（内存库）。零外部依赖，clone 下来 pnpm/mvn 一把就能跑起来。
   #
-  # MODE=MySQL          ：语法尽量贴近 MySQL，减少换库时的意外
-  # DATABASE_TO_LOWER   ：标识符统一小写，避免大小写敏感带来的"本地能跑、线上报表不存在"
-  # DB_CLOSE_DELAY=-1   ：最后一个连接关闭后不销毁库，否则连接池回收一次数据就没了
+  # 要连本机 MySQL，显式切过去：
+  #   --spring.profiles.active=mysql        （见 application-mysql.yml）
+  #
+  # 为什么用 profile 而不是"改几行配置"：
+  #   两种库要同时存在 —— 新人 / CI 不该被迫先装一个数据库，而真实联调又需要
+  #   数据能持久化。profile 让"用哪个库"成为一个**启动参数**，而不是一份
+  #   需要手工切换、切错了还看不出来的文件状态。
   # ---------------------------------------------------------------------------
-  datasource:
-    url: jdbc:h2:mem:bluewhale;DB_CLOSE_DELAY=-1;MODE=MySQL;DATABASE_TO_LOWER=TRUE
-    driver-class-name: org.h2.Driver
-    username: sa
-    password: ""
+  profiles:
+    active: h2
 
-  # 建表脚本在各领域模块内自带（classpath:db/schema/*.sql），应用负责把它们列出来。
-  # 显式列出而非用通配符：这样"这个库到底有哪些表"能直接从配置读出来。
-  # 生产环境的表结构变更将交给迁移工具（Flyway），不靠这一机制 —— 见 docs/decisions/0006。
-  sql:
-    init:
-      mode: always
-      schema-locations:
-        - classpath:db/schema/client-log.sql
-
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
+  # ---------------------------------------------------------------------------
+  # 表结构变更统一交给 Flyway，不再使用 spring.sql.init。
+  #
+  # 为什么换：`spring.sql.init` 每次启动都无条件重放脚本，只能表达"建表"，
+  # 表达不了"改表"——线上要给已有表加一列，它无能为力。Flyway 用
+  # schema_history 表记录已执行的版本，追加一个 V2__xxx.sql 就能演进。
+  #
+  # 迁移脚本由**领域模块自带**（谁拥有表结构谁写脚本），
+  # 具体目录在各自 profile 里指定 —— 按数据库厂商分目录，各写各的原生方言。
+  # 详见 docs/decisions/0009。
+  # ---------------------------------------------------------------------------
+  flyway:
+    enabled: true
+    # 已发布脚本的内容一旦变化，校验和不匹配会让启动直接失败。
+    # 这是**特性不是麻烦**：迁移脚本是历史，改了历史就该新增一条，不是覆盖它。
+    validate-on-migrate: true
 
 mybatis-plus:
   configuration:

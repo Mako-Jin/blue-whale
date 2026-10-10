@@ -41,7 +41,30 @@ public class ClientLogEntity {
 
     private String route;
 
-    private String release;
+    /**
+     * 发布版本号。对外（JSON / VO）字段名是 {@code release}，数据库列是 {@code app_release}。
+     *
+     * <p><b>为什么不叫 release：</b>{@code RELEASE} 是 MySQL 8 的保留字
+     * （见 {@code RELEASE SAVEPOINT}），拿它当列名会直接报 ERROR 1064；
+     * 而 H2 不认这个保留字。也就是说用 {@code release} 做列名会表现为
+     * "H2 上一切正常、切到 MySQL 就崩"，是只在其中一个库上暴露的隐雷。
+     *
+     * <p><b>为什么属性名也要改：</b>这里踩过一个更深的坑 ——
+     * 最初保留 JSON 名 {@code release} 做属性、只用 {@code @TableField("app_release")}
+     * 指定列名，结果 MyBatis-Plus 发现"列名与属性名不一致"，**自动补了别名**：
+     * {@code app_release AS release}。别名又把保留字带回来了，MySQL 依然 1064。
+     * 对照同一句 SQL 里的 {@code trace_id}、{@code data_json} 都没有别名 ——
+     * 因为它们的下划线形式与属性名天然对应，MP 无需补别名。
+     *
+     * <p>所以正确做法是让属性名与列名走**同一套推导**：属性叫 {@code appRelease}，
+     * 由全局的 {@code map-underscore-to-camel-case} 推导出 {@code app_release}，
+     * 与 {@code traceId → trace_id} 完全同构，不产生别名。
+     * 加 {@code @TableField} 反而会重新触发别名逻辑，因此**刻意不加**。
+     *
+     * <p>对外字段名不受影响：VO 与契约里的 {@code release} 保持不变，
+     * 映射在 {@code ClientLogService#toVO} 里显式完成。
+     */
+    private String appRelease;
 
     /** 客户端时间戳，仅供展示 */
     private Long clientTime;

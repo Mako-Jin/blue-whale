@@ -99,7 +99,8 @@ class ClientLogServiceTest {
         verify(clientLogMapper).insertBatch(captor.capture());
         ClientLogEntity saved = captor.getValue().get(0);
         assertThat(saved.getSessionId()).isEqualTo("envelope-session");
-        assertThat(saved.getRelease()).isEqualTo("9.9.9");
+        // 实体属性名是 appRelease（列名 app_release），不是 release —— 见 ClientLogEntity 注释
+        assertThat(saved.getAppRelease()).isEqualTo("9.9.9");
     }
 
     @Test

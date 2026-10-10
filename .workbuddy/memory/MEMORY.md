@@ -25,6 +25,7 @@
 - 微前端 qiankun 2.x；包管理 pnpm workspace + Turborepo；样式 Less
 - 规范：ESLint 10（flat config）+ Prettier 3 + Stylelint 17 + commitlint/Husky/lint-staged + Vitest 5
 - 后端：Java 21（enforcer 强制）+ Spring Boot 4.1.1（Spring 7 · Tomcat 11 · Jackson 3）+ MyBatis-Plus 3.5.17（Maven 多模块）
+- 数据源：H2 内存库（默认 profile）+ 本机 MySQL 8.0.26（`mysql` profile）；表结构由 **Flyway 12** 管理
 - 契约：OpenAPI 3.1（`docs/api/`，springdoc 3.1.1 生成）
 
 ## Spring Boot 4 升级要点（2026-10-09 定 · ADR-0008）
@@ -92,6 +93,23 @@ server/  pom.xml(聚合) → sts-parent
 - `sts-common-db`：MyBatis-Plus 3.5.17 拦截器（坐标 `mybatis-plus-spring-boot4-starter`）；**分页/防全表更新需另引 `mybatis-plus-jsqlparser`**，漏引运行时才报错
 - 模块内按**特性（feature）分包**（`clientlog/` 下 Controller/Service/Mapper/VO），**不用** `controller/service/repository` 顶层分包
 - `sts-components/` **尚未创建**，按需再建，不预置空壳
+
+## 数据源与迁移（2026-10-10 定 · ADR-0009）
+- **双 profile**：`h2`（默认，内存库，零依赖可跑）+ `mysql`（本机 MySQL，数据落盘）；切换是**启动参数**不是改文件
+  - `BW_DB_PASSWORD=xxx java -jar … --spring.profiles.active=mysql`
+  - 库名 `bluewhale`（utf8mb4 / utf8mb4_0900_ai_ci），已在本机 MySQL 8.0.26 上建好；本机还有另一个项目的 11 个库（`yc-sts-db-*` / `sts-db-*`），**勿动**
+  - 密码走环境变量 `BW_DB_PASSWORD`，不进 git（ADR-0003）
+- **建表机制 = Flyway 12**（不再是 `spring.sql.init`）：脚本放表结构所属模块
+  `src/main/resources/db/migration/{h2,mysql}/V<n>__xxx.sql`，`spring.flyway.locations` 按 profile 指向厂商目录；脚本内**不写** `IF NOT EXISTS`（会掩盖"表在但结构不对"）
+- **两个必踩的依赖坑**（都是 H2 正常、切库才炸）：
+  - `flyway-mysql` 必须显式引 —— Flyway 10 起数据库支持模块化，core 只内置 H2/SQLite，缺了报 `Unsupported Database: MySQL 8.0`
+  - `mysql-connector-j`（Boot 纳管 9.7.0）runtime 范围，放 `sts-app-server`
+- **MySQL 保留字陷阱（最重要）**：`release` 是 MySQL 8 保留字、H2 不认 → 列名必须避开常见保留字（`release`/`rank`/`groups`/`system`/`window`）
+  - **且不能只改列名**：MP 发现"列名 ≠ 属性名"会自动补 `列名 AS 属性名`，别名撞保留字照样 1064
+  - 正解：**属性名与列名同构**（`appRelease` ← 推导 `app_release`，与 `traceId → trace_id` 一致），**刻意不加 `@TableField`**；对外字段仍是 `release`
+  - 守卫：`ClientLogEntityMappingTest` 直接断言生成的 SQL 含 `app_release`、不含 `AS release`（H2 测不出来，只能对生成物断言）
+- **迁移脚本一旦执行过就不能改**（校验和不匹配拒绝启动）；本地重建库绕过，有数据的环境新增 V2
+- `#{it.xxx}` 这类 OGNL 属性引用**编译器管不到**，实体改属性名后要全局搜一遍
 
 ## 契约链（2026-10-09 定 · ADR-0006）
 - 代码 → springdoc → `scripts/export-openapi.sh`（端口 18080）→ `docs/api/openapi.json` → `openapi-typescript` → `common-api/src/generated/schema.d.ts`

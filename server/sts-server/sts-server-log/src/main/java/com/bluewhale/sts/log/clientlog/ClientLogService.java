@@ -89,7 +89,7 @@ public class ClientLogService {
             // 条目级字段优先，缺省回落到信封级 —— 让"整批同源"这一常见情形不必逐条重复
             entity.setSessionId(truncate(firstNonBlank(item.getSessionId(), request.getSessionId()), 64));
             entity.setRoute(truncate(item.getRoute(), 512));
-            entity.setRelease(truncate(firstNonBlank(item.getRelease(), request.getRelease()), 64));
+            entity.setAppRelease(truncate(firstNonBlank(item.getRelease(), request.getRelease()), 64));
             entity.setClientTime(item.getTimestamp());
             entity.setServerTime(serverTime);
             entity.setIp(truncate(ip, 64));
@@ -215,7 +215,9 @@ public class ClientLogService {
         vo.setTraceId(entity.getTraceId());
         vo.setSessionId(entity.getSessionId());
         vo.setRoute(entity.getRoute());
-        vo.setRelease(entity.getRelease());
+        // 实体属性叫 appRelease（列名 app_release），对外仍是 release，
+        // 差异原因见 ClientLogEntity 的字段注释 —— 这里显式映射而不是靠属性名自动拷贝
+        vo.setRelease(entity.getAppRelease());
         vo.setTimestamp(entity.getClientTime());
         vo.setServerTime(entity.getServerTime());
         vo.setIp(entity.getIp());

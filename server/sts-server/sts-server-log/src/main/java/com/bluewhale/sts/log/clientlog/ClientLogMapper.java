@@ -63,11 +63,11 @@ public interface ClientLogMapper extends BaseMapper<ClientLogEntity> {
             <script>
             INSERT INTO bw_client_log
                 (app, level, namespace, message, data_json, context_json,
-                 trace_id, session_id, route, release, client_time, server_time, ip)
+                 trace_id, session_id, route, app_release, client_time, server_time, ip)
             VALUES
             <foreach collection="list" item="it" separator=",">
                 (#{it.app}, #{it.level}, #{it.namespace}, #{it.message}, #{it.dataJson}, #{it.contextJson},
-                 #{it.traceId}, #{it.sessionId}, #{it.route}, #{it.release}, #{it.clientTime},
+                 #{it.traceId}, #{it.sessionId}, #{it.route}, #{it.appRelease}, #{it.clientTime},
                  #{it.serverTime}, #{it.ip})
             </foreach>
             </script>

@@ -73,6 +73,11 @@ class ClientLogApiTest {
                 .andExpect(jsonPath("$.data[1].context.userId").value("u-1"))
                 // 信封级元数据回填到了条目上
                 .andExpect(jsonPath("$.data[0].sessionId").value("session-1"))
+                // 这条断言看着普通，实则是 release 字段的**唯一守卫**：
+                // 它在数据库里的列名是 app_release（RELEASE 是 MySQL 保留字，
+                // 见 ClientLogEntity 的 @TableField 注释），靠注解做映射。
+                // 映射一旦写错，这条会立刻失败 —— 否则要等到换用 MySQL 时才发现，
+                // 而那时 H2 上的一切测试都还是绿的。
                 .andExpect(jsonPath("$.data[0].release").value("0.1.0"));
     }
 

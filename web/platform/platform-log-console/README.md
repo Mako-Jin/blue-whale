@@ -17,9 +17,13 @@
 ## 二、跑起来
 
 ```bash
-# 1. 后端（默认 8080，数据是 H2 内存库，无需装数据库）
+# 1. 后端（默认 8080）。默认 profile 是 h2 内存库，无需装数据库
 cd server && mvn -DskipTests install
 java -jar sts-app/sts-app-server/target/sts-app-server-0.0.1-SNAPSHOT.jar
+
+#    想让数据留在磁盘上（演示「重启后数据还在」），改用 mysql profile
+BW_DB_PASSWORD=<密码> java -jar sts-app/sts-app-server/target/sts-app-server-0.0.1-SNAPSHOT.jar \
+    --spring.profiles.active=mysql
 
 # 2. 前端
 cd web && pnpm install
@@ -27,6 +31,8 @@ pnpm --filter platform-log-console dev     # http://127.0.0.1:3200
 ```
 
 开发期 `/api` 由 vite 代理到 `127.0.0.1:8080`，请求与服务端同源 —— 排查日志功能时被跨域问题挡住是最不划算的事。
+
+> 演示页本身不感知数据源：`h2` 与 `mysql` 两种 profile 下行为一致，差别只在**重启后数据还在不在**（h2 会清空）。这正好是演示两种数据源差异的好素材。数据源说明见 `server/README.md` 第六节。
 
 ---
 

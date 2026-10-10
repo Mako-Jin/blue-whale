@@ -37,6 +37,9 @@
 | 新增 / 删除后端模块 | `server/README.md` 模块表 · 根 `README.md` 结构图 |
 | 调整后端分层或依赖方向 | `decisions/0005-后端模块划分与依赖约束.md` · `architecture/后端分层与依赖方向.md` · `server/README.md` |
 | 修改统一响应结构或错误码 | `server/README.md` 错误码表 · `docs/api/openapi.json` |
+| 变更数据源、切换 / 新增数据库 profile | `server/README.md` 第六节 · `decisions/0009-多数据源共存与Flyway迁移.md` |
+| 新增 / 修改表结构（迁移脚本） | `server/README.md` 第六节 · 迁移脚本放在表结构所属模块的 `db/migration/<vendor>/` |
+| 新增落库字段（**先查 MySQL 保留字**） | `decisions/0009` 第 3 条 · `server/README.md` 第六节 |
 | 新增 / 修改后端接口 | `docs/api/openapi.json`（用 `scripts/export-openapi.sh` 导出）→ `pnpm --filter common-api gen:api` |
 | 变更顶层目录或横向层 | 根 `README.md` |
 | 技术选型 / 架构决策 | 新增 `docs/decisions/NNNN-*.md` |
@@ -72,6 +75,7 @@ docs/decisions/NNNN-简短标题.md
 | `decisions/0006-接口契约的生成与消费.md` | 契约由代码生成、生成物入库、任意值字段的类型修正 |
 | `decisions/0007-前端请求分层与错误模型.md` | 传输内核与契约装配的分工、六类错误、重试幂等边界 |
 | `decisions/0008-Spring-Boot-4升级与JDK21门禁.md` | Boot 4.1 升级的破坏性变更清单、starter 坐标对应关系、JDK 21 构建门禁 |
+| `decisions/0009-多数据源共存与Flyway迁移.md` | H2 / MySQL 双 profile、Flyway 迁移按厂商分目录、MySQL 保留字与 MP 别名的双重陷阱 |
 | `architecture/后端分层与依赖方向.md` | 后端分层落地细则、依赖矩阵、前后端结构对照 |
 | `api/README.md` | 契约接口清单、更新流程、任意值字段的处理 |
 | `../web/packages/common-tools/README.md` | 公共能力包（logger / env / http）使用说明与修复清单 |

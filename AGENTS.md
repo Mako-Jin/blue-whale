@@ -33,6 +33,17 @@
 | `mvn clean` 报「另一个程序正在使用此文件」 | 正在运行的后端进程持有 target 下的 jar | 先结束 java 进程再构建；Windows 下运行中的 jar 无法删除 |
 | Boot 4 应用启动失败，`NoClassDefFoundError: ...WebMvcProperties` | springdoc 用了 2.x（只支持 Boot 3） | springdoc 必须用 3.x；版本对应表见 `docs/decisions/0008` |
 | 依赖树里同时出现 `tools.jackson` 与 `com.fasterxml.jackson.databind` | Boot 4 的常态：Jackson 3 是默认，Jackson 2 由 springdoc / MyBatis 传递引入 | 代码 import 一律用 `tools.jackson.*`；注解（`@JsonIgnore`）继续用 `com.fasterxml.jackson.annotation`（包名没变） |
+| mysql profile 启动报 `Unsupported Database: MySQL 8.0` | Flyway 10 起各数据库支持拆成独立模块，`flyway-core` 只内置 H2 / SQLite | 必须显式引 `org.flywaydb:flyway-mysql`（H2 profile 一切正常，只在切库时炸） |
+| 启动报 `Migration checksum mismatch for migration version 1` | **修改了已执行过的迁移脚本**。Flyway 用校验和守护"迁移脚本是历史" | 正确做法是新增 `V2__xxx.sql`；本地开发库可重建（`DROP DATABASE bluewhale; CREATE ...`）绕过，有数据的环境不行 |
+| 某个查询在 H2 上正常、切 MySQL 报 `ERROR 1064` | 列名或**别名**撞了 MySQL 保留字（如 `release`）。H2 不认这些保留字，所以接口测试全绿 | 见下条——这是本项目最隐蔽的一类差异 |
+
+## 写数据库相关的代码前，先记住三件事
+
+1. **新增落库字段，先查 MySQL 保留字。** `release`、`rank`、`groups`、`system`、`window` 都是常见踩坑词。`RELEASE` 是 MySQL 8 的保留字而 H2 不认——写错了表现为"H2 正常、MySQL 建表失败"。
+2. **不要用 `@TableField` 把列名映射成与属性名不同的名字。** MyBatis-Plus 会**自动补 `列名 AS 属性名` 的别名**，别名若撞保留字照样 1064。让属性名与列名同构（`appRelease → app_release`，与 `traceId → trace_id` 一致）。
+3. **这类问题不要指望业务用例发现** —— 默认 profile 是 H2，它不认这些保留字，所有接口测试都会是绿的。只能对**生成的 SQL** 做断言（见 `ClientLogEntityMappingTest`）。
+
+> 数据源、profile 与表结构变更的完整说明见 `server/README.md` 第六节与 `docs/decisions/0009`。
 
 ## 目录边界（勿越界）
 

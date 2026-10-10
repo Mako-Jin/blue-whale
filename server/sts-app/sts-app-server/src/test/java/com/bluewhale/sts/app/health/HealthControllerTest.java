@@ -39,7 +39,11 @@ class HealthControllerTest {
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.data.status").value("UP"))
                 .andExpect(jsonPath("$.data.application").value("bluewhale-server"))
-                .andExpect(jsonPath("$.data.profile").value("default"))
+                // 这里断言 h2 不是随手写的字面量，而是在**钉住默认 profile**：
+                // 本项目保证"clone 下来不装任何数据库就能跑"，靠的就是默认走 h2 内存库。
+                // 哪天有人把默认改成 mysql，这条会立刻失败 —— 否则这个约定会
+                // 悄无声息地失效，直到新人第一次 clone 时才发现跑不起来。
+                .andExpect(jsonPath("$.data.profile").value("h2"))
                 .andExpect(jsonPath("$.data.dependencies.db").value("UP"))
                 .andExpect(jsonPath("$.data.timestamp").doesNotExist())
                 .andExpect(jsonPath("$.timestamp").isNumber());

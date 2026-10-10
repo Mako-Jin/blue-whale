@@ -39,7 +39,7 @@ server/
 | `sts-common-web` | jar | `GlobalExceptionHandler`、CORS 配置 + 自动配置 | `sts-common-basic`、Spring Web（provided）、springdoc 注解、Bean Validation |
 | `sts-common-db` | jar | MyBatis-Plus 拦截器（分页 / 乐观锁 / 防全表更新）+ 自动配置 | `sts-common-basic`、MyBatis-Plus |
 | `sts-server-log` | jar | 客户端日志的上报 / 分页 / 详情 / 链路 / 聚合 | `sts-common-web`、`sts-common-db` |
-| `sts-app-server` | jar | 可执行应用：装配各域服务、健康检查、`application.yml` | `sts-server-log`、springdoc UI、H2（runtime） |
+| `sts-app-server` | jar | 可执行应用：装配各域服务、健康检查、`application.yml` | `sts-server-log`、springdoc UI、H2 + MySQL 驱动（runtime）、Flyway |
 
 > **为什么需要 `sts-app` 这一层**：`sts-server-*` 是"可部署的服务能力"，但**不是进程** —— 它们不知道自己的端口、数据源，也不知道要暴露哪些接口文档。必须有一个应用层把这些装配成一个能 `java -jar` 跑起来的东西。这层**只做装配，不写业务逻辑**：一旦出现业务代码，就该下沉到 `sts-server` 或 `sts-components`。
 >
@@ -49,9 +49,15 @@ server/
 
 `sts-common-basic` 刻意保持**零依赖**：它处在依赖链最底层，任何引入都会扩散到全仓。
 
-> **MyBatis-Plus 的两个坑**：
-> ① starter 坐标跟着 Spring Boot 大版本走（Boot 4 → `mybatis-plus-spring-boot4-starter`）。用错 starter 的症状是**自动配置静默失效**（Mapper 扫不到、`SqlSessionFactory` 不存在），不报编译错误，最难排查。
-> ② 依赖 JSqlParser 的拦截器（分页、防全表更新）在独立坐标 `mybatis-plus-jsqlparser`，漏引会在**运行时**才报 `ClassNotFoundException: PaginationInnerInterceptor`，编译期看不出来。
+> **依赖"按需声明"的三个坑**（都是编译期看不出来、只在运行时炸的类型）：
+>
+> | 现象 | 原因 | 处理 |
+> |------|------|------|
+> | Mapper 扫不到、`SqlSessionFactory` 不存在 | MyBatis-Plus 的 starter 坐标没跟着 Boot 大版本走 | Boot 4 用 `mybatis-plus-spring-boot4-starter` |
+> | `ClassNotFoundException: PaginationInnerInterceptor` | 3.5.9 起分页 / 防全表更新拦截器拆到了独立坐标 | 显式引 `mybatis-plus-jsqlparser` |
+> | mysql profile 启动报 `Unsupported Database: MySQL 8.0` | Flyway 10 起各数据库支持拆成独立模块，`flyway-core` 只内置 H2 / SQLite | 显式引 `flyway-mysql` |
+>
+> 共同规律：**starter 不再传递引入全部能力，谁用谁声明**。详见 `docs/decisions/0009` 第 4 条。
 
 ---
 
@@ -152,29 +158,75 @@ com.bluewhale.sts.log                    ← sts-server-log，包名用业务域
 cd server
 
 mvn clean install -DskipTests                      # 构建全部模块
-mvn clean install                                  # 含测试（当前 22 例）
+mvn clean install                                  # 含测试（当前 24 例）
 
-# 启动应用（在 server/ 目录下执行，需要 JDK 21）
+# 启动应用（在 server/ 目录下执行，需要 JDK 21）—— 默认走 h2，零外部依赖
 java -jar sts-app/sts-app-server/target/sts-app-server-0.0.1-SNAPSHOT.jar
-# 或用 Maven 插件
-mvn -pl :sts-app-server spring-boot:run
+# 连本机 MySQL（数据落在磁盘上）—— 凭据走环境变量
+BW_DB_PASSWORD=<密码> java -jar sts-app/sts-app-server/target/sts-app-server-0.0.1-SNAPSHOT.jar \
+    --spring.profiles.active=mysql
 # 需要换端口时（命令行参数优先级最高）
 java -jar sts-app/sts-app-server/target/sts-app-server-0.0.1-SNAPSHOT.jar --server.port=18080
 ```
 
-服务默认监听 `8080`。数据源是 **H2 内存库**（`MODE=MySQL`），零外部依赖，clone 下来就能跑；换生产库只改 `application.yml` 的数据源几行 + 驱动依赖，代码不动。
+服务默认监听 `8080`。
 
 ```bash
 curl http://localhost:8080/api/health
 ```
 
-接口文档（springdoc）：`http://localhost:8080/swagger-ui.html`；H2 控制台：`/h2-console`（JDBC URL 填 `jdbc:h2:mem:bluewhale`，用户 `sa`，密码留空）。
+接口文档（springdoc）：`http://localhost:8080/swagger-ui.html`。健康检查的响应里带 `profile` 字段，一眼就能看出当前连的是哪个库。
 
 日志接口的完整清单与契约见 `docs/api/README.md`；前端配套的演示页见 `web/platform/platform-log-console`。
 
 ---
 
-## 六、环境要求
+## 六、数据源与数据库迁移
+
+数据源由 **profile** 决定，不是改文件：用哪个库是启动参数，显式出现在命令行与健康检查里。决策与踩坑清单见 `docs/decisions/0009`。
+
+| profile | 数据源 | 适用 | 数据 | H2 控制台 |
+|---------|--------|------|------|-----------|
+| `h2`（**默认**） | `jdbc:h2:mem:bluewhale`（`MODE=MySQL`） | 开发、演示、CI | **进程内存，重启即失** | 开启 `/h2-console`（用户 `sa`，密码留空） |
+| `mysql` | `jdbc:mysql://127.0.0.1:3306/bluewhale` | 本地联调 | 磁盘，重启后仍在 | 关闭 |
+
+**默认必须是 h2** —— 它保证"clone 下来不装任何数据库就能跑"，`HealthControllerTest` 里有断言钉住这一点。
+
+### 表结构由 Flyway 管理
+
+```
+sts-server-log/src/main/resources/db/migration/
+├── h2/V1__create_bw_client_log.sql       H2 方言
+└── mysql/V1__create_bw_client_log.sql    MySQL 方言
+```
+
+- 迁移脚本由**领域模块自带**（谁拥有表结构谁写脚本），`spring.flyway.locations` 按 profile 指向对应厂商目录
+- 各写各的**原生方言**，不追求一份通用 DDL —— 硬凑通用版只能取交集，MySQL 的列注释、存储引擎、字符集排序规则就全写不了
+- 用 `flyway_schema_history` 表保证"只执行一次"，因此脚本里**不写** `IF NOT EXISTS`：那样会把"表已存在但结构不对"静默吞掉
+
+```bash
+# 新增表结构：追加脚本，不要改历史脚本
+#   db/migration/<vendor>/V2__加个字段.sql
+```
+
+mysql profile 需要**先建好库**（Flyway 只建表、不建库）：
+
+```sql
+CREATE DATABASE bluewhale DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+```
+
+> **迁移脚本一旦在真实环境执行过就不可修改。** `validate-on-migrate: true` 会因校验和不匹配而拒绝启动 —— 这是特性不是麻烦：迁移脚本是历史，改了历史就该新增一条，不是覆盖它。本地开发可以重建库绕过；有数据的环境必须追加新版本。
+
+### 两条必须先查的规矩
+
+1. **新增会落库的字段前，先查一遍 MySQL 保留字。** `release`（发布版本号）是自然的领域命名，但 `RELEASE` 是 MySQL 8 的保留字，而 **H2 不认它** —— 同一个列名在 H2 上一切正常、在 MySQL 上 `ERROR 1064`。这是最难查的一类差异。
+2. **别用 `@TableField` 把列名映射成另一个名字。** MyBatis-Plus 发现"列名与属性名不一致"会**自动补 `列名 AS 属性名` 的别名**，别名若撞了保留字照样报错。正确做法是让属性名与列名同构（`appRelease → app_release`，与 `traceId → trace_id` 一致），不产生别名。`ClientLogEntityMappingTest` 直接断言生成的 SQL 里不出现 `AS release`。
+
+> 为什么这条要靠测试而不是靠跑用例？因为**默认跑在 H2 上，而 H2 不认这个保留字** —— 所有接口测试都会是绿的，直到换 MySQL 才炸。这类差异只能对生成物本身做断言。
+
+---
+
+## 七、环境要求
 
 | 工具 | 版本 | 说明 |
 |------|------|------|
@@ -198,4 +250,6 @@ curl http://localhost:8080/api/health
 | Spring Boot | 4.1.1 | Spring Framework 7.0.9 · Tomcat 11 · Jakarta EE 11 · JUnit 6 |
 | springdoc-openapi | 3.1.1 | 3.x 才支持 Boot 4；契约规范为 **OpenAPI 3.1** |
 | MyBatis-Plus | 3.5.17 | 坐标 `mybatis-plus-spring-boot4-starter` |
+| Flyway | 12.4.0 | `flyway-core` + **`flyway-mysql`**（后者别漏，见第一节三个坑） |
+| MySQL 驱动 | 9.7.0 | 坐标 `com.mysql:mysql-connector-j`，`runtime` 范围 |
 | Jackson | 3.x（`tools.jackson.*`） | 注解仍是 `com.fasterxml.jackson.annotation`，包名没变 |

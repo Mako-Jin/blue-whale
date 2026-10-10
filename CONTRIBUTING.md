@@ -160,8 +160,18 @@ pnpm format           # Prettier 格式化
 cd server
 
 mvn clean install -DskipTests                # 构建全部模块
-java -jar sts-app/sts-app-server/target/sts-app-server-0.0.1-SNAPSHOT.jar   # 启动（默认 8080）
+
+# 启动（默认 8080）—— 默认 profile 是 h2 内存库，零外部依赖
+java -jar sts-app/sts-app-server/target/sts-app-server-0.0.1-SNAPSHOT.jar
+
+# 连本机 MySQL（数据落磁盘，重启后仍在）。库要先建好，见 server/README.md 第六节
+BW_DB_PASSWORD=<密码> java -jar sts-app/sts-app-server/target/sts-app-server-0.0.1-SNAPSHOT.jar \
+    --spring.profiles.active=mysql
 ```
+
+> **数据源由 profile 决定，凭据走环境变量**，两者都不要写进文件 ——
+> 用哪个库应当是启动参数（显式可见），密码进版本库则会永久留在 git 历史里。
+> 详见 `docs/decisions/0009`。
 
 > **Maven 实际使用的 JDK 必须是 21+**，低于 21 时构建会在 enforcer 阶段直接失败并给出中文提示
 > （不再依赖编译器那句含混的 `release version 21 not supported`）。用 `mvn -v` 可查看当前指向。

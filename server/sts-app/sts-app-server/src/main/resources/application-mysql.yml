@@ -1,0 +1,52 @@
+# =============================================================================
+# profile: mysql —— 本机 MySQL（数据落在磁盘上）
+#
+# 启用方式：
+#   BW_DB_PASSWORD=<密码> java -jar sts-app-server.jar --spring.profiles.active=mysql
+#
+# 与 h2 profile 的关键差别：**数据真的留下来了**。进程重启、换端口、
+# 甚至同时起多个实例，看到的都是同一个库。
+#
+# 前置准备（一次性）：数据库要先存在，Flyway 只负责建表、不负责建库。
+#   CREATE DATABASE bluewhale DEFAULT CHARACTER SET utf8mb4
+#     COLLATE utf8mb4_0900_ai_ci;
+# =============================================================================
+
+spring:
+  datasource:
+    # ---------------------------------------------------------------------------
+    # 参数逐个说明，避免后来者"顺手删掉"：
+    #   sslMode=DISABLED              本地回环连接，省掉握手开销与自签证书告警
+    #   allowPublicKeyRetrieval=true  MySQL 8 默认认证插件是 caching_sha2_password，
+    #                                 在非 SSL 连接下需要允许向服务端索取 RSA 公钥。
+    #                                 少了它，连接会以
+    #                                 "Public Key Retrieval is not allowed" 失败 ——
+    #                                 报错信息完全没提"该加哪个参数"，很费时间。
+    #   characterEncoding=UTF-8       保证中文日志正文不乱码（utf8mb4 由建库时指定）
+    #
+    # 刻意不设 serverTimezone：日志时间戳一律以 BIGINT 毫秒存储，
+    # 不碰 MySQL 的日期类型，时区配置对本项目毫无影响，多写反而是个隐患。
+    # ---------------------------------------------------------------------------
+    url: jdbc:mysql://127.0.0.1:3306/bluewhale?sslMode=DISABLED&allowPublicKeyRetrieval=true&characterEncoding=UTF-8
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+    # ---------------------------------------------------------------------------
+    # 凭据走环境变量，**不写进仓库**。
+    #
+    # 依据 docs/decisions/0003：密钥级配置归 Vault/KMS 管，最次也得是运行期注入。
+    # 把密码提交进版本库的问题是它会永久留在 git 历史里 ——
+    # 即便后来删掉那一行，历史提交里依然能翻出来。
+    #
+    # 用户名给了默认值 root，本地开发够用；生产环境同样用环境变量覆盖。
+    # ---------------------------------------------------------------------------
+    username: ${BW_DB_USERNAME:root}
+    password: ${BW_DB_PASSWORD:}
+
+  flyway:
+    # 只跑 MySQL 方言的迁移脚本（见该目录下的 SQL 注释）
+    locations: classpath:db/migration/mysql
+
+  # H2 控制台在 MySQL 下没有意义，显式关掉而不是靠"反正没人访问"
+  h2:
+    console:
+      enabled: false
