@@ -53,7 +53,8 @@ describe('App', () => {
     await renderApp('standalone');
 
     expect(screen.getByRole('region', { name: '渲染控制' })).toBeInTheDocument();
-    expect(screen.getByLabelText('自动环绕')).toBeChecked();
+    // 默认场景是古建筑（可操控）：镜头绕人转会让人晕，所以自动环绕默认关
+    expect(screen.getByLabelText('自动环绕')).not.toBeChecked();
     expect(screen.getByLabelText('线框模式')).not.toBeChecked();
     expect(screen.getByText('帧率')).toBeInTheDocument();
   });
@@ -72,14 +73,16 @@ describe('App', () => {
   it('切换场景时把渲染选项重置为该场景声明的默认值', async () => {
     await renderApp('standalone');
 
-    // 默认场景是古建筑：台基是石板地面，网格辅助线默认关
-    expect(screen.getByLabelText('地面网格')).not.toBeChecked();
-
-    // 现代写字楼把它开着 —— 正好充当广场铺装的分格
-    fireEvent.click(screen.getByRole('button', { name: /现代写字楼/ }));
+    // 古建筑：网格是广场铺装的分缝，默认开；可操控场景的自动环绕默认关
     expect(screen.getByLabelText('地面网格')).toBeChecked();
+    expect(screen.getByLabelText('自动环绕')).not.toBeChecked();
 
-    // 切到太空又关掉：真空里没有地面，网格只会干扰
+    // 原始丛林：网格只会干扰（没有铺装可参照），自动环绕开 —— 两项都被重置
+    fireEvent.click(screen.getByRole('button', { name: /原始丛林/ }));
+    expect(screen.getByLabelText('地面网格')).not.toBeChecked();
+    expect(screen.getByLabelText('自动环绕')).toBeChecked();
+
+    // 太空又关掉网格：真空里没有地面，网格只是干扰
     fireEvent.click(screen.getByRole('button', { name: /太空飞船/ }));
     expect(screen.getByLabelText('地面网格')).not.toBeChecked();
   });

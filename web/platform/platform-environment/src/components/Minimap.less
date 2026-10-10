@@ -1,0 +1,71 @@
+// 左上角小地图。与 ControlPanel 一样走 HUD 样式：三维底图偏深，
+// 半透明深色浮层比浅色面板耐看，也不会把画面挡成一块块白斑。
+.minimap {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+  pointer-events: none;
+
+  // 每帧由脚本按"当前场景有没有交互"切换；隐藏时不留占位
+  &[hidden] {
+    display: none;
+  }
+
+  &__frame {
+    position: relative;
+    line-height: 0;
+    border-radius: @radius-md;
+    box-shadow: @shadow-hud;
+  }
+
+  &__canvas {
+    display: block;
+    border-radius: @radius-md;
+  }
+
+  // 指北针。地图固定正北朝上，因此这个标记是静态的 —— 它本身就是"哪边是北"的答案
+  &__compass {
+    position: absolute;
+    top: -9px;
+    left: 50%;
+    display: flex;
+    gap: 3px;
+    align-items: center;
+    padding: 1px 7px 1px 5px;
+    font-family: @font-mono;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.5;
+    color: @hud-text;
+    background: rgb(15 20 32 / 92%);
+    border: 1px solid @hud-border;
+    border-radius: 999px;
+    transform: translateX(-50%);
+
+    svg {
+      width: 10px;
+      height: 10px;
+      fill: @warn-color;
+    }
+  }
+
+  &__legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    max-width: 176px;
+    padding: 4px 8px;
+    margin: 0;
+    font-size: 10px;
+    line-height: 1.5;
+    color: @hud-text-dim;
+    background: @hud-bg;
+    border: 1px solid @hud-border;
+    border-radius: @radius-sm;
+  }
+}

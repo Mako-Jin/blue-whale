@@ -41,16 +41,18 @@
 
 ## 三、three.js 层（`src/scene/`）
 
-| 文件          | 职责                                                                                    |
-| ------------- | --------------------------------------------------------------------------------------- |
-| `types.ts`    | `SceneId` / `SceneMeta` / `SceneDefinition` / `SceneBuild` —— 场景的类型契约            |
-| `catalog.ts`  | 注册表与清单：`Record<SceneId, …>` 钉住完整性、`loadSceneCatalog()`、远端覆盖合并       |
-| `common.ts`   | 各场景共用的构建工具：释放、材质、光照、雾、确定性伪随机、单位盒                        |
-| `scenes/*.ts` | 五个场景实现：元数据 + 工厂，**不碰渲染器**                                             |
-| `stage.ts`    | 装配：场景图 + 渲染器 + 相机控制器 + 动画循环 + 尺寸监听 + **切场景**，对外只有少量方法 |
-| `renderer.ts` | `WebGLRenderer` 装配：颜色空间、色调映射、阴影贴图类型、尺寸同步、上下文释放            |
-| `viewport.ts` | 容器尺寸 → 绘制缓冲分辨率的纯函数（jsdom 可测）                                         |
-| `options.ts`  | 场景开关类型与默认值（组件与舞台共用，避免类型归属地二义）                              |
+| 文件          | 职责                                                                                       |
+| ------------- | ------------------------------------------------------------------------------------------ |
+| `types.ts`    | `SceneId` / `SceneMeta` / `SceneDefinition` / `SceneBuild` / `SceneControls` —— 类型契约   |
+| `catalog.ts`  | 注册表与清单：`Record<SceneId, …>` 钉住完整性、`loadSceneCatalog()`、远端覆盖合并          |
+| `common.ts`   | 各场景共用的构建工具：释放、材质、光照、雾、确定性伪随机、单位盒                           |
+| `scenes/*.ts` | 五个场景实现：元数据 + 工厂，**不碰渲染器**                                                |
+| `player/`     | 主人公：`motor.ts`（移动内核，**纯逻辑**）· `avatar.ts`（造型）· `controls.ts`（输入装配） |
+| `minimap.ts`  | 小地图投影与几何（**纯函数**）：世界→地图、方向向量、视野扇形、朝向箭头                    |
+| `stage.ts`    | 装配：场景图 + 渲染器 + 相机控制器 + 动画循环 + 尺寸监听 + **切场景**，对外只有少量方法    |
+| `renderer.ts` | `WebGLRenderer` 装配：颜色空间、色调映射、阴影贴图类型、尺寸同步、上下文释放               |
+| `viewport.ts` | 容器尺寸 → 绘制缓冲分辨率的纯函数（jsdom 可测）                                            |
+| `options.ts`  | 场景开关类型与默认值（组件与舞台共用，避免类型归属地二义）                                 |
 
 ### 分层的动机
 
@@ -127,7 +129,33 @@
 
 ---
 
-## 五、全局状态订阅：必须走桥，不要直接调 props
+## 五、可操控场景：主人公、小地图与相机跟随
+
+古建筑（第一阶段）是第一个**可操控**场景：殿前广场上有一个可以走的主人公。
+契约与取舍见 **ADR-0015**，这里只列落地时最容易踩的四条：
+
+1. **相机跟随必须"整体平移"**（`stage.ts` 的 `syncFocus`）。控制器只上报焦点，
+   舞台把相机与轨道目标挪**同样的位移** —— 只改 `target` 不动相机，
+   镜头会原地转头，人一走远就只剩个俯视小点。
+2. **左键旋转与滚轮缩放仍归 OrbitControls**，控制器只借走键盘与右键；
+   有控制器的场景 `enablePan` 被关掉（右键让给"设置行动终点"）。
+   移动方向是**相机相对**的：按"上"永远朝画面深处走，相机转到哪边都成立。
+3. **右键射线打地面平面（y=0），不打网格** —— 网格随开关存在，靠它取点
+   会让右键跟着开关一起失效。画布还没布局（尺寸为 0）时直接返回 `null`，
+   否则除出 `NaN` 会一路传进移动内核。
+4. **小地图不走 React 状态**：`requestAnimationFrame` 自绘 canvas，
+   数据经 `stage.interaction()` 逐帧读取。地图**正北朝上**（指北针是静态 `N`），
+   人物朝向画箭头、相机视野画扇形（半径随滚轮缩放变化）—— 两个独立信息。
+   没有交互的场景（丛林 / 写字楼 / 太空 / 基线）返回 `null`，整块自动隐藏。
+
+移动算法在 `player/motor.ts` 里是**纯内核**（不碰 three、不碰 DOM）：
+相机相对位移、目标点行走、最短转向、边界夹取、沿穿透最浅的一边推出障碍。
+碰撞与小地图用的矩形**同源**（`scenes/ancient-architecture.ts` 里声明一次）——
+挡人的东西必须也是地图上画出来的东西。
+
+---
+
+## 六、全局状态订阅：必须走桥，不要直接调 props
 
 订阅基座状态用 `common-tools/micro` 的 `onHostGlobalStateChange()`，
 **不要直接调 `props.onGlobalStateChange`**：qiankun 每个子应用只保留**一个**回调，
@@ -137,7 +165,7 @@
 
 ---
 
-## 六、目录结构
+## 七、目录结构
 
 ```
 platform-environment/
@@ -146,26 +174,31 @@ platform-environment/
 ├── src/
 │   ├── main.tsx               入口：renderWithQiankun 生命周期 + 独立运行分支
 │   ├── mount.ts               挂载点解析（基座容器 / 自建容器）
-│   ├── App.tsx                页面装配：场景选择器、徽标、全局状态订阅、降级面板
+│   ├── App.tsx                页面装配：场景选择器、小地图、徽标、全局状态订阅、降级面板
 │   ├── format.ts              统计数字的格式化（千分位、分辨率）
 │   ├── scene/                 three.js 层（见上表）
-│   │   └── scenes/            ancient-architecture · primeval-jungle ·
-│   │                          modern-office · spacecraft · baseline-lab
+│   │   ├── scenes/            ancient-architecture · primeval-jungle ·
+│   │   │                      modern-office · spacecraft · baseline-lab
+│   │   ├── player/            motor.ts（移动内核）· avatar.ts（造型）· controls.ts（输入）
+│   │   └── minimap.ts         小地图投影与几何（纯函数）
 │   ├── components/
 │   │   ├── SceneView.tsx      画布组件：只管舞台生命周期，不渲染 <canvas>
 │   │   ├── SceneSwitcher.tsx  卡片式场景选择器（横排，含氛围色块与图标）
+│   │   ├── Minimap.tsx        左上角小地图：自绘 canvas + 指北针 + 操作图例
 │   │   └── ControlPanel.tsx   HUD 面板：开关与帧率/绘制调用/三角面统计
 │   └── styles/                Less 令牌与全局样式
-└── tests/                     93 例：catalog / scenes 契约 / 选择器 / mount / viewport / format / App 降级
+└── tests/                     147 例：motor / controls / minimap / catalog / scenes 契约 /
+                               选择器 / mount / viewport / format / App 降级
 ```
 
 ---
 
-## 七、命令
+## 八、命令
 
 ```bash
 pnpm --filter platform-environment dev    # 独立启动 :3400
 pnpm --filter platform-environment build  # 生产构建（产物 base = /environment/）
+node scripts/verify-player-controls.mjs   # 主人公操控端到端验证（需 :3400 在跑；可传截图目录）
 node scripts/verify-scene-switching.mjs   # 场景切换端到端验证（需 :3400 在跑；可传截图目录）
 node scripts/verify-micro-frontend.mjs    # 微前端全链路验证（需基座 :3000 与各子应用在跑）
 ```
@@ -181,12 +214,24 @@ node scripts/verify-micro-frontend.mjs    # 微前端全链路验证（需基座
 4. 跑 `pnpm test` —— `scenes.test.ts` 会自动把通用契约（纯函数动画、确定性布局、
    释放干净、线框开关）套到新场景上，不用手写第二遍。
 
+### 新增一个可操控场景
+
+在"新增一个场景"的四步之上再加两步：
+
+5. 声明可行走范围（`halfExtent`）与不可通行矩形 —— **一份**，同时喂给移动内核与小地图。
+6. 实现 `createControls(context)`，把主人公加进场景图并返回控制器。
+   舞台会接管它的生命周期、相机跟随与右键（自动关掉轨道平移）。
+   `tests/scenes.test.ts` 里有一条"只有实现 `createControls` 的场景才算可操控"的断言。
+
 ---
 
-## 八、尚未实现（别误以为已有）
+## 九、尚未实现（别误以为已有）
 
 - **场景深化**：五个场景都是"可辨识的简化版"（全基础几何体），瓦垄、彩画、
   植被多样性、舱内细节等逐场景深化时再做
+- **主人公的寻路与动画**：终点直线过不去就直接放弃，不绕障碍；人物没有走路摆动
+- **小地图交互**：只读，不能拖动 / 缩放 / 点图定位
+- **移动端**：虚拟摇杆与触屏没做，当前只支持键鼠
 - **远端清单**：`loadSceneCatalog()` 尚无后端来源，接通时同步契约与缓存策略（ADR-0014）
 - **场景级参数运行时调整**（时间/天气/雾浓度）：等需求来了再进 `SceneMeta`
 - **资源加载**：没有 GLTF/HDRI 等外部资源与加载进度管理 —— 当前全部程序化生成
@@ -195,7 +240,8 @@ node scripts/verify-micro-frontend.mjs    # 微前端全链路验证（需基座
 
 ## 相关
 
-- `docs/decisions/0014-多场景架构与切换管线.md` —— 清单落地方式与切换管线（本轮决策）
+- `docs/decisions/0015-场景交互与主人公操控.md` —— 可操控场景的契约、相机跟随与小地图（本轮决策）
+- `docs/decisions/0014-多场景架构与切换管线.md` —— 清单落地方式与切换管线
 - `docs/decisions/0012-微前端接入与子应用改造.md` —— 微前端整体决策
 - `web/platform/platform-portal/README.md` —— 基座如何挂载子应用、新增子应用的步骤
 - `web/packages/common-tools/README.md` —— `micro` 桥接与全局状态多路复用

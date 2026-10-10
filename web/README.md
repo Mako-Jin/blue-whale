@@ -48,7 +48,7 @@ platform-portal (:3000)
 
 > `platform-event-console` 是同一个思路用在**行为事件**上：左栏点按钮产生事件、右栏看服务端落库结果。它额外演示三件事——**身份缝合**（匿名 `deviceId` 与登录 `userId` 同时挂在事件上）、**中间件脱敏**、**中间件屏蔽**。日志与事件是两条独立管道，因此这是两个应用而不是一个应用里的两个页签。
 
-> `platform-environment` 是**与任何业务域无关的环境应用**：一块 three.js 三维画布（内含古建筑 / 原始丛林 / 现代写字楼 / 太空飞船 / 渲染基线五个可切换场景），外加"WebGL 渲染生命周期该怎么管"的参考实现 —— 画布与上下文同生共死、卸载必 `forceContextLoss()`、GPU 资源可断言地释放、切场景只换场景图不换渲染器。三维依赖重（gzip 后约 225 kB），独立成子应用让其他路由不受拖累。决策见 `docs/decisions/0013`（渲染生命周期）与 `docs/decisions/0014`（多场景架构）。
+> `platform-environment` 是**与任何业务域无关的环境应用**：一块 three.js 三维画布（内含古建筑 / 原始丛林 / 现代写字楼 / 太空飞船 / 渲染基线五个可切换场景），外加"WebGL 渲染生命周期该怎么管"的参考实现 —— 画布与上下文同生共死、卸载必 `forceContextLoss()`、GPU 资源可断言地释放、切场景只换场景图不换渲染器。古建筑是第一个**可操控**场景：殿前广场上有可走的主人公（WASD/方向键 + 右键设行动终点 + 滚轮缩放）与左上角小地图（正北朝上、人物朝向与相机视野分画）。三维依赖重（gzip 后约 229 kB），独立成子应用让其他路由不受拖累。决策见 `docs/decisions/0013`（渲染生命周期）、`docs/decisions/0014`（多场景架构）与 `docs/decisions/0015`（场景交互）。
 
 ## 二、命令
 
@@ -204,14 +204,14 @@ git config core.hooksPath web/.husky
 
 各项目均通过全部校验（逐包直跑）。
 
-| 校验项                  | platform-portal | common-tools             | common-api    | platform-log-console             | platform-event-console          | platform-environment            |
-| ----------------------- | --------------- | ------------------------ | ------------- | -------------------------------- | ------------------------------- | ------------------------------- |
-| `tsc --noEmit` 类型检查 | 通过            | 通过                     | 通过          | 通过                             | 通过                            | 通过                            |
-| `eslint .`              | 通过            | 通过                     | 通过          | 通过                             | 通过                            | 通过                            |
-| `stylelint`             | 通过            | 通过（playground）       | —             | 通过（含 `App.less`）            | 通过（含 `App.less`）           | 通过                            |
-| `vitest run` 单元测试   | 通过（2/2）     | 通过（137/137）          | 通过（20/20） | 通过（25/25，含浏览器渲染测试）  | 通过（12/12，含浏览器渲染测试） | 通过（93/93，含场景契约）       |
-| `vite build` 生产构建   | 通过            | 通过（26.53 kB）         | —             | 通过（CSS 11.92 · JS 258.61 kB） | 通过（CSS 5.41 · JS 255.68 kB） | 通过（CSS 5.12 · JS 828.30 kB） |
-| dev server 启动         | 通过（:3000）   | playground 通过（:3100） | —             | 通过（:3200）                    | 通过（:3300）                   | 通过（:3400）                   |
+| 校验项                  | platform-portal | common-tools             | common-api    | platform-log-console             | platform-event-console          | platform-environment                  |
+| ----------------------- | --------------- | ------------------------ | ------------- | -------------------------------- | ------------------------------- | ------------------------------------- |
+| `tsc --noEmit` 类型检查 | 通过            | 通过                     | 通过          | 通过                             | 通过                            | 通过                                  |
+| `eslint .`              | 通过            | 通过                     | 通过          | 通过                             | 通过                            | 通过                                  |
+| `stylelint`             | 通过            | 通过（playground）       | —             | 通过（含 `App.less`）            | 通过（含 `App.less`）           | 通过                                  |
+| `vitest run` 单元测试   | 通过（2/2）     | 通过（137/137）          | 通过（20/20） | 通过（25/25，含浏览器渲染测试）  | 通过（12/12，含浏览器渲染测试） | 通过（147/147，含场景契约与操控内核） |
+| `vite build` 生产构建   | 通过            | 通过（26.53 kB）         | —             | 通过（CSS 11.92 · JS 258.61 kB） | 通过（CSS 5.41 · JS 255.68 kB） | 通过（CSS 6.05 · JS 841.34 kB）       |
+| dev server 启动         | 通过（:3000）   | playground 通过（:3100） | —             | 通过（:3200）                    | 通过（:3300）                   | 通过（:3400）                         |
 
 **微前端链路**另有一项端到端验证（`node scripts/verify-micro-frontend.mjs`，需四个服务在跑）：基座导航挂载子应用 → 全局状态下发 → 子应用经基座代理请求后端 → 切换子应用 → 返回首页验证卸载清理（标记清空、`window.__MICRO_HOST__` 归 `undefined`；三维应用额外断言 WebGL 上下文已 lost、画布已移除）。这是一项**运行时**验证，不在上表的逐包检查范围内。
 
@@ -222,6 +222,8 @@ git config core.hooksPath web/.husky
 > **三维应用的画布不能由组件持有。** WebGL 上下文被 `forceContextLoss()` 之后那张 canvas 就永久不可再用，而 React 开发期 StrictMode 会双跑 effect（建 → 毁 → 建）—— 组件用 JSX 持有固定 `<canvas>` 必然在第二次踩到 `Cannot read properties of null (reading 'precision')`，且 jsdom 测试测不出来（无 GPU 走降级分支）。画布由 `createStage` 创建并随舞台销毁，详见 `docs/decisions/0013` 第 4 条。
 
 > **切场景不换渲染器。** `stage.loadScene()` 只释放旧场景图、建新场景图，渲染器 / 画布 / 相机 / 控制器 / 环境贴图全部复用 —— 反复切场景不会产生第二个 WebGL 上下文，也不会累积 GPU 资源。场景清单用前端注册表（`Record<SceneId, SceneDefinition>` 钉住编译期完整性），元数据契约与三条护栏见 `docs/decisions/0014`。另有 `node scripts/verify-scene-switching.mjs` 用真实 Chrome 断言反复切换无显存泄漏。
+
+> **可操控场景的相机跟随必须"整体平移"。** 场景通过可选的 `createControls(context)` 提供交互控制，只上报焦点；舞台把相机与轨道目标挪**同样的位移**，环绕姿态与距离才得以保留。左键旋转与滚轮缩放仍归 OrbitControls，右键在有控制器的场景里让给"设置行动终点"（`enablePan` 被关掉）。移动算法是独立纯内核（`scene/player/motor.ts`），小地图自绘 canvas 不走 React 状态。见 `docs/decisions/0015`，另有 `node scripts/verify-player-controls.mjs` 验证操控链路。
 
 > **关于 `turbo run`**：本次验证时 turbo 报 `os error 231`（管道句柄耗尽，`unable to spawn child process`）。这是当前运行环境的进程创建限制，**不是工程配置问题**——上表中的每个任务脚本逐个直跑全部通过，同一配置在此前也能通过 turbo 编排。本地正常终端下 `pnpm dev` / `pnpm build` 等不受影响。
 

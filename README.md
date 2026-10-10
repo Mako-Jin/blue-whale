@@ -30,7 +30,7 @@ web/
 │   ├── platform-portal       主应用（qiankun 容器，唯一入口，:3000）
 │   ├── platform-log-console  日志控制台（子应用 + 可独立运行，:3200）
 │   ├── platform-event-console 行为事件控制台（子应用 + 可独立运行，:3300）
-│   └── platform-environment  三维环境应用（子应用 + 可独立运行，:3400，three.js 多场景，与业务无关）
+│   └── platform-environment  三维环境应用（子应用 + 可独立运行，:3400，three.js 多场景，古建筑可操控，与业务无关）
 └── elemental/            通用元素（预留）
 ```
 
@@ -190,10 +190,13 @@ node scripts/verify-micro-frontend.mjs          # 需上面各服务已在跑
 
 打开 <http://127.0.0.1:3400>（或基座的 <http://127.0.0.1:3000/environment>）：顶部是卡片式场景选择器（古建筑 / 原始丛林 / 现代写字楼 / 太空飞船 / 渲染基线），点卡片即切换场景，右侧 HUD 实时显示帧率、绘制调用与三角面数。
 
+**古建筑是第一个可操控场景**：殿前广场上有可以走的主人公 —— `WASD` / 方向键移动（方向永远相对镜头）、滚轮缩放视角、**鼠标右键设置行动终点**（人物会自己走过去），左上角小地图显示广场全貌、人物朝向、相机视野与指北方向。左下角"渲染控制"面板的开关照常可用。
+
 反复切换场景不会产生第二个 WebGL 上下文、也不会累积 GPU 资源（切场景只换场景图，渲染器与画布复用），可用脚本断言：
 
 ```bash
 node scripts/verify-scene-switching.mjs         # 需 :3400 在跑；可传截图目录
+node scripts/verify-player-controls.mjs         # 主人公操控链路；需 :3400 在跑；可传截图目录
 ```
 
 ### Git 钩子

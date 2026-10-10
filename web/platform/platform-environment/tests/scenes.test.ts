@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { Mesh, MeshStandardMaterial, type BufferGeometry, type Object3D } from 'three';
+import {
+  Mesh,
+  MeshStandardMaterial,
+  PerspectiveCamera,
+  type BufferGeometry,
+  type Object3D,
+} from 'three';
 import { localSceneCatalog, type SceneDefinition } from '@/scene';
 
 /**
@@ -215,5 +221,77 @@ describe('场景各自的取舍', () => {
 
   it('现代写字楼默认显示网格 —— 它正好充当广场铺装的分格', () => {
     expect(byId.get('modern-office')?.meta.options?.showGrid).toBe(true);
+  });
+});
+
+describe('可操控场景（主人公）', () => {
+  const byId = new Map(SCENES.map((definition) => [definition.meta.id, definition]));
+
+  /** 造一个不依赖 WebGL 的场景上下文：控制器只用相机位姿与 DOM 事件。 */
+  function context() {
+    return {
+      camera: new PerspectiveCamera(),
+      domElement: document.createElement('canvas'),
+    };
+  }
+
+  it('只有古建筑实现了 createControls —— 别的场景没有主人公', () => {
+    const withControls = SCENES.map((definition) => {
+      const build = definition.create();
+      const provided = typeof build.createControls === 'function';
+      build.dispose();
+      return { id: definition.meta.id, provided };
+    }).filter((item) => item.provided);
+
+    expect(withControls.map((item) => item.id)).toEqual(['ancient-architecture']);
+  });
+
+  it('控制器把人物加进场景图，销毁时移除（不留幽灵人物）', () => {
+    const definition = byId.get('ancient-architecture');
+    const build = definition?.create();
+    const before = build?.scene.children.length ?? 0;
+
+    const controls = build?.createControls?.(context());
+    expect(controls).toBeDefined();
+    expect(build?.scene.children.length).toBe(before + 1);
+
+    controls?.dispose();
+    expect(build?.scene.children.length).toBe(before);
+
+    build?.dispose();
+  });
+
+  it('快照给出人物位姿、相机朝向与小地图地物', () => {
+    const build = byId.get('ancient-architecture')?.create();
+    const controls = build?.createControls?.(context());
+    const snapshot = controls?.snapshot();
+
+    expect(snapshot?.sceneId).toBe('ancient-architecture');
+    expect(snapshot?.map.groundSize).toBeGreaterThan(0);
+    // 挡人的东西必须也是地图上画出来的东西：地物不能是空的
+    expect(snapshot?.map.obstacles.length).toBeGreaterThan(0);
+    // 出生点在广场内
+    expect(Math.abs(snapshot?.player.x ?? 0)).toBeLessThan(snapshot?.map.groundSize ?? 0);
+    expect(Math.abs(snapshot?.player.z ?? 0)).toBeLessThan(snapshot?.map.groundSize ?? 0);
+
+    controls?.dispose();
+    build?.dispose();
+  });
+
+  it('出生点不在殿宇占地里 —— 否则一进场就被推出障碍', () => {
+    const build = byId.get('ancient-architecture')?.create();
+    const controls = build?.createControls?.(context());
+    const snapshot = controls?.snapshot();
+
+    const inside = snapshot?.map.obstacles.some(
+      (obstacle) =>
+        Math.abs(snapshot.player.x - obstacle.x) < obstacle.width / 2 &&
+        Math.abs(snapshot.player.z - obstacle.z) < obstacle.depth / 2,
+    );
+
+    expect(inside).toBe(false);
+
+    controls?.dispose();
+    build?.dispose();
   });
 });

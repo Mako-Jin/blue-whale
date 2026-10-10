@@ -44,7 +44,12 @@ export default function ControlPanel({ options, onChange, stats }: ControlPanelP
     <section className="render-panel" aria-label="渲染控制">
       <header className="render-panel__header">
         <h2 className="render-panel__title">渲染控制</h2>
-        <span className="render-panel__note">拖拽旋转 · 滚轮缩放 · 右键平移</span>
+        {/*
+          只写**所有场景都成立**的两条。可操控场景的右键被"设置行动终点"占用
+          （见 `scene/player/controls.ts`），把"右键平移"写死在这里就会在古建筑场景里
+          说反话 —— 那条提示由小地图的图例承担。
+        */}
+        <span className="render-panel__note">拖拽旋转 · 滚轮缩放</span>
       </header>
 
       <ul className="render-panel__toggles">

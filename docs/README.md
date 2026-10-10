@@ -35,6 +35,7 @@
 | 调整主应用的挂载方式、沙箱策略、全局状态下发或子应用 entry       | `decisions/0012` 第 1 / 2 / 6 / 9 条 · `platform/platform-portal/README.md`                                                                      |
 | 修改三维应用 / WebGL 场景与渲染生命周期                          | `decisions/0013-三维环境应用与WebGL渲染生命周期.md` · `platform/platform-environment/README.md`                                                  |
 | 新增 / 删除三维场景，或改场景注册表、清单契约与切换管线          | `decisions/0014-多场景架构与切换管线.md` · `platform/platform-environment/README.md`                                                             |
+| 新增 / 修改可操控场景（主人公、相机跟随、右键设点、小地图）      | `decisions/0015-场景交互与主人公操控.md` · `platform/platform-environment/README.md`                                                             |
 | 在子应用里订阅 / 回写基座全局状态                                | `packages/common-tools/README.md`（micro 章节） · `decisions/0013` 第 7 条                                                                       |
 | 修改跨应用共享的 Vite 配置片段                                   | `packages/common-config/README.md` · `decisions/0012` 第 10 条                                                                                   |
 | 调整客户端日志的校验 / 截断 / 存储策略                           | `server/README.md`（日志域硬规则表）                                                                                                             |
@@ -91,7 +92,8 @@ docs/decisions/NNNN-简短标题.md
 | `decisions/0011-行为事件管道与前端埋点内核.md`      | 行为事件是第三条独立管道、传输通道与脱敏逻辑的下沉复用、语义化 `track()` 与内部总线、事件名/双时间戳/属性版本的永久契约、卸载兜底、大数据接入预留点                                                          |
 | `decisions/0012-微前端接入与子应用改造.md`          | 主应用用 `loadMicroApp` 挂载、关 JS 沙箱的理由、`vite-plugin-qiankun` 的取舍、子应用必须保留独立运行分支、CORS 与端口锁定、全局状态下发、样式隔离不指望框架、preamble 修复、**React 组件级热更新的已知限制** |
 | `decisions/0013-三维环境应用与WebGL渲染生命周期.md` | 环境应用独立成域的理由、画布与上下文同生共死（StrictMode 双跑的坑）、`forceContextLoss` 与上下文上限、GPU 资源可断言释放、`Timer`/`PCFShadowMap` 替代、全局状态订阅的多路复用修复                            |
-| `decisions/0014-多场景架构与切换管线.md`            | 场景"实现"与"元数据"分置（ADR-0003 的应用）、注册表编译期兜底、清单元数据契约与三条护栏、切场景只换 `world` 不换渲染器、卡片式选择器                                                                         |
+| `decisions/0014-多场景架构与切换管线.md`            | 场景"实现"与"元数据"分置（ADR-0003 的应用）、注册表编译期兜底、清单元数据契约与三条护栏、切场景只换场景图不换渲染器、卡片式选择器                                                                            |
+| `decisions/0015-场景交互与主人公操控.md`            | 交互控制是场景的能力（`createControls` 可选契约）、相机"整体平移"跟随、移动算法独立成纯内核、右键打地面平面不打网格、小地图自绘 canvas 不走 state、正北朝上、地物与碰撞矩形同源、**未做寻路与移动动画**      |
 | `architecture/后端分层与依赖方向.md`                | 后端分层落地细则、依赖矩阵、前后端结构对照                                                                                                                                                                   |
 | `api/README.md`                                     | 契约接口清单、更新流程、任意值字段的处理                                                                                                                                                                     |
 | `../web/packages/common-config/README.md`           | 共享工程配置（ESLint / Stylelint / TypeScript / Vite）                                                                                                                                                       |
@@ -99,7 +101,7 @@ docs/decisions/NNNN-简短标题.md
 | `../web/packages/common-api/README.md`              | 前端契约包的使用方式与分层边界                                                                                                                                                                               |
 | `../web/platform/platform-portal/README.md`         | qiankun 主应用：挂载方式、全局状态、新增子应用的步骤                                                                                                                                                         |
 | `../web/platform/platform-environment/README.md`    | 三维环境应用：两种运行方式一条渲染路径、`src/scene/` 分层、渲染生命周期四条硬规则                                                                                                                            |
-| `../scripts/README.md`                              | 跨端脚本清单（契约导出 / 达梦初始化 / 微前端端到端验证 / 多场景切换验证）与硬性约束                                                                                                                          |
+| `../scripts/README.md`                              | 跨端脚本清单（契约导出 / 达梦初始化 / 微前端端到端验证 / 多场景切换验证 / 主人公操控验证）与硬性约束                                                                                                         |
 | `../server/README.md`                               | 后端模块表、统一响应与错误码、日志域硬规则、构建命令                                                                                                                                                         |
 
 ---

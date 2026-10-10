@@ -10,7 +10,14 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { disposeSubtree } from './common';
 import { createRenderer } from './renderer';
 import { resolveViewport, type Viewport } from './viewport';
-import type { SceneBuild, SceneDefinition, SceneId } from './types';
+import type {
+  SceneBuild,
+  SceneControls,
+  SceneContext,
+  SceneDefinition,
+  SceneId,
+  SceneInteractionSnapshot,
+} from './types';
 import type { SceneOptions } from './options';
 
 /**
@@ -77,6 +84,13 @@ export type Stage = {
   readonly sceneId: SceneId;
   /** 取一次运行时诊断（GPU 资源计数、绘制统计） */
   diagnostics(): StageDiagnostics;
+  /**
+   * 当前场景的交互快照（主人公位置、相机朝向、小地图地物）。
+   *
+   * **无交互场景返回 `null`** —— 调用方据此决定是否显示小地图，
+   * 而不是去猜"这个场景有没有主人公"。
+   */
+  interaction(): SceneInteractionSnapshot | null;
   /** 相机绕场景自动环绕 */
   setAutoRotate(enabled: boolean): void;
   setShadows(enabled: boolean): void;
@@ -145,14 +159,15 @@ export function createStage(host: HTMLElement, stageOptions: StageOptions): Stag
    */
   const camera = new PerspectiveCamera(50, 1, 0.1, 400);
 
-  const controls = new OrbitControls(camera, canvas);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.06;
-  controls.autoRotateSpeed = 0.6;
+  const orbit = new OrbitControls(camera, canvas);
+  orbit.enableDamping = true;
+  orbit.dampingFactor = 0.06;
+  orbit.autoRotateSpeed = 0.6;
   // 限制俯仰角上限，相机就不会钻到地面以下 —— 从地底看场景没有意义，还容易迷向
-  controls.maxPolarAngle = Math.PI / 2 - 0.03;
+  orbit.maxPolarAngle = Math.PI / 2 - 0.03;
 
   let currentBuild: SceneBuild | null = null;
+  let currentControls: SceneControls | null = null;
   let currentSceneId: SceneId = stageOptions.scene.meta.id;
 
   let currentViewport: Viewport | null = null;
@@ -195,7 +210,10 @@ export function createStage(host: HTMLElement, stageOptions: StageOptions): Stag
 
   /** 安装一个场景：建新的、装旧的、把相机搬到该场景的取景位。 */
   function installScene(definition: SceneDefinition, options: SceneOptions): void {
-    // 先释放旧场景。**顺序不能反**：新场景若先建，峰值显存会是两份场景之和
+    // 先释放旧场景。**顺序不能反**：新场景若先建，峰值显存会是两份场景之和。
+    // 交互控制器也要先拆 —— 它把主人公挂在旧场景图上，晚拆就会去操作一棵已清空的树
+    currentControls?.dispose();
+    currentControls = null;
     currentBuild?.dispose();
 
     const build = definition.create();
@@ -204,23 +222,54 @@ export function createStage(host: HTMLElement, stageOptions: StageOptions): Stag
     currentBuild = build;
     currentSceneId = definition.meta.id;
 
+    const context: SceneContext = { camera, domElement: canvas };
+    currentControls = build.createControls?.(context) ?? null;
+
+    /**
+     * 有自带控制器的场景，右键归"设置行动终点"，因此关掉轨道平移。
+     * 左键旋转与滚轮缩放**保留** —— 那是相机调节，控制器不接管，
+     * 用户对"放大缩小视角"的预期就是滚轮。
+     */
+    orbit.enablePan = !currentControls;
+
     const [positionX, positionY, positionZ] = definition.meta.camera.position;
     const [targetX, targetY, targetZ] = definition.meta.camera.target;
     camera.position.set(positionX, positionY, positionZ);
-    controls.target.set(targetX, targetY, targetZ);
-    controls.minDistance = definition.meta.distance[0];
-    controls.maxDistance = definition.meta.distance[1];
-    controls.update();
+    orbit.target.set(targetX, targetY, targetZ);
+    orbit.minDistance = definition.meta.distance[0];
+    orbit.maxDistance = definition.meta.distance[1];
+    orbit.update();
 
     // 选项要**在场景图就位之后**应用：线框与网格都是作用在具体物体上的
     applyOptions(options, build);
+  }
+
+  /**
+   * 把相机焦点同步到交互控制器的目标点。
+   *
+   * 关键在"**整体平移**"：把相机与 `orbit.target` 一起挪同样的位移，
+   * 镜头与主人公的相对位置（环绕姿态、距离）就原样保留，看起来是镜头跟着人走。
+   * 只改 `target` 不动相机的话，镜头会原地转头 —— 人一走出画面就只剩个俯视小点。
+   */
+  function syncFocus(): void {
+    const focus = currentControls?.focus();
+    if (!focus) {
+      return;
+    }
+    const deltaX = focus[0] - orbit.target.x;
+    const deltaY = focus[1] - orbit.target.y;
+    const deltaZ = focus[2] - orbit.target.z;
+    orbit.target.set(focus[0], focus[1], focus[2]);
+    camera.position.x += deltaX;
+    camera.position.y += deltaY;
+    camera.position.z += deltaZ;
   }
 
   function applyOptions(options: SceneOptions, build: SceneBuild | null = currentBuild): void {
     if (!build) {
       return;
     }
-    controls.autoRotate = options.autoRotate;
+    orbit.autoRotate = options.autoRotate;
     renderer.shadowMap.enabled = options.shadows;
     renderer.shadowMap.needsUpdate = true;
     build.setWireframe(options.wireframe);
@@ -253,7 +302,7 @@ export function createStage(host: HTMLElement, stageOptions: StageOptions): Stag
    * 2. `connect(document)` 借 Page Visibility API 兜住"切到别的标签页再切回来"：
    *    不做这件事，回来那一帧的 delta 是整段挂起时长，物体会瞬移一大截。
    *
-   * 精度是秒，与 `Clock` 一致，所以 `controls.update(delta)` 的语义不变。
+   * 精度是秒，与 `Clock` 一致，所以 `orbit.update(delta)` 的语义不变。
    */
   const timer = new Timer();
   timer.connect(host.ownerDocument);
@@ -273,8 +322,11 @@ export function createStage(host: HTMLElement, stageOptions: StageOptions): Stag
       return;
     }
     build.update(timer.getElapsed());
+    // 主人公先走，镜头再跟 —— 反过来的话画面永远慢一帧
+    currentControls?.update(timer.getElapsed(), timer.getDelta());
+    syncFocus();
     // 阻尼与自动环绕都依赖 deltaTime，传进去才能做到"掉帧时速度不变"
-    controls.update(timer.getDelta());
+    orbit.update(timer.getDelta());
     renderer.render(build.scene, camera);
 
     framesInWindow += 1;
@@ -311,6 +363,10 @@ export function createStage(host: HTMLElement, stageOptions: StageOptions): Stag
       };
     },
 
+    interaction(): SceneInteractionSnapshot | null {
+      return currentControls?.snapshot() ?? null;
+    },
+
     start(): void {
       if (running) {
         return;
@@ -329,7 +385,7 @@ export function createStage(host: HTMLElement, stageOptions: StageOptions): Stag
     },
 
     setAutoRotate(enabled: boolean): void {
-      controls.autoRotate = enabled;
+      orbit.autoRotate = enabled;
     },
 
     setShadows(enabled: boolean): void {
@@ -354,7 +410,10 @@ export function createStage(host: HTMLElement, stageOptions: StageOptions): Stag
       // 断开 Page Visibility 监听：不解开的话每次挂载都会在 document 上多留一个监听器
       timer.dispose();
 
-      controls.dispose();
+      // 先拆交互控制器：它把主人公挂在场景图上，晚拆就会在已清空的树上做无用工
+      currentControls?.dispose();
+      currentControls = null;
+      orbit.dispose();
       environmentTarget.dispose();
       currentBuild?.dispose();
       currentBuild = null;

@@ -15,6 +15,14 @@ type SceneViewProps = {
   onStats: (stats: StageStats) => void;
   /** 无法建立 WebGL 上下文时上报，由上层决定怎么显示 */
   onError: (message: string) => void;
+  /**
+   * 舞台就绪 / 销毁时回调。
+   *
+   * 给小地图这类需要**逐帧读取**舞台状态的浮层用：它们拿到的不是数据快照，
+   * 而是"从哪里读"的入口 —— 快照每帧都变，走 props 传会让整棵树跟着重渲染。
+   * 销毁时回调 `null`，上层据此停止读取。
+   */
+  onReady?: (stage: Stage | null) => void;
 };
 
 /**
@@ -33,7 +41,7 @@ type SceneViewProps = {
  * 而 React 的 StrictMode 在开发期会双跑 effect（建 → 毁 → 建），
  * 组件持有固定画布必然踩到这一点。详见 `scene/stage.ts`。
  */
-export default function SceneView({ scene, options, onStats, onError }: SceneViewProps) {
+export default function SceneView({ scene, options, onStats, onError, onReady }: SceneViewProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Stage | null>(null);
 
@@ -43,9 +51,9 @@ export default function SceneView({ scene, options, onStats, onError }: SceneVie
    * 建立舞台的 effect 依赖为空数组，它拿到的会是最初那一份闭包；
    * 统计数据每隔半秒就来一次，不能因为回调换了引用就把上下文重建一遍。
    */
-  const latestRef = useRef({ scene, options, onStats, onError });
+  const latestRef = useRef({ scene, options, onStats, onError, onReady });
   useEffect(() => {
-    latestRef.current = { scene, options, onStats, onError };
+    latestRef.current = { scene, options, onStats, onError, onReady };
   });
 
   useEffect(() => {
@@ -79,6 +87,7 @@ export default function SceneView({ scene, options, onStats, onError }: SceneVie
 
       stage.start();
       stageRef.current = stage;
+      latestRef.current.onReady?.(stage);
 
       /**
        * 开发期把舞台挂到 window 上，供排查与端到端脚本读取 GPU 资源计数
@@ -97,6 +106,8 @@ export default function SceneView({ scene, options, onStats, onError }: SceneVie
     return () => {
       const stage = stageRef.current;
       stageRef.current = null;
+      // 先让上层停止读取，再拆舞台 —— 顺序反了会出现"读到已销毁的舞台"
+      latestRef.current.onReady?.(null);
       /**
        * 只在 window 上挂着的仍是**本实例**时才清除。
        *

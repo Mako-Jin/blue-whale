@@ -67,7 +67,7 @@
 - **子应用的 `base` 分环境**：dev 必须是 `/`（否则热更新静默失效），build 才带前缀。不要"顺手统一"。
 - **子应用必须能独立跑**：入口判断 `qiankunWindow.__POWERED_BY_QIANKUN__` 做分支，通信一律走 `common-tools/micro`，不要在子应用里 `import` 基座的任何东西（违反铁律 5）。
 - **全局状态订阅必须走桥**：`onHostGlobalStateChange()`，不要直接调 `props.onGlobalStateChange`（单槽位，会互相覆盖）。
-- **决策不许散写成实现细节**：挂载方式、沙箱策略、全局状态、`vite-plugin-qiankun` 的取舍在 `docs/decisions/0012`；三维应用与 WebGL 渲染生命周期在 `docs/decisions/0013`；多场景注册表与切换管线在 `docs/decisions/0014`。改这些先改 ADR。
+- **决策不许散写成实现细节**：挂载方式、沙箱策略、全局状态、`vite-plugin-qiankun` 的取舍在 `docs/decisions/0012`；三维应用与 WebGL 渲染生命周期在 `docs/decisions/0013`；多场景注册表与切换管线在 `docs/decisions/0014`；可操控场景（主人公、相机跟随、小地图）在 `docs/decisions/0015`。改这些先改 ADR。
 
 ## 三维场景（改 `platform-environment` 前先看）
 
@@ -75,6 +75,16 @@
 - **切场景只换场景图，不换渲染器**：`stage.loadScene()` 里先释放旧场景、后构建新场景（反过来峰值显存是两份之和）。渲染器 / 画布 / 相机 / 控制器 / 环境贴图必须复用，否则会积累 WebGL 上下文。切场景要**重置渲染选项**为该场景声明的默认值。
 - **散布禁用 `Math.random()`**：一律用 `common.ts` 的 `createPrng(seed)`（固定种子），否则画面不可复现、无法断言。测试里有"两次构建位姿指纹逐字一致"的断言钉住。
 - **新增场景后先跑 `pnpm --filter platform-environment test`**：`scenes.test.ts` 会把通用契约（纯函数动画、确定性布局、释放干净、线框开关）自动套到新场景上。
+
+## 可操控场景（主人公，见 ADR-0015）
+
+- **交互是场景的能力，不是舞台的能力**：实现 `SceneBuild.createControls(context)` 才有主人公；舞台负责控制器的生命周期与相机跟随，**场景不碰帧循环**。
+- **相机跟随必须"整体平移"**：`stage.ts` 的 `syncFocus` 把相机与轨道目标挪同样的位移。只改 `target` 不动相机会变成"原地转头"，人一走远就只剩俯视小点。**控制器不得直接改相机位姿** —— 相机由舞台持有并终身复用（ADR-0013）。
+- **角度约定全应用统一**：`heading`/`azimuth` 绕 Y 轴、0 = 朝 +Z、方向向量 `(sin a, cos a)`；世界 -Z 是北。改错符号的症状是"按上往后走"或小地图"东在西边"—— 有测试钉着，但新写代码时先对约定。
+- **右键射线打地面平面（y=0），不打网格**；画布尺寸为 0 时必须返回 `null`（否则 NaN 进内核）。有控制器的场景 `orbit.enablePan` 会被关掉，右键让给设终点。
+- **移动算法只写进 `player/motor.ts`（纯内核）**：不碰 three、不碰 DOM。要改移动手感（速度、转身、障碍推出）只改那里，`tests/player-motor.test.ts` 是行为契约。
+- **小地图自绘 canvas、不走 React 状态**；小地图地物与碰撞矩形**同源**（场景里声明一份），两份数据必然不同步。
+- **新增可操控场景**：在"新增场景"四步之上，声明可行走范围与障碍（一份）+ 实现 `createControls`。
 
 ## 目录边界（勿越界）
 

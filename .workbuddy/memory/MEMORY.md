@@ -1,17 +1,22 @@
 # BlueWhale — 项目长期备忘
 
 ## 项目定位
+
 大型全栈项目，前后端分离。工作空间：`D:\workspace\BlueWhale`。
 
 ## 参考项目（舰长指定的结构范本）
+
 - `D:\workspace\platform-terminator` — 纯前端 monorepo：pnpm workspace、`common-*` 公共包、按业务域分组、qiankun 微前端、React
 - `D:\workspace\SystemTerminator` — 纯后端 Maven 多模块：`sts-*` 体系，包名 `com.yaocode.sts`
+
 > 新需求优先参考这两个项目的既有做法，不要另起结构。
 
 ## 顶层划分
+
 `web/`（前端·pnpm）· `server/`（后端·Maven，包名 `com.bluewhale.sts`）· `docs/ scripts/ infra/`（横向层）
 
 ## Git 与文档约定
+
 - 仓库根 `D:\workspace\BlueWhale`，分支 `main`
 - Husky 钩子目录 `web/.husky`，用 Git 原生 `core.hooksPath` 挂载；沙箱下 husky 自动安装会因 `spawn git EBUSY` 失败 → 手动挂钩；钩子脚本内先 `cd "$(git rev-parse --show-toplevel)/web"`
 - `.gitattributes` 强制 LF（husky shell 脚本变 CRLF 会在 Linux 上执行失败）
@@ -21,6 +26,7 @@
 - 铁律：改代码必须同步改文档，同一次提交完成
 
 ## 技术栈
+
 - 前端：React 19 + Vite 8 + TS **6.0.3**（7.x 不被 typescript-eslint 支持）+ React Router 7
 - 微前端 qiankun 2.x；包管理 pnpm workspace + Turborepo；样式 Less
 - 规范：ESLint 10（flat config）+ Prettier 3 + Stylelint 17 + commitlint/Husky/lint-staged + Vitest 5
@@ -29,12 +35,14 @@
 - 契约：OpenAPI 3.1（`docs/api/`，springdoc 3.1.1 生成）
 
 ## Spring Boot 4 升级要点（2026-10-09 定 · ADR-0008）
+
 - **starter 坐标三处随 Boot 大版本一起动**：`web→webmvc`、`boot3-starter→boot4-starter`、springdoc `2.x→3.x`（2.x 配 Boot 4 启动即失败：WebMvcProperties 换包）；MockMvc 测试需另加 `spring-boot-starter-webmvc-test`，注解换包到 `org.springframework.boot.webmvc.test.autoconfigure`
 - **Jackson 3**：databind/core 迁到 `tools.jackson.*`，**注解仍在** `com.fasterxml.jackson.annotation`（包名与 2.x 共用）；classpath 上 Jackson 2 因 springdoc/MyBatis 传递仍在，import 认准 tools.jackson；`JacksonException` 是 unchecked
 - **enforcer**：`requireJavaVersion [21,)` 继承到所有子模块；message 里**禁写 `${java.version}`**——会被 Maven 属性插值吃掉（取到 POM 里的 21，不是运行 JVM），提示会自相矛盾
 - **契约升 OpenAPI 3.1**：任意值字段从 `Record<string, never>` 变 `unknown`；`common-api` 的 JsonValue 收紧层保留，分页 records 元素类型裂缝已用 `WithJsonRecords` 修复并加断言
 
 ## 前端结构
+
 - `packages/` 公共包（`common-*`）、`platform/` 应用、`elemental/` 预留
 - 实际存在：`common-config`（共享工程配置）· `common-tools`（公共能力包，6 模块：
   logger / env / http / json / report / events）· `common-api`（契约装配）·
@@ -45,12 +53,14 @@
 - **各应用的 LESS 语义令牌各自一份**（`src/styles/variables.less`），**禁止跨应用引用** —— 引了只有 `vite build` 会报，dev 与测试都发现不了
 
 ## 公共依赖与公共包治理（2026-10-09 定 · ADR-0002）
+
 - **依赖版本统一**：`web/pnpm-workspace.yaml` 的 `catalog:` 段是唯一来源，各 `package.json` 写 `"catalog:"`
 - **不建"存放依赖的包"** —— 会产生幽灵依赖（库可被引用却没声明，运行时解析不到）。新增依赖：先写 catalog 再引用
 - **公共代码**按能力建包 `packages/common-<能力>`；建包前先问"是否只有一个应用会用"
 - 新建公共包的 `eslint.config.js` 需 `...createEslintConfig()` 再追加自定义规则（如日志包关 `no-console`）
 
 ## logger（common-tools）关键决策
+
 - 7 级严重度（trace/debug/info/success/perf/warn/error）+ 阈值过滤；**过滤前置于格式化**
 - 级别映射到 `console.debug/log/warn/error`（参考实现全走 log，导致筛选与堆栈定位失效）
 - 渲染三态自适应：`css`（浏览器 `%c`）/ `ansi`（终端真彩）/ `plain`（管道、`NO_COLOR`）
@@ -60,6 +70,7 @@
 - 演示：`pnpm --filter common-tools playground`（:3100），把控制台输出镜像渲染到页面
 
 ## 输出通道两个钩子，分工不可混（2026-10-09 定 · ADR-0004）
+
 - `LogSink` 消费**渲染后的样子**（含 `%c` 样式串）→ 控制台、测试捕获、页面镜像
 - `onRecord` 消费**结构化事实** `LogRecord` → 上报、落库、聚合
 - **上报必须走 `onRecord`**：sink 级别有损（`info`/`success` 都压成 `'log'`），元数据被拼进字符串，只能反向解析
@@ -68,12 +79,14 @@
 - 服务端聚合与查询**已实现**（`sts-server-log`）；**采样与脱敏未实现**，等有真实生产流量再做；生产可复用成熟 APM（Sentry/RUM）
 
 ## 配置分域（2026-10-09 定 · ADR-0003）
+
 - 三层：**密钥级**（Vault/KMS）· **部署级**（Nacos/Apollo）· **业务运行期**（自研，走 OpenAPI 契约）
 - **自研范围只有业务运行期配置**；下两层自研是浪费，密钥层写错就是安全事故
 - 客户端配置五条底线：首屏零阻塞、兜底默认值在客户端、版本化+缓存+变更通知、配置项有 schema 与类型、环境物理隔离
 - 禁止：万能配置接口（长成上帝对象）、命名风格并存、无变更审计、两端各自解释语义
 
 ## 前端踩坑备忘
+
 - stylelint 的 `extends` 必须 `require.resolve` 转绝对路径（pnpm 隔离）
 - TS 6 起 `baseUrl` 弃用
 - ESLint 10 要求 flat config **默认导出数组**，不能导出函数
@@ -82,15 +95,18 @@
 - **沙箱限制**：Node `spawn git` 报 `EBUSY`；`turbo run` 报 `os error 231`（管道句柄耗尽）。均为环境限制，逐包直跑脚本均通过
 
 ## 后端分层（依赖只能自上而下）
+
 `sts-app` → `sts-server` → `sts-components` → `sts-common` → `sts-parent`；`sts-parent` 零代码，版本号只出现一次
 
 ### 已落地模块（2026-10-09 · ADR-0005）
+
 ```
 server/  pom.xml(聚合) → sts-parent
   → sts-common/{basic, web, db}
   → sts-server/sts-server-log（日志域）
   → sts-app/sts-app-server（唯一可启动进程，H2 内存库）
 ```
+
 - groupId **按层分级**（`com.bluewhale.sts.common.basic`…），`<version>` 只在 `sts-parent` 出现
 - `sts-common-basic`：`R<T>` · `ResultCode`（5 位 = HTTP 3 位 + 业务 2 位）· `BusinessException`；**刻意零依赖**，唯一例外是 `jackson-annotations`（provided，仅为 `@JsonIgnore`）
 - `sts-common-web`：`GlobalExceptionHandler` + CORS + 自动配置（`AutoConfiguration.imports`），依赖即生效
@@ -99,6 +115,7 @@ server/  pom.xml(聚合) → sts-parent
 - `sts-components/` **尚未创建**，按需再建，不预置空壳
 
 ## 数据源与迁移（2026-10-10 定 · ADR-0009）
+
 - **双 profile**：`h2`（默认，内存库，零依赖可跑）+ `mysql`（本机 MySQL，数据落盘）；切换是**启动参数**不是改文件
   - `BW_DB_PASSWORD=xxx java -jar … --spring.profiles.active=mysql`
   - 库名 `bluewhale`（utf8mb4 / utf8mb4_0900_ai_ci），已在本机 MySQL 8.0.26 上建好；本机还有另一个项目的 11 个库（`yc-sts-db-*` / `sts-db-*`），**勿动**
@@ -116,6 +133,7 @@ server/  pom.xml(聚合) → sts-parent
 - `#{it.xxx}` 这类 OGNL 属性引用**编译器管不到**，实体改属性名后要全局搜一遍
 
 ## 达梦 DM8（2026-10-10 定 · ADR-0010）
+
 - 三 profile 并列：`h2`（默认）/ `mysql` / `dameng`；驱动 `com.dameng:DmJdbcDriver18`（**Boot 的 BOM 不纳管**，`sts-parent` 手工收口），驱动类 `dm.jdbc.driver.DmDriver`
 - **MyBatis-Plus 原生内置 `DbType.DM`**（`JdbcUtils` 正则 `:dm\d*:` 匹配 URL）→ 分页/防全表更新**零代码改动**；枚举里还有 `KINGBASE_ES`/`OPENGAUSS`/`GAUSS`/`OCEAN_BASE`/`XU_GU`/`SINODB` 等一串国产库，**换库先查这张表**
 - **Flyway 官方无达梦模块**（42 个 `flyway-*` 构件里没有）→ 达梦 profile `flyway.enabled=false`，DDL 走 `scripts/init-dameng.sh` 交付脚本；已否决"引第三方 db-migration"与"自研 DatabaseType（300–400 行、绑 Flyway internal API）"
@@ -124,6 +142,7 @@ server/  pom.xml(聚合) → sts-parent
 - `DatasourceDialectTest` 钉住三 profile 的 URL → `DbType`；**达梦本身未经真实实例验证**（10 条清单在 ADR-0010）
 
 ## 契约链（2026-10-09 定 · ADR-0006）
+
 - 代码 → springdoc → `scripts/export-openapi.sh`（端口 18080）→ `docs/api/openapi.json` → `openapi-typescript` → `common-api/src/generated/schema.d.ts`
 - 生成物**入库**：前端构建不依赖后端可运行；契约变化在 review 里显式可见
 - 路径常量 `satisfies keyof paths`；`startTime` 等字段用 `expectTypeOf` 钉住（springdoc 会把 query 位带 `@Schema` 的 `Long` 推平成 string）
@@ -131,6 +150,7 @@ server/  pom.xml(聚合) → sts-parent
 - openapi-typescript 7.13 peer 要 TS ^5.x，项目是 6.0.3 → 有警告但功能正常
 
 ## 前端请求分层（2026-10-09 定 · ADR-0007）
+
 - `common-tools/http` = 传输内核（不认识业务接口）；`common-api` = 契约装配（只做接线）
 - 三件收口：解包 `R<T>`、`code!==0` 抛异常、超时+取消合并一个 AbortController
 - 六类错误 `business/http/network/timeout/abort/parse` + `retryable` 判据；**内核不做自动重试**（幂等边界属业务语义）
@@ -138,6 +158,7 @@ server/  pom.xml(聚合) → sts-parent
 - 日志上报通道 `LogReporter`：批量 20 / 3s / 缓冲 500 / 退避封顶 30s / 不抛异常不自我记录
 
 ## 行为事件管道：第三条独立管道（2026-10-10 定 · ADR-0011）
+
 - 三条管道并列：**技术日志**（排查故障/可采样）· **审计日志**（合规/后端拦截器为权威）· **行为事件**（分析用户行为/**不可采样**/契约极稳定）
 - **内容不同 ⇒ 独立模块独立表；通道相同 ⇒ 必须复用** `common-tools/json` + `common-tools/report`
 - 前端形态：**语义化 `track()` + 内部总线**，不做通用全局事件总线
@@ -154,6 +175,7 @@ server/  pom.xml(聚合) → sts-parent
 - **未做**（ADR-0011 列了 8 条）：采样 · 服务端二次脱敏 · 事件注册表 · Kafka/ClickHouse · 数据生命周期 · 同意管理与按用户删除 · 服务端 propsVersion 校验 · 达梦事件表实例验证
 
 ## 日志控制台 demo（platform-log-console，:3200）
+
 - 左栏客户端视角 / 右栏服务端视角并排 —— 只看一边无法判断上报成没成
 - `emit` 不能写 `logger[level](...)`：`perf` 签名是 `(label,value,unit)`，须显式 switch 分派
 - 已用真实浏览器（Chrome headless + CDP）验证全链路：点击 → 上报 → 落库 → 表格刷新
@@ -161,6 +183,7 @@ server/  pom.xml(聚合) → sts-parent
   两条管道独立 ⇒ 两个应用，不是一个应用里两个页签
 
 ## 微前端接入（2026-10-10 定 · ADR-0012）
+
 - **之前的前提是错的**：`platform-portal` 只是装了 qiankun 依赖，全仓 `registerMicroApps`/`initGlobalState` 零命中；两个控制台是独立应用（无生命周期导出、vite 未配 base）。本轮才真正接线
 - 基座用 **`loadMicroApp`** 而不是 `registerMicroApps` + `start`：挂载点由路由出口给（位置唯一、无竞态），后者要常驻容器且必须先于 `start()` 存在
 - **`sandbox: false`**：JS 沙箱靠 `with(window)` 劫持全局，**包不住 ESM 模块作用域**，对 Vite 子应用本就无效；关掉只损失 `document`/`history`/定时器补丁
@@ -181,6 +204,7 @@ server/  pom.xml(聚合) → sts-parent
 - **未做**：`platform-user`/`platform-admin` 未创建 · 生产部署静态目录与网关规则 · 子应用样式前缀去重 · 子应用错误边界
 
 ## 三维环境应用（2026-10-10 定 · ADR-0013）
+
 - **`platform-environment`**（:3400，`/environment`）：与任何业务域无关的环境应用，three.js + `@types/three`（版本进 catalog）
 - 两种运行方式一条渲染路径：`src/mount.ts` 的 `resolveMountPoint()` 返回 `{element, mode}`，被基座加载用传入容器（内部 `ensureChild` 再套一层 `#root`，不跟 qiankun 的清空动作抢节点）、独立启动用自建容器
 - `src/scene/` 分层：`scenes/*.ts` + `common.ts`（场景图/动画/工具，**不碰渲染器**）与 `renderer`/`stage` 分开 —— WebGLRenderer 构造即要上下文，jsdom 直接抛错，分层让场景逻辑全部可单测
@@ -192,6 +216,7 @@ server/  pom.xml(聚合) → sts-parent
 - **多场景见下方「多场景架构（ADR-0014）」**
 
 ## 多场景架构（2026-10-10 定 · ADR-0014）
+
 - 背景：要承载古建筑 / 原始丛林 / 现代写字楼 / 太空飞船等多类场景；舰长问"清单放前端 / 后端字典 / 管理端"
 - **一个场景 = 实现（`scenes/*.ts` three.js 代码，后端下发不了）+ 元数据（`SceneMeta` 纯数据）**，三选一只对元数据有意义。故此"新增场景必发前端版本"，后端字典当下净收益为 0（改代码 + 改一条库记录 ⇒ 两地不同步风险升高）
 - **当前用前端注册表**：依据 = ADR-0003 把场景目录判为「业务运行期配置」层且底线第 2 条要求"内置兜底永久在客户端"+ 应用立身前提是"可独立运行"（依赖后端则独立开 :3400 选择器为空）
@@ -204,7 +229,24 @@ server/  pom.xml(聚合) → sts-parent
 - 单位盒 + `scale`：方盒构件共享一个 `BoxGeometry`（古建筑 127 绘制调用只 6 份几何体）；共享几何体重复 dispose 安全
 - 新增场景顺序：`scenes/<id>.ts` → `types.ts` 加 `SceneId` 字面量 → `catalog.ts` 注册一行；`scenes.test.ts` 自动把通用契约套到新场景
 
+## 可操控场景（2026-10-10 定 · ADR-0015）
+
+- 古建筑是第一个可操控场景：殿前广场 + 主人公（WASD/方向键 + 滚轮缩放 + 右键设终点）+ 左上角小地图（正北朝上、人物朝向箭头、相机视野扇形）
+- **交互是场景的能力不是舞台的能力**：`SceneBuild.createControls?(context)` 可选契约；舞台管控制器生命周期（装载造 / 每帧驱动 / 切场景销毁），场景不碰帧循环。只有古建筑实现了它
+- **相机跟随必须"整体平移"**：控制器只上报 `focus()`，`stage.ts` 的 `syncFocus` 把相机与轨道目标挪**同样的位移** —— 只改 target 不动相机会变成原地转头。控制器**不得直接改相机位姿**（ADR-0013 的"相机由舞台持有"未被破坏）
+- **左键/滚轮仍归 OrbitControls**，控制器只借走键盘与右键；有控制器的场景 `orbit.enablePan=false`（右键让给设终点）。OrbitControls 的 contextmenu 只 preventDefault、键盘监听需显式 `listenToKeyEvents()` ⇒ 不冲突（已读源码确认）
+- **移动算法只在 `player/motor.ts`（纯内核）**：不碰 three 不碰 DOM；相机相对位移、目标点行走（撞障碍即清终点）、最短转向、边界夹取、沿穿透最浅的一边推出障碍。改手感只改这里，`tests/player-motor.test.ts` 是行为契约
+- **角度约定全应用统一**：`heading`/`azimuth` 绕 Y 轴、0 = 朝 +Z、方向向量 `(sin a, cos a)`；世界 **-Z 是北**。改错符号的症状：按上往后走、小地图东在西边（都有测试钉住）
+- 小地图**自绘 canvas 不走 React 状态**（60fps setState 不可接受）；数据经 `stage.interaction()` 逐帧读，`SceneView` 用 `onReady` 把舞台交给 App。投影/方向/扇形/箭头在 `scene/minimap.ts` 全是纯函数
+- **世界→地图零角度补偿**：世界 +X→右、+Z→下、-Z→上（北），方向向量在两坐标系同形
+- 小地图地物与碰撞矩形**同源**（场景声明一份）—— 挡人的必须也是地图上画出来的
+- 右键射线打**地面平面 y=0** 不打网格（网格随开关存在）；画布尺寸 0 必须返回 null（防 NaN 进内核）
+- 古建筑调参：广场 halfExtent 40 + 压边石 + 雾 26/85（近了人走远被雾洗白）+ 太阳阴影范围 30（小了走出范围影子无声消失）；障碍 = 台基 + 台阶
+- 验证脚本 `scripts/verify-player-controls.mjs`（CDP :9335）：真实键盘断言位移与镜头前向一致度 ≥0.9、滚轮距离变化、右键设点与自动收敛、小地图像素、切场景隐藏
+- **未做**：寻路（直线过不去即放弃）、移动动画、遮挡精度、小地图交互、移动端虚拟摇杆
+
 ## 环境坑（已查清，勿再排查）
+
 - 后端启动报 Port 56491：沙箱注入 `SERVER__PORT` 环境变量 → 命令行 `--server.port=8080` 覆盖
 - `curl localhost` 报 upstream connect failed：环境 HTTP 代理 → 加 `--noproxy '*'`
 - 本机 `JAVA_HOME` 默认 JDK 17 → 后端构建须 `JAVA_HOME=/d/tools/installer/jdk/java21`
@@ -212,16 +254,20 @@ server/  pom.xml(聚合) → sts-parent
 - 构建：PATH 上是 JDK 17，**必须** `JAVA_HOME="D:/tools/installer/jdk/java21" mvn …`
 - `mvn clean` 报「另一个程序正在使用此文件」：上一轮启动的后端占着 jar →
   `jps -l` 找到 PID 后 `taskkill //F //PID <pid>`（Git Bash 里斜杠写 `//`）
+- **dev server 起在 Bash 工具调用里用 `&` 会被杀**：命令一结束子进程跟着退出，
+  端口变 000、页面空载（症状是端到端脚本报"舞台未就绪"）→ 长驻 dev server 必须**以后台任务方式起**
 - **PowerShell 工具在本沙箱不可用**（`LsSDK_CreateSandbox(ConPTY) 失败`）→ 改用 Bash
 - Maven 本地仓库在 **`D:\repository\maven`**（不是 `~/.m2`）
 
 ## 日志双管道：技术日志 ≠ 审计日志（2026-10-09 定）
+
 - **技术日志**（前端上报）：排查故障 · 短保留期 · 采样 · 前端驱动
 - **审计日志**：合规追溯 · 长保留期 · 全量不可改 · **后端拦截器自动产生**（前端不知道最终是否落库成功，且易被篡改；前端上报只作"业务意图"补充）
 - 推进顺序：**S1 后端骨架（已完成）→ S2 OpenAPI 契约 → S3 日志服务垂直切片**
 - S1 刻意不上 Nacos/网关/Feign/Sentinel，等真需要跨服务调用再引
 
 ## 六条铁律
+
 1. 两端不共用构建体系（pnpm / Maven 互不侵入）
 2. 跨端只认 OpenAPI 契约；前端 SDK 禁止手写
 3. 跨端共享物只放 `docs/`
@@ -230,5 +276,6 @@ server/  pom.xml(聚合) → sts-parent
 6. 后端模块依赖禁止反向、禁止跨层跳跃
 
 ## 沟通偏好
+
 - 舰长偏好可视化方案与可运行演示，讲方案配图优于纯文字
 - 给方案时先说结论和理由，再给细节

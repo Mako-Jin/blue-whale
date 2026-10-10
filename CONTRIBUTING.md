@@ -147,6 +147,7 @@ cd web && pnpm install
 ```bash
 node scripts/verify-micro-frontend.mjs    # 微前端全链路（基座 :3000 + 三个子应用）
 node scripts/verify-scene-switching.mjs   # 三维应用多场景切换与显存释放（仅需 :3400）
+node scripts/verify-player-controls.mjs   # 主人公操控链路（仅需 :3400）
 ```
 
 ### 三维场景相关的改动
@@ -160,6 +161,10 @@ node scripts/verify-scene-switching.mjs   # 三维应用多场景切换与显存
 | **渲染生命周期**（画布/上下文/释放） | `docs/decisions/0013` 第 1–4 条要同步更新（画布与上下文同生共死、`dispose()` 必 `forceContextLoss()`）               |
 | 场景里的**散布 / 随机**              | 一律用 `common.ts` 的 `createPrng(seed)`，禁用 `Math.random()`（可复现、可断言）                                     |
 | **切场景管线**                       | `stage.loadScene()` 只换场景图，渲染器/画布/相机/环境贴图复用；切场景要重置渲染选项为该场景默认值                    |
+| **新增可操控场景**（主人公）         | 契约见 `docs/decisions/0015`：声明可行走范围与障碍（**一份**，同时喂移动内核与小地图）+ 实现 `createControls`        |
+| **移动手感**（速度/转身/障碍推出）   | 只改 `scene/player/motor.ts`（纯内核，不碰 three/DOM）；`tests/player-motor.test.ts` 是行为契约                      |
+| **相机跟随 / 右键 / 滚轮分工**       | 左键旋转与滚轮归 OrbitControls，右键在有控制器的场景让给设终点；跟随必须"整体平移"（`stage.ts` 的 `syncFocus`）      |
+| **小地图**                           | 自绘 canvas，**不走 React 状态**；地物与碰撞矩形同源；投影与几何在 `scene/minimap.ts`（纯函数，可单测）              |
 
 ---
 

@@ -12,6 +12,7 @@
 | `init-dameng.sh`             | 在达梦 DM8 上应用交付用的建表脚本（Flyway 无达梦模块）    | 可达的 DM8 实例；凭据走环境变量 `BW_DB_USERNAME` / `BW_DB_PASSWORD`               | `docs/decisions/0010` |
 | `verify-micro-frontend.mjs`  | 用真实 Chrome 验证微前端全链路                            | 四个 dev server 都在跑（:3000 / :3200 / :3300 / :3400），且本机装有 Google Chrome | `docs/decisions/0012` |
 | `verify-scene-switching.mjs` | 用真实 Chrome 验证三维应用的多场景切换与显存释放          | :3400 在跑，且本机装有 Google Chrome；可选传截图目录                              | `docs/decisions/0014` |
+| `verify-player-controls.mjs` | 用真实 Chrome 验证古建筑场景的主人公操控                  | :3400 在跑，且本机装有 Google Chrome；可选传截图目录                              | `docs/decisions/0015` |
 
 ### `verify-micro-frontend.mjs` 做什么
 
@@ -30,6 +31,21 @@
 > **为什么用真实浏览器而不是 jsdom。** 微前端的问题几乎都只在真实运行时才暴露：脚本的执行方式（`import-html-entry` 用 `eval` 执行脚本文本）、生命周期对接、容器挂载与卸载、样式隔离。这些在 jsdom 里都不会重现 —— 第一版实现时 Fast Refresh preamble 抛的 `SyntaxError` 就是只有真实浏览器才看得见的错误。
 
 > **注意脚本里的 HMR 探测是"就地改源码"**：它会往 `platform-log-console/src/App.tsx` 与 `App.less` 里写入一段探针文本并在结束时还原。中途被中断时请检查这两个文件是否留有 `·HMR探测` 或 `--hmr-probe` 残留。
+
+### `verify-player-controls.mjs` 做什么
+
+用 CDP（Chrome DevTools Protocol，`--headless=new`，调试端口 9335）驱动真实 Chrome，验证的都是**单元测试测不到的接线**：
+
+1. 等舞台与主人公就绪，断言首屏场景是古建筑、人物在出生点
+2. 小地图确实画出来了：画布尺寸、指北标记是 `N`、人物箭头的像素确实存在
+3. **真实键盘事件**按住 `W` 再松开 → 断言位移与"镜头前向"的一致度 ≥ 0.9
+   （方向符号写反的经典症状"按上往后走"，就是被这条逮住的）
+4. 按 `D` 同理，断言与"镜头右向"的一致度
+5. 右键（合成 `contextmenu`）在若干候选屏幕点里挑一个**离人物足够远**的设为终点，
+   等人物自己走过去：断言距离收敛、终点被清除、人物没停在障碍里
+6. 滚轮缩放 → 断言相机距离变化
+7. 切到太空场景 → 断言小地图隐藏、交互快照归 `null`
+8. 汇总浏览器侧错误与 4xx/5xx
 
 ### 脚本的硬性约束
 

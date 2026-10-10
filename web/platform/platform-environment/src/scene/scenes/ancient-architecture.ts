@@ -20,7 +20,16 @@ import {
   glowMaterial,
   solidMaterial,
 } from '../common';
-import type { SceneBuild, SceneDefinition, SceneMeta } from '../types';
+import { createPlayerControls } from '../player/controls';
+import { obstacleFromRect } from '../player/motor';
+import type {
+  MinimapFeatures,
+  SceneBuild,
+  SceneContext,
+  SceneControls,
+  SceneDefinition,
+  SceneMeta,
+} from '../types';
 
 /**
  * 古建筑（中式殿宇）。
@@ -58,23 +67,77 @@ const ROOF_BOTTOM_Y = COLUMN_TOP + 1.14;
 const ROOF_CENTER_Y = ROOF_BOTTOM_Y + ROOF_HEIGHT / 2;
 const ROOF_TOP_Y = ROOF_BOTTOM_Y + ROOF_HEIGHT;
 
+/**
+ * 可行走广场：以原点为中心的正方形。
+ *
+ * 主人公被限制在这个范围内（见 `player/motor.ts` 的边界夹取），
+ * 广场四周立一圈矮石压边，让"走到头了"有视觉反馈，
+ * 而不是被一堵看不见的墙拦住。
+ */
+const ARENA = {
+  halfExtent: 40,
+  /** 压边石 */
+  curbHeight: 0.34,
+  curbThickness: 0.6,
+  /** 网格分格数：80 / 40 = 2 世界单位一格，正好当铺装分缝 */
+  gridDivisions: 40,
+} as const;
+
+const PLAYER = {
+  /** 出生在殿前御路正中，面朝殿宇（-Z 方向，即 heading = π） */
+  spawn: { x: 0, z: 13, heading: Math.PI },
+  radius: 0.5,
+  speed: 7.2,
+} as const;
+
+/** 台阶区域：三级踏跺从台基正面往外伸出来，一并算作不可通行 */
+const STEP_BLOCK = {
+  centerZ: PLATFORM.depth / 2 + 0.75,
+  width: 4.2,
+  depth: 1.5,
+} as const;
+
+/**
+ * 不可通行的矩形（世界坐标）。
+ *
+ * 只挡殿宇本体与台阶 —— 广场是空的，玩家绕得过去。
+ * 刻意不引物理引擎：这一阶段的诉求是"能走、不会穿墙"，不是碰撞仿真。
+ */
+const OBSTACLES = [
+  obstacleFromRect(0, 0, PLATFORM.width, PLATFORM.depth),
+  obstacleFromRect(0, STEP_BLOCK.centerZ, STEP_BLOCK.width, STEP_BLOCK.depth),
+];
+
+/** 小地图地物。与 `OBSTACLES` 同源 —— 挡人的东西必须也是地图上画出来的东西 */
+const MINIMAP: MinimapFeatures = {
+  groundSize: ARENA.halfExtent * 2,
+  obstacles: [
+    { x: 0, z: 0, width: PLATFORM.width, depth: PLATFORM.depth },
+    { x: 0, z: STEP_BLOCK.centerZ, width: STEP_BLOCK.width, depth: STEP_BLOCK.depth },
+  ],
+};
+
 const meta: SceneMeta = {
   id: 'ancient-architecture',
   title: '古建筑',
-  summary: '中式殿宇：台基、柱列、斗拱与四坡屋顶',
-  tags: ['室外', '建筑'],
+  summary: '中式殿宇与可操控漫步的殿前广场',
+  tags: ['室外', '建筑', '可操控'],
   icon: 'roof',
   order: 10,
   accent: '#b99a5e',
   background: '#342f3d',
+  // 第三人称初始机位：在出生点后方偏上，正对殿宇。焦点高度对齐主人公胸口
   camera: {
-    position: [11, 7.5, 14],
-    target: [0, 4.6, 0],
+    position: [0, 9, 24],
+    target: [0, 1.35, PLAYER.spawn.z],
   },
-  distance: [8, 60],
+  distance: [7, 40],
   environmentIntensity: 0.42,
-  // 台基是石板地面，网格辅助线在这里只会碍眼
-  options: { showGrid: false },
+  /**
+   * 网格现在是广场的铺装分缝，对"走到哪了"有实际参照作用，因此默认打开。
+   * 自动环绕默认关闭 —— 镜头绕人转的同时还要操控人物会让人晕。
+   */
+  options: { showGrid: true, autoRotate: false },
 };
 
 /** 沿前、后檐与两侧铺开的柱位（台基面上）。 */
@@ -101,7 +164,14 @@ function columnPositions(): Array<[number, number]> {
 function create(): SceneBuild {
   const scene = new Scene();
   scene.background = new Color(meta.background);
-  addFog(scene, meta.background, 18, 55);
+  /**
+   * 雾的起止要跟着"走多远"给。
+   *
+   * 这一版广场半径 40，雾若从 18 就起，人走到广场边缘时自己会被雾洗白 ——
+   * 那是"看不清人物"最常见的假故障。近端推到 26、远端 85：
+   * 远处地面照样淡出到背景色，但主人公在整块广场上都是清晰的。
+   */
+  addFog(scene, meta.background, 26, 85);
 
   // ---------- 光照：黄昏暖阳从西侧低角度打过来 ----------
   scene.add(new AmbientLight(0x7a86b8, 0.55));
@@ -109,25 +179,63 @@ function create(): SceneBuild {
     color: 0xffd9a0,
     intensity: 3.1,
     position: [14, 13, 9],
-    extent: 24,
+    /**
+     * 阴影相机的范围要罩得住"人会走到的地方"。
+     *
+     * 给 24 只够殿宇周围一圈，人一走出阴影范围，自己的影子会**无声消失**
+     * —— 那看起来像"影子功能坏了"。代价是同样的贴图尺寸摊到更大面积上，
+     * 阴影边缘会稍软一点；这一版用清晰度换覆盖范围是划算的。
+     */
+    extent: 30,
   });
   // 低处的地面反射光，让屋檐下的暗部不至于死黑
   const bounce = new PointLight(0xff8a3d, 42, 60, 2);
   bounce.position.set(-9, 3.2, -7);
   scene.add(bounce);
 
-  addGround(scene, { size: 90, color: PALETTE.ground, roughness: 0.95 });
+  // ---------- 广场地面 ----------
+  // 地面比可行走范围大得多：走到边界时看不到地面的硬边，视野里全是地
+  addGround(scene, { size: 220, color: PALETTE.ground, roughness: 0.95 });
 
-  const grid = new GridHelper(44, 22, 0x6b665e, 0x4a4640);
+  const grid = new GridHelper(ARENA.halfExtent * 2, ARENA.gridDivisions, 0x6b665e, 0x4a4640);
   grid.position.y = 0.01;
   scene.add(grid);
 
-  // ---------- 台基与台阶 ----------
   const stoneMaterial = solidMaterial(PALETTE.stone, { metalness: 0.05, roughness: 0.88 });
   const stoneDarkMaterial = solidMaterial(PALETTE.stoneDark, {
     metalness: 0.05,
     roughness: 0.92,
   });
+
+  // 广场压边：一圈矮石。四下都矮，不挡视线，但一眼能看出范围到哪
+  const curbEdge = ARENA.halfExtent * 2 + ARENA.curbThickness;
+  const curbY = ARENA.curbHeight / 2;
+  addBox(
+    scene,
+    stoneDarkMaterial,
+    [curbEdge, ARENA.curbHeight, ARENA.curbThickness],
+    [0, curbY, -ARENA.halfExtent],
+  );
+  addBox(
+    scene,
+    stoneDarkMaterial,
+    [curbEdge, ARENA.curbHeight, ARENA.curbThickness],
+    [0, curbY, ARENA.halfExtent],
+  );
+  addBox(
+    scene,
+    stoneDarkMaterial,
+    [ARENA.curbThickness, ARENA.curbHeight, curbEdge],
+    [ARENA.halfExtent, curbY, 0],
+  );
+  addBox(
+    scene,
+    stoneDarkMaterial,
+    [ARENA.curbThickness, ARENA.curbHeight, curbEdge],
+    [-ARENA.halfExtent, curbY, 0],
+  );
+
+  // ---------- 台基与台阶 ----------
 
   addBox(
     scene,
@@ -305,6 +413,28 @@ function create(): SceneBuild {
 
     setGridVisible(visible: boolean): void {
       grid.visible = visible;
+    },
+
+    /**
+     * 本场景是**可操控**的：殿前广场上有一个可以走的主人公。
+     *
+     * 主人公与输入绑定都活在控制器里，而不是场景图里 —— 这样"切到别的场景"
+     * 会把它们一并拆掉（含键盘/右键监听），不会留下一个还能响应按键的幽灵人物。
+     */
+    createControls(context: SceneContext): SceneControls {
+      return createPlayerControls(
+        {
+          sceneId: meta.id,
+          scene,
+          spawn: PLAYER.spawn,
+          halfExtent: ARENA.halfExtent,
+          obstacles: OBSTACLES,
+          minimap: MINIMAP,
+          radius: PLAYER.radius,
+          speed: PLAYER.speed,
+        },
+        context,
+      );
     },
 
     dispose(): void {

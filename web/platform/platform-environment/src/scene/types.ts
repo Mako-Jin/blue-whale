@@ -1,4 +1,4 @@
-import type { Scene } from 'three';
+import type { PerspectiveCamera, Scene } from 'three';
 import type { SceneOptions } from './options';
 
 /**
@@ -95,6 +95,14 @@ export type SceneBuild = {
   setWireframe(enabled: boolean): void;
   /** 切换网格辅助线可见性。地面/太空这类没有地面概念的场景可以是空实现 */
   setGridVisible(visible: boolean): void;
+  /**
+   * 可选：本场景自带的**交互控制**（主人公操控、相机跟随）。
+   *
+   * 只有需要"人在场景里走动"的场景才实现它。舞台拿到之后会：
+   * 每帧驱动 `update`、把相机的焦点同步到 `focus()`、并关掉轨道控制的右键平移
+   * （右键让给"设置行动终点"）。返回 `null` 表示这次不接管。
+   */
+  createControls?(context: SceneContext): SceneControls | null;
   /** 释放全部几何体与材质。**调用后实例不可再用** */
   dispose(): void;
 };
@@ -103,6 +111,90 @@ export type SceneBuild = {
 export type SceneDefinition = {
   meta: SceneMeta;
   create(): SceneBuild;
+};
+
+/**
+ * 舞台交给场景的运行时上下文。
+ *
+ * 只有"需要相机或输入"的场景（主人公操控、跟随镜头）才用得上它。
+ * `camera` **只读使用**：相机由舞台持有并终身复用，场景只能读它的朝向，
+ * 不能直接改它的位姿 —— 改位姿会打乱轨道控制器的内部球坐标状态。
+ */
+export type SceneContext = {
+  camera: PerspectiveCamera;
+  /** 输入事件绑到这里（舞台创建的画布）。场景销毁时必须解绑。 */
+  domElement: HTMLElement;
+};
+
+/** 小地图上的一个矩形地物（世界坐标，轴对齐）。 */
+export type MinimapRect = {
+  x: number;
+  z: number;
+  width: number;
+  depth: number;
+};
+
+/**
+ * 小地图需要的**静态地物**。
+ *
+ * 只包含"与小地图绘制有关的几何"，不含任何渲染细节 ——
+ * 于是小地图可以完全脱离 WebGL 用 2D canvas 画出来，也能单测。
+ */
+export type MinimapFeatures = {
+  /** 可行走区域：以原点为中心的正方形边长（世界单位） */
+  groundSize: number;
+  /** 不可通行的矩形：建筑占地这类 */
+  obstacles: readonly MinimapRect[];
+};
+
+/**
+ * 交互场景的即时快照。
+ *
+ * 小地图每帧读它来画（用 `requestAnimationFrame` 直接画到 canvas 上，
+ * **不走 React 状态** —— 每帧 setState 会把重渲染变成新的性能瓶颈）。
+ */
+export type SceneInteractionSnapshot = {
+  sceneId: SceneId;
+  /** 主人公位置与朝向。`heading` 是绕 Y 轴的弧度，0 = 朝 +Z */
+  player: { x: number; z: number; heading: number };
+  /** 相机的水平朝向（弧度）。约定方向向量为 `(sin a, cos a)`，0 = 朝 +Z */
+  cameraAzimuth: number;
+  /**
+   * 相机到焦点的距离（世界单位）。
+   *
+   * 它就是"滚轮缩放"的结果 —— 小地图拿它决定视野扇形的长短：
+   * 拉远了视野就该更远，扇形跟着变长，缩放这件事在地图上也是可见的。
+   */
+  cameraDistance: number;
+  /** 是否存在正在前往的行动终点 */
+  hasDestination: boolean;
+  /** 行动终点（世界坐标），没有则为 null */
+  destination: { x: number; z: number } | null;
+  map: MinimapFeatures;
+};
+
+/**
+ * 场景自带的交互控制。
+ *
+ * 生命周期由舞台管理：场景装载时 `createControls()` 造出来，
+ * 每帧 `update()`，切场景/销毁时 `dispose()`。**场景自己不管帧循环** ——
+ * 否则每个可操控场景都要各自维护一套 rAF，迟早漏掉一次取消。
+ */
+export type SceneControls = {
+  /** 每帧推进（在场景动画之后、相机更新之前）。`delta` 是帧间隔秒数 */
+  update(elapsed: number, delta: number): void;
+  /**
+   * 相机应当跟随的世界坐标焦点。
+   *
+   * 舞台会**整体平移**相机与轨道目标到该点，从而保持当前的环绕姿态与距离 ——
+   * 只改 `target` 不改相机位置的话，镜头会原地转头，而不是跟着人走。
+   * 返回 `null` 表示本帧不接管相机。
+   */
+  focus(): readonly [number, number, number] | null;
+  /** 供小地图等 UI 读取的即时快照 */
+  snapshot(): SceneInteractionSnapshot;
+  /** 解绑全部输入监听、释放主人公的资源并把它移出场景 */
+  dispose(): void;
 };
 
 /** 清单的来源。界面上如实标注它，而不是让人猜数据从哪来。 */

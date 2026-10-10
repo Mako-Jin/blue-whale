@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { getHostGlobalState, isMicroApp, onHostGlobalStateChange } from 'common-tools/micro';
 import type { HostGlobalState } from 'common-tools/micro';
 import ControlPanel from '@/components/ControlPanel';
+import Minimap from '@/components/Minimap';
 import SceneSwitcher from '@/components/SceneSwitcher';
 import SceneView from '@/components/SceneView';
 import {
@@ -14,6 +15,7 @@ import {
   type SceneDefinition,
   type SceneId,
   type SceneOptions,
+  type Stage,
   type StageStats,
 } from '@/scene';
 import type { MountMode } from '@/mount';
@@ -60,6 +62,14 @@ export default function App({ mode }: AppProps) {
   const [options, setOptions] = useState<SceneOptions>(() => sceneOptions(defaultScene().meta));
   const [stats, setStats] = useState<StageStats | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /**
+   * 舞台实例。
+   *
+   * 小地图需要**逐帧**读它（主人公位置、相机朝向），所以这里存的是"从哪里读"
+   * 的入口，而不是把快照塞进 state —— 每秒 60 次 setState 会把重渲染
+   * 变成新的性能瓶颈，而这正是小地图最不该付出的代价。
+   */
+  const [stage, setStage] = useState<Stage | null>(null);
   // 初值直接读一次，避免为了"首帧就有值"而在 effect 里同步 setState
   const [globalState, setGlobalState] = useState<HostGlobalState>(() => getHostGlobalState());
 
@@ -102,6 +112,19 @@ export default function App({ mode }: AppProps) {
   const handleError = useCallback((message: string) => {
     setError(message);
   }, []);
+
+  /** 舞台就绪 / 销毁。销毁时收到 `null`，小地图随之隐藏。 */
+  const handleReady = useCallback((next: Stage | null) => {
+    setStage(next);
+  }, []);
+
+  /**
+   * 小地图的读取入口。
+   *
+   * 刻意**不返回快照对象本身**：没有交互的场景 `interaction()` 是 `null`，
+   * 小地图据此整块隐藏，而不是去猜"这个场景有没有主人公"。
+   */
+  const readInteraction = useCallback(() => stage?.interaction() ?? null, [stage]);
 
   /**
    * 订阅基座下发的全局状态。
@@ -161,12 +184,16 @@ export default function App({ mode }: AppProps) {
         {error ? (
           <WebGLFallback message={error} />
         ) : (
-          <SceneView
-            scene={activeScene}
-            options={options}
-            onStats={handleStats}
-            onError={handleError}
-          />
+          <>
+            <SceneView
+              scene={activeScene}
+              options={options}
+              onStats={handleStats}
+              onError={handleError}
+              onReady={handleReady}
+            />
+            <Minimap getSnapshot={readInteraction} />
+          </>
         )}
         <ControlPanel options={options} onChange={handleOptionsChange} stats={stats} />
       </div>
