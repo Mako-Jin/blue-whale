@@ -35,6 +35,7 @@
     "stylelint": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
+    "vite-plugin-qiankun": "catalog:",
     "vitest": "catalog:"
   }
 }

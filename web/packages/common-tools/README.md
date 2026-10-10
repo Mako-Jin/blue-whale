@@ -2,7 +2,7 @@
 
 与框架无关的通用工具集。**不依赖 React / Vue，不依赖任何运行时第三方库**，因此应用、构建脚本、Node 工具链都能直接用。
 
-当前包含六个模块：
+当前包含七个模块：
 
 | 模块     | 入口                  | 内容                                                 |
 | -------- | --------------------- | ---------------------------------------------------- |
@@ -12,8 +12,11 @@
 | `json`   | `common-tools/json`   | JSON 安全层：把任意值修剪成可序列化形态              |
 | `report` | `common-tools/report` | 通用批量上报通道：批量、有界、退避、不抛异常         |
 | `events` | `common-tools/events` | 行为事件内核：`track()` 语义化发布 + 内部总线 + 订阅 |
+| `micro`  | `common-tools/micro`  | 微前端桥接：子应用侧接住基座下发的 props 与全局状态  |
 
-后三个模块是**行为事件管道**的底座（见 `docs/decisions/0011`）。它们被拆成三层而不是合成一个 "analytics" 包，原因是复用面完全不同：`json` 与 `report` 是**通道属性**，日志管道也在用；`events` 才是事件语义本身。
+`json` / `report` / `events` 三个模块是**行为事件管道**的底座（见 `docs/decisions/0011`）。它们被拆成三层而不是合成一个 "analytics" 包，原因是复用面完全不同：`json` 与 `report` 是**通道属性**，日志管道也在用；`events` 才是事件语义本身。
+
+`micro` 的位置值得说明：它是**子应用侧**的代码，本该属于子应用；但两个控制台都要用同一套逻辑，而**子应用之间禁止互相引用**（铁律 5），公共代码只能下沉到 `packages/`。于是它落在这里，并且刻意做成**结构化描述、不依赖 qiankun 类型**——这样本包"不依赖任何运行时第三方库"的约束不被破坏，桥接也不会被绑死在 qiankun 上。
 
 ---
 
@@ -54,11 +57,15 @@ packages/common-tools/
 │   │   └── index.ts          JsonValue 类型 + sanitize / sanitizeObject
 │   ├── report/
 │   │   └── index.ts          BatchChannel：与内容无关的批量上报通道
-│   └── events/
+│   ├── events/
 │       ├── index.ts          模块出口
 │       ├── types.ts          EventEnvelope / 中间件 / 订阅者 / 事件名校验
 │       └── tracker.ts        createTracker：发布、总线、上下文
-├── tests/                    Vitest 单元测试（124 例）
+│   └── micro/
+│       ├── index.ts          模块出口
+│       ├── types.ts          HostProps / HostGlobalState（结构化描述，不 import qiankun）
+│       └── bridge.ts         bindHost / unbindHost / getHostGlobalState…
+├── tests/                    Vitest 单元测试（131 例）
 ├── playground/               可视化演示（纯 DOM，可运行）
 ├── eslint.config.js          引用 common-config，额外放行本包的 console 调用
 ├── stylelint.config.js       一行 re-export common-config 共享配置
@@ -536,7 +543,65 @@ tracker.track('order.submit', { orderId: 'SO-1', amount: 199 });
 
 ---
 
-## 九、相对参考实现的修复
+## 九、微前端桥接（micro）
+
+子应用侧接住基座的最小 API。**用法只有三行**：
+
+```ts
+import { bindHost, unbindHost, getHostGlobalState, isMicroApp } from 'common-tools/micro';
+
+// mount 时
+bindHost(props, 'platform-log-console'); // props 是 qiankun 传进来的那个对象
+// unmount 时
+unbindHost();
+
+// 任何地方读全局状态（独立运行时返回 {}，不会抛错）
+const { theme, userId } = getHostGlobalState();
+```
+
+| 导出                    | 作用                                                                  |
+| ----------------------- | --------------------------------------------------------------------- |
+| `bindHost(props, name)` | 接管基座 props；挂调试标记；订阅全局状态变化                          |
+| `unbindHost()`          | 断开连接；清调试标记与 `window.__MICRO_HOST__`                        |
+| `isMicroApp()`          | 当前是否跑在基座里（`false` = 独立运行）                              |
+| `getHostProps()`        | 取原始 props（需要基座新加的字段时用）                                |
+| `getHostGlobalState()`  | 读全局状态；独立运行或基座未提供时返回 `{}`                           |
+| `setHostGlobalState(s)` | 主动回写全局状态（如子应用内登录后补齐 `userId`）；独立运行时是 no-op |
+
+### 独立运行时这套 API 全部安全
+
+`hostProps` 为 `null` 时，读状态返回 `{}`、写状态不做事、`isMicroApp()` 返回 `false`。**这不是"防御性编程"，是硬需求**：子应用必须能脱离基座单独启动（调试微前端的第一件事就是区分"子应用本身坏了"还是"基座加载链路坏了"），入口代码不能出现 `if (window.__POWERED_BY_QIANKUN__)` 之外的额外分支。
+
+### 为什么不直接 import qiankun 的类型
+
+`HostProps` / `HostGlobalState` 是**结构化描述**（字段都可选），不是从 qiankun 或基座包里引出来的：
+
+- 子应用引用基座是**应用之间互相引用**，违反铁律 5；
+- 本包对外的承诺是"不依赖任何运行时第三方库"，引入 qiankun 类型会打破它；
+- 基座将来加字段时，子应用不需要跟着改（可选字段，用不到就不管）。
+
+### 两个调试设施（只为"能看见"）
+
+1. **`window.__MICRO_HOST__`** —— props 原件挂在全局。排查"props 到底传到没有"时在 DevTools 里看一眼即可，不用断点。
+2. **右下角状态标记** —— 显示 `应用名 · theme=dark · userId=u-xxx`。全局状态下发是这套微前端要验证的核心能力之一，只在 console 里打印容易看漏。
+
+> **标记挂进基座给的容器，而不是 `document.body`。** 容器卸载时会被 qiankun 清空，标记跟着一起走，不会出现"子应用已卸载但标记还留在页面上"的错觉。
+
+### 一个顺序坑
+
+`unbindHost()` 里**先取父节点、再清 `hostProps`**：
+
+```ts
+const parent = getIndicatorParent(); // ← 必须先
+hostProps = null; // ← 后清
+parent?.querySelector(`#${INDICATOR_ID}`)?.remove();
+```
+
+反过来写会退化成 `document.body`，容器里的标记搜不到，留下一个"卸载不干净"的假象 —— 而这恰好是微前端最容易误判的一类问题。`tests/micro.test.ts` 用 7 条用例把这条顺序钉住了。
+
+---
+
+## 十、相对参考实现的修复
 
 本包的结构参照 `platform-terminator/packages/common-tools`，logger 在其基础上重写。以下是**原实现中真实存在的问题**，均已修复并有测试覆盖：
 
@@ -561,7 +626,7 @@ tracker.track('order.submit', { orderId: 'SO-1', amount: 199 });
 
 ---
 
-## 十、设计取舍
+## 十一、设计取舍
 
 - **不引入渐变。** 原实现的级别标签用了 `linear-gradient`，浏览器里好看，但 ANSI 无法表达，会导致两种环境观感割裂。改用纯色，换来三态一致。
 - **不做内部 `fetch`。** 需要 ASCII 资源时由调用方读取后传入字符串，日志组件保持纯粹。
@@ -572,8 +637,9 @@ tracker.track('order.submit', { orderId: 'SO-1', amount: 199 });
 
 ---
 
-## 十一、待补充
+## 十二、待补充
 
 - 日志上报目前只到**采集契约**（`onRecord` + `LogRecord`）与**前端传输**（`BatchChannel`）；服务端的存储与聚合查询已实现（`sts-server-log`），跨端串联靠 `X-Trace-Id`
 - 行为事件链路已打通到落库与聚合查询（`sts-server-track` + `platform-event-console`），但**采样、服务端二次脱敏、事件注册表**尚未实现，等有真实流量再做；清单见 `docs/decisions/0011`
 - 其余能力（并发去重、请求缓存）需要时再议，仍按同一句话判断该不该进本包：**认识业务接口的代码一律不能进本包**
+- `common-tools/micro` 目前只被两个控制台子应用使用，且只在 dev 下验证过；**生产部署形态**（子应用静态目录、网关路由规则）还没定，`prodEntry` 只是占位。桥接本身与部署形态无关，定下来后不必改本模块

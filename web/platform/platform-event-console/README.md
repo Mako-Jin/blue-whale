@@ -119,8 +119,25 @@ pnpm --filter platform-event-console build    # 别跳过这一项
 
 完整清单见 `docs/decisions/0011` 的「尚未完成」表。
 
+## 它也是一个 qiankun 子应用
+
+本页可单独打开（`:3300`），也可被主应用 `platform-portal` 挂载（路由 `/event-console/*`），
+与 `platform-log-console` 同构。入口用 `renderWithQiankun()` 导出生命周期，
+`vite.config.ts` 里声明的应用名 `platform-event-console` 必须与基座注册表**逐字一致** ——
+写错不会报错，只会一直卡在"加载中"。
+
+两点与本页既有约束直接相关：
+
+- **独自跑时也会点「登录」**，那只是页面上的模拟身份；被基座挂载时，基座的「登录」按钮会通过
+  **全局状态**把 `userId` 下发下来，右下角状态标记随之变化。两套身份互不干扰，别混淆。
+- **构建产物的 `base` 是 `/event-console/`（仅 build）**，dev 下仍为 `/`。改这个值会让热更新静默失效。
+
+> 被基座加载时，本页的 React 组件级热更新不生效（样式正常）。改组件时单独
+> `pnpm --filter platform-event-console dev` 更省时间，原因见 `docs/decisions/0012`。
+
 ## 相关
 
 - `docs/decisions/0011-行为事件管道与前端埋点内核.md` —— 决策与取舍
-- `web/packages/common-tools/README.md` —— 事件内核 / 批量通道 / JSON 安全层
+- `docs/decisions/0012-微前端接入与子应用改造.md` —— 子应用改造与已知限制
+- `web/packages/common-tools/README.md` —— 事件内核 / 批量通道 / JSON 安全层 / 微前端桥接
 - `server/README.md` —— 后端 `sts-server-track` 模块与表结构

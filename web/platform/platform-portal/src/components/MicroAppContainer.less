@@ -1,0 +1,77 @@
+.micro-app {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  &__bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: @bg-elevated;
+    border: 1px solid @border-color;
+    border-radius: 6px;
+  }
+
+  &__title {
+    font-size: 13px;
+    font-weight: 500;
+    color: @text-primary;
+  }
+
+  &__name {
+    padding: 1px 6px;
+    font-family: ui-monospace, sfmono-regular, menlo, monospace;
+    font-size: 12px;
+    color: @text-secondary;
+    background: @bg-base;
+    border-radius: 4px;
+  }
+
+  &__phase {
+    margin-left: auto;
+    font-size: 12px;
+    color: @text-tertiary;
+
+    &--ready {
+      color: @success-color;
+    }
+
+    &--error {
+      color: @danger-color;
+    }
+  }
+
+  &__host {
+    min-height: 320px;
+    background: @bg-elevated;
+    border: 1px solid @border-color;
+    border-radius: 6px;
+    overflow: auto;
+  }
+
+  &__error-panel {
+    padding: 12px;
+    background: rgb(245 63 63 / 6%);
+    border: 1px solid rgb(245 63 63 / 30%);
+    border-radius: 6px;
+  }
+
+  &__error {
+    margin: 0;
+    font-size: 13px;
+    color: @danger-color;
+  }
+
+  &__hint {
+    margin: 6px 0 0;
+    font-size: 12px;
+    color: @text-tertiary;
+  }
+
+  &--missing {
+    padding: 16px;
+    border: 1px dashed @border-color;
+    border-radius: 6px;
+  }
+}

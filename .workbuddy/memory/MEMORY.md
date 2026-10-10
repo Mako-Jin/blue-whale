@@ -160,6 +160,25 @@ server/  pom.xml(聚合) → sts-parent
 - 姊妹页 `platform-event-console`（:3300）是同一思路用于**行为事件**：演示身份缝合 / 脱敏 / 屏蔽；
   两条管道独立 ⇒ 两个应用，不是一个应用里两个页签
 
+## 微前端接入（2026-10-10 定 · ADR-0012）
+- **之前的前提是错的**：`platform-portal` 只是装了 qiankun 依赖，全仓 `registerMicroApps`/`initGlobalState` 零命中；两个控制台是独立应用（无生命周期导出、vite 未配 base）。本轮才真正接线
+- 基座用 **`loadMicroApp`** 而不是 `registerMicroApps` + `start`：挂载点由路由出口给（位置唯一、无竞态），后者要常驻容器且必须先于 `start()` 存在
+- **`sandbox: false`**：JS 沙箱靠 `with(window)` 劫持全局，**包不住 ESM 模块作用域**，对 Vite 子应用本就无效；关掉只损失 `document`/`history`/定时器补丁
+- 子应用接入 **`vite-plugin-qiankun`**（不做 UMD）。它做两件事：把 `<body>` 里 `<script type="module">` 改成动态 `import()`；在 `window` 上按应用名挂"等 qiankun 回调"的生命周期壳
+- **`import-html-entry` 用 `eval` 执行脚本文本 → module script 跑不了**：这是必须用插件的根本原因
+- **应用名是隐式契约**：基座 `micro/apps.ts` 的 `name` 与子应用 `qiankun(APP_NAME,…)` 逐字一致；不一致**不报错、只卡"加载中"**。（同名对：`platform-log-console` / `platform-event-console`）
+- 子应用 `base` **分环境**：dev 必须 `/`（否则 `useDevMode` 定位不到 `/@vite/client`，热更新**静默失效**），build 才带 `/log-console/` `/event-console/`
+- **`initGlobalState` 不返回 `getGlobalState`**：只有 `onGlobalStateChange`/`setGlobalState`/`offGlobalStateChange` → 基座自留 `currentState` 副本填缺口。（参考项目 `platform-terminator` 把不存在的 `actions.getGlobalState` 传给子应用，是**真 bug**）
+- 子应用侧通信全走 **`common-tools/micro`**（`bindHost`/`unbindHost`/`getHostGlobalState`）：结构化类型、**不 import qiankun**；子应用之间禁止互相引用 ⇒ 只能下沉到 `packages/`
+  - 调试设施：`window.__MICRO_HOST__`（props 原件）+ 右下角状态标记（验证全局状态下发）
+  - `unbindHost` **先取父节点再清 `hostProps`**，反过来会退化成 body → 留下"卸载不干净"假象
+- **React Fast Refresh preamble 修复**：`@vitejs/plugin-react` 往 `<head>` 塞内联 module 脚本，插件不管它，`eval` 时抛 `Cannot use import statement outside a module` → `common-config/vite` 导出 `qiankunDevPreamble()` 改写成 `await import()`；`apply:'serve'`，生产不需要
+- 样式隔离**指望不上框架**（`experimentalStyleIsolation` 依赖 `<style>` 在入口 HTML 里，Vite dev 由 JS 插入 `document.head` 且跑在真实 window 上）
+- **已知限制（根因未定位）**：被基座加载时子应用 **React 组件级热更新不生效**（样式热更新正常、子应用独立运行正常）。A/B 对照确认与 preamble 修复无关。当前工作方式：改组件时单独跑子应用
+- 端到端验证脚本 `scripts/verify-micro-frontend.mjs`（真实 Chrome + CDP，端口 9333，会就地改源码探 HMR 再还原）
+- 端口：基座 :3000 · 日志 :3200 · 事件 :3300；子应用须 `strictPort: true` + `cors: true`（基座按固定端口找它）
+- **未做**：`platform-user`/`platform-admin` 未创建 · 生产部署静态目录与网关规则 · 子应用样式前缀去重 · 子应用错误边界
+
 ## 环境坑（已查清，勿再排查）
 - 后端启动报 Port 56491：沙箱注入 `SERVER__PORT` 环境变量 → 命令行 `--server.port=8080` 覆盖
 - `curl localhost` 报 upstream connect failed：环境 HTTP 代理 → 加 `--noproxy '*'`

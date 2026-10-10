@@ -36,7 +36,27 @@ pnpm --filter platform-log-console dev     # http://127.0.0.1:3200
 
 ---
 
-## 三、能演示什么
+## 三、它同时是一个 qiankun 子应用
+
+本页既可以**单独打开**（`http://127.0.0.1:3200`），也可以被主应用 `platform-portal` **挂载**（路由 `/log-console/*`）。两条路都必须能走通。
+
+| 关注点     | 做法                                                                                              |
+| ---------- | ------------------------------------------------------------------------------------------------- |
+| 入口       | `src/main.tsx` 用 `renderWithQiankun({ bootstrap, mount, unmount, update })` 导出生命周期         |
+| 独立运行   | 入口内判断 `qiankunWindow.__POWERED_BY_QIANKUN__`，为假时直接 `createRoot().render()`             |
+| 挂载点     | 从基座传入的 `container` 里取 `#root`，**不是** `document.getElementById`（否则会抢到基座的节点） |
+| 与基座通信 | `bindHost(props, APP_NAME)` / `unbindHost()`，来自 `common-tools/micro`                           |
+| 应用名     | `vite.config.ts` 里声明的名字必须与基座注册表里的**逐字一致**（`platform-log-console`）           |
+| `base`     | dev 用 `/`，build 用 `/log-console/` —— dev 带前缀会让热更新静默失效，见 `docs/decisions/0012`    |
+| 跨域与端口 | `server.cors: true` + `strictPort: true`：基座要按固定端口来取，端口漂移会表现为"一直加载中"      |
+
+> **应用名是隐式契约。** 基座 `MICRO_APPS` 里的 `name` 与这里 `vite-plugin-qiankun` 的声明名不一致时**不会报错**，只会卡在"加载中"——插件按名字在 `window` 上挂生命周期壳，名字对不上就永远等不到回调。改名时两处必须同改。
+
+> **调试时优先单独跑本页。** 被基座加载时，子应用的 React 组件级热更新不生效（样式热更新正常）；这是当前已知限制（`docs/decisions/0012`），改本页组件时单独 `pnpm --filter platform-log-console dev` 更快。
+
+---
+
+## 四、能演示什么
 
 | 操作                      | 验证了什么                                                             |
 | ------------------------- | ---------------------------------------------------------------------- |
@@ -53,11 +73,11 @@ pnpm --filter platform-log-console dev     # http://127.0.0.1:3200
 
 ---
 
-## 四、目录结构
+## 五、目录结构
 
 ```
 src/
-├── main.tsx / App.tsx        入口与主容器（订阅、轮询、查询、交互）
+├── main.tsx / App.tsx        入口（含 qiankun 生命周期）与主容器（订阅、轮询、查询、交互）
 ├── console.ts                单例装配：api + reporter + logSource，及 sanitize
 ├── reporter.ts               LogReporter：批量、有界、指数退避、不抛异常
 ├── log-source.ts             LogSource：按级别产生真实日志、模拟链路
@@ -71,7 +91,7 @@ tests/                        Vitest（25 例，含渲染测试）
 
 ---
 
-## 五、设计取舍
+## 六、设计取舍
 
 - **上报通道有四条硬约束**：批量、有界、指数退避、不抛异常不自我记录。全部来自真实故障 —— 违反任何一条，一次后端故障就会演变成客户端与服务端之间的雪崩。见 `src/reporter.ts` 的类注释与 `docs/decisions/0004`。
 - **上报必须走 `onRecord` 而不是 `LogSink`**：sink 拿到的是渲染后的字符串（级别信息被压扁、元数据被拼进去），只能反向解析；`onRecord` 拿到的是结构化事实。

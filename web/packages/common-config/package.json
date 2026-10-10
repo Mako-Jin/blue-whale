@@ -3,10 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "前端共享工程配置：ESLint / Stylelint / TypeScript",
+  "description": "前端共享工程配置：ESLint / Stylelint / TypeScript / Vite",
   "exports": {
     "./eslint": "./src/eslint.js",
     "./stylelint": "./src/stylelint.js",
+    "./vite": {
+      "types": "./src/vite.d.ts",
+      "import": "./src/vite.js"
+    },
     "./tsconfig.base.json": "./src/tsconfig.base.json",
     "./tsconfig.react.json": "./src/tsconfig.react.json"
   },
@@ -22,6 +26,7 @@
   },
   "peerDependencies": {
     "eslint": "^10.0.0",
-    "stylelint": "^17.0.0"
+    "stylelint": "^17.0.0",
+    "vite": "^8.0.0"
   }
 }

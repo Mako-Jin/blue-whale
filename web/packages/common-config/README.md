@@ -8,6 +8,7 @@
 | ----------------------------------- | --------------------------------- |
 | `common-config/eslint`              | ESLint flat config 工厂函数       |
 | `common-config/stylelint`           | Stylelint 配置对象（已适配 Less） |
+| `common-config/vite`                | 跨应用共享的 Vite 插件片段        |
 | `common-config/tsconfig.base.json`  | TypeScript 基础配置               |
 | `common-config/tsconfig.react.json` | React 应用 TypeScript 配置        |
 
@@ -78,6 +79,31 @@ export { default } from 'common-config/stylelint';
 > **不要写 `baseUrl`**。它在 TypeScript 6 中已弃用（7.0 将移除），`paths` 现已相对
 > tsconfig 自身解析。
 
+**5. `vite.config.ts` —— 需要时引用共享片段（可选）**
+
+共享片段用**函数**形式导出，调用后得到插件对象，放进 `plugins` 数组即可：
+
+```ts
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import qiankun from 'vite-plugin-qiankun';
+import { qiankunDevPreamble } from 'common-config/vite';
+
+export default defineConfig(({ command }) => ({
+  // dev 用 `/`、build 才带前缀：见下方说明
+  base: command === 'build' ? '/log-console/' : '/',
+  plugins: [react(), qiankun('platform-log-console', { useDevMode: true }), qiankunDevPreamble()],
+}));
+```
+
+| 导出                   | 作用                                               | 谁会用            |
+| ---------------------- | -------------------------------------------------- | ----------------- |
+| `qiankunDevPreamble()` | 让 React Fast Refresh preamble 能在 qiankun 里执行 | 每个 React 子应用 |
+
+**为什么需要 `qiankunDevPreamble()`**：`@vitejs/plugin-react` 开发期会往 `index.html` 的 `<head>` 塞一段**内联 module 脚本**；qiankun 通过 `import-html-entry` 取脚本**文本**用 `eval` 执行，而 `eval` 出来的是普通脚本，静态 `import` 直接抛 `SyntaxError: Cannot use import statement outside a module`，Fast Refresh 的全局钩子装不上。这个插件把该脚本的静态 `import` 改写成 `await import()` 并去掉 `type="module"`，语义不变但可被 `eval` 执行。它只认含 `@react-refresh` 的内联脚本，不会误伤其他内联脚本，且 `apply: 'serve'` —— **生产构建不注入这段 preamble，因此不需要这个插件**。背景见 `docs/decisions/0012` 第 10 条。
+
+> **`base` 不要"顺手统一"。** 子应用的 `base` 在 dev 下必须是 `/`：`vite-plugin-qiankun` 的 `useDevMode` 靠 `base` 定位 `/@vite/client`，dev 期加前缀会让热更新**静默失效**。前缀只在 build 时才需要（供基座按静态路径取资源）。
+
 ## 约定
 
 - **Prettier 不上这里。** Prettier 会自动向上查找最近的配置文件，用工作区根目录的
@@ -88,3 +114,5 @@ export { default } from 'common-config/stylelint';
 - **工作区根也有一份 `eslint.config.js`**（`web/eslint.config.js`），同样只是引用本包。
   它必须存在的原因是：ESLint 只从**当前工作目录**向上查找配置，而 lint-staged 是在
   `web/` 根目录执行 `eslint` 的。
+- **`common-config/vite` 只收「有两个以上应用会用」的片段。** 只有一个应用用的 Vite 配置
+  留在它自己的 `vite.config.ts` 里 —— 提前抽到共享包会让读者以为它是全局约定。
