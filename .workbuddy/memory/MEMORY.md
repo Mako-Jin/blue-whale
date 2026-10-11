@@ -36,7 +36,7 @@ React 19 + Vite 8 + TS **6.0.3**（7.x 不被 typescript-eslint 支持）+ Route
 
 ## 5 后端（ADR-0005 / 0008 / 0009 / 0010）
 
-依赖自上而下：`sts-app → sts-server → sts-components → sts-common → sts-parent`（零代码，`<version>` 只在这里）；`sts-app-server` 唯一可启动；`sts-common-{basic,web,db}`；`sts-server-{log,track}`；groupId 按层分级。
+依赖自上而下：`sts-app → sts-server → sts-components → sts-common → sts-parent`（零代码，`<version>` 只在这里）；`sts-app-server` 唯一可启动；`sts-common-{basic,web,db}`；`sts-server-{log,track,auth}`；groupId 按层分级。
 
 - 模块内**按特性分包**（`clientlog/` 下 Controller/Service/Mapper/VO），不用 controller/service 顶层分包
 - **业务失败也返 HTTP 200**，只由 `code` 表达（前端判 `code === 0`）；`R.isSuccess()` 须 `@JsonIgnore`
