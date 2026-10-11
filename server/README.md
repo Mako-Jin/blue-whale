@@ -27,7 +27,8 @@ server/
 │   └── sts-common-db/                 MyBatis-Plus 配置（分页 / 乐观锁 / 防全表更新）
 ├── sts-server/                    服务层
 │   ├── sts-server-log/                日志域服务（客户端技术日志上报与查询）
-│   └── sts-server-track/              行为事件域服务（埋点上报、查询、按事件名聚合）
+│   ├── sts-server-track/              行为事件域服务（埋点上报、查询、按事件名聚合）
+│   └── sts-server-auth/               权限域服务（身份 / 访问控制 / 认证 / 鉴权）
 └── sts-app/                       业务应用层
     └── sts-app-server/                唯一可启动进程（装配 + 健康检查 + 接口文档）
 ```
@@ -41,7 +42,8 @@ server/
 | `sts-common-db` | jar | MyBatis-Plus 拦截器（分页 / 乐观锁 / 防全表更新）+ 自动配置 | `sts-common-basic`、MyBatis-Plus |
 | `sts-server-log` | jar | 客户端**技术日志**的上报 / 分页 / 详情 / 链路 / 聚合 | `sts-common-web`、`sts-common-db` |
 | `sts-server-track` | jar | 客户端**行为事件**的上报 / 分页 / 详情 / 按事件名聚合 | `sts-common-web`、`sts-common-db` |
-| `sts-app-server` | jar | 可执行应用：装配各域服务、健康检查、`application.yml` | `sts-server-log`、`sts-server-track`、springdoc UI、H2 + MySQL + 达梦驱动（runtime）、Flyway |
+| `sts-server-auth` | jar | **权限域**：租户 / 用户 / 组织 / 角色 / 用户组 / 资源，认证（登录 / 登出 / 刷新）与鉴权（`@RequiresPermission`） | `sts-common-web`、`sts-common-db` |
+| `sts-app-server` | jar | 可执行应用：装配各域服务、健康检查、`application.yml` | `sts-server-log`、`sts-server-track`、`sts-server-auth`、springdoc UI、H2 + MySQL + 达梦驱动（runtime）、Flyway |
 
 > **为什么需要 `sts-app` 这一层**：`sts-server-*` 是"可部署的服务能力"，但**不是进程** —— 它们不知道自己的端口、数据源，也不知道要暴露哪些接口文档。必须有一个应用层把这些装配成一个能 `java -jar` 跑起来的东西。这层**只做装配，不写业务逻辑**：一旦出现业务代码，就该下沉到 `sts-server` 或 `sts-components`。
 >
@@ -97,6 +99,25 @@ server/
 | `42900` | 请求过于频繁 | 限流组件 |
 | `50000` | 系统内部错误 | 兜底处理，**不透出细节** |
 
+**域内细分码从 `xx01` 起。** 上表里每类的 `00` 号是"通用码"，被各域共用；
+某个域要表达更精确的语义时，占用同一 HTTP 类别下的 `01` 起的空位。
+权限域（`sts-server-auth`）目前用到的：
+
+| 错误码 | 含义 | 错误码 | 含义 |
+|--------|------|--------|------|
+| `40001` | 请求参数不合法 | `40104` | 令牌无效 |
+| `40101` | 用户名或密码错误 | `40105` | 令牌已过期 |
+| `40102` | 账号已被锁定 | `40106` | 会话已失效，请重新登录 |
+| `40103` | 账号已停用 | `40301` | 没有该操作权限 |
+| `40401` | 用户不存在 | `40901` | 用户名已存在 |
+| `40402` | 租户不存在 | `40904` | 租户编码已存在 |
+| `40403` | 角色不存在 | `40912` | 资源标识已存在 |
+
+> 这样分段的直接好处：`40101` 一眼看出是"认证问题、责任在调用方"，
+> `40904` 是"唯一性冲突"，`50000` 才是"服务端故障"。
+> 反面例子是参照实现 `SystemTerminator`：它把认证错误放在 `004xxx` 段，
+> 其中 `004000` 与公共 `PARAM_ERROR` 撞码，同一串数字在两层含义间摇摆。
+
 ### 在业务代码里怎么用
 
 ```java
@@ -146,6 +167,26 @@ com.bluewhale.sts.log                    ← sts-server-log，包名用业务域
 **技术日志与审计日志是两条管道。** 本模块处理的是技术日志（排查故障用：量大、短保留、可采样、可丢弃）。审计日志（谁在何时对哪个资源做了什么）走另一条管道，且**权威来源必须是后端拦截器** —— 这些事实前端根本不知道，客户端上报的内容也不可信。见 `docs/decisions/0004`。
 
 **行为事件是第三条管道**（`sts-server-track`）：回答"用户做了什么"，用于漏斗与留存分析。它与技术日志的差别不是"换个名字"，而是**逐项相反**：事件**不可采样**（采样会毁掉漏斗）、契约**极稳定**（改名即历史数据断裂）、量级高一到两个数量级。因此它是独立模块、独立表、独立接口前缀（`/api/events/client`），只在传输通道那一层与日志共用实现。见 `docs/decisions/0011`。
+
+### 权限域的几条硬规则
+
+`sts-server-auth` 是本仓第一个"从表到接口"完整闭环的服务，设计取舍见 `docs/decisions/0016`。
+
+| 规则 | 原因 |
+|------|------|
+| **表前缀 `bw_auth_`，主键 `BIGINT` 自增** | 与 `bw_client_log` 同一形态；对外稳定标识交给各表的 `*_code` 业务编码 |
+| **逻辑删除统一 `deleted`：0 正常 / 1 已删除** | 由 `@TableLogic` 承接，零配置。参照实现里不同表的 0/1 含义相反，是必须修掉的缺陷 |
+| **用户名在租户内唯一**（`uk(tenant_id, username)`），不是全库唯一 | 多租户下不同租户可以有同名账号 |
+| **口令只存哈希，出参永不包含任何口令字段** | `UserVO` 手写逐字段映射，而非"把实体拷一遍"——后者会让实体新增字段自动泄露到响应里 |
+| **不区分"账号不存在"与"口令错误"** | 都回 `40101`。区分开来等于提供一个账号枚举接口 |
+| **先验口令、再透露账号状态** | 锁定 / 停用等提示只在口令正确后给出，否则同样构成信息泄露 |
+| **认证（401）与授权（403）分开** | 前端据此决定"跳登录页"还是"提示无权限" |
+| **刷新令牌只存摘要 + 轮换 + 重放检测** | 已作废的 jti 被再次使用即视为泄露，撤销该用户全部刷新令牌 |
+| **认证上下文只有一套**（`AuthContext`），且由过滤器 `finally` 清理 | 参照实现有两套同名上下文（一套是空实现）；不清理 ThreadLocal 会在复用线程上串号 |
+| **鉴权入口只有一处**：`@RequiresPermission` + `AuthInterceptor` | 判定逻辑散落时，漏洞往往出在"某个接口只查了是否登录"的那一处 |
+
+> **未做**：组织 / 角色 / 用户组 / 资源的管理接口（表与实体已落地）、数据权限判定、时态授权过滤、
+> 验证码 / 短信 / 多因子、网关侧令牌校验、行为审计。逐项见 `docs/decisions/0016` 末节。
 
 ---
 
@@ -215,6 +256,11 @@ sts-server-track/src/main/resources/db/migration/
 ├── h2/V2__create_bw_client_event.sql     H2 方言
 ├── mysql/V2__create_bw_client_event.sql  MySQL 方言
 └── dameng/V2__create_bw_client_event.sql 达梦方言（不由 Flyway 执行，见下）
+
+sts-server-auth/src/main/resources/db/migration/
+├── h2/V3__create_bw_auth_tables.sql      身份 / 访问控制 / 会话共 12 张表
+├── mysql/V3__create_bw_auth_tables.sql
+└── dameng/V3__create_bw_auth_tables.sql
 ```
 
 > **版本号是"全仓唯一"，不是"每个模块各从 V1 开始"。**

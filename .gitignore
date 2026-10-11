@@ -23,9 +23,10 @@ target/
 *.p12
 *.keystore
 
-# ---- 自动生成的 API 客户端（由 docs/api 契约生成，不入库）----
-web/packages/common-api/src/generated/*
-!web/packages/common-api/src/generated/.gitkeep
+# ---- 自动生成的 API 客户端：刻意**入库**（ADR-0006 决策），勿加 ignore ----
+# web/packages/common-api/src/generated/schema.d.ts 由 openapi-typescript 生成。
+# 入库的好处：前端构建不依赖后端可运行；契约变更在 code review 里显式可见为一个 diff。
+# 历史：初始基座曾写成忽略，与 6 小时后确立的 ADR-0006 冲突，已于本次按 ADR 修正。
 
 # ---- IDE ----
 .idea/

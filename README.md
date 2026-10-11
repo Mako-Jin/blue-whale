@@ -55,7 +55,9 @@ server/
 │   ├── sts-common-web        全局异常处理 + CORS + 自动配置
 │   └── sts-common-db         MyBatis-Plus 配置（分页 / 乐观锁 / 防全表更新）
 ├── sts-server/           服务层
-│   └── sts-server-log        日志域服务（客户端日志上报与查询）
+│   ├── sts-server-log        日志域服务（客户端技术日志上报与查询）
+│   ├── sts-server-track      行为事件域服务（埋点上报、查询、按事件名聚合）
+│   └── sts-server-auth       权限域服务（身份 / 访问控制 / 认证 / 鉴权）
 └── sts-app/              业务应用层
     └── sts-app-server        唯一可启动进程（装配 + 健康检查 + 接口文档）
 ```

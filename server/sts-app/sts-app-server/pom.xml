@@ -38,6 +38,17 @@
         </dependency>
 
         <!--
+          权限域：身份（租户/用户/组织）与访问控制（角色/用户组/资源），
+          并提供认证闭环（登录 / 登出 / 令牌）与鉴权判定入口。
+          它与日志域、行为事件域并列 —— 是被各业务域**横切依赖**的能力，
+          依赖方向不变（仍是 sts-app → sts-server），因此不引入跨层关系。
+        -->
+        <dependency>
+            <groupId>com.bluewhale.sts.server</groupId>
+            <artifactId>sts-server-auth</artifactId>
+        </dependency>
+
+        <!--
           spring-boot-starter-webmvc 在此**显式声明**，虽然 sts-server-log 已经带来了一份：
           可部署进程的需求不靠传递依赖表达。哪天 sts-server-log 换了实现（比如改用 WebFlux），
           传递来的依赖就没了，而本模块的启动会以一种"莫名其妙"的方式失败。

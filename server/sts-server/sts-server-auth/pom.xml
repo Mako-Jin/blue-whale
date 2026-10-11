@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.bluewhale.sts.server</groupId>
+        <artifactId>sts-server</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>sts-server-auth</artifactId>
+
+    <name>sts-server-auth</name>
+    <description>权限域服务：身份（租户/用户/组织）、访问控制（角色/用户组/资源）、认证与鉴权</description>
+
+    <!--
+      依赖声明遵循"谁需要运行时谁声明"：
+        · sts-common-web  提供统一响应装配与全局异常处理，但它对 Spring Web 用的是
+                          provided 范围（只给契约、不给运行时），因此这里仍需自声明 webmvc；
+        · sts-common-db   提供 MyBatis-Plus 拦截器链（分页 / 乐观锁 / 防全表更新）。
+    -->
+    <dependencies>
+        <dependency>
+            <groupId>com.bluewhale.sts.common</groupId>
+            <artifactId>sts-common-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.bluewhale.sts.common</groupId>
+            <artifactId>sts-common-db</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
+        </dependency>
+
+        <!--
+          权限判定要在**进入 Controller 之前**拦截（认证过滤器 + 鉴权拦截器），
+          而 jakarta.servlet 的 Filter / HandlerInterceptor 由 webmvc 带来，此处无需额外坐标。
+
+          刻意不引 Spring Security：本项目只需要"Bearer 解析 + RBAC 判定"两件事，
+          Spring Security 会带来一整套过滤器链与配置模型，与"最小依赖"取舍相悖。
+          认证/鉴权的实现放在本模块的 context 与 authz 包里，逻辑集中且可单测。
+          详见 docs/decisions/0016。
+        -->
+    </dependencies>
+
+</project>

@@ -44,6 +44,7 @@
 | 新增 / 删除第三方依赖                                            | `web/pnpm-workspace.yaml` 的 `catalog:` · `CONTRIBUTING.md` 依赖治理                                                                             |
 | 升级后端框架大版本（Spring Boot / JDK 基线）                     | `decisions/0008-Spring-Boot-4升级与JDK21门禁.md` · `server/README.md` 版本一览                                                                   |
 | 新增 / 删除后端模块                                              | `server/README.md` 模块表 · 根 `README.md` 结构图                                                                                                |
+| 新增 / 调整权限域（身份、访问控制、认证、鉴权）                  | `decisions/0016-权限域服务设计与参照实现的取舍.md` · `server/README.md`（权限域硬规则表）                                                        |
 | 调整后端分层或依赖方向                                           | `decisions/0005-后端模块划分与依赖约束.md` · `architecture/后端分层与依赖方向.md` · `server/README.md`                                           |
 | 修改统一响应结构或错误码                                         | `server/README.md` 错误码表 · `docs/api/openapi.json`                                                                                            |
 | 变更数据源、切换 / 新增数据库 profile                            | `server/README.md` 第六节 · `decisions/0009`（H2 / MySQL）· `decisions/0010`（达梦）                                                             |
@@ -94,6 +95,7 @@ docs/decisions/NNNN-简短标题.md
 | `decisions/0013-三维环境应用与WebGL渲染生命周期.md` | 环境应用独立成域的理由、画布与上下文同生共死（StrictMode 双跑的坑）、`forceContextLoss` 与上下文上限、GPU 资源可断言释放、`Timer`/`PCFShadowMap` 替代、全局状态订阅的多路复用修复                            |
 | `decisions/0014-多场景架构与切换管线.md`            | 场景"实现"与"元数据"分置（ADR-0003 的应用）、注册表编译期兜底、清单元数据契约与三条护栏、切场景只换场景图不换渲染器、卡片式选择器                                                                            |
 | `decisions/0015-场景交互与主人公操控.md`            | 交互控制是场景的能力（`createControls` 可选契约）、相机"整体平移"跟随、移动算法独立成纯内核、右键打地面平面不打网格、小地图自绘 canvas 不走 state、正北朝上、地物与碰撞矩形同源、**未做寻路与移动动画**      |
+| `decisions/0016-权限域服务设计与参照实现的取舍.md`  | 权限域作为 `sts-server-auth` 落地、表名与主键约定、逻辑删除统一语义、错误码段位、不引 Spring Security 与 JWT 库（JDK 自研 HS512 + PBKDF2）、`@RequiresPermission` 鉴权入口、刷新令牌轮换、种子数据默认关闭、**未做数据权限与网关校验** |
 | `architecture/后端分层与依赖方向.md`                | 后端分层落地细则、依赖矩阵、前后端结构对照                                                                                                                                                                   |
 | `api/README.md`                                     | 契约接口清单、更新流程、任意值字段的处理                                                                                                                                                                     |
 | `../web/packages/common-config/README.md`           | 共享工程配置（ESLint / Stylelint / TypeScript / Vite）                                                                                                                                                       |

@@ -221,5 +221,5 @@ expectTypeOf<ClientLogQuery['startTime']>().toEqualTypeOf<number | undefined>();
 ## 八、待补充
 
 - 各域接口目前有 `log`、`events` 与 `system`；新增业务域时新建 `src/<域>.ts`，在 `client.ts` 里装配，并在 `tests/` 下补一份接线断言
-- 鉴权尚未落地。接入后在 `createApiClient` 里通过 `onRequest` 钩子补 token 头，**不要改各域接口**
+- **权限域接口已进契约**（`/api/auth/*` 共 15 条，清单见 `docs/api/README.md`），但本包**尚未接线** —— 需新建 `src/auth.ts` 并在 `client.ts` 里装配。token 注入在 `createApiClient` 里通过 `onRequest` 钩子补 `Authorization` 头，**不要改各域接口**；`HttpConfig` 已预留该钩子（见 `common-tools/http`）。**自动刷新（401 触发 / 并发合并 / 轮换失败即登出）尚未设计**，落地时要单独出方案
 - 事件域的字段名与路径已由契约锁死，但**事件名本身**（`page.view` / `order.submit` 这类字符串）不在契约里 —— 它是前后端共用的一条正则，尚未收成一份可枚举的注册表；理由与代价见 `docs/decisions/0011`

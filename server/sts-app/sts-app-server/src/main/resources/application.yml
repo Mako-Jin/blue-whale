@@ -59,6 +59,29 @@ bluewhale:
     cors:
       enabled: true
 
+  # -----------------------------------------------------------------------------
+  # 权限域
+  #
+  # jwt.secret 属**密钥级配置**（docs/decisions/0003）：生产必须用环境变量注入。
+  # 这里给的是仅用于本地开发的占位值 —— 它已进版本库，因此等于公开，
+  # 上线前必须通过 BW_JWT_SECRET 覆盖，且长度建议不少于 64 字节（HS512 的密钥长度）。
+  #
+  # TTL 属业务运行期配置，给默认值即可：访问令牌短（2 小时）是因为它无状态、
+  # 撤销只能靠过期；刷新令牌长（7 天）是因为它落库、可撤销、可轮换。
+  # -----------------------------------------------------------------------------
+  auth:
+    jwt:
+      secret: ${BW_JWT_SECRET:bluewhale-dev-only-placeholder-secret-must-be-overridden-in-production-0123456789}
+      issuer: bluewhale
+      audience: bluewhale-api
+      access-ttl: 2h
+      refresh-ttl: 7d
+    password:
+      iterations: 120000
+    login:
+      max-failed-attempts: 5
+      lock-duration: 15m
+
 # -----------------------------------------------------------------------------
 # 接口文档：/v3/api-docs 是契约的产出源，scripts/export-openapi.sh 从这里取。
 # 生产环境建议 api-docs.enabled=false，避免把内部接口清单公开。
