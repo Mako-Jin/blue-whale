@@ -31,6 +31,14 @@
 *.zip   binary
 *.jar   binary
 
+# ---- 三维设计源（design/ 下的 Blender 工程与导出模型）----
+*.blend  binary
+*.blend1 binary
+*.glb    binary
+*.gltf   binary
+*.fbx    binary
+*.obj    binary
+
 # ---- 生成物：不参与 diff 统计与语言统计 ----
 web/pnpm-lock.yaml      -diff linguist-generated
 web/packages/common-api/src/generated/**  linguist-generated
