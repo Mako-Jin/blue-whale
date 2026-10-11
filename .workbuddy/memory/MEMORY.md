@@ -8,19 +8,20 @@
 - `web/`（pnpm）· `server/`（Maven，包名 `com.bluewhale.sts`）· `docs/ scripts/ infra/`（横向层）
 - 结构范本（舰长指定）：`D:\workspace\platform-terminator`（前端）、`D:\workspace\SystemTerminator`（后端）
 - **六条铁律**：① 两端不共用构建 ② 跨端只认 OpenAPI 契约（前端 SDK 禁手写）③ 跨端共享物只放 `docs/` ④ `packages/*` 不反向依赖 `platform/*` ⑤ `platform-user` / `admin` 互不引用，复用下沉 `packages/` ⑥ 后端禁反向依赖与跨层跳跃
-- **每步完善文档**：对照表 `docs/README.md`；改代码同步改文档，同一次提交。Husky 在 `web/.husky` 用 `core.hooksPath` 挂载（自动装报 `spawn git EBUSY`）；`.gitattributes` 强制 LF；Conventional Commits
+- **每步完善文档**：对照表 `docs/README.md`；改代码同步改文档，同一次提交。Husky 脚本在 `web/.husky`（自动装报 `spawn git EBUSY`）；`.gitattributes` 强制 LF；Conventional Commits
+- **当前工作空间 `core.hooksPath` 未设置** → 钩子**不生效**，`pnpm lint-staged` / `commitlint` 都不跑（只有 `.sample`）。提交信息全靠手工守规，别以为被拦过
 
 ## 2 坑表（已查清，勿再排查）
 
 **环境** —— 一律用 **Bash**（PowerShell 在本沙箱不可用）· Node `spawn git`→`EBUSY`、`turbo run`→`os error 231`（逐包直跑正常）· 后端报 Port 56491 → 沙箱注入 `SERVER__PORT`，用 `--server.port=8080` 覆盖 · `curl localhost` 报 upstream connect failed → 加 `--noproxy '*'` · dev server 用 `&` 会被杀 → 长驻服务必须后台任务起 · 废弃 Chrome 占 CDP 端口 → 换端口 / `taskkill`
 
-**后端** —— 构建必须 `JAVA_HOME="D:/tools/installer/jdk/java21" mvn …`（PATH 上是 JDK 17）· `mvn clean` 报文件占用 → `jps -l` 找 PID + `taskkill //F //PID` · Maven 本地仓库 **`D:\repository\maven`**
+**后端** —— 构建必须 `JAVA_HOME="D:/tools/installer/jdk/java21" mvn …`（PATH 上是 JDK 17；权限域另记 `D:/java`，两处都以 `mvn -v` 实测为准）· `mvn clean` 报文件占用 → `jps -l` 找 PID + `taskkill //F //PID` · Maven 本地仓库 **`F:\respository\maven`（拼写是 respository）**，Maven 在 `D:\maven`
 
 **前端** —— stylelint `extends` 须 `require.resolve` 转绝对路径 · TS 6 起 `baseUrl` 弃用 · ESLint 10 flat config 须默认导出数组 · ESLint 只从 cwd 向上找配置 → 工作区根也要 `eslint.config.js` · typescript-eslint 须显式 `tsconfigRootDir`
 
 ## 3 ADR 索引（正文在 `docs/decisions/`）
 
-0001 架构基线与选型 · 0002 公共包治理 · 0003 配置分域 · 0004 日志上报 · 0005 后端模块划分 · 0006 契约生成与消费 · 0007 请求分层 · 0008 Boot4 与 JDK21 门禁 · 0009 多数据源与 Flyway · 0010 达梦 DM8 · 0011 行为事件内核 · 0012 微前端 · 0013 WebGL 生命周期 · 0014 多场景 · 0015 场景交互
+0001 架构基线与选型 · 0002 公共包治理 · 0003 配置分域 · 0004 日志上报 · 0005 后端模块划分 · 0006 契约生成与消费 · 0007 请求分层 · 0008 Boot4 与 JDK21 门禁 · 0009 多数据源与 Flyway · 0010 达梦 DM8 · 0011 行为事件内核 · 0012 微前端 · 0013 WebGL 生命周期 · 0014 多场景 · 0015 场景交互 · 0016 权限域服务 · **0017 大气与天气**
 
 ## 4 技术栈与前端结构
 
@@ -45,10 +46,21 @@ React 19 + Vite 8 + TS **6.0.3**（7.x 不被 typescript-eslint 支持）+ Route
 
 **数据源**：三 profile `h2`(默认) / `mysql`(8.0.26) / `dameng`；切换 `BW_DB_PASSWORD=… --spring.profiles.active=mysql`，密码不进 git；库名 `bluewhale`；本机别的项目 11 个库勿动。
 
-- **建表 = Flyway 12**：`db/migration/{h2,mysql,dameng}/V<n>__x.sql`；**不写 `IF NOT EXISTS`**；**已执行脚本不可改**（校验和）；**版本号全仓唯一**（现有 log=V1、track=V2）
+- **建表 = Flyway 12**：`db/migration/{h2,mysql,dameng}/V<n>__x.sql`；**不写 `IF NOT EXISTS`**；**已执行脚本不可改**（校验和）；**版本号全仓唯一**（log=V1、track=V2、auth=V3）
 - 三个必踩依赖坑：`flyway-mysql` 须显式引（Flyway 10 起 DB 支持模块化）· `mysql-connector-j` runtime 放 `sts-app-server` · 达梦 `com.dameng:DmJdbcDriver18`（**BOM 不纳管**，`sts-parent` 收口，驱动类 `dm.jdbc.driver.DmDriver`）
 - **MySQL 保留字**：避开 `release` / `rank` / `groups` / `system` / `window`；只改列名没用 —— MP 见「列名 ≠ 属性名」会补 `列名 AS 属性名`，别名照样 1064 → 正解**属性名与列名同构**且刻意不加 `@TableField`（`appRelease` ↔ `app_release`，对外仍叫 `release`）；守卫 `ClientLogEntityMappingTest`
 - **达梦**：MP 原生内置 `DbType.DM`（URL `jdbc:dm:`）· Flyway 官方无达梦模块 → `flyway.enabled=false`，DDL 走 `scripts/init-dameng.sh` · `IDENTITY(1,1)`、**`VARCHAR(n CHAR)`**（默认按字节，中文报「数据超长」）、标识符转大写 · 保留字两库不可互推 · `#{it.xxx}` OGNL 编译器管不到，改属性名要全局搜 · **未用真实达梦实例验证过**
+
+**权限域 `sts-server-auth`（ADR-0016）** —— 参照 `F:\workspace\SystemTerminator\sts-server\sts-server-auth` 重写（参照物只读）。它的问题：只有模型没有入口（无注解/拦截器/AOP）、9 张表有 PO 无 DDL、`auth_tbl_tenant_info` 与 DDL 撞名、错误码撞码、两套上下文并存。
+
+- 表 `bw_auth_*` 共 12 张，DDL 是 **V3**（h2/mysql/dameng 三份）；`deleted TINYINT DEFAULT 0`（0 正常）；避保留字用 `sort_no` / `tenant_level` / `org_level` / `role_level` / `resource_version`
+- 错误码段 `40001~40913`（`40101~40111` 认证 · `40301` 无权限 · `409xx` 冲突）
+- **自研零依赖**：HS512 JWT（`JwtCodec`）+ PBKDF2-SHA256（`PasswordHasher`），**不引 Spring Security**（本轮只要认证+鉴权入口）
+- 入口：`@RequiresPermission` + `AuthInterceptor`（`findMergedAnnotation`）+ `PermissionChecker`（请求内缓存）；`AuthTokenFilter` **只解析不拒绝**；上下文只有 `AuthContext` 一套
+- 刷新令牌**只存 SHA-256 摘要** + 轮换 + 重放检测（已作废 jti 复用 → 撤销该用户全部刷新令牌）；登录不区分「账号不存在/口令错」
+- 已交付特性：认证（login/refresh/logout/me）、租户、用户；**组织/角色/用户组/资源的管理接口未做**（实体/Mapper 已就绪）
+- 坑：Jackson 3 下 `encode(Map)` 接不了 `byte[]`（签名要单列 `encodeBytes(byte[])`）；`AuthTokenFilter` 不能既 `@Component` 又进 `FilterRegistrationBean`（会双注册）；`BaseEntity` 不给字段加 `@TableField` 列名；`RefreshTokenEntity` 不继承 `BaseEntity`
+- **构建**：`JAVA_HOME="D:/java" mvn clean install`；Maven 本地仓库 `F:\respository\maven`（**拼写是 respository**）；Maven 在 `D:\maven`
 
 ## 6 契约与请求（ADR-0006 / 0007）
 
@@ -77,7 +89,7 @@ React 19 + Vite 8 + TS **6.0.3**（7.x 不被 typescript-eslint 支持）+ Route
 - 样式隔离指望不上框架；**已知限制**：被基座加载时子应用 React 组件级热更新不生效 → 改组件时单独跑子应用
 - 未做：`platform-user` / `admin` · 生产部署与网关规则 · 样式前缀去重 · 子应用错误边界
 
-## 10 三维环境（ADR-0013 / 0014 / 0015，:3400）
+## 10 三维环境（ADR-0013 / 0014 / 0015 / 0017，:3400）
 
 - **画布与上下文同生共死（最关键）**：canvas 由 `createStage` 创建并随 `dispose()` 移除，**不接受外部传入**；`dispose()` 必须含 `forceContextLoss()` —— 否则 StrictMode 双跑 effect 必抛 `reading 'precision'` of null；不加则上下文攒到 ~16 个被回收 → 「画面变白且无报错」
 - GPU 资源不随 GC 释放：`disposeSubtree()` 递归；**PMREMGenerator / RoomEnvironment 不在场景图里，须各自释放**
@@ -87,8 +99,10 @@ React 19 + Vite 8 + TS **6.0.3**（7.x 不被 typescript-eslint 支持）+ Route
 - 可操控场景：`SceneBuild.createControls?(context)`（**交互是场景的能力不是舞台的**）；**相机跟随必须整体平移**（`syncFocus` 里 `delta = focus - orbit.target`，控制器不得直改相机位姿）；左键 / 滚轮仍归 OrbitControls（有控制器时 `orbit.enablePan=false`）
 - 移动算法只在 **`player/motor.ts`**（纯内核，不碰 three / DOM）；**角度约定全应用统一**：`0` = 朝 +Z、方向 `(sin a, cos a)`、世界 -Z 是北、`right = forward × up ⇒ (-cos a, sin a)`（符号错的症状：按上往后走、小地图东在西边）
 - 小地图**自绘 canvas 不走 React 状态**（60fps setState 不可接受）；投影等纯函数在 `scene/minimap.ts`；地物与碰撞矩形**同源**；右键射线打 y=0 地面；画布尺寸 0 返回 null
-- 验证脚本：`verify-micro-frontend.mjs` :9333 · `verify-scene-switching.mjs` :9334 · `verify-player-controls.mjs` :9335
-- 未做：寻路 · 移动动画 · 遮挡精度 · 小地图交互 · 移动端虚拟摇杆
+- 验证脚本：`verify-micro-frontend.mjs` :9333 · `verify-scene-switching.mjs` :9334 · `verify-player-controls.mjs` :9335 · `verify-atmosphere.mjs` :9336（浏览器自动探测 Chrome/Edge）
+- **大气（ADR-0017，一期）**：环境内核四层纯函数 `solar/palette/sample/rig`；**高度角是唯一自变量**；太阳方位用 `atan2` 不用 `acos`；夜间主光取反指向反日点（`MIN_KEY_ELEVATION` 防阴影视锥退化）；**雾距给系数不给绝对值**；天空盒用 three r186 `Sky`（**自带云层**，uniforms `cloudCoverage/cloudSpeed/time`）；动态 IBL = 纯天穹捕获（整棵场景图会"建筑照亮自己"）+ 双重节流 + **每帧补检查**（防节流窗口漏掉最后一次变化）；天穹两份实例（主 + 捕获）；`SceneClimate` 必填，室内/太空不实现 `createAtmosphere` 即天然退出
+- **⚠️ 验证脚本必须按「帧」等，不按毫秒**：`setEnvironment()` 同步改光但画面下帧才变；无头 `--use-gl=swiftshader` **单帧 2~4 秒（≈0.5 fps）**，`sleep(650)` 会稳定截到上一帧 → 症状是"四个时刻天空颜色一样"，其实测量错了。判据用 `diagnostics().frames`（只数真正渲染的帧）；测速率要**先对齐帧边界**且窗口同时满足"≥3 帧 且 ≥3 秒"，`localHours` 跨午夜要取模回绕
+- 未做：寻路 · 移动动画 · 遮挡精度 · 小地图交互 · 移动端虚拟摇杆 · **雨雪霜天气状态机 · 风向量 · 夜空星点与月亮圆盘**
 
 ## 11 沟通偏好
 
