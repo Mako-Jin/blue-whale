@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import {
   createStage,
+  type EnvironmentState,
   type SceneDefinition,
   type SceneOptions,
   type Stage,
@@ -12,6 +13,13 @@ type SceneViewProps = {
   /** 当前场景。变化时舞台内部只换场景图，**不会重建 WebGL 上下文** */
   scene: SceneDefinition;
   options: SceneOptions;
+  /**
+   * 环境基准（时刻、日期、时间流逝）。
+   *
+   * 与选项一样"变化时推给舞台"，但**不参与切场景** —— 环境是跨场景延续的：
+   * 换场景时舞台自己保持着它，新场景挂上大气之后接着用同一份时刻。
+   */
+  environment: EnvironmentState;
   onStats: (stats: StageStats) => void;
   /** 无法建立 WebGL 上下文时上报，由上层决定怎么显示 */
   onError: (message: string) => void;
@@ -41,7 +49,14 @@ type SceneViewProps = {
  * 而 React 的 StrictMode 在开发期会双跑 effect（建 → 毁 → 建），
  * 组件持有固定画布必然踩到这一点。详见 `scene/stage.ts`。
  */
-export default function SceneView({ scene, options, onStats, onError, onReady }: SceneViewProps) {
+export default function SceneView({
+  scene,
+  options,
+  environment,
+  onStats,
+  onError,
+  onReady,
+}: SceneViewProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Stage | null>(null);
 
@@ -51,9 +66,9 @@ export default function SceneView({ scene, options, onStats, onError, onReady }:
    * 建立舞台的 effect 依赖为空数组，它拿到的会是最初那一份闭包；
    * 统计数据每隔半秒就来一次，不能因为回调换了引用就把上下文重建一遍。
    */
-  const latestRef = useRef({ scene, options, onStats, onError, onReady });
+  const latestRef = useRef({ scene, options, environment, onStats, onError, onReady });
   useEffect(() => {
-    latestRef.current = { scene, options, onStats, onError, onReady };
+    latestRef.current = { scene, options, environment, onStats, onError, onReady };
   });
 
   useEffect(() => {
@@ -71,13 +86,18 @@ export default function SceneView({ scene, options, onStats, onError, onReady }:
     const mountHost: HTMLElement = host;
 
     function boot() {
-      const { scene: initialScene, options: initialOptions } = latestRef.current;
+      const {
+        scene: initialScene,
+        options: initialOptions,
+        environment: initialEnvironment,
+      } = latestRef.current;
 
       let stage: Stage;
       try {
         stage = createStage(mountHost, {
           scene: initialScene,
           options: initialOptions,
+          environment: initialEnvironment,
           onStats: (stats) => latestRef.current.onStats(stats),
         });
       } catch (error) {
@@ -135,6 +155,17 @@ export default function SceneView({ scene, options, onStats, onError, onReady }:
     stage.setWireframe(options.wireframe);
     stage.setGridVisible(options.showGrid);
   }, [options]);
+
+  /**
+   * 环境变化：同样只推参数。
+   *
+   * 首次挂载时这个 effect 也会跑，而那时舞台刚用**同一个**环境建好 ——
+   * 重推一次是幂等的（太阳没挪，环境贴图那一层的节流会直接跳过重烘），
+   * 所以这里不需要"跳过首次"的特判。
+   */
+  useEffect(() => {
+    stageRef.current?.setEnvironment(environment);
+  }, [environment]);
 
   /**
    * 场景变化：换场景图。

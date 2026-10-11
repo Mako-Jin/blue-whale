@@ -20,10 +20,12 @@ import {
   glowMaterial,
   solidMaterial,
 } from '../common';
+import { createAtmosphereRig } from '../atmosphere';
 import { createPlayerControls } from '../player/controls';
 import { obstacleFromRect } from '../player/motor';
 import type {
   MinimapFeatures,
+  SceneAtmosphere,
   SceneBuild,
   SceneContext,
   SceneControls,
@@ -117,6 +119,25 @@ const MINIMAP: MinimapFeatures = {
   ],
 };
 
+/**
+ * 雾的**基准**起止。
+ *
+ * 环境会在它之上乘一个能见度系数（夜里更近、正午稍远），所以这里给的是
+ * "正午晴天"的值，而不是某一天的值。广场半径 40，雾若从 18 就起，
+ * 人走到广场边缘时自己会被雾洗白 —— 那是"看不清人物"最常见的假故障。
+ * 近端推到 26、远端 85：远处地面照样淡出到背景色，但主人公在整块广场上都清晰。
+ */
+const BASE_FOG = { near: 26, far: 85 } as const;
+
+/**
+ * 主光的阴影覆盖半径 —— 要罩得住"人会走到的地方"。
+ *
+ * 给 24 只够殿宇周围一圈，人一走出阴影范围，自己的影子会**无声消失**
+ * —— 那看起来像"影子功能坏了"。代价是同样的贴图尺寸摊到更大的面积上，
+ * 阴影边缘会稍软一点；这一版用清晰度换覆盖范围是划算的。
+ */
+const SUN_EXTENT = 30;
+
 const meta: SceneMeta = {
   id: 'ancient-architecture',
   title: '古建筑',
@@ -126,9 +147,17 @@ const meta: SceneMeta = {
   order: 10,
   accent: '#b99a5e',
   background: '#342f3d',
-  // 第三人称初始机位：在出生点后方偏上，正对殿宇。焦点高度对齐主人公胸口
+  climate: 'outdoor',
+  /**
+   * 第三人称初始机位：出生点后方偏上，正对殿宇，焦点对齐主人公胸口。
+   *
+   * 俯角压到约 18°（高 5、水平距 11）而不是"俯瞰广场"，是**加了天穹之后必须的配套**：
+   * 垂直半视角只有 25°，俯角一旦超过它，**地平线就落到画面之外** ——
+   * 那样天空、日出、云全都看不见，等于白做。这个角度下画面顶部留出一条天，
+   * 殿宇仍然完整入画，而且从低于屋檐的高度仰视，中式殿宇的体量反而更足。
+   */
   camera: {
-    position: [0, 9, 24],
+    position: [0, 5, 24],
     target: [0, 1.35, PLAYER.spawn.z],
   },
   distance: [7, 40],
@@ -164,29 +193,23 @@ function columnPositions(): Array<[number, number]> {
 function create(): SceneBuild {
   const scene = new Scene();
   scene.background = new Color(meta.background);
-  /**
-   * 雾的起止要跟着"走多远"给。
-   *
-   * 这一版广场半径 40，雾若从 18 就起，人走到广场边缘时自己会被雾洗白 ——
-   * 那是"看不清人物"最常见的假故障。近端推到 26、远端 85：
-   * 远处地面照样淡出到背景色，但主人公在整块广场上都是清晰的。
-   */
-  addFog(scene, meta.background, 26, 85);
+  addFog(scene, meta.background, BASE_FOG.near, BASE_FOG.far);
 
-  // ---------- 光照：黄昏暖阳从西侧低角度打过来 ----------
-  scene.add(new AmbientLight(0x7a86b8, 0.55));
-  addSun(scene, {
+  /**
+   * ---------- 光照：主光与天光不再写死 ----------
+   *
+   * 下面这两个初值只在"没挂大气"时可见（例如单测里直接 `create()`）；
+   * 一旦 `createAtmosphere()` 被舞台调用，主光的方向、颜色、强度就**由太阳高度角算出来**，
+   * 雾距也跟着能见度系数走。换句话说：从这一刻起，"黄昏该是什么样"
+   * 不再由这里的一行常量决定，而是由 `scene/env/` 里的物理关系决定。
+   */
+  const ambient = new AmbientLight(0x7a86b8, 0.55);
+  scene.add(ambient);
+  const sun = addSun(scene, {
     color: 0xffd9a0,
     intensity: 3.1,
     position: [14, 13, 9],
-    /**
-     * 阴影相机的范围要罩得住"人会走到的地方"。
-     *
-     * 给 24 只够殿宇周围一圈，人一走出阴影范围，自己的影子会**无声消失**
-     * —— 那看起来像"影子功能坏了"。代价是同样的贴图尺寸摊到更大面积上，
-     * 阴影边缘会稍软一点；这一版用清晰度换覆盖范围是划算的。
-     */
-    extent: 30,
+    extent: SUN_EXTENT,
   });
   // 低处的地面反射光，让屋檐下的暗部不至于死黑
   const bounce = new PointLight(0xff8a3d, 42, 60, 2);
@@ -390,6 +413,12 @@ function create(): SceneBuild {
     return group;
   });
 
+  /**
+   * 大气实例**延迟创建**：只有舞台真的要这个能力时才建天穹。
+   * 直接 `create()` 的调用方（单测、工具脚本）因此不会凭空多出两套天穹。
+   */
+  let atmosphere: SceneAtmosphere | null = null;
+
   return {
     scene,
 
@@ -437,7 +466,33 @@ function create(): SceneBuild {
       );
     },
 
+    /**
+     * 本场景是**室外**（`climate: 'outdoor'`），所以接管大气：
+     * 天穹 + 日月主光 + 雾与背景联动 + 被风推动的云。
+     *
+     * 只挂一次（`??=`）。生命周期严格跟着场景走 —— 舞台切回来时会重新 `create()`，
+     * 拿到的是全新的场景图与全新的大气，不会有两份天穹同时活着。
+     */
+    createAtmosphere(): SceneAtmosphere {
+      atmosphere ??= createAtmosphereRig({
+        scene,
+        keyLight: sun,
+        ambient,
+        baseBackground: meta.background,
+        fog: BASE_FOG,
+        sky: true,
+      });
+      return atmosphere;
+    },
+
     dispose(): void {
+      /**
+       * 先拆大气：天穹有**两份**（主天穹 + 供烘环境贴图的捕获天穹），
+       * 而捕获那份**不在场景图里** —— 只靠下面的 `traverse` 清不掉它，
+       * 漏掉就是漏一份几何体加一份着色器。
+       */
+      atmosphere?.dispose();
+      atmosphere = null;
       disposeSubtree(scene);
     },
   };

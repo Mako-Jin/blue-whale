@@ -59,6 +59,7 @@ const meta: SceneMeta = {
   order: 40,
   accent: '#7fd4ff',
   background: '#05070f',
+  climate: 'space',
   camera: {
     position: [11, 5.5, 15],
     target: [0, 0, 0],

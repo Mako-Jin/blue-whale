@@ -1,12 +1,19 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  DirectionalLight,
   Mesh,
   MeshStandardMaterial,
   PerspectiveCamera,
+  Vector3,
   type BufferGeometry,
   type Object3D,
 } from 'three';
-import { localSceneCatalog, type SceneDefinition } from '@/scene';
+import {
+  DEFAULT_ENVIRONMENT,
+  localSceneCatalog,
+  sampleEnvironment,
+  type SceneDefinition,
+} from '@/scene';
 
 /**
  * 场景实现的通用契约。
@@ -292,6 +299,87 @@ describe('可操控场景（主人公）', () => {
     expect(inside).toBe(false);
 
     controls?.dispose();
+    build?.dispose();
+  });
+});
+
+describe('大气能力', () => {
+  const byId = new Map(SCENES.map((definition) => [definition.meta.id, definition]));
+
+  it('只有古建筑实现了 createAtmosphere —— 别的场景没有天穹', () => {
+    const provided = SCENES.filter((definition) => {
+      const build = definition.create();
+      const has = typeof build.createAtmosphere === 'function';
+      build.dispose();
+      return has;
+    }).map((definition) => definition.meta.id);
+
+    expect(provided).toEqual(['ancient-architecture']);
+  });
+
+  it('室内与太空场景不实现大气 —— 真空里没有散射，屋顶下没有太阳', () => {
+    const offenders = SCENES.filter((definition) => {
+      const build = definition.create();
+      const has = typeof build.createAtmosphere === 'function';
+      build.dispose();
+      /**
+       * 这条是**契约**而非"暂时还没做"：室内与太空永远不会挂天穹。
+       * 室外场景（丛林、写字楼）挂不挂属于进度问题，不在这里约束 ——
+       * 一期只有古建筑挂上了。
+       */
+      return has && definition.meta.climate !== 'outdoor';
+    }).map((definition) => definition.meta.id);
+
+    expect(offenders).toEqual([]);
+  });
+
+  it('大气把天穹装进场景图，dispose 之后场景清空（不留幽灵天穹）', () => {
+    const build = byId.get('ancient-architecture')?.create();
+    const before = build?.scene.children.length ?? 0;
+
+    const atmosphere = build?.createAtmosphere?.();
+    expect(atmosphere).toBeTruthy();
+    expect(build?.scene.children.length).toBeGreaterThan(before);
+
+    // `dispose()` 必须连带拆掉大气 —— 断言"清空"就等于断言没有泄漏
+    build?.dispose();
+    expect(build?.scene.children).toHaveLength(0);
+  });
+
+  it('主光跟随太阳：白天顺着太阳，夜里指向反日点（月亮在太阳对面）', () => {
+    const build = byId.get('ancient-architecture')?.create();
+    const atmosphere = build?.createAtmosphere?.();
+    const sun = build?.scene.children.find(
+      (child) => child instanceof DirectionalLight,
+    ) as DirectionalLight | undefined;
+    expect(sun).toBeDefined();
+
+    const noon = sampleEnvironment({ ...DEFAULT_ENVIRONMENT, localHours: 12 });
+    const midnight = sampleEnvironment({ ...DEFAULT_ENVIRONMENT, localHours: 0 });
+
+    // 白天：主光就是太阳方向
+    atmosphere?.update(noon.look);
+    const noonLight = (sun?.position ?? new Vector3()).clone().normalize();
+    expect(noonLight.y).toBeCloseTo(noon.look.keyDirection[1], 5);
+    expect(noonLight.x).toBeCloseTo(noon.look.keyDirection[0], 5);
+    const noonIntensity = sun?.intensity ?? 0;
+
+    /**
+     * 夜里：太阳已经在地平线以下，而主光**必须在地平线之上**。
+     *
+     * 这就是"取反成月亮"那一步的全部意义 —— 不取反的话光会从地底往上照，
+     * 比没有光还假，而且这种错误在截图里几乎看不出来（只会觉得"夜景怪怪的"）。
+     */
+    expect(midnight.look.keyDirection[1]).toBeLessThan(0);
+    atmosphere?.update(midnight.look);
+    const midnightLight = (sun?.position ?? new Vector3()).clone().normalize();
+    expect(midnightLight.y).toBeGreaterThan(0);
+    expect(midnightLight.y).toBeCloseTo(-midnight.look.keyDirection[1], 5);
+    expect(midnightLight.z).toBeCloseTo(-midnight.look.keyDirection[2], 5);
+
+    // 而且夜里要比正午暗一个数量级以上
+    expect(sun?.intensity ?? 0).toBeLessThan(noonIntensity / 10);
+
     build?.dispose();
   });
 });

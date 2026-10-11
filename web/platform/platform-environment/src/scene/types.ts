@@ -1,4 +1,5 @@
-import type { PerspectiveCamera, Scene } from 'three';
+import type { Object3D, PerspectiveCamera, Scene } from 'three';
+import type { EnvironmentLook } from './env';
 import type { SceneOptions } from './options';
 
 /**
@@ -30,6 +31,20 @@ export type SceneId =
 export type SceneIcon = 'roof' | 'tree' | 'tower' | 'ship' | 'cube';
 
 /**
+ * 场景所处的**气候域**。
+ *
+ * 它回答一个单纯但绕不开的问题：**室外的天气该不该影响这个场景。**
+ * 古建筑下雨时，太空场景里当然不该出现雨滴 —— 但也不该为此在雨雪系统里
+ * 写一串 `if (sceneId === 'spacecraft')`。让场景自己声明气候域之后，
+ * **不实现大气能力的场景天然退出**，判断只有一处。
+ *
+ * - `outdoor`：有天空与天气（古建筑、丛林、写字楼）
+ * - `indoor`：有屋顶，只有灯光（实验室）
+ * - `space`：真空，连散射都没有（飞船）
+ */
+export type SceneClimate = 'outdoor' | 'indoor' | 'space';
+
+/**
  * 场景的**展示元数据**。
  *
  * 只有这些字段是"数据"—— 将来若把清单交付后端字典，能下发的就是这一层。
@@ -52,6 +67,13 @@ export type SceneMeta = {
   accent: string;
   /** 背景色。**同时作为雾色** —— 两者不一致就没有"远处融进背景"的效果 */
   background: string;
+  /**
+   * 气候域。决定"室外的天气该不该落到这个场景上"（见 `SceneClimate`）。
+   *
+   * 它是**必填**的：漏填一个场景，就等于让"天气要不要影响它"这个问题没有答案，
+   * 而默认值无论取哪个都会在某个场景上变成错的（太空里下雨 / 室内没雨）。
+   */
+  climate: SceneClimate;
   /**
    * 进入场景时的相机位姿。
    *
@@ -103,7 +125,50 @@ export type SceneBuild = {
    * （右键让给"设置行动终点"）。返回 `null` 表示这次不接管。
    */
   createControls?(context: SceneContext): SceneControls | null;
+  /**
+   * 可选：本场景的**大气**（天穹、日月主光、雾、云）。
+   *
+   * 与 `createControls?()` 同级 —— **它是场景的能力，不是舞台的设施**：
+   * 太空里没有天穹，室内只有灯。没有实现它的场景（室内、太空）天然不受
+   * 时刻与天气影响，不需要任何特判。
+   *
+   * 舞台拿到之后会：环境参数变化时调 `update(look)`、每帧调 `advance(elapsed)`
+   * （推云），并在天穹参数变化超阈值时拿 `captureSource()` 去重烘环境贴图。
+   * 返回 `null` 表示这次不接管。
+   */
+  createAtmosphere?(): SceneAtmosphere | null;
   /** 释放全部几何体与材质。**调用后实例不可再用** */
+  dispose(): void;
+};
+
+/**
+ * 场景自带的大气。生命周期由舞台管理（装载时 `createAtmosphere()`、切场景时 `dispose()`），
+ * **场景自己不管帧循环** —— 与小地图、主人公控制器是同一条纪律。
+ */
+export type SceneAtmosphere = {
+  /**
+   * 每帧推进。参数是**累计秒数**（与 `SceneBuild.update` 同源）。
+   *
+   * 只用来推进"风"这类连续量（云被推动）。它**不改变环境参数** —— 时刻往哪走
+   * 是使用者的事（拨滑块），大气只负责把当下的时刻画对。
+   */
+  advance(elapsed: number): void;
+  /**
+   * 应用一份环境指令。
+   *
+   * **不是每帧调用**：只有时刻 / 地点真的变了才需要。静止时逐帧重设一遍光与雾
+   * 纯属浪费，而浪费在三维应用里迟早会变成掉帧。
+   */
+  update(look: EnvironmentLook): void;
+  /**
+   * 供舞台烘环境贴图用的"**只有天穹**"的可渲染对象。
+   *
+   * 必须是纯天穹：若把整棵场景图（含建筑）烘进去，建筑会把自己的颜色当环境光反射回来，
+   * 于是"环境光照亮建筑"变成"建筑照亮自己"，画面会莫名其妙地发亮。
+   * 没有天穹的场景返回 `null`，舞台据此跳过重烘。
+   */
+  captureSource(): Object3D | null;
+  /** 释放天穹的几何体与材质。**调用后实例不可再用** */
   dispose(): void;
 };
 
@@ -210,8 +275,8 @@ export type SceneCatalog = {
  *
  * **护栏 B 的载体：远端只能覆盖，不能发明。**
  * 可覆盖的字段刻意限制在展示层 —— 不含 `camera` / `background` /
- * `environmentIntensity`: 这些与实现强耦合，远端改不了前端代码就不该改取景，
- * 否则一个配置改动就能让画面变得没法看。
+ * `climate` / `environmentIntensity`: 这些与实现强耦合，远端改不了前端代码
+ * 就不该改取景与气候，否则一个配置改动就能让画面变得没法看。
  *
  * `id` 故意是 `string` 而非 `SceneId`：远端完全可能给出一条前端没有实现的 id，
  * 这正是必须显式处理的情况（见 `mergeCatalogOverrides`）。

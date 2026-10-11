@@ -6,11 +6,13 @@ import Minimap from '@/components/Minimap';
 import SceneSwitcher from '@/components/SceneSwitcher';
 import SceneView from '@/components/SceneView';
 import {
+  DEFAULT_ENVIRONMENT,
   defaultScene,
   findScene,
   loadSceneCatalog,
   localSceneCatalog,
   sceneOptions,
+  type EnvironmentState,
   type SceneCatalog,
   type SceneDefinition,
   type SceneId,
@@ -60,6 +62,14 @@ export default function App({ mode }: AppProps) {
   const [catalog, setCatalog] = useState<SceneCatalog>(() => localSceneCatalog());
   const [activeScene, setActiveScene] = useState<SceneDefinition>(() => defaultScene());
   const [options, setOptions] = useState<SceneOptions>(() => sceneOptions(defaultScene().meta));
+  /**
+   * 环境基准：时刻、日期、时间流逝倍速。
+   *
+   * 与 `options` 分开存，是因为两者的生命周期不同：**选项随场景重置**（网格开关对丛林没意义），
+   * **环境跨场景延续**（切一圈场景回来，天还是那个天）。把环境塞进 `SceneOptions` 的话，
+   * 每次切场景都会把时刻悄悄拨回默认值 —— 那种 bug 很难被当成 bug 报出来。
+   */
+  const [environment, setEnvironment] = useState<EnvironmentState>(DEFAULT_ENVIRONMENT);
   const [stats, setStats] = useState<StageStats | null>(null);
   const [error, setError] = useState<string | null>(null);
   /**
@@ -105,6 +115,10 @@ export default function App({ mode }: AppProps) {
     setOptions((previous) => ({ ...previous, ...patch }));
   }, []);
 
+  const handleEnvironmentChange = useCallback((patch: Partial<EnvironmentState>) => {
+    setEnvironment((previous) => ({ ...previous, ...patch }));
+  }, []);
+
   const handleStats = useCallback((next: StageStats) => {
     setStats(next);
   }, []);
@@ -125,6 +139,15 @@ export default function App({ mode }: AppProps) {
    * 小地图据此整块隐藏，而不是去猜"这个场景有没有主人公"。
    */
   const readInteraction = useCallback(() => stage?.interaction() ?? null, [stage]);
+
+  /**
+   * 环境读数入口。
+   *
+   * 时间一流逝，舞台手里那份环境就与这里的 `environment` 基准分叉了 ——
+   * 界面要显示"现在几点"必须读舞台。与小地图走同一个套路：
+   * **传读取入口，不传快照**，否则每秒 60 次 setState 会把重渲染变成新的瓶颈。
+   */
+  const readEnvironment = useCallback(() => stage?.environment() ?? null, [stage]);
 
   /**
    * 订阅基座下发的全局状态。
@@ -188,6 +211,7 @@ export default function App({ mode }: AppProps) {
             <SceneView
               scene={activeScene}
               options={options}
+              environment={environment}
               onStats={handleStats}
               onError={handleError}
               onReady={handleReady}
@@ -195,7 +219,14 @@ export default function App({ mode }: AppProps) {
             <Minimap getSnapshot={readInteraction} />
           </>
         )}
-        <ControlPanel options={options} onChange={handleOptionsChange} stats={stats} />
+        <ControlPanel
+          options={options}
+          onChange={handleOptionsChange}
+          environment={environment}
+          onEnvironmentChange={handleEnvironmentChange}
+          readEnvironment={readEnvironment}
+          stats={stats}
+        />
       </div>
     </div>
   );

@@ -36,6 +36,7 @@
 | 修改三维应用 / WebGL 场景与渲染生命周期                          | `decisions/0013-三维环境应用与WebGL渲染生命周期.md` · `platform/platform-environment/README.md`                                                  |
 | 新增 / 删除三维场景，或改场景注册表、清单契约与切换管线          | `decisions/0014-多场景架构与切换管线.md` · `platform/platform-environment/README.md`                                                             |
 | 新增 / 修改可操控场景（主人公、相机跟随、右键设点、小地图）      | `decisions/0015-场景交互与主人公操控.md` · `platform/platform-environment/README.md`                                                             |
+| 新增 / 修改大气与天气（天穹、日月、云、雾与背景联动、环境贴图）  | `decisions/0017-大气与天气的现实映射.md` · `platform/platform-environment/README.md`                                                              |
 | 在子应用里订阅 / 回写基座全局状态                                | `packages/common-tools/README.md`（micro 章节） · `decisions/0013` 第 7 条                                                                       |
 | 修改跨应用共享的 Vite 配置片段                                   | `packages/common-config/README.md` · `decisions/0012` 第 10 条                                                                                   |
 | 调整客户端日志的校验 / 截断 / 存储策略                           | `server/README.md`（日志域硬规则表）                                                                                                             |
@@ -96,6 +97,7 @@ docs/decisions/NNNN-简短标题.md
 | `decisions/0014-多场景架构与切换管线.md`            | 场景"实现"与"元数据"分置（ADR-0003 的应用）、注册表编译期兜底、清单元数据契约与三条护栏、切场景只换场景图不换渲染器、卡片式选择器                                                                            |
 | `decisions/0015-场景交互与主人公操控.md`            | 交互控制是场景的能力（`createControls` 可选契约）、相机"整体平移"跟随、移动算法独立成纯内核、右键打地面平面不打网格、小地图自绘 canvas 不走 state、正北朝上、地物与碰撞矩形同源、**未做寻路与移动动画**      |
 | `decisions/0016-权限域服务设计与参照实现的取舍.md`  | 权限域作为 `sts-server-auth` 落地、表名与主键约定、逻辑删除统一语义、错误码段位、不引 Spring Security 与 JWT 库（JDK 自研 HS512 + PBKDF2）、`@RequiresPermission` 鉴权入口、刷新令牌轮换、种子数据默认关闭、**未做数据权限与网关校验** |
+| `decisions/0017-大气与天气的现实映射.md`            | 环境参数是数据、大气是**场景的可选能力**（与 `createControls` 同级）、纯内核四层（`solar`/`palette`/`sample`/`rig`）、**高度角是唯一自变量**（日出日落对拍天文数据）、雾距给系数不给绝对值、夜间主光取反成月亮、动态 IBL 的"纯天穹捕获 + 双重节流 + 每帧补检查"、时间流逝由舞台推进而界面读回、`SceneMeta.climate`、默认取景俯角必须小于垂直半视角、**未做雨雪霜与天气状态机** |
 | `architecture/后端分层与依赖方向.md`                | 后端分层落地细则、依赖矩阵、前后端结构对照                                                                                                                                                                   |
 | `api/README.md`                                     | 契约接口清单、更新流程、任意值字段的处理                                                                                                                                                                     |
 | `../web/packages/common-config/README.md`           | 共享工程配置（ESLint / Stylelint / TypeScript / Vite）                                                                                                                                                       |
@@ -103,7 +105,7 @@ docs/decisions/NNNN-简短标题.md
 | `../web/packages/common-api/README.md`              | 前端契约包的使用方式与分层边界                                                                                                                                                                               |
 | `../web/platform/platform-portal/README.md`         | qiankun 主应用：挂载方式、全局状态、新增子应用的步骤                                                                                                                                                         |
 | `../web/platform/platform-environment/README.md`    | 三维环境应用：两种运行方式一条渲染路径、`src/scene/` 分层、渲染生命周期四条硬规则                                                                                                                            |
-| `../scripts/README.md`                              | 跨端脚本清单（契约导出 / 达梦初始化 / 微前端端到端验证 / 多场景切换验证 / 主人公操控验证）与硬性约束                                                                                                         |
+| `../scripts/README.md`                              | 跨端脚本清单（契约导出 / 达梦初始化 / 微前端端到端验证 / 多场景切换验证 / 主人公操控验证 / 大气验证）与硬性约束                                                                                              |
 | `../server/README.md`                               | 后端模块表、统一响应与错误码、日志域硬规则、构建命令                                                                                                                                                         |
 
 ---
