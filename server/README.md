@@ -184,6 +184,7 @@ com.bluewhale.sts.log                    ← sts-server-log，包名用业务域
 | **刷新令牌只存摘要 + 轮换 + 重放检测** | 已作废的 jti 被再次使用即视为泄露，撤销该用户全部刷新令牌 |
 | **认证上下文只有一套**（`AuthContext`），且由过滤器 `finally` 清理 | 参照实现有两套同名上下文（一套是空实现）；不清理 ThreadLocal 会在复用线程上串号 |
 | **鉴权入口只有一处**：`@RequiresPermission` + `AuthInterceptor` | 判定逻辑散落时，漏洞往往出在"某个接口只查了是否登录"的那一处 |
+| **`jwt.secret` 生产必须用环境变量覆盖**（`BW_JWT_SECRET`） | 配置里的默认值是**只给本地开发用的占位符**，而且已进版本库 ⇒ 对全世界公开。它属密钥级配置（`docs/decisions/0003`），HS512 建议 ≥64 字节 |
 
 > **未做**：组织 / 角色 / 用户组 / 资源的管理接口（表与实体已落地）、数据权限判定、时态授权过滤、
 > 验证码 / 短信 / 多因子、网关侧令牌校验、行为审计。逐项见 `docs/decisions/0016` 末节。
@@ -196,7 +197,9 @@ com.bluewhale.sts.log                    ← sts-server-log，包名用业务域
 2. 建立目录与 `pom.xml`，`<parent>` 指向同层的聚合 POM，**不要写 `<version>`**（从 `sts-parent` 继承）
 3. 若是自制模块间的依赖，在 `sts-parent` 的 `dependencyManagement` 里登记坐标
 4. 把新模块加进所属聚合 POM 的 `<modules>`
-5. 同步更新：本文件模块表 · 根 `README.md` 结构图
+5. 同步更新：本文件模块表 · 根 `README.md` 结构图 ·
+   `docs/architecture/后端分层与依赖方向.md` 第六节的「当前进度」表
+   （这张表最容易烂 —— 它只是速览，没人主动看就没人改）
 
 ---
 

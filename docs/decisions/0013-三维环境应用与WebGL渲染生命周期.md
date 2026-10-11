@@ -82,6 +82,12 @@ three.js 依赖重（生产构建 gzip 后约 218 kB），独立成子应用可�
 递归释放整棵子树并抽成导出函数 —— 让"释放得干不干净"可以被测试断言，而不是靠"看了一眼没报错"。
 注意 `PMREMGenerator` 与 `RoomEnvironment` **不在场景图里**，`traverse` 释放不到，必须各自释放。
 
+**同类的第三处是光源的阴影贴图**（`light.shadow.dispose()`）。它由光源持有，
+既不在 `geometry`/`material` 上、也不随光源被 GC，`traverse` 同样遍历不到 ——
+只放前两者的写法在切场景时每次留下两张纹理，而 `geometries` 计数照常回落，
+**看画面、看几何体数都发现不了**（是靠逐场景遍历时纹理数单调上涨逮住的）。
+这类"释放不全"的共同形态是：**资源挂在某个非 mesh 的对象上，而释放代码只认 mesh**。
+
 ### 6. 计时用 `Timer`，阴影用 `PCFShadowMap`（r186 的两处更替）
 
 - `THREE.Clock` 自 r183 起弃用。`Timer` 的 `update()` 让 `getDelta()` / `getElapsed()`

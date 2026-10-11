@@ -44,7 +44,7 @@
 | 调整配置分层或新增配置层                                         | `decisions/0003-配置分域与自研边界.md`                                                                                                           |
 | 新增 / 删除第三方依赖                                            | `web/pnpm-workspace.yaml` 的 `catalog:` · `CONTRIBUTING.md` 依赖治理                                                                             |
 | 升级后端框架大版本（Spring Boot / JDK 基线）                     | `decisions/0008-Spring-Boot-4升级与JDK21门禁.md` · `server/README.md` 版本一览                                                                   |
-| 新增 / 删除后端模块                                              | `server/README.md` 模块表 · 根 `README.md` 结构图                                                                                                |
+| 新增 / 删除后端模块                                              | `server/README.md` 模块表 · 根 `README.md` 结构图 · `architecture/后端分层与依赖方向.md` 第六节进度表                                             |
 | 新增 / 调整权限域（身份、访问控制、认证、鉴权）                  | `decisions/0016-权限域服务设计与参照实现的取舍.md` · `server/README.md`（权限域硬规则表）                                                        |
 | 调整后端分层或依赖方向                                           | `decisions/0005-后端模块划分与依赖约束.md` · `architecture/后端分层与依赖方向.md` · `server/README.md`                                           |
 | 修改统一响应结构或错误码                                         | `server/README.md` 错误码表 · `docs/api/openapi.json`                                                                                            |

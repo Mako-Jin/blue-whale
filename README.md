@@ -148,6 +148,10 @@ BW_DB_USERNAME=<用户> BW_DB_PASSWORD=<密码> java -jar sts-app/sts-app-server
     --spring.profiles.active=dameng
 ```
 
+> **上线前务必设 `BW_JWT_SECRET`** —— 配置里那个默认 secret 是只给本地开发用的占位符，
+> 而且已经进了版本库（等于公开）。它用来签名令牌，属密钥级配置（`docs/decisions/0003`），
+> 详见 `server/README.md` 的「权限域的几条硬规则」。
+
 ### 前端
 
 ```bash

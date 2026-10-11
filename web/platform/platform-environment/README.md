@@ -74,8 +74,13 @@
 2. **`dispose()` 必须调 `forceContextLoss()`**。只 `dispose()` 的上下文浏览器会保留一段时间，
    攒够上限后开始回收最旧的 —— 表现是"切换几次之后画面变白，控制台一条错误都没有"。
    端到端验证脚本用 `gl.isContextLost()` 断言这一点。
-3. **GPU 资源不会随 GC 释放**。几何体、材质、渲染目标必须显式 `dispose()`；
-   `disposeSubtree()` 递归释放整棵子树，并且**可被测试断言**。
+3. **GPU 资源不会随 GC 释放**。必须显式 `dispose()` 的有三类：几何体、材质、
+   渲染目标（PMREM 产物），以及**光源的阴影贴图**（`light.shadow.dispose()`）。
+   最后一类最容易漏 —— 影子贴图是 2048² 的 `WebGLRenderTarget`，挂在光源上，
+   既不在 `geometry`/`material` 上、也不随光源被 GC，`traverse` 根本遍历不到。
+   漏掉它的症状是**切场景时纹理数每次净增 2 张**（实测 5→7→9→11→13），
+   而 `geometries` 计数照常回落 —— **只盯几何体数永远发现不了**。
+   `disposeSubtree()` 递归释放整棵子树并连带处理光源，且**可被测试断言**。
 4. **计时用 `Timer` 不用 `Clock`**（`Clock` 自 r183 起弃用）。`Timer` 的 `update()` 让
    `getDelta()`/`getElapsed()` 在同一帧内可反复读且值一致，`connect(document)` 借
    Page Visibility API 兜住"切标签页再切回来"的巨大 delta。

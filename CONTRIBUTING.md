@@ -71,9 +71,15 @@ docs(decisions): 补充 ADR-0001
 
 ---
 
-## 五、换行符约定
+## 五、换行符与二进制文件
 
 仓库统一以 **LF** 存储与检出，由根目录 `.gitattributes` 强制（Windows 专有脚本如 `.bat`/`.ps1` 保留 CRLF）。
+
+**二进制文件必须显式标 `binary`。** `.gitattributes` 里的 `* text=auto` 会让 git 去猜
+"这是不是文本"，猜错时**在检出/提交那一刻改写它的换行符** —— 对 `.blend` / `.glb`
+这类模型文件，一次改写就是文件损坏（Blender 直接打不开，且没有任何报错提示）。
+仓库已给 `*.blend`、`*.blend1`、`*.glb`、`*.gltf`、`*.fbx`、`*.obj` 加了 `binary` 标记，
+**新增其他二进制格式时记得往 `.gitattributes` 里补一行**。
 
 Windows 用户首次 clone 后若看到全文件差异，执行一次规范化即可：
 
