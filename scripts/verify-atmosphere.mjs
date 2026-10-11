@@ -595,37 +595,93 @@ async function main() {
       record(`反复重烘之后几何体数从 ${before.geometries} 涨到 ${after.geometries}`);
     }
 
-    /* ---------------- 7. 切到太空：大气能力应当天然退出 ---------------- */
+    /* ---------------- 7. 逐个场景：outdoor 都该有天空，真空不该有 ---------------- */
 
-    await evaluate(`document.querySelector('.scene-card[data-scene-id="spacecraft"]')?.click(), true`);
     /**
-     * 切场景要等 3 帧而不是 1 帧：点击只是触发 React 换 `scene`，舞台随后要
-     * 释放旧场景、建新场景、上传纹理、强制重烘一次环境贴图 —— 这些跨好几帧。
-     * 软件渲染下 3 帧约 7 秒，换来的是"截图里一定是新场景"。
+     * 先把时刻拨回正午 —— 下面要在**多个场景**里读天空色。
+     *
+     * 环境（`EnvironmentState`）是**跨场景延续**的：它不属于任何一个场景，切场景不会重置它。
+     * 所以这里设一次，之后每个场景都停在这个时刻。这既是便利，也是"环境为什么不能塞进
+     * `SceneOptions`"的现场注解 —— 选项随场景重置，环境不随。
      */
-    await waitForFrames(3);
-    const space = await skyBand();
-    const spaceDiagnostics = await diagnostics();
-    step(
-      "7. 切到太空场景",
-      `天空平均色 rgb(${space.r.toFixed(0)}, ${space.g.toFixed(0)}, ${space.b.toFixed(0)}) · 亮度 ${space.luma.toFixed(1)} · ` +
-        `纹理 ${spaceDiagnostics.textures}`,
-    );
-    if (!(space.luma < 60)) {
-      record(`太空场景的亮度是 ${space.luma.toFixed(1)} —— 真空里不该有天光`);
-    }
-    // 太空场景沿用兜底的室内环境贴图，纹理数不该因为切场景而持续上涨
-    if (spaceDiagnostics.textures > after.textures + 4) {
-      record(`切到太空之后纹理数继续上涨（${after.textures} → ${spaceDiagnostics.textures}）`);
-    }
-    await screenshot("atmosphere-space");
+    await setSlider(0, 12 * 60);
 
-    // 切回古建筑，确认大气能重新挂上（切场景必须能来回）
+    /**
+     * 逐个切过窗口里的场景。
+     *
+     * 单测只证明得了 `createAtmosphere` **存在**；"天穹真的被画出来了"只有真实浏览器能证。
+     * 契约既然是"`outdoor` 就该有天空"，验证就不该只挑古建筑一个 —— 三个室外场景全过一遍，
+     * 非室外的那个反过来验"不该有"。只测一家的话，另外两家把 `sky` 传成 `false`
+     * 或者干脆忘了挂，脚本会一路绿灯。
+     */
+    const SCENES_TO_CHECK = [
+      { id: "ancient-architecture", title: "古建筑", sky: true },
+      { id: "primeval-jungle", title: "原始丛林", sky: true },
+      { id: "modern-office", title: "现代写字楼", sky: true },
+      { id: "spacecraft", title: "飞船", sky: false },
+    ];
+
+    /** 遍历开始前的纹理数。切场景不该让它持续上涨 —— 大气有两份天穹，漏释放最可能在这里露头 */
+    const texturesBeforeScenes = (await diagnostics()).textures;
+
+    for (const scene of SCENES_TO_CHECK) {
+      await evaluate(
+        `document.querySelector('.scene-card[data-scene-id="${scene.id}"]')?.click(), true`,
+      );
+      /**
+       * 切场景要等 3 帧而不是 1 帧：点击只是触发 React 换 `scene`，舞台随后要
+       * 释放旧场景、建新场景、上传纹理、强制重烘一次环境贴图 —— 这些跨好几帧。
+       * 软件渲染下 3 帧约 7 秒，换来的是"截图里一定是新场景"。
+       */
+      await waitForFrames(3);
+
+      const band = await skyBand();
+      const sceneDiagnostics = await diagnostics();
+      step(
+        `7. ${scene.title}`,
+        `天空平均色 rgb(${band.r.toFixed(0)}, ${band.g.toFixed(0)}, ${band.b.toFixed(0)}) · ` +
+          `亮度 ${band.luma.toFixed(1)} · 纹理 ${sceneDiagnostics.textures} · ` +
+          `几何体 ${sceneDiagnostics.geometries}`,
+      );
+
+      if (scene.sky) {
+        /**
+         * 判据用**亮度**而不是色相。
+         *
+         * "偏蓝"在丛林里会被树冠搅浑 —— 画面上部不全是天，还有锥形的树冠压进来。
+         * 而"亮得起来"是三个室外场景在正午的共同特征。阈值 80 上距实测的白天天空、
+         * 下距兜底背景色（`#342f3d` ≈ 53）都留足了余量，两边都不会误判。
+         */
+        if (!(band.luma > 80)) {
+          record(
+            `${scene.title} 标了 outdoor，天空区域亮度却只有 ${band.luma.toFixed(1)} —— 天穹没画出来`,
+          );
+        }
+      } else if (!(band.luma < 60)) {
+        record(
+          `${scene.title} 不是 outdoor，天空区域却有 ${band.luma.toFixed(1)} 的亮度 —— 真空里不该有天光`,
+        );
+      }
+
+      if (sceneDiagnostics.textures > texturesBeforeScenes + 6) {
+        record(`切到${scene.title}之后纹理数累积到 ${sceneDiagnostics.textures}`);
+      }
+      await screenshot(`atmosphere-scene-${scene.id}`);
+    }
+
+    /* ---------------- 8. 再切回古建筑：大气必须能重新挂上 ---------------- */
+
+    /**
+     * 第 7 节已经"进入"过古建筑一次，这里特意**再回来**一次。
+     *
+     * 两者测的不是一回事：第 7 节验的是"第一次进场能画出天穹"，这一节验的是
+     * `dispose()` → `create()` 走了一整圈之后**还能**画出天穹。
+     * 切场景必须能来回 —— 只能去不能回，是"释放时把不该清的东西清了"这一类 bug 的特征。
+     */
     await evaluate(
       `document.querySelector('.scene-card[data-scene-id="ancient-architecture"]')?.click(), true`,
     );
     await waitForFrames(3);
-    await setSlider(0, 12 * 60);
     const back = await skyBand();
     const backDiagnostics = await diagnostics();
     step(
@@ -636,7 +692,7 @@ async function main() {
     if (!(back.b > back.r && back.luma > 100)) {
       record(`切回古建筑之后天穹没有恢复（亮度 ${back.luma.toFixed(1)}）`);
     }
-    if (backDiagnostics.textures > after.textures + 4) {
+    if (backDiagnostics.textures > texturesBeforeScenes + 6) {
       record(`来回切场景之后纹理数累积到了 ${backDiagnostics.textures}`);
     }
     await screenshot("atmosphere-back");

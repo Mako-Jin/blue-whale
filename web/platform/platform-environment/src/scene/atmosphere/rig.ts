@@ -193,6 +193,29 @@ export function createAtmosphereRig(config: AtmosphereRigConfig): SceneAtmospher
     },
 
     captureSource(): Object3D | null {
+      /**
+       * 烘焙前关掉**捕获天穹**的太阳圆盘（`showSunDisc = 0`，three 官方就是为
+       * "生成环境贴图"准备的这个开关）。
+       *
+       * 圆盘不关的话，它作为 HDR 超亮斑被烘进环境贴图，PMREM 卷积会把整张贴的
+       * 能量拉爆：玻璃幕墙这类镜面材质反射出来的就是一整面过曝的白
+       * （实测写字楼正午整面泛白，幕墙细节全丢）。直射本来就归主光管，
+       * 环境贴图只该装散射 —— 关圆盘正好只去掉直射那一份，天空散射原样保留。
+       *
+       * 注意别用"把 `sunPosition` 压到地平线下"来藏太阳：那会连**散射分布**一起
+       * 改掉，烘出来的环境贴图整体变成暮色调（太阳位置的语义是"几点了"，
+       * 不是"圆盘要不要"）。圆盘归 `showSunDisc` 管，散射归 `sunPosition` 管，
+       * 两个旋钮各管各的。
+       *
+       * 另外，关掉圆盘解决的是**直射污染**；镜面材质的过曝还得靠场景把
+       * `environmentIntensity` 对着真实 IBL 重标（写字楼 0.85 → 0.45）——
+       * 天空散射本身的 HDR 亮度远高于兜底的 RoomEnvironment，
+       * 那才是镜面泛白的大头。
+       */
+      if (captureSky) {
+        const uniforms = (captureSky.material as ShaderMaterial).uniforms;
+        uniforms.showSunDisc.value = 0;
+      }
       return captureSky;
     },
 

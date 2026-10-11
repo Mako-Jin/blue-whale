@@ -20,7 +20,8 @@ import {
   randomIn,
   solidMaterial,
 } from '../common';
-import type { SceneBuild, SceneDefinition, SceneMeta } from '../types';
+import { createAtmosphereRig } from '../atmosphere';
+import type { SceneAtmosphere, SceneBuild, SceneDefinition, SceneMeta } from '../types';
 
 /**
  * 原始丛林。
@@ -50,6 +51,25 @@ const TREE_COUNT = 14;
 
 /** 散布种子。改这个数字会让整片林子的布局变一副样子。 */
 const JUNGLE_SEED = 20261010;
+
+/**
+ * 雾的基准起止。
+ *
+ * 丛林感不来自"树多"，而来自**雾把中景整片吃掉** —— 视线被一堵软墙拦住，
+ * 一眼望不到边才像丛林。接上大气之后这两段距离不再写死：它是一份**基调**，
+ * 舞台会在此之上乘 `look` 给的能见度系数 —— 晴天看得更远，阴天更近。
+ * 这也是本场景**必须**把基准交给 `createAtmosphereRig` 的原因：
+ * 丛林与写字楼的雾距差着一个数量级（9~46 对 46~130），绝对值得不到两全。
+ */
+const BASE_FOG = { near: 9, far: 46 } as const;
+
+/**
+ * 阴影正交相机的范围。
+ *
+ * 它得罩住整片林子（树散布到外圈 27 米），否则边缘的树**不投影且不报错** ——
+ * 症状是"阴影只在中景出现"，很容易被误判成阴影开关坏了。
+ */
+const SUN_EXTENT = 34;
 
 const meta: SceneMeta = {
   id: 'primeval-jungle',
@@ -84,15 +104,27 @@ function create(): SceneBuild {
   scene.background = new Color(meta.background);
   // 雾给到中景才开始起效：太近的话树全都融成剪影，画面只剩一片模糊的绿，
   // 有雾而看不清树形，等于两头都没占到
-  addFog(scene, meta.background, 9, 46);
+  addFog(scene, meta.background, BASE_FOG.near, BASE_FOG.far);
 
-  // ---------- 光照：从树冠缝隙里漏下来的日光 ----------
-  scene.add(new AmbientLight(0x4d7a4a, 0.85));
-  addSun(scene, {
+  /**
+   * ---------- 光照：从树冠缝隙里漏下来的日光 ----------
+   *
+   * 下面两个初值只在"没挂大气"时可见（例如单测里直接 `create()`）；
+   * 一旦 `createAtmosphere()` 被舞台调用，主光的方向、颜色、强度就**由太阳高度角算出来**，
+   * 天光也跟着走 —— 黄昏时它会转暖，入夜转深蓝。也就是说从这一刻起，
+   * "林子里几点该是什么光"不再由这里的一行常量决定。
+   *
+   * 注意 `ambient` 必须**留引用**（不能 `scene.add(new AmbientLight(...))` 了事）：
+   * 大气要拿它当天光的把手。下面那盏绿色的 `bounce` 才是本场景的**固有特征光**
+   * （落叶层反射），它不参与昼夜循环 —— 这属于二期"补光随昼夜淡出"的范围。
+   */
+  const ambient = new AmbientLight(0x4d7a4a, 0.85);
+  scene.add(ambient);
+  const sun = addSun(scene, {
     color: 0xffeec0,
     intensity: 2.6,
     position: [20, 28, 14],
-    extent: 34,
+    extent: SUN_EXTENT,
   });
   // 低处的绿色反弹光，模拟落叶层的反射 —— 少了它树冠下会黑成一片
   const bounce = new PointLight(0x76c05a, 34, 30, 2);
@@ -196,6 +228,9 @@ function create(): SceneBuild {
     scene.add(rock);
   }
 
+  /** 大气只挂一次（`??=`），生命周期严格跟着场景走 —— 舞台切回来时是全新的林子与全新的天穹 */
+  let atmosphere: SceneAtmosphere | null = null;
+
   return {
     scene,
 
@@ -225,7 +260,33 @@ function create(): SceneBuild {
       grid.visible = visible;
     },
 
+    /**
+     * 本场景是**室外**（`climate: 'outdoor'`），所以接管大气。
+     *
+     * 天穹在这里的意义与古建筑略有不同：林冠之上本来就该看得见天 ——
+     * 而原来的写法把背景写死成一片深绿，等于宣称"丛林上面盖着绿盖子"。
+     * 接上之后，从树冠缝隙望出去才是真的天空，雾色也会跟着天光走。
+     */
+    createAtmosphere(): SceneAtmosphere {
+      atmosphere ??= createAtmosphereRig({
+        scene,
+        keyLight: sun,
+        ambient,
+        baseBackground: meta.background,
+        fog: BASE_FOG,
+        sky: true,
+      });
+      return atmosphere;
+    },
+
     dispose(): void {
+      /**
+       * 先拆大气：天穹有**两份**（主天穹 + 供烘环境贴图的捕获天穹），
+       * 而捕获那份**不在场景图里** —— 只靠下面的 `traverse` 清不掉它，
+       * 漏掉就是漏一份几何体加一份着色器。
+       */
+      atmosphere?.dispose();
+      atmosphere = null;
       disposeSubtree(scene);
     },
   };

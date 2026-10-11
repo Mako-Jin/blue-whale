@@ -38,11 +38,24 @@ export function disposeSubtree(root: Object3D): void {
     const holder = child as Object3D & {
       geometry?: { dispose(): void };
       material?: Material | Material[];
+      /** 光源的影子贴图。**只有 `Light` 有**，用可选链区分 */
+      shadow?: { dispose(): void };
     };
     holder.geometry?.dispose();
     if (holder.material) {
       disposeMaterials(holder.material);
     }
+    /**
+     * 影子贴图要单独放 —— 它**不在这两类里**，这一点很坑。
+     *
+     * 影子贴图是 2048×2048 的 `WebGLRenderTarget`，由光源持有，
+     * 既不挂在任何 mesh 的 `geometry`/`material` 上，也不随光源对象被 GC。
+     * 只放前两者的写法乍看没问题（场景图确实清空了、`diagnostics().geometries`
+     * 也确实回落），但**实测每切一次场景净增 2 张纹理**，攒到上下文上限时整页黑掉，
+     * 而在此之前**没有任何症状**。它是靠"来回切四个场景后纹理数单调上涨"
+     * （5 → 7 → 9 → 11 → 13）逮住的，补上这一行之后回到恒定 5。
+     */
+    holder.shadow?.dispose();
   });
   root.clear();
 }

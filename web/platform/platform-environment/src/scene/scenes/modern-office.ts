@@ -21,7 +21,8 @@ import {
   randomIn,
   solidMaterial,
 } from '../common';
-import type { SceneBuild, SceneDefinition, SceneMeta } from '../types';
+import { createAtmosphereRig } from '../atmosphere';
+import type { SceneAtmosphere, SceneBuild, SceneDefinition, SceneMeta } from '../types';
 
 /**
  * 现代写字楼。
@@ -48,6 +49,24 @@ const FLOOR_HEIGHT = 1.7;
 const TOWER = { width: 7, height: 22, depth: 7, x: -2 } as const;
 const ANNEX = { width: 5, height: 13, depth: 5, x: 8, z: -2 } as const;
 
+/**
+ * 雾的基准起止。
+ *
+ * 城市尺度下雾**不负责遮挡，负责天际线** —— 远处的高楼淡进天光里，城市才有纵深。
+ * 所以这里的数字比丛林大一个数量级（46~130 对 9~46）。接上大气之后它只是**基调**，
+ * 舞台会乘上 `look` 的能见度系数。这也正是雾距**不能**在 rig 里写死的原因：
+ * 一套绝对值伺候不了差着数量级的两个场景。
+ */
+const BASE_FOG = { near: 46, far: 130 } as const;
+
+/**
+ * 阴影正交相机的范围。
+ *
+ * 要罩住主塔、副楼与广场上那一圈灯柱 —— 罩不住的构件**不投影且不报错**，
+ * 看起来就像"这栋楼的阴影坏了"。
+ */
+const SUN_EXTENT = 30;
+
 const meta: SceneMeta = {
   id: 'modern-office',
   title: '现代写字楼',
@@ -63,8 +82,17 @@ const meta: SceneMeta = {
     target: [0, 9, 0],
   },
   distance: [10, 80],
-  // 玻璃是镜面，环境反射给足了才有"幕墙"的样子
-  environmentIntensity: 0.85,
+  /**
+   * 玻璃是镜面，幕墙的样子几乎全靠环境反射 —— 但这个系数**不是越大越好**。
+   *
+   * 0.85 是按"兜底的室内环境贴图"（RoomEnvironment，中等亮度）标定的；换成
+   * 天穹烘出来的真实 IBL 之后，正午天空散射的辐亮度远高于室内环境，
+   * 0.85 等效于过曝 —— 实测整个塔楼反射成一整面白，楼板层线与轮廓全部糊掉。
+   * 压到 0.45 之后幕墙里"有天空、有云的明暗"，楼的体量才回得来。
+   * （写死别的场景同理：`environmentIntensity` 的标定基准是 IBL 的**实际亮度**，
+   * IBL 换了来源，这里的数字就得重标。）
+   */
+  environmentIntensity: 0.45,
   options: { showGrid: true },
 };
 
@@ -73,14 +101,25 @@ function create(): SceneBuild {
   const scene = new Scene();
   scene.background = new Color(meta.background);
   // 城市尺度大，雾要退到很远处才起效 —— 它在这里负责的是天际线，不是遮挡
-  addFog(scene, meta.background, 46, 130);
+  addFog(scene, meta.background, BASE_FOG.near, BASE_FOG.far);
 
-  scene.add(new AmbientLight(0x8fa8c8, 0.62));
-  addSun(scene, {
+  /**
+   * 主光与天光在挂上大气之后**不再由这里决定**：方向、颜色、强度全部来自太阳高度角，
+   * 下面的初值只在"没挂大气"时可见（例如单测里直接 `create()`）。
+   *
+   * 对本场景来说这不只是"更自然"——**它就是玻璃幕墙能不能看的前提**：
+   * `metalness 0.92` / `roughness 0.06` 的材质等于一面镜子，没有 IBL 可反射时
+   * 会渲染成一坨死黑。大气挂上之后，环境贴图由天穹烘出来，幕墙里就有了天与暮色。
+   *
+   * `ambient` 必须留引用（不能 `scene.add(new AmbientLight(...))` 了事）：大气拿它当天光的把手。
+   */
+  const ambient = new AmbientLight(0x8fa8c8, 0.62);
+  scene.add(ambient);
+  const sun = addSun(scene, {
     color: 0xffffff,
     intensity: 2.5,
     position: [18, 24, 11],
-    extent: 30,
+    extent: SUN_EXTENT,
   });
   // 低位暖色补光：傍晚的城市地面会把余晖反上来
   const cityGlow = new PointLight(0xffb070, 60, 70, 2);
@@ -208,6 +247,9 @@ function create(): SceneBuild {
     scene.add(head);
   }
 
+  /** 大气只挂一次（`??=`），生命周期严格跟着场景走 */
+  let atmosphere: SceneAtmosphere | null = null;
+
   return {
     scene,
 
@@ -231,7 +273,32 @@ function create(): SceneBuild {
       grid.visible = visible;
     },
 
+    /**
+     * 本场景是**室外**（`climate: 'outdoor'`），所以接管大气。
+     *
+     * 这里拿到的天穹还兼职干一件别的活：它是**环境贴图的光源**。
+     * 暮色广场上那面玻璃幕墙反射到的，正是这一片天。
+     */
+    createAtmosphere(): SceneAtmosphere {
+      atmosphere ??= createAtmosphereRig({
+        scene,
+        keyLight: sun,
+        ambient,
+        baseBackground: meta.background,
+        fog: BASE_FOG,
+        sky: true,
+      });
+      return atmosphere;
+    },
+
     dispose(): void {
+      /**
+       * 先拆大气：天穹有**两份**（主天穹 + 供烘环境贴图的捕获天穹），
+       * 而捕获那份**不在场景图里** —— 只靠下面的 `traverse` 清不掉它，
+       * 漏掉就是漏一份几何体加一份着色器。
+       */
+      atmosphere?.dispose();
+      atmosphere = null;
       disposeSubtree(scene);
     },
   };

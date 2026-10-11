@@ -211,7 +211,10 @@ App 持有 environment 基准 → stage.setEnvironment()      ← 拨滑块时�
 
 `'outdoor' | 'indoor' | 'space'`。它回答"室外的天气该不该落到这个场景上"。
 必填的理由和 `camera` 一样：漏填就等于让这个问题没有答案。
-一期只有古建筑是 `outdoor` 且实现了大气。
+
+`outdoor` 与"实现了 `createAtmosphere`"是**一一对应**的：三个室外场景（古建筑、丛林、写字楼）
+都挂了天穹，室内与太空则一定不挂 —— `scenes.test.ts` 从两个方向钉住这条，
+新增室外场景忘了挂会立刻红。
 
 ### 配套的硬约束：默认取景的俯角必须小于垂直半视角
 
@@ -305,14 +308,14 @@ node scripts/verify-micro-frontend.mjs    # 微前端全链路验证（需基座
 
 ### 给一个场景挂上大气
 
-7. 标 `climate`：`'outdoor'` / `'indoor'` / `'space'`。**室内与太空不要实现 `createAtmosphere`**
-   —— `scenes.test.ts` 有一条断言钉住这一点。
+7. 标 `climate`：`'outdoor'` / `'indoor'` / `'space'`。**室内与太空不要实现 `createAtmosphere`**，
+   而**室外则必须实现** —— `scenes.test.ts` 从两个方向钉住了这条对应关系。
 8. 实现 `createAtmosphere()`：把场景自己建的 `DirectionalLight` 与 `AmbientLight`
    交给 `createAtmosphereRig({ scene, keyLight, ambient, baseBackground, fog, sky })`，
    并把 rig 的 `dispose()` 挂进场景的 `dispose()`（天穹有一份**不在场景图里**，`traverse` 清不掉）。
 9. **检查默认取景的俯角小于 25°**（垂直半视角），否则天地平线落在画面外，天穹白做。
 10. 验收跑 `node scripts/verify-atmosphere.mjs`：它会拨到四个时刻、断言天空的颜色与亮度关系，
-    并反复拨 24 次看显存有没有回不去。
+    并反复拨 12 次看显存有没有回不去。
 
 ---
 
@@ -320,8 +323,8 @@ node scripts/verify-micro-frontend.mjs    # 微前端全链路验证（需基座
 
 - **场景深化**：五个场景都是"可辨识的简化版"（全基础几何体），瓦垄、彩画、
   植被多样性、舱内细节等逐场景深化时再做
-- **大气只挂在古建筑上**：丛林与写字楼标了 `climate: 'outdoor'`，但**尚未**接 `createAtmosphere`，
-  它们现在仍是"一盏写死的灯"
+- **场景固有色光不随昼夜淡出**：每个室外场景都留了一盏特征补光（古建筑的地面反射、
+  丛林落叶层的绿反弹、写字楼广场的余晖），它们是常量，入夜不会暗下去
 - **天气**：雨、雪、霜与风向量都没做。云的漂移速度是常量，不是"风速算出来的"，
   也不影响雨雪倾角或树摆幅度 —— 天气状态机与降水粒子属于下一阶段（ADR-0017 的"未做"清单）
 - **星空与月亮圆盘**：夜里只有"更暗的天穹 + 反向的主光"，没有星点、没有月面

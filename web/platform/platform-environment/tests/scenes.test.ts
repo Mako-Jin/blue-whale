@@ -4,9 +4,11 @@ import {
   Mesh,
   MeshStandardMaterial,
   PerspectiveCamera,
+  Scene,
   Vector3,
   type BufferGeometry,
   type Object3D,
+  type WebGLRenderTarget,
 } from 'three';
 import {
   DEFAULT_ENVIRONMENT,
@@ -14,6 +16,7 @@ import {
   sampleEnvironment,
   type SceneDefinition,
 } from '@/scene';
+import { addSun, disposeSubtree } from '@/scene/common';
 
 /**
  * 场景实现的通用契约。
@@ -306,15 +309,29 @@ describe('可操控场景（主人公）', () => {
 describe('大气能力', () => {
   const byId = new Map(SCENES.map((definition) => [definition.meta.id, definition]));
 
-  it('只有古建筑实现了 createAtmosphere —— 别的场景没有天穹', () => {
-    const provided = SCENES.filter((definition) => {
+  /** 实现了大气的场景 id。逐个 create 探能力再 dispose，不留场景图 */
+  const atmosphereIds = () =>
+    SCENES.filter((definition) => {
       const build = definition.create();
       const has = typeof build.createAtmosphere === 'function';
       build.dispose();
       return has;
     }).map((definition) => definition.meta.id);
 
-    expect(provided).toEqual(['ancient-architecture']);
+  const outdoorIds = SCENES.filter((definition) => definition.meta.climate === 'outdoor').map(
+    (definition) => definition.meta.id,
+  );
+
+  /**
+   * 这条**不能**写成"只有古建筑有大气"。
+   *
+   * 那种写法把"一期接到哪"这个**进度**固化成了断言：别人按契约给别的室外场景补齐时，
+   * 它会认认真真地变红，逼着后人把它删掉 —— 而它本来该是一条护栏。这里断言的是**方向**：
+   * `outdoor` 的含义就是"有天空与天气"，那么声明了 `outdoor` 就必须真的把大气挂上。
+   * 将来新增一个室外场景忘了挂，这条会立刻红。相反的约束在下面一条。
+   */
+  it('每个 outdoor 场景都实现了 createAtmosphere —— 声明了有天空就得真有', () => {
+    expect(atmosphereIds().sort()).toEqual([...outdoorIds].sort());
   });
 
   it('室内与太空场景不实现大气 —— 真空里没有散射，屋顶下没有太阳', () => {
@@ -323,9 +340,9 @@ describe('大气能力', () => {
       const has = typeof build.createAtmosphere === 'function';
       build.dispose();
       /**
-       * 这条是**契约**而非"暂时还没做"：室内与太空永远不会挂天穹。
-       * 室外场景（丛林、写字楼）挂不挂属于进度问题，不在这里约束 ——
-       * 一期只有古建筑挂上了。
+       * 这条是**契约**而非"暂时还没做"：室内与太空**永远**不会挂天穹。
+       * 与上面那条合起来，`climate` 与"有没有大气"就完全绑定了 ——
+       * 一个场景想拿到大气，唯一的办法是先把气候域声明对。
        */
       return has && definition.meta.climate !== 'outdoor';
     }).map((definition) => definition.meta.id);
@@ -334,52 +351,103 @@ describe('大气能力', () => {
   });
 
   it('大气把天穹装进场景图，dispose 之后场景清空（不留幽灵天穹）', () => {
-    const build = byId.get('ancient-architecture')?.create();
-    const before = build?.scene.children.length ?? 0;
+    outdoorIds.forEach((id) => {
+      const build = byId.get(id)?.create();
+      const before = build?.scene.children.length ?? 0;
 
-    const atmosphere = build?.createAtmosphere?.();
-    expect(atmosphere).toBeTruthy();
-    expect(build?.scene.children.length).toBeGreaterThan(before);
+      const atmosphere = build?.createAtmosphere?.();
+      expect(atmosphere, `${id} 应当提供大气`).toBeTruthy();
+      expect(build?.scene.children.length, `${id} 的天穹应当装进场景图`).toBeGreaterThan(before);
 
-    // `dispose()` 必须连带拆掉大气 —— 断言"清空"就等于断言没有泄漏
-    build?.dispose();
-    expect(build?.scene.children).toHaveLength(0);
+      // `dispose()` 必须连带拆掉大气 —— 断言"清空"就等于断言没有泄漏
+      build?.dispose();
+      expect(build?.scene.children, `${id} 的 dispose 之后应当清空`).toHaveLength(0);
+    });
   });
 
   it('主光跟随太阳：白天顺着太阳，夜里指向反日点（月亮在太阳对面）', () => {
-    const build = byId.get('ancient-architecture')?.create();
-    const atmosphere = build?.createAtmosphere?.();
-    const sun = build?.scene.children.find(
-      (child) => child instanceof DirectionalLight,
-    ) as DirectionalLight | undefined;
-    expect(sun).toBeDefined();
-
-    const noon = sampleEnvironment({ ...DEFAULT_ENVIRONMENT, localHours: 12 });
-    const midnight = sampleEnvironment({ ...DEFAULT_ENVIRONMENT, localHours: 0 });
-
-    // 白天：主光就是太阳方向
-    atmosphere?.update(noon.look);
-    const noonLight = (sun?.position ?? new Vector3()).clone().normalize();
-    expect(noonLight.y).toBeCloseTo(noon.look.keyDirection[1], 5);
-    expect(noonLight.x).toBeCloseTo(noon.look.keyDirection[0], 5);
-    const noonIntensity = sun?.intensity ?? 0;
-
     /**
-     * 夜里：太阳已经在地平线以下，而主光**必须在地平线之上**。
+     * 三个室外场景都跑一遍，而不是只挑古建筑。
      *
-     * 这就是"取反成月亮"那一步的全部意义 —— 不取反的话光会从地底往上照，
-     * 比没有光还假，而且这种错误在截图里几乎看不出来（只会觉得"夜景怪怪的"）。
+     * 这条测的其实是 rig 的一条性质（"主光是太阳的把手"），但它**能否落地**取决于
+     * 场景有没有老老实实把主光的引用交出去。只测一个场景，另外两个把 `addSun` 的返回值
+     * 丢掉、或又加了一盏平行光，都不会被发现。`keyDistance` 三个场景都用默认值，
+     * 所以归一化之后的断言与场景无关。
      */
-    expect(midnight.look.keyDirection[1]).toBeLessThan(0);
-    atmosphere?.update(midnight.look);
-    const midnightLight = (sun?.position ?? new Vector3()).clone().normalize();
-    expect(midnightLight.y).toBeGreaterThan(0);
-    expect(midnightLight.y).toBeCloseTo(-midnight.look.keyDirection[1], 5);
-    expect(midnightLight.z).toBeCloseTo(-midnight.look.keyDirection[2], 5);
+    outdoorIds.forEach((id) => {
+      const build = byId.get(id)?.create();
+      const atmosphere = build?.createAtmosphere?.();
+      const sun = build?.scene.children.find(
+        (child) => child instanceof DirectionalLight,
+      ) as DirectionalLight | undefined;
+      expect(sun, `${id} 应当有一盏可被驱动的主光`).toBeDefined();
 
-    // 而且夜里要比正午暗一个数量级以上
-    expect(sun?.intensity ?? 0).toBeLessThan(noonIntensity / 10);
+      const noon = sampleEnvironment({ ...DEFAULT_ENVIRONMENT, localHours: 12 });
+      const midnight = sampleEnvironment({ ...DEFAULT_ENVIRONMENT, localHours: 0 });
 
-    build?.dispose();
+      // 白天：主光就是太阳方向
+      atmosphere?.update(noon.look);
+      const noonLight = (sun?.position ?? new Vector3()).clone().normalize();
+      expect(noonLight.y).toBeCloseTo(noon.look.keyDirection[1], 5);
+      expect(noonLight.x).toBeCloseTo(noon.look.keyDirection[0], 5);
+      const noonIntensity = sun?.intensity ?? 0;
+
+      /**
+       * 夜里：太阳已经在地平线以下，而主光**必须在地平线之上**。
+       *
+       * 这就是"取反成月亮"那一步的全部意义 —— 不取反的话光会从地底往上照，
+       * 比没有光还假，而且这种错误在截图里几乎看不出来（只会觉得"夜景怪怪的"）。
+       */
+      expect(midnight.look.keyDirection[1]).toBeLessThan(0);
+      atmosphere?.update(midnight.look);
+      const midnightLight = (sun?.position ?? new Vector3()).clone().normalize();
+      expect(midnightLight.y).toBeGreaterThan(0);
+      expect(midnightLight.y).toBeCloseTo(-midnight.look.keyDirection[1], 5);
+      expect(midnightLight.z).toBeCloseTo(-midnight.look.keyDirection[2], 5);
+
+      // 而且夜里要比正午暗一个数量级以上
+      expect(sun?.intensity ?? 0).toBeLessThan(noonIntensity / 10);
+
+      build?.dispose();
+    });
+  });
+});
+
+/**
+ * 释放契约。
+ *
+ * 盯的是"切场景到底有没有漏东西" —— 漏掉的 GPU 资源不会立刻出症状，
+ * 而是攒到 WebGL 上下文上限（浏览器通常 16 个）时整页黑掉。
+ */
+describe('释放契约', () => {
+  /**
+   * 影子贴图**既不是网格，也不是材质**：它由光源持有，也不随光源对象被 GC。
+   *
+   * 只放 `geometry`/`material` 的写法能通过"场景图清空"这类断言，
+   * 却会在每次切场景时把贴图留在显存里（实测每切一次净增 2 张纹理，
+   * 来回切四个场景后从 5 涨到 13）。这条测试就是为它准备的 ——
+   * 给光源挂一张假的贴图，断言 `disposeSubtree` 确实碰到了它。
+   */
+  it('disposeSubtree 会释放光源的影子贴图 —— 它不在 geometry / material 之列', () => {
+    const scene = new Scene();
+    const sun = addSun(scene, {
+      color: 0xffffff,
+      intensity: 1,
+      position: [4, 6, 3],
+      extent: 12,
+    });
+
+    let disposed = false;
+    sun.shadow.map = {
+      dispose: () => {
+        disposed = true;
+      },
+    } as unknown as WebGLRenderTarget;
+
+    disposeSubtree(scene);
+
+    expect(disposed).toBe(true);
+    // 顺手确认老行为没被破坏：场景图仍然清空
+    expect(scene.children).toHaveLength(0);
   });
 });
