@@ -29,9 +29,19 @@ const BASE_URL = "http://127.0.0.1:3000";
 const VIEWPORT = { width: 1440, height: 960 };
 const SHOT_DIR = process.argv[2] ?? null;
 
-/** h2 profile 的两个种子账号（见 sts-server-auth 的 DefaultAdminSeeder 与 AuthProperties） */
-const ADMIN = { tenantCode: "default", username: "admin", password: "Admin@12345" };
-const AUDITOR = { tenantCode: "default", username: "auditor", password: "Auditor@12345" };
+/** 两个种子账号（见 sts-server-auth 的 DefaultAdminSeeder 与 AuthProperties）。
+ *  h2 profile 每次启动自动种；mysql / dameng 是真实库、不自动种，
+ *  需显式开一次种子（`--bluewhale.auth.seed-admin.enabled=true`，见 application-mysql.yml）。 */
+const ADMIN = {
+  tenantCode: "default",
+  username: "admin",
+  password: "Admin@12345",
+};
+const AUDITOR = {
+  tenantCode: "default",
+  username: "auditor",
+  password: "Auditor@12345",
+};
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -81,10 +91,16 @@ async function main() {
   try {
     await waitForDebugger();
 
-    const targets = await fetch(`http://127.0.0.1:${DEBUG_PORT}/json`).then((r) => r.json());
-    const page = targets.find((t) => t.type === "page" && t.url.includes("127.0.0.1:3000"));
+    const targets = await fetch(`http://127.0.0.1:${DEBUG_PORT}/json`).then(
+      (r) => r.json(),
+    );
+    const page = targets.find(
+      (t) => t.type === "page" && t.url.includes("127.0.0.1:3000"),
+    );
     if (!page) {
-      throw new Error("未找到门户页面：" + JSON.stringify(targets.map((t) => t.url)));
+      throw new Error(
+        "未找到门户页面：" + JSON.stringify(targets.map((t) => t.url)),
+      );
     }
 
     const ws = new WebSocket(page.webSocketDebuggerUrl);
@@ -108,7 +124,10 @@ async function main() {
         const details = message.params.exceptionDetails;
         errors.push(details.exception?.description || details.text);
       }
-      if (message.method === "Log.entryAdded" && message.params.entry.level === "error") {
+      if (
+        message.method === "Log.entryAdded" &&
+        message.params.entry.level === "error"
+      ) {
         const entry = message.params.entry;
         if ((entry.url ?? "").includes("favicon")) return;
         errors.push(`${entry.text} @ ${entry.url ?? "-"}`);
@@ -130,12 +149,21 @@ async function main() {
     }
 
     async function evaluate(expression) {
-      const result = await send("Runtime.evaluate", {
+      const response = await send("Runtime.evaluate", {
         expression,
         returnByValue: true,
         awaitPromise: true,
       });
-      return result?.result?.value;
+      // send() 已把 exceptionDetails 转成 reject，走到这里 response 本该有结果体。
+      // 但响应缺 result 字段时（页面正在跳转、执行上下文被销毁），
+      // 直接读 response.result 会抛 "Cannot read properties of undefined"，
+      // 把真正的原因盖成一句无信息量的话 —— 这里显式报错并带上原始响应。
+      if (!response?.result) {
+        throw new Error(
+          `Runtime.evaluate 响应缺少结果体：${JSON.stringify(response)?.slice(0, 200)}`,
+        );
+      }
+      return response.result.value;
     }
 
     /** 在页面里轮询直到条件成立 */
@@ -155,7 +183,10 @@ async function main() {
     async function screenshot(name) {
       if (!SHOT_DIR) return;
       const shot = await send("Page.captureScreenshot", { format: "png" });
-      writeFileSync(join(SHOT_DIR, `${name}.png`), Buffer.from(shot.data, "base64"));
+      writeFileSync(
+        join(SHOT_DIR, `${name}.png`),
+        Buffer.from(shot.data, "base64"),
+      );
     }
 
     async function clickSelector(selector) {
@@ -166,10 +197,22 @@ async function main() {
         return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
       })()`);
       if (!box) throw new Error(`找不到元素：${selector}`);
-      const base = { x: Math.round(box.x), y: Math.round(box.y), button: "left", clickCount: 1 };
-      await send("Input.dispatchMouseEvent", { type: "mouseMoved", ...base, button: "none" });
+      const base = {
+        x: Math.round(box.x),
+        y: Math.round(box.y),
+        button: "left",
+        clickCount: 1,
+      };
+      await send("Input.dispatchMouseEvent", {
+        type: "mouseMoved",
+        ...base,
+        button: "none",
+      });
       await send("Input.dispatchMouseEvent", { type: "mousePressed", ...base });
-      await send("Input.dispatchMouseEvent", { type: "mouseReleased", ...base });
+      await send("Input.dispatchMouseEvent", {
+        type: "mouseReleased",
+        ...base,
+      });
     }
 
     /** 按可见文本点击（子应用的按钮没有稳定选择器时用） */
@@ -183,10 +226,22 @@ async function main() {
         return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
       })()`);
       if (!box) throw new Error(`找不到按钮：${text}`);
-      const base = { x: Math.round(box.x), y: Math.round(box.y), button: "left", clickCount: 1 };
-      await send("Input.dispatchMouseEvent", { type: "mouseMoved", ...base, button: "none" });
+      const base = {
+        x: Math.round(box.x),
+        y: Math.round(box.y),
+        button: "left",
+        clickCount: 1,
+      };
+      await send("Input.dispatchMouseEvent", {
+        type: "mouseMoved",
+        ...base,
+        button: "none",
+      });
       await send("Input.dispatchMouseEvent", { type: "mousePressed", ...base });
-      await send("Input.dispatchMouseEvent", { type: "mouseReleased", ...base });
+      await send("Input.dispatchMouseEvent", {
+        type: "mouseReleased",
+        ...base,
+      });
     }
 
     /**
@@ -223,10 +278,14 @@ async function main() {
 
     /* ---------------- 1. 未登录访问 /admin → 守卫覆盖到新子应用 ---------------- */
 
-    await waitFor(`location.pathname === '/login'`, "守卫把未登录用户重定向到登录页");
+    await waitFor(
+      `location.pathname === '/login'`,
+      "守卫把未登录用户重定向到登录页",
+    );
     const pathAfterGuard = await evaluate("location.pathname");
     step("1. 未登录访问 /admin", `落地地址 ${pathAfterGuard}`);
-    if (pathAfterGuard !== "/login") record(`未登录时没有被重定向到登录页，实际在 ${pathAfterGuard}`);
+    if (pathAfterGuard !== "/login")
+      record(`未登录时没有被重定向到登录页，实际在 ${pathAfterGuard}`);
 
     /* ---------------- 2. 管理员身份：全部操作入口 + 真实增删 ---------------- */
 
@@ -258,11 +317,14 @@ async function main() {
       `身份条「${adminView.identity}」· 权限 ${adminView.perms.length} 项 · ` +
         `新建=${adminView.create} 编辑=${adminView.update} 删除=${adminView.remove} · 列表 ${adminView.rowCount} 行`,
     );
-    if (!adminView.create) record("管理员看不到「新建用户」按钮 —— 权限下发或判定有问题");
+    if (!adminView.create)
+      record("管理员看不到「新建用户」按钮 —— 权限下发或判定有问题");
     if (!adminView.update) record("管理员看不到「编辑」按钮");
     if (!adminView.remove) record("管理员看不到「删除」按钮");
-    if (adminView.perms.length !== 8) record(`管理员权限项应为 8，实际 ${adminView.perms.length}`);
-    if (!adminView.perms.includes("auth:user:create")) record("管理员权限集合里没有 auth:user:create");
+    if (adminView.perms.length !== 8)
+      record(`管理员权限项应为 8，实际 ${adminView.perms.length}`);
+    if (!adminView.perms.includes("auth:user:create"))
+      record("管理员权限集合里没有 auth:user:create");
 
     await screenshot("05-admin-can-write");
 
@@ -271,9 +333,15 @@ async function main() {
     // 用户名带时间戳：脚本可重复运行，不会撞上"登录名已存在"
     const tempUser = `e2e${String(Date.now()).slice(-6)}`;
     await clickSelector('[data-permission="auth:user:create"]');
-    await waitFor(`Boolean(document.querySelector('#user-form'))`, "新建用户对话框打开");
+    await waitFor(
+      `Boolean(document.querySelector('#user-form'))`,
+      "新建用户对话框打开",
+    );
     await setInputValue('#user-form input[name="username"]', tempUser);
-    await setInputValue('#user-form input[name="displayName"]', "端到端验证用户");
+    await setInputValue(
+      '#user-form input[name="displayName"]',
+      "端到端验证用户",
+    );
     await setInputValue('#user-form input[name="password"]', "E2ePass@12345");
     await clickSelector(".users__submit");
     await waitFor(
@@ -286,8 +354,13 @@ async function main() {
       20000,
     );
 
-    await clickSelector(`[data-testid="user-row-${tempUser}"] [data-permission="auth:user:delete"]`);
-    await waitFor(`Boolean(document.querySelector('.users__remove-confirm'))`, "删除确认框打开");
+    await clickSelector(
+      `[data-testid="user-row-${tempUser}"] [data-permission="auth:user:delete"]`,
+    );
+    await waitFor(
+      `Boolean(document.querySelector('.users__remove-confirm'))`,
+      "删除确认框打开",
+    );
     await clickSelector(".users__remove-confirm");
     await waitFor(
       `(document.querySelector('[data-testid="users-notice"]')?.textContent ?? '').includes('已删除')`,
@@ -297,7 +370,10 @@ async function main() {
       `!document.querySelector('[data-testid="user-row-${tempUser}"]')`,
       "被删用户从列表消失",
     );
-    step("3. 真实写操作", `新建「${tempUser}」→ 出现在列表 → 删除 → 从列表消失（写权限用的确实是自己的令牌）`);
+    step(
+      "3. 真实写操作",
+      `新建「${tempUser}」→ 出现在列表 → 删除 → 从列表消失（写权限用的确实是自己的令牌）`,
+    );
 
     /* -------- 4. 租户页各自独立判定（同一个子应用，另一组权限标识） -------- */
 
@@ -306,7 +382,10 @@ async function main() {
       `Boolean(document.querySelector('[data-permission="auth:tenant:create"]'))`,
       "租户页的新建按钮出现",
     );
-    step("4. 租户页", "管理员在租户页同样看到「新建租户」（权限标识换成 auth:tenant:create）");
+    step(
+      "4. 租户页",
+      "管理员在租户页同样看到「新建租户」（权限标识换成 auth:tenant:create）",
+    );
 
     /* ---------------- 5. 登出 → 审计员身份（只读） ---------------- */
 
@@ -346,13 +425,17 @@ async function main() {
     );
 
     // 同一段代码、同一个页面，差别只来自权限集合
-    if (auditorView.create) record("审计员看到了「新建用户」按钮 —— 按钮级权限没有生效");
+    if (auditorView.create)
+      record("审计员看到了「新建用户」按钮 —— 按钮级权限没有生效");
     if (auditorView.update) record("审计员看到了「编辑」/「重置口令」按钮");
     if (auditorView.remove) record("审计员看到了「删除」按钮");
-    if (auditorView.rowCount === 0) record("审计员读不到用户列表 —— 读权限也没生效，这一屏说明不了问题");
-    if (auditorView.perms.length !== 2) record(`审计员权限项应为 2，实际 ${auditorView.perms.length}`);
+    if (auditorView.rowCount === 0)
+      record("审计员读不到用户列表 —— 读权限也没生效，这一屏说明不了问题");
+    if (auditorView.perms.length !== 2)
+      record(`审计员权限项应为 2，实际 ${auditorView.perms.length}`);
     // 403 不该被当成登录失效：页面必须还停在 /admin
-    if (auditorView.path !== "/admin") record(`审计员被从 /admin 弹走了，实际在 ${auditorView.path}`);
+    if (auditorView.path !== "/admin")
+      record(`审计员被从 /admin 弹走了，实际在 ${auditorView.path}`);
 
     await screenshot("06-auditor-read-only");
 
@@ -378,10 +461,13 @@ async function main() {
       "6. 硬刷新",
       `落地 ${afterReload.path} · 「${afterReload.identity}」· 新建按钮=${afterReload.create}`,
     );
-    if (afterReload.path === "/login") record("刷新页面后掉登录 —— 会话恢复没有生效");
+    if (afterReload.path === "/login")
+      record("刷新页面后掉登录 —— 会话恢复没有生效");
     // 内存里的访问令牌已经没了，权限是走刷新接口重新拿回来的
-    if (afterReload.create) record("刷新后审计员看到了新建按钮 —— 恢复回来的权限集合不对");
-    if (!afterReload.identity.includes("userId=")) record("刷新后权限没有重新就绪");
+    if (afterReload.create)
+      record("刷新后审计员看到了新建按钮 —— 恢复回来的权限集合不对");
+    if (!afterReload.identity.includes("userId="))
+      record("刷新后权限没有重新就绪");
 
     /* ---------------- 7. 登出清干净 ---------------- */
 
@@ -391,9 +477,14 @@ async function main() {
       persisted: localStorage.getItem('bw.session'),
       hasIdentity: Boolean(document.querySelector('[data-testid="admin-identity"]')),
     }))()`);
-    step("7. 登出", `localStorage 残留=${afterLogout.persisted ?? "（已清空）"}`);
-    if (afterLogout.persisted !== null) record("登出后 localStorage 里仍留有会话");
-    if (afterLogout.hasIdentity) record("登出后子应用界面仍在（应随路由一起卸载）");
+    step(
+      "7. 登出",
+      `localStorage 残留=${afterLogout.persisted ?? "（已清空）"}`,
+    );
+    if (afterLogout.persisted !== null)
+      record("登出后 localStorage 里仍留有会话");
+    if (afterLogout.hasIdentity)
+      record("登出后子应用界面仍在（应随路由一起卸载）");
 
     /* ---------------- 8. 浏览器侧错误 ---------------- */
 
@@ -403,7 +494,9 @@ async function main() {
     chrome.kill();
   }
 
-  console.log(`\n=== 结论：${problems.length === 0 ? "全部通过" : `发现 ${problems.length} 个问题`} ===`);
+  console.log(
+    `\n=== 结论：${problems.length === 0 ? "全部通过" : `发现 ${problems.length} 个问题`} ===`,
+  );
   if (problems.length) {
     for (const message of problems) console.log(`  - ${message}`);
     process.exitCode = 1;

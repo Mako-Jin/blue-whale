@@ -10,6 +10,23 @@
 # 前置准备（一次性）：数据库要先存在，Flyway 只负责建表、不负责建库。
 #   CREATE DATABASE bluewhale DEFAULT CHARACTER SET utf8mb4
 #     COLLATE utf8mb4_0900_ai_ci;
+#
+# 前置准备（二，一次性）：**种一套开发账号**。
+#
+# 本 profile 里**故意不打开**种子开关 —— 与 h2 的取舍不同：
+#   h2 每次启动都是空库，不自动种就一个账号都没有可登录（而建账号的接口本身要求已登录）；
+#   mysql 是真实库、数据留得住，应用不该每次启动都去补一个固定口令的管理员。
+# 所以账号由人显式开一次种子种下，之后就一直在了：
+#
+#   BW_DB_PASSWORD=<密码> java -jar sts-app-server.jar --spring.profiles.active=mysql \
+#     --bluewhale.auth.seed-admin.enabled=true --bluewhale.auth.seed-auditor.enabled=true
+#
+# 两个要点：
+#   · 种子是**幂等**的（ensure* 语义：已存在就跳过、缺什么补什么），重复执行没有副作用；
+#   · `seed-auditor` 依赖 `seed-admin` —— 只读账号挂在 admin 种下的租户与资源上，
+#     少了 admin 它就没有可挂的东西，开了也不生效。
+# 若确实不想在任何库留下固定口令的账号，就别开这两个开关，用已有管理员账号调
+# `/api/auth/users`、`/api/auth/tenants` 建号即可（首次需要一个已有的管理员）。
 # =============================================================================
 
 spring:

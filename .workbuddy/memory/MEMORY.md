@@ -9,7 +9,7 @@
 - 凭据在 `~/.git-credentials`，**绝不用命令行解析它**；无人值守 git 加 `-c credential.helper= -c credential.helper=store`
 
 ## 2 坑表（勿再排查）
-**环境** 一律 Bash（PowerShell 不可用）· Node `spawn git`→EBUSY、`turbo run`→231（逐包直跑正常）· 后端端口 56491 → `--server.port=8080` · `curl` 加 `--noproxy '*'` · 长驻服务必须后台任务起（`&` 会被杀）· 废弃 Chrome 占 CDP → 换端口/taskkill · git 连接重置 → `-c http.version=HTTP/1.1`
+**环境** 一律 Bash（PowerShell 不可用，`sc`/`reg` 还被沙箱拉黑）· Node `spawn git`→EBUSY、`turbo run`→231（逐包直跑正常）· 后端端口 56491 → `--server.port=8080` · `curl` 加 `--noproxy '*'` · 长驻服务必须后台任务起（`&` 会被杀）· 废弃 Chrome 占 CDP → 换端口/taskkill · git 连接重置 → `-c http.version=HTTP/1.1` · 本机 MySQL 8.0.26 便携版在 `D:\tools\installer\mysql`（`bin/mysqld.exe --datadir=…/data`，无 `my.ini`），**root 口令由舰长现场给、不落任何文件**
 **后端** `JAVA_HOME="D:/tools/installer/jdk/java21" mvn …`（PATH 是 JDK17）· `mvn clean` 占用 → `jps -l` + `taskkill //F //PID` · Maven 仓库 `D:\repository\maven`
 **前端** stylelint `extends` 须 `require.resolve` 绝对路径 · TS6 起 `baseUrl` 弃用 · ESLint10 flat config **默认导出数组**、只从 cwd 向上找配置（工作区根也要有）· typescript-eslint 须显式 `tsconfigRootDir`
 
@@ -23,14 +23,14 @@ React19+Vite8+TS**6.0.3**(7.x 不被 typescript-eslint 支持)+Router7；qiankun
 
 ## 5 后端
 依赖 `sts-app → sts-server → sts-components → sts-common → sts-parent`（零代码，`<version>` 只在此）；`sts-app-server` 唯一可启动；模块内**按特性分包**；**业务失败返 HTTP 200**（判 `code===0`，`R.isSuccess()` 须 `@JsonIgnore`）；Boot4 starter 三处同动（`web→webmvc`、`boot3-starter→boot4-starter`、springdoc `2.x→3.x`）；Jackson3 import 认 `tools.jackson.*`（注解仍在 `com.fasterxml`）；enforcer `[21,)` 且 message 禁写 `${java.version}`。
-**数据源** `h2`(默认)/`mysql`/`dameng`，切 `BW_DB_PASSWORD=… --spring.profiles.active=mysql`；库名 `bluewhale`（本机别的项目 11 个库勿动）。**Flyway** 脚本 `db/migration/{h2,mysql,dameng}/V<n>__x.sql`，不写 `IF NOT EXISTS`，**已执行脚本不可改**，**版本号全仓唯一**（log=V1/track=V2/auth=V3）。必踩：`flyway-mysql` 须显式引 · `mysql-connector-j` runtime 放 `sts-app-server` · 达梦 `DmJdbcDriver18` 由 `sts-parent` 收口。**MySQL 保留字** 避 `release/rank/groups/system/window`；只改列名没用（MP 补 `列名 AS 属性名`）→ 正解**属性名与列名同构**且不加 `@TableField`。**达梦** MP 内置 `DbType.DM`；无官方 Flyway 模块 → `flyway.enabled=false` 走 `scripts/init-dameng.sh`；`VARCHAR(n CHAR)`；保留字两库不可互推；**未用真实达梦验证过**。
+**数据源** `h2`(默认)/`mysql`/`dameng`，切 `BW_DB_PASSWORD=… --spring.profiles.active=mysql`；库名 `bluewhale`（本机别的项目 11 个库勿动）。**Flyway** 脚本 `db/migration/{h2,mysql,dameng}/V<n>__x.sql`，不写 `IF NOT EXISTS`，**已执行脚本不可改**，**版本号全仓唯一**（log=V1/track=V2/auth=V3）。必踩：`flyway-mysql` 须显式引 · `mysql-connector-j` runtime 放 `sts-app-server` · 达梦 `DmJdbcDriver18` 由 `sts-parent` 收口。**MySQL 保留字** 避 `release/rank/groups/system/window`；只改列名没用（MP 补 `列名 AS 属性名`）→ 正解**属性名与列名同构**且不加 `@TableField`。**达梦** MP 内置 `DbType.DM`；无官方 Flyway 模块 → `flyway.enabled=false` 走 `scripts/init-dameng.sh`；`VARCHAR(n CHAR)`；保留字两库不可互推；**未用真实达梦验证过**。**mysql 已打通**（V1~V3 全落地、跨重启留存已验证）：**真实库不自动种账号**（种子只在 h2 profile 开）→ 显式开一次 `--bluewhale.auth.seed-admin.enabled=true --bluewhale.auth.seed-auditor.enabled=true`（幂等；详见 `application-mysql.yml`「前置准备（二）」）。
 **权限域 `sts-server-auth`(ADR-0016)** 表 `bw_auth_*` 12 张(V3)；错误码 `40001~40913`；自研 HS512+PBKDF2，**不引 Spring Security**；入口 `@RequiresPermission`+`AuthInterceptor`+`PermissionChecker`，上下文只有 `AuthContext`；刷新令牌只存 SHA-256 摘要+轮换+重放检测；认证·租户·用户已交付，**组织·角色·用户组·资源管理接口未做**。坑：Jackson3 `encode(Map)` 接不了 `byte[]`；`AuthTokenFilter` 不可同时 `@Component` 又进 `FilterRegistrationBean`；`RefreshTokenEntity` 不继承 `BaseEntity`。
 
 ## 6 契约与请求（ADR-0006/0007）
 链：代码 → springdoc → `scripts/export-openapi.sh`(:18080) → `docs/api/openapi.json` → `openapi-typescript` → `common-api/src/generated/schema.d.ts`（入库）。`common-tools/http` = 传输内核（不认业务接口），`common-api` = 契约装配。收口：解 `R<T>`、`code!==0` 抛、超时+取消合并一个 AbortController；六类错误 `business/http/network/timeout/abort/parse`+`retryable`；**内核不自动重试**；**超时必须先于取消分类**。
 
 ## 7 日志与事件（ADR-0004/0011）
-三管道：技术日志(可采样/前端驱动) · 审计日志(全量/后端拦截器产生) · 行为事件(不可采样/契约极稳)；内容不同 ⇒ 独立模块独立表，通道相同 ⇒ 复用。logger 7 级，**过滤前置于格式化**；**上报必须走 `onRecord`**（`LogSink` 吃渲染后有损的样子），`onRecord` 在过滤后、格式化前派发且异常静默吞。
+三管道：技术日志(可采样/前端驱动) · 审计日志(全量/后端拦截器产生) · 行为事件(不可采样/契约极稳)；内容不同 ⇒ 独立模块独立表，通道相同 ⇒ 复用。**审计日志至今 0 实现**（无表/无模块/无拦截器/无接口，只有 `ClientLog*` 注释里写下的边界），ADR-0011 明确标着"已设计未实现"。logger 7 级，**过滤前置于格式化**；**上报必须走 `onRecord`**（`LogSink` 吃渲染后有损的样子），`onRecord` 在过滤后、格式化前派发且异常静默吞。
 事件名正则 `^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$`（前后端同一条）· **登录先 updateContext 再 track；登出先 track 再 clearUser()** · 双时间戳（`serverTime` 是排序过滤唯一依据）· `event_id` 不建唯一索引 · `deviceId`+`userId` 同挂 · 卸载用 `fetch(keepalive)` **不用** sendBeacon。
 
 ## 8 配置分域（ADR-0003）

@@ -33,17 +33,17 @@ server/
     └── sts-app-server/                唯一可启动进程（装配 + 健康检查 + 接口文档）
 ```
 
-| 模块 | 打包 | 职责 | 依赖 |
-|------|------|------|------|
-| `bluewhale-server` | pom | 聚合根，一次构建产出全部模块 | — |
-| `sts-parent` | pom | 依赖版本与全局插件配置，不含任何代码 | `spring-boot-starter-parent` |
-| `sts-common-basic` | jar | `R<T>` 统一响应、`ResultCode` 错误码、`BusinessException` | **零依赖** |
-| `sts-common-web` | jar | `GlobalExceptionHandler`、CORS 配置 + 自动配置 | `sts-common-basic`、Spring Web（provided）、springdoc 注解、Bean Validation |
-| `sts-common-db` | jar | MyBatis-Plus 拦截器（分页 / 乐观锁 / 防全表更新）+ 自动配置 | `sts-common-basic`、MyBatis-Plus |
-| `sts-server-log` | jar | 客户端**技术日志**的上报 / 分页 / 详情 / 链路 / 聚合 | `sts-common-web`、`sts-common-db` |
-| `sts-server-track` | jar | 客户端**行为事件**的上报 / 分页 / 详情 / 按事件名聚合 | `sts-common-web`、`sts-common-db` |
-| `sts-server-auth` | jar | **权限域**：租户 / 用户 / 组织 / 角色 / 用户组 / 资源，认证（登录 / 登出 / 刷新）与鉴权（`@RequiresPermission`） | `sts-common-web`、`sts-common-db` |
-| `sts-app-server` | jar | 可执行应用：装配各域服务、健康检查、`application.yml` | `sts-server-log`、`sts-server-track`、`sts-server-auth`、springdoc UI、H2 + MySQL + 达梦驱动（runtime）、Flyway |
+| 模块               | 打包 | 职责                                                                                                             | 依赖                                                                                                            |
+| ------------------ | ---- | ---------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `bluewhale-server` | pom  | 聚合根，一次构建产出全部模块                                                                                     | —                                                                                                               |
+| `sts-parent`       | pom  | 依赖版本与全局插件配置，不含任何代码                                                                             | `spring-boot-starter-parent`                                                                                    |
+| `sts-common-basic` | jar  | `R<T>` 统一响应、`ResultCode` 错误码、`BusinessException`                                                        | **零依赖**                                                                                                      |
+| `sts-common-web`   | jar  | `GlobalExceptionHandler`、CORS 配置 + 自动配置                                                                   | `sts-common-basic`、Spring Web（provided）、springdoc 注解、Bean Validation                                     |
+| `sts-common-db`    | jar  | MyBatis-Plus 拦截器（分页 / 乐观锁 / 防全表更新）+ 自动配置                                                      | `sts-common-basic`、MyBatis-Plus                                                                                |
+| `sts-server-log`   | jar  | 客户端**技术日志**的上报 / 分页 / 详情 / 链路 / 聚合                                                             | `sts-common-web`、`sts-common-db`                                                                               |
+| `sts-server-track` | jar  | 客户端**行为事件**的上报 / 分页 / 详情 / 按事件名聚合                                                            | `sts-common-web`、`sts-common-db`                                                                               |
+| `sts-server-auth`  | jar  | **权限域**：租户 / 用户 / 组织 / 角色 / 用户组 / 资源，认证（登录 / 登出 / 刷新）与鉴权（`@RequiresPermission`） | `sts-common-web`、`sts-common-db`                                                                               |
+| `sts-app-server`   | jar  | 可执行应用：装配各域服务、健康检查、`application.yml`                                                            | `sts-server-log`、`sts-server-track`、`sts-server-auth`、springdoc UI、H2 + MySQL + 达梦驱动（runtime）、Flyway |
 
 > **为什么需要 `sts-app` 这一层**：`sts-server-*` 是"可部署的服务能力"，但**不是进程** —— 它们不知道自己的端口、数据源，也不知道要暴露哪些接口文档。必须有一个应用层把这些装配成一个能 `java -jar` 跑起来的东西。这层**只做装配，不写业务逻辑**：一旦出现业务代码，就该下沉到 `sts-server` 或 `sts-components`。
 >
@@ -55,11 +55,11 @@ server/
 
 > **依赖"按需声明"的三个坑**（都是编译期看不出来、只在运行时炸的类型）：
 >
-> | 现象 | 原因 | 处理 |
-> |------|------|------|
-> | Mapper 扫不到、`SqlSessionFactory` 不存在 | MyBatis-Plus 的 starter 坐标没跟着 Boot 大版本走 | Boot 4 用 `mybatis-plus-spring-boot4-starter` |
-> | `ClassNotFoundException: PaginationInnerInterceptor` | 3.5.9 起分页 / 防全表更新拦截器拆到了独立坐标 | 显式引 `mybatis-plus-jsqlparser` |
-> | mysql profile 启动报 `Unsupported Database: MySQL 8.0` | Flyway 10 起各数据库支持拆成独立模块，`flyway-core` 只内置 H2 / SQLite | 显式引 `flyway-mysql` |
+> | 现象                                                   | 原因                                                                   | 处理                                          |
+> | ------------------------------------------------------ | ---------------------------------------------------------------------- | --------------------------------------------- |
+> | Mapper 扫不到、`SqlSessionFactory` 不存在              | MyBatis-Plus 的 starter 坐标没跟着 Boot 大版本走                       | Boot 4 用 `mybatis-plus-spring-boot4-starter` |
+> | `ClassNotFoundException: PaginationInnerInterceptor`   | 3.5.9 起分页 / 防全表更新拦截器拆到了独立坐标                          | 显式引 `mybatis-plus-jsqlparser`              |
+> | mysql profile 启动报 `Unsupported Database: MySQL 8.0` | Flyway 10 起各数据库支持拆成独立模块，`flyway-core` 只内置 H2 / SQLite | 显式引 `flyway-mysql`                         |
 >
 > 共同规律：**starter 不再传递引入全部能力，谁用谁声明**。详见 `docs/decisions/0009` 第 4 条。
 >
@@ -87,31 +87,31 @@ server/
 
 错误码为 5 位，编码规则 **HTTP 状态码(3 位) + 业务细分(2 位)**：
 
-| 错误码 | 含义 | 抛出方式 |
-|--------|------|----------|
-| `0` | 成功 | — |
-| `40000` | 请求参数错误 | `R.fail(ResultCode.BAD_REQUEST)` |
-| `40100` | 未认证或登录已过期 | 认证过滤器 |
-| `40300` | 没有访问权限 | 鉴权拦截器 |
-| `40400` | 资源不存在 | `BusinessException(ResultCode.NOT_FOUND)` |
-| `40500` | 请求方法不被支持 | 框架 |
-| `40900` | 资源状态冲突 | 重复创建、并发修改 |
-| `42900` | 请求过于频繁 | 限流组件 |
-| `50000` | 系统内部错误 | 兜底处理，**不透出细节** |
+| 错误码  | 含义               | 抛出方式                                  |
+| ------- | ------------------ | ----------------------------------------- |
+| `0`     | 成功               | —                                         |
+| `40000` | 请求参数错误       | `R.fail(ResultCode.BAD_REQUEST)`          |
+| `40100` | 未认证或登录已过期 | 认证过滤器                                |
+| `40300` | 没有访问权限       | 鉴权拦截器                                |
+| `40400` | 资源不存在         | `BusinessException(ResultCode.NOT_FOUND)` |
+| `40500` | 请求方法不被支持   | 框架                                      |
+| `40900` | 资源状态冲突       | 重复创建、并发修改                        |
+| `42900` | 请求过于频繁       | 限流组件                                  |
+| `50000` | 系统内部错误       | 兜底处理，**不透出细节**                  |
 
 **域内细分码从 `xx01` 起。** 上表里每类的 `00` 号是"通用码"，被各域共用；
 某个域要表达更精确的语义时，占用同一 HTTP 类别下的 `01` 起的空位。
 权限域（`sts-server-auth`）目前用到的：
 
-| 错误码 | 含义 | 错误码 | 含义 |
-|--------|------|--------|------|
-| `40001` | 请求参数不合法 | `40104` | 令牌无效 |
-| `40101` | 用户名或密码错误 | `40105` | 令牌已过期 |
-| `40102` | 账号已被锁定 | `40106` | 会话已失效，请重新登录 |
-| `40103` | 账号已停用 | `40301` | 没有该操作权限 |
-| `40401` | 用户不存在 | `40901` | 用户名已存在 |
-| `40402` | 租户不存在 | `40904` | 租户编码已存在 |
-| `40403` | 角色不存在 | `40912` | 资源标识已存在 |
+| 错误码  | 含义             | 错误码  | 含义                   |
+| ------- | ---------------- | ------- | ---------------------- |
+| `40001` | 请求参数不合法   | `40104` | 令牌无效               |
+| `40101` | 用户名或密码错误 | `40105` | 令牌已过期             |
+| `40102` | 账号已被锁定     | `40106` | 会话已失效，请重新登录 |
+| `40103` | 账号已停用       | `40301` | 没有该操作权限         |
+| `40401` | 用户不存在       | `40901` | 用户名已存在           |
+| `40402` | 租户不存在       | `40904` | 租户编码已存在         |
+| `40403` | 角色不存在       | `40912` | 资源标识已存在         |
 
 > 这样分段的直接好处：`40101` 一眼看出是"认证问题、责任在调用方"，
 > `40904` 是"唯一性冲突"，`50000` 才是"服务端故障"。
@@ -156,13 +156,13 @@ com.bluewhale.sts.log                    ← sts-server-log，包名用业务域
 
 ### 日志域的几条硬规则
 
-| 规则 | 原因 |
-|------|------|
-| **逐条校验，不整批拒绝** | 一条畸形数据若能让整批 500 条全被拒，客户端日志会成片丢失，且丢的正是"出事那一刻最需要的那批"。信封级问题（`app` 为空、批次超限）才整体 400 —— 那是调用方写错了代码 |
-| **超长截断而不是丢弃** | 超长的通常是消息夹带整段响应体，丢弃等于丢掉"这里出过事"这个事实，截断至少保留开头 |
-| **级别解析不兜底成 `INFO`** | 把非法值悄悄变成合法值，上游的拼写错误就永远暴露不出来。识别不了 → 该条计入 `rejected` |
-| **排序用 `serverTime` + `id` 双键** | 同一毫秒内的多条记录若只按时间排序，翻页时顺序不稳定，会出现"某条在第 1 页和第 2 页都出现" |
-| **`clientTime` 仅作参考** | 客户端时钟不可信；排序、时间窗、统计一律用服务端接收时间 |
+| 规则                                | 原因                                                                                                                                                                |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **逐条校验，不整批拒绝**            | 一条畸形数据若能让整批 500 条全被拒，客户端日志会成片丢失，且丢的正是"出事那一刻最需要的那批"。信封级问题（`app` 为空、批次超限）才整体 400 —— 那是调用方写错了代码 |
+| **超长截断而不是丢弃**              | 超长的通常是消息夹带整段响应体，丢弃等于丢掉"这里出过事"这个事实，截断至少保留开头                                                                                  |
+| **级别解析不兜底成 `INFO`**         | 把非法值悄悄变成合法值，上游的拼写错误就永远暴露不出来。识别不了 → 该条计入 `rejected`                                                                              |
+| **排序用 `serverTime` + `id` 双键** | 同一毫秒内的多条记录若只按时间排序，翻页时顺序不稳定，会出现"某条在第 1 页和第 2 页都出现"                                                                          |
+| **`clientTime` 仅作参考**           | 客户端时钟不可信；排序、时间窗、统计一律用服务端接收时间                                                                                                            |
 
 **技术日志与审计日志是两条管道。** 本模块处理的是技术日志（排查故障用：量大、短保留、可采样、可丢弃）。审计日志（谁在何时对哪个资源做了什么）走另一条管道，且**权威来源必须是后端拦截器** —— 这些事实前端根本不知道，客户端上报的内容也不可信。见 `docs/decisions/0004`。
 
@@ -172,19 +172,19 @@ com.bluewhale.sts.log                    ← sts-server-log，包名用业务域
 
 `sts-server-auth` 是本仓第一个"从表到接口"完整闭环的服务，设计取舍见 `docs/decisions/0016`。
 
-| 规则 | 原因 |
-|------|------|
-| **表前缀 `bw_auth_`，主键 `BIGINT` 自增** | 与 `bw_client_log` 同一形态；对外稳定标识交给各表的 `*_code` 业务编码 |
-| **逻辑删除统一 `deleted`：0 正常 / 1 已删除** | 由 `@TableLogic` 承接，零配置。参照实现里不同表的 0/1 含义相反，是必须修掉的缺陷 |
-| **用户名在租户内唯一**（`uk(tenant_id, username)`），不是全库唯一 | 多租户下不同租户可以有同名账号 |
-| **口令只存哈希，出参永不包含任何口令字段** | `UserVO` 手写逐字段映射，而非"把实体拷一遍"——后者会让实体新增字段自动泄露到响应里 |
-| **不区分"账号不存在"与"口令错误"** | 都回 `40101`。区分开来等于提供一个账号枚举接口 |
-| **先验口令、再透露账号状态** | 锁定 / 停用等提示只在口令正确后给出，否则同样构成信息泄露 |
-| **认证（401）与授权（403）分开** | 前端据此决定"跳登录页"还是"提示无权限" |
-| **刷新令牌只存摘要 + 轮换 + 重放检测** | 已作废的 jti 被再次使用即视为泄露，撤销该用户全部刷新令牌 |
-| **认证上下文只有一套**（`AuthContext`），且由过滤器 `finally` 清理 | 参照实现有两套同名上下文（一套是空实现）；不清理 ThreadLocal 会在复用线程上串号 |
-| **鉴权入口只有一处**：`@RequiresPermission` + `AuthInterceptor` | 判定逻辑散落时，漏洞往往出在"某个接口只查了是否登录"的那一处 |
-| **`jwt.secret` 生产必须用环境变量覆盖**（`BW_JWT_SECRET`） | 配置里的默认值是**只给本地开发用的占位符**，而且已进版本库 ⇒ 对全世界公开。它属密钥级配置（`docs/decisions/0003`），HS512 建议 ≥64 字节 |
+| 规则                                                               | 原因                                                                                                                                    |
+| ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **表前缀 `bw_auth_`，主键 `BIGINT` 自增**                          | 与 `bw_client_log` 同一形态；对外稳定标识交给各表的 `*_code` 业务编码                                                                   |
+| **逻辑删除统一 `deleted`：0 正常 / 1 已删除**                      | 由 `@TableLogic` 承接，零配置。参照实现里不同表的 0/1 含义相反，是必须修掉的缺陷                                                        |
+| **用户名在租户内唯一**（`uk(tenant_id, username)`），不是全库唯一  | 多租户下不同租户可以有同名账号                                                                                                          |
+| **口令只存哈希，出参永不包含任何口令字段**                         | `UserVO` 手写逐字段映射，而非"把实体拷一遍"——后者会让实体新增字段自动泄露到响应里                                                       |
+| **不区分"账号不存在"与"口令错误"**                                 | 都回 `40101`。区分开来等于提供一个账号枚举接口                                                                                          |
+| **先验口令、再透露账号状态**                                       | 锁定 / 停用等提示只在口令正确后给出，否则同样构成信息泄露                                                                               |
+| **认证（401）与授权（403）分开**                                   | 前端据此决定"跳登录页"还是"提示无权限"                                                                                                  |
+| **刷新令牌只存摘要 + 轮换 + 重放检测**                             | 已作废的 jti 被再次使用即视为泄露，撤销该用户全部刷新令牌                                                                               |
+| **认证上下文只有一套**（`AuthContext`），且由过滤器 `finally` 清理 | 参照实现有两套同名上下文（一套是空实现）；不清理 ThreadLocal 会在复用线程上串号                                                         |
+| **鉴权入口只有一处**：`@RequiresPermission` + `AuthInterceptor`    | 判定逻辑散落时，漏洞往往出在"某个接口只查了是否登录"的那一处                                                                            |
+| **`jwt.secret` 生产必须用环境变量覆盖**（`BW_JWT_SECRET`）         | 配置里的默认值是**只给本地开发用的占位符**，而且已进版本库 ⇒ 对全世界公开。它属密钥级配置（`docs/decisions/0003`），HS512 建议 ≥64 字节 |
 
 > **未做**：组织 / 角色 / 用户组 / 资源的管理接口（表与实体已落地）、数据权限判定、时态授权过滤、
 > 验证码 / 短信 / 多因子、网关侧令牌校验、行为审计。逐项见 `docs/decisions/0016` 末节。
@@ -209,7 +209,7 @@ com.bluewhale.sts.log                    ← sts-server-log，包名用业务域
 cd server
 
 mvn clean install -DskipTests                      # 构建全部模块
-mvn clean install                                  # 含测试（当前 24 例）
+mvn clean install                                  # 含测试（当前 58 例）
 
 # 启动应用（在 server/ 目录下执行，需要 JDK 21）—— 默认走 h2，零外部依赖
 java -jar sts-app/sts-app-server/target/sts-app-server-0.0.1-SNAPSHOT.jar
@@ -239,11 +239,11 @@ curl http://localhost:8080/api/health
 
 数据源由 **profile** 决定，不是改文件：用哪个库是启动参数，显式出现在命令行与健康检查里。决策与踩坑清单见 `docs/decisions/0009`。
 
-| profile | 数据源 | 适用 | 数据 | H2 控制台 |
-|---------|--------|------|------|-----------|
+| profile          | 数据源                                  | 适用           | 数据                   | H2 控制台                                 |
+| ---------------- | --------------------------------------- | -------------- | ---------------------- | ----------------------------------------- |
 | `h2`（**默认**） | `jdbc:h2:mem:bluewhale`（`MODE=MySQL`） | 开发、演示、CI | **进程内存，重启即失** | 开启 `/h2-console`（用户 `sa`，密码留空） |
-| `mysql` | `jdbc:mysql://127.0.0.1:3306/bluewhale` | 本地联调 | 磁盘，重启后仍在 | 关闭 |
-| `dameng` | `jdbc:dm://127.0.0.1:5236` | 信创环境 | 磁盘 | 关闭 |
+| `mysql`          | `jdbc:mysql://127.0.0.1:3306/bluewhale` | 本地联调       | 磁盘，重启后仍在       | 关闭                                      |
+| `dameng`         | `jdbc:dm://127.0.0.1:5236`              | 信创环境       | 磁盘                   | 关闭                                      |
 
 **默认必须是 h2** —— 它保证"clone 下来不装任何数据库就能跑"，`HealthControllerTest` 里有断言钉住这一点。
 
@@ -300,6 +300,29 @@ BW_DB_PASSWORD=xxx bash scripts/init-dameng.sh     # 需要达梦客户端 disql
 
 > **迁移脚本一旦在真实环境执行过就不可修改。** `validate-on-migrate: true` 会因校验和不匹配而拒绝启动 —— 这是特性不是麻烦：迁移脚本是历史，改了历史就该新增一条，不是覆盖它。本地开发可以重建库绕过；有数据的环境必须追加新版本。
 
+### 换到真实库后没有账号可登录
+
+种子账号（`admin` / `auditor`）**只在 h2 profile 自动种**，这是有取舍的：
+
+| profile            | 为什么这样定                                                                                                                     |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| `h2`               | 每次启动都是空库，**不自动种就一个账号都没有可登录** —— 而死锁在于"建账号的接口本身要求已登录"。种一套默认账号解开这个引导环     |
+| `mysql` / `dameng` | 数据留得住，不需要每次补；而且**真实库不该被应用每次启动塞进一个固定口令的管理员**（默认口令写在 `AuthProperties` 里，等于公开） |
+
+所以换库后要**显式种一次**，之后它就一直在了：
+
+```bash
+BW_DB_PASSWORD=<密码> java -jar sts-app/sts-app-server/target/sts-app-server-0.0.1-SNAPSHOT.jar \
+    --spring.profiles.active=mysql \
+    --bluewhale.auth.seed-admin.enabled=true --bluewhale.auth.seed-auditor.enabled=true
+```
+
+- 种子是**幂等**的（`ensure*` 语义：缺什么补什么、已存在就跳过），重复执行没有副作用
+- `seed-auditor` **依赖** `seed-admin`：只读账号挂在 admin 种下的租户与资源上，少了 admin 它没有可挂的东西，开了也不生效
+- 不想在任何库留固定口令的账号，就别开这两个开关 —— 用已有管理员账号调 `/api/auth/users`、`/api/auth/tenants` 建号
+
+两个口令以 `AuthProperties.SeedAdmin` / `SeedAuditor` 的默认值为准，基座登录页的开发提示里也列了一份，**两处必须一致**。
+
 ### 三条必须先查的规矩
 
 1. **新增会落库的字段前，先查一遍 MySQL 保留字。** `release`（发布版本号）是自然的领域命名，但 `RELEASE` 是 MySQL 8 的保留字，而 **H2 不认它** —— 同一个列名在 H2 上一切正常、在 MySQL 上 `ERROR 1064`。这是最难查的一类差异。
@@ -312,10 +335,10 @@ BW_DB_PASSWORD=xxx bash scripts/init-dameng.sh     # 需要达梦客户端 disql
 
 ## 七、环境要求
 
-| 工具 | 版本 | 说明 |
-|------|------|------|
-| JDK | **21+** | 由 `maven-enforcer-plugin` 在构建期强制（`requireJavaVersion [21,)`），任何模块上都会先跑 |
-| Maven | 3.6.3+ | Boot 4 的最低要求，同样由 enforcer 检查（本机已在 3.8.1 验证） |
+| 工具  | 版本    | 说明                                                                                      |
+| ----- | ------- | ----------------------------------------------------------------------------------------- |
+| JDK   | **21+** | 由 `maven-enforcer-plugin` 在构建期强制（`requireJavaVersion [21,)`），任何模块上都会先跑 |
+| Maven | 3.6.3+  | Boot 4 的最低要求，同样由 enforcer 检查（本机已在 3.8.1 验证）                            |
 
 > **版本不符时**：构建会在 enforcer 阶段直接失败，并提示 `JAVA_HOME` 的设置方法——
 > 这是有意的：与其让编译器报一句含混的 `release version 21 not supported`
@@ -329,12 +352,12 @@ BW_DB_PASSWORD=xxx bash scripts/init-dameng.sh     # 需要达梦客户端 disql
 
 ### 版本一览（由 `sts-parent` 统一收口）
 
-| 组件 | 版本 | 备注 |
-|------|------|------|
-| Spring Boot | 4.1.1 | Spring Framework 7.0.9 · Tomcat 11 · Jakarta EE 11 · JUnit 6 |
-| springdoc-openapi | 3.1.1 | 3.x 才支持 Boot 4；契约规范为 **OpenAPI 3.1** |
-| MyBatis-Plus | 3.5.17 | 坐标 `mybatis-plus-spring-boot4-starter` |
-| Flyway | 12.4.0 | `flyway-core` + **`flyway-mysql`**（后者别漏，见第一节三个坑） |
-| MySQL 驱动 | 9.7.0 | 坐标 `com.mysql:mysql-connector-j`，`runtime` 范围 |
-| 达梦驱动 | 8.1.3.140 | 坐标 `com.dameng:DmJdbcDriver18`，`runtime` 范围。**Boot 的 BOM 不纳管**，版本由 `sts-parent` 手工收口 |
-| Jackson | 3.x（`tools.jackson.*`） | 注解仍是 `com.fasterxml.jackson.annotation`，包名没变 |
+| 组件              | 版本                     | 备注                                                                                                   |
+| ----------------- | ------------------------ | ------------------------------------------------------------------------------------------------------ |
+| Spring Boot       | 4.1.1                    | Spring Framework 7.0.9 · Tomcat 11 · Jakarta EE 11 · JUnit 6                                           |
+| springdoc-openapi | 3.1.1                    | 3.x 才支持 Boot 4；契约规范为 **OpenAPI 3.1**                                                          |
+| MyBatis-Plus      | 3.5.17                   | 坐标 `mybatis-plus-spring-boot4-starter`                                                               |
+| Flyway            | 12.4.0                   | `flyway-core` + **`flyway-mysql`**（后者别漏，见第一节三个坑）                                         |
+| MySQL 驱动        | 9.7.0                    | 坐标 `com.mysql:mysql-connector-j`，`runtime` 范围                                                     |
+| 达梦驱动          | 8.1.3.140                | 坐标 `com.dameng:DmJdbcDriver18`，`runtime` 范围。**Boot 的 BOM 不纳管**，版本由 `sts-parent` 手工收口 |
+| Jackson           | 3.x（`tools.jackson.*`） | 注解仍是 `com.fasterxml.jackson.annotation`，包名没变                                                  |

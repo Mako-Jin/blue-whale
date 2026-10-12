@@ -30,7 +30,11 @@ const VIEWPORT = { width: 1440, height: 960 };
 const SHOT_DIR = process.argv[2] ?? null;
 
 /** h2 profile 的种子管理员（见 sts-server-auth 的 DefaultAdminSeeder 与 AuthProperties） */
-const ACCOUNT = { tenantCode: "default", username: "admin", password: "Admin@12345" };
+const ACCOUNT = {
+  tenantCode: "default",
+  username: "admin",
+  password: "Admin@12345",
+};
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -80,10 +84,16 @@ async function main() {
   try {
     await waitForDebugger();
 
-    const targets = await fetch(`http://127.0.0.1:${DEBUG_PORT}/json`).then((r) => r.json());
-    const page = targets.find((t) => t.type === "page" && t.url.includes("127.0.0.1:3000"));
+    const targets = await fetch(`http://127.0.0.1:${DEBUG_PORT}/json`).then(
+      (r) => r.json(),
+    );
+    const page = targets.find(
+      (t) => t.type === "page" && t.url.includes("127.0.0.1:3000"),
+    );
     if (!page) {
-      throw new Error("未找到门户页面：" + JSON.stringify(targets.map((t) => t.url)));
+      throw new Error(
+        "未找到门户页面：" + JSON.stringify(targets.map((t) => t.url)),
+      );
     }
 
     const ws = new WebSocket(page.webSocketDebuggerUrl);
@@ -107,7 +117,10 @@ async function main() {
         const details = message.params.exceptionDetails;
         errors.push(details.exception?.description || details.text);
       }
-      if (message.method === "Log.entryAdded" && message.params.entry.level === "error") {
+      if (
+        message.method === "Log.entryAdded" &&
+        message.params.entry.level === "error"
+      ) {
         const entry = message.params.entry;
         if ((entry.url ?? "").includes("favicon")) return;
         errors.push(`${entry.text} @ ${entry.url ?? "-"}`);
@@ -129,12 +142,21 @@ async function main() {
     }
 
     async function evaluate(expression) {
-      const result = await send("Runtime.evaluate", {
+      const response = await send("Runtime.evaluate", {
         expression,
         returnByValue: true,
         awaitPromise: true,
       });
-      return result.result?.value;
+      // send() 已把 exceptionDetails 转成 reject，走到这里 response 本该有结果体。
+      // 但响应缺 result 字段时（页面正在跳转、执行上下文被销毁），
+      // 直接读 response.result 会抛 "Cannot read properties of undefined"，
+      // 把真正的原因盖成一句无信息量的话 —— 这里显式报错并带上原始响应。
+      if (!response?.result) {
+        throw new Error(
+          `Runtime.evaluate 响应缺少结果体：${JSON.stringify(response)?.slice(0, 200)}`,
+        );
+      }
+      return response.result.value;
     }
 
     /** 在页面里轮询直到条件成立 */
@@ -154,7 +176,10 @@ async function main() {
     async function screenshot(name) {
       if (!SHOT_DIR) return;
       const shot = await send("Page.captureScreenshot", { format: "png" });
-      writeFileSync(join(SHOT_DIR, `${name}.png`), Buffer.from(shot.data, "base64"));
+      writeFileSync(
+        join(SHOT_DIR, `${name}.png`),
+        Buffer.from(shot.data, "base64"),
+      );
     }
 
     /** 用真实鼠标点一下元素中心（用于聚焦输入框、点按钮） */
@@ -166,10 +191,22 @@ async function main() {
         return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
       })()`);
       if (!box) throw new Error(`找不到元素：${selector}`);
-      const base = { x: Math.round(box.x), y: Math.round(box.y), button: "left", clickCount: 1 };
-      await send("Input.dispatchMouseEvent", { type: "mouseMoved", ...base, button: "none" });
+      const base = {
+        x: Math.round(box.x),
+        y: Math.round(box.y),
+        button: "left",
+        clickCount: 1,
+      };
+      await send("Input.dispatchMouseEvent", {
+        type: "mouseMoved",
+        ...base,
+        button: "none",
+      });
       await send("Input.dispatchMouseEvent", { type: "mousePressed", ...base });
-      await send("Input.dispatchMouseEvent", { type: "mouseReleased", ...base });
+      await send("Input.dispatchMouseEvent", {
+        type: "mouseReleased",
+        ...base,
+      });
     }
 
     async function typeText(text) {
@@ -182,7 +219,10 @@ async function main() {
 
     /* ---------------- 1. 未登录访问受保护路由 → 被守卫弹到登录页 ---------------- */
 
-    await waitFor(`location.pathname === '/login'`, "守卫把未登录用户重定向到登录页");
+    await waitFor(
+      `location.pathname === '/login'`,
+      "守卫把未登录用户重定向到登录页",
+    );
     const pathAfterGuard = await evaluate("location.pathname");
     const pendingText = await evaluate(
       "document.querySelector('.require-auth__text')?.textContent ?? ''",
@@ -191,9 +231,13 @@ async function main() {
       "1. 未登录访问 /log-console",
       `落地地址 ${pathAfterGuard} · 受保护内容未渲染 · 恢复提示「${pendingText || "（已结束）"}」`,
     );
-    if (pathAfterGuard !== "/login") record(`未登录时没有被重定向到登录页，实际在 ${pathAfterGuard}`);
-    const hasNav = await evaluate("Boolean(document.querySelector('.basic-layout__nav'))");
-    if (hasNav) record("未登录状态下仍然渲染了导航栏（登录页应独立于 BasicLayout）");
+    if (pathAfterGuard !== "/login")
+      record(`未登录时没有被重定向到登录页，实际在 ${pathAfterGuard}`);
+    const hasNav = await evaluate(
+      "Boolean(document.querySelector('.basic-layout__nav'))",
+    );
+    if (hasNav)
+      record("未登录状态下仍然渲染了导航栏（登录页应独立于 BasicLayout）");
 
     await screenshot("01-login-page");
 
@@ -213,23 +257,34 @@ async function main() {
       `租户=${formState.tenantCode} · 用户名=${formState.username} · ` +
         `口令框类型=${formState.passwordType} · 提示「${formState.hint}」`,
     );
-    if (formState.tenantCode !== ACCOUNT.tenantCode || formState.username !== ACCOUNT.username) {
+    if (
+      formState.tenantCode !== ACCOUNT.tenantCode ||
+      formState.username !== ACCOUNT.username
+    ) {
       record("登录表单的默认租户/用户名与种子数据不一致，脚本会填错账号");
     }
-    if (formState.passwordType !== "password") record("口令框不是 password 类型，输入会被明文显示");
+    if (formState.passwordType !== "password")
+      record("口令框不是 password 类型，输入会被明文显示");
 
     /* ---------------- 3. 真实登录（口令送到后端） ---------------- */
 
     await clickElement('input[name="password"]');
     await typeText(ACCOUNT.password);
-    const typedLength = await evaluate('document.querySelector(\'input[name="password"]\').value.length');
+    const typedLength = await evaluate(
+      "document.querySelector('input[name=\"password\"]').value.length",
+    );
     if (typedLength !== ACCOUNT.password.length) {
-      record(`口令没有被完整输入（期望 ${ACCOUNT.password.length} 位，实际 ${typedLength} 位）`);
+      record(
+        `口令没有被完整输入（期望 ${ACCOUNT.password.length} 位，实际 ${typedLength} 位）`,
+      );
     }
 
     await evaluate("document.querySelector('.login__card').requestSubmit()");
 
-    await waitFor(`location.pathname === '/log-console'`, "登录成功后回到原本想去的页面");
+    await waitFor(
+      `location.pathname === '/log-console'`,
+      "登录成功后回到原本想去的页面",
+    );
     const afterLogin = await evaluate(`(() => {
       const raw = localStorage.getItem('bw.session');
       return {
@@ -243,8 +298,10 @@ async function main() {
       `落地地址 ${afterLogin.path} · 头部身份「${afterLogin.user}」 · ` +
         `localStorage 里持久化了 ${afterLogin.persisted ?? "（无）"}`,
     );
-    if (afterLogin.path !== "/log-console") record(`登录后没有回到原定页面，实际在 ${afterLogin.path}`);
-    if (!afterLogin.persisted) record("登录后没有持久化刷新令牌，刷新页面会掉登录");
+    if (afterLogin.path !== "/log-console")
+      record(`登录后没有回到原定页面，实际在 ${afterLogin.path}`);
+    if (!afterLogin.persisted)
+      record("登录后没有持久化刷新令牌，刷新页面会掉登录");
     if (afterLogin.persisted && afterLogin.persisted.includes("accessToken")) {
       record("持久化内容里出现了 accessToken —— 访问令牌只应放内存");
     }
@@ -267,7 +324,8 @@ async function main() {
       "4. 子应用侧收到的全局状态",
       `${indicator}（角色 ${roleCount} 个 · 权限 ${permCount} 项）`,
     );
-    if (indicator.includes("(未登录)")) record("子应用收到的仍是未登录状态 —— 全局状态没跟着会话走");
+    if (indicator.includes("(未登录)"))
+      record("子应用收到的仍是未登录状态 —— 全局状态没跟着会话走");
     if (roleCount === 0) record("子应用收到的角色数为 0 —— 角色没有下发");
     if (permCount === 0) record("子应用收到的权限数为 0 —— 权限没有下发");
 
@@ -275,9 +333,14 @@ async function main() {
 
     /* ---------------- 5. 访问登录页时已登录应被送回首页 ---------------- */
 
-    await evaluate("history.pushState({}, '', '/login'); window.dispatchEvent(new PopStateEvent('popstate'))");
+    await evaluate(
+      "history.pushState({}, '', '/login'); window.dispatchEvent(new PopStateEvent('popstate'))",
+    );
     await waitFor(`location.pathname === '/'`, "已登录访问 /login 被送回首页");
-    step("5. 已登录再访问 /login", `落地地址 ${await evaluate("location.pathname")}（应不是 /login）`);
+    step(
+      "5. 已登录再访问 /login",
+      `落地地址 ${await evaluate("location.pathname")}（应不是 /login）`,
+    );
 
     /* ---------------- 6. 刷新页面 → 靠刷新令牌恢复会话 ---------------- */
 
@@ -299,7 +362,8 @@ async function main() {
       "6. 刷新页面",
       `落地地址 ${afterReload.path} · 头部身份「${afterReload.user}」（内存里的访问令牌已经没了，靠刷新令牌续期）`,
     );
-    if (afterReload.path === "/login") record("刷新页面后掉登录 —— 会话恢复没有生效");
+    if (afterReload.path === "/login")
+      record("刷新页面后掉登录 —— 会话恢复没有生效");
 
     await waitFor(
       `(document.getElementById('micro-host-indicator')?.textContent ?? '').includes('userId=')`,
@@ -327,7 +391,8 @@ async function main() {
       `落地地址 ${afterLogout.path} · localStorage 残留=${afterLogout.persisted ?? "（已清空）"} · ` +
         `导航栏=${afterLogout.nav ? "仍在" : "已移除"}`,
     );
-    if (afterLogout.persisted !== null) record("登出后 localStorage 里仍留有会话");
+    if (afterLogout.persisted !== null)
+      record("登出后 localStorage 里仍留有会话");
     if (afterLogout.nav) record("登出后仍渲染导航栏");
 
     await screenshot("04-after-logout");
@@ -340,7 +405,9 @@ async function main() {
     chrome.kill();
   }
 
-  console.log(`\n=== 结论：${problems.length === 0 ? "全部通过" : `发现 ${problems.length} 个问题`} ===`);
+  console.log(
+    `\n=== 结论：${problems.length === 0 ? "全部通过" : `发现 ${problems.length} 个问题`} ===`,
+  );
   if (problems.length) {
     for (const message of problems) console.log(`  - ${message}`);
     process.exitCode = 1;
@@ -351,5 +418,6 @@ if (SHOT_DIR) mkdirSync(SHOT_DIR, { recursive: true });
 
 main().catch((error) => {
   console.error(`\n验证脚本自身出错：${error.message}`);
+  console.error(error.stack);
   process.exitCode = 1;
 });
