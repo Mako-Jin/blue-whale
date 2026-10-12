@@ -1,0 +1,48 @@
+package com.bluewhale.sts.auth.common;
+
+/**
+ * 权限域的动作标识常量 —— 与 {@link AuthPermissions}（资源标识）配套使用。
+ *
+ * <p>形状是 {@code 域.资源.动作} 三段（{@code auth.user.create}），与权限码
+ * {@code auth:user:create} **同构**，只把冒号换成点。这不是巧合，而是刻意的：
+ * 两者描述的本来就是同一件事的两种用途 —— 权限码回答"谁被允许做"，
+ * 动作标识回答"实际做了什么"。形状对齐之后，"某个权限对应的操作被调用了几次"
+ * 这类问题在审计表里可以直接按前缀匹配，不需要维护一张对照表。
+ *
+ * <p><b>为什么必须自带"域"这一段（不能写成 {@code user.create}）：</b>
+ * 动作标识是**永久契约**（见 {@code @Audited} 的注释），一旦落库就不能改名。
+ * 如果它不自带归属，"权限域的 user.create"与"将来某个业务域的 user.create"
+ * 就会在审计表里撞成同一个值，而区分它们要靠另一列 {@code resource} ——
+ * 也就是说，任何按动作过滤的查询都必须记得同时过滤资源，忘一次就得到一个
+ * 混了两个域的错误结果，而且不报错。给契约加一段前缀，把这个坑从"必须记得"
+ * 变成"不可能发生"。
+ *
+ * <p><b>为什么单独建一个类而不是塞进 {@link AuthPermissions}：</b>
+ * 两者数量不成一一对应 —— {@code auth:user:read} 没有对应的审计动作（查询不记审计），
+ * 而 {@code auth.user.reset_password} 对应的是 {@code auth:user:update} 权限。
+ * 混在一个类里，看代码的人会以为它们该一一对应，然后花时间去"补齐"缺失的那几个。
+ */
+public final class AuthAuditActions {
+
+    private AuthAuditActions() {
+    }
+
+    public static final String TENANT_CREATE = "auth.tenant.create";
+    public static final String TENANT_UPDATE = "auth.tenant.update";
+    public static final String TENANT_DELETE = "auth.tenant.delete";
+
+    public static final String USER_CREATE = "auth.user.create";
+    public static final String USER_UPDATE = "auth.user.update";
+    public static final String USER_DELETE = "auth.user.delete";
+
+    /**
+     * 重置口令。
+     *
+     * <p>与 {@code user.update} 分开记而不是合并：重置口令是运维/管理员介入他人账号的动作，
+     * 事后追责时"谁重置过这个账号的口令"与"谁改过这个账号的资料"是两个不同的问题。
+     * 权限上两者共用 {@code auth:user:update}（能改资料的人本来就能重置口令），
+     * 但审计上必须分得开 —— 这正是"动作标识"不能直接复用权限码的原因。
+     */
+    public static final String USER_RESET_PASSWORD = "auth.user.reset_password";
+
+}

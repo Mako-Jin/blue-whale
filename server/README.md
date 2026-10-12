@@ -25,10 +25,13 @@ server/
 │   ├── sts-common-basic/              统一响应 · 错误码 · 业务异常
 │   ├── sts-common-web/                全局异常处理 + CORS + Web 自动配置
 │   └── sts-common-db/                 MyBatis-Plus 配置（分页 / 乐观锁 / 防全表更新）
+├── sts-components/                通用能力组件层（ADR-0019 首次落地）
+│   └── sts-components-audit/          @Audited 注解 + 审计目标上下文（只提供类型，不装配 Bean）
 ├── sts-server/                    服务层
 │   ├── sts-server-log/                日志域服务（客户端技术日志上报与查询）
 │   ├── sts-server-track/              行为事件域服务（埋点上报、查询、按事件名聚合）
-│   └── sts-server-auth/               权限域服务（身份 / 访问控制 / 认证 / 鉴权）
+│   ├── sts-server-auth/               权限域服务（身份 / 访问控制 / 认证 / 鉴权）
+│   └── sts-server-audit/              审计域服务（拦截器自动产生、只读查询、按动作聚合）
 └── sts-app/                       业务应用层
     └── sts-app-server/                唯一可启动进程（装配 + 健康检查 + 接口文档）
 ```
@@ -42,14 +45,17 @@ server/
 | `sts-common-db`    | jar  | MyBatis-Plus 拦截器（分页 / 乐观锁 / 防全表更新）+ 自动配置                                                      | `sts-common-basic`、MyBatis-Plus                                                                                |
 | `sts-server-log`   | jar  | 客户端**技术日志**的上报 / 分页 / 详情 / 链路 / 聚合                                                             | `sts-common-web`、`sts-common-db`                                                                               |
 | `sts-server-track` | jar  | 客户端**行为事件**的上报 / 分页 / 详情 / 按事件名聚合                                                            | `sts-common-web`、`sts-common-db`                                                                               |
-| `sts-server-auth`  | jar  | **权限域**：租户 / 用户 / 组织 / 角色 / 用户组 / 资源，认证（登录 / 登出 / 刷新）与鉴权（`@RequiresPermission`） | `sts-common-web`、`sts-common-db`                                                                               |
-| `sts-app-server`   | jar  | 可执行应用：装配各域服务、健康检查、`application.yml`                                                            | `sts-server-log`、`sts-server-track`、`sts-server-auth`、springdoc UI、H2 + MySQL + 达梦驱动（runtime）、Flyway |
+| `sts-server-auth`  | jar  | **权限域**：租户 / 用户 / 组织 / 角色 / 用户组 / 资源，认证（登录 / 登出 / 刷新）与鉴权（`@RequiresPermission`） | `sts-common-web`、`sts-common-db`、`sts-components-audit`（标 `@Audited` 用）                                    |
+| `sts-server-audit` | jar  | **审计域**：拦截器自动产生审计记录、只读查询、按动作聚合                                                          | `sts-components-audit`、`sts-server-auth`（取操作人）、`sts-common-web`、`sts-common-db`                         |
+| `sts-app-server`   | jar  | 可执行应用：装配各域服务、健康检查、`application.yml`                                                            | `sts-server-log`、`sts-server-track`、`sts-server-auth`、`sts-server-audit`、springdoc UI、H2 + MySQL + 达梦驱动（runtime）、Flyway |
 
 > **为什么需要 `sts-app` 这一层**：`sts-server-*` 是"可部署的服务能力"，但**不是进程** —— 它们不知道自己的端口、数据源，也不知道要暴露哪些接口文档。必须有一个应用层把这些装配成一个能 `java -jar` 跑起来的东西。这层**只做装配，不写业务逻辑**：一旦出现业务代码，就该下沉到 `sts-server` 或 `sts-components`。
 >
-> **规划中但尚未创建的层**：`sts-components/`（通用能力组件，如后续的审计、文件）。
-> 遵循「**模块按需创建，不预置空壳**」——空模块会让构建变慢、索引变重，而且"以后放什么"的意图很快就没人记得。
-> 创建时无需改动任何已有模块的坐标。
+> **`sts-components` 层在 ADR-0019 首次落地**（`sts-components-audit`）。它成立的前提是
+> 「一个类型被**两个**域同时需要，而下沉它不引入业务语义」：`@Audited` 由权限域（标注解）
+> 与审计域（读注解）共用，谁依赖谁都会成环。刻意**不带 `-starter` 后缀** ——
+> 该模块不装配任何 Bean，名字里的后缀是个承诺，不能随便给。
+> 仍未创建的：文件、消息这类通用能力。依旧遵循「**模块按需创建，不预置空壳**」。
 
 `sts-common-basic` 刻意保持**零依赖**：它处在依赖链最底层，任何引入都会扩散到全仓。
 
@@ -164,9 +170,31 @@ com.bluewhale.sts.log                    ← sts-server-log，包名用业务域
 | **排序用 `serverTime` + `id` 双键** | 同一毫秒内的多条记录若只按时间排序，翻页时顺序不稳定，会出现"某条在第 1 页和第 2 页都出现"                                                                          |
 | **`clientTime` 仅作参考**           | 客户端时钟不可信；排序、时间窗、统计一律用服务端接收时间                                                                                                            |
 
-**技术日志与审计日志是两条管道。** 本模块处理的是技术日志（排查故障用：量大、短保留、可采样、可丢弃）。审计日志（谁在何时对哪个资源做了什么）走另一条管道，且**权威来源必须是后端拦截器** —— 这些事实前端根本不知道，客户端上报的内容也不可信。见 `docs/decisions/0004`。
+**技术日志与审计日志是两条管道。** 本模块处理的是技术日志（排查故障用：量大、短保留、可采样、可丢弃）。审计日志（谁在何时对哪个资源做了什么）走另一条管道，且**权威来源必须是后端拦截器** —— 这些事实前端根本不知道，客户端上报的内容也不可信。见 `docs/decisions/0004` 与 `docs/decisions/0019`。
 
-**行为事件是第三条管道**（`sts-server-track`）：回答"用户做了什么"，用于漏斗与留存分析。它与技术日志的差别不是"换个名字"，而是**逐项相反**：事件**不可采样**（采样会毁掉漏斗）、契约**极稳定**（改名即历史数据断裂）、量级高一到两个数量级。因此它是独立模块、独立表、独立接口前缀（`/api/events/client`），只在传输通道那一层与日志共用实现。见 `docs/decisions/0011`。
+**行为事件**（`sts-server-track`）：回答"用户做了什么"，用于漏斗与留存分析。它与技术日志的差别不是"换个名字"，而是**逐项相反**：事件**不可采样**（采样会毁掉漏斗）、契约**极稳定**（改名即历史数据断裂）、量级高一到两个数量级。因此它是独立模块、独立表、独立接口前缀（`/api/events/client`），只在传输通道那一层与日志共用实现。见 `docs/decisions/0011`。
+
+**审计日志**（`sts-server-audit`）：三条管道里**唯一不由前端产生**的一条，回答"谁在什么时候对什么做了什么"。它此前长期停在"已设计未实现"，2026-10-12 落地，见 `docs/decisions/0019`。至此**三条管道全部落地**，且各自独立模块独立表 —— 这正是那句"内容不同 ⇒ 独立模块独立表、通道相同 ⇒ 复用"的检验结果。
+
+### 审计域的几条硬规则
+
+| 规则                                                                             | 原因                                                                                                                                                                                    |
+| -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **没有写接口、没有写方法、没有 `deleted`、没有 `update_*`**                      | 不可篡改**不靠权限保护，靠结构上做不到**。`POST /api/audit/logs` 返回 `40500`；前端 SDK 的 `AuditApi` 同样只有三个读方法                                                               |
+| **显式 `@Audited`，不自动拦所有非 GET**                                          | 自动拦会把登录 / 上报 / 健康检查全记进去，审计表被自己的上报灌满；而且 **HTTP 方法推不出"做了什么"**（`PUT` 既可能是改邮箱也可能是重置口令）                                          |
+| **查询（`GET`）不记审计**                                                        | 审计记的是**变更**。要记"谁看了敏感数据"必须另起一条管道与另一张表（量级与保留期都不是一个数量级）                                                                                      |
+| **审计拦截器 order 必须小于鉴权拦截器**（`WebInterceptorOrder.AUDIT = -100`）    | Spring 的 `HandlerExecutionChain` 只对**成功执行过 `preHandle`** 的拦截器回调 `afterCompletion`。排在鉴权之后 → 鉴权失败时审计永不执行 → **"越权尝试"这类最该留痕的记录静默丢失** |
+| **`GlobalExceptionHandler` 每个 handler 都要 `ResponseOutcome.markFailure`**     | `afterCompletion` 收到的 `exception` **恒为 null**，而本仓"业务失败仍返回 HTTP 200" —— 两条加起来等于"失败看不出是失败"。漏调不报错，只让那一类失败被记成 `SUCCESS`                  |
+| **写审计走 `REQUIRES_NEW`**                                                      | 业务事务回滚时审计不能跟着回滚 —— 而"操作被拒绝"恰恰最需要留痕。异常处理必须在**调用方**（self-invocation 会让 `@Transactional` 静默失效）                                            |
+| **三套标识不可混用**                                                             | 资源 `auth:user`（`AuthResources`）≠ 权限码 `auth:user:create`（`AuthPermissions`）≠ 动作 `auth.user.create`（`AuthAuditActions`）。把资源填成权限码 → 按资源过滤永远查空且**不报错** |
+| **只有服务端时间；匿名不产生审计**                                               | 审计不由客户端产生，故不存在双时间戳问题。匿名请求无操作人可归责，且公网扫描会灌满表；**已认证但无权限的必须记**（有明确操作人，且那正是最该留痕的一类）                              |
+| **`AuditRecorder` 写库失败只记 WARN，不重试、不外抛**                            | 接受"极少数记录会丢"：记审计失败不能连累业务响应                                                                                                                                        |
+
+> **`sts-components-audit` 刻意不带 `-starter` 后缀** —— 它只提供 `@Audited` 注解与 `AuditContext`，
+> **不装配任何 Bean**；真正装配拦截器的是审计域。名字里的后缀是个承诺。
+>
+> **一处已记录的同层依赖**：`sts-server-audit` → `sts-server-auth`（只读 `AuthContext` 与权限码，
+> 不调用其服务）。与 `architecture/后端分层与依赖方向.md` 的"同层 ✗"不符，理由与触发条件见 `docs/decisions/0019`。
 
 ### 权限域的几条硬规则
 
@@ -187,7 +215,8 @@ com.bluewhale.sts.log                    ← sts-server-log，包名用业务域
 | **`jwt.secret` 生产必须用环境变量覆盖**（`BW_JWT_SECRET`）         | 配置里的默认值是**只给本地开发用的占位符**，而且已进版本库 ⇒ 对全世界公开。它属密钥级配置（`docs/decisions/0003`），HS512 建议 ≥64 字节 |
 
 > **未做**：组织 / 角色 / 用户组 / 资源的管理接口（表与实体已落地）、数据权限判定、时态授权过滤、
-> 验证码 / 短信 / 多因子、网关侧令牌校验、行为审计。逐项见 `docs/decisions/0016` 末节。
+> 验证码 / 短信 / 多因子、网关侧令牌校验。逐项见 `docs/decisions/0016` 末节。
+> （原先列的"行为审计"已于 2026-10-12 落地，但**不在权限域** —— 见 `docs/decisions/0019`。）
 
 ---
 
@@ -209,7 +238,7 @@ com.bluewhale.sts.log                    ← sts-server-log，包名用业务域
 cd server
 
 mvn clean install -DskipTests                      # 构建全部模块
-mvn clean install                                  # 含测试（当前 58 例）
+mvn clean install                                  # 含测试（当前 80 例）
 
 # 启动应用（在 server/ 目录下执行，需要 JDK 21）—— 默认走 h2，零外部依赖
 java -jar sts-app/sts-app-server/target/sts-app-server-0.0.1-SNAPSHOT.jar
@@ -231,7 +260,7 @@ curl http://localhost:8080/api/health
 
 接口文档（springdoc）：`http://localhost:8080/swagger-ui.html`。健康检查的响应里带 `profile` 字段，一眼就能看出当前连的是哪个库。
 
-日志接口的完整清单与契约见 `docs/api/README.md`；前端配套的演示页见 `web/platform/platform-log-console`。
+全部接口的清单与契约见 `docs/api/README.md`；前端配套的演示页见 `web/platform/platform-log-console`（日志）、`web/platform/platform-event-console`（行为事件）与 `web/platform/platform-audit-console`（审计）。
 
 ---
 
@@ -264,6 +293,11 @@ sts-server-auth/src/main/resources/db/migration/
 ├── h2/V3__create_bw_auth_tables.sql      身份 / 访问控制 / 会话共 12 张表
 ├── mysql/V3__create_bw_auth_tables.sql
 └── dameng/V3__create_bw_auth_tables.sql
+
+sts-server-audit/src/main/resources/db/migration/
+├── h2/V4__create_bw_audit_log.sql        审计流水表 + 5 个索引
+├── mysql/V4__create_bw_audit_log.sql
+└── dameng/V4__create_bw_audit_log.sql
 ```
 
 > **版本号是"全仓唯一"，不是"每个模块各从 V1 开始"。**
@@ -327,7 +361,7 @@ BW_DB_PASSWORD=<密码> java -jar sts-app/sts-app-server/target/sts-app-server-0
 
 1. **新增会落库的字段前，先查一遍 MySQL 保留字。** `release`（发布版本号）是自然的领域命名，但 `RELEASE` 是 MySQL 8 的保留字，而 **H2 不认它** —— 同一个列名在 H2 上一切正常、在 MySQL 上 `ERROR 1064`。这是最难查的一类差异。
 2. **别用 `@TableField` 把列名映射成另一个名字。** MyBatis-Plus 发现"列名与属性名不一致"会**自动补 `列名 AS 属性名` 的别名**，别名若撞了保留字照样报错。正确做法是让属性名与列名同构（`appRelease → app_release`，与 `traceId → trace_id` 一致），不产生别名。`ClientLogEntityMappingTest` 直接断言生成的 SQL 里不出现 `AS release`。
-3. **新增字段也要查一遍达梦保留字 —— 两个库的结论不可互推。** `RELEASE` 是 MySQL 8 的保留字，达梦却完全不认它；反过来 `LEVEL` 是达梦的关键字（属非保留，可作列名），MySQL 也不管。查法：`SELECT KEYWORD FROM V$RESERVED_WORDS WHERE RESERVED='Y'`。当前表的 14 个列名已逐列核对过、无冲突，详见 `docs/decisions/0010`。
+3. **新增字段也要查一遍达梦保留字 —— 两个库的结论不可互推。** `RELEASE` 是 MySQL 8 的保留字，达梦却完全不认它；反过来 `LEVEL` 是达梦的关键字（属非保留，可作列名），MySQL 也不管。查法：`SELECT KEYWORD FROM V$RESERVED_WORDS WHERE RESERVED='Y'`。`bw_client_log` 的 14 个列名已逐列核对过、无冲突，详见 `docs/decisions/0010`。审计表 `bw_audit_log` 的 16 个列名落地时也按同样口径核对过（`action` / `resource` / `result` 在 MySQL 8 **都不是**保留字）。
 
 > 为什么这条要靠测试而不是靠跑用例？因为**默认跑在 H2 上，而 H2 不认这个保留字** —— 所有接口测试都会是绿的，直到换 MySQL 才炸。这类差异只能对生成物本身做断言。
 

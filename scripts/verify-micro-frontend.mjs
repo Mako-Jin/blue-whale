@@ -6,11 +6,17 @@
  * 全程走真实浏览器，不依赖任何测试替身 —— 微前端的问题（脚本执行方式、
  * 生命周期对接、容器挂载）几乎都只在真实运行时才暴露。
  *
- * 前置：四个应用都已启动
+ * 前置：**后端与五个应用都已启动**
  *   pnpm --filter platform-portal dev        (:3000)
  *   pnpm --filter platform-log-console dev   (:3200)
  *   pnpm --filter platform-event-console dev (:3300)
  *   pnpm --filter platform-environment dev   (:3400)
+ *   pnpm --filter platform-admin dev         (:3500)
+ *   pnpm --filter platform-audit-console dev (:3600)
+ *   后端 :8080（h2 profile，含种子账号）
+ *
+ * 注意：基座自 ADR-0018 起有**登录守卫**，未登录访问任何受保护路由都会被弹到 `/login`。
+ * 因此本脚本必须先真实登录一次，否则页面里既没有导航也没有首页入口。
  */
 import { spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
@@ -20,6 +26,13 @@ import { join } from "node:path";
 const CHROME = "C:/Program Files/Google/Chrome/Application/chrome.exe";
 const DEBUG_PORT = 9333;
 const PORTAL_URL = "http://127.0.0.1:3000/";
+
+/** 种子管理员（h2 profile 自动种下，口令见 AuthProperties.SeedAdmin） */
+const ACCOUNT = {
+  tenantCode: "default",
+  username: "admin",
+  password: "Admin@12345",
+};
 
 /** HMR 探测：临时改这一行文本，看子应用是否自动更新，测完还原。 */
 const HMR_TARGET =
@@ -96,8 +109,14 @@ async function main() {
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
       if (message.id && waiting.has(message.id)) {
-        waiting.get(message.id)(message.result);
+        const settle = waiting.get(message.id);
         waiting.delete(message.id);
+        /*
+         * 协议层的错误（`message.error`）也要交回调用方，而不是丢掉 ——
+         * 丢掉的结果是 `undefined`，调用方只能看到一句无信息量的
+         * "Cannot read properties of undefined"。
+         */
+        settle(message.error ? { protocolError: message.error } : message.result);
         return;
       }
       if (message.method === "Runtime.exceptionThrown") {
@@ -142,18 +161,86 @@ async function main() {
         ws.send(JSON.stringify({ id, method, params }));
       });
 
+    /**
+     * 在页面里求值。
+     *
+     * <p>**必须容忍"求值的那一刻页面正在导航"**：这时 CDP 回的是协议层错误
+     * （`Execution context was destroyed`），而不是结果体。本脚本要挂载 / 卸载 /
+     * 切换好几个子应用，守卫换地址的一瞬间也会踩到 —— 重试几次就好，
+     * 直接抛错会让脚本在断言之前就"自身出错"。
+     */
     const evaluate = async (expression) => {
-      const result = await call("Runtime.evaluate", {
-        expression,
-        awaitPromise: true,
-        returnByValue: true,
-      });
-      if (result.exceptionDetails) {
-        throw new Error(
-          "页面内求值失败：" + JSON.stringify(result.exceptionDetails.text),
-        );
+      let lastError = null;
+      for (let attempt = 1; attempt <= 8; attempt += 1) {
+        const result = await call("Runtime.evaluate", {
+          expression,
+          awaitPromise: true,
+          returnByValue: true,
+        });
+        if (result?.exceptionDetails) {
+          throw new Error(
+            "页面内求值失败：" + JSON.stringify(result.exceptionDetails.text),
+          );
+        }
+        if (result?.result) return result.result.value;
+        lastError = result?.protocolError ?? result;
+        await sleep(200);
       }
-      return result.result.value;
+      throw new Error(
+        `Runtime.evaluate 连续 8 次没有拿到结果体：${JSON.stringify(lastError)?.slice(0, 200)}`,
+      );
+    };
+
+    /** 轮询直到表达式为真；超时则抛错并说明在等什么 */
+    const waitFor = async (expression, what, timeoutMs = 30000) => {
+      const deadline = Date.now() + timeoutMs;
+      while (Date.now() < deadline) {
+        try {
+          if (await evaluate(expression)) return;
+        } catch {
+          /* 页面正在导航，下一轮再试 */
+        }
+        await sleep(250);
+      }
+      throw new Error(`等待超时（${timeoutMs}ms）：${what}`);
+    };
+
+    /** 用真实鼠标点一下元素中心（用于聚焦输入框、点导航） */
+    const clickElement = async (selector) => {
+      const box = await evaluate(`(() => {
+        const el = document.querySelector(${JSON.stringify(selector)});
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      })()`);
+      if (!box) throw new Error(`找不到元素：${selector}`);
+      const base = { x: Math.round(box.x), y: Math.round(box.y), button: "left", clickCount: 1 };
+      await call("Input.dispatchMouseEvent", { type: "mouseMoved", ...base });
+      await call("Input.dispatchMouseEvent", { type: "mousePressed", ...base });
+      await call("Input.dispatchMouseEvent", { type: "mouseReleased", ...base });
+    };
+
+    /** 输入文本（走 CDP 的 insertText，会触发真实的 input 事件，React 能收到） */
+    const typeText = async (text) => {
+      await call("Input.insertText", { text });
+    };
+
+    /**
+     * 按可见文本点一个元素。
+     *
+     * <p>找不到时给出**可读的**错误，而不是让 `.find(...)` 返回 `undefined` 再
+     * `.click()` 抛一句 `Uncaught` —— 后者既看不出是哪个选择器错了，
+     * 也看不出是"布局改了"还是"页面没渲染完"。
+     */
+    const clickByText = async (selector, text) => {
+      const ok = await evaluate(`(() => {
+        const el = [...document.querySelectorAll(${JSON.stringify(selector)})]
+          .find(n => n.textContent.includes(${JSON.stringify(text)}));
+        if (!el) return false;
+        el.click();
+        return true;
+      })()`);
+      if (!ok) throw new Error(`找不到含「${text}」的 ${selector}`);
     };
 
     await call("Runtime.enable");
@@ -162,21 +249,48 @@ async function main() {
 
     const step = (title, value) => console.log(`\n== ${title} ==\n${value}`);
 
+    const problems = [];
+    const record = (message) => problems.push(message);
+
     await sleep(2500);
 
-    step(
-      "1. 主应用首页",
+    /* ---------------- 0. 真实登录（基座有守卫，不登录什么都看不到） ---------------- */
+
+    await waitFor(
+      `location.pathname === '/login'`,
+      "守卫把未登录用户重定向到登录页",
+    );
+    await clickElement('input[name="password"]');
+    await typeText(ACCOUNT.password);
+    const typedLength = await evaluate(
+      `document.querySelector('input[name="password"]').value.length`,
+    );
+    if (typedLength !== ACCOUNT.password.length) {
+      record(`口令没有被完整输入（期望 ${ACCOUNT.password.length} 位，实际 ${typedLength} 位）`);
+    }
+    await evaluate(`document.querySelector('.login__card').requestSubmit()`);
+    await waitFor(`location.pathname === '/'`, "登录成功后回到首页");
+    step("0. 登录", `以 ${ACCOUNT.username} 登录后落地 ${await evaluate("location.pathname")}`);
+
+    const home = JSON.parse(
       await evaluate(`JSON.stringify({
         nav: [...document.querySelectorAll('.basic-layout__link')].map(a => a.textContent),
         entries: [...document.querySelectorAll('.home__link')].map(a => a.textContent),
       })`),
     );
+    step("1. 主应用首页", `导航 ${home.nav.length} 项：${home.nav.join(" / ")}`);
+    // 登录后导航与首页入口都必须有内容 —— 没有就说明守卫或注册表出了问题，
+    // 而不是"后面的点击失败了"（后者只是症状）
+    if (home.nav.length === 0) record("登录后首页仍然没有导航 —— 守卫或会话恢复没走通");
+    // 导航比首页入口多一项：导航第一项是「概览」（基座自己的首页），首页的入口卡片只列子应用。
+    // 两边都从同一张注册表推导，因此这个差值恒为 1。
+    if (home.entries.length !== home.nav.length - 1) {
+      record(`首页入口数 ${home.entries.length} 与导航项数 ${home.nav.length} 不匹配（应相差 1：导航含「概览」）`);
+    }
 
     /* ---------------- 加载日志控制台 ---------------- */
 
-    await evaluate(
-      `[...document.querySelectorAll('.basic-layout__link')].find(a => a.textContent.includes('日志控制台')).click()`,
-    );
+    await clickByText(".basic-layout__link", "日志控制台");
     await sleep(4000);
 
     step(
@@ -243,22 +357,52 @@ async function main() {
 
     /* ---------------- 全局状态下发 ---------------- */
 
-    await evaluate(
-      `[...document.querySelectorAll('.basic-layout__action')].find(b => b.textContent.includes('登录')).click()`,
-    );
-    await sleep(600);
+    /*
+     * 这里原来点的是基座的「登录」调试开关 —— 自 ADR-0018 起它已被**真实会话**取代
+     * （登录页 + 路由守卫 + 退出登录），开关本身不存在了。
+     *
+     * 现在改成两件事：
+     *   1) 断言子应用侧拿到的身份来自**真实登录结果**（userId / roles / perm 都非空）；
+     *   2) 点「全局主题」→ 断言 `theme=` 确实跟着变（全局状态下发的最小充分证据）。
+     * 第 1 条比原来的开关更有意义：它证明的是"会话经全局状态真的到了子应用"。
+     */
+    const readIndicator = `document.getElementById('micro-host-indicator')?.textContent ?? ''`;
+    const identity = await evaluate(`(() => {
+      const text = ${readIndicator};
+      return {
+        text,
+        userId: (text.match(/userId=([^\\s·]+)/) ?? [])[1] ?? null,
+        roles: Number((text.match(/roles=(\\d+)/) ?? [])[1] ?? '0'),
+        perm: Number((text.match(/perm=(\\d+)/) ?? [])[1] ?? '0'),
+        theme: (text.match(/theme=(\\w+)/) ?? [])[1] ?? null,
+      };
+    })()`);
+    if (!identity.userId || identity.userId === 'null') {
+      record('子应用侧没有收到 userId —— 会话结果没有经全局状态下发');
+    }
+    if (identity.roles < 1 || identity.perm < 1) {
+      record(`子应用侧拿到的 roles / perm 为空（roles=${identity.roles} · perm=${identity.perm}）`);
+    }
 
-    await evaluate(
-      `[...document.querySelectorAll('.basic-layout__action')].find(b => b.textContent.includes('全局主题')).click()`,
+    const themeToggled = await evaluate(`(() => {
+      const btn = [...document.querySelectorAll('.basic-layout__action')]
+        .find(b => b.textContent.includes('全局主题'));
+      if (!btn) return false;
+      btn.click();
+      return true;
+    })()`);
+    if (!themeToggled) record('找不到基座的「全局主题」按钮 —— 布局改了，选择器要跟着改');
+    await waitFor(
+      `(((${readIndicator}).match(/theme=(\\w+)/) ?? [])[1] ?? null) !== ${JSON.stringify(identity.theme)}`,
+      '主题变化经全局状态下发到子应用',
+      10000,
     );
-    await sleep(600);
 
     step(
       "3. 全局状态下发到子应用",
-      await evaluate(`JSON.stringify({
-        indicator: document.getElementById('micro-host-indicator')?.textContent,
-        hostProps: typeof window.__MICRO_HOST__,
-      })`),
+      `${identity.text}\n  主题 ${identity.theme} → ${await evaluate(
+        `((${readIndicator}).match(/theme=(\\w+)/) ?? [])[1]`,
+      )}（点「全局主题」后子应用跟着变）\n  身份经全局状态下发：userId=${identity.userId} · roles=${identity.roles} · perm=${identity.perm}`,
     );
 
     /* ---------------- 子应用内真实调用后端 ---------------- */
@@ -274,9 +418,7 @@ async function main() {
 
     /* ---------------- 切换到事件控制台 ---------------- */
 
-    await evaluate(
-      `[...document.querySelectorAll('.basic-layout__link')].find(a => a.textContent.includes('行为事件')).click()`,
-    );
+    await clickByText(".basic-layout__link", "行为事件");
     await sleep(4000);
 
     step(
@@ -291,9 +433,7 @@ async function main() {
 
     /* ---------------- 三维环境：WebGL 上下文 ---------------- */
 
-    await evaluate(
-      `[...document.querySelectorAll('.basic-layout__link')].find(a => a.textContent.includes('三维环境')).click()`,
-    );
+    await clickByText(".basic-layout__link", "三维环境");
     await sleep(6000);
 
     step(
@@ -327,9 +467,7 @@ async function main() {
 
     /* ---------------- 返回首页：确认卸载与 GPU 释放 ---------------- */
 
-    await evaluate(
-      `[...document.querySelectorAll('.basic-layout__link')].find(a => a.textContent.includes('概览')).click()`,
-    );
+    await clickByText(".basic-layout__link", "概览");
     await sleep(2000);
 
     step(
@@ -355,11 +493,24 @@ async function main() {
       "8. 浏览器侧错误",
       relevantErrors.length ? relevantErrors.join("\n---\n") : "（无）",
     );
+    // 只打印不判定等于"看不见"：子应用没起时 qiankun 会在浏览器里抛
+    // `TypeError: Failed to fetch`，而上面每一步都还能"读出"一个 undefined 继续往下走。
+    // 这条把它变成一次明确的失败。
+    for (const message of relevantErrors) record(`浏览器报错：${message.split("\n")[0]}`);
     step(
       "8b. 4xx/5xx 请求",
       badResponses.length ? [...new Set(badResponses)].join("\n") : "（无）",
     );
     step("9. 控制台输出摘录", logs.slice(0, 25).join("\n"));
+
+    /* ---------------- 结论 ---------------- */
+
+    if (problems.length > 0) {
+      console.log("\n=== 发现问题 ===");
+      for (const p of problems) console.log(`  · ${p}`);
+      throw new Error(`${problems.length} 项未通过`);
+    }
+    console.log("\n=== 结论：全部通过 ===");
 
     await ws.close();
   } finally {

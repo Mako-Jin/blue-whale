@@ -22,7 +22,8 @@ web/
     ├── platform-log-console   日志控制台（子应用 + 可独立运行，:3200）
     ├── platform-event-console 行为事件控制台（子应用 + 可独立运行，:3300）
     ├── platform-environment   三维环境应用（子应用 + 可独立运行，:3400，three.js）
-    └── platform-admin         权限管理后台（子应用 + 可独立运行，:3500，按钮级权限演示）
+    ├── platform-admin         权限管理后台（子应用 + 可独立运行，:3500，按钮级权限演示）
+    └── platform-audit-console 审计日志控制台（子应用 + 可独立运行，:3600，只读 + 演练区）
 ```
 
 `packages/` 放**被引用但跑不起来**的包；`platform/` 放**能独立启动**的应用。这条线不能模糊。
@@ -39,7 +40,8 @@ platform-portal (:3000)
 ├── /log-console/*    ──loadMicroApp──▶  platform-log-console (:3200 dev)
 ├── /event-console/*  ──loadMicroApp──▶  platform-event-console (:3300 dev)
 ├── /environment/*    ──loadMicroApp──▶  platform-environment (:3400 dev)
-└── /admin/*          ──loadMicroApp──▶  platform-admin (:3500 dev)
+├── /admin/*          ──loadMicroApp──▶  platform-admin (:3500 dev)
+└── /audit/*          ──loadMicroApp──▶  platform-audit-console (:3600 dev)
 ```
 
 接线代码集中在 `platform-portal/src/micro/`（5 个文件：类型 · 注册表 · 全局状态 · 加载器 · 出口），完整说明见 `platform/platform-portal/README.md`，决策与取舍见 `docs/decisions/0012`。
@@ -53,6 +55,8 @@ platform-portal (:3000)
 > `platform-environment` 是**与任何业务域无关的环境应用**：一块 three.js 三维画布（内含古建筑 / 原始丛林 / 现代写字楼 / 太空飞船 / 渲染基线五个可切换场景），外加"WebGL 渲染生命周期该怎么管"的参考实现 —— 画布与上下文同生共死、卸载必 `forceContextLoss()`、GPU 资源可断言地释放、切场景只换场景图不换渲染器。古建筑是第一个**可操控**场景：殿前广场上有可走的主人公（WASD/方向键 + 右键设行动终点 + 滚轮缩放）与左上角小地图（正北朝上、人物朝向与相机视野分画）。三维依赖重（gzip 后约 229 kB），独立成子应用让其他路由不受拖累。决策见 `docs/decisions/0013`（渲染生命周期）、`docs/decisions/0014`（多场景架构）与 `docs/decisions/0015`（场景交互）。
 
 > `platform-admin` 是**按钮级权限的活体演示**，也是权限域实体（用户 / 租户）的管理界面：同一段代码、同一个页面，管理员看到全部操作入口，只读的审计员只看得到列表 —— 差异不写在代码里，只写在基座下发的权限集合里。它同时回答了"子应用怎么发已鉴权请求"：令牌**值**不下发，基座经 `HostProps.auth` 下发"取令牌"与"要一次刷新"两个动作（`docs/decisions/0018` 第 9 条），本应用不含登录页。后端 h2 profile 会种下两个对照账号（`admin` 全权限 / `auditor` 仅读权限），端到端验证见 `node scripts/verify-admin-permissions.mjs`。
+
+> `platform-audit-console` 是**第三条管道**（审计日志）的控制台，形态与上面两个**刻意不同**：日志台与事件台都是左右分栏（客户端视角 / 服务端视角），因为"只看一边无法判断上报成没成"；审计**没有"两边"** —— 前端根本没有、也不该有把审计记录送出去的路径。页面从上到下三块：**流水**（按服务端时间倒序，带时间窗）→ **按动作聚合**（`action` 分组，失败数单列）→ **演练区**。`common-api` 的 `AuditApi` **一个写方法都没有**，`tests/audit.test.ts` 用快照式断言把"只有三个读方法"钉住。演练区的按钮**刻意不按权限显隐**：真实建一个租户、等审计记录出现、再删掉 —— 用只读账号点下去会得到两条 `FAILURE`，而**那次拒绝同样留痕**，正是本区要展示的东西。决策见 `docs/decisions/0019`，端到端验证见 `node scripts/verify-audit-pipeline.mjs`。
 
 ## 二、命令
 
@@ -75,19 +79,23 @@ pnpm --filter common-tools playground      # 启动 logger 可视化演示（:31
 pnpm --filter platform-log-console dev     # 启动日志控制台（:3200，需后端在 :8080）
 pnpm --filter platform-event-console dev   # 启动行为事件控制台（:3300，需后端在 :8080）
 pnpm --filter platform-environment dev     # 启动三维环境应用（:3400，无后端依赖）
+pnpm --filter platform-admin dev           # 启动权限管理后台（:3500，需后端在 :8080）
+pnpm --filter platform-audit-console dev   # 启动审计日志控制台（:3600，需后端在 :8080）
 pnpm --filter common-api gen:api           # 从 docs/api/openapi.json 重新生成前端类型
 ```
 
 ### 微前端怎么跑
 
-基座与子应用是**四个独立的 dev server**，调试微前端要同时起（基座按 `devPort` 去找子应用）：
+基座与子应用是**六个独立的 dev server**，调试微前端要同时起（基座按 `devPort` 去找子应用）：
 
 ```bash
-# 四个窗口（或一个窗口用 turbo，但日志会混在一起）
+# 多个窗口（或一个窗口用 turbo，但日志会混在一起）
 pnpm --filter platform-portal dev         # http://127.0.0.1:3000  基座
 pnpm --filter platform-log-console dev    # http://127.0.0.1:3200  子应用
 pnpm --filter platform-event-console dev  # http://127.0.0.1:3300  子应用
 pnpm --filter platform-environment dev    # http://127.0.0.1:3400  子应用
+pnpm --filter platform-admin dev          # http://127.0.0.1:3500  子应用
+pnpm --filter platform-audit-console dev  # http://127.0.0.1:3600  子应用
 ```
 
 打开 <http://127.0.0.1:3000> 点导航即可挂载子应用；顶栏有「全局主题」「登录」两个按钮，用来验证全局状态下发到子应用。
@@ -95,23 +103,24 @@ pnpm --filter platform-environment dev    # http://127.0.0.1:3400  子应用
 一键端到端验证（用真实 Chrome 走完整链路，含 WebGL 上下文释放断言）：
 
 ```bash
-node scripts/verify-micro-frontend.mjs    # 需上面四个服务已在跑
+node scripts/verify-micro-frontend.mjs    # 需上面六个服务已在跑
 ```
 
-> **子应用单独跑是常态，不是降级。** 让子应用独立启动（直接开 :3200 / :3300 / :3400）能立刻区分"问题在子应用本身"还是"问题在基座的加载链路"。基座里调试的代价是：任何入口改动都要等重新加载，且报错栈混在多个进程的日志里。对三维应用尤其如此 —— 被基座加载时排查渲染问题要同时面对三层日志。
+> **子应用单独跑是常态，不是降级。** 让子应用独立启动（直接开 :3200 / :3300 / :3400 / :3500 / :3600）能立刻区分"问题在子应用本身"还是"问题在基座的加载链路"。基座里调试的代价是：任何入口改动都要等重新加载，且报错栈混在多个进程的日志里。对三维应用尤其如此 —— 被基座加载时排查渲染问题要同时面对三层日志。
 
-### 两个控制台怎么跑
+### 三个控制台怎么跑
 
-两个演示页都只依赖同一个后端，起一次即可：
+三个演示页都只依赖同一个后端，起一次即可：
 
 ```bash
 # 1. 起后端（在 server/ 目录）
 mvn -DskipTests install
 java -jar sts-app/sts-app-server/target/sts-app-server-0.0.1-SNAPSHOT.jar
 
-# 2. 起前端（在 web/ 目录，按需二选一或都起）
+# 2. 起前端（在 web/ 目录，按需选择）
 pnpm --filter platform-log-console dev    # http://127.0.0.1:3200  日志管道
 pnpm --filter platform-event-console dev  # http://127.0.0.1:3300  事件管道
+pnpm --filter platform-audit-console dev  # http://127.0.0.1:3600  审计管道（只读 + 演练）
 ```
 
 开发期 `/api` 由 vite 代理到 `127.0.0.1:8080`，请求与服务端同源 —— 排查日志功能时被跨域问题挡住是最不划算的事。
@@ -208,16 +217,16 @@ git config core.hooksPath web/.husky
 
 各项目均通过全部校验（逐包直跑）。
 
-| 校验项                  | platform-portal                                 | common-tools                      | common-api                                            | platform-log-console             | platform-event-console          | platform-environment                  | platform-admin                      |
-| ----------------------- | ----------------------------------------------- | --------------------------------- | ----------------------------------------------------- | -------------------------------- | ------------------------------- | ------------------------------------- | ----------------------------------- |
-| `tsc --noEmit` 类型检查 | 通过                                            | 通过                              | 通过                                                  | 通过                             | 通过                            | 通过                                  | 通过                                |
-| `eslint .`              | 通过                                            | 通过                              | 通过                                                  | 通过                             | 通过                            | 通过                                  | 通过                                |
-| `stylelint`             | 通过                                            | 通过（playground）                | —                                                     | 通过（含 `App.less`）            | 通过（含 `App.less`）           | 通过                                  | 通过（含 `App.less`）               |
-| `vitest run` 单元测试   | 通过（22/22，含守卫、登录页、会话恢复与认证桥） | 通过（169/169，含认证钩子与会话） | 通过（42/42，含认证接线、权限域接线与会话级刷新合并） | 通过（25/25，含浏览器渲染测试）  | 通过（12/12，含浏览器渲染测试） | 通过（182/182，含场景契约与操控内核） | 通过（11/11，含两种身份的按钮差异） |
-| `vite build` 生产构建   | 通过（CSS 4.66 · JS 464.18 kB）                 | 通过（31.93 kB）                  | —                                                     | 通过（CSS 11.92 · JS 261.80 kB） | 通过（CSS 5.41 · JS 258.91 kB） | 通过（CSS 7.00 · JS 861.23 kB）       | 通过（CSS 5.02 · JS 262.74 kB）     |
-| dev server 启动         | 通过（:3000）                                   | playground 通过（:3100）          | —                                                     | 通过（:3200）                    | 通过（:3300）                   | 通过（:3400）                         | 通过（:3500）                       |
+| 校验项                  | platform-portal                                 | common-tools                      | common-api                                              | platform-log-console             | platform-event-console          | platform-environment                  | platform-admin                      | platform-audit-console                |
+| ----------------------- | ----------------------------------------------- | --------------------------------- | ------------------------------------------------------- | -------------------------------- | ------------------------------- | ------------------------------------- | ----------------------------------- | ------------------------------------- |
+| `tsc --noEmit` 类型检查 | 通过                                            | 通过                              | 通过                                                    | 通过                             | 通过                            | 通过                                  | 通过                                | 通过                                  |
+| `eslint .`              | 通过                                            | 通过                              | 通过                                                    | 通过                             | 通过                            | 通过                                  | 通过                                | 通过                                  |
+| `stylelint`             | 通过                                            | 通过（playground）                | —                                                       | 通过（含 `App.less`）            | 通过（含 `App.less`）           | 通过                                  | 通过（含 `App.less`）               | 通过（含 `App.less`）                 |
+| `vitest run` 单元测试   | 通过（22/22，含守卫、登录页、会话恢复与认证桥） | 通过（169/169，含认证钩子与会话） | 通过（55/55，含认证接线、权限域接线、审计域与刷新合并） | 通过（25/25，含浏览器渲染测试）  | 通过（12/12，含浏览器渲染测试） | 通过（182/182，含场景契约与操控内核） | 通过（11/11，含两种身份的按钮差异） | 通过（9/9，含"只有三个读方法"的断言） |
+| `vite build` 生产构建   | 通过（CSS 4.66 · JS 465.69 kB）                 | 通过（32.03 kB）                  | —                                                       | 通过（CSS 11.92 · JS 262.51 kB） | 通过（CSS 5.41 · JS 259.63 kB） | 通过（CSS 7.00 · JS 861.31 kB）       | 通过（CSS 5.13 · JS 262.91 kB）     | 通过（CSS 6.61 · JS 259.59 kB）       |
+| dev server 启动         | 通过（:3000）                                   | playground 通过（:3100）          | —                                                       | 通过（:3200）                    | 通过（:3300）                   | 通过（:3400）                         | 通过（:3500）                       | 通过（:3600）                         |
 
-**微前端链路**另有一项端到端验证（`node scripts/verify-micro-frontend.mjs`，需四个服务在跑）：基座导航挂载子应用 → 全局状态下发 → 子应用经基座代理请求后端 → 切换子应用 → 返回首页验证卸载清理（标记清空、`window.__MICRO_HOST__` 归 `undefined`；三维应用额外断言 WebGL 上下文已 lost、画布已移除）。这是一项**运行时**验证，不在上表的逐包检查范围内。
+**微前端链路**另有一项端到端验证（`node scripts/verify-micro-frontend.mjs`，需后端与基座、以及要验证的子应用在跑）：真实登录 → 导航挂载子应用 → 全局状态下发（含真实会话身份）→ 子应用经基座代理请求后端 → 切换子应用 → 返回首页验证卸载清理（标记清空、`window.__MICRO_HOST__` 归 `undefined`；三维应用额外断言 WebGL 上下文已 lost、画布已移除）。这是一项**运行时**验证，不在上表的逐包检查范围内。
 
 > **`vite build` 不是"顺手跑一下"。** `platform-event-console` 首次交付时，它与 `platform-log-console` 共用一套版式，其中 `.pill--err` 引用了后者才有的 LESS 令牌 `@level-error`。dev server 与单元测试**都不会报错**（前者按需编译没人访问的样式分支，后者不碰样式），只有生产构建会失败：`variable @level-error is undefined`。**新增/复制版式的应用，构建这一项必须实际跑过。**
 
@@ -243,4 +252,6 @@ git config core.hooksPath web/.husky
 - `common-tools` 的 http 内核目前没有自动重试、请求缓存与并发去重 —— 需要时按 `docs/decisions/0007` 的边界补，不要在各接口里散写
 - 客户端日志目前只有采集与上报；**采样与脱敏**尚未实现，等有真实生产流量再做
 - 行为事件的**采样、服务端二次脱敏、事件注册表**尚未实现；当前落库到普通数据库，接入数仓时替换落点即可（`docs/decisions/0011` 列了完整清单）
+- 审计日志已全线打通（后端拦截器自动产生 + 只读查询 + `platform-audit-console`）；**采样、脱敏、保留期与归档、导出、失败告警**均未做，`docs/decisions/0019` 末节列了完整清单
+- `platform-audit-console` 与 `platform-admin` 的 `auth/` 接线**逐字重复**了一份（铁律⑤要求下沉 `packages/`）。这是有意留着的重复 —— 下沉要同时改前者的既有测试与端到端脚本。触发条件：**出现第三个管理型子应用时**
 - 公共依赖已由 `pnpm-workspace.yaml` 的 catalog 统一管理，新增依赖务必走 catalog

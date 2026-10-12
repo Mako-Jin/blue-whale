@@ -23,6 +23,19 @@
         · sts-common-db   提供 MyBatis-Plus 拦截器链（分页 / 乐观锁 / 防全表更新）。
     -->
     <dependencies>
+        <!--
+          @Audited 的宿主。放在通用能力层是**被循环依赖逼出来的结果**：
+          本域要给自己的写接口标审计，就得看见 @Audited；而审计域要取"当前操作人"，
+          就得依赖本域的 AuthContextHolder。若 @Audited 住在审计域，两边互相依赖 ——
+          详见 sts-components/pom.xml 的说明。
+
+          注意本域**只依赖这个注解模块**，不依赖 sts-server-audit：
+          "标了审计"与"实现审计"是两件事，前者只是声明。
+        -->
+        <dependency>
+            <groupId>com.bluewhale.sts.components</groupId>
+            <artifactId>sts-components-audit</artifactId>
+        </dependency>
         <dependency>
             <groupId>com.bluewhale.sts.common</groupId>
             <artifactId>sts-common-web</artifactId>

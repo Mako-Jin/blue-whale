@@ -12,14 +12,15 @@ docs/api/openapi.json
 
 ## 一、当前接口清单
 
-契约版本 `0.1.0`，标题「BlueWhale 服务端 API」，共 **25 个接口**。
+契约版本 `0.1.0`，标题「BlueWhale 服务端 API」，共 **28 个接口**。
 
-| 域       | 模块               | 接口数 | 说明                                 |
-| -------- | ------------------ | ------ | ------------------------------------ |
-| 日志     | `sts-server-log`   | 5      | 客户端日志上报 / 查询 / 聚合         |
-| 行为事件 | `sts-server-track` | 4      | 客户端行为事件上报 / 查询 / 聚合     |
-| 权限     | `sts-server-auth`  | 15     | 认证 4 + 租户 5 + 用户 6（详见下表） |
-| 系统     | `sts-app-server`   | 1      | 健康检查                             |
+| 域       | 模块                | 接口数 | 说明                                        |
+| -------- | ------------------- | ------ | ------------------------------------------- |
+| 日志     | `sts-server-log`    | 5      | 客户端日志上报 / 查询 / 聚合                |
+| 行为事件 | `sts-server-track`  | 4      | 客户端行为事件上报 / 查询 / 聚合            |
+| 权限     | `sts-server-auth`   | 15     | 认证 4 + 租户 5 + 用户 6（详见下表）        |
+| 审计     | `sts-server-audit`  | 3      | **只读**：分页 / 详情 / 按动作聚合          |
+| 系统     | `sts-app-server`    | 1      | 健康检查                                    |
 
 ### 日志域（`sts-server-log`）
 
@@ -88,6 +89,26 @@ docs/api/openapi.json
 >
 > **组织 / 角色 / 用户组 / 资源的管理接口尚未落地**（实体与 Mapper 已就绪，见 ADR-0016 末尾的"未覆盖清单"）。
 
+### 审计域（`sts-server-audit`）
+
+**这一域只有读接口 —— 刻意的。** 审计记录由后端拦截器在写接口的 `afterCompletion` 阶段自动产生，
+调用方**没有任何路径**往审计表里写东西（没有写接口、`AuditLogService` 没有写方法、
+`common-api` 的 `AuditApi` 也没有写方法）。不可篡改不靠权限保护，靠**接口不存在**。
+见 `docs/decisions/0019`。
+
+| 方法  | 路径                        | 权限               | 说明                                                                     |
+| ----- | --------------------------- | ------------------ | ------------------------------------------------------------------------ |
+| `GET` | `/api/audit/logs`           | `auth:audit:read`  | 分页查询。按 `action` / `resource` / `targetId` / `operatorId` / `operatorName` / `result` 与时间窗过滤；默认窗口 7 天，按服务端时间 + id 倒序 |
+| `GET` | `/api/audit/logs/{id}`      | `auth:audit:read`  | 单条详情                                                                 |
+| `GET` | `/api/audit/logs/stats`     | `auth:audit:read`  | **按动作**分组聚合（`resource` / `operatorId` / 时间窗可过滤），每项含总数与失败数。**刻意不接受 `action` 过滤** —— 它本身就是按动作分组 |
+
+> `POST /api/audit/logs` 返回 **`40500`（请求方法不被支持）**，不是 404 也不是 500：
+> 让"用错了 HTTP 方法"这件事说清责任方，比让它落进兜底的"系统内部错误"更有用。
+>
+> **审计没有客户端时间戳**（日志与事件都有双时间戳）：它不由客户端产生，因此只有一个
+> 来自服务端的 `serverTime`。**匿名请求不产生审计**（没有操作人可归责，且公网扫描会灌满表），
+> 但**已认证而无权限的请求必须产生**（有明确操作人，且那正是最该留痕的一类）。
+
 ### 关键数据模型
 
 | 模型                                      | 说明                                                                                                                                                                                                                                          |
@@ -115,6 +136,12 @@ docs/api/openapi.json
 | `PasswordResetRequest`                    | 重置口令入参：`password`\*（重置后置为"需改密"并解锁账号）                                                                                                                                                                                    |
 | `UserVO`                                  | 用户视图：`id` / `tenantId` / `username` / `displayName` / `email` / `phone` / `status` / `failedAttempts` / `lockedUntil` / `lastLoginAt` / `mfaEnabled` / `avatarUrl` / `createTime` / `updateTime` —— **不含任何口令字段，连哈希也不返回** |
 | `PageResultTenantVO` / `PageResultUserVO` | 分页结果，结构同日志域（`records` / `total` / `page` / `size` / `pages`）                                                                                                                                                                     |
+| `AuditResult`                             | 枚举 `SUCCESS` / `FAILURE`（线上取值即大写枚举名）                                                                                                                                                                                            |
+| `AuditLogVO`                              | 审计记录：`id` / `action` / `resource` / `targetId` / `operatorId` / `operatorName` / `tenantId` / `result` / `errorCode` / `errorMessage` / `httpMethod` / `requestUri` / `ip` / `userAgent` / `traceId` / `durationMs` / `serverTime`（**无客户端时间、无 `update*` / `deleted`**） |
+| `AuditLogQuery`                           | 分页查询入参：`page` / `size` + `action` / `resource` / `targetId` / `operatorId` / `operatorName` / `result` / `startTime` / `endTime`（`*Time` 显式为 `int64`，避免被推平成 string）                                                          |
+| `AuditActionCount`                        | 单动作聚合项：`action` / `actionCount` / `failureCount`                                                                                                                                                                                       |
+| `AuditStatsVO`                            | 聚合结果：`total` / `failureTotal` / `startTime` / `endTime` / `actions[]`（`AuditActionCount`）                                                                                                                                              |
+| `PageResultAuditLogVO`                    | 分页结果，结构同日志域                                                                                                                                                                                                                        |
 | `RVoid`                                   | 无数据的成功响应（`data` 为空），用于删除与重置口令这类"只关心成败"的接口                                                                                                                                                                     |
 | `R*` 前缀                                 | 统一响应包装 `R<T>`：`code` / `message` / `data` / `timestamp`                                                                                                                                                                                |
 
@@ -182,5 +209,5 @@ OPENAPI_PORT=18081 bash scripts/export-openapi.sh
 ## 五、待补充
 
 - 组织 / 角色 / 用户组 / 资源的管理接口尚未落地（权限域的 12 张表、实体与 Mapper 已就绪，见 ADR-0016 末尾的"未覆盖清单"）
-- 前端 `common-api` 尚未接线权限域（`src/auth.ts`）与 token 注入；`common-tools/http` 已预留 `onRequest` 钩子（见 `HttpConfig`）
+- 前端的域接线进度：**认证 / 会话**（`src/auth.ts`）、**权限域管理**（`src/access.ts`，users / tenants）、**审计**（`src/audit.ts`，只读）均已接入；组织 / 角色 / 用户组 / 资源四类实体待后端补齐接口后按同样写法加入 `access.ts`
 - 契约尚未按域拆分为多文件；接口量变大后再考虑 `openapi/` 目录方案

@@ -4,1637 +4,1907 @@
  */
 
 export interface paths {
-    "/api/auth/users/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** 查询用户详情 */
-        get: operations["detail"];
-        /**
-         * 修改用户
-         * @description 登录名与所属租户不可修改
-         */
-        put: operations["update"];
-        post?: never;
-        /**
-         * 删除用户
-         * @description 不允许删除当前登录用户
-         */
-        delete: operations["delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+  '/api/auth/users/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/auth/tenants/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** 查询租户详情 */
-        get: operations["detail_1"];
-        /**
-         * 修改租户
-         * @description 租户编码不可修改
-         */
-        put: operations["update_1"];
-        post?: never;
-        /**
-         * 删除租户
-         * @description 存在子租户时拒绝删除
-         */
-        delete: operations["delete_1"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** 查询用户详情 */
+    get: operations['detail'];
+    /**
+     * 修改用户
+     * @description 登录名与所属租户不可修改
+     */
+    put: operations['update'];
+    post?: never;
+    /**
+     * 删除用户
+     * @description 不允许删除当前登录用户
+     */
+    delete: operations['delete'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/auth/tenants/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/logs/client": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 分页查询客户端日志
-         * @description 按服务端接收时间倒序。时间窗缺省为最近 7 天。
-         */
-        get: operations["page"];
-        put?: never;
-        /**
-         * 批量上报客户端日志
-         * @description 单批最多 500 条。信封级错误整批拒绝（40000）；条目级错误逐条跳过并在返回值中计数。
-         */
-        post: operations["report"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** 查询租户详情 */
+    get: operations['detail_1'];
+    /**
+     * 修改租户
+     * @description 租户编码不可修改
+     */
+    put: operations['update_1'];
+    post?: never;
+    /**
+     * 删除租户
+     * @description 存在子租户时拒绝删除
+     */
+    delete: operations['delete_1'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/logs/client': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/events/client": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 分页查询客户端行为事件
-         * @description 按服务端接收时间倒序。时间窗缺省为最近 7 天。
-         */
-        get: operations["page_1"];
-        put?: never;
-        /**
-         * 批量上报客户端行为事件
-         * @description 单批最多 500 条。信封级错误整批拒绝（40000）；条目级错误逐条跳过并在返回值中计数。
-         */
-        post: operations["report_1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * 分页查询客户端日志
+     * @description 按服务端接收时间倒序。时间窗缺省为最近 7 天。
+     */
+    get: operations['page'];
+    put?: never;
+    /**
+     * 批量上报客户端日志
+     * @description 单批最多 500 条。信封级错误整批拒绝（40000）；条目级错误逐条跳过并在返回值中计数。
+     */
+    post: operations['report'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/events/client': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/auth/users": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 分页查询用户
-         * @description 默认限定为当前登录用户所属租户
-         */
-        get: operations["page_2"];
-        put?: never;
-        /**
-         * 新增用户
-         * @description 口令必填；登录名在租户内唯一
-         */
-        post: operations["create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * 分页查询客户端行为事件
+     * @description 按服务端接收时间倒序。时间窗缺省为最近 7 天。
+     */
+    get: operations['page_1'];
+    put?: never;
+    /**
+     * 批量上报客户端行为事件
+     * @description 单批最多 500 条。信封级错误整批拒绝（40000）；条目级错误逐条跳过并在返回值中计数。
+     */
+    post: operations['report_1'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/auth/users': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/auth/users/{id}/password": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * 重置口令
-         * @description 重置后强制该用户下次登录修改口令，并解除锁定
-         */
-        post: operations["resetPassword"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * 分页查询用户
+     * @description 默认限定为当前登录用户所属租户
+     */
+    get: operations['page_2'];
+    put?: never;
+    /**
+     * 新增用户
+     * @description 口令必填；登录名在租户内唯一
+     */
+    post: operations['create'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/auth/users/{id}/password': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/auth/tenants": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** 分页查询租户 */
-        get: operations["page_3"];
-        put?: never;
-        /** 新增租户 */
-        post: operations["create_1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * 重置口令
+     * @description 重置后强制该用户下次登录修改口令，并解除锁定
+     */
+    post: operations['resetPassword'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/auth/tenants': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/auth/refresh": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * 刷新令牌
-         * @description 用刷新令牌换取新的令牌对；旧刷新令牌随之作废
-         */
-        post: operations["refresh"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** 分页查询租户 */
+    get: operations['page_3'];
+    put?: never;
+    /** 新增租户 */
+    post: operations['create_1'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/auth/refresh': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/auth/logout": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * 登出
-         * @description 撤销刷新令牌；不传则撤销该用户全部刷新令牌
-         */
-        post: operations["logout"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * 刷新令牌
+     * @description 用刷新令牌换取新的令牌对；旧刷新令牌随之作废
+     */
+    post: operations['refresh'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/auth/logout': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/auth/login": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * 登录
-         * @description 以租户编码 + 登录名 + 口令登录，返回访问令牌与刷新令牌
-         */
-        post: operations["login"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * 登出
+     * @description 撤销刷新令牌；不传则撤销该用户全部刷新令牌
+     */
+    post: operations['logout'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/auth/login': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/logs/client/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** 查询日志详情 */
-        get: operations["detail_2"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * 登录
+     * @description 以租户编码 + 登录名 + 口令登录，返回访问令牌与刷新令牌
+     */
+    post: operations['login'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/logs/client/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/logs/client/trace/{traceId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 按链路标识查询整条链路
-         * @description 按发生时间**升序**返回，便于直接按顺序阅读。
-         */
-        get: operations["listByTraceId"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** 查询日志详情 */
+    get: operations['detail_2'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/logs/client/trace/{traceId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/logs/client/stats": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 按级别聚合统计
-         * @description 返回时间窗内的总条数与各级别分布，包含条数为 0 的级别。
-         */
-        get: operations["stats"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * 按链路标识查询整条链路
+     * @description 按发生时间**升序**返回，便于直接按顺序阅读。
+     */
+    get: operations['listByTraceId'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/logs/client/stats': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 服务健康检查
-         * @description 逐依赖探测并聚合；依赖不可用时 data.status 为 DOWN
-         */
-        get: operations["health"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * 按级别聚合统计
+     * @description 返回时间窗内的总条数与各级别分布，包含条数为 0 的级别。
+     */
+    get: operations['stats'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/health': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/events/client/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** 查询事件详情 */
-        get: operations["detail_3"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * 服务健康检查
+     * @description 逐依赖探测并聚合；依赖不可用时 data.status 为 DOWN
+     */
+    get: operations['health'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/events/client/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/events/client/stats": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 按事件名聚合统计
-         * @description 返回时间窗内的总条数与各事件名分布，只包含出现过的名称。
-         */
-        get: operations["stats_1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** 查询事件详情 */
+    get: operations['detail_3'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/events/client/stats': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/auth/me": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 当前登录用户
-         * @description 返回当前用户身份、角色与权限
-         */
-        get: operations["me"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * 按事件名聚合统计
+     * @description 返回时间窗内的总条数与各事件名分布，只包含出现过的名称。
+     */
+    get: operations['stats_1'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/auth/me': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
+    /**
+     * 当前登录用户
+     * @description 返回当前用户身份、角色与权限
+     */
+    get: operations['me'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/audit/logs': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * 分页查询审计记录
+     * @description 按服务端记录时间倒序。时间窗缺省为最近 7 天。可按动作、资源、对象、操作人、结果过滤。
+     */
+    get: operations['page_4'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/audit/logs/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** 查询审计记录详情 */
+    get: operations['detail_4'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/audit/logs/stats': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * 按动作聚合统计
+     * @description 返回时间窗内的总条数、失败条数与各动作分布（含各自的失败条数），只包含出现过的动作。
+     */
+    get: operations['stats_2'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: {
-        /** @description 用户保存入参 */
-        UserSaveRequest: {
-            /**
-             * Format: int64
-             * @description 所属租户主键，不传则取当前登录用户所属租户
-             */
-            tenantId?: number;
-            username: string;
-            displayName?: string;
-            /** Format: email */
-            email?: string;
-            phone?: string;
-            /** @description 口令。**新增时必填**；修改时留空表示不改口令 */
-            password?: string;
-            /** @description 状态：ENABLED / DISABLED，缺省 ENABLED */
-            status?: string;
-        };
-        RUserVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["UserVO"];
-            /** Format: int64 */
-            timestamp?: number;
-        };
-        UserVO: {
-            /** Format: int64 */
-            id?: number;
-            /** Format: int64 */
-            tenantId?: number;
-            username?: string;
-            displayName?: string;
-            email?: string;
-            phone?: string;
-            /** @description 状态：ENABLED / DISABLED */
-            status?: string;
-            /**
-             * Format: int32
-             * @description 连续登录失败次数
-             */
-            failedAttempts?: number;
-            /**
-             * Format: int64
-             * @description 锁定至（毫秒），null 表示未锁定
-             */
-            lockedUntil?: number;
-            /** Format: int64 */
-            lastLoginAt?: number;
-            /**
-             * Format: int32
-             * @description 是否启用多因子：0 否 1 是
-             */
-            mfaEnabled?: number;
-            avatarUrl?: string;
-            /** Format: int64 */
-            createTime?: number;
-            /** Format: int64 */
-            updateTime?: number;
-        };
-        /** @description 租户保存入参 */
-        TenantSaveRequest: {
-            /**
-             * @description 租户编码
-             * @example acme
-             */
-            tenantCode: string;
-            tenantName: string;
-            /**
-             * Format: int64
-             * @description 父租户主键，顶级不传
-             */
-            parentId?: number;
-            description?: string;
-            /** @description 状态：ENABLED / DISABLED，缺省 ENABLED */
-            status?: string;
-            /**
-             * Format: int32
-             * @description 是否允许自助注册：0 否 1 是
-             */
-            allowRegister?: number;
-            /**
-             * Format: int32
-             * @description 是否允许下级创建租户：0 否 1 是
-             */
-            allowAdd?: number;
-        };
-        RTenantVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["TenantVO"];
-            /** Format: int64 */
-            timestamp?: number;
-        };
-        TenantVO: {
-            /** Format: int64 */
-            id?: number;
-            tenantCode?: string;
-            tenantName?: string;
-            /** Format: int64 */
-            parentId?: number;
-            /** Format: int32 */
-            tenantLevel?: number;
-            status?: string;
-            description?: string;
-            /** Format: int32 */
-            allowRegister?: number;
-            /** Format: int32 */
-            allowAdd?: number;
-            /** Format: int64 */
-            createTime?: number;
-            /** Format: int64 */
-            updateTime?: number;
-            /**
-             * Format: int32
-             * @description 是否有子节点：0 否 1 是
-             */
-            hasChild?: number;
-        };
-        /** @description 单条客户端日志 */
-        ClientLogItem: {
-            /**
-             * @description 级别，取值 trace/debug/perf/info/success/warn/error
-             * @example info
-             */
-            level?: string;
-            /**
-             * @description 命名空间，形如 app › auth › login
-             * @example app › auth
-             */
-            namespace?: string;
-            /**
-             * Format: int64
-             * @description 客户端时间戳（毫秒），服务端仅作参考不用于排序
-             */
-            timestamp?: number;
-            /**
-             * @description 消息正文
-             * @example 用户登录成功
-             */
-            message?: string;
-            /** @description 随消息附带的原始数据 */
-            data?: unknown[];
-            /** @description 结构化上下文 */
-            context?: {
-                [key: string]: unknown;
-            };
-            /** @description 链路标识 */
-            traceId?: string;
-            /** @description 会话标识 */
-            sessionId?: string;
-            /** @description 触发日志时的路由 */
-            route?: string;
-            /** @description 应用版本 / 构建号 */
-            release?: string;
-        };
-        /** @description 客户端日志批量上报请求 */
-        ClientLogReportRequest: {
-            /**
-             * @description 上报方应用标识
-             * @example platform-log-console
-             */
-            app: string;
-            /**
-             * @description 应用版本 / 构建号
-             * @example 0.1.0
-             */
-            release?: string;
-            /** @description 会话标识，批次级默认值 */
-            sessionId?: string;
-            /** @description 日志条目，单批最多 500 条 */
-            logs: components["schemas"]["ClientLogItem"][];
-        };
-        /** @description 批量上报结果 */
-        ClientLogReportResultVO: {
-            /**
-             * Format: int32
-             * @description 成功落库的条数
-             */
-            accepted?: number;
-            /**
-             * Format: int32
-             * @description 被拒绝的条数（级别非法、消息为空等）
-             */
-            rejected?: number;
-        };
-        RClientLogReportResultVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["ClientLogReportResultVO"];
-            /** Format: int64 */
-            timestamp?: number;
-        };
-        /** @description 单条客户端行为事件 */
-        ClientEventItem: {
-            /**
-             * @description 客户端生成的事件唯一 id，用于幂等去重
-             * @example 01J8Z0QW7X9K3M
-             */
-            eventId?: string;
-            /**
-             * @description 事件名，小写点分、至少两段，形如 order.submit
-             * @example order.submit
-             */
-            eventName?: string;
-            /** @description 登录用户标识，未登录时为空 */
-            userId?: string;
-            /** @description 匿名设备标识 */
-            deviceId?: string;
-            /** @description 会话标识 */
-            sessionId?: string;
-            /** @description 触发事件时的路由 */
-            route?: string;
-            /** @description 应用版本 / 构建号 */
-            release?: string;
-            /** @description 事件属性 */
-            props?: {
-                [key: string]: unknown;
-            };
-            /**
-             * Format: int32
-             * @description 属性结构版本，props 结构变化必须递增
-             * @example 1
-             */
-            propsVersion?: number;
-            /**
-             * Format: int64
-             * @description 客户端时间戳（毫秒），服务端仅作参考不用于排序
-             */
-            timestamp?: number;
-        };
-        /** @description 客户端行为事件批量上报请求 */
-        ClientEventReportRequest: {
-            /**
-             * @description 上报方应用标识
-             * @example platform-web
-             */
-            app: string;
-            /**
-             * @description 应用版本 / 构建号
-             * @example 0.1.0
-             */
-            release?: string;
-            /** @description 会话标识，批次级默认值 */
-            sessionId?: string;
-            /** @description 事件条目，单批最多 500 条 */
-            events: components["schemas"]["ClientEventItem"][];
-        };
-        /** @description 批量上报结果 */
-        ClientEventReportResultVO: {
-            /**
-             * Format: int32
-             * @description 成功落库的条数
-             */
-            accepted?: number;
-            /**
-             * Format: int32
-             * @description 被拒绝的条数（事件名为空 / 长度超限 / 格式非法等）
-             */
-            rejected?: number;
-        };
-        RClientEventReportResultVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["ClientEventReportResultVO"];
-            /** Format: int64 */
-            timestamp?: number;
-        };
-        /** @description 重置口令入参 */
-        PasswordResetRequest: {
-            /** @description 新口令 */
-            password: string;
-        };
-        RVoid: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: unknown;
-            /** Format: int64 */
-            timestamp?: number;
-        };
-        RefreshRequest: {
-            /** @description 刷新令牌 */
-            refreshToken: string;
-        };
-        LoginVO: {
-            /** @description 访问令牌，后续请求放在 Authorization: Bearer <token> */
-            accessToken?: string;
-            /** @description 刷新令牌，用于换取新的访问令牌 */
-            refreshToken?: string;
-            /** @description 令牌类型，固定 Bearer */
-            tokenType?: string;
-            /**
-             * Format: int64
-             * @description 访问令牌有效期（秒）
-             */
-            expiresIn?: number;
-            /** Format: int64 */
-            userId?: number;
-            username?: string;
-            displayName?: string;
-            /** Format: int64 */
-            tenantId?: number;
-            tenantCode?: string;
-            /** @description 角色编码集合 */
-            roles?: string[];
-            /** @description 权限（资源标识）集合 */
-            permissions?: string[];
-        };
-        RLoginVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["LoginVO"];
-            /** Format: int64 */
-            timestamp?: number;
-        };
-        LoginRequest: {
-            /**
-             * @description 租户编码
-             * @example default
-             */
-            tenantCode: string;
-            /**
-             * @description 登录名
-             * @example admin
-             */
-            username: string;
-            /**
-             * @description 口令
-             * @example Admin@12345
-             */
-            password: string;
-        };
-        /** @description 客户端日志 */
-        ClientLogVO: {
-            /**
-             * Format: int64
-             * @description 日志主键
-             */
-            id?: number;
-            /** @description 上报方应用标识 */
-            app?: string;
-            /** @description 级别 */
-            level?: string;
-            /** @description 命名空间 */
-            namespace?: string;
-            /** @description 消息正文 */
-            message?: string;
-            /** @description 随消息附带的原始数据 */
-            data?: unknown[];
-            /** @description 结构化上下文 */
-            context?: {
-                [key: string]: unknown;
-            };
-            /** @description 链路标识 */
-            traceId?: string;
-            /** @description 会话标识 */
-            sessionId?: string;
-            /** @description 触发日志时的路由 */
-            route?: string;
-            /** @description 应用版本 / 构建号 */
-            release?: string;
-            /**
-             * Format: int64
-             * @description 客户端时间戳（毫秒），不可信，仅供展示
-             */
-            timestamp?: number;
-            /**
-             * Format: int64
-             * @description 服务端接收时间戳（毫秒）
-             */
-            serverTime?: number;
-            /** @description 上报方 IP */
-            ip?: string;
-        };
-        PageResultClientLogVO: {
-            records?: components["schemas"]["ClientLogVO"][];
-            /** Format: int64 */
-            total?: number;
-            /** Format: int64 */
-            page?: number;
-            /** Format: int64 */
-            size?: number;
-            /** Format: int64 */
-            pages?: number;
-        };
-        RPageResultClientLogVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["PageResultClientLogVO"];
-            /** Format: int64 */
-            timestamp?: number;
-        };
-        RClientLogVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["ClientLogVO"];
-            /** Format: int64 */
-            timestamp?: number;
-        };
-        RListClientLogVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["ClientLogVO"][];
-            /** Format: int64 */
-            timestamp?: number;
-        };
-        ClientLogLevelCount: {
-            level?: string;
-            /** Format: int64 */
-            levelCount?: number;
-        };
-        /** @description 客户端日志聚合结果 */
-        ClientLogStatsVO: {
-            /**
-             * Format: int64
-             * @description 时间窗内总条数
-             */
-            total?: number;
-            /**
-             * Format: int64
-             * @description 实际生效的起始时间（毫秒）
-             */
-            startTime?: number;
-            /**
-             * Format: int64
-             * @description 实际生效的结束时间（毫秒）
-             */
-            endTime?: number;
-            /** @description 按级别分布，**包含条数为 0 的级别**，便于直接绘图 */
-            levels?: components["schemas"]["ClientLogLevelCount"][];
-        };
-        RClientLogStatsVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["ClientLogStatsVO"];
-            /** Format: int64 */
-            timestamp?: number;
-        };
-        /** @description 服务健康状态 */
-        HealthVO: {
-            application?: string;
-            status?: string;
-            profile?: string;
-            /** Format: int64 */
-            uptimeMillis?: number;
-            serverTime?: string;
-            dependencies?: {
-                [key: string]: string;
-            };
-        };
-        RHealthVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["HealthVO"];
-            /** Format: int64 */
-            timestamp?: number;
-        };
-        /** @description 客户端行为事件 */
-        ClientEventVO: {
-            /**
-             * Format: int64
-             * @description 事件主键
-             */
-            id?: number;
-            /** @description 客户端生成的事件唯一 id */
-            eventId?: string;
-            /** @description 事件名 */
-            eventName?: string;
-            /** @description 上报方应用标识 */
-            app?: string;
-            /** @description 登录用户标识 */
-            userId?: string;
-            /** @description 匿名设备标识 */
-            deviceId?: string;
-            /** @description 会话标识 */
-            sessionId?: string;
-            /** @description 触发事件时的路由 */
-            route?: string;
-            /** @description 应用版本 / 构建号 */
-            release?: string;
-            /** @description 事件属性 */
-            props?: {
-                [key: string]: unknown;
-            };
-            /**
-             * Format: int32
-             * @description 属性结构版本
-             */
-            propsVersion?: number;
-            /**
-             * Format: int64
-             * @description 客户端时间戳（毫秒），不可信，仅供展示
-             */
-            timestamp?: number;
-            /**
-             * Format: int64
-             * @description 服务端接收时间戳（毫秒）
-             */
-            serverTime?: number;
-            /** @description 上报方 IP */
-            ip?: string;
-        };
-        PageResultClientEventVO: {
-            records?: components["schemas"]["ClientEventVO"][];
-            /** Format: int64 */
-            total?: number;
-            /** Format: int64 */
-            page?: number;
-            /** Format: int64 */
-            size?: number;
-            /** Format: int64 */
-            pages?: number;
-        };
-        RPageResultClientEventVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["PageResultClientEventVO"];
-            /** Format: int64 */
-            timestamp?: number;
-        };
-        RClientEventVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["ClientEventVO"];
-            /** Format: int64 */
-            timestamp?: number;
-        };
-        ClientEventNameCount: {
-            eventName?: string;
-            /** Format: int64 */
-            eventNameCount?: number;
-        };
-        /** @description 客户端行为事件聚合结果 */
-        ClientEventStatsVO: {
-            /**
-             * Format: int64
-             * @description 时间窗内总条数
-             */
-            total?: number;
-            /**
-             * Format: int64
-             * @description 实际生效的起始时间（毫秒）
-             */
-            startTime?: number;
-            /**
-             * Format: int64
-             * @description 实际生效的结束时间（毫秒）
-             */
-            endTime?: number;
-            /** @description 按事件名分布，只包含时间窗内出现过的名称 */
-            names?: components["schemas"]["ClientEventNameCount"][];
-        };
-        RClientEventStatsVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["ClientEventStatsVO"];
-            /** Format: int64 */
-            timestamp?: number;
-        };
-        PageResultUserVO: {
-            records?: components["schemas"]["UserVO"][];
-            /** Format: int64 */
-            total?: number;
-            /** Format: int64 */
-            page?: number;
-            /** Format: int64 */
-            size?: number;
-            /** Format: int64 */
-            pages?: number;
-        };
-        RPageResultUserVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["PageResultUserVO"];
-            /** Format: int64 */
-            timestamp?: number;
-        };
-        PageResultTenantVO: {
-            records?: components["schemas"]["TenantVO"][];
-            /** Format: int64 */
-            total?: number;
-            /** Format: int64 */
-            page?: number;
-            /** Format: int64 */
-            size?: number;
-            /** Format: int64 */
-            pages?: number;
-        };
-        RPageResultTenantVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["PageResultTenantVO"];
-            /** Format: int64 */
-            timestamp?: number;
-        };
-        MeVO: {
-            /** Format: int64 */
-            userId?: number;
-            username?: string;
-            displayName?: string;
-            /** Format: int64 */
-            tenantId?: number;
-            tenantCode?: string;
-            /** @description 角色编码集合 */
-            roles?: string[];
-            /** @description 权限（资源标识）集合 */
-            permissions?: string[];
-        };
-        RMeVO: {
-            /** Format: int32 */
-            code?: number;
-            message?: string;
-            data?: components["schemas"]["MeVO"];
-            /** Format: int64 */
-            timestamp?: number;
-        };
+  schemas: {
+    /** @description 用户保存入参 */
+    UserSaveRequest: {
+      /**
+       * Format: int64
+       * @description 所属租户主键，不传则取当前登录用户所属租户
+       */
+      tenantId?: number;
+      username: string;
+      displayName?: string;
+      /** Format: email */
+      email?: string;
+      phone?: string;
+      /** @description 口令。**新增时必填**；修改时留空表示不改口令 */
+      password?: string;
+      /** @description 状态：ENABLED / DISABLED，缺省 ENABLED */
+      status?: string;
     };
-    responses: never;
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+    RUserVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['UserVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    UserVO: {
+      /** Format: int64 */
+      id?: number;
+      /** Format: int64 */
+      tenantId?: number;
+      username?: string;
+      displayName?: string;
+      email?: string;
+      phone?: string;
+      /** @description 状态：ENABLED / DISABLED */
+      status?: string;
+      /**
+       * Format: int32
+       * @description 连续登录失败次数
+       */
+      failedAttempts?: number;
+      /**
+       * Format: int64
+       * @description 锁定至（毫秒），null 表示未锁定
+       */
+      lockedUntil?: number;
+      /** Format: int64 */
+      lastLoginAt?: number;
+      /**
+       * Format: int32
+       * @description 是否启用多因子：0 否 1 是
+       */
+      mfaEnabled?: number;
+      avatarUrl?: string;
+      /** Format: int64 */
+      createTime?: number;
+      /** Format: int64 */
+      updateTime?: number;
+    };
+    /** @description 租户保存入参 */
+    TenantSaveRequest: {
+      /**
+       * @description 租户编码
+       * @example acme
+       */
+      tenantCode: string;
+      tenantName: string;
+      /**
+       * Format: int64
+       * @description 父租户主键，顶级不传
+       */
+      parentId?: number;
+      description?: string;
+      /** @description 状态：ENABLED / DISABLED，缺省 ENABLED */
+      status?: string;
+      /**
+       * Format: int32
+       * @description 是否允许自助注册：0 否 1 是
+       */
+      allowRegister?: number;
+      /**
+       * Format: int32
+       * @description 是否允许下级创建租户：0 否 1 是
+       */
+      allowAdd?: number;
+    };
+    RTenantVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['TenantVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    TenantVO: {
+      /** Format: int64 */
+      id?: number;
+      tenantCode?: string;
+      tenantName?: string;
+      /** Format: int64 */
+      parentId?: number;
+      /** Format: int32 */
+      tenantLevel?: number;
+      status?: string;
+      description?: string;
+      /** Format: int32 */
+      allowRegister?: number;
+      /** Format: int32 */
+      allowAdd?: number;
+      /** Format: int64 */
+      createTime?: number;
+      /** Format: int64 */
+      updateTime?: number;
+      /**
+       * Format: int32
+       * @description 是否有子节点：0 否 1 是
+       */
+      hasChild?: number;
+    };
+    /** @description 单条客户端日志 */
+    ClientLogItem: {
+      /**
+       * @description 级别，取值 trace/debug/perf/info/success/warn/error
+       * @example info
+       */
+      level?: string;
+      /**
+       * @description 命名空间，形如 app › auth › login
+       * @example app › auth
+       */
+      namespace?: string;
+      /**
+       * Format: int64
+       * @description 客户端时间戳（毫秒），服务端仅作参考不用于排序
+       */
+      timestamp?: number;
+      /**
+       * @description 消息正文
+       * @example 用户登录成功
+       */
+      message?: string;
+      /** @description 随消息附带的原始数据 */
+      data?: unknown[];
+      /** @description 结构化上下文 */
+      context?: {
+        [key: string]: unknown;
+      };
+      /** @description 链路标识 */
+      traceId?: string;
+      /** @description 会话标识 */
+      sessionId?: string;
+      /** @description 触发日志时的路由 */
+      route?: string;
+      /** @description 应用版本 / 构建号 */
+      release?: string;
+    };
+    /** @description 客户端日志批量上报请求 */
+    ClientLogReportRequest: {
+      /**
+       * @description 上报方应用标识
+       * @example platform-log-console
+       */
+      app: string;
+      /**
+       * @description 应用版本 / 构建号
+       * @example 0.1.0
+       */
+      release?: string;
+      /** @description 会话标识，批次级默认值 */
+      sessionId?: string;
+      /** @description 日志条目，单批最多 500 条 */
+      logs: components['schemas']['ClientLogItem'][];
+    };
+    /** @description 批量上报结果 */
+    ClientLogReportResultVO: {
+      /**
+       * Format: int32
+       * @description 成功落库的条数
+       */
+      accepted?: number;
+      /**
+       * Format: int32
+       * @description 被拒绝的条数（级别非法、消息为空等）
+       */
+      rejected?: number;
+    };
+    RClientLogReportResultVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['ClientLogReportResultVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    /** @description 单条客户端行为事件 */
+    ClientEventItem: {
+      /**
+       * @description 客户端生成的事件唯一 id，用于幂等去重
+       * @example 01J8Z0QW7X9K3M
+       */
+      eventId?: string;
+      /**
+       * @description 事件名，小写点分、至少两段，形如 order.submit
+       * @example order.submit
+       */
+      eventName?: string;
+      /** @description 登录用户标识，未登录时为空 */
+      userId?: string;
+      /** @description 匿名设备标识 */
+      deviceId?: string;
+      /** @description 会话标识 */
+      sessionId?: string;
+      /** @description 触发事件时的路由 */
+      route?: string;
+      /** @description 应用版本 / 构建号 */
+      release?: string;
+      /** @description 事件属性 */
+      props?: {
+        [key: string]: unknown;
+      };
+      /**
+       * Format: int32
+       * @description 属性结构版本，props 结构变化必须递增
+       * @example 1
+       */
+      propsVersion?: number;
+      /**
+       * Format: int64
+       * @description 客户端时间戳（毫秒），服务端仅作参考不用于排序
+       */
+      timestamp?: number;
+    };
+    /** @description 客户端行为事件批量上报请求 */
+    ClientEventReportRequest: {
+      /**
+       * @description 上报方应用标识
+       * @example platform-web
+       */
+      app: string;
+      /**
+       * @description 应用版本 / 构建号
+       * @example 0.1.0
+       */
+      release?: string;
+      /** @description 会话标识，批次级默认值 */
+      sessionId?: string;
+      /** @description 事件条目，单批最多 500 条 */
+      events: components['schemas']['ClientEventItem'][];
+    };
+    /** @description 批量上报结果 */
+    ClientEventReportResultVO: {
+      /**
+       * Format: int32
+       * @description 成功落库的条数
+       */
+      accepted?: number;
+      /**
+       * Format: int32
+       * @description 被拒绝的条数（事件名为空 / 长度超限 / 格式非法等）
+       */
+      rejected?: number;
+    };
+    RClientEventReportResultVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['ClientEventReportResultVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    /** @description 重置口令入参 */
+    PasswordResetRequest: {
+      /** @description 新口令 */
+      password: string;
+    };
+    RVoid: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: unknown;
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    RefreshRequest: {
+      /** @description 刷新令牌 */
+      refreshToken: string;
+    };
+    LoginVO: {
+      /** @description 访问令牌，后续请求放在 Authorization: Bearer <token> */
+      accessToken?: string;
+      /** @description 刷新令牌，用于换取新的访问令牌 */
+      refreshToken?: string;
+      /** @description 令牌类型，固定 Bearer */
+      tokenType?: string;
+      /**
+       * Format: int64
+       * @description 访问令牌有效期（秒）
+       */
+      expiresIn?: number;
+      /** Format: int64 */
+      userId?: number;
+      username?: string;
+      displayName?: string;
+      /** Format: int64 */
+      tenantId?: number;
+      tenantCode?: string;
+      /** @description 角色编码集合 */
+      roles?: string[];
+      /** @description 权限（资源标识）集合 */
+      permissions?: string[];
+    };
+    RLoginVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['LoginVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    LoginRequest: {
+      /**
+       * @description 租户编码
+       * @example default
+       */
+      tenantCode: string;
+      /**
+       * @description 登录名
+       * @example admin
+       */
+      username: string;
+      /**
+       * @description 口令
+       * @example Admin@12345
+       */
+      password: string;
+    };
+    /** @description 客户端日志 */
+    ClientLogVO: {
+      /**
+       * Format: int64
+       * @description 日志主键
+       */
+      id?: number;
+      /** @description 上报方应用标识 */
+      app?: string;
+      /** @description 级别 */
+      level?: string;
+      /** @description 命名空间 */
+      namespace?: string;
+      /** @description 消息正文 */
+      message?: string;
+      /** @description 随消息附带的原始数据 */
+      data?: unknown[];
+      /** @description 结构化上下文 */
+      context?: {
+        [key: string]: unknown;
+      };
+      /** @description 链路标识 */
+      traceId?: string;
+      /** @description 会话标识 */
+      sessionId?: string;
+      /** @description 触发日志时的路由 */
+      route?: string;
+      /** @description 应用版本 / 构建号 */
+      release?: string;
+      /**
+       * Format: int64
+       * @description 客户端时间戳（毫秒），不可信，仅供展示
+       */
+      timestamp?: number;
+      /**
+       * Format: int64
+       * @description 服务端接收时间戳（毫秒）
+       */
+      serverTime?: number;
+      /** @description 上报方 IP */
+      ip?: string;
+    };
+    PageResultClientLogVO: {
+      records?: components['schemas']['ClientLogVO'][];
+      /** Format: int64 */
+      total?: number;
+      /** Format: int64 */
+      page?: number;
+      /** Format: int64 */
+      size?: number;
+      /** Format: int64 */
+      pages?: number;
+    };
+    RPageResultClientLogVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PageResultClientLogVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    RClientLogVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['ClientLogVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    RListClientLogVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['ClientLogVO'][];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    ClientLogLevelCount: {
+      level?: string;
+      /** Format: int64 */
+      levelCount?: number;
+    };
+    /** @description 客户端日志聚合结果 */
+    ClientLogStatsVO: {
+      /**
+       * Format: int64
+       * @description 时间窗内总条数
+       */
+      total?: number;
+      /**
+       * Format: int64
+       * @description 实际生效的起始时间（毫秒）
+       */
+      startTime?: number;
+      /**
+       * Format: int64
+       * @description 实际生效的结束时间（毫秒）
+       */
+      endTime?: number;
+      /** @description 按级别分布，**包含条数为 0 的级别**，便于直接绘图 */
+      levels?: components['schemas']['ClientLogLevelCount'][];
+    };
+    RClientLogStatsVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['ClientLogStatsVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    /** @description 服务健康状态 */
+    HealthVO: {
+      application?: string;
+      status?: string;
+      profile?: string;
+      /** Format: int64 */
+      uptimeMillis?: number;
+      serverTime?: string;
+      dependencies?: {
+        [key: string]: string;
+      };
+    };
+    RHealthVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['HealthVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    /** @description 客户端行为事件 */
+    ClientEventVO: {
+      /**
+       * Format: int64
+       * @description 事件主键
+       */
+      id?: number;
+      /** @description 客户端生成的事件唯一 id */
+      eventId?: string;
+      /** @description 事件名 */
+      eventName?: string;
+      /** @description 上报方应用标识 */
+      app?: string;
+      /** @description 登录用户标识 */
+      userId?: string;
+      /** @description 匿名设备标识 */
+      deviceId?: string;
+      /** @description 会话标识 */
+      sessionId?: string;
+      /** @description 触发事件时的路由 */
+      route?: string;
+      /** @description 应用版本 / 构建号 */
+      release?: string;
+      /** @description 事件属性 */
+      props?: {
+        [key: string]: unknown;
+      };
+      /**
+       * Format: int32
+       * @description 属性结构版本
+       */
+      propsVersion?: number;
+      /**
+       * Format: int64
+       * @description 客户端时间戳（毫秒），不可信，仅供展示
+       */
+      timestamp?: number;
+      /**
+       * Format: int64
+       * @description 服务端接收时间戳（毫秒）
+       */
+      serverTime?: number;
+      /** @description 上报方 IP */
+      ip?: string;
+    };
+    PageResultClientEventVO: {
+      records?: components['schemas']['ClientEventVO'][];
+      /** Format: int64 */
+      total?: number;
+      /** Format: int64 */
+      page?: number;
+      /** Format: int64 */
+      size?: number;
+      /** Format: int64 */
+      pages?: number;
+    };
+    RPageResultClientEventVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PageResultClientEventVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    RClientEventVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['ClientEventVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    ClientEventNameCount: {
+      eventName?: string;
+      /** Format: int64 */
+      eventNameCount?: number;
+    };
+    /** @description 客户端行为事件聚合结果 */
+    ClientEventStatsVO: {
+      /**
+       * Format: int64
+       * @description 时间窗内总条数
+       */
+      total?: number;
+      /**
+       * Format: int64
+       * @description 实际生效的起始时间（毫秒）
+       */
+      startTime?: number;
+      /**
+       * Format: int64
+       * @description 实际生效的结束时间（毫秒）
+       */
+      endTime?: number;
+      /** @description 按事件名分布，只包含时间窗内出现过的名称 */
+      names?: components['schemas']['ClientEventNameCount'][];
+    };
+    RClientEventStatsVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['ClientEventStatsVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    PageResultUserVO: {
+      records?: components['schemas']['UserVO'][];
+      /** Format: int64 */
+      total?: number;
+      /** Format: int64 */
+      page?: number;
+      /** Format: int64 */
+      size?: number;
+      /** Format: int64 */
+      pages?: number;
+    };
+    RPageResultUserVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PageResultUserVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    PageResultTenantVO: {
+      records?: components['schemas']['TenantVO'][];
+      /** Format: int64 */
+      total?: number;
+      /** Format: int64 */
+      page?: number;
+      /** Format: int64 */
+      size?: number;
+      /** Format: int64 */
+      pages?: number;
+    };
+    RPageResultTenantVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PageResultTenantVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    MeVO: {
+      /** Format: int64 */
+      userId?: number;
+      username?: string;
+      displayName?: string;
+      /** Format: int64 */
+      tenantId?: number;
+      tenantCode?: string;
+      /** @description 角色编码集合 */
+      roles?: string[];
+      /** @description 权限（资源标识）集合 */
+      permissions?: string[];
+    };
+    RMeVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['MeVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    /** @description 审计记录 */
+    AuditLogVO: {
+      /**
+       * Format: int64
+       * @description 主键
+       */
+      id?: number;
+      /** @description 动作标识，形如 user.create；永久契约，改名即历史数据断裂 */
+      action?: string;
+      /** @description 被操作资源标识，形如 auth:user */
+      resource?: string;
+      /** @description 操作对象的主键或业务编码 */
+      targetId?: string;
+      /**
+       * Format: int64
+       * @description 操作人用户主键
+       */
+      operatorId?: number;
+      /** @description 操作人登录名 */
+      operatorName?: string;
+      /**
+       * Format: int64
+       * @description 操作人所属租户主键
+       */
+      tenantId?: number;
+      /** @description 结果：SUCCESS / FAILURE */
+      result?: string;
+      /**
+       * Format: int32
+       * @description 失败时的错误码，成功为 null
+       */
+      errorCode?: number;
+      /** @description 失败原因简述，成功为 null */
+      errorMessage?: string;
+      /** @description HTTP 方法 */
+      httpMethod?: string;
+      /** @description 请求路径（不含查询串） */
+      requestUri?: string;
+      /** @description 来源 IP */
+      ip?: string;
+      /** @description User-Agent */
+      userAgent?: string;
+      /** @description 链路标识，取自请求头 X-Trace-Id */
+      traceId?: string;
+      /**
+       * Format: int64
+       * @description 耗时（毫秒）
+       */
+      durationMs?: number;
+      /**
+       * Format: int64
+       * @description 服务端记录时间（毫秒）
+       */
+      serverTime?: number;
+    };
+    PageResultAuditLogVO: {
+      records?: components['schemas']['AuditLogVO'][];
+      /** Format: int64 */
+      total?: number;
+      /** Format: int64 */
+      page?: number;
+      /** Format: int64 */
+      size?: number;
+      /** Format: int64 */
+      pages?: number;
+    };
+    RPageResultAuditLogVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PageResultAuditLogVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    RAuditLogVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['AuditLogVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    AuditActionCount: {
+      action?: string;
+      /** Format: int64 */
+      actionCount?: number;
+      /** Format: int64 */
+      failureCount?: number;
+    };
+    /** @description 审计聚合结果 */
+    AuditStatsVO: {
+      /**
+       * Format: int64
+       * @description 时间窗内总条数
+       */
+      total?: number;
+      /**
+       * Format: int64
+       * @description 其中结果为 FAILURE 的条数
+       */
+      failureTotal?: number;
+      /**
+       * Format: int64
+       * @description 实际生效的起始时间（毫秒）
+       */
+      startTime?: number;
+      /**
+       * Format: int64
+       * @description 实际生效的结束时间（毫秒）
+       */
+      endTime?: number;
+      /** @description 按动作分布，只包含出现过的动作 */
+      actions?: components['schemas']['AuditActionCount'][];
+    };
+    RAuditStatsVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['AuditStatsVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+  };
+  responses: never;
+  parameters: never;
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    detail: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description 用户主键 */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["RUserVO"];
-                };
-            };
-        };
+  detail: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 用户主键 */
+        id: number;
+      };
+      cookie?: never;
     };
-    update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description 用户主键 */
-                id: number;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UserSaveRequest"];
-            };
+        content: {
+          '*/*': components['schemas']['RUserVO'];
         };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["RUserVO"];
-                };
-            };
-        };
+      };
     };
-    delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description 用户主键 */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["RVoid"];
-                };
-            };
-        };
+  };
+  update: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 用户主键 */
+        id: number;
+      };
+      cookie?: never;
     };
-    detail_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description 租户主键 */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["RTenantVO"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UserSaveRequest'];
+      };
     };
-    update_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description 租户主键 */
-                id: number;
-            };
-            cookie?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TenantSaveRequest"];
-            };
+        content: {
+          '*/*': components['schemas']['RUserVO'];
         };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["RTenantVO"];
-                };
-            };
-        };
+      };
     };
-    delete_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description 租户主键 */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["RVoid"];
-                };
-            };
-        };
+  };
+  delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 用户主键 */
+        id: number;
+      };
+      cookie?: never;
     };
-    page: {
-        parameters: {
-            query?: {
-                /** @description 上报方应用标识 */
-                app?: string;
-                /** @description 级别精确匹配，取值 trace/debug/perf/info/success/warn/error */
-                level?: string;
-                /** @description 命名空间精确匹配 */
-                namespace?: string;
-                /** @description 链路标识精确匹配 */
-                traceId?: string;
-                /** @description 会话标识精确匹配 */
-                sessionId?: string;
-                /** @description 消息正文模糊匹配 */
-                keyword?: string;
-                /** @description 起始时间（毫秒，含）；缺省为 endTime 之前 7 天 */
-                startTime?: number;
-                /** @description 结束时间（毫秒，含）；缺省为当前时间 */
-                endTime?: number;
-                page?: number;
-                size?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["RPageResultClientLogVO"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['RVoid'];
         };
+      };
     };
-    report: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ClientLogReportRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["RClientLogReportResultVO"];
-                };
-            };
-        };
+  };
+  detail_1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 租户主键 */
+        id: number;
+      };
+      cookie?: never;
     };
-    page_1: {
-        parameters: {
-            query?: {
-                /** @description 上报方应用标识 */
-                app?: string;
-                /** @description 事件名精确匹配，形如 order.submit */
-                eventName?: string;
-                /** @description 登录用户标识精确匹配 */
-                userId?: string;
-                /** @description 匿名设备标识精确匹配 */
-                deviceId?: string;
-                /** @description 会话标识精确匹配 */
-                sessionId?: string;
-                /** @description 起始时间（毫秒，含）；缺省为 endTime 之前 7 天 */
-                startTime?: number;
-                /** @description 结束时间（毫秒，含）；缺省为当前时间 */
-                endTime?: number;
-                page?: number;
-                size?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["RPageResultClientEventVO"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['RTenantVO'];
         };
+      };
     };
-    report_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ClientEventReportRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["RClientEventReportResultVO"];
-                };
-            };
-        };
+  };
+  update_1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 租户主键 */
+        id: number;
+      };
+      cookie?: never;
     };
-    page_2: {
-        parameters: {
-            query?: {
-                /** @description 租户主键，不传则限定为当前登录用户所属租户 */
-                tenantId?: number;
-                /** @description 关键字，匹配登录名、姓名、邮箱 */
-                keyword?: string;
-                /** @description 状态：ENABLED / DISABLED */
-                status?: string;
-                page?: number;
-                size?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["RPageResultUserVO"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TenantSaveRequest'];
+      };
     };
-    create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UserSaveRequest"];
-            };
+        content: {
+          '*/*': components['schemas']['RTenantVO'];
         };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["RUserVO"];
-                };
-            };
-        };
+      };
     };
-    resetPassword: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description 用户主键 */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PasswordResetRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["RVoid"];
-                };
-            };
-        };
+  };
+  delete_1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 租户主键 */
+        id: number;
+      };
+      cookie?: never;
     };
-    page_3: {
-        parameters: {
-            query?: {
-                /** @description 关键字，匹配租户编码或名称 */
-                keyword?: string;
-                /** @description 状态：ENABLED / DISABLED */
-                status?: string;
-                page?: number;
-                size?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["RPageResultTenantVO"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['RVoid'];
         };
+      };
     };
-    create_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TenantSaveRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["RTenantVO"];
-                };
-            };
-        };
+  };
+  page: {
+    parameters: {
+      query?: {
+        /** @description 上报方应用标识 */
+        app?: string;
+        /** @description 级别精确匹配，取值 trace/debug/perf/info/success/warn/error */
+        level?: string;
+        /** @description 命名空间精确匹配 */
+        namespace?: string;
+        /** @description 链路标识精确匹配 */
+        traceId?: string;
+        /** @description 会话标识精确匹配 */
+        sessionId?: string;
+        /** @description 消息正文模糊匹配 */
+        keyword?: string;
+        /** @description 起始时间（毫秒，含）；缺省为 endTime 之前 7 天 */
+        startTime?: number;
+        /** @description 结束时间（毫秒，含）；缺省为当前时间 */
+        endTime?: number;
+        page?: number;
+        size?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    refresh: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RefreshRequest"];
-            };
+        content: {
+          '*/*': components['schemas']['RPageResultClientLogVO'];
         };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["RLoginVO"];
-                };
-            };
-        };
+      };
     };
-    logout: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["RefreshRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["RVoid"];
-                };
-            };
-        };
+  };
+  report: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    login: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LoginRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["RLoginVO"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ClientLogReportRequest'];
+      };
     };
-    detail_2: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description 日志主键 */
-                id: number;
-            };
-            cookie?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["RClientLogVO"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['RClientLogReportResultVO'];
         };
+      };
     };
-    listByTraceId: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description 链路标识 */
-                traceId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["RListClientLogVO"];
-                };
-            };
-        };
+  };
+  page_1: {
+    parameters: {
+      query?: {
+        /** @description 上报方应用标识 */
+        app?: string;
+        /** @description 事件名精确匹配，形如 order.submit */
+        eventName?: string;
+        /** @description 登录用户标识精确匹配 */
+        userId?: string;
+        /** @description 匿名设备标识精确匹配 */
+        deviceId?: string;
+        /** @description 会话标识精确匹配 */
+        sessionId?: string;
+        /** @description 起始时间（毫秒，含）；缺省为 endTime 之前 7 天 */
+        startTime?: number;
+        /** @description 结束时间（毫秒，含）；缺省为当前时间 */
+        endTime?: number;
+        page?: number;
+        size?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    stats: {
-        parameters: {
-            query?: {
-                /** @description 上报方应用标识 */
-                app?: string;
-                /** @description 起始时间（毫秒，含）；缺省为 endTime 之前 7 天 */
-                startTime?: number;
-                /** @description 结束时间（毫秒，含）；缺省为当前时间 */
-                endTime?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["RClientLogStatsVO"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['RPageResultClientEventVO'];
         };
+      };
     };
-    health: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["RHealthVO"];
-                };
-            };
-        };
+  };
+  report_1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    detail_3: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description 事件主键 */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["RClientEventVO"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ClientEventReportRequest'];
+      };
     };
-    stats_1: {
-        parameters: {
-            query?: {
-                /** @description 上报方应用标识 */
-                app?: string;
-                /** @description 起始时间（毫秒，含）；缺省为 endTime 之前 7 天 */
-                startTime?: number;
-                /** @description 结束时间（毫秒，含）；缺省为当前时间 */
-                endTime?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["RClientEventStatsVO"];
-                };
-            };
+        content: {
+          '*/*': components['schemas']['RClientEventReportResultVO'];
         };
+      };
     };
-    me: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["RMeVO"];
-                };
-            };
-        };
+  };
+  page_2: {
+    parameters: {
+      query?: {
+        /** @description 租户主键，不传则限定为当前登录用户所属租户 */
+        tenantId?: number;
+        /** @description 关键字，匹配登录名、姓名、邮箱 */
+        keyword?: string;
+        /** @description 状态：ENABLED / DISABLED */
+        status?: string;
+        page?: number;
+        size?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RPageResultUserVO'];
+        };
+      };
+    };
+  };
+  create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UserSaveRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RUserVO'];
+        };
+      };
+    };
+  };
+  resetPassword: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 用户主键 */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PasswordResetRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RVoid'];
+        };
+      };
+    };
+  };
+  page_3: {
+    parameters: {
+      query?: {
+        /** @description 关键字，匹配租户编码或名称 */
+        keyword?: string;
+        /** @description 状态：ENABLED / DISABLED */
+        status?: string;
+        page?: number;
+        size?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RPageResultTenantVO'];
+        };
+      };
+    };
+  };
+  create_1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TenantSaveRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RTenantVO'];
+        };
+      };
+    };
+  };
+  refresh: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RefreshRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RLoginVO'];
+        };
+      };
+    };
+  };
+  logout: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['RefreshRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RVoid'];
+        };
+      };
+    };
+  };
+  login: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['LoginRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RLoginVO'];
+        };
+      };
+    };
+  };
+  detail_2: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 日志主键 */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RClientLogVO'];
+        };
+      };
+    };
+  };
+  listByTraceId: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 链路标识 */
+        traceId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RListClientLogVO'];
+        };
+      };
+    };
+  };
+  stats: {
+    parameters: {
+      query?: {
+        /** @description 上报方应用标识 */
+        app?: string;
+        /** @description 起始时间（毫秒，含）；缺省为 endTime 之前 7 天 */
+        startTime?: number;
+        /** @description 结束时间（毫秒，含）；缺省为当前时间 */
+        endTime?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RClientLogStatsVO'];
+        };
+      };
+    };
+  };
+  health: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RHealthVO'];
+        };
+      };
+    };
+  };
+  detail_3: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 事件主键 */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RClientEventVO'];
+        };
+      };
+    };
+  };
+  stats_1: {
+    parameters: {
+      query?: {
+        /** @description 上报方应用标识 */
+        app?: string;
+        /** @description 起始时间（毫秒，含）；缺省为 endTime 之前 7 天 */
+        startTime?: number;
+        /** @description 结束时间（毫秒，含）；缺省为当前时间 */
+        endTime?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RClientEventStatsVO'];
+        };
+      };
+    };
+  };
+  me: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RMeVO'];
+        };
+      };
+    };
+  };
+  page_4: {
+    parameters: {
+      query?: {
+        /** @description 动作标识精确匹配，如 user.create */
+        action?: string;
+        /** @description 资源标识精确匹配，如 auth:user */
+        resource?: string;
+        /** @description 操作对象精确匹配 */
+        targetId?: string;
+        /** @description 操作人用户主键精确匹配 */
+        operatorId?: number;
+        /** @description 操作人登录名精确匹配 */
+        operatorName?: string;
+        /** @description 结果精确匹配，取值 SUCCESS / FAILURE */
+        result?: string;
+        /** @description 起始时间（毫秒，含）；缺省为 endTime 之前 7 天 */
+        startTime?: number;
+        /** @description 结束时间（毫秒，含）；缺省为当前时间 */
+        endTime?: number;
+        page?: number;
+        size?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RPageResultAuditLogVO'];
+        };
+      };
+    };
+  };
+  detail_4: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 审计记录主键 */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RAuditLogVO'];
+        };
+      };
+    };
+  };
+  stats_2: {
+    parameters: {
+      query?: {
+        /** @description 资源标识精确匹配，如 auth:user */
+        resource?: string;
+        /** @description 操作人用户主键精确匹配 */
+        operatorId?: number;
+        /** @description 起始时间（毫秒，含）；缺省为 endTime 之前 7 天 */
+        startTime?: number;
+        /** @description 结束时间（毫秒，含）；缺省为当前时间 */
+        endTime?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RAuditStatsVO'];
+        };
+      };
+    };
+  };
 }

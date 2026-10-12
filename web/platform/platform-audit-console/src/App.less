@@ -1,0 +1,555 @@
+// 审计日志台的页面样式。
+//
+// 组织方式与 platform-admin / platform-log-console 一致：按"组件块"自顶向下，
+// 块内用 Less 的 `&__element` / `&--modifier` 嵌套。
+// 设计令牌全部来自 styles/variables.less（由 vite.config.ts 注入，本文件不 @import）。
+
+/* -------------------------------------------------------------- 整体骨架 */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 100vh;
+  padding: 16px 20px 24px;
+}
+
+/* ---------------------------------------------------------------- 顶栏 */
+
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  background: @bg-elevated;
+  border: 1px solid @border-color;
+  border-radius: @radius-lg;
+  box-shadow: @shadow-card;
+}
+
+.topbar__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+// 审计台的主色偏"记录/留痕"的冷紫，与权限管理台的蓝区分开：
+// 两个子应用会被并排打开，长得一样会让人分不清在看哪个
+.topbar__logo {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, #6b4eff, #9d7bff);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgb(107 78 255 / 35%);
+}
+
+.topbar__title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.topbar__subtitle {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: @text-tertiary;
+}
+
+.topbar__side {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+}
+
+.topbar__identity {
+  margin: 0;
+  font-size: 12px;
+  color: @text-secondary;
+}
+
+.topbar__perms {
+  font-size: 12px;
+  color: @text-secondary;
+
+  summary {
+    cursor: pointer;
+    user-select: none;
+  }
+}
+
+.topbar__perms-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  max-width: 560px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  color: @brand-color;
+}
+
+/* ------------------------------------------------------------ 说明条 */
+
+.callout {
+  margin: 0;
+  padding: 12px 16px;
+  font-size: 13px;
+  line-height: 1.8;
+  color: @text-secondary;
+  background: fade(#6b4eff, 5%);
+  border: 1px solid fade(#6b4eff, 18%);
+  border-left: 3px solid #6b4eff;
+  border-radius: @radius-md;
+
+  strong {
+    color: @text-primary;
+  }
+
+  code {
+    padding: 1px 5px;
+    font-family: ui-monospace, sfmono-regular, menlo, consolas, monospace;
+    font-size: 12px;
+    color: #6b4eff;
+    background: fade(#6b4eff, 8%);
+    border-radius: 3px;
+  }
+}
+
+/* ------------------------------------------------------------ 面板与工具条 */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  background: @bg-elevated;
+  border: 1px solid @border-color;
+  border-radius: @radius-lg;
+  box-shadow: @shadow-card;
+}
+
+.panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.panel__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.panel__hint {
+  max-width: 760px;
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.8;
+  color: @text-tertiary;
+
+  code {
+    padding: 1px 5px;
+    font-family: ui-monospace, sfmono-regular, menlo, consolas, monospace;
+    font-size: 12px;
+    color: @brand-color;
+    background: fade(@brand-color, 7%);
+    border-radius: 3px;
+  }
+}
+
+.panel__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.toolbar__spacer {
+  flex: 1;
+}
+
+.toolbar__meta {
+  font-size: 12px;
+  color: @text-tertiary;
+}
+
+/* ------------------------------------------------------------ 表单元素 */
+
+.input {
+  min-width: 180px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: @text-primary;
+  background: @bg-base;
+  border: 1px solid @border-color;
+  border-radius: @radius-sm;
+  outline: none;
+  transition: border-color 0.15s;
+
+  &:focus {
+    border-color: #6b4eff;
+  }
+}
+
+.btn {
+  padding: 6px 14px;
+  font-size: 13px;
+  color: @text-primary;
+  cursor: pointer;
+  background: @bg-elevated;
+  border: 1px solid @border-strong;
+  border-radius: @radius-sm;
+  transition: all 0.15s;
+
+  &:hover:not(:disabled) {
+    color: #6b4eff;
+    border-color: #6b4eff;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  &--primary {
+    color: @bg-elevated;
+    background: #6b4eff;
+    border-color: #6b4eff;
+
+    &:hover:not(:disabled) {
+      color: @bg-elevated;
+      background: #8367ff;
+      border-color: #8367ff;
+    }
+  }
+}
+
+/* -------------------------------------------------------------- 提示条 */
+
+.banner {
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: @text-secondary;
+  background: @bg-sunken;
+  border: 1px solid @border-color;
+  border-radius: @radius-sm;
+  line-height: 1.8;
+
+  &--ok {
+    color: @success-color;
+    background: fade(@success-color, 8%);
+    border-color: fade(@success-color, 25%);
+  }
+
+  &--error {
+    color: @danger-color;
+    background: fade(@danger-color, 8%);
+    border-color: fade(@danger-color, 25%);
+  }
+
+  code {
+    padding: 1px 5px;
+    font-family: ui-monospace, sfmono-regular, menlo, consolas, monospace;
+    font-size: 12px;
+    border-radius: 3px;
+    background: fade(@text-primary, 6%);
+  }
+}
+
+/* ---------------------------------------------------------------- 表格 */
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid @border-color;
+  border-radius: @radius-md;
+}
+
+.table {
+  width: 100%;
+  font-size: 13px;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: 8px 12px;
+    text-align: left;
+    white-space: nowrap;
+    border-bottom: 1px solid @border-color;
+  }
+
+  th {
+    font-weight: 600;
+    color: @text-secondary;
+    background: @bg-sunken;
+  }
+
+  tbody tr:hover {
+    background: fade(#6b4eff, 3%);
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  // 失败行整行铺一层极淡的红：审计表里"哪些被拒绝了"是最常翻的一条线，
+  // 只靠结果列的一个标签，在十几行里扫过去是看不见的
+  &__row--fail {
+    background: @audit-fail-bg;
+
+    &:hover {
+      background: fade(@danger-color, 10%);
+    }
+  }
+
+  &__ops {
+    width: 1%;
+  }
+
+  &__empty {
+    padding: 28px 0;
+    color: @text-tertiary;
+    text-align: center;
+  }
+}
+
+.mono {
+  font-family: ui-monospace, sfmono-regular, menlo, consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.tag {
+  display: inline-block;
+  padding: 1px 8px;
+  font-size: 12px;
+  white-space: nowrap;
+  border-radius: 10px;
+
+  &--ok {
+    color: @success-color;
+    background: fade(@success-color, 10%);
+  }
+
+  &--bad {
+    color: @danger-color;
+    background: fade(@danger-color, 12%);
+  }
+
+  &--plain {
+    color: @text-tertiary;
+    background: fade(@text-tertiary, 12%);
+  }
+}
+
+.pager {
+  display: flex;
+  gap: 8px;
+}
+
+/* ---------------------------------------------------------------- 聚合 */
+
+.stats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stats__item {
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) 1fr auto;
+  gap: 12px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.stats__action {
+  padding: 0;
+  font-size: 12px;
+  color: #6b4eff;
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  text-decoration: underline dotted;
+
+  &:hover {
+    text-decoration: underline solid;
+  }
+}
+
+.stats__bar {
+  display: block;
+  height: 14px;
+  overflow: hidden;
+  background: @bg-sunken;
+  border: 1px solid @border-color;
+  border-radius: 7px;
+}
+
+.stats__bar-fill {
+  display: block;
+  height: 100%;
+  background: fade(@success-color, 55%);
+  transition: width 0.2s;
+}
+
+// 失败部分叠在同一条柱子里：一眼看出"这类操作多不多"与"其中多少被拒"
+.stats__bar-fail {
+  display: block;
+  height: 100%;
+  background: @danger-color;
+}
+
+.stats__count {
+  font-size: 12px;
+  color: @text-tertiary;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- 演练区 */
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0 0 0 4px;
+  font-size: 13px;
+  list-style: none;
+}
+
+.steps__item {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 6px 10px;
+  border-left: 3px solid @border-strong;
+  background: @bg-sunken;
+  border-radius: 0 @radius-sm @radius-sm 0;
+
+  &--ok {
+    border-left-color: @success-color;
+    background: fade(@success-color, 6%);
+  }
+
+  &--fail {
+    border-left-color: @danger-color;
+    background: fade(@danger-color, 6%);
+  }
+
+  &--info {
+    border-left-color: #6b4eff;
+    background: fade(#6b4eff, 6%);
+  }
+}
+
+.steps__time {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: @text-tertiary;
+}
+
+.steps__text {
+  line-height: 1.7;
+}
+
+/* ---------------------------------------------------------------- 对话框 */
+
+.dialog__mask {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(0 0 0 / 35%);
+}
+
+.dialog {
+  width: min(560px, calc(100vw - 40px));
+  max-height: calc(100vh - 80px);
+  overflow: auto;
+  background: @bg-elevated;
+  border-radius: @radius-lg;
+  box-shadow: @shadow-dialog;
+}
+
+.dialog__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid @border-color;
+}
+
+.dialog__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.dialog__close {
+  padding: 0 4px;
+  font-size: 20px;
+  line-height: 1;
+  color: @text-tertiary;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+
+  &:hover {
+    color: @text-primary;
+  }
+}
+
+.dialog__body {
+  padding: 16px 18px;
+}
+
+.dialog__foot {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding: 12px 18px;
+  border-top: 1px solid @border-color;
+}
+
+/* ---------------------------------------------------------------- 字段表 */
+
+.facts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.facts__row {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.facts__label {
+  color: @text-tertiary;
+}
+
+.facts__value {
+  margin: 0;
+  line-height: 1.7;
+  word-break: break-all;
+}

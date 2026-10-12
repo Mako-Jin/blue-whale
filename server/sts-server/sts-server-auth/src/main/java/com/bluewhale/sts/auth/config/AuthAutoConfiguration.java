@@ -14,6 +14,7 @@ import com.bluewhale.sts.auth.resource.ResourceMapper;
 import com.bluewhale.sts.auth.role.RoleMapper;
 import com.bluewhale.sts.auth.tenant.TenantMapper;
 import com.bluewhale.sts.auth.user.UserMapper;
+import com.bluewhale.sts.common.web.config.WebInterceptorOrder;
 import org.apache.ibatis.annotations.Mapper;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -102,6 +103,12 @@ public class AuthAutoConfiguration {
      * <p>不加 {@code @ConditionalOnMissingBean}：{@code WebMvcConfigurer} 是**叠加**语义，
      * 应用声明自己的配置类时本配置仍应生效（与 {@code WebAutoConfiguration} 里
      * 跨域配置的判断一致）。条件化会让"应用只要有一个 WebMvcConfigurer，鉴权就静默失效"。
+     *
+     * <p><b>顺序必须排在审计拦截器之后</b>（{@link WebInterceptorOrder#AUTHORIZATION}
+     * 大于 {@link WebInterceptorOrder#AUDIT}）。理由不是风格：鉴权失败是在本拦截器的
+     * {@code preHandle} 里抛异常，而 Spring 只对**已经成功执行过 {@code preHandle}** 的
+     * 拦截器回调 {@code afterCompletion}。若本拦截器排在审计之前，"越权被拒"这件事
+     * 就永远不会被写成审计记录 —— 不报错、不告警，只是查不到。
      */
     @Bean
     public WebMvcConfigurer authInterceptorConfigurer(PermissionChecker permissionChecker) {
@@ -109,7 +116,9 @@ public class AuthAutoConfiguration {
         return new WebMvcConfigurer() {
             @Override
             public void addInterceptors(InterceptorRegistry registry) {
-                registry.addInterceptor(interceptor).addPathPatterns("/api/**");
+                registry.addInterceptor(interceptor)
+                        .addPathPatterns("/api/**")
+                        .order(WebInterceptorOrder.AUTHORIZATION);
             }
         };
     }

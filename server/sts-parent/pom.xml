@@ -85,6 +85,21 @@
                 <artifactId>sts-server-auth</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <!--
+              通用能力层（ADR-0005 定义，2026-10-12 首次有成员落地）。
+              它的第一个成员是"审计的语义契约"，因为 @Audited 必须同时被权限域与审计域依赖，
+              而这两个域互相依赖会成环 —— 详见 sts-components/pom.xml 的注释。
+            -->
+            <dependency>
+                <groupId>com.bluewhale.sts.components</groupId>
+                <artifactId>sts-components-audit</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.bluewhale.sts.server</groupId>
+                <artifactId>sts-server-audit</artifactId>
+                <version>${project.version}</version>
+            </dependency>
 
             <!-- ===== 第三方：只声明版本，不在此处引入依赖 ===== -->
             <!--

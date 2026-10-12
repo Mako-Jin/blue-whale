@@ -22,6 +22,7 @@
         <module>sts-server-log</module>
         <module>sts-server-track</module>
         <module>sts-server-auth</module>
+        <module>sts-server-audit</module>
     </modules>
 
 </project>

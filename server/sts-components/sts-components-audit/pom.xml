@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.bluewhale.sts.components</groupId>
+        <artifactId>sts-components</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <!--
+      artifactId 刻意**不带 -starter 后缀**，尽管 ADR-0005 的示例里写的是
+      sts-components-audit-starter。理由：本模块不是 Spring Boot starter ——
+      它不装配任何 Bean，依赖它也**不会**因此获得审计能力（审计能力的实现、
+      表与接口在 sts-server-audit）。名字一旦叫 starter，接入方会理所当然地以为
+      "引了这个依赖就有审计"，然后在发现没有审计表时浪费半天。
+      ADR-0005 那行表格举的是 artifactId 的形态示例，不是命名规范。
+    -->
+    <artifactId>sts-components-audit</artifactId>
+
+    <name>sts-components-audit</name>
+    <description>审计的语义契约：@Audited 注解与 AuditContext（纯 API，不含实现）</description>
+
+    <dependencies>
+        <!--
+          provided：本模块只在编译期引用 Spring Web（AuditContext 要往当前请求上挂
+          request attribute），运行时的 Web 由最终可部署的服务提供。
+          写成 compile 的话，任何依赖本模块的模块都会被拖入一份 Web 依赖 ——
+          而"审计声明"这种纯语义的东西本不该对容器有要求。
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+</project>

@@ -109,8 +109,15 @@ async function main() {
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
       if (message.id && waiting.has(message.id)) {
-        waiting.get(message.id)(message.result);
+        const settle = waiting.get(message.id);
         waiting.delete(message.id);
+        /*
+         * 协议层的错误（`message.error`）也要交回调用方，而不是丢掉 ——
+         * 丢掉的结果是 `undefined`，调用方只能看到"响应缺少结果体"，
+         * 而真正的原因（通常是 "Execution context was destroyed"：
+         * 页面正在导航，执行上下文没了）完全看不到。
+         */
+        settle(message.error ? { protocolError: message.error } : message.result);
         return;
       }
       if (message.method === "Runtime.exceptionThrown") {
@@ -141,22 +148,29 @@ async function main() {
       });
     }
 
+    /**
+     * 在页面里求值。
+     *
+     * <p>**必须容忍"求值的那一刻页面正在导航"**：这时 CDP 回的是协议层错误
+     * （`Execution context was destroyed`），而不是结果体。登录成功的一瞬间、
+     * 守卫换地址的一瞬间，都会集中踩到这一下 —— 重试几次就好，
+     * 而直接抛错会让脚本在断言之前就"自身出错"，看起来像脚本写坏了。
+     */
     async function evaluate(expression) {
-      const response = await send("Runtime.evaluate", {
-        expression,
-        returnByValue: true,
-        awaitPromise: true,
-      });
-      // send() 已把 exceptionDetails 转成 reject，走到这里 response 本该有结果体。
-      // 但响应缺 result 字段时（页面正在跳转、执行上下文被销毁），
-      // 直接读 response.result 会抛 "Cannot read properties of undefined"，
-      // 把真正的原因盖成一句无信息量的话 —— 这里显式报错并带上原始响应。
-      if (!response?.result) {
-        throw new Error(
-          `Runtime.evaluate 响应缺少结果体：${JSON.stringify(response)?.slice(0, 200)}`,
-        );
+      let lastError = null;
+      for (let attempt = 1; attempt <= 8; attempt += 1) {
+        const response = await send("Runtime.evaluate", {
+          expression,
+          returnByValue: true,
+          awaitPromise: true,
+        });
+        if (response?.result) return response.result.value;
+        lastError = response?.protocolError ?? response;
+        await sleep(200);
       }
-      return response.result.value;
+      throw new Error(
+        `Runtime.evaluate 连续 8 次没有拿到结果体：${JSON.stringify(lastError)?.slice(0, 200)}`,
+      );
     }
 
     /** 在页面里轮询直到条件成立 */

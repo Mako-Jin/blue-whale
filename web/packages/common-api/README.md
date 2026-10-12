@@ -40,6 +40,7 @@ packages/common-api/
 │   ├── auth.ts               认证域接口（登录 / 刷新 / 登出 / me）+ 身份映射
 │   ├── channel.ts            createAuthChannel：把契约、会话存储与传输钩子接成认证能力
 │   ├── access.ts             权限域实体管理（用户 / 租户）+ 权限标识常量
+│   ├── audit.ts              审计域接口（**只读**：分页 / 详情 / 按动作聚合）+ 权限标识常量
 │   ├── log.ts                日志域接口（路径常量 + 方法接线）
 │   ├── events.ts             行为事件域接口（上报 / 分页 / 详情 / 聚合）
 │   ├── system.ts             系统域接口（健康检查）
@@ -48,6 +49,7 @@ packages/common-api/
 │   ├── log.test.ts           含契约形状的类型断言
 │   ├── events.test.ts        事件域的路径与方法接线断言
 │   ├── access.test.ts        权限域接线 + 权限标识与后端逐字一致
+│   ├── audit.test.ts         审计域的路径断言 + **"只有三个读方法"的快照式断言**
 │   └── auth.test.ts          认证域接线 + 401 恢复串联（含并发只刷新一次）
 ├── eslint.config.js          引用 common-config
 └── vite.config.ts            测试配置
@@ -205,6 +207,31 @@ await access.tenants.remove(3);
 - **`AccessPermissions` 只列前端真的用到的**：后端 `AuthPermissions.ALL` 里没有被前端消费的标识
   不需要出现在前端 —— 抄一份全量表等于给出"前端在管权限"的假象（权限边界在服务端）。
 
+### 审计域：`createAuditApi`（**只有读**）
+
+`src/audit.ts` 是唯一一个**没有写方法**的域文件，而这正是它的设计（`docs/decisions/0019`）：
+审计记录由**后端拦截器**在写接口的 `afterCompletion` 阶段自动产生，前端没有任何路径往里写。
+
+```ts
+import { AuditActions, AuditPermissions, createAuditApi } from 'common-api';
+
+const audit = createAuditApi(http); // 也可以直接用 apiClient.audit
+const page = await audit.page({ action: AuditActions.TENANT_CREATE, page: 1, size: 20 });
+const stats = await audit.stats({ startTime, endTime }); // 按动作聚合，刻意不接受 action 过滤
+```
+
+三处值得单独说的：
+
+- **缺的东西比有的东西更能说明架构**：`AuditApi` 只有 `page` / `detail` / `stats`。
+  `tests/audit.test.ts` 用快照式断言把"只有这三个读方法"钉住 —— 将来有人想加 `create`，
+  测试会失败，逼他先回答"审计记录该不该由前端补写"。
+- **`AuditActions` 只列前端真正用到的两条**（`auth.tenant.create` / `auth.tenant.delete`）：
+  演示台的演练区要真实调一次写接口、再确认"刚才那一下有没有被记下来"。
+  抄全七条没有意义，只会造出一份看起来在管事的假象。动作标识是**永久契约**，前端不得现拼。
+- **`AuditPermissions` 与 `AccessPermissions` 分开**：前者服务于"能不能看审计流水"
+  （`platform-audit-console`），后者服务于"管理界面该不该显示某个按钮"（`platform-admin`）。
+  合成一张表会让两个应用都拿到一堆自己用不到的标识。
+
 ---
 
 ## 五、契约里"任意值"的处理
@@ -294,9 +321,10 @@ expectTypeOf<ClientLogQuery['startTime']>().toEqualTypeOf<number | undefined>();
 
 ## 八、待补充
 
-- 各域接口目前有 `auth`、`access`、`log`、`events` 与 `system`；新增业务域时新建 `src/<域>.ts`，在 `client.ts` 里装配，并在 `tests/` 下补一份接线断言
+- 各域接口目前有 `auth`、`access`、`audit`、`log`、`events` 与 `system`；新增业务域时新建 `src/<域>.ts`，在 `client.ts` 里装配，并在 `tests/` 下补一份接线断言
 - **认证链路已接线完毕**（登录 / 刷新 / 登出 / `me`，即 `src/auth.ts` + `createAuthChannel`）：令牌注入、401 恢复、刷新单飞（内核按客户端 + 通道跨客户端两层）、会话存取都已落地并有单测
 - **权限域管理接口已接 users / tenants**（5 条路径 11 个操作，即 `src/access.ts`），消费方是 `platform-admin`。组织 / 角色 / 用户组 / 资源四类实体的接口**后端尚未实现**，补齐后按同样写法加入 `access.ts`，不提前建空壳
+- **审计域已接 3 个只读接口**（`src/audit.ts`），消费方是 `platform-audit-console`。**它永远不会有写方法** —— 那是设计而非待办
 - 会话存储目前是**访问令牌在内存 + 刷新令牌明文落盘**。httpOnly cookie 方案需要后端配合改 `Set-Cookie` 并处理 CSRF 与跨源，列为将来项（`docs/decisions/0018` 第 6 条）
 - 基座已消费本包（`platform-portal/src/auth/`：登录页、路由守卫、会话恢复与权限下发）；子应用单跑时按 ADR-0018 第 8 条共用同一份 session 实现，需要发已鉴权请求时经 `HostProps.auth` 取令牌（同文档第 9 条）
 - 事件域的字段名与路径已由契约锁死，但**事件名本身**（`page.view` / `order.submit` 这类字符串）不在契约里 —— 它是前后端共用的一条正则，尚未收成一份可枚举的注册表；理由与代价见 `docs/decisions/0011`

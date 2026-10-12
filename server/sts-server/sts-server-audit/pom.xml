@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.bluewhale.sts.server</groupId>
+        <artifactId>sts-server</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>sts-server-audit</artifactId>
+
+    <name>sts-server-audit</name>
+    <description>审计日志域：由后端拦截器自动产生、append-only、只读查询</description>
+
+    <dependencies>
+        <!--
+          审计的"语义契约"（@Audited 注解）在通用能力层，而不是本模块。
+          原因：@Audited 必须被**权限域**（标在它的 Controller 上）与本模块同时依赖，
+          若它住在本模块，权限域就得依赖审计域，而审计域又要依赖权限域取上下文 —— 成环。
+          详见 sts-components/pom.xml 的注释。
+        -->
+        <dependency>
+            <groupId>com.bluewhale.sts.components</groupId>
+            <artifactId>sts-components-audit</artifactId>
+        </dependency>
+
+        <!--
+          依赖权限域是**语义上的必然**，不是图方便：
+          审计回答的第一个问题就是"谁做的"，而"谁"的定义在权限域
+          （AuthContextHolder 的注释写着它是"业务代码拿当前用户"的唯一入口）。
+          方向是单向的 —— 权限域只依赖 sts-components-audit 的注解，不反向依赖本模块。
+        -->
+        <dependency>
+            <groupId>com.bluewhale.sts.server</groupId>
+            <artifactId>sts-server-auth</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.bluewhale.sts.common</groupId>
+            <artifactId>sts-common-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.bluewhale.sts.common</groupId>
+            <artifactId>sts-common-db</artifactId>
+        </dependency>
+
+        <!-- 服务模块自己声明 Web 运行时，不从 sts-common-web 传递（它是 provided） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>

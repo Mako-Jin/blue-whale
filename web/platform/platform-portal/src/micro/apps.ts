@@ -42,6 +42,14 @@ export const MICRO_APPS: MicroAppMeta[] = [
     prodEntry: '/admin/',
     summary: '权限域实体管理（用户 / 租户）：消费基座下发的权限，按标识显隐操作入口',
   },
+  {
+    name: 'platform-audit-console',
+    routePath: '/audit',
+    title: '审计日志',
+    devPort: 3600,
+    prodEntry: '/audit/',
+    summary: '审计日志管道：后端拦截器自动产生、前端只读；流水 + 按动作聚合 + 写一次看记录',
+  },
 ];
 
 export function findMicroApp(name: string): MicroAppMeta | undefined {

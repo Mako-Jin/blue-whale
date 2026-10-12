@@ -5,6 +5,8 @@ import type { SessionStore, SessionUser } from 'common-tools/session';
 
 import { createAccessApi } from './access';
 import type { AccessApi } from './access';
+import { createAuditApi } from './audit';
+import type { AuditApi } from './audit';
 import { createAuthApi, toSessionTokens, toSessionUser } from './auth';
 import type { AuthApi, AuthLoginRequest } from './auth';
 import { createEventApi } from './events';
@@ -22,6 +24,8 @@ export interface ChannelApi {
   readonly access: AccessApi;
   readonly log: LogApi;
   readonly event: EventApi;
+  /** 审计域：**只有读**，写记录由后端拦截器负责（见 `./audit` 的文件头） */
+  readonly audit: AuditApi;
   readonly system: SystemApi;
 }
 
@@ -148,6 +152,7 @@ export function createAuthChannel(config: AuthChannelConfig): AuthChannel {
       access: createAccessApi(http),
       log: createLogApi(http),
       event: createEventApi(http),
+      audit: createAuditApi(http),
       system: createSystemApi(http),
     },
     session,

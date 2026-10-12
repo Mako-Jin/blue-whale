@@ -49,9 +49,10 @@ class AuthApiTest {
                 .andExpect(jsonPath("$.data.refreshToken").isNotEmpty())
                 .andExpect(jsonPath("$.data.tokenType").value("Bearer"))
                 .andExpect(jsonPath("$.data.tenantCode").value("default"))
-                // 种子数据把 8 个权限资源授予了 SUPER_ADMIN 角色，再由角色授予 admin —
+                // 种子数据把 9 个权限资源授予了 SUPER_ADMIN 角色，再由角色授予 admin —
                 // 这条断言实际验证的是"用户 → 角色 → 资源"整条 RBAC 链路取数正确
-                .andExpect(jsonPath("$.data.permissions.length()").value(8))
+                // （9 = 租户 4 + 用户 4 + 审计只读 1）
+                .andExpect(jsonPath("$.data.permissions.length()").value(9))
                 // 出参绝不包含任何口令字段
                 .andExpect(jsonPath("$.data.passwordHash").doesNotExist());
     }
@@ -163,11 +164,12 @@ class AuthApiTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(40301));
 
-        // 权限集合恰好是两项读权限：多一项就说明种子数据挂多了，演示的区分度随之消失
+        // 权限集合恰好是三项读权限（用户、租户、审计流水）：多一项写权限就会让
+        // "按钮该不该出现"的演示失去区分度
         mockMvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + auditorToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.roles[0]").value("AUDITOR"))
-                .andExpect(jsonPath("$.data.permissions.length()").value(2));
+                .andExpect(jsonPath("$.data.permissions.length()").value(3));
     }
 
     @Test

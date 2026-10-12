@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.bluewhale.sts</groupId>
+        <artifactId>sts-parent</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../sts-parent/pom.xml</relativePath>
+    </parent>
+
+    <groupId>com.bluewhale.sts.components</groupId>
+    <artifactId>sts-components</artifactId>
+    <packaging>pom</packaging>
+
+    <name>sts-components</name>
+    <description>通用能力层 —— 跨业务域复用、但不属于技术底座的语义契约</description>
+
+    <!--
+      本层在 ADR-0005 里被定义为「通用能力组件」，位置是
+      sts-server → **sts-components** → sts-common → sts-parent，
+      但一直空着 —— 按「模块按需创建、不预置空壳」的约定，没有内容就不建。
+
+      它今天的第一个成员是被**循环依赖逼出来的**，值得记一笔：
+
+        审计域需要「当前操作人是谁」→ 依赖权限域的 AuthContextHolder
+        权限域的 Controller 需要标「这次操作要记审计」→ 依赖 @Audited 注解
+
+      两个方向都要，就成环了。而 @Audited 与 AuditContext 里**没有任何实现**，
+      只是"审计这件事长什么样"的语义契约 —— 它既不属于技术底座（sts-common 放的是
+      R / 错误码这类与业务无关的东西），也必须被多个域共享。
+      这正是 sts-components 存在的理由。
+
+      与 sts-common 的分界：sts-common 里的东西**改了业务不受影响**（统一响应、分页）；
+      sts-components 里的东西**改了业务就要跟着改**（审计该记哪些动作）。
+    -->
+    <modules>
+        <module>sts-components-audit</module>
+    </modules>
+
+</project>

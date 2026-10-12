@@ -29,9 +29,20 @@ public final class AuthPermissions {
     public static final String USER_UPDATE = "auth:user:update";
     public static final String USER_DELETE = "auth:user:delete";
 
+    /**
+     * 查看审计流水。
+     *
+     * <p><b>只有 read，没有对应的 write / delete —— 这不是还没做。</b>
+     * 审计记录由后端拦截器自动产生，本仓刻意**不提供任何写入或修改审计的接口**
+     * （见 {@code AuditLogController} 的注释）。因此"不可篡改"这件事在这里
+     * 不靠权限保护，靠接口不存在：没有一个"改审计"的接口可以授予谁。
+     */
+    public static final String AUDIT_READ = "auth:audit:read";
+
     /** 本切片已落地的全部权限标识，种子数据据此建资源 */
     public static final List<String> ALL = List.of(
             TENANT_READ, TENANT_CREATE, TENANT_UPDATE, TENANT_DELETE,
-            USER_READ, USER_CREATE, USER_UPDATE, USER_DELETE);
+            USER_READ, USER_CREATE, USER_UPDATE, USER_DELETE,
+            AUDIT_READ);
 
 }

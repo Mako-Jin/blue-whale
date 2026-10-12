@@ -62,9 +62,17 @@ public class DefaultAdminSeeder implements ApplicationRunner {
      * 审计员的全部权限：**只有读**。
      *
      * <p>往这里加写权限会让"按钮该不该出现"的演示失去区分度，因此加之前先想清楚用途。
+     *
+     * <p>含 {@link AuthPermissions#AUDIT_READ} 是语义上必须的 —— "审计员"这个角色
+     * 如果看不了审计流水，那这个名字就只是"只读账号"的别名。而它恰好还构成一个
+     * 很强的演示：审计员**能读全部审计记录，却一条都改不了**，因为改动审计的接口
+     * 在系统里根本不存在（见 {@code AuditLogController}）。"不可篡改"由接口缺席保证，
+     * 而不是由权限配置是否配错来保证。
      */
-    private static final List<String> AUDITOR_PERMISSIONS =
-            List.of(AuthPermissions.USER_READ, AuthPermissions.TENANT_READ);
+    private static final List<String> AUDITOR_PERMISSIONS = List.of(
+            AuthPermissions.USER_READ,
+            AuthPermissions.TENANT_READ,
+            AuthPermissions.AUDIT_READ);
 
     private final AuthProperties properties;
     private final PasswordHasher passwordHasher;

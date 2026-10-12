@@ -49,6 +49,19 @@
         </dependency>
 
         <!--
+          审计日志域 —— 三条并列管道里的第三条（ADR-0004 / 0011 早已定下，今天才落地）。
+          它与日志域、事件域并列，但产生方式根本不同：**不由前端上报，而是由后端拦截器
+          在处理真实请求时自动写下**。因此它没有客户端契约、没有上报接口，只有查询接口。
+
+          依赖方向：本模块 → sts-server-audit → sts-server-auth（取"当前操作人"），
+          而 sts-server-auth → sts-components-audit（取 @Audited 注解）。无环。
+        -->
+        <dependency>
+            <groupId>com.bluewhale.sts.server</groupId>
+            <artifactId>sts-server-audit</artifactId>
+        </dependency>
+
+        <!--
           spring-boot-starter-webmvc 在此**显式声明**，虽然 sts-server-log 已经带来了一份：
           可部署进程的需求不靠传递依赖表达。哪天 sts-server-log 换了实现（比如改用 WebFlux），
           传递来的依赖就没了，而本模块的启动会以一种"莫名其妙"的方式失败。

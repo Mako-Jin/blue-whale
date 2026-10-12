@@ -1,0 +1,42 @@
+// 设计令牌 —— 只定义变量，不产生 CSS 输出。
+// 由 vite.config.ts 的 less.additionalData 注入到每个 .less，无需手动 @import。
+//
+// **本文件与其他应用的同名文件各自独立**：令牌不跨应用引用（引了只有 `vite build` 报错），
+// 各应用按自己的视觉需要维护一份。这里的取值与 platform-admin 接近，
+// 但**多了"审计"这一层的语义色**：既有的对错两色不够用 ——
+// 审计要同时表达"成功/失败"（结果）与"读/写"（被记录的动作）。
+//
+// 另外刻意多留一层灰阶：审计表列多、密度高，层次靠灰阶拉开比靠颜色更稳。
+
+// 文字
+@text-primary: #1f2329;
+@text-secondary: #4e5969;
+@text-tertiary: #86909c;
+@text-quaternary: #a9aeb8;
+
+// 背景
+@bg-base: #f2f3f5;
+@bg-elevated: #ffffff;
+@bg-sunken: #f7f8fa;
+
+// 描边
+@border-color: #e5e6eb;
+@border-strong: #c9cdd4;
+
+// 品牌与语义色
+@brand-color: #165dff;
+@brand-hover: #4080ff;
+@danger-color: #f53f3f;
+@success-color: #00b42a;
+@warning-color: #ff7d00;
+
+// 审计专用：失败行的底色比标签底色更淡，用来做整行提示而不抢文字
+@audit-fail-bg: #fff5f5;
+@audit-scan-bg: #f0f7ff;
+
+// 圆角与阴影
+@radius-sm: 4px;
+@radius-md: 8px;
+@radius-lg: 12px;
+@shadow-card: 0 1px 3px rgb(0 0 0 / 6%);
+@shadow-dialog: 0 8px 32px rgb(0 0 0 / 18%);

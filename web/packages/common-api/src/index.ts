@@ -46,6 +46,20 @@ export type {
   AccessUserSaveRequest,
 } from './access';
 
+export { createAuditApi, AuditActions, AuditPermissions, AuditResults } from './audit';
+export type {
+  AuditActionCount,
+  AuditApi,
+  AuditLog,
+  AuditLogId,
+  AuditLogPage,
+  AuditLogQuery,
+  AuditPermission,
+  AuditResult,
+  AuditStats,
+  AuditStatsQuery,
+} from './audit';
+
 export { createLogApi } from './log';
 export type {
   ClientLogItem,

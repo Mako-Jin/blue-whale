@@ -131,13 +131,13 @@ cd web && pnpm install
 | `common-tools`  | 日志（`logger`）· 环境探测（`env`）· 请求内核（`http`）· JSON 安全层（`json`）· 批量上报通道（`report`）· 行为事件内核（`events`）· 微前端桥接（`micro`） |
 | `common-api`    | 契约包：OpenAPI 生成的类型 + 接口装配                                                                                                                     |
 
-> `common-tools` 与框架无关（不依赖 React），应用、构建脚本、Node 工具链都能直接用。本地演示：`pnpm --filter common-tools playground`（logger）、`pnpm --filter platform-log-console dev`（日志上报全链路，:3200）、`pnpm --filter platform-event-console dev`（行为事件全链路，:3300）、`pnpm --filter platform-environment dev`（三维环境，:3400）。
+> `common-tools` 与框架无关（不依赖 React），应用、构建脚本、Node 工具链都能直接用。本地演示：`pnpm --filter common-tools playground`（logger）、`pnpm --filter platform-log-console dev`（日志上报全链路，:3200）、`pnpm --filter platform-event-console dev`（行为事件全链路，:3300）、`pnpm --filter platform-environment dev`（三维环境，:3400）、`pnpm --filter platform-admin dev`（按钮级权限，:3500）、`pnpm --filter platform-audit-console dev`（审计管道，:3600）。
 >
 > **`common-tools/micro` 为什么在公共包里**：它是子应用侧的代码，但所有子应用都要用，而**子应用之间禁止互相引用**（铁律 5），复用内容只能下沉到 `packages/`。它按结构化描述实现、不引入 qiankun 类型，因此不破坏本包"不依赖任何运行时第三方库"的约束。
 
 ### 微前端相关的改动
 
-微前端跨越多个应用（基座 + 三个子应用），改动时最容易漏掉配合项：
+微前端跨越多个应用（基座 + 五个子应用），改动时最容易漏掉配合项：
 
 | 我想改…                         | 必须同时确认                                                                                                                     |
 | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
@@ -151,10 +151,15 @@ cd web && pnpm install
 改完跑一次端到端验证（各服务都在跑时）：
 
 ```bash
-node scripts/verify-micro-frontend.mjs    # 微前端全链路（基座 :3000 + 三个子应用）
+node scripts/verify-micro-frontend.mjs    # 微前端全链路（基座 :3000 + 需调试的子应用）
 node scripts/verify-scene-switching.mjs   # 三维应用多场景切换与显存释放（仅需 :3400）
 node scripts/verify-player-controls.mjs   # 主人公操控链路（仅需 :3400）
 ```
+
+> 需要**登录态**的三种验证（都要后端 :8080 与基座 :3000）：
+> `node scripts/verify-portal-auth.mjs`（登录链路，另需 :3200）、
+> `node scripts/verify-admin-permissions.mjs`（按钮级权限，另需 :3500）、
+> `node scripts/verify-audit-pipeline.mjs`（审计管道，另需 :3600）。
 
 ### 三维场景相关的改动
 
@@ -207,12 +212,14 @@ pnpm typecheck        # 类型检查
 pnpm test             # 单元测试
 pnpm format           # Prettier 格式化
 
-# 调试微前端：基座 + 三个子应用是四个独立 dev server，需同时启动
-pnpm dev --filter platform-portal --filter platform-log-console --filter platform-event-console --filter platform-environment
+# 调试微前端：基座 + 五个子应用是六个独立 dev server，按需同时启动
+pnpm dev --filter platform-portal --filter platform-log-console --filter platform-event-console --filter platform-environment --filter platform-admin --filter platform-audit-console
 ```
 
 > 微前端端到端验证：各服务都起来后执行 `node scripts/verify-micro-frontend.mjs`（用真实 Chrome 走完整链路，见 `scripts/README.md`）。
 > 三维应用多场景验证：`:3400` 起来后执行 `node scripts/verify-scene-switching.mjs`（断言反复切场景不耗尽显存）。
+> 登录态与按钮级权限验证：`node scripts/verify-portal-auth.mjs`、`node scripts/verify-admin-permissions.mjs`（需 :3000 / :3200 / :3500 与后端 :8080）。
+> 审计管道验证：`node scripts/verify-audit-pipeline.mjs`（需 :3000 / :3600 与后端 :8080）。
 
 ### 后端
 

@@ -13,7 +13,7 @@
 
 **不该做的：**
 
-- 具体业务页面（那是子应用的事；权限管理界面属于 `platform-admin` 子应用）
+- 具体业务页面（那是子应用的事；权限管理界面属于 `platform-admin`、审计查询界面属于 `platform-audit-console`）
 - 直接依赖任何子应用的代码
 
 ## 目录说明
@@ -124,11 +124,15 @@ src/
    是路由前缀、`devPort` 是开发期端口、`prodEntry` 是生产期静态目录；
 3. 路由与导航会自动出现 —— **不需要改 `router/` 和 `layouts/`**。
 
-要发已鉴权请求的子应用，额外做两件事（参考 `platform-admin/src/auth/`）：
+要发已鉴权请求的子应用，额外做两件事（参考 `platform-admin/src/auth/` 或 `platform-audit-console/src/auth/`）：
 
 4. 在 `mount` 里（`bindHost` **之后**）从 `props.auth` 取认证能力，接到自己的 `createApiClient` 的
    `accessTokenProvider` / `onUnauthorized` 上；独立运行时换成自建会话，业务代码不变；
 5. 权限一律读基座下发的 `HostGlobalState.permissions`，**不得**自行调用 `/api/auth/me`。
+
+> 这两步的接线目前 `platform-admin` 与 `platform-audit-console` **逐字重复**了一份。
+> 按铁律⑤本该下沉到 `packages/`，但下沉要同时改前者的既有测试与端到端脚本，
+> 与审计管道本身无关 —— 触发条件（出现第三个管理型子应用时下沉）写在 `docs/decisions/0019`。
 
 ## 命令
 
@@ -152,12 +156,15 @@ pnpm test         # 单元测试
 
 ## 调试微前端
 
-需要同时起三个服务（子应用没起时入口会显示"加载失败"并提示端口）：
+需要同时起**基座**与**要调试的子应用**（子应用没起时入口会显示"加载失败"并提示端口）：
 
 ```bash
 pnpm --filter platform-portal dev          # :3000  主应用
 pnpm --filter platform-log-console dev     # :3200  日志控制台
 pnpm --filter platform-event-console dev   # :3300  行为事件控制台
+pnpm --filter platform-environment dev     # :3400  三维环境
+pnpm --filter platform-admin dev           # :3500  权限管理
+pnpm --filter platform-audit-console dev   # :3600  审计日志
 ```
 
 端到端自动验证（需要 Chrome）：
@@ -166,5 +173,5 @@ pnpm --filter platform-event-console dev   # :3300  行为事件控制台
 node scripts/verify-micro-frontend.mjs
 ```
 
-> **开发子应用时请单独打开它（`:3200` / `:3300`）。** 被基座加载时 React 组件级热更新不生效
+> **开发子应用时请单独打开它（`:3200` 起各端口）。** 被基座加载时 React 组件级热更新不生效
 > （样式热更新正常），根因尚未定位，详见 ADR-0012 的「已知限制」。

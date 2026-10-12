@@ -62,13 +62,22 @@
 
 ## 微前端（改基座或子应用前先看）
 
-结构：`platform-portal`（:3000）是唯一基座，用 `loadMicroApp` 挂载子应用；`platform-log-console`（:3200）、`platform-event-console`（:3300）、`platform-environment`（:3400）既是子应用**也保留独立运行**。
+结构：`platform-portal`（:3000）是唯一基座，用 `loadMicroApp` 挂载子应用；`platform-log-console`（:3200）、`platform-event-console`（:3300）、`platform-environment`（:3400）、`platform-admin`（:3500）、`platform-audit-console`（:3600）既是子应用**也保留独立运行**。
 
 - **应用名、端口、路由前缀是隐式契约**：三者在基座 `src/micro/apps.ts` 与子应用各自的 `vite.config.ts` 里成对出现，写错**不会报错**、只表现为"加载中"。改动清单见 `CONTRIBUTING.md` 的「微前端相关的改动」表。
 - **子应用的 `base` 分环境**：dev 必须是 `/`（否则热更新静默失效），build 才带前缀。不要"顺手统一"。
 - **子应用必须能独立跑**：入口判断 `qiankunWindow.__POWERED_BY_QIANKUN__` 做分支，通信一律走 `common-tools/micro`，不要在子应用里 `import` 基座的任何东西（违反铁律 5）。
 - **全局状态订阅必须走桥**：`onHostGlobalStateChange()`，不要直接调 `props.onGlobalStateChange`（单槽位，会互相覆盖）。
-- **决策不许散写成实现细节**：挂载方式、沙箱策略、全局状态、`vite-plugin-qiankun` 的取舍在 `docs/decisions/0012`；三维应用与 WebGL 渲染生命周期在 `docs/decisions/0013`；多场景注册表与切换管线在 `docs/decisions/0014`；可操控场景（主人公、相机跟随、小地图）在 `docs/decisions/0015`。改这些先改 ADR。
+- **决策不许散写成实现细节**：挂载方式、沙箱策略、全局状态、`vite-plugin-qiankun` 的取舍在 `docs/decisions/0012`；三维应用与 WebGL 渲染生命周期在 `docs/decisions/0013`；多场景注册表与切换管线在 `docs/decisions/0014`；可操控场景（主人公、相机跟随、小地图）在 `docs/decisions/0015`；登录态与权限归属在 `docs/decisions/0018`；审计管道与子应用形态在 `docs/decisions/0019`。改这些先改 ADR。
+
+## 后端写接口与审计（改 `sts-server-auth` / `sts-server-audit` 前先看）
+
+- **新增 / 修改写接口必须标 `@Audited`**，并同时补动作常量（`AuthAuditActions`）与资源常量（`AuthResources`）。**三套标识形状相近、混用是静默的**：资源 `auth:user`（`AuthResources`）≠ 权限码 `auth:user:create`（`AuthPermissions`）≠ 动作 `auth.user.create`（`AuthAuditActions`）。把资源填成权限码 → "按资源过滤审计"永远查不到东西且不报错。`AuthTaxonomyTest` 钉住三者的形状与归属。
+- **查询接口（`GET`）不标** `@Audited`。要记"谁看了什么"必须另起一条管道与另一张表（ADR-0019 第 2 条）。
+- **审计没有写入接口，也不该有**：`AuditLogService` 无写方法、实体不继承 `BaseEntity`、表无 `deleted` 列，`POST /api/audit/logs` 返回 `40500`。有人想加写接口，先回答"审计记录该不该由调用方补写"。
+- **拦截器顺序只能用 `WebInterceptorOrder` 的常量**（`AUDIT = -100 < AUTHORIZATION = -50 < DEFAULT = 0`），**禁止手写数字**。审计必须排在鉴权**之前** —— 排在后面时"越权尝试"会静默丢失（Spring 的 `interceptorIndex` 只回调已成功执行过 `preHandle` 的拦截器）。
+- **给 `GlobalExceptionHandler` 加处理器时，必须同时调 `ResponseOutcome.markFailure(...)`**。本仓"业务失败仍返回 HTTP 200"，漏了不报错，只让那一类失败被审计记成 `SUCCESS`。
+- **审计属性只在 `afterCompletion` 写**，因此"接口返回"与"审计可见"之间没有强顺序；断言审计必须按唯一条件过滤，不要假设立刻可见。
 
 ## 三维场景（改 `platform-environment` 前先看）
 
