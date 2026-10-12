@@ -34,6 +34,35 @@ export interface ResponseContext extends RequestContext {
   response: Response;
 }
 
+/** 认证失效（401）时的上下文 */
+export interface UnauthorizedContext {
+  url: string;
+  method: HttpMethod;
+}
+
+/**
+ * 认证失效处理器。
+ *
+ * <p>返回 `true` 表示"令牌已换新，可以重试原请求"；返回 `false` 表示"恢复不了，按失败处理"。
+ *
+ * <p><b>为什么做成钩子而不是把刷新写进内核：</b>内核不认识"刷新令牌接口"（那是业务契约），
+ * 也不该认识登录页（那是界面）。它只负责按顺序问一句"还能救吗"，怎么救由应用层决定。
+ * 这与 `traceIdProvider` 同一套路：内核只留注入位。
+ *
+ * <p>内核保证**同一个客户端上的并发 401 只会调用它一次**（single-flight），
+ * 因为刷新令牌是轮换的 —— 并发的第二个刷新请求持的是刚被作废的旧令牌，
+ * 服务端会把它判成重放攻击并撤销该用户的全部会话（见 `docs/decisions/0018`）。
+ */
+export type UnauthorizedHandler = (context: UnauthorizedContext) => boolean | Promise<boolean>;
+
+/**
+ * 会话彻底失效时的回调。
+ *
+ * <p>在"带着令牌的请求拿到 401，且已尝试过恢复（或恢复后重试仍然 401）"时调用一次。
+ * 应用层在这里清会话、跳登录页 —— 内核不做这件事，它不碰界面也不碰存储。
+ */
+export type AuthLostHandler = () => void;
+
 /** 单次请求选项，覆盖客户端级配置 */
 export interface RequestOptions {
   method?: HttpMethod;
@@ -50,6 +79,15 @@ export interface RequestOptions {
   unwrap?: boolean;
   /** 静默：不写日志。用于已知会失败、由调用方自行处理的探测类请求 */
   silent?: boolean;
+  /** 本次不注入访问令牌（公开接口用） */
+  skipAuth?: boolean;
+  /**
+   * 本次不参与 401 自动恢复与重试。
+   *
+   * <p>**刷新令牌的请求本身必须置位**：否则刷新失败 → 401 → 触发刷新 → 再失败…
+   * 递归下去，最终表现为刷新接口被自己打出一片 401。
+   */
+  skipAuthRetry?: boolean;
 }
 
 /** 客户端级配置 */
@@ -70,6 +108,17 @@ export interface HttpConfig {
    * 就得在两个系统里按时间戳手工对齐）。
    */
   traceIdProvider?: () => string | undefined;
+  /**
+   * 访问令牌提供者。返回非空值时自动注入 `Authorization: Bearer <token>`。
+   *
+   * <p>**每次重试都会重新调用它**（而不是沿用第一次取到的值）—— 否则刷新之后
+   * 重试仍然带着那个已经作废的令牌，白跑一次。
+   */
+  accessTokenProvider?: () => string | undefined | null;
+  /** 认证失效处理器（401）。见 {@link UnauthorizedHandler} */
+  onUnauthorized?: UnauthorizedHandler;
+  /** 会话彻底失效回调。见 {@link AuthLostHandler} */
+  onAuthLost?: AuthLostHandler;
   /** 更换 fetch 实现（测试注入 / 兼容旧环境） */
   fetchImpl?: typeof fetch;
   /** 日志器；传 `null` 关闭日志 */

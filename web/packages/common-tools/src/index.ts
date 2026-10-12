@@ -12,3 +12,4 @@ export * from './json';
 export * from './report';
 export * from './events';
 export * from './micro';
+export * from './session';

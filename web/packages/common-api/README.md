@@ -37,13 +37,16 @@ packages/common-api/
 │   ├── generated/
 │   │   └── schema.d.ts       ◀── openapi-typescript 生成，禁止手改
 │   ├── types.ts              契约类型工具 + 任意 JSON 值的收紧
+│   ├── auth.ts               认证域接口（登录 / 刷新 / 登出 / me）+ 身份映射
+│   ├── channel.ts            createAuthChannel：把契约、会话存储与传输钩子接成认证能力
 │   ├── log.ts                日志域接口（路径常量 + 方法接线）
 │   ├── events.ts             行为事件域接口（上报 / 分页 / 详情 / 聚合）
 │   ├── system.ts             系统域接口（健康检查）
 │   └── client.ts             createApiClient：把 http 与各域接口装配起来
 ├── tests/
 │   ├── log.test.ts           含契约形状的类型断言
-│   └── events.test.ts        事件域的路径与方法接线断言
+│   ├── events.test.ts        事件域的路径与方法接线断言
+│   └── auth.test.ts          认证域接线 + 401 恢复串联（含并发只刷新一次）
 ├── eslint.config.js          引用 common-config
 └── vite.config.ts            测试配置
 ```
@@ -116,20 +119,61 @@ const stats = await api.event.stats({ app: 'portal' }); // 按事件名分组计
 
 ```
 common-tools/http        传输内核 —— 刻意不认识任何业务接口
+common-tools/session     会话存取 —— 不认识接口、不碰界面、不 import qiankun
       ▲
-common-api               契约装配 —— 只做接线
+common-api               契约装配 —— 只做接线（含 createAuthChannel 的组装）
       ▲
-platform/*               应用 —— 只调用 api.log.xxx / api.event.xxx / api.system.xxx
+platform/*               应用 —— 只调用 api.log.xxx / api.event.xxx / api.auth.xxx
 ```
 
-| 允许                                     | 禁止                                         |
-| ---------------------------------------- | -------------------------------------------- |
-| 应用调用 `api.log.page(...)`             | 应用直接 `fetch('/api/logs/client')`         |
-| 应用调用 `api.event.report(...)`         | 在应用里手写事件字段名                       |
-| 接口方法内部使用契约推导出的类型         | 在 `log.ts` / `events.ts` 里手写字段名或类型 |
-| 通过 `api.http` 调**契约之外**的临时接口 | 修改 `src/generated/` 下的任何文件           |
+| 允许                                                       | 禁止                                              |
+| ---------------------------------------------------------- | ------------------------------------------------- |
+| 应用调用 `api.log.page(...)`                               | 应用直接 `fetch('/api/logs/client')`              |
+| 应用调用 `api.event.report(...)`                           | 在应用里手写事件字段名                            |
+| 接口方法内部使用契约推导出的类型                           | 在 `log.ts` / `events.ts` 里手写字段名或类型      |
+| 通过 `api.http` 调**契约之外**的临时接口                   | 修改 `src/generated/` 下的任何文件                |
+| 用 `createAuthChannel` 拿到已接好令牌注入与 401 恢复的接口 | 在应用里自己拼 `Authorization` 头或自己写刷新逻辑 |
 
 > `api.http` 是逃生口：临时对接一个还没进契约的接口时用它，但**一旦该接口稳定下来就必须补进后端并重新生成契约**，否则它就成了一份"没人管的第二真相源"。
+
+### 认证：`createAuthChannel`
+
+认证域比其它域多三件事：**令牌要注入**、**401 要恢复**、**会话要落库**。它们分别在
+`common-tools/http`、`common-tools/session` 与本包，`createAuthChannel` 负责把三方接起来 ——
+应用侧不必各自重写一遍，那正是"某处只判了登录、忘了判权限"的来源（见 `docs/decisions/0018`）。
+
+```ts
+import { createAuthChannel } from 'common-api';
+import { createSessionStore } from 'common-tools/session';
+
+const session = createSessionStore();
+// 契约里的路径自带 `/api` 前缀，所以 baseUrl 留空（开发期由 vite 代理转发）
+const auth = createAuthChannel({ session, onAuthLost: () => gotoLogin() });
+
+await auth.restore(); // 启动时用持久化刷新令牌续期
+await auth.login({ tenantCode: 'default', username: 'admin', password: 'pwd' });
+await auth.api.log.page({ level: 'error' }); // 令牌注入与 401 恢复对调用方透明
+await auth.logout(); // 撤销服务端令牌 + 清本地会话
+```
+
+| 成员               | 作用                                                                                                       |
+| ------------------ | ---------------------------------------------------------------------------------------------------------- |
+| `api`              | 全部接口（`auth` / `log` / `event` / `system` / `http`），已接好令牌注入与 401 恢复                        |
+| `login(input)`     | 登录并建立会话；返回会话里的身份（含 `roles` / `permissions`）                                             |
+| `logout()`         | 先撤销服务端刷新令牌，**无论成败都清本地会话**                                                             |
+| `restore()`        | 用持久化的刷新令牌换新令牌对并恢复身份（**一次请求**，不必再调 `/me`）；恢复不了返回 `null` 并清空本地会话 |
+| `reload()`         | 用现有访问令牌重新拉身份与权限（后台改了权限之后刷新用），不动令牌                                         |
+| `reauthenticate()` | 传输内核的 401 钩子所调用的那一环；**并发去重由内核保证**（single-flight）                                 |
+
+几条容易踩的规则：
+
+| 规则                                | 原因                                                                                                                                        |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| **刷新接口必须带 `skipAuthRetry`**  | 否则刷新失败 → 401 → 触发刷新 → 再失败，递归下去刷新接口被自己打出一片 401                                                                  |
+| **权限不在令牌里**                  | 后端 `JwtCodec` 的载荷只有 `uid` / `tid` / `uname` 等，`roles` / `permissions` 只在登录/刷新/`me` 的响应体里 ⇒ 刷新页面后必须做一次会话恢复 |
+| **登录与刷新都一次拿回身份 + 权限** | 所以 `restore()` 走刷新而不是"刷新 + 再调 `/me`"，少一次请求，也少一个"有令牌但不知道是谁"的中间态                                          |
+| **权限码只用服务端给的字符串**      | 与后端 `AuthPermissions` 的 `域:资源:动作` 一致，前端不得拼接自造                                                                           |
+| **清会话只有一个入口**              | 内核的 `onAuthLost` 回调里；散在各调用点必然有漏网的                                                                                        |
 
 ---
 
@@ -220,6 +264,8 @@ expectTypeOf<ClientLogQuery['startTime']>().toEqualTypeOf<number | undefined>();
 
 ## 八、待补充
 
-- 各域接口目前有 `log`、`events` 与 `system`；新增业务域时新建 `src/<域>.ts`，在 `client.ts` 里装配，并在 `tests/` 下补一份接线断言
-- **权限域接口已进契约**（`/api/auth/*` 共 15 条，清单见 `docs/api/README.md`），但本包**尚未接线** —— 需新建 `src/auth.ts` 并在 `client.ts` 里装配。token 注入在 `createApiClient` 里通过 `onRequest` 钩子补 `Authorization` 头，**不要改各域接口**；`HttpConfig` 已预留该钩子（见 `common-tools/http`）。**自动刷新（401 触发 / 并发合并 / 轮换失败即登出）尚未设计**，落地时要单独出方案
+- 各域接口目前有 `auth`、`log`、`events` 与 `system`；新增业务域时新建 `src/<域>.ts`，在 `client.ts` 里装配，并在 `tests/` 下补一份接线断言
+- **认证链路已接线完毕**（登录 / 刷新 / 登出 / `me`，即 `src/auth.ts` + `createAuthChannel`）：令牌注入、401 恢复、刷新单飞、会话存取都已落地并有单测。权限域**管理接口**（users / tenants / organization / role / usergroup / resource，契约里另有 5 条路径 11 个操作）**尚未接线** —— 它们属于 `platform-admin` 那一段（`docs/decisions/0018` 第③段），随该子应用一起接，不提前建空壳
+- 会话存储目前是**访问令牌在内存 + 刷新令牌明文落盘**。httpOnly cookie 方案需要后端配合改 `Set-Cookie` 并处理 CSRF 与跨源，列为将来项（`docs/decisions/0018` 第 6 条）
+- 基座与子应用**尚未消费**本包：基座的「登录」按钮仍是切换 `userId` 的调试开关，登录页、路由守卫与权限下发是 `docs/decisions/0018` 的第②段
 - 事件域的字段名与路径已由契约锁死，但**事件名本身**（`page.view` / `order.submit` 这类字符串）不在契约里 —— 它是前后端共用的一条正则，尚未收成一份可枚举的注册表；理由与代价见 `docs/decisions/0011`

@@ -15,8 +15,8 @@ web/
 ├── .husky/                Git 钩子
 ├── packages/              公共包（common-* 前缀）
 │   ├── common-config          共享工程配置：ESLint / Stylelint / TypeScript / Vite
-│   ├── common-tools           公共能力包：logger · env · http · json · report · events · micro
-│   └── common-api             契约包：由 docs/api/openapi.json 生成的类型 + 接口装配
+│   ├── common-tools           公共能力包：logger · env · http · json · report · events · micro · session
+│   └── common-api             契约包：由 docs/api/openapi.json 生成的类型 + 接口装配（含认证链路）
 └── platform/              平台级应用
     ├── platform-portal        主应用（qiankun 容器，唯一入口，:3000）
     ├── platform-log-console   日志控制台（子应用 + 可独立运行，:3200）
@@ -204,14 +204,14 @@ git config core.hooksPath web/.husky
 
 各项目均通过全部校验（逐包直跑）。
 
-| 校验项                  | platform-portal | common-tools             | common-api    | platform-log-console             | platform-event-console          | platform-environment                  |
-| ----------------------- | --------------- | ------------------------ | ------------- | -------------------------------- | ------------------------------- | ------------------------------------- |
-| `tsc --noEmit` 类型检查 | 通过            | 通过                     | 通过          | 通过                             | 通过                            | 通过                                  |
-| `eslint .`              | 通过            | 通过                     | 通过          | 通过                             | 通过                            | 通过                                  |
-| `stylelint`             | 通过            | 通过（playground）       | —             | 通过（含 `App.less`）            | 通过（含 `App.less`）           | 通过                                  |
-| `vitest run` 单元测试   | 通过（2/2）     | 通过（137/137）          | 通过（20/20） | 通过（25/25，含浏览器渲染测试）  | 通过（12/12，含浏览器渲染测试） | 通过（147/147，含场景契约与操控内核） |
-| `vite build` 生产构建   | 通过            | 通过（26.53 kB）         | —             | 通过（CSS 11.92 · JS 258.61 kB） | 通过（CSS 5.41 · JS 255.68 kB） | 通过（CSS 6.05 · JS 841.34 kB）       |
-| dev server 启动         | 通过（:3000）   | playground 通过（:3100） | —             | 通过（:3200）                    | 通过（:3300）                   | 通过（:3400）                         |
+| 校验项                  | platform-portal                 | common-tools                      | common-api                           | platform-log-console             | platform-event-console          | platform-environment                  |
+| ----------------------- | ------------------------------- | --------------------------------- | ------------------------------------ | -------------------------------- | ------------------------------- | ------------------------------------- |
+| `tsc --noEmit` 类型检查 | 通过                            | 通过                              | 通过                                 | 通过                             | 通过                            | 通过                                  |
+| `eslint .`              | 通过                            | 通过                              | 通过                                 | 通过                             | 通过                            | 通过                                  |
+| `stylelint`             | 通过                            | 通过（playground）                | —                                    | 通过（含 `App.less`）            | 通过（含 `App.less`）           | 通过                                  |
+| `vitest run` 单元测试   | 通过（2/2）                     | 通过（168/168，含认证钩子与会话） | 通过（36/36，含认证接线与 401 串联） | 通过（25/25，含浏览器渲染测试）  | 通过（12/12，含浏览器渲染测试） | 通过（182/182，含场景契约与操控内核） |
+| `vite build` 生产构建   | 通过（CSS 3.39 · JS 450.99 kB） | 通过（31.93 kB）                  | —                                    | 通过（CSS 11.92 · JS 261.80 kB） | 通过（CSS 5.41 · JS 258.91 kB） | 通过（CSS 7.00 · JS 861.23 kB）       |
+| dev server 启动         | 通过（:3000）                   | playground 通过（:3100）          | —                                    | 通过（:3200）                    | 通过（:3300）                   | 通过（:3400）                         |
 
 **微前端链路**另有一项端到端验证（`node scripts/verify-micro-frontend.mjs`，需四个服务在跑）：基座导航挂载子应用 → 全局状态下发 → 子应用经基座代理请求后端 → 切换子应用 → 返回首页验证卸载清理（标记清空、`window.__MICRO_HOST__` 归 `undefined`；三维应用额外断言 WebGL 上下文已 lost、画布已移除）。这是一项**运行时**验证，不在上表的逐包检查范围内。
 
@@ -232,7 +232,7 @@ git config core.hooksPath web/.husky
 ## 八、待补充
 
 - 子应用 `platform-user`、`platform-admin` 尚未创建（qiankun 主应用与两个控制台子应用的接线已完成，新增子应用按 `platform/platform-portal/README.md` 的三步走）。**它们的前置依赖是登录态与权限下发**：归属与落地顺序见 `docs/decisions/0018-权限在微前端中的归属.md` —— 没有会话与权限，业务子应用建出来也只能是空壳
-- 前端**尚未消费任何认证接口**：后端的 8 条 auth 接口（`docs/decisions/0016`）已就绪，基座的「登录」按钮目前仍只是切换 `userId` 的调试开关。落地顺序见 `docs/decisions/0018`
+- 前端**已接通认证链路的传输层**：`common-tools/http` 具备令牌注入与 401 恢复（刷新单飞）、`common-tools/session` 管令牌存取、`common-api` 的 `createAuthChannel` 把三方接起来，均有单测。**但界面侧尚未接入**——基座的「登录」按钮仍只是切换 `userId` 的调试开关，登录页、路由守卫与权限下发是下一步（`docs/decisions/0018` 第②段）。权限域的**管理接口**随 `platform-admin` 一起接（同文档第③段）
 - **被基座加载时，子应用的 React 组件级热更新不生效**（样式热更新、以及子应用单独跑时的组件热更新都正常）。根因未定位，当前工作方式是改子应用组件时单独跑该子应用。详见 `docs/decisions/0012` 的「已知限制」
 - 微前端**生产部署**尚未落地：现在只有 dev（`//localhost:<port>`）与占位 `prodEntry`，真实静态目录与网关规则需要与部署方案一起定
 - 子应用的**样式隔离**当前没有保障（Vite dev 下框架级隔离拿不到），靠各应用自己的命名与 Less 令牌自律

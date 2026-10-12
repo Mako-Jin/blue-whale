@@ -15,6 +15,7 @@ export type { HttpErrorInit, HttpErrorKind } from './errors';
 
 export type {
   ApiEnvelope,
+  AuthLostHandler,
   HttpClient,
   HttpConfig,
   HttpMethod,
@@ -22,4 +23,6 @@ export type {
   RequestContext,
   RequestOptions,
   ResponseContext,
+  UnauthorizedContext,
+  UnauthorizedHandler,
 } from './types';

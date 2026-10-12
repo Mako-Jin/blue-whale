@@ -14,12 +14,12 @@ docs/api/openapi.json
 
 契约版本 `0.1.0`，标题「BlueWhale 服务端 API」，共 **25 个接口**。
 
-| 域       | 模块               | 接口数 | 说明                                              |
-| -------- | ------------------ | ------ | ------------------------------------------------- |
-| 日志     | `sts-server-log`   | 5      | 客户端日志上报 / 查询 / 聚合                      |
-| 行为事件 | `sts-server-track` | 4      | 客户端行为事件上报 / 查询 / 聚合                  |
-| 权限     | `sts-server-auth`  | 15     | 认证 4 + 租户 5 + 用户 6（详见下表）              |
-| 系统     | `sts-app-server`   | 1      | 健康检查                                          |
+| 域       | 模块               | 接口数 | 说明                                 |
+| -------- | ------------------ | ------ | ------------------------------------ |
+| 日志     | `sts-server-log`   | 5      | 客户端日志上报 / 查询 / 聚合         |
+| 行为事件 | `sts-server-track` | 4      | 客户端行为事件上报 / 查询 / 聚合     |
+| 权限     | `sts-server-auth`  | 15     | 认证 4 + 租户 5 + 用户 6（详见下表） |
+| 系统     | `sts-app-server`   | 1      | 健康检查                             |
 
 ### 日志域（`sts-server-log`）
 
@@ -56,17 +56,17 @@ docs/api/openapi.json
 
 **认证**（`/api/auth/*`）—— 唯一的公开入口是 `login` / `refresh` / `logout`；其余需带 `Authorization: Bearer <access>`。
 
-| 方法   | 路径                       | 所需权限   | 说明                                                                     |
-| ------ | -------------------------- | ---------- | ------------------------------------------------------------------------ |
-| `POST` | `/api/auth/login`          | 公开       | 登录，签发 access + refresh。**刻意不区分"账号不存在"与"口令错误"**       |
-| `POST` | `/api/auth/refresh`        | 公开       | 刷新令牌。**轮换 + 重放检测**：已作废的 jti 再次使用 → 撤销该用户全部刷新令牌 |
-| `POST` | `/api/auth/logout`         | 公开       | 登出（幂等）。不传令牌则撤销该用户全部刷新令牌                            |
-| `GET`  | `/api/auth/me`             | 仅需登录   | 当前登录者信息，**含其全部权限标识**（前端据此做菜单/按钮级控制）         |
+| 方法   | 路径                | 所需权限 | 说明                                                                                                                         |
+| ------ | ------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `POST` | `/api/auth/login`   | 公开     | 登录，签发 access + refresh。**刻意不区分"账号不存在"与"口令错误"**                                                          |
+| `POST` | `/api/auth/refresh` | 公开     | 刷新令牌。**轮换 + 重放检测**：已作废的 jti 再次使用 → 撤销该用户全部刷新令牌                                                |
+| `POST` | `/api/auth/logout`  | 公开     | 登出（幂等）。不传令牌则撤销该用户全部刷新令牌                                                                               |
+| `GET`  | `/api/auth/me`      | 仅需登录 | 当前登录者信息，**含其全部权限标识**。前端由基座单点取用后经全局状态下发，子应用**不得自行调用**（见 `docs/decisions/0018`） |
 
 **租户**
 
-| 方法     | 路径                     | 所需权限          |
-| -------- | ------------------------ | ----------------- |
+| 方法     | 路径                     | 所需权限             |
+| -------- | ------------------------ | -------------------- |
 | `GET`    | `/api/auth/tenants`      | `auth:tenant:read`   |
 | `POST`   | `/api/auth/tenants`      | `auth:tenant:create` |
 | `GET`    | `/api/auth/tenants/{id}` | `auth:tenant:read`   |
@@ -75,14 +75,14 @@ docs/api/openapi.json
 
 **用户**
 
-| 方法     | 路径                              | 所需权限        | 说明                                     |
-| -------- | --------------------------------- | --------------- | ---------------------------------------- |
-| `GET`    | `/api/auth/users`                 | `auth:user:read`   | 分页查询，受租户隔离                     |
-| `POST`   | `/api/auth/users`                 | `auth:user:create` | 新建，租户默认取当前登录者               |
-| `GET`    | `/api/auth/users/{id}`            | `auth:user:read`   |                                          |
-| `PUT`    | `/api/auth/users/{id}`            | `auth:user:update` |                                          |
-| `DELETE` | `/api/auth/users/{id}`            | `auth:user:delete` | **不能删自己**                           |
-| `POST`   | `/api/auth/users/{id}/password`   | `auth:user:update` | 重置口令，**置为需改密并解锁账号**       |
+| 方法     | 路径                            | 所需权限           | 说明                               |
+| -------- | ------------------------------- | ------------------ | ---------------------------------- |
+| `GET`    | `/api/auth/users`               | `auth:user:read`   | 分页查询，受租户隔离               |
+| `POST`   | `/api/auth/users`               | `auth:user:create` | 新建，租户默认取当前登录者         |
+| `GET`    | `/api/auth/users/{id}`          | `auth:user:read`   |                                    |
+| `PUT`    | `/api/auth/users/{id}`          | `auth:user:update` |                                    |
+| `DELETE` | `/api/auth/users/{id}`          | `auth:user:delete` | **不能删自己**                     |
+| `POST`   | `/api/auth/users/{id}/password` | `auth:user:update` | 重置口令，**置为需改密并解锁账号** |
 
 > **权限标识的写法与取值**是跨端约定，见 `sts-server-auth` 的 `AuthPermissions` 与 ADR-0016；`/api/auth/me` 返回的 `permissions` 与这里逐字一致。
 >
@@ -90,33 +90,33 @@ docs/api/openapi.json
 
 ### 关键数据模型
 
-| 模型                        | 说明                                                                                                                                         |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ClientLogItem`             | 单条上报日志（`level` / `namespace` / `timestamp` / `message` / `data` / `context` / `traceId` / `sessionId` / `route` / `release`）         |
-| `ClientLogReportRequest`    | 批量上报请求体：`app` / `release` / `sessionId` / `logs[]`                                                                                   |
-| `ClientLogReportResultVO`   | 上报结果：`accepted` / `rejected`                                                                                                            |
-| `ClientLogVO`               | 服务端返回的日志记录（含服务端生成的 `id` / `serverTime` / `ip`）                                                                            |
-| `ClientLogStatsVO`          | 聚合结果：`total` / `levels[]` / `startTime` / `endTime`                                                                                     |
-| `PageResultClientLogVO`     | 分页结果：`records` / `total` / `page` / `size` / `pages`                                                                                    |
-| `ClientEventItem`           | 单条上报事件（`eventId` / `eventName` / `userId` / `deviceId` / `sessionId` / `route` / `release` / `props` / `propsVersion` / `timestamp`） |
-| `ClientEventReportRequest`  | 批量上报请求体：`app`（必填） / `release` / `sessionId` / `events[]`（必填）                                                                 |
-| `ClientEventReportResultVO` | 上报结果：`accepted` / `rejected`                                                                                                            |
-| `ClientEventVO`             | 服务端返回的事件记录（含服务端生成的 `id` / `serverTime` / `ip`）                                                                            |
-| `ClientEventStatsVO`        | 聚合结果：`total` / `names[]`（`ClientEventNameCount`） / `startTime` / `endTime`                                                            |
-| `PageResultClientEventVO`   | 分页结果，结构同日志域                                                                                                                       |
-| `HealthVO`                  | 健康检查：`status` / `application` / `dependencies`                                                                                          |
-| `LoginRequest`              | 登录入参：`tenantCode` / `username` / `password`（**三者均必填**）                                                                           |
-| `LoginVO`                   | 登录结果：`accessToken` / `refreshToken` / `tokenType` / `expiresIn` / `userId` / `username` / `displayName` / `tenantId` / `tenantCode` / `roles[]` / `permissions[]` |
-| `RefreshRequest`            | 刷新入参：`refreshToken`（必填）                                                                                                             |
-| `MeVO`                      | 当前登录者：`userId` / `username` / `displayName` / `tenantId` / `tenantCode` / `roles[]` / `permissions[]`                                   |
-| `TenantSaveRequest`         | 租户新建/更新入参：`tenantCode`\* / `tenantName`\* / `parentId` / `description` / `status` / `allowRegister` / `allowAdd`（**`tenantCode` 创建后不可改**） |
-| `TenantVO`                  | 租户视图：`id` / `tenantCode` / `tenantName` / `parentId` / `tenantLevel` / `status` / `description` / `allowRegister` / `allowAdd` / `createTime` / `updateTime` / `hasChild` |
-| `UserSaveRequest`           | 用户新建/更新入参：`tenantId` / `username`\* / `displayName` / `email` / `phone` / `password` / `status`                                     |
-| `PasswordResetRequest`      | 重置口令入参：`password`\*（重置后置为"需改密"并解锁账号）                                                                                    |
-| `UserVO`                    | 用户视图：`id` / `tenantId` / `username` / `displayName` / `email` / `phone` / `status` / `failedAttempts` / `lockedUntil` / `lastLoginAt` / `mfaEnabled` / `avatarUrl` / `createTime` / `updateTime` —— **不含任何口令字段，连哈希也不返回** |
-| `PageResultTenantVO` / `PageResultUserVO` | 分页结果，结构同日志域（`records` / `total` / `page` / `size` / `pages`）                                                        |
-| `RVoid`                     | 无数据的成功响应（`data` 为空），用于删除与重置口令这类"只关心成败"的接口                                                                    |
-| `R*` 前缀                   | 统一响应包装 `R<T>`：`code` / `message` / `data` / `timestamp`                                                                               |
+| 模型                                      | 说明                                                                                                                                                                                                                                          |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ClientLogItem`                           | 单条上报日志（`level` / `namespace` / `timestamp` / `message` / `data` / `context` / `traceId` / `sessionId` / `route` / `release`）                                                                                                          |
+| `ClientLogReportRequest`                  | 批量上报请求体：`app` / `release` / `sessionId` / `logs[]`                                                                                                                                                                                    |
+| `ClientLogReportResultVO`                 | 上报结果：`accepted` / `rejected`                                                                                                                                                                                                             |
+| `ClientLogVO`                             | 服务端返回的日志记录（含服务端生成的 `id` / `serverTime` / `ip`）                                                                                                                                                                             |
+| `ClientLogStatsVO`                        | 聚合结果：`total` / `levels[]` / `startTime` / `endTime`                                                                                                                                                                                      |
+| `PageResultClientLogVO`                   | 分页结果：`records` / `total` / `page` / `size` / `pages`                                                                                                                                                                                     |
+| `ClientEventItem`                         | 单条上报事件（`eventId` / `eventName` / `userId` / `deviceId` / `sessionId` / `route` / `release` / `props` / `propsVersion` / `timestamp`）                                                                                                  |
+| `ClientEventReportRequest`                | 批量上报请求体：`app`（必填） / `release` / `sessionId` / `events[]`（必填）                                                                                                                                                                  |
+| `ClientEventReportResultVO`               | 上报结果：`accepted` / `rejected`                                                                                                                                                                                                             |
+| `ClientEventVO`                           | 服务端返回的事件记录（含服务端生成的 `id` / `serverTime` / `ip`）                                                                                                                                                                             |
+| `ClientEventStatsVO`                      | 聚合结果：`total` / `names[]`（`ClientEventNameCount`） / `startTime` / `endTime`                                                                                                                                                             |
+| `PageResultClientEventVO`                 | 分页结果，结构同日志域                                                                                                                                                                                                                        |
+| `HealthVO`                                | 健康检查：`status` / `application` / `dependencies`                                                                                                                                                                                           |
+| `LoginRequest`                            | 登录入参：`tenantCode` / `username` / `password`（**三者均必填**）                                                                                                                                                                            |
+| `LoginVO`                                 | 登录结果：`accessToken` / `refreshToken` / `tokenType` / `expiresIn` / `userId` / `username` / `displayName` / `tenantId` / `tenantCode` / `roles[]` / `permissions[]`                                                                        |
+| `RefreshRequest`                          | 刷新入参：`refreshToken`（必填）                                                                                                                                                                                                              |
+| `MeVO`                                    | 当前登录者：`userId` / `username` / `displayName` / `tenantId` / `tenantCode` / `roles[]` / `permissions[]`                                                                                                                                   |
+| `TenantSaveRequest`                       | 租户新建/更新入参：`tenantCode`\* / `tenantName`\* / `parentId` / `description` / `status` / `allowRegister` / `allowAdd`（**`tenantCode` 创建后不可改**）                                                                                    |
+| `TenantVO`                                | 租户视图：`id` / `tenantCode` / `tenantName` / `parentId` / `tenantLevel` / `status` / `description` / `allowRegister` / `allowAdd` / `createTime` / `updateTime` / `hasChild`                                                                |
+| `UserSaveRequest`                         | 用户新建/更新入参：`tenantId` / `username`\* / `displayName` / `email` / `phone` / `password` / `status`                                                                                                                                      |
+| `PasswordResetRequest`                    | 重置口令入参：`password`\*（重置后置为"需改密"并解锁账号）                                                                                                                                                                                    |
+| `UserVO`                                  | 用户视图：`id` / `tenantId` / `username` / `displayName` / `email` / `phone` / `status` / `failedAttempts` / `lockedUntil` / `lastLoginAt` / `mfaEnabled` / `avatarUrl` / `createTime` / `updateTime` —— **不含任何口令字段，连哈希也不返回** |
+| `PageResultTenantVO` / `PageResultUserVO` | 分页结果，结构同日志域（`records` / `total` / `page` / `size` / `pages`）                                                                                                                                                                     |
+| `RVoid`                                   | 无数据的成功响应（`data` 为空），用于删除与重置口令这类"只关心成败"的接口                                                                                                                                                                     |
+| `R*` 前缀                                 | 统一响应包装 `R<T>`：`code` / `message` / `data` / `timestamp`                                                                                                                                                                                |
 
 > **业务失败同样返回 HTTP 200。** 契约的 `description` 里写明了这一点：结果只由 `code` 表达，调用方统一判断 `code === 0`。传输层失败（401/403/404/5xx）由框架按标准返回，不套统一包装。
 

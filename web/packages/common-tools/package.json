@@ -38,6 +38,10 @@
     "./micro": {
       "types": "./src/micro/index.ts",
       "import": "./src/micro/index.ts"
+    },
+    "./session": {
+      "types": "./src/session/index.ts",
+      "import": "./src/session/index.ts"
     }
   },
   "files": [

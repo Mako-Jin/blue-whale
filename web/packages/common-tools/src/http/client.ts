@@ -17,6 +17,7 @@ import type {
   RequestContext,
   RequestOptions,
   QueryValue,
+  UnauthorizedContext,
 } from './types';
 
 const DEFAULT_TIMEOUT = 15_000;
@@ -112,6 +113,43 @@ export function createHttpClient(config: HttpConfig = {}): HttpClient {
     ? fetchImpl
     : (input, init) => globalThis.fetch(input, init);
   const log: Logger | null = config.logger === undefined ? rootLogger.child('http') : config.logger;
+  const accessTokenProvider = config.accessTokenProvider;
+  const onUnauthorized = config.onUnauthorized;
+  const onAuthLost = config.onAuthLost;
+
+  /**
+   * 认证恢复去重（single-flight）。
+   *
+   * <p><b>这不是性能优化，是正确性要求。</b>刷新令牌是**轮换**的：并发的第二次刷新
+   * 持的是刚被作废的旧令牌，服务端会判成重放攻击并撤销该用户**全部**会话。
+   * 因此同一个客户端上的并发 401 必须合并成一次恢复 —— 见 `docs/decisions/0018`。
+   *
+   * <p>处理器抛错按"恢复失败"处理，不上抛：它只是失败链条上的一环，
+   * 调用方真正关心的是"我这次请求失败了"，而不是"刷新接口报错了"。
+   */
+  let pendingReauth: Promise<boolean> | null = null;
+
+  function reauthenticate(context: UnauthorizedContext): Promise<boolean> {
+    const handler = onUnauthorized;
+    if (!handler) return Promise.resolve(false);
+    if (!pendingReauth) {
+      const started = Promise.resolve()
+        .then(() => handler(context))
+        .then(
+          (recovered) => recovered === true,
+          (cause: unknown) => {
+            log?.warn('认证恢复失败，按未恢复处理', {
+              message: cause instanceof Error ? cause.message : String(cause),
+            });
+            return false;
+          },
+        );
+      pendingReauth = started.finally(() => {
+        pendingReauth = null;
+      });
+    }
+    return pendingReauth;
+  }
 
   function reportError(error: HttpError, silent: boolean | undefined): void {
     config.onError?.(error);
@@ -179,69 +217,137 @@ export function createHttpClient(config: HttpConfig = {}): HttpClient {
     // 请求还没发出去就已经被标记为中断，行为与"取消一个进行中的请求"完全不同。
     if (config.onRequest) await config.onRequest(context);
 
-    let response: Response;
+    /** 内核注入令牌时用的实际头名（调用方可能写成小写的 `authorization`，需按原名改写） */
+    let injectedHeaderKey: string | undefined;
+
+    /** 是否"带着令牌"发出 —— 没带令牌却收到 401 时，刷新没有意义，不该白跑一次 */
+    let sentWithToken = false;
+
+    /**
+     * 取一次令牌并注入。
+     *
+     * <p>**重试路径必须重新调用**：刷新成功后令牌已经换了，
+     * 沿用第一次取到的值等于带着刚作废的令牌再撞一次 401。
+     */
+    function attachToken(): void {
+      if (!options.skipAuth && accessTokenProvider) {
+        const token = accessTokenProvider();
+        if (token) {
+          const existing = findHeaderKey(headers, 'authorization');
+          // 调用方显式设置的头**不覆盖**；但内核上一轮注入的**必须覆盖**
+          if (!existing) {
+            headers.Authorization = `Bearer ${token}`;
+            injectedHeaderKey = 'Authorization';
+          } else if (existing === injectedHeaderKey) {
+            headers[existing] = `Bearer ${token}`;
+          }
+        }
+      }
+      sentWithToken = findHeaderKey(headers, 'authorization') !== undefined;
+    }
+
+    attachToken();
+
     try {
-      response = await doFetch(url, { method, headers, body, signal: controller.signal });
-    } catch (cause) {
-      const transportError = toTransportError(cause, { url, method, timedOut, timeout });
-      reportError(transportError, options.silent);
-      throw transportError;
+      /*
+       * 最多两次：首次 + 认证恢复后的一次重试。
+       *
+       * 刻意不做得更多：401 反复出现说明问题不在"令牌过期"，而在配置或权限侧，
+       * 重试只会把问题放大成一串请求。
+       */
+      for (let attempt = 1; ; attempt += 1) {
+        let response: Response;
+        try {
+          response = await doFetch(url, { method, headers, body, signal: controller.signal });
+        } catch (cause) {
+          const transportError = toTransportError(cause, { url, method, timedOut, timeout });
+          reportError(transportError, options.silent);
+          throw transportError;
+        }
+
+        config.onResponse?.({ ...context, status: response.status, response });
+
+        const traceId = response.headers.get('x-trace-id') ?? undefined;
+
+        // 204 无内容：按约定直接返回 undefined，不当作"响应体不符合结构"
+        if (response.status === 204) return undefined as T;
+
+        const payload = await readBody(response);
+
+        if (!response.ok) {
+          const error = new HttpStatusError({
+            message:
+              extractMessage(payload) ?? `HTTP ${response.status} ${response.statusText}`.trim(),
+            url,
+            method,
+            status: response.status,
+            traceId,
+            data: payload,
+          });
+
+          /*
+           * 只有 401 值得救：403 是"登录了但没这个权限"，换多少个令牌也换不来权限。
+           */
+          const recoverable =
+            response.status === 401 &&
+            attempt === 1 &&
+            sentWithToken &&
+            options.skipAuthRetry !== true &&
+            onUnauthorized !== undefined &&
+            !controller.signal.aborted;
+
+          if (recoverable) {
+            const recovered = await reauthenticate({ url, method });
+            if (recovered && !controller.signal.aborted) {
+              log?.debug('收到 401，会话已恢复，重试一次', { url, method });
+              attachToken();
+              continue;
+            }
+          }
+
+          // 带着令牌仍 401，而恢复已无意义（或恢复后重试依然 401）⇒ 会话确实失效了
+          if (response.status === 401 && sentWithToken && options.skipAuthRetry !== true) {
+            onAuthLost?.();
+          }
+
+          reportError(error, options.silent);
+          throw error;
+        }
+
+        if (!shouldUnwrap) return payload as T;
+
+        if (!isEnvelope(payload)) {
+          const error = new ParseError({
+            message: '响应体不符合统一响应结构（缺少 code / data 字段）',
+            url,
+            method,
+            status: response.status,
+            traceId,
+            data: payload,
+          });
+          reportError(error, options.silent);
+          throw error;
+        }
+
+        if (payload.code !== successCode) {
+          const error = new BusinessError({
+            message: payload.message || `业务失败（code=${payload.code}）`,
+            url,
+            method,
+            status: response.status,
+            code: payload.code,
+            traceId,
+            data: payload.data,
+          });
+          reportError(error, options.silent);
+          throw error;
+        }
+
+        return payload.data as T;
+      }
     } finally {
       if (timer) clearTimeout(timer);
     }
-
-    config.onResponse?.({ ...context, status: response.status, response });
-
-    const traceId = response.headers.get('x-trace-id') ?? undefined;
-
-    // 204 无内容：按约定直接返回 undefined，不当作"响应体不符合结构"
-    if (response.status === 204) return undefined as T;
-
-    const payload = await readBody(response);
-
-    if (!response.ok) {
-      const error = new HttpStatusError({
-        message: extractMessage(payload) ?? `HTTP ${response.status} ${response.statusText}`.trim(),
-        url,
-        method,
-        status: response.status,
-        traceId,
-        data: payload,
-      });
-      reportError(error, options.silent);
-      throw error;
-    }
-
-    if (!shouldUnwrap) return payload as T;
-
-    if (!isEnvelope(payload)) {
-      const error = new ParseError({
-        message: '响应体不符合统一响应结构（缺少 code / data 字段）',
-        url,
-        method,
-        status: response.status,
-        traceId,
-        data: payload,
-      });
-      reportError(error, options.silent);
-      throw error;
-    }
-
-    if (payload.code !== successCode) {
-      const error = new BusinessError({
-        message: payload.message || `业务失败（code=${payload.code}）`,
-        url,
-        method,
-        status: response.status,
-        code: payload.code,
-        traceId,
-        data: payload.data,
-      });
-      reportError(error, options.silent);
-      throw error;
-    }
-
-    return payload.data as T;
   }
 
   return {

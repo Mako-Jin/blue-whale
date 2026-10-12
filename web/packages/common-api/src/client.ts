@@ -1,6 +1,8 @@
 import { createHttpClient } from 'common-tools/http';
 import type { HttpClient, HttpConfig } from 'common-tools/http';
 
+import { createAuthApi } from './auth';
+import type { AuthApi } from './auth';
 import { createEventApi } from './events';
 import type { EventApi } from './events';
 import { createLogApi } from './log';
@@ -12,6 +14,7 @@ import type { SystemApi } from './system';
 export interface ApiClient {
   /** 底层请求客户端，需要临时调一个尚未纳入契约的接口时用 */
   readonly http: HttpClient;
+  readonly auth: AuthApi;
   readonly log: LogApi;
   readonly event: EventApi;
   readonly system: SystemApi;
@@ -38,6 +41,7 @@ export function createApiClient(config: HttpConfig = {}): ApiClient {
   const http = createHttpClient(config);
   return {
     http,
+    auth: createAuthApi(http),
     log: createLogApi(http),
     event: createEventApi(http),
     system: createSystemApi(http),

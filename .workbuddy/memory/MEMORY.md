@@ -90,15 +90,17 @@ React 19 + Vite 8 + TS **6.0.3**（7.x 不被 typescript-eslint 支持）+ Route
 - 样式隔离指望不上框架；**已知限制**：被基座加载时子应用 React 组件级热更新不生效 → 改组件时单独跑子应用
 - 未做：`platform-user` / `admin` · 生产部署与网关规则 · 样式前缀去重 · 子应用错误边界
 
-## 10 权限归属（ADR-0018，前端尚未消费任何 auth 接口）
+## 10 权限归属（ADR-0018；①段已落地，②基座/③子应用待做）
 
 **三件事分开**：会话（登录/令牌/刷新）**实现在 `packages/`、基座只装配**（子应用必须保留独立运行分支，登录逻辑写死在基座则单跑没有登录能力）· 权限判定**基座单点计算 → `HostGlobalState` 增 `roles`/`permissions` 下发**，子应用**不得自调 `/api/auth/me`** · 权限管理界面独立成 `platform-admin`。**不开认证子应用**（首屏零阻塞 / 令牌绕圈回来 / 守卫分裂两处）。
 
 - 权限码 = 后端 `AuthPermissions` 的 `域:资源:动作`（`auth:user:create`），**前端禁拼接自造**
-- **权限不在令牌里**（`JwtCodec` 载荷只有 uid/tid/uname/typ/jti/iss/aud/iat/exp）→ 刷新页面必须做**会话恢复**（调 `/me`）
-- **401 刷新必须单飞**：刷新令牌轮换 + 重放检测，并发刷新会被判为重放 → **撤销该用户全部刷新令牌**（前端时序 bug 升级成全体被踢）
+- **权限不在令牌里**（`JwtCodec` 载荷只有 uid/tid/uname/typ/jti/iss/aud/iat/exp），但 **`LoginVO`/`MeVO` 自带 roles/permissions** → `restore()` 走**刷新接口**（一次请求即恢复），`/me` 留给 `reload()`
+- **401 刷新必须单飞**：刷新令牌轮换 + 重放检测，并发刷新会被判为重放 → **撤销该用户全部刷新令牌**（前端时序 bug 升级成全体被踢）。内核用 `pendingReauth` 合并，`skipAuthRetry` 让刷新请求自身豁免（否则递归）
 - 令牌：access 放内存、refresh 持久化（轮换与重放检测兜底 XSS）；httpOnly cookie 未做
-- 落地顺序：① 契约与传输层 → ② 基座装配（登录页/守卫/下发）→ ③ 子应用消费（按钮级权限）
+- **`common-tools` 新增 `session` 子路径** → 新模块要同时加 `package.json` 的 `exports`，否则 `common-tools/session` 报找不到模块
+- **契约路径自带 `/api` 前缀** → `baseUrl` 必须留空（写 `/api` 会拼成 `/api/api/...`）；README 的老示例曾写错，已改
+- 落地顺序：① 契约与传输层（**已完成**：http 钩子 + session + `createAuthChannel`，common-tools 168 例 / common-api 36 例）→ ② 基座装配（登录页/守卫/下发）→ ③ 子应用消费（按钮级权限）
 
 ## 11 三维环境（ADR-0013 / 0014 / 0015 / 0017，:3400）
 

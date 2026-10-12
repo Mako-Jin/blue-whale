@@ -15,6 +15,18 @@
 export { createApiClient } from './client';
 export type { ApiClient } from './client';
 
+export { createAuthApi, toExpiresAt, toSessionTokens, toSessionUser } from './auth';
+export type {
+  AuthApi,
+  AuthLoginRequest,
+  AuthLoginResult,
+  AuthMe,
+  AuthRefreshRequest,
+} from './auth';
+
+export { createAuthChannel } from './channel';
+export type { AuthChannel, AuthChannelConfig, ChannelApi } from './channel';
+
 export { createLogApi } from './log';
 export type {
   ClientLogItem,

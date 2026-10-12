@@ -2,21 +2,24 @@
 
 与框架无关的通用工具集。**不依赖 React / Vue，不依赖任何运行时第三方库**，因此应用、构建脚本、Node 工具链都能直接用。
 
-当前包含七个模块：
+当前包含八个模块：
 
-| 模块     | 入口                  | 内容                                                 |
-| -------- | --------------------- | ---------------------------------------------------- |
-| `logger` | `common-tools/logger` | 分级日志、命名空间层级、主题配色、同构渲染           |
-| `env`    | `common-tools/env`    | 运行环境探测、构建模式、调试模式与生产域名兜底       |
-| `http`   | `common-tools/http`   | 请求内核：发请求、解包统一响应、错误分类             |
-| `json`   | `common-tools/json`   | JSON 安全层：把任意值修剪成可序列化形态              |
-| `report` | `common-tools/report` | 通用批量上报通道：批量、有界、退避、不抛异常         |
-| `events` | `common-tools/events` | 行为事件内核：`track()` 语义化发布 + 内部总线 + 订阅 |
-| `micro`  | `common-tools/micro`  | 微前端桥接：子应用侧接住基座下发的 props 与全局状态  |
+| 模块      | 入口                   | 内容                                                          |
+| --------- | ---------------------- | ------------------------------------------------------------- |
+| `logger`  | `common-tools/logger`  | 分级日志、命名空间层级、主题配色、同构渲染                    |
+| `env`     | `common-tools/env`     | 运行环境探测、构建模式、调试模式与生产域名兜底                |
+| `http`    | `common-tools/http`    | 请求内核：发请求、解包统一响应、错误分类、令牌注入与 401 恢复 |
+| `session` | `common-tools/session` | 会话存取：令牌存放策略、身份与权限快照、变更订阅              |
+| `json`    | `common-tools/json`    | JSON 安全层：把任意值修剪成可序列化形态                       |
+| `report`  | `common-tools/report`  | 通用批量上报通道：批量、有界、退避、不抛异常                  |
+| `events`  | `common-tools/events`  | 行为事件内核：`track()` 语义化发布 + 内部总线 + 订阅          |
+| `micro`   | `common-tools/micro`   | 微前端桥接：子应用侧接住基座下发的 props 与全局状态           |
 
 `json` / `report` / `events` 三个模块是**行为事件管道**的底座（见 `docs/decisions/0011`）。它们被拆成三层而不是合成一个 "analytics" 包，原因是复用面完全不同：`json` 与 `report` 是**通道属性**，日志管道也在用；`events` 才是事件语义本身。
 
 `micro` 的位置值得说明：它是**子应用侧**的代码，本该属于子应用；但两个控制台都要用同一套逻辑，而**子应用之间禁止互相引用**（铁律 5），公共代码只能下沉到 `packages/`。于是它落在这里，并且刻意做成**结构化描述、不依赖 qiankun 类型**——这样本包"不依赖任何运行时第三方库"的约束不被破坏，桥接也不会被绑死在 qiankun 上。
+
+`session` 落在本包的理由与 `micro` 同源：基座与所有子应用都要用**同一份**会话逻辑，而应用之间禁止互相引用。它刻意**不 import qiankun、不碰任何界面**——因此同一份实现既能被基座驱动，也能被子应用单独驱动（子应用单跑时把状态的提供方换成它自己的 store）。归属与分工见 `docs/decisions/0018`。
 
 ---
 
@@ -50,9 +53,13 @@ packages/common-tools/
 │   │   └── index.ts          运行环境与调试模式
 │   ├── http/
 │   │   ├── index.ts          模块出口
-│   │   ├── types.ts          客户端配置、单次请求选项、统一响应信封
+│   │   ├── types.ts          客户端配置、单次请求选项、统一响应信封、认证钩子
 │   │   ├── errors.ts         六类错误 + HttpError 基类 + retryable 判据
 │   │   └── client.ts         请求内核（刻意不认识任何业务接口）
+│   ├── session/
+│   │   ├── index.ts          模块出口
+│   │   ├── types.ts          SessionUser / SessionTokens / SessionSnapshot / SessionStore
+│   │   └── store.ts          createSessionStore：令牌存取与订阅（存储可注入）
 │   ├── json/
 │   │   └── index.ts          JsonValue 类型 + sanitize / sanitizeObject
 │   ├── report/
@@ -65,7 +72,7 @@ packages/common-tools/
 │       ├── index.ts          模块出口
 │       ├── types.ts          HostProps / HostGlobalState（结构化描述，不 import qiankun）
 │       └── bridge.ts         bindHost / unbindHost / getHostGlobalState…
-├── tests/                    Vitest 单元测试（131 例）
+├── tests/                    Vitest 单元测试（168 例）
 ├── playground/               可视化演示（纯 DOM，可运行）
 ├── eslint.config.js          引用 common-config，额外放行本包的 console 调用
 ├── stylelint.config.js       一行 re-export common-config 共享配置
@@ -315,7 +322,9 @@ logger.error(new Error('远程服务不可用')); // 自动带上错误对象以
 import { createHttpClient, isHttpError } from 'common-tools/http';
 
 const http = createHttpClient({
-  baseUrl: '/api',
+  // 契约里的路径自带 `/api` 前缀，所以基地址留空；
+  // 写成 baseUrl: '/api' 会拼出 `/api/api/logs/client`
+  baseUrl: '',
   timeout: 10_000,
   traceIdProvider: () => currentTraceId, // 注入 X-Trace-Id，前后端日志可串
   onError: (error) => reportToMonitor(error),
@@ -377,6 +386,38 @@ try {
 
 超时也是通过 `abort()` 实现的，两者抛出的都是 `AbortError`。因此判断顺序是 `timedOut → AbortError → NetworkError`。若先按 `AbortError` 归类，超时会被报成"被主动取消"，排查时会去找"谁取消了这个请求"，而真正的原因（服务端太慢）被完全掩盖。
 
+### 令牌注入与 401 恢复（内核只留注入位）
+
+内核**不认识"刷新令牌接口"**（那是业务契约），**也不认识登录页**（那是界面）。它只提供三个注入位，由应用层决定怎么救：
+
+```ts
+const http = createHttpClient({
+  accessTokenProvider: () => session.getAccessToken(), // 非空则注入 Authorization: Bearer
+  onUnauthorized: () => channel.reauthenticate(), // 401 时问一句"还能救吗"
+  onAuthLost: () => gotoLogin(), // 救不回来时通知界面
+});
+```
+
+| 规则                                         | 说明                                                                                                                                             |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **401 才救，403 不救**                       | 403 是"登录了但没这个权限"，换多少令牌也换不来权限                                                                                               |
+| **只重试一次**                               | 401 反复出现说明问题在配置或权限侧，重试只会把问题放大成一串请求                                                                                 |
+| **重试前重新取令牌**                         | 刷新成功后令牌已换，沿用第一次取到的值等于带着作废令牌再撞一次 401                                                                               |
+| **未带令牌的 401 不触发恢复**                | 请求本来就没令牌（公开接口），刷新毫无意义，白跑一次而已                                                                                         |
+| **并发 401 合并成一次恢复**（single-flight） | **正确性要求**：刷新令牌是轮换的，并发的第二次刷新持的是刚作废的旧令牌，服务端会判成重放攻击并撤销该用户**全部**会话（见 `docs/decisions/0018`） |
+| **恢复钩子抛错按"未恢复"处理**               | 抛出的是原始 401，而不是"刷新接口报错"——调用方关心的是自己这次请求失败                                                                           |
+
+`RequestOptions` 上有两个开关：
+
+| 选项            | 用途                                                                                                                            |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `skipAuth`      | 本次不注入令牌（公开接口：登录、刷新）                                                                                          |
+| `skipAuthRetry` | 本次不参与 401 自动恢复。**刷新接口自身必须置位** —— 否则刷新失败 → 401 → 触发刷新 → 再失败，递归下去刷新接口被自己打出一片 401 |
+
+> 令牌存哪、刷新成功后谁来存、会话失效后跳到哪，都不在这个内核里：
+> 存取在 `common-tools/session`，接线在 `common-api` 的 `createAuthChannel`。
+> 归属与分工见 `docs/decisions/0018-权限在微前端中的归属.md`。
+
 ### 日志与静默开关
 
 - `business` 失败记 **warn**，其余记 **error** —— 业务拒绝是预期行为，若也记 error，真正的故障告警会被正常业务拒绝淹没；
@@ -385,23 +426,72 @@ try {
 
 ### 配置项
 
-| 配置                                   | 默认                   | 说明                                       |
-| -------------------------------------- | ---------------------- | ------------------------------------------ |
-| `baseUrl`                              | `''`                   | 基地址；路径以 `http(s)://` 开头时原样使用 |
-| `timeout`                              | `15000`                | 毫秒，`0` 表示不超时                       |
-| `successCode`                          | `0`                    | 视为业务成功的 `code`                      |
-| `headers`                              | `{}`                   | 默认请求头                                 |
-| `unwrap`                               | `true`                 | 是否默认解开统一响应包装                   |
-| `traceIdProvider`                      | —                      | 返回非空值时注入 `X-Trace-Id`              |
-| `fetchImpl`                            | 全局 `fetch`           | 测试注入用                                 |
-| `logger`                               | `logger.child('http')` | 传 `null` 关闭                             |
-| `onRequest` / `onResponse` / `onError` | —                      | 钩子，用于补签名头、埋点、上报             |
+| 配置                                   | 默认                   | 说明                                               |
+| -------------------------------------- | ---------------------- | -------------------------------------------------- |
+| `baseUrl`                              | `''`                   | 基地址；路径以 `http(s)://` 开头时原样使用         |
+| `timeout`                              | `15000`                | 毫秒，`0` 表示不超时                               |
+| `successCode`                          | `0`                    | 视为业务成功的 `code`                              |
+| `headers`                              | `{}`                   | 默认请求头                                         |
+| `unwrap`                               | `true`                 | 是否默认解开统一响应包装                           |
+| `traceIdProvider`                      | —                      | 返回非空值时注入 `X-Trace-Id`                      |
+| `accessTokenProvider`                  | —                      | 返回非空值时注入 `Authorization: Bearer`           |
+| `onUnauthorized`                       | —                      | 401 时的恢复钩子，返回"是否已恢复"                 |
+| `onAuthLost`                           | —                      | 带着令牌仍 401 且救不回来时调用（清会话/跳登录页） |
+| `fetchImpl`                            | 全局 `fetch`           | 测试注入用                                         |
+| `logger`                               | `logger.child('http')` | 传 `null` 关闭                                     |
+| `onRequest` / `onResponse` / `onError` | —                      | 钩子，用于补签名头、埋点、上报                     |
 
-单次请求可用 `RequestOptions` 覆盖 `timeout` / `unwrap` / `silent` / `headers` / `signal`。
+单次请求可用 `RequestOptions` 覆盖 `timeout` / `unwrap` / `silent` / `headers` / `signal` / `skipAuth` / `skipAuthRetry`。
 
 ---
 
-## 六、JSON 安全层
+## 六、会话存取（session）
+
+只管"令牌与身份放在哪、变了通知谁"。**不认识任何接口、不碰任何界面、不 import qiankun** —— 因此同一份实现既能被基座驱动，也能被子应用单独驱动（子应用单跑时提供方换成它自己的 store，其余逻辑一行不改）。
+
+```ts
+import { createSessionStore } from 'common-tools/session';
+
+const session = createSessionStore(); // 默认用 localStorage，不可用时退化为内存
+
+session.set({
+  user: { userId: 1, username: 'admin', roles: ['ADMIN'], permissions: ['auth:user:create'] },
+  tokens: { accessToken: 'a', refreshToken: 'r', expiresAt: Date.now() + 1_800_000 },
+});
+
+session.hasPermission('auth:user:create'); // true
+const unsubscribe = session.subscribe((next, previous) => {
+  /* 界面据此重渲染 */
+});
+```
+
+### 令牌为什么分开存
+
+| 令牌     | 存放                         | 理由                                           |
+| -------- | ---------------------------- | ---------------------------------------------- |
+| 访问令牌 | **只在内存**                 | 载荷里有用户与租户标识，落盘只是白白扩大暴露面 |
+| 刷新令牌 | **持久化**（`localStorage`） | 换取"刷新页面后静默续期"                       |
+
+这个权衡的兜底在后端：刷新令牌是**轮换 + 重放检测**的，一旦泄露并被使用，旧令牌的再次出现即撤销该用户全部会话。取舍的完整论证见 `docs/decisions/0018` 第 6 条。
+
+### 几条硬规则
+
+| 规则                                 | 原因                                                                                                                                                                           |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **身份与权限不持久化**               | 它们是会变的（后台改权限、换角色）。刷新页面后靠刷新令牌重新换取，而不是相信一份可能过期的本地副本                                                                             |
+| **快照引用稳定**                     | `useSyncExternalStore` 每次渲染都会调用 `getSnapshot`，返回新对象会被判成"一直在变"并陷入无限重渲染                                                                            |
+| **只比引用、不做字段级比较**         | 手写字段清单漏了新增字段，更新会被静默丢弃（表现为"权限改了但界面不变"）；代价只是一次多余重渲染                                                                               |
+| **持久化载荷带版本号，读不懂就丢弃** | 会话是可以重建的缓存，为一个过期格式把应用拦在白屏里毫无收益                                                                                                                   |
+| **存储读写全部包 try**               | `localStorage` 本身就可能抛错（无痕模式抛 `SecurityError`、写满抛 `QuotaExceededError`）。读失败按"没有会话"处理，写失败只影响"刷新页面要重新登录"，绝不让一次成功登录变成失败 |
+| **监听器抛错被吞掉并记 warn**        | 某个监听器自己的问题不该影响其他监听器，更不该影响会话本身                                                                                                                     |
+
+> 订阅不需要手动取消时可以不接返回值；组件里请务必在卸载时调用返回的取消函数，否则会持有失效的闭包。
+>
+> 消费方式见 `common-api` 的 `createAuthChannel`（把契约、本模块与 `http` 的钩子接在一起）。
+
+---
+
+## 七、JSON 安全层
 
 日志的 `data` / `context` 与事件的 `props` 都是"调用方随手塞进来的任意值"。这一层负责把它们修剪成**一定可以 `JSON.stringify`** 的形态。
 
@@ -429,7 +519,7 @@ sanitize({ orderId: 'SO-1', at: () => Date.now() }); // { orderId: 'SO-1', at: '
 
 ---
 
-## 七、批量上报通道
+## 八、批量上报通道
 
 **这个模块不认识日志，也不认识事件。** 它只做一件事：把"随时零星产生的条目"攒成"有界、可退避、失败不抛出的一批批请求"。
 
@@ -480,7 +570,7 @@ channel.flush();
 
 ---
 
-## 八、行为事件内核
+## 九、行为事件内核
 
 业务代码只需要认识一个方法：`track()`。
 
@@ -543,7 +633,7 @@ tracker.track('order.submit', { orderId: 'SO-1', amount: 199 });
 
 ---
 
-## 九、微前端桥接（micro）
+## 十、微前端桥接（micro）
 
 子应用侧接住基座的最小 API。**用法只有三行**：
 
@@ -630,7 +720,7 @@ parent?.querySelector(`#${INDICATOR_ID}`)?.remove();
 
 ---
 
-## 十、相对参考实现的修复
+## 十一、相对参考实现的修复
 
 本包的结构参照 `platform-terminator/packages/common-tools`，logger 在其基础上重写。以下是**原实现中真实存在的问题**，均已修复并有测试覆盖：
 
@@ -655,7 +745,7 @@ parent?.querySelector(`#${INDICATOR_ID}`)?.remove();
 
 ---
 
-## 十一、设计取舍
+## 十二、设计取舍
 
 - **不引入渐变。** 原实现的级别标签用了 `linear-gradient`，浏览器里好看，但 ANSI 无法表达，会导致两种环境观感割裂。改用纯色，换来三态一致。
 - **不做内部 `fetch`。** 需要 ASCII 资源时由调用方读取后传入字符串，日志组件保持纯粹。
@@ -666,9 +756,11 @@ parent?.querySelector(`#${INDICATOR_ID}`)?.remove();
 
 ---
 
-## 十二、待补充
+## 十三、待补充
 
 - 日志上报目前只到**采集契约**（`onRecord` + `LogRecord`）与**前端传输**（`BatchChannel`）；服务端的存储与聚合查询已实现（`sts-server-log`），跨端串联靠 `X-Trace-Id`
 - 行为事件链路已打通到落库与聚合查询（`sts-server-track` + `platform-event-console`），但**采样、服务端二次脱敏、事件注册表**尚未实现，等有真实流量再做；清单见 `docs/decisions/0011`
 - 其余能力（并发去重、请求缓存）需要时再议，仍按同一句话判断该不该进本包：**认识业务接口的代码一律不能进本包**
 - `common-tools/micro` 目前只被两个控制台子应用使用，且只在 dev 下验证过；**生产部署形态**（子应用静态目录、网关路由规则）还没定，`prodEntry` 只是占位。桥接本身与部署形态无关，定下来后不必改本模块
+- **`session` 已就绪但还没有消费方**：基座的登录页、路由守卫与全局状态下发是下一步（`docs/decisions/0018` 的第②段）
+- 会话还差三项，都等有需求再做：**多标签页同步**（靠 `storage` 事件，一个标签页登出后其他标签页跟着登出）、**按 `expiresAt` 主动续期**（现在只在收到 401 时才刷新）、**加密存储**（当前刷新令牌明文落盘，风险由后端轮换与重放检测兜底）
