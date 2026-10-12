@@ -33,6 +33,20 @@ public final class AuthResources {
     public static final String USER = "auth:user";
 
     /**
+     * 资源目录。
+     *
+     * <p>它对应 {@code auth:resource:*} 四个权限码，形状上与 {@link #TENANT} / {@link #USER}
+     * 完全同类。它出现在 {@code @Audited(resource = ...)} 里，让"谁改过权限配置"
+     * 在审计面板里可以按资源过滤出来 —— 这是权限系统自身最需要留痕的一类操作。
+     *
+     * <p><b>别把它与被登记的资源混起来</b>：{@code bw_auth_resource} 表里存的是
+     * **权限码**（{@code auth:user:create}），本常量是**资源标识**（{@code auth:resource}）。
+     * 表里若真出现一行 {@code auth:resource}，那是错把资源标识当权限码登记了 ——
+     * 它的形状只有两段，不符合 {@code AuthTaxonomyTest} 钉死的三段式。
+     */
+    public static final String RESOURCE = "auth:resource";
+
+    /**
      * 审计资源。
      *
      * <p>它对应 {@link AuthPermissions#AUDIT_READ}，虽然当前**没有任何写动作**挂在它下面

@@ -12,7 +12,7 @@ docs/api/openapi.json
 
 ## 一、当前接口清单
 
-契约版本 `0.1.0`，标题「BlueWhale 服务端 API」，共 **28 个接口**。
+契约版本 `0.1.0`，标题「BlueWhale 服务端 API」，共 **34 个接口**。
 
 | 域       | 模块                | 接口数 | 说明                                        |
 | -------- | ------------------- | ------ | ------------------------------------------- |
@@ -85,9 +85,24 @@ docs/api/openapi.json
 | `DELETE` | `/api/auth/users/{id}`          | `auth:user:delete` | **不能删自己**                     |
 | `POST`   | `/api/auth/users/{id}/password` | `auth:user:update` | 重置口令，**置为需改密并解锁账号** |
 
+**资源目录**（权限资源：菜单 / 页面 / 按钮 / 接口 / 数据）
+
+| 方法     | 路径                       | 所需权限               | 说明                                                                      |
+| -------- | -------------------------- | ---------------------- | ------------------------------------------------------------------------- |
+| `GET`    | `/api/auth/resources`      | `auth:resource:read`   | 分页平铺列表。按 `keyword` / `resourceType` / `parentCode` / `isEnabled` 过滤 |
+| `GET`    | `/api/auth/resources/tree` | `auth:resource:read`   | 按 `parentCode` 组装的树，全量返回。**孤儿与成环节点按根返回，不丢弃**    |
+| `GET`    | `/api/auth/resources/{id}` | `auth:resource:read`   |                                                                           |
+| `POST`   | `/api/auth/resources`      | `auth:resource:create` | 标识须为「域:资源:动作」三段小写。**若该标识曾被删除，则恢复原记录而非新建** |
+| `PUT`    | `/api/auth/resources/{id}` | `auth:resource:update` | **资源标识不可修改**；父资源不能是自身或自身的下级（`40913`）             |
+| `DELETE` | `/api/auth/resources/{id}` | `auth:resource:delete` | 逻辑删除。有子资源（`40913`）或**已被角色引用**（`40915`）时拒绝          |
+
+> 这张表里存的**就是权限码**（`auth:user:create`），不是资源标识（`auth:user`）。
+> 两者形状相近、混用不报错 —— 见 `docs/decisions/0021`。
+>
 > **权限标识的写法与取值**是跨端约定，见 `sts-server-auth` 的 `AuthPermissions` 与 ADR-0016；`/api/auth/me` 返回的 `permissions` 与这里逐字一致。
 >
-> **组织 / 角色 / 用户组 / 资源的管理接口尚未落地**（实体与 Mapper 已就绪，见 ADR-0016 末尾的"未覆盖清单"）。
+> **组织 / 角色 / 用户组的管理接口尚未落地**（实体与 Mapper 已就绪，见 ADR-0016 末尾的"未覆盖清单"）；
+> **资源目录已落地**（见 `docs/decisions/0021`），它是另外三条的前置。
 
 ### 审计域（`sts-server-audit`）
 
@@ -135,6 +150,10 @@ docs/api/openapi.json
 | `UserSaveRequest`                         | 用户新建/更新入参：`tenantId` / `username`\* / `displayName` / `email` / `phone` / `password` / `status`                                                                                                                                      |
 | `PasswordResetRequest`                    | 重置口令入参：`password`\*（重置后置为"需改密"并解锁账号）                                                                                                                                                                                    |
 | `UserVO`                                  | 用户视图：`id` / `tenantId` / `username` / `displayName` / `email` / `phone` / `status` / `failedAttempts` / `lockedUntil` / `lockReason` / `lockLevel` / `lastLoginAt` / `mfaEnabled` / `avatarUrl` / `createTime` / `updateTime` —— **不含任何口令字段，连哈希也不返回**。锁定三项是给运维看的：`lockLevel` 决定退避时长（第几次被锁），`lockReason` 说明为什么锁 |
+| `ResourceSaveRequest`                     | 资源新建/更新入参：`resourceCode`\*（**须为三段小写**，创建后不可改） / `resourceName`\* / `resourceType`\* / `resourceCategory` / `parentCode` / `requestUrl` / `requestMethod` / `icon` / `sortNo` / `isEnabled` / `isWhitelist` / `isDeprecated` / `resourceVersion` / `description`。**没有 `tenantId`**：资源是平台级的 |
+| `ResourceVO`                              | 资源视图：`id` / `tenantId`（当前恒为 null） / `resourceCode` / `resourceName` / `resourceType` / **`requestScoped`（由 `resourceType` 派生，不在入参里）** / `resourceCategory` / `parentCode` / `requestUrl` / `requestMethod` / `icon` / `sortNo` / `isEnabled` / `isWhitelist` / `isDeprecated` / `resourceVersion` / `description` / `createTime` / `updateTime` |
+| `ResourceTreeNode`                        | 树节点：`id` / `resourceCode` / `resourceName` / `resourceType` / `requestScoped` / `parentCode` / `icon` / `sortNo` / `isEnabled` / `children[]`。字段刻意比 `ResourceVO` 少 —— 树会一次返回全量节点，明细走详情接口 |
+| `PageResultResourceVO`                    | 分页结果，结构同日志域（`records` / `total` / `page` / `size` / `pages`）                                                                                                                                                                     |
 | `PageResultTenantVO` / `PageResultUserVO` | 分页结果，结构同日志域（`records` / `total` / `page` / `size` / `pages`）                                                                                                                                                                     |
 | `AuditResult`                             | 枚举 `SUCCESS` / `FAILURE`（线上取值即大写枚举名）                                                                                                                                                                                            |
 | `AuditLogVO`                              | 审计记录：`id` / `action` / `resource` / `targetId` / `operatorId` / `operatorName` / `tenantId` / `result` / `errorCode` / `errorMessage` / `httpMethod` / `requestUri` / `ip` / `userAgent` / `traceId` / `durationMs` / `serverTime`（**无客户端时间、无 `update*` / `deleted`**） |
@@ -208,6 +227,8 @@ OPENAPI_PORT=18081 bash scripts/export-openapi.sh
 
 ## 五、待补充
 
-- 组织 / 角色 / 用户组 / 资源的管理接口尚未落地（权限域的 12 张表、实体与 Mapper 已就绪，见 ADR-0016 末尾的"未覆盖清单"）
-- 前端的域接线进度：**认证 / 会话**（`src/auth.ts`）、**权限域管理**（`src/access.ts`，users / tenants）、**审计**（`src/audit.ts`，只读）均已接入；组织 / 角色 / 用户组 / 资源四类实体待后端补齐接口后按同样写法加入 `access.ts`
+- 组织 / 角色 / 用户组的管理接口尚未落地（权限域的 12 张表、实体与 Mapper 已就绪，见 ADR-0016 末尾的"未覆盖清单"）。**资源目录已落地**（ADR-0021）
+- 前端的域接线进度：**认证 / 会话**（`src/auth.ts`）、**权限域管理**（`src/access.ts`，users / tenants）、**审计**（`src/audit.ts`，只读）均已接入。
+  资源目录的 6 条路径**后端已就绪但前端未接线**，`AccessPermissions` 也因此刻意还没加 `auth:resource:*`（该文件的规则是"只列前端真的用到的"）——
+  等 `platform-admin` 的资源管理页落地时一并补。组织 / 角色 / 用户组待后端补齐接口后按同样写法加入 `access.ts`
 - 契约尚未按域拆分为多文件；接口量变大后再考虑 `openapi/` 目录方案

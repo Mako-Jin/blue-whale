@@ -54,6 +54,31 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/auth/resources/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** 查询资源详情 */
+    get: operations['detail_2'];
+    /**
+     * 修改资源
+     * @description **资源标识不可修改**；父资源不能是自身或自身的下级
+     */
+    put: operations['update_2'];
+    post?: never;
+    /**
+     * 删除资源
+     * @description 逻辑删除。有子资源（40913）或已被角色引用（40915）时拒绝
+     */
+    delete: operations['delete_2'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/logs/client': {
     parameters: {
       query?: never;
@@ -164,6 +189,30 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/auth/resources': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * 分页查询资源
+     * @description 平铺列表。要层级用 /tree
+     */
+    get: operations['page_4'];
+    put?: never;
+    /**
+     * 新增资源
+     * @description 资源标识须为「域:资源:动作」三段小写；若该标识曾被删除，则恢复原记录而非新建
+     */
+    post: operations['create_2'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/auth/refresh': {
     parameters: {
       query?: never;
@@ -232,7 +281,7 @@ export interface paths {
       cookie?: never;
     };
     /** 查询日志详情 */
-    get: operations['detail_2'];
+    get: operations['detail_3'];
     put?: never;
     post?: never;
     delete?: never;
@@ -309,7 +358,7 @@ export interface paths {
       cookie?: never;
     };
     /** 查询事件详情 */
-    get: operations['detail_3'];
+    get: operations['detail_4'];
     put?: never;
     post?: never;
     delete?: never;
@@ -330,6 +379,26 @@ export interface paths {
      * @description 返回时间窗内的总条数与各事件名分布，只包含出现过的名称。
      */
     get: operations['stats_1'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/auth/resources/tree': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * 查询资源树
+     * @description 按 parentCode 组装，全量返回。孤儿节点与成环节点按根返回，不丢弃
+     */
+    get: operations['tree'];
     put?: never;
     post?: never;
     delete?: never;
@@ -369,7 +438,7 @@ export interface paths {
      * 分页查询审计记录
      * @description 按服务端记录时间倒序。时间窗缺省为最近 7 天。可按动作、资源、对象、操作人、结果过滤。
      */
-    get: operations['page_4'];
+    get: operations['page_5'];
     put?: never;
     post?: never;
     delete?: never;
@@ -386,7 +455,7 @@ export interface paths {
       cookie?: never;
     };
     /** 查询审计记录详情 */
-    get: operations['detail_4'];
+    get: operations['detail_5'];
     put?: never;
     post?: never;
     delete?: never;
@@ -544,6 +613,108 @@ export interface components {
        * @description 是否有子节点：0 否 1 是
        */
       hasChild?: number;
+    };
+    /** @description 资源保存入参 */
+    ResourceSaveRequest: {
+      /**
+       * @description 资源标识（即权限码）。创建后不可修改
+       * @example auth:user:create
+       */
+      resourceCode: string;
+      resourceName: string;
+      /**
+       * @description 资源类型：SYSTEM / SERVER / SERVICE / MODULE / MENU / PAGE / API / BUTTON / DATA
+       * @example MENU
+       */
+      resourceType: string;
+      /** @description 业务分类，用于分组展示 */
+      resourceCategory?: string;
+      /** @description 父资源的资源标识（注意是标识不是主键），顶级不传。构成树 */
+      parentCode?: string;
+      /** @description 请求地址。仅供参考与排查，**不参与运行时判定** —— 判定走 @RequiresPermission */
+      requestUrl?: string;
+      /** @description 请求方法，如 GET / POST */
+      requestMethod?: string;
+      /** @description 图标标识。MENU / PAGE 类型用它渲染导航 */
+      icon?: string;
+      /**
+       * Format: int32
+       * @description 排序号，同级内升序；缺省 0
+       */
+      sortNo?: number;
+      /**
+       * Format: int32
+       * @description 是否启用：0 否 1 是，缺省 1。停用的资源不再产生权限
+       */
+      isEnabled?: number;
+      /**
+       * Format: int32
+       * @description 是否免鉴权白名单：0 否 1 是，缺省 0。**这是安全评审要看的一份清单**
+       */
+      isWhitelist?: number;
+      /**
+       * Format: int32
+       * @description 是否已废弃：0 否 1 是，缺省 0
+       */
+      isDeprecated?: number;
+      /** @description 资源版本号。**当前只存不用**，版本治理尚未实现 */
+      resourceVersion?: string;
+      description?: string;
+    };
+    RResourceVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['ResourceVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    ResourceVO: {
+      /** Format: int64 */
+      id?: number;
+      /**
+       * Format: int64
+       * @description 所属租户主键；平台级资源为 null。当前登记进来的都是平台级
+       */
+      tenantId?: number;
+      /** @description 资源标识（即权限码），创建后不可修改 */
+      resourceCode?: string;
+      resourceName?: string;
+      /** @description 资源类型：SYSTEM / SERVER / SERVICE / MODULE / MENU / PAGE / API / BUTTON / DATA */
+      resourceType?: string;
+      /** @description 是否参与后端准入判定（由 resourceType 派生）。MENU / PAGE / DATA 均为 false —— 它们影响前端可见性与查询范围，不拦接口 */
+      requestScoped?: boolean;
+      resourceCategory?: string;
+      /** @description 父资源的资源标识。构成树 */
+      parentCode?: string;
+      /** @description 请求地址，仅供参考，不参与判定 */
+      requestUrl?: string;
+      requestMethod?: string;
+      icon?: string;
+      /** Format: int32 */
+      sortNo?: number;
+      /**
+       * Format: int32
+       * @description 是否启用：0 否 1 是。停用的资源不再产生权限
+       */
+      isEnabled?: number;
+      /**
+       * Format: int32
+       * @description 是否免鉴权白名单：0 否 1 是
+       */
+      isWhitelist?: number;
+      /**
+       * Format: int32
+       * @description 是否已废弃：0 否 1 是
+       */
+      isDeprecated?: number;
+      /** @description 资源版本号，当前只存不用 */
+      resourceVersion?: string;
+      description?: string;
+      /** Format: int64 */
+      createTime?: number;
+      /** Format: int64 */
+      updateTime?: number;
     };
     /** @description 单条客户端日志 */
     ClientLogItem: {
@@ -1035,6 +1206,55 @@ export interface components {
       /** Format: int64 */
       timestamp?: number;
     };
+    PageResultResourceVO: {
+      records?: components['schemas']['ResourceVO'][];
+      /** Format: int64 */
+      total?: number;
+      /** Format: int64 */
+      page?: number;
+      /** Format: int64 */
+      size?: number;
+      /** Format: int64 */
+      pages?: number;
+    };
+    RPageResultResourceVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PageResultResourceVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    RListResourceTreeNode: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['ResourceTreeNode'][];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    ResourceTreeNode: {
+      /** Format: int64 */
+      id?: number;
+      /** @description 资源标识（即权限码）。也是 parentCode 的引用目标 */
+      resourceCode?: string;
+      resourceName?: string;
+      /** @description 资源类型：SYSTEM / SERVER / SERVICE / MODULE / MENU / PAGE / API / BUTTON / DATA */
+      resourceType?: string;
+      /** @description 是否参与后端准入判定（由 resourceType 派生） */
+      requestScoped?: boolean;
+      parentCode?: string;
+      icon?: string;
+      /** Format: int32 */
+      sortNo?: number;
+      /**
+       * Format: int32
+       * @description 是否启用：0 否 1 是
+       */
+      isEnabled?: number;
+      /** @description 子节点，同级按 sortNo 升序 */
+      children?: components['schemas']['ResourceTreeNode'][];
+    };
     MeVO: {
       /** Format: int64 */
       userId?: number;
@@ -1333,6 +1553,79 @@ export interface operations {
       };
     };
   };
+  detail_2: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 资源主键 */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RResourceVO'];
+        };
+      };
+    };
+  };
+  update_2: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 资源主键 */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ResourceSaveRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RResourceVO'];
+        };
+      };
+    };
+  };
+  delete_2: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 资源主键 */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RVoid'];
+        };
+      };
+    };
+  };
   page: {
     parameters: {
       query?: {
@@ -1588,6 +1881,61 @@ export interface operations {
       };
     };
   };
+  page_4: {
+    parameters: {
+      query?: {
+        /** @description 关键字，匹配资源标识或名称 */
+        keyword?: string;
+        /** @description 资源类型：SYSTEM / SERVER / SERVICE / MODULE / MENU / PAGE / API / BUTTON / DATA */
+        resourceType?: string;
+        /** @description 父资源标识，用于只取某一层 */
+        parentCode?: string;
+        /** @description 是否启用：0 否 1 是 */
+        isEnabled?: number;
+        page?: number;
+        size?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RPageResultResourceVO'];
+        };
+      };
+    };
+  };
+  create_2: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ResourceSaveRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RResourceVO'];
+        };
+      };
+    };
+  };
   refresh: {
     parameters: {
       query?: never;
@@ -1660,7 +2008,7 @@ export interface operations {
       };
     };
   };
-  detail_2: {
+  detail_3: {
     parameters: {
       query?: never;
       header?: never;
@@ -1753,7 +2101,7 @@ export interface operations {
       };
     };
   };
-  detail_3: {
+  detail_4: {
     parameters: {
       query?: never;
       header?: never;
@@ -1803,6 +2151,26 @@ export interface operations {
       };
     };
   };
+  tree: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RListResourceTreeNode'];
+        };
+      };
+    };
+  };
   me: {
     parameters: {
       query?: never;
@@ -1823,7 +2191,7 @@ export interface operations {
       };
     };
   };
-  page_4: {
+  page_5: {
     parameters: {
       query?: {
         /** @description 动作标识精确匹配，如 user.create */
@@ -1862,7 +2230,7 @@ export interface operations {
       };
     };
   };
-  detail_4: {
+  detail_5: {
     parameters: {
       query?: never;
       header?: never;

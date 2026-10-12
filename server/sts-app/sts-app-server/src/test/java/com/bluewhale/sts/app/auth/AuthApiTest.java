@@ -1,5 +1,6 @@
 package com.bluewhale.sts.app.auth;
 
+import com.bluewhale.sts.auth.common.AuthPermissions;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -49,10 +50,13 @@ class AuthApiTest {
                 .andExpect(jsonPath("$.data.refreshToken").isNotEmpty())
                 .andExpect(jsonPath("$.data.tokenType").value("Bearer"))
                 .andExpect(jsonPath("$.data.tenantCode").value("default"))
-                // 种子数据把 9 个权限资源授予了 SUPER_ADMIN 角色，再由角色授予 admin —
-                // 这条断言实际验证的是"用户 → 角色 → 资源"整条 RBAC 链路取数正确
-                // （9 = 租户 4 + 用户 4 + 审计只读 1）
-                .andExpect(jsonPath("$.data.permissions.length()").value(9))
+                // 种子数据把 AuthPermissions.ALL 全部授予了 SUPER_ADMIN 角色，再由角色授予 admin —
+                // 这条断言实际验证的是"用户 → 角色 → 资源"整条 RBAC 链路取数正确。
+                //
+                // 期望值**从常量推导**而不是写死数字：写死时每加一个权限码都要回来改一次，
+                // 而漏改的症状是"测试失败但代码没问题"，容易被顺手改成新的数字了事
+                // （`docs/decisions/0021` 记了这个漂移问题）。
+                .andExpect(jsonPath("$.data.permissions.length()").value(AuthPermissions.ALL.size()))
                 // 出参绝不包含任何口令字段
                 .andExpect(jsonPath("$.data.passwordHash").doesNotExist());
     }

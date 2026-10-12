@@ -36,6 +36,20 @@ public final class AuthAuditActions {
     public static final String USER_DELETE = "auth.user.delete";
 
     /**
+     * 资源目录的增删改。
+     *
+     * <p><b>查询没有对应的动作标识</b>，与用户 / 租户一致：查询不记审计。
+     *
+     * <p>这三个动作值得单独留痕的理由比别处更强：改一条资源等于改一个**权限码**，
+     * 而权限码是长期契约 —— 一次改名可能让某些角色的授权静默失效（资源被改了码，
+     * 角色持有的还是旧码）。审计里能查到"谁在什么时候把 {@code auth:user:create}
+     * 改成了别的"，是排查"为什么这个角色的权限突然不对了"的唯一线索。
+     */
+    public static final String RESOURCE_CREATE = "auth.resource.create";
+    public static final String RESOURCE_UPDATE = "auth.resource.update";
+    public static final String RESOURCE_DELETE = "auth.resource.delete";
+
+    /**
      * 重置口令。
      *
      * <p>与 {@code user.update} 分开记而不是合并：重置口令是运维/管理员介入他人账号的动作，
