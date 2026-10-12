@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { AccessUser, AccessUserPage, AccessUserSaveRequest } from 'common-api';
+import type {
+  AccessUser,
+  AccessUserPage,
+  AccessUserRoleSource,
+  AccessUserSaveRequest,
+} from 'common-api';
 
 import { api } from '../../api';
 import { usePermissionState } from '../../auth/hooks';
 import { Dialog } from '../../components/Dialog';
 import { PermissionButton } from '../../components/PermissionButton';
 import { describeError } from '../../errors';
-import { formatStatus, formatTime } from '../../format';
+import { formatStatus, formatTime, formatWindow } from '../../format';
 import { PERM } from '../../permission-codes';
 
 const PAGE_SIZE = 10;
@@ -63,6 +68,7 @@ export function UsersPage() {
   const [creating, setCreating] = useState(false);
   const [resetting, setResetting] = useState<AccessUser | null>(null);
   const [removing, setRemoving] = useState<AccessUser | null>(null);
+  const [sourceOf, setSourceOf] = useState<AccessUser | null>(null);
   const [busy, setBusy] = useState(false);
   const [dialogError, setDialogError] = useState<string | null>(null);
 
@@ -276,6 +282,18 @@ export function UsersPage() {
                   </td>
                   <td className="mono">{formatTime(user.lastLoginAt)}</td>
                   <td className="table__ops">
+                    {/*
+                      反查按钮归 `auth:user:read`（与列表、详情同一类权限），
+                      因此它出现在**每一行**，包括只读账号那一行 —— 这正是有意的：
+                      审计员能查"某人的权限从哪来"，却不能碰用户组配置。
+                    */}
+                    <PermissionButton
+                      permission={PERM.USER_READ}
+                      className="users__sources"
+                      onClick={() => setSourceOf(user)}
+                    >
+                      角色来源
+                    </PermissionButton>
                     <PermissionButton
                       permission={PERM.USER_UPDATE}
                       className="users__edit"
@@ -385,7 +403,140 @@ export function UsersPage() {
           {dialogError ? <p className="banner banner--error">{dialogError}</p> : null}
         </Dialog>
       ) : null}
+
+      {sourceOf ? <RoleSourcesDialog user={sourceOf} onClose={() => setSourceOf(null)} /> : null}
     </section>
+  );
+}
+
+/**
+ * 角色来源反查 —— 回答"这个人的权限是从哪来的"。
+ *
+ * <p>它与"当前权限集合"是两件事：判定侧给的是**此刻有效**的权限码（去重、过滤），
+ * 这里给的是**配置里有哪些路径**（逐条、带来源）。
+ * 因此**停用的角色 / 停用的用户组 / 已过期的授权照原样返回** ——
+ * 一行"角色已停用"正是"为什么没有权限"的答案，把它过滤掉等于把答案删了。
+ *
+ * <p>经用户组授予的路径实际是**两条边**（角色↔组、组↔用户），各有自己的生效区间，
+ * 所以这里分两列显示，而不是揉成一个"是否有效"。
+ */
+function RoleSourcesDialog({ user, onClose }: { user: AccessUser; onClose: () => void }) {
+  const [sources, setSources] = useState<AccessUserRoleSource[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const list = await api().access.users.roleSources(user.id as number);
+        if (alive) setSources(list);
+      } catch (cause) {
+        if (alive) setError(describeError(cause));
+      } finally {
+        if (alive) setLoading(false);
+      }
+    };
+    void load();
+    return () => {
+      alive = false;
+    };
+  }, [user.id]);
+
+  return (
+    <Dialog
+      title={`角色来源 · ${user.username}`}
+      onClose={onClose}
+      footer={
+        <button type="button" className="btn" onClick={onClose}>
+          关闭
+        </button>
+      }
+    >
+      {error ? <p className="banner banner--error">{error}</p> : null}
+
+      <div className="table-wrap">
+        <table className="table">
+          <thead>
+            <tr>
+              <th>来源</th>
+              <th>角色</th>
+              <th>角色状态</th>
+              <th>来源用户组</th>
+              <th>授权区间</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sources.length === 0 ? (
+              <tr>
+                <td className="table__empty" colSpan={5}>
+                  {loading ? '加载中…' : '没有任何角色来源'}
+                </td>
+              </tr>
+            ) : (
+              sources.map((source) => (
+                <tr
+                  key={String(source.grantId)}
+                  data-testid={`role-source-${String(source.roleCode)}`}
+                >
+                  <td>
+                    <span className={`tag tag--${source.source === 'GROUP' ? 'off' : 'on'}`}>
+                      {source.sourceLabel ?? source.source ?? '—'}
+                    </span>
+                  </td>
+                  <td className="mono">
+                    {source.roleCode}
+                    <span className="tree__name">{source.roleName ?? ''}</span>
+                  </td>
+                  <td>
+                    <span className={`tag tag--${source.roleStatus === 'ENABLED' ? 'on' : 'off'}`}>
+                      {formatStatus(source.roleStatus)}
+                    </span>
+                  </td>
+                  <td>
+                    {source.groupName ?? '—'}
+                    {source.groupEnabled === 0 ? (
+                      <span className="tag tag--off">组已停用</span>
+                    ) : null}
+                  </td>
+                  <td className="mono">
+                    {formatWindow(source.effectiveFrom, source.effectiveTo)}
+                    {source.effectiveNow === false ? (
+                      <span className="tag tag--off">已失效</span>
+                    ) : null}
+                    {/*
+                      `source = DIRECT` 时第二条边**不存在**（不是"长期有效"），
+                      因此整块不渲染，而不是显示成"长期有效"。
+                    */}
+                    {source.groupMemberEffectiveFrom != null ||
+                    source.groupMemberEffectiveTo != null ? (
+                      <>
+                        <br />
+                        组内：
+                        {formatWindow(
+                          source.groupMemberEffectiveFrom,
+                          source.groupMemberEffectiveTo,
+                        )}
+                        {source.groupMemberEffectiveNow === false ? (
+                          <span className="tag tag--off">组内已失效</span>
+                        ) : null}
+                      </>
+                    ) : null}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <p className="form__tip">
+        <strong>停用与过期照原样返回</strong>：它们是"为什么没有权限"的答案。
+        判定侧只认此刻有效的权限码，两边刻意不合并 —— 合并会让这份反查退化成权限集合的副本。
+      </p>
+    </Dialog>
   );
 }
 

@@ -437,5 +437,60 @@
 .form__tip {
   margin: 0;
   font-size: 12px;
+  line-height: 1.7;
   color: @text-tertiary;
+
+  &--warn {
+    color: @danger-color;
+  }
+}
+
+.form__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ------------------------------------------------------------ 资源树 */
+
+/* 内联的视图切换：与页面级 `.tabs` 同一个外观，但不占一整行 */
+.tabs--inline {
+  width: auto;
+  padding: 2px;
+  border-radius: @radius-sm;
+}
+
+.tree {
+  padding: 6px 14px;
+  border: 1px solid @border-color;
+  border-radius: @radius-md;
+}
+
+.tree__list {
+  margin: 0;
+  padding-left: 18px;
+  list-style: none;
+}
+
+.tree__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 5px 0;
+  font-size: 13px;
+}
+
+.tree__code {
+  color: @brand-color;
+}
+
+.tree__name {
+  margin-left: 6px;
+  color: @text-secondary;
+}
+
+.tree__ops {
+  display: inline-flex;
+  gap: 6px;
+  margin-left: auto;
 }

@@ -39,7 +39,7 @@ packages/common-api/
 │   ├── types.ts              契约类型工具 + 任意 JSON 值的收紧
 │   ├── auth.ts               认证域接口（登录 / 刷新 / 登出 / me）+ 身份映射
 │   ├── channel.ts            createAuthChannel：把契约、会话存储与传输钩子接成认证能力
-│   ├── access.ts             权限域实体管理（用户 / 租户）+ 权限标识常量
+│   ├── access.ts             权限域实体管理（用户 / 租户 / 资源 / 角色 / 用户组）+ 权限标识常量
 │   ├── audit.ts              审计域接口（**只读**：分页 / 详情 / 按动作聚合）+ 权限标识常量
 │   ├── log.ts                日志域接口（路径常量 + 方法接线）
 │   ├── events.ts             行为事件域接口（上报 / 分页 / 详情 / 聚合）
@@ -192,13 +192,23 @@ const page = await access.users.page({ keyword: 'adm', page: 1, size: 10 });
 await access.users.create({ username: 'someone', password: 'Someone@123' });
 await access.users.resetPassword(7, { password: 'NewPass@123' });
 await access.tenants.remove(3);
+
+const tree = await access.resources.tree(); // 资源树（层级）；平铺用 resources.page()
+await access.roles.grant(9, { resourceId: 12 }); // 给角色授资源
+await access.roles.bindMember(9, { memberType: 'USER', memberId: 7 }); // 角色 → 成员（类型必填）
+await access.userGroups.bindMember(5, { memberType: 'USER', memberId: 7 }); // 用户组 → 成员
+const sources = await access.users.roleSources(7); // 这个人的角色从哪来（含经用户组）
 ```
 
-| 成员                                 | 作用                                                                                      |
-| ------------------------------------ | ----------------------------------------------------------------------------------------- |
-| `users` / `tenants`                  | 两个实体的 `page` / `detail` / `create` / `update` / `remove`（用户另有 `resetPassword`） |
-| `AccessPermissions`                  | 权限标识常量，与后端 `AuthPermissions` **逐字一致**（有测试钉死），页面显隐一律引用它     |
-| `AccessUser` / `AccessTenant` 等类型 | 全部由契约推导（`DataOf` / `BodyOf` / `QueryOf` / `PathOf`），零手写字段                  |
+| 成员                               | 作用                                                                                      |
+| ---------------------------------- | ----------------------------------------------------------------------------------------- |
+| `users` / `tenants`                | 两个实体的 `page` / `detail` / `create` / `update` / `remove`（用户另有 `resetPassword`） |
+| `users.roleSources`                | **反查**：直接授予 + 经用户组授予两类来源，带两组时态（经组授予是两条边）                 |
+| `resources`                        | `page`（平铺）/ `tree`（层级）/ `detail` / `create` / `update` / `remove`                 |
+| `roles`                            | CRUD + `listGrants` / `grant` / `revoke` + `pageMembers` / `bindMember` / `revokeMember`  |
+| `userGroups`                       | CRUD + `pageMembers` / `bindMember` / `revokeMember`（成员只接受 `USER`）                 |
+| `AccessPermissions`                | 权限标识常量，与后端 `AuthPermissions` **逐字一致**（有测试钉死），页面显隐一律引用它     |
+| `AccessUser` / `AccessRole` 等类型 | 全部由契约推导（`DataOf` / `BodyOf` / `QueryOf` / `PathOf`），零手写字段                  |
 
 两点约定：
 
@@ -332,7 +342,8 @@ expectTypeOf<ClientLogQuery['startTime']>().toEqualTypeOf<number | undefined>();
 
 - 各域接口目前有 `auth`、`access`、`audit`、`log`、`events` 与 `system`；新增业务域时新建 `src/<域>.ts`，在 `client.ts` 里装配，并在 `tests/` 下补一份接线断言
 - **认证链路已接线完毕**（登录 / 刷新 / 登出 / `me`，即 `src/auth.ts` + `createAuthChannel`）：令牌注入、401 恢复、刷新单飞（内核按客户端 + 通道跨客户端两层）、会话存取都已落地并有单测
-- **权限域管理接口已接 users / tenants**（5 条路径 11 个操作，即 `src/access.ts`），消费方是 `platform-admin`。**资源 / 角色 / 角色成员 / 用户组 / 用户角色反查**五类的接口**后端已实现**（累计 26 个操作、14 条路径），前端尚未接线 —— 补齐后按同样写法加入 `access.ts`，不提前建空壳。**组织**是唯一连后端都还没有的一类（表与实体已就绪，见 ADR-0024 的「未覆盖」）
+- **权限域管理接口已全部接线**（`src/access.ts`，共 20 条路径）：用户 / 租户（5 条路径 11 个操作）、资源目录（4 条：平铺分页 / 树 / 详情 / 新增）、角色（8 条：CRUD + 资源授权 + 成员）、用户组（7 条：CRUD + 组成员），以及**用户角色反查** `users/{id}/roles`（1 条）。消费方是 `platform-admin` 的五个标签页。**组织**是唯一连后端都还没有的一类（表与实体已就绪，见 ADR-0024 的「未覆盖」），因此前端也没有它的接线 —— 不提前建空壳
+- 两处**刻意与后端同形**的接线细节：`userGroups.revokeMember` 与 `roles.revokeMember` 都把 `memberType` 放进**路径**而不是藏进 body（用户与用户组是两个独立自增序列、会撞号）；`AccessUserGroupQuery.enabled` 是 `0 / 1` 数字而不是布尔（传 `true` 会被序列化成后端不认的值）
 - **审计域已接 3 个只读接口**（`src/audit.ts`），消费方是 `platform-audit-console`。**它永远不会有写方法** —— 那是设计而非待办
 - 会话存储目前是**访问令牌在内存 + 刷新令牌明文落盘**。httpOnly cookie 方案需要后端配合改 `Set-Cookie` 并处理 CSRF 与跨源，列为将来项（`docs/decisions/0018` 第 6 条）
 - 基座已消费本包（`platform-portal/src/auth/`：登录页、路由守卫、会话恢复与权限下发）；子应用单跑时按 ADR-0018 第 8 条共用同一份 session 实现，需要发已鉴权请求时经 `HostProps.auth` 取令牌（同文档第 9 条）

@@ -330,10 +330,13 @@ OPENAPI_PORT=18081 bash scripts/export-openapi.sh
   动态成员规则求值未实现，接受它会得到一个"永远算不出成员"的壳。触发条件：真的需要动态组时。
 - **给三张关系表加唯一索引**（`(role_id, resource_id)` / `(role_id, member_type, member_id)` / `(user_group_id, member_type, member_id)`）：
   有了 `DuplicateKeyException` → `409` 兜底才"有资格"加（否则并发撞键会落到 `50000`），但那是独立的一次决定。
-- 前端的域接线进度：**认证 / 会话**（`src/auth.ts`）、**权限域管理**（`src/access.ts`，users / tenants）、**审计**（`src/audit.ts`，只读）均已接入。
-  资源目录的 6 条、角色的 8 条、成员关系的 3 条、用户组的 8 条与反查 1 条**后端已就绪但前端未接线**，
-  `AccessPermissions` 也因此刻意还没加 `auth:resource:*` / `auth:role:*` / `auth:user_group:*`（该文件的规则是"只列前端真的用到的"）——
-  等 `platform-admin` 的资源 / 角色 / 用户组管理页落地时一并补。
+- 前端的域接线进度：**认证 / 会话**（`src/auth.ts`）、**权限域管理**（`src/access.ts`，本批已补齐到 20 条路径）、**审计**（`src/audit.ts`，只读）**均已接入**。
+  `platform-admin` 现有五个标签页：用户（含「角色来源」反查）、租户、资源（树 / 列表两种视图）、角色（含资源授权与成员）、用户组（含组成员）。
+  `AccessPermissions` 随之补上了 `auth:resource:*` / `auth:role:*` / `auth:user_group:*` 共 12 项
+  （该文件的规则是"只列前端真的用到的"；角色成员与用户组成员的**授予 / 撤销复用 `auth:role:update` / `auth:user_group:update`**，服务端另有独立的审计动作把它记清楚）。
+  **组织**是唯一连后端都还没有的一类，因此前端也没有接线。
+  **菜单权限还差两步**：资源表里没有 `MENU` / `PAGE` 类型的行（种子把 `ALL` 全建成了 `API`），
+  且基座导航（`BasicLayout`）直接遍历 `MICRO_APPS`、没有按权限过滤 —— 这两步不做，"配了菜单权限"在界面上看不到任何效果。
 - **菜单权限还差两步**：资源表里还没有 `MENU` / `PAGE` 类型的行（种子把 `ALL` 全建成了 `API`），
   且基座导航没按权限过滤（`BasicLayout` 直接遍历 `MICRO_APPS`）。
 - 契约尚未按域拆分为多文件；接口量变大后再考虑 `openapi/` 目录方案

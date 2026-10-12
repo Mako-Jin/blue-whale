@@ -2,14 +2,28 @@ import { useState } from 'react';
 
 import './App.less';
 import { usePermissionState } from './auth/hooks';
+import { ResourcesPage } from './pages/Resources';
+import { RolesPage } from './pages/Roles';
 import { TenantsPage } from './pages/Tenants';
+import { UserGroupsPage } from './pages/UserGroups';
 import { UsersPage } from './pages/Users';
 
-type Tab = 'users' | 'tenants';
+type Tab = 'users' | 'tenants' | 'resources' | 'roles' | 'userGroups';
 
+/**
+ * 标签页顺序 = **授权链路的顺序**。
+ *
+ * <p>`资源 → 角色 → 用户组` 与 `用户 → 角色` 是同一件事的两条边。
+ * 照这个顺序排，「谁能做什么」在界面上就是从左到右读过去的：
+ * 先登记"能做什么"（资源），再把它打包（角色 → 资源授权），
+ * 最后把包交出去（角色 → 成员 / 用户组 → 成员）。
+ */
 const TABS: Array<{ key: Tab; label: string }> = [
   { key: 'users', label: '用户' },
   { key: 'tenants', label: '租户' },
+  { key: 'resources', label: '资源' },
+  { key: 'roles', label: '角色' },
+  { key: 'userGroups', label: '用户组' },
 ];
 
 export default function App() {
@@ -23,7 +37,9 @@ export default function App() {
           <span className="topbar__logo" aria-hidden="true" />
           <div>
             <h1 className="topbar__title">权限管理后台</h1>
-            <p className="topbar__subtitle">platform-admin · 按权限标识显隐操作入口</p>
+            <p className="topbar__subtitle">
+              platform-admin · 资源 → 角色 → 成员 / 用户组，按权限标识显隐操作入口
+            </p>
           </div>
         </div>
 
@@ -69,11 +85,13 @@ export default function App() {
         会先显示一整屏"无权限"，那是假象。
       */}
       {permission.ready ? (
-        tab === 'users' ? (
-          <UsersPage />
-        ) : (
-          <TenantsPage />
-        )
+        <>
+          {tab === 'users' ? <UsersPage /> : null}
+          {tab === 'tenants' ? <TenantsPage /> : null}
+          {tab === 'resources' ? <ResourcesPage /> : null}
+          {tab === 'roles' ? <RolesPage /> : null}
+          {tab === 'userGroups' ? <UserGroupsPage /> : null}
+        </>
       ) : (
         <p className="banner" data-testid="admin-pending">
           正在获取权限…

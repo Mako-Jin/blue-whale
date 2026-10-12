@@ -91,6 +91,111 @@ describe('createAccessApi · 契约接线', () => {
 
     expect(calls[0].method).toBe('DELETE');
   });
+
+  it('用户角色反查打到 /users/{id}/roles', async () => {
+    const { http, calls } = recordingHttp();
+    const api = createAccessApi(http);
+
+    await api.users.roleSources(7);
+
+    expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
+      'GET /api/auth/users/7/roles',
+    ]);
+  });
+
+  it('资源目录六个操作分别打到契约里的路径（平铺与树是两条路径）', async () => {
+    const { http, calls } = recordingHttp();
+    const api = createAccessApi(http);
+
+    await api.resources.page({ resourceType: 'API' });
+    await api.resources.tree();
+    await api.resources.detail(2);
+    await api.resources.create({
+      resourceCode: 'auth:user:create',
+      resourceName: '新建用户',
+      resourceType: 'API',
+    });
+    await api.resources.update(2, {
+      resourceCode: 'auth:user:create',
+      resourceName: '改名',
+      resourceType: 'API',
+    });
+    await api.resources.remove(2);
+
+    expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
+      'GET /api/auth/resources',
+      'GET /api/auth/resources/tree',
+      'GET /api/auth/resources/2',
+      'POST /api/auth/resources',
+      'PUT /api/auth/resources/2',
+      'DELETE /api/auth/resources/2',
+    ]);
+  });
+
+  it('角色十一个操作分别打到契约里的路径，且撤销成员**带 memberType**', async () => {
+    const { http, calls } = recordingHttp();
+    const api = createAccessApi(http);
+
+    await api.roles.page({ keyword: 'adm' });
+    await api.roles.detail(9);
+    await api.roles.create({ roleCode: 'DEPT_MANAGER', roleName: '部门经理' });
+    await api.roles.update(9, { roleCode: 'DEPT_MANAGER', roleName: '部门经理 2' });
+    await api.roles.remove(9);
+    await api.roles.listGrants(9);
+    await api.roles.grant(9, { resourceId: 12 });
+    await api.roles.revoke(9, { resourceId: 12 });
+    await api.roles.pageMembers(9, { page: 1, size: 10 });
+    await api.roles.bindMember(9, { memberType: 'USER', memberId: 7 });
+    await api.roles.revokeMember(9, { memberType: 'USER', memberId: 7 });
+
+    expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
+      'GET /api/auth/roles',
+      'GET /api/auth/roles/9',
+      'POST /api/auth/roles',
+      'PUT /api/auth/roles/9',
+      'DELETE /api/auth/roles/9',
+      'GET /api/auth/roles/9/resources',
+      'POST /api/auth/roles/9/resources',
+      // 撤销收的是**资源主键**（契约如此），不是授权关系主键
+      'DELETE /api/auth/roles/9/resources/12',
+      'GET /api/auth/roles/9/members',
+      'POST /api/auth/roles/9/members',
+      /*
+       * `memberType` 必须在路径里。
+       *
+       * 用户与用户组是两个独立的自增序列、**会撞号** —— 少了这一段，
+       * `memberId = 3` 撤掉的可能是另一个对象，而症状是"某人的权限凭空消失"，
+       * 离真正的原因非常远。这条断言钉的就是"不许把它省掉"。
+       */
+      'DELETE /api/auth/roles/9/members/USER/7',
+    ]);
+  });
+
+  it('用户组八个操作分别打到契约里的路径（路径连字符、成员关系挂组下）', async () => {
+    const { http, calls } = recordingHttp();
+    const api = createAccessApi(http);
+
+    await api.userGroups.page({ enabled: 1 });
+    await api.userGroups.detail(5);
+    await api.userGroups.create({ groupCode: 'FIN_GROUP', groupName: '财务部' });
+    await api.userGroups.update(5, { groupCode: 'FIN_GROUP', groupName: '财务部 2' });
+    await api.userGroups.remove(5);
+    await api.userGroups.pageMembers(5, { page: 1, size: 10 });
+    await api.userGroups.bindMember(5, { memberType: 'USER', memberId: 7 });
+    await api.userGroups.revokeMember(5, { memberType: 'USER', memberId: 7 });
+
+    expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
+      // 路径是连字符 `user-groups`，权限码却是下划线 `auth:user_group:*` —— 全仓唯一一处两处不同形
+      'GET /api/auth/user-groups',
+      'GET /api/auth/user-groups/5',
+      'POST /api/auth/user-groups',
+      'PUT /api/auth/user-groups/5',
+      'DELETE /api/auth/user-groups/5',
+      'GET /api/auth/user-groups/5/members',
+      'POST /api/auth/user-groups/5/members',
+      'DELETE /api/auth/user-groups/5/members/USER/7',
+    ]);
+  });
 });
 
 describe('AccessPermissions · 权限标识', () => {
@@ -112,6 +217,32 @@ describe('AccessPermissions · 权限标识', () => {
       TENANT_CREATE: 'auth:tenant:create',
       TENANT_UPDATE: 'auth:tenant:update',
       TENANT_DELETE: 'auth:tenant:delete',
+      RESOURCE_READ: 'auth:resource:read',
+      RESOURCE_CREATE: 'auth:resource:create',
+      RESOURCE_UPDATE: 'auth:resource:update',
+      RESOURCE_DELETE: 'auth:resource:delete',
+      ROLE_READ: 'auth:role:read',
+      ROLE_CREATE: 'auth:role:create',
+      ROLE_UPDATE: 'auth:role:update',
+      ROLE_DELETE: 'auth:role:delete',
+      // 注意是**下划线** —— 后端标识的字符集被 AuthTaxonomyTest 钉成 [a-z][a-z0-9_]*
+      USER_GROUP_READ: 'auth:user_group:read',
+      USER_GROUP_CREATE: 'auth:user_group:create',
+      USER_GROUP_UPDATE: 'auth:user_group:update',
+      USER_GROUP_DELETE: 'auth:user_group:delete',
     });
+  });
+
+  /**
+   * 成员关系的授予 / 撤销**刻意没有独立的权限码**，复用 `*:update`。
+   *
+   * <p>这条断言是"防止有人好心补上"：给它们加 `auth:role:grant_member` 之类的码，
+   * 会让已经配好的角色在升级后**静默丢失**授予成员的能力 ——
+   * 而补救方向会指向"新权限没下发"。真要拆，必须是一次带数据迁移的决定。
+   */
+  it('成员关系的授予 / 撤销复用 *:update，不单设权限码', () => {
+    const codes: string[] = Object.values(AccessPermissions);
+    expect(codes.filter((code) => code.includes('grant'))).toEqual([]);
+    expect(codes.filter((code) => code.includes('member'))).toEqual([]);
   });
 });
