@@ -12,8 +12,12 @@ import java.util.List;
  * 角色仓储。
  *
  * <p>除继承来的通用 CRUD 外，本接口有两个**刻意绕过 {@code @TableLogic} 的例外**
- * （手写 SQL）与一个角色授权视图的读方法。三处都不是"顺手多写的 SQL"，
+ * （手写 SQL）与两个跨表视图的读方法。四个都不是"顺手多写的 SQL"，
  * 理由分别写在下面。
+ *
+ * <p>两个视图（角色的授权集合 / 某人的角色来源）都放在本仓储、返回类型也定义在
+ * 角色包内，是为了让 {@code relation} 包不必反向依赖 {@code role} 包 ——
+ * 这两个视图的返回类型都不是实体，放错地方依赖方向就反了。
  *
  * <p>{@code @Mapper} 必须显式标注，理由见 {@code TenantMapper}。
  */
@@ -92,5 +96,66 @@ public interface RoleMapper extends BaseMapper<RoleEntity> {
             ORDER BY r.sort_no, r.id
             """)
     List<RoleResourceVO> selectResourceGrants(@Param("roleId") Long roleId);
+
+    /**
+     * 反查某个人身上挂了哪些角色、每条是**从哪来的**（直接授予 / 经用户组授予）。
+     *
+     * <p><b>这一行 SQL 与 `AuthorizationMapper` 的那两条长得很像，但不是同一件事，
+     * 别顺手合并：</b>判定要的是"此刻有效的权限码集合"（聚合、过滤、去重），
+     * 反查要的是"配置里有哪些路径"（不过滤、逐条、带来源）。把两者写成一条，
+     * 只会得到一条既看不懂也改不动的 SQL —— 而它们的**演进方向正好相反**：
+     * 判定会越来越严（多一个开关就多一个 WHERE），反查会越来越宽（多一个来源就多一个分支）。
+     *
+     * <p><b>不过滤时态与状态，这是刻意的。</b>如果在这里按判定条件筛一遍，
+     * 反查就会退化成 {@code /api/auth/me} 的副本，"我明明授了权、怎么没有"依旧没人能回答。
+     * 所以时间窗与状态原样返回，由 {@code RoleMemberService.rolesOfUser} 补上派生标记。
+     *
+     * <p><b>用户组的两种挂载方式在这里被合并成一列 {@code source}：</b>
+     * {@code member_type} 是多态表内部的实现细节（{@code USER} / {@code GROUP}），
+     * 而调用方要的是"这条角色是人直接拿的，还是通过某个组拿的"。
+     * 在 SQL 里用 {@code CASE} 翻译掉，比让 Java 侧记住
+     * "member_id 在 GROUP 时才表示组"要可靠 —— 后者正是那个会撞号的语义。
+     *
+     * <p><b>{@code LEFT JOIN} 的 ON 里带 {@code rm.member_type = 'GROUP'}：</b>
+     * 它让"组成员"那张表只对组类型的关系行参与连接，用户直授的行自然得到一个 NULL。
+     * 写在 ON 而不是 WHERE，是因为 WHERE 会把用户直授的行整行滤掉 ——
+     * 那是内连接的语义，正是这里不想要的。
+     *
+     * <p>{@code ro.deleted = 0} 与 {@code ro.tenant_id} 是必须的：前者排除已删角色，
+     * 后者防止跨租户的角色串进列表（角色必然属于某个租户，见 {@code RoleQuery}）。
+     */
+    @Select("""
+            SELECT rm.id             AS grant_id,
+                   rm.effective_from AS effective_from,
+                   rm.effective_to   AS effective_to,
+                   rm.create_time    AS create_time,
+                   CASE WHEN rm.member_type = 'GROUP' THEN 'GROUP' ELSE 'DIRECT' END AS source,
+                   CASE WHEN rm.member_type = 'GROUP' THEN rm.member_id END         AS group_id,
+                   ro.id             AS role_id,
+                   ro.role_code      AS role_code,
+                   ro.role_name      AS role_name,
+                   ro.status         AS role_status,
+                   gm.effective_from AS group_member_effective_from,
+                   gm.effective_to   AS group_member_effective_to
+            FROM bw_auth_rel_role_member rm
+            JOIN bw_auth_role ro ON ro.id = rm.role_id AND ro.deleted = 0
+            LEFT JOIN bw_auth_rel_user_group_member gm
+                   ON rm.member_type = 'GROUP'
+                  AND gm.user_group_id = rm.member_id
+                  AND gm.deleted = 0
+                  AND gm.tenant_id = #{tenantId}
+                  AND gm.member_type = 'USER'
+                  AND gm.member_id = #{userId}
+            WHERE rm.deleted = 0
+              AND rm.tenant_id = #{tenantId}
+              AND ro.tenant_id = #{tenantId}
+              AND (
+                    (rm.member_type = 'USER' AND rm.member_id = #{userId})
+                 OR (rm.member_type = 'GROUP' AND gm.id IS NOT NULL)
+              )
+            ORDER BY ro.role_code, rm.member_type, rm.id
+            """)
+    List<UserRoleVO> selectUserRoleSources(@Param("tenantId") Long tenantId,
+                                          @Param("userId") Long userId);
 
 }

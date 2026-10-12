@@ -8,6 +8,7 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
@@ -148,6 +149,35 @@ public class GlobalExceptionHandler {
         log.warn("参数异常 | message={}", ex.getMessage());
         ResponseOutcome.markFailure(request, ResultCode.BAD_REQUEST.getCode(), ex.getMessage());
         return R.fail(ResultCode.BAD_REQUEST, ex.getMessage());
+    }
+
+    /**
+     * 违反数据库唯一约束（或主键冲突）。
+     *
+     * <p><b>为什么必须有这一条，而不是让它落进兜底：</b>它此前正是落在
+     * {@code Exception.class} 上的 —— 也就是"数据库说这条记录已经存在"被翻译成
+     * 对外可见的 {@code 50000 系统内部错误}。调用方拿到 500 会去查服务端日志、
+     * 以为是自己写错了什么；监控会把它算进可用性；前端会把它当成一次故障去重试。
+     * 而真相是"这个编码/用户名已经有人用了"，一条 409 就能说清，且**责任方是调用方**。
+     * 把责任归错方，比不给错误码更浪费时间。
+     *
+     * <p>本仓已经撞到过它两次，都在同一个形状上：唯一索引不含 {@code deleted}，
+     * 于是软删行仍然占着编码，而常规查询（MyBatis-Plus 自动追加 {@code deleted = 0}）
+     * 对它们完全失明 —— 判重通过、insert 撞键。两次的**正解都是复活原记录**
+     * （见 {@code ResourceService.create} / {@code RoleService.create}），
+     * 本处理器不是用来替代那条正解的，它是**并发下的一层兜底**：
+     * 服务层的"先查后写"挡不住两个请求同时通过判重。
+     *
+     * <p>文案刻意不透露是哪张表、哪一列：那是内部结构（同兜底处理器不把异常信息
+     * 透给调用方）。需要精确原因的场景，应当由业务代码**主动**判重并返回
+     * 自己的域内错误码（如 {@code 40906 角色编码已存在}）—— 走到这里说明那一步没做或没挡住。
+     */
+    @ExceptionHandler(DuplicateKeyException.class)
+    public R<Void> handleDuplicateKeyException(DuplicateKeyException ex, HttpServletRequest request) {
+        log.warn("唯一约束冲突 | message={}", ex.getMessage());
+        String message = "数据已存在或与已有记录冲突";
+        ResponseOutcome.markFailure(request, ResultCode.CONFLICT.getCode(), message);
+        return R.fail(ResultCode.CONFLICT, message);
     }
 
     /**

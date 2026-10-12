@@ -332,7 +332,7 @@ expectTypeOf<ClientLogQuery['startTime']>().toEqualTypeOf<number | undefined>();
 
 - 各域接口目前有 `auth`、`access`、`audit`、`log`、`events` 与 `system`；新增业务域时新建 `src/<域>.ts`，在 `client.ts` 里装配，并在 `tests/` 下补一份接线断言
 - **认证链路已接线完毕**（登录 / 刷新 / 登出 / `me`，即 `src/auth.ts` + `createAuthChannel`）：令牌注入、401 恢复、刷新单飞（内核按客户端 + 通道跨客户端两层）、会话存取都已落地并有单测
-- **权限域管理接口已接 users / tenants**（5 条路径 11 个操作，即 `src/access.ts`），消费方是 `platform-admin`。组织 / 角色 / 用户组 / 资源四类实体的接口**后端尚未实现**，补齐后按同样写法加入 `access.ts`，不提前建空壳
+- **权限域管理接口已接 users / tenants**（5 条路径 11 个操作，即 `src/access.ts`），消费方是 `platform-admin`。**资源 / 角色 / 角色成员 / 用户组 / 用户角色反查**五类的接口**后端已实现**（累计 26 个操作、14 条路径），前端尚未接线 —— 补齐后按同样写法加入 `access.ts`，不提前建空壳。**组织**是唯一连后端都还没有的一类（表与实体已就绪，见 ADR-0024 的「未覆盖」）
 - **审计域已接 3 个只读接口**（`src/audit.ts`），消费方是 `platform-audit-console`。**它永远不会有写方法** —— 那是设计而非待办
 - 会话存储目前是**访问令牌在内存 + 刷新令牌明文落盘**。httpOnly cookie 方案需要后端配合改 `Set-Cookie` 并处理 CSRF 与跨源，列为将来项（`docs/decisions/0018` 第 6 条）
 - 基座已消费本包（`platform-portal/src/auth/`：登录页、路由守卫、会话恢复与权限下发）；子应用单跑时按 ADR-0018 第 8 条共用同一份 session 实现，需要发已鉴权请求时经 `HostProps.auth` 取令牌（同文档第 9 条）

@@ -29,6 +29,31 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/auth/user-groups/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** 查询用户组详情 */
+    get: operations['detail_1'];
+    /**
+     * 修改用户组
+     * @description 编码与所属租户不可修改；**isEnabled 是真开关**，停用后该组立刻不再产生权限
+     */
+    put: operations['update_1'];
+    post?: never;
+    /**
+     * 删除用户组
+     * @description 仍有成员（40918）或有子组（40913）时拒绝；该组自己持有的角色会被一并撤销
+     */
+    delete: operations['delete_1'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/auth/tenants/{id}': {
     parameters: {
       query?: never;
@@ -37,18 +62,18 @@ export interface paths {
       cookie?: never;
     };
     /** 查询租户详情 */
-    get: operations['detail_1'];
+    get: operations['detail_2'];
     /**
      * 修改租户
      * @description 租户编码不可修改
      */
-    put: operations['update_1'];
+    put: operations['update_2'];
     post?: never;
     /**
      * 删除租户
      * @description 存在子租户时拒绝删除
      */
-    delete: operations['delete_1'];
+    delete: operations['delete_2'];
     options?: never;
     head?: never;
     patch?: never;
@@ -62,18 +87,18 @@ export interface paths {
       cookie?: never;
     };
     /** 查询角色详情 */
-    get: operations['detail_2'];
+    get: operations['detail_3'];
     /**
      * 修改角色
      * @description 角色编码与所属租户不可修改；系统内置角色不可停用
      */
-    put: operations['update_2'];
+    put: operations['update_3'];
     post?: never;
     /**
      * 删除角色
      * @description 系统内置角色、有子角色、有成员时拒绝删除；角色自身的授权会被一并撤销
      */
-    delete: operations['delete_2'];
+    delete: operations['delete_3'];
     options?: never;
     head?: never;
     patch?: never;
@@ -87,18 +112,18 @@ export interface paths {
       cookie?: never;
     };
     /** 查询资源详情 */
-    get: operations['detail_3'];
+    get: operations['detail_4'];
     /**
      * 修改资源
      * @description **资源标识不可修改**；父资源不能是自身或自身的下级
      */
-    put: operations['update_3'];
+    put: operations['update_4'];
     post?: never;
     /**
      * 删除资源
      * @description 逻辑删除。有子资源（40913）或已被角色引用（40915）时拒绝
      */
-    delete: operations['delete_3'];
+    delete: operations['delete_4'];
     options?: never;
     head?: never;
     patch?: never;
@@ -196,6 +221,54 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/auth/user-groups': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * 分页查询用户组
+     * @description 按 keyword（编码 / 名称） / category / enabled / parentId 过滤，按当前租户限定
+     */
+    get: operations['page_3'];
+    put?: never;
+    /**
+     * 新增用户组
+     * @description 编码曾被已删除的用户组占用时会恢复那一行，且恢复出来的是空组（无成员、无角色）
+     */
+    post: operations['create_1'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/auth/user-groups/{id}/members': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * 分页查询组成员
+     * @description 可按 memberType 过滤；成员名跨表解析，因此不提供按名搜索
+     */
+    get: operations['pageMembers'];
+    put?: never;
+    /**
+     * 把用户加进用户组
+     * @description memberType **当前只接受 USER**（组的嵌套在判定里不生效，传 GROUP 返回 40001）；同一个组与用户只保留一条有效关系，重复调用会改时间窗而不是堆行
+     */
+    post: operations['bindMember'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/auth/tenants': {
     parameters: {
       query?: never;
@@ -204,10 +277,10 @@ export interface paths {
       cookie?: never;
     };
     /** 分页查询租户 */
-    get: operations['page_3'];
+    get: operations['page_4'];
     put?: never;
     /** 新增租户 */
-    post: operations['create_1'];
+    post: operations['create_2'];
     delete?: never;
     options?: never;
     head?: never;
@@ -222,13 +295,13 @@ export interface paths {
       cookie?: never;
     };
     /** 分页查询角色 */
-    get: operations['page_4'];
+    get: operations['page_5'];
     put?: never;
     /**
      * 新增角色
      * @description 编码曾被已删除的角色占用时会复活那一行
      */
-    post: operations['create_2'];
+    post: operations['create_3'];
     delete?: never;
     options?: never;
     head?: never;
@@ -267,13 +340,13 @@ export interface paths {
      * 分页查询角色成员
      * @description 可按 memberType 过滤；成员名跨两张表解析，因此不提供按名搜索
      */
-    get: operations['pageMembers'];
+    get: operations['pageMembers_1'];
     put?: never;
     /**
      * 给角色授予成员
      * @description memberType 必填（USER / GROUP）；同一个角色与成员只保留一条有效关系，重复调用会改时间窗而不是堆行
      */
-    post: operations['bindMember'];
+    post: operations['bindMember_1'];
     delete?: never;
     options?: never;
     head?: never;
@@ -291,13 +364,13 @@ export interface paths {
      * 分页查询资源
      * @description 平铺列表。要层级用 /tree
      */
-    get: operations['page_5'];
+    get: operations['page_6'];
     put?: never;
     /**
      * 新增资源
      * @description 资源标识须为「域:资源:动作」三段小写；若该标识曾被删除，则恢复原记录而非新建
      */
-    post: operations['create_3'];
+    post: operations['create_4'];
     delete?: never;
     options?: never;
     head?: never;
@@ -372,7 +445,7 @@ export interface paths {
       cookie?: never;
     };
     /** 查询日志详情 */
-    get: operations['detail_4'];
+    get: operations['detail_5'];
     put?: never;
     post?: never;
     delete?: never;
@@ -449,7 +522,7 @@ export interface paths {
       cookie?: never;
     };
     /** 查询事件详情 */
-    get: operations['detail_5'];
+    get: operations['detail_6'];
     put?: never;
     post?: never;
     delete?: never;
@@ -470,6 +543,26 @@ export interface paths {
      * @description 返回时间窗内的总条数与各事件名分布，只包含出现过的名称。
      */
     get: operations['stats_1'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/auth/users/{id}/roles': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * 反查用户的角色来源
+     * @description 列出该用户直接持有的角色与经用户组持有的角色；**停用的角色 / 停用的组 / 已过期的授权照原样返回**，因为它们正是「为什么没有权限」的答案
+     */
+    get: operations['roles'];
     put?: never;
     post?: never;
     delete?: never;
@@ -529,7 +622,7 @@ export interface paths {
      * 分页查询审计记录
      * @description 按服务端记录时间倒序。时间窗缺省为最近 7 天。可按动作、资源、对象、操作人、结果过滤。
      */
-    get: operations['page_6'];
+    get: operations['page_7'];
     put?: never;
     post?: never;
     delete?: never;
@@ -546,7 +639,7 @@ export interface paths {
       cookie?: never;
     };
     /** 查询审计记录详情 */
-    get: operations['detail_6'];
+    get: operations['detail_7'];
     put?: never;
     post?: never;
     delete?: never;
@@ -570,6 +663,26 @@ export interface paths {
     put?: never;
     post?: never;
     delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/auth/user-groups/{id}/members/{memberType}/{memberId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * 把用户移出用户组
+     * @description memberType 取 USER / GROUP；本来就不在组里时返回 40409，不与移除成功混淆
+     */
+    delete: operations['revokeMember'];
     options?: never;
     head?: never;
     patch?: never;
@@ -609,7 +722,7 @@ export interface paths {
      * 解除角色的成员关系
      * @description memberType 取 USER / GROUP；从未授过的成员返回 40408，不与解除成功混淆
      */
-    delete: operations['revokeMember'];
+    delete: operations['revokeMember_1'];
     options?: never;
     head?: never;
     patch?: never;
@@ -683,6 +796,109 @@ export interface components {
       /** Format: int64 */
       createTime?: number;
       /** Format: int64 */
+      updateTime?: number;
+    };
+    /** @description 用户组保存入参 */
+    UserGroupSaveRequest: {
+      /**
+       * @description 用户组编码，租户内唯一。创建后不可修改
+       * @example FIN_GROUP
+       */
+      groupCode: string;
+      /**
+       * @description 用户组名称
+       * @example 财务部
+       */
+      groupName: string;
+      /**
+       * Format: int64
+       * @description 租户主键，不传则归入当前登录用户所属租户
+       */
+      tenantId?: number;
+      /**
+       * Format: int64
+       * @description 父用户组主键，顶级不传。**只用于列表分组展示，不产生权限** —— 判定链路里组不继承父组的角色
+       */
+      parentId?: number;
+      /**
+       * @description 分组方式。**当前只支持 STATIC**（成员手工维护）：DYNAMIC 的动态成员求值尚未实现，传别的值返回 40001
+       * @example STATIC
+       */
+      category?: string;
+      /**
+       * Format: int32
+       * @description 是否默认用户组（新用户自动加入）：0 否 1 是，缺省 0。**当前只存不用**
+       */
+      isDefault?: number;
+      /**
+       * Format: int32
+       * @description 是否启用：0 否 1 是，缺省 1。**停用的用户组不再产生权限**
+       */
+      isEnabled?: number;
+      /**
+       * Format: int32
+       * @description 排序号，同级内升序；缺省 0
+       */
+      sortNo?: number;
+      description?: string;
+    };
+    RUserGroupVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['UserGroupVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    /** @description 用户组 */
+    UserGroupVO: {
+      /**
+       * Format: int64
+       * @description 用户组主键
+       */
+      id?: number;
+      /**
+       * Format: int64
+       * @description 所属租户主键
+       */
+      tenantId?: number;
+      /** @description 用户组编码，租户内唯一 */
+      groupCode?: string;
+      /** @description 用户组名称 */
+      groupName?: string;
+      /**
+       * Format: int64
+       * @description 父用户组主键。只用于列表分组展示，不产生权限
+       */
+      parentId?: number;
+      /** @description 分组方式。当前恒为 STATIC */
+      category?: string;
+      /**
+       * Format: int32
+       * @description 是否默认用户组：0 否 1 是。**当前只存不用**
+       */
+      isDefault?: number;
+      /**
+       * Format: int32
+       * @description 是否启用：0 否 1 是。**停用的用户组不再产生权限**
+       */
+      isEnabled?: number;
+      /**
+       * Format: int32
+       * @description 排序号
+       */
+      sortNo?: number;
+      /** @description 描述 */
+      description?: string;
+      /**
+       * Format: int64
+       * @description 创建时间（毫秒时间戳）
+       */
+      createTime?: number;
+      /**
+       * Format: int64
+       * @description 最后更新时间（毫秒时间戳）
+       */
       updateTime?: number;
     };
     /** @description 租户保存入参 */
@@ -1102,6 +1318,74 @@ export interface components {
       data?: unknown;
       /** Format: int64 */
       timestamp?: number;
+    };
+    /** @description 用户组成员入参 */
+    UserGroupMemberBindRequest: {
+      /**
+       * @description 成员类型。**当前只接受 USER**：GROUP（组嵌套）在判定链路里不生效，传它会返回 40001 而不是被静默接受
+       * @example USER
+       */
+      memberType: string;
+      /**
+       * Format: int64
+       * @description 成员主键（用户主键）
+       * @example 1
+       */
+      memberId: number;
+      /**
+       * Format: int64
+       * @description 生效起始时间（毫秒时间戳），不传表示立即生效
+       */
+      effectiveFrom?: number;
+      /**
+       * Format: int64
+       * @description 生效结束时间（毫秒时间戳），不传表示长期有效
+       */
+      effectiveTo?: number;
+    };
+    RUserGroupMemberVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['UserGroupMemberVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    /** @description 用户组成员关系 */
+    UserGroupMemberVO: {
+      /**
+       * Format: int64
+       * @description 成员关系主键，移除时用它
+       */
+      grantId?: number;
+      /** @description 成员类型。当前恒为 USER */
+      memberType?: string;
+      /** @description 成员类型的中文名，供界面直接展示 */
+      memberTypeLabel?: string;
+      /**
+       * Format: int64
+       * @description 成员主键（用户主键）
+       */
+      memberId?: number;
+      /** @description 成员名称：取用户 displayName（为空则回退 username）。用户已不存在时为 null —— 多态表没有外键，这种情况是可能的，且应当被看见 */
+      memberName?: string;
+      /**
+       * Format: int64
+       * @description 生效起始时间（毫秒时间戳），null 表示立即生效
+       */
+      effectiveFrom?: number;
+      /**
+       * Format: int64
+       * @description 生效结束时间（毫秒时间戳），null 表示长期有效
+       */
+      effectiveTo?: number;
+      /** @description 此刻是否落在生效区间内。false 表示尚未生效或已过期。它只回答时态问题：用户组被停用时即使这里为 true，权限依然不会产生 */
+      effectiveNow?: boolean;
+      /**
+       * Format: int64
+       * @description 成员关系建立时间（毫秒时间戳）
+       */
+      createTime?: number;
     };
     /** @description 角色授权入参 */
     RoleResourceGrantRequest: {
@@ -1561,6 +1845,116 @@ export interface components {
       /** Format: int64 */
       timestamp?: number;
     };
+    RListUserRoleVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['UserRoleVO'][];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    /** @description 用户角色的来源（反查） */
+    UserRoleVO: {
+      /**
+       * Format: int64
+       * @description 角色成员关系主键（rel_role_member 那一行的 id）
+       */
+      grantId?: number;
+      /** @description 来源：DIRECT 直接授予 / GROUP 经用户组授予 */
+      source?: string;
+      /** @description 来源的中文名，供界面直接展示（直接授予 / 经用户组授予） */
+      sourceLabel?: string;
+      /**
+       * Format: int64
+       * @description 角色主键
+       */
+      roleId?: number;
+      /** @description 角色编码 */
+      roleCode?: string;
+      /** @description 角色名称 */
+      roleName?: string;
+      /** @description 角色状态：ENABLED / DISABLED。**停用的角色不产生权限**，但这里照原样返回 —— 它正是「为什么没有权限」的答案之一 */
+      roleStatus?: string;
+      /**
+       * Format: int64
+       * @description 来源用户组主键。仅 source = GROUP 时有值
+       */
+      groupId?: number;
+      /** @description 来源用户组名称。仅 source = GROUP 时有值 */
+      groupName?: string;
+      /**
+       * Format: int32
+       * @description 来源用户组是否启用（0 否 1 是）。仅 source = GROUP 时有值。**停用的组不产生权限**，同样照原样返回
+       */
+      groupEnabled?: number;
+      /**
+       * Format: int64
+       * @description 角色成员关系的生效起始时间（毫秒），null 表示立即生效
+       */
+      effectiveFrom?: number;
+      /**
+       * Format: int64
+       * @description 角色成员关系的生效结束时间（毫秒），null 表示长期有效
+       */
+      effectiveTo?: number;
+      /** @description 角色成员关系此刻是否落在生效区间内 */
+      effectiveNow?: boolean;
+      /**
+       * Format: int64
+       * @description 来源组成员关系的生效起始时间（毫秒）。仅 source = GROUP 时有值
+       */
+      groupMemberEffectiveFrom?: number;
+      /**
+       * Format: int64
+       * @description 来源组成员关系的生效结束时间（毫秒）。仅 source = GROUP 时有值
+       */
+      groupMemberEffectiveTo?: number;
+      /** @description 来源组成员关系此刻是否落在生效区间内。仅 source = GROUP 时有值 */
+      groupMemberEffectiveNow?: boolean;
+      /**
+       * Format: int64
+       * @description 角色成员关系建立时间（毫秒时间戳）
+       */
+      createTime?: number;
+    };
+    PageResultUserGroupVO: {
+      records?: components['schemas']['UserGroupVO'][];
+      /** Format: int64 */
+      total?: number;
+      /** Format: int64 */
+      page?: number;
+      /** Format: int64 */
+      size?: number;
+      /** Format: int64 */
+      pages?: number;
+    };
+    RPageResultUserGroupVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PageResultUserGroupVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    PageResultUserGroupMemberVO: {
+      records?: components['schemas']['UserGroupMemberVO'][];
+      /** Format: int64 */
+      total?: number;
+      /** Format: int64 */
+      page?: number;
+      /** Format: int64 */
+      size?: number;
+      /** Format: int64 */
+      pages?: number;
+    };
+    RPageResultUserGroupMemberVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PageResultUserGroupMemberVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
     PageResultTenantVO: {
       records?: components['schemas']['TenantVO'][];
       /** Format: int64 */
@@ -1905,6 +2299,79 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description 用户组主键 */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RUserGroupVO'];
+        };
+      };
+    };
+  };
+  update_1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 用户组主键 */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UserGroupSaveRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RUserGroupVO'];
+        };
+      };
+    };
+  };
+  delete_1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 用户组主键 */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RVoid'];
+        };
+      };
+    };
+  };
+  detail_2: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
         /** @description 租户主键 */
         id: number;
       };
@@ -1923,7 +2390,7 @@ export interface operations {
       };
     };
   };
-  update_1: {
+  update_2: {
     parameters: {
       query?: never;
       header?: never;
@@ -1950,7 +2417,7 @@ export interface operations {
       };
     };
   };
-  delete_1: {
+  delete_2: {
     parameters: {
       query?: never;
       header?: never;
@@ -1973,7 +2440,7 @@ export interface operations {
       };
     };
   };
-  detail_2: {
+  detail_3: {
     parameters: {
       query?: never;
       header?: never;
@@ -1996,7 +2463,7 @@ export interface operations {
       };
     };
   };
-  update_2: {
+  update_3: {
     parameters: {
       query?: never;
       header?: never;
@@ -2023,7 +2490,7 @@ export interface operations {
       };
     };
   };
-  delete_2: {
+  delete_3: {
     parameters: {
       query?: never;
       header?: never;
@@ -2046,7 +2513,7 @@ export interface operations {
       };
     };
   };
-  detail_3: {
+  detail_4: {
     parameters: {
       query?: never;
       header?: never;
@@ -2069,7 +2536,7 @@ export interface operations {
       };
     };
   };
-  update_3: {
+  update_4: {
     parameters: {
       query?: never;
       header?: never;
@@ -2096,7 +2563,7 @@ export interface operations {
       };
     };
   };
-  delete_3: {
+  delete_4: {
     parameters: {
       query?: never;
       header?: never;
@@ -2326,6 +2793,118 @@ export interface operations {
   page_3: {
     parameters: {
       query?: {
+        /** @description 租户主键，不传则限定为当前登录用户所属租户 */
+        tenantId?: number;
+        /** @description 关键字，匹配用户组编码或名称 */
+        keyword?: string;
+        /** @description 分组方式：STATIC。**过滤条件宽松处理**，认不得的值按原样比 */
+        category?: string;
+        /** @description 是否启用：0 / 1，不传表示全部 */
+        enabled?: number;
+        /** @description 父用户组主键，不传表示全部 */
+        parentId?: number;
+        page?: number;
+        size?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RPageResultUserGroupVO'];
+        };
+      };
+    };
+  };
+  create_1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UserGroupSaveRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RUserGroupVO'];
+        };
+      };
+    };
+  };
+  pageMembers: {
+    parameters: {
+      query?: {
+        /** @description 成员类型：USER，不传表示全部 */
+        memberType?: string;
+        page?: number;
+        size?: number;
+      };
+      header?: never;
+      path: {
+        /** @description 用户组主键 */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RPageResultUserGroupMemberVO'];
+        };
+      };
+    };
+  };
+  bindMember: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 用户组主键 */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UserGroupMemberBindRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RUserGroupMemberVO'];
+        };
+      };
+    };
+  };
+  page_4: {
+    parameters: {
+      query?: {
         /** @description 关键字，匹配租户编码或名称 */
         keyword?: string;
         /** @description 状态：ENABLED / DISABLED */
@@ -2350,7 +2929,7 @@ export interface operations {
       };
     };
   };
-  create_1: {
+  create_2: {
     parameters: {
       query?: never;
       header?: never;
@@ -2374,7 +2953,7 @@ export interface operations {
       };
     };
   };
-  page_4: {
+  page_5: {
     parameters: {
       query?: {
         /** @description 租户主键，不传则限定为当前登录用户所属租户 */
@@ -2405,7 +2984,7 @@ export interface operations {
       };
     };
   };
-  create_2: {
+  create_3: {
     parameters: {
       query?: never;
       header?: never;
@@ -2479,7 +3058,7 @@ export interface operations {
       };
     };
   };
-  pageMembers: {
+  pageMembers_1: {
     parameters: {
       query?: {
         /** @description 成员类型：USER / GROUP，不传表示全部 */
@@ -2507,7 +3086,7 @@ export interface operations {
       };
     };
   };
-  bindMember: {
+  bindMember_1: {
     parameters: {
       query?: never;
       header?: never;
@@ -2534,7 +3113,7 @@ export interface operations {
       };
     };
   };
-  page_5: {
+  page_6: {
     parameters: {
       query?: {
         /** @description 关键字，匹配资源标识或名称 */
@@ -2565,7 +3144,7 @@ export interface operations {
       };
     };
   };
-  create_3: {
+  create_4: {
     parameters: {
       query?: never;
       header?: never;
@@ -2661,7 +3240,7 @@ export interface operations {
       };
     };
   };
-  detail_4: {
+  detail_5: {
     parameters: {
       query?: never;
       header?: never;
@@ -2754,7 +3333,7 @@ export interface operations {
       };
     };
   };
-  detail_5: {
+  detail_6: {
     parameters: {
       query?: never;
       header?: never;
@@ -2804,6 +3383,29 @@ export interface operations {
       };
     };
   };
+  roles: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 用户主键 */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RListUserRoleVO'];
+        };
+      };
+    };
+  };
   tree: {
     parameters: {
       query?: never;
@@ -2844,7 +3446,7 @@ export interface operations {
       };
     };
   };
-  page_6: {
+  page_7: {
     parameters: {
       query?: {
         /** @description 动作标识精确匹配，如 user.create */
@@ -2883,7 +3485,7 @@ export interface operations {
       };
     };
   };
-  detail_6: {
+  detail_7: {
     parameters: {
       query?: never;
       header?: never;
@@ -2935,6 +3537,33 @@ export interface operations {
       };
     };
   };
+  revokeMember: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 用户组主键 */
+        id: number;
+        /** @description 成员类型：USER / GROUP */
+        memberType: string;
+        /** @description 成员主键 */
+        memberId: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RVoid'];
+        };
+      };
+    };
+  };
   revoke: {
     parameters: {
       query?: never;
@@ -2960,7 +3589,7 @@ export interface operations {
       };
     };
   };
-  revokeMember: {
+  revokeMember_1: {
     parameters: {
       query?: never;
       header?: never;

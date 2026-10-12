@@ -3,13 +3,8 @@ package com.bluewhale.sts.app.auth;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.bluewhale.sts.auth.common.AuthPermissions;
 import com.bluewhale.sts.auth.common.AuthProperties;
-import com.bluewhale.sts.auth.common.enums.MemberType;
-import com.bluewhale.sts.auth.relation.RelUserGroupMemberEntity;
-import com.bluewhale.sts.auth.relation.RelUserGroupMemberMapper;
 import com.bluewhale.sts.auth.resource.ResourceEntity;
 import com.bluewhale.sts.auth.resource.ResourceMapper;
-import com.bluewhale.sts.auth.usergroup.UserGroupEntity;
-import com.bluewhale.sts.auth.usergroup.UserGroupMapper;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -48,9 +43,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 而且**校验链也参与进来**（不存在的主键、跨租户的成员都会被接口挡掉），
  * 这是直接写库永远覆盖不到的。
  *
- * <p>仍然直接写库的地方只剩两处，都是**夹具**，理由与 {@code DefaultAdminSeeder} 一致：
- * 用户组（{@code bw_auth_user_group} 与它的成员关系表都还没有任何接口）。
- * 夹具只负责"让被测链路有东西可走"，断言仍然落在接口的准入结果上。
+ * <p><b>本类里没有任何一处直接写库。</b>用户组的管理接口与角色成员关系的接口
+ * 现在都已在（前者见 {@code UserGroupApiTest}），所以连"建一个组"这种前置条件
+ * 也走接口 —— 上一片里那段"组链路要等用户组管理落地"的注释因此可以删掉了。
+ * 前置条件经接口建立还有一个额外收益：**校验链也参与进来**
+ * （不存在的主键、跨租户的成员、ID 撞号的类型错配都会被接口挡掉），
+ * 这是直接写库永远覆盖不到的。
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -68,15 +66,8 @@ class RoleMemberApiTest {
     @Autowired
     private ResourceMapper resourceMapper;
 
-    @Autowired
-    private UserGroupMapper userGroupMapper;
-
-    @Autowired
-    private RelUserGroupMemberMapper relUserGroupMemberMapper;
-
-    /** 管理员的主键与租户，在 {@link #loginAsAdmin()} 里从 /me 取 */
+    /** 管理员的主键，在 {@link #loginAsAdmin()} 里从 /me 取 */
     private long adminUserId;
-    private long adminTenantId;
 
     /* ==================== 生命周期与幂等 ==================== */
 
@@ -386,8 +377,10 @@ class RoleMemberApiTest {
      * 角色成员关系的接口也不存在，所以这段子查询一直没有真实入口。
      * 本片补上了后一半，这条链才第一次可以被端到端断言。
      *
-     * <p>夹具（用户组与组-用户关系）仍然直接写库，与 {@code DefaultAdminSeeder} 的做法一致：
-     * 用户组管理是另一片的事，而"组链路能不能走通"不该等它。
+     * <p>用户组与组-用户关系**现在都经接口建立**（建组、加成员都是真实调用），
+     * 上一片里"用户组管理是另一片的事、只好硬写夹具"的理由已经不存在了。
+     * 断言仍然落在**判定链路**上：这个组最终有没有让那个人拿到权限。
+     * 用户组接口自身的用例在 {@code UserGroupApiTest}，两边分工不重复。
      */
     @Test
     @DisplayName("组链路：用户 → 用户组 → 角色 → 资源；组关系过期同样立即失效")
@@ -399,13 +392,8 @@ class RoleMemberApiTest {
         long userId = createUser(adminToken, username);
         String userToken = login(properties.getSeedAdmin().getTenantCode(), username, TEST_PASSWORD);
 
-        long groupId = createGroupFixture("读租户组");
-        RelUserGroupMemberEntity groupMember = new RelUserGroupMemberEntity();
-        groupMember.setTenantId(adminTenantId);
-        groupMember.setUserGroupId(groupId);
-        groupMember.setMemberId(userId);
-        groupMember.setMemberType(MemberType.USER.wireName());
-        relUserGroupMemberMapper.insert(groupMember);
+        long groupId = createGroup(adminToken, "读租户组");
+        bindGroupMember(adminToken, groupId, userId, null, null);
 
         long roleId = createRole(adminToken, uniqueRoleCode("grp"), "组角色", "CUSTOM", "ALL");
         grant(adminToken, roleId, resourceId, "ALLOW");
@@ -416,14 +404,15 @@ class RoleMemberApiTest {
         expectTenantList(userToken, 0);
 
         // 组-用户关系过期：判定里那段子查询同样有时态过滤，权限必须消失
-        expireGroupMember(groupMember.getId());
+        long now = System.currentTimeMillis();
+        bindGroupMember(adminToken, groupId, userId, now - 7_200_000L, now - 3_600_000L);
         expectTenantList(userToken, 40301);
 
         /* 收尾：先解除角色成员关系才能删角色（有成员时删除被拒绝，这正是角色侧的守卫） */
         unbindMember(adminToken, roleId, "GROUP", groupId);
         deleteRole(adminToken, roleId);
-        relUserGroupMemberMapper.deleteById(groupMember.getId());
-        userGroupMapper.deleteById(groupId);
+        unbindGroupMember(adminToken, groupId, userId);
+        deleteGroup(adminToken, groupId);
         mockMvc.perform(delete("/api/auth/users/" + userId)
                         .header("Authorization", "Bearer " + adminToken))
                 .andExpect(jsonPath("$.code").value(0));
@@ -504,7 +493,7 @@ class RoleMemberApiTest {
         String token = login(properties.getSeedAdmin().getTenantCode(),
                 properties.getSeedAdmin().getUsername(),
                 properties.getSeedAdmin().getPassword());
-        // 管理员的主键与租户从 /me 拿，而不是写死 1：写死会在种子策略变化时
+        // 管理员的主键从 /me 拿，而不是写死 1：写死会在种子策略变化时
         // 静默指向别的身份，让"给角色挂成员"这个前置条件悄悄失效
         MvcResult me = mockMvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
@@ -512,7 +501,6 @@ class RoleMemberApiTest {
                 .andReturn();
         String bodyText = me.getResponse().getContentAsString();
         adminUserId = ((Number) JsonPath.read(bodyText, "$.data.userId")).longValue();
-        adminTenantId = ((Number) JsonPath.read(bodyText, "$.data.tenantId")).longValue();
         return token;
     }
 
@@ -638,34 +626,44 @@ class RoleMemberApiTest {
                 .andExpect(jsonPath("$.code").value(0));
     }
 
-    /**
-     * 夹具：建一个用户组。
-     *
-     * <p>用户组管理是另一片的事（{@code bw_auth_user_group} 有实体与仓储、
-     * 没有服务与接口），但"组链路能不能走通"不该等它 —— 与 {@code DefaultAdminSeeder}
-     * 直接建租户 / 用户 / 角色 / 成员一样，这里是**夹具**，不是被测对象。
-     */
-    private long createGroupFixture(String groupName) {
-        UserGroupEntity group = new UserGroupEntity();
-        group.setTenantId(adminTenantId);
-        group.setGroupCode("E2EGRP" + Long.toString(System.nanoTime(), 36).toUpperCase());
-        group.setGroupName(groupName);
-        group.setCategory("STATIC");
-        group.setIsDefault(0);
-        group.setIsEnabled(1);
-        group.setSortNo(0);
-        userGroupMapper.insert(group);
-        return group.getId();
+    /** 建一个用户组（经接口）。用户组管理落地之后，夹具不再必要 */
+    private long createGroup(String token, String groupName) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/auth/user-groups")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"groupCode":"%s","groupName":"%s"}
+                                """.formatted(uniqueGroupCode(), groupName)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andReturn();
+        Number id = JsonPath.read(result.getResponse().getContentAsString(), "$.data.id");
+        return id.longValue();
     }
 
-    /** 夹具：把组-用户关系改成一段已经过去的区间，验证判定里那段子查询同样有时态过滤 */
-    private void expireGroupMember(long groupMemberId) {
-        RelUserGroupMemberEntity expired = new RelUserGroupMemberEntity();
-        expired.setId(groupMemberId);
-        long now = System.currentTimeMillis();
-        expired.setEffectiveFrom(now - 7_200_000L);
-        expired.setEffectiveTo(now - 3_600_000L);
-        relUserGroupMemberMapper.updateById(expired);
+    private void deleteGroup(String token, long id) throws Exception {
+        mockMvc.perform(delete("/api/auth/user-groups/" + id)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+    }
+
+    /** 把用户加进组。传一段过去的区间就是"组成员关系已过期"这一场景 */
+    private void bindGroupMember(String token, long groupId, long userId, Long from, Long to)
+            throws Exception {
+        mockMvc.perform(post("/api/auth/user-groups/" + groupId + "/members")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(bindBody("USER", userId, from, to)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+    }
+
+    private void unbindGroupMember(String token, long groupId, long userId) throws Exception {
+        mockMvc.perform(delete("/api/auth/user-groups/" + groupId + "/members/USER/" + userId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
     }
 
     private long resourceIdOf(String resourceCode) {
@@ -702,6 +700,11 @@ class RoleMemberApiTest {
     /** 合法且唯一的租户编码：首字符必须是字母，长度 ≥ 2 */
     private static String uniqueTenantCode() {
         return "e2et" + Long.toString(System.nanoTime(), 36);
+    }
+
+    /** 合法且唯一的用户组编码：首字符必须是字母 */
+    private static String uniqueGroupCode() {
+        return "E2EGRP" + Long.toString(System.nanoTime(), 36).toUpperCase();
     }
 
 }

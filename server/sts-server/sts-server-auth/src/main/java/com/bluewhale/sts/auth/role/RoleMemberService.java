@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.sts.auth.common.AuthResultCode;
 import com.bluewhale.sts.auth.common.enums.MemberType;
+import com.bluewhale.sts.auth.common.enums.RoleSource;
 import com.bluewhale.sts.auth.relation.RelRoleMemberEntity;
 import com.bluewhale.sts.auth.relation.RelRoleMemberMapper;
 import com.bluewhale.sts.auth.usergroup.UserGroupEntity;
@@ -19,6 +20,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -58,6 +60,15 @@ import java.util.stream.Collectors;
  *       表上没有这个三元组的唯一索引，所以还要清掉同键的其余行 —— 与资源授权同一个理由，
  *       见 {@link #bind}。</li>
  * </ul>
+ *
+ * <p><b>本类有两个方向相反的查询，都在这里是有意的：</b>从角色看成员
+ * （{@link #page}，"这个角色给了谁"）与从人看角色（{@link #rolesOfUser}，
+ * "这个人的角色是哪来的"）。两者共用同一张表、同一套"直接授予 / 经组授予"的分支，
+ * 分开放会让那段分支逻辑出现两份，而它们的**语义必须一致** ——
+ * 一份改了另一份没改的表现是"角色列表里能看到组，反查却说没有"。
+ * HTTP 侧 {@code rolesOfUser} 挂在 {@code /api/auth/users/{id}/roles}
+ * （见 {@code UserController}），而不是挂在 {@code /api/auth/roles} 下：
+ * 路径要跟着"这句话的主语"走，服务放哪个包是代码组织问题，两件事不必一致。
  *
  * <p><b>不拒绝给"已停用的角色"或"已停用的用户"加成员。</b>它们当前都不产生权限
  * （判定要求 {@code ro.status = 'ENABLED'}，成员自身可用性由认证环节把关），
@@ -209,6 +220,86 @@ public class RoleMemberService {
             throw AuthResultCode.ROLE_MEMBER_GRANT_NOT_FOUND.businessException();
         }
         active.forEach(row -> relRoleMemberMapper.deleteById(row.getId()));
+    }
+
+    /* ------------------------------------------------------------------ 反查 */
+
+    /**
+     * 反查某个用户身上的角色**及其来源**（直接授予 / 经用户组授予）。
+     *
+     * <p>这是排查权限问题时该第一个打开的接口。在此之前，"这个人为什么有这个权限"
+     * 只能顺着 {@code /api/auth/me} 给出的角色编码反查角色列表、再逐个打开成员列表 ——
+     * 而"经用户组授予"的那条路在角色列表里根本不显形：角色上挂的是组，不是人。
+     *
+     * <p><b>它同时跨越两个来源，这正是必须有一个统一入口的原因。</b>
+     * 直接授予与经组授予是两条边：{@code rel_role_member} 里
+     * {@code member_type = 'USER'} 与 {@code member_type = 'GROUP'} 各占一半，
+     * 调用方若自己拼，很容易只查了前者 —— 表现是"这个人明明有权限，
+     * 反查却说他没有任何角色"。
+     *
+     * <p><b>不过滤状态与时间窗</b>，与 {@code RoleMemberVO} 同一条取舍：
+     * 一行"角色已停用"或"组已停用"或"授权已过期"是**答案的一部分**，
+     * 而不是噪声。因此这里只补派生标记（{@code effectiveNow} /
+     * {@code groupMemberEffectiveNow}），不把行滤掉、也不把多个开关压成一个布尔。
+     * 唯一被真正过滤掉的是"用户根本不在那个组里"——{@link RoleMapper#selectUserRoleSources}
+     * 用 {@code gm.id IS NOT NULL} 表达，因为那种情况下这条角色压根不是他的。
+     *
+     * <p>组的名字与启用状态**批量查一次**再回填，不逐行回查（N+1）：
+     * 一个用户身上的组通常是个位数，但接口的查询次数应当与数据量无关。
+     *
+     * <p>权限落在 {@code auth:user:read} 上：它读的是"某个用户"的信息，
+     * 与用户列表 / 用户详情同类。**没有单设 {@code auth:user:role:read}** ——
+     * 能看用户的人本来就能看到他的角色（角色本身还另有 {@code auth:role:read} 保护，
+     * 但反查返回的只是"角色名 + 来源"，不含该角色的权限集合）。
+     */
+    @Transactional(readOnly = true)
+    public List<UserRoleVO> rolesOfUser(Long userId) {
+        UserEntity user = userId == null ? null : userMapper.selectById(userId);
+        if (user == null) {
+            throw AuthResultCode.USER_NOT_FOUND.businessException();
+        }
+
+        long now = System.currentTimeMillis();
+        List<UserRoleVO> rows = roleMapper.selectUserRoleSources(user.getTenantId(), userId);
+        if (rows.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, UserGroupEntity> groups = groupsOf(rows);
+        for (UserRoleVO row : rows) {
+            boolean viaGroup = RoleSource.GROUP.wireName().equals(row.getSource());
+            row.setSourceLabel(viaGroup
+                    ? RoleSource.GROUP.getLabel() : RoleSource.DIRECT.getLabel());
+            row.setEffectiveNow(isWithin(row.getEffectiveFrom(), row.getEffectiveTo(), now));
+            if (!viaGroup) {
+                continue;
+            }
+            UserGroupEntity group = groups.get(row.getGroupId());
+            // 组已被删除时名字为 null 而不是整行过滤掉：一段"曾经通过某个组拿到角色"的历史
+            // 恰恰是排查"为什么权限对不上"时要看的东西（同 RoleMemberVO 的 memberName）
+            row.setGroupName(group == null ? null : group.getGroupName());
+            row.setGroupEnabled(group == null ? null : group.getIsEnabled());
+            row.setGroupMemberEffectiveNow(isWithin(row.getGroupMemberEffectiveFrom(),
+                    row.getGroupMemberEffectiveTo(), now));
+        }
+        return rows;
+    }
+
+    /** 批量取反查结果里出现过的用户组，供回填组名与启用状态 */
+    private Map<Long, UserGroupEntity> groupsOf(List<UserRoleVO> rows) {
+        Set<Long> ids = rows.stream()
+                .map(UserRoleVO::getGroupId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, UserGroupEntity> groups = new LinkedHashMap<>();
+        for (UserGroupEntity group : userGroupMapper.selectList(
+                Wrappers.<UserGroupEntity>lambdaQuery().in(UserGroupEntity::getId, ids))) {
+            groups.put(group.getId(), group);
+        }
+        return groups;
     }
 
     /* ------------------------------------------------------------------ 取数与校验 */

@@ -204,7 +204,7 @@ node scripts/verify-micro-frontend.mjs          # 需上面各服务已在跑
 
 ### 登录态与按钮级权限端到端演示
 
-后端 h2 profile 会种下两个对照账号：`admin`（17 项权限）与 `auditor`（3 项只读权限）。
+后端 h2 profile 会种下两个对照账号：`admin`（21 项权限）与 `auditor`（3 项只读权限）。
 打开 <http://127.0.0.1:3000>：未登录访问任何受保护路由都会被守卫弹到 `/login`；登录后
 导航出现，子应用右下角的调试标记显示当前身份的 `userId` / `roles` / `perm` 数量。
 

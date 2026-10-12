@@ -12,13 +12,13 @@ docs/api/openapi.json
 
 ## 一、当前接口清单
 
-契约版本 `0.1.0`，标题「BlueWhale 服务端 API」，共 **45 个接口**。
+契约版本 `0.1.0`，标题「BlueWhale 服务端 API」，共 **54 个接口**（**34 条路径** / **83 个数据模型**）。
 
 | 域       | 模块                | 接口数 | 说明                                        |
 | -------- | ------------------- | ------ | ------------------------------------------- |
 | 日志     | `sts-server-log`    | 5      | 客户端日志上报 / 查询 / 聚合                |
 | 行为事件 | `sts-server-track`  | 4      | 客户端行为事件上报 / 查询 / 聚合            |
-| 权限     | `sts-server-auth`   | 26     | 认证 4 + 租户 5 + 用户 6 + 资源 6 + 角色 11（详见下表） |
+| 权限     | `sts-server-auth`   | 41     | 认证 4 + 租户 5 + 用户 7 + 资源 6 + 角色 11 + 用户组 8（详见下表） |
 | 审计     | `sts-server-audit`  | 3      | **只读**：分页 / 详情 / 按动作聚合          |
 | 系统     | `sts-app-server`    | 1      | 健康检查                                    |
 
@@ -84,6 +84,7 @@ docs/api/openapi.json
 | `PUT`    | `/api/auth/users/{id}`          | `auth:user:update` |                                    |
 | `DELETE` | `/api/auth/users/{id}`          | `auth:user:delete` | **不能删自己**                     |
 | `POST`   | `/api/auth/users/{id}/password` | `auth:user:update` | 重置口令，**置为需改密并解锁账号** |
+| `GET`    | `/api/auth/users/{id}/roles`    | `auth:user:read`   | **反查角色来源**（直接授予 + 经用户组授予）。**停用的角色 / 停用的组 / 已过期的授权照原样返回** —— 它们正是「为什么没有权限」的答案 |
 
 **资源目录**（权限资源：菜单 / 页面 / 按钮 / 接口 / 数据）
 
@@ -141,11 +142,46 @@ docs/api/openapi.json
 > 一段成员关系是否真的在产生权限由三个独立开关共同决定，
 > 压成一个布尔会让"到底哪个开关关着"变成不可见。
 >
-> **组织 / 用户组的管理接口尚未落地**，因此 `memberType = GROUP` 的成员目前只能由
-> 种子或直接写库产生 —— 但**授权关系本身可以经接口配置**，
-> 且组链路（用户 → 用户组 → 角色 → 资源）已被端到端验证（同第 12 条）。
-> **嵌套用户组在判定里只跳一层**，见 `docs/decisions/0023`「发现但未处理」第 1 条。
-> **资源目录**（ADR-0021）、**角色管理**（ADR-0022）、**角色成员关系**（ADR-0023）均已落地。
+> **用户组的管理接口已于同批落地**（见下表），因此 `memberType = GROUP` 的成员现在
+> 可以经接口配置 —— 不再需要种子或直接写库。
+> **嵌套用户组在判定里只跳一层**，见 `docs/decisions/0023`「发现但未处理」第 1 条
+> 与 `docs/decisions/0024` 第 3 条。
+> **资源目录**（ADR-0021）、**角色管理**（ADR-0022）、**角色成员关系**（ADR-0023）、
+> **用户组管理与反查**（ADR-0024）均已落地 —— 配置侧就此闭环。
+
+**用户组**（用户组本身，以及**把用户加进组 / 移出组**）
+
+| 方法     | 路径                                                            | 所需权限                 | 说明                                                                                     |
+| -------- | --------------------------------------------------------------- | ------------------------ | ---------------------------------------------------------------------------------------- |
+| `GET`    | `/api/auth/user-groups`                                         | `auth:user_group:read`   | 分页列表。按 `keyword`（编码 / 名称） / `category` / `enabled` / `parentId` 过滤          |
+| `GET`    | `/api/auth/user-groups/{id}`                                    | `auth:user_group:read`   |                                                                                          |
+| `POST`   | `/api/auth/user-groups`                                         | `auth:user_group:create` | **若编码曾被已删除的用户组占用，则恢复原记录**（且复活出来的是**空组**：无成员、无角色）  |
+| `PUT`    | `/api/auth/user-groups/{id}`                                    | `auth:user_group:update` | **编码与所属租户不可修改**；`isEnabled` 是**真开关**，停用后该组立刻不再产生权限          |
+| `DELETE` | `/api/auth/user-groups/{id}`                                    | `auth:user_group:delete` | 逻辑删除。有成员（`40918`）/ 有子组（`40913`）时拒绝；**该组自己持有的角色会被一并撤销**   |
+| `GET`    | `/api/auth/user-groups/{id}/members`                            | `auth:user_group:read`   | **分页**。可按 `memberType` 过滤；成员名跨表解析，因此不提供按名搜索                       |
+| `POST`   | `/api/auth/user-groups/{id}/members`                            | `auth:user_group:update` | 授予。`memberType` **当前只接受 `USER`**（传 `GROUP` 返回 `40001`）；按 (组, 成员类型, 成员主键) **upsert** |
+| `DELETE` | `/api/auth/user-groups/{id}/members/{memberType}/{memberId}`    | `auth:user_group:update` | 解除。**本来就不在组里返回 `40409`**；两边路径段都不能少                                    |
+
+> **成员关系挂在用户组下**，与角色的两条关系边同一条理由：成员关系是用户组的**内部边**，
+> 不存在"没有用户组的成员关系"。
+>
+> **路径写 `user-groups`（连字符），权限码写 `auth:user_group:*`（下划线）—— 两处不同形是刻意的**：
+> URL 给人看、标识给程序与后台配置用；标识的字符集被 `AuthTaxonomyTest` 钉死为 `[a-z][a-z0-9_]*`，
+> 放宽它会让"用标识当键"的地方处处需要转义。这是全仓唯一一处两处不同形。
+>
+> **用户组只支持静态组**：`filterJson` / `orgScopeJson` 两列**连入参都不接受**，
+> `category` 传 `DYNAMIC` 返回 `40001` —— 动态成员规则求值未实现，
+> 接受它最坏的后果是调用方**以为它生效了**。
+>
+> **`memberType` 当前只接受 `USER`**：组的嵌套在判定链路里只跳一层，
+> 接受它会得到一条"成员列表里看得见、判定里完全不参与"的关系（一个假开关）。
+> 补嵌套需要 `WITH RECURSIVE`，三套方言写法不一致、达梦未验证，见 `docs/decisions/0024` 第 3 条。
+>
+> **`isEnabled` 是真开关**：判定 SQL 连表检查组的可用性（`docs/decisions/0024` 第 4 条 ——
+> 此前它是个摆设，判定从不读它）。
+>
+> **组成员关系与角色成员关系形状对齐，但不共用 VO**：取值域不同
+> （角色成员允许 `USER` / `GROUP`，组成员当前只允许 `USER`）、名字解析来源不同。
 
 ### 审计域（`sts-server-audit`）
 
@@ -204,6 +240,14 @@ docs/api/openapi.json
 | `RoleMemberBindRequest`                   | 成员关系入参：`memberType`\*（`USER` / `GROUP`，**必填不给默认值**） / `memberId`\*（**主键，不是用户名**） / `effectiveFrom` / `effectiveTo`（毫秒；区间写反返回 `40001`） |
 | `RoleMemberVO`                            | 成员关系：`grantId` / `memberType` / `memberTypeLabel` / `memberId` / `memberName`（用户取 `displayName`、为空回退 `username`；用户组取 `groupName`；**成员已不存在时为 `null`**） / `effectiveFrom` / `effectiveTo` / **`effectiveNow`（派生，只表达时态）** / `createTime` |
 | `PageResultRoleVO` / `PageResultResourceVO` / `PageResultRoleMemberVO` | 分页结果，结构同日志域（`records` / `total` / `page` / `size` / `pages`）                                                                                                                                                                     |
+| `UserRoleVO`                              | **反查结果的一行**（一个"来源"）：`grantId` / `source`（`DIRECT` / `GROUP`） / `sourceLabel` / `roleId` / `roleCode` / `roleName` / `roleStatus` / `groupId` / `groupName` / `groupEnabled` / `effectiveFrom` / `effectiveTo` / `effectiveNow` / `groupMemberEffectiveFrom` / `groupMemberEffectiveTo` / `groupMemberEffectiveNow` / `createTime`。**两组时态字段**：经组授予是两条边（角色-成员、组-成员），各有一段生效区间；`source = DIRECT` 时第二组为 `null`（那条边**不存在**，而非"长期有效"）。**停用 / 过期照原样返回** |
+| `UserGroupSaveRequest`                    | 用户组新建/更新入参：`groupCode`\*（`^[A-Za-z][A-Za-z0-9_]{0,63}$`，**创建后不可改**） / `groupName`\* / `parentId` / `category` / `isDefault` / `isEnabled` / `sortNo` / `description`。**没有 `tenantId`**（取当前登录者）**没有 `filterJson` / `orgScopeJson`**（动态组未实现，刻意不接受） |
+| `UserGroupQuery`                          | 用户组查询入参：`page` / `size` + `tenantId` / `keyword` / `category` / `enabled`（`Integer` 而非 `Boolean`：列是 `TINYINT` 可为 NULL，布尔会多一层"null 是不过滤还是查未设置"的歧义） / `parentId` |
+| `UserGroupVO`                             | 用户组视图：`id` / `tenantId` / `groupCode` / `groupName` / `parentId`（**只用于列表分组展示，不产生权限**） / `category`（当前恒为 `STATIC`） / `isDefault`（**只存不用**） / `isEnabled`（**真开关**：停用的组不再产生权限） / `sortNo` / `description` / `createTime` / `updateTime`。**不返回 `filterJson` / `orgScopeJson`** |
+| `UserGroupMemberBindRequest`              | 组成员关系入参：`memberType`\*（**当前只接受 `USER`**，传 `GROUP` 返回 `40001`） / `memberId`\*（**主键，不是用户名**） / `effectiveFrom` / `effectiveTo`（毫秒；区间写反返回 `40001`） |
+| `UserGroupMemberVO`                       | 组成员关系：`grantId` / `memberType` / `memberTypeLabel` / `memberId` / `memberName`（取 `displayName`、为空回退 `username`；**成员已不存在时为 `null`**） / `effectiveFrom` / `effectiveTo` / **`effectiveNow`（派生，只表达时态）** / `createTime`。结构与 `RoleMemberVO` 近似但**刻意不共用**（取值域与名字解析来源不同） |
+| `UserGroupMemberQuery`                    | 组成员查询入参：`page` / `size` + `memberType`。**不做按名搜索**（名字在另一张表，先解析再分页会让 `total` 失真） |
+| `PageResultUserGroupVO` / `PageResultUserGroupMemberVO` | 分页结果，结构同日志域（`records` / `total` / `page` / `size` / `pages`）                                                                                                                                                                     |
 | `PageResultTenantVO` / `PageResultUserVO` | 分页结果，结构同日志域（`records` / `total` / `page` / `size` / `pages`）                                                                                                                                                                     |
 | `AuditResult`                             | 枚举 `SUCCESS` / `FAILURE`（线上取值即大写枚举名）                                                                                                                                                                                            |
 | `AuditLogVO`                              | 审计记录：`id` / `action` / `resource` / `targetId` / `operatorId` / `operatorName` / `tenantId` / `result` / `errorCode` / `errorMessage` / `httpMethod` / `requestUri` / `ip` / `userAgent` / `traceId` / `durationMs` / `serverTime`（**无客户端时间、无 `update*` / `deleted`**） |
@@ -277,12 +321,19 @@ OPENAPI_PORT=18081 bash scripts/export-openapi.sh
 
 ## 五、待补充
 
-- **组织 / 用户组的管理接口尚未落地**（权限域的 12 张表、实体与 Mapper 已就绪，见 ADR-0016 末尾的"未覆盖清单"）。
-  与之配套的**反查接口 `/api/auth/users/{id}/roles`**（"这个人的权限是从哪个角色来的"）也还没有 ——
-  它天然要跨越"直接授予"与"经用户组授予"两个来源，与用户组管理是同一批的事，见 ADR-0023 的「本决策未覆盖」。
-  已落地：**资源目录**（ADR-0021，6 条路径）、**角色管理与角色资源授权**（ADR-0022，8 条路径）、
-  **角色成员关系**（ADR-0023，3 条路径）。
+- **组织管理接口尚未落地**（`bw_auth_org` / `bw_auth_rel_org_user`，表、实体与 Mapper 已就绪，见 ADR-0016 末尾的"未覆盖清单"）。
+  它与用户组**同形**（同一套父子 + 成员关系的形态），是下一个自然候选。
+  用户组与反查已于本批落地：**用户组 8 条路径** + **反查 1 条路径**（ADR-0024）。
+  全仓已落地的权限域切片：**资源目录**（ADR-0021，6 条路径）、**角色管理与角色资源授权**（ADR-0022，8 条路径）、
+  **角色成员关系**（ADR-0023，3 条路径）、**用户组管理与反查**（ADR-0024，9 条路径）。
+- **动态用户组求值**：`filter_json` / `org_scope_json` 两列只存不用，且**刻意不在任何接口的入参 / 出参里** ——
+  动态成员规则求值未实现，接受它会得到一个"永远算不出成员"的壳。触发条件：真的需要动态组时。
+- **给三张关系表加唯一索引**（`(role_id, resource_id)` / `(role_id, member_type, member_id)` / `(user_group_id, member_type, member_id)`）：
+  有了 `DuplicateKeyException` → `409` 兜底才"有资格"加（否则并发撞键会落到 `50000`），但那是独立的一次决定。
 - 前端的域接线进度：**认证 / 会话**（`src/auth.ts`）、**权限域管理**（`src/access.ts`，users / tenants）、**审计**（`src/audit.ts`，只读）均已接入。
-  资源目录的 6 条路径、角色的 8 条路径、成员关系的 3 条路径**后端已就绪但前端未接线**，`AccessPermissions` 也因此刻意还没加 `auth:resource:*` / `auth:role:*`（该文件的规则是"只列前端真的用到的"）——
-  等 `platform-admin` 的资源管理页与角色管理页落地时一并补。组织 / 用户组待后端补齐接口后按同样写法加入 `access.ts`
+  资源目录的 6 条、角色的 8 条、成员关系的 3 条、用户组的 8 条与反查 1 条**后端已就绪但前端未接线**，
+  `AccessPermissions` 也因此刻意还没加 `auth:resource:*` / `auth:role:*` / `auth:user_group:*`（该文件的规则是"只列前端真的用到的"）——
+  等 `platform-admin` 的资源 / 角色 / 用户组管理页落地时一并补。
+- **菜单权限还差两步**：资源表里还没有 `MENU` / `PAGE` 类型的行（种子把 `ALL` 全建成了 `API`），
+  且基座导航没按权限过滤（`BasicLayout` 直接遍历 `MICRO_APPS`）。
 - 契约尚未按域拆分为多文件；接口量变大后再考虑 `openapi/` 目录方案

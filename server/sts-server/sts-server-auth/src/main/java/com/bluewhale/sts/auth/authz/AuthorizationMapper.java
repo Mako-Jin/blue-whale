@@ -20,7 +20,8 @@ import java.util.List;
  *
  * <p><b>多态成员的处理</b>：角色可以授予用户，也可以授予用户组。
  * 这里把两种来源并成一条 {@code IN} 子查询 —— 用户直接拥有的角色，
- * 与"用户所属用户组所拥有的角色"取并集。
+ * 与"用户所属用户组所拥有的角色"取并集。**组那一侧要连表检查组的可用性**
+ * （未删除、已启用），否则"停用用户组"会是一个没有任何效果的开关。
  *
  * <p><b>但子查询只跳一层，嵌套组（组里有组）在判定里不生效。</b>
  * {@code bw_auth_rel_user_group_member} 与 {@link com.bluewhale.sts.auth.common.enums.MemberType}
@@ -48,13 +49,19 @@ public interface AuthorizationMapper {
     /**
      * 查询用户**最终可用**的资源标识（即权限码）集合。
      *
-     * <p>五条过滤规则，每条都对应一个真实事故：
+     * <p>六条过滤规则，每条都对应一个真实事故：
      * <ul>
      *   <li>{@code r.is_enabled = 1} 与各表的 {@code deleted = 0} —— 停用的资源、
      *       已删除的角色/资源不应继续产生权限，否则"停用/删除"只是界面上的假象；</li>
      *   <li>{@code ro.status} —— <b>停用的角色同样不应产生权限</b>。这一条与上一条是
      *       同一个道理，但曾经漏掉：角色管理接口落地后"停用角色"成为一个可点的操作，
      *       漏掉它就意味着点完之后权限照旧。</li>
+     *   <li>{@code ug.deleted = 0} 与 {@code ug.is_enabled} —— <b>停用的用户组同样不应产生权限</b>。
+     *       这一条是后补的，补之前"停用用户组"是一个纯摆设：子查询只读成员关系表、
+     *       **从不连 {@code bw_auth_user_group}**，于是把组停用之后，组里每个人的权限照旧。
+     *       它与 {@code ro.status} 那一条是同一类缺陷的第二处 —— 两者都源于
+     *       "配置侧有开关、判定侧不读"。凡是新增一个会影响权限的开关，
+     *       都要同时问一句"判定里读它了吗"；</li>
      *   <li>{@code ro.tenant_id} 参与角色限定 —— 防止跨租户的角色串用
      *       （资源侧刻意不限定，资源是平台级的，见 {@code ResourceService}）；</li>
      *   <li>{@code effective_from / effective_to} —— 时态授权：只认当前时刻落在区间内的记录。
@@ -102,11 +109,15 @@ public interface AuthorizationMapper {
                     AND (
                       (rm.member_type = 'USER' AND rm.member_id = #{userId})
                       OR (rm.member_type = 'GROUP' AND rm.member_id IN (
-                            SELECT gm.user_group_id FROM bw_auth_rel_user_group_member gm
+                            SELECT gm.user_group_id
+                            FROM bw_auth_rel_user_group_member gm
+                            JOIN bw_auth_user_group ug ON ug.id = gm.user_group_id
                             WHERE gm.deleted = 0
                               AND gm.tenant_id = #{tenantId}
                               AND gm.member_type = 'USER'
                               AND gm.member_id = #{userId}
+                              AND ug.deleted = 0
+                              AND (ug.is_enabled IS NULL OR ug.is_enabled = 1)
                               AND (gm.effective_from IS NULL OR gm.effective_from <= #{now})
                               AND (gm.effective_to IS NULL OR gm.effective_to > #{now})
                       ))
@@ -141,11 +152,15 @@ public interface AuthorizationMapper {
                     AND (
                       (rm.member_type = 'USER' AND rm.member_id = #{userId})
                       OR (rm.member_type = 'GROUP' AND rm.member_id IN (
-                            SELECT gm.user_group_id FROM bw_auth_rel_user_group_member gm
+                            SELECT gm.user_group_id
+                            FROM bw_auth_rel_user_group_member gm
+                            JOIN bw_auth_user_group ug ON ug.id = gm.user_group_id
                             WHERE gm.deleted = 0
                               AND gm.tenant_id = #{tenantId}
                               AND gm.member_type = 'USER'
                               AND gm.member_id = #{userId}
+                              AND ug.deleted = 0
+                              AND (ug.is_enabled IS NULL OR ug.is_enabled = 1)
                               AND (gm.effective_from IS NULL OR gm.effective_from <= #{now})
                               AND (gm.effective_to IS NULL OR gm.effective_to > #{now})
                       ))

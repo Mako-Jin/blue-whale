@@ -4,6 +4,8 @@ import com.bluewhale.sts.auth.authz.RequiresPermission;
 import com.bluewhale.sts.auth.common.AuthAuditActions;
 import com.bluewhale.sts.auth.common.AuthPermissions;
 import com.bluewhale.sts.auth.common.AuthResources;
+import com.bluewhale.sts.auth.role.RoleMemberService;
+import com.bluewhale.sts.auth.role.UserRoleVO;
 import com.bluewhale.sts.common.basic.model.PageResult;
 import com.bluewhale.sts.common.basic.model.R;
 import com.bluewhale.sts.components.audit.AuditContext;
@@ -22,10 +24,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 /**
  * 用户接口。全部方法受权限保护，未认证 401、越权 403。
  *
- * <p><b>四个写方法都标了 {@link Audited}，两个读方法没标。</b>
+ * <p><b>四个写方法都标了 {@link Audited}，读方法没标。</b>
  * 这不是遗漏：审计回答"谁对什么做了什么"，查询不改变任何东西，
  * 记下来只会把有价值的变更记录淹没在噪声里（而审计的价值恰恰建立在
  * "里面每一条都值得逐条看"之上）。将来若要记"谁看过敏感数据"，
@@ -35,6 +39,13 @@ import org.springframework.web.bind.annotation.RestController;
  * {@code auth:user:update} 权限，但审计动作分开（{@code auth.user.reset_password}
  * 与 {@code auth.user.update}）—— 前者是运维介入他人账号的动作，事后追责时
  * 与"改过资料"是完全不同的问题。
+ *
+ * <p><b>{@code GET /{id}/roles} 是本类唯一一条"读别的域"的接口</b>
+ * （由 {@code RoleMemberService} 实现），挂在这里而不是 {@code /api/auth/roles} 下：
+ * 路径的主语是"这个用户"，问的是"他身上的角色是哪来的"。
+ * 反向从 {@code /api/auth/roles/{id}/members} 进来问的是另一个问题
+ * （"这个角色给了谁"），两者不是同一张视图的两个入口，而是两个问题 ——
+ * 因此各自归属自己的主语，哪怕底层查的是同一张关系表。
  */
 @RestController
 @RequestMapping("/api/auth/users")
@@ -42,9 +53,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class UserController {
 
     private final UserService userService;
+    private final RoleMemberService roleMemberService;
 
-    public UserController(UserService userService) {
+    public UserController(UserService userService, RoleMemberService roleMemberService) {
         this.userService = userService;
+        this.roleMemberService = roleMemberService;
     }
 
     @GetMapping
@@ -106,6 +119,23 @@ public class UserController {
         userService.delete(id);
         AuditContext.target(id);
         return R.ok();
+    }
+
+    /**
+     * 反查该用户身上的角色及其来源。
+     *
+     * <p>不标 {@link Audited}：它是查询（理由见类注释）。
+     * 权限用 {@code auth:user:read} —— 它读的是"某个用户"的信息，
+     * 与列表 / 详情同类，理由见 {@code RoleMemberService.rolesOfUser}。
+     */
+    @GetMapping("/{id}/roles")
+    @RequiresPermission(AuthPermissions.USER_READ)
+    @Operation(summary = "反查用户的角色来源",
+            description = "列出该用户直接持有的角色与经用户组持有的角色；"
+                    + "**停用的角色 / 停用的组 / 已过期的授权照原样返回**，"
+                    + "因为它们正是「为什么没有权限」的答案")
+    public R<List<UserRoleVO>> roles(@PathVariable @Parameter(description = "用户主键") Long id) {
+        return R.ok(roleMemberService.rolesOfUser(id));
     }
 
 }

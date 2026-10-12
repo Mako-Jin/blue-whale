@@ -87,6 +87,28 @@ public final class AuthAuditActions {
     public static final String ROLE_MEMBER_REVOKE = "auth.role.revoke_member";
 
     /**
+     * 用户组的增删改，以及**给用户组增减成员**。
+     *
+     * <p><b>为什么用户组需要一组独立的动作标识，而不是蹭 {@code auth.user.*}：</b>
+     * 用户组是**权限的载体**（它本身可以被授予角色），不是"用户的一个属性"。
+     * 事后追责时"谁把 300 个人塞进了这个组"与"谁改了某个用户的资料"是两条完全不同的线索，
+     * 而前者只体现为一次成员关系的写入 —— 揉进 {@code auth.user.update} 就永远查不出来。
+     *
+     * <p>成员动作用 {@code grant_member} / {@code revoke_member}，与角色侧**同名形状**：
+     * 两处都在"给一个权限载体增加 / 移除参与者"，靠 {@code resource} 段区分载体是谁。
+     * 这个一致性是有用的 —— 审计面板按动作名过滤时，一次就能同时看到两类载体的变动。
+     *
+     * <p>{@code USER_GROUP_MEMBER_GRANT} 是本域里**第二条间接提权路径**：
+     * 把用户加进一个已被授予角色的组，用户当下就多了一批权限，
+     * 而没有任何一条记录写着"谁给这个用户提了权"。它必须能一条过滤直接命中。
+     */
+    public static final String USER_GROUP_CREATE = "auth.user_group.create";
+    public static final String USER_GROUP_UPDATE = "auth.user_group.update";
+    public static final String USER_GROUP_DELETE = "auth.user_group.delete";
+    public static final String USER_GROUP_MEMBER_GRANT = "auth.user_group.grant_member";
+    public static final String USER_GROUP_MEMBER_REVOKE = "auth.user_group.revoke_member";
+
+    /**
      * 重置口令。
      *
      * <p>与 {@code user.update} 分开记而不是合并：重置口令是运维/管理员介入他人账号的动作，

@@ -37,6 +37,10 @@
       "description": "权限资源（菜单 / 页面 / 按钮 / 接口 / 数据）目录的增删改查"
     },
     {
+      "name": "用户组",
+      "description": "用户组的增删改查与组成员关系"
+    },
+    {
       "name": "认证",
       "description": "登录、登出、刷新令牌、当前用户"
     },
@@ -157,13 +161,120 @@
         }
       }
     },
+    "/api/auth/user-groups/{id}": {
+      "get": {
+        "tags": [
+          "用户组"
+        ],
+        "summary": "查询用户组详情",
+        "operationId": "detail_1",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "用户组主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RUserGroupVO"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "用户组"
+        ],
+        "summary": "修改用户组",
+        "description": "编码与所属租户不可修改；**isEnabled 是真开关**，停用后该组立刻不再产生权限",
+        "operationId": "update_1",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "用户组主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserGroupSaveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RUserGroupVO"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "用户组"
+        ],
+        "summary": "删除用户组",
+        "description": "仍有成员（40918）或有子组（40913）时拒绝；该组自己持有的角色会被一并撤销",
+        "operationId": "delete_1",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "用户组主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RVoid"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/tenants/{id}": {
       "get": {
         "tags": [
           "租户"
         ],
         "summary": "查询租户详情",
-        "operationId": "detail_1",
+        "operationId": "detail_2",
         "parameters": [
           {
             "name": "id",
@@ -195,7 +306,7 @@
         ],
         "summary": "修改租户",
         "description": "租户编码不可修改",
-        "operationId": "update_1",
+        "operationId": "update_2",
         "parameters": [
           {
             "name": "id",
@@ -237,7 +348,7 @@
         ],
         "summary": "删除租户",
         "description": "存在子租户时拒绝删除",
-        "operationId": "delete_1",
+        "operationId": "delete_2",
         "parameters": [
           {
             "name": "id",
@@ -270,7 +381,7 @@
           "角色"
         ],
         "summary": "查询角色详情",
-        "operationId": "detail_2",
+        "operationId": "detail_3",
         "parameters": [
           {
             "name": "id",
@@ -302,7 +413,7 @@
         ],
         "summary": "修改角色",
         "description": "角色编码与所属租户不可修改；系统内置角色不可停用",
-        "operationId": "update_2",
+        "operationId": "update_3",
         "parameters": [
           {
             "name": "id",
@@ -344,7 +455,7 @@
         ],
         "summary": "删除角色",
         "description": "系统内置角色、有子角色、有成员时拒绝删除；角色自身的授权会被一并撤销",
-        "operationId": "delete_2",
+        "operationId": "delete_3",
         "parameters": [
           {
             "name": "id",
@@ -377,7 +488,7 @@
           "资源"
         ],
         "summary": "查询资源详情",
-        "operationId": "detail_3",
+        "operationId": "detail_4",
         "parameters": [
           {
             "name": "id",
@@ -409,7 +520,7 @@
         ],
         "summary": "修改资源",
         "description": "**资源标识不可修改**；父资源不能是自身或自身的下级",
-        "operationId": "update_3",
+        "operationId": "update_4",
         "parameters": [
           {
             "name": "id",
@@ -451,7 +562,7 @@
         ],
         "summary": "删除资源",
         "description": "逻辑删除。有子资源（40913）或已被角色引用（40915）时拒绝",
-        "operationId": "delete_3",
+        "operationId": "delete_4",
         "parameters": [
           {
             "name": "id",
@@ -923,13 +1034,242 @@
         }
       }
     },
+    "/api/auth/user-groups": {
+      "get": {
+        "tags": [
+          "用户组"
+        ],
+        "summary": "分页查询用户组",
+        "description": "按 keyword（编码 / 名称） / category / enabled / parentId 过滤，按当前租户限定",
+        "operationId": "page_3",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "query",
+            "description": "租户主键，不传则限定为当前登录用户所属租户",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "description": "租户主键，不传则限定为当前登录用户所属租户"
+            }
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "description": "关键字，匹配用户组编码或名称",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "关键字，匹配用户组编码或名称"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "description": "分组方式：STATIC。**过滤条件宽松处理**，认不得的值按原样比",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "分组方式：STATIC。**过滤条件宽松处理**，认不得的值按原样比"
+            }
+          },
+          {
+            "name": "enabled",
+            "in": "query",
+            "description": "是否启用：0 / 1，不传表示全部",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "description": "是否启用：0 / 1，不传表示全部"
+            }
+          },
+          {
+            "name": "parentId",
+            "in": "query",
+            "description": "父用户组主键，不传表示全部",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "description": "父用户组主键，不传表示全部"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RPageResultUserGroupVO"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "用户组"
+        ],
+        "summary": "新增用户组",
+        "description": "编码曾被已删除的用户组占用时会恢复那一行，且恢复出来的是空组（无成员、无角色）",
+        "operationId": "create_1",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserGroupSaveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RUserGroupVO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/user-groups/{id}/members": {
+      "get": {
+        "tags": [
+          "用户组"
+        ],
+        "summary": "分页查询组成员",
+        "description": "可按 memberType 过滤；成员名跨表解析，因此不提供按名搜索",
+        "operationId": "pageMembers",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "用户组主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "memberType",
+            "in": "query",
+            "description": "成员类型：USER，不传表示全部",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "成员类型：USER，不传表示全部"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RPageResultUserGroupMemberVO"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "用户组"
+        ],
+        "summary": "把用户加进用户组",
+        "description": "memberType **当前只接受 USER**（组的嵌套在判定里不生效，传 GROUP 返回 40001）；同一个组与用户只保留一条有效关系，重复调用会改时间窗而不是堆行",
+        "operationId": "bindMember",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "用户组主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserGroupMemberBindRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RUserGroupMemberVO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/tenants": {
       "get": {
         "tags": [
           "租户"
         ],
         "summary": "分页查询租户",
-        "operationId": "page_3",
+        "operationId": "page_4",
         "parameters": [
           {
             "name": "keyword",
@@ -988,7 +1328,7 @@
           "租户"
         ],
         "summary": "新增租户",
-        "operationId": "create_1",
+        "operationId": "create_2",
         "requestBody": {
           "content": {
             "application/json": {
@@ -1019,7 +1359,7 @@
           "角色"
         ],
         "summary": "分页查询角色",
-        "operationId": "page_4",
+        "operationId": "page_5",
         "parameters": [
           {
             "name": "tenantId",
@@ -1100,7 +1440,7 @@
         ],
         "summary": "新增角色",
         "description": "编码曾被已删除的角色占用时会复活那一行",
-        "operationId": "create_2",
+        "operationId": "create_3",
         "requestBody": {
           "content": {
             "application/json": {
@@ -1207,7 +1547,7 @@
         ],
         "summary": "分页查询角色成员",
         "description": "可按 memberType 过滤；成员名跨两张表解析，因此不提供按名搜索",
-        "operationId": "pageMembers",
+        "operationId": "pageMembers_1",
         "parameters": [
           {
             "name": "id",
@@ -1267,7 +1607,7 @@
         ],
         "summary": "给角色授予成员",
         "description": "memberType 必填（USER / GROUP）；同一个角色与成员只保留一条有效关系，重复调用会改时间窗而不是堆行",
-        "operationId": "bindMember",
+        "operationId": "bindMember_1",
         "parameters": [
           {
             "name": "id",
@@ -1311,7 +1651,7 @@
         ],
         "summary": "分页查询资源",
         "description": "平铺列表。要层级用 /tree",
-        "operationId": "page_5",
+        "operationId": "page_6",
         "parameters": [
           {
             "name": "keyword",
@@ -1392,7 +1732,7 @@
         ],
         "summary": "新增资源",
         "description": "资源标识须为「域:资源:动作」三段小写；若该标识曾被删除，则恢复原记录而非新建",
-        "operationId": "create_3",
+        "operationId": "create_4",
         "requestBody": {
           "content": {
             "application/json": {
@@ -1518,7 +1858,7 @@
           "客户端日志"
         ],
         "summary": "查询日志详情",
-        "operationId": "detail_4",
+        "operationId": "detail_5",
         "parameters": [
           {
             "name": "id",
@@ -1662,7 +2002,7 @@
           "客户端行为事件"
         ],
         "summary": "查询事件详情",
-        "operationId": "detail_5",
+        "operationId": "detail_6",
         "parameters": [
           {
             "name": "id",
@@ -1745,6 +2085,40 @@
         }
       }
     },
+    "/api/auth/users/{id}/roles": {
+      "get": {
+        "tags": [
+          "用户"
+        ],
+        "summary": "反查用户的角色来源",
+        "description": "列出该用户直接持有的角色与经用户组持有的角色；**停用的角色 / 停用的组 / 已过期的授权照原样返回**，因为它们正是「为什么没有权限」的答案",
+        "operationId": "roles",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "用户主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RListUserRoleVO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/resources/tree": {
       "get": {
         "tags": [
@@ -1796,7 +2170,7 @@
         ],
         "summary": "分页查询审计记录",
         "description": "按服务端记录时间倒序。时间窗缺省为最近 7 天。可按动作、资源、对象、操作人、结果过滤。",
-        "operationId": "page_6",
+        "operationId": "page_7",
         "parameters": [
           {
             "name": "action",
@@ -1920,7 +2294,7 @@
           "审计日志"
         ],
         "summary": "查询审计记录详情",
-        "operationId": "detail_6",
+        "operationId": "detail_7",
         "parameters": [
           {
             "name": "id",
@@ -2014,6 +2388,59 @@
         }
       }
     },
+    "/api/auth/user-groups/{id}/members/{memberType}/{memberId}": {
+      "delete": {
+        "tags": [
+          "用户组"
+        ],
+        "summary": "把用户移出用户组",
+        "description": "memberType 取 USER / GROUP；本来就不在组里时返回 40409，不与移除成功混淆",
+        "operationId": "revokeMember",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "用户组主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "memberType",
+            "in": "path",
+            "description": "成员类型：USER / GROUP",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "memberId",
+            "in": "path",
+            "description": "成员主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RVoid"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/roles/{id}/resources/{resourceId}": {
       "delete": {
         "tags": [
@@ -2065,7 +2492,7 @@
         ],
         "summary": "解除角色的成员关系",
         "description": "memberType 取 USER / GROUP；从未授过的成员返回 40408，不与解除成功混淆",
-        "operationId": "revokeMember",
+        "operationId": "revokeMember_1",
         "parameters": [
           {
             "name": "id",
@@ -2243,6 +2670,148 @@
           "updateTime": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "UserGroupSaveRequest": {
+        "type": "object",
+        "description": "用户组保存入参",
+        "properties": {
+          "groupCode": {
+            "type": "string",
+            "description": "用户组编码，租户内唯一。创建后不可修改",
+            "example": "FIN_GROUP",
+            "minLength": 1,
+            "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$"
+          },
+          "groupName": {
+            "type": "string",
+            "description": "用户组名称",
+            "example": "财务部",
+            "maxLength": 128,
+            "minLength": 0
+          },
+          "tenantId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "租户主键，不传则归入当前登录用户所属租户"
+          },
+          "parentId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "父用户组主键，顶级不传。**只用于列表分组展示，不产生权限** —— 判定链路里组不继承父组的角色"
+          },
+          "category": {
+            "type": "string",
+            "description": "分组方式。**当前只支持 STATIC**（成员手工维护）：DYNAMIC 的动态成员求值尚未实现，传别的值返回 40001",
+            "example": "STATIC",
+            "maxLength": 32,
+            "minLength": 0
+          },
+          "isDefault": {
+            "type": "integer",
+            "format": "int32",
+            "description": "是否默认用户组（新用户自动加入）：0 否 1 是，缺省 0。**当前只存不用**"
+          },
+          "isEnabled": {
+            "type": "integer",
+            "format": "int32",
+            "description": "是否启用：0 否 1 是，缺省 1。**停用的用户组不再产生权限**"
+          },
+          "sortNo": {
+            "type": "integer",
+            "format": "int32",
+            "description": "排序号，同级内升序；缺省 0"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "groupCode",
+          "groupName"
+        ]
+      },
+      "RUserGroupVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/UserGroupVO"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "UserGroupVO": {
+        "type": "object",
+        "description": "用户组",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "用户组主键"
+          },
+          "tenantId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "所属租户主键"
+          },
+          "groupCode": {
+            "type": "string",
+            "description": "用户组编码，租户内唯一"
+          },
+          "groupName": {
+            "type": "string",
+            "description": "用户组名称"
+          },
+          "parentId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "父用户组主键。只用于列表分组展示，不产生权限"
+          },
+          "category": {
+            "type": "string",
+            "description": "分组方式。当前恒为 STATIC"
+          },
+          "isDefault": {
+            "type": "integer",
+            "format": "int32",
+            "description": "是否默认用户组：0 否 1 是。**当前只存不用**"
+          },
+          "isEnabled": {
+            "type": "integer",
+            "format": "int32",
+            "description": "是否启用：0 否 1 是。**停用的用户组不再产生权限**"
+          },
+          "sortNo": {
+            "type": "integer",
+            "format": "int32",
+            "description": "排序号"
+          },
+          "description": {
+            "type": "string",
+            "description": "描述"
+          },
+          "createTime": {
+            "type": "integer",
+            "format": "int64",
+            "description": "创建时间（毫秒时间戳）"
+          },
+          "updateTime": {
+            "type": "integer",
+            "format": "int64",
+            "description": "最后更新时间（毫秒时间戳）"
           }
         }
       },
@@ -2999,6 +3568,104 @@
           "timestamp": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "UserGroupMemberBindRequest": {
+        "type": "object",
+        "description": "用户组成员入参",
+        "properties": {
+          "memberType": {
+            "type": "string",
+            "description": "成员类型。**当前只接受 USER**：GROUP（组嵌套）在判定链路里不生效，传它会返回 40001 而不是被静默接受",
+            "example": "USER",
+            "minLength": 1
+          },
+          "memberId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "成员主键（用户主键）",
+            "example": 1
+          },
+          "effectiveFrom": {
+            "type": "integer",
+            "format": "int64",
+            "description": "生效起始时间（毫秒时间戳），不传表示立即生效"
+          },
+          "effectiveTo": {
+            "type": "integer",
+            "format": "int64",
+            "description": "生效结束时间（毫秒时间戳），不传表示长期有效"
+          }
+        },
+        "required": [
+          "memberId",
+          "memberType"
+        ]
+      },
+      "RUserGroupMemberVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/UserGroupMemberVO"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "UserGroupMemberVO": {
+        "type": "object",
+        "description": "用户组成员关系",
+        "properties": {
+          "grantId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "成员关系主键，移除时用它"
+          },
+          "memberType": {
+            "type": "string",
+            "description": "成员类型。当前恒为 USER"
+          },
+          "memberTypeLabel": {
+            "type": "string",
+            "description": "成员类型的中文名，供界面直接展示"
+          },
+          "memberId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "成员主键（用户主键）"
+          },
+          "memberName": {
+            "type": "string",
+            "description": "成员名称：取用户 displayName（为空则回退 username）。用户已不存在时为 null —— 多态表没有外键，这种情况是可能的，且应当被看见"
+          },
+          "effectiveFrom": {
+            "type": "integer",
+            "format": "int64",
+            "description": "生效起始时间（毫秒时间戳），null 表示立即生效"
+          },
+          "effectiveTo": {
+            "type": "integer",
+            "format": "int64",
+            "description": "生效结束时间（毫秒时间戳），null 表示长期有效"
+          },
+          "effectiveNow": {
+            "type": "boolean",
+            "description": "此刻是否落在生效区间内。false 表示尚未生效或已过期。它只回答时态问题：用户组被停用时即使这里为 true，权限依然不会产生"
+          },
+          "createTime": {
+            "type": "integer",
+            "format": "int64",
+            "description": "成员关系建立时间（毫秒时间戳）"
           }
         }
       },
@@ -3822,6 +4489,203 @@
           },
           "data": {
             "$ref": "#/components/schemas/PageResultUserVO"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "RListUserRoleVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserRoleVO"
+            }
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "UserRoleVO": {
+        "type": "object",
+        "description": "用户角色的来源（反查）",
+        "properties": {
+          "grantId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "角色成员关系主键（rel_role_member 那一行的 id）"
+          },
+          "source": {
+            "type": "string",
+            "description": "来源：DIRECT 直接授予 / GROUP 经用户组授予"
+          },
+          "sourceLabel": {
+            "type": "string",
+            "description": "来源的中文名，供界面直接展示（直接授予 / 经用户组授予）"
+          },
+          "roleId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "角色主键"
+          },
+          "roleCode": {
+            "type": "string",
+            "description": "角色编码"
+          },
+          "roleName": {
+            "type": "string",
+            "description": "角色名称"
+          },
+          "roleStatus": {
+            "type": "string",
+            "description": "角色状态：ENABLED / DISABLED。**停用的角色不产生权限**，但这里照原样返回 —— 它正是「为什么没有权限」的答案之一"
+          },
+          "groupId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "来源用户组主键。仅 source = GROUP 时有值"
+          },
+          "groupName": {
+            "type": "string",
+            "description": "来源用户组名称。仅 source = GROUP 时有值"
+          },
+          "groupEnabled": {
+            "type": "integer",
+            "format": "int32",
+            "description": "来源用户组是否启用（0 否 1 是）。仅 source = GROUP 时有值。**停用的组不产生权限**，同样照原样返回"
+          },
+          "effectiveFrom": {
+            "type": "integer",
+            "format": "int64",
+            "description": "角色成员关系的生效起始时间（毫秒），null 表示立即生效"
+          },
+          "effectiveTo": {
+            "type": "integer",
+            "format": "int64",
+            "description": "角色成员关系的生效结束时间（毫秒），null 表示长期有效"
+          },
+          "effectiveNow": {
+            "type": "boolean",
+            "description": "角色成员关系此刻是否落在生效区间内"
+          },
+          "groupMemberEffectiveFrom": {
+            "type": "integer",
+            "format": "int64",
+            "description": "来源组成员关系的生效起始时间（毫秒）。仅 source = GROUP 时有值"
+          },
+          "groupMemberEffectiveTo": {
+            "type": "integer",
+            "format": "int64",
+            "description": "来源组成员关系的生效结束时间（毫秒）。仅 source = GROUP 时有值"
+          },
+          "groupMemberEffectiveNow": {
+            "type": "boolean",
+            "description": "来源组成员关系此刻是否落在生效区间内。仅 source = GROUP 时有值"
+          },
+          "createTime": {
+            "type": "integer",
+            "format": "int64",
+            "description": "角色成员关系建立时间（毫秒时间戳）"
+          }
+        }
+      },
+      "PageResultUserGroupVO": {
+        "type": "object",
+        "properties": {
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserGroupVO"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pages": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "RPageResultUserGroupVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageResultUserGroupVO"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "PageResultUserGroupMemberVO": {
+        "type": "object",
+        "properties": {
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserGroupMemberVO"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pages": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "RPageResultUserGroupMemberVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageResultUserGroupMemberVO"
           },
           "timestamp": {
             "type": "integer",

@@ -60,6 +60,21 @@ public final class AuthResources {
     public static final String ROLE = "auth:role";
 
     /**
+     * 用户组。
+     *
+     * <p>对应 {@code auth:user_group:*} 四个权限码。**资源段是 `user_group` 而不是
+     * `user-group`** —— 路径写 {@code /api/auth/user-groups}、标识写
+     * {@code auth:user_group}，两处不同形是刻意的：三套标识的字符集由
+     * {@code AuthTaxonomyTest} 钉成 {@code [a-z][a-z0-9_]*}，连字符不在其中。
+     * URL 给人看，标识给程序与后台配置用；标识的字符集一旦放宽，
+     * 凡是"拿标识当键"的地方（缓存 key、正则、日志字段、按前缀匹配）都要开始转义。
+     *
+     * <p>{@code bw_auth_resource} 里不存在 {@code auth:user_group} 这一行：
+     * 表里存的是三段式**权限码**（{@code auth:user_group:read}），本常量是两段**资源标识**。
+     */
+    public static final String USER_GROUP = "auth:user_group";
+
+    /**
      * 审计资源。
      *
      * <p>它对应 {@link AuthPermissions#AUDIT_READ}，虽然当前**没有任何写动作**挂在它下面

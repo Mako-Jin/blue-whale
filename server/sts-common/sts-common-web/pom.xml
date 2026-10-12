@@ -49,6 +49,22 @@
         </dependency>
 
         <!--
+          compile：DuplicateKeyException 在 spring-tx 里（org.springframework.dao 包，
+          Spring 5 起从 spring-jdbc 拆到 spring-tx）。它由全局异常处理器引用，
+          用来把"违反唯一约束"翻译成 409 而不是兜底的 500。
+
+          **必须 compile 而不是 provided。** 异常处理器类在启动时会被反射扫描
+          （@ExceptionHandler 的方法签名需要解析），provided 不传递 ——
+          任何依赖本模块但没有 spring-tx 的服务模块都会在启动时
+          NoClassDefFoundError，且这个失败与它写的业务代码毫无关系，极难定位。
+          spring-tx 本来就随任何 MyBatis / JDBC 依赖进来，这里只是把隐含依赖写明。
+        -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-tx</artifactId>
+        </dependency>
+
+        <!--
           compile 而非 provided：**接口文档注解是契约的一部分**，每个服务模块都要用它标注
           自己的接口。provided 不传递，若声明为 provided，每个服务模块都得重复引一行
           同一个坐标 —— 重复的依赖声明迟早有人漏写，然后靠"这个接口为什么没出现在文档里"

@@ -68,6 +68,30 @@ public final class AuthPermissions {
     public static final String ROLE_DELETE = "auth:role:delete";
 
     /**
+     * 用户组的增删改查。
+     *
+     * <p><b>为什么资源段用下划线而不是连字符</b>（路径 {@code /api/auth/user-groups}、
+     * 标识 {@code auth:user_group:read}）：三套标识的字符集由 {@code AuthTaxonomyTest}
+     * 钉死为 {@code [a-z][a-z0-9_]*}。URL 给人看、标识给程序与后台配置用，
+     * 后者放宽字符集会让"用标识当键"的地方处处需要转义 —— 见
+     * {@link AuthResources#USER_GROUP}。
+     *
+     * <p><b>成员关系共用 {@code auth:user_group:update}</b>，与角色侧完全同构：
+     * 组成员是用户组的**内部边**，不存在"没有用户组的成员关系"。
+     * 但审计动作必须分开，见 {@code AuthAuditActions.USER_GROUP_MEMBER_GRANT} ——
+     * 把一个用户加进"已被授予角色"的组，等于一次**间接提权**，
+     * 事后追责时这是与"改用户组名"完全不同的问题。
+     *
+     * <p>与角色一样，这里没有单设 {@code auth:user_group:member}：
+     * 当前只有一个身份持有 {@code auth:user_group:update}，拆出来会是一个
+     * 没人能"不同地持有"的权限码。触发条件同 {@link #ROLE_UPDATE} 的注释。
+     */
+    public static final String USER_GROUP_READ = "auth:user_group:read";
+    public static final String USER_GROUP_CREATE = "auth:user_group:create";
+    public static final String USER_GROUP_UPDATE = "auth:user_group:update";
+    public static final String USER_GROUP_DELETE = "auth:user_group:delete";
+
+    /**
      * 查看审计流水。
      *
      * <p><b>只有 read，没有对应的 write / delete —— 这不是还没做。</b>
@@ -83,6 +107,7 @@ public final class AuthPermissions {
             USER_READ, USER_CREATE, USER_UPDATE, USER_DELETE,
             RESOURCE_READ, RESOURCE_CREATE, RESOURCE_UPDATE, RESOURCE_DELETE,
             ROLE_READ, ROLE_CREATE, ROLE_UPDATE, ROLE_DELETE,
+            USER_GROUP_READ, USER_GROUP_CREATE, USER_GROUP_UPDATE, USER_GROUP_DELETE,
             AUDIT_READ);
 
 }
