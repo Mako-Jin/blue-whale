@@ -231,7 +231,8 @@ git config core.hooksPath web/.husky
 
 ## 八、待补充
 
-- 子应用 `platform-user`、`platform-admin` 尚未创建（qiankun 主应用与两个控制台子应用的接线已完成，新增子应用按 `platform/platform-portal/README.md` 的三步走）
+- 子应用 `platform-user`、`platform-admin` 尚未创建（qiankun 主应用与两个控制台子应用的接线已完成，新增子应用按 `platform/platform-portal/README.md` 的三步走）。**它们的前置依赖是登录态与权限下发**：归属与落地顺序见 `docs/decisions/0018-权限在微前端中的归属.md` —— 没有会话与权限，业务子应用建出来也只能是空壳
+- 前端**尚未消费任何认证接口**：后端的 8 条 auth 接口（`docs/decisions/0016`）已就绪，基座的「登录」按钮目前仍只是切换 `userId` 的调试开关。落地顺序见 `docs/decisions/0018`
 - **被基座加载时，子应用的 React 组件级热更新不生效**（样式热更新、以及子应用单独跑时的组件热更新都正常）。根因未定位，当前工作方式是改子应用组件时单独跑该子应用。详见 `docs/decisions/0012` 的「已知限制」
 - 微前端**生产部署**尚未落地：现在只有 dev（`//localhost:<port>`）与占位 `prodEntry`，真实静态目录与网关规则需要与部署方案一起定
 - 子应用的**样式隔离**当前没有保障（Vite dev 下框架级隔离拿不到），靠各应用自己的命名与 Less 令牌自律
