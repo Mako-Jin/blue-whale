@@ -12,13 +12,13 @@ docs/api/openapi.json
 
 ## 一、当前接口清单
 
-契约版本 `0.1.0`，标题「BlueWhale 服务端 API」，共 **54 个接口**（**34 条路径** / **83 个数据模型**）。
+契约版本 `0.1.0`，标题「BlueWhale 服务端 API」，共 **55 个接口**（**35 条路径** / **85 个数据模型**）。
 
 | 域       | 模块                | 接口数 | 说明                                        |
 | -------- | ------------------- | ------ | ------------------------------------------- |
 | 日志     | `sts-server-log`    | 5      | 客户端日志上报 / 查询 / 聚合                |
 | 行为事件 | `sts-server-track`  | 4      | 客户端行为事件上报 / 查询 / 聚合            |
-| 权限     | `sts-server-auth`   | 41     | 认证 4 + 租户 5 + 用户 7 + 资源 6 + 角色 11 + 用户组 8（详见下表） |
+| 权限     | `sts-server-auth`   | 42     | 认证 4 + 租户 5 + 用户 8 + 资源 6 + 角色 11 + 用户组 8（详见下表） |
 | 审计     | `sts-server-audit`  | 3      | **只读**：分页 / 详情 / 按动作聚合          |
 | 系统     | `sts-app-server`    | 1      | 健康检查                                    |
 
@@ -85,6 +85,7 @@ docs/api/openapi.json
 | `DELETE` | `/api/auth/users/{id}`          | `auth:user:delete` | **不能删自己**                     |
 | `POST`   | `/api/auth/users/{id}/password` | `auth:user:update` | 重置口令，**置为需改密并解锁账号** |
 | `GET`    | `/api/auth/users/{id}/roles`    | `auth:user:read`   | **反查角色来源**（直接授予 + 经用户组授予）。**停用的角色 / 停用的组 / 已过期的授权照原样返回** —— 它们正是「为什么没有权限」的答案 |
+| `GET`    | `/api/auth/users/{id}/data-scope` | `auth:user:read`  | **反查数据范围**：合并该用户全部生效角色的 `data_scope`（**取最宽**的一档）。`precise=false` 表示该档位**尚不能被精确求值**（`DEPT` / `DEPT_AND_CHILD` 需组织归属、`CUSTOM` 需解析 `filter_json`），此时已接入的查询保守地按「仅本人」处理 |
 
 **资源目录**（权限资源：菜单 / 页面 / 按钮 / 接口 / 数据）
 
@@ -241,6 +242,7 @@ docs/api/openapi.json
 | `RoleMemberVO`                            | 成员关系：`grantId` / `memberType` / `memberTypeLabel` / `memberId` / `memberName`（用户取 `displayName`、为空回退 `username`；用户组取 `groupName`；**成员已不存在时为 `null`**） / `effectiveFrom` / `effectiveTo` / **`effectiveNow`（派生，只表达时态）** / `createTime` |
 | `PageResultRoleVO` / `PageResultResourceVO` / `PageResultRoleMemberVO` | 分页结果，结构同日志域（`records` / `total` / `page` / `size` / `pages`）                                                                                                                                                                     |
 | `UserRoleVO`                              | **反查结果的一行**（一个"来源"）：`grantId` / `source`（`DIRECT` / `GROUP`） / `sourceLabel` / `roleId` / `roleCode` / `roleName` / `roleStatus` / `groupId` / `groupName` / `groupEnabled` / `effectiveFrom` / `effectiveTo` / `effectiveNow` / `groupMemberEffectiveFrom` / `groupMemberEffectiveTo` / `groupMemberEffectiveNow` / `createTime`。**两组时态字段**：经组授予是两条边（角色-成员、组-成员），各有一段生效区间；`source = DIRECT` 时第二组为 `null`（那条边**不存在**，而非"长期有效"）。**停用 / 过期照原样返回** |
+| `UserDataScopeVO`                         | **数据范围求值结果**：`scopes`（生效档位去重、由宽到窄） / `scope`（**合并后的最宽档**） / `scopeLabel` / `roleCodes`（这些档位来自哪些角色） / `allData`（是否全部数据） / `precise`（**这一档能否被精确求值**） / `note`。**`precise` 就是把"已配置"与"已生效"分开的那个字段**：`ALL` / `SELF` 为 `true`（自足，不需要别的数据），`DEPT` / `DEPT_AND_CHILD` / `CUSTOM` 为 `false`（需组织归属或 `filter_json` 解析）。**无任何档位时 `scope` 为 `null`，而不是 `ALL`** —— "没配数据范围"与"配了全部数据"是两件事 |
 | `UserGroupSaveRequest`                    | 用户组新建/更新入参：`groupCode`\*（`^[A-Za-z][A-Za-z0-9_]{0,63}$`，**创建后不可改**） / `groupName`\* / `parentId` / `category` / `isDefault` / `isEnabled` / `sortNo` / `description`。**没有 `tenantId`**（取当前登录者）**没有 `filterJson` / `orgScopeJson`**（动态组未实现，刻意不接受） |
 | `UserGroupQuery`                          | 用户组查询入参：`page` / `size` + `tenantId` / `keyword` / `category` / `enabled`（`Integer` 而非 `Boolean`：列是 `TINYINT` 可为 NULL，布尔会多一层"null 是不过滤还是查未设置"的歧义） / `parentId` |
 | `UserGroupVO`                             | 用户组视图：`id` / `tenantId` / `groupCode` / `groupName` / `parentId`（**只用于列表分组展示，不产生权限**） / `category`（当前恒为 `STATIC`） / `isDefault`（**只存不用**） / `isEnabled`（**真开关**：停用的组不再产生权限） / `sortNo` / `description` / `createTime` / `updateTime`。**不返回 `filterJson` / `orgScopeJson`** |
@@ -321,22 +323,29 @@ OPENAPI_PORT=18081 bash scripts/export-openapi.sh
 
 ## 五、待补充
 
-- **组织管理接口尚未落地**（`bw_auth_org` / `bw_auth_rel_org_user`，表、实体与 Mapper 已就绪，见 ADR-0016 末尾的"未覆盖清单"）。
+- **组织管理接口尚未落地**（`bw_auth_organization` / `bw_auth_rel_org_user`，表、实体与 Mapper 已就绪，见 ADR-0016 末尾的"未覆盖清单"）。
   它与用户组**同形**（同一套父子 + 成员关系的形态），是下一个自然候选。
   用户组与反查已于本批落地：**用户组 8 条路径** + **反查 1 条路径**（ADR-0024）。
   全仓已落地的权限域切片：**资源目录**（ADR-0021，6 条路径）、**角色管理与角色资源授权**（ADR-0022，8 条路径）、
   **角色成员关系**（ADR-0023，3 条路径）、**用户组管理与反查**（ADR-0024，9 条路径）。
 - **动态用户组求值**：`filter_json` / `org_scope_json` 两列只存不用，且**刻意不在任何接口的入参 / 出参里** ——
   动态成员规则求值未实现，接受它会得到一个"永远算不出成员"的壳。触发条件：真的需要动态组时。
+- **数据范围求值只完成了"求值 + 下发"**（ADR-0025）：`GET /api/auth/users/{id}/data-scope` 合并该用户
+  全部生效角色的 `data_scope`（**取最宽**），并用 `precise` 说出"这一档能不能被精确求值"。
+  已接入的消费方**只有一个**：**审计查询**（`ALL` 放行整个租户，其余档位保守地按「仅本人」处理）。
+  **`DEPT` / `DEPT_AND_CHILD` 的精确求值需要组织管理接口先落地**（`bw_auth_organization` 已有 `code_path` 列），
+  **`CUSTOM` 需要 `filter_json` 的表达式解析**；两者都未做，因此这两档在查询上退化为「仅本人」。
+  另：本仓**没有业务数据表**（16 张全是 `bw_auth_*` 加三条管道），所以"用 `data_scope` 过滤业务数据"
+  在当前仓里没有落点 —— 它的价值最终要在业务系统兑现。
 - **给三张关系表加唯一索引**（`(role_id, resource_id)` / `(role_id, member_type, member_id)` / `(user_group_id, member_type, member_id)`）：
   有了 `DuplicateKeyException` → `409` 兜底才"有资格"加（否则并发撞键会落到 `50000`），但那是独立的一次决定。
-- 前端的域接线进度：**认证 / 会话**（`src/auth.ts`）、**权限域管理**（`src/access.ts`，本批已补齐到 20 条路径）、**审计**（`src/audit.ts`，只读）**均已接入**。
+- 前端的域接线进度：**认证 / 会话**（`src/auth.ts`）、**权限域管理**（`src/access.ts`，已补齐到 20 条路径）、**审计**（`src/audit.ts`，只读）**均已接入**。
+  **数据范围反查（`GET /api/auth/users/{id}/data-scope`）尚未接线**：它要展示的是一个"配了但暂时不生效"的状态（`precise=false`），
+  怎么在界面上表达这件事是个独立的产品决定，不该顺手塞进用户列表。
   `platform-admin` 现有五个标签页：用户（含「角色来源」反查）、租户、资源（树 / 列表两种视图）、角色（含资源授权与成员）、用户组（含组成员）。
   `AccessPermissions` 随之补上了 `auth:resource:*` / `auth:role:*` / `auth:user_group:*` 共 12 项
   （该文件的规则是"只列前端真的用到的"；角色成员与用户组成员的**授予 / 撤销复用 `auth:role:update` / `auth:user_group:update`**，服务端另有独立的审计动作把它记清楚）。
   **组织**是唯一连后端都还没有的一类，因此前端也没有接线。
   **菜单权限还差两步**：资源表里没有 `MENU` / `PAGE` 类型的行（种子把 `ALL` 全建成了 `API`），
   且基座导航（`BasicLayout`）直接遍历 `MICRO_APPS`、没有按权限过滤 —— 这两步不做，"配了菜单权限"在界面上看不到任何效果。
-- **菜单权限还差两步**：资源表里还没有 `MENU` / `PAGE` 类型的行（种子把 `ALL` 全建成了 `API`），
-  且基座导航没按权限过滤（`BasicLayout` 直接遍历 `MICRO_APPS`）。
 - 契约尚未按域拆分为多文件；接口量变大后再考虑 `openapi/` 目录方案

@@ -67,6 +67,12 @@ public interface AuditLogMapper extends BaseMapper<AuditLogEntity> {
      *
      * <p>不像日志域那样补齐"没有数据的项"：动作名是开放集合（各域可自由新增），
      * 没有"全集"可补，硬补只会补出一个过时的清单。
+     *
+     * <p><b>{@code tenantId} 无条件参与、且是必传参数</b>：这条聚合与分页查询
+     * 共用同一套可见性规则，漏掉租户条件会让"按动作统计"变成全库统计 ——
+     * 一个只差一个 WHERE 的越权，且因为返回的只是计数，几乎不会被察觉。
+     * {@code operatorId} 仍可为空，但调用方传进来的值**已经过可见性收窄**
+     * （见 {@code AuditLogService.Visibility.operatorFilter}），本层不再判断。
      */
     @Select("""
             <script>
@@ -74,7 +80,8 @@ public interface AuditLogMapper extends BaseMapper<AuditLogEntity> {
                    COUNT(*) AS action_count,
                    COUNT(CASE WHEN result = 'FAILURE' THEN 1 END) AS failure_count
             FROM bw_audit_log
-            WHERE server_time &gt;= #{startTime} AND server_time &lt;= #{endTime}
+            WHERE tenant_id = #{tenantId}
+              AND server_time &gt;= #{startTime} AND server_time &lt;= #{endTime}
             <if test="resource != null and resource != ''">
                 AND resource = #{resource}
             </if>
@@ -85,7 +92,8 @@ public interface AuditLogMapper extends BaseMapper<AuditLogEntity> {
             ORDER BY action
             </script>
             """)
-    List<AuditActionCount> countByAction(@Param("resource") String resource,
+    List<AuditActionCount> countByAction(@Param("tenantId") long tenantId,
+                                         @Param("resource") String resource,
                                          @Param("operatorId") Long operatorId,
                                          @Param("startTime") long startTime,
                                          @Param("endTime") long endTime);

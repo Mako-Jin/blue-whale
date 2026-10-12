@@ -4,7 +4,9 @@ import com.bluewhale.sts.auth.context.AuthContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 权限判定入口 —— 全局唯一的"这个人能不能做这件事"的答案来源。
@@ -67,8 +69,14 @@ public class PermissionChecker {
         long now = System.currentTimeMillis();
         Set<String> permissions = Set.copyOf(
                 authorizationMapper.selectGrantedResourceCodes(context.getTenantId(), context.getUserId(), now));
-        Set<String> roleCodes = Set.copyOf(
-                authorizationMapper.selectRoleCodes(context.getTenantId(), context.getUserId(), now));
+        // 角色与数据范围由同一条查询取回：两者是同一组有效角色的两个侧面，
+        // 分成两条 SQL 就要把"什么算生效"写两遍，而两遍迟早会不一致。
+        Set<String> roleCodes = authorizationMapper.selectEffectiveRoles(
+                        context.getTenantId(), context.getUserId(), now)
+                .stream()
+                .map(RoleScopeView::getRoleCode)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toUnmodifiableSet());
 
         context.setPermissions(permissions);
         context.setRoleCodes(roleCodes);

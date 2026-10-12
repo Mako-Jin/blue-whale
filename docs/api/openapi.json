@@ -2119,6 +2119,40 @@
         }
       }
     },
+    "/api/auth/users/{id}/data-scope": {
+      "get": {
+        "tags": [
+          "用户"
+        ],
+        "summary": "反查用户的数据范围",
+        "description": "合并该用户全部生效角色的 data_scope（取最宽的一档）。**precise 为 false 表示该档位尚不能被精确求值**（DEPT / DEPT_AND_CHILD 需要组织归属，CUSTOM 需要解析 filter_json），此时已接入的查询保守地按「仅本人」处理",
+        "operationId": "dataScope",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "用户主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RUserDataScopeVO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/resources/tree": {
       "get": {
         "tags": [
@@ -4598,6 +4632,65 @@
             "type": "integer",
             "format": "int64",
             "description": "角色成员关系建立时间（毫秒时间戳）"
+          }
+        }
+      },
+      "RUserDataScopeVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/UserDataScopeVO"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "UserDataScopeVO": {
+        "type": "object",
+        "description": "用户的数据范围求值结果：合并后的档位、来源角色，以及该档位是否能被精确求值",
+        "properties": {
+          "scopes": {
+            "type": "array",
+            "description": "生效角色持有的数据范围档位（去重），按由宽到窄排列；为空表示没有任何角色带数据范围",
+            "items": {
+              "type": "string"
+            }
+          },
+          "scope": {
+            "type": "string",
+            "description": "合并后的最宽档位：ALL / DEPT_AND_CHILD / DEPT / CUSTOM / SELF；无角色时为 null"
+          },
+          "scopeLabel": {
+            "type": "string",
+            "description": "档位的中文标签"
+          },
+          "roleCodes": {
+            "type": "array",
+            "description": "这些档位来自哪些角色（去重），用于回答\"这个范围是谁给的\"",
+            "items": {
+              "type": "string"
+            }
+          },
+          "allData": {
+            "type": "boolean",
+            "description": "是否为「全部数据」—— 已接入的查询据此放行整个租户"
+          },
+          "precise": {
+            "type": "boolean",
+            "description": "这一档能否被精确求值。ALL 与 SELF 为 true；DEPT / DEPT_AND_CHILD 依赖组织归属、CUSTOM 依赖 filter_json 解析，均为 false"
+          },
+          "note": {
+            "type": "string",
+            "description": "当 precise 为 false 时的说明：档位未实现求值，已接入的查询**保守地按「仅本人」处理**"
           }
         }
       },

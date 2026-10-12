@@ -9,9 +9,10 @@ import java.util.List;
 /**
  * 授权关系查询 —— RBAC 判定的取数入口。
  *
- * <p>本 Mapper 只做**读**，且只做"这个人最终有哪些权限"这一件事。
- * 授权关系的写（给角色授资源、给用户授角色）由各关系仓储负责，
- * 职责分开：判定是高频热路径，写入是低频管理动作，两者的优化目标不同。
+ * <p>本 Mapper 只做**读**，且只回答两个问题：这个人最终有哪些权限码、
+ * 最终持有哪些角色（以及各角色的数据范围）。授权关系的写（给角色授资源、
+ * 给用户授角色）由各关系仓储负责，职责分开：判定是高频热路径，
+ * 写入是低频管理动作，两者的优化目标不同。
  *
  * <p><b>为什么用 JOIN 写 SQL 而不在 Java 里拼多次查询：</b>
  * "用户的权限"要穿过 用户 → (角色成员) → 角色 → (角色资源) → 资源 四张表。
@@ -131,14 +132,26 @@ public interface AuthorizationMapper {
                                             @Param("now") long now);
 
     /**
-     * 查询用户所拥有的角色编码（含经由用户组获得的）。
+     * 查询用户**当前生效**的角色，连同每个角色的数据范围档位。
      *
-     * <p>与上一条保持同一套开关：角色要启用、关系要未删、时态要落在区间内。
+     * <p>与上一条保持同一套开关：角色要启用、关系要未删、两层时态都要落在区间内。
      * 两处若不一致，会出现"角色列表里看得到、权限却没有"或反过来的怪状态，
      * 而这两种表现都会被当成前端 bug 排查。
+     *
+     * <p><b>为什么把 {@code data_scope} 也一起查出来，而不是另开一条只有一列不同的查询：</b>
+     * 两者跑的是同一组角色、同一套生效条件。分成两条 SQL 就要把那串条件写两遍，
+     * 而两遍一旦漂移，症状是"角色查得到、数据范围查不到"——
+     * 两边各自的测试都通过，合起来才不对，这是最难定位的一类不一致。
+     * 顺带：返回类型 {@link RoleScopeView} 让"这个数据范围是从哪个角色来的"
+     * 成为一个可以直接回答的问题，而在只返回编码列表的版本里它丢失了。
+     *
+     * <p>{@code data_scope} 允许为空（列可空）：一个没设范围的旧角色不该让整条查询出错。
+     * 合并时按"没有档位"处理 —— 结果仍是安全的那一侧（仅本人），
+     * 由 {@link com.bluewhale.sts.auth.datascope.DataScopeService} 兜住。
      */
     @Select("""
-            SELECT DISTINCT ro.role_code
+            SELECT DISTINCT ro.role_code AS role_code,
+                            ro.data_scope AS data_scope
             FROM bw_auth_role ro
             WHERE ro.deleted = 0
               AND ro.tenant_id = #{tenantId}
@@ -167,8 +180,8 @@ public interface AuthorizationMapper {
                     )
               )
             """)
-    List<String> selectRoleCodes(@Param("tenantId") long tenantId,
-                                 @Param("userId") long userId,
-                                 @Param("now") long now);
+    List<RoleScopeView> selectEffectiveRoles(@Param("tenantId") long tenantId,
+                                            @Param("userId") long userId,
+                                            @Param("now") long now);
 
 }

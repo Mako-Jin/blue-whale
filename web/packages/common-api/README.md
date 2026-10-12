@@ -342,7 +342,7 @@ expectTypeOf<ClientLogQuery['startTime']>().toEqualTypeOf<number | undefined>();
 
 - 各域接口目前有 `auth`、`access`、`audit`、`log`、`events` 与 `system`；新增业务域时新建 `src/<域>.ts`，在 `client.ts` 里装配，并在 `tests/` 下补一份接线断言
 - **认证链路已接线完毕**（登录 / 刷新 / 登出 / `me`，即 `src/auth.ts` + `createAuthChannel`）：令牌注入、401 恢复、刷新单飞（内核按客户端 + 通道跨客户端两层）、会话存取都已落地并有单测
-- **权限域管理接口已全部接线**（`src/access.ts`，共 20 条路径）：用户 / 租户（5 条路径 11 个操作）、资源目录（4 条：平铺分页 / 树 / 详情 / 新增）、角色（8 条：CRUD + 资源授权 + 成员）、用户组（7 条：CRUD + 组成员），以及**用户角色反查** `users/{id}/roles`（1 条）。消费方是 `platform-admin` 的五个标签页。**组织**是唯一连后端都还没有的一类（表与实体已就绪，见 ADR-0024 的「未覆盖」），因此前端也没有它的接线 —— 不提前建空壳
+- **权限域管理接口已全部接线**（`src/access.ts`，共 20 条路径）：用户 / 租户（5 条路径 11 个操作）、资源目录（4 条：平铺分页 / 树 / 详情 / 新增）、角色（8 条：CRUD + 资源授权 + 成员）、用户组（7 条：CRUD + 组成员），以及**用户角色反查** `users/{id}/roles`（1 条）。消费方是 `platform-admin` 的五个标签页。**组织**是唯一连后端都还没有的一类（表与实体已就绪，见 ADR-0024 的「未覆盖」），因此前端也没有它的接线 —— 不提前建空壳。**数据范围反查** `users/{id}/data-scope` 是后端已就绪、前端**刻意未接**的一条：它要展示的是一个"配了但暂时不生效"的状态（`precise = false`），怎么在界面上表达这件事是个独立的产品决定，等它定下来再接
 - 两处**刻意与后端同形**的接线细节：`userGroups.revokeMember` 与 `roles.revokeMember` 都把 `memberType` 放进**路径**而不是藏进 body（用户与用户组是两个独立自增序列、会撞号）；`AccessUserGroupQuery.enabled` 是 `0 / 1` 数字而不是布尔（传 `true` 会被序列化成后端不认的值）
 - **审计域已接 3 个只读接口**（`src/audit.ts`），消费方是 `platform-audit-console`。**它永远不会有写方法** —— 那是设计而非待办
 - 会话存储目前是**访问令牌在内存 + 刷新令牌明文落盘**。httpOnly cookie 方案需要后端配合改 `Set-Cookie` 并处理 CSRF 与跨源，列为将来项（`docs/decisions/0018` 第 6 条）

@@ -200,6 +200,7 @@ com.bluewhale.sts.log                    ← sts-server-log，包名用业务域
 | **写审计走 `REQUIRES_NEW`**                                                      | 业务事务回滚时审计不能跟着回滚 —— 而"操作被拒绝"恰恰最需要留痕。异常处理必须在**调用方**（self-invocation 会让 `@Transactional` 静默失效）                                            |
 | **三套标识不可混用**                                                             | 资源 `auth:user`（`AuthResources`）≠ 权限码 `auth:user:create`（`AuthPermissions`）≠ 动作 `auth.user.create`（`AuthAuditActions`）。把资源填成权限码 → 按资源过滤永远查空且**不报错** |
 | **只有服务端时间；匿名不产生审计**                                               | 审计不由客户端产生，故不存在双时间戳问题。匿名请求无操作人可归责，且公网扫描会灌满表；**已认证但无权限的必须记**（有明确操作人，且那正是最该留痕的一类）                              |
+| **可见性由服务端决定，不由请求方决定**（ADR-0025）                              | 租户**无条件**强制为当前登录者；`operatorId` 只是"在可见范围内进一步收窄"，只有数据范围合并为 `ALL` 时才生效，否则被整体忽略。详情跨租户返回 **404 而非 403** —— 后者等于承认"这条记录存在"。此前两条查询连租户条件都没有，持 `audit:read` 者可读到别的租户的记录 |
 | **`AuditRecorder` 写库失败只记 WARN，不重试、不外抛**                            | 接受"极少数记录会丢"：记审计失败不能连累业务响应                                                                                                                                        |
 
 > **`sts-components-audit` 刻意不带 `-starter` 后缀** —— 它只提供 `@Audited` 注解与 `AuditContext`，
@@ -257,7 +258,7 @@ com.bluewhale.sts.log                    ← sts-server-log，包名用业务域
 | **鉴权入口只有一处**：`@RequiresPermission` + `AuthInterceptor`    | 判定逻辑散落时，漏洞往往出在"某个接口只查了是否登录"的那一处                                                                            |
 | **`jwt.secret` 生产必须用环境变量覆盖**（`BW_JWT_SECRET`）         | 配置里的默认值是**只给本地开发用的占位符**，而且已进版本库 ⇒ 对全世界公开。它属密钥级配置（`docs/decisions/0003`），HS512 建议 ≥64 字节 |
 
-> **未做**：组织管理接口（`bw_auth_org` / `bw_auth_rel_org_user`，表与实体已落地，无接口）、
+> **未做**：组织管理接口（`bw_auth_organization` / `bw_auth_rel_org_user`，表与实体已落地，无接口）、
 > 数据权限判定、验证码 / 短信 / 多因子、网关侧令牌校验。逐项见 `docs/decisions/0016` 末节。
 > （原先列的"行为审计"已于 2026-10-12 落地，但**不在权限域** —— 见 `docs/decisions/0019`。）
 >
@@ -278,12 +279,21 @@ com.bluewhale.sts.log                    ← sts-server-log，包名用业务域
 > `bw_auth_user_group.is_enabled` 从不被判定读 ⇒ 停用用户组一直在产生权限（与 `0022`「停用角色」同类），
 > 由此提炼出一条规则：**凡新增会影响权限的开关（状态位 / 时态列 / 归属字段），
 > 都要同时问一句"判定里读它了吗"**。同批填上了一直空着的 `40900` 段。
-> 仍未做的是：角色继承（`inherit_strategy` 与 `parent_id` 只建层级、不产生权限）、
-> 数据范围求值（`data_scope` / `filter_json` 只存不用）、实例级授权
-> （`bw_auth_rel_role_resource_instance` 表已就绪、零代码）、动态用户组求值、
+> **前端 `platform-admin` 已于 2026-10-12 接通全部管理面**（五个标签页：用户含「角色来源」反查、
+> 租户、资源（树 / 列表双视图）、角色（含资源授权与成员）、用户组（含组成员）），`0021`~`0024`
+> 攒下的 20 条路径不再是"只有测试调过"。
+>
+> **数据范围求值同批落地了"求值 + 下发"这一半**（见 `docs/decisions/0025`）：
+> `GET /api/auth/users/{id}/data-scope` 合并用户全部生效角色的 `data_scope`（**取最宽**），
+> 并用 `precise` 说出"这一档能不能被精确求值"。已接入的消费方**只有一个** —— **审计查询**。
+> 同批修掉审计域的一处真实缺陷：`AuditLogService` 原先既无租户条件、`operatorId` 又由请求方
+> 任意指定，持 `auth:audit:read` 者可读**别的租户**的记录；现在三条路径统一走 `visibility()`。
+> 仍未做的是：`DEPT` / `DEPT_AND_CHILD` 的精确求值（需组织归属）与 `CUSTOM` 的 `filter_json` 解析、
+> **用 `data_scope` 过滤业务数据**（本仓没有业务数据表：16 张全是 `bw_auth_*` 加三条管道，
+> 所以这件事在当前仓里没有落点）、角色继承（`inherit_strategy` 与 `parent_id` 只建层级、不产生权限）、
+> 实例级授权（`bw_auth_rel_role_resource_instance` 表已就绪、零代码）、动态用户组求值、
 > 给三张关系表加唯一索引（有了 `409` 兜底才"有资格"加）、组织管理接口、
-> 菜单权限的两步（资源表没有 `MENU` / `PAGE` 行 + 基座导航没按权限过滤）、
-> 前端 `platform-admin` 接资源 / 角色 / 用户组三个管理页。
+> 菜单权限的两步（资源表没有 `MENU` / `PAGE` 行 + 基座导航没按权限过滤）。
 > 另有一处**发现但未处理**：`ResourceService` 对"有子资源"复用了 `HIERARCHY_CYCLE(40913)`
 > （文案是"层级关系不合法"），与"有子角色"、"有子用户组"同病 —— 语义上不精确，等真需要区分时再拆码。
 >
@@ -311,7 +321,7 @@ com.bluewhale.sts.log                    ← sts-server-log，包名用业务域
 cd server
 
 mvn clean install -DskipTests                      # 构建全部模块
-mvn clean install                                  # 含测试（当前 140 例）
+mvn clean install                                  # 含测试（当前 149 例）
 
 # 启动应用（在 server/ 目录下执行，需要 JDK 21）—— 默认走 h2，零外部依赖
 java -jar sts-app/sts-app-server/target/sts-app-server-0.0.1-SNAPSHOT.jar

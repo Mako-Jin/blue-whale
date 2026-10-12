@@ -571,6 +571,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/auth/users/{id}/data-scope': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * 反查用户的数据范围
+     * @description 合并该用户全部生效角色的 data_scope（取最宽的一档）。**precise 为 false 表示该档位尚不能被精确求值**（DEPT / DEPT_AND_CHILD 需要组织归属，CUSTOM 需要解析 filter_json），此时已接入的查询保守地按「仅本人」处理
+     */
+    get: operations['dataScope'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/auth/resources/tree': {
     parameters: {
       query?: never;
@@ -1916,6 +1936,31 @@ export interface components {
        * @description 角色成员关系建立时间（毫秒时间戳）
        */
       createTime?: number;
+    };
+    RUserDataScopeVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['UserDataScopeVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    /** @description 用户的数据范围求值结果：合并后的档位、来源角色，以及该档位是否能被精确求值 */
+    UserDataScopeVO: {
+      /** @description 生效角色持有的数据范围档位（去重），按由宽到窄排列；为空表示没有任何角色带数据范围 */
+      scopes?: string[];
+      /** @description 合并后的最宽档位：ALL / DEPT_AND_CHILD / DEPT / CUSTOM / SELF；无角色时为 null */
+      scope?: string;
+      /** @description 档位的中文标签 */
+      scopeLabel?: string;
+      /** @description 这些档位来自哪些角色（去重），用于回答"这个范围是谁给的" */
+      roleCodes?: string[];
+      /** @description 是否为「全部数据」—— 已接入的查询据此放行整个租户 */
+      allData?: boolean;
+      /** @description 这一档能否被精确求值。ALL 与 SELF 为 true；DEPT / DEPT_AND_CHILD 依赖组织归属、CUSTOM 依赖 filter_json 解析，均为 false */
+      precise?: boolean;
+      /** @description 当 precise 为 false 时的说明：档位未实现求值，已接入的查询**保守地按「仅本人」处理** */
+      note?: string;
     };
     PageResultUserGroupVO: {
       records?: components['schemas']['UserGroupVO'][];
@@ -3402,6 +3447,29 @@ export interface operations {
         };
         content: {
           '*/*': components['schemas']['RListUserRoleVO'];
+        };
+      };
+    };
+  };
+  dataScope: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 用户主键 */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RUserDataScopeVO'];
         };
       };
     };

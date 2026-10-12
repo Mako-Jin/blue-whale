@@ -1,5 +1,10 @@
 package com.bluewhale.sts.app.audit;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.bluewhale.sts.audit.auditlog.AuditLogEntity;
+import com.bluewhale.sts.audit.auditlog.AuditLogMapper;
+import com.bluewhale.sts.auth.resource.ResourceEntity;
+import com.bluewhale.sts.auth.resource.ResourceMapper;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,9 +18,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -50,6 +59,15 @@ class AuditApiTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private AuditLogMapper auditLogMapper;
+
+    @Autowired
+    private ResourceMapper resourceMapper;
+
+    /** 管理员的租户，从 {@code /me} 取 —— 不写死数字 */
+    private Long adminTenantId;
 
     @Test
     @DisplayName("新建用户后审计记录已自动产生：没有任何一行上报代码")
@@ -210,6 +228,98 @@ class AuditApiTest {
                 .andExpect(jsonPath("$.code").value(40400));
     }
 
+    @Test
+    @DisplayName("别的租户的审计记录对本租户不可见：列表查不到、聚合不含、详情按 404 处理")
+    void shouldIsolateAuditLogsAcrossTenants() throws Exception {
+        String token = loginAsAdmin();
+
+        // 审计表**没有任何写入接口**（那是它的定义，见 AuditLogService 类注释），
+        // 所以造一条"别租户的记录"只能直接写库。这恰好说明这条用例为什么必须存在：
+        // 生产环境里这样的记录由另一个租户的真实操作产生，而本租户的管理员不该看见它。
+        String action = "tenant.probe." + shortId();
+        AuditLogEntity foreign = new AuditLogEntity();
+        foreign.setAction(action);
+        foreign.setResource("auth:user");
+        foreign.setOperatorId(999_999L);
+        foreign.setOperatorName("outsider");
+        foreign.setTenantId(adminTenantId + 1000L);
+        foreign.setResult("SUCCESS");
+        foreign.setHttpMethod("POST");
+        foreign.setRequestUri("/api/auth/users");
+        foreign.setServerTime(System.currentTimeMillis());
+        auditLogMapper.insertRecord(foreign);
+
+        mockMvc.perform(get("/api/audit/logs")
+                        .header("Authorization", "Bearer " + token)
+                        .param("action", action))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(0));
+
+        // 聚合路径同样要挡住：它只差一个 WHERE，而返回的只是计数，越权了也几乎不会被察觉
+        mockMvc.perform(get("/api/audit/logs/stats")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.actions[*].action", not(hasItem(action))));
+
+        // 详情返回 404 而不是 403 —— 403 等于向调用方承认"这条记录确实存在"
+        AuditLogEntity saved = auditLogMapper.selectOne(Wrappers.<AuditLogEntity>lambdaQuery()
+                .eq(AuditLogEntity::getAction, action));
+        assertNotNull(saved, "刚插入的审计记录应当查得到");
+
+        mockMvc.perform(get("/api/audit/logs/{id}", saved.getId())
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(40400));
+    }
+
+    @Test
+    @DisplayName("数据范围 ALL 放行整个租户、SELF 只看得到自己，且 operatorId 参数不能用来扩权")
+    void shouldApplyDataScopeToAuditQuery() throws Exception {
+        String adminToken = loginAsAdmin();
+        // 管理员先留下一条记录，作为"SELF 档不该看到"的对照
+        createUser(adminToken, "audit_probe_" + shortId());
+        long adminId = meUserId(adminToken);
+
+        String username = "audit_self_" + shortId();
+        long selfUserId = createUser(adminToken, username);
+        long roleId = createRole(adminToken, "AUDIT_SELF_" + shortId(), "只看自己的审计", "SELF");
+        grant(adminToken, roleId, resourceIdOf("auth:audit:read"), "ALLOW");
+        // 再给一个"会产生审计"的写权限，好让这个账号自己留下一条记录；
+        // 只给 audit:read 的话它查什么都是空列表，用例会因为"空"而假通过
+        grant(adminToken, roleId, resourceIdOf("auth:user:create"), "ALLOW");
+        bindRoleMember(adminToken, roleId, selfUserId);
+
+        String selfToken = login("default", username, "Probe@12345");
+        createUser(selfToken, "audit_probe_" + shortId());
+
+        // SELF：每一条都属于他自己。管理员的那些记录就在同一个租户里，但不该出现
+        mockMvc.perform(get("/api/audit/logs").header("Authorization", "Bearer " + selfToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.total").value(greaterThanOrEqualTo(1)))
+                .andExpect(jsonPath("$.data.records[*].operatorId", everyItem(is((int) selfUserId))));
+
+        // 自己指定 operatorId 也扩不了权 —— 它只能**在可见范围内进一步收窄**，
+        // 所以这里传入管理员的主键，返回的仍然全是自己的记录，而不是空列表：
+        // "被忽略"与"筛出一个空结果"在调用方看来必须是同一件事的两种说法，
+        // 而实现选的是前者（见 AuditLogService.Visibility.operatorFilter）
+        mockMvc.perform(get("/api/audit/logs")
+                        .header("Authorization", "Bearer " + selfToken)
+                        .param("operatorId", String.valueOf(adminId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.records[*].operatorId", everyItem(is((int) selfUserId))));
+
+        // ALL：同一个租户里，管理员看得到那个账号留下的记录
+        mockMvc.perform(get("/api/audit/logs")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .param("action", "auth.user.create")
+                        .param("operatorName", username))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.total").value(greaterThanOrEqualTo(1)))
+                .andExpect(jsonPath("$.data.records[*].operatorId", everyItem(is((int) selfUserId))));
+    }
+
     /** 新建一个用户并返回其主键 */
     private long createUser(String token, String username) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/auth/users")
@@ -226,7 +336,24 @@ class AuditApiTest {
     }
 
     private String loginAsAdmin() throws Exception {
-        return login("default", "admin", ADMIN_PASSWORD);
+        String token = login("default", "admin", ADMIN_PASSWORD);
+        MvcResult me = mockMvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andReturn();
+        adminTenantId = ((Number) JsonPath.read(
+                me.getResponse().getContentAsString(), "$.data.tenantId")).longValue();
+        return token;
+    }
+
+    /** 当前登录用户的主键，从 {@code /me} 取 —— 写死 1 会在种子策略变化时静默指向别的身份 */
+    private long meUserId(String token) throws Exception {
+        MvcResult me = mockMvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andReturn();
+        return ((Number) JsonPath.read(
+                me.getResponse().getContentAsString(), "$.data.userId")).longValue();
     }
 
     private String login(String tenantCode, String username, String password) throws Exception {
@@ -239,6 +366,49 @@ class AuditApiTest {
                 .andExpect(jsonPath("$.code").value(0))
                 .andReturn();
         return JsonPath.read(result.getResponse().getContentAsString(), "$.data.accessToken");
+    }
+
+    /** 建一个只读档位的角色。{@code dataScope} 直接写档位字面量，非法值会在服务端被拒 */
+    private long createRole(String token, String code, String name, String dataScope) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/auth/roles")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"roleCode":"%s","roleName":"%s","category":"CUSTOM","dataScope":"%s"}
+                                """.formatted(code, name, dataScope)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andReturn();
+        return ((Number) JsonPath.read(result.getResponse().getContentAsString(), "$.data.id")).longValue();
+    }
+
+    private void grant(String token, long roleId, long resourceId, String effect) throws Exception {
+        mockMvc.perform(post("/api/auth/roles/" + roleId + "/resources")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"resourceId":%d,"effect":"%s"}
+                                """.formatted(resourceId, effect)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+    }
+
+    private void bindRoleMember(String token, long roleId, long userId) throws Exception {
+        mockMvc.perform(post("/api/auth/roles/" + roleId + "/members")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"memberType":"USER","memberId":%d}
+                                """.formatted(userId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+    }
+
+    private long resourceIdOf(String resourceCode) {
+        ResourceEntity resource = resourceMapper.selectOne(Wrappers.<ResourceEntity>lambdaQuery()
+                .eq(ResourceEntity::getResourceCode, resourceCode));
+        assertNotNull(resource, "种子资源应当存在：" + resourceCode);
+        return resource.getId();
     }
 
     /** 短随机后缀：避免同一次构建里多个用例撞上"登录名租户内唯一" */

@@ -4,6 +4,8 @@ import com.bluewhale.sts.auth.authz.RequiresPermission;
 import com.bluewhale.sts.auth.common.AuthAuditActions;
 import com.bluewhale.sts.auth.common.AuthPermissions;
 import com.bluewhale.sts.auth.common.AuthResources;
+import com.bluewhale.sts.auth.datascope.DataScopeService;
+import com.bluewhale.sts.auth.datascope.UserDataScopeVO;
 import com.bluewhale.sts.auth.role.RoleMemberService;
 import com.bluewhale.sts.auth.role.UserRoleVO;
 import com.bluewhale.sts.common.basic.model.PageResult;
@@ -54,10 +56,13 @@ public class UserController {
 
     private final UserService userService;
     private final RoleMemberService roleMemberService;
+    private final DataScopeService dataScopeService;
 
-    public UserController(UserService userService, RoleMemberService roleMemberService) {
+    public UserController(UserService userService, RoleMemberService roleMemberService,
+                          DataScopeService dataScopeService) {
         this.userService = userService;
         this.roleMemberService = roleMemberService;
+        this.dataScopeService = dataScopeService;
     }
 
     @GetMapping
@@ -136,6 +141,29 @@ public class UserController {
                     + "因为它们正是「为什么没有权限」的答案")
     public R<List<UserRoleVO>> roles(@PathVariable @Parameter(description = "用户主键") Long id) {
         return R.ok(roleMemberService.rolesOfUser(id));
+    }
+
+    /**
+     * 反查该用户的数据范围。
+     *
+     * <p>与 {@code /{id}/roles} 同属"反查某个人"这一类，因此同样归
+     * {@code auth:user:read}、同样不标 {@link Audited}。差别在于它回答的是
+     * "他身上的角色合起来能看到多大范围"—— 一个由多个角色的 {@code data_scope}
+     * 合并出来的结果。
+     *
+     * <p><b>返回里带一个 {@code precise} 标记，而不是只返回档位。</b>因为
+     * "配了 {@code DEPT} 但系统还不会算"与"就是 {@code ALL}"是两件完全不同的事，
+     * 而只返回一个字符串的做法让它们长得一模一样。
+     */
+    @GetMapping("/{id}/data-scope")
+    @RequiresPermission(AuthPermissions.USER_READ)
+    @Operation(summary = "反查用户的数据范围",
+            description = "合并该用户全部生效角色的 data_scope（取最宽的一档）。"
+                    + "**precise 为 false 表示该档位尚不能被精确求值**"
+                    + "（DEPT / DEPT_AND_CHILD 需要组织归属，CUSTOM 需要解析 filter_json），"
+                    + "此时已接入的查询保守地按「仅本人」处理")
+    public R<UserDataScopeVO> dataScope(@PathVariable @Parameter(description = "用户主键") Long id) {
+        return R.ok(dataScopeService.resolve(id));
     }
 
 }
