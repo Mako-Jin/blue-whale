@@ -15,6 +15,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "common-api": "workspace:*",
     "common-tools": "workspace:*",
     "qiankun": "catalog:",
     "react": "catalog:",

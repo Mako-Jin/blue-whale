@@ -11,6 +11,8 @@ export const INITIAL_GLOBAL_STATE: GlobalState = {
   theme: 'light',
   locale: 'zh-CN',
   userId: null,
+  roles: [],
+  permissions: [],
 };
 
 const actions: MicroAppStateActions = initGlobalState(INITIAL_GLOBAL_STATE);

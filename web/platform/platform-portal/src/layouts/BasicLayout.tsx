@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { auth } from '@/auth';
+import { useSession } from '@/auth/hooks';
 import { MICRO_APPS, setGlobalState } from '@/micro';
 import './BasicLayout.less';
-
-/** 演示用的身份，登录/登出都切这一个值。 */
-const DEMO_USER_ID = 'u-cap-42';
 
 function navClass({ isActive }: { isActive: boolean }): string {
   return isActive ? 'basic-layout__link basic-layout__link--active' : 'basic-layout__link';
@@ -13,7 +12,7 @@ function navClass({ isActive }: { isActive: boolean }): string {
 export default function BasicLayout() {
   const { pathname } = useLocation();
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const [userId, setUserId] = useState<string | null>(null);
+  const { user } = useSession();
 
   // 子应用页面不需要外边距，让它铺满内容区 —— 否则会看到一层不属于子应用的留白，
   // 排查布局问题时容易误判成子应用的样式出错。
@@ -25,10 +24,9 @@ export default function BasicLayout() {
     setGlobalState({ theme: next });
   };
 
-  const toggleUser = () => {
-    const next = userId ? null : DEMO_USER_ID;
-    setUserId(next);
-    setGlobalState({ userId: next });
+  const signOut = (): void => {
+    // 不手动跳转：会话被清空后 `RequireAuth` 会把页面重定向到登录页
+    void auth.logout();
   };
 
   return (
@@ -49,16 +47,19 @@ export default function BasicLayout() {
         </nav>
 
         {/*
-          这两个按钮是**全局状态下发的调试开关**，不是产品功能：
-          基座自己还没有主题体系与登录态，它们存在的意义是让子应用侧的
-          "收到全局状态并响应"这段代码可被触发、可被观察。
+          身份由真实会话驱动（`session.user`），不再是本地 useState 的调试值。
+          `userId` / `roles` / `permissions` 的下发在 `src/micro/session-sync.ts` 里 ——
+          那里是模块级订阅，登录页（不渲染本布局）期间同样在同步。
         */}
         <div className="basic-layout__actions">
           <button type="button" className="basic-layout__action" onClick={switchTheme}>
             全局主题：{theme === 'light' ? '浅色' : '深色'}
           </button>
-          <button type="button" className="basic-layout__action" onClick={toggleUser}>
-            {userId ? `登出（${userId}）` : '登录'}
+          <span className="basic-layout__user">
+            {user?.displayName || user?.username || '（未知身份）'}
+          </span>
+          <button type="button" className="basic-layout__action" onClick={signOut}>
+            登出
           </button>
         </div>
       </header>

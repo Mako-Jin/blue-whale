@@ -6,14 +6,15 @@
 
 ## 现有脚本
 
-| 脚本                         | 用途                                                      | 前置条件                                                                          | 说明见                |
-| ---------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------- | --------------------- |
-| `export-openapi.sh`          | 从运行中的应用导出 OpenAPI 契约到 `docs/api/openapi.json` | 后端可构建且 JDK 21（脚本自查 `JAVA_HOME`）；临时以 18080 端口启动一次            | `docs/decisions/0006` |
-| `init-dameng.sh`             | 在达梦 DM8 上应用交付用的建表脚本（Flyway 无达梦模块）    | 可达的 DM8 实例；凭据走环境变量 `BW_DB_USERNAME` / `BW_DB_PASSWORD`               | `docs/decisions/0010` |
-| `verify-micro-frontend.mjs`  | 用真实 Chrome 验证微前端全链路                            | 四个 dev server 都在跑（:3000 / :3200 / :3300 / :3400），且本机装有 Google Chrome | `docs/decisions/0012` |
-| `verify-scene-switching.mjs` | 用真实 Chrome 验证三维应用的多场景切换与显存释放          | :3400 在跑，且本机装有 Google Chrome；可选传截图目录                              | `docs/decisions/0014` |
-| `verify-player-controls.mjs` | 用真实 Chrome 验证古建筑场景的主人公操控                  | :3400 在跑，且本机装有 Google Chrome；可选传截图目录                              | `docs/decisions/0015` |
-| `verify-atmosphere.mjs`      | 用真实浏览器验证大气（天穹、日出日落、云、时间流逝、动态 IBL 的显存） | :3400 在跑，且本机装有 Chromium 内核浏览器（Chrome 或 Edge，脚本**自动探测**）；可选传截图目录 | `docs/decisions/0017` |
+| 脚本                         | 用途                                                                  | 前置条件                                                                                                                         | 说明见                |
+| ---------------------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| `export-openapi.sh`          | 从运行中的应用导出 OpenAPI 契约到 `docs/api/openapi.json`             | 后端可构建且 JDK 21（脚本自查 `JAVA_HOME`）；临时以 18080 端口启动一次                                                           | `docs/decisions/0006` |
+| `init-dameng.sh`             | 在达梦 DM8 上应用交付用的建表脚本（Flyway 无达梦模块）                | 可达的 DM8 实例；凭据走环境变量 `BW_DB_USERNAME` / `BW_DB_PASSWORD`                                                              | `docs/decisions/0010` |
+| `verify-micro-frontend.mjs`  | 用真实 Chrome 验证微前端全链路                                        | 四个 dev server 都在跑（:3000 / :3200 / :3300 / :3400），且本机装有 Google Chrome                                                | `docs/decisions/0012` |
+| `verify-scene-switching.mjs` | 用真实 Chrome 验证三维应用的多场景切换与显存释放                      | :3400 在跑，且本机装有 Google Chrome；可选传截图目录                                                                             | `docs/decisions/0014` |
+| `verify-player-controls.mjs` | 用真实 Chrome 验证古建筑场景的主人公操控                              | :3400 在跑，且本机装有 Google Chrome；可选传截图目录                                                                             | `docs/decisions/0015` |
+| `verify-portal-auth.mjs`     | 用真实 Chrome + 真后端验证基座登录链路                                | 后端 :8080（h2 profile，含种子管理员）、基座 ：3000、`platform-log-console` :3200 都在跑；本机装有 Google Chrome；可选传截图目录 | `docs/decisions/0018` |
+| `verify-atmosphere.mjs`      | 用真实浏览器验证大气（天穹、日出日落、云、时间流逝、动态 IBL 的显存） | :3400 在跑，且本机装有 Chromium 内核浏览器（Chrome 或 Edge，脚本**自动探测**）；可选传截图目录                                   | `docs/decisions/0017` |
 
 ### `verify-micro-frontend.mjs` 做什么
 
@@ -47,6 +48,21 @@
 6. 滚轮缩放 → 断言相机距离变化
 7. 切到太空场景 → 断言小地图隐藏、交互快照归 `null`
 8. 汇总浏览器侧错误与 4xx/5xx
+
+### `verify-portal-auth.mjs` 做什么
+
+用 CDP（`--headless=new`，调试端口 9337）驱动真实 Chrome，访问的是**真后端**（h2 profile 的种子管理员），
+验证的全是单测测不到的浏览器侧事实：
+
+1. 未登录访问 `/log-console` → 地址栏真的变成 `/login`，且导航栏没有渲染
+2. 登录表单的默认租户/用户名与种子数据一致、口令框是 `password` 类型
+3. 用 `Input.insertText` 真实输入口令并提交 → 拿到真令牌，回到原定页面；
+   断言 `localStorage` 持久化的是 `refreshToken` 而**不含** `accessToken`
+4. 子应用右下角标记显示 `userId=1 · roles=1 · perm=8` —— 权限经全局状态真的下发到了子应用
+5. 已登录再访问 `/login` 被送回首页
+6. **硬刷新页面** → 仍在受保护页面且子应用重新收到身份（内存令牌已丢，靠刷新令牌续期）
+7. 登出 → 弹回登录页、`localStorage` 清空、导航栏移除
+8. 浏览器侧零报错
 
 ### `verify-atmosphere.mjs` 做什么
 

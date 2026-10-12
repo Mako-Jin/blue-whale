@@ -9,6 +9,18 @@ export type HostGlobalState = {
   theme?: string;
   locale?: string;
   userId?: string | null;
+  /** 角色编码集合，如 `SUPER_ADMIN` */
+  roles?: string[];
+  /**
+   * 权限标识集合，如 `auth:user:create`。
+   *
+   * <p>**由基座算好下发，子应用只消费**（`docs/decisions/0018` 第 3 条）——
+   * 子应用不要自己去调 `/api/auth/me`：那样每个子应用都会有一份自己的判定，
+   * 迟早出现"某处只判了登录、忘了判权限"。
+   *
+   * <p>标识**由后端定义**，前端不得拼接自造。
+   */
+  permissions?: string[];
 };
 
 /**

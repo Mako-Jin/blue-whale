@@ -267,5 +267,5 @@ expectTypeOf<ClientLogQuery['startTime']>().toEqualTypeOf<number | undefined>();
 - 各域接口目前有 `auth`、`log`、`events` 与 `system`；新增业务域时新建 `src/<域>.ts`，在 `client.ts` 里装配，并在 `tests/` 下补一份接线断言
 - **认证链路已接线完毕**（登录 / 刷新 / 登出 / `me`，即 `src/auth.ts` + `createAuthChannel`）：令牌注入、401 恢复、刷新单飞、会话存取都已落地并有单测。权限域**管理接口**（users / tenants / organization / role / usergroup / resource，契约里另有 5 条路径 11 个操作）**尚未接线** —— 它们属于 `platform-admin` 那一段（`docs/decisions/0018` 第③段），随该子应用一起接，不提前建空壳
 - 会话存储目前是**访问令牌在内存 + 刷新令牌明文落盘**。httpOnly cookie 方案需要后端配合改 `Set-Cookie` 并处理 CSRF 与跨源，列为将来项（`docs/decisions/0018` 第 6 条）
-- 基座与子应用**尚未消费**本包：基座的「登录」按钮仍是切换 `userId` 的调试开关，登录页、路由守卫与权限下发是 `docs/decisions/0018` 的第②段
+- 基座已消费本包（`platform-portal/src/auth/`：登录页、路由守卫、会话恢复与权限下发）；子应用单跑时按 ADR-0018 第 8 条共用同一份 session 实现。权限域**管理接口**（users / tenants / organization / role / usergroup / resource，契约里另有 5 条路径 11 个操作）**尚未接线** —— 它们属于 `platform-admin` 那一段（`docs/decisions/0018` 第③段），随该子应用一起接，不提前建空壳
 - 事件域的字段名与路径已由契约锁死，但**事件名本身**（`page.view` / `order.submit` 这类字符串）不在契约里 —— 它是前后端共用的一条正则，尚未收成一份可枚举的注册表；理由与代价见 `docs/decisions/0011`

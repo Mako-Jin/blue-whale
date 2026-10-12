@@ -90,7 +90,7 @@ React 19 + Vite 8 + TS **6.0.3**（7.x 不被 typescript-eslint 支持）+ Route
 - 样式隔离指望不上框架；**已知限制**：被基座加载时子应用 React 组件级热更新不生效 → 改组件时单独跑子应用
 - 未做：`platform-user` / `admin` · 生产部署与网关规则 · 样式前缀去重 · 子应用错误边界
 
-## 10 权限归属（ADR-0018；①段已落地，②基座/③子应用待做）
+## 10 权限归属（ADR-0018；①传输层与②基座装配已落地，③子应用消费待做）
 
 **三件事分开**：会话（登录/令牌/刷新）**实现在 `packages/`、基座只装配**（子应用必须保留独立运行分支，登录逻辑写死在基座则单跑没有登录能力）· 权限判定**基座单点计算 → `HostGlobalState` 增 `roles`/`permissions` 下发**，子应用**不得自调 `/api/auth/me`** · 权限管理界面独立成 `platform-admin`。**不开认证子应用**（首屏零阻塞 / 令牌绕圈回来 / 守卫分裂两处）。
 
@@ -99,6 +99,8 @@ React 19 + Vite 8 + TS **6.0.3**（7.x 不被 typescript-eslint 支持）+ Route
 - **401 刷新必须单飞**：刷新令牌轮换 + 重放检测，并发刷新会被判为重放 → **撤销该用户全部刷新令牌**（前端时序 bug 升级成全体被踢）。内核用 `pendingReauth` 合并，`skipAuthRetry` 让刷新请求自身豁免（否则递归）
 - 令牌：access 放内存、refresh 持久化（轮换与重放检测兜底 XSS）；httpOnly cookie 未做
 - **`common-tools` 新增 `session` 子路径** → 新模块要同时加 `package.json` 的 `exports`，否则 `common-tools/session` 报找不到模块
+- **②基座装配的三个决定**：权限下发是**模块级订阅**（`portal/src/micro/session-sync.ts`，登录页不渲染布局所以不能写在布局 effect 里）· **跳转只留一处**（守卫声明式 `<Navigate>`；登出/401 只清会话，`onAuthLost` 在基座刻意不传）· 守卫必须**等恢复阶段结束**再判未登录（否则每次刷新都掉登录）
+- e2e `scripts/verify-portal-auth.mjs`（CDP :9337）：未登录跳登录页 → 真登录（h2 种子 admin）→ 断言持久化里**无 accessToken** → 子应用标记 `roles/perm` 非零 → 硬刷新会话恢复 → 登出清干净，全过
 - **契约路径自带 `/api` 前缀** → `baseUrl` 必须留空（写 `/api` 会拼成 `/api/api/...`）；README 的老示例曾写错，已改
 - 落地顺序：① 契约与传输层（**已完成**：http 钩子 + session + `createAuthChannel`，common-tools 168 例 / common-api 36 例）→ ② 基座装配（登录页/守卫/下发）→ ③ 子应用消费（按钮级权限）
 

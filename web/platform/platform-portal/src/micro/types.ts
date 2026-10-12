@@ -34,11 +34,19 @@ export type MicroAppMeta = {
  * 刻意保持极小：**只放"基座知道、子应用也需要"的东西**。
  * 子应用自己的业务状态不该走这里，否则这个对象会长成上帝对象，
  * 且每次变更都会广播给所有已挂载的子应用。
+ *
+ * `roles` / `permissions` 属于这里，是因为**权限判定由基座单点计算**
+ * （`docs/decisions/0018` 第 3 条）：判定结果是一份全应用共用的横切事实，
+ * 与 `theme` / `locale` 同一性质；而"谁能看到什么"的逻辑不该在每个子应用里各写一遍。
  */
 export type GlobalState = {
   theme: 'light' | 'dark';
   locale: string;
   userId: string | null;
+  /** 角色编码集合 */
+  roles: string[];
+  /** 权限标识集合。**标识由后端定义，前端不得拼接自造** */
+  permissions: string[];
 };
 
 /**

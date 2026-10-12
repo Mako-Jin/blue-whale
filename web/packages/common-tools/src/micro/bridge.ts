@@ -187,5 +187,14 @@ function renderIndicator(appName: string, state: HostGlobalState): void {
     parent.appendChild(node);
   }
 
-  node.textContent = `${appName} · theme=${state.theme ?? '-'} · userId=${state.userId ?? '(未登录)'}`;
+  /*
+   * 标记上顺带显示角色数与权限数：全局状态下发是本项目微前端要验证的核心能力之一，
+   * 只显示 theme / userId 的话，"权限到底传到子应用没有"就只能靠打断点看。
+   * 显示数量而不是列出全部标识：标记是给一眼扫过用的，长出来会盖住页面。
+   */
+  const roles = state.roles?.length ?? 0;
+  const permissions = state.permissions?.length ?? 0;
+  node.textContent =
+    `${appName} · theme=${state.theme ?? '-'} · userId=${state.userId ?? '(未登录)'}` +
+    ` · roles=${roles} · perm=${permissions}`;
 }

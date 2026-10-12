@@ -1,0 +1,89 @@
+.login {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: @bg-base;
+
+  &__card {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    width: 320px;
+    padding: 28px 24px;
+    background: @bg-elevated;
+    border: 1px solid @border-color;
+    border-radius: 10px;
+  }
+
+  &__title {
+    font-size: 20px;
+    font-weight: 500;
+    color: @text-primary;
+  }
+
+  &__subtitle {
+    margin-top: -10px;
+    font-size: 12px;
+    color: @text-tertiary;
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  &__label {
+    font-size: 12px;
+    color: @text-secondary;
+  }
+
+  &__input {
+    height: 32px;
+    padding: 0 10px;
+    font-size: 13px;
+    color: @text-primary;
+    background: @bg-elevated;
+    border: 1px solid @border-color;
+    border-radius: 6px;
+
+    &:focus {
+      border-color: @brand-color;
+      outline: none;
+    }
+  }
+
+  &__error {
+    font-size: 12px;
+    color: @danger-color;
+  }
+
+  &__submit {
+    height: 34px;
+    font-size: 13px;
+    color: #fff;
+    cursor: pointer;
+    background: @brand-color;
+    border: none;
+    border-radius: 6px;
+
+    &:disabled {
+      cursor: default;
+      opacity: 0.6;
+    }
+  }
+
+  &__hint {
+    font-size: 11px;
+    line-height: 1.6;
+    color: @text-tertiary;
+
+    code {
+      padding: 1px 4px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      background: @bg-base;
+      border-radius: 3px;
+    }
+  }
+}

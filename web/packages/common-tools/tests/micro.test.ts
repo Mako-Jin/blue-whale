@@ -118,6 +118,21 @@ describe('micro host bridge', () => {
     expect(document.getElementById('micro-host-indicator')?.textContent).toContain('userId=u-42');
   });
 
+  it('调试标记带出角色数与权限数（"权限到底传到子应用没有"的可见证据）', () => {
+    const { host, push } = createHost();
+    bindHost(host, 'demo-app');
+
+    expect(document.getElementById('micro-host-indicator')?.textContent).toContain(
+      'roles=0 · perm=0',
+    );
+
+    push({ roles: ['SUPER_ADMIN'], permissions: ['auth:user:create', 'auth:role:read'] });
+
+    expect(document.getElementById('micro-host-indicator')?.textContent).toContain(
+      'roles=1 · perm=2',
+    );
+  });
+
   it('标记挂在基座给的容器里，卸载时清理干净', () => {
     const { host, container } = createHost();
     bindHost(host, 'demo-app');
