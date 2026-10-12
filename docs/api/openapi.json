@@ -17,6 +17,10 @@
       "description": "接收前端上报的技术日志、查询与聚合；审计日志不走本接口"
     },
     {
+      "name": "角色",
+      "description": "角色的增删改查与角色资源授权"
+    },
+    {
       "name": "租户",
       "description": "租户的增删改查"
     },
@@ -260,13 +264,120 @@
         }
       }
     },
+    "/api/auth/roles/{id}": {
+      "get": {
+        "tags": [
+          "角色"
+        ],
+        "summary": "查询角色详情",
+        "operationId": "detail_2",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "角色主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RRoleVO"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "角色"
+        ],
+        "summary": "修改角色",
+        "description": "角色编码与所属租户不可修改；系统内置角色不可停用",
+        "operationId": "update_2",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "角色主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleSaveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RRoleVO"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "角色"
+        ],
+        "summary": "删除角色",
+        "description": "系统内置角色、有子角色、有成员时拒绝删除；角色自身的授权会被一并撤销",
+        "operationId": "delete_2",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "角色主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RVoid"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/resources/{id}": {
       "get": {
         "tags": [
           "资源"
         ],
         "summary": "查询资源详情",
-        "operationId": "detail_2",
+        "operationId": "detail_3",
         "parameters": [
           {
             "name": "id",
@@ -298,7 +409,7 @@
         ],
         "summary": "修改资源",
         "description": "**资源标识不可修改**；父资源不能是自身或自身的下级",
-        "operationId": "update_2",
+        "operationId": "update_3",
         "parameters": [
           {
             "name": "id",
@@ -340,7 +451,7 @@
         ],
         "summary": "删除资源",
         "description": "逻辑删除。有子资源（40913）或已被角色引用（40915）时拒绝",
-        "operationId": "delete_2",
+        "operationId": "delete_3",
         "parameters": [
           {
             "name": "id",
@@ -902,6 +1013,193 @@
         }
       }
     },
+    "/api/auth/roles": {
+      "get": {
+        "tags": [
+          "角色"
+        ],
+        "summary": "分页查询角色",
+        "operationId": "page_4",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "query",
+            "description": "租户主键，不传则限定为当前登录用户所属租户",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "description": "租户主键，不传则限定为当前登录用户所属租户"
+            }
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "description": "关键字，匹配角色编码或角色名称",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "关键字，匹配角色编码或角色名称"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "状态：ENABLED / DISABLED",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "状态：ENABLED / DISABLED"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "description": "角色分类，如 SYSTEM / BUSINESS / CUSTOM。**仅用于分组展示**，不参与判定",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "角色分类，如 SYSTEM / BUSINESS / CUSTOM。**仅用于分组展示**，不参与判定"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RPageResultRoleVO"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "角色"
+        ],
+        "summary": "新增角色",
+        "description": "编码曾被已删除的角色占用时会复活那一行",
+        "operationId": "create_2",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleSaveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RRoleVO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/roles/{id}/resources": {
+      "get": {
+        "tags": [
+          "角色"
+        ],
+        "summary": "查询角色已授予的资源",
+        "operationId": "listGrants",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "角色主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RListRoleResourceVO"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "角色"
+        ],
+        "summary": "给角色授予资源",
+        "description": "同一个角色与资源只保留一条有效授权；重复调用会改效果而不是堆行",
+        "operationId": "grant",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "角色主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleResourceGrantRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RRoleResourceVO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/resources": {
       "get": {
         "tags": [
@@ -909,7 +1207,7 @@
         ],
         "summary": "分页查询资源",
         "description": "平铺列表。要层级用 /tree",
-        "operationId": "page_4",
+        "operationId": "page_5",
         "parameters": [
           {
             "name": "keyword",
@@ -990,7 +1288,7 @@
         ],
         "summary": "新增资源",
         "description": "资源标识须为「域:资源:动作」三段小写；若该标识曾被删除，则恢复原记录而非新建",
-        "operationId": "create_2",
+        "operationId": "create_3",
         "requestBody": {
           "content": {
             "application/json": {
@@ -1116,7 +1414,7 @@
           "客户端日志"
         ],
         "summary": "查询日志详情",
-        "operationId": "detail_3",
+        "operationId": "detail_4",
         "parameters": [
           {
             "name": "id",
@@ -1260,7 +1558,7 @@
           "客户端行为事件"
         ],
         "summary": "查询事件详情",
-        "operationId": "detail_4",
+        "operationId": "detail_5",
         "parameters": [
           {
             "name": "id",
@@ -1394,7 +1692,7 @@
         ],
         "summary": "分页查询审计记录",
         "description": "按服务端记录时间倒序。时间窗缺省为最近 7 天。可按动作、资源、对象、操作人、结果过滤。",
-        "operationId": "page_5",
+        "operationId": "page_6",
         "parameters": [
           {
             "name": "action",
@@ -1518,7 +1816,7 @@
           "审计日志"
         ],
         "summary": "查询审计记录详情",
-        "operationId": "detail_5",
+        "operationId": "detail_6",
         "parameters": [
           {
             "name": "id",
@@ -1605,6 +1903,50 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/RAuditStatsVO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/roles/{id}/resources/{resourceId}": {
+      "delete": {
+        "tags": [
+          "角色"
+        ],
+        "summary": "撤销角色的资源授权",
+        "description": "从未授予过的资源返回 40407，不与撤销成功混淆",
+        "operationId": "revoke",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "角色主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "resourceId",
+            "in": "path",
+            "description": "资源主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RVoid"
                 }
               }
             }
@@ -1859,6 +2201,173 @@
             "type": "integer",
             "format": "int32",
             "description": "是否有子节点：0 否 1 是"
+          }
+        }
+      },
+      "RoleSaveRequest": {
+        "type": "object",
+        "description": "角色保存入参",
+        "properties": {
+          "roleCode": {
+            "type": "string",
+            "description": "角色编码，租户内唯一。创建后不可修改。约定全大写，如 SUPER_ADMIN",
+            "example": "DEPT_MANAGER",
+            "minLength": 1,
+            "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$"
+          },
+          "roleName": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 0
+          },
+          "tenantId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "租户主键，不传则归入当前登录用户所属租户"
+          },
+          "parentId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "父角色主键，顶级不传。**角色继承当前未实现**，此列只建层级"
+          },
+          "roleLevel": {
+            "type": "integer",
+            "format": "int32",
+            "description": "角色层级，顶级为 1；缺省按父角色 +1，无父则为 1"
+          },
+          "category": {
+            "type": "string",
+            "description": "角色分类，如 SYSTEM / BUSINESS / CUSTOM。仅用于分组展示",
+            "maxLength": 32,
+            "minLength": 0
+          },
+          "dataScope": {
+            "type": "string",
+            "description": "数据范围：ALL / DEPT / DEPT_AND_CHILD / SELF / CUSTOM，缺省 ALL",
+            "example": "ALL"
+          },
+          "filterJson": {
+            "type": "string",
+            "description": "自定义数据范围过滤条件（JSON）。**当前只存不用**，数据权限求值尚未实现",
+            "maxLength": 4096,
+            "minLength": 0
+          },
+          "inheritStrategy": {
+            "type": "string",
+            "description": "继承策略：NONE / INHERIT / OVERRIDE。**当前只存不用**",
+            "maxLength": 32,
+            "minLength": 0
+          },
+          "isDefault": {
+            "type": "integer",
+            "format": "int32",
+            "description": "是否默认角色（新用户自动授予）：0 否 1 是，缺省 0。**当前只存不用**"
+          },
+          "sortNo": {
+            "type": "integer",
+            "format": "int32",
+            "description": "排序号，同级内升序；缺省 0"
+          },
+          "status": {
+            "type": "string",
+            "description": "状态：ENABLED / DISABLED，缺省 ENABLED。停用的角色不再产生权限"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "roleCode",
+          "roleName"
+        ]
+      },
+      "RRoleVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/RoleVO"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "RoleVO": {
+        "type": "object",
+        "description": "角色",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "tenantId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "roleCode": {
+            "type": "string",
+            "description": "角色编码，租户内唯一，创建后不可修改"
+          },
+          "roleName": {
+            "type": "string"
+          },
+          "parentId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "roleLevel": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "category": {
+            "type": "string",
+            "description": "角色分类，仅用于分组展示"
+          },
+          "isDefault": {
+            "type": "integer",
+            "format": "int32",
+            "description": "是否默认角色：0 否 1 是。**当前只存不用**"
+          },
+          "inheritStrategy": {
+            "type": "string",
+            "description": "继承策略。**当前只存不用**，角色继承未实现"
+          },
+          "dataScope": {
+            "type": "string",
+            "description": "数据范围：ALL / DEPT / DEPT_AND_CHILD / SELF / CUSTOM。**当前只存不用**，数据权限求值未实现 —— 配了不会生效"
+          },
+          "filterJson": {
+            "type": "string",
+            "description": "自定义数据范围过滤条件。**当前只存不用**"
+          },
+          "sortNo": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "status": {
+            "type": "string",
+            "description": "状态：ENABLED / DISABLED。停用的角色不再产生权限"
+          },
+          "description": {
+            "type": "string"
+          },
+          "createTime": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "updateTime": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -2333,6 +2842,123 @@
           "timestamp": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "RoleResourceGrantRequest": {
+        "type": "object",
+        "description": "角色授权入参",
+        "properties": {
+          "resourceId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "资源主键（不是资源标识）",
+            "example": 1
+          },
+          "effect": {
+            "type": "string",
+            "description": "效果：ALLOW 允许 / DENY 显式拒绝（优先），缺省 ALLOW",
+            "example": "ALLOW"
+          },
+          "priority": {
+            "type": "integer",
+            "format": "int32",
+            "description": "优先级，用于多条规则冲突时的裁决；缺省 0"
+          },
+          "effectiveFrom": {
+            "type": "integer",
+            "format": "int64",
+            "description": "生效起始时间（毫秒时间戳），不传表示立即生效"
+          },
+          "effectiveTo": {
+            "type": "integer",
+            "format": "int64",
+            "description": "生效结束时间（毫秒时间戳），不传表示长期有效"
+          }
+        },
+        "required": [
+          "resourceId"
+        ]
+      },
+      "RRoleResourceVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/RoleResourceVO"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "RoleResourceVO": {
+        "type": "object",
+        "description": "角色已授予的资源",
+        "properties": {
+          "grantId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "授权关系主键，撤销时用它（不是资源主键）"
+          },
+          "resourceId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "资源主键"
+          },
+          "resourceCode": {
+            "type": "string",
+            "description": "资源标识（即权限码），如 auth:user:create"
+          },
+          "resourceName": {
+            "type": "string"
+          },
+          "resourceType": {
+            "type": "string",
+            "description": "资源类型：SYSTEM / SERVER / SERVICE / MODULE / MENU / PAGE / API / BUTTON / DATA"
+          },
+          "requestScoped": {
+            "type": "boolean",
+            "description": "该资源是否参与后端准入。由资源类型推导 —— API / BUTTON 为 true，MENU / PAGE / DATA 等为 false（可见性不是安全边界）"
+          },
+          "isEnabled": {
+            "type": "integer",
+            "format": "int32",
+            "description": "资源是否启用。停用的资源不再产生权限"
+          },
+          "effect": {
+            "type": "string",
+            "description": "效果：ALLOW 允许 / DENY 显式拒绝（优先）"
+          },
+          "priority": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "effectiveFrom": {
+            "type": "integer",
+            "format": "int64",
+            "description": "生效起始时间（毫秒时间戳），null 表示立即生效"
+          },
+          "effectiveTo": {
+            "type": "integer",
+            "format": "int64",
+            "description": "生效结束时间（毫秒时间戳），null 表示长期有效"
+          },
+          "effectiveNow": {
+            "type": "boolean",
+            "description": "此刻是否落在生效区间内。false 表示尚未生效或已过期"
+          },
+          "createTime": {
+            "type": "integer",
+            "format": "int64",
+            "description": "授权建立时间（毫秒时间戳）"
           }
         }
       },
@@ -2987,6 +3613,74 @@
           },
           "data": {
             "$ref": "#/components/schemas/PageResultTenantVO"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "PageResultRoleVO": {
+        "type": "object",
+        "properties": {
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoleVO"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pages": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "RPageResultRoleVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageResultRoleVO"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "RListRoleResourceVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoleResourceVO"
+            }
           },
           "timestamp": {
             "type": "integer",

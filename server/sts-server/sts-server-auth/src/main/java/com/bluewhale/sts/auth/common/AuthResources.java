@@ -47,6 +47,19 @@ public final class AuthResources {
     public static final String RESOURCE = "auth:resource";
 
     /**
+     * 角色。
+     *
+     * <p>对应 {@code auth:role:*} 四个权限码。它同时是"给角色授权"这件事的留痕对象：
+     * 授予与撤销都记在 {@code auth:role} 下（动作用 {@code auth.role.grant} /
+     * {@code auth.role.revoke} 区分）。把授权挂在角色而不是资源上，是因为
+     * **被改的是角色的授权集合** —— 资源本身没有变化，按资源查审计会查不到。
+     *
+     * <p>{@code bw_auth_resource} 里不存在 {@code auth:role} 这一行：
+     * 表里存的是三段式**权限码**（{@code auth:role:read}），本常量是两段**资源标识**。
+     */
+    public static final String ROLE = "auth:role";
+
+    /**
      * 审计资源。
      *
      * <p>它对应 {@link AuthPermissions#AUDIT_READ}，虽然当前**没有任何写动作**挂在它下面

@@ -54,6 +54,31 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/auth/roles/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** 查询角色详情 */
+    get: operations['detail_2'];
+    /**
+     * 修改角色
+     * @description 角色编码与所属租户不可修改；系统内置角色不可停用
+     */
+    put: operations['update_2'];
+    post?: never;
+    /**
+     * 删除角色
+     * @description 系统内置角色、有子角色、有成员时拒绝删除；角色自身的授权会被一并撤销
+     */
+    delete: operations['delete_2'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/auth/resources/{id}': {
     parameters: {
       query?: never;
@@ -62,18 +87,18 @@ export interface paths {
       cookie?: never;
     };
     /** 查询资源详情 */
-    get: operations['detail_2'];
+    get: operations['detail_3'];
     /**
      * 修改资源
      * @description **资源标识不可修改**；父资源不能是自身或自身的下级
      */
-    put: operations['update_2'];
+    put: operations['update_3'];
     post?: never;
     /**
      * 删除资源
      * @description 逻辑删除。有子资源（40913）或已被角色引用（40915）时拒绝
      */
-    delete: operations['delete_2'];
+    delete: operations['delete_3'];
     options?: never;
     head?: never;
     patch?: never;
@@ -189,6 +214,48 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/auth/roles': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** 分页查询角色 */
+    get: operations['page_4'];
+    put?: never;
+    /**
+     * 新增角色
+     * @description 编码曾被已删除的角色占用时会复活那一行
+     */
+    post: operations['create_2'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/auth/roles/{id}/resources': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** 查询角色已授予的资源 */
+    get: operations['listGrants'];
+    put?: never;
+    /**
+     * 给角色授予资源
+     * @description 同一个角色与资源只保留一条有效授权；重复调用会改效果而不是堆行
+     */
+    post: operations['grant'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/auth/resources': {
     parameters: {
       query?: never;
@@ -200,13 +267,13 @@ export interface paths {
      * 分页查询资源
      * @description 平铺列表。要层级用 /tree
      */
-    get: operations['page_4'];
+    get: operations['page_5'];
     put?: never;
     /**
      * 新增资源
      * @description 资源标识须为「域:资源:动作」三段小写；若该标识曾被删除，则恢复原记录而非新建
      */
-    post: operations['create_2'];
+    post: operations['create_3'];
     delete?: never;
     options?: never;
     head?: never;
@@ -281,7 +348,7 @@ export interface paths {
       cookie?: never;
     };
     /** 查询日志详情 */
-    get: operations['detail_3'];
+    get: operations['detail_4'];
     put?: never;
     post?: never;
     delete?: never;
@@ -358,7 +425,7 @@ export interface paths {
       cookie?: never;
     };
     /** 查询事件详情 */
-    get: operations['detail_4'];
+    get: operations['detail_5'];
     put?: never;
     post?: never;
     delete?: never;
@@ -438,7 +505,7 @@ export interface paths {
      * 分页查询审计记录
      * @description 按服务端记录时间倒序。时间窗缺省为最近 7 天。可按动作、资源、对象、操作人、结果过滤。
      */
-    get: operations['page_5'];
+    get: operations['page_6'];
     put?: never;
     post?: never;
     delete?: never;
@@ -455,7 +522,7 @@ export interface paths {
       cookie?: never;
     };
     /** 查询审计记录详情 */
-    get: operations['detail_5'];
+    get: operations['detail_6'];
     put?: never;
     post?: never;
     delete?: never;
@@ -479,6 +546,26 @@ export interface paths {
     put?: never;
     post?: never;
     delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/auth/roles/{id}/resources/{resourceId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * 撤销角色的资源授权
+     * @description 从未授予过的资源返回 40407，不与撤销成功混淆
+     */
+    delete: operations['revoke'];
     options?: never;
     head?: never;
     patch?: never;
@@ -613,6 +700,98 @@ export interface components {
        * @description 是否有子节点：0 否 1 是
        */
       hasChild?: number;
+    };
+    /** @description 角色保存入参 */
+    RoleSaveRequest: {
+      /**
+       * @description 角色编码，租户内唯一。创建后不可修改。约定全大写，如 SUPER_ADMIN
+       * @example DEPT_MANAGER
+       */
+      roleCode: string;
+      roleName: string;
+      /**
+       * Format: int64
+       * @description 租户主键，不传则归入当前登录用户所属租户
+       */
+      tenantId?: number;
+      /**
+       * Format: int64
+       * @description 父角色主键，顶级不传。**角色继承当前未实现**，此列只建层级
+       */
+      parentId?: number;
+      /**
+       * Format: int32
+       * @description 角色层级，顶级为 1；缺省按父角色 +1，无父则为 1
+       */
+      roleLevel?: number;
+      /** @description 角色分类，如 SYSTEM / BUSINESS / CUSTOM。仅用于分组展示 */
+      category?: string;
+      /**
+       * @description 数据范围：ALL / DEPT / DEPT_AND_CHILD / SELF / CUSTOM，缺省 ALL
+       * @example ALL
+       */
+      dataScope?: string;
+      /** @description 自定义数据范围过滤条件（JSON）。**当前只存不用**，数据权限求值尚未实现 */
+      filterJson?: string;
+      /** @description 继承策略：NONE / INHERIT / OVERRIDE。**当前只存不用** */
+      inheritStrategy?: string;
+      /**
+       * Format: int32
+       * @description 是否默认角色（新用户自动授予）：0 否 1 是，缺省 0。**当前只存不用**
+       */
+      isDefault?: number;
+      /**
+       * Format: int32
+       * @description 排序号，同级内升序；缺省 0
+       */
+      sortNo?: number;
+      /** @description 状态：ENABLED / DISABLED，缺省 ENABLED。停用的角色不再产生权限 */
+      status?: string;
+      description?: string;
+    };
+    RRoleVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['RoleVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    /** @description 角色 */
+    RoleVO: {
+      /** Format: int64 */
+      id?: number;
+      /** Format: int64 */
+      tenantId?: number;
+      /** @description 角色编码，租户内唯一，创建后不可修改 */
+      roleCode?: string;
+      roleName?: string;
+      /** Format: int64 */
+      parentId?: number;
+      /** Format: int32 */
+      roleLevel?: number;
+      /** @description 角色分类，仅用于分组展示 */
+      category?: string;
+      /**
+       * Format: int32
+       * @description 是否默认角色：0 否 1 是。**当前只存不用**
+       */
+      isDefault?: number;
+      /** @description 继承策略。**当前只存不用**，角色继承未实现 */
+      inheritStrategy?: string;
+      /** @description 数据范围：ALL / DEPT / DEPT_AND_CHILD / SELF / CUSTOM。**当前只存不用**，数据权限求值未实现 —— 配了不会生效 */
+      dataScope?: string;
+      /** @description 自定义数据范围过滤条件。**当前只存不用** */
+      filterJson?: string;
+      /** Format: int32 */
+      sortNo?: number;
+      /** @description 状态：ENABLED / DISABLED。停用的角色不再产生权限 */
+      status?: string;
+      description?: string;
+      /** Format: int64 */
+      createTime?: number;
+      /** Format: int64 */
+      updateTime?: number;
     };
     /** @description 资源保存入参 */
     ResourceSaveRequest: {
@@ -879,6 +1058,89 @@ export interface components {
       data?: unknown;
       /** Format: int64 */
       timestamp?: number;
+    };
+    /** @description 角色授权入参 */
+    RoleResourceGrantRequest: {
+      /**
+       * Format: int64
+       * @description 资源主键（不是资源标识）
+       * @example 1
+       */
+      resourceId: number;
+      /**
+       * @description 效果：ALLOW 允许 / DENY 显式拒绝（优先），缺省 ALLOW
+       * @example ALLOW
+       */
+      effect?: string;
+      /**
+       * Format: int32
+       * @description 优先级，用于多条规则冲突时的裁决；缺省 0
+       */
+      priority?: number;
+      /**
+       * Format: int64
+       * @description 生效起始时间（毫秒时间戳），不传表示立即生效
+       */
+      effectiveFrom?: number;
+      /**
+       * Format: int64
+       * @description 生效结束时间（毫秒时间戳），不传表示长期有效
+       */
+      effectiveTo?: number;
+    };
+    RRoleResourceVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['RoleResourceVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    /** @description 角色已授予的资源 */
+    RoleResourceVO: {
+      /**
+       * Format: int64
+       * @description 授权关系主键，撤销时用它（不是资源主键）
+       */
+      grantId?: number;
+      /**
+       * Format: int64
+       * @description 资源主键
+       */
+      resourceId?: number;
+      /** @description 资源标识（即权限码），如 auth:user:create */
+      resourceCode?: string;
+      resourceName?: string;
+      /** @description 资源类型：SYSTEM / SERVER / SERVICE / MODULE / MENU / PAGE / API / BUTTON / DATA */
+      resourceType?: string;
+      /** @description 该资源是否参与后端准入。由资源类型推导 —— API / BUTTON 为 true，MENU / PAGE / DATA 等为 false（可见性不是安全边界） */
+      requestScoped?: boolean;
+      /**
+       * Format: int32
+       * @description 资源是否启用。停用的资源不再产生权限
+       */
+      isEnabled?: number;
+      /** @description 效果：ALLOW 允许 / DENY 显式拒绝（优先） */
+      effect?: string;
+      /** Format: int32 */
+      priority?: number;
+      /**
+       * Format: int64
+       * @description 生效起始时间（毫秒时间戳），null 表示立即生效
+       */
+      effectiveFrom?: number;
+      /**
+       * Format: int64
+       * @description 生效结束时间（毫秒时间戳），null 表示长期有效
+       */
+      effectiveTo?: number;
+      /** @description 此刻是否落在生效区间内。false 表示尚未生效或已过期 */
+      effectiveNow?: boolean;
+      /**
+       * Format: int64
+       * @description 授权建立时间（毫秒时间戳）
+       */
+      createTime?: number;
     };
     RefreshRequest: {
       /** @description 刷新令牌 */
@@ -1203,6 +1465,33 @@ export interface components {
       code?: number;
       message?: string;
       data?: components['schemas']['PageResultTenantVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    PageResultRoleVO: {
+      records?: components['schemas']['RoleVO'][];
+      /** Format: int64 */
+      total?: number;
+      /** Format: int64 */
+      page?: number;
+      /** Format: int64 */
+      size?: number;
+      /** Format: int64 */
+      pages?: number;
+    };
+    RPageResultRoleVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PageResultRoleVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    RListRoleResourceVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['RoleResourceVO'][];
       /** Format: int64 */
       timestamp?: number;
     };
@@ -1558,6 +1847,79 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description 角色主键 */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RRoleVO'];
+        };
+      };
+    };
+  };
+  update_2: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 角色主键 */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RoleSaveRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RRoleVO'];
+        };
+      };
+    };
+  };
+  delete_2: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 角色主键 */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RVoid'];
+        };
+      };
+    };
+  };
+  detail_3: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
         /** @description 资源主键 */
         id: number;
       };
@@ -1576,7 +1938,7 @@ export interface operations {
       };
     };
   };
-  update_2: {
+  update_3: {
     parameters: {
       query?: never;
       header?: never;
@@ -1603,7 +1965,7 @@ export interface operations {
       };
     };
   };
-  delete_2: {
+  delete_3: {
     parameters: {
       query?: never;
       header?: never;
@@ -1884,6 +2246,111 @@ export interface operations {
   page_4: {
     parameters: {
       query?: {
+        /** @description 租户主键，不传则限定为当前登录用户所属租户 */
+        tenantId?: number;
+        /** @description 关键字，匹配角色编码或角色名称 */
+        keyword?: string;
+        /** @description 状态：ENABLED / DISABLED */
+        status?: string;
+        /** @description 角色分类，如 SYSTEM / BUSINESS / CUSTOM。**仅用于分组展示**，不参与判定 */
+        category?: string;
+        page?: number;
+        size?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RPageResultRoleVO'];
+        };
+      };
+    };
+  };
+  create_2: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RoleSaveRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RRoleVO'];
+        };
+      };
+    };
+  };
+  listGrants: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 角色主键 */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RListRoleResourceVO'];
+        };
+      };
+    };
+  };
+  grant: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 角色主键 */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RoleResourceGrantRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RRoleResourceVO'];
+        };
+      };
+    };
+  };
+  page_5: {
+    parameters: {
+      query?: {
         /** @description 关键字，匹配资源标识或名称 */
         keyword?: string;
         /** @description 资源类型：SYSTEM / SERVER / SERVICE / MODULE / MENU / PAGE / API / BUTTON / DATA */
@@ -1912,7 +2379,7 @@ export interface operations {
       };
     };
   };
-  create_2: {
+  create_3: {
     parameters: {
       query?: never;
       header?: never;
@@ -2008,7 +2475,7 @@ export interface operations {
       };
     };
   };
-  detail_3: {
+  detail_4: {
     parameters: {
       query?: never;
       header?: never;
@@ -2101,7 +2568,7 @@ export interface operations {
       };
     };
   };
-  detail_4: {
+  detail_5: {
     parameters: {
       query?: never;
       header?: never;
@@ -2191,7 +2658,7 @@ export interface operations {
       };
     };
   };
-  page_5: {
+  page_6: {
     parameters: {
       query?: {
         /** @description 动作标识精确匹配，如 user.create */
@@ -2230,7 +2697,7 @@ export interface operations {
       };
     };
   };
-  detail_5: {
+  detail_6: {
     parameters: {
       query?: never;
       header?: never;
@@ -2278,6 +2745,31 @@ export interface operations {
         };
         content: {
           '*/*': components['schemas']['RAuditStatsVO'];
+        };
+      };
+    };
+  };
+  revoke: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 角色主键 */
+        id: number;
+        /** @description 资源主键 */
+        resourceId: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RVoid'];
         };
       };
     };

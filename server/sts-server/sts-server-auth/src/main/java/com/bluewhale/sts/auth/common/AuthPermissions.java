@@ -48,6 +48,26 @@ public final class AuthPermissions {
     public static final String RESOURCE_DELETE = "auth:resource:delete";
 
     /**
+     * 角色的增删改查。
+     *
+     * <p><b>授权（把资源授给角色）刻意共用 {@code auth:role:update}，不单设
+     * {@code auth:role:grant}。</b>依据是本仓已有的一条同类判断：重置口令共用
+     * {@code auth:user:update}（见 {@code AuthAuditActions.USER_RESET_PASSWORD}），
+     * 理由是"能改这个对象的人本来就能改它的全部方面"。角色也一样 ——
+     * 角色的授权集合就是角色的一部分，把"改角色名"与"改角色权限"分给不同的人，
+     * 当前没有这样的用例。
+     *
+     * <p>但这条与重置口令有一处**性质上的差别**，值得写下来：给自己持有的角色授权
+     * 等于给自己提权。所以如果将来出现"只让某人改角色描述、但不许他动权限"的诉求，
+     * 那就是这里该拆成两个权限码的**明确触发条件**（拆分是加一个常量 + 换注解，
+     * 不影响数据）；在那之前不拆，避免用权限码表达一个不存在的分工。
+     */
+    public static final String ROLE_READ = "auth:role:read";
+    public static final String ROLE_CREATE = "auth:role:create";
+    public static final String ROLE_UPDATE = "auth:role:update";
+    public static final String ROLE_DELETE = "auth:role:delete";
+
+    /**
      * 查看审计流水。
      *
      * <p><b>只有 read，没有对应的 write / delete —— 这不是还没做。</b>
@@ -62,6 +82,7 @@ public final class AuthPermissions {
             TENANT_READ, TENANT_CREATE, TENANT_UPDATE, TENANT_DELETE,
             USER_READ, USER_CREATE, USER_UPDATE, USER_DELETE,
             RESOURCE_READ, RESOURCE_CREATE, RESOURCE_UPDATE, RESOURCE_DELETE,
+            ROLE_READ, ROLE_CREATE, ROLE_UPDATE, ROLE_DELETE,
             AUDIT_READ);
 
 }

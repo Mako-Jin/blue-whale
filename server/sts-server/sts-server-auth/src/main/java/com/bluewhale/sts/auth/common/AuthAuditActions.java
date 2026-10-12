@@ -50,6 +50,27 @@ public final class AuthAuditActions {
     public static final String RESOURCE_DELETE = "auth.resource.delete";
 
     /**
+     * 角色的增删改，以及**授权与撤权**。
+     *
+     * <p><b>授权与撤权是两个独立动作，不是"角色改了"</b> —— 虽然它们共用
+     * {@code auth:role:update} 权限（理由见 {@link AuthPermissions#ROLE_UPDATE}）。
+     * 这正是本类注释开头那段话的实例：权限码与动作标识**数量上不一一对应**，
+     * 因为两者回答的问题不同。事后追责时"谁给这个角色加了 {@code auth:role:delete}"
+     * 是一个必须能直接过滤出来的问题，把它混进 {@code auth.role.update} 里
+     * 就只能靠比对前后快照，而审计面板只存了变更后的值。
+     *
+     * <p>这也解释了为什么{@code resource} 填 {@code auth:role} 而不是被授的那个资源：
+     * 变化的是角色的授权集合，资源本身没动。按资源查审计的入口因此查不到授权的历史 ——
+     * 这是刻意的取舍：一条审计只有一个归属，而"谁动了这个角色"比"谁动过这个资源"
+     * 更接近排查时的第一个问题。
+     */
+    public static final String ROLE_CREATE = "auth.role.create";
+    public static final String ROLE_UPDATE = "auth.role.update";
+    public static final String ROLE_DELETE = "auth.role.delete";
+    public static final String ROLE_GRANT = "auth.role.grant";
+    public static final String ROLE_REVOKE = "auth.role.revoke";
+
+    /**
      * 重置口令。
      *
      * <p>与 {@code user.update} 分开记而不是合并：重置口令是运维/管理员介入他人账号的动作，

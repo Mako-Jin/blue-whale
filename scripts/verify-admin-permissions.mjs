@@ -335,10 +335,10 @@ async function main() {
       record("管理员看不到「新建用户」按钮 —— 权限下发或判定有问题");
     if (!adminView.update) record("管理员看不到「编辑」按钮");
     if (!adminView.remove) record("管理员看不到「删除」按钮");
-    // 13 项 = 用户 4 + 租户 4 + 资源 4 + 审计读 1
+    // 17 项 = 用户 4 + 租户 4 + 资源 4 + 角色 4 + 审计读 1
     // （auth:audit:read 是 0019 加的；auth:resource:* 是资源管理接口加的）
-    if (adminView.perms.length !== 13)
-      record(`管理员权限项应为 13，实际 ${adminView.perms.length}`);
+    if (adminView.perms.length !== 17)
+      record(`管理员权限项应为 17，实际 ${adminView.perms.length}`);
     if (!adminView.perms.includes("auth:user:create"))
       record("管理员权限集合里没有 auth:user:create");
 

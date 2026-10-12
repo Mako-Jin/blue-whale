@@ -50,6 +50,11 @@ public class PermissionChecker {
      *
      * <p>用 {@code contexts.getPermissionsLoaded()} 双检：同一请求里可能有多处判定，
      * 不缓存会让一个请求打出多次相同的四表 JOIN。
+     *
+     * <p><b>时刻只取一次，两次查询共用。</b>时态授权（{@code effective_from / effective_to}）
+     * 让"当前时间"成为判定的一部分：若两次查询各自取一次时间，一个恰好跨过授权到期边界的
+     * 请求就可能"角色查得到、权限查不到"。取一次也顺带让缓存的那份结果自洽 ——
+     * 放在这里而不是交给 SQL 的 {@code NOW()}，理由见 {@code AuthorizationMapper}。
      */
     @Transactional(readOnly = true)
     public Set<String> permissionsOf(AuthContext context) {
@@ -59,10 +64,11 @@ public class PermissionChecker {
         if (context.isPermissionsLoaded()) {
             return context.getPermissions();
         }
+        long now = System.currentTimeMillis();
         Set<String> permissions = Set.copyOf(
-                authorizationMapper.selectGrantedResourceCodes(context.getTenantId(), context.getUserId()));
+                authorizationMapper.selectGrantedResourceCodes(context.getTenantId(), context.getUserId(), now));
         Set<String> roleCodes = Set.copyOf(
-                authorizationMapper.selectRoleCodes(context.getTenantId(), context.getUserId()));
+                authorizationMapper.selectRoleCodes(context.getTenantId(), context.getUserId(), now));
 
         context.setPermissions(permissions);
         context.setRoleCodes(roleCodes);

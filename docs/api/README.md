@@ -12,13 +12,13 @@ docs/api/openapi.json
 
 ## 一、当前接口清单
 
-契约版本 `0.1.0`，标题「BlueWhale 服务端 API」，共 **34 个接口**。
+契约版本 `0.1.0`，标题「BlueWhale 服务端 API」，共 **42 个接口**。
 
 | 域       | 模块                | 接口数 | 说明                                        |
 | -------- | ------------------- | ------ | ------------------------------------------- |
 | 日志     | `sts-server-log`    | 5      | 客户端日志上报 / 查询 / 聚合                |
 | 行为事件 | `sts-server-track`  | 4      | 客户端行为事件上报 / 查询 / 聚合            |
-| 权限     | `sts-server-auth`   | 15     | 认证 4 + 租户 5 + 用户 6（详见下表）        |
+| 权限     | `sts-server-auth`   | 23     | 认证 4 + 租户 5 + 用户 6 + 资源 6 + 角色 8（详见下表） |
 | 审计     | `sts-server-audit`  | 3      | **只读**：分页 / 详情 / 按动作聚合          |
 | 系统     | `sts-app-server`    | 1      | 健康检查                                    |
 
@@ -100,9 +100,30 @@ docs/api/openapi.json
 > 两者形状相近、混用不报错 —— 见 `docs/decisions/0021`。
 >
 > **权限标识的写法与取值**是跨端约定，见 `sts-server-auth` 的 `AuthPermissions` 与 ADR-0016；`/api/auth/me` 返回的 `permissions` 与这里逐字一致。
+
+**角色**（角色本身，以及**把资源授给角色**）
+
+| 方法     | 路径                                        | 所需权限           | 说明                                                                                     |
+| -------- | ------------------------------------------- | ------------------ | ---------------------------------------------------------------------------------------- |
+| `GET`    | `/api/auth/roles`                           | `auth:role:read`   | 分页列表。按 `keyword`（编码 / 名称） / `status` / `category` 过滤，按当前租户限定         |
+| `GET`    | `/api/auth/roles/{id}`                      | `auth:role:read`   |                                                                                          |
+| `POST`   | `/api/auth/roles`                           | `auth:role:create` | **若编码曾被已删除的角色占用，则恢复原记录**（且复活出来的是空角色）                       |
+| `PUT`    | `/api/auth/roles/{id}`                      | `auth:role:update` | **角色编码与所属租户不可修改**；系统内置角色不可停用、不可改分类                            |
+| `DELETE` | `/api/auth/roles/{id}`                      | `auth:role:delete` | 逻辑删除。系统内置（`40917`）/ 有子角色（`40913`）/ **有成员（`40916`）** 时拒绝             |
+| `GET`    | `/api/auth/roles/{id}/resources`            | `auth:role:read`   | 该角色已授予的资源，含 `effect` / `priority` / 生效区间 / **`effectiveNow`（派生）**        |
+| `POST`   | `/api/auth/roles/{id}/resources`            | `auth:role:update` | 授予。按 (角色, 资源) **upsert**：重复调用改效果而不是堆行；`effect` 取 `ALLOW` / `DENY`     |
+| `DELETE` | `/api/auth/roles/{id}/resources/{resourceId}` | `auth:role:update` | 撤销。**从未授予过返回 `40407`**，不与撤销成功混淆                                          |
+
+> **授权挂在角色下**（`/roles/{id}/resources`）而不是单开平级资源：授权关系是角色的内部边，
+> 没有脱离角色独立存在的意义，也没有独立生命周期（不存在"无角色的授权"）。
 >
-> **组织 / 角色 / 用户组的管理接口尚未落地**（实体与 Mapper 已就绪，见 ADR-0016 末尾的"未覆盖清单"）；
-> **资源目录已落地**（见 `docs/decisions/0021`），它是另外三条的前置。
+> **`DENY` 是"排除"的表达方式**，判定按资源聚合、**一条命中即拒绝**，
+> 因此它在**多个角色之间**才成立（角色 A 允许 + 角色 B 拒绝 ⇒ 拒绝）。
+> 这条语义是本切片才真正实现的 —— 见 `docs/decisions/0022`。
+>
+> **"给用户 / 用户组授角色"（角色成员关系）尚未落地**（表已就绪、判定侧已支持、无接口）；
+> 组织与用户组的管理接口同样未落地（见 ADR-0016 末尾的"未覆盖清单"）。
+> **资源目录**（ADR-0021）与**角色管理**（ADR-0022）已落地。
 
 ### 审计域（`sts-server-audit`）
 
@@ -154,6 +175,11 @@ docs/api/openapi.json
 | `ResourceVO`                              | 资源视图：`id` / `tenantId`（当前恒为 null） / `resourceCode` / `resourceName` / `resourceType` / **`requestScoped`（由 `resourceType` 派生，不在入参里）** / `resourceCategory` / `parentCode` / `requestUrl` / `requestMethod` / `icon` / `sortNo` / `isEnabled` / `isWhitelist` / `isDeprecated` / `resourceVersion` / `description` / `createTime` / `updateTime` |
 | `ResourceTreeNode`                        | 树节点：`id` / `resourceCode` / `resourceName` / `resourceType` / `requestScoped` / `parentCode` / `icon` / `sortNo` / `isEnabled` / `children[]`。字段刻意比 `ResourceVO` 少 —— 树会一次返回全量节点，明细走详情接口 |
 | `PageResultResourceVO`                    | 分页结果，结构同日志域（`records` / `total` / `page` / `size` / `pages`）                                                                                                                                                                     |
+| `RoleSaveRequest`                         | 角色新建/更新入参：`roleCode`\*（**创建后不可改**） / `roleName`\* / `tenantId` / `parentId` / `roleLevel` / `category` / `dataScope` / `filterJson` / `inheritStrategy` / `isDefault` / `sortNo` / `status` / `description`。**有判定语义的字段严格校验**（`status` / `dataScope` / `isDefault`），**只存不用的宽松接受**（`category` / `inheritStrategy` / `filterJson`） |
+| `RoleVO`                                  | 角色视图：`id` / `tenantId` / `roleCode` / `roleName` / `parentId` / `roleLevel` / `category` / `isDefault` / `inheritStrategy` / `dataScope` / `filterJson` / `sortNo` / `status` / `description` / `createTime` / `updateTime`。`dataScope` 等字段标了"**当前只存不用**"——数据权限求值未实现 |
+| `RoleResourceGrantRequest`                | 授权入参：`resourceId`\*（**主键，不是资源标识**） / `effect`（`ALLOW` / `DENY`，缺省 `ALLOW`） / `priority` / `effectiveFrom` / `effectiveTo`（毫秒；区间写反返回 `40001`） |
+| `RoleResourceVO`                          | 已授资源：`grantId` / `resourceId` / `resourceCode` / `resourceName` / `resourceType` / **`requestScoped`（派生）** / `isEnabled` / `effect` / `priority` / `effectiveFrom` / `effectiveTo` / **`effectiveNow`（派生：此刻是否落在生效区间内）** / `createTime` |
+| `PageResultRoleVO` / `PageResultResourceVO` | 分页结果，结构同日志域（`records` / `total` / `page` / `size` / `pages`）                                                                                                                                                                     |
 | `PageResultTenantVO` / `PageResultUserVO` | 分页结果，结构同日志域（`records` / `total` / `page` / `size` / `pages`）                                                                                                                                                                     |
 | `AuditResult`                             | 枚举 `SUCCESS` / `FAILURE`（线上取值即大写枚举名）                                                                                                                                                                                            |
 | `AuditLogVO`                              | 审计记录：`id` / `action` / `resource` / `targetId` / `operatorId` / `operatorName` / `tenantId` / `result` / `errorCode` / `errorMessage` / `httpMethod` / `requestUri` / `ip` / `userAgent` / `traceId` / `durationMs` / `serverTime`（**无客户端时间、无 `update*` / `deleted`**） |
@@ -227,8 +253,10 @@ OPENAPI_PORT=18081 bash scripts/export-openapi.sh
 
 ## 五、待补充
 
-- 组织 / 角色 / 用户组的管理接口尚未落地（权限域的 12 张表、实体与 Mapper 已就绪，见 ADR-0016 末尾的"未覆盖清单"）。**资源目录已落地**（ADR-0021）
+- 组织 / 用户组的管理接口尚未落地，**角色成员关系**（给用户 / 用户组授角色）也没有接口
+  （权限域的 12 张表、实体与 Mapper 已就绪，见 ADR-0016 末尾的"未覆盖清单"）。
+  **资源目录已落地**（ADR-0021）、**角色管理与角色资源授权已落地**（ADR-0022，8 条路径）
 - 前端的域接线进度：**认证 / 会话**（`src/auth.ts`）、**权限域管理**（`src/access.ts`，users / tenants）、**审计**（`src/audit.ts`，只读）均已接入。
-  资源目录的 6 条路径**后端已就绪但前端未接线**，`AccessPermissions` 也因此刻意还没加 `auth:resource:*`（该文件的规则是"只列前端真的用到的"）——
-  等 `platform-admin` 的资源管理页落地时一并补。组织 / 角色 / 用户组待后端补齐接口后按同样写法加入 `access.ts`
+  资源目录的 6 条路径与角色的 8 条路径**后端已就绪但前端未接线**，`AccessPermissions` 也因此刻意还没加 `auth:resource:*` / `auth:role:*`（该文件的规则是"只列前端真的用到的"）——
+  等 `platform-admin` 的资源管理页与角色管理页落地时一并补。组织 / 用户组待后端补齐接口后按同样写法加入 `access.ts`
 - 契约尚未按域拆分为多文件；接口量变大后再考虑 `openapi/` 目录方案
