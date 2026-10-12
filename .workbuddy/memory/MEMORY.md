@@ -14,7 +14,7 @@
 
 ## 2 坑表（已查清，勿再排查）
 
-**环境** —— 一律用 **Bash**（PowerShell 在本沙箱不可用）· Node `spawn git`→`EBUSY`、`turbo run`→`os error 231`（逐包直跑正常）· 后端报 Port 56491 → 沙箱注入 `SERVER__PORT`，用 `--server.port=8080` 覆盖 · `curl localhost` 报 upstream connect failed → 加 `--noproxy '*'` · dev server 用 `&` 会被杀 → 长驻服务必须后台任务起 · 废弃 Chrome 占 CDP 端口 → 换端口 / `taskkill`
+**环境** —— 一律用 **Bash**（PowerShell 在本沙箱不可用）· Node `spawn git`→`EBUSY`、`turbo run`→`os error 231`（逐包直跑正常）· 后端报 Port 56491 → 沙箱注入 `SERVER__PORT`，用 `--server.port=8080` 覆盖 · `curl localhost` 报 upstream connect failed → 加 `--noproxy '*'` · dev server 用 `&` 会被杀 → 长驻服务必须后台任务起 · 废弃 Chrome 占 CDP 端口 → 换端口 / `taskkill` · **push/fetch 报连接重置、代理 502 → 加 `-c http.version=HTTP/1.1`（直连）即通**
 
 **后端** —— 构建必须 `JAVA_HOME="D:/tools/installer/jdk/java21" mvn …`（PATH 上是 JDK 17；权限域另记 `D:/java`，两处都以 `mvn -v` 实测为准）· `mvn clean` 报文件占用 → `jps -l` 找 PID + `taskkill //F //PID` · Maven 本地仓库分机不同：一台在 **`F:\respository\maven`（拼写是 respository）**、Maven 装在 `D:\maven`；本机在 `D:\repository\maven`
 
