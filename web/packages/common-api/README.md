@@ -39,6 +39,7 @@ packages/common-api/
 │   ├── types.ts              契约类型工具 + 任意 JSON 值的收紧
 │   ├── auth.ts               认证域接口（登录 / 刷新 / 登出 / me）+ 身份映射
 │   ├── channel.ts            createAuthChannel：把契约、会话存储与传输钩子接成认证能力
+│   ├── access.ts             权限域实体管理（用户 / 租户）+ 权限标识常量
 │   ├── log.ts                日志域接口（路径常量 + 方法接线）
 │   ├── events.ts             行为事件域接口（上报 / 分页 / 详情 / 聚合）
 │   ├── system.ts             系统域接口（健康检查）
@@ -46,6 +47,7 @@ packages/common-api/
 ├── tests/
 │   ├── log.test.ts           含契约形状的类型断言
 │   ├── events.test.ts        事件域的路径与方法接线断言
+│   ├── access.test.ts        权限域接线 + 权限标识与后端逐字一致
 │   └── auth.test.ts          认证域接线 + 401 恢复串联（含并发只刷新一次）
 ├── eslint.config.js          引用 common-config
 └── vite.config.ts            测试配置
@@ -158,7 +160,7 @@ await auth.logout(); // 撤销服务端令牌 + 清本地会话
 
 | 成员               | 作用                                                                                                       |
 | ------------------ | ---------------------------------------------------------------------------------------------------------- |
-| `api`              | 全部接口（`auth` / `log` / `event` / `system` / `http`），已接好令牌注入与 401 恢复                        |
+| `api`              | 全部接口（`auth` / `access` / `log` / `event` / `system` / `http`），已接好令牌注入与 401 恢复             |
 | `login(input)`     | 登录并建立会话；返回会话里的身份（含 `roles` / `permissions`）                                             |
 | `logout()`         | 先撤销服务端刷新令牌，**无论成败都清本地会话**                                                             |
 | `restore()`        | 用持久化的刷新令牌换新令牌对并恢复身份（**一次请求**，不必再调 `/me`）；恢复不了返回 `null` 并清空本地会话 |
@@ -174,6 +176,34 @@ await auth.logout(); // 撤销服务端令牌 + 清本地会话
 | **登录与刷新都一次拿回身份 + 权限** | 所以 `restore()` 走刷新而不是"刷新 + 再调 `/me`"，少一次请求，也少一个"有令牌但不知道是谁"的中间态                                          |
 | **权限码只用服务端给的字符串**      | 与后端 `AuthPermissions` 的 `域:资源:动作` 一致，前端不得拼接自造                                                                           |
 | **清会话只有一个入口**              | 内核的 `onAuthLost` 回调里；散在各调用点必然有漏网的                                                                                        |
+
+### 权限域管理：`createAccessApi`
+
+认证（你是谁）与权限域实体的管理（谁能做什么）是两件事，因此分成两个文件：
+`auth.ts` 的消费方是会话通道，`access.ts` 的消费方是管理界面（`platform-admin`）。
+
+```ts
+import { AccessPermissions, createAccessApi } from 'common-api';
+
+const access = createAccessApi(http); // 也可以直接用 apiClient.access
+const page = await access.users.page({ keyword: 'adm', page: 1, size: 10 });
+await access.users.create({ username: 'someone', password: 'Someone@123' });
+await access.users.resetPassword(7, { password: 'NewPass@123' });
+await access.tenants.remove(3);
+```
+
+| 成员                                 | 作用                                                                                      |
+| ------------------------------------ | ----------------------------------------------------------------------------------------- |
+| `users` / `tenants`                  | 两个实体的 `page` / `detail` / `create` / `update` / `remove`（用户另有 `resetPassword`） |
+| `AccessPermissions`                  | 权限标识常量，与后端 `AuthPermissions` **逐字一致**（有测试钉死），页面显隐一律引用它     |
+| `AccessUser` / `AccessTenant` 等类型 | 全部由契约推导（`DataOf` / `BodyOf` / `QueryOf` / `PathOf`），零手写字段                  |
+
+两点约定：
+
+- **删除的方法名叫 `remove` 不叫 `delete`**：`api.users.delete(7)` 读起来像在删 `users` 这个集合，
+  管理界面的代码会被读很多次，优先选不歧义的写法。
+- **`AccessPermissions` 只列前端真的用到的**：后端 `AuthPermissions.ALL` 里没有被前端消费的标识
+  不需要出现在前端 —— 抄一份全量表等于给出"前端在管权限"的假象（权限边界在服务端）。
 
 ---
 
@@ -264,8 +294,9 @@ expectTypeOf<ClientLogQuery['startTime']>().toEqualTypeOf<number | undefined>();
 
 ## 八、待补充
 
-- 各域接口目前有 `auth`、`log`、`events` 与 `system`；新增业务域时新建 `src/<域>.ts`，在 `client.ts` 里装配，并在 `tests/` 下补一份接线断言
-- **认证链路已接线完毕**（登录 / 刷新 / 登出 / `me`，即 `src/auth.ts` + `createAuthChannel`）：令牌注入、401 恢复、刷新单飞、会话存取都已落地并有单测。权限域**管理接口**（users / tenants / organization / role / usergroup / resource，契约里另有 5 条路径 11 个操作）**尚未接线** —— 它们属于 `platform-admin` 那一段（`docs/decisions/0018` 第③段），随该子应用一起接，不提前建空壳
+- 各域接口目前有 `auth`、`access`、`log`、`events` 与 `system`；新增业务域时新建 `src/<域>.ts`，在 `client.ts` 里装配，并在 `tests/` 下补一份接线断言
+- **认证链路已接线完毕**（登录 / 刷新 / 登出 / `me`，即 `src/auth.ts` + `createAuthChannel`）：令牌注入、401 恢复、刷新单飞（内核按客户端 + 通道跨客户端两层）、会话存取都已落地并有单测
+- **权限域管理接口已接 users / tenants**（5 条路径 11 个操作，即 `src/access.ts`），消费方是 `platform-admin`。组织 / 角色 / 用户组 / 资源四类实体的接口**后端尚未实现**，补齐后按同样写法加入 `access.ts`，不提前建空壳
 - 会话存储目前是**访问令牌在内存 + 刷新令牌明文落盘**。httpOnly cookie 方案需要后端配合改 `Set-Cookie` 并处理 CSRF 与跨源，列为将来项（`docs/decisions/0018` 第 6 条）
-- 基座已消费本包（`platform-portal/src/auth/`：登录页、路由守卫、会话恢复与权限下发）；子应用单跑时按 ADR-0018 第 8 条共用同一份 session 实现。权限域**管理接口**（users / tenants / organization / role / usergroup / resource，契约里另有 5 条路径 11 个操作）**尚未接线** —— 它们属于 `platform-admin` 那一段（`docs/decisions/0018` 第③段），随该子应用一起接，不提前建空壳
+- 基座已消费本包（`platform-portal/src/auth/`：登录页、路由守卫、会话恢复与权限下发）；子应用单跑时按 ADR-0018 第 8 条共用同一份 session 实现，需要发已鉴权请求时经 `HostProps.auth` 取令牌（同文档第 9 条）
 - 事件域的字段名与路径已由契约锁死，但**事件名本身**（`page.view` / `order.submit` 这类字符串）不在契约里 —— 它是前后端共用的一条正则，尚未收成一份可枚举的注册表；理由与代价见 `docs/decisions/0011`

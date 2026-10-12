@@ -6,15 +6,16 @@
 
 ## 现有脚本
 
-| 脚本                         | 用途                                                                  | 前置条件                                                                                                                         | 说明见                |
-| ---------------------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
-| `export-openapi.sh`          | 从运行中的应用导出 OpenAPI 契约到 `docs/api/openapi.json`             | 后端可构建且 JDK 21（脚本自查 `JAVA_HOME`）；临时以 18080 端口启动一次                                                           | `docs/decisions/0006` |
-| `init-dameng.sh`             | 在达梦 DM8 上应用交付用的建表脚本（Flyway 无达梦模块）                | 可达的 DM8 实例；凭据走环境变量 `BW_DB_USERNAME` / `BW_DB_PASSWORD`                                                              | `docs/decisions/0010` |
-| `verify-micro-frontend.mjs`  | 用真实 Chrome 验证微前端全链路                                        | 四个 dev server 都在跑（:3000 / :3200 / :3300 / :3400），且本机装有 Google Chrome                                                | `docs/decisions/0012` |
-| `verify-scene-switching.mjs` | 用真实 Chrome 验证三维应用的多场景切换与显存释放                      | :3400 在跑，且本机装有 Google Chrome；可选传截图目录                                                                             | `docs/decisions/0014` |
-| `verify-player-controls.mjs` | 用真实 Chrome 验证古建筑场景的主人公操控                              | :3400 在跑，且本机装有 Google Chrome；可选传截图目录                                                                             | `docs/decisions/0015` |
-| `verify-portal-auth.mjs`     | 用真实 Chrome + 真后端验证基座登录链路                                | 后端 :8080（h2 profile，含种子管理员）、基座 ：3000、`platform-log-console` :3200 都在跑；本机装有 Google Chrome；可选传截图目录 | `docs/decisions/0018` |
-| `verify-atmosphere.mjs`      | 用真实浏览器验证大气（天穹、日出日落、云、时间流逝、动态 IBL 的显存） | :3400 在跑，且本机装有 Chromium 内核浏览器（Chrome 或 Edge，脚本**自动探测**）；可选传截图目录                                   | `docs/decisions/0017` |
+| 脚本                           | 用途                                                                  | 前置条件                                                                                                                         | 说明见                |
+| ------------------------------ | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| `export-openapi.sh`            | 从运行中的应用导出 OpenAPI 契约到 `docs/api/openapi.json`             | 后端可构建且 JDK 21（脚本自查 `JAVA_HOME`）；临时以 18080 端口启动一次                                                           | `docs/decisions/0006` |
+| `init-dameng.sh`               | 在达梦 DM8 上应用交付用的建表脚本（Flyway 无达梦模块）                | 可达的 DM8 实例；凭据走环境变量 `BW_DB_USERNAME` / `BW_DB_PASSWORD`                                                              | `docs/decisions/0010` |
+| `verify-micro-frontend.mjs`    | 用真实 Chrome 验证微前端全链路                                        | 四个 dev server 都在跑（:3000 / :3200 / :3300 / :3400），且本机装有 Google Chrome                                                | `docs/decisions/0012` |
+| `verify-scene-switching.mjs`   | 用真实 Chrome 验证三维应用的多场景切换与显存释放                      | :3400 在跑，且本机装有 Google Chrome；可选传截图目录                                                                             | `docs/decisions/0014` |
+| `verify-player-controls.mjs`   | 用真实 Chrome 验证古建筑场景的主人公操控                              | :3400 在跑，且本机装有 Google Chrome；可选传截图目录                                                                             | `docs/decisions/0015` |
+| `verify-portal-auth.mjs`       | 用真实 Chrome + 真后端验证基座登录链路                                | 后端 :8080（h2 profile，含种子管理员）、基座 ：3000、`platform-log-console` :3200 都在跑；本机装有 Google Chrome；可选传截图目录 | `docs/decisions/0018` |
+| `verify-admin-permissions.mjs` | 用真实 Chrome 验证按钮级权限（两种身份的界面差异 + 真实增删）         | 后端 :8080（h2 profile，含两个种子账号）、基座 ：3000、`platform-admin` :3500 都在跑；本机装有 Google Chrome；可选传截图目录     | `docs/decisions/0018` |
+| `verify-atmosphere.mjs`        | 用真实浏览器验证大气（天穹、日出日落、云、时间流逝、动态 IBL 的显存） | :3400 在跑，且本机装有 Chromium 内核浏览器（Chrome 或 Edge，脚本**自动探测**）；可选传截图目录                                   | `docs/decisions/0017` |
 
 ### `verify-micro-frontend.mjs` 做什么
 
@@ -63,6 +64,24 @@
 6. **硬刷新页面** → 仍在受保护页面且子应用重新收到身份（内存令牌已丢，靠刷新令牌续期）
 7. 登出 → 弹回登录页、`localStorage` 清空、导航栏移除
 8. 浏览器侧零报错
+
+### `verify-admin-permissions.mjs` 做什么
+
+用 CDP（`--headless=new`，调试端口 9338）驱动真实 Chrome，验证**按钮级权限**这条链路 ——
+它验证的都是单测测不到的接线（单测里权限集合是直接塞进去的、请求是替身、子应用也没有真正被基座挂载）：
+
+1. 未登录访问 `/admin` → 基座守卫弹到 `/login`（新子应用也被同一条守卫覆盖）
+2. 以 `admin`（8 项权限）登录 → 子应用出现全部操作入口，页面上的权限集合与后端给的逐字一致
+3. **真实写一遍**：新建一个带时间戳用户名的用户 → 出现在列表 → 删除 → 从列表消失（可重复执行）
+4. 切到租户页 → 另一组权限标识（`auth:tenant:*`）各自独立判定
+5. 登出后以 `auditor`（仅 2 项读权限）登录 → **同一段代码**：列表照常显示，
+   新建 / 编辑 / 重置口令 / 删除一个都不出现，且页面停在原处（403 不等于登录失效）
+6. **硬刷新** → 权限随会话一起恢复（内存令牌已丢，靠刷新令牌重新拿回身份与权限）
+7. 登出 → `localStorage` 清空、子应用界面卸载
+8. 浏览器侧零报错
+
+> 截图存到 `docs/assets/0018/`（`05-admin-can-write.png` / `06-auditor-read-only.png`），
+> 与 `verify-portal-auth.mjs` 的 01–04 放在一起，正好构成"登录态 → 权限下发 → 权限生效"的完整证据链。
 
 ### `verify-atmosphere.mjs` 做什么
 

@@ -30,11 +30,12 @@ web/
 │   ├── platform-portal       主应用（qiankun 容器，唯一入口，:3000）
 │   ├── platform-log-console  日志控制台（子应用 + 可独立运行，:3200）
 │   ├── platform-event-console 行为事件控制台（子应用 + 可独立运行，:3300）
+│   ├── platform-admin        权限管理后台（子应用 + 可独立运行，:3500，用户 / 租户，按钮级权限演示）
 │   └── platform-environment  三维环境应用（子应用 + 可独立运行，:3400，three.js 多场景，古建筑可操控，与业务无关）
 └── elemental/            通用元素（预留）
 ```
 
-规划中的其余子应用与公共包（`platform-user`、`platform-admin`、`common-theme`、`common-components`）**按业务需要创建**，不在骨架里预置。
+规划中的其余子应用与公共包（`platform-user`、`common-theme`、`common-components`）**按业务需要创建**，不在骨架里预置。
 
 **微前端结构**：`platform-portal` 是唯一的容器应用，负责导航骨架与全局状态，并通过 `loadMicroApp` 在路由出口处挂载子应用（而不是 `registerMicroApps` + 常驻容器 —— 理由见 `docs/decisions/0012`）。子应用各自独立构建、独立发布，**并且都能脱离基座单独启动**：调试微前端时第一件事就是区分"子应用本身坏了"还是"基座加载链路坏了"，没有这条退路就只能盲猜。接线方式：基座侧集中在 `platform-portal/src/micro/`，子应用侧只依赖 `common-tools/micro`。
 

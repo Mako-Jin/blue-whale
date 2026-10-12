@@ -142,6 +142,35 @@ class AuthApiTest {
     }
 
     @Test
+    @DisplayName("只读身份：列表读得到、写操作 403 —— 按钮级权限演示的后端依据")
+    void shouldLetAuditorReadButNotWrite() throws Exception {
+        String auditorToken = login("default", "auditor", "Auditor@12345");
+
+        // 读得到：列表接口放行。前端据此才敢把"新建"按钮之外的内容渲染出来
+        mockMvc.perform(get("/api/auth/users").header("Authorization", "Bearer " + auditorToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.records").isArray());
+
+        // 写不了：同一个接口换个方法就是 403。**这正是"按钮藏起来"之外的第二道防线** ——
+        // 前端能藏按钮，但藏不住直接构造的请求，权限必须在服务端也拦一次
+        mockMvc.perform(post("/api/auth/users")
+                        .header("Authorization", "Bearer " + auditorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"username":"intruder","password":"Intruder@12345"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(40301));
+
+        // 权限集合恰好是两项读权限：多一项就说明种子数据挂多了，演示的区分度随之消失
+        mockMvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + auditorToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.roles[0]").value("AUDITOR"))
+                .andExpect(jsonPath("$.data.permissions.length()").value(2));
+    }
+
+    @Test
     @DisplayName("新增租户：编码重复返回 40904，正常新增后可在列表查到")
     void shouldCreateTenantAndRejectDuplicateCode() throws Exception {
         String token = loginAsAdmin();

@@ -62,6 +62,25 @@ src/
    若直接按未登录处理，每次刷新都会掉一次登录。
 3. **`baseUrl` 留空。** 契约路径自带 `/api` 前缀，写成 `baseUrl: '/api'` 会拼出 `/api/api/...`。
 
+### 子应用怎么发已鉴权请求：`loader.ts` 里的认证桥
+
+子应用要调受权限保护的接口（例如 `platform-admin`），但它拿不到令牌 —— 令牌只在基座的内存会话里。
+基座经 `HostProps.auth` 下发的是**两个动作**（`common-tools/micro` 的 `HostAuthBridge`），
+不是令牌值：
+
+```ts
+{
+  getAccessToken: () => auth.session.getAccessToken(), // 按需取，永远是最新一份
+  reauthenticate: () => auth.reauthenticate(),         // 通道内部已做会话级合并
+}
+```
+
+- **不下发令牌值**：值会陈旧 —— 基座静默刷新一次之后，子应用手里那份就是作废的令牌；
+- **不提供"清空会话"**：会话失效是全局事实，清空只该有 `createAuthChannel` 的 `onAuthLost` 一个入口
+  （基座也因此刻意不传它）；
+- **为什么通道要再合并一次刷新**：`common-tools/http` 的去重是按客户端的，跨客户端的并发刷新
+  只有在会话层合并才成立（`docs/decisions/0018` 第 9 条）。
+
 ## 全局状态的调试开关
 
 页头右上角的「全局主题」按钮**不是产品功能**，是主题下发的触发器：基座自己还没有主题体系，
@@ -76,14 +95,14 @@ src/
 
 `src/micro/` 是主应用与 qiankun 之间的全部胶水，各文件各管一件事：
 
-| 文件              | 职责                                                              |
-| ----------------- | ----------------------------------------------------------------- |
-| `types.ts`        | `MicroAppMeta`（注册信息）· `GlobalState` · `MicroAppProps`       |
-| `apps.ts`         | 子应用注册表 `MICRO_APPS` · 按名查找 · 按环境解析 entry           |
-| `state.ts`        | 全局状态：`initGlobalState` + **基座自己维护的本地副本**          |
-| `session-sync.ts` | 把会话结果（userId / roles / permissions）同步进全局状态          |
-| `loader.ts`       | `mountMicroApp()`：组装 props、`loadMicroApp`、沙箱与资源过滤配置 |
-| `index.ts`        | 出口                                                              |
+| 文件              | 职责                                                                          |
+| ----------------- | ----------------------------------------------------------------------------- |
+| `types.ts`        | `MicroAppMeta`（注册信息）· `GlobalState` · `MicroAppProps`                   |
+| `apps.ts`         | 子应用注册表 `MICRO_APPS` · 按名查找 · 按环境解析 entry                       |
+| `state.ts`        | 全局状态：`initGlobalState` + **基座自己维护的本地副本**                      |
+| `session-sync.ts` | 把会话结果（userId / roles / permissions）同步进全局状态                      |
+| `loader.ts`       | `mountMicroApp()`：组装 props（含认证桥）、`loadMicroApp`、沙箱与资源过滤配置 |
+| `index.ts`        | 出口                                                                          |
 
 **为什么用 `loadMicroApp` 而不是 `registerMicroApps` + `start`**、**为什么关掉 JS 沙箱**、
 **样式隔离为什么指望不上框架** —— 这些取舍与理由写在
@@ -104,6 +123,12 @@ src/
 2. 在 `src/micro/apps.ts` 的 `MICRO_APPS` 里加一条：`name` 与子应用声明一致、`routePath`
    是路由前缀、`devPort` 是开发期端口、`prodEntry` 是生产期静态目录；
 3. 路由与导航会自动出现 —— **不需要改 `router/` 和 `layouts/`**。
+
+要发已鉴权请求的子应用，额外做两件事（参考 `platform-admin/src/auth/`）：
+
+4. 在 `mount` 里（`bindHost` **之后**）从 `props.auth` 取认证能力，接到自己的 `createApiClient` 的
+   `accessTokenProvider` / `onUnauthorized` 上；独立运行时换成自建会话，业务代码不变；
+5. 权限一律读基座下发的 `HostGlobalState.permissions`，**不得**自行调用 `/api/auth/me`。
 
 ## 命令
 

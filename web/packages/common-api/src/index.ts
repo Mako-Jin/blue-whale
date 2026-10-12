@@ -27,6 +27,25 @@ export type {
 export { createAuthChannel } from './channel';
 export type { AuthChannel, AuthChannelConfig, ChannelApi } from './channel';
 
+export { AccessPermissions, createAccessApi } from './access';
+export type {
+  AccessApi,
+  AccessPasswordResetRequest,
+  AccessPermission,
+  AccessTenant,
+  AccessTenantApi,
+  AccessTenantId,
+  AccessTenantPage,
+  AccessTenantQuery,
+  AccessTenantSaveRequest,
+  AccessUser,
+  AccessUserApi,
+  AccessUserId,
+  AccessUserPage,
+  AccessUserQuery,
+  AccessUserSaveRequest,
+} from './access';
+
 export { createLogApi } from './log';
 export type {
   ClientLogItem,

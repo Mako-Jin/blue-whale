@@ -1,6 +1,8 @@
 import { createHttpClient } from 'common-tools/http';
 import type { HttpClient, HttpConfig } from 'common-tools/http';
 
+import { createAccessApi } from './access';
+import type { AccessApi } from './access';
 import { createAuthApi } from './auth';
 import type { AuthApi } from './auth';
 import { createEventApi } from './events';
@@ -15,6 +17,7 @@ export interface ApiClient {
   /** 底层请求客户端，需要临时调一个尚未纳入契约的接口时用 */
   readonly http: HttpClient;
   readonly auth: AuthApi;
+  readonly access: AccessApi;
   readonly log: LogApi;
   readonly event: EventApi;
   readonly system: SystemApi;
@@ -30,9 +33,10 @@ export interface ApiClient {
  *
  * <p>典型用法：
  * ```ts
+ * // 契约路径自带 `/api` 前缀，所以 baseUrl 留空（开发期由 vite 代理转发）
  * const api = createApiClient({
- *   baseUrl: '/api',
- *   traceIdProvider: () => currentTraceId,
+ *   accessTokenProvider: () => session.getAccessToken(),
+ *   onUnauthorized: () => channel.reauthenticate(),
  * });
  * const page = await api.log.page({ level: 'error', page: 1 });
  * ```
@@ -42,6 +46,7 @@ export function createApiClient(config: HttpConfig = {}): ApiClient {
   return {
     http,
     auth: createAuthApi(http),
+    access: createAccessApi(http),
     log: createLogApi(http),
     event: createEventApi(http),
     system: createSystemApi(http),

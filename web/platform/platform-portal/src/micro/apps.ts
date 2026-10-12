@@ -6,8 +6,8 @@ const isDev = import.meta.env.DEV;
 /**
  * 已注册的子应用。
  *
- * 只登记**已经能被加载**的应用。`platform-user` / `platform-admin` 尚未创建，
- * 就不写在这里 —— 注册一个加载不到的应用，只会在导航上多一个点了就报错的入口。
+ * 只登记**已经能被加载**的应用。`platform-user` 尚未创建，就不写在这里 ——
+ * 注册一个加载不到的应用，只会在导航上多一个点了就报错的入口。
  */
 export const MICRO_APPS: MicroAppMeta[] = [
   {
@@ -33,6 +33,14 @@ export const MICRO_APPS: MicroAppMeta[] = [
     devPort: 3400,
     prodEntry: '/environment/',
     summary: 'three.js 三维场景：渲染循环、相机控制与 GPU 资源释放',
+  },
+  {
+    name: 'platform-admin',
+    routePath: '/admin',
+    title: '权限管理',
+    devPort: 3500,
+    prodEntry: '/admin/',
+    summary: '权限域实体管理（用户 / 租户）：消费基座下发的权限，按标识显隐操作入口',
   },
 ];
 

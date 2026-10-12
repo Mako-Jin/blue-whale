@@ -3,6 +3,8 @@ import type { HttpConfig } from 'common-tools/http';
 import { logger as rootLogger } from 'common-tools/logger';
 import type { SessionStore, SessionUser } from 'common-tools/session';
 
+import { createAccessApi } from './access';
+import type { AccessApi } from './access';
 import { createAuthApi, toSessionTokens, toSessionUser } from './auth';
 import type { AuthApi, AuthLoginRequest } from './auth';
 import { createEventApi } from './events';
@@ -17,6 +19,7 @@ export interface ChannelApi {
   /** 底层请求客户端（已接好令牌注入与 401 恢复） */
   readonly http: ReturnType<typeof createHttpClient>;
   readonly auth: AuthApi;
+  readonly access: AccessApi;
   readonly log: LogApi;
   readonly event: EventApi;
   readonly system: SystemApi;
@@ -54,6 +57,12 @@ export interface AuthChannel {
    * <p>它是 `common-tools/http` 的 `onUnauthorized` 钩子所调用的那一环：
    * 内核只负责"问一句还能不能救"，**并发去重由内核保证**（single-flight）——
    * 因为刷新令牌是轮换的，并发的第二次刷新会被服务端判成重放攻击并撤销该用户全部会话。
+   *
+   * <p>**本层再合并一次**，原因是内核的去重是"按客户端"的：它只能合并**同一个**
+   * `HttpClient` 上的并发 401。而当同一个通道被多处使用（基座自己的请求、
+   * 经 `HostAuthBridge` 委托过来的若干子应用）时，就会出现多个客户端同时调用本方法，
+   * 内核那一层看不见彼此 —— 于是又变成并发刷新。刷新是**会话级**动作，
+   * 合并也必须发生在会话级（本方法）才算完整。
    */
   reauthenticate(): Promise<boolean>;
 }
@@ -105,30 +114,53 @@ export function createAuthChannel(config: AuthChannelConfig): AuthChannel {
 
   const authApi = createAuthApi(http);
 
+  /**
+   * 会话级刷新去重（single-flight）。
+   *
+   * <p>内核对同一个客户端上的并发 401 已做合并，但它看不见**跨客户端**的并发：
+   * 基座自己发一个请求、同时有两个子应用经 `HostAuthBridge` 委托过来，
+   * 就是三个客户端同时要求刷新。刷新令牌只认一次，其余两次会被判成重放 ——
+   * 代价是撤销该用户全部会话（`docs/decisions/0018` 第 7 条）。
+   * 因此合并点必须落在"会话"这一层，也就是下面这个方法。
+   */
+  let pendingRefresh: Promise<boolean> | null = null;
+
+  async function refreshOnce(): Promise<boolean> {
+    const refreshToken = session.getRefreshToken();
+    // 没有刷新令牌就没什么可救的 —— 直接返回，避免白跑一次请求
+    if (!refreshToken) return false;
+    try {
+      const result = await authApi.refresh({ refreshToken });
+      session.set({ user: toSessionUser(result), tokens: toSessionTokens(result) });
+      return true;
+    } catch (cause) {
+      log.warn('刷新令牌失败，会话无法恢复', {
+        message: cause instanceof Error ? cause.message : String(cause),
+      });
+      return false;
+    }
+  }
+
   const instance: AuthChannel = {
     api: {
       http,
       auth: authApi,
+      access: createAccessApi(http),
       log: createLogApi(http),
       event: createEventApi(http),
       system: createSystemApi(http),
     },
     session,
 
-    reauthenticate: async () => {
-      const refreshToken = session.getRefreshToken();
-      // 没有刷新令牌就没什么可救的 —— 直接返回，避免白跑一次请求
-      if (!refreshToken) return false;
-      try {
-        const result = await authApi.refresh({ refreshToken });
-        session.set({ user: toSessionUser(result), tokens: toSessionTokens(result) });
-        return true;
-      } catch (cause) {
-        log.warn('刷新令牌失败，会话无法恢复', {
-          message: cause instanceof Error ? cause.message : String(cause),
+    reauthenticate: () => {
+      if (!pendingRefresh) {
+        // 与内核同一写法：先同步起跑，再用 `finally` 清位；
+        // 若把清位写在 `then` 里，一次失败会让后续调用永远拿到那个已 settle 的 Promise
+        pendingRefresh = refreshOnce().finally(() => {
+          pendingRefresh = null;
         });
-        return false;
       }
+      return pendingRefresh;
     },
 
     login: async (input) => {

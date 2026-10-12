@@ -1,0 +1,41 @@
+{
+  "name": "platform-admin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "权限管理后台 · 消费基座下发的权限，演示按权限显隐的按钮级控制（ADR-0018 第③段）",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "lint": "eslint .",
+    "stylelint": "stylelint \"src/**/*.{less,css}\"",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "common-api": "workspace:*",
+    "common-tools": "workspace:*",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "catalog:",
+    "@testing-library/react": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "common-config": "workspace:*",
+    "eslint": "catalog:",
+    "jsdom": "catalog:",
+    "less": "catalog:",
+    "stylelint": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plugin-qiankun": "catalog:",
+    "vitest": "catalog:"
+  }
+}

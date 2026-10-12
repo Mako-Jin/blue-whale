@@ -27,6 +27,8 @@ public class AuthProperties {
 
     private final SeedAdmin seedAdmin = new SeedAdmin();
 
+    private final SeedAuditor seedAuditor = new SeedAuditor();
+
     @Getter
     @Setter
     public static class Jwt {
@@ -106,6 +108,37 @@ public class AuthProperties {
         private String password = "Admin@12345";
 
         private String displayName = "系统管理员";
+    }
+
+    /**
+     * 默认只读账号种子数据（开发 / 演示用）。
+     *
+     * <p><b>为什么还需要一个"只读"账号：</b>只有超级管理员时，"权限真的生效了吗"这个问题
+     * 是验证不了的 —— 所有接口对唯一身份都放行，写错的权限标识、漏配的资源、
+     * 前端把按钮显隐判反，症状都是"看起来很正常"。一个**有读、无写**的第二身份
+     * 把这件事变成可观测的差异（列表看得见、新建按钮不出现、直接调接口得 403），
+     * 这也是按钮级权限演示能落地的前提。
+     *
+     * <p>它只被授予 {@code auth:user:read} 与 {@code auth:tenant:read}，
+     * 因此**不得**在它身上挂任何写权限 —— 一旦挂上，上面那句"把差异变成可观测"就失效了。
+     *
+     * <p>与 {@link SeedAdmin} 同样**默认关闭、只在 h2 profile 打开**：
+     * 生产库里多一个口令固定的账号就是多一个入口。
+     */
+    @Getter
+    @Setter
+    public static class SeedAuditor {
+
+        /** 是否种下只读账号。默认关闭，由 profile 打开 */
+        private boolean enabled = false;
+
+        /** 复用 {@link SeedAdmin#getTenantCode()} 指向的租户；种子数据必须落在同一个租户内 */
+        private String username = "auditor";
+
+        /** 仅用于开发演示。生产若开启种子，务必通过配置覆盖 */
+        private String password = "Auditor@12345";
+
+        private String displayName = "审计员";
     }
 
 }

@@ -1,0 +1,441 @@
+// 权限管理后台的页面样式。
+//
+// 组织方式与 platform-portal / platform-log-console 一致：按"组件块"自顶向下，
+// 块内用 Less 的 `&__element` / `&--modifier` 嵌套。
+// 设计令牌全部来自 styles/variables.less（由 vite.config.ts 注入，本文件不 @import）。
+
+/* -------------------------------------------------------------- 整体骨架 */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 100vh;
+  padding: 16px 20px 24px;
+}
+
+/* ---------------------------------------------------------------- 顶栏 */
+
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  background: @bg-elevated;
+  border: 1px solid @border-color;
+  border-radius: @radius-lg;
+  box-shadow: @shadow-card;
+}
+
+.topbar__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.topbar__logo {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, @brand-color, #37b1ff);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgb(22 93 255 / 35%);
+}
+
+.topbar__title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.topbar__subtitle {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: @text-tertiary;
+}
+
+.topbar__side {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+}
+
+.topbar__identity {
+  margin: 0;
+  font-size: 12px;
+  color: @text-secondary;
+}
+
+.topbar__perms {
+  font-size: 12px;
+  color: @text-secondary;
+
+  summary {
+    cursor: pointer;
+    user-select: none;
+  }
+}
+
+.topbar__perms-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  max-width: 560px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  color: @brand-color;
+}
+
+/* ---------------------------------------------------------------- 标签页 */
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: @bg-elevated;
+  border: 1px solid @border-color;
+  border-radius: @radius-md;
+  width: fit-content;
+}
+
+.tabs__item {
+  padding: 6px 16px;
+  font-size: 13px;
+  color: @text-secondary;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: @radius-sm;
+  transition: all 0.15s;
+
+  &:hover {
+    color: @brand-color;
+  }
+
+  &--active {
+    font-weight: 600;
+    color: @bg-elevated;
+    background: @brand-color;
+  }
+}
+
+/* ------------------------------------------------------------ 面板与工具条 */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  background: @bg-elevated;
+  border: 1px solid @border-color;
+  border-radius: @radius-lg;
+  box-shadow: @shadow-card;
+}
+
+.panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.panel__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.panel__hint {
+  max-width: 720px;
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: @text-tertiary;
+
+  code {
+    padding: 1px 5px;
+    font-family: ui-monospace, sfmono-regular, menlo, consolas, monospace;
+    font-size: 12px;
+    color: @brand-color;
+    background: fade(@brand-color, 7%);
+    border-radius: 3px;
+  }
+}
+
+.panel__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.toolbar__spacer {
+  flex: 1;
+}
+
+.toolbar__meta {
+  font-size: 12px;
+  color: @text-tertiary;
+}
+
+/* ------------------------------------------------------------ 表单元素 */
+
+.input {
+  min-width: 200px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: @text-primary;
+  background: @bg-base;
+  border: 1px solid @border-color;
+  border-radius: @radius-sm;
+  outline: none;
+  transition: border-color 0.15s;
+
+  &:focus {
+    border-color: @brand-color;
+  }
+
+  &:disabled {
+    color: @text-tertiary;
+    cursor: not-allowed;
+    background: @bg-sunken;
+  }
+}
+
+.btn {
+  padding: 6px 14px;
+  font-size: 13px;
+  color: @text-primary;
+  cursor: pointer;
+  background: @bg-elevated;
+  border: 1px solid @border-strong;
+  border-radius: @radius-sm;
+  transition: all 0.15s;
+
+  &:hover:not(:disabled) {
+    color: @brand-color;
+    border-color: @brand-color;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  &--primary {
+    color: @bg-elevated;
+    background: @brand-color;
+    border-color: @brand-color;
+
+    &:hover:not(:disabled) {
+      color: @bg-elevated;
+      background: @brand-hover;
+      border-color: @brand-hover;
+    }
+  }
+
+  &--danger {
+    color: @danger-color;
+    border-color: fade(@danger-color, 45%);
+
+    &:hover:not(:disabled) {
+      color: @bg-elevated;
+      background: @danger-color;
+      border-color: @danger-color;
+    }
+  }
+}
+
+/* -------------------------------------------------------------- 提示条 */
+
+.banner {
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 13px;
+  border-radius: @radius-sm;
+
+  &--ok {
+    color: @success-color;
+    background: fade(@success-color, 8%);
+    border: 1px solid fade(@success-color, 25%);
+  }
+
+  &--error {
+    color: @danger-color;
+    background: fade(@danger-color, 8%);
+    border: 1px solid fade(@danger-color, 25%);
+  }
+}
+
+/* ---------------------------------------------------------------- 表格 */
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid @border-color;
+  border-radius: @radius-md;
+}
+
+.table {
+  width: 100%;
+  font-size: 13px;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid @border-color;
+  }
+
+  th {
+    font-weight: 600;
+    color: @text-secondary;
+    background: @bg-sunken;
+    white-space: nowrap;
+  }
+
+  tbody tr:hover {
+    background: fade(@brand-color, 3%);
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  &__ops {
+    width: 1%;
+    white-space: nowrap;
+  }
+
+  &__empty {
+    padding: 28px 0;
+    color: @text-tertiary;
+    text-align: center;
+  }
+}
+
+.mono {
+  font-family: ui-monospace, sfmono-regular, menlo, consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.tag {
+  display: inline-block;
+  padding: 1px 8px;
+  font-size: 12px;
+  border-radius: 10px;
+
+  &--on {
+    color: @success-color;
+    background: fade(@success-color, 10%);
+  }
+
+  &--off {
+    color: @text-tertiary;
+    background: fade(@text-tertiary, 12%);
+  }
+}
+
+.pager {
+  display: flex;
+  gap: 8px;
+}
+
+/* ---------------------------------------------------------------- 对话框 */
+
+.dialog__mask {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(0 0 0 / 35%);
+}
+
+.dialog {
+  width: min(460px, calc(100vw - 40px));
+  background: @bg-elevated;
+  border-radius: @radius-lg;
+  box-shadow: @shadow-dialog;
+}
+
+.dialog__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid @border-color;
+}
+
+.dialog__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.dialog__close {
+  padding: 0 4px;
+  font-size: 20px;
+  line-height: 1;
+  color: @text-tertiary;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+
+  &:hover {
+    color: @text-primary;
+  }
+}
+
+.dialog__body {
+  padding: 16px 18px;
+}
+
+.dialog__foot {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding: 12px 18px;
+  border-top: 1px solid @border-color;
+}
+
+/* ---------------------------------------------------------------- 表单 */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.form__row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.form__label {
+  flex: 0 0 72px;
+  font-size: 13px;
+  color: @text-secondary;
+}
+
+.form__row .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.form__tip {
+  margin: 0;
+  font-size: 12px;
+  color: @text-tertiary;
+}

@@ -1,10 +1,32 @@
 import { loadMicroApp, type MicroApp } from 'qiankun';
 import { createLogger } from 'common-tools';
+import type { HostAuthBridge } from 'common-tools/micro';
+import { auth } from '@/auth';
 import { resolveEntry } from './apps';
 import { getGlobalState, offGlobalStateChange, onGlobalStateChange, setGlobalState } from './state';
 import type { MicroAppMeta, MicroAppProps } from './types';
 
 const logger = createLogger('micro:qiankun');
+
+/**
+ * 组装下发给子应用的**认证能力**。
+ *
+ * <p>子应用要发已鉴权请求（例如管理类接口），但它拿不到令牌 ——
+ * 令牌只在基座的内存会话里。这里给出的是"按需取 + 按需刷新"两个动作，
+ * 而不是令牌本身：**令牌值一旦下发就会陈旧**（基座静默刷新一次之后，
+ * 子应用手里那份已经作废），而刷新必须是**全应用一次**
+ * （刷新令牌轮换 + 重放检测，见 `docs/decisions/0018` 第 7 条）。
+ *
+ * <p>不传"清空会话"：会话失效是全局事实，清空只该有 `createAuthChannel`
+ * 的 `onAuthLost` 一个入口，基座那边也因此**刻意不传** `onAuthLost` 给通道。
+ */
+function createHostAuthBridge(): HostAuthBridge {
+  return {
+    getAccessToken: () => auth.session.getAccessToken(),
+    // 通道内部已做会话级合并：多个子应用同时要求刷新，最终只会打一次刷新接口
+    reauthenticate: () => auth.reauthenticate(),
+  };
+}
 
 /** 组装下发给子应用的 props。 */
 export function createMicroAppProps(meta: MicroAppMeta): MicroAppProps {
@@ -14,6 +36,7 @@ export function createMicroAppProps(meta: MicroAppMeta): MicroAppProps {
     setGlobalState,
     onGlobalStateChange,
     offGlobalStateChange,
+    auth: createHostAuthBridge(),
   };
 }
 

@@ -361,4 +361,44 @@ describe('createAuthChannel · 401 恢复串联（契约 + 会话 + 传输钩子
     expect(calls.filter((call) => call.path.endsWith('/api/auth/refresh'))).toHaveLength(1);
     expect(session.getAccessToken()).toBe('access-2');
   });
+
+  describe('会话级刷新合并（跨客户端）', () => {
+    it('多个调用方（基座 + 若干子应用）同时要求刷新时只打一次刷新接口', async () => {
+      const { channel, calls } = createLiveChannel([
+        {
+          match: '/api/auth/refresh',
+          body: envelope({ ...LOGIN_RESULT, accessToken: 'access-2' }),
+        },
+      ]);
+
+      // 内核对同一个客户端上的并发 401 已做合并，但看不见"不同客户端"的并发：
+      // 基座自己的请求与经 HostAuthBridge 委托过来的子应用请求分属不同客户端，
+      // 合并点因此必须在会话层（channel.reauthenticate）才成立。
+      const results = await Promise.all([
+        channel.reauthenticate(),
+        channel.reauthenticate(),
+        channel.reauthenticate(),
+      ]);
+
+      expect(results).toEqual([true, true, true]);
+      expect(calls.filter((call) => call.path.endsWith('/api/auth/refresh'))).toHaveLength(1);
+    });
+
+    it('一次失败不留下已结算的 Promise，下一次仍会真的去刷新', async () => {
+      const { channel, calls } = createLiveChannel([
+        { match: '/api/auth/refresh', times: 1, status: 401, body: envelope(null, 40101) },
+        {
+          match: '/api/auth/refresh',
+          body: envelope({ ...LOGIN_RESULT, accessToken: 'access-3' }),
+        },
+      ]);
+
+      await expect(channel.reauthenticate()).resolves.toBe(false);
+      // 若清位写在 then 里而不是 finally 里，这里会命中那个已经 settled 的 false ——
+      // 表现为"刷新失败过一次之后，会话再也恢复不了，直到刷新页面"
+      await expect(channel.reauthenticate()).resolves.toBe(true);
+
+      expect(calls.filter((call) => call.path.endsWith('/api/auth/refresh'))).toHaveLength(2);
+    });
+  });
 });

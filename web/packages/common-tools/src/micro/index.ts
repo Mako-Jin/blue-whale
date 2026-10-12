@@ -8,4 +8,4 @@ export {
   unbindHost,
 } from './bridge';
 export type { GlobalStateListener } from './bridge';
-export type { HostGlobalState, HostProps } from './types';
+export type { HostAuthBridge, HostGlobalState, HostProps } from './types';

@@ -6,6 +6,8 @@
  * 会直接编译不过。这不是风格偏好，是硬约束。
  */
 
+import type { HostAuthBridge } from 'common-tools/micro';
+
 /** 子应用注册信息。 */
 export type MicroAppMeta = {
   /**
@@ -66,4 +68,11 @@ export type MicroAppProps = {
     fireImmediately?: boolean,
   ) => void;
   offGlobalStateChange: () => void;
+  /**
+   * 认证能力（令牌按需取、刷新由基座合并）。
+   *
+   * 子应用要用它来发已鉴权请求。令牌**值**不下发，只下发"取令牌"与"要一次刷新"
+   * 两个动作 —— 理由见 `loader.ts` 的 `createHostAuthBridge`。
+   */
+  auth: HostAuthBridge;
 };

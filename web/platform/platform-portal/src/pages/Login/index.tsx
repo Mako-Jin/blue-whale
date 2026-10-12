@@ -106,13 +106,20 @@ export default function Login() {
         </button>
 
         {/*
-          开发提示：h2 profile 会种子一套默认管理员（见 sts-server-auth 的 DefaultAdminSeeder），
+          开发提示：h2 profile 会种子一套账号（见 sts-server-auth 的 DefaultAdminSeeder），
           否则空库没有任何账号可登录，而建账号的接口本身要求已登录。
           换到 mysql / dameng 时不会种，真实环境的账号由运维显式创建。
+
+          刻意把**只读账号**也写出来：它是"权限确实生效"的唯一验证入口 ——
+          只有管理员时所有接口对唯一身份都放行，权限配错了看不出来。
+          也正因为如此，这两个口令都必须与 DefaultAdminSeeder / AuthProperties 保持一致。
         */}
         <p className="login__hint">
-          开发环境（h2 profile）已种子默认管理员：<code>admin</code> / <code>Admin@12345</code>
-          ，租户 <code>default</code>。
+          开发环境（h2 profile）已种子两个账号，租户均为 <code>default</code>：
+          <br />
+          管理员 <code>admin</code> / <code>Admin@12345</code>（全部权限）
+          <br />
+          只读审计员 <code>auditor</code> / <code>Auditor@12345</code>（仅读权限，用于对照按钮显隐）
         </p>
       </form>
     </div>

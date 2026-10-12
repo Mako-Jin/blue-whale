@@ -21,7 +21,8 @@ web/
     ├── platform-portal        主应用（qiankun 容器，唯一入口，:3000）
     ├── platform-log-console   日志控制台（子应用 + 可独立运行，:3200）
     ├── platform-event-console 行为事件控制台（子应用 + 可独立运行，:3300）
-    └── platform-environment   三维环境应用（子应用 + 可独立运行，:3400，three.js）
+    ├── platform-environment   三维环境应用（子应用 + 可独立运行，:3400，three.js）
+    └── platform-admin         权限管理后台（子应用 + 可独立运行，:3500，按钮级权限演示）
 ```
 
 `packages/` 放**被引用但跑不起来**的包；`platform/` 放**能独立启动**的应用。这条线不能模糊。
@@ -37,7 +38,8 @@ platform-portal (:3000)
 ├── /                 首页（子应用入口与启动命令）
 ├── /log-console/*    ──loadMicroApp──▶  platform-log-console (:3200 dev)
 ├── /event-console/*  ──loadMicroApp──▶  platform-event-console (:3300 dev)
-└── /environment/*    ──loadMicroApp──▶  platform-environment (:3400 dev)
+├── /environment/*    ──loadMicroApp──▶  platform-environment (:3400 dev)
+└── /admin/*          ──loadMicroApp──▶  platform-admin (:3500 dev)
 ```
 
 接线代码集中在 `platform-portal/src/micro/`（5 个文件：类型 · 注册表 · 全局状态 · 加载器 · 出口），完整说明见 `platform/platform-portal/README.md`，决策与取舍见 `docs/decisions/0012`。
@@ -49,6 +51,8 @@ platform-portal (:3000)
 > `platform-event-console` 是同一个思路用在**行为事件**上：左栏点按钮产生事件、右栏看服务端落库结果。它额外演示三件事——**身份缝合**（匿名 `deviceId` 与登录 `userId` 同时挂在事件上）、**中间件脱敏**、**中间件屏蔽**。日志与事件是两条独立管道，因此这是两个应用而不是一个应用里的两个页签。
 
 > `platform-environment` 是**与任何业务域无关的环境应用**：一块 three.js 三维画布（内含古建筑 / 原始丛林 / 现代写字楼 / 太空飞船 / 渲染基线五个可切换场景），外加"WebGL 渲染生命周期该怎么管"的参考实现 —— 画布与上下文同生共死、卸载必 `forceContextLoss()`、GPU 资源可断言地释放、切场景只换场景图不换渲染器。古建筑是第一个**可操控**场景：殿前广场上有可走的主人公（WASD/方向键 + 右键设行动终点 + 滚轮缩放）与左上角小地图（正北朝上、人物朝向与相机视野分画）。三维依赖重（gzip 后约 229 kB），独立成子应用让其他路由不受拖累。决策见 `docs/decisions/0013`（渲染生命周期）、`docs/decisions/0014`（多场景架构）与 `docs/decisions/0015`（场景交互）。
+
+> `platform-admin` 是**按钮级权限的活体演示**，也是权限域实体（用户 / 租户）的管理界面：同一段代码、同一个页面，管理员看到全部操作入口，只读的审计员只看得到列表 —— 差异不写在代码里，只写在基座下发的权限集合里。它同时回答了"子应用怎么发已鉴权请求"：令牌**值**不下发，基座经 `HostProps.auth` 下发"取令牌"与"要一次刷新"两个动作（`docs/decisions/0018` 第 9 条），本应用不含登录页。后端 h2 profile 会种下两个对照账号（`admin` 全权限 / `auditor` 仅读权限），端到端验证见 `node scripts/verify-admin-permissions.mjs`。
 
 ## 二、命令
 
@@ -204,14 +208,14 @@ git config core.hooksPath web/.husky
 
 各项目均通过全部校验（逐包直跑）。
 
-| 校验项                  | platform-portal                         | common-tools                      | common-api                           | platform-log-console             | platform-event-console          | platform-environment                  |
-| ----------------------- | --------------------------------------- | --------------------------------- | ------------------------------------ | -------------------------------- | ------------------------------- | ------------------------------------- |
-| `tsc --noEmit` 类型检查 | 通过                                    | 通过                              | 通过                                 | 通过                             | 通过                            | 通过                                  |
-| `eslint .`              | 通过                                    | 通过                              | 通过                                 | 通过                             | 通过                            | 通过                                  |
-| `stylelint`             | 通过                                    | 通过（playground）                | —                                    | 通过（含 `App.less`）            | 通过（含 `App.less`）           | 通过                                  |
-| `vitest run` 单元测试   | 通过（19/19，含守卫、登录页与会话恢复） | 通过（169/169，含认证钩子与会话） | 通过（36/36，含认证接线与 401 串联） | 通过（25/25，含浏览器渲染测试）  | 通过（12/12，含浏览器渲染测试） | 通过（182/182，含场景契约与操控内核） |
-| `vite build` 生产构建   | 通过（CSS 4.66 · JS 464.18 kB）         | 通过（31.93 kB）                  | —                                    | 通过（CSS 11.92 · JS 261.80 kB） | 通过（CSS 5.41 · JS 258.91 kB） | 通过（CSS 7.00 · JS 861.23 kB）       |
-| dev server 启动         | 通过（:3000）                           | playground 通过（:3100）          | —                                    | 通过（:3200）                    | 通过（:3300）                   | 通过（:3400）                         |
+| 校验项                  | platform-portal                                 | common-tools                      | common-api                                            | platform-log-console             | platform-event-console          | platform-environment                  | platform-admin                      |
+| ----------------------- | ----------------------------------------------- | --------------------------------- | ----------------------------------------------------- | -------------------------------- | ------------------------------- | ------------------------------------- | ----------------------------------- |
+| `tsc --noEmit` 类型检查 | 通过                                            | 通过                              | 通过                                                  | 通过                             | 通过                            | 通过                                  | 通过                                |
+| `eslint .`              | 通过                                            | 通过                              | 通过                                                  | 通过                             | 通过                            | 通过                                  | 通过                                |
+| `stylelint`             | 通过                                            | 通过（playground）                | —                                                     | 通过（含 `App.less`）            | 通过（含 `App.less`）           | 通过                                  | 通过（含 `App.less`）               |
+| `vitest run` 单元测试   | 通过（22/22，含守卫、登录页、会话恢复与认证桥） | 通过（169/169，含认证钩子与会话） | 通过（42/42，含认证接线、权限域接线与会话级刷新合并） | 通过（25/25，含浏览器渲染测试）  | 通过（12/12，含浏览器渲染测试） | 通过（182/182，含场景契约与操控内核） | 通过（11/11，含两种身份的按钮差异） |
+| `vite build` 生产构建   | 通过（CSS 4.66 · JS 464.18 kB）                 | 通过（31.93 kB）                  | —                                                     | 通过（CSS 11.92 · JS 261.80 kB） | 通过（CSS 5.41 · JS 258.91 kB） | 通过（CSS 7.00 · JS 861.23 kB）       | 通过（CSS 5.02 · JS 262.74 kB）     |
+| dev server 启动         | 通过（:3000）                                   | playground 通过（:3100）          | —                                                     | 通过（:3200）                    | 通过（:3300）                   | 通过（:3400）                         | 通过（:3500）                       |
 
 **微前端链路**另有一项端到端验证（`node scripts/verify-micro-frontend.mjs`，需四个服务在跑）：基座导航挂载子应用 → 全局状态下发 → 子应用经基座代理请求后端 → 切换子应用 → 返回首页验证卸载清理（标记清空、`window.__MICRO_HOST__` 归 `undefined`；三维应用额外断言 WebGL 上下文已 lost、画布已移除）。这是一项**运行时**验证，不在上表的逐包检查范围内。
 
@@ -231,8 +235,8 @@ git config core.hooksPath web/.husky
 
 ## 八、待补充
 
-- 子应用 `platform-user`、`platform-admin` 尚未创建（qiankun 主应用与三个子应用的接线已完成，新增子应用按 `platform/platform-portal/README.md` 的三步走）。**它们的前置依赖已就绪**：登录态、路由守卫与权限下发已落地（`docs/decisions/0018` 第②段），子应用通过 `onHostGlobalStateChange` 消费 `roles` / `permissions` 即可做权限控制；权限域的**管理接口**随 `platform-admin` 一起接（同文档第③段）
-- 认证链路的**前端消费已接通到基座**：登录页、路由守卫、启动时恢复会话、登出，以及 `userId` / `roles` / `permissions` 经 `HostGlobalState` 下发。端到端验证见 `node scripts/verify-portal-auth.mjs`（需要后端 ：8080、基座 ：3000、任一子应用 dev server）。**尚缺**：401 掉线在真实后端下的恢复演练（单测已覆盖）、`platform-admin`（第③段）
+- 子应用 `platform-user` 尚未创建（qiankun 主应用与四个子应用的接线已完成，新增子应用按 `platform/platform-portal/README.md` 的三步走）。**前置依赖已全部就绪**：登录态、路由守卫、权限下发，以及子应用发已鉴权请求所需的认证桥（`docs/decisions/0018` 第⑨条）
+- 认证链路的**前端消费已全线接通**：登录页、路由守卫、启动时恢复会话、登出、`userId` / `roles` / `permissions` 经 `HostGlobalState` 下发，以及第一个消费方 `platform-admin`（按钮级权限）。端到端验证：`node scripts/verify-portal-auth.mjs`（登录态链路）与 `node scripts/verify-admin-permissions.mjs`（两种身份的按钮差异 + 真实增删）。**尚缺**：401 掉线在真实后端下的恢复演练（单测已覆盖）、组织 / 角色 / 用户组 / 资源的管理接口（后端未做）与页面级权限过滤
 - **被基座加载时，子应用的 React 组件级热更新不生效**（样式热更新、以及子应用单独跑时的组件热更新都正常）。根因未定位，当前工作方式是改子应用组件时单独跑该子应用。详见 `docs/decisions/0012` 的「已知限制」
 - 微前端**生产部署**尚未落地：现在只有 dev（`//localhost:<port>`）与占位 `prodEntry`，真实静态目录与网关规则需要与部署方案一起定
 - 子应用的**样式隔离**当前没有保障（Vite dev 下框架级隔离拿不到），靠各应用自己的命名与 Less 令牌自律
