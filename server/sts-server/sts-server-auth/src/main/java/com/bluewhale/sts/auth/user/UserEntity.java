@@ -70,6 +70,16 @@ public class UserEntity extends BaseEntity {
 
     private String lockReason;
 
+    /**
+     * 连续失败被锁定的"层级"，用于指数退避计算：第 n 次被锁定时长为
+     * {@code lockDuration × lockGrowthFactor^(n-1)}，封顶 {@code maxLockDuration}。
+     *
+     * <p>与 {@link #failedAttempts} 分工明确：后者是"这次累计错了几次"（每触发一次锁定后清零），
+     * 前者是"历史上被锁过几次"（只有登录成功才清零）。只靠 failedAttempts 无法表达
+     * "第几次被锁" —— 这正是固定时长与退避时长的唯一分别。
+     */
+    private Integer lockLevel;
+
     private Long lastLoginAt;
 
     private String avatarUrl;

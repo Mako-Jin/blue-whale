@@ -35,6 +35,14 @@ public enum AuthResultCode {
     PARAM_INVALID(40001, "请求参数不合法"),
     /** 必填关联数据不存在（如引用了不存在的父级） */
     PARAM_REFERENCE_MISSING(40002, "引用的关联数据不存在"),
+    /**
+     * 口令不满足强度策略。
+     *
+     * <p>归入 400 而非 401：它说的是"这次请求带的口令不合规"，
+     * 属调用方要改的东西，与"凭证对不对"（401）是两码事。
+     * 具体缺哪几项由 {@code PasswordPolicy.describe()} 动态拼进文案 —— 见 {@code UserService}。
+     */
+    PASSWORD_POLICY_VIOLATION(40003, "口令强度不足"),
 
     // ===== 401xx 认证 =====
     /** 用户名或密码错误 —— **刻意不区分"用户不存在"与"密码错误"**，避免账号枚举 */
@@ -86,7 +94,15 @@ public enum AuthResultCode {
     USER_GROUP_NAME_EXISTS(40911, "用户组名称已存在"),
     RESOURCE_CODE_EXISTS(40912, "资源标识已存在"),
     /** 父子关系成环（把节点挂到自己的后代下） */
-    HIERARCHY_CYCLE(40913, "层级关系不合法");
+    HIERARCHY_CYCLE(40913, "层级关系不合法"),
+    /**
+     * 新口令与"当前口令"或"最近若干个历史口令"重复。
+     *
+     * <p>归入 409（冲突）而不是 400：口令本身完全合法，只是与已用过的撞了。
+     * 这是"状态冲突"，不是"形态错误"—— 前端据此提示"请换一个没用过的口令"，
+     * 而不是"请检查口令格式"。
+     */
+    PASSWORD_REUSED(40914, "该口令已使用过，请更换");
 
     private final int code;
     private final String message;

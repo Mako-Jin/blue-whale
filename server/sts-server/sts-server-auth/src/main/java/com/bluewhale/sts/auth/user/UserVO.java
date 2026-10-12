@@ -38,6 +38,12 @@ public class UserVO {
     @Schema(description = "锁定至（毫秒），null 表示未锁定")
     private Long lockedUntil;
 
+    @Schema(description = "锁定原因，null 表示未锁定")
+    private String lockReason;
+
+    @Schema(description = "累计锁定次数：每触发一次锁定加一，登录成功归零。退避时长由它决定")
+    private Integer lockLevel;
+
     private Long lastLoginAt;
 
     @Schema(description = "是否启用多因子：0 否 1 是")

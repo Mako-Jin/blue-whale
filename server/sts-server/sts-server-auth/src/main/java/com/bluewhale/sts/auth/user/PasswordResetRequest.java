@@ -9,8 +9,9 @@ import jakarta.validation.constraints.Size;
 public class PasswordResetRequest {
 
     @NotBlank(message = "新口令不能为空")
-    @Size(min = 8, max = 128, message = "口令长度须在 8~128 之间")
-    @Schema(description = "新口令")
+    // 同 UserSaveRequest：长度下限与字符类别由服务端口令策略判定，这里只挡超长输入
+    @Size(max = 128, message = "口令不能超过 128 字")
+    @Schema(description = "新口令。长度下限与字符类别由服务端的口令策略判定，故此处不固定 minLength")
     private String password;
 
     public String getPassword() {

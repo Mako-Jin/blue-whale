@@ -431,7 +431,7 @@ export interface components {
       /** Format: email */
       email?: string;
       phone?: string;
-      /** @description 口令。**新增时必填**；修改时留空表示不改口令 */
+      /** @description 口令。**新增时必填**；修改时留空表示不改口令。长度下限与字符类别由服务端的口令策略判定，故此处不固定 minLength */
       password?: string;
       /** @description 状态：ENABLED / DISABLED，缺省 ENABLED */
       status?: string;
@@ -465,6 +465,13 @@ export interface components {
        * @description 锁定至（毫秒），null 表示未锁定
        */
       lockedUntil?: number;
+      /** @description 锁定原因，null 表示未锁定 */
+      lockReason?: string;
+      /**
+       * Format: int32
+       * @description 累计锁定次数：每触发一次锁定加一，登录成功归零。退避时长由它决定
+       */
+      lockLevel?: number;
       /** Format: int64 */
       lastLoginAt?: number;
       /**
@@ -691,7 +698,7 @@ export interface components {
     };
     /** @description 重置口令入参 */
     PasswordResetRequest: {
-      /** @description 新口令 */
+      /** @description 新口令。长度下限与字符类别由服务端的口令策略判定，故此处不固定 minLength */
       password: string;
     };
     RVoid: {

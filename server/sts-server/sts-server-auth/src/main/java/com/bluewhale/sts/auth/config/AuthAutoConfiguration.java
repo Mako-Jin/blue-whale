@@ -6,6 +6,8 @@ import com.bluewhale.sts.auth.authz.PermissionChecker;
 import com.bluewhale.sts.auth.authentication.AuthTokenFilter;
 import com.bluewhale.sts.auth.authentication.DefaultAdminSeeder;
 import com.bluewhale.sts.auth.common.AuthProperties;
+import com.bluewhale.sts.auth.common.LoginLockPolicy;
+import com.bluewhale.sts.auth.common.PasswordPolicy;
 import com.bluewhale.sts.auth.common.codec.JwtCodec;
 import com.bluewhale.sts.auth.common.codec.PasswordHasher;
 import com.bluewhale.sts.auth.relation.RelRoleMemberMapper;
@@ -57,6 +59,20 @@ public class AuthAutoConfiguration {
     @ConditionalOnMissingBean
     public PasswordHasher passwordHasher(AuthProperties properties) {
         return new PasswordHasher(properties);
+    }
+
+    /** 口令强度策略。无状态、纯函数式，供用户管理与认证两处共用 */
+    @Bean
+    @ConditionalOnMissingBean
+    public PasswordPolicy passwordPolicy(AuthProperties properties) {
+        return new PasswordPolicy(properties);
+    }
+
+    /** 登录锁定与退避策略。同样无状态，把"锁多久"的算术从 AuthService 里挪出来以便单独测 */
+    @Bean
+    @ConditionalOnMissingBean
+    public LoginLockPolicy loginLockPolicy(AuthProperties properties) {
+        return new LoginLockPolicy(properties);
     }
 
     /** 审计字段自动填充 */

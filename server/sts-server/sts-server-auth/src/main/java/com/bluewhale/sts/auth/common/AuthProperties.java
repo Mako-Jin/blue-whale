@@ -66,6 +66,37 @@ public class AuthProperties {
 
         /** 盐长度（字节） */
         private int saltLengthBytes = 16;
+
+        // ===== 口令强度策略（{@link PasswordPolicy} 逐条读取）=====
+        //
+        // 这些项属于 ADR-0003 所说的"业务运行期配置"：改了不用重新编译、不用迁移存量，
+        // 存量口令只在下次改密时按新规则校验（**不会**因此失效，也不强制重置）。
+        //
+        // **默认值刻意偏保守**：长度 8 + 三类字符。更严的规则（要求特殊字符、
+        // 禁止重用历史口令）是最容易让用户把口令写在便签上的那类要求，
+        // 应当由部署方按自己的合规基线显式打开，而不是由框架替它决定。
+
+        /** 口令最小长度 */
+        private int minLength = 8;
+
+        /** 是否必须包含大写字母 */
+        private boolean requireUppercase = true;
+
+        /** 是否必须包含小写字母 */
+        private boolean requireLowercase = true;
+
+        /** 是否必须包含数字 */
+        private boolean requireDigit = true;
+
+        /** 是否必须包含特殊字符（非字母、非数字） */
+        private boolean requireSpecial = false;
+
+        /**
+         * 保留多少个历史口令禁止重用；{@code 0} 关闭该检查。
+         *
+         * <p>只对新设口令校验收，**不追溯存量**：开启此开关不会让任何既有账号失效。
+         */
+        private int historyCount = 5;
     }
 
     @Getter
@@ -75,8 +106,27 @@ public class AuthProperties {
         /** 连续失败多少次后锁定账号 */
         private int maxFailedAttempts = 5;
 
-        /** 锁定时长 */
-        private Duration lockDuration = Duration.ofMinutes(15);
+        /**
+         * **首次**锁定的时长。
+         *
+         * <p>它同时是指数退避的基数：第 n 次被锁定时长为
+         * {@code lockDuration × lockGrowthFactor^(n-1)}，并以 {@link #maxLockDuration} 封顶。
+         */
+        private Duration lockDuration = Duration.ofMinutes(5);
+
+        /**
+         * 每再被锁定一次，时长乘以此因子。
+         *
+         * <p><b>为什么不是固定时长：</b>固定时长对攻击者是"恒定的重试预算" ——
+         * 每 15 分钟来 5 次，成本不随次数上升。退避让持续攻击的代价指数增长
+         * （5 / 10 / 20 / 40 / 80 分钟…），而偶尔打错口令的合法用户第一次只需等 5 分钟。
+         *
+         * <p>设为 {@code 1.0} 即退化为固定时长（等同旧行为）。
+         */
+        private double lockGrowthFactor = 2.0;
+
+        /** 退避时长的上限。达到后不再增长 */
+        private Duration maxLockDuration = Duration.ofHours(24);
     }
 
     /**

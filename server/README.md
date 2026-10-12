@@ -210,6 +210,11 @@ com.bluewhale.sts.log                    ← sts-server-log，包名用业务域
 | **先验口令、再透露账号状态**                                       | 锁定 / 停用等提示只在口令正确后给出，否则同样构成信息泄露                                                                               |
 | **认证（401）与授权（403）分开**                                   | 前端据此决定"跳登录页"还是"提示无权限"                                                                                                  |
 | **刷新令牌只存摘要 + 轮换 + 重放检测**                             | 已作废的 jti 被再次使用即视为泄露，撤销该用户全部刷新令牌                                                                               |
+| **口令强度只有一个来源**：`PasswordPolicy`（DTO 不再判 `min`）     | 两处都判会让"口令太短"返回两种错误码；提示语只能来自 `describe()`，配置改了它跟着改（`decisions/0020`）                                  |
+| **口令不得与当前或最近 N 条历史重复**（`40914`）                   | 历史存"被替换下来的旧口令"（append-only，**不继承 `BaseEntity`**），但校验时**当前值也要比** —— 否则"重置回原口令"会静默成功             |
+| **登录锁定按指数退避**：第 n 次 `5 × 2^(n-1)` 分钟、封顶 24 小时   | 固定时长等于给攻击者一个恒定的重试预算（每 15 分钟来 5 次，成本不随次数上升）；`lock_level` 记"被锁过几次"，只有登录成功才清零          |
+| **失败计数必须独立事务**（`LoginAttemptRecorder`，`REQUIRES_NEW`） | 登录失败抛 `BusinessException` 会回滚整个登录事务 —— 计数写在同一事务里就一起消失，**锁定永不生效**。这是 `decisions/0020` 修掉的一处静默缺陷 |
+| **锁定状态必须出参可见**（`lockedUntil` / `lockReason` / `lockLevel`） | 只落库不暴露时，运维看到"锁定至明天"却不知道原因、也不知道是第几次，**无从判断退避在不在生效**                                           |
 | **认证上下文只有一套**（`AuthContext`），且由过滤器 `finally` 清理 | 参照实现有两套同名上下文（一套是空实现）；不清理 ThreadLocal 会在复用线程上串号                                                         |
 | **鉴权入口只有一处**：`@RequiresPermission` + `AuthInterceptor`    | 判定逻辑散落时，漏洞往往出在"某个接口只查了是否登录"的那一处                                                                            |
 | **`jwt.secret` 生产必须用环境变量覆盖**（`BW_JWT_SECRET`）         | 配置里的默认值是**只给本地开发用的占位符**，而且已进版本库 ⇒ 对全世界公开。它属密钥级配置（`docs/decisions/0003`），HS512 建议 ≥64 字节 |
@@ -217,6 +222,10 @@ com.bluewhale.sts.log                    ← sts-server-log，包名用业务域
 > **未做**：组织 / 角色 / 用户组 / 资源的管理接口（表与实体已落地）、数据权限判定、时态授权过滤、
 > 验证码 / 短信 / 多因子、网关侧令牌校验。逐项见 `docs/decisions/0016` 末节。
 > （原先列的"行为审计"已于 2026-10-12 落地，但**不在权限域** —— 见 `docs/decisions/0019`。）
+>
+> **口令与登录的第二批加固**（强度策略、防重用、指数退避锁定）已于 2026-10-12 落地，
+> 见 `docs/decisions/0020`。仍未做的是：**用户自助改密接口**（故防重用目前只在管理员重置路径上生效）、
+> 弱口令字典、口令过期后的改密引导。
 
 ---
 
@@ -238,7 +247,7 @@ com.bluewhale.sts.log                    ← sts-server-log，包名用业务域
 cd server
 
 mvn clean install -DskipTests                      # 构建全部模块
-mvn clean install                                  # 含测试（当前 80 例）
+mvn clean install                                  # 含测试（当前 97 例）
 
 # 启动应用（在 server/ 目录下执行，需要 JDK 21）—— 默认走 h2，零外部依赖
 java -jar sts-app/sts-app-server/target/sts-app-server-0.0.1-SNAPSHOT.jar
@@ -292,7 +301,10 @@ sts-server-track/src/main/resources/db/migration/
 sts-server-auth/src/main/resources/db/migration/
 ├── h2/V3__create_bw_auth_tables.sql      身份 / 访问控制 / 会话共 12 张表
 ├── mysql/V3__create_bw_auth_tables.sql
-└── dameng/V3__create_bw_auth_tables.sql
+├── dameng/V3__create_bw_auth_tables.sql
+├── h2/V5__add_lock_level_and_password_history.sql     锁定层级列 + 口令历史表
+├── mysql/V5__add_lock_level_and_password_history.sql
+└── dameng/V5__add_lock_level_and_password_history.sql
 
 sts-server-audit/src/main/resources/db/migration/
 ├── h2/V4__create_bw_audit_log.sql        审计流水表 + 5 个索引

@@ -25,7 +25,7 @@
     "README.md"
   ],
   "scripts": {
-    "gen:api": "openapi-typescript ../../../docs/api/openapi.json -o src/generated/schema.d.ts",
+    "gen:api": "openapi-typescript ../../../docs/api/openapi.json -o src/generated/schema.d.ts && prettier --write src/generated/schema.d.ts",
     "build": "tsc --noEmit",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",

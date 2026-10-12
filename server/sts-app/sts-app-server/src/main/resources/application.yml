@@ -78,9 +78,25 @@ bluewhale:
       refresh-ttl: 7d
     password:
       iterations: 120000
+      # 口令强度策略。这几项是 ADR-0003 所说的"业务运行期配置"：
+      # 改它们不需要重新编译，也不迁移存量 —— 存量口令只在下次改密时按新规则校验。
+      # 更严的规则（require-special、history-count）刻意不默认打开，
+      # 因为它们是最容易让用户把口令写在便签上的那类要求。
+      min-length: 8
+      require-uppercase: true
+      require-lowercase: true
+      require-digit: true
+      require-special: false
+      history-count: 5
     login:
       max-failed-attempts: 5
-      lock-duration: 15m
+      # 锁定采用指数退避：第 n 次被锁定 5 × 2^(n-1) 分钟，封顶 24 小时。
+      # 旧值是固定 15 分钟 —— 那等于给攻击者一个恒定的重试预算（每 15 分钟来 5 次，
+      # 成本不随次数上升）；退避让持续攻击的代价指数增长，
+      # 而偶尔打错口令的合法用户第一次只需等 5 分钟。
+      lock-duration: 5m
+      lock-growth-factor: 2.0
+      max-lock-duration: 24h
 
 # -----------------------------------------------------------------------------
 # 接口文档：/v3/api-docs 是契约的产出源，scripts/export-openapi.sh 从这里取。

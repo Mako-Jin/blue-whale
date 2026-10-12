@@ -54,6 +54,7 @@ public class AuthService {
     private final PermissionChecker permissionChecker;
     private final JwtCodec jwtCodec;
     private final PasswordHasher passwordHasher;
+    private final LoginAttemptRecorder loginAttemptRecorder;
     private final AuthProperties properties;
 
     public AuthService(TenantMapper tenantMapper,
@@ -62,6 +63,7 @@ public class AuthService {
                        PermissionChecker permissionChecker,
                        JwtCodec jwtCodec,
                        PasswordHasher passwordHasher,
+                       LoginAttemptRecorder loginAttemptRecorder,
                        AuthProperties properties) {
         this.tenantMapper = tenantMapper;
         this.userMapper = userMapper;
@@ -69,6 +71,7 @@ public class AuthService {
         this.permissionChecker = permissionChecker;
         this.jwtCodec = jwtCodec;
         this.passwordHasher = passwordHasher;
+        this.loginAttemptRecorder = loginAttemptRecorder;
         this.properties = properties;
     }
 
@@ -92,7 +95,7 @@ public class AuthService {
 
         // 口令正确之前，一概不透露账号状态
         if (!passwordHasher.matches(request.getPassword(), user.getPasswordHash())) {
-            registerFailure(user, now);
+            recordFailure(user.getId(), now);
             throw AuthResultCode.BAD_CREDENTIALS.businessException();
         }
 
@@ -110,6 +113,10 @@ public class AuthService {
         user.setFailedAttempts(0);
         user.setLockedUntil(null);
         user.setLockReason(null);
+        // 登录成功即视为"账号恢复正常"：退避层级归零，下次再连续失败时从 5 分钟重新开始。
+        // 不归零的后果是"一次误操作会被永久记住"—— 合法用户改一次口令错几次，
+        // 之后每次触发锁定都从很长的时长起算，而他已经证明了自己是本人。
+        user.setLockLevel(0);
         user.setLastLoginAt(now);
         // 存储参数落后于当前配置时，趁登录拿到明文口令的机会顺带升级哈希
         if (passwordHasher.needsRehash(user.getPasswordHash())) {
@@ -265,15 +272,19 @@ public class AuthService {
         return vo;
     }
 
-    private void registerFailure(UserEntity user, long now) {
-        int attempts = (user.getFailedAttempts() == null ? 0 : user.getFailedAttempts()) + 1;
-        user.setFailedAttempts(attempts);
-        if (attempts >= properties.getLogin().getMaxFailedAttempts()) {
-            user.setLockedUntil(now + properties.getLogin().getLockDuration().toMillis());
-            user.setLockReason("连续登录失败 " + attempts + " 次");
-            log.warn("账号因连续登录失败被锁定 | userId={} | attempts={}", user.getId(), attempts);
+    /**
+     * 记录一次失败（独立事务，见 {@link LoginAttemptRecorder}）。
+     *
+     * <p><b>这里必须吞掉它抛出的异常：</b>它的失败意味着"这次没记上失败次数"，
+     * 但那不该把"口令错误"这个正常结论变成 500 —— 用户看到的应该是 40101。
+     * 退化的后果是"锁定暂时不生效"，比"登录接口因为计数写不进去而全面报错"轻得多。
+     */
+    private void recordFailure(Long userId, long now) {
+        try {
+            loginAttemptRecorder.recordFailure(userId, now);
+        } catch (RuntimeException ex) {
+            log.warn("记录登录失败次数时出错，本次不计数 | userId={} | message={}", userId, ex.getMessage());
         }
-        userMapper.updateById(user);
     }
 
     private void revokeAllForUser(Long userId, long now) {

@@ -298,6 +298,15 @@ cd .. && bash scripts/export-openapi.sh
 cd web && pnpm --filter common-api gen:api
 ```
 
+> `gen:api` **末尾挂了 `prettier --write`，不要把它去掉**。
+> `openapi-typescript` 的输出是 4 空格缩进 + 双引号，而入库的是 Prettier 归一后的样子
+> （2 空格 + 单引号，见根 `.prettierrc.json`）—— 两者不一致时，
+> 即使契约只改了一个字段，`git diff` 也会是**整文件重排**（约 1800 行增删），
+> 真正的那一处改动被淹没在里面，评审时看不出来。
+> 这个坑踩过两次：每次都是生成后手工补一次 Prettier 才把 diff 收敛回几行。
+> 之所以在脚本里做而不是靠提交时的 lint-staged：lint-staged 只在 `git commit` 那一刻生效，
+> 而"生成完先看一眼 diff"发生在提交之前 —— 那时看到的应该是最终形态。
+
 ### 类型守卫
 
 `tests/log.test.ts` 里对**易退化的字段**做类型断言：
