@@ -49,10 +49,12 @@ import java.util.stream.Collectors;
  *       把一次授权变成静默的拒绝。详见 {@link #grant}。</li>
  * </ul>
  *
- * <p><b>不做"给用户授角色"。</b>那是角色成员关系（{@code bw_auth_rel_role_member}），
- * 与用户组、组织一起构成另一件事。本类只回答"这个角色有哪些权限"，
- * 不回答"谁有这个角色"。测试里为了验证判定链路而直接写了一条成员关系，
- * 那是测试的取巧，不是接口的一部分。
+ * <p><b>"谁有这个角色"不在本类。</b>那是角色成员关系
+ * （{@code bw_auth_rel_role_member}），落在 {@link RoleMemberService} 里 ——
+ * 它与本类共用一张"角色"但没有任何共同逻辑：本类只回答"这个角色有哪些权限"，
+ * 不回答"谁有这个角色"。两者在 {@code RoleController} 上是同一个 URI 下的
+ * {@code /resources} 与 {@code /members} 两段，边界与 {@code /resources} 与
+ * {@code /members} 的划分一致。
  */
 @Service
 public class RoleService {
@@ -133,10 +135,14 @@ public class RoleService {
      * 第一次出现的时间，而"删过又建回来"在审计里本就是两条独立记录。
      *
      * <p><b>复活出来的一定是一个空角色。</b>除了角色行本身，还会把该角色名下
-     * 残留的有效授权一并逻辑删除。理由：{@link #delete} 已经会清掉授权，
-     * 这里再清一次是为了让"复活 = 没有权限"成为**无条件**成立的语义 ——
-     * 否则如果某行角色是被直接改库删掉的（授权行还在），复活会**静默恢复**一批权限，
+     * 残留的有效授权**与成员关系**一并逻辑删除。"复活 = 没有权限、也没有人持有"
+     * 因此成为**无条件**成立的语义 —— 否则如果某行角色是被直接改库删掉的
+     * （关系行还在），复活会**静默恢复**一批权限，或者让一批人忽然重新拿到这个角色，
      * 而调用方以为自己只是新建了一个同名的空角色。
+     *
+     * <p>成员关系这一条是后补的：{@link #delete} 在有成员时会拒绝删除（{@code 40916}），
+     * 所以正常路径下软删的角色本不该还有有效成员行。但"复活"要防的正是**非正常路径** ——
+     * 这一层保护的存在意义就是让语义不依赖"别的代码都写对了"。
      */
     @Transactional
     public RoleVO create(RoleSaveRequest request) {
@@ -160,6 +166,7 @@ public class RoleService {
             // 留着 1 会把刚恢复的那行当场再删一次（影响 0 行、不报错）
             entity.setDeleted(0);
             clearGrantsOf(entity.getId());
+            clearMembersOf(entity.getId());
         } else {
             entity = new RoleEntity();
             entity.setRoleCode(roleCode);
@@ -539,6 +546,22 @@ public class RoleService {
     private void clearGrantsOf(Long roleId) {
         relRoleResourceMapper.delete(Wrappers.<RelRoleResourceEntity>lambdaQuery()
                 .eq(RelRoleResourceEntity::getRoleId, roleId));
+    }
+
+    /**
+     * 撤销该角色名下全部成员关系。
+     *
+     * <p>目前只有一个调用点：{@link #create} 的复活分支。它的存在是为了让
+     * "复活 = 一个没人持有、也没有权限的角色"无条件成立 —— 见那里的注释。
+     *
+     * <p>与 {@link #clearGrantsOf} 同形：{@code delete(wrapper)} 认 {@code @TableLogic}，
+     * 翻成 {@code UPDATE ... SET deleted = 1 WHERE deleted = 0}，就地软删、不物理删除。
+     * 之所以要"就地"，是因为"这个人曾经被授过这个角色、后来被解除"本身就是审计要回答的问题，
+     * 物理删掉它就等于把历史抹了。
+     */
+    private void clearMembersOf(Long roleId) {
+        relRoleMemberMapper.delete(Wrappers.<RelRoleMemberEntity>lambdaQuery()
+                .eq(RelRoleMemberEntity::getRoleId, roleId));
     }
 
     /**

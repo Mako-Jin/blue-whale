@@ -256,6 +256,30 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/auth/roles/{id}/members': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * 分页查询角色成员
+     * @description 可按 memberType 过滤；成员名跨两张表解析，因此不提供按名搜索
+     */
+    get: operations['pageMembers'];
+    put?: never;
+    /**
+     * 给角色授予成员
+     * @description memberType 必填（USER / GROUP）；同一个角色与成员只保留一条有效关系，重复调用会改时间窗而不是堆行
+     */
+    post: operations['bindMember'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/auth/resources': {
     parameters: {
       query?: never;
@@ -566,6 +590,26 @@ export interface paths {
      * @description 从未授予过的资源返回 40407，不与撤销成功混淆
      */
     delete: operations['revoke'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/auth/roles/{id}/members/{memberType}/{memberId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * 解除角色的成员关系
+     * @description memberType 取 USER / GROUP；从未授过的成员返回 40408，不与解除成功混淆
+     */
+    delete: operations['revokeMember'];
     options?: never;
     head?: never;
     patch?: never;
@@ -1142,6 +1186,74 @@ export interface components {
        */
       createTime?: number;
     };
+    /** @description 角色成员关系入参 */
+    RoleMemberBindRequest: {
+      /**
+       * @description 成员类型：USER 用户 / GROUP 用户组。**必填，不给默认值** —— 默认 USER 会让漏填的类型悄悄授给一个同号用户
+       * @example USER
+       */
+      memberType: string;
+      /**
+       * Format: int64
+       * @description 成员主键（用户主键或用户组主键，由 memberType 决定）
+       * @example 1
+       */
+      memberId: number;
+      /**
+       * Format: int64
+       * @description 生效起始时间（毫秒时间戳），不传表示立即生效
+       */
+      effectiveFrom?: number;
+      /**
+       * Format: int64
+       * @description 生效结束时间（毫秒时间戳），不传表示长期有效
+       */
+      effectiveTo?: number;
+    };
+    RRoleMemberVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['RoleMemberVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    /** @description 角色成员关系 */
+    RoleMemberVO: {
+      /**
+       * Format: int64
+       * @description 成员关系主键，撤销时用它
+       */
+      grantId?: number;
+      /** @description 成员类型：USER / GROUP */
+      memberType?: string;
+      /** @description 成员类型的中文名，供界面直接展示（用户 / 用户组） */
+      memberTypeLabel?: string;
+      /**
+       * Format: int64
+       * @description 成员主键（用户主键或用户组主键）
+       */
+      memberId?: number;
+      /** @description 成员名称：用户取 displayName（为空则回退 username），用户组取 groupName。成员已不存在时为 null —— 多态表没有外键，这种情况是可能的，且应当被看见 */
+      memberName?: string;
+      /**
+       * Format: int64
+       * @description 生效起始时间（毫秒时间戳），null 表示立即生效
+       */
+      effectiveFrom?: number;
+      /**
+       * Format: int64
+       * @description 生效结束时间（毫秒时间戳），null 表示长期有效
+       */
+      effectiveTo?: number;
+      /** @description 此刻是否落在生效区间内。false 表示尚未生效或已过期 */
+      effectiveNow?: boolean;
+      /**
+       * Format: int64
+       * @description 成员关系建立时间（毫秒时间戳）
+       */
+      createTime?: number;
+    };
     RefreshRequest: {
       /** @description 刷新令牌 */
       refreshToken: string;
@@ -1492,6 +1604,25 @@ export interface components {
       code?: number;
       message?: string;
       data?: components['schemas']['RoleResourceVO'][];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    PageResultRoleMemberVO: {
+      records?: components['schemas']['RoleMemberVO'][];
+      /** Format: int64 */
+      total?: number;
+      /** Format: int64 */
+      page?: number;
+      /** Format: int64 */
+      size?: number;
+      /** Format: int64 */
+      pages?: number;
+    };
+    RPageResultRoleMemberVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PageResultRoleMemberVO'];
       /** Format: int64 */
       timestamp?: number;
     };
@@ -2348,6 +2479,61 @@ export interface operations {
       };
     };
   };
+  pageMembers: {
+    parameters: {
+      query?: {
+        /** @description 成员类型：USER / GROUP，不传表示全部 */
+        memberType?: string;
+        page?: number;
+        size?: number;
+      };
+      header?: never;
+      path: {
+        /** @description 角色主键 */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RPageResultRoleMemberVO'];
+        };
+      };
+    };
+  };
+  bindMember: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 角色主键 */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RoleMemberBindRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RRoleMemberVO'];
+        };
+      };
+    };
+  };
   page_5: {
     parameters: {
       query?: {
@@ -2758,6 +2944,33 @@ export interface operations {
         id: number;
         /** @description 资源主键 */
         resourceId: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RVoid'];
+        };
+      };
+    };
+  };
+  revokeMember: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 角色主键 */
+        id: number;
+        /** @description 成员类型：USER / GROUP */
+        memberType: string;
+        /** @description 成员主键 */
+        memberId: number;
       };
       cookie?: never;
     };

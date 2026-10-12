@@ -15,7 +15,7 @@
 - **e2e** CDP 求值须容忍"求值那刻在导航"→ 重试 · **浏览器侧报错必须让脚本非零退出**（子应用没起时 qiankun 抛 `Failed to fetch`，每步仍能读出 `undefined` 往下走）· 基座有登录守卫，脚本**必须先真实登录**
 
 ## 3 ADR 索引
-0001 架构基线 · 0002 公共包治理 · 0003 配置分域 · 0004 日志上报 · 0005 后端模块划分 · 0006 契约生成消费 · 0007 请求分层 · 0008 Boot4/JDK21 · 0009 多数据源与 Flyway · 0010 达梦 DM8 · 0011 行为事件 · 0012 微前端 · 0013 WebGL 生命周期 · 0014 多场景 · 0015 场景交互 · 0016 权限域服务 · 0017 大气与天气 · 0018 权限归属 · 0019 审计日志管道 · 0020 口令与登录安全加固 · 0021 资源目录接口与权限码登记约束 · 0022 角色管理与角色资源授权
+0001 架构基线 · 0002 公共包治理 · 0003 配置分域 · 0004 日志上报 · 0005 后端模块划分 · 0006 契约生成消费 · 0007 请求分层 · 0008 Boot4/JDK21 · 0009 多数据源与 Flyway · 0010 达梦 DM8 · 0011 行为事件 · 0012 微前端 · 0013 WebGL 生命周期 · 0014 多场景 · 0015 场景交互 · 0016 权限域服务 · 0017 大气与天气 · 0018 权限归属 · 0019 审计日志管道 · 0020 口令与登录安全加固 · 0021 资源目录接口与权限码登记约束 · 0022 角色管理与角色资源授权 · 0023 角色成员关系
 
 ## 4 技术栈 / 结构
 React19+Vite8+TS**6.0.3**(7.x 不被 typescript-eslint 支持)+Router7；qiankun2；pnpm+Turborepo；Less；ESLint10/Prettier3/Stylelint17/Husky/lint-staged/Vitest5。后端 Java21+Boot4.1.1+MP3.5.17；OpenAPI 3.1。
@@ -29,15 +29,18 @@ React19+Vite8+TS**6.0.3**(7.x 不被 typescript-eslint 支持)+Router7；qiankun
 - **切库必踩** `flyway-mysql` 须显式引（Flyway 10 起 DB 支持模块化，core 只内置 H2/SQLite）· `mysql-connector-j` runtime 放 `sts-app-server` · 达梦 `DmJdbcDriver18` 由 `sts-parent` 收口 · 真实库**不自动种账号**（显式开 `seed-admin/seed-auditor.enabled=true`，幂等）
 - **MySQL 保留字** 避 `release/rank/groups/system/window`；只改列名没用（MP 见"列名≠属性名"补 `列名 AS 属性名`，别名照样 1064）→ 正解**属性名与列名同构**（`appRelease`→`app_release`）且**刻意不加 `@TableField`**。**达梦** MP 内置 `DbType.DM`；无官方 Flyway 模块 → `flyway.enabled=false` 走 `scripts/init-dameng.sh`；方言 `IDENTITY(1,1)`、**`VARCHAR(n CHAR)`**；保留字**两库不可互推**；**未用真实达梦实例验证过**
 - **权限域(0016/0020/0021)** 表 `bw_auth_*` 13 张；错误码 `40001~40915`；自研 HS512+PBKDF2、**不引 Spring Security**；入口 `@RequiresPermission`+`AuthInterceptor`+`PermissionChecker`；刷新令牌只存摘要+轮换+重放检测。坑：`AuthTokenFilter` 不可同时 `@Component` 又进 `FilterRegistrationBean`；`#{it.xxx}` 这类 OGNL 引用**编译器管不到**，改属性名后要全局搜
-- **管理接口** users / tenants / **resources** / **roles**（含角色资源授权）已落地；组织 · 用户组 · **角色成员关系**待补（表+实体+Mapper 都在，只缺 Controller/Service）
+- **管理接口** users / tenants / resources / roles（含资源授权）/ **roles/{id}/members**（含成员关系）已落地；组织 · 用户组 · **`/users/{id}/roles` 反查**待补（表+实体+Mapper 都在，只缺 Controller/Service）
 - **资源目录(0021)** `bw_auth_resource` 存**权限码**（三段 `auth:user:create`），非资源标识（两段 `auth:user`）。坑：①权限码**建后不可改**（旧授权静默失效）②`uk_bw_auth_resource_code` 建在 **`resource_code` 单列**不含 `deleted` → MP 查询加 `deleted=0` **看不见软删行** → 重建同码**撞键 → 兜底 50000** → 正解**复活**原记录 ③删除拒"有子资源 40913 / 被角色引用 40915" ④树对**孤儿与成环**降级平铺 ⑤**资源平台级**（`tenant_id` 留空）；`AuthorizationMapper` 只按 `ro.tenant_id` 过滤，**注释与 SQL 不一致**（记录未改）
 - **角色与授权(0022)** 表 `bw_auth_role` + `bw_auth_rel_role_resource`；授权挂在角色下（`/roles/{id}/resources`）。坑：①`uk_bw_auth_role_tenant_code` 建在 **(tenant_id, role_code)**、不含 `deleted` → 与资源目录同一个坑，正解**复活**（复活出来一定是**空角色**，否则旧授权静默回来）②**授权是 upsert 并清同键其余行**（表上无 (role_id, resource_id) 唯一索引）③删除三道拒绝：SYSTEM 角色 40917 / 有子角色 40913 / 有成员 40916；**自身授权一并撤销**（与"删资源被引用时拒绝"不是一回事）④SYSTEM 角色不可停用、**不可改分类**（改分类 = 先降级再删的绕过）⑤**判定侧三修**：DENY 跨角色优先（原 SQL 只滤"行"→ A 允许 + B 拒绝仍放行）、停用角色不再产生权限（漏了 `ro.status`）、时态 `effective_from/to` 进判定且**时间由调用方传而非 `NOW()`**
-- **⚠️ `updateById` 的 `NOT_NULL` 策略清不掉字段**（传 null 进不了 `SET`，影响 0 行且不报错）→ `parentId` 摘不回顶级、描述清不掉、**授权生效区间清不掉（重授权仍无权限）**。正解 `update(new Entity(), lambdaUpdate().eq(...).set(...))` 逐列显式 set；传**空实体**而非 null 才能让 `updateFill` 跑
+- **⚠️ `updateById` 的 `NOT_NULL` 策略清不掉字段**（传 null 进不了 `SET`，影响 0 行且不报错）→ `parentId` 摘不回顶级、描述清不掉、**授权生效区间/成员时间窗清不掉（重授权仍无权限）**。正解 `update(new Entity(), lambdaUpdate().eq(...).set(...))` 逐列显式 set；传**空实体**而非 null 才能让 `updateFill` 跑
+- **角色成员关系(0023)** 表 `bw_auth_rel_role_member`（多态 `member_type`=USER/GROUP）；`/roles/{id}/members` 三条。坑：①**撤销路径必须带 memberType**（`/members/{memberType}/{memberId}`）—— `member_id` 只在所指那张表有意义，两个自增序列**会撞号**，只用 id 会撤错对象而表现为"权限凭空消失" ②`memberType` **必填不给默认值**（默认 USER 会把漏填变成"悄悄授给同号用户"）③多态表**无外键** ⇒ 应用层保证存在性（40002）④**成员必须与角色同租户** —— 判定两侧都限 `tenant_id`，跨租户关系**永远匹配不上 = 静默不可达**，文案须点名租户 ⑤表上**无 (role_id, member_type, member_id) 唯一索引** → 同 upsert + 清同键其余行 ⑥成员列表**分页**但**不做按名搜索**（名字在另一张表，先解析再分页会让 total 失真）⑦`effectiveNow` **只表达时态**，不压入角色/成员状态（三个开关必须分别可见）⑧复用 `auth:role:update`（含**直接提权**路径：把自己加到 SUPER_ADMIN，与 `user:update` 含重置任意口令同性质），但**审计动作必须分开** `auth.role.grant_member`/`revoke_member` ⑨复活角色**一并清空成员关系**（与清授权同理，让"复活=没人持有也没权限"无条件成立）
+- **嵌套用户组在判定里只跳一层**（`AuthorizationMapper` 把 `gm.member_type` 钉成 `'USER'`），而 `MemberType`/实体注释**声称支持嵌套**（误导性注释，已在 `AuthorizationMapper` 写明）。补它要 `WITH RECURSIVE`（三套方言不一致、达梦未验证）→ 之前**嵌套组应由用户组接口显式拒绝**
+- **组链路与成员时态已在 0023 首次端到端验证**（用户 → 用户组 → 角色 → 资源；组-用户关系过期即失效）
 - **菜单权限还差两步**：资源表**没有 `MENU`/`PAGE` 行**（种子把 `ALL` 全建成 `API`）+ 基座导航没按权限过滤（`BasicLayout` 直接遍历 `MICRO_APPS`）
 - **append-only 事实表不继承 `BaseEntity`**：`RefreshTokenEntity`、`PasswordHistoryEntity` 是唯二例子
 
 ## 6 契约与请求（0006/0007）
-代码 → springdoc → `scripts/export-openapi.sh`(:18080) → `docs/api/openapi.json`（34 接口）→ `openapi-typescript` → `common-api/src/generated/schema.d.ts`（入库，提交前 Prettier）。`http` = 传输内核（不认业务接口）、`common-api` = 契约装配；收口解 `R<T>`、抛非 0 码、超时+取消合并一个 AbortController；六类错误 + `retryable`；**内核不自动重试**（幂等边界属业务语义）、**超时必须先于取消分类**（都是 abort 实现）
+代码 → springdoc → `scripts/export-openapi.sh`(:18080) → `docs/api/openapi.json`（45 接口 / 29 路径）→ `openapi-typescript` → `common-api/src/generated/schema.d.ts`（入库，提交前 Prettier）。`http` = 传输内核（不认业务接口）、`common-api` = 契约装配；收口解 `R<T>`、抛非 0 码、超时+取消合并一个 AbortController；六类错误 + `retryable`；**内核不自动重试**（幂等边界属业务语义）、**超时必须先于取消分类**（都是 abort 实现）
 - **强度类校验只能有一个来源**：DTO `@Size(min=)` 与后端策略并存 ⇒ 改配置冒两个错误码。`UserSaveRequest`/`PasswordResetRequest` 已去掉 `min`
 - 坑：`Object` 字段渲染成 `Record<string, never>` → `JsonValue` 只修正 `data`/`context`/`logs`
 

@@ -17,10 +17,6 @@
       "description": "接收前端上报的技术日志、查询与聚合；审计日志不走本接口"
     },
     {
-      "name": "角色",
-      "description": "角色的增删改查与角色资源授权"
-    },
-    {
       "name": "租户",
       "description": "租户的增删改查"
     },
@@ -43,6 +39,10 @@
     {
       "name": "认证",
       "description": "登录、登出、刷新令牌、当前用户"
+    },
+    {
+      "name": "角色",
+      "description": "角色的增删改查、角色资源授权与角色成员关系"
     },
     {
       "name": "客户端行为事件",
@@ -1200,6 +1200,110 @@
         }
       }
     },
+    "/api/auth/roles/{id}/members": {
+      "get": {
+        "tags": [
+          "角色"
+        ],
+        "summary": "分页查询角色成员",
+        "description": "可按 memberType 过滤；成员名跨两张表解析，因此不提供按名搜索",
+        "operationId": "pageMembers",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "角色主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "memberType",
+            "in": "query",
+            "description": "成员类型：USER / GROUP，不传表示全部",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "成员类型：USER / GROUP，不传表示全部"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RPageResultRoleMemberVO"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "角色"
+        ],
+        "summary": "给角色授予成员",
+        "description": "memberType 必填（USER / GROUP）；同一个角色与成员只保留一条有效关系，重复调用会改时间窗而不是堆行",
+        "operationId": "bindMember",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "角色主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleMemberBindRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RRoleMemberVO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/resources": {
       "get": {
         "tags": [
@@ -1933,6 +2037,59 @@
             "name": "resourceId",
             "in": "path",
             "description": "资源主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RVoid"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/roles/{id}/members/{memberType}/{memberId}": {
+      "delete": {
+        "tags": [
+          "角色"
+        ],
+        "summary": "解除角色的成员关系",
+        "description": "memberType 取 USER / GROUP；从未授过的成员返回 40408，不与解除成功混淆",
+        "operationId": "revokeMember",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "角色主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "memberType",
+            "in": "path",
+            "description": "成员类型：USER / GROUP",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "memberId",
+            "in": "path",
+            "description": "成员主键",
             "required": true,
             "schema": {
               "type": "integer",
@@ -2962,6 +3119,104 @@
           }
         }
       },
+      "RoleMemberBindRequest": {
+        "type": "object",
+        "description": "角色成员关系入参",
+        "properties": {
+          "memberType": {
+            "type": "string",
+            "description": "成员类型：USER 用户 / GROUP 用户组。**必填，不给默认值** —— 默认 USER 会让漏填的类型悄悄授给一个同号用户",
+            "example": "USER",
+            "minLength": 1
+          },
+          "memberId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "成员主键（用户主键或用户组主键，由 memberType 决定）",
+            "example": 1
+          },
+          "effectiveFrom": {
+            "type": "integer",
+            "format": "int64",
+            "description": "生效起始时间（毫秒时间戳），不传表示立即生效"
+          },
+          "effectiveTo": {
+            "type": "integer",
+            "format": "int64",
+            "description": "生效结束时间（毫秒时间戳），不传表示长期有效"
+          }
+        },
+        "required": [
+          "memberId",
+          "memberType"
+        ]
+      },
+      "RRoleMemberVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/RoleMemberVO"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "RoleMemberVO": {
+        "type": "object",
+        "description": "角色成员关系",
+        "properties": {
+          "grantId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "成员关系主键，撤销时用它"
+          },
+          "memberType": {
+            "type": "string",
+            "description": "成员类型：USER / GROUP"
+          },
+          "memberTypeLabel": {
+            "type": "string",
+            "description": "成员类型的中文名，供界面直接展示（用户 / 用户组）"
+          },
+          "memberId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "成员主键（用户主键或用户组主键）"
+          },
+          "memberName": {
+            "type": "string",
+            "description": "成员名称：用户取 displayName（为空则回退 username），用户组取 groupName。成员已不存在时为 null —— 多态表没有外键，这种情况是可能的，且应当被看见"
+          },
+          "effectiveFrom": {
+            "type": "integer",
+            "format": "int64",
+            "description": "生效起始时间（毫秒时间戳），null 表示立即生效"
+          },
+          "effectiveTo": {
+            "type": "integer",
+            "format": "int64",
+            "description": "生效结束时间（毫秒时间戳），null 表示长期有效"
+          },
+          "effectiveNow": {
+            "type": "boolean",
+            "description": "此刻是否落在生效区间内。false 表示尚未生效或已过期"
+          },
+          "createTime": {
+            "type": "integer",
+            "format": "int64",
+            "description": "成员关系建立时间（毫秒时间戳）"
+          }
+        }
+      },
       "RefreshRequest": {
         "type": "object",
         "properties": {
@@ -3681,6 +3936,52 @@
             "items": {
               "$ref": "#/components/schemas/RoleResourceVO"
             }
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "PageResultRoleMemberVO": {
+        "type": "object",
+        "properties": {
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoleMemberVO"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pages": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "RPageResultRoleMemberVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageResultRoleMemberVO"
           },
           "timestamp": {
             "type": "integer",

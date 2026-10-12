@@ -71,6 +71,22 @@ public final class AuthAuditActions {
     public static final String ROLE_REVOKE = "auth.role.revoke";
 
     /**
+     * 给角色增减成员（用户 / 用户组）—— 与上面两个"给角色增减资源"**必须分开**。
+     *
+     * <p>两者共用 {@code auth:role:update} 权限码，但动作完全不同，混在一起的后果比
+     * 上面那段注释说的更严重：{@code auth.role.grant} 回答的是"谁扩大了这个角色的权限范围"，
+     * 而这里回答的是"谁给了某个人这个角色"。后者是**更直接**的一次提权 ——
+     * 把资源授给角色，你得先持有那个角色才谈得上受益；把角色授给一个人，
+     * 受益者当下就换了。事后追责时"谁把 SUPER_ADMIN 授给了这个账号"是一个必须能
+     * 一条过滤直接命中的问题，让它藏在 {@code auth.role.grant} 里等于没记录。
+     *
+     * <p>命名沿用 {@code auth.user.reset_password} 的"动词_宾语"形状，
+     * 与 {@code auth.role.grant} / {@code auth.role.revoke} 靠宾语区分。
+     */
+    public static final String ROLE_MEMBER_GRANT = "auth.role.grant_member";
+    public static final String ROLE_MEMBER_REVOKE = "auth.role.revoke_member";
+
+    /**
      * 重置口令。
      *
      * <p>与 {@code user.update} 分开记而不是合并：重置口令是运维/管理员介入他人账号的动作，
