@@ -1,4 +1,4 @@
-import { createApiClient } from 'common-api';
+import { createApiClient, createConsoleAuth } from 'common-api';
 import type { ClientEventItem, ClientEventReportBody, ClientEventReportResult } from 'common-api';
 import { createTracker } from 'common-tools/events';
 import type { EventEnvelope, JsonObject } from 'common-tools';
@@ -42,7 +42,32 @@ function resolveDeviceId(): string {
 
 export const DEVICE_ID = resolveDeviceId();
 
-export const api = createApiClient();
+/**
+ * 认证端口。
+ *
+ * <p><b>本应用的查询接口都是要鉴权的</b>（`event:client:read`），因此必须带令牌；
+ * 上报接口是公开的，带不带都能成功。
+ * 令牌来源由 `createConsoleAuth` 统一决定：基座内用基座下发的认证能力，
+ * 独立运行时用自建会话（见 `common-api` 的 `console-auth`）。
+ *
+ * <p>凭据只在 `import.meta.env.DEV` 下用于独立运行的自动登录，生产构建不会启用。
+ */
+export const consoleAuth = createConsoleAuth({
+  name: 'event-console',
+  // 只有开发构建才允许自动登录；生产构建即便被独立部署也只会记一条错误日志
+  allowDevAutoLogin: import.meta.env.DEV,
+  devAccount: {
+    tenantCode: import.meta.env.VITE_DEV_TENANT_CODE ?? 'default',
+    username: import.meta.env.VITE_DEV_USERNAME ?? 'admin',
+    password: import.meta.env.VITE_DEV_PASSWORD ?? 'Admin@12345',
+  },
+});
+
+export const api = createApiClient({
+  // provider 是请求时求值，所以可以在 mount 之前就装配好
+  accessTokenProvider: () => consoleAuth.port.getAccessToken(),
+  onUnauthorized: () => consoleAuth.port.reauthenticate(),
+});
 
 /* ------------------------------------------------------- 屏蔽与脱敏中间件 */
 

@@ -8,6 +8,7 @@ import {
 import { bindHost, createLogger, unbindHost } from 'common-tools';
 import type { HostProps } from 'common-tools/micro';
 import App from './App';
+import { consoleAuth } from './events';
 import './styles/index.less';
 
 const APP_NAME = 'platform-event-console';
@@ -48,7 +49,9 @@ function destroy() {
  */
 if (!qiankunWindow.__POWERED_BY_QIANKUN__) {
   logger.info('以独立应用模式启动（未被基座加载）');
-  render();
+  // 先把会话准备好再渲染：服务端的查询接口要鉴权（event:client:read），
+  // 没有会话时会立刻拿到 40100。基座内调用 ensureSession 是空操作。
+  void consoleAuth.ensureSession().finally(() => render());
 }
 
 /**

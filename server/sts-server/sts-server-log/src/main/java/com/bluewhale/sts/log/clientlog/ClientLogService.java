@@ -3,6 +3,7 @@ package com.bluewhale.sts.log.clientlog;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bluewhale.sts.auth.context.AuthContextHolder;
 import com.bluewhale.sts.common.basic.enums.ResultCode;
 import com.bluewhale.sts.common.basic.exception.BusinessException;
 import com.bluewhale.sts.common.basic.model.PageResult;
@@ -27,6 +28,12 @@ import java.util.Map;
  * 成功还是拒绝）走另一条管道，且**权威来源必须是后端拦截器**：这些事实前端根本不知道
  * （前端不知道请求最终是否落库成功），而且客户端上报的内容不可信。
  * 详见 {@code docs/decisions/0004-前端日志上报架构.md}。
+ *
+ * <p><b>本服务承担租户隔离，而不是交给调用方（重要）：</b>
+ * 写入时归属取**服务端会话**，读取时租户条件由本服务**强制**加上。
+ * 调用方（Controller）没有任何办法关掉它 —— 没有"按调用方传来的租户查"这种入参。
+ * 理由与审计域同：一旦隔离是可选的，早晚会有一个查询忘记传，
+ * 而那种遗漏在单租户的测试里完全看不出来。见 {@code docs/decisions/0026}。
  */
 @Service
 public class ClientLogService {
@@ -68,6 +75,11 @@ public class ClientLogService {
      */
     public ClientLogReportResultVO report(ClientLogReportRequest request, String ip) {
         long serverTime = System.currentTimeMillis();
+        // 上报接口是公开的，因此这里**不能用 require()**：未登录时必须照常入库，
+        // 只是归属记为空。用 currentTenantId()（未认证返回 null）而不是先判断
+        // isAuthenticated() 再取 —— 两次读 ThreadLocal 之间没有任何东西能改变它，
+        // 但写成两步就多了一个"以后有人在中间插入逻辑"的缝隙。
+        Long tenantId = AuthContextHolder.currentTenantId();
         List<ClientLogEntity> entities = new ArrayList<>(request.getLogs().size());
         int rejected = 0;
 
@@ -79,6 +91,7 @@ public class ClientLogService {
             }
 
             ClientLogEntity entity = new ClientLogEntity();
+            entity.setTenantId(tenantId);
             entity.setApp(request.getApp());
             entity.setLevel(level.wireName());
             entity.setNamespace(truncate(item.getNamespace(), 255));
@@ -110,7 +123,7 @@ public class ClientLogService {
 
     @Transactional(readOnly = true)
     public PageResult<ClientLogVO> page(ClientLogQuery query) {
-        LambdaQueryWrapper<ClientLogEntity> wrapper = buildWrapper(query);
+        LambdaQueryWrapper<ClientLogEntity> wrapper = buildWrapper(query, visibleTenantId());
 
         Page<ClientLogEntity> page = clientLogMapper.selectPage(
                 new Page<>(query.getPage(), query.getSize()), wrapper);
@@ -119,10 +132,25 @@ public class ClientLogService {
         return PageResult.of(records, page.getTotal(), query.getPage(), query.getSize());
     }
 
+    /**
+     * 查询单条日志详情。
+     *
+     * <p><b>"不存在"与"不属于本租户"返回同一个 40401，不区分。</b>
+     * 区分二者（比如后者返 403）等于用错误码回答了一个本不该回答的问题：
+     * "这个 id 上真的有一条记录"。有一条记录与没有记录，
+     * 本身就是调用方不该知道的信息 —— 与审计详情、资源目录的处置一致。
+     *
+     * <p>先按主键查、再比对租户，而不是"带上租户条件去查"：
+     * 两者最终行为一样（都是查不到），但前者能让"这条记录确实存在、只是不给你看"
+     * 与"这条记录不存在"在**日志里**可区分（需要时可加一条 WARN），
+     * 而后者会把越权尝试伪装成一次普通的查不到，事后无法回溯。代价是多一次比对。
+     */
     @Transactional(readOnly = true)
     public ClientLogVO detail(long id) {
+        long tenantId = visibleTenantId();
         ClientLogEntity entity = clientLogMapper.selectById(id);
-        if (entity == null) {
+        if (entity == null || entity.getTenantId() == null
+                || entity.getTenantId().longValue() != tenantId) {
             throw new BusinessException(ResultCode.NOT_FOUND, "日志不存在或已被清理");
         }
         return toVO(entity);
@@ -145,6 +173,7 @@ public class ClientLogService {
         }
         List<ClientLogEntity> entities = clientLogMapper.selectList(
                 Wrappers.<ClientLogEntity>lambdaQuery()
+                        .eq(ClientLogEntity::getTenantId, visibleTenantId())
                         .eq(ClientLogEntity::getTraceId, traceId)
                         .orderByAsc(ClientLogEntity::getServerTime));
         return entities.stream().map(this::toVO).toList();
@@ -154,8 +183,10 @@ public class ClientLogService {
     public ClientLogStatsVO stats(ClientLogStatsQuery query) {
         long endTime = query.getEndTime() == null ? System.currentTimeMillis() : query.getEndTime();
         long startTime = query.getStartTime() == null ? endTime - DEFAULT_WINDOW_MILLIS : query.getStartTime();
+        long tenantId = visibleTenantId();
 
         LambdaQueryWrapper<ClientLogEntity> wrapper = Wrappers.<ClientLogEntity>lambdaQuery()
+                .eq(ClientLogEntity::getTenantId, tenantId)
                 .eq(hasText(query.getApp()), ClientLogEntity::getApp, query.getApp())
                 .ge(ClientLogEntity::getServerTime, startTime)
                 .le(ClientLogEntity::getServerTime, endTime);
@@ -163,7 +194,9 @@ public class ClientLogService {
         long total = clientLogMapper.selectCount(wrapper);
 
         Map<String, Long> counted = new HashMap<>();
-        for (ClientLogLevelCount row : clientLogMapper.countByLevel(query.getApp(), startTime, endTime)) {
+        // 聚合 SQL 的租户条件必须与上面这句 wrapper **写到同一处语义**：
+        // 只改上面、忘了这个手写 SQL，症状是"总数对、分布图是全库的"。
+        for (ClientLogLevelCount row : clientLogMapper.countByLevel(tenantId, query.getApp(), startTime, endTime)) {
             if (row.getLevel() != null) {
                 counted.put(row.getLevel().toLowerCase(Locale.ROOT),
                         row.getLevelCount() == null ? 0L : row.getLevelCount());
@@ -183,11 +216,27 @@ public class ClientLogService {
         return new ClientLogStatsVO(total, startTime, endTime, levels);
     }
 
-    private LambdaQueryWrapper<ClientLogEntity> buildWrapper(ClientLogQuery query) {
+    /**
+     * 当前请求可见的租户。
+     *
+     * <p><b>租户条件写成"恒定加上"，而不是 {@code eq(条件, 列, 值)} 那种可关的形式。</b>
+     * 可关的形式（比如"调用方传了租户才过滤"）留的是一个"忘记传就全量"的口子，
+     * 而它的失败方式是**多看到数据**：不报错、结果还更完整，只有跨租户比对时才看得出来。
+     *
+     * <p>用 {@code require()} 而不是 {@code currentTenantId()}：查询接口都已声明
+     * {@code @RequiresPermission}，走到这里必然已认证；真出现了未认证，
+     * 说明有人绕过了 Web 层直接调服务 —— 那时候**抛错比返回全库数据正确**。
+     */
+    private static long visibleTenantId() {
+        return AuthContextHolder.require().getTenantId();
+    }
+
+    private LambdaQueryWrapper<ClientLogEntity> buildWrapper(ClientLogQuery query, long tenantId) {
         long endTime = query.getEndTime() == null ? System.currentTimeMillis() : query.getEndTime();
         long startTime = query.getStartTime() == null ? endTime - DEFAULT_WINDOW_MILLIS : query.getStartTime();
 
         return Wrappers.<ClientLogEntity>lambdaQuery()
+                .eq(ClientLogEntity::getTenantId, tenantId)
                 .eq(hasText(query.getApp()), ClientLogEntity::getApp, query.getApp())
                 .eq(hasText(query.getLevel()), ClientLogEntity::getLevel,
                         query.getLevel() == null ? null : query.getLevel().toLowerCase(Locale.ROOT))

@@ -54,6 +54,13 @@ pnpm --filter platform-log-console dev     # http://127.0.0.1:3200
 
 > **调试时优先单独跑本页。** 被基座加载时，子应用的 React 组件级热更新不生效（样式热更新正常）；这是当前已知限制（`docs/decisions/0012`），改本页组件时单独 `pnpm --filter platform-log-console dev` 更快。
 
+> **认证接线（ADR-0026）**：查询接口需要 `log:client:read`，因此本页必须带令牌。会话不由本页拥有 ——
+> 基座内运行时用宿主下发的认证桥（`createMicroAppProps` 恒带 `auth`），独立运行时由 `createConsoleAuth`
+> 自建一套（`allowDevAutoLogin` 取 `import.meta.env.DEV`，生产构建绝不自动登录）。
+> 装配在 `src/console.ts`：`createApiClient({ accessTokenProvider, onUnauthorized })` 两个 provider 指向
+> `consoleAuth.port`；`src/main.tsx` 在独立运行分支里先 `await consoleAuth.ensureSession()` 再渲染。
+> **注意上报（`POST /api/logs/client`）刻意保持公开** —— 登录页出错的日志也必须发得出来。
+
 ---
 
 ## 四、能演示什么

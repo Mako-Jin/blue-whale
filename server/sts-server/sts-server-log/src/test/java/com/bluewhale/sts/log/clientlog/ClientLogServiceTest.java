@@ -1,5 +1,8 @@
 package com.bluewhale.sts.log.clientlog;
 
+import com.bluewhale.sts.auth.context.AuthContext;
+import com.bluewhale.sts.auth.context.AuthContextHolder;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,6 +38,18 @@ class ClientLogServiceTest {
     @BeforeEach
     void setUp() {
         clientLogService = new ClientLogService(clientLogMapper, new ObjectMapper());
+    }
+
+    /**
+     * 上下文是 ThreadLocal，不清理会串到下一个用例。
+     *
+     * <p>这条不是形式主义：Tomcat 复用线程、JUnit 复用线程（同一个 JVM 串行跑）
+     * 是同一类问题 —— 上一个用例留下的"已登录"状态会让下一个用例在
+     * "无会话"的假设下却跑在有会话的分支里，而且**只有单独跑某个用例时才失败**。
+     */
+    @AfterEach
+    void tearDown() {
+        AuthContextHolder.clear();
     }
 
     @Test
@@ -135,6 +150,49 @@ class ClientLogServiceTest {
         ClientLogEntity saved = captor.getValue().get(0);
         assertThat(saved.getDataJson()).isEqualTo("[1,\"two\"]");
         assertThat(saved.getContextJson()).isEqualTo("{\"userId\":\"u-1\"}");
+    }
+
+    @Test
+    @DisplayName("有会话时归属取会话租户，且**不取**上报体里的任何字段")
+    void shouldTakeTenantFromSessionNotFromPayload() {
+        AuthContext context = new AuthContext();
+        context.setTenantId(42L);
+        context.setUserId(7L);
+        AuthContextHolder.set(context);
+        try {
+            // 上报体里能填的东西全部填上（app / sessionId / context），它们都不该影响归属
+            ClientLogItem item = item("info", "带上下文的上报");
+            item.setContext(Map.of("tenantId", 999L, "userId", 7L));
+            ClientLogReportRequest request = request(item);
+            request.setSessionId("session-x");
+            when(clientLogMapper.insertBatch(anyList())).thenReturn(1);
+
+            clientLogService.report(request, "127.0.0.1");
+
+            ArgumentCaptor<List<ClientLogEntity>> captor = ArgumentCaptor.forClass(List.class);
+            verify(clientLogMapper).insertBatch(captor.capture());
+            assertThat(captor.getValue().get(0).getTenantId())
+                    .as("归属只能来自服务端会话 —— 上报体里的 tenantId 是可伪造的")
+                    .isEqualTo(42L);
+        } finally {
+            AuthContextHolder.clear();
+        }
+    }
+
+    @Test
+    @DisplayName("登录前上报（无会话）归属为空，但**照样入库** —— 登录页的报错最需要留下")
+    void shouldAcceptAnonymousReportWithNullTenant() {
+        AuthContextHolder.clear();
+        ClientLogReportRequest request = request(item("error", "登录页报错"));
+        when(clientLogMapper.insertBatch(anyList())).thenReturn(1);
+
+        ClientLogReportResultVO result = clientLogService.report(request, "127.0.0.1");
+
+        // 关键：无会话不是错误，只是归属未知
+        assertThat(result.getAccepted()).isEqualTo(1);
+        ArgumentCaptor<List<ClientLogEntity>> captor = ArgumentCaptor.forClass(List.class);
+        verify(clientLogMapper).insertBatch(captor.capture());
+        assertThat(captor.getValue().get(0).getTenantId()).isNull();
     }
 
     private static ClientLogReportRequest request(ClientLogItem... items) {

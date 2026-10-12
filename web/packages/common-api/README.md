@@ -39,6 +39,7 @@ packages/common-api/
 │   ├── types.ts              契约类型工具 + 任意 JSON 值的收紧
 │   ├── auth.ts               认证域接口（登录 / 刷新 / 登出 / me）+ 身份映射
 │   ├── channel.ts            createAuthChannel：把契约、会话存储与传输钩子接成认证能力
+│   ├── console-auth.ts       createConsoleAuth：子应用的认证接线（宿主桥优先，独立运行时自建会话）
 │   ├── access.ts             权限域实体管理（用户 / 租户 / 资源 / 角色 / 用户组）+ 权限标识常量
 │   ├── audit.ts              审计域接口（**只读**：分页 / 详情 / 按动作聚合）+ 权限标识常量
 │   ├── log.ts                日志域接口（路径常量 + 方法接线）
@@ -178,6 +179,45 @@ await auth.logout(); // 撤销服务端令牌 + 清本地会话
 | **登录与刷新都一次拿回身份 + 权限** | 所以 `restore()` 走刷新而不是"刷新 + 再调 `/me`"，少一次请求，也少一个"有令牌但不知道是谁"的中间态                                          |
 | **权限码只用服务端给的字符串**      | 与后端 `AuthPermissions` 的 `域:资源:动作` 一致，前端不得拼接自造                                                                           |
 | **清会话只有一个入口**              | 内核的 `onAuthLost` 回调里；散在各调用点必然有漏网的                                                                                        |
+
+### 控制台接入：`createConsoleAuth`
+
+`createAuthChannel` 是"自己拥有一套会话"的场景（基座 `platform-portal`）。**子应用不拥有会话** ——
+它要么跑在基座里（用宿主下发的认证桥），要么独立运行（自己建一套）。这两条路的分支逻辑
+此前在 `platform-admin` 与 `platform-audit-console` 各写了一遍，`createConsoleAuth` 把它收敛成一处。
+
+```ts
+import { createConsoleAuth } from 'common-api';
+
+export const consoleAuth = createConsoleAuth({
+  name: 'log-console', // 仅用于独立运行时的日志前缀
+  allowDevAutoLogin: import.meta.env.DEV, // 由调用方传入，见下
+  devAccount: { tenantCode: 'default', username: 'admin', password: 'pwd' },
+});
+
+// 装配进接口客户端（宿主内运行时这两行是关键 —— 少了它，401 会一路穿透到界面）
+const api = createApiClient({
+  accessTokenProvider: () => consoleAuth.port.getAccessToken(),
+  onUnauthorized: () => consoleAuth.port.reauthenticate(),
+});
+
+// 独立运行的入口脚本里，渲染前先备好会话
+await consoleAuth.ensureSession();
+```
+
+| 成员              | 作用                                                                                                      |
+| ----------------- | --------------------------------------------------------------------------------------------------------- |
+| `port`            | 下游要的认证端口：`getAccessToken()` / `reauthenticate()`，直接喂给 `createApiClient`                     |
+| `ensureSession()` | 备会话：基座内是**空操作**（用宿主的桥）；独立运行时先 `restore()`，再按 `allowDevAutoLogin` 决定自动登录 |
+
+几条容易踩的规则：
+
+| 规则                                                     | 原因                                                                                                                                                                                                                   |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`allowDevAutoLogin` 由调用方传 `import.meta.env.DEV`** | 契约包不自己读环境变量：`import.meta.env` 是 Vite 全局、在包内**没有类型**（`TS2339`）。留在调用点的好处是"**生产构建绝不自动登录**"在评审时一眼可见                                                                   |
+| **判断"有没有宿主桥"而不是"有没有会话"**                 | 用"当前是否登录"做判断，会把"还没登录"误判成"独立运行"而**建起第二套会话**，与宿主那套并存 —— 之后发请求用的是哪一套就成了随机                                                                                         |
+| **为什么住 `common-api` 而不是 `common-tools`**          | 它需要 `createAuthChannel`（在本包）；放进 `common-tools` 会形成 `common-tools → common-api → common-tools` 的**环**                                                                                                   |
+| **它不替代已有的两份 `src/auth/`**                       | `platform-admin` / `platform-audit-console` 各自那份**本轮刻意没动**：下沉会连带改动它们的既有测试与 `scripts/verify-audit-pipeline.mjs`，属独立的一次重构。**新增消费方一律用它**，存量是**已知的、有意留下的技术债** |
 
 ### 权限域管理：`createAccessApi`
 

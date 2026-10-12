@@ -420,6 +420,10 @@ export function createAccessApi(http: HttpClient): AccessApi {
  * <p>这里**只列前端真的用到的**：`AuthPermissions.ALL` 里没有被消费的标识
  * （例如由后端拦截器自行判断的那些）不需要在前端出现 ——
  * 抄一份全量表，等于给出一份"看起来前端在管权限"的假象。
+ *
+ * <p>具体的例子：`log:client:read` / `event:client:read`（ADR-0026）**刻意不在此列** ——
+ * 日志台与事件台只是发请求，权限由后端 `@RequiresPermission` 判、前端读 401 / 403 的结果，
+ * 没有任何一处会去比较这两个字符串。
  */
 export const AccessPermissions = {
   USER_READ: 'auth:user:read',

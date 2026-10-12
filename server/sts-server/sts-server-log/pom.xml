@@ -17,6 +17,17 @@
     <description>日志域服务：接收客户端上报日志、落库、查询与聚合</description>
 
     <dependencies>
+        <!--
+          依赖权限域是**语义上的必然**，不是图方便：日志的查询接口要判定"你有没有
+          log:client:read"，而权限判定（@RequiresPermission + AuthContextHolder）
+          只存在于权限域。方向是单向的 —— 权限域不依赖本模块。
+          这与 sts-server-audit 依赖权限域是同一件事、同一个理由。
+        -->
+        <dependency>
+            <groupId>com.bluewhale.sts.server</groupId>
+            <artifactId>sts-server-auth</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>com.bluewhale.sts.common</groupId>
             <artifactId>sts-common-web</artifactId>

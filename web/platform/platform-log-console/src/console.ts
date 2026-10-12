@@ -1,4 +1,4 @@
-import { createApiClient } from 'common-api';
+import { createApiClient, createConsoleAuth } from 'common-api';
 import type { ClientLogItem } from 'common-api';
 import type { LogRecord } from 'common-tools';
 import { sanitize, sanitizeObject } from 'common-tools/json';
@@ -34,9 +34,34 @@ export function getCurrentTraceId(): string | undefined {
   return currentTraceId;
 }
 
+/**
+ * 认证端口。
+ *
+ * <p><b>本应用的查询接口都是要鉴权的</b>（`log:client:read`），因此必须带令牌；
+ * 而上报接口是公开的（登录页出错也要能上报），带不带令牌都能成功。
+ * 令牌来源由 `createConsoleAuth` 统一决定：被基座加载时用基座下发的认证能力，
+ * 独立运行时用自建会话 —— 见 `common-api` 的 `console-auth`。
+ *
+ * <p>凭据只在 `import.meta.env.DEV` 下用于独立运行的自动登录，生产构建不会启用。
+ */
+export const consoleAuth = createConsoleAuth({
+  name: 'log-console',
+  // 只有开发构建才允许自动登录；生产构建即便被独立部署也只会记一条错误日志
+  allowDevAutoLogin: import.meta.env.DEV,
+  devAccount: {
+    tenantCode: import.meta.env.VITE_DEV_TENANT_CODE ?? 'default',
+    username: import.meta.env.VITE_DEV_USERNAME ?? 'admin',
+    password: import.meta.env.VITE_DEV_PASSWORD ?? 'Admin@12345',
+  },
+});
+
 export const api = createApiClient({
   // 契约里的路径已经带了 /api 前缀，因此基地址留空（开发期由 vite 代理转发）
   traceIdProvider: () => currentTraceId,
+  // 两个 provider 都是**请求时求值**：所以这段可以在 mount 之前就装配好，
+  // 那时还没有宿主 props，但真正发请求时已经有了
+  accessTokenProvider: () => consoleAuth.port.getAccessToken(),
+  onUnauthorized: () => consoleAuth.port.reauthenticate(),
 });
 
 /* ---------------------------------------------------------------- 上报器 */

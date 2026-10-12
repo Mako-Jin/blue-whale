@@ -21,6 +21,21 @@ public class ClientLogEntity {
     @TableId(type = IdType.AUTO)
     private Long id;
 
+    /**
+     * 所属租户主键。
+     *
+     * <p><b>可空，且 NULL 有确切含义：上报时未登录，这条日志不属于任何租户。</b>
+     * 上报接口是公开的（登录页出错也要能发出来），因此服务端拿不到身份时只能记空。
+     *
+     * <p><b>归属一律取服务端会话，不取上报体里的任何字段。</b>
+     * 报告体里的 {@code app} / {@code sessionId} / 上下文对象全部由客户端提供、可伪造；
+     * 用它们判断归属，等于让上报方自己决定这条数据算谁的。
+     *
+     * <p>字段名与列名同构（{@code tenantId → tenant_id}），刻意不加 {@code @TableField} ——
+     * 理由与 {@link #appRelease} 一致。
+     */
+    private Long tenantId;
+
     private String app;
 
     private String level;

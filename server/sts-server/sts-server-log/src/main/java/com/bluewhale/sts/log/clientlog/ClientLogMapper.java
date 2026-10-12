@@ -29,12 +29,19 @@ public interface ClientLogMapper extends BaseMapper<ClientLogEntity> {
      *
      * <p>列别名**不加引号**：加引号会让标识符大小写敏感（H2 变小写、MySQL 需用反引号），
      * 不加引号则两边都按大小写不敏感处理，配合 MyBatis 的下划线转驼峰即可正确映射。
+     *
+     * <p><b>{@code tenantId} 是必传参数，且条件写在最前面 —— 写成可选（{@code <if>}）会留下
+     * 一个"忘记传租户就统计全库"的口子，而返回值只是一个计数，几乎不会被察觉。</b>
+     * 这与 {@code AuditLogMapper#countByAction} 是同一个坑、同一条处置（见 ADR-0025）。
+     * 参数类型是 {@code long} 而非 {@code Long}：本方法只服务于已鉴权的查询，
+     * 匿名记录（tenant_id 为 NULL）本就不该被任何租户统计到。
      */
     @Select("""
             <script>
             SELECT level AS level, COUNT(*) AS level_count
             FROM bw_client_log
-            WHERE server_time &gt;= #{startTime} AND server_time &lt;= #{endTime}
+            WHERE tenant_id = #{tenantId}
+              AND server_time &gt;= #{startTime} AND server_time &lt;= #{endTime}
             <if test="app != null and app != ''">
                 AND app = #{app}
             </if>
@@ -42,7 +49,8 @@ public interface ClientLogMapper extends BaseMapper<ClientLogEntity> {
             ORDER BY level
             </script>
             """)
-    List<ClientLogLevelCount> countByLevel(@Param("app") String app,
+    List<ClientLogLevelCount> countByLevel(@Param("tenantId") long tenantId,
+                                           @Param("app") String app,
                                            @Param("startTime") long startTime,
                                            @Param("endTime") long endTime);
 
@@ -62,13 +70,13 @@ public interface ClientLogMapper extends BaseMapper<ClientLogEntity> {
     @Insert("""
             <script>
             INSERT INTO bw_client_log
-                (app, level, namespace, message, data_json, context_json,
+                (tenant_id, app, level, namespace, message, data_json, context_json,
                  trace_id, session_id, route, app_release, client_time, server_time, ip)
             VALUES
             <foreach collection="list" item="it" separator=",">
-                (#{it.app}, #{it.level}, #{it.namespace}, #{it.message}, #{it.dataJson}, #{it.contextJson},
-                 #{it.traceId}, #{it.sessionId}, #{it.route}, #{it.appRelease}, #{it.clientTime},
-                 #{it.serverTime}, #{it.ip})
+                (#{it.tenantId}, #{it.app}, #{it.level}, #{it.namespace}, #{it.message},
+                 #{it.dataJson}, #{it.contextJson}, #{it.traceId}, #{it.sessionId}, #{it.route},
+                 #{it.appRelease}, #{it.clientTime}, #{it.serverTime}, #{it.ip})
             </foreach>
             </script>
             """)

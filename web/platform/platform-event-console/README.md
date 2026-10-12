@@ -135,9 +135,18 @@ pnpm --filter platform-event-console build    # 别跳过这一项
 > 被基座加载时，本页的 React 组件级热更新不生效（样式正常）。改组件时单独
 > `pnpm --filter platform-event-console dev` 更省时间，原因见 `docs/decisions/0012`。
 
+> **认证接线（ADR-0026）**：查询接口需要 `event:client:read`，因此本页必须带令牌 ——
+> 会话不由本页拥有：基座内用宿主下发的认证桥，独立运行由 `createConsoleAuth` 自建
+> （`allowDevAutoLogin` 取 `import.meta.env.DEV`）。装配在 `src/events.ts`
+> （`createApiClient({ accessTokenProvider, onUnauthorized })`），`src/main.tsx` 独立运行分支
+> 先 `await consoleAuth.ensureSession()` 再渲染。
+> **事件查询结果只含当前登录租户**，且**事件体里自带的 `userId` 不是归属依据**（客户端可伪造）——
+> 归属取服务端会话。上报（`POST /api/events/client`）同样**刻意保持公开**。
+
 ## 相关
 
 - `docs/decisions/0011-行为事件管道与前端埋点内核.md` —— 决策与取舍
 - `docs/decisions/0012-微前端接入与子应用改造.md` —— 子应用改造与已知限制
+- `docs/decisions/0026-日志与事件的鉴权与租户隔离.md` —— 查询鉴权与租户归属
 - `web/packages/common-tools/README.md` —— 事件内核 / 批量通道 / JSON 安全层 / 微前端桥接
 - `server/README.md` —— 后端 `sts-server-track` 模块与表结构

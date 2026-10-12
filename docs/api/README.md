@@ -339,6 +339,13 @@ OPENAPI_PORT=18081 bash scripts/export-openapi.sh
   在当前仓里没有落点 —— 它的价值最终要在业务系统兑现。
 - **给三张关系表加唯一索引**（`(role_id, resource_id)` / `(role_id, member_type, member_id)` / `(user_group_id, member_type, member_id)`）：
   有了 `DuplicateKeyException` → `409` 兜底才"有资格"加（否则并发撞键会落到 `50000`），但那是独立的一次决定。
+- **日志域与事件域的查询入口已补上鉴权**（ADR-0026）：`GET /api/logs/client*` 与 `GET /api/events/client*`
+  共 7 个入口要求 `log:client:read` / `event:client:read`（**与 `auth:audit:read` 刻意不合并** ——
+  三种读者：合规追责 / 排障 / 产品运营）；两个 `POST` 上报入口**刻意保持公开**（登录页出错时也必须能上报），
+  因此**接口数与路径数未变**，本次契约变更只有 `@Operation` 描述文案。
+  查询结果**只含当前登录租户**的记录，未登录时上报的记录 `tenant_id` 为 NULL、**对任何租户都不可见**；
+  详情跨租户返回 `404`（与"不存在"同码）。这两条管道的**前端 401 此前是漏接**：
+  宿主恒下发 `auth` 桥，两个控制台只是没读 —— 现已经 `common-api` 的 `createConsoleAuth` 接上。
 - 前端的域接线进度：**认证 / 会话**（`src/auth.ts`）、**权限域管理**（`src/access.ts`，已补齐到 20 条路径）、**审计**（`src/audit.ts`，只读）**均已接入**。
   **数据范围反查（`GET /api/auth/users/{id}/data-scope`）尚未接线**：它要展示的是一个"配了但暂时不生效"的状态（`precise=false`），
   怎么在界面上表达这件事是个独立的产品决定，不该顺手塞进用户列表。

@@ -1,5 +1,8 @@
 package com.bluewhale.sts.track.clientevent;
 
+import com.bluewhale.sts.auth.context.AuthContext;
+import com.bluewhale.sts.auth.context.AuthContextHolder;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -37,6 +40,12 @@ class ClientEventServiceTest {
     @BeforeEach
     void setUp() {
         clientEventService = new ClientEventService(clientEventMapper, new ObjectMapper());
+    }
+
+    /** 上下文是 ThreadLocal，不清理会串到下一个用例 —— 见 ClientLogServiceTest 的同类说明 */
+    @AfterEach
+    void tearDown() {
+        AuthContextHolder.clear();
     }
 
     @Test
@@ -135,6 +144,49 @@ class ClientEventServiceTest {
         // 实体属性名是 appRelease（列名 app_release），不是 release —— 见 ClientEventEntity 注释
         assertThat(saved.getAppRelease()).isEqualTo("9.9.9");
         assertThat(saved.getSessionId()).isEqualTo("envelope-session");
+    }
+
+    @Test
+    @DisplayName("归属取会话租户，**不取**上报体里的 userId —— 那个值可伪造")
+    void shouldTakeTenantFromSessionNotFromReportedUserId() {
+        AuthContext context = new AuthContext();
+        context.setTenantId(42L);
+        AuthContextHolder.set(context);
+        try {
+            // 上报方声明自己是"用户 999" —— 属于别的租户的一个合法用户
+            ClientEventItem item = item("order.submit", "伪造身份");
+            item.setUserId("999");
+            ClientEventReportRequest request = request(item);
+            when(clientEventMapper.insertBatch(anyList())).thenReturn(1);
+
+            clientEventService.report(request, "127.0.0.1");
+
+            ArgumentCaptor<List<ClientEventEntity>> captor = ArgumentCaptor.forClass(List.class);
+            verify(clientEventMapper).insertBatch(captor.capture());
+            ClientEventEntity saved = captor.getValue().get(0);
+            // userId 原样保留（它是产品分析的维度），但**归属与它无关**
+            assertThat(saved.getUserId()).isEqualTo("999");
+            assertThat(saved.getTenantId())
+                    .as("若这里等于 999 所属的租户，说明有人拿上报体里的 userId 当了归属依据")
+                    .isEqualTo(42L);
+        } finally {
+            AuthContextHolder.clear();
+        }
+    }
+
+    @Test
+    @DisplayName("登录前上报（无会话）归属为空，但照样入库")
+    void shouldAcceptAnonymousReportWithNullTenant() {
+        AuthContextHolder.clear();
+        ClientEventReportRequest request = request(item("page.view", "登录前的浏览"));
+        when(clientEventMapper.insertBatch(anyList())).thenReturn(1);
+
+        ClientEventReportResultVO result = clientEventService.report(request, "127.0.0.1");
+
+        assertThat(result.getAccepted()).isEqualTo(1);
+        ArgumentCaptor<List<ClientEventEntity>> captor = ArgumentCaptor.forClass(List.class);
+        verify(clientEventMapper).insertBatch(captor.capture());
+        assertThat(captor.getValue().get(0).getTenantId()).isNull();
     }
 
     private static ClientEventReportRequest request(ClientEventItem... items) {

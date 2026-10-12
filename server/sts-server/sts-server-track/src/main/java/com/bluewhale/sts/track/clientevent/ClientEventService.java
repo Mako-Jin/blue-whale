@@ -3,6 +3,7 @@ package com.bluewhale.sts.track.clientevent;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bluewhale.sts.auth.context.AuthContextHolder;
 import com.bluewhale.sts.common.basic.enums.ResultCode;
 import com.bluewhale.sts.common.basic.exception.BusinessException;
 import com.bluewhale.sts.common.basic.model.PageResult;
@@ -25,6 +26,13 @@ import java.util.regex.Pattern;
  * 行为事件是"业务事实"，用于产品/增长分析，要求可追溯、可去重、结构与语义稳定。
  * 因此本服务比日志域多做了三件事：<b>事件名强校验</b>（它是永久契约）、
  * <b>props 结构版本</b>（结构变了要有据可循）、<b>userId/deviceId 身份维度</b>（支撑身份缝合）。
+ *
+ * <p><b>但"身份维度"不等于"归属依据"（重要）：</b>
+ * 上报体里的 {@code userId} / {@code deviceId} 由客户端填写、可以随便填，
+ * 因此它们只用于产品分析；判断"这条事件属于哪个租户"一律用服务端会话里的租户
+ * （写入时从 {@code AuthContextHolder} 取、读取时强制过滤）。
+ * 拿 {@code userId} 当归属，伪造一个别人的 id 就能读到别人的行为记录，
+ * 而正常数据上完全看不出区别。见 {@code docs/decisions/0026}。
  */
 @Service
 public class ClientEventService {
@@ -79,6 +87,9 @@ public class ClientEventService {
      */
     public ClientEventReportResultVO report(ClientEventReportRequest request, String ip) {
         long serverTime = System.currentTimeMillis();
+        // 上报接口是公开的，因此这里**不能用 require()**：未登录时必须照常入库，
+        // 只是归属记为空。归属取会话，**不取上报体里的 userId** —— 那个值可伪造。
+        Long tenantId = AuthContextHolder.currentTenantId();
         List<ClientEventEntity> entities = new ArrayList<>(request.getEvents().size());
         int rejected = 0;
 
@@ -89,6 +100,7 @@ public class ClientEventService {
             }
 
             ClientEventEntity entity = new ClientEventEntity();
+            entity.setTenantId(tenantId);
             entity.setEventId(truncate(item.getEventId(), 64));
             entity.setEventName(item.getEventName());
             entity.setApp(request.getApp());
@@ -122,7 +134,7 @@ public class ClientEventService {
 
     @Transactional(readOnly = true)
     public PageResult<ClientEventVO> page(ClientEventQuery query) {
-        LambdaQueryWrapper<ClientEventEntity> wrapper = buildWrapper(query);
+        LambdaQueryWrapper<ClientEventEntity> wrapper = buildWrapper(query, visibleTenantId());
 
         Page<ClientEventEntity> page = clientEventMapper.selectPage(
                 new Page<>(query.getPage(), query.getSize()), wrapper);
@@ -131,10 +143,19 @@ public class ClientEventService {
         return PageResult.of(records, page.getTotal(), query.getPage(), query.getSize());
     }
 
+    /**
+     * 查询单条事件详情。
+     *
+     * <p><b>"不存在"与"不属于本租户"返回同一个 40401，不区分</b> ——
+     * 区分二者等于用错误码回答"这个 id 上真的有一条记录吗"，
+     * 而那本身就是调用方不该知道的信息。与日志详情、审计详情处置一致。
+     */
     @Transactional(readOnly = true)
     public ClientEventVO detail(long id) {
+        long tenantId = visibleTenantId();
         ClientEventEntity entity = clientEventMapper.selectById(id);
-        if (entity == null) {
+        if (entity == null || entity.getTenantId() == null
+                || entity.getTenantId().longValue() != tenantId) {
             throw new BusinessException(ResultCode.NOT_FOUND, "事件不存在或已被清理");
         }
         return toVO(entity);
@@ -144,24 +165,37 @@ public class ClientEventService {
     public ClientEventStatsVO stats(ClientEventStatsQuery query) {
         long endTime = query.getEndTime() == null ? System.currentTimeMillis() : query.getEndTime();
         long startTime = query.getStartTime() == null ? endTime - DEFAULT_WINDOW_MILLIS : query.getStartTime();
+        long tenantId = visibleTenantId();
 
         LambdaQueryWrapper<ClientEventEntity> wrapper = Wrappers.<ClientEventEntity>lambdaQuery()
+                .eq(ClientEventEntity::getTenantId, tenantId)
                 .eq(hasText(query.getApp()), ClientEventEntity::getApp, query.getApp())
                 .ge(ClientEventEntity::getServerTime, startTime)
                 .le(ClientEventEntity::getServerTime, endTime);
 
         long total = clientEventMapper.selectCount(wrapper);
+        // 聚合 SQL 的租户条件必须与上面这句 wrapper 写到同一处语义：
+        // 只改上面、忘了这个手写 SQL，症状是"总数对、分布全库的"。
         List<ClientEventNameCount> names =
-                clientEventMapper.countByEventName(query.getApp(), startTime, endTime);
+                clientEventMapper.countByEventName(tenantId, query.getApp(), startTime, endTime);
 
         return new ClientEventStatsVO(total, startTime, endTime, names);
     }
 
-    private LambdaQueryWrapper<ClientEventEntity> buildWrapper(ClientEventQuery query) {
+    /**
+     * 当前请求可见的租户。理由与 {@code ClientLogService#visibleTenantId} 同：
+     * 租户条件恒定加上，不做成可关的形式；未认证时抛错而不是放行全库。
+     */
+    private static long visibleTenantId() {
+        return AuthContextHolder.require().getTenantId();
+    }
+
+    private LambdaQueryWrapper<ClientEventEntity> buildWrapper(ClientEventQuery query, long tenantId) {
         long endTime = query.getEndTime() == null ? System.currentTimeMillis() : query.getEndTime();
         long startTime = query.getStartTime() == null ? endTime - DEFAULT_WINDOW_MILLIS : query.getStartTime();
 
         return Wrappers.<ClientEventEntity>lambdaQuery()
+                .eq(ClientEventEntity::getTenantId, tenantId)
                 .eq(hasText(query.getApp()), ClientEventEntity::getApp, query.getApp())
                 .eq(hasText(query.getEventName()), ClientEventEntity::getEventName, query.getEventName())
                 .eq(hasText(query.getUserId()), ClientEventEntity::getUserId, query.getUserId())

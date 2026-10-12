@@ -138,7 +138,7 @@ export interface paths {
     };
     /**
      * 分页查询客户端日志
-     * @description 按服务端接收时间倒序。时间窗缺省为最近 7 天。
+     * @description 按服务端接收时间倒序。时间窗缺省为最近 7 天。**只返回当前登录租户的记录**；未登录时上报的记录不属于任何租户，因此查不到。
      */
     get: operations['page'];
     put?: never;
@@ -162,7 +162,7 @@ export interface paths {
     };
     /**
      * 分页查询客户端行为事件
-     * @description 按服务端接收时间倒序。时间窗缺省为最近 7 天。
+     * @description 按服务端接收时间倒序。时间窗缺省为最近 7 天。**只返回当前登录租户的记录**；未登录时上报的记录不属于任何租户，因此查不到。
      */
     get: operations['page_1'];
     put?: never;
@@ -444,7 +444,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** 查询日志详情 */
+    /**
+     * 查询日志详情
+     * @description 不存在、或属于其他租户时一律返回 40401 —— 不区分这两种情形，否则错误码本身就泄露了"这条记录存在"。
+     */
     get: operations['detail_5'];
     put?: never;
     post?: never;
@@ -483,7 +486,7 @@ export interface paths {
     };
     /**
      * 按级别聚合统计
-     * @description 返回时间窗内的总条数与各级别分布，包含条数为 0 的级别。
+     * @description 返回时间窗内的总条数与各级别分布，包含条数为 0 的级别。同样只统计当前租户。
      */
     get: operations['stats'];
     put?: never;
@@ -521,7 +524,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** 查询事件详情 */
+    /**
+     * 查询事件详情
+     * @description 不存在、或属于其他租户时一律返回 40401 —— 不区分这两种情形，否则错误码本身就泄露了"这条记录存在"。
+     */
     get: operations['detail_6'];
     put?: never;
     post?: never;
@@ -540,7 +546,7 @@ export interface paths {
     };
     /**
      * 按事件名聚合统计
-     * @description 返回时间窗内的总条数与各事件名分布，只包含出现过的名称。
+     * @description 返回时间窗内的总条数与各事件名分布，只包含出现过的名称。同样只统计当前租户。
      */
     get: operations['stats_1'];
     put?: never;

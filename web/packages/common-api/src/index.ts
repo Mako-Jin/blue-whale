@@ -27,6 +27,9 @@ export type {
 export { createAuthChannel } from './channel';
 export type { AuthChannel, AuthChannelConfig, ChannelApi } from './channel';
 
+export { createConsoleAuth } from './console-auth';
+export type { ConsoleAuth, ConsoleAuthOptions, ConsoleAuthPort } from './console-auth';
+
 export { AccessPermissions, createAccessApi } from './access';
 export type {
   AccessApi,

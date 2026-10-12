@@ -188,6 +188,33 @@ com.bluewhale.sts.log                    ← sts-server-log，包名用业务域
 
 **审计日志**（`sts-server-audit`）：三条管道里**唯一不由前端产生**的一条，回答"谁在什么时候对什么做了什么"。它此前长期停在"已设计未实现"，2026-10-12 落地，见 `docs/decisions/0019`。至此**三条管道全部落地**，且各自独立模块独立表 —— 这正是那句"内容不同 ⇒ 独立模块独立表、通道相同 ⇒ 复用"的检验结果。
 
+### 日志域 / 事件域的鉴权与归属（ADR-0026）
+
+> **这一节记录的是一处曾长期存在的静默泄漏。** 日志域（V1）与事件域（V2）建立时**权限域还不存在（V3）**，
+> 此后没有回头补 —— 两个模块的 `src/main` 里 `RequiresPermission` **一次都没出现过**。
+> 根因不是"忘了写"，而是 `AuthInterceptor` 的规则是**白名单反着写的**：
+> **方法或类上没有 `@RequiresPermission` 就一律放行**（"未声明权限的接口 = 公开接口"）。
+> 于是任何能发查询请求的人，读到的就是**全部租户**的日志与事件。修复前的实测：
+> `GET /api/logs/client` 与 `/api/events/client` 返 `200 code:0`，而 `/api/audit/logs` 与 `/api/auth/users` 返 `40100`；
+> **不带令牌上报一条，就能不带令牌把正文原样读回来。**
+
+| 规则                                                                 | 原因                                                                                                                                                                                                    |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **上报公开、查询鉴权 —— 这是分类，不是遗漏**                          | 登录页出错时也必须能上报：未登录 ⇒ 无令牌 ⇒ 若要求鉴权则**最需要诊断的那批日志发不出来**。上报内容本来就整体不可信，加鉴权不会让它变可信。故 `POST /api/logs/client`、`POST /api/events/client` **刻意不加注解**，其余 7 个 `GET` 全部 `@RequiresPermission` |
+| **新域前缀 `log:client` / `event:client`，登记在 `AuthPermissions.ALL`** | 该常量类是**全仓权限标识的唯一登记处**，不只是 `auth` 域的常量集合 —— 种子 `bw_auth_resource` 由它建出，凡经过 `@RequiresPermission` 的接口都必须在此登记，**没有第二个地方可放**。域前缀跟着**被访问的对象**走，不跟模块走 |
+| **三个读权限刻意不合并**                                             | `auth:audit:read`（合规追责）/ `log:client:read`（排障）/ `event:client:read`（产品运营）是**三种读者**；合成一个码的后果是**一次授权把三种数据一起给出去**，事后收窄只能改后台配置                                                       |
+| **归属只取服务端会话**                                               | 写入用 `AuthContextHolder.currentTenantId()`（未认证返 `null`，上报必须照常入库）；读取用 `AuthContextHolder.require().getTenantId()`（能走到这里必然已认证；真未认证说明有人绕过 Web 层直接调服务，**抛错比返回全库数据正确**）。`bw_client_event.user_id` 是**上报方自己填的、可伪造**，**不是归属依据** |
+| **租户条件恒定加上，不做成可关形式**                                 | 写 `eq(列, 值)` 而非 `eq(条件, 列, 值)`。可关的形式留的是"忘了传租户就查全量"的口子，失败方式是**多看到数据** —— 不报错、结果还更完整。这条与 `decisions/0022` 的"停用角色仍产生权限"同族：**开关存在，判定那一侧必须读它** |
+| **聚合走的手写 SQL，参数必传、不给默认值**                           | `countByLevel` / `countByEventName` 显式加 `long tenantId` 并写进 `WHERE`。只改 wrapper 忘了它，症状是"**总数对、分布图是全库的**"                                                                              |
+| **详情跨租户返 `404` 而非 `403`，且"不存在"与"不是你的"同码**         | `403` 等于**承认"这条记录存在"**。实现上先按主键查、再比对租户（而不是带租户条件去查），这样"存在但不给你看"在日志里可区分，事后能回溯越权尝试                                                              |
+| **`tenant_id` 可空，NULL 语义 = "对任何租户都不可见"**               | 可空是必须的（登录前上报拿不到身份，`NOT NULL` 会让登录前上报直接失败）。**列表 / 聚合 / 详情三处一律不可见** —— 无法判断匿名日志属于哪个租户，展示给"当前租户"等于把**别的租户**的匿名日志一并展示出去，而登录页日志里可能带着用户输入的用户名，**宁可不显示、不可错显示** |
+| **历史数据不回填**                                                   | 库里从未记录过归属，**任何回填值都是编造的，而编造的归属比查不到更危险**。日志是短保留期数据（默认时间窗 7 天），自然过期即可。真要保留是**部署决策**，用环境侧一次性脚本，**不要写进版本迁移**（写进来会让所有环境的"未知归属"被同一句 `UPDATE` 变成同一个租户的数据） |
+
+> 本模块因此新增了对 `sts-server-auth` 的依赖（同 `sts-server-audit`）：**依赖权限域是语义上的必然** ——
+> 要问"当前是谁"，就要用会话；方向是单向的，**权限域不依赖日志 / 事件域**。
+> 前端的 401 是**漏接**而非缺实现：宿主在 `createMicroAppProps` 里**恒带 `auth`**，两个控制台只是没读。
+> 见 `docs/decisions/0026`。
+
 ### 审计域的几条硬规则
 
 | 规则                                                                             | 原因                                                                                                                                                                                    |
@@ -300,6 +327,14 @@ com.bluewhale.sts.log                    ← sts-server-log，包名用业务域
 > **口令与登录的第二批加固**（强度策略、防重用、指数退避锁定）已于 2026-10-12 落地，
 > 见 `docs/decisions/0020`。仍未做的是：**用户自助改密接口**（故防重用目前只在管理员重置路径上生效）、
 > 弱口令字典、口令过期后的改密引导。
+>
+> **日志与事件的鉴权与租户隔离**（见 `docs/decisions/0026`）补上了两条管道的**准入与归属**：
+> 此前 7 个查询入口**完全没有 `@RequiresPermission`**（`AuthInterceptor` 是白名单反着写的），
+> 且两张表**连 `tenant_id` 这一列都没有** —— 持查询权限的人读到的是全部租户的数据。
+> 本批顺带新增两个权限码（`log:client:read` / `event:client:read`，**刻意不与 `auth:audit:read` 合并**），
+> 之后 `AuthPermissions.ALL` 共 **23** 项。仍未做的是：**上报限流**（两条上报通道公开且可写，
+> 公网部署前应按 IP / 应用限流）、**`listByTraceId` 无条数上限**（一个 `traceId` 下的条数由客户端行为决定）、
+> 以及用 `data_scope` 进一步收窄（日志 / 事件里**没有组织归属字段，落点仍不清楚**）。
 
 ---
 
@@ -370,7 +405,8 @@ sts-server-log/src/main/resources/db/migration/
 sts-server-track/src/main/resources/db/migration/
 ├── h2/V2__create_bw_client_event.sql     H2 方言
 ├── mysql/V2__create_bw_client_event.sql  MySQL 方言
-└── dameng/V2__create_bw_client_event.sql 达梦方言（不由 Flyway 执行，见下）
+├── dameng/V2__create_bw_client_event.sql 达梦方言（不由 Flyway 执行，见下）
+└── h2|mysql|dameng/V7__add_tenant_id_to_bw_client_event.sql   归属列 + (tenant_id, server_time) 索引
 
 sts-server-auth/src/main/resources/db/migration/
 ├── h2/V3__create_bw_auth_tables.sql      身份 / 访问控制 / 会话共 12 张表
@@ -385,6 +421,9 @@ sts-server-audit/src/main/resources/db/migration/
 ├── mysql/V4__create_bw_audit_log.sql
 └── dameng/V4__create_bw_audit_log.sql
 ```
+
+> `sts-server-log` 除 `V1` 外另有 `h2|mysql|dameng/V6__add_tenant_id_to_bw_client_log.sql`（归属列 + 索引）。
+> **`V6` 与 `V7` 必须分开两套号** —— 版本号全仓唯一，日志域与事件域各自都要加一列，不能都叫 `V6`。
 
 > **版本号是"全仓唯一"，不是"每个模块各从 V1 开始"。**
 > `spring.flyway.locations` 是全模块共享的 `classpath:db/migration/<vendor>`，

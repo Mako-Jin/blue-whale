@@ -101,6 +101,33 @@ public final class AuthPermissions {
      */
     public static final String AUDIT_READ = "auth:audit:read";
 
+    /**
+     * 查看客户端技术日志。
+     *
+     * <p><b>为什么这里出现了 {@code log:} 这个全新的域前缀：</b>本类是**全仓权限标识的
+     * 唯一登记处**，不只是 {@code auth} 域的常量集合 —— 它是种子数据的唯一来源
+     * （{@code bw_auth_resource} 的每一行都由 {@link #ALL} 建出来），
+     * 因此凡是要经过 {@code @RequiresPermission} 判定的接口，其权限码都必须登记在这里，
+     * 没有第二个地方可放。域前缀跟着**被访问的对象**走，不跟着代码所在的模块走。
+     *
+     * <p><b>与技术日志"上报"接口无关（重要）：</b>上报接口（{@code POST /api/logs/client}）
+     * 保持**公开**，见 {@code ClientLogController} 的说明 —— 登录页出错时也必须能上报。
+     * 本权限码只约束**查询**：读取日志意味着读到别人的报错正文、上下文与 IP。
+     */
+    public static final String LOG_CLIENT_READ = "log:client:read";
+
+    /**
+     * 查看客户端行为事件。
+     *
+     * <p><b>为什么与 {@link #AUDIT_READ} 分开、也与 {@link #LOG_CLIENT_READ} 分开：</b>
+     * 三者是三条不同的管道、三种不同的读者。审计问的是"谁在何时对哪个资源做了什么"，
+     * 读者是合规与追责；技术日志问的是"这段代码为什么出错"，读者是排障；
+     * 行为事件问的是"用户做了什么操作"，读者是产品与运营。
+     * 合成一个码的后果是**一次授权把三种数据一起给出去** —— 而它们的内容敏感度
+     * 与保留期都不同，事后想收窄只能靠改后台配置，改不动就得改代码。
+     */
+    public static final String EVENT_CLIENT_READ = "event:client:read";
+
     /** 本切片已落地的全部权限标识，种子数据据此建资源 */
     public static final List<String> ALL = List.of(
             TENANT_READ, TENANT_CREATE, TENANT_UPDATE, TENANT_DELETE,
@@ -108,6 +135,7 @@ public final class AuthPermissions {
             RESOURCE_READ, RESOURCE_CREATE, RESOURCE_UPDATE, RESOURCE_DELETE,
             ROLE_READ, ROLE_CREATE, ROLE_UPDATE, ROLE_DELETE,
             USER_GROUP_READ, USER_GROUP_CREATE, USER_GROUP_UPDATE, USER_GROUP_DELETE,
-            AUDIT_READ);
+            AUDIT_READ,
+            LOG_CLIENT_READ, EVENT_CLIENT_READ);
 
 }

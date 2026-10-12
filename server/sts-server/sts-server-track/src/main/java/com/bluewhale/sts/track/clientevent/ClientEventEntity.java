@@ -27,6 +27,18 @@ public class ClientEventEntity {
     @TableId(type = IdType.AUTO)
     private Long id;
 
+    /**
+     * 所属租户主键。
+     *
+     * <p><b>可空，且 NULL 有确切含义：上报时未登录，这条事件不属于任何租户。</b>
+     * 上报接口是公开的，因此服务端拿不到身份时只能记空。
+     *
+     * <p><b>归属一律取服务端会话，不取上报体里的任何字段</b> —— 尤其**不是** {@link #userId}：
+     * 那一列由客户端填写、可伪造。拿它当归属依据，同一个 {@code userId} 就能读到别的租户的
+     * 行为记录，而正常数据上完全看不出区别。详见建表脚本 V7 的文件头。
+     */
+    private Long tenantId;
+
     /** 客户端生成的事件唯一 id，幂等键（列非唯一，见建表脚本注释） */
     private String eventId;
 
@@ -35,7 +47,12 @@ public class ClientEventEntity {
 
     private String app;
 
-    /** 登录用户标识，登录前为空 */
+    /**
+     * 登录用户标识，登录前为空。
+     *
+     * <p><b>这是上报方自己填的值，只用于展示与排查，不可用于鉴权或归属判定</b> ——
+     * 归属看 {@link #tenantId}。本仓的后端从未把它当作"当前用户"。
+     */
     private String userId;
 
     /** 匿名设备标识，登录前靠它、登录后靠它做身份缝合 */

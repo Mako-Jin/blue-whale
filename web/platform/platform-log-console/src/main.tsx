@@ -8,6 +8,7 @@ import {
 import { bindHost, createLogger, unbindHost } from 'common-tools';
 import type { HostProps } from 'common-tools/micro';
 import App from './App';
+import { consoleAuth } from './console';
 import './styles/index.less';
 
 const APP_NAME = 'platform-log-console';
@@ -45,10 +46,14 @@ function destroy() {
  *
  * 这不是"兜底代码"，是**必须保留**的开发方式：子应用能单独 `pnpm dev` 打开，
  * 改一行不用等基座起来，调试成本差很多。删掉它只会让日常开发变慢。
+ *
+ * <p>先把会话准备好再渲染：服务端日志面板的查询接口要鉴权（`log:client:read`），
+ * 没有会话时它会立刻拿到 40100。`ensureSession` 在基座内是空操作，
+ * 因此这里不需要分情况 —— 独立运行时它会用持久化刷新令牌续期，续不上才用开发账号登录。
  */
 if (!qiankunWindow.__POWERED_BY_QIANKUN__) {
   logger.info('以独立应用模式启动（未被基座加载）');
-  render();
+  void consoleAuth.ensureSession().finally(() => render());
 }
 
 /**

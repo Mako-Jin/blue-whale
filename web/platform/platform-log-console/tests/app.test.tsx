@@ -23,6 +23,12 @@ vi.mock('common-api', () => ({
       listByTraceId: mocks.listByTraceId,
     },
   }),
+  // 认证端口要一起给：console.ts 在模块顶层就调用它，
+  // 少一个导出会让整个测试文件加载失败（0 个用例，不是某个用例失败）
+  createConsoleAuth: () => ({
+    port: { getAccessToken: () => null, reauthenticate: async () => false },
+    ensureSession: async () => {},
+  }),
 }));
 
 import App from '../src/App';

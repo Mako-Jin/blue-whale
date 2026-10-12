@@ -88,4 +88,34 @@ public final class AuthResources {
      */
     public static final String AUDIT = "auth:audit";
 
+    /**
+     * 客户端技术日志。
+     *
+     * <p>对应 {@link AuthPermissions#LOG_CLIENT_READ}。资源段是 {@code log}（域）+ {@code client}
+     * （来源），因为本仓的技术日志全部来自客户端上报 —— 服务端日志走 SLF4J 直接落盘，
+     * 不进库、也没有查询接口。将来若真接入服务端日志的查询，那是另一个资源
+     * （{@code log:server}），不该挤进这一段。
+     *
+     * <p><b>本类不只是 {@code auth} 域的常量集合</b>：它是全仓权限标识的唯一登记处，
+     * 域前缀跟着被访问的对象走。{@code AuthTaxonomyTest} 会强制"每个权限码都能归到某个
+     * 已声明的资源下"，因此新域必须在这里登记，否则那条断言会失败 —— 这正是它存在的意义。
+     *
+     * <p>也正因为日志域**只有读**（没有写、没有删），它永远不会出现在
+     * {@code @Audited(resource = ...)} 里：上报由客户端发起、且上报内容不可信，
+     * 不值得进审计。它是本仓"只有读、没有写动作"的第二个资源（第一个是 {@link #AUDIT}）。
+     */
+    public static final String LOG_CLIENT = "log:client";
+
+    /**
+     * 客户端行为事件。
+     *
+     * <p>对应 {@link AuthPermissions#EVENT_CLIENT_READ}。与 {@link #LOG_CLIENT} 同为"只有读"的资源。
+     *
+     * <p><b>注意它的事件记录里有 {@code user_id} 列，但那一列不是归属依据</b>：
+     * 它是客户端自己填的、可伪造。判断"这条事件属于哪个租户"只能用服务端在接收时
+     * 从会话里取到的租户（{@code bw_client_event.tenant_id}），绝不能用上报体里的字段。
+     * 两者的区别平时看不出来，直到有人构造一个假的 {@code user_id} 来读别人的数据。
+     */
+    public static final String EVENT_CLIENT = "event:client";
+
 }

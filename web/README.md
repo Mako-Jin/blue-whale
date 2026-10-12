@@ -58,6 +58,8 @@ platform-portal (:3000)
 
 > `platform-audit-console` 是**第三条管道**（审计日志）的控制台，形态与上面两个**刻意不同**：日志台与事件台都是左右分栏（客户端视角 / 服务端视角），因为"只看一边无法判断上报成没成"；审计**没有"两边"** —— 前端根本没有、也不该有把审计记录送出去的路径。页面从上到下三块：**流水**（按服务端时间倒序，带时间窗）→ **按动作聚合**（`action` 分组，失败数单列）→ **演练区**。`common-api` 的 `AuditApi` **一个写方法都没有**，`tests/audit.test.ts` 用快照式断言把"只有三个读方法"钉住。演练区的按钮**刻意不按权限显隐**：真实建一个租户、等审计记录出现、再删掉 —— 用只读账号点下去会得到两条 `FAILURE`，而**那次拒绝同样留痕**，正是本区要展示的东西。决策见 `docs/decisions/0019`，端到端验证见 `node scripts/verify-audit-pipeline.mjs`。
 
+> **日志台与事件台的认证接线（ADR-0026）**：子应用**不拥有会话** —— 跑在基座里用宿主下发的认证桥，独立运行时自建一套。这段分支逻辑此前在 `platform-admin` / `platform-audit-console` 各写了一遍，现收敛为 `common-api` 的 **`createConsoleAuth`**（宿主桥优先；`allowDevAutoLogin` 由调用方传 `import.meta.env.DEV`，契约包不自己读环境变量）。两个控制台本轮接上它并补了两个 provider（`accessTokenProvider` / `onUnauthorized`）—— **此前它们的 401 是"漏接"不是"缺实现"**：基座在 `createMicroAppProps` 里恒带 `auth`，只是没人读，于是后端刚上线鉴权时（ADR-0026 给日志 / 事件查询接口补 `@RequiresPermission`）控制台直接 401。**新控制台一律用 `createConsoleAuth`**；`platform-admin` / `platform-audit-console` 各自那份 `src/auth/` 是**已知的、有意留下的**技术债（下沉要连带改它们的测试与 `verify-audit-pipeline.mjs`）。
+
 ## 二、命令
 
 在 `web/` 目录下执行：
@@ -245,7 +247,7 @@ git config core.hooksPath web/.husky
 ## 八、待补充
 
 - 子应用 `platform-user` 尚未创建（qiankun 主应用与四个子应用的接线已完成，新增子应用按 `platform/platform-portal/README.md` 的三步走）。**前置依赖已全部就绪**：登录态、路由守卫、权限下发，以及子应用发已鉴权请求所需的认证桥（`docs/decisions/0018` 第⑨条）
-- 认证链路的**前端消费已全线接通**：登录页、路由守卫、启动时恢复会话、登出、`userId` / `roles` / `permissions` 经 `HostGlobalState` 下发，以及第一个消费方 `platform-admin`（按钮级权限）。端到端验证：`node scripts/verify-portal-auth.mjs`（登录态链路）与 `node scripts/verify-admin-permissions.mjs`（两种身份的按钮差异 + 真实增删）。**已补齐**：权限域的**全部**管理面 —— `platform-admin` 现有用户 / 租户 / 资源 / 角色 / 用户组五个标签页，用户页另有角色来源反查（`common-api/src/access.ts` 相应地从 5 条路径扩到 20 条）。**尚缺**：401 掉线在真实后端下的恢复演练（单测已覆盖）、**页面级权限过滤**（资源表里还没有 `MENU` / `PAGE` 类型的行 + 基座导航仍直接遍历 `MICRO_APPS`，见 `docs/decisions/0018` 的「未覆盖」）与**组织**管理面（后端连接口都没有）
+- 认证链路的**前端消费已全线接通**：登录页、路由守卫、启动时恢复会话、登出、`userId` / `roles` / `permissions` 经 `HostGlobalState` 下发，以及第一个消费方 `platform-admin`（按钮级权限）。端到端验证：`node scripts/verify-portal-auth.mjs`（登录态链路）与 `node scripts/verify-admin-permissions.mjs`（两种身份的按钮差异 + 真实增删）。**已补齐**：权限域的**全部**管理面 —— `platform-admin` 现有用户 / 租户 / 资源 / 角色 / 用户组五个标签页，用户页另有角色来源反查（`common-api/src/access.ts` 相应地从 5 条路径扩到 20 条）；`platform-log-console` / `platform-event-console` 经 `createConsoleAuth` 接上认证桥（ADR-0026）。**尚缺**：401 掉线在真实后端下的恢复演练（单测已覆盖）、**页面级权限过滤**（资源表里还没有 `MENU` / `PAGE` 类型的行 + 基座导航仍直接遍历 `MICRO_APPS`，见 `docs/decisions/0018` 的「未覆盖」）与**组织**管理面（后端连接口都没有）
 - **被基座加载时，子应用的 React 组件级热更新不生效**（样式热更新、以及子应用单独跑时的组件热更新都正常）。根因未定位，当前工作方式是改子应用组件时单独跑该子应用。详见 `docs/decisions/0012` 的「已知限制」
 - 微前端**生产部署**尚未落地：现在只有 dev（`//localhost:<port>`）与占位 `prodEntry`，真实静态目录与网关规则需要与部署方案一起定
 - 子应用的**样式隔离**当前没有保障（Vite dev 下框架级隔离拿不到），靠各应用自己的命名与 Less 令牌自律

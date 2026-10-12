@@ -32,12 +32,17 @@ public interface ClientEventMapper extends BaseMapper<ClientEventEntity> {
      *
      * <p>这里**不像日志域那样补齐"没有数据的项"**：日志的级别是封闭枚举，可以穷举后补零；
      * 事件名是开放集合（客户端可自由新增），没有"全集"可补，硬补只会补出一个过时的清单。
+     *
+     * <p><b>{@code tenantId} 是必传参数，且条件写在最前面 —— 写成可选（{@code <if>}）会留下
+     * 一个"忘记传租户就统计全库"的口子，而返回值只是一个计数，几乎不会被察觉。</b>
+     * 与 {@code AuditLogMapper#countByAction}、{@code ClientLogMapper#countByLevel} 同一个坑。
      */
     @Select("""
             <script>
             SELECT event_name AS event_name, COUNT(*) AS event_name_count
             FROM bw_client_event
-            WHERE server_time &gt;= #{startTime} AND server_time &lt;= #{endTime}
+            WHERE tenant_id = #{tenantId}
+              AND server_time &gt;= #{startTime} AND server_time &lt;= #{endTime}
             <if test="app != null and app != ''">
                 AND app = #{app}
             </if>
@@ -45,7 +50,8 @@ public interface ClientEventMapper extends BaseMapper<ClientEventEntity> {
             ORDER BY event_name
             </script>
             """)
-    List<ClientEventNameCount> countByEventName(@Param("app") String app,
+    List<ClientEventNameCount> countByEventName(@Param("tenantId") long tenantId,
+                                                @Param("app") String app,
                                                 @Param("startTime") long startTime,
                                                 @Param("endTime") long endTime);
 
@@ -65,12 +71,12 @@ public interface ClientEventMapper extends BaseMapper<ClientEventEntity> {
     @Insert("""
             <script>
             INSERT INTO bw_client_event
-                (event_id, event_name, app, user_id, device_id, session_id, route, app_release,
-                 props_json, props_version, client_time, server_time, ip)
+                (tenant_id, event_id, event_name, app, user_id, device_id, session_id, route,
+                 app_release, props_json, props_version, client_time, server_time, ip)
             VALUES
             <foreach collection="list" item="it" separator=",">
-                (#{it.eventId}, #{it.eventName}, #{it.app}, #{it.userId}, #{it.deviceId},
-                 #{it.sessionId}, #{it.route}, #{it.appRelease}, #{it.propsJson},
+                (#{it.tenantId}, #{it.eventId}, #{it.eventName}, #{it.app}, #{it.userId},
+                 #{it.deviceId}, #{it.sessionId}, #{it.route}, #{it.appRelease}, #{it.propsJson},
                  #{it.propsVersion}, #{it.clientTime}, #{it.serverTime}, #{it.ip})
             </foreach>
             </script>
