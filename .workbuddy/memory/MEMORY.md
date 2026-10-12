@@ -9,7 +9,7 @@
 - 结构范本（舰长指定）：`D:\workspace\platform-terminator`（前端）、`D:\workspace\SystemTerminator`（后端）
 - **六条铁律**：① 两端不共用构建 ② 跨端只认 OpenAPI 契约（前端 SDK 禁手写）③ 跨端共享物只放 `docs/` ④ `packages/*` 不反向依赖 `platform/*` ⑤ `platform-user` / `admin` 互不引用，复用下沉 `packages/` ⑥ 后端禁反向依赖与跨层跳跃
 - **每步完善文档**：对照表 `docs/README.md`；改代码同步改文档，同一次提交。Husky 脚本在 `web/.husky`（自动装报 `spawn git EBUSY`）；`.gitattributes` 强制 LF；Conventional Commits
-- **当前工作空间 `core.hooksPath` 未设置** → 钩子**不生效**，`pnpm lint-staged` / `commitlint` 都不跑（只有 `.sample`）。提交信息全靠手工守规，别以为被拦过
+- Husky 钩子用 `git config core.hooksPath web/.husky` 挂载（**本地 git config，不入库，重克隆后要重设**；自动安装报 `spawn git EBUSY`）。2026-10-12 已在本机挂好并实测可跑
 - HTTPS 凭据在 `~/.git-credentials`（store 助手）；**绝不要用命令行解析该文件**（`cut` / `sed` / `grep` / `cat` 都会把明文令牌打进输出，已踩过）；`helper-selector` 助手在非交互环境会卡住 → 无人值守操作加 `-c credential.helper= -c credential.helper=store`
 
 ## 2 坑表（已查清，勿再排查）
