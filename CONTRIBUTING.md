@@ -307,6 +307,11 @@ cd .. && node scripts/verify-nginx-config.mjs && node scripts/verify-docs-index.
 > **改 workflow 里的命令时，先把那条命令在本机跑一遍再推。** CI 配置本身没有测试，
 > 它唯一的验证机会就是下一次推送。
 
+> **动 workflow 时的两个实现硬点**（都在 `pnpm/action-setup`）：① 必须显式写
+> `package_json_file: web/package.json` —— 它默认读**仓库根**的 `package.json`，而本仓根目录
+> **没有**（前端工作区在 `web/`）；② 它**必须排在 `actions/setup-node` 之前** —— 后者的
+> `cache: pnpm` 要求 `pnpm` 已在 `PATH` 上。两条踩错都**不是**"配置报错"，而是 **job 起不来**。
+
 ---
 
 ## 九、目录归属速查

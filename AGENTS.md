@@ -4,13 +4,15 @@
 
 ## 必读文档
 
-| 文档                 | 内容                                          |
-| -------------------- | --------------------------------------------- |
-| `README.md`          | 项目结构、六条铁律、技术栈                    |
-| `docs/README.md`     | 文档规范（「改动 → 需同步哪些文档」对照表）   |
-| `CONTRIBUTING.md`    | 环境、Git 钩子、提交规范、契约更新流程        |
-| `docs/decisions/`    | 已定架构决策（ADR），动手前先看有没有相关约束 |
-| `docs/architecture/` | 分层与依赖方向的落地细则（后端改模块前必看）  |
+| 文档                 | 内容                                                              |
+| -------------------- | ----------------------------------------------------------------- |
+| `README.md`          | 项目结构、六条铁律、技术栈                                        |
+| `docs/README.md`     | 文档规范（「改动 → 需同步哪些文档」对照表）、**ADR 索引**          |
+| `CONTRIBUTING.md`    | 环境、Git 钩子、提交规范、契约更新流程、CI                        |
+| `server/README.md`   | 后端**各域硬规则表**（权限 / 日志 / 事件 / 审计）、错误码、构建命令 |
+| `web/README.md`      | 前端工作区结构、微前端约定、规范工具链、**测试约定**              |
+| `docs/decisions/`    | 已定架构决策（ADR），动手前先看有没有相关约束                     |
+| `docs/architecture/` | 分层与依赖方向的落地细则（后端改模块前必看）                      |
 
 ## 硬性要求
 
@@ -59,15 +61,24 @@
 | three 报 `PCFSoftShadowMap has been removed` / `Clock: This module has been deprecated`                        | three r186 移除/弃用了一部分 API，写上只得到运行时警告并**静默退回**，看起来生效了其实什么都没设                                                                                                                                         | 阴影用 `PCFShadowMap`、计时用核心的 `Timer`（不用 `Clock`）。新增 three 能力前先查当前版本的弃用清单                                                                                                        |
 | 子应用里"页面上的值变了，右下角调试标记不变"（或反过来）                                                       | **qiankun 全局状态每个子应用只有一个回调槽位**，第二次 `onGlobalStateChange` 直接覆盖第一个，先注册的静默失效                                                                                                                            | 一律用 `common-tools/micro` 的 `onHostGlobalStateChange()`（桥已做多路复用），不要直接调 `props.onGlobalStateChange`。见 `docs/decisions/0013` 第 7 条                                                      |
 
-## 写数据库相关的代码前，先记住五件事
+## 写数据库相关的代码前，先记住六件事
 
 1. **新增落库字段，先查 MySQL 保留字。** `release`、`rank`、`groups`、`system`、`window` 都是常见踩坑词。`RELEASE` 是 MySQL 8 的保留字而 H2 不认——写错了表现为"H2 正常、MySQL 建表失败"。
 2. **不要用 `@TableField` 把列名映射成与属性名不同的名字。** MyBatis-Plus 会**自动补 `列名 AS 属性名` 的别名**，别名若撞保留字照样 1064。让属性名与列名同构（`appRelease → app_release`，与 `traceId → trace_id` 一致）。
 3. **这类问题不要指望业务用例发现** —— 默认 profile 是 H2，它不认这些保留字，所有接口测试都会是绿的。只能对**生成的 SQL** 做断言（见 `ClientLogEntityMappingTest`）。
 4. **现在有两个库要查保留字，而且结论不可互推。** `RELEASE` 是 MySQL 8 的保留字，达梦完全不认；反过来 `LEVEL` 是达梦的关键字（属非保留、可作列名），MySQL 也不管。达梦的查法：`SELECT KEYWORD FROM V$RESERVED_WORDS WHERE RESERVED='Y'`。
 5. **新增建表迁移脚本时，版本号取全仓当前最大号 + 1。** 所有模块共用同一个 `spring.flyway.locations`，版本号**不是"每个模块各从 V1 开始"**。从 V1 起编号会让 Flyway 在**启动阶段**直接失败：`Found more than one migration with version 1`。三套方言（h2 / mysql / dameng）用**同一个**版本号，忘一套的症状只在那一个库上出现。
+6. **注解里的 SQL 不是编译期检查的。** 注解式批量插入用 `#{it.字段名}` 拼多行（见 `ClientLogMapper` / `ClientEventMapper`），**属性名写错编译器一句话都不会说** —— 它会一路跑到运行期，在真正有数据上报时才炸，而那时你多半正在别处找"上报为什么失败"。改这类 SQL 后**必须有一条真的走一遍插入的用例**（`ClientLogApiTest` / `ClientEventApiTest` 即是），别把"编译通过"当成"写对了"。
 
 > 数据源、profile 与表结构变更的完整说明见 `server/README.md` 第六节、`docs/decisions/0009`（H2 / MySQL）与 `docs/decisions/0010`（达梦）。
+
+## 写 Java 代码时的三种静默失败（都不报错，只表现为"找不到符号"或运行时 NPE）
+
+本仓用 Lombok + MyBatis-Plus，下面三条的共同点是**编译器和测试都不会替你说话**：
+
+1. **同一个元素上挂两个注解 ⇒ 注解处理在解析期就中止** —— Lombok 没跑完，症状是**同一批里一大批文件报"找不到符号"**（看起来像整个模块坏了，其实是某一处）。**必须 `mvn clean` 重编**：增量编译会留下半成品，表现成"`getXxx()` 明明该由 Lombok 生成却找不到"，这种就不要再逐文件排查了。
+2. **三目表达式的两个分支类型不同时会被统一**，`long` 与 `Long` 相遇要拆箱 ⇒ `null` 直接 NPE。不要拿它做空值兜底，写 `if`。
+3. **MyBatis-Plus 的 `eq(条件, 列, 值)` 里，"值"是无条件求值的** —— `eq(flag, X::getY, x.getY().trim())` 在 `getY() == null` 时**照样** NPE（条件为假也要先把实参算出来）。**先取局部变量、判空后再传**。
 
 ## 微前端（改基座或子应用前先看）
 

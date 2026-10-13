@@ -159,6 +159,20 @@ pnpm --filter platform-audit-console dev  # http://127.0.0.1:3600  审计管道�
 
 **Prettier 例外。** 它会自动向上查找最近的配置文件，所以用工作区根那份即可，子项目不用配。
 
+### 测试约定（子应用组件测试）
+
+两条**看起来像"测试写错了"、其实是机制**的约定，改测试前先对一遍：
+
+- **`vi.mock('common-api')` / `vi.mock('common-tools/micro')` 必须用 `importOriginal` 保留真身导出**：
+  `vi.mock('common-api', async (importOriginal) => { const actual = await importOriginal(); … })`。
+  整体替换掉模块，会让被测组件 import 的**其它**导出变成 `undefined`，报
+  `No "XXX" export is defined on the mock` —— 而那句话点的是**没被 mock 的那个导出**，极易查偏。
+- **权限 store 必须有人接，而生产代码里接它的只有 `main.tsx`。** 测试不走 `main.tsx`，
+  忘了接的界面**全空** —— 与"这个身份确实没权限"**长得一模一样**：不报错、不警告，
+  连断言都不会失败（如果它断的是"看不见"）。要断言"有权限时看得到"，就得在测试里
+  自己接一次（`platform-admin` / `platform-audit-console` 测试里那句
+  `disconnect = connectPermissionSource()` 就是它），否则**那条"看得见"的断言永远不会红**。
+
 提交信息格式：
 
 ```
