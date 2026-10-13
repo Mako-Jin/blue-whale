@@ -60,6 +60,14 @@ platform-portal (:3000)
 
 > **日志台与事件台的认证接线（ADR-0026）**：子应用**不拥有会话** —— 跑在基座里用宿主下发的认证桥，独立运行时自建一套。这段分支逻辑此前在 `platform-admin` / `platform-audit-console` 各写了一遍，现收敛为 `common-api` 的 **`createConsoleAuth`**（宿主桥优先；开发账号由调用方在 `import.meta.env.DEV` 为真时才构造，契约包不自己读环境变量；**不传即不自动登录**，因而生产构建下整段凭据会被静态摇掉 —— 见 `docs/decisions/0033`）。两个控制台本轮接上它并补了两个 provider（`accessTokenProvider` / `onUnauthorized`）—— **此前它们的 401 是"漏接"不是"缺实现"**：基座在 `createMicroAppProps` 里恒带 `auth`，只是没人读，于是后端刚上线鉴权时（ADR-0026 给日志 / 事件查询接口补 `@RequiresPermission`）控制台直接 401。**新控制台一律用 `createConsoleAuth`**；`platform-admin` / `platform-audit-console` 各自那份 `src/auth/` 是**已知的、有意留下的**技术债（下沉要连带改它们的测试与 `verify-audit-pipeline.mjs`）。
 
+> **独立运行分支的写法（四处一致，改一处就四处一起改）**：会话准备**失败也要渲染** ——
+> 没有会话只影响需要鉴权的面板，左栏与那句"后端不可达"仍然有内容可看；
+> 但**必须接住那次拒绝**（`try/catch` 后记一条 error），不能写成
+> `void ensureSession().finally(render)` —— 丢掉返回值会让"后端没起"这种预期内的状况
+> 变成控制台里一条 `unhandledrejection`，真正的异常会被这种噪声淹掉。
+> 这条有真机脚本盯着：`scripts/verify-standalone-dev-login.mjs`
+> （后端在跑 / 没起两种状态各跑一遍四个应用）。
+
 ## 二、命令
 
 在 `web/` 目录下执行：

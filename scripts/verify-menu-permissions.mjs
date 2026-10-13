@@ -11,7 +11,11 @@
  *   4. **两道门是独立的**：菜单码决定"进不进得去"，读写权限决定"进去之后能做什么"。
  *
  * 前置（四个进程都要在跑）：
- *   cd server && JAVA_HOME=<jdk21> mvn -pl sts-app/sts-app-server -am spring-boot:run   # :8080（h2，默认开两个种子账号）
+ *   cd server && mvn -pl sts-app/sts-app-server -am install -DskipTests   # 首次或上游有改动时
+ *   cd server && JAVA_HOME=<jdk21> mvn -pl sts-app/sts-app-server spring-boot:run   # :8080（h2，默认开种子账号）
+ *
+ *   **启动那一步不能带 `-am`** —— `spring-boot:run` 会落到 reactor 里每个模块上，
+ *   父工程没有 main class 会直接失败。上游模块改用 `install` 进本地仓库。
  *   pnpm --filter platform-portal dev         # :3000
  *   pnpm --filter platform-admin dev          # :3500
  *   pnpm --filter platform-audit-console dev  # :3600

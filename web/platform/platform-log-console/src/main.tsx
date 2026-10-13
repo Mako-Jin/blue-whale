@@ -60,11 +60,25 @@ function destroy() {
  * <p>权限来源**先接上再等会话**：`connectPermissions` 会订阅这条通道，
  * 而独立运行时的那次身份变更（登录/续期完成）正是通过它推出来的。
  * 反过来的顺序会让"登录完成了但界面不知道"，症状是两栏都不出现、刷新一下才正常。
+ *
+ * <p>**会话准备失败也要渲染，且要接住那次拒绝**：没有会话只影响右栏（它不会出现），
+ * 左栏与那句"后端不可达"仍然有内容可看。而"后端没起"是**预期内**的状况，
+ * 丢掉 Promise 会让它变成控制台里一条未处理的拒绝 ——
+ * 真正的异常会被这种噪声淹掉。写法与 `platform-admin` 的独立运行分支一致。
  */
 if (!qiankunWindow.__POWERED_BY_QIANKUN__) {
   logger.info('以独立应用模式启动（未被基座加载）');
   disconnectPermissions = connectPermissions();
-  void consoleAuth.ensureSession().finally(() => render());
+  void (async () => {
+    try {
+      await consoleAuth.ensureSession();
+    } catch (cause) {
+      logger.error('独立运行的会话准备失败（后续请求会以未认证失败）', {
+        message: cause instanceof Error ? cause.message : String(cause),
+      });
+    }
+    render();
+  })();
 }
 
 /**

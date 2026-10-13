@@ -10,7 +10,10 @@
  *   5. **登出真的清干净**：本地存储里的会话被移除，再访问受保护路由又被弹回登录页。
  *
  * 前置（三个进程都要在跑）：
- *   cd server && JAVA_HOME=<jdk21> mvn -pl sts-app/sts-app-server -am spring-boot:run   # :8080（h2，默认开种子）
+ *   cd server && mvn -pl sts-app/sts-app-server -am install -DskipTests   # 首次或上游有改动时
+ *   cd server && JAVA_HOME=<jdk21> mvn -pl sts-app/sts-app-server spring-boot:run   # :8080（h2，默认开种子）
+ *
+ *   **启动那一步不能带 `-am`**（`spring-boot:run` 会落到父工程上、没有 main class）。
  *   pnpm --filter platform-portal dev        # :3000
  *   pnpm --filter platform-log-console dev   # :3200（用来观察权限下发）
  *
