@@ -4,7 +4,7 @@
 #
 #   静态层（ESLint / Stylelint / 格式 / 类型）· 单测层（前端各包 / 后端各模块）
 #   · 构建层（六个应用 + 产物自检）· 后端层（Maven 构建 + 测试，两种数据源方言）
-#   · 仓库自检层（nginx 配置结构 / 文档索引一致性 —— 都不需要前置服务）
+#   · 仓库自检层（nginx 配置结构 / 文档索引一致性 / 契约清单一致性 —— 都不需要前置服务）
 #
 # **真机层刻意不进流水线**（浏览器 + 冷启动 dev server：单跑登录、微前端、三维、
 # 场景切换）。它依赖 GPU、真实浏览器与端口占用，放进必过项只会变成随机红 ——
@@ -218,10 +218,17 @@ jobs:
         with:
           node-version: '22'
 
-      # 这两条**不需要任何服务**：不起后端、不起 dev server、不装浏览器。
+      # 这三条**不需要任何服务**：不起后端、不起 dev server、不装浏览器。
       # 它们查的都是"配置或文档与实际不一致"，而这类错在本地几乎不会主动去查。
       - name: 网关配置结构自检
         run: node scripts/verify-nginx-config.mjs
 
       - name: 文档索引一致性
         run: node scripts/verify-docs-index.mjs
+
+      # 契约清单（docs/api/README.md §一）与 docs/api/openapi.json 逐条比对。
+      # 它读的是**入库的文件**，所以能跑在零前置的 job 里 —— 但也因此，
+      # 后端接口改了却忘了重新导出契约时它不会红（那要跑一遍后端才能发现，
+      # 属于 scripts/export-openapi.sh 那条流程的责任）。它守的是"契约与文档不一致"。
+      - name: 契约清单一致性
+        run: node scripts/verify-api-contract.mjs

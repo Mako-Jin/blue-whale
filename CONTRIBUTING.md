@@ -264,7 +264,7 @@ BW_DB_USERNAME=<用户> BW_DB_PASSWORD=<密码> java -jar sts-app/sts-app-server
 | `web` | 装依赖 → ESLint → Stylelint → **格式检查** → 类型检查 → 单测 → 构建 → **产物自检**（种子口令不得进包） |
 | `server` | `mvn -B -ntp verify`（构建 + 测试，含 enforcer 的 JDK 门禁；**不需要数据库服务**，默认 profile 是 h2 内存库） |
 | `server-mysql` | 同一条命令 + `-Dspring.profiles.active=mysql`，**对真实 MySQL**（`services: mysql:8.0`）跑全量用例；空库从零迁移一遍。带一条**防假绿**自检（查日志里的 `Database: jdbc:mysql` 等实证） |
-| `guards` | 网关配置结构自检 · 文档索引一致性（**都不需要前置服务**） |
+| `guards` | 网关配置结构自检 · 文档索引一致性 · 契约清单一致性（**都不需要前置服务**） |
 
 在本机等价地跑一遍：
 
@@ -288,7 +288,7 @@ mvn -B -ntp verify -Dspring.profiles.active=mysql \
   -Dbluewhale.auth.seed-auditor.enabled=true -Dbluewhale.auth.seed-auditor.password=<同 h2 profile>
 
 # 仓库自检
-cd .. && node scripts/verify-nginx-config.mjs && node scripts/verify-docs-index.mjs
+cd .. && node scripts/verify-nginx-config.mjs && node scripts/verify-docs-index.mjs && node scripts/verify-api-contract.mjs
 ```
 
 > **后端为什么有两个 job**：h2 是"clone 下来就能跑"的默认，**但它是开发便利、不是交付形态**。
