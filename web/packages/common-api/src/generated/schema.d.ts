@@ -579,7 +579,7 @@ export interface paths {
     };
     /**
      * 按链路标识查询整条链路
-     * @description 按发生时间**升序**返回，便于直接按顺序阅读。
+     * @description 按发生时间**升序**返回，便于直接按顺序阅读。最多返回 200 条；时间窗缺省为最近 7 天，与分页查询、聚合统计一致。
      */
     get: operations['listByTraceId'];
     put?: never;
@@ -1186,11 +1186,11 @@ export interface components {
       /** @description 角色分类，如 SYSTEM / BUSINESS / CUSTOM。仅用于分组展示 */
       category?: string;
       /**
-       * @description 数据范围：ALL / DEPT / DEPT_AND_CHILD / SELF / CUSTOM，缺省 ALL
+       * @description 数据范围：ALL / DEPT / DEPT_AND_CHILD / SELF / CUSTOM，缺省 ALL。CUSTOM 需要 filterJson，而本仓未实现其解析（求值时 precise = false），管理界面因此不提供这一档
        * @example ALL
        */
       dataScope?: string;
-      /** @description 自定义数据范围过滤条件（JSON）。**当前只存不用**，数据权限求值尚未实现 */
+      /** @description 自定义数据范围过滤条件（JSON），仅 dataScope = CUSTOM 时使用。**本仓未实现其解析** —— CUSTOM 档求值结果为 precise = false，已接入的查询保守地按「仅本人」处理 */
       filterJson?: string;
       /** @description 继承策略：NONE / INHERIT / OVERRIDE。**当前只存不用** */
       inheritStrategy?: string;
@@ -1238,9 +1238,9 @@ export interface components {
       isDefault?: number;
       /** @description 继承策略。**当前只存不用**，角色继承未实现 */
       inheritStrategy?: string;
-      /** @description 数据范围：ALL / DEPT / DEPT_AND_CHILD / SELF / CUSTOM。**当前只存不用**，数据权限求值未实现 —— 配了不会生效 */
+      /** @description 数据范围：ALL / DEPT / DEPT_AND_CHILD / SELF / CUSTOM。ALL 与 SELF 已影响审计可见性（非 ALL 即「仅本人」）；DEPT 系列可求值出组织集合，但当前没有任何查询消费它（本仓尚无业务数据表）；CUSTOM 的 filterJson 解析未实现，求值时 precise = false */
       dataScope?: string;
-      /** @description 自定义数据范围过滤条件。**当前只存不用** */
+      /** @description 自定义数据范围过滤条件（JSON），仅 dataScope = CUSTOM 时使用。**本仓未实现其解析** —— CUSTOM 档求值结果为 precise = false，已接入的查询保守地按「仅本人」处理；管理界面也不提供这一档 */
       filterJson?: string;
       /** Format: int32 */
       sortNo?: number;

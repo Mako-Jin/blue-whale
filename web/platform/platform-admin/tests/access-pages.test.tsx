@@ -387,6 +387,52 @@ describe('权限管理后台 · 资源 / 角色 / 用户组', () => {
     });
   });
 
+  it('角色页：数据范围下拉不提供 CUSTOM —— 它要 filter_json，而本仓未实现解析、界面也无处填写', async () => {
+    signIn(ADMIN);
+    render(<App />);
+    await screen.findByTestId('user-row-admin');
+
+    fireEvent.click(screen.getByText('角色'));
+    await screen.findByTestId('role-row-SUPER_ADMIN');
+    fireEvent.click(screen.getByText('编辑'));
+
+    const select = await screen.findByRole('combobox', { name: /数据范围/ });
+    const values = within(select)
+      .getAllByRole('option')
+      .map((option) => (option as HTMLOptionElement).value);
+
+    // 四档**都真的能求值**：ALL / SELF 自足，DEPT 系列靠主岗解析出组织集合。
+    // CUSTOM 不在此列 —— 摆出来就是"选了也配不了、配了也不生效"的假开关，
+    // 与菜单权限那次对三维环境页面码的判断同源。删掉它就再也不该被加回来。
+    expect(values).toEqual(['ALL', 'DEPT', 'DEPT_AND_CHILD', 'SELF']);
+  });
+
+  it('角色页：存量角色若是 CUSTOM，下拉把它作为历史值显示，而不是显示成空白', async () => {
+    mocks.rolePage.mockResolvedValue({
+      records: [{ ...ROLE_ROW, dataScope: 'CUSTOM' }],
+      total: 1,
+      page: 1,
+      size: 10,
+      pages: 1,
+    });
+    signIn(ADMIN);
+    render(<App />);
+    await screen.findByTestId('user-row-admin');
+
+    fireEvent.click(screen.getByText('角色'));
+    await screen.findByTestId('role-row-SUPER_ADMIN');
+    fireEvent.click(screen.getByText('编辑'));
+
+    const select = (await screen.findByRole('combobox', {
+      name: /数据范围/,
+    })) as HTMLSelectElement;
+
+    // 关键是不能是空白 —— 那会让管理员以为"数据范围丢了"，
+    // 而实际只是它不再可配置（枚举里仍有它，后端也照原样存）。
+    expect(select.value).toBe('CUSTOM');
+    expect(within(select).getByRole('option', { name: /CUSTOM/ })).toBeInTheDocument();
+  });
+
   it('用户组页：成员表单没有"类型"下拉 —— 用户组只接受 USER，不提供能选错的开关', async () => {
     signIn(ADMIN);
     render(<App />);

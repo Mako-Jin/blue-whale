@@ -379,7 +379,9 @@ OPENAPI_PORT=18081 bash scripts/export-openapi.sh
   本批把 `0025` 留下的最后一处"只存不用"清掉了 —— `DEPT` / `DEPT_AND_CHILD` 从
   "`precise` 恒为 false" 变成**可精确求值**（有有效主岗时下发 `visibleOrgIds`）；
   同批修掉一处**半更新状态**（移动只写派生列、没落 `parent_id`）。
-  **仍缺前端管理页**（下一轮）。
+  **前端管理页已于同批落地**：「组织」成为 `platform-admin` 的第六个标签页
+  （树 + 编辑 + 移动 + 成员 + 设主岗），与后端同批交付 —— 只读的组织接口没有价值，
+  写入路径必须与读取同批落地。
 - **动态用户组求值**：`filter_json` / `org_scope_json` 两列只存不用，且**刻意不在任何接口的入参 / 出参里** ——
   动态成员规则求值未实现，接受它会得到一个"永远算不出成员"的壳。触发条件：真的需要动态组时。
 - **数据范围求值完成了"求值 + 下发"**（ADR-0025 / **ADR-0030 补齐了组织侧**）：`GET /api/auth/users/{id}/data-scope`
@@ -390,6 +392,10 @@ OPENAPI_PORT=18081 bash scripts/export-openapi.sh
   **静默放宽**（`bw_audit_log` 没有组织维度，只能退化成 `operator_id IN (该部门的用户)`），
   这是**刻意的"不做"**（ADR-0030 第 10 条）。
   **`CUSTOM` 仍需 `filter_json` 的表达式解析**；在解析实现之前，这一档在查询上退化为「仅本人」。
+  ⇒ 角色表单因此**不提供 `CUSTOM` 选项**（它要 `filterJson`，而界面既无处填写、本仓也不解析 ——
+  摆出来就是"选了也配不了、配了也不生效"，与菜单权限那次对三维环境页面码的判断同源）。
+  后端**保留**该枚举值：存量行照原样存、求值照原样给 `precise = false`，
+  只是界面不再把它当成一个可配的档位。
   另：本仓**没有业务数据表**（16 张全是 `bw_auth_*` 加三条管道），所以"用 `data_scope` 过滤业务数据"
   在当前仓里没有落点 —— 它的价值最终要在业务系统兑现。
 - **给三张关系表加唯一索引**（`(role_id, resource_id)` / `(role_id, member_type, member_id)` / `(user_group_id, member_type, member_id)`）：
@@ -402,12 +408,11 @@ OPENAPI_PORT=18081 bash scripts/export-openapi.sh
   详情跨租户返回 `404`（与"不存在"同码）。这两条管道的**前端 401 此前是漏接**：
   宿主恒下发 `auth` 桥，两个控制台只是没读 —— 现已经 `common-api` 的 `createConsoleAuth` 接上。
 - 前端的域接线进度：**认证 / 会话**（`src/auth.ts`）、**权限域管理**（`src/access.ts`，已补齐到 20 条路径）、**审计**（`src/audit.ts`，只读）**均已接入**。
-  **数据范围反查（`GET /api/auth/users/{id}/data-scope`）尚未接线**：它要展示的是一个"配了但暂时不生效"的状态（`precise=false`），
-  怎么在界面上表达这件事是个独立的产品决定，不该顺手塞进用户列表。
-  `platform-admin` 现有五个标签页：用户（含「角色来源」反查）、租户、资源（树 / 列表两种视图）、角色（含资源授权与成员）、用户组（含组成员）。
+  **数据范围反查**（`GET /api/auth/users/{id}/data-scope`）也已接线：用户列表的「数据范围」按钮打开反查对话框，
+  它要展示的正是"配了但暂时不生效"这个状态（`precise=false` 加上 `visibleOrgIds` 的 `null` 与 `[]` **分开说**）。
+  `platform-admin` 现有**六个标签页**：用户（含「角色来源」反查）、租户、资源（树 / 列表两种视图）、角色（含资源授权与成员）、用户组（含组成员）、组织（树 + 编辑 + 移动 + 成员 + 设主岗）。
   `AccessPermissions` 随之补上了 `auth:resource:*` / `auth:role:*` / `auth:user_group:*` 共 12 项
   （该文件的规则是"只列前端真的用到的"；角色成员与用户组成员的**授予 / 撤销复用 `auth:role:update` / `auth:user_group:update`**，服务端另有独立的审计动作把它记清楚）。
-  **组织**是唯一连后端都还没有的一类，因此前端也没有接线。
-  **菜单权限还差两步**：资源表里没有 `MENU` / `PAGE` 类型的行（种子把 `ALL` 全建成了 `API`），
-  且基座导航（`BasicLayout`）直接遍历 `MICRO_APPS`、没有按权限过滤 —— 这两步不做，"配了菜单权限"在界面上看不到任何效果。
+  **菜单权限的两步已同做**（ADR-0031）：种子按 `AuthMenus` 建出 `MENU` / `PAGE` 行，
+  基座 `BasicLayout` 按权限过滤导航、`RequireMenu` 同时拦住 URL 直达 —— 只做前者就是交付假开关。
 - 契约尚未按域拆分为多文件；接口量变大后再考虑 `openapi/` 目录方案

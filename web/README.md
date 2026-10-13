@@ -54,7 +54,7 @@ platform-portal (:3000)
 
 > `platform-environment` 是**与任何业务域无关的环境应用**：一块 three.js 三维画布（内含古建筑 / 原始丛林 / 现代写字楼 / 太空飞船 / 渲染基线五个可切换场景），外加"WebGL 渲染生命周期该怎么管"的参考实现 —— 画布与上下文同生共死、卸载必 `forceContextLoss()`、GPU 资源可断言地释放、切场景只换场景图不换渲染器。古建筑是第一个**可操控**场景：殿前广场上有可走的主人公（WASD/方向键 + 右键设行动终点 + 滚轮缩放）与左上角小地图（正北朝上、人物朝向与相机视野分画）。三维依赖重（gzip 后约 229 kB），独立成子应用让其他路由不受拖累。决策见 `docs/decisions/0013`（渲染生命周期）、`docs/decisions/0014`（多场景架构）与 `docs/decisions/0015`（场景交互）。
 
-> `platform-admin` 是**按钮级权限的活体演示**，也是权限域实体（用户 / 租户 / 资源 / 角色 / 用户组，五个标签页）的管理界面：同一段代码、同一个页面，管理员看到全部操作入口，只读的审计员只看得到列表 —— 差异不写在代码里，只写在基座下发的权限集合里。五个标签页的顺序就是授权链路的顺序：**资源**（能做什么）→ **角色**（打包 + 授资源 + 挂成员）→ **用户组**（把角色批量授给一群人），而**用户**页挂的「角色来源」反查回答反向的问题 —— 这个人持有的角色是从哪来的（直接授予 / 经用户组授予，含两组时态）。它同时回答了"子应用怎么发已鉴权请求"：令牌**值**不下发，基座经 `HostProps.auth` 下发"取令牌"与"要一次刷新"两个动作（`docs/decisions/0018` 第 9 条），本应用不含登录页。后端 h2 profile 会种下两个对照账号（`admin` 全权限 / `auditor` 仅读权限），端到端验证见 `node scripts/verify-admin-permissions.mjs`。
+> `platform-admin` 是**按钮级权限的活体演示**，也是权限域实体（用户 / 租户 / 资源 / 角色 / 用户组 / 组织，六个标签页）的管理界面：同一段代码、同一个页面，管理员看到全部操作入口，只读的审计员只看得到列表 —— 差异不写在代码里，只写在基座下发的权限集合里。六个标签页的顺序就是授权链路的顺序：**资源**（能做什么）→ **角色**（打包 + 授资源 + 挂成员）→ **用户组**（把角色批量授给一群人）→ **组织**（数据范围的坐标系，回答"他看得到哪些数据"），而**用户**页挂的「角色来源」反查回答反向的问题 —— 这个人持有的角色是从哪来的（直接授予 / 经用户组授予，含两组时态）。它同时回答了"子应用怎么发已鉴权请求"：令牌**值**不下发，基座经 `HostProps.auth` 下发"取令牌"与"要一次刷新"两个动作（`docs/decisions/0018` 第 9 条），本应用不含登录页。后端 h2 profile 会种下两个对照账号（`admin` 全权限 / `auditor` 仅读权限），端到端验证见 `node scripts/verify-admin-permissions.mjs`。
 
 > `platform-audit-console` 是**第三条管道**（审计日志）的控制台，形态与上面两个**刻意不同**：日志台与事件台都是左右分栏（客户端视角 / 服务端视角），因为"只看一边无法判断上报成没成"；审计**没有"两边"** —— 前端根本没有、也不该有把审计记录送出去的路径。页面从上到下三块：**流水**（按服务端时间倒序，带时间窗）→ **按动作聚合**（`action` 分组，失败数单列）→ **演练区**。`common-api` 的 `AuditApi` **一个写方法都没有**，`tests/audit.test.ts` 用快照式断言把"只有三个读方法"钉住。演练区的按钮**刻意不按权限显隐**：真实建一个租户、等审计记录出现、再删掉 —— 用只读账号点下去会得到两条 `FAILURE`，而**那次拒绝同样留痕**，正是本区要展示的东西。决策见 `docs/decisions/0019`，端到端验证见 `node scripts/verify-audit-pipeline.mjs`。
 
@@ -247,7 +247,7 @@ git config core.hooksPath web/.husky
 ## 八、待补充
 
 - 子应用 `platform-user` 尚未创建（qiankun 主应用与四个子应用的接线已完成，新增子应用按 `platform/platform-portal/README.md` 的三步走）。**前置依赖已全部就绪**：登录态、路由守卫、权限下发，以及子应用发已鉴权请求所需的认证桥（`docs/decisions/0018` 第⑨条）
-- 认证链路的**前端消费已全线接通**：登录页、路由守卫、启动时恢复会话、登出、`userId` / `roles` / `permissions` 经 `HostGlobalState` 下发，以及第一个消费方 `platform-admin`（按钮级权限）。端到端验证：`node scripts/verify-portal-auth.mjs`（登录态链路）与 `node scripts/verify-admin-permissions.mjs`（两种身份的按钮差异 + 真实增删）。**已补齐**：权限域的**全部**管理面 —— `platform-admin` 现有用户 / 租户 / 资源 / 角色 / 用户组五个标签页，用户页另有角色来源反查（`common-api/src/access.ts` 相应地从 5 条路径扩到 20 条）；`platform-log-console` / `platform-event-console` 经 `createConsoleAuth` 接上认证桥（ADR-0026）。**尚缺**：401 掉线在真实后端下的恢复演练（单测已覆盖）、**页面级权限过滤**（资源表里还没有 `MENU` / `PAGE` 类型的行 + 基座导航仍直接遍历 `MICRO_APPS`，见 `docs/decisions/0018` 的「未覆盖」）与**组织**管理面（后端连接口都没有）
+- 认证链路的**前端消费已全线接通**：登录页、路由守卫、启动时恢复会话、登出、`userId` / `roles` / `permissions` 经 `HostGlobalState` 下发，以及第一个消费方 `platform-admin`（按钮级权限）。端到端验证：`node scripts/verify-portal-auth.mjs`（登录态链路）与 `node scripts/verify-admin-permissions.mjs`（两种身份的按钮差异 + 真实增删）。**已补齐**：权限域的**全部**管理面 —— `platform-admin` 现有用户 / 租户 / 资源 / 角色 / 用户组 / 组织六个标签页，用户页另有角色来源与数据范围反查（`common-api/src/access.ts` 相应地从 5 条路径扩到 20 条）；`platform-log-console` / `platform-event-console` 经 `createConsoleAuth` 接上认证桥（ADR-0026）。**已补齐**：**页面级权限过滤**（ADR-0031 —— 种子按 `AuthMenus` 建出 `MENU` / `PAGE` 行，基座 `BasicLayout` 按权限过滤导航且 `RequireMenu` 拦住 URL 直达）与**组织**管理面（ADR-0030，前端第六个标签页）。**尚缺**：401 掉线在真实后端下的恢复演练（单测已覆盖）
 - **被基座加载时，子应用的 React 组件级热更新不生效**（样式热更新、以及子应用单独跑时的组件热更新都正常）。根因未定位，当前工作方式是改子应用组件时单独跑该子应用。详见 `docs/decisions/0012` 的「已知限制」
 - 微前端**生产部署**尚未落地：现在只有 dev（`//localhost:<port>`）与占位 `prodEntry`，真实静态目录与网关规则需要与部署方案一起定
 - 子应用的**样式隔离**当前没有保障（Vite dev 下框架级隔离拿不到），靠各应用自己的命名与 Less 令牌自律
@@ -255,5 +255,5 @@ git config core.hooksPath web/.husky
 - 客户端日志目前只有采集与上报；**采样与脱敏**尚未实现，等有真实生产流量再做
 - 行为事件的**采样、服务端二次脱敏、事件注册表**尚未实现；当前落库到普通数据库，接入数仓时替换落点即可（`docs/decisions/0011` 列了完整清单）
 - 审计日志已全线打通（后端拦截器自动产生 + 只读查询 + `platform-audit-console`）；**采样、脱敏、保留期与归档、导出、失败告警**均未做，`docs/decisions/0019` 末节列了完整清单
-- `platform-audit-console` 与 `platform-admin` 的 `auth/` 接线**逐字重复**了一份（铁律⑤要求下沉 `packages/`）。这是有意留着的重复 —— 下沉要同时改前者的既有测试与端到端脚本。触发条件：**出现第三个管理型子应用时**
+- 四个子应用的 `auth/` 里，权限的 **React 适配层（`usePermissionState` / `usePermission`）仍是逐字重复的 4 份**（`platform-admin` / `platform-audit-console` / `platform-log-console` / `platform-event-console`）。**内核已下沉**：`common-tools/micro` 的 `createPermissionStore` 接管了会话订阅与"未就绪 ⇒ 空列表"这条规则，各应用只是把它接到自己的 `consoleAuth` 上。触发条件**已经到达过一次**（两个控制台成为第三、第四个消费方），当时下沉的是 store 而不是 Hook：再往下沉要给**刻意不引 React** 的 `common-tools` 加 React peer 与子路径导出，属于"再建一层"，与那一轮的收敛方向相反 —— 剩下的重复是 2~4 行正确且不会变的代码，**有意不做**（下次触发条件：适配层开始承载真实逻辑）
 - 公共依赖已由 `pnpm-workspace.yaml` 的 catalog 统一管理，新增依赖务必走 catalog

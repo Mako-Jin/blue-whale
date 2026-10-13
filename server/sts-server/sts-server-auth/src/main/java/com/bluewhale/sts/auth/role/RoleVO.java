@@ -12,8 +12,11 @@ import lombok.Setter;
  * 变成"接口悄悄多了一个字段"。代价是新增字段要手动接线 —— 这是刻意的摩擦。
  *
  * <p><b>派生字段 {@code requestScoped} 的教训在这里也适用</b>：{@code dataScope}
- * 是运营最关心的一个字段（"这个角色能看多少数据"），但**它当前不产生任何效果** ——
- * 数据权限的求值层还没做。文档里写清楚，比让使用者以为配了就生效要好。
+ * 是运营最关心的一个字段（"这个角色能看多少数据"），而它的**效果是分层的、必须逐档说清**：
+ * ALL 与 SELF 已经影响审计可见性（非 ALL 即「仅本人」）；DEPT 系列能求值出组织集合，
+ * 但本仓尚无业务数据表、没有查询消费它；CUSTOM 的 {@code filterJson} 解析未实现，
+ * 求值时 {@code precise = false}。写清楚每一档的边界，好过让使用者以为"配了就都生效"——
+ * 而**权威口径是求值结果本身**（用户页的「数据范围反查」），不是这里的枚举。
  */
 @Getter
 @Setter
@@ -43,10 +46,14 @@ public class RoleVO {
     private String inheritStrategy;
 
     @Schema(description = "数据范围：ALL / DEPT / DEPT_AND_CHILD / SELF / CUSTOM。"
-            + "**当前只存不用**，数据权限求值未实现 —— 配了不会生效")
+            + "ALL 与 SELF 已影响审计可见性（非 ALL 即「仅本人」）；"
+            + "DEPT 系列可求值出组织集合，但当前没有任何查询消费它（本仓尚无业务数据表）；"
+            + "CUSTOM 的 filterJson 解析未实现，求值时 precise = false")
     private String dataScope;
 
-    @Schema(description = "自定义数据范围过滤条件。**当前只存不用**")
+    @Schema(description = "自定义数据范围过滤条件（JSON），仅 dataScope = CUSTOM 时使用。"
+            + "**本仓未实现其解析** —— CUSTOM 档求值结果为 precise = false，"
+            + "已接入的查询保守地按「仅本人」处理；管理界面也不提供这一档")
     private String filterJson;
 
     private Integer sortNo;

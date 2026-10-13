@@ -3544,12 +3544,12 @@
           },
           "dataScope": {
             "type": "string",
-            "description": "数据范围：ALL / DEPT / DEPT_AND_CHILD / SELF / CUSTOM，缺省 ALL",
+            "description": "数据范围：ALL / DEPT / DEPT_AND_CHILD / SELF / CUSTOM，缺省 ALL。CUSTOM 需要 filterJson，而本仓未实现其解析（求值时 precise = false），管理界面因此不提供这一档",
             "example": "ALL"
           },
           "filterJson": {
             "type": "string",
-            "description": "自定义数据范围过滤条件（JSON）。**当前只存不用**，数据权限求值尚未实现",
+            "description": "自定义数据范围过滤条件（JSON），仅 dataScope = CUSTOM 时使用。**本仓未实现其解析** —— CUSTOM 档求值结果为 precise = false，已接入的查询保守地按「仅本人」处理",
             "maxLength": 4096,
             "minLength": 0
           },
@@ -3645,11 +3645,11 @@
           },
           "dataScope": {
             "type": "string",
-            "description": "数据范围：ALL / DEPT / DEPT_AND_CHILD / SELF / CUSTOM。**当前只存不用**，数据权限求值未实现 —— 配了不会生效"
+            "description": "数据范围：ALL / DEPT / DEPT_AND_CHILD / SELF / CUSTOM。ALL 与 SELF 已影响审计可见性（非 ALL 即「仅本人」）；DEPT 系列可求值出组织集合，但当前没有任何查询消费它（本仓尚无业务数据表）；CUSTOM 的 filterJson 解析未实现，求值时 precise = false"
           },
           "filterJson": {
             "type": "string",
-            "description": "自定义数据范围过滤条件。**当前只存不用**"
+            "description": "自定义数据范围过滤条件（JSON），仅 dataScope = CUSTOM 时使用。**本仓未实现其解析** —— CUSTOM 档求值结果为 precise = false，已接入的查询保守地按「仅本人」处理；管理界面也不提供这一档"
           },
           "sortNo": {
             "type": "integer",

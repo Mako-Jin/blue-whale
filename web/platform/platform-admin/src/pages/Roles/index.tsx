@@ -95,8 +95,19 @@ function toBody(form: RoleForm): AccessRoleSaveRequest {
  * 就是改这个角色的持有者。但服务端的**审计动作是分开的**
  * （`auth.role.grant_member` / `revoke_member`），所以"谁把人提上来了"依然查得到。
  *
- * <p>数据范围（`dataScope`）与继承策略（`inheritStrategy`）**当前只存不用** ——
- * 界面上把它们标出来，比让用户配了之后以为生效更诚实。
+ * <p><b>表单只摆出"配了真的会生效"的字段</b>，这条界线比它看起来重要：
+ * <ul>
+ *   <li><b>数据范围</b>（`dataScope`）已参与求值（用户页的「数据范围反查」可见结果），
+ *       但本仓尚无业务数据表 —— 目前只有审计查询按它收窄（非 ALL 即「仅本人」），
+ *       DEPT 系列算出的组织集合还没有查询消费它。这四档照常提供：它们**各自都是真的**，
+ *       只是"有没有落点"取决于数据模型，而不是取决于这一页；</li>
+ *   <li><b>`CUSTOM` 不提供</b>：它要解析后端的 `filter_json`，而本仓未实现、
+ *       本页也没有填写自定义条件的输入框 —— 摆出来就是"选了也配不了、配了也不生效"；</li>
+ *   <li><b>继承策略</b>（`inheritStrategy`）、**默认角色**（`isDefault`）、
+ *       **`filterJson`** 一律不进表单：只存不用的字段不给它配的样子，
+ *       否则管理员配完以为生效、排查时才发现从来没被读过。界面上标出来，
+ *       比让人配了之后以为生效更诚实。</li>
+ * </ul>
  */
 export function RolesPage() {
   const permission = usePermissionState();
@@ -521,11 +532,25 @@ function RoleFormDialog({
             value={form.dataScope}
             onChange={(event) => update({ dataScope: event.target.value })}
           >
+            {/*
+             * 候选档位 = `DataScope` 枚举里**真正能被求值**的那些。
+             *
+             * `CUSTOM` 刻意不在其中：它要解析后端 `filter_json` 里的表达式，而本仓未实现，
+             * 本页也没有填写自定义条件的输入框 —— 摆出来就是一个"选了也配不了、
+             * 配了也不生效"的假开关。上一轮修菜单权限时对三维环境的页面码做过同一个判断。
+             *
+             * 但它仍是**合法的线上取值**（枚举里有、库里有），而且本页曾经提供过它，
+             * 所以已存在的角色可能正是 CUSTOM。把当前值作为一条只读选项渲染出来，
+             * 好过让下拉显示空白 —— 那会让管理员以为"数据范围丢了"，
+             * 实际只是它不再可配置。改成别的档之后就再也选不回来，这是有意的。
+             */}
+            {form.dataScope === 'CUSTOM' ? (
+              <option value="CUSTOM">CUSTOM 自定义（历史值，已不再支持配置）</option>
+            ) : null}
             <option value="ALL">ALL 全部</option>
             <option value="DEPT">DEPT 本部门</option>
             <option value="DEPT_AND_CHILD">DEPT_AND_CHILD 本部门及下级</option>
             <option value="SELF">SELF 仅本人</option>
-            <option value="CUSTOM">CUSTOM 自定义</option>
           </select>
         </label>
         <label className="form__row">
@@ -548,8 +573,10 @@ function RoleFormDialog({
           />
         </label>
         <p className="form__tip">
-          数据范围与继承策略<strong>当前只存不用</strong>（数据权限求值与角色继承尚未实现）——
-          配了不会生效，因此这里不假装它能用。
+          数据范围<strong>已参与求值</strong>（用户页「数据范围反查」可见结果），
+          但目前只有审计查询按它收窄（<strong>非 ALL 即「仅本人」</strong>）、 DEPT
+          系列算出的组织集合还没有查询消费它 —— 本仓尚无业务数据表。
+          角色继承仍未实现，因此这里不提供继承策略：只存不用的字段不摆出可配的样子。
         </p>
         {error ? <p className="banner banner--error">{error}</p> : null}
       </form>

@@ -15,10 +15,11 @@ import jakarta.validation.constraints.Size;
  *       理由：这些值会被判定链路读取，写错不会报错，只会静默地改变行为
  *       （停用的角色还在产生权限、数据范围写成了不存在的档位）。</li>
  *   <li><b>只存不用的字段宽松接受</b> —— {@code category} / {@code inheritStrategy} /
- *       {@code filterJson} / {@code roleLevel} 当前既不参与判定、也没有消费方
- *       （角色继承与数据范围求值都还没做）。给它们编一套取值约束，
- *       等于提前定义一个还没有用例的契约 —— 与 {@code resourceVersion}
- *       的"只存不用"是同一种处理。</li>
+ *       {@code filterJson} / {@code roleLevel} 当前都没有消费方：角色继承未实现，
+ *       而 {@code filterJson} 只在 {@code CUSTOM} 档被读、该档的解析本仓也没做
+ *       （{@code dataScope} 本身是另一回事 —— 它**已参与求值**）。
+ *       给它们编一套取值约束，等于提前定义一个还没有用例的契约 ——
+ *       与 {@code resourceVersion} 的"只存不用"是同一种处理。</li>
  * </ul>
  * 这条分界线的依据是"写错了会不会有人受伤"，而不是字段的重要性。
  *
@@ -55,12 +56,16 @@ public class RoleSaveRequest {
     @Schema(description = "角色分类，如 SYSTEM / BUSINESS / CUSTOM。仅用于分组展示")
     private String category;
 
-    @Schema(description = "数据范围：ALL / DEPT / DEPT_AND_CHILD / SELF / CUSTOM，缺省 ALL",
+    @Schema(description = "数据范围：ALL / DEPT / DEPT_AND_CHILD / SELF / CUSTOM，缺省 ALL。"
+            + "CUSTOM 需要 filterJson，而本仓未实现其解析（求值时 precise = false），"
+            + "管理界面因此不提供这一档",
             example = "ALL")
     private String dataScope;
 
     @Size(max = 4096, message = "自定义数据范围条件过长")
-    @Schema(description = "自定义数据范围过滤条件（JSON）。**当前只存不用**，数据权限求值尚未实现")
+    @Schema(description = "自定义数据范围过滤条件（JSON），仅 dataScope = CUSTOM 时使用。"
+            + "**本仓未实现其解析** —— CUSTOM 档求值结果为 precise = false，"
+            + "已接入的查询保守地按「仅本人」处理")
     private String filterJson;
 
     @Size(max = 32, message = "继承策略不能超过 32 字")
