@@ -3,7 +3,8 @@
 # 分层原则：**能自动判定的一律自动判定；判不了的不要假装判了。**
 #
 #   静态层（ESLint / Stylelint / 格式 / 类型）· 单测层（前端各包 / 后端各模块）
-#   · 构建层（六个应用 + 产物自检）· 契约层（生成物与契约逐字节一致）
+#   · 构建层（六个应用 + 产物自检）
+#   · 契约层（代码 → 契约 → 生成物，两段各逐字节核对）
 #   · 后端层（Maven 构建 + 测试，两种数据源方言）
 #   · 仓库自检层（nginx 配置结构 / 文档索引一致性 / 契约清单一致性 —— 都不需要前置服务）
 #
@@ -124,7 +125,7 @@ jobs:
         run: node scripts/verify-bundle-secrets.mjs
 
   server:
-    name: 后端 · 构建 + 测试
+    name: 后端 · 构建 / 测试 / 契约同步
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -147,6 +148,39 @@ jobs:
       # —— 顺带验证了迁移脚本本身是可执行的。
       - name: 构建并跑测试
         run: mvn -B -ntp verify
+
+      # 契约是不是跟上了代码（见 docs/decisions/0042）。
+      #
+      # 上一步的 `verify` 已经产出可执行的 jar —— 这里把它启一次（默认 h2 内存库，
+      # 不需要任何服务、不需要数据库），重新导出契约，再要求与入库版本逐字节相同。
+      #
+      # 没有这半步，`web` job 里守的那段（生成物 ↔ 契约）会守在一个**可能已经过期的
+      # 上游**上：契约旧了 → `gen:api` 照着旧契约生成 → 生成物与旧契约一致 → 照样绿。
+      # 而"契约落后于代码"本身很安静：前端照着旧类型写完、编译也过，直到接线时才发现
+      # 接口对不上。契约层因此是两段（代码 → 契约 → 生成物），缺一段就断在半途。
+      #
+      # 为什么敢比字节：导出实测稳定 —— 同一 jar 连跑两次，以及 `mvn clean` 重建后的
+      # jar 再跑一次，三次所得与入库版本同为 d7dc9f0f…（2026-10-13 本机实测，见 0042）。
+      - name: 契约与代码是否同步
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -e
+          if ! bash scripts/export-openapi.sh > /tmp/openapi-export.log 2>&1; then
+            echo "::error::契约导出失败（应用没起来 / 产物缺失 / JDK 不对）。日志："
+            cat /tmp/openapi-export.log
+            exit 1
+          fi
+          head -n 6 /tmp/openapi-export.log
+          if [ -n "$(git status --porcelain -- docs/api/openapi.json)" ]; then
+            echo "::error::docs/api/openapi.json 与后端代码不同步 —— 接口改了，但没重新导出契约。"
+            echo "在仓库根依次执行，并把产物与代码同一次提交："
+            echo "  bash scripts/export-openapi.sh"
+            echo "  cd web && pnpm --filter common-api gen:api"
+            git --no-pager diff --stat -- docs/api/openapi.json
+            git --no-pager diff -- docs/api/openapi.json > /tmp/openapi.diff || true
+            head -60 /tmp/openapi.diff
+            exit 1
+          fi
 
   # ---------------------------------------------------------------------------
   # 真实 MySQL：h2 是"clone 下来就能跑"的默认，但它**不是**交付形态。

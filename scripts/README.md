@@ -8,7 +8,7 @@
 
 | 脚本                           | 用途                                                                  | 前置条件                                                                                                                         | 说明见                |
 | ------------------------------ | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
-| `export-openapi.sh`            | 从运行中的应用导出 OpenAPI 契约到 `docs/api/openapi.json`             | 后端可构建且 JDK 21（脚本自查 `JAVA_HOME`）；临时以 18080 端口启动一次                                                           | `docs/decisions/0006` |
+| `export-openapi.sh`            | 从运行中的应用导出 OpenAPI 契约到 `docs/api/openapi.json`。**CI 会重跑它并与入库版本逐字节比对**（`server` job）—— 接口改了却忘了导出会红 | 后端可构建且 JDK 21（脚本自查 `JAVA_HOME`）；临时以 18080 端口启动一次                                                           | `docs/decisions/0006` · `0042` |
 | `init-dameng.sh`               | 在达梦 DM8 上应用交付用的建表脚本（Flyway 无达梦模块）                | 可达的 DM8 实例；凭据走环境变量 `BW_DB_USERNAME` / `BW_DB_PASSWORD`                                                              | `docs/decisions/0010` |
 | `verify-micro-frontend.mjs`    | 用真实 Chrome 验证微前端全链路                                        | **后端 :8080（h2 profile，含种子账号）**与基座 :3000、以及要验证的子应用（:3200 / :3300 / :3400 / :3500 / :3600）都在跑；本机装有 Google Chrome | `docs/decisions/0012` |
 | `verify-scene-switching.mjs`   | 用真实 Chrome 验证三维应用的多场景切换与显存释放                      | :3400 在跑，且本机装有 Google Chrome；可选传截图目录                                                                             | `docs/decisions/0014` |
@@ -342,16 +342,19 @@
 
 > **它证明不了"契约是对的"。** 它两边读的都是**入库的文件** —— 后端接口改了而忘了跑
 > `scripts/export-openapi.sh` 时，契约与清单一起旧、两边一致，本脚本会报通过。
-> 那是 `docs/api/README.md` §二 那三步流程的责任，要自动化得在流水线里构建并启动一次应用（见 `0040` 的「未覆盖」）。
+> **那一段已由 CI 的 `server` job 兜住**（重跑导出再与入库版本逐字节比对，见 `docs/decisions/0042`）。
+> 两者不可互替：本脚本守"契约与文档一致"，那一步守"契约与代码一致"。
 
 > **它不是空转**：用 11 个扰动逐个验过（删明细行 / 改汇总数 / 改三元组 / 删整句 / 模块名写错 /
 > 塞一条契约没有的接口 / 改方法 / 重复列一行 / 改分项之和 / 改模型数 / **把小节标题里的模块名去掉**）——
 > 11 个全部非零退出，且各自报出的正是对应的那一项。
 
-> **它的兄弟不在这里，在 CI 里。** "生成物有没有跟上契约"（`docs/api/openapi.json` →
-> `common-api/src/generated/schema.d.ts`）由 `web` job 的一步直接做（重跑 `gen:api` 再比对），
-> **刻意没写成 `scripts/verify-*.mjs`**：那一步需要 `node_modules`（`openapi-typescript` + `prettier`），
-> 不满足本目录"零前置"这条约定。取舍见 `docs/decisions/0041`。
+> **它的两个兄弟都在 CI 里，都不在这里。** ① "契约有没有跟上代码"由 `server` job 的一步做
+> （复用已构建的 jar 重跑 `export-openapi.sh` 再比对，见 `docs/decisions/0042`）；
+> ② "生成物有没有跟上契约"（`docs/api/openapi.json` → `common-api/src/generated/schema.d.ts`）
+> 由 `web` job 的一步做（重跑 `gen:api` 再比对，见 `docs/decisions/0041`）。
+> 两者**刻意都没写成 `scripts/verify-*.mjs`**：① 要构建产物 + JDK 21 + 启一次应用，
+> ② 要 `node_modules`（`openapi-typescript` + `prettier`）—— 都不满足本目录"零前置"这条约定。
 
 ### 脚本的硬性约束
 
