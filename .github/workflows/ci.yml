@@ -3,7 +3,8 @@
 # 分层原则：**能自动判定的一律自动判定；判不了的不要假装判了。**
 #
 #   静态层（ESLint / Stylelint / 格式 / 类型）· 单测层（前端各包 / 后端各模块）
-#   · 构建层（六个应用 + 产物自检）· 后端层（Maven 构建 + 测试，两种数据源方言）
+#   · 构建层（六个应用 + 产物自检）· 契约层（生成物与契约逐字节一致）
+#   · 后端层（Maven 构建 + 测试，两种数据源方言）
 #   · 仓库自检层（nginx 配置结构 / 文档索引一致性 / 契约清单一致性 —— 都不需要前置服务）
 #
 # **真机层刻意不进流水线**（浏览器 + 冷启动 dev server：单跑登录、微前端、三维、
@@ -36,7 +37,7 @@ env:
 
 jobs:
   web:
-    name: 前端 · 静态 / 单测 / 构建 / 产物自检
+    name: 前端 · 静态 / 单测 / 构建 / 产物自检 / 契约生成物
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -67,6 +68,32 @@ jobs:
       # 而不是在 runner 上重新解析出一份没人提交过的依赖树。
       - name: 装依赖
         run: pnpm install --frozen-lockfile
+
+      # 生成物必须与契约同步（docs/decisions/0041）。`0006` 把 schema.d.ts 入库是为了让
+      # "契约改了、类型没跟"在 review 里**显形**，但"入库"本身拦不住它悄悄落后 ——
+      # 契约重新导出、`gen:api` 忘跑，生成物就停在旧形状，而那正是**编译得过、用例也绿**
+      # 的状态（前端消费的就是那份旧类型，前后自洽）。这里重跑一遍生成器：
+      # 产物必须与入库的版本**逐字节相同**。敢比字节，是因为 `gen:api` 的确定性实测过
+      # （连跑三次哈希一致），而它末尾的 `prettier --write` 正是"逐字节可达"的前提。
+      #
+      # `gen:api` 只吃 `docs/api/openapi.json`，不起后端、不连网；但它需要 node_modules
+      # ⇒ 不属于零前置的 `guards` job，故留在这里。紧跟装依赖，契约漂了应在十几秒内报出。
+      - name: 契约生成物与契约同步
+        run: |
+          set -e
+          pnpm --filter common-api gen:api
+          # 用 `git status --porcelain` 而不是 `git diff --quiet`：后者看不见"入库的文件被删、
+          # 生成器又把它造回来"—— 重建出来的是**未跟踪**文件，git diff 不报它。
+          # 范围取整个生成目录，因为那才是生成器声明的输出面。有输出即失败（生成器失败时
+          # `set -e` 已经在上一行把它拦住了，不会走到这里）。
+          changed=$(git status --porcelain -- packages/common-api/src/generated)
+          if [ -n "$changed" ]; then
+            echo "::error::生成物与 docs/api/openapi.json 不同步（忘了跑 gen:api？）"
+            echo "$changed"
+            echo "在仓库根执行：cd web && pnpm --filter common-api gen:api ，并把产物一起提交。"
+            git --no-pager diff --stat -- packages/common-api/src/generated
+            exit 1
+          fi
 
       - name: ESLint
         run: pnpm lint

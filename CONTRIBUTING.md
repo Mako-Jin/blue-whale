@@ -193,6 +193,8 @@ cd web && pnpm --filter common-api gen:api   # 3. 重新生成前端类型
 - 唯一允许人工介入类型的位置是 `common-api/src/types.ts` 里的**字段替换工具**（`WithJsonPayload` / `WithJsonProps`，生成器表达不了"任意值"）。`JsonValue` 等类型本体与 `sanitize` 函数住在 `common-tools/json`，本包只做转出。细则见 `docs/decisions/0006`；
 - **新增带"任意 JSON 字段"的域时，三处都要收紧**：类型本体、分页结果的 `records` 元素、请求体的数组元素。只改第一处会被类型系统放过，然后在跨域取值时以 `unknown` 的形态暴露出来；
 - 前端调用接口一律走 `common-api`，**禁止**直接 `fetch`。
+- 第 3 步的产物**是否跟上了契约由 CI 逐字节核对**（重跑一遍生成器再比对，见 `docs/decisions/0041`）——
+  忘了跑 `gen:api` 会红，不必靠人记得。
 
 ---
 
@@ -261,7 +263,7 @@ BW_DB_USERNAME=<用户> BW_DB_PASSWORD=<密码> java -jar sts-app/sts-app-server
 
 | job | 内容 |
 | --- | --- |
-| `web` | 装依赖 → ESLint → Stylelint → **格式检查** → 类型检查 → 单测 → 构建 → **产物自检**（种子口令不得进包） |
+| `web` | 装依赖 → **契约生成物同步**（重跑 `gen:api`，要求产物与入库版本逐字节相同，`decisions/0041`）→ ESLint → Stylelint → **格式检查** → 类型检查 → 单测 → 构建 → **产物自检**（种子口令不得进包） |
 | `server` | `mvn -B -ntp verify`（构建 + 测试，含 enforcer 的 JDK 门禁；**不需要数据库服务**，默认 profile 是 h2 内存库） |
 | `server-mysql` | 同一条命令 + `-Dspring.profiles.active=mysql`，**对真实 MySQL**（`services: mysql:8.0`）跑全量用例；空库从零迁移一遍。带一条**防假绿**自检（查日志里的 `Database: jdbc:mysql` 等实证） |
 | `guards` | 网关配置结构自检 · 文档索引一致性 · 契约清单一致性（**都不需要前置服务**） |
@@ -272,6 +274,9 @@ BW_DB_USERNAME=<用户> BW_DB_PASSWORD=<密码> java -jar sts-app/sts-app-server
 # 前端
 cd web
 pnpm install --frozen-lockfile && pnpm lint && pnpm stylelint && pnpm format:check && pnpm typecheck && pnpm test && pnpm build
+
+# 契约生成物与契约是否同步（CI 的 web job 查这一步，见 docs/decisions/0041；cwd 仍在 web/）
+pnpm --filter common-api gen:api && git status --porcelain -- packages/common-api/src/generated
 
 # 产物自检（脚本自己算仓库根，与 cwd 无关）
 node ../scripts/verify-bundle-secrets.mjs

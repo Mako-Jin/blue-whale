@@ -367,6 +367,9 @@ cd web && pnpm --filter common-api gen:api
 > 之所以在脚本里做而不是靠提交时的 lint-staged：lint-staged 只在 `git commit` 那一刻生效，
 > 而"生成完先看一眼 diff"发生在提交之前 —— 那时看到的应该是最终形态。
 
+> **CI 会重跑一遍这一步**：`pnpm --filter common-api gen:api` 之后要求产物与入库版本
+> **逐字节相同**，所以第 3 步忘了跑会红，不必靠人记得。细节与取舍见 `docs/decisions/0041`。
+
 ### 类型守卫
 
 `tests/log.test.ts` 里对**易退化的字段**做类型断言：

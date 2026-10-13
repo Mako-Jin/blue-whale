@@ -348,6 +348,11 @@
 > 塞一条契约没有的接口 / 改方法 / 重复列一行 / 改分项之和 / 改模型数 / **把小节标题里的模块名去掉**）——
 > 11 个全部非零退出，且各自报出的正是对应的那一项。
 
+> **它的兄弟不在这里，在 CI 里。** "生成物有没有跟上契约"（`docs/api/openapi.json` →
+> `common-api/src/generated/schema.d.ts`）由 `web` job 的一步直接做（重跑 `gen:api` 再比对），
+> **刻意没写成 `scripts/verify-*.mjs`**：那一步需要 `node_modules`（`openapi-typescript` + `prettier`），
+> 不满足本目录"零前置"这条约定。取舍见 `docs/decisions/0041`。
+
 ### 脚本的硬性约束
 
 - **可重复执行**：跑第二遍不应产生副作用或报"已存在"错误。
@@ -366,7 +371,8 @@
   所以它跑在 `web` job 的构建**之后**（顺序不能反 —— 反了它就扫不到东西，还会静默"通过"）；
   需要前置服务的脚本继续留在本机 —— 真机层（浏览器 + 冷启动 dev server）**刻意不在 CI 的必过项里**，
   理由见 `docs/decisions/0036`；全树格式检查在 `web` job 里（`pnpm format:check`，是 npm script 不是脚本，
-  见 `docs/decisions/0037`）。
+  见 `docs/decisions/0037`）；**契约生成物的同步检查**同样进不了 `guards`（它要 `node_modules`），
+  也落在 `web` job 里（见 `docs/decisions/0041`）。
 - **凭据走环境变量**：脚本里不出现任何密码（见 `docs/decisions/0003`）。
 - **后端进程的启动方式**：`spring-boot:run` 是 CLI goal，会落到 reactor 里**每一个**模块上，
   而父工程 `sts-parent` 没有 main class ⇒ 带 `-am` 一定失败

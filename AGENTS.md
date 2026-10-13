@@ -20,7 +20,7 @@
 2. **提交信息必须符合 Conventional Commits**（`commit-msg` 钩子会拦截）。
 3. **不要提前空建**未被使用的包 / 模块——按业务需要创建。
 4. **不混用两端构建体系**：前端只用 pnpm，后端只用 Maven。
-5. **不手写前端 SDK**——它由 `docs/api` 的 OpenAPI 契约生成。改后端接口后必须跑 `scripts/export-openapi.sh` + `pnpm --filter common-api gen:api`，并与代码同一次提交（流程见 `CONTRIBUTING.md` 第七节）。
+5. **不手写前端 SDK**——它由 `docs/api` 的 OpenAPI 契约生成。改后端接口后必须跑 `scripts/export-openapi.sh` + `pnpm --filter common-api gen:api`，并与代码同一次提交（流程见 `CONTRIBUTING.md` 第七节）。**生成物有没有跟上契约由 CI 逐字节核对**（`docs/decisions/0041`）—— 忘了跑 `gen:api` 会红。
 6. **前端调接口一律走 `common-api`**，禁止直接 `fetch`；错误按 `HttpError.kind` 分支处理，禁止匹配错误文案。
 7. **后端只用 JDK 21+** —— enforcer 已在构建期强制（低于 21 会直接失败并给出提示），但**运行 `java -jar` / 脚本时没有这道门**：本机 `JAVA_HOME` 可能指向 JDK 17，启动或跑 `scripts/export-openapi.sh` 前用 `mvn -v` / `java -version` 确认。
 8. **重大技术决策要写 ADR**，模板见 `docs/decisions/TEMPLATE.md`。写完**必须**把它登记进
