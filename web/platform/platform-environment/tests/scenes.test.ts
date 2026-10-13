@@ -377,9 +377,8 @@ describe('大气能力', () => {
     outdoorIds.forEach((id) => {
       const build = byId.get(id)?.create();
       const atmosphere = build?.createAtmosphere?.();
-      const sun = build?.scene.children.find(
-        (child) => child instanceof DirectionalLight,
-      ) as DirectionalLight | undefined;
+      const sun = build?.scene.children.find((child) => child instanceof DirectionalLight) as
+        DirectionalLight | undefined;
       expect(sun, `${id} 应当有一盏可被驱动的主光`).toBeDefined();
 
       const noon = sampleEnvironment({ ...DEFAULT_ENVIRONMENT, localHours: 12 });

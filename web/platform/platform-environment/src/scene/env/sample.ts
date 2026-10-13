@@ -34,8 +34,8 @@ export function normalizeEnvironment(state: EnvironmentState): EnvironmentState 
   if (dayShift === 0 && state.localHours >= 0) {
     return state;
   }
-  const dayOfYear = ((((state.dayOfYear - 1 + dayShift) % DAYS_PER_YEAR) + DAYS_PER_YEAR) %
-    DAYS_PER_YEAR) + 1;
+  const dayOfYear =
+    ((((state.dayOfYear - 1 + dayShift) % DAYS_PER_YEAR) + DAYS_PER_YEAR) % DAYS_PER_YEAR) + 1;
   return {
     ...state,
     dayOfYear,

@@ -97,7 +97,9 @@ describe('太阳位置', () => {
   });
 
   it('正午的太阳在南方，早晨在东方，傍晚在西方', () => {
-    const noon = toDegrees(solarPosition({ ...BEIJING, dayOfYear: SUMMER_SOLSTICE, localHours: 12 }).azimuth);
+    const noon = toDegrees(
+      solarPosition({ ...BEIJING, dayOfYear: SUMMER_SOLSTICE, localHours: 12 }).azimuth,
+    );
     const morning = toDegrees(
       solarPosition({ ...BEIJING, dayOfYear: SUMMER_SOLSTICE, localHours: 6 }).azimuth,
     );
@@ -114,8 +116,13 @@ describe('太阳位置', () => {
 
   it('赤道春分的正午接近天顶（≈ 90°）', () => {
     const altitude = toDegrees(
-      solarPosition({ latitude: 0, longitude: 0, timezone: 0, dayOfYear: VERNAL_EQUINOX, localHours: 12 })
-        .altitude,
+      solarPosition({
+        latitude: 0,
+        longitude: 0,
+        timezone: 0,
+        dayOfYear: VERNAL_EQUINOX,
+        localHours: 12,
+      }).altitude,
     );
 
     expect(altitude).toBeGreaterThan(87);

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { ReactElement } from 'react';
 import { AdminViews } from 'common-api';
 import type { MenuPermission } from 'common-api';
+import { visibleViews } from 'common-tools/micro';
 
 import './App.less';
 import { usePermissionState } from './auth/hooks';
@@ -60,8 +61,12 @@ export default function App() {
    *
    * 顺序保持 `TABS` 的声明顺序：过滤只该做减法，不该重排 ——
    * 重排会让"授权链路的顺序"这件事在各种账号上长得不一样。
+   *
+   * 用 `visibleViews` 而不是就地 `filter`：**"未就绪时怎么办"是这条规则的
+   * 一半**（答案是不显示），各写一次就会长出"有的地方未就绪时先放行"这种偏差。
+   * 它把两件事收在一处：未就绪 ⇒ 空列表；就绪 ⇒ 只留持有权限的那些。
    */
-  const visibleTabs = TABS.filter((item) => permission.permissions.includes(item.permission));
+  const visibleTabs = visibleViews(TABS, permission, (item) => item.permission);
 
   /*
    * 选中的标签页可能被过滤掉了（例如权限集合在运行中变小），

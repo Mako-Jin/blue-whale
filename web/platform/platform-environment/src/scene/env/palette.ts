@@ -147,7 +147,10 @@ const EXPOSURE: Keyframes<number> = [
 const SKY: Keyframes<SkyScatter> = [
   { at: -18, value: { turbidity: 2, rayleigh: 0.3, mieCoefficient: 0.02, mieDirectionalG: 0.7 } },
   { at: -6, value: { turbidity: 4, rayleigh: 1.4, mieCoefficient: 0.012, mieDirectionalG: 0.75 } },
-  { at: -0.833, value: { turbidity: 8, rayleigh: 2.6, mieCoefficient: 0.008, mieDirectionalG: 0.8 } },
+  {
+    at: -0.833,
+    value: { turbidity: 8, rayleigh: 2.6, mieCoefficient: 0.008, mieDirectionalG: 0.8 },
+  },
   { at: 10, value: { turbidity: 6, rayleigh: 1.8, mieCoefficient: 0.006, mieDirectionalG: 0.8 } },
   { at: 45, value: { turbidity: 4, rayleigh: 1.1, mieCoefficient: 0.004, mieDirectionalG: 0.8 } },
   { at: 90, value: { turbidity: 3, rayleigh: 0.9, mieCoefficient: 0.003, mieDirectionalG: 0.8 } },

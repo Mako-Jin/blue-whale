@@ -10,11 +10,7 @@
  * 这是"现实世界的映射"能被验证的前提：太阳算错了，画面再好看也是错的。
  */
 
-export {
-  DEFAULT_ENVIRONMENT,
-  FLOW_PRESETS,
-  type EnvironmentState,
-} from './types';
+export { DEFAULT_ENVIRONMENT, FLOW_PRESETS, type EnvironmentState } from './types';
 
 export {
   normalizeRadians,

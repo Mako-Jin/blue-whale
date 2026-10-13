@@ -27,9 +27,3 @@ export function usePermission(code: string): boolean {
   const state = usePermissionState();
   return state.ready && state.permissions.includes(code);
 }
-
-/** 拥有其中之一即可（例如"任何写权限"） */
-export function useAnyPermission(codes: readonly string[]): boolean {
-  const state = usePermissionState();
-  return state.ready && codes.some((code) => state.permissions.includes(code));
-}

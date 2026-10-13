@@ -161,7 +161,9 @@ export default function ControlPanel({
             value={minuteOfDay}
             aria-label="时刻"
             aria-valuetext={formatClock(live.localHours)}
-            onChange={(event) => onEnvironmentChange({ localHours: Number(event.target.value) / 60 })}
+            onChange={(event) =>
+              onEnvironmentChange({ localHours: Number(event.target.value) / 60 })
+            }
           />
         </label>
 
