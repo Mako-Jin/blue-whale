@@ -94,7 +94,13 @@ const USER_ROW = {
 /** 建立会话（权限集合决定按钮显隐） */
 function signIn(permissions: string[]): void {
   standaloneSession().set({
-    user: { userId: 7, username: 'tester', roles: ['SUPER_ADMIN'], permissions },
+    user: {
+      userId: 7,
+      username: 'tester',
+      roles: ['SUPER_ADMIN'],
+      permissions,
+      mustChangePassword: false,
+    },
     tokens: { accessToken: 'access-1', refreshToken: 'refresh-1' },
   });
 }

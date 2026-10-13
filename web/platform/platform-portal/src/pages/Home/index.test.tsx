@@ -21,6 +21,7 @@ function signIn(permissions: readonly string[]): void {
       displayName: '系统管理员',
       roles: ['SUPER_ADMIN'],
       permissions: [...permissions],
+      mustChangePassword: false,
     },
     tokens: { accessToken: 'access-1', refreshToken: 'refresh-1' },
   });

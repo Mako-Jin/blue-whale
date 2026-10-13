@@ -108,7 +108,7 @@ pnpm --filter platform-admin dev          # http://127.0.0.1:3500  子应用
 pnpm --filter platform-audit-console dev  # http://127.0.0.1:3600  子应用
 ```
 
-打开 <http://127.0.0.1:3000> 点导航即可挂载子应用；顶栏有「全局主题」「登录」两个按钮，用来验证全局状态下发到子应用。
+打开 <http://127.0.0.1:3000> 点导航即可挂载子应用；顶栏有「全局主题」「修改口令」「登出」三个按钮 —— 前者用来验证全局状态下发到子应用，后两者是**会话级动作**（不依赖任何菜单码，因此只有基座有）。
 
 一键端到端验证（用真实 Chrome 走完整链路，含 WebGL 上下文释放断言）：
 
@@ -161,7 +161,7 @@ pnpm --filter platform-audit-console dev  # http://127.0.0.1:3600  审计管道�
 
 ### 测试约定（子应用组件测试）
 
-两条**看起来像"测试写错了"、其实是机制**的约定，改测试前先对一遍：
+三条**看起来像"测试写错了"、其实是机制**的约定，改测试前先对一遍：
 
 - **`vi.mock('common-api')` / `vi.mock('common-tools/micro')` 必须用 `importOriginal` 保留真身导出**：
   `vi.mock('common-api', async (importOriginal) => { const actual = await importOriginal(); … })`。
@@ -172,6 +172,14 @@ pnpm --filter platform-audit-console dev  # http://127.0.0.1:3600  审计管道�
   连断言都不会失败（如果它断的是"看不见"）。要断言"有权限时看得到"，就得在测试里
   自己接一次（`platform-admin` / `platform-audit-console` 测试里那句
   `disconnect = connectPermissionSource()` 就是它），否则**那条"看得见"的断言永远不会红**。
+- **替身要照真实响应形态造。** 这条是 `0044` 花掉一小时换来的：那次给改密接口写用例时，
+  fetch 替身里填了 `status: 401`，于是"测出"一个很具体的缺陷（内核把 `40101` 当成令牌失效 →
+  刷新 → 重试 → 清会话跳登录页），连注释、防护开关和一份 ADR 初稿都写出来了 ——
+  而**本仓业务失败一律返回 HTTP 200**（`GlobalExceptionHandler` 全部返回 `R.fail`），
+  那个 401 根本不会出现。**用替身造出来的缺陷，测出来的一定是替身的属性**；
+  一个"只有在我的替身里才存在"的问题，再讨论一小时也不会有结论，因为它不在系统里。
+  照着真实形态造还有一个附带好处：断言本身会变成那条约定的守卫
+  （后端若改成按业务码回真实状态码，这里会红）。
 
 提交信息格式：
 

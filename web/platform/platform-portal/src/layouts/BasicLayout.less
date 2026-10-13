@@ -60,6 +60,16 @@
     color: @text-primary;
   }
 
+  /* 待改口令的角标：一直是"还需要做点什么"的提示，与一次性弹窗区分开 */
+  &__badge {
+    padding: 2px 6px;
+    font-size: 11px;
+    color: @danger-color;
+    background: rgb(245 63 63 / 8%);
+    border: 1px solid rgb(245 63 63 / 30%);
+    border-radius: 4px;
+  }
+
   &__action {
     padding: 4px 10px;
     font-size: 12px;

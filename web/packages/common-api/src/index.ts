@@ -21,6 +21,7 @@ export type {
   AuthLoginRequest,
   AuthLoginResult,
   AuthMe,
+  AuthPasswordChangeRequest,
   AuthRefreshRequest,
 } from './auth';
 

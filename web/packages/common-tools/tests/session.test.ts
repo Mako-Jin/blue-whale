@@ -13,6 +13,7 @@ const ADMIN: SessionUser = {
   tenantCode: 'default',
   roles: ['ADMIN'],
   permissions: ['auth:user:read', 'auth:user:create'],
+  mustChangePassword: false,
 };
 
 describe('createSessionStore · 基本存取', () => {

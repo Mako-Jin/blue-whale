@@ -18,6 +18,17 @@ export interface SessionUser {
   roles: string[];
   /** 权限（资源标识）集合，如 `auth:user:create`。**标识由后端定义，前端不得拼接自造** */
   permissions: string[];
+  /**
+   * 是否还在等本人改口令（后端 `mustChangePassword` 为 1 时）。
+   *
+   * <p><b>为什么是必填的布尔值，而不是可选的、或者后端那个 0/1：</b>它和 `roles` /
+   * `permissions` 一样是**判定**用的字段（引导弹窗弹不弹全看它），不是展示字段。
+   * 判定字段留下"缺席"这种第三态，后面一定要有人为它猜一个默认值 ——
+   * 而无论猜"否"（该弹不弹，静默失效）还是猜"是"（对着没这回事的人弹窗）
+   * 都是错的一方。转换只发生在 `common-api` 的 `toSessionUser` 一处，
+   * 因此这里固定成 `boolean` 不会给任何调用点添负担。
+   */
+  mustChangePassword: boolean;
 }
 
 /** 会话令牌 */

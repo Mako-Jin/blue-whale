@@ -56,6 +56,15 @@ export interface AuthChannel {
   /** 用现有访问令牌重新拉取身份与权限（后台改了权限之后刷新用） */
   reload(): Promise<SessionUser | null>;
   /**
+   * 本人修改口令。**成功后本地会话随之结束**（原因见实现处），因此界面不要
+   * 在 `await` 之后写"成功提示" —— 那时页面已经在去登录页的路上了。
+   *
+   * <p>两个口令用**位置参数**而不是一个对象：它们同为字符串，写成
+   * `{ oldPassword: x, newPassword: y }` 时把两者写反，类型检查一声不响，
+   * 而症状是"用新口令去证明自己是本人"—— 一次必然失败、且看起来像口令错了。
+   */
+  changePassword(oldPassword: string, newPassword: string): Promise<void>;
+  /**
    * 尝试恢复会话，返回"是否已恢复"。
    *
    * <p>它是 `common-tools/http` 的 `onUnauthorized` 钩子所调用的那一环：
@@ -207,6 +216,25 @@ export function createAuthChannel(config: AuthChannelConfig): AuthChannel {
       const user = toSessionUser(me);
       session.updateUser(user);
       return user;
+    },
+
+    changePassword: async (oldPassword, newPassword) => {
+      await authApi.changePassword({ oldPassword, newPassword });
+
+      /*
+       * 成功之后**本地会话必然结束**，而且必须在这里结束。
+       *
+       * 服务端改密时撤销的是该账号的**全部**刷新令牌，包括本次会话手上这一个
+       * （它认不出"当前用的是哪一个"—— 本请求带的是访问令牌，里面没有刷新令牌的 jti）。
+       * 因此这次会话已经无法续期：访问令牌一到期（默认 2 小时）就是一次"突然掉登录"，
+       * 而那时用户早已忘了自己刚改过口令。把它推迟到那一刻，只会换来一张查不出原因的
+       * 故障单；当场结束，则正好让用户用新口令验证一次"新口令真的能用"。
+       *
+       * 判据：这不是界面的选择，而是服务端行为的**必然结果**。放在通道里，
+       * 它就只有一个实现；散在各个界面里，它就只是一句"记得清会话"。
+       */
+      log.info('口令已修改，本地会话随之结束（服务端已撤销全部刷新令牌，本次会话无法续期）');
+      session.clear();
     },
   };
 

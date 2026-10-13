@@ -7,6 +7,11 @@ import type { HttpErrorKind } from 'common-tools/http';
  * <p>刻意只翻**传输层**那几类：`business` / `http` 两类直接用服务端给的消息 ——
  * 「用户名或密码错误」这类文案由后端统一维护（而且后端刻意不区分"用户不存在"与"口令错误"，
  * 以避免账号枚举），前端另写一套只会变成两份不一致的说法。
+ *
+ * <p>`fallback` 只在"连 `Error` 都不是"时才用得上，看起来几乎用不着 —— 但它必须存在：
+ * 默认值写死成「登录失败，请重试」，放在改密对话框里就是一句与场景无关的话，
+ * 用户会以为自己的登录出了问题。调用点各自给一句贴合场景的兜底，
+ * 比让每个调用点都记得改写这句话更省事。
  */
 const TRANSPORT_MESSAGE: Partial<Record<HttpErrorKind, string>> = {
   network: '连不上服务端，请确认后端已启动',
@@ -15,9 +20,9 @@ const TRANSPORT_MESSAGE: Partial<Record<HttpErrorKind, string>> = {
   parse: '服务端响应无法解析，可能是前后端版本不一致',
 };
 
-export function describeAuthError(cause: unknown): string {
+export function describeAuthError(cause: unknown, fallback = '登录失败，请重试'): string {
   if (isHttpError(cause)) {
     return TRANSPORT_MESSAGE[cause.kind] ?? cause.message;
   }
-  return cause instanceof Error ? cause.message : '登录失败，请重试';
+  return cause instanceof Error ? cause.message : fallback;
 }

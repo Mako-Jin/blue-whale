@@ -149,6 +149,48 @@ class ChangePasswordApiTest {
     }
 
     @Test
+    @DisplayName("待改密这个事实必须真的到达前端：登录响应与刷新响应都带着它")
+    void shouldExposeMustChangePasswordOnLoginAndRefresh() throws Exception {
+        String username = uniqueName("mustflag");
+        String adminToken = loginAsAdmin();
+        long userId = createUser(adminToken, username, "Seed@1234");
+
+        // "不需要改"也是一种要发出去的事实：前端据此**不**弹引导。
+        // 字段缺席与值为 0 在界面上看起来一样，区别在于前端根本无从判断。
+        login(username, "Seed@1234")
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.mustChangePassword").value(0));
+
+        mockMvc.perform(post("/api/auth/users/" + userId + "/password")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"password\":\"Reset@1234\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+
+        // **登录响应必须带**：前端的引导弹窗挂在登录那条路上，而 `/api/auth/me`
+        // 只在"后台改了权限之后重新拉一次身份"时被调用（`AuthChannel.reload`）。
+        // 只让 `/me` 返回它，效果是这一列永远到不了用户面前 —— 正是它此前那种
+        // "字段齐全、无人读取"的状态换了个地方重演。
+        String[] session = loginWithRefresh(username, "Reset@1234");
+
+        // **刷新也必须带**：少了它，用户按一次 F5，"待改口令"的引导就消失了 ——
+        // 而这恰恰是下一次只要求他重新登录时最该出现的提示。
+        mockMvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"%s\"}".formatted(session[1])))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.mustChangePassword").value(1));
+
+        // 改完之后同一个出口要变 0 —— 否则前端会一直弹一个已经无事可做的引导
+        change(session[0], "Reset@1234", "Final@1234").andExpect(jsonPath("$.code").value(0));
+        login(username, "Final@1234")
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.mustChangePassword").value(0));
+    }
+
+    @Test
     @DisplayName("接口要认证：不带头即拒，且不给任何\"操作了谁\"的可能")
     void shouldRequireAuthentication() throws Exception {
         mockMvc.perform(put("/api/auth/password")

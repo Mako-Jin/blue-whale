@@ -16,12 +16,16 @@ type LoginOp = paths['/api/auth/login']['post'];
 type RefreshOp = paths['/api/auth/refresh']['post'];
 type LogoutOp = paths['/api/auth/logout']['post'];
 type MeOp = paths['/api/auth/me']['get'];
+type ChangePasswordOp = paths['/api/auth/password']['put'];
 
 /** 登录请求体：租户编码 + 登录名 + 口令 */
 export type AuthLoginRequest = BodyOf<LoginOp>;
 
 /** 刷新 / 登出请求体：只要刷新令牌 */
 export type AuthRefreshRequest = BodyOf<RefreshOp>;
+
+/** 自助改密请求体：旧口令（证明是本人）+ 新口令 */
+export type AuthPasswordChangeRequest = BodyOf<ChangePasswordOp>;
 
 /**
  * 登出请求体（与刷新同形，都是刷新令牌）。
@@ -51,6 +55,7 @@ const PATH_LOGIN = '/api/auth/login' satisfies keyof paths;
 const PATH_REFRESH = '/api/auth/refresh' satisfies keyof paths;
 const PATH_LOGOUT = '/api/auth/logout' satisfies keyof paths;
 const PATH_ME = '/api/auth/me' satisfies keyof paths;
+const PATH_PASSWORD = '/api/auth/password' satisfies keyof paths;
 
 /**
  * 公开接口的请求选项：不带令牌、也不参与 401 自动恢复。
@@ -75,6 +80,18 @@ export interface AuthApi {
   logout(body?: AuthLogoutRequest): Promise<void>;
   /** 当前登录用户（要求已认证，但不要求任何权限） */
   me(): Promise<AuthMe>;
+  /**
+   * 自助改密：本人修改自己的口令。
+   *
+   * <p><b>不挂权限码</b> —— 能登录就该能改自己的口令，否则用户会被一个自己都进不去的
+   * 口令锁在门外。"证明操作者是本人"因此只能靠**旧口令**（请求体里的 `oldPassword`）。
+   *
+   * <p><b>成功后服务端会撤销该账号的全部刷新令牌，包括本次会话手上那一个。</b>
+   * 调用方不要把它当成一次普通写操作 —— 唯一的正确写法在
+   * {@link AuthChannel.changePassword}（它把"调接口"与"结束本地会话"绑在了一起，
+   * 免得每个界面各自记得这件事）。
+   */
+  changePassword(body: AuthPasswordChangeRequest): Promise<void>;
 }
 
 export function createAuthApi(http: HttpClient): AuthApi {
@@ -83,6 +100,18 @@ export function createAuthApi(http: HttpClient): AuthApi {
     refresh: (body) => http.post<AuthLoginResult>(PATH_REFRESH, body, PUBLIC_REQUEST),
     logout: (body) => http.post<void>(PATH_LOGOUT, body, LOGOUT_REQUEST),
     me: () => http.get<AuthMe>(PATH_ME),
+    /*
+     * 走**默认**请求选项（带令牌、401 时刷新重试），这条看起来平淡，但它成立
+     * 依赖后端的一条约定：**业务失败返回 HTTP 200**（本仓 `GlobalExceptionHandler`
+     * 的所有处理器都返回 `R.fail(...)`）。
+     *
+     * 换句话说，"旧口令不对"（`40101`）在传输层是 200，内核不会把它误当成令牌失效。
+     * 如果哪天有人把这条约定改成"按业务码回真实状态码"，那这里就会变成
+     * "用户打错一个字 → 内核当成令牌失效 → 刷新、重试、清会话跳登录页"，
+     * 而界面会把它显示成"改密成功，请重新登录"。到那时本请求必须加上
+     * `skipAuthRetry`（`LOGOUT_REQUEST` 就是那个写法）。
+     */
+    changePassword: (body) => http.put<void>(PATH_PASSWORD, body),
   };
 }
 
@@ -105,6 +134,10 @@ export function toSessionUser(source: AuthLoginResult | AuthMe): SessionUser {
     tenantCode: source.tenantCode,
     roles: source.roles ?? [],
     permissions: source.permissions ?? [],
+    // 后端给的是 0/1，会话里存成判定用的布尔值。**只有等于 1 才算待改密** ——
+    // 写成 `!== 0` 的话，字段缺席（`undefined`）会被当成"要改密"，
+    // 于是所有老版本后端都会让用户看到一个无事可做的引导。
+    mustChangePassword: source.mustChangePassword === 1,
   };
 }
 

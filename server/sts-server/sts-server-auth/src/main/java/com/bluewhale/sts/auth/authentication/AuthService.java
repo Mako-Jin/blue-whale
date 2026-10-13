@@ -340,6 +340,9 @@ public class AuthService {
         vo.setTenantCode(tenant.getTenantCode());
         vo.setRoles(loadContext.getRoleCodes());
         vo.setPermissions(permissions);
+        // 与 MeVO 同源同义：登录与刷新都从这里取值，前端因此不必为了"要不要引导改密"
+        // 多发一次请求。刷新这条尤其关键 —— 少了它，用户刷新一次浏览器引导就没了。
+        vo.setMustChangePassword(user.getMustChangePassword());
         return vo;
     }
 

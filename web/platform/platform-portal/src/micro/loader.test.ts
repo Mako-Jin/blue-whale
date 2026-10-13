@@ -12,6 +12,7 @@ const USER = {
   displayName: '系统管理员',
   roles: ['SUPER_ADMIN'],
   permissions: ['auth:user:create'],
+  mustChangePassword: false,
 };
 
 describe('下发给子应用的 props', () => {

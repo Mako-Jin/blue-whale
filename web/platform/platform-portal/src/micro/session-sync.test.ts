@@ -10,6 +10,7 @@ const USER = {
   displayName: '系统管理员',
   roles: ['SUPER_ADMIN'],
   permissions: ['auth:user:create', 'auth:role:read'],
+  mustChangePassword: false,
 };
 
 describe('会话 → 全局状态的同步', () => {

@@ -1981,6 +1981,11 @@ export interface components {
       roles?: string[];
       /** @description 权限（资源标识）集合 */
       permissions?: string[];
+      /**
+       * Format: int32
+       * @description 是否需要在下次操作前修改口令：1 是 0 否（本人改密后即变 0）
+       */
+      mustChangePassword?: number;
     };
     RLoginVO: {
       /** Format: int32 */

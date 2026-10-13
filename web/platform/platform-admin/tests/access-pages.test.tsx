@@ -244,7 +244,13 @@ const ORG_ROW = { records: [], total: 0, page: 1, size: 10, pages: 0 };
 
 function signIn(permissions: string[]): void {
   standaloneSession().set({
-    user: { userId: 7, username: 'tester', roles: ['SUPER_ADMIN'], permissions },
+    user: {
+      userId: 7,
+      username: 'tester',
+      roles: ['SUPER_ADMIN'],
+      permissions,
+      mustChangePassword: false,
+    },
     tokens: { accessToken: 'access-1', refreshToken: 'refresh-1' },
   });
 }

@@ -26,7 +26,7 @@ function standaloneSession(): SessionStore {
 
 function signIn(permissions: string[], roles: string[] = ['AUDITOR']): void {
   standaloneSession().set({
-    user: { userId: 7, username: 'auditor', roles, permissions },
+    user: { userId: 7, username: 'auditor', roles, permissions, mustChangePassword: false },
     tokens: { accessToken: 'access-1', refreshToken: 'refresh-1' },
   });
 }

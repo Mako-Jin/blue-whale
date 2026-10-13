@@ -22,7 +22,10 @@ function recordingHttp(results: Record<string, unknown> = {}) {
       calls.push({ path, body, options });
       return Promise.resolve(results[path]);
     },
-    put: vi.fn(),
+    put: (path: string, body?: unknown, options?: unknown) => {
+      calls.push({ path, body, options });
+      return Promise.resolve(results[path]);
+    },
     patch: vi.fn(),
     delete: vi.fn(),
   } as unknown as HttpClient;
@@ -80,7 +83,7 @@ const silent = { logger: null } as const;
 /* ------------------------------------------------------------------ 契约接线 */
 
 describe('createAuthApi · 契约接线', () => {
-  it('四条认证接口分别打到契约里的路径，登出与刷新都豁免自动恢复', async () => {
+  it('五条认证接口分别打到契约里的路径，登出与刷新都豁免自动恢复', async () => {
     const { http, calls } = recordingHttp({ '/api/auth/me': { userId: 1 } });
     const api = createAuthApi(http);
 
@@ -88,12 +91,14 @@ describe('createAuthApi · 契约接线', () => {
     await api.refresh({ refreshToken: 'r' });
     await api.logout({ refreshToken: 'r' });
     await api.me();
+    await api.changePassword({ oldPassword: 'pwd', newPassword: 'Next@1234' });
 
     expect(calls.map((call) => call.path)).toEqual([
       '/api/auth/login',
       '/api/auth/refresh',
       '/api/auth/logout',
       '/api/auth/me',
+      '/api/auth/password',
     ]);
     // 刷新失败会 401 —— 必须豁免自动恢复，否则递归刷新
     expect(calls[1].options).toMatchObject({ skipAuth: true, skipAuthRetry: true });
@@ -101,6 +106,9 @@ describe('createAuthApi · 契约接线', () => {
     expect(calls[0].options).toMatchObject({ skipAuth: true, skipAuthRetry: true });
     // 登出带上令牌（便于服务端审计"谁登出了"），但不参与自动恢复
     expect(calls[2].options).toMatchObject({ skipAuthRetry: true });
+    // 改密走默认选项：带令牌、401 时刷新重试 ——
+    // "旧口令不对"在传输层是 200（后端业务失败一律返回 HTTP 200），内核不会误判
+    expect(calls[4].options).toBeUndefined();
   });
 });
 
@@ -114,6 +122,7 @@ describe('身份映射', () => {
       tenantCode: 'default',
       roles: ['ADMIN'],
       permissions: ['auth:user:read', 'auth:user:create'],
+      mustChangePassword: false,
     });
   });
 
@@ -126,7 +135,17 @@ describe('身份映射', () => {
       tenantCode: undefined,
       roles: [],
       permissions: [],
+      // 缺席按"不需要改密"处理：反过来（`!== 0`）会让所有没这个字段的响应
+      // 都弹一次无事可做的引导，而用户根本没有可改的东西
+      mustChangePassword: false,
     });
+  });
+
+  it('待改密标记只有后端给 1 才算真（0 与缺席都是否）', () => {
+    expect(toSessionUser({ ...LOGIN_RESULT, mustChangePassword: 1 }).mustChangePassword).toBe(true);
+    expect(toSessionUser({ ...LOGIN_RESULT, mustChangePassword: 0 }).mustChangePassword).toBe(
+      false,
+    );
   });
 
   it('令牌对去掉可能缺席的字段，并把有效期换算成到期时刻', () => {
@@ -201,6 +220,56 @@ describe('createAuthChannel · 登录与登出', () => {
 
     expect(calls.filter((call) => call.path.endsWith('/api/auth/logout'))).toHaveLength(0);
     expect(session.isAuthenticated()).toBe(false);
+  });
+});
+
+describe('createAuthChannel · 自助改密', () => {
+  it('打到契约路径，并在成功后结束本地会话（服务端已撤销全部刷新令牌）', async () => {
+    const { channel, session, calls } = createChannel({
+      '/api/auth/login': { body: envelope(LOGIN_RESULT) },
+      '/api/auth/password': { body: envelope(null) },
+    });
+    await channel.login({ tenantCode: 'default', username: 'admin', password: 'pwd' });
+
+    await channel.changePassword('pwd', 'Next@1234');
+
+    const change = calls.find((call) => call.path.endsWith('/api/auth/password'));
+    expect(change?.method).toBe('PUT');
+    // 顺带钉住两个位置参数没被调换：把旧口令填进新口令那一格，
+    // 症状是"改密成功但口令没变"，而没有任何一处会报错
+    expect(JSON.parse(change?.body ?? '{}')).toEqual({
+      oldPassword: 'pwd',
+      newPassword: 'Next@1234',
+    });
+    // 留着这个会话的后果很具体：服务端已经撤销了它的刷新令牌，
+    // 访问令牌一到期就是一次"突然掉登录"—— 那时用户早已忘了自己刚改过口令
+    expect(session.isAuthenticated()).toBe(false);
+  });
+
+  it('旧口令不对（40101）时**不**结束会话 —— 一次输错不该变成一次登出', async () => {
+    const { channel, session } = createChannel({
+      '/api/auth/login': { body: envelope(LOGIN_RESULT) },
+      /*
+       * 响应形态必须照**真实**的造：业务失败一律返回 HTTP 200 + 业务码
+       * （本仓 `GlobalExceptionHandler` 的约定，`ChangePasswordApiTest`
+       * 里那句 `andExpect(status().isOk()).andExpect(jsonPath("$.code").value(40101))`
+       * 就是它）。
+       *
+       * 这里曾经写成 `status: 401` —— 那是替身的属性而不是系统的属性。
+       * 用它会"测出"一个不存在的缺陷（详见 ADR-0044 背景第二节）。
+       */
+      '/api/auth/password': { status: 200, body: envelope(null, 40101) },
+    });
+    await channel.login({ tenantCode: 'default', username: 'admin', password: 'pwd' });
+
+    await expect(channel.changePassword('wrong', 'Next@1234')).rejects.toMatchObject({
+      code: 40101,
+    });
+
+    // 兜住它的正是那条"业务失败返 HTTP 200"的约定：`40101` 不会被内核
+    // 当成令牌失效，于是不会有"刷新 → 重试 → 清会话跳登录页"那一串。
+    // 若哪天后端改成按业务码回真实状态码，这条断言会红 —— 那正是它要报的警。
+    expect(session.isAuthenticated()).toBe(true);
   });
 });
 
