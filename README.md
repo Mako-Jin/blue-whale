@@ -6,9 +6,10 @@
 BlueWhale/
 ├── web/          前端工作区 · pnpm workspace · React + qiankun
 ├── server/       后端工作区 · Maven 多模块 · Java + Spring Boot
+├── .github/      流水线（GitHub Actions 只从 .github/workflows/ 读，见 docs/decisions/0036）
 ├── docs/         架构文档与 API 契约        ┐
 ├── scripts/      跨端脚本                   ├ 横向层，不属于任何一端
-└── infra/        容器 / 网关 / CI / 部署    ┘
+└── infra/        容器 / 网关 / 部署         ┘
 ```
 
 ---

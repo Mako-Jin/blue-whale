@@ -255,6 +255,42 @@ BW_DB_USERNAME=<用户> BW_DB_PASSWORD=<密码> java -jar sts-app/sts-app-server
 
 ---
 
+### CI（`.github/workflows/ci.yml`）
+
+流水线分三个互不阻塞的 job，各自的失败就代表各自的层：
+
+| job | 内容 |
+| --- | --- |
+| `web` | 装依赖 → ESLint → Stylelint → 类型检查 → 单测 → 构建 → **产物自检**（种子口令不得进包） |
+| `server` | `mvn -B -ntp verify`（构建 + 测试，含 enforcer 的 JDK 门禁；**不需要数据库服务**） |
+| `guards` | 网关配置结构自检 · 文档索引一致性（**都不需要前置服务**） |
+
+在本机等价地跑一遍：
+
+```bash
+# 前端
+cd web
+pnpm install --frozen-lockfile && pnpm lint && pnpm stylelint && pnpm typecheck && pnpm test && pnpm build
+
+# 产物自检（脚本自己算仓库根，与 cwd 无关）
+node ../scripts/verify-bundle-secrets.mjs
+
+# 后端（默认 profile 就是 h2 内存库，不需要先装数据库）
+cd ../server && mvn -B -ntp verify
+
+# 仓库自检
+cd .. && node scripts/verify-nginx-config.mjs && node scripts/verify-docs-index.mjs
+```
+
+> **真机层（八个 `scripts/verify-*.mjs` 浏览器脚本）刻意不在流水线里。**
+> 它们依赖真实浏览器、GPU、冷启动的 dev server 与端口占用，放进必过项只会得到**随机红**，
+> 而随机红的流水线比没有流水线更坏 —— 红久了就没人看了。理由见 `docs/decisions/0036`。
+>
+> **改 workflow 里的命令时，先把那条命令在本机跑一遍再推。** CI 配置本身没有测试，
+> 它唯一的验证机会就是下一次推送。
+
+---
+
 ## 九、目录归属速查
 
 | 我想加…                | 放哪                                                       |
@@ -265,4 +301,10 @@ BW_DB_USERNAME=<用户> BW_DB_PASSWORD=<密码> java -jar sts-app/sts-app-server
 | 一个新的后端接口       | `sts-server-<域>` 的对应特性包内，随后走第七节流程更新契约 |
 | 一份架构决策           | `docs/decisions/NNNN-短标题.md`                            |
 | 一个跨端脚本           | `scripts/`                                                 |
-| 一份部署 / CI 配置     | `infra/`                                                   |
+| 一份部署配置           | `infra/`                                                   |
+| 一份流水线定义         | **只能是 `.github/workflows/`**（平台硬要求，见下）        |
+
+> **CI 配置不放 `infra/`。** `infra/README.md` 曾约定"流水线定义放 `infra/ci/`"，但
+> GitHub Actions **只从 `.github/workflows/` 读取**流水线 —— 这是平台的硬要求，不是我们的选择。
+> 那个空占位目录已删除（留着一个永远装不进内容的目录只会给人指错路），
+> `infra/` 从此只放与平台无关的部署资产。理由与分层见 `docs/decisions/0036`。

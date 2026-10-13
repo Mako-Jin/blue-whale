@@ -1,0 +1,133 @@
+# CI —— 持续集成（决策与边界见 docs/decisions/0036）
+#
+# 分层原则：**能自动判定的一律自动判定；判不了的不要假装判了。**
+#
+#   静态层（ESLint / Stylelint / 类型）· 单测层（前端 549 例 / 后端 174 例）
+#   · 构建层（六个应用 + 产物自检）· 后端层（Maven 构建 + 测试）
+#   · 仓库自检层（nginx 配置结构 / 文档索引一致性 —— 都不需要前置服务）
+#
+# **真机层刻意不进流水线**（浏览器 + 冷启动 dev server：单跑登录、微前端、三维、
+# 场景切换）。它依赖 GPU、真实浏览器与端口占用，放进必过项只会变成随机红 ——
+# 那比没有 CI 更坏，因为红久了就没人看了。它继续由人跑：`scripts/verify-*.mjs`。
+#
+# 三个 job 各自独立：互不阻塞、失败定位清楚（哪个 job 红 = 哪一层的问题）。
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# 最小权限：CI 只需要读代码。
+permissions:
+  contents: read
+
+# 同一分支上新的推送会取消还在跑的旧任务（省额度，也让结果只对应最新一次）。
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # 钩子只在开发机上提交时起作用，runner 上不装（装它会去改 core.hooksPath）。
+  HUSKY: '0'
+  # 不向 turbo 官方上报遥测。
+  TURBO_TELEMETRY_DISABLED: '1'
+
+jobs:
+  web:
+    name: 前端 · 静态 / 单测 / 构建 / 产物自检
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+
+      # pnpm 版本**不在这里写**：取自 web/package.json 的 packageManager，
+      # 与开发机、与 `catalog:` 同一个事实源。两处都写会漂，漂了 CI 就悄悄
+      # 变成在测另一个版本。
+      # 注意：仓库根**没有** package.json（前端工作区在 web/），所以必须把它指过去。
+      - name: 装 pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          package_json_file: web/package.json
+
+      - name: 装 Node
+        uses: actions/setup-node@v7
+        with:
+          # 与开发机一致的 Node 22（LTS）。**不从 engines.node 推导** ——
+          # `engines` 写的是下限（`>=20`），拿它当 pin 会让 runner 上悄悄换成
+          # 某个未来的主版本；升 Node 应当是一次显式改动。
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      # --frozen-lockfile：lockfile 与 package.json / catalog 不一致时**直接失败**，
+      # 而不是在 runner 上重新解析出一份没人提交过的依赖树。
+      - name: 装依赖
+        run: pnpm install --frozen-lockfile
+
+      - name: ESLint
+        run: pnpm lint
+
+      - name: Stylelint
+        run: pnpm stylelint
+
+      - name: 类型检查
+        run: pnpm typecheck
+
+      - name: 单元测试
+        run: pnpm test
+
+      - name: 构建
+        run: pnpm build
+
+      # 口令进包是一类**静默**缺陷（代码读起来完全正确），只有扫产物能判。
+      # 脚本自己算仓库根，与 cwd 无关；只输出计数、不打印口令本身。
+      - name: 产物自检 —— 种子口令不得进包
+        working-directory: ${{ github.workspace }}
+        run: node scripts/verify-bundle-secrets.mjs
+
+  server:
+    name: 后端 · 构建 + 测试
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: 装 JDK 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # 用 `verify` 而不是 `test`：它同样跑测试，但还走完 package 与各插件的
+      # 校验阶段（enforcer 的 JDK 门禁就在其中）。
+      #
+      # **不需要数据库服务**：默认 profile 是 h2 内存库（`application.yml` 里写着
+      # "新人 / CI 不该被迫先装一个数据库"），Flyway 迁移在启动时对着空库跑一遍
+      # —— 顺带验证了迁移脚本本身是可执行的。
+      - name: 构建并跑测试
+        run: mvn -B -ntp verify
+
+  guards:
+    name: 仓库自检 · 无前置条件
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      # 这两条**不需要任何服务**：不起后端、不起 dev server、不装浏览器。
+      # 它们查的都是"配置或文档与实际不一致"，而这类错在本地几乎不会主动去查。
+      - name: 网关配置结构自检
+        run: node scripts/verify-nginx-config.mjs
+
+      - name: 文档索引一致性
+        run: node scripts/verify-docs-index.mjs

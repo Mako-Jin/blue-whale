@@ -19,6 +19,7 @@
 | `verify-audit-pipeline.mjs`    | 用真实 Chrome + 真后端验证审计管道（记录自动产生、越权留痕、无写入口） | 后端 :8080（h2 profile，含两个种子账号）、基座 :3000、`platform-audit-console` :3600 都在跑；本机装有 Google Chrome；可选传截图目录 | `docs/decisions/0019` |
 | `verify-nginx-config.mjs`      | 对 `infra/nginx/` 的网关配置做结构性自检；`--emit` 可渲染出部署树、`--nginx` 可顺带真跑 `nginx -t` | **无**（不带参数时不需要 nginx、不需要网络、不写文件）                                                                                     | `docs/decisions/0027` · `0028` |
 | `verify-menu-permissions.mjs`  | 用真实 Chrome 验证菜单与页面级权限过滤（两种身份的导航差异 + URL 直达被拦 + 概览过滤） | 后端 :8080（h2 profile，含两个种子账号）、基座 :3000、`platform-admin` :3500、`platform-audit-console` :3600 都在跑；本机装有 Google Chrome；可选传截图目录 | `docs/decisions/0031` |
+| `verify-docs-index.mjs`        | 对 `docs/README.md` §四 的文档索引做一致性自检：ADR 索引**双向**一致（有文件没登记 / 索引指向不存在的文件）、编号从 `0001` 连续、§四 里引用的其他文档都存在 | **无前置条件**（不连网、不读产物、不写文件）；`node scripts/verify-docs-index.mjs`      | `docs/decisions/0036` |
 | `verify-bundle-secrets.mjs`    | 扫前端构建产物，确认**种子口令没有进包**                                | **无前置服务**（口令真值从 `application-h2.yml` 读；需先构建前端）；`node scripts/verify-bundle-secrets.mjs [目录…]`       | `docs/decisions/0029` · `0033` |
 | `verify-standalone-dev-login.mjs` | 用真实 Chrome 验证子应用**单跑**时的自建会话与开发账号自动登录（后端在跑 / 没起两种状态都跑一遍） | 至少一个子应用的 dev 服务在跑（:3200 / :3300 / :3500 / :3600，没起的会被记成"跳过"）；**后端 :8080 可选** —— 在跑时断言自动登录成功，没起时断言优雅降级；本机装有 Google Chrome | `docs/decisions/0018` · `0033` |
 
@@ -309,6 +310,10 @@
 - **改动子应用的启动路径后，e2e 要在"dev server 冷着"的状态下跑一遍**。开发服务器**第一次**被访问时
   才做依赖预构建，热与冷不是同一种环境 —— 冷启动会暴露只在首帧出现的问题（例如自动登录还没完成就渲染）。
   `scripts/verify-standalone-dev-login.mjs` 正是为这条而生，重跑一遍前**先重启对应的 dev 服务**。
+- **能不要前置条件就不要** —— 这一条决定脚本能不能进 CI。`verify-nginx-config.mjs` 与
+  `verify-docs-index.mjs` 是**零前置**的（不连网、不读产物、不写文件），所以流水线的 `guards` job
+  直接跑它们；需要前置服务的脚本继续留在本机 —— 真机层（浏览器 + 冷启动 dev server）**刻意不在
+  CI 的必过项里**，理由见 `docs/decisions/0036`。
 - **凭据走环境变量**：脚本里不出现任何密码（见 `docs/decisions/0003`）。
 - **后端进程的启动方式**：`spring-boot:run` 是 CLI goal，会落到 reactor 里**每一个**模块上，
   而父工程 `sts-parent` 没有 main class ⇒ 带 `-am` 一定失败

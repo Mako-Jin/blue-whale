@@ -21,7 +21,12 @@
 5. **不手写前端 SDK**——它由 `docs/api` 的 OpenAPI 契约生成。改后端接口后必须跑 `scripts/export-openapi.sh` + `pnpm --filter common-api gen:api`，并与代码同一次提交（流程见 `CONTRIBUTING.md` 第七节）。
 6. **前端调接口一律走 `common-api`**，禁止直接 `fetch`；错误按 `HttpError.kind` 分支处理，禁止匹配错误文案。
 7. **后端只用 JDK 21+** —— enforcer 已在构建期强制（低于 21 会直接失败并给出提示），但**运行 `java -jar` / 脚本时没有这道门**：本机 `JAVA_HOME` 可能指向 JDK 17，启动或跑 `scripts/export-openapi.sh` 前用 `mvn -v` / `java -version` 确认。
-8. **重大技术决策要写 ADR**，模板见 `docs/decisions/TEMPLATE.md`。
+8. **重大技术决策要写 ADR**，模板见 `docs/decisions/TEMPLATE.md`。写完**必须**把它登记进
+   `docs/README.md` §四 的索引 —— 漏了会红：`node scripts/verify-docs-index.mjs` 查这个（CI 也跑）。
+9. **CI 的入口只能是 `.github/workflows/`**（GitHub Actions 的平台硬要求，`infra/` 装不了它）。
+   **真机层（八个 `scripts/verify-*.mjs` 浏览器脚本）刻意不在必过项里** —— 它们依赖真实浏览器、
+   GPU、冷启动 dev server 与端口占用，进去只会得到随机红。改 workflow 里的命令前，
+   **先把那条命令在本机跑一遍**（CI 配置本身没有测试）。见 `docs/decisions/0036`。
 
 ## 已知的环境坑（排查前先看这里）
 

@@ -6,8 +6,12 @@
 |------|------|
 | `docker/` | 各应用的 Dockerfile、本地开发用 docker-compose |
 | `nginx/` | 反向代理、静态资源、网关路由配置 · **已有内容**：两条上报通道的限流（见 `nginx/README.md` 与 `docs/decisions/0027`） |
-| `ci/` | 流水线定义（构建、测试、镜像推送） |
 | `deploy/` | 环境变量模板、发布与回滚脚本 |
+
+> **CI 不在这里。** GitHub Actions **只从 `.github/workflows/` 读取流水线** ——
+> 这是平台的硬要求，不是我们的选择。所以本目录**不再预留 `ci/`**
+> （留一个永远装不进内容的目录，只会让下一个人在错的地方找）。
+> 流水线定义见 `.github/workflows/ci.yml`，分层的理由见 `docs/decisions/0036`。
 
 ## 约定
 
