@@ -1,0 +1,108 @@
+# =============================================================================
+# BlueWhale 网关：上报限流 + 反向代理
+#
+# **这不是"可以直接跑"的文件** —— 带 $ 的占位符由 envsubst 渲染，见 README。
+#
+# 放在 conf.d/ 下：Docker 官方 nginx 镜像与 Debian / Ubuntu 的 nginx.conf 都已经有
+# `include /etc/nginx/conf.d/*.conf;`，**且该 include 位于 http 上下文里**。
+# 而 limit_req_zone / limit_conn_zone / map / upstream 只能定义在 http 上下文 ——
+# 这是选 conf.d 而不是独立 nginx.conf 的唯一原因，也是它不能乱挪位置的原因。
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 真实客户端 IP（默认全注释 = 本机即边缘，前方无代理）
+#
+# 这是整份配置里最关键的一段：**应用层拿不到可信的客户端 IP**。
+# 后端有 5 处注释写着 X-Forwarded-For 可被伪造、不可作为鉴权或风控依据 ——
+# 那个结论是对的，成因是"应用无法判断自己前面有没有代理、该信几跳"。
+# nginx 知道，因为它自己就是那个代理：set_real_ip_from 配好后，
+# $binary_remote_addr 就从"最后一跳的地址"变成**真实客户端 IP**。
+# 也就是说：限流只能做在这一层，且必须先做对这一段。
+# -----------------------------------------------------------------------------
+include /etc/nginx/snippets/bluewhale-real-ip.conf;
+
+# -----------------------------------------------------------------------------
+# 限流 zone
+#
+# ⚠️ 上报接口与查询接口**共用同一个 URI**（POST /api/logs/client 上报、
+# GET /api/logs/client 分页查询），因此**只能按请求方法区分**。
+# 用 map 把非 POST 的 key 置空：nginx 源码里 limit_req / limit_conn 的处理都是
+# `if (key.len == 0) { return NGX_DECLINED; }` —— 空 key 的请求**不计入**该 zone。
+# 于是 GET 查询不会被上报通道的配额挤掉（那是个已鉴权的接口，被误限反而更糟）。
+# -----------------------------------------------------------------------------
+map $request_method $bluewhale_report_key {
+    default  "";
+    POST     $binary_remote_addr;
+}
+
+# 上报：两条通道共用一个 zone（同一批客户端、同一种流量特征、同一套阈值）
+limit_req_zone  $bluewhale_report_key  zone=bluewhale_report_per_ip:10m  rate=${REPORT_RATE};
+limit_conn_zone $bluewhale_report_key  zone=bluewhale_report_conn:10m;
+
+# 其余 /api：更宽松的按 IP 兜底（查询接口等）
+limit_req_zone  $binary_remote_addr    zone=bluewhale_api_per_ip:10m     rate=${API_RATE};
+limit_conn_zone $binary_remote_addr    zone=bluewhale_api_conn:10m;
+
+# ⚠️ 这两行的默认值是 **503 而不是 429** —— 它们不是装饰：
+# 没有它们，error_page 429 永远不会触发，超限会以"服务不可用"的形态出现，
+# 与真实宕机混进同一个告警通道。
+limit_req_status   429;
+limit_conn_status  429;
+
+upstream bluewhale_backend {
+    server   ${BACKEND_UPSTREAM};
+    keepalive 32;
+}
+
+server {
+    listen      ${HTTP_PORT};
+    server_name ${SERVER_NAME};
+
+    # 体量闸门。单批 500 条的**条数**上限由后端 Bean Validation 管（见
+    # ClientLogReportRequest），这里管的是**字节数** —— 一批 500 条到底多大，
+    # 只有这一层说了算：后端从来没有配过任何 server.tomcat.* 的体量限制。
+    client_max_body_size ${MAX_BODY_SIZE};
+
+    # 429 的响应体与后端的错误码表对齐（42900 = 请求过于频繁）。
+    # 刻意**不带 timestamp**：nginx 拿不到 epoch 毫秒（$msec 是秒 + 三位小数），
+    # 而一个"格式对、数值错"的 timestamp 比没有更坏 —— 与本仓
+    # 「宁可不显示，不可错显示」一致。前端也不依赖它：
+    # common-tools/http 的 readBody() 对非 JSON 响应体原样返回，429 走 HTTP 状态分类。
+    error_page 429 = @bluewhale_too_many_requests;
+
+    location @bluewhale_too_many_requests {
+        default_type application/json;
+        return 429 '{"code":42900,"message":"请求过于频繁","data":null}';
+    }
+
+    # --- 两条上报通道 ------------------------------------------------------------
+    # POST 计入上报 zone；同一 URI 上的 GET（查询）因 key 为空而不计入。
+    location = /api/logs/client {
+        limit_req  zone=bluewhale_report_per_ip  burst=${REPORT_BURST} nodelay;
+        limit_conn bluewhale_report_conn         ${REPORT_CONN};
+        include /etc/nginx/snippets/bluewhale-proxy.conf;
+    }
+
+    location = /api/events/client {
+        limit_req  zone=bluewhale_report_per_ip  burst=${REPORT_BURST} nodelay;
+        limit_conn bluewhale_report_conn         ${REPORT_CONN};
+        include /etc/nginx/snippets/bluewhale-proxy.conf;
+    }
+
+    # --- 其余 API：按 IP 的宽松兜底 -----------------------------------------------
+    location /api/ {
+        limit_req  zone=bluewhale_api_per_ip  burst=${API_BURST} nodelay;
+        limit_conn bluewhale_api_conn         ${API_CONN};
+        include /etc/nginx/snippets/bluewhale-proxy.conf;
+    }
+
+    # --- 前端静态资源 -------------------------------------------------------------
+    # 本配置管的是 /api 入口（限流与反向代理）。静态资源怎么托管（同机目录 /
+    # 对象存储 / 独立域名）属部署形态，这里**刻意不猜** —— 猜错的表现是
+    # "页面 403 但 API 正常"这种一眼看不出原因的组合。默认转发给后端（后端返 404）。
+    # 同机托管时替换为：
+    #   root ${STATIC_ROOT}; try_files $uri /index.html;
+    location / {
+        include /etc/nginx/snippets/bluewhale-proxy.conf;
+    }
+}
