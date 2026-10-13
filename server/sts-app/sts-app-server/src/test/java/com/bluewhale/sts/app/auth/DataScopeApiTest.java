@@ -33,9 +33,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *   <li><b>合并规则是"取最宽"</b> —— 一个人可能持有多个角色，各带各的 {@code data_scope}，
  *       结果不能被最窄的那个拖回去。这条规则如果写反（取最窄），表现是"给他加了个新角色，
  *       他反而看得更少了"，而单角色用例全都会通过；</li>
- *   <li><b>"已配置"与"已生效"被分开</b> —— {@code DEPT} 这一类档位会被如实标记为
- *       {@code precise = false}，而不是安静地返回一个看起来正常的结果。
- *       {@code ALL} / {@code SELF} 则必须 {@code precise = true}，因为它们是自足的。</li>
+ *   <li><b>"已配置"与"已生效"被分开</b> —— {@code precise} 说的是"这一档能不能被翻译成
+ *       一组组织"，而**不是**"有没有查询按它过滤"。{@code ALL} / {@code SELF} 恒为 true
+ *       （自足）；{@code CUSTOM} 恒为 false（{@code filter_json} 解析未实现）；
+ *       {@code DEPT} 系列在**该用户有一个有效主岗**时为 true，
+ *       没有主岗（没有归属 / 归属已过期 / 主岗所在组织已停用）时如实为 false ——
+ *       <b>往窄兜底</b>，而不是安静地返回一个看起来正常的结果。
+ *       这一段接线（组织树 + 成员归属 + 求值）见 {@code ADR-0030}。</li>
  * </ol>
  *
  * <p><b>用 {@code @Transactional}：本类不涉及审计</b>（审计走独立事务，不受回滚影响，

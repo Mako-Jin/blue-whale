@@ -33,6 +33,21 @@ public final class AuthResources {
     public static final String USER = "auth:user";
 
     /**
+     * 组织（部门）。
+     *
+     * <p>对应 {@code auth:org:*} 四个权限码。它是**数据权限的坐标系**：
+     * {@code DEPT} / {@code DEPT_AND_CHILD} 两档最终都要翻译成一组组织 id，
+     * 而"这个人在哪个组织"由 {@code bw_auth_rel_org_user} 的主岗回答。
+     *
+     * <p>因此改组织树（尤其**移动**一个节点）不是一次普通的资料维护 ——
+     * 按路径前缀求值的范围会跟着变，见 {@code AuthAuditActions.ORG_MOVE}。
+     *
+     * <p>{@code bw_auth_resource} 里不存在 {@code auth:org} 这一行：
+     * 表里存的是三段式**权限码**（{@code auth:org:read}），本常量是两段**资源标识**。
+     */
+    public static final String ORG = "auth:org";
+
+    /**
      * 资源目录。
      *
      * <p>它对应 {@code auth:resource:*} 四个权限码，形状上与 {@link #TENANT} / {@link #USER}

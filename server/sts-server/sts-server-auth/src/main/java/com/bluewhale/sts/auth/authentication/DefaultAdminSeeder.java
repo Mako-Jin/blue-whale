@@ -7,6 +7,14 @@ import com.bluewhale.sts.auth.common.codec.PasswordHasher;
 import com.bluewhale.sts.auth.common.enums.MemberType;
 import com.bluewhale.sts.auth.common.enums.ResourceType;
 import com.bluewhale.sts.auth.common.enums.Status;
+import com.bluewhale.sts.auth.organization.OrgMemberBindRequest;
+import com.bluewhale.sts.auth.organization.OrganizationEntity;
+import com.bluewhale.sts.auth.organization.OrganizationMapper;
+import com.bluewhale.sts.auth.organization.OrganizationMemberService;
+import com.bluewhale.sts.auth.organization.OrganizationSaveRequest;
+import com.bluewhale.sts.auth.organization.OrganizationService;
+import com.bluewhale.sts.auth.relation.RelOrgUserEntity;
+import com.bluewhale.sts.auth.relation.RelOrgUserMapper;
 import com.bluewhale.sts.auth.relation.RelRoleMemberEntity;
 import com.bluewhale.sts.auth.relation.RelRoleMemberMapper;
 import com.bluewhale.sts.auth.relation.RelRoleResourceEntity;
@@ -59,6 +67,27 @@ public class DefaultAdminSeeder implements ApplicationRunner {
     private static final String AUDITOR_ROLE_CODE = "AUDITOR";
     private static final String AUDITOR_ROLE_NAME = "审计员";
 
+    /**
+     * 最小组织树：总部 → 研发部 → 前端组。
+     *
+     * <p><b>为什么要种组织。</b>{@code bw_auth_organization} 与
+     * {@code bw_auth_rel_org_user} 从建库起就在，但全仓零引用 —— 也就是说
+     * 在真实环境里这两张表**恒为空**。而 {@code DEPT} / {@code DEPT_AND_CHILD}
+     * 两档数据范围求的就是"这个人的主岗在哪个组织"：表空着，这两档就永远
+     * 算不出范围、只能保守地按"仅本人"处理。一棵最小三层树让它们**开箱可验**，
+     * 也让"部门调整之后谁能看见什么"有一个可以指着看的例子。
+     *
+     * <p>三层的选择不是凑数：{@code DEPT} 与 {@code DEPT_AND_CHILD} 的差别要能被区分出来，
+     * 就必须有一个节点**同时**有上级和下级（研发部），否则"本部门"与"本部门及下级"
+     * 求出来的集合永远相等，两个档位看起来一模一样。
+     */
+    private static final String HQ_CODE = "HQ";
+    private static final String HQ_NAME = "总部";
+    private static final String RD_CODE = "RD";
+    private static final String RD_NAME = "研发部";
+    private static final String FE_CODE = "RD_FE";
+    private static final String FE_NAME = "前端组";
+
     /** 报错时要写进消息里的完整属性名 —— 手拼字符串最容易在消息里漏一段，所以做成常量。 */
     private static final String SEED_ADMIN_PROPERTY = "bluewhale.auth.seed-admin.password";
     private static final String SEED_AUDITOR_PROPERTY = "bluewhale.auth.seed-auditor.password";
@@ -87,6 +116,10 @@ public class DefaultAdminSeeder implements ApplicationRunner {
     private final RoleMapper roleMapper;
     private final RelRoleResourceMapper relRoleResourceMapper;
     private final RelRoleMemberMapper relRoleMemberMapper;
+    private final OrganizationService organizationService;
+    private final OrganizationMemberService organizationMemberService;
+    private final OrganizationMapper organizationMapper;
+    private final RelOrgUserMapper relOrgUserMapper;
 
     public DefaultAdminSeeder(AuthProperties properties,
                               PasswordHasher passwordHasher,
@@ -95,7 +128,11 @@ public class DefaultAdminSeeder implements ApplicationRunner {
                               ResourceMapper resourceMapper,
                               RoleMapper roleMapper,
                               RelRoleResourceMapper relRoleResourceMapper,
-                              RelRoleMemberMapper relRoleMemberMapper) {
+                              RelRoleMemberMapper relRoleMemberMapper,
+                              OrganizationService organizationService,
+                              OrganizationMemberService organizationMemberService,
+                              OrganizationMapper organizationMapper,
+                              RelOrgUserMapper relOrgUserMapper) {
         this.properties = properties;
         this.passwordHasher = passwordHasher;
         this.tenantMapper = tenantMapper;
@@ -104,6 +141,10 @@ public class DefaultAdminSeeder implements ApplicationRunner {
         this.roleMapper = roleMapper;
         this.relRoleResourceMapper = relRoleResourceMapper;
         this.relRoleMemberMapper = relRoleMemberMapper;
+        this.organizationService = organizationService;
+        this.organizationMemberService = organizationMemberService;
+        this.organizationMapper = organizationMapper;
+        this.relOrgUserMapper = relOrgUserMapper;
     }
 
     @Override
@@ -122,14 +163,21 @@ public class DefaultAdminSeeder implements ApplicationRunner {
 
         TenantEntity tenant = ensureTenant(seed);
         List<ResourceEntity> resources = ensureResources();
+        // 组织树先建好：两个身份的主岗都挂在它上面（审计员在叶子节点上，
+        // 于是"本部门"与"本部门及下级"在这套种子上能验出差别）
+        OrganizationEntity hq = ensureOrg(tenant, HQ_CODE, HQ_NAME, null, "COMPANY");
+        OrganizationEntity rd = ensureOrg(tenant, RD_CODE, RD_NAME, hq, "DEPT");
+        OrganizationEntity fe = ensureOrg(tenant, FE_CODE, FE_NAME, rd, "TEAM");
 
         RoleEntity adminRole = ensureRole(tenant, ADMIN_ROLE_CODE, ADMIN_ROLE_NAME);
         grantResources(tenant, adminRole, resources);
         UserEntity admin = ensureUser(tenant, seed.getUsername(), seed.getPassword(), seed.getDisplayName());
         grantRole(adminRole, admin);
+        ensureMembership(hq, admin);
 
-        log.warn("已启用默认管理员种子数据 | 用户名={} | 租户={} | **这是开发用配置，生产环境必须关闭并立即改密**",
-                seed.getUsername(), seed.getTenantCode());
+        log.warn("已启用默认管理员种子数据 | 用户名={} | 租户={} | 主岗={} | "
+                        + "**这是开发用配置，生产环境必须关闭并立即改密**",
+                seed.getUsername(), seed.getTenantCode(), HQ_NAME);
 
         if (!auditor.isEnabled()) {
             return;
@@ -144,9 +192,10 @@ public class DefaultAdminSeeder implements ApplicationRunner {
         UserEntity auditorUser = ensureUser(tenant, auditor.getUsername(), auditor.getPassword(),
                 auditor.getDisplayName());
         grantRole(auditorRole, auditorUser);
+        ensureMembership(fe, auditorUser);
 
-        log.warn("已启用默认只读账号种子数据 | 用户名={} | 权限={} | **同样是开发用配置**",
-                auditor.getUsername(), AUDITOR_PERMISSIONS);
+        log.warn("已启用默认只读账号种子数据 | 用户名={} | 权限={} | 主岗={} | **同样是开发用配置**",
+                auditor.getUsername(), AUDITOR_PERMISSIONS, FE_NAME);
     }
 
     /**
@@ -193,8 +242,70 @@ public class DefaultAdminSeeder implements ApplicationRunner {
         return tenant;
     }
 
-    private List<ResourceEntity> ensureResources() {
-        for (String code : AuthPermissions.ALL) {
+    /**
+     * 确保一个组织存在（幂等）。
+     *
+     * <p><b>这里刻意调用 {@link OrganizationService#create} 而不是自己拼 mapper 写入。</b>
+     * 组织的 {@code orgLevel} / {@code codePath} / {@code fullName} 是**派生列**，
+     * 种子里再实现一遍就等于把同一套规则抄了第二份 —— 而这份抄件不会有测试盯着，
+     * 一旦派生规则改了（例如路径分隔符或层级的起点），种子会产生一批
+     * 与接口建出来的节点**长得不一样**的数据，且只在重建库时才暴露。
+     * 复用服务方法还有一个附带好处：编码被软删行占用时的复活逻辑也一并复用。
+     *
+     * <p>调用它不会踩到"启动时没有请求上下文"的坑：创建走的租户是**显式传入**的
+     * （{@code resolveTenantId} 只在没传时才去读登录上下文），
+     * 而 {@code OrganizationMemberService} 根本不读上下文。
+     *
+     * <p>先查一次是为了**幂等**：本服务方法在编码被一条有效组织占用时会抛
+     * {@code 40908}，而种子的语义是"确保存在"，不是"每次都建"。
+     */
+    private OrganizationEntity ensureOrg(TenantEntity tenant, String code, String name,
+                                         OrganizationEntity parent, String orgType) {
+        OrganizationEntity existing = organizationMapper
+                .selectAnyByTenantAndCode(tenant.getId(), code);
+        if (existing != null && (existing.getDeleted() == null || existing.getDeleted() == 0)) {
+            return existing;
+        }
+        OrganizationSaveRequest request = new OrganizationSaveRequest();
+        request.setTenantId(tenant.getId());
+        request.setOrgCode(code);
+        request.setOrgName(name);
+        request.setParentId(parent == null ? null : parent.getId());
+        request.setOrgType(orgType);
+        request.setSortNo(0);
+        // 服务方法返回的是 VO；下一层节点要拿 parentId / codePath 派生子级，所以回读一次实体。
+        // 只在启动时发生、一共三次，不值得为它给服务层开一个"返回实体"的口子
+        // （那会让服务层的出参口径出现两种，而调用方要靠上下文猜自己拿到的是哪种）
+        return organizationMapper.selectById(organizationService.create(request).getId());
+    }
+
+    /**
+     * 确保某个用户在那个组织下**至少有一条归属**（幂等）。
+     *
+     * <p><b>只在这个人于该组织下没有任何归属时才写入。</b>也就是说：
+     * 一旦运维在运行期改过这件事（把人调走、把主岗搬走），重启种子**不会**把它改回来。
+     * 这与 {@code ensureUser} 的取舍不同（那个方法遇到已存在的用户直接返回、不改口令），
+     * 但动机一致：种子负责"从无到有"，不负责"把状态纠正回它以为的样子"。
+     *
+     * <p>不传 {@code isPrimaryPosition}：由服务层按"此人当前没有主岗则设为主岗"决定。
+     * 这样首次启动会自然形成"admin 主岗在总部、auditor 主岗在前端组"，
+     * 而重启不会把运维改过的主岗悄悄搬回来 —— 搬主岗是直接影响数据范围的操作，
+     * 只能由显式的接口调用发生。
+     */
+    private void ensureMembership(OrganizationEntity org, UserEntity user) {
+        Long count = relOrgUserMapper.selectCount(Wrappers.<RelOrgUserEntity>lambdaQuery()
+                .eq(RelOrgUserEntity::getOrganizationId, org.getId())
+                .eq(RelOrgUserEntity::getUserId, user.getId()));
+        if (count != null && count > 0) {
+            return;
+        }
+        OrgMemberBindRequest request = new OrgMemberBindRequest();
+        request.setMemberId(user.getId());
+        request.setPositionName(org.getOrgName() + "成员");
+        organizationMemberService.bindMember(org.getId(), request);
+    }
+
+    private List<ResourceEntity> ensureResources() {        for (String code : AuthPermissions.ALL) {
             ResourceEntity existing = resourceMapper.selectOne(Wrappers.<ResourceEntity>lambdaQuery()
                     .eq(ResourceEntity::getResourceCode, code));
             if (existing != null) {

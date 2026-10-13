@@ -129,6 +129,71 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/auth/orgs/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** 查询组织详情 */
+    get: operations['detail_5'];
+    /**
+     * 修改组织
+     * @description 编码与所属租户不可修改；**层级也不在这里改** —— 请求里带了与原值不同的 parentId 会返回 40001 并指向移动接口。改名会重写整棵子树的 fullName
+     */
+    put: operations['update_5'];
+    post?: never;
+    /**
+     * 删除组织
+     * @description 仍有下级组织（40913）或仍有成员归属（40919）时拒绝；**没有级联删除**，也不提供「连人一起删」这种选项
+     */
+    delete: operations['delete_5'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/auth/orgs/{id}/parent': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * 移动组织节点
+     * @description 把整棵子树搬到另一个父级下（传空 body 表示提升为顶级）。会重写整棵子树的 codePath / orgLevel / fullName，因此**同时改变子树上每个人的 DEPT 数据范围**；挂到自己或自己的后代下会返回 40913
+     */
+    put: operations['move'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/auth/orgs/{id}/members/{userId}/primary': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * 把某人的组织归属设为主岗
+     * @description **直接改变这个人的 DEPT 数据范围**，因此是独立接口与独立审计动作。会把该用户在本租户内的其他主岗全部降级（每人至多一个主岗）；要求先有归属，否则返回 40410
+     */
+    put: operations['setPrimaryPosition'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/logs/client': {
     parameters: {
       query?: never;
@@ -397,6 +462,54 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/auth/orgs': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * 分页查询组织
+     * @description 按 keyword（编码 / 名称 / 全称） / status / orgType / parentId 过滤，按当前租户限定；parentId 取的是**直接下级**，要整棵子树请用树接口
+     */
+    get: operations['page_7'];
+    put?: never;
+    /**
+     * 新增组织
+     * @description 编码曾被已删除的组织占用时会恢复那一行，恢复出来的是**空部门**（名下的用户归属被清空）；orgLevel / codePath / fullName 由服务端按父级派生
+     */
+    post: operations['create_5'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/auth/orgs/{id}/members': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * 分页查询组织成员
+     * @description 可按 primaryOnly 只看主岗；成员名跨表解析，因此不提供按名搜索
+     */
+    get: operations['pageMembers_2'];
+    put?: never;
+    /**
+     * 把用户挂到组织下
+     * @description 同一个组织与用户只保留一条有效归属，重复调用会改时间窗与岗位信息而不是堆行。不传 isPrimaryPosition 时：此人当前没有别的主岗则自动设为主岗，已有主岗则**保持不变**（绝不静默搬动数据范围）
+     */
+    post: operations['bindMember_2'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/auth/logout': {
     parameters: {
       query?: never;
@@ -448,7 +561,7 @@ export interface paths {
      * 查询日志详情
      * @description 不存在、或属于其他租户时一律返回 40401 —— 不区分这两种情形，否则错误码本身就泄露了"这条记录存在"。
      */
-    get: operations['detail_5'];
+    get: operations['detail_6'];
     put?: never;
     post?: never;
     delete?: never;
@@ -528,7 +641,7 @@ export interface paths {
      * 查询事件详情
      * @description 不存在、或属于其他租户时一律返回 40401 —— 不区分这两种情形，否则错误码本身就泄露了"这条记录存在"。
      */
-    get: operations['detail_6'];
+    get: operations['detail_7'];
     put?: never;
     post?: never;
     delete?: never;
@@ -577,6 +690,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/auth/users/{id}/organizations': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * 反查用户的组织归属
+     * @description 列出该用户在各组织下的归属（含非主岗与已过期的），每行带 effectiveNow 与 orgStatus —— 排查「他配了本部门范围、为什么还是只看得到自己」时，答案通常就在这两列里
+     */
+    get: operations['organizations'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/auth/users/{id}/data-scope': {
     parameters: {
       query?: never;
@@ -586,7 +719,7 @@ export interface paths {
     };
     /**
      * 反查用户的数据范围
-     * @description 合并该用户全部生效角色的 data_scope（取最宽的一档）。**precise 为 false 表示该档位尚不能被精确求值**（DEPT / DEPT_AND_CHILD 需要组织归属，CUSTOM 需要解析 filter_json），此时已接入的查询保守地按「仅本人」处理
+     * @description 合并该用户全部生效角色的 data_scope（取最宽的一档）。**precise 为 false 表示该档位尚不能被精确求值**（DEPT / DEPT_AND_CHILD 需要该用户有一个有效主岗，CUSTOM 需要解析 filter_json），此时已接入的查询保守地按「仅本人」处理；为 true 时会带上主岗组织与可见组织集合
      */
     get: operations['dataScope'];
     put?: never;
@@ -609,6 +742,26 @@ export interface paths {
      * @description 按 parentCode 组装，全量返回。孤儿节点与成环节点按根返回，不丢弃
      */
     get: operations['tree'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/auth/orgs/tree': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * 查询组织树
+     * @description 一次返回当前租户的整棵森林（**含已停用节点**，由界面置灰）；传 rootId 只看某一棵子树。父子不在结果集里的节点会被当成根返回（孤儿节点）
+     */
+    get: operations['tree_1'];
     put?: never;
     post?: never;
     delete?: never;
@@ -648,7 +801,7 @@ export interface paths {
      * 分页查询审计记录
      * @description 按服务端记录时间倒序。时间窗缺省为最近 7 天。可按动作、资源、对象、操作人、结果过滤。
      */
-    get: operations['page_7'];
+    get: operations['page_8'];
     put?: never;
     post?: never;
     delete?: never;
@@ -665,7 +818,7 @@ export interface paths {
       cookie?: never;
     };
     /** 查询审计记录详情 */
-    get: operations['detail_7'];
+    get: operations['detail_8'];
     put?: never;
     post?: never;
     delete?: never;
@@ -749,6 +902,26 @@ export interface paths {
      * @description memberType 取 USER / GROUP；从未授过的成员返回 40408，不与解除成功混淆
      */
     delete: operations['revokeMember_1'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/auth/orgs/{id}/members/{userId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * 把用户移出组织
+     * @description 本来就不在该组织下时返回 40410，不与移除成功混淆；移除主岗**不会自动把主岗转给别人** —— 转给谁是人事决定，此人此后暂时没有主岗，DEPT 档位往窄兜底成「仅本人」
+     */
+    delete: operations['revokeMember_2'];
     options?: never;
     head?: never;
     patch?: never;
@@ -1181,6 +1354,191 @@ export interface components {
       /** Format: int64 */
       updateTime?: number;
     };
+    /** @description 组织保存入参 */
+    OrganizationSaveRequest: {
+      /**
+       * @description 组织编码，租户内唯一。**创建后不可修改**（修改路径不读这个字段）
+       * @example RD_FE
+       */
+      orgCode: string;
+      /**
+       * @description 组织名称
+       * @example 前端组
+       */
+      orgName: string;
+      /**
+       * Format: int64
+       * @description 租户主键，不传则归入当前登录用户所属租户。**修改路径不读这个字段** —— 把组织搬到另一个租户会让它连同其子树瞬间与所有成员归属错位，要变就新建
+       */
+      tenantId?: number;
+      /**
+       * Format: int64
+       * @description 父组织主键，顶级不传。**只在新增时生效**：修改时会因为「值与原值不同」而被拒绝（40001），移动请用 PUT /api/auth/orgs/{id}/parent
+       */
+      parentId?: number;
+      /**
+       * @description 组织类型（COMPANY / DEPT / TEAM …），**只作展示、不参与任何判定**
+       * @example DEPT
+       */
+      orgType?: string;
+      /**
+       * Format: int64
+       * @description 负责人用户主键。姓名由服务端从用户表取，入参不接受 managerName
+       */
+      managerId?: number;
+      /**
+       * Format: int32
+       * @description 排序号，同级内升序；缺省 0
+       */
+      sortNo?: number;
+      /**
+       * @description 状态：ENABLED / DISABLED，缺省 ENABLED。**停用的组织不再能作为 DEPT 档位的范围目标**；停用不级联，不影响它的下级
+       * @example ENABLED
+       */
+      status?: string;
+      description?: string;
+      contactName?: string;
+      contactPhone?: string;
+      contactEmail?: string;
+    };
+    /** @description 组织 */
+    OrganizationVO: {
+      /**
+       * Format: int64
+       * @description 组织主键
+       */
+      id?: number;
+      /**
+       * Format: int64
+       * @description 所属租户主键
+       */
+      tenantId?: number;
+      /** @description 组织编码，租户内唯一 */
+      orgCode?: string;
+      /** @description 组织名称 */
+      orgName?: string;
+      /** @description 组织全称，按层级派生（如 蓝鲸集团/研发部/前端组）。改名或移动时整棵子树一起重写 */
+      fullName?: string;
+      /**
+       * Format: int64
+       * @description 父组织主键，顶级为 null
+       */
+      parentId?: number;
+      /**
+       * Format: int32
+       * @description 层级，根为 1。由服务端派生，与 parentId 始终一致
+       */
+      orgLevel?: number;
+      /** @description 物化路径，形如 /1/5/，为**各级祖先的主键**加斜杠（不含自身）。DEPT_AND_CHILD 档位正是按它做前缀匹配求子树 */
+      codePath?: string;
+      /**
+       * Format: int32
+       * @description 是否有下级：0 否 1 是
+       */
+      hasChild?: number;
+      /** @description 组织类型，只作展示、不参与判定 */
+      orgType?: string;
+      /**
+       * Format: int64
+       * @description 负责人用户主键
+       */
+      managerId?: number;
+      /** @description 负责人姓名。**冗余列**，写入时与 managerId 一起确定，便于列表展示 */
+      managerName?: string;
+      /**
+       * Format: int32
+       * @description 排序号
+       */
+      sortNo?: number;
+      /** @description 状态：ENABLED / DISABLED。**停用的组织不再能作为 DEPT 档位的范围目标** */
+      status?: string;
+      /** @description 描述 */
+      description?: string;
+      /** @description 联系人 */
+      contactName?: string;
+      /** @description 联系电话 */
+      contactPhone?: string;
+      /** @description 联系邮箱 */
+      contactEmail?: string;
+      /**
+       * Format: int64
+       * @description 创建时间（毫秒时间戳）
+       */
+      createTime?: number;
+      /**
+       * Format: int64
+       * @description 最后更新时间（毫秒时间戳）
+       */
+      updateTime?: number;
+    };
+    ROrganizationVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['OrganizationVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    /** @description 组织移动入参 */
+    OrganizationMoveRequest: {
+      /**
+       * Format: int64
+       * @description 新的父组织主键。**不传或传 null 都表示提升为顶级**
+       * @example 3
+       */
+      parentId?: number;
+    };
+    /** @description 组织成员关系（用户在组织下的归属） */
+    OrgMemberVO: {
+      /**
+       * Format: int64
+       * @description 成员关系主键，撤销时用它
+       */
+      grantId?: number;
+      /**
+       * Format: int64
+       * @description 成员主键（用户主键）
+       */
+      memberId?: number;
+      /** @description 成员名称：取用户 displayName（为空则回退 username）。用户已不存在时为 null —— 关系表没有外键，这种情况是可能的，且应当被看见 */
+      memberName?: string;
+      /**
+       * Format: int32
+       * @description 是否主岗：0 否 1 是。**主岗是 DEPT / DEPT_AND_CHILD 档位唯一的取值来源**
+       */
+      isPrimaryPosition?: number;
+      /** @description 是否主岗的布尔形态，供界面直接绑定（等于 isPrimaryPosition == 1） */
+      primaryPosition?: boolean;
+      /** @description 岗位名 */
+      positionName?: string;
+      /** @description 关系类型。当前没有任何判定读它 */
+      relationType?: string;
+      /**
+       * Format: int64
+       * @description 生效起始时间（毫秒时间戳），null 表示立即生效
+       */
+      effectiveFrom?: number;
+      /**
+       * Format: int64
+       * @description 生效结束时间（毫秒时间戳），null 表示长期有效
+       */
+      effectiveTo?: number;
+      /** @description 此刻是否落在生效区间内。false 表示尚未生效或已过期 —— 过期的归属不参与数据范围求值，见 DataScopeService */
+      effectiveNow?: boolean;
+      /**
+       * Format: int64
+       * @description 归属关系建立时间（毫秒时间戳）
+       */
+      createTime?: number;
+    };
+    ROrgMemberVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['OrgMemberVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
     /** @description 单条客户端日志 */
     ClientLogItem: {
       /**
@@ -1600,6 +1958,40 @@ export interface components {
       /** Format: int64 */
       timestamp?: number;
     };
+    /** @description 组织成员（用户归属）入参 */
+    OrgMemberBindRequest: {
+      /**
+       * Format: int64
+       * @description 成员主键（用户主键）
+       * @example 1
+       */
+      memberId: number;
+      /**
+       * Format: int32
+       * @description 是否设为主岗：0 否 1 是。**主岗决定这个人的 DEPT 数据范围**。不传时：该用户当前没有主岗则自动设为主岗，已有主岗则保持不变（不静默搬动范围）
+       */
+      isPrimaryPosition?: number;
+      /**
+       * @description 岗位名，只作展示
+       * @example 前端负责人
+       */
+      positionName?: string;
+      /**
+       * @description 关系类型（MEMBER / LEADER …），**当前没有任何判定读它**
+       * @example MEMBER
+       */
+      relationType?: string;
+      /**
+       * Format: int64
+       * @description 生效起始时间（毫秒时间戳），不传表示立即生效
+       */
+      effectiveFrom?: number;
+      /**
+       * Format: int64
+       * @description 生效结束时间（毫秒时间戳），不传表示长期有效
+       */
+      effectiveTo?: number;
+    };
     LoginRequest: {
       /**
        * @description 租户编码
@@ -1940,6 +2332,63 @@ export interface components {
        */
       createTime?: number;
     };
+    RListUserOrgVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['UserOrgVO'][];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    /** @description 用户在某个组织下的归属（反查：这个人属于哪些组织） */
+    UserOrgVO: {
+      /**
+       * Format: int64
+       * @description 归属关系主键
+       */
+      grantId?: number;
+      /**
+       * Format: int64
+       * @description 组织主键
+       */
+      orgId?: number;
+      /** @description 组织编码 */
+      orgCode?: string;
+      /** @description 组织名称 */
+      orgName?: string;
+      /** @description 组织全称，按层级派生 */
+      fullName?: string;
+      /** @description 组织状态：ENABLED / DISABLED。**停用的组织不能作为 DEPT 档位的范围目标** */
+      orgStatus?: string;
+      /**
+       * Format: int32
+       * @description 是否主岗：0 否 1 是。**主岗是 DEPT / DEPT_AND_CHILD 档位唯一的取值来源**
+       */
+      isPrimaryPosition?: number;
+      /** @description 是否主岗的布尔形态，供界面直接绑定 */
+      primaryPosition?: boolean;
+      /** @description 岗位名 */
+      positionName?: string;
+      /** @description 关系类型。当前没有任何判定读它 */
+      relationType?: string;
+      /**
+       * Format: int64
+       * @description 生效起始时间（毫秒时间戳），null 表示立即生效
+       */
+      effectiveFrom?: number;
+      /**
+       * Format: int64
+       * @description 生效结束时间（毫秒时间戳），null 表示长期有效
+       */
+      effectiveTo?: number;
+      /** @description 此刻是否落在生效区间内。**过期的归属不参与数据范围求值** */
+      effectiveNow?: boolean;
+      /**
+       * Format: int64
+       * @description 归属关系建立时间（毫秒时间戳）
+       */
+      createTime?: number;
+    };
     RUserDataScopeVO: {
       /** Format: int32 */
       code?: number;
@@ -1948,7 +2397,7 @@ export interface components {
       /** Format: int64 */
       timestamp?: number;
     };
-    /** @description 用户的数据范围求值结果：合并后的档位、来源角色，以及该档位是否能被精确求值 */
+    /** @description 用户的数据范围求值结果：合并后的档位、来源角色、该档位是否能被精确求值，以及（DEPT 系列）可见的组织集合 */
     UserDataScopeVO: {
       /** @description 生效角色持有的数据范围档位（去重），按由宽到窄排列；为空表示没有任何角色带数据范围 */
       scopes?: string[];
@@ -1960,9 +2409,20 @@ export interface components {
       roleCodes?: string[];
       /** @description 是否为「全部数据」—— 已接入的查询据此放行整个租户 */
       allData?: boolean;
-      /** @description 这一档能否被精确求值。ALL 与 SELF 为 true；DEPT / DEPT_AND_CHILD 依赖组织归属、CUSTOM 依赖 filter_json 解析，均为 false */
+      /** @description 这一档能否被**精确求值**。ALL 与 SELF 恒为 true；DEPT / DEPT_AND_CHILD 在**该用户有一个有效主岗**时为 true；CUSTOM 恒为 false（filter_json 解析未实现） */
       precise?: boolean;
-      /** @description 当 precise 为 false 时的说明：档位未实现求值，已接入的查询**保守地按「仅本人」处理** */
+      /**
+       * Format: int64
+       * @description 主岗所在组织的主键。仅当最宽档位是 DEPT 系列、且主岗可解析时才有值
+       */
+      primaryOrgId?: number;
+      /** @description 主岗所在组织的名称 */
+      primaryOrgName?: string;
+      /** @description 主岗所在组织的全称（形如 蓝鲸集团/研发部/前端组） */
+      primaryOrgFullName?: string;
+      /** @description DEPT 系列可见的组织主键集合：DEPT 只有主岗那一个，DEPT_AND_CHILD 还含**已启用的**全部下级。其他档位为 null —— null 表示"这一档不是按组织划定的"，与空集合（"一个组织也没有"）是两件事 */
+      visibleOrgIds?: number[];
+      /** @description 当 precise 为 false 时的说明：档位未实现求值、或该用户没有有效主岗，已接入的查询**保守地按「仅本人」处理** */
       note?: string;
     };
     PageResultUserGroupVO: {
@@ -2116,6 +2576,82 @@ export interface components {
       isEnabled?: number;
       /** @description 子节点，同级按 sortNo 升序 */
       children?: components['schemas']['ResourceTreeNode'][];
+    };
+    PageResultOrganizationVO: {
+      records?: components['schemas']['OrganizationVO'][];
+      /** Format: int64 */
+      total?: number;
+      /** Format: int64 */
+      page?: number;
+      /** Format: int64 */
+      size?: number;
+      /** Format: int64 */
+      pages?: number;
+    };
+    RPageResultOrganizationVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PageResultOrganizationVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    PageResultOrgMemberVO: {
+      records?: components['schemas']['OrgMemberVO'][];
+      /** Format: int64 */
+      total?: number;
+      /** Format: int64 */
+      page?: number;
+      /** Format: int64 */
+      size?: number;
+      /** Format: int64 */
+      pages?: number;
+    };
+    RPageResultOrgMemberVO: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['PageResultOrgMemberVO'];
+      /** Format: int64 */
+      timestamp?: number;
+    };
+    OrganizationTreeNode: {
+      /** Format: int64 */
+      id?: number;
+      /** @description 组织编码 */
+      orgCode?: string;
+      /** @description 组织名称 */
+      orgName?: string;
+      /** @description 组织全称，按层级派生 */
+      fullName?: string;
+      /**
+       * Format: int64
+       * @description 父组织主键，顶级为 null
+       */
+      parentId?: number;
+      /**
+       * Format: int32
+       * @description 层级，根为 1
+       */
+      orgLevel?: number;
+      /** @description 物化路径，形如 /1/5/ */
+      codePath?: string;
+      /** @description 状态：ENABLED / DISABLED */
+      status?: string;
+      /** @description 负责人姓名（冗余列），便于在树上直接展示 */
+      managerName?: string;
+      /** Format: int32 */
+      sortNo?: number;
+      /** @description 子节点，同级按 sortNo 升序、同序按主键升序 */
+      children?: components['schemas']['OrganizationTreeNode'][];
+    };
+    RListOrganizationTreeNode: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: components['schemas']['OrganizationTreeNode'][];
+      /** Format: int64 */
+      timestamp?: number;
     };
     MeVO: {
       /** Format: int64 */
@@ -2630,6 +3166,131 @@ export interface operations {
         };
         content: {
           '*/*': components['schemas']['RVoid'];
+        };
+      };
+    };
+  };
+  detail_5: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 组织主键 */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ROrganizationVO'];
+        };
+      };
+    };
+  };
+  update_5: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 组织主键 */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['OrganizationSaveRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ROrganizationVO'];
+        };
+      };
+    };
+  };
+  delete_5: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 组织主键 */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RVoid'];
+        };
+      };
+    };
+  };
+  move: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 组织主键 */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['OrganizationMoveRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ROrganizationVO'];
+        };
+      };
+    };
+  };
+  setPrimaryPosition: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 组织主键 */
+        id: number;
+        /** @description 用户主键 */
+        userId: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ROrgMemberVO'];
         };
       };
     };
@@ -3240,6 +3901,118 @@ export interface operations {
       };
     };
   };
+  page_7: {
+    parameters: {
+      query?: {
+        /** @description 租户主键，不传则限定为当前登录用户所属租户 */
+        tenantId?: number;
+        /** @description 关键字，匹配组织编码、名称或全称 */
+        keyword?: string;
+        /** @description 状态：{@code ENABLED} / {@code DISABLED}，**过滤条件宽松处理**，认不得的值按原样比（查不到比报错更接近预期） */
+        status?: string;
+        /** @description 组织类型，**只作展示、不参与任何判定**，因此按原样比 */
+        orgType?: string;
+        /** @description 父组织主键，不传表示全部（含各级）。取整棵子树请用树接口 */
+        parentId?: number;
+        page?: number;
+        size?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RPageResultOrganizationVO'];
+        };
+      };
+    };
+  };
+  create_5: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['OrganizationSaveRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ROrganizationVO'];
+        };
+      };
+    };
+  };
+  pageMembers_2: {
+    parameters: {
+      query?: {
+        /** @description 只取主岗：true 时仅返回 isPrimaryPosition = 1 的归属。不传表示全部 */
+        primaryOnly?: boolean;
+        page?: number;
+        size?: number;
+      };
+      header?: never;
+      path: {
+        /** @description 组织主键 */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RPageResultOrgMemberVO'];
+        };
+      };
+    };
+  };
+  bindMember_2: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 组织主键 */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['OrgMemberBindRequest'];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['ROrgMemberVO'];
+        };
+      };
+    };
+  };
   logout: {
     parameters: {
       query?: never;
@@ -3288,7 +4061,7 @@ export interface operations {
       };
     };
   };
-  detail_5: {
+  detail_6: {
     parameters: {
       query?: never;
       header?: never;
@@ -3381,7 +4154,7 @@ export interface operations {
       };
     };
   };
-  detail_6: {
+  detail_7: {
     parameters: {
       query?: never;
       header?: never;
@@ -3454,6 +4227,29 @@ export interface operations {
       };
     };
   };
+  organizations: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 用户主键 */
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RListUserOrgVO'];
+        };
+      };
+    };
+  };
   dataScope: {
     parameters: {
       query?: never;
@@ -3497,6 +4293,29 @@ export interface operations {
       };
     };
   };
+  tree_1: {
+    parameters: {
+      query?: {
+        /** @description 只看某棵子树时传它的主键；不传返回整个租户的森林 */
+        rootId?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RListOrganizationTreeNode'];
+        };
+      };
+    };
+  };
   me: {
     parameters: {
       query?: never;
@@ -3517,7 +4336,7 @@ export interface operations {
       };
     };
   };
-  page_7: {
+  page_8: {
     parameters: {
       query?: {
         /** @description 动作标识精确匹配，如 user.create */
@@ -3556,7 +4375,7 @@ export interface operations {
       };
     };
   };
-  detail_7: {
+  detail_8: {
     parameters: {
       query?: never;
       header?: never;
@@ -3671,6 +4490,31 @@ export interface operations {
         memberType: string;
         /** @description 成员主键 */
         memberId: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RVoid'];
+        };
+      };
+    };
+  };
+  revokeMember_2: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description 组织主键 */
+        id: number;
+        /** @description 用户主键 */
+        userId: number;
       };
       cookie?: never;
     };

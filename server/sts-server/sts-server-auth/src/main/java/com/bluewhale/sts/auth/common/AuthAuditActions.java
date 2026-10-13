@@ -36,6 +36,34 @@ public final class AuthAuditActions {
     public static final String USER_DELETE = "auth.user.delete";
 
     /**
+     * 组织的增删改，以及**移动节点**、**增减成员**、**改主岗**。
+     *
+     * <p>四组动作都在 {@code auth:org} 这一个资源下，权限上只共用
+     * {@code auth:org:update}，但审计上必须分得开 —— 四件事事后追问的是四个不同的问题：
+     * <ul>
+     *   <li>{@code create} / {@code update} / {@code delete} —— "这棵树是谁改的"；</li>
+     *   <li>{@link #ORG_MOVE} —— <b>把一棵子树挪到别处</b>。它一次改变的是
+     *       整棵子树上每个人的数据范围（{@code DEPT_AND_CHILD} 按路径前缀求值），
+     *       而表面上只是"换了个上级部门"。混进 {@code update} 里就再也查不出来；</li>
+     *   <li>{@link #ORG_MEMBER_GRANT} / {@link #ORG_MEMBER_REVOKE} —— "谁被放进了这个部门"；</li>
+     *   <li>{@link #ORG_SET_PRIMARY_POSITION} —— <b>改主岗</b>。这是本域里
+     *       唯一能**直接搬动一个人的数据范围**的动作：{@code DEPT} 取的就是主岗所在部门，
+     *       改主岗 = 换一个人能看到的部门。它甚至比增减成员更值得留痕 ——
+     *       增减成员改的是"有没有归属"，改主岗改的是"归属到哪"，后者不改变任何计数。</li>
+     * </ul>
+     *
+     * <p>命名沿用 {@code auth.user_group.*} 的形状（成员动作用 {@code grant_member} /
+     * {@code revoke_member}），靠 {@code resource} 段区分是哪个载体。
+     */
+    public static final String ORG_CREATE = "auth.org.create";
+    public static final String ORG_UPDATE = "auth.org.update";
+    public static final String ORG_DELETE = "auth.org.delete";
+    public static final String ORG_MOVE = "auth.org.move";
+    public static final String ORG_MEMBER_GRANT = "auth.org.grant_member";
+    public static final String ORG_MEMBER_REVOKE = "auth.org.revoke_member";
+    public static final String ORG_SET_PRIMARY_POSITION = "auth.org.set_primary_position";
+
+    /**
      * 资源目录的增删改。
      *
      * <p><b>查询没有对应的动作标识</b>，与用户 / 租户一致：查询不记审计。

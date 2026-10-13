@@ -17,6 +17,10 @@
       "description": "接收前端上报的技术日志、查询与聚合；审计日志不走本接口"
     },
     {
+      "name": "组织",
+      "description": "组织树的增删改查、移动，以及成员归属与主岗"
+    },
+    {
       "name": "租户",
       "description": "租户的增删改查"
     },
@@ -582,6 +586,201 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/RVoid"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/orgs/{id}": {
+      "get": {
+        "tags": [
+          "组织"
+        ],
+        "summary": "查询组织详情",
+        "operationId": "detail_5",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "组织主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ROrganizationVO"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "组织"
+        ],
+        "summary": "修改组织",
+        "description": "编码与所属租户不可修改；**层级也不在这里改** —— 请求里带了与原值不同的 parentId 会返回 40001 并指向移动接口。改名会重写整棵子树的 fullName",
+        "operationId": "update_5",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "组织主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationSaveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ROrganizationVO"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "组织"
+        ],
+        "summary": "删除组织",
+        "description": "仍有下级组织（40913）或仍有成员归属（40919）时拒绝；**没有级联删除**，也不提供「连人一起删」这种选项",
+        "operationId": "delete_5",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "组织主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RVoid"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/orgs/{id}/parent": {
+      "put": {
+        "tags": [
+          "组织"
+        ],
+        "summary": "移动组织节点",
+        "description": "把整棵子树搬到另一个父级下（传空 body 表示提升为顶级）。会重写整棵子树的 codePath / orgLevel / fullName，因此**同时改变子树上每个人的 DEPT 数据范围**；挂到自己或自己的后代下会返回 40913",
+        "operationId": "move",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "组织主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationMoveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ROrganizationVO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/orgs/{id}/members/{userId}/primary": {
+      "put": {
+        "tags": [
+          "组织"
+        ],
+        "summary": "把某人的组织归属设为主岗",
+        "description": "**直接改变这个人的 DEPT 数据范围**，因此是独立接口与独立审计动作。会把该用户在本租户内的其他主岗全部降级（每人至多一个主岗）；要求先有归属，否则返回 40410",
+        "operationId": "setPrimaryPosition",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "组织主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "description": "用户主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ROrgMemberVO"
                 }
               }
             }
@@ -1789,6 +1988,234 @@
         }
       }
     },
+    "/api/auth/orgs": {
+      "get": {
+        "tags": [
+          "组织"
+        ],
+        "summary": "分页查询组织",
+        "description": "按 keyword（编码 / 名称 / 全称） / status / orgType / parentId 过滤，按当前租户限定；parentId 取的是**直接下级**，要整棵子树请用树接口",
+        "operationId": "page_7",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "query",
+            "description": "租户主键，不传则限定为当前登录用户所属租户",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "description": "租户主键，不传则限定为当前登录用户所属租户"
+            }
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "description": "关键字，匹配组织编码、名称或全称",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "关键字，匹配组织编码、名称或全称"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "状态：{@code ENABLED} / {@code DISABLED}，**过滤条件宽松处理**，认不得的值按原样比（查不到比报错更接近预期）",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "状态：{@code ENABLED} / {@code DISABLED}，**过滤条件宽松处理**，认不得的值按原样比（查不到比报错更接近预期）"
+            }
+          },
+          {
+            "name": "orgType",
+            "in": "query",
+            "description": "组织类型，**只作展示、不参与任何判定**，因此按原样比",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "组织类型，**只作展示、不参与任何判定**，因此按原样比"
+            }
+          },
+          {
+            "name": "parentId",
+            "in": "query",
+            "description": "父组织主键，不传表示全部（含各级）。取整棵子树请用树接口",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "description": "父组织主键，不传表示全部（含各级）。取整棵子树请用树接口"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RPageResultOrganizationVO"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "组织"
+        ],
+        "summary": "新增组织",
+        "description": "编码曾被已删除的组织占用时会恢复那一行，恢复出来的是**空部门**（名下的用户归属被清空）；orgLevel / codePath / fullName 由服务端按父级派生",
+        "operationId": "create_5",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationSaveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ROrganizationVO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/orgs/{id}/members": {
+      "get": {
+        "tags": [
+          "组织"
+        ],
+        "summary": "分页查询组织成员",
+        "description": "可按 primaryOnly 只看主岗；成员名跨表解析，因此不提供按名搜索",
+        "operationId": "pageMembers_2",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "组织主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "primaryOnly",
+            "in": "query",
+            "description": "只取主岗：true 时仅返回 isPrimaryPosition = 1 的归属。不传表示全部",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "只取主岗：true 时仅返回 isPrimaryPosition = 1 的归属。不传表示全部"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RPageResultOrgMemberVO"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "组织"
+        ],
+        "summary": "把用户挂到组织下",
+        "description": "同一个组织与用户只保留一条有效归属，重复调用会改时间窗与岗位信息而不是堆行。不传 isPrimaryPosition 时：此人当前没有别的主岗则自动设为主岗，已有主岗则**保持不变**（绝不静默搬动数据范围）",
+        "operationId": "bindMember_2",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "组织主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrgMemberBindRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ROrgMemberVO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/logout": {
       "post": {
         "tags": [
@@ -1859,7 +2286,7 @@
         ],
         "summary": "查询日志详情",
         "description": "不存在、或属于其他租户时一律返回 40401 —— 不区分这两种情形，否则错误码本身就泄露了\"这条记录存在\"。",
-        "operationId": "detail_5",
+        "operationId": "detail_6",
         "parameters": [
           {
             "name": "id",
@@ -2004,7 +2431,7 @@
         ],
         "summary": "查询事件详情",
         "description": "不存在、或属于其他租户时一律返回 40401 —— 不区分这两种情形，否则错误码本身就泄露了\"这条记录存在\"。",
-        "operationId": "detail_6",
+        "operationId": "detail_7",
         "parameters": [
           {
             "name": "id",
@@ -2121,13 +2548,47 @@
         }
       }
     },
+    "/api/auth/users/{id}/organizations": {
+      "get": {
+        "tags": [
+          "用户"
+        ],
+        "summary": "反查用户的组织归属",
+        "description": "列出该用户在各组织下的归属（含非主岗与已过期的），每行带 effectiveNow 与 orgStatus —— 排查「他配了本部门范围、为什么还是只看得到自己」时，答案通常就在这两列里",
+        "operationId": "organizations",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "用户主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RListUserOrgVO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/users/{id}/data-scope": {
       "get": {
         "tags": [
           "用户"
         ],
         "summary": "反查用户的数据范围",
-        "description": "合并该用户全部生效角色的 data_scope（取最宽的一档）。**precise 为 false 表示该档位尚不能被精确求值**（DEPT / DEPT_AND_CHILD 需要组织归属，CUSTOM 需要解析 filter_json），此时已接入的查询保守地按「仅本人」处理",
+        "description": "合并该用户全部生效角色的 data_scope（取最宽的一档）。**precise 为 false 表示该档位尚不能被精确求值**（DEPT / DEPT_AND_CHILD 需要该用户有一个有效主岗，CUSTOM 需要解析 filter_json），此时已接入的查询保守地按「仅本人」处理；为 true 时会带上主岗组织与可见组织集合",
         "operationId": "dataScope",
         "parameters": [
           {
@@ -2177,6 +2638,40 @@
         }
       }
     },
+    "/api/auth/orgs/tree": {
+      "get": {
+        "tags": [
+          "组织"
+        ],
+        "summary": "查询组织树",
+        "description": "一次返回当前租户的整棵森林（**含已停用节点**，由界面置灰）；传 rootId 只看某一棵子树。父子不在结果集里的节点会被当成根返回（孤儿节点）",
+        "operationId": "tree_1",
+        "parameters": [
+          {
+            "name": "rootId",
+            "in": "query",
+            "description": "只看某棵子树时传它的主键；不传返回整个租户的森林",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RListOrganizationTreeNode"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/me": {
       "get": {
         "tags": [
@@ -2206,7 +2701,7 @@
         ],
         "summary": "分页查询审计记录",
         "description": "按服务端记录时间倒序。时间窗缺省为最近 7 天。可按动作、资源、对象、操作人、结果过滤。",
-        "operationId": "page_7",
+        "operationId": "page_8",
         "parameters": [
           {
             "name": "action",
@@ -2330,7 +2825,7 @@
           "审计日志"
         ],
         "summary": "查询审计记录详情",
-        "operationId": "detail_7",
+        "operationId": "detail_8",
         "parameters": [
           {
             "name": "id",
@@ -2553,6 +3048,50 @@
             "name": "memberId",
             "in": "path",
             "description": "成员主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RVoid"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/orgs/{id}/members/{userId}": {
+      "delete": {
+        "tags": [
+          "组织"
+        ],
+        "summary": "把用户移出组织",
+        "description": "本来就不在该组织下时返回 40410，不与移除成功混淆；移除主岗**不会自动把主岗转给别人** —— 转给谁是人事决定，此人此后暂时没有主岗，DEPT 档位往窄兜底成「仅本人」",
+        "operationId": "revokeMember_2",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "组织主键",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "description": "用户主键",
             "required": true,
             "schema": {
               "type": "integer",
@@ -3323,6 +3862,285 @@
           }
         }
       },
+      "OrganizationSaveRequest": {
+        "type": "object",
+        "description": "组织保存入参",
+        "properties": {
+          "orgCode": {
+            "type": "string",
+            "description": "组织编码，租户内唯一。**创建后不可修改**（修改路径不读这个字段）",
+            "example": "RD_FE",
+            "minLength": 1,
+            "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$"
+          },
+          "orgName": {
+            "type": "string",
+            "description": "组织名称",
+            "example": "前端组",
+            "maxLength": 128,
+            "minLength": 0
+          },
+          "tenantId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "租户主键，不传则归入当前登录用户所属租户。**修改路径不读这个字段** —— 把组织搬到另一个租户会让它连同其子树瞬间与所有成员归属错位，要变就新建"
+          },
+          "parentId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "父组织主键，顶级不传。**只在新增时生效**：修改时会因为「值与原值不同」而被拒绝（40001），移动请用 PUT /api/auth/orgs/{id}/parent"
+          },
+          "orgType": {
+            "type": "string",
+            "description": "组织类型（COMPANY / DEPT / TEAM …），**只作展示、不参与任何判定**",
+            "example": "DEPT",
+            "maxLength": 32,
+            "minLength": 0
+          },
+          "managerId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "负责人用户主键。姓名由服务端从用户表取，入参不接受 managerName"
+          },
+          "sortNo": {
+            "type": "integer",
+            "format": "int32",
+            "description": "排序号，同级内升序；缺省 0"
+          },
+          "status": {
+            "type": "string",
+            "description": "状态：ENABLED / DISABLED，缺省 ENABLED。**停用的组织不再能作为 DEPT 档位的范围目标**；停用不级联，不影响它的下级",
+            "example": "ENABLED",
+            "maxLength": 16,
+            "minLength": 0
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 0
+          },
+          "contactName": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 0
+          },
+          "contactPhone": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 0
+          },
+          "contactEmail": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "orgCode",
+          "orgName"
+        ]
+      },
+      "OrganizationVO": {
+        "type": "object",
+        "description": "组织",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "组织主键"
+          },
+          "tenantId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "所属租户主键"
+          },
+          "orgCode": {
+            "type": "string",
+            "description": "组织编码，租户内唯一"
+          },
+          "orgName": {
+            "type": "string",
+            "description": "组织名称"
+          },
+          "fullName": {
+            "type": "string",
+            "description": "组织全称，按层级派生（如 蓝鲸集团/研发部/前端组）。改名或移动时整棵子树一起重写"
+          },
+          "parentId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "父组织主键，顶级为 null"
+          },
+          "orgLevel": {
+            "type": "integer",
+            "format": "int32",
+            "description": "层级，根为 1。由服务端派生，与 parentId 始终一致"
+          },
+          "codePath": {
+            "type": "string",
+            "description": "物化路径，形如 /1/5/，为**各级祖先的主键**加斜杠（不含自身）。DEPT_AND_CHILD 档位正是按它做前缀匹配求子树"
+          },
+          "hasChild": {
+            "type": "integer",
+            "format": "int32",
+            "description": "是否有下级：0 否 1 是"
+          },
+          "orgType": {
+            "type": "string",
+            "description": "组织类型，只作展示、不参与判定"
+          },
+          "managerId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "负责人用户主键"
+          },
+          "managerName": {
+            "type": "string",
+            "description": "负责人姓名。**冗余列**，写入时与 managerId 一起确定，便于列表展示"
+          },
+          "sortNo": {
+            "type": "integer",
+            "format": "int32",
+            "description": "排序号"
+          },
+          "status": {
+            "type": "string",
+            "description": "状态：ENABLED / DISABLED。**停用的组织不再能作为 DEPT 档位的范围目标**"
+          },
+          "description": {
+            "type": "string",
+            "description": "描述"
+          },
+          "contactName": {
+            "type": "string",
+            "description": "联系人"
+          },
+          "contactPhone": {
+            "type": "string",
+            "description": "联系电话"
+          },
+          "contactEmail": {
+            "type": "string",
+            "description": "联系邮箱"
+          },
+          "createTime": {
+            "type": "integer",
+            "format": "int64",
+            "description": "创建时间（毫秒时间戳）"
+          },
+          "updateTime": {
+            "type": "integer",
+            "format": "int64",
+            "description": "最后更新时间（毫秒时间戳）"
+          }
+        }
+      },
+      "ROrganizationVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/OrganizationVO"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "OrganizationMoveRequest": {
+        "type": "object",
+        "description": "组织移动入参",
+        "properties": {
+          "parentId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "新的父组织主键。**不传或传 null 都表示提升为顶级**",
+            "example": 3
+          }
+        }
+      },
+      "OrgMemberVO": {
+        "type": "object",
+        "description": "组织成员关系（用户在组织下的归属）",
+        "properties": {
+          "grantId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "成员关系主键，撤销时用它"
+          },
+          "memberId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "成员主键（用户主键）"
+          },
+          "memberName": {
+            "type": "string",
+            "description": "成员名称：取用户 displayName（为空则回退 username）。用户已不存在时为 null —— 关系表没有外键，这种情况是可能的，且应当被看见"
+          },
+          "isPrimaryPosition": {
+            "type": "integer",
+            "format": "int32",
+            "description": "是否主岗：0 否 1 是。**主岗是 DEPT / DEPT_AND_CHILD 档位唯一的取值来源**"
+          },
+          "primaryPosition": {
+            "type": "boolean",
+            "description": "是否主岗的布尔形态，供界面直接绑定（等于 isPrimaryPosition == 1）"
+          },
+          "positionName": {
+            "type": "string",
+            "description": "岗位名"
+          },
+          "relationType": {
+            "type": "string",
+            "description": "关系类型。当前没有任何判定读它"
+          },
+          "effectiveFrom": {
+            "type": "integer",
+            "format": "int64",
+            "description": "生效起始时间（毫秒时间戳），null 表示立即生效"
+          },
+          "effectiveTo": {
+            "type": "integer",
+            "format": "int64",
+            "description": "生效结束时间（毫秒时间戳），null 表示长期有效"
+          },
+          "effectiveNow": {
+            "type": "boolean",
+            "description": "此刻是否落在生效区间内。false 表示尚未生效或已过期 —— 过期的归属不参与数据范围求值，见 DataScopeService"
+          },
+          "createTime": {
+            "type": "integer",
+            "format": "int64",
+            "description": "归属关系建立时间（毫秒时间戳）"
+          }
+        }
+      },
+      "ROrgMemberVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/OrgMemberVO"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "ClientLogItem": {
         "type": "object",
         "description": "单条客户端日志",
@@ -4007,6 +4825,46 @@
           }
         }
       },
+      "OrgMemberBindRequest": {
+        "type": "object",
+        "description": "组织成员（用户归属）入参",
+        "properties": {
+          "memberId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "成员主键（用户主键）",
+            "example": 1
+          },
+          "isPrimaryPosition": {
+            "type": "integer",
+            "format": "int32",
+            "description": "是否设为主岗：0 否 1 是。**主岗决定这个人的 DEPT 数据范围**。不传时：该用户当前没有主岗则自动设为主岗，已有主岗则保持不变（不静默搬动范围）"
+          },
+          "positionName": {
+            "type": "string",
+            "description": "岗位名，只作展示",
+            "example": "前端负责人"
+          },
+          "relationType": {
+            "type": "string",
+            "description": "关系类型（MEMBER / LEADER …），**当前没有任何判定读它**",
+            "example": "MEMBER"
+          },
+          "effectiveFrom": {
+            "type": "integer",
+            "format": "int64",
+            "description": "生效起始时间（毫秒时间戳），不传表示立即生效"
+          },
+          "effectiveTo": {
+            "type": "integer",
+            "format": "int64",
+            "description": "生效结束时间（毫秒时间戳），不传表示长期有效"
+          }
+        },
+        "required": [
+          "memberId"
+        ]
+      },
       "LoginRequest": {
         "type": "object",
         "properties": {
@@ -4636,6 +5494,96 @@
           }
         }
       },
+      "RListUserOrgVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserOrgVO"
+            }
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "UserOrgVO": {
+        "type": "object",
+        "description": "用户在某个组织下的归属（反查：这个人属于哪些组织）",
+        "properties": {
+          "grantId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "归属关系主键"
+          },
+          "orgId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "组织主键"
+          },
+          "orgCode": {
+            "type": "string",
+            "description": "组织编码"
+          },
+          "orgName": {
+            "type": "string",
+            "description": "组织名称"
+          },
+          "fullName": {
+            "type": "string",
+            "description": "组织全称，按层级派生"
+          },
+          "orgStatus": {
+            "type": "string",
+            "description": "组织状态：ENABLED / DISABLED。**停用的组织不能作为 DEPT 档位的范围目标**"
+          },
+          "isPrimaryPosition": {
+            "type": "integer",
+            "format": "int32",
+            "description": "是否主岗：0 否 1 是。**主岗是 DEPT / DEPT_AND_CHILD 档位唯一的取值来源**"
+          },
+          "primaryPosition": {
+            "type": "boolean",
+            "description": "是否主岗的布尔形态，供界面直接绑定"
+          },
+          "positionName": {
+            "type": "string",
+            "description": "岗位名"
+          },
+          "relationType": {
+            "type": "string",
+            "description": "关系类型。当前没有任何判定读它"
+          },
+          "effectiveFrom": {
+            "type": "integer",
+            "format": "int64",
+            "description": "生效起始时间（毫秒时间戳），null 表示立即生效"
+          },
+          "effectiveTo": {
+            "type": "integer",
+            "format": "int64",
+            "description": "生效结束时间（毫秒时间戳），null 表示长期有效"
+          },
+          "effectiveNow": {
+            "type": "boolean",
+            "description": "此刻是否落在生效区间内。**过期的归属不参与数据范围求值**"
+          },
+          "createTime": {
+            "type": "integer",
+            "format": "int64",
+            "description": "归属关系建立时间（毫秒时间戳）"
+          }
+        }
+      },
       "RUserDataScopeVO": {
         "type": "object",
         "properties": {
@@ -4657,7 +5605,7 @@
       },
       "UserDataScopeVO": {
         "type": "object",
-        "description": "用户的数据范围求值结果：合并后的档位、来源角色，以及该档位是否能被精确求值",
+        "description": "用户的数据范围求值结果：合并后的档位、来源角色、该档位是否能被精确求值，以及（DEPT 系列）可见的组织集合",
         "properties": {
           "scopes": {
             "type": "array",
@@ -4687,11 +5635,32 @@
           },
           "precise": {
             "type": "boolean",
-            "description": "这一档能否被精确求值。ALL 与 SELF 为 true；DEPT / DEPT_AND_CHILD 依赖组织归属、CUSTOM 依赖 filter_json 解析，均为 false"
+            "description": "这一档能否被**精确求值**。ALL 与 SELF 恒为 true；DEPT / DEPT_AND_CHILD 在**该用户有一个有效主岗**时为 true；CUSTOM 恒为 false（filter_json 解析未实现）"
+          },
+          "primaryOrgId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "主岗所在组织的主键。仅当最宽档位是 DEPT 系列、且主岗可解析时才有值"
+          },
+          "primaryOrgName": {
+            "type": "string",
+            "description": "主岗所在组织的名称"
+          },
+          "primaryOrgFullName": {
+            "type": "string",
+            "description": "主岗所在组织的全称（形如 蓝鲸集团/研发部/前端组）"
+          },
+          "visibleOrgIds": {
+            "type": "array",
+            "description": "DEPT 系列可见的组织主键集合：DEPT 只有主岗那一个，DEPT_AND_CHILD 还含**已启用的**全部下级。其他档位为 null —— null 表示\"这一档不是按组织划定的\"，与空集合（\"一个组织也没有\"）是两件事",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
           },
           "note": {
             "type": "string",
-            "description": "当 precise 为 false 时的说明：档位未实现求值，已接入的查询**保守地按「仅本人」处理**"
+            "description": "当 precise 为 false 时的说明：档位未实现求值、或该用户没有有效主岗，已接入的查询**保守地按「仅本人」处理**"
           }
         }
       },
@@ -5058,6 +6027,174 @@
             "items": {
               "$ref": "#/components/schemas/ResourceTreeNode"
             }
+          }
+        }
+      },
+      "PageResultOrganizationVO": {
+        "type": "object",
+        "properties": {
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrganizationVO"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pages": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "RPageResultOrganizationVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageResultOrganizationVO"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "PageResultOrgMemberVO": {
+        "type": "object",
+        "properties": {
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrgMemberVO"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pages": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "RPageResultOrgMemberVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageResultOrgMemberVO"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "OrganizationTreeNode": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "orgCode": {
+            "type": "string",
+            "description": "组织编码"
+          },
+          "orgName": {
+            "type": "string",
+            "description": "组织名称"
+          },
+          "fullName": {
+            "type": "string",
+            "description": "组织全称，按层级派生"
+          },
+          "parentId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "父组织主键，顶级为 null"
+          },
+          "orgLevel": {
+            "type": "integer",
+            "format": "int32",
+            "description": "层级，根为 1"
+          },
+          "codePath": {
+            "type": "string",
+            "description": "物化路径，形如 /1/5/"
+          },
+          "status": {
+            "type": "string",
+            "description": "状态：ENABLED / DISABLED"
+          },
+          "managerName": {
+            "type": "string",
+            "description": "负责人姓名（冗余列），便于在树上直接展示"
+          },
+          "sortNo": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "children": {
+            "type": "array",
+            "description": "子节点，同级按 sortNo 升序、同序按主键升序",
+            "items": {
+              "$ref": "#/components/schemas/OrganizationTreeNode"
+            }
+          }
+        }
+      },
+      "RListOrganizationTreeNode": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrganizationTreeNode"
+            }
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },

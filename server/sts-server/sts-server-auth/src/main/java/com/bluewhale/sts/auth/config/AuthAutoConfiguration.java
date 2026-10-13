@@ -10,6 +10,10 @@ import com.bluewhale.sts.auth.common.LoginLockPolicy;
 import com.bluewhale.sts.auth.common.PasswordPolicy;
 import com.bluewhale.sts.auth.common.codec.JwtCodec;
 import com.bluewhale.sts.auth.common.codec.PasswordHasher;
+import com.bluewhale.sts.auth.organization.OrganizationMapper;
+import com.bluewhale.sts.auth.organization.OrganizationMemberService;
+import com.bluewhale.sts.auth.organization.OrganizationService;
+import com.bluewhale.sts.auth.relation.RelOrgUserMapper;
 import com.bluewhale.sts.auth.relation.RelRoleMemberMapper;
 import com.bluewhale.sts.auth.relation.RelRoleResourceMapper;
 import com.bluewhale.sts.auth.resource.ResourceMapper;
@@ -146,6 +150,11 @@ public class AuthAutoConfiguration {
      * 仅 h2 开发 profile 打开。用 {@link ConditionalOnProperty} 而不是在
      * {@code run()} 里判断，是为了让"种子是否启用"出现在条件装配报告（{@code --debug}）里 ——
      * 运维能一眼看到，而不必读代码。
+     *
+     * <p>依赖里有两个是**服务**（组织域）而不是 Mapper —— 组织节点的
+     * {@code orgLevel} / {@code codePath} / {@code fullName} 是派生列，
+     * 种子复用 {@code OrganizationService.create} 而不是自己拼一遍，
+     * 免得同一套规则存在两份、而其中一份没有测试盯着（理由见该方法的注释）。
      */
     @Bean
     @ConditionalOnProperty(prefix = "bluewhale.auth.seed-admin", name = "enabled", havingValue = "true")
@@ -156,9 +165,14 @@ public class AuthAutoConfiguration {
                                                  ResourceMapper resourceMapper,
                                                  RoleMapper roleMapper,
                                                  RelRoleResourceMapper relRoleResourceMapper,
-                                                 RelRoleMemberMapper relRoleMemberMapper) {
+                                                 RelRoleMemberMapper relRoleMemberMapper,
+                                                 OrganizationService organizationService,
+                                                 OrganizationMemberService organizationMemberService,
+                                                 OrganizationMapper organizationMapper,
+                                                 RelOrgUserMapper relOrgUserMapper) {
         return new DefaultAdminSeeder(properties, passwordHasher, tenantMapper, userMapper,
-                resourceMapper, roleMapper, relRoleResourceMapper, relRoleMemberMapper);
+                resourceMapper, roleMapper, relRoleResourceMapper, relRoleMemberMapper,
+                organizationService, organizationMemberService, organizationMapper, relOrgUserMapper);
     }
 
 }

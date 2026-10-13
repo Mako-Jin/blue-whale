@@ -6,6 +6,8 @@ import com.bluewhale.sts.auth.common.AuthPermissions;
 import com.bluewhale.sts.auth.common.AuthResources;
 import com.bluewhale.sts.auth.datascope.DataScopeService;
 import com.bluewhale.sts.auth.datascope.UserDataScopeVO;
+import com.bluewhale.sts.auth.organization.OrganizationMemberService;
+import com.bluewhale.sts.auth.organization.UserOrgVO;
 import com.bluewhale.sts.auth.role.RoleMemberService;
 import com.bluewhale.sts.auth.role.UserRoleVO;
 import com.bluewhale.sts.common.basic.model.PageResult;
@@ -57,12 +59,15 @@ public class UserController {
     private final UserService userService;
     private final RoleMemberService roleMemberService;
     private final DataScopeService dataScopeService;
+    private final OrganizationMemberService organizationMemberService;
 
     public UserController(UserService userService, RoleMemberService roleMemberService,
-                          DataScopeService dataScopeService) {
+                          DataScopeService dataScopeService,
+                          OrganizationMemberService organizationMemberService) {
         this.userService = userService;
         this.roleMemberService = roleMemberService;
         this.dataScopeService = dataScopeService;
+        this.organizationMemberService = organizationMemberService;
     }
 
     @GetMapping
@@ -154,16 +159,49 @@ public class UserController {
      * <p><b>返回里带一个 {@code precise} 标记，而不是只返回档位。</b>因为
      * "配了 {@code DEPT} 但系统还不会算"与"就是 {@code ALL}"是两件完全不同的事，
      * 而只返回一个字符串的做法让它们长得一模一样。
+     *
+     * <p><b>组织归属落地之后，这个接口从"能说的变多了"这件事上受益最多：</b>
+     * {@code DEPT} 系列不再只能是 {@code precise = false} —— 该用户有一个有效主岗时，
+     * 返回里会带上主岗组织与**可见组织集合**（见 {@code UserDataScopeVO}）。
+     * 同时它多了一种失败原因：有主岗但部门被停用，或归属已过期 ——
+     * 这些都会让 {@code precise} 落回 false，而 {@code note} 会写明是哪一种。
      */
     @GetMapping("/{id}/data-scope")
     @RequiresPermission(AuthPermissions.USER_READ)
     @Operation(summary = "反查用户的数据范围",
             description = "合并该用户全部生效角色的 data_scope（取最宽的一档）。"
                     + "**precise 为 false 表示该档位尚不能被精确求值**"
-                    + "（DEPT / DEPT_AND_CHILD 需要组织归属，CUSTOM 需要解析 filter_json），"
-                    + "此时已接入的查询保守地按「仅本人」处理")
+                    + "（DEPT / DEPT_AND_CHILD 需要该用户有一个有效主岗，"
+                    + "CUSTOM 需要解析 filter_json），此时已接入的查询保守地按「仅本人」处理；"
+                    + "为 true 时会带上主岗组织与可见组织集合")
     public R<UserDataScopeVO> dataScope(@PathVariable @Parameter(description = "用户主键") Long id) {
         return R.ok(dataScopeService.resolve(id));
+    }
+
+    /**
+     * 反查该用户所属的组织。
+     *
+     * <p>与 {@code /{id}/roles}、{@code /{id}/data-scope} 同属"反查某个人"这一类，
+     * 挂在这个主语下而不是 {@code /api/auth/orgs} 下：路径的主语是"这个用户"，
+     * 问的是"他在哪些部门"。反向从 {@code /api/auth/orgs/{id}/members} 进来问的是
+     * 另一个问题（"这个部门里有谁"），两者不是同一张视图的两个入口。
+     *
+     * <p>权限归 {@code auth:user:read} 而不是 {@code auth:org:read}，
+     * 与 {@code /{id}/roles} 归 {@code auth:user:read} 是同一条：
+     * 它读的是"某个用户"的信息。这条选择有一个可验证的后果 ——
+     * 只有 {@code org:read} 的人能改组织结构，但看不到"某个人在哪些部门"；
+     * 反之，只有 {@code user:read} 的人能反查个人归属，却看不到组织树本身。
+     * 两者都是"信息不足"而不是越权，方向是安全的。
+     */
+    @GetMapping("/{id}/organizations")
+    @RequiresPermission(AuthPermissions.USER_READ)
+    @Operation(summary = "反查用户的组织归属",
+            description = "列出该用户在各组织下的归属（含非主岗与已过期的），"
+                    + "每行带 effectiveNow 与 orgStatus —— 排查"
+                    + "「他配了本部门范围、为什么还是只看得到自己」时，答案通常就在这两列里")
+    public R<List<UserOrgVO>> organizations(
+            @PathVariable @Parameter(description = "用户主键") Long id) {
+        return R.ok(organizationMemberService.listByUser(id));
     }
 
 }

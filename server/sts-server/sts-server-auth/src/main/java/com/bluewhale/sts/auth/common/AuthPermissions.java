@@ -30,6 +30,32 @@ public final class AuthPermissions {
     public static final String USER_DELETE = "auth:user:delete";
 
     /**
+     * 组织（部门）的增删改查，以及**移动节点**与**组织成员 / 主岗**。
+     *
+     * <p><b>资源段是 {@code org} 而不是 {@code organization}</b> —— 表名是
+     * {@code bw_auth_organization}，这里取短形，与路径 {@code /api/auth/orgs} 一致。
+     * 两种写法都符合 {@code AuthTaxonomyTest} 钉死的字符集，选短的那个是因为它要
+     * 出现在权限码、审计动作、前端常量三处，每次多打 8 个字符不会带来任何清晰度。
+     *
+     * <p><b>移动节点没有独立的权限码，但有自己的审计动作。</b>移动一棵子树会连带改变
+     * 整棵子树上**每一个人的 DEPT / DEPT_AND_CHILD 数据范围**（它们是按路径前缀求值的），
+     * 也就是说这是一次能改变很多人可见范围的配置变更。权限上它属于"改这个组织"
+     * （{@code auth:org:update}），但审计上必须能单独过滤出来，
+     * 见 {@code AuthAuditActions.ORG_MOVE} —— 与角色侧"授权共用 update 权限、
+     * 但 {@code auth.role.grant} 独立"是完全同一条判断。
+     *
+     * <p><b>成员与主岗同样共用 {@code auth:org:update}。</b>{@code bw_auth_rel_org_user}
+     * 是组织的内部边（不存在"没有组织的组织归属"），与用户组的成员关系同构。
+     * 但其中**设主岗**要特别说一句：主岗决定这个人的 DEPT 落在哪个部门，
+     * 所以"把某人的主岗改到另一个部门"是**直接改数据范围**的一次操作，
+     * 它有自己的审计动作（见 {@code AuthAuditActions.ORG_SET_PRIMARY_POSITION}）。
+     */
+    public static final String ORG_READ = "auth:org:read";
+    public static final String ORG_CREATE = "auth:org:create";
+    public static final String ORG_UPDATE = "auth:org:update";
+    public static final String ORG_DELETE = "auth:org:delete";
+
+    /**
      * 资源目录的增删改查。
      *
      * <p><b>请注意它是自指的</b>：这四个权限保护的正是"登记权限"这件事本身 ——
@@ -132,6 +158,7 @@ public final class AuthPermissions {
     public static final List<String> ALL = List.of(
             TENANT_READ, TENANT_CREATE, TENANT_UPDATE, TENANT_DELETE,
             USER_READ, USER_CREATE, USER_UPDATE, USER_DELETE,
+            ORG_READ, ORG_CREATE, ORG_UPDATE, ORG_DELETE,
             RESOURCE_READ, RESOURCE_CREATE, RESOURCE_UPDATE, RESOURCE_DELETE,
             ROLE_READ, ROLE_CREATE, ROLE_UPDATE, ROLE_DELETE,
             USER_GROUP_READ, USER_GROUP_CREATE, USER_GROUP_UPDATE, USER_GROUP_DELETE,

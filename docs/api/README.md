@@ -12,13 +12,13 @@ docs/api/openapi.json
 
 ## 一、当前接口清单
 
-契约版本 `0.1.0`，标题「BlueWhale 服务端 API」，共 **55 个接口**（**35 条路径** / **85 个数据模型**）。
+契约版本 `0.1.0`，标题「BlueWhale 服务端 API」，共 **67 个接口**（**43 条路径** / **100 个数据模型**）。
 
 | 域       | 模块                | 接口数 | 说明                                        |
 | -------- | ------------------- | ------ | ------------------------------------------- |
 | 日志     | `sts-server-log`    | 5      | 客户端日志上报 / 查询 / 聚合                |
 | 行为事件 | `sts-server-track`  | 4      | 客户端行为事件上报 / 查询 / 聚合            |
-| 权限     | `sts-server-auth`   | 42     | 认证 4 + 租户 5 + 用户 8 + 资源 6 + 角色 11 + 用户组 8（详见下表） |
+| 权限     | `sts-server-auth`   | 54     | 认证 4 + 租户 5 + 用户 9 + 资源 6 + 角色 11 + 用户组 8 + 组织 11（详见下表） |
 | 审计     | `sts-server-audit`  | 3      | **只读**：分页 / 详情 / 按动作聚合          |
 | 系统     | `sts-app-server`    | 1      | 健康检查                                    |
 
@@ -85,7 +85,8 @@ docs/api/openapi.json
 | `DELETE` | `/api/auth/users/{id}`          | `auth:user:delete` | **不能删自己**                     |
 | `POST`   | `/api/auth/users/{id}/password` | `auth:user:update` | 重置口令，**置为需改密并解锁账号** |
 | `GET`    | `/api/auth/users/{id}/roles`    | `auth:user:read`   | **反查角色来源**（直接授予 + 经用户组授予）。**停用的角色 / 停用的组 / 已过期的授权照原样返回** —— 它们正是「为什么没有权限」的答案 |
-| `GET`    | `/api/auth/users/{id}/data-scope` | `auth:user:read`  | **反查数据范围**：合并该用户全部生效角色的 `data_scope`（**取最宽**的一档）。`precise=false` 表示该档位**尚不能被精确求值**（`DEPT` / `DEPT_AND_CHILD` 需组织归属、`CUSTOM` 需解析 `filter_json`），此时已接入的查询保守地按「仅本人」处理 |
+| `GET`    | `/api/auth/users/{id}/data-scope` | `auth:user:read`  | **反查数据范围**：合并该用户全部生效角色的 `data_scope`（**取最宽**的一档）。`precise=true` 表示**这一档已经能被翻译成一组组织**（`DEPT` 系列在该用户有**有效主岗**时成立），此时一并下发 `primaryOrgId` / `primaryOrgName` / `primaryOrgFullName` 与 `visibleOrgIds`；`precise=false` 表示算不出（没有归属 / 归属已过期 / 主岗组织已停用，或 `CUSTOM` 的 `filter_json` 未实现），此时已接入的查询保守地按「仅本人」处理。**注意 `precise` 说的是"能求值"，不是"已经有查询按它过滤"**（当前消费方只有本接口与反查，审计可见性**刻意不接**，见 `docs/decisions/0030` 第 8~10 条） |
+| `GET`    | `/api/auth/users/{id}/organizations` | `auth:user:read` | **反查组织归属**：这个人在哪些组织下，以及哪一条是主岗。带 `orgStatus` 与 `effectiveNow` —— 「我明明是主岗、为什么数据范围还是仅本人」的答案往往就在这两列上。**不过滤停用 / 过期**（与 `/roles` 反查同一条：那正是"为什么没生效"的答案） |
 
 **资源目录**（权限资源：菜单 / 页面 / 按钮 / 接口 / 数据）
 
@@ -184,6 +185,42 @@ docs/api/openapi.json
 > **组成员关系与角色成员关系形状对齐，但不共用 VO**：取值域不同
 > （角色成员允许 `USER` / `GROUP`，组成员当前只允许 `USER`）、名字解析来源不同。
 
+### 组织域（`sts-server-auth`）
+
+**组织树 + 成员归属 + 主岗**，是 `DEPT` / `DEPT_AND_CHILD` 数据范围的**取值来源**
+（见 `docs/decisions/0030`）。
+
+| 方法     | 路径                                                          | 所需权限           | 说明                                                                                                                                           |
+| -------- | ------------------------------------------------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/api/auth/orgs`                                              | `auth:org:read`    | 分页平铺列表。按 `keyword`（编码 / 名称 / 全称） / `status` / `orgType` / `parentId`（**直接下级**）过滤，按当前租户限定                        |
+| `GET`    | `/api/auth/orgs/tree`                                         | `auth:org:read`    | 一次返回当前租户的整棵森林（**含已停用节点**，由界面置灰）；传 `rootId` 只看一棵子树。**父不在结果集里的节点按根返回**（孤儿）                    |
+| `GET`    | `/api/auth/orgs/{id}`                                         | `auth:org:read`    | 详情。含三个派生列（`orgLevel` / `codePath` / `fullName`）与 `hasChild`                                                                        |
+| `POST`   | `/api/auth/orgs`                                              | `auth:org:create`  | 新增。**若编码曾被已删除的组织占用则恢复原记录**，且复活出来的是**空部门**（名下的用户归属一并清空）                                            |
+| `PUT`    | `/api/auth/orgs/{id}`                                         | `auth:org:update`  | 修改资料。**编码与所属租户不可修改**；改名会重写整棵子树的 `fullName`；**带与原值不同的 `parentId` 返回 `40001`**（移动走下面那条）              |
+| `PUT`    | `/api/auth/orgs/{id}/parent`                                  | `auth:org:update`  | **移动节点**（传空 body 表示提升为顶级）。重写整棵子树的三个派生列 ⇒ **子树上每个人的可见范围同时改变**；挂到自己或自己的后代下返回 `40913`      |
+| `DELETE` | `/api/auth/orgs/{id}`                                         | `auth:org:delete`  | 逻辑删除。有下级（`40913`）/ **有成员归属（`40919`）** 时拒绝；**没有级联，也不提供"连人一起删"**                                                |
+| `GET`    | `/api/auth/orgs/{id}/members`                                 | `auth:org:read`    | **分页**。可按 `primaryOnly` 只看主岗；成员名跨表解析，因此不提供按名搜索                                                                       |
+| `POST`   | `/api/auth/orgs/{id}/members`                                 | `auth:org:update`  | 把用户挂到组织下。同一 (组织, 用户) 只保留一条有效归属。不传 `isPrimaryPosition` 时：此人没有别的主岗则自动设为主岗，**已有主岗则保持不变**       |
+| `PUT`    | `/api/auth/orgs/{id}/members/{userId}/primary`                | `auth:org:update`  | **把某人的组织归属设为主岗** —— 不改变任何计数，却**直接改变这个人的 `DEPT` 数据范围**（故有独立审计动作）。会把该用户别处主岗全部降级；无归属返回 `40410` |
+| `DELETE` | `/api/auth/orgs/{id}/members/{userId}`                        | `auth:org:update`  | 移出组织。**本来就不在该组织下返回 `40410`**；移除主岗**不会自动把主岗转给别人**（转给谁是人事决定）                                            |
+
+> **成员挂在组织下**（`/orgs/{id}/members`）而不是单开平级资源：归属是组织的**内部边**，
+> 不存在"没有组织的组织归属"。与用户组那处有一处**形状差别**：路径里**没有 `memberType`** ——
+> `bw_auth_rel_org_user` 只装用户，层级由 `parentId` 表达，没有多态列就不在路径上假装有。
+>
+> **`orgLevel` / `codePath` / `fullName` 是派生列，一律不接受入参。**
+> 三者都是 `parentId` 与各级名称的确定函数，而 `DEPT_AND_CHILD` 正是按 `codePath` 前缀求子树 ——
+> 让调用方传路径，就会出现"挂在这棵树下、路径却指向另一棵"的节点，其整棵子树**静默地**
+> 算不进任何人的范围。它们出现在出参里是为了**解释数据范围**（排查"这个节点的范围不对"时
+> 第一个要看的就是它在第几层、路径是什么）。
+>
+> **`orgType`（`COMPANY` / `DEPT` / `TEAM` …）/ `relationType` / `positionName` 是"存但不用"的
+> 描述性字段。** 与用户组拒绝 `filterJson` 不矛盾：那些被拒绝是因为**看起来会改变行为**，
+> 而这三个是一句描述、界面也不承诺它会做什么。
+>
+> **路径写 `orgs`（短形）、权限码写 `auth:org:*`** —— 与 `user-groups` / `auth:user_group:*`
+> 那处"两处不同形"是同一个约定的一部分：URL 给人看，标识给程序与后台配置用。
+
 ### 审计域（`sts-server-audit`）
 
 **这一域只有读接口 —— 刻意的。** 审计记录由后端拦截器在写接口的 `afterCompletion` 阶段自动产生，
@@ -257,6 +294,14 @@ docs/api/openapi.json
 | `AuditActionCount`                        | 单动作聚合项：`action` / `actionCount` / `failureCount`                                                                                                                                                                                       |
 | `AuditStatsVO`                            | 聚合结果：`total` / `failureTotal` / `startTime` / `endTime` / `actions[]`（`AuditActionCount`）                                                                                                                                              |
 | `PageResultAuditLogVO`                    | 分页结果，结构同日志域                                                                                                                                                                                                                        |
+| `OrganizationVO`                          | 组织：`id` / `tenantId` / `orgCode` / `orgName` / `fullName` / `parentId` / **`orgLevel`** / **`codePath`**（形如 `/1/5/`，`DEPT_AND_CHILD` 的求值口径）/ `hasChild` / `orgType` / `managerId` / `managerName`（冗余列）/ `sortNo` / `status` / `description` / 联系方式 |
+| `OrganizationTreeNode`                    | 树节点：比 `OrganizationVO` 少一大截（树是**用来选层级、看归属**的），保留 `orgLevel` / `codePath` —— 排查数据范围时最常问的两个问题在树上就能直接答                                                  |
+| `OrganizationSaveRequest`                 | 保存入参。**不含** `orgLevel` / `codePath` / `fullName` / `managerName`（派生或服务端解析）；`orgCode` 在修改路径上仍是 `@NotBlank`（不修改但要求回传）                                            |
+| `OrganizationMoveRequest`                 | 移动入参，只有一个 `parentId`，**可空**（不传或传 `null` 都表示提升为顶级）。请求体必填，传 `{}` 即可                                                                |
+| `OrganizationQuery` / `OrgMemberQuery`    | 查询入参。后者只多一个 `primaryOnly` —— **主岗不是"可有可无的额外信息"，它是 `DEPT` 档位唯一的取值来源**                                                            |
+| `OrgMemberVO`                             | 组织成员关系：`grantId` / `memberId` / `memberName`（用户已删除时为 `null` —— 关系表无外键，这种情况应当被看见）/ `isPrimaryPosition` + **布尔形态 `primaryPosition`**（供界面直接绑定）/ 岗位 / 时态 / `effectiveNow` |
+| `OrgMemberBindRequest`                    | 归属入参。**没有 `memberType`**（该表只装用户）；`effectiveFrom` / `effectiveTo` 是毫秒时间戳                                                                            |
+| `UserOrgVO`                               | 反查用：**从用户这一侧看** —— `orgId` / `orgCode` / `orgName` / `fullName` / **`orgStatus`** / 主岗标记 / 时态。不复用 `OrgMemberVO`（那个类回答的是"这个组织里有哪些人"，一个组织字段都没有） |
 | `RVoid`                                   | 无数据的成功响应（`data` 为空），用于删除与重置口令这类"只关心成败"的接口                                                                                                                                                                     |
 | `R*` 前缀                                 | 统一响应包装 `R<T>`：`code` / `message` / `data` / `timestamp`                                                                                                                                                                                |
 
@@ -323,18 +368,28 @@ OPENAPI_PORT=18081 bash scripts/export-openapi.sh
 
 ## 五、待补充
 
-- **组织管理接口尚未落地**（`bw_auth_organization` / `bw_auth_rel_org_user`，表、实体与 Mapper 已就绪，见 ADR-0016 末尾的"未覆盖清单"）。
-  它与用户组**同形**（同一套父子 + 成员关系的形态），是下一个自然候选。
-  用户组与反查已于本批落地：**用户组 8 条路径** + **反查 1 条路径**（ADR-0024）。
+- ~~**组织管理接口尚未落地**~~ → **已于 2026-10-13 落地**（`bw_auth_organization` / `bw_auth_rel_org_user`，
+  表、实体与 Mapper 早就就绪，见 ADR-0016 末尾的"未覆盖清单"）。它与用户组**同形**
+  （同一套父子 + 成员关系的形态），但**多了一条边**：`is_primary_position` 直接决定一个人的数据范围。
+  用户组与反查已于上一批落地：**用户组 8 条路径** + **反查 1 条路径**（ADR-0024）。
   全仓已落地的权限域切片：**资源目录**（ADR-0021，6 条路径）、**角色管理与角色资源授权**（ADR-0022，8 条路径）、
-  **角色成员关系**（ADR-0023，3 条路径）、**用户组管理与反查**（ADR-0024，9 条路径）。
+  **角色成员关系**（ADR-0023，3 条路径）、**用户组管理与反查**（ADR-0024，9 条路径）、
+  **组织树与成员归属**（ADR-0030，**8 条路径 / 12 个接口**：组织树 CRUD + 移动 + 成员 + 主岗，
+  外加 `/users/{id}/organizations` 反查）。
+  本批把 `0025` 留下的最后一处"只存不用"清掉了 —— `DEPT` / `DEPT_AND_CHILD` 从
+  "`precise` 恒为 false" 变成**可精确求值**（有有效主岗时下发 `visibleOrgIds`）；
+  同批修掉一处**半更新状态**（移动只写派生列、没落 `parent_id`）。
+  **仍缺前端管理页**（下一轮）。
 - **动态用户组求值**：`filter_json` / `org_scope_json` 两列只存不用，且**刻意不在任何接口的入参 / 出参里** ——
   动态成员规则求值未实现，接受它会得到一个"永远算不出成员"的壳。触发条件：真的需要动态组时。
-- **数据范围求值只完成了"求值 + 下发"**（ADR-0025）：`GET /api/auth/users/{id}/data-scope` 合并该用户
-  全部生效角色的 `data_scope`（**取最宽**），并用 `precise` 说出"这一档能不能被精确求值"。
+- **数据范围求值完成了"求值 + 下发"**（ADR-0025 / **ADR-0030 补齐了组织侧**）：`GET /api/auth/users/{id}/data-scope`
+  合并该用户全部生效角色的 `data_scope`（**取最宽**），并用 `precise` 说出"这一档能不能被精确求值"。
   已接入的消费方**只有一个**：**审计查询**（`ALL` 放行整个租户，其余档位保守地按「仅本人」处理）。
-  **`DEPT` / `DEPT_AND_CHILD` 的精确求值需要组织管理接口先落地**（`bw_auth_organization` 已有 `code_path` 列），
-  **`CUSTOM` 需要 `filter_json` 的表达式解析**；两者都未做，因此这两档在查询上退化为「仅本人」。
+  `DEPT` / `DEPT_AND_CHILD` **现在有了确切口径**（主岗所在组织 / 其启用子树），
+  `visibleOrgIds` 也已下发 —— 但**它还不是过滤条件的输入**：把 `DEPT` 接进审计可见性会是一次
+  **静默放宽**（`bw_audit_log` 没有组织维度，只能退化成 `operator_id IN (该部门的用户)`），
+  这是**刻意的"不做"**（ADR-0030 第 10 条）。
+  **`CUSTOM` 仍需 `filter_json` 的表达式解析**；在解析实现之前，这一档在查询上退化为「仅本人」。
   另：本仓**没有业务数据表**（16 张全是 `bw_auth_*` 加三条管道），所以"用 `data_scope` 过滤业务数据"
   在当前仓里没有落点 —— 它的价值最终要在业务系统兑现。
 - **给三张关系表加唯一索引**（`(role_id, resource_id)` / `(role_id, member_type, member_id)` / `(user_group_id, member_type, member_id)`）：
