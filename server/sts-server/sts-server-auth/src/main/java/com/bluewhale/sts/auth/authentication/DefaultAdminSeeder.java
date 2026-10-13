@@ -1,6 +1,7 @@
 package com.bluewhale.sts.auth.authentication;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.bluewhale.sts.auth.common.AuthMenus;
 import com.bluewhale.sts.auth.common.AuthPermissions;
 import com.bluewhale.sts.auth.common.AuthProperties;
 import com.bluewhale.sts.auth.common.codec.PasswordHasher;
@@ -108,6 +109,48 @@ public class DefaultAdminSeeder implements ApplicationRunner {
             AuthPermissions.TENANT_READ,
             AuthPermissions.AUDIT_READ);
 
+    /**
+     * 审计员的**菜单码** —— 与上面的权限清单刻意分成两份。
+     *
+     * <p><b>为什么分开：它们不是同类东西。</b>{@link #AUDITOR_PERMISSIONS} 是安全边界
+     * （写进 {@code @RequiresPermission} 的判定），本清单只决定界面上出现哪些入口与区块
+     * （{@code ResourceType.MENU} / {@code PAGE} 的 {@code requestScoped} 都是 {@code false}）。
+     * 合成一个清单的后果是读代码的人会以为"撤销一条菜单码 = 收窄了一份权限" ——
+     * 而它只会让某个入口消失，接口照样放行。两类事实分开写，才不会在需要判断
+     * "这次改动动的是布局还是安全"时看错。
+     *
+     * <p><b>为什么是这十一项：</b>
+     * <ul>
+     *   <li>{@code ui:audit_console:view} + 它下面**三块都要** ——
+     *       尤其 {@code ui:audit_drill:view}（演练区）。演练区是"让没权限的人点一下、
+     *       看审计表里留下两条 FAILURE"的演示载体，它的按钮**刻意不做权限显隐**
+     *       （见 {@code DrillPanel} 的注释）。把这一块从审计员那里关掉，
+     *       等于把"越权尝试会被记下来"这件事从演示里抹掉 ——
+     *       那正是这个账号存在的意义；</li>
+     *   <li>{@code ui:admin:view} + 六个标签页全给 —— 于是它在权限管理里
+     *       看得见六个标签页、其中四个点开是 {@code 40301}。
+     *       **这是授权配置的结果，不是缺陷**：想让审计员只看用户与租户，
+     *       撤掉那四条菜单码即可，不需要改任何代码。
+     *       这恰好证明了菜单码是**独立可配的布局开关**。</li>
+     * </ul>
+     *
+     * <p>它拿不到其它四个应用的任何菜单码，因此导航栏上只有两项 ——
+     * 这不是"藏起来了"，而是那四个应用里它一个接口都调不通：
+     * 给了入口只会得到一个点了就报错的页面（见 {@code MICRO_APPS} 的注释）。
+     */
+    private static final List<String> AUDITOR_MENUS = List.of(
+            AuthPermissions.UI_AUDIT_CONSOLE_VIEW,
+            AuthPermissions.UI_AUDIT_FLOW_VIEW,
+            AuthPermissions.UI_AUDIT_STATS_VIEW,
+            AuthPermissions.UI_AUDIT_DRILL_VIEW,
+            AuthPermissions.UI_ADMIN_VIEW,
+            AuthPermissions.UI_ADMIN_USER_VIEW,
+            AuthPermissions.UI_ADMIN_TENANT_VIEW,
+            AuthPermissions.UI_ADMIN_RESOURCE_VIEW,
+            AuthPermissions.UI_ADMIN_ROLE_VIEW,
+            AuthPermissions.UI_ADMIN_USER_GROUP_VIEW,
+            AuthPermissions.UI_ADMIN_ORGANIZATION_VIEW);
+
     private final AuthProperties properties;
     private final PasswordHasher passwordHasher;
     private final TenantMapper tenantMapper;
@@ -183,9 +226,13 @@ public class DefaultAdminSeeder implements ApplicationRunner {
             return;
         }
 
-        // 审计员的权限是资源的子集，从已确保存在的资源里挑，不另查一遍库
+        // 审计员的权限是资源的子集，从已确保存在的资源里挑，不另查一遍库。
+        // 读权限与菜单码两份清单在这里汇合：**授权本身不区分这两类** ——
+        // 它们都是"角色 → 资源"的一条 ALLOW 边，区别只在资源类型
+        // （API 那条边会被 @RequiresPermission 读到，MENU/PAGE 那条边只被前端读到）。
         List<ResourceEntity> readable = resources.stream()
-                .filter(resource -> AUDITOR_PERMISSIONS.contains(resource.getResourceCode()))
+                .filter(resource -> AUDITOR_PERMISSIONS.contains(resource.getResourceCode())
+                        || AUDITOR_MENUS.contains(resource.getResourceCode()))
                 .toList();
         RoleEntity auditorRole = ensureRole(tenant, AUDITOR_ROLE_CODE, AUDITOR_ROLE_NAME);
         grantResources(tenant, auditorRole, readable);
@@ -194,8 +241,8 @@ public class DefaultAdminSeeder implements ApplicationRunner {
         grantRole(auditorRole, auditorUser);
         ensureMembership(fe, auditorUser);
 
-        log.warn("已启用默认只读账号种子数据 | 用户名={} | 权限={} | 主岗={} | **同样是开发用配置**",
-                auditor.getUsername(), AUDITOR_PERMISSIONS, FE_NAME);
+        log.warn("已启用默认只读账号种子数据 | 用户名={} | 读权限={} | 菜单码={} 项 | 主岗={} | **同样是开发用配置**",
+                auditor.getUsername(), AUDITOR_PERMISSIONS, AUDITOR_MENUS.size(), FE_NAME);
     }
 
     /**
@@ -305,25 +352,73 @@ public class DefaultAdminSeeder implements ApplicationRunner {
         organizationMemberService.bindMember(org.getId(), request);
     }
 
-    private List<ResourceEntity> ensureResources() {        for (String code : AuthPermissions.ALL) {
-            ResourceEntity existing = resourceMapper.selectOne(Wrappers.<ResourceEntity>lambdaQuery()
-                    .eq(ResourceEntity::getResourceCode, code));
-            if (existing != null) {
+    /**
+     * 确保全部资源行存在（幂等），返回它们。
+     *
+     * <p><b>分两途建行，因为两类资源的形状不同：</b>
+     * <ul>
+     *   <li><b>接口资源</b>（{@link AuthPermissions#ALL} 里的 {@code auth:*} /
+     *       {@code log:*} / {@code event:*}）—— 一码一行、无父级，类型 {@code API}。
+     *       它们的名字就用编码本身：{@code @RequiresPermission} 里写的就是这个字符串，
+     *       给它们编一个中文名反而会让"注解里的码"与"资源目录里的名字"开始分叉；</li>
+     *   <li><b>菜单资源</b>（{@link AuthMenus}）—— 应用入口是 {@code MENU}、
+     *       内部视图是 {@code PAGE}，页面用 {@code parentCode} 挂到应用下面。
+     *       菜单**本来就是一棵树**，平铺进去只会得到一堆没有归属的孤行，
+     *       而资源目录界面正是靠这个父子关系把它画成树。</li>
+     * </ul>
+     *
+     * <p>两类资源的 {@code requestScoped} 都是"不参与后端准入"，但类型不能混：
+     * {@code ResourceVO} 会把它派生出来给管理员看（"此权限不参与后端拦截"），
+     * 类型写错就等于在后台显示了一句反话。
+     *
+     * <p><b>已有行一律不动。</b>包括类型与名字 —— 种子负责"从无到有"，
+     * 不负责"把状态纠正回它以为的样子"（同 {@code ensureMembership} 的取舍）。
+     * 开发库是内存 h2、每次重建，因此不存在"从旧版本升上来"的存量问题；
+     * 真在别的环境开了种子又改了资源名，那也该是运维的决定，不是启动时的暗改。
+     */
+    private List<ResourceEntity> ensureResources() {
+        List<String> menuCodes = AuthMenus.allCodes();
+
+        for (String code : AuthPermissions.ALL) {
+            if (menuCodes.contains(code)) {
                 continue;
             }
-            ResourceEntity resource = new ResourceEntity();
-            resource.setResourceCode(code);
-            resource.setResourceName(code);
-            resource.setResourceType(ResourceType.API.wireName());
-            resource.setSortNo(0);
-            resource.setIsEnabled(1);
-            resource.setIsWhitelist(0);
-            resource.setIsDeprecated(0);
-            resource.setResourceVersion("1.0.0");
-            resourceMapper.insert(resource);
+            ensureResource(code, code, ResourceType.API, null, 0);
         }
+
+        for (AuthMenus.Application application : AuthMenus.ALL) {
+            ensureResource(application.code(), application.name(), ResourceType.MENU, null, 0);
+            // 同一应用内按声明顺序排：它同时是导航与资源树的展示顺序，
+            // 而两端顺序不一致时没有任何东西会报错 —— 只能靠这里保持"声明顺序即展示顺序"
+            int sortNo = 1;
+            for (AuthMenus.Page page : application.pages()) {
+                ensureResource(page.code(), page.name(), ResourceType.PAGE, application.code(), sortNo++);
+            }
+        }
+
         return resourceMapper.selectList(Wrappers.<ResourceEntity>lambdaQuery()
                 .in(ResourceEntity::getResourceCode, AuthPermissions.ALL));
+    }
+
+    private ResourceEntity ensureResource(String code, String name, ResourceType type,
+                                          String parentCode, int sortNo) {
+        ResourceEntity existing = resourceMapper.selectOne(Wrappers.<ResourceEntity>lambdaQuery()
+                .eq(ResourceEntity::getResourceCode, code));
+        if (existing != null) {
+            return existing;
+        }
+        ResourceEntity resource = new ResourceEntity();
+        resource.setResourceCode(code);
+        resource.setResourceName(name);
+        resource.setResourceType(type.wireName());
+        resource.setParentCode(parentCode);
+        resource.setSortNo(sortNo);
+        resource.setIsEnabled(1);
+        resource.setIsWhitelist(0);
+        resource.setIsDeprecated(0);
+        resource.setResourceVersion("1.0.0");
+        resourceMapper.insert(resource);
+        return resource;
     }
 
     private RoleEntity ensureRole(TenantEntity tenant, String roleCode, String roleName) {

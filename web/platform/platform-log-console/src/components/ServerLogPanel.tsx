@@ -48,7 +48,7 @@ export function ServerLogPanel({
   const currentPage = page?.page ?? 1;
 
   return (
-    <section className="panel server">
+    <section className="panel server" data-testid="log-server-panel">
       <header className="panel__head">
         <h2 className="panel__title">服务端日志</h2>
         <p className="panel__hint">

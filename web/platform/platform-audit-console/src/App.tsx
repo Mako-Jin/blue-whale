@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
+import { AuditConsoleViews } from 'common-api';
 import type { AuditLog } from 'common-api';
 
 import './App.less';
@@ -32,8 +33,26 @@ export default function App() {
   const permission = usePermissionState();
   const canRead = usePermission(PERM.READ);
 
-  // 没有审计读权限就不发请求：这时候必然失败，只会白留一屏错误
-  const queries = useAuditQueries(permission.ready && canRead);
+  /*
+   * 三块各自的菜单码 —— 与设备级/接口级权限是两回事：
+   * 它们决定"这块区域出不出来"，不决定里面的按钮能不能点（那由服务端回答，
+   * 而演练区的按钮**刻意不按权限显隐**，见 DrillPanel 的注释）。
+   *
+   * 用 `usePermission` 而不是 `permission.permissions.includes(...)`：
+   * 那个 Hook 已经处理了"未就绪 ⇒ 一律为假"，无需在这里再判一次。
+   */
+  const showFlow = usePermission(AuditConsoleViews.FLOW);
+  const showStats = usePermission(AuditConsoleViews.STATS);
+  const showDrill = usePermission(AuditConsoleViews.DRILL);
+
+  /*
+   * 两道门都过了才查：要有读权限（否则必然拿到 40301，白留一屏错误），
+   * 也要至少一块区域可见（否则查回来的东西没有落点 ——
+   * 那正是"一条看不见的管道仍在后台发请求"）。
+   */
+  const queries = useAuditQueries(
+    permission.ready && canRead && (showFlow || showStats || showDrill),
+  );
 
   const [detail, setDetail] = useState<AuditLog | null>(null);
 
@@ -90,251 +109,264 @@ export default function App() {
         <p className="banner banner--error" data-testid="audit-no-permission">
           当前账号没有 <code>{PERM.READ}</code> 权限，看不到审计流水。请换用管理员或审计员账号。
         </p>
-      ) : (
+      ) : showFlow || showStats || showDrill ? (
         <>
-          <section className="panel" data-testid="audit-list-panel">
-            <header className="panel__head">
-              <div>
-                <h2 className="panel__title">审计流水</h2>
-                <p className="panel__hint">
-                  按服务端记录时间倒序。窗口{' '}
-                  <span className="mono" data-testid="audit-window">
-                    {queries.window
-                      ? `${formatTime(queries.window.startTime)} ~ ${formatTime(queries.window.endTime)}`
-                      : '正在计算…'}
-                  </span>
-                  —— 时间窗是这里的上下文，没有它"只有 3 条"分不清是没数据还是窗口太小。
-                </p>
-              </div>
-              <div className="panel__actions">
-                <button
-                  type="button"
-                  className="btn audit__refresh"
-                  disabled={queries.loading}
-                  onClick={queries.reload}
+          {showFlow ? (
+            <section className="panel" data-testid="audit-list-panel">
+              <header className="panel__head">
+                <div>
+                  <h2 className="panel__title">审计流水</h2>
+                  <p className="panel__hint">
+                    按服务端记录时间倒序。窗口{' '}
+                    <span className="mono" data-testid="audit-window">
+                      {queries.window
+                        ? `${formatTime(queries.window.startTime)} ~ ${formatTime(queries.window.endTime)}`
+                        : '正在计算…'}
+                    </span>
+                    —— 时间窗是这里的上下文，没有它"只有 3 条"分不清是没数据还是窗口太小。
+                  </p>
+                </div>
+                <div className="panel__actions">
+                  <button
+                    type="button"
+                    className="btn audit__refresh"
+                    disabled={queries.loading}
+                    onClick={queries.reload}
+                  >
+                    {queries.loading ? '加载中…' : '刷新'}
+                  </button>
+                </div>
+              </header>
+
+              <form className="toolbar" onSubmit={(event) => event.preventDefault()}>
+                <input
+                  className="input"
+                  name="action"
+                  placeholder="动作，如 auth.tenant.create"
+                  value={queries.filters.action}
+                  onChange={(event) => queries.patchFilters({ action: event.target.value })}
+                />
+                <input
+                  className="input"
+                  name="resource"
+                  placeholder="资源，如 auth:tenant"
+                  value={queries.filters.resource}
+                  onChange={(event) => queries.patchFilters({ resource: event.target.value })}
+                />
+                <input
+                  className="input"
+                  name="operatorName"
+                  placeholder="操作人登录名"
+                  value={queries.filters.operatorName}
+                  onChange={(event) => queries.patchFilters({ operatorName: event.target.value })}
+                />
+                <input
+                  className="input"
+                  name="targetId"
+                  placeholder="操作对象主键"
+                  value={queries.filters.targetId}
+                  onChange={(event) => queries.patchFilters({ targetId: event.target.value })}
+                />
+                <select
+                  className="input"
+                  name="result"
+                  value={queries.filters.result}
+                  onChange={(event) =>
+                    queries.patchFilters({
+                      result: event.target.value as '' | 'SUCCESS' | 'FAILURE',
+                    })
+                  }
                 >
-                  {queries.loading ? '加载中…' : '刷新'}
+                  {RESULT_OPTIONS.map((option) => (
+                    <option key={option.label} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="input"
+                  name="window"
+                  value={queries.filters.window}
+                  onChange={(event) =>
+                    queries.patchFilters({
+                      // 取值来自 TIME_WINDOWS 常量，因此这里用 `as` 而不是再校验一遍
+                      window: event.target.value as (typeof TIME_WINDOWS)[number]['key'],
+                    })
+                  }
+                >
+                  {TIME_WINDOWS.map((option) => (
+                    <option key={option.key} value={option.key}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <button type="button" className="btn" onClick={queries.resetFilters}>
+                  重置
                 </button>
-              </div>
-            </header>
+                <span className="toolbar__spacer" />
+                <span className="toolbar__meta" data-testid="audit-total">
+                  共 {queries.page?.total ?? 0} 条 · 第 {queries.pageNo} /{' '}
+                  {queries.page?.pages ?? 0} 页
+                </span>
+              </form>
 
-            <form className="toolbar" onSubmit={(event) => event.preventDefault()}>
-              <input
-                className="input"
-                name="action"
-                placeholder="动作，如 auth.tenant.create"
-                value={queries.filters.action}
-                onChange={(event) => queries.patchFilters({ action: event.target.value })}
-              />
-              <input
-                className="input"
-                name="resource"
-                placeholder="资源，如 auth:tenant"
-                value={queries.filters.resource}
-                onChange={(event) => queries.patchFilters({ resource: event.target.value })}
-              />
-              <input
-                className="input"
-                name="operatorName"
-                placeholder="操作人登录名"
-                value={queries.filters.operatorName}
-                onChange={(event) => queries.patchFilters({ operatorName: event.target.value })}
-              />
-              <input
-                className="input"
-                name="targetId"
-                placeholder="操作对象主键"
-                value={queries.filters.targetId}
-                onChange={(event) => queries.patchFilters({ targetId: event.target.value })}
-              />
-              <select
-                className="input"
-                name="result"
-                value={queries.filters.result}
-                onChange={(event) =>
-                  queries.patchFilters({
-                    result: event.target.value as '' | 'SUCCESS' | 'FAILURE',
-                  })
-                }
-              >
-                {RESULT_OPTIONS.map((option) => (
-                  <option key={option.label} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="input"
-                name="window"
-                value={queries.filters.window}
-                onChange={(event) =>
-                  queries.patchFilters({
-                    // 取值来自 TIME_WINDOWS 常量，因此这里用 `as` 而不是再校验一遍
-                    window: event.target.value as (typeof TIME_WINDOWS)[number]['key'],
-                  })
-                }
-              >
-                {TIME_WINDOWS.map((option) => (
-                  <option key={option.key} value={option.key}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <button type="button" className="btn" onClick={queries.resetFilters}>
-                重置
-              </button>
-              <span className="toolbar__spacer" />
-              <span className="toolbar__meta" data-testid="audit-total">
-                共 {queries.page?.total ?? 0} 条 · 第 {queries.pageNo} / {queries.page?.pages ?? 0}{' '}
-                页
-              </span>
-            </form>
+              {queries.error ? (
+                <p className="banner banner--error" data-testid="audit-error">
+                  {queries.error}
+                </p>
+              ) : null}
 
-            {queries.error ? (
-              <p className="banner banner--error" data-testid="audit-error">
-                {queries.error}
-              </p>
-            ) : null}
-
-            <div className="table-wrap">
-              <table className="table" data-testid="audit-table">
-                <thead>
-                  <tr>
-                    <th>记录时间</th>
-                    <th>动作</th>
-                    <th>资源</th>
-                    <th>对象</th>
-                    <th>操作人</th>
-                    <th>结果</th>
-                    <th>耗时</th>
-                    <th>来源 IP</th>
-                    <th className="table__ops">操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {records.length === 0 ? (
+              <div className="table-wrap">
+                <table className="table" data-testid="audit-table">
+                  <thead>
                     <tr>
-                      <td className="table__empty" colSpan={9}>
-                        {queries.loading ? '加载中…' : '这段时间内没有审计记录'}
-                      </td>
+                      <th>记录时间</th>
+                      <th>动作</th>
+                      <th>资源</th>
+                      <th>对象</th>
+                      <th>操作人</th>
+                      <th>结果</th>
+                      <th>耗时</th>
+                      <th>来源 IP</th>
+                      <th className="table__ops">操作</th>
                     </tr>
-                  ) : (
-                    records.map((record) => (
-                      <tr
-                        key={String(record.id)}
-                        className={record.result === 'FAILURE' ? 'table__row--fail' : undefined}
-                        data-testid={`audit-row-${String(record.id)}`}
-                      >
-                        <td className="mono">{formatTime(record.serverTime)}</td>
-                        <td className="mono">{orDash(record.action)}</td>
-                        <td className="mono">{orDash(record.resource)}</td>
-                        <td className="mono">{orDash(record.targetId)}</td>
-                        <td>{orDash(record.operatorName)}</td>
-                        <td>
-                          <span
-                            className={`tag tag--${resultModifier(record.result)}`}
-                            data-testid={`audit-result-${String(record.id)}`}
-                          >
-                            {formatResult(record.result)}
-                            {record.errorCode ? ` (${record.errorCode})` : ''}
-                          </span>
-                        </td>
-                        <td className="mono">{formatDuration(record.durationMs)}</td>
-                        <td className="mono">{orDash(record.ip)}</td>
-                        <td className="table__ops">
-                          <button
-                            type="button"
-                            className="btn audit__detail"
-                            onClick={() => setDetail(record)}
-                          >
-                            详情
-                          </button>
+                  </thead>
+                  <tbody>
+                    {records.length === 0 ? (
+                      <tr>
+                        <td className="table__empty" colSpan={9}>
+                          {queries.loading ? '加载中…' : '这段时间内没有审计记录'}
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="pager">
-              <button
-                type="button"
-                className="btn"
-                disabled={queries.pageNo <= 1}
-                onClick={() => queries.setPageNo(Math.max(1, queries.pageNo - 1))}
-              >
-                上一页
-              </button>
-              <button
-                type="button"
-                className="btn"
-                // 总页数由服务端算好（取整方式属业务约定），契约里它是可选字段，因此兜 0
-                disabled={queries.pageNo >= (queries.page?.pages ?? 0)}
-                onClick={() => queries.setPageNo(queries.pageNo + 1)}
-              >
-                下一页
-              </button>
-            </div>
-          </section>
-
-          <section className="panel" data-testid="audit-stats-panel">
-            <header className="panel__head">
-              <div>
-                <h2 className="panel__title">按动作聚合</h2>
-                <p className="panel__hint">
-                  总 {queries.stats?.total ?? 0} 条，其中失败{' '}
-                  <strong>{queries.stats?.failureTotal ?? 0}</strong> 条。这个接口刻意
-                  <strong>不接受按动作筛选</strong> —— 它本身就是按动作分组的，
-                  带了那个条件只会永远返回一条。
-                </p>
+                    ) : (
+                      records.map((record) => (
+                        <tr
+                          key={String(record.id)}
+                          className={record.result === 'FAILURE' ? 'table__row--fail' : undefined}
+                          data-testid={`audit-row-${String(record.id)}`}
+                        >
+                          <td className="mono">{formatTime(record.serverTime)}</td>
+                          <td className="mono">{orDash(record.action)}</td>
+                          <td className="mono">{orDash(record.resource)}</td>
+                          <td className="mono">{orDash(record.targetId)}</td>
+                          <td>{orDash(record.operatorName)}</td>
+                          <td>
+                            <span
+                              className={`tag tag--${resultModifier(record.result)}`}
+                              data-testid={`audit-result-${String(record.id)}`}
+                            >
+                              {formatResult(record.result)}
+                              {record.errorCode ? ` (${record.errorCode})` : ''}
+                            </span>
+                          </td>
+                          <td className="mono">{formatDuration(record.durationMs)}</td>
+                          <td className="mono">{orDash(record.ip)}</td>
+                          <td className="table__ops">
+                            <button
+                              type="button"
+                              className="btn audit__detail"
+                              onClick={() => setDetail(record)}
+                            >
+                              详情
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
-            </header>
 
-            {actions.length === 0 ? (
-              <p className="banner">这段时间内没有产生任何动作。</p>
-            ) : (
-              <ul className="stats" data-testid="audit-stats">
-                {actions.map((item) => {
-                  const count = item.actionCount ?? 0;
-                  const failures = item.failureCount ?? 0;
-                  const width = maxCount > 0 ? (count / maxCount) * 100 : 0;
-                  const failWidth = count > 0 ? (failures / count) * 100 : 0;
-                  return (
-                    <li
-                      key={String(item.action)}
-                      className="stats__item"
-                      data-testid={`audit-stat-${String(item.action)}`}
-                    >
-                      <button
-                        type="button"
-                        className="stats__action mono"
-                        // 点动作即筛选：聚合视图给的是"哪类操作最多"，
-                        // 接下来必然是"那些操作长什么样"，跳列表比让人手抄动作名好
-                        onClick={() => queries.patchFilters({ action: String(item.action) })}
+              <div className="pager">
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={queries.pageNo <= 1}
+                  onClick={() => queries.setPageNo(Math.max(1, queries.pageNo - 1))}
+                >
+                  上一页
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  // 总页数由服务端算好（取整方式属业务约定），契约里它是可选字段，因此兜 0
+                  disabled={queries.pageNo >= (queries.page?.pages ?? 0)}
+                  onClick={() => queries.setPageNo(queries.pageNo + 1)}
+                >
+                  下一页
+                </button>
+              </div>
+            </section>
+          ) : null}
+
+          {showStats ? (
+            <section className="panel" data-testid="audit-stats-panel">
+              <header className="panel__head">
+                <div>
+                  <h2 className="panel__title">按动作聚合</h2>
+                  <p className="panel__hint">
+                    总 {queries.stats?.total ?? 0} 条，其中失败{' '}
+                    <strong>{queries.stats?.failureTotal ?? 0}</strong> 条。这个接口刻意
+                    <strong>不接受按动作筛选</strong> —— 它本身就是按动作分组的，
+                    带了那个条件只会永远返回一条。
+                  </p>
+                </div>
+              </header>
+
+              {actions.length === 0 ? (
+                <p className="banner">这段时间内没有产生任何动作。</p>
+              ) : (
+                <ul className="stats" data-testid="audit-stats">
+                  {actions.map((item) => {
+                    const count = item.actionCount ?? 0;
+                    const failures = item.failureCount ?? 0;
+                    const width = maxCount > 0 ? (count / maxCount) * 100 : 0;
+                    const failWidth = count > 0 ? (failures / count) * 100 : 0;
+                    return (
+                      <li
+                        key={String(item.action)}
+                        className="stats__item"
+                        data-testid={`audit-stat-${String(item.action)}`}
                       >
-                        {item.action}
-                      </button>
-                      <span className="stats__bar" aria-hidden="true">
-                        <span className="stats__bar-fill" style={{ width: `${String(width)}%` }}>
-                          <span
-                            className="stats__bar-fail"
-                            style={{ width: `${String(failWidth)}%` }}
-                          />
+                        <button
+                          type="button"
+                          className="stats__action mono"
+                          // 点动作即筛选：聚合视图给的是"哪类操作最多"，
+                          // 接下来必然是"那些操作长什么样"，跳列表比让人手抄动作名好
+                          onClick={() => queries.patchFilters({ action: String(item.action) })}
+                        >
+                          {item.action}
+                        </button>
+                        <span className="stats__bar" aria-hidden="true">
+                          <span className="stats__bar-fill" style={{ width: `${String(width)}%` }}>
+                            <span
+                              className="stats__bar-fail"
+                              style={{ width: `${String(failWidth)}%` }}
+                            />
+                          </span>
                         </span>
-                      </span>
-                      <span className="stats__count mono">
-                        {count} 条{failures > 0 ? ` · 失败 ${failures}` : ''}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
+                        <span className="stats__count mono">
+                          {count} 条{failures > 0 ? ` · 失败 ${failures}` : ''}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+          ) : null}
 
-          <DrillPanel onRecorded={queries.reload} />
+          {/*
+            演练区**不做权限显隐**是它的设计（见 DrillPanel 的注释）——
+            它的价值恰恰在于"没权限的人点一下、审计表里留下两条 FAILURE"。
+            这里过滤的是**整块区域出不出现**（菜单码），不是它里面的按钮。
+          */}
+          {showDrill ? <DrillPanel onRecorded={queries.reload} /> : null}
         </>
+      ) : (
+        <p className="banner" data-testid="audit-empty">
+          当前身份没有可见的区块（需要 <code>ui:audit_*:view</code> 之一的菜单码）。
+        </p>
       )}
 
       {detail ? (

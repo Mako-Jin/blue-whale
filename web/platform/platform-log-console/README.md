@@ -61,6 +61,15 @@ pnpm --filter platform-log-console dev     # http://127.0.0.1:3200
 > `consoleAuth.port`；`src/main.tsx` 在独立运行分支里先 `await consoleAuth.ensureSession()` 再渲染。
 > **注意上报（`POST /api/logs/client`）刻意保持公开** —— 登录页出错的日志也必须发得出来。
 
+> **两栏按菜单码过滤（`docs/decisions/0031`）**：左栏与右栏各自有一条菜单码
+> （`ui:log_reporter:view` / `ui:log_query:view`），由基座连同读写权限一起下发。
+> 两道门是**独立**的 —— 菜单码决定"这一栏出不出来"，读写权限决定"里面的请求能不能成功"，
+> 因此"只给演示、不给查询"是一处配置，而不是一句只能靠约定维持的话。
+> 右栏不可见时查询副作用会**提前 return**：那时必然拿到 `40301`，除了白留一屏错误，
+> 还会在服务端留下几条"其实没人看"的查询。详情抽屉跟着**右栏**走 ——
+> 没右栏就点不开它，单独给它一个码等于造一个进不去的入口。
+> 权限来源在 `common-tools/micro` 的 `createPermissionStore`，本页只做三行 React 适配。
+
 ---
 
 ## 四、能演示什么

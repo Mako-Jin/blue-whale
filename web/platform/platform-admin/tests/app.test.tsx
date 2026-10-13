@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { AdminViews } from 'common-api';
 import { HttpStatusError } from 'common-tools/http';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -46,6 +47,12 @@ import App from '../src/App';
 import { getStandaloneSession, initializeAuth } from '../src/auth';
 import { connectPermissionSource } from '../src/auth/permissions';
 
+/**
+ * 管理员：八项读写权限 **加上**六个标签页菜单码。
+ *
+ * <p>两类码缺一不可，而且缺了的症状完全不同 —— 少了读写权限，标签页在、按钮不在；
+ * 少了菜单码，标签页本身就不出现。这个文件里两类用例都有，正是为了让这个区别留在测试里。
+ */
 const ALL_PERMISSIONS = [
   'auth:user:read',
   'auth:user:create',
@@ -55,6 +62,7 @@ const ALL_PERMISSIONS = [
   'auth:tenant:create',
   'auth:tenant:update',
   'auth:tenant:delete',
+  ...Object.values(AdminViews),
 ];
 
 const USER_ROW = {
@@ -96,12 +104,18 @@ describe('权限管理后台 · 按钮级权限', () => {
     mocks.tenantPage.mockResolvedValue({ records: [], total: 0, page: 1, size: 10, pages: 0 });
   });
 
-  it('管理员（八项权限）：列表与全部操作入口都在', async () => {
+  it('管理员（读写权限 + 全部菜单码）：六个标签页与全部操作入口都在', async () => {
     signIn(ALL_PERMISSIONS);
     render(<App />);
 
     expect(await screen.findByTestId('user-row-admin')).toBeInTheDocument();
 
+    // 菜单码决定**标签页**出不出来
+    for (const key of ['users', 'tenants', 'resources', 'roles', 'userGroups', 'organizations']) {
+      expect(screen.getByTestId(`admin-tab-${key}`)).toBeInTheDocument();
+    }
+
+    // 读写权限决定**点进去之后**能看到哪些按钮
     expect(screen.getByText('新建用户')).toBeInTheDocument();
     expect(screen.getByText('编辑')).toBeInTheDocument();
     expect(screen.getByText('重置口令')).toBeInTheDocument();
@@ -111,8 +125,41 @@ describe('权限管理后台 · 按钮级权限', () => {
     expect(screen.getByText('新建用户')).toHaveAttribute('data-permission', 'auth:user:create');
   });
 
-  it('审计员（只有读权限）：列表照常显示，写操作入口一个都不渲染', async () => {
-    signIn(['auth:user:read', 'auth:tenant:read']);
+  it('每个标签页都带着自己的菜单码，便于"这个入口为什么没出现"的排查', () => {
+    signIn(ALL_PERMISSIONS);
+    render(<App />);
+
+    expect(screen.getByTestId('admin-tab-users')).toHaveAttribute(
+      'data-permission',
+      AdminViews.USER,
+    );
+    expect(screen.getByTestId('admin-tab-organizations')).toHaveAttribute(
+      'data-permission',
+      AdminViews.ORGANIZATION,
+    );
+  });
+
+  it('没被授菜单码的标签页不出现 —— 界面里不留进不去的入口', () => {
+    signIn(['auth:user:read', AdminViews.USER]);
+    render(<App />);
+
+    expect(screen.getByTestId('admin-tab-users')).toBeInTheDocument();
+    expect(screen.queryByTestId('admin-tab-tenants')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('admin-tab-roles')).not.toBeInTheDocument();
+  });
+
+  it('一个菜单码都没有：一个标签页都不渲染，并说清缺的是哪一类码', () => {
+    // 有读权限、但没有菜单码 —— 这时界面里不该出现任何模块入口
+    signIn(['auth:user:read']);
+    render(<App />);
+
+    const empty = screen.getByTestId('admin-empty');
+    expect(empty.textContent).toContain('ui:admin_*:view');
+    expect(screen.queryByTestId('admin-tab-users')).not.toBeInTheDocument();
+  });
+
+  it('审计员（读权限 + 两个标签页菜单码）：列表照常显示，写操作入口一个都不渲染', async () => {
+    signIn(['auth:user:read', 'auth:tenant:read', AdminViews.USER, AdminViews.TENANT]);
     render(<App />);
 
     // 读得到 —— 否则这一屏会变成"什么都没有"，就分不清是没权限还是没数据
@@ -125,14 +172,20 @@ describe('权限管理后台 · 按钮级权限', () => {
   });
 
   it('租户页与用户页各自独立判定（有租户写权限不影响用户页的显隐）', async () => {
-    signIn(['auth:user:read', 'auth:tenant:read', 'auth:tenant:create']);
+    signIn([
+      'auth:user:read',
+      'auth:tenant:read',
+      'auth:tenant:create',
+      AdminViews.USER,
+      AdminViews.TENANT,
+    ]);
     render(<App />);
     await screen.findByTestId('user-row-admin');
 
     // 用户页：无写权限
     expect(screen.queryByText('新建用户')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByText('租户'));
+    fireEvent.click(screen.getByTestId('admin-tab-tenants'));
     expect(await screen.findByText('新建租户')).toBeInTheDocument();
   });
 
@@ -145,7 +198,8 @@ describe('权限管理后台 · 按钮级权限', () => {
         status: 403,
       }),
     );
-    signIn([]);
+    // 菜单码决定"进得去"，读权限决定"读得到" —— 这里是进得去但读不到
+    signIn([AdminViews.USER]);
     render(<App />);
 
     const banner = await screen.findByTestId('users-error');

@@ -35,7 +35,7 @@ export function ServerEventPanel(props: ServerEventPanelProps) {
   const totalPages = page?.pages ?? 0;
 
   return (
-    <section className="panel panel--server">
+    <section className="panel panel--server" data-testid="event-server-panel">
       <header className="panel__head">
         <h2 className="panel__title">服务端视角</h2>
         <p className="panel__hint">按 serverTime 倒序读，客户端时间只作参照</p>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { auth } from '@/auth';
-import { useSession } from '@/auth/hooks';
+import { usePermissions, useSession } from '@/auth/hooks';
 import { MICRO_APPS, setGlobalState } from '@/micro';
 import './BasicLayout.less';
 
@@ -13,9 +13,25 @@ export default function BasicLayout() {
   const { pathname } = useLocation();
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const { user } = useSession();
+  const permissions = usePermissions();
+
+  /*
+   * 导航栏只渲染**当前身份持有菜单码**的那些应用。
+   *
+   * 与 `RequireMenu` 读的是同一个字段，因此"看不见"与"进不去"永远一致 ——
+   * 只过滤导航栏会让地址栏成为后门，那是假开关。
+   *
+   * 概览（`/`）不参与过滤：它不承载任何数据，且是"被弹回来"时的落点，
+   * 必须对所有已登录身份可用。
+   */
+  const visibleApps = MICRO_APPS.filter((app) => permissions.includes(app.menuPermission));
 
   // 子应用页面不需要外边距，让它铺满内容区 —— 否则会看到一层不属于子应用的留白，
   // 排查布局问题时容易误判成子应用的样式出错。
+  //
+  // 这里用**完整**的 `MICRO_APPS` 而不是 `visibleApps`：它回答的是"这条路径属不属于
+  // 某个子应用"（布局问题），不是"能不能进去"。没有菜单码的路径根本渲染不到这里 ——
+  // `RequireMenu` 已经把它重定向走了。
   const isMicroApp = MICRO_APPS.some((app) => pathname.startsWith(app.routePath));
 
   const switchTheme = () => {
@@ -35,12 +51,17 @@ export default function BasicLayout() {
         <span className="basic-layout__brand">BlueWhale</span>
         <span className="basic-layout__subtitle">平台门户</span>
 
-        <nav className="basic-layout__nav">
+        <nav className="basic-layout__nav" data-testid="portal-nav">
           <NavLink to="/" end className={navClass}>
             概览
           </NavLink>
-          {MICRO_APPS.map((app) => (
-            <NavLink key={app.name} to={app.routePath} className={navClass}>
+          {visibleApps.map((app) => (
+            <NavLink
+              key={app.name}
+              to={app.routePath}
+              className={navClass}
+              data-testid={`nav-${app.name}`}
+            >
               {app.title}
             </NavLink>
           ))}

@@ -154,6 +154,34 @@ public final class AuthPermissions {
      */
     public static final String EVENT_CLIENT_READ = "event:client:read";
 
+    /** 每个应用入口一条：这条码决定基座导航栏上是否出现它。 */
+    public static final String UI_LOG_CONSOLE_VIEW = "ui:log_console:view";
+    public static final String UI_EVENT_CONSOLE_VIEW = "ui:event_console:view";
+    public static final String UI_ENVIRONMENT_VIEW = "ui:environment:view";
+    public static final String UI_ADMIN_VIEW = "ui:admin:view";
+    public static final String UI_AUDIT_CONSOLE_VIEW = "ui:audit_console:view";
+
+    /** 日志台内部两个视图：演示区与查询区。 */
+    public static final String UI_LOG_REPORTER_VIEW = "ui:log_reporter:view";
+    public static final String UI_LOG_QUERY_VIEW = "ui:log_query:view";
+
+    /** 事件台内部两个视图：埋点演示区与查询区。 */
+    public static final String UI_EVENT_TRACK_VIEW = "ui:event_track:view";
+    public static final String UI_EVENT_QUERY_VIEW = "ui:event_query:view";
+
+    /** 权限管理内部六个标签页。 */
+    public static final String UI_ADMIN_USER_VIEW = "ui:admin_user:view";
+    public static final String UI_ADMIN_TENANT_VIEW = "ui:admin_tenant:view";
+    public static final String UI_ADMIN_RESOURCE_VIEW = "ui:admin_resource:view";
+    public static final String UI_ADMIN_ROLE_VIEW = "ui:admin_role:view";
+    public static final String UI_ADMIN_USER_GROUP_VIEW = "ui:admin_user_group:view";
+    public static final String UI_ADMIN_ORGANIZATION_VIEW = "ui:admin_organization:view";
+
+    /** 审计台内部三块：流水、按动作聚合、演练区。 */
+    public static final String UI_AUDIT_FLOW_VIEW = "ui:audit_flow:view";
+    public static final String UI_AUDIT_STATS_VIEW = "ui:audit_stats:view";
+    public static final String UI_AUDIT_DRILL_VIEW = "ui:audit_drill:view";
+
     /** 本切片已落地的全部权限标识，种子数据据此建资源 */
     public static final List<String> ALL = List.of(
             TENANT_READ, TENANT_CREATE, TENANT_UPDATE, TENANT_DELETE,
@@ -163,6 +191,13 @@ public final class AuthPermissions {
             ROLE_READ, ROLE_CREATE, ROLE_UPDATE, ROLE_DELETE,
             USER_GROUP_READ, USER_GROUP_CREATE, USER_GROUP_UPDATE, USER_GROUP_DELETE,
             AUDIT_READ,
-            LOG_CLIENT_READ, EVENT_CLIENT_READ);
+            LOG_CLIENT_READ, EVENT_CLIENT_READ,
+            UI_LOG_CONSOLE_VIEW, UI_EVENT_CONSOLE_VIEW, UI_ENVIRONMENT_VIEW,
+            UI_ADMIN_VIEW, UI_AUDIT_CONSOLE_VIEW,
+            UI_LOG_REPORTER_VIEW, UI_LOG_QUERY_VIEW,
+            UI_EVENT_TRACK_VIEW, UI_EVENT_QUERY_VIEW,
+            UI_ADMIN_USER_VIEW, UI_ADMIN_TENANT_VIEW, UI_ADMIN_RESOURCE_VIEW,
+            UI_ADMIN_ROLE_VIEW, UI_ADMIN_USER_GROUP_VIEW, UI_ADMIN_ORGANIZATION_VIEW,
+            UI_AUDIT_FLOW_VIEW, UI_AUDIT_STATS_VIEW, UI_AUDIT_DRILL_VIEW);
 
 }

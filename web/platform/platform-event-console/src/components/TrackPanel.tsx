@@ -48,7 +48,7 @@ export function TrackPanel(props: TrackPanelProps) {
   const { channelState } = props;
 
   return (
-    <section className="panel panel--client">
+    <section className="panel panel--client" data-testid="event-track-panel">
       <header className="panel__head">
         <h2 className="panel__title">客户端视角</h2>
         <p className="panel__hint">业务只调 track()，其余全在内核里</p>

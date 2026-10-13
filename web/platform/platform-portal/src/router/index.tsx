@@ -1,6 +1,7 @@
 import { createBrowserRouter } from 'react-router-dom';
 import BasicLayout from '@/layouts/BasicLayout';
 import RequireAuth from '@/components/RequireAuth';
+import RequireMenu from '@/components/RequireMenu';
 import Home from '@/pages/Home';
 import Login from '@/pages/Login';
 import MicroAppContainer from '@/components/MicroAppContainer';
@@ -20,6 +21,10 @@ import { MICRO_APPS } from '@/micro';
  * （否则用户能点到一堆进去就被弹回来的入口）。
  * 其余全部包在 `RequireAuth` 里 —— 一处守卫覆盖所有受保护路由，
  * 新增子应用不必记得"再给路由加个守卫"。
+ *
+ * `RequireMenu` 与 `RequireAuth` **是两件事**：前者问"这个身份有没有这个入口"
+ * （读菜单码，纯前端可见性），后者问"有没有身份"。因此它嵌在 `RequireAuth` 之内 ——
+ * 没有身份时先跳登录页，有身份才轮到判断菜单。
  */
 export const router = createBrowserRouter([
   {
@@ -40,7 +45,11 @@ export const router = createBrowserRouter([
       },
       ...MICRO_APPS.map((app) => ({
         path: `${app.routePath.replace(/^\//, '')}/*`,
-        element: <MicroAppContainer appName={app.name} />,
+        element: (
+          <RequireMenu permission={app.menuPermission}>
+            <MicroAppContainer appName={app.name} />
+          </RequireMenu>
+        ),
       })),
     ],
   },

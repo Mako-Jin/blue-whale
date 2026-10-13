@@ -12,6 +12,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -168,12 +170,24 @@ class AuthApiTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(40301));
 
-        // 权限集合恰好是三项读权限（用户、租户、审计流水）：多一项写权限就会让
-        // "按钮该不该出现"的演示失去区分度
+        // 权限集合 = **三条读权限 + 十一个菜单码**。
+        //
+        // 写 14 而不是 ">= 3"：这个数字本身就是演示的一部分 —— 它同时对着一份
+        // "审计员该看到什么"的清单（见 DefaultAdminSeeder.AUDITOR_MENUS）。
+        // 一旦放宽成区间，"不小心给审计员加了一条写权限"就再也拦不住了，
+        // 而拦住那条正是本测试存在的理由。
         mockMvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + auditorToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.roles[0]").value("AUDITOR"))
-                .andExpect(jsonPath("$.data.permissions.length()").value(3));
+                .andExpect(jsonPath("$.data.permissions.length()").value(3 + 11))
+                // 菜单码确实进了权限集合 —— 基座导航过滤与子应用的区块过滤都读它，
+                // 少了这两条断言，"菜单码有没有真的下发下来"就没有人验
+                .andExpect(jsonPath("$.data.permissions", hasItem(AuthPermissions.UI_AUDIT_CONSOLE_VIEW)))
+                .andExpect(jsonPath("$.data.permissions", hasItem(AuthPermissions.UI_ADMIN_VIEW)))
+                // 但一条写权限都没有 —— 这是"按钮级权限演示"的后端依据。
+                // 顺带钉住菜单码**不是**权限收窄工具：它有 ui:admin 却依然写不了任何东西
+                .andExpect(jsonPath("$.data.permissions", not(hasItem(AuthPermissions.USER_CREATE))))
+                .andExpect(jsonPath("$.data.permissions", not(hasItem(AuthPermissions.USER_DELETE))));
     }
 
     @Test

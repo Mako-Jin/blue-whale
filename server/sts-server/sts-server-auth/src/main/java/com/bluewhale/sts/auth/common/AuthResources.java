@@ -133,4 +133,113 @@ public final class AuthResources {
      */
     public static final String EVENT_CLIENT = "event:client";
 
+    /* ------------------------------------------------------------------ *
+     * 前端可见性域（ui:）—— 菜单与页面
+     * ------------------------------------------------------------------ */
+
+    /**
+     * 前端可见性域。
+     *
+     * <p><b>这一域与前面所有域的性质不同：它不参与后端准入。</b>
+     * {@code ui:*} 对应的资源类型是 {@code MENU} / {@code PAGE}，
+     * {@code ResourceType} 把这两类标成 {@code requestScoped = false} ——
+     * 没有任何一个 {@code @RequiresPermission} 会写 {@code ui:*}，
+     * 因为不存在"某个接口要求先看得见某个菜单"这回事。
+     *
+     * <p>它回答的是另一个问题：**导航栏上该出现哪几个入口、应用内该出现哪几个视图**。
+     * 把"看得见"与"调得通"分成两层是有意的：*菜单码是布局，读权限是安全边界*。
+     * 合并成一层的后果是"想让某人少看到一个入口"就得**同时**动他的接口权限 ——
+     * 而接口权限一变，他能做的事就真的少了。这是把一个纯呈现问题升级成权限收窄。
+     *
+     * <p><b>资源段就是界面本身的标识</b>，动作段一律 {@code view}。
+     * 应用级一条（{@code ui:admin}），应用内部的每个可独立关闭的视图各一条
+     * （{@code ui:admin_user}）。粒度按"关掉之后剩下的部分是否仍然自洽"定，
+     * 而不是按代码里的组件层级定 —— 后者会造出一堆关掉就露白的开关。
+     *
+     * <p><b>命名与 URL 不同形是有意的</b>：路径写 {@code /admin}，
+     * 标识写 {@code ui:admin}；路径写 {@code /audit}，标识写 {@code ui:audit_console}
+     * （应用名避免与 {@link #AUDIT} 的 {@code auth:audit} 混淆）。
+     * 标识要出现在后台配置界面与日志字段里，稳定性优先于跟 URL 对齐。
+     */
+    public static final String UI_LOG_CONSOLE = "ui:log_console";
+    public static final String UI_EVENT_CONSOLE = "ui:event_console";
+    /** 三维环境**只有应用级码**，没有页面级 —— 理由见本段末尾 */
+    public static final String UI_ENVIRONMENT = "ui:environment";
+    public static final String UI_ADMIN = "ui:admin";
+    public static final String UI_AUDIT_CONSOLE = "ui:audit_console";
+
+    /**
+     * 日志台内部的两个视图。
+     *
+     * <p>{@code ui:log_reporter} 是"产生日志并看着它上报"的演示区（全部在前端完成，
+     * 不需要任何后端权限就能跑）；{@code ui:log_query} 是"查服务端库里的日志"
+     * （列表 + 详情抽屉 + 按 {@code traceId} 串链路），它背后的接口要
+     * {@link AuthPermissions#LOG_CLIENT_READ}。两者分开的价值在这里：
+     * **演示与查询是两件事** —— 只有一个码的时候，
+     * "让某人能跑演示、但查不到别人请求的日志"是做不到的。
+     *
+     * <p>详情与链路**没有**单独成码：它们挂在查询区里（拿到列表才点得进去），
+     * 关掉查询区的同时它们自然一起消失 —— 给一个无法独立呈现的东西编一个码，
+     * 就是造一个假开关。
+     */
+    public static final String UI_LOG_REPORTER = "ui:log_reporter";
+    public static final String UI_LOG_QUERY = "ui:log_query";
+
+    /**
+     * 事件台内部的两个视图。与日志台同构：{@code track} 是埋点演示、
+     * {@code query} 是查服务端库，两者背后的依赖不同（演示不需要权限，
+     * 查询要 {@link AuthPermissions#EVENT_CLIENT_READ}）。
+     */
+    public static final String UI_EVENT_TRACK = "ui:event_track";
+    public static final String UI_EVENT_QUERY = "ui:event_query";
+
+    /**
+     * 权限管理内部的六个标签页。
+     *
+     * <p><b>这一组是本域存在的直接原因。</b>应用级一个 {@code ui:admin} 只能表达
+     * "能不能进权限管理"，而权限管理内部六个标签页对应的是六个彼此独立的资源域 ——
+     * 只读账号能看用户与租户、看不到组织（见 {@code DefaultAdminSeeder}
+     * 对审计员权限清单的说明）。没有页面级这一层，就只能在"进得去但四个标签页
+     * 点开全是 403"与"干脆不让进、连能用的两个标签页也一起失去"之间二选一。
+     */
+    public static final String UI_ADMIN_USER = "ui:admin_user";
+    public static final String UI_ADMIN_TENANT = "ui:admin_tenant";
+    public static final String UI_ADMIN_RESOURCE = "ui:admin_resource";
+    public static final String UI_ADMIN_ROLE = "ui:admin_role";
+    public static final String UI_ADMIN_USER_GROUP = "ui:admin_user_group";
+    public static final String UI_ADMIN_ORGANIZATION = "ui:admin_organization";
+
+    /**
+     * 审计台内部的三块。
+     *
+     * <p>{@code ui:audit_drill} 与另外两块的区别是**它会写**：演练区要真实地发一次
+     * 写请求、再看它有没有被记下来，因此它实际依赖的是那一次写操作的权限
+     * （例如建用户要 {@link AuthPermissions#USER_CREATE}）。
+     * 于是它成了一个很干净的演示：**同一块界面上，能读审计的人不一定能跑演练**。
+     */
+    public static final String UI_AUDIT_FLOW = "ui:audit_flow";
+    public static final String UI_AUDIT_STATS = "ui:audit_stats";
+    public static final String UI_AUDIT_DRILL = "ui:audit_drill";
+
+    /*
+     * 三维环境内部的场景 —— **刻意没有页面级码**。
+     *
+     * 这段注释记的是一件"没有写下来的东西"，因此不挂在任何常量上。
+     * 按本域自己的粒度定义（"关掉之后剩下的部分是否仍然自洽"），场景本来是合格的候选。
+     * 但它在另一条上不合格：**场景不承载任何数据** —— 它们是本地几何与材质，
+     * 没有任何接口会因为"看不到某个场景"而被保护住。给它编页面级码要付两笔代价：
+     *
+     * 1. 该应用**当前没有、也不需要任何会话**（它一个后端接口都不调）。要按权限过滤
+     *    就得给它引入一整套认证链路，而其中"独立运行"那一支依赖后端可达 ——
+     *    于是"后端没起时单跑看看渲染效果"这个最常用的开发方式会坏掉；
+     * 2. 一个"关掉也保护不住任何东西、却真的会被关掉"的开关就是**假开关**，
+     *    而本仓明确不交付假开关。
+     *
+     * 它的应用级码 UI_ENVIRONMENT 仍然有意义：那决定"导航栏上有没有这个入口"，
+     * 撤销它整个应用就进不去 —— 那是一个真实的开关。
+     *
+     * 将来若场景变成有归属的内容（例如按租户授权场景包），触发条件就到了：
+     * 按本域的形状补 ui:env_scene_*:view 即可，机制已经在位，不必再改一次架构。
+     */
+
 }

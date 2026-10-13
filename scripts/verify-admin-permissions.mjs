@@ -378,14 +378,16 @@ async function main() {
       record("管理员看不到「新建用户」按钮 —— 权限下发或判定有问题");
     if (!adminView.update) record("管理员看不到「编辑」按钮");
     if (!adminView.remove) record("管理员看不到「删除」按钮");
-    // 27 项 = 用户 4 + 租户 4 + 组织 4 + 资源 4 + 角色 4 + 用户组 4 + 审计读 1 + 日志读 1 + 事件读 1
-    // （auth:audit:read 是 0019 加的；auth:resource:* 是资源管理接口加的；
-    //   auth:user_group:* 是用户组管理接口加的；log:client:read 与 event:client:read
-    //   是 0026 加的 —— 本切片之前，日志与事件的查询接口**完全没有鉴权**，
-    //   因此当时"管理员有多少项权限"这件事和它们无关；
-    //   auth:org:* 是组织管理接口加的，见 0030）
-    if (adminView.perms.length !== 27)
-      record(`管理员权限项应为 27，实际 ${adminView.perms.length}`);
+    // 45 项 = 27 项读写权限 + 18 条菜单码（5 个应用级 + 13 个页面级，见 docs/decisions/0031）
+    //   27 项读写 = 用户 4 + 租户 4 + 组织 4 + 资源 4 + 角色 4 + 用户组 4
+    //             + 审计读 1 + 日志读 1 + 事件读 1
+    //   （auth:audit:read 是 0019 加的；auth:resource:* 是资源管理接口加的；
+    //     auth:user_group:* 是用户组管理接口加的；log:client:read 与 event:client:read
+    //     是 0026 加的 —— 本切片之前，日志与事件的查询接口**完全没有鉴权**；
+    //     auth:org:* 是组织管理接口加的，见 0030）
+    // 菜单码是 0031 加的：它们只决定"界面上出现哪几个入口"，不参与接口准入
+    if (adminView.perms.length !== 45)
+      record(`管理员权限项应为 45，实际 ${adminView.perms.length}`);
     if (!adminView.perms.includes("auth:user:create"))
       record("管理员权限集合里没有 auth:user:create");
 
@@ -864,9 +866,12 @@ async function main() {
     if (auditorView.remove) record("审计员看到了「删除」按钮");
     if (auditorView.rowCount === 0)
       record("审计员读不到用户列表 —— 读权限也没生效，这一屏说明不了问题");
-    // 3 项 = 用户读 + 租户读 + 审计读（审计读是 0019 加的，审计台要靠它）
-    if (auditorView.perms.length !== 3)
-      record(`审计员权限项应为 3，实际 ${auditorView.perms.length}`);
+    // 14 项 = 3 项读写（用户读 + 租户读 + 审计读；审计读是 0019 加的，审计台要靠它）
+    //       + 11 条菜单码（权限管理 1 个应用级 + 6 个页面级 + 审计日志 1 + 3，见 0031）
+    // 菜单码让审计员**进得去**这几个页面，读写权限才决定他进去之后能做什么 ——
+    // 所以下面仍然要断言"一个写按钮都看不到"
+    if (auditorView.perms.length !== 14)
+      record(`审计员权限项应为 14，实际 ${auditorView.perms.length}`);
     // 403 不该被当成登录失效：页面必须还停在 /admin
     if (auditorView.path !== "/admin")
       record(`审计员被从 /admin 弹走了，实际在 ${auditorView.path}`);

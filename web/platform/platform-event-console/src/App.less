@@ -135,6 +135,12 @@
   grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
 }
 
+// 只剩一栏可见时收成单列 —— 否则那一栏会被按 5:7 挤在左半边，
+// 右边留一片空白，看起来像"右栏加载失败"。
+.layout--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .panel {
   display: flex;
   min-width: 0;

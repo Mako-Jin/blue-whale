@@ -317,9 +317,23 @@
   grid-template-columns: minmax(300px, 360px) minmax(0, 1fr) minmax(340px, 420px);
 }
 
+// 只剩一栏可见时收成单列 —— 否则那一栏会被按两栏的比例挤在半边，
+// 右边留一片空白，看起来像"另一栏加载失败"。
+.layout--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+// 两个修饰类可能同时出现：只有右栏可见、又打开了详情抽屉。
+// 这时是"内容 + 抽屉"两列，不是三列（左边没有可见栏）。
+// 双类选择器比单类更具体，因此不看声明顺序也能覆盖上面两条。
+.layout--single.layout--with-drawer {
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 420px);
+}
+
 @media (width <= 1180px) {
   .layout,
-  .layout--with-drawer {
+  .layout--with-drawer,
+  .layout--single.layout--with-drawer {
     grid-template-columns: minmax(0, 1fr);
   }
 }

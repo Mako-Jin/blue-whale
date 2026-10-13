@@ -4,22 +4,24 @@
 
 当前包含八个模块：
 
-| 模块      | 入口                   | 内容                                                          |
-| --------- | ---------------------- | ------------------------------------------------------------- |
-| `logger`  | `common-tools/logger`  | 分级日志、命名空间层级、主题配色、同构渲染                    |
-| `env`     | `common-tools/env`     | 运行环境探测、构建模式、调试模式与生产域名兜底                |
-| `http`    | `common-tools/http`    | 请求内核：发请求、解包统一响应、错误分类、令牌注入与 401 恢复 |
-| `session` | `common-tools/session` | 会话存取：令牌存放策略、身份与权限快照、变更订阅              |
-| `json`    | `common-tools/json`    | JSON 安全层：把任意值修剪成可序列化形态                       |
-| `report`  | `common-tools/report`  | 通用批量上报通道：批量、有界、退避、不抛异常                  |
-| `events`  | `common-tools/events`  | 行为事件内核：`track()` 语义化发布 + 内部总线 + 订阅          |
-| `micro`   | `common-tools/micro`   | 微前端桥接：子应用侧接住基座下发的 props 与全局状态           |
+| 模块      | 入口                   | 内容                                                                    |
+| --------- | ---------------------- | ----------------------------------------------------------------------- |
+| `logger`  | `common-tools/logger`  | 分级日志、命名空间层级、主题配色、同构渲染                              |
+| `env`     | `common-tools/env`     | 运行环境探测、构建模式、调试模式与生产域名兜底                          |
+| `http`    | `common-tools/http`    | 请求内核：发请求、解包统一响应、错误分类、令牌注入与 401 恢复           |
+| `session` | `common-tools/session` | 会话存取：令牌存放策略、身份与权限快照、变更订阅                        |
+| `json`    | `common-tools/json`    | JSON 安全层：把任意值修剪成可序列化形态                                 |
+| `report`  | `common-tools/report`  | 通用批量上报通道：批量、有界、退避、不抛异常                            |
+| `events`  | `common-tools/events`  | 行为事件内核：`track()` 语义化发布 + 内部总线 + 订阅                    |
+| `micro`   | `common-tools/micro`   | 微前端桥接：子应用侧接住基座下发的 props 与全局状态；权限快照与视图过滤 |
 
 `json` / `report` / `events` 三个模块是**行为事件管道**的底座（见 `docs/decisions/0011`）。它们被拆成三层而不是合成一个 "analytics" 包，原因是复用面完全不同：`json` 与 `report` 是**通道属性**，日志管道也在用；`events` 才是事件语义本身。
 
 `micro` 的位置值得说明：它是**子应用侧**的代码，本该属于子应用；但两个控制台都要用同一套逻辑，而**子应用之间禁止互相引用**（铁律 5），公共代码只能下沉到 `packages/`。于是它落在这里，并且刻意做成**结构化描述、不依赖 qiankun 类型**——这样本包"不依赖任何运行时第三方库"的约束不被破坏，桥接也不会被绑死在 qiankun 上。
 
 `session` 落在本包的理由与 `micro` 同源：基座与所有子应用都要用**同一份**会话逻辑，而应用之间禁止互相引用。它刻意**不 import qiankun、不碰任何界面**——因此同一份实现既能被基座驱动，也能被子应用单独驱动（子应用单跑时把状态的提供方换成它自己的 store）。归属与分工见 `docs/decisions/0018`。
+
+`micro/permission-store.ts` 的下沉理由同源：`platform-admin` 与 `platform-audit-console` 曾各持有一份近似实现（`0026` 记为**有意留着的重复**），而菜单过滤要接五个子应用 —— 再抄三份就是五份。它同样**不引 React**：接到 `useSyncExternalStore` 的三行适配留在各子应用，内核保持与框架无关。两条分支（基座下发 / 独立运行会话）与 `ready` 三态语义见 `docs/decisions/0031` 第 9 条。
 
 ---
 
@@ -71,8 +73,9 @@ packages/common-tools/
 │   └── micro/
 │       ├── index.ts          模块出口
 │       ├── types.ts          HostProps / HostGlobalState（结构化描述，不 import qiankun）
-│       └── bridge.ts         bindHost / unbindHost / getHostGlobalState…
-├── tests/                    Vitest 单元测试（168 例）
+│       ├── bridge.ts         bindHost / unbindHost / getHostGlobalState…
+│       └── permission-store.ts  createPermissionStore / visibleViews：权限快照（基座下发或独立会话两条分支）
+├── tests/                    Vitest 单元测试（178 例）
 ├── playground/               可视化演示（纯 DOM，可运行）
 ├── eslint.config.js          引用 common-config，额外放行本包的 console 调用
 ├── stylelint.config.js       一行 re-export common-config 共享配置

@@ -48,6 +48,8 @@ vi.mock('common-api', async (importOriginal) => {
   };
 });
 
+import { AuditConsoleViews } from 'common-api';
+
 import App from '../src/App';
 import { getStandaloneSession, initializeAuth } from '../src/auth';
 import { connectPermissionSource } from '../src/auth/permissions';
@@ -55,6 +57,15 @@ import { connectPermissionSource } from '../src/auth/permissions';
 const AUDIT_READ = 'auth:audit:read';
 const TENANT_CREATE = 'auth:tenant:create';
 const TENANT_DELETE = 'auth:tenant:delete';
+
+/**
+ * 三块区域各自的菜单码。
+ *
+ * <p>与 `auth:audit:read` 是**两层**：菜单码决定区块出不出现，读权限决定里面的请求
+ * 能不能成功。这两个码都缺的人看到的是"没有读权限"，只有缺菜单码的人看到的是
+ * "没有可见的区块" —— 提示语不同，因为要用户做的事不同。
+ */
+const { FLOW, STATS, DRILL } = AuditConsoleViews;
 
 const SUCCESS_ROW = {
   id: 101,
@@ -125,7 +136,7 @@ beforeEach(() => {
 
 describe('审计日志台 · 只读管道', () => {
   it('有读权限时渲染流水、聚合与演练区', async () => {
-    signIn([AUDIT_READ, TENANT_CREATE, TENANT_DELETE]);
+    signIn([AUDIT_READ, TENANT_CREATE, TENANT_DELETE, FLOW, STATS, DRILL]);
     render(<App />);
 
     expect(await screen.findByTestId('audit-row-101')).toBeInTheDocument();
@@ -139,7 +150,7 @@ describe('审计日志台 · 只读管道', () => {
   });
 
   it('页面上没有任何"新增一条审计"的入口（接口不存在，入口也不该存在）', async () => {
-    signIn([AUDIT_READ]);
+    signIn([AUDIT_READ, FLOW]);
     render(<App />);
     await screen.findByTestId('audit-row-101');
 
@@ -150,7 +161,7 @@ describe('审计日志台 · 只读管道', () => {
   });
 
   it('审计员（只有读权限）：演练区按钮照旧渲染 —— 越权尝试本身就该被记录', async () => {
-    signIn([AUDIT_READ]);
+    signIn([AUDIT_READ, FLOW, DRILL]);
     render(<App />);
     await screen.findByTestId('audit-row-101');
 
@@ -161,7 +172,7 @@ describe('审计日志台 · 只读管道', () => {
   });
 
   it('演练：写一次租户，随后在审计表里等到对应记录', async () => {
-    signIn([AUDIT_READ, TENANT_CREATE, TENANT_DELETE]);
+    signIn([AUDIT_READ, TENANT_CREATE, TENANT_DELETE, FLOW, DRILL]);
     mocks.tenantCreate.mockResolvedValue({
       id: 9,
       tenantCode: 'drillabc',
@@ -201,7 +212,7 @@ describe('审计日志台 · 只读管道', () => {
   });
 
   it('演练被拒绝时说明"已留痕"，而不是笼统说失败', async () => {
-    signIn([AUDIT_READ]);
+    signIn([AUDIT_READ, FLOW, DRILL]);
     mocks.tenantCreate.mockRejectedValue(new Error('缺少权限：auth:tenant:create'));
 
     render(<App />);
@@ -227,6 +238,31 @@ describe('审计日志台 · 只读管道', () => {
     expect(screen.queryByTestId('audit-table')).not.toBeInTheDocument();
   });
 
+  it('有菜单码但没有读权限：提示的仍是"缺读权限" —— 菜单码不替代准入门槛', async () => {
+    // 三块区域全授，唯独没有 auth:audit:read
+    signIn([FLOW, STATS, DRILL]);
+    render(<App />);
+
+    const banner = await screen.findByTestId('audit-no-permission');
+    expect(banner.textContent).toContain(AUDIT_READ);
+    // 两道门是独立的：菜单码只让区块"可以出现"，读权限才决定能不能看到内容
+    expect(screen.queryByTestId('audit-list-panel')).not.toBeInTheDocument();
+    expect(mocks.auditPage).not.toHaveBeenCalled();
+  });
+
+  it('一个菜单码都没有：三块区域都不渲染，并说清缺的是哪一类码', async () => {
+    // 有读权限、但没有菜单码 —— 查回来的东西没有落点，因此干脆不查
+    signIn([AUDIT_READ]);
+    render(<App />);
+
+    const empty = screen.getByTestId('audit-empty');
+    expect(empty.textContent).toContain('ui:audit_*:view');
+    expect(screen.queryByTestId('audit-list-panel')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('audit-stats-panel')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('drill-panel')).not.toBeInTheDocument();
+    expect(mocks.auditPage).not.toHaveBeenCalled();
+  });
+
   it('权限未就绪时不发请求（先等权限，而不是先打一次注定被拒的请求）', () => {
     // 刻意不建会话 —— 权限来源未就绪
     render(<App />);
@@ -236,7 +272,7 @@ describe('审计日志台 · 只读管道', () => {
   });
 
   it('点聚合里的动作即筛选流水（聚合给出"哪类最多"，下一步必然是"长什么样"）', async () => {
-    signIn([AUDIT_READ]);
+    signIn([AUDIT_READ, FLOW, STATS]);
     render(<App />);
     await screen.findByTestId('audit-row-101');
 
@@ -249,7 +285,7 @@ describe('审计日志台 · 只读管道', () => {
   });
 
   it('详情里体现"审计只有服务端时间"这一条边界', async () => {
-    signIn([AUDIT_READ]);
+    signIn([AUDIT_READ, FLOW]);
     render(<App />);
     await screen.findByTestId('audit-row-101');
 

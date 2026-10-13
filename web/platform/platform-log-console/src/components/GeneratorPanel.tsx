@@ -40,7 +40,7 @@ export function GeneratorPanel({
   onViewTrace,
 }: GeneratorPanelProps) {
   return (
-    <section className="panel generator">
+    <section className="panel generator" data-testid="log-generator-panel">
       <header className="panel__head">
         <h2 className="panel__title">产生日志</h2>
         <p className="panel__hint">走真实的 logger，级别过滤与命名空间层级都会生效</p>

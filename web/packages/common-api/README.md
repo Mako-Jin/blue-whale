@@ -40,6 +40,7 @@ packages/common-api/
 │   ├── auth.ts               认证域接口（登录 / 刷新 / 登出 / me）+ 身份映射
 │   ├── channel.ts            createAuthChannel：把契约、会话存储与传输钩子接成认证能力
 │   ├── console-auth.ts       createConsoleAuth：子应用的认证接线（宿主桥优先，独立运行时自建会话）
+│   ├── menus.ts              菜单与页面权限码（与后端 AuthPermissions 的 ui:* 逐字一致，**不进 OpenAPI**）
 │   ├── access.ts             权限域实体管理（用户 / 租户 / 资源 / 角色 / 用户组）+ 权限标识常量
 │   ├── audit.ts              审计域接口（**只读**：分页 / 详情 / 按动作聚合）+ 权限标识常量
 │   ├── log.ts                日志域接口（路径常量 + 方法接线）
@@ -51,6 +52,7 @@ packages/common-api/
 │   ├── events.test.ts        事件域的路径与方法接线断言
 │   ├── access.test.ts        权限域接线 + 权限标识与后端逐字一致
 │   ├── audit.test.ts         审计域的路径断言 + **"只有三个读方法"的快照式断言**
+│   ├── menus.test.ts         菜单码与后端逐字一致（含声明顺序），钉住"改一端忘另一端"那个坑
 │   └── auth.test.ts          认证域接线 + 401 恢复串联（含并发只刷新一次）
 ├── eslint.config.js          引用 common-config
 └── vite.config.ts            测试配置

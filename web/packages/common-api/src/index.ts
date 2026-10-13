@@ -30,6 +30,22 @@ export type { AuthChannel, AuthChannelConfig, ChannelApi } from './channel';
 export { createConsoleAuth } from './console-auth';
 export type { ConsoleAuth, ConsoleAuthOptions, ConsoleAuthPort } from './console-auth';
 
+/*
+ * 菜单与页面权限码（`ui:*`）。
+ *
+ * **不进 OpenAPI**：菜单是静态配置不是接口，因此这一份是手写的 ——
+ * 与 `AccessPermissions` 同一性质，由 `tests/menus.test.ts` 逐字钉住，
+ * 后端那一份由 `AuthMenuTaxonomyTest` 钉住，两端靠同一串编码对齐。
+ */
+export {
+  AdminViews,
+  AppMenus,
+  AuditConsoleViews,
+  EventConsoleViews,
+  LogConsoleViews,
+} from './menus';
+export type { MenuPermission } from './menus';
+
 export { AccessPermissions, createAccessApi } from './access';
 export type {
   AccessApi,

@@ -6,6 +6,7 @@
  * 会直接编译不过。这不是风格偏好，是硬约束。
  */
 
+import type { MenuPermission } from 'common-api';
 import type { HostAuthBridge } from 'common-tools/micro';
 
 /** 子应用注册信息。 */
@@ -26,6 +27,17 @@ export type MicroAppMeta = {
   devPort: number;
   /** 生产期子应用的静态资源目录（即以子应用路径为 base 构建的产物） */
   prodEntry: string;
+  /**
+   * 进这个应用所需的**菜单码**（`ui:xxx:view`）。
+   *
+   * <p>刻意做成**必填**：新登记一个应用时，编译器会逼着回答"谁能看见它"。
+   * 可选字段会让漏填表现为"任何人都看得见" —— 而这恰好是本字段要消灭的状态。
+   *
+   * <p>它不是接口权限：撤销它只会让入口消失，子应用里的接口照样放行。
+   * 真正拦住请求的是服务端的 {@code @RequiresPermission}，
+   * 两者是两个层次（见 `common-api` 的 `menus.ts`）。
+   */
+  menuPermission: MenuPermission;
   /** 一句话说明，显示在加载态里 */
   summary: string;
 };

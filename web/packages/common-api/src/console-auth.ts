@@ -1,5 +1,6 @@
 import { createLogger } from 'common-tools';
 import { getHostProps } from 'common-tools/micro';
+import type { IdentitySnapshot, StandaloneIdentitySource } from 'common-tools/micro';
 import { createSessionStore } from 'common-tools/session';
 import type { SessionStore } from 'common-tools/session';
 
@@ -40,7 +41,7 @@ export interface ConsoleAuthOptions {
   };
 }
 
-export interface ConsoleAuth {
+export interface ConsoleAuth extends StandaloneIdentitySource {
   /** 给 {@link createApiClient} 用的令牌端口 */
   readonly port: ConsoleAuthPort;
   /**
@@ -50,6 +51,22 @@ export interface ConsoleAuth {
    * 那时会把"被基座加载"误判成"独立运行"）；在基座内调用它是安全的空操作。
    */
   ensureSession(): Promise<void>;
+  /**
+   * 独立运行时自建的会话；**被基座加载时返回 null**（那时会话在基座手里）。
+   *
+   * <p>存在的理由有两个，都是"必须有"的：
+   * <ul>
+   *   <li>权限来源要订阅它（见 {@link ConsoleAuth.onStandaloneIdentityChange}）；</li>
+   *   <li>测试要能在不绑基座的前提下摆好一个身份 —— 整棵权限链路的起点就是
+   *       "会话里有哪些权限"，没有它就只能靠绑一个假基座来测，
+   *       而那会把被测对象从"读会话"换成"读基座"，测的就不是同一件事了。</li>
+   * </ul>
+   *
+   * <p>它**会按需创建**会话（与 `getAccessToken` 同一条路径）。因此不要在
+   * "可能被基座加载"的时刻无条件调用它 —— 那会造出第二套会话，
+   * 正是本模块开头要避免的事。判据是返回值是不是 null。
+   */
+  getStandaloneSession(): SessionStore | null;
 }
 
 /**
@@ -99,6 +116,15 @@ export function createConsoleAuth(options: ConsoleAuthOptions): ConsoleAuth {
     }
     return standaloneChannel;
   };
+
+  /**
+   * 独立运行时自建的会话；被基座加载时返回 null。
+   *
+   * <p>判据是"有没有宿主桥"而不是"有没有会话"，与 {@link ConsoleAuthPort.getAccessToken}
+   * 同一理由：用后者会把"还没登录"误判成"独立运行"，进而自建起第二套会话。
+   */
+  const getStandaloneSession = (): SessionStore | null =>
+    getHostProps()?.auth ? null : ensureStandaloneChannel().session;
 
   const port: ConsoleAuthPort = {
     getAccessToken: () => {
@@ -151,5 +177,53 @@ export function createConsoleAuth(options: ConsoleAuthOptions): ConsoleAuth {
     await channel.login(options.devAccount);
   };
 
-  return { port, ensureSession };
+  /**
+   * 独立运行时的身份快照 —— 供 {@code createPermissionStore} 做页面级过滤用。
+   *
+   * <p><b>被基座加载时返回 null</b>：那时身份的来源是基座下发的全局状态
+   * （`HostGlobalState.permissions`），本应用自己的会话根本没被创建
+   * （这正是"避免两套会话并存"那条）。返回 null 让权限 store 干脆走基座分支，
+   * 而不是去读一份永远为空的会话。
+   *
+   * <p>用"有没有宿主桥"而不是"有没有会话"来区分两种运行方式，与
+   * {@link ConsoleAuthPort.getAccessToken} 同一判据 —— 用后者会把
+   * "还没登录"误判成"独立运行"。
+   */
+  const readStandaloneIdentity = (): IdentitySnapshot | null => {
+    const user = getStandaloneSession()?.getSnapshot().user;
+    if (!user) {
+      return null;
+    }
+    return {
+      userId: String(user.userId),
+      roles: user.roles ?? [],
+      permissions: user.permissions ?? [],
+    };
+  };
+
+  /**
+   * 订阅独立运行时的身份变更。
+   *
+   * <p>**订阅会顺手把会话建出来**（`getStandaloneSession` 按需创建）：调用点的顺序是
+   * "先接权限来源、再 `ensureSession`"（见各子应用 `main.tsx` 的独立运行分支），
+   * 若这里只订阅"可能还不存在的会话"，独立运行时的那次身份变更会被漏掉 ——
+   * 症状是"单跑时入口一个都不出现，刷新一下才正常"。
+   */
+  const onStandaloneIdentityChange = (listener: () => void): (() => void) => {
+    const session = getStandaloneSession();
+    if (!session) {
+      // 被基座加载：身份由基座下发，本应用这条通道永远不会响。
+      // 返回一个空函数而不是抛错 —— 调用方（权限 store）不关心自己在哪个分支
+      return () => {};
+    }
+    return session.subscribe(() => listener());
+  };
+
+  return {
+    port,
+    ensureSession,
+    getStandaloneSession,
+    readStandaloneIdentity,
+    onStandaloneIdentityChange,
+  };
 }

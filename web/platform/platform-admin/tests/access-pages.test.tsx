@@ -115,10 +115,19 @@ vi.mock('common-api', async (importOriginal) => {
   };
 });
 
+import { AdminViews } from 'common-api';
+
 import App from '../src/App';
 import { getStandaloneSession, initializeAuth } from '../src/auth';
 import { connectPermissionSource } from '../src/auth/permissions';
 
+/**
+ * 管理员的完整权限集合 = 读写权限 **加** 六个标签页菜单码。
+ *
+ * <p>两类码的用途不同：菜单码决定标签页出不出来，读写权限决定点进去之后
+ * 能看到哪些按钮。只给前者会得到一个"进得去但全是只读"的界面，
+ * 只给后者会得到一个连标签页都没有的界面 —— 两种都不算管理员。
+ */
 const ADMIN = [
   'auth:user:read',
   'auth:resource:read',
@@ -132,6 +141,7 @@ const ADMIN = [
   'auth:org:create',
   'auth:org:update',
   'auth:org:delete',
+  ...Object.values(AdminViews),
 ];
 
 const USER_ROW = { id: 7, username: 'admin', displayName: '系统管理员', status: 'ENABLED' };
@@ -280,12 +290,16 @@ describe('权限管理后台 · 资源 / 角色 / 用户组', () => {
   });
 
   it('资源页：只读账号看不到新建入口，但树照常可见', async () => {
-    signIn(['auth:resource:read']);
+    signIn(['auth:resource:read', AdminViews.RESOURCE]);
     render(<App />);
-    await screen.findByTestId('user-row-admin');
 
-    fireEvent.click(screen.getByText('资源'));
-    await screen.findByTestId('resource-node-auth');
+    /*
+     * 只授了「资源」一个菜单码 ⇒ 默认选中的「用户」被过滤掉，回落到第一个可见标签页。
+     * 这一句顺带钉住了"过滤不只发生在导航上，也发生在内容区" ——
+     * 否则被过滤的标签页仍会被渲染出来，导航过滤就成了摆设。
+     */
+    expect(await screen.findByTestId('resource-node-auth')).toBeInTheDocument();
+    expect(screen.queryByTestId('admin-tab-users')).not.toBeInTheDocument();
 
     // 看得见 —— 否则就分不清是"没权限"还是"没数据"
     expect(screen.queryByText('新建资源')).not.toBeInTheDocument();
@@ -414,7 +428,7 @@ describe('权限管理后台 · 资源 / 角色 / 用户组', () => {
       },
     ]);
     // 只有用户读权限 —— 反查归 `auth:user:read`，因此这个按钮必须出现
-    signIn(['auth:user:read']);
+    signIn(['auth:user:read', AdminViews.USER]);
     render(<App />);
     await screen.findByTestId('user-row-admin');
 
@@ -446,11 +460,10 @@ describe('权限管理后台 · 资源 / 角色 / 用户组', () => {
   });
 
   it('组织页：只读账号看不到任何写入口，但整棵树照常可见', async () => {
-    signIn(['auth:org:read']);
+    signIn(['auth:org:read', AdminViews.ORGANIZATION]);
     render(<App />);
-    await screen.findByTestId('user-row-admin');
 
-    fireEvent.click(screen.getByText('组织'));
+    // 只授了「组织」一个菜单码 ⇒ 默认选中的「用户」被过滤掉，回落到这一个可见标签页
     await screen.findByTestId('org-node-HQ');
 
     // 看得见结构 —— 否则分不清是"没权限"还是"没数据"
@@ -624,7 +637,7 @@ describe('权限管理后台 · 资源 / 角色 / 用户组', () => {
       visibleOrgIds: [],
       note: '该用户没有有效主岗，已按「仅本人」处理',
     });
-    signIn(['auth:user:read']);
+    signIn(['auth:user:read', AdminViews.USER]);
     render(<App />);
     await screen.findByTestId('user-row-admin');
 

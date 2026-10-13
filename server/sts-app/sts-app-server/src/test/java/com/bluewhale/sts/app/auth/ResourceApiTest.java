@@ -1,6 +1,9 @@
 package com.bluewhale.sts.app.auth;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.bluewhale.sts.auth.common.AuthPermissions;
 import com.bluewhale.sts.auth.common.AuthProperties;
+import com.bluewhale.sts.auth.common.enums.ResourceType;
 import com.bluewhale.sts.auth.resource.ResourceEntity;
 import com.bluewhale.sts.auth.resource.ResourceMapper;
 import com.jayway.jsonpath.JsonPath;
@@ -22,6 +25,7 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -290,6 +294,35 @@ class ResourceApiTest {
         mockMvc.perform(get("/api/auth/resources/" + ids.get(0))
                         .header("Authorization", "Bearer " + token))
                 .andExpect(jsonPath("$.code").value(0));
+    }
+
+    @Test
+    @DisplayName("种子把菜单建成了 MENU / PAGE 并带父子关系 —— 类型写错会让资源目录显示一句反话")
+    void shouldSeedMenuResourcesWithHierarchy() {
+        // 应用入口：MENU、无父级
+        ResourceEntity menu = resourceMapper.selectOne(Wrappers.<ResourceEntity>lambdaQuery()
+                .eq(ResourceEntity::getResourceCode, AuthPermissions.UI_ADMIN_VIEW));
+        assertNotNull(menu, "菜单码必须在种子里建出资源行 —— 否则前端的那个入口永远等不到权限下发");
+        assertEquals(ResourceType.MENU.wireName(), menu.getResourceType(),
+                "应用入口应当是 MENU；建成 API 会让它在资源目录里显示成'参与后端准入'");
+        assertNull(menu.getParentCode());
+
+        // 它下面的页面：PAGE、父指向它
+        List<ResourceEntity> pages = resourceMapper.selectList(Wrappers.<ResourceEntity>lambdaQuery()
+                .eq(ResourceEntity::getParentCode, AuthPermissions.UI_ADMIN_VIEW));
+        assertEquals(6, pages.size(), "权限管理的六个标签页各有一条 PAGE 资源");
+        assertTrue(pages.stream().allMatch(page -> ResourceType.PAGE.wireName().equals(page.getResourceType())),
+                "页面级一律 PAGE —— 与 MENU 混用会让'菜单结构'变成'应用彼此是父子'");
+        assertTrue(pages.stream().anyMatch(page ->
+                        AuthPermissions.UI_ADMIN_ORGANIZATION_VIEW.equals(page.getResourceCode())),
+                "组织标签页的码也要在 —— 它是本轮新增的那个入口");
+
+        // 对照：接口资源一律 API 且没有父级（两类资源的形状本来就不同）
+        ResourceEntity api = resourceMapper.selectOne(Wrappers.<ResourceEntity>lambdaQuery()
+                .eq(ResourceEntity::getResourceCode, AuthPermissions.USER_READ));
+        assertNotNull(api);
+        assertEquals(ResourceType.API.wireName(), api.getResourceType());
+        assertNull(api.getParentCode(), "接口资源不该被挂进菜单树里");
     }
 
     /* ==================== 入参守卫与鉴权 ==================== */

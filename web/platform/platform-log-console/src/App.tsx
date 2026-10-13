@@ -1,8 +1,10 @@
 import type { Health, ClientLogPage, ClientLogStats, ClientLogVO } from 'common-api';
+import { LogConsoleViews } from 'common-api';
 import type { LogLevel } from 'common-tools';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import './App.less';
+import { usePermission } from './auth/permissions';
 import { GeneratorPanel } from './components/GeneratorPanel';
 import { LogDetailDrawer } from './components/LogDetailDrawer';
 import type { LogFilters } from './components/ServerLogPanel';
@@ -28,6 +30,16 @@ const PAGE_SIZE = 20;
 const SWAGGER_URL = '/swagger-ui.html';
 
 export default function App() {
+  /*
+   * 两栏各自的菜单码 —— 与接口权限是两层：这决定"这一栏出不出来"，
+   * 不决定里面的请求能不能成功（右栏还要 `log:client:read`，服务端说了算）。
+   *
+   * 拆成两栏而不是一个整应用的码，是因为它们的依赖本来就不同：
+   * 左栏全在前端完成、不需要任何后端权限；右栏要读服务端库、能读到别人的报错正文。
+   */
+  const canReport = usePermission(LogConsoleViews.REPORTER);
+  const canQuery = usePermission(LogConsoleViews.QUERY);
+
   const [reporterState, setReporterState] = useState<ReporterState>(() => reporter.getState());
   const [localTick, setLocalTick] = useState(0);
   const [autoReport, setAutoReport] = useState(true);
@@ -58,10 +70,12 @@ export default function App() {
   /* ------------------------------------------- 上报开关 → 启动/停止缓冲 */
 
   useEffect(() => {
-    if (autoReport) reporter.start();
+    // 左栏不可见时不上报：一条看不见的管道仍在后台发请求，就是"假开关"那种味道 ——
+    // 界面上没有它，行为上却处处是它
+    if (autoReport && canReport) reporter.start();
     else reporter.stop();
     return () => reporter.stop();
-  }, [autoReport]);
+  }, [autoReport, canReport]);
 
   /* --------------------------------------------------------- 健康检查 */
 
@@ -95,6 +109,12 @@ export default function App() {
   /* ------------------------------------------------------- 服务端查询 */
 
   useEffect(() => {
+    // 右栏不可见就不查：这时必然失败（没有 log:client:read 会拿到 40301），
+    // 白留一屏错误，也会在审计里多出几条"其实没人看的查询"
+    if (!canQuery) {
+      return;
+    }
+
     let alive = true;
 
     const load = async () => {
@@ -130,7 +150,7 @@ export default function App() {
     return () => {
       alive = false;
     };
-  }, [filters, pageNo, refreshTick]);
+  }, [filters, pageNo, refreshTick, canQuery]);
 
   /* --------------------------- 上报成功后自动刷新，让"左边产生右边出现"可见 */
 
@@ -238,55 +258,88 @@ export default function App() {
         </div>
       ) : null}
 
-      <main className={`layout${selected ? ' layout--with-drawer' : ''}`}>
-        <GeneratorPanel
-          records={records}
-          reporterState={reporterState}
-          autoReport={autoReport}
-          lastTraceId={lastTraceId}
-          onToggleAutoReport={setAutoReport}
-          onClear={clearLocalRecords}
-          onEmitLevel={handleEmitLevel}
-          onBurst={handleBurst}
-          onSimulateChain={handleSimulateChain}
-          onRaiseError={handleRaiseError}
-          onViewTrace={handleViewTrace}
-        />
+      {/*
+        两栏都没有时不能留一片空白：那既看不出是"没权限"还是"坏了"，
+        也看不出该找谁。这里指名说出缺的是哪一类码。
+      */}
+      {!canReport && !canQuery ? (
+        <p className="alert alert--block" data-testid="console-empty">
+          当前身份没有可见的区域（需要 <code>ui:log_reporter:view</code> 或{' '}
+          <code>ui:log_query:view</code> 菜单码）。
+        </p>
+      ) : null}
 
-        <ServerLogPanel
-          stats={stats}
-          page={page}
-          loading={loading}
-          error={queryError}
-          filters={filters}
-          onFiltersChange={(next) => {
-            setFilters(next);
-            setPageNo(1);
-          }}
-          onPageChange={setPageNo}
-          onRefresh={() => setRefreshTick((n) => n + 1)}
-          onSelect={(log) => {
-            setSelected(log);
-            setTrace(null);
-          }}
-          onViewTrace={handleViewTrace}
-        />
+      {/*
+        列定义跟着"可见栏数"走：只剩一栏时收成单列，免得被按两栏比例挤在半边。
+        两个修饰类可能同时出现（只有右栏可见 + 抽屉打开），那种组合在 CSS 里单列一条规则。
+      */}
+      <main
+        className={[
+          'layout',
+          canReport && canQuery ? '' : 'layout--single',
+          selected && canQuery ? 'layout--with-drawer' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
+        {canReport ? (
+          <GeneratorPanel
+            records={records}
+            reporterState={reporterState}
+            autoReport={autoReport}
+            lastTraceId={lastTraceId}
+            onToggleAutoReport={setAutoReport}
+            onClear={clearLocalRecords}
+            onEmitLevel={handleEmitLevel}
+            onBurst={handleBurst}
+            onSimulateChain={handleSimulateChain}
+            onRaiseError={handleRaiseError}
+            onViewTrace={handleViewTrace}
+          />
+        ) : null}
 
-        <LogDetailDrawer
-          log={selected}
-          trace={trace}
-          traceLoading={traceLoading}
-          onClose={() => {
-            setSelected(null);
-            setTrace(null);
-          }}
-          onLoadTrace={handleViewTrace}
-          onClearTrace={() => setTrace(null)}
-          onSelect={(log) => {
-            setSelected(log);
-            setTrace(null);
-          }}
-        />
+        {canQuery ? (
+          <ServerLogPanel
+            stats={stats}
+            page={page}
+            loading={loading}
+            error={queryError}
+            filters={filters}
+            onFiltersChange={(next) => {
+              setFilters(next);
+              setPageNo(1);
+            }}
+            onPageChange={setPageNo}
+            onRefresh={() => setRefreshTick((n) => n + 1)}
+            onSelect={(log) => {
+              setSelected(log);
+              setTrace(null);
+            }}
+            onViewTrace={handleViewTrace}
+          />
+        ) : null}
+
+        {/*
+          详情抽屉跟着**右栏**走：它展示的是服务端日志与链路，
+          没有右栏就点不开它 —— 单独给它一个码等于造一个进不去的入口。
+        */}
+        {canQuery ? (
+          <LogDetailDrawer
+            log={selected}
+            trace={trace}
+            traceLoading={traceLoading}
+            onClose={() => {
+              setSelected(null);
+              setTrace(null);
+            }}
+            onLoadTrace={handleViewTrace}
+            onClearTrace={() => setTrace(null)}
+            onSelect={(log) => {
+              setSelected(log);
+              setTrace(null);
+            }}
+          />
+        ) : null}
       </main>
     </div>
   );
