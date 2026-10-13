@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.bluewhale.sts.auth.authz.PermissionChecker;
 import com.bluewhale.sts.auth.common.AuthProperties;
 import com.bluewhale.sts.auth.common.AuthResultCode;
+import com.bluewhale.sts.auth.common.PasswordPolicy;
 import com.bluewhale.sts.auth.common.codec.Digests;
 import com.bluewhale.sts.auth.common.codec.JwtCodec;
 import com.bluewhale.sts.auth.common.codec.JwtExpiredException;
@@ -58,6 +59,7 @@ public class AuthService {
     private final LoginAttemptRecorder loginAttemptRecorder;
     private final PasswordChanger passwordChanger;
     private final AuthProperties properties;
+    private final PasswordPolicy passwordPolicy;
 
     public AuthService(TenantMapper tenantMapper,
                        UserMapper userMapper,
@@ -67,7 +69,8 @@ public class AuthService {
                        PasswordHasher passwordHasher,
                        LoginAttemptRecorder loginAttemptRecorder,
                        PasswordChanger passwordChanger,
-                       AuthProperties properties) {
+                       AuthProperties properties,
+                       PasswordPolicy passwordPolicy) {
         this.tenantMapper = tenantMapper;
         this.userMapper = userMapper;
         this.refreshTokenMapper = refreshTokenMapper;
@@ -77,6 +80,7 @@ public class AuthService {
         this.loginAttemptRecorder = loginAttemptRecorder;
         this.passwordChanger = passwordChanger;
         this.properties = properties;
+        this.passwordPolicy = passwordPolicy;
     }
 
     @Transactional
@@ -110,7 +114,9 @@ public class AuthService {
         if (!Status.ENABLED.wireName().equals(user.getStatus())) {
             throw AuthResultCode.ACCOUNT_DISABLED.businessException();
         }
-        if (user.getPasswordExpiresAt() != null && user.getPasswordExpiresAt() <= now) {
+        // 与刷新那条路共用同一个判断（见 PasswordPolicy#isExpired）：两处各写一份的话，
+        // 它们会在某一次修改里只改到其中一处，而症状是"登录说没过期、刷新说过期"。
+        if (passwordPolicy.isExpired(user.getPasswordExpiresAt(), now)) {
             throw AuthResultCode.PASSWORD_EXPIRED.businessException();
         }
 
@@ -137,9 +143,16 @@ public class AuthService {
     /**
      * 刷新访问令牌。
      *
-     * <p>算法：校验刷新令牌 → 查库确认未被撤销 → 比对摘要 → **作废旧令牌并换发新令牌**。
-     * 轮换（rotation）让一个被盗的刷新令牌只有一次可用机会，
+     * <p>算法：校验刷新令牌 → 查库确认未被撤销 → 比对摘要 → **校验账号仍可用且口令未过期**
+     * → 作废旧令牌并换发新令牌。轮换（rotation）让一个被盗的刷新令牌只有一次可用机会，
      * 且它的下一次使用会立刻触发泄露检测。
+     *
+     * <p><b>为什么"作废旧令牌"排在全部校验之后：</b>一个失败的请求不该有副作用。
+     * 这与 {@link #changePassword} 那句"上面任何一步失败都不该动会话"同源，
+     * 而且在这里有一层具体收益：口令已过期的用户反复刷新只会反复得到 {@code 40111}，
+     * 手上那个刷新令牌**不会被烧掉**，因此管理员重置口令之后他不必重新登录就能恢复
+     * （那时 {@code mustChangePassword} 已经变 1，前端会引导他改密）。
+     * 反过来（先撤销再校验）会得到一个没法自愈的会话：令牌被作废、新令牌又没发出来。
      */
     @Transactional
     public LoginVO refresh(RefreshRequest request, String clientIp, String userAgent) {
@@ -172,15 +185,26 @@ public class AuthService {
             throw AuthResultCode.TOKEN_INVALID.businessException();
         }
 
-        stored.setRevoked(1);
-        stored.setRevokedAt(now);
-        refreshTokenMapper.updateById(stored);
-
         TenantEntity tenant = tenantMapper.selectById(stored.getTenantId());
         UserEntity user = userMapper.selectById(stored.getUserId());
         if (tenant == null || user == null || !Status.ENABLED.wireName().equals(user.getStatus())) {
             throw AuthResultCode.SESSION_INVALID.businessException();
         }
+
+        // 口令过期**也要在续期这条路上拦**。只在登录拦是不够的：刷新令牌是轮换的
+        // （每次续出一个新的、有效期重新起算），只要一直在用就永远不必重新登录 ——
+        // 过期于是永不生效，那条策略从"有效期"退化成一句注释。
+        // 拦在这里的残留边界是访问令牌的有效期（默认 2 小时）：
+        // 最坏情况下到期的人还能用旧会话两小时，之后必须由管理员重置才能回来。
+        // 与 logout / changePassword 接受的残留是同一个量级，理由也一样（无状态访问令牌）。
+        if (passwordPolicy.isExpired(user.getPasswordExpiresAt(), now)) {
+            throw AuthResultCode.PASSWORD_EXPIRED.businessException();
+        }
+
+        stored.setRevoked(1);
+        stored.setRevokedAt(now);
+        refreshTokenMapper.updateById(stored);
+
         return issueTokens(tenant, user, clientIp, userAgent, now);
     }
 

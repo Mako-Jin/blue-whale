@@ -1,12 +1,15 @@
 package com.bluewhale.sts.auth.common;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 口令强度策略 —— 校验"新设口令"的形态是否满足要求。
+ * 口令策略 —— {@code bluewhale.auth.password} 下那些策略参数的**唯一读取处**：
+ * 强度（{@link #violations}）、防重用的覆盖范围（{@link #historyCount}）、
+ * 有效期（{@link #expiryOf} 与 {@link #isExpired}）。
  *
- * <p><b>职责边界：只校验形态，不判断"是否弱口令"。</b>
+ * <p><b>职责边界：就 {@link #violations} 而言，它只校验形态，不判断"是否弱口令"。</b>
  * 字典比对（{@code 123456}、{@code password}、{@code admin123}）需要一份词表与额外的判定语义，
  * 不在本切片的范围内；本类回答的是"长度够不够、字符类别缺哪几类"。
  *
@@ -38,6 +41,7 @@ public class PasswordPolicy {
     private final boolean requireDigit;
     private final boolean requireSpecial;
     private final int historyCount;
+    private final int expireDays;
 
     public PasswordPolicy(AuthProperties properties) {
         AuthProperties.Password config = properties.getPassword();
@@ -47,6 +51,7 @@ public class PasswordPolicy {
         this.requireDigit = config.isRequireDigit();
         this.requireSpecial = config.isRequireSpecial();
         this.historyCount = config.getHistoryCount();
+        this.expireDays = config.getExpireDays();
     }
 
     /**
@@ -118,6 +123,44 @@ public class PasswordPolicy {
     /** 需要记住多少个历史口令禁止重用；{@code 0} 表示关闭该项检查 */
     public int historyCount() {
         return historyCount;
+    }
+
+    /**
+     * 在 {@code now} 这个时刻设下的口令，什么时候失效；{@code null} 表示**不失效**。
+     *
+     * <p>它由 {@code PasswordChanger} 换算成 {@code password_expires_at} 落库 ——
+     * 这个算术留在这里而不是散在调用点，理由与 {@code violations} 一样：
+     * "有效期多长"是一个策略问题，它不该有两个版本。
+     */
+    public Long expiryOf(long now) {
+        if (expireDays <= 0) {
+            return null;
+        }
+        return now + Duration.ofDays(expireDays).toMillis();
+    }
+
+    /**
+     * 这个口令是不是已经过期了 —— 登录与刷新两处**必须问同一个问题**。
+     *
+     * <p><b>第一步先看策略有没有开，而不是先看那个时刻。</b>这不是防御性编程，
+     * 而是这个功能唯一的"关掉"实现方式：清残留做不到（
+     * {@code PasswordChanger#assignNewPassword} 里说明了原因 ——
+     * {@code updateById} 默认跳过 null 字段，所以把那一列写回 NULL 是个不会落库的动作），
+     * 而且清残留最多只覆盖"关掉策略之后又改过密的人"，其余人的旧时刻一直都在。
+     * 判断这一侧先看策略，效果是**配置一改完立刻对所有人生效、不需要动一行数据**。
+     *
+     * <p>{@code null} 时刻同样表示不过期，覆盖两种正常情形：策略启用之前就存在的
+     * 存量账号（不追溯，与 {@code historyCount} 同一条原则），以及建号时策略还没打开。
+     *
+     * <p>两个调用点共用这一个判断，理由是它们是同一个问题的两个入口：
+     * 分开各写一份，将来改口径（比如加宽限期）就只可能改到其中一处，
+     * 而症状是"登录说没过期、刷新说过期"—— 一个只在特定路径上出现的矛盾。
+     */
+    public boolean isExpired(Long expiresAt, long now) {
+        if (expireDays <= 0) {
+            return false;
+        }
+        return expiresAt != null && expiresAt <= now;
     }
 
 }

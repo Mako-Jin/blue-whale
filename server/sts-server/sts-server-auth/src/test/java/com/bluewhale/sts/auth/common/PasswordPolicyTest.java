@@ -3,18 +3,21 @@ package com.bluewhale.sts.auth.common;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 口令强度策略测试。
+ * 口令策略测试 —— 强度规则、防重用范围、有效期。
  *
  * <p>不需要 Spring：{@link PasswordPolicy} 是纯函数式的，直接 {@code new} 即可。
  * 这正是把它从 {@code UserService} 里拆出来的目的 —— 强度规则的边界条件
- * （缺哪一类、报几项、配置改了描述跟不跟着改）能在这里一条条钉死，
+ * （缺哪一类、报几项、配置改了描述跟不跟着改）与有效期的边界
+ * （0 / 负数 / 正好到点 / NULL 存量）都能在这里一条条钉死，
  * 而不必为每条规则都构造一次 HTTP 请求。
  */
 class PasswordPolicyTest {
@@ -100,6 +103,45 @@ class PasswordPolicyTest {
         AuthProperties off = defaults();
         off.getPassword().setHistoryCount(0);
         assertEquals(0, policy(off).historyCount());
+    }
+
+    @Test
+    @DisplayName("有效期默认不启用：谁都不过期，也不会落下到期时刻")
+    void shouldNotExpireAnythingByDefault() {
+        PasswordPolicy policy = policy(defaults());
+        long now = System.currentTimeMillis();
+
+        assertNull(policy.expiryOf(now), "没开有效期就不该有到期时刻");
+        // 库里残留的过去时刻也不该让人过期 —— “关掉策略”靠的是判断先看策略，
+        // 不是靠把数据清干净（清不干净，见 PasswordChanger#assignNewPassword）。
+        assertFalse(policy.isExpired(now - 1_000, now));
+        assertFalse(policy.isExpired(null, now));
+
+        AuthProperties negative = defaults();
+        negative.getPassword().setExpireDays(-1);
+        // 负数不能当成“很久以前就过期”：那是把一处配置笔误放大成一次全员登不进来，
+        // 而它的表现（所有人都 40111）离原因（一个减号）非常远。
+        assertNull(policy(negative).expiryOf(now));
+        assertFalse(policy(negative).isExpired(now - 1_000, now));
+    }
+
+    @Test
+    @DisplayName("有效期启用后：到期时刻按天数给出，判断只看那一刻过没过")
+    void shouldExpireAccordingToPolicy() {
+        AuthProperties config = defaults();
+        config.getPassword().setExpireDays(30);
+        PasswordPolicy policy = policy(config);
+        long now = System.currentTimeMillis();
+
+        Long expiresAt = policy.expiryOf(now);
+        assertEquals(now + Duration.ofDays(30).toMillis(), expiresAt);
+
+        assertFalse(policy.isExpired(expiresAt, now), "还没到就不算过期");
+        assertTrue(policy.isExpired(now, now), "正好到点算过期 —— 边界只取一侧，不留悬空的一瞬");
+        assertTrue(policy.isExpired(now - 1, now), "过了就算过期");
+        // NULL = 永不过期：策略启用之前就存在的存量账号属于这一种（不追溯，
+        // 与 historyCount 同一条原则 —— 打开开关不该让任何既有账号失效）。
+        assertFalse(policy.isExpired(null, now));
     }
 
 }

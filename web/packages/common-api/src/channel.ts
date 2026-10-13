@@ -1,4 +1,4 @@
-import { createHttpClient } from 'common-tools/http';
+import { createHttpClient, isHttpError } from 'common-tools/http';
 import type { HttpConfig } from 'common-tools/http';
 import { logger as rootLogger } from 'common-tools/logger';
 import type { SessionStore, SessionUser } from 'common-tools/session';
@@ -78,6 +78,33 @@ export interface AuthChannel {
    * 合并也必须发生在会话级（本方法）才算完整。
    */
   reauthenticate(): Promise<boolean>;
+  /**
+   * 取走"上一次会话被结束的原因"，**取一次即清空**。
+   *
+   * <h3>为什么需要它</h3>
+   *
+   * 会话失效有两种来路，用户感受到的却完全不同：
+   * <ul>
+   *   <li><b>自己点登出</b> —— 他知道发生了什么，不需要解释。</li>
+   *   <li><b>被服务端拒绝续期</b> —— 他正在做事，页面忽然回到登录页。此时
+   *       "为什么"只存在于服务端那句响应里（"口令已过期，请联系管理员重置口令"、
+   *       "会话已失效，请重新登录"…），而这条路径**没有任何用户动作**，
+   *       界面自己讲不出原因。</li>
+   * </ul>
+   * 这个值是给第二种情况用的：它让登录页能开口说第一句话，而不是让用户对着一个
+   * 空白表单猜自己是不是点错了什么。
+   *
+   * <h3>为什么它不在会话存储里</h3>
+   *
+   * 它出现的那一刻，会话正被 `clear()` 清掉 —— 放在会话存储里会被同一句清空抹掉。
+   * 它也不是"会话状态"，而是"刚刚发生了什么"的**一次性事件**。
+   *
+   * <h3>为什么取一次就清空</h3>
+   *
+   * 它只对紧接着的那一次登录页渲染有意义。留着的话，用户换台设备、隔一天再打开，
+   * 迎面看到的会是一句昨天的原因 —— 而昨天的那次会话早已无关。
+   */
+  consumeAuthNotice(): string | null;
 }
 
 /**
@@ -138,6 +165,9 @@ export function createAuthChannel(config: AuthChannelConfig): AuthChannel {
    */
   let pendingRefresh: Promise<boolean> | null = null;
 
+  /** 上一次"被服务端拒绝续期"时服务端说的那句话。见 `consumeAuthNotice` */
+  let authNotice: string | null = null;
+
   async function refreshOnce(): Promise<boolean> {
     const refreshToken = session.getRefreshToken();
     // 没有刷新令牌就没什么可救的 —— 直接返回，避免白跑一次请求
@@ -147,6 +177,18 @@ export function createAuthChannel(config: AuthChannelConfig): AuthChannel {
       session.set({ user: toSessionUser(result), tokens: toSessionTokens(result) });
       return true;
     } catch (cause) {
+      /*
+       * 只记**服务端明确拒绝**时的那句话，不记传输层的失败。
+       *
+       * 判据是"谁有权说这是会话的错"：业务失败意味着服务端收到了这次刷新、
+       * 看清了它、并给出一个结论 —— 那句话就是用户被请出去的原因，原样转达即可
+       * （前端另写一套说法只会变成第二份会过期的文案）。
+       * 而断网、超时不是"会话失效"的证据：可能是本地网络抖了一下，
+       * 把它当成原因展示，用户会以为必须重新登录。
+       */
+      if (isHttpError(cause) && cause.kind === 'business') {
+        authNotice = cause.message;
+      }
       log.warn('刷新令牌失败，会话无法恢复', {
         message: cause instanceof Error ? cause.message : String(cause),
       });
@@ -206,6 +248,12 @@ export function createAuthChannel(config: AuthChannelConfig): AuthChannel {
       const recovered = await instance.reauthenticate();
       if (!recovered) {
         session.clear();
+        /*
+         * 启动时这次恢复失败**不算"被请出去"** —— 用户还没进来过，没有"被中断"这回事。
+         * 不清掉的话，隔一周再打开应用会迎面看到一句"会话已失效"：话是对的，
+         * 但它解释的是一件用户没有经历过的事。
+         */
+        authNotice = null;
         return null;
       }
       return session.getSnapshot().user;
@@ -235,6 +283,12 @@ export function createAuthChannel(config: AuthChannelConfig): AuthChannel {
        */
       log.info('口令已修改，本地会话随之结束（服务端已撤销全部刷新令牌，本次会话无法续期）');
       session.clear();
+    },
+
+    consumeAuthNotice: () => {
+      const notice = authNotice;
+      authNotice = null;
+      return notice;
     },
   };
 

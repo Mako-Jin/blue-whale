@@ -29,6 +29,12 @@ import java.util.List;
  * 或"口令换了、历史没记"（防重用从这一轮起失效）这类半成品状态。
  * 既然写库躲不掉，就让新口令与历史在同一处落下，调用方少一个可以忘的步骤。
  *
+ * <p><b>它同时是 {@code password_expires_at} 的唯一写入方</b>（见 {@link #assignNewPassword}）：
+ * "这个口令从什么时候起不再算数"与"这个口令本身合不合规"是同一次动作的两面，
+ * 分开写就会出现"口令换了、有效期还是上一任的" —— 而那是个不会报错的错误。
+ * ADR-0045 的背景里记着这条列曾经的处境：**有人在读、没有任何人在写**，
+ * 于是 {@code 40111} 成了一条不可能出现的码。
+ *
  * <p><b>调用方负责的部分（本类刻意不做）：</b>
  * <ul>
  *   <li><b>验旧口令</b> —— 只有"自助改密"需要（管理员重置时他不知道、也不该知道旧口令）。
@@ -99,11 +105,26 @@ public class PasswordChanger {
      * 三列一起更新（哈希 / 算法标识 / 更新时刻），落下任何一列都不会报错 ——
      * 少写算法标识会让 {@code PasswordHasher} 无法判断该用哪套参数校验，
      * 少写更新时刻会让"口令多久没换"这类判断静默失准。写在一处，就不会有人漏。
+     *
+     * <p>第四列（到期时刻）由策略一并给出，理由与上面三列完全相同：
+     * 它也是"这次换了口令"的派生结果，漏掉它不会报错、只会让上一任口令的有效期
+     * 继续管着这一任。**建号路径同样从这里拿到它** —— 口令的寿命从设它的那一刻起算。
+     *
+     * <p><b>算不出到期时刻时，这一列原样不动，而不是写回 {@code null}。</b>
+     * 那不是省事，是这一类字段在本仓的实话：MyBatis-Plus 的 {@code updateById}
+     * 默认**跳过 null 字段**（本仓未改这个全局策略），所以 {@code setPasswordExpiresAt(null)}
+     * 在改密 / 重置这两条路上根本不会落库 —— 写了也是一句"代码清了、库里没清"的假动作，
+     * 而且它会让人相信"关掉策略之后残留被清干净了"。真正让残留失效的是判断那一侧：
+     * {@code PasswordPolicy#isExpired} 先看策略有没有开，见 {@code docs/decisions/0045}。
      */
     public void assignNewPassword(UserEntity user, String rawPassword, long now) {
         user.setPasswordHash(passwordHasher.hash(rawPassword));
         user.setPasswordAlgorithm(passwordHasher.algorithmId());
         user.setPasswordUpdatedAt(now);
+        Long expiresAt = passwordPolicy.expiryOf(now);
+        if (expiresAt != null) {
+            user.setPasswordExpiresAt(expiresAt);
+        }
     }
 
     // ==================== 口令强度与防重用 ====================

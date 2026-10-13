@@ -88,6 +88,12 @@ bluewhale:
       require-digit: true
       require-special: false
       history-count: 5
+      # 口令有效期（天）。0 = 永不过期，与上面几条同一原则：更严的规则由部署方显式打开。
+      # 但它比上面几条"硬"：它写进库、并由登录与刷新两处强制，到期的人自己进不来改密
+      # （改密接口要会话），只能由管理员重置口令 —— 打开前请先确认还有管理员能进来。
+      # 不追溯存量：NULL 仍然是"永不过期"，他们只在下次改密时才拿到这个时刻。
+      # 见 docs/decisions/0045。
+      expire-days: 0
     login:
       max-failed-attempts: 5
       # 锁定采用指数退避：第 n 次被锁定 5 × 2^(n-1) 分钟，封顶 24 小时。

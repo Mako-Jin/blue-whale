@@ -22,6 +22,15 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  /*
+   * "为什么我会在这里" —— 会话在别处被服务端拒绝续期时，那句原因由通道保存着
+   * （见 `AuthChannel.consumeAuthNotice`）。
+   *
+   * 用惰性初值取一次，不用 `useEffect` + `setState`：后者会多一次渲染，
+   * 而且 `consumeAuthNotice()` 是"取一次即清空"的语义 —— 放进 effect 里，
+   * 严格模式下会被取走两遍，第二次拿到的是 null。
+   */
+  const [notice] = useState(() => auth.consumeAuthNotice());
 
   const { authenticated } = useSession();
   const location = useLocation();
@@ -57,6 +66,22 @@ export default function Login() {
       <form className="login__card" onSubmit={handleSubmit}>
         <h1 className="login__title">BlueWhale</h1>
         <p className="login__subtitle">登录后由基座把身份与权限下发给各子应用</p>
+
+        {/*
+          被"请"到这里来的原因。与下面的 `__error` 分开两处、两种语气：
+
+          - `notice` 解释的是**已经发生的事**（"你刚才为什么会掉出来"），
+            它先于本次操作存在，用户还没填任何东西；
+          - `error` 说的是**这一次提交失败了**。
+
+          合成一处的话，刚被踢出来的人会以为自己刚才点错了什么。
+          文案原样来自服务端 —— 前端另写一套只会变成第二份会过期的说法。
+        */}
+        {notice ? (
+          <p className="login__notice" role="status">
+            {notice}
+          </p>
+        ) : null}
 
         <label className="login__field">
           <span className="login__label">租户编码</span>

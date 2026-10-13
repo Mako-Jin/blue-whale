@@ -59,6 +59,18 @@
     color: @danger-color;
   }
 
+  /* 被请到登录页的原因：不是报错，是一条说明 —— 因此用中性的底色，而不是危险色。
+     用危险色会让"你被踢出来了"读成"你刚才做错了什么"。 */
+  &__notice {
+    padding: 8px 10px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: @text-secondary;
+    background: @bg-base;
+    border: 1px solid @border-color;
+    border-radius: 6px;
+  }
+
   &__submit {
     height: 34px;
     font-size: 13px;

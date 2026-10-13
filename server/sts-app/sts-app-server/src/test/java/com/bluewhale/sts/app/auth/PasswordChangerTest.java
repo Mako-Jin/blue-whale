@@ -9,6 +9,7 @@ import com.bluewhale.sts.auth.common.AuthResultCode;
 import com.bluewhale.sts.auth.common.PasswordPolicy;
 import com.bluewhale.sts.auth.common.enums.PasswordChangeSource;
 import com.bluewhale.sts.auth.common.enums.Status;
+import com.bluewhale.sts.auth.common.codec.PasswordHasher;
 import com.bluewhale.sts.auth.tenant.TenantEntity;
 import com.bluewhale.sts.auth.tenant.TenantMapper;
 import com.bluewhale.sts.auth.user.UserEntity;
@@ -21,6 +22,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -57,6 +59,9 @@ class PasswordChangerTest {
 
     @Autowired
     private AuthProperties properties;
+
+    @Autowired
+    private PasswordHasher passwordHasher;
 
     @Test
     @DisplayName("强度不足：40003，且口令与历史都不动（没有\"历史记了、口令没换\"的中间状态）")
@@ -155,6 +160,39 @@ class PasswordChangerTest {
         // 这一条同时证明裁剪真的执行了：只断言条数的话，"删错了哪几条"看不出来。
         change(user, "Seed@1234", PasswordChangeSource.SELF);
         assertEquals(keep, historyCount(user.getId()), "再改一次之后仍应维持在保留数");
+    }
+
+    @Test
+    @DisplayName("策略没开时：新实体不带到期时刻，已有的一列**原样留着** —— 写 null 是个不会落库的动作")
+    void shouldLeaveExpiryUntouchedWhenPolicyDisabled() {
+        for (int days : new int[]{0, -1}) {
+            AuthProperties config = new AuthProperties();
+            config.getPassword().setExpireDays(days);
+
+            // 两个 Mapper 传 null：assignNewPassword 只改内存、不落库 ——
+            // 那正是它被单独拆出来的理由之一。这里要问的只是它算出什么、改了哪些字段。
+            PasswordChanger changer = new PasswordChanger(
+                    null, passwordHasher, new PasswordPolicy(config), null);
+
+            UserEntity fresh = new UserEntity();
+            changer.assignNewPassword(fresh, "Seed@1234", System.currentTimeMillis());
+            // 0 与负数一律按“不启用”：负数不能当成“很久以前就过期”——
+            // 那是把一处配置笔误放大成一次全员登不进来，而它的表现（所有人都 40111）
+            // 离原因（一个减号）非常远。
+            assertNull(fresh.getPasswordExpiresAt(), "expire-days=" + days + " 时不该落下到期时刻");
+
+            // 已有值则原样留着 —— 这一条**刻意**不是在断言“被清成 null”。
+            // MyBatis-Plus 的 updateById 默认跳过 null 字段（本仓未改这个全局策略），
+            // 所以 setPasswordExpiresAt(null) 在改密 / 重置这两条路上根本不会落库。
+            // 写成一句干净话只会让人相信“关掉策略之后残留被清掉了”；
+            // 真正让残留失效的是判断那一侧：PasswordPolicy#isExpired 先看策略有没有开。
+            // 谁要是哪天“顺手”补上那句 setPasswordExpiresAt(null)，这条断言会红 ——
+            // 那正是要他先读一眼 docs/decisions/0045。
+            UserEntity existing = new UserEntity();
+            existing.setPasswordExpiresAt(123L);
+            changer.assignNewPassword(existing, "Seed@1234", System.currentTimeMillis());
+            assertEquals(123L, existing.getPasswordExpiresAt(), "策略没开时不去动那一列");
+        }
     }
 
     // ==================== 辅助 ====================

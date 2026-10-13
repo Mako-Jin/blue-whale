@@ -59,8 +59,8 @@ function routedFetch(routes: Record<string, { status?: number; body?: string }>)
   return { impl, calls };
 }
 
-function envelope(data: unknown, code = 0): string {
-  return JSON.stringify({ code, message: 'ok', data, timestamp: 1 });
+function envelope(data: unknown, code = 0, message = 'ok'): string {
+  return JSON.stringify({ code, message, data, timestamp: 1 });
 }
 
 /** 一份登录/刷新返回体（字段与后端 LoginVO 对齐） */
@@ -400,6 +400,62 @@ describe('createAuthChannel · 401 恢复串联（契约 + 会话 + 传输钩子
 
     expect(onAuthLost).toHaveBeenCalledTimes(1);
     expect(session.isAuthenticated()).toBe(false);
+  });
+
+  describe('会话被结束的原因', () => {
+    /*
+     * 这一小组盯的是"用户被请出去时，界面说不说得清为什么"。
+     *
+     * 会话失效有两种来路，用户感受到的完全不同：自己点登出（他知道发生了什么），
+     * 或被服务端拒绝续期 —— 他正在做事，页面忽然回到登录页，而这条路径上
+     * **没有任何用户动作**，所以原因只能来自服务端那句响应。
+     */
+
+    it('刷新被业务码拒绝时，把服务端那句话原样记下来；取一次即清空', async () => {
+      const { channel, onAuthLost } = createLiveChannel([
+        { match: '/api/logs/client', status: 401, body: envelope(null, 40101) },
+        {
+          match: '/api/auth/refresh',
+          body: envelope(null, 40111, '口令已过期，请联系管理员重置口令'),
+        },
+      ]);
+
+      await expect(channel.api.log.page()).rejects.toMatchObject({ status: 401 });
+      expect(onAuthLost).toHaveBeenCalledTimes(1);
+
+      // 文案由服务端给，前端不另写一套 —— 另写的那套会在后端改口径之后变成
+      // 第二份过期的说法，而且它还是用户唯一看得到的那份。
+      expect(channel.consumeAuthNotice()).toBe('口令已过期，请联系管理员重置口令');
+      // 取一次即清空：它是"刚刚发生了什么"，不是一个会一直挂着的状态。
+      // 留着的话，用户明天打开应用会迎面看到一句昨天的原因。
+      expect(channel.consumeAuthNotice()).toBeNull();
+    });
+
+    it('服务端没给出结论时（5xx / 断网）不记原因 —— 那不是"会话失效"的证据', async () => {
+      const { channel } = createLiveChannel([
+        { match: '/api/logs/client', status: 401, body: envelope(null, 40101) },
+        { match: '/api/auth/refresh', status: 500, body: 'boom' },
+      ]);
+
+      await expect(channel.api.log.page()).rejects.toMatchObject({ status: 401 });
+
+      // 把传输层失败也当成原因，用户会以为"必须重新登录"，而实际上可能只是
+      // 后端此刻不可用 —— 那是两件不同的事，兜底文案也不该由这次失败来定。
+      expect(channel.consumeAuthNotice()).toBeNull();
+    });
+
+    it('启动时那次恢复失败不留原因 —— 用户还没进来过，没有"被中断"这回事', async () => {
+      const { channel } = createLiveChannel([
+        { match: '/api/auth/refresh', body: envelope(null, 40106, '会话已失效，请重新登录') },
+      ]);
+
+      await expect(channel.restore()).resolves.toBeNull();
+
+      // 同一个失败走内核那条路会留下原因（见上面第一条），走启动恢复就不该留：
+      // 不清掉的话，隔一周再打开应用会迎面看到一句"会话已失效"——
+      // 话是对的，但它解释的是一件用户没有经历过的事。
+      expect(channel.consumeAuthNotice()).toBeNull();
+    });
   });
 
   it('刷新请求自身不带令牌，且只发生一次', async () => {

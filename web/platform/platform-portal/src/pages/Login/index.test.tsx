@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
-import { session } from '@/auth';
+import { session, auth } from '@/auth';
 import Login from './index';
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -54,6 +54,12 @@ describe('登录页', () => {
   beforeEach(() => {
     session.clear();
     localStorage.clear();
+    /*
+     * "上一次被请出去的原因"也要清掉：它**不是会话状态**（正相反，它出现的那一刻
+     * 会话正被清空），所以 `session.clear()` 带不走它。不显式清掉的话，
+     * 用例之间就靠"上一条恰好把它取走了"来维持顺序无关，那是运气不是设计。
+     */
+    auth.consumeAuthNotice();
   });
 
   afterEach(() => {
@@ -121,5 +127,44 @@ describe('登录页', () => {
     submit('Admin@12345');
 
     expect(await screen.findByText('概览占位')).toBeInTheDocument();
+  });
+
+  it('正常进来时没有任何横幅 —— 那句话只在"被请出去"之后出现', () => {
+    renderLogin();
+
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('会话被服务端请出去之后，登录页先把原因说出来', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        if (String(input).endsWith('/api/auth/refresh')) {
+          return jsonResponse({
+            code: 40111,
+            message: '口令已过期，请联系管理员重置口令',
+            data: null,
+          });
+        }
+        // 真实的 401 才会让内核去尝试刷新（业务码一律走 HTTP 200）
+        return jsonResponse({ code: 40104, message: '令牌无效', data: null }, 401);
+      }),
+    );
+
+    /*
+     * 造出"被请出去"这件事，而不是往通道里塞一句话 —— 后者测的是替身而不是这条链：
+     * 带令牌的请求吃 401 → 内核去刷新 → 刷新被业务码拒绝 → 会话清空 + 记下原因。
+     * 症状本来就是这样发生的：用户正在做事，页面忽然回到登录页，而他什么都没点。
+     */
+    session.set({
+      user: { userId: 1, username: 'admin', roles: [], permissions: [], mustChangePassword: false },
+      tokens: { accessToken: 'access-1', refreshToken: 'refresh-1' },
+    });
+    await expect(auth.api.auth.me()).rejects.toThrow();
+    expect(session.isAuthenticated()).toBe(false);
+
+    renderLogin();
+
+    expect(screen.getByRole('status')).toHaveTextContent('口令已过期，请联系管理员重置口令');
   });
 });
