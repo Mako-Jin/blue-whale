@@ -131,8 +131,8 @@ export function useAuditQueries(enabled: boolean): AuditQueries {
 
       try {
         const [pageResult, statsResult] = await Promise.all([
-          api().audit.page(query),
-          api().audit.stats(statsQuery),
+          api.audit.page(query),
+          api.audit.stats(statsQuery),
         ]);
         if (!alive) return;
         setPage(pageResult);

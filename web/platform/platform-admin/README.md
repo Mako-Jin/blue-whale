@@ -91,7 +91,7 @@ pnpm --filter platform-portal dev           # http://127.0.0.1:3000 → 导航�
 
 本应用**不含登录页**（`docs/decisions/0018` 第 8 条：子应用不得再实现一套登录，
 否则会立刻长出第二份会话逻辑）。它只关心一件事 —— **从哪取令牌、谁负责刷新**，
-这件事被收成一个两个方法的接口（`src/auth/index.ts` 的 `AuthPort`）：
+这件事由 `common-api` 的 `createConsoleAuth` 单点决定（`src/auth/index.ts` 里只剩应用名与开发账号）：
 
 | 运行方式   | 令牌来源                                  | 刷新                   | 起步方式                                       |
 | ---------- | ----------------------------------------- | ---------------------- | ---------------------------------------------- |
@@ -99,7 +99,10 @@ pnpm --filter platform-portal dev           # http://127.0.0.1:3000 → 导航�
 | 独立运行   | 本应用自己的会话（同一份 `session` 实现） | 本应用自己的通道       | 已有刷新令牌则静默续期，否则用开发账号自动登录 |
 
 两条路走的都是 `common-api` 的 `createAuthChannel` / `common-tools/session`，
-区别只在"谁提供会话"。因此 `src/api.ts` 与页面代码**完全不区分运行方式**。
+区别只在"谁提供会话"。因此 `src/api.ts` 与页面代码**完全不区分运行方式** ——
+`consoleAuth.port` 每次取令牌时才问"基座在不在"，所以客户端可以在模块加载时就装配好
+（**这里曾经是一个延迟创建的函数**，因为端口要先 `initializeAuth()` 才能确定；
+`docs/decisions/0034` 把两段式初始化取消后，那层延迟也就没有理由了）。
 
 ### 为什么下发的是"能力"而不是令牌值
 
@@ -140,11 +143,14 @@ pnpm --filter platform-portal dev           # http://127.0.0.1:3000 → 导航�
 | 路由     | 基座 `/admin/*`，`basename` 由基座下发                                                      |
 | `base`   | dev `/`（带前缀会让热更新静默失效），build `/admin/`                                        |
 | 端口     | `3500` + `strictPort` + `cors`                                                              |
-| 挂载顺序 | `bindHost` → `initializeAuth()` → `connectPermissionSource()` → `render()`                  |
+| 挂载顺序 | `bindHost` → `connectPermissionSource()` → `render()`                                       |
 | 卸载顺序 | `destroy()`（含断开权限订阅）→ `unbindHost()`                                               |
 
-> **`bindHost` 必须在 `initializeAuth` 之前**：认证端口靠 `HostProps.auth` 判断自己是"被基座加载"
-> 还是"独立运行"，顺序反了会误判成独立运行，然后自己建一份会话 —— 两份会话并存，刷新各自失效。
+> **`bindHost` 必须在 `connectPermissionSource()` 之前**：权限 store 在 `connect` 时**读一次**身份，
+> 而"用宿主下发的身份还是自己的会话"这个判据是"**有没有宿主桥**"。顺序反了会把它误判成独立运行，
+> 然后自己建一份会话 —— 两份会话并存，刷新各自失效。
+> （`0034` 之前这里还夹着一步 `initializeAuth()`；那个函数已随两段式初始化一起取消，
+> 但**顺序约束没有消失，只是换了位置**。）
 
 > **权限订阅必须在 `mount` 里建立、`unmount` 里断开**，不能写在模块顶层：
 > 子应用模块在多次挂载之间是复用的，而基座桥在 `unbindHost` 时会清空全部订阅者，
@@ -161,7 +167,7 @@ src/
 ├── format.ts                 # 时间 / 状态格式化
 ├── permission-codes.ts       # 权限标识（转出 common-api 的 AccessPermissions）
 ├── auth/
-│   ├── index.ts              # 认证端口：基座桥 or 自建会话；独立运行时的开发账号登录
+│   ├── index.ts              # 认证接线：createConsoleAuth（宿主桥 or 自建会话 + 开发账号）
 │   ├── permissions.ts        # 权限快照 store（模块级订阅 + 断开）
 │   └── hooks.ts              # useSyncExternalStore 适配：usePermission 等
 ├── components/

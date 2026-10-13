@@ -1,17 +1,20 @@
 import { createPermissionStore } from 'common-tools/micro';
-import type { IdentitySnapshot } from 'common-tools/micro';
 
-import { getStandaloneSession } from './index';
+import { consoleAuth } from './index';
 
 /**
  * 权限快照 —— 本应用"谁在登录、能做什么"的唯一来源。
  *
- * <h3>实现已经下沉，本文件只留"独立运行时的身份从哪来"</h3>
+ * <h3>两边都是现成的：store 在 `common-tools/micro`，身份来源在 `consoleAuth`</h3>
  *
- * store 本身（基座分支、会话分支、引用比对去抖、`ready` 三态、`connect`/断开）
- * 与另外四个子应用是**同一份实现**，在 `common-tools/micro` 的 `createPermissionStore`。
- * 本轮之前它在本应用与 `platform-admin` 里各有一份近似副本，而菜单与页面级过滤
- * 要接五个应用 —— 再抄三份就是五份。触发下沉的条件（第三个消费方）已经到了。
+ * 快照本身（基座分支、会话分支、引用比对去抖、`ready` 三态、`connect` / 断开）
+ * 与另外四个子应用是**同一份实现**（`createPermissionStore`）。
+ * 身份来源也不再需要适配：`consoleAuth` 本身就是 `StandaloneIdentitySource` ——
+ * 被基座加载时它的 `readStandaloneIdentity()` 返回 null，store 于是走基座分支，
+ * 而不是去读一份**根本没被创建**的会话（那正是"两套会话并存"要避免的事）。
+ *
+ * 本轮之前这里包了一层把应用自己的会话掰成那两个动作的适配器；
+ * 认证接线下沉后（见 `auth/index.ts`）它没有存在理由了，删掉。
  *
  * <h3>本应用只把权限用在"看不看得到区块"上</h3>
  *
@@ -31,21 +34,13 @@ import { getStandaloneSession } from './index';
  * "没有权限"和"还不知道有没有权限"是两件事。前者该隐藏区块，后者该等一等。
  * `userId` 非空即表示权限集合可信，因此 `ready` 由它决定 ——
  * 一个真正没有任何权限的已登录用户，`ready` 也是 `true`。
+ *
+ * <h3>必须在 `mount` 里 `connect`、在 `unmount` 里断开</h3>
+ *
+ * 子应用的模块在多次挂载之间是复用的，而基座桥在 `unbindHost` 时会清空全部订阅者。
+ * 另外 `connect` 会**读一次**身份，因此它必须排在 `bindHost` 之后（顺序理由见 `main.tsx`）。
  */
-const store = createPermissionStore({
-  readStandaloneIdentity: (): IdentitySnapshot | null => {
-    const user = getStandaloneSession().getSnapshot().user;
-    if (!user) {
-      return null;
-    }
-    return {
-      userId: String(user.userId),
-      roles: user.roles ?? [],
-      permissions: user.permissions ?? [],
-    };
-  },
-  onStandaloneIdentityChange: (listener) => getStandaloneSession().subscribe(() => listener()),
-});
+const store = createPermissionStore(consoleAuth);
 
 export const getPermissionState = store.getState;
 export const subscribePermissions = store.subscribe;

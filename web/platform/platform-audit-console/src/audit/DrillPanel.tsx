@@ -49,7 +49,7 @@ const POLL_TIMEOUT_MS = 5000;
 async function waitForRecord(action: string, targetId: string): Promise<AuditLog | null> {
   const deadline = Date.now() + POLL_TIMEOUT_MS;
   for (;;) {
-    const result = await api().audit.page({ action, targetId, page: 1, size: 1 });
+    const result = await api.audit.page({ action, targetId, page: 1, size: 1 });
     const found = (result.records ?? [])[0];
     if (found) return found;
     if (Date.now() >= deadline) return null;
@@ -76,7 +76,7 @@ export function DrillPanel({ onRecorded }: { onRecorded: () => void }) {
 
     try {
       push('info', `真实调用 POST /api/auth/tenants 建一个租户（tenantCode=${tenantCode}）`);
-      const created = await api().access.tenants.create({
+      const created = await api.access.tenants.create({
         tenantCode,
         tenantName: '审计演练租户',
         description: '由审计日志台的演练区创建，随即删除',
@@ -104,7 +104,7 @@ export function DrillPanel({ onRecorded }: { onRecorded: () => void }) {
       }
 
       push('info', `真实调用 DELETE /api/auth/tenants/${tenantId}`);
-      await api().access.tenants.remove(tenantId);
+      await api.access.tenants.remove(tenantId);
       push('ok', '租户已删除：业务码 0（成功）');
 
       const deleteRecord = await waitForRecord(AuditActions.TENANT_DELETE, String(tenantId));

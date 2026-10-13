@@ -94,7 +94,7 @@ export function UsersPage() {
       setLoading(true);
       setError(null);
       try {
-        const result = await api().access.users.page({
+        const result = await api.access.users.page({
           page: pageNo,
           size: PAGE_SIZE,
           keyword: keyword || undefined,
@@ -130,11 +130,11 @@ export function UsersPage() {
         password: form.password || (target ? undefined : ''),
       };
       if (target) {
-        await api().access.users.update(target.id as number, body);
+        await api.access.users.update(target.id as number, body);
         setNotice(`已保存用户「${form.username}」`);
         setEditing(null);
       } else {
-        await api().access.users.create(body);
+        await api.access.users.create(body);
         setNotice(`已新建用户「${form.username}」`);
         setCreating(false);
       }
@@ -151,7 +151,7 @@ export function UsersPage() {
     setBusy(true);
     setDialogError(null);
     try {
-      await api().access.users.resetPassword(resetting.id as number, { password });
+      await api.access.users.resetPassword(resetting.id as number, { password });
       setNotice(`已重置「${resetting.username}」的口令，该用户下次登录须改密`);
       setResetting(null);
     } catch (cause) {
@@ -166,7 +166,7 @@ export function UsersPage() {
     setBusy(true);
     setDialogError(null);
     try {
-      await api().access.users.remove(removing.id as number);
+      await api.access.users.remove(removing.id as number);
       setNotice(`已删除用户「${removing.username}」`);
       setRemoving(null);
       reload();
@@ -463,7 +463,7 @@ function UserOrgsDialog({ user, onClose }: { user: AccessUser; onClose: () => vo
       setLoading(true);
       setError(null);
       try {
-        const list = await api().access.users.organizations(user.id as number);
+        const list = await api.access.users.organizations(user.id as number);
         if (alive) setOrgs(list);
       } catch (cause) {
         if (alive) setError(describeError(cause));
@@ -585,7 +585,7 @@ function UserDataScopeDialog({ user, onClose }: { user: AccessUser; onClose: () 
       setLoading(true);
       setError(null);
       try {
-        const result = await api().access.users.dataScope(user.id as number);
+        const result = await api.access.users.dataScope(user.id as number);
         if (alive) setScope(result);
       } catch (cause) {
         if (alive) setError(describeError(cause));
@@ -727,7 +727,7 @@ function RoleSourcesDialog({ user, onClose }: { user: AccessUser; onClose: () =>
       setLoading(true);
       setError(null);
       try {
-        const list = await api().access.users.roleSources(user.id as number);
+        const list = await api.access.users.roleSources(user.id as number);
         if (alive) setSources(list);
       } catch (cause) {
         if (alive) setError(describeError(cause));

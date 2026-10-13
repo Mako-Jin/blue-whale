@@ -186,11 +186,11 @@ export function ResourcesPage() {
       setError(null);
       try {
         // 树始终加载：它既是树视图的数据源，也是"父资源"下拉框的选项来源
-        const nodes = await api().access.resources.tree();
+        const nodes = await api.access.resources.tree();
         if (alive) setTree(nodes);
 
         if (view === 'list') {
-          const result = await api().access.resources.page({
+          const result = await api.access.resources.page({
             page: pageNo,
             size: PAGE_SIZE,
             keyword: keyword || undefined,
@@ -228,10 +228,10 @@ export function ResourcesPage() {
     try {
       const body = toBody(form);
       if (target) {
-        await api().access.resources.update(target.id as number, body);
+        await api.access.resources.update(target.id as number, body);
         setNotice(`已保存资源「${body.resourceCode}」`);
       } else {
-        await api().access.resources.create(body);
+        await api.access.resources.create(body);
         setNotice(`已新建资源「${body.resourceCode}」`);
       }
       closeDialog();
@@ -248,7 +248,7 @@ export function ResourcesPage() {
     setBusy(true);
     setDialogError(null);
     try {
-      await api().access.resources.remove(removing.id as number);
+      await api.access.resources.remove(removing.id as number);
       setNotice(`已删除资源「${removing.resourceCode}」`);
       setRemoving(null);
       reload();

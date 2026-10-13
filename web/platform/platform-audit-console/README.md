@@ -109,11 +109,14 @@ pnpm --filter platform-portal dev           # http://127.0.0.1:3000 → 导航�
 | 路由     | 基座 `/audit/*`，`basename` 由基座下发                                                              |
 | `base`   | dev `/`（带前缀会让热更新静默失效），build `/audit/`                                                |
 | 端口     | `3600` + `strictPort` + `cors`                                                                      |
-| 挂载顺序 | `bindHost` → `initializeAuth()` → `connectPermissionSource()` → `render()`                          |
+| 挂载顺序 | `bindHost` → `connectPermissionSource()` → `render()`                                               |
 | 卸载顺序 | `destroy()`（含断开权限订阅）→ `unbindHost()`                                                       |
 
-> **`bindHost` 必须在 `initializeAuth` 之前**：认证端口靠 `HostProps.auth` 判断自己是"被基座加载"
-> 还是"独立运行"，顺序反了会误判成独立运行，然后自己建一份会话 —— 两份会话并存，刷新各自失效。
+> **`bindHost` 必须在 `connectPermissionSource()` 之前**：权限 store 在 `connect` 时**读一次**身份，
+> 而"用宿主下发的身份还是自己的会话"这个判据是"**有没有宿主桥**"。顺序反了会把它误判成独立运行，
+> 然后自己建一份会话 —— 两份会话并存，刷新各自失效。
+> （`0034` 之前这里还夹着一步 `initializeAuth()`；那个函数已随两段式初始化一起取消，
+> 但**顺序约束没有消失，只是换了位置**。）
 
 > **权限订阅必须在 `mount` 里建立、`unmount` 里断开**：子应用模块在多次挂载之间是复用的，
 > 而基座桥在 `unbindHost` 时会清空全部订阅者，顶层订阅在第二次挂载后就再也收不到推送。
@@ -137,7 +140,7 @@ src/
 ├── errors.ts                 # 异常 → 文案；按业务码分流（40100 重登录 / 40301 无权限）
 ├── format.ts                 # 时间（到秒）/ 耗时 / 结果标签
 ├── permission-codes.ts       # 权限标识（转出 common-api 的 AuditPermissions）
-├── auth/                     # 与 platform-admin 同构：认证端口 + 权限快照 + hooks
+├── auth/                     # 与 platform-admin 逐字同构：认证接线（createConsoleAuth）+ 权限快照 + hooks
 ├── audit/
 │   ├── constants.ts          # 时间窗、每页条数、结果下拉
 │   ├── use-audit-queries.ts  # 流水 + 聚合共用一个时间窗，一处刷新

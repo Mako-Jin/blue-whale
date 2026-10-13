@@ -62,7 +62,7 @@ export function TenantsPage() {
       setLoading(true);
       setError(null);
       try {
-        const result = await api().access.tenants.page({
+        const result = await api.access.tenants.page({
           page: pageNo,
           size: PAGE_SIZE,
           keyword: keyword || undefined,
@@ -95,11 +95,11 @@ export function TenantsPage() {
         status: form.status,
       };
       if (target) {
-        await api().access.tenants.update(target.id as number, body);
+        await api.access.tenants.update(target.id as number, body);
         setNotice(`已保存租户「${form.tenantName}」`);
         setEditing(null);
       } else {
-        await api().access.tenants.create(body);
+        await api.access.tenants.create(body);
         setNotice(`已新建租户「${form.tenantName}」`);
         setCreating(false);
       }
@@ -116,7 +116,7 @@ export function TenantsPage() {
     setBusy(true);
     setDialogError(null);
     try {
-      await api().access.tenants.remove(removing.id as number);
+      await api.access.tenants.remove(removing.id as number);
       setNotice(`已删除租户「${removing.tenantName}」`);
       setRemoving(null);
       reload();

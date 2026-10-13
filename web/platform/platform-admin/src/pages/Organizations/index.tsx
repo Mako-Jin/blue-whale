@@ -202,7 +202,7 @@ export function OrganizationsPage() {
       setLoading(true);
       setError(null);
       try {
-        const nodes = await api().access.organizations.tree();
+        const nodes = await api.access.organizations.tree();
         if (alive) setTree(nodes);
       } catch (cause) {
         if (!alive) return;
@@ -245,7 +245,7 @@ export function OrganizationsPage() {
     setError(null);
     setBusy(true);
     try {
-      setEditing(await api().access.organizations.detail(node.id));
+      setEditing(await api.access.organizations.detail(node.id));
     } catch (cause) {
       setError(describeError(cause));
     } finally {
@@ -259,10 +259,10 @@ export function OrganizationsPage() {
     try {
       const body = toBody(form, Boolean(target));
       if (target) {
-        await api().access.organizations.update(target.id as number, body);
+        await api.access.organizations.update(target.id as number, body);
         setNotice(`已保存组织「${body.orgCode}」`);
       } else {
-        await api().access.organizations.create(body);
+        await api.access.organizations.create(body);
         setNotice(`已新建组织「${body.orgCode}」`);
       }
       closeDialog();
@@ -281,7 +281,7 @@ export function OrganizationsPage() {
     try {
       // `parentId` 为 null 即"提升为顶级"：契约里 null 与省略同义，显式传 null 更好读
       const body: AccessOrganizationMoveRequest = { parentId: parentId ?? undefined };
-      await api().access.organizations.move(moving.id as number, body);
+      await api.access.organizations.move(moving.id as number, body);
       setNotice(
         parentId == null
           ? `已将「${moving.orgName}」提升为顶级`
@@ -301,7 +301,7 @@ export function OrganizationsPage() {
     setBusy(true);
     setDialogError(null);
     try {
-      await api().access.organizations.remove(removing.id as number);
+      await api.access.organizations.remove(removing.id as number);
       setNotice(`已删除组织「${removing.orgName}」`);
       setRemoving(null);
       reload();
@@ -577,7 +577,7 @@ function OrgFormDialog({
     let alive = true;
     void (async () => {
       try {
-        const result = await api().access.users.page({ page: 1, size: OPTION_SIZE });
+        const result = await api.access.users.page({ page: 1, size: OPTION_SIZE });
         if (alive) setUsers(result.records ?? []);
       } catch {
         // 拉不到候选就让负责人保持为空：它是描述性字段，不该拖垮整个表单
@@ -956,11 +956,11 @@ function OrgMembersDialog({
       setError(null);
       try {
         const [memberPage, userPage] = await Promise.all([
-          api().access.organizations.pageMembers(org.id as number, {
+          api.access.organizations.pageMembers(org.id as number, {
             page: pageNo,
             size: MEMBER_PAGE_SIZE,
           }),
-          api().access.users.page({ page: 1, size: OPTION_SIZE }),
+          api.access.users.page({ page: 1, size: OPTION_SIZE }),
         ]);
         if (!alive) return;
         setPage(memberPage);
@@ -990,7 +990,7 @@ function OrgMembersDialog({
         effectiveFrom: parseDateTimeLocal(form.from),
         effectiveTo: parseDateTimeLocal(form.to),
       };
-      await api().access.organizations.bindMember(org.id as number, body);
+      await api.access.organizations.bindMember(org.id as number, body);
       setForm(EMPTY_MEMBER_FORM);
       setTick((value) => value + 1);
       onChanged();
@@ -1005,7 +1005,7 @@ function OrgMembersDialog({
     setBusy(true);
     setError(null);
     try {
-      await api().access.organizations.setPrimaryPosition(org.id as number, {
+      await api.access.organizations.setPrimaryPosition(org.id as number, {
         userId: member.memberId as number,
       });
       setTick((value) => value + 1);
@@ -1021,7 +1021,7 @@ function OrgMembersDialog({
     setBusy(true);
     setError(null);
     try {
-      await api().access.organizations.revokeMember(org.id as number, {
+      await api.access.organizations.revokeMember(org.id as number, {
         userId: member.memberId as number,
       });
       setTick((value) => value + 1);

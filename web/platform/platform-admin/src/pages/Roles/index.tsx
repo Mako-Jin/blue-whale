@@ -140,7 +140,7 @@ export function RolesPage() {
       setLoading(true);
       setError(null);
       try {
-        const result = await api().access.roles.page({
+        const result = await api.access.roles.page({
           page: pageNo,
           size: PAGE_SIZE,
           keyword: keyword || undefined,
@@ -173,10 +173,10 @@ export function RolesPage() {
     try {
       const body = toBody(form);
       if (target) {
-        await api().access.roles.update(target.id as number, body);
+        await api.access.roles.update(target.id as number, body);
         setNotice(`已保存角色「${body.roleCode}」`);
       } else {
-        await api().access.roles.create(body);
+        await api.access.roles.create(body);
         setNotice(`已新建角色「${body.roleCode}」`);
       }
       closeDialog();
@@ -193,7 +193,7 @@ export function RolesPage() {
     setBusy(true);
     setDialogError(null);
     try {
-      await api().access.roles.remove(removing.id as number);
+      await api.access.roles.remove(removing.id as number);
       setNotice(`已删除角色「${removing.roleCode}」`);
       setRemoving(null);
       reload();
@@ -614,8 +614,8 @@ function RoleGrantsDialog({
       try {
         // 资源选项取平铺列表而不是树：授权要的是 resourceId，平铺一次给全，不必前端组装层级
         const [list, resourcePage] = await Promise.all([
-          api().access.roles.listGrants(role.id as number),
-          api().access.resources.page({ page: 1, size: OPTION_SIZE }),
+          api.access.roles.listGrants(role.id as number),
+          api.access.resources.page({ page: 1, size: OPTION_SIZE }),
         ]);
         if (!alive) return;
         setGrants(list);
@@ -636,7 +636,7 @@ function RoleGrantsDialog({
     setBusy(true);
     setError(null);
     try {
-      await api().access.roles.grant(role.id as number, {
+      await api.access.roles.grant(role.id as number, {
         resourceId: Number(resourceId),
         effect,
         priority: Number(priority) || 0,
@@ -659,7 +659,7 @@ function RoleGrantsDialog({
     setBusy(true);
     setError(null);
     try {
-      await api().access.roles.revoke(role.id as number, { resourceId: resource.resourceId ?? -1 });
+      await api.access.roles.revoke(role.id as number, { resourceId: resource.resourceId ?? -1 });
       setTick((value) => value + 1);
       onChanged();
     } catch (cause) {
@@ -849,7 +849,7 @@ function RoleMembersDialog({
       setLoading(true);
       setError(null);
       try {
-        const result = await api().access.roles.pageMembers(role.id as number, {
+        const result = await api.access.roles.pageMembers(role.id as number, {
           page: pageNo,
           size: MEMBER_PAGE_SIZE,
           memberType: memberType || undefined,
@@ -878,11 +878,11 @@ function RoleMembersDialog({
     const load = async () => {
       try {
         if (boundType === 'USER' && users.length === 0) {
-          const result = await api().access.users.page({ page: 1, size: OPTION_SIZE });
+          const result = await api.access.users.page({ page: 1, size: OPTION_SIZE });
           if (alive) setUsers(result.records ?? []);
         }
         if (boundType === 'GROUP' && groups.length === 0) {
-          const result = await api().access.userGroups.page({ page: 1, size: OPTION_SIZE });
+          const result = await api.access.userGroups.page({ page: 1, size: OPTION_SIZE });
           if (alive) setGroups(result.records ?? []);
         }
       } catch (cause) {
@@ -899,7 +899,7 @@ function RoleMembersDialog({
     setBusy(true);
     setError(null);
     try {
-      await api().access.roles.bindMember(role.id as number, {
+      await api.access.roles.bindMember(role.id as number, {
         memberType: boundType,
         memberId: Number(memberId),
         effectiveFrom: parseDateTimeLocal(from),
@@ -922,7 +922,7 @@ function RoleMembersDialog({
     setBusy(true);
     setError(null);
     try {
-      await api().access.roles.revokeMember(role.id as number, {
+      await api.access.roles.revokeMember(role.id as number, {
         memberType: member.memberType ?? '',
         memberId: member.memberId ?? -1,
       });

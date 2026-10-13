@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import type { SessionStore } from 'common-tools/session';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
@@ -118,8 +119,24 @@ vi.mock('common-api', async (importOriginal) => {
 import { AdminViews } from 'common-api';
 
 import App from '../src/App';
-import { getStandaloneSession, initializeAuth } from '../src/auth';
+import { consoleAuth } from '../src/auth';
 import { connectPermissionSource } from '../src/auth/permissions';
+
+/**
+ * 独立运行时的会话 —— 测试环境里没有宿主桥，这条分支必然成立。
+ *
+ * <p>`createConsoleAuth` 的 `getStandaloneSession()` 返回 `SessionStore | null`
+ * （被基座加载时是 `null`：那时会话在基座手里，本应用压根不该建）。
+ * 这里显式断言一次，而不是到处写 `!` —— 顺带把
+ * "测试必须在'无宿主桥'的前提下跑"这条约束写在明面上。
+ */
+function standaloneSession(): SessionStore {
+  const session = consoleAuth.getStandaloneSession();
+  if (!session) {
+    throw new Error('测试环境不应存在宿主认证桥：独立运行分支必然成立');
+  }
+  return session;
+}
 
 /**
  * 管理员的完整权限集合 = 读写权限 **加** 六个标签页菜单码。
@@ -226,7 +243,7 @@ const ORG_TREE = [
 const ORG_ROW = { records: [], total: 0, page: 1, size: 10, pages: 0 };
 
 function signIn(permissions: string[]): void {
-  getStandaloneSession().set({
+  standaloneSession().set({
     user: { userId: 7, username: 'tester', roles: ['SUPER_ADMIN'], permissions },
     tokens: { accessToken: 'access-1', refreshToken: 'refresh-1' },
   });
@@ -237,8 +254,7 @@ let disconnect: () => void;
 describe('权限管理后台 · 资源 / 角色 / 用户组', () => {
   beforeEach(() => {
     localStorage.clear();
-    getStandaloneSession().clear();
-    initializeAuth();
+    standaloneSession().clear();
     disconnect = connectPermissionSource();
 
     for (const mock of Object.values(mocks)) mock.mockReset();

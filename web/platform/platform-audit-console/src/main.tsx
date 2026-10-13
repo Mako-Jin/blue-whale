@@ -8,7 +8,7 @@ import {
 import { bindHost, createLogger, unbindHost } from 'common-tools';
 import type { HostProps } from 'common-tools/micro';
 import App from './App';
-import { ensureStandaloneSession, initializeAuth } from './auth';
+import { consoleAuth } from './auth';
 import { connectPermissionSource } from './auth/permissions';
 import './styles/index.less';
 
@@ -51,18 +51,22 @@ function destroy() {
  * 独立运行分支。
  *
  * <p>保留它不是"兜底代码"，而是必须保留的开发方式：改一行不用等基座起来。
- * 与 log-console 的区别是这里多两步 —— **先接好认证与权限，再渲染**：
- * 本应用的每个请求都是已鉴权请求，没有令牌时渲染出来只会是一屏错误。
+ * 与 log-console 的区别是这里多两步 —— **先把权限来源接上，再备会话，最后才渲染**：
+ * 本应用几乎每个请求都是已鉴权请求，没有令牌时渲染出来只会是一屏 401。
+ *
+ * <p>顺序不能颠倒（权限来源先接、会话后备）：`connectPermissionSource()` 会订阅会话，
+ * 而独立运行时"登录完成"正是通过那次订阅推出来的 —— 反了就会"登录好了但界面不知道"，
+ * 症状是三块区域一块都不出现、刷新一下才正常。
  */
 if (!qiankunWindow.__POWERED_BY_QIANKUN__) {
   logger.info('以独立应用模式启动（未被基座加载）');
 
   void (async () => {
-    initializeAuth();
     disconnectPermissions = connectPermissionSource();
     try {
-      await ensureStandaloneSession();
+      await consoleAuth.ensureSession();
     } catch (cause) {
+      // 失败也渲染：没有会话只影响需要鉴权的区块，让它白屏是更差的处置
       logger.error('独立运行的会话准备失败（后续请求会以未认证失败）', {
         message: cause instanceof Error ? cause.message : String(cause),
       });
@@ -74,9 +78,10 @@ if (!qiankunWindow.__POWERED_BY_QIANKUN__) {
 /**
  * 注册 qiankun 生命周期。
  *
- * <p>顺序有讲究：`bindHost` 必须在 `initializeAuth` 之前 ——
- * 认证端口要靠基座下发的 `auth` 判断自己是"被基座加载"还是"独立运行"，
- * 反了就会误判成独立运行，然后自己建一份会话（两份会话并存，刷新各自失效）。
+ * <p>顺序有讲究：`bindHost` 必须在 `connectPermissionSource()` 之前 ——
+ * 权限 store 在 `connect` 时**读一次**身份，而"用宿主下发的身份还是自己的会话"
+ * 这个判据是"**有没有宿主桥**"。排反了就会把"被基座加载"读成"独立运行"，
+ * 于是自建起第二份会话（两份会话并存，刷新各自失效）。
  */
 renderWithQiankun({
   bootstrap() {
@@ -91,7 +96,6 @@ renderWithQiankun({
       hasAuthBridge: Boolean((props as HostProps).auth),
     });
     bindHost(props as HostProps, APP_NAME);
-    initializeAuth();
     disconnectPermissions = connectPermissionSource();
     render(props.container);
   },

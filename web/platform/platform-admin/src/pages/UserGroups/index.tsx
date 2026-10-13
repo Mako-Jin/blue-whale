@@ -101,7 +101,7 @@ export function UserGroupsPage() {
       setLoading(true);
       setError(null);
       try {
-        const result = await api().access.userGroups.page({
+        const result = await api.access.userGroups.page({
           page: pageNo,
           size: PAGE_SIZE,
           keyword: keyword || undefined,
@@ -134,10 +134,10 @@ export function UserGroupsPage() {
     try {
       const body = toBody(form);
       if (target) {
-        await api().access.userGroups.update(target.id as number, body);
+        await api.access.userGroups.update(target.id as number, body);
         setNotice(`已保存用户组「${body.groupCode}」`);
       } else {
-        await api().access.userGroups.create(body);
+        await api.access.userGroups.create(body);
         setNotice(`已新建用户组「${body.groupCode}」`);
       }
       closeDialog();
@@ -154,7 +154,7 @@ export function UserGroupsPage() {
     setBusy(true);
     setDialogError(null);
     try {
-      await api().access.userGroups.remove(removing.id as number);
+      await api.access.userGroups.remove(removing.id as number);
       setNotice(`已删除用户组「${removing.groupCode}」`);
       setRemoving(null);
       reload();
@@ -531,11 +531,11 @@ function GroupMembersDialog({
       setError(null);
       try {
         const [memberPage, userPage] = await Promise.all([
-          api().access.userGroups.pageMembers(group.id as number, {
+          api.access.userGroups.pageMembers(group.id as number, {
             page: pageNo,
             size: MEMBER_PAGE_SIZE,
           }),
-          api().access.users.page({ page: 1, size: OPTION_SIZE }),
+          api.access.users.page({ page: 1, size: OPTION_SIZE }),
         ]);
         if (!alive) return;
         setPage(memberPage);
@@ -557,7 +557,7 @@ function GroupMembersDialog({
     setError(null);
     try {
       // `memberType` 显式写死 USER：这是唯一被接受的取值，不给用户一个可以选错的开关
-      await api().access.userGroups.bindMember(group.id as number, {
+      await api.access.userGroups.bindMember(group.id as number, {
         memberType: 'USER',
         memberId: Number(memberId),
         effectiveFrom: parseDateTimeLocal(from),
@@ -579,7 +579,7 @@ function GroupMembersDialog({
     setBusy(true);
     setError(null);
     try {
-      await api().access.userGroups.revokeMember(group.id as number, {
+      await api.access.userGroups.revokeMember(group.id as number, {
         memberType: member.memberType ?? 'USER',
         memberId: member.memberId ?? -1,
       });

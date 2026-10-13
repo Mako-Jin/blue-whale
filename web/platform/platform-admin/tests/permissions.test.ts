@@ -1,6 +1,7 @@
+import type { SessionStore } from 'common-tools/session';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { getStandaloneSession, initializeAuth } from '../src/auth';
+import { consoleAuth } from '../src/auth';
 import {
   connectPermissionSource,
   getPermissionState,
@@ -15,8 +16,16 @@ import {
  * 分支选择本身是这条用例的一部分：`isMicroApp()` 为假时必须落到会话，
  * 而不是报错或返回空权限 —— 那正是子应用单跑时要能工作的那件事。
  */
+function standaloneSession(): SessionStore {
+  const session = consoleAuth.getStandaloneSession();
+  if (!session) {
+    throw new Error('测试环境不应存在宿主认证桥：独立运行分支必然成立');
+  }
+  return session;
+}
+
 function signIn(permissions: string[], roles: string[] = ['AUDITOR']): void {
-  getStandaloneSession().set({
+  standaloneSession().set({
     user: { userId: 7, username: 'auditor', roles, permissions },
     tokens: { accessToken: 'access-1', refreshToken: 'refresh-1' },
   });
@@ -25,8 +34,7 @@ function signIn(permissions: string[], roles: string[] = ['AUDITOR']): void {
 describe('权限快照', () => {
   beforeEach(() => {
     localStorage.clear();
-    getStandaloneSession().clear();
-    initializeAuth();
+    standaloneSession().clear();
   });
 
   it('未登录时 ready 为 false —— "还不知道有没有权限"不能等同于"没有权限"', () => {
@@ -64,7 +72,7 @@ describe('权限快照', () => {
     signIn(['auth:user:read']);
     expect(notifications).toBe(1);
 
-    getStandaloneSession().clear();
+    standaloneSession().clear();
     expect(notifications).toBe(2);
     expect(getPermissionState().ready).toBe(false);
 
@@ -93,7 +101,7 @@ describe('权限快照', () => {
     });
 
     // 访问令牌换了，身份与权限没变 —— 快照引用没变，因此不发通知
-    getStandaloneSession().updateTokens({ accessToken: 'access-2' });
+    standaloneSession().updateTokens({ accessToken: 'access-2' });
     expect(notifications).toBe(0);
 
     // 权限真的变了就必须通知
