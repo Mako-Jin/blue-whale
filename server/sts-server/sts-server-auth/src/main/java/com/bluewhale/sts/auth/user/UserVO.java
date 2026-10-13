@@ -44,6 +44,16 @@ public class UserVO {
     @Schema(description = "累计锁定次数：每触发一次锁定加一，登录成功归零。退避时长由它决定")
     private Integer lockLevel;
 
+    /**
+     * 是否还在等本人改口令：0 否 1 是。
+     *
+     * <p>它属于 ADR-0020 那条判据里"运维在界面上需要据此做决定"的一类 ——
+     * 管理员重置了某人的口令之后，"他改了没有"是他最关心的下一件事，
+     * 而这一列此前只在库里、接口上读不到（本人侧由 {@code MeVO} 承担）。
+     */
+    @Schema(description = "是否还在等本人改口令：0 否 1 是（管理员重置后置 1，本人改密后归 0）")
+    private Integer mustChangePassword;
+
     private Long lastLoginAt;
 
     @Schema(description = "是否启用多因子：0 否 1 是")

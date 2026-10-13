@@ -129,6 +129,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/auth/password': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * 自助改密
+     * @description 本人修改自己的口令。需提供当前口令；成功后撤销该用户全部刷新令牌（需重新登录）
+     */
+    put: operations['changePassword'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/auth/orgs/{id}': {
     parameters: {
       query?: never;
@@ -984,6 +1004,11 @@ export interface components {
        * @description 累计锁定次数：每触发一次锁定加一，登录成功归零。退避时长由它决定
        */
       lockLevel?: number;
+      /**
+       * Format: int32
+       * @description 是否还在等本人改口令：0 否 1 是（管理员重置后置 1，本人改密后归 0）
+       */
+      mustChangePassword?: number;
       /** Format: int64 */
       lastLoginAt?: number;
       /**
@@ -1354,6 +1379,21 @@ export interface components {
       /** Format: int64 */
       updateTime?: number;
     };
+    /** @description 自助改密入参 */
+    ChangePasswordRequest: {
+      /** @description 当前口令 —— 用于证明操作者是本人 */
+      oldPassword: string;
+      /** @description 新口令。长度下限与字符类别由服务端的口令策略判定，故此处不固定 minLength */
+      newPassword: string;
+    };
+    RVoid: {
+      /** Format: int32 */
+      code?: number;
+      message?: string;
+      data?: unknown;
+      /** Format: int64 */
+      timestamp?: number;
+    };
     /** @description 组织保存入参 */
     OrganizationSaveRequest: {
       /**
@@ -1694,14 +1734,6 @@ export interface components {
     PasswordResetRequest: {
       /** @description 新口令。长度下限与字符类别由服务端的口令策略判定，故此处不固定 minLength */
       password: string;
-    };
-    RVoid: {
-      /** Format: int32 */
-      code?: number;
-      message?: string;
-      data?: unknown;
-      /** Format: int64 */
-      timestamp?: number;
     };
     /** @description 用户组成员入参 */
     UserGroupMemberBindRequest: {
@@ -2665,6 +2697,11 @@ export interface components {
       roles?: string[];
       /** @description 权限（资源标识）集合 */
       permissions?: string[];
+      /**
+       * Format: int32
+       * @description 是否需要在下次操作前修改口令：1 是 0 否（本人改密后即变 0）
+       */
+      mustChangePassword?: number;
     };
     RMeVO: {
       /** Format: int32 */
@@ -3158,6 +3195,30 @@ export interface operations {
       cookie?: never;
     };
     requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RVoid'];
+        };
+      };
+    };
+  };
+  changePassword: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ChangePasswordRequest'];
+      };
+    };
     responses: {
       /** @description OK */
       200: {

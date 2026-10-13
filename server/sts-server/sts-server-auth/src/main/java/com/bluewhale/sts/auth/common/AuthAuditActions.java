@@ -146,4 +146,21 @@ public final class AuthAuditActions {
      */
     public static final String USER_RESET_PASSWORD = "auth.user.reset_password";
 
+    /**
+     * 用户**本人**修改自己的口令。
+     *
+     * <p>与 {@link #USER_RESET_PASSWORD} 分开记，理由与它们分开命名同源，但更强一层：
+     * 这里连**权限都不同** —— 重置他人需要 {@code auth:user:update}，而本人改密
+     * 不需要任何权限码（能登录就该能改自己的口令，否则用户被一个盗不走的口令锁在门外）。
+     * 两者在审计上合并的后果是："这个账号的口令为什么变了"这个问题，管理员改的查得到、
+     * 本人改的查不到，而**后者才是安全事件时间线里最常被问的那一半**。
+     *
+     * <p>为什么登录 / 登出不记审计而这条要记：登录是**高频**动作，逐条记会让审计表
+     * 被日常噪声灌满（那是应用日志与风控的活）；而凭据变更是低频、高重的事件，
+     * 它回答的是"这个口令是什么时候换掉的"——一条记录就有可能定住整条时间线。
+     * 与 {@code AuthAuditActions} 类注释里"权限码与动作标识数量上不一一对应"是同一件事：
+     * 决定记不记的是**事后要不要问**，不是"这个接口重要不重要"。
+     */
+    public static final String USER_CHANGE_PASSWORD = "auth.user.change_password";
+
 }

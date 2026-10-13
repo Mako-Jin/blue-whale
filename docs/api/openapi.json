@@ -593,6 +593,38 @@
         }
       }
     },
+    "/api/auth/password": {
+      "put": {
+        "tags": [
+          "认证"
+        ],
+        "summary": "自助改密",
+        "description": "本人修改自己的口令。需提供当前口令；成功后撤销该用户全部刷新令牌（需重新登录）",
+        "operationId": "changePassword",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RVoid"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/orgs/{id}": {
       "get": {
         "tags": [
@@ -3226,6 +3258,11 @@
             "format": "int32",
             "description": "累计锁定次数：每触发一次锁定加一，登录成功归零。退避时长由它决定"
           },
+          "mustChangePassword": {
+            "type": "integer",
+            "format": "int32",
+            "description": "是否还在等本人改口令：0 否 1 是（管理员重置后置 1，本人改密后归 0）"
+          },
           "lastLoginAt": {
             "type": "integer",
             "format": "int64"
@@ -3862,6 +3899,45 @@
           }
         }
       },
+      "ChangePasswordRequest": {
+        "type": "object",
+        "description": "自助改密入参",
+        "properties": {
+          "oldPassword": {
+            "type": "string",
+            "description": "当前口令 —— 用于证明操作者是本人",
+            "maxLength": 128,
+            "minLength": 0
+          },
+          "newPassword": {
+            "type": "string",
+            "description": "新口令。长度下限与字符类别由服务端的口令策略判定，故此处不固定 minLength",
+            "maxLength": 128,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "newPassword",
+          "oldPassword"
+        ]
+      },
+      "RVoid": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {},
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "OrganizationSaveRequest": {
         "type": "object",
         "description": "组织保存入参",
@@ -4407,23 +4483,6 @@
         "required": [
           "password"
         ]
-      },
-      "RVoid": {
-        "type": "object",
-        "properties": {
-          "code": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "message": {
-            "type": "string"
-          },
-          "data": {},
-          "timestamp": {
-            "type": "integer",
-            "format": "int64"
-          }
-        }
       },
       "UserGroupMemberBindRequest": {
         "type": "object",
@@ -6233,6 +6292,11 @@
               "type": "string"
             },
             "uniqueItems": true
+          },
+          "mustChangePassword": {
+            "type": "integer",
+            "format": "int32",
+            "description": "是否需要在下次操作前修改口令：1 是 0 否（本人改密后即变 0）"
           }
         }
       },

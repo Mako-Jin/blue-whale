@@ -10,6 +10,7 @@ import com.bluewhale.sts.auth.common.codec.JwtExpiredException;
 import com.bluewhale.sts.auth.common.codec.JwtPayload;
 import com.bluewhale.sts.auth.common.codec.JwtVerificationException;
 import com.bluewhale.sts.auth.common.codec.PasswordHasher;
+import com.bluewhale.sts.auth.common.enums.PasswordChangeSource;
 import com.bluewhale.sts.auth.common.enums.Status;
 import com.bluewhale.sts.auth.context.AuthContext;
 import com.bluewhale.sts.auth.context.AuthContextHolder;
@@ -26,7 +27,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * 认证应用服务 —— 登录 / 登出 / 刷新 / 查当前用户。
+ * 认证应用服务 —— 登录 / 登出 / 刷新 / 查当前用户 / 自助改密。
  *
  * <p><b>这是参照实现里最空的一块。</b>{@code SystemTerminator} 的
  * {@code AuthApplicationServiceImpl.authentication(...)} 直接 {@code return null}，
@@ -55,6 +56,7 @@ public class AuthService {
     private final JwtCodec jwtCodec;
     private final PasswordHasher passwordHasher;
     private final LoginAttemptRecorder loginAttemptRecorder;
+    private final PasswordChanger passwordChanger;
     private final AuthProperties properties;
 
     public AuthService(TenantMapper tenantMapper,
@@ -64,6 +66,7 @@ public class AuthService {
                        JwtCodec jwtCodec,
                        PasswordHasher passwordHasher,
                        LoginAttemptRecorder loginAttemptRecorder,
+                       PasswordChanger passwordChanger,
                        AuthProperties properties) {
         this.tenantMapper = tenantMapper;
         this.userMapper = userMapper;
@@ -72,6 +75,7 @@ public class AuthService {
         this.jwtCodec = jwtCodec;
         this.passwordHasher = passwordHasher;
         this.loginAttemptRecorder = loginAttemptRecorder;
+        this.passwordChanger = passwordChanger;
         this.properties = properties;
     }
 
@@ -227,7 +231,74 @@ public class AuthService {
         vo.setTenantId(context.getTenantId());
         vo.setRoles(context.getRoleCodes());
         vo.setPermissions(permissions);
+        // 认证上下文里没有这个字段（它属于"账号状态"，不属于"身份"），要回查一次库。
+        // 代价是一次主键查询 —— 换来的是"管理员重置后本人能立刻被引导去改密"，
+        // 而这正是 mustChangePassword 这一列存在的全部意义（此前它没有任何读取方）。
+        UserEntity user = userMapper.selectById(context.getUserId());
+        vo.setMustChangePassword(user == null ? 0 : user.getMustChangePassword());
         return vo;
+    }
+
+    /**
+     * 自助改密 —— 本人修改自己的口令。
+     *
+     * <p>与管理员重置（{@code UserService#resetPassword}）的差别只有三处，
+     * 但每一处都不是可选项：
+     * <ul>
+     *   <li><b>必须验旧口令</b> —— 本接口不挂权限码（能登录就该能改自己的口令，
+     *       否则用户会被一个自己都进不去的口令锁在门外），所以"证明你是本人"
+     *       只能靠旧口令。不验的话，一次访问令牌泄露就等于一次账号接管：
+     *       攻击者进来改掉口令，主人随即被关在门外，且连刷新令牌都被清空。</li>
+     *   <li><b>失败必须计数</b> —— 它是一个**新的口令猜测入口**：拿着令牌的人可以
+     *       反复猜旧口令，猜中即可改密。走 {@link LoginAttemptRecorder}，
+     *       与登录失败共用同一套退避。</li>
+     *   <li><b>成功后撤销全部刷新令牌</b> —— 见下。</li>
+     * </ul>
+     *
+     * <p><b>为什么连当前会话的刷新令牌也撤销：</b>改密最常见的动机就是"我怀疑口令泄露了"。
+     * 此时若留着攻击者已经换到手的刷新令牌，他下一次刷新就会拿到一套全新的令牌对，
+     * 改密便成了一次无害的仪式。做不到"只撤销别人的"是因为**认不出当前用的是哪一个** ——
+     * 本请求带的是访问令牌，里面没有刷新令牌的 jti。代价是改完密在访问令牌到期后
+     * 需要重新登录，而那更像一个特征而不是缺陷：重新登录一次，正好验证新口令确实能用。
+     *
+     * <p><b>访问令牌仍有最长一个令牌有效期（默认 2 小时）的残留。</b>这是无状态访问令牌的
+     * 固有代价，与 {@link #logout} 是同一条取舍（撤销它要引入黑名单存储，每个请求多查一次）。
+     * 但这里的自愈是确定的：攻击者即使握着访问令牌，也**改不了密**（那需要旧口令），
+     * 且 2 小时后刷新失败、必然出局。
+     */
+    @Transactional
+    public void changePassword(ChangePasswordRequest request) {
+        AuthContext context = AuthContextHolder.require();
+        long now = System.currentTimeMillis();
+
+        // 按上下文里的主键重新读，不接受调用方传入：口径与其它写操作一致，
+        // 也顺带覆盖"令牌还有效、账号已被删"这种边角（读不到即会话失效）
+        UserEntity user = userMapper.selectById(context.getUserId());
+        if (user == null) {
+            throw AuthResultCode.SESSION_INVALID.businessException();
+        }
+
+        // 先验旧口令 —— 这是本接口唯一能证明"操作者是本人"的手段
+        if (!passwordHasher.matches(request.getOldPassword(), user.getPasswordHash())) {
+            // 与登录失败走同一条路（独立事务，不会被本方法的事务回滚带走）。
+            // 代价是本人记错旧口令、连试几次也会被锁定 5 分钟 —— 与登录路径的后果一致；
+            // 而"改密接口能绕过锁定去猜口令"是更坏的一种不一致。
+            recordFailure(user.getId(), now);
+            // 复用 40101（凭据不对）而不是新开一个码：这里是**同一件事**（口令不匹配）。
+            // 只把文案换成场景化的说法 —— 前端本来就知道自己在调哪个接口，
+            // 多开一个码只会让"两个码表达同一件事"多一处。
+            throw AuthResultCode.BAD_CREDENTIALS.businessException("当前口令不正确");
+        }
+
+        // 改密这件事本人刚做完，不该再被要求"下次登录必须改密"
+        user.setMustChangePassword(0);
+        passwordChanger.change(user, request.getNewPassword(), PasswordChangeSource.SELF, now);
+
+        // 放在最后：上面任何一步失败都不该动会话 —— 尤其"新口令不合规"时，
+        // 用户还得用**当前这个会话**重新填一次，把他踢出去等于让一次输错变成一次登出
+        revokeAllForUser(user.getId(), now);
+
+        log.info("自助改密成功 | userId={} | username={}", user.getId(), user.getUsername());
     }
 
     private LoginVO issueTokens(TenantEntity tenant, UserEntity user,
