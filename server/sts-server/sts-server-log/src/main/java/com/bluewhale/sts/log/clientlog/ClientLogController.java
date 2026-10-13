@@ -82,7 +82,8 @@ public class ClientLogController {
     @GetMapping("/trace/{traceId}")
     @RequiresPermission(AuthPermissions.LOG_CLIENT_READ)
     @Operation(summary = "按链路标识查询整条链路",
-            description = "按发生时间**升序**返回，便于直接按顺序阅读。")
+            description = "按发生时间**升序**返回，便于直接按顺序阅读。"
+                    + "最多返回 200 条；时间窗缺省为最近 7 天，与分页查询、聚合统计一致。")
     public R<List<ClientLogVO>> listByTraceId(@PathVariable @Parameter(description = "链路标识") String traceId) {
         return R.ok(clientLogService.listByTraceId(traceId));
     }

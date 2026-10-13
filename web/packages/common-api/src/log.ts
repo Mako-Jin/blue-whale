@@ -72,7 +72,7 @@ export interface LogApi {
   page(query?: ClientLogQuery): Promise<ClientLogPage>;
   /** 查询详情 */
   detail(id: PathOf<DetailOp>['id']): Promise<ClientLogVO>;
-  /** 按链路标识取整条链路（按时间升序） */
+  /** 按链路标识取整条链路（按时间升序；最多 200 条，时间窗缺省为最近 7 天） */
   listByTraceId(traceId: PathOf<TraceOp>['traceId']): Promise<ClientLogVO[]>;
   /** 按级别聚合统计 */
   stats(query?: ClientLogStatsQuery): Promise<ClientLogStats>;

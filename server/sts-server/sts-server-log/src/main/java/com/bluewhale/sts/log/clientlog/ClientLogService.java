@@ -49,6 +49,16 @@ public class ClientLogService {
     /** 查询默认时间窗：7 天 */
     private static final long DEFAULT_WINDOW_MILLIS = 7L * 24L * 60L * 60L * 1000L;
 
+    /**
+     * 链路查询返回条数上限。
+     *
+     * <p>它不是"分页"而是**兜底**：链路要么整条读、要么不读 —— 翻页读同一条链路的
+     * 第 4 页没有意义。一次请求产生的日志是几十条量级，200 条已远超正常。
+     * 真正会超过这个数的情形只有一种：有人把 {@code traceId} 当成可以随意灌的键
+     * （它是上报方自填的，见 {@code ClientLogReportRequest}）。
+     */
+    private static final int TRACE_MAX_ROWS = 200;
+
     private static final TypeReference<List<Object>> LIST_TYPE = new TypeReference<>() {
     };
 
@@ -165,18 +175,38 @@ public class ClientLogService {
      *
      * <p>按时间**升序**返回（与其他接口相反）：链路的阅读顺序就是发生顺序，
      * 倒序会让调用方多写一次 reverse。
+     *
+     * <p><b>本接口此前既无条数上限、也无时间窗</b> —— 而 {@code traceId} 是
+     * **上报方自己填的**普通字符串（{@code ClientLogReportRequest}），
+     * 因此谁都能让一个 traceId 上攒下任意多条记录、再一次性拉走。
+     * 同域的 {@code page} / {@code stats} 都有 7 天缺省窗与条数上限，只有它没有 ——
+     * 是漏了，不是有意的差异。现在补齐：默认窗口 + 最多 {@value #TRACE_MAX_ROWS} 条。
+     *
+     * <p>次级排序键取 {@code id}：同一批上报的记录 {@code serverTime} 是**同一个值**
+     * （见 {@link #report} 里它在循环外只算一次），只按时间排序时批内顺序由数据库
+     * 任意决定，"链路的阅读顺序"于是会随执行计划漂移。id 自增，正好等于批内原始顺序。
      */
     @Transactional(readOnly = true)
     public List<ClientLogVO> listByTraceId(String traceId) {
         if (!hasText(traceId)) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "traceId 不能为空");
         }
-        List<ClientLogEntity> entities = clientLogMapper.selectList(
+        long endTime = System.currentTimeMillis();
+        long startTime = endTime - DEFAULT_WINDOW_MILLIS;
+
+        // 用分页插件而不是手写 LIMIT：本仓要跑 MySQL 与达梦两套方言，
+        // 手写的 LIMIT 在达梦下未必成立，而插件会按当前方言生成分页 SQL。
+        // searchCount=false：本接口不需要总数，省掉一次 count(*)。
+        Page<ClientLogEntity> page = clientLogMapper.selectPage(
+                new Page<>(1L, TRACE_MAX_ROWS, false),
                 Wrappers.<ClientLogEntity>lambdaQuery()
                         .eq(ClientLogEntity::getTenantId, visibleTenantId())
                         .eq(ClientLogEntity::getTraceId, traceId)
-                        .orderByAsc(ClientLogEntity::getServerTime));
-        return entities.stream().map(this::toVO).toList();
+                        .ge(ClientLogEntity::getServerTime, startTime)
+                        .le(ClientLogEntity::getServerTime, endTime)
+                        .orderByAsc(ClientLogEntity::getServerTime)
+                        .orderByAsc(ClientLogEntity::getId));
+        return page.getRecords().stream().map(this::toVO).toList();
     }
 
     @Transactional(readOnly = true)

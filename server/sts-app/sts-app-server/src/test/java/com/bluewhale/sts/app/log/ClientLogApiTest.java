@@ -110,6 +110,33 @@ class ClientLogApiTest {
     }
 
     @Test
+    @DisplayName("链路查询有条数上限：同一 traceId 攒到超过上限时只返回前 200 条")
+    void shouldCapTraceRows() throws Exception {
+        String token = loginAsAdmin();
+        String traceId = "trace-cap-" + UUID.randomUUID();
+        String app = "it-trace-cap-" + UUID.randomUUID();
+
+        // 一批 250 条同一个 traceId —— 单批上限是 500，所以**一次请求**就能把某个
+        // traceId 灌过上限。这正是它危险的地方：traceId 由上报方自填，
+        // 服务端只做长度截断，没有任何结构性约束。
+        mockMvc.perform(post("/api/logs/client")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(batchWithTraceId(app, traceId, 250)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.accepted").value(250));
+
+        mockMvc.perform(get("/api/logs/client/trace/{traceId}", traceId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                // 修前这里是 250：整个 traceId 链路的记录会被一次性拉回内存并整体序列化。
+                // 200 对应 ClientLogService.TRACE_MAX_ROWS（private，故此处写死数字）
+                .andExpect(jsonPath("$.data.length()").value(200));
+    }
+
+    @Test
     @DisplayName("分页查询：按级别过滤，并由服务端算好总页数")
     void shouldPageAndFilter() throws Exception {
         String token = loginAsAdmin();
@@ -352,6 +379,20 @@ class ClientLogApiTest {
                         .content(body))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0));
+    }
+
+    /** 造一批**同一个 traceId** 的上报体，用于验证链路查询的条数上限 */
+    private static String batchWithTraceId(String app, String traceId, int count) {
+        StringBuilder items = new StringBuilder();
+        for (int i = 0; i < count; i++) {
+            if (i > 0) {
+                items.append(',');
+            }
+            items.append("""
+                    {"level": "info", "namespace": "cap", "message": "第 %d 条", "timestamp": %d, "traceId": "%s"}
+                    """.formatted(i, i, traceId));
+        }
+        return "{\"app\": \"" + app + "\", \"logs\": [" + items + "]}";
     }
 
     private String loginAsAdmin() throws Exception {

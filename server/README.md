@@ -360,8 +360,11 @@ com.bluewhale.sts.log                    ← sts-server-log，包名用业务域
 > 且两张表**连 `tenant_id` 这一列都没有** —— 持查询权限的人读到的是全部租户的数据。
 > 本批顺带新增两个权限码（`log:client:read` / `event:client:read`，**刻意不与 `auth:audit:read` 合并**），
 > 之后 `AuthPermissions.ALL` 共 **27** 项（`0026` 之后是 23 项；`0030` 又加了
-> `auth:org:read|create|update|delete` 四项，见下面的组织域硬规则表）。仍有的是：**`listByTraceId` 无条数上限**
-> （一个 `traceId` 下的条数由客户端行为决定）、以及用 `data_scope` 进一步收窄
+> `auth:org:read|create|update|delete` 四项，见下面的组织域硬规则表）；
+> `0031` 再加 18 条 `ui:*`（菜单与页面级，**不参与后端准入**），共 **45** 项。
+> 原先列的 **`listByTraceId` 无条数上限**已于 2026-10-13 修复 —— 见 `docs/decisions/0032`
+> （补 7 天缺省时间窗 + 200 条上限，并修掉"同批 `serverTime` 相同 ⇒ 批内顺序由引擎决定"）。
+> 仍在的只有用 `data_scope` 进一步收窄
 > （日志 / 事件里**没有组织归属字段，落点仍不清楚**）。
 > 原先列的**上报限流**已于 2026-10-13 落地，但**不在后端** —— 见下条。
 >
