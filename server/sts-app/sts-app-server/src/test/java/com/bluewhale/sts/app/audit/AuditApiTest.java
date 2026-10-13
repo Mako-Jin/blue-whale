@@ -15,6 +15,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
@@ -33,7 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * 审计管道的端到端测试 —— 一条真实请求穿过
- * Token 过滤器 → 审计拦截器 → 鉴权拦截器 → Controller → Service → Mapper → H2，
+ * Token 过滤器 → 审计拦截器 → 鉴权拦截器 → Controller → Service → Mapper → 数据库，
  * 请求结束后由拦截器把这次操作写进 {@code bw_audit_log}。
  *
  * <p><b>本类真正要证明的一件事：审计记录不是上报上来的。</b>
@@ -48,10 +49,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 这个"不对称"本身就是设计要的效果 —— 业务失败要能回滚，审计不能跟着回滚。
  * 相应地，下面所有断言都**按唯一条件过滤**（用新建用户的 id / 用户名），
  * 而不是断总数，否则会被同一次构建里别的用例产生的记录干扰。
+ *
+ * <p><b>隔离级别必须是 {@code READ_COMMITTED}，这不是随手加的。</b>
+ * 审计行由**另一个事务**提交，而本类自己开着事务：在数据库默认的
+ * {@code REPEATABLE_READ} 下，本事务第一次读取时就定住了快照，之后别的事务
+ * 提交的行**永远看不见** —— 于是"审计确实写进去了"这件事在测试里表现为
+ * {@code total == 0}，且没有任何报错。
+ * H2 的默认隔离级别恰好是 {@code READ_COMMITTED}，所以这个坑在只跑 H2 时
+ * 完全不存在，一旦换到 MySQL（默认 {@code REPEATABLE_READ}）就会集中爆出来。
+ * 这里选 {@code READ_COMMITTED} 是**把测试的假设写下来**，而不是去改库的隔离级别：
+ * 产品的隔离级别由 profile 决定，不该为了测试而变 —— 见 docs/decisions/0038。
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-@Transactional
+@Transactional(isolation = Isolation.READ_COMMITTED)
 class AuditApiTest {
 
     @Autowired

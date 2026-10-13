@@ -22,7 +22,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * 权限域的端到端测试 —— 一条请求真实穿过
- * Token 过滤器 → 鉴权拦截器 → Controller → Service → Mapper → H2。
+ * Token 过滤器 → 鉴权拦截器 → Controller → Service → Mapper → 数据库
+ * （默认 H2 内存库；同一批用例也会在 CI 里对**真实 MySQL** 跑一遍）。
  *
  * <p>放在**应用层**，因为它验证的是"整条链路装配正确"：自动配置是否生效、
  * Mapper 是否被扫描到、Flyway V3 是否建出了表、审计字段是否被自动填充、

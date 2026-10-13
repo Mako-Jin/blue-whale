@@ -7,7 +7,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.ApplicationContext;
+import org.springframework.core.env.Environment;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.yaml.snakeyaml.Yaml;
+
+import java.io.InputStream;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -31,22 +37,52 @@ class HealthControllerTest {
     @Autowired
     private ApplicationContext applicationContext;
 
+    @Autowired
+    private Environment environment;
+
     @Test
     @DisplayName("健康检查返回统一响应结构，并逐依赖汇报状态")
     void shouldReturnWrappedHealthResult() throws Exception {
+        // 上报的 profile 必须与**本次真正生效的** profile 一致。
+        //
+        // 这里刻意不写 "h2"：本类的作用是证明"接口报的是真话"，而"默认 profile 是 h2"
+        // 是另一回事（那是一条**配置事实**，由下面 defaultProfileMustBeH2 直接读
+        // application.yml 来钉）。两者混在一起写过一次，后果是
+        // `mvn verify -Dspring.profiles.active=mysql` 会红在这里，
+        // 而红的原因与本类要守的东西毫无关系 —— 见 docs/decisions/0038。
+        String[] activeProfiles = environment.getActiveProfiles();
+        String expectedProfile = activeProfiles.length == 0 ? "default" : String.join(",", activeProfiles);
+
         mockMvc.perform(get("/api/health"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.data.status").value("UP"))
                 .andExpect(jsonPath("$.data.application").value("bluewhale-server"))
-                // 这里断言 h2 不是随手写的字面量，而是在**钉住默认 profile**：
-                // 本项目保证"clone 下来不装任何数据库就能跑"，靠的就是默认走 h2 内存库。
-                // 哪天有人把默认改成 mysql，这条会立刻失败 —— 否则这个约定会
-                // 悄无声息地失效，直到新人第一次 clone 时才发现跑不起来。
-                .andExpect(jsonPath("$.data.profile").value("h2"))
+                .andExpect(jsonPath("$.data.profile").value(expectedProfile))
                 .andExpect(jsonPath("$.data.dependencies.db").value("UP"))
                 .andExpect(jsonPath("$.data.timestamp").doesNotExist())
                 .andExpect(jsonPath("$.timestamp").isNumber());
+    }
+
+    @Test
+    @DisplayName("默认 profile 必须是 h2：clone 下来不装任何数据库就能跑")
+    @SuppressWarnings("unchecked")
+    void defaultProfileMustBeH2() throws Exception {
+        // 本项目对外的承诺之一是"不装数据库也能起"。守它的方式有讲究：
+        // 不能靠"断言本次运行的 profile"（那是启动参数，与承诺无关），
+        // 只能读 application.yml —— 那份文件里的 `spring.profiles.active` 才是承诺本身。
+        // 所以这个测试**直接读 yml**，与 DatasourceDialectTest 同一套做法：
+        // 配置改了测试就要跟着红，而不是测试里另抄一份默认值。
+        try (InputStream in = new ClassPathResource("application.yml").getInputStream()) {
+            Map<String, Object> root = new Yaml().load(in);
+            Map<String, Object> spring = (Map<String, Object>) root.get("spring");
+            Map<String, Object> profiles = (Map<String, Object>) spring.get("profiles");
+
+            assertThat(profiles.get("active"))
+                    .as("application.yml 的默认 profile 被改掉了，"
+                            + "\"clone 下来不装数据库就能跑\"这条承诺随之失效")
+                    .isEqualTo("h2");
+        }
     }
 
     @Test

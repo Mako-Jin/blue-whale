@@ -27,6 +27,9 @@
    **真机层（九个 `scripts/verify-*.mjs` 浏览器脚本，清单见 `scripts/README.md` 的「前置条件」列）刻意不在必过项里** —— 它们依赖真实浏览器、
    GPU、冷启动 dev server 与端口占用，进去只会得到随机红。改 workflow 里的命令前，
    **先把那条命令在本机跑一遍**（CI 配置本身没有测试）。见 `docs/decisions/0036`。
+   **后端有两个 job**：`server`（默认 h2）与 `server-mysql`（真实 MySQL，带服务容器）。
+   **h2 是开发便利、不是交付形态** —— 新增"只在某个 profile 成立"的断言前，先问它在另一个 profile 下还成立吗；
+   改迁移脚本后 `server-mysql` 必须绿。见 `docs/decisions/0038`。
 
 ## 已知的环境坑（排查前先看这里）
 

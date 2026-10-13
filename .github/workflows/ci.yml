@@ -1,16 +1,16 @@
-# CI —— 持续集成（决策与边界见 docs/decisions/0036）
+# CI —— 持续集成（决策与边界见 docs/decisions/0036 / 0038）
 #
 # 分层原则：**能自动判定的一律自动判定；判不了的不要假装判了。**
 #
-#   静态层（ESLint / Stylelint / 类型）· 单测层（前端 549 例 / 后端 180 例）
-#   · 构建层（六个应用 + 产物自检）· 后端层（Maven 构建 + 测试）
+#   静态层（ESLint / Stylelint / 格式 / 类型）· 单测层（前端 549 例 / 后端 181 例）
+#   · 构建层（六个应用 + 产物自检）· 后端层（Maven 构建 + 测试，两种数据源方言）
 #   · 仓库自检层（nginx 配置结构 / 文档索引一致性 —— 都不需要前置服务）
 #
 # **真机层刻意不进流水线**（浏览器 + 冷启动 dev server：单跑登录、微前端、三维、
 # 场景切换）。它依赖 GPU、真实浏览器与端口占用，放进必过项只会变成随机红 ——
 # 那比没有 CI 更坏，因为红久了就没人看了。它继续由人跑：`scripts/verify-*.mjs`。
 #
-# 三个 job 各自独立：互不阻塞、失败定位清楚（哪个 job 红 = 哪一层的问题）。
+# 四个 job 各自独立：互不阻塞、失败定位清楚（哪个 job 红 = 哪一层的问题）。
 
 name: CI
 
@@ -120,6 +120,89 @@ jobs:
       # —— 顺带验证了迁移脚本本身是可执行的。
       - name: 构建并跑测试
         run: mvn -B -ntp verify
+
+  # ---------------------------------------------------------------------------
+  # 真实 MySQL：h2 是"clone 下来就能跑"的默认，但它**不是**交付形态。
+  #
+  # 这个 job 之前不存在，代价是：MySQL 那套迁移脚本只有人记得在本机手动跑过，
+  # 全套用例也从没在 h2 以外的库上执行过。第一次真跑就暴露出 5 处
+  # （4 失败 + 1 错误），根因是 `REPEATABLE_READ` 快照与"审计走独立事务"撞车
+  # —— 详见 docs/decisions/0038。**这类问题人不会主动想起来去测。**
+  #
+  # 与 `server` job 刻意分成两个而不是合成一个：合成后前一步失败会掩盖后一步，
+  # 而这两个 job 想回答的是两个不同的问题（"默认路径还好吗" / "真实库上还好吗"）。
+  # ---------------------------------------------------------------------------
+  server-mysql:
+    name: 后端 · 真实 MySQL（迁移 + 全量测试）
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    services:
+      mysql:
+        # 与开发机同主版本（本机是 8.0.26），避免"换了个大版本"混进变量。
+        image: mysql:8.0
+        env:
+          # 与应用默认值对齐：`application-mysql.yml` 的用户名/口令默认就是
+          # root / 空（`${BW_DB_USERNAME:root}` / `${BW_DB_PASSWORD:}`），
+          # 所以这里**不需要注入任何凭据**，job 里也就没有 secrets 要配。
+          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+          # **必须有它**：容器把 3306 发布到宿主机，runner 上的连接进来时源 IP 是
+          # docker 网关（如 172.17.0.1），匹配不上镜像默认建的 `root@localhost`，
+          # 症状是 `Access denied for user 'root'@'172.17.0.1'`。
+          MYSQL_ROOT_HOST: '%'
+          # 建库（Flyway 只建表、不建库）。MySQL 8 服务端默认字符集就是
+          # utf8mb4 / utf8mb4_0900_ai_ci，与 README 要求的建库语句一致。
+          MYSQL_DATABASE: bluewhale
+        ports:
+          # 发布到 3306 = `application-mysql.yml` 里写死的地址 ⇒ 命令与本机跑的
+          # 那条**逐字相同**，不需要额外覆盖数据源 URL。
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: 装 JDK 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # 两个 `-D...seed-*` 是**必须**给的：种子口令没有默认值（docs/decisions/0029），
+      # 开了开关却不给口令，应用会**拒绝启动**。mysql profile 默认不开种子，而下面
+      # 这批用例要靠一个能登录的账号（h2 下由种子提供），所以在这里显式打开。
+      #
+      # ⚠️ 这两个口令与 `application-h2.yml` 里的**是同一对**（那是本仓唯一的真值
+      #    来源）。它们是开发/演示口令、不是秘密 —— 真正的判据是"不得让生产包带上
+      #    固定口令"（0029），而这里是 CI 的一次性库。若日后要当密钥管，改成
+      #    secrets 即可，命令本身不用动。
+      - name: 构建并跑测试（真实 MySQL）
+        run: |
+          mvn -B -ntp verify \
+            -Dspring.profiles.active=mysql \
+            -Dbluewhale.auth.seed-admin.enabled=true \
+            -Dbluewhale.auth.seed-admin.password=Admin@12345 \
+            -Dbluewhale.auth.seed-auditor.enabled=true \
+            -Dbluewhale.auth.seed-auditor.password=Auditor@12345 \
+            | tee /tmp/mvn-mysql.log
+
+      # 防的是这个 job **自己退化成假绿**：少了 `--spring.profiles.active=mysql`
+      # 时，默认 profile 是 h2 ⇒ 所有用例照样全绿，而这个 job 一个字节的 MySQL
+      # 都没验证到。会误报的检查最终一定会被关掉，所以这里查的是**日志里的实证**，
+      # 而不是"配置看起来对不对"。
+      - name: 自检 —— 确认这次运行真的连了 MySQL 且种子生效
+        run: |
+          set -e
+          fail=0
+          grep -q "Database: jdbc:mysql" /tmp/mvn-mysql.log || { echo "::error::这次运行没有连 MySQL（profile 退化成 h2 了？）"; fail=1; }
+          grep -q "已启用默认管理员种子数据" /tmp/mvn-mysql.log || { echo "::error::种子没有生效（-Dbluewhale.auth.seed-* 没传到位？）"; fail=1; }
+          grep -q "Successfully applied" /tmp/mvn-mysql.log || { echo "::error::Flyway 没有对空库执行迁移"; fail=1; }
+          exit $fail
 
   guards:
     name: 仓库自检 · 无前置条件

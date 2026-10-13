@@ -257,12 +257,13 @@ BW_DB_USERNAME=<用户> BW_DB_PASSWORD=<密码> java -jar sts-app/sts-app-server
 
 ### CI（`.github/workflows/ci.yml`）
 
-流水线分三个互不阻塞的 job，各自的失败就代表各自的层：
+流水线分四个互不阻塞的 job，各自的失败就代表各自的层：
 
 | job | 内容 |
 | --- | --- |
 | `web` | 装依赖 → ESLint → Stylelint → **格式检查** → 类型检查 → 单测 → 构建 → **产物自检**（种子口令不得进包） |
-| `server` | `mvn -B -ntp verify`（构建 + 测试，含 enforcer 的 JDK 门禁；**不需要数据库服务**） |
+| `server` | `mvn -B -ntp verify`（构建 + 测试，含 enforcer 的 JDK 门禁；**不需要数据库服务**，默认 profile 是 h2 内存库） |
+| `server-mysql` | 同一条命令 + `-Dspring.profiles.active=mysql`，**对真实 MySQL**（`services: mysql:8.0`）跑全量用例；空库从零迁移一遍。带一条**防假绿**自检（查日志里的 `Database: jdbc:mysql` 等实证） |
 | `guards` | 网关配置结构自检 · 文档索引一致性（**都不需要前置服务**） |
 
 在本机等价地跑一遍：
@@ -278,9 +279,22 @@ node ../scripts/verify-bundle-secrets.mjs
 # 后端（默认 profile 就是 h2 内存库，不需要先装数据库）
 cd ../server && mvn -B -ntp verify
 
+# 后端 · 真实 MySQL：先起一个库（数据源地址写死在 application-mysql.yml = 127.0.0.1:3306，
+# root + 空口令），建好 bluewhale 库，再跑同一条命令 + profile。
+# 种子开关必须显式打开并给口令（种子口令没有默认值，见 docs/decisions/0029），
+# 口令与 application-h2.yml 里的是同一对。
+mvn -B -ntp verify -Dspring.profiles.active=mysql \
+  -Dbluewhale.auth.seed-admin.enabled=true -Dbluewhale.auth.seed-admin.password=<同 h2 profile> \
+  -Dbluewhale.auth.seed-auditor.enabled=true -Dbluewhale.auth.seed-auditor.password=<同 h2 profile>
+
 # 仓库自检
 cd .. && node scripts/verify-nginx-config.mjs && node scripts/verify-docs-index.mjs
 ```
+
+> **后端为什么有两个 job**：h2 是"clone 下来就能跑"的默认，**但它是开发便利、不是交付形态**。
+> 只跑 h2 时，"全套用例在真实库上还成立吗"完全没有机器保证 —— `0038` 第一次真跑就抓到 5 处
+> 只会在换库时现形的缺陷（其中 4 处的根因是 MySQL 默认的 `REPEATABLE_READ` 快照与
+> "审计走独立事务"撞车）。达梦仍未进 CI（真实实例不可得）。
 
 > **真机层（九个 `scripts/verify-*.mjs` 浏览器脚本，清单见 `scripts/README.md` 的「前置条件」列）刻意不在流水线里。**
 > 它们依赖真实浏览器、GPU、冷启动的 dev server 与端口占用，放进必过项只会得到**随机红**，
