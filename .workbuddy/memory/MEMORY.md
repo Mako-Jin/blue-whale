@@ -4,7 +4,7 @@
 
 ## 1 铁律
 `main` / `github.com/Mako-Jin/blue-whale`。`web/`(pnpm) · `server/`(Maven `com.bluewhale.sts`) · `docs/ scripts/ infra/`。六条：① 两端不共用构建 ② 跨端只认 OpenAPI（前端 SDK **禁手写**）③ 共享物只放 `docs/` ④ `packages/*` **不反向依赖** `platform/*` ⑤ `platform-{user,admin}` 互不引用、复用下沉 `packages/` ⑥ 后端**禁反向依赖与跨层跳跃**。
-**改代码必须同提交改文档** · Husky 靠 `core.hooksPath web/.husky` · LF · Conventional Commits · 凭据在 `~/.git-credentials`、**绝不在终端解析**；无人值守 git 加 `-c credential.helper= -c credential.helper=store`。
+**改代码必须同提交改文档** · Husky 靠 `core.hooksPath web/.husky` · LF · Conventional Commits · 凭据在 `~/.git-credentials`、**绝不在终端解析**；无人值守 git 加 `-c credential.helper= -c credential.helper=store`（**不带它连凭据文件都不会试**，报 `could not read Username` —— 那不是网络问题，别去查代理）。
 
 ## 2 坑表（勿再排查）
 - **环境** 一律 Bash · Node `spawn git`→EBUSY、`turbo run`→231（逐包直跑正常） · 沙箱注入端口 → `--server.port=8080` · `curl --noproxy '*'` · 长驻服务**每个单独一个**后台任务 · `git push/fetch` 曾被代理阻断（502；直连 `curl` 000 而 `api.github.com` 正常）→ 先重试、不行只本地提交记领先数 · git 连接重置 → `-c http.version=HTTP/1.1` · **e2e 不与前端构建并发**（CPU 抢占 → 假"掉登录"） · MySQL 便携版 `D:\tools\installer\mysql` · 系统 python3.11 坏 → 用受管 `…/3.13.12/python.exe`
