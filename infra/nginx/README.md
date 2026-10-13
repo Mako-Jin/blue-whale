@@ -44,19 +44,42 @@ Docker 官方 nginx 镜像与 Debian / Ubuntu 的 `nginx.conf` 里都已有
 
 ### 2. 渲染模板
 
+**推荐用仓库里的渲染器**（它只替换已知的 `${变量}`，因此**不可能**把 nginx 自己的
+`$remote_addr` 吃掉 —— 那个陷阱是手工渲染最容易踩、且踩了之后配置仍然"语法合法"的）：
+
 ```bash
-# ⚠️ 白名单形式！不带白名单的 envsubst 会把 nginx 自己的 $remote_addr /
-#    $request_method / $proxy_add_x_forwarded_for 一并替换掉，配置立刻报废。
+# 渲染到暂存目录，检查无误后再拷到 /etc/nginx
+node scripts/verify-nginx-config.mjs --emit /tmp/bw-nginx-deploy
+
+nginx -t -p /tmp/bw-nginx-deploy -c /tmp/bw-nginx-deploy/nginx.conf   # 先在这棵树里验
+cp /tmp/bw-nginx-deploy/conf.d/*.conf  /etc/nginx/conf.d/
+cp /tmp/bw-nginx-deploy/snippets/*.conf /etc/nginx/snippets/
+nginx -t                                                              # 再在部署位置验
+```
+
+<details>
+<summary>手工用 <code>envsubst</code> 的话（⚠️ 必须带白名单）</summary>
+
+```bash
+# 不带白名单的 envsubst 会把 nginx 自己的 $remote_addr / $request_method /
+# $proxy_add_x_forwarded_for 一并替换掉，配置立刻报废。
 set -a; . infra/nginx/.env.example; set +a
 
 envsubst '${HTTP_PORT} ${SERVER_NAME} ${BACKEND_UPSTREAM} ${STATIC_ROOT} ${MAX_BODY_SIZE} \
           ${REPORT_RATE} ${REPORT_BURST} ${REPORT_CONN} \
+          ${REPORT_GLOBAL_RATE} ${REPORT_GLOBAL_BURST} \
           ${API_RATE} ${API_BURST} ${API_CONN}' \
   < infra/nginx/conf.d/bluewhale.conf.template \
   > /etc/nginx/conf.d/bluewhale.conf
 
 cp infra/nginx/snippets/*.conf /etc/nginx/snippets/     # 两个 include 依赖它们
 ```
+
+漏掉白名单里的任何一个变量名，渲染后就会留下一个字面 `${...}` —— 这次改动新增的两个
+`${REPORT_GLOBAL_*}` 是最新的两个。`node scripts/verify-nginx-config.mjs` 会检查
+模板用到的每个变量都在 `.env.example` 里。
+
+</details>
 
 ### 3. 先确定"真实 IP"这一段，再上线
 
@@ -73,14 +96,20 @@ cp infra/nginx/snippets/*.conf /etc/nginx/snippets/     # 两个 include 依赖�
 ### 4. 验证
 
 ```bash
-nginx -t                                    # 语法自检，上线前必跑
-node scripts/verify-nginx-config.mjs        # 结构性自检（见下）
+node scripts/verify-nginx-config.mjs                          # 结构性自检（CI 可跑，不需要 nginx）
+node scripts/verify-nginx-config.mjs --nginx /usr/sbin/nginx   # 顺带真跑一次 nginx -t
+nginx -t                                                      # 到了部署位置再跑一次
 ```
 
-`scripts/verify-nginx-config.mjs` 补的是 `nginx -t` **查不到**的那一类错：
-zone 名拼错（`limit_req zone=xxx` 引用了不存在的 zone）、模板变量漏在
-`.env.example` 之外、白名单没覆盖全导致渲染后残留 `${`。
-它不需要装 nginx，因此可以在 CI 里跑。
+`scripts/verify-nginx-config.mjs` 查的是 **`nginx -t` 查不到**的那一类错：渲染后残留
+`${...}`、白名单没覆盖全导致 nginx 自己的 `$request_method` 被吃掉、上报路径漏挂某一层桶、
+**全局桶的 key 被写成 `$binary_remote_addr`（退化成第二个按 IP 桶）**、
+真实 IP 网段被写成 `0.0.0.0/0`。它不需要装 nginx，因此能在 CI 里跑。
+
+> **一处实测修正**：`0027` 把"`limit_req zone=xxx` 引用了不存在的 zone"列为
+> "`nginx -t` 只在启动时才发现"。在 nginx 1.20.1 上实测，`nginx -t` **当场就会报**
+> `[emerg] zero size shared memory zone "xxx"`；脚本的价值在于报得更早、且直指缺哪个 zone。
+> 记录见 `docs/decisions/0028`。
 
 ## 四、几条不能想当然的地方
 
@@ -92,12 +121,42 @@ zone 名拼错（`limit_req zone=xxx` 引用了不存在的 zone）、模板变�
 | **429 响应体不带 `timestamp`** | nginx 拿不到 epoch 毫秒（`$msec` 是秒 + 三位小数）。"格式对、数值错"比没有更坏。前端也不依赖它：`common-tools/http` 的 `readBody()` 对非 JSON 体原样返回，429 走 **HTTP 状态码**分类（`retryable === true`），上报通道随即指数退避 |
 | **静态资源刻意不猜** | 本配置管 `/api` 入口。静态资源同机目录 / 对象存储 / 独立域名属部署形态，`location /` 默认转发给后端。猜错的表现是"页面 403 但 API 正常"这种一眼看不出原因的组合 |
 | **阈值是部署级参数** | 全部走 `.env.example`（`infra/README.md` 约定 1）。不同环境的合理值不同 —— 这正是它们不硬编码的原因 |
+| **上报限流是两层，标定规则不同** | ① 按 IP = **隔离**参数，按"最大的 NAT 出口"算：共用出口的 N 个客户端 ⇒ 该 IP 是 `N/3 r/s`（每客户端 3 秒 1 个请求），**不是**"一个客户端 1 个请求"；② 全局 = **容量**参数，与人数无关，按后端能吸收的写入速率定。把两者混着调，最容易调出"看起来有防护、实际拦不住"或"正常用户被误伤" |
+| **429 是背压，不是丢弃** | 客户端拿到 429 会把这一批**退回队首 + 指数退避重试**（`common-tools` 的 `BatchChannel`，封顶 30s）。真正丢数据的只有一处：持续超限把客户端缓冲（`maxBuffer 500`）撑爆，那时丢的是**最旧**的一批。实测：默认值下 450 个连续 POST → `200 × 216 / 429 × 234`；等 2.2 秒后再打 5 个 → 又放行 3 个（桶会回填） |
+| **上报与查询共用 URI 那一段是实测过的** | 同一 URI 连打 15 个 GET 全部 200、15 个 POST 得到 `200×3 / 429×12` —— `map $request_method` 的分流真的把查询摘在外面了，不是"看起来应该能行" |
 
-## 五、当前状态：**未在真实 nginx 上验证过**
+## 五、当前状态：**已在 nginx 1.20.1 上验证过**
 
-开发机既没有 nginx 也没有 docker（`nginx -v` / `docker --version` 均 command not found），
-因此这份配置**没有跑过 `nginx -t`**，也**没有实际压出过一次 429**。
+`0027` 初版写的是"未在真实 nginx 上验证过"。**这一条现在不成立了** —— 本机有
+`D:/tools/installer/nginx/nginx-1.20.1/nginx.exe`，用它把配置真跑了一遍
+（**只读安装包**：拷到临时目录里跑，不动安装目录、不装到系统）。
 
-已做的只有结构性校验（`node scripts/verify-nginx-config.mjs`）与逐条人工复核。
-**首次部署时必须先 `nginx -t`**。这与 `docs/decisions/0010` 达梦那条
-「未用真实实例验证」同一处置：**如实标注，不假装已验证**。
+| 验的是什么 | 结果 |
+| --- | --- |
+| `nginx -t`（部署形态的那棵树） | **通过** |
+| 15 个连续 POST，阈值压到 2r/s / burst 2 | `200 × 3 / 429 × 12`，响应体 `{"code":42900,"message":"请求过于频繁","data":null}` |
+| **同一 URI** 的 15 个连续 GET | `200 × 15` —— 查询**没有**被上报配额挤掉 |
+| 等 2.2 秒后再打 5 个 POST | `200 × 3 / 429 × 2` —— 桶会回填 |
+| 默认值下 450 个连续 POST | `200 × 216 / 429 × 234`，`error_log` 命中 `bluewhale_report_per_ip` |
+| 只把**全局**阈值压到 2r/s（按 IP 放到 1000r/s） | 全部 429，`error_log` 命中 `bluewhale_report_global` |
+| 反例：把某个 `zone=` 引用的名字改错 | `nginx -t` 报 `[emerg] zero size shared memory zone`（见 §4 的修正） |
+| 反例：把 `set_real_ip_from` 写成 `0.0.0.0/0` | 被 `verify-nginx-config.mjs` 拦下 |
+
+复现（把 nginx 换成你自己的路径）：
+
+```bash
+node scripts/verify-nginx-config.mjs --emit /tmp/bw-nginx-deploy
+nginx -t -p /tmp/bw-nginx-deploy -c /tmp/bw-nginx-deploy/nginx.conf
+# 压测：需要一个活的后端在 :8080（否则每请求会多等 ~2s 才拿到 502，
+#      反而把请求间隔拉开、压不出 429 —— 这个坑我踩过一次）
+```
+
+**仍未验证的**（不要把上表当成"全都验过了"）：
+
+- **阈值定得合不合适**：上表验的是"能不能拦住"，不是"该定多少"。上线后要看
+  `error_log` 里 `limiting requests` 出现的频率，再按 `.env.example` 的两条公式回标。
+- **多实例**：`limit_req_zone` 是**单机内存**的，多台 nginx 各自计数，实际上限 = 配置值 × 实例数。
+- **Linux 构建**：本次用的是 Windows 构建。配置是同一份，但严格来说 `-t` 只覆盖了这个构建。
+
+**首次部署前仍必须先 `nginx -t`** —— 那是**部署位置那棵树**的检查，与本次验的不是同一棵树。
+这与 `docs/decisions/0010` 达梦那条同一处置：**能验的验掉，不能验的如实标注**。

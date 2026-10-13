@@ -3,29 +3,48 @@
  *
  * ## 为什么需要它
  *
- * 开发机没有 nginx、也没有 docker（`nginx -v` / `docker --version` 均 command not found），
- * 所以 `nginx -t` 跑不了。但这个文件**不试图替代 `nginx -t`** —— 它补的是另一类错：
+ * 这个文件**不替代 `nginx -t`** —— 它补的是另一类错：
  *
  *   | 这类错 | `nginx -t` 能发现吗 | 本脚本能发现吗 |
  *   | --- | --- | --- |
  *   | 花括号不配对、指令拼写错 | 能 | 不能 |
- *   | `limit_req zone=xxx` 引用了**不存在的 zone** | 能（但只在启动时） | 能 |
+ *   | `limit_req zone=xxx` 引用了**不存在的 zone** | 能（`zero size shared memory zone`） | 能（更早、且直指缺哪个 zone） |
  *   | 模板变量漏在 `.env.example` 之外 | 不能（渲染后是空值） | 能 |
  *   | envsubst 白名单漏了、把 nginx 自己的 `$request_method` 替换掉了 | 不能（配置看起来是合法的） | 能 |
  *   | 上报路径没挂上限流 / `map` 丢了 | 不能 | 能 |
  *   | 真实 IP 段被误配成 `0.0.0.0/0` | 不能 | 能 |
+ *   | 全局桶的 key 被写成 `$binary_remote_addr`（退化成第二个按 IP 桶） | 不能 | 能 |
  *
- * 上表中间几行是**只有本脚本能挡**的：它们都能让配置"通过 `nginx -t` 但行为是错的"。
+ * 上表除第一行外，都是**只有本脚本能挡**的：它们能让配置"通过 `nginx -t` 但行为是错的"。
  * 反过来，它会说"通过"而 `nginx -t` 报语法错 —— 所以**上线前两者都要跑**。
  *
  * ## 用法
  *
- *     node scripts/verify-nginx-config.mjs
+ *     node scripts/verify-nginx-config.mjs                   # 纯结构性检查（CI 形态）
+ *     node scripts/verify-nginx-config.mjs --emit <目录>      # 渲染出可直接 nginx -t 的目录树
+ *     node scripts/verify-nginx-config.mjs --nginx <可执行文件>  # 顺带真跑一次 nginx -t
  *
- * 不需要 nginx、不需要网络、不写任何文件。失败时非零退出（可用在 CI 里）。
+ * 默认不需要 nginx、不需要网络、不写任何文件，失败时非零退出（可用在 CI 里）。
+ *
+ * `--emit <目录>` 会把模板渲染成一棵**与部署形态同构**的树（`conf.d/`、`snippets/`、
+ * 一个可直接 `-c` 的主配置），并打印出 `nginx -t` 的命令。它顺带绕开了 `envsubst`
+ * 的白名单陷阱 —— 这里只替换已知的 `\${变量}`，因此不可能把 nginx 自己的 `$remote_addr`
+ * 吃掉。唯一的改写是 include 根：从部署路径 `/etc/nginx` 换成本目录。
+ *
+ * `--nginx <可执行文件>`（或环境变量 `BW_NGINX_BIN`）在此之上真跑一次 `nginx -t`。
+ * **注意：部分沙箱禁止创建进程（`spawnSync` 报 EBUSY）**，那种情况下用 `--emit`
+ * 渲染出来、再在 shell 里跑 `nginx -t` —— 两条路检查的是同一棵树。
+ *
+ * 本次改动在 **nginx 1.20.1（Windows 构建）** 上验证过：
+ * `nginx -t` 通过；默认值下 450 个连续 POST 得到 `200 × 216 / 429 × 234`
+ * （`error_log` 显示命中 `bluewhale_report_per_ip`）；只把全局阈值压到 2r/s 后
+ * 命中 `bluewhale_report_global`；同一 URI 的连续 GET 全部 200
+ * （证明 `map $request_method` 的分流真的生效）。
  */
-import { readFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -154,6 +173,16 @@ check(
   ![...env.keys()].some((name) => NGINX_VARS.includes(`$${name.toLowerCase()}`)),
 );
 
+// 自定义的 map 变量同理：被 envsubst 吃掉的话 key 恒为空 → 限流**整个静默失效**，
+// 而配置看起来完全合法。这两行不是"保险起见"，是 0027 里最容易踩的那一脚。
+const CUSTOM_VARS = ['$bluewhale_report_key', '$bluewhale_report_global_key'];
+const lostCustom = CUSTOM_VARS.filter((name) => !rendered.includes(name));
+check(
+  '自定义 map 变量未被误替换（被吃掉 = 限流静默失效）',
+  lostCustom.length === 0,
+  lostCustom.length ? `被吃掉的：${lostCustom.join(', ')}` : undefined,
+);
+
 /* ------------------------------------------------------------------ 三、限流 zone */
 
 console.log('\n== 三、限流 zone 的定义与引用 ==\n');
@@ -177,6 +206,35 @@ check(
   danglingZones.join(', '),
 );
 
+/*
+ * 全局容量桶（0028）。它比按 IP 的桶更容易写错 —— 因为写错的形态是**语法完全合法**的：
+ * 只要 key 用的是 `$binary_remote_addr`，它就退化成第二个按 IP 桶，全局上限不复存在，
+ * 而 `nginx -t` 会说"successful"。
+ */
+const globalMap = block(rendered, 'map $request_method $bluewhale_report_global_key {');
+check('存在全局桶的 map（key 必须与来源无关）', globalMap !== null);
+if (globalMap) {
+  check('  └ 默认 key 为空（非 POST 不计入）', /default\s+""\s*;/.test(globalMap));
+  check(
+    '  └ POST 映射到常量而不是 $binary_remote_addr',
+    /POST\s+"[^"$]+"\s*;/.test(globalMap) && !/\$binary_remote_addr/.test(globalMap),
+  );
+  // 全局桶与按 IP 桶必须是**两个不同的 key 变量**，否则两行 limit_req 就是同一件事。
+  check(
+    '  └ 全局桶的变量名与按 IP 桶不同（不是同一个 map）',
+    block(rendered, 'map $request_method $bluewhale_report_key {') !== globalMap,
+  );
+}
+check(
+  '全局 zone 用的是上面那个常量 key',
+  /limit_req_zone\s+\$bluewhale_report_global_key\s+zone=/.test(rendered),
+);
+check(
+  '全局 zone 的容量阈值来自模板变量（部署级参数，不进代码）',
+  /zone=bluewhale_report_global:\S+\s+rate=\S+/.test(rendered) &&
+    !/\$\{REPORT_GLOBAL_RATE\}/.test(rendered),
+);
+
 /* ---------------------------------------------------------------- 四、上报通道 */
 
 console.log('\n== 四、上报通道的挂载 ==\n');
@@ -187,6 +245,9 @@ for (const path of REPORT_PATHS) {
   check(`存在 exact-match location：${path}`, serverBlock !== null);
   if (serverBlock) {
     check(`  └ ${path} 挂了限流`, /limit_req\s+zone=\S+/.test(serverBlock));
+    // 两层桶必须都挂：只挂一层的话，要么失去隔离（只有全局），要么失去总量兜底（只有按 IP）。
+    check(`  └ ${path} 挂了按 IP 的隔离桶`, /limit_req\s+zone=bluewhale_report_per_ip\b/.test(serverBlock));
+    check(`  └ ${path} 挂了全局容量桶`, /limit_req\s+zone=bluewhale_report_global\b/.test(serverBlock));
     check(`  └ ${path} 挂了并发限制`, /limit_conn\s+\S+\s+\d+/.test(serverBlock));
     check(`  └ ${path} 转发到后端`, /proxy_pass/.test(serverBlock) || /bluewhale-proxy/.test(serverBlock));
   }
@@ -270,6 +331,100 @@ check(
   /include\s+\S*bluewhale-real-ip\.conf\s*;/.test(rendered),
 );
 
+/* ------------------------------- 八、渲染出可跑的树 / 真跑 nginx -t（可选） */
+
+console.log('\n== 八、渲染部署树与真跑 nginx -t（可选） ==\n');
+
+const argValue = (flag) => {
+  const index = process.argv.indexOf(flag);
+  return index >= 0 ? process.argv[index + 1] : undefined;
+};
+
+const nginxBin = process.env.BW_NGINX_BIN ?? argValue('--nginx');
+const emitDir = argValue('--emit');
+
+if (!nginxBin && !emitDir) {
+  console.log('  · 跳过：既没给 --emit 也没给 --nginx');
+  console.log('    渲染出可直接 nginx -t 的目录树：node scripts/verify-nginx-config.mjs --emit <目录>');
+  console.log('    顺带真跑 nginx -t：             node scripts/verify-nginx-config.mjs --nginx <nginx 可执行文件>');
+} else {
+  /*
+   * `--emit` 不只是给测试用的：它把模板渲染成**一棵与部署形态同构的树**，
+   * 顺带绕开了 `envsubst` 那个白名单陷阱 —— 这里只替换 `\${已知变量}`，
+   * 因此绝无可能把 nginx 自己的 `$remote_addr` / `$request_method` 吃掉。
+   * 唯一的改写是 include 根：从部署路径 `/etc/nginx` 换成本目录。
+   */
+  const work = emitDir ? resolve(emitDir) : mkdtempSync(join(tmpdir(), 'bw-nginx-'));
+  const posix = (path) => path.split(sep).join('/');
+  try {
+    mkdirSync(join(work, 'conf.d'), { recursive: true });
+    mkdirSync(join(work, 'snippets'), { recursive: true });
+    mkdirSync(join(work, 'logs'), { recursive: true });
+    mkdirSync(join(work, 'temp'), { recursive: true });
+
+    writeFileSync(
+      join(work, 'conf.d', 'bluewhale.conf'),
+      rendered.split('/etc/nginx').join(posix(work)),
+    );
+    writeFileSync(join(work, 'snippets', 'bluewhale-real-ip.conf'), realIpText);
+    writeFileSync(join(work, 'snippets', 'bluewhale-proxy.conf'), proxyText);
+
+    const mainConf = join(work, 'nginx.conf');
+    writeFileSync(
+      mainConf,
+      [
+        'worker_processes 1;',
+        `error_log ${posix(join(work, 'logs', 'error.log'))} warn;`,
+        `pid ${posix(join(work, 'logs', 'nginx.pid'))};`,
+        'events { worker_connections 64; }',
+        'http {',
+        `    client_body_temp_path ${posix(join(work, 'temp', 'client_body'))};`,
+        `    proxy_temp_path ${posix(join(work, 'temp', 'proxy'))};`,
+        '    access_log off;',
+        `    include ${posix(join(work, 'conf.d'))}/*.conf;`,
+        '}',
+        '',
+      ].join('\n'),
+    );
+
+    if (emitDir) {
+      console.log(`  · 已渲染到：${work}`);
+      console.log(`    自检：nginx -t -p "${work}" -c "${mainConf}"`);
+      console.log('    部署：把 conf.d/*.conf 与 snippets/*.conf 拷到 /etc/nginx 下同名目录，再 nginx -t');
+    }
+
+    if (nginxBin) {
+      // 先确认路径本身能用 —— 否则"spawn 失败"与"nginx 说配置有错"会混成一条看不出原因的失败。
+      const probe = spawnSync(nginxBin, ['-v'], { encoding: 'utf8' });
+      const versionText = `${probe.stderr ?? ''}${probe.stdout ?? ''}`.trim();
+      check(
+        '能用给定的路径启动 nginx',
+        !probe.error,
+        probe.error
+          ? `${probe.error.message} —— 注意部分沙箱禁止创建进程（EBUSY）；` +
+              '那种情况下改用 --emit 渲染出目录树，再在 shell 里跑 nginx -t'
+          : versionText || undefined,
+      );
+
+      if (!probe.error) {
+        const result = spawnSync(nginxBin, ['-p', work, '-c', mainConf, '-t'], { encoding: 'utf8' });
+        const output = `${result.stdout ?? ''}${result.stderr ?? ''}`.trim();
+        const ok = result.status === 0 && /test is successful/.test(output);
+        check(
+          'nginx -t：语法与配置检查通过',
+          ok,
+          ok ? undefined : output.split('\n').slice(-3).join(' / ') || `退出码 ${result.status}`,
+        );
+      }
+    }
+  } catch (cause) {
+    check('渲染部署树', false, cause instanceof Error ? cause.message : String(cause));
+  } finally {
+    // --emit 的产物是给人用的，保留；临时目录用完即删。
+    if (!emitDir) rmSync(work, { recursive: true, force: true });
+  }
+}
+
 /* -------------------------------------------------------------------- 结论 */
 
 console.log('');
@@ -279,4 +434,10 @@ if (problems.length > 0) {
   process.exit(1);
 }
 console.log('✓ 全部通过');
-console.log('  注意：这是结构性自检，**不能替代 `nginx -t`** —— 首次部署前必须真跑一次。');
+console.log(
+  '  本脚本查的是"语法合法但行为是错的"那一类问题；**它不能替代 `nginx -t`**，',
+);
+console.log(
+  '  两者跑的是不同的东西：加 --emit 或 --nginx 才能把后者也带上（见 infra/nginx/README.md）。',
+);
+

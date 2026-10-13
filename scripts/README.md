@@ -17,7 +17,7 @@
 | `verify-admin-permissions.mjs` | 用真实 Chrome 验证按钮级权限（两种身份的界面差异 + 真实增删）         | 后端 :8080（h2 profile，含两个种子账号）、基座 ：3000、`platform-admin` :3500 都在跑；本机装有 Google Chrome；可选传截图目录     | `docs/decisions/0018` |
 | `verify-atmosphere.mjs`        | 用真实浏览器验证大气（天穹、日出日落、云、时间流逝、动态 IBL 的显存） | :3400 在跑，且本机装有 Chromium 内核浏览器（Chrome 或 Edge，脚本**自动探测**）；可选传截图目录                                   | `docs/decisions/0017` |
 | `verify-audit-pipeline.mjs`    | 用真实 Chrome + 真后端验证审计管道（记录自动产生、越权留痕、无写入口） | 后端 :8080（h2 profile，含两个种子账号）、基座 :3000、`platform-audit-console` :3600 都在跑；本机装有 Google Chrome；可选传截图目录 | `docs/decisions/0019` |
-| `verify-nginx-config.mjs`      | 对 `infra/nginx/` 的网关配置做结构性自检                              | **无**（不需要 nginx、不需要网络、不写文件）                                                                                     | `docs/decisions/0027` |
+| `verify-nginx-config.mjs`      | 对 `infra/nginx/` 的网关配置做结构性自检；`--emit` 可渲染出部署树、`--nginx` 可顺带真跑 `nginx -t` | **无**（不带参数时不需要 nginx、不需要网络、不写文件）                                                                                     | `docs/decisions/0027` · `0028` |
 
 ### `verify-micro-frontend.mjs` 做什么
 
@@ -154,25 +154,38 @@
 
 ### `verify-nginx-config.mjs` 做什么
 
-对 `infra/nginx/` 的网关配置做**结构性自检**。它是**唯一一个不需要任何前置服务**的脚本 ——
-不需要 nginx、不需要网络、不写任何文件。
+对 `infra/nginx/` 的网关配置做**结构性自检**。不带参数时它是**唯一一个不需要任何前置服务**
+的脚本 —— 不需要 nginx、不需要网络、不写任何文件。
 
 **它不试图替代 `nginx -t`，补的是另一类错：**
 
 | 这类错 | `nginx -t` | 本脚本 |
 | --- | --- | --- |
 | 花括号不配对、指令拼写错 | 能 | 不能 |
-| `limit_req zone=xxx` 引用了**不存在的 zone**（拼错了名字） | 只在启动时 | ✅ |
+| `limit_req zone=xxx` 引用了**不存在的 zone**（拼错了名字） | **能**（`zero size shared memory zone`，实测） | ✅（更早、直指缺哪个） |
 | 模板变量漏在 `.env.example` 之外（渲染后是空值） | ❌ | ✅ |
 | envsubst 白名单漏了，把 nginx 自己的 `$request_method` 替换掉 | ❌ | ✅ |
 | 上报路径没挂上限流 / `map $request_method` 丢了 | ❌ | ✅ |
+| 上报路径漏挂了**某一层**桶（按 IP / 全局） | ❌ | ✅ |
+| **全局桶的 key 被写成 `$binary_remote_addr`**（退化成第二个按 IP 桶） | ❌ | ✅ |
 | 真实 IP 网段被误配成 `0.0.0.0/0` | ❌ | ✅ |
 
-中间几行是**只有本脚本能挡**的：它们都能让配置"通过 `nginx -t` 但行为是错的"。
+除第一行与第二行外，其余都是**只有本脚本能挡**的：它们都能让配置"通过 `nginx -t` 但行为是错的"。
 反过来，它会说"通过"而 `nginx -t` 报语法错 —— **上线前两者都要跑**。
+
+第二行曾是"只在启动时"（`0027` 的推断），**在 nginx 1.20.1 上实测被推翻** —— 见 `0028`。
+
+**两个可选参数**（都不给时行为与以前完全一致，因此 CI 里照旧能跑）：
+
+| 参数 | 做什么 |
+| --- | --- |
+| `--emit <目录>` | 把模板渲染成一棵**与部署形态同构**的树（`conf.d/`、`snippets/`、可 `-c` 的主配置），并打印 `nginx -t` 命令。**顺带绕开 `envsubst` 的白名单陷阱**（只替换已知的 `${变量}`），因此部署时也推荐用它 |
+| `--nginx <可执行文件>` | 在渲染之后真跑一次 `nginx -t`（也可用环境变量 `BW_NGINX_BIN`）。⚠️ Node 的 `spawnSync` 在部分沙箱被禁止创建进程（报 `EBUSY`），那种环境走 `--emit` + shell 手跑，检查的是同一棵树 |
 
 > **它用两个负例验证过不是空转**：把 zone 名改错 → 命中"每个被引用的 zone 都已定义"；
 > 把 `set_real_ip_from` 改成 `0.0.0.0/0` → 命中"没有把可信网段写成 0.0.0.0/0"。
+> 另有一个**真实 nginx 上的反例**：把某个 `zone=` 引用的名字改错后 `nginx -t` 报
+> `[emerg] zero size shared memory zone` —— 证明 `--emit` 产出的树不是空壳。
 >
 > ⚠️ 它检查的上报路径清单是**写死的两行**（`/api/logs/client` 与 `/api/events/client`）——
 > 给上报域新增路径时，脚本与 `bluewhale.conf.template` 都要同改，脚本不会自动发现。
@@ -182,3 +195,18 @@
 - **可重复执行**：跑第二遍不应产生副作用或报"已存在"错误。
 - **失败要响亮**：缺环境变量、端口不通、前置服务未启动，都应打印明确原因并**非零退出**，不要静默跳过。
 - **凭据走环境变量**：脚本里不出现任何密码（见 `docs/decisions/0003`）。
+
+> **这条曾经名不副实。** 4 个 `verify-*.mjs` 各自硬编码了同一对种子口令，
+> 与本节直接矛盾 —— 而且那是把一个**会变的值**复制了 4 份：口令在
+> `application-h2.yml` 里一改，四个脚本会一起静默失效。
+>
+> 现在它们统一从 `scripts/lib/seed-credentials.mjs` 取，而那个模块从
+> `application-h2.yml` 读（种子口令的**唯一真值来源**，见 `docs/decisions/0029`）。
+> 需要指向另一套账号时用环境变量覆盖：
+>
+> ```bash
+> BW_SEED_ADMIN_PASSWORD=… BW_SEED_AUDITOR_PASSWORD=… node scripts/verify-admin-permissions.mjs
+> ```
+>
+> 读不到口令时它**抛错**，不会安静地返回 undefined —— 那样脚本会拿着空口令去登录，
+> 报出一个与真正原因相隔很远的错。

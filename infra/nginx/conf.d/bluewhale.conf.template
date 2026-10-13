@@ -35,9 +35,25 @@ map $request_method $bluewhale_report_key {
     POST     $binary_remote_addr;
 }
 
+# 上报限流是**两层**，两层的职责不同、因此标定规则也不同（0028 对 0027 的修正）：
+#
+#   一层（按 IP）：职责是**隔离** —— 别让一个来源把全局预算吃光。
+#        因此它要按"最大的 NAT 出口"来算，而不是按"一个客户端"来算：
+#        共用同一个出口 IP 的 N 个客户端 ⇒ 该 IP 的速率是 N/3 r/s（每客户端 3 秒 1 个请求）。
+#   二层（全局）：职责是**容量上限** —— 与来源无关，按后端能吸收的写入速率定。
+#        0027「本决策未覆盖」里那条"按 IP 的 limit_req 挡不住很多来源各打一点"就靠它兜：
+#        分布式灌注能把按 IP 的桶逐个打穿，但打不穿这一个总量桶。
+#
+# 全局桶的 key 必须**与来源无关**（这里是常量），否则它就不是全局的。
+map $request_method $bluewhale_report_global_key {
+    default  "";
+    POST     "bluewhale-report";
+}
+
 # 上报：两条通道共用一个 zone（同一批客户端、同一种流量特征、同一套阈值）
-limit_req_zone  $bluewhale_report_key  zone=bluewhale_report_per_ip:10m  rate=${REPORT_RATE};
-limit_conn_zone $bluewhale_report_key  zone=bluewhale_report_conn:10m;
+limit_req_zone  $bluewhale_report_key        zone=bluewhale_report_per_ip:10m  rate=${REPORT_RATE};
+limit_conn_zone $bluewhale_report_key        zone=bluewhale_report_conn:10m;
+limit_req_zone  $bluewhale_report_global_key zone=bluewhale_report_global:10m  rate=${REPORT_GLOBAL_RATE};
 
 # 其余 /api：更宽松的按 IP 兜底（查询接口等）
 limit_req_zone  $binary_remote_addr    zone=bluewhale_api_per_ip:10m     rate=${API_RATE};
@@ -63,7 +79,14 @@ server {
     # 只有这一层说了算：后端从来没有配过任何 server.tomcat.* 的体量限制。
     client_max_body_size ${MAX_BODY_SIZE};
 
-    # 429 的响应体与后端的错误码表对齐（42900 = 请求过于频繁）。
+    # ⚠️ 429 不是"把日志丢掉"，是"让它慢下来" —— 这一点在做任何阈值调整前必须清楚：
+    # 客户端拿到 429 会把这一批**退回队首**并指数退避重试（common-tools 的
+    # BatchChannel：失败退避，封顶 30s）。真正会丢数据的只有一种情形 ——
+    # 持续超限把客户端缓冲（maxBuffer 500）撑爆，那时丢的是**最旧的**那部分。
+    # 也就是说：短暂超限 = 延迟，持续超限 = 丢最旧。阈值定得太紧会放大前者，
+    # 定得太松则失去隔离意义 —— 这就是它必须按 .env.example 里的公式标定的原因。
+    #
+    # 响应体与后端的错误码表对齐（42900 = 请求过于频繁）。
     # 刻意**不带 timestamp**：nginx 拿不到 epoch 毫秒（$msec 是秒 + 三位小数），
     # 而一个"格式对、数值错"的 timestamp 比没有更坏 —— 与本仓
     # 「宁可不显示，不可错显示」一致。前端也不依赖它：
@@ -79,12 +102,14 @@ server {
     # POST 计入上报 zone；同一 URI 上的 GET（查询）因 key 为空而不计入。
     location = /api/logs/client {
         limit_req  zone=bluewhale_report_per_ip  burst=${REPORT_BURST} nodelay;
+        limit_req  zone=bluewhale_report_global  burst=${REPORT_GLOBAL_BURST} nodelay;
         limit_conn bluewhale_report_conn         ${REPORT_CONN};
         include /etc/nginx/snippets/bluewhale-proxy.conf;
     }
 
     location = /api/events/client {
         limit_req  zone=bluewhale_report_per_ip  burst=${REPORT_BURST} nodelay;
+        limit_req  zone=bluewhale_report_global  burst=${REPORT_GLOBAL_BURST} nodelay;
         limit_conn bluewhale_report_conn         ${REPORT_CONN};
         include /etc/nginx/snippets/bluewhale-proxy.conf;
     }
