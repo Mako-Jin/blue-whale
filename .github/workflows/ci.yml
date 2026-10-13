@@ -183,6 +183,10 @@ jobs:
       #    secrets 即可，命令本身不用动。
       - name: 构建并跑测试（真实 MySQL）
         run: |
+          # 显式写 pipefail：`| tee` 会把管道的退出码变成 tee 的。GitHub 的 bash 默认带
+          # `-eo pipefail`，但那是在 workflow 顶层 shell 没被改动的前提下 —— 少了它，
+          # mvn 失败会**静默变成成功**（tee 是成功的），是典型的假绿。
+          set -o pipefail
           mvn -B -ntp verify \
             -Dspring.profiles.active=mysql \
             -Dbluewhale.auth.seed-admin.enabled=true \
