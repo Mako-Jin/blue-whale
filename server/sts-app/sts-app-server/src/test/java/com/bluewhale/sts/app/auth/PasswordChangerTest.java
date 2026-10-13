@@ -169,10 +169,12 @@ class PasswordChangerTest {
             AuthProperties config = new AuthProperties();
             config.getPassword().setExpireDays(days);
 
-            // 两个 Mapper 传 null：assignNewPassword 只改内存、不落库 ——
-            // 那正是它被单独拆出来的理由之一。这里要问的只是它算出什么、改了哪些字段。
+            // 三个协作方（两个 Mapper 与 SessionRevoker）传 null：
+            // assignNewPassword 只改内存、不落库 —— 那正是它被单独拆出来的理由之一。
+            // 这里要问的只是它算出什么、改了哪些字段，与"要不要清会话"无关
+            // （后者挂在 change 上，见 docs/decisions/0046）。
             PasswordChanger changer = new PasswordChanger(
-                    null, passwordHasher, new PasswordPolicy(config), null);
+                    null, passwordHasher, new PasswordPolicy(config), null, null);
 
             UserEntity fresh = new UserEntity();
             changer.assignNewPassword(fresh, "Seed@1234", System.currentTimeMillis());

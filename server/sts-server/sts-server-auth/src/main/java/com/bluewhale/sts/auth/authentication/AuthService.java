@@ -44,6 +44,10 @@ import java.util.UUID;
  *   <li><b>刷新令牌轮换 + 重放检测</b>：每次刷新都作废旧令牌、换发新令牌；
  *       若一个已作废的 jti 被再次使用，视为令牌泄露，撤销该用户全部刷新令牌。</li>
  * </ol>
+ *
+ * <p>作废令牌这件事（单个与全部）只有一处实现：{@link SessionRevoker}。
+ * 本类不再自己写那两列 —— 它曾经在一处私有方法里，于是"换口令要清会话"这件事
+ * 只在两个调用方中的一个落了地（见 {@code docs/decisions/0046}）。
  */
 @Service
 public class AuthService {
@@ -60,6 +64,7 @@ public class AuthService {
     private final PasswordChanger passwordChanger;
     private final AuthProperties properties;
     private final PasswordPolicy passwordPolicy;
+    private final SessionRevoker sessionRevoker;
 
     public AuthService(TenantMapper tenantMapper,
                        UserMapper userMapper,
@@ -70,7 +75,8 @@ public class AuthService {
                        LoginAttemptRecorder loginAttemptRecorder,
                        PasswordChanger passwordChanger,
                        AuthProperties properties,
-                       PasswordPolicy passwordPolicy) {
+                       PasswordPolicy passwordPolicy,
+                       SessionRevoker sessionRevoker) {
         this.tenantMapper = tenantMapper;
         this.userMapper = userMapper;
         this.refreshTokenMapper = refreshTokenMapper;
@@ -81,6 +87,7 @@ public class AuthService {
         this.passwordChanger = passwordChanger;
         this.properties = properties;
         this.passwordPolicy = passwordPolicy;
+        this.sessionRevoker = sessionRevoker;
     }
 
     @Transactional
@@ -178,7 +185,7 @@ public class AuthService {
         if (stored.getRevoked() != null && stored.getRevoked() != 0) {
             // 已作废的令牌被再次使用 —— 极可能是泄露，撤销该用户全部刷新令牌
             log.warn("检测到已作废刷新令牌被重放 | userId={} | jti={}", stored.getUserId(), stored.getJti());
-            revokeAllForUser(stored.getUserId(), now);
+            sessionRevoker.revokeAll(stored.getUserId(), now);
             throw AuthResultCode.SESSION_INVALID.businessException();
         }
         if (!Digests.sha256Base64(request.getRefreshToken()).equals(stored.getTokenHash())) {
@@ -201,9 +208,7 @@ public class AuthService {
             throw AuthResultCode.PASSWORD_EXPIRED.businessException();
         }
 
-        stored.setRevoked(1);
-        stored.setRevokedAt(now);
-        refreshTokenMapper.updateById(stored);
+        sessionRevoker.revoke(stored, now);
 
         return issueTokens(tenant, user, clientIp, userAgent, now);
     }
@@ -225,11 +230,9 @@ public class AuthService {
                 JwtPayload payload = jwtCodec.verify(request.getRefreshToken(), now);
                 RefreshTokenEntity stored = refreshTokenMapper.selectOne(Wrappers.<RefreshTokenEntity>lambdaQuery()
                         .eq(RefreshTokenEntity::getJti, payload.jti()));
-                if (stored != null && (stored.getRevoked() == null || stored.getRevoked() == 0)) {
-                    stored.setRevoked(1);
-                    stored.setRevokedAt(now);
-                    refreshTokenMapper.updateById(stored);
-                }
+                // 已作废的不再动它 —— 那条判断移进了 SessionRevoker：
+                // 撤销时刻只能被写一次，重复登出不该把它推后（见该类的类头）。
+                sessionRevoker.revoke(stored, now);
             } catch (JwtVerificationException ex) {
                 // 令牌本就无效，登出是幂等的：不必报错，也不必再做任何事
                 log.debug("登出时令牌不可用，按已登出处理 | message={}", ex.getMessage());
@@ -238,7 +241,7 @@ public class AuthService {
         }
         Long userId = AuthContextHolder.currentUserId();
         if (userId != null) {
-            revokeAllForUser(userId, now);
+            sessionRevoker.revokeAll(userId, now);
         }
     }
 
@@ -285,6 +288,12 @@ public class AuthService {
      * 本请求带的是访问令牌，里面没有刷新令牌的 jti。代价是改完密在访问令牌到期后
      * 需要重新登录，而那更像一个特征而不是缺陷：重新登录一次，正好验证新口令确实能用。
      *
+     * <p><b>这一步实际由 {@code PasswordChanger#change} 执行，不在本方法里</b> ——
+     * 因为管理员重置走的是同一个方法，而它此前**没有**这一步（见
+     * {@code docs/decisions/0046}）。原先那句"上面任何一步失败都不该动会话"
+     * 因此是换了位置而不是消失：撤销仍是那次变更的最后一步，
+     * 强度或防重用没过时，库里的会话一个都不动。
+     *
      * <p><b>访问令牌仍有最长一个令牌有效期（默认 2 小时）的残留。</b>这是无状态访问令牌的
      * 固有代价，与 {@link #logout} 是同一条取舍（撤销它要引入黑名单存储，每个请求多查一次）。
      * 但这里的自愈是确定的：攻击者即使握着访问令牌，也**改不了密**（那需要旧口令），
@@ -316,11 +325,12 @@ public class AuthService {
 
         // 改密这件事本人刚做完，不该再被要求"下次登录必须改密"
         user.setMustChangePassword(0);
+        // 撤销全部刷新令牌**不在这里写** —— 它是 PasswordChanger#change 末尾的一步，
+        // 与"口令真的换掉了"在同一次提交里。这里原本有一句显式撤销，而另一个调用方
+        // （管理员重置）没有，于是同一个动作效力差了一半；修法是把这一步移进那个动作本身。
+        // 谁要是觉得此处少了一句、想"顺手补上"，先读 docs/decisions/0046 ——
+        // 补上去会变成第二次撤销，而它会把撤销时刻推后。
         passwordChanger.change(user, request.getNewPassword(), PasswordChangeSource.SELF, now);
-
-        // 放在最后：上面任何一步失败都不该动会话 —— 尤其"新口令不合规"时，
-        // 用户还得用**当前这个会话**重新填一次，把他踢出去等于让一次输错变成一次登出
-        revokeAllForUser(user.getId(), now);
 
         log.info("自助改密成功 | userId={} | username={}", user.getId(), user.getUsername());
     }
@@ -383,15 +393,6 @@ public class AuthService {
         } catch (RuntimeException ex) {
             log.warn("记录登录失败次数时出错，本次不计数 | userId={} | message={}", userId, ex.getMessage());
         }
-    }
-
-    private void revokeAllForUser(Long userId, long now) {
-        RefreshTokenEntity update = new RefreshTokenEntity();
-        update.setRevoked(1);
-        update.setRevokedAt(now);
-        refreshTokenMapper.update(update, Wrappers.<RefreshTokenEntity>lambdaQuery()
-                .eq(RefreshTokenEntity::getUserId, userId)
-                .eq(RefreshTokenEntity::getRevoked, 0));
     }
 
     private static String truncate(String value, int maxLength) {

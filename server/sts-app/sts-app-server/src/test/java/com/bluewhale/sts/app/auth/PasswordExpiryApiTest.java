@@ -159,14 +159,15 @@ class PasswordExpiryApiTest {
     }
 
     @Test
-    @DisplayName("管理员重置之后那条令牌能自己长回来：40111 的文案指向的路是真的")
-    void shouldSelfHealAfterAdminReset() throws Exception {
+    @DisplayName("管理员重置之后回得来：旧刷新令牌已被撤销（40106），新临时口令是入口 —— 40111 文案指向的路是真的")
+    void shouldRecoverByAdminResetAfterExpiry() throws Exception {
         String username = uniqueName("expiryheal");
         String adminToken = loginAsAdmin();
         long userId = createUser(adminToken, username, "Seed@1234");
         String[] session = loginWithRefresh(username, "Seed@1234");
         expirePasswordOf(userId);
 
+        // 过期后被挡住，但**失败不留痕迹**：那个刷新令牌没被烧掉（上一条用例钉的就是这个）
         refresh(session[1]).andExpect(jsonPath("$.code").value(40111));
 
         // 管理员重置 —— 这是 40111 那句文案指向的动作，也必须是**真的**能走通的路
@@ -175,17 +176,20 @@ class PasswordExpiryApiTest {
         long afterReset = System.currentTimeMillis();
 
         // 重置换掉口令时，同一处也把寿命重新起算了 ——
-        // 所以"自愈"不只是会话活过来，而是这个人重新拥有一个有效期内的口令。
+        // 所以"回来"不只是会话恢复，而是这个人重新拥有一个有效期内的口令。
         assertExpiresAround(userId, beforeReset, afterReset, "管理员重置");
 
-        // 因为淘汰只淘汰“还能不能换到新令牌”，手上这个刷新令牌从未被烧掉，自愈是自动的：
-        // 客户端下一次刷新就回到线上，不必重新登录一次。
-        refresh(session[1])
-                .andExpect(jsonPath("$.code").value(0))
-                // 而它带回来的这个 1，正是 0044 那条改密引导的触发条件 ——
-                // 于是整条路闭合：口令过期 → 找管理员 → 拿临时口令 → 被引导改密 → 新口令新寿命。
-                .andExpect(jsonPath("$.data.mustChangePassword").value(1));
+        // 重置同时撤销了该账号的全部会话（docs/decisions/0046），于是那个人**不是自愈
+        // 回来、而是重新登录回来**。它与上一条"失败不留痕迹"不冲突，值得分开说：
+        // 失败时令牌确实没被烧掉，烧掉它的是**重置这个成功动作**，而两者是不同的决定 ——
+        // 前者是"请求没成，就不该有副作用"，后者是"凭据换了，旧的会话凭什么还算数"。
+        // 后者必须成立：重置通常意味着管理员认定这个账号出了问题，
+        // 一个已经换到手刷新令牌的人不该因为一次重置就自动回到线上。
+        refresh(session[1]).andExpect(jsonPath("$.code").value(40106));
 
+        // 路是通的：新（临时）口令能登录，且带着 mustChangePassword = 1 ——
+        // 那正是 0044 那条改密引导的触发条件。
+        // 于是整条路闭合：口令过期 → 找管理员 → 拿临时口令 → 重新登录 → 被引导改密 → 新口令新寿命。
         login(username, "Reset@1234")
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.data.mustChangePassword").value(1));

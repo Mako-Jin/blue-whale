@@ -23,7 +23,9 @@ import java.util.List;
  *
  * <p><b>口令不在这里设。</b>强度校验、防重用、历史留痕三件事的实现在
  * {@link PasswordChanger} —— 本类（管理员重置）与 {@code AuthService}（自助改密）
- * 都只是它的调用方。错误码仍是 {@code 40003}（这次带的口令不合规）与
+ * 都只是它的调用方。**"换口令后撤销该账号的全部会话"同样在它那里**：
+ * 这件事两个调用方取值完全一致，因此不属于任何调用方，见 {@code docs/decisions/0046}。
+ * 错误码仍是 {@code 40003}（这次带的口令不合规）与
  * {@code 40914}（口令合法但撞了），分开是为了让前端能给出不同的引导，
  * 详见 {@link AuthResultCode}。
  */
@@ -121,7 +123,14 @@ public class UserService {
         return toVO(entity);
     }
 
-    /** 管理员重置他人口令：重置后强制下次登录改密 */
+    /**
+     * 管理员重置他人口令：重置后强制下次登录改密，**并撤销该账号的全部会话**。
+     *
+     * <p>后半句是本轮才对齐的效力（{@code docs/decisions/0046}）：重置通常意味着
+     * "管理员认为这个账号出了问题"，此时若留着别人已经换到手的刷新令牌，
+     * 重置就只是换了一把锁、门还开着 —— 一个握着刷新令牌的攻击者在那之后**仍然能续期**。
+     * 它与自助改密走的是同一个 {@link PasswordChanger#change}，因此撤销也在同一处执行。
+     */
     @Transactional
     public void resetPassword(Long id, String rawPassword) {
         UserEntity entity = requireUser(id);
@@ -138,6 +147,9 @@ public class UserService {
         // 退避层级一并归零：这是管理员介入后的"重新开始"，不该让用户继续背着之前的惩罚
         entity.setLockLevel(0);
 
+        // 撤销该账号全部刷新令牌这一步不在这里，也不用在这里 —— 它在 change 的末尾，
+        // 与"口令真的换掉了"同一次提交。**刻意不要再补一句**：本轮之前正是缺了它，
+        // 而补法不是在这里加一行（下一处新入口照样会漏），是把它移到那个动作本身。
         passwordChanger.change(entity, rawPassword, PasswordChangeSource.ADMIN_RESET, now);
     }
 

@@ -35,6 +35,16 @@ import java.util.List;
  * ADR-0045 的背景里记着这条列曾经的处境：**有人在读、没有任何人在写**，
  * 于是 {@code 40111} 成了一条不可能出现的码。
  *
+ * <p><b>换口令同时清掉旧会话</b>（见 {@link #change}）：与上一条同源 ——
+ * "口令换了，凭什么上一任口令换来的令牌还算数"。它原本写在调用方
+ * （{@code AuthService#changePassword} 末尾那句 {@code revokeAllForUser}），
+ * 而另一个调用方 {@code UserService#resetPassword} 没有它 ——
+ * 于是**同一个动作的两个调用方，效力差了一半**，且差的是更该做的那一半：
+ * 管理员重置恰恰是"管理员认定这个账号出了问题"的一刻，
+ * 一个已经换到手刷新令牌的攻击者在那之后**仍然能续期**。
+ * 修法不是"给另一边也补一句"，而是把这件事从调用方移进这里（理由见下一节）。
+ * 详见 {@code docs/decisions/0046}。
+ *
  * <p><b>调用方负责的部分（本类刻意不做）：</b>
  * <ul>
  *   <li><b>验旧口令</b> —— 只有"自助改密"需要（管理员重置时他不知道、也不该知道旧口令）。
@@ -45,6 +55,13 @@ import java.util.List;
  *   <li><b>解锁与清零失败次数</b> —— 管理员重置时通常正因为用户被锁住了，顺带解开；
  *       自助改密时用户本就是登录状态（失败次数在登录成功时已清零），不必重复处理。</li>
  * </ul>
+ *
+ * <p><b>上面三条留在这里、而"清会话"不在这里，用的同一条判据：</b>
+ * <b>两个调用方取值不同的，才是调用方的语义。</b>上面三条在两个调用方那里都不同 ——
+ * 管理员重置不知道也不该知道旧口令、要置 {@code mustChangePassword = 1}、要顺手解锁；
+ * 自助改密正相反。而"清掉旧会话"两边完全一致（都撤、撤的都是全部）。
+ * 取值一致的动作放在调用方，等于**同一件事有两份实现** —— 而这里已经证实了代价：
+ * 一份写了、另一份漏了，漏的那份还偏偏是更该做的那份。
  */
 @Service
 public class PasswordChanger {
@@ -53,15 +70,18 @@ public class PasswordChanger {
     private final PasswordHasher passwordHasher;
     private final PasswordPolicy passwordPolicy;
     private final PasswordHistoryMapper passwordHistoryMapper;
+    private final SessionRevoker sessionRevoker;
 
     public PasswordChanger(UserMapper userMapper,
                            PasswordHasher passwordHasher,
                            PasswordPolicy passwordPolicy,
-                           PasswordHistoryMapper passwordHistoryMapper) {
+                           PasswordHistoryMapper passwordHistoryMapper,
+                           SessionRevoker sessionRevoker) {
         this.userMapper = userMapper;
         this.passwordHasher = passwordHasher;
         this.passwordPolicy = passwordPolicy;
         this.passwordHistoryMapper = passwordHistoryMapper;
+        this.sessionRevoker = sessionRevoker;
     }
 
     /**
@@ -75,6 +95,16 @@ public class PasswordChanger {
      * 的 {@code passwordAlgorithm}；先 {@code setPasswordAlgorithm(...)} 再记历史，
      * 历史里那条就会标着**新口令的算法**，而它存的实际是旧口令的哈希 ——
      * 与 {@code PasswordHasher} 的"算法随哈希存储"约定正好相反，且不会报任何错。
+     *
+     * <p><b>最后一步：撤销该用户的全部刷新令牌。</b>换口令最常见的动机就是
+     * "我怀疑口令泄露了"，此时若留着别人已经换到手的刷新令牌，他下一次刷新就会拿到
+     * 一套全新的令牌对，换口令便成了一次无害的仪式。**排在最后**是"一个失败的请求不该
+     * 留下痕迹"的同一条：前面任何一步（强度、防重用）没过时，库里的会话一个都不动 ——
+     * 尤其新口令不合规时，用户还得用**当前这个会话**重填一次，
+     * 把他踢出去等于让一次输错变成一次登出。
+     *
+     * <p>撤销落在本方法里而不是调用方，见类头那一节 —— 一句话：
+     * 这件事在两个调用方那里**取值相同**，所以它不属于调用方。
      *
      * @param user          目标用户。调用方先前设好的字段（如 {@code mustChangePassword}）
      *                      会随本方法末尾的 {@code updateById} 一起落库
@@ -95,6 +125,7 @@ public class PasswordChanger {
 
         assignNewPassword(user, rawNewPassword, now);
         userMapper.updateById(user);
+        sessionRevoker.revokeAll(user.getId(), now);
     }
 
     /**
