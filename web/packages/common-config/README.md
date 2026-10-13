@@ -96,11 +96,15 @@ export default defineConfig(({ command }) => ({
 }));
 ```
 
-| 导出                   | 作用                                               | 谁会用            |
-| ---------------------- | -------------------------------------------------- | ----------------- |
-| `qiankunDevPreamble()` | 让 React Fast Refresh preamble 能在 qiankun 里执行 | 每个 React 子应用 |
+| 导出                   | 作用                                                                               | 谁会用            |
+| ---------------------- | ---------------------------------------------------------------------------------- | ----------------- |
+| `qiankunDevPreamble()` | 让 React Fast Refresh preamble 能在 qiankun 里执行，**并让入口脚本等它装好再启动** | 每个 React 子应用 |
 
 **为什么需要 `qiankunDevPreamble()`**：`@vitejs/plugin-react` 开发期会往 `index.html` 的 `<head>` 塞一段**内联 module 脚本**；qiankun 通过 `import-html-entry` 取脚本**文本**用 `eval` 执行，而 `eval` 出来的是普通脚本，静态 `import` 直接抛 `SyntaxError: Cannot use import statement outside a module`，Fast Refresh 的全局钩子装不上。这个插件把该脚本的静态 `import` 改写成 `await import()` 并去掉 `type="module"`，语义不变但可被 `eval` 执行。它只认含 `@react-refresh` 的内联脚本，不会误伤其他内联脚本，且 `apply: 'serve'` —— **生产构建不注入这段 preamble，因此不需要这个插件**。背景见 `docs/decisions/0012` 第 10 条。
+
+**它还做第二件事：把顺序保证补回来。** 模块脚本按文档顺序求值是规范保证的，而改写出来的 `(async () => {…})()` 不是 —— 它一上来就 `await`，于是入口那段 `import('…/src/main.tsx')` 会与 `import('/@react-refresh')` **抢跑**。冷启动的开发服务器上 `/@react-refresh` 要先做依赖预构建、明显更慢，抢输的症状是**整个应用白屏** + `can't detect preamble. Something is wrong.`（刷新一次就好，因为服务器已经热了）。
+
+所以插件同时：① 把 preamble 那次的 Promise 挂到 `window.__bwDevPreambleReady`；② 让 `vite-plugin-qiankun` 注入的入口脚本先 `await` 它再 `import` 应用。两段都是普通脚本、按文档顺序执行，读到的就是 preamble 已经**发起**的那次导入；`?? Promise.resolve()` 是兜底（找不到那段脚本时行为退回改写前）。**这条只在独立运行时（直接开 `:3300` 这类地址）会暴露** —— 跑在基座里时中间隔了几跳，`@react-refresh` 反而先到。详细论证见 `docs/decisions/0035`。
 
 > **`base` 不要"顺手统一"。** 子应用的 `base` 在 dev 下必须是 `/`：`vite-plugin-qiankun` 的 `useDevMode` 靠 `base` 定位 `/@vite/client`，dev 期加前缀会让热更新**静默失效**。前缀只在 build 时才需要（供基座按静态路径取资源）。
 

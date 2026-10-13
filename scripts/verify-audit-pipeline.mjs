@@ -89,6 +89,14 @@ async function main() {
     { stdio: "ignore" },
   );
 
+  /**
+   * 调试用的 WebSocket。
+   *
+   * <p>声明在 `try` **之外**：收尾时要关掉它（见 `finally`），
+   * 而 `finally` 取不到 `try` 内部声明的变量。
+   */
+  let ws = null;
+
   try {
     await waitForDebugger();
 
@@ -104,7 +112,7 @@ async function main() {
       );
     }
 
-    const ws = new WebSocket(page.webSocketDebuggerUrl);
+    ws = new WebSocket(page.webSocketDebuggerUrl);
     await new Promise((resolve, reject) => {
       ws.onopen = resolve;
       ws.onerror = reject;
@@ -620,6 +628,16 @@ async function main() {
     // 顺带把契约里的三条读路径核对一遍，防止文档与实现漂移
     step("附录 · 本页用到的读接口", AUDIT_GETS.join("\n  "));
   } finally {
+    /*
+     * 收尾要**两样都收**。
+     *
+     * `ws` 是一条长连接的 WebSocket，不主动关掉它会把事件循环一直挂住 ——
+     * 症状是"结论已经打出来了，进程却迟迟不结束"，在流水线里表现为**超时**
+     * 而不是那行结论，排查方向会先指向"脚本卡住了"。
+     */
+    // `?.` 是必要的：调试端口没起来时 `ws` 还是 null，这里再抛一次会把
+    // 真正的失败原因（端口没就绪）盖掉
+    ws?.close();
     chrome.kill();
   }
 
@@ -634,8 +652,19 @@ async function main() {
 
 if (SHOT_DIR) mkdirSync(SHOT_DIR, { recursive: true });
 
-main().catch((error) => {
-  console.error(`\n验证脚本自身出错：${error.message}`);
-  console.error(error.stack);
-  process.exitCode = 1;
-});
+main()
+  .catch((error) => {
+    console.error(`\n验证脚本自身出错：${error.message}`);
+    console.error(error.stack);
+    process.exitCode = 1;
+  })
+  .finally(() => {
+    /*
+     * 兜底退出。
+     *
+     * 即使上面关掉了 WebSocket，只要还有任何一个句柄没释放，Node 就会一直等下去；
+     * 而"结论正确但进程不结束"是**最难用的一类失败**（看日志一切正常）。
+     * 这 500ms 既是给 stdout 冲刷留的余量，也是给正常收尾留的余量。
+     */
+    setTimeout(() => process.exit(process.exitCode ?? 0), 500);
+  });

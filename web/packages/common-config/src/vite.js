@@ -26,6 +26,24 @@ function toDynamicImports(code) {
 }
 
 /**
+ * preamble 那个 Promise 挂在哪个全局键上。
+ *
+ * 单独抽成常量：写它的地方（preamble 脚本）与读它的地方（入口脚本）必须用**同一个键**，
+ * 两处各写一遍字面量是最容易改一处忘一处的地方。
+ */
+const PREAMBLE_READY = '__bwDevPreambleReady';
+
+/**
+ * `vite-plugin-qiankun` 注入的入口脚本 —— 形如 `<script>import(… + '/src/main.tsx').finally(…)`。
+ *
+ * 用 `(?!<\/script>)` 逐字符排除闭合标签，而不是 `[\s\S]*?`：
+ * 后者允许跨过 `</script>`，于是会从**前面**那段 preamble 脚本一路匹配到这里、
+ * 把两段一起包住 —— 那样包装出来的是一个空转的 Promise，而 `nginx` 式的"看着合法"最坑人。
+ */
+const ENTRY_SCRIPT =
+  /<script>((?:(?!<\/script>)[\s\S])*?\/src\/main\.tsx(?:(?!<\/script>)[\s\S])*)<\/script>/;
+
+/**
  * 让 React Fast Refresh 的 preamble 能在 qiankun 里执行。
  *
  * ### 问题
@@ -51,6 +69,26 @@ function toDynamicImports(code) {
  * 语义完全不变（仍然是模块导入），但变成普通脚本，`eval` 就能执行了。
  *
  * 只处理**内容里含 `@react-refresh`** 的内联模块脚本，避免误伤其他内联脚本。
+ *
+ * ### 改写的**代价**：它把顺序保证丢了，所以必须同时补回来
+ *
+ * 模块脚本按文档顺序**求值**是规范保证的，而 `(async () => {…})()` 不是 ——
+ * 它一开始就 `await`，把控制权交出去。于是入口脚本那段
+ * `import('…/src/main.tsx')` 会与 `import('/@react-refresh')` **抢跑**：
+ * 谁先完成取决于响应快慢，而 `/@react-refresh` 在**冷却的开发服务器**上要先做依赖预构建，
+ * 明显更慢。抢输的症状是组件模块执行时 `$RefreshReg$` 还没装好，
+ * `@vitejs/plugin-react` 抛 `can't detect preamble. Something is wrong.` ——
+ * **整个应用白屏**（刷新一次就好，因为那时服务器已经热了）。
+ *
+ * 这条路径**只在独立运行时**（直接开 `:3300` 这类地址）出现：跑在基座里时
+ * `import-html-entry` 取 HTML 与执行脚本之间隔了几跳，`@react-refresh` 反而先到。
+ * 也正因为它只在"刚起服务 + 第一次打开"时出现，曾经被误判成代码回归
+ * （见 `docs/decisions/0035`）。
+ *
+ * 补法就是**把顺序显式写出来**：preamble 把自己那次的 Promise 挂到全局，
+ * 入口脚本先等它、再 import 应用。两段都是普通脚本、按文档顺序执行，
+ * 所以入口读到的一定是 preamble 已经**发起**的那次导入（`?? Promise.resolve()`
+ * 是兜底：万一找不到那段脚本，行为退回改写前，不会更糟）。
  */
 export function qiankunDevPreamble() {
   return {
@@ -61,21 +99,35 @@ export function qiankunDevPreamble() {
       // 必须排在最后 —— 要等 react 插件把 preamble 注入进来之后才能改写它
       order: 'post',
       handler(html) {
-        return html.replace(
+        let converted = false;
+
+        const withPreamble = html.replace(
           /<script([^>]*)\btype="module"([^>]*)>([\s\S]*?)<\/script>/g,
           (whole, before, after, body) => {
             if (!body.includes('@react-refresh')) {
               return whole;
             }
 
-            const converted = toDynamicImports(body);
-            if (!converted) {
+            const code = toDynamicImports(body);
+            if (!code) {
               return whole;
             }
 
-            return `<script>(async () => {${converted}})()</script>`;
+            converted = true;
+            // 这次导入的 Promise 挂出去，供入口脚本 await
+            return `<script>window.${PREAMBLE_READY} = (async () => {${code}})()</script>`;
           },
         );
+
+        // 没改写 preamble（或它已经是原生模块脚本、顺序本来就由规范保证）⇒ 入口不动
+        if (!converted) {
+          return withPreamble;
+        }
+
+        return withPreamble.replace(ENTRY_SCRIPT, (whole, body) => {
+          // 包一层函数体只是为了不改动原脚本的结构：它是一条表达式语句
+          return `<script>(window.${PREAMBLE_READY} ?? Promise.resolve()).then(() => {${body}})</script>`;
+        });
       },
     },
   };

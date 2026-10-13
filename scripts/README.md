@@ -301,6 +301,14 @@
 
 - **可重复执行**：跑第二遍不应产生副作用或报"已存在"错误。
 - **失败要响亮**：缺环境变量、端口不通、前置服务未启动，都应打印明确原因并**非零退出**，不要静默跳过。
+- **结论打完就要退出**。CDP 是一条长连接的 WebSocket，`finally` 里只 `chrome.kill()` 会让事件循环一直被挂住 ——
+  症状是"日志里结论已经打出来了，进程却迟迟不结束"，在流水线里表现为**超时**而不是那行结论，
+  而超时会把排查引向"脚本卡住了"。收尾必须 `ws?.close()` **加**一个兜底 `setTimeout(() => process.exit(…)`。
+  （`verify-menu-permissions` / `verify-portal-auth` / `verify-audit-pipeline` 曾漏了这条，
+  `docs/decisions/0035` 那轮补齐；现在所有 `verify-*.mjs` 都是这条写法。）
+- **改动子应用的启动路径后，e2e 要在"dev server 冷着"的状态下跑一遍**。开发服务器**第一次**被访问时
+  才做依赖预构建，热与冷不是同一种环境 —— 冷启动会暴露只在首帧出现的问题（例如自动登录还没完成就渲染）。
+  `scripts/verify-standalone-dev-login.mjs` 正是为这条而生，重跑一遍前**先重启对应的 dev 服务**。
 - **凭据走环境变量**：脚本里不出现任何密码（见 `docs/decisions/0003`）。
 - **后端进程的启动方式**：`spring-boot:run` 是 CLI goal，会落到 reactor 里**每一个**模块上，
   而父工程 `sts-parent` 没有 main class ⇒ 带 `-am` 一定失败
