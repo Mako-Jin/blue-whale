@@ -28,7 +28,7 @@ React19+Vite8+TS**6.0.3**(7.x 不被 typescript-eslint 支持)+Router7；qiankun
 - Boot4 starter 三处同动（`web→webmvc`、`boot3-starter→boot4-starter`、springdoc `2.x→3.x`）；MockMvc 引 `spring-boot-starter-webmvc-test`；Jackson3 import `tools.jackson.*`；enforcer `[21,)`
 - **Flyway** 不写 `IF NOT EXISTS`、**已执行脚本不可改**、**版本号全仓唯一**（log V1·V6 / track V2·V7 / auth V3·V5 / audit V4）；切 mysql 须显式引 `flyway-mysql`；达梦 `flyway.enabled=false` 走 `scripts/init-dameng.sh`、**未用真实实例验证**。MySQL 保留字正解**属性名与列名同构**且不加 `@TableField`；两库保留字**不可互推**；达梦 `VARCHAR(n CHAR)`
 - **权限域** `bw_auth_*` 13 表、错误码 `40001~40918`；自研 HS512+PBKDF2、**不引 Spring Security**；`@RequiresPermission` + `AuthInterceptor`（**白名单反着写：无注解即公开**）；`AuthTokenFilter` 不可同时 `@Component` 又进 `FilterRegistrationBean`；`#{it.xxx}` OGNL **编译器管不到**
-- **配置侧已闭环**、前端管理面已接通（20 条路径 / 五标签页）；**组织域后端已全量（0030，8 路径/12 接口）**，前端**刻意未接的三项**：数据范围反查、**组织树**、成员/主岗
+- **配置侧已闭环**、前端管理面已接通（**六标签页 / 27 项**：用户·租户·组织·资源·角色·用户组各 4 + 审计读 1 + 日志读 1 + 事件读 1）；**组织域前后端都已全量**（0030）；`data-scope` 反查**已有消费方**（用户页「数据范围」对话框）。**⚠️ 前端读契约的坑：`OrganizationTreeNode` 与 `OrganizationVO` 不是子集关系** —— 树节点有 `children` 但**没有** `hasChild`/`orgType`/`managerId`/`description`/三个联系方式 ⇒ **拿树节点填编辑表单会以空值提交**（"只改个名字"顺手清掉几列、不报错）⇒ **树给结构与导航、详情给表单初值**（`openEdit` 必须先 `detail(id)`）；同理组织**编辑态不渲染上级选择器**（改 `parentId` 后端显式 40001）· 「是否主岗」是**三态** `'' | '1' | '0'`（服务端"不传"= 没主岗就自动设、已有就保持，压成复选框会把"不勾"读成"明确要求不当主岗"）· `visibleOrgIds` 的 **`null` 与 `[]` 必须显示成两句不同的话**（"不是按组织划定的" vs "划定了但一个也没有"）
 - **软删+唯一键三处同坑**（资源/角色/用户组）：唯一键**不含 `deleted`** → 重建同码**撞键** → 正解**复活原记录**并**一并清空成员与授权**。`40900` 由 `DuplicateKeyException` 处理器填上；`spring-tx` 该模块必须 **compile**
 - **`updateById` 的 `NOT_NULL` 清不掉字段**（传 null 进不了 `SET`，0 行不报错）→ `update(new Entity(), lambdaUpdate().set(...))` 逐列显式 set、传**空实体**
 - **判定侧静默缺陷五处**（DENY 跨角色/停用角色/时态/**停用用户组**/组链路时态）→ **凡新增影响权限的开关都要问"判定里读它了吗"**；判定越**严**、反查越**宽**；**嵌套组判定只跳一层** → `bindMember` 拒绝 `GROUP` 兜住
@@ -61,6 +61,8 @@ React19+Vite8+TS**6.0.3**(7.x 不被 typescript-eslint 支持)+Router7；qiankun
 
 **0028 未覆盖**：慢速攻击 / 多实例单机内存 zone / 阈值定得合不合适（需真实流量）/ 采样
 
-**0030 未覆盖**：前端管理页（组织树/成员/主岗） · `CUSTOM` 的 `filter_json` 解析 · **把 `DEPT` 接进审计可见性（刻意不做）** · 给 `bw_auth_rel_org_user` 补 `(org_id,user_id)` 唯一索引（需新迁移脚本，`0009` 禁改旧脚本）
+**0030 未覆盖**：~~前端管理页（组织树/成员/主岗）~~ → **已落地**（`platform-admin` 第六标签页 + `common-api` 组织域 11 操作；真机 10 步全过） · `CUSTOM` 的 `filter_json` 解析 · **把 `DEPT` 接进审计可见性（刻意不做）** · 给 `bw_auth_rel_org_user` 补 `(org_id,user_id)` 唯一索引（需新迁移脚本，`0009` 禁改旧脚本；**且它堵不住"两个主岗"** —— 那是"每人每租户至多一个主岗"的约束，不是"同一人对同一组织只能有一条"） · **菜单级权限过滤**（基座 `MICRO_APPS` 静态数组 + `BasicLayout` 直接 `map` + 「概览」硬编码 ⇒ **零过滤**，审计员看得见「组织」入口、点进去才 403）
 
-**待办池（按上轮建议顺序）**：~~组织管理接口~~（**已完成，见 0030**）→ 前端组织管理页（顺带接上数据范围反查的显示）→ 菜单权限两步（**须同做**）→ `listByTraceId` 加条数上限
+**待办池**：前端管理面**已补齐**（用户·租户·资源·角色·用户组·组织 + 三个反查）→ **菜单权限两步**（种子补 `MENU`/`PAGE` 行 + 基座导航按权限过滤，**须同做**；动手前先定三件事）→ `listByTraceId` 加条数上限（已核实无上限无时间窗）→ 4 个子应用 dev 账号惰性字面量（**耦合**问题：0029 已取消后端种子默认值，前端却留字面量兜底）→ 自助改密接口 → `bw_auth_rel_org_user` 补唯一索引
+
+**刻意不做（是决策不是待办，别来"顺手接上"）**：把 `DEPT` 接进审计可见性（0030 第 10 条 —— 理由变了、结论没变）

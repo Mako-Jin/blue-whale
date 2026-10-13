@@ -494,3 +494,25 @@
   gap: 6px;
   margin-left: auto;
 }
+
+// 键值对清单（数据范围反查那一屏）。用 dl/dt/dd 而不是表格：
+// 每一项的"值"是一段说明而不是一个单元格，表格的列宽约束在这里只会碍事。
+.facts {
+  display: grid;
+  gap: 6px 12px;
+  grid-template-columns: 8em 1fr;
+  margin: 0;
+  padding: 12px 14px;
+  font-size: 13px;
+  border: 1px solid @border-color;
+  border-radius: @radius-md;
+
+  dt {
+    color: @text-tertiary;
+  }
+
+  dd {
+    margin: 0;
+    color: @text-primary;
+  }
+}

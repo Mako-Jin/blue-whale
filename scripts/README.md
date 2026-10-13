@@ -14,7 +14,7 @@
 | `verify-scene-switching.mjs`   | 用真实 Chrome 验证三维应用的多场景切换与显存释放                      | :3400 在跑，且本机装有 Google Chrome；可选传截图目录                                                                             | `docs/decisions/0014` |
 | `verify-player-controls.mjs`   | 用真实 Chrome 验证古建筑场景的主人公操控                              | :3400 在跑，且本机装有 Google Chrome；可选传截图目录                                                                             | `docs/decisions/0015` |
 | `verify-portal-auth.mjs`       | 用真实 Chrome + 真后端验证基座登录链路                                | 后端 :8080（h2 profile，含种子管理员）、基座 ：3000、`platform-log-console` :3200 都在跑；本机装有 Google Chrome；可选传截图目录 | `docs/decisions/0018` |
-| `verify-admin-permissions.mjs` | 用真实 Chrome 验证按钮级权限（两种身份的界面差异 + 真实增删）         | 后端 :8080（h2 profile，含两个种子账号）、基座 ：3000、`platform-admin` :3500 都在跑；本机装有 Google Chrome；可选传截图目录     | `docs/decisions/0018` |
+| `verify-admin-permissions.mjs` | 用真实 Chrome 验证按钮级权限（两种身份的界面差异 + 真实增删 + 组织树移动与主岗） | 后端 :8080（h2 profile，含两个种子账号）、基座 ：3000、`platform-admin` :3500 都在跑；本机装有 Google Chrome；可选传截图目录     | `docs/decisions/0018` · `0030` |
 | `verify-atmosphere.mjs`        | 用真实浏览器验证大气（天穹、日出日落、云、时间流逝、动态 IBL 的显存） | :3400 在跑，且本机装有 Chromium 内核浏览器（Chrome 或 Edge，脚本**自动探测**）；可选传截图目录                                   | `docs/decisions/0017` |
 | `verify-audit-pipeline.mjs`    | 用真实 Chrome + 真后端验证审计管道（记录自动产生、越权留痕、无写入口） | 后端 :8080（h2 profile，含两个种子账号）、基座 :3000、`platform-audit-console` :3600 都在跑；本机装有 Google Chrome；可选传截图目录 | `docs/decisions/0019` |
 | `verify-nginx-config.mjs`      | 对 `infra/nginx/` 的网关配置做结构性自检；`--emit` 可渲染出部署树、`--nginx` 可顺带真跑 `nginx -t` | **无**（不带参数时不需要 nginx、不需要网络、不写文件）                                                                                     | `docs/decisions/0027` · `0028` |
@@ -79,14 +79,30 @@
 2. 以 `admin`（27 项权限）登录 → 子应用出现全部操作入口，页面上的权限集合与后端给的逐字一致
 3. **真实写一遍**：新建一个带时间戳用户名的用户 → 出现在列表 → 删除 → 从列表消失（可重复执行）
 4. 切到租户页 → 另一组权限标识（`auth:tenant:*`）各自独立判定
-5. 登出后以 `auditor`（仅 3 项读权限）登录 → **同一段代码**：列表照常显示，
+5. **组织页**：树按层级渲染 → 界面新建一层、接口再建一层造出两层子树 →
+   **移动**（子树级改写：自身层级与路径、下级路径、**原父级 `hasChild` 归零**）→
+   搬回原位后派生列与原值**逐字相等** → 挂成员（「是否主岗」保持缺省，服务端自动设为主岗）→
+   把主岗设到别处（原主岗被一并降下、**主岗恰好 1 条**）→ 清理并按守卫顺序删树
+6. 登出后以 `auditor`（仅 3 项读权限）登录 → **同一段代码**：列表照常显示，
    新建 / 编辑 / 重置口令 / 删除一个都不出现，且页面停在原处（403 不等于登录失效）
-6. **硬刷新** → 权限随会话一起恢复（内存令牌已丢，靠刷新令牌重新拿回身份与权限）
-7. 登出 → `localStorage` 清空、子应用界面卸载
-8. 浏览器侧零报错
+7. **审计员的组织面**：组织树读不到（报错指名缺少 `auth:org:read`、树上 0 个节点、0 个写入口），
+   但用户页的「组织归属」「数据范围」照常可用 —— 验证 `auth:org:read` 与 `auth:user:read`
+   这组**刻意的划分**（两者不互相蕴含）
+8. **硬刷新** → 权限随会话一起恢复（内存令牌已丢，靠刷新令牌重新拿回身份与权限）
+9. 登出 → `localStorage` 清空、子应用界面卸载
+10. 浏览器侧零报错
+
+> **这一步里有一条"脚本内置的 API 通道"**（第 5 步与第 7 步用）。原因是组织页有几件事
+> **在界面上看不见**：典型的是"移动之后原父级的 `hasChild` 有没有跟着归零"——
+> 树的组装用的是 `parentId`，所以就算 `hasChild` 是陈旧的，界面看起来也完全正常。
+> 上一轮（后端）的用例正是靠这条断言抓出了一个真缺陷：移动时路径与层级改了、`parent_id`
+> 没落库，于是"界面显示在原地、数据范围算在新位置"，两处都不报错。
+> 因此这条通道**只用于读数与造场景**，不替代界面验证。
+> 它用 `scripts/lib/seed-credentials.mjs` 里的管理员凭据登录 —— 脚本里不含任何口令字面量。
 
 > 截图存到 `docs/assets/0018/`（`05-admin-can-write.png` / `06-auditor-read-only.png`），
-> 与 `verify-portal-auth.mjs` 的 01–04 放在一起，正好构成"登录态 → 权限下发 → 权限生效"的完整证据链。
+> 与 `verify-portal-auth.mjs` 的 01–04 放在一起，正好构成"登录态 → 权限下发 → 权限生效"的完整证据链；
+> 组织页与反查的截图是 `07-org-management.png` / `07-auditor-reverse-lookup.png`。
 
 ### `verify-audit-pipeline.mjs` 做什么
 

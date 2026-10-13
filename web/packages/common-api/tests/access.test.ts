@@ -196,6 +196,88 @@ describe('createAccessApi · 契约接线', () => {
       'DELETE /api/auth/user-groups/5/members/USER/7',
     ]);
   });
+
+  it('组织十一个操作分别打到契约里的路径（移动是独立路径，不在 update 里）', async () => {
+    const { http, calls } = recordingHttp();
+    const api = createAccessApi(http);
+
+    await api.organizations.page({ keyword: '研发', parentId: 2 });
+    await api.organizations.tree();
+    await api.organizations.detail(4);
+    await api.organizations.create({ orgCode: 'RD_FE', orgName: '前端组', parentId: 2 });
+    await api.organizations.update(4, { orgCode: 'RD_FE', orgName: '前端组·改' });
+    await api.organizations.move(4, { parentId: 1 });
+    await api.organizations.remove(4);
+    await api.organizations.pageMembers(4, { primaryOnly: true });
+    await api.organizations.bindMember(4, { memberId: 7 });
+    await api.organizations.setPrimaryPosition(4, { userId: 7 });
+    await api.organizations.revokeMember(4, { userId: 7 });
+
+    expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
+      'GET /api/auth/orgs',
+      'GET /api/auth/orgs/tree',
+      'GET /api/auth/orgs/4',
+      'POST /api/auth/orgs',
+      /*
+       * 移动走 `/parent` 这条独立路径。
+       *
+       * 不把它折进 `PUT /orgs/4` 的请求体：那一次会重写整棵子树的派生列、
+       * 并同时维护两个父级的 `hasChild` —— 与"改资料"不是一件事。
+       * 折进去之后，"这次改的是什么"只能靠对比前后值猜，审计也只剩一条 `auth.org.update`。
+       */
+      'PUT /api/auth/orgs/4',
+      'PUT /api/auth/orgs/4/parent',
+      'DELETE /api/auth/orgs/4',
+      'GET /api/auth/orgs/4/members',
+      'POST /api/auth/orgs/4/members',
+      // 设主岗没有请求体：目标就是路径上的这两个 id
+      'PUT /api/auth/orgs/4/members/7/primary',
+      // 撤销路径里**没有** memberType —— 组织只有用户这一种成员，不存在"同号不同表"
+      'DELETE /api/auth/orgs/4/members/7',
+    ]);
+  });
+
+  it('组织树不传 rootId 时不拼查询串（空值由内核丢掉，语义是"整片森林"）', async () => {
+    const { http, calls } = recordingHttp();
+    const api = createAccessApi(http);
+
+    await api.organizations.tree();
+    await api.organizations.tree(3);
+
+    /*
+     * 两次都走同一条路径，区别只在 query 上。
+     *
+     * 这里刻意断言 `options.query.rootId` 是 `undefined` 而**不是不传 query** ——
+     * 内核会把空值丢掉（`buildQuery` 里 `undefined` / `null` / `''` 都跳过），
+     * 因此"不传 rootId"与"传 undefined"在线上是同一个请求。
+     * 断言得这么细，是为了钉住"前端不在这里补默认值"：补一个默认根，
+     * 就会把"看不到别的树"伪装成"只有这一棵树"。
+     */
+    expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
+      'GET /api/auth/orgs/tree',
+      'GET /api/auth/orgs/tree',
+    ]);
+    expect(calls[0].options).toEqual({ query: { rootId: undefined } });
+    expect(calls[1].options).toEqual({ query: { rootId: 3 } });
+  });
+
+  it('用户组织归属与数据范围反查分别打到两条子路径', async () => {
+    const { http, calls } = recordingHttp();
+    const api = createAccessApi(http);
+
+    await api.users.organizations(7);
+    await api.users.dataScope(7);
+
+    /*
+     * 两条路径都在 `/users/{id}` 下，但**性质完全不同**：
+     * 前者是配置（逐条、带状态、不过滤），后者是一次求值的结果（唯一、必然自洽）。
+     * 界面上它们的入口也因此分开：一个回答"为什么"，一个回答"是什么"。
+     */
+    expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
+      'GET /api/auth/users/7/organizations',
+      'GET /api/auth/users/7/data-scope',
+    ]);
+  });
 });
 
 describe('AccessPermissions · 权限标识', () => {
@@ -230,7 +312,29 @@ describe('AccessPermissions · 权限标识', () => {
       USER_GROUP_CREATE: 'auth:user_group:create',
       USER_GROUP_UPDATE: 'auth:user_group:update',
       USER_GROUP_DELETE: 'auth:user_group:delete',
+      // 资源段是缩写 `org`（路径写 `orgs`），同样是"两处不同形"的一处
+      ORG_READ: 'auth:org:read',
+      ORG_CREATE: 'auth:org:create',
+      ORG_UPDATE: 'auth:org:update',
+      ORG_DELETE: 'auth:org:delete',
     });
+  });
+
+  /**
+   * **移动组织**与**设主岗**都没有单设权限码，复用 `auth:org:update`。
+   *
+   * <p>与角色成员关系同一条理由：能移动组织的人本来就能改组织，能设主岗的人
+   * 本来就能挂成员。真拆出 `auth:org:move`，已经配好的角色会在升级后
+   * **静默失去**移动能力 —— 而补救方向会指向"新权限没下发"。
+   *
+   * <p>但**审计动作是分开的**（`auth.org.move` / `auth.org.set_primary_position`），
+   * 所以"谁把部门搬走了"在审计里查得到，不因为共用一个权限码而糊掉。
+   * 界面同理：权限码不拆，入口必须是两个。
+   */
+  it('移动组织与设主岗复用 *:update，不单设权限码', () => {
+    const codes: string[] = Object.values(AccessPermissions);
+    expect(codes.filter((code) => code.includes('move'))).toEqual([]);
+    expect(codes.filter((code) => code.includes('primary'))).toEqual([]);
   });
 
   /**

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import type {
   AccessUser,
+  AccessUserDataScope,
+  AccessUserOrg,
   AccessUserPage,
   AccessUserRoleSource,
   AccessUserSaveRequest,
@@ -69,6 +71,8 @@ export function UsersPage() {
   const [resetting, setResetting] = useState<AccessUser | null>(null);
   const [removing, setRemoving] = useState<AccessUser | null>(null);
   const [sourceOf, setSourceOf] = useState<AccessUser | null>(null);
+  const [orgsOf, setOrgsOf] = useState<AccessUser | null>(null);
+  const [scopeOf, setScopeOf] = useState<AccessUser | null>(null);
   const [busy, setBusy] = useState(false);
   const [dialogError, setDialogError] = useState<string | null>(null);
 
@@ -294,6 +298,31 @@ export function UsersPage() {
                     >
                       角色来源
                     </PermissionButton>
+                    {/*
+                      组织归属与数据范围两个入口**都归 `auth:user:read`**（后端如此），
+                      因此它们也与"角色来源"一样出现在每一行。
+
+                      这条权限划分有一个可验证的后果，值得写在这里：组织**树**归
+                      `auth:org:read`、个人归属归 `auth:user:read`，两者不互相蕴含 ——
+                      只有 org:read 的人能改组织结构，却看不到"某个人在哪些部门"；
+                      只有 user:read 的人能反查个人归属，却看不到树本身。
+                      于是本页的这两个按钮与「组织」标签页是**两个独立的权限面**，
+                      不是同一块功能的两个入口。
+                    */}
+                    <PermissionButton
+                      permission={PERM.USER_READ}
+                      className="users__orgs"
+                      onClick={() => setOrgsOf(user)}
+                    >
+                      组织归属
+                    </PermissionButton>
+                    <PermissionButton
+                      permission={PERM.USER_READ}
+                      className="users__scope"
+                      onClick={() => setScopeOf(user)}
+                    >
+                      数据范围
+                    </PermissionButton>
                     <PermissionButton
                       permission={PERM.USER_UPDATE}
                       className="users__edit"
@@ -405,7 +434,274 @@ export function UsersPage() {
       ) : null}
 
       {sourceOf ? <RoleSourcesDialog user={sourceOf} onClose={() => setSourceOf(null)} /> : null}
+      {orgsOf ? <UserOrgsDialog user={orgsOf} onClose={() => setOrgsOf(null)} /> : null}
+      {scopeOf ? <UserDataScopeDialog user={scopeOf} onClose={() => setScopeOf(null)} /> : null}
     </section>
+  );
+}
+
+/**
+ * 用户的组织归属 —— 回答"他在哪些部门"。
+ *
+ * <p>与「角色来源」同一形状：**逐条、带状态、不过滤**。停用的组织、已过期的归属
+ * 照原样返回 —— 排查"他配了本部门范围，为什么还是只看得到自己"时，
+ * 答案通常就在 `orgStatus` 与 `effectiveNow` 这两列里（后端 `UserController`
+ * 对这两个字段的注释说的就是这句话）。
+ *
+ * <p>本对话框是**只读**的：加人与移人都挂在 `/api/auth/orgs/{id}/members` 下，
+ * 也就是「组织」标签页。这里不提供写入口，因为在"某个人"的主语下写成员关系，
+ * 会让人看不出这次操作改的是哪个组织的成员集合。
+ */
+function UserOrgsDialog({ user, onClose }: { user: AccessUser; onClose: () => void }) {
+  const [orgs, setOrgs] = useState<AccessUserOrg[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const list = await api().access.users.organizations(user.id as number);
+        if (alive) setOrgs(list);
+      } catch (cause) {
+        if (alive) setError(describeError(cause));
+      } finally {
+        if (alive) setLoading(false);
+      }
+    };
+    void load();
+    return () => {
+      alive = false;
+    };
+  }, [user.id]);
+
+  return (
+    <Dialog
+      title={`组织归属 · ${user.username}`}
+      onClose={onClose}
+      footer={
+        <button type="button" className="btn" onClick={onClose}>
+          关闭
+        </button>
+      }
+    >
+      {error ? <p className="banner banner--error">{error}</p> : null}
+
+      <div className="table-wrap">
+        <table className="table">
+          <thead>
+            <tr>
+              <th>组织</th>
+              <th>全称</th>
+              <th>组织状态</th>
+              <th>岗位</th>
+              <th>生效区间</th>
+            </tr>
+          </thead>
+          <tbody>
+            {orgs.length === 0 ? (
+              <tr>
+                <td className="table__empty" colSpan={5}>
+                  {loading ? '加载中…' : '没有任何组织归属'}
+                </td>
+              </tr>
+            ) : (
+              orgs.map((org) => (
+                <tr key={String(org.grantId)} data-testid={`user-org-${String(org.orgCode)}`}>
+                  <td className="mono">
+                    {org.orgCode}
+                    <span className="tree__name">{org.orgName ?? ''}</span>
+                    {/*
+                      主岗是 DEPT 系列**唯一**的取值来源，因此它必须与其它归属区分开：
+                      一个用户可以在多个组织下有归属，但只有主岗那一条决定数据范围。
+                    */}
+                    {org.primaryPosition ? (
+                      <span className="tag tag--on" data-testid="user-org-primary">
+                        主岗
+                      </span>
+                    ) : null}
+                  </td>
+                  <td>{org.fullName ?? '—'}</td>
+                  <td>
+                    <span className={`tag tag--${org.orgStatus === 'ENABLED' ? 'on' : 'off'}`}>
+                      {formatStatus(org.orgStatus)}
+                    </span>
+                  </td>
+                  <td>
+                    {org.positionName ?? '—'}
+                    {org.relationType ? (
+                      <span className="tree__name">{org.relationType}</span>
+                    ) : null}
+                  </td>
+                  <td className="mono">
+                    {formatWindow(org.effectiveFrom, org.effectiveTo)}
+                    {org.effectiveNow === false ? (
+                      <span className="tag tag--off">已失效</span>
+                    ) : null}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <p className="form__tip">
+        <strong>停用的组织与已过期的归属照原样返回</strong>：它们恰恰是"为什么数据范围
+        算不出来"的答案。判定侧只看此刻有效的那条主岗，两边刻意不合并。
+      </p>
+    </Dialog>
+  );
+}
+
+/**
+ * 数据范围反查 —— 回答"按现在这套配置，最终算出来是什么"。
+ *
+ * <p><b>它自 ADR-0025 起就有后端、前端刻意没接。</b>当时的理由很具体：
+ * `DEPT` / `DEPT_AND_CHILD` 因为没有组织树可用，对每个用户都只能是
+ * `precise = false`，挂出来等于给一个恒定的"无法精确求值"标签，
+ * 什么也说明不了。组织树落地之后这个理由消失了 —— 现在它真的能区分
+ * "档位不支持"与"这个人没有有效主岗"。
+ *
+ * <p>三件事必须分开显示，因为它们是最容易被混为一谈的：
+ * <ol>
+ *   <li><b>档位</b>（配置里有什么、最宽是哪一档、来自哪些角色）；</li>
+ *   <li><b>能否精确求值</b>（`precise`）—— 为 false 时已接入的查询保守地按"仅本人"处理，
+ *       这是**往窄兜底**，不是越权；</li>
+ *   <li><b>可见组织集合</b>（`visibleOrgIds`）—— 注意 `null` 与 `[]` 是两件事，
+ *       前者是"这一档根本不按组织划定"，后者是"划定了，但一个也没有"。</li>
+ * </ol>
+ */
+function UserDataScopeDialog({ user, onClose }: { user: AccessUser; onClose: () => void }) {
+  const [scope, setScope] = useState<AccessUserDataScope | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const result = await api().access.users.dataScope(user.id as number);
+        if (alive) setScope(result);
+      } catch (cause) {
+        if (alive) setError(describeError(cause));
+      } finally {
+        if (alive) setLoading(false);
+      }
+    };
+    void load();
+    return () => {
+      alive = false;
+    };
+  }, [user.id]);
+
+  return (
+    <Dialog
+      title={`数据范围 · ${user.username}`}
+      onClose={onClose}
+      footer={
+        <button type="button" className="btn" onClick={onClose}>
+          关闭
+        </button>
+      }
+    >
+      {error ? <p className="banner banner--error">{error}</p> : null}
+      {loading ? <p className="table__empty">加载中…</p> : null}
+
+      {scope ? (
+        <>
+          <dl className="facts" data-testid="user-scope-facts">
+            <dt>合并档位</dt>
+            <dd>
+              <span className="tag tag--on" data-testid="user-scope-value">
+                {scope.scopeLabel ?? scope.scope ?? '（无）'}
+              </span>
+              {scope.scope ? <code className="mono"> {scope.scope}</code> : null}
+              {scope.allData ? <span className="tag tag--off">放行整个租户</span> : null}
+            </dd>
+
+            <dt>配置里的档位</dt>
+            <dd className="mono">
+              {scope.scopes?.length ? scope.scopes.join(' · ') : '（没有任何角色带数据范围）'}
+            </dd>
+
+            <dt>来自哪些角色</dt>
+            <dd className="mono">{scope.roleCodes?.length ? scope.roleCodes.join(' · ') : '—'}</dd>
+
+            <dt>能否精确求值</dt>
+            <dd>
+              {/*
+                这个标签是整页里最容易被误读的一处，所以两种状态都写了说明文字，
+                而不是只显示 true / false。
+              */}
+              <span
+                className={`tag tag--${scope.precise ? 'on' : 'off'}`}
+                data-testid="user-scope-precise"
+              >
+                {scope.precise ? '可以' : '不可以'}
+              </span>
+              {scope.precise ? null : (
+                <span className="tree__name">
+                  已接入的查询保守地按「仅本人」处理 —— 比实际范围更窄，是安全的一侧
+                </span>
+              )}
+            </dd>
+
+            <dt>主岗组织</dt>
+            <dd>
+              {scope.primaryOrgId == null ? (
+                <span data-testid="user-scope-primary-org">—</span>
+              ) : (
+                <span data-testid="user-scope-primary-org">
+                  #{scope.primaryOrgId}
+                  <span className="tree__name">
+                    {scope.primaryOrgFullName ?? scope.primaryOrgName ?? ''}
+                  </span>
+                </span>
+              )}
+            </dd>
+
+            <dt>可见组织集合</dt>
+            <dd className="mono" data-testid="user-scope-visible-orgs">
+              {/*
+                `null` 与 `[]` 必须显示成两句不同的话。
+
+                null = "这一档不是按组织划定的"（ALL / SELF / CUSTOM 都没有组织维度）；
+                []   = "按组织划定了，但集合是空的"（例如主岗组织被停用）。
+                把它们都渲染成"（无）"，会让"配了范围但没生效"看起来像"本来就没有范围"。
+              */}
+              {scope.visibleOrgIds == null
+                ? '—（这一档不是按组织划定的）'
+                : scope.visibleOrgIds.length === 0
+                  ? '空集合（按组织划定，但一个也没有）'
+                  : scope.visibleOrgIds.map((id) => `#${id}`).join(' ')}
+            </dd>
+
+            {scope.note ? (
+              <>
+                <dt>说明</dt>
+                <dd data-testid="user-scope-note">{scope.note}</dd>
+              </>
+            ) : null}
+          </dl>
+
+          <p className="form__tip">
+            <strong>这是求值结果，不是配置。</strong>要回答"这个范围是谁给的"请看
+            「角色来源」，要回答"最终算成了什么"才看这里 —— 配置侧允许自相矛盾，
+            求值结果不会，而"为什么没生效"的答案往往正是两者之间的差异。
+          </p>
+          <p className="form__tip">
+            它目前只**求值并下发**：本仓还没有业务数据表，因此"按它过滤业务数据"
+            没有落点。看到范围正确不等于某个查询真的在用它 —— 有没有落点，
+            取决于消费方有没有把这个结果接进自己的查询条件。
+          </p>
+        </>
+      ) : null}
+    </Dialog>
   );
 }
 

@@ -4,7 +4,7 @@ import type { ApiSchemas, BodyOf, DataOf, PathOf, QueryOf } from './types';
 import type { paths } from './generated/schema';
 
 /**
- * 权限域的**实体管理**接线（用户 / 租户 / 资源 / 角色 / 用户组）。
+ * 权限域的**实体管理**接线（用户 / 租户 / 资源 / 角色 / 用户组 / 组织）。
  *
  * <h3>为什么与 `auth.ts` 分两个文件</h3>
  *
@@ -62,6 +62,24 @@ type UserGroupMemberRevokeOp =
   paths['/api/auth/user-groups/{id}/members/{memberType}/{memberId}']['delete'];
 
 type UserRolesOp = paths['/api/auth/users/{id}/roles']['get'];
+type UserOrganizationsOp = paths['/api/auth/users/{id}/organizations']['get'];
+type UserDataScopeOp = paths['/api/auth/users/{id}/data-scope']['get'];
+
+type OrgPageOp = paths['/api/auth/orgs']['get'];
+type OrgCreateOp = paths['/api/auth/orgs']['post'];
+type OrgTreeOp = paths['/api/auth/orgs/tree']['get'];
+type OrgDetailOp = paths['/api/auth/orgs/{id}']['get'];
+type OrgMoveOp = paths['/api/auth/orgs/{id}/parent']['put'];
+type OrgMemberPageOp = paths['/api/auth/orgs/{id}/members']['get'];
+type OrgMemberBindOp = paths['/api/auth/orgs/{id}/members']['post'];
+/*
+ * 撤销与设主岗的路径参数同形（组织主键 + 用户主键），因此只声明一次。
+ *
+ * 不在类型层强行区分这两条路径：它们是**同一个对象的两种操作**，
+ * 而 `memberType`（角色那边必须显式带上的一段）在这里不存在 ——
+ * 组织只有用户这一种成员，不存在"同号不同表"的歧义。
+ */
+type OrgMemberRevokeOp = paths['/api/auth/orgs/{id}/members/{userId}']['delete'];
 
 /* ------------------------------------------------------------------ 用户 */
 
@@ -112,6 +130,30 @@ export interface AccessUserApi {
    * 因此**审计员也能调** —— 与用户组那套权限是分开决定的。
    */
   roleSources(id: AccessUserId): Promise<AccessUserRoleSourceList>;
+  /**
+   * 反查该用户挂在哪几个组织下（含主岗标记与生效区间）。
+   *
+   * <p>与 {@link AccessUserApi.roleSources} 同类，权限也归 `auth:user:read`。
+   * 但**两者的用途不同**：角色回答"他能做什么"，组织归属回答"他看得到哪些数据" ——
+   * `DEPT` / `DEPT_AND_CHILD` 两档数据范围唯一的取值来源就是这里的**主岗**。
+   *
+   * <p>同时会带回 `orgStatus`：停用的组织不能作为范围目标，因此一行
+   * "组织已停用"正是"为什么数据范围算不出来"的答案。
+   */
+  organizations(id: AccessUserId): Promise<AccessUserOrgList>;
+  /**
+   * 反查该用户的数据范围**求值结果**。
+   *
+   * <p>这是 ADR-0025 定义的"只做求值 + 下发"的观察窗口：它给的是**此刻算出来的结论**，
+   * 不是配置。要回答"这个范围是谁给的"看 {@link AccessUserApi.roleSources}，
+   * 要回答"最终算成了什么"看这里。
+   *
+   * <p><b>`precise` 为 false 不是错误</b>：它表示档位（CUSTOM 未实现）或
+   * 主岗（DEPT 系列需要）缺失，此时已接入的查询**保守地按「仅本人」处理** ——
+   * 比实际范围更窄，因此是安全的一侧。界面必须把这个区别显示出来，
+   * 否则管理员会以为"配了 DEPT 却没有生效"是 bug。
+   */
+  dataScope(id: AccessUserId): Promise<AccessUserDataScope>;
 }
 
 /* ------------------------------------------------------------------ 租户 */
@@ -311,7 +353,100 @@ export interface AccessUserGroupApi {
   revokeMember(id: AccessUserGroupId, ref: AccessUserGroupMemberRef): Promise<void>;
 }
 
-/* ------------------------------------------------------------------ 角色来源反查 */
+/* ------------------------------------------------------------------ 组织 */
+
+/** 组织（部门）出参 */
+export type AccessOrganization = ApiSchemas['OrganizationVO'];
+
+/** 组织树节点 */
+export type AccessOrganizationTreeNode = ApiSchemas['OrganizationTreeNode'];
+
+/** 组织树（整个租户的森林；传 `rootId` 则只看一棵子树） */
+export type AccessOrganizationTree = NonNullable<DataOf<OrgTreeOp>>;
+
+/** 组织分页条件。`parentId` 取的是**直接下级**，要整棵子树请用树接口 */
+export type AccessOrganizationQuery = QueryOf<OrgPageOp>;
+
+/** 组织分页结果 */
+export type AccessOrganizationPage = NonNullable<DataOf<OrgPageOp>>;
+
+/**
+ * 组织新增 / 修改入参。
+ *
+ * <p>`orgLevel` / `codePath` / `fullName` **连类型里都没有** —— 它们是 `parentId`
+ * 与各节点名称的确定函数，由服务端派生。放开它们等于允许调用方写入一个
+ * 与真实层级不一致的路径，而 `DEPT_AND_CHILD` 正好按那个路径求值。
+ */
+export type AccessOrganizationSaveRequest = BodyOf<OrgCreateOp>;
+
+/** 组织主键 */
+export type AccessOrganizationId = PathOf<OrgDetailOp>['id'];
+
+/** 移动入参。**不传 `parentId` 或传 `null` 都表示提升为顶级** */
+export type AccessOrganizationMoveRequest = BodyOf<OrgMoveOp>;
+
+/** 组织成员出参 */
+export type AccessOrgMember = ApiSchemas['OrgMemberVO'];
+
+/** 组织成员分页条件。`primaryOnly` 为 true 时只看主岗 */
+export type AccessOrgMemberQuery = QueryOf<OrgMemberPageOp>;
+
+/** 组织成员分页结果 */
+export type AccessOrgMemberPage = NonNullable<DataOf<OrgMemberPageOp>>;
+
+/**
+ * 把用户挂到组织下的入参。
+ *
+ * <p>**没有 `memberType`** —— 这个域的关系表只有用户（`bw_auth_rel_org_user`），
+ * 组织之间靠 `parent_id` 成树，不像用户组那样需要在同一张关系表里混装两类成员。
+ * 少了这个字段，也就少了一个"能选错"的开关。
+ *
+ * <p>`isPrimaryPosition` 不传时的语义是**刻意**的：该用户当前没有主岗则自动设为主岗，
+ * 已有主岗则保持不变。它不会静默搬动一个人已有的数据范围。
+ */
+export type AccessOrgMemberBindRequest = BodyOf<OrgMemberBindOp>;
+
+/** 移出成员的路径参数（组织主键单独传） */
+export type AccessOrgMemberRef = Omit<PathOf<OrgMemberRevokeOp>, 'id'>;
+
+export interface AccessOrganizationApi {
+  page(query?: AccessOrganizationQuery): Promise<AccessOrganizationPage>;
+  /** `rootId` 不传返回整个租户的森林 */
+  tree(rootId?: number): Promise<AccessOrganizationTree>;
+  detail(id: AccessOrganizationId): Promise<AccessOrganization>;
+  create(body: AccessOrganizationSaveRequest): Promise<AccessOrganization>;
+  /**
+   * 修改组织资料。
+   *
+   * <p>**`parentId` 在这里是被拒的**：值非空且与原值不同时服务端返回 40001
+   * （不传或传 `null` 都表示"这次不改层级"）。改层级必须走
+   * {@link AccessOrganizationApi.move} —— 原因是它要重写整棵子树的派生列、
+   * 并顺带维护两个父级的 `hasChild`，与"改资料"不是一件事。
+   */
+  update(
+    id: AccessOrganizationId,
+    body: AccessOrganizationSaveRequest,
+  ): Promise<AccessOrganization>;
+  /**
+   * 移动节点，并**改写整棵子树**的 `orgLevel` / `codePath` / `fullName`。
+   *
+   * <p>独立接口、独立审计动作（`auth.org.move`），理由见 ADR-0030 第 3、4 条：
+   * 一次移动会同时改变子树上**每个人**的 `DEPT_AND_CHILD` 可见范围。
+   * 因此界面上它必须是独立入口，不能藏在"编辑资料"里。
+   */
+  move(id: AccessOrganizationId, body: AccessOrganizationMoveRequest): Promise<AccessOrganization>;
+  /** 有下级（40913）或有成员（40919）时服务端拒绝，**没有级联删除** */
+  remove(id: AccessOrganizationId): Promise<void>;
+  pageMembers(id: AccessOrganizationId, query?: AccessOrgMemberQuery): Promise<AccessOrgMemberPage>;
+  /** 重复调用是改岗位信息与时间窗，不是堆行 */
+  bindMember(id: AccessOrganizationId, body: AccessOrgMemberBindRequest): Promise<AccessOrgMember>;
+  /** 设为主岗；服务端会先把该用户级别处的主岗降下来，因此每人每租户至多一个 */
+  setPrimaryPosition(id: AccessOrganizationId, ref: AccessOrgMemberRef): Promise<AccessOrgMember>;
+  /** 解除归属关系；不在组织里时服务端返回 40410 */
+  revokeMember(id: AccessOrganizationId, ref: AccessOrgMemberRef): Promise<void>;
+}
+
+/* ------------------------------------------------------------------ 用户子资源反查 */
 
 /**
  * 用户的角色来源。
@@ -325,6 +460,26 @@ export type AccessUserRoleSource = ApiSchemas['UserRoleVO'];
 /** 反查结果的数组类型 */
 export type AccessUserRoleSourceList = NonNullable<DataOf<UserRolesOp>>;
 
+/**
+ * 用户的组织归属（一个用户可能在多个组织下有归属，其中至多一个是主岗）。
+ *
+ * <p>与 {@link AccessUserRoleSource} 同属"配置侧"的事实：**逐条、带状态、不过滤** ——
+ * 停用的组织、已过期的归属照原样返回。要的是"原因"，不是"结论"。
+ */
+export type AccessUserOrg = ApiSchemas['UserOrgVO'];
+
+/** 用户组织归属的数组类型 */
+export type AccessUserOrgList = NonNullable<DataOf<UserOrganizationsOp>>;
+
+/**
+ * 用户的数据范围**求值结果**。
+ *
+ * <p>与上面两个是**不同性质**的东西：`roleSources` / `organizations` 给的是配置，
+ * 这里给的是"按当前配置算出来是什么"。因此它只有一份，且必然自洽 ——
+ * 而配置侧可以自相矛盾（这正是需要反查的原因）。
+ */
+export type AccessUserDataScope = NonNullable<DataOf<UserDataScopeOp>>;
+
 /* ------------------------------------------------------------------ 接口 */
 
 /** 权限域实体管理接口 */
@@ -334,6 +489,7 @@ export interface AccessApi {
   readonly resources: AccessResourceApi;
   readonly roles: AccessRoleApi;
   readonly userGroups: AccessUserGroupApi;
+  readonly organizations: AccessOrganizationApi;
 }
 
 /** 路径常量。`satisfies keyof paths` 让拼错的路径在编译期就暴露，而不是运行时 404 */
@@ -342,6 +498,7 @@ const PATH_TENANTS = '/api/auth/tenants' satisfies keyof paths;
 const PATH_RESOURCES = '/api/auth/resources' satisfies keyof paths;
 const PATH_ROLES = '/api/auth/roles' satisfies keyof paths;
 const PATH_USER_GROUPS = '/api/auth/user-groups' satisfies keyof paths;
+const PATH_ORGS = '/api/auth/orgs' satisfies keyof paths;
 
 export function createAccessApi(http: HttpClient): AccessApi {
   return {
@@ -353,6 +510,8 @@ export function createAccessApi(http: HttpClient): AccessApi {
       resetPassword: (id, body) => http.post<void>(`${PATH_USERS}/${id}/password`, body),
       remove: (id) => http.delete<void>(`${PATH_USERS}/${id}`),
       roleSources: (id) => http.get<AccessUserRoleSourceList>(`${PATH_USERS}/${id}/roles`),
+      organizations: (id) => http.get<AccessUserOrgList>(`${PATH_USERS}/${id}/organizations`),
+      dataScope: (id) => http.get<AccessUserDataScope>(`${PATH_USERS}/${id}/data-scope`),
     },
     tenants: {
       page: (query) => http.get<AccessTenantPage>(PATH_TENANTS, { query }),
@@ -403,6 +562,31 @@ export function createAccessApi(http: HttpClient): AccessApi {
         http.post<AccessUserGroupMember>(`${PATH_USER_GROUPS}/${id}/members`, body),
       revokeMember: (id, ref) =>
         http.delete<void>(`${PATH_USER_GROUPS}/${id}/members/${ref.memberType}/${ref.memberId}`),
+    },
+    organizations: {
+      page: (query) => http.get<AccessOrganizationPage>(PATH_ORGS, { query }),
+      // `rootId` 为 undefined 时不拼进查询串（内核会丢掉空值），因此"不传即整片森林"
+      tree: (rootId) =>
+        http.get<AccessOrganizationTree>(`${PATH_ORGS}/tree`, { query: { rootId } }),
+      detail: (id) => http.get<AccessOrganization>(`${PATH_ORGS}/${id}`),
+      create: (body) => http.post<AccessOrganization>(PATH_ORGS, body),
+      update: (id, body) => http.put<AccessOrganization>(`${PATH_ORGS}/${id}`, body),
+      /*
+       * 移动走独立路径，**不拼进 update**。
+       *
+       * 它在服务端要做的事与"改资料"不同：重写整棵子树的三个派生列、
+       * 维护原父级与新父级的 `hasChild`。混在一个接口里，"这次到底改了什么"
+       * 就只能靠对比前后值来猜，而审计也就只剩一条 `auth.org.update`。
+       */
+      move: (id, body) => http.put<AccessOrganization>(`${PATH_ORGS}/${id}/parent`, body),
+      remove: (id) => http.delete<void>(`${PATH_ORGS}/${id}`),
+      pageMembers: (id, query) =>
+        http.get<AccessOrgMemberPage>(`${PATH_ORGS}/${id}/members`, { query }),
+      bindMember: (id, body) => http.post<AccessOrgMember>(`${PATH_ORGS}/${id}/members`, body),
+      // 无请求体：这个动作没有参数可省 —— 目标就是路径上的这两个 id
+      setPrimaryPosition: (id, ref) =>
+        http.put<AccessOrgMember>(`${PATH_ORGS}/${id}/members/${ref.userId}/primary`),
+      revokeMember: (id, ref) => http.delete<void>(`${PATH_ORGS}/${id}/members/${ref.userId}`),
     },
   };
 }
@@ -463,6 +647,23 @@ export const AccessPermissions = {
   USER_GROUP_CREATE: 'auth:user_group:create',
   USER_GROUP_UPDATE: 'auth:user_group:update',
   USER_GROUP_DELETE: 'auth:user_group:delete',
+  /*
+   * 组织（部门）。资源段是 `org` 而不是 `organization` ——
+   * 路径写的是 `/api/auth/orgs`（缩写，给人看），标识写的是 `auth:org`（给程序用）。
+   * 与用户组那处同理：标识的字符集被后端钉成 `[a-z][a-z0-9_]*`，两边不必同形，
+   * 但**各自必须唯一且稳定** —— 标识一旦放开，拿它当键的地方都要开始转义。
+   *
+   * 下面四个覆盖了组织的全部写操作，包括**移动**与**设主岗**。
+   * 它们没有单设权限码，理由与角色成员关系一致：能移动组织的人本来就能改组织，
+   * 而"这次是移动还是改名"由**审计动作**回答（`auth.org.move` /
+   * `auth.org.set_primary_position`），不必再拆权限码 ——
+   * 拆出来的话，已经配好的角色会在升级后静默失去这两项能力。
+   * 注意：**权限码不拆，但界面上必须是两个独立入口**，因为它们的后果不同。
+   */
+  ORG_READ: 'auth:org:read',
+  ORG_CREATE: 'auth:org:create',
+  ORG_UPDATE: 'auth:org:update',
+  ORG_DELETE: 'auth:org:delete',
 } as const;
 
 /** 权限标识的字面量联合类型 */
