@@ -74,6 +74,13 @@ jobs:
       - name: Stylelint
         run: pnpm stylelint
 
+      # 全树格式检查。它补的是 lint-staged 的两个**结构性**盲区（写在钩子里的检查
+      # 看不见整棵树）：① 钩子只处理**本次 `git add` 的文件** —— 没被碰过的文件会
+      # 一直保持旧格式；② 钩子的 glob 里原本没有 `*.html` ⇒ 三个 index.html 已经
+      # 静默漂移了很久（本次开闸前才发现）。详情见 docs/decisions/0037。
+      - name: 格式检查
+        run: pnpm format:check
+
       - name: 类型检查
         run: pnpm typecheck
 

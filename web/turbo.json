@@ -23,6 +23,9 @@
     "test": {
       "dependsOn": ["^build"],
       "outputs": ["coverage/**"]
+    },
+    "common-api#build": {
+      "outputs": []
     }
   }
 }

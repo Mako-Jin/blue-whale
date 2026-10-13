@@ -182,6 +182,12 @@ pnpm build --force                      # 忽略缓存强制重跑
 
 缓存产物在 `.turbo/` 下（已 gitignore）。若怀疑缓存有陈旧问题，删掉 `.turbo/` 再跑即可。
 
+**一处例外：`common-api#build` 声明 `outputs: []`。** 该包的 `build` 是 `tsc --noEmit`，
+不产出任何文件（它在工作区内被**源码引用** —— `exports` 直接指向 `src/*.ts`），
+所以通用规则里的 `outputs: ["dist/**"]` 对它永远匹配不到东西，每次真正执行构建都会打一行
+`WARNING no output files found for task common-api#build`。**没有删掉那个脚本**：
+删掉会让 `pnpm build` 不再覆盖 `common-api` 的类型检查，那是一次静默的覆盖缩减。见 `docs/decisions/0037`。
+
 ## 五、依赖治理（铁律）
 
 ### 公共依赖的版本

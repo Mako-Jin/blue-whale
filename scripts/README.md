@@ -312,8 +312,11 @@
   `scripts/verify-standalone-dev-login.mjs` 正是为这条而生，重跑一遍前**先重启对应的 dev 服务**。
 - **能不要前置条件就不要** —— 这一条决定脚本能不能进 CI。`verify-nginx-config.mjs` 与
   `verify-docs-index.mjs` 是**零前置**的（不连网、不读产物、不写文件），所以流水线的 `guards` job
-  直接跑它们；需要前置服务的脚本继续留在本机 —— 真机层（浏览器 + 冷启动 dev server）**刻意不在
-  CI 的必过项里**，理由见 `docs/decisions/0036`。
+  直接跑它们；`verify-bundle-secrets.mjs` **不需要服务、但需要前端产物**，所以它跑在 `web` job 的
+  构建**之后**（顺序不能反 —— 反了它就扫不到东西，还会静默"通过"）；需要前置服务的脚本继续留在
+  本机 —— 真机层（浏览器 + 冷启动 dev server）**刻意不在 CI 的必过项里**，理由见
+  `docs/decisions/0036`；全树格式检查在 `web` job 里（`pnpm format:check`，是 npm script 不是脚本，
+  见 `docs/decisions/0037`）。
 - **凭据走环境变量**：脚本里不出现任何密码（见 `docs/decisions/0003`）。
 - **后端进程的启动方式**：`spring-boot:run` 是 CLI goal，会落到 reactor 里**每一个**模块上，
   而父工程 `sts-parent` 没有 main class ⇒ 带 `-am` 一定失败

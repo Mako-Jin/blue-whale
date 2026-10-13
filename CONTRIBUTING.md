@@ -39,7 +39,7 @@ git config core.hooksPath web/.husky
 
 | 钩子         | 作用                                                                          |
 | ------------ | ----------------------------------------------------------------------------- |
-| `pre-commit` | 对**暂存文件**跑 lint-staged：ESLint --fix、Prettier --write、Stylelint --fix |
+| `pre-commit` | 对**暂存文件**跑 lint-staged：ESLint --fix、Prettier --write、Stylelint --fix（`*.html` 也由 Prettier 处理） |
 | `commit-msg` | 校验提交信息符合 Conventional Commits，不合规直接拦截                         |
 
 ---
@@ -261,7 +261,7 @@ BW_DB_USERNAME=<用户> BW_DB_PASSWORD=<密码> java -jar sts-app/sts-app-server
 
 | job | 内容 |
 | --- | --- |
-| `web` | 装依赖 → ESLint → Stylelint → 类型检查 → 单测 → 构建 → **产物自检**（种子口令不得进包） |
+| `web` | 装依赖 → ESLint → Stylelint → **格式检查** → 类型检查 → 单测 → 构建 → **产物自检**（种子口令不得进包） |
 | `server` | `mvn -B -ntp verify`（构建 + 测试，含 enforcer 的 JDK 门禁；**不需要数据库服务**） |
 | `guards` | 网关配置结构自检 · 文档索引一致性（**都不需要前置服务**） |
 
@@ -270,7 +270,7 @@ BW_DB_USERNAME=<用户> BW_DB_PASSWORD=<密码> java -jar sts-app/sts-app-server
 ```bash
 # 前端
 cd web
-pnpm install --frozen-lockfile && pnpm lint && pnpm stylelint && pnpm typecheck && pnpm test && pnpm build
+pnpm install --frozen-lockfile && pnpm lint && pnpm stylelint && pnpm format:check && pnpm typecheck && pnpm test && pnpm build
 
 # 产物自检（脚本自己算仓库根，与 cwd 无关）
 node ../scripts/verify-bundle-secrets.mjs
@@ -282,9 +282,13 @@ cd ../server && mvn -B -ntp verify
 cd .. && node scripts/verify-nginx-config.mjs && node scripts/verify-docs-index.mjs
 ```
 
-> **真机层（八个 `scripts/verify-*.mjs` 浏览器脚本）刻意不在流水线里。**
+> **真机层（九个 `scripts/verify-*.mjs` 浏览器脚本，清单见 `scripts/README.md` 的「前置条件」列）刻意不在流水线里。**
 > 它们依赖真实浏览器、GPU、冷启动的 dev server 与端口占用，放进必过项只会得到**随机红**，
 > 而随机红的流水线比没有流水线更坏 —— 红久了就没人看了。理由见 `docs/decisions/0036`。
+>
+> **为什么格式检查在流水线里、而提交钩子里也有一份。** 两者查的不是同一件事：钩子只看
+> **本次 `git add` 的文件**（没被碰过的文件会一直保持旧格式），且它的 glob 里原本没有 `*.html`。
+> 补这个盲区的是 `pnpm format:check`（全树）。见 `docs/decisions/0037`。
 >
 > **改 workflow 里的命令时，先把那条命令在本机跑一遍再推。** CI 配置本身没有测试，
 > 它唯一的验证机会就是下一次推送。

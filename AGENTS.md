@@ -24,7 +24,7 @@
 8. **重大技术决策要写 ADR**，模板见 `docs/decisions/TEMPLATE.md`。写完**必须**把它登记进
    `docs/README.md` §四 的索引 —— 漏了会红：`node scripts/verify-docs-index.mjs` 查这个（CI 也跑）。
 9. **CI 的入口只能是 `.github/workflows/`**（GitHub Actions 的平台硬要求，`infra/` 装不了它）。
-   **真机层（八个 `scripts/verify-*.mjs` 浏览器脚本）刻意不在必过项里** —— 它们依赖真实浏览器、
+   **真机层（九个 `scripts/verify-*.mjs` 浏览器脚本，清单见 `scripts/README.md` 的「前置条件」列）刻意不在必过项里** —— 它们依赖真实浏览器、
    GPU、冷启动 dev server 与端口占用，进去只会得到随机红。改 workflow 里的命令前，
    **先把那条命令在本机跑一遍**（CI 配置本身没有测试）。见 `docs/decisions/0036`。
 
