@@ -100,12 +100,20 @@ export function getAuthPort(): AuthPort {
   return port;
 }
 
-/** 独立运行时的开发账号（可用环境变量覆盖，默认指向 h2 profile 的种子管理员） */
-const DEV_ACCOUNT = {
-  tenantCode: import.meta.env.VITE_DEV_TENANT_CODE ?? 'default',
-  username: import.meta.env.VITE_DEV_USERNAME ?? 'admin',
-  password: import.meta.env.VITE_DEV_PASSWORD ?? 'Admin@12345',
-};
+/**
+ * 独立运行时的开发账号（可用环境变量覆盖，默认指向 h2 profile 的种子管理员）。
+ *
+ * <p><b>只在开发构建里构造</b>：生产构建下条件为常量假，被折叠成 `undefined`，
+ * 整个对象字面量随之被摇掉 —— 口令不会进产物（见 `docs/decisions/0033`，
+ * 由 `scripts/verify-bundle-secrets.mjs` 盯着）。**`undefined` 即"不自动登录"**。
+ */
+const devAccount = import.meta.env.DEV
+  ? {
+      tenantCode: import.meta.env.VITE_DEV_TENANT_CODE ?? 'default',
+      username: import.meta.env.VITE_DEV_USERNAME ?? 'admin',
+      password: import.meta.env.VITE_DEV_PASSWORD ?? 'Admin@12345',
+    }
+  : undefined;
 
 /**
  * 独立运行时确保有一份可用会话。
@@ -113,8 +121,8 @@ const DEV_ACCOUNT = {
  * <p>先尝试用持久化的刷新令牌续期（**一次刷新即恢复身份与权限**，因为返回体自带
  * `roles` / `permissions`），再退回开发账号登录。
  *
- * <p>开发账号的凭据默认值**只在 `import.meta.env.DEV` 下生效**：
- * 生产构建若被独立部署，本函数只记一条错误日志，不会用默认口令去登录任何东西。
+ * <p>开发账号**只在开发构建里存在**：生产构建若被独立部署，本函数只记一条错误日志，
+ * 不会用默认口令去登录任何东西。
  */
 export async function ensureStandaloneSession(): Promise<void> {
   const channel = ensureStandaloneChannel();
@@ -128,11 +136,12 @@ export async function ensureStandaloneSession(): Promise<void> {
     return;
   }
 
-  if (!import.meta.env.DEV) {
+  if (!devAccount) {
+    // 走到这里只可能是生产构建：开发构建下上面的三元必然给出一个账号。
     logger.error('独立运行且没有可用会话：本应用不含登录页（ADR-0018 第 8 条），请改由基座加载');
     return;
   }
 
-  logger.warn('独立运行：用开发账号自动登录', { username: DEV_ACCOUNT.username });
-  await channel.login(DEV_ACCOUNT);
+  logger.warn('独立运行：用开发账号自动登录', { username: devAccount.username });
+  await channel.login(devAccount);
 }

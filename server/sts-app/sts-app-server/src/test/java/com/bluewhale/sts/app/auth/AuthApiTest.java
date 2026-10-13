@@ -1,6 +1,7 @@
 package com.bluewhale.sts.app.auth;
 
 import com.bluewhale.sts.auth.common.AuthPermissions;
+import com.bluewhale.sts.auth.common.AuthProperties;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -38,14 +39,21 @@ class AuthApiTest {
     @Autowired
     private MockMvc mockMvc;
 
+    /** 种子账号的口令**跟着配置走**，不在测试里抄一份（`docs/decisions/0029` 的后续约束） */
+    @Autowired
+    private AuthProperties properties;
+
     @Test
     @DisplayName("登录成功：返回访问令牌、刷新令牌，并带上种子授权计算出的权限")
     void shouldLogin() throws Exception {
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"tenantCode":"default","username":"admin","password":"Admin@12345"}
-                                """))
+                                {"tenantCode":"%s","username":"%s","password":"%s"}
+                                """.formatted(
+                                    properties.getSeedAdmin().getTenantCode(),
+                                    properties.getSeedAdmin().getUsername(),
+                                    properties.getSeedAdmin().getPassword())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.data.accessToken").isNotEmpty())

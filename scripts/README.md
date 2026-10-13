@@ -19,6 +19,7 @@
 | `verify-audit-pipeline.mjs`    | 用真实 Chrome + 真后端验证审计管道（记录自动产生、越权留痕、无写入口） | 后端 :8080（h2 profile，含两个种子账号）、基座 :3000、`platform-audit-console` :3600 都在跑；本机装有 Google Chrome；可选传截图目录 | `docs/decisions/0019` |
 | `verify-nginx-config.mjs`      | 对 `infra/nginx/` 的网关配置做结构性自检；`--emit` 可渲染出部署树、`--nginx` 可顺带真跑 `nginx -t` | **无**（不带参数时不需要 nginx、不需要网络、不写文件）                                                                                     | `docs/decisions/0027` · `0028` |
 | `verify-menu-permissions.mjs`  | 用真实 Chrome 验证菜单与页面级权限过滤（两种身份的导航差异 + URL 直达被拦 + 概览过滤） | 后端 :8080（h2 profile，含两个种子账号）、基座 :3000、`platform-admin` :3500、`platform-audit-console` :3600 都在跑；本机装有 Google Chrome；可选传截图目录 | `docs/decisions/0031` |
+| `verify-bundle-secrets.mjs`    | 扫前端构建产物，确认**种子口令没有进包**                                | **无前置服务**（口令真值从 `application-h2.yml` 读；需先构建前端）；`node scripts/verify-bundle-secrets.mjs [目录…]`       | `docs/decisions/0029` · `0033` |
 
 ### `verify-micro-frontend.mjs` 做什么
 
@@ -232,6 +233,29 @@
 >
 > ⚠️ 它检查的上报路径清单是**写死的两行**（`/api/logs/client` 与 `/api/events/client`）——
 > 给上报域新增路径时，脚本与 `bluewhale.conf.template` 都要同改，脚本不会自动发现。
+
+### `verify-bundle-secrets.mjs` 做什么
+
+`0029` 要求过"前端任何把开发凭据写出来的地方都要 `import.meta.env.DEV` 门控，
+**且验证方式是构建后 grep 产物，不是读代码判断**"。那一次是**手工执行**的，
+结果写进了文档 —— 手工执行的检查会随下一次改动失效而无人知道。
+
+本脚本把那条要求变成可重复执行的：默认扫 `web/platform` 下各应用的 `dist`，
+把两个种子口令在产物里找一遍；命中即列出目录并**非零退出**，全干净则退出码 `0`。
+
+**它不写口令字面量**，口令从 `scripts/lib/seed-credentials.mjs` 取 ——
+于是口令一旦在 `application-h2.yml` 里改掉，检查跟着改，**不会静默失效**（这是它值得存在的前提）。
+
+**它只输出计数，不输出命中的口令串** —— 否则这个检查自己就把口令打进了日志。
+
+它也**不是密钥扫描器**：只回答"已知的种子口令有没有被卷进前端产物"，
+令牌泄露、源码里的第三方 key 都不在射程内。
+
+> **第一次跑就修正了一条记录的结论。** `0029` 写着"4 个子应用的 dev 账号字符串仍在包里"，
+> 实测只有 `platform-log-console` / `platform-event-console` 是真命中；
+> `platform-admin` / `platform-audit-console` 干净 —— 它们的 `DEV_ACCOUNT` 唯一引用点
+> 落在 `if (!import.meta.env.DEV) return;` 之后，被摇掉了。
+> **"恰好没事"不是"设计成没事"**，四处写法因此统一（见 `docs/decisions/0033`）。
 
 ### 脚本的硬性约束
 

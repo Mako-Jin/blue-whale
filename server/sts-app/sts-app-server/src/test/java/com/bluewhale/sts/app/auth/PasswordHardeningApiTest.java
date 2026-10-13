@@ -1,6 +1,7 @@
 package com.bluewhale.sts.app.auth;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.bluewhale.sts.auth.common.AuthProperties;
 import com.bluewhale.sts.auth.common.LoginLockPolicy;
 import com.bluewhale.sts.auth.user.UserEntity;
 import com.bluewhale.sts.auth.user.UserMapper;
@@ -42,6 +43,10 @@ class PasswordHardeningApiTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    /** 种子账号的口令**跟着配置走**，不在测试里抄一份（`docs/decisions/0029` 的后续约束） */
+    @Autowired
+    private AuthProperties properties;
 
     @Autowired
     private UserMapper userMapper;
@@ -204,7 +209,9 @@ class PasswordHardeningApiTest {
     }
 
     private String loginAsAdmin() throws Exception {
-        MvcResult result = login("default", "admin", "Admin@12345")
+        MvcResult result = login(properties.getSeedAdmin().getTenantCode(),
+                properties.getSeedAdmin().getUsername(),
+                properties.getSeedAdmin().getPassword())
                 .andExpect(jsonPath("$.code").value(0))
                 .andReturn();
         return JsonPath.read(result.getResponse().getContentAsString(), "$.data.accessToken");

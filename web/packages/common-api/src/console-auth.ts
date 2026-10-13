@@ -21,24 +21,42 @@ export type ConsoleAuthPort = {
   reauthenticate(): Promise<boolean>;
 };
 
+/** 开发账号：独立运行时用来自动登录的凭据 */
+export interface DevAccount {
+  tenantCode: string;
+  username: string;
+  password: string;
+}
+
 export interface ConsoleAuthOptions {
   /** 应用名，只用于日志前缀，便于在控制台分清是哪个应用在说话 */
   name: string;
   /**
-   * 是否允许用开发账号自动登录。
+   * 独立运行时的开发账号；**不传 = 不自动登录**。
    *
-   * <p>由**调用方**传 `import.meta.env.DEV`。本包刻意不自己读 `import.meta.env`：
-   * 那会把 Vite 的环境变量体系带进一个与框架无关的契约包，
-   * 也让"生产构建绝不自动登录"这件事藏在一个看不见的全局变量里。
-   * 放在调用点上，评审时一眼能看到它是怎么来的。
+   * <p>这里刻意**只有一个字段**，既没有 `allowDevAutoLogin` 这样的开关，也没有
+   * "开关为真但忘了给账号"这种组合 —— 账号的**存在即开关**，
+   * 于是"允许自动登录却没有账号"是一件表达不出来的事（见 `docs/decisions/0033`）。
+   *
+   * <p>由**调用方**在 `import.meta.env.DEV` 为真时才构造这个对象：
+   *
+   * ```ts
+   * devAccount: import.meta.env.DEV ? { tenantCode: …, username: …, password: … } : undefined
+   * ```
+   *
+   * <p>两件事同时达成：
+   * <ul>
+   *   <li>本包不自己读 `import.meta.env`（那是 Vite 全局，在契约包里没有类型），
+   *       评审时在调用点一眼能看到它是怎么来的；</li>
+   *   <li>生产构建下条件为常量假，整个对象字面量被静态摇掉 ——
+   *       口语化的"生产不会用它"变成**打包器保证它不在产物里**。</li>
+   * </ul>
+   *
+   * <p>这条不是理论洁癖：写成模块级常量时，对象会被保留进产物（实测两个控制台的包里
+   * 各有一份种子口令）。验证方式是 `scripts/verify-bundle-secrets.mjs`
+   * 扫构建产物，而不是读代码判断。
    */
-  allowDevAutoLogin: boolean;
-  /** 独立运行时的开发账号。仅在 {@link allowDevAutoLogin} 为 true 时会被使用 */
-  devAccount: {
-    tenantCode: string;
-    username: string;
-    password: string;
-  };
+  devAccount?: DevAccount;
 }
 
 export interface ConsoleAuth extends StandaloneIdentitySource {
@@ -104,6 +122,7 @@ export interface ConsoleAuth extends StandaloneIdentitySource {
  */
 export function createConsoleAuth(options: ConsoleAuthOptions): ConsoleAuth {
   const logger = createLogger(`auth:${options.name}`);
+  const devAccount = options.devAccount;
 
   /** 自建会话（仅独立运行时才会创建；被基座加载时不创建，避免两套会话并存） */
   let standaloneSession: SessionStore | null = null;
@@ -166,15 +185,18 @@ export function createConsoleAuth(options: ConsoleAuthOptions): ConsoleAuth {
       return;
     }
 
-    if (!options.allowDevAutoLogin) {
-      // 生产构建被独立部署：**不登录**。此处只记错误，不抛 ——
-      // 抛出去会让整个子应用白屏，而"没有会话"只影响需要鉴权的面板。
-      logger.error('独立运行且没有可用会话：本应用不含登录页（ADR-0018 第 8 条），请改由基座加载');
+    if (!devAccount) {
+      // 生产构建被独立部署（没给 devAccount），或开发构建忘了给 —— 都到此为止。
+      // 此处只记错误，不抛：抛出去会让整个子应用白屏，而"没有会话"只影响需要鉴权的面板。
+      logger.error(
+        '独立运行且没有可用的开发账号：本应用不含登录页（ADR-0018 第 8 条），请改由基座加载；' +
+          '若在开发构建下单跑，请在调用点传入 devAccount',
+      );
       return;
     }
 
-    logger.warn('独立运行：用开发账号自动登录', { username: options.devAccount.username });
-    await channel.login(options.devAccount);
+    logger.warn('独立运行：用开发账号自动登录', { username: devAccount.username });
+    await channel.login(devAccount);
   };
 
   /**

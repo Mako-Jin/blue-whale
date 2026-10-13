@@ -56,7 +56,8 @@ pnpm --filter platform-log-console dev     # http://127.0.0.1:3200
 
 > **认证接线（ADR-0026）**：查询接口需要 `log:client:read`，因此本页必须带令牌。会话不由本页拥有 ——
 > 基座内运行时用宿主下发的认证桥（`createMicroAppProps` 恒带 `auth`），独立运行时由 `createConsoleAuth`
-> 自建一套（`allowDevAutoLogin` 取 `import.meta.env.DEV`，生产构建绝不自动登录）。
+> 自建一套（开发账号**只在 `import.meta.env.DEV` 为真时才构造**，生产构建下那段字面量会被打包器
+> 摇掉、口令不进产物；不传账号即不自动登录。见 `docs/decisions/0033`）。
 > 装配在 `src/console.ts`：`createApiClient({ accessTokenProvider, onUnauthorized })` 两个 provider 指向
 > `consoleAuth.port`；`src/main.tsx` 在独立运行分支里先 `await consoleAuth.ensureSession()` 再渲染。
 > **注意上报（`POST /api/logs/client`）刻意保持公开** —— 登录页出错的日志也必须发得出来。

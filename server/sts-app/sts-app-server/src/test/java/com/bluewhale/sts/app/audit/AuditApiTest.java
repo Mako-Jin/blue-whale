@@ -3,6 +3,7 @@ package com.bluewhale.sts.app.audit;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.bluewhale.sts.audit.auditlog.AuditLogEntity;
 import com.bluewhale.sts.audit.auditlog.AuditLogMapper;
+import com.bluewhale.sts.auth.common.AuthProperties;
 import com.bluewhale.sts.auth.resource.ResourceEntity;
 import com.bluewhale.sts.auth.resource.ResourceMapper;
 import com.jayway.jsonpath.JsonPath;
@@ -53,12 +54,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 class AuditApiTest {
 
-    /** 与 AuthApiTest 用同一套种子口令（见 sts-server-auth 的 AuthProperties） */
-    private static final String ADMIN_PASSWORD = "Admin@12345";
-    private static final String AUDITOR_PASSWORD = "Auditor@12345";
-
     @Autowired
     private MockMvc mockMvc;
+
+    /** 种子账号的口令**跟着配置走**，不在测试里抄一份（`docs/decisions/0029` 的后续约束） */
+    @Autowired
+    private AuthProperties properties;
 
     @Autowired
     private AuditLogMapper auditLogMapper;
@@ -98,7 +99,7 @@ class AuditApiTest {
     @Test
     @DisplayName("越权尝试被记为 FAILURE，并带上真实业务码 —— 这是本仓最容易漏掉的一类")
     void shouldRecordRejectedAttemptAsFailure() throws Exception {
-        String auditorToken = login("default", "auditor", AUDITOR_PASSWORD);
+        String auditorToken = login("default", "auditor", properties.getSeedAuditor().getPassword());
 
         // 审计员没有 auth:user:create 权限：鉴权拦截器在进入 Controller 之前就抛异常，
         // 响应是 **HTTP 200 + 业务码 40301**（本仓约定：业务结果只由 code 表达）。
@@ -336,7 +337,7 @@ class AuditApiTest {
     }
 
     private String loginAsAdmin() throws Exception {
-        String token = login("default", "admin", ADMIN_PASSWORD);
+        String token = login("default", "admin", properties.getSeedAdmin().getPassword());
         MvcResult me = mockMvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))

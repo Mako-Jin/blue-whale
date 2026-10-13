@@ -137,7 +137,8 @@ pnpm --filter platform-event-console build    # 别跳过这一项
 
 > **认证接线（ADR-0026）**：查询接口需要 `event:client:read`，因此本页必须带令牌 ——
 > 会话不由本页拥有：基座内用宿主下发的认证桥，独立运行由 `createConsoleAuth` 自建
-> （`allowDevAutoLogin` 取 `import.meta.env.DEV`）。装配在 `src/events.ts`
+> （开发账号只在 `import.meta.env.DEV` 为真时才构造 —— 生产构建下整段凭据被摇掉、口令不进产物，
+> 见 `docs/decisions/0033`）。装配在 `src/events.ts`
 > （`createApiClient({ accessTokenProvider, onUnauthorized })`），`src/main.tsx` 独立运行分支
 > 先 `await consoleAuth.ensureSession()` 再渲染。
 > **事件查询结果只含当前登录租户**，且**事件体里自带的 `userId` 不是归属依据**（客户端可伪造）——

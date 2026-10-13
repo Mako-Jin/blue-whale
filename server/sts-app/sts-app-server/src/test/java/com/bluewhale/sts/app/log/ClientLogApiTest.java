@@ -1,5 +1,6 @@
 package com.bluewhale.sts.app.log;
 
+import com.bluewhale.sts.auth.common.AuthProperties;
 import com.bluewhale.sts.log.clientlog.ClientLogEntity;
 import com.bluewhale.sts.log.clientlog.ClientLogMapper;
 import com.jayway.jsonpath.JsonPath;
@@ -43,11 +44,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 class ClientLogApiTest {
 
-    /** 与 AuthApiTest / AuditApiTest 用同一套种子口令 */
-    private static final String ADMIN_PASSWORD = "Admin@12345";
-
     @Autowired
     private MockMvc mockMvc;
+
+    /** 种子账号的口令**跟着配置走**，不在测试里抄一份（`docs/decisions/0029` 的后续约束） */
+    @Autowired
+    private AuthProperties properties;
 
     @Autowired
     private ClientLogMapper clientLogMapper;
@@ -403,7 +405,7 @@ class ClientLogApiTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"tenantCode":"default","username":"admin","password":"%s"}
-                                """.formatted(ADMIN_PASSWORD)))
+                                """.formatted(properties.getSeedAdmin().getPassword())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
                 .andReturn();

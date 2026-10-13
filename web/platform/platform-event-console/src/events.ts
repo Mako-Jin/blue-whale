@@ -50,17 +50,21 @@ export const DEVICE_ID = resolveDeviceId();
  * 令牌来源由 `createConsoleAuth` 统一决定：基座内用基座下发的认证能力，
  * 独立运行时用自建会话（见 `common-api` 的 `console-auth`）。
  *
- * <p>凭据只在 `import.meta.env.DEV` 下用于独立运行的自动登录，生产构建不会启用。
+ * <p>凭据只在 `import.meta.env.DEV` 下用于独立运行的自动登录，且**只在开发构建里构造** ——
+ * 生产构建下这段对象会被打包器摇掉，产物里根本没有它（见 `docs/decisions/0033`）。
  */
 export const consoleAuth = createConsoleAuth({
   name: 'event-console',
-  // 只有开发构建才允许自动登录；生产构建即便被独立部署也只会记一条错误日志
-  allowDevAutoLogin: import.meta.env.DEV,
-  devAccount: {
-    tenantCode: import.meta.env.VITE_DEV_TENANT_CODE ?? 'default',
-    username: import.meta.env.VITE_DEV_USERNAME ?? 'admin',
-    password: import.meta.env.VITE_DEV_PASSWORD ?? 'Admin@12345',
-  },
+  // 开发账号**只在开发构建里构造**：生产构建下 `import.meta.env.DEV` 是常量假，
+  // 整个对象字面量会被静态摇掉，口令因此不进入产物（`scripts/verify-bundle-secrets.mjs` 盯着这件事）。
+  // 不传 = 不自动登录：独立部署的生产构建即便没有会话，也只会记一条错误日志。
+  devAccount: import.meta.env.DEV
+    ? {
+        tenantCode: import.meta.env.VITE_DEV_TENANT_CODE ?? 'default',
+        username: import.meta.env.VITE_DEV_USERNAME ?? 'admin',
+        password: import.meta.env.VITE_DEV_PASSWORD ?? 'Admin@12345',
+      }
+    : undefined,
 });
 
 export const api = createApiClient({

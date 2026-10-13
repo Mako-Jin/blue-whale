@@ -58,7 +58,7 @@ platform-portal (:3000)
 
 > `platform-audit-console` 是**第三条管道**（审计日志）的控制台，形态与上面两个**刻意不同**：日志台与事件台都是左右分栏（客户端视角 / 服务端视角），因为"只看一边无法判断上报成没成"；审计**没有"两边"** —— 前端根本没有、也不该有把审计记录送出去的路径。页面从上到下三块：**流水**（按服务端时间倒序，带时间窗）→ **按动作聚合**（`action` 分组，失败数单列）→ **演练区**。`common-api` 的 `AuditApi` **一个写方法都没有**，`tests/audit.test.ts` 用快照式断言把"只有三个读方法"钉住。演练区的按钮**刻意不按权限显隐**：真实建一个租户、等审计记录出现、再删掉 —— 用只读账号点下去会得到两条 `FAILURE`，而**那次拒绝同样留痕**，正是本区要展示的东西。决策见 `docs/decisions/0019`，端到端验证见 `node scripts/verify-audit-pipeline.mjs`。
 
-> **日志台与事件台的认证接线（ADR-0026）**：子应用**不拥有会话** —— 跑在基座里用宿主下发的认证桥，独立运行时自建一套。这段分支逻辑此前在 `platform-admin` / `platform-audit-console` 各写了一遍，现收敛为 `common-api` 的 **`createConsoleAuth`**（宿主桥优先；`allowDevAutoLogin` 由调用方传 `import.meta.env.DEV`，契约包不自己读环境变量）。两个控制台本轮接上它并补了两个 provider（`accessTokenProvider` / `onUnauthorized`）—— **此前它们的 401 是"漏接"不是"缺实现"**：基座在 `createMicroAppProps` 里恒带 `auth`，只是没人读，于是后端刚上线鉴权时（ADR-0026 给日志 / 事件查询接口补 `@RequiresPermission`）控制台直接 401。**新控制台一律用 `createConsoleAuth`**；`platform-admin` / `platform-audit-console` 各自那份 `src/auth/` 是**已知的、有意留下的**技术债（下沉要连带改它们的测试与 `verify-audit-pipeline.mjs`）。
+> **日志台与事件台的认证接线（ADR-0026）**：子应用**不拥有会话** —— 跑在基座里用宿主下发的认证桥，独立运行时自建一套。这段分支逻辑此前在 `platform-admin` / `platform-audit-console` 各写了一遍，现收敛为 `common-api` 的 **`createConsoleAuth`**（宿主桥优先；开发账号由调用方在 `import.meta.env.DEV` 为真时才构造，契约包不自己读环境变量；**不传即不自动登录**，因而生产构建下整段凭据会被静态摇掉 —— 见 `docs/decisions/0033`）。两个控制台本轮接上它并补了两个 provider（`accessTokenProvider` / `onUnauthorized`）—— **此前它们的 401 是"漏接"不是"缺实现"**：基座在 `createMicroAppProps` 里恒带 `auth`，只是没人读，于是后端刚上线鉴权时（ADR-0026 给日志 / 事件查询接口补 `@RequiresPermission`）控制台直接 401。**新控制台一律用 `createConsoleAuth`**；`platform-admin` / `platform-audit-console` 各自那份 `src/auth/` 是**已知的、有意留下的**技术债（下沉要连带改它们的测试与 `verify-audit-pipeline.mjs`）。
 
 ## 二、命令
 
