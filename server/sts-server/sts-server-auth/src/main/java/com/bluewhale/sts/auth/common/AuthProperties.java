@@ -154,8 +154,18 @@ public class AuthProperties {
 
         private String username = "admin";
 
-        /** 仅用于开发演示。生产若开启种子，务必通过配置覆盖 */
-        private String password = "Admin@12345";
+        /**
+         * 种子管理员的口令。**刻意没有默认值，且必须是显式提供的**。
+         *
+         * <p>给默认值等于给了一条"开启种子、但忘了覆盖口令 ⇒ 静默种下一个**口令写在本仓库里**的
+         * 管理员"的路径 —— 而"默认口令"是所有渗透测试的第一站。没有默认值之后，
+         * 那种误配会以**启动失败**的形式暴露（见 {@code DefaultAdminSeeder#requirePassword}），
+         * 而不是以"多了一个人人可登的管理员"的形式安静地存在。
+         *
+         * <p>开发要用的口令由 {@code application-h2.yml} 显式提供 ——
+         * 那是本仓**唯一一处**种子口令的真值来源（脚本与前端提示都指向它）。
+         */
+        private String password;
 
         private String displayName = "系统管理员";
     }
@@ -185,8 +195,11 @@ public class AuthProperties {
         /** 复用 {@link SeedAdmin#getTenantCode()} 指向的租户；种子数据必须落在同一个租户内 */
         private String username = "auditor";
 
-        /** 仅用于开发演示。生产若开启种子，务必通过配置覆盖 */
-        private String password = "Auditor@12345";
+        /**
+         * 种子审计员的口令。**同样刻意没有默认值**，理由与
+         * {@link SeedAdmin#getPassword()} 完全一致。
+         */
+        private String password;
 
         private String displayName = "审计员";
     }

@@ -23,18 +23,16 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { ADMIN as ACCOUNT } from "./lib/seed-credentials.mjs";
+
 const CHROME = "C:/Program Files/Google/Chrome/Application/chrome.exe";
 const DEBUG_PORT = 9337;
 const BASE_URL = "http://127.0.0.1:3000";
 const VIEWPORT = { width: 1440, height: 960 };
 const SHOT_DIR = process.argv[2] ?? null;
 
-/** h2 profile 的种子管理员（见 sts-server-auth 的 DefaultAdminSeeder 与 AuthProperties） */
-const ACCOUNT = {
-  tenantCode: "default",
-  username: "admin",
-  password: "Admin@12345",
-};
+/** h2 profile 的种子管理员，从 `lib/seed-credentials.mjs` 取 —— **不要再在脚本里抄口令**。
+ *  真值来源是 `application-h2.yml`，可用 `BW_SEED_ADMIN_PASSWORD` 覆盖。见 `docs/decisions/0029`。 */
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 

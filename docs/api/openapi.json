@@ -4025,7 +4025,6 @@
           "password": {
             "type": "string",
             "description": "口令",
-            "example": "Admin@12345",
             "minLength": 1
           }
         },

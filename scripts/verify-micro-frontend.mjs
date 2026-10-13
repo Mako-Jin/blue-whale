@@ -23,16 +23,14 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { ADMIN as ACCOUNT } from "./lib/seed-credentials.mjs";
+
 const CHROME = "C:/Program Files/Google/Chrome/Application/chrome.exe";
 const DEBUG_PORT = 9333;
 const PORTAL_URL = "http://127.0.0.1:3000/";
 
-/** 种子管理员（h2 profile 自动种下，口令见 AuthProperties.SeedAdmin） */
-const ACCOUNT = {
-  tenantCode: "default",
-  username: "admin",
-  password: "Admin@12345",
-};
+/** 种子管理员，从 `lib/seed-credentials.mjs` 取 —— **不要再在脚本里抄口令**。
+ *  真值来源是 `application-h2.yml`，可用 `BW_SEED_ADMIN_PASSWORD` 覆盖。见 `docs/decisions/0029`。 */
 
 /** HMR 探测：临时改这一行文本，看子应用是否自动更新，测完还原。 */
 const HMR_TARGET =

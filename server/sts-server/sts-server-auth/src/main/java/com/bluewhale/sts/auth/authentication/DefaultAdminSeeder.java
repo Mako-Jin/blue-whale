@@ -23,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 
@@ -57,6 +58,10 @@ public class DefaultAdminSeeder implements ApplicationRunner {
 
     private static final String AUDITOR_ROLE_CODE = "AUDITOR";
     private static final String AUDITOR_ROLE_NAME = "审计员";
+
+    /** 报错时要写进消息里的完整属性名 —— 手拼字符串最容易在消息里漏一段，所以做成常量。 */
+    private static final String SEED_ADMIN_PROPERTY = "bluewhale.auth.seed-admin.password";
+    private static final String SEED_AUDITOR_PROPERTY = "bluewhale.auth.seed-auditor.password";
 
     /**
      * 审计员的全部权限：**只有读**。
@@ -107,6 +112,13 @@ public class DefaultAdminSeeder implements ApplicationRunner {
         if (!seed.isEnabled()) {
             return;
         }
+        AuthProperties.SeedAuditor auditor = properties.getSeedAuditor();
+
+        // 先校验、再落库：两个口令都齐了才开始写，避免"管理员种下了、审计员报错退出"的半成品状态。
+        requirePassword(SEED_ADMIN_PROPERTY, seed.getUsername(), seed.getPassword());
+        if (auditor.isEnabled()) {
+            requirePassword(SEED_AUDITOR_PROPERTY, auditor.getUsername(), auditor.getPassword());
+        }
 
         TenantEntity tenant = ensureTenant(seed);
         List<ResourceEntity> resources = ensureResources();
@@ -119,7 +131,6 @@ public class DefaultAdminSeeder implements ApplicationRunner {
         log.warn("已启用默认管理员种子数据 | 用户名={} | 租户={} | **这是开发用配置，生产环境必须关闭并立即改密**",
                 seed.getUsername(), seed.getTenantCode());
 
-        AuthProperties.SeedAuditor auditor = properties.getSeedAuditor();
         if (!auditor.isEnabled()) {
             return;
         }
@@ -136,6 +147,31 @@ public class DefaultAdminSeeder implements ApplicationRunner {
 
         log.warn("已启用默认只读账号种子数据 | 用户名={} | 权限={} | **同样是开发用配置**",
                 auditor.getUsername(), AUDITOR_PERMISSIONS);
+    }
+
+    /**
+     * 开了种子却没给口令 ⇒ **拒绝启动**。
+     *
+     * <p><b>为什么是启动失败，而不是"跳过种子"或"给个默认口令"：</b>
+     * <ul>
+     *   <li>跳过种子会安静地不种任何账号，而运维以为自己有一个 —— 症状推迟到第一次登录才出现，
+     *       且现场已经离配置很远；</li>
+     *   <li>给默认口令就是本切片要消灭的那件事本身：口令写在仓库里，人人可查。</li>
+     * </ul>
+     * 启动失败是唯一不会骗人的信号，而且它把错误**定位到了那一行配置**。
+     *
+     * <p>这条校验也顺手把"从默认口令时代升上来的部署"挡在了启动阶段 ——
+     * 那些部署此前依赖默认值，现在必须显式给一次口令。这是有意的：
+     * 静默沿用旧默认口令比启动失败危险得多。
+     */
+    private static void requirePassword(String propertyName, String username, String password) {
+        if (!StringUtils.hasText(password)) {
+            throw new IllegalStateException(String.format(
+                    "已启用种子账号 %s，但没有提供口令（%s 为空）。种子口令**没有默认值** —— "
+                            + "有默认值就意味着'开启种子但忘了覆盖'会静默种下一个口令公开可查的管理员。"
+                            + "请显式提供，例如 --%s=<口令>；开发环境的取值见 application-h2.yml。",
+                    username, propertyName, propertyName));
+        }
     }
 
     private TenantEntity ensureTenant(AuthProperties.SeedAdmin seed) {

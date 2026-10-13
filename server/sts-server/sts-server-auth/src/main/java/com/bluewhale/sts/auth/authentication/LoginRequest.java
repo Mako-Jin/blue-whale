@@ -24,8 +24,18 @@ public class LoginRequest {
     @Schema(description = "登录名", example = "admin")
     private String username;
 
+    /**
+     * 口令。
+     *
+     * <p><b>刻意不给 {@code example}</b>：契约（`docs/api/openapi.json`）是要发布出去的东西，
+     * 一个写在示例里的真实口令等于把它印在公开文档上。而且"口令"这个字段**没有有意义的示例** ——
+     * 能填进 example 的只可能是一个真实口令。
+     *
+     * <p>这曾经是真事：此处曾写 {@code example = "Admin@12345"}（h2 种子管理员的口令），
+     * 一路流进了 OpenAPI 与前端生成类型。见 `docs/decisions/0029`。
+     */
     @NotBlank(message = "口令不能为空")
-    @Schema(description = "口令", example = "Admin@12345")
+    @Schema(description = "口令")
     private String password;
 
     public String getTenantCode() {

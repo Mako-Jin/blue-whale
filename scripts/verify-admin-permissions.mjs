@@ -23,25 +23,17 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { ADMIN, AUDITOR } from "./lib/seed-credentials.mjs";
+
 const CHROME = "C:/Program Files/Google/Chrome/Application/chrome.exe";
 const DEBUG_PORT = 9338;
 const BASE_URL = "http://127.0.0.1:3000";
 const VIEWPORT = { width: 1440, height: 960 };
 const SHOT_DIR = process.argv[2] ?? null;
 
-/** 两个种子账号（见 sts-server-auth 的 DefaultAdminSeeder 与 AuthProperties）。
- *  h2 profile 每次启动自动种；mysql / dameng 是真实库、不自动种，
- *  需显式开一次种子（`--bluewhale.auth.seed-admin.enabled=true`，见 application-mysql.yml）。 */
-const ADMIN = {
-  tenantCode: "default",
-  username: "admin",
-  password: "Admin@12345",
-};
-const AUDITOR = {
-  tenantCode: "default",
-  username: "auditor",
-  password: "Auditor@12345",
-};
+/** 两个种子账号从 `lib/seed-credentials.mjs` 取 —— **不要再在脚本里抄口令**。
+ *  真值来源是 `application-h2.yml`，可用 `BW_SEED_ADMIN_PASSWORD` 等环境变量覆盖。
+ *  见 `docs/decisions/0029` 与 `scripts/README.md` 的硬性约束。 */
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 

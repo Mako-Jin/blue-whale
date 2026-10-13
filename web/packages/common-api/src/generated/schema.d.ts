@@ -1611,10 +1611,7 @@ export interface components {
        * @example admin
        */
       username: string;
-      /**
-       * @description 口令
-       * @example Admin@12345
-       */
+      /** @description 口令 */
       password: string;
     };
     /** @description 客户端日志 */

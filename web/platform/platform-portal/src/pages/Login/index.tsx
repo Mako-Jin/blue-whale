@@ -106,25 +106,34 @@ export default function Login() {
         </button>
 
         {/*
-          开发提示：h2 profile 每次启动都会种子一套账号（见 sts-server-auth 的 DefaultAdminSeeder），
-          否则空库没有任何账号可登录，而建账号的接口本身要求已登录。
+          开发提示：**只在 dev 构建里出现**。
 
-          h2 必须自动种，因为它每次启动都是空的；mysql / dameng 是真实库、数据留得住，
-          应用**不自动**往里塞固定口令的管理员（见 application-mysql.yml 的说明），
-          由人显式开一次种子，之后就一直在了。
+          ⚠️ 这段提示曾经是**生产包的一部分** —— `platform-portal` 的 dist 里能直接搜到这两个口令。
+          口令本身不是秘密（h2 是开发 profile，真值来源是 `application-h2.yml`），
+          但"把口令印在一个会被发布的页面上"是另一件事，所以用 `import.meta.env.DEV` 门控：
+          Vite 在生产构建里把它替换成字面量 false，这段连同口令一起被摇掉。
 
-          刻意把**只读账号**也写出来：它是"权限确实生效"的唯一验证入口 ——
+          之所以不干脆删掉：h2 每次启动都是空库（见 sts-server-auth 的 DefaultAdminSeeder），
+          没有提示的话第一次跑起来不知道该输什么。但"方便开发"不该以"把口令印在页面上"为代价。
+
+          下面两个口令必须与 `application-h2.yml` 里的种子口令保持一致 ——
+          它们是同一个值的两处：后端要口令去种账号，这里要口令去告诉人。
+          mysql / dameng 下这段不适用（那些 profile 不自动种，由人显式开一次）。
+
+          刻意也写出只读账号：它是"权限确实生效"的唯一验证入口 ——
           只有管理员时所有接口对唯一身份都放行，权限配错了看不出来。
-          也正因为如此，这两个口令都必须与 DefaultAdminSeeder / AuthProperties 保持一致。
         */}
-        <p className="login__hint">
-          开发环境已种子两个账号（h2 profile 自动种；mysql / dameng 需显式开启一次）， 租户均为{' '}
-          <code>default</code>：
-          <br />
-          管理员 <code>admin</code> / <code>Admin@12345</code>（全部权限）
-          <br />
-          只读审计员 <code>auditor</code> / <code>Auditor@12345</code>（仅读权限，用于对照按钮显隐）
-        </p>
+        {import.meta.env.DEV ? (
+          <p className="login__hint">
+            开发环境已种子两个账号（h2 profile 自动种；mysql / dameng 需显式开启一次）， 租户均为{' '}
+            <code>default</code>：
+            <br />
+            管理员 <code>admin</code> / <code>Admin@12345</code>（全部权限）
+            <br />
+            只读审计员 <code>auditor</code> / <code>Auditor@12345</code>
+            （仅读权限，用于对照按钮显隐）
+          </p>
+        ) : null}
       </form>
     </div>
   );

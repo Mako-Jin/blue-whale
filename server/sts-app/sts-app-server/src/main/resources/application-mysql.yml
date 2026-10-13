@@ -18,13 +18,21 @@
 #   mysql 是真实库、数据留得住，应用不该每次启动都去补一个固定口令的管理员。
 # 所以账号由人显式开一次种子种下，之后就一直在了：
 #
-#   BW_DB_PASSWORD=<密码> java -jar sts-app-server.jar --spring.profiles.active=mysql \
-#     --bluewhale.auth.seed-admin.enabled=true --bluewhale.auth.seed-auditor.enabled=true
+# ⚠️ **口令必须一起给。** `AuthProperties` 的两个口令字段**没有默认值**，
+#    只开开关不给口令 ⇒ 应用**拒绝启动**（见 `DefaultAdminSeeder#requirePassword`）。
+#    这是刻意的：这两个字段历史上是有默认值的（就写在本仓库里），于是"开了种子、
+#    忘了覆盖"会**静默**种下一个口令公开可查的管理员。见 `docs/decisions/0029`。
 #
-# 两个要点：
+#   BW_DB_PASSWORD=<密码> java -jar sts-app-server.jar --spring.profiles.active=mysql \
+#     --bluewhale.auth.seed-admin.enabled=true   --bluewhale.auth.seed-admin.password=<强口令> \
+#     --bluewhale.auth.seed-auditor.enabled=true --bluewhale.auth.seed-auditor.password=<强口令>
+#
+# 三个要点：
 #   · 种子是**幂等**的（ensure* 语义：已存在就跳过、缺什么补什么），重复执行没有副作用；
 #   · `seed-auditor` 依赖 `seed-admin` —— 只读账号挂在 admin 种下的租户与资源上，
-#     少了 admin 它就没有可挂的东西，开了也不生效。
+#     少了 admin 它就没有可挂的东西，开了也不生效；
+#   · **口令只在"首次种下"那一刻生效**：`ensureUser` 遇到已存在的用户直接返回、不改口令。
+#     所以日后改这里的口令**不会**改掉已有账号 —— 那是改密接口的职责，不是种子的。
 # 若确实不想在任何库留下固定口令的账号，就别开这两个开关，用已有管理员账号调
 # `/api/auth/users`、`/api/auth/tenants` 建号即可（首次需要一个已有的管理员）。
 # =============================================================================
