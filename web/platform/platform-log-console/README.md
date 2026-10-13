@@ -103,7 +103,7 @@ src/
 ├── styles/                   设计令牌（variables.less 由 vite 注入）与全局样式
 ├── App.less                  页面样式（按组件块组织）
 └── components/               GeneratorPanel · ServerLogPanel · StatsBar · LogDetailDrawer · LevelTag
-tests/                        Vitest（25 例，含渲染测试）
+tests/                        Vitest（含渲染测试）
 ```
 
 ---

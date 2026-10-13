@@ -273,7 +273,7 @@ platform-environment/
 │   └── styles/                Less 令牌与全局样式
 ├── design/                    场景设计源（Blender 源文件与生成脚本，非运行时资源）
 │   └── city-wall/             古城墙直段单元：尺寸表 + 拼接契约 + renders/
-└── tests/                     181 例：motor / controls / minimap / catalog / scenes 契约 /
+└── tests/                     motor / controls / minimap / catalog / scenes 契约 /
                                环境内核（含日出日落对拍天文值）/ 选择器 / mount / viewport /
                                format / App 降级
 ```

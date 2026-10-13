@@ -196,11 +196,17 @@ pnpm build --force                      # 忽略缓存强制重跑
 
 缓存产物在 `.turbo/` 下（已 gitignore）。若怀疑缓存有陈旧问题，删掉 `.turbo/` 再跑即可。
 
-**一处例外：`common-api#build` 声明 `outputs: []`。** 该包的 `build` 是 `tsc --noEmit`，
-不产出任何文件（它在工作区内被**源码引用** —— `exports` 直接指向 `src/*.ts`），
-所以通用规则里的 `outputs: ["dist/**"]` 对它永远匹配不到东西，每次真正执行构建都会打一行
-`WARNING no output files found for task common-api#build`。**没有删掉那个脚本**：
-删掉会让 `pnpm build` 不再覆盖 `common-api` 的类型检查，那是一次静默的覆盖缩减。见 `docs/decisions/0037`。
+**输出声明与实际产物不符时，`turbo` 不报错，只打一行 `WARNING no output files found for task …`。**
+本仓有两处要显式声明 `outputs: []`：
+
+- **`test` 任务本身。** 它原先声明 `outputs: ["coverage/**"]`，而各包的 `test` 脚本是
+  `vitest run`（**不带 `--coverage`**）—— coverage 目录根本不会出现，于是**一次 `pnpm test` 打 8 行警告**
+  （每包一行）。覆盖率的 `provider` 在各自的 `vite.config.ts` 里配着，真的要看覆盖率就跑单个包
+  （`pnpm --filter <包名> test --coverage`），那份产物不需要进缓存。见 `docs/decisions/0039`。
+- **`common-api#build`。** 该包的 `build` 是 `tsc --noEmit`，不产出任何文件（它在工作区内被
+  **源码引用** —— `exports` 直接指向 `src/*.ts`），所以通用规则里的 `outputs: ["dist/**"]`
+  对它永远匹配不到东西。**没有删掉那个脚本**：删掉会让 `pnpm build` 不再覆盖 `common-api`
+  的类型检查，那是一次静默的覆盖缩减。见 `docs/decisions/0037`。
 
 ## 五、依赖治理（铁律）
 
@@ -245,18 +251,33 @@ git config core.hooksPath web/.husky
 
 ## 七、当前状态
 
-各项目均通过全部校验（逐包直跑）。
+**校验的通过状态由 CI 持续保证，本文件不复述** —— 定义在 `.github/workflows/ci.yml` 的 `web`
+job（ESLint → Stylelint → 全树格式 → 类型 → 单测 → 生产构建 → 产物自检），本地等价命令见
+`CONTRIBUTING.md` 第八节。要确认"现在是不是绿的"，直接看 CI 即可。
 
-| 校验项                  | platform-portal                                 | common-tools                      | common-api                                              | platform-log-console             | platform-event-console          | platform-environment                  | platform-admin                      | platform-audit-console                |
-| ----------------------- | ----------------------------------------------- | --------------------------------- | ------------------------------------------------------- | -------------------------------- | ------------------------------- | ------------------------------------- | ----------------------------------- | ------------------------------------- |
-| `tsc --noEmit` 类型检查 | 通过                                            | 通过                              | 通过                                                    | 通过                             | 通过                            | 通过                                  | 通过                                | 通过                                  |
-| `eslint .`              | 通过                                            | 通过                              | 通过                                                    | 通过                             | 通过                            | 通过                                  | 通过                                | 通过                                  |
-| `stylelint`             | 通过                                            | 通过（playground）                | —                                                       | 通过（含 `App.less`）            | 通过（含 `App.less`）           | 通过                                  | 通过（含 `App.less`）               | 通过（含 `App.less`）                 |
-| `vitest run` 单元测试   | 通过（22/22，含守卫、登录页、会话恢复与认证桥） | 通过（169/169，含认证钩子与会话） | 通过（55/55，含认证接线、权限域接线、审计域与刷新合并） | 通过（25/25，含浏览器渲染测试）  | 通过（12/12，含浏览器渲染测试） | 通过（182/182，含场景契约与操控内核） | 通过（11/11，含两种身份的按钮差异） | 通过（9/9，含"只有三个读方法"的断言） |
-| `vite build` 生产构建   | 通过（CSS 4.66 · JS 465.69 kB）                 | 通过（32.03 kB）                  | —                                                       | 通过（CSS 11.92 · JS 262.51 kB） | 通过（CSS 5.41 · JS 259.63 kB） | 通过（CSS 7.00 · JS 861.31 kB）       | 通过（CSS 5.13 · JS 262.91 kB）     | 通过（CSS 6.61 · JS 259.59 kB）       |
-| dev server 启动         | 通过（:3000）                                   | playground 通过（:3100）          | —                                                       | 通过（:3200）                    | 通过（:3300）                   | 通过（:3400）                         | 通过（:3500）                       | 通过（:3600）                         |
+> **这里以前有一张"逐包通过 + 用例数 / 产物体积"的表，已删除。** 它没有任何机制能发现自己过期：
+> 实测时那张表的逐包用例加起来是 **485**，而同一份文档别处写的是 **549** —— 同一份文档里
+> 自相矛盾，且多数单包数字早已漂移。**会变的值不写进活文档**，理由与权威源见 `docs/decisions/0039`。
 
-**微前端链路**另有一项端到端验证（`node scripts/verify-micro-frontend.mjs`，需后端与基座、以及要验证的子应用在跑）：真实登录 → 导航挂载子应用 → 全局状态下发（含真实会话身份）→ 子应用经基座代理请求后端 → 切换子应用 → 返回首页验证卸载清理（标记清空、`window.__MICRO_HOST__` 归 `undefined`；三维应用额外断言 WebGL 上下文已 lost、画布已移除）。这是一项**运行时**验证，不在上表的逐包检查范围内。
+下表只记**静态配置事实** —— 它们不随代码量变化，却决定了"某个检查为什么没覆盖某个包"：
+
+| 包                        | 单测 | Stylelint                        | 生产构建 | dev 端口              |
+| ------------------------- | ---- | -------------------------------- | -------- | --------------------- |
+| `platform-portal`（基座） | 有   | 有                               | 有       | 3000                  |
+| `platform-log-console`    | 有   | 有                               | 有       | 3200                  |
+| `platform-event-console`  | 有   | 有                               | 有       | 3300                  |
+| `platform-environment`    | 有   | 有                               | 有       | 3400                  |
+| `platform-admin`          | 有   | 有                               | 有       | 3500                  |
+| `platform-audit-console`  | 有   | 有                               | 有       | 3600                  |
+| `common-tools`            | 有   | 有（仅 `src/` 与 `playground/`） | 有       | playground 3100       |
+| `common-api`              | 有   | —（没有样式代码）                | 有       | —（无 dev server）    |
+| `common-config`           | —    | —                                | —        | —（只有配置，无脚本） |
+
+> **`common-api` 没有 Stylelint、`common-config` 一个脚本都没有** —— 所以 `pnpm stylelint` 跑的是
+> **9** 个任务而不是 10 个：`turbo` 会**静默跳过**没有该脚本的包（不报错、也不提示）。这不是漏配。
+> `common-api` 的 `build` 是 `tsc --noEmit`（零产物），见 `docs/decisions/0037`。
+
+**微前端链路**另有一项端到端验证（`node scripts/verify-micro-frontend.mjs`，需后端与基座、以及要验证的子应用在跑）：真实登录 → 导航挂载子应用 → 全局状态下发（含真实会话身份）→ 子应用经基座代理请求后端 → 切换子应用 → 返回首页验证卸载清理（标记清空、`window.__MICRO_HOST__` 归 `undefined`；三维应用额外断言 WebGL 上下文已 lost、画布已移除）。这是一项**运行时**验证，与上面那张静态配置表无关。
 
 > **`vite build` 不是"顺手跑一下"。** `platform-event-console` 首次交付时，它与 `platform-log-console` 共用一套版式，其中 `.pill--err` 引用了后者才有的 LESS 令牌 `@level-error`。dev server 与单元测试**都不会报错**（前者按需编译没人访问的样式分支，后者不碰样式），只有生产构建会失败：`variable @level-error is undefined`。**新增/复制版式的应用，构建这一项必须实际跑过。**
 
@@ -267,8 +288,6 @@ git config core.hooksPath web/.husky
 > **切场景不换渲染器。** `stage.loadScene()` 只释放旧场景图、建新场景图，渲染器 / 画布 / 相机 / 控制器 / 环境贴图全部复用 —— 反复切场景不会产生第二个 WebGL 上下文，也不会累积 GPU 资源。场景清单用前端注册表（`Record<SceneId, SceneDefinition>` 钉住编译期完整性），元数据契约与三条护栏见 `docs/decisions/0014`。另有 `node scripts/verify-scene-switching.mjs` 用真实 Chrome 断言反复切换无显存泄漏。
 
 > **可操控场景的相机跟随必须"整体平移"。** 场景通过可选的 `createControls(context)` 提供交互控制，只上报焦点；舞台把相机与轨道目标挪**同样的位移**，环绕姿态与距离才得以保留。左键旋转与滚轮缩放仍归 OrbitControls，右键在有控制器的场景里让给"设置行动终点"（`enablePan` 被关掉）。移动算法是独立纯内核（`scene/player/motor.ts`），小地图自绘 canvas 不走 React 状态。见 `docs/decisions/0015`，另有 `node scripts/verify-player-controls.mjs` 验证操控链路。
-
-> **关于 `turbo run`**：本次验证时 turbo 报 `os error 231`（管道句柄耗尽，`unable to spawn child process`）。这是当前运行环境的进程创建限制，**不是工程配置问题**——上表中的每个任务脚本逐个直跑全部通过，同一配置在此前也能通过 turbo 编排。本地正常终端下 `pnpm dev` / `pnpm build` 等不受影响。
 
 > **`openapi-typescript` 的 peer 警告**：其 peer 约束为 `typescript@^5.x`，本项目用 6.0.3，`pnpm install` 会打一条警告。生成功能已验证正常，升级生成器时需重新确认（见 `packages/common-api/README.md`）。
 

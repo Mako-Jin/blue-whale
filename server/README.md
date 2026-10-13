@@ -396,7 +396,7 @@ com.bluewhale.sts.log                    ← sts-server-log，包名用业务域
 cd server
 
 mvn clean install -DskipTests                      # 构建全部模块
-mvn clean install                                  # 含测试（当前 149 例）
+mvn clean install                                  # 含测试
 
 # 启动应用（在 server/ 目录下执行，需要 JDK 21）—— 默认走 h2，零外部依赖
 java -jar sts-app/sts-app-server/target/sts-app-server-0.0.1-SNAPSHOT.jar

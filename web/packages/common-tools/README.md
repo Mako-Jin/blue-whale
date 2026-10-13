@@ -75,7 +75,7 @@ packages/common-tools/
 │       ├── types.ts          HostProps / HostGlobalState（结构化描述，不 import qiankun）
 │       ├── bridge.ts         bindHost / unbindHost / getHostGlobalState…
 │       └── permission-store.ts  createPermissionStore / visibleViews：权限快照（基座下发或独立会话两条分支）
-├── tests/                    Vitest 单元测试（178 例）
+├── tests/                    Vitest 单元测试
 ├── playground/               可视化演示（纯 DOM，可运行）
 ├── eslint.config.js          引用 common-config，额外放行本包的 console 调用
 ├── stylelint.config.js       一行 re-export common-config 共享配置
@@ -734,7 +734,7 @@ unsubscribe();
 `unbindHost()` 会**清空全部订阅者并注销原生回调**。这条必须做：子应用的模块在多次挂载之间是复用的
 （模块级变量不重置），上一轮若漏了解绑，下一轮同一个回调会被执行两次、三次……
 
-测试替身也按真实行为建模（单槽位 + 覆盖计数），`tests/micro.test.ts` 共 13 条用例把"多订阅者都能收到"
+测试替身也按真实行为建模（单槽位 + 覆盖计数），`tests/micro.test.ts` 把"多订阅者都能收到"
 "解绑后不重放"这些约束钉住 —— **替身比真实实现宽容，恰恰会放过这类 bug**。
 
 ### 一个顺序坑
