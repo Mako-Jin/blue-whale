@@ -76,16 +76,26 @@ public class TenantService {
      * 调用方要做的事完全一样（换一个编码），与 {@code 40920} / {@code 40002} 那种
      * "处置完全不同才分码"的情形不是一回事。也刻意**不**为软删那一支另写一句文案 ——
      * 它既不可操作，又把"软删"这个内部状态透给了调用方。
+     *
+     * <p><b>这里刻意没有名称判重。</b>租户名是**标签**，不是标识 —— 指认一个租户的是
+     * {@code tenantCode}：登录按它找租户、前端拿它当行标识（{@code tenant-row-<code>}）、
+     * 弹窗标题也用它，而名称旁边永远跟着编码。四个层级域（租户 / 组织 / 角色 / 用户组）
+     * **都带 {@code parent_id}**，层级的语义就是"同一个名字可以在不同上级下复用"；
+     * {@code 0030} 早已为组织写下这条理由，{@code 0061} 把它升成四域共用。
+     *
+     * <p><b>{@code TENANT_NAME_EXISTS} 曾落在这里，是四域里唯一的例外</b>（{@code 0062}）：
+     * 它既没有语义依据，又没有唯一索引兜底 —— {@code tenant_name} 上没有索引，
+     * 并发下的两个同名请求都能穿过"先查后写"，于是一道**以为在保证唯一、实际保证不了**
+     * 的校验，同时拦掉了"两个碰巧同名的公司"这种合法情形。
+     * <b>判一个列该不该挡重名，看的是它在语义上是否指认唯一对象，不是它有没有索引</b>：
+     * 编码 / 用户名指认系统内的对象（加索引 ⇒ 数据约束级唯一）、
+     * 邮箱 / 手机号指认现实世界的主体（服务层挡，有意接受并发漏网）、
+     * 名称谁也不指认（不挡）。
      */
     @Transactional
     public TenantVO create(TenantSaveRequest request) {
         if (tenantMapper.selectAnyByCode(request.getTenantCode()) != null) {
             throw AuthResultCode.TENANT_CODE_EXISTS.businessException();
-        }
-        Long nameCount = tenantMapper.selectCount(Wrappers.<TenantEntity>lambdaQuery()
-                .eq(TenantEntity::getTenantName, request.getTenantName()));
-        if (nameCount != null && nameCount > 0) {
-            throw AuthResultCode.TENANT_NAME_EXISTS.businessException();
         }
 
         TenantEntity parent = resolveParent(request.getParentId());
@@ -111,12 +121,9 @@ public class TenantService {
     public TenantVO update(Long id, TenantSaveRequest request) {
         TenantEntity entity = requireTenant(id);
 
-        Long nameCount = tenantMapper.selectCount(Wrappers.<TenantEntity>lambdaQuery()
-                .eq(TenantEntity::getTenantName, request.getTenantName())
-                .ne(TenantEntity::getId, id));
-        if (nameCount != null && nameCount > 0) {
-            throw AuthResultCode.TENANT_NAME_EXISTS.businessException();
-        }
+        // 名称与 create 一样不判重（理由见 create 的 javadoc）：把一个租户改成与别人同名，
+        // 不会让任何人做错事 —— 指认租户的是 tenantCode，而它根本不可改。
+        // 若只删 create 那一处、留着这里，就会出现"建得出来、改不出来"的怪状态。
 
         // tenantCode 不在修改项内：它是对外稳定标识，改了等于让所有引用它的地方失效。
         // 若确需变更，应当是"新建 + 迁移"的独立操作，而不是一次普通的字段更新。

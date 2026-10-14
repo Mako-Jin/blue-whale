@@ -12,7 +12,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -57,11 +59,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 翻成 {@code 40900}「数据已存在或与已有记录冲突」。故障不显形（不是 500），
  * 但文案退化成一句不含主语的兜底话，而这句话原本的用途是"并发下的第二道防线"。
  *
- * <p><b>两条反例是刻意加的，防的是"顺手一起挡掉"这种更省事的写法。</b>
+ * <p><b>三条反例是刻意加的，防的是"顺手一起挡掉"这种更省事的写法。</b>
  * 没有唯一索引的列（{@code tenant_name} 等）**必须**让软删释放掉那个值 ——
  * 软删本来就该等于"它不在了"；只有被索引逼着的六个列才需要额外回答一句。
  * 而"删掉之后换一个新值"必须照常能建：否则一个"看见任何软删行就拒绝"的实现
  * 也能让上面两条通过。
+ *
+ * <p><b>第三条反例（{@code decisions/0062}）走得更远：{@code tenant_name} 连活行重名都不挡。</b>
+ * 它此前有一道判重（{@code 40905}），而那一列上没有唯一索引 ⇒ 那道校验
+ * 既挡不住并发（两个同名请求都能穿过"先查后写"），又拦掉了"两个碰巧同名的公司"。
+ * 判据不是"有没有索引"，而是**这个列在语义上是否指认唯一对象**：编码指认，名称不指认。
+ * 四个名称码（{@code 40905} / {@code 40907} / {@code 40909} / {@code 40911}）
+ * 因此并列住进 {@code verify-result-codes.mjs} 的"有意不用"栏 —— 谁把判重加回来，
+ * 这条用例与那道守卫会一起红。
  *
  * <p><b>刻意不加 {@code @Transactional}</b>，与 {@code TenantReferenceApiTest} 同一理由：
  * 本片问的是"库里真正留下了什么" —— 判重的依据就是软删行还在不在，
@@ -168,6 +178,26 @@ class UniqueCodeReuseApiTest {
         createUser(token, uniqueUsername());
     }
 
+    @Test
+    @DisplayName("租户名不要求唯一：两个同名租户可以并存，区分它们的是编码（decisions/0062）")
+    void shouldAllowTwoTenantsWithTheSameName() throws Exception {
+        String token = loginAsAdmin();
+        // 名字刻意**逐字相同**。此前这一句会撞 `40905`「租户名称已存在」——
+        // 而 `tenant_name` 上没有唯一索引，那是一道**以为在保证唯一、实际保证不了**的校验
+        String name = "同名租户测试 " + uniqueTenantCode();
+        String firstCode = uniqueTenantCode();
+        String secondCode = uniqueTenantCode();
+
+        long first = createTenant(token, firstCode, name);
+        long second = createTenant(token, secondCode, name);
+
+        assertNotEquals(first, second, "同名租户是两条不同的记录");
+        // 都真的落库了，而且名字逐字相同、**只有编码不同** ——
+        // 指认一个租户的是编码，不是名字（0061 / 0062）
+        assertTenant(token, first, name, firstCode);
+        assertTenant(token, second, name, secondCode);
+    }
+
     /* ==================== 夹具 ==================== */
 
     /**
@@ -211,6 +241,16 @@ class UniqueCodeReuseApiTest {
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0));
+    }
+
+    /** 取一个租户，断言它还是那条记录：名字与编码都逐字相同 */
+    private void assertTenant(String token, long id, String expectedName, String expectedCode) throws Exception {
+        mockMvc.perform(get("/api/auth/tenants/" + id)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.tenantName").value(expectedName))
+                .andExpect(jsonPath("$.data.tenantCode").value(expectedCode));
     }
 
     /**

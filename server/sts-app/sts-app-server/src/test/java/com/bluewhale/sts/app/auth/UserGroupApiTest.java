@@ -720,8 +720,8 @@ class UserGroupApiTest {
     }
 
     private long createTenant(String token, String tenantCode) throws Exception {
-        // 租户名称也必须唯一：TenantService 会判重（40905），
-        // 用固定名字会让第二个用例失败 —— 而且失败信息看起来与"租户"毫无关系
+        // 名字带上编码只是为了让日志好读：租户名**不要求唯一**（decisions/0062）——
+        // 这条注释此前写的是"TenantService 会判重（40905）"，那道判重已经删掉了
         MvcResult result = mockMvc.perform(post("/api/auth/tenants")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)

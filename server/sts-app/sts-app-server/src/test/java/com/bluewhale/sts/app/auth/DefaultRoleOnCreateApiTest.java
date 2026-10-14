@@ -246,9 +246,8 @@ class DefaultRoleOnCreateApiTest {
     }
 
     private long createTenant(String token, String tenantCode) throws Exception {
-        // 名称也必须唯一（`40905`）—— 一片用例里要建好几个租户，
-        // 写死一个名字会让第二条起就撞 `TENANT_NAME_EXISTS`，
-        // 而那个报错落在 `createTenant` 里、与用例想验证的东西毫无关系
+        // 名字带上编码只是为了让日志好读：租户名**不要求唯一**（decisions/0062），
+        // 一片用例里建多个同名租户也不会撞 —— 这里没有需要绕开的东西
         MvcResult result = mockMvc.perform(post("/api/auth/tenants")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
