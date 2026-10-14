@@ -227,7 +227,23 @@ class UserGroupApiTest {
                         .content("""
                                 {"groupCode":"%s","groupName":"成环组","parentId":%d}
                                 """.formatted(code, groupId)))
-                .andExpect(jsonPath("$.code").value(40913));
+                .andExpect(jsonPath("$.code").value(40913))
+                .andExpect(jsonPath("$.message", containsString("自己")));
+
+        // 挂到自己的**下级**下面：与自挂是守卫里两条不同的分支 ——
+        // 自指只需比一次主键，这一支要沿 parent_id 上溯整条祖先链才判得出来。
+        // 这条分支在补齐之前**没有任何用例**（自挂那一支有），
+        // 而"漏测一条分支"与"漏测整个守卫"看起来一样绿。
+        long childId = createGroup(token, uniqueGroupCode("cyc2"), "成环组的子组",
+                ",\"parentId\":" + groupId, null, null);
+        mockMvc.perform(put("/api/auth/user-groups/" + groupId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"groupCode":"%s","groupName":"成环组","parentId":%d}
+                                """.formatted(code, childId)))
+                .andExpect(jsonPath("$.code").value(40913))
+                .andExpect(jsonPath("$.message", containsString("下级")));
 
         // 跨租户的父组：数据确实存在，只是放错了租户 —— 文案必须点名租户，
         // 否则调用方会去查主键有没有写错
@@ -244,6 +260,8 @@ class UserGroupApiTest {
                 .andExpect(jsonPath("$.code").value(40002))
                 .andExpect(jsonPath("$.message", containsString("租户")));
 
+        // 先子后父：上面造出的子组会让父组的删除守卫（40913）拦下来
+        deleteGroup(token, childId);
         deleteGroup(token, groupId);
         deleteGroup(token, foreignGroup);
         mockMvc.perform(delete("/api/auth/tenants/" + otherTenant)

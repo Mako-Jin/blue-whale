@@ -223,6 +223,69 @@ class RoleApiTest {
     }
 
     @Test
+    @DisplayName("有子角色时拒绝删除（40913），删掉子角色后同一个父级立刻可删")
+    void shouldRejectDeleteWhenRoleHasChildren() throws Exception {
+        String token = loginAsAdmin();
+        long parentId = createRole(token, uniqueRoleCode("prt"), "父角色", "BUSINESS", "ALL");
+        long childId = createRoleUnder(token, uniqueRoleCode("chd"), "子角色", parentId);
+
+        mockMvc.perform(delete("/api/auth/roles/" + parentId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(40913))
+                .andExpect(jsonPath("$.message", containsString("子角色")));
+
+        // 删掉最后一个子角色之后，**同一个父级必须立刻可删**。
+        // 少了这一半，用例证明的只是"删除有时会失败"，而不是"拒绝的理由是子角色" ——
+        // 一个"看到 parentId 非空就拒绝"的实现也能通过前半段。
+        deleteRole(token, childId);
+        deleteRole(token, parentId);
+    }
+
+    @Test
+    @DisplayName("成环的两条路径都拒绝（40913），而合法的移动仍成功")
+    void shouldRejectSelfOrDescendantParent() throws Exception {
+        String token = loginAsAdmin();
+        long grandId = createRole(token, uniqueRoleCode("gprt"), "祖父角色", "BUSINESS", "ALL");
+        long childId = createRoleUnder(token, uniqueRoleCode("gchd"), "子角色", grandId);
+
+        // ① 挂到自己下面 —— 守卫里 `parent.getId().equals(self.getId())` 那一支
+        mockMvc.perform(put("/api/auth/roles/" + grandId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(bodyWithParent(uniqueRoleCode("gprt"), "祖父角色", "BUSINESS", "ALL", grandId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(40913))
+                .andExpect(jsonPath("$.message", containsString("自己")));
+
+        // ② 挂到自己的下级下面 —— 沿 parent_id 上溯那一支。
+        // 这一支才是"环"本身：① 只是自指，② 才需要走完整条祖先链才判得出来
+        mockMvc.perform(put("/api/auth/roles/" + grandId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(bodyWithParent(uniqueRoleCode("gprt"), "祖父角色", "BUSINESS", "ALL", childId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(40913))
+                .andExpect(jsonPath("$.message", containsString("下级")));
+
+        // ③ 合法移动：把子角色挪到另一个**无关的**顶层角色下面，必须成功。
+        // 少了这一半，前两条只能证明"带上 parentId 的修改就会失败"。
+        long otherId = createRole(token, uniqueRoleCode("goth"), "另一个顶层角色", "BUSINESS", "ALL");
+        mockMvc.perform(put("/api/auth/roles/" + childId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(bodyWithParent(uniqueRoleCode("gchd"), "子角色", "BUSINESS", "ALL", otherId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.parentId").value(otherId));
+
+        // 收尾：先子后父，避免残留角色影响同一构建里的其它用例
+        deleteRole(token, childId);
+        deleteRole(token, otherId);
+        deleteRole(token, grandId);
+    }
+
+    @Test
     @DisplayName("系统内置角色不可删除、不可停用、不可降级分类（40917）")
     void shouldProtectSystemRole() throws Exception {
         String token = loginAsAdmin();
@@ -544,6 +607,19 @@ class RoleApiTest {
         return id.longValue();
     }
 
+    /** 建一个挂在 {@code parentId} 下面的角色 —— 层级守卫的两条用例都要先摆出父子关系 */
+    private long createRoleUnder(String token, String code, String name, long parentId) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/auth/roles")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(bodyWithParent(code, name, "BUSINESS", "ALL", parentId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andReturn();
+        Number id = JsonPath.read(result.getResponse().getContentAsString(), "$.data.id");
+        return id.longValue();
+    }
+
     private void deleteRole(String token, long id) throws Exception {
         mockMvc.perform(delete("/api/auth/roles/" + id)
                         .header("Authorization", "Bearer " + token))
@@ -640,6 +716,20 @@ class RoleApiTest {
         return """
                 {"roleCode":"%s","roleName":"%s","category":"%s","dataScope":"%s"}
                 """.formatted(code, name, category, dataScope);
+    }
+
+    /**
+     * 带 {@code parentId} 的请求体。
+     *
+     * <p>{@code roleCode} 在修改路径上**会被忽略**（对外稳定标识），但注解校验仍会跑，
+     * 所以这里照旧填一个形状合法的编码 —— 与 {@link #shouldManageRoleLifecycle}
+     * 里"塞一个不同的 roleCode 验证它被忽略"是同一件事。
+     */
+    private static String bodyWithParent(String code, String name, String category,
+                                         String dataScope, long parentId) {
+        return """
+                {"roleCode":"%s","roleName":"%s","category":"%s","dataScope":"%s","parentId":%d}
+                """.formatted(code, name, category, dataScope, parentId);
     }
 
     private static String grantBody(long resourceId, String effect, Long from, Long to) {
