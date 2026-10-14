@@ -56,10 +56,10 @@ public class ResourceVO {
     @Schema(description = "是否启用：0 否 1 是。停用的资源不再产生权限")
     private Integer isEnabled;
 
-    @Schema(description = "是否免鉴权白名单：0 否 1 是")
+    @Schema(description = "人工备注，不参与判定：0 否 1 是。资源是否免鉴权看接口上有没有 @RequiresPermission")
     private Integer isWhitelist;
 
-    @Schema(description = "是否已废弃：0 否 1 是")
+    @Schema(description = "是否已废弃：0 否 1 是。当前只存不用，没有任何读取方")
     private Integer isDeprecated;
 
     @Schema(description = "资源版本号，当前只存不用")

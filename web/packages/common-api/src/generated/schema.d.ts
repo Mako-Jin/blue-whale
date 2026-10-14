@@ -1334,12 +1334,12 @@ export interface components {
       isEnabled?: number;
       /**
        * Format: int32
-       * @description 是否免鉴权白名单：0 否 1 是，缺省 0。**这是安全评审要看的一份清单**
+       * @description 人工备注，不参与判定：0 否 1 是，缺省 0。免鉴权由接口上「有没有 @RequiresPermission」决定，真正的清单是 AuthPublicEndpoints —— 公开接口在本表里一行都没有，因此这一列当不了那份清单（decisions/0052）
        */
       isWhitelist?: number;
       /**
        * Format: int32
-       * @description 是否已废弃：0 否 1 是，缺省 0
+       * @description 人工备注，当前只存不用：0 否 1 是，缺省 0。没有任何读取方，界面也没有它的控件
        */
       isDeprecated?: number;
       /** @description 资源版本号。**当前只存不用**，版本治理尚未实现 */
@@ -1385,12 +1385,12 @@ export interface components {
       isEnabled?: number;
       /**
        * Format: int32
-       * @description 是否免鉴权白名单：0 否 1 是
+       * @description 人工备注，不参与判定：0 否 1 是。资源是否免鉴权看接口上有没有 @RequiresPermission
        */
       isWhitelist?: number;
       /**
        * Format: int32
-       * @description 是否已废弃：0 否 1 是
+       * @description 是否已废弃：0 否 1 是。当前只存不用，没有任何读取方
        */
       isDeprecated?: number;
       /** @description 资源版本号，当前只存不用 */

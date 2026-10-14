@@ -54,6 +54,12 @@ type ResourceForm = {
   sortNo: string;
   /** 0/1 三态字段在表单里用字符串：`undefined` 与 `0` 在 select 上分不出来 */
   isEnabled: string;
+  /**
+   * 这两个**没有控件**，只原样回传。
+   *
+   * <p>更新是全量覆盖（后端对缺省值落 0），因此它们必须在状态里走一圈 ——
+   * 否则"改个图标"就会把备注位抹掉。`isWhitelist` 为什么不该有控件见下面那段注释。
+   */
   isWhitelist: string;
   isDeprecated: string;
   description: string;
@@ -803,19 +809,18 @@ function ResourceFormDialog({
             <option value="0">停用</option>
           </select>
         </label>
-        <label className="form__row">
-          <span className="form__label">免鉴权</span>
-          <select
-            className="input"
-            name="isWhitelist"
-            value={form.isWhitelist}
-            onChange={(event) => update({ isWhitelist: event.target.value })}
-          >
-            <option value="0">否</option>
-            <option value="1">是（白名单）</option>
-          </select>
-        </label>
-        <p className="form__tip">请求地址与免鉴权仅供评审参考，不参与运行时判定。</p>
+        {/*
+          「免鉴权」**刻意不摆控件**（与角色页「默认角色」在 0049 之前的状态同理，
+          但方向相反）：判定的唯一来源是**接口上有没有 `@RequiresPermission`**，
+          而真正公开的接口（登录 / 健康检查 / 上报）在资源表里**一行都没有**
+          ⇒ 这一列只可能是备注，且对本表里存在的行只能诚实地填 0。
+          留一个「是（白名单）」的选项，等于让人在这里记下一句反话。
+          它仍留在表单状态里并原样回传：资源更新是**全量覆盖**，
+          不发这个字段会被后端按缺省值 0 落库 —— 那是"编辑别的字段顺手抹掉它"。
+        */}
+        <p className="form__tip">
+          请求地址仅供备注，不参与运行时判定；免鉴权不在这里配 —— 由接口上有没有权限注解决定。
+        </p>
         <label className="form__row">
           <span className="form__label">描述</span>
           <input

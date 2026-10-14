@@ -26,6 +26,11 @@ import org.springframework.web.servlet.HandlerInterceptor;
  *
  * <p><b>未认证与无权限返回不同的码</b>：前者 401（请先登录），后者 403（登录了但不够格）。
  * 两者混成一个码，前端就无法决定是"跳登录页"还是"提示无权限"。
+ *
+ * <p><b>那条"没有注解就放行"的规则有一份登记表与一条守卫：</b>
+ * {@link com.bluewhale.sts.auth.common.AuthPublicEndpoints} 逐条登记全部不参与权限判定的端点，
+ * {@code PublicEndpointRegistryTest} 用框架的映射表核对"有注解"与"在登记表里"**恰好二选一**
+ * —— 因此"新加端点忘了写注解"会在构建期就红，而不是静默公开（见 {@code docs/decisions/0052}）。
  */
 public class AuthInterceptor implements HandlerInterceptor {
 

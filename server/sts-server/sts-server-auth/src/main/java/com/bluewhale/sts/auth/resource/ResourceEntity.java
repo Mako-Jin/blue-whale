@@ -18,9 +18,16 @@ import lombok.Setter;
  * 它们让资源可以自动登记（扫描 Controller 生成），而不必手工维护一张
  * "URL 到权限"的映射表；同时也让"这个接口需要什么权限"这件事在库里可查。
  *
- * <p>{@code isWhitelist} 标出免鉴权资源（如登录、健康检查）：
- * 把白名单放进资源表而不是代码里的一个静态集合，是为了它能被后台查看与审计 ——
- * "哪些接口不需要登录"是安全评审必看的一份清单。
+ * <p><b>{@code isWhitelist} 是一列人工备注，它不参与判定、也当不了那份清单。</b>
+ * 免鉴权由"接口上**没有** {@code @RequiresPermission}"决定（{@code AuthInterceptor} 的规则
+ * 是白名单反着写的，见 {@code docs/decisions/0026}），那份真清单在
+ * {@link com.bluewhale.sts.auth.common.AuthPublicEndpoints} 里。
+ * 本列**不可能是**那份清单的原因很直接：种子资源由
+ * {@link com.bluewhale.sts.auth.common.AuthPermissions#ALL} 建出，
+ * 也就是**只有带权限码的接口才有行** —— 而真正公开的那些（登录、健康检查、上报）
+ * 在这里**一行都没有**，于是这一列恒为 0，读起来却像"没有接口是公开的"。
+ * （此前的注释把它写成"把白名单放进资源表以便查看与审计"，那句话从未成立，
+ * 见 {@code docs/decisions/0052}。）
  */
 @Getter
 @Setter
@@ -55,13 +62,13 @@ public class ResourceEntity extends BaseEntity {
 
     private Integer sortNo;
 
-    /** 是否启用：0 否 1 是 */
+    /** 是否启用：0 否 1 是。**唯一在本张表上真正参与判定的开关**（判定 SQL 读 {@code is_enabled = 1}） */
     private Integer isEnabled;
 
-    /** 是否免鉴权白名单：0 否 1 是 */
+    /** 人工备注：0 否 1 是。**没有任何读取方**，免鉴权见类注释 */
     private Integer isWhitelist;
 
-    /** 是否已废弃：0 否 1 是 */
+    /** 人工备注：0 否 1 是。**没有任何读取方**（界面也没有它的控件） */
     private Integer isDeprecated;
 
     /** 资源版本号 */
