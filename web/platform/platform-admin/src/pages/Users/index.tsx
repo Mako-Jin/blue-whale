@@ -814,8 +814,15 @@ function RoleSourcesDialog({ user, onClose }: { user: AccessUser; onClose: () =>
                       {formatStatus(source.roleStatus)}
                     </span>
                   </td>
+                  {/*
+                    组名不要求唯一（角色、组织、用户组都不要求，见 decisions/0061），
+                    所以这一列与左边的角色列一样**编码与名称并排** ——
+                    `groupCode` 是界面上区分同名组的唯一手段。少了它，
+                    两个同名组在这里长得一模一样、"这条权限是从哪个组来的"就答不出来。
+                  */}
                   <td>
-                    {source.groupName ?? '—'}
+                    <span className="mono">{source.groupCode ?? '—'}</span>
+                    <span className="tree__name">{source.groupName ?? '—'}</span>
                     {source.groupEnabled === 0 ? (
                       <span className="tag tag--off">组已停用</span>
                     ) : null}

@@ -541,7 +541,7 @@ describe('权限管理后台 · 资源 / 角色 / 用户组', () => {
     });
   });
 
-  it('反查：只读账号也能查角色来源，且停用的角色照原样返回', async () => {
+  it('反查：只读账号也能查角色来源，停用的角色照原样返回；同名组靠编码区分', async () => {
     mocks.userRoleSources.mockResolvedValue([
       {
         grantId: 21,
@@ -552,6 +552,34 @@ describe('权限管理后台 · 资源 / 角色 / 用户组', () => {
         roleName: '临时评审',
         roleStatus: 'DISABLED',
         effectiveNow: true,
+      },
+      {
+        grantId: 22,
+        source: 'GROUP',
+        sourceLabel: '经用户组授予',
+        roleId: 10,
+        roleCode: 'GROUP_GRANTED_A',
+        roleName: '经组角色一',
+        roleStatus: 'ENABLED',
+        effectiveNow: true,
+        groupId: 31,
+        groupCode: 'GROUP_A',
+        groupName: '同名组',
+        groupEnabled: 1,
+      },
+      {
+        grantId: 23,
+        source: 'GROUP',
+        sourceLabel: '经用户组授予',
+        roleId: 11,
+        roleCode: 'GROUP_GRANTED_B',
+        roleName: '经组角色二',
+        roleStatus: 'ENABLED',
+        effectiveNow: true,
+        groupId: 32,
+        groupCode: 'GROUP_B',
+        groupName: '同名组',
+        groupEnabled: 1,
       },
     ]);
     // 只有用户读权限 —— 反查归 `auth:user:read`，因此这个按钮必须出现
@@ -565,6 +593,12 @@ describe('权限管理后台 · 资源 / 角色 / 用户组', () => {
     expect(await screen.findByTestId('role-source-TEMP_REVIEWER')).toBeInTheDocument();
     // 「停用」正是"为什么没有权限"的答案，过滤掉它就等于把答案删了
     expect(screen.getByText('停用')).toBeInTheDocument();
+
+    // 组名不要求唯一（decisions/0061）—— 两个同名组只有编码能把它们分开，
+    // 所以"来源用户组"这一列必须与角色列一样编码与名称并排
+    expect(screen.getByText('GROUP_A')).toBeInTheDocument();
+    expect(screen.getByText('GROUP_B')).toBeInTheDocument();
+    expect(screen.getAllByText('同名组')).toHaveLength(2);
   });
 
   it('组织页：树按 children 递归渲染，层级与停用状态照原样取自后端', async () => {

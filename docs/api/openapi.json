@@ -5544,6 +5544,10 @@
             "format": "int64",
             "description": "来源用户组主键。仅 source = GROUP 时有值"
           },
+          "groupCode": {
+            "type": "string",
+            "description": "来源用户组编码。仅 source = GROUP 时有值。**用户组名不要求唯一**（与角色、组织同构，见 decisions/0061），所以这一列是界面上区分同名组的唯一手段 ——角色的那三个标识（id / code / name）在这里必须对应齐"
+          },
           "groupName": {
             "type": "string",
             "description": "来源用户组名称。仅 source = GROUP 时有值"

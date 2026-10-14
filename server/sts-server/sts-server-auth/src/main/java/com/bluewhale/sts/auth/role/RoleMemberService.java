@@ -297,7 +297,7 @@ public class RoleMemberService {
      * 唯一被真正过滤掉的是"用户根本不在那个组里"——{@link RoleMapper#selectUserRoleSources}
      * 用 {@code gm.id IS NOT NULL} 表达，因为那种情况下这条角色压根不是他的。
      *
-     * <p>组的名字与启用状态**批量查一次**再回填，不逐行回查（N+1）：
+     * <p>组的名字、编码与启用状态**批量查一次**再回填，不逐行回查（N+1）：
      * 一个用户身上的组通常是个位数，但接口的查询次数应当与数据量无关。
      *
      * <p>权限落在 {@code auth:user:read} 上：它读的是"某个用户"的信息，
@@ -331,6 +331,9 @@ public class RoleMemberService {
             // 组已被删除时名字为 null 而不是整行过滤掉：一段"曾经通过某个组拿到角色"的历史
             // 恰恰是排查"为什么权限对不上"时要看的东西（同 RoleMemberVO 的 memberName）
             row.setGroupName(group == null ? null : group.getGroupName());
+            // 编码与名字一起回填：组名不要求唯一（角色、组织、用户组都不要求，见 decisions/0061），
+            // 界面上"这个名字指的是哪个组"只能靠编码回答
+            row.setGroupCode(group == null ? null : group.getGroupCode());
             row.setGroupEnabled(group == null ? null : group.getIsEnabled());
             row.setGroupMemberEffectiveNow(isWithin(row.getGroupMemberEffectiveFrom(),
                     row.getGroupMemberEffectiveTo(), now));

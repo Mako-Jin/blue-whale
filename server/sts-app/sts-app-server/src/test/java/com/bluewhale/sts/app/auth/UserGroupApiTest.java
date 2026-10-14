@@ -460,10 +460,12 @@ class UserGroupApiTest {
         assertTrue("直接授予".equals(direct.get("sourceLabel")), "：" + direct);
         assertTrue(Boolean.TRUE.equals(direct.get("effectiveNow")), "长期有效应当此刻生效：" + direct);
         assertTrue(direct.get("groupId") == null, "DIRECT 行不该有来源组：" + direct);
+        assertTrue(direct.get("groupCode") == null, "DIRECT 行不该有来源组：" + direct);
 
         Map<String, Object> viaGroup = rowOf(rows, groupRoleCode);
         assertTrue("GROUP".equals(viaGroup.get("source")), "经组那一行的 source 应为 GROUP：" + viaGroup);
         assertTrue("经用户组授予".equals(viaGroup.get("sourceLabel")), "：" + viaGroup);
+        assertTrue(groupCode.equals(viaGroup.get("groupCode")), "：" + viaGroup);
         assertTrue("来源组".equals(viaGroup.get("groupName")), "：" + viaGroup);
         assertTrue(Integer.valueOf(1).equals(viaGroup.get("groupEnabled")), "：" + viaGroup);
         assertTrue(Boolean.TRUE.equals(viaGroup.get("effectiveNow")), "：" + viaGroup);
