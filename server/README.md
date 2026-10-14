@@ -505,6 +505,48 @@ DDL 里有**六个唯一编码列**，`uk_*` 一律**不含 `deleted`** ⇒ 软�
 > 同样不能靠列名、注释、邻接关系，**也不能抄上一条结论或上一份文档的背景** ——
 > ADR 的背景写的是**决策前**的事实，而它会被后来的人当成现状读（`decisions/0054`）。
 
+### `40002` 的 16 处文案与它们的读者
+
+`PARAM_REFERENCE_MISSING(40002)` 的形状与别的业务码不同：**它是全仓唯一一个"一处判据、
+十六处 `throw`"的码**。十六处拦的都是同一件事（引用的东西不存在，或存在但放错了租户），
+差别只在**文案点名了谁**。所以它值得的核对不是"按支拆"（它只有一支），
+而是"每一处是否点名了正确的对象、是否都有断言"（`decisions/0057`）。
+
+**这张表是权威版本**（`〃` 表示"同上一个方法"）。
+
+| 落点 | 文案点名 | 用例 |
+| --- | --- | --- |
+| `TenantService#assertExists` | 租户 | `TenantReferenceApiTest` |
+| `UserGroupService#bindMember` | 引用的用户 | `ReferenceMessageApiTest` |
+| `UserGroupService#resolveParent` · 不存在 | 父用户组 | `ReferenceMessageApiTest` |
+| 〃 · 跨租户 | 租户 | `UserGroupApiTest` |
+| `UserGroupService#assertSameTenant` | 用户与用户组 | `UserGroupApiTest` |
+| `OrganizationService#resolveParent` · 不存在 | 父组织 | `ReferenceMessageApiTest` |
+| 〃 · 跨租户 | 租户 | `ReferenceMessageApiTest` |
+| `OrganizationMemberService#requireSameTenantUser` · 不存在 | 引用的用户 | `ReferenceMessageApiTest` |
+| 〃 · 跨租户 | 用户与组织 | `ReferenceMessageApiTest` |
+| `RoleService#requireResource` | 引用的资源 | `ReferenceMessageApiTest` |
+| `RoleService#resolveParent` · 不存在 | 父角色 | `ReferenceMessageApiTest` |
+| 〃 · 跨租户 | 租户 | `ReferenceMessageApiTest` |
+| `RoleMemberService#requireMember` · 用户 | 引用的用户 | `RoleMemberApiTest` |
+| 〃 · 用户组 | 引用的用户组 | `RoleMemberApiTest` |
+| `RoleMemberService#assertSameTenant` | 成员与角色 | `RoleMemberApiTest` |
+| `ResourceService#assertParentExists` | 父资源 | `ResourceApiTest` |
+
+十六处文案**全部点名正确**，包括一处刻意的不对称：`ResourceService` 写的是父资源的
+**编码**而不是主键（资源树的父子关系本来就以 `resource_code` 表达）。
+
+两条配套约定：
+
+- **断言要点到"哪个对象"，不能只点到"用户"两个字。** 同一个域里"引用的用户不存在"与
+  "该用户与组织不属于同一租户"的文案**都含"用户"** ⇒ 只断两个字的话，两条支长得一模一样：
+  换一支实现照样绿，而用例并不知道自己钉的是哪一支。既有那批断言断的是"租户"，
+  钉的是"有没有点名放错租户"，与这条是分工、不是重复。
+- **只断 `code` 的用例分不出"点在哪个对象上"。** 这个码**不携带**"是哪个引用错了"的信息，
+  携带它的是文案。`OrganizationApiTest` 的父组织那条与 `RoleApiTest` 的授权资源那条
+  此前只断言了 `40002`，两处的文案断言现由 `ReferenceMessageApiTest` 补齐，
+  原用例保持不动（各钉一个维度）。
+
 ---
 
 ## 四、新增一个模块
