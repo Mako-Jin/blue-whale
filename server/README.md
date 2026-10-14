@@ -587,6 +587,47 @@ DDL 里有**六个唯一编码列**，`uk_*` 一律**不含 `deleted`** ⇒ 软�
 它与 `AuthResultCode.RESOURCE_NOT_FOUND(40406)` 的文案**逐字相同**，靠码值区分
 （前者是 REST 语义的"资源"，后者是 `bw_auth_resource`）。
 
+### `401xx` / `403xx` 的落点与它们的断言
+
+这一族的形状与上面两张都不同：问题不是"文案有没有点名"（`40002` 那种），也不是
+"哪一处没断言"，而是**码本身有没有人抛**。把两个枚举（公共 `ResultCode` 与权限域
+`AuthResultCode`）的 `401xx` / `403xx` 逐个回溯源码，结果是：**有落点的都断言了**，
+而**七个码一次抛出点都没有**（`decisions/0060`）。
+
+**这张表是权威版本**（`〃` 表示"同上一个方法"）。
+
+| 码 | 落点 | 断言 |
+| --- | --- | --- |
+| `40100`（公共） | `AuthInterceptor#preHandle` | `AuthApiTest` · `AuditApiTest` · `DataScopeApiTest` · `OrganizationApiTest` · `ClientLogApiTest` |
+| `40101` | `AuthService#login` × 3 · 〃 `#changePassword`（覆盖"当前口令不正确"） | `AuthApiTest` · `ChangePasswordApiTest` · `PasswordHardeningApiTest` · `SessionRevocationApiTest` · `TenantDisableApiTest` |
+| `40102` | `AuthService#login` | `PasswordHardeningApiTest` |
+| `40103` | `AuthService#login` | `SessionRevocationApiTest` |
+| `40104` | `AuthService#refresh` × 3（其一覆盖"该令牌不是刷新令牌"）· `AuthContextHolder#require`（覆盖"当前请求未认证"） | `ChangePasswordApiTest` · `LogoutApiTest` |
+| `40105` | **无** | — |
+| `40106` | `AuthService#refresh` × 5 | `AuthApiTest` · `ChangePasswordApiTest` · `LogoutApiTest` · `PasswordExpiryApiTest` · `SessionRevocationApiTest` · `TenantDisableApiTest` |
+| `40107`~`40110` | **无** | — |
+| `40111` | `AuthService#login` · 〃 `#refresh` | `PasswordExpiryApiTest` |
+| `40300`（公共） | **无** | — |
+| `40301` | `AuthInterceptor#preHandle`（覆盖「`"缺少权限：" + required`」） | `AuthApiTest` · `RoleApiTest` · `OrganizationApiTest` · `ResourceApiTest` · `UserGroupApiTest` · `RoleMemberApiTest` · `DataScopeApiTest` · `AuditApiTest` |
+| `42900`（公共） | **无** | — |
+
+七个零落点的码（`40105` · `40107`~`40110` · `40300` · `42900`）现在由
+`scripts/verify-result-codes.mjs` 钉住：它们必须出现在那张脚本的 `UNUSED` 里并写明理由，
+否则 CI 的 `guards` job 会红。三条值得单独说的：
+
+- **"未认证"在实现里有两个码。** 入口（`AuthInterceptor`）抛公共码 `40100`，
+  而 `AuthContextHolder#require()` 抛域码 `40104` —— 后者会从 `logout-all` / `me` /
+  `changePassword` 这几条**公开端点自己拦**的路径上走到（登记在 `AuthPublicEndpoints`）。
+  同一件事两个码，前端要认两个（现状：`platform-audit-console` 认 `40100`，
+  `platform-admin` / 门户认 HTTP 401）。它**是有意的** —— `AuthService#logoutAll` 的注释
+  点了 `40104` 的名、`LogoutApiTest` 有用例钉住 —— 但"要不要统一成一个"是产品决定，
+  见 `decisions/0060` 的「未覆盖」。
+- **`40104` 的那处覆盖正落在 `404xx` 那节的规矩上**：覆盖文案 = 这个码在说两件事 ——
+  一处说"你给的令牌无效"，一处说"你没带令牌"。而后者已经有一个专门的码（`40100`）。
+- **公共层的 `40300` 与 `42900` 一个读者都没有。** `40300` 被域码 `40301` 顶替
+  （权限拒绝全走域码）；`42900` 是因为**限流落在 nginx 层**（`0028`），应用层不抛。
+  两者都留作"公共层对外的语义"，当前没有任何代码会用到它们。
+
 ---
 
 ## 四、新增一个模块
