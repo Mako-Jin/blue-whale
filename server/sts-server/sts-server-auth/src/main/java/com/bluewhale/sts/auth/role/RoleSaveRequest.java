@@ -13,7 +13,11 @@ import jakarta.validation.constraints.Size;
  *   <li><b>有判定语义的字段严格校验</b> —— {@code status} 走 {@code Status} 枚举、
  *       {@code dataScope} 走 {@code DataScope} 枚举、{@code isDefault} 只接受 0/1。
  *       理由：这些值会被判定链路读取，写错不会报错，只会静默地改变行为
- *       （停用的角色还在产生权限、数据范围写成了不存在的档位）。</li>
+ *       （停用的角色还在产生权限、数据范围写成了不存在的档位）。
+ *       <b>这里有一条订正：</b>{@code isDefault} 当初是被"顺带列进"这一类的 ——
+ *       它当时没有读取方，所以这条理由在它身上本来是假的
+ *       （同一时间 {@code RoleVO} 的另一份说明写着"当前只存不用"）。
+ *       建号自动授予落地之后这句话才真的成立，见 ADR-0049。</li>
  *   <li><b>只存不用的字段宽松接受</b> —— {@code category} / {@code inheritStrategy} /
  *       {@code filterJson} / {@code roleLevel} 当前都没有消费方：角色继承未实现，
  *       而 {@code filterJson} 只在 {@code CUSTOM} 档被读、该档的解析本仓也没做
@@ -72,7 +76,9 @@ public class RoleSaveRequest {
     @Schema(description = "继承策略：NONE / INHERIT / OVERRIDE。**当前只存不用**")
     private String inheritStrategy;
 
-    @Schema(description = "是否默认角色（新用户自动授予）：0 否 1 是，缺省 0。**当前只存不用**")
+    @Schema(description = "是否默认角色（新用户自动授予）：0 否 1 是，缺省 0。"
+            + "**已生效** —— 新建用户时按本租户全部为 1、且状态为 ENABLED 的角色自动授予，"
+            + "见 ADR-0049")
     private Integer isDefault;
 
     @Schema(description = "排序号，同级内升序；缺省 0")

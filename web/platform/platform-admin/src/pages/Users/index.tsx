@@ -134,7 +134,7 @@ export function UsersPage() {
         setNotice(`已保存用户「${form.username}」`);
         setEditing(null);
       } else {
-        await api.access.users.create(body);
+        const created = await api.access.users.create(body);
         /*
          * 建号这条路的通知必须带上**下一步**，它不能只报"已新建"。
          *
@@ -145,9 +145,19 @@ export function UsersPage() {
          *
          * 同一页的重置通知就是按这个形状写的（"…该用户下次登录须改密"）：
          * 动作 + 它的后果。这里补的是后果 + 去哪处理。
+         *
+         * **这段话必须用响应的 `defaultRoleNames` 分岔，不能写死。**
+         * 配了默认角色的租户（ADR-0049）里，`create` 已经替管理员做完了那一步 ——
+         * 照着老文案报"默认没有任何菜单码"，会在同一句通知里既说错事实、
+         * 又把人指去重复做一件已经做完的事。`defaultRoleNames` 为空时照旧提示；
+         * 为空的原因**分不出**"没配"与"配了的都已停用"，所以两种都写出来，
+         * 而不是替用户认定一个 —— 认定的那个会让他去错的地方找。
          */
+        const autoGranted = created.defaultRoleNames ?? [];
         setNotice(
-          `已新建用户「${form.username}」。它默认没有任何菜单码 —— 到「角色」页授角色并把该账号挂为成员，否则它登录后看不到任何入口。`,
+          autoGranted.length > 0
+            ? `已新建用户「${form.username}」，并按租户默认角色自动授予：${autoGranted.join('、')}。`
+            : `已新建用户「${form.username}」。它默认没有任何菜单码（本租户没有启用中的默认角色）—— 到「角色」页授角色并把该账号挂为成员，否则它登录后看不到任何入口。`,
         );
         setCreating(false);
       }

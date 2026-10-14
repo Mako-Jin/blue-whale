@@ -7,7 +7,9 @@ import com.bluewhale.sts.auth.common.AuthResultCode;
 import com.bluewhale.sts.auth.common.enums.PasswordChangeSource;
 import com.bluewhale.sts.auth.common.enums.Status;
 import com.bluewhale.sts.auth.context.AuthContextHolder;
+import com.bluewhale.sts.auth.role.RoleMemberService;
 import com.bluewhale.sts.common.basic.model.PageResult;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,16 +30,27 @@ import java.util.List;
  * 错误码仍是 {@code 40003}（这次带的口令不合规）与
  * {@code 40914}（口令合法但撞了），分开是为了让前端能给出不同的引导，
  * 详见 {@link AuthResultCode}。
+ *
+ * <p><b>建号还会带出一个动作：按租户的「默认角色」自动授予。</b>规则本身在
+ * {@link RoleMemberService#grantDefaultRolesTo}（那是"把角色授给谁"的属地），
+ * 本类只负责在正确的时刻调用它、并如实把结果带回去。注入方向是
+ * {@code UserService → RoleMemberService}，反向没有依赖 —— 不是巧合：
+ * 成员关系的校验要查用户表（Mapper，不是本类），而用户不关心角色怎么授。
  */
+@Slf4j
 @Service
 public class UserService {
 
     private final UserMapper userMapper;
     private final PasswordChanger passwordChanger;
+    private final RoleMemberService roleMemberService;
 
-    public UserService(UserMapper userMapper, PasswordChanger passwordChanger) {
+    public UserService(UserMapper userMapper,
+                       PasswordChanger passwordChanger,
+                       RoleMemberService roleMemberService) {
         this.userMapper = userMapper;
         this.passwordChanger = passwordChanger;
+        this.roleMemberService = roleMemberService;
     }
 
     @Transactional(readOnly = true)
@@ -97,7 +110,22 @@ public class UserService {
         entity.setFailedAttempts(0);
         entity.setMfaEnabled(0);
         userMapper.insert(entity);
-        return toVO(entity);
+
+        // 授予与建号在同一个事务里：建号成功而授予失败会留下一个"看起来建好了、
+        // 却没有起步角色"的账号 —— 而它与"这个租户本来就没配默认角色"在界面上完全同形。
+        // 因此这里不吞异常：整笔回滚，让失败可见。
+        List<String> grantedDefaultRoles =
+                roleMemberService.grantDefaultRolesTo(tenantId, entity.getId());
+        if (!grantedDefaultRoles.isEmpty()) {
+            // 不记审计（理由见 grantDefaultRolesTo 的 javadoc），但要在日志里留下"授了哪些"：
+            // 审计只回答得了"谁建了这个号"，答不了"它一出生就带着哪些角色"
+            log.info("建号并按租户默认角色自动授予 | userId={} | username={} | roles={}",
+                    entity.getId(), entity.getUsername(), grantedDefaultRoles);
+        }
+
+        UserVO vo = toVO(entity);
+        vo.setDefaultRoleNames(grantedDefaultRoles);
+        return vo;
     }
 
     @Transactional

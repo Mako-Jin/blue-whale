@@ -434,6 +434,27 @@
   min-width: 0;
 }
 
+// 勾选框那一格。刻意不套 `.input` —— 后者带 `min-width: 200px` 与内边距，
+// 那是给文本框和下拉用的，套到勾选框上会把它拉成一个 200px 宽的怪东西。
+.form__check {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  font-size: 13px;
+  color: @text-primary;
+  cursor: pointer;
+
+  input {
+    flex: none;
+    width: 14px;
+    height: 14px;
+    accent-color: @brand-color;
+    cursor: pointer;
+  }
+}
+
 .form__tip {
   margin: 0;
   font-size: 12px;

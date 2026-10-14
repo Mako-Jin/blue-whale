@@ -44,6 +44,7 @@ type RoleForm = {
   category: string;
   dataScope: string;
   status: string;
+  isDefault: boolean;
   sortNo: string;
   description: string;
 };
@@ -54,6 +55,7 @@ const EMPTY_FORM: RoleForm = {
   category: '',
   dataScope: 'ALL',
   status: 'ENABLED',
+  isDefault: false,
   sortNo: '0',
   description: '',
 };
@@ -65,6 +67,7 @@ function toForm(role: AccessRole): RoleForm {
     category: role.category ?? '',
     dataScope: role.dataScope ?? 'ALL',
     status: role.status ?? 'ENABLED',
+    isDefault: role.isDefault === 1,
     sortNo: String(role.sortNo ?? 0),
     description: role.description ?? '',
   };
@@ -78,6 +81,10 @@ function toBody(form: RoleForm): AccessRoleSaveRequest {
     category: form.category.trim() || undefined,
     dataScope: form.dataScope,
     status: form.status,
+    // 布尔转 0/1：契约里是 Integer，而"不传"在更新时表示**不改这一列**
+    // （后端按字段是否为 null 决定要不要 SET），所以取消勾选必须显式传 0，
+    // 传 undefined 会让"取消默认角色"静默地不生效
+    isDefault: form.isDefault ? 1 : 0,
     sortNo: Number(form.sortNo) || 0,
     description: form.description.trim() || undefined,
   };
@@ -103,10 +110,13 @@ function toBody(form: RoleForm): AccessRoleSaveRequest {
  *       只是"有没有落点"取决于数据模型，而不是取决于这一页；</li>
  *   <li><b>`CUSTOM` 不提供</b>：它要解析后端的 `filter_json`，而本仓未实现、
  *       本页也没有填写自定义条件的输入框 —— 摆出来就是"选了也配不了、配了也不生效"；</li>
- *   <li><b>继承策略</b>（`inheritStrategy`）、**默认角色**（`isDefault`）、
- *       **`filterJson`** 一律不进表单：只存不用的字段不给它配的样子，
- *       否则管理员配完以为生效、排查时才发现从来没被读过。界面上标出来，
- *       比让人配了之后以为生效更诚实。</li>
+ *   <li><b>继承策略</b>（`inheritStrategy`）、**`filterJson`** 不进表单：只存不用的字段
+ *       不给它配的样子，否则管理员配完以为生效、排查时才发现从来没被读过。
+ *       界面上标出来，比让人配了之后以为生效更诚实；</li>
+ *   <li><b>`isDefault` 现在进来了</b> —— 它此前就列在上一行里。它不是被"放开"的，
+ *       而是**先有了消费方**：建号时会按它自动授予（ADR-0049），
+ *       于是"配了真的会生效"这条界线自己把它纳了进来。
+ *       顺序是**先实现、后摆出来**；反过来做，它就是下一条 `CUSTOM`。</li>
  * </ul>
  */
 export function RolesPage() {
@@ -524,6 +534,24 @@ function RoleFormDialog({
             <option value="DISABLED">停用</option>
           </select>
         </label>
+        {/*
+         * 这一行是 `div` 而不是本页其余各行的 `label`：其余各行是"点标签 = 聚焦输入框"，
+         * 勾选框却是"点标签 = 改变取值"。让整行可点意味着点到"默认角色"这四个字
+         * 就会把值改掉，而管理员可能只是想看看它是什么。把 label 收进勾选框自己那一截，
+         * 只有"勾选框 + 说明文字"可点。
+         */}
+        <div className="form__row">
+          <span className="form__label">默认角色</span>
+          <label className="form__check">
+            <input
+              type="checkbox"
+              name="isDefault"
+              checked={form.isDefault}
+              onChange={(event) => update({ isDefault: event.target.checked })}
+            />
+            <span>本租户新建的账号自动授予这个角色</span>
+          </label>
+        </div>
         <label className="form__row">
           <span className="form__label">数据范围</span>
           <select
@@ -572,11 +600,29 @@ function RoleFormDialog({
             onChange={(event) => update({ description: event.target.value })}
           />
         </label>
+        {/*
+         * 这一段（以及本页其余多行提示）的行尾一律带 `<br />`，看起来多余。
+         * 它防的是 JSX 的一条渲染规则：**同一段文本里的换行会被折成一个空格**，
+         * 于是中文句子里会凭空多出词间 / 标点后的空格，而 prettier 还会按 printWidth
+         * 重新折行、把这些空格挪到别处去（`0048` 踩过一次）。
+         * 元素隔在中间就没事 —— 紧贴标签的、含换行的空白会被 JSX 丢掉。
+         * 所以规矩是"每一行都要有东西隔开"，而不是"写完记得看一眼"。
+         */}
         <p className="form__tip">
-          数据范围<strong>已参与求值</strong>（用户页「数据范围反查」可见结果），
-          但目前只有审计查询按它收窄（<strong>非 ALL 即「仅本人」</strong>）、 DEPT
-          系列算出的组织集合还没有查询消费它 —— 本仓尚无业务数据表。
+          数据范围<strong>已参与求值</strong>，但目前只有审计查询按它收窄
+          <br />（<strong>非 ALL 即「仅本人」</strong>）—— DEPT 系列算出的组织集合还没有查询消费它。
+          <br />
           角色继承仍未实现，因此这里不提供继承策略：只存不用的字段不摆出可配的样子。
+          <br />
+          默认角色<strong>已经生效</strong>（ADR-0049）：它此前也是"只存不用"，
+          <br />
+          是先补上了消费方（建号时按它自动挂成员）才摆出来的。
+          <br />
+          它只影响<strong>之后</strong>新建的账号，已建账号不被追溯；
+          <br />
+          角色若已停用，自动授予会跳过它 —— 建号仍会成功，
+          <br />
+          但响应里会如实说明"一个角色都没挂上"，不会静默。
         </p>
         {error ? <p className="banner banner--error">{error}</p> : null}
       </form>

@@ -1037,6 +1037,8 @@ export interface components {
        */
       mfaEnabled?: number;
       avatarUrl?: string;
+      /** @description 仅新建用户时非空：按租户默认角色自动授予的角色名；空数组表示该租户未配置（或默认角色均已停用）。其余接口返回 null */
+      defaultRoleNames?: string[];
       /** Format: int64 */
       createTime?: number;
       /** Format: int64 */
@@ -1241,7 +1243,7 @@ export interface components {
       inheritStrategy?: string;
       /**
        * Format: int32
-       * @description 是否默认角色（新用户自动授予）：0 否 1 是，缺省 0。**当前只存不用**
+       * @description 是否默认角色（新用户自动授予）：0 否 1 是，缺省 0。**已生效** —— 新建用户时按本租户全部为 1、且状态为 ENABLED 的角色自动授予，见 ADR-0049
        */
       isDefault?: number;
       /**
@@ -1278,7 +1280,7 @@ export interface components {
       category?: string;
       /**
        * Format: int32
-       * @description 是否默认角色：0 否 1 是。**当前只存不用**
+       * @description 是否默认角色（新用户自动授予）：0 否 1 是。**已生效** —— 新建用户时按本租户全部为 1、且状态为 ENABLED 的角色自动授予，见 ADR-0049
        */
       isDefault?: number;
       /** @description 继承策略。**当前只存不用**，角色继承未实现 */

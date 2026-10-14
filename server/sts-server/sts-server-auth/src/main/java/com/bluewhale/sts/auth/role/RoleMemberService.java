@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.sts.auth.common.AuthResultCode;
 import com.bluewhale.sts.auth.common.enums.MemberType;
 import com.bluewhale.sts.auth.common.enums.RoleSource;
+import com.bluewhale.sts.auth.common.enums.Status;
 import com.bluewhale.sts.auth.relation.RelRoleMemberEntity;
 import com.bluewhale.sts.auth.relation.RelRoleMemberMapper;
 import com.bluewhale.sts.auth.usergroup.UserGroupEntity;
@@ -220,6 +221,58 @@ public class RoleMemberService {
             throw AuthResultCode.ROLE_MEMBER_GRANT_NOT_FOUND.businessException();
         }
         active.forEach(row -> relRoleMemberMapper.deleteById(row.getId()));
+    }
+
+    /* -------------------------------------------------------------- 建号时的默认角色 */
+
+    /**
+     * 把本租户的「默认角色」全部授给一个刚建好的用户。
+     *
+     * <p><b>这是 {@code bw_auth_role.is_default} 的第一个消费方。</b>该列从 V3 建表起就在，
+     * 它的注释写着"是否默认角色（新用户自动授予）"，后端写入、入口校验（只收 0/1）、
+     * 契约、VO、种子一应俱全 —— 唯独"读它去授予"这一步没写，于是"新用户自动授予"
+     * 从未发生过。ADR-0022 决策 11 把它归进"**这些值会被判定链路读取**"那一类
+     * （作为严格校验的理由），而 {@code RoleSaveRequest} 的 {@code @Schema}
+     * 与 {@code docs/api/README.md} 都标着"当前只存不用" ——
+     * 同一件事的两句相反的话，写在两份文档里，各自被读过，却从没被放在一起读过。
+     *
+     * <p><b>为什么复用 {@link #bind} 而不是直接插关系行：</b>"把角色授给一个人"只有一份实现，
+     * 它承担着 upsert、复活软删行、清同键冗余行三件事。新用户确实不可能撞上那三种情况 ——
+     * 但**这个保证依赖于调用方，而 {@code bind} 自己持有它**。
+     * 复制一份出来，就会在将来某次改动里分头漂移。
+     *
+     * <p><b>只取 {@code status = ENABLED} 的角色</b>，两个理由：停用的角色本就不产生权限
+     * （判定要求 {@code ro.status = 'ENABLED'}），挂上只留下一条"不产生效果的关系行"；
+     * 更要紧的是**"默认角色"的语义是"新账号的起步配置"，一个被停用的角色不该是任何人的起步配置**。
+     * 顺带这也给了租户一种"暂时不给新账号任何角色"的表达方式 —— 但更该用"取消勾选"来做：
+     * 停用会连带让所有已持有该角色的人一起失去权限，副作用比它看起来大得多。
+     *
+     * <p><b>本方法不记审计。</b>这不是一个独立的用户意图动作，它是"建这个账号"的组成部分
+     * （调用方 {@code UserService#create} 那条路已有 {@code auth.user.create}）。
+     * 逐条记 {@code auth.role.grant_member} 会产生 N 条"同一个人、同一秒、同一个对象"的记录，
+     * 而它们在审计面板上无处区分。由调用方记一条 {@code log.info} 留下"授了哪些"。
+     *
+     * @return 实际授出的角色名，按角色主键升序；该租户没有启用中的默认角色时是空列表
+     */
+    @Transactional
+    public List<String> grantDefaultRolesTo(Long tenantId, Long userId) {
+        List<RoleEntity> defaults = roleMapper.selectList(Wrappers.<RoleEntity>lambdaQuery()
+                .eq(RoleEntity::getTenantId, tenantId)
+                .eq(RoleEntity::getIsDefault, 1)
+                .eq(RoleEntity::getStatus, Status.ENABLED.wireName())
+                .orderByAsc(RoleEntity::getId));
+        if (defaults.isEmpty()) {
+            return List.of();
+        }
+        for (RoleEntity role : defaults) {
+            RoleMemberBindRequest request = new RoleMemberBindRequest();
+            // 成员类型写死 USER：这条路的成员是"刚刚被建出来的那个账号"，
+            // 不存在"想授组但漏填类型"的歧义 —— 那正是这个字段不给默认值要防的事
+            request.setMemberType(MemberType.USER.wireName());
+            request.setMemberId(userId);
+            bind(role.getId(), request);
+        }
+        return defaults.stream().map(RoleEntity::getRoleName).toList();
     }
 
     /* ------------------------------------------------------------------ 反查 */

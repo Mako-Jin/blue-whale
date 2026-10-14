@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   resourceTree: vi.fn(),
   resourceCreate: vi.fn(),
   rolePage: vi.fn(),
+  roleUpdate: vi.fn(),
   roleGrants: vi.fn(),
   roleGrant: vi.fn(),
   roleMembers: vi.fn(),
@@ -80,7 +81,7 @@ vi.mock('common-api', async (importOriginal) => {
           page: mocks.rolePage,
           detail: vi.fn(),
           create: vi.fn(),
-          update: vi.fn(),
+          update: mocks.roleUpdate,
           remove: vi.fn(),
           listGrants: mocks.roleGrants,
           grant: mocks.roleGrant,
@@ -456,6 +457,63 @@ describe('权限管理后台 · 资源 / 角色 / 用户组', () => {
     expect(within(select).getByRole('option', { name: /CUSTOM/ })).toBeInTheDocument();
   });
 
+  it('角色页：默认角色是真开关 —— 取消勾选必须显式传 0，不能靠"不传"', async () => {
+    /*
+     * 这条用例盯的**不是**"勾选框能不能点"，而是**取消勾选时发出去了什么**。
+     *
+     * 契约里 `isDefault` 是 Integer 且非必填，后端按"字段是否为 null"决定要不要
+     * `SET` 这一列。于是把布尔直接映射成 `checked ? 1 : undefined` 是一个
+     * **看起来完全正确**的写法：勾上能生效，取消勾选却会静默地什么都不做 ——
+     * 界面回到列表后角色仍标着默认，而没有任何一处报错。这正是本仓反复记下的
+     * 那类缺陷（`0045` 零写入方 / `0046` 位置错了 / `0047` 没有名字 / `0048` 没有入口），
+     * 只是这次它藏在一个三元表达式里。
+     */
+    mocks.rolePage.mockResolvedValue({
+      records: [{ ...ROLE_ROW, isDefault: 1 }],
+      total: 1,
+      page: 1,
+      size: 10,
+      pages: 1,
+    });
+    mocks.roleUpdate.mockResolvedValue({});
+    signIn(ADMIN);
+    render(<App />);
+    await screen.findByTestId('user-row-admin');
+
+    fireEvent.click(screen.getByText('角色'));
+    await screen.findByTestId('role-row-SUPER_ADMIN');
+    fireEvent.click(screen.getByText('编辑'));
+
+    const checkbox = (await screen.findByRole('checkbox', {
+      name: /自动授予/,
+    })) as HTMLInputElement;
+    // 初值来自服务端的 `isDefault = 1`，不是本地默认的 false ——
+    // 否则"打开编辑框"这一步就已经把值改掉了
+    expect(checkbox.checked).toBe(true);
+
+    /*
+     * 顺带钉住提示文案**渲染出来的样子**。
+     *
+     * JSX 会把同一段文本里的换行折成一个空格，prettier 又会按 printWidth 重新折行，
+     * 于是中文句子里会凭空多出词间 / 标点后的空格 —— 关键词本身没被改动，
+     * 所以逐词断言抓不到它（`0048` 第一版就渲染出了"另一个 已持有"）。
+     * 这里按**整段**断言，盯的是"标点后多出来的那个空格"。
+     */
+    const tip = document.querySelector('#role-form .form__tip') as HTMLElement;
+    expect(tip.textContent).toContain('按它收窄（非 ALL');
+    expect(tip.textContent).not.toContain('收窄 （');
+    expect(tip.textContent).toContain('才摆出来的。它只影响');
+
+    fireEvent.click(checkbox);
+    fireEvent.click(screen.getByText('保存'));
+
+    await waitFor(() => expect(mocks.roleUpdate).toHaveBeenCalledTimes(1));
+    const [id, body] = mocks.roleUpdate.mock.calls[0] as [number, { isDefault?: number }];
+    expect(id).toBe(3);
+    // 关键断言：**0**，而不是 undefined
+    expect(body.isDefault).toBe(0);
+  });
+
   it('用户组页：成员表单没有"类型"下拉 —— 用户组只接受 USER，不提供能选错的开关', async () => {
     signIn(ADMIN);
     render(<App />);
@@ -726,7 +784,7 @@ describe('权限管理后台 · 资源 / 角色 / 用户组', () => {
      * 之间隔着一步授权。只报"已新建用户「x」"的话，管理员会认为已经结束了 ——
      * 直到那个人登录进来说"里面是空的"才回头查，而那时现场已经不在他手上。
      */
-    mocks.userCreate.mockResolvedValue({ id: 9 });
+    mocks.userCreate.mockResolvedValue({ id: 9, defaultRoleNames: [] });
     signIn([...ADMIN, 'auth:user:create']);
     render(<App />);
     await screen.findByTestId('user-row-admin');
@@ -742,8 +800,38 @@ describe('权限管理后台 · 资源 / 角色 / 用户组', () => {
     expect(notice).toHaveTextContent('没有任何菜单码');
     expect(notice).toHaveTextContent('角色');
     expect(notice).toHaveTextContent('看不到任何入口');
+    // 为空的原因分不出"没配"与"配了的都已停用"，两种都要写出来，
+    // 而不是替用户认定一个 —— 认定的那个会让他去错的地方找
+    expect(notice).toHaveTextContent('没有启用中的默认角色');
 
     // 等这次建号引发的列表重载落定 —— 否则它的状态更新会落在 act 之外
+    await waitFor(() => expect(mocks.userPage).toHaveBeenCalledTimes(2));
+  });
+
+  it('用户页建号：租户配了默认角色时，通知必须改成说"已自动授予"，不能说"没有任何菜单码"', async () => {
+    /*
+     * 这是上一条的**对立面**：配了默认角色（ADR-0049）之后，`create` 已经替管理员
+     * 做完了那一步。此时照旧报"默认没有任何菜单码"，会在同一句通知里
+     * 既说错事实、又把人指去重复做一件已经做完的事。
+     *
+     * 判据落在响应上而不是页面的别的状态上：`defaultRoleNames` 是**那次动作的结果**，
+     * 只有它知道到底授出去了什么。
+     */
+    mocks.userCreate.mockResolvedValue({ id: 9, defaultRoleNames: ['业务员', '审计员'] });
+    signIn([...ADMIN, 'auth:user:create']);
+    render(<App />);
+    await screen.findByTestId('user-row-admin');
+
+    fireEvent.click(screen.getByText('新建用户'));
+    fireEvent.change(screen.getByLabelText('登录名'), { target: { value: 'newcomer' } });
+    fireEvent.change(screen.getByLabelText('初始口令'), { target: { value: 'Seed@1234' } });
+    fireEvent.click(screen.getByText('保存'));
+
+    const notice = await screen.findByTestId('users-notice');
+    expect(notice).toHaveTextContent('已新建用户「newcomer」');
+    expect(notice).toHaveTextContent('自动授予：业务员、审计员');
+    expect(notice).not.toHaveTextContent('没有任何菜单码');
+
     await waitFor(() => expect(mocks.userPage).toHaveBeenCalledTimes(2));
   });
 });

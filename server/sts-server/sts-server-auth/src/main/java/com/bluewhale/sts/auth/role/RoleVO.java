@@ -39,7 +39,9 @@ public class RoleVO {
     @Schema(description = "角色分类，仅用于分组展示")
     private String category;
 
-    @Schema(description = "是否默认角色：0 否 1 是。**当前只存不用**")
+    @Schema(description = "是否默认角色（新用户自动授予）：0 否 1 是。"
+            + "**已生效** —— 新建用户时按本租户全部为 1、且状态为 ENABLED 的角色自动授予，"
+            + "见 ADR-0049")
     private Integer isDefault;
 
     @Schema(description = "继承策略。**当前只存不用**，角色继承未实现")
