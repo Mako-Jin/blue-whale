@@ -324,6 +324,39 @@ cd .. && node scripts/verify-nginx-config.mjs && node scripts/verify-docs-index.
 > **没有**（前端工作区在 `web/`）；② 它**必须排在 `actions/setup-node` 之前** —— 后者的
 > `cache: pnpm` 要求 `pnpm` 已在 `PATH` 上。两条踩错都**不是**"配置报错"，而是 **job 起不来**。
 
+> **怎么看 CI 跑成什么样了（不必装 `gh`）。** 网页 Actions 页最省事；要脚本化、或想把某次运行的
+> 逐步结论一次看全，就用仓库凭据里的 token 调 REST API。**token 不要出现在命令行参数上**
+> （会进 shell 历史、也会进进程表），写进临时配置文件让 `curl -K` 读：
+>
+> ```bash
+> # 取出 token 并只写进临时文件（不回显）。用的是别的凭据管理器就从那里取。
+> sed -n 's#.*://[^:@/]*:\([^@]*\)@.*#\1#p' ~/.git-credentials | head -1 > "$TEMP/bw.token"
+> printf 'header = "Authorization: Bearer %s"\n' "$(cat "$TEMP/bw.token")" > "$TEMP/bw-curl.conf"
+>
+> # 最近的运行
+> curl -s -K "$TEMP/bw-curl.conf" \
+>   "https://api.github.com/repos/Mako-Jin/blue-whale/actions/runs?per_page=5"
+>
+> # 某次运行里每个 job、每个 step 的结论（{run_id} 换成上面输出里的 id）
+> curl -s -K "$TEMP/bw-curl.conf" \
+>   "https://api.github.com/repos/Mako-Jin/blue-whale/actions/runs/{run_id}/jobs" \
+>   | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{for(const j of JSON.parse(s).jobs){console.log(j.name,j.conclusion);for(const t of j.steps)console.log('   ',t.conclusion.padEnd(8),t.name)}})"
+> ```
+>
+> **判据在 `steps[].conclusion` 上，不在 job 的颜色上。** 每个 step 各有一份结论：`success`
+> 才是跑了且过了，`skipped` 是**没跑**。一个 job 整体是绿的、其中某一步被 `if:` 跳掉时，
+> 从 job 上看与"这步通过"**完全一样** —— 所以看 CI 要逐 step 看，尤其那三步契约守卫
+> （`0040`~`0042`）与 `server-mysql` 的防假绿自检：它们"没跑"和"通过"是两件不同的事。
+> 取整段日志用 `…/jobs/{job_id}/logs`，**必须带 `-L`**（它会 302 到另一个域）。
+>
+> **四个 job 目前不是 required checks。** 私有库 + 免费计划下，分支保护与 rulesets 两个 API
+> 都回 **403**（换成 `admin` 的 token 仍是 403 ⇒ 不是权限问题，是套餐限制）；要它只有升 Pro
+> 或把库转公开。**"加了流水线"与"合并必须过流水线"是两件事**，别把前者当成后者。
+>
+> **运行号不进活文档。** run id、用例数这类会变的值不写进 `README` / `AGENTS` / 本文件（`0039`）——
+> 要数字就现跑一遍。它们属于**有日期的记录**（PR 描述、issue、提交信息）：那里贴当时的 URL / id
+> 恰恰是对的，因为那条记录说的就是"那一天跑出过什么"。
+
 ---
 
 ## 九、目录归属速查
