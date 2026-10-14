@@ -9,7 +9,7 @@
 ## 1 本机 / 沙箱坑（**仓库别处没有**，勿再排查）
 
 - **环境** 一律 Bash · **python 两条路全废**（受管 3.13.12 加载系统 3.11 的 `sitecustomize` ⇒ `SRE`）⇒ 校验脚本用 **Node** · `Node spawnSync` → EBUSY · 长驻服务**各起一个**后台任务 · `turbo run` **能跑** · **e2e 不与前端构建并发**（CPU 抢占 ⇒ 假掉登录）· 本机有 **MySQL 与 nginx**（`D:\tools\installer\`）· **无 docker**
-- **看 CI（本机无 `gh`、私有库也能看）** token 在 `~/.git-credentials` ⇒ `sed -n 's#.*://[^:@/]*:\([^@]*\)@.*#\1#p'` 取出 → 写进 `$TEMP/bw-curl.conf`（`Authorization: Bearer %s`，**不落终端**）→ `curl -s -K` 打 `api.github.com/repos/Mako-Jin/blue-whale/…`。**`runs/{id}/jobs` 的 `steps[]` 才分得清"绿"与"这步没跑"**；日志 `jobs/{id}/logs` 要 `-L`。**私有库 + 免费计划 ⇒ `protection` 与 `rulesets` 都回 403**（token 是 `admin` ⇒ 非权限问题）
+- **看 CI** 读法已升进团队文档 ⇒ `CONTRIBUTING.md` §八（本机无 `gh` 也能看；**判据是逐 step 的 `steps[].conclusion`，`skipped` 是"没跑"**）。此处不再重述
 - **要干净的 MySQL 做实验**（不碰舰长那个 11 库实例）：`mysqld --initialize-insecure --basedir=D:/tools/installer/mysql --datadir=D:/tools/tmp/mysql-ci/data` → `--port=3307` 起（**数据目录留着**）⇒ root 无口令、建 `bluewhale` 库；用完 `taskkill //PID` 收。**= CI `services:` 的形态**
 - **git** 凭据同上、**不在终端解析**；无人值守加 `-c credential.helper= -c credential.helper=store`（**不带它连凭据文件都不试**，报 `could not read Username` —— 不是网络；`unable to write credential store…` **无害**）· **⚠️ push 只有代理一条路**：env 里 `http_proxy=https_proxy=http://127.0.0.1:55370`，**git 会读它** ⇒ `-c http.proxy=` **不等于直连**（要 `env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy` 才是），而**真直连本机出不去**（`Failed to connect … after 21069 ms`）⇒ **别去试直连**。代理是间歇的（`10-14` 通了 9 笔，随后 502 / `schannel: server closed abruptly` / reset 交替）⇒ **反复试代理即可**，都不通才只本地提交并记领先数 · **提交可能多带文件**（实测 4 个、根因未定位）⇒ `git commit -F - -- <paths>` + `git show --name-only` 复核；**新文件先 `git add`**
 - **敏感门控** 命令**参数**里出现口令字面量 → `SENSITIVE_APPROVAL=TIMED_OUT` ⇒ grep **标识符**（不 grep 值）／管道加 `sed -E 's/"[^"]*"/"<redacted>"/g'`／**临时配置文件传** · Node ESM import 须 `file:///` · **Node 里的 `/tmp` 是盘符相对**（cwd 在 D: ⇒ `D:\tmp`）⇒ 临时脚本用 `process.env.TEMP`
@@ -21,7 +21,7 @@
 ## 2 索引（只记指针，内容都在文档里）
 
 - **ADR** `docs/decisions/`：摘要 + 索引见 `docs/README.md` §四。跨篇只需记编号：`0010` 达梦未验 · `0018` 权限归属 · `0021`~`0024` RBAC 配置侧 · `0025`+`0030` 数据范围 · `0026`/`0031` 鉴权与菜单 · `0027`/`0028` 网关限流 · `0029`/`0033` 凭据 · `0034` 认证接线 · `0035` preamble · `0036`~`0042` CI 与文档纪律 · `0043`/`0044` 口令入口与引导 · `0045` 口令有效期（核出 `40111` 零写入方）· `0046` 凭据变更即撤销会话（核出"撤销"只写在两个调用方之一）· `0047` 登出两条语义（核出"全撤"是**省略的默认值**、且那条路径**零用例**）
-- **CI** `.github/workflows/ci.yml` **四 job**：`web` / `server` / `server-mysql` / `guards`；硬点看 `CONTRIBUTING.md` §八 + `AGENTS.md` 要求 9 / 10 + `0036`~`0042`。**契约三段各有守卫**：代码→契约（`0042`）· 契约→文档（`0040`，**会逐条核对 `docs/api/README.md` 的 4 处计数**：总览句的接口数 / 路径数、汇总表分项之和、每模块行数）· 契约→生成物（`0041`）。**已真跑过**（`10-14` 四 job 全绿，含此前"只能靠 runner 验"的两步）—— 怎么看见 §1。**不记基线数字**（`0039`：用例数会变，要数字就跑）
+- **CI** `.github/workflows/ci.yml` **四 job**：`web` / `server` / `server-mysql` / `guards`；硬点看 `CONTRIBUTING.md` §八 + `AGENTS.md` 要求 9 / 10 + `0036`~`0042`。**契约三段各有守卫**：代码→契约（`0042`）· 契约→文档（`0040`，**会逐条核对 `docs/api/README.md` 的 4 处计数**：总览句的接口数 / 路径数、汇总表分项之和、每模块行数）· 契约→生成物（`0041`）。**已真跑过**（`10-14` 四 job 全绿，含此前"只能靠 runner 验"的两步）—— 怎么看见 `CONTRIBUTING.md` §八。**不记基线数字**（`0039`：用例数会变，要数字就跑）
 
 ## 3 待办 / 刻意不做
 
