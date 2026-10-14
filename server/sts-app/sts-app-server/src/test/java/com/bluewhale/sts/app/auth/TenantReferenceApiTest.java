@@ -14,8 +14,10 @@ import org.springframework.test.web.servlet.MvcResult;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -48,6 +50,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * <p><b>不建任何新租户去当"存在的租户"之外的东西</b>：本片唯一会建租户的地方是正例，
  * 且建完只用来放一个账号，不触碰种子租户的既有数据。
+ *
+ * <p><b>同一个判据的下一格（ADR-0051）：</b>"引用的租户不存在"只覆盖了一半 ——
+ * 租户**存在但停用**时，四个域照样会把数据建出来，而那些数据没有任何人能用。
+ * 本片据此再钉三件事：停用的租户拒新建（四个域同一个码）、逻辑删除的租户按
+ * **不存在**处理（`0050` 标为未验证的那一小块，核出它本来就由 {@code BaseEntity}
+ * 上的 {@code @TableLogic} 覆盖，不需要第二条判据）、以及**读侧刻意不挡**这条边界。
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -129,6 +137,94 @@ class TenantReferenceApiTest {
                         .content(groupBody(ABSENT_TENANT_ID, uniqueGroupCode())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(40002));
+    }
+
+    /* ==================== 同一个判据的下一格：「存在」≠「可用」（ADR-0051） ==================== */
+
+    @Test
+    @DisplayName("用户：指定一个已停用的租户建号 → 40920（此前会建出一个永远登不进来的账号）")
+    void shouldRejectUserCreateInDisabledTenant() throws Exception {
+        String token = loginAsAdmin();
+        long disabledTenantId = disabledTenant(token);
+
+        // 停用的租户**存在**，所以 40002 那一格放它过去；但它的账号登不进来 ——
+        // AuthService 登录时先拒 status != ENABLED 的租户（且刻意返"凭证错误"，
+        // 让"停用"与"不存在"在登录侧不可区分）。于是新造的账号与 0050 修掉的那批
+        // 是同一个东西：没人能用、却永久占着 uk_bw_auth_user_tenant_username
+        mockMvc.perform(post("/api/auth/users")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(userBody(disabledTenantId, uniqueUsername())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(40920))
+                .andExpect(jsonPath("$.message").value(containsString("停用")));
+    }
+
+    @Test
+    @DisplayName("角色 / 组织 / 用户组：同一个 40920 —— 同一条规则，同一个属主")
+    void shouldRejectDisabledTenantInEveryOtherDomain() throws Exception {
+        String token = loginAsAdmin();
+        long disabledTenantId = disabledTenant(token);
+
+        mockMvc.perform(post("/api/auth/roles")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(roleBody(disabledTenantId, uniqueRoleCode())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(40920));
+
+        mockMvc.perform(post("/api/auth/orgs")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(orgBody(disabledTenantId, uniqueOrgCode())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(40920));
+
+        mockMvc.perform(post("/api/auth/user-groups")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(groupBody(disabledTenantId, uniqueGroupCode())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(40920));
+    }
+
+    /**
+     * `0050` 把"逻辑删除的租户能不能被引用"标成了**未验证**。
+     *
+     * <p>这一条把它核成事实：{@code BaseEntity.deleted} 上标了 {@code @TableLogic}、
+     * 全局没有覆盖默认值，因此 {@code selectById} 生成的 SQL 自带 {@code deleted = 0} ——
+     * 逻辑删除的租户在应用层**就等于不存在**，走的是既有的 {@code 40002} 那一格，
+     * 不需要第二条判据。钉住它，是因为"删掉一个租户之后还会不会被引用上"
+     * 取决于一行注解，而那行注解在 {@code BaseEntity} 里、离这四个域很远。
+     */
+    @Test
+    @DisplayName("已逻辑删除的租户：按不存在处理 → 40002（不是 40920，也不需要第二条判据）")
+    void shouldTreatDeletedTenantAsAbsent() throws Exception {
+        String token = loginAsAdmin();
+        long deletedTenantId = deletedTenant(token);
+
+        mockMvc.perform(post("/api/auth/users")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(userBody(deletedTenantId, uniqueUsername())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(40002));
+    }
+
+    @Test
+    @DisplayName("读路径不受影响：已停用租户的数据仍然查得到（判据只在写侧）")
+    void shouldStillReadDataOfDisabledTenant() throws Exception {
+        String token = loginAsAdmin();
+        long disabledTenantId = disabledTenant(token);
+
+        // 停用之后、**在改动之前**就存在的行不受影响；这条同时钉住"写侧那道闸
+        // 没有顺手把读也一起关掉"—— 关掉读会让平台侧连"这个租户里有什么"都问不出来，
+        // 而那恰恰是排查一个被停用租户时最需要的信息
+        mockMvc.perform(get("/api/auth/users")
+                        .queryParam("tenantId", String.valueOf(disabledTenantId))
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
     }
 
     /* ==================== 两条正例：安全默认值与跨租户运营都没被误伤 ==================== */
@@ -233,6 +329,39 @@ class TenantReferenceApiTest {
                 .andReturn();
         Number id = JsonPath.read(result.getResponse().getContentAsString(), "$.data.id");
         return id.longValue();
+    }
+
+    /**
+     * 建一个租户再把它停用，返回它的主键。
+     *
+     * <p>建完再停用，而不是"建的时候就带 {@code status: DISABLED}"：本片要的是
+     * "**存在但不可用**"这一格，而两条路走的是同一个写侧判据的第二格；
+     * 顺带还钉住了"停用这个动作本身是可用的"（否则下面几条会一起因为夹具失败而变红，
+     * 红在一个与被测规则无关的地方）。
+     */
+    private long disabledTenant(String token) throws Exception {
+        String code = uniqueTenantCode();
+        long id = createTenant(token, code);
+        mockMvc.perform(put("/api/auth/tenants/" + id)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"tenantCode":"%s","tenantName":"租户引用测试租户 %s","status":"DISABLED"}
+                                """.formatted(code, code)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.status").value("DISABLED"));
+        return id;
+    }
+
+    /** 建一个租户再删掉它（逻辑删除），返回它的主键 */
+    private long deletedTenant(String token) throws Exception {
+        long id = createTenant(token, uniqueTenantCode());
+        mockMvc.perform(delete("/api/auth/tenants/" + id)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+        return id;
     }
 
     /** 带租户的建号体。其余字段取最短合法值 —— 让**租户**成为唯一的失败可能 */

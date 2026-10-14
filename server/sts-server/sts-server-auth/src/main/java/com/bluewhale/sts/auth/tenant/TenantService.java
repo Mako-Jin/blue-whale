@@ -142,10 +142,52 @@ public class TenantService {
      */
     @Transactional(readOnly = true)
     public void assertExists(Long tenantId) {
-        if (tenantMapper.selectById(tenantId) == null) {
+        requireReferencedTenant(tenantId);
+    }
+
+    /**
+     * 校验一个**被引用的**租户现在能承载新数据（存在 + 启用）。参数非空由调用方保证。
+     *
+     * <p>与 {@link #assertExists} 是同一个判据的两格，**刻意分成两个方法而不是一个**：
+     * 前者回答"这个外键指得到东西吗"，后者回答"指到的东西现在能用吗"。
+     * 只有**新建**路径需要后一格 —— 查询路径继续只问 {@code assertExists}，
+     * 因为"这个被停用的租户里现在有什么"正是排查它时最需要的信息（见 ADR-0051）。
+     *
+     * <p><b>为什么"存在"不够，以及为什么不去改 {@code resolveTenantId}：</b>
+     * 四个域的 {@code resolveTenantId} 同时服务查询与新建（每个域的两处调用点就是
+     * 这两条路），把状态判据塞进去等于连读一起关掉。所以这一格由调用方**显式**问，
+     * 位置上只在 {@code create} 里出现一次 —— 与 {@code assertExists} 放在
+     * {@code resolveTenantId} 里的那一格形成对照，两处的差别就是"读侧不挡"这条边界。
+     *
+     * <p>复用 {@code requireReferencedTenant}（同一次查询、同一份文案），
+     * 所以两个方法在"租户不存在"这一点上给出的码与话一模一样 —— 分成两个方法
+     * 不该让同一种输入出现两种答案。
+     */
+    @Transactional(readOnly = true)
+    public void assertAcceptsNewData(Long tenantId) {
+        TenantEntity tenant = requireReferencedTenant(tenantId);
+        if (!Status.ENABLED.wireName().equals(tenant.getStatus())) {
+            throw AuthResultCode.TENANT_DISABLED.businessException(
+                    "引用的租户已停用，无法在其下新建数据：" + tenantId);
+        }
+    }
+
+    /**
+     * {@code assertExists} / {@code assertAcceptsNewData} 共用的那一半：查得到、且查得出。
+     *
+     * <p>逻辑删除不在这里判 —— {@code TenantEntity} 继承的 {@code BaseEntity}
+     * 在 {@code deleted} 上标了 {@code @TableLogic}，{@code selectById} 生成的 SQL
+     * 自带 {@code deleted = 0}，所以"已删租户"在应用层**就等于不存在**，
+     * 走的就是这一条的 {@code 40002}，不需要第二条判据（有 {@code TenantReferenceApiTest}
+     * 钉住这件事 —— 它此前只是推测，而且那个注解在离本域很远的 {@code BaseEntity} 里）。
+     */
+    private TenantEntity requireReferencedTenant(Long tenantId) {
+        TenantEntity entity = tenantMapper.selectById(tenantId);
+        if (entity == null) {
             throw AuthResultCode.PARAM_REFERENCE_MISSING.businessException(
                     "引用的租户不存在：" + tenantId);
         }
+        return entity;
     }
 
     private TenantEntity requireTenant(Long id) {

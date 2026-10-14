@@ -148,6 +148,9 @@ public class RoleService {
     public RoleVO create(RoleSaveRequest request) {
         String roleCode = request.getRoleCode().trim();
         Long tenantId = resolveTenantId(request.getTenantId());
+        // 只有新建问这一格：停用租户里的角色没有任何消费者（判定两侧都限定 tenant_id，
+        // 而那个租户的用户登不进来）。读路径不问它 —— 见 ADR-0051
+        tenantService.assertAcceptsNewData(tenantId);
         RoleEntity parent = resolveParent(request.getParentId(), tenantId);
         String dataScope = resolveDataScope(request.getDataScope());
         String status = resolveStatus(request.getStatus());

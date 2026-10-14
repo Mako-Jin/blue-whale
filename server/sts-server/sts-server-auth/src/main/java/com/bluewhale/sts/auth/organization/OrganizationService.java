@@ -203,6 +203,9 @@ public class OrganizationService {
     public OrganizationVO create(OrganizationSaveRequest request) {
         String orgCode = request.getOrgCode().trim();
         Long tenantId = resolveTenantId(request.getTenantId());
+        // 与 resolveParent 里"停用的父组织不许挂新下级"同一条，只是范围更大：
+        // 停用的租户连登录都进不去，它下面的组织更不可能被谁当成范围目标。见 ADR-0051
+        tenantService.assertAcceptsNewData(tenantId);
         OrganizationEntity parent = resolveParent(request.getParentId(), tenantId);
 
         OrganizationEntity existing = organizationMapper.selectAnyByTenantAndCode(tenantId, orgCode);

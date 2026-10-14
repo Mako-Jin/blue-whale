@@ -142,6 +142,9 @@ public class UserGroupService {
     public UserGroupVO create(UserGroupSaveRequest request) {
         String groupCode = request.getGroupCode().trim();
         Long tenantId = resolveTenantId(request.getTenantId());
+        // 同 {@link RoleService#create}：新建才问这一格 —— 停用租户里的组
+        // 只会被本租户的角色成员关系引用，而那个租户的用户登不进来。见 ADR-0051
+        tenantService.assertAcceptsNewData(tenantId);
         UserGroupEntity parent = resolveParent(request.getParentId(), tenantId);
         String category = resolveCategory(request.getCategory());
 

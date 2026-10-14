@@ -88,6 +88,9 @@ public class UserService {
     @Transactional
     public UserVO create(UserSaveRequest request) {
         Long tenantId = resolveTenantId(request.getTenantId());
+        // 存在还不够：停用的租户里建出来的账号永远登不进来（登录先拒 status != ENABLED
+        // 的租户），却永久占着 uk_bw_auth_user_tenant_username。见 ADR-0051
+        tenantService.assertAcceptsNewData(tenantId);
         if (request.getPassword() == null || request.getPassword().isBlank()) {
             throw AuthResultCode.PARAM_INVALID.businessException("新增用户时口令不能为空");
         }
