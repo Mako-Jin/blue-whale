@@ -8,7 +8,7 @@
 
 - **环境** Bash only · **python 两条路全废**（受管 3.13.12 加载系统 3.11 的 `sitecustomize` ⇒ `SRE`）⇒ 脚本用 **Node**（`spawnSync` → EBUSY）· 长驻服务各起一个后台任务 · **e2e 不与前端构建并发**（⇒ 假掉登录）· 本机有 MySQL / nginx（`D:\tools\installer\`）· **无 docker**
 - **⚠️ 凭据**（那两条 github 凭据的详述已进 `CONTRIBUTING.md` §八，不在此重复）：取错那条一律回 **401**，**别把它读成"私有库看不了 / CI 看不了"**；git 必带 `-c credential.helper= -c credential.helper=store`
-- **push 只有代理一条路**：env 的 `http_proxy` 会被 git 读 ⇒ `-c http.proxy=` **不是**直连（要 `env -u HTTP_PROXY …`），真直连出不去 ⇒ 别试 · 代理**间歇**（502 / reset）⇒ 反复试，都不通才只本地提交并记领先数 · **提交可能多带文件**（实测 4 个）⇒ `git commit -F - -- <paths>` + `git show --name-only`；新文件先 `git add`
+- **push 只有代理一条路**：env 的 `http_proxy` 会被 git 读 ⇒ `-c http.proxy=` **不是**直连（要 `env -u HTTP_PROXY …`），真直连出不去 ⇒ 别试 · 代理**间歇**（502 / reset）⇒ 反复试，都不通才只本地提交并记领先数 · **提交可能多带文件**（实测 4 个）⇒ `git commit -F - -- <paths>` + `git show --name-only`；新文件先 `git add` · 带 `-c credential.helper=store` 时，**成功那一次会紧跟一行 `fatal: unable to write credential store: Permission denied`** —— 那是回写凭据失败、**推送已经成功**，别读成失败（看下一行的 `old..new  main -> main`）
 - **数用例前先清 `target/surefire-reports`**：surefire 不清理，陈旧 XML 会把数**算多**；判"类还在不在"要先 `replace(/\\/g,'/')`（否则 Windows 永不命中）
 - **干净 MySQL 做实验**（不碰舰长那 11 库实例）：`mysqld --initialize-insecure --basedir=D:/tools/installer/mysql --datadir=D:/tools/tmp/mysql-ci/data` → `--port=3307`（数据目录留着）⇒ root 无口令、建 `bluewhale`；用完 `taskkill //PID`。**= CI `services:` 的形态**
 - **敏感门控** 命令**参数**含口令字面量 → `SENSITIVE_APPROVAL=TIMED_OUT`；**grep `XXX_PASSWORD` 这类标识符也触发** ⇒ 查夹具避开该符号名 · Node ESM import 须 `file:///` · **Node 的 `/tmp` 是盘符相对**（cwd 在 D: ⇒ `D:\tmp`）⇒ 用 `process.env.TEMP`
