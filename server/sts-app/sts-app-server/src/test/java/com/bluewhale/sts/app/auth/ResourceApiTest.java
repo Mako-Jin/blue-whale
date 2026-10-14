@@ -170,7 +170,7 @@ class ResourceApiTest {
     }
 
     @Test
-    @DisplayName("软删后重建同一标识：复活原记录而不是撞唯一索引（撞了会被兜成 50000）")
+    @DisplayName("软删后重建同一标识：复活原记录而不是撞唯一索引（撞了会落到兜底的 40900）")
     void shouldReviveSoftDeletedResourceInsteadOfFailing() throws Exception {
         String token = loginAsAdmin();
         String code = uniqueCode("revive");
@@ -181,7 +181,7 @@ class ResourceApiTest {
         // 这条是本次改动的回归点。唯一索引 uk_bw_auth_resource_code 建在 resource_code 单列上、
         // 不含 deleted，所以软删的那行仍然占着这个标识；而 MyBatis-Plus 的每一次查询都会
         // 自动追加 deleted = 0，看不见它 —— "唯一性检查通过 → insert → 撞键"。
-        // GlobalExceptionHandler 里没有 DuplicateKeyException 的处理器，于是用户拿到 50000。
+        // 撞键会落到兜底的 40900（ADR-0024 给 DuplicateKeyException 加了处理器之前是 50000）。
         // 修法是认出软删行并复活它（ResourceService#create）。
         MvcResult result = mockMvc.perform(post("/api/auth/resources")
                         .header("Authorization", "Bearer " + token)

@@ -14,7 +14,8 @@ import org.apache.ibatis.annotations.Update;
  * （不含 {@code deleted}），所以"已逻辑删除的行"仍然占着那个标识。而 MyBatis-Plus 生成的
  * 每一条查询都会自动追加 {@code deleted = 0}，于是它**看不见**这行占位 ——
  * 表现为：删掉一个资源后再用同一个标识新建，唯一性检查说"没重复"，
- * 插入却撞键，抛出的 {@code DuplicateKeyException} 最终被兜成 500。
+ * 插入却撞键，抛出的 {@code DuplicateKeyException} 最终被兜底成
+ * {@code 40900}（{@code ADR-0024} 之前是 500）。
  */
 @Mapper
 public interface ResourceMapper extends BaseMapper<ResourceEntity> {

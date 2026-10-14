@@ -137,7 +137,7 @@ class RoleApiTest {
     }
 
     @Test
-    @DisplayName("编码相同的角色重复创建返回 40906，而不是撞唯一键兜底成 500")
+    @DisplayName("编码相同的角色重复创建返回 40906，而不是撞唯一键落到兜底的 40900")
     void shouldRejectDuplicateRoleCode() throws Exception {
         String token = loginAsAdmin();
         String code = uniqueRoleCode("dup");
@@ -156,8 +156,8 @@ class RoleApiTest {
      *
      * <p>唯一索引 {@code uk_bw_auth_role_tenant_code} 建在 {@code (tenant_id, role_code)} 上、
      * 不含 {@code deleted}，而 MyBatis-Plus 给所有自动查询追加 {@code deleted = 0}：
-     * 常规判重看不见软删行 → 判重通过 → insert 撞唯一键 → 兜底成 500。
-     * 于是"删掉角色、用同一个编码再建一个"这个再正常不过的操作会得到一个"系统内部错误"。
+     * 常规判重看不见软删行 → 判重通过 → insert 撞唯一键 → 落到兜底的 40900
+     * （{@code ADR-0024} 之前是 500）。
      *
      * <p>复活还必须**带上"没有权限"这个语义**：删角色时会一并撤销它的授权，
      * 复活出来的角色不能把旧权限静默带回来。

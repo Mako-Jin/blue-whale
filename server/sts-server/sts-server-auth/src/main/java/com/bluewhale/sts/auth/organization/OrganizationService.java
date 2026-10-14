@@ -186,7 +186,8 @@ public class OrganizationService {
      * {@code UserGroupService.create} / {@code RoleService.create} 是同一支：
      * 唯一索引 {@code uk_bw_auth_org_tenant_code} 建在 {@code (tenant_id, org_code)} 上、
      * **不含 {@code deleted}**，而 MyBatis-Plus 给所有自动查询追加 {@code deleted = 0} ——
-     * 常规判重看不见软删行，判重通过后 insert 撞唯一键，最终被兜底成 500。
+     * 常规判重看不见软删行，判重通过后 insert 撞唯一键，最终落到兜底的
+     * {@code 40900}「数据已存在或与已有记录冲突」（{@code ADR-0024} 之前是 500）。
      *
      * <p>复活时清掉**这个组织名下的用户归属**，让"复活 = 一个没有人的空部门"成为
      * 无条件成立的语义。不清的后果很具体：一批人**静默地重新拿到**这个部门带来的

@@ -125,8 +125,8 @@ public class UserGroupService {
      * 唯一索引 {@code uk_bw_auth_user_group_tenant_code} 建在
      * {@code (tenant_id, group_code)} 上、**不含 {@code deleted}**，
      * 而 MyBatis-Plus 给所有自动查询追加 {@code deleted = 0} —— 常规判重看不见软删行，
-     * 判重通过后 insert 撞唯一键，最终被兜底成 500。
-     * 于是"删掉组、想用同一个编码再建一个"这个再正常不过的操作会得到"系统内部错误"。
+     * 判重通过后 insert 撞唯一键，最终落到兜底的 {@code 40900}
+     * 「数据已存在或与已有记录冲突」（{@code ADR-0024} 之前是 500）。
      *
      * <p>正解不是绕过唯一索引，而是**复活那一行**，并且在复活时清掉两样东西：
      * 残留的成员关系与这个组持有的角色。这样"复活 = 一个没有成员、也没有任何角色

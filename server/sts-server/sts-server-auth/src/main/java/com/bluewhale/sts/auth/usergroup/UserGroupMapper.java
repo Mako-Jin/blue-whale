@@ -10,14 +10,17 @@ import org.apache.ibatis.annotations.Update;
  * 用户组仓储。
  *
  * <p>除继承来的通用 CRUD 外，本接口有两个**刻意绕过 {@code @TableLogic} 的例外**
- * （手写 SQL），与 {@code RoleMapper} / {@code ResourceMapper} 是同一个坑的第三处：
- * 唯一索引 {@code uk_bw_auth_user_group_tenant_code} 建在
+ * （手写 SQL）：唯一索引 {@code uk_bw_auth_user_group_tenant_code} 建在
  * {@code (tenant_id, group_code)} 上、**不含 {@code deleted}**，
  * 而 MyBatis-Plus 给所有自动查询追加 {@code deleted = 0} ——
  * 用常规查询判重会看不见软删行，判重通过后 insert 撞唯一键，
- * 最终被兜底成"系统内部错误"。
+ * 最终落到兜底的 {@code 40900}「数据已存在或与已有记录冲突」
+ * （{@code ADR-0024} 之前是 500）。
  *
- * <p>正解同样是**复活那一行**，见 {@code UserGroupService.create}。
+ * <p>正解是**复活那一行**，见 {@code UserGroupService.create}。
+ * 同一个坑全仓共有**六处**，其中两处的答案是"拒绝"而不是复活 ——
+ * 清单与判据见 {@code server/README.md} 的「唯一编码列与它们的软删语义」（ADR-0056）。
+ * <b>不要在这里数"第几处"</b>：这个数字此前停在"第三处"，而实际有六处。
  *
  * <p>{@code @Mapper} 必须显式标注，理由见 {@code TenantMapper}。
  */

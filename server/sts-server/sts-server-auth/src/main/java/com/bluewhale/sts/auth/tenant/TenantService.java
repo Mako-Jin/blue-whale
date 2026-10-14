@@ -48,11 +48,37 @@ public class TenantService {
         return toVO(requireTenant(id));
     }
 
+    /**
+     * 新建租户。
+     *
+     * <p><b>编码判重必须"看得见软删行"</b>，所以它走
+     * {@link TenantMapper#selectAnyByCode} 而不是 {@code selectCount}：
+     * 唯一索引 {@code uk_bw_auth_tenant_code} 不含 {@code deleted}，软删的租户仍然占着
+     * 这个编码，而 {@code selectCount} 会被自动追加的 {@code deleted = 0} 挡住 ——
+     * 判重通过、insert 撞键、由 {@code GlobalExceptionHandler} 翻成兜底的
+     * {@code 40900}「数据已存在或与已有记录冲突」。故障不显形（不是 500），
+     * 但文案退化成一句不含主语的话，而那句话原本的用途是"并发下的第二道防线"（ADR-0056）。
+     *
+     * <p><b>与另外四个域相反：这里看见软删行之后是"拒绝"，不是"复活"。</b>
+     * 复活是否安全，取决于那一行的删除守卫有没有挡住活边。
+     * 资源 / 角色 / 组织 / 用户组在删除时都拒绝了"仍被引用"（{@code 40913} /
+     * {@code 40915} / {@code 40916} / {@code 40918} / {@code 40919}），
+     * 所以它们的软删行一定是**没有活边的空壳**，复活只是把空壳放回来。
+     * <b>租户不是这样</b>：{@link #delete} 只拒绝"仍有子租户"，
+     * **不拒绝"还有人"** —— 一个已删租户名下可以有活着的用户，而
+     * {@code AuthService#login} 先按租户编码找租户、找不到就按"凭证错误"处理，
+     * 那些人的登录现在正因为租户被删而失败。复活会把这些人**一起放回来**：
+     * 一次"用回同一个编码"的建租户操作静默地撤销了一次删除，而删除的人看不到这件事发生。
+     * 用户域（{@code UserService#create}）出于同一理由做同样的选择。
+     *
+     * <p>两支（活行占着 / 软删行占着）给**同一个码**，刻意不再分一个出来：
+     * 调用方要做的事完全一样（换一个编码），与 {@code 40920} / {@code 40002} 那种
+     * "处置完全不同才分码"的情形不是一回事。也刻意**不**为软删那一支另写一句文案 ——
+     * 它既不可操作，又把"软删"这个内部状态透给了调用方。
+     */
     @Transactional
     public TenantVO create(TenantSaveRequest request) {
-        Long codeCount = tenantMapper.selectCount(Wrappers.<TenantEntity>lambdaQuery()
-                .eq(TenantEntity::getTenantCode, request.getTenantCode()));
-        if (codeCount != null && codeCount > 0) {
+        if (tenantMapper.selectAnyByCode(request.getTenantCode()) != null) {
             throw AuthResultCode.TENANT_CODE_EXISTS.businessException();
         }
         Long nameCount = tenantMapper.selectCount(Wrappers.<TenantEntity>lambdaQuery()

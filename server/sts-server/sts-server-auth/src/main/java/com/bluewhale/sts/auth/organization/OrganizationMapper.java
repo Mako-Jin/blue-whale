@@ -10,14 +10,19 @@ import org.apache.ibatis.annotations.Update;
  * 组织仓储。
  *
  * <p>除继承来的通用 CRUD 外，本接口有两个**刻意绕过 {@code @TableLogic} 的例外**
- * （手写 SQL），是同一个坑在**第四处**的复现（前三处：资源、角色、用户组）：
- * 唯一索引 {@code uk_bw_auth_org_tenant_code} 建在 {@code (tenant_id, org_code)} 上、
- * **不含 {@code deleted}**，而 MyBatis-Plus 给所有自动查询追加 {@code deleted = 0} ——
+ * （手写 SQL）：唯一索引 {@code uk_bw_auth_org_tenant_code} 建在
+ * {@code (tenant_id, org_code)} 上、**不含 {@code deleted}**，
+ * 而 MyBatis-Plus 给所有自动查询追加 {@code deleted = 0} ——
  * 用常规查询判重看不见软删行，判重通过后 insert 撞唯一键，
- * 最终被兜底成"系统内部错误"。于是"删掉一个部门、想用同一个编码再建一个"
+ * 最终落到兜底的 {@code 40900}「数据已存在或与已有记录冲突」
+ * （{@code ADR-0024} 之前是 500）。于是"删掉一个部门、想用同一个编码再建一个"
  * 这个再正常不过的操作会失败。
  *
- * <p>正解同样是**复活那一行**，见 {@code OrganizationService.create}。
+ * <p>正解是**复活那一行**，见 {@code OrganizationService.create}。
+ * 同一个坑全仓共有**六处**，其中两处的答案是"拒绝"而不是复活 ——
+ * 清单与判据见 {@code server/README.md} 的「唯一编码列与它们的软删语义」（ADR-0056）。
+ * <b>不要在这里数"第几处"</b>：这个数字此前停在"第四处（前三处：资源、角色、用户组）"，
+ * 而实际有六处 —— 少掉的两处正是"没人发现"的那两处。
  *
  * <p><b>子树重写没有做成一条 SQL，是刻意的。</b>{@code code_path} 的前缀替换在
  * MySQL / H2 / 达梦三方言里分别要用 {@code SUBSTRING} / {@code CONCAT} /

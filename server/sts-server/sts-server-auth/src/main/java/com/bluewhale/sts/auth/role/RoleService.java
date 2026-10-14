@@ -124,9 +124,8 @@ public class RoleService {
      * 唯一索引 {@code uk_bw_auth_role_tenant_code} 建在 {@code (tenant_id, role_code)} 上、
      * **不含 {@code deleted}**，而 MyBatis-Plus 给所有自动查询追加 {@code deleted = 0} ——
      * 用常规查询判重会**看不见已删除的行**，判重通过后 insert 撞唯一键，
-     * 抛出的 {@code DuplicateKeyException} 最终被兜底成 500。
-     * 于是"删掉角色、想用同一个编码再建一个"这个再正常不过的操作，
-     * 会得到一个"系统内部错误"。
+     * 抛出的 {@code DuplicateKeyException} 最终被兜底成
+     * {@code 40900}「数据已存在或与已有记录冲突」（{@code ADR-0024} 之前是 500）。
      *
      * <p>正解不是绕过唯一索引，而是**复活那一行**：先经
      * {@link RoleMapper#selectAnyByTenantAndCode}（唯一一处绕过逻辑删除的读）

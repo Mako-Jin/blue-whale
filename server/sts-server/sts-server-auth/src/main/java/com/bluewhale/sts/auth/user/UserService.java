@@ -85,6 +85,26 @@ public class UserService {
         return toVO(requireUser(id));
     }
 
+    /**
+     * 新建用户。
+     *
+     * <p><b>登录名判重必须"看得见软删行"</b>，所以它走
+     * {@link UserMapper#selectAnyByTenantAndUsername} 而不是 {@code selectCount}：
+     * 唯一索引 {@code uk_bw_auth_user_tenant_username} 不含 {@code deleted}，
+     * 软删的账号仍然占着这个登录名，而 {@code selectCount} 会被自动追加的
+     * {@code deleted = 0} 挡住 —— 判重通过、insert 撞键、由 {@code GlobalExceptionHandler}
+     * 翻成兜底的 {@code 40900}「数据已存在或与已有记录冲突」。故障不显形（不是 500），
+     * 但文案退化成一句不含主语的话，而那句话原本的用途是"并发下的第二道防线"（ADR-0056）。
+     *
+     * <p><b>与资源 / 角色 / 组织 / 用户组四个域相反：看见软删行之后是"拒绝"，不是"复活"。</b>
+     * 那四个域在删除时都拒绝了"仍被引用"，所以它们的软删行是个没有活边的空壳。
+     * 账号不是这样：{@link #delete} 只拒绝"删自己"，一个已删账号身上可能还挂着
+     * 角色成员关系、组织归属与用户组成员关系（{@code delete} 不动它们）——
+     * 这些边在账号被删期间是惰性的，但复活会**同时把它们激活**：
+     * 一次"用回同一个登录名"的建号操作静默地把一批权限还给了那个人，
+     * 而调用方以为自己只是新建了一个同名的空账号。租户域（{@code TenantService#create}）
+     * 出于同一理由做同样的选择。
+     */
     @Transactional
     public UserVO create(UserSaveRequest request) {
         Long tenantId = resolveTenantId(request.getTenantId());
@@ -97,7 +117,7 @@ public class UserService {
         // 建号只需三件事里的第一件：此刻没有"被替换下来的口令"（历史无从记起），
         // 也没有可重用的对象（防重用要拿当前或历史口令来比）。见 PasswordChanger#assertStrength
         passwordChanger.assertStrength(request.getPassword());
-        if (existsUsername(tenantId, request.getUsername(), null)) {
+        if (userMapper.selectAnyByTenantAndUsername(tenantId, request.getUsername()) != null) {
             throw AuthResultCode.USERNAME_EXISTS.businessException();
         }
         if (existsEmail(tenantId, request.getEmail(), null)) {
@@ -212,12 +232,17 @@ public class UserService {
         return entity;
     }
 
-    private boolean existsUsername(Long tenantId, String username, Long excludeId) {
-        if (username == null || username.isBlank()) {
-            return false;
-        }
-        return countBy(tenantId, UserEntity::getUsername, username, excludeId) > 0;
-    }
+    /*
+     * 登录名**没有**对应的 existsXxx：它必须"看得见软删行"，而 countBy 走的是
+     * MyBatis-Plus 的自动查询（自动追加 deleted = 0），做不到这件事 ——
+     * 见 UserMapper#selectAnyByTenantAndUsername 与 UserService#create。
+     *
+     * 邮箱与手机号继续用它，是因为那两列**没有唯一索引**：
+     * 索引不挡它们，库里本来就不认为它们唯一，软删之后自然等于释放 ——
+     * "软删算不算占着"这个问题只在被索引逼着的六个列上才需要回答（ADR-0056）。
+     * 顺手把它们也改成"看得见软删行"是另一种错：那会让一次误删把邮箱永久锁住，
+     * 而没有任何唯一约束要求这么做。
+     */
 
     private boolean existsEmail(Long tenantId, String email, Long excludeId) {
         if (email == null || email.isBlank()) {

@@ -32,8 +32,9 @@ public interface RoleMapper extends BaseMapper<RoleEntity> {
      * **不含 {@code deleted}** —— 也就是说被逻辑删除的行仍然占着这个编码。
      * 而 MyBatis-Plus 给每条自动生成的查询都追加 {@code deleted = 0}，
      * 于是用常规查询去判重时会**看不见那些已删除的行**：判重通过 → 走到 insert →
-     * 撞唯一键 → 抛 {@code DuplicateKeyException} → 被兜底成 500。
-     * 用户看到"系统内部错误"，真实原因只是"这个编码你删过"。
+     * 撞唯一键 → 抛 {@code DuplicateKeyException} → 被兜底成
+     * {@code 40900}「数据已存在或与已有记录冲突」（{@code ADR-0024} 之前是 500）。
+     * 对外那句话里既没有主语也没有原因，而真实原因只是"这个编码你删过"。
      *
      * <p>这个坑与资源目录是**同一个**（{@code ResourceMapper.selectAnyByCode}），
      * 只是索引从单列变成了复合列，症状一模一样。所以这里也走同一条正解：先"看见"，
