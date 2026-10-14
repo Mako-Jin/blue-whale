@@ -83,13 +83,14 @@ const silent = { logger: null } as const;
 /* ------------------------------------------------------------------ 契约接线 */
 
 describe('createAuthApi · 契约接线', () => {
-  it('五条认证接口分别打到契约里的路径，登出与刷新都豁免自动恢复', async () => {
+  it('六条认证接口分别打到契约里的路径，登出与刷新都豁免自动恢复', async () => {
     const { http, calls } = recordingHttp({ '/api/auth/me': { userId: 1 } });
     const api = createAuthApi(http);
 
     await api.login({ tenantCode: 'default', username: 'admin', password: 'pwd' });
     await api.refresh({ refreshToken: 'r' });
     await api.logout({ refreshToken: 'r' });
+    await api.logoutAll();
     await api.me();
     await api.changePassword({ oldPassword: 'pwd', newPassword: 'Next@1234' });
 
@@ -97,6 +98,7 @@ describe('createAuthApi · 契约接线', () => {
       '/api/auth/login',
       '/api/auth/refresh',
       '/api/auth/logout',
+      '/api/auth/logout-all',
       '/api/auth/me',
       '/api/auth/password',
     ]);
@@ -106,9 +108,20 @@ describe('createAuthApi · 契约接线', () => {
     expect(calls[0].options).toMatchObject({ skipAuth: true, skipAuthRetry: true });
     // 登出带上令牌（便于服务端审计"谁登出了"），但不参与自动恢复
     expect(calls[2].options).toMatchObject({ skipAuthRetry: true });
+    // 登出的令牌是**必填**的：它是"撤哪一个会话"的主语。
+    // 曾经它是可选的，而"不带"表示另一件事（撤销全部）—— 一次把新客户端
+    // 写成"忘了传令牌"的失误，代价是该账号所有设备被踢下线（见 docs/decisions/0047）。
+    expect(calls[2].body).toEqual({ refreshToken: 'r' });
+    /*
+     * 退出所有设备走**默认**选项，与登出刻意不同，两处都不是随手写的：
+     *   1. 它撤的是"当前用户的全部"，服务端得先知道你是谁 ⇒ 必须带令牌（不能 skipAuth）；
+     *   2. 它最常见的调用时机恰恰是"访问令牌刚过期、我怀疑账号被人登着"
+     *      ⇒ 不能 skipAuthRetry，否则这个动作在最需要它的时候必然失败。
+     */
+    expect(calls[3].options).toBeUndefined();
     // 改密走默认选项：带令牌、401 时刷新重试 ——
     // "旧口令不对"在传输层是 200（后端业务失败一律返回 HTTP 200），内核不会误判
-    expect(calls[4].options).toBeUndefined();
+    expect(calls[5].options).toBeUndefined();
   });
 });
 
@@ -220,6 +233,42 @@ describe('createAuthChannel · 登录与登出', () => {
 
     expect(calls.filter((call) => call.path.endsWith('/api/auth/logout'))).toHaveLength(0);
     expect(session.isAuthenticated()).toBe(false);
+  });
+
+  /*
+   * 「退出所有设备」与登出的失败处理**刻意相反**，下面两条是那条判据的可执行版。
+   *
+   * 判据是"本地清理能不能达成这次动作的意图"：
+   *   - 登出的意图是"**我这一台**下线" —— 清掉本地就达成了，服务端那次撤销失败
+   *     只意味着"那个令牌还留在库里"，用户感知不到差别；
+   *   - 退出所有设备的意图是"**别处也要**下线" —— 清本地恰恰达不成它。
+   *     吞掉失败再清本地，用户会带着"我已经把别人踢了"的错觉回到登录页，
+   *     而别的设备还好端端地开着。那是一次静默的安全失败。
+   */
+  it('退出所有设备：打到契约路径，成功后清空本地会话', async () => {
+    const { channel, session, calls } = createChannel({
+      '/api/auth/login': { body: envelope(LOGIN_RESULT) },
+      '/api/auth/logout-all': { status: 204 },
+    });
+    await channel.login({ tenantCode: 'default', username: 'admin', password: 'pwd' });
+
+    await channel.logoutAll();
+
+    expect(calls.some((call) => call.path.endsWith('/api/auth/logout-all'))).toBe(true);
+    expect(session.isAuthenticated()).toBe(false);
+  });
+
+  it('退出所有设备失败时抛给调用方，且**不清**本地会话 —— 这次失败用户感知得到', async () => {
+    const { channel, session } = createChannel({
+      '/api/auth/login': { body: envelope(LOGIN_RESULT) },
+      '/api/auth/logout-all': { status: 500, body: 'boom' },
+    });
+    await channel.login({ tenantCode: 'default', username: 'admin', password: 'pwd' });
+
+    await expect(channel.logoutAll()).rejects.toThrow();
+
+    // 停在原处：用户能直接再点一次，而不是被送到登录页、还以为什么都踢干净了
+    expect(session.isAuthenticated()).toBe(true);
   });
 });
 

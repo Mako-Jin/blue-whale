@@ -30,12 +30,16 @@ export type AuthPasswordChangeRequest = BodyOf<ChangePasswordOp>;
 /**
  * 登出请求体（与刷新同形，都是刷新令牌）。
  *
- * <p>这里没有用 `BodyOf<LogoutOp>`：契约里该请求体是**可选**的
- * （控制器写成 `@RequestBody(required = false)`，为了允许"撤销该用户全部令牌"这种不传令牌的登出），
- * 可选属性推不出请求体类型。改成从操作的 `requestBody` 上直接取模型 ——
- * 依然完全由契约决定，契约改了这个类型跟着改。
+ * <p><b>它曾经是个特例。</b>契约里那份请求体一度是**可选**的，因为"不传"曾表示
+ * 另一件事（撤销该用户全部令牌），可选属性推不出请求体类型，于是这里只能从操作的
+ * `requestBody` 上手工取模型 —— 一个类型定义被业务语义逼出来的形状。
+ * 两条语义拆成两条路径之后（见 `docs/decisions/0047`），它回到了最普通的
+ * {@link BodyOf}：契约说必填，类型就必填。
+ *
+ * <p>留着这段沿革不是怀旧：`BodyOf` 与"手工取 requestBody"的差别是
+ * **可选性有没有被表达出来**，而这里曾经恰恰是"可选性被当成了语义"。
  */
-export type AuthLogoutRequest = NonNullable<LogoutOp['requestBody']>['content']['application/json'];
+export type AuthLogoutRequest = BodyOf<LogoutOp>;
 
 /**
  * 登录 / 刷新返回体。
@@ -54,6 +58,13 @@ export type AuthMe = NonNullable<DataOf<MeOp>>;
 const PATH_LOGIN = '/api/auth/login' satisfies keyof paths;
 const PATH_REFRESH = '/api/auth/refresh' satisfies keyof paths;
 const PATH_LOGOUT = '/api/auth/logout' satisfies keyof paths;
+/*
+ * 这一条是六个路径里**唯一没有配套 Op 类型别名**的：它没有请求体，响应体也是空的
+ * `R<Void>`，取不出任何有意义的类型 —— 别名写在那里就是一行"声明了没人用"的死代码
+ * （`tsc` 的 `noUnusedLocals` 会直接报出来，本仓正是这么发现它的）。
+ * "这条路真的在契约里"由上面的 `satisfies keyof paths` 保证，不需要别名代劳。
+ */
+const PATH_LOGOUT_ALL = '/api/auth/logout-all' satisfies keyof paths;
 const PATH_ME = '/api/auth/me' satisfies keyof paths;
 const PATH_PASSWORD = '/api/auth/password' satisfies keyof paths;
 
@@ -76,8 +87,20 @@ export interface AuthApi {
   login(body: AuthLoginRequest): Promise<AuthLoginResult>;
   /** 刷新令牌；旧刷新令牌随之作废（服务端轮换），返回新的令牌对与身份 */
   refresh(body: AuthRefreshRequest): Promise<AuthLoginResult>;
-  /** 登出；不传刷新令牌则撤销该用户全部刷新令牌 */
-  logout(body?: AuthLogoutRequest): Promise<void>;
+  /** 登出**这一台设备**：撤销请求体里那一个刷新令牌（要撤销全部用 {@link AuthApi.logoutAll}） */
+  logout(body: AuthLogoutRequest): Promise<void>;
+  /**
+   * 退出所有设备：撤销当前用户的全部刷新令牌（含本次会话手上这一个）。
+   *
+   * <p><b>它必须带令牌，而且走默认请求选项（带令牌、401 时刷新重试）。</b>
+   * 与登出相反 —— 登出要撤的那一个会话由请求体自己指明，因此不需要身份；
+   * 而"全部"是**按当前用户**算的，服务端得先知道你是谁。
+   *
+   * <p>也正因为如此，它不能像登出那样 `skipAuthRetry`：最常见的调用时机恰恰是
+   * "访问令牌已经过期、我怀疑账号被人登着"，此时跳过刷新等于让这个动作在
+   * 最需要它的时候必然失败。
+   */
+  logoutAll(): Promise<void>;
   /** 当前登录用户（要求已认证，但不要求任何权限） */
   me(): Promise<AuthMe>;
   /**
@@ -99,6 +122,13 @@ export function createAuthApi(http: HttpClient): AuthApi {
     login: (body) => http.post<AuthLoginResult>(PATH_LOGIN, body, PUBLIC_REQUEST),
     refresh: (body) => http.post<AuthLoginResult>(PATH_REFRESH, body, PUBLIC_REQUEST),
     logout: (body) => http.post<void>(PATH_LOGOUT, body, LOGOUT_REQUEST),
+    /*
+     * 走默认请求选项，理由与 changePassword 那条注解同源：本仓约定
+     * **业务失败返回 HTTP 200**，所以"未认证"（40104）在传输层也是 200，
+     * 内核不会把它误当成令牌失效去刷新重试。真到了需要刷新的时候
+     * （访问令牌过期），那次刷新恰恰是这条动作能成功的前提。
+     */
+    logoutAll: () => http.post<void>(PATH_LOGOUT_ALL),
     me: () => http.get<AuthMe>(PATH_ME),
     /*
      * 走**默认**请求选项（带令牌、401 时刷新重试），这条看起来平淡，但它成立

@@ -541,9 +541,29 @@ export interface paths {
     put?: never;
     /**
      * 登出
-     * @description 撤销刷新令牌；不传则撤销该用户全部刷新令牌
+     * @description 撤销请求体里那一个刷新令牌；要撤销全部请用 /api/auth/logout-all
      */
     post: operations['logout'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/auth/logout-all': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * 退出所有设备
+     * @description 撤销当前用户全部刷新令牌（含当前这个）；所有设备都将在下一次刷新时被送回登录页
+     */
+    post: operations['logoutAll'];
     delete?: never;
     options?: never;
     head?: never;
@@ -4086,11 +4106,31 @@ export interface operations {
       path?: never;
       cookie?: never;
     };
-    requestBody?: {
+    requestBody: {
       content: {
         'application/json': components['schemas']['RefreshRequest'];
       };
     };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': components['schemas']['RVoid'];
+        };
+      };
+    };
+  };
+  logoutAll: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
     responses: {
       /** @description OK */
       200: {

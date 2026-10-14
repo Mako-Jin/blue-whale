@@ -2,6 +2,7 @@ import { useState, type ChangeEvent, type FormEvent } from 'react';
 
 import { auth } from '@/auth';
 import { describeAuthError } from '@/auth/describe-error';
+import './dialog.less';
 import './ChangePasswordDialog.less';
 
 /**
@@ -55,27 +56,22 @@ export function ChangePasswordDialog({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="change-password__mask" role="presentation" onClick={onClose}>
+    <div className="bw-dialog-mask" role="presentation" onClick={onClose}>
       <div
-        className="change-password"
+        className="bw-dialog"
         role="dialog"
         aria-modal="true"
         aria-label="修改口令"
         onClick={(event) => event.stopPropagation()}
       >
-        <header className="change-password__head">
-          <h3 className="change-password__title">修改口令</h3>
-          <button
-            type="button"
-            className="change-password__close"
-            aria-label="关闭"
-            onClick={onClose}
-          >
+        <header className="bw-dialog__head">
+          <h3 className="bw-dialog__title">修改口令</h3>
+          <button type="button" className="bw-dialog__close" aria-label="关闭" onClick={onClose}>
             ×
           </button>
         </header>
 
-        <form className="change-password__form" onSubmit={handleSubmit}>
+        <form className="bw-dialog__body" onSubmit={handleSubmit}>
           <label className="change-password__field">
             <span className="change-password__label">当前口令</span>
             <input
@@ -122,7 +118,7 @@ export function ChangePasswordDialog({ onClose }: { onClose: () => void }) {
           </label>
 
           {error ? (
-            <p className="change-password__error" role="alert">
+            <p className="bw-dialog__error" role="alert">
               {error}
             </p>
           ) : null}
@@ -132,15 +128,15 @@ export function ChangePasswordDialog({ onClose }: { onClose: () => void }) {
             撤销的是**全部**刷新令牌（含本次会话），所以"其他设备"与"当前这个"
             都必须点到，否则用户会以为只有别处被踢。
           */}
-          <p className="change-password__notice">
+          <p className="bw-dialog__notice">
             修改后会结束该账号在所有设备上的登录（含当前这个），需要立刻用新口令重新登录。
           </p>
 
-          <div className="change-password__actions">
-            <button type="button" className="change-password__cancel" onClick={onClose}>
+          <div className="bw-dialog__actions">
+            <button type="button" className="bw-dialog__cancel" onClick={onClose}>
               取消
             </button>
-            <button className="change-password__submit" type="submit" disabled={submitting}>
+            <button className="bw-dialog__submit" type="submit" disabled={submitting}>
               {submitting ? '提交中…' : '确认修改'}
             </button>
           </div>

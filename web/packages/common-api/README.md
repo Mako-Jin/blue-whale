@@ -160,17 +160,25 @@ const auth = createAuthChannel({ session, onAuthLost: () => gotoLogin() });
 await auth.restore(); // 启动时用持久化刷新令牌续期
 await auth.login({ tenantCode: 'default', username: 'admin', password: 'pwd' });
 await auth.api.log.page({ level: 'error' }); // 令牌注入与 401 恢复对调用方透明
-await auth.logout(); // 撤销服务端令牌 + 清本地会话
+await auth.logout(); // 撤销这一台设备的刷新令牌 + 清本地会话
+await auth.logoutAll(); // 撤销该账号全部会话（含当前这个）；失败会抛，且不清本地会话
 ```
 
 | 成员               | 作用                                                                                                       |
 | ------------------ | ---------------------------------------------------------------------------------------------------------- |
 | `api`              | 全部接口（`auth` / `access` / `log` / `event` / `system` / `http`），已接好令牌注入与 401 恢复             |
 | `login(input)`     | 登录并建立会话；返回会话里的身份（含 `roles` / `permissions`）                                             |
-| `logout()`         | 先撤销服务端刷新令牌，**无论成败都清本地会话**                                                             |
+| `logout()`         | 撤销**这一台设备**的刷新令牌，**无论成败都清本地会话**                                                     |
+| `logoutAll()`      | 撤销**该账号全部**会话（含当前这个）；**成功才清本地会话，失败抛出** —— 与 `logout` 刻意相反（见下）       |
 | `restore()`        | 用持久化的刷新令牌换新令牌对并恢复身份（**一次请求**，不必再调 `/me`）；恢复不了返回 `null` 并清空本地会话 |
 | `reload()`         | 用现有访问令牌重新拉身份与权限（后台改了权限之后刷新用），不动令牌                                         |
 | `reauthenticate()` | 传输内核的 401 钩子所调用的那一环；**并发去重由内核保证**（single-flight）                                 |
+
+`logout` 与 `logoutAll` 是**两条路径**（服务端 `POST /api/auth/logout` / `/api/auth/logout-all`），
+它们在 `try/catch/finally` 上的形状不一样，而那**不是不一致**：判据是"本地清理能不能达成
+这次动作的意图"—— 登出的意图是"我这一台下线"（清本地就达成了），全撤的意图是"别处也要下线"
+（清本地恰恰达不成它，吞掉失败会让用户带着"我已经把别人踢了"的错觉离开）。
+两条语义此前挤在同一个方法里、靠"请求体在不在"区分，见 `docs/decisions/0047`。
 
 几条容易踩的规则：
 

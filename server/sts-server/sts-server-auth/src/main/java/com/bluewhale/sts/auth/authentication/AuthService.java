@@ -48,6 +48,12 @@ import java.util.UUID;
  * <p>作废令牌这件事（单个与全部）只有一处实现：{@link SessionRevoker}。
  * 本类不再自己写那两列 —— 它曾经在一处私有方法里，于是"换口令要清会话"这件事
  * 只在两个调用方中的一个落了地（见 {@code docs/decisions/0046}）。
+ *
+ * <p><b>登出有两条语义，各占一条路径：</b>{@link #logout} 撤**这一个**会话、
+ * {@link #logoutAll} 撤**全部**。它们此前共用同一个方法，靠"请求体里有没有刷新令牌"
+ * 区分 —— 于是"全部"成了一个没有名字的能力，而它同时又是**省略参数的默认值**：
+ * 一个把请求体序列化错的客户端（发 {@code {}}）会静默地把该账号所有设备踢下线。
+ * 拆分与代价见 {@code docs/decisions/0047}。
  */
 @Service
 public class AuthService {
@@ -214,35 +220,67 @@ public class AuthService {
     }
 
     /**
-     * 登出。
+     * 登出**这一台设备** —— 撤销请求体里那一个刷新令牌。
      *
      * <p>只撤销**刷新令牌**：访问令牌是无状态的，撤销它需要引入黑名单存储
      * （每个请求都要查一次），而访问令牌本就设得短（默认 2 小时）。
      * 用"短有效期 + 可撤销的长效令牌"换取无状态访问令牌的性能，是标准取舍。
      *
-     * <p>不传刷新令牌时撤销该用户的全部刷新令牌（"退出所有设备"）。
+     * <p><b>它只撤这一个。</b>要撤掉全部得走 {@link #logoutAll()} ——
+     * 两条语义此前挤在同一个方法里（见类头那段）。顺带一个结论：
+     * 本方法**不再需要任何身份**，因为要撤的那一个会话由请求体自己指明了。
+     *
+     * <p><b>令牌无效时不报错</b>（幂等）：登出的意图是"我这台设备下线"，
+     * 而令牌已经失效时这个意图**同样已经达成** —— 回一个错误只会让每个客户端
+     * 都去写一段"失败也算成功"的分支，而那段分支里藏着的判断（哪种失败算成功）
+     * 正是本方法已经做过的那一次。
      */
     @Transactional
     public void logout(RefreshRequest request) {
         long now = System.currentTimeMillis();
-        if (request != null && request.getRefreshToken() != null && !request.getRefreshToken().isBlank()) {
-            try {
-                JwtPayload payload = jwtCodec.verify(request.getRefreshToken(), now);
-                RefreshTokenEntity stored = refreshTokenMapper.selectOne(Wrappers.<RefreshTokenEntity>lambdaQuery()
-                        .eq(RefreshTokenEntity::getJti, payload.jti()));
-                // 已作废的不再动它 —— 那条判断移进了 SessionRevoker：
-                // 撤销时刻只能被写一次，重复登出不该把它推后（见该类的类头）。
-                sessionRevoker.revoke(stored, now);
-            } catch (JwtVerificationException ex) {
-                // 令牌本就无效，登出是幂等的：不必报错，也不必再做任何事
-                log.debug("登出时令牌不可用，按已登出处理 | message={}", ex.getMessage());
-            }
-            return;
+        try {
+            JwtPayload payload = jwtCodec.verify(request.getRefreshToken(), now);
+            RefreshTokenEntity stored = refreshTokenMapper.selectOne(Wrappers.<RefreshTokenEntity>lambdaQuery()
+                    .eq(RefreshTokenEntity::getJti, payload.jti()));
+            // 已作废的不再动它 —— 那条判断移进了 SessionRevoker：
+            // 撤销时刻只能被写一次，重复登出不该把它推后（见该类的类头）。
+            sessionRevoker.revoke(stored, now);
+        } catch (JwtVerificationException ex) {
+            // 过期与不合法都落在这里（JwtExpiredException 是它的子类）。
+            // 令牌本就无效，登出是幂等的：不必报错，也不必再做任何事
+            log.debug("登出时令牌不可用，按已登出处理 | message={}", ex.getMessage());
         }
-        Long userId = AuthContextHolder.currentUserId();
-        if (userId != null) {
-            sessionRevoker.revokeAll(userId, now);
-        }
+    }
+
+    /**
+     * 退出所有设备 —— 撤销**当前用户**的全部刷新令牌（含本次会话手上这一个）。
+     *
+     * <p><b>为什么它不需要权限码。</b>与 {@code /api/auth/password} 是同一条判据：
+     * 能登录就该能踢掉自己的会话。挂上权限码的后果很具体 ——
+     * 一个没被授权的用户**永远清不掉自己名下那些会话**，而这恰恰是他在怀疑
+     * "账号正被别人登着"时唯一能自救的动作（此刻管理员未必在、也可能正是他要防的人）。
+     * 作用域由 {@link AuthContextHolder#require()} 定死：它只能撤自己的，
+     * 且**不接受任何传入参数**，因此不存在"拿它去撤别人"的写法。
+     * （撤销他人会话是另一件事，不是这条接口的扩展，见 {@code docs/decisions/0047}。）
+     *
+     * <p><b>为什么未认证时不能"静默成功"。</b>它原先只是登出方法里的一个分支：
+     * 拿不到当前用户就什么都不做，却照样返回成功 —— 一句"说做了、其实没做"的回复。
+     * 现在由 {@code require()} 明确拒绝（{@code 40104}）：
+     * "我不知道你是谁"没法被理解成"已经帮你退出了"。
+     *
+     * <p><b>访问令牌仍有最长一个令牌有效期（默认 2 小时）的残留</b>，
+     * 理由与 {@link #logout} 同（撤销无状态令牌要引入黑名单存储）。
+     * 因此"退出所有设备"之后，别的设备上**正在打开的页面**不会立刻掉线，
+     * 它会在下一次刷新时失败（{@code 40106}）并被送回登录页。
+     */
+    @Transactional
+    public void logoutAll() {
+        AuthContext context = AuthContextHolder.require();
+        long now = System.currentTimeMillis();
+        sessionRevoker.revokeAll(context.getUserId(), now);
+        // 记一条 INFO 而不是像 logout 那样什么都不记：本条是低频且不可撤销的动作
+        // （用户本人无法"撤回"这次踢出），排查"我为什么被登出了"时它是唯一的线索。
+        log.info("退出所有设备 | userId={} | username={}", context.getUserId(), context.getUsername());
     }
 
     /** 当前登录用户信息（含按需装载的角色与权限） */

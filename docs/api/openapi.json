@@ -2254,7 +2254,7 @@
           "认证"
         ],
         "summary": "登出",
-        "description": "撤销刷新令牌；不传则撤销该用户全部刷新令牌",
+        "description": "撤销请求体里那一个刷新令牌；要撤销全部请用 /api/auth/logout-all",
         "operationId": "logout",
         "requestBody": {
           "content": {
@@ -2263,8 +2263,31 @@
                 "$ref": "#/components/schemas/RefreshRequest"
               }
             }
-          }
+          },
+          "required": true
         },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RVoid"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/logout-all": {
+      "post": {
+        "tags": [
+          "认证"
+        ],
+        "summary": "退出所有设备",
+        "description": "撤销当前用户全部刷新令牌（含当前这个）；所有设备都将在下一次刷新时被送回登录页",
+        "operationId": "logoutAll",
         "responses": {
           "200": {
             "description": "OK",

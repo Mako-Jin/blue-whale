@@ -824,7 +824,7 @@ async function main() {
 
     /* ---------------- 6. 登出 → 审计员身份（只读） ---------------- */
 
-    await clickSelector(".basic-layout__action:last-of-type");
+    await clickSelector('[data-testid="sign-out"]');
     await waitFor(`location.pathname === '/login'`, "登出后回到登录页");
     await evaluate(`location.href = ${JSON.stringify(`${BASE_URL}/admin`)}`);
     await loginAs(AUDITOR);
@@ -1060,7 +1060,7 @@ async function main() {
 
     /* ---------------- 9. 登出清干净 ---------------- */
 
-    await clickSelector(".basic-layout__action:last-of-type");
+    await clickSelector('[data-testid="sign-out"]');
     await waitFor(`location.pathname === '/login'`, "登出后被弹回登录页");
     const afterLogout = await evaluate(`(() => ({
       persisted: localStorage.getItem('bw.session'),

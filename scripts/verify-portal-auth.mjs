@@ -402,7 +402,7 @@ async function main() {
 
     /* ---------------- 7. 登出 ---------------- */
 
-    await clickElement(".basic-layout__action:last-of-type");
+    await clickElement('[data-testid="sign-out"]');
     await waitFor(`location.pathname === '/login'`, "登出后被弹回登录页");
     const afterLogout = await evaluate(`(() => ({
       path: location.pathname,

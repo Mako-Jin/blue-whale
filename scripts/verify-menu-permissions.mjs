@@ -260,9 +260,11 @@ async function main() {
       ).map((el) => el.getAttribute('data-testid').replace('nav-', ''))`);
     }
 
-    /** 登出：点最后一个 action（登出按钮） */
+    /** 登出：点带 `data-testid` 的那一个（不要用 `.basic-layout__action:last-of-type`） */
     async function signOut() {
-      await clickElement(".basic-layout__action:last-of-type");
+      // 位置选择器是一条"登出恰好是最后一个按钮"的假设，而顶栏会加按钮。
+      // 见 `docs/decisions/0047` 与 `BasicLayout.tsx` 里的同一条注释。
+      await clickElement('[data-testid="sign-out"]');
       await waitFor(`location.pathname === '/login'`, "登出后回到登录页");
     }
 

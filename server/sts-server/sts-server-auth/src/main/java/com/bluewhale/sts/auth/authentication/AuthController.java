@@ -24,15 +24,22 @@ import org.springframework.web.bind.annotation.RestController;
  * 否则会形成"要登录先得有令牌"的死锁。
  * 它们的安全性由服务层保证（口令校验、失败锁定、令牌轮换）。
  *
- * <p>两个例外，都要求已认证但**不需要权限码** ——
- * 任何登录用户都应能查自己的信息、改自己的口令，
- * 而"改口令需要某个权限码"会让一个没被授权的用户永远改不掉自己的初始口令：
+ * <p>三个例外，都要求已认证但**不需要权限码** ——
+ * 任何登录用户都应能查自己的信息、改自己的口令、踢掉自己的会话，
+ * 而"它们需要某个权限码"会让一个没被授权的用户永远处理不了自己的账号：
  * <ul>
  *   <li>{@code /api/auth/me} —— 在 {@code AuthService#currentUser} 里通过
  *       {@code AuthContextHolder.require()} 表达；</li>
  *   <li>{@code /api/auth/password} —— 同上，另外**必须验旧口令**
- *       （它是这里唯一能证明操作者是本人的手段，见 {@code AuthService#changePassword}）。</li>
+ *       （它是这里唯一能证明操作者是本人的手段，见 {@code AuthService#changePassword}）；</li>
+ *   <li>{@code /api/auth/logout-all} —— 它撤的是自己名下的会话，
+ *       作用域由上下文定死、不接受任何参数（见 {@code AuthService#logoutAll}）。</li>
  * </ul>
+ *
+ * <p><b>登出有两条路径，因为它们是两件事：</b>{@code /logout} 撤请求体里指明的
+ * 那**一个**会话（因此不需要身份），{@code /logout-all} 撤**当前用户**的全部会话。
+ * 此前它们共用一个方法、靠"请求体在不在"区分 —— 那让"全部"成了省略参数的默认值
+ * （见 {@code docs/decisions/0047}）。
  */
 @RestController
 @RequestMapping("/api/auth")
@@ -58,9 +65,30 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    @Operation(summary = "登出", description = "撤销刷新令牌；不传则撤销该用户全部刷新令牌")
-    public R<Void> logout(@RequestBody(required = false) RefreshRequest request) {
+    @Operation(summary = "登出", description = "撤销请求体里那一个刷新令牌；要撤销全部请用 /api/auth/logout-all")
+    public R<Void> logout(@Valid @RequestBody RefreshRequest request) {
         authService.logout(request);
+        return R.ok();
+    }
+
+    /**
+     * 退出所有设备。
+     *
+     * <p><b>为什么是独立一条路径而不是 {@code /logout} 的一个可选行为：</b>
+     * 撤销一个会话与撤销全部会话是两个不同的动作，而"是不是全部"此前由
+     * **请求体在不在**决定 —— 那等于把一个能一次踢掉所有设备的动作做成
+     * 省略参数的默认值。路径分开之后，"全撤"这件事有了名字，
+     * 也才有可能在审计、日志与界面上被单独谈论（见 {@code docs/decisions/0047}）。
+     *
+     * <p>与 {@code /logout} 一样是 POST —— 它是状态变更，不是幂等的"查询下线状态"；
+     * 与登出的差别只在于作用域（这一个 / 全部），因此**不需要权限码**：
+     * 能登录就该能踢掉自己的会话（理由写在 {@code AuthService#logoutAll}）。
+     */
+    @PostMapping("/logout-all")
+    @Operation(summary = "退出所有设备",
+            description = "撤销当前用户全部刷新令牌（含当前这个）；所有设备都将在下一次刷新时被送回登录页")
+    public R<Void> logoutAll() {
+        authService.logoutAll();
         return R.ok();
     }
 

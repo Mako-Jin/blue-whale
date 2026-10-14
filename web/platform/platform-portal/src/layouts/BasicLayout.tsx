@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { auth, session } from '@/auth';
 import { usePermissions, useSession } from '@/auth/hooks';
 import { ChangePasswordDialog } from '@/components/ChangePasswordDialog';
+import { LogoutAllDialog } from '@/components/LogoutAllDialog';
 import { MICRO_APPS, setGlobalState } from '@/micro';
 import './BasicLayout.less';
 
@@ -44,6 +45,16 @@ export default function BasicLayout() {
     () => session.getSnapshot().user?.mustChangePassword === true,
   );
   const mustChangePassword = user?.mustChangePassword === true;
+
+  /*
+   * 「退出所有设备」与「修改口令」是**同一类入口**：会话级动作、不依赖任何菜单码、
+   * 只能放在基座（理由见上面那段注释）。它也是唯一一个**不需要权限码**的会话级动作 ——
+   * 能登录就该能踢掉自己的会话（`docs/decisions/0047`）。
+   *
+   * 与改密不同，它**不自动弹**：它不是一个"该做还没做"的状态，而是一次用户主动发起的
+   * 安全动作。自动弹它等于替用户做一个影响别的设备的决定。
+   */
+  const [logoutAllOpen, setLogoutAllOpen] = useState(false);
 
   /*
    * 导航栏只渲染**当前身份持有菜单码**的那些应用。
@@ -127,7 +138,28 @@ export default function BasicLayout() {
           >
             修改口令
           </button>
-          <button type="button" className="basic-layout__action" onClick={signOut}>
+          {/*
+            这两个按钮都有一个 `data-testid`，而它们旁边的"全局主题"没有 ——
+            差别在于**会不会有人用脚本点它们**。此前真机脚本用
+            `.basic-layout__action:last-of-type` 定位登出，那只在"登出恰好是最后一个按钮"
+            时成立；本行新增的按钮就落在那条假设上，一旦位置变了，脚本会点错按钮、
+            然后报一个与真正原因无关的错（"登出后没回到登录页"）。
+            定位方式从"第几个"改成"哪一个"，这类改动才不再需要去改脚本。
+          */}
+          <button
+            type="button"
+            className="basic-layout__action"
+            data-testid="open-logout-all"
+            onClick={() => setLogoutAllOpen(true)}
+          >
+            退出所有设备
+          </button>
+          <button
+            type="button"
+            className="basic-layout__action"
+            data-testid="sign-out"
+            onClick={signOut}
+          >
             登出
           </button>
         </div>
@@ -136,6 +168,8 @@ export default function BasicLayout() {
       {changePasswordOpen ? (
         <ChangePasswordDialog onClose={() => setChangePasswordOpen(false)} />
       ) : null}
+
+      {logoutAllOpen ? <LogoutAllDialog onClose={() => setLogoutAllOpen(false)} /> : null}
 
       <main
         className={

@@ -1,0 +1,114 @@
+/*
+ * 对话框外壳 —— 遮罩、面板、标题栏、底部按钮。
+ *
+ * 抽出来的理由不是"少写几行"，而是**两个对话框必须长得一模一样**：
+ * `ChangePasswordDialog` 与 `LogoutAllDialog` 都从基座顶栏那一排打开、出现在同一个位置，
+ * 样式各写一份的话，下一次调间距只会改到正在改的那一个 ——
+ * 而两个弹窗先后出现时，那点差别看起来像 bug，不像取舍。
+ *
+ * 判据放在这里的东西要过一句问话：**换成别的内容，这组样式还成立吗？**
+ * "遮罩怎么盖、面板多宽、标题栏怎么排、按钮怎么靠右"成立，所以在这里；
+ * "表单字段怎么竖排"、"后果那句话怎么弱化"不成立，留在各自的组件里。
+ *
+ * 类名前缀用 `bw-`（本仓的样式没有统一的组件库，这是第一个跨组件复用的外壳，
+ * 用一个不与任何组件名冲突的前缀，避免它看起来像某个组件的私有类）。
+ */
+
+.bw-dialog-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(0 0 0 / 35%);
+}
+
+.bw-dialog {
+  width: min(420px, calc(100vw - 40px));
+  background: @bg-elevated;
+  border-radius: 8px;
+  box-shadow: 0 6px 24px rgb(0 0 0 / 12%);
+}
+
+.bw-dialog__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid @border-color;
+}
+
+.bw-dialog__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: @text-primary;
+}
+
+.bw-dialog__close {
+  padding: 0 4px;
+  font-size: 20px;
+  line-height: 1;
+  color: @text-tertiary;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+
+  &:hover {
+    color: @text-primary;
+  }
+}
+
+.bw-dialog__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px;
+}
+
+/* 后果说明：不是提示而是动作的一部分 —— 两个对话框都靠它把"点下去会发生什么"说在动作之前 */
+.bw-dialog__notice {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: @text-tertiary;
+}
+
+.bw-dialog__error {
+  margin: 0;
+  font-size: 13px;
+  color: @danger-color;
+}
+
+.bw-dialog__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.bw-dialog__cancel,
+.bw-dialog__submit {
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.bw-dialog__cancel {
+  color: @text-secondary;
+  background: @bg-base;
+  border: 1px solid @border-color;
+}
+
+.bw-dialog__submit {
+  color: #fff;
+  background: @brand-color;
+  border: 1px solid @brand-color;
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
+}

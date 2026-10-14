@@ -49,8 +49,22 @@ export interface AuthChannel {
   readonly session: SessionStore;
   /** 登录并建立会话 */
   login(input: AuthLoginRequest): Promise<SessionUser>;
-  /** 登出：先撤销服务端刷新令牌，**无论成败都清空本地会话** */
+  /** 登出**这一台设备**：先撤销服务端刷新令牌，**无论成败都清空本地会话** */
   logout(): Promise<void>;
+  /**
+   * 退出所有设备：撤掉该账号全部会话（含当前这个），**成功才清空本地会话**。
+   *
+   * <p><b>它和 `logout` 的失败处理刻意相反。</b>`logout` 的意图是"我这台下线"，
+   * 本地清干净就达成了 —— 服务端那次撤销失败只意味着"那个令牌还在库里"，
+   * 用户感知不到差别，所以吞掉错误继续走。而 `logoutAll` 的意图**恰恰是
+   * "别处也要下线"**，本地清理达不成它：吞掉失败再去登录页，用户会带着
+   * "我已经把别人踢了"的错觉离开，而别的设备还好端端地开着 —— 那是一次静默的
+   * 安全失败，恰好发生在他最需要这件事成功的时候（怀疑账号被人登着）。
+   *
+   * <p>所以它把失败**抛给调用方**，由界面说一句"没成功，请重试"，
+   * 并且**不清本地会话** —— 停在原处，用户可以直接再点一次。
+   */
+  logoutAll(): Promise<void>;
   /** 用持久化的刷新令牌恢复会话；恢复不了返回 `null` 并清空本地会话 */
   restore(): Promise<SessionUser | null>;
   /** 用现有访问令牌重新拉取身份与权限（后台改了权限之后刷新用） */
@@ -229,6 +243,13 @@ export function createAuthChannel(config: AuthChannelConfig): AuthChannel {
     logout: async () => {
       const refreshToken = session.getRefreshToken();
       try {
+        /*
+         * 没有刷新令牌就**不发这次请求** —— 它曾经是"发一个空请求体"的写法，
+         * 而那时空请求体在服务端表示"撤销我全部令牌"（见 `docs/decisions/0047`）。
+         * 一条"本地没有令牌"的兜底路径会变成一次全设备踢出，而写这段代码的人
+         * 只是想清理一下本地状态。两条语义现在各占一条路径，这个 `if` 也终于
+         * 只是"没有东西要撤就别撤"，不再兼职防一个危险默认值。
+         */
         if (refreshToken) await authApi.logout({ refreshToken });
       } catch (cause) {
         /*
@@ -241,6 +262,19 @@ export function createAuthChannel(config: AuthChannelConfig): AuthChannel {
       } finally {
         session.clear();
       }
+    },
+
+    /*
+     * 与 logout 相反：**失败就抛，且不清本地会话**。
+     *
+     * 理由写在 `AuthChannel.logoutAll` 的注释里（本地清理达成不了"别处也下线"
+     * 这个意图）。这里只强调一次实现上的对称性：两个方法在 `try/catch/finally`
+     * 上长得完全不一样，而那**不是不一致，是两条意图不一样** ——
+     * 谁要是把它们"统一"成同一个形状，就会丢掉其中一条的正确性。
+     */
+    logoutAll: async () => {
+      await authApi.logoutAll();
+      session.clear();
     },
 
     restore: async () => {

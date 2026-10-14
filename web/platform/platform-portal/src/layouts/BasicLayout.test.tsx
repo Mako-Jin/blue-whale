@@ -1,9 +1,9 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 import BasicLayout from './BasicLayout';
-import { session } from '@/auth';
+import { auth, session } from '@/auth';
 import { MICRO_APPS } from '@/micro';
 
 /**
@@ -135,5 +135,54 @@ describe('BasicLayout · 修改口令入口', () => {
     fireEvent.click(screen.getByTestId('open-change-password'));
 
     expect(screen.getByRole('dialog', { name: '修改口令' })).toBeInTheDocument();
+  });
+});
+
+/**
+ * 「退出所有设备」入口的落点与步数。
+ *
+ * <p>落点与「修改口令」相同（会话级动作、不依赖任何菜单码、必须在基座），
+ * 但**步数不同**：改密点开就是表单，它点开必须先问一句。差别来自后果落在谁身上 ——
+ * 改密踢的是自己，用户当场就能感知；退出所有设备踢的是**别的设备上那些会话**，
+ * 那些用户看不见，而且可能正在填一张表单。
+ *
+ * <p>第二条用例因此是本组的重点：它钉的是**"点一下不会直接发出去"**。
+ * 只断言"弹窗出现了"是不够的 —— 一个"先发请求、再弹确认"的实现同样会弹窗。
+ */
+describe('BasicLayout · 退出所有设备入口', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    session.clear();
+    vi.restoreAllMocks();
+  });
+
+  it('一个菜单码都没有时入口仍在（它不依赖任何菜单码）', () => {
+    signIn([]);
+    renderLayout();
+
+    expect(screen.getByTestId('open-logout-all')).toBeInTheDocument();
+  });
+
+  it('点它只打开确认，一个请求都不发 —— 这个动作影响的是别的设备', () => {
+    const logoutAll = vi.spyOn(auth, 'logoutAll').mockResolvedValue();
+    signIn(ALL_MENUS);
+    renderLayout();
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('open-logout-all'));
+
+    expect(screen.getByRole('dialog', { name: '退出所有设备' })).toBeInTheDocument();
+    expect(logoutAll).not.toHaveBeenCalled();
+  });
+
+  it('确认之后才真的调用，且只调一次', async () => {
+    const logoutAll = vi.spyOn(auth, 'logoutAll').mockResolvedValue();
+    signIn(ALL_MENUS);
+    renderLayout();
+
+    fireEvent.click(screen.getByTestId('open-logout-all'));
+    fireEvent.click(screen.getByTestId('confirm-logout-all'));
+
+    await waitFor(() => expect(logoutAll).toHaveBeenCalledTimes(1));
   });
 });

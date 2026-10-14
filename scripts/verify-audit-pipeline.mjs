@@ -301,7 +301,11 @@ async function main() {
     }
 
     async function logout() {
-      await clickSelector(".basic-layout__action:last-of-type");
+      // 用 `data-testid` 而不是 `.basic-layout__action:last-of-type`：
+      // 后者是一条**位置假设**（"登出恰好是顶栏最后一个按钮"），而顶栏是会加按钮的
+      // —— 加一个就会让这里点到别的按钮，失败信息却是"登出后没回到登录页"，
+      // 与真正的原因（点错了按钮）差得很远。见 `BasicLayout.tsx` 里的同一条注释。
+      await clickSelector('[data-testid="sign-out"]');
       await waitFor(`location.pathname === '/login'`, "登出后回到登录页");
     }
 
