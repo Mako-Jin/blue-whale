@@ -244,7 +244,35 @@ public enum AuthResultCode {
      * 已停用的组织不许挂新下级，理由是"会得到一个算不出范围的分支"。
      * 租户是更强的那一档 —— 停用的组织只是不参与范围求值，停用的租户连登录都进不去。
      */
-    TENANT_DISABLED(40920, "引用的租户已停用");
+    TENANT_DISABLED(40920, "引用的租户已停用"),
+    /**
+     * 不可停用或删除**自己所在的**租户。
+     *
+     * <p>与 {@link #SYSTEM_ROLE_PROTECTED} 是同一条理由，只是对象从角色换成了租户：
+     * 停用自己所在的租户会让**操作者本人**、以及这个租户里所有人一起失去管理入口 ——
+     * 停用之后重新登录被拒（{@code AuthService.login} 先拒 {@code status != ENABLED}
+     * 的租户），续期也被 {@code AuthService.refresh} 的同一行判定挡住
+     * （见 {@code docs/decisions/0058}），于是恢复手段只剩"另一个租户里持有
+     * {@code auth:tenant:update} 的账号"，而根租户自己只剩直接改库。
+     * 删除是同一件事的另一半：{@code @TableLogic} 让被删的租户在应用层
+     * **等于不存在**，对登录的影响一模一样。
+     *
+     * <p>这两件事都不是"改一条数据"，而是**关掉自己进来的那扇门** ——
+     * {@code 40917} 那句话可以直接搬过来用："一次点击造成的后果需要连数据库才能撤销，
+     * 这种操作不该由一个 HTTP 接口提供。"
+     *
+     * <p><b>它只拦"自己所在的那一个"。</b>停用 / 删除**别的**租户照常（那是管理动作，
+     * 操作者站在门外、随时可以反向操作）。把守卫写成"谁都别停"会让这个能力形同虚设 ——
+     * 所以本码的判据是**身份与被操作对象的相等关系**，不是操作本身；
+     * 反例由 {@code TenantDisableApiTest} 的前两例承担（它们停用的是别的租户且期望成功）。
+     *
+     * <p>身份取自 {@code AuthContextHolder#currentTenantId()}（令牌里的租户），
+     * **不接受调用方传入** —— 与 {@code AuthService#logoutAll} 那条"只能撤自己的"
+     * 是同一种写法。没有身份上下文时不判：这个守卫要挡的是"操作者把自己关在门外"，
+     * 而没有身份就没有那个操作者（所有写路径都在 {@code @RequiresPermission} 之后，
+     * 因此 HTTP 上不存在这一支）。
+     */
+    SELF_TENANT_PROTECTED(40921, "不可停用或删除自己所在的租户");
 
     private final int code;
     private final String message;

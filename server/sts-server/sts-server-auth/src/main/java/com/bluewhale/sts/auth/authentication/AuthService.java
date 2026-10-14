@@ -156,9 +156,27 @@ public class AuthService {
     /**
      * 刷新访问令牌。
      *
-     * <p>算法：校验刷新令牌 → 查库确认未被撤销 → 比对摘要 → **校验账号仍可用且口令未过期**
-     * → 作废旧令牌并换发新令牌。轮换（rotation）让一个被盗的刷新令牌只有一次可用机会，
+     * <p>算法：校验刷新令牌 → 查库确认未被撤销 → 比对摘要 →
+     * **校验账号与租户仍可用，且口令未过期** → 作废旧令牌并换发新令牌。
+     * 轮换（rotation）让一个被盗的刷新令牌只有一次可用机会，
      * 且它的下一次使用会立刻触发泄露检测。
+     *
+     * <p><b>为什么"租户状态"也判在续期这条路上：</b>它与账号状态是同一条判据的
+     * 两个对象 —— 撤销会话是"必须留下痕迹"的做法，只用于**无法从当前状态推出来**的变化
+     * （换口令之后，旧令牌看起来完全正常，没有任何一列能说明它属于上一任口令）；
+     * 而"账号被停用 / 被锁定 / 被删除"以及"租户被停用"都是**当前状态**，
+     * 读的时候就知道，因此靠判断、不靠清理（见 {@code docs/decisions/0046} 的「四」）。
+     * 那一节为账号状态列出了这条判据，租户状态却曾漏在下面那一行之外 ——
+     * 只判了 {@code tenant == null}，于是停用租户**只挡新登录**；
+     * 而刷新令牌是轮换的（每次续出一个新的、有效期重新起算），
+     * 只要一个会话在被使用就永远续得下去，"停用"这个动作对已在用的人等于没发生
+     * （{@code docs/decisions/0058}）。
+     *
+     * <p><b>不清理换来的收益是"恢复不必重新登录"：</b>租户被重新启用之后，
+     * 手上那个刷新令牌（从未被作废）立刻又能续期 —— 这正是 `0046` 拒绝在停用路径上
+     * 顺手撤销会话时给的那条理由。残留边界仍是访问令牌的有效期（默认 2 小时）：
+     * 停用后到续期失败之间，手里那个无状态访问令牌照常能用
+     * （{@code TenantDisableApiTest} 把这条残留**如实钉住**，谁去动认证过滤器它会先红）。
      *
      * <p><b>为什么"作废旧令牌"排在全部校验之后：</b>一个失败的请求不该有副作用。
      * 这与 {@link #changePassword} 那句"上面任何一步失败都不该动会话"同源，
@@ -200,7 +218,15 @@ public class AuthService {
 
         TenantEntity tenant = tenantMapper.selectById(stored.getTenantId());
         UserEntity user = userMapper.selectById(stored.getUserId());
-        if (tenant == null || user == null || !Status.ENABLED.wireName().equals(user.getStatus())) {
+        // 账号与租户的"不可用"在**同一行**上判：它们是同一条判据的两个对象
+        // （"当前状态"⇒ 靠判断不靠清理，见 docs/decisions/0046 的「四」），
+        // 从前租户那一半只判了非 null，于是停用租户对已经在用的人不生效 ——
+        // 见方法注释与 docs/decisions/0058。四个条件给同一个码也是刻意的：
+        // 调用方能做的事完全一样（重新登录），分成四个码只会让"我为什么被请出去"
+        // 多出四种长得一样的答案，而它们都不该透出去。
+        if (tenant == null || user == null
+                || !Status.ENABLED.wireName().equals(user.getStatus())
+                || !Status.ENABLED.wireName().equals(tenant.getStatus())) {
             throw AuthResultCode.SESSION_INVALID.businessException();
         }
 

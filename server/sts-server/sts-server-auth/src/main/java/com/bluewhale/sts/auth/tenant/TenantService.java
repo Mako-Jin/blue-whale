@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.sts.auth.common.AuthResultCode;
 import com.bluewhale.sts.auth.common.enums.Status;
+import com.bluewhale.sts.auth.context.AuthContextHolder;
 import com.bluewhale.sts.common.basic.model.PageResult;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -122,6 +123,15 @@ public class TenantService {
         entity.setTenantName(request.getTenantName());
         entity.setDescription(request.getDescription());
         if (request.getStatus() != null && !request.getStatus().isBlank()) {
+            // 判据写的是"**写入的值不是 ENABLED**"，而不是"从 ENABLED 变成别的"：
+            // 两种写法在正常输入上等价，前者顺带把"写进一个非法值"那一支也挡了 ——
+            // 而那一支同样会让租户登不进来（所有读者都在比 `status == "ENABLED"`，
+            // 见 AuthResultCode.TENANT_DISABLED 的说明）。
+            // 注意本方法**不过 resolveStatus**（与 create 不同），写进来的就是这个字面量，
+            // 所以这里的判据必须与"读者怎么读"保持一致，而不是与 Status 枚举一致
+            if (!Status.ENABLED.wireName().equals(request.getStatus())) {
+                assertNotOwnTenant(id);
+            }
             entity.setStatus(request.getStatus());
         }
         if (request.getAllowRegister() != null) {
@@ -137,6 +147,9 @@ public class TenantService {
     @Transactional
     public void delete(Long id) {
         TenantEntity entity = requireTenant(id);
+        // 与"停用自己所在租户"同一个码、同一条理由：删除是逻辑删除（@TableLogic），
+        // 被删的租户在应用层等于不存在，对登录的影响与停用一模一样
+        assertNotOwnTenant(id);
         Long childCount = tenantMapper.selectCount(Wrappers.<TenantEntity>lambdaQuery()
                 .eq(TenantEntity::getParentId, id));
         if (childCount != null && childCount > 0) {
@@ -222,6 +235,31 @@ public class TenantService {
             throw AuthResultCode.TENANT_NOT_FOUND.businessException();
         }
         return entity;
+    }
+
+    /**
+     * 拒绝把**自己所在的租户**停用或删除（{@code 40921}）。
+     *
+     * <p><b>它为什么和"续期也判租户状态"必须同一次落地：</b>在那条判据落地**之前**，
+     * "停用自己所在租户"其实是有退路的 —— 访问令牌还能用，而它把 {@code status}
+     * 改回来就行（{@code 0051} 当初实测过这一点，并因此把这件事记成"没那么急"）。
+     * 续期那条路一封，这个动作就变成了"所有会话在访问令牌到期后失效、而重新登录被拒"，
+     * 恢复只剩"另一个租户里持有 {@code auth:tenant:update} 的账号"，根租户自己则只剩改库。
+     * 两问是耦合的，所以 {@code docs/decisions/0058} 把它们一起答了。
+     *
+     * <p><b>它不拦别的租户。</b>判据是**身份与被操作对象的相等关系**，不是操作本身 ——
+     * 管理别的租户正是这两个接口存在的理由（反例见 {@code TenantDisableApiTest}
+     * 的前两例：停用别的租户照常成功）。
+     *
+     * <p><b>没有身份上下文时不判</b>（{@code currentTenantId()} 为 {@code null}）。
+     * 这个守卫要挡的是"操作者把自己关在门外"—— 没有身份就没有那个操作者。
+     * 所有写路径都在 {@code @RequiresPermission} 之后，因此 HTTP 上不存在这一支。
+     */
+    private void assertNotOwnTenant(Long id) {
+        Long own = AuthContextHolder.currentTenantId();
+        if (own != null && own.equals(id)) {
+            throw AuthResultCode.SELF_TENANT_PROTECTED.businessException();
+        }
     }
 
     private TenantEntity resolveParent(Long parentId) {
