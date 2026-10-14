@@ -321,7 +321,7 @@ class ClientLogApiTest {
     }
 
     @Test
-    @DisplayName("别的租户的日志：列表查不到、聚合不计入、详情返 40401 而不是 403")
+    @DisplayName("别的租户的日志：列表查不到、聚合不计入、详情返 40400 而不是 403")
     void shouldIsolateAcrossTenants() throws Exception {
         String token = loginAsAdmin();
         String app = "it-foreign-" + UUID.randomUUID();
@@ -350,8 +350,11 @@ class ClientLogApiTest {
                 // 只改 wrapper 忘了它，症状就是"总数对、分布全库的"
                 .andExpect(jsonPath("$.data.total").value(0));
 
-        // 详情：40401 而不是 403。403 等于向调用方承认"这条记录存在，只是不给你看"，
+        // 详情：40400 而不是 403。403 等于向调用方承认"这条记录存在，只是不给你看"，
         // 而"这个 id 上有没有记录"本身就是不该跨租户泄漏的信息。
+        // 用的是**公共**码（ResultCode.NOT_FOUND）而不是权限域那个 40401：
+        // 日志 / 审计 / 事件三个域都没有自己的枚举。ADR-0059 核出这两句
+        // 此前写着 40401 —— 名字与注释都错，而断言是对的，于是没有任何东西会红。
         mockMvc.perform(get("/api/logs/client/{id}", foreign.getId())
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())

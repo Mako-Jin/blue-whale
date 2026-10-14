@@ -91,7 +91,7 @@ public class ClientLogController {
     @GetMapping("/{id}")
     @RequiresPermission(AuthPermissions.LOG_CLIENT_READ)
     @Operation(summary = "查询日志详情",
-            description = "不存在、或属于其他租户时一律返回 40401 —— 不区分这两种情形，"
+            description = "不存在、或属于其他租户时一律返回 40400 —— 不区分这两种情形，"
                     + "否则错误码本身就泄露了\"这条记录存在\"。")
     public R<ClientLogVO> detail(@PathVariable @Parameter(description = "日志主键") long id) {
         return R.ok(clientLogService.detail(id));

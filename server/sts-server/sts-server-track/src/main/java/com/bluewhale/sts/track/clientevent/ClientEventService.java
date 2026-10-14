@@ -146,9 +146,10 @@ public class ClientEventService {
     /**
      * 查询单条事件详情。
      *
-     * <p><b>"不存在"与"不属于本租户"返回同一个 40401，不区分</b> ——
+     * <p><b>"不存在"与"不属于本租户"返回同一个 40400，不区分</b> ——
      * 区分二者等于用错误码回答"这个 id 上真的有一条记录吗"，
      * 而那本身就是调用方不该知道的信息。与日志详情、审计详情处置一致。
+     * 用公共码而不是权限域那套的理由见 {@code ClientLogService#detail}（{@code docs/decisions/0059}）。
      */
     @Transactional(readOnly = true)
     public ClientEventVO detail(long id) {

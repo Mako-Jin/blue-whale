@@ -599,7 +599,7 @@ export interface paths {
     };
     /**
      * 查询日志详情
-     * @description 不存在、或属于其他租户时一律返回 40401 —— 不区分这两种情形，否则错误码本身就泄露了"这条记录存在"。
+     * @description 不存在、或属于其他租户时一律返回 40400 —— 不区分这两种情形，否则错误码本身就泄露了"这条记录存在"。
      */
     get: operations['detail_6'];
     put?: never;
@@ -679,7 +679,7 @@ export interface paths {
     };
     /**
      * 查询事件详情
-     * @description 不存在、或属于其他租户时一律返回 40401 —— 不区分这两种情形，否则错误码本身就泄露了"这条记录存在"。
+     * @description 不存在、或属于其他租户时一律返回 40400 —— 不区分这两种情形，否则错误码本身就泄露了"这条记录存在"。
      */
     get: operations['detail_7'];
     put?: never;

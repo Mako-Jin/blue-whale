@@ -79,7 +79,7 @@ public class ClientEventController {
     @GetMapping("/{id}")
     @RequiresPermission(AuthPermissions.EVENT_CLIENT_READ)
     @Operation(summary = "查询事件详情",
-            description = "不存在、或属于其他租户时一律返回 40401 —— 不区分这两种情形，"
+            description = "不存在、或属于其他租户时一律返回 40400 —— 不区分这两种情形，"
                     + "否则错误码本身就泄露了\"这条记录存在\"。")
     public R<ClientEventVO> detail(@PathVariable @Parameter(description = "事件主键") long id) {
         return R.ok(clientEventService.detail(id));
