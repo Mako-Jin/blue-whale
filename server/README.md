@@ -281,7 +281,7 @@ com.bluewhale.sts.log                    ← sts-server-log，包名用业务域
 | **撤销成员必须带 `memberType`**（`/members/{memberType}/{memberId}`） | `member_id` 是多态列，只在它所指的那张表里有意义 —— 用户与用户组是**两个独立的自增序列、会撞号**。只用 `memberId` 会撤错对象，而"撤错了"表现为**权限凭空消失**、没有报错也没有痕迹 |
 | **`memberType` 必填、不给默认值**                                 | 默认 `USER` 会把"想授用户组但漏写了类型"变成"**悄悄授给一个恰好同号的用户**"，而请求里没有任何一处写错过。多写一个字段，换来"授错对象"从可能发生变成不可能表达 |
 | **成员必须与角色同租户**（否则 `40002`，文案点名租户）              | 判定 SQL 两侧都限 `tenant_id`，跨租户的成员关系**永远匹配不上** —— 却不会报错，只会安静地躺在库里：列表里看得见、权限里没有。文案必须点明租户，因为"不存在"会把调用方引去查一个本来正确的主键 |
-| **引用的租户必须「存在」且「可用」**（`40002` / `40920` 分两格）    | 存在性 `TenantService#assertExists` 放在 `resolveTenantId` 里，因此**读与写都走它**；可用性 `assertAcceptsNewData`（存在 + `status = ENABLED`）**只放在 `create` 里** —— 停用租户里新造的账号**登不进来**（登录先拒 `status != ENABLED` 的租户，且刻意返 `40101`）、永久占着 `uk_bw_auth_user_tenant_username`，而停用租户里的角色 / 组织 / 用户组同样没有任何消费者；同一条先例在 `OrganizationService#resolveParent`（停用的父组织不许挂新下级），租户是更强的一档。**别把可用性并进 `resolveTenantId`**：那会连查一个停用租户里有什么一起关掉，而那正是排查它时最需要的信息（`TenantReferenceApiTest` 有用例钉这条边界）。逻辑删除的租户不需要第三条判据 —— `@TableLogic` 已让它在应用层**等于不存在**，走 `40002`。**`bw_auth_tenant.status` 目前只有登录一个读者**：续期那条路不读它（`AuthService#refresh` 里用户判了状态、租户只判了非 `null`），所以停用**对已在用的人不生效**；要修得先定停用是否等于现有会话也下线（见 `decisions/0051` 未覆盖 1） |
+| **引用的租户必须「存在」且「可用」**（`40002` / `40920` 分两格）    | 存在性 `TenantService#assertExists` 放在 `resolveTenantId` 里，因此**读与写都走它**；可用性 `assertAcceptsNewData`（存在 + `status = ENABLED`）**只放在 `create` 里** —— 停用租户里新造的账号**登不进来**（登录先拒 `status != ENABLED` 的租户，且刻意返 `40101`）、永久占着 `uk_bw_auth_user_tenant_username`，而停用租户里的角色 / 组织 / 用户组同样没有任何消费者；同一条先例在 `OrganizationService#resolveParent`（停用的父组织不许挂新下级），租户是更强的一档。**别把可用性并进 `resolveTenantId`**：那会连查一个停用租户里有什么一起关掉，而那正是排查它时最需要的信息（`TenantReferenceApiTest` 有用例钉这条边界）。逻辑删除的租户不需要第三条判据 —— `@TableLogic` 已让它在应用层**等于不存在**，走 `40002`。**`bw_auth_tenant.status` 有两个读者**：登录（拒停用的租户）与 `assertAcceptsNewData`（拒在停用租户下新建数据）—— **写侧读它只有后者这一处**；**续期那条路不读它**（`AuthService#refresh` 里用户判了状态、租户只判了非 `null`），所以停用**对已在用的人不生效**；要修得先定停用是否等于现有会话也下线（见 `decisions/0051` 未覆盖 1 —— 那句"只有一个读者"是 `0051` 决策**之前**的事实，**已由 `decisions/0054` 核出并订正**，权威清单见下节「权限域的开关列与它们的读者」） |
 | **租户存在性校验只有一处**（`TenantService#assertExists`）         | 四个带 `tenant_id` 的域（用户 / 角色 / 组织 / 用户组）此前**各写一遍同名的私有 `resolveTenantId`**，其中**用户域那一份没有校验**（`private static`，也是四份里唯一不持有 `TenantMapper` 的）。DDL 里**零 `FOREIGN KEY`、零 `CONSTRAINT`** ⇒ 应用层不挡就没有东西挡：`POST /api/auth/users` 带一个不存在的 `tenantId` 会**成功建出一个永远登不进来的账号**（登录先按 `tenantCode` 找租户），并永久占着 `uk_bw_auth_user_tenant_username`。而另外三处的注释把这个缺口写成"与 `UserService` **有意不同**"、`docs/` 里对此**零记录** —— **复制 + 用注释追认**比漏写注释更难发现（漏写会在评审时被问，"有意"是一个答案）。现在判定归 `TenantService#assertExists`（唯一属主），四处都问它，三个服务因此不再注入 `TenantMapper`；`40002`（引用的外键指不到）与 `40402`（要操作的租户不存在）**刻意不合并** —— 合并会让两种要去不同地方修的错长得一样。**新增带 `tenant_id` 的表时，存在性校验问 `TenantService`，不要再内联一份**（`decisions/0050`） |
 | **不带 `@RequiresPermission` 的端点必须登记**                      | `AuthInterceptor` 的规则是**白名单反着写的**（方法/类上**没有**注解就一律放行，`decisions/0026` 点名的根因）—— 规则有意如此（登录 / 健康检查 / 上报不能被要求权限码），**代价是新加端点忘了写注解 = 静默公开**。`PublicEndpointRegistryTest` 用 `RequestMappingHandlerMapping` 枚举全部 `/api/**` 端点，断言「有注解」与「在登记表里」**恰好二选一**（判据与拦截器同用一个 `AnnotatedElementUtils.findMergedAnnotation`、枚举同一张映射表 ⇒ **守卫与被守的规则同源**）。**登记 ≠ 免登录**：本表回答"拦不拦权限码"，"要不要令牌"另由服务层 `AuthContextHolder.require()` 表达（`/api/auth/me`、`/password`、`/logout-all` 就在登记表里，但仍要求已认证）—— 拿它当"完全公开的接口清单"用会造出第二份会误导的清单。`bw_auth_resource.is_whitelist` **不是**这份清单：种子资源由 `AuthPermissions.ALL` 建出 ⇒ 只有带权限码的接口才有行，而公开接口在那张表里**一行都没有**，于是这一列恒为 0（`decisions/0052`） |
 | **成员列表分页，但不做按名搜索**                                   | 资源授权列表被权限码总量封顶、可以一次取完；成员是多对多、可能上万。名字在另一张表且随类型切换，先跨表解析再过滤会让 `total` 失真 —— 按名字找人应当从**用户**列表那一侧进入 |
@@ -301,7 +301,7 @@ com.bluewhale.sts.log                    ← sts-server-log，包名用业务域
 | **移动节点是独立接口 + 独立审计动作**（`PUT /orgs/{id}/parent`，`auth.org.move`） | 它重写整棵子树 ⇒ **子树上每个人的可见范围同时改变**，表面只是"换了个上级部门"。混进一次普通字段更新，事后追问"这个部门的可见范围为什么变了"就再也查不出来 |
 | **修改接口上带不同的 `parentId` 一律 `40001`，不静默忽略** | 静默忽略的表现是"保存成功、层级没变"，调用方会以为改好了。**与用户组 `parentId`（接受但不产生权限）判断相反** —— 组织路径变了会真的改变数据范围 |
 | **写入必须显式落 `parent_id`，不能只写三个派生列** | 本轮抓出的**真实缺陷**：`updateColumns` 原本不写它 ⇒ 移动后 `code_path` 已指向新父级（**数据范围已搬家**）而 `parent_id` 还在旧父级（**树显示在原地**），两处都不报错。抓它的断言是"移动后**原父级的 `hasChild` 应归 0**"。同一个坑还影响 `create` 的"同码复活"分支 |
-| **`has_child` 是派生列：两侧一律真重算，且它不参与判定**           | **派生值不是开关** —— 两处 `delete` 的守卫都是**真查一次** `parent_id` 的计数、**从不读这一列**（`decisions/0052` 把它的读者记成"删除守卫"，已由 `decisions/0053` 订正；那一格写错**不会有任何测试变红**，因为守卫读不读它，两种实现的行为完全相同）。漏了重算的症状是一个永远为 1 的展开箭头（点开是空的）—— 租户侧原先只做 0→1、反向不重算，已统一：**建个子租户再删掉，父级此前会一直返回 `hasChild: 1`**。**"某列被谁读"必须用 `getXxx` 的调用点核，不能看列名、注释或邻接关系** |
+| **`has_child` 是派生列：两侧一律真重算，且它不参与判定**           | **派生值不是开关** —— 两处 `delete` 的守卫都是**真查一次** `parent_id` 的计数、**从不读这一列**（`decisions/0052` 把它的读者记成"删除守卫"，已由 `decisions/0053` 订正；那一格写错**不会有任何测试变红**，因为守卫读不读它，两种实现的行为完全相同）。漏了重算的症状是一个永远为 1 的展开箭头（点开是空的）—— 租户侧原先只做 0→1、反向不重算，已统一：**建个子租户再删掉，父级此前会一直返回 `hasChild: 1`**。**"某列被谁读"必须搜符号名 `getXxx` 核**（**不带括号** —— 带括号会漏掉 wrapper 里的方法引用 `Entity::getXxx`，而判定链路的读取大量写在那里），不能看列名、注释或邻接关系，也不能抄上一条结论（`decisions/0054`；权威清单见「权限域的开关列与它们的读者」） |
 | **每租户每人至多一个主岗**，实现是"先降级别处、再设置自己" | `bw_auth_rel_org_user` **连 `(organization_id, user_id)` 唯一索引都没有** ⇒ 重复归属不撞键、主岗唯一完全靠服务层；漏了这次 update 的症状是"一个人有两个主岗、能看到的数据比预期多"，**不报错** |
 | **不静默搬主岗**：不传 `isPrimaryPosition` 时，没主岗则自动设为、已有主岗则保持不变 | 静默搬主岗会**悄悄改变这个人的数据范围**，而他本人的部门归属看起来毫无变化。自动设第一条的理由是没有主岗的人 `DEPT` 算不出范围、会被兜底成"仅本人" |
 | **设主岗是独立接口 + 独立审计动作**（`auth.org.set_primary_position`） | 它**不改变任何计数**（归属条数不变）、界面上只是多一个标记，却直接改一个人的数据范围 |
@@ -389,6 +389,41 @@ com.bluewhale.sts.log                    ← sts-server-log，包名用业务域
 > 对本模块的直接后果：**除了单批 500 条的 Bean Validation 上限，后端一条限流也没有**，
 > 且 `server.tomcat.*` 的体量限制同样一个字没配（字节数上限也在网关）。
 > 因此**从后端侧看，`42900` 是一个"只出不进"的错误码** —— 它由网关产生，后端代码里不出现。
+
+### 权限域的开关列与它们的读者
+
+哪些列是"开关"、谁在读它们。**这张表是权威版本**（`decisions/0054` 逐格核过并把它从 ADR 里迁了出来
+—— 它自称的用途是"下次不必再撞"，那是活文档的职责）。
+
+口径是 DDL 里 `status` / `is_*` / `enabled` / `allow_*` / `deleted` / `has_*` / `lock_*` 这七个
+**列名模式**。**模式之外还有开关**（`revoked` / `must_change_password` 就不在其中），
+所以它是**口径内**完备，不是"全仓只有这些开关"。
+
+| 开关列 | 读者 | 改动之后 |
+| --- | --- | --- |
+| `bw_auth_resource.is_enabled` | `AuthorizationMapper` 的判定 SQL（资源那条） | 不再产生权限 |
+| `bw_auth_role.status` | `AuthorizationMapper` 的两条判定 SQL · `RoleMemberService#grantDefaultRolesTo` | 角色失效（成员关系还在，不再产出权限）；也不再被当默认角色授给新账号 |
+| `bw_auth_user_group.is_enabled` | `AuthorizationMapper` 的两条判定 SQL | 组不再传递角色 |
+| `bw_auth_user.status` | `AuthService#login` · `AuthService#refresh` | 登不进来；**续期时**也会被挡住 |
+| `bw_auth_tenant.status` | `AuthService#login` · `TenantService#assertAcceptsNewData` | 登不进来；**也不接受新建数据**（四个域的 `create`）。**续期不读它** ⇒ 停用对已在用的人不生效（见 `decisions/0051` 未覆盖 1） |
+| `bw_auth_organization.status` | `OrganizationService#enabledSubtreeIds`（`DEPT_AND_CHILD`）· `OrganizationService#resolveParent` · `OrganizationMemberService#primaryOrganizationOf`（`DEPT`） | 自己不再是范围目标、不许挂新下级 |
+| `bw_auth_role.is_default` | `RoleMemberService#grantDefaultRolesTo` | 建号不再自动授予（`0049`） |
+| `bw_auth_rel_org_user.is_primary_position` | `OrganizationMemberService#primaryOrganizationOf` · 成员列表的 `primaryOnly` 过滤 · 解绑前"要删的是不是主岗" | 该条归属不参与"本部门" |
+| `has_child`（租户 / 组织） | **零判定读者** —— 派生列，由 `parent_id` 真值算出 | 不产生任何行为差异（两处删除守卫都是**真查一次** `parent_id` 计数），见 `decisions/0053` |
+| `deleted`（十一张表） | `BaseEntity` 上的 `@TableLogic` | 行在应用层等于不存在（`0051`） |
+| `lock_level` / `locked_until` | `LoginAttemptRecorder#recordFailure`（读旧等级、写新等级与锁定时刻）· `AuthService#login`（**成功登录**时清零） | 不再锁定、退避不再升级 |
+| `lock_reason` | **零判定读者**（只被 `toVO` 回显给运维） | 不产生任何行为差异 |
+| `bw_auth_user.mfa_enabled` | **零判定读者**（只被 `toVO` 回显）—— MFA 未实现的留白 | 不产生任何行为差异 |
+
+**"只存不用"（零判定读者）的六个列**：`bw_auth_tenant.allow_register` / `allow_add` ·
+`bw_auth_user_group.is_default` · `bw_auth_resource.is_whitelist` / `is_deprecated` ·
+`bw_auth_user.mfa_enabled`（最后一个此前从未被任何文档记过）。
+
+> **写"某列被谁读"时必须搜符号名 `getXxx`（不带括号）** —— 带括号只匹配 `getXxx()`，
+> 会漏掉 wrapper 里的**方法引用** `Entity::getXxx`，而**判定链路的读取大量写在那里**
+> （`getIsDefault()` 搜不到 `RoleMemberService` 里那句 `.eq(RoleEntity::getIsDefault, 1)`）。
+> 同样不能靠列名、注释、邻接关系，**也不能抄上一条结论或上一份文档的背景** ——
+> ADR 的背景写的是**决策前**的事实，而它会被后来的人当成现状读（`decisions/0054`）。
 
 ---
 
