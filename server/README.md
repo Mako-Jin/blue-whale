@@ -549,6 +549,44 @@ DDL 里有**六个唯一编码列**，`uk_*` 一律**不含 `deleted`** ⇒ 软�
   此前只断言了 `40002`，两处的文案断言现由 `ReferenceMessageApiTest` 补齐，
   原用例保持不动（各钉一个维度）。
 
+### `404xx` 的十五处落点与它们的断言
+
+与 `40002` 恰好相反，这一族**一个码就是一个对象**（`40401` 用户 / `40402` 租户 / …），
+所以"点名"这件事住在**枚举**里 —— 抛出点不写文案，也就写不出错的对象。十五处落点里
+只有一处覆盖了文案，而那一处正是这个码在说两件事的地方。由此两条规矩：
+
+- **在抛出点覆盖文案 = 这个码在说两件事。** 全族只有 `DataScopeService#resolve` 一处
+  （把"用户不存在"与"不属于当前租户"合成一句），且它**不能拆成两个码** ——
+  拆了就等于告诉调用方"那个人存在，只是不在你这儿"。
+- **断言这一族断 `code` 即完整**（码就是对象）—— 与上面那节"只断 `code` 等于没核"
+  **正好相反**。文案断言在这里另有用途：证明这个码还只干一件事，一旦有人开始覆盖它会先红。
+
+**这张表是权威版本**（`decisions/0059` 补齐了此前没有断言的六处；`〃` 表示"同上一个方法"）。
+
+| 码      | 落点                                          | 断言                  |
+| ------- | --------------------------------------------- | --------------------- |
+| `40401` | `DataScopeService#resolve`                    | `DataScopeApiTest`    |
+| `40401` | `RoleMemberService#rolesOfUser`               | `UserGroupApiTest`    |
+| `40401` | `UserService#requireUser`                     | `NotFoundCodeApiTest` |
+| `40402` | `TenantService#requireTenant`                 | `NotFoundCodeApiTest` |
+| `40403` | `RoleService#requireRole`                     | `RoleApiTest`         |
+| `40403` | `RoleMemberService#requireRole`               | `NotFoundCodeApiTest` |
+| `40404` | `OrganizationService#requireOrg`              | `NotFoundCodeApiTest` |
+| `40404` | `OrganizationService#tree`（`rootId` 不存在） | `NotFoundCodeApiTest` |
+| `40405` | `UserGroupService#requireGroup`               | `UserGroupApiTest`    |
+| `40406` | `ResourceService#requireResource`             | `NotFoundCodeApiTest` |
+| `40407` | `RoleService#revoke`                          | `RoleApiTest`         |
+| `40408` | `RoleMemberService#revoke`                    | `RoleMemberApiTest`   |
+| `40409` | `UserGroupService#revokeMember`               | `UserGroupApiTest`    |
+| `40410` | `OrganizationMemberService#revokeMember`      | `OrganizationApiTest` |
+| `40410` | 〃 `#setPrimaryPosition`                      | `OrganizationApiTest` |
+
+顺带记下公共码的一格：`ResultCode.NOT_FOUND(40400)` 的默认文案"资源不存在"**一次都没被用过** ——
+三个读者（审计记录 / 客户端日志 / 客户端事件）全部自带文案，与上面那张表正好是两种相反的形态
+（`40002` 的默认文案零使用是因为"每处都必须自己点名"，`40400` 的是因为"每个域都要说自己的对象"）。
+它与 `AuthResultCode.RESOURCE_NOT_FOUND(40406)` 的文案**逐字相同**，靠码值区分
+（前者是 REST 语义的"资源"，后者是 `bw_auth_resource`）。
+
 ---
 
 ## 四、新增一个模块
