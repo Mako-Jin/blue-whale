@@ -7,7 +7,7 @@ import com.bluewhale.sts.auth.common.enums.Status;
 import com.bluewhale.sts.auth.context.AuthContextHolder;
 import com.bluewhale.sts.auth.relation.RelOrgUserEntity;
 import com.bluewhale.sts.auth.relation.RelOrgUserMapper;
-import com.bluewhale.sts.auth.tenant.TenantMapper;
+import com.bluewhale.sts.auth.tenant.TenantService;
 import com.bluewhale.sts.auth.user.UserEntity;
 import com.bluewhale.sts.auth.user.UserMapper;
 import com.bluewhale.sts.common.basic.model.PageResult;
@@ -67,16 +67,16 @@ public class OrganizationService {
     private final OrganizationMapper organizationMapper;
     private final RelOrgUserMapper relOrgUserMapper;
     private final UserMapper userMapper;
-    private final TenantMapper tenantMapper;
+    private final TenantService tenantService;
 
     public OrganizationService(OrganizationMapper organizationMapper,
                                RelOrgUserMapper relOrgUserMapper,
                                UserMapper userMapper,
-                               TenantMapper tenantMapper) {
+                               TenantService tenantService) {
         this.organizationMapper = organizationMapper;
         this.relOrgUserMapper = relOrgUserMapper;
         this.userMapper = userMapper;
-        this.tenantMapper = tenantMapper;
+        this.tenantService = tenantService;
     }
 
     /* ------------------------------------------------------------------ 查询 */
@@ -414,17 +414,14 @@ public class OrganizationService {
     /**
      * 租户：显式指定则**校验存在性**，否则取当前登录用户的租户。
      *
-     * <p>与 {@code RoleService.resolveTenantId} 同一条（而与 {@code UserService}
-     * 的"只取不校验"有意不同）：组织只能被本租户的用户归属引用、也只能被本租户的
+     * <p>组织只能被本租户的用户归属引用、也只能被本租户的
      * 数据范围求值命中，一个写错租户的组织会**永远算不出任何范围** ——
-     * 树建得好好看、人也挂进去了、DEPT 档位却恒为空。
+     * 树建得好好看、人也挂进去了、DEPT 档位却恒为空。校验住在
+     * {@link TenantService#assertExists}（此前四个域各写一遍，见 ADR-0050）。
      */
     private Long resolveTenantId(Long requested) {
         if (requested != null) {
-            if (tenantMapper.selectById(requested) == null) {
-                throw AuthResultCode.PARAM_REFERENCE_MISSING.businessException(
-                        "引用的租户不存在：" + requested);
-            }
+            tenantService.assertExists(requested);
             return requested;
         }
         Long current = AuthContextHolder.currentTenantId();

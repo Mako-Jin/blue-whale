@@ -14,7 +14,7 @@ import com.bluewhale.sts.auth.relation.RelRoleResourceEntity;
 import com.bluewhale.sts.auth.relation.RelRoleResourceMapper;
 import com.bluewhale.sts.auth.resource.ResourceEntity;
 import com.bluewhale.sts.auth.resource.ResourceMapper;
-import com.bluewhale.sts.auth.tenant.TenantMapper;
+import com.bluewhale.sts.auth.tenant.TenantService;
 import com.bluewhale.sts.common.basic.model.PageResult;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -69,18 +69,18 @@ public class RoleService {
     private final RelRoleResourceMapper relRoleResourceMapper;
     private final RelRoleMemberMapper relRoleMemberMapper;
     private final ResourceMapper resourceMapper;
-    private final TenantMapper tenantMapper;
+    private final TenantService tenantService;
 
     public RoleService(RoleMapper roleMapper,
                        RelRoleResourceMapper relRoleResourceMapper,
                        RelRoleMemberMapper relRoleMemberMapper,
                        ResourceMapper resourceMapper,
-                       TenantMapper tenantMapper) {
+                       TenantService tenantService) {
         this.roleMapper = roleMapper;
         this.relRoleResourceMapper = relRoleResourceMapper;
         this.relRoleMemberMapper = relRoleMemberMapper;
         this.resourceMapper = resourceMapper;
-        this.tenantMapper = tenantMapper;
+        this.tenantService = tenantService;
     }
 
     /* ------------------------------------------------------------------ 角色 CRUD */
@@ -396,17 +396,22 @@ public class RoleService {
     /**
      * 租户：显式指定则**校验存在性**，否则取当前登录用户的租户。
      *
-     * <p>与 {@code UserService.resolveTenantId}（只取不校验）有意不同，理由是
-     * {@code tenant_id} 在角色上的作用更强：角色只能被**本租户**的用户/用户组持有
+     * <p>角色上的 {@code tenant_id} 作用很强：角色只能被**本租户**的用户/用户组持有
      * （判定 SQL 两侧都限定 {@code tenant_id}），所以一个写错租户的角色
      * 是**永远不可能被授予给任何人**的。它会静默地躺在库里、任何租户的列表里
      * 都查不到它属于谁 —— 静默不可达的数据，正是本仓尽量不让接口制造的东西。
+     *
+     * <p><b>这条校验现在住在 {@link TenantService#assertExists}。</b>此前它与
+     * 用户 / 组织 / 用户组三处各写一遍，其中用户域那一份**漏掉了校验**，
+     * 而这里的注释把那个差异写成"与 {@code UserService} 有意不同" ——
+     * 差异是真的，理由却从来没有被写下过，也没有任何决策记录（见 ADR-0050）。
+     * 校验归 {@code TenantService} 之后，"引用了不存在的外键 → 40002"只有一个属主。
      *
      * <p>同类引用（父角色、资源）也一律校验，规则统一为"引用了不存在的外键 → 40002"。
      */
     private Long resolveTenantId(Long requested) {
         if (requested != null) {
-            assertTenantExists(requested);
+            tenantService.assertExists(requested);
             return requested;
         }
         Long current = AuthContextHolder.currentTenantId();
@@ -414,12 +419,6 @@ public class RoleService {
             throw AuthResultCode.PARAM_INVALID.businessException("无法确定租户，请显式指定 tenantId");
         }
         return current;
-    }
-
-    private void assertTenantExists(Long tenantId) {
-        if (tenantMapper.selectById(tenantId) == null) {
-            throw AuthResultCode.PARAM_REFERENCE_MISSING.businessException("引用的租户不存在：" + tenantId);
-        }
     }
 
     private RoleEntity resolveParent(Long parentId, Long tenantId) {

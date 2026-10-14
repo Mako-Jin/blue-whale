@@ -8,6 +8,7 @@ import com.bluewhale.sts.auth.common.enums.PasswordChangeSource;
 import com.bluewhale.sts.auth.common.enums.Status;
 import com.bluewhale.sts.auth.context.AuthContextHolder;
 import com.bluewhale.sts.auth.role.RoleMemberService;
+import com.bluewhale.sts.auth.tenant.TenantService;
 import com.bluewhale.sts.common.basic.model.PageResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,11 @@ import java.util.List;
  * 一律落到当前登录用户所属租户。这是**安全默认值** ——
  * 如果默认是"不限租户"，任何一个忘记传参的调用点都会变成一次跨租户数据泄露，
  * 而这种漏洞在评审时几乎看不出来（参数没传，代码看着很正常）。
+ *
+ * <p><b>而"显式指定"那一侧同样要过一道关：</b>指定的租户必须存在
+ * （{@link TenantService#assertExists}）。这一道此前**只有本域没有**，
+ * 另外三个带 {@code tenant_id} 的域（角色 / 组织 / 用户组）都有 ——
+ * 于是这里能建出属于不存在租户的账号，而租户表上没有任何外键能兜住它（见 ADR-0050）。
  *
  * <p><b>口令不在这里设。</b>强度校验、防重用、历史留痕三件事的实现在
  * {@link PasswordChanger} —— 本类（管理员重置）与 {@code AuthService}（自助改密）
@@ -44,13 +50,16 @@ public class UserService {
     private final UserMapper userMapper;
     private final PasswordChanger passwordChanger;
     private final RoleMemberService roleMemberService;
+    private final TenantService tenantService;
 
     public UserService(UserMapper userMapper,
                        PasswordChanger passwordChanger,
-                       RoleMemberService roleMemberService) {
+                       RoleMemberService roleMemberService,
+                       TenantService tenantService) {
         this.userMapper = userMapper;
         this.passwordChanger = passwordChanger;
         this.roleMemberService = roleMemberService;
+        this.tenantService = tenantService;
     }
 
     @Transactional(readOnly = true)
@@ -230,8 +239,14 @@ public class UserService {
         return count == null ? 0L : count;
     }
 
-    private static Long resolveTenantId(Long requested) {
+    private Long resolveTenantId(Long requested) {
         if (requested != null) {
+            // 校验存在性，与角色 / 组织 / 用户组三域一致 —— 此前**只有这里没有**这一道，
+            // 于是 POST /api/auth/users 带一个不存在的 tenantId 会**成功地**建出一个
+            // 属于不存在租户的账号：它永远登不进来（登录先按租户编码找租户）、
+            // 永远匹配不上任何判定，却永久占着 uk_bw_auth_user_tenant_username 那个位置。
+            // DDL 里没有任何外键（零 FOREIGN KEY），这件事只能由应用层负责。
+            tenantService.assertExists(requested);
             return requested;
         }
         Long current = AuthContextHolder.currentTenantId();

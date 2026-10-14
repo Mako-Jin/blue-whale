@@ -122,6 +122,32 @@ public class TenantService {
         markParentHasChild(entity.getParentId() == null ? null : tenantMapper.selectById(entity.getParentId()));
     }
 
+    /**
+     * 校验一个**被引用的**租户确实存在。参数非空由调用方保证。
+     *
+     * <p><b>与 {@link #requireTenant} 是两件事，错误码也不同，刻意不合并：</b>
+     * {@code requireTenant} 回答的是"你要操作的那个租户在哪"（找不到 → {@code 40402}，
+     * 路径主语就是这个租户）；本方法回答的是"你引用的那个外键指向谁"
+     * （指不到 → {@code 40002}，主语是**另一个**资源，租户只是它的一个字段）。
+     * 合并成一个码会让"我请求的租户不存在"与"我传的 tenantId 指向不存在的东西"
+     * 对调用方长得一模一样。
+     *
+     * <p><b>它存在的理由是"这条规则此前有四个属主"：</b>{@code bw_auth_user} /
+     * {@code bw_auth_role} / {@code bw_auth_organization} / {@code bw_auth_user_group}
+     * 各自都带 {@code tenant_id}，而**没有任何外键约束**（DDL 里零 {@code FOREIGN KEY}，
+     * 见 {@code V3__create_bw_auth_tables.sql}）—— 建不出来"属于不存在租户的行"
+     * 这件事只能由应用层负责。此前四个域各写一遍同名私有方法，其中用户域那一份
+     * **漏掉了校验**，而另外三份的注释把它写成"有意不同"却无人负责（见 ADR-0050）。
+     * 现在这条规则只有一个属主：调用方问这里，而不是各自伸手指向租户表。
+     */
+    @Transactional(readOnly = true)
+    public void assertExists(Long tenantId) {
+        if (tenantMapper.selectById(tenantId) == null) {
+            throw AuthResultCode.PARAM_REFERENCE_MISSING.businessException(
+                    "引用的租户不存在：" + tenantId);
+        }
+    }
+
     private TenantEntity requireTenant(Long id) {
         TenantEntity entity = id == null ? null : tenantMapper.selectById(id);
         if (entity == null) {

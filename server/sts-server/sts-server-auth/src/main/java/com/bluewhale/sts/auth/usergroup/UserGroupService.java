@@ -9,7 +9,7 @@ import com.bluewhale.sts.auth.relation.RelRoleMemberEntity;
 import com.bluewhale.sts.auth.relation.RelRoleMemberMapper;
 import com.bluewhale.sts.auth.relation.RelUserGroupMemberEntity;
 import com.bluewhale.sts.auth.relation.RelUserGroupMemberMapper;
-import com.bluewhale.sts.auth.tenant.TenantMapper;
+import com.bluewhale.sts.auth.tenant.TenantService;
 import com.bluewhale.sts.auth.user.UserEntity;
 import com.bluewhale.sts.auth.user.UserMapper;
 import com.bluewhale.sts.common.basic.model.PageResult;
@@ -69,18 +69,18 @@ public class UserGroupService {
     private final RelUserGroupMemberMapper relUserGroupMemberMapper;
     private final RelRoleMemberMapper relRoleMemberMapper;
     private final UserMapper userMapper;
-    private final TenantMapper tenantMapper;
+    private final TenantService tenantService;
 
     public UserGroupService(UserGroupMapper userGroupMapper,
                             RelUserGroupMemberMapper relUserGroupMemberMapper,
                             RelRoleMemberMapper relRoleMemberMapper,
                             UserMapper userMapper,
-                            TenantMapper tenantMapper) {
+                            TenantService tenantService) {
         this.userGroupMapper = userGroupMapper;
         this.relUserGroupMemberMapper = relUserGroupMemberMapper;
         this.relRoleMemberMapper = relRoleMemberMapper;
         this.userMapper = userMapper;
-        this.tenantMapper = tenantMapper;
+        this.tenantService = tenantService;
     }
 
     /* ------------------------------------------------------------------ 用户组 CRUD */
@@ -378,17 +378,14 @@ public class UserGroupService {
     /**
      * 租户：显式指定则**校验存在性**，否则取当前登录用户的租户。
      *
-     * <p>与 {@code RoleService.resolveTenantId} 同一条（而那一条与 {@code UserService}
-     * 的"只取不校验"有意不同）：用户组只能被**本租户**的角色成员关系引用，
+     * <p>用户组只能被**本租户**的角色成员关系引用，
      * 一个写错租户的组会**永远不可能产生权限** —— 成员加得进去、列表一切正常、
      * 判定永远匹配不上。静默不可达的数据，正是本仓尽量不让接口制造的东西。
+     * 校验住在 {@link TenantService#assertExists}（此前四个域各写一遍，见 ADR-0050）。
      */
     private Long resolveTenantId(Long requested) {
         if (requested != null) {
-            if (tenantMapper.selectById(requested) == null) {
-                throw AuthResultCode.PARAM_REFERENCE_MISSING.businessException(
-                        "引用的租户不存在：" + requested);
-            }
+            tenantService.assertExists(requested);
             return requested;
         }
         Long current = AuthContextHolder.currentTenantId();

@@ -67,6 +67,8 @@ docs/api/openapi.json
 
 **认证**（`/api/auth/*`）—— 唯一的公开入口是 `login` / `refresh` / `logout`；其余需带 `Authorization: Bearer <access>`。
 
+**租户归属**：带 `tenantId` 的入参与查询一律遵循同一条规则 —— **不传则落当前登录者的租户**（安全默认值），**显式传时必须存在**，否则 `40002`（引用的租户不存在）。四个域（用户 / 角色 / 组织 / 用户组）都由 `TenantService#assertExists` 判定，**只有一处实现**（`decisions/0050`：此前四处各写一遍，其中用户域那一份漏了校验）。**这与审计域 / 日志域刻意不同**：那两处的租户**恒定强制**为当前登录者、不接受传入（`0025` / `0026`）—— 两套口径并存是当前事实，各有其据。
+
 | 方法   | 路径                   | 所需权限 | 说明                                                                                                                         |
 | ------ | ---------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | `POST` | `/api/auth/login`      | 公开     | 登录，签发 access + refresh。**刻意不区分"账号不存在"与"口令错误"**                                                          |
@@ -294,7 +296,7 @@ docs/api/openapi.json
 | `PageResultRoleVO` / `PageResultResourceVO` / `PageResultRoleMemberVO` | 分页结果，结构同日志域（`records` / `total` / `page` / `size` / `pages`）                                                                                                                                                                     |
 | `UserRoleVO`                              | **反查结果的一行**（一个"来源"）：`grantId` / `source`（`DIRECT` / `GROUP`） / `sourceLabel` / `roleId` / `roleCode` / `roleName` / `roleStatus` / `groupId` / `groupName` / `groupEnabled` / `effectiveFrom` / `effectiveTo` / `effectiveNow` / `groupMemberEffectiveFrom` / `groupMemberEffectiveTo` / `groupMemberEffectiveNow` / `createTime`。**两组时态字段**：经组授予是两条边（角色-成员、组-成员），各有一段生效区间；`source = DIRECT` 时第二组为 `null`（那条边**不存在**，而非"长期有效"）。**停用 / 过期照原样返回** |
 | `UserDataScopeVO`                         | **数据范围求值结果**：`scopes`（生效档位去重、由宽到窄） / `scope`（**合并后的最宽档**） / `scopeLabel` / `roleCodes`（这些档位来自哪些角色） / `allData`（是否全部数据） / `precise`（**这一档能否被精确求值**） / `note`。**`precise` 就是把"已配置"与"已生效"分开的那个字段**：`ALL` / `SELF` 为 `true`（自足，不需要别的数据），`DEPT` / `DEPT_AND_CHILD` / `CUSTOM` 为 `false`（需组织归属或 `filter_json` 解析）。**无任何档位时 `scope` 为 `null`，而不是 `ALL`** —— "没配数据范围"与"配了全部数据"是两件事 |
-| `UserGroupSaveRequest`                    | 用户组新建/更新入参：`groupCode`\*（`^[A-Za-z][A-Za-z0-9_]{0,63}$`，**创建后不可改**） / `groupName`\* / `parentId` / `category` / `isDefault` / `isEnabled` / `sortNo` / `description`。**没有 `tenantId`**（取当前登录者）**没有 `filterJson` / `orgScopeJson`**（动态组未实现，刻意不接受） |
+| `UserGroupSaveRequest`                    | 用户组新建/更新入参：`groupCode`\*（`^[A-Za-z][A-Za-z0-9_]{0,63}$`，**创建后不可改**） / `groupName`\* / `tenantId`（**不传则取当前登录者；显式传时必须存在**，见 `decisions/0050`） / `parentId` / `category` / `isDefault` / `isEnabled` / `sortNo` / `description`。**没有 `filterJson` / `orgScopeJson`**（动态组未实现，刻意不接受） |
 | `UserGroupQuery`                          | 用户组查询入参：`page` / `size` + `tenantId` / `keyword` / `category` / `enabled`（`Integer` 而非 `Boolean`：列是 `TINYINT` 可为 NULL，布尔会多一层"null 是不过滤还是查未设置"的歧义） / `parentId` |
 | `UserGroupVO`                             | 用户组视图：`id` / `tenantId` / `groupCode` / `groupName` / `parentId`（**只用于列表分组展示，不产生权限**） / `category`（当前恒为 `STATIC`） / `isDefault`（**只存不用**） / `isEnabled`（**真开关**：停用的组不再产生权限） / `sortNo` / `description` / `createTime` / `updateTime`。**不返回 `filterJson` / `orgScopeJson`** |
 | `UserGroupMemberBindRequest`              | 组成员关系入参：`memberType`\*（**当前只接受 `USER`**，传 `GROUP` 返回 `40001`） / `memberId`\*（**主键，不是用户名**） / `effectiveFrom` / `effectiveTo`（毫秒；区间写反返回 `40001`） |
