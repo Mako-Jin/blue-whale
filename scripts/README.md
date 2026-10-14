@@ -22,6 +22,7 @@
 | `verify-docs-index.mjs`        | 对 `docs/README.md` §四 的文档索引做一致性自检：ADR 索引**双向**一致（有文件没登记 / 索引指向不存在的文件）、编号从 `0001` 连续、§四 里引用的其他文档都存在 | **无前置条件**（不连网、不读产物、不写文件）；`node scripts/verify-docs-index.mjs`      | `docs/decisions/0036` |
 | `verify-api-contract.mjs`      | 对 `docs/api/README.md` §一 的接口清单做一致性自检：总览句的路径 / 接口 / 模型三个数、逐域明细表的每条 `方法 + 路径`（与契约**双向**比对）、按模块汇总表与分项之和、模块名是否真存在 | **无前置条件**（只读 `docs/api/openapi.json` 与 `docs/api/README.md`，不连网、不起服务、不写文件）；`node scripts/verify-api-contract.mjs` | `docs/decisions/0040` |
 | `verify-bundle-secrets.mjs`    | 扫前端构建产物，确认**种子口令没有进包**                                | **无前置服务**（口令真值从 `application-h2.yml` 读；需先构建前端）；`node scripts/verify-bundle-secrets.mjs [目录…]`       | `docs/decisions/0029` · `0033` |
+| `verify-result-codes.mjs`      | 两个错误码枚举里的每个码，要么在 `src/main` 里有抛出点，要么在脚本里明写着"有意不用 / 登记了没实现"的理由 | **无前置条件**（只读源码文本，不编译、不连网、不写文件）；`node scripts/verify-result-codes.mjs` | `docs/decisions/0060` |
 | `verify-standalone-dev-login.mjs` | 用真实 Chrome 验证子应用**单跑**时的自建会话与开发账号自动登录（后端在跑 / 没起两种状态都跑一遍） | 至少一个子应用的 dev 服务在跑（:3200 / :3300 / :3500 / :3600，没起的会被记成"跳过"）；**后端 :8080 可选** —— 在跑时断言自动登录成功，没起时断言优雅降级；本机装有 Google Chrome | `docs/decisions/0018` · `0033` |
 
 ### `verify-micro-frontend.mjs` 做什么
@@ -356,6 +357,46 @@
 > 两者**刻意都没写成 `scripts/verify-*.mjs`**：① 要构建产物 + JDK 21 + 启一次应用，
 > ② 要 `node_modules`（`openapi-typescript` + `prettier`）—— 都不满足本目录"零前置"这条约定。
 
+### `verify-result-codes.mjs` 做什么
+
+把"**枚举里登记了一个码，但没有任何代码会抛它**"这件事变成构建期可查的。它读两个枚举
+（公共 `ResultCode` 与权限域 `AuthResultCode`）的全部常量，再扫 `server/*/*/src/main/java`
+里对它们的引用；**没有引用的码必须在脚本的 `UNUSED` 表里写明理由**，否则非零退出。
+
+**为什么这类错值得一个守卫。** 错误码是"先登记、再使用"的，而登记了没用那一个
+不影响编译、不会让任何测试变红 —— 代价在很久以后才出现：前端照着文档分支，落在一个
+永远不成立的条件上（`docs/decisions/0059` 那轮就抓到一个实例：日志 / 事件详情接口的
+描述写着 `40401`，实现返的是 `40400`，而那句话已经生成进了契约与前端类型）。
+
+**它守的是"有没有落点"，不是"有没有断言"。** 两者是两件事：有落点却没有用例钉住，
+在它的射程之外（断言形式太多，机械判不了 —— `0059` 那轮是人工扫出 `404xx` 的六处空缺的）。
+但它守的是**前置条件**：一个连抛出点都没有的码，谈不上有断言。
+
+**它与"全称句守卫"的区别**（这是它值、而 `0056` 那类不值的理由）：它判的是
+*某个标识符在源码里有没有被引用* —— 语法级、逐字符可判、不依赖任何约定；而
+"给『全仓都……』加机械守卫"要理解语义，那是 `0056` 列为刻意不做的那一类。
+
+**它区分两种"没有落点"**：
+
+| 类别 | 含义 | 处置 |
+| --- | --- | --- |
+| `intentional` | **有意不用**：那条语义已经在别处表达过了 | 改动它等于改语义，不该动 |
+| `pending` | **登记了但功能没做** | 它是**待办**；守卫在这里兼任"码已经先修好、路还没修"的清单 |
+
+**它当场抓到三个码**（这就是它值得存在的实证）：`ROLE_NAME_EXISTS` / `ORG_NAME_EXISTS` /
+`USER_GROUP_NAME_EXISTS` —— 三个域都登记了"名称已存在"，但**没有任何地方抛**，
+而它们各自的兄弟 `*_CODE_EXISTS` 都有落点。这正是 `docs/decisions/0056` 未覆盖 4
+（"`*_name` 该不该唯一"）的**具体形状**：不是一个疑问，而是三个具体的码加三处缺失。
+
+**两个方向都验过**（扰动）：把 `RoleService` 的一处 `ROLE_CODE_EXISTS` 改名成
+`ROLE_NAME_EXISTS` ⇒ 一次扰动同时触发两条 —— 前者变零落点（报"没有落点又没登记"）、
+后者有了落点（报"白名单腐烂"）。
+
+**它也有天然的负例**：首次运行就报出三个未登记的码 —— 那不是脚本写错了，是它第一次工作。
+
+**刻意不查的：** 注释里提到的码（扫描前会剥掉注释 —— 否则一句"详见 xxx 的说明"就能把
+零落点的码伪装成有落点）、断言（见上）、前端读了哪些码（那是跨端判据）。
+
 ### 脚本的硬性约束
 
 - **可重复执行**：跑第二遍不应产生副作用或报"已存在"错误。
@@ -369,8 +410,8 @@
   才做依赖预构建，热与冷不是同一种环境 —— 冷启动会暴露只在首帧出现的问题（例如自动登录还没完成就渲染）。
   `scripts/verify-standalone-dev-login.mjs` 正是为这条而生，重跑一遍前**先重启对应的 dev 服务**。
 - **能不要前置条件就不要** —— 这一条决定脚本能不能进 CI。`verify-nginx-config.mjs`、
-  `verify-docs-index.mjs` 与 `verify-api-contract.mjs` 是**零前置**的（不连网、不读产物、不写文件），
-  所以流水线的 `guards` job 直接跑它们；`verify-bundle-secrets.mjs` **不需要服务、但需要前端产物**，
+  `verify-docs-index.mjs`、`verify-api-contract.mjs` 与 `verify-result-codes.mjs` 是**零前置**的
+  （不连网、不读产物、不写文件），所以流水线的 `guards` job 直接跑它们；`verify-bundle-secrets.mjs` **不需要服务、但需要前端产物**，
   所以它跑在 `web` job 的构建**之后**（顺序不能反 —— 反了它就扫不到东西，还会静默"通过"）；
   需要前置服务的脚本继续留在本机 —— 真机层（浏览器 + 冷启动 dev server）**刻意不在 CI 的必过项里**，
   理由见 `docs/decisions/0036`；全树格式检查在 `web` job 里（`pnpm format:check`，是 npm script 不是脚本，

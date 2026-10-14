@@ -279,7 +279,7 @@ jobs:
         with:
           node-version: '22'
 
-      # 这三条**不需要任何服务**：不起后端、不起 dev server、不装浏览器。
+      # 这四条**不需要任何服务**：不起后端、不起 dev server、不装浏览器。
       # 它们查的都是"配置或文档与实际不一致"，而这类错在本地几乎不会主动去查。
       - name: 网关配置结构自检
         run: node scripts/verify-nginx-config.mjs
@@ -293,3 +293,9 @@ jobs:
       # 属于 scripts/export-openapi.sh 那条流程的责任）。它守的是"契约与文档不一致"。
       - name: 契约清单一致性
         run: node scripts/verify-api-contract.mjs
+
+      # 错误码的"有没有落点"：两个枚举里的每个码，要么有代码会抛它，
+      # 要么在脚本的 UNUSED 里写明理由（有意不用 / 登记了但功能没做）。
+      # 同样零前置：只读 src/main 的源码文本，不编译、不连网、不写文件。
+      - name: 错误码落点自检
+        run: node scripts/verify-result-codes.mjs
