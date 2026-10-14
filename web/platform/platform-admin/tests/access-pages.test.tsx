@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
  */
 const mocks = vi.hoisted(() => ({
   userPage: vi.fn(),
+  userCreate: vi.fn(),
   userRoleSources: vi.fn(),
   userOrgs: vi.fn(),
   userDataScope: vi.fn(),
@@ -52,7 +53,7 @@ vi.mock('common-api', async (importOriginal) => {
         users: {
           page: mocks.userPage,
           detail: vi.fn(),
-          create: vi.fn(),
+          create: mocks.userCreate,
           update: vi.fn(),
           resetPassword: vi.fn(),
           remove: vi.fn(),
@@ -717,6 +718,33 @@ describe('权限管理后台 · 资源 / 角色 / 用户组', () => {
     // 空集合要有自己的说法，不能与 null 混用
     expect(screen.getByTestId('user-scope-visible-orgs')).toHaveTextContent('空集合');
     expect(screen.getByTestId('user-scope-note')).toHaveTextContent('没有有效主岗');
+  });
+
+  it('用户页建号：通知必须带上"下一步"，否则管理员会以为工作已经做完', async () => {
+    /*
+     * 新账号**默认一个菜单码都没有**（ADR-0031 决策 2），所以"建号"与"能用"
+     * 之间隔着一步授权。只报"已新建用户「x」"的话，管理员会认为已经结束了 ——
+     * 直到那个人登录进来说"里面是空的"才回头查，而那时现场已经不在他手上。
+     */
+    mocks.userCreate.mockResolvedValue({ id: 9 });
+    signIn([...ADMIN, 'auth:user:create']);
+    render(<App />);
+    await screen.findByTestId('user-row-admin');
+
+    fireEvent.click(screen.getByText('新建用户'));
+    fireEvent.change(screen.getByLabelText('登录名'), { target: { value: 'newcomer' } });
+    fireEvent.change(screen.getByLabelText('初始口令'), { target: { value: 'Seed@1234' } });
+    fireEvent.click(screen.getByText('保存'));
+
+    const notice = await screen.findByTestId('users-notice');
+    expect(notice).toHaveTextContent('已新建用户「newcomer」');
+    // 后半句才是重点：去哪补、以及不补会怎样
+    expect(notice).toHaveTextContent('没有任何菜单码');
+    expect(notice).toHaveTextContent('角色');
+    expect(notice).toHaveTextContent('看不到任何入口');
+
+    // 等这次建号引发的列表重载落定 —— 否则它的状态更新会落在 act 之外
+    await waitFor(() => expect(mocks.userPage).toHaveBeenCalledTimes(2));
   });
 });
 

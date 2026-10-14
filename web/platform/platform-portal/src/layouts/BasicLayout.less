@@ -83,6 +83,31 @@
       color: @brand-color;
       border-color: @brand-color;
     }
+
+    /*
+     * 禁用态必须有，而且要与"能点"看起来不同。
+     * 「重新检查权限」在请求期间要禁用（防连点），若沿用上面的样式，
+     * 用户看到的是一个还能点的按钮、点了没反应 —— 那看起来像坏了。
+     */
+    &:disabled {
+      color: @text-tertiary;
+      cursor: default;
+      border-color: @border-color;
+    }
+  }
+
+  /*
+   * 「重新检查权限」的结果。用文字而不是弹窗：它是对一次点击的就地回答，
+   * 不该打断任何正在做的事（用户很可能正盯着导航栏看它有没有变）。
+   */
+  &__reload {
+    max-width: 320px;
+    font-size: 12px;
+    color: @text-secondary;
+
+    &--error {
+      color: @danger-color;
+    }
   }
 
   &__main {

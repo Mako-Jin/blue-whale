@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { auth, session } from '@/auth';
+import { describeAuthError } from '@/auth/describe-error';
 import { usePermissions, useSession } from '@/auth/hooks';
 import { ChangePasswordDialog } from '@/components/ChangePasswordDialog';
 import { LogoutAllDialog } from '@/components/LogoutAllDialog';
@@ -9,6 +10,38 @@ import './BasicLayout.less';
 
 function navClass({ isActive }: { isActive: boolean }): string {
   return isActive ? 'basic-layout__link basic-layout__link--active' : 'basic-layout__link';
+}
+
+/**
+ * 「重新检查权限」的四种状态。
+ *
+ * <p>刻意分成四个而不是一个 `loading` 布尔加一个 `error` 字符串：**它们要求用户做的
+ * 事完全不同** —— `done` 且"没有变化"意味着"管理员授的不是这个账号"（去找人核对），
+ * `done` 且"新增了"意味着"成了，可以进去了"（什么都不用做），`error` 意味着"再点一次"。
+ * 混成一个"没成功"，用户只能靠猜。
+ */
+type ReloadState =
+  | { kind: 'idle' }
+  | { kind: 'loading' }
+  | { kind: 'done'; added: number; removed: number }
+  | { kind: 'error'; message: string };
+
+/**
+ * 重新检查权限之后给用户的那句话。
+ *
+ * <p>**"没有变化"也必须说出来。** 不说的话，用户看到界面没动会以为是自己点漏了、
+ * 再点几次，而真实原因通常是管理员授的是另一个账号 —— 这句话要指出的正是它。
+ */
+function describeReload(state: ReloadState): string {
+  if (state.kind === 'error') return state.message;
+  if (state.kind !== 'done') return '';
+
+  const parts: string[] = [];
+  if (state.added > 0) parts.push(`新增 ${state.added} 项`);
+  if (state.removed > 0) parts.push(`移除 ${state.removed} 项`);
+  return parts.length === 0
+    ? '权限没有变化 —— 请确认管理员授的是当前这个账号'
+    : `权限已更新：${parts.join('、')}`;
 }
 
 export default function BasicLayout() {
@@ -55,6 +88,54 @@ export default function BasicLayout() {
    * 安全动作。自动弹它等于替用户做一个影响别的设备的决定。
    */
   const [logoutAllOpen, setLogoutAllOpen] = useState(false);
+
+  /*
+   * 「重新检查权限」—— 管理员刚授了菜单码之后，**不必重新登录**的那条路。
+   *
+   * 为什么需要它：权限集合既不在访问令牌里（`JwtCodec` 的载荷只有用户与租户标识），
+   * 也不能由界面自己算出来 —— 它只在两个时刻回来：登录、刷新令牌。于是"刚被授权"
+   * 的人看到的是旧集合：导航栏还是空的，而除了重新登录他没有别的办法让它更新。
+   * 空状态里那句"请让管理员授予菜单码"因此只讲了一半 —— 它没说**授完怎么生效**。
+   *
+   * 落点为什么是基座顶栏：与改密、退出所有设备同一条判据（`docs/decisions/0044`）——
+   * 它不依赖任何菜单码，而**最需要它的恰好是一个菜单码都没有的账号**。放进子应用
+   * 还有第二重问题：被基座加载时权限由基座下发，且子应用不得自调 `/me`
+   * （`docs/decisions/0018` 第 3 条），那个按钮在那条路径上改了也不生效 —— 一个假开关。
+   *
+   * 为什么是按钮而不是自动重取：自动重取会在每次渲染空状态时多发一次请求，而它
+   * 多数时候的答案是"还是没有"。这件事的发起者是用户（有人刚告诉他"授好了"），
+   * 反馈也该由他点出来才出现。
+   */
+  const [reloadState, setReloadState] = useState<ReloadState>({ kind: 'idle' });
+
+  const reloadPermissions = async (): Promise<void> => {
+    const before = permissions;
+    setReloadState({ kind: 'loading' });
+    try {
+      const next = await auth.reload();
+      /*
+       * `reload()` 的**声明**是 `Promise<SessionUser | null>`，而当前实现两条路都不到 `null`：
+       * 它要么返回身份，要么抛出（`AuthChannel` 是接口，这里防的是另一种实现）。
+       * 所以这一段目前跑不到 —— 但不能删：真出现 `null` 时它意味着"会话已经没了"，
+       * 而把"会话没了"当成"权限被清空了"去报一句"移除 N 项"，会让用户跑去找管理员
+       * 核对一次并不存在的改动。宁可留一句实话，也不要一句会误导的兜底。
+       */
+      if (!next) {
+        setReloadState({ kind: 'error', message: '会话已失效，请重新登录' });
+        return;
+      }
+      setReloadState({
+        kind: 'done',
+        added: next.permissions.filter((code) => !before.includes(code)).length,
+        removed: before.filter((code) => !next.permissions.includes(code)).length,
+      });
+    } catch (cause) {
+      setReloadState({
+        kind: 'error',
+        message: describeAuthError(cause, '重新获取权限失败，请重试'),
+      });
+    }
+  };
 
   /*
    * 导航栏只渲染**当前身份持有菜单码**的那些应用。
@@ -133,13 +214,40 @@ export default function BasicLayout() {
           <button
             type="button"
             className="basic-layout__action"
+            data-testid="refresh-permissions"
+            disabled={reloadState.kind === 'loading'}
+            onClick={() => void reloadPermissions()}
+          >
+            {reloadState.kind === 'loading' ? '正在获取权限…' : '重新检查权限'}
+          </button>
+          {reloadState.kind === 'done' || reloadState.kind === 'error' ? (
+            /*
+             * 结果就地显示、直到下一次点击才换 —— 不加定时器自动消失。
+             * 自动消失需要计时器与它的清理，而"结果"是用户点出来的：他要么看到了，
+             * 要么还在看别处。消失得太早，他就得再点一次去确认同一件事。
+             */
+            <span
+              className={
+                reloadState.kind === 'error'
+                  ? 'basic-layout__reload basic-layout__reload--error'
+                  : 'basic-layout__reload'
+              }
+              data-testid="refresh-permissions-result"
+              role={reloadState.kind === 'error' ? 'alert' : undefined}
+            >
+              {describeReload(reloadState)}
+            </span>
+          ) : null}
+          <button
+            type="button"
+            className="basic-layout__action"
             data-testid="open-change-password"
             onClick={() => setChangePasswordOpen(true)}
           >
             修改口令
           </button>
           {/*
-            这两个按钮都有一个 `data-testid`，而它们旁边的"全局主题"没有 ——
+            这几个按钮都有一个 `data-testid`，而它们旁边的"全局主题"没有 ——
             差别在于**会不会有人用脚本点它们**。此前真机脚本用
             `.basic-layout__action:last-of-type` 定位登出，那只在"登出恰好是最后一个按钮"
             时成立；本行新增的按钮就落在那条假设上，一旦位置变了，脚本会点错按钮、

@@ -84,6 +84,37 @@ describe('Home', () => {
     expect(empty.textContent).toContain('ui:*:view');
   });
 
+  it('空态要说满三件事：缺什么、到哪补、补完怎么生效', () => {
+    signIn([]);
+    renderHome();
+
+    const text = screen.getByTestId('home-empty').textContent ?? '';
+    // 只写"你没有权限"是没用的 —— 读这句话的人刚登进来、看不到任何入口，
+    // 他能做的只有照着界面点，所以路径必须写到"应用 → 标签页 → 动作"这一层
+    expect(text).toContain('权限管理后台');
+    expect(text).toContain('角色');
+    expect(text).toContain('资源授权');
+    expect(text).toContain('挂为成员');
+    // 第三件最容易漏，而它恰恰必须说：权限只在登录与刷新令牌时回来，
+    // 不说清这一点，用户会以为授权没生效，然后重复去找管理员或干脆重新登录
+    expect(text).toContain('重新检查权限');
+    expect(text).toContain('不必重新登录');
+  });
+
+  it('句子中间不能被折行 —— JSX 会把跨行文本按空格拼起来，中文里就多一个空格', () => {
+    signIn([]);
+    renderHome();
+
+    // 这两段都是**跨行即出错**的地方：prettier 一旦把它们重排，
+    // 渲染出来就是「它由管理员在 权限管理后台 里授」这种带空格的句子。
+    // 用整段断言把它钉住，比逐词断言更能拦住这类"看不出来"的缺陷。
+    const text = screen.getByTestId('home-empty').textContent ?? '';
+    expect(text).toContain(
+      '它由管理员在「权限管理后台」里授：先到角色页给某个角色做「资源授权」。',
+    );
+    expect(text).toContain('在同一个角色里把当前账号挂为成员。');
+  });
+
   it('被路由守卫弹回时解释原因，并指名缺的是哪一个码', () => {
     signIn([MICRO_APPS[0].menuPermission]);
     renderHome({ denied: { path: '/admin', permission: 'ui:admin:view' } });

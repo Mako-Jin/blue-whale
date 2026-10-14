@@ -180,6 +180,25 @@ describe('权限管理后台 · 按钮级权限', () => {
     expect(screen.queryByTestId('admin-tab-users')).not.toBeInTheDocument();
   });
 
+  it('空态要说清这件事自己解决不了：授权就在本后台内，而进来同样要菜单码', () => {
+    signIn(['auth:user:read']);
+    render(<App />);
+
+    const text = screen.getByTestId('admin-empty').textContent ?? '';
+    // 不说清这一点，用户只会反复刷新、怀疑是应用坏了 —— 而真实处境是
+    // "给自己授权的路是闭合的"，只能找另一个已持有 ui:admin_* 的账号
+    expect(text).toContain('只能由');
+    expect(text).toContain('另一个');
+    expect(text).toContain('资源授权');
+    // 生效方式只说"刷新本页"：本应用能独立运行（ADR-0018 第 8 条），
+    // 那时没有门户也没有顶栏，而刷新本页在两种形态下都成立
+    expect(text).toContain('刷新本页');
+
+    // 顺带钉住"句子中间没有被折行"。JSX 会把跨行文本按空格拼起来，
+    // prettier 一旦重排这几行，渲染出来就会是「另一个 已持有」这种带空格的句子。
+    expect(text).toContain('只能由另一个已持有 ui:admin_* 的账号来授');
+  });
+
   it('审计员（读权限 + 两个标签页菜单码）：列表照常显示，写操作入口一个都不渲染', async () => {
     signIn(['auth:user:read', 'auth:tenant:read', AdminViews.USER, AdminViews.TENANT]);
     render(<App />);
