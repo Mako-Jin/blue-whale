@@ -147,6 +147,17 @@ const UNUSED = new Map([
         '（UserRoleVO.groupCode + 前端并排显示），此后四个域的消歧手段齐备',
     },
   ],
+  [
+    'AuthResultCode.TENANT_NAME_EXISTS',
+    {
+      kind: 'intentional',
+      reason:
+        '同上（docs/decisions/0062）。四个名称码里**只有它此前有落点** —— TenantService 真的在挡活行重名，' +
+        '而 tenant_name 上没有唯一索引：一道"以为在保证唯一、实际保证不了"的校验（并发下两个同名请求都能穿过' +
+        '"先查后写"），还顺带拦掉了"两个碰巧同名的公司"这种合法情形。2026-10-14 删掉了 create / update 两处' +
+        '判重，四个名称码从此并列住在这里。判据是"这个列在语义上是否指认唯一对象"，不是"它有没有索引"',
+    },
+  ],
 ]);
 
 const problems = [];
