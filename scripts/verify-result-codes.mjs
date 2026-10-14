@@ -121,19 +121,31 @@ const UNUSED = new Map([
   [
     'AuthResultCode.ROLE_NAME_EXISTS',
     {
-      kind: 'pending',
+      kind: 'intentional',
       reason:
-        '角色名称唯一性未实现。同一个域的 ROLE_CODE_EXISTS 有落点、租户侧的 TENANT_NAME_EXISTS 也有 —— ' +
-        '这三个"名称已存在"码是 docs/decisions/0056 未覆盖 4（"*_name 该不该唯一"）的具体形状',
+        '**名称不要求唯一是有意的**（docs/decisions/0061）：租户 / 组织 / 角色 / 用户组四个域**都带 parent_id 层级**，' +
+        '而层级的语义就是"不同上级下可以复用同一个名字"。身份由编码承担（uk_bw_auth_role_tenant_code），' +
+        '界面上角色列一律 code 与 name 并排 —— 消歧靠唯一标识，不靠禁止同名',
     },
   ],
   [
     'AuthResultCode.ORG_NAME_EXISTS',
-    { kind: 'pending', reason: '组织名称唯一性未实现（同 ROLE_NAME_EXISTS）' },
+    {
+      kind: 'intentional',
+      reason:
+        '同上（docs/decisions/0061）。组织这一支**早就写明了**（0030 / server/README.md）：组织用 full_name 物化路径' +
+        '在界面上消歧，所以"两个分公司各有一个综合部"是合理工况。0061 做的事是把它从"组织一域的理由"升成四个域共用的规则',
+    },
   ],
   [
     'AuthResultCode.USER_GROUP_NAME_EXISTS',
-    { kind: 'pending', reason: '用户组名称唯一性未实现（同 ROLE_NAME_EXISTS）' },
+    {
+      kind: 'intentional',
+      reason:
+        '同上（docs/decisions/0061）。用户组曾是四个域里**唯一真的缺消歧手段**的那个：用户的"角色来源"视图' +
+        '只回来源组名、没有 group_code（而角色那一列 id / code / name 三个都在）。2026-10-14 已补' +
+        '（UserRoleVO.groupCode + 前端并排显示），此后四个域的消歧手段齐备',
+    },
   ],
 ]);
 
