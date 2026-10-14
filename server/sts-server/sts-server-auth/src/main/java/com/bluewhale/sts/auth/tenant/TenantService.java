@@ -76,7 +76,7 @@ public class TenantService {
         entity.setAllowAdd(orZero(request.getAllowAdd()));
         tenantMapper.insert(entity);
 
-        markParentHasChild(parent);
+        refreshHasChild(entity.getParentId());
         return toVO(entity);
     }
 
@@ -119,7 +119,7 @@ public class TenantService {
             throw AuthResultCode.HIERARCHY_CYCLE.businessException("该租户下仍有子租户，请先处理子租户");
         }
         tenantMapper.deleteById(entity.getId());
-        markParentHasChild(entity.getParentId() == null ? null : tenantMapper.selectById(entity.getParentId()));
+        refreshHasChild(entity.getParentId());
     }
 
     /**
@@ -205,12 +205,34 @@ public class TenantService {
         return requireTenant(parentId);
     }
 
-    private void markParentHasChild(TenantEntity parent) {
-        if (parent == null || (parent.getHasChild() != null && parent.getHasChild() == 1)) {
+    /**
+     * 重算某个节点的 {@code hasChild}（传 null 时什么都不做）。
+     *
+     * <p><b>与 {@code OrganizationService#refreshHasChild} 是同一个语义，两侧同形是刻意的。</b>
+     * 此前这里是 {@code markParentHasChild}：只在父级从 0 变 1 时写一次，**反向不重算**。
+     * 那个写法给的理由是"租户树没有移动、层级极少变"，但**删除**在租户侧是存在的，
+     * 而删除正是唯一能把它从 1 变 0 的动作 —— 理由不覆盖它要解释的事实。
+     * 症状：建一个子租户、再把它删掉之后，父级的 {@code hasChild} 会**永远留在 1**，
+     * 于是详情与列表对一个不存在的子节点一直说"是"（ADR-0053）。
+     *
+     * <p><b>它不参与任何判定</b> —— 两处 {@code delete} 的守卫都是真查一次
+     * {@code parent_id} 的计数，从不读这个列。所以这里修的是"出参少说一句假话"，
+     * 不是一条安全边界；也正因如此，改动没有回归风险。
+     *
+     * <p>代价是每次建/删多一次 {@code selectCount}（原先"已是 1 就直接返回"时省掉了那次
+     * 写入）。这个不对称在两张表上都一样：换来的是一条**不需要记住**的规矩 ——
+     * 派生列一律与真值同源，而不是"记得在哪个方向上也更新一下"。
+     */
+    private void refreshHasChild(Long parentId) {
+        if (parentId == null) {
             return;
         }
-        parent.setHasChild(1);
-        tenantMapper.updateById(parent);
+        Long childCount = tenantMapper.selectCount(Wrappers.<TenantEntity>lambdaQuery()
+                .eq(TenantEntity::getParentId, parentId));
+        int expected = childCount != null && childCount > 0 ? 1 : 0;
+        tenantMapper.update(new TenantEntity(), Wrappers.<TenantEntity>lambdaUpdate()
+                .eq(TenantEntity::getId, parentId)
+                .set(TenantEntity::getHasChild, expected));
     }
 
     private static String resolveStatus(String status) {

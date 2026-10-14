@@ -343,6 +343,14 @@ cd .. && node scripts/verify-nginx-config.mjs && node scripts/verify-docs-index.
 >   | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{for(const j of JSON.parse(s).jobs){console.log(j.name,j.conclusion);for(const t of j.steps)console.log('   ',t.conclusion.padEnd(8),t.name)}})"
 > ```
 >
+> **凭据文件里 github 那一条可能不止一行 —— 取错那条的报错是 `Bad credentials`，
+> 而它极易被误读成"这个库我看不了"。** 本机实测 `~/.git-credentials` 有**两行** github 凭据
+> （前缀一个 `gho_`、一个 `ghp_`，用户不同；后者调 REST 一律回 **401**）。
+> 上面那句 `head -1` 取的是**第一条**；`sed -n …p` 单看会打印**全部**匹配行 ——
+> 于是临时 token 文件里有两行，拼出来的 `Authorization` 头是坏的。
+> **REST 回 401 时，先核凭据取到的是哪一条**：`git ls-remote` / `push` 会按 host
+> **逐条试**（所以它们成功并不证明你手上那条能用），REST 只用你给的那一个。
+>
 > **判据在 `steps[].conclusion` 上，不在 job 的颜色上。** 每个 step 各有一份结论：`success`
 > 才是跑了且过了，`skipped` 是**没跑**。一个 job 整体是绿的、其中某一步被 `if:` 跳掉时，
 > 从 job 上看与"这步通过"**完全一样** —— 所以看 CI 要逐 step 看，尤其那三步契约守卫
