@@ -42,6 +42,15 @@
  *    这一条管"写的时候也归一"—— 只要有一侧漏了，读侧的宽容就是**空转**：
  *    上报 `app = " myapp "` 会原样落库，而 `?app=myapp` 被规范成 `myapp`，一条也匹配不到。
  *    （射程只到这两个模块，理由见下面「刻意不查的」。）
+ * 6. **寻址列**（`email` / `phone`）在**判重口与写入口都不得直传 `request` 原值**
+ *    （`docs/decisions/0072`）。这两列不走过滤、走**判重**（`existsEmail` / `existsPhone`），
+ *    而判重也是一次 `eq` ⇒ 与过滤列同一条判据（`0062`），却住在 `UserService` 里、
+ *    曾经是全仓最后一份"只判空、不 trim"的副本。判据是**含 `request.getXxx()` 且不含
+ *    `FilterValue` ⇒ 报红**：改动前的 `entity.setEmail(blankToNull(request.getEmail()))`
+ *    正好落在这个形状里，而组织域那种合法的内联写法
+ *    （`entity.setContactPhone(FilterValue.text(request.getContactPhone()))`）不会。
+ *    两侧都锚：只归一其中一侧会造出"存 `13800138000`、比 `' 13800138000 '`"的**新**不对称 ——
+ *    同一个手机号能建出两个账号，而这正是本规则要防的那种"改一半"。
  *
  * ## 用法
  *
@@ -66,9 +75,13 @@
  *   且只认接收者是 `entity` 的那一类。代价是白名单固化（与规则 4 同一个代价）。
  * - **`entity.setLevel(...)`**：日志域的 `level` 也是过滤列，但它的实参是
  *   `level.wireName()`（枚举归一，见 `0070`），不含 `FilterValue` ⇒ 纳入锚点会误报。
- * - **`email` / `phone` 的写入**（`UserService.blankToNull`，不 trim）：它们参与的是**判重**
- *   而不是过滤，读侧是 `existsXxx` 而非 `eq ... where`。同源问题，但需要单独量一遍判重入口 ——
- *   见 `docs/decisions/0071` 的「未覆盖」。
+ * - **规则 6 看不到"先取局部变量、再直传原值"**：`String phone = request.getPhone(); …`
+ *   这种写法要判它就得做数据流分析（与上面第一条同源）。它挡的是两种真实出现过的形状：
+ *   **把 `request.getXxx()` 直接（或经一层 `blankToNull` 之类的包装）交给 setter**、
+ *   以及**交给判重方法**。射程外的那一种靠评审 + `AddressNormalizationApiTest` 钉着。
+ * - **规则 6 只管 `sts-server-auth`**：`setEmail` / `setPhone` 这类 setter 名在别的模块
+ *   未必没有（`vo.setEmail(...)` 就有），而四个寻址列当前只住在这一个模块里。
+ *   同理**不锚 `vo.setXxx(...)`** —— 那是把库里读出来的值装进视图，与"客户端传了什么"无关。
  * - **`.eq(...)` 里的判空一律揪住**：只揪 `isBlank()` / `isEmpty()` 这类**String 专属**的 token，
  *   正是因为它们不可能出现在 Long 上、零误报。
  * - **"规范化之后的模式串在三方言上是否同义"**：那是语义，靠 `FilterValueTrimApiTest`
@@ -164,6 +177,16 @@ const ENUM_FILTER_GETTER_RE = /query\.get(?:Status|Level|Result|ResourceType|Mem
 // （枚举归一走 `ClientLogLevel.parse`，见 0070），拿 `FilterValue` 要求它只会误报。
 const REPORT_COLUMN_SETTER_RE = /entity\.set(App|Namespace|TraceId|SessionId|UserId|DeviceId)\s*\(/g;
 const REPORT_MODULES = ['sts-server-log', 'sts-server-track'];
+// 规则 6：**寻址列**（email / phone）的两个入口。它们不走过滤而走判重（`existsEmail` /
+// `existsPhone`），但判重同样是一次 `eq` ⇒ 同一条判据（0062），只是入口不同（0072）。
+//
+// 射程限定在 `sts-server-auth`：`setEmail` / `setPhone` 这类 setter 名在别的模块未必没有，
+// 而四个寻址列（用户域两个 + 组织域的 contact 两个）当前只住在这一个模块里。
+//
+// **不锚 `vo.setXxx(...)`**：那是把库里读出来的值装进视图，与"客户端传了什么"无关。
+const ADDRESS_MODULE = 'sts-server-auth';
+const ADDRESS_SETTER_RE = /entity\.set(Email|Phone|ContactEmail|ContactPhone)\s*\(/g;
+const ADDRESS_LOOKUP_RE = /\b(existsEmail|existsPhone)\s*\(/g;
 
 /** 从 `(` 起取到配对的 `)`，返回实参文本 —— 这些调用会跨行（`truncate(\n FilterValue.text(…), 64)`）。 */
 function argsOf(text, openIndex) {
@@ -184,6 +207,7 @@ const blankInEq = [];
 const rawIntoAggregate = [];
 const enumGetterOutsideEnumValue = [];
 const rawIntoReportedColumn = [];
+const rawIntoAddressColumn = [];
 
 for (const file of sources) {
   const raw = readFileSync(file, 'utf8');
@@ -240,6 +264,30 @@ for (const file of sources) {
         line: text.slice(0, matched.index).split('\n').length,
         setter: matched[1],
       });
+    }
+  }
+
+  // 规则 6：寻址列的判重口与写入口都不得直传 request 原值。
+  // 判据 = 实参里含 `request.getXxx()` **且**不含 `FilterValue`：
+  // 前者是"客户端送进来的值"，后者是"归一过"的唯一凭据。
+  if (file.includes(ADDRESS_MODULE)) {
+    for (const [pattern, kind] of [
+      [ADDRESS_SETTER_RE, 'setter'],
+      [ADDRESS_LOOKUP_RE, 'lookup'],
+    ]) {
+      for (const matched of text.matchAll(pattern)) {
+        const openIndex = matched.index + matched[0].length - 1;
+        const args = argsOf(text, openIndex);
+        if (!args.includes('request.get') || args.includes('FilterValue')) {
+          continue;
+        }
+        rawIntoAddressColumn.push({
+          file,
+          line: text.slice(0, matched.index).split('\n').length,
+          kind,
+          name: matched[1],
+        });
+      }
     }
   }
 }
@@ -330,6 +378,23 @@ check(
         .join('\n    '),
 );
 
+check(
+  '寻址列（email / phone）的判重口与写入口都没直传 `request` 原值',
+  rawIntoAddressColumn.length === 0,
+  rawIntoAddressColumn.length === 0
+    ? 'email / phone 在写入与判重两侧都用同一个归一值 —— 这两列的读者是判重（也是一次 eq），'
+      + '只归一其中一侧会让带空白的手机号绕过"这个号已经有人用了"（decisions/0072）'
+    : rawIntoAddressColumn
+        .map(
+          (item) =>
+            `${rel(item.file)}:${item.line} 的 ${item.name}(...)（${item.kind === 'setter' ? '写入口' : '判重口'}）` +
+            ' —— email / phone 的判重与入库必须共用同一个 FilterValue.text(...) 的结果：'
+            + '带空白的值在 NO PAD 的排序规则下与干净值不相等（decisions/0065），'
+            + '于是同一个手机号能建出两个账号（decisions/0072）',
+        )
+        .join('\n    '),
+);
+
 console.log('');
 if (problems.length > 0) {
   console.log(`✗ ${problems.length} 项未通过`);
@@ -337,5 +402,5 @@ if (problems.length > 0) {
   process.exit(1);
 }
 console.log('✓ 全部通过');
-console.log('  它守的是"精确匹配的过滤值与写进库里的值只有一种写法"；');
-console.log('  为什么这么定、以及哪些没覆盖，见 docs/decisions/0069 · 0070 · 0071。');
+console.log('  它守的是"会被精确匹配的值（过滤 / 判重）与写进库里的值只有一种写法"；');
+console.log('  为什么这么定、以及哪些没覆盖，见 docs/decisions/0069 · 0070 · 0071 · 0072。');

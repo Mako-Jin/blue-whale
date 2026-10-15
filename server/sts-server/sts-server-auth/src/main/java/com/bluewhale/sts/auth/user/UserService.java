@@ -128,10 +128,16 @@ public class UserService {
         if (userMapper.selectAnyByTenantAndUsername(tenantId, request.getUsername()) != null) {
             throw AuthResultCode.USERNAME_EXISTS.businessException();
         }
-        if (existsEmail(tenantId, request.getEmail(), null)) {
+        // 寻址列（email / phone）的**判重口与写入口必须共用同一个归一值**（decisions/0072）：
+        // 判重也是一次 eq（decisions/0062 把"判重"与"过滤"归在同一条判据下 —— 都是精确匹配），
+        // 只归一其中一侧就会留下"存 13800138000、比『 13800138000 』"这种新的不对称，
+        // 而它的症状是同一个手机号能建出两个账号。故这里只取一次值、两条路径都用它。
+        String email = FilterValue.text(request.getEmail());
+        String phone = FilterValue.text(request.getPhone());
+        if (existsEmail(tenantId, email, null)) {
             throw AuthResultCode.USER_EMAIL_EXISTS.businessException();
         }
-        if (existsPhone(tenantId, request.getPhone(), null)) {
+        if (existsPhone(tenantId, phone, null)) {
             throw AuthResultCode.USER_PHONE_EXISTS.businessException();
         }
 
@@ -140,8 +146,8 @@ public class UserService {
         entity.setTenantId(tenantId);
         entity.setUsername(request.getUsername());
         entity.setDisplayName(request.getDisplayName());
-        entity.setEmail(blankToNull(request.getEmail()));
-        entity.setPhone(blankToNull(request.getPhone()));
+        entity.setEmail(email);
+        entity.setPhone(phone);
         // 写入的这三列（哈希 / 算法标识 / 更新时刻）由 PasswordChanger 一处负责 ——
         // 建号走 insert、改密走 update，但"设口令要同时更新哪几列"只该有一个答案
         passwordChanger.assignNewPassword(entity, request.getPassword(), now);
@@ -172,18 +178,21 @@ public class UserService {
     public UserVO update(Long id, UserSaveRequest request) {
         UserEntity entity = requireUser(id);
 
-        if (existsEmail(entity.getTenantId(), request.getEmail(), id)) {
+        // 与 create 同源：归一值只取一次，判重与入库共用（decisions/0072）
+        String email = FilterValue.text(request.getEmail());
+        String phone = FilterValue.text(request.getPhone());
+        if (existsEmail(entity.getTenantId(), email, id)) {
             throw AuthResultCode.USER_EMAIL_EXISTS.businessException();
         }
-        if (existsPhone(entity.getTenantId(), request.getPhone(), id)) {
+        if (existsPhone(entity.getTenantId(), phone, id)) {
             throw AuthResultCode.USER_PHONE_EXISTS.businessException();
         }
 
         // username 与 tenantId 不在修改项内：前者是登录凭据的一部分，
         // 后者决定数据归属 —— 两者变更都应是独立操作，不是一次普通字段更新。
         entity.setDisplayName(request.getDisplayName());
-        entity.setEmail(blankToNull(request.getEmail()));
-        entity.setPhone(blankToNull(request.getPhone()));
+        entity.setEmail(email);
+        entity.setPhone(phone);
         // 写入侧也要归一，与 create 同源（decisions/0071）。此前这里是把请求里的字面量
         // 直接存进去的，于是同一个字段在 create（走 resolveStatus）与 update 上宽容度不同：
         // 库里躺着一个 "enabled" 时，过滤 ?status=ENABLED 搜不到它 —— 而比这更重的是，
@@ -258,20 +267,19 @@ public class UserService {
      * "软删算不算占着"这个问题只在被索引逼着的六个列上才需要回答（ADR-0056）。
      * 顺手把它们也改成"看得见软删行"是另一种错：那会让一次误删把邮箱永久锁住，
      * 而没有任何唯一约束要求这么做。
+     *
+     * <b>入参是已经过 FilterValue.text 归一的值，这两个方法自己不再判空白。</b>
+     * 归一必须发生在调用方，且与"写进库里的那个值"是**同一个变量**（decisions/0072）——
+     * 在这里再 trim 一遍就成了两份规矩，而"存 A、比 B"恰好是本片要消掉的那种不对称。
+     * 归一之后"纯空白"已经变成 null，所以判空只剩 null 一种形态。
      */
 
     private boolean existsEmail(Long tenantId, String email, Long excludeId) {
-        if (email == null || email.isBlank()) {
-            return false;
-        }
-        return countBy(tenantId, UserEntity::getEmail, email, excludeId) > 0;
+        return email != null && countBy(tenantId, UserEntity::getEmail, email, excludeId) > 0;
     }
 
     private boolean existsPhone(Long tenantId, String phone, Long excludeId) {
-        if (phone == null || phone.isBlank()) {
-            return false;
-        }
-        return countBy(tenantId, UserEntity::getPhone, phone, excludeId) > 0;
+        return phone != null && countBy(tenantId, UserEntity::getPhone, phone, excludeId) > 0;
     }
 
     private long countBy(Long tenantId, com.baomidou.mybatisplus.core.toolkit.support.SFunction<UserEntity, ?> column,
@@ -303,10 +311,6 @@ public class UserService {
     private static String resolveStatus(String status) {
         Status parsed = Status.parse(status);
         return parsed == null ? Status.ENABLED.wireName() : parsed.wireName();
-    }
-
-    private static String blankToNull(String value) {
-        return value == null || value.isBlank() ? null : value;
     }
 
     private static UserVO toVO(UserEntity entity) {

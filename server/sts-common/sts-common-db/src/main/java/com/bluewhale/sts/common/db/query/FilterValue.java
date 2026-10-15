@@ -24,7 +24,8 @@ import java.util.function.Function;
  * 用户 / 租户 / 日志 / 事件 / 审计把原值直接交给 {@code eq}（只判空、不 trim）。
  * 于是同一个 {@code status} 参数在组织域搜得到、在用户域搜不到 —— 有测试用例摆着
  * （{@code FilterValueTrimApiTest} 里两个域的同形断言）。写入侧此前同样是五份私有
- * {@code normalize()} / 一份 {@code blankToNull()} 各写一遍，现在也收在这里。
+ * {@code normalize()} / 一份 {@code blankToNull()} 各写一遍，{@code 0071} 收了前者、
+ * {@code 0072} 收掉最后那份 {@code blankToNull()} —— 至此"两端空白怎么处理"全仓只有一个实现。
  *
  * <h2>它还会顺手消除一处内部不一致</h2>
  *
@@ -67,11 +68,17 @@ import java.util.function.Function;
  * 写入侧的枚举列各自走本域那个<b>会报错</b>的 {@code resolveXxx()}（写入把非法值静默纠正
  * 成默认值，比读取侧"认不得就按原样比"危险得多，所以那两件事刻意不共用一个方法）。
  *
+ * <p><b>它对"会被精确匹配的值"是全序的</b>：不只是过滤值 —— 判重（{@code existsEmail} /
+ * {@code existsPhone}）也是一次 {@code eq}，所以<b>判重的入参与入库的值必须共用同一个
+ * {@code text()} 结果</b>（{@code docs/decisions/0072}）。只归一其中一侧会造出
+ * "存 {@code 13800138000}、比 {@code ' 13800138000 '}"这种比原来更隐蔽的不对称。
+ *
  * <p><b>名字仍然叫 {@code FilterValue}</b>：读侧是它更大的用户，而改名会让 {@code 0069} /
  * {@code 0070} 两篇已经引用这个名字的正文与代码对不上 —— 那正是本仓一直在避免的
  * "同一个东西两处说法"。代价用这段注释消掉，理由见 {@code docs/decisions/0071} 的「刻意不做」。
  *
- * <p>取舍与实测见 {@code docs/decisions/0069}（空白）· {@code 0070}（枚举）· {@code 0071}（写入侧）。
+ * <p>取舍与实测见 {@code docs/decisions/0069}（空白）· {@code 0070}（枚举）· {@code 0071}（写入侧）·
+ * {@code 0072}（寻址列：判重那一侧）。
  */
 public final class FilterValue {
 

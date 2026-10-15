@@ -25,7 +25,7 @@
 | `verify-result-codes.mjs`      | 两个错误码枚举里的每个码，要么在 `src/main` 里有抛出点，要么在脚本里明写着"有意不用 / 登记了没实现"的理由 | **无前置条件**（只读源码文本，不编译、不连网、不写文件）；`node scripts/verify-result-codes.mjs` | `docs/decisions/0060` |
 | `verify-unique-columns.mjs`    | 服务层挡重名的每个 `*_EXISTS` 码都登记了它判的哪一列；每个判重列要么库上有 UNIQUE 索引兜底、要么在白名单写明"业务规则级唯一"的理由；顺带守三方言唯一索引集合同构 | **无前置条件**（只读源码文本与三方言迁移脚本，不编译、不连网、不写文件）；`node scripts/verify-unique-columns.mjs` | `docs/decisions/0063` |
 | `verify-like-escaping.mjs`     | `server/` 的 `src/main/java` 里每一处 `LIKE` 都必须经过 `KeywordLike`（转义关键词、并把 `ESCAPE '!'` 写进 SQL），不许再有裸的 `like(...)`；带 `LIKE` 的片段同一行必须有 `ESCAPE`；白名单逐条核对条数 | **无前置条件**（只读源码文本，不编译、不连网、不写文件）；`node scripts/verify-like-escaping.mjs` | `docs/decisions/0067` |
-| `verify-filter-values.mjs`     | `server/` 的 `src/main/java` 里**精确匹配**的过滤值与**要拿它去匹配的那些写入值**都在 `FilterValue` 上收口：`.eq(...)` 的条件里不许用 `hasText(...)` 或内联的 `query.getX().isBlank()`；三个手写聚合 SQL（`countByLevel` / `countByEventName` / `countByAction`）的实参不许是 `query.getXxx()`；**枚举列**的五个 getter（`getStatus` / `getResourceType` / `getMemberType` / `getLevel` / `getResult`）只能作为 `FilterValue.enumValue(...)` 的第一个实参出现；**上报侧**（`sts-server-log` / `sts-server-track`）写入实体时 `entity.set<App\|Namespace\|TraceId\|SessionId\|UserId\|DeviceId>(...)` 的实参必须含 `FilterValue` | **无前置条件**（只读源码文本，不编译、不连网、不写文件）；`node scripts/verify-filter-values.mjs` | `docs/decisions/0069` · `docs/decisions/0070` · `docs/decisions/0071` |
+| `verify-filter-values.mjs`     | `server/` 的 `src/main/java` 里**精确匹配**的过滤值与**要拿它去匹配的那些写入值**都在 `FilterValue` 上收口：`.eq(...)` 的条件里不许用 `hasText(...)` 或内联的 `query.getX().isBlank()`；三个手写聚合 SQL（`countByLevel` / `countByEventName` / `countByAction`）的实参不许是 `query.getXxx()`；**枚举列**的五个 getter（`getStatus` / `getResourceType` / `getMemberType` / `getLevel` / `getResult`）只能作为 `FilterValue.enumValue(...)` 的第一个实参出现；**上报侧**（`sts-server-log` / `sts-server-track`）写入实体时 `entity.set<App\|Namespace\|TraceId\|SessionId\|UserId\|DeviceId>(...)` 的实参必须含 `FilterValue`；**寻址列**（`sts-server-auth`）`entity.set<Email\|Phone\|ContactEmail\|ContactPhone>(...)` 与 `existsEmail(...)` / `existsPhone(...)` 的实参**含 `request.getXxx()` 且不含 `FilterValue` ⇒ 报红**（判重也是一次 `eq`，两侧必须共用一个归一值） | **无前置条件**（只读源码文本，不编译、不连网、不写文件）；`node scripts/verify-filter-values.mjs` | `docs/decisions/0069` · `docs/decisions/0070` · `docs/decisions/0071` · `docs/decisions/0072` |
 | `verify-standalone-dev-login.mjs` | 用真实 Chrome 验证子应用**单跑**时的自建会话与开发账号自动登录（后端在跑 / 没起两种状态都跑一遍） | 至少一个子应用的 dev 服务在跑（:3200 / :3300 / :3500 / :3600，没起的会被记成"跳过"）；**后端 :8080 可选** —— 在跑时断言自动登录成功，没起时断言优雅降级；本机装有 Google Chrome | `docs/decisions/0018` · `0033` |
 
 ### `verify-micro-frontend.mjs` 做什么
@@ -481,9 +481,9 @@
 
 ### `verify-filter-values.mjs` 做什么
 
-把 `docs/decisions/0069` / `0070` / `0071` 那三条约定机械化成一条零前置的检查：
-**精确匹配的过滤值进 SQL 之前、以及要拿它去匹配的那些值进库之前，都必须规范化**，
-而且这件事**只有一种写法**。它查五件事：
+把 `docs/decisions/0069` / `0070` / `0071` / `0072` 那四条约定机械化成一条零前置的检查：
+**会被精确匹配的值（过滤 / 判重）进 SQL 之前、以及要拿它去匹配的那些值进库之前，都必须规范化**，
+而且这件事**只有一种写法**。它查六件事：
 
 1. **`.eq(...)` 的条件里没有 `hasText(...)`** —— 那正是"值没规范化、拿判空当开关"的旧形态
    （日志 / 事件 / 审计三域此前 20 处全是它）。
@@ -508,6 +508,16 @@
    于是多行调用 `truncate(\n FilterValue.text(…), 64)` 也认得出来。前四条管"读的时候归一"，
    这一条管"**写的时候也归一**"：只归一读取侧是空转 —— 上报 `app = " myapp "` 原样落库，
    而 `?app=myapp` 被规范成 `myapp`，那条记录**永远搜不到**。
+6. **寻址列（`email` / `phone`）在判重口与写入口都不得直传 `request` 原值**（`0072`）：
+   `sts-server-auth` 里 `entity.set<Email|Phone|ContactEmail|ContactPhone>(...)` 与
+   `existsEmail(...)` / `existsPhone(...)` 的**实参**，**含 `request.getXxx()` 且不含
+   `FilterValue` ⇒ 报红**。这两列不走过滤、走**判重**，而判重也是一次 `eq`
+   （`0062` 把它们归在同一条判据下），却住在 `UserService` 里、曾经是全仓最后一份
+   "只判空、不 trim"的副本。**两侧都锚**，因为改一半会造出"存 `13800138000`、
+   比 `' 13800138000 '`"这种**新**的不对称 —— 同一个手机号能建出两个账号。
+   这个判据有个好性质：**它能把改动前的写法打红**（`entity.setEmail(blankToNull(request.getEmail()))`
+   正好落在射程里），而组织域那种合法的内联写法
+   （`entity.setContactPhone(FilterValue.text(request.getContactPhone()))`）不会。
 
 **为什么规则 4 的锚点比前三条更强**：前三条是"某个**名字**出现得可疑"，
 规则 4 是"这五个 getter 只有**这一个**正当用法"，所以它可以要求"每一次出现都在 `enumValue(` 里"，
@@ -544,6 +554,12 @@ getter 名、以及 `entity.setApp(` 这类**只会从请求体取值的 setter*
 `AuditRecorder` 里那句 `entity.setTraceId(record.traceId())` **不报红**（审计不在
 `REPORT_MODULES` 里，且审计的 `traceId` 不参与过滤），两个上报模块里的 `vo.setXxx(...)`
 也不报红（装的是从库里读出来的值）。
+**规则 6 两次也是**：把 `UserService#create` 的写入侧改回**改动前的原句**
+`entity.setEmail(blankToNull(request.getEmail()))` ⇒ 规则 6 红（`UserService:149`，写入口）——
+这一条同时说明**这个守卫逮得住它要防的那个 bug**；改回
+`existsEmail(tenantId, request.getEmail(), null)` ⇒ 规则 6 红（`UserService:137`，判重口）。
+**规则 6 的射程边界也验了**：`OrganizationService` 里两处
+`FilterValue.text(request.getContactXxx())` 与两处 `vo.setContactXxx(...)` 都不报红。
 
 **刻意不查的：** "新加一处过滤值有没有真的过 `FilterValue.text`"（要判它得做数据流分析，
 而合法的 `!= null` 到处都是 —— 见上面那条）；"**下一个域新加的枚举列**有没有归一"
@@ -558,7 +574,10 @@ log / track 两个上报模块、且只认接收者是 `entity`）；
 **`entity.setLevel(...)`**（日志域的 level 也是过滤列，但实参是 `level.wireName()`，
 枚举归一走 `ClientLogLevel.parse`，拿 `FilterValue` 要求它只会误报）；
 **审计域的写入整体不在射程**（值取自 `@Audited` 注解与上下文，不由外部输入决定）；
-**`email` / `phone` 的写入**（读侧是**判重**不是过滤，见 `0071`「未覆盖」3）；
+**规则 6 看不到"先取局部变量、再直传原值"**（`String phone = request.getPhone();` ——
+判它得做数据流分析，与上面第一条同源）；**`email` / `phone` 的再加工**
+（归一大小写 / 去内部空格 / 格式化号码）**规则 6 也挡不住只改一侧** ——
+它认的是"直传 `request`"这个形状，不认"两侧是否共用同一个值"；
 `trim()`（Java，只吃 `<= U+0020`）与 `isBlank()`（`Character.isWhitespace`）的覆盖面之差
 （那是待裁决的口径，不是守卫能判的）。
 
