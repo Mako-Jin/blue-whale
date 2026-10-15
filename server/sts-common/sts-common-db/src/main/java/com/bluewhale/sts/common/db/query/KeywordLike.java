@@ -1,7 +1,8 @@
 package com.bluewhale.sts.common.db.query;
 
 /**
- * 搜索关键词 → {@code LIKE} 条件：**把 {@code %} 与 {@code _} 当字面量**，且**把转义符写进 SQL**。
+ * 搜索关键词 → {@code LIKE} 条件：**关键词进 SQL 之前的预处理只有一个真值来源** ——
+ * 两端空白先吃掉（规范化），{@code %} 与 {@code _} 当字面量（转义），且**转义符写进 SQL**。
  *
  * <h2>为什么需要它</h2>
  *
@@ -21,6 +22,15 @@ package com.bluewhale.sts.common.db.query;
  * <p>所以条件片段显式写成 {@code col LIKE {0} ESCAPE '!'}，于是它对
  * {@code NO_BACKSLASH_ESCAPES} 之类的影响免疫（H2 / MySQL / MySQL+NO_BACKSLASH_ESCAPES
  * 三种组合实测全对）。
+ *
+ * <h2>关键词的规范化也在这里</h2>
+ *
+ * 两端的空白先被吃掉：{@code " a "} 与 {@code "a"} 是同一个词。理由不是"顺手清一下"，
+ * 而是**这一处的差异不承载任何区分能力** —— {@code LIKE '%…%'} 是包含匹配，
+ * 前后空白没法用来表达"我要找以空格开头的那条"，它只能造成"在某些页面上搜不到"。
+ * 而这条口径此前散在七个搜索入口上（三个域走私有的 {@code normalize()}、四个域直传），
+ * 于是同一条关键词在两个域上结果不同 —— 有测试用例摆着（{@code SearchKeywordTrimApiTest}）。
+ * 收进来之后**调用方一律直传 {@code query.getKeyword()}**，不要再自己 trim 一遍。
  *
  * <h2>怎么用</h2>
  *
@@ -51,23 +61,35 @@ public final class KeywordLike {
     }
 
     /**
-     * 关键词 → {@code LIKE} 的实参（已转义，且前后各补一个通配符 {@code %}）。
+     * 关键词 → {@code LIKE} 的实参（已**规范化**并转义，前后各补一个通配符 {@code %}）。
+     *
+     * <p><b>规范化在这里、不在调用方。</b>两端的空白先被吃掉（{@code " a "} 与 {@code "a"} 同义），
+     * 吃掉之后仍为空表示"没有这个过滤条件"。这条口径此前**散在七个搜索入口上**
+     * （组织 / 角色 / 用户组各自私有 {@code normalize()}、用户 / 租户 / 资源 / 客户端日志直传），
+     * 于是同一个词在组织域搜得到、在用户域搜不到 —— 有测试用例的实证
+     * （{@code SearchKeywordTrimApiTest} 摆着两个域的同一条断言）。收在这里之后，
+     * "关键词长什么样"只剩这一个真值来源，调用方一律写 {@code pattern(query.getKeyword())}。
      *
      * <p>{@code %}、{@code _} 与转义符自身各加一个前导 {@link #ESCAPE}，
      * 于是它们全部退化成字面量 —— 用户输什么就找什么。
      *
-     * @param keyword 关键词；{@code null} 或全空白表示"没有这个过滤条件"，返回 {@code null}
-     *                （调用方据此决定这条条件要不要拼进 SQL，与各域原有的判空口径一致）
+     * @param keyword 关键词；{@code null} 或**只含空白**表示"没有这个过滤条件"，
+     *                返回 {@code null}（调用方据此决定这条条件要不要拼进 SQL）
      * @return 形如 {@code %a!_b%} 的实参；无关键词时返回 {@code null}
      */
     public static String pattern(String keyword) {
-        if (keyword == null || keyword.isBlank()) {
+        if (keyword == null) {
             return null;
         }
-        StringBuilder escaped = new StringBuilder(keyword.length() + 8);
+        // 只吃两端、不吃中间：`a b` 里的空格是关键词的一部分，删掉就变成搜另一个词了。
+        String trimmed = keyword.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        StringBuilder escaped = new StringBuilder(trimmed.length() + 8);
         escaped.append('%');
-        for (int i = 0; i < keyword.length(); i++) {
-            char c = keyword.charAt(i);
+        for (int i = 0; i < trimmed.length(); i++) {
+            char c = trimmed.charAt(i);
             if (c == '%' || c == '_' || c == ESCAPE) {
                 escaped.append(ESCAPE);
             }

@@ -72,7 +72,7 @@ public class ResourceService {
         // 本仓其它两处 query 恰好只传 getter 本身（不调用方法），所以一直没暴露。
         String typeFilter = normalizeTypeFilter(query.getResourceType());
         String parentFilter = normalize(query.getParentCode());
-        // 关键词先转义再进 LIKE（`%` / `_` 是通配符，见 KeywordLike 与 decisions/0067）。
+        // 关键词先规范化（吃掉两端空白）再转义，见 KeywordLike（decisions/0067 · 0068）。
         String pattern = KeywordLike.pattern(query.getKeyword());
 
         var wrapper = Wrappers.<ResourceEntity>lambdaQuery()

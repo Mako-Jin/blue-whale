@@ -66,8 +66,7 @@ public class UserService {
     @Transactional(readOnly = true)
     public PageResult<UserVO> page(UserQuery query) {
         Long tenantId = resolveTenantId(query.getTenantId());
-        // 关键词先转义再进 LIKE。`%` 与 `_` 是通配符，原样传出去的后果是"输 % 列出全表"，
-        // 而 MyBatis-Plus 的 `like()` 只做 %+值+%、不转义（见 KeywordLike 与 decisions/0067）。
+        // 关键词先规范化（吃掉两端空白）再转义，见 KeywordLike（decisions/0067 · 0068）。
         String pattern = KeywordLike.pattern(query.getKeyword());
         var wrapper = Wrappers.<UserEntity>lambdaQuery()
                 .eq(UserEntity::getTenantId, tenantId)

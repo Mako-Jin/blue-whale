@@ -31,8 +31,7 @@ public class TenantService {
 
     @Transactional(readOnly = true)
     public PageResult<TenantVO> page(TenantQuery query) {
-        // 关键词先转义再进 LIKE（`%` / `_` 是通配符，见 KeywordLike 与 decisions/0067）。
-        // 本处不 trim：与改动前一致 —— 该域此前也是拿原文去比。
+        // 关键词先规范化（吃掉两端空白）再转义，见 KeywordLike（decisions/0067 · 0068）。
         String pattern = KeywordLike.pattern(query.getKeyword());
         var wrapper = Wrappers.<TenantEntity>lambdaQuery()
                 .and(pattern != null, w -> w

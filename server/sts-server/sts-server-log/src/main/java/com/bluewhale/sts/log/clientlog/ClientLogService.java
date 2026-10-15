@@ -271,8 +271,7 @@ public class ClientLogService {
     private LambdaQueryWrapper<ClientLogEntity> buildWrapper(ClientLogQuery query, long tenantId) {
         long endTime = query.getEndTime() == null ? System.currentTimeMillis() : query.getEndTime();
         long startTime = query.getStartTime() == null ? endTime - DEFAULT_WINDOW_MILLIS : query.getStartTime();
-        // 关键词先转义再进 LIKE（`%` / `_` 是通配符，见 KeywordLike 与 decisions/0067）。
-        // 日志正文里出现 % 是常事（占位符、格式化串），"输 % 把整页日志都捞出来"在这里最容易撞上。
+        // 关键词先规范化（吃掉两端空白）再转义，见 KeywordLike（decisions/0067 · 0068）。
         String pattern = KeywordLike.pattern(query.getKeyword());
 
         return Wrappers.<ClientLogEntity>lambdaQuery()

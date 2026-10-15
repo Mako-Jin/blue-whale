@@ -88,11 +88,11 @@ public class UserGroupService {
 
     @Transactional(readOnly = true)
     public PageResult<UserGroupVO> page(UserGroupQuery query) {
+        // 关键词先规范化（吃掉两端空白）再转义，见 KeywordLike（decisions/0067 · 0068）。
+        String pattern = KeywordLike.pattern(query.getKeyword());
         // 过滤值先取局部变量：`eq(condition, 列, 值)` 的"值"是**无条件求值**的，
-        // 写成 `query.getKeyword().trim()` 会在 keyword 为空时当场 NPE，
+        // 写成 `query.getCategory().trim()` 会在 category 为空时当场 NPE，
         // 外层的条件参数救不了。这条坑在本仓已经踩过两次（资源目录、角色）。
-        String keyword = normalize(query.getKeyword());
-        String pattern = KeywordLike.pattern(keyword);
         String category = normalize(query.getCategory());
         Long tenantId = resolveTenantId(query.getTenantId());
 

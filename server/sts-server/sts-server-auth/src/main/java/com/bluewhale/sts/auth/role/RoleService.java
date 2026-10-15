@@ -88,11 +88,11 @@ public class RoleService {
 
     @Transactional(readOnly = true)
     public PageResult<RoleVO> page(RoleQuery query) {
+        // 关键词先规范化（吃掉两端空白）再转义，见 KeywordLike（decisions/0067 · 0068）。
+        String pattern = KeywordLike.pattern(query.getKeyword());
         // 过滤值先取局部变量：`eq(condition, 列, 值)` 的"值"是无条件求值的，
-        // 写成 `query.getKeyword().trim()` 会在 keyword 为空时当场 NPE。
+        // 写成 `query.getStatus().trim()` 会在 status 为空时当场 NPE。
         // 这条坑在 ResourceService.page 上已经踩过一次，见那里的长注释。
-        String keyword = normalize(query.getKeyword());
-        String pattern = KeywordLike.pattern(keyword);
         String status = normalizeStatusFilter(query.getStatus());
         String category = normalize(query.getCategory());
         Long tenantId = resolveTenantId(query.getTenantId());

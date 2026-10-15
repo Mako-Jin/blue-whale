@@ -29,6 +29,18 @@ const PAGE_SIZE = 20;
 /** 后端接口文档地址（由 springdoc 提供，与后端同源） */
 const SWAGGER_URL = '/swagger-ui.html';
 
+/**
+ * 过滤值在**发请求前**过一遍两端空白。
+ *
+ * 之所以不放在 `onChange` 里：这一排是逐键上送的，输入过程中 trim 会把用户刚敲下的
+ * 空格当场吃掉（值与光标都会跳）。之所以后端也要做一遍：前端只是顺手的那一层，
+ * API 调用方不走这里 —— 规范化的真值来源在后端（`decisions/0068`）。
+ */
+function cleanFilter(value?: string): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
 export default function App() {
   /*
    * 两栏各自的菜单码 —— 与接口权限是两层：这决定"这一栏出不出来"，
@@ -123,9 +135,9 @@ export default function App() {
         const [statsResult, pageResult] = await Promise.all([
           api.log.stats({}),
           api.log.page({
-            level: filters.level,
-            namespace: filters.namespace,
-            keyword: filters.keyword,
+            level: cleanFilter(filters.level),
+            namespace: cleanFilter(filters.namespace),
+            keyword: cleanFilter(filters.keyword),
             page: pageNo,
             size: PAGE_SIZE,
           }),
