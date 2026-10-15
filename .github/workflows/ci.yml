@@ -279,7 +279,7 @@ jobs:
         with:
           node-version: '22'
 
-      # 这五条**不需要任何服务**：不起后端、不起 dev server、不装浏览器。
+      # 这几条**不需要任何服务**：不起后端、不起 dev server、不装浏览器。
       # 它们查的都是"配置或文档与实际不一致"，而这类错在本地几乎不会主动去查。
       - name: 网关配置结构自检
         run: node scripts/verify-nginx-config.mjs
@@ -305,3 +305,10 @@ jobs:
       # 同时守三方言唯一索引集合的同构（0038 此前没人守）。同样零前置。
       - name: 判重与唯一索引对账
         run: node scripts/verify-unique-columns.mjs
+
+      # 搜索关键词的转义（docs/decisions/0067）：`server/` 里每一处 `LIKE` 都必须经过
+      # `KeywordLike`（`%` / `_` / 转义符各加一个 `ESCAPE '!'` 前缀），不许再有裸的
+      # `like(...)` —— 那种写法读起来正常、测试也不会红，只有"输 % 列出全表"会露出来。
+      # 顺带守"写了 LIKE 却忘了 ESCAPE"。同样零前置（只读源码文本）。
+      - name: 搜索关键词转义自检
+        run: node scripts/verify-like-escaping.mjs

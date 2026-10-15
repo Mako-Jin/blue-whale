@@ -24,6 +24,7 @@
 | `verify-bundle-secrets.mjs`    | 扫前端构建产物，确认**种子口令没有进包**                                | **无前置服务**（口令真值从 `application-h2.yml` 读；需先构建前端）；`node scripts/verify-bundle-secrets.mjs [目录…]`       | `docs/decisions/0029` · `0033` |
 | `verify-result-codes.mjs`      | 两个错误码枚举里的每个码，要么在 `src/main` 里有抛出点，要么在脚本里明写着"有意不用 / 登记了没实现"的理由 | **无前置条件**（只读源码文本，不编译、不连网、不写文件）；`node scripts/verify-result-codes.mjs` | `docs/decisions/0060` |
 | `verify-unique-columns.mjs`    | 服务层挡重名的每个 `*_EXISTS` 码都登记了它判的哪一列；每个判重列要么库上有 UNIQUE 索引兜底、要么在白名单写明"业务规则级唯一"的理由；顺带守三方言唯一索引集合同构 | **无前置条件**（只读源码文本与三方言迁移脚本，不编译、不连网、不写文件）；`node scripts/verify-unique-columns.mjs` | `docs/decisions/0063` |
+| `verify-like-escaping.mjs`     | `server/` 的 `src/main/java` 里每一处 `LIKE` 都必须经过 `KeywordLike`（转义关键词、并把 `ESCAPE '!'` 写进 SQL），不许再有裸的 `like(...)`；带 `LIKE` 的片段同一行必须有 `ESCAPE`；白名单逐条核对条数 | **无前置条件**（只读源码文本，不编译、不连网、不写文件）；`node scripts/verify-like-escaping.mjs` | `docs/decisions/0067` |
 | `verify-standalone-dev-login.mjs` | 用真实 Chrome 验证子应用**单跑**时的自建会话与开发账号自动登录（后端在跑 / 没起两种状态都跑一遍） | 至少一个子应用的 dev 服务在跑（:3200 / :3300 / :3500 / :3600，没起的会被记成"跳过"）；**后端 :8080 可选** —— 在跑时断言自动登录成功，没起时断言优雅降级；本机装有 Google Chrome | `docs/decisions/0018` · `0033` |
 
 ### `verify-micro-frontend.mjs` 做什么
@@ -447,6 +448,36 @@
 不是要钉的事实 —— 锚定的是 `*_EXISTS` 码的引用）、并发窗口本身（`email` / `phone`
 **有意**接受漏网，那是 `0047` 定的权衡，不是缺陷）。
 
+### `verify-like-escaping.mjs` 做什么
+
+把 `docs/decisions/0067` 那条约定机械化成一条零前置的检查：**搜索关键词进 `LIKE` 之前必须转义**，
+而且这件事**只有一种写法**。它查三件事：
+
+1. **`server/*/src/main/java` 里没有裸的 `like*` 调用**（`.like(` / `.likeLeft(` / `.likeRight(` /
+   `.notLike*(`），除非在脚本的 `ALLOWED` 里登记过 —— 登记的动作就是回答"这个实参是从哪来的"。
+   现在名单上只有 `OrganizationService` 那两处 `likeRight(getCodePath, …)`：`code_path` 是
+   "各级**主键** + 斜杠"（形如 `/1/5/`），只有数字与 `/`，用户手打的通配符进不来。
+2. **登记的条数逐条对上**。这一条是照 `0055`「只钉一支等于没钉」加的：只登记"形态"的话，
+   两处同名调用改掉一处、另一处还在，检查照样报绿 —— **当次扰动实测到了这个假绿**，
+   所以改成对账条数。真要多一处同类调用，就来把数改掉（改数的动作正是复查实参的时机）。
+3. **带 `LIKE` 的 SQL 片段同一行必须有 `ESCAPE`** —— 挡住"手写一个 `LIKE` 而忘声明转义符"。
+   它同时守着 `KeywordLike` 自己：哪天它的片段被改回裸 `LIKE`，这里会红。
+
+**为什么它值得存在**（而 `0064` 那类不值得）：它锚定的是 `.like(` 这个**方法名** ——
+无歧义的 token 形状，扫到就是扫到，不依赖对 JSX 树或展示语义的理解。
+它要防的错是"新加一处搜索时又写了 `.like()`"：那种写法读起来完全正常（本仓此前 15 处都是它）、
+测试也照样绿（新搜索本来就没有"搜不到"那一支断言），只有**"输 `%` 列出全表"**这个
+没人会去试的角落会露出来。
+
+**三个方向都验过**（扰动）：加一处裸 `.like(` ⇒ "没有裸调用"红；把 `condition()` 里的
+`ESCAPE` 删掉 ⇒ "同一行必须有 ESCAPE"红；把两处白名单调用改掉一处 ⇒
+**"裸调用"与"条数对不上"一次红两条**。
+
+**刻意不查的：** `src/test` 下的 `like*`（测试自造查询不是生产路径，当前一处都没有）；
+转义符选得对不对、`ESCAPE` 在三方言上是否同义（那是语义，靠跨 profile 的
+`SearchWildcardApiTest` 钉，不靠文本扫描）；`.apply(...)` 传进去的实参有没有真的转过义
+（要判这个得做数据流分析，误报率不划算 —— 这里只守"调用形状"）。
+
 ### 脚本的硬性约束
 
 - **可重复执行**：跑第二遍不应产生副作用或报"已存在"错误。
@@ -460,8 +491,8 @@
   才做依赖预构建，热与冷不是同一种环境 —— 冷启动会暴露只在首帧出现的问题（例如自动登录还没完成就渲染）。
   `scripts/verify-standalone-dev-login.mjs` 正是为这条而生，重跑一遍前**先重启对应的 dev 服务**。
 - **能不要前置条件就不要** —— 这一条决定脚本能不能进 CI。`verify-nginx-config.mjs`、
-  `verify-docs-index.mjs`、`verify-api-contract.mjs`、`verify-result-codes.mjs` 与
-  `verify-unique-columns.mjs` 是**零前置**的
+  `verify-docs-index.mjs`、`verify-api-contract.mjs`、`verify-result-codes.mjs`、
+  `verify-unique-columns.mjs` 与 `verify-like-escaping.mjs` 是**零前置**的
   （不连网、不读产物、不写文件），所以流水线的 `guards` job 直接跑它们；`verify-bundle-secrets.mjs` **不需要服务、但需要前端产物**，
   所以它跑在 `web` job 的构建**之后**（顺序不能反 —— 反了它就扫不到东西，还会静默"通过"）；
   需要前置服务的脚本继续留在本机 —— 真机层（浏览器 + 冷启动 dev server）**刻意不在 CI 的必过项里**，

@@ -13,6 +13,7 @@ import com.bluewhale.sts.auth.tenant.TenantService;
 import com.bluewhale.sts.auth.user.UserEntity;
 import com.bluewhale.sts.auth.user.UserMapper;
 import com.bluewhale.sts.common.basic.model.PageResult;
+import com.bluewhale.sts.common.db.query.KeywordLike;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -91,14 +92,15 @@ public class UserGroupService {
         // 写成 `query.getKeyword().trim()` 会在 keyword 为空时当场 NPE，
         // 外层的条件参数救不了。这条坑在本仓已经踩过两次（资源目录、角色）。
         String keyword = normalize(query.getKeyword());
+        String pattern = KeywordLike.pattern(keyword);
         String category = normalize(query.getCategory());
         Long tenantId = resolveTenantId(query.getTenantId());
 
         var wrapper = Wrappers.<UserGroupEntity>lambdaQuery()
                 .eq(UserGroupEntity::getTenantId, tenantId)
-                .and(keyword != null, w -> w
-                        .like(UserGroupEntity::getGroupCode, keyword)
-                        .or().like(UserGroupEntity::getGroupName, keyword))
+                .and(pattern != null, w -> w
+                        .apply(KeywordLike.condition("group_code"), pattern)
+                        .or().apply(KeywordLike.condition("group_name"), pattern))
                 .eq(category != null, UserGroupEntity::getCategory, category)
                 .eq(query.getEnabled() != null, UserGroupEntity::getIsEnabled, query.getEnabled())
                 .eq(query.getParentId() != null, UserGroupEntity::getParentId, query.getParentId())

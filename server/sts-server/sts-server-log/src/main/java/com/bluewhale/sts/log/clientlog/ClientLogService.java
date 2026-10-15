@@ -7,6 +7,7 @@ import com.bluewhale.sts.auth.context.AuthContextHolder;
 import com.bluewhale.sts.common.basic.enums.ResultCode;
 import com.bluewhale.sts.common.basic.exception.BusinessException;
 import com.bluewhale.sts.common.basic.model.PageResult;
+import com.bluewhale.sts.common.db.query.KeywordLike;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -270,6 +271,9 @@ public class ClientLogService {
     private LambdaQueryWrapper<ClientLogEntity> buildWrapper(ClientLogQuery query, long tenantId) {
         long endTime = query.getEndTime() == null ? System.currentTimeMillis() : query.getEndTime();
         long startTime = query.getStartTime() == null ? endTime - DEFAULT_WINDOW_MILLIS : query.getStartTime();
+        // 关键词先转义再进 LIKE（`%` / `_` 是通配符，见 KeywordLike 与 decisions/0067）。
+        // 日志正文里出现 % 是常事（占位符、格式化串），"输 % 把整页日志都捞出来"在这里最容易撞上。
+        String pattern = KeywordLike.pattern(query.getKeyword());
 
         return Wrappers.<ClientLogEntity>lambdaQuery()
                 .eq(ClientLogEntity::getTenantId, tenantId)
@@ -279,7 +283,7 @@ public class ClientLogService {
                 .eq(hasText(query.getNamespace()), ClientLogEntity::getNamespace, query.getNamespace())
                 .eq(hasText(query.getTraceId()), ClientLogEntity::getTraceId, query.getTraceId())
                 .eq(hasText(query.getSessionId()), ClientLogEntity::getSessionId, query.getSessionId())
-                .like(hasText(query.getKeyword()), ClientLogEntity::getMessage, query.getKeyword())
+                .apply(pattern != null, KeywordLike.condition("message"), pattern)
                 .ge(ClientLogEntity::getServerTime, startTime)
                 .le(ClientLogEntity::getServerTime, endTime)
                 // 次级排序键用 id：同一毫秒内的多条记录若只按时间排序，翻页时顺序不稳定，

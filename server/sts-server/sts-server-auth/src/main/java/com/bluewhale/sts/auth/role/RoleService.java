@@ -16,6 +16,7 @@ import com.bluewhale.sts.auth.resource.ResourceEntity;
 import com.bluewhale.sts.auth.resource.ResourceMapper;
 import com.bluewhale.sts.auth.tenant.TenantService;
 import com.bluewhale.sts.common.basic.model.PageResult;
+import com.bluewhale.sts.common.db.query.KeywordLike;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -91,15 +92,16 @@ public class RoleService {
         // 写成 `query.getKeyword().trim()` 会在 keyword 为空时当场 NPE。
         // 这条坑在 ResourceService.page 上已经踩过一次，见那里的长注释。
         String keyword = normalize(query.getKeyword());
+        String pattern = KeywordLike.pattern(keyword);
         String status = normalizeStatusFilter(query.getStatus());
         String category = normalize(query.getCategory());
         Long tenantId = resolveTenantId(query.getTenantId());
 
         var wrapper = Wrappers.<RoleEntity>lambdaQuery()
                 .eq(RoleEntity::getTenantId, tenantId)
-                .and(keyword != null, w -> w
-                        .like(RoleEntity::getRoleCode, keyword)
-                        .or().like(RoleEntity::getRoleName, keyword))
+                .and(pattern != null, w -> w
+                        .apply(KeywordLike.condition("role_code"), pattern)
+                        .or().apply(KeywordLike.condition("role_name"), pattern))
                 .eq(status != null, RoleEntity::getStatus, status)
                 .eq(category != null, RoleEntity::getCategory, category)
                 // 先 sortNo 再 id：只按 sortNo 排时，多条同序记录在不同页之间的相对顺序

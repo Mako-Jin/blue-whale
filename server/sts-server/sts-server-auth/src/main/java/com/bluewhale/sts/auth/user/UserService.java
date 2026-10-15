@@ -10,6 +10,7 @@ import com.bluewhale.sts.auth.context.AuthContextHolder;
 import com.bluewhale.sts.auth.role.RoleMemberService;
 import com.bluewhale.sts.auth.tenant.TenantService;
 import com.bluewhale.sts.common.basic.model.PageResult;
+import com.bluewhale.sts.common.db.query.KeywordLike;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -65,12 +66,15 @@ public class UserService {
     @Transactional(readOnly = true)
     public PageResult<UserVO> page(UserQuery query) {
         Long tenantId = resolveTenantId(query.getTenantId());
+        // 关键词先转义再进 LIKE。`%` 与 `_` 是通配符，原样传出去的后果是"输 % 列出全表"，
+        // 而 MyBatis-Plus 的 `like()` 只做 %+值+%、不转义（见 KeywordLike 与 decisions/0067）。
+        String pattern = KeywordLike.pattern(query.getKeyword());
         var wrapper = Wrappers.<UserEntity>lambdaQuery()
                 .eq(UserEntity::getTenantId, tenantId)
-                .and(query.getKeyword() != null && !query.getKeyword().isBlank(), w -> w
-                        .like(UserEntity::getUsername, query.getKeyword())
-                        .or().like(UserEntity::getDisplayName, query.getKeyword())
-                        .or().like(UserEntity::getEmail, query.getKeyword()))
+                .and(pattern != null, w -> w
+                        .apply(KeywordLike.condition("username"), pattern)
+                        .or().apply(KeywordLike.condition("display_name"), pattern)
+                        .or().apply(KeywordLike.condition("email"), pattern))
                 .eq(query.getStatus() != null && !query.getStatus().isBlank(),
                         UserEntity::getStatus, query.getStatus())
                 .orderByDesc(UserEntity::getId);

@@ -11,6 +11,7 @@ import com.bluewhale.sts.auth.tenant.TenantService;
 import com.bluewhale.sts.auth.user.UserEntity;
 import com.bluewhale.sts.auth.user.UserMapper;
 import com.bluewhale.sts.common.basic.model.PageResult;
+import com.bluewhale.sts.common.db.query.KeywordLike;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -89,16 +90,17 @@ public class OrganizationService {
         // 写成 `query.getKeyword().trim()` 会在 keyword 为空时当场 NPE，
         // 外层的条件参数救不了。这条坑在本仓已经踩过三次。
         String keyword = normalize(query.getKeyword());
+        String pattern = KeywordLike.pattern(keyword);
         String status = normalize(query.getStatus());
         String orgType = normalize(query.getOrgType());
         Long tenantId = resolveTenantId(query.getTenantId());
 
         var wrapper = Wrappers.<OrganizationEntity>lambdaQuery()
                 .eq(OrganizationEntity::getTenantId, tenantId)
-                .and(keyword != null, w -> w
-                        .like(OrganizationEntity::getOrgCode, keyword)
-                        .or().like(OrganizationEntity::getOrgName, keyword)
-                        .or().like(OrganizationEntity::getFullName, keyword))
+                .and(pattern != null, w -> w
+                        .apply(KeywordLike.condition("org_code"), pattern)
+                        .or().apply(KeywordLike.condition("org_name"), pattern)
+                        .or().apply(KeywordLike.condition("full_name"), pattern))
                 .eq(status != null, OrganizationEntity::getStatus, status)
                 .eq(orgType != null, OrganizationEntity::getOrgType, orgType)
                 .eq(query.getParentId() != null, OrganizationEntity::getParentId, query.getParentId())

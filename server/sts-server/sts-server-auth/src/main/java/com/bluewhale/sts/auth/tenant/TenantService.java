@@ -6,6 +6,7 @@ import com.bluewhale.sts.auth.common.AuthResultCode;
 import com.bluewhale.sts.auth.common.enums.Status;
 import com.bluewhale.sts.auth.context.AuthContextHolder;
 import com.bluewhale.sts.common.basic.model.PageResult;
+import com.bluewhale.sts.common.db.query.KeywordLike;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,10 +31,13 @@ public class TenantService {
 
     @Transactional(readOnly = true)
     public PageResult<TenantVO> page(TenantQuery query) {
+        // 关键词先转义再进 LIKE（`%` / `_` 是通配符，见 KeywordLike 与 decisions/0067）。
+        // 本处不 trim：与改动前一致 —— 该域此前也是拿原文去比。
+        String pattern = KeywordLike.pattern(query.getKeyword());
         var wrapper = Wrappers.<TenantEntity>lambdaQuery()
-                .and(query.getKeyword() != null && !query.getKeyword().isBlank(), w -> w
-                        .like(TenantEntity::getTenantCode, query.getKeyword())
-                        .or().like(TenantEntity::getTenantName, query.getKeyword()))
+                .and(pattern != null, w -> w
+                        .apply(KeywordLike.condition("tenant_code"), pattern)
+                        .or().apply(KeywordLike.condition("tenant_name"), pattern))
                 .eq(query.getStatus() != null && !query.getStatus().isBlank(),
                         TenantEntity::getStatus, query.getStatus())
                 .orderByAsc(TenantEntity::getTenantLevel)
