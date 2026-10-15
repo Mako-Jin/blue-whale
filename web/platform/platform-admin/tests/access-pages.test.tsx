@@ -215,6 +215,9 @@ const ORG_TREE = [
         parentId: 1,
         status: 'ENABLED',
         sortNo: 0,
+        // 负责人是跨到用户域的引用：姓名不唯一，故标识与姓名并排（见 decisions/0061）
+        managerId: 7,
+        managerName: '系统管理员',
         children: [
           {
             id: 4,
@@ -618,6 +621,9 @@ describe('权限管理后台 · 资源 / 角色 / 用户组', () => {
     expect(screen.getByText('L3')).toBeInTheDocument();
     // 停用的兄弟节点照常显示，只多一个标签
     expect(screen.getByText('停用')).toBeInTheDocument();
+
+    // 负责人姓名旁边带上标识 —— 姓名不唯一，光有姓名答不出"这个负责人是谁"
+    expect(screen.getByTestId('org-node-RD').textContent).toContain('负责人 #7 系统管理员');
   });
 
   it('组织页：只读账号看不到任何写入口，但整棵树照常可见', async () => {

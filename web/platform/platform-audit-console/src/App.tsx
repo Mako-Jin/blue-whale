@@ -249,7 +249,17 @@ export default function App() {
                           <td className="mono">{orDash(record.action)}</td>
                           <td className="mono">{orDash(record.resource)}</td>
                           <td className="mono">{orDash(record.targetId)}</td>
-                          <td>{orDash(record.operatorName)}</td>
+                          {/*
+                            操作人只给了一个姓名。姓名不唯一（见 decisions/0061），
+                            因此与详情面板同形：姓名后面跟上主键。列表与详情**必须**
+                            用同一条规则，否则同一份数据在两处长得不一样。
+                          */}
+                          <td>
+                            {orDash(record.operatorName)}
+                            {record.operatorId ? (
+                              <span className="mono"> #{record.operatorId}</span>
+                            ) : null}
+                          </td>
                           <td>
                             <span
                               className={`tag tag--${resultModifier(record.result)}`}

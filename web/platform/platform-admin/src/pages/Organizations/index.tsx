@@ -475,7 +475,16 @@ function OrgBranch({
         <span className="tree__name">{node.orgName ?? '—'}</span>
         {/* 层级是派生值：显示它是为了让"移动会改层级"这件事可见，而不是为了让人输入 */}
         <span className="tag tag--on">L{node.orgLevel ?? '?'}</span>
-        {node.managerName ? <span className="tree__name">负责人 {node.managerName}</span> : null}
+        {/*
+          负责人只给了一个姓名。姓名不唯一（见 decisions/0061），
+          而且它是一个**跨到用户域的引用** —— 不带上标识，"这个负责人是谁"
+          两个重名的人就分不开。故与角色来源那一列同形：标识在前、姓名在后。
+        */}
+        {node.managerName ? (
+          <span className="tree__name">
+            负责人 <span className="mono">#{node.managerId}</span> {node.managerName}
+          </span>
+        ) : null}
         {disabled ? <span className="tag tag--off">停用</span> : null}
         <span className="tree__ops" data-testid={`org-ops-${String(node.orgCode)}`}>
           <PermissionButton

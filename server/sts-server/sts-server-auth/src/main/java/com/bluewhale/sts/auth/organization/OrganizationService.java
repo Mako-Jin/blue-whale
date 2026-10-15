@@ -736,6 +736,7 @@ public class OrganizationService {
         node.setOrgLevel(entity.getOrgLevel());
         node.setCodePath(entity.getCodePath());
         node.setStatus(entity.getStatus());
+        node.setManagerId(entity.getManagerId());
         node.setManagerName(entity.getManagerName());
         node.setSortNo(entity.getSortNo());
         return node;

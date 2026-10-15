@@ -166,6 +166,11 @@ describe('审计日志台 · 只读管道', () => {
     // 失败行必须带出业务码 —— 审计表里"为什么被拒"是最关键的一列
     expect(screen.getByTestId('audit-result-102').textContent).toContain('40301');
 
+    // 操作人姓名不唯一（见 decisions/0061），光有姓名答不出"是谁" ——
+    // 列表必须与详情面板同形：姓名后面跟上主键
+    expect(screen.getByTestId('audit-row-101').textContent).toContain('#7');
+    expect(screen.getByTestId('audit-row-102').textContent).toContain('#8');
+
     expect(screen.getByTestId('audit-stat-auth.tenant.create').textContent).toContain('失败 1');
     expect(screen.getByTestId('drill-panel')).toBeInTheDocument();
     expect(screen.getByTestId('audit-total').textContent).toContain('共 2 条');

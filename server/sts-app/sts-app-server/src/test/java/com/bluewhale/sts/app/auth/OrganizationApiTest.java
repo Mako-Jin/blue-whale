@@ -590,6 +590,38 @@ class OrganizationApiTest {
         deleteUser(token, userId);
     }
 
+    @Test
+    @DisplayName("树节点带上 managerId：负责人是跨域引用，姓名不唯一，光有姓名答不出\"是谁\"")
+    void shouldCarryManagerIdOnTreeNode() throws Exception {
+        String token = loginAsAdmin();
+
+        long managerId = createUser(token, uniqueUsername("mgr"));
+        String orgCode = uniqueCode("mo");
+        // 带上负责人建一个部门。managerName 由服务端从用户表取（入参不接受它），
+        // 这里连 managerId 一起写进请求体
+        long orgId = createOrgWithManager(token, orgCode, "带负责人的部门", managerId);
+
+        // 详情接口本就有 managerId / managerName 两列；树是"选层级、看归属"的那一份数据，
+        // 它同样要能回答"这个负责人是谁"。少了 managerId，两个重名的人在这里长得一模一样，
+        // 而前端正是靠它把标识渲在姓名旁边（见 decisions/0061）。
+        mockMvc.perform(get("/api/auth/orgs/tree")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$..[?(@.orgCode == '" + orgCode + "')].managerId",
+                        hasItem((int) managerId)))
+                .andExpect(jsonPath("$..[?(@.orgCode == '" + orgCode + "')].managerName",
+                        hasItem("组织用例用户")));
+
+        // 详情与树给的是同一个东西：两处不一致会让"树上看的人"与"详情看的人"对不上
+        mockMvc.perform(get("/api/auth/orgs/" + orgId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(jsonPath("$.data.managerId").value(managerId));
+
+        deleteUser(token, managerId);
+        deleteOrg(token, orgId);
+    }
+
     /* ==================== 入参与鉴权守卫 ==================== */
 
     @Test
@@ -676,6 +708,21 @@ class OrganizationApiTest {
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(orgBody(code, name, parentId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andReturn();
+        Number id = JsonPath.read(result.getResponse().getContentAsString(), "$.data.id");
+        return id.longValue();
+    }
+
+    /** 带负责人建组织。{@code managerName} 不入参 —— 服务端从用户表取，这里只给 {@code managerId} */
+    private long createOrgWithManager(String token, String code, String name, long managerId)
+            throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/auth/orgs")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"orgCode\":\"" + code + "\",\"orgName\":\"" + name
+                                + "\",\"managerId\":" + managerId + "}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
                 .andReturn();

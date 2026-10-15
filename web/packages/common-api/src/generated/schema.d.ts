@@ -2699,6 +2699,11 @@ export interface components {
       codePath?: string;
       /** @description 状态：ENABLED / DISABLED */
       status?: string;
+      /**
+       * Format: int64
+       * @description 负责人用户主键。姓名不唯一，因此姓名旁边必须有它（见 decisions/0061）
+       */
+      managerId?: number;
       /** @description 负责人姓名（冗余列），便于在树上直接展示 */
       managerName?: string;
       /** Format: int32 */

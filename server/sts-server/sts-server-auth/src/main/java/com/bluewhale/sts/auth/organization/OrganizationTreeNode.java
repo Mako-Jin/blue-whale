@@ -50,6 +50,9 @@ public class OrganizationTreeNode {
     @Schema(description = "状态：ENABLED / DISABLED")
     private String status;
 
+    @Schema(description = "负责人用户主键。姓名不唯一，因此姓名旁边必须有它（见 decisions/0061）")
+    private Long managerId;
+
     @Schema(description = "负责人姓名（冗余列），便于在树上直接展示")
     private String managerName;
 
