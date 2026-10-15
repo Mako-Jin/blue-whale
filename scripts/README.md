@@ -23,6 +23,7 @@
 | `verify-api-contract.mjs`      | 对 `docs/api/README.md` §一 的接口清单做一致性自检：总览句的路径 / 接口 / 模型三个数、逐域明细表的每条 `方法 + 路径`（与契约**双向**比对）、按模块汇总表与分项之和、模块名是否真存在 | **无前置条件**（只读 `docs/api/openapi.json` 与 `docs/api/README.md`，不连网、不起服务、不写文件）；`node scripts/verify-api-contract.mjs` | `docs/decisions/0040` |
 | `verify-bundle-secrets.mjs`    | 扫前端构建产物，确认**种子口令没有进包**                                | **无前置服务**（口令真值从 `application-h2.yml` 读；需先构建前端）；`node scripts/verify-bundle-secrets.mjs [目录…]`       | `docs/decisions/0029` · `0033` |
 | `verify-result-codes.mjs`      | 两个错误码枚举里的每个码，要么在 `src/main` 里有抛出点，要么在脚本里明写着"有意不用 / 登记了没实现"的理由 | **无前置条件**（只读源码文本，不编译、不连网、不写文件）；`node scripts/verify-result-codes.mjs` | `docs/decisions/0060` |
+| `verify-unique-columns.mjs`    | 服务层挡重名的每个 `*_EXISTS` 码都登记了它判的哪一列；每个判重列要么库上有 UNIQUE 索引兜底、要么在白名单写明"业务规则级唯一"的理由；顺带守三方言唯一索引集合同构 | **无前置条件**（只读源码文本与三方言迁移脚本，不编译、不连网、不写文件）；`node scripts/verify-unique-columns.mjs` | `docs/decisions/0063` |
 | `verify-standalone-dev-login.mjs` | 用真实 Chrome 验证子应用**单跑**时的自建会话与开发账号自动登录（后端在跑 / 没起两种状态都跑一遍） | 至少一个子应用的 dev 服务在跑（:3200 / :3300 / :3500 / :3600，没起的会被记成"跳过"）；**后端 :8080 可选** —— 在跑时断言自动登录成功，没起时断言优雅降级；本机装有 Google Chrome | `docs/decisions/0018` · `0033` |
 
 ### `verify-micro-frontend.mjs` 做什么
@@ -416,6 +417,36 @@
 **刻意不查的：** 注释里提到的码（扫描前会剥掉注释 —— 否则一句"详见 xxx 的说明"就能把
 零落点的码伪装成有落点）、断言（见上）、前端读了哪些码（那是跨端判据）。
 
+### `verify-unique-columns.mjs` 做什么
+
+把 `docs/decisions/0062` 那轮的**手工对账**机械化：服务层挡重名的每一列，
+要么库上有 UNIQUE 索引兜底，要么在白名单里写明"业务规则级唯一"的理由。
+它查四件事：
+
+1. **每个被引用的 `*_EXISTS` 码都在脚本的 `JUDGED` 表里登记了"判的是哪一列"** ——
+   登记的动作就是 `0062` 判据的落点：新加判重必须先回答"这个列在语义上指认什么"。
+2. **登记的码仍然被引用**（腐烂检查）。哪天有人走 `0062` 的路删掉某处判重，
+   守卫会同时提醒：删登记、把列挪进 `NO_INDEX_ALLOWED` 写明理由 —— **一处决定，两处提醒**。
+3. **三方言的唯一索引集合一致**。三份迁移脚本本该是同一次提交的拷贝（`0038`），
+   此前谁改一份漏两份没有任何东西会发现 —— 这是白捡的一条。
+4. **每个判重列要么有 UNIQUE、要么在 `NO_INDEX_ALLOWED` 里**。反向腐烂同样红：
+   给 `email` 加了 UNIQUE，白名单理由就过期了。
+
+四格里只有"服务层判重 + 库上无索引 + 不在白名单"要红；**"有 UNIQUE 却不判重"
+是合法形态**（数据约束自己会以 `40900` 兜底，如 `bw_auth_refresh_token.jti`），刻意不查。
+
+**它是 `0062` 删完判重之后出生的**：那次手工对账的结论是"无索引却判重"的列清空、
+`email` / `phone` 两列进白名单 ⇒ 守卫**首跑即全绿**。它守的是"对账"，不替人回答
+"该不该判重" —— 那仍是 `0062` 的判据（语义上指认什么），登记表只是逼人把答案写下来。
+
+**三个方向都验过**（扰动）：`JUDGED` 加一个源码里不存在的码 ⇒ "登记的码都还有落点"
+红；白名单豁免的键改名 ⇒ "判重列"红；只给一个方言加 UNIQUE ⇒ "三方言一致"与
+"白名单腐烂"**一次红两条**。
+
+**刻意不查的：** 判重的具体写法（`selectCount` / `selectAny*` / exists helper 是代码风格，
+不是要钉的事实 —— 锚定的是 `*_EXISTS` 码的引用）、并发窗口本身（`email` / `phone`
+**有意**接受漏网，那是 `0047` 定的权衡，不是缺陷）。
+
 ### 脚本的硬性约束
 
 - **可重复执行**：跑第二遍不应产生副作用或报"已存在"错误。
@@ -429,7 +460,8 @@
   才做依赖预构建，热与冷不是同一种环境 —— 冷启动会暴露只在首帧出现的问题（例如自动登录还没完成就渲染）。
   `scripts/verify-standalone-dev-login.mjs` 正是为这条而生，重跑一遍前**先重启对应的 dev 服务**。
 - **能不要前置条件就不要** —— 这一条决定脚本能不能进 CI。`verify-nginx-config.mjs`、
-  `verify-docs-index.mjs`、`verify-api-contract.mjs` 与 `verify-result-codes.mjs` 是**零前置**的
+  `verify-docs-index.mjs`、`verify-api-contract.mjs`、`verify-result-codes.mjs` 与
+  `verify-unique-columns.mjs` 是**零前置**的
   （不连网、不读产物、不写文件），所以流水线的 `guards` job 直接跑它们；`verify-bundle-secrets.mjs` **不需要服务、但需要前端产物**，
   所以它跑在 `web` job 的构建**之后**（顺序不能反 —— 反了它就扫不到东西，还会静默"通过"）；
   需要前置服务的脚本继续留在本机 —— 真机层（浏览器 + 冷启动 dev server）**刻意不在 CI 的必过项里**，

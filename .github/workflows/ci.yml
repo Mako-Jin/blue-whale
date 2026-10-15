@@ -279,7 +279,7 @@ jobs:
         with:
           node-version: '22'
 
-      # 这四条**不需要任何服务**：不起后端、不起 dev server、不装浏览器。
+      # 这五条**不需要任何服务**：不起后端、不起 dev server、不装浏览器。
       # 它们查的都是"配置或文档与实际不一致"，而这类错在本地几乎不会主动去查。
       - name: 网关配置结构自检
         run: node scripts/verify-nginx-config.mjs
@@ -299,3 +299,9 @@ jobs:
       # 同样零前置：只读 src/main 的源码文本，不编译、不连网、不写文件。
       - name: 错误码落点自检
         run: node scripts/verify-result-codes.mjs
+
+      # 判重与唯一索引对账（docs/decisions/0063）：服务层挡重名的每一列，
+      # 要么库上有 UNIQUE 索引兜底，要么在脚本白名单里写明"业务规则级唯一"的理由。
+      # 同时守三方言唯一索引集合的同构（0038 此前没人守）。同样零前置。
+      - name: 判重与唯一索引对账
+        run: node scripts/verify-unique-columns.mjs
