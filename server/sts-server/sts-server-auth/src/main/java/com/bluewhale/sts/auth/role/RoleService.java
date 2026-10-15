@@ -16,6 +16,7 @@ import com.bluewhale.sts.auth.resource.ResourceEntity;
 import com.bluewhale.sts.auth.resource.ResourceMapper;
 import com.bluewhale.sts.auth.tenant.TenantService;
 import com.bluewhale.sts.common.basic.model.PageResult;
+import com.bluewhale.sts.common.db.query.FilterValue;
 import com.bluewhale.sts.common.db.query.KeywordLike;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -93,8 +94,10 @@ public class RoleService {
         // 过滤值先取局部变量：`eq(condition, 列, 值)` 的"值"是无条件求值的，
         // 写成 `query.getStatus().trim()` 会在 status 为空时当场 NPE。
         // 这条坑在 ResourceService.page 上已经踩过一次，见那里的长注释。
-        String status = normalizeStatusFilter(query.getStatus());
-        String category = normalize(query.getCategory());
+        // status 是枚举列 ⇒ enumValue（decisions/0070，与用户 / 租户 / 组织三域同口径）；
+        // category 是自由文本（写入时不校验取值）⇒ 只 trim。
+        String status = FilterValue.enumValue(query.getStatus(), Status::parse, Status::wireName);
+        String category = FilterValue.text(query.getCategory());
         Long tenantId = resolveTenantId(query.getTenantId());
 
         var wrapper = Wrappers.<RoleEntity>lambdaQuery()
@@ -644,18 +647,6 @@ public class RoleService {
     private static String resolveStatus(String status) {
         Status parsed = Status.parse(status);
         return parsed == null ? Status.ENABLED.wireName() : parsed.wireName();
-    }
-
-    /**
-     * 过滤时宽松：认得就归一成标准写法（{@code enabled} → {@code ENABLED}），
-     * 认不得就原样拿去比 —— 过滤条件不该让查询失败，结果为空比弹错更接近预期。
-     */
-    private static String normalizeStatusFilter(String raw) {
-        if (raw == null || raw.isBlank()) {
-            return null;
-        }
-        Status parsed = Status.parse(raw);
-        return parsed == null ? raw.trim() : parsed.wireName();
     }
 
     private static String resolveEffect(String raw) {

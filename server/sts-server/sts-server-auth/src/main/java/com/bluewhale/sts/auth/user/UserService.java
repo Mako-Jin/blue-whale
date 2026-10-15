@@ -69,9 +69,11 @@ public class UserService {
         Long tenantId = resolveTenantId(query.getTenantId());
         // 关键词先规范化（吃掉两端空白）再转义，见 KeywordLike（decisions/0067 · 0068）。
         String pattern = KeywordLike.pattern(query.getKeyword());
-        // 过滤值先规范化再进 eq（decisions/0069）：`eq(条件, 列, 值)` 的"值"是**无条件求值**的，
-        // 写成 `query.getStatus().trim()` 会在 status 为空时当场 NPE。这条坑在本仓已踩过多次。
-        String status = FilterValue.text(query.getStatus());
+        // 过滤值先规范化再进 eq（decisions/0069 · 0070）：`eq(条件, 列, 值)` 的"值"是
+        // **无条件求值**的，写成 `query.getStatus().trim()` 会在 status 为空时当场 NPE。
+        // 这条坑在本仓已踩过多次。status 是枚举型的列，因此走 enumValue —— 它比 text 多一步
+        // "认得就换成标准写法"，`?status=enabled` 与 `status=ENABLED` 于是同义。
+        String status = FilterValue.enumValue(query.getStatus(), Status::parse, Status::wireName);
         var wrapper = Wrappers.<UserEntity>lambdaQuery()
                 .eq(UserEntity::getTenantId, tenantId)
                 .and(pattern != null, w -> w

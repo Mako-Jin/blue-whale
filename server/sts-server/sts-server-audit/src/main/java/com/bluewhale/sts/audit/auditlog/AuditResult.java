@@ -25,6 +25,25 @@ public enum AuditResult {
         return name();
     }
 
+    /**
+     * 大小写不敏感解析；无法识别返回 {@code null}。
+     *
+     * <p>不兜底成 {@code SUCCESS}：把非法值悄悄当成成功，会让上游的拼写错误永远暴露不出来
+     * （与 {@code Status.parse} / {@code ClientLogLevel.parse} 同一取舍）。
+     * 查询侧认不得时按原样比，见 {@code FilterValue.enumValue}。
+     */
+    public static AuditResult parse(String value) {
+        if (value == null) {
+            return null;
+        }
+        for (AuditResult result : values()) {
+            if (result.name().equalsIgnoreCase(value.trim())) {
+                return result;
+            }
+        }
+        return null;
+    }
+
     public boolean isSuccess() {
         return this == SUCCESS;
     }

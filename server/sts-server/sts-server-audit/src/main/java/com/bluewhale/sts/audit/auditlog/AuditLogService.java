@@ -161,7 +161,8 @@ public class AuditLogService {
         String action = FilterValue.text(query.getAction());
         String targetId = FilterValue.text(query.getTargetId());
         String operatorName = FilterValue.text(query.getOperatorName());
-        String result = FilterValue.text(query.getResult());
+        String result = FilterValue.enumValue(query.getResult(),
+                AuditResult::parse, AuditResult::wireName);
 
         LambdaQueryWrapper<AuditLogEntity> wrapper =
                 baseWrapper(visibility.tenantId(), resource,

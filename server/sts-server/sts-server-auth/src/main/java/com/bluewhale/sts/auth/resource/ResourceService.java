@@ -7,6 +7,7 @@ import com.bluewhale.sts.auth.common.enums.ResourceType;
 import com.bluewhale.sts.auth.relation.RelRoleResourceEntity;
 import com.bluewhale.sts.auth.relation.RelRoleResourceMapper;
 import com.bluewhale.sts.common.basic.model.PageResult;
+import com.bluewhale.sts.common.db.query.FilterValue;
 import com.bluewhale.sts.common.db.query.KeywordLike;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -70,8 +71,9 @@ public class ResourceService {
         // 所以写成 `.eq(x.getParentCode() != null, ..., x.getParentCode().trim())` 时，
         // parentCode 为 null 会当场 NPE，而那个 != null 判断看起来像是保护。
         // 本仓其它两处 query 恰好只传 getter 本身（不调用方法），所以一直没暴露。
-        String typeFilter = normalizeTypeFilter(query.getResourceType());
-        String parentFilter = normalize(query.getParentCode());
+        String typeFilter = FilterValue.enumValue(query.getResourceType(),
+                ResourceType::parse, ResourceType::wireName);
+        String parentFilter = FilterValue.text(query.getParentCode());
         // 关键词先规范化（吃掉两端空白）再转义，见 KeywordLike（decisions/0067 · 0068）。
         String pattern = KeywordLike.pattern(query.getKeyword());
 
@@ -401,19 +403,6 @@ public class ResourceService {
                             .collect(Collectors.joining(" / ")));
         }
         return parsed.wireName();
-    }
-
-    /**
-     * 过滤时宽松：认得就归一成标准写法（{@code menu} → {@code MENU}），
-     * 认不得就原样拿去比（结果为空，而不是 400）。**过滤条件不该让查询失败** ——
-     * 一个查不到东西的筛选框比一个弹错的筛选框更接近用户的预期。
-     */
-    private static String normalizeTypeFilter(String raw) {
-        if (raw == null || raw.isBlank()) {
-            return null;
-        }
-        ResourceType parsed = ResourceType.parse(raw);
-        return parsed == null ? raw.trim() : parsed.wireName();
     }
 
     private static String normalize(String value) {

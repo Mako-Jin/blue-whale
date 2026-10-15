@@ -13,6 +13,7 @@ import com.bluewhale.sts.auth.usergroup.UserGroupMapper;
 import com.bluewhale.sts.auth.user.UserEntity;
 import com.bluewhale.sts.auth.user.UserMapper;
 import com.bluewhale.sts.common.basic.model.PageResult;
+import com.bluewhale.sts.common.db.query.FilterValue;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -111,7 +112,8 @@ public class RoleMemberService {
     @Transactional(readOnly = true)
     public PageResult<RoleMemberVO> page(Long roleId, RoleMemberQuery query) {
         requireRole(roleId);
-        String memberType = normalizeMemberTypeFilter(query.getMemberType());
+        String memberType = FilterValue.enumValue(query.getMemberType(),
+                MemberType::parse, MemberType::wireName);
 
         Page<RelRoleMemberEntity> page = relRoleMemberMapper.selectPage(
                 new Page<>(query.getPage(), query.getSize()),
@@ -514,18 +516,6 @@ public class RoleMemberService {
                             .collect(Collectors.joining(" / ")));
         }
         return parsed;
-    }
-
-    /**
-     * 过滤时宽松：认得就归一成标准写法（{@code user} → {@code USER}），
-     * 认不得就原样拿去比 —— 过滤条件不该让查询失败，结果为空比弹错更接近预期。
-     */
-    private static String normalizeMemberTypeFilter(String raw) {
-        if (raw == null || raw.isBlank()) {
-            return null;
-        }
-        MemberType parsed = MemberType.parse(raw);
-        return parsed == null ? raw.trim() : parsed.wireName();
     }
 
     /** 半开区间：[from, to)。两端都可空，都空表示长期有效 */

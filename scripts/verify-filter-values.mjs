@@ -32,10 +32,15 @@
  * 3. 三个**手写聚合 SQL**（`countByLevel` / `countByEventName` / `countByAction`）的实参里
  *    **没有** `query.getXxx()` —— 直传原始值会让它们与同请求的 lambda wrapper
  *    对同一个参数给出不同判定（两条路径必须同源：同一个 `FilterValue.text` 的产物）。
+ * 4. **枚举列**的过滤值（`query.getStatus` / `getResourceType` / `getMemberType` / `getLevel`
+ *    / `getResult`）只能作为 `FilterValue.enumValue(...)` 的第一个实参出现 —— 出现别处
+ *    就是"绕开了归一"（`docs/decisions/0070`）。这一条的锚点比前三条更强：它不是"某个名字
+ *    出现得可疑"，而是**这五个 getter 在这五个 Query 类里只有这一个正当用法**，
+ *    所以可以要求"每一次出现都必须在 `enumValue(` 里"，而不是只揪某种坏写法。
  *
  * ## 用法
  *
- *     node scripts/verify-filter-normalization.mjs
+ *     node scripts/verify-filter-values.mjs
  *
  * 不需要任何前置条件（只读源码文本，不编译、不连网、不写文件），失败时非零退出。
  *
@@ -55,6 +60,11 @@
  *   那两处调用点与算好 `resource` 的语句相邻，靠评审查得住。
  * - **`isBlank`（Unicode 空白）与 `trim`（只吃 `<= U+0020`）的覆盖面之差**：
  *   见 `docs/decisions/0069` 的「未覆盖」—— 那是一个待裁决的口径问题，不是守卫能判的。
+ * - **"新加的枚举列有没有归一"**：规则 4 的五个 getter 名是**枚举列的全集**（当前如此），
+ *   但"下一个域又加一个枚举列、用的是新 getter 名"这件事没有 token 能锚定 ——
+ *   只能靠"枚举列的过滤值走 `enumValue`"这条纸面规则，见 `docs/decisions/0070`。
+ *   反过来说：**规则 4 零误报**的前提正是"这五个 getter 只用于过滤"，改了这五个 Query
+ *   的任何一处非过滤用途，就会看到它报红 —— 那是提醒你去改这个白名单，不是让你忽略它。
  */
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
@@ -122,11 +132,16 @@ const STRING_BLANK_IN_EQ_RE = /\.eq\([^\n]*?query\.get[A-Za-z]+\(\)\s*\.\s*(?:is
 // 而 `countByLevel` / `countByEventName` / `countByAction` 的实参**全是**过滤值
 // （app / resource），锚定它是零误报的。
 const AGG_CALL_RE = /\b(countByLevel|countByEventName|countByAction)\s*\(/g;
+// 规则 4：**枚举列**的过滤值 getter。这五个名字在全部 `*Query.java` 里一一对应
+// `status`（用户 / 租户 / 组织 / 角色）· `resourceType` · `memberType`（角色成员 / 用户组成员）
+// · `level`（日志）· `result`（审计），且**没有第二个含义** —— 所以它们是零误报的锚点。
+const ENUM_FILTER_GETTER_RE = /query\.get(?:Status|Level|Result|ResourceType|MemberType)\(\)/g;
 
 const sources = collectMainSources();
 const hasTextInEq = [];
 const blankInEq = [];
 const rawIntoAggregate = [];
+const enumGetterOutsideEnumValue = [];
 
 for (const file of sources) {
   const raw = readFileSync(file, 'utf8');
@@ -154,6 +169,21 @@ for (const file of sources) {
         method: matched[1],
       });
     }
+  }
+
+  // 规则 4：枚举列的过滤值只允许作为 `enumValue(` 的第一个实参出现。
+  // 判据是"**本条语句**里、它之前最近的那个函数名是不是 enumValue(" ——
+  // 用 `;` 划语句边界，于是多行调用 `enumValue(\n  X::parse, …)` 也认得出来。
+  for (const matched of text.matchAll(ENUM_FILTER_GETTER_RE)) {
+    const before = text.slice(0, matched.index);
+    if (before.lastIndexOf('enumValue(') > before.lastIndexOf(';')) {
+      continue;
+    }
+    enumGetterOutsideEnumValue.push({
+      file,
+      line: before.split('\n').length,
+      getter: matched[0],
+    });
   }
 }
 
@@ -210,6 +240,22 @@ check(
         .join('\n    '),
 );
 
+check(
+  '枚举列的过滤值都过了 `FilterValue.enumValue(...)`',
+  enumGetterOutsideEnumValue.length === 0,
+  enumGetterOutsideEnumValue.length === 0
+    ? 'status / resourceType / memberType / level / result 五处只在 enumValue 里露面 —— '
+      + '换个大小写不是另一个对象，归一它是修正写法（decisions/0070）'
+    : enumGetterOutsideEnumValue
+        .map(
+          (item) =>
+            `${rel(item.file)}:${item.line} —— ${item.getter}` +
+            ' —— 枚举列的过滤值必须走 FilterValue.enumValue(...)；绕开它会让'
+            + '「同一个 status 在一个域搜得到、在另一个域搜不到」（decisions/0070）',
+        )
+        .join('\n    '),
+);
+
 console.log('');
 if (problems.length > 0) {
   console.log(`✗ ${problems.length} 项未通过`);
@@ -218,4 +264,4 @@ if (problems.length > 0) {
 }
 console.log('✓ 全部通过');
 console.log('  它守的是"精确匹配的过滤值进 SQL 之前只有一种写法"；');
-console.log('  为什么这么定、以及哪些没覆盖，见 docs/decisions/0069。');
+console.log('  为什么这么定、以及哪些没覆盖，见 docs/decisions/0069 与 docs/decisions/0070。');

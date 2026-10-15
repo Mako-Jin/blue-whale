@@ -281,7 +281,10 @@ public class ClientLogService {
         // 过滤值先规范化再进 eq（decisions/0069）：`eq(条件, 列, 值)` 的"值"是**无条件求值**的，
         // 所以必须先取局部变量，不能写成 `query.getApp().trim()`（空值时会当场 NPE）。
         String app = FilterValue.text(query.getApp());
-        String level = FilterValue.text(query.getLevel());
+        // level 是枚举列，走 enumValue（decisions/0070）：ClientLogLevel.wireName() 就是小写，
+        // 于是"归一成标准写法"这一条自动涵盖了原先手写的 toLowerCase(Locale.ROOT)。
+        String level = FilterValue.enumValue(query.getLevel(),
+                ClientLogLevel::parse, ClientLogLevel::wireName);
         String namespace = FilterValue.text(query.getNamespace());
         String traceId = FilterValue.text(query.getTraceId());
         String sessionId = FilterValue.text(query.getSessionId());
@@ -289,10 +292,7 @@ public class ClientLogService {
         return Wrappers.<ClientLogEntity>lambdaQuery()
                 .eq(ClientLogEntity::getTenantId, tenantId)
                 .eq(app != null, ClientLogEntity::getApp, app)
-                // 级别列里存的是小写，过滤器归一成小写再比。这属于**该列的比较语义**
-                // （资源域的 method 往反方向的大写归一，同理），不通用，故不下沉进 FilterValue。
-                .eq(level != null, ClientLogEntity::getLevel,
-                        level == null ? null : level.toLowerCase(Locale.ROOT))
+                .eq(level != null, ClientLogEntity::getLevel, level)
                 .eq(namespace != null, ClientLogEntity::getNamespace, namespace)
                 .eq(traceId != null, ClientLogEntity::getTraceId, traceId)
                 .eq(sessionId != null, ClientLogEntity::getSessionId, sessionId)

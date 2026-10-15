@@ -25,7 +25,7 @@
 | `verify-result-codes.mjs`      | 两个错误码枚举里的每个码，要么在 `src/main` 里有抛出点，要么在脚本里明写着"有意不用 / 登记了没实现"的理由 | **无前置条件**（只读源码文本，不编译、不连网、不写文件）；`node scripts/verify-result-codes.mjs` | `docs/decisions/0060` |
 | `verify-unique-columns.mjs`    | 服务层挡重名的每个 `*_EXISTS` 码都登记了它判的哪一列；每个判重列要么库上有 UNIQUE 索引兜底、要么在白名单写明"业务规则级唯一"的理由；顺带守三方言唯一索引集合同构 | **无前置条件**（只读源码文本与三方言迁移脚本，不编译、不连网、不写文件）；`node scripts/verify-unique-columns.mjs` | `docs/decisions/0063` |
 | `verify-like-escaping.mjs`     | `server/` 的 `src/main/java` 里每一处 `LIKE` 都必须经过 `KeywordLike`（转义关键词、并把 `ESCAPE '!'` 写进 SQL），不许再有裸的 `like(...)`；带 `LIKE` 的片段同一行必须有 `ESCAPE`；白名单逐条核对条数 | **无前置条件**（只读源码文本，不编译、不连网、不写文件）；`node scripts/verify-like-escaping.mjs` | `docs/decisions/0067` |
-| `verify-filter-values.mjs`     | `server/` 的 `src/main/java` 里**精确匹配**的过滤值（`status` / `app` / `traceId` …）必须经过 `FilterValue.text()`：`.eq(...)` 的条件里不许用 `hasText(...)` 或内联的 `query.getX().isBlank()`；三个手写聚合 SQL（`countByLevel` / `countByEventName` / `countByAction`）的实参不许是 `query.getXxx()` | **无前置条件**（只读源码文本，不编译、不连网、不写文件）；`node scripts/verify-filter-values.mjs` | `docs/decisions/0069` |
+| `verify-filter-values.mjs`     | `server/` 的 `src/main/java` 里**精确匹配**的过滤值都在 `FilterValue` 上收口：`.eq(...)` 的条件里不许用 `hasText(...)` 或内联的 `query.getX().isBlank()`；三个手写聚合 SQL（`countByLevel` / `countByEventName` / `countByAction`）的实参不许是 `query.getXxx()`；**枚举列**的五个 getter（`getStatus` / `getResourceType` / `getMemberType` / `getLevel` / `getResult`）只能作为 `FilterValue.enumValue(...)` 的第一个实参出现 | **无前置条件**（只读源码文本，不编译、不连网、不写文件）；`node scripts/verify-filter-values.mjs` | `docs/decisions/0069` · `docs/decisions/0070` |
 | `verify-standalone-dev-login.mjs` | 用真实 Chrome 验证子应用**单跑**时的自建会话与开发账号自动登录（后端在跑 / 没起两种状态都跑一遍） | 至少一个子应用的 dev 服务在跑（:3200 / :3300 / :3500 / :3600，没起的会被记成"跳过"）；**后端 :8080 可选** —— 在跑时断言自动登录成功，没起时断言优雅降级；本机装有 Google Chrome | `docs/decisions/0018` · `0033` |
 
 ### `verify-micro-frontend.mjs` 做什么
@@ -481,8 +481,8 @@
 
 ### `verify-filter-values.mjs` 做什么
 
-把 `docs/decisions/0069` 那条约定机械化成一条零前置的检查：**精确匹配的过滤值（`eq`）
-进 SQL 之前必须规范化**，而且这件事**只有一种写法**。它查三件事：
+把 `docs/decisions/0069` 与 `docs/decisions/0070` 那两条约定机械化成一条零前置的检查：
+**精确匹配的过滤值（`eq`）进 SQL 之前必须规范化**，而且这件事**只有一种写法**。它查四件事：
 
 1. **`.eq(...)` 的条件里没有 `hasText(...)`** —— 那正是"值没规范化、拿判空当开关"的旧形态
    （日志 / 事件 / 审计三域此前 20 处全是它）。
@@ -493,12 +493,27 @@
    参数给出**不同判定**：Ognl 的 `<if test="app != null and app != ''">` 认为 `"   "` 给了值
    （于是 `AND app = '   '`），而 Java 的 `isBlank` 认为没给（于是不过滤）——
    症状是**同一个响应里「总数 3、各级别之和 0」**。
+4. **枚举列的过滤值只能作为 `FilterValue.enumValue(...)` 的第一个实参出现**（`0070`）：
+   五个 getter `getStatus` / `getResourceType` / `getMemberType` / `getLevel` / `getResult`
+   （在全部 `*Query.java` 里一一对应 `status` / `resourceType` / `memberType` / `level` /
+   `result`，**没有第二个含义**）在 `server/` 的 `src/main/java` 里**每一处出现都必须落在
+   `enumValue(` 里**。判据是"**本条语句**（以 `;` 划界）里、它之前最近的那个函数名是不是
+   `enumValue(`"—— 于是多行调用 `enumValue(\n  X::parse, …)` 也认得出来。绕开它有两种形态
+   （改回 `FilterValue.text(query.getStatus())`、或者一处 `FilterValue` 都不经的
+   `query.getStatus()`），两种都会报红。
+
+**为什么规则 4 的锚点比前三条更强**：前三条是"某个**名字**出现得可疑"，
+规则 4 是"这五个 getter 只有**这一个**正当用法"，所以它可以要求"每一次出现都在 `enumValue(` 里"，
+而不是去猜某种坏写法。代价是它把白名单固化成了"当前这五个名字"—— 下一个域新加一个枚举列、
+用了新 getter 名时它**锚定不到**（与 `0064` 同一结论：能机械化的只是"无歧义的 token 形状"）。
+反过来说：**给这五个 `Query` 加一处非过滤用途会让它报红**，那是提醒你去更新白名单，
+不是让你忽略它。
 
 **为什么它值得存在**（而 `0064` 那类不值得）：它锚定的是 `hasText(` 这个方法名、
-`isBlank()` 这个 **String 专属**方法、`countBy*` 这个方法名 —— 都是无歧义的 token 形状，
-扫到就是扫到。只揪 `isBlank()` / `isEmpty()` 而不揪 `!= null`，正是因为前者**不可能出现在
-`Long` 上**（`tenantId` / `parentId` / `operatorId` 本来就不该规范化，锚定 `!= null` 会
-大面积误报）。
+`isBlank()` 这个 **String 专属**方法、`countBy*` 这个方法名、以及那五个**只有一种用法**的
+getter 名 —— 都是无歧义的 token 形状，扫到就是扫到。只揪 `isBlank()` / `isEmpty()` 而不揪
+`!= null`，正是因为前者**不可能出现在 `Long` 上**（`tenantId` / `parentId` / `operatorId`
+本来就不该规范化，锚定 `!= null` 会大面积误报）。
 
 **它自己有两个假绿是在扰动中发现的，都当场修掉**：
 
@@ -509,13 +524,17 @@
   那是正当的。按 `0064`「会误报的守卫比没有更糟」把它移出射程，
   并在脚本的"刻意不查"里写明理由。
 
-**三个方向都验过**（扰动）：把 `UserService` 改回 `!= null && !isBlank()` ⇒ 规则 2 红；
+**五个方向都验过**（扰动）：把 `UserService` 改回 `!= null && !isBlank()` ⇒ 规则 2 红；
 把 `ClientLogService` 两处改回 `.eq(hasText(...), ...)` ⇒ 规则 1 红（**两处都报**）；
-把 `countByAction` 的实参改回 `query.getResource()` ⇒ 规则 3 红。
+把 `countByAction` 的实参改回 `query.getResource()` ⇒ 规则 3 红；
+把租户域改回 `FilterValue.text(query.getStatus())` ⇒ 规则 4 红（行号指向那一条语句）；
+再改成完全绕开的 `query.getStatus()` ⇒ 规则 4 同样红。
 
 **刻意不查的：** "新加一处过滤值有没有真的过 `FilterValue.text`"（要判它得做数据流分析，
-而合法的 `!= null` 到处都是 —— 见上面那条）；`trim()`（Java，只吃 `<= U+0020`）与
-`isBlank()`（`Character.isWhitespace`）的覆盖面之差（那是待裁决的口径，不是守卫能判的）。
+而合法的 `!= null` 到处都是 —— 见上面那条）；"**下一个域新加的枚举列**有没有归一"
+（规则 4 的白名单是当前这五个 getter 名，新名字锚定不到 —— 只能靠纸面规则，见 `0070`）；
+`trim()`（Java，只吃 `<= U+0020`）与 `isBlank()`（`Character.isWhitespace`）的覆盖面之差
+（那是待裁决的口径，不是守卫能判的）。
 
 ### 脚本的硬性约束
 

@@ -13,6 +13,7 @@ import com.bluewhale.sts.auth.tenant.TenantService;
 import com.bluewhale.sts.auth.user.UserEntity;
 import com.bluewhale.sts.auth.user.UserMapper;
 import com.bluewhale.sts.common.basic.model.PageResult;
+import com.bluewhale.sts.common.db.query.FilterValue;
 import com.bluewhale.sts.common.db.query.KeywordLike;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -93,7 +94,8 @@ public class UserGroupService {
         // 过滤值先取局部变量：`eq(condition, 列, 值)` 的"值"是**无条件求值**的，
         // 写成 `query.getCategory().trim()` 会在 category 为空时当场 NPE，
         // 外层的条件参数救不了。这条坑在本仓已经踩过两次（资源目录、角色）。
-        String category = normalize(query.getCategory());
+        // category 是自由文本（只校验形状、不校验取值集）⇒ 只 trim。
+        String category = FilterValue.text(query.getCategory());
         Long tenantId = resolveTenantId(query.getTenantId());
 
         var wrapper = Wrappers.<UserGroupEntity>lambdaQuery()
@@ -247,7 +249,8 @@ public class UserGroupService {
     @Transactional(readOnly = true)
     public PageResult<UserGroupMemberVO> pageMembers(Long groupId, UserGroupMemberQuery query) {
         requireGroup(groupId);
-        String memberType = normalizeMemberTypeFilter(query.getMemberType());
+        String memberType = FilterValue.enumValue(query.getMemberType(),
+                MemberType::parse, MemberType::wireName);
 
         Page<RelUserGroupMemberEntity> page = relUserGroupMemberMapper.selectPage(
                 new Page<>(query.getPage(), query.getSize()),
@@ -649,18 +652,6 @@ public class UserGroupService {
                             .collect(Collectors.joining(" / ")));
         }
         return parsed;
-    }
-
-    /**
-     * 过滤时宽松：认得就归一成标准写法（{@code user} → {@code USER}），
-     * 认不得就原样拿去比 —— 过滤条件不该让查询失败，结果为空比弹错更接近预期。
-     */
-    private static String normalizeMemberTypeFilter(String raw) {
-        if (raw == null || raw.isBlank()) {
-            return null;
-        }
-        MemberType parsed = MemberType.parse(raw);
-        return parsed == null ? raw.trim() : parsed.wireName();
     }
 
     /**

@@ -1,5 +1,7 @@
 package com.bluewhale.sts.common.db.query;
 
+import java.util.function.Function;
+
 /**
  * 过滤值 → 进 SQL 之前的**规范化**：吃掉两端空白，吃掉之后仍为空表示"没有这个过滤条件"。
  *
@@ -44,7 +46,15 @@ package com.bluewhale.sts.common.db.query;
  * 精确匹配的过滤值走这里。{@code KeywordLike.pattern()} 内部用的也是本方法 ——
  * "两端空白怎么处理"只有一个实现。
  *
- * <p>取舍与实测见 {@code docs/decisions/0069}。
+ * <h2>两类过滤值，两个入口</h2>
+ *
+ * <p>{@link #text(String)} 管**自由文本**（{@code app} / {@code traceId} / 审计的 {@code action}），
+ * {@link #enumValue} 管**封闭取值集**（列里存的是枚举的 {@code wireName}）。
+ * 分界线是"这一列有没有一个可以用完的取值表"：有，换个大小写就不是另一个对象，
+ * 归一它是**修正写法**；没有，换个大小写就是另一个字符串，归一它是**篡改意图**。
+ * 自由文本因此沿用 {@code 0065} 定下的"区分大小写"，不在这里动。
+ *
+ * <p>取舍与实测见 {@code docs/decisions/0069}（空白）与 {@code docs/decisions/0070}（枚举）。
  */
 public final class FilterValue {
 
@@ -68,5 +78,44 @@ public final class FilterValue {
         }
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    /**
+     * 规范化一个**枚举型**过滤值：先 {@link #text(String)}，再让对方把自己的
+     * {@code parse} 认一认 —— 认得就换成标准写法（{@code enabled} → {@code ENABLED}），
+     * 认不得就<b>按原样比</b>。
+     *
+     * <h2>为什么认不得时按原样比，而不是退化成"不过滤"</h2>
+     *
+     * <p>{@code ?status=EANBLED}（拼错）如果变成"不过滤"，调用方会拿到<b>全部</b>记录，
+     * 却以为自己筛过了 —— 这比报错危险得多，也和"结果为空"差着一整个数量级。
+     * 原样比的结果是空集：既没有假装成功，也没有把查询拦下来（{@code FilterValueTrimApiTest}
+     * 与 {@code EnumFilterNormalizationApiTest} 各钉一条）。
+     *
+     * <h2>怎么用</h2>
+     *
+     * <pre>{@code
+     * String status = FilterValue.enumValue(query.getStatus(), Status::parse, Status::wireName);
+     * ...
+     * .eq(status != null, RoleEntity::getStatus, status);
+     * }</pre>
+     *
+     * <p>两个方法引用分别回答"这是什么"和"它怎么落库"。**不要让枚举类实现一个公共接口来省掉参数** ——
+     * 那会把 {@code sts-common-db} 变成各域枚举的共同依赖方向，而这里需要的只是"调用方告诉我怎么解析"。
+     *
+     * @param raw    原始过滤值；{@code null} 或只含空白表示"没有这个过滤条件"
+     * @param parser 该枚举的解析方法（大小写不敏感、认不得回 {@code null}）
+     * @param wire   该枚举落库用的写法，即 {@code wireName()}
+     * @return 归一后的标准写法；认不得的值原样返回（已被 trim）；无实质内容时返回 {@code null}
+     */
+    public static <E extends Enum<E>> String enumValue(String raw,
+                                                       Function<String, E> parser,
+                                                       Function<E, String> wire) {
+        String normalized = text(raw);
+        if (normalized == null) {
+            return null;
+        }
+        E parsed = parser.apply(normalized);
+        return parsed == null ? normalized : wire.apply(parsed);
     }
 }

@@ -34,8 +34,9 @@ public class TenantService {
     public PageResult<TenantVO> page(TenantQuery query) {
         // 关键词先规范化（吃掉两端空白）再转义，见 KeywordLike（decisions/0067 · 0068）。
         String pattern = KeywordLike.pattern(query.getKeyword());
-        // 过滤值先规范化再进 eq（decisions/0069）：值是无条件求值的，不能在这里调 .trim()。
-        String status = FilterValue.text(query.getStatus());
+        // 过滤值先规范化再进 eq（decisions/0069 · 0070）：值是无条件求值的，不能在这里调 .trim()。
+        // status 是枚举型的列，走 enumValue —— 认得就换成标准写法（enabled → ENABLED），认不得按原样比。
+        String status = FilterValue.enumValue(query.getStatus(), Status::parse, Status::wireName);
         var wrapper = Wrappers.<TenantEntity>lambdaQuery()
                 .and(pattern != null, w -> w
                         .apply(KeywordLike.condition("tenant_code"), pattern)

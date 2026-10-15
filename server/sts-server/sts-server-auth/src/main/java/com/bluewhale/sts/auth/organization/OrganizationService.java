@@ -11,6 +11,7 @@ import com.bluewhale.sts.auth.tenant.TenantService;
 import com.bluewhale.sts.auth.user.UserEntity;
 import com.bluewhale.sts.auth.user.UserMapper;
 import com.bluewhale.sts.common.basic.model.PageResult;
+import com.bluewhale.sts.common.db.query.FilterValue;
 import com.bluewhale.sts.common.db.query.KeywordLike;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -91,8 +92,10 @@ public class OrganizationService {
         // 过滤值先取局部变量：`eq(条件, 列, 值)` 的"值"是**无条件求值**的，
         // 写成 `query.getStatus().trim()` 会在 status 为空时当场 NPE，
         // 外层的条件参数救不了。这条坑在本仓已经踩过三次。
-        String status = normalize(query.getStatus());
-        String orgType = normalize(query.getOrgType());
+        // status 是枚举列 ⇒ 走 enumValue（decisions/0070），与用户 / 租户 / 角色三域同一条口径；
+        // orgType 是**自由文本**（只作展示、写入时不校验取值）⇒ 只 trim，见 FilterValue 类注释。
+        String status = FilterValue.enumValue(query.getStatus(), Status::parse, Status::wireName);
+        String orgType = FilterValue.text(query.getOrgType());
         Long tenantId = resolveTenantId(query.getTenantId());
 
         var wrapper = Wrappers.<OrganizationEntity>lambdaQuery()
