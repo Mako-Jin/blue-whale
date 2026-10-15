@@ -6,6 +6,7 @@ import com.bluewhale.sts.auth.common.AuthResultCode;
 import com.bluewhale.sts.auth.common.enums.Status;
 import com.bluewhale.sts.auth.context.AuthContextHolder;
 import com.bluewhale.sts.common.basic.model.PageResult;
+import com.bluewhale.sts.common.db.query.FilterValue;
 import com.bluewhale.sts.common.db.query.KeywordLike;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,12 +34,13 @@ public class TenantService {
     public PageResult<TenantVO> page(TenantQuery query) {
         // 关键词先规范化（吃掉两端空白）再转义，见 KeywordLike（decisions/0067 · 0068）。
         String pattern = KeywordLike.pattern(query.getKeyword());
+        // 过滤值先规范化再进 eq（decisions/0069）：值是无条件求值的，不能在这里调 .trim()。
+        String status = FilterValue.text(query.getStatus());
         var wrapper = Wrappers.<TenantEntity>lambdaQuery()
                 .and(pattern != null, w -> w
                         .apply(KeywordLike.condition("tenant_code"), pattern)
                         .or().apply(KeywordLike.condition("tenant_name"), pattern))
-                .eq(query.getStatus() != null && !query.getStatus().isBlank(),
-                        TenantEntity::getStatus, query.getStatus())
+                .eq(status != null, TenantEntity::getStatus, status)
                 .orderByAsc(TenantEntity::getTenantLevel)
                 .orderByAsc(TenantEntity::getId);
 

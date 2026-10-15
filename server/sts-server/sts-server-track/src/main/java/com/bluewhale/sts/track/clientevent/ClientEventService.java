@@ -7,6 +7,7 @@ import com.bluewhale.sts.auth.context.AuthContextHolder;
 import com.bluewhale.sts.common.basic.enums.ResultCode;
 import com.bluewhale.sts.common.basic.exception.BusinessException;
 import com.bluewhale.sts.common.basic.model.PageResult;
+import com.bluewhale.sts.common.db.query.FilterValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -167,10 +168,13 @@ public class ClientEventService {
         long endTime = query.getEndTime() == null ? System.currentTimeMillis() : query.getEndTime();
         long startTime = query.getStartTime() == null ? endTime - DEFAULT_WINDOW_MILLIS : query.getStartTime();
         long tenantId = visibleTenantId();
+        // 过滤值先规范化再进 SQL（decisions/0069）。**下面手写 SQL 那一句必须用同一个变量** ——
+        // 两边各算一遍会出现"总数对、分布是全库的"（判空口径不同时甚至"总数 3、各级之和 0"）。
+        String app = FilterValue.text(query.getApp());
 
         LambdaQueryWrapper<ClientEventEntity> wrapper = Wrappers.<ClientEventEntity>lambdaQuery()
                 .eq(ClientEventEntity::getTenantId, tenantId)
-                .eq(hasText(query.getApp()), ClientEventEntity::getApp, query.getApp())
+                .eq(app != null, ClientEventEntity::getApp, app)
                 .ge(ClientEventEntity::getServerTime, startTime)
                 .le(ClientEventEntity::getServerTime, endTime);
 
@@ -178,7 +182,7 @@ public class ClientEventService {
         // 聚合 SQL 的租户条件必须与上面这句 wrapper 写到同一处语义：
         // 只改上面、忘了这个手写 SQL，症状是"总数对、分布全库的"。
         List<ClientEventNameCount> names =
-                clientEventMapper.countByEventName(tenantId, query.getApp(), startTime, endTime);
+                clientEventMapper.countByEventName(tenantId, app, startTime, endTime);
 
         return new ClientEventStatsVO(total, startTime, endTime, names);
     }
@@ -195,13 +199,21 @@ public class ClientEventService {
         long endTime = query.getEndTime() == null ? System.currentTimeMillis() : query.getEndTime();
         long startTime = query.getStartTime() == null ? endTime - DEFAULT_WINDOW_MILLIS : query.getStartTime();
 
+        // 过滤值先规范化再进 eq（decisions/0069）：`eq(条件, 列, 值)` 的"值"是**无条件求值**的，
+        // 所以必须先取局部变量，不能写成 `query.getApp().trim()`（空值时会当场 NPE）。
+        String app = FilterValue.text(query.getApp());
+        String eventName = FilterValue.text(query.getEventName());
+        String userId = FilterValue.text(query.getUserId());
+        String deviceId = FilterValue.text(query.getDeviceId());
+        String sessionId = FilterValue.text(query.getSessionId());
+
         return Wrappers.<ClientEventEntity>lambdaQuery()
                 .eq(ClientEventEntity::getTenantId, tenantId)
-                .eq(hasText(query.getApp()), ClientEventEntity::getApp, query.getApp())
-                .eq(hasText(query.getEventName()), ClientEventEntity::getEventName, query.getEventName())
-                .eq(hasText(query.getUserId()), ClientEventEntity::getUserId, query.getUserId())
-                .eq(hasText(query.getDeviceId()), ClientEventEntity::getDeviceId, query.getDeviceId())
-                .eq(hasText(query.getSessionId()), ClientEventEntity::getSessionId, query.getSessionId())
+                .eq(app != null, ClientEventEntity::getApp, app)
+                .eq(eventName != null, ClientEventEntity::getEventName, eventName)
+                .eq(userId != null, ClientEventEntity::getUserId, userId)
+                .eq(deviceId != null, ClientEventEntity::getDeviceId, deviceId)
+                .eq(sessionId != null, ClientEventEntity::getSessionId, sessionId)
                 .ge(ClientEventEntity::getServerTime, startTime)
                 .le(ClientEventEntity::getServerTime, endTime)
                 // 次级排序键用 id：同一毫秒内的多条记录若只按时间排序，翻页时顺序不稳定，

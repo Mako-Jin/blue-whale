@@ -7,6 +7,7 @@ import com.bluewhale.sts.auth.context.AuthContextHolder;
 import com.bluewhale.sts.common.basic.enums.ResultCode;
 import com.bluewhale.sts.common.basic.exception.BusinessException;
 import com.bluewhale.sts.common.basic.model.PageResult;
+import com.bluewhale.sts.common.db.query.FilterValue;
 import com.bluewhale.sts.common.db.query.KeywordLike;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -221,10 +222,14 @@ public class ClientLogService {
         long endTime = query.getEndTime() == null ? System.currentTimeMillis() : query.getEndTime();
         long startTime = query.getStartTime() == null ? endTime - DEFAULT_WINDOW_MILLIS : query.getStartTime();
         long tenantId = visibleTenantId();
+        // 过滤值先规范化再进 SQL（decisions/0069）。**下面手写 SQL 那一句必须用同一个变量** ——
+        // 两边各算一遍就会出现"总数对、分布是全库的"（而这里各算一遍还会因判空口径不同
+        // 出现"总数 3、各级别之和 0"）。见 FilterValueTrimApiTest#shouldKeepStatisticsInSyncWithPage。
+        String app = FilterValue.text(query.getApp());
 
         LambdaQueryWrapper<ClientLogEntity> wrapper = Wrappers.<ClientLogEntity>lambdaQuery()
                 .eq(ClientLogEntity::getTenantId, tenantId)
-                .eq(hasText(query.getApp()), ClientLogEntity::getApp, query.getApp())
+                .eq(app != null, ClientLogEntity::getApp, app)
                 .ge(ClientLogEntity::getServerTime, startTime)
                 .le(ClientLogEntity::getServerTime, endTime);
 
@@ -233,7 +238,7 @@ public class ClientLogService {
         Map<String, Long> counted = new HashMap<>();
         // 聚合 SQL 的租户条件必须与上面这句 wrapper **写到同一处语义**：
         // 只改上面、忘了这个手写 SQL，症状是"总数对、分布图是全库的"。
-        for (ClientLogLevelCount row : clientLogMapper.countByLevel(tenantId, query.getApp(), startTime, endTime)) {
+        for (ClientLogLevelCount row : clientLogMapper.countByLevel(tenantId, app, startTime, endTime)) {
             if (row.getLevel() != null) {
                 counted.put(row.getLevel().toLowerCase(Locale.ROOT),
                         row.getLevelCount() == null ? 0L : row.getLevelCount());
@@ -273,15 +278,24 @@ public class ClientLogService {
         long startTime = query.getStartTime() == null ? endTime - DEFAULT_WINDOW_MILLIS : query.getStartTime();
         // 关键词先规范化（吃掉两端空白）再转义，见 KeywordLike（decisions/0067 · 0068）。
         String pattern = KeywordLike.pattern(query.getKeyword());
+        // 过滤值先规范化再进 eq（decisions/0069）：`eq(条件, 列, 值)` 的"值"是**无条件求值**的，
+        // 所以必须先取局部变量，不能写成 `query.getApp().trim()`（空值时会当场 NPE）。
+        String app = FilterValue.text(query.getApp());
+        String level = FilterValue.text(query.getLevel());
+        String namespace = FilterValue.text(query.getNamespace());
+        String traceId = FilterValue.text(query.getTraceId());
+        String sessionId = FilterValue.text(query.getSessionId());
 
         return Wrappers.<ClientLogEntity>lambdaQuery()
                 .eq(ClientLogEntity::getTenantId, tenantId)
-                .eq(hasText(query.getApp()), ClientLogEntity::getApp, query.getApp())
-                .eq(hasText(query.getLevel()), ClientLogEntity::getLevel,
-                        query.getLevel() == null ? null : query.getLevel().toLowerCase(Locale.ROOT))
-                .eq(hasText(query.getNamespace()), ClientLogEntity::getNamespace, query.getNamespace())
-                .eq(hasText(query.getTraceId()), ClientLogEntity::getTraceId, query.getTraceId())
-                .eq(hasText(query.getSessionId()), ClientLogEntity::getSessionId, query.getSessionId())
+                .eq(app != null, ClientLogEntity::getApp, app)
+                // 级别列里存的是小写，过滤器归一成小写再比。这属于**该列的比较语义**
+                // （资源域的 method 往反方向的大写归一，同理），不通用，故不下沉进 FilterValue。
+                .eq(level != null, ClientLogEntity::getLevel,
+                        level == null ? null : level.toLowerCase(Locale.ROOT))
+                .eq(namespace != null, ClientLogEntity::getNamespace, namespace)
+                .eq(traceId != null, ClientLogEntity::getTraceId, traceId)
+                .eq(sessionId != null, ClientLogEntity::getSessionId, sessionId)
                 .apply(pattern != null, KeywordLike.condition("message"), pattern)
                 .ge(ClientLogEntity::getServerTime, startTime)
                 .le(ClientLogEntity::getServerTime, endTime)

@@ -1,0 +1,221 @@
+#!/usr/bin/env node
+/**
+ * 过滤值的规范化 —— `server/` 里每一处**精确匹配**的过滤值都必须过 `FilterValue.text`。
+ *
+ * ## 为什么需要它
+ *
+ * `status` / `app` / `traceId` 这类过滤值是**精确匹配**（`eq`）的，而各域写库前都过了一遍
+ * 规范化 ⇒ 库里的值不会带两端空白 ⇒ `?status=%20ENABLED%20` **永远**匹配不到任何行。
+ * 这条口径此前散在四处（组织 / 角色 / 用户组会 trim，用户 / 租户 / 日志 / 事件 / 审计把原值
+ * 直接交给 `eq`），于是同一个 `status` 在组织域搜得到、在用户域搜不到 ——
+ * `FilterValueTrimApiTest` 有两个域的同形断言摆着（`docs/decisions/0069`）。
+ *
+ * 更要紧的是它还顺手消除了一处内部不一致：日志 / 事件 / 审计的聚合走**手写 SQL**，
+ * 那里的判空是 Ognl 的 `<if test="app != null and app != ''">`，而同一请求的列表走
+ * Java 的 `hasText()`（`isBlank`）—— 两者对 `"   "` 的判定**相反**，
+ * 症状是同一个请求里"总数 3、各级别之和 0"。
+ *
+ * 于是这里剩下两个会腐烂的地方：**新加一处过滤值时又直接 `eq(query.getX())`**、
+ * **把原始值直接喂给手写 SQL**。两种写法读起来都完全正常，测试也照样绿
+ * （新过滤值本来就没有"带空白搜得到"那一支断言），只有"从别处粘贴过来带了个空格"
+ * 这个没人会去试的角落会露出来。
+ *
+ * 它跟 `0063` / `0067` 那类守卫同性质：锚定的是**无歧义的 token 形状**
+ * （`hasText(` 这个方法名、`isBlank()` 这个 String 专属方法、`countBy*` 这个方法名），
+ * 扫到就是扫到 —— 不是 `0064` 那种要理解语义、会误报的判定。
+ *
+ * ## 它查什么
+ *
+ * 1. `.eq(...)` 的条件里**没有** `hasText(...)` —— 那正是"值没规范化、拿判空当开关"的旧形态。
+ * 2. `.eq(...)` 的条件里**没有** `query.getX().isBlank()` / `.isEmpty()` —— 同上，
+ *    只不过写成了内联判断（用户域与租户域原本就是它）。
+ * 3. 三个**手写聚合 SQL**（`countByLevel` / `countByEventName` / `countByAction`）的实参里
+ *    **没有** `query.getXxx()` —— 直传原始值会让它们与同请求的 lambda wrapper
+ *    对同一个参数给出不同判定（两条路径必须同源：同一个 `FilterValue.text` 的产物）。
+ *
+ * ## 用法
+ *
+ *     node scripts/verify-filter-normalization.mjs
+ *
+ * 不需要任何前置条件（只读源码文本，不编译、不连网、不写文件），失败时非零退出。
+ *
+ * ## 刻意不查的（写在这里免得后来者以为它漏了）
+ *
+ * - **"新加的过滤值有没有真的过 `FilterValue.text`"**：没有一个无歧义的 token 能锚定它 ——
+ *   `.eq(x != null, Col::getX, x)` 里的 `x` 是不是 `FilterValue.text(...)` 的产物，
+ *   要判它就得做数据流分析。而**合法的 `!= null` 到处都是**（`tenantId` / `parentId` /
+ *   `operatorId` … 都是 Long，本来就不该规范化），锚定 `!= null` 会大面积误报
+ *   ⇒ 按 `0064` 的判据（会误报的守卫比没有更糟）不做。
+ * - **`.eq(...)` 里的判空一律揪住**：只揪 `isBlank()` / `isEmpty()` 这类**String 专属**的 token，
+ *   正是因为它们不可能出现在 Long 上、零误报。
+ * - **"规范化之后的模式串在三方言上是否同义"**：那是语义，靠 `FilterValueTrimApiTest`
+ *   （跨 profile）钉，不靠文本扫描。
+ * - **审计域的 `baseWrapper(tenantId, resource, operatorId)` 收到未规范化的 `resource`**：
+ *   它的实参里混着 `operatorId`（Long），锚定 `query.get` 会误报（见规则 3 的注释）。
+ *   那两处调用点与算好 `resource` 的语句相邻，靠评审查得住。
+ * - **`isBlank`（Unicode 空白）与 `trim`（只吃 `<= U+0020`）的覆盖面之差**：
+ *   见 `docs/decisions/0069` 的「未覆盖」—— 那是一个待裁决的口径问题，不是守卫能判的。
+ */
+
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const SERVER = join(ROOT, 'server');
+
+const problems = [];
+
+function check(label, ok, detail) {
+  console.log(`${ok ? '✓' : '✗'} ${label}`);
+  if (detail) console.log(`    ${detail}`);
+  if (!ok) problems.push(`${label}${detail ? ` —— ${detail}` : ''}`);
+}
+
+/* ------------------------------------------------------------------ 扫源码 */
+
+function stripComments(text) {
+  // 块注释**按字符数换成空格、保留换行**：直接删掉会让后面所有行号整体前移，
+  // 而"报出来的行号"正是这个脚本唯一的可用线索。
+  return text
+    .replace(/\/\*[\s\S]*?\*\//g, (matched) => matched.replace(/[^\n]/g, ' '))
+    .replace(/(^|[^:])\/\/[^\n]*/g, '$1 ');
+}
+
+function collectMainSources() {
+  const roots = [];
+  if (!existsSync(SERVER)) return roots;
+  for (const group of readdirSync(SERVER, { withFileTypes: true })) {
+    if (!group.isDirectory()) continue;
+    const groupPath = join(SERVER, group.name);
+    for (const module of readdirSync(groupPath, { withFileTypes: true })) {
+      if (!module.isDirectory()) continue;
+      const mainJava = join(groupPath, module.name, 'src', 'main', 'java');
+      if (existsSync(mainJava)) roots.push(mainJava);
+    }
+  }
+
+  const files = [];
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.name.endsWith('.java')) files.push(full);
+    }
+  };
+  roots.forEach(walk);
+  return files;
+}
+
+// 规则 1：`.eq(` 的条件里出现 `hasText(`
+const HAS_TEXT_IN_EQ_RE = /\.eq\([^\n]*?\bhasText\s*\(/;
+// 规则 2：`.eq(` 的条件里出现 `query.getXxx().isBlank()` / `.isEmpty()`（String 专属，零误报）
+const STRING_BLANK_IN_EQ_RE = /\.eq\([^\n]*?query\.get[A-Za-z]+\(\)\s*\.\s*(?:isBlank|isEmpty)\s*\(\)/;
+// 规则 3：三个**手写聚合 SQL** 的实参里出现 `query.getXxx()`。
+//
+// **不加 `.` 前缀**：它们是同类内/跨类调用，写法是 `xxxMapper.countByLevel(...)` 与
+// 形如 `selectCount(baseWrapper(...))` 的嵌套。
+//
+// **刻意不含 `baseWrapper`**：它的三个实参里有一个是 `operatorId`（**Long**），
+// 而调用点写的是 `visibility.operatorFilter(query.getOperatorId())` —— 那是正当的
+// （ID 不需要规范化），锚定 `query.get` 会误报。按 `0064` 的判据：会误报的守卫比没有更糟。
+// 而 `countByLevel` / `countByEventName` / `countByAction` 的实参**全是**过滤值
+// （app / resource），锚定它是零误报的。
+const AGG_CALL_RE = /\b(countByLevel|countByEventName|countByAction)\s*\(/g;
+
+const sources = collectMainSources();
+const hasTextInEq = [];
+const blankInEq = [];
+const rawIntoAggregate = [];
+
+for (const file of sources) {
+  const raw = readFileSync(file, 'utf8');
+  const text = stripComments(raw);
+  const lines = text.split('\n');
+
+  lines.forEach((line, index) => {
+    if (HAS_TEXT_IN_EQ_RE.test(line)) {
+      hasTextInEq.push({ file, line: index + 1, text: line.trim() });
+    }
+    if (STRING_BLANK_IN_EQ_RE.test(line)) {
+      blankInEq.push({ file, line: index + 1, text: line.trim() });
+    }
+  });
+
+  // 规则 3 要跨行：从调用点起截到该语句的 `;`（这些聚合调用都很简单，不会有带分号的 lambda）
+  for (const matched of text.matchAll(AGG_CALL_RE)) {
+    const tail = text.slice(matched.index, matched.index + 600);
+    const end = tail.indexOf(';');
+    const statement = end === -1 ? tail : tail.slice(0, end);
+    if (/query\.get[A-Za-z]+\(\)/.test(statement)) {
+      rawIntoAggregate.push({
+        file,
+        line: text.slice(0, matched.index).split('\n').length,
+        method: matched[1],
+      });
+    }
+  }
+}
+
+const rel = (file) => file.slice(ROOT.length + 1).replace(/\\/g, '/');
+
+/* -------------------------------------------------------------------- 判定 */
+
+check(
+  '扫到了 `server/` 的源码',
+  sources.length > 0,
+  sources.length === 0 ? '一个 `src/main/java` 源文件都没扫到 —— 目录结构变了？' : `扫描 ${sources.length} 个源文件`,
+);
+
+check(
+  '过滤值的判空没有用 `hasText(...)` 当开关',
+  hasTextInEq.length === 0,
+  hasTextInEq.length === 0
+    ? '`hasText` 只服务于"条目校验 / 取第一个非空值"，不参与过滤条件的拼装'
+    : hasTextInEq
+        .map(
+          (item) =>
+            `${rel(item.file)}:${item.line} —— ${item.text.slice(0, 90)}` +
+            ' —— 过滤值请先过 FilterValue.text(...)、再拿它的结果判 null（decisions/0069）',
+        )
+        .join('\n    '),
+);
+
+check(
+  '过滤值的判空没有内联写成 `query.getX().isBlank()`',
+  blankInEq.length === 0,
+  blankInEq.length === 0
+    ? '没有"不规范化、只判空白"的内联写法'
+    : blankInEq
+        .map(
+          (item) =>
+            `${rel(item.file)}:${item.line} —— ${item.text.slice(0, 90)}` +
+            ' —— 同一个值在别的域是规范化的，这里判空白会让它「在某些页面上搜不到」（decisions/0069）',
+        )
+        .join('\n    '),
+);
+
+check(
+  '手写聚合 SQL 收到的是规范化后的结果，不是 `query.getXxx()`',
+  rawIntoAggregate.length === 0,
+  rawIntoAggregate.length === 0
+    ? '三处聚合（日志级别 / 事件名 / 审计动作）都与同请求的列表用同一个局部变量'
+    : rawIntoAggregate
+        .map(
+          (item) =>
+            `${rel(item.file)}:${item.line} 的 ${item.method}(...)` +
+            ' —— 手写 SQL 的判空是 Ognl 的 `!= \'\'`、列表走 Java 的 isBlank，两者对空白判定相反；' +
+            '改成传 FilterValue.text(query.getX()) 的结果（decisions/0069）',
+        )
+        .join('\n    '),
+);
+
+console.log('');
+if (problems.length > 0) {
+  console.log(`✗ ${problems.length} 项未通过`);
+  problems.forEach((item) => console.log(`    · ${item}`));
+  process.exit(1);
+}
+console.log('✓ 全部通过');
+console.log('  它守的是"精确匹配的过滤值进 SQL 之前只有一种写法"；');
+console.log('  为什么这么定、以及哪些没覆盖，见 docs/decisions/0069。');

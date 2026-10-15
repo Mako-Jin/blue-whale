@@ -25,6 +25,7 @@
 | `verify-result-codes.mjs`      | 两个错误码枚举里的每个码，要么在 `src/main` 里有抛出点，要么在脚本里明写着"有意不用 / 登记了没实现"的理由 | **无前置条件**（只读源码文本，不编译、不连网、不写文件）；`node scripts/verify-result-codes.mjs` | `docs/decisions/0060` |
 | `verify-unique-columns.mjs`    | 服务层挡重名的每个 `*_EXISTS` 码都登记了它判的哪一列；每个判重列要么库上有 UNIQUE 索引兜底、要么在白名单写明"业务规则级唯一"的理由；顺带守三方言唯一索引集合同构 | **无前置条件**（只读源码文本与三方言迁移脚本，不编译、不连网、不写文件）；`node scripts/verify-unique-columns.mjs` | `docs/decisions/0063` |
 | `verify-like-escaping.mjs`     | `server/` 的 `src/main/java` 里每一处 `LIKE` 都必须经过 `KeywordLike`（转义关键词、并把 `ESCAPE '!'` 写进 SQL），不许再有裸的 `like(...)`；带 `LIKE` 的片段同一行必须有 `ESCAPE`；白名单逐条核对条数 | **无前置条件**（只读源码文本，不编译、不连网、不写文件）；`node scripts/verify-like-escaping.mjs` | `docs/decisions/0067` |
+| `verify-filter-values.mjs`     | `server/` 的 `src/main/java` 里**精确匹配**的过滤值（`status` / `app` / `traceId` …）必须经过 `FilterValue.text()`：`.eq(...)` 的条件里不许用 `hasText(...)` 或内联的 `query.getX().isBlank()`；三个手写聚合 SQL（`countByLevel` / `countByEventName` / `countByAction`）的实参不许是 `query.getXxx()` | **无前置条件**（只读源码文本，不编译、不连网、不写文件）；`node scripts/verify-filter-values.mjs` | `docs/decisions/0069` |
 | `verify-standalone-dev-login.mjs` | 用真实 Chrome 验证子应用**单跑**时的自建会话与开发账号自动登录（后端在跑 / 没起两种状态都跑一遍） | 至少一个子应用的 dev 服务在跑（:3200 / :3300 / :3500 / :3600，没起的会被记成"跳过"）；**后端 :8080 可选** —— 在跑时断言自动登录成功，没起时断言优雅降级；本机装有 Google Chrome | `docs/decisions/0018` · `0033` |
 
 ### `verify-micro-frontend.mjs` 做什么
@@ -478,6 +479,44 @@
 `SearchWildcardApiTest` 钉，不靠文本扫描）；`.apply(...)` 传进去的实参有没有真的转过义
 （要判这个得做数据流分析，误报率不划算 —— 这里只守"调用形状"）。
 
+### `verify-filter-values.mjs` 做什么
+
+把 `docs/decisions/0069` 那条约定机械化成一条零前置的检查：**精确匹配的过滤值（`eq`）
+进 SQL 之前必须规范化**，而且这件事**只有一种写法**。它查三件事：
+
+1. **`.eq(...)` 的条件里没有 `hasText(...)`** —— 那正是"值没规范化、拿判空当开关"的旧形态
+   （日志 / 事件 / 审计三域此前 20 处全是它）。
+2. **`.eq(...)` 的条件里没有 `query.getX().isBlank()` / `.isEmpty()`** —— 同上，只是写成了
+   内联判断（用户 / 租户两域原本就是它）。
+3. **三个手写聚合 SQL（`countByLevel` / `countByEventName` / `countByAction`）的实参里
+   没有 `query.getXxx()`** —— 直传原始值会让手写 SQL 与同请求的 lambda wrapper 对同一个
+   参数给出**不同判定**：Ognl 的 `<if test="app != null and app != ''">` 认为 `"   "` 给了值
+   （于是 `AND app = '   '`），而 Java 的 `isBlank` 认为没给（于是不过滤）——
+   症状是**同一个响应里「总数 3、各级别之和 0」**。
+
+**为什么它值得存在**（而 `0064` 那类不值得）：它锚定的是 `hasText(` 这个方法名、
+`isBlank()` 这个 **String 专属**方法、`countBy*` 这个方法名 —— 都是无歧义的 token 形状，
+扫到就是扫到。只揪 `isBlank()` / `isEmpty()` 而不揪 `!= null`，正是因为前者**不可能出现在
+`Long` 上**（`tenantId` / `parentId` / `operatorId` 本来就不该规范化，锚定 `!= null` 会
+大面积误报）。
+
+**它自己有两个假绿是在扰动中发现的，都当场修掉**：
+
+- 规则 3 起初要求调用点前面有 `.`，而同类内调用写的是 `selectCount(baseWrapper(...))` ——
+  **一次都没命中**（改成 `\b` 才对）。
+- 同一条规则起初还把审计域的 `baseWrapper` 纳入射程 ⇒ **误报**：它的实参里混着
+  `operatorId`（`Long`），调用点写的是 `visibility.operatorFilter(query.getOperatorId())`，
+  那是正当的。按 `0064`「会误报的守卫比没有更糟」把它移出射程，
+  并在脚本的"刻意不查"里写明理由。
+
+**三个方向都验过**（扰动）：把 `UserService` 改回 `!= null && !isBlank()` ⇒ 规则 2 红；
+把 `ClientLogService` 两处改回 `.eq(hasText(...), ...)` ⇒ 规则 1 红（**两处都报**）；
+把 `countByAction` 的实参改回 `query.getResource()` ⇒ 规则 3 红。
+
+**刻意不查的：** "新加一处过滤值有没有真的过 `FilterValue.text`"（要判它得做数据流分析，
+而合法的 `!= null` 到处都是 —— 见上面那条）；`trim()`（Java，只吃 `<= U+0020`）与
+`isBlank()`（`Character.isWhitespace`）的覆盖面之差（那是待裁决的口径，不是守卫能判的）。
+
 ### 脚本的硬性约束
 
 - **可重复执行**：跑第二遍不应产生副作用或报"已存在"错误。
@@ -492,7 +531,7 @@
   `scripts/verify-standalone-dev-login.mjs` 正是为这条而生，重跑一遍前**先重启对应的 dev 服务**。
 - **能不要前置条件就不要** —— 这一条决定脚本能不能进 CI。`verify-nginx-config.mjs`、
   `verify-docs-index.mjs`、`verify-api-contract.mjs`、`verify-result-codes.mjs`、
-  `verify-unique-columns.mjs` 与 `verify-like-escaping.mjs` 是**零前置**的
+  `verify-unique-columns.mjs`、`verify-like-escaping.mjs` 与 `verify-filter-values.mjs` 是**零前置**的
   （不连网、不读产物、不写文件），所以流水线的 `guards` job 直接跑它们；`verify-bundle-secrets.mjs` **不需要服务、但需要前端产物**，
   所以它跑在 `web` job 的构建**之后**（顺序不能反 —— 反了它就扫不到东西，还会静默"通过"）；
   需要前置服务的脚本继续留在本机 —— 真机层（浏览器 + 冷启动 dev server）**刻意不在 CI 的必过项里**，

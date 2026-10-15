@@ -10,6 +10,7 @@ import com.bluewhale.sts.auth.context.AuthContextHolder;
 import com.bluewhale.sts.auth.role.RoleMemberService;
 import com.bluewhale.sts.auth.tenant.TenantService;
 import com.bluewhale.sts.common.basic.model.PageResult;
+import com.bluewhale.sts.common.db.query.FilterValue;
 import com.bluewhale.sts.common.db.query.KeywordLike;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -68,14 +69,16 @@ public class UserService {
         Long tenantId = resolveTenantId(query.getTenantId());
         // 关键词先规范化（吃掉两端空白）再转义，见 KeywordLike（decisions/0067 · 0068）。
         String pattern = KeywordLike.pattern(query.getKeyword());
+        // 过滤值先规范化再进 eq（decisions/0069）：`eq(条件, 列, 值)` 的"值"是**无条件求值**的，
+        // 写成 `query.getStatus().trim()` 会在 status 为空时当场 NPE。这条坑在本仓已踩过多次。
+        String status = FilterValue.text(query.getStatus());
         var wrapper = Wrappers.<UserEntity>lambdaQuery()
                 .eq(UserEntity::getTenantId, tenantId)
                 .and(pattern != null, w -> w
                         .apply(KeywordLike.condition("username"), pattern)
                         .or().apply(KeywordLike.condition("display_name"), pattern)
                         .or().apply(KeywordLike.condition("email"), pattern))
-                .eq(query.getStatus() != null && !query.getStatus().isBlank(),
-                        UserEntity::getStatus, query.getStatus())
+                .eq(status != null, UserEntity::getStatus, status)
                 .orderByDesc(UserEntity::getId);
 
         Page<UserEntity> page = userMapper.selectPage(new Page<>(query.getPage(), query.getSize()), wrapper);

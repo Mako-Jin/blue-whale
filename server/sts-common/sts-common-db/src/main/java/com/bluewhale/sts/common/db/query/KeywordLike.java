@@ -23,14 +23,16 @@ package com.bluewhale.sts.common.db.query;
  * {@code NO_BACKSLASH_ESCAPES} 之类的影响免疫（H2 / MySQL / MySQL+NO_BACKSLASH_ESCAPES
  * 三种组合实测全对）。
  *
- * <h2>关键词的规范化也在这里</h2>
+ * <h2>关键词的规范化由 {@link FilterValue} 提供</h2>
  *
  * 两端的空白先被吃掉：{@code " a "} 与 {@code "a"} 是同一个词。理由不是"顺手清一下"，
  * 而是**这一处的差异不承载任何区分能力** —— {@code LIKE '%…%'} 是包含匹配，
  * 前后空白没法用来表达"我要找以空格开头的那条"，它只能造成"在某些页面上搜不到"。
  * 而这条口径此前散在七个搜索入口上（三个域走私有的 {@code normalize()}、四个域直传），
  * 于是同一条关键词在两个域上结果不同 —— 有测试用例摆着（{@code SearchKeywordTrimApiTest}）。
- * 收进来之后**调用方一律直传 {@code query.getKeyword()}**，不要再自己 trim 一遍。
+ * 现在<b>规范化本身</b>收在 {@link FilterValue}（精确匹配的过滤值也用它，见 {@code 0069}），
+ * 本类只负责 {@code LIKE} 特有的那部分（转义 + 前后补 {@code %}）。
+ * {@code pattern()} 内部调的就是 {@code FilterValue.text()} —— 不做第二套规矩。
  *
  * <h2>怎么用</h2>
  *
@@ -67,8 +69,8 @@ public final class KeywordLike {
      * 吃掉之后仍为空表示"没有这个过滤条件"。这条口径此前**散在七个搜索入口上**
      * （组织 / 角色 / 用户组各自私有 {@code normalize()}、用户 / 租户 / 资源 / 客户端日志直传），
      * 于是同一个词在组织域搜得到、在用户域搜不到 —— 有测试用例的实证
-     * （{@code SearchKeywordTrimApiTest} 摆着两个域的同一条断言）。收在这里之后，
-     * "关键词长什么样"只剩这一个真值来源，调用方一律写 {@code pattern(query.getKeyword())}。
+     * （{@code SearchKeywordTrimApiTest} 摆着两个域的同一条断言）。收在 {@link FilterValue}
+     * 之后，"过滤值长什么样"只剩这一个真值来源，调用方一律写 {@code pattern(query.getKeyword())}。
      *
      * <p>{@code %}、{@code _} 与转义符自身各加一个前导 {@link #ESCAPE}，
      * 于是它们全部退化成字面量 —— 用户输什么就找什么。
@@ -78,18 +80,16 @@ public final class KeywordLike {
      * @return 形如 {@code %a!_b%} 的实参；无关键词时返回 {@code null}
      */
     public static String pattern(String keyword) {
-        if (keyword == null) {
+        // 规范化（只吃两端、不吃中间）下沉到 FilterValue：精确匹配的过滤值走的是同一个方法，
+        // 于是"空白怎么处理"在一处定义，两类值不会各写一套。
+        String normalized = FilterValue.text(keyword);
+        if (normalized == null) {
             return null;
         }
-        // 只吃两端、不吃中间：`a b` 里的空格是关键词的一部分，删掉就变成搜另一个词了。
-        String trimmed = keyword.trim();
-        if (trimmed.isEmpty()) {
-            return null;
-        }
-        StringBuilder escaped = new StringBuilder(trimmed.length() + 8);
+        StringBuilder escaped = new StringBuilder(normalized.length() + 8);
         escaped.append('%');
-        for (int i = 0; i < trimmed.length(); i++) {
-            char c = trimmed.charAt(i);
+        for (int i = 0; i < normalized.length(); i++) {
+            char c = normalized.charAt(i);
             if (c == '%' || c == '_' || c == ESCAPE) {
                 escaped.append(ESCAPE);
             }

@@ -9,6 +9,7 @@ import com.bluewhale.sts.auth.datascope.DataScopeService;
 import com.bluewhale.sts.common.basic.enums.ResultCode;
 import com.bluewhale.sts.common.basic.exception.BusinessException;
 import com.bluewhale.sts.common.basic.model.PageResult;
+import com.bluewhale.sts.common.db.query.FilterValue;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -91,20 +92,23 @@ public class AuditLogService {
         long startTime = query.getStartTime() == null ? endTime - DEFAULT_WINDOW_MILLIS : query.getStartTime();
 
         Long operator = visibility.operatorFilter(query.getOperatorId());
+        // 过滤值先规范化（decisions/0069）：本方法里这个值要用三次（两条 wrapper + 一句手写 SQL），
+        // 所以算一次往下传 —— 各算一遍就可能有的地方归一了、有的地方没有。
+        String resource = FilterValue.text(query.getResource());
 
-        long total = auditLogMapper.selectCount(baseWrapper(visibility.tenantId(), query.getResource(), operator)
+        long total = auditLogMapper.selectCount(baseWrapper(visibility.tenantId(), resource, operator)
                 .ge(AuditLogEntity::getServerTime, startTime)
                 .le(AuditLogEntity::getServerTime, endTime));
 
         // 失败数单独查一次而不是从下面的动作分布里加总：加总要求"分布查询没有做任何裁剪"，
         // 而将来一旦给分布加上 Top N 之类的限制，这个隐含前提就会静默失效。
-        long failureTotal = auditLogMapper.selectCount(baseWrapper(visibility.tenantId(), query.getResource(), operator)
+        long failureTotal = auditLogMapper.selectCount(baseWrapper(visibility.tenantId(), resource, operator)
                 .eq(AuditLogEntity::getResult, AuditResult.FAILURE.wireName())
                 .ge(AuditLogEntity::getServerTime, startTime)
                 .le(AuditLogEntity::getServerTime, endTime));
 
         List<AuditActionCount> actions = auditLogMapper.countByAction(
-                visibility.tenantId(), query.getResource(), operator, startTime, endTime);
+                visibility.tenantId(), resource, operator, startTime, endTime);
 
         return new AuditStatsVO(total, failureTotal, startTime, endTime, actions);
     }
@@ -151,14 +155,21 @@ public class AuditLogService {
         long endTime = query.getEndTime() == null ? System.currentTimeMillis() : query.getEndTime();
         long startTime = query.getStartTime() == null ? endTime - DEFAULT_WINDOW_MILLIS : query.getStartTime();
 
+        // 过滤值先规范化再进 eq（decisions/0069）：`eq(条件, 列, 值)` 的"值"是**无条件求值**的，
+        // 所以必须先取局部变量，不能写成 `query.getAction().trim()`（空值时会当场 NPE）。
+        String resource = FilterValue.text(query.getResource());
+        String action = FilterValue.text(query.getAction());
+        String targetId = FilterValue.text(query.getTargetId());
+        String operatorName = FilterValue.text(query.getOperatorName());
+        String result = FilterValue.text(query.getResult());
+
         LambdaQueryWrapper<AuditLogEntity> wrapper =
-                baseWrapper(visibility.tenantId(), query.getResource(),
+                baseWrapper(visibility.tenantId(), resource,
                         visibility.operatorFilter(query.getOperatorId()))
-                        .eq(hasText(query.getAction()), AuditLogEntity::getAction, query.getAction())
-                        .eq(hasText(query.getTargetId()), AuditLogEntity::getTargetId, query.getTargetId())
-                        .eq(hasText(query.getOperatorName()), AuditLogEntity::getOperatorName,
-                                query.getOperatorName())
-                        .eq(hasText(query.getResult()), AuditLogEntity::getResult, query.getResult())
+                        .eq(action != null, AuditLogEntity::getAction, action)
+                        .eq(targetId != null, AuditLogEntity::getTargetId, targetId)
+                        .eq(operatorName != null, AuditLogEntity::getOperatorName, operatorName)
+                        .eq(result != null, AuditLogEntity::getResult, result)
                         .ge(AuditLogEntity::getServerTime, startTime)
                         .le(AuditLogEntity::getServerTime, endTime);
 
@@ -175,10 +186,17 @@ public class AuditLogService {
      * 审计记录没有"平台级"的概念，每一条都属于某个租户，
      * 而把它写成可选的，等于给"忘记传租户"留下一个静默全量查询的口子。
      */
+    /**
+     * 公共前缀：租户 + 资源 + 操作人。
+     *
+     * <p>{@code resource} 是**调用方规范化之后**传进来的（{@code FilterValue.text}，见 decisions/0069），
+     * 所以这里判空只需判 {@code null} —— {@code stats} 里这个值要用三次，
+     * 与其在每处各归一一次，不如在入口归一一次。
+     */
     private static LambdaQueryWrapper<AuditLogEntity> baseWrapper(long tenantId, String resource, Long operatorId) {
         return Wrappers.<AuditLogEntity>lambdaQuery()
                 .eq(AuditLogEntity::getTenantId, tenantId)
-                .eq(hasText(resource), AuditLogEntity::getResource, resource)
+                .eq(resource != null, AuditLogEntity::getResource, resource)
                 .eq(operatorId != null, AuditLogEntity::getOperatorId, operatorId);
     }
 
@@ -206,10 +224,6 @@ public class AuditLogService {
         vo.setDurationMs(entity.getDurationMs());
         vo.setServerTime(entity.getServerTime());
         return vo;
-    }
-
-    private static boolean hasText(String value) {
-        return value != null && !value.isBlank();
     }
 
 }

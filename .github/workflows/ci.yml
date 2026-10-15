@@ -312,3 +312,11 @@ jobs:
       # 顺带守"写了 LIKE 却忘了 ESCAPE"。同样零前置（只读源码文本）。
       - name: 搜索关键词转义自检
         run: node scripts/verify-like-escaping.mjs
+
+      # 过滤值的规范化（docs/decisions/0069）：精确匹配（`eq`）的过滤值必须经过
+      # `FilterValue.text()`，不许再写 `.eq(hasText(...), ...)` 或内联的 `query.getX().isBlank()`
+      # —— 那种写法读起来正常，只有"从别处粘贴过来带了个空格"会露出来。
+      # 顺带守"手写聚合 SQL 收到的是原始值"：那会让它与同请求的列表对同一个参数
+      # 给出不同判定（症状是同一个响应里"总数 3、各级别之和 0"）。同样零前置。
+      - name: 过滤值规范化自检
+        run: node scripts/verify-filter-values.mjs
