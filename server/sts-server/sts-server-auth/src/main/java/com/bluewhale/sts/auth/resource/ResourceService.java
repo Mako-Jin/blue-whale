@@ -145,7 +145,7 @@ public class ResourceService {
     public ResourceVO create(ResourceSaveRequest request) {
         String resourceCode = request.getResourceCode().trim();
         String resourceType = resolveResourceType(request.getResourceType());
-        String parentCode = normalize(request.getParentCode());
+        String parentCode = FilterValue.text(request.getParentCode());
         assertParentExists(parentCode);
 
         ResourceEntity existing = resourceMapper.selectAnyByCode(resourceCode);
@@ -188,7 +188,7 @@ public class ResourceService {
     public ResourceVO update(Long id, ResourceSaveRequest request) {
         ResourceEntity entity = requireResource(id);
         String resourceType = resolveResourceType(request.getResourceType());
-        String parentCode = normalize(request.getParentCode());
+        String parentCode = FilterValue.text(request.getParentCode());
 
         if (parentCode != null) {
             if (parentCode.equals(entity.getResourceCode())) {
@@ -333,17 +333,17 @@ public class ResourceService {
                                 String resourceType, String parentCode) {
         entity.setResourceName(request.getResourceName().trim());
         entity.setResourceType(resourceType);
-        entity.setResourceCategory(normalize(request.getResourceCategory()));
+        entity.setResourceCategory(FilterValue.text(request.getResourceCategory()));
         entity.setParentCode(parentCode);
-        entity.setRequestUrl(normalize(request.getRequestUrl()));
+        entity.setRequestUrl(FilterValue.text(request.getRequestUrl()));
         entity.setRequestMethod(normalizeMethod(request.getRequestMethod()));
-        entity.setIcon(normalize(request.getIcon()));
+        entity.setIcon(FilterValue.text(request.getIcon()));
         entity.setSortNo(orDefault(request.getSortNo(), 0));
         entity.setIsEnabled(flag(request.getIsEnabled(), 1, "isEnabled"));
         entity.setIsWhitelist(flag(request.getIsWhitelist(), 0, "isWhitelist"));
         entity.setIsDeprecated(flag(request.getIsDeprecated(), 0, "isDeprecated"));
-        entity.setResourceVersion(normalize(request.getResourceVersion()));
-        entity.setDescription(normalize(request.getDescription()));
+        entity.setResourceVersion(FilterValue.text(request.getResourceVersion()));
+        entity.setDescription(FilterValue.text(request.getDescription()));
     }
 
     private static ResourceVO toVO(ResourceEntity entity) {
@@ -405,16 +405,13 @@ public class ResourceService {
         return parsed.wireName();
     }
 
-    private static String normalize(String value) {
-        if (value == null) {
-            return null;
-        }
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
-    }
-
+    /**
+     * HTTP 方法：先与别处同一份规范化（吃两端空白、空白转 {@code null}），再往大写归一 ——
+     * 这一列存的是大写。后半句是该列的**比较语义**（与日志域 {@code level} 存小写反向同源），
+     * 不是通用规范化，所以留在这里而不是下沉进 {@code FilterValue}。
+     */
     private static String normalizeMethod(String value) {
-        String normalized = normalize(value);
+        String normalized = FilterValue.text(value);
         return normalized == null ? null : normalized.toUpperCase(Locale.ROOT);
     }
 

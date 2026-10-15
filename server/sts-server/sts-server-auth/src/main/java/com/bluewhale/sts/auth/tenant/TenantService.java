@@ -135,17 +135,24 @@ public class TenantService {
         // 若确需变更，应当是"新建 + 迁移"的独立操作，而不是一次普通的字段更新。
         entity.setTenantName(request.getTenantName());
         entity.setDescription(request.getDescription());
-        if (request.getStatus() != null && !request.getStatus().isBlank()) {
+        // 写入侧先归一，判据再拿**归一后**的值去比（decisions/0071）。此前这两件事都是
+        // 拿请求里的字面量做的，于是同一个操作有两副面孔：
+        //   ① 传小写的 "enabled" 被当成"写入的值不是 ENABLED" ⇒ 判定为"我要停用自己所在的
+        //      租户" ⇒ 40921，而调用方唯一做错的事只是拼写用了小写；
+        //   ② 改的是**别的**租户时，那个 "enabled" 原样落库 ⇒ 所有读者都在比
+        //      `status == "ENABLED"`（见 AuthResultCode.TENANT_DISABLED 的说明），
+        //      于是**那个租户整个登不进来** —— 一次保存成功把一整个租户锁在门外。
+        // 归一到标准写法之后两条自动消失：判据与读者看的是同一个值，且它就是 Status 的真值。
+        // 外层判空仍然要在 —— 不传 status 表示"不改这一列"，不是"改成 ENABLED"。
+        String requestedStatus = FilterValue.text(request.getStatus());
+        if (requestedStatus != null) {
+            String status = resolveStatus(requestedStatus);
             // 判据写的是"**写入的值不是 ENABLED**"，而不是"从 ENABLED 变成别的"：
-            // 两种写法在正常输入上等价，前者顺带把"写进一个非法值"那一支也挡了 ——
-            // 而那一支同样会让租户登不进来（所有读者都在比 `status == "ENABLED"`，
-            // 见 AuthResultCode.TENANT_DISABLED 的说明）。
-            // 注意本方法**不过 resolveStatus**（与 create 不同），写进来的就是这个字面量，
-            // 所以这里的判据必须与"读者怎么读"保持一致，而不是与 Status 枚举一致
-            if (!Status.ENABLED.wireName().equals(request.getStatus())) {
+            // 两种写法在正常输入上等价，前者顺带把"写进一个非法值"那一支也挡了
+            if (!Status.ENABLED.wireName().equals(status)) {
                 assertNotOwnTenant(id);
             }
-            entity.setStatus(request.getStatus());
+            entity.setStatus(status);
         }
         if (request.getAllowRegister() != null) {
             entity.setAllowRegister(request.getAllowRegister());

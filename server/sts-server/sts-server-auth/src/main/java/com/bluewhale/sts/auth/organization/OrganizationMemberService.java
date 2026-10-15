@@ -10,6 +10,7 @@ import com.bluewhale.sts.auth.relation.RelOrgUserMapper;
 import com.bluewhale.sts.auth.user.UserEntity;
 import com.bluewhale.sts.auth.user.UserMapper;
 import com.bluewhale.sts.common.basic.model.PageResult;
+import com.bluewhale.sts.common.db.query.FilterValue;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -400,8 +401,8 @@ public class OrganizationMemberService {
      * （= 清掉时间窗）会**影响 0 行且不报错**。授权侧已因此付出过一次代价。
      */
     private void updateColumns(RelOrgUserEntity target, OrgMemberBindRequest request, Long from, Long to) {
-        String positionName = normalize(request.getPositionName());
-        String relationType = normalize(request.getRelationType());
+        String positionName = FilterValue.text(request.getPositionName());
+        String relationType = FilterValue.text(request.getRelationType());
         relOrgUserMapper.update(new RelOrgUserEntity(), Wrappers.<RelOrgUserEntity>lambdaUpdate()
                 .eq(RelOrgUserEntity::getId, target.getId())
                 .set(RelOrgUserEntity::getPositionName, positionName)
@@ -508,14 +509,6 @@ public class OrganizationMemberService {
             return false;
         }
         return to == null || now < to;
-    }
-
-    private static String normalize(String value) {
-        if (value == null) {
-            return null;
-        }
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
     }
 
 }

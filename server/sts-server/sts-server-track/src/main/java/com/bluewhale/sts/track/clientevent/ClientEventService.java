@@ -102,13 +102,18 @@ public class ClientEventService {
 
             ClientEventEntity entity = new ClientEventEntity();
             entity.setTenantId(tenantId);
+            // 会参与精确过滤的列（app / userId / deviceId / sessionId），写入时与过滤侧同源
+            // （decisions/0071）：只截断不 trim 会让"上报时多打了两个空格"变成一条
+            // **永远搜不到**的记录。顺序不能反 —— 先 trim 再截断。
+            // eventId / route / appRelease / ip 不参与精确过滤，保持原样（同一篇 ADR 的"刻意不做"）。
             entity.setEventId(truncate(item.getEventId(), 64));
             entity.setEventName(item.getEventName());
-            entity.setApp(request.getApp());
-            entity.setUserId(truncate(item.getUserId(), 64));
-            entity.setDeviceId(truncate(item.getDeviceId(), 64));
+            entity.setApp(FilterValue.text(request.getApp()));
+            entity.setUserId(truncate(FilterValue.text(item.getUserId()), 64));
+            entity.setDeviceId(truncate(FilterValue.text(item.getDeviceId()), 64));
             // 条目级字段优先，缺省回落到信封级 —— 让"整批同源"这一常见情形不必逐条重复
-            entity.setSessionId(truncate(firstNonBlank(item.getSessionId(), request.getSessionId()), 64));
+            entity.setSessionId(truncate(
+                    FilterValue.text(firstNonBlank(item.getSessionId(), request.getSessionId())), 64));
             entity.setRoute(truncate(item.getRoute(), 512));
             entity.setAppRelease(truncate(firstNonBlank(item.getRelease(), request.getRelease()), 64));
             entity.setPropsJson(toJson(item.getProps(), MAX_JSON_LENGTH));

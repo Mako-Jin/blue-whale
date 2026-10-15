@@ -184,8 +184,16 @@ public class UserService {
         entity.setDisplayName(request.getDisplayName());
         entity.setEmail(blankToNull(request.getEmail()));
         entity.setPhone(blankToNull(request.getPhone()));
-        if (request.getStatus() != null && !request.getStatus().isBlank()) {
-            entity.setStatus(request.getStatus());
+        // 写入侧也要归一，与 create 同源（decisions/0071）。此前这里是把请求里的字面量
+        // 直接存进去的，于是同一个字段在 create（走 resolveStatus）与 update 上宽容度不同：
+        // 库里躺着一个 "enabled" 时，过滤 ?status=ENABLED 搜不到它 —— 而比这更重的是，
+        // AuthService 判的是 Status.ENABLED.wireName().equals(user.getStatus())，
+        // 于是**这个账号登不进来**：一次"保存成功"把账号锁在了门外。
+        // 外层判空仍然要在（不传 status 表示"不改这一列"，不是"改成 ENABLED"），
+        // 故先过 FilterValue.text() 再交给 resolveStatus。
+        String requestedStatus = FilterValue.text(request.getStatus());
+        if (requestedStatus != null) {
+            entity.setStatus(resolveStatus(requestedStatus));
         }
         userMapper.updateById(entity);
         return toVO(entity);

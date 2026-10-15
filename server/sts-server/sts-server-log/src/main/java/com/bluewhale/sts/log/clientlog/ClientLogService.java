@@ -104,15 +104,20 @@ public class ClientLogService {
 
             ClientLogEntity entity = new ClientLogEntity();
             entity.setTenantId(tenantId);
-            entity.setApp(request.getApp());
+            // 会参与精确过滤的列（app / namespace / traceId / sessionId），写入时与过滤侧
+            // 同源（decisions/0071）：只截断不 trim 会让"上报时多打了两个空格"变成一条
+            // **永远搜不到**的记录 —— 读侧的宽容在写入侧不归一时是空转。
+            // 顺序不能反：先 trim 再截断（反过来时，一长串空白会把后面的内容整个切掉）。
+            entity.setApp(FilterValue.text(request.getApp()));
             entity.setLevel(level.wireName());
-            entity.setNamespace(truncate(item.getNamespace(), 255));
+            entity.setNamespace(truncate(FilterValue.text(item.getNamespace()), 255));
             entity.setMessage(truncate(item.getMessage(), MAX_MESSAGE_LENGTH));
             entity.setDataJson(toJson(item.getData(), MAX_JSON_LENGTH));
             entity.setContextJson(toJson(item.getContext(), MAX_JSON_LENGTH));
-            entity.setTraceId(truncate(item.getTraceId(), 64));
+            entity.setTraceId(truncate(FilterValue.text(item.getTraceId()), 64));
             // 条目级字段优先，缺省回落到信封级 —— 让"整批同源"这一常见情形不必逐条重复
-            entity.setSessionId(truncate(firstNonBlank(item.getSessionId(), request.getSessionId()), 64));
+            entity.setSessionId(truncate(
+                    FilterValue.text(firstNonBlank(item.getSessionId(), request.getSessionId())), 64));
             entity.setRoute(truncate(item.getRoute(), 512));
             entity.setAppRelease(truncate(firstNonBlank(item.getRelease(), request.getRelease()), 64));
             entity.setClientTime(item.getTimestamp());

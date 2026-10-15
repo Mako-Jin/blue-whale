@@ -627,13 +627,13 @@ public class OrganizationService {
 
     private void applyCommon(OrganizationEntity entity, OrganizationSaveRequest request) {
         entity.setOrgName(request.getOrgName().trim());
-        entity.setOrgType(normalize(request.getOrgType()));
+        entity.setOrgType(FilterValue.text(request.getOrgType()));
         entity.setSortNo(request.getSortNo() == null ? 0 : request.getSortNo());
         entity.setStatus(resolveStatus(request.getStatus()));
-        entity.setDescription(normalize(request.getDescription()));
-        entity.setContactName(normalize(request.getContactName()));
-        entity.setContactPhone(normalize(request.getContactPhone()));
-        entity.setContactEmail(normalize(request.getContactEmail()));
+        entity.setDescription(FilterValue.text(request.getDescription()));
+        entity.setContactName(FilterValue.text(request.getContactName()));
+        entity.setContactPhone(FilterValue.text(request.getContactPhone()));
+        entity.setContactEmail(FilterValue.text(request.getContactEmail()));
         entity.setManagerId(request.getManagerId());
         // 负责人姓名在这里就解析出来，而不是留给 updateColumns —— 新建走的是 insert，
         // 不经过 updateColumns，那样新组织的 managerName 会永远是 null
@@ -800,14 +800,6 @@ public class OrganizationService {
                     "状态取值不合法，只能是 ENABLED 或 DISABLED，收到：" + raw);
         }
         return parsed.wireName();
-    }
-
-    private static String normalize(String value) {
-        if (value == null) {
-            return null;
-        }
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
     }
 
 }

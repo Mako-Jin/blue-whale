@@ -211,7 +211,7 @@ public class RoleService {
             if (!Status.ENABLED.wireName().equals(status)) {
                 throw AuthResultCode.SYSTEM_ROLE_PROTECTED.businessException("系统内置角色不可停用");
             }
-            String category = normalize(request.getCategory());
+            String category = FilterValue.text(request.getCategory());
             if (category != null && !CATEGORY_SYSTEM.equalsIgnoreCase(category)) {
                 throw AuthResultCode.SYSTEM_ROLE_PROTECTED.businessException(
                         "系统内置角色的分类不可修改，否则可经由「先降级为普通角色、再删除」绕过保护");
@@ -478,14 +478,14 @@ public class RoleService {
         entity.setRoleName(request.getRoleName().trim());
         entity.setParentId(parent == null ? null : parent.getId());
         entity.setRoleLevel(resolveLevel(request.getRoleLevel(), parent));
-        entity.setCategory(normalize(request.getCategory()));
+        entity.setCategory(FilterValue.text(request.getCategory()));
         entity.setDataScope(dataScope);
-        entity.setFilterJson(normalize(request.getFilterJson()));
-        entity.setInheritStrategy(normalize(request.getInheritStrategy()));
+        entity.setFilterJson(FilterValue.text(request.getFilterJson()));
+        entity.setInheritStrategy(FilterValue.text(request.getInheritStrategy()));
         entity.setIsDefault(flag(request.getIsDefault(), 0, "isDefault"));
         entity.setSortNo(orDefault(request.getSortNo(), 0));
         entity.setStatus(status);
-        entity.setDescription(normalize(request.getDescription()));
+        entity.setDescription(FilterValue.text(request.getDescription()));
     }
 
     /** 层级没传就按父角色 +1 推出来，而不是留空 —— 留空的层级列排序时会跑到最前 */
@@ -674,14 +674,6 @@ public class RoleService {
             return false;
         }
         return to == null || now < to;
-    }
-
-    private static String normalize(String value) {
-        if (value == null) {
-            return null;
-        }
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private static Integer orDefault(Integer value, int defaultValue) {

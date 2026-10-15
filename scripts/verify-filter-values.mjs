@@ -37,6 +37,11 @@
  *    就是"绕开了归一"（`docs/decisions/0070`）。这一条的锚点比前三条更强：它不是"某个名字
  *    出现得可疑"，而是**这五个 getter 在这五个 Query 类里只有这一个正当用法**，
  *    所以可以要求"每一次出现都必须在 `enumValue(` 里"，而不是只揪某种坏写法。
+ * 5. **上报侧**（日志 / 事件两个域）写进实体的那些过滤列，实参里必须有 `FilterValue`
+ *    （`docs/decisions/0071`）。这一条守的是同一枚硬币的另一面：前四条管"读的时候归一"，
+ *    这一条管"写的时候也归一"—— 只要有一侧漏了，读侧的宽容就是**空转**：
+ *    上报 `app = " myapp "` 会原样落库，而 `?app=myapp` 被规范成 `myapp`，一条也匹配不到。
+ *    （射程只到这两个模块，理由见下面「刻意不查的」。）
  *
  * ## 用法
  *
@@ -51,6 +56,19 @@
  *   要判它就得做数据流分析。而**合法的 `!= null` 到处都是**（`tenantId` / `parentId` /
  *   `operatorId` … 都是 Long，本来就不该规范化），锚定 `!= null` 会大面积误报
  *   ⇒ 按 `0064` 的判据（会误报的守卫比没有更糟）不做。
+ * - **`entity.setStatus(...)` 的实参**：同一个 setter 在四个域有四种写法
+ *   （`resolveStatus(...)` · 调用方算好的局部变量 `status` · `Status.ENABLED.wireName()` ·
+ *   直接字面量），**文本上分不出"已归一"与"没归一"** —— 角色域的 `applyTo` 写的就是
+ *   `entity.setStatus(status)`，那个 `status` 是调用方归一后传进来的。锚定它会误报，
+ *   按 `0064` 不做；那两处 `update` 由 `WriteSideNormalizationApiTest` 钉着。
+ * - **`vo.setXxx(...)` / `context.setUserId(...)` / 关联表写入**：同名 setter 全仓到处都是
+ *   （`setUserId` 就有八处与过滤无关）⇒ 规则 5 把射程限定在 **`log` / `track` 两个上报模块**、
+ *   且只认接收者是 `entity` 的那一类。代价是白名单固化（与规则 4 同一个代价）。
+ * - **`entity.setLevel(...)`**：日志域的 `level` 也是过滤列，但它的实参是
+ *   `level.wireName()`（枚举归一，见 `0070`），不含 `FilterValue` ⇒ 纳入锚点会误报。
+ * - **`email` / `phone` 的写入**（`UserService.blankToNull`，不 trim）：它们参与的是**判重**
+ *   而不是过滤，读侧是 `existsXxx` 而非 `eq ... where`。同源问题，但需要单独量一遍判重入口 ——
+ *   见 `docs/decisions/0071` 的「未覆盖」。
  * - **`.eq(...)` 里的判空一律揪住**：只揪 `isBlank()` / `isEmpty()` 这类**String 专属**的 token，
  *   正是因为它们不可能出现在 Long 上、零误报。
  * - **"规范化之后的模式串在三方言上是否同义"**：那是语义，靠 `FilterValueTrimApiTest`
@@ -58,6 +76,8 @@
  * - **审计域的 `baseWrapper(tenantId, resource, operatorId)` 收到未规范化的 `resource`**：
  *   它的实参里混着 `operatorId`（Long），锚定 `query.get` 会误报（见规则 3 的注释）。
  *   那两处调用点与算好 `resource` 的语句相邻，靠评审查得住。
+ * - **审计域的写入不在射程**（`AuditInterceptor` / `AuditRecorder`）：那些值取自
+ *   `@Audited` 注解与上下文，**不由外部输入决定**，因此没有"客户端传了个带空格的"这条路。
  * - **`isBlank`（Unicode 空白）与 `trim`（只吃 `<= U+0020`）的覆盖面之差**：
  *   见 `docs/decisions/0069` 的「未覆盖」—— 那是一个待裁决的口径问题，不是守卫能判的。
  * - **"新加的枚举列有没有归一"**：规则 4 的五个 getter 名是**枚举列的全集**（当前如此），
@@ -136,12 +156,34 @@ const AGG_CALL_RE = /\b(countByLevel|countByEventName|countByAction)\s*\(/g;
 // `status`（用户 / 租户 / 组织 / 角色）· `resourceType` · `memberType`（角色成员 / 用户组成员）
 // · `level`（日志）· `result`（审计），且**没有第二个含义** —— 所以它们是零误报的锚点。
 const ENUM_FILTER_GETTER_RE = /query\.get(?:Status|Level|Result|ResourceType|MemberType)\(\)/g;
+// 规则 5：**上报侧**写入实体时用的过滤列 setter。只有日志 / 事件两个域是"客户端把值
+// 直接送进来"，所以射程限定在这两个模块里、且接收者写作 `entity` 的那一类
+// （`vo.setXxx(...)` 装的是从库里读出来的值，`context.setUserId(...)` 是别的东西）。
+//
+// **不含 `Level`**：日志域的 level 也是过滤列，但它的实参已经是 `level.wireName()`
+// （枚举归一走 `ClientLogLevel.parse`，见 0070），拿 `FilterValue` 要求它只会误报。
+const REPORT_COLUMN_SETTER_RE = /entity\.set(App|Namespace|TraceId|SessionId|UserId|DeviceId)\s*\(/g;
+const REPORT_MODULES = ['sts-server-log', 'sts-server-track'];
+
+/** 从 `(` 起取到配对的 `)`，返回实参文本 —— 这些调用会跨行（`truncate(\n FilterValue.text(…), 64)`）。 */
+function argsOf(text, openIndex) {
+  let depth = 0;
+  for (let i = openIndex; i < text.length; i += 1) {
+    if (text[i] === '(') depth += 1;
+    else if (text[i] === ')') {
+      depth -= 1;
+      if (depth === 0) return text.slice(openIndex + 1, i);
+    }
+  }
+  return text.slice(openIndex + 1);
+}
 
 const sources = collectMainSources();
 const hasTextInEq = [];
 const blankInEq = [];
 const rawIntoAggregate = [];
 const enumGetterOutsideEnumValue = [];
+const rawIntoReportedColumn = [];
 
 for (const file of sources) {
   const raw = readFileSync(file, 'utf8');
@@ -184,6 +226,21 @@ for (const file of sources) {
       line: before.split('\n').length,
       getter: matched[0],
     });
+  }
+
+  // 规则 5：上报侧写进实体的过滤列，实参里必须有 FilterValue。
+  if (REPORT_MODULES.some((name) => file.includes(name))) {
+    for (const matched of text.matchAll(REPORT_COLUMN_SETTER_RE)) {
+      const openIndex = matched.index + matched[0].length - 1;
+      if (argsOf(text, openIndex).includes('FilterValue')) {
+        continue;
+      }
+      rawIntoReportedColumn.push({
+        file,
+        line: text.slice(0, matched.index).split('\n').length,
+        setter: matched[1],
+      });
+    }
   }
 }
 
@@ -256,6 +313,23 @@ check(
         .join('\n    '),
 );
 
+check(
+  '上报侧写进实体的过滤列都过了 `FilterValue`',
+  rawIntoReportedColumn.length === 0,
+  rawIntoReportedColumn.length === 0
+    ? '日志 / 事件两个域的 app / namespace / traceId / sessionId / userId / deviceId 写入时与过滤侧同源 —— '
+      + '写进去什么样子，就得能搜到什么样子（decisions/0071）'
+    : rawIntoReportedColumn
+        .map(
+          (item) =>
+            `${rel(item.file)}:${item.line} 的 entity.set${item.setter}(...)` +
+            ' —— 这几列会被 `?app=` / `?namespace=` / … 精确匹配，而过滤侧是把值 trim 干净再比的：'
+            + '原样入库会让"上报时多打了两个空格"变成一条**永远搜不到**的记录；'
+            + '改成 FilterValue.text(...)（先 trim 再截断，顺序不能反）（decisions/0071）',
+        )
+        .join('\n    '),
+);
+
 console.log('');
 if (problems.length > 0) {
   console.log(`✗ ${problems.length} 项未通过`);
@@ -263,5 +337,5 @@ if (problems.length > 0) {
   process.exit(1);
 }
 console.log('✓ 全部通过');
-console.log('  它守的是"精确匹配的过滤值进 SQL 之前只有一种写法"；');
-console.log('  为什么这么定、以及哪些没覆盖，见 docs/decisions/0069 与 docs/decisions/0070。');
+console.log('  它守的是"精确匹配的过滤值与写进库里的值只有一种写法"；');
+console.log('  为什么这么定、以及哪些没覆盖，见 docs/decisions/0069 · 0070 · 0071。');

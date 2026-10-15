@@ -458,7 +458,7 @@ public class UserGroupService {
         entity.setIsDefault(flag(request.getIsDefault(), 0, "isDefault"));
         entity.setIsEnabled(flag(request.getIsEnabled(), 1, "isEnabled"));
         entity.setSortNo(request.getSortNo() == null ? 0 : request.getSortNo());
-        entity.setDescription(normalize(request.getDescription()));
+        entity.setDescription(FilterValue.text(request.getDescription()));
     }
 
     private static UserGroupVO toVO(UserGroupEntity entity) {
@@ -691,14 +691,6 @@ public class UserGroupService {
             return false;
         }
         return to == null || now < to;
-    }
-
-    private static String normalize(String value) {
-        if (value == null) {
-            return null;
-        }
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
     }
 
 }
