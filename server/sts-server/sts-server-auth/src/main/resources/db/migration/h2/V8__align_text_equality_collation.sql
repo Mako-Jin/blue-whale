@@ -1,0 +1,37 @@
+-- ============================================================================
+-- V8 · 文本相等的语义：本方言**无需改动**（H2 方言）
+--
+-- 与 db/migration/mysql/V8__*.sql、db/migration/dameng/V8__*.sql 一一对应。
+-- MySQL 那份要动 13 张表；这一份**刻意是空的**，理由如下 —— 见 docs/decisions/0065。
+--
+-- 【为什么是 V8】Flyway 的 locations 是全模块共享的 classpath:db/migration/<vendor>，
+-- 版本号**全仓唯一**：V1 日志域 / V2 行为事件域 / V3 权限域建表 / V4 审计域 /
+-- V5 口令加固 / V6 日志加列 / V7 事件加列，本片接 V8。见 docs/decisions/0009。
+--
+-- 【为什么没有语句】V3 里那两处表选项（ENGINE / CHARSET / COLLATE）在 H2 方言里
+-- 本来就不存在（见 h2/V3 的注释），H2 也没有可写的表级排序规则 ——
+-- 本 profile 的 URL 是
+--   jdbc:h2:mem:bluewhale;DB_CLOSE_DELAY=-1;MODE=MySQL;DATABASE_TO_LOWER=TRUE
+-- 没有 IGNORECASE，而 **H2 2.x 已经不再支持这个设置**（当次实测：把它加进 URL 之后
+-- `SELECT 'a' = 'A'` 仍然返回 FALSE，见 docs/decisions/0065）。
+--
+-- 也就是说：**H2 的默认比较语义恰好就是目标值**，不需要语句。当次实测：
+--
+--   探针                                  H2 2.4.240   MySQL 改前(_ai_ci)   MySQL 改后(_as_cs)
+--   已存 a@b.com，查 = 'A@B.COM'              0              1                    0
+--   已存 a@b.com，查 = 'a@b.com '（尾空格）    0              0                    0
+--   已存 a@b.com，查 = 'á@b.com'              0              1                    0
+--   WHERE username = 'Admin'（已存 admin）     0              1                    0
+--   唯一索引：已有 admin 再插 Admin          允许           拒绝                 允许
+--
+-- 【不要从这里抄任何东西到 mysql 版】反过来也不成立：mysql 版的
+-- `ALTER TABLE ... CONVERT TO CHARACTER SET` 不是 H2 语法，抄过来会让本 profile 启动失败。
+-- 三份脚本**本来就不同构**（0009 就是为此按厂商分了目录），
+-- 同构的是**语义**，而语义由 TextEqualityApiTest 在两个 profile 上各跑一遍来钉。
+--
+-- 【本 profile 的 H2 原生替代品，以及为什么没用它】
+-- H2 有 `VARCHAR_IGNORECASE` 类型（实测有效），但它做的是**反方向**的事
+-- —— 那是"大小写不敏感"。本片要的是"敏感"，也就是 H2 的默认值。
+-- ============================================================================
+
+-- （本方言无需任何语句）

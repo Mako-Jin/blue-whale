@@ -9,7 +9,16 @@
 #
 # 前置准备（一次性）：数据库要先存在，Flyway 只负责建表、不负责建库。
 #   CREATE DATABASE bluewhale DEFAULT CHARACTER SET utf8mb4
-#     COLLATE utf8mb4_0900_ai_ci;
+#     COLLATE utf8mb4_0900_as_cs;
+#
+# ⚠️ **排序规则用 `_as_cs`（区分大小写 + 区分重音），不要用 MySQL 默认的 `_ai_ci`。**
+#    本仓的"两个文本什么时候算相等"是**统一决定过**的：区分大小写（见 docs/decisions/0065）。
+#    用 `_ai_ci` 会让 MySQL 上 `A@b.com` 与 `a@b.com` 是同一个邮箱、`ADMIN` 能登进 `admin`
+#    的账号，而 H2 / 达梦上不能 —— 同一串请求在两个 profile 下结果不同。
+#    已存在的库里，13 张 `bw_auth_*` 表由迁移 `V8__align_text_equality_collation.sql`
+#    转过来（V3 给每张表显式写了 `_ai_ci`，所以这一行**不能**省 —— 见 V8 的注释）。
+#    注意别顺手选名字更像"二进制比较"的 `utf8mb4_bin`：它是 PAD SPACE，
+#    `'a@b.com '` 与 `'a@b.com'` 会被当成同一个，而 H2 认为它们不同（ADR-0065 的探针表）。
 #
 # 前置准备（二，一次性）：**种一套开发账号**。
 #
