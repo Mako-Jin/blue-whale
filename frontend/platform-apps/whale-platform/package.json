@@ -11,6 +11,7 @@
     "lint": "echo 'lint: noop'"
   },
   "dependencies": {
+    "@ant-design/icons": "^5.6.1",
     "@bluewhale/whale-common-theme": "workspace:*",
     "@bluewhale/whale-common-tools": "workspace:*",
     "@bluewhale/whale-ui": "workspace:*",

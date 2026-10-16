@@ -1,14 +1,16 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { ConfigProvider } from 'antd';
-import { antdThemeConfig } from '@bluewhale/whale-common-theme';
+import { App as AntdApp } from 'antd';
+import ThemeProvider from './theme/ThemeProvider';
 import App from './App';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ConfigProvider theme={antdThemeConfig}>
-      <App />
-    </ConfigProvider>
+    <ThemeProvider>
+      <AntdApp>
+        <App />
+      </AntdApp>
+    </ThemeProvider>
   </React.StrictMode>,
 );

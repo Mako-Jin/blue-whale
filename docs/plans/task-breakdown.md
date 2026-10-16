@@ -15,26 +15,26 @@
 
 ## Wave 0：契约与准备（串行）
 
-- [ ] T0.1 定义 common 契约（见附录 A），写入本文档供 Wave 1/2 共同遵守
+- [x] T0.1 定义 common 契约（见附录 A），写入本文档供 Wave 1/2 共同遵守
 - [x] T0.2 环境检查：Docker 未安装 → Phase 1 容器启动推迟；DDL 改为脚本产出 + SQL 审查
-- [ ] T0.3 拆分文档提交推送
+- [x] T0.3 拆分文档提交推送（`8eddae1`）
 
 ## Wave 1：基础层（4 路并行）
 
-- [ ] T1.1 **whale-common 填充**
+- [x] T1.1 **whale-common 填充**
   - `common/core`：Result / PageResult / PageQuery / ErrorCode / GlobalException / GlobalExceptionHandler
   - `common/mybatis`：MyBatis-Plus 分页插件 + 字段自动填充 MetaObjectHandler 配置类
   - whale-tools：补充 AssertX / IdUtils 等实用工具
   - 验证：`mvn -pl whale-common/... compile` 通过
-- [ ] T1.2 **全服务 DDL 脚本**（`backend/<module>/src/main/resources/db/init.sql`）
+- [x] T1.2 **全服务 DDL 脚本**（`backend/<module>/src/main/resources/db/init.sql`）
   - whale-auth：sys_user / sys_role / sys_permission / sys_menu / sys_dept / sys_user_role / sys_role_permission / sys_user_permission(ABAC属性)
   - whale-i18n-sdk：sys_i18n_message
   - whale-audit：audit_log；whale-file：file_info；whale-job：job_info/job_log
   - 验证：语句审查 + 与实体字段一致
-- [ ] T1.3 **前端基座登录与布局**（whale-platform）
+- [x] T1.3 **前端基座登录与布局**（whale-platform）
   - 登录页（mock 登录 API）+ 路由守卫 + MainLayout(Header/Sidebar/多标签) + 主题接入
   - 验证：`pnpm --filter @bluewhale/whale-platform build` 通过
-- [ ] T1.4 **运维脚本补全**：`infrastructure/scripts/` 增加 dev 启动校验脚本（检查 MySQL/Redis/Nacos 可达性），替代 Docker 缺位
+- [x] T1.4 **运维脚本补全**：`infrastructure/scripts/` 增加 dev 启动校验脚本（检查 MySQL/Redis/Nacos 可达性），替代 Docker 缺位（check-env.ps1 / check-env.sh）
 
 ## Wave 2：核心服务（3 路并行，依赖 T1.1）
 

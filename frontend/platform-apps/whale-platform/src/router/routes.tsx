@@ -1,24 +1,47 @@
 // 基础路由配置
-// 基座自身路由 + 子应用挂载点
+// 基座自身路由 + 子应用挂载点；/login 独立于主布局，主布局整体由 RequireAuth 守卫
 
 import { lazy, Suspense } from 'react';
-import { Navigate } from 'react-router-dom';
+import Dashboard from '../pages/Dashboard';
+import PlaceholderPage from '../pages/PlaceholderPage';
+import SubAppContainer from '../pages/SubAppContainer';
+import { GuestOnly, RequireAuth } from './guards';
 
 const MainLayout = lazy(() => import('../layouts/MainLayout'));
-const Dashboard = lazy(() => import('../pages/Dashboard'));
-const SubAppContainer = lazy(() => import('../pages/SubAppContainer'));
+const LoginPage = lazy(() => import('../pages/login'));
 
 export const routes = [
+  {
+    path: '/login',
+    element: (
+      <Suspense fallback={null}>
+        <GuestOnly>
+          <LoginPage />
+        </GuestOnly>
+      </Suspense>
+    ),
+  },
   {
     path: '/',
     element: (
       <Suspense fallback={null}>
-        <MainLayout />
+        <RequireAuth>
+          <MainLayout />
+        </RequireAuth>
       </Suspense>
     ),
     children: [
-      { index: true, element: <Navigate to="/dashboard" replace /> },
-      { path: 'dashboard', element: <Dashboard /> },
+      // 工作台（首页，多标签页中固定不可关）
+      { index: true, element: <Dashboard /> },
+      // 系统管理 - 占位页
+      { path: 'system/users', element: <PlaceholderPage title="用户管理" /> },
+      { path: 'system/roles', element: <PlaceholderPage title="角色管理" /> },
+      { path: 'system/menus', element: <PlaceholderPage title="菜单管理" /> },
+      // 国际化演示 - 占位页
+      {
+        path: 'i18n-demo',
+        element: <PlaceholderPage title="国际化演示" description="多语言能力演示入口，功能规划中" />,
+      },
       // 子应用路由 - qiankun 根据 activeRule 激活
       { path: 'portal/*', element: <SubAppContainer /> },
       { path: 'erp/*', element: <SubAppContainer /> },

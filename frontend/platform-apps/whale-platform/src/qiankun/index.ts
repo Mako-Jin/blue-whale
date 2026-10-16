@@ -9,19 +9,37 @@ import {
 } from 'qiankun';
 import { apps } from './apps';
 
+type SubAppErrorListener = (appName: string) => void;
+
+const subAppErrorListeners = new Set<SubAppErrorListener>();
+
+// 订阅子应用加载失败事件，返回取消订阅函数（供 SubAppContainer 渲染错误兜底 UI）
+export function onSubAppError(listener: SubAppErrorListener): () => void {
+  subAppErrorListeners.add(listener);
+  return () => {
+    subAppErrorListeners.delete(listener);
+  };
+}
+
+function notifySubAppError(message: string): void {
+  const failed = apps.find((app) => message.includes(app.name));
+  if (!failed) return;
+  console.error(`[qiankun] 子应用 ${failed.name} 加载失败:`, message);
+  subAppErrorListeners.forEach((listener) => listener(failed.name));
+}
+
 let actions: MicroAppStateActions;
 
 export function initQiankun(): void {
-  registerMicroApps(apps, {
-    beforeLoad: [async (app) => console.log('[qiankun] before load', app.name)],
-    beforeMount: [async (app) => console.log('[qiankun] before mount', app.name)],
-    afterMount: [async (app) => console.log('[qiankun] after mount', app.name)],
-    beforeUnmount: [async (app) => console.log('[qiankun] before unmount', app.name)],
-    afterUnmount: [async (app) => console.log('[qiankun] after unmount', app.name)],
-  });
+  registerMicroApps(apps);
 
   addGlobalUncaughtErrorHandler((event) => {
-    console.error('[qiankun] global error:', event);
+    const msg = event instanceof Error ? event.message : typeof event === 'string' ? event : '';
+    if (msg) {
+      notifySubAppError(msg);
+    } else {
+      console.error('[qiankun] global error:', event);
+    }
   });
 
   actions = initGlobalState({ token: 'bluewhale-platform-token' });
