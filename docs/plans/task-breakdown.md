@@ -38,27 +38,27 @@
 
 ## Wave 2：核心服务（3 路并行，依赖 T1.1）
 
-- [ ] T2.1 **whale-auth 权限中心**（最大任务）
+- [x] T2.1 **whale-auth 权限中心**（最大任务）
   - JWT：登录/刷新/注销，jjwt 0.12 API
   - Spring Security 过滤器链 + UserDetailsService
   - RBAC 六层级实体/Mapper/Service/Controller：用户、角色、菜单、权限点（接口/按钮）、部门、ABAC 属性
   - 内置数据：admin 用户 + 初始化角色
   - 验证：`mvn -pl whale-services/whale-auth compile` + 启动类加载测试
-- [ ] T2.2 **whale-gateway 网关**
+- [x] T2.2 **whale-gateway 网关**
   - Nacos 动态路由 + 白名单（auth 相关路径放行）
   - JWT 全局过滤器（解析 token 传递用户信息 Header）
   - 全局异常处理 + TraceId 响应头
   - 验证：`mvn -pl whale-services/whale-gateway compile`
-- [ ] T2.3 **whale-i18n-sdk 国际化**
+- [x] T2.3 **whale-i18n-sdk 国际化**
   - 三级优先级：数据库 > 属性文件 > 默认值（MessageSource 扩展）
   - Redis 缓存 + `I18nDatabaseProvider` SPI 实现
   - 验证：`mvn -pl whale-sdk/whale-i18n-sdk compile` + 单测三级回退逻辑
 
 ## Wave 3：集成验证与收尾（串行）
 
-- [ ] T3.1 `mvn clean install` 全量构建，修复跨模块问题
-- [ ] T3.2 `pnpm build` 前端全量构建
-- [ ] T3.3 更新 roadmap 勾选 + devlog 记录 + commit + push origin
+- [x] T3.1 `mvn clean install` 全量构建，修复跨模块问题（25 模块 exit 0）
+- [x] T3.2 `pnpm build` 前端全量构建（11/11 successful）
+- [x] T3.3 更新 roadmap 勾选 + devlog 记录 + commit + push origin
 
 ## 附录 A：common 契约（Wave 2 遵守）
 

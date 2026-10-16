@@ -1,5 +1,5 @@
 server:
-  port: ${server.port:8080}
+  port: ${SERVER_PORT:8080}
 
 spring:
   application:
@@ -9,26 +9,84 @@ spring:
   cloud:
     nacos:
       discovery:
-        server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
         namespace: ${NACOS_NAMESPACE:public}
       config:
-        server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
         namespace: ${NACOS_NAMESPACE:public}
         file-extension: yaml
     gateway:
-      discovery:
-        locator:
-          enabled: true
-          lower-case-service-id: true
-      routes:
-        - id: whale-auth
-          uri: lb://whale-auth
-          predicates:
-            - Path=/api/auth/**
-        - id: whale-job
-          uri: lb://whale-job
-          predicates:
-            - Path=/api/job/**
+      server:
+        webflux:
+          # 服务发现路由定位器（Gateway 5.x 官方前缀：spring.cloud.gateway.server.webflux）
+          discovery:
+            locator:
+              enabled: true
+              lower-case-service-id: true
+          routes:
+            - id: whale-auth
+              uri: lb://whale-auth
+              predicates:
+                - Path=/auth/**
+              filters:
+                - StripPrefix=1
+            - id: whale-job
+              uri: lb://whale-job
+              predicates:
+                - Path=/job/**
+              filters:
+                - StripPrefix=1
+            - id: whale-workflow
+              uri: lb://whale-workflow
+              predicates:
+                - Path=/workflow/**
+              filters:
+                - StripPrefix=1
+            - id: whale-form
+              uri: lb://whale-form
+              predicates:
+                - Path=/form/**
+              filters:
+                - StripPrefix=1
+            - id: whale-file
+              uri: lb://whale-file
+              predicates:
+                - Path=/file/**
+              filters:
+                - StripPrefix=1
+            - id: whale-pay
+              uri: lb://whale-pay
+              predicates:
+                - Path=/pay/**
+              filters:
+                - StripPrefix=1
+            - id: whale-monitor
+              uri: lb://whale-monitor
+              predicates:
+                - Path=/monitor/**
+              filters:
+                - StripPrefix=1
+            - id: whale-audit
+              uri: lb://whale-audit
+              predicates:
+                - Path=/audit/**
+              filters:
+                - StripPrefix=1
+
+whale:
+  gateway:
+    jwt:
+      # HS256 签名密钥，必须与 whale-auth 保持一致
+      secret: ${WHALE_GATEWAY_JWT_SECRET:bluewhale-jwt-secret-2026-please-change-in-production}
+    # 不需要 JWT 认证的白名单路径（支持 Ant 通配符）
+    white-list:
+      - /auth/login
+      - /auth/refresh
+      - /actuator/**
+      - /v3/api-docs/**
+      - /doc.html
+      - /webjars/**
+      - /favicon.ico
 
 logging:
   level:

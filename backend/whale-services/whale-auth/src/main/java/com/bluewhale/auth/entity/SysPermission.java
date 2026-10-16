@@ -4,9 +4,10 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.time.LocalDateTime;
 
 /**
- * 权限实体占位
+ * 权限实体
  * 支持系统/菜单/接口/按钮/数据/属性层级
  *
  * @author BlueWhale
@@ -26,6 +27,9 @@ public class SysPermission implements Serializable {
     private String path;
     private String method;
     private Integer sortNo;
+    /** 状态：1 启用 / 0 停用 */
     private Integer status;
     private Integer deleted;
+    private LocalDateTime createTime;
+    private LocalDateTime updateTime;
 }

@@ -1,22 +1,37 @@
 server:
-  port: ${server.port:8081}
-  servlet:
-    context-path: /
+  port: 8081
 
 spring:
   application:
     name: whale-auth
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3306/bluewhale_auth?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASSWORD:root}
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
   cloud:
     nacos:
       discovery:
-        server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
         namespace: ${NACOS_NAMESPACE:public}
       config:
-        server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
         namespace: ${NACOS_NAMESPACE:public}
         file-extension: yaml
+
+whale:
+  auth:
+    jwt:
+      # HS256 签名密钥，与 whale-gateway 保持完全一致；生产环境务必覆盖
+      secret: ${JWT_SECRET:bluewhale-jwt-secret-2026-please-change-in-production}
+      expire-minutes: 120
+      refresh-expire-minutes: 1440
 
 mybatis-plus:
   configuration:

@@ -13,30 +13,31 @@
 
 ### 2.1 whale-auth 权限中心（最高优先级）
 
-- [ ] 数据库表设计：sys_user / sys_role / sys_permission / sys_menu / sys_dept / sys_user_role / sys_role_permission
-- [ ] RBAC + ABAC 六层级模型：系统 → 菜单 → 接口 → 按钮 → 数据 → 属性
-- [ ] JWT 登录 / 刷新 / 注销接口
-- [ ] Spring Security + `@RequirePermission` 注解拦截
+- [x] 数据库表设计：sys_user / sys_role / sys_permission / sys_menu / sys_dept / sys_user_role / sys_role_permission（+sys_user_permission ABAC 属性表）
+- [x] RBAC + ABAC 六层级模型：系统 → 菜单 → 接口 → 按钮 → 数据 → 属性
+- [x] JWT 登录 / 刷新 / 注销接口
+- [x] Spring Security + `@RequirePermission` 注解拦截
 - [ ] 对接 admin 前端登录
 
 ### 2.2 whale-gateway 网关
 
-- [ ] Nacos 服务发现动态路由
-- [ ] JWT 全局鉴权过滤器
+- [x] Nacos 服务发现动态路由
+- [x] JWT 全局鉴权过滤器
 - [ ] Sentinel 限流熔断
-- [ ] 请求日志 / TraceId 链路追踪
+- [x] 请求日志 / TraceId 链路追踪
 
 ### 2.3 whale-common / whale-tools 公共组件
 
-- [ ] 统一返回体 `Result<T>` / `PageResult<T>`
-- [ ] 全局异常处理 `GlobalExceptionHandler`
-- [ ] MyBatis-Plus 分页插件、字段自动填充
+- [x] 统一返回体 `Result<T>` / `PageResult<T>`
+- [x] 全局异常处理 `GlobalExceptionHandler`
+- [x] MyBatis-Plus 分页插件、字段自动填充
 
 ### 2.4 whale-i18n-sdk 国际化
 
-- [ ] 消息表 `sys_i18n_message` 设计
-- [ ] 三级优先级实现：数据库 > 属性文件 > 默认值
-- [ ] Redis 缓存 + 消息 CRUD 接口
+- [x] 消息表 `sys_i18n_message` 设计
+- [x] 三级优先级实现：数据库 > 属性文件 > 默认值
+- [x] Redis 缓存（+SPI 数据源实现，14 个单测全绿）
+- [ ] 消息 CRUD 接口
 
 ### 2.5 其余服务骨架填充
 
@@ -47,10 +48,10 @@
 
 ### 3.1 whale-platform 基座
 
-- [ ] 登录页 + 路由守卫
-- [ ] MainLayout（Header / Sidebar / 多标签页）
-- [ ] qiankun 加载动画 + 子应用错误兜底
-- [ ] 主题切换（@bluewhale/whale-common-theme）
+- [x] 登录页 + 路由守卫
+- [x] MainLayout（Header / Sidebar / 多标签页）
+- [x] 子应用错误兜底（qiankun 加载动画待做）
+- [x] 主题切换（@bluewhale/whale-common-theme，亮/暗）
 
 ### 3.2 whale-ui 组件库
 

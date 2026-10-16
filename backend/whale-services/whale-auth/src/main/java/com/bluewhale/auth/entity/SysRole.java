@@ -4,9 +4,10 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.time.LocalDateTime;
 
 /**
- * 角色实体占位
+ * 系统角色实体
  *
  * @author BlueWhale
  */
@@ -21,6 +22,9 @@ public class SysRole implements Serializable {
     private String roleName;
     private String description;
     private Integer sortNo;
+    /** 状态：1 启用 / 0 停用 */
     private Integer status;
     private Integer deleted;
+    private LocalDateTime createTime;
+    private LocalDateTime updateTime;
 }
