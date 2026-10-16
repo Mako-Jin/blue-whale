@@ -70,6 +70,16 @@ public class DataScopeService {
      * 求指定用户的数据范围。用于反查接口 —— 因此要校验该用户**在本租户内**存在，
      * 否则"查一个不存在的用户"会返回一个看起来正常的空结果（很像"这个人没有任何范围"），
      * 跨租户查别人的用户同样会被这里挡住。
+     *
+     * <p><b>它曾经是本仓唯一一处"覆盖文案"的落点</b>（{@code 0059} 第二节：
+     * "用户不存在**或不属于当前租户**"，并注明"不能拆成两个码 —— 拆了就等于告诉调用方
+     * 那个人存在，只是不在你这儿"）。{@code 0075} 把那一族收回到**不覆盖**：
+     * 覆盖的那句话与"东西真的不存在"那一支说的原始文案**不是同一句**，
+     * 于是同一个 {@code 40401} 在同一族接口的两条分支上给出两句不同的话 ——
+     * 拆码想避免的那件事，换了个地方又发生了。裸文案没有这个问题。
+     *
+     * <p>这条 SQL 用 {@code eq(tenant_id)} 把两种成因合在一次查询里，本来也分不出来 ——
+     * 所以"不区分"不是本方法新加的行为，它只是不再**多说一句**。
      */
     @Transactional(readOnly = true)
     public UserDataScopeVO resolve(long userId) {
@@ -78,7 +88,7 @@ public class DataScopeService {
                 .eq(UserEntity::getId, userId)
                 .eq(UserEntity::getTenantId, tenantId));
         if (user == null) {
-            throw AuthResultCode.USER_NOT_FOUND.businessException("用户不存在或不属于当前租户");
+            throw AuthResultCode.USER_NOT_FOUND.businessException();
         }
         return merge(loadEffectiveRoles(tenantId, userId), tenantId, userId);
     }

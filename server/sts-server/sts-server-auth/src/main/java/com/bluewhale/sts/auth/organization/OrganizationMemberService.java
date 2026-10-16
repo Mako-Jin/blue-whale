@@ -364,9 +364,12 @@ public class OrganizationMemberService {
     /**
      * 引用的人必须存在且同租户。
      *
-     * <p>文案里点名"不属于同一租户"而不是笼统的"不存在"：{@code 40002} 的默认文案是
-     * "引用的关联数据不存在"，而这里数据**确实存在**，只是放错了租户。
-     * 判定两侧都限定 {@code tenant_id}，跨租户的归属**永远算不出范围**。
+     * <p>把"存在性 + 租户一致 + 取名字"收在一次调用里，是因为这三件事都必须
+     * 在同一个对象上做，拆成三次查询等于查同一个 id 三遍。
+     *
+     * <p><b>"不属于同一租户"那半句只说给平台级读者</b>（{@code 0075}）：
+     * 非平台级操作者拿到的是与"引用的用户不存在"逐字相同的那句，
+     * 分化的判定与两句话都在 {@link TenantService#assertReferencedInSameTenant} 里。
      */
     private UserEntity requireSameTenantUser(Long orgTenantId, Long userId) {
         UserEntity user = userId == null ? null : userMapper.selectById(userId);
@@ -374,11 +377,9 @@ public class OrganizationMemberService {
             throw AuthResultCode.PARAM_REFERENCE_MISSING.businessException(
                     "引用的用户不存在：" + userId);
         }
-        if (orgTenantId == null || !orgTenantId.equals(user.getTenantId())) {
-            throw AuthResultCode.PARAM_REFERENCE_MISSING.businessException(
-                    "该用户与组织不属于同一租户（" + userId + "）—— "
-                            + "判定两侧都限定租户，跨租户的组织归属永远不会生效");
-        }
+        tenantService.assertReferencedInSameTenant(orgTenantId, user.getTenantId(), "用户", userId,
+                "该用户与组织不属于同一租户（" + userId + "）—— "
+                        + "判定两侧都限定租户，跨租户的组织归属永远不会生效");
         return user;
     }
 

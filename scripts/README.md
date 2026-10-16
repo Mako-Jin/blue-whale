@@ -26,6 +26,7 @@
 | `verify-unique-columns.mjs`    | 服务层挡重名的每个 `*_EXISTS` 码都登记了它判的哪一列；每个判重列要么库上有 UNIQUE 索引兜底、要么在白名单写明"业务规则级唯一"的理由；顺带守三方言唯一索引集合同构 | **无前置条件**（只读源码文本与三方言迁移脚本，不编译、不连网、不写文件）；`node scripts/verify-unique-columns.mjs` | `docs/decisions/0063` |
 | `verify-like-escaping.mjs`     | `server/` 的 `src/main/java` 里每一处 `LIKE` 都必须经过 `KeywordLike`（转义关键词、并把 `ESCAPE '!'` 写进 SQL），不许再有裸的 `like(...)`；带 `LIKE` 的片段同一行必须有 `ESCAPE`；白名单逐条核对条数 | **无前置条件**（只读源码文本，不编译、不连网、不写文件）；`node scripts/verify-like-escaping.mjs` | `docs/decisions/0067` |
 | `verify-filter-values.mjs`     | `server/` 的 `src/main/java` 里**精确匹配**的过滤值与**要拿它去匹配的那些写入值**都在 `FilterValue` 上收口：`.eq(...)` 的条件里不许用 `hasText(...)` 或内联的 `query.getX().isBlank()`；三个手写聚合 SQL（`countByLevel` / `countByEventName` / `countByAction`）的实参不许是 `query.getXxx()`；**枚举列**的五个 getter（`getStatus` / `getResourceType` / `getMemberType` / `getLevel` / `getResult`）只能作为 `FilterValue.enumValue(...)` 的第一个实参出现；**上报侧**（`sts-server-log` / `sts-server-track`）写入实体时 `entity.set<App\|Namespace\|TraceId\|SessionId\|UserId\|DeviceId>(...)` 的实参必须含 `FilterValue`；**寻址列**（`sts-server-auth`）`entity.set<Email\|Phone\|ContactEmail\|ContactPhone>(...)` 与 `existsEmail(...)` / `existsPhone(...)` 的实参**含 `request.getXxx()` 且不含 `FilterValue` ⇒ 报红**（判重也是一次 `eq`，两侧必须共用一个归一值） | **无前置条件**（只读源码文本，不编译、不连网、不写文件）；`node scripts/verify-filter-values.mjs` | `docs/decisions/0069` · `docs/decisions/0070` · `docs/decisions/0071` · `docs/decisions/0072` |
+| `verify-notfound-messages.mjs` | `404xx` 的抛出点全是无参的（文案只能来自枚举）；没有一处 `businessException(...)` 在拼另一个码的 `getMessage()` | **无前置条件**（只读源码文本，不编译、不连网、不写文件）；`node scripts/verify-notfound-messages.mjs` | `docs/decisions/0059` · `docs/decisions/0075` |
 | `verify-standalone-dev-login.mjs` | 用真实 Chrome 验证子应用**单跑**时的自建会话与开发账号自动登录（后端在跑 / 没起两种状态都跑一遍） | 至少一个子应用的 dev 服务在跑（:3200 / :3300 / :3500 / :3600，没起的会被记成"跳过"）；**后端 :8080 可选** —— 在跑时断言自动登录成功，没起时断言优雅降级；本机装有 Google Chrome | `docs/decisions/0018` · `0033` |
 
 ### `verify-micro-frontend.mjs` 做什么
@@ -581,6 +582,51 @@ log / track 两个上报模块、且只认接收者是 `entity`）；
 `trim()`（Java，只吃 `<= U+0020`）与 `isBlank()`（`Character.isWhitespace`）的覆盖面之差
 （那是待裁决的口径，不是守卫能判的）。
 
+### `verify-notfound-messages.mjs` 做什么
+
+把 `docs/decisions/0059`（**一个码就是一个对象**）与 `0075`（**撤回覆盖文案**）机械化成
+两条零前置的检查。它查两件事：
+
+1. **`404xx` 的抛出点都是无参的** —— 枚举里那句 `"用户不存在"` 是这一族**唯一的文案来源**，
+   凡是写成 `CONST.businessException(...)` 且传了实参的，报红并把那句实参带出来。
+2. **没有任何 `businessException(...)` 的实参里出现 `.getMessage()`** —— 拿**另一个码**的文案
+   来拼接，等于把这个码的含义挂到那个码上。
+
+**为什么需要它。** `0074` 把 `0059` 的第 ① 条读成了"**可以**覆盖，只要覆盖的理由一样"：
+它用一个辅助方法把"东西真的不存在"与"存在但不属于当前租户"合成一句
+（`notFoundCode.getMessage() + "或不属于当前租户"`），并把当时在 `DataScopeService#resolve`
+的那一处**推广成一族**。方向是反的 —— 覆盖之后，"真的不存在"那一支说的仍是裸文案，
+于是同一个码在两条分支上说出**两句不同的话**，调用方比一下 `message` 就知道
+"这条记录确实存在，只是在别家"，而"它存在"本身就是别人的信息（`0025` 第 2 条）。
+`0075` 把那一族撤回，而**撤回没有任何测试会拦**：`404xx` 的现有断言
+（`NotFoundCodeApiTest` 断文案前缀、`ReferenceMessageApiTest` 断 `40002` 的短语）
+都是"**含有**某个词"，拦不住"想拦的那句话仍在"。
+
+**为什么它的两条规则都成立**（而 `0064` 那类不成立）：一条是"调用点的实参为空"，
+一条是"实参里有没有那个方法名"。都是**语法级**事实，不需要理解语义，因此不误报。
+枚举名字也不是白名单 —— 它从 `AuthResultCode.java` 里**解析**出全部 `404xx` 常量，
+所以新加一个码自动纳入射程（响应 `0067`「白名单要核对条数」那条教训）。
+
+**两个方向都验过**（扰动）：把 `DataScopeService#resolve` 改回
+`businessException("用户不存在或不属于当前租户")` ⇒ 规则 1 红（`DataScopeService:49:34`，
+把实参原文带出来）；把 `TenantService#assertVisible` 改回 `0074` 的原句
+`notFoundCode.businessException(notFoundCode.getMessage() + "或不属于当前租户")`
+⇒ 规则 2 红（`TenantService:227:28`）—— **这一条同时说明这个守卫逮得住它要防的那个写法**，
+而这正是它存在的全部理由（`0072` 规则 6 的判据："能把改动前的写法打红"）。
+
+**刻意不查的：** "每个带 `tenant_id` 的实体表，其 `requireXxx` 必须调 `assertVisible`"
+（这正是 `0074`「未覆盖 4」想要的那条守卫，但**表名 → 类名不是无歧义的 token 形状** ——
+`bw_auth_user` → `requireUser`、`bw_auth_organization` → `requireOrg`、
+`bw_auth_user_group` → `requireGroup`…… 只能硬编码一张对照表，正是 `0067` 说过的形状）；
+"写侧『这次引用的对象与容器同租户吗』有没有走同一个落点"（手搓写法无穷：
+`.equals(tenantId)` / `Objects.equals` / 先取局部变量 / 在 SQL 里 `eq(tenant_id)` ——
+本轮人工核了 16 张表 16 个去重引用列，那仍是当前唯一的办法，见 `docs/decisions/0075`）；
+"形参点调用时写的固定文案"（`assertVisible(code, …)` 里那个常量是形参，名字扫不到 ——
+但那种写法要报一句有意义的话几乎必然要拼另一个码的文案，由规则 2 兜住；
+真正无解的只剩"形参调用却写一句与形参无关的固定文案"，而那种写法读起来就是错的）；
+"具体措辞"（规则守的是机制 —— 这一族只有一个来源，不是"哪一句字面量"，
+所以重写枚举里那句话不会被它拦下，那是另一件事）。
+
 ### 脚本的硬性约束
 
 - **可重复执行**：跑第二遍不应产生副作用或报"已存在"错误。
@@ -595,7 +641,8 @@ log / track 两个上报模块、且只认接收者是 `entity`）；
   `scripts/verify-standalone-dev-login.mjs` 正是为这条而生，重跑一遍前**先重启对应的 dev 服务**。
 - **能不要前置条件就不要** —— 这一条决定脚本能不能进 CI。`verify-nginx-config.mjs`、
   `verify-docs-index.mjs`、`verify-api-contract.mjs`、`verify-result-codes.mjs`、
-  `verify-unique-columns.mjs`、`verify-like-escaping.mjs` 与 `verify-filter-values.mjs` 是**零前置**的
+  `verify-unique-columns.mjs`、`verify-like-escaping.mjs`、`verify-filter-values.mjs`
+  与 `verify-notfound-messages.mjs` 是**零前置**的
   （不连网、不读产物、不写文件），所以流水线的 `guards` job 直接跑它们；`verify-bundle-secrets.mjs` **不需要服务、但需要前端产物**，
   所以它跑在 `web` job 的构建**之后**（顺序不能反 —— 反了它就扫不到东西，还会静默"通过"）；
   需要前置服务的脚本继续留在本机 —— 真机层（浏览器 + 冷启动 dev server）**刻意不在 CI 的必过项里**，

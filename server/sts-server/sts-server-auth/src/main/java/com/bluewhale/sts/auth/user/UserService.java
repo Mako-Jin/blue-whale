@@ -254,9 +254,11 @@ public class UserService {
         if (entity == null) {
             throw AuthResultCode.USER_NOT_FOUND.businessException();
         }
-        // 非平台级操作者够不到别家租户的用户 —— 与"这个用户不存在"**同码同文案**
-        // （"用户不存在或不属于当前租户"），沿用 DataScopeService#resolve 的那条口径：
-        // 403 等于承认"这个人存在，只是不给你看"，而"他存在"本身就是别人的信息。
+        // 非平台级操作者够不到别家租户的用户 —— 与"这个用户不存在"**同码同文案**：
+        // 403（或一句带后缀的话）等于承认"这个人存在，只是不给你看"，
+        // 而"他存在"本身就是别人的信息（0025 第 2 条 / 0059 第二节）。
+        // 文案的合一只在 TenantService#assertVisible 一处（decisions/0075）：
+        // 覆盖文案会与上面那句"用户不存在"分叉，两条分支于是给出两句不同的话。
         // 详情 / 修改 / 删除 / 重置口令 / 反查角色五条路径全部经这里（decisions/0074）
         tenantService.assertVisible(entity.getTenantId(), AuthResultCode.USER_NOT_FOUND);
         return entity;

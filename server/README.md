@@ -517,35 +517,61 @@ DDL 里有**六个唯一编码列**，`uk_*` 一律**不含 `deleted`** ⇒ 软�
 > 同样不能靠列名、注释、邻接关系，**也不能抄上一条结论或上一份文档的背景** ——
 > ADR 的背景写的是**决策前**的事实，而它会被后来的人当成现状读（`decisions/0054`）。
 
-### `40002` 的 16 处文案与它们的读者
+### `40002` 的每一处文案与它的读者
 
 `PARAM_REFERENCE_MISSING(40002)` 的形状与别的业务码不同：**它是全仓唯一一个"一处判据、
-十六处 `throw`"的码**。十六处拦的都是同一件事（引用的东西不存在，或存在但放错了租户），
-差别只在**文案点名了谁**。所以它值得的核对不是"按支拆"（它只有一支），
+多处 `throw`"的码**。每一处拦的都是同一件事（引用的东西不存在，或存在但放错了租户），
+差别只在**文案点名了谁**。所以它值得的核对不是"按支拆"（每一处只有一支），
 而是"每一处是否点名了正确的对象、是否都有断言"（`decisions/0057`）。
+
+**计数刻意不写在节标题里**（`decisions/0039`：活文档不写会变的计数）。本节此前写的是"16 处"，
+而 `0074` 新加的两处 —— `TenantService#resolveWriteTenant` 与
+`OrganizationService#managerNameOf` —— **一次都没登记进来**，`0075` 逐个回溯源码才对齐。
+要数就照着下面这张表数：**一行就是一个落点**。
 
 **这张表是权威版本**（`〃` 表示"同上一个方法"）。
 
 | 落点 | 文案点名 | 用例 |
 | --- | --- | --- |
-| `TenantService#assertExists` | 租户 | `TenantReferenceApiTest` |
+| `TenantService#requireReferencedTenant`（`#assertExists` / `#assertAcceptsNewData` 共用） | 租户 | `TenantReferenceApiTest` |
+| `TenantService#resolveWriteTenant` | 租户 | `TenantIsolationApiTest` |
 | `UserGroupService#bindMember` | 引用的用户 | `ReferenceMessageApiTest` |
 | `UserGroupService#resolveParent` · 不存在 | 父用户组 | `ReferenceMessageApiTest` |
-| 〃 · 跨租户 | 租户 | `UserGroupApiTest` |
-| `UserGroupService#assertSameTenant` | 用户与用户组 | `UserGroupApiTest` |
+| `UserGroupService#resolveParent` · 跨租户 | **读者分化**（见下） | `UserGroupApiTest` |
+| `UserGroupService#assertSameTenant` | **读者分化** | `TenantIsolationApiTest` |
 | `OrganizationService#resolveParent` · 不存在 | 父组织 | `ReferenceMessageApiTest` |
-| 〃 · 跨租户 | 租户 | `ReferenceMessageApiTest` |
+| `OrganizationService#resolveParent` · 跨租户 | **读者分化** | `ReferenceMessageApiTest` |
+| `OrganizationService#managerNameOf` · 不存在 | 引用的负责人 | `TenantIsolationApiTest` |
+| 〃 · 跨租户 | **读者分化** | `TenantIsolationApiTest` |
 | `OrganizationMemberService#requireSameTenantUser` · 不存在 | 引用的用户 | `ReferenceMessageApiTest` |
-| 〃 · 跨租户 | 用户与组织 | `ReferenceMessageApiTest` |
+| 〃 · 跨租户 | **读者分化** | `ReferenceMessageApiTest` |
 | `RoleService#requireResource` | 引用的资源 | `ReferenceMessageApiTest` |
 | `RoleService#resolveParent` · 不存在 | 父角色 | `ReferenceMessageApiTest` |
-| 〃 · 跨租户 | 租户 | `ReferenceMessageApiTest` |
+| 〃 · 跨租户 | **读者分化** | `ReferenceMessageApiTest` |
 | `RoleMemberService#requireMember` · 用户 | 引用的用户 | `RoleMemberApiTest` |
 | 〃 · 用户组 | 引用的用户组 | `RoleMemberApiTest` |
-| `RoleMemberService#assertSameTenant` | 成员与角色 | `RoleMemberApiTest` |
+| `RoleMemberService#assertSameTenant` | **读者分化** | `TenantIsolationApiTest` |
 | `ResourceService#assertParentExists` | 父资源 | `ResourceApiTest` |
 
-十六处文案**全部点名正确**，包括一处刻意的不对称：`ResourceService` 写的是父资源的
+**「读者分化」是 `0075` 加的一格，也是这一族第一次出现"同一个落点说两句话"。**
+六处"引用的对象必须与容器同租户"的检查（`UserGroupService#assertSameTenant` 与
+`#resolveParent`、`OrganizationService#resolveParent`、`OrganizationMemberService#requireSameTenantUser`、
+`RoleService#resolveParent`、`RoleMemberService#assertSameTenant`）此前**各写一句自己的文案**，
+而那句话对非平台级操作者是一个**先知**：他与"引用的 X 不存在"那一支的文案一比，
+就知道"这个 id 确实是别家的一个真人"。现在这六处全部委托给
+`TenantService#assertReferencedInSameTenant`，两句话由**它一处**生成：
+
+- **平台级**（唯一能合法跨租户的人）拿到那句诊断原文 —— 他写错了租户与写错了主键，
+  要去做的事完全不同（改租户归属 / 改 id）；
+- **非平台级**拿到的是**与"引用的 X 不存在"逐字相同**的一句话（只差被带进文案的那个主键）。
+
+判据是"**这位读者能不能对两种成因采取不同的行动**"，而不是"数据上是不是同一件事" ——
+所以这不是"覆盖文案"的回潮：那一条管的是"同一个码在**同一类读者**面前说两件事"，
+而这里两种读者的**处置能力不同**，本就不该被当成同一件事。`TenantIsolationApiTest`
+第六节断的是"**两句话相等**"这条性质（不是某个字面量，所以措辞可以改而性质不许破），
+另有一条对照断"平台级仍拿得到诊断、不许被一起收窄"。
+
+**表中文案全部点名正确**，包括一处刻意的不对称：`ResourceService` 写的是父资源的
 **编码**而不是主键（资源树的父子关系本来就以 `resource_code` 表达）。
 
 两条配套约定：
@@ -564,18 +590,22 @@ DDL 里有**六个唯一编码列**，`uk_*` 一律**不含 `deleted`** ⇒ 软�
 与 `40002` 恰好相反，这一族**一个码就是一个对象**（`40401` 用户 / `40402` 租户 / …），
 所以"点名"这件事住在**枚举**里 —— 抛出点不写文案，也就写不出错的对象。由此两条规矩：
 
-- **在抛出点覆盖文案 = 这个码在说两件事 —— 但有一类覆盖是"同一个理由"，那类不算破坏这条规矩。**
+- **在抛出点覆盖文案 = 这个码在说两件事，没有例外。**（`0075` 之前这里写着"有一类覆盖
+  是『同一个理由』，那类不算破坏这条规矩" —— **那条豁免是错的，已撤回**。）
   最早的一处是 `DataScopeService#resolve`（把"用户不存在"与"不属于当前租户"合成一句），
-  且它**不能拆成两个码** —— 拆了就等于告诉调用方"那个人存在，只是不在你这儿"。
-  `decisions/0074` 把这条判据推广成了**一族**：`TenantService#assertVisible(entityTenantId, code)`
-  用 `code.getMessage() + "或不属于当前租户"` 统一生成文案，用户 / 角色 / 组织 / 用户组 /
-  租户五个域十几处跨租户落点因此给出的是**同一句话**。这不是"一族码各说两件事"，
-  而是**同一条理由（防存在性泄漏）落在多处的同一个写法** —— 因此它是允许的，
-  但**只允许这一族**：以后要在别处覆盖文案，先回答"是不是同一个理由"。
+  `decisions/0074` 把它推广成**一族**：`TenantService#assertVisible(entityTenantId, code)`
+  用 `code.getMessage() + "或不属于当前租户"` 统一生成文案。当时给的理由是
+  "同一句话落在十几处落点上" —— 但**那句话与它要替的那句话不是同一句**：
+  "东西真的不存在"那一支（`requireXxx` 里的 `entity == null`）说的仍是裸文案，
+  于是同一个码在两条分支上给出**两句不同的话**，调用方比一下 `message` 就知道
+  "这条记录确实存在，只是在别家" —— 而这正是覆盖文案原本要挡的那件事
+  （`0025` 第 2 条）。现在**两条分支都用枚举里那句**：对看不见它的操作者而言它就不存在，
+  所以只有一句话可说。要分处置就分码；要留成因就写进 `40002` 那句（见下面那节）。
+  这条规矩由 `scripts/verify-notfound-messages.mjs` 机械守着。
 - **断言这一族断 `code` 即完整**（码就是对象）—— 与上面那节"只断 `code` 等于没核"
-  **正好相反**。文案断言在这里另有用途：证明这个码还只干一件事，一旦有人开始覆盖它会先红；
-  跨租户一族则反过来 —— 它们的**码与文案都由 `assertVisible` 生成**，
-  所以断言断 `code` 就够，文案不需要（它不可能是"另一件事"）。
+  **正好相反**。文案断言在这里另有用途：**证明同一个码的两条分支给的是同一句话**
+  （`TenantIsolationApiTest` 第六节断的就是"两句话相等"，而不是"等于某个字面量"——
+  于是措辞可以改，这条性质不许破）；一旦有人开始覆盖，它会先红。
 
 **这张表是权威版本**（`decisions/0059` 补齐了此前没有断言的六处；`decisions/0074` 补了跨租户一族；
 `〃` 表示"同上一个方法"）。

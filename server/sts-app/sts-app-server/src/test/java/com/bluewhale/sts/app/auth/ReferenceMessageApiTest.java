@@ -18,23 +18,33 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * {@code 40002}（{@code PARAM_REFERENCE_MISSING}）在全仓 **16 处**落点的核对（ADR-0057）。
+ * {@code 40002}（{@code PARAM_REFERENCE_MISSING}）在全仓**每一处**落点的核对（ADR-0057）。
  *
  * <p><b>本片领的是 {@code 0056} 的未覆盖第 1 条。</b>那个码与其它业务码的形状不同：
- * 别的码是"一处判据一个 {@code throw}"，而它有 16 处 —— 它们拦的都是同一件事
+ * 别的码是"一处判据一个 {@code throw}"，而它有很多处 —— 它们拦的都是同一件事
  * （引用的东西不存在，或存在但放错了租户），差别只在**文案点名了谁**。所以它值得的
  * 核对不是"按支拆"（只有一支），而是"每一处是否点名了正确的对象、是否都有断言"。
  *
- * <p><b>核对结果一：16 处文案全部点名正确。</b>逐处比对过"文案说的对象"与"代码实际
+ * <p><b>核对结果一：全部文案点名正确。</b>逐处比对过"文案说的对象"与"代码实际
  * 查的那个东西"——一致，包括一处刻意的不对称（{@code ResourceService} 用父资源的
  * **编码**而非主键，因为资源树的父子关系就是以 {@code resource_code} 表达的）。
  *
- * <p><b>核对结果二：16 处里只有 7 处被既有用例钉住</b>（{@code TenantService#assertExists} ·
+ * <p><b>核对结果二：其中只有 7 处被既有用例钉住</b>（{@code TenantService#assertExists} ·
  * 用户组的父组跨租户 / 成员跨租户 · 角色成员的三种成员类型 · {@code ResourceService}
  * 的父资源）。**剩下 9 处此前没有任何断言**，其中两处（{@code OrganizationService}
  * 的父组织、{@code RoleService} 的授权资源）有用例但**只断言了 {@code code}** ——
  * 只断 {@code code} 的用例分不清"点在哪个对象上"，而这正是 40002 唯一需要说清的事。
  * 本片把 9 处补齐。
+ *
+ * <p><b>那张表此后又增补过两轮，但本文件的断言一处都不受影响。</b>
+ * `0074` 补了跨租户一族、并漏登了两处落点（`TenantService#resolveWriteTenant` 与
+ * `OrganizationService#managerNameOf`）；`0075` 把那两处补进表里，并给六处
+ * "引用对象必须与容器同租户"的检查加了一格 **读者分化** —— 它们对**平台级**读者
+ * 说的仍是本文件断的那句诊断原文，对非平台级读者才收成"引用的 X 不存在"。
+ * 而本文件的 8 处文案断言**全部用平台级种子账号作操作者**，所以那句话没有变；
+ * 非平台级那一侧由 {@code TenantIsolationApiTest} 第六节钉（它断的是"两句话相等"）。
+ * 换句话说：**这两类断言的分工正好是"哪一类读者"** —— 本文件断平台级看到的具体短语，
+ * 那一类断非平台级看不出的那件事。
  *
  * <p><b>断言的是文案里那个具体的短语，而不是"用户"或"租户"两个字。</b>同一个域里
  * "引用的用户不存在"与"该用户与组织不属于同一租户"的文案**都含"用户"**，
@@ -42,7 +52,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 换一支实现也照样绿。这与此前那批断言（"跨租户"那几条）是有意的分工：
  * 它们钉的是"有没有点名租户"，本片钉的是"点名的是哪个对象"。
  *
- * <p><b>对照表在 {@code server/README.md}「40002 的 16 处文案与它们的读者」</b>，
+ * <p><b>对照表在 {@code server/README.md}「40002 的每一处文案与它的读者」</b>，
  * 不在本文件的注释里 —— 那份清单要能被查询，而注释只能被读。
  */
 @SpringBootTest

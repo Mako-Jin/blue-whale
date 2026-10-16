@@ -350,12 +350,14 @@ public class TenantService {
     /**
      * 一个**已存在对象**的租户归属是否对当前操作者可见，不可见则按"不存在"抛出。
      *
-     * <p><b>这是本仓 {@code 404xx} 家族里第二类覆盖文案的落点</b>（{@code 0059} 登记的
-     * 唯一一处是 {@code DataScopeService#resolve}）。理由与那一处一字不差：
-     * {@code 403} 等于向调用方承认"这条记录确实存在，只是不给你看"，
-     * 而"它存在"这件事本身就是别人的信息。文案因此也逐字沿用它 ——
-     * {@code notFoundCode.getMessage() + "或不属于当前租户"}，
-     * 于是同一个码在这两处给出的是同一句话。
+     * <p><b>它不覆盖文案，这一点是 {@code 0075} 订正过的。</b>{@code 0074} 立这条时用的是
+     * 覆盖文案（{@code notFoundCode.getMessage() + "或不属于当前租户"}），理由是
+     * "同一个码在所有这些落点上给出同一句话"。**那个理由推错了方向**：覆盖之后，
+     * "东西真的不存在"那一支（{@code requireXxx} 里的 {@code entity == null}）说的仍是
+     * 裸文案，于是同一个码在两条分支上给出**两句不同的话** —— 调用方比一下 {@code message}
+     * 就学到了"这条记录确实存在，只是在别家"，而"它存在"本身就是别人的信息
+     * （{@code 0025} 第 2 条、{@code 0059} 第二节）。现在两条分支都用裸文案：
+     * **对看不见它的操作者而言它就是不存在，所以只有一句话可说。**
      *
      * <p>无身份上下文时直接通过：那是内部路径（见 {@link #currentOperatorIsPlatform()}）。
      */
@@ -368,7 +370,51 @@ public class TenantService {
         if (own == null || entityTenantId.equals(own) || currentOperatorIsPlatform()) {
             return;
         }
-        throw notFoundCode.businessException(notFoundCode.getMessage() + "或不属于当前租户");
+        throw notFoundCode.businessException();
+    }
+
+    /**
+     * **写入侧**的一致性检查：这次写入引用的那个对象，与容器在同一个租户吗。
+     *
+     * <p><b>它与 {@link #assertVisible} 是两格，都会在"跨租户"上失败，但含义不同：</b>
+     * 那一格问"这个已存在的对象对当前操作者可见吗"（不可见 → 该对象的 {@code 404}）；
+     * 这一格问"我看得见的这个对象，和我要把它挂上去的那个容器对得上吗"（对不上 → {@code 40002}）。
+     * 前者是"你看不到它"，后者是"你看到了，但它与容器不在同一租户，判定永远匹配不上"。
+     *
+     * <p><b>文案随读者分化，判据是"这位读者能不能对两种成因采取不同的行动"：</b>
+     * <ul>
+     *   <li><b>平台级操作者</b>是唯一能合法跨租户的人（跨租户预配就是他的工作）。
+     *       他写错了租户与写错了主键**要做的事完全不同**（改租户归属 / 改 id），
+     *       所以拿到 {@code diagnostic} 那句原文；</li>
+     *   <li><b>非平台级操作者</b>看到的与"引用的 X 不存在"**逐字相同**。他不可能合法地
+     *       持有别家对象的 id（{@code 0074} 决策 4 的原话：别家租户在系统里**就是不存在**，
+     *       他连租户列表里都看不到它）⇒ 那一支对他只有一种成因。两种成因给两句话，
+     *       等于告诉他"那个 id 确实存在，只是在别家" —— 逐个试一遍就能数出别家租户里
+     *       有几个用户。**"是不是两件事"看的是读者能不能分开处置，不是数据上是不是同一件事。**</li>
+     * </ul>
+     *
+     * <p>两个租户 id 有一个为 {@code null} 时算不一致：{@code tenant_id} 是三方言
+     * {@code NOT NULL}（{@code bw_auth_resource} 那一个除外，它不走这条路），
+     * 真出现 null 只可能是数据被直接改坏了 —— 那时不该静默通过。
+     *
+     * @param referrerTenantId   引用者（容器）所在租户
+     * @param referencedTenantId 被引用对象所在租户
+     * @param referencedLabel    被引用对象的称呼，必须与 {@code diagnostic} 里点名的那个对象一致
+     * @param referencedId       被引用对象的主键，会被写进文案
+     * @param diagnostic         平台级读者看到的那句诊断
+     */
+    @Transactional(readOnly = true)
+    public void assertReferencedInSameTenant(Long referrerTenantId, Long referencedTenantId,
+                                             String referencedLabel, Long referencedId,
+                                             String diagnostic) {
+        if (referrerTenantId != null && referencedTenantId != null
+                && referrerTenantId.equals(referencedTenantId)) {
+            return;
+        }
+        throw AuthResultCode.PARAM_REFERENCE_MISSING.businessException(
+                currentOperatorIsPlatform()
+                        ? diagnostic
+                        : "引用的" + referencedLabel + "不存在：" + referencedId);
     }
 
     /** 当前登录者所在的租户；没有身份要求显式传 {@code tenantId} —— 与四个业务域此前的分支同源 */
@@ -389,7 +435,8 @@ public class TenantService {
     }
 
     /**
-     * 详情 / 修改 / 删除共用的取用：先"存在"（{@code 40402}），再"可见"（同一个码，覆盖文案）。
+     * 详情 / 修改 / 删除共用的取用：先"存在"（{@code 40402}），再"可见"（同一个码、
+     * 且**同一句话** —— 见 {@link #assertVisible}）。
      *
      * <p>租户的"租户归属"就是它自己 —— 因此这里把 {@code entity.getId()} 交给
      * {@link #assertVisible}，与用户域传 {@code entity.getTenantId()} 是同一个判据的两种写法。
@@ -407,8 +454,11 @@ public class TenantService {
      * <ul>
      *   <li>不传 {@code parentId}（建顶级）→ {@code 40302}。顶级租户不是"某个看不见的对象"，
      *       它是一个**能力**；这里也没有"那个东西存在"可言（它正要被创建）；</li>
-     *   <li>{@code parentId} 指向别家租户 → {@code 40402} + 与"租户不存在"逐字相同的文案
-     *       （见 {@link #resolveWriteTenant} 的理由）。</li>
+     *   <li>{@code parentId} 指向别家租户 → {@code 40402} + **与"租户不存在"逐字相同的
+     *       一句话**（见 {@link #resolveWriteTenant} 的理由：对非平台级操作者而言，
+     *       别家租户在系统里就是不存在）。**这里不再覆盖文案**（{@code 0075}）：
+     *       覆盖之后同一件事在不同入口有两句说法，而 {@code requireTenant} 那一句才是
+     *       "租户不在"的通用答案。</li>
      * </ul>
      *
      * <p>第一条同时是"平台级"这个身份定义的**闭合条件**：没有它，
@@ -422,7 +472,7 @@ public class TenantService {
             throw AuthResultCode.PLATFORM_SCOPE_REQUIRED.businessException();
         }
         if (!parentId.equals(AuthContextHolder.currentTenantId())) {
-            throw AuthResultCode.TENANT_NOT_FOUND.businessException("租户不存在或不属于当前租户");
+            throw AuthResultCode.TENANT_NOT_FOUND.businessException();
         }
     }
 

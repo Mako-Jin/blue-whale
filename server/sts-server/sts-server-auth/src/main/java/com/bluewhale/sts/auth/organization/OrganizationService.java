@@ -446,6 +446,11 @@ public class OrganizationService {
      * 而组织树的层级一旦挂错地方，影响的是整棵子树的路径与所有人的可见范围 ——
      * 那不是一个开关就能纠正回来的状态。停用的部门下新增子部门，
      * 更可能是**挂错了位置**（本想挂在它的兄弟节点下）。
+     *
+     * <p><b>"不属于同一租户"那半句只说给平台级读者</b>（{@code 0075}）：非平台级操作者
+     * 拿到的是与上面那句"引用的父组织不存在"**逐字相同**的一句 ——
+     * 他不可能合法地持有别家组织的 id，两句话只会让他能按 id 探测别家租户。
+     * 分化的判定与两句话都在 {@link TenantService#assertReferencedInSameTenant} 里。
      */
     private OrganizationEntity resolveParent(Long parentId, Long tenantId) {
         if (parentId == null) {
@@ -456,10 +461,8 @@ public class OrganizationService {
             throw AuthResultCode.PARAM_REFERENCE_MISSING.businessException(
                     "引用的父组织不存在：" + parentId);
         }
-        if (!parent.getTenantId().equals(tenantId)) {
-            throw AuthResultCode.PARAM_REFERENCE_MISSING.businessException(
-                    "父组织不属于同一租户，跨租户的层级会造成数据范围错位");
-        }
+        tenantService.assertReferencedInSameTenant(tenantId, parent.getTenantId(), "父组织", parentId,
+                "父组织不属于同一租户，跨租户的层级会造成数据范围错位");
         if (isDisabled(parent)) {
             throw AuthResultCode.PARAM_INVALID.businessException(
                     "父组织已被停用，不能在其下新增或移动到该节点："
@@ -646,7 +649,27 @@ public class OrganizationService {
      *
      * <p>这里选择**拒绝**而不是静默当作"没传"：静默会让你以为设上了负责人，
      * 而那一列在界面上是空的（"保存成功、什么都没发生"是本仓反复拒绝的那种表现）。
-     * 与"引用的父组织不属于本租户"（{@link #resolveParent}）用同一个码、同一种写法。
+     *
+     * <p><b>两个分支必须说同一句话，这一点是 {@code 0075} 补上的。</b>此前它们是
+     * **两种可分辨的结果**：
+     * <ul>
+     *   <li>{@code managerId} 指向别家租户的人 → {@code 40002} +
+     *       "引用的负责人不属于当前租户"（点名了成因）；</li>
+     *   <li>{@code managerId} 谁也不是 → **返回 {@code null}、保存照常成功**。</li>
+     * </ul>
+     * 于是对非平台级操作者，{@code 40002} 这个信号本身就等于"这个 id 是别家的一个真人"
+     * —— 换一个 id 试一次就能数出别人租户里有几个用户。**只改文案不足以关掉这个口子，
+     * 因为两者的码本来就不同**：所以现在两支都是 {@code 40002} + 同一句话。
+     *
+     * <p>顺带订正的是 {@code 0074} 自己在别处立过的那条口径在这个方法上漏了一半 ——
+     * 它写"拒绝而不是静默当作没传"，而"谁也不是"那一支恰恰就是静默。此前那一支会把
+     * {@code manager_name} 写成 {@code null}，却把 {@code manager_id} 原样留在行上：
+     * 树上渲染成 `#{42}` 加一个空名字，是一次**保存成功、数据却半更新**的写入。
+     *
+     * <p>代价（本片的行为变化）：前端组织编辑表单会把 {@code managerId} 原样回传
+     * （`Organizations/index.tsx`），而用户删除**不拦**"仍是某组织负责人"，
+     * 所以"删掉某人之后再改那个组织的任意一列"从静默通过变成 {@code 40002}。
+     * 这是有意的：那句文案是**真的**（那个负责人确实没了），而改法是清掉负责人一格。
      */
     private String managerNameOf(Long managerId, Long tenantId) {
         if (managerId == null) {
@@ -654,12 +677,12 @@ public class OrganizationService {
         }
         UserEntity user = userMapper.selectById(managerId);
         if (user == null) {
-            return null;
-        }
-        if (!user.getTenantId().equals(tenantId)) {
             throw AuthResultCode.PARAM_REFERENCE_MISSING.businessException(
-                    "引用的负责人不属于当前租户：" + managerId);
+                    "引用的负责人不存在：" + managerId);
         }
+        tenantService.assertReferencedInSameTenant(tenantId, user.getTenantId(), "负责人", managerId,
+                "负责人与组织不属于同一租户（" + managerId + "）—— 跨租户的负责人只会把"
+                        + "别家用户的名字写进本租户组织的展示列");
         return displayNameOf(user);
     }
 

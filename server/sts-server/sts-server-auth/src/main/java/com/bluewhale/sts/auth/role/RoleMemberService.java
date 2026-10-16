@@ -420,16 +420,17 @@ public class RoleMemberService {
      *
      * <p>文案里点名"永远匹配不上"，是因为这条约束从错误码上看不出来 ——
      * 40002 的默认文案是"引用的关联数据不存在"，而这里数据**确实存在**，
-     * 只是放错了租户。只说"不存在"会让调用方去查主键有没有写错，方向完全跑偏。
+     * 只是放错了租户。**但那半句只说给平台级读者**（{@code 0075}）：
+     * 非平台级操作者拿到的是与"引用的用户不存在"逐字相同的那句 ——
+     * 他不可能合法地持有别家成员的 id，两种成因给他两句话只会变成一个探测通道。
+     * 分化的判定与两句话都在
+     * {@link TenantService#assertReferencedInSameTenant} 里，本方法只交出自己的诊断原文。
      */
-    private static void assertSameTenant(Long roleTenantId, Long memberTenantId,
-                                         String label, Long memberId) {
-        if (roleTenantId == null || memberTenantId == null
-                || !roleTenantId.equals(memberTenantId)) {
-            throw AuthResultCode.PARAM_REFERENCE_MISSING.businessException(
-                    "该" + label + "与角色不属于同一租户（" + memberId + "）—— "
-                            + "判定两侧都限定租户，跨租户的成员关系永远不会生效");
-        }
+    private void assertSameTenant(Long roleTenantId, Long memberTenantId,
+                                  String label, Long memberId) {
+        tenantService.assertReferencedInSameTenant(roleTenantId, memberTenantId, label, memberId,
+                "该" + label + "与角色不属于同一租户（" + memberId + "）—— "
+                        + "判定两侧都限定租户，跨租户的成员关系永远不会生效");
     }
 
     /* ------------------------------------------------------------------ 组装 */

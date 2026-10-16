@@ -417,6 +417,10 @@ public class RoleService {
      * 校验归 {@code TenantService} 之后，"引用了不存在的外键 → 40002"只有一个属主。
      *
      * <p>同类引用（父角色、资源）也一律校验，规则统一为"引用了不存在的外键 → 40002"。
+     *
+     * <p><b>"不属于同一租户"那半句只说给平台级读者</b>（{@code 0075}）：非平台级操作者
+     * 拿到的是与上面那句"引用的父角色不存在"**逐字相同**的一句。
+     * 分化的判定与两句话都在 {@link TenantService#assertReferencedInSameTenant} 里。
      */
     private RoleEntity resolveParent(Long parentId, Long tenantId) {
         if (parentId == null) {
@@ -426,10 +430,8 @@ public class RoleService {
         if (parent == null) {
             throw AuthResultCode.PARAM_REFERENCE_MISSING.businessException("引用的父角色不存在：" + parentId);
         }
-        if (!parent.getTenantId().equals(tenantId)) {
-            throw AuthResultCode.PARAM_REFERENCE_MISSING.businessException(
-                    "父角色不属于同一租户，跨租户的层级会造成判定上的错位");
-        }
+        tenantService.assertReferencedInSameTenant(tenantId, parent.getTenantId(), "父角色", parentId,
+                "父角色不属于同一租户，跨租户的层级会造成判定上的错位");
         return parent;
     }
 

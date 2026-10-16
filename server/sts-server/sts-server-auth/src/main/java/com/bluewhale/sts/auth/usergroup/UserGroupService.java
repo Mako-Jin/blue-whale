@@ -401,10 +401,10 @@ public class UserGroupService {
             throw AuthResultCode.PARAM_REFERENCE_MISSING.businessException(
                     "引用的父用户组不存在：" + parentId);
         }
-        if (!parent.getTenantId().equals(tenantId)) {
-            throw AuthResultCode.PARAM_REFERENCE_MISSING.businessException(
-                    "父用户组不属于同一租户，跨租户的层级会造成展示上的错位");
-        }
+        // "不属于同一租户"那半句只说给平台级读者（decisions/0075）：非平台级拿到的与
+        // 上面那句逐字相同 —— 判定与两句话都在 TenantService#assertReferencedInSameTenant
+        tenantService.assertReferencedInSameTenant(tenantId, parent.getTenantId(), "父用户组", parentId,
+                "父用户组不属于同一租户，跨租户的层级会造成展示上的错位");
         return parent;
     }
 
@@ -661,17 +661,17 @@ public class UserGroupService {
     /**
      * 成员与用户组必须同租户。
      *
-     * <p>文案里点名"不属于同一租户"而不是笼统的"不存在"：{@code 40002} 的默认文案是
-     * "引用的关联数据不存在"，而这里数据**确实存在**，只是放错了租户。
-     * 只说"不存在"会让调用方去查主键有没有写错，方向完全跑偏 ——
-     * 判定 SQL 两侧都限定 {@code tenant_id}，跨租户的组成员关系**永远匹配不上**。
+     * <p>判定 SQL 两侧都限定 {@code tenant_id}，跨租户的组成员关系**永远匹配不上** ——
+     * 它会安静地躺在库里、列表里看得见、权限里没有。所以这一支必须拦。
+     *
+     * <p><b>"不属于同一租户"那半句只说给平台级读者</b>（{@code 0075}）：
+     * 非平台级操作者拿到的是与上面那句"引用的用户不存在"**逐字相同**的一句。
+     * 分化的判定与两句话都在 {@link TenantService#assertReferencedInSameTenant} 里。
      */
-    private static void assertSameTenant(Long groupTenantId, Long userTenantId, Long userId) {
-        if (groupTenantId == null || userTenantId == null || !groupTenantId.equals(userTenantId)) {
-            throw AuthResultCode.PARAM_REFERENCE_MISSING.businessException(
-                    "该用户与用户组不属于同一租户（" + userId + "）—— "
-                            + "判定两侧都限定租户，跨租户的组成员关系永远不会生效");
-        }
+    private void assertSameTenant(Long groupTenantId, Long userTenantId, Long userId) {
+        tenantService.assertReferencedInSameTenant(groupTenantId, userTenantId, "用户", userId,
+                "该用户与用户组不属于同一租户（" + userId + "）—— "
+                        + "判定两侧都限定租户，跨租户的组成员关系永远不会生效");
     }
 
     /** 半开区间：[from, to)。两端都可空，都空表示长期有效 */
