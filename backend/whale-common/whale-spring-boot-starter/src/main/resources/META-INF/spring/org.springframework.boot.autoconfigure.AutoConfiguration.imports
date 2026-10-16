@@ -1,0 +1,2 @@
+# BlueWhale Spring Boot Starter 自动配置
+com.bluewhale.starter.autoconfigure.WhaleAutoConfiguration

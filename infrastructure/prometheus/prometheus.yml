@@ -1,0 +1,54 @@
+# ============================================================
+# 蓝鲸系统 - Prometheus 抓取配置
+# 目标: Spring Boot Actuator /actuator/prometheus
+# ============================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: bluewhale
+    environment: dev
+
+alerting:
+  # alertmanagers:
+  #   - static_configs:
+  #       - targets:
+  #           - alertmanager:9093
+
+rule_files:
+  # - "alert_rules/*.yml"
+
+scrape_configs:
+  # ---- Nacos ----
+  - job_name: 'nacos'
+    metrics_path: '/nacos/actuator/prometheus'
+    static_configs:
+      - targets: ['nacos:8848']
+        labels:
+          service: nacos
+          namespace: infrastructure
+
+  # ---- 蓝鲸 API Gateway ----
+  - job_name: 'whale-gateway'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['gateway:8080']
+        labels:
+          service: whale-gateway
+          namespace: bluewhale
+
+  # ---- 蓝鲸后端服务 (示例, 按需扩展) ----
+  - job_name: 'whale-services'
+    metrics_path: '/actuator/prometheus'
+    file_sd_configs:
+      - files:
+          - 'targets/*.json'
+        refresh_interval: 30s
+
+  # ---- Nginx (nginx-prometheus-exporter 需额外部署) ----
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx-exporter:9113']
+        labels:
+          service: nginx

@@ -1,0 +1,65 @@
+# ============================================================
+# 蓝鲸前端 CI - pnpm install + turbo build + lint
+# 触发: push main / PR main
+# ============================================================
+
+name: Frontend CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
+      - '.github/workflows/frontend-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
+      - '.github/workflows/frontend-ci.yml'
+
+concurrency:
+  group: frontend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-lint:
+    name: Node 24 · pnpm
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: Setup pnpm (corepack)
+        run: |
+          corepack enable
+          corepack prepare pnpm@latest --activate
+
+      - name: pnpm Install
+        run: pnpm install --frozen-lockfile
+
+      - name: pnpm Lint
+        run: pnpm -r lint
+        continue-on-error: false
+
+      - name: pnpm Build (turbo)
+        run: pnpm turbo run build
+
+      - name: Upload Build Artifacts
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: |
+            **/dist/
+          retention-days: 7

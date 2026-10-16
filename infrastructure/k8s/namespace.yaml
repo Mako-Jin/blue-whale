@@ -1,0 +1,18 @@
+# ============================================================
+# 蓝鲸系统 - Kubernetes 命名空间
+# ============================================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bluewhale
+  labels:
+    app.kubernetes.io/name: bluewhale
+    app.kubernetes.io/managed-by: kustomize
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bluewhale-infra
+  labels:
+    app.kubernetes.io/name: bluewhale-infra

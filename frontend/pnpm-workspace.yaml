@@ -1,0 +1,7 @@
+packages:
+  - 'shared-packages/*'
+  - 'elemental/*'
+  - 'platform-apps/*'
+  - 'admin'
+  - 'ops'
+  - 'games/*'

@@ -1,0 +1,30 @@
+Kubernetes 部署文件占位
+
+正式上线可按如下结构补充 (建议配合 Kustomize / Helm):
+
+bluewhale/
+├── namespace.yaml             (已创建)
+├── configmap/
+│   ├── nginx-conf.yaml
+│   └── application-prod.yaml
+├── secret/
+│   └── app-secrets.yaml       (勿提交真实值, 使用 ExternalSealed/GitOps)
+├── deployment/
+│   ├── whale-gateway.yaml
+│   ├── whale-auth.yaml
+│   └── whale-frontend.yaml
+├── service/
+│   ├── whale-gateway.yaml
+│   ├── whale-auth.yaml
+│   └── whale-frontend.yaml
+├── ingress/
+│   └── bluewhale-ingress.yaml
+├── statefulset/
+│   ├── mysql.yaml
+│   └── redis.yaml
+├── pdb/                       PodDisruptionBudget
+├── hpa/                       HorizontalPodAutoscaler
+└── kustomization.yaml
+
+基础设施 (bluewhale-infra namespace):
+  mysql, redis, nacos, rabbitmq, prometheus, grafana, istio 等.

@@ -1,0 +1,23 @@
+server:
+  port: ${server.port:8082}
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: whale-job
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+      config:
+        server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+        file-extension: yaml
+
+logging:
+  level:
+    com.bluewhale: debug

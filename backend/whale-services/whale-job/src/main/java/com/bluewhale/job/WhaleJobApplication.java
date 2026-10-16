@@ -1,0 +1,19 @@
+package com.bluewhale.job;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
+
+/**
+ * 定时任务管理启动类
+ *
+ * @author BlueWhale
+ */
+@SpringBootApplication
+@EnableDiscoveryClient
+public class WhaleJobApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(WhaleJobApplication.class, args);
+    }
+}

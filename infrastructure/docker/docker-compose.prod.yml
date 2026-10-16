@@ -1,0 +1,85 @@
+# ============================================================
+# 蓝鲸系统 - 生产环境覆盖层
+# 使用方式: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# ============================================================
+
+services:
+  mysql:
+    # 生产环境建议使用独立宿主机 MySQL, 这里保留容器化作为最小化部署
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2g
+        reservations:
+          cpus: "0.5"
+          memory: 512m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  redis:
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512m
+        reservations:
+          cpus: "0.25"
+          memory: 128m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  nacos:
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2g
+        reservations:
+          cpus: "0.5"
+          memory: 512m
+    environment:
+      MODE: standalone
+      JVM_XMS: 512m
+      JVM_XMX: 1024m
+      JVM_XMN: 256m
+
+  rabbitmq:
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1g
+        reservations:
+          cpus: "0.25"
+          memory: 128m
+    profiles:
+      - messaging
+
+  nginx:
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 256m
+        reservations:
+          cpus: "0.1"
+          memory: 64m
+    ports:
+      - "80:80"
+      - "443:443"
+    # 生产环境应由宿主机或外部证书管理器挂载真实 TLS 证书
+    # volumes:
+    #   - /etc/letsencrypt/live/example.com/fullchain.pem:/etc/nginx/ssl/fullchain.pem:ro
+    #   - /etc/letsencrypt/live/example.com/privkey.pem:/etc/nginx/ssl/privkey.pem:ro
+
+networks:
+  bw-net:
+    driver: bridge
+    internal: false
+    # 可选: 生产环境将数据库/中间件放入内部网络
+    # internal: true

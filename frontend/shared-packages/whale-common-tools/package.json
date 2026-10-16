@@ -1,0 +1,27 @@
+{
+  "name": "@bluewhale/whale-common-tools",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "tsup --watch",
+    "build": "tsup",
+    "clean": "rimraf dist",
+    "lint": "echo 'lint: noop'"
+  },
+  "dependencies": {
+    "dayjs": "^1.11.13",
+    "lodash-es": "^4.17.21"
+  },
+  "devDependencies": {
+    "tsup": "^8.3.4",
+    "typescript": "^5.6.3",
+    "@types/lodash-es": "^4.17.12",
+    "rimraf": "^6.0.1"
+  }
+}

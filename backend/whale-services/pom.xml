@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.bluewhale</groupId>
+        <artifactId>whale-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../whale-parent/pom.xml</relativePath>
+    </parent>
+
+    <artifactId>whale-services</artifactId>
+    <packaging>pom</packaging>
+    <name>Whale Services</name>
+    <description>BlueWhale 服务类别聚合模块</description>
+
+    <modules>
+        <module>whale-auth</module>
+        <module>whale-job</module>
+        <module>whale-workflow</module>
+        <module>whale-form</module>
+        <module>whale-file</module>
+        <module>whale-pay</module>
+        <module>whale-gateway</module>
+    </modules>
+</project>

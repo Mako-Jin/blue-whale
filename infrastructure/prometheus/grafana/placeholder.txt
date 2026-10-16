@@ -1,0 +1,11 @@
+Grafana 仪表盘占位
+
+正式使用时:
+1. 启动 Prometheus 和 Grafana (docker compose 扩展层或独立部署)
+2. 导入 Spring Boot / Nacos / Nginx 官方仪表盘 JSON
+3. 或使用 Grafana API / Provisioning 自动化配置
+
+推荐仪表盘 ID:
+  - Spring Boot 社区仪表盘: 10280 / 12900
+  - Nacos 官方仪表盘: 9539
+  - Nginx Prometheus Exporter: 9614 / 14692

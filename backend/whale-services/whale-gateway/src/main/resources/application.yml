@@ -1,0 +1,35 @@
+server:
+  port: ${server.port:8080}
+
+spring:
+  application:
+    name: whale-gateway
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+      config:
+        server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+        file-extension: yaml
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        - id: whale-auth
+          uri: lb://whale-auth
+          predicates:
+            - Path=/api/auth/**
+        - id: whale-job
+          uri: lb://whale-job
+          predicates:
+            - Path=/api/job/**
+
+logging:
+  level:
+    org.springframework.cloud.gateway: debug
