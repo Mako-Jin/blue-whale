@@ -7,7 +7,6 @@ import com.bluewhale.sts.auth.common.enums.DataScope;
 import com.bluewhale.sts.auth.common.enums.GrantEffect;
 import com.bluewhale.sts.auth.common.enums.ResourceType;
 import com.bluewhale.sts.auth.common.enums.Status;
-import com.bluewhale.sts.auth.context.AuthContextHolder;
 import com.bluewhale.sts.auth.relation.RelRoleMemberEntity;
 import com.bluewhale.sts.auth.relation.RelRoleMemberMapper;
 import com.bluewhale.sts.auth.relation.RelRoleResourceEntity;
@@ -98,7 +97,7 @@ public class RoleService {
         // category 是自由文本（写入时不校验取值）⇒ 只 trim。
         String status = FilterValue.enumValue(query.getStatus(), Status::parse, Status::wireName);
         String category = FilterValue.text(query.getCategory());
-        Long tenantId = resolveTenantId(query.getTenantId());
+        Long tenantId = tenantService.resolveQueryTenant(query.getTenantId());
 
         var wrapper = Wrappers.<RoleEntity>lambdaQuery()
                 .eq(RoleEntity::getTenantId, tenantId)
@@ -151,7 +150,7 @@ public class RoleService {
     @Transactional
     public RoleVO create(RoleSaveRequest request) {
         String roleCode = request.getRoleCode().trim();
-        Long tenantId = resolveTenantId(request.getTenantId());
+        Long tenantId = tenantService.resolveWriteTenant(request.getTenantId());
         // 只有新建问这一格：停用租户里的角色没有任何消费者（判定两侧都限定 tenant_id，
         // 而那个租户的用户登不进来）。读路径不问它 —— 见 ADR-0051
         tenantService.assertAcceptsNewData(tenantId);
@@ -389,6 +388,9 @@ public class RoleService {
         if (entity == null) {
             throw AuthResultCode.ROLE_NOT_FOUND.businessException();
         }
+        // 非平台级操作者够不到别家租户的角色（decisions/0074）——
+        // 详情 / 修改 / 删除 / 授权 / 成员四条路径全部经这里
+        tenantService.assertVisible(entity.getTenantId(), AuthResultCode.ROLE_NOT_FOUND);
         return entity;
     }
 
@@ -416,18 +418,6 @@ public class RoleService {
      *
      * <p>同类引用（父角色、资源）也一律校验，规则统一为"引用了不存在的外键 → 40002"。
      */
-    private Long resolveTenantId(Long requested) {
-        if (requested != null) {
-            tenantService.assertExists(requested);
-            return requested;
-        }
-        Long current = AuthContextHolder.currentTenantId();
-        if (current == null) {
-            throw AuthResultCode.PARAM_INVALID.businessException("无法确定租户，请显式指定 tenantId");
-        }
-        return current;
-    }
-
     private RoleEntity resolveParent(Long parentId, Long tenantId) {
         if (parentId == null) {
             return null;

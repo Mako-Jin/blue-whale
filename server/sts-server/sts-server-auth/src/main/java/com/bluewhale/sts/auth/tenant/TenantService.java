@@ -42,6 +42,12 @@ public class TenantService {
                         .apply(KeywordLike.condition("tenant_code"), pattern)
                         .or().apply(KeywordLike.condition("tenant_name"), pattern))
                 .eq(status != null, TenantEntity::getStatus, status)
+                // 非平台级操作者只看得到**自己那一个**租户（decisions/0074）。
+                // 恒定的条件，不是可关的写法 —— 与审计域那条"租户强制等于当前登录者"同源；
+                // 没有身份上下文时 currentOperatorIsPlatform() 为真，这一条不生效
+                // （内部调用本就不该被这条路挡）
+                .eq(!currentOperatorIsPlatform(), TenantEntity::getId,
+                        AuthContextHolder.currentTenantId())
                 .orderByAsc(TenantEntity::getTenantLevel)
                 .orderByAsc(TenantEntity::getId);
 
@@ -52,7 +58,7 @@ public class TenantService {
 
     @Transactional(readOnly = true)
     public TenantVO detail(Long id) {
-        return toVO(requireTenant(id));
+        return toVO(requireVisibleTenant(id));
     }
 
     /**
@@ -100,6 +106,10 @@ public class TenantService {
      */
     @Transactional
     public TenantVO create(TenantSaveRequest request) {
+        // 层级权限**排在编码判重之前**：先判重的话，一个非平台级操作者能从
+        // "40904 编码已存在" vs "40302" 的差别里读出"这个编码被谁占着"——
+        // 而那个租户对他而言并不存在（见 decisions/0074）
+        assertCanCreateUnder(request.getParentId());
         if (tenantMapper.selectAnyByCode(request.getTenantCode()) != null) {
             throw AuthResultCode.TENANT_CODE_EXISTS.businessException();
         }
@@ -125,7 +135,7 @@ public class TenantService {
 
     @Transactional
     public TenantVO update(Long id, TenantSaveRequest request) {
-        TenantEntity entity = requireTenant(id);
+        TenantEntity entity = requireVisibleTenant(id);
 
         // 名称与 create 一样不判重（理由见 create 的 javadoc）：把一个租户改成与别人同名，
         // 不会让任何人做错事 —— 指认租户的是 tenantCode，而它根本不可改。
@@ -166,7 +176,7 @@ public class TenantService {
 
     @Transactional
     public void delete(Long id) {
-        TenantEntity entity = requireTenant(id);
+        TenantEntity entity = requireVisibleTenant(id);
         // 与"停用自己所在租户"同一个码、同一条理由：删除是逻辑删除（@TableLogic），
         // 被删的租户在应用层等于不存在，对登录的影响与停用一模一样
         assertNotOwnTenant(id);
@@ -212,11 +222,14 @@ public class TenantService {
      * 只有**新建**路径需要后一格 —— 查询路径继续只问 {@code assertExists}，
      * 因为"这个被停用的租户里现在有什么"正是排查它时最需要的信息（见 ADR-0051）。
      *
-     * <p><b>为什么"存在"不够，以及为什么不去改 {@code resolveTenantId}：</b>
-     * 四个域的 {@code resolveTenantId} 同时服务查询与新建（每个域的两处调用点就是
-     * 这两条路），把状态判据塞进去等于连读一起关掉。所以这一格由调用方**显式**问，
-     * 位置上只在 {@code create} 里出现一次 —— 与 {@code assertExists} 放在
-     * {@code resolveTenantId} 里的那一格形成对照，两处的差别就是"读侧不挡"这条边界。
+     * <p><b>为什么"存在"不够，以及它为什么不去问
+     * {@link #resolveQueryTenant} / {@link #resolveWriteTenant}：</b>
+     * 后两者回答的是"这次请求该落在哪个租户上"（隔离判定就在那里，见 {@code decisions/0074}），
+     * 而这一格回答的是"那个租户现在能不能承载新数据" —— 把状态判据塞进解析里，
+     * 等于连**读**一起关掉。所以这一格由调用方**显式**问，位置上只在 {@code create} 里
+     * 出现一次，与解析里那一格形成对照，两处的差别就是"读侧不挡"这条边界。
+     * （{@code resolveWriteTenant} 内部先过 {@link #assertExists} 再判隔离，顺序不可反：
+     * 不存在的租户应当给出"引用不存在"，而不是被当成一次越权。）
      *
      * <p>复用 {@code requireReferencedTenant}（同一次查询、同一份文案），
      * 所以两个方法在"租户不存在"这一点上给出的码与话一模一样 —— 分成两个方法
@@ -249,12 +262,168 @@ public class TenantService {
         return entity;
     }
 
+    /* ------------------------------------------------------------------ 租户边界（decisions/0074） */
+
+    /**
+     * 当前操作者是否站在**平台级**的位置。判据是结构性的：**它所在的租户是顶级租户**
+     * （{@code parent_id IS NULL}；本仓的形态就是种子租户那一个，
+     * {@code DefaultAdminSeeder} 写的 {@code tenantLevel = 1} / {@code codePath = "/"}）。
+     *
+     * <p><b>为什么用层级位置而不是新加一个权限码：</b>层级位置是**可以从库里读出来的事实**，
+     * 而一个"平台管理员"码会造出两个都必须对上的开关（码 + 位置），
+     * 且它们不一致时的表现是"某个顶级的账号什么都不能管"这种没人会去查的静默状态。
+     * {@code 0058} 早已把"另一个租户里持有 {@code auth:tenant:update} 的账号
+     * （本仓的形态就是种子租户的管理员）"当作既有的跨租户恢复入口 —— 本片只是把它命名了。
+     *
+     * <p><b>所在租户查不到时不视为平台级。</b>判据在数据异常时必须能往**窄**走：
+     * 一个指向不存在租户的会话（租户被删了）不该因此获得全库权限。
+     *
+     * <p><b>没有身份上下文时视为平台级。</b>与 {@code assertNotOwnTenant}、{@code 0050} 的
+     * "没有身份就没有那个操作者"同一条先例：无上下文的调用只出现在**内部路径**
+     * （种子引导 {@code DefaultAdminSeeder}、测试夹具），它们本来就要求显式传入租户，
+     * 而 HTTP 上的每一个写路径都在 {@code @RequiresPermission} 之后 —— 一定有上下文。
+     * 若这里返回 false，种子会在启动时被自己的隔离挡住（它建组织时没有请求上下文）。
+     */
+    @Transactional(readOnly = true)
+    public boolean currentOperatorIsPlatform() {
+        Long own = AuthContextHolder.currentTenantId();
+        if (own == null) {
+            return true;
+        }
+        TenantEntity ownTenant = tenantMapper.selectById(own);
+        return ownTenant != null && ownTenant.getParentId() == null;
+    }
+
+    /**
+     * **查询路径**的租户解析：非平台级操作者传进来的 {@code tenantId} 被**忽略**，
+     * 一律落在自己租户上。
+     *
+     * <p>沿用 {@code 0025} 第 1 / 3 条对审计查询立下的两条口径：租户条件是**恒定加上**的
+     * （不是 {@code eq(条件, ...)} 那种可关的写法），而一次越权尝试只该**安静地**返回
+     * 调用方自己有权看的那一份 —— "被忽略"与"筛出一个空结果"在调用方看来必须同形，
+     * 报 {@code 403} 会把一次探测变成可观测的信号。
+     *
+     * <p>与 {@link #resolveWriteTenant} **刻意分成两个方法**：同一个 {@code tenantId} 参数
+     * 在 query 里是**过滤条件**（越权 → 忽略），在 create 里是**归属声明**（越权 → 拒绝）。
+     * 静默把"我要求在乙租户建号"改成"在甲租户建了一个号"比拒绝更糟 ——
+     * 调用方以为建成的地方与实际不符，而他看不到任何异常。
+     */
+    @Transactional(readOnly = true)
+    public Long resolveQueryTenant(Long requested) {
+        if (requested == null) {
+            return requireCurrentTenant();
+        }
+        if (currentOperatorIsPlatform()) {
+            assertExists(requested);
+            return requested;
+        }
+        Long own = requireCurrentTenant();
+        return requested.equals(own) ? requested : own;
+
+    }
+
+    /**
+     * **写入路径**的租户解析：非平台级操作者带别家的 {@code tenantId} 一律**显式拒绝**。
+     *
+     * <p>拒绝时用的码与文案与"引用的租户不存在"**一模一样**（{@code 40002} +
+     * {@code "引用的租户不存在：" + id}）：对非平台级操作者而言，别家租户在系统里
+     * **就是不存在**（他连租户列表里都看不到它，见 {@code TenantService#page}）。
+     * 同码同文案是这条"不可区分"的完整表述 —— 只同码而文案不同，等于换了个地方泄漏。
+     */
+    @Transactional(readOnly = true)
+    public Long resolveWriteTenant(Long requested) {
+        if (requested == null) {
+            return requireCurrentTenant();
+        }
+        if (currentOperatorIsPlatform()) {
+            assertExists(requested);
+            return requested;
+        }
+        Long own = requireCurrentTenant();
+        if (!requested.equals(own)) {
+            throw AuthResultCode.PARAM_REFERENCE_MISSING.businessException(
+                    "引用的租户不存在：" + requested);
+        }
+        return requested;
+    }
+
+    /**
+     * 一个**已存在对象**的租户归属是否对当前操作者可见，不可见则按"不存在"抛出。
+     *
+     * <p><b>这是本仓 {@code 404xx} 家族里第二类覆盖文案的落点</b>（{@code 0059} 登记的
+     * 唯一一处是 {@code DataScopeService#resolve}）。理由与那一处一字不差：
+     * {@code 403} 等于向调用方承认"这条记录确实存在，只是不给你看"，
+     * 而"它存在"这件事本身就是别人的信息。文案因此也逐字沿用它 ——
+     * {@code notFoundCode.getMessage() + "或不属于当前租户"}，
+     * 于是同一个码在这两处给出的是同一句话。
+     *
+     * <p>无身份上下文时直接通过：那是内部路径（见 {@link #currentOperatorIsPlatform()}）。
+     */
+    @Transactional(readOnly = true)
+    public void assertVisible(Long entityTenantId, AuthResultCode notFoundCode) {
+        if (entityTenantId == null) {
+            return;
+        }
+        Long own = AuthContextHolder.currentTenantId();
+        if (own == null || entityTenantId.equals(own) || currentOperatorIsPlatform()) {
+            return;
+        }
+        throw notFoundCode.businessException(notFoundCode.getMessage() + "或不属于当前租户");
+    }
+
+    /** 当前登录者所在的租户；没有身份要求显式传 {@code tenantId} —— 与四个业务域此前的分支同源 */
+    private Long requireCurrentTenant() {
+        Long current = AuthContextHolder.currentTenantId();
+        if (current == null) {
+            throw AuthResultCode.PARAM_INVALID.businessException("无法确定租户，请显式指定 tenantId");
+        }
+        return current;
+    }
+
     private TenantEntity requireTenant(Long id) {
         TenantEntity entity = id == null ? null : tenantMapper.selectById(id);
         if (entity == null) {
             throw AuthResultCode.TENANT_NOT_FOUND.businessException();
         }
         return entity;
+    }
+
+    /**
+     * 详情 / 修改 / 删除共用的取用：先"存在"（{@code 40402}），再"可见"（同一个码，覆盖文案）。
+     *
+     * <p>租户的"租户归属"就是它自己 —— 因此这里把 {@code entity.getId()} 交给
+     * {@link #assertVisible}，与用户域传 {@code entity.getTenantId()} 是同一个判据的两种写法。
+     */
+    private TenantEntity requireVisibleTenant(Long id) {
+        TenantEntity entity = requireTenant(id);
+        assertVisible(entity.getId(), AuthResultCode.TENANT_NOT_FOUND);
+        return entity;
+    }
+
+    /**
+     * 建租户时的层级权限：非平台级操作者**只能在自己的租户下建子租户**。
+     *
+     * <p>两个分支给两个码，因为它们说的不是一件事：
+     * <ul>
+     *   <li>不传 {@code parentId}（建顶级）→ {@code 40302}。顶级租户不是"某个看不见的对象"，
+     *       它是一个**能力**；这里也没有"那个东西存在"可言（它正要被创建）；</li>
+     *   <li>{@code parentId} 指向别家租户 → {@code 40402} + 与"租户不存在"逐字相同的文案
+     *       （见 {@link #resolveWriteTenant} 的理由）。</li>
+     * </ul>
+     *
+     * <p>第一条同时是"平台级"这个身份定义的**闭合条件**：没有它，
+     * "建一个顶级租户"就等于给自己升一级，而那个新账号会立刻获得全库的可见性。
+     */
+    private void assertCanCreateUnder(Long parentId) {
+        if (currentOperatorIsPlatform()) {
+            return;
+        }
+        if (parentId == null) {
+            throw AuthResultCode.PLATFORM_SCOPE_REQUIRED.businessException();
+        }
+        if (!parentId.equals(AuthContextHolder.currentTenantId())) {
+            throw AuthResultCode.TENANT_NOT_FOUND.businessException("租户不存在或不属于当前租户");
+        }
     }
 
     /**

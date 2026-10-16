@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.sts.auth.common.AuthResultCode;
 import com.bluewhale.sts.auth.common.enums.Status;
-import com.bluewhale.sts.auth.context.AuthContextHolder;
 import com.bluewhale.sts.auth.relation.RelOrgUserEntity;
 import com.bluewhale.sts.auth.relation.RelOrgUserMapper;
 import com.bluewhale.sts.auth.tenant.TenantService;
@@ -96,7 +95,7 @@ public class OrganizationService {
         // orgType 是**自由文本**（只作展示、写入时不校验取值）⇒ 只 trim，见 FilterValue 类注释。
         String status = FilterValue.enumValue(query.getStatus(), Status::parse, Status::wireName);
         String orgType = FilterValue.text(query.getOrgType());
-        Long tenantId = resolveTenantId(query.getTenantId());
+        Long tenantId = tenantService.resolveQueryTenant(query.getTenantId());
 
         var wrapper = Wrappers.<OrganizationEntity>lambdaQuery()
                 .eq(OrganizationEntity::getTenantId, tenantId)
@@ -142,7 +141,7 @@ public class OrganizationService {
      */
     @Transactional(readOnly = true)
     public List<OrganizationTreeNode> tree(Long rootId) {
-        Long tenantId = resolveTenantId(null);
+        Long tenantId = tenantService.resolveQueryTenant(null);
         List<OrganizationEntity> all = organizationMapper.selectList(
                 Wrappers.<OrganizationEntity>lambdaQuery()
                         .eq(OrganizationEntity::getTenantId, tenantId)
@@ -210,7 +209,7 @@ public class OrganizationService {
     @Transactional
     public OrganizationVO create(OrganizationSaveRequest request) {
         String orgCode = request.getOrgCode().trim();
-        Long tenantId = resolveTenantId(request.getTenantId());
+        Long tenantId = tenantService.resolveWriteTenant(request.getTenantId());
         // 与 resolveParent 里"停用的父组织不许挂新下级"同一条，只是范围更大：
         // 停用的租户连登录都进不去，它下面的组织更不可能被谁当成范围目标。见 ADR-0051
         tenantService.assertAcceptsNewData(tenantId);
@@ -366,6 +365,10 @@ public class OrganizationService {
         if (entity == null) {
             throw AuthResultCode.ORGANIZATION_NOT_FOUND.businessException();
         }
+        // 非平台级操作者够不到别家租户的组织（decisions/0074）——
+        // 详情 / 修改 / 移动 / 删除 / 成员归属四条路径全部经这里。
+        // 数据范围求值不走这条（它用的是 requireOrgOrNull，返回 null 让调用方往窄兜底）
+        tenantService.assertVisible(entity.getTenantId(), AuthResultCode.ORGANIZATION_NOT_FOUND);
         return entity;
     }
 
@@ -430,17 +433,10 @@ public class OrganizationService {
      * 树建得好好看、人也挂进去了、DEPT 档位却恒为空。校验住在
      * {@link TenantService#assertExists}（此前四个域各写一遍，见 ADR-0050）。
      */
-    private Long resolveTenantId(Long requested) {
-        if (requested != null) {
-            tenantService.assertExists(requested);
-            return requested;
-        }
-        Long current = AuthContextHolder.currentTenantId();
-        if (current == null) {
-            throw AuthResultCode.PARAM_INVALID.businessException("无法确定租户，请显式指定 tenantId");
-        }
-        return current;
-    }
+    /*
+     * 本域私有的 resolveTenantId 已删除（decisions/0074）：租户解析与隔离判定一起
+     * 收到 TenantService 上（resolveQueryTenant / resolveWriteTenant）。
+     */
 
     /**
      * 父组织：必须存在、必须同租户，**且不能是已停用的**。
@@ -638,16 +634,33 @@ public class OrganizationService {
         // 负责人姓名在这里就解析出来，而不是留给 updateColumns —— 新建走的是 insert，
         // 不经过 updateColumns，那样新组织的 managerName 会永远是 null
         // （列表展示用的是姓名，于是"刚建的部门没有负责人"看起来像功能没做）
-        entity.setManagerName(managerNameOf(request.getManagerId()));
+        entity.setManagerName(managerNameOf(request.getManagerId(), entity.getTenantId()));
     }
 
-    /** 负责人姓名由服务端解析，入参不接受 —— 否则会出现"列表显示 A、详情指向 B"的两份不一致 */
-    private String managerNameOf(Long managerId) {
+    /**
+     * 负责人姓名由服务端解析，入参不接受 —— 否则会出现"列表显示 A、详情指向 B"的两份不一致。
+     *
+     * <p><b>负责人必须是**同一租户**的人</b>（decisions/0074）：`manager_id` 这一列
+     * **没有任何判定读它**，所以跨租户传一个 id 的唯一后果是把别家用户的名字写进
+     * 本租户组织的展示列 —— 列表上会显示一个别的租户的人。
+     *
+     * <p>这里选择**拒绝**而不是静默当作"没传"：静默会让你以为设上了负责人，
+     * 而那一列在界面上是空的（"保存成功、什么都没发生"是本仓反复拒绝的那种表现）。
+     * 与"引用的父组织不属于本租户"（{@link #resolveParent}）用同一个码、同一种写法。
+     */
+    private String managerNameOf(Long managerId, Long tenantId) {
         if (managerId == null) {
             return null;
         }
         UserEntity user = userMapper.selectById(managerId);
-        return user == null ? null : displayNameOf(user);
+        if (user == null) {
+            return null;
+        }
+        if (!user.getTenantId().equals(tenantId)) {
+            throw AuthResultCode.PARAM_REFERENCE_MISSING.businessException(
+                    "引用的负责人不属于当前租户：" + managerId);
+        }
+        return displayNameOf(user);
     }
 
     /**

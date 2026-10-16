@@ -124,7 +124,7 @@ server/
 | `40408` | 该角色未授给此成员 | `40917` | 系统内置角色受保护     |
 | `40409` | 组未包含此成员   | `40918` | 用户组仍包含成员       |
 | `40919` | 组织仍包含成员   | `40920` | 引用的租户已停用       |
-| `40921` | 自己所在的租户受保护 |         |                        |
+| `40921` | 自己所在的租户受保护 | `40302` | 该操作仅平台级可用     |
 
 > **`40900` 段不再悬空**：此前没有 `DuplicateKeyException` 处理器，
 > 任何唯一键冲突（并发下"先查后写"挡不住的那一次）都落进兜底、对外回 `50000`
@@ -286,6 +286,7 @@ com.bluewhale.sts.log                    ← sts-server-log，包名用业务域
 | **引用的租户必须「存在」且「可用」**（`40002` / `40920` 分两格）    | 存在性 `TenantService#assertExists` 放在 `resolveTenantId` 里，因此**读与写都走它**；可用性 `assertAcceptsNewData`（存在 + `status = ENABLED`）**只放在 `create` 里** —— 停用租户里新造的账号**登不进来**（登录先拒 `status != ENABLED` 的租户，且刻意返 `40101`）、永久占着 `uk_bw_auth_user_tenant_username`，而停用租户里的角色 / 组织 / 用户组同样没有任何消费者；同一条先例在 `OrganizationService#resolveParent`（停用的父组织不许挂新下级），租户是更强的一档。**别把可用性并进 `resolveTenantId`**：那会连查一个停用租户里有什么一起关掉，而那正是排查它时最需要的信息（`TenantReferenceApiTest` 有用例钉这条边界）。逻辑删除的租户不需要第三条判据 —— `@TableLogic` 已让它在应用层**等于不存在**，走 `40002`。**`bw_auth_tenant.status` 有三个读者**：登录（拒停用的租户）· `TenantService#assertAcceptsNewData`（拒在停用租户下新建数据）· **`AuthService#refresh`**（续期与登录同判 —— 这一路上「账号与租户不可用」写在**同一行**里）。第三格此前是空的：`refresh` 只判了 `tenant != null`，于是**停用对已在用的人不生效** —— 重新登录被拒、续期照通，而刷新令牌是轮换的 ⇒ 只要一个会话在被使用就永远续得下去。修它的判据不是新决定：`decisions/0046` 的「四」早已为账号状态写下「当前状态靠判断、不靠清理」，租户只是同一条判据的**第二个对象**没有落地（`0051` 未覆盖 1，**已由 `decisions/0058` 关闭**）。这一格不牵动上面那条边界：续期用的是会话自己的校验，**不经过 `resolveTenantId`**，所以可用性判据仍然只在 `create` 里出现一次。读侧不挡由 `TenantReferenceApiTest` 钉、续期这一格由 `TenantDisableApiTest` 钉。 
 | **不可停用 / 删除自己所在的租户**（`40921`）                       | 两个动作都只关掉**自己进来的那扇门**：`TenantService#update`（把 `status` 写成非 `ENABLED` 时）与 `#delete`（逻辑删除，`@TableLogic` 让被删租户在应用层等于不存在，对登录的影响与停用一样）。判据是**身份与被操作对象的相等关系** —— 停用 / 删除**别的**租户照常（反例在 `TenantDisableApiTest` 的前两例），写成「谁都别停」会让这个能力形同虚设。理由与 `40917` 一字不差：恢复手段只剩「另一个租户里持有 `auth:tenant:update` 的账号」，根租户则只剩改库，而「一次点击造成的后果需要连数据库才能撤销」的操作不该由 HTTP 接口提供。身份取自 `AuthContextHolder#currentTenantId()`，**没有身份上下文时不判** —— 它要挡的是操作者把自己关在门外，没有身份就没有那个操作者（所有写路径都在 `@RequiresPermission` 之后）。它**与「续期也判租户状态」同一次落地**（`decisions/0058`）：在那条判据之前，停用自己所在租户其实有退路（访问令牌还能用、把 `status` 改回来即可），正是那条退路被封才让这个陷阱成立 —— `0051` 未覆盖 1 说的就是这两问必须一起答。**只挡写、不挡读**：查询 / 详情 / 列表照常可见，与 `40920` 的边界一致。 |
 | **租户存在性校验只有一处**（`TenantService#assertExists`）         | 四个带 `tenant_id` 的域（用户 / 角色 / 组织 / 用户组）此前**各写一遍同名的私有 `resolveTenantId`**，其中**用户域那一份没有校验**（`private static`，也是四份里唯一不持有 `TenantMapper` 的）。DDL 里**零 `FOREIGN KEY`、零 `CONSTRAINT`** ⇒ 应用层不挡就没有东西挡：`POST /api/auth/users` 带一个不存在的 `tenantId` 会**成功建出一个永远登不进来的账号**（登录先按 `tenantCode` 找租户），并永久占着 `uk_bw_auth_user_tenant_username`。而另外三处的注释把这个缺口写成"与 `UserService` **有意不同**"、`docs/` 里对此**零记录** —— **复制 + 用注释追认**比漏写注释更难发现（漏写会在评审时被问，"有意"是一个答案）。现在判定归 `TenantService#assertExists`（唯一属主），四处都问它，三个服务因此不再注入 `TenantMapper`；`40002`（引用的外键指不到）与 `40402`（要操作的租户不存在）**刻意不合并** —— 合并会让两种要去不同地方修的错长得一样。**新增带 `tenant_id` 的表时，存在性校验问 `TenantService`，不要再内联一份**（`decisions/0050`） |
+| **跨租户的读写边界只有一个属主**（`decisions/0074`）              | 上面那条管的是"引用的租户**在不在**"，这一条管"操作者**够不够得到**它"。**判据：「平台级」= 操作者所在租户是顶级租户**（`parent_id IS NULL`；本仓的形态就是种子租户），**不新增权限码** —— 层级位置是可从库里读出来的事实，加一个"平台管理员"码会造出两个都必须对上的开关。**三条口径一次定死**：① **读侧**（列表 / 树）非平台级的租户条件**恒等于自己**，传入的 `tenantId` 被**忽略**（沿用 `0025` 对审计立下的"条件恒定加上 + 越权尝试不报错"）；② **详情 / 改 / 删 / 重置口令**跨租户返回**该对象的 `404`**（不是 `403` —— 那等于承认"它存在，只是不给你看"）；③ **写侧**（`create`）带别家 `tenantId` **显式拒绝**（`40002` 且与"引用的租户不存在"**同码同文案**）。②③ 的分界是"这个参数在 query 里是**过滤条件**、在 create 里是**归属声明**"—— 静默把"我要求在乙租户建号"改成"在甲租户建了一个号"比拒绝更糟。**租户域自己也是一种资源**：列表只剩自己、详情/改/删 `40402`、**非平台级不能建顶级租户**（`40302` —— 这条同时是"平台级"定义的**闭合条件**，否则建一个顶级租户就等于自升一级）。**四个私有 `resolveTenantId` 已删**，解析与判定一起收到 `TenantService`（`resolveQueryTenant` / `resolveWriteTenant` / `assertVisible` / `currentOperatorIsPlatform`）；`assertExists` 的两个调用点顺序不可反（不存在的租户先给"引用不存在"，不是"越权"）。**新增带 `tenant_id` 的域时三件事都要接**：查询走 `resolveQueryTenant`、新建走 `resolveWriteTenant`、`requireXxx` 走 `assertVisible` —— 漏掉第三条的症状是"列表干净、但详情能翻墙"。**新增"以某个 id 为主语的子资源入口"时问一句：它自己取的那个对象过可见性了吗**（本片抓到的三处 —— `RoleMemberService#rolesOfUser`、`OrganizationService#managerNameOf`、`OrganizationMemberService#listByUser` —— 全是漏在这里） |
 | **不带 `@RequiresPermission` 的端点必须登记**                      | `AuthInterceptor` 的规则是**白名单反着写的**（方法/类上**没有**注解就一律放行，`decisions/0026` 点名的根因）—— 规则有意如此（登录 / 健康检查 / 上报不能被要求权限码），**代价是新加端点忘了写注解 = 静默公开**。`PublicEndpointRegistryTest` 用 `RequestMappingHandlerMapping` 枚举全部 `/api/**` 端点，断言「有注解」与「在登记表里」**恰好二选一**（判据与拦截器同用一个 `AnnotatedElementUtils.findMergedAnnotation`、枚举同一张映射表 ⇒ **守卫与被守的规则同源**）。**登记 ≠ 免登录**：本表回答"拦不拦权限码"，"要不要令牌"另由服务层 `AuthContextHolder.require()` 表达（`/api/auth/me`、`/password`、`/logout-all` 就在登记表里，但仍要求已认证）—— 拿它当"完全公开的接口清单"用会造出第二份会误导的清单。`bw_auth_resource.is_whitelist` **不是**这份清单：种子资源由 `AuthPermissions.ALL` 建出 ⇒ 只有带权限码的接口才有行，而公开接口在那张表里**一行都没有**，于是这一列恒为 0（`decisions/0052`） |
 | **成员列表分页，但不做按名搜索**                                   | 资源授权列表被权限码总量封顶、可以一次取完；成员是多对多、可能上万。名字在另一张表且随类型切换，先跨表解析再过滤会让 `total` 失真 —— 按名字找人应当从**用户**列表那一侧进入 |
 | **`auth:role:update` 含一条直接提权路径**（把自己加到任意角色，含 `SUPER_ADMIN`） | 与 `auth:user:update` 含"重置任意账号口令"同性质，本仓已接受过一次。**触发条件**：出现第二个持有 `auth:role:update` 但不持有全部权限的角色时，拆出 `auth:role:member`（`decisions/0023` 第 10 条） |
@@ -558,37 +559,51 @@ DDL 里有**六个唯一编码列**，`uk_*` 一律**不含 `deleted`** ⇒ 软�
   此前只断言了 `40002`，两处的文案断言现由 `ReferenceMessageApiTest` 补齐，
   原用例保持不动（各钉一个维度）。
 
-### `404xx` 的十五处落点与它们的断言
+### `404xx` 的落点与它们的断言（十五处 + 跨租户一族）
 
 与 `40002` 恰好相反，这一族**一个码就是一个对象**（`40401` 用户 / `40402` 租户 / …），
-所以"点名"这件事住在**枚举**里 —— 抛出点不写文案，也就写不出错的对象。十五处落点里
-只有一处覆盖了文案，而那一处正是这个码在说两件事的地方。由此两条规矩：
+所以"点名"这件事住在**枚举**里 —— 抛出点不写文案，也就写不出错的对象。由此两条规矩：
 
-- **在抛出点覆盖文案 = 这个码在说两件事。** 全族只有 `DataScopeService#resolve` 一处
-  （把"用户不存在"与"不属于当前租户"合成一句），且它**不能拆成两个码** ——
-  拆了就等于告诉调用方"那个人存在，只是不在你这儿"。
+- **在抛出点覆盖文案 = 这个码在说两件事 —— 但有一类覆盖是"同一个理由"，那类不算破坏这条规矩。**
+  最早的一处是 `DataScopeService#resolve`（把"用户不存在"与"不属于当前租户"合成一句），
+  且它**不能拆成两个码** —— 拆了就等于告诉调用方"那个人存在，只是不在你这儿"。
+  `decisions/0074` 把这条判据推广成了**一族**：`TenantService#assertVisible(entityTenantId, code)`
+  用 `code.getMessage() + "或不属于当前租户"` 统一生成文案，用户 / 角色 / 组织 / 用户组 /
+  租户五个域十几处跨租户落点因此给出的是**同一句话**。这不是"一族码各说两件事"，
+  而是**同一条理由（防存在性泄漏）落在多处的同一个写法** —— 因此它是允许的，
+  但**只允许这一族**：以后要在别处覆盖文案，先回答"是不是同一个理由"。
 - **断言这一族断 `code` 即完整**（码就是对象）—— 与上面那节"只断 `code` 等于没核"
-  **正好相反**。文案断言在这里另有用途：证明这个码还只干一件事，一旦有人开始覆盖它会先红。
+  **正好相反**。文案断言在这里另有用途：证明这个码还只干一件事，一旦有人开始覆盖它会先红；
+  跨租户一族则反过来 —— 它们的**码与文案都由 `assertVisible` 生成**，
+  所以断言断 `code` 就够，文案不需要（它不可能是"另一件事"）。
 
-**这张表是权威版本**（`decisions/0059` 补齐了此前没有断言的六处；`〃` 表示"同上一个方法"）。
+**这张表是权威版本**（`decisions/0059` 补齐了此前没有断言的六处；`decisions/0074` 补了跨租户一族；
+`〃` 表示"同上一个方法"）。
 
-| 码      | 落点                                          | 断言                  |
-| ------- | --------------------------------------------- | --------------------- |
-| `40401` | `DataScopeService#resolve`                    | `DataScopeApiTest`    |
-| `40401` | `RoleMemberService#rolesOfUser`               | `UserGroupApiTest`    |
-| `40401` | `UserService#requireUser`                     | `NotFoundCodeApiTest` |
-| `40402` | `TenantService#requireTenant`                 | `NotFoundCodeApiTest` |
-| `40403` | `RoleService#requireRole`                     | `RoleApiTest`         |
-| `40403` | `RoleMemberService#requireRole`               | `NotFoundCodeApiTest` |
-| `40404` | `OrganizationService#requireOrg`              | `NotFoundCodeApiTest` |
-| `40404` | `OrganizationService#tree`（`rootId` 不存在） | `NotFoundCodeApiTest` |
-| `40405` | `UserGroupService#requireGroup`               | `UserGroupApiTest`    |
-| `40406` | `ResourceService#requireResource`             | `NotFoundCodeApiTest` |
-| `40407` | `RoleService#revoke`                          | `RoleApiTest`         |
-| `40408` | `RoleMemberService#revoke`                    | `RoleMemberApiTest`   |
-| `40409` | `UserGroupService#revokeMember`               | `UserGroupApiTest`    |
-| `40410` | `OrganizationMemberService#revokeMember`      | `OrganizationApiTest` |
-| `40410` | 〃 `#setPrimaryPosition`                      | `OrganizationApiTest` |
+| 码      | 落点                                          | 断言                       |
+| ------- | --------------------------------------------- | -------------------------- |
+| `40401` | `DataScopeService#resolve`                    | `DataScopeApiTest`         |
+| `40401` | `RoleMemberService#rolesOfUser`               | `UserGroupApiTest`         |
+| `40401` | `UserService#requireUser`                     | `NotFoundCodeApiTest`      |
+| `40401` | 〃 **跨租户**（`assertVisible`）               | `TenantIsolationApiTest`   |
+| `40401` | `RoleMemberService#rolesOfUser` **跨租户**     | `TenantIsolationApiTest`   |
+| `40402` | `TenantService#requireTenant`                 | `NotFoundCodeApiTest`      |
+| `40402` | 〃 **跨租户**（详情 / 修改 / 删除）            | `TenantIsolationApiTest`   |
+| `40402` | `TenantService#assertCanCreateUnder`（父级指向别家） | `TenantIsolationApiTest`   |
+| `40403` | `RoleService#requireRole`                     | `RoleApiTest`              |
+| `40403` | `RoleMemberService#requireRole`               | `NotFoundCodeApiTest`      |
+| `40403` | 〃 **跨租户**（`assertVisible`）               | —                          |
+| `40404` | `OrganizationService#requireOrg`              | `NotFoundCodeApiTest`      |
+| `40404` | `OrganizationService#tree`（`rootId` 不存在） | `NotFoundCodeApiTest`      |
+| `40404` | 〃 `#requireOrg` **跨租户**                    | `TenantIsolationApiTest`   |
+| `40405` | `UserGroupService#requireGroup`               | `UserGroupApiTest`         |
+| `40405` | 〃 〃 **跨租户**                                | `TenantIsolationApiTest`   |
+| `40406` | `ResourceService#requireResource`             | `NotFoundCodeApiTest`      |
+| `40407` | `RoleService#revoke`                          | `RoleApiTest`              |
+| `40408` | `RoleMemberService#revoke`                    | `RoleMemberApiTest`        |
+| `40409` | `UserGroupService#revokeMember`               | `UserGroupApiTest`         |
+| `40410` | `OrganizationMemberService#revokeMember`      | `OrganizationApiTest`      |
+| `40410` | 〃 `#setPrimaryPosition`                      | `OrganizationApiTest`      |
 
 顺带记下公共码的一格：`ResultCode.NOT_FOUND(40400)` 的默认文案"资源不存在"**一次都没被用过** ——
 三个读者（审计记录 / 客户端日志 / 客户端事件）全部自带文案，与上面那张表正好是两种相反的形态
@@ -618,6 +633,7 @@ DDL 里有**六个唯一编码列**，`uk_*` 一律**不含 `deleted`** ⇒ 软�
 | `40111` | `AuthService#login` · 〃 `#refresh` | `PasswordExpiryApiTest` |
 | `40300`（公共） | **无** | — |
 | `40301` | `AuthInterceptor#preHandle`（覆盖「`"缺少权限：" + required`」） | `AuthApiTest` · `RoleApiTest` · `OrganizationApiTest` · `ResourceApiTest` · `UserGroupApiTest` · `RoleMemberApiTest` · `DataScopeApiTest` · `AuditApiTest` |
+| `40302` | `TenantService#assertCanCreateUnder`（非平台级建顶级租户） | `TenantIsolationApiTest` |
 | `42900`（公共） | **无** | — |
 
 七个零落点的码（`40105` · `40107`~`40110` · `40300` · `42900`）现在由

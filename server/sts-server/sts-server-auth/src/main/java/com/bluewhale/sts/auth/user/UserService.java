@@ -66,7 +66,7 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public PageResult<UserVO> page(UserQuery query) {
-        Long tenantId = resolveTenantId(query.getTenantId());
+        Long tenantId = tenantService.resolveQueryTenant(query.getTenantId());
         // 关键词先规范化（吃掉两端空白）再转义，见 KeywordLike（decisions/0067 · 0068）。
         String pattern = KeywordLike.pattern(query.getKeyword());
         // 过滤值先规范化再进 eq（decisions/0069 · 0070）：`eq(条件, 列, 值)` 的"值"是
@@ -115,7 +115,7 @@ public class UserService {
      */
     @Transactional
     public UserVO create(UserSaveRequest request) {
-        Long tenantId = resolveTenantId(request.getTenantId());
+        Long tenantId = tenantService.resolveWriteTenant(request.getTenantId());
         // 存在还不够：停用的租户里建出来的账号永远登不进来（登录先拒 status != ENABLED
         // 的租户），却永久占着 uk_bw_auth_user_tenant_username。见 ADR-0051
         tenantService.assertAcceptsNewData(tenantId);
@@ -254,6 +254,11 @@ public class UserService {
         if (entity == null) {
             throw AuthResultCode.USER_NOT_FOUND.businessException();
         }
+        // 非平台级操作者够不到别家租户的用户 —— 与"这个用户不存在"**同码同文案**
+        // （"用户不存在或不属于当前租户"），沿用 DataScopeService#resolve 的那条口径：
+        // 403 等于承认"这个人存在，只是不给你看"，而"他存在"本身就是别人的信息。
+        // 详情 / 修改 / 删除 / 重置口令 / 反查角色五条路径全部经这里（decisions/0074）
+        tenantService.assertVisible(entity.getTenantId(), AuthResultCode.USER_NOT_FOUND);
         return entity;
     }
 
@@ -291,22 +296,18 @@ public class UserService {
         return count == null ? 0L : count;
     }
 
-    private Long resolveTenantId(Long requested) {
-        if (requested != null) {
-            // 校验存在性，与角色 / 组织 / 用户组三域一致 —— 此前**只有这里没有**这一道，
-            // 于是 POST /api/auth/users 带一个不存在的 tenantId 会**成功地**建出一个
-            // 属于不存在租户的账号：它永远登不进来（登录先按租户编码找租户）、
-            // 永远匹配不上任何判定，却永久占着 uk_bw_auth_user_tenant_username 那个位置。
-            // DDL 里没有任何外键（零 FOREIGN KEY），这件事只能由应用层负责。
-            tenantService.assertExists(requested);
-            return requested;
-        }
-        Long current = AuthContextHolder.currentTenantId();
-        if (current == null) {
-            throw AuthResultCode.PARAM_INVALID.businessException("无法确定租户，请显式指定 tenantId");
-        }
-        return current;
-    }
+    /*
+     * 四个业务域各自的私有 resolveTenantId 已删除（decisions/0074）：租户解析连同
+     * "非平台级只能管自己租户"这条隔离判定，一起收到了 TenantService 上
+     * （resolveQueryTenant / resolveWriteTenant）—— 与 0050 把"租户存在性"从四个属主
+     * 收到一处，是同一件事的下一步，而两个半片合成了一整条边界。
+     *
+     * 用户域那一份的历史值得留一句：它曾是四个属主里**唯一漏掉存在性校验**的一个，
+     * 于是 POST /api/auth/users 带一个不存在的 tenantId 会**成功地**建出一个属于
+     * 不存在租户的账号 —— 它永远登不进来（登录先按租户编码找租户）、永远匹配不上任何判定，
+     * 却永久占着 uk_bw_auth_user_tenant_username 那个位置。DDL 里没有任何外键
+     * （零 FOREIGN KEY），这件事只能由应用层负责（0050）。
+     */
 
     private static String resolveStatus(String status) {
         Status parsed = Status.parse(status);

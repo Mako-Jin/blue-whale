@@ -8,6 +8,7 @@ import com.bluewhale.sts.auth.common.enums.RoleSource;
 import com.bluewhale.sts.auth.common.enums.Status;
 import com.bluewhale.sts.auth.relation.RelRoleMemberEntity;
 import com.bluewhale.sts.auth.relation.RelRoleMemberMapper;
+import com.bluewhale.sts.auth.tenant.TenantService;
 import com.bluewhale.sts.auth.usergroup.UserGroupEntity;
 import com.bluewhale.sts.auth.usergroup.UserGroupMapper;
 import com.bluewhale.sts.auth.user.UserEntity;
@@ -85,15 +86,18 @@ public class RoleMemberService {
     private final RelRoleMemberMapper relRoleMemberMapper;
     private final UserMapper userMapper;
     private final UserGroupMapper userGroupMapper;
+    private final TenantService tenantService;
 
     public RoleMemberService(RoleMapper roleMapper,
                              RelRoleMemberMapper relRoleMemberMapper,
                              UserMapper userMapper,
-                             UserGroupMapper userGroupMapper) {
+                             UserGroupMapper userGroupMapper,
+                             TenantService tenantService) {
         this.roleMapper = roleMapper;
         this.relRoleMemberMapper = relRoleMemberMapper;
         this.userMapper = userMapper;
         this.userGroupMapper = userGroupMapper;
+        this.tenantService = tenantService;
     }
 
     /* ------------------------------------------------------------------ 查询 */
@@ -313,6 +317,9 @@ public class RoleMemberService {
         if (user == null) {
             throw AuthResultCode.USER_NOT_FOUND.businessException();
         }
+        // 这条反查此前是**裸的 selectById**：跨租户查别人的用户会真的列出他的角色来源
+        // （角色名 + 直授/经组），是本片抓到的第五条缺口（decisions/0074）
+        tenantService.assertVisible(user.getTenantId(), AuthResultCode.USER_NOT_FOUND);
 
         long now = System.currentTimeMillis();
         List<UserRoleVO> rows = roleMapper.selectUserRoleSources(user.getTenantId(), userId);
@@ -367,6 +374,8 @@ public class RoleMemberService {
         if (entity == null) {
             throw AuthResultCode.ROLE_NOT_FOUND.businessException();
         }
+        // 成员列表 / 授予 / 解除三条路径都从角色出发 ⇒ 隔离在这一处落地（decisions/0074）
+        tenantService.assertVisible(entity.getTenantId(), AuthResultCode.ROLE_NOT_FOUND);
         return entity;
     }
 

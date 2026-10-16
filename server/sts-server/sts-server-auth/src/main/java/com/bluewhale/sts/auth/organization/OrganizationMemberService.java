@@ -7,6 +7,7 @@ import com.bluewhale.sts.auth.common.enums.Status;
 import com.bluewhale.sts.auth.context.AuthContextHolder;
 import com.bluewhale.sts.auth.relation.RelOrgUserEntity;
 import com.bluewhale.sts.auth.relation.RelOrgUserMapper;
+import com.bluewhale.sts.auth.tenant.TenantService;
 import com.bluewhale.sts.auth.user.UserEntity;
 import com.bluewhale.sts.auth.user.UserMapper;
 import com.bluewhale.sts.common.basic.model.PageResult;
@@ -56,13 +57,16 @@ public class OrganizationMemberService {
     private final OrganizationService organizationService;
     private final RelOrgUserMapper relOrgUserMapper;
     private final UserMapper userMapper;
+    private final TenantService tenantService;
 
     public OrganizationMemberService(OrganizationService organizationService,
                                      RelOrgUserMapper relOrgUserMapper,
-                                     UserMapper userMapper) {
+                                     UserMapper userMapper,
+                                     TenantService tenantService) {
         this.organizationService = organizationService;
         this.relOrgUserMapper = relOrgUserMapper;
         this.userMapper = userMapper;
+        this.tenantService = tenantService;
     }
 
     /* ------------------------------------------------------------------ 读 */
@@ -99,6 +103,15 @@ public class OrganizationMemberService {
     @Transactional(readOnly = true)
     public List<UserOrgVO> listByUser(Long userId) {
         Long tenantId = AuthContextHolder.require().getTenantId();
+        // 用户本身也要过可见性：此前这里只按当前租户过滤归属行 ⇒ 跨租户查一个别的用户
+        // 会得到"他在本租户没有归属"这个**安静但错误的**答案（正确的答案是他不存在）。
+        // 这一处本来是安全形态（返回空列表、不泄漏数据），改它是为了一致性：
+        // 同族入口对"不存在"与"不属于当前租户"必须给同一个答案（decisions/0074）
+        UserEntity user = userId == null ? null : userMapper.selectById(userId);
+        if (user == null) {
+            throw AuthResultCode.USER_NOT_FOUND.businessException();
+        }
+        tenantService.assertVisible(user.getTenantId(), AuthResultCode.USER_NOT_FOUND);
         List<RelOrgUserEntity> rows = relOrgUserMapper.selectList(
                 Wrappers.<RelOrgUserEntity>lambdaQuery()
                         .eq(RelOrgUserEntity::getTenantId, tenantId)

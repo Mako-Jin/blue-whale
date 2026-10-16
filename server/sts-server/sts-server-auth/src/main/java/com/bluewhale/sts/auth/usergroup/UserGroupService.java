@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.sts.auth.common.AuthResultCode;
 import com.bluewhale.sts.auth.common.enums.MemberType;
-import com.bluewhale.sts.auth.context.AuthContextHolder;
 import com.bluewhale.sts.auth.relation.RelRoleMemberEntity;
 import com.bluewhale.sts.auth.relation.RelRoleMemberMapper;
 import com.bluewhale.sts.auth.relation.RelUserGroupMemberEntity;
@@ -96,7 +95,7 @@ public class UserGroupService {
         // 外层的条件参数救不了。这条坑在本仓已经踩过两次（资源目录、角色）。
         // category 是自由文本（只校验形状、不校验取值集）⇒ 只 trim。
         String category = FilterValue.text(query.getCategory());
-        Long tenantId = resolveTenantId(query.getTenantId());
+        Long tenantId = tenantService.resolveQueryTenant(query.getTenantId());
 
         var wrapper = Wrappers.<UserGroupEntity>lambdaQuery()
                 .eq(UserGroupEntity::getTenantId, tenantId)
@@ -145,7 +144,7 @@ public class UserGroupService {
     @Transactional
     public UserGroupVO create(UserGroupSaveRequest request) {
         String groupCode = request.getGroupCode().trim();
-        Long tenantId = resolveTenantId(request.getTenantId());
+        Long tenantId = tenantService.resolveWriteTenant(request.getTenantId());
         // 同 {@link RoleService#create}：新建才问这一格 —— 停用租户里的组
         // 只会被本租户的角色成员关系引用，而那个租户的用户登不进来。见 ADR-0051
         tenantService.assertAcceptsNewData(tenantId);
@@ -380,28 +379,18 @@ public class UserGroupService {
         if (entity == null) {
             throw AuthResultCode.USER_GROUP_NOT_FOUND.businessException();
         }
+        // 非平台级操作者够不到别家租户的用户组（decisions/0074）——
+        // 详情 / 修改 / 删除 / 成员三条路径全部经这里
+        tenantService.assertVisible(entity.getTenantId(), AuthResultCode.USER_GROUP_NOT_FOUND);
         return entity;
     }
 
-    /**
-     * 租户：显式指定则**校验存在性**，否则取当前登录用户的租户。
-     *
-     * <p>用户组只能被**本租户**的角色成员关系引用，
-     * 一个写错租户的组会**永远不可能产生权限** —— 成员加得进去、列表一切正常、
-     * 判定永远匹配不上。静默不可达的数据，正是本仓尽量不让接口制造的东西。
-     * 校验住在 {@link TenantService#assertExists}（此前四个域各写一遍，见 ADR-0050）。
+    /*
+     * 本域私有的 resolveTenantId 已删除（decisions/0074）：租户解析与隔离判定一起
+     * 收到 TenantService 上（resolveQueryTenant / resolveWriteTenant）。
+     * 原注释里那句判断仍然成立、且现在是**共享**的：用户组只能被本租户的角色成员关系引用，
+     * 一个写错租户的组会永远不可能产生权限 —— 成员加得进去、列表一切正常、判定永远匹配不上。
      */
-    private Long resolveTenantId(Long requested) {
-        if (requested != null) {
-            tenantService.assertExists(requested);
-            return requested;
-        }
-        Long current = AuthContextHolder.currentTenantId();
-        if (current == null) {
-            throw AuthResultCode.PARAM_INVALID.businessException("无法确定租户，请显式指定 tenantId");
-        }
-        return current;
-    }
 
     private UserGroupEntity resolveParent(Long parentId, Long tenantId) {
         if (parentId == null) {
