@@ -28,6 +28,7 @@
 | `verify-filter-values.mjs`     | `server/` 的 `src/main/java` 里**精确匹配**的过滤值与**要拿它去匹配的那些写入值**都在 `FilterValue` 上收口：`.eq(...)` 的条件里不许用 `hasText(...)` 或内联的 `query.getX().isBlank()`；三个手写聚合 SQL（`countByLevel` / `countByEventName` / `countByAction`）的实参不许是 `query.getXxx()`；**枚举列**的五个 getter（`getStatus` / `getResourceType` / `getMemberType` / `getLevel` / `getResult`）只能作为 `FilterValue.enumValue(...)` 的第一个实参出现；**上报侧**（`sts-server-log` / `sts-server-track`）写入实体时 `entity.set<App\|Namespace\|TraceId\|SessionId\|UserId\|DeviceId>(...)` 的实参必须含 `FilterValue`；**寻址列**（`sts-server-auth`）`entity.set<Email\|Phone\|ContactEmail\|ContactPhone>(...)` 与 `existsEmail(...)` / `existsPhone(...)` 的实参**含 `request.getXxx()` 且不含 `FilterValue` ⇒ 报红**（判重也是一次 `eq`，两侧必须共用一个归一值） | **无前置条件**（只读源码文本，不编译、不连网、不写文件）；`node scripts/verify-filter-values.mjs` | `docs/decisions/0069` · `docs/decisions/0070` · `docs/decisions/0071` · `docs/decisions/0072` |
 | `verify-notfound-messages.mjs` | `404xx` 的抛出点全是无参的（文案只能来自枚举）；没有一处 `businessException(...)` 在拼另一个码的 `getMessage()` | **无前置条件**（只读源码文本，不编译、不连网、不写文件）；`node scripts/verify-notfound-messages.mjs` | `docs/decisions/0059` · `docs/decisions/0075` |
 | `verify-tenant-visibility.mjs` | 按主键取实体的读侧出口都过了落点（射程由 `@TableName` + `BaseMapper<…>` + DDL 推导，零白名单）：**管理面**出口过 `assertVisible`、那个码与"不存在"那一支逐字相同；**观测面**（三条记录管道 —— 审计 / 日志 / 事件）出口过 `assertRecordInCurrentTenant`（抛**公共** `40400` ⇒ 认落点靠"方法体提到公共码"，**不写名字**）；三方言的 `tenant_id` 存在性与可空性一致；接上了租户服务的模块里不得手搓租户相等比较 | **无前置条件**（只读源码文本与三方言迁移脚本，不编译、不连网、不写文件）；`node scripts/verify-tenant-visibility.mjs` | `docs/decisions/0074` · `docs/decisions/0076` · `docs/decisions/0077` |
+| `verify-tenant-scope-source.mjs` | **租户条件的取值来源**只有三种 —— 落点（`resolveQueryTenant` / `resolveWriteTenant` / `currentReadTenant`）· 认证上下文 · 实体自身；两种形状都查：`.eq(<X>::getTenantId, ARG)` 与注解 SQL 里的 `#{tenantId}`。来源是**请求绑定类型**（`*Controller` 带注解形参的声明类型，从源码推导、零白名单）上的租户 ⇒ 红；裸标识符按一跳追（本方法局部初值 → 本方法形参 → 本模块调用点实参），**追不到也红**（防假阴） | **无前置条件**（只读源码文本，不编译、不连网、不写文件）；`node scripts/verify-tenant-scope-source.mjs` | `docs/decisions/0078` |
 | `verify-standalone-dev-login.mjs` | 用真实 Chrome 验证子应用**单跑**时的自建会话与开发账号自动登录（后端在跑 / 没起两种状态都跑一遍） | 至少一个子应用的 dev 服务在跑（:3200 / :3300 / :3500 / :3600，没起的会被记成"跳过"）；**后端 :8080 可选** —— 在跑时断言自动登录成功，没起时断言优雅降级；本机装有 Google Chrome | `docs/decisions/0018` · `0033` |
 
 ### `verify-micro-frontend.mjs` 做什么
@@ -717,10 +718,58 @@ log / track 两个上报模块、且只认接收者是 `entity`）；
 （实例：`OrganizationMemberService#setPrimaryPosition` 取用户、抛归属的 `40410` ——
 那个 404 的理由不覆盖这次取数。脚本把这类位置**印出来**，语义写在那一处的源码注释里）；
 "该不该做同租户判定"本身（规则 C 只管"已经在比、却绕开落点"，不管"该不该判"）；
-**查询路径的租户条件从哪来**（`page` / `stats` 里 `.eq(Entity::getTenantId, <某个变量>)` ——
-那个变量是不是从落点来的，静态看不出来；这是本片之后守卫最大的空白，记进 `0077` 未覆盖 2）；
+**查询路径的租户条件从哪来** —— 不是漏了，是**搬到了下一节那支脚本**
+（`verify-tenant-scope-source.mjs`，`0078`）；两处别互相以为对方管了；
 手搓的其他形态（`Objects.equals(a, b)` 两侧都是局部变量 —— 规则 C 看不到）；
 "三方言 DDL 全等"（类型名本来就不同，全等会误报）。
+
+### `verify-tenant-scope-source.mjs` 做什么
+
+把 `0077`「刻意不查的」里那条**最大的空白**补上（原话："查询路径的租户条件从哪来……
+那个变量是不是来自落点，静态看不出来"）：**写成 SQL 条件的那一刻，那个租户 id 是从哪儿取来的**。
+
+| # | 形状 | 查什么 |
+| --- | --- | --- |
+| E1 | `.eq(<X>::getTenantId, ARG)` | `ARG` 的来源必须是**落点 / 认证上下文 / 实体自身**之一 |
+| E2 | 注解 SQL 里的 `#{tenantId}` | 它绑到的那**一个调用点实参**（或那个**唯一的实体形参**）同上 |
+
+两条形状是同一句话的两个写法 —— **"租户条件"既可能写在 lambda wrapper 里，也可能写在
+`@Select` / `@Insert` 的 SQL 文本里**。只守一条就是 `0077` 修过的那种不对称。
+
+**为什么"静态看不出来"这个结论是错的。** `0076` 的判据在这里同样成立 ——
+**问"这东西是什么"能，问"它叫什么"不能**。要问的是"这个租户 id 从哪儿取来的"，
+而答案在源码里只有三个地方：落点（`resolveQueryTenant` / `resolveWriteTenant` / `currentReadTenant`）、
+认证上下文（`AuthContextHolder`、会话对象上的 `getTenantId()`）、实体自身
+（`@TableName` 类型上的 `getTenantId()`；对象本身就是 `bw_auth_tenant` 时的 `getId()`）。
+第四种就是**请求绑定类型** —— 唯一危险的那一种：它由调用方决定，而"别家租户在系统里就是不存在"
+（`0025` 第 2 条）意味着它必须被**忽略**（查询）或**拒绝**（写入），两件事都只在落点里发生（`0074`）。
+"请求绑定类型"这一集**从源码推导**：`*Controller` 里**带注解的形参**的声明类型（实测 35 个）。
+构造器形参没有注解，所以不会被收进来 —— 不筛注解的话
+`AuditLogController(AuditLogService auditLogService)` 会把 `AuditLogService` 也算成一个 DTO，
+十几处正当写法当场变红（写脚本时踩过这一次）。
+
+**裸标识符按一跳追，追不到就红。** 本方法局部初值 → 本方法形参 → 该形参的**调用点实参**
+（接收者从"哪个类声明了这个类型的字段 / 参数"读出来，射程是同模块；私有方法只看同文件）。
+**声明与调用不靠名字区分**：参数表那些 `(` 是显式收进 `declarationParens` 的 ——
+第一版用"参数表后面跟不跟 `{`"来判，在 **Mapper 接口**上失效（接口方法没有 `{`，
+于是每个声明都被读成了它自己的调用点，报出来一屏废话）。
+
+**落点改名不会造成假阴。** 判据里写着那三个落点名，改了名那几处会"认不出"从而**变红**，
+而不是静默离开射程；另有一条自检确认它们还在 `TenantService` 里（连"落点搬了家"也一起盖住）。
+**未覆盖**：`@Update … WHERE id = #{id}` 这类"按主键改"的注解 SQL **完全没有租户条件** ——
+那是规则 A / D 在写侧的镜像（那里压根没有租户值可判），留给下一片（`docs/decisions/0078`）。
+
+**写它时验过七轮扰动**，每条形状都能精确红、且不多红：
+
+| 轮 | 扰动 | 结果 |
+| --- | --- | --- |
+| 1 | `UserService:69` 绕开落点、直取 `query.getTenantId()` | 只红 E1，并指名请求绑定类型 `UserQuery` |
+| 2 | `ClientLogService:167` 那个**调用点**换成 `query.getTenantId()` | 只红 E1，**指名调用点行号** —— 形参的来源只在调用点上看得见 |
+| 3 | `ClientLogService:256` 的来源换成认不出的 `tenantOf(query)` | **同时红 E1 与 E2 两处**（同一个变量既喂 `.eq` 又喂注解 SQL ⇒ 两形状口径一致） |
+| 4 | `UserService:128` 的注解 SQL 调用点传 `request.getTenantId()` | 只红 E2，并指名 `UserSaveRequest` |
+| 5a | **反例**：把落点**内联**进 `.eq` 的实参（等价重构） | **全绿** —— 判据看的是来源，不是当前那行文本（`0064`） |
+| 5b | **反例**：先取局部变量再传（等价重构） | **全绿** —— 一跳解析真的在工作 |
+| 6 | 落点改名（声明与调用点一起改） | **红**：自检 + 认不出 ⇒ 报错方向是**多报**而不是漏报 |
 
 ### 脚本的硬性约束
 
@@ -737,7 +786,8 @@ log / track 两个上报模块、且只认接收者是 `entity`）；
 - **能不要前置条件就不要** —— 这一条决定脚本能不能进 CI。`verify-nginx-config.mjs`、
   `verify-docs-index.mjs`、`verify-api-contract.mjs`、`verify-result-codes.mjs`、
   `verify-unique-columns.mjs`、`verify-like-escaping.mjs`、`verify-filter-values.mjs`、
-  `verify-notfound-messages.mjs` 与 `verify-tenant-visibility.mjs` 是**零前置**的
+  `verify-notfound-messages.mjs`、`verify-tenant-visibility.mjs` 与
+  `verify-tenant-scope-source.mjs` 是**零前置**的
   （不连网、不读产物、不写文件），所以流水线的 `guards` job 直接跑它们；`verify-bundle-secrets.mjs` **不需要服务、但需要前端产物**，
   所以它跑在 `web` job 的构建**之后**（顺序不能反 —— 反了它就扫不到东西，还会静默"通过"）；
   需要前置服务的脚本继续留在本机 —— 真机层（浏览器 + 冷启动 dev server）**刻意不在 CI 的必过项里**，
