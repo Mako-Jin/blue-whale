@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.sts.auth.context.AuthContextHolder;
+import com.bluewhale.sts.auth.tenant.TenantService;
 import com.bluewhale.sts.common.basic.enums.ResultCode;
 import com.bluewhale.sts.common.basic.exception.BusinessException;
 import com.bluewhale.sts.common.basic.model.PageResult;
@@ -34,6 +35,13 @@ import java.util.regex.Pattern;
  * （写入时从 {@code AuthContextHolder} 取、读取时强制过滤）。
  * 拿 {@code userId} 当归属，伪造一个别人的 id 就能读到别人的行为记录，
  * 而正常数据上完全看不出区别。见 {@code docs/decisions/0026}。
+ *
+ * <p><b>"读取时强制过滤"那一句的落点，{@code 0077} 已收到 {@link TenantService#currentReadTenant()}：</b>
+ * 本类与日志域此前各有一份私有实现、而且**逐字相同**。收成一格之后有两点是签名说死的：
+ * 那一格**不接受参数**（"租户条件恒定加上"于是不再只是约定 —— 调用点拿不到第二个值），
+ * 且**没有平台级分支**（**平台级操作者也读不到别家的记录**）。
+ * 后者不是"忘了加"：三个域的查询入参里从来没有"点名一个租户"这一格，
+ * 而 {@code 0074} 的读侧模型是"默认落在自己租户，只有显式点名才跨租户"。
  */
 @Service
 public class ClientEventService {
@@ -65,6 +73,15 @@ public class ClientEventService {
     /** 查询默认时间窗：7 天 */
     private static final long DEFAULT_WINDOW_MILLIS = 7L * 24L * 60L * 60L * 1000L;
 
+    /**
+     * 本域对外说的那一句"不存在"。
+     *
+     * <p>做成常量是因为它现在有**两个**去处（"真的查不到"与"不属于你的租户"），
+     * 而那两支必须**逐字相同**（{@code 0059} 第二节 / {@code 0075}）：
+     * 两句话的差别本身就是"这条记录存在，只是在别家"。
+     */
+    private static final String NOT_FOUND_MESSAGE = "事件不存在或已被清理";
+
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {
     };
 
@@ -72,9 +89,13 @@ public class ClientEventService {
 
     private final ObjectMapper objectMapper;
 
-    public ClientEventService(ClientEventMapper clientEventMapper, ObjectMapper objectMapper) {
+    private final TenantService tenantService;
+
+    public ClientEventService(ClientEventMapper clientEventMapper, ObjectMapper objectMapper,
+                              TenantService tenantService) {
         this.clientEventMapper = clientEventMapper;
         this.objectMapper = objectMapper;
+        this.tenantService = tenantService;
     }
 
     /**
@@ -140,7 +161,8 @@ public class ClientEventService {
 
     @Transactional(readOnly = true)
     public PageResult<ClientEventVO> page(ClientEventQuery query) {
-        LambdaQueryWrapper<ClientEventEntity> wrapper = buildWrapper(query, visibleTenantId());
+        LambdaQueryWrapper<ClientEventEntity> wrapper =
+                buildWrapper(query, tenantService.currentReadTenant());
 
         Page<ClientEventEntity> page = clientEventMapper.selectPage(
                 new Page<>(query.getPage(), query.getSize()), wrapper);
@@ -159,12 +181,15 @@ public class ClientEventService {
      */
     @Transactional(readOnly = true)
     public ClientEventVO detail(long id) {
-        long tenantId = visibleTenantId();
         ClientEventEntity entity = clientEventMapper.selectById(id);
-        if (entity == null || entity.getTenantId() == null
-                || entity.getTenantId().longValue() != tenantId) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "事件不存在或已被清理");
+        if (entity == null) {
+            throw notFound();
         }
+        // 租户那一半走 TenantService#assertRecordInCurrentTenant（decisions/0077）：
+        // `tenant_id` 为空是"上报时未登录、不属于任何租户"，对它**任何人**都不可见 ——
+        // 这正是它与 `bw_auth_resource`（空 = 平台级对象、对所有人可见）不能共用
+        // assertVisible 的原因，两者的 null 是相反的两件事。
+        tenantService.assertRecordInCurrentTenant(entity.getTenantId(), NOT_FOUND_MESSAGE);
         return toVO(entity);
     }
 
@@ -172,7 +197,7 @@ public class ClientEventService {
     public ClientEventStatsVO stats(ClientEventStatsQuery query) {
         long endTime = query.getEndTime() == null ? System.currentTimeMillis() : query.getEndTime();
         long startTime = query.getStartTime() == null ? endTime - DEFAULT_WINDOW_MILLIS : query.getStartTime();
-        long tenantId = visibleTenantId();
+        long tenantId = tenantService.currentReadTenant();
         // 过滤值先规范化再进 SQL（decisions/0069）。**下面手写 SQL 那一句必须用同一个变量** ——
         // 两边各算一遍会出现"总数对、分布是全库的"（判空口径不同时甚至"总数 3、各级之和 0"）。
         String app = FilterValue.text(query.getApp());
@@ -192,12 +217,9 @@ public class ClientEventService {
         return new ClientEventStatsVO(total, startTime, endTime, names);
     }
 
-    /**
-     * 当前请求可见的租户。理由与 {@code ClientLogService#visibleTenantId} 同：
-     * 租户条件恒定加上，不做成可关的形式；未认证时抛错而不是放行全库。
-     */
-    private static long visibleTenantId() {
-        return AuthContextHolder.require().getTenantId();
+    /** 本域那一句"不存在"的两个去处之一 —— 另一处是 {@link TenantService#assertRecordInCurrentTenant} */
+    private static BusinessException notFound() {
+        return new BusinessException(ResultCode.NOT_FOUND, NOT_FOUND_MESSAGE);
     }
 
     private LambdaQueryWrapper<ClientEventEntity> buildWrapper(ClientEventQuery query, long tenantId) {

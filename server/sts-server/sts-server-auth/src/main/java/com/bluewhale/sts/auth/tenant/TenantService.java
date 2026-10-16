@@ -5,6 +5,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.sts.auth.common.AuthResultCode;
 import com.bluewhale.sts.auth.common.enums.Status;
 import com.bluewhale.sts.auth.context.AuthContextHolder;
+import com.bluewhale.sts.common.basic.enums.ResultCode;
+import com.bluewhale.sts.common.basic.exception.BusinessException;
 import com.bluewhale.sts.common.basic.model.PageResult;
 import com.bluewhale.sts.common.db.query.FilterValue;
 import com.bluewhale.sts.common.db.query.KeywordLike;
@@ -415,6 +417,75 @@ public class TenantService {
                 currentOperatorIsPlatform()
                         ? diagnostic
                         : "引用的" + referencedLabel + "不存在：" + referencedId);
+    }
+
+    /* ------------------------------------------------- 记录管道的读侧（decisions/0077） */
+
+    /**
+     * **记录管道**的读侧可见租户 —— 审计 / 日志 / 事件三条管道共用这一格。
+     *
+     * <p><b>为什么要收成一格：</b>这三处此前各写了一遍"当前可见租户是哪个"
+     * （日志域与事件域那两份**逐字相同**，审计域包在它自己的 {@code Visibility} 里）。
+     * 与 {@code 0074} 删掉四个私有 {@code resolveTenantId} 是同一条判据：
+     * 同一句话写得越散，改的时候越可能只改一半，而半开的门看起来与关着的一样
+     * （列表挡住了、详情没挡住）。
+     *
+     * <p><b>它不接受任何参数，这是本仓对三条记录管道的读侧口径。</b>
+     * 三个域的查询入参里从来就没有"点名一个租户"这一格，而 {@code 0074} 的读侧模型是
+     * 「**默认落在自己租户，只有显式点名才跨租户**」（见 {@link #resolveQueryTenant}）。
+     * 两句话合起来只有一个结果：**平台级操作者也拿不到别家的记录**。
+     * 这不是"忘了加"，也不是"以后要加" —— 要加就得先让接口形状里长出那一格，
+     * 而那是一次契约变化 + 产品决定（{@code 0074} 未覆盖 1「平台级管理台的产品形态」）。
+     *
+     * <p><b>不写 {@code @Transactional}：</b>它只读 ThreadLocal，一次库都不查 ——
+     * 与 {@link #currentOperatorIsPlatform()} 刻意不同（那一个要查租户的父级）。
+     * 这一点正是它存在的意义：**它没有"谁是平台级"这条分支可走**。
+     */
+    public long currentReadTenant() {
+        // 用 require() 而不是 currentTenantId()：三个域的查询接口都已声明 @RequiresPermission，
+        // 走到这里必然已认证；真出现了未认证，说明有人绕过 Web 层直接调服务 ——
+        // 那时候抛错（40101）比返回全库数据正确。
+        return AuthContextHolder.require().getTenantId();
+    }
+
+    /**
+     * 一条**记录**（审计记录 / 客户端日志 / 客户端事件）是否属于当前读者所在租户；
+     * 不属于则按"不存在"抛出。
+     *
+     * <p><b>它与 {@link #assertVisible} 是两个模型，不能合并 —— 差别有两处，都在 {@code NULL} 上：</b>
+     * <ul>
+     *   <li><b>{@code NULL} 的含义相反。</b>{@code bw_auth_resource.tenant_id} 为空是
+     *       "平台级对象"，{@code assertVisible} 遇到 {@code null} **直接通过**（对所有人可见）；
+     *       而这三张表的 {@code tenant_id} 为空是"上报时未登录，不属于任何租户"
+     *       （见 {@code V6__add_tenant_id_to_bw_client_log.sql} 的列注释），
+     *       **对任何人都不可见**。把这一族交给 {@code assertVisible}，等于把未登录时的
+     *       日志与审计行从"谁都看不见"翻成"平台级看得见"，是一次真的泄漏 ——
+     *       两种 null 是两件事，所以是两个落点。</li>
+     *   <li><b>没有平台级例外，也没有读者分化。</b>{@link #assertVisible} 对平台级操作者放行
+     *       （跨租户预配是他的工作，见 {@link #assertReferencedInSameTenant}），
+     *       {@link #assertReferencedInSameTenant} 还会按读者换文案；这一格两者都没有 ——
+     *       因为记录管道的读者里**不存在"合法的跨租户读者"**（见 {@link #currentReadTenant()}），
+     *       所以两件事（"真的没有"与"不是你的"）对所有人都是同一句话。</li>
+     * </ul>
+     *
+     * <p><b>两个分支同码同句</b>（{@code 40400} + 调用方那一句）：{@code 0059} 第二节 /
+     * {@code 0075} 立过的规矩 —— 同一个码在两条分支上给两句不同的话，
+     * 调用方比一下 {@code message} 就学到了"这条记录确实存在，只是在别家"。
+     *
+     * <p>抛的是**公共码** {@code ResultCode.NOT_FOUND} 而不是 {@code AuthResultCode} 那一套：
+     * 三个域都没有自己的枚举（公共 {@code ResultCode} 只占用每类别的 {@code 00} 号）。
+     * 这一点同时是守卫 `verify-tenant-visibility.mjs` 认出这一格的方式 ——
+     * 规则 D 找的就是"方法体里提到公共 40400"的那个落点，所以改这个码会连带改掉射程。
+     *
+     * @param recordTenantId 记录上的租户归属，允许为 {@code null}（等于"不属于任何租户"）
+     * @param notFoundMessage 这一族对外说的那一句，必须与"真的查不到"那一支**逐字相同**；
+     *                        它由调用方给，因为"审计记录不存在"与"日志不存在或已被清理"
+     *                        是对同一次回答的不同称呼 —— 但同一个域里只允许有一句
+     */
+    public void assertRecordInCurrentTenant(Long recordTenantId, String notFoundMessage) {
+        if (recordTenantId == null || recordTenantId.longValue() != currentReadTenant()) {
+            throw new BusinessException(ResultCode.NOT_FOUND, notFoundMessage);
+        }
     }
 
     /** 当前登录者所在的租户；没有身份要求显式传 {@code tenantId} —— 与四个业务域此前的分支同源 */

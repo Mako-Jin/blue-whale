@@ -27,7 +27,7 @@
 | `verify-like-escaping.mjs`     | `server/` 的 `src/main/java` 里每一处 `LIKE` 都必须经过 `KeywordLike`（转义关键词、并把 `ESCAPE '!'` 写进 SQL），不许再有裸的 `like(...)`；带 `LIKE` 的片段同一行必须有 `ESCAPE`；白名单逐条核对条数 | **无前置条件**（只读源码文本，不编译、不连网、不写文件）；`node scripts/verify-like-escaping.mjs` | `docs/decisions/0067` |
 | `verify-filter-values.mjs`     | `server/` 的 `src/main/java` 里**精确匹配**的过滤值与**要拿它去匹配的那些写入值**都在 `FilterValue` 上收口：`.eq(...)` 的条件里不许用 `hasText(...)` 或内联的 `query.getX().isBlank()`；三个手写聚合 SQL（`countByLevel` / `countByEventName` / `countByAction`）的实参不许是 `query.getXxx()`；**枚举列**的五个 getter（`getStatus` / `getResourceType` / `getMemberType` / `getLevel` / `getResult`）只能作为 `FilterValue.enumValue(...)` 的第一个实参出现；**上报侧**（`sts-server-log` / `sts-server-track`）写入实体时 `entity.set<App\|Namespace\|TraceId\|SessionId\|UserId\|DeviceId>(...)` 的实参必须含 `FilterValue`；**寻址列**（`sts-server-auth`）`entity.set<Email\|Phone\|ContactEmail\|ContactPhone>(...)` 与 `existsEmail(...)` / `existsPhone(...)` 的实参**含 `request.getXxx()` 且不含 `FilterValue` ⇒ 报红**（判重也是一次 `eq`，两侧必须共用一个归一值） | **无前置条件**（只读源码文本，不编译、不连网、不写文件）；`node scripts/verify-filter-values.mjs` | `docs/decisions/0069` · `docs/decisions/0070` · `docs/decisions/0071` · `docs/decisions/0072` |
 | `verify-notfound-messages.mjs` | `404xx` 的抛出点全是无参的（文案只能来自枚举）；没有一处 `businessException(...)` 在拼另一个码的 `getMessage()` | **无前置条件**（只读源码文本，不编译、不连网、不写文件）；`node scripts/verify-notfound-messages.mjs` | `docs/decisions/0059` · `docs/decisions/0075` |
-| `verify-tenant-visibility.mjs` | 按主键取实体的读侧出口都过了 `assertVisible`（射程由 `@TableName` + `BaseMapper<…>` + DDL 推导，零白名单）；那个码与"不存在"那一支逐字相同；三方言的 `tenant_id` 存在性与可空性一致；采用统一落点的模块里不得手搓租户相等比较 | **无前置条件**（只读源码文本与三方言迁移脚本，不编译、不连网、不写文件）；`node scripts/verify-tenant-visibility.mjs` | `docs/decisions/0074` · `docs/decisions/0076` |
+| `verify-tenant-visibility.mjs` | 按主键取实体的读侧出口都过了落点（射程由 `@TableName` + `BaseMapper<…>` + DDL 推导，零白名单）：**管理面**出口过 `assertVisible`、那个码与"不存在"那一支逐字相同；**观测面**（三条记录管道 —— 审计 / 日志 / 事件）出口过 `assertRecordInCurrentTenant`（抛**公共** `40400` ⇒ 认落点靠"方法体提到公共码"，**不写名字**）；三方言的 `tenant_id` 存在性与可空性一致；接上了租户服务的模块里不得手搓租户相等比较 | **无前置条件**（只读源码文本与三方言迁移脚本，不编译、不连网、不写文件）；`node scripts/verify-tenant-visibility.mjs` | `docs/decisions/0074` · `docs/decisions/0076` · `docs/decisions/0077` |
 | `verify-standalone-dev-login.mjs` | 用真实 Chrome 验证子应用**单跑**时的自建会话与开发账号自动登录（后端在跑 / 没起两种状态都跑一遍） | 至少一个子应用的 dev 服务在跑（:3200 / :3300 / :3500 / :3600，没起的会被记成"跳过"）；**后端 :8080 可选** —— 在跑时断言自动登录成功，没起时断言优雅降级；本机装有 Google Chrome | `docs/decisions/0018` · `0033` |
 
 ### `verify-micro-frontend.mjs` 做什么
@@ -637,15 +637,16 @@ log / track 两个上报模块、且只认接收者是 `entity`）；
 ### `verify-tenant-visibility.mjs` 做什么
 
 把 `0074`「未覆盖 4」要的那条守卫（**"每个带 `tenant_id` 的实体表，它的读侧出口必须过
-`assertVisible`"**）机械化成四条零前置的检查 + 一条防假阴自检：
+`assertVisible`"**）机械化成五条零前置的检查 + 一条防假阴自检（`0077` 补上链够不到的另一半）：
 
 | # | 查什么 |
 | --- | --- |
-| 自检 | 每个 `selectById` 都能推到一张**存在于 DDL 的表** —— 推不出来就红（否则会静默少查一处，属**假阴**） |
+| 自检 | 每个 `selectById` 都能推到一张**存在于 DDL 的表** —— 推不出来就红（否则会静默少查一处，属**假阴**）；找不到 `TenantService`、或它里面**认不出**记录管道的落点，同样红 |
 | A | 同一方法内，对一张 `tenant_id NOT NULL` 的表 `selectById`，**并且**抛出**该表对应的那一个** `404xx` ⇒ 必须调 `assertVisible(` |
 | A2 | 那个 `assertVisible` 传的码，必须与方法里抛的码**逐字相同** |
 | B | 三方言里每张表的 `tenant_id` **存在性与可空性一致** |
-| C | **采用了统一落点的模块**里，`main` 不得让 `getTenantId()` 参与相等比较 |
+| C | **接上了租户服务的模块**里，`main` 不得让 `getTenantId()` 参与相等比较 |
+| D | 抛出**公共** `ResultCode.NOT_FOUND(40400)` 的方法若按主键取实体 ⇒ 必须走记录管道的落点（规则 A 的**镜像** —— 三条记录管道**没有自己的码**，`40400` 因此不是一个"某对象的码"，A 的判据在这里失效） |
 
 **为什么需要它。** `0074` 把"读侧按 id 取实体都必须过判定"落成了一次**手工核对**，
 它自己的「未覆盖 4」就这么写的。这次手工核对**已经付过代价**：`0075` 发现
@@ -666,15 +667,25 @@ log / track 两个上报模块、且只认接收者是 `entity`）；
 （平台级资源恒 `NULL` ⇒ `assertVisible` 是空操作）、`bw_auth_tenant` **根本没有这一列**
 （它是租户本身）。
 
-**为什么规则 C 的射程是模块推导的。** 本仓**有**第二套可见性模型：审计域的
-`AuditLogService#detail` 用 `Objects.equals(entity.getTenantId(), …)` 判归属，它**故意不接受**
-`tenant_id` 为 `null`（未登录时产生的审计行不该对任何人可见），而 `assertVisible` 把 `null`
-视为"无需判定、直接通过"。两个模型说的是两件事，所以那一处**不是缺口**，
-**也不该被这条规则打红**（`0064`：会误报的守卫比没有更糟）。
-射程因此改成"**模块内出现过那两个落点之一的调用**"—— 采用落点的模块里租户语义已被
-`0074` 决策 4 定死，手搓就是第四个口径。实测全仓只有 `sts-server-auth` 一个模块在射程内。
+**为什么规则 C 的射程是模块推导的，以及它为什么在 `0077` 变了形状。** `0076` 的射程判据是
+"**模块内出现过那两个落点之一的调用**"，实测只有 `sts-server-auth` 在射程内 —— 那时审计 / 日志 /
+事件三条记录管道**各写各的**手搓比较（审计 `Objects.equals(entity.getTenantId(), …)`、日志与事件
+`entity.getTenantId() != visibleTenantId()`），是一套**与 `assertVisible` 并列**的模型，
+不是同一个口径的歪写，所以刻意留在射程外（`0064`）。`0077` 之后这套模型**收进了一格**
+（`TenantService#assertRecordInCurrentTenant`，`null` 恒不可见），三处手搓全部消失，
+射程也顺势放宽成"**接上了租户服务的模块**"（模块里有 `TenantService` 类型的字段 / 参数、
+并且真的调了它）—— 判据**不写任何落点名**，因为它认的是"这个模块已经在用那套租户语义"。
+实测射程 = `sts-server-audit · sts-server-auth · sts-server-log · sts-server-track` 四个模块。
+规则 C 的形状在同一次扩了两种：`getTenantId()` 直接参与 `==` / `!=` 也算了，
+**但另一侧是 `null` 字面量的那一种刻意排除** —— 那是判空，不是比较（反例见扰动表末两行）。
 
-**七轮扰动都验过**，每条规则都能精确红、且不多红：
+**规则 D 是规则 A 的镜像，落点不写名字。** 三条记录管道抛的是**公共** `ResultCode.NOT_FOUND(40400)`
+而不是"某对象的 `404xx`"，所以 A 那句"抛出该表对应的那一个 `404xx`"在这里**没有可判的东西** ——
+换成"方法体提到公共 `40400`、又按主键取了实体 ⇒ 必须过记录管道的落点"。落点本身也**不写名字**：
+脚本认的是 `TenantService` 里"方法体提到公共 `ResultCode.NOT_FOUND`"的那一个成员，
+**解析不出来就红**（`process.exit(1)`）—— 这既是"不写名字"，也是"解析不出来必须红"的防假阴。
+
+**`0076` 写它时验过七轮扰动**，每条规则都能精确红、且不多红：
 
 | 轮 | 扰动 | 结果 |
 | --- | --- | --- |
@@ -689,11 +700,26 @@ log / track 两个上报模块、且只认接收者是 `entity`）；
 轮 5 与轮 7 是重点：**射程是推导的**，不是把今天的 7 个名字抄进脚本 ——
 新加一个出口会进射程，表的口径一变射程也跟着变。
 
+**`0077` 扩规则 C / 加规则 D 时又验了七轮**，其中轮 1 与轮 2 是**刻意成对**的
+（"平台级放行"与"`null` 放行"两种错法，失败面完全不同 —— 说明这两条语义确实各由各的守卫在看）：
+
+| 轮 | 扰动 | 结果 |
+| --- | --- | --- |
+| 1 | 落点 `assertRecordInCurrentTenant` 加"平台级直接通过"分支 | **3 条 API 用例红**（审计 / 日志 / 事件的跨租户详情），失败点都是 `$.code expected:<40400> but was:<0>` |
+| 2 | 落点把 `tenantId == null` 当通过 | **2 条红**（日志 / 事件的匿名行详情）；跨租户用例与整个审计域**全绿** |
+| 3 | 审计 `detail` 恢复手搓 `Objects.equals`（保留落点调用） | **只红规则 C**（`AuditLogService.java:106:22`） |
+| 4 | 去掉落点调用、改成**先取局部变量**再比 | **只红规则 D**（规则 C 看不见这种写法） |
+| 5 | 落点改抛权限域的码 | **守卫自检红并退出**（"认不出落点"） |
+| 6 | **反例**：加一句 `entity.getTenantId() == null` 判空 | **全绿** —— 不误报（`0064`） |
+| 7 | 日志 `detail` 恢复成 `0077` 之前的原文 `!=` 写法 | **只红规则 C 形状三**（`ClientLogService.java:203:53`） |
+
 **刻意不查的：** 同一方法里 `selectById` 与"**另一个对象**"的 `404xx` 同时出现
 （实例：`OrganizationMemberService#setPrimaryPosition` 取用户、抛归属的 `40410` ——
 那个 404 的理由不覆盖这次取数。脚本把这类位置**印出来**，语义写在那一处的源码注释里）；
 "该不该做同租户判定"本身（规则 C 只管"已经在比、却绕开落点"，不管"该不该判"）；
-手搓的其他形态（先 `Long t = x.getTenantId()` 再比 —— 规则 C 看不到）；
+**查询路径的租户条件从哪来**（`page` / `stats` 里 `.eq(Entity::getTenantId, <某个变量>)` ——
+那个变量是不是从落点来的，静态看不出来；这是本片之后守卫最大的空白，记进 `0077` 未覆盖 2）；
+手搓的其他形态（`Objects.equals(a, b)` 两侧都是局部变量 —— 规则 C 看不到）；
 "三方言 DDL 全等"（类型名本来就不同，全等会误报）。
 
 ### 脚本的硬性约束

@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.sts.auth.context.AuthContext;
 import com.bluewhale.sts.auth.context.AuthContextHolder;
 import com.bluewhale.sts.auth.datascope.DataScopeService;
+import com.bluewhale.sts.auth.tenant.TenantService;
 import com.bluewhale.sts.common.basic.enums.ResultCode;
 import com.bluewhale.sts.common.basic.exception.BusinessException;
 import com.bluewhale.sts.common.basic.model.PageResult;
@@ -38,7 +39,14 @@ import java.util.Objects;
  * <p>现在可见性由 {@link #visibility()} 一处算出，三条查询路径（分页 / 详情 / 聚合）
  * 全部经过它。规则只有两条，且方向都是"收窄"：
  * <ol>
- *   <li><b>租户</b> —— 强制等于当前登录者的租户，不接受任何绕过；</li>
+ *   <li><b>租户</b> —— 强制等于当前登录者的租户，不接受任何绕过。
+ *       <b>这一条的落点不在本类里，而在 {@link TenantService#currentReadTenant()}（{@code 0077}）</b>：
+ *       日志域与事件域问的是同一句话，此前三处各写了一遍。
+ *       那一格**不接受参数**，所以"平台级操作者能读别家的记录"在接口形状里就不成立 ——
+ *       理由是三条记录管道的查询入参里从来没有"点名一个租户"这一格，
+ *       而 {@code 0074} 的读侧模型是"默认落在自己租户，只有显式点名才跨租户"。
+ *       （{@code TenantIsolationApiTest} / {@code ClientLogApiTest} 里那两条隔离用例
+ *       用的正是**平台级**的种子管理员，它们一直钉着这件事，只是此前没人说出口。）</li>
  *   <li><b>操作者</b> —— 仅当数据范围合并为 {@code ALL} 时才可由请求方指定，
  *       否则强制等于当前登录者。{@code DEPT} 系列与 {@code CUSTOM} 因为还算不出精确范围，
  *       同样落进"仅本人"这一支（见 {@link DataScopeService#currentRequestSelfOnly()}）。</li>
@@ -50,12 +58,24 @@ public class AuditLogService {
     /** 查询默认时间窗：7 天。与日志域、事件域保持一致 */
     private static final long DEFAULT_WINDOW_MILLIS = 7L * 24L * 60L * 60L * 1000L;
 
+    /**
+     * 本域对外说的那一句"不存在"。
+     *
+     * <p>做成常量是因为它现在有**两个**去处（"真的查不到"与"不属于你的租户"），
+     * 而那两支必须**逐字相同**（{@code 0059} 第二节 / {@code 0075}）：
+     * 两句话的差别本身就是"这条记录存在，只是在别家"。
+     */
+    private static final String NOT_FOUND_MESSAGE = "审计记录不存在";
+
     private final AuditLogMapper auditLogMapper;
     private final DataScopeService dataScopeService;
+    private final TenantService tenantService;
 
-    public AuditLogService(AuditLogMapper auditLogMapper, DataScopeService dataScopeService) {
+    public AuditLogService(AuditLogMapper auditLogMapper, DataScopeService dataScopeService,
+                           TenantService tenantService) {
         this.auditLogMapper = auditLogMapper;
         this.dataScopeService = dataScopeService;
+        this.tenantService = tenantService;
     }
 
     @Transactional(readOnly = true)
@@ -76,10 +96,16 @@ public class AuditLogService {
         }
         // 归属校验返回 404 而不是 403：403 等于告诉调用方"这条记录存在，只是不给你看"，
         // 而对审计记录来说，连"存在"这件事本身都不该跨租户泄漏。
+        //
+        // 租户那一半走 TenantService#assertRecordInCurrentTenant（decisions/0077）：
+        // `bw_audit_log.tenant_id` 为空是"未登录时产生的记录、不属于任何租户"，
+        // 与 `bw_auth_resource` 的"平台级对象"是**相反**的两件事，
+        // 所以这一族不能交给 assertVisible（它遇到 null 直接放行）。
+        tenantService.assertRecordInCurrentTenant(entity.getTenantId(), NOT_FOUND_MESSAGE);
+        // 数据范围是审计**特有**的第二个维度（谁操作的），与租户那一维不是一回事，仍在这里算。
         Visibility visibility = visibility();
-        if (!Objects.equals(entity.getTenantId(), visibility.tenantId())
-                || (visibility.selfOnly()
-                        && !Objects.equals(entity.getOperatorId(), visibility.currentUserId()))) {
+        if (visibility.selfOnly()
+                && !Objects.equals(entity.getOperatorId(), visibility.currentUserId())) {
             throw notFound();
         }
         return toVO(entity);
@@ -123,7 +149,10 @@ public class AuditLogService {
      */
     private Visibility visibility() {
         AuthContext context = AuthContextHolder.require();
-        return new Visibility(context.getTenantId(), context.getUserId(),
+        // 租户走 TenantService 那一格（decisions/0077）；用户取本轮上下文。
+        // 两步读的是**同一个 ThreadLocal**，中间没有任何东西能改变它 ——
+        // 分开写不是为了两次取值，而是为了让"租户从哪来"只有一处可改。
+        return new Visibility(tenantService.currentReadTenant(), context.getUserId(),
                 dataScopeService.currentRequestSelfOnly());
     }
 
@@ -181,14 +210,13 @@ public class AuditLogService {
     }
 
     /**
-     * 所有查询的公共条件。
+     * 公共前缀：租户 + 资源 + 操作人 —— 所有查询路径共用。
      *
-     * <p>租户条件是**无条件**的（不是 {@code eq(条件, ...)} 那种可关的写法）：
-     * 审计记录没有"平台级"的概念，每一条都属于某个租户，
-     * 而把它写成可选的，等于给"忘记传租户"留下一个静默全量查询的口子。
-     */
-    /**
-     * 公共前缀：租户 + 资源 + 操作人。
+     * <p>租户条件是**无条件**的（不是 {@code eq(条件, ...)} 那种可关的写法），
+     * 而这一条此前只是这个类自己的一句话。{@code 0077} 把它的**来源**收进了
+     * {@link TenantService#currentReadTenant()}：那一格不接受任何参数，
+     * 所以"租户条件恒等于登录者"不再是一个约定，而是调用点拿不到第二个值的后果 ——
+     * "写成可选的会留下忘记传租户就全量查询的口子"在那个签名下写不出来。
      *
      * <p>{@code resource} 是**调用方规范化之后**传进来的（{@code FilterValue.text}，见 decisions/0069），
      * 所以这里判空只需判 {@code null} —— {@code stats} 里这个值要用三次，
@@ -202,7 +230,7 @@ public class AuditLogService {
     }
 
     private static BusinessException notFound() {
-        return new BusinessException(ResultCode.NOT_FOUND, "审计记录不存在");
+        return new BusinessException(ResultCode.NOT_FOUND, NOT_FOUND_MESSAGE);
     }
 
     private static AuditLogVO toVO(AuditLogEntity entity) {

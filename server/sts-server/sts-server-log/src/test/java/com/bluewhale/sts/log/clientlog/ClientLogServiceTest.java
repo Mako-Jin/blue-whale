@@ -2,6 +2,7 @@ package com.bluewhale.sts.log.clientlog;
 
 import com.bluewhale.sts.auth.context.AuthContext;
 import com.bluewhale.sts.auth.context.AuthContextHolder;
+import com.bluewhale.sts.auth.tenant.TenantService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -33,11 +34,15 @@ class ClientLogServiceTest {
     @Mock
     private ClientLogMapper clientLogMapper;
 
+    /** 读侧可见租户的落点（decisions/0077）。这些用例只测上报，用不到它，但不能为空。 */
+    @Mock
+    private TenantService tenantService;
+
     private ClientLogService clientLogService;
 
     @BeforeEach
     void setUp() {
-        clientLogService = new ClientLogService(clientLogMapper, new ObjectMapper());
+        clientLogService = new ClientLogService(clientLogMapper, new ObjectMapper(), tenantService);
     }
 
     /**

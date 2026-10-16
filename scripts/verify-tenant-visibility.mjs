@@ -26,24 +26,35 @@
  *
  * 四步都是**声明里的字面量**，没有一步需要猜。所以这里没有任何对照表。
  *
+ * `0077` 又补上了这条链**够不到的那一半**：审计 / 日志 / 事件三条记录管道用的是公共 `40400`
+ * （它们没有自己的枚举），于是规则 A 从头到尾看不见它们 —— 而"平台级操作者也读不到别家的记录"
+ * 这句口径，此前只以两条用例的断言形式存在（而且用例从没说过自己的身份是平台级）。
+ * 规则 D 就是规则 A 在它们身上的镜像。
+ *
  * ## 它查什么
  *
  * | # | 规则 | 为什么它是错 |
  * | --- | --- | --- |
  * | A | 同一方法里，对一张 `tenant_id NOT NULL` 的表 `selectById` **并且**抛出**该表对应的那一个** `404xx` ⇒ 方法里必须调 `assertVisible(` | 这时这个方法就是"这个对象的读侧出口"，少了判定，跨租户的 id 会得到一个"安静但错误"的答案（`0025` 第 2 条） |
  * | A2 | 那个 `assertVisible` 传的码必须与方法里抛的码**逐字相同** | 不同码 = 两条分支说两件事；同一个 `requireXxx` 里"不存在"与"看不见"是同一个对象，只可能有一个码（`0059` · `0075`） |
- * | B | 三方言里每张表的 `tenant_id` **存在性与可空性必须一致** | 它是规则 A 的判据。而 **dameng 是唯一没被 CI 真跑过的方言** —— 它的口径分裂没有任何测试能拦 |
- * | C | **采用了统一落点的模块**里，`main` 不得让 `getTenantId()` 参与相等比较 | 那是在 `assertVisible` / `assertReferencedInSameTenant` 之外手搓同租户判定 —— `0075`「未覆盖 2」登记过的那件事 |
+ * | B | 三方言里每张表的 `tenant_id` **存在性与可空性必须一致** | 它是规则 A / D 的射程判据。而 **dameng 是唯一没被 CI 真跑过的方言** —— 它的口径分裂没有任何测试能拦 |
+ * | C | **接上了租户服务的模块**里，`main` 不得让 `getTenantId()` 参与相等或不等比较 | 那是在落点之外手搓同租户判定 —— `0075`「未覆盖 2」登记过的那件事 |
+ * | D | 抛出**公共** `40400` 的方法（含调用同文件里那个构造器的）若按主键取实体 ⇒ 必须走**记录管道的落点** | 这是规则 A 在三条记录管道上的镜像：它们没有自己的码（用的是公共 `40400`），所以规则 A 看不见它们。少了这一步，"平台级也读不到别家"就只是签名上的巧合（`0077`） |
  *
- * 规则 C 的射程也是推导的：**模块内出现过 `assertVisible(` 或 `assertReferencedInSameTenant(`
- * 的调用，就算采用了统一落点**。理由是"手搓"这句话只在**一个租户模型**下才成立 ——
- * 审计域就有一个自己的：`AuditLogService#detail` 拿 `Objects.equals(entity.getTenantId(),
- * visibility.tenantId())` 判归属，它**故意**不接受 `null`（未登录时产生的审计行不该对
- * 任何人可见），而 `assertVisible` 把 `null` 视为"无需判定、直接通过"。
- * 两个模型说的是两件事，所以审计域那一处**不是缺口、也不该被本规则打红**。
- * 它在且只在"采用落点的模块"里构成第四个口径：那里租户的语义已经定死了
- * （`0074` 决策 4：**别家租户在系统里就是不存在**），没有第二句话可说。
- * 审计 / 日志 / 事件三域接不接 `0074` 的平台级口径，是 `0074`「未覆盖 2 / 3」的产品问题。
+ * 规则 C / D 的射程与判据也都是推导的：
+ *
+ * - **"接上了租户服务"** = 模块里出现了 `TenantService` 类型的字段/参数，并真的调了它的方法。
+ *   这句话曾经写作"模块内出现过那两个落点的调用"（`0076`），本片**放宽**成"用过租户服务"，
+ *   因为在 {@code TenantService} 已经摆在手边的模块里手搓一份租户比较，无论如何都是第四个口径；
+ *   而放宽之后三条记录管道才进得了射程 —— 它们此前调的是自己的私有方法，两个落点名一个都不沾。
+ * - **"记录管道的落点"** 不写名字：它是 `TenantService` 里**方法体提到公共 `ResultCode.NOT_FOUND`**
+ *   的那一个（`0077` 把它落成 `assertRecordInCurrentTenant`）。解析不出来就红 —— 否则规则 D
+ *   会退化成一条永远为真的空断言。
+ * - 规则 C 的"不得手搓"只在**一个租户模型**下才成立 —— 审计域就曾有自己的一套
+ *   （`AuditLogService#detail` 拿 `Objects.equals(entity.getTenantId(), …)` 判归属，
+ *   它**故意**不接受 `null`：未登录时产生的审计行不该对任何人可见）。
+ *   `0077` 之后这一族也走落点了，所以本规则与规则 D 现在合起来说的是同一件事：
+ *   **记录管道的租户判定只有一处可写**。
  *
  * ## 用法
  *
@@ -60,6 +71,10 @@
  * - `bw_auth_tenant` **根本没有 `tenant_id` 列** —— 它本身是租户，"租户归属"就是它自己，
  *   可见性由 `TenantService#requireVisibleTenant` 单独说。
  *
+ * 而反过来，**`tenant_id` 可空**的三张表（`bw_audit_log` / `bw_client_log` / `bw_client_event`）
+ * 恰恰是规则 D 的射程：它们的 `null` 不是"平台级对象"而是"不属于任何租户"，
+ * 与 `bw_auth_resource` 是**相反**的两件事 —— 这就是那一族不能共用 `assertVisible` 的原因（`0077`）。
+ *
  * 这两条理由都从 DDL 读出来，写进输出里；哪天门数变了，输出会变。
  *
  * ## 刻意不查的（写在这里免得后来者以为它漏了）
@@ -69,10 +84,14 @@
  *   却抛归属的 `40410` —— 那个 404 的理由**不覆盖**这次取数，所以不在射程。
  *   判它就得理解语义。脚本把这类位置**印出来**（见输出的"另有 N 处"），
  *   而**语义写在那一处的源码注释里**，读的人从输出能直接落到答案上。
- * - **"该不该做同租户判定"这件事本身**。规则 C 只覆盖"已经在比、却绕开落点"的写法，
- *   而且只覆盖 `getTenantId()` 直接参与比较的形状；`Objects.equals` 里传的是**局部变量**
- *   （先 `Long t = x.getTenantId()` 再比）它看不到。手搓的写法无穷（`0075`「未覆盖 2」），
- *   这里守的是最常见的那一种，**不是全部**。
+ * - **"该不该做同租户判定"这件事本身**。规则 C 只覆盖"已经在比、却绕开落点"的写法；
+ *   `Objects.equals` 里传的是**局部变量**（先 `Long t = x.getTenantId()` 再比）它看不到。
+ *   手搓的写法无穷（`0075`「未覆盖 2」），这里守的是最常见的几种，**不是全部**。
+ * - **查询路径的租户条件从哪来**。规则 C 判的是"比较"，规则 D 判的是"按主键取实体"；
+ *   而 `page` / `stats` 那类查询走的是 `.eq(Entity::getTenantId, <某个变量>)` ——
+ *   那个变量是不是来自落点，静态看不出来（要追局部变量的赋值）。
+ *   `0077` 把这件事收到的落点只有一个，所以**改动它需要动一处**；
+ *   但"下次有人再手写一遍"没有任何机器拦着，这是本脚本目前最大的空白。
  * - **枚举常量改名带来的射程漂移**。规则 A 的判据是"源码里抛的那个码 == 从表名推出的那个码"，
  *   **两侧都不读枚举**（所以重命名枚举里那句话的名字不影响射程的语义）。代价是：**同时**改枚举
  *   常量名与它的全部源码引用（保持可编译）会让那一处按新名字重新推导不出来，从而**静默离开射程**。
@@ -238,13 +257,42 @@ const sources = javaFiles.map(({ module, file }) => ({
   text: stripComments(readFileSync(file, 'utf8')),
 }));
 
-/** 采用了统一落点的模块（规则 C 的射程）：模块内出现过那两个落点的调用 */
+/**
+ * "接上了租户服务"的模块（规则 C 的射程）。
+ *
+ * <p>判据**不写落点的名字**：先看这个文件有没有 `TenantService` 类型的字段/参数
+ * （名字从声明里读，叫 `tenantService` 还是 `tenants` 都行），再看那个名字有没有被真的调用。
+ * 理由见文件头：在 `TenantService` 已经摆在手边的模块里手搓一份租户比较，无论如何都是第四个口径。
+ */
+const TENANT_SERVICE_OWNER = '/auth/tenant/TenantService.java';
 const adopters = new Set();
+const landingClass = sources.find(({ shown }) => shown.endsWith(TENANT_SERVICE_OWNER));
+
 for (const { module, text } of sources) {
-  if (/\.\s*assertVisible\s*\(/.test(text) || /\.\s*assertReferencedInSameTenant\s*\(/.test(text)) {
+  const receivers = [...new Set([...text.matchAll(/\bTenantService\s+(\w+)\s*[,);=]/g)].map((m) => m[1]))];
+  if (receivers.some((name) => new RegExp(`\\b${name}\\s*\\.\\s*\\w+\\s*\\(`).test(text))) {
     adopters.add(module);
   }
 }
+
+if (!landingClass) {
+  console.log(`✗ 找不到租户服务：${TENANT_SERVICE_OWNER} —— 落点搬了家，规则 C / D 会静默失效`);
+  process.exit(1);
+}
+
+/**
+ * **记录管道的落点**清单 —— 从声明里推导，不是写死名字：
+ * `TenantService` 里**方法体提到公共 `ResultCode.NOT_FOUND`** 的那一个（们）。
+ *
+ * <p>为什么这样认：三条记录管道没有自己的枚举，用的是公共 `40400`（`0059`）；
+ * 所以"这个落点抛的是哪个码"这件事，在源码里就是它的方法体。推不出来就红 ——
+ * 否则规则 D 会退化成一条永远为真的空断言。
+ */
+const recordLandings = landingClass.text
+  ? membersOf(landingClass.text)
+      .filter((member) => /ResultCode\s*\.\s*NOT_FOUND/.test(member.body ?? ''))
+      .map((member) => nameOf(member.signature))
+  : [];
 
 const tableOfEntity = new Map(); // UserEntity -> bw_auth_user
 const entityOfMapper = new Map(); // UserMapper -> UserEntity
@@ -272,6 +320,11 @@ for (const { text } of sources) {
 
 if (tableOfEntity.size === 0 || entityOfMapper.size === 0) {
   console.log('✗ 一个 `@TableName` / `BaseMapper<…>` 都没解析出来 —— 映射链的形状变了？');
+  process.exit(1);
+}
+
+if (recordLandings.length === 0) {
+  console.log('✗ 在租户服务里找不到"抛公共 40400"的那个方法 —— 记录管道的落点认不出来了？');
   process.exit(1);
 }
 
@@ -349,6 +402,7 @@ const excluded = []; // 命中"selectById + 该表的 404xx"但表不在射程
 const foreignCode = []; // selectById 与该表之外对象的 404xx 同方法出现
 const badCode = []; // 射程内，assertVisible 的码与抛的码不同
 const unresolved = []; // 解析链断掉（防假阴的自检）
+const recordExits = []; // 规则 D：抛公共 40400 的"按主键取实体"出口
 
 /* --- 射程**不看枚举**：码是从源码的抛出点里认出来的（改枚举里那句话名不影响它），
        所以这里只做映射链与 DDL 的解析，不去读 `AuthResultCode.java`。 --- */
@@ -358,9 +412,37 @@ for (const { shown, text } of sources) {
   const ownerName = owner ? owner[1] : null;
   if (!ownerName) continue;
 
-  for (const member of membersOf(text)) {
+  const members = membersOf(text);
+
+  /**
+   * 这个文件里"会抛公共 40400"的方法名 —— 先认**方法体里提到那个码**的，
+   * 再把"调用它们的"也算进来（`detail` 抛的是 `notFound()`，码在那一层）。
+   * 名字从声明里读，所以规则 D 不需要知道任何一处叫什么。
+   */
+  const producers = new Set(
+    members
+      .filter((member) => /ResultCode\s*\.\s*NOT_FOUND/.test(member.body ?? ''))
+      .map((member) => nameOf(member.signature)),
+  );
+  const throwsPublicNotFound = (body) =>
+    /ResultCode\s*\.\s*NOT_FOUND/.test(body) ||
+    [...producers].some((name) => new RegExp(`\\b${name}\\s*\\(`).test(body));
+
+  for (const member of members) {
     const calls = [...member.body.matchAll(/\b(\w+)\s*\.\s*selectById\s*\(/g)];
     if (calls.length === 0) continue;
+
+    const where = `${shown}:${locate(text, member.bodyStart)}`;
+    const who = `${ownerName}#${nameOf(member.signature)}`;
+
+    // 规则 D：既然它是"按主键取实体 + 按不存在抛出"，它就必须回答"这位读者看得见它吗"
+    if (throwsPublicNotFound(member.body)) {
+      recordExits.push({
+        where,
+        who,
+        landed: recordLandings.some((name) => new RegExp(`\\.\\s*${name}\\s*\\(`).test(member.body)),
+      });
+    }
 
     const thrown = [
       ...new Set(
@@ -373,9 +455,6 @@ for (const { shown, text } of sources) {
       const code = /AuthResultCode\.([A-Z][A-Z0-9_]*)/.exec(member.body.slice(open, open + 200));
       return { code: code ? code[1] : null };
     });
-
-    const where = `${shown}:${locate(text, member.bodyStart)}`;
-    const who = `${ownerName}#${nameOf(member.signature)}`;
 
     for (const call of calls) {
       const resolved = tableOfCall(ownerName, call[1]);
@@ -427,9 +506,24 @@ for (const { shown, text } of sources) {
 
 console.log(`  扫描 ${sources.length} 个源文件 · ${tableOfEntity.size} 个实体表 · ${dialects.length} 条方言 · ${nullability.size} 张表`);
 console.log(`    ${dialects.sort().join(' / ')}`);
-console.log(`  采用统一落点的模块（规则 C 的射程）：${[...adopters].sort().join(' · ')}`);
+console.log(`  接上了租户服务的模块（规则 C 的射程）：${[...adopters].sort().join(' · ')}`);
+console.log(`  记录管道的落点（规则 D，从声明里读出）：${recordLandings.join(' · ')}`);
 
 /* -------------------------------------------------------------------- 判定 */
+
+check(
+  '记录管道的读侧出口都过了那一格落点',
+  recordExits.every((item) => item.landed),
+  recordExits.length === 0
+    ? '射程为空 —— 公共 40400 的抛出点一处都没解析到？'
+    : recordExits.filter((item) => !item.landed).length > 0
+      ? recordExits
+          .filter((item) => !item.landed)
+          .map((item) => `${item.where} ${item.who} 抛公共 40400、按主键取实体，却没过落点`)
+          .join(' / ') +
+        ' —— 少了它，跨租户的 id 与"不属于任何租户"的记录都会得到一个"安静但错误"的答案（0025 第 2 条 · 0077）'
+      : `${recordExits.length} 处：${recordExits.map((item) => item.who).join(' · ')}`,
+);
 
 check(
   '映射链完整（每个 selectById 都能推到一张存在于 DDL 的表）',
@@ -474,7 +568,7 @@ check(
   inconsistent.length > 0
     ? inconsistent
         .map(([table, slot]) => `${table}（${dialects.map((d) => `${d}=${slot[d] ?? '(无此列)'}`).join(' ')}）`)
-        .join(' / ') + ' —— 规则 A 的射程判据不能因方言而异；dameng 没有被 CI 真跑过，分裂只能靠这里发现'
+        .join(' / ') + ' —— 规则 A / D 的射程判据不能因方言而异；dameng 没有被 CI 真跑过，分裂只能靠这里发现'
     : `${nullability.size} 张表在 ${dialects.length} 条方言上写法一致`,
 );
 
@@ -485,7 +579,7 @@ const noteHandRolled = (shown, text, index) => {
   if (!handRolled.has(key)) handRolled.set(key, where);
 };
 for (const { module, shown, text } of sources) {
-  if (!adopters.has(module)) continue; // 别的模块可以有自己的可见性模型，见脚本头对规则 C 的说明
+  if (!adopters.has(module)) continue; // 没跟租户服务打过交道的模块不在此射程，见脚本头对规则 C 的说明
   // 形状一：`x.getTenantId().equals(y)`
   for (const matched of text.matchAll(/getTenantId\s*\(\s*\)\s*\.\s*equals\s*\(/g)) {
     noteHandRolled(shown, text, matched.index);
@@ -498,21 +592,40 @@ for (const { module, shown, text } of sources) {
       noteHandRolled(shown, text, matched.index);
     }
   }
+  // 形状三 / 四：`x.getTenantId() != y` 与 `== y` —— 三条记录管道在 0077 之前的原文写法
+  // （`entity.getTenantId().longValue() != tenantId`）。
+  // **排除另一侧是 `null` 字面量的那一种**：那是判空，不是"同一个租户吗" ——
+  // 把它算进来就是误报，而**会误报的守卫比没有更糟**（0064）。
+  for (const matched of text.matchAll(/([!=])={1,2}/g)) {
+    // 只看 `!=` 与 `==`；`>=` / `<=` 不在此列（它们左边不会是租户 id）
+    if (matched[0] === '!=' || matched[0] === '==') {
+      const op = matched.index;
+      const left = text.slice(Math.max(0, op - 120), op);
+      const right = text.slice(op + matched[0].length, op + matched[0].length + 120);
+      if (!/getTenantId\s*\(\s*\)\s*\.\s*longValue\s*\(\s*\)\s*$|getTenantId\s*\(\s*\)\s*$/.test(left)) {
+        continue;
+      }
+      if (/^\s*null\b/.test(right)) continue; // 判空，不是比较两个租户
+      noteHandRolled(shown, text, op);
+    }
+  }
 }
 
 check(
-  `采用了统一落点的模块里没有手搓的租户相等比较（${[...adopters].sort().join(' · ') || '无'}）`,
+  `接上了租户服务的模块里没有手搓的租户比较（${[...adopters].sort().join(' · ') || '无'}）`,
   handRolled.size === 0,
   handRolled.size > 0
     ? [...handRolled.values()].join(' / ') +
-      ' —— 同租户判定只有三个落点：assertVisible（读侧）/ assertReferencedInSameTenant（写侧）/ resolveWriteTenant（建对象）；手搓一份就是第四个口径（0075 未覆盖 2）'
+      ' —— 租户判定只有落点可写：assertVisible（已存在对象）/ assertReferencedInSameTenant（写侧引用）/ resolveWriteTenant（建对象）/ ' +
+      recordLandings.join(' / ') +
+      '（记录管道，0077）；手搓一份就是又一个口径（0075 未覆盖 2）'
     : '租户 id 只被交给落点，或写进实体与 SQL 条件',
 );
 
 /* --------------------------------------------------------------- 供人核对 */
 
 console.log('');
-console.log(`  射程 ${inScope.length} 处 · 由表推导排除 ${excluded.length} 处`);
+console.log(`  射程 ${inScope.length} 处 · 由表推导排除 ${excluded.length} 处 · 记录管道出口 ${recordExits.length} 处`);
 for (const item of excluded) {
   const slot = nullability.get(item.table);
   const why =
@@ -536,4 +649,5 @@ if (problems.length > 0) {
 }
 console.log('✓ 全部通过');
 console.log('  "读侧按 id 取实体的路径都过判定"此前靠 0074 的一次手工核对，现在有机器兜底。');
-console.log('  "写侧该不该判"仍要人工 —— 见 docs/decisions/0076 的「未覆盖」。');
+console.log('  "记录管道的出口只有一格、且没有平台级出口"此前只是一条没人点破的用例断言（0077）。');
+console.log('  "查询路径的租户条件从哪来"仍要人工 —— 见 docs/decisions/0077 的「未覆盖」。');

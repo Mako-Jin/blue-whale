@@ -241,9 +241,21 @@ class AuditApiTest {
     }
 
     @Test
-    @DisplayName("别的租户的审计记录对本租户不可见：列表查不到、聚合不含、详情按 404 处理")
+    @DisplayName("平台级操作者也读不到别家的审计记录：列表查不到、聚合不含、详情按 404 处理")
     void shouldIsolateAuditLogsAcrossTenants() throws Exception {
         String token = loginAsAdmin();
+
+        // **这位操作者是平台级**（种子租户的管理员，所在租户没有父级）—— 先把它证明出来，
+        // 因为本用例想说的话正是"平台级**也**读不到"（decisions/0077）。
+        // 此前这一句从没被写下来过：用例一直是在平台级身份下跑的，只是没人点破，
+        // 而 0074 又给别的读路径开了平台级例外，于是"记录管道要不要照做"成了一个
+        // 没人回答、也没有任何东西在守的问题。事件域的同名用例见 ClientEventApiTest。
+        mockMvc.perform(get("/api/auth/tenants/{id}", adminTenantId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                // 平台级 = 顶级租户成员：parentId 为空（或字段不出现）；非平台级会是一个数字
+                .andExpect(jsonPath("$.data.parentId").doesNotExist());
 
         // 审计表**没有任何写入接口**（那是它的定义，见 AuditLogService 类注释），
         // 所以造一条"别租户的记录"只能直接写库。这恰好说明这条用例为什么必须存在：

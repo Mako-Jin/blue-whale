@@ -318,13 +318,42 @@ class ClientLogApiTest {
                         .param("app", app))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.total").value(0));
+
+        // 而"`tenant_id` 为空的那一行"（不是"查不到"这一支）也必须给同一个 40400：
+        // 这一族里"不属于任何租户"与"不属于你的租户"是同一句话，两支逐字相同（0059 · 0075）。
+        // 少了这一半，断言就只盖住了"过滤条件把没租户的行漏掉"，
+        // 而盖不住"判定把 null 当成通过"—— 那正是它与 bw_auth_resource 最像的地方（0077）。
+        ClientLogEntity anonymous = new ClientLogEntity();
+        anonymous.setTenantId(null);
+        anonymous.setApp(app);
+        anonymous.setLevel("error");
+        anonymous.setMessage("未登录时的报错");
+        anonymous.setServerTime(System.currentTimeMillis());
+        clientLogMapper.insert(anonymous);
+
+        mockMvc.perform(get("/api/logs/client/{id}", anonymous.getId())
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(40400));
     }
 
     @Test
-    @DisplayName("别的租户的日志：列表查不到、聚合不计入、详情返 40400 而不是 403")
+    @DisplayName("平台级操作者也读不到别家的日志：列表查不到、聚合不计入、详情返 40400 而不是 403")
     void shouldIsolateAcrossTenants() throws Exception {
         String token = loginAsAdmin();
         String app = "it-foreign-" + UUID.randomUUID();
+
+        // **这位操作者是平台级**（种子租户的管理员，所在租户没有父级）—— 先把它证明出来，
+        // 因为本用例想说的话正是"平台级**也**读不到"（decisions/0077）。
+        // 此前这一句从没被写下来过：用例一直是在平台级身份下跑的，只是没人点破，
+        // 而 0074 又给别的读路径开了平台级例外，于是"记录管道要不要照做"成了一个
+        // 没人回答、也没有任何东西在守的问题。事件域的同名用例见 ClientEventApiTest。
+        mockMvc.perform(get("/api/auth/tenants/{id}", adminTenantId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                // 平台级 = 顶级租户成员：parentId 为空（或字段不出现）；非平台级会是一个数字
+                .andExpect(jsonPath("$.data.parentId").doesNotExist());
 
         ClientLogEntity foreign = new ClientLogEntity();
         foreign.setTenantId(adminTenantId + 1000L);

@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.sts.auth.context.AuthContextHolder;
+import com.bluewhale.sts.auth.tenant.TenantService;
 import com.bluewhale.sts.common.basic.enums.ResultCode;
 import com.bluewhale.sts.common.basic.exception.BusinessException;
 import com.bluewhale.sts.common.basic.model.PageResult;
@@ -36,6 +37,15 @@ import java.util.Map;
  * 调用方（Controller）没有任何办法关掉它 —— 没有"按调用方传来的租户查"这种入参。
  * 理由与审计域同：一旦隔离是可选的，早晚会有一个查询忘记传，
  * 而那种遗漏在单租户的测试里完全看不出来。见 {@code docs/decisions/0026}。
+ *
+ * <p><b>"当前可见租户是哪一个"这件事，{@code 0077} 已收到 {@link TenantService#currentReadTenant()}：</b>
+ * 本类与事件域此前各有一份私有实现、而且**逐字相同**。收成一格之后有两点是签名说死的：
+ * 那一格**不接受参数**（所以"租户条件恒定加上"不再只是一个约定 —— 调用点拿不到第二个值），
+ * 且**没有平台级分支**（所以**平台级操作者也读不到别家的记录**）。
+ * 后者不是"忘了加"：三个域的查询入参里从来没有"点名一个租户"这一格，
+ * 而 {@code 0074} 的读侧模型是"默认落在自己租户，只有显式点名才跨租户" ——
+ * 要开这个口子得先改接口形状，那是一次契约变化与产品决定。
+ * 当前的面貌由用例钉着：{@code ClientLogApiTest} 的两条隔离用例用的正是**平台级**的种子管理员。
  */
 @Service
 public class ClientLogService {
@@ -50,6 +60,15 @@ public class ClientLogService {
 
     /** 查询默认时间窗：7 天 */
     private static final long DEFAULT_WINDOW_MILLIS = 7L * 24L * 60L * 60L * 1000L;
+
+    /**
+     * 本域对外说的那一句"不存在"。
+     *
+     * <p>做成常量是因为它现在有**两个**去处（"真的查不到"与"不属于你的租户"），
+     * 而那两支必须**逐字相同**（{@code 0059} 第二节 / {@code 0075}）：
+     * 两句话的差别本身就是"这条记录存在，只是在别家"。
+     */
+    private static final String NOT_FOUND_MESSAGE = "日志不存在或已被清理";
 
     /**
      * 链路查询返回条数上限。
@@ -71,9 +90,13 @@ public class ClientLogService {
 
     private final ObjectMapper objectMapper;
 
-    public ClientLogService(ClientLogMapper clientLogMapper, ObjectMapper objectMapper) {
+    private final TenantService tenantService;
+
+    public ClientLogService(ClientLogMapper clientLogMapper, ObjectMapper objectMapper,
+                            TenantService tenantService) {
         this.clientLogMapper = clientLogMapper;
         this.objectMapper = objectMapper;
+        this.tenantService = tenantService;
     }
 
     /**
@@ -140,7 +163,8 @@ public class ClientLogService {
 
     @Transactional(readOnly = true)
     public PageResult<ClientLogVO> page(ClientLogQuery query) {
-        LambdaQueryWrapper<ClientLogEntity> wrapper = buildWrapper(query, visibleTenantId());
+        LambdaQueryWrapper<ClientLogEntity> wrapper =
+                buildWrapper(query, tenantService.currentReadTenant());
 
         Page<ClientLogEntity> page = clientLogMapper.selectPage(
                 new Page<>(query.getPage(), query.getSize()), wrapper);
@@ -170,12 +194,15 @@ public class ClientLogService {
      */
     @Transactional(readOnly = true)
     public ClientLogVO detail(long id) {
-        long tenantId = visibleTenantId();
         ClientLogEntity entity = clientLogMapper.selectById(id);
-        if (entity == null || entity.getTenantId() == null
-                || entity.getTenantId().longValue() != tenantId) {
-            throw new BusinessException(ResultCode.NOT_FOUND, "日志不存在或已被清理");
+        if (entity == null) {
+            throw notFound();
         }
+        // 租户那一半走 TenantService#assertRecordInCurrentTenant（decisions/0077）：
+        // `tenant_id` 为空是"上报时未登录、不属于任何租户"，对它**任何人**都不可见 ——
+        // 这正是它与 `bw_auth_resource`（空 = 平台级对象、对所有人可见）不能共用
+        // assertVisible 的原因，两者的 null 是相反的两件事。
+        tenantService.assertRecordInCurrentTenant(entity.getTenantId(), NOT_FOUND_MESSAGE);
         return toVO(entity);
     }
 
@@ -213,7 +240,7 @@ public class ClientLogService {
         Page<ClientLogEntity> page = clientLogMapper.selectPage(
                 new Page<>(1L, TRACE_MAX_ROWS, false),
                 Wrappers.<ClientLogEntity>lambdaQuery()
-                        .eq(ClientLogEntity::getTenantId, visibleTenantId())
+                        .eq(ClientLogEntity::getTenantId, tenantService.currentReadTenant())
                         .eq(ClientLogEntity::getTraceId, traceId)
                         .ge(ClientLogEntity::getServerTime, startTime)
                         .le(ClientLogEntity::getServerTime, endTime)
@@ -226,7 +253,7 @@ public class ClientLogService {
     public ClientLogStatsVO stats(ClientLogStatsQuery query) {
         long endTime = query.getEndTime() == null ? System.currentTimeMillis() : query.getEndTime();
         long startTime = query.getStartTime() == null ? endTime - DEFAULT_WINDOW_MILLIS : query.getStartTime();
-        long tenantId = visibleTenantId();
+        long tenantId = tenantService.currentReadTenant();
         // 过滤值先规范化再进 SQL（decisions/0069）。**下面手写 SQL 那一句必须用同一个变量** ——
         // 两边各算一遍就会出现"总数对、分布是全库的"（而这里各算一遍还会因判空口径不同
         // 出现"总数 3、各级别之和 0"）。见 FilterValueTrimApiTest#shouldKeepStatisticsInSyncWithPage。
@@ -263,19 +290,9 @@ public class ClientLogService {
         return new ClientLogStatsVO(total, startTime, endTime, levels);
     }
 
-    /**
-     * 当前请求可见的租户。
-     *
-     * <p><b>租户条件写成"恒定加上"，而不是 {@code eq(条件, 列, 值)} 那种可关的形式。</b>
-     * 可关的形式（比如"调用方传了租户才过滤"）留的是一个"忘记传就全量"的口子，
-     * 而它的失败方式是**多看到数据**：不报错、结果还更完整，只有跨租户比对时才看得出来。
-     *
-     * <p>用 {@code require()} 而不是 {@code currentTenantId()}：查询接口都已声明
-     * {@code @RequiresPermission}，走到这里必然已认证；真出现了未认证，
-     * 说明有人绕过了 Web 层直接调服务 —— 那时候**抛错比返回全库数据正确**。
-     */
-    private static long visibleTenantId() {
-        return AuthContextHolder.require().getTenantId();
+    /** 本域那一句"不存在"的两个去处之一 —— 另一处是 {@link TenantService#assertRecordInCurrentTenant} */
+    private static BusinessException notFound() {
+        return new BusinessException(ResultCode.NOT_FOUND, NOT_FOUND_MESSAGE);
     }
 
     private LambdaQueryWrapper<ClientLogEntity> buildWrapper(ClientLogQuery query, long tenantId) {
