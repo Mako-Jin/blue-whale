@@ -186,7 +186,7 @@ public class RoleMemberService {
         RelRoleMemberEntity target = existing.get(0);
         revokeRedundantRows(existing);
         if (target.getDeleted() != null && target.getDeleted() != 0) {
-            relRoleMemberMapper.restoreDeletedById(target.getId());
+            relRoleMemberMapper.restoreDeletedById(target.getId(), role.getTenantId());
             // 内存里的 deleted 也要清掉：update 的 WHERE 带 deleted = 0，
             // 留着 1 会让后面这条 UPDATE 静默影响 0 行
             target.setDeleted(0);

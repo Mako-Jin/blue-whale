@@ -209,7 +209,7 @@ public class OrganizationMemberService {
             target = existing.get(0);
             revokeRedundantRows(existing);
             if (target.getDeleted() != null && target.getDeleted() != 0) {
-                relOrgUserMapper.restoreDeletedById(target.getId());
+                relOrgUserMapper.restoreDeletedById(target.getId(), org.getTenantId());
                 // 内存里的 deleted 也要清掉：update 的 WHERE 带 deleted = 0，留着 1 会静默影响 0 行
                 target.setDeleted(0);
             }

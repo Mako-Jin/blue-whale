@@ -40,10 +40,12 @@
  * | B | 三方言里每张表的 `tenant_id` **存在性与可空性必须一致** | 它是规则 A / D 的射程判据。而 **dameng 是唯一没被 CI 真跑过的方言** —— 它的口径分裂没有任何测试能拦 |
  * | C | **接上了租户服务的模块**里，`main` 不得让 `getTenantId()` 参与相等或不等比较 | 那是在落点之外手搓同租户判定 —— `0075`「未覆盖 2」登记过的那件事 |
  * | D | 抛出**公共** `40400` 的方法（含调用同文件里那个构造器的）若按主键取实体 ⇒ 必须走**记录管道的落点** | 这是规则 A 在三条记录管道上的镜像：它们没有自己的码（用的是公共 `40400`），所以规则 A 看不见它们。少了这一步，"平台级也读不到别家"就只是签名上的巧合（`0077`） |
+ * | F | **注解写语句**（`@Update` / `@Delete` 里的 SQL）改的表若 `tenant_id NOT NULL` ⇒ 它的 `WHERE` 里必须带 `tenant_id = #{…}`，且那个名字必须是形参里有的 `@Param` | 这是规则 A / D 的**写侧镜像**：`restoreDeletedById` 这类"绕过 `@TableLogic` 的手写 SQL"**不经过 `requireXxx`**，而 `requireXxx` 那条链上唯一的租户保证就是 `assertVisible`。改前这一格只写在调用点的注释里（"这个方法的越权被调用点约束住"）—— 而**注释不是约束**（`0079`） |
  *
  * **租户口径还有第四问**：*写成 SQL 条件的那一刻，那个租户 id 是从哪儿取来的*。
  * 它不在这支脚本里 —— 射程、判据、追赋值的方式都不同，见 `verify-tenant-scope-source.mjs`（`0078`）。
- * 一句话概括三者的分工：**规则 C 管"比较"、规则 D 管"按主键取实体"、规则 E 管"条件的取值来源"。**
+ * 一句话概括四者的分工：**规则 C 管"比较"、规则 D 管"按主键取实体"、规则 E 管"条件的取值来源"、
+ * 规则 F 管"写侧那条语句自己带没带租户条件"。**
  *
  * 规则 C / D 的射程与判据也都是推导的：
  *
@@ -105,6 +107,11 @@
  *   `server/README.md` 那张权威清单），那种改法会撞上下面的"射程为空 ⇒ 红"。**兜底就是那一条。**
  * - **`tenant_id` 之外的列**。三方言只对 `tenant_id` 对账 —— 把"三方言 DDL 全等"做成守卫
  *   会误报（类型名本来就不同：`BIGINT` / `NUMBER`），而**会误报的守卫比没有更糟**（`0064`）。
+ * - **MyBatis-Plus 自己生成的那些写语句**（`updateById` / `deleteById` / `insert` …）。
+ *   它们的 `WHERE` 里只有主键与 `deleted`，看起来和规则 F 管的东西一样缺租户条件 ——
+ *   但它们的租户保证**不在这里**，而在"先 `requireXxx` 再改"那条链上，也就是规则 A
+ *   （`requireXxx` 里的 `assertVisible`）。规则 F 之所以只认**手写的**那几条，
+ *   正因为手写的那几条（恰恰是"能看见软删行"的那些）**可以绕开 `requireXxx`**（`0079`）。
  */
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
@@ -626,10 +633,93 @@ check(
     : '租户 id 只被交给落点，或写进实体与 SQL 条件',
 );
 
+/* ------------------------------------------------- 六、规则 F：注解写语句的租户条件 */
+
+/**
+ * 全仓的**注解写语句**（`@Update` / `@Delete` 里那条 SQL）。
+ *
+ * <p>射程是**自然射程**：全仓只有这一族手写的写语句（`@Insert` / `@Select` 是读侧与
+ * 归属写入，不在这一问里）。表名从 SQL 文本里的字面量读（`UPDATE <表> SET`），
+ * 可空性从建表脚本读 —— 所以 `bw_auth_resource.tenant_id` 可空（平台级资源）
+ * 会**自动出局**，零白名单（与规则 A 排除它同一套推导）。
+ *
+ * <p>判据两条一起：`WHERE` 里出现 `tenant_id = #{<名字>}`，**且** `<名字>` 在形参表里
+ * 有 `@Param`。少了第二条，一处"SQL 写了、参数没接上"的改动会在运行时才炸（而那时
+ * 已经跑到别人的机器上）；多了它，形状就是完整的。
+ */
+const annotatedWrites = []; // 射程内（表 tenant_id NOT NULL）
+const writeExcluded = []; // 不在射程：表 tenant_id 可空 / 无此列
+const writeUnresolved = []; // 推不出表名，或表不在 DDL 里（防假阴）
+const writeMissing = []; // 射程内但 WHERE 缺租户条件，或缺对应的 @Param
+
+for (const { shown, text } of sources) {
+  for (const matched of text.matchAll(/@(Update|Delete)\s*\(\s*(?:"""([\s\S]*?)"""|"([^"]*)")/g)) {
+    const where = `${shown}:${locate(text, matched.index)}`;
+    const sql = (matched[2] ?? matched[3]).trim();
+    const table = /UPDATE\s+(\w+)\s+SET/i.exec(sql)?.[1] ?? null;
+
+    if (!table) {
+      writeUnresolved.push(`${where} —— 从这条 SQL 里读不出表名（形状变了？）：${sql.slice(0, 60)}`);
+      continue;
+    }
+    if (!nullability.has(table)) {
+      writeUnresolved.push(`${where} —— 表 \`${table}\` 在迁移脚本里找不到`);
+      continue;
+    }
+    if (!isTenantScoped(table)) {
+      writeExcluded.push({ where, table, sql });
+      continue;
+    }
+
+    // 注解之后到第一个 `;` 之间就是这条方法声明（形参表与 @Param 都在里面）
+    const tail = text.slice(matched.index + matched[0].length);
+    const signature = tail.slice(0, tail.indexOf(';') + 1 || undefined);
+    const bound = [...signature.matchAll(/@Param\s*\(\s*"(\w+)"\s*\)/g)].map((item) => item[1]);
+    const used = /tenant_id\s*=\s*#\{\s*(\w+)\s*\}/.exec(sql)?.[1] ?? null;
+
+    annotatedWrites.push({ where, table, sql, used, called: matched[1] });
+    if (!used || !bound.includes(used)) {
+      writeMissing.push(
+        `${where} —— \`${table}\` 的 \`tenant_id\` 是 NOT NULL，但这条 @${matched[1]} 的 WHERE ` +
+          (used
+            ? `用的是 \`#{${used}}\`，形参表里${bound.includes(used) ? '有' : '**没有**'}对应的 \`@Param\``
+            : '里没有 `tenant_id = #{…}`'),
+      );
+    }
+  }
+}
+
+check(
+  '按主键写的注解 SQL 自己带租户条件（表带 tenant_id NOT NULL 的那些）',
+  writeMissing.length === 0 && writeUnresolved.length === 0,
+  writeUnresolved.length > 0
+    ? writeUnresolved.join(' / ') + ' —— 推不出表名就不会被本规则覆盖，属**假阴**，所以这里必须红'
+    : writeMissing.length > 0
+      ? writeMissing.join(' / ') +
+        ' —— 它绕过 @TableLogic，因此也绕过"先 requireXxx 再改"那条链上唯一的租户保证：' +
+        '少了租户条件，别家的主键照样能被改（0079）'
+      : annotatedWrites.length === 0
+        ? '射程为空 —— 一条注解写语句都没找到？'
+        : `${annotatedWrites.length} 处：${annotatedWrites.map((item) => item.table.replace(/^bw_/, '')).join(' · ')}`,
+);
+
+check(
+  '规则 F 的射程是推导出来的（可空的 tenant_id 自动出局）',
+  writeExcluded.some((item) => item.table === 'bw_auth_resource'),
+  writeExcluded.some((item) => item.table === 'bw_auth_resource')
+    ? `推导排除 ${writeExcluded.length} 处：${writeExcluded.map((item) => item.table.replace(/^bw_/, '')).join(' · ')}`
+    : '`bw_auth_resource` 没有被排除 —— 它的 tenant_id 可空（平台级资源），' +
+      '给它加租户条件会把平台级资源整类排除在外，那不是"更安全"是改错语义（0079）',
+);
+
 /* --------------------------------------------------------------- 供人核对 */
 
 console.log('');
 console.log(`  射程 ${inScope.length} 处 · 由表推导排除 ${excluded.length} 处 · 记录管道出口 ${recordExits.length} 处`);
+console.log(
+  `  注解写语句 ${annotatedWrites.length} 处（带租户条件）· 由表推导排除 ${writeExcluded.length} 处` +
+    (writeExcluded.length > 0 ? `：${writeExcluded.map((item) => item.table.replace(/^bw_/, '')).join(' · ')}` : ''),
+);
 for (const item of excluded) {
   const slot = nullability.get(item.table);
   const why =
@@ -655,3 +745,5 @@ console.log('✓ 全部通过');
 console.log('  "读侧按 id 取实体的路径都过判定"此前靠 0074 的一次手工核对，现在有机器兜底。');
 console.log('  "记录管道的出口只有一格、且没有平台级出口"此前只是一条没人点破的用例断言（0077）。');
 console.log('  "查询路径的租户条件从哪来"已由 verify-tenant-scope-source.mjs 接管（0078）。');
+console.log('  "手写的按主键改的那几条 SQL 自己带没带租户条件"由规则 F 守（0079）——');
+console.log('  在此之前，那一格的正当性只写在调用点的注释里（"越权被调用点约束住"）。');

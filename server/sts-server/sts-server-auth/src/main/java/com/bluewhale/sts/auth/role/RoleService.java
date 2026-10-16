@@ -166,7 +166,7 @@ public class RoleService {
 
         RoleEntity entity;
         if (existing != null) {
-            roleMapper.restoreDeletedById(existing.getId());
+            roleMapper.restoreDeletedById(existing.getId(), tenantId);
             entity = existing;
             // 内存里的 deleted 也要清掉：updateById 把非空字段写进 SET，
             // 留着 1 会把刚恢复的那行当场再删一次（影响 0 行、不报错）
@@ -338,7 +338,7 @@ public class RoleService {
         grant = existing.get(0);
         revokeRedundantRows(existing);
         if (grant.getDeleted() != null && grant.getDeleted() != 0) {
-            relRoleResourceMapper.restoreDeletedById(grant.getId());
+            relRoleResourceMapper.restoreDeletedById(grant.getId(), role.getTenantId());
             grant.setDeleted(0);
         }
         grant.setEffect(effect);

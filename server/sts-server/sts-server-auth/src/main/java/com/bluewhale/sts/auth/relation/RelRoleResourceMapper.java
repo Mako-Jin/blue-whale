@@ -47,8 +47,15 @@ public interface RelRoleResourceMapper extends BaseMapper<RelRoleResourceEntity>
     List<RelRoleResourceEntity> selectAnyByRoleAndResource(@Param("roleId") Long roleId,
                                                            @Param("resourceId") Long resourceId);
 
-    /** 复活一条被撤掉过的授权。{@code updateById} 对软删行影响 0 行且不报错，只能手写 */
-    @Update("UPDATE bw_auth_rel_role_resource SET deleted = 0 WHERE id = #{id}")
-    int restoreDeletedById(@Param("id") Long id);
+    /**
+     * 复活一条被撤掉过的授权。{@code updateById} 对软删行影响 0 行且不报错，只能手写。
+     *
+     * <p><b>租户条件是这条 SQL 自己的事</b>（{@code decisions/0079}）：它绕过
+     * {@code @TableLogic}，也就绕过了"先 {@code requireXxx} 再改"那条链上唯一的租户保证
+     * （改前这一格只靠调用点：那一行是按"角色 + 资源"查出来的，角色已过可见性判定）。
+     * 形状由 {@code scripts/verify-tenant-visibility.mjs} 的规则 F 守。
+     */
+    @Update("UPDATE bw_auth_rel_role_resource SET deleted = 0 WHERE id = #{id} AND tenant_id = #{tenantId}")
+    int restoreDeletedById(@Param("id") Long id, @Param("tenantId") Long tenantId);
 
 }

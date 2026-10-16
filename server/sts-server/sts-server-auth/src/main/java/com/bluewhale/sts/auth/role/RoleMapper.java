@@ -57,11 +57,14 @@ public interface RoleMapper extends BaseMapper<RoleEntity> {
      * 的 WHERE 也会带上 {@code deleted = 0}，对已删除的行**影响 0 行且不报错**，
      * 所以复活只能用手写 SQL。
      *
-     * <p>这个方法的代价（绕过逻辑删除保护）在调用点上被约束住：只在
-     * {@code RoleService.create} 里、且已确认该编码确实被一条逻辑删除的角色占着时调用。
+     * <p>这个方法的代价（绕过逻辑删除保护）此前写在调用点上（"只在 {@code RoleService.create}
+     * 里、且已确认该编码确实被一条逻辑删除的角色占着时调用"）—— 而注释不是约束。
+     * 现在租户条件是 {@code WHERE} 的一部分（{@code decisions/0079}）：调用点唯一的义务是
+     * **把租户传对**，这一点由形参强制；形状由 {@code scripts/verify-tenant-visibility.mjs}
+     * 的规则 F 守。
      */
-    @Update("UPDATE bw_auth_role SET deleted = 0 WHERE id = #{id}")
-    int restoreDeletedById(@Param("id") Long id);
+    @Update("UPDATE bw_auth_role SET deleted = 0 WHERE id = #{id} AND tenant_id = #{tenantId}")
+    int restoreDeletedById(@Param("id") Long id, @Param("tenantId") Long tenantId);
 
     /**
      * 列出某角色已授予的资源（带资源侧的信息），供授权管理界面展示。

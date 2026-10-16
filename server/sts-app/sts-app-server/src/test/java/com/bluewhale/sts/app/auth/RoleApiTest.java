@@ -197,6 +197,53 @@ class RoleApiTest {
                 .andExpect(jsonPath("$.data", hasSize(0)));
     }
 
+    /* ==================== 按主键复活：租户条件是 SQL 的事 ==================== */
+
+    /**
+     * 「按主键复活」是一条**绕过逻辑删除保护**的写语句：
+     * {@code UPDATE bw_auth_role SET deleted = 0 WHERE id = #{id}}。
+     * 上面那条回归证明**同一个租户内**复活按预期工作，这一条问另一半：
+     * **把别家租户的主键丢进来会发生什么。**
+     *
+     * <p><b>为什么只能直接经 Mapper 问：</b>这条 SQL 的越权路径**没有 HTTP 入口** ——
+     * 唯一的调用者 {@code RoleService#create} 先经 {@code selectAnyByTenantAndCode(tenantId, code)}
+     * 取到那一行，{@code id} 从构造上就属于本租户。所以接口层面永远是绿的，
+     * "SQL 层面挡不挡得住"只有绕过服务层才问得出来。
+     * 改前这条 SQL 的正当性写在 {@code RoleMapper} 的 javadoc 里
+     * （"这个方法的代价（绕过逻辑删除保护）在调用点上被约束住"）——
+     * 而注释不是约束：它既不被编译期检查，也没有任何东西会在有人新加一个调用点时亮起来。
+     *
+     * <p><b>两个方向都要断。</b>只断"别家的 id 复活不了"的话，一个"谁都别复活"的实现
+     * （把条件写成恒假）也能通过 —— 而它会静默废掉"软删后复用编码"这条已落地的能力。
+     */
+    @Test
+    @DisplayName("按主键复活带租户条件：别家的 id 命中 0 行、原行仍软删；本租户的 id 照常复活")
+    void shouldScopeRestoreByTenant() throws Exception {
+        String token = loginAsAdmin();
+        String code = uniqueRoleCode("xrestore");
+
+        long id = createRole(token, code, "待跨租户复活的角色", "CUSTOM", "ALL");
+        deleteRole(token, id);
+
+        RoleEntity softDeleted = roleMapper.selectAnyByTenantAndCode(adminTenantId, code);
+        assertNotNull(softDeleted, "软删行必须还在 —— 它是本用例的起点");
+        assertEquals(id, softDeleted.getId());
+        assertEquals(1, softDeleted.getDeleted(), "删除必须落在逻辑删除上");
+
+        // 别家的租户 id 取一个**真实存在**的另一个租户：威胁模型是"别家的行就在库里"，
+        // 而 0025 第 2 条那句"它就是不存在"是**读者视角**的，不是库里的样子
+        long otherTenantId = createTenant(token, uniqueTenantCode(), "跨租户复活用租户");
+
+        assertEquals(0, roleMapper.restoreDeletedById(id, otherTenantId),
+                "别家租户的 id 不该匹配到任何行");
+        assertEquals(1, roleMapper.selectAnyByTenantAndCode(adminTenantId, code).getDeleted(),
+                "原行必须仍处于软删状态");
+
+        assertEquals(1, roleMapper.restoreDeletedById(id, adminTenantId),
+                "本租户的 id 必须照常复活 —— 否则'谁都别复活'也能通过上面两行");
+        assertEquals(0, roleMapper.selectAnyByTenantAndCode(adminTenantId, code).getDeleted());
+    }
+
     @Test
     @DisplayName("角色仍被成员持有时拒绝删除（40916）")
     void shouldRejectDeleteWhenRoleHasMembers() throws Exception {
@@ -741,6 +788,27 @@ class RoleApiTest {
     }
 
     /**
+     * 建一个顶级租户，返回主键。
+     *
+     * <p>本类只在一处用它：给"别家的租户 id"取一个**真实存在**的值。
+     * 用一个不存在的 id 也能让那条断言通过，但它证明的只是"条件里有这个参数"，
+     * 而不是"别家那行真的动不了" —— 而后者才是要钉住的那件事。
+     */
+    private long createTenant(String token, String tenantCode, String tenantName) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/auth/tenants")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"tenantCode":"%s","tenantName":"%s"}
+                                """.formatted(tenantCode, tenantName)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andReturn();
+        Number id = JsonPath.read(result.getResponse().getContentAsString(), "$.data.id");
+        return id.longValue();
+    }
+
+    /**
      * 合法且唯一的角色编码：{@code E2E_<前缀><base36>}。
      *
      * <p>前缀刻意以字母开头、整体只用字母数字与下划线：{@code Long.toString(n, 36)}
@@ -754,6 +822,11 @@ class RoleApiTest {
     /** 合法且唯一的用户名：首字符必须是字母 */
     private static String uniqueUsername() {
         return "e2euser" + Long.toString(System.nanoTime(), 36);
+    }
+
+    /** 合法且唯一的租户编码：首字符必须是字母 */
+    private static String uniqueTenantCode() {
+        return "e2erole" + Long.toString(System.nanoTime(), 36);
     }
 
 }

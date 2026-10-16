@@ -75,9 +75,10 @@
  *
  * - **`@Update … WHERE id = #{id}` 这类"按主键改"的注解 SQL 完全没有租户条件**。
  *   它是**规则 A / D 在写侧的镜像**，不是"租户条件从哪来"的一部分（那里压根没有租户值）。
- *   现状是安全的但只是一次手工核对：`restoreDeletedById` 的 `id` 来自
- *   `selectAnyByOrgAndUser`（按组织 + 用户查，而不是按主键），且调用方已先确认过归属。
- *   这条留给下一片。
+ *   **已由 `0079` 领走** —— 现在由 `verify-tenant-visibility.mjs` 的**规则 F** 守：7 处
+ *   `WHERE` 自带 `AND tenant_id = #{tenantId}`、形参 `@Param` 强制传对租户（`bw_auth_resource`
+ *   的 `tenant_id` 可空 = 平台级资源 ⇒ 推导排除）。本脚本问"条件的取值从哪来"（规则 E），
+ *   那支问"写侧的语句自己带没带条件"（规则 F）—— **两者别互相以为对方管了**。
  * - **`#{it.tenantId}` 这种写法**。它出现在 `@Insert` 的列清单里（`ClientLogMapper` /
  *   `ClientEventMapper`），取的是**待插入实体自己的租户** —— 那是"这行数据归谁"，
  *   由写侧落点 `resolveWriteTenant` 管，与"条件从哪来"不是一件事。射程只认裸 `#{tenantId}`。
@@ -687,4 +688,4 @@ console.log('✓ 全部通过');
 console.log('  "查询路径的租户条件从哪来"此前是 0077「刻意不查的」里最大的一条 ——');
 console.log('  它要的"追局部变量的赋值"做得出来：来源只有落点 / 认证上下文 / 实体自身三类，');
 console.log('  第四类（请求绑定类型）是唯一危险的那一种，判据取"类型"所以不需要白名单。');
-console.log('  未覆盖：@Update … WHERE id = #{id} 这类"按主键改"的注解 SQL（写侧镜像，见文件头）。');
+console.log('  "手写的按主键改的语句自己带没带租户条件"已由 verify-tenant-visibility.mjs 的规则 F 接管（0079）。');

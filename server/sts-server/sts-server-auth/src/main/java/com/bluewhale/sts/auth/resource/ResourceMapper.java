@@ -41,6 +41,12 @@ public interface ResourceMapper extends BaseMapper<ResourceEntity> {
      * <p>刻意不在此处维护 {@code update_by} / {@code update_time}：
      * 复活的调用方紧接着还会走一次正常的 {@code updateById}，
      * 那两个字段由 {@code AuthAuditMetaObjectHandler} 在那一步统一填。
+     *
+     * <p><b>这里是全仓唯一一条不带租户条件的复活语句</b>（{@code decisions/0079}）：
+     * {@code bw_auth_resource.tenant_id} 可空，而 {@code NULL} 的含义是**平台级资源**
+     * （对所有人可见）；写一个 {@code tenant_id = #{tenantId}} 会把平台级资源整类排除在外，
+     * 那不是"更安全"，是**改错语义**。它与 {@code bw_audit_log} 那三条管道的判据一样，
+     * 是"这张表没有'租户内的行'这个前提"，因此由规则 F 的射程**推导排除**、不进白名单。
      */
     @Update("UPDATE bw_auth_resource SET deleted = 0 WHERE id = #{id}")
     int restoreDeletedById(@Param("id") Long id);

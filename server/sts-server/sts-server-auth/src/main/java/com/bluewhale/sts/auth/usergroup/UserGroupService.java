@@ -159,7 +159,7 @@ public class UserGroupService {
 
         UserGroupEntity entity;
         if (existing != null) {
-            userGroupMapper.restoreDeletedById(existing.getId());
+            userGroupMapper.restoreDeletedById(existing.getId(), tenantId);
             entity = existing;
             // 内存里的 deleted 也要清掉：update 把非空字段写进 SET，留着 1 会再把刚恢复的行删一次
             entity.setDeleted(0);
@@ -327,7 +327,7 @@ public class UserGroupService {
         RelUserGroupMemberEntity target = existing.get(0);
         revokeRedundantRows(existing);
         if (target.getDeleted() != null && target.getDeleted() != 0) {
-            relUserGroupMemberMapper.restoreDeletedById(target.getId());
+            relUserGroupMemberMapper.restoreDeletedById(target.getId(), group.getTenantId());
             // 内存里的 deleted 也要清掉：update 的 WHERE 带 deleted = 0，留着 1 会静默影响 0 行
             target.setDeleted(0);
         }

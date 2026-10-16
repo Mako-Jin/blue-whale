@@ -341,6 +341,12 @@ jobs:
       # **公共** `40400`，规则 A 那套"该表对应的 404xx"在此无效 ⇒ 新规则 D 认的是
       # "抛出公共 NOT_FOUND 的方法若按主键取了实体就必须过 `assertRecordInCurrentTenant`"
       # （落点从声明里读、不写名字；解析不出来就红）。同样零前置（只读源码文本与迁移脚本）。
+      # **0079 补上写侧的镜像（规则 F）**：手写的"按主键改"语句（`@Update` / `@Delete`）
+      # 绕过 `@TableLogic`、因而绕过 `requireXxx` 链上唯一的租户保证 `assertVisible` ⇒
+      # 改的表带 `tenant_id NOT NULL` 时 `WHERE` 必须自己带 `tenant_id = #{…}`、且那个名字
+      # 是形参表里有的 `@Param`（少了第二条，一处"SQL 改对了、形参改掉了"要到运行时才炸）。
+      # 射程由表的可空性推导：`bw_auth_resource` 可空（平台级资源）自动出局，且有自检
+      # 断言它在排除集里。刻意不追调用图 —— 拦新调用点靠形参强制（编译期挡住"忘了传"）。
       - name: 租户可见性自检
         run: node scripts/verify-tenant-visibility.mjs
 

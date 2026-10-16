@@ -226,7 +226,7 @@ public class OrganizationService {
         if (existing != null) {
             // 复活分支：记下它原来的父级，后面要把那个父级的 hasChild 一起重算
             staleParentId = existing.getParentId();
-            organizationMapper.restoreDeletedById(existing.getId());
+            organizationMapper.restoreDeletedById(existing.getId(), tenantId);
             // 内存里的 deleted 也要清掉：update 的 WHERE 带 deleted = 0，留着 1 会静默影响 0 行
             entity = existing;
             entity.setDeleted(0);

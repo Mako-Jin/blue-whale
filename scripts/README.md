@@ -27,7 +27,7 @@
 | `verify-like-escaping.mjs`     | `server/` 的 `src/main/java` 里每一处 `LIKE` 都必须经过 `KeywordLike`（转义关键词、并把 `ESCAPE '!'` 写进 SQL），不许再有裸的 `like(...)`；带 `LIKE` 的片段同一行必须有 `ESCAPE`；白名单逐条核对条数 | **无前置条件**（只读源码文本，不编译、不连网、不写文件）；`node scripts/verify-like-escaping.mjs` | `docs/decisions/0067` |
 | `verify-filter-values.mjs`     | `server/` 的 `src/main/java` 里**精确匹配**的过滤值与**要拿它去匹配的那些写入值**都在 `FilterValue` 上收口：`.eq(...)` 的条件里不许用 `hasText(...)` 或内联的 `query.getX().isBlank()`；三个手写聚合 SQL（`countByLevel` / `countByEventName` / `countByAction`）的实参不许是 `query.getXxx()`；**枚举列**的五个 getter（`getStatus` / `getResourceType` / `getMemberType` / `getLevel` / `getResult`）只能作为 `FilterValue.enumValue(...)` 的第一个实参出现；**上报侧**（`sts-server-log` / `sts-server-track`）写入实体时 `entity.set<App\|Namespace\|TraceId\|SessionId\|UserId\|DeviceId>(...)` 的实参必须含 `FilterValue`；**寻址列**（`sts-server-auth`）`entity.set<Email\|Phone\|ContactEmail\|ContactPhone>(...)` 与 `existsEmail(...)` / `existsPhone(...)` 的实参**含 `request.getXxx()` 且不含 `FilterValue` ⇒ 报红**（判重也是一次 `eq`，两侧必须共用一个归一值） | **无前置条件**（只读源码文本，不编译、不连网、不写文件）；`node scripts/verify-filter-values.mjs` | `docs/decisions/0069` · `docs/decisions/0070` · `docs/decisions/0071` · `docs/decisions/0072` |
 | `verify-notfound-messages.mjs` | `404xx` 的抛出点全是无参的（文案只能来自枚举）；没有一处 `businessException(...)` 在拼另一个码的 `getMessage()` | **无前置条件**（只读源码文本，不编译、不连网、不写文件）；`node scripts/verify-notfound-messages.mjs` | `docs/decisions/0059` · `docs/decisions/0075` |
-| `verify-tenant-visibility.mjs` | 按主键取实体的读侧出口都过了落点（射程由 `@TableName` + `BaseMapper<…>` + DDL 推导，零白名单）：**管理面**出口过 `assertVisible`、那个码与"不存在"那一支逐字相同；**观测面**（三条记录管道 —— 审计 / 日志 / 事件）出口过 `assertRecordInCurrentTenant`（抛**公共** `40400` ⇒ 认落点靠"方法体提到公共码"，**不写名字**）；三方言的 `tenant_id` 存在性与可空性一致；接上了租户服务的模块里不得手搓租户相等比较 | **无前置条件**（只读源码文本与三方言迁移脚本，不编译、不连网、不写文件）；`node scripts/verify-tenant-visibility.mjs` | `docs/decisions/0074` · `docs/decisions/0076` · `docs/decisions/0077` |
+| `verify-tenant-visibility.mjs` | 按主键取实体的读侧出口都过了落点（射程由 `@TableName` + `BaseMapper<…>` + DDL 推导，零白名单）：**管理面**出口过 `assertVisible`、那个码与"不存在"那一支逐字相同；**观测面**（三条记录管道 —— 审计 / 日志 / 事件）出口过 `assertRecordInCurrentTenant`（抛**公共** `40400` ⇒ 认落点靠"方法体提到公共码"，**不写名字**）；三方言的 `tenant_id` 存在性与可空性一致；接上了租户服务的模块里不得手搓租户相等比较；**手写的"按主键改"语句**（`@Update` / `@Delete`）改的表带 `tenant_id NOT NULL` 时，`WHERE` 必须自己带 `tenant_id = #{…}`、且那个名字是形参里有的 `@Param`（`bw_auth_resource` 因 `tenant_id` 可空 = 平台级资源而**推导排除**） | **无前置条件**（只读源码文本与三方言迁移脚本，不编译、不连网、不写文件）；`node scripts/verify-tenant-visibility.mjs` | `docs/decisions/0074` · `docs/decisions/0076` · `docs/decisions/0077` · `docs/decisions/0079` |
 | `verify-tenant-scope-source.mjs` | **租户条件的取值来源**只有三种 —— 落点（`resolveQueryTenant` / `resolveWriteTenant` / `currentReadTenant`）· 认证上下文 · 实体自身；两种形状都查：`.eq(<X>::getTenantId, ARG)` 与注解 SQL 里的 `#{tenantId}`。来源是**请求绑定类型**（`*Controller` 带注解形参的声明类型，从源码推导、零白名单）上的租户 ⇒ 红；裸标识符按一跳追（本方法局部初值 → 本方法形参 → 本模块调用点实参），**追不到也红**（防假阴） | **无前置条件**（只读源码文本，不编译、不连网、不写文件）；`node scripts/verify-tenant-scope-source.mjs` | `docs/decisions/0078` |
 | `verify-standalone-dev-login.mjs` | 用真实 Chrome 验证子应用**单跑**时的自建会话与开发账号自动登录（后端在跑 / 没起两种状态都跑一遍） | 至少一个子应用的 dev 服务在跑（:3200 / :3300 / :3500 / :3600，没起的会被记成"跳过"）；**后端 :8080 可选** —— 在跑时断言自动登录成功，没起时断言优雅降级；本机装有 Google Chrome | `docs/decisions/0018` · `0033` |
 
@@ -638,7 +638,8 @@ log / track 两个上报模块、且只认接收者是 `entity`）；
 ### `verify-tenant-visibility.mjs` 做什么
 
 把 `0074`「未覆盖 4」要的那条守卫（**"每个带 `tenant_id` 的实体表，它的读侧出口必须过
-`assertVisible`"**）机械化成五条零前置的检查 + 一条防假阴自检（`0077` 补上链够不到的另一半）：
+`assertVisible`"**）机械化成六条零前置的检查 + 一条防假阴自检（`0077` 补上链够不到的另一半、
+`0079` 补上写侧的镜像）：
 
 | # | 查什么 |
 | --- | --- |
@@ -648,6 +649,7 @@ log / track 两个上报模块、且只认接收者是 `entity`）；
 | B | 三方言里每张表的 `tenant_id` **存在性与可空性一致** |
 | C | **接上了租户服务的模块**里，`main` 不得让 `getTenantId()` 参与相等比较 |
 | D | 抛出**公共** `ResultCode.NOT_FOUND(40400)` 的方法若按主键取实体 ⇒ 必须走记录管道的落点（规则 A 的**镜像** —— 三条记录管道**没有自己的码**，`40400` 因此不是一个"某对象的码"，A 的判据在这里失效） |
+| F | **注解写语句**（`@Update` / `@Delete` 里的 SQL）改的表若带 `tenant_id NOT NULL` ⇒ 它的 `WHERE` 里必须带 `tenant_id = #{…}`，**且**那个名字是本方法形参表里有的 `@Param`；表名从 SQL 文本读、可空性从建表脚本读 ⇒ `bw_auth_resource`（可空 = 平台级资源）**推导排除**（规则 A 的**写侧镜像**：手写的 `restoreDeletedById` 绕过 `@TableLogic`、因而绕过 `requireXxx` 链上唯一的租户保证 `assertVisible`，`0079`） |
 
 **为什么需要它。** `0074` 把"读侧按 id 取实体都必须过判定"落成了一次**手工核对**，
 它自己的「未覆盖 4」就这么写的。这次手工核对**已经付过代价**：`0075` 发现
@@ -714,6 +716,30 @@ log / track 两个上报模块、且只认接收者是 `entity`）；
 | 6 | **反例**：加一句 `entity.getTenantId() == null` 判空 | **全绿** —— 不误报（`0064`） |
 | 7 | 日志 `detail` 恢复成 `0077` 之前的原文 `!=` 写法 | **只红规则 C 形状三**（`ClientLogService.java:203:53`） |
 
+**规则 F 是规则 A 在写侧的镜像**（`0079`）。`restoreDeletedById` 这类"**绕过 `@TableLogic` 的手写 SQL**"
+不经过 `requireXxx`，因而绕过那条链上唯一的租户保证 `assertVisible`；改前这一格的正当性
+**只写在调用点的注释里**（"这个方法的越权被调用点约束住"）—— 而**注释不是约束**：注释不被编译期检查、
+不参与 CI、也没有任何东西会在有人**新加一个调用点**时亮起来。判据两条一起：`WHERE` 里出现
+`tenant_id = #{<名字>}`、**且**那个名字是形参表里有的 `@Param`（少了第二条，一处"SQL 改对了、
+形参改掉了"的改动要到运行时才炸 `BindingException`，那时已在别人机器上跑）。射程由表的可空性
+**推导**、零白名单：`bw_auth_resource.tenant_id` 可空（平台级资源恒 `NULL`，`0074`）⇒ **自动出局**，
+且有一条自检**专门断言它在排除集里**（有人"顺手加固"、给它补个条件时会红 —— 那是改错语义，
+不是更安全）。**刻意不追调用图** —— `0078` 建议的"按主键改的出口必须能追到一次租户范围内的选取"
+**不做**：本仓 7 处调用点的租户全在作用域内、追通**不等于**"以后新调用点会被拦住"，
+而拦住新调用点靠的是"调用点必须传一个租户"，**那件事由形参强制**（编译期就挡住了"忘了传"）。
+四条守卫分工一句话：**规则 C 管"比较"、规则 D 管"按主键取实体"、规则 E 管"条件的取值来源"、
+规则 F 管"写侧那条语句自己带没带租户条件"**。
+
+**`0079` 加规则 F 时验了五轮**，三条能精确红、两个反例都不红：
+
+| 轮 | 扰动 | 结果 |
+| --- | --- | --- |
+| 1 | 撤回 `RoleMapper` 的 `AND tenant_id = …` | 守卫**红**（指名 `RoleMapper.java:66:5`）**且**用例红 —— 代码 + 守卫双证据 |
+| 2 | 撤回 `UserGroupMapper` 的条件 | 守卫**红**（指名 `UserGroupMapper.java:58:5`）、**用例全绿** —— 用例射程 ≠ 守卫射程，两处各守一半（只有用例的话这处撤掉没有东西会响） |
+| 3 | SQL 写 `#{tid}` 而形参仍叫 `tenantId` | 守卫**红**，指名"形参表里**没有**对应的 `@Param`"（判据②在工作） |
+| 4a | **反例**：注解改成文本块 `"""` + 换行 + 小写 `update` | **全绿** —— 等价重构不误报（`0064`） |
+| 4b | **反例**：方法改名 `reviveById` + 调用点同改 | **全绿** —— 判据不读方法名（同 `0076` 判据） |
+
 **刻意不查的：** 同一方法里 `selectById` 与"**另一个对象**"的 `404xx` 同时出现
 （实例：`OrganizationMemberService#setPrimaryPosition` 取用户、抛归属的 `40410` ——
 那个 404 的理由不覆盖这次取数。脚本把这类位置**印出来**，语义写在那一处的源码注释里）；
@@ -721,7 +747,10 @@ log / track 两个上报模块、且只认接收者是 `entity`）；
 **查询路径的租户条件从哪来** —— 不是漏了，是**搬到了下一节那支脚本**
 （`verify-tenant-scope-source.mjs`，`0078`）；两处别互相以为对方管了；
 手搓的其他形态（`Objects.equals(a, b)` 两侧都是局部变量 —— 规则 C 看不到）；
-"三方言 DDL 全等"（类型名本来就不同，全等会误报）。
+"三方言 DDL 全等"（类型名本来就不同，全等会误报）；
+规则 F 只管**手写的**写语句（`@Update` / `@Delete`）—— MyBatis-Plus 自动生成的
+`updateById` / `removeById` 不在射程，它们**不绕过** `@TableLogic`，租户保证在规则 A；
+**两条规则的分界是"手写 vs 生成"**（`0079`）。
 
 ### `verify-tenant-scope-source.mjs` 做什么
 
@@ -757,7 +786,11 @@ log / track 两个上报模块、且只认接收者是 `entity`）；
 **落点改名不会造成假阴。** 判据里写着那三个落点名，改了名那几处会"认不出"从而**变红**，
 而不是静默离开射程；另有一条自检确认它们还在 `TenantService` 里（连"落点搬了家"也一起盖住）。
 **未覆盖**：`@Update … WHERE id = #{id}` 这类"按主键改"的注解 SQL **完全没有租户条件** ——
-那是规则 A / D 在写侧的镜像（那里压根没有租户值可判），留给下一片（`docs/decisions/0078`）。
+那是规则 A / D 在写侧的镜像（那里压根没有租户值可判）；**已由 `0079` 领走**，
+现在是 `verify-tenant-visibility.mjs` 的**规则 F** 在守（写法是"SQL 自己带
+`AND tenant_id = #{tenantId}`、形参 `@Param` 强制传对租户"，`docs/decisions/0079`）。
+**本支与那支别互相以为对方管了**：本支问"条件的取值从哪来"（规则 E），
+那支问"写侧的语句自己带没带条件"（规则 F）。
 
 **写它时验过七轮扰动**，每条形状都能精确红、且不多红：
 

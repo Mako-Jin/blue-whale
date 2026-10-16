@@ -56,9 +56,15 @@ public interface OrganizationMapper extends BaseMapper<OrganizationEntity> {
      * **影响 0 行且不报错**，所以复活只能手写 SQL。
      *
      * <p>只在 {@code OrganizationService.create} 里、且已确认该编码确实被一条
-     * 逻辑删除的组织占着时调用 —— 这个方法的"越权"被调用点约束住。
+     * 逻辑删除的组织占着时调用。
+     *
+     * <p><b>租户条件是这条 SQL 自己的事</b>（{@code decisions/0079}）：它绕过
+     * {@code @TableLogic}，也就绕过了"先 {@code requireXxx} 再改"那条链上唯一的租户保证。
+     * 改前这一格的正当性只写在调用点上（"这个方法的越权被调用点约束住"）—— 而注释不是约束。
+     * 现在 {@code tenant_id} 是 {@code WHERE} 的一部分，调用点唯一的义务是**把租户传对**，
+     * 这一点由形参强制。形状由 {@code scripts/verify-tenant-visibility.mjs} 的规则 F 守。
      */
-    @Update("UPDATE bw_auth_organization SET deleted = 0 WHERE id = #{id}")
-    int restoreDeletedById(@Param("id") Long id);
+    @Update("UPDATE bw_auth_organization SET deleted = 0 WHERE id = #{id} AND tenant_id = #{tenantId}")
+    int restoreDeletedById(@Param("id") Long id, @Param("tenantId") Long tenantId);
 
 }
