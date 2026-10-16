@@ -27,6 +27,7 @@
 | `verify-like-escaping.mjs`     | `server/` 的 `src/main/java` 里每一处 `LIKE` 都必须经过 `KeywordLike`（转义关键词、并把 `ESCAPE '!'` 写进 SQL），不许再有裸的 `like(...)`；带 `LIKE` 的片段同一行必须有 `ESCAPE`；白名单逐条核对条数 | **无前置条件**（只读源码文本，不编译、不连网、不写文件）；`node scripts/verify-like-escaping.mjs` | `docs/decisions/0067` |
 | `verify-filter-values.mjs`     | `server/` 的 `src/main/java` 里**精确匹配**的过滤值与**要拿它去匹配的那些写入值**都在 `FilterValue` 上收口：`.eq(...)` 的条件里不许用 `hasText(...)` 或内联的 `query.getX().isBlank()`；三个手写聚合 SQL（`countByLevel` / `countByEventName` / `countByAction`）的实参不许是 `query.getXxx()`；**枚举列**的五个 getter（`getStatus` / `getResourceType` / `getMemberType` / `getLevel` / `getResult`）只能作为 `FilterValue.enumValue(...)` 的第一个实参出现；**上报侧**（`sts-server-log` / `sts-server-track`）写入实体时 `entity.set<App\|Namespace\|TraceId\|SessionId\|UserId\|DeviceId>(...)` 的实参必须含 `FilterValue`；**寻址列**（`sts-server-auth`）`entity.set<Email\|Phone\|ContactEmail\|ContactPhone>(...)` 与 `existsEmail(...)` / `existsPhone(...)` 的实参**含 `request.getXxx()` 且不含 `FilterValue` ⇒ 报红**（判重也是一次 `eq`，两侧必须共用一个归一值） | **无前置条件**（只读源码文本，不编译、不连网、不写文件）；`node scripts/verify-filter-values.mjs` | `docs/decisions/0069` · `docs/decisions/0070` · `docs/decisions/0071` · `docs/decisions/0072` |
 | `verify-notfound-messages.mjs` | `404xx` 的抛出点全是无参的（文案只能来自枚举）；没有一处 `businessException(...)` 在拼另一个码的 `getMessage()` | **无前置条件**（只读源码文本，不编译、不连网、不写文件）；`node scripts/verify-notfound-messages.mjs` | `docs/decisions/0059` · `docs/decisions/0075` |
+| `verify-tenant-visibility.mjs` | 按主键取实体的读侧出口都过了 `assertVisible`（射程由 `@TableName` + `BaseMapper<…>` + DDL 推导，零白名单）；那个码与"不存在"那一支逐字相同；三方言的 `tenant_id` 存在性与可空性一致；采用统一落点的模块里不得手搓租户相等比较 | **无前置条件**（只读源码文本与三方言迁移脚本，不编译、不连网、不写文件）；`node scripts/verify-tenant-visibility.mjs` | `docs/decisions/0074` · `docs/decisions/0076` |
 | `verify-standalone-dev-login.mjs` | 用真实 Chrome 验证子应用**单跑**时的自建会话与开发账号自动登录（后端在跑 / 没起两种状态都跑一遍） | 至少一个子应用的 dev 服务在跑（:3200 / :3300 / :3500 / :3600，没起的会被记成"跳过"）；**后端 :8080 可选** —— 在跑时断言自动登录成功，没起时断言优雅降级；本机装有 Google Chrome | `docs/decisions/0018` · `0033` |
 
 ### `verify-micro-frontend.mjs` 做什么
@@ -614,18 +615,86 @@ log / track 两个上报模块、且只认接收者是 `entity`）；
 ⇒ 规则 2 红（`TenantService:227:28`）—— **这一条同时说明这个守卫逮得住它要防的那个写法**，
 而这正是它存在的全部理由（`0072` 规则 6 的判据："能把改动前的写法打红"）。
 
-**刻意不查的：** "每个带 `tenant_id` 的实体表，其 `requireXxx` 必须调 `assertVisible`"
-（这正是 `0074`「未覆盖 4」想要的那条守卫，但**表名 → 类名不是无歧义的 token 形状** ——
-`bw_auth_user` → `requireUser`、`bw_auth_organization` → `requireOrg`、
-`bw_auth_user_group` → `requireGroup`…… 只能硬编码一张对照表，正是 `0067` 说过的形状）；
-"写侧『这次引用的对象与容器同租户吗』有没有走同一个落点"（手搓写法无穷：
+**刻意不查的：** "写侧『这次引用的对象与容器同租户吗』有没有走同一个落点"（手搓写法无穷：
 `.equals(tenantId)` / `Objects.equals` / 先取局部变量 / 在 SQL 里 `eq(tenant_id)` ——
-本轮人工核了 16 张表 16 个去重引用列，那仍是当前唯一的办法，见 `docs/decisions/0075`）；
+本轮人工核了 16 张表 16 个去重引用列，那仍是当前唯一的办法，见 `docs/decisions/0075`。
+`0076` 把其中**一种**形状锚住了，见下一节）；
 "形参点调用时写的固定文案"（`assertVisible(code, …)` 里那个常量是形参，名字扫不到 ——
 但那种写法要报一句有意义的话几乎必然要拼另一个码的文案，由规则 2 兜住；
 真正无解的只剩"形参调用却写一句与形参无关的固定文案"，而那种写法读起来就是错的）；
 "具体措辞"（规则守的是机制 —— 这一族只有一个来源，不是"哪一句字面量"，
 所以重写枚举里那句话不会被它拦下，那是另一件事）。
+
+> **本片写下时还挂着一条"刻意不查"：** 「每个带 `tenant_id` 的实体表，其 `requireXxx`
+> 必须调 `assertVisible`」。当时的理由是"**表名 → 类名不是无歧义的 token 形状**"
+> （`bw_auth_user` → `requireUser`、`bw_auth_organization` → `requireOrg`……），
+> 只能硬编码一张对照表。**那个结论是错的** —— 需要的不是"表名 → 方法名"（人起的名字），
+> 而是"这个 `selectById` 取的是哪张表的行"，而它在源码里有唯一答案。
+> `0076` 把它做成了 `scripts/verify-tenant-visibility.mjs`（见下一节）。
+> 这段旧论证留在这里，是因为**错误的结论比没写的结论更值得留档**；
+> `0075` 的 ADR 正文按惯例一字不改。
+
+### `verify-tenant-visibility.mjs` 做什么
+
+把 `0074`「未覆盖 4」要的那条守卫（**"每个带 `tenant_id` 的实体表，它的读侧出口必须过
+`assertVisible`"**）机械化成四条零前置的检查 + 一条防假阴自检：
+
+| # | 查什么 |
+| --- | --- |
+| 自检 | 每个 `selectById` 都能推到一张**存在于 DDL 的表** —— 推不出来就红（否则会静默少查一处，属**假阴**） |
+| A | 同一方法内，对一张 `tenant_id NOT NULL` 的表 `selectById`，**并且**抛出**该表对应的那一个** `404xx` ⇒ 必须调 `assertVisible(` |
+| A2 | 那个 `assertVisible` 传的码，必须与方法里抛的码**逐字相同** |
+| B | 三方言里每张表的 `tenant_id` **存在性与可空性一致** |
+| C | **采用了统一落点的模块**里，`main` 不得让 `getTenantId()` 参与相等比较 |
+
+**为什么需要它。** `0074` 把"读侧按 id 取实体都必须过判定"落成了一次**手工核对**，
+它自己的「未覆盖 4」就这么写的。这次手工核对**已经付过代价**：`0075` 发现
+`server/README.md` 里那张自称权威的 `40002` 文案清单，`0074` 新加的两处
+**一次都没登记进来**。清单会漂，因为没东西拦着它漂。
+
+**为什么它零硬编码。** 需要的不是"表名 → 方法名"，而是"这个 `selectById` 取的是哪张表的行"。
+这条链的四环全是**源码里的字面量**：
+
+```text
+字段名 ──(private final XxxMapper xxxMapper;)──▶ Mapper 接口
+      ──(extends BaseMapper<XxxEntity>)─────▶ 实体
+      ──(@TableName("bw_xxx"))──────────────▶ 表名
+      ──(建表 / 加列脚本)────────────────────▶ tenant_id 可空吗
+```
+
+于是**两处例外也是推导出来的**，没有白名单可核对：`bw_auth_resource` 的 `tenant_id` 可空
+（平台级资源恒 `NULL` ⇒ `assertVisible` 是空操作）、`bw_auth_tenant` **根本没有这一列**
+（它是租户本身）。
+
+**为什么规则 C 的射程是模块推导的。** 本仓**有**第二套可见性模型：审计域的
+`AuditLogService#detail` 用 `Objects.equals(entity.getTenantId(), …)` 判归属，它**故意不接受**
+`tenant_id` 为 `null`（未登录时产生的审计行不该对任何人可见），而 `assertVisible` 把 `null`
+视为"无需判定、直接通过"。两个模型说的是两件事，所以那一处**不是缺口**，
+**也不该被这条规则打红**（`0064`：会误报的守卫比没有更糟）。
+射程因此改成"**模块内出现过那两个落点之一的调用**"—— 采用落点的模块里租户语义已被
+`0074` 决策 4 定死，手搓就是第四个口径。实测全仓只有 `sts-server-auth` 一个模块在射程内。
+
+**七轮扰动都验过**，每条规则都能精确红、且不多红：
+
+| 轮 | 扰动 | 结果 |
+| --- | --- | --- |
+| 1 | 拆掉 `UserService#requireUser` 的 `assertVisible` | 只红 A，位置到 `UserService.java:252:45` |
+| 2 | `requireOrg` 的 `assertVisible` 改成传 `USER_NOT_FOUND` | 只红 A2 |
+| 3 | dameng 的 `bw_auth_organization.tenant_id` 改成可空 | 只红 B，并指名哪个方言分裂 |
+| 4 | 在 auth 域手搓 `getTenantId().equals(` | 只红 C，一处（两条形状同一行，按行去重） |
+| 5 | **新增**一个忘判定的读侧出口 | 只红 A，射程 **7 → 8** |
+| 6 | `@TableName` 改成不存在的表名 | 只红自检 —— 这正是防假阴的意义 |
+| 7 | `bw_auth_resource.tenant_id` 三方言都改成 `NOT NULL` | 只红 A，射程 **7 → 8**、排除 **2 → 1** |
+
+轮 5 与轮 7 是重点：**射程是推导的**，不是把今天的 7 个名字抄进脚本 ——
+新加一个出口会进射程，表的口径一变射程也跟着变。
+
+**刻意不查的：** 同一方法里 `selectById` 与"**另一个对象**"的 `404xx` 同时出现
+（实例：`OrganizationMemberService#setPrimaryPosition` 取用户、抛归属的 `40410` ——
+那个 404 的理由不覆盖这次取数。脚本把这类位置**印出来**，语义写在那一处的源码注释里）；
+"该不该做同租户判定"本身（规则 C 只管"已经在比、却绕开落点"，不管"该不该判"）；
+手搓的其他形态（先 `Long t = x.getTenantId()` 再比 —— 规则 C 看不到）；
+"三方言 DDL 全等"（类型名本来就不同，全等会误报）。
 
 ### 脚本的硬性约束
 
@@ -641,8 +710,8 @@ log / track 两个上报模块、且只认接收者是 `entity`）；
   `scripts/verify-standalone-dev-login.mjs` 正是为这条而生，重跑一遍前**先重启对应的 dev 服务**。
 - **能不要前置条件就不要** —— 这一条决定脚本能不能进 CI。`verify-nginx-config.mjs`、
   `verify-docs-index.mjs`、`verify-api-contract.mjs`、`verify-result-codes.mjs`、
-  `verify-unique-columns.mjs`、`verify-like-escaping.mjs`、`verify-filter-values.mjs`
-  与 `verify-notfound-messages.mjs` 是**零前置**的
+  `verify-unique-columns.mjs`、`verify-like-escaping.mjs`、`verify-filter-values.mjs`、
+  `verify-notfound-messages.mjs` 与 `verify-tenant-visibility.mjs` 是**零前置**的
   （不连网、不读产物、不写文件），所以流水线的 `guards` job 直接跑它们；`verify-bundle-secrets.mjs` **不需要服务、但需要前端产物**，
   所以它跑在 `web` job 的构建**之后**（顺序不能反 —— 反了它就扫不到东西，还会静默"通过"）；
   需要前置服务的脚本继续留在本机 —— 真机层（浏览器 + 冷启动 dev server）**刻意不在 CI 的必过项里**，

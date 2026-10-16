@@ -39,14 +39,20 @@
  * ## 刻意不查的（写在这里免得后来者以为它漏了）
  *
  * - **"每个带 `tenant_id` 的实体表，其 `requireXxx` 必须调 `assertVisible`"**。
- *   这是 `0074`「未覆盖 4」想要的那条守卫，但**表名 → 类名不是无歧义的 token 形状**
- *   （`bw_auth_user` → `UserService#requireUser`、`bw_auth_organization` → `requireOrg`、
- *   `bw_auth_user_group` → `requireGroup`……），只能硬编码一张对照表 ——
- *   那正是 `0067` 说过的形状：**白名单要核对条数**，漏一个就假绿。
+ *   这是 `0074`「未覆盖 4」想要的那条守卫。本片写下这一段时给的结论是"写不了"——
+ *   理由是**表名 → 类名不是无歧义的 token 形状**（`bw_auth_user` → `UserService#requireUser`、
+ *   `bw_auth_organization` → `requireOrg`、`bw_auth_user_group` → `requireGroup`……），
+ *   只能硬编码一张对照表。**那个结论是错的，`0076` 已把它证伪**：
+ *   需要的不是"表名 → 方法名"（那是人起的名字），而是"**这个 `selectById` 取的是哪张表的行**" ——
+ *   它在源码里有唯一答案，四环全是字面量（字段声明 → `BaseMapper<…>` 泛型 → `@TableName` → DDL）。
+ *   守卫见 `scripts/verify-tenant-visibility.mjs`，零硬编码，例外由 DDL 推导。
+ *   本片的那段论证留在仓库记忆里的方式，是 `0076` —— **ADR 不回改旧文**。
  * - **写侧"这次引用的对象与容器同租户吗"这类检查有没有走同一个落点**。
  *   手搓的写法无穷（`.equals(tenantId)`、`Objects.equals`、先取出局部变量再比、
  *   在 SQL 里 `eq(tenant_id)` ……），锚不住。本轮人工核了一遍（16 表 / 16 个去重引用列），
  *   那仍是当前唯一的办法，见 `docs/decisions/0075`。
+ *   （`0076` 把其中**一种**形状锚住了 —— `getTenantId()` 直接参与 `equals` 的那两种写法，
+ *   且射程限定在"采用了统一落点的模块"里。它不覆盖先取局部变量再比的写法。）
  * - **形参点调用时写的固定文案**。`assertVisible(code, …)` 里的常量是形参，名字扫不到；
  *   但那种写法要报一句有意义的话，几乎必然要拼另一个码的文案 —— 由规则 B 兜住。
  *   真正无解的只剩"形参调用却写一句与形参无关的固定文案"，而那种写法读起来就是错的

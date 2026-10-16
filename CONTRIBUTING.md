@@ -303,7 +303,8 @@ mvn -B -ntp verify -Dspring.profiles.active=mysql \
 cd .. && node scripts/verify-nginx-config.mjs && node scripts/verify-docs-index.mjs \
   && node scripts/verify-api-contract.mjs && node scripts/verify-result-codes.mjs \
   && node scripts/verify-unique-columns.mjs && node scripts/verify-like-escaping.mjs \
-  && node scripts/verify-filter-values.mjs && node scripts/verify-notfound-messages.mjs
+  && node scripts/verify-filter-values.mjs && node scripts/verify-notfound-messages.mjs \
+  && node scripts/verify-tenant-visibility.mjs
 ```
 
 > **后端为什么有两个 job**：h2 是"clone 下来就能跑"的默认，**但它是开发便利、不是交付形态**。

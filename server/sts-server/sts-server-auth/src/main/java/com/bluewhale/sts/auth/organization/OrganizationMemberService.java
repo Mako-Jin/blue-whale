@@ -269,6 +269,15 @@ public class OrganizationMemberService {
         RelOrgUserEntity target = active.get(0);
         applyPrimaryPosition(target, userId, org.getTenantId(), 1);
         target.setIsPrimaryPosition(1);
+        // 这句 selectById **不做可见性判定**，同样是刻意的（decisions/0076）：
+        // 它上面的 404（`40410`）说的是**归属**不存在，不是用户不存在 —— 两个对象不同，
+        // 所以这次取数不在"按主键取实体的读侧出口"的射程里（{@code verify-tenant-visibility.mjs}
+        // 把它单独印出来，就是为了让人能在这里找到答案）。
+        //
+        // 而它走不到跨租户：`active` 非空意味着**存在一条 (orgId, userId) 的归属行**，
+        // 而归属于哪一行由 `bindMember` 写入 —— 那里用的租户是 `org.getTenantId()`，
+        // 且引用的人先过 `requireSameTenantUser` ⇒ 归属行的租户**恒等于容器的租户**。
+        // 所以"能取到 active"这个前提本身就蕴含"userId 与本组织同租户"。
         return toMemberVO(target, userMapper.selectById(userId));
     }
 

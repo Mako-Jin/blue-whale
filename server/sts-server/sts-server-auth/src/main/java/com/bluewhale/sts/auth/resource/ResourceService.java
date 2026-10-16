@@ -250,6 +250,20 @@ public class ResourceService {
 
     /* ------------------------------------------------------------------ 取数与校验 */
 
+    /**
+     * 取一个资源；**它不做租户判定，这是刻意的**（{@code decisions/0076}）。
+     *
+     * <p>{@code bw_auth_resource} 是**平台级**表：{@code tenant_id} 允许为空、本仓恒为空
+     * （只有顶级租户的成员能维护资源目录 —— 见本类接口上的权限码）。
+     * 对它的实体调 {@code TenantService#assertVisible} 是**空操作**（那条判定遇到
+     * {@code null} 直接返回），所以这里不加那句话不是缺口，只是不写一句不做事的代码。
+     *
+     * <p>这条理由由 {@code scripts/verify-tenant-visibility.mjs} 从建表脚本里**读出来**：
+     * 它是那条守卫推导出的两处例外之一（另一处是 {@code TenantService#requireTenant} ——
+     * {@code bw_auth_tenant} 根本没有 {@code tenant_id} 列，它本身是租户）。
+     * 守卫的射程是推导的而不是列出来的，所以把这一列改成 {@code NOT NULL} 之后，
+     * 它会立刻要求这里补上判定（扰动验过）。
+     */
     private ResourceEntity requireResource(Long id) {
         ResourceEntity entity = id == null ? null : resourceMapper.selectById(id);
         if (entity == null) {
