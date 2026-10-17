@@ -75,6 +75,19 @@
 > 实测证据：网关注册的下游请求 URI 为 `http://127.0.0.1:8080/login`；直连
 > `POST http://127.0.0.1:8081/login` 与经网关 `POST http://127.0.0.1:8080/auth/login` 返回**完全相同**的 401 体。
 
+## 命名规范
+
+**规则（REQ-ARCH-004，Wave 5.1g 定稿）**：全平台命名统一以「品牌词根 `bluewhale` + 产品词根 `whale`」为骨架，**看名字即知属于哪一层、哪个域、做什么**。全量规则、域词表与映射速查表见 [naming-conventions.md](naming-conventions.md)，要点：
+
+- **数据库**：`bluewhale_<域>`，一服务一库；**基础设施同前缀**（Nacos 库为 `bluewhale_nacos`，非裸 `nacos`）；
+- **服务/模块**：`whale-<域>`，且 `模块目录 == artifactId == spring.application.name == Nacos 服务名`（`lb://whale-auth` 的可用前提）；
+- **Java 包**：`com.bluewhale.<域>[.<层>]`；公共能力 `com.bluewhale.common.<能力>`；SDK 以 `.sdk` 结尾；
+- **配置**：`whale.<域>.<能力>`；环境变量 `WHALE_<域>_<键>`；
+- **Redis key**：`whale:<域>:<用途>:<标识>`；
+- **端口分段**：8080 网关 / 8081–8099 核心服务 / 9001–9099 业务应用 / 9101–9199 运维 / 9201–9299 注册配置。
+
+检查门禁：命名符合性纳入 [code-review-checklist.md](checklists/code-review-checklist.md) **E15**。
+
 ## 前端微前端架构
 
 - **基座**：whale-platform（qiankun 主应用，路由分发）

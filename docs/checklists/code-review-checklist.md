@@ -107,6 +107,7 @@
 | E12 | 前端格式 | ESLint 0 error；Prettier 已格式化；TS 严格模式无 `any` 滥用；无 `console.log` 残留 |
 | E13 | SQL 规范 | 表名/字段 snake_case；必备 `id / create_time / update_time / deleted`；建表含注释；索引命名 `idx_/uk_` |
 | E14 | 脚本与 Dockerfile | 幂等可重跑；写操作有确认；镜像多阶段构建、非 root 运行、锁定基础镜像版本 |
+| E15 | 库/服务/包命名符合性 | 库 `bluewhale_<域>`（含基础设施组件）；服务形如 `whale-<域>` 且**目录 = artifactId = spring.application.name = Nacos 服务名**；Java 包 `com.bluewhale.<域>[.<层>]`；Redis key `whale:<域>:<用途>:<标识>`；新增项已在 `docs/naming-conventions.md` §八 登记（详见该文档） |
 
 ---
 
@@ -116,7 +117,7 @@
 |---|---|---|
 | **P0 阻断** | A2 A3 A7 A8、B1 B2 B3 B5、明文密钥 | 立即修复，禁止提交 |
 | **P1 严重** | A1 A6 A11、B6 B8 B9 B12 B13 B16、C1 超标 | 本批次内修复 |
-| **P2 一般** | C2–C8、D1–D5、E1–E4 E7 E9 E10 | 本批次或紧邻批次修复 |
+| **P2 一般** | C2–C8、D1–D5、E1–E4 E7 E9 E10 E15 | 本批次或紧邻批次修复 |
 | **P3 建议** | E5 E6 E8 E13、可读性优化 | 记入待办，择机处理 |
 
 ---
