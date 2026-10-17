@@ -55,6 +55,26 @@
 | **apps** | whale-erp / mes / pdm / oa | 业务应用 |
 | **ops** | whale-audit / monitor / alert | 运维监控 |
 
+## 网关路由与前缀约定
+
+**规则（REQ-ARCH-003，Wave 5.1f 定稿）**：**服务自持对外一级路径前缀，网关只做转发、不剥离前缀。**
+
+- 后端服务的 Controller 路径即**对外路径**，不做「网关去前缀、服务无前缀」的二次映射：
+  - `whale-auth`：`AuthController` → `/auth/login`、`/auth/refresh`、`/auth/logout`；`UserController` → `/user/**`；另有 `/dept/**`、`/role/**`、`/menu/**`、`/permission/**`
+  - `whale-audit`：`AuditLogController` → `/audit/log/**`
+- 网关路由形如 `Path=/{segment}/**` → `uri: lb://whale-{service}`，**不得使用 `StripPrefix`** 过滤器。
+- 鉴权白名单两侧按**同一对外路径**书写，避免「网关放行路径」与「服务放行路径」漂移：
+  - 网关：`whale.gateway.jwt.white-list`（`/auth/login`、`/auth/refresh`、`/actuator/**` …）
+  - 服务：`whale-auth` `SecurityConfig#authorizeHttpRequests`（`/auth/login`、`/auth/refresh`、`/auth/logout` …）
+
+> **反面案例（Wave 5.1f 实测根因，AUTH-29）**：网关曾对 `/auth/**`、`/audit/**` 配 `StripPrefix=1`，
+> 于是 `POST /auth/login` 被改写为 `/login` 转发给 `whale-auth`；该路径不在服务侧
+> `SecurityConfig` 的 permitAll 列表内 → 服务 `RestAuthenticationEntryPoint` 直接返回
+> `401 {"code":401,"message":"未认证"}`（HTTP 401），与网关 JWT 过滤器无关，从表面看极易误判为
+> 「网关白名单未生效」。同类问题会让 `/user/**`、`/dept/**` 等路径根本无法被 `/auth/**` 路由命中。
+> 实测证据：网关注册的下游请求 URI 为 `http://127.0.0.1:8080/login`；直连
+> `POST http://127.0.0.1:8081/login` 与经网关 `POST http://127.0.0.1:8080/auth/login` 返回**完全相同**的 401 体。
+
 ## 前端微前端架构
 
 - **基座**：whale-platform（qiankun 主应用，路由分发）

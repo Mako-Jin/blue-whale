@@ -22,6 +22,7 @@ spring:
     gateway:
       server:
         webflux:
+          # 路由约定（REQ-ARCH-003）：服务自持对外一级路径前缀，网关只转发、不剥离前缀；禁止 StripPrefix
           # 服务发现路由定位器（Gateway 5.x 官方前缀：spring.cloud.gateway.server.webflux）
           discovery:
             locator:
@@ -32,50 +33,34 @@ spring:
               uri: lb://whale-auth
               predicates:
                 - Path=/auth/**
-              filters:
-                - StripPrefix=1
             - id: whale-job
               uri: lb://whale-job
               predicates:
                 - Path=/job/**
-              filters:
-                - StripPrefix=1
             - id: whale-workflow
               uri: lb://whale-workflow
               predicates:
                 - Path=/workflow/**
-              filters:
-                - StripPrefix=1
             - id: whale-form
               uri: lb://whale-form
               predicates:
                 - Path=/form/**
-              filters:
-                - StripPrefix=1
             - id: whale-file
               uri: lb://whale-file
               predicates:
                 - Path=/file/**
-              filters:
-                - StripPrefix=1
             - id: whale-pay
               uri: lb://whale-pay
               predicates:
                 - Path=/pay/**
-              filters:
-                - StripPrefix=1
             - id: whale-monitor
               uri: lb://whale-monitor
               predicates:
                 - Path=/monitor/**
-              filters:
-                - StripPrefix=1
             - id: whale-audit
               uri: lb://whale-audit
               predicates:
                 - Path=/audit/**
-              filters:
-                - StripPrefix=1
 
 whale:
   gateway:

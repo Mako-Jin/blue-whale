@@ -138,7 +138,8 @@ Wave 5.3（交付收口）
 4. **jjwt 版本分裂**（parent 0.12.5 / gateway 0.12.6）尚未统一，存在行为差异隐患。
 5. ~~审计切面装配缺陷（P1，新发现，既有）~~ → **✅ 已修并实机验证（Wave 5.1e）**：`AuditLogAutoConfiguration` 去掉时序不可靠的 `@ConditionalOnBean(AuditLogMapper.class)`（配置类解析期求值，早于 `@MapperScan`），改 `ObjectProvider` 在 Bean 实例化期延迟解析 → 真实服务链路 `AuditLogAspect` 已装配，`bluewhale_auth.audit_log` 由 **0 行 → 6 行**（LOGIN/LOGOUT、`biz_status=1`、`request_params` 无凭据），`/audit/log/page` 可查、`LiveAuditLogIT` 3/0/0。
 6. ~~`/auth/refresh` 返回码口径（P2）~~ → **✅ 已澄清（Wave 5.1e，非缺陷）**：登出后 refresh 实测 **HTTP 200 + 业务码 401**，为 `Result` 全局统一包装的既有约定（业务码承载语义、HTTP 层恒 200）；验收口径统一改为「业务码 401」。
-7. **网关路由仍未确认**：网关路由前缀（`/audit/**` + StripPrefix 与控制器 `/audit/log` 不一致）与 REQ-SEC-003 网关黑名单全链路，仍因 **Nacos 8848 缺位**未确认。
+7. ~~网关路由仍未确认~~ → **✅ 已确认并修复（Wave 5.1f）**：定夺为「**改路由**」（登记 REQ-ARCH-003：服务自持对外一级前缀、网关**不剥离**），移除全部 8 条路由的 `StripPrefix`；经网关实测 login `code=0`、logout `code=0`、重放已登出 accessToken **HTTP 401**（REQ-SEC-003 达成）、refresh **业务码 401**（REQ-SEC-004 达成）、`audit_log` 落 LOGIN/LOGOUT（REQ-SEC-001 达成）。**新风险**：auth 的 `/user`、`/dept`、`/role`、`/menu`、`/permission` 前缀当前**无网关路由**（AUTH-38，P1），管理接口经网关不可达。
+7b. **中间件本机就绪（Wave 5.1f）**：Nacos 3.2.4（8848 服务 / 8849 控制台，MySQL 外置存储）已起，Redis 5.0.14.1（6379）与 MySQL 8.0.45（3306）可用 → **REQ-FUNC-001「无 Docker 阻塞」以本机原生进程方式解除**；RabbitMQ / Nginx 仍缺。
 8. ~~数据源 URL 字符集写法缺陷（P1）~~ → **已修（Wave 5.1d）**：auth/audit yml 改为 `characterEncoding=utf8&connectionCollation=utf8mb4_general_ci`，服务真实连库成功。
 9. ~~种子口令与文档不符（P1）~~ → **已修（Wave 5.1d）**：重生成 BCrypt 密文，`admin/123456` 端到端登录 `code=0`。
 10. **审计跨库可见性约束（P2，新发现）**：阶段一「各服务写各自实例库」，`whale-audit` 默认读 `bluewhale_audit`，**默认查不到其他服务写入的审计记录**；实测将 `whale-audit` 数据源临时指向 `bluewhale_auth` 后 `/audit/log/page` 立即可见（`total=4`）。阶段二 MQ 汇聚为根治方案。

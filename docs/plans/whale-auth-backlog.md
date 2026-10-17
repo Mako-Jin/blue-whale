@@ -5,8 +5,8 @@
 | 关联需求 | REQ-FUNC-002（权限中心 RBAC+ABAC 六层级）、REQ-ARCH-001（DDD 改造）、REQ-SEC-001/002/003/004/005、REQ-DIST-001~003、REQ-QA-002、REQ-CICD-001、REQ-PROC-001 |
 | 生成日期 | 2026-10-17 ｜ 作者：BlueWhale |
 | 数据来源 | [register.md](../requirements/register.md)、[next-steps.md](next-steps.md)、[task-breakdown.md](task-breakdown.md)、[roadmap.md](roadmap.md)、[ddd-whale-auth.md](../design/ddd-whale-auth.md)、[audit-log.md](../design/audit-log.md)、[distributed.md](../design/distributed.md)、[devlog/2026-10-17.md](../devlog/2026-10-17.md) §11~§15、[reviews/2026-10-17-wave5.1b-audit-log.md](../reviews/2026-10-17-wave5.1b-audit-log.md)、[specs/2026-10-17-wave5.1b-audit-log/](../specs/2026-10-17-wave5.1b-audit-log/spec.md)、`backend/whale-services/whale-auth/` 源码与测试目录、`backend/whale-services/whale-gateway/src/main/resources/application.yml` |
-| 快照口径 | **已完成**：登录/刷新/登出、令牌黑名单（auth+网关）、审计注解/切面/脱敏/查询接口、审计表 DDL、DDD 设计定稿。**进行中**：REQ-SEC-002 待验证、REQ-SEC-005 待扩展、**REQ-SEC-001 审计落库已实机验证（Wave 5.1e）**。**阻塞**：需 Nacos(8848) 的网关 `lb://` 联调；依赖服务（whale-file/whale-job）与 RabbitMQ 未就绪的项 |
-| 环境事实（本轮更新） | Redis（`tools/redis-server.exe`，6379）与 MySQL（3306 mysqld）**本机已可用**；**Nacos（8848）仍不可用** → 服务发现 `lb://` 全链路联调阻塞；网关 `StripPrefix=1` 与控制器前缀不一致问题仍待确认 |
+| 快照口径 | **已完成**：登录/刷新/登出、令牌黑名单（auth+网关）、审计注解/切面/脱敏/查询接口、审计表 DDL、DDD 设计定稿；**经网关全链路端到端已实机验证（Wave 5.1f）**：login `code=0` → logout `code=0` → 重放 401 → refresh 业务码 401 → `audit_log` LOGIN/LOGOUT 落库。**进行中**：REQ-SEC-005（非 dev profile 启动校验）待实测；auth 其余一级前缀的网关路由待补。**阻塞**：依赖服务（whale-file/whale-job）与 RabbitMQ 未就绪的项（AUTH-08/09/10） |
+| 环境事实（Wave 5.1f 更新） | **Nacos 3.2.4 已就绪**（`tools/nacos`，**8848 服务 + 8849 控制台**，MySQL 外置存储，`nacos` 库 13 表）；Redis 5.0.14.1（6379，散落文件已归位）与 MySQL 8.0.45（3306）本机可用；**`lb://` 全链路联调阻塞已解除**（auth/audit 均 `register finished`）；网关 `StripPrefix=1` 前缀冲突**已确认并修复**（AUTH-29 → REQ-ARCH-003） |
 
 > 说明：本文档**只新增**，不改动任何既有计划文件（register/next-steps/devlog/reviews/specs 有并行子代理维护）。任务编号 `AUTH-01` 起顺延，并逐条标注与既有 `T5.x` / `T4.x` / `T-DDD-x` / `T-AUD-x` / `T-DIST-x` 的映射，避免重复造编号。
 
@@ -128,15 +128,16 @@
 
 | 任务 | 内容 | 来源 | 依赖 | 优先级 | 验收口径 | 当前阻塞 |
 |---|---|---|---|---|---|---|
-| **AUTH-29** | 确认并修复网关路由前缀冲突：`Path=/auth/**` + `StripPrefix=1` 会把 `/auth/login` 剥成 `/login`，与 `AuthController @RequestMapping("/auth")` 冲突；审计路由同理 | [reviews §三-#2（P1）](../reviews/2026-10-17-wave5.1b-audit-log.md)；[audit-log.md](../design/audit-log.md) §9 待确认；`whale-gateway/application.yml:31-78` | Nacos 联调 | **P1** | 定夺「改路由」或「改控制器前缀」，经网关访问 `/auth/**`、`/audit/**` 均 200 | **阻塞：Nacos(8848) 不可用，无法实跑** |
-| **AUTH-30** ↔ **T5.4 / T-DIST-4** | 网关限流熔断：接入 Sentinel（或 Redis 计数器兜底）；`whale-gateway` 现无任何 Sentinel/`RequestRateLimiter` 依赖 | [next-steps T5.4](next-steps.md)、[distributed.md](../design/distributed.md) §3.4；Grep `whale-gateway` 无匹配 | Nacos 联调 | P2 | 超阈值返回 429 + `Result` 体 | 联调受限（需运行环境） |
-| **AUTH-31** | 端到端验证：① auth 直连（Redis+MySQL 已就绪）验证登出→401、refresh→401、审计落库；② 经网关全链路（依赖 Nacos） | [register REQ-SEC-002/003/004](../requirements/register.md)（待验证）；[next-steps §五-1/§五-5](next-steps.md) | Nacos（② 部分） | **P1** | ① 可本机执行；② 网关链路待 Nacos | **阻塞：Nacos 不可用（② 部分）** |
+| ~~**AUTH-29**~~ ✅ **已闭环（Wave 5.1f）** | 确认并修复网关路由前缀冲突：`Path=/auth/**` + `StripPrefix=1` 会把 `/auth/login` 剥成 `/login`，与 `AuthController @RequestMapping("/auth")` 冲突；审计路由同理 | [reviews §三-#2（P1）](../reviews/2026-10-17-wave5.1b-audit-log.md)；[audit-log.md](../design/audit-log.md) §9；`whale-gateway/application.yml` | — | **P1** | 定夺「改路由」或「改控制器前缀」，经网关访问 `/auth/**`、`/audit/**` 均 200 | **已修**：定夺为「**改路由**」——新增 REQ-ARCH-003（服务自持一级前缀，网关不剥离），移除**全部 8 条**路由的 `StripPrefix`；实测经网关 login 200/`code=0`、黑名单重放 401 |
+| **AUTH-38**（新增，Wave 5.1f 发现） | 补齐 auth 其余一级前缀的网关路由：`/user/**`、`/dept/**`、`/role/**`、`/menu/**`、`/permission/**` → `lb://whale-auth` | [reviews/2026-10-17-wave5.1f…](../reviews/2026-10-17-wave5.1f-gateway-routing-and-e2e.md) §四-1；[architecture.md §网关路由与前缀约定](../architecture.md) | 无（Nacos 已就绪） | **P1** | 经网关访问 `/user/page` 等管理接口可达（不再 404） | 无（可立即动工）；AUTH-32/34 前端对接的前置 |
+| **AUTH-30** ↔ **T5.4 / T-DIST-4** | 网关限流熔断：接入 Sentinel（或 Redis 计数器兜底）；`whale-gateway` 现无任何 Sentinel/`RequestRateLimiter` 依赖 | [next-steps T5.4](next-steps.md)、[distributed.md](../design/distributed.md) §3.4；Grep `whale-gateway` 无匹配 | Nacos 联调 | P2 | 超阈值返回 429 + `Result` 体 | **Nacos 阻塞已解除（Wave 5.1f）**，可动工 |
+| ~~**AUTH-31**~~ ✅ **已闭环（Wave 5.1f）** | 端到端验证：① auth 直连验证登出→401、refresh→401、审计落库；② 经网关全链路 | [register REQ-SEC-002/003/004](../requirements/register.md)（**已验证**）；[next-steps §五-1/§五-5](next-steps.md) | — | **P1** | ①② 均通过 | **已完成**：① Wave 5.1c/5.1e 已闭环；② **Wave 5.1f 首次打通**（login `code=0` → logout `code=0` → 重放 401 → refresh 业务码 401 → `audit_log` 落 LOGIN/LOGOUT） |
 
 ### ⑧ 前端对接（REQ-FUNC-002 / 008 / 009）
 
 | 任务 | 内容 | 来源 | 依赖 | 优先级 | 验收口径 | 当前阻塞 |
 |---|---|---|---|---|---|---|
-| **AUTH-32** ↔ **T5.21** | `frontend/admin` 登录对接 `/auth/login` + 登出调 `/auth/logout` | [next-steps T5.21](next-steps.md)、[roadmap §2.1](roadmap.md) | Nacos 联调、AUTH-21 | P2 | 登出后原 token 请求返回 401 | **阻塞：Nacos 不可用** |
+| **AUTH-32** ↔ **T5.21** | `frontend/admin` 登录对接 `/auth/login` + 登出调 `/auth/logout` | [next-steps T5.21](next-steps.md)、[roadmap §2.1](roadmap.md) | **AUTH-38**（auth 管理前缀路由）、AUTH-21 | P2 | 登出后原 token 请求返回 401 | **Nacos 阻塞已解除**；`/auth/login` 已可经网关访问，管理页接口待 AUTH-38 |
 | **AUTH-33** ↔ **T5.22** | `whale-ui`：ProTable / FormModal / SearchForm 二次封装 | [next-steps T5.22](next-steps.md)、[roadmap §3.2](roadmap.md) | 无 | P2 | 组件可独立构建，有示例页 | 无 |
 | **AUTH-34** ↔ **T5.23** | admin 用户/角色/菜单管理页 + 按钮级权限渲染 | [next-steps T5.23](next-steps.md)、[roadmap §3.3](roadmap.md) | AUTH-32、AUTH-33、AUTH-21 | P2 | 页面可完成 CRUD 且按权限隐藏按钮 | 受 AUTH-21/32 牵连 |
 
@@ -169,9 +170,10 @@ Wave B｜依赖 Wave A 产物
 Wave C｜Redis/MySQL 已就绪，本机可跑（auth 直连）
   └─ AUTH-31① 登出→401、refresh→401、审计落库（不经网关）
 
-Wave D｜被 Nacos(8848) 不可用阻塞（服务发现 lb:// 无法联调）
-  ├─ AUTH-29 网关路由前缀冲突确认（P1）
-  ├─ AUTH-31② 网关→auth 全链路端到端
+Wave D｜✅ **Nacos 阻塞已解除（Wave 5.1f：Nacos 3.2.4 以 MySQL 外置存储就绪）**
+  ├─ ✅ AUTH-29 网关路由前缀冲突（已修 → REQ-ARCH-003）
+  ├─ ✅ AUTH-31② 网关→auth 全链路端到端（首次打通）
+  ├─ ⏳ AUTH-38 补齐 auth 管理前缀网关路由（P1，前端对接前置）
   ├─ AUTH-30 Sentinel 限流联调
   └─ AUTH-32 admin 前端登录/登出对接 ──► AUTH-34 admin CRUD 页
                                         └─ AUTH-33 whale-ui（无阻塞，可前移）
@@ -189,11 +191,12 @@ Wave E｜被依赖服务 / 中间件未就绪阻塞
 |---|---|---|---|
 | 1 | **refreshToken 单次轮换策略未定** | 登出已双写黑名单，但 refreshToken 无「一次一换」约束，重放窗口仍存在 | [devlog §13 待做](../devlog/2026-10-17.md)（AUTH-03 待决策） |
 | 2 | **jjwt 版本分裂** | parent 管理 `0.12.5`，`whale-gateway/pom.xml` 硬编码 `0.12.6`，未走父管理，存在行为差异隐患 | [next-steps §五-4](next-steps.md)、`whale-parent/pom.xml:50`、`whale-gateway/pom.xml:60` |
-| 3 | **网关路由前缀未确认** | `StripPrefix=1` 与 `AuthController`/`AuditLogController` 前缀不一致（P1），**从未在容器环境验证**，改动前无法判定「改路由」或「改前缀」 | [reviews §三-#2](../reviews/2026-10-17-wave5.1b-audit-log.md)、[audit-log.md](../design/audit-log.md) §9 |
+| ~~3~~ | ~~**网关路由前缀未确认**~~ → ✅ **已确认并修复（Wave 5.1f）** | 定夺结论：**改路由**（服务自持一级前缀、网关不剥离）→ REQ-ARCH-003；新增风险项 **AUTH-38**：auth 的 `/user`、`/dept`、`/role`、`/menu`、`/permission` 前缀**当前无网关路由**，管理接口经网关不可达（P1） | [reviews/wave5.1f](../reviews/2026-10-17-wave5.1f-gateway-routing-and-e2e.md) §四-1 |
 | 4 | **黑名单降级语义** | Redis 不可用时 auth 与网关均按未命中放行 → 登出形同失效（可用性优先取舍，无告警） | [next-steps §五-2](next-steps.md) |
 | 5 | **权限注解覆盖不足（证据确凿）** | 34 接口仅 3 处 `@RequirePermission`，大量写接口无鉴权，越权风险 | Grep `controller/` 统计；AUTH-04 |
-| 6 | **Nacos 不可用** | 8848 未起 → 服务发现 `lb://` 与网关全链路联调、admin 前端对接全部受阻 | 本轮环境事实 |
-| 7 | **运行时/端到端验证深度不足** | Wave 5.1c 已把**令牌黑名单、分布式锁、审计落库、审计查询**跑成实机验证；但 **HTTP 端到端（登录/登出/刷新 401）与网关全链路**仍未跑通（被 AUTH-35 redisson P0 与 Nacos 缺位阻塞） | [reviews/2026-10-17-wave5.1c-runtime-verification.md](../reviews/2026-10-17-wave5.1c-runtime-verification.md) §四、[next-steps §五-5](next-steps.md) |
+| ~~6~~ | ~~**Nacos 不可用**~~ → ✅ **已解除（Wave 5.1f）** | Nacos 3.2.4 以 MySQL 外置存储就绪（8848/8849），auth/audit 均 `register finished`；RabbitMQ / Nginx 仍缺（影响 AUTH-08/10） | [reviews/wave5.1f](../reviews/2026-10-17-wave5.1f-gateway-routing-and-e2e.md) |
+| ~~7~~ | ~~**运行时/端到端验证深度不足**~~ → ✅ **已闭环（Wave 5.1f）** | Wave 5.1c 已跑通黑名单/分布式锁/审计落库/查询；**Wave 5.1f 补齐 HTTP 端到端与网关全链路**（login→logout→重放 401→refresh 业务码 401→审计 LOGIN/LOGOUT 落库） | [reviews/wave5.1f](../reviews/2026-10-17-wave5.1f-gateway-routing-and-e2e.md) §二-3 |
+| 7b | **审计跨库可见性（阶段一固有）** | auth 埋点落 `bluewhale_auth.audit_log`，whale-audit 查询接口读 `bluewhale_audit` → 阶段二 MQ 汇聚（AUTH-10）前，`/audit/log/page` 查不到 auth 事件 | [devlog §17/§18](../devlog/2026-10-17.md)、[design/audit-log.md](../design/audit-log.md) §194 |
 | 8 | **审计埋点不全** | 仅 5 处埋点，与设计 §2 事件分类（数据变更/敏感操作/组织变更）差距大 | [audit-log.md](../design/audit-log.md) §2 vs §12 |
 | 9 | **`@DistributedLock` 未接入任何场景** | 工具已落地但零场景接入，无并发实证 | [devlog §12 待做](../devlog/2026-10-17.md) |
 | 10 | **权限判定无缓存** | `PermissionInterceptor` 每次兜底直查 DB，高并发下为性能瓶颈，且缓存一致性方案未落地 | [ddd-whale-auth.md](../design/ddd-whale-auth.md) §1.1 |
