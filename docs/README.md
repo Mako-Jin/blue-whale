@@ -23,6 +23,7 @@ docs/
 │   └── YYYY-MM-DD.md
 ├── architecture.md      # 架构设计文档
 ├── naming-conventions.md # 命名规范（库 / 表 / 服务 / 模块 / 包 / 配置 / Redis / 前端）
+├── service-catalog.md   # 服务与端口清单（端口 ↔ 服务 ↔ 组件 ↔ 库 ↔ 对外前缀，含第三方组件端口）
 ├── backend.md           # 后端开发指南（待建）
 ├── frontend.md          # 前端开发指南（待建）
 ├── devops.md            # 运维部署指南（待建）
@@ -46,4 +47,6 @@ docs/
 
 - 项目总览：[README.md](../README.md)
 - 路线图：[plans/roadmap.md](plans/roadmap.md)
+- 服务与端口：[service-catalog.md](service-catalog.md)
+- 命名规范：[naming-conventions.md](naming-conventions.md)
 - 开发日志：[devlog/](devlog/)

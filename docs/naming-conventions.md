@@ -167,6 +167,7 @@ Maven 模块目录名 == artifactId == spring.application.name == Nacos 服务�
 ## 八、域词表与全量映射（速查表）
 
 > 「看名字就知道属于哪一部分」的落地依据：新增库/服务/包前先在此登记域词。
+> **端口 ↔ 服务 ↔ 组件 ↔ 库 ↔ 对外前缀**的详细清单（含第三方组件端口与偏差登记 C-01~C-07）见 [service-catalog.md](service-catalog.md)（REQ-ARCH-005）。
 
 | 分组 | 模块 / 服务 | Nacos 服务名 | 数据库 | Java 包根 | 端口 |
 |---|---|---|---|---|---|
