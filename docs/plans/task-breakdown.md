@@ -82,10 +82,26 @@
   - 新增 `TokenBlacklist` / `RedisTokenBlacklist`；改造 `JwtAuthenticationFilter`、`AuthService#logout`、`AuthController#logout`、`JwtTokenProvider`、`whale-auth/pom.xml`
   - 验证：`mvn -pl backend/whale-services/whale-auth -am compile` → BUILD SUCCESS（6 模块 / 67 源文件）
   - 遗留：REQ-SEC-003（网关侧校验）、REQ-SEC-004（refreshToken 失效）→ 已于 Wave 5.1（T5.6/T5.7）闭环
-- [ ] T4.2 审计日志落地（`@AuditLog` + AOP + 异步写库 + 脱敏 + 7 个 ALTER 字段）
-- [ ] T4.3 分布式锁工具（`@DistributedLock` + SpEL key + Redisson AOP）
+- [x] T4.2 审计日志落地（`@AuditLog` + AOP + 异步写库 + 脱敏 + 7 个 ALTER 字段）
+  - 已由 Wave 5.1b（T5.10/T5.11/T5.12）落地到 `whale-spring-boot-starter` `com.bluewhale.common.audit.*` + `whale-audit` 查询接口
+  - 验证：全量编译 SUCCESS / 40 单测全绿 / Checkstyle 0 违规；遗留：运行时端到端（无 Docker）
+- [x] T4.3 分布式锁工具（`@DistributedLock` + SpEL key + Redisson AOP）
+  - 已由 Wave 5.0 T5.2 落地
 - [ ] T4.4 auth DDD 迁移第 1 步（四层目录骨架 + 认证上下文试点，API 不中断）
 - [ ] T4.5 全量回归（`mvn clean install -T 1C` + `pnpm build`）+ 提交推送
+
+## Wave 5.1b：审计日志落地（2026-10-17）
+
+> 承接 Wave 4 T4.2，落地 REQ-SEC-001（T5.10/T5.11/T5.12）。执行原则同 Wave 4：先落文档 → 编码 → 按清单自检留报告 → 构建验证。
+
+- [x] ①审计核心下沉 starter：`whale-audit` 经 `repackage` 打包后类位于 `BOOT-INF/classes`、无法被 auth 依赖，故 `@AuditLog` / 切面 / 脱敏 / 实体 / mapper / 自动配置统一置于 `whale-spring-boot-starter` `com.bluewhale.common.audit.*`（原 `com.bluewhale.audit.annotation` 路径废弃）
+- [x] ②`@AuditLog` 注解 + `AuditLogAspect` 切面 + `afterCommit`/直提双路径异步落库（线程池 core=1 / max=2 / queue=256 / `CallerRunsPolicy`）
+- [x] ③`SensitiveDataMasker` 脱敏器（递归深度 8 + 参数 4096 字符截断 + key 归一化规则匹配）
+- [x] ④whale-audit 查询接口 `AuditLogController`（`/audit/log` 的 page / 详情 / 按 traceId，`size<=200`）
+- [x] ⑤auth 埋点（登录/登出/创建用户/分配角色/分配权限）+ auth 侧 `db/init.sql` 追加 `audit_log` 建表
+- [x] ⑥单测与验证：新增 40 用例全绿（starter 15 / audit 6 / auth 19 不回归）；全量编译 SUCCESS；Checkstyle 0 违规
+- [x] ⑦检查报告归档：`docs/reviews/2026-10-17-wave5.1b-audit-log.md`
+- [ ] 待做：运行时端到端验证（无 Docker）、`POST /audit/log/export`、`@RequirePermission("sys:audit:log:list")`、MQ 汇聚（阶段二）、归档任务、网关 `/audit/**` + StripPrefix 路由前缀冲突确认
 
 > Wave 5 详细任务清单（含依赖、优先级、验收口径）见 [next-steps.md](next-steps.md)。
 

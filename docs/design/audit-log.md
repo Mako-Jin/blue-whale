@@ -3,10 +3,10 @@
 | 项 | 内容 |
 |---|---|
 | 需求编号 | REQ-SEC-001（关联派生需求 REQ-SEC-002 / REQ-SEC-003） |
-| 状态 | 设计已定稿 / 实现待启动 |
+| 状态 | 设计已定稿 / 核心能力已落地（Wave 5.1b，运行时待验证） |
 | 最后更新 | 2026-10-17 |
 | 作者 | BlueWhale |
-| 落点模块 | `backend/whale-ops/whale-audit`（端口 8088） |
+| 落点模块 | `backend/whale-ops/whale-audit`（端口 8088）。**审计核心代码落点：`whale-spring-boot-starter`；`whale-audit` 仅承载查询接口**（详见 §5.1） |
 
 ---
 
@@ -108,7 +108,9 @@ ALTER TABLE audit_log
 
 ### 5.1 注解定义
 
-置于 `com.bluewhale.audit.annotation`（whale-audit 内提供，经 starter 暴露给业务服务）。
+落地于 `backend/whale-common/whale-spring-boot-starter` 的 `com.bluewhale.common.audit.*`（`annotation` / `enums` / `aop` / `support` / `entity` / `mapper` / `config` 七个包）。
+
+**落点修正理由**：原方案拟置于 `com.bluewhale.audit.annotation`（whale-audit 内提供），但 `whale-audit` 经 `spring-boot-maven-plugin:repackage` 打包为可执行 jar 后，类位于 `BOOT-INF/classes`，**不能作为库被 whale-auth 依赖**；而 `whale-spring-boot-starter` 为普通库模块且 auth 已依赖，与既有 `@DistributedLock`（annotation + aop + config 同址）模式一致。**原 `com.bluewhale.audit.annotation` 路径废弃**。
 
 ```java
 @Target(ElementType.METHOD)
@@ -133,23 +135,30 @@ public @interface AuditLog {
 | 切点 | `@Around("@annotation(auditLog)")`，绑定注解实例（非 `@within`，只拦显式标注方法，避免面过宽） |
 | 环绕逻辑 | 记录 `start=System.nanoTime()`；`try proceed()` → `biz_status=1`；`catch Throwable` → `biz_status=0` 且 `error_msg=简写异常`，**记录后原样抛出**（不吞异常） |
 | 耗时 | `cost_ms = (System.nanoTime()-start)/1_000_000`，与表内 `cost_ms` 对齐 |
-| 用户上下文 | 优先取 Header `X-User-Id` / `X-Username`（网关注入）；auth 服务本地调用时兜底从 `SecurityContextHolder` 的 `LoginUser` 取（`userId`/`username`） |
-| TraceId | 取 Header `X-Trace-Id`，缺失回落 MDC `traceId`；仍缺失则生成（与网关同规格：32 位无横线 UUID） |
+| 用户上下文 | **只取** Header `X-User-Id` / `X-Username`（网关注入）；未取到则相应字段留空。**已移除**原「回落 `SecurityContextHolder` 的 `LoginUser`」设计——starter 不引入 spring-security 硬依赖，避免无 security 的服务出现 `NoClassDefFoundError` |
+| TraceId | 取 Header `X-Trace-Id`；缺失则按网关同规格生成 32 位无横线 UUID；**不回落 MDC**（全仓无 MDC 使用） |
 | IP | 优先 `X-Forwarded-For` 首段 → `X-Real-IP` → `request.getRemoteAddr()`，兼容 IPv6 |
-| URI/方法 | `request_uri = request.getRequestURI()`；`http_method = request.getMethod()`；`method = Class#method` 全限定签名（与表注释一致） |
+| URI/方法 | `request_uri = request.getRequestURI()`；`http_method = request.getMethod()`；`method = declaringTypeName#name`（如 `com.bluewhale.auth.controller.AuthController#login`，**非** `MethodSignature#toLongString()`） |
 | 参数 | `request_params` 取方法参数 JSON（经脱敏 + 截断，默认上限 4KB），`recordParams=false` 时不写 |
-| targetId | 通过 `MethodBasedEvaluationContext` + `SpelExpressionParser` 求值；空串则忽略 |
+| targetId | 通过 `MethodBasedEvaluationContext` + `SpelExpressionParser` 求值；空串则忽略。要求目标参数对象具备 getter（Lombok `@Data` 满足），否则求值异常**降级为不记录 targetId** |
+
+**已实现要点（Wave 5.1b）**：
+
+- 切面 `@Order(Ordered.LOWEST_PRECEDENCE)`，`@Around("@annotation(auditLog)")` 绑定注解实例，只拦显式标注方法。
+- 落库时序双路径：`TransactionSynchronizationManager.isSynchronizationActive()` 为真时注册 `afterCommit` 回调，为假时直接投递。
+- 线程池 `auditLogExecutor`：core=1 / max=2 / queue=256 / `CallerRunsPolicy` / 线程名前缀 `audit-log-`（队列满时由调用线程兜底执行，不丢记录）。
+- 组装/落库失败仅 `log.warn`；业务异常**原样抛出**（审计失败不影响业务主流程）。
 
 ### 5.3 埋点字段映射表
 
 | audit_log 字段 | 采集来源 |
 |---|---|
 | id | MP `IdType.ASSIGN_ID` 雪花 |
-| trace_id | 网关 `X-Trace-Id` / MDC |
-| user_id / username | 网关 `X-User-Id` / `X-Username`，或 `LoginUser` |
+| trace_id | 网关 `X-Trace-Id`（无 MDC 回落；缺失生成 32 位 UUID） |
+| user_id / username | 网关 `X-User-Id` / `X-Username`（无 `LoginUser` 回落） |
 | module | 注解 `module()`，默认 `spring.application.name` |
 | operation / operate_type | 注解 `operation()` / `type()` |
-| method | `MethodSignature#toLongString()` |
+| method | `declaringTypeName#name` |
 | request_uri / http_method | `HttpServletRequest` |
 | request_params | 参数 JSON（脱敏后） |
 | response_code | `Result.code` 或 HTTP 状态码 |
@@ -208,6 +217,8 @@ public @interface AuditLog {
 - **永不记录**：`recordParams=false` 的接口（如改密）直接跳过参数落库。
 - 脱敏规则集中配置（`whale.audit.sensitive.keys`），便于扩展与审计规则调整。
 
+**实施状态（Wave 5.1b）**：已落地 `SensitiveDataMasker`——纯 Java 反射递归 + 一次 `ObjectMapper.writeValueAsString`（不触碰 Jackson 树模型 API），递归深度上限 8，参数 JSON 超 4096 字符截断；规则按 key 归一化（转小写、去 `_` / `-`）匹配，覆盖密码 / 令牌 / 手机号 / 身份证 / 银行卡 / 邮箱。`@Sensitive` 注解兜底与脱敏规则配置化（`whale.audit.sensitive.keys`）**未实现**（登记待做）。
+
 ---
 
 ## 8. TraceId 与网关 X-User-Id 关联链路
@@ -254,6 +265,10 @@ whale-gateway
 - 查询本身属于敏感操作，**读审计也要被审计**（`@AuditLog(type=EXPORT/QUERY)`）。
 - 权限：`@RequirePermission("sys:audit:log:list")`（复用既有注解 + 拦截器），仅审计管理员可见。
 
+**实施状态（2026-10-17，Wave 5.1b）**：`GET /audit/log/page`、`GET /audit/log/{id}`、`GET /audit/log/trace/{traceId}` **已实现**（`AuditLogController`，服务内前缀 `/audit/log`；分页按 `create_time` 倒序、`size` 收敛到 `[1, 200]`、`getDetail` 为空抛 `BizException(NOT_FOUND)`）；`POST /audit/log/export`、`@RequirePermission("sys:audit:log:list")`、读审计的元审计**未实现**（登记待做）。
+
+**待确认项（网关路由前缀冲突）**：网关既有路由 `Path=/audit/**` + `StripPrefix=1` 会把 `/audit/log/page` 剥成 `/log/page`，与控制器前缀 `/audit/log` 不一致。该问题属既有配置，本批未改，待中间件就绪后联调定夺。
+
 ---
 
 ## 10. 保留与归档策略
@@ -287,14 +302,53 @@ whale-gateway
 
 | 编号 | 任务 | 依赖 | 工作量 | 验收 |
 |---|---|---|---|---|
-| T-AUD-1 | `audit_log` 表 ALTER 脚本（§4.2）落地到 init.sql | 无 | S | 字段与实体一致 |
-| T-AUD-2 | `AuditLog` 实体 + `AuditLogMapper` + `AuditLogVO` | T-AUD-1 | S | 编译通过 |
-| T-AUD-3 | `@AuditLog` 注解 + `OperateType` 枚举 | 无 | S | 注解可被 AOP 绑定 |
-| T-AUD-4 | `AuditLogAspect` + 上下文采集 + afterCommit 异步落库 | T-AUD-3 | M | 单测覆盖成功/失败两路径 |
-| T-AUD-5 | 脱敏组件（规则表 + 递归脱敏） | 无 | M | 密码/手机号/身份证/银行卡用例通过 |
-| T-AUD-6 | whale-audit 查询接口（分页/详情/按 traceId） | T-AUD-2 | M | 接口返回 `PageResult` |
-| T-AUD-7 | 业务服务接入：auth 登录/登出/权限变更打点 | T-AUD-4 | M | 登录、分配角色产生审计记录 |
-| T-AUD-8 | 保留与归档定时任务 | T-AUD-2 | M | 过期数据按策略清理 |
-| T-AUD-9 | 阶段二 MQ 汇聚（whale-audit 消费） | T-AUD-4 | L | 容器就绪后联调 |
+| T-AUD-1 | `audit_log` 表 ALTER 脚本（§4.2）落地到 init.sql ✅ 已落地（Wave 5.1b） | 无 | S | 字段与实体一致 |
+| T-AUD-2 | `AuditLog` 实体 + `AuditLogMapper` + `AuditLogVO` ✅ 已落地（Wave 5.1b） | T-AUD-1 | S | 编译通过 |
+| T-AUD-3 | `@AuditLog` 注解 + `OperateType` 枚举 ✅ 已落地（Wave 5.1b） | 无 | S | 注解可被 AOP 绑定 |
+| T-AUD-4 | `AuditLogAspect` + 上下文采集 + afterCommit 异步落库 ✅ 已落地（Wave 5.1b） | T-AUD-3 | M | 单测覆盖成功/失败两路径 |
+| T-AUD-5 | 脱敏组件（规则表 + 递归脱敏） ✅ 已落地（Wave 5.1b） | 无 | M | 密码/手机号/身份证/银行卡用例通过 |
+| T-AUD-6 | whale-audit 查询接口（分页/详情/按 traceId） ✅ 已落地（Wave 5.1b） | T-AUD-2 | M | 接口返回 `PageResult` |
+| T-AUD-7 | 业务服务接入：auth 登录/登出/权限变更打点 ✅ 已落地（Wave 5.1b） | T-AUD-4 | M | 登录、分配角色产生审计记录 |
+| T-AUD-8 | 保留与归档定时任务 ⚠️ 未落地 | T-AUD-2 | M | 过期数据按策略清理 |
+| T-AUD-9 | 阶段二 MQ 汇聚（whale-audit 消费） ⚠️ 未落地（阶段二） | T-AUD-4 | L | 容器就绪后联调 |
 
 > 工作量相对量级：S 小 / M 中 / L 大，不含具体工期。
+
+---
+
+## 12. 实施记录（2026-10-17，Wave 5.1b）
+
+本批把 T-AUD-1 ~ T-AUD-7 落地为可运行代码（核心下沉 `whale-spring-boot-starter`，查询接口留在 `whale-audit`）。
+
+| 变更点 | 文件 | 说明 |
+|---|---|---|
+| 枚举 | `backend/whale-common/whale-spring-boot-starter/.../common/audit/enums/OperateType.java` | LOGIN/LOGOUT/CREATE/UPDATE/DELETE/QUERY/GRANT/EXPORT/IMPORT/OTHER |
+| 注解 | `.../common/audit/annotation/AuditLog.java` | `module()`（空则取 `spring.application.name`）/`operation()`/`type()`/`targetType()`/`targetId()`（SpEL）/`recordParams()=true`/`recordResult()=false` |
+| 实体 | `.../common/audit/entity/AuditLogRecord.java` | `@TableName("audit_log")`，21 字段，`@TableId(type = IdType.ASSIGN_ID)`；**不继承 `BaseEntity`**（append-only，无 `update_time`/`deleted`） |
+| Mapper | `.../common/audit/mapper/AuditLogMapper.java` | `extends BaseMapper`，被 `@MapperScan("com.bluewhale.**.mapper")` 扫描 |
+| 脱敏器 | `.../common/audit/support/SensitiveDataMasker.java` | 递归脱敏（深度 8）+ 参数 JSON 4096 截断 + key 归一化匹配规则 |
+| 切面 | `.../common/audit/aop/AuditLogAspect.java` | `@Order(LOWEST_PRECEDENCE)`；采集 module/method(`declaringTypeName#name`)/uri/httpMethod/targetType/targetId/requestParams/responseCode/bizStatus/errorMsg/ip/userAgent/costMs/createTime；用户上下文只取 `X-User-Id`/`X-Username`，traceId 取 `X-Trace-Id`（无 MDC 回落） |
+| 自动配置 | `.../common/audit/config/AuditLogAutoConfiguration.java` | `@AutoConfiguration(after = MybatisPlusConfig.class)` + `@ConditionalOnWebApplication(SERVLET)` + `@ConditionalOnClass` + `@ConditionalOnBean(AuditLogMapper.class)`；Bean：`auditLogExecutor`（core=1/max=2/queue=256/`CallerRunsPolicy`/前缀 `audit-log-`）、`sensitiveDataMasker`、`auditLogAspect` |
+| 单测 | `.../src/test/.../common/audit/aop/AuditLogAspectTest.java`、`.../support/SensitiveDataMaskerTest.java` | 覆盖切面成功/失败/落库路径与脱敏规则 |
+| 自动配置注册 | `.../src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` | 追加 `com.bluewhale.common.audit.config.AuditLogAutoConfiguration` |
+| starter pom | `backend/whale-common/whale-spring-boot-starter/pom.xml` | 保持普通库模块（不 repackage），可被业务服务依赖 |
+| 查询 DTO | `backend/whale-ops/whale-audit/.../audit/dto/AuditLogQueryRequest.java` | `extends PageQuery` + userId/username/module/operateType/bizStatus/traceId/startTime/endTime |
+| 查询 VO | `.../audit/vo/AuditLogVO.java` | 与 `AuditLogRecord` 字段一一对应 |
+| 查询服务 | `.../audit/service/AuditLogService.java` + `.../service/impl/AuditLogServiceImpl.java` | 分页（`MAX_PAGE_SIZE=200`、`orderByDesc(create_time)`）、`getDetail`（空则抛 `BizException(ErrorCode.NOT_FOUND)`）、`listByTraceId` |
+| 查询控制器 | `.../audit/controller/AuditLogController.java` | `@RequestMapping("/audit/log")`：`GET /page`、`GET /{id}`、`GET /trace/{traceId}` |
+| 查询单测 | `.../src/test/.../audit/service/impl/AuditLogServiceImplTest.java` | 覆盖分页/详情/按 traceId |
+| 服务构建 | `backend/whale-ops/whale-audit/pom.xml`、`src/main/resources/application.yml` | pom 新增 `whale-spring-boot-starter`；yml 新增 `spring.datasource`（逻辑库 `bluewhale_audit`） |
+| 埋点（auth） | `backend/whale-services/whale-auth/.../controller/AuthController.java` | `#login`（LOGIN，`recordParams=false`）/`#logout`（LOGOUT，`recordParams=false`） |
+| 埋点（auth） | `.../controller/UserController.java` | `#create`（CREATE，targetType `sys_user`）/`#assignRoles`（GRANT，`targetId="#id"`） |
+| 埋点（auth） | `.../controller/RoleController.java` | `#assignPermissions`（GRANT，`targetId="#id"`） |
+| 建表（auth 侧） | `backend/whale-services/whale-auth/src/main/resources/db/init.sql` | 追加第 9 节 `audit_log` 建表（与 whale-audit DDL 一致，含 7 索引；阶段一各服务写各自实例下的审计表，DDL 以本设计文档与 whale-audit init.sql 为准，append-only 故不设 `update_time`/`deleted`） |
+
+**验证证据**：
+
+- 全量编译：`mvn -B clean compile -T 1C` → BUILD SUCCESS。
+- 单测：`mvn -B -pl whale-common/whale-spring-boot-starter,whale-ops/whale-audit,whale-services/whale-auth -am test` → starter 15 / auth 19（不回归）/ audit 6，全绿（合计 40）。
+- 静态检查：上述三模块 `checkstyle:check` → 0 violations。
+
+**遗留 / 待做**：T-AUD-8 保留归档、T-AUD-9 MQ 汇聚（阶段二）、`POST /audit/log/export`、`@Sensitive` 注解兜底、脱敏规则配置化、whale-audit 侧 `@RequirePermission("sys:audit:log:list")`、运行时/端到端验证（本机无 Docker）、网关路由前缀冲突确认。
+
+> 变更留痕：检查报告见 [docs/reviews/2026-10-17-wave5.1b-audit-log.md](../reviews/2026-10-17-wave5.1b-audit-log.md)，任务台账见 [docs/plans/task-breakdown.md](../plans/task-breakdown.md) 与 [docs/plans/next-steps.md](../plans/next-steps.md)。

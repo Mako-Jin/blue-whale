@@ -9,6 +9,8 @@ import com.bluewhale.auth.service.SysUserPermissionService;
 import com.bluewhale.auth.service.SysUserService;
 import com.bluewhale.auth.vo.UserAttrVO;
 import com.bluewhale.auth.vo.UserVO;
+import com.bluewhale.common.audit.annotation.AuditLog;
+import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.core.query.PageQuery;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
@@ -50,8 +52,10 @@ public class UserController {
         return Result.ok(userService.getDetail(id));
     }
 
+    /** 创建用户：参数含密码，落库前由脱敏器置为掩码 */
     @PostMapping
     @RequirePermission("sys:user:add")
+    @AuditLog(operation = "创建用户", type = OperateType.CREATE, targetType = "sys_user")
     public Result<UserVO> create(@Valid @RequestBody UserCreateRequest request) {
         return Result.ok(userService.create(request));
     }
@@ -68,8 +72,9 @@ public class UserController {
         return Result.ok();
     }
 
-    /** 全量覆盖分配角色 */
+    /** 全量覆盖分配角色：授权变更属敏感操作，必留痕 */
     @PostMapping("/{id}/roles")
+    @AuditLog(operation = "分配用户角色", type = OperateType.GRANT, targetType = "sys_user", targetId = "#id")
     public Result<Void> assignRoles(@PathVariable Long id, @Valid @RequestBody AssignRolesRequest request) {
         userService.assignRoles(id, request.getRoleIds());
         return Result.ok();

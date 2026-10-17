@@ -6,6 +6,8 @@ import com.bluewhale.auth.dto.RoleUpdateRequest;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.auth.service.SysRoleService;
 import com.bluewhale.auth.vo.RoleVO;
+import com.bluewhale.common.audit.annotation.AuditLog;
+import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.core.query.PageQuery;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
@@ -63,8 +65,9 @@ public class RoleController {
         return Result.ok();
     }
 
-    /** 全量覆盖分配权限 */
+    /** 全量覆盖分配权限：授权变更属敏感操作，必留痕 */
     @PostMapping("/{id}/permissions")
+    @AuditLog(operation = "分配角色权限", type = OperateType.GRANT, targetType = "sys_role", targetId = "#id")
     public Result<Void> assignPermissions(@PathVariable Long id,
                                           @Valid @RequestBody AssignPermissionsRequest request) {
         roleService.assignPermissions(id, request.getPermissionIds());

@@ -49,5 +49,11 @@
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
+        <!-- 审计切面/脱敏器单测：JUnit 5 + Mockito + spring-test（MockHttpServletRequest / MockEnvironment） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>

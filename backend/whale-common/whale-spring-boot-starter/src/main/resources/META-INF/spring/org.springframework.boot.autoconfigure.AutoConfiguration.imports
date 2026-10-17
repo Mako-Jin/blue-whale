@@ -4,3 +4,4 @@ com.bluewhale.common.mybatis.config.MybatisPlusConfig
 com.bluewhale.common.core.handler.GlobalExceptionHandler
 com.bluewhale.common.jackson.config.JacksonConfig
 com.bluewhale.common.lock.config.DistributedLockAutoConfiguration
+com.bluewhale.common.audit.config.AuditLogAutoConfiguration
