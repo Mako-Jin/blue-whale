@@ -44,6 +44,31 @@
 - [ ] whale-job（定时任务）、whale-workflow（工作流）、whale-form（表单）、whale-file（文件）、whale-pay（支付）
 - [ ] whale-audit（审计日志）、whale-monitor（监控）、whale-alert（告警）
 
+### 2.6 工程规范与分布式基础（2026-10-17 新增）
+
+**工程规范（REQ-DOC-001/002、REQ-QA-001/002）**
+
+- [x] 需求登记册：REQ 编号体系 + 变更控制七步流程 + 四条门禁规则（[register.md](../requirements/register.md)）
+- [x] 代码检查清单：协议安全 12 / 代码漏洞 16 / 复杂度 9 / 魔法值 6 / 规范 14 项（[code-review-checklist.md](../checklists/code-review-checklist.md)）
+- [x] 检查报告机制：每次变更产出 `docs/reviews/` 报告（首份已归档）
+- [x] CI/CD 代码质量门禁：Checkstyle 规则集 + `code-quality.yml`（报告模式）
+
+**专项设计定稿（REQ-SEC-001 / REQ-DIST-001~003 / REQ-ARCH-001 / REQ-CICD-001）**
+
+- [x] 审计日志方案（[audit-log.md](../design/audit-log.md)）
+- [x] 分布式 ID / 分布式锁 / 其他分布式问题（[distributed.md](../design/distributed.md)）
+- [x] 权限服务 DDD 架构与迁移路线（[ddd-whale-auth.md](../design/ddd-whale-auth.md)）
+- [x] CI/CD 流水线方案（[cicd.md](../design/cicd.md)）
+
+**分布式能力落地（REQ-SEC-002 / REQ-DIST-002）**
+
+- [x] 分布式令牌黑名单：登出后 accessToken 立即失效（Redis + SHA-256 摘要键 + 降级）
+- [ ] 分布式锁工具（`@DistributedLock` + SpEL + Redisson）
+- [ ] 审计日志落地（`@AuditLog` + AOP 异步写库 + 敏感字段脱敏）
+- [ ] refreshToken 失效（token 版本号 / `jti`）、网关侧黑名单校验（REQ-SEC-003/004）
+- [ ] 分布式 ID 统一与 Long→String 序列化
+- [ ] Gitee Go 流水线映射、JaCoCo 覆盖率门禁
+
 ## Phase 3：前端平台填充
 
 ### 3.1 whale-platform 基座

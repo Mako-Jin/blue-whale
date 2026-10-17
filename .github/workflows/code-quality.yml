@@ -1,0 +1,101 @@
+# ============================================================
+# 蓝鲸代码质量门禁 - Checkstyle（后端）+ ESLint / Prettier（前端）
+# 对应需求 REQ-QA-001 / REQ-QA-002 / REQ-CICD-001
+# 规则集: config/checkstyle/whale-checkstyle.xml
+# 策略: 当前为「报告模式」——仅 error 级违规阻断构建；
+#       规则收敛后逐步把关键规则(命名/import/结构)提升为 error 以转为阻断门禁。
+# 注意: 本仓库 origin 指向 Gitee，GitHub Actions 不会自动触发；
+#       Gitee Go 的等价配置见 docs/design/cicd.md 第 6 节。
+# ============================================================
+
+name: Code Quality
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'config/checkstyle/**'
+      - '.github/workflows/code-quality.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'config/checkstyle/**'
+      - '.github/workflows/code-quality.yml'
+
+concurrency:
+  group: code-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-checkstyle:
+    name: Backend · Checkstyle
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Maven Wrapper Setup
+        run: |
+          if [ ! -f mvnw ]; then
+            mvn -N wrapper:wrapper -Dmaven=3.9.9
+          fi
+          chmod +x mvnw
+
+      # 生成含全部级别的 XML 报告（warning/info 也会落入报告，便于趋势跟踪）
+      - name: Checkstyle Report
+        run: ./mvnw -B -ntp checkstyle:checkstyle
+
+      # 门禁：仅 error 级违规会失败（当前规则集为 warning，故不会阻断）
+      - name: Checkstyle Gate
+        run: ./mvnw -B -ntp checkstyle:check
+
+      - name: Upload Checkstyle Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkstyle-reports
+          path: '**/target/checkstyle-result.xml'
+          retention-days: 7
+
+  frontend-lint:
+    name: Frontend · ESLint + Prettier
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Setup pnpm (corepack)
+        run: |
+          corepack enable
+          corepack prepare pnpm@latest --activate
+
+      - name: pnpm Install
+        run: pnpm install --frozen-lockfile
+
+      - name: ESLint
+        run: pnpm lint
+
+      - name: Prettier Check
+        run: pnpm format:check

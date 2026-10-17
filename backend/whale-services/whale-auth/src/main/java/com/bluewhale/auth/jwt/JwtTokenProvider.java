@@ -33,6 +33,12 @@ public class JwtTokenProvider {
     public static final String TOKEN_TYPE_ACCESS = "access";
     public static final String TOKEN_TYPE_REFRESH = "refresh";
 
+    /** Authorization 头凭据前缀，签发与校验两侧共用，避免各自定义 */
+    public static final String BEARER_PREFIX = "Bearer ";
+
+    /** 毫秒换算秒的进制 */
+    private static final long MILLIS_PER_SECOND = 1000L;
+
     private final JwtProperties properties;
 
     private final SecretKey secretKey;
@@ -92,5 +98,21 @@ public class JwtTokenProvider {
         } catch (JwtException | IllegalArgumentException e) {
             return null;
         }
+    }
+
+    /**
+     * 计算 token 剩余有效期（秒）。
+     * 供登出黑名单确定 Redis 键 TTL 使用：无法解析或已过期一律返回 0。
+     *
+     * @param token 待计算的 token
+     * @return 剩余有效秒数，非正数表示已失效
+     */
+    public long getRemainingValiditySeconds(String token) {
+        Claims claims = parse(token);
+        if (claims == null || claims.getExpiration() == null) {
+            return 0L;
+        }
+        long remainingMillis = claims.getExpiration().getTime() - System.currentTimeMillis();
+        return remainingMillis > 0L ? remainingMillis / MILLIS_PER_SECOND : 0L;
     }
 }

@@ -7,8 +7,10 @@ import com.bluewhale.auth.vo.LoginResponse;
 import com.bluewhale.common.core.result.Result;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -34,9 +36,15 @@ public class AuthController {
         return Result.ok(authService.refresh(request));
     }
 
+    /**
+     * 登出：使请求头中的 accessToken 立即失效（写入分布式黑名单）
+     *
+     * @param authorization 请求头 {@code Authorization: Bearer <token>}，允许缺失
+     */
     @PostMapping("/logout")
-    public Result<Void> logout() {
-        authService.logout();
+    public Result<Void> logout(
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
+        authService.logout(authorization);
         return Result.ok();
     }
 }

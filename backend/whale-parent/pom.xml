@@ -287,6 +287,21 @@
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-checkstyle-plugin</artifactId>
+                    <version>3.6.0</version>
+                    <configuration>
+                        <!-- 需从仓库根目录执行 Maven，maven.multiModuleProjectDirectory 才指向仓库根 -->
+                        <configLocation>${maven.multiModuleProjectDirectory}/config/checkstyle/whale-checkstyle.xml</configLocation>
+                        <consoleOutput>true</consoleOutput>
+                        <!-- 仅 error 级别违规使构建失败；warning/info 只提示不阻断 -->
+                        <violationSeverity>error</violationSeverity>
+                        <failOnViolation>true</failOnViolation>
+                        <includeTestSourceDirectory>false</includeTestSourceDirectory>
+                        <outputFile>${project.build.directory}/checkstyle-result.xml</outputFile>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>3.5.2</version>
                     <configuration>

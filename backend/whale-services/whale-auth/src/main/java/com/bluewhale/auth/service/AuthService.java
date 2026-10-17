@@ -7,6 +7,7 @@ import com.bluewhale.auth.entity.SysUser;
 import com.bluewhale.auth.jwt.JwtTokenProvider;
 import com.bluewhale.auth.mapper.SysUserMapper;
 import com.bluewhale.auth.security.LoginUser;
+import com.bluewhale.auth.security.TokenBlacklist;
 import com.bluewhale.auth.security.UserDetailsServiceImpl;
 import com.bluewhale.auth.vo.LoginResponse;
 import com.bluewhale.common.core.exception.BizException;
@@ -22,6 +23,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -40,6 +42,7 @@ public class AuthService {
     private final JwtTokenProvider tokenProvider;
     private final UserDetailsServiceImpl userDetailsService;
     private final SysUserMapper userMapper;
+    private final TokenBlacklist tokenBlacklist;
 
     /**
      * 登录：AuthenticationManager 走 UserDetailsService + BCryptPasswordEncoder 校验
@@ -87,14 +90,33 @@ public class AuthService {
     }
 
     /**
-     * 登出
-     * <p>TODO 预留：将当前 accessToken 加入 Redis 黑名单，
-     * key 形如 auth:token:blacklist:{token}，TTL = token 剩余有效期；
-     * JwtAuthenticationFilter 解析后先查黑名单，命中则视为未认证。
-     * 当前无 Redis 强依赖，直接返回成功。</p>
+     * 登出：将当前 accessToken 写入分布式黑名单，使其在剩余有效期内立即失效。
+     * <p>TTL 取 token 剩余有效期，到期后由 Redis 自动清理；
+     * Redis 不可用时降级为客户端丢弃 token，不阻断登出流程。</p>
+     *
+     * @param authorization 请求头原始值，形如 {@code Bearer <token>}；缺失或格式不符时静默跳过
      */
-    public void logout() {
-        // Redis 黑名单预留实现位
+    public void logout(String authorization) {
+        String token = resolveBearerToken(authorization);
+        if (token == null) {
+            log.debug("登出请求未携带有效 Bearer token，跳过黑名单写入");
+            return;
+        }
+        tokenBlacklist.add(token);
+    }
+
+    /**
+     * 从 Authorization 头提取 token 原文
+     *
+     * @param authorization 请求头原始值
+     * @return token 原文；头缺失、前缀不符或 token 段为空时返回 {@code null}
+     */
+    private static String resolveBearerToken(String authorization) {
+        if (!StringUtils.hasText(authorization) || !authorization.startsWith(JwtTokenProvider.BEARER_PREFIX)) {
+            return null;
+        }
+        String token = authorization.substring(JwtTokenProvider.BEARER_PREFIX.length()).trim();
+        return token.isEmpty() ? null : token;
     }
 
     private LoginResponse buildLoginResponse(LoginUser loginUser) {

@@ -60,6 +60,35 @@
 - [x] T3.2 `pnpm build` 前端全量构建（11/11 successful）
 - [x] T3.3 更新 roadmap 勾选 + devlog 记录 + commit + push origin
 
+## Wave 4：工程规范与分布式基础（2026-10-17，串并混合）
+
+> 本轮新增需求见 [requirements/register.md](../requirements/register.md) 第二节（REQ-DOC/QA/CICD/SEC/DIST/ARCH 共 12 条）。
+> 本轮执行原则：**先落文档 → 编码 → 按清单自检留报告 → 构建验证**。
+
+- [x] T4.0 **工程规范体系**（REQ-DOC-001/002、REQ-QA-001/002）
+  - `docs/requirements/register.md`：REQ 编号体系（8 域）+ 变更控制七步流程 + 四条门禁
+  - `docs/checklists/code-review-checklist.md`：5 大类 57 项 + 严重级别 + 报告模板
+  - `docs/reviews/`：每次变更一份检查报告（首份已归档）
+  - 验证：清单可逐条对照；`docs/README.md` 约定章节同步更新
+- [x] T4.0b **四份专项设计文档定稿**（REQ-SEC-001 / REQ-DIST-001~003 / REQ-ARCH-001 / REQ-CICD-001）
+  - `docs/design/audit-log.md` / `distributed.md` / `ddd-whale-auth.md` / `cicd.md`
+  - 验证：与真实代码与 DDL 核对一致（audit_log 字段已比对 init.sql）
+- [x] T4.0c **CI/CD 代码质量门禁**（REQ-CICD-001）
+  - `config/checkstyle/whale-checkstyle.xml`（C/D/E 类可自动化项）、`whale-parent/pom.xml` 插件管理、`.github/workflows/code-quality.yml`
+  - 修正 `.github/workflows/frontend-ci.yml`：缺省工作目录 `frontend`
+  - 验证：`mvn -pl backend/whale-common/whale-tools checkstyle:check`、`.../whale-auth checkstyle:check` 均 0 违规
+  - 遗留：Gitee 托管需映射 Gitee Go；门禁当前为报告模式
+- [x] T4.1 **分布式令牌黑名单**（REQ-SEC-002 / REQ-DIST-002）
+  - 新增 `TokenBlacklist` / `RedisTokenBlacklist`；改造 `JwtAuthenticationFilter`、`AuthService#logout`、`AuthController#logout`、`JwtTokenProvider`、`whale-auth/pom.xml`
+  - 验证：`mvn -pl backend/whale-services/whale-auth -am compile` → BUILD SUCCESS（6 模块 / 67 源文件）
+  - 遗留：REQ-SEC-003（网关侧校验）、REQ-SEC-004（refreshToken 失效）
+- [ ] T4.2 审计日志落地（`@AuditLog` + AOP + 异步写库 + 脱敏 + 7 个 ALTER 字段）
+- [ ] T4.3 分布式锁工具（`@DistributedLock` + SpEL key + Redisson AOP）
+- [ ] T4.4 auth DDD 迁移第 1 步（四层目录骨架 + 认证上下文试点，API 不中断）
+- [ ] T4.5 全量回归（`mvn clean install -T 1C` + `pnpm build`）+ 提交推送
+
+> Wave 5 详细任务清单（含依赖、优先级、验收口径）见 [next-steps.md](next-steps.md)。
+
 ## 附录 A：common 契约（Wave 2 遵守）
 
 ```

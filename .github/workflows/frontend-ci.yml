@@ -30,6 +30,11 @@ jobs:
     name: Node 24 · pnpm
     runs-on: ubuntu-latest
 
+    # 前端工作区根目录为 frontend/（根目录无 package.json / pnpm-workspace.yaml）
+    defaults:
+      run:
+        working-directory: frontend
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,6 +44,7 @@ jobs:
         with:
           node-version: '24'
           cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
 
       - name: Setup pnpm (corepack)
         run: |
