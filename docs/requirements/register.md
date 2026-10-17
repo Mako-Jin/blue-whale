@@ -2,8 +2,8 @@
 
 > 用途：本项目所有需求（业务功能 + 工程规范）的统一台账。
 > 规则：**任何需求在动手实现之前，必须先在此登记编号与验收标准**（见 REQ-DOC-002）。
-> 最后更新：2026-10-17 ｜ 维护：BlueWhale
-> Wave 5.1b（审计落地）已完成静态验证：REQ-SEC-001 注解/切面/脱敏/查询接口已落地；REQ-SEC-003 / REQ-SEC-004 端到端待中间件就绪。
+> 最后更新：2026-10-17（Wave 5.1c 实机验证） ｜ 维护：BlueWhale
+> Wave 5.1c（Redis/MySQL 实机验证）：令牌黑名单、分布式锁、审计落库与查询**已取得真实运行时证据**；whale-auth 服务级端到端因 **P0**（`redisson-spring-boot-starter 3.34.1` 与 Spring Boot 4.0.8 不兼容）阻塞，REQ-SEC-003 因 Nacos 8848 未监听未验证。详见 [reviews/2026-10-17-wave5.1c-runtime-verification.md](../reviews/2026-10-17-wave5.1c-runtime-verification.md)。
 
 ---
 
@@ -34,9 +34,9 @@
 | REQ-QA-001 | 制定代码规范检查清单，覆盖：协议漏洞、代码漏洞、圈复杂度、魔法值、命名与格式等 | 用户指令 2 | 高 | 已完成 | [checklists/code-review-checklist.md](../checklists/code-review-checklist.md) | 清单含 5 大类检查项，每项给出判定标准与检查方式 |
 | REQ-QA-002 | 每一次新增/变更的代码都必须按上述清单执行检查并留存报告 | 用户指令 2 | 高 | 实现中 | [checklists/code-review-checklist.md](../checklists/code-review-checklist.md) + [reviews/](../reviews/) + [reviews/2026-10-17-wave5.1b-audit-log.md](../reviews/2026-10-17-wave5.1b-audit-log.md) | 每一批代码变更都有对应的检查报告文件，且报告逐项对应清单条目 |
 | REQ-CICD-001 | 搭建 CI/CD 流水线（含代码质量门禁） | 用户指令 3 | 高 | 设计已定稿 | [design/cicd.md](../design/cicd.md) + `.github/workflows/` | 流水线覆盖 提交→检查→构建→测试→制品→镜像→部署；质量门禁可产出报告 |
-| REQ-SEC-001 | 设计审计日志能力（记录谁、何时、对什么、做了什么、结果） | 用户指令 4 | 高 | 实现中（T5.10/T5.11/T5.12 已落地，运行时待验证） | [design/audit-log.md](../design/audit-log.md) + [whale-spring-boot-starter](../../backend/whale-common/whale-spring-boot-starter/src/main/java/com/bluewhale/common/audit/)（`common/audit/*`）+ [whale-audit/db/init.sql](../../backend/whale-ops/whale-audit/src/main/resources/db/init.sql) + whale-audit 查询接口 | 审计表字段（T5.9 已落地 7 字段）与设计一致；注解/切面/脱敏/查询接口已落地（40 单测全绿）；auth 登录/登出/创建用户/分配角色/分配权限已埋点 |
+| REQ-SEC-001 | 设计审计日志能力（记录谁、何时、对什么、做了什么、结果） | 用户指令 4 | 高 | 实现中（T5.10/T5.11/T5.12 已落地；**审计落库与查询已实机验证通过**；auth 埋点的 HTTP 端到端受 P0 阻塞） | [design/audit-log.md](../design/audit-log.md) + [whale-spring-boot-starter](../../backend/whale-common/whale-spring-boot-starter/src/main/java/com/bluewhale/common/audit/)（`common/audit/*`）+ [whale-audit/db/init.sql](../../backend/whale-ops/whale-audit/src/main/resources/db/init.sql) + whale-audit 查询接口 | 审计表字段（T5.9 已落地 7 字段）与设计一致；注解/切面/脱敏/查询接口已落地（40 单测全绿）；auth 登录/登出/创建用户/分配角色/分配权限已埋点；Wave 5.1c 实机验证：成功/异常两路径各落 1 行、密码为掩码、`page()` 条件过滤 / `size` 收敛 200 / `create_time` 倒序均通过 |
 | REQ-DIST-001 | 分布式 ID 方案（全局唯一、趋势递增、无 JS 精度丢失） | 用户指令 5 | 中 | 实现中 | [design/distributed.md](../design/distributed.md) + whale-spring-boot-starter | 方案定稿；T5.1 已落地 Long→String 序列化 + IdUtils 注释澄清 |
-| REQ-DIST-002 | 分布式锁方案（可重入、看门狗续期、锁命名规范、可复用工具） | 用户指令 5 | 中 | 实现中 | [design/distributed.md](../design/distributed.md) + whale-spring-boot-starter | T5.2 已落地 `@DistributedLock` 注解 + AOP 切面，场景接入待做 |
+| REQ-DIST-002 | 分布式锁方案（可重入、看门狗续期、锁命名规范、可复用工具） | 用户指令 5 | 中 | 实现中（**运行时已验证**：Wave 5.1c 真实 Redis + Redisson） | [design/distributed.md](../design/distributed.md) + whale-spring-boot-starter | T5.2 已落地 `@DistributedLock` 注解 + AOP 切面，场景接入待做；Wave 5.1c 实机验证：同 key 并发第二个被拒（429）、串行与释放后可再获取 |
 | REQ-DIST-003 | 其他分布式问题（幂等、缓存一致性、分布式事务、限流熔断、链路追踪、分布式会话） | 用户指令 5 | 中 | 设计已定稿 | [design/distributed.md](../design/distributed.md) | 每项含备选方案对比表与推荐结论 |
 | REQ-DOC-002 | 所有要求先落到文档，每一步都需遵守（文档先行 / 变更控制） | 用户指令 6 | 高 | 已完成 | 本登记册 + [docs/README.md](../README.md) 约定章节 | 未登记编号、未定稿设计的变更不得进入编码阶段 |
 | REQ-ARCH-001 | 权限服务（whale-auth）改造为 DDD 分层架构 | 用户指令 7 | 高 | 设计已定稿 | [design/ddd-whale-auth.md](../design/ddd-whale-auth.md) | 四层架构、限界上下文、聚合设计、渐进迁移路线与回滚方案齐备 |
@@ -49,10 +49,10 @@
 
 | 编号 | 需求描述 | 来源 | 优先级 | 状态 | 落点 | 验收标准 |
 |---|---|---|---|---|---|---|
-| REQ-SEC-002 | 登出（logout）令牌失效：接入分布式黑名单，使已登出 token 立即不可用 | REQ-DIST-002 + Wave 4 T4.1 | 高 | 待验证 | `whale-auth` `security/TokenBlacklist` + `JwtAuthenticationFilter` + `AuthService#logout` | 登出后原 accessToken 再访问受保护接口返回 401；Redis 不可用时降级不阻断登录 |
-| REQ-SEC-003 | 令牌黑名单的网关侧校验 | REQ-SEC-002 延伸 | 中 | 实现中（Wave 5.1 T5.7） | `whale-gateway` `JwtAuthGlobalFilter` + `security/TokenBlacklistChecker` | 网关层命中黑名单直接 401，避免跨服务漏放行；Redis 不可用按未命中降级 |
-| REQ-SEC-004 | refreshToken 一并失效：令牌带 `jti`，登出时 access/refresh 双写黑名单，`/auth/refresh` 先校验黑名单 | REQ-SEC-002 延伸 | **高（P1）** | 实现中（Wave 5.1 T5.6） | `whale-auth` `jwt/JwtTokenProvider` + `service/AuthService` + `controller/AuthController` + `dto/LogoutRequest` | 登出后原 refreshToken 调 `/auth/refresh` 返回 401；双令牌均写入同一 Redis 黑名单 |
-| REQ-SEC-005 | 生产密钥强制校验：非 dev 环境启动时若 JWT 签名密钥仍为默认占位值则拒绝启动 | 用户指令 5 + Wave 5 T5.8 | 中 | 实现中 | `whale-auth` `config/JwtProperties` + `config/SecretPlaceholderChecker` | 非 dev profile 下密钥为占位值时应用启动失败并输出明确告警；dev 环境不受影响 |
+| REQ-SEC-002 | 登出（logout）令牌失效：接入分布式黑名单，使已登出 token 立即不可用 | REQ-DIST-002 + Wave 4 T4.1 | 高 | 待验证（Redis 侧**实机通过**：摘要键 `auth:token:blacklist:<sha256>` + TTL>0 + 跨实例共享 + 过期不写入；HTTP 端到端受 P0 阻塞） | `whale-auth` `security/TokenBlacklist` + `JwtAuthenticationFilter` + `AuthService#logout` | 登出后原 accessToken 再访问受保护接口返回 401；Redis 不可用时降级不阻断登录 |
+| REQ-SEC-003 | 令牌黑名单的网关侧校验 | REQ-SEC-002 延伸 | 中 | 实现中（Wave 5.1 T5.7） | `whale-gateway` `JwtAuthGlobalFilter` + `security/TokenBlacklistChecker` | 网关层命中黑名单直接 401，避免跨服务漏放行；Redis 不可用按未命中降级。**未验证（阻塞）**：网关依赖 Nacos 地址解析而 8848 未监听 |
+| REQ-SEC-004 | refreshToken 一并失效：令牌带 `jti`，登出时 access/refresh 双写黑名单，`/auth/refresh` 先校验黑名单 | REQ-SEC-002 延伸 | **高（P1）** | 实现中（Wave 5.1 T5.6；**Redis 双写黑名单已实机验证**：access/refresh 均写入且跨实例命中；HTTP 端到端受 P0 阻塞） | `whale-auth` `jwt/JwtTokenProvider` + `service/AuthService` + `controller/AuthController` + `dto/LogoutRequest` | 登出后原 refreshToken 调 `/auth/refresh` 返回 401；双令牌均写入同一 Redis 黑名单 |
+| REQ-SEC-005 | 生产密钥强制校验：非 dev 环境启动时若 JWT 签名密钥仍为默认占位值则拒绝启动 | 用户指令 5 + Wave 5 T5.8 | 中 | 实现中 | `whale-auth` `config/JwtProperties` + `config/SecretPlaceholderChecker` | 非 dev profile 下密钥为占位值时应用启动失败并输出明确告警；dev 环境不受影响。**运行时未验证（阻塞）**：应用因 P0 无法启动 |
 
 ---
 
