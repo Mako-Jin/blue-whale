@@ -40,8 +40,8 @@
 
 | 任务 | 内容 | 依赖 | 优先级 | 验收口径 | 相对规模 |
 |---|---|---|---|---|---|
-| T5.1 | 分布式 ID 统一：确认各实体主键使用 `IdType.ASSIGN_ID`；`BaseEntity` 显式声明；Long → String 序列化（Jackson 3）避免前端精度丢失 | 无 | 高 | 新插入记录 ID 为 19 位雪花且前端收到字符串 | S |
-| T5.2 | `@DistributedLock` 注解 + SpEL key 解析 + Redisson AOP 切面（或先做 `DistributedLockTemplate` 工具类，视复杂度择一） | 无（Redisson 已在 auth） | 高 | 并发调用同 key 互斥；`tryLock` 超时返回业务异常；单测覆盖锁获取/超时 | M |
+| ~~T5.1~~ | 分布式 ID 统一：确认各实体主键使用 `IdType.ASSIGN_ID`；`BaseEntity` 显式声明；Long → String 序列化（Jackson 3）避免前端精度丢失 | 无 | 高 | 新插入记录 ID 为 19 位雪花且前端收到字符串 | S |
+| ~~T5.2~~ | `@DistributedLock` 注解 + SpEL key 解析 + Redisson AOP 切面（或先做 `DistributedLockTemplate` 工具类，视复杂度择一） | 无（Redisson 已在 auth） | 高 | 并发调用同 key 互斥；`tryLock` 超时返回业务异常；单测覆盖锁获取/超时 | M |
 | T5.3 | 幂等组件：`@Idempotent` + Token/唯一键，先用于用户注册 | T5.2 | 中 | 重复提交返回同一结果，不产生重复数据 | M |
 | T5.4 | 网关限流：接入 Sentinel（或先用 Redis 计数器兜底） | 网关 | 中 | 超阈值返回 429 + `Result` 体 | M |
 | T5.5 | 缓存一致性约定落地：Cache-Aside + TTL 抖动 + 空值哨兵写入公共工具 | 无 | 中 | 工具类单测通过；i18n 与权限缓存统一改造 | S |
@@ -50,18 +50,18 @@
 
 | 任务 | 内容 | 依赖 | 优先级 | 验收口径 | 相对规模 |
 |---|---|---|---|---|---|
-| T5.6 | **REQ-SEC-004**：登录时签发 `jti` / token 版本号，登出与刷新时校验版本，使 refreshToken 一并失效 | T4.1 | **P1 高** | 登出后 refreshToken 调 `/auth/refresh` 返回 401 | M |
-| T5.7 | **REQ-SEC-003**：网关 `JwtAuthGlobalFilter` 增加 Redis 黑名单校验（响应式 Redis 或 Lettuce 同步降级） | T4.1 | 中 | 经网关访问下游服务的已登出 token 返回 401 | M |
-| T5.8 | 生产密钥强制校验：启动时若 `JWT_SECRET` 为默认占位值则拒绝启动（非 dev profile） | 无 | 中 | 默认值启动失败并给出明确提示 | S |
+| ~~T5.6~~ | **REQ-SEC-004**：登录时签发 `jti` / token 版本号，登出与刷新时校验版本，使 refreshToken 一并失效 | T4.1 | **P1 高** | 登出后 refreshToken 调 `/auth/refresh` 返回 401 | M |
+| ~~T5.7~~ | **REQ-SEC-003**：网关 `JwtAuthGlobalFilter` 增加 Redis 黑名单校验（响应式 Redis 或 Lettuce 同步降级） | T4.1 | 中 | 经网关访问下游服务的已登出 token 返回 401 | M |
+| ~~T5.8~~ | 生产密钥强制校验：启动时若 `JWT_SECRET` 为默认占位值则拒绝启动（非 dev profile） | 无 | 中 | 默认值启动失败并给出明确提示 | S |
 
 ### 组 C：审计日志落地（承接 REQ-SEC-001）
 
 | 任务 | 内容 | 依赖 | 优先级 | 验收口径 | 相对规模 |
 |---|---|---|---|---|---|
-| T5.9 | `audit_log` 表补充 7 个字段（`operate_type`/`http_method`/`target_type`/`target_id`/`biz_status`/`error_msg`/`tenant_id`）的 ALTER 脚本 | 无 | 高 | `db/init.sql` 更新，字段与设计文档一致 | S |
-| T5.10 | `whale-common` 增加 `@AuditLog` 注解 + AOP 切面 + 异步写库（`afterCommit`） ✅ 已完成（Wave 5.1b） | T5.9 | 高 | auth 的登录/登出/权限变更写入审计记录 | M |
-| T5.11 | 敏感字段脱敏器（密码/手机号/身份证/银行卡）接入审计参数序列化 ✅ 已完成（Wave 5.1b） | T5.10 | 高 | 审计记录中敏感字段为掩码 | S |
-| T5.12 | 审计查询接口（分页 + 条件，`Result<PageResult>`) ✅ 已完成（Wave 5.1b） | T5.10 | 中 | 可按用户/模块/时间范围查询 | S |
+| ~~T5.9~~ | `audit_log` 表补充 7 个字段（`operate_type`/`http_method`/`target_type`/`target_id`/`biz_status`/`error_msg`/`tenant_id`）的 ALTER 脚本 | 无 | 高 | `db/init.sql` 更新，字段与设计文档一致 | S |
+| ~~T5.10~~ | `whale-common` 增加 `@AuditLog` 注解 + AOP 切面 + 异步写库（`afterCommit`） ✅ 已完成（Wave 5.1b） | T5.9 | 高 | auth 的登录/登出/权限变更写入审计记录 | M |
+| ~~T5.11~~ | 敏感字段脱敏器（密码/手机号/身份证/银行卡）接入审计参数序列化 ✅ 已完成（Wave 5.1b） | T5.10 | 高 | 审计记录中敏感字段为掩码 | S |
+| ~~T5.12~~ | 审计查询接口（分页 + 条件，`Result<PageResult>`) ✅ 已完成（Wave 5.1b） | T5.10 | 中 | 可按用户/模块/时间范围查询 | S |
 
 ### 组 D：权限服务 DDD 迁移（承接 REQ-ARCH-001）
 
@@ -78,7 +78,7 @@
 | T5.16 | Gitee Go 流水线映射：按 `docs/design/cicd.md` 第 6 节把三条 Workflow 映射为 Gitee Go 任务 | 无 | 中 | 推送后在 Gitee 可见流水线执行结果 | M |
 | T5.17 | 门禁升级：把命名/import/结构类规则由 `warning` 提升为 `error`，使 Checkstyle 转为真正阻断 | T5.1–T5.15 清理完毕 | 中 | 违规时 CI 失败 | S |
 | T5.18 | JaCoCo 覆盖率接入（阈值 40%/60%/增量 70%，见 cicd.md 第 3 节） | 无 | 中 | 构建产出覆盖率报告并执行阈值校验 | M |
-| T5.19 | 单测补充：whale-auth 黑名单/登出逻辑（含 Redis 降级路径，用 mock 或嵌入式替代） | T4.1 | 高 | 新增用例全绿；覆盖正常/降级/TTL 边界 | M |
+| ~~T5.19~~ | 单测补充：whale-auth 黑名单/登出逻辑（含 Redis 降级路径，用 mock 或嵌入式替代） | T4.1 | 高 | 新增用例全绿；覆盖正常/降级/TTL 边界 | M |
 | T5.20 | 全量回归：`mvn clean install -T 1C` + `pnpm build`，按清单出报告后提交推送 | 上述任务 | 高 | 后端 exit 0 / 前端 11 包成功；报告归档 | M |
 
 ### 组 F：前端推进（承接 REQ-FUNC-008 / 009 / 010）
@@ -95,17 +95,17 @@
 
 ```
 Wave 5.0（无外部依赖）— 全部完成
-  ├─ ✅ T5.1 分布式 ID 统一        ├─ ✅ T5.9 审计表字段补全
-  ├─ ✅ T5.2 分布式锁工具          └─ ✅ T5.19 auth 单测补充（13 用例）
-  └─ ✅ T5.8 生产密钥校验
+  ├─ ✅ ~~T5.1 分布式 ID 统一~~        ├─ ✅ ~~T5.9 审计表字段补全~~
+  ├─ ✅ ~~T5.2 分布式锁工具~~          └─ ✅ ~~T5.19 auth 单测补充（13 用例）~~
+  └─ ✅ ~~T5.8 生产密钥校验~~
 
 Wave 5.1（依赖 5.0 产物）— 安全收口已闭环
-  ├─ ✅ T5.6 refreshToken 一并失效（REQ-SEC-004，P1）
-  ├─ ✅ T5.7 网关侧黑名单校验（REQ-SEC-003）
-  ├─ ✅ T5.10/T5.11/T5.12 审计落地   ├─ T5.3 幂等组件
+  ├─ ✅ ~~T5.6 refreshToken 一并失效（REQ-SEC-004，P1）~~
+  ├─ ✅ ~~T5.7 网关侧黑名单校验（REQ-SEC-003）~~
+  ├─ ✅ ~~T5.10/T5.11/T5.12 审计落地~~   ├─ T5.3 幂等组件
   ├─ T5.13 auth DDD 骨架          └─ T5.5 缓存一致性工具
 
-Wave 5.1b（审计收口）— 已闭环：✅ T5.10 ｜ ✅ T5.11 ｜ ✅ T5.12（运行时待中间件）
+Wave 5.1b（审计收口）— 已闭环：✅ ~~T5.10~~ ｜ ✅ ~~T5.11~~ ｜ ✅ ~~T5.12~~（运行时待中间件）
 
 Wave 5.2（架构迁移 + 前端）
   ├─ T5.14/T5.15 auth DDD 迁移  ├─ T5.22 whale-ui

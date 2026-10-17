@@ -13,30 +13,30 @@
 
 ### 2.1 whale-auth 权限中心（最高优先级）
 
-- [x] 数据库表设计：sys_user / sys_role / sys_permission / sys_menu / sys_dept / sys_user_role / sys_role_permission（+sys_user_permission ABAC 属性表）
-- [x] RBAC + ABAC 六层级模型：系统 → 菜单 → 接口 → 按钮 → 数据 → 属性
-- [x] JWT 登录 / 刷新 / 注销接口
-- [x] Spring Security + `@RequirePermission` 注解拦截
+- [x] ~~数据库表设计：sys_user / sys_role / sys_permission / sys_menu / sys_dept / sys_user_role / sys_role_permission（+sys_user_permission ABAC 属性表）~~
+- [x] ~~RBAC + ABAC 六层级模型：系统 → 菜单 → 接口 → 按钮 → 数据 → 属性~~
+- [x] ~~JWT 登录 / 刷新 / 注销接口~~
+- [x] ~~Spring Security + `@RequirePermission` 注解拦截~~
 - [ ] 对接 admin 前端登录
 
 ### 2.2 whale-gateway 网关
 
-- [x] Nacos 服务发现动态路由
-- [x] JWT 全局鉴权过滤器
+- [x] ~~Nacos 服务发现动态路由~~
+- [x] ~~JWT 全局鉴权过滤器~~
 - [ ] Sentinel 限流熔断
-- [x] 请求日志 / TraceId 链路追踪
+- [x] ~~请求日志 / TraceId 链路追踪~~
 
 ### 2.3 whale-common / whale-tools 公共组件
 
-- [x] 统一返回体 `Result<T>` / `PageResult<T>`
-- [x] 全局异常处理 `GlobalExceptionHandler`
-- [x] MyBatis-Plus 分页插件、字段自动填充
+- [x] ~~统一返回体 `Result<T>` / `PageResult<T>`~~
+- [x] ~~全局异常处理 `GlobalExceptionHandler`~~
+- [x] ~~MyBatis-Plus 分页插件、字段自动填充~~
 
 ### 2.4 whale-i18n-sdk 国际化
 
-- [x] 消息表 `sys_i18n_message` 设计
-- [x] 三级优先级实现：数据库 > 属性文件 > 默认值
-- [x] Redis 缓存（+SPI 数据源实现，14 个单测全绿）
+- [x] ~~消息表 `sys_i18n_message` 设计~~
+- [x] ~~三级优先级实现：数据库 > 属性文件 > 默认值~~
+- [x] ~~Redis 缓存（+SPI 数据源实现，14 个单测全绿）~~
 - [ ] 消息 CRUD 接口
 
 ### 2.5 其余服务骨架填充
@@ -48,35 +48,35 @@
 
 **工程规范（REQ-DOC-001/002、REQ-QA-001/002）**
 
-- [x] 需求登记册：REQ 编号体系 + 变更控制七步流程 + 四条门禁规则（[register.md](../requirements/register.md)）
-- [x] 代码检查清单：协议安全 12 / 代码漏洞 16 / 复杂度 9 / 魔法值 6 / 规范 14 项（[code-review-checklist.md](../checklists/code-review-checklist.md)）
-- [x] 检查报告机制：每次变更产出 `docs/reviews/` 报告（首份已归档）
-- [x] CI/CD 代码质量门禁：Checkstyle 规则集 + `code-quality.yml`（报告模式）
+- [x] ~~需求登记册：REQ 编号体系 + 变更控制七步流程 + 四条门禁规则（[register.md](../requirements/register.md)）~~
+- [x] ~~代码检查清单：协议安全 12 / 代码漏洞 16 / 复杂度 9 / 魔法值 6 / 规范 14 项（[code-review-checklist.md](../checklists/code-review-checklist.md)）~~
+- [x] ~~检查报告机制：每次变更产出 `docs/reviews/` 报告（首份已归档）~~
+- [x] ~~CI/CD 代码质量门禁：Checkstyle 规则集 + `code-quality.yml`（报告模式）~~
 
 **专项设计定稿（REQ-SEC-001 / REQ-DIST-001~003 / REQ-ARCH-001 / REQ-CICD-001）**
 
-- [x] 审计日志方案（[audit-log.md](../design/audit-log.md)）
-- [x] 分布式 ID / 分布式锁 / 其他分布式问题（[distributed.md](../design/distributed.md)）
-- [x] 权限服务 DDD 架构与迁移路线（[ddd-whale-auth.md](../design/ddd-whale-auth.md)）
-- [x] CI/CD 流水线方案（[cicd.md](../design/cicd.md)）
+- [x] ~~审计日志方案（[audit-log.md](../design/audit-log.md)）~~
+- [x] ~~分布式 ID / 分布式锁 / 其他分布式问题（[distributed.md](../design/distributed.md)）~~
+- [x] ~~权限服务 DDD 架构与迁移路线（[ddd-whale-auth.md](../design/ddd-whale-auth.md)）~~
+- [x] ~~CI/CD 流水线方案（[cicd.md](../design/cicd.md)）~~
 
 **分布式能力落地（REQ-SEC-002 / REQ-DIST-002）**
 
-- [x] 分布式令牌黑名单：登出后 accessToken 立即失效（Redis + SHA-256 摘要键 + 降级）
-- [ ] 分布式锁工具（`@DistributedLock` + SpEL + Redisson）
-- [ ] 审计日志落地（`@AuditLog` + AOP 异步写库 + 敏感字段脱敏）
-- [x] refreshToken 失效（`jti` + 黑名单）、网关侧黑名单校验（REQ-SEC-003/004）
-- [ ] 分布式 ID 统一与 Long→String 序列化
+- [x] ~~分布式令牌黑名单：登出后 accessToken 立即失效（Redis + SHA-256 摘要键 + 降级）~~
+- [x] ~~分布式锁工具（`@DistributedLock` + SpEL + Redisson）~~
+- [x] ~~审计日志落地（`@AuditLog` + AOP 异步写库 + 敏感字段脱敏）~~
+- [x] ~~refreshToken 失效（`jti` + 黑名单）、网关侧黑名单校验（REQ-SEC-003/004）~~
+- [x] ~~分布式 ID 统一与 Long→String 序列化~~
 - [ ] Gitee Go 流水线映射、JaCoCo 覆盖率门禁
 
 ## Phase 3：前端平台填充
 
 ### 3.1 whale-platform 基座
 
-- [x] 登录页 + 路由守卫
-- [x] MainLayout（Header / Sidebar / 多标签页）
-- [x] 子应用错误兜底（qiankun 加载动画待做）
-- [x] 主题切换（@bluewhale/whale-common-theme，亮/暗）
+- [x] ~~登录页 + 路由守卫~~
+- [x] ~~MainLayout（Header / Sidebar / 多标签页）~~
+- [x] ~~子应用错误兜底（qiankun 加载动画待做）~~
+- [x] ~~主题切换（@bluewhale/whale-common-theme，亮/暗）~~
 
 ### 3.2 whale-ui 组件库
 
