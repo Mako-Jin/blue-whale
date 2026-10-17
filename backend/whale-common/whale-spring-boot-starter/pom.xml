@@ -28,6 +28,18 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
+        <!-- AOP：@DistributedLock 切面依赖。Spring Boot 4 已移除 spring-boot-starter-aop，
+             改由 org.aspectj:aspectjweaver（BOM 统一管理版本）+ spring-aop（经 spring-context 传递）提供 -->
+        <dependency>
+            <groupId>org.aspectj</groupId>
+            <artifactId>aspectjweaver</artifactId>
+        </dependency>
+        <!-- Redisson：分布式锁实现。optional=true，仅当使用方显式引入 Redisson 时才生效 -->
+        <dependency>
+            <groupId>org.redisson</groupId>
+            <artifactId>redisson-spring-boot-starter</artifactId>
+            <optional>true</optional>
+        </dependency>
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot3-starter</artifactId>

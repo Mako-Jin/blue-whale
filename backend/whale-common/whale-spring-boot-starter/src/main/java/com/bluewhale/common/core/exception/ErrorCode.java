@@ -27,6 +27,9 @@ public enum ErrorCode {
     /** 资源不存在 */
     NOT_FOUND(404, "资源不存在"),
 
+    /** 并发冲突：分布式锁获取失败（资源被占用，快速失败） */
+    LOCK_ACQUIRE_FAILED(429, "系统繁忙，请稍后重试"),
+
     /** 参数错误 */
     PARAM_ERROR(400, "参数错误");
 

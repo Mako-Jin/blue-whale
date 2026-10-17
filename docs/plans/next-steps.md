@@ -22,6 +22,11 @@
 
 ## 二、Wave 5 任务清单
 
+> **Wave 5.0 执行结果（2026-10-17 更新）**：✅ T5.1 ｜ ✅ T5.2 ｜ ✅ T5.8 ｜ ✅ T5.9 ｜ ✅ T5.19。
+> 均以「全模块编译 + 新增单测（13 用例全绿）+ Checkstyle 0 违规」完成静态验证；因本机无 Docker，**未做运行时/端到端验证**。
+> 详见 [devlog §12](../devlog/2026-10-17.md) 与 [检查报告](../reviews/2026-10-17-wave5-static-groundwork.md)。
+> Wave 5.0 执行中修正的认知偏差：Boot 4.0.8 **已移除** `spring-boot-starter-aop`（改用 `org.aspectj:aspectjweaver`）；HTTP JSON 序列化确为 **Jackson 3**（`JsonMapperBuilderCustomizer` 为唯一定制钩子）。
+
 ### 组 A：分布式基础落地（承接 REQ-DIST-001~003）
 
 | 任务 | 内容 | 依赖 | 优先级 | 验收口径 | 相对规模 |
@@ -80,10 +85,10 @@
 ## 三、建议执行顺序（波次）
 
 ```
-Wave 5.0（可立即并行，无外部依赖）
-  ├─ T5.1 分布式 ID 统一        ├─ T5.9 审计表 ALTER
-  ├─ T5.2 分布式锁工具          ├─ T5.6 REQ-SEC-004 refreshToken 失效（P1）
-  ├─ T5.8 生产密钥校验          └─ T5.19 auth 单测补充
+Wave 5.0（可立即并行，无外部依赖）— 除 T5.6 外均已完成
+  ├─ ✅ T5.1 分布式 ID 统一        ├─ ✅ T5.9 审计表字段补全
+  ├─ ✅ T5.2 分布式锁工具          ├─ ⬜ T5.6 REQ-SEC-004 refreshToken 失效（P1，待做）
+  ├─ ✅ T5.8 生产密钥校验          └─ ✅ T5.19 auth 单测补充（13 用例）
 
 Wave 5.1（依赖 5.0 产物）
   ├─ T5.10/T5.11/T5.12 审计落地   ├─ T5.3 幂等组件
