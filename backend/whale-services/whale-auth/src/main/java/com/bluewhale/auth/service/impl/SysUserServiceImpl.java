@@ -3,6 +3,8 @@ package com.bluewhale.auth.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
+import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
+import com.bluewhale.auth.domain.model.vo.Username;
 import com.bluewhale.auth.dto.UserCreateRequest;
 import com.bluewhale.auth.dto.UserUpdateRequest;
 import com.bluewhale.auth.entity.SysUser;
@@ -62,14 +64,16 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
     @Override
     public UserVO create(UserCreateRequest request) {
+        // 值对象前置校验用户名不变量（AUTH-14 / T-DDD-2）
+        String username = Username.of(request.getUsername()).value();
         Long exists = baseMapper.selectCount(new LambdaQueryWrapper<SysUser>()
-                .eq(SysUser::getUsername, request.getUsername()));
+                .eq(SysUser::getUsername, username));
         if (exists != null && exists > 0) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "用户名已存在");
         }
         SysUser user = new SysUser();
-        user.setUsername(request.getUsername());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setUsername(username);
+        user.setPassword(EncryptedPassword.of(passwordEncoder.encode(request.getPassword())).value());
         user.setNickname(request.getNickname());
         user.setPhone(request.getPhone());
         user.setEmail(request.getEmail());

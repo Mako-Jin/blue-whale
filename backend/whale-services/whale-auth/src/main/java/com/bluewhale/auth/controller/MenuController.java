@@ -1,6 +1,7 @@
 package com.bluewhale.auth.controller;
 
 import com.bluewhale.auth.dto.MenuRequest;
+import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.auth.service.SysMenuService;
 import com.bluewhale.auth.vo.MenuVO;
 import com.bluewhale.common.core.result.Result;
@@ -30,28 +31,33 @@ public class MenuController {
     private final SysMenuService menuService;
 
     @GetMapping("/tree")
+    @RequirePermission("sys:menu:list")
     public Result<List<MenuVO>> tree() {
         return Result.ok(menuService.tree());
     }
 
     @GetMapping("/{id}")
+    @RequirePermission("sys:menu:list")
     public Result<MenuVO> detail(@PathVariable Long id) {
         return Result.ok(menuService.getDetail(id));
     }
 
     @PostMapping
+    @RequirePermission("sys:menu:add")
     public Result<Void> create(@Valid @RequestBody MenuRequest request) {
         menuService.create(request);
         return Result.ok();
     }
 
     @PutMapping("/{id}")
+    @RequirePermission("sys:menu:edit")
     public Result<Void> update(@PathVariable Long id, @Valid @RequestBody MenuRequest request) {
         menuService.update(id, request);
         return Result.ok();
     }
 
     @DeleteMapping("/{id}")
+    @RequirePermission("sys:menu:delete")
     public Result<Void> delete(@PathVariable Long id) {
         menuService.delete(id);
         return Result.ok();

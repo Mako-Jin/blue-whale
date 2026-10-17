@@ -29,10 +29,11 @@ spring:
               enabled: true
               lower-case-service-id: true
           routes:
+            # whale-auth 自持全部一级前缀（REQ-ARCH-003）：认证 + 用户/部门/角色/菜单/权限管理（AUTH-38）
             - id: whale-auth
               uri: lb://whale-auth
               predicates:
-                - Path=/auth/**
+                - Path=/auth/**,/user/**,/dept/**,/role/**,/menu/**,/permission/**
             - id: whale-job
               uri: lb://whale-job
               predicates:

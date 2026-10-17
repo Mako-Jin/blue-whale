@@ -3,6 +3,7 @@ package com.bluewhale.auth.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
+import com.bluewhale.auth.domain.model.vo.PermCode;
 import com.bluewhale.auth.dto.PermissionRequest;
 import com.bluewhale.auth.entity.SysPermission;
 import com.bluewhale.auth.mapper.SysPermissionMapper;
@@ -41,6 +42,13 @@ public class SysPermissionServiceImpl extends ServiceImpl<SysPermissionMapper, S
     }
 
     @Override
+    public List<String> listAllCodes() {
+        return list(new LambdaQueryWrapper<SysPermission>()
+                        .eq(SysPermission::getStatus, 1))
+                .stream().map(SysPermission::getPermCode).distinct().toList();
+    }
+
+    @Override
     public PermissionVO getDetail(Long id) {
         SysPermission permission = getById(id);
         if (permission == null) {
@@ -51,8 +59,10 @@ public class SysPermissionServiceImpl extends ServiceImpl<SysPermissionMapper, S
 
     @Override
     public void create(PermissionRequest request) {
+        // 值对象前置校验权限码不变量（AUTH-14 / T-DDD-2）
+        String permCode = PermCode.of(request.getPermCode()).value();
         Long exists = baseMapper.selectCount(new LambdaQueryWrapper<SysPermission>()
-                .eq(SysPermission::getPermCode, request.getPermCode()));
+                .eq(SysPermission::getPermCode, permCode));
         if (exists != null && exists > 0) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "权限编码已存在");
         }

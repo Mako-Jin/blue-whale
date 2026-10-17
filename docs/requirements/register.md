@@ -2,7 +2,8 @@
 
 > 用途：本项目所有需求（业务功能 + 工程规范）的统一台账。
 > 规则：**任何需求在动手实现之前，必须先在此登记编号与验收标准**（见 REQ-DOC-002）。
-> 最后更新：2026-10-17（Wave 5.1d 依赖兼容 + Wave 5.1e 审计切面修复 + Wave 5.1f 网关联调与路由前缀修复 + Wave 5.1g 命名规范与 Nacos 库前缀统一 + Wave 5.1h 完成即划线约定 + Wave 5.1i 服务与端口清单） ｜ 维护：BlueWhale
+> 最后更新：2026-10-17（Wave 5.1d 依赖兼容 + Wave 5.1e 审计切面修复 + Wave 5.1f 网关联调与路由前缀修复 + Wave 5.1g 命名规范与 Nacos 库前缀统一 + Wave 5.1h 完成即划线约定 + Wave 5.1i 服务与端口清单 + Wave 5.2 权限服务 P1 收口） ｜ 维护：BlueWhale
+> Wave 5.2：权限服务（whale-auth）**P1 收口**——补齐 **31 处 `@RequirePermission`**（3 → 31）+ 22 条权限点种子（AUTH-04）、新增 `GET /auth/me`（AUTH-21）、补齐 auth 管理前缀网关路由（AUTH-38）、DDD 四层骨架 + 4 值对象（AUTH-14 ↔ T5.13）、Checkstyle 0 WARN（AUTH-26）。30 单测全绿。
 > Wave 5.1i：发布**全平台服务与端口清单**（[service-catalog.md](../service-catalog.md)，新增登记 **REQ-ARCH-005**）——15 个后端服务、6 个前端应用、8 类第三方组件的端口 ↔ 服务 ↔ 库 ↔ 对外前缀全量映射，并登记 7 项偏差（前端 dev 端口与后端冲突 C-01、网关缺 6 条路由 C-03、8 服务未接数据源 C-06 等）。
 > Wave 5.1h：确立「**完成即划线**」文档约定（[docs/README.md](../README.md) 约定第 7 条）——待办台账与蓝图文档中已完成任务一律加删除线；已落实到 backlog / next-steps / roadmap / task-breakdown 共 74 处。
 > Wave 5.1g：发布**统一命名规范**（[naming-conventions.md](../naming-conventions.md)，新增登记 **REQ-ARCH-004**）；`nacos` 库按同一前缀整改为 **`bluewhale_nacos`**（Nacos 3.2.4 停服 → 迁表 → 改 `conf/application.properties` → 重启验证，8848/8849 就绪、服务注册与 `lb://` 链路复测通过）；命名符合性纳入检查清单 **E15**（清单由 57 项扩为 58 项）。
@@ -45,7 +46,7 @@
 | REQ-DIST-003 | 其他分布式问题（幂等、缓存一致性、分布式事务、限流熔断、链路追踪、分布式会话） | 用户指令 5 | 中 | 设计已定稿 | [design/distributed.md](../design/distributed.md) | 每项含备选方案对比表与推荐结论 |
 | REQ-DOC-002 | 所有要求先落到文档，每一步都需遵守（文档先行 / 变更控制） | 用户指令 6 | 高 | 已完成 | 本登记册 + [docs/README.md](../README.md) 约定章节 | 未登记编号、未定稿设计的变更不得进入编码阶段 |
 | REQ-DOC-003 | **「完成即划线」文档约定**：待办台账（backlog / next-steps）与蓝图（roadmap / task-breakdown）中，已完成任务一律加删除线 `~~…~~`，并保留 `[x]` / `✅` 状态标记与完成结论可读 | 用户指令 13（Wave 5.1h） | 中 | 已完成 | [docs/README.md](../README.md) 文档约定第 7 条 + `docs/plans/` 四份文档 | ① 约定写入 README 并作为后续维护规则；② 已落实 backlog 6 处、next-steps 12 处、roadmap 30 行、task-breakdown 26 行；③ 各波次收尾时对新完成任务同形态划线 |
-| REQ-ARCH-001 | 权限服务（whale-auth）改造为 DDD 分层架构 | 用户指令 7 | 高 | 设计已定稿 | [design/ddd-whale-auth.md](../design/ddd-whale-auth.md) | 四层架构、限界上下文、聚合设计、渐进迁移路线与回滚方案齐备 |
+| REQ-ARCH-001 | 权限服务（whale-auth）改造为 DDD 分层架构 | 用户指令 7 | 高 | 推进中（Wave 5.2 第 1 步落地：四层骨架 + 4 值对象 + 契约冻结清单） | [design/ddd-whale-auth.md](../design/ddd-whale-auth.md) §7/§10 | 四层架构、限界上下文、聚合设计、渐进迁移路线与回滚方案齐备；**Wave 5.2 已建 `domain/application/interfaces/infrastructure` 骨架与 `Username`/`EncryptedPassword`/`RoleCode`/`PermCode` 值对象**（AUTH-14 ↔ T5.13），后续 AUTH-15/16/17 渐进迁移 |
 | REQ-ARCH-002 | 数据库可切换适配：按客户要求切换不同数据库，含**国产化要求**（达梦 DM / 人大金仓 KingBase / openGauss / OceanBase 等） | 用户指令 10 | 中 | 待推进（**未设计**；当前及近期仍统一使用 MySQL） | 本登记册 + 待建 `design/multi-database.md` | ① 持久层方言可切换：MyBatis-Plus `DbType` + `PaginationInnerInterceptor` 按库选型，不写死 MySQL；② DDL 版本化并在未来按数据库类型分发（Flyway/Liquibase 或等价方案），替换现有 `init.sql` 直连执行；③ 去 MySQL 专有依赖：`ENGINE=InnoDB`、`utf8mb4_general_ci`、`ON UPDATE CURRENT_TIMESTAMP`、`TINYINT`、JDBC 参数 `characterEncoding/serverTimezone` 等；④ 产出「本仓现状与换库改造清单 + 风险」文档。**本轮不实现，仅登记，避免阻塞 Wave 5.1d** |
 | REQ-ARCH-003 | 网关路由与前缀约定：**服务自持对外一级路径前缀，网关不剥离前缀** | Wave 5.1f 网关联调实测（AUTH-29 根因） | 高 | 设计已定稿（Wave 5.1f） | [architecture.md §网关路由与前缀约定](../architecture.md) + `whale-gateway/application.yml` | ① 服务控制器路径即对外路径（auth `/auth/login`、audit `/audit/log/page`），网关路由**不得**配置 `StripPrefix`；② 网关 JWT 白名单与服务自身 Spring Security 白名单按同一对外路径书写，保证端到端一致；③ 经网关 `8080` 访问 `/auth/login` 返回业务码 0，`/auth/refresh` 业务码 401（登出后） |
 | REQ-ARCH-004 | 统一命名规范：**所有库使用同一前缀**（Nacos 库与业务库一致）、服务 / 模块 / Java 包 / 配置 / Redis key 命名自解释（看名字即知属于哪一部分、做什么） | 用户指令 11（Wave 5.1g） | 高 | 实现中（规范已定稿并落地；存量偏差 N-02/N-03/N-04 待整改） | [naming-conventions.md](../naming-conventions.md) + [architecture.md §命名规范](../architecture.md) + [checklists E15](../checklists/code-review-checklist.md) + `tools/nacos/conf/application.properties` | ① 库名统一 `bluewhale_<域>`，**基础设施同前缀**（Nacos 为 `bluewhale_nacos`，不留裸 `nacos`）；② 服务名满足 `模块目录 = artifactId = spring.application.name = Nacos 服务名`；③ Java 包 `com.bluewhale.<域>[.<层>]`；④ Redis key `whale:<域>:<用途>:<标识>`；⑤ 新增库/服务/包在规范 §八 登记，检查清单 E15 通过 |
@@ -71,7 +72,7 @@
 | 编号 | 需求描述 | 状态 | 来源 |
 |---|---|---|---|
 | REQ-FUNC-001 | 基础设施就绪：Docker Compose 中间件（MySQL/Redis/Nacos/RabbitMQ/Nginx） | **本机原生进程方式已就绪（Wave 5.1f）**：MySQL 3306 / Redis 6379 / **Nacos 3.2.4（8848 服务 + 8849 控制台，MySQL 外置存储）** 均运行中；RabbitMQ / Nginx 未落地（Docker 仍缺） | [roadmap.md](../plans/roadmap.md) Phase 1 |
-| REQ-FUNC-002 | whale-auth 权限中心（RBAC + ABAC 六层级） | 已完成（API 齐备，前端未对接） | roadmap Phase 2.1 |
+| REQ-FUNC-002 | whale-auth 权限中心（RBAC + ABAC 六层级） | 已完成（API 齐备 + 权限注解/菜单接口补齐，前端未对接） | roadmap Phase 2.1 |
 | REQ-FUNC-003 | whale-gateway 网关（动态路由 + JWT 鉴权 + TraceId） | 已完成（Sentinel 限流待做） | roadmap Phase 2.2 |
 | REQ-FUNC-004 | whale-common 公共组件（Result / 异常 / 分页 / 自动填充） | 已完成 | roadmap Phase 2.3 |
 | REQ-FUNC-005 | whale-i18n 国际化（三级回退 + Redis 缓存） | 已完成（消息 CRUD 接口待做） | roadmap Phase 2.4 |

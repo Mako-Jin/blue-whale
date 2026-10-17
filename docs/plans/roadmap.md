@@ -17,7 +17,9 @@
 - [x] ~~RBAC + ABAC 六层级模型：系统 → 菜单 → 接口 → 按钮 → 数据 → 属性~~
 - [x] ~~JWT 登录 / 刷新 / 注销接口~~
 - [x] ~~Spring Security + `@RequirePermission` 注解拦截~~
-- [ ] 对接 admin 前端登录
+- [x] ~~接口权限注解全覆盖（31 处 `@RequirePermission`，3 → 31）+ 22 条权限点种子 + 2 菜单项（Wave 5.2，AUTH-04）~~
+- [x] ~~当前用户菜单/权限接口 `GET /auth/me`（roles/permissions/menus，Wave 5.2，AUTH-21）~~
+- [ ] 对接 admin 前端登录（**前置已解**：AUTH-38 路由 + AUTH-21 数据源；`/auth/me` 待前端渲染）
 
 ### 2.2 whale-gateway 网关
 
@@ -87,7 +89,7 @@
 
 - [ ] 登录页 → 用户 / 角色 / 菜单管理
 - [ ] 对接 whale-auth API
-- [ ] 动态路由 + 按钮级权限渲染
+- [ ] 动态路由 + 按钮级权限渲染（**后端数据源已就绪**：Wave 5.2 `GET /auth/me` 返回 permissions/menus）
 
 ### 3.4 whale-portal 门户
 

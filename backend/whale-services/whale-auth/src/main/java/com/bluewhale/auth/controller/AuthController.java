@@ -3,7 +3,9 @@ package com.bluewhale.auth.controller;
 import com.bluewhale.auth.dto.LoginRequest;
 import com.bluewhale.auth.dto.LogoutRequest;
 import com.bluewhale.auth.dto.RefreshRequest;
+import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.auth.service.AuthService;
+import com.bluewhale.auth.vo.AuthMeResponse;
 import com.bluewhale.auth.vo.LoginResponse;
 import com.bluewhale.common.audit.annotation.AuditLog;
 import com.bluewhale.common.audit.enums.OperateType;
@@ -11,6 +13,7 @@ import com.bluewhale.common.core.result.Result;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -42,6 +45,16 @@ public class AuthController {
     @PostMapping("/refresh")
     public Result<LoginResponse> refresh(@Valid @RequestBody RefreshRequest request) {
         return Result.ok(authService.refresh(request));
+    }
+
+    /**
+     * 当前登录用户：角色 / 权限码 / 可见菜单树（前端动态路由与按钮级权限渲染的数据源）。
+     * <p>仅需登录，不要求具体权限点。</p>
+     */
+    @GetMapping("/me")
+    @RequirePermission
+    public Result<AuthMeResponse> me() {
+        return Result.ok(authService.me());
     }
 
     /**

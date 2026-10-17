@@ -42,12 +42,14 @@ public class UserController {
     private final SysUserPermissionService userPermissionService;
 
     @GetMapping("/page")
+    @RequirePermission("sys:user:list")
     public Result<PageResult<UserVO>> page(PageQuery pageQuery,
                                            @RequestParam(required = false) String keyword) {
         return Result.ok(userService.page(pageQuery.getCurrent(), pageQuery.getSize(), keyword));
     }
 
     @GetMapping("/{id}")
+    @RequirePermission("sys:user:list")
     public Result<UserVO> detail(@PathVariable Long id) {
         return Result.ok(userService.getDetail(id));
     }
@@ -61,6 +63,7 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
+    @RequirePermission("sys:user:edit")
     public Result<UserVO> update(@PathVariable Long id, @Valid @RequestBody UserUpdateRequest request) {
         return Result.ok(userService.update(id, request));
     }
@@ -74,6 +77,7 @@ public class UserController {
 
     /** 全量覆盖分配角色：授权变更属敏感操作，必留痕 */
     @PostMapping("/{id}/roles")
+    @RequirePermission("sys:user:assign")
     @AuditLog(operation = "分配用户角色", type = OperateType.GRANT, targetType = "sys_user", targetId = "#id")
     public Result<Void> assignRoles(@PathVariable Long id, @Valid @RequestBody AssignRolesRequest request) {
         userService.assignRoles(id, request.getRoleIds());
@@ -82,18 +86,21 @@ public class UserController {
 
     /** 查询用户已分配角色 ID */
     @GetMapping("/{id}/roles")
+    @RequirePermission("sys:user:list")
     public Result<List<Long>> roleIds(@PathVariable Long id) {
         return Result.ok(userService.listRoleIds(id));
     }
 
     /** ABAC 属性读取 */
     @GetMapping("/{id}/attrs")
+    @RequirePermission("sys:user:list")
     public Result<List<UserAttrVO>> attrs(@PathVariable Long id) {
         return Result.ok(userPermissionService.listByUserId(id));
     }
 
     /** ABAC 属性写入（全量覆盖） */
     @PutMapping("/{id}/attrs")
+    @RequirePermission("sys:user:edit")
     public Result<Void> updateAttrs(@PathVariable Long id, @Valid @RequestBody UpdateAttrsRequest request) {
         userPermissionService.replaceUserAttrs(id, request);
         return Result.ok();

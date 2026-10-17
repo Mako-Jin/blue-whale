@@ -235,11 +235,40 @@ INSERT INTO sys_user_role
 VALUES
     (1, 1, 1);
 
--- 基础菜单：系统管理目录 + 用户 / 角色 / 菜单 三个菜单项
+-- 基础菜单：系统管理目录 + 用户 / 角色 / 菜单 / 部门 / 权限 五个菜单项
 INSERT INTO sys_menu
     (id, parent_id, name, path, component, icon, sort, menu_type, permission_code, visible, status)
 VALUES
     (1, 0, '系统管理', '/system', NULL, 'setting', 1, 'DIR', NULL, 1, 1),
     (2, 1, '用户管理', '/system/user', 'system/user/index', 'user', 1, 'MENU', 'sys:user:list', 1, 1),
     (3, 1, '角色管理', '/system/role', 'system/role/index', 'peoples', 2, 'MENU', 'sys:role:list', 1, 1),
-    (4, 1, '菜单管理', '/system/menu', 'system/menu/index', 'tree-table', 3, 'MENU', 'sys:menu:list', 1, 1);
+    (4, 1, '菜单管理', '/system/menu', 'system/menu/index', 'tree-table', 3, 'MENU', 'sys:menu:list', 1, 1),
+    (5, 1, '部门管理', '/system/dept', 'system/dept/index', 'tree', 4, 'MENU', 'sys:dept:list', 1, 1),
+    (6, 1, '权限管理', '/system/permission', 'system/permission/index', 'lock', 5, 'MENU', 'sys:permission:list', 1, 1);
+
+-- 权限点：与各控制器 @RequirePermission 注解的 value 一一对应（AUTH-04）
+INSERT INTO sys_permission
+    (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+VALUES
+    (1, 0, 'sys:user:list', '查询用户', 'API', '/user/**', 'GET', 1, 1),
+    (2, 0, 'sys:user:add', '新增用户', 'API', '/user', 'POST', 2, 1),
+    (3, 0, 'sys:user:edit', '修改用户', 'API', '/user/**', 'PUT', 3, 1),
+    (4, 0, 'sys:user:delete', '删除用户', 'API', '/user/{id}', 'DELETE', 4, 1),
+    (5, 0, 'sys:user:assign', '分配用户角色', 'API', '/user/{id}/roles', 'POST', 5, 1),
+    (6, 0, 'sys:role:list', '查询角色', 'API', '/role/**', 'GET', 6, 1),
+    (7, 0, 'sys:role:add', '新增角色', 'API', '/role', 'POST', 7, 1),
+    (8, 0, 'sys:role:edit', '修改角色', 'API', '/role/**', 'PUT', 8, 1),
+    (9, 0, 'sys:role:delete', '删除角色', 'API', '/role/{id}', 'DELETE', 9, 1),
+    (10, 0, 'sys:role:assign', '分配角色权限', 'API', '/role/{id}/permissions', 'POST', 10, 1),
+    (11, 0, 'sys:menu:list', '查询菜单', 'API', '/menu/**', 'GET', 11, 1),
+    (12, 0, 'sys:menu:add', '新增菜单', 'API', '/menu', 'POST', 12, 1),
+    (13, 0, 'sys:menu:edit', '修改菜单', 'API', '/menu/**', 'PUT', 13, 1),
+    (14, 0, 'sys:menu:delete', '删除菜单', 'API', '/menu/{id}', 'DELETE', 14, 1),
+    (15, 0, 'sys:permission:list', '查询权限点', 'API', '/permission/**', 'GET', 15, 1),
+    (16, 0, 'sys:permission:add', '新增权限点', 'API', '/permission', 'POST', 16, 1),
+    (17, 0, 'sys:permission:edit', '修改权限点', 'API', '/permission/**', 'PUT', 17, 1),
+    (18, 0, 'sys:permission:delete', '删除权限点', 'API', '/permission/{id}', 'DELETE', 18, 1),
+    (19, 0, 'sys:dept:list', '查询部门', 'API', '/dept/**', 'GET', 19, 1),
+    (20, 0, 'sys:dept:add', '新增部门', 'API', '/dept', 'POST', 20, 1),
+    (21, 0, 'sys:dept:edit', '修改部门', 'API', '/dept/**', 'PUT', 21, 1),
+    (22, 0, 'sys:dept:delete', '删除部门', 'API', '/dept/{id}', 'DELETE', 22, 1);

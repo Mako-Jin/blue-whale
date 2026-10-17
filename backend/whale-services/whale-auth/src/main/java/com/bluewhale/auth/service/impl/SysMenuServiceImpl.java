@@ -12,7 +12,11 @@ import com.bluewhale.common.core.exception.ErrorCode;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * 系统菜单服务实现
@@ -22,13 +26,57 @@ import java.util.List;
 @Service
 public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> implements SysMenuService {
 
+    /** 顶级菜单的父 ID */
+    private static final long ROOT_PARENT_ID = 0L;
+
     @Override
     public List<MenuVO> tree() {
         List<MenuVO> all = list(new LambdaQueryWrapper<SysMenu>()
                         .orderByAsc(SysMenu::getSort)
                         .orderByAsc(SysMenu::getId))
                 .stream().map(MenuVO::from).toList();
-        return buildChildren(all, 0L);
+        return buildChildren(all, ROOT_PARENT_ID);
+    }
+
+    @Override
+    public List<MenuVO> treeByPermissionCodes(Set<String> permissionCodes) {
+        List<SysMenu> menus = list(new LambdaQueryWrapper<SysMenu>()
+                .eq(SysMenu::getStatus, 1)
+                .eq(SysMenu::getVisible, 1)
+                .orderByAsc(SysMenu::getSort)
+                .orderByAsc(SysMenu::getId));
+        if (permissionCodes != null) {
+            menus = retainGrantedWithAncestors(menus, permissionCodes);
+        }
+        return buildChildren(menus.stream().map(MenuVO::from).toList(), ROOT_PARENT_ID);
+    }
+
+    /**
+     * 保留权限码命中的菜单及其祖先目录（目录自身 permissionCode 常为空，否则会整棵断裂）
+     */
+    private List<SysMenu> retainGrantedWithAncestors(List<SysMenu> menus, Set<String> permissionCodes) {
+        Map<Long, SysMenu> byId = new HashMap<>();
+        menus.forEach(menu -> byId.put(menu.getId(), menu));
+        Map<Long, SysMenu> retained = new HashMap<>();
+        for (SysMenu menu : menus) {
+            if (menu.getPermissionCode() != null && permissionCodes.contains(menu.getPermissionCode())) {
+                retained.put(menu.getId(), menu);
+                appendAncestors(menu, byId, retained);
+            }
+        }
+        return new ArrayList<>(retained.values());
+    }
+
+    private void appendAncestors(SysMenu menu, Map<Long, SysMenu> byId, Map<Long, SysMenu> retained) {
+        Long parentId = menu.getParentId();
+        while (parentId != null && parentId != ROOT_PARENT_ID && !retained.containsKey(parentId)) {
+            SysMenu parent = byId.get(parentId);
+            if (parent == null) {
+                return;
+            }
+            retained.put(parent.getId(), parent);
+            parentId = parent.getParentId();
+        }
     }
 
     /**

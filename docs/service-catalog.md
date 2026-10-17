@@ -184,7 +184,7 @@
 |---|---|---|---|
 | **C-01** | 前端 dev 端口与后端冲突：`frontend/admin` 8080 = 网关 8080、`frontend/ops` 8081 = `whale-auth` 8081，同时启动会端口占用失败 | **P2** | 前端 dev 端口统一收进 §七 的前端区段（如 admin→8001、ops→8002），并同步 `vite.config.ts` 与本清单 |
 | **C-02** | `whale-auth` 端口硬编码 `server.port: 8081`，未按其他服务写法 `${server.port:8081}` 外置 | P3 | 改为 `${SERVER_PORT:8081}`，与规范统一 |
-| **C-03** | `whale-gateway` **缺 6 条路由**：`/erp/**`、`/mes/**`、`/pdm/**`、`/oa/**`、`/config/**`、`/alert/**`；另 `/auth/**` 未覆盖用户/部门/角色/菜单/权限管理接口（AUTH-38） | **P1** | 按「服务自持一级前缀」补齐路由，逐条冒烟 |
+| **C-03** | `whale-gateway` **缺 6 条路由**：`/erp/**`、`/mes/**`、`/pdm/**`、`/oa/**`、`/config/**`、`/alert/**`；~~另 `/auth/**` 未覆盖用户/部门/角色/菜单/权限管理接口（AUTH-38）~~ → **✅ 已解（Wave 5.2）**：`whale-auth` 路由 `Path` 扩为 `/auth,/user,/dept,/role,/menu,/permission`（经网关冒烟待做） | **P1** | 按「服务自持一级前缀」补齐路由，逐条冒烟 |
 | **C-04** | Nacos 版本/端口不一致：本机 3.2.4（控制台 8849）vs compose 镜像 2.3.2（控制台 8848） | P2 | 统一 compose 镜像至 3.x 并同步端口、健康检查（`/nacos/actuator/health/liveness`） |
 | **C-05** | 注册中心环境变量名分裂：网关 `NACOS_ADDR` vs 其余 `NACOS_SERVER` | P3 | 统一为 `NACOS_SERVER`（保留 `NACOS_ADDR` 兼容期），登记后批量替换 |
 | **C-06** | 8 个业务服务库（job/workflow/form/file/pay/erp/mes/pdm/oa）在规范 §八 已登记库名，但 `application.yml` **均未配数据源**、库亦未建 | P2 | 按需逐服务接入 datasource + `db/init.sql`，建库后本清单状态由「规划」改「已建」 |

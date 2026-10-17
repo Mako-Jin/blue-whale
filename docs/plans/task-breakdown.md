@@ -87,7 +87,8 @@
   - 验证：全量编译 SUCCESS / 40 单测全绿 / Checkstyle 0 违规；遗留：运行时端到端（无 Docker）
 - [x] ~~T4.3 分布式锁工具（`@DistributedLock` + SpEL key + Redisson AOP）~~
   - 已由 Wave 5.0 T5.2 落地
-- [ ] T4.4 auth DDD 迁移第 1 步（四层目录骨架 + 认证上下文试点，API 不中断）
+- [x] ~~T4.4 auth DDD 迁移第 1 步（四层目录骨架 + 认证上下文试点，API 不中断）~~
+  - 已由 Wave 5.2 T5.13 / AUTH-14 落地（四层骨架 + 4 值对象 + 契约冻结清单）；后续迁移见 T5.14/T5.15
 - [ ] T4.5 全量回归（`mvn clean install -T 1C` + `pnpm build`）+ 提交推送
 
 ## Wave 5.1b：审计日志落地（2026-10-17）

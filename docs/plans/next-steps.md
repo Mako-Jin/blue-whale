@@ -35,6 +35,11 @@
 > 以「全模块编译 SUCCESS + 40 单测全绿 + Checkstyle 0 违规」完成静态验证（审计核心下沉 `whale-spring-boot-starter` + `whale-audit` 查询接口 + auth 埋点）。
 > 因本机无 Docker，**未做运行时/端到端验证**。
 > 详见 [devlog §14](../devlog/2026-10-17.md) 与 [检查报告](../reviews/2026-10-17-wave5.1b-audit-log.md)。
+>
+> **Wave 5.2 执行结果（2026-10-17 更新）**：✅ T5.13（权限服务 DDD 骨架 + 值对象，↔ AUTH-14）。
+> 同步闭环 AUTH-38（auth 管理前缀网关路由）、AUTH-04（权限注解 3 → 31 + 22 权限点种子）、AUTH-21（`GET /auth/me`）、AUTH-26（Checkstyle 0 WARN）。
+> 以「30 单测全绿 + Checkstyle 0 WARN」完成静态验证；网关路由为配置变更，**经网关冒烟待做**。
+> 详见 [devlog §22](../devlog/2026-10-17.md) 与 [检查报告](../reviews/2026-10-17-wave5.2-auth-p1-closure.md)。
 
 ### 组 A：分布式基础落地（承接 REQ-DIST-001~003）
 
@@ -67,7 +72,7 @@
 
 | 任务 | 内容 | 依赖 | 优先级 | 验收口径 | 相对规模 |
 |---|---|---|---|---|---|
-| T5.13 | 迁移第 1 步：搭建 `interfaces/application/domain/infrastructure` 目录骨架 + PO/领域对象分离约定落地示例（认证上下文试点） | 设计已定稿 | 高 | 新目录不影响现有 API；编译与既有接口回归通过 | M |
+| ~~T5.13~~ ✅ **已完成（Wave 5.2）** | 迁移第 1 步：搭建 `interfaces/application/domain/infrastructure` 目录骨架 + PO/领域对象分离约定落地示例（认证上下文试点） | 设计已定稿 | 高 | 新目录不影响现有 API；编译与既有接口回归通过 | M |
 | T5.14 | 迁移第 2 步：`User` 聚合与仓储接口（domain），PO 与 Repository 实现（infrastructure） | T5.13 | 中 | 登录链路改走新仓储，REST 契约不变 | M |
 | T5.15 | 迁移第 3 步：`Role`/`Menu`/`Dept` 聚合逐个迁移 + feature flag 灰度开关 | T5.14 | 中 | 开关可秒级回滚；新旧实现结果一致（对比测试） | L |
 
@@ -103,11 +108,11 @@ Wave 5.1（依赖 5.0 产物）— 安全收口已闭环
   ├─ ✅ ~~T5.6 refreshToken 一并失效（REQ-SEC-004，P1）~~
   ├─ ✅ ~~T5.7 网关侧黑名单校验（REQ-SEC-003）~~
   ├─ ✅ ~~T5.10/T5.11/T5.12 审计落地~~   ├─ T5.3 幂等组件
-  ├─ T5.13 auth DDD 骨架          └─ T5.5 缓存一致性工具
+  ├─ ✅ ~~T5.13 auth DDD 骨架（Wave 5.2 完成）~~  └─ T5.5 缓存一致性工具
 
 Wave 5.1b（审计收口）— 已闭环：✅ ~~T5.10~~ ｜ ✅ ~~T5.11~~ ｜ ✅ ~~T5.12~~（运行时待中间件）
 
-Wave 5.2（架构迁移 + 前端）
+Wave 5.2（架构迁移 + 前端）— ✅ T5.13 已闭环
   ├─ T5.14/T5.15 auth DDD 迁移  ├─ T5.22 whale-ui
   └─ T5.21 → T5.23 admin 对接
 

@@ -241,3 +241,26 @@ com.bluewhale.auth
 | ADR-AUTH-003 | PO 与领域对象分离 | 领域对象直接加 MyBatis 注解 | 保持 domain 纯净无框架依赖 |
 | ADR-AUTH-004 | 仓储接口置于 domain，实现置 infrastructure | 接口置于 application | 依赖方向正确（内层定义契约） |
 | ADR-AUTH-005 | 保留 `@RequirePermission` 注解在 interfaces 层 | 移入 domain | 属协议层关注点，与 Security 拦截器配套 |
+
+---
+
+## 10. 契约冻结清单（T-DDD-1，Wave 5.2 落地）
+
+> 目的：DDD 迁移（AUTH-15/16/17）为**结构性重构**，**外部 REST 契约不得变更**。本清单为迁移期间的**冻结基线**：路径、方法、语义均不得改动；新增接口须另立需求并在此追加。现状：**6 控制器 / 35 个 REST 接口**（原 34 + Wave 5.2 新增 `/auth/me`）。对照 [whale-auth-backlog.md](../plans/whale-auth-backlog.md) §1.1 逐行核对。
+
+| 控制器（对外一级前缀） | 冻结的方法 + 路径 | 权限码（`@RequirePermission`） |
+|---|---|---|
+| `AuthController`（`/auth`） | POST `/auth/login` ｜ POST `/auth/refresh` ｜ POST `/auth/logout` ｜ **GET `/auth/me`**（Wave 5.2，AUTH-21） | login/refresh/logout 为白名单；`/auth/me` 仅登录校验（无权限码） |
+| `UserController`（`/user`） | GET `/user/page` ｜ GET `/user/{id}` ｜ POST `/user` ｜ PUT `/user/{id}` ｜ PUT `/user/{id}/attrs` ｜ DELETE `/user/{id}` ｜ POST `/user/{id}/roles` ｜ GET `/user/{id}/roles` ｜ GET `/user/{id}/attrs` | `sys:user:list` / `sys:user:add` / `sys:user:edit` / `sys:user:delete` / `sys:user:assign` |
+| `RoleController`（`/role`） | GET `/role/page` ｜ GET `/role/{id}` ｜ POST `/role` ｜ PUT `/role/{id}` ｜ DELETE `/role/{id}` ｜ POST `/role/{id}/permissions` ｜ GET `/role/{id}/permissions` | `sys:role:list` / `sys:role:add` / `sys:role:edit` / `sys:role:delete` / `sys:role:assign` |
+| `MenuController`（`/menu`） | GET `/menu/tree` ｜ GET `/menu/{id}` ｜ POST `/menu` ｜ PUT `/menu/{id}` ｜ DELETE `/menu/{id}` | `sys:menu:list` / `sys:menu:add` / `sys:menu:edit` / `sys:menu:delete` |
+| `PermissionController`（`/permission`） | GET `/permission/page` ｜ GET `/permission/{id}` ｜ POST `/permission` ｜ PUT `/permission/{id}` ｜ DELETE `/permission/{id}` | `sys:permission:list` / `sys:permission:add` / `sys:permission:edit` / `sys:permission:delete` |
+| `DeptController`（`/dept`） | GET `/dept/tree` ｜ GET `/dept/{id}` ｜ POST `/dept` ｜ PUT `/dept/{id}` ｜ DELETE `/dept/{id}` | `sys:dept:list` / `sys:dept:add` / `sys:dept:edit` / `sys:dept:delete` |
+
+**冻结口径**：
+1. 对外路径 = 控制器路径（REQ-ARCH-003：服务自持一级前缀，网关只转发、不 `StripPrefix`）；
+2. 请求/响应体的字段名为契约一部分，迁移中**只允许新增可选字段**，不得重命名/删除；
+3. HTTP 层恒 200、业务语义由 `Result.code` 承载（既有全局约定）；
+4. 值对象（`Username`/`EncryptedPassword`/`RoleCode`/`PermCode`）为**领域内不变量**，其校验失败统一映射为 `ErrorCode.PARAM_ERROR`（400），不影响上述路径契约。
+
+**值对象落地映射（T-DDD-2/T-DDD-3，Wave 5.2）**：`Username`（`^[A-Za-z0-9_.-]{1,64}$`）、`EncryptedPassword`（非空，`toString` 掩码）、`RoleCode`（`^[a-z][a-z0-9_]{1,63}$`）、`PermCode`（`^[a-z][a-z0-9]*(?::[a-z0-9]+)+$`）；四层骨架以 `package-info.java` 固化依赖规则（domain 禁 Spring/MyBatis/Web 注解）。

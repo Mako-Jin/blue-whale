@@ -7,10 +7,14 @@ import com.bluewhale.auth.entity.SysUser;
 import com.bluewhale.auth.jwt.JwtTokenProvider;
 import com.bluewhale.auth.mapper.SysUserMapper;
 import com.bluewhale.auth.security.LoginUser;
+import com.bluewhale.auth.security.PermissionInterceptor;
 import com.bluewhale.auth.security.TokenBlacklist;
 import com.bluewhale.auth.security.UserDetailsServiceImpl;
+import com.bluewhale.auth.vo.AuthMeResponse;
 import com.bluewhale.auth.vo.LoginResponse;
+import com.bluewhale.auth.vo.MenuVO;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +24,7 @@ import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
@@ -27,6 +32,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 认证服务：登录（BCrypt 校验）、刷新 Token、登出
@@ -48,6 +54,9 @@ public class AuthService {
     private final UserDetailsServiceImpl userDetailsService;
     private final SysUserMapper userMapper;
     private final TokenBlacklist tokenBlacklist;
+    private final SysRoleService roleService;
+    private final SysMenuService menuService;
+    private final SysPermissionService permissionService;
 
     /**
      * 登录：AuthenticationManager 走 UserDetailsService + BCryptPasswordEncoder 校验
@@ -121,6 +130,34 @@ public class AuthService {
         } else {
             log.debug("登出请求未携带 refreshToken，仅失效 accessToken");
         }
+    }
+
+    /**
+     * 当前登录用户信息：角色 / 权限码 / 可见菜单树。
+     * <p>权限码与菜单为「动态路由 + 按钮级权限渲染」的数据源：内置超管（super_admin）
+     * 授予全量启用权限码与全部启用可见菜单，其余用户按「用户 → 角色 → 权限点」实际授权过滤。</p>
+     */
+    public AuthMeResponse me() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof LoginUser loginUser)) {
+            throw new BizException(ErrorCode.UNAUTHORIZED);
+        }
+        List<String> roles = loginUser.getRoles();
+        boolean superAdmin = roles.contains(PermissionInterceptor.SUPER_ADMIN);
+        List<String> permissions = superAdmin
+                ? permissionService.listAllCodes()
+                : roleService.listPermissionCodesByUserId(loginUser.getUserId());
+        List<MenuVO> menus = superAdmin
+                ? menuService.treeByPermissionCodes(null)
+                : menuService.treeByPermissionCodes(Set.copyOf(permissions));
+        AuthMeResponse response = new AuthMeResponse();
+        response.setUserId(loginUser.getUserId());
+        response.setUsername(loginUser.getUsername());
+        response.setNickname(loginUser.getNickname());
+        response.setRoles(roles);
+        response.setPermissions(permissions);
+        response.setMenus(menus);
+        return response;
     }
 
     /**

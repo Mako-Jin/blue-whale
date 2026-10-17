@@ -4,11 +4,15 @@ import com.bluewhale.auth.dto.RefreshRequest;
 import com.bluewhale.auth.jwt.JwtTokenProvider;
 import com.bluewhale.auth.mapper.SysUserMapper;
 import com.bluewhale.auth.security.LoginUser;
+import com.bluewhale.auth.security.PermissionInterceptor;
 import com.bluewhale.auth.security.TokenBlacklist;
 import com.bluewhale.auth.security.UserDetailsServiceImpl;
+import com.bluewhale.auth.vo.AuthMeResponse;
 import com.bluewhale.auth.vo.LoginResponse;
+import com.bluewhale.auth.vo.MenuVO;
 import com.bluewhale.common.core.exception.BizException;
 import io.jsonwebtoken.Claims;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,8 +20,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -59,8 +66,28 @@ class AuthServiceTest {
     @Mock
     private TokenBlacklist tokenBlacklist;
 
+    @Mock
+    private SysRoleService roleService;
+
+    @Mock
+    private SysMenuService menuService;
+
+    @Mock
+    private SysPermissionService permissionService;
+
     @InjectMocks
     private AuthService authService;
+
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
+
+    /** 把已认证用户放入 SecurityContext，供 {@link AuthService#me()} 读取 */
+    private static void authenticate(LoginUser loginUser) {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(loginUser, null, loginUser.getAuthorities()));
+    }
 
     private static RefreshRequest refreshRequest() {
         RefreshRequest request = new RefreshRequest();
@@ -146,5 +173,44 @@ class AuthServiceTest {
         authService.logout("Basic abc", null);
 
         verifyNoInteractions(tokenBlacklist);
+    }
+
+    @Test
+    @DisplayName("me：内置超管授予全量权限码与全部启用可见菜单")
+    void meShouldGrantAllForSuperAdmin() {
+        LoginUser superAdmin = new LoginUser(USER_ID, USERNAME, "pwd", "Admin",
+                List.of(PermissionInterceptor.SUPER_ADMIN), true);
+        authenticate(superAdmin);
+        when(permissionService.listAllCodes()).thenReturn(List.of("sys:user:list", "sys:role:list"));
+        when(menuService.treeByPermissionCodes(null)).thenReturn(List.of(new MenuVO()));
+
+        AuthMeResponse response = authService.me();
+
+        assertEquals(List.of("sys:user:list", "sys:role:list"), response.getPermissions());
+        assertEquals(1, response.getMenus().size());
+        verifyNoInteractions(roleService);
+    }
+
+    @Test
+    @DisplayName("me：普通用户按角色授权返回权限码并据此过滤菜单树")
+    void meShouldReturnGrantedPermissionsForNormalUser() {
+        authenticate(new LoginUser(USER_ID, USERNAME, "pwd", "Alice", List.of("admin"), true));
+        when(roleService.listPermissionCodesByUserId(USER_ID)).thenReturn(List.of("sys:user:list"));
+        when(menuService.treeByPermissionCodes(Set.of("sys:user:list"))).thenReturn(List.of(new MenuVO()));
+
+        AuthMeResponse response = authService.me();
+
+        assertEquals(List.of("sys:user:list"), response.getPermissions());
+        assertEquals(USER_ID, response.getUserId());
+        assertEquals(List.of("admin"), response.getRoles());
+        verifyNoInteractions(permissionService);
+    }
+
+    @Test
+    @DisplayName("me：未认证上下文返回 401")
+    void meShouldRejectAnonymous() {
+        BizException ex = assertThrows(BizException.class, () -> authService.me());
+
+        assertEquals(UNAUTHORIZED_CODE, ex.getCode());
     }
 }

@@ -38,22 +38,26 @@ public class RoleController {
     private final SysRoleService roleService;
 
     @GetMapping("/page")
+    @RequirePermission("sys:role:list")
     public Result<PageResult<RoleVO>> page(PageQuery pageQuery,
                                            @RequestParam(required = false) String keyword) {
         return Result.ok(roleService.page(pageQuery.getCurrent(), pageQuery.getSize(), keyword));
     }
 
     @GetMapping("/{id}")
+    @RequirePermission("sys:role:list")
     public Result<RoleVO> detail(@PathVariable Long id) {
         return Result.ok(roleService.getDetail(id));
     }
 
     @PostMapping
+    @RequirePermission("sys:role:add")
     public Result<RoleVO> create(@Valid @RequestBody RoleCreateRequest request) {
         return Result.ok(roleService.create(request));
     }
 
     @PutMapping("/{id}")
+    @RequirePermission("sys:role:edit")
     public Result<RoleVO> update(@PathVariable Long id, @Valid @RequestBody RoleUpdateRequest request) {
         return Result.ok(roleService.update(id, request));
     }
@@ -67,6 +71,7 @@ public class RoleController {
 
     /** 全量覆盖分配权限：授权变更属敏感操作，必留痕 */
     @PostMapping("/{id}/permissions")
+    @RequirePermission("sys:role:assign")
     @AuditLog(operation = "分配角色权限", type = OperateType.GRANT, targetType = "sys_role", targetId = "#id")
     public Result<Void> assignPermissions(@PathVariable Long id,
                                           @Valid @RequestBody AssignPermissionsRequest request) {
@@ -76,6 +81,7 @@ public class RoleController {
 
     /** 查询角色已分配权限 ID */
     @GetMapping("/{id}/permissions")
+    @RequirePermission("sys:role:list")
     public Result<List<Long>> permissionIds(@PathVariable Long id) {
         return Result.ok(roleService.listPermissionIds(id));
     }

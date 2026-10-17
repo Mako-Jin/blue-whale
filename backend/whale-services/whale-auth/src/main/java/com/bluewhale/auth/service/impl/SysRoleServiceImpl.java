@@ -3,6 +3,7 @@ package com.bluewhale.auth.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
+import com.bluewhale.auth.domain.model.vo.RoleCode;
 import com.bluewhale.auth.dto.RoleCreateRequest;
 import com.bluewhale.auth.dto.RoleUpdateRequest;
 import com.bluewhale.auth.entity.SysPermission;
@@ -62,13 +63,15 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
 
     @Override
     public RoleVO create(RoleCreateRequest request) {
+        // 值对象前置校验角色编码不变量（AUTH-14 / T-DDD-2）
+        String roleCode = RoleCode.of(request.getRoleCode()).value();
         Long exists = baseMapper.selectCount(new LambdaQueryWrapper<SysRole>()
-                .eq(SysRole::getRoleCode, request.getRoleCode()));
+                .eq(SysRole::getRoleCode, roleCode));
         if (exists != null && exists > 0) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "角色编码已存在");
         }
         SysRole role = new SysRole();
-        role.setRoleCode(request.getRoleCode());
+        role.setRoleCode(roleCode);
         role.setRoleName(request.getRoleName());
         role.setDescription(request.getDescription());
         role.setSortNo(request.getSortNo() == null ? 0 : request.getSortNo());

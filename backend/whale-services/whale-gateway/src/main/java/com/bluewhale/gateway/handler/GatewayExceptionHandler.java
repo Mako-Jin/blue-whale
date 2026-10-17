@@ -5,7 +5,6 @@ import com.bluewhale.gateway.filter.TraceIdGlobalFilter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.webflux.error.ErrorWebExceptionHandler;
 import org.springframework.cloud.gateway.support.NotFoundException;
-import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpStatus;
