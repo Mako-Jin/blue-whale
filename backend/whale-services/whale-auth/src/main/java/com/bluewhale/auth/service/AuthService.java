@@ -60,6 +60,9 @@ public class AuthService {
 
     /**
      * 登录：AuthenticationManager 走 UserDetailsService + BCryptPasswordEncoder 校验
+     *
+     * @param request 登录请求（用户名与明文密码）
+     * @return 登录响应（含 accessToken 与 refreshToken）
      */
     public LoginResponse login(LoginRequest request) {
         Authentication authentication;
@@ -86,6 +89,9 @@ public class AuthService {
      * 刷新：refreshToken 换发新的 accessToken + refreshToken。
      * <p>先做签名/过期与令牌类型校验，再查分布式黑名单：命中（已在登出时失效）直接 401，
      * 阻断「登出后仍可用 refreshToken 换发新 token」的提权路径（REQ-SEC-004）。</p>
+     *
+     * @param request 刷新请求（含 refreshToken）
+     * @return 登录响应（含新 accessToken 与 refreshToken）
      */
     public LoginResponse refresh(RefreshRequest request) {
         String refreshToken = request.getRefreshToken();
@@ -136,6 +142,8 @@ public class AuthService {
      * 当前登录用户信息：角色 / 权限码 / 可见菜单树。
      * <p>权限码与菜单为「动态路由 + 按钮级权限渲染」的数据源：内置超管（super_admin）
      * 授予全量启用权限码与全部启用可见菜单，其余用户按「用户 → 角色 → 权限点」实际授权过滤。</p>
+     *
+     * @return 当前登录用户的角色、权限码与可见菜单树
      */
     public AuthMeResponse me() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -174,6 +182,12 @@ public class AuthService {
         return token.isEmpty() ? null : token;
     }
 
+    /**
+     * 为用户签发 accessToken 与 refreshToken 并组装登录响应
+     *
+     * @param loginUser 登录用户
+     * @return 登录响应（含令牌、有效期与用户基础信息）
+     */
     private LoginResponse buildLoginResponse(LoginUser loginUser) {
         LoginResponse response = new LoginResponse();
         List<String> roles = loginUser.getRoles();

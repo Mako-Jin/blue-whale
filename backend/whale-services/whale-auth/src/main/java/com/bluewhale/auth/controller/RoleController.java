@@ -37,6 +37,13 @@ public class RoleController {
 
     private final SysRoleService roleService;
 
+    /**
+     * 分页查询角色
+     *
+     * @param pageQuery 分页参数（当前页与每页条数）
+     * @param keyword 角色编码或名称模糊匹配关键字（可空）
+     * @return 角色分页结果
+     */
     @GetMapping("/page")
     @RequirePermission("sys:role:list")
     public Result<PageResult<RoleVO>> page(PageQuery pageQuery,
@@ -44,12 +51,24 @@ public class RoleController {
         return Result.ok(roleService.page(pageQuery.getCurrent(), pageQuery.getSize(), keyword));
     }
 
+    /**
+     * 角色详情
+     *
+     * @param id 角色 ID
+     * @return 角色视图对象
+     */
     @GetMapping("/{id}")
     @RequirePermission("sys:role:list")
     public Result<RoleVO> detail(@PathVariable Long id) {
         return Result.ok(roleService.getDetail(id));
     }
 
+    /**
+     * 创建角色
+     *
+     * @param request 角色创建请求参数
+     * @return 新建角色视图对象
+     */
     @PostMapping
     @RequirePermission("sys:role:add")
     @AuditLog(operation = "创建角色", type = OperateType.CREATE, targetType = "sys_role")
@@ -57,6 +76,13 @@ public class RoleController {
         return Result.ok(roleService.create(request));
     }
 
+    /**
+     * 更新角色
+     *
+     * @param id 角色 ID
+     * @param request 角色更新请求参数
+     * @return 更新后的角色视图对象
+     */
     @PutMapping("/{id}")
     @RequirePermission("sys:role:edit")
     @AuditLog(operation = "更新角色", type = OperateType.UPDATE, targetType = "sys_role", targetId = "#id")
@@ -64,6 +90,12 @@ public class RoleController {
         return Result.ok(roleService.update(id, request));
     }
 
+    /**
+     * 删除角色
+     *
+     * @param id 角色 ID
+     * @return 操作结果
+     */
     @DeleteMapping("/{id}")
     @RequirePermission("sys:role:delete")
     @AuditLog(operation = "删除角色", type = OperateType.DELETE, targetType = "sys_role", targetId = "#id")
@@ -72,7 +104,13 @@ public class RoleController {
         return Result.ok();
     }
 
-    /** 全量覆盖分配权限：授权变更属敏感操作，必留痕 */
+    /**
+     * 全量覆盖分配权限：授权变更属敏感操作，必留痕
+     *
+     * @param id 角色 ID
+     * @param request 分配权限请求（含权限点 ID 列表）
+     * @return 操作结果
+     */
     @PostMapping("/{id}/permissions")
     @RequirePermission("sys:role:assign")
     @AuditLog(operation = "分配角色权限", type = OperateType.GRANT, targetType = "sys_role", targetId = "#id")
@@ -82,7 +120,12 @@ public class RoleController {
         return Result.ok();
     }
 
-    /** 查询角色已分配权限 ID */
+    /**
+     * 查询角色已分配权限 ID
+     *
+     * @param id 角色 ID
+     * @return 角色已分配的权限点 ID 列表
+     */
     @GetMapping("/{id}/permissions")
     @RequirePermission("sys:role:list")
     public Result<List<Long>> permissionIds(@PathVariable Long id) {

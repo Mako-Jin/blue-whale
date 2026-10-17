@@ -13,15 +13,31 @@ public enum StatusEnum {
     private final Integer code;
     private final String desc;
 
+    /**
+     * 构造状态枚举项
+     *
+     * @param code 状态码
+     * @param desc 状态描述
+     */
     StatusEnum(Integer code, String desc) {
         this.code = code;
         this.desc = desc;
     }
 
+    /**
+     * 获取状态码
+     *
+     * @return 状态码
+     */
     public Integer getCode() {
         return code;
     }
 
+    /**
+     * 获取状态描述
+     *
+     * @return 状态描述
+     */
     public String getDesc() {
         return desc;
     }

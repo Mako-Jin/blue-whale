@@ -36,6 +36,14 @@ public class SecurityConfig {
     private final RestAccessDeniedHandler accessDeniedHandler;
     private final PermissionInterceptor permissionInterceptor;
 
+    /**
+     * 安全过滤链：无状态会话、放行登录/刷新/登出与文档端点，其余接口一律要求认证，
+     * 并在用户名密码过滤器之前接入 JWT 过滤器。
+     *
+     * @param http Spring Security 的 HTTP 安全构建器
+     * @return 构建完成的过滤链
+     * @throws Exception 构建过滤链失败时抛出
+     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -53,11 +61,23 @@ public class SecurityConfig {
         return http.build();
     }
 
+    /**
+     * 密码编码器：采用 BCrypt 算法
+     *
+     * @return BCrypt 密码编码器
+     */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
+    /**
+     * 认证管理器：由 Spring Security 的认证配置统一提供
+     *
+     * @param configuration 认证配置
+     * @return 认证管理器
+     * @throws Exception 获取认证管理器失败时抛出
+     */
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
         return configuration.getAuthenticationManager();
@@ -65,6 +85,8 @@ public class SecurityConfig {
 
     /**
      * 注册 {@link PermissionInterceptor}：拦截 @RequirePermission 注解方法
+     *
+     * @return 注册权限拦截器的 WebMvc 配置
      */
     @Bean
     public WebMvcConfigurer permissionInterceptorConfigurer() {

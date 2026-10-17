@@ -97,6 +97,12 @@ public class SysPermissionServiceImpl extends ServiceImpl<SysPermissionMapper, S
         removeById(id);
     }
 
+    /**
+     * 将请求参数拷贝到权限点实体（空值取默认：parentId=0、sortNo=0、status=1）
+     *
+     * @param request 权限点请求参数
+     * @param permission 目标权限点实体
+     */
     private void copyProperties(PermissionRequest request, SysPermission permission) {
         permission.setParentId(request.getParentId() == null ? 0L : request.getParentId());
         permission.setPermCode(request.getPermCode());

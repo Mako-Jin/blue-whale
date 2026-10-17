@@ -51,6 +51,12 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
     private final WhaleGatewayProperties properties;
     private final TokenBlacklistChecker tokenBlacklistChecker;
 
+    /**
+     * 构造过滤器，注入网关配置与令牌黑名单校验器
+     *
+     * @param properties            网关配置属性
+     * @param tokenBlacklistChecker 令牌黑名单校验器
+     */
     public JwtAuthGlobalFilter(WhaleGatewayProperties properties, TokenBlacklistChecker tokenBlacklistChecker) {
         this.properties = properties;
         this.tokenBlacklistChecker = tokenBlacklistChecker;
@@ -99,6 +105,12 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
         }
     }
 
+    /**
+     * 判断请求路径是否命中免认证白名单
+     *
+     * @param path 请求路径
+     * @return 命中白名单返回 {@code true}
+     */
     private boolean isWhiteListed(String path) {
         return properties.getWhiteList().stream()
                 .anyMatch(pattern -> pathMatcher.match(pattern, path));
@@ -127,10 +139,22 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
                 .build();
     }
 
+    /**
+     * 将令牌载荷值安全转为字符串，null 转为空串
+     *
+     * @param value 待转换的载荷值
+     * @return 字符串形式的值
+     */
     private static String stringify(Object value) {
         return value == null ? "" : String.valueOf(value);
     }
 
+    /**
+     * 直接返回 401 未认证 JSON 响应，并透传链路追踪头
+     *
+     * @param exchange 当前请求上下文
+     * @return 写出响应完成的信号
+     */
     private Mono<Void> unauthorized(ServerWebExchange exchange) {
         ServerHttpResponse response = exchange.getResponse();
         response.setStatusCode(HttpStatus.UNAUTHORIZED);

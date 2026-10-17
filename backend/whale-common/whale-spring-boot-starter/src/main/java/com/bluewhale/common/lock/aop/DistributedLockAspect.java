@@ -55,10 +55,23 @@ public class DistributedLockAspect {
     /** 方法参数名发现器，支撑 {@code #phone} 形式的 SpEL */
     private final ParameterNameDiscoverer parameterNameDiscoverer = new DefaultParameterNameDiscoverer();
 
+    /**
+     * 构造分布式锁切面
+     *
+     * @param redissonClient Redisson 客户端，用于获取锁对象
+     */
     public DistributedLockAspect(RedissonClient redissonClient) {
         this.redissonClient = redissonClient;
     }
 
+    /**
+     * 环绕通知：尝试加锁后执行目标方法，finally 中释放当前线程持有的锁
+     *
+     * @param joinPoint 连接点
+     * @param distributedLock 方法上的分布式锁注解
+     * @return 目标方法返回值
+     * @throws Throwable 目标方法抛出的异常
+     */
     @Around("@annotation(distributedLock)")
     public Object lockAround(ProceedingJoinPoint joinPoint, DistributedLock distributedLock) throws Throwable {
         String lockKey = buildLockKey(joinPoint, distributedLock);

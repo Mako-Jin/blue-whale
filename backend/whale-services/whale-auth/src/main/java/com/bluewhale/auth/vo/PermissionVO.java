@@ -28,6 +28,12 @@ public class PermissionVO implements Serializable {
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 
+    /**
+     * 由权限点实体转换为视图对象
+     *
+     * @param permission 权限点实体
+     * @return 权限点视图对象
+     */
     public static PermissionVO from(SysPermission permission) {
         PermissionVO vo = new PermissionVO();
         vo.setId(permission.getId());

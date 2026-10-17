@@ -8,6 +8,9 @@ package com.bluewhale.security.jwt;
  */
 public final class JwtUtils {
 
+    /**
+     * 私有构造器，禁止实例化
+     */
     private JwtUtils() {
     }
 

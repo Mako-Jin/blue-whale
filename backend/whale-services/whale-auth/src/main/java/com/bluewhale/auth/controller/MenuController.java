@@ -32,18 +32,35 @@ public class MenuController {
 
     private final SysMenuService menuService;
 
+    /**
+     * 菜单树：parentId=0 为根，按 sort 升序
+     *
+     * @return 菜单树节点列表
+     */
     @GetMapping("/tree")
     @RequirePermission("sys:menu:list")
     public Result<List<MenuVO>> tree() {
         return Result.ok(menuService.tree());
     }
 
+    /**
+     * 菜单详情
+     *
+     * @param id 菜单 ID
+     * @return 菜单视图对象
+     */
     @GetMapping("/{id}")
     @RequirePermission("sys:menu:list")
     public Result<MenuVO> detail(@PathVariable Long id) {
         return Result.ok(menuService.getDetail(id));
     }
 
+    /**
+     * 创建菜单
+     *
+     * @param request 菜单请求参数
+     * @return 操作结果
+     */
     @PostMapping
     @RequirePermission("sys:menu:add")
     @AuditLog(operation = "创建菜单", type = OperateType.CREATE, targetType = "sys_menu")
@@ -52,6 +69,13 @@ public class MenuController {
         return Result.ok();
     }
 
+    /**
+     * 更新菜单
+     *
+     * @param id 菜单 ID
+     * @param request 菜单请求参数
+     * @return 操作结果
+     */
     @PutMapping("/{id}")
     @RequirePermission("sys:menu:edit")
     @AuditLog(operation = "更新菜单", type = OperateType.UPDATE, targetType = "sys_menu", targetId = "#id")
@@ -60,6 +84,12 @@ public class MenuController {
         return Result.ok();
     }
 
+    /**
+     * 删除菜单
+     *
+     * @param id 菜单 ID
+     * @return 操作结果
+     */
     @DeleteMapping("/{id}")
     @RequirePermission("sys:menu:delete")
     @AuditLog(operation = "删除菜单", type = OperateType.DELETE, targetType = "sys_menu", targetId = "#id")

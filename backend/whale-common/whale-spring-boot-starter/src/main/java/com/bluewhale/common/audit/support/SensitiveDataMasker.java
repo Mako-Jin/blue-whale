@@ -79,6 +79,11 @@ public class SensitiveDataMasker {
 
     private final ObjectMapper objectMapper;
 
+    /**
+     * 构造脱敏器
+     *
+     * @param objectMapper Jackson 序列化器，用于输出脱敏后的 JSON
+     */
     public SensitiveDataMasker(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
     }
@@ -121,6 +126,13 @@ public class SensitiveDataMasker {
         return mask(value, 0);
     }
 
+    /**
+     * 递归掩码任意对象，带深度控制
+     *
+     * @param value 待掩码对象
+     * @param depth 当前递归深度
+     * @return 掩码后的 Map / List / 标量结构
+     */
     private Object mask(Object value, int depth) {
         if (value == null) {
             return null;
@@ -156,6 +168,13 @@ public class SensitiveDataMasker {
         return maskBean(value, depth);
     }
 
+    /**
+     * 掩码数组；基本类型数组仅保留类型名，不逐元素展开
+     *
+     * @param array 待掩码数组
+     * @param depth 当前递归深度
+     * @return 掩码后的 List 或类型名占位串
+     */
     private Object maskArray(Object array, int depth) {
         if (!array.getClass().getComponentType().isPrimitive()) {
             Object[] elements = (Object[]) array;
@@ -169,6 +188,13 @@ public class SensitiveDataMasker {
         return "[" + array.getClass().getSimpleName() + "]";
     }
 
+    /**
+     * 反射遍历 JavaBean 字段并按字段名规则掩码
+     *
+     * @param bean 待掩码对象
+     * @param depth 当前递归深度
+     * @return 字段名到掩码值的 Map
+     */
     private Object maskBean(Object bean, int depth) {
         Map<String, Object> masked = new LinkedHashMap<>();
         for (Class<?> current = bean.getClass(); current != null; current = current.getSuperclass()) {

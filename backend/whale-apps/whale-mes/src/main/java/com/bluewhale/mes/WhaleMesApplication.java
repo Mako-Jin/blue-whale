@@ -15,6 +15,11 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 @EnableFeignClients
 public class WhaleMesApplication {
 
+    /**
+     * 应用启动入口
+     *
+     * @param args 启动命令行参数
+     */
     public static void main(String[] args) {
         SpringApplication.run(WhaleMesApplication.class, args);
     }

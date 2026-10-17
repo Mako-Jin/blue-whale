@@ -43,6 +43,13 @@ public class UserController {
     private final SysUserService userService;
     private final SysUserPermissionService userPermissionService;
 
+    /**
+     * 分页查询用户
+     *
+     * @param pageQuery 分页参数（当前页与每页条数）
+     * @param keyword 用户名/昵称/手机号模糊匹配关键字（可空）
+     * @return 用户分页结果
+     */
     @GetMapping("/page")
     @RequirePermission("sys:user:list")
     public Result<PageResult<UserVO>> page(PageQuery pageQuery,
@@ -50,13 +57,24 @@ public class UserController {
         return Result.ok(userService.page(pageQuery.getCurrent(), pageQuery.getSize(), keyword));
     }
 
+    /**
+     * 用户详情
+     *
+     * @param id 用户 ID
+     * @return 用户视图对象（不含密码字段）
+     */
     @GetMapping("/{id}")
     @RequirePermission("sys:user:list")
     public Result<UserVO> detail(@PathVariable Long id) {
         return Result.ok(userService.getDetail(id));
     }
 
-    /** 创建用户：参数含密码，落库前由脱敏器置为掩码 */
+    /**
+     * 创建用户：参数含密码，落库前由脱敏器置为掩码
+     *
+     * @param request 用户创建请求参数
+     * @return 新建用户视图对象
+     */
     @PostMapping
     @RequirePermission("sys:user:add")
     @AuditLog(operation = "创建用户", type = OperateType.CREATE, targetType = "sys_user")
@@ -64,7 +82,13 @@ public class UserController {
         return Result.ok(userService.create(request));
     }
 
-    /** 更新用户：参数可能含密码，落库前由脱敏器置为掩码 */
+    /**
+     * 更新用户：参数可能含密码，落库前由脱敏器置为掩码
+     *
+     * @param id 用户 ID
+     * @param request 用户更新请求参数
+     * @return 更新后的用户视图对象
+     */
     @PutMapping("/{id}")
     @RequirePermission("sys:user:edit")
     @AuditLog(operation = "更新用户", type = OperateType.UPDATE, targetType = "sys_user", targetId = "#id")
@@ -72,6 +96,12 @@ public class UserController {
         return Result.ok(userService.update(id, request));
     }
 
+    /**
+     * 删除用户
+     *
+     * @param id 用户 ID
+     * @return 操作结果
+     */
     @DeleteMapping("/{id}")
     @RequirePermission("sys:user:delete")
     @AuditLog(operation = "删除用户", type = OperateType.DELETE, targetType = "sys_user", targetId = "#id")
@@ -80,7 +110,13 @@ public class UserController {
         return Result.ok();
     }
 
-    /** 重置用户密码：凭据类操作，参数脱敏不落库（recordParams=false） */
+    /**
+     * 重置用户密码：凭据类操作，参数脱敏不落库（recordParams=false）
+     *
+     * @param id 用户 ID
+     * @param request 密码重置请求（含新密码）
+     * @return 操作结果
+     */
     @PutMapping("/{id}/password")
     @RequirePermission("sys:user:resetPwd")
     @AuditLog(operation = "重置用户密码", type = OperateType.UPDATE, targetType = "sys_user",
@@ -90,7 +126,13 @@ public class UserController {
         return Result.ok();
     }
 
-    /** 启停用户：变更账号状态属敏感操作，必留痕 */
+    /**
+     * 启停用户：变更账号状态属敏感操作，必留痕
+     *
+     * @param id 用户 ID
+     * @param request 状态变更请求（含目标状态）
+     * @return 操作结果
+     */
     @PutMapping("/{id}/status")
     @RequirePermission("sys:user:status")
     @AuditLog(operation = "启停用户", type = OperateType.UPDATE, targetType = "sys_user", targetId = "#id")
@@ -99,7 +141,13 @@ public class UserController {
         return Result.ok();
     }
 
-    /** 全量覆盖分配角色：授权变更属敏感操作，必留痕 */
+    /**
+     * 全量覆盖分配角色：授权变更属敏感操作，必留痕
+     *
+     * @param id 用户 ID
+     * @param request 分配角色请求（含角色 ID 列表）
+     * @return 操作结果
+     */
     @PostMapping("/{id}/roles")
     @RequirePermission("sys:user:assign")
     @AuditLog(operation = "分配用户角色", type = OperateType.GRANT, targetType = "sys_user", targetId = "#id")
@@ -108,21 +156,37 @@ public class UserController {
         return Result.ok();
     }
 
-    /** 查询用户已分配角色 ID */
+    /**
+     * 查询用户已分配角色 ID
+     *
+     * @param id 用户 ID
+     * @return 用户已分配的角色 ID 列表
+     */
     @GetMapping("/{id}/roles")
     @RequirePermission("sys:user:list")
     public Result<List<Long>> roleIds(@PathVariable Long id) {
         return Result.ok(userService.listRoleIds(id));
     }
 
-    /** ABAC 属性读取 */
+    /**
+     * ABAC 属性读取
+     *
+     * @param id 用户 ID
+     * @return 用户 ABAC 属性列表
+     */
     @GetMapping("/{id}/attrs")
     @RequirePermission("sys:user:list")
     public Result<List<UserAttrVO>> attrs(@PathVariable Long id) {
         return Result.ok(userPermissionService.listByUserId(id));
     }
 
-    /** ABAC 属性写入（全量覆盖）：影响数据范围判定，属敏感操作必留痕 */
+    /**
+     * ABAC 属性写入（全量覆盖）：影响数据范围判定，属敏感操作必留痕
+     *
+     * @param id 用户 ID
+     * @param request 属性写入请求（全量覆盖）
+     * @return 操作结果
+     */
     @PutMapping("/{id}/attrs")
     @RequirePermission("sys:user:edit")
     @AuditLog(operation = "更新用户属性", type = OperateType.UPDATE, targetType = "sys_user", targetId = "#id")

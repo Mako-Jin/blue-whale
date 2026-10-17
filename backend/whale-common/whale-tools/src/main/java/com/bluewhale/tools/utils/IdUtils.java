@@ -22,6 +22,9 @@ public final class IdUtils {
     /** 随机数取值上限 */
     private static final long RANDOM_MAX = 1L << RANDOM_BITS;
 
+    /**
+     * 私有构造器，禁止实例化
+     */
     private IdUtils() {
     }
 

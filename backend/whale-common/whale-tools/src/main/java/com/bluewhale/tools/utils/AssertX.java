@@ -9,6 +9,9 @@ import cn.hutool.core.util.StrUtil;
  */
 public final class AssertX {
 
+    /**
+     * 私有构造器，禁止实例化
+     */
     private AssertX() {
     }
 

@@ -27,6 +27,11 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 @EnableFeignClients
 public class WhaleAuthApplication {
 
+    /**
+     * 应用入口：启动权限中心服务
+     *
+     * @param args 命令行参数
+     */
     public static void main(String[] args) {
         SpringApplication.run(WhaleAuthApplication.class, args);
     }

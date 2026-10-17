@@ -1,9 +1,9 @@
 # 代码规范检查清单（Code Review Checklist）
 
 > 用途：本项目**每一次新增或变更的代码**都必须按本清单逐项自检，并产出检查报告。
-> 关联需求：REQ-QA-001（制定清单）、REQ-QA-002（每次必检）
+> 关联需求：REQ-QA-001（制定清单）、REQ-QA-002（每次必检）、REQ-QA-003（全后端 Javadoc 强制）
 > 报告路径：`docs/reviews/YYYY-MM-DD-<主题>.md`（模板见第六节）
-> 最后更新：2026-10-17 ｜ 维护：BlueWhale
+> 最后更新：2026-10-17（新增 **E16 Javadoc 自动化门禁**，并强化 E5：每个类型与每个方法含 `private` 均须标准 Javadoc） ｜ 维护：BlueWhale
 
 ---
 
@@ -97,7 +97,7 @@
 | E2 | 类/方法/变量命名 | 类 `UpperCamelCase`；方法变量 `lowerCamelCase`；常量 `UPPER_SNAKE_CASE`；禁止拼音与无意义缩写 |
 | E3 | 布尔命名 | `is/has/can/should` 前缀 |
 | E4 | 分层对象命名 | `XxxController` / `XxxService(+Impl)` / `XxxMapper` / `XxxRequest` / `XxxVO` / `Xxx`（实体） |
-| E5 | 注释与文档 | 类级 Javadoc（职责 + 作者）；公有方法说明关键契约；注释与代码一致、用中文；不写「废话注释」 |
+| E5 | 注释与文档 | **每个类型**（类 / 接口 / 枚举 / 记录）必须有 Javadoc（职责说明 + `@author`）；**每个方法（含 `private`、构造器）**必须有 Javadoc，且按标准 Java 注释规范书写：有参写 `@param`、有返回写 `@return`、抛检查异常写 `@throws`，描述用中文；注释与代码一致，不写「废话注释」 |
 | E6 | 格式 | 4 空格缩进；行宽 ≤ 120；无多余空行、无未使用 import；与既有风格一致 |
 | E7 | 依赖注入 | 优先构造器注入（`@RequiredArgsConstructor`），禁止字段 `@Autowired` |
 | E8 | 日志规范 | 占位符 `{}` 而非字符串拼接；级别恰当（error 带栈、debug 带上下文）；不重复打印 |
@@ -108,6 +108,7 @@
 | E13 | SQL 规范 | 表名/字段 snake_case；必备 `id / create_time / update_time / deleted`；建表含注释；索引命名 `idx_/uk_` |
 | E14 | 脚本与 Dockerfile | 幂等可重跑；写操作有确认；镜像多阶段构建、非 root 运行、锁定基础镜像版本 |
 | E15 | 库/服务/包命名符合性 | 库 `bluewhale_<域>`（含基础设施组件）；服务形如 `whale-<域>` 且**目录 = artifactId = spring.application.name = Nacos 服务名**；Java 包 `com.bluewhale.<域>[.<层>]`；Redis key `whale:<域>:<用途>:<标识>`；新增项已在 `docs/naming-conventions.md` §八 登记（详见该文档） |
+| E16 | Javadoc 自动化门禁 | `config/checkstyle/whale-checkstyle.xml` 启用 `MissingJavadocType`、`MissingJavadocMethod`（`scope=private`，覆盖 private 方法）、`JavadocType`（要求 `@author`）、`NonEmptyAtclauseDescription`、`JavadocParagraph`，均置 `error`；`mvn -f backend/pom.xml checkstyle:check` 必须 0 违规 |
 
 ---
 

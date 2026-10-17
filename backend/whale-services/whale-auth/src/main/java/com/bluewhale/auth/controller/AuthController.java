@@ -35,6 +35,9 @@ public class AuthController {
     /**
      * 登录：成功与失败均留痕（失败原因记录在 error_msg）。
      * <p>{@code recordParams = false}：请求体含明文密码，凭据绝不落库。</p>
+     *
+     * @param request 登录请求（用户名与明文密码）
+     * @return 登录响应（含 accessToken 与 refreshToken）
      */
     @PostMapping("/login")
     @AuditLog(operation = "用户登录", type = OperateType.LOGIN, targetType = "sys_user", recordParams = false)
@@ -42,6 +45,12 @@ public class AuthController {
         return Result.ok(authService.login(request));
     }
 
+    /**
+     * 刷新 Token：以 refreshToken 换发新的 accessToken 与 refreshToken
+     *
+     * @param request 刷新请求（含 refreshToken）
+     * @return 登录响应（含新 accessToken 与 refreshToken）
+     */
     @PostMapping("/refresh")
     public Result<LoginResponse> refresh(@Valid @RequestBody RefreshRequest request) {
         return Result.ok(authService.refresh(request));
@@ -50,6 +59,8 @@ public class AuthController {
     /**
      * 当前登录用户：角色 / 权限码 / 可见菜单树（前端动态路由与按钮级权限渲染的数据源）。
      * <p>仅需登录，不要求具体权限点。</p>
+     *
+     * @return 当前登录用户的角色、权限码与可见菜单树
      */
     @GetMapping("/me")
     @RequirePermission

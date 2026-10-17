@@ -29,8 +29,8 @@ import java.nio.charset.StandardCharsets;
 
 /**
  * whale-i18n 自动装配
- * <p>
- * 装配条件矩阵：
+ *
+ * <p>装配条件矩阵：
  * <ul>
  *   <li>whale.i18n.enabled=false → 整个 SDK 不装配（默认 enabled=true）</li>
  *   <li>无 DataSource / 无 MyBatis → 不装配数据库 Provider，退化为属性文件级（启动日志提示）</li>

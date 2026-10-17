@@ -21,6 +21,11 @@ public class TokenBlacklistChecker {
 
     private final ReactiveStringRedisTemplate redisTemplate;
 
+    /**
+     * 构造校验器，注入响应式 Redis 模板
+     *
+     * @param redisTemplate 响应式字符串 Redis 模板
+     */
     public TokenBlacklistChecker(ReactiveStringRedisTemplate redisTemplate) {
         this.redisTemplate = redisTemplate;
     }

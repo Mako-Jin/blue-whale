@@ -28,6 +28,12 @@ public class UserVO implements Serializable {
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 
+    /**
+     * 由用户实体转换为视图对象（不拷贝密码字段）
+     *
+     * @param user 用户实体
+     * @return 用户视图对象
+     */
     public static UserVO from(SysUser user) {
         UserVO vo = new UserVO();
         vo.setId(user.getId());

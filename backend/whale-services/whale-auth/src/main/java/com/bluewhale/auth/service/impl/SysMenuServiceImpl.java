@@ -53,6 +53,10 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
 
     /**
      * 保留权限码命中的菜单及其祖先目录（目录自身 permissionCode 常为空，否则会整棵断裂）
+     *
+     * @param menus 启用且可见的菜单列表
+     * @param permissionCodes 用户权限码集合
+     * @return 命中菜单及其祖先目录的集合
      */
     private List<SysMenu> retainGrantedWithAncestors(List<SysMenu> menus, Set<String> permissionCodes) {
         Map<Long, SysMenu> byId = new HashMap<>();
@@ -67,6 +71,13 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
         return new ArrayList<>(retained.values());
     }
 
+    /**
+     * 自底向上补齐祖先目录到保留集合，遇根节点或已保留节点即终止
+     *
+     * @param menu 命中权限码的菜单
+     * @param byId 菜单 ID 到实体的索引
+     * @param retained 保留集合（就地写入祖先目录）
+     */
     private void appendAncestors(SysMenu menu, Map<Long, SysMenu> byId, Map<Long, SysMenu> retained) {
         Long parentId = menu.getParentId();
         while (parentId != null && parentId != ROOT_PARENT_ID && !retained.containsKey(parentId)) {
@@ -81,6 +92,10 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
 
     /**
      * 简单递归组树
+     *
+     * @param all 平铺的菜单列表
+     * @param parentId 父菜单 ID
+     * @return 该父菜单下的子节点列表
      */
     private List<MenuVO> buildChildren(List<MenuVO> all, Long parentId) {
         return all.stream()
@@ -125,6 +140,12 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
         removeById(id);
     }
 
+    /**
+     * 将请求参数拷贝到菜单实体（空值取默认：parentId=0、sort=0、menuType=MENU、visible=1、status=1）
+     *
+     * @param request 菜单请求参数
+     * @param menu 目标菜单实体
+     */
     private void copyProperties(MenuRequest request, SysMenu menu) {
         menu.setParentId(request.getParentId() == null ? 0L : request.getParentId());
         menu.setName(request.getName());

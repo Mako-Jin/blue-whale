@@ -168,6 +168,12 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
                 .stream().map(SysPermission::getPermCode).distinct().toList();
     }
 
+    /**
+     * 查询用户关联的角色 ID 列表
+     *
+     * @param userId 用户 ID
+     * @return 用户关联的角色 ID 列表
+     */
     private List<Long> listRoleIdsByUserId(Long userId) {
         return userRoleMapper.selectList(new LambdaQueryWrapper<SysUserRole>()
                         .eq(SysUserRole::getUserId, userId))

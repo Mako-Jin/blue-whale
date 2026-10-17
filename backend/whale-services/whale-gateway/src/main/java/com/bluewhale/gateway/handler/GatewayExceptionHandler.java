@@ -67,6 +67,12 @@ public class GatewayExceptionHandler implements ErrorWebExceptionHandler {
         return response.writeWith(Mono.just(buffer));
     }
 
+    /**
+     * 判断异常是否代表下游服务不可用（路由不存在或 503）
+     *
+     * @param ex 捕获的异常
+     * @return 属于服务不可用返回 {@code true}
+     */
     private boolean isServiceUnavailable(Throwable ex) {
         if (ex instanceof NotFoundException) {
             return true;

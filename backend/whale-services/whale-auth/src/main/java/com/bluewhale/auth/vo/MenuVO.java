@@ -32,6 +32,12 @@ public class MenuVO implements Serializable {
     private LocalDateTime updateTime;
     private List<MenuVO> children;
 
+    /**
+     * 由菜单实体转换为视图对象
+     *
+     * @param menu 菜单实体
+     * @return 菜单视图对象
+     */
     public static MenuVO from(SysMenu menu) {
         MenuVO vo = new MenuVO();
         vo.setId(menu.getId());

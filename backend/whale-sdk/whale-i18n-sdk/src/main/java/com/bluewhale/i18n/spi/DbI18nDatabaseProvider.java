@@ -8,8 +8,8 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * {@link I18nDatabaseProvider} 默认实现：基于 MyBatis-Plus 查询 sys_i18n_message
- * <p>
- * (message_key, locale) 唯一；逻辑删除由 @TableLogic 自动过滤。
+ *
+ * <p>(message_key, locale) 唯一；逻辑删除由 @TableLogic 自动过滤。
  *
  * @author BlueWhale
  */

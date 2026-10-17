@@ -23,6 +23,11 @@ public class WhaleGatewayProperties {
     /** 不需要认证的白名单路径（支持 Ant 通配符） */
     private List<String> whiteList = new ArrayList<>();
 
+    /**
+     * JWT 相关配置
+     *
+     * @author BlueWhale
+     */
     @Data
     public static class Jwt {
 

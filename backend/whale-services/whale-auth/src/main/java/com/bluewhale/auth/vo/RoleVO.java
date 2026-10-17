@@ -25,6 +25,12 @@ public class RoleVO implements Serializable {
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 
+    /**
+     * 由角色实体转换为视图对象
+     *
+     * @param role 角色实体
+     * @return 角色视图对象
+     */
     public static RoleVO from(SysRole role) {
         RoleVO vo = new RoleVO();
         vo.setId(role.getId());

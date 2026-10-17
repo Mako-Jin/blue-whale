@@ -19,6 +19,12 @@ import org.springframework.context.annotation.Bean;
 @ConditionalOnClass({RedissonClient.class, Aspect.class})
 public class DistributedLockAutoConfiguration {
 
+    /**
+     * 注册分布式锁切面
+     *
+     * @param redissonClient Redisson 客户端
+     * @return 分布式锁切面实例
+     */
     @Bean
     @ConditionalOnMissingBean
     public DistributedLockAspect distributedLockAspect(RedissonClient redissonClient) {

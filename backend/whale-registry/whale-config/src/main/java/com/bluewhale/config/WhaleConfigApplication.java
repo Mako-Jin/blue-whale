@@ -14,6 +14,11 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 @EnableDiscoveryClient
 public class WhaleConfigApplication {
 
+    /**
+     * 应用启动入口
+     *
+     * @param args 启动命令行参数
+     */
     public static void main(String[] args) {
         SpringApplication.run(WhaleConfigApplication.class, args);
     }

@@ -9,6 +9,9 @@
     - 结构性、命名类规则为 error（违规即阻断构建）
     - `mvn checkstyle:check` 对任何 error 级违规返回失败
     - 魔法值为 info 级别，仅提示不阻断
+    - REQ-QA-003（Wave 5.5）：每个类型与每个方法（含 private、构造器）必须有标准 Javadoc，
+      由 MissingJavadocType / MissingJavadocMethod(scope=private) / JavadocType / NonEmptyAtclauseDescription
+      / JavadocParagraph 强制，均为 error 级
   维护：BlueWhale ｜ 更新：2026-10-17
 -->
 <module name="Checker">
@@ -81,6 +84,26 @@
             <property name="ignoreHashCodeMethod" value="true"/>
             <property name="constantWaiverParentToken" value="TYPECAST,ELIST,ARRAY_INIT,EXPR,UNARY_PLUS,UNARY_MINUS"/>
         </module>
+
+        <!-- ==================== E5/E16 Javadoc 注释强制（REQ-QA-003，Wave 5.5） ==================== -->
+        <!-- 每个类型（类 / 接口 / 枚举 / 记录）必须有 Javadoc；scope=private 覆盖嵌套私有类型 -->
+        <module name="MissingJavadocType">
+            <property name="scope" value="private"/>
+        </module>
+        <!-- 每个方法（含 private 与构造器）必须有 Javadoc；scope=private 即覆盖全部可见性 -->
+        <module name="MissingJavadocMethod">
+            <property name="scope" value="private"/>
+            <property name="allowedAnnotations" value="Override"/>
+            <property name="allowMissingPropertyJavadoc" value="false"/>
+        </module>
+        <!-- 类型级 Javadoc 必须含非空 @author -->
+        <module name="JavadocType">
+            <property name="authorFormat" value="\S"/>
+        </module>
+        <!-- @param / @return / @throws 必须带描述，禁止空标签 -->
+        <module name="NonEmptyAtclauseDescription"/>
+        <!-- 多段落 Javadoc 段落间需空行，避免被揉成一段 -->
+        <module name="JavadocParagraph"/>
 
         <!-- ==================== 结构类检查 ==================== -->
         <!-- option=text：允许仅含注释的空块（如 catch 中说明性注释） -->

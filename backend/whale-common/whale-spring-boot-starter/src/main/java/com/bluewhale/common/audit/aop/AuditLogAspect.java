@@ -93,6 +93,14 @@ public class AuditLogAspect {
     /** 方法参数名发现器，支撑 {@code #request.userId} 形式的 SpEL */
     private final ParameterNameDiscoverer parameterNameDiscoverer = new DefaultParameterNameDiscoverer();
 
+    /**
+     * 构造审计切面
+     *
+     * @param auditLogMapper 审计日志 Mapper
+     * @param sensitiveDataMasker 敏感数据脱敏器
+     * @param auditLogExecutor 审计落库线程池
+     * @param environment Spring 环境，用于读取应用名
+     */
     public AuditLogAspect(AuditLogMapper auditLogMapper,
                           SensitiveDataMasker sensitiveDataMasker,
                           Executor auditLogExecutor,
@@ -103,6 +111,14 @@ public class AuditLogAspect {
         this.environment = environment;
     }
 
+    /**
+     * 环绕通知：执行目标方法并采集审计上下文，异常原样抛出
+     *
+     * @param joinPoint 连接点
+     * @param auditLog 方法上的审计注解
+     * @return 目标方法返回值
+     * @throws Throwable 目标方法抛出的异常
+     */
     @Around("@annotation(auditLog)")
     public Object around(ProceedingJoinPoint joinPoint, AuditLog auditLog) throws Throwable {
         long startNanos = System.nanoTime();
@@ -159,6 +175,16 @@ public class AuditLogAspect {
         }
     }
 
+    /**
+     * 根据连接点与执行结果组装审计记录
+     *
+     * @param joinPoint 连接点
+     * @param auditLog 方法上的审计注解
+     * @param result 目标方法返回值，异常时为 {@code null}
+     * @param failure 目标方法抛出的异常，成功时为 {@code null}
+     * @param costMillis 执行耗时（毫秒）
+     * @return 组装完成的审计记录
+     */
     private AuditLogRecord buildRecord(ProceedingJoinPoint joinPoint, AuditLog auditLog,
                                       Object result, Throwable failure, long costMillis) {
         HttpServletRequest request = currentRequest();
@@ -274,6 +300,11 @@ public class AuditLogAspect {
         }
     }
 
+    /**
+     * 获取当前线程绑定的 HTTP 请求
+     *
+     * @return 当前请求；无请求上下文时返回 {@code null}
+     */
     private static HttpServletRequest currentRequest() {
         if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attributes) {
             return attributes.getRequest();
@@ -281,6 +312,13 @@ public class AuditLogAspect {
         return null;
     }
 
+    /**
+     * 读取请求头，空串按未提供处理
+     *
+     * @param request 当前请求，可为 {@code null}
+     * @param headerName 请求头名称
+     * @return 请求头值；请求为空或头值无文本时返回 {@code null}
+     */
     private static String headerOrNull(HttpServletRequest request, String headerName) {
         if (request == null) {
             return null;

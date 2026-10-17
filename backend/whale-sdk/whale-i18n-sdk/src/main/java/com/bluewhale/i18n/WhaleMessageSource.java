@@ -50,6 +50,14 @@ public class WhaleMessageSource extends MessageSourceSupport implements MessageS
      */
     private final AtomicLong lastRedisWarnAt = new AtomicLong(0L);
 
+    /**
+     * 构造三级回退 MessageSource
+     *
+     * @param properties              i18n 配置属性
+     * @param propertiesMessageSource 属性文件消息源（第二级回退）
+     * @param databaseProvider        数据库文案提供者，可为 null
+     * @param redisTemplate           Redis 操作模板，可为 null
+     */
     public WhaleMessageSource(WhaleI18nProperties properties,
                               MessageSource propertiesMessageSource,
                               com.bluewhale.i18n.spi.I18nDatabaseProvider databaseProvider,
@@ -142,6 +150,13 @@ public class WhaleMessageSource extends MessageSourceSupport implements MessageS
         return formatMessage(message, args, locale);
     }
 
+    /**
+     * 查询数据库文案
+     *
+     * @param code      消息编码
+     * @param localeKey 语言环境字符串
+     * @return 命中的文案；未命中或异常时返回 null
+     */
     private String lookupDatabase(String code, String localeKey) {
         if (databaseProvider == null) {
             return null;
@@ -154,6 +169,14 @@ public class WhaleMessageSource extends MessageSourceSupport implements MessageS
         }
     }
 
+    /**
+     * 查询属性文件文案
+     *
+     * @param code   消息编码
+     * @param args   消息参数
+     * @param locale 语言环境
+     * @return 命中的文案；未命中时返回 null
+     */
     private String lookupProperties(String code, Object[] args, Locale locale) {
         if (propertiesMessageSource == null) {
             return null;
@@ -165,6 +188,12 @@ public class WhaleMessageSource extends MessageSourceSupport implements MessageS
         }
     }
 
+    /**
+     * 读取 Redis 缓存
+     *
+     * @param cacheKey 缓存键
+     * @return 缓存值；未命中或异常时返回 null
+     */
     private String getFromCache(String cacheKey) {
         if (redisTemplate == null) {
             return null;
@@ -177,6 +206,13 @@ public class WhaleMessageSource extends MessageSourceSupport implements MessageS
         }
     }
 
+    /**
+     * 写入 Redis 缓存
+     *
+     * @param cacheKey 缓存键
+     * @param value    缓存值
+     * @param ttl      过期时间
+     */
     private void putInCache(String cacheKey, String value, Duration ttl) {
         if (redisTemplate == null || ttl.isZero() || ttl.isNegative()) {
             return;

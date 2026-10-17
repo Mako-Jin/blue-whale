@@ -13,6 +13,11 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 @EnableDiscoveryClient
 public class WhaleAuditApplication {
 
+    /**
+     * 启动审计日志应用
+     *
+     * @param args 命令行参数
+     */
     public static void main(String[] args) {
         SpringApplication.run(WhaleAuditApplication.class, args);
     }

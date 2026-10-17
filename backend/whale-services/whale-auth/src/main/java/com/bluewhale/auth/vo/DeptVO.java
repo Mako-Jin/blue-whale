@@ -26,6 +26,12 @@ public class DeptVO implements Serializable {
     private LocalDateTime updateTime;
     private List<DeptVO> children;
 
+    /**
+     * 由部门实体转换为视图对象
+     *
+     * @param dept 部门实体
+     * @return 部门视图对象
+     */
     public static DeptVO from(SysDept dept) {
         DeptVO vo = new DeptVO();
         vo.setId(dept.getId());

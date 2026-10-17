@@ -49,6 +49,11 @@ public class JwtTokenProvider {
     @Getter
     private final long accessExpireSeconds;
 
+    /**
+     * 构造器：依据配置中的密钥派生 HMAC 密钥，并换算 accessToken 有效期
+     *
+     * @param properties JWT 配置（密钥、有效期等）
+     */
     public JwtTokenProvider(JwtProperties properties) {
         this.properties = properties;
         this.secretKey = Keys.hmacShaKeyFor(properties.getSecret().getBytes(StandardCharsets.UTF_8));
@@ -57,6 +62,11 @@ public class JwtTokenProvider {
 
     /**
      * 生成 accessToken：sub=username、userId、roles（逗号分隔角色 code），带唯一 jti
+     *
+     * @param userId 用户 ID
+     * @param username 用户名（作为 sub）
+     * @param roles 角色 code 列表（逗号分隔写入 roles claim）
+     * @return 签名后的 accessToken 字符串
      */
     public String generateAccessToken(Long userId, String username, List<String> roles) {
         Date now = new Date();
@@ -75,6 +85,10 @@ public class JwtTokenProvider {
 
     /**
      * 生成 refreshToken，带唯一 jti
+     *
+     * @param userId 用户 ID
+     * @param username 用户名（作为 sub）
+     * @return 签名后的 refreshToken 字符串
      */
     public String generateRefreshToken(Long userId, String username) {
         Date now = new Date();
@@ -92,6 +106,9 @@ public class JwtTokenProvider {
 
     /**
      * 解析并校验 token，无效 / 过期 / 签名不符返回 null（不抛异常）
+     *
+     * @param token 待解析的 token
+     * @return 令牌载荷 claims；无效时返回 {@code null}
      */
     public Claims parse(String token) {
         try {

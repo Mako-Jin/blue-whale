@@ -32,6 +32,10 @@ public class SysDeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impl
 
     /**
      * 简单递归组树
+     *
+     * @param all 平铺的部门列表
+     * @param parentId 父部门 ID
+     * @return 该父部门下的子节点列表
      */
     private List<DeptVO> buildChildren(List<DeptVO> all, Long parentId) {
         return all.stream()
@@ -76,6 +80,12 @@ public class SysDeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impl
         removeById(id);
     }
 
+    /**
+     * 将请求参数拷贝到部门实体（空值取默认：parentId=0、sort=0）
+     *
+     * @param request 部门请求参数
+     * @param dept 目标部门实体
+     */
     private void copyProperties(DeptRequest request, SysDept dept) {
         dept.setParentId(request.getParentId() == null ? 0L : request.getParentId());
         dept.setDeptName(request.getDeptName());

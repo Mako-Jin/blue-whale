@@ -22,6 +22,9 @@ public final class TokenBlacklistKeys {
     /** 摘要算法：SHA-256 */
     private static final String DIGEST_ALGORITHM = "SHA-256";
 
+    /**
+     * 私有构造器，禁止实例化
+     */
     private TokenBlacklistKeys() {
     }
 

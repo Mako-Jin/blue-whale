@@ -7,8 +7,8 @@ import java.util.Locale;
 
 /**
  * 国际化缓存清理助手
- * <p>
- * 数据库文案变更后调用 {@link #evict(String, String)} 清理对应 Redis 缓存，
+ *
+ * <p>数据库文案变更后调用 {@link #evict(String, String)} 清理对应 Redis 缓存，
  * 使新文案立即可见（无需等待 TTL 过期）。
  *
  * @author BlueWhale
@@ -29,6 +29,12 @@ public class I18nCacheEvictHelper {
      */
     private volatile long lastRedisWarnAt = 0L;
 
+    /**
+     * 构造缓存清理助手
+     *
+     * @param properties    i18n 配置属性
+     * @param redisTemplate Redis 操作模板，可为 null（未启用缓存）
+     */
     public I18nCacheEvictHelper(WhaleI18nProperties properties, StringRedisTemplate redisTemplate) {
         this.properties = properties;
         this.redisTemplate = redisTemplate;
@@ -51,6 +57,12 @@ public class I18nCacheEvictHelper {
         evictInternal(code, locale != null ? locale.toString() : Locale.getDefault().toString());
     }
 
+    /**
+     * 内部清理指定 code + locale 的缓存 key
+     *
+     * @param code   消息编码
+     * @param locale 语言环境字符串
+     */
     private void evictInternal(String code, String locale) {
         if (redisTemplate == null) {
             log.debug("[whale-i18n] 未启用 Redis 缓存，跳过清理。code={}, locale={}", code, locale);

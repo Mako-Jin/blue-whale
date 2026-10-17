@@ -17,7 +17,7 @@ public class LoginResponse implements Serializable {
 
     private String accessToken;
     private String refreshToken;
-    /** 固定 Bearer，请求头使用：Authorization: Bearer <accessToken> */
+    /** 固定 Bearer，请求头使用：Authorization: Bearer {@code accessToken} */
     private String tokenType;
     /** accessToken 有效期（秒） */
     private long expiresIn;

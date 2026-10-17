@@ -13,12 +13,23 @@ import com.bluewhale.common.core.exception.ErrorCode;
  */
 public record EncryptedPassword(String value) {
 
+    /**
+     * 紧凑构造器：校验口令密文非空，空值直接抛出参数异常
+     *
+     * @param value 加密后的口令（如 BCrypt 密文）
+     */
     public EncryptedPassword {
         if (value == null || value.isBlank()) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "口令密文不能为空");
         }
     }
 
+    /**
+     * 由密文创建口令密文值对象
+     *
+     * @param value 加密后的口令（如 BCrypt 密文）
+     * @return 口令密文值对象
+     */
     public static EncryptedPassword of(String value) {
         return new EncryptedPassword(value);
     }

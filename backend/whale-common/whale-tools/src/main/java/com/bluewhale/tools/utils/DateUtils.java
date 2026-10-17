@@ -7,6 +7,9 @@ package com.bluewhale.tools.utils;
  */
 public final class DateUtils {
 
+    /**
+     * 私有构造器，禁止实例化
+     */
     private DateUtils() {
     }
 

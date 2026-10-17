@@ -33,6 +33,14 @@ public class PermissionController {
 
     private final SysPermissionService permissionService;
 
+    /**
+     * 分页查询权限点
+     *
+     * @param pageQuery 分页参数（当前页与每页条数）
+     * @param keyword 权限编码或名称模糊匹配关键字（可空）
+     * @param permType 权限类型精确过滤条件（可空）
+     * @return 权限点分页结果
+     */
     @GetMapping("/page")
     @RequirePermission("sys:permission:list")
     public Result<PageResult<PermissionVO>> page(PageQuery pageQuery,
@@ -41,12 +49,24 @@ public class PermissionController {
         return Result.ok(permissionService.page(pageQuery.getCurrent(), pageQuery.getSize(), keyword, permType));
     }
 
+    /**
+     * 权限点详情
+     *
+     * @param id 权限点 ID
+     * @return 权限点视图对象
+     */
     @GetMapping("/{id}")
     @RequirePermission("sys:permission:list")
     public Result<PermissionVO> detail(@PathVariable Long id) {
         return Result.ok(permissionService.getDetail(id));
     }
 
+    /**
+     * 创建权限点
+     *
+     * @param request 权限点请求参数
+     * @return 操作结果
+     */
     @PostMapping
     @RequirePermission("sys:permission:add")
     @AuditLog(operation = "创建权限点", type = OperateType.CREATE, targetType = "sys_permission")
@@ -55,6 +75,13 @@ public class PermissionController {
         return Result.ok();
     }
 
+    /**
+     * 更新权限点
+     *
+     * @param id 权限点 ID
+     * @param request 权限点请求参数
+     * @return 操作结果
+     */
     @PutMapping("/{id}")
     @RequirePermission("sys:permission:edit")
     @AuditLog(operation = "更新权限点", type = OperateType.UPDATE, targetType = "sys_permission", targetId = "#id")
@@ -63,6 +90,12 @@ public class PermissionController {
         return Result.ok();
     }
 
+    /**
+     * 删除权限点
+     *
+     * @param id 权限点 ID
+     * @return 操作结果
+     */
     @DeleteMapping("/{id}")
     @RequirePermission("sys:permission:delete")
     @AuditLog(operation = "删除权限点", type = OperateType.DELETE, targetType = "sys_permission", targetId = "#id")

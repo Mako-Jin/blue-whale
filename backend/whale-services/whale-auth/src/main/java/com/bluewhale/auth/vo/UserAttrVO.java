@@ -21,6 +21,12 @@ public class UserAttrVO implements Serializable {
     private String attrKey;
     private String attrValue;
 
+    /**
+     * 由用户属性实体转换为视图对象
+     *
+     * @param entity 用户属性实体
+     * @return 用户属性视图对象
+     */
     public static UserAttrVO from(SysUserPermission entity) {
         UserAttrVO vo = new UserAttrVO();
         vo.setId(entity.getId());

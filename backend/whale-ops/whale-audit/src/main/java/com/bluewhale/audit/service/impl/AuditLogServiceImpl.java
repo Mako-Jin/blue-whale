@@ -90,6 +90,12 @@ public class AuditLogServiceImpl implements AuditLogService {
         return Math.min(Math.max(size, MIN_PAGE_SIZE), MAX_PAGE_SIZE);
     }
 
+    /**
+     * 审计日志实体转视图对象
+     *
+     * @param record 审计日志实体
+     * @return 审计日志视图对象
+     */
     private static AuditLogVO toVo(AuditLogRecord record) {
         AuditLogVO vo = new AuditLogVO();
         BeanUtils.copyProperties(record, vo);

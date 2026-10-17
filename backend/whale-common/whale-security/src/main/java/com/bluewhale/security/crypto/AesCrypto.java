@@ -7,6 +7,9 @@ package com.bluewhale.security.crypto;
  */
 public final class AesCrypto {
 
+    /**
+     * 私有构造器，禁止实例化
+     */
     private AesCrypto() {
     }
 
