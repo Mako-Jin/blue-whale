@@ -4,6 +4,8 @@ import com.bluewhale.auth.dto.PermissionRequest;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.auth.service.SysPermissionService;
 import com.bluewhale.auth.vo.PermissionVO;
+import com.bluewhale.common.audit.annotation.AuditLog;
+import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.core.query.PageQuery;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
@@ -47,6 +49,7 @@ public class PermissionController {
 
     @PostMapping
     @RequirePermission("sys:permission:add")
+    @AuditLog(operation = "创建权限点", type = OperateType.CREATE, targetType = "sys_permission")
     public Result<Void> create(@Valid @RequestBody PermissionRequest request) {
         permissionService.create(request);
         return Result.ok();
@@ -54,6 +57,7 @@ public class PermissionController {
 
     @PutMapping("/{id}")
     @RequirePermission("sys:permission:edit")
+    @AuditLog(operation = "更新权限点", type = OperateType.UPDATE, targetType = "sys_permission", targetId = "#id")
     public Result<Void> update(@PathVariable Long id, @Valid @RequestBody PermissionRequest request) {
         permissionService.update(id, request);
         return Result.ok();
@@ -61,6 +65,7 @@ public class PermissionController {
 
     @DeleteMapping("/{id}")
     @RequirePermission("sys:permission:delete")
+    @AuditLog(operation = "删除权限点", type = OperateType.DELETE, targetType = "sys_permission", targetId = "#id")
     public Result<Void> delete(@PathVariable Long id) {
         permissionService.delete(id);
         return Result.ok();

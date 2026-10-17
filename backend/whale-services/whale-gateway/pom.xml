@@ -53,22 +53,19 @@
             <artifactId>whale-security</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <!-- JWT（jjwt 0.12.x API，与 whale-auth 签发侧约定一致） -->
+        <!-- JWT（jjwt 0.12.x API，与 whale-auth 签发侧约定一致；版本由 whale-parent 统一管理，AUTH-02） -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
-            <version>0.12.6</version>
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-impl</artifactId>
-            <version>0.12.6</version>
             <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-jackson</artifactId>
-            <version>0.12.6</version>
             <scope>runtime</scope>
         </dependency>
         <dependency>

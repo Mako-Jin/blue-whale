@@ -1,8 +1,10 @@
 package com.bluewhale.auth.controller;
 
 import com.bluewhale.auth.dto.AssignRolesRequest;
+import com.bluewhale.auth.dto.ChangePasswordRequest;
 import com.bluewhale.auth.dto.UpdateAttrsRequest;
 import com.bluewhale.auth.dto.UserCreateRequest;
+import com.bluewhale.auth.dto.UserStatusRequest;
 import com.bluewhale.auth.dto.UserUpdateRequest;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.auth.service.SysUserPermissionService;
@@ -62,16 +64,38 @@ public class UserController {
         return Result.ok(userService.create(request));
     }
 
+    /** 更新用户：参数可能含密码，落库前由脱敏器置为掩码 */
     @PutMapping("/{id}")
     @RequirePermission("sys:user:edit")
+    @AuditLog(operation = "更新用户", type = OperateType.UPDATE, targetType = "sys_user", targetId = "#id")
     public Result<UserVO> update(@PathVariable Long id, @Valid @RequestBody UserUpdateRequest request) {
         return Result.ok(userService.update(id, request));
     }
 
     @DeleteMapping("/{id}")
     @RequirePermission("sys:user:delete")
+    @AuditLog(operation = "删除用户", type = OperateType.DELETE, targetType = "sys_user", targetId = "#id")
     public Result<Void> delete(@PathVariable Long id) {
         userService.delete(id);
+        return Result.ok();
+    }
+
+    /** 重置用户密码：凭据类操作，参数脱敏不落库（recordParams=false） */
+    @PutMapping("/{id}/password")
+    @RequirePermission("sys:user:resetPwd")
+    @AuditLog(operation = "重置用户密码", type = OperateType.UPDATE, targetType = "sys_user",
+            targetId = "#id", recordParams = false)
+    public Result<Void> changePassword(@PathVariable Long id, @Valid @RequestBody ChangePasswordRequest request) {
+        userService.changePassword(id, request);
+        return Result.ok();
+    }
+
+    /** 启停用户：变更账号状态属敏感操作，必留痕 */
+    @PutMapping("/{id}/status")
+    @RequirePermission("sys:user:status")
+    @AuditLog(operation = "启停用户", type = OperateType.UPDATE, targetType = "sys_user", targetId = "#id")
+    public Result<Void> changeStatus(@PathVariable Long id, @Valid @RequestBody UserStatusRequest request) {
+        userService.changeStatus(id, request);
         return Result.ok();
     }
 
@@ -98,9 +122,10 @@ public class UserController {
         return Result.ok(userPermissionService.listByUserId(id));
     }
 
-    /** ABAC 属性写入（全量覆盖） */
+    /** ABAC 属性写入（全量覆盖）：影响数据范围判定，属敏感操作必留痕 */
     @PutMapping("/{id}/attrs")
     @RequirePermission("sys:user:edit")
+    @AuditLog(operation = "更新用户属性", type = OperateType.UPDATE, targetType = "sys_user", targetId = "#id")
     public Result<Void> updateAttrs(@PathVariable Long id, @Valid @RequestBody UpdateAttrsRequest request) {
         userPermissionService.replaceUserAttrs(id, request);
         return Result.ok();

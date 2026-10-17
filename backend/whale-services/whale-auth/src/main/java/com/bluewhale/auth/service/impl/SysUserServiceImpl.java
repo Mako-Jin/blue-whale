@@ -5,7 +5,9 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
 import com.bluewhale.auth.domain.model.vo.Username;
+import com.bluewhale.auth.dto.ChangePasswordRequest;
 import com.bluewhale.auth.dto.UserCreateRequest;
+import com.bluewhale.auth.dto.UserStatusRequest;
 import com.bluewhale.auth.dto.UserUpdateRequest;
 import com.bluewhale.auth.entity.SysUser;
 import com.bluewhale.auth.entity.SysRole;
@@ -34,6 +36,11 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> implements SysUserService {
+
+    /** 状态：启用 */
+    private static final int STATUS_ENABLED = 1;
+    /** 状态：停用 */
+    private static final int STATUS_DISABLED = 0;
 
     private final SysUserRoleMapper userRoleMapper;
     private final SysRoleMapper roleMapper;
@@ -103,6 +110,31 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         }
         updateById(user);
         return UserVO.from(user);
+    }
+
+    @Override
+    public void changePassword(Long id, ChangePasswordRequest request) {
+        SysUser user = getById(id);
+        if (user == null) {
+            throw new BizException(ErrorCode.NOT_FOUND);
+        }
+        // 明文口令一律经 BCrypt 加密后以值对象承载（AUTH-14），禁止明文落库
+        user.setPassword(EncryptedPassword.of(passwordEncoder.encode(request.getPassword())).value());
+        updateById(user);
+    }
+
+    @Override
+    public void changeStatus(Long id, UserStatusRequest request) {
+        SysUser user = getById(id);
+        if (user == null) {
+            throw new BizException(ErrorCode.NOT_FOUND);
+        }
+        Integer status = request.getStatus();
+        if (status == null || (status != STATUS_ENABLED && status != STATUS_DISABLED)) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "状态值非法，仅支持 1（启用）/ 0（停用）");
+        }
+        user.setStatus(status);
+        updateById(user);
     }
 
     @Override

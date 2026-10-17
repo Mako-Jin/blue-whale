@@ -38,8 +38,11 @@
 >
 > **Wave 5.2 执行结果（2026-10-17 更新）**：✅ T5.13（权限服务 DDD 骨架 + 值对象，↔ AUTH-14）。
 > 同步闭环 AUTH-38（auth 管理前缀网关路由）、AUTH-04（权限注解 3 → 31 + 22 权限点种子）、AUTH-21（`GET /auth/me`）、AUTH-26（Checkstyle 0 WARN）。
-> 以「30 单测全绿 + Checkstyle 0 WARN」完成静态验证；网关路由为配置变更，**经网关冒烟待做**。
+> 以「30 单测全绿 + Checkstyle 0 WARN」完成静态验证；网关路由为配置变更，原「经网关冒烟待做」**已于 Wave 5.3 实机验证通过**（AUTH-38：起 Nacos + auth/gateway 后，`/user/page`、`/auth/me` 等全部 HTTP 200 且 `code=0`，无 token 访问 → 401）。
 > 详见 [devlog §22](../devlog/2026-10-17.md) 与 [检查报告](../reviews/2026-10-17-wave5.2-auth-p1-closure.md)。
+>
+> **Wave 5.3 执行结果（2026-10-17 更新）**：✅ AUTH-12（写操作审计埋点 5 → 20）、AUTH-22（新增 `PUT /user/{id}/password`、`PUT /user/{id}/status`，含权限码/审计/值对象/单测）、AUTH-02（gateway jjwt 硬编码 0.12.6 移除，由 whale-parent 统一为 0.12.5）、AUTH-03（refreshToken 轮换 [ADR-001](../design/adr/2026-10-17-refresh-token-rotation.md) 定稿，实施另立 AUTH-39）、AUTH-38（经网关冒烟通过）。
+> 以「**39 单测全绿 + Checkstyle 0 违规**」完成验证；详见 [devlog §23](../devlog/2026-10-17.md) 与 [检查报告](../reviews/2026-10-17-wave5.3-auth-audit-and-account-ops.md)。
 
 ### 组 A：分布式基础落地（承接 REQ-DIST-001~003）
 
@@ -140,10 +143,10 @@ Wave 5.3（交付收口）
 1. **服务级阻塞已解除，转为具体缺陷收口**：Wave 5.1d 将 `redisson-spring-boot-starter` 升级至 **4.8.0**（实测兼容），`whale-auth`(8081) / `whale-audit`(9101) **首次真实启动成功**，`login`/`logout` HTTP 端到端跑通 —— 原先 **P0「依赖与框架大版本不兼容」已消除**。剩余为两处可定点修复的问题（见 5/6）。
 2. **黑名单降级语义**：Redis 不可用时 auth 侧 `contains` 与网关侧校验均按未命中放行 → 登出形同失效。这是可用性优先的取舍，生产需监控 Redis 可用性并告警。
 3. **规范执行成本**：清单 57 项若每次全量人工核对，成本偏高；建议以自动化覆盖 C/D/E，人工聚焦 A/B 语义项。
-4. **jjwt 版本分裂**（parent 0.12.5 / gateway 0.12.6）尚未统一，存在行为差异隐患。
+4. ~~**jjwt 版本分裂**（parent 0.12.5 / gateway 0.12.6）尚未统一，存在行为差异隐患。~~ → **✅ 已统一（Wave 5.3，AUTH-02）**：`whale-gateway/pom.xml` 移除三处 jjwt 硬编码 `0.12.6`，由 `whale-parent` 统一管理为 **0.12.5**；`dependency:tree "-Dincludes=io.jsonwebtoken:*"` 实测 api/impl/jackson 三件均 0.12.5。
 5. ~~审计切面装配缺陷（P1，新发现，既有）~~ → **✅ 已修并实机验证（Wave 5.1e）**：`AuditLogAutoConfiguration` 去掉时序不可靠的 `@ConditionalOnBean(AuditLogMapper.class)`（配置类解析期求值，早于 `@MapperScan`），改 `ObjectProvider` 在 Bean 实例化期延迟解析 → 真实服务链路 `AuditLogAspect` 已装配，`bluewhale_auth.audit_log` 由 **0 行 → 6 行**（LOGIN/LOGOUT、`biz_status=1`、`request_params` 无凭据），`/audit/log/page` 可查、`LiveAuditLogIT` 3/0/0。
 6. ~~`/auth/refresh` 返回码口径（P2）~~ → **✅ 已澄清（Wave 5.1e，非缺陷）**：登出后 refresh 实测 **HTTP 200 + 业务码 401**，为 `Result` 全局统一包装的既有约定（业务码承载语义、HTTP 层恒 200）；验收口径统一改为「业务码 401」。
-7. ~~网关路由仍未确认~~ → **✅ 已确认并修复（Wave 5.1f）**：定夺为「**改路由**」（登记 REQ-ARCH-003：服务自持对外一级前缀、网关**不剥离**），移除全部 8 条路由的 `StripPrefix`；经网关实测 login `code=0`、logout `code=0`、重放已登出 accessToken **HTTP 401**（REQ-SEC-003 达成）、refresh **业务码 401**（REQ-SEC-004 达成）、`audit_log` 落 LOGIN/LOGOUT（REQ-SEC-001 达成）。**新风险**：auth 的 `/user`、`/dept`、`/role`、`/menu`、`/permission` 前缀当前**无网关路由**（AUTH-38，P1），管理接口经网关不可达。
+7. ~~网关路由仍未确认~~ → **✅ 已确认并修复（Wave 5.1f）**：定夺为「**改路由**」（登记 REQ-ARCH-003：服务自持对外一级前缀、网关**不剥离**），移除全部 8 条路由的 `StripPrefix`；经网关实测 login `code=0`、logout `code=0`、重放已登出 accessToken **HTTP 401**（REQ-SEC-003 达成）、refresh **业务码 401**（REQ-SEC-004 达成）、`audit_log` 落 LOGIN/LOGOUT（REQ-SEC-001 达成）。**新风险**：~~auth 的 `/user`、`/dept`、`/role`、`/menu`、`/permission` 前缀当前**无网关路由**（AUTH-38，P1），管理接口经网关不可达。~~ → **✅ 已修复并冒烟通过（Wave 5.3）**：网关 `whale-auth` 路由 Path 已扩至 `/auth/**,/user/**,/dept/**,/role/**,/menu/**,/permission/**`，经网关实测管理接口全部 HTTP 200 且 `code=0`。
 7b. **中间件本机就绪（Wave 5.1f）**：Nacos 3.2.4（8848 服务 / 8849 控制台，MySQL 外置存储）已起，Redis 5.0.14.1（6379）与 MySQL 8.0.45（3306）可用 → **REQ-FUNC-001「无 Docker 阻塞」以本机原生进程方式解除**；RabbitMQ / Nginx 仍缺。
 8. ~~数据源 URL 字符集写法缺陷（P1）~~ → **已修（Wave 5.1d）**：auth/audit yml 改为 `characterEncoding=utf8&connectionCollation=utf8mb4_general_ci`，服务真实连库成功。
 9. ~~种子口令与文档不符（P1）~~ → **已修（Wave 5.1d）**：重生成 BCrypt 密文，`admin/123456` 端到端登录 `code=0`。

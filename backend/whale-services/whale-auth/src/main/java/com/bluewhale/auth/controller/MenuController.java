@@ -4,6 +4,8 @@ import com.bluewhale.auth.dto.MenuRequest;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.auth.service.SysMenuService;
 import com.bluewhale.auth.vo.MenuVO;
+import com.bluewhale.common.audit.annotation.AuditLog;
+import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.core.result.Result;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -44,6 +46,7 @@ public class MenuController {
 
     @PostMapping
     @RequirePermission("sys:menu:add")
+    @AuditLog(operation = "创建菜单", type = OperateType.CREATE, targetType = "sys_menu")
     public Result<Void> create(@Valid @RequestBody MenuRequest request) {
         menuService.create(request);
         return Result.ok();
@@ -51,6 +54,7 @@ public class MenuController {
 
     @PutMapping("/{id}")
     @RequirePermission("sys:menu:edit")
+    @AuditLog(operation = "更新菜单", type = OperateType.UPDATE, targetType = "sys_menu", targetId = "#id")
     public Result<Void> update(@PathVariable Long id, @Valid @RequestBody MenuRequest request) {
         menuService.update(id, request);
         return Result.ok();
@@ -58,6 +62,7 @@ public class MenuController {
 
     @DeleteMapping("/{id}")
     @RequirePermission("sys:menu:delete")
+    @AuditLog(operation = "删除菜单", type = OperateType.DELETE, targetType = "sys_menu", targetId = "#id")
     public Result<Void> delete(@PathVariable Long id) {
         menuService.delete(id);
         return Result.ok();

@@ -5,7 +5,7 @@
 | 关联需求 | REQ-FUNC-002（权限中心 RBAC+ABAC 六层级）、REQ-ARCH-001（DDD 改造）、REQ-SEC-001/002/003/004/005、REQ-DIST-001~003、REQ-QA-002、REQ-CICD-001、REQ-PROC-001 |
 | 生成日期 | 2026-10-17 ｜ 作者：BlueWhale |
 | 数据来源 | [register.md](../requirements/register.md)、[next-steps.md](next-steps.md)、[task-breakdown.md](task-breakdown.md)、[roadmap.md](roadmap.md)、[ddd-whale-auth.md](../design/ddd-whale-auth.md)、[audit-log.md](../design/audit-log.md)、[distributed.md](../design/distributed.md)、[devlog/2026-10-17.md](../devlog/2026-10-17.md) §11~§15、[reviews/2026-10-17-wave5.1b-audit-log.md](../reviews/2026-10-17-wave5.1b-audit-log.md)、[specs/2026-10-17-wave5.1b-audit-log/](../specs/2026-10-17-wave5.1b-audit-log/spec.md)、`backend/whale-services/whale-auth/` 源码与测试目录、`backend/whale-services/whale-gateway/src/main/resources/application.yml` |
-| 快照口径 | **已完成（Wave 5.2 更新）**：登录/刷新/登出、令牌黑名单（auth+网关）、审计注解/切面/脱敏/查询接口、审计表 DDL、DDD 设计定稿；**本轮新增闭环**：DDD 四层骨架 + 4 值对象（AUTH-14）、**全接口权限注解（AUTH-04，3 → 31）+ 22 条权限点种子**、`GET /auth/me`（AUTH-21）、**auth 管理前缀网关路由（AUTH-38）**；经网关全链路端到端已实机验证（Wave 5.1f）：login `code=0` → logout `code=0` → 重放 401 → refresh 业务码 401 → `audit_log` LOGIN/LOGOUT 落库。**进行中**：REQ-SEC-005（非 dev profile 启动校验）待实测；AUTH-38 路由**经网关冒烟**待做。**阻塞**：依赖服务（whale-file/whale-job）与 RabbitMQ 未就绪的项（AUTH-08/09/10） |
+| 快照口径 | **已完成（Wave 5.2 更新）**：登录/刷新/登出、令牌黑名单（auth+网关）、审计注解/切面/脱敏/查询接口、审计表 DDL、DDD 设计定稿；**本轮新增闭环**：DDD 四层骨架 + 4 值对象（AUTH-14）、**全接口权限注解（AUTH-04，3 → 31）+ 22 条权限点种子**、`GET /auth/me`（AUTH-21）、**auth 管理前缀网关路由（AUTH-38）**；经网关全链路端到端已实机验证（Wave 5.1f）：login `code=0` → logout `code=0` → 重放 401 → refresh 业务码 401 → `audit_log` LOGIN/LOGOUT 落库。**进行中**：REQ-SEC-005（非 dev profile 启动校验）待实测；**Wave 5.3 已补**：AUTH-38 经网关冒烟通过 + AUTH-12 审计埋点 5→20 + AUTH-22 改密/启停接口 + AUTH-02 jjwt 统一 + AUTH-03 ADR-001 定稿。**阻塞**：依赖服务（whale-file/whale-job）与 RabbitMQ 未就绪的项（AUTH-08/09/10） |
 | 环境事实（Wave 5.1f 更新） | **Nacos 3.2.4 已就绪**（`tools/nacos`，**8848 服务 + 8849 控制台**，MySQL 外置存储，`nacos` 库 13 表）；Redis 5.0.14.1（6379，散落文件已归位）与 MySQL 8.0.45（3306）本机可用；**`lb://` 全链路联调阻塞已解除**（auth/audit 均 `register finished`）；网关 `StripPrefix=1` 前缀冲突**已确认并修复**（AUTH-29 → REQ-ARCH-003） |
 
 > 说明：本文档**只新增**，不改动任何既有计划文件（register/next-steps/devlog/reviews/specs 有并行子代理维护）。任务编号 `AUTH-01` 起顺延，并逐条标注与既有 `T5.x` / `T4.x` / `T-DDD-x` / `T-AUD-x` / `T-DIST-x` 的映射，避免重复造编号。
@@ -25,42 +25,45 @@
 | | POST `/logout` | 无（白名单） | `@AuditLog(LOGOUT, recordParams=false)` |
 | | GET `/me` | **`@RequirePermission`**（Wave 5.2 新增，仅登录校验，无权限码） | 无 |
 | `UserController`（`/user`） | GET `/page`、GET `/{id}` | **`sys:user:list`** | 无 |
-| | POST ``（创建） | **`@RequirePermission("sys:user:add")`** | `@AuditLog(CREATE, targetType=sys_user)` |
-| | PUT `/{id}`、PUT `/{id}/attrs` | **`sys:user:edit`** | 无 |
-| | DELETE `/{id}` | **`@RequirePermission("sys:user:delete")`** | 无 |
+| | POST ``（创建） | **`sys:user:add`** | `@AuditLog(CREATE, targetType=sys_user)` |
+| | PUT `/{id}`（更新） | **`sys:user:edit`** | **`@AuditLog(UPDATE, targetId=#id)`**（Wave 5.3） |
+| | PUT `/{id}/attrs`（ABAC 写入） | **`sys:user:edit`** | **`@AuditLog(UPDATE, targetId=#id)`**（Wave 5.3） |
+| | DELETE `/{id}` | **`sys:user:delete`** | **`@AuditLog(DELETE, targetId=#id)`**（Wave 5.3） |
 | | POST `/{id}/roles` | **`sys:user:assign`** | `@AuditLog(GRANT, targetId=#id)` |
+| | PUT `/{id}/password`（**Wave 5.3 新增**） | **`sys:user:resetPwd`** | **`@AuditLog(UPDATE, targetId=#id, recordParams=false)`** |
+| | PUT `/{id}/status`（**Wave 5.3 新增**） | **`sys:user:status`** | **`@AuditLog(UPDATE, targetId=#id)`** |
 | | GET `/{id}/roles`、GET `/{id}/attrs` | **`sys:user:list`** | 无 |
 | `RoleController`（`/role`） | GET `/page`、GET `/{id}` | **`sys:role:list`** | 无 |
-| | POST `` | **`sys:role:add`** | 无 |
-| | PUT `/{id}` | **`sys:role:edit`** | 无 |
-| | DELETE `/{id}` | **`@RequirePermission("sys:role:delete")`** | 无 |
+| | POST `` | **`sys:role:add`** | **`@AuditLog(CREATE, targetType=sys_role)`**（Wave 5.3） |
+| | PUT `/{id}` | **`sys:role:edit`** | **`@AuditLog(UPDATE, targetId=#id)`**（Wave 5.3） |
+| | DELETE `/{id}` | **`sys:role:delete`** | **`@AuditLog(DELETE, targetId=#id)`**（Wave 5.3） |
 | | POST `/{id}/permissions` | **`sys:role:assign`** | `@AuditLog(GRANT, targetType=sys_role, targetId=#id)` |
 | | GET `/{id}/permissions` | **`sys:role:list`** | 无 |
 | `MenuController`（`/menu`） | GET `/tree`、GET `/{id}` | **`sys:menu:list`** | 无 |
-| | POST `` | **`sys:menu:add`** | 无 |
-| | PUT `/{id}` | **`sys:menu:edit`** | 无 |
-| | DELETE `/{id}` | **`sys:menu:delete`** | 无 |
+| | POST `` | **`sys:menu:add`** | **`@AuditLog(CREATE, targetType=sys_menu)`**（Wave 5.3） |
+| | PUT `/{id}` | **`sys:menu:edit`** | **`@AuditLog(UPDATE, targetId=#id)`**（Wave 5.3） |
+| | DELETE `/{id}` | **`sys:menu:delete`** | **`@AuditLog(DELETE, targetId=#id)`**（Wave 5.3） |
 | `PermissionController`（`/permission`） | GET `/page`、GET `/{id}` | **`sys:permission:list`** | 无 |
-| | POST `` | **`sys:permission:add`** | 无 |
-| | PUT `/{id}` | **`sys:permission:edit`** | 无 |
-| | DELETE `/{id}` | **`sys:permission:delete`** | 无 |
+| | POST `` | **`sys:permission:add`** | **`@AuditLog(CREATE, targetType=sys_permission)`**（Wave 5.3） |
+| | PUT `/{id}` | **`sys:permission:edit`** | **`@AuditLog(UPDATE, targetId=#id)`**（Wave 5.3） |
+| | DELETE `/{id}` | **`sys:permission:delete`** | **`@AuditLog(DELETE, targetId=#id)`**（Wave 5.3） |
 | `DeptController`（`/dept`） | GET `/tree`、GET `/{id}` | **`sys:dept:list`** | 无 |
-| | POST `` | **`sys:dept:add`** | 无 |
-| | PUT `/{id}` | **`sys:dept:edit`** | 无 |
-| | DELETE `/{id}` | **`sys:dept:delete`** | 无 |
+| | POST `` | **`sys:dept:add`** | **`@AuditLog(CREATE, targetType=sys_dept)`**（Wave 5.3） |
+| | PUT `/{id}` | **`sys:dept:edit`** | **`@AuditLog(UPDATE, targetId=#id)`**（Wave 5.3） |
+| | DELETE `/{id}` | **`sys:dept:delete`** | **`@AuditLog(DELETE, targetId=#id)`**（Wave 5.3） |
 
-**接口统计（Wave 5.2 更新）**：共 6 控制器 / **35 个 REST 接口**（原 34 + 新增 `/auth/me`）；`@RequirePermission` **32 处**（Wave 5.2 由 **3** 补齐至 **31**，另 `/auth/me` 登录校验 1 处）——即除 3 个白名单接口（login/refresh/logout）外**全部接口均已鉴权**；`@AuditLog` **仍为 5 处**（login / logout / 创建用户 / 分配用户角色 / 分配角色权限，见 AUTH-12）。
+**接口统计（Wave 5.3 更新）**：共 6 控制器 / **37 个 REST 接口**（Wave 5.2 为 35，Wave 5.3 新增 `/user/{id}/password`、`/user/{id}/status`）；`@RequirePermission` **34 处**（除 3 个白名单接口外**全部接口均已鉴权**）；`@AuditLog` **20 处**（Wave 5.3 由 **5** 补齐至 **20**，覆盖 [audit-log.md](../design/audit-log.md) §2 全部敏感写操作）。
 
 | 能力维度 | 现状 | 依据 |
 |---|---|---|
-| RBAC + ABAC 六层级 | 用户/角色/菜单/权限点/部门/ABAC 属性 的 Mapper(8)/Service(7 接口+6 实现)/Controller(6) 齐备；DDL 8 表；**Wave 5.2 补齐 22 条权限点种子 + 8 个菜单项**（此前 `sys_permission` 无种子行，非超管必然 403） | `controller/`、`service/`、`mapper/`、`db/init.sql`；[roadmap.md](roadmap.md) §2.1 |
+| RBAC + ABAC 六层级 | 用户/角色/菜单/权限点/部门/ABAC 属性 的 Mapper(8)/Service(7 接口+6 实现)/Controller(6) 齐备；DDL 8 表；**Wave 5.2 补齐 22 条权限点种子 + 8 个菜单项**（**Wave 5.3 增至 24 条**），此前 `sys_permission` 无种子行，非超管必然 403） | `controller/`、`service/`、`mapper/`、`db/init.sql`；[roadmap.md](roadmap.md) §2.1 |
 | JWT 认证 | `JwtTokenProvider`（jjwt 0.12 API）签发 access/refresh（带 `jti`、`tokenType`）；`JwtAuthenticationFilter` 解析 + 黑名单校验；`SecurityConfig` 无状态 STATELESS | `jwt/JwtTokenProvider.java`、`security/JwtAuthenticationFilter.java`、`config/SecurityConfig.java` |
 | 令牌黑名单（REQ-SEC-002/004） | `auth` 侧 `RedisTokenBlacklist`（SHA-256 摘要键 + TTL=剩余有效期 + 降级）；网关侧 `TokenBlacklistChecker`（响应式，降级放行）；键约定下沉 `whale-security` `TokenBlacklistKeys` | [devlog §11/§13](../devlog/2026-10-17.md)、[distributed.md](../design/distributed.md) §3.6 |
 | 生产密钥校验（REQ-SEC-005） | `SecretPlaceholderChecker`：非 dev profile 占位密钥拒绝启动 | `config/SecretPlaceholderChecker.java`、`config/JwtProperties.java` |
 | 权限拦截（横切） | `PermissionInterceptor` 兜底直查 DB（`listPermissionCodesByUserId`），拦截 `@RequirePermission` 方法 | `security/PermissionInterceptor.java`、`SecurityConfig#permissionInterceptorConfigurer` |
 | 审计埋点（REQ-SEC-001） | 注解 `@AuditLog` + `AuditLogAspect`（afterCommit 异步落库）+ `SensitiveDataMasker` 下沉 `whale-spring-boot-starter` `com.bluewhale.common.audit.*`；whale-auth 侧 `db/init.sql` 追加 `audit_log` 建表 | [devlog §14](../devlog/2026-10-17.md)、[audit-log.md](../design/audit-log.md) §5.1/§12 |
 | DDD 目录现状 | **骨架已建（Wave 5.2，AUTH-14 ↔ T5.13）**：新增 `domain`/`application`/`interfaces`/`infrastructure` 四层（`package-info.java` 固化依赖规则，domain 禁框架注解）+ **4 个值对象**（`Username`/`EncryptedPassword`/`RoleCode`/`PermCode`，构造即校验）；业务代码**仍以经典三层承载**（Strangler Fig 第 1 步），后续 AUTH-15/16/17 渐进迁移 | [ddd-whale-auth.md](../design/ddd-whale-auth.md) §7/§10 |
-| 单测覆盖 | **5 个测试类 / 30 用例**（Wave 5.2 新增 `ValueObjectsTest` 5 用例、`SysMenuServiceImplTest` 3 用例，`AuthServiceTest` 扩至 9 用例）；控制器 / 其余 ServiceImpl / `PermissionInterceptor` / `JwtAuthenticationFilter` / `UserDetailsServiceImpl` / `SecretPlaceholderChecker` **仍 0 覆盖**（见 AUTH-23） | `src/test/java/com/bluewhale/auth/` 目录 |
+| 单测覆盖 | **8 个测试类 / 39 用例**（Wave 5.2 新增 `ValueObjectsTest` 5 用例、`SysMenuServiceImplTest` 3 用例，`AuthServiceTest` 扩至 9 用例；**Wave 5.3 新增 `SysUserServiceImplTest` 4 用例**——覆盖改密/启停）；控制器 / 其余 ServiceImpl / `PermissionInterceptor` / `JwtAuthenticationFilter` / `UserDetailsServiceImpl` / `SecretPlaceholderChecker` **仍 0 覆盖**（见 AUTH-23） | `src/test/java/com/bluewhale/auth/` 目录 |
 | TODO/FIXME 注释 | 源码内 **无** TODO/FIXME/待做标记（已随 T4.1 清理，见 [devlog §三-4](../devlog/2026-10-17.md)） | Grep `TODO\|FIXME\|待做` 无匹配 |
 | 前端对接（REQ-FUNC-002） | **未对接**：`frontend/admin` 包存在，但 roadmap §2.1「对接 admin 前端登录」未勾选 | [roadmap.md](roadmap.md) §2.1、`frontend/admin/package.json` |
 
@@ -83,8 +86,8 @@
 | 任务 | 内容 | 来源 | 依赖 | 优先级 | 验收口径 | 当前阻塞 |
 |---|---|---|---|---|---|---|
 | **AUTH-01** | 网关侧同步 JWT 占位密钥校验（`whale-gateway` 启动时非 dev 占位密钥拒绝） | [devlog §12/§13 待做](../devlog/2026-10-17.md)；REQ-SEC-005 延伸 | 无 | P2 | 网关非 dev + 占位 `WHALE_GATEWAY_JWT_SECRET` 启动失败并告警 | 无 |
-| **AUTH-02** | 统一 jjwt 版本：parent 管理 `0.12.5`，gateway `pom.xml` 硬编码 `0.12.6`（未走父管理） | [next-steps §五-4](next-steps.md)；[devlog §13 待做](../devlog/2026-10-17.md)；`whale-parent/pom.xml:50`、`whale-gateway/pom.xml:60` | 无 | P2 | 全模块 jjwt 版本一致（`mvn dependency:tree` 无分裂） | 无 |
-| **AUTH-03** | 评估 refreshToken「一次一换」轮换策略（登出双写已做，但无一次性消费约束，存在重放窗口） | [devlog §13 待做](../devlog/2026-10-17.md)；REQ-SEC-004 | AUTH-14（DDD）可选 | P2 | 策略经决策记录（ADR）定稿；若采纳则旧 refreshToken 使用后即失效并有单测 | 策略未定（不确定项） |
+| ~~**AUTH-02**~~ ✅ **已闭环（Wave 5.3）** | 统一 jjwt 版本：parent 管理 `0.12.5`，gateway `pom.xml` 硬编码 `0.12.6`（未走父管理） | [next-steps §五-4](next-steps.md)；[devlog §13 待做](../devlog/2026-10-17.md)；`whale-parent/pom.xml:50`、`whale-gateway/pom.xml:60` | 无 | P2 | 全模块 jjwt 版本一致（`mvn dependency:tree` 无分裂） | **已完成**：三处 `<version>` 删除，统一由 `whale-parent` 管理；`dependency:tree "-Dincludes=io.jsonwebtoken:*"` 实测 api/impl/jackson **均为 0.12.5** |
+| ~~**AUTH-03**~~ ✅ **已定稿（Wave 5.3，ADR）** | 评估 refreshToken「一次一换」轮换策略（登出双写已做，但无一次性消费约束，存在重放窗口） | [devlog §13 待做](../devlog/2026-10-17.md)；REQ-SEC-004 | AUTH-14（DDD）可选 | P2 | 策略经决策记录（ADR）定稿；若采纳则旧 refreshToken 使用后即失效并有单测 | **策略已定稿**：[ADR-001](../design/adr/2026-10-17-refresh-token-rotation.md) **采纳**「一换一 + 旧 token 黑名单 + 复用检测（family 吊销）」；**实施另立 AUTH-39**，本轮不实现 |
 | ~~**AUTH-04**~~ ✅ **已闭环（Wave 5.2）** | 补全接口权限注解：原 34 个接口**仅 3 处** `@RequirePermission`，用户更新/角色·菜单·权限·部门全部写接口、分配角色/权限、ABAC 属性写入 **均无鉴权** | Grep 统计 `controller/`；[ddd-whale-auth.md](../design/ddd-whale-auth.md) §1.1「权限校验在横切层兜底」 | 无 | **P1** | 所有写接口均带 `@RequirePermission`；无权限调用返回 403（`RestAccessDeniedHandler`） | **已完成**：**31 处补齐（3 → 31）**，权限码 `sys:<资源>:<动作>`；`db/init.sql` 新增 **22 条权限点种子**（与注解 `value` 一一对应）+ 2 个菜单项；除 3 个白名单接口外**全部接口均鉴权** |
 | **AUTH-05** | 黑名单降级语义的生产告警：Redis 不可用时 auth/网关均按未命中放行（登出形同失效） | [next-steps §五-2](next-steps.md)；[distributed.md](../design/distributed.md) §3.6 | 无 | P2 | Redis 不可用触发告警指标/日志；有降级说明 | 无 |
 
@@ -98,8 +101,9 @@
 | **AUTH-09** ↔ T-AUD-8 | 审计保留与归档定时任务（90 天热 / 90 天–1 年温 / >1 年冷） | [audit-log.md](../design/audit-log.md) §10、T-AUD-8「未落地」 | whale-job（REQ-FUNC-006 待启动） | P2 | 过期数据按策略清理；归档动作记审计 | **阻塞：whale-job 未启动** |
 | **AUTH-10** ↔ T-AUD-9 | 阶段二 MQ 汇聚（`@AuditLog` → RabbitMQ → whale-audit 消费落 `bluewhale_audit`） | [audit-log.md](../design/audit-log.md) §6/T-AUD-9；[devlog §14 待做](../devlog/2026-10-17.md) | RabbitMQ | P3 | 容器就绪后跨服务审计汇聚到独立库 | **阻塞：RabbitMQ 未就绪** |
 | **AUTH-11** | 脱敏规则配置化（`whale.audit.sensitive.keys`）+ `@Sensitive` 注解兜底 | [audit-log.md](../design/audit-log.md) §7；[devlog §14 待做](../devlog/2026-10-17.md) | 无 | P3 | key 规则可由配置扩展；`@Sensitive` 字段按策略脱敏 | 无 |
-| **AUTH-12** | 审计埋点补全：现仅 5 处，缺 用户更新/删除、角色·菜单·权限·部门全部写操作、改密/启停、ABAC 属性写入。**前置已解除**：切面装配时序缺陷（`@ConditionalOnBean`）已于 Wave 5.1e 修复（改 `ObjectProvider` 延迟解析），并实机验证 `audit_log` 落库生效，故本任务现在具备可验证前提 | [audit-log.md](../design/audit-log.md) §2 事件分类 vs §12 埋点现状；[reviews/2026-10-17-wave5.1e-audit-aspect-wiring-fix.md](../reviews/2026-10-17-wave5.1e-audit-aspect-wiring-fix.md) | 无 | P2 | §2 各分类的敏感写操作均产生审计记录 | 无 |
+| ~~**AUTH-12**~~ ✅ **已闭环（Wave 5.3）** | 审计埋点补全：现仅 5 处，缺 用户更新/删除、角色·菜单·权限·部门全部写操作、改密/启停、ABAC 属性写入。**前置已解除**：切面装配时序缺陷（`@ConditionalOnBean`）已于 Wave 5.1e 修复（改 `ObjectProvider` 延迟解析），并实机验证 `audit_log` 落库生效，故本任务现在具备可验证前提 | [audit-log.md](../design/audit-log.md) §2 事件分类 vs §12 埋点现状；[reviews/2026-10-17-wave5.1e-audit-aspect-wiring-fix.md](../reviews/2026-10-17-wave5.1e-audit-aspect-wiring-fix.md) | 无 | P2 | §2 各分类的敏感写操作均产生审计记录 | **已完成**：**新增 15 处 `@AuditLog`（5 → 20）**，覆盖 §2「授权变更 / 数据变更 / 组织变更 / 敏感操作」全部写操作；改密埋点 `recordParams=false`（口令不落库）；auth 运行日志无「审计日志落库失败」告警 |
 | **AUTH-13** | `recordResult()` 落库（注解属性已定义但无对应列；需先补列） | [reviews §三-#5](../reviews/2026-10-17-wave5.1b-audit-log.md)；`common/audit/annotation/AuditLog.java` | 补 `audit_log` 列 | P3 | 需记录返回体的接口落库后可查 | 无 |
+| **AUTH-39**（新增，Wave 5.3） | **refreshToken 一次性轮换实施**（ADR-001 已采纳）：旧 token 黑名单 + 复用检测（family 吊销）+ 前端 token 持久化同步 + 单测 | [ADR-001](../design/adr/2026-10-17-refresh-token-rotation.md)；REQ-SEC-004 | AUTH-32、AUTH-34（前端 token 持久化） | P2 | 旧 refreshToken 用后即失效；复用触发 family 吊销并审计 | 无（待排期 Wave 6） |
 
 ### ③ DDD 迁移（REQ-ARCH-001）
 
@@ -123,7 +127,7 @@
 | 任务 | 内容 | 来源 | 依赖 | 优先级 | 验收口径 | 当前阻塞 |
 |---|---|---|---|---|---|---|
 | ~~**AUTH-21**~~ ✅ **已闭环（Wave 5.2）** | 当前用户菜单/权限接口（`/auth/me`、用户菜单树、按钮权限码）：原 `LoginResponse` 仅含 roles，前端无动态路由与按钮级权限所需数据 | [roadmap §2.1/§3.3](roadmap.md)（"动态路由 + 按钮级权限渲染"未勾选）；`controller/` 无对应接口 | 无 | **P1** | 登录后按用户返回菜单树 + 权限码；前端可据此渲染 | **已完成**：新增 `GET /auth/me`（`AuthMeResponse`：userId/username/nickname/**roles/permissions/menus**）；`SysMenuService#treeByPermissionCodes` 按权限码过滤并**补齐祖先目录**；超管取全量启用权限码与全部启用可见菜单；3 个新用例覆盖（超管/普通用户/匿名） |
-| **AUTH-22** | 改密 / 重置密码 / 启停用户接口（审计 §2 列为高优敏感操作，当前无对应接口） | [audit-log.md](../design/audit-log.md) §2「敏感操作：改密、重置密码、启停用户」；`controller/` 无对应接口 | AUTH-12（埋点） | P2 | 改密/启停可用且必留痕；密码字段脱敏 | 无 |
+| ~~**AUTH-22**~~ ✅ **已闭环（Wave 5.3）** | 改密 / 重置密码 / 启停用户接口（审计 §2 列为高优敏感操作，当前无对应接口） | [audit-log.md](../design/audit-log.md) §2「敏感操作：改密、重置密码、启停用户」；`controller/` 无对应接口 | AUTH-12（埋点） | P2 | 改密/启停可用且必留痕；密码字段脱敏 | **已完成**：新增 `PUT /user/{id}/password`（`sys:user:resetPwd`，`recordParams=false`）与 `PUT /user/{id}/status`（`sys:user:status`），均带 `@RequirePermission` + `@AuditLog`；口令经 `PasswordEncoder`+`EncryptedPassword` 落库；`init.sql` 新增 2 条权限点种子（id 23/24）；新增 4 单测；经网关实测两端点 `code=0` 且改密后重登成功 |
 
 ### ⑥ 测试与质量（REQ-QA-002 / REQ-CICD-001）
 
@@ -141,7 +145,7 @@
 | 任务 | 内容 | 来源 | 依赖 | 优先级 | 验收口径 | 当前阻塞 |
 |---|---|---|---|---|---|---|
 | ~~**AUTH-29**~~ ✅ **已闭环（Wave 5.1f）** | 确认并修复网关路由前缀冲突：`Path=/auth/**` + `StripPrefix=1` 会把 `/auth/login` 剥成 `/login`，与 `AuthController @RequestMapping("/auth")` 冲突；审计路由同理 | [reviews §三-#2（P1）](../reviews/2026-10-17-wave5.1b-audit-log.md)；[audit-log.md](../design/audit-log.md) §9；`whale-gateway/application.yml` | — | **P1** | 定夺「改路由」或「改控制器前缀」，经网关访问 `/auth/**`、`/audit/**` 均 200 | **已修**：定夺为「**改路由**」——新增 REQ-ARCH-003（服务自持一级前缀，网关不剥离），移除**全部 8 条**路由的 `StripPrefix`；实测经网关 login 200/`code=0`、黑名单重放 401 |
-| ~~**AUTH-38**~~ ✅ **已闭环（Wave 5.2）**（新增，Wave 5.1f 发现） | 补齐 auth 其余一级前缀的网关路由：`/user/**`、`/dept/**`、`/role/**`、`/menu/**`、`/permission/**` → `lb://whale-auth` | [reviews/2026-10-17-wave5.1f…](../reviews/2026-10-17-wave5.1f-gateway-routing-and-e2e.md) §四-1；[architecture.md §网关路由与前缀约定](../architecture.md) | 无（Nacos 已就绪） | **P1** | 经网关访问 `/user/page` 等管理接口可达（不再 404） | **已完成（配置）**：`whale-auth` 路由 `Path` 扩为 `/auth/**,/user/**,/dept/**,/role/**,/menu/**,/permission/**`；**经网关冒烟未做**（需起 gateway+auth+Nacos，登记为待做）；AUTH-32/34 前端对接前置已解 |
+| ~~**AUTH-38**~~ ✅ **已闭环（Wave 5.3，含经网关冒烟）**（新增，Wave 5.1f 发现） | 补齐 auth 其余一级前缀的网关路由：`/user/**`、`/dept/**`、`/role/**`、`/menu/**`、`/permission/**` → `lb://whale-auth` | [reviews/2026-10-17-wave5.1f…](../reviews/2026-10-17-wave5.1f-gateway-routing-and-e2e.md) §四-1；[architecture.md §网关路由与前缀约定](../architecture.md) | 无（Nacos 已就绪） | **P1** | 经网关访问 `/user/page` 等管理接口可达（不再 404） | **已完成（配置 + 冒烟）**：`whale-auth` 路由 `Path` 扩为 `/auth/**,/user/**,/dept/**,/role/**,/menu/**,/permission/**`。**Wave 5.3 完成经网关冒烟**：起 Nacos 8848 + auth 8081 + gateway 8080（新构建），`login code=0`；`/user/page`、`/user/1`、`/role/page`、`/menu/tree`、`/dept/tree`、`/permission/page` **全部 200 + `code=0`**；无 token → 401 |
 | **AUTH-30** ↔ **T5.4 / T-DIST-4** | 网关限流熔断：接入 Sentinel（或 Redis 计数器兜底）；`whale-gateway` 现无任何 Sentinel/`RequestRateLimiter` 依赖 | [next-steps T5.4](next-steps.md)、[distributed.md](../design/distributed.md) §3.4；Grep `whale-gateway` 无匹配 | Nacos 联调 | P2 | 超阈值返回 429 + `Result` 体 | **Nacos 阻塞已解除（Wave 5.1f）**，可动工 |
 | ~~**AUTH-31**~~ ✅ **已闭环（Wave 5.1f）** | 端到端验证：① auth 直连验证登出→401、refresh→401、审计落库；② 经网关全链路 | [register REQ-SEC-002/003/004](../requirements/register.md)（**已验证**）；[next-steps §五-1/§五-5](next-steps.md) | — | **P1** | ①② 均通过 | **已完成**：① Wave 5.1c/5.1e 已闭环；② **Wave 5.1f 首次打通**（login `code=0` → logout `code=0` → 重放 401 → refresh 业务码 401 → `audit_log` 落 LOGIN/LOGOUT） |
 
@@ -149,7 +153,7 @@
 
 | 任务 | 内容 | 来源 | 依赖 | 优先级 | 验收口径 | 当前阻塞 |
 |---|---|---|---|---|---|---|
-| **AUTH-32** ↔ **T5.21** | `frontend/admin` 登录对接 `/auth/login` + 登出调 `/auth/logout` | [next-steps T5.21](next-steps.md)、[roadmap §2.1](roadmap.md) | ~~**AUTH-38**（auth 管理前缀路由）~~ ✅ Wave 5.2、~~AUTH-21~~ ✅ Wave 5.2 | P2 | 登出后原 token 请求返回 401 | **前置均已解除**：`/auth/login`、`/auth/me` 与全部管理前缀路由已配（经网关冒烟待做） |
+| **AUTH-32** ↔ **T5.21** | `frontend/admin` 登录对接 `/auth/login` + 登出调 `/auth/logout` | [next-steps T5.21](next-steps.md)、[roadmap §2.1](roadmap.md) | ~~**AUTH-38**（auth 管理前缀路由）~~ ✅ Wave 5.2、~~AUTH-21~~ ✅ Wave 5.2 | P2 | 登出后原 token 请求返回 401 | **前置均已解除**：`/auth/login`、`/auth/me` 与全部管理前缀路由已配，**经网关冒烟已通过（Wave 5.3）** |
 | **AUTH-33** ↔ **T5.22** | `whale-ui`：ProTable / FormModal / SearchForm 二次封装 | [next-steps T5.22](next-steps.md)、[roadmap §3.2](roadmap.md) | 无 | P2 | 组件可独立构建，有示例页 | 无 |
 | **AUTH-34** ↔ **T5.23** | admin 用户/角色/菜单管理页 + 按钮级权限渲染 | [next-steps T5.23](next-steps.md)、[roadmap §3.3](roadmap.md) | AUTH-32、AUTH-33、~~AUTH-21~~ ✅ Wave 5.2 | P2 | 页面可完成 CRUD 且按权限隐藏按钮 | **AUTH-21 已解除**（`/auth/me` 提供 permissions/menus）；余受 AUTH-32/33 牵连 |
 
@@ -185,7 +189,7 @@ Wave C｜Redis/MySQL 已就绪，本机可跑（auth 直连）
 Wave D｜✅ **Nacos 阻塞已解除（Wave 5.1f：Nacos 3.2.4 以 MySQL 外置存储就绪）**
   ├─ ✅ ~~AUTH-29 网关路由前缀冲突~~（已修 → REQ-ARCH-003）
   ├─ ✅ ~~AUTH-31② 网关→auth 全链路端到端~~（首次打通）
-  ├─ ✅ ~~AUTH-38 补齐 auth 管理前缀网关路由（P1，前端对接前置）~~（Wave 5.2：Path 扩为 `/auth,/user,/dept,/role,/menu,/permission`；冒烟待做）
+  ├─ ✅ ~~AUTH-38 补齐 auth 管理前缀网关路由（P1，前端对接前置）~~（Wave 5.2：Path 扩为 `/auth,/user,/dept,/role,/menu,/permission`；**Wave 5.3 经网关冒烟通过**）
   ├─ AUTH-30 Sentinel 限流联调
   └─ AUTH-32 admin 前端登录/登出对接 ──► AUTH-34 admin CRUD 页
                                         └─ AUTH-33 whale-ui（无阻塞，可前移）
@@ -201,9 +205,9 @@ Wave E｜被依赖服务 / 中间件未就绪阻塞
 
 | # | 项 | 现状与风险 | 来源 |
 |---|---|---|---|
-| 1 | **refreshToken 单次轮换策略未定** | 登出已双写黑名单，但 refreshToken 无「一次一换」约束，重放窗口仍存在 | [devlog §13 待做](../devlog/2026-10-17.md)（AUTH-03 待决策） |
-| 2 | **jjwt 版本分裂** | parent 管理 `0.12.5`，`whale-gateway/pom.xml` 硬编码 `0.12.6`，未走父管理，存在行为差异隐患 | [next-steps §五-4](next-steps.md)、`whale-parent/pom.xml:50`、`whale-gateway/pom.xml:60` |
-| ~~3~~ | ~~**网关路由前缀未确认**~~ → ✅ **已确认并修复（Wave 5.1f）** | 定夺结论：**改路由**（服务自持一级前缀、网关不剥离）→ REQ-ARCH-003；原新增风险 **AUTH-38**（auth 的 `/user`、`/dept`、`/role`、`/menu`、`/permission` 前缀无网关路由）**已于 Wave 5.2 补齐路由**，仅余「经网关冒烟」待验证 | [reviews/wave5.1f](../reviews/2026-10-17-wave5.1f-gateway-routing-and-e2e.md) §四-1 |
+| 1 | **refreshToken 单次轮换策略未定** → **✅ 已定稿（Wave 5.3，AUTH-03）** | 登出已双写黑名单，但 refreshToken 无「一次一换」约束，重放窗口仍存在。**处置**：[ADR-001](../design/adr/2026-10-17-refresh-token-rotation.md) 采纳「一换一 + 旧 token 黑名单 + 复用检测」，**实施另立 AUTH-39** | [devlog §13 待做](../devlog/2026-10-17.md)、[ADR-001](../design/adr/2026-10-17-refresh-token-rotation.md) |
+| ~~2~~ | ~~**jjwt 版本分裂**~~ → ✅ **已统一（Wave 5.3，AUTH-02）** | ~~parent 管理 `0.12.5`，`whale-gateway/pom.xml` 硬编码 `0.12.6`，未走父管理，存在行为差异隐患~~。**处置**：移除 gateway 三处硬编码 `<version>`，`dependency:tree` 实测三件均 **0.12.5** | [next-steps §五-4](next-steps.md)、`whale-parent/pom.xml:50`、`whale-gateway/pom.xml` |
+| ~~3~~ | ~~**网关路由前缀未确认**~~ → ✅ **已确认并修复（Wave 5.1f）** | 定夺结论：**改路由**（服务自持一级前缀、网关不剥离）→ REQ-ARCH-003；原新增风险 **AUTH-38**（auth 的 `/user`、`/dept`、`/role`、`/menu`、`/permission` 前缀无网关路由）**已于 Wave 5.2 补齐路由**，**经网关冒烟亦已于 Wave 5.3 通过** | [reviews/wave5.1f](../reviews/2026-10-17-wave5.1f-gateway-routing-and-e2e.md) §四-1 |
 | 4 | **黑名单降级语义** | Redis 不可用时 auth 与网关均按未命中放行 → 登出形同失效（可用性优先取舍，无告警） | [next-steps §五-2](next-steps.md) |
 | 5 | ~~**权限注解覆盖不足（证据确凿）**~~ → ✅ **已消除（Wave 5.2）** | 34 接口仅 3 处 `@RequirePermission`，大量写接口无鉴权，越权风险。**处置**：补齐 31 处（3 → 31）+ 22 条权限点种子；非超管 RBAC 判定不再必然 403 | Grep `controller/` 统计；AUTH-04 |
 | ~~6~~ | ~~**Nacos 不可用**~~ → ✅ **已解除（Wave 5.1f）** | Nacos 3.2.4 以 MySQL 外置存储就绪（8848/8849），auth/audit 均 `register finished`；RabbitMQ / Nginx 仍缺（影响 AUTH-08/10） | [reviews/wave5.1f](../reviews/2026-10-17-wave5.1f-gateway-routing-and-e2e.md) |

@@ -52,18 +52,21 @@ public class RoleController {
 
     @PostMapping
     @RequirePermission("sys:role:add")
+    @AuditLog(operation = "创建角色", type = OperateType.CREATE, targetType = "sys_role")
     public Result<RoleVO> create(@Valid @RequestBody RoleCreateRequest request) {
         return Result.ok(roleService.create(request));
     }
 
     @PutMapping("/{id}")
     @RequirePermission("sys:role:edit")
+    @AuditLog(operation = "更新角色", type = OperateType.UPDATE, targetType = "sys_role", targetId = "#id")
     public Result<RoleVO> update(@PathVariable Long id, @Valid @RequestBody RoleUpdateRequest request) {
         return Result.ok(roleService.update(id, request));
     }
 
     @DeleteMapping("/{id}")
     @RequirePermission("sys:role:delete")
+    @AuditLog(operation = "删除角色", type = OperateType.DELETE, targetType = "sys_role", targetId = "#id")
     public Result<Void> delete(@PathVariable Long id) {
         roleService.delete(id);
         return Result.ok();

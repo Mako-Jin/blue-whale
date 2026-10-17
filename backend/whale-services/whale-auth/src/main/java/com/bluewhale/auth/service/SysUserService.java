@@ -1,7 +1,9 @@
 package com.bluewhale.auth.service;
 
 import com.baomidou.mybatisplus.spring.service.IService;
+import com.bluewhale.auth.dto.ChangePasswordRequest;
 import com.bluewhale.auth.dto.UserCreateRequest;
+import com.bluewhale.auth.dto.UserStatusRequest;
 import com.bluewhale.auth.dto.UserUpdateRequest;
 import com.bluewhale.auth.entity.SysUser;
 import com.bluewhale.auth.vo.UserVO;
@@ -24,6 +26,12 @@ public interface SysUserService extends IService<SysUser> {
     UserVO create(UserCreateRequest request);
 
     UserVO update(Long id, UserUpdateRequest request);
+
+    /** 重置用户登录密码（管理端操作，明文经 BCrypt 加密后落库） */
+    void changePassword(Long id, ChangePasswordRequest request);
+
+    /** 变更用户启停状态（1 启用 / 0 停用） */
+    void changeStatus(Long id, UserStatusRequest request);
 
     /** 逻辑删除用户，并清理用户-角色关联 */
     void delete(Long id);

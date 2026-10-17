@@ -271,4 +271,6 @@ VALUES
     (19, 0, 'sys:dept:list', '查询部门', 'API', '/dept/**', 'GET', 19, 1),
     (20, 0, 'sys:dept:add', '新增部门', 'API', '/dept', 'POST', 20, 1),
     (21, 0, 'sys:dept:edit', '修改部门', 'API', '/dept/**', 'PUT', 21, 1),
-    (22, 0, 'sys:dept:delete', '删除部门', 'API', '/dept/{id}', 'DELETE', 22, 1);
+    (22, 0, 'sys:dept:delete', '删除部门', 'API', '/dept/{id}', 'DELETE', 22, 1),
+    (23, 0, 'sys:user:resetPwd', '重置用户密码', 'API', '/user/{id}/password', 'PUT', 23, 1),
+    (24, 0, 'sys:user:status', '启停用户', 'API', '/user/{id}/status', 'PUT', 24, 1);

@@ -4,6 +4,8 @@ import com.bluewhale.auth.dto.DeptRequest;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.auth.service.SysDeptService;
 import com.bluewhale.auth.vo.DeptVO;
+import com.bluewhale.common.audit.annotation.AuditLog;
+import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.core.result.Result;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -44,6 +46,7 @@ public class DeptController {
 
     @PostMapping
     @RequirePermission("sys:dept:add")
+    @AuditLog(operation = "创建部门", type = OperateType.CREATE, targetType = "sys_dept")
     public Result<Void> create(@Valid @RequestBody DeptRequest request) {
         deptService.create(request);
         return Result.ok();
@@ -51,6 +54,7 @@ public class DeptController {
 
     @PutMapping("/{id}")
     @RequirePermission("sys:dept:edit")
+    @AuditLog(operation = "更新部门", type = OperateType.UPDATE, targetType = "sys_dept", targetId = "#id")
     public Result<Void> update(@PathVariable Long id, @Valid @RequestBody DeptRequest request) {
         deptService.update(id, request);
         return Result.ok();
@@ -58,6 +62,7 @@ public class DeptController {
 
     @DeleteMapping("/{id}")
     @RequirePermission("sys:dept:delete")
+    @AuditLog(operation = "删除部门", type = OperateType.DELETE, targetType = "sys_dept", targetId = "#id")
     public Result<Void> delete(@PathVariable Long id) {
         deptService.delete(id);
         return Result.ok();
