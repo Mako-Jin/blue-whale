@@ -240,10 +240,17 @@ public @interface DistributedLock {
 | 方案 | 说明 |
 |---|---|
 | JWT 无状态 | **现状**，网关与 auth 双层校验，无需会话存储 |
-| JWT + 黑名单 | 登出即刻失效（REQ-SEC-002 待验证），key `auth:token:blacklist:{token}`，TTL=剩余有效期 |
+| JWT + 黑名单 | 登出即刻失效（REQ-SEC-002 待验证），key `auth:token:blacklist:<sha256(token)>`，TTL=剩余有效期 |
 | Session + Redis | 传统有状态会话，与 JWT 方案冲突，不采用 |
 
 **推荐**：**JWT 无状态 + Redis 黑名单**。`AuthService#logout()` 已有 TODO 预留（key 形如 `auth:token:blacklist:{token}`），需在 `JwtAuthenticationFilter` 解析后先查黑名单；**网关侧同步校验黑名单**（REQ-SEC-003），避免跨服务漏放行。
+
+**落地钩子（Wave 5.1 已实施）**：
+
+1. **键约定唯一化**：key 前缀与 SHA-256 摘要算法下沉到 `whale-security` 的 `com.bluewhale.security.token.TokenBlacklistKeys`，auth 与 gateway 共用同一实现，避免两侧键格式漂移导致校验失效（清单 C6）。
+2. **refreshToken 一并失效**（REQ-SEC-004 / T5.6）：access 与 refresh 令牌签发时均带标准 `jti`；`/auth/logout` 接收可选 `refreshToken`（请求体），与头中 accessToken **双写**同一黑名单；`/auth/refresh` 在解析成功后再查黑名单，命中即 401，阻断「登出后仍可用 refreshToken 换发新 accessToken」的提权路径。
+3. **网关侧校验**（REQ-SEC-003 / T5.7）：网关为 WebFlux 响应式栈，采用 `spring-boot-starter-data-redis-reactive` + `ReactiveStringRedisTemplate`，`TokenBlacklistChecker#isBlacklisted` 返回 `Mono<Boolean>`；Redis 不可用 `onErrorResume` → 按未命中降级（与 auth 侧「可用性优先」取舍一致），生产需对 Redis 可用性告警。
+4. 网关 `/auth/refresh`、`/auth/login` 在白名单内，refresh 令牌的失效校验由 auth 侧 `/auth/refresh` 自校验完成。
 
 ### 3.7 任务拆分
 

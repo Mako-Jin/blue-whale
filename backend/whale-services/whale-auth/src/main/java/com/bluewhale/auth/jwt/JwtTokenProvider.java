@@ -12,15 +12,18 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * JWT Token 提供者（jjwt 0.12 API，HS256）
  * <p>与 whale-gateway 约定：</p>
  * <ul>
  *   <li>算法 HS256，secret = whale.auth.jwt.secret</li>
- *   <li>claims：sub=username、userId、roles（逗号分隔角色 code）、tokenType（access/refresh）</li>
+ *   <li>claims：sub=username、userId、roles（逗号分隔角色 code）、tokenType（access/refresh）、jti</li>
  *   <li>Header：Authorization: Bearer &lt;token&gt;</li>
  * </ul>
+ * <p>{@code jti} 为每枚令牌唯一的随机标识（标准 JWT ID claim），便于登出黑名单按令牌粒度
+ * 追踪与审计（REQ-SEC-004）；access 与 refresh 令牌均携带。</p>
  *
  * @author BlueWhale
  */
@@ -53,12 +56,13 @@ public class JwtTokenProvider {
     }
 
     /**
-     * 生成 accessToken：sub=username、userId、roles（逗号分隔角色 code）
+     * 生成 accessToken：sub=username、userId、roles（逗号分隔角色 code），带唯一 jti
      */
     public String generateAccessToken(Long userId, String username, List<String> roles) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + properties.getExpireMinutes() * 60_000);
         return Jwts.builder()
+                .id(UUID.randomUUID().toString())
                 .subject(username)
                 .claim(CLAIM_USER_ID, userId)
                 .claim(CLAIM_ROLES, String.join(",", roles))
@@ -70,12 +74,13 @@ public class JwtTokenProvider {
     }
 
     /**
-     * 生成 refreshToken
+     * 生成 refreshToken，带唯一 jti
      */
     public String generateRefreshToken(Long userId, String username) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + properties.getRefreshExpireMinutes() * 60_000);
         return Jwts.builder()
+                .id(UUID.randomUUID().toString())
                 .subject(username)
                 .claim(CLAIM_USER_ID, userId)
                 .claim(CLAIM_TOKEN_TYPE, TOKEN_TYPE_REFRESH)

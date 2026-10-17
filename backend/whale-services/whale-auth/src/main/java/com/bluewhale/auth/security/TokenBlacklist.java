@@ -1,7 +1,7 @@
 package com.bluewhale.auth.security;
 
 /**
- * 令牌黑名单：记录已登出但在有效期内仍可被伪造使用的 accessToken。
+ * 令牌黑名单：记录已登出但在有效期内仍可被伪造使用的令牌（accessToken / refreshToken）。
  * <p>实现须满足：</p>
  * <ul>
  *   <li>分布式生效——多实例共享同一份黑名单（依托 Redis 等共享存储）；</li>
@@ -16,14 +16,14 @@ public interface TokenBlacklist {
     /**
      * 将 token 加入黑名单，过期时间取 token 剩余有效期
      *
-     * @param token 已签发的 accessToken 原文
+     * @param token 已签发的 accessToken 或 refreshToken 原文
      */
     void add(String token);
 
     /**
      * 判断 token 是否已在黑名单中
      *
-     * @param token 待校验的 accessToken 原文
+     * @param token 待校验的 accessToken 或 refreshToken 原文
      * @return {@code true} 表示已登出失效
      */
     boolean contains(String token);

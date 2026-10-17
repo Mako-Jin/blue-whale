@@ -3,6 +3,7 @@
 > 用途：本项目所有需求（业务功能 + 工程规范）的统一台账。
 > 规则：**任何需求在动手实现之前，必须先在此登记编号与验收标准**（见 REQ-DOC-002）。
 > 最后更新：2026-10-17 ｜ 维护：BlueWhale
+> Wave 5.1（安全收口）进行中：REQ-SEC-003 / REQ-SEC-004 状态置为「实现中」。
 
 ---
 
@@ -49,7 +50,8 @@
 | 编号 | 需求描述 | 来源 | 优先级 | 状态 | 落点 | 验收标准 |
 |---|---|---|---|---|---|---|
 | REQ-SEC-002 | 登出（logout）令牌失效：接入分布式黑名单，使已登出 token 立即不可用 | REQ-DIST-002 + Wave 4 T4.1 | 高 | 待验证 | `whale-auth` `security/TokenBlacklist` + `JwtAuthenticationFilter` + `AuthService#logout` | 登出后原 accessToken 再访问受保护接口返回 401；Redis 不可用时降级不阻断登录 |
-| REQ-SEC-003 | 令牌黑名单的网关侧校验 | REQ-SEC-002 延伸 | 中 | 待启动 | `whale-gateway` `JwtAuthGlobalFilter` | 网关层命中黑名单直接 401，避免跨服务漏放行 |
+| REQ-SEC-003 | 令牌黑名单的网关侧校验 | REQ-SEC-002 延伸 | 中 | 实现中（Wave 5.1 T5.7） | `whale-gateway` `JwtAuthGlobalFilter` + `security/TokenBlacklistChecker` | 网关层命中黑名单直接 401，避免跨服务漏放行；Redis 不可用按未命中降级 |
+| REQ-SEC-004 | refreshToken 一并失效：令牌带 `jti`，登出时 access/refresh 双写黑名单，`/auth/refresh` 先校验黑名单 | REQ-SEC-002 延伸 | **高（P1）** | 实现中（Wave 5.1 T5.6） | `whale-auth` `jwt/JwtTokenProvider` + `service/AuthService` + `controller/AuthController` + `dto/LogoutRequest` | 登出后原 refreshToken 调 `/auth/refresh` 返回 401；双令牌均写入同一 Redis 黑名单 |
 | REQ-SEC-005 | 生产密钥强制校验：非 dev 环境启动时若 JWT 签名密钥仍为默认占位值则拒绝启动 | 用户指令 5 + Wave 5 T5.8 | 中 | 实现中 | `whale-auth` `config/JwtProperties` + `config/SecretPlaceholderChecker` | 非 dev profile 下密钥为占位值时应用启动失败并输出明确告警；dev 环境不受影响 |
 
 ---

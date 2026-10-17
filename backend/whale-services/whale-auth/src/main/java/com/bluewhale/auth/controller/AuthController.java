@@ -1,6 +1,7 @@
 package com.bluewhale.auth.controller;
 
 import com.bluewhale.auth.dto.LoginRequest;
+import com.bluewhale.auth.dto.LogoutRequest;
 import com.bluewhale.auth.dto.RefreshRequest;
 import com.bluewhale.auth.service.AuthService;
 import com.bluewhale.auth.vo.LoginResponse;
@@ -37,14 +38,16 @@ public class AuthController {
     }
 
     /**
-     * 登出：使请求头中的 accessToken 立即失效（写入分布式黑名单）
+     * 登出：使请求头中的 accessToken 与请求体中的 refreshToken 立即失效（双写分布式黑名单）
      *
      * @param authorization 请求头 {@code Authorization: Bearer <token>}，允许缺失
+     * @param request       请求体，可携带 {@code refreshToken} 使其一并失效（可空）
      */
     @PostMapping("/logout")
     public Result<Void> logout(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
-        authService.logout(authorization);
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+            @RequestBody(required = false) LogoutRequest request) {
+        authService.logout(authorization, request == null ? null : request.getRefreshToken());
         return Result.ok();
     }
 }

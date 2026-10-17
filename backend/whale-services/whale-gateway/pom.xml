@@ -42,6 +42,17 @@
             <groupId>com.alibaba.cloud</groupId>
             <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
         </dependency>
+        <!-- 响应式 Redis：校验令牌登出黑名单（REQ-SEC-003）。WebFlux 栈只能用 reactive 版 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis-reactive</artifactId>
+        </dependency>
+        <!-- 与 whale-auth 共用黑名单键约定（TokenBlacklistKeys），避免两侧键格式漂移 -->
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-security</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <!-- JWT（jjwt 0.12.x API，与 whale-auth 签发侧约定一致） -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>

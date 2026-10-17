@@ -2,6 +2,7 @@ package com.bluewhale.gateway.filter;
 
 import com.bluewhale.gateway.common.GatewayResponse;
 import com.bluewhale.gateway.config.WhaleGatewayProperties;
+import com.bluewhale.gateway.security.TokenBlacklistChecker;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -25,8 +26,10 @@ import java.nio.charset.StandardCharsets;
 
 /**
  * JWT 全局认证过滤器。
- * 约定与 whale-auth 签发侧一字不差：HS256；claims：sub=username、userId、roles（逗号分隔）。
+ * 约定与 whale-auth 签发侧一字不差：HS256；claims：sub=username、userId、roles（逗号分隔）、tokenType。
  * 认证通过后向下游注入 X-User-Id、X-Username、X-User-Roles（先清除外部伪造的同名入站头）。
+ * <p>校验顺序：签名/过期 → 令牌类型必须为 access（拒绝以 refreshToken 冒充访问令牌）→
+ * 查询分布式登出黑名单（REQ-SEC-003）→ 注入身份头放行。</p>
  *
  * @author BlueWhale
  */
@@ -39,12 +42,18 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
     private static final String USER_ID_HEADER = "X-User-Id";
     private static final String USERNAME_HEADER = "X-Username";
     private static final String USER_ROLES_HEADER = "X-User-Roles";
+    private static final String CLAIM_USER_ID = "userId";
+    private static final String CLAIM_ROLES = "roles";
+    private static final String CLAIM_TOKEN_TYPE = "tokenType";
+    private static final String TOKEN_TYPE_ACCESS = "access";
 
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
     private final WhaleGatewayProperties properties;
+    private final TokenBlacklistChecker tokenBlacklistChecker;
 
-    public JwtAuthGlobalFilter(WhaleGatewayProperties properties) {
+    public JwtAuthGlobalFilter(WhaleGatewayProperties properties, TokenBlacklistChecker tokenBlacklistChecker) {
         this.properties = properties;
+        this.tokenBlacklistChecker = tokenBlacklistChecker;
     }
 
     @Override
@@ -70,22 +79,20 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
                     .parseSignedClaims(token)
                     .getPayload();
 
-            String userId = stringify(claims.get("userId"));
-            String username = stringify(claims.getSubject());
-            String roles = stringify(claims.get("roles"));
-
-            // 先移除外部伪造的身份头，再注入网关解析出的身份信息
-            ServerHttpRequest mutatedRequest = request.mutate()
-                    .headers(headers -> {
-                        headers.remove(USER_ID_HEADER);
-                        headers.remove(USERNAME_HEADER);
-                        headers.remove(USER_ROLES_HEADER);
-                        headers.set(USER_ID_HEADER, userId);
-                        headers.set(USERNAME_HEADER, username);
-                        headers.set(USER_ROLES_HEADER, roles);
-                    })
-                    .build();
-            return chain.filter(exchange.mutate().request(mutatedRequest).build());
+            // 仅 accessToken 可访问下游 API，refreshToken 只能用于 /auth/refresh（白名单）
+            if (!TOKEN_TYPE_ACCESS.equals(stringify(claims.get(CLAIM_TOKEN_TYPE)))) {
+                log.warn("非 accessToken 访问受保护资源: path={}", path);
+                return unauthorized(exchange);
+            }
+            return tokenBlacklistChecker.isBlacklisted(token)
+                    .flatMap(blacklisted -> {
+                        if (Boolean.TRUE.equals(blacklisted)) {
+                            log.warn("令牌命中登出黑名单: path={}", path);
+                            return unauthorized(exchange);
+                        }
+                        ServerHttpRequest mutatedRequest = withIdentityHeaders(request, claims);
+                        return chain.filter(exchange.mutate().request(mutatedRequest).build());
+                    });
         } catch (JwtException | IllegalArgumentException e) {
             log.warn("JWT 校验失败: path={}, reason={}", path, e.getMessage());
             return unauthorized(exchange);
@@ -95,6 +102,29 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
     private boolean isWhiteListed(String path) {
         return properties.getWhiteList().stream()
                 .anyMatch(pattern -> pathMatcher.match(pattern, path));
+    }
+
+    /**
+     * 先移除外部伪造的身份头，再注入网关解析出的身份信息
+     *
+     * @param request 原始请求
+     * @param claims  已通过签名校验的令牌载荷
+     * @return 注入身份头后的新请求
+     */
+    private static ServerHttpRequest withIdentityHeaders(ServerHttpRequest request, Claims claims) {
+        String userId = stringify(claims.get(CLAIM_USER_ID));
+        String username = stringify(claims.getSubject());
+        String roles = stringify(claims.get(CLAIM_ROLES));
+        return request.mutate()
+                .headers(headers -> {
+                    headers.remove(USER_ID_HEADER);
+                    headers.remove(USERNAME_HEADER);
+                    headers.remove(USER_ROLES_HEADER);
+                    headers.set(USER_ID_HEADER, userId);
+                    headers.set(USERNAME_HEADER, username);
+                    headers.set(USER_ROLES_HEADER, roles);
+                })
+                .build();
     }
 
     private static String stringify(Object value) {

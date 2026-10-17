@@ -81,7 +81,7 @@
 - [x] T4.1 **分布式令牌黑名单**（REQ-SEC-002 / REQ-DIST-002）
   - 新增 `TokenBlacklist` / `RedisTokenBlacklist`；改造 `JwtAuthenticationFilter`、`AuthService#logout`、`AuthController#logout`、`JwtTokenProvider`、`whale-auth/pom.xml`
   - 验证：`mvn -pl backend/whale-services/whale-auth -am compile` → BUILD SUCCESS（6 模块 / 67 源文件）
-  - 遗留：REQ-SEC-003（网关侧校验）、REQ-SEC-004（refreshToken 失效）
+  - 遗留：REQ-SEC-003（网关侧校验）、REQ-SEC-004（refreshToken 失效）→ 已于 Wave 5.1（T5.6/T5.7）闭环
 - [ ] T4.2 审计日志落地（`@AuditLog` + AOP + 异步写库 + 脱敏 + 7 个 ALTER 字段）
 - [ ] T4.3 分布式锁工具（`@DistributedLock` + SpEL key + Redisson AOP）
 - [ ] T4.4 auth DDD 迁移第 1 步（四层目录骨架 + 认证上下文试点，API 不中断）

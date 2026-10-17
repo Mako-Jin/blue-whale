@@ -65,7 +65,7 @@
 - [x] 分布式令牌黑名单：登出后 accessToken 立即失效（Redis + SHA-256 摘要键 + 降级）
 - [ ] 分布式锁工具（`@DistributedLock` + SpEL + Redisson）
 - [ ] 审计日志落地（`@AuditLog` + AOP 异步写库 + 敏感字段脱敏）
-- [ ] refreshToken 失效（token 版本号 / `jti`）、网关侧黑名单校验（REQ-SEC-003/004）
+- [x] refreshToken 失效（`jti` + 黑名单）、网关侧黑名单校验（REQ-SEC-003/004）
 - [ ] 分布式 ID 统一与 Long→String 序列化
 - [ ] Gitee Go 流水线映射、JaCoCo 覆盖率门禁
 

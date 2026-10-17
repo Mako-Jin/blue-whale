@@ -38,6 +38,11 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AuthService {
 
+    /** refreshToken 无效 / 过期 / 命中黑名单时的统一对外文案，避免泄露具体失败原因 */
+    private static final String INVALID_REFRESH_TOKEN_MESSAGE = "refreshToken 无效或已过期";
+    /** 已登出令牌被再次使用时的对外文案 */
+    private static final String REVOKED_REFRESH_TOKEN_MESSAGE = "refreshToken 已失效，请重新登录";
+
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider tokenProvider;
     private final UserDetailsServiceImpl userDetailsService;
@@ -69,19 +74,26 @@ public class AuthService {
     }
 
     /**
-     * 刷新：refreshToken 换发新的 accessToken + refreshToken
+     * 刷新：refreshToken 换发新的 accessToken + refreshToken。
+     * <p>先做签名/过期与令牌类型校验，再查分布式黑名单：命中（已在登出时失效）直接 401，
+     * 阻断「登出后仍可用 refreshToken 换发新 token」的提权路径（REQ-SEC-004）。</p>
      */
     public LoginResponse refresh(RefreshRequest request) {
-        Claims claims = tokenProvider.parse(request.getRefreshToken());
+        String refreshToken = request.getRefreshToken();
+        Claims claims = tokenProvider.parse(refreshToken);
         if (claims == null || !JwtTokenProvider.TOKEN_TYPE_REFRESH.equals(
                 claims.get(JwtTokenProvider.CLAIM_TOKEN_TYPE, String.class))) {
-            throw new BizException(401, "refreshToken 无效或已过期");
+            throw new BizException(401, INVALID_REFRESH_TOKEN_MESSAGE);
+        }
+        if (tokenBlacklist.contains(refreshToken)) {
+            log.debug("refreshToken 命中登出黑名单，拒绝换发新令牌: username={}", claims.getSubject());
+            throw new BizException(401, REVOKED_REFRESH_TOKEN_MESSAGE);
         }
         UserDetails userDetails;
         try {
             userDetails = userDetailsService.loadUserByUsername(claims.getSubject());
         } catch (UsernameNotFoundException e) {
-            throw new BizException(401, "refreshToken 无效或已过期");
+            throw new BizException(401, INVALID_REFRESH_TOKEN_MESSAGE);
         }
         if (!userDetails.isEnabled()) {
             throw new BizException(401, "账号已停用");
@@ -90,19 +102,25 @@ public class AuthService {
     }
 
     /**
-     * 登出：将当前 accessToken 写入分布式黑名单，使其在剩余有效期内立即失效。
-     * <p>TTL 取 token 剩余有效期，到期后由 Redis 自动清理；
+     * 登出：将 accessToken 与 refreshToken 一并写入分布式黑名单，使其在剩余有效期内立即失效。
+     * <p>TTL 取各自令牌剩余有效期，到期后由 Redis 自动清理；
      * Redis 不可用时降级为客户端丢弃 token，不阻断登出流程。</p>
      *
      * @param authorization 请求头原始值，形如 {@code Bearer <token>}；缺失或格式不符时静默跳过
+     * @param refreshToken  请求体携带的 refreshToken（可空）；为空时仅失效 accessToken
      */
-    public void logout(String authorization) {
-        String token = resolveBearerToken(authorization);
-        if (token == null) {
-            log.debug("登出请求未携带有效 Bearer token，跳过黑名单写入");
-            return;
+    public void logout(String authorization, String refreshToken) {
+        String accessToken = resolveBearerToken(authorization);
+        if (accessToken != null) {
+            tokenBlacklist.add(accessToken);
+        } else {
+            log.debug("登出请求未携带有效 Bearer token，跳过 accessToken 黑名单写入");
         }
-        tokenBlacklist.add(token);
+        if (StringUtils.hasText(refreshToken)) {
+            tokenBlacklist.add(refreshToken);
+        } else {
+            log.debug("登出请求未携带 refreshToken，仅失效 accessToken");
+        }
     }
 
     /**
