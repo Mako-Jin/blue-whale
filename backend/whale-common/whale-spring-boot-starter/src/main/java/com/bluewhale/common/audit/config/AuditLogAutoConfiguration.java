@@ -5,9 +5,9 @@ import com.bluewhale.common.audit.mapper.AuditLogMapper;
 import com.bluewhale.common.audit.support.SensitiveDataMasker;
 import com.bluewhale.common.mybatis.config.MybatisPlusConfig;
 import org.aspectj.lang.annotation.Aspect;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
@@ -21,15 +21,23 @@ import java.util.concurrent.ThreadPoolExecutor;
 
 /**
  * 审计日志自动配置。
- * <p>生效条件：Servlet Web 应用 + 存在 {@link AuditLogMapper}（即该服务具备数据源与 MyBatis 环境）。
- * 无数据源的服务（如 gateway、纯计算模块）不会装配审计切面。</p>
+ * <p>生效条件：Servlet Web 应用 + 类路径存在 {@link AuditLogMapper}/{@code Aspect}/{@code ObjectMapper}
+ * （即该服务具备数据源与 MyBatis 环境）。无数据源的服务（如 gateway、纯计算模块）不会装配审计切面。</p>
+ *
+ * <p><b>为什么不能用 {@code @ConditionalOnBean(AuditLogMapper.class)} 判 Mapper</b>：
+ * {@code @ConditionalOnBean} 是<b>条件判定</b>，只在配置类解析期（{@code ConfigurationClassPostProcessor}）
+ * 求值；而 {@link AuditLogMapper} 由 {@code @MapperScan} 的 {@code MapperScannerConfigurer}
+ * （同为 BeanDefinitionRegistryPostProcessor，但优先级更低）在<b>其后</b>才注册 Bean 定义，
+ * 故解析期条件<b>恒不成立</b>，切面永不装配（实证：真实服务 `audit_log` 落库 0 行）。
+ * 正确做法：仅在 Bean 方法（<b>实例化期</b>，晚于全部 BeanFactoryPostProcessor，此时 Mapper 定义已就绪）
+ * 通过 {@link ObjectProvider} 延迟解析 Mapper；静态可判定的条件（Web 类型 / Class 存在性）仍由
+ * {@code @ConditionalOnWebApplication}/{@code @ConditionalOnClass} 承担。</p>
  *
  * @author BlueWhale
  */
 @AutoConfiguration(after = MybatisPlusConfig.class)
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @ConditionalOnClass({AuditLogMapper.class, Aspect.class, ObjectMapper.class})
-@ConditionalOnBean(AuditLogMapper.class)
 public class AuditLogAutoConfiguration {
 
     /** 审计线程池核心线程数：审计为低频 IO，单线程足够 */
@@ -68,13 +76,22 @@ public class AuditLogAutoConfiguration {
         return new SensitiveDataMasker(objectMapper);
     }
 
-    /** 审计切面 */
+    /**
+     * 审计切面。
+     * <p>{@link AuditLogMapper} 在<b>本方法执行时</b>（Bean 实例化期）经 {@link ObjectProvider} 延迟解析，
+     * 规避 {@code @ConditionalOnBean} 在配置类解析期早于 {@code @MapperScan} 的时序陷阱（详见类注释）；
+     * 解析不到 Mapper（无数据源/未启用 MyBatis）时不装配切面。</p>
+     */
     @Bean
     @ConditionalOnMissingBean
-    public AuditLogAspect auditLogAspect(AuditLogMapper auditLogMapper,
+    public AuditLogAspect auditLogAspect(ObjectProvider<AuditLogMapper> auditLogMapperProvider,
                                          SensitiveDataMasker sensitiveDataMasker,
                                          @Qualifier("auditLogExecutor") Executor auditLogExecutor,
                                          Environment environment) {
+        AuditLogMapper auditLogMapper = auditLogMapperProvider.getIfAvailable();
+        if (auditLogMapper == null) {
+            return null;
+        }
         return new AuditLogAspect(auditLogMapper, sensitiveDataMasker, auditLogExecutor, environment);
     }
 }

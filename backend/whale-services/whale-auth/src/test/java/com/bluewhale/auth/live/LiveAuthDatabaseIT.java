@@ -34,7 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class LiveAuthDatabaseIT {
 
     // 说明：Connector/J 不接受 characterEncoding=utf8mb4（UnsupportedEncodingException），
-    // 测试侧改用 Java 字符集名 UTF-8；生产 application.yml 的同类写法问题已单独登记。
+    // 测试侧使用 Java 字符集名 UTF-8；生产 application.yml 同类写法已于 Wave 5.1d 修正为 utf8（AUTH-36）。
     private static final String MYSQL_HOST = System.getProperty("whale.live.mysql.host", "127.0.0.1");
     private static final String MYSQL_PORT = System.getProperty("whale.live.mysql.port", "3306");
     private static final String SERVER_URL = "jdbc:mysql://" + MYSQL_HOST + ":" + MYSQL_PORT
@@ -77,16 +77,16 @@ class LiveAuthDatabaseIT {
     }
 
     @Test
-    @DisplayName("种子 admin 口令为 BCrypt 密文（60 位、非明文）；实测与注释所述明文 123456 不匹配（P1 缺陷，已登记）")
+    @DisplayName("种子 admin 口令为 BCrypt 密文（60 位、非明文），且与注释所述明文 123456 一致（Wave 5.1d 修正 AUTH-37）")
     void shouldStoreAdminPasswordAsBcrypt() throws Exception {
         String hash = queryOne("SELECT password FROM sys_user WHERE username = 'admin'");
         assertThat(hash).isNotNull().startsWith("$2a$").hasSize(60);
         assertThat(hash).doesNotContain(ADMIN_PASSWORD_PLAINTEXT);
-        // 实测：BCrypt.checkpw("123456", 种子密文) == false，即文档注释所述明文无法登录；
-        // 该缺陷不由测试侧修复（init.sql 属生产资源），仅在报告中登记为 P1。
+        // Wave 5.1d：种子密文由项目内 BCryptPasswordEncoder 生成并写入 init.sql，
+        // 使注释所述明文 123456 可实际登录（此前为 P1 缺陷，已修复）。
         assertThat(new BCryptPasswordEncoder().matches(ADMIN_PASSWORD_PLAINTEXT, hash))
-                .as("既有缺陷：种子口令与 init.sql 注释所述明文 %s 不匹配", ADMIN_PASSWORD_PLAINTEXT)
-                .isFalse();
+                .as("种子密文须与 init.sql 注释所述明文 %s 匹配", ADMIN_PASSWORD_PLAINTEXT)
+                .isTrue();
     }
 
     private static long count(String sql) throws Exception {

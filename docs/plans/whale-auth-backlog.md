@@ -5,7 +5,7 @@
 | 关联需求 | REQ-FUNC-002（权限中心 RBAC+ABAC 六层级）、REQ-ARCH-001（DDD 改造）、REQ-SEC-001/002/003/004/005、REQ-DIST-001~003、REQ-QA-002、REQ-CICD-001、REQ-PROC-001 |
 | 生成日期 | 2026-10-17 ｜ 作者：BlueWhale |
 | 数据来源 | [register.md](../requirements/register.md)、[next-steps.md](next-steps.md)、[task-breakdown.md](task-breakdown.md)、[roadmap.md](roadmap.md)、[ddd-whale-auth.md](../design/ddd-whale-auth.md)、[audit-log.md](../design/audit-log.md)、[distributed.md](../design/distributed.md)、[devlog/2026-10-17.md](../devlog/2026-10-17.md) §11~§15、[reviews/2026-10-17-wave5.1b-audit-log.md](../reviews/2026-10-17-wave5.1b-audit-log.md)、[specs/2026-10-17-wave5.1b-audit-log/](../specs/2026-10-17-wave5.1b-audit-log/spec.md)、`backend/whale-services/whale-auth/` 源码与测试目录、`backend/whale-services/whale-gateway/src/main/resources/application.yml` |
-| 快照口径 | **已完成**：登录/刷新/登出、令牌黑名单（auth+网关）、审计注解/切面/脱敏/查询接口、审计表 DDL、DDD 设计定稿。**进行中**：REQ-SEC-002 待验证、REQ-SEC-005 待扩展、REQ-SEC-001 运行时待验证。**阻塞**：需 Nacos(8848) 的网关 `lb://` 联调；依赖服务（whale-file/whale-job）与 RabbitMQ 未就绪的项 |
+| 快照口径 | **已完成**：登录/刷新/登出、令牌黑名单（auth+网关）、审计注解/切面/脱敏/查询接口、审计表 DDL、DDD 设计定稿。**进行中**：REQ-SEC-002 待验证、REQ-SEC-005 待扩展、**REQ-SEC-001 审计落库已实机验证（Wave 5.1e）**。**阻塞**：需 Nacos(8848) 的网关 `lb://` 联调；依赖服务（whale-file/whale-job）与 RabbitMQ 未就绪的项 |
 | 环境事实（本轮更新） | Redis（`tools/redis-server.exe`，6379）与 MySQL（3306 mysqld）**本机已可用**；**Nacos（8848）仍不可用** → 服务发现 `lb://` 全链路联调阻塞；网关 `StripPrefix=1` 与控制器前缀不一致问题仍待确认 |
 
 > 说明：本文档**只新增**，不改动任何既有计划文件（register/next-steps/devlog/reviews/specs 有并行子代理维护）。任务编号 `AUTH-01` 起顺延，并逐条标注与既有 `T5.x` / `T4.x` / `T-DDD-x` / `T-AUD-x` / `T-DIST-x` 的映射，避免重复造编号。
@@ -62,9 +62,9 @@
 
 | 任务 | 内容 | 来源 | 依赖 | 优先级 | 验收口径 | 当前阻塞 |
 |---|---|---|---|---|---|---|
-| **AUTH-35** | `redisson-spring-boot-starter:3.34.1` 引用 Boot 4 已移除的 `org.springframework.boot.autoconfigure.data.redis.RedisProperties` → `whale-auth` / `whale-audit` / `whale-pay` **`java -jar` 启动即 `ClassNotFoundException`（服务不可用）** | [reviews/2026-10-17-wave5.1c-runtime-verification.md](../reviews/2026-10-17-wave5.1c-runtime-verification.md) §三-1；`whale-parent/pom.xml:42,164`、`whale-auth/pom.xml:71`、`whale-audit/pom.xml:53`、`whale-services/whale-pay/pom.xml:53`、`whale-spring-boot-starter/pom.xml:39` | 无 | **P0** | 三服务 `java -jar` 能启动并就绪（8081/9101）；`whale.live.it=true` 的 HTTP 端到端可跑通 | 无（方案待选：①换 `org.redisson:redisson` 原始依赖 + 自建 `RedissonAutoConfiguration`；②升级到支持 Boot 4 的 Redisson 版本；③改用 Spring Data Redis 自实现锁语义） |
-| **AUTH-36** | JDBC URL 参数 `characterEncoding=utf8mb4` 被 Connector/J 拒绝（应写 `utf8`，表字符集用 `connectionCollation`），本轮验证被迫用系统属性覆盖才连库成功 | [reviews §三-2](../reviews/2026-10-17-wave5.1c-runtime-verification.md) | 无 | P1 | auth/audit 等 yml 改为 `characterEncoding=utf8`，真实连库无告警 | 无 |
-| **AUTH-37** | `whale-auth/db/init.sql` 种子 admin 的 BCrypt 密文与注释口令「123456」不符，按文档无法登录 | [reviews §三-3](../reviews/2026-10-17-wave5.1c-runtime-verification.md) | 无 | P2 | 注释口令可实际登录，或注释与密文一致并注明生成方式 | 无 |
+| **AUTH-35** ✅ **已解决（Wave 5.1d）** | `redisson-spring-boot-starter:3.34.1` 引用 Boot 4 已移除的 `org.springframework.boot.autoconfigure.data.redis.RedisProperties` → `whale-auth` / `whale-audit` / `whale-pay` **`java -jar` 启动即 `ClassNotFoundException`（服务不可用）** | [reviews/2026-10-17-wave5.1c-runtime-verification.md](../reviews/2026-10-17-wave5.1c-runtime-verification.md) §三-1；[reviews/2026-10-17-wave5.1d-boot4-deps-and-startup.md](../reviews/2026-10-17-wave5.1d-boot4-deps-and-startup.md) §三-1；`whale-parent/pom.xml`、`whale-auth/pom.xml`、`whale-audit/pom.xml`、`whale-services/whale-pay/pom.xml`、`whale-spring-boot-starter/pom.xml` | 无 | **P0** | 三服务 `java -jar` 能启动并就绪（8081/9101）；`whale.live.it=true` 的 HTTP 端到端可跑通 | **已解**：升级至 **4.8.0**（按 Boot 4.1 编译、传递 `redisson-spring-data-41`）实测与 Boot 4.0.8 兼容 —— `whale-auth`(8081) / `whale-audit`(9101) 均 `Started …Application`，`LiveDistributedLockIT` 2/0/0 通过，login/logout 端到端跑通。**未回退 4.5.0/4.2.0** |
+| **AUTH-36** ✅ **已解决（Wave 5.1d）** | JDBC URL 参数 `characterEncoding=utf8mb4` 被 Connector/J 拒绝（应写 `utf8`，表字符集用 `connectionCollation`） | [reviews 5.1c §三-2](../reviews/2026-10-17-wave5.1c-runtime-verification.md)；[5.1d §三-2](../reviews/2026-10-17-wave5.1d-boot4-deps-and-startup.md) | 无 | P1 | auth/audit 等 yml 改为 `characterEncoding=utf8`，真实连库无告警 | **已解**：auth/audit yml 改为 `characterEncoding=utf8&connectionCollation=utf8mb4_general_ci`；服务以该 URL 真实连库成功（`LiveAuthDatabaseIT` 2/0/0） |
+| **AUTH-37** ✅ **已解决（Wave 5.1d）** | `whale-auth/db/init.sql` 种子 admin 的 BCrypt 密文与注释口令「123456」不符，按文档无法登录 | [reviews 5.1c §三-3](../reviews/2026-10-17-wave5.1c-runtime-verification.md)；[5.1d §三-3](../reviews/2026-10-17-wave5.1d-boot4-deps-and-startup.md) | 无 | P2 | 注释口令可实际登录，或注释与密文一致并注明生成方式 | **已解**：重生成 BCrypt 密文；`LiveAuthDatabaseIT` 断言翻转为 `matches("123456")==true` 并通过；端到端 `admin/123456` 登录 `code=0` |
 
 ### ① 安全收口残余
 
@@ -86,7 +86,7 @@
 | **AUTH-09** ↔ T-AUD-8 | 审计保留与归档定时任务（90 天热 / 90 天–1 年温 / >1 年冷） | [audit-log.md](../design/audit-log.md) §10、T-AUD-8「未落地」 | whale-job（REQ-FUNC-006 待启动） | P2 | 过期数据按策略清理；归档动作记审计 | **阻塞：whale-job 未启动** |
 | **AUTH-10** ↔ T-AUD-9 | 阶段二 MQ 汇聚（`@AuditLog` → RabbitMQ → whale-audit 消费落 `bluewhale_audit`） | [audit-log.md](../design/audit-log.md) §6/T-AUD-9；[devlog §14 待做](../devlog/2026-10-17.md) | RabbitMQ | P3 | 容器就绪后跨服务审计汇聚到独立库 | **阻塞：RabbitMQ 未就绪** |
 | **AUTH-11** | 脱敏规则配置化（`whale.audit.sensitive.keys`）+ `@Sensitive` 注解兜底 | [audit-log.md](../design/audit-log.md) §7；[devlog §14 待做](../devlog/2026-10-17.md) | 无 | P3 | key 规则可由配置扩展；`@Sensitive` 字段按策略脱敏 | 无 |
-| **AUTH-12** | 审计埋点补全：现仅 5 处，缺 用户更新/删除、角色·菜单·权限·部门全部写操作、改密/启停、ABAC 属性写入 | [audit-log.md](../design/audit-log.md) §2 事件分类 vs §12 埋点现状 | 无 | P2 | §2 各分类的敏感写操作均产生审计记录 | 无 |
+| **AUTH-12** | 审计埋点补全：现仅 5 处，缺 用户更新/删除、角色·菜单·权限·部门全部写操作、改密/启停、ABAC 属性写入。**前置已解除**：切面装配时序缺陷（`@ConditionalOnBean`）已于 Wave 5.1e 修复（改 `ObjectProvider` 延迟解析），并实机验证 `audit_log` 落库生效，故本任务现在具备可验证前提 | [audit-log.md](../design/audit-log.md) §2 事件分类 vs §12 埋点现状；[reviews/2026-10-17-wave5.1e-audit-aspect-wiring-fix.md](../reviews/2026-10-17-wave5.1e-audit-aspect-wiring-fix.md) | 无 | P2 | §2 各分类的敏感写操作均产生审计记录 | 无 |
 | **AUTH-13** | `recordResult()` 落库（注解属性已定义但无对应列；需先补列） | [reviews §三-#5](../reviews/2026-10-17-wave5.1b-audit-log.md)；`common/audit/annotation/AuditLog.java` | 补 `audit_log` 列 | P3 | 需记录返回体的接口落库后可查 | 无 |
 
 ### ③ DDD 迁移（REQ-ARCH-001）
@@ -145,9 +145,11 @@
 ## 三、依赖关系与建议执行顺序
 
 ```
-Wave 0｜启动阻塞，最高优先级（不修则所有服务跑不起来）
-  └─ AUTH-35 redisson / Boot 4 不兼容（P0）──► 解锁 Wave C、Wave D 全部运行时验证
-       └─ AUTH-36 数据源字符集参数 ｜ AUTH-37 种子口令对齐
+Wave 0｜启动阻塞 ✅ **已解除**（Wave 5.1d：AUTH-35/36/37 全部关闭）
+  └─ ✅ AUTH-35 redisson 升级 4.8.0 实测兼容（auth 8081 / audit 9101 启动成功）──► 解锁 Wave C、Wave D 运行时验证
+       └─ ✅ AUTH-36 数据源字符集参数 ｜ ✅ AUTH-37 种子口令对齐
+       └─ ✅ 遗留已闭环（Wave 5.1e）：审计切面装配缺陷已修并实机验证落库（原 `audit_log` 0 行 → 6 行）；refresh 返回码口径已澄清（HTTP 200 + 业务码 401，既有约定非缺陷）
+       └─ ⏳ 新增遗留（Wave 5.1e）：阶段一审计**跨库可见性**约束（查询服务须与写入服务同库/同实例）
 
 Wave A｜无外部依赖，可立即动工（Redis/MySQL 本机已可用）
   ├─ AUTH-04 权限注解覆盖补全（P1，纯安全缺口）
@@ -197,6 +199,10 @@ Wave E｜被依赖服务 / 中间件未就绪阻塞
 | 10 | **权限判定无缓存** | `PermissionInterceptor` 每次兜底直查 DB，高并发下为性能瓶颈，且缓存一致性方案未落地 | [ddd-whale-auth.md](../design/ddd-whale-auth.md) §1.1 |
 | 11 | **前端 admin 未对接** | roadmap §2.1「对接 admin 前端登录」未勾选，REQ-FUNC-002 仍标「API 齐备，前端未对接」 | [roadmap.md](roadmap.md) §2.1、[register REQ-FUNC-002](../requirements/register.md) |
 | 12 | **`recordResult()` 属性悬空** | 注解已定义但无对应列，属"已声明未实现"，易误判能力已具备 | [reviews §三-#5](../reviews/2026-10-17-wave5.1b-audit-log.md) |
-| 13 | **服务无法启动（P0，实测）** | `redisson-spring-boot-starter:3.34.1` 引用 Boot 4 已移除的 `RedisProperties` → whale-auth/whale-audit/whale-pay `java -jar` 启动即 `ClassNotFoundException`；此前从未启动过服务故一直未暴露 | [reviews/2026-10-17-wave5.1c-runtime-verification.md](../reviews/2026-10-17-wave5.1c-runtime-verification.md) §三-1；AUTH-35 |
-| 14 | **数据源字符集参数不合法** | `characterEncoding=utf8mb4` 被 Connector/J 拒绝，真实连库需覆盖参数；说明 yml 从未在真机连库验证过 | [reviews §三-2](../reviews/2026-10-17-wave5.1c-runtime-verification.md)；AUTH-36 |
-| 15 | **种子数据与文档不一致** | `init.sql` 注释称 admin 口令为 `123456`，实际 BCrypt 密文不匹配，按文档无法登录 | [reviews §三-3](../reviews/2026-10-17-wave5.1c-runtime-verification.md)；AUTH-37 |
+| 13 | **服务无法启动（P0，实测）→ ✅ 已消除（Wave 5.1d）** | `redisson-spring-boot-starter:3.34.1` 引用 Boot 4 已移除的 `RedisProperties` → whale-auth/whale-audit/whale-pay `java -jar` 启动即 `ClassNotFoundException`。**处置**：升级至 **4.8.0**（按 Boot 4.1 编译）实测兼容，auth 8081 / audit 9101 启动成功，`LiveDistributedLockIT` 通过 | [reviews 5.1c §三-1](../reviews/2026-10-17-wave5.1c-runtime-verification.md)、[reviews 5.1d §三-1](../reviews/2026-10-17-wave5.1d-boot4-deps-and-startup.md)；AUTH-35 |
+| 14 | **数据源字符集参数不合法 → ✅ 已消除（Wave 5.1d）** | `characterEncoding=utf8mb4` 被 Connector/J 拒绝。**处置**：auth/audit yml 改为 `utf8&connectionCollation=utf8mb4_general_ci`，真实连库成功 | [reviews 5.1c §三-2](../reviews/2026-10-17-wave5.1c-runtime-verification.md)、[reviews 5.1d §三-2](../reviews/2026-10-17-wave5.1d-boot4-deps-and-startup.md)；AUTH-36 |
+| 15 | **种子数据与文档不一致 → ✅ 已消除（Wave 5.1d）** | `init.sql` 注释称 admin 口令为 `123456`，旧密文不匹配。**处置**：重生成密文 + 断言翻转并通过，端到端 `admin/123456` 登录 `code=0` | [reviews 5.1c §三-3](../reviews/2026-10-17-wave5.1c-runtime-verification.md)、[reviews 5.1d §三-3](../reviews/2026-10-17-wave5.1d-boot4-deps-and-startup.md)；AUTH-37 |
+| 16 | **审计切面从未装配（P1，既有缺陷）→ ✅ 已消除（Wave 5.1e 实机验证）** | `AuditLogAutoConfiguration` 的 `@ConditionalOnBean(AuditLogMapper.class)` 在配置类解析期求值，**早于** `@MapperScan`（`MapperScannerConfigurer`）注册 Mapper Bean → 条件恒不成立、`AuditLogAspect` 从未装配、真实服务链路 `audit_log` 落库 0 行（`LiveAuditLogIT` 直连 Mapper 可过，掩盖该缺陷）。**处置**：删除 `@ConditionalOnBean`，改 `ObjectProvider<AuditLogMapper>` 于 Bean 实例化期延迟解析；实测 `bluewhale_auth.audit_log` 由 0 行 → 6 行（LOGIN/LOGOUT、`biz_status=1`、`request_params` 无凭据），`/audit/log/page` 可查、`LiveAuditLogIT` 3/0/0 | [reviews 5.1d §三-5](../reviews/2026-10-17-wave5.1d-boot4-deps-and-startup.md)、[reviews 5.1e](../reviews/2026-10-17-wave5.1e-audit-aspect-wiring-fix.md) |
+| 17 | **`/auth/refresh` 返回码口径（P2）→ ✅ 已澄清（非缺陷）** | 登出后 refresh 实测 **HTTP 200 + 业务码 401**，为 `Result` 全局统一包装的既有约定（业务码承载语义、HTTP 层恒 200），非缺陷；验收口径统一改为「**业务码 401**」 | [reviews 5.1d §三-4](../reviews/2026-10-17-wave5.1d-boot4-deps-and-startup.md)、[reviews 5.1e §四](../reviews/2026-10-17-wave5.1e-audit-aspect-wiring-fix.md) |
+| 18 | **阶段一审计跨库可见性（P2，固有约束，新发现）** | 阶段一采用「各服务写各自实例库」（auth 写 `bluewhale_auth.audit_log`），而 `whale-audit` 默认读 `bluewhale_audit` → **默认查不到其他服务写入的审计记录**。实测：把 `whale-audit` 数据源临时指向 `bluewhale_auth` 后 `/audit/log/page` 立即可见 `total=4` 条 → 证实「查询服务须与写入服务同库/同实例」。阶段二 MQ 汇聚（AUTH-10）为根治方案 | [reviews 5.1e §四](../reviews/2026-10-17-wave5.1e-audit-aspect-wiring-fix.md)；[audit-log.md](../design/audit-log.md) §6 |
+| 19 | **阶段一审计查询无鉴权（承接 AUTH-06）** | `AuditLogController` 无 `@RequirePermission`，审计数据可被任意调用者读取，属敏感数据暴露面 | [audit-log.md](../design/audit-log.md) §9；AUTH-06 |

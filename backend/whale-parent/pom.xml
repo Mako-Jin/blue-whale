@@ -35,11 +35,11 @@
             <spring-cloud-alibaba.version>2025.1.0.0</spring-cloud-alibaba.version>
 
         <!-- 持久层 -->
-        <mybatis-plus.version>3.5.7</mybatis-plus.version>
+        <mybatis-plus.version>3.5.17</mybatis-plus.version>
         <mysql.version>8.3.0</mysql.version>
 
         <!-- 缓存 -->
-        <redisson.version>3.34.1</redisson.version>
+        <redisson.version>4.8.0</redisson.version>
 
         <!-- 工具类 -->
         <hutool.version>5.8.27</hutool.version>
@@ -150,7 +150,12 @@
             <!-- 持久层 -->
             <dependency>
                 <groupId>com.baomidou</groupId>
-                <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+                <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-jsqlparser</artifactId>
                 <version>${mybatis-plus.version}</version>
             </dependency>
             <dependency>

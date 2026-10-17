@@ -13,10 +13,10 @@
 | 后端 | 25 模块可构建；auth/gateway/i18n 核心能力就绪；Redis 首次被 auth 使用（令牌黑名单） |
 | 前端 | 11 包可构建；基座登录 + 主布局就绪；admin / whale-ui / portal 未启动 |
 | 工程规范 | 需求登记册、检查清单、检查报告机制、Checkstyle 门禁 已建立 |
-| 分布式 | 方案已定稿；**已落地 3 项**（令牌黑名单 auth+网关 / ID 序列化 / 分布式锁工具）；幂等、事务未落地；Wave 5.1c 实机验证：令牌黑名单与分布式锁**通过**（网关侧仍阻塞） |
-| 审计 | 注解/切面/脱敏/查询接口已落地；auth 已埋点；**运行时已验证**（Wave 5.1c：真实 MySQL 落库 4 行 + 脱敏掩码 + `page()` 过滤/收敛/倒序通过） |
+| 分布式 | 方案已定稿；**已落地 3 项**（令牌黑名单 auth+网关 / ID 序列化 / 分布式锁工具）；幂等、事务未落地；Wave 5.1c 实机验证：令牌黑名单与分布式锁**通过**；Wave 5.1d：**redisson 升级 4.8.0 后服务可真实启动**（网关侧仍阻塞） |
+| 审计 | 注解/切面/脱敏/查询接口已落地；auth 已埋点；**Wave 5.1e 修复既有缺陷并实机验证落库**：`AuditLogAutoConfiguration` 去掉时序不可靠的 `@ConditionalOnBean(AuditLogMapper)`，改 `ObjectProvider` 延迟解析 → 真实服务链路审计切面**已装配**，`bluewhale_auth.audit_log` 由 0 行 → 6 行（LOGIN/LOGOUT、`biz_status=1`、`request_params` 无凭据），`/audit/log/page` 可查、`LiveAuditLogIT` 3/0/0 |
 | 架构 | auth DDD 方案已定稿；代码未迁移 |
-| 阻塞项 | Redis/MySQL **已可用**（Wave 5.1c 实机验证）；**P0**：`redisson-spring-boot-starter 3.34.1` 与 Spring Boot 4.0.8 不兼容 → 服务启动即失败（whale-auth/audit/pay）；**Nacos 8848 未监听** → 网关/`lb://` 未验证 |
+| 阻塞项 | Redis/MySQL **已可用**（Wave 5.1c/5.1d 实机验证；MySQL 3306 以任务书凭据直连）；~~**P0**：`redisson-spring-boot-starter 3.34.1` 与 Spring Boot 4.0.8 不兼容~~ → **✅ 已解除（Wave 5.1d：升级 4.8.0 实测兼容，auth 8081 / audit 9101 启动成功）**；**Nacos 8848 未监听** → 网关/`lb://` 未验证 |
 
 ---
 
@@ -132,10 +132,13 @@ Wave 5.3（交付收口）
 
 ## 五、风险提示
 
-1. **验证深度部分提升，服务级仍阻塞**：Wave 5.1c 已用本机 Redis + MySQL（自建 3307 实例）取得黑名单 / 分布式锁 / 审计落库与查询的**真实运行时证据**；但 **P0**（`redisson-spring-boot-starter 3.34.1` 与 Spring Boot 4.0.8 不兼容，`ClassNotFoundException: …autoconfigure.data.redis.RedisProperties`）使服务**启动即失败**，T4.1 登出链路**仍未端到端跑通** —— 阻塞点不是 Docker/中间件缺位，而是**依赖与框架大版本不兼容**。
+1. **服务级阻塞已解除，转为具体缺陷收口**：Wave 5.1d 将 `redisson-spring-boot-starter` 升级至 **4.8.0**（实测兼容），`whale-auth`(8081) / `whale-audit`(9101) **首次真实启动成功**，`login`/`logout` HTTP 端到端跑通 —— 原先 **P0「依赖与框架大版本不兼容」已消除**。剩余为两处可定点修复的问题（见 5/6）。
 2. **黑名单降级语义**：Redis 不可用时 auth 侧 `contains` 与网关侧校验均按未命中放行 → 登出形同失效。这是可用性优先的取舍，生产需监控 Redis 可用性并告警。
 3. **规范执行成本**：清单 57 项若每次全量人工核对，成本偏高；建议以自动化覆盖 C/D/E，人工聚焦 A/B 语义项。
 4. **jjwt 版本分裂**（parent 0.12.5 / gateway 0.12.6）尚未统一，存在行为差异隐患。
-5. **审计运行时已验证、网关路由仍未确认**：`audit_log` 真实落库与分页查询已通过（Wave 5.1c）；网关路由前缀（`/audit/**` + StripPrefix 与控制器 `/audit/log` 不一致）仍因 Nacos 缺位未确认。
-6. **数据源 URL 字符集写法缺陷（P1，运行时才暴露）**：`whale-auth` / `whale-audit` 的 `application.yml` 使用 `characterEncoding=utf8mb4`，Connector/J 直接抛 `UnsupportedEncodingException: utf8mb4`，须改为 `UTF-8`。
-7. **种子口令与文档不符（P1）**：`whale-auth/db/init.sql` 种子 admin 的 BCrypt 密文与注释所述明文 `123456` 不匹配（实测 `BCrypt.checkpw` 为 `false`），按文档凭据无法登录。
+5. ~~审计切面装配缺陷（P1，新发现，既有）~~ → **✅ 已修并实机验证（Wave 5.1e）**：`AuditLogAutoConfiguration` 去掉时序不可靠的 `@ConditionalOnBean(AuditLogMapper.class)`（配置类解析期求值，早于 `@MapperScan`），改 `ObjectProvider` 在 Bean 实例化期延迟解析 → 真实服务链路 `AuditLogAspect` 已装配，`bluewhale_auth.audit_log` 由 **0 行 → 6 行**（LOGIN/LOGOUT、`biz_status=1`、`request_params` 无凭据），`/audit/log/page` 可查、`LiveAuditLogIT` 3/0/0。
+6. ~~`/auth/refresh` 返回码口径（P2）~~ → **✅ 已澄清（Wave 5.1e，非缺陷）**：登出后 refresh 实测 **HTTP 200 + 业务码 401**，为 `Result` 全局统一包装的既有约定（业务码承载语义、HTTP 层恒 200）；验收口径统一改为「业务码 401」。
+7. **网关路由仍未确认**：网关路由前缀（`/audit/**` + StripPrefix 与控制器 `/audit/log` 不一致）与 REQ-SEC-003 网关黑名单全链路，仍因 **Nacos 8848 缺位**未确认。
+8. ~~数据源 URL 字符集写法缺陷（P1）~~ → **已修（Wave 5.1d）**：auth/audit yml 改为 `characterEncoding=utf8&connectionCollation=utf8mb4_general_ci`，服务真实连库成功。
+9. ~~种子口令与文档不符（P1）~~ → **已修（Wave 5.1d）**：重生成 BCrypt 密文，`admin/123456` 端到端登录 `code=0`。
+10. **审计跨库可见性约束（P2，新发现）**：阶段一「各服务写各自实例库」，`whale-audit` 默认读 `bluewhale_audit`，**默认查不到其他服务写入的审计记录**；实测将 `whale-audit` 数据源临时指向 `bluewhale_auth` 后 `/audit/log/page` 立即可见（`total=4`）。阶段二 MQ 汇聚为根治方案。

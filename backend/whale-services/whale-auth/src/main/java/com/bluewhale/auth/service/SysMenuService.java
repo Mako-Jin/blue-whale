@@ -1,6 +1,6 @@
 package com.bluewhale.auth.service;
 
-import com.baomidou.mybatisplus.extension.service.IService;
+import com.baomidou.mybatisplus.spring.service.IService;
 import com.bluewhale.auth.dto.MenuRequest;
 import com.bluewhale.auth.entity.SysMenu;
 import com.bluewhale.auth.vo.MenuVO;

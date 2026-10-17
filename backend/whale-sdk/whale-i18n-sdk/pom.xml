@@ -28,7 +28,7 @@
         <!-- MyBatis-Plus（数据库级 i18n 默认实现；optional：由接入方按需提供持久层环境） -->
         <dependency>
             <groupId>com.baomidou</groupId>
-            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+            <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
             <optional>true</optional>
         </dependency>
         <dependency>

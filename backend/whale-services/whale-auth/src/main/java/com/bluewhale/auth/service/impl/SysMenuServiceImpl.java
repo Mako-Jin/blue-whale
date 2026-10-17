@@ -1,7 +1,7 @@
 package com.bluewhale.auth.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.bluewhale.auth.dto.MenuRequest;
 import com.bluewhale.auth.entity.SysMenu;
 import com.bluewhale.auth.mapper.SysMenuMapper;

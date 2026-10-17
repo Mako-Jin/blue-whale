@@ -1,6 +1,6 @@
 package com.bluewhale.auth.service;
 
-import com.baomidou.mybatisplus.extension.service.IService;
+import com.baomidou.mybatisplus.spring.service.IService;
 import com.bluewhale.auth.dto.DeptRequest;
 import com.bluewhale.auth.entity.SysDept;
 import com.bluewhale.auth.vo.DeptVO;

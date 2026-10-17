@@ -119,7 +119,28 @@ private Long id;   // 主键 ID（雪花算法）
 
 ### 2.1 现状
 
-`whale-auth/pom.xml` 已声明 `org.redisson:redisson-spring-boot-starter`（parent 统一管理 3.34.1），但**代码中尚无 `RLock` 使用与锁工具**。Redis 7 已在 `infrastructure/docker/docker-compose.yml` 编排。
+`whale-auth/pom.xml` 已声明 `org.redisson:redisson-spring-boot-starter`（parent 统一管理，Wave 5.1d 起为 **4.8.0**），`@DistributedLock` 注解 + AOP 切面已落地（T5.2）。Redis 7 已在 `infrastructure/docker/docker-compose.yml` 编排。
+
+### 2.1.1 版本与 Spring Boot 4 兼容性（Wave 5.1d 决策）
+
+**问题**：`redisson-spring-boot-starter:3.34.1` 的 `RedissonAutoConfiguration(V2)` / `PropertiesRedisConnectionDetails` 引用
+`org.springframework.boot.autoconfigure.data.redis.RedisProperties`，该类在 Spring Boot 4 已迁移出 `spring-boot-autoconfigure`
+→ 服务启动即 `ClassNotFoundException`（whale-auth / whale-audit / whale-pay，P0）。
+
+**版本矩阵**：
+
+| Redisson starter | 编译基线 Boot | 传递的 spring-data 适配 | 与 Boot 4.0.8（本项目）匹配度 |
+|---|---|---|---|
+| 3.34.1（旧） | Boot 3.x | `redisson-spring-data-33` | **不兼容**（启动即 `ClassNotFoundException: …autoconfigure.data.redis.RedisProperties`） |
+| **4.8.0（本次采用）** | Boot 4.1.0 | `redisson-spring-data-41` | 跨小版本（4.1 vs 4.0.8），**实测兼容 ✅** |
+| 4.5.0（回退预案，未启用） | Boot 4.0.6 | `redisson-spring-data-40` | 与 4.0.x 最贴近 |
+
+> 官方线：**4.0.0~4.5.0** 按 Boot 4.0.x 编译、传递 `redisson-spring-data-40`；**4.6.0+** 按 Boot 4.1 编译、传递 `redisson-spring-data-41`。本项目 Boot **4.0.8** 属 4.0.x 线，理论最匹配 4.5.0。
+
+**决策与实测结论（2026-10-17，Wave 5.1d）**：采用 **4.8.0** 并**实测通过** —— `whale-auth`(8081) / `whale-audit`(9101) 均 `Started …Application`；启动日志 `org.redisson.Version : Redisson 4.8.0` + `1 connections initialized for 127.0.0.1/127.0.0.1:6379`；`LiveDistributedLockIT` 2/0/0 通过。**未出现 `NoSuchMethodError` / `AbstractMethodError` / 缺失 Boot 4.1 类，故未启用 4.5.0 回退预案。**
+
+**变更点**：`whale-parent/pom.xml` `<redisson.version>`；`dependencyManagement` 中 `org.redisson:redisson-spring-boot-starter` 构件名不变，
+各模块 pom（whale-auth / whale-audit / whale-pay / whale-spring-boot-starter）无需改名。
 
 ### 2.2 RLock 使用规范
 

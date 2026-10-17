@@ -172,6 +172,7 @@ public @interface AuditLog {
 - 落库走**独立线程池**（`auditLogExecutor`，有界队列 + `CallerRunsPolicy` 兜底），切面内主流程零阻塞。
 - **事务一致性**：审计记录必须在业务事务提交后写入（否则会出现"审计到不存在的数据"）。方案：切面内注册 `TransactionSynchronizationManager.registerSynchronization(afterCommit)`，无事务时直接异步提交。
 - 线程池拒绝/异常时**只告警不影响主流程**（审计不可成为业务可用性的单点）。
+- **自动装配条件（Wave 5.1e 修正，必须遵守）**：切面的自动配置**不得**用 `@ConditionalOnBean(AuditLogMapper.class)` 判 Mapper。理由：`@ConditionalOnBean` 是**条件判定**，只在配置类解析期（`ConfigurationClassPostProcessor`）求值，**早于** `@MapperScan`（`MapperScannerConfigurer`）注册 Mapper Bean 的时点 → 条件**恒不成立**、`AuditLogAspect` 永不装配（实证：真实服务 `audit_log` 落库 0 行，Wave 5.1d 发现）。正确做法：用「静态可判定」条件控制装配 —— `@ConditionalOnWebApplication(SERVLET)` + `@ConditionalOnClass({AuditLogMapper.class, Aspect.class, ObjectMapper.class})`；并在 `@Bean` 方法（**Bean 实例化期**，晚于全部 `BeanFactoryPostProcessor`，Mapper 定义已就绪）内通过 `ObjectProvider<AuditLogMapper>` **延迟解析** Mapper，解析不到则不装配（返回 `null`）。
 
 ---
 
@@ -267,6 +268,8 @@ whale-gateway
 
 **实施状态（2026-10-17，Wave 5.1b）**：`GET /audit/log/page`、`GET /audit/log/{id}`、`GET /audit/log/trace/{traceId}` **已实现**（`AuditLogController`，服务内前缀 `/audit/log`；分页按 `create_time` 倒序、`size` 收敛到 `[1, 200]`、`getDetail` 为空抛 `BizException(NOT_FOUND)`）；`POST /audit/log/export`、`@RequirePermission("sys:audit:log:list")`、读审计的元审计**未实现**（登记待做）。
 
+**运行时验证（2026-10-17，Wave 5.1e）**：审计**落库已实机验证**。修复自动配置装配缺陷（见 §5.4「自动装配条件」）后，真实启动 `whale-auth`（8081）跑通 login/logout，`bluewhale_auth.audit_log` 落库 **≥2 行**（LOGIN/LOGOUT，`biz_status=1`，`request_params` 无明文凭据）；`whale-audit`（9101，数据源**临时指向 `bluewhale_auth`**）`GET /audit/log/page` **可见**这些记录。**跨库可见性约束**：阶段一各服务写各自实例下的审计表，故**查询服务必须与写入服务同库/同实例**（或提供合并查询），否则查不到数据；阶段二 MQ 汇聚（§6 方案B / T-AUD-9）落地后消除该约束。详见 [reviews/2026-10-17-wave5.1e-audit-aspect-wiring-fix.md](../reviews/2026-10-17-wave5.1e-audit-aspect-wiring-fix.md)。
+
 **待确认项（网关路由前缀冲突）**：网关既有路由 `Path=/audit/**` + `StripPrefix=1` 会把 `/audit/log/page` 剥成 `/log/page`，与控制器前缀 `/audit/log` 不一致。该问题属既有配置，本批未改，待中间件就绪后联调定夺。
 
 ---
@@ -328,7 +331,7 @@ whale-gateway
 | Mapper | `.../common/audit/mapper/AuditLogMapper.java` | `extends BaseMapper`，被 `@MapperScan("com.bluewhale.**.mapper")` 扫描 |
 | 脱敏器 | `.../common/audit/support/SensitiveDataMasker.java` | 递归脱敏（深度 8）+ 参数 JSON 4096 截断 + key 归一化匹配规则 |
 | 切面 | `.../common/audit/aop/AuditLogAspect.java` | `@Order(LOWEST_PRECEDENCE)`；采集 module/method(`declaringTypeName#name`)/uri/httpMethod/targetType/targetId/requestParams/responseCode/bizStatus/errorMsg/ip/userAgent/costMs/createTime；用户上下文只取 `X-User-Id`/`X-Username`，traceId 取 `X-Trace-Id`（无 MDC 回落） |
-| 自动配置 | `.../common/audit/config/AuditLogAutoConfiguration.java` | `@AutoConfiguration(after = MybatisPlusConfig.class)` + `@ConditionalOnWebApplication(SERVLET)` + `@ConditionalOnClass` + `@ConditionalOnBean(AuditLogMapper.class)`；Bean：`auditLogExecutor`（core=1/max=2/queue=256/`CallerRunsPolicy`/前缀 `audit-log-`）、`sensitiveDataMasker`、`auditLogAspect` |
+| 自动配置 | `.../common/audit/config/AuditLogAutoConfiguration.java` | `@AutoConfiguration(after = MybatisPlusConfig.class)` + `@ConditionalOnWebApplication(SERVLET)` + `@ConditionalOnClass`；**Wave 5.1e 修正**：去除 `@ConditionalOnBean(AuditLogMapper.class)`（时序不可靠），`auditLogAspect(...)` 改注入 `ObjectProvider<AuditLogMapper>` 在实例化期延迟解析（见 §5.4「自动装配条件」）；Bean：`auditLogExecutor`（core=1/max=2/queue=256/`CallerRunsPolicy`/前缀 `audit-log-`）、`sensitiveDataMasker`、`auditLogAspect` |
 | 单测 | `.../src/test/.../common/audit/aop/AuditLogAspectTest.java`、`.../support/SensitiveDataMaskerTest.java` | 覆盖切面成功/失败/落库路径与脱敏规则 |
 | 自动配置注册 | `.../src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` | 追加 `com.bluewhale.common.audit.config.AuditLogAutoConfiguration` |
 | starter pom | `backend/whale-common/whale-spring-boot-starter/pom.xml` | 保持普通库模块（不 repackage），可被业务服务依赖 |
@@ -348,7 +351,8 @@ whale-gateway
 - 全量编译：`mvn -B clean compile -T 1C` → BUILD SUCCESS。
 - 单测：`mvn -B -pl whale-common/whale-spring-boot-starter,whale-ops/whale-audit,whale-services/whale-auth -am test` → starter 15 / auth 19（不回归）/ audit 6，全绿（合计 40）。
 - 静态检查：上述三模块 `checkstyle:check` → 0 violations。
+- **Wave 5.1e 实机验证（2026-10-17）**：修复自动配置装配缺陷后，starter 单测 `Tests run: 15, Failures: 0, Errors: 0`；`whale-auth` 真实启动（`Started in 9.64 seconds`）+ login/logout `code=0`；`bluewhale_auth.audit_log` 落库 **6 行**（LOGIN/LOGOUT，`biz_status=1`，`request_params` 无凭据）；`whale-audit`（数据源临时指向 `bluewhale_auth`）`/audit/log/page` 可见记录；`LiveAuditLogIT` `Tests run: 3, Failures: 0, Errors: 0`。
 
-**遗留 / 待做**：T-AUD-8 保留归档、T-AUD-9 MQ 汇聚（阶段二）、`POST /audit/log/export`、`@Sensitive` 注解兜底、脱敏规则配置化、whale-audit 侧 `@RequirePermission("sys:audit:log:list")`、运行时/端到端验证（本机无 Docker）、网关路由前缀冲突确认。
+**遗留 / 待做**：T-AUD-8 保留归档、T-AUD-9 MQ 汇聚（阶段二）、`POST /audit/log/export`、`@Sensitive` 注解兜底、脱敏规则配置化、whale-audit 侧 `@RequirePermission("sys:audit:log:list")`、网关路由前缀冲突确认、**阶段一跨库可见性约束**（查询服务须与写入服务同库/同实例，见 §9 运行时验证）。**运行时/端到端验证已完成（Wave 5.1e：落库 + 查询可见）**。
 
 > 变更留痕：检查报告见 [docs/reviews/2026-10-17-wave5.1b-audit-log.md](../reviews/2026-10-17-wave5.1b-audit-log.md)，任务台账见 [docs/plans/task-breakdown.md](../plans/task-breakdown.md) 与 [docs/plans/next-steps.md](../plans/next-steps.md)。

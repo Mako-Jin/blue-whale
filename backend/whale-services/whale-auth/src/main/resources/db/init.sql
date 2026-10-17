@@ -215,12 +215,13 @@ CREATE TABLE audit_log (
 -- =====================================================================
 
 -- 内置超级管理员用户（id=1）
--- password 为 BCrypt 占位密文，明文为 123456（BCrypt 单向加密，不可反解）。
--- 该哈希为业界通用示例占位串，首次部署后请立即修改默认密码。
+-- password 为 BCrypt 密文（由项目内 BCryptPasswordEncoder 生成），明文为 123456。
+-- 该密文经 BCryptPasswordEncoder.matches("123456", 密文) 实测校验通过，可用于首次登录。
+-- 首次部署后请立即修改默认密码。
 INSERT INTO sys_user
     (id, username, password, nickname, phone, email, avatar, dept_id, status, last_login_time)
 VALUES
-    (1, 'admin', '$2a$10$mE.qmcV0mFU5N5Kh6LqfUuRxvWuJrz9vanl4GHlJymxLB7kvNiYqa', '超级管理员', NULL, NULL, NULL, NULL, 1, NULL);
+    (1, 'admin', '$2a$10$rzq21So0/Oj02kDlvSr2K.lWaqOwb6TzkgwhuGRKIRGnlJV.F/l8m', '超级管理员', NULL, NULL, NULL, NULL, 1, NULL);
 
 -- 内置超级管理员角色（role_code = super_admin）
 INSERT INTO sys_role

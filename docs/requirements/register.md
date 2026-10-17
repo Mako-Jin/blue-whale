@@ -2,8 +2,9 @@
 
 > 用途：本项目所有需求（业务功能 + 工程规范）的统一台账。
 > 规则：**任何需求在动手实现之前，必须先在此登记编号与验收标准**（见 REQ-DOC-002）。
-> 最后更新：2026-10-17（Wave 5.1c 实机验证） ｜ 维护：BlueWhale
-> Wave 5.1c（Redis/MySQL 实机验证）：令牌黑名单、分布式锁、审计落库与查询**已取得真实运行时证据**；whale-auth 服务级端到端因 **P0**（`redisson-spring-boot-starter 3.34.1` 与 Spring Boot 4.0.8 不兼容）阻塞，REQ-SEC-003 因 Nacos 8848 未监听未验证。详见 [reviews/2026-10-17-wave5.1c-runtime-verification.md](../reviews/2026-10-17-wave5.1c-runtime-verification.md)。
+> 最后更新：2026-10-17（Wave 5.1d 依赖兼容 + Wave 5.1e 审计切面修复） ｜ 维护：BlueWhale
+> Wave 5.1d：**服务首次真实启动成功**（`redisson 4.8.0` 与 Boot 4.0.8 实测兼容，P0 关闭；MyBatis-Plus 升 3.5.17 并迁移到 `mybatis-plus-spring-boot4-starter`）；whale-auth 8081 / whale-audit 9101 均可启动。
+> Wave 5.1e：审计切面装配缺陷（`@ConditionalOnBean(Mapper)` 时序不可靠）已修复，`audit_log` **0 → 6 行**真实落库、`/audit/log/page` 可见记录；新增登记 **REQ-ARCH-002 数据库可切换适配（含国产化要求）**，当前及近期仍统一使用 MySQL。详见 [reviews/2026-10-17-wave5.1d-boot4-deps-and-startup.md](../reviews/2026-10-17-wave5.1d-boot4-deps-and-startup.md) 与 [reviews/2026-10-17-wave5.1e-audit-aspect-wiring-fix.md](../reviews/2026-10-17-wave5.1e-audit-aspect-wiring-fix.md)。
 
 ---
 
@@ -40,6 +41,7 @@
 | REQ-DIST-003 | 其他分布式问题（幂等、缓存一致性、分布式事务、限流熔断、链路追踪、分布式会话） | 用户指令 5 | 中 | 设计已定稿 | [design/distributed.md](../design/distributed.md) | 每项含备选方案对比表与推荐结论 |
 | REQ-DOC-002 | 所有要求先落到文档，每一步都需遵守（文档先行 / 变更控制） | 用户指令 6 | 高 | 已完成 | 本登记册 + [docs/README.md](../README.md) 约定章节 | 未登记编号、未定稿设计的变更不得进入编码阶段 |
 | REQ-ARCH-001 | 权限服务（whale-auth）改造为 DDD 分层架构 | 用户指令 7 | 高 | 设计已定稿 | [design/ddd-whale-auth.md](../design/ddd-whale-auth.md) | 四层架构、限界上下文、聚合设计、渐进迁移路线与回滚方案齐备 |
+| REQ-ARCH-002 | 数据库可切换适配：按客户要求切换不同数据库，含**国产化要求**（达梦 DM / 人大金仓 KingBase / openGauss / OceanBase 等） | 用户指令 10 | 中 | 待推进（**未设计**；当前及近期仍统一使用 MySQL） | 本登记册 + 待建 `design/multi-database.md` | ① 持久层方言可切换：MyBatis-Plus `DbType` + `PaginationInnerInterceptor` 按库选型，不写死 MySQL；② DDL 版本化并在未来按数据库类型分发（Flyway/Liquibase 或等价方案），替换现有 `init.sql` 直连执行；③ 去 MySQL 专有依赖：`ENGINE=InnoDB`、`utf8mb4_general_ci`、`ON UPDATE CURRENT_TIMESTAMP`、`TINYINT`、JDBC 参数 `characterEncoding/serverTimezone` 等；④ 产出「本仓现状与换库改造清单 + 风险」文档。**本轮不实现，仅登记，避免阻塞 Wave 5.1d** |
 | REQ-PROC-001 | 按既有波次计划持续推进下一步任务 | 用户指令 8 | 高 | 实现中 | [task-breakdown.md](../plans/task-breakdown.md) + [next-steps.md](../plans/next-steps.md) Wave 5.1b | Wave 5.0 任务逐项闭环，含构建与单测验证 |
 | REQ-PROC-002 | 每轮结束输出下一步建议与任务清单 | 用户指令 9 | 中 | 已完成 | [plans/next-steps.md](../plans/next-steps.md) | 清单含任务、依赖、优先级、验收口径 |
 
