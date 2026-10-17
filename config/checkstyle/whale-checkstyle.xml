@@ -5,15 +5,15 @@
 <!--
   BlueWhale Checkstyle 规则集
   对应 docs/checklists/code-review-checklist.md 中 C / D / E 类可自动化检查项。
-  策略：
-    - 结构性、命名类规则为 warning（不阻断构建）
-    - 仅 severity=error 的违规才会使 `mvn checkstyle:check` 失败
+  策略（AUTH-25：门禁提级）：
+    - 结构性、命名类规则为 error（违规即阻断构建）
+    - `mvn checkstyle:check` 对任何 error 级违规返回失败
     - 魔法值为 info 级别，仅提示不阻断
   维护：BlueWhale ｜ 更新：2026-10-17
 -->
 <module name="Checker">
     <property name="charset" value="UTF-8"/>
-    <property name="severity" value="warning"/>
+    <property name="severity" value="error"/>
     <property name="fileExtensions" value="java"/>
 
     <!-- E6 行宽上限 -->
