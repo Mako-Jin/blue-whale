@@ -31,7 +31,7 @@
 - [x] 5.1 检查报告 `docs/reviews/2026-10-18-wave5.15-audit-channel-query.md` 逐项对应本清单
 - [x] 5.2 devlog 追加本波条目，四节（需求项 / 完成项 / 待做项 / 已修正问题项）齐备
 - [x] 5.3 台账销账：`register.md`（REQ-SEC-006）/ `next-steps.md` / `design/audit-log.md`（§9 状态）
-- [ ] 5.4 变更已 commit 并 push 至 Gitee `origin/main`，工作区干净且 `main == origin/main`
+- [x] 5.4 变更已 commit 并 push 至 Gitee `origin/main`，工作区干净且 `main == origin/main`
 
 ## 六、核验结论
 
