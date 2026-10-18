@@ -1,11 +1,18 @@
 package com.bluewhale.audit.controller;
 
+import com.bluewhale.audit.dto.ApiLogQueryRequest;
 import com.bluewhale.audit.dto.LogBatchRequest;
 import com.bluewhale.audit.dto.LogItem;
+import com.bluewhale.audit.dto.OutboundLogQueryRequest;
+import com.bluewhale.audit.service.ApiLogService;
 import com.bluewhale.audit.service.BehaviorLogService;
 import com.bluewhale.audit.service.FrontendLogService;
+import com.bluewhale.audit.service.OutboundLogService;
+import com.bluewhale.audit.vo.ApiLogVO;
+import com.bluewhale.audit.vo.OutboundLogVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.common.web.WebHeaders;
 import org.junit.jupiter.api.DisplayName;
@@ -25,6 +32,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -48,8 +56,10 @@ class LogIngestControllerTest {
 
     private final FrontendLogService frontendLogService = mock(FrontendLogService.class);
     private final BehaviorLogService behaviorLogService = mock(BehaviorLogService.class);
-    private final LogIngestController controller =
-            new LogIngestController(frontendLogService, behaviorLogService);
+    private final ApiLogService apiLogService = mock(ApiLogService.class);
+    private final OutboundLogService outboundLogService = mock(OutboundLogService.class);
+    private final LogIngestController controller = new LogIngestController(
+            frontendLogService, behaviorLogService, apiLogService, outboundLogService);
 
     @Test
     @DisplayName("items 为空：抛 PARAM_ERROR 且不调用服务")
@@ -134,6 +144,32 @@ class LogIngestControllerTest {
                 .andExpect(status().isOk());
 
         verify(frontendLogService).saveBatch(any(), eq(UNTRUSTED_USER_ID));
+    }
+
+    @Test
+    @DisplayName("接口日志分页（通道①）：委托 ApiLogService 并原样返回分页结果")
+    void shouldDelegateApiPageToService() {
+        ApiLogQueryRequest request = new ApiLogQueryRequest();
+        PageResult<ApiLogVO> page = PageResult.of(List.of(), 0L, 1L, 10L);
+        when(apiLogService.page(request)).thenReturn(page);
+
+        Result<PageResult<ApiLogVO>> result = controller.apiPage(request);
+
+        assertThat(result.getData()).isSameAs(page);
+        verify(apiLogService).page(request);
+    }
+
+    @Test
+    @DisplayName("出站日志分页（通道②）：委托 OutboundLogService 并原样返回分页结果")
+    void shouldDelegateOutboundPageToService() {
+        OutboundLogQueryRequest request = new OutboundLogQueryRequest();
+        PageResult<OutboundLogVO> page = PageResult.of(List.of(), 0L, 1L, 10L);
+        when(outboundLogService.page(request)).thenReturn(page);
+
+        Result<PageResult<OutboundLogVO>> result = controller.outboundPage(request);
+
+        assertThat(result.getData()).isSameAs(page);
+        verify(outboundLogService).page(request);
     }
 
     /**

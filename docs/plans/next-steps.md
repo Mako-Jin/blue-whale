@@ -62,8 +62,11 @@
 > **Wave 5.10 执行结果（2026-10-18 更新）**：✅ ~~审计日志多通道完善（后端 Wave A，REQ-SEC-006）~~（4 表 DDL + `LogPersistSupport`/`whaleLogExecutor` + `ApiLogFilter`（tee 透传）+ 出站拦截器 + `LogIngestController` 上报/查询）。
 > 同步闭环 ✅ ~~AUTH-06~~（审计查询鉴权：因 whale-audit 库无 RBAC 表，改**网关注入权限码头 + starter 通用拦截器**，权限点 `sys:audit:log:list`）+ ✅ ~~AUTH-11~~（脱敏规则配置化 `whale.audit.sensitive.keys` + `SensitiveDataMasker#maskJson`）。
 > 以「**247 单测/IT 全绿（clean verify BUILD SUCCESS）+ Checkstyle 全 29 模块 0 违规 + 实时 IT `LiveApiLogIT`/`LiveFrontendLogIT` 7/0/0**」完成验证。
-> **残余**：~~Wave B 前端 `whale-log-sdk`~~ ✅ **已完成（Wave 5.14）**、MQ 汇聚、异步派发丢采集。（`api_log.module` 回填 / 保留期扩多表 / 网关按路径限流 已由 **Wave 5.12** 闭环）
+> **残余**：~~Wave B 前端 `whale-log-sdk`~~ ✅ **已完成（Wave 5.14）**、~~① ② 通道查询接口缺失~~ ✅ **已完成（Wave 5.15）**、MQ 汇聚、异步派发丢采集。（`api_log.module` 回填 / 保留期扩多表 / 网关按路径限流 已由 **Wave 5.12** 闭环）
 > 详见 [devlog §30](../devlog/2026-10-18.md) 与 [检查报告](../reviews/2026-10-18-wave5.10-multichannel-log.md)。
+
+> **Wave 5.15 执行结果（2026-10-18 更新）**：✅ ~~审计服务 ①② 通道查询接口补齐（REQ-SEC-006）~~——为 `api_log`（通道①）/`outbound_log`（通道②）补齐与 ③④ 对称的分页查询端点 `GET /audit/log/api/page`、`GET /audit/log/outbound/page`（`@RequirePermission("sys:audit:log:list")`，返回 `Result<PageResult<VO>>`）：新增 `ApiLogQueryRequest`/`OutboundLogQueryRequest`（继承 `PageQuery`，时间范围 `@DateTimeFormat`）+ `ApiLogVO`/`OutboundLogVO`（`Serializable`，字段与实体一一对应）+ `ApiLogService`/`OutboundLogService`(+`Impl`)（`size` 收敛 `[1,200]`、`create_time` 倒序、等值条件带「是否提供」开关、时间 `ge/le`，命中既有索引），四通道「写—查」对称达成。
+> 以「**`-pl :whale-audit -am test` BUILD SUCCESS / 46 用例全绿（含不回归）+ `checkstyle:check` 28 模块 0 违规**」完成验证。**残余**：① ② 查询的运行时端到端验证（待中间件就绪）、元审计（查询端点自身 `@AuditLog(type=QUERY)`）未加。详见 [devlog §35](../devlog/2026-10-18.md) 与 [检查报告](../reviews/2026-10-18-wave5.15-audit-channel-query.md)。
 
 > **Wave 5.12 执行结果（2026-10-18 更新）**：✅ ~~审计后端残余收口（REQ-SEC-006）~~——`api_log.module` 回填（`ApiLogProperties#module` 默认取 `spring.application.name`）、网关**按路径**限流（`RateLimitProperties#pathRules` + `RateLimitGlobalFilter` 最长匹配，上报路径独立阈值）、保留期**扩 4 表**（`RetentionProperties` + `LogRetentionCleaner`/`Scheduler`，默认关闭，**不清理 `audit_log`**）。
 > 以「**`clean verify -T 1C` BUILD SUCCESS / 292 用例全绿 + `checkstyle:check` 28 模块 0 违规**」完成验证。详见 [devlog §32](../devlog/2026-10-18.md) 与 [检查报告](../reviews/2026-10-18-wave5.12-audit-backend-polish.md)。

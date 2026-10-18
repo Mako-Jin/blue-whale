@@ -1,13 +1,19 @@
 package com.bluewhale.audit.controller;
 
+import com.bluewhale.audit.dto.ApiLogQueryRequest;
 import com.bluewhale.audit.dto.BehaviorLogQueryRequest;
 import com.bluewhale.audit.dto.FrontendLogQueryRequest;
 import com.bluewhale.audit.dto.LogBatchRequest;
 import com.bluewhale.audit.dto.LogItem;
+import com.bluewhale.audit.dto.OutboundLogQueryRequest;
+import com.bluewhale.audit.service.ApiLogService;
 import com.bluewhale.audit.service.BehaviorLogService;
 import com.bluewhale.audit.service.FrontendLogService;
+import com.bluewhale.audit.service.OutboundLogService;
+import com.bluewhale.audit.vo.ApiLogVO;
 import com.bluewhale.audit.vo.BehaviorLogVO;
 import com.bluewhale.audit.vo.FrontendLogVO;
+import com.bluewhale.audit.vo.OutboundLogVO;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -25,12 +31,13 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * 前端日志接收与查询接口（REQ-SEC-006）。
+ * 多通道日志查询与前端上报接口（REQ-SEC-006）。
  *
  * <p>接收接口 {@code POST /audit/log/frontend/batch} 与 {@code POST /audit/log/behavior/batch}
- * 为 {@code permitAll}（未登录期的报错也需上报），投递落库后立即返回，不等落库完成；
- * 查询接口 {@code GET /audit/log/frontend/page} 与 {@code GET /audit/log/behavior/page}
- * 受 {@code @RequirePermission("sys:audit:log:list")} 保护（AUTH-06 权限码头）。</p>
+ * 为 {@code permitAll}（未登录期的报错也需上报），投递落库后立即返回，不等落库完成。</p>
+ * <p>查询接口四通道并列，均受 {@code @RequirePermission("sys:audit:log:list")} 保护（AUTH-06 权限码头）：
+ * 通道① {@code GET /audit/log/api/page}、通道② {@code GET /audit/log/outbound/page}、
+ * 通道③ {@code GET /audit/log/frontend/page}、通道④ {@code GET /audit/log/behavior/page}。</p>
  *
  * @author BlueWhale
  */
@@ -45,6 +52,10 @@ public class LogIngestController {
     private final FrontendLogService frontendLogService;
 
     private final BehaviorLogService behaviorLogService;
+
+    private final ApiLogService apiLogService;
+
+    private final OutboundLogService outboundLogService;
 
     /**
      * 接收前端 console 日志批量上报（permitAll，投递落库后立即返回）
@@ -86,6 +97,20 @@ public class LogIngestController {
     @RequirePermission("sys:audit:log:list")
     public Result<PageResult<BehaviorLogVO>> behaviorPage(BehaviorLogQueryRequest request) {
         return Result.ok(behaviorLogService.page(request));
+    }
+
+    /** 后端接口日志分页查询（需审计日志查询权限） */
+    @GetMapping("/api/page")
+    @RequirePermission("sys:audit:log:list")
+    public Result<PageResult<ApiLogVO>> apiPage(ApiLogQueryRequest request) {
+        return Result.ok(apiLogService.page(request));
+    }
+
+    /** 后端出站三方调用日志分页查询（需审计日志查询权限） */
+    @GetMapping("/outbound/page")
+    @RequirePermission("sys:audit:log:list")
+    public Result<PageResult<OutboundLogVO>> outboundPage(OutboundLogQueryRequest request) {
+        return Result.ok(outboundLogService.page(request));
     }
 
     /**

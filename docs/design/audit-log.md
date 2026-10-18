@@ -277,6 +277,16 @@ whale-gateway
 
 **残余（EXPORT 元审计未落地）**：`POST /audit/log/export` 及其 `@AuditLog(type=EXPORT)` 元审计**未落地**——导出接口本身尚不存在，AUTH-08 阻塞于 whale-file（8085）未启动；待文件服务就绪后与导出接口一并补齐（见 §12 遗留）。
 
+**多通道查询接口（Wave 5.10 起，Wave 5.15 补齐通道①②）**：`audit_log` 之外的四张独立表（`api_log`/`outbound_log`/`frontend_log`/`behavior_log`，见多通道完善方案）各自提供分页查询端点，与本 §9 的 `audit_log` 查询**并行、互不污染**：
+| 方法 | 路径 | 覆盖通道 | 权限 |
+|---|---|---|---|
+| GET | `/audit/log/api/page` | ①后端接口日志 | `@RequirePermission("sys:audit:log:list")` |
+| GET | `/audit/log/outbound/page` | ②后端出站三方调用日志 | `@RequirePermission("sys:audit:log:list")` |
+| GET | `/audit/log/frontend/page` | ③前端开发者日志 | `@RequirePermission("sys:audit:log:list")` |
+| GET | `/audit/log/behavior/page` | ④前端用户行为埋点 | `@RequirePermission("sys:audit:log:list")` |
+
+**实施状态（Wave 5.15，2026-10-18）**：通道③④查询于 Wave 5.10 随 `LogIngestController` 落地；通道①②查询于 Wave 5.15 补齐（`ApiLogService`/`OutboundLogService` + `ApiLogQueryRequest`/`OutboundLogQueryRequest` + `ApiLogVO`/`OutboundLogVO`，`size` 收敛 `[1, 200]`、`create_time` 倒序、等值条件带「是否提供」开关、时间 `ge/le`、命中既有索引），四通道「写—查」对称达成。门禁：`-pl :whale-audit -am test` 46 用例全绿、`checkstyle:check` 28 模块 0 违规。详见 [reviews/2026-10-18-wave5.15-audit-channel-query.md](../reviews/2026-10-18-wave5.15-audit-channel-query.md)、[specs/2026-10-18-wave5.15-audit-channel-query/spec.md](../specs/2026-10-18-wave5.15-audit-channel-query/spec.md)。
+
 **运行时验证（2026-10-17，Wave 5.1e）**：审计**落库已实机验证**。修复自动配置装配缺陷（见 §5.4「自动装配条件」）后，真实启动 `whale-auth`（8081）跑通 login/logout，`bluewhale_auth.audit_log` 落库 **≥2 行**（LOGIN/LOGOUT，`biz_status=1`，`request_params` 无明文凭据）；`whale-audit`（9101，数据源**临时指向 `bluewhale_auth`**）`GET /audit/log/page` **可见**这些记录。**跨库可见性约束**：阶段一各服务写各自实例下的审计表，故**查询服务必须与写入服务同库/同实例**（或提供合并查询），否则查不到数据；阶段二 MQ 汇聚（§6 方案B / T-AUD-9）落地后消除该约束。详见 [reviews/2026-10-17-wave5.1e-audit-aspect-wiring-fix.md](../reviews/2026-10-17-wave5.1e-audit-aspect-wiring-fix.md)。
 
 **待确认项（网关路由前缀冲突）**：网关既有路由 `Path=/audit/**` + `StripPrefix=1` 会把 `/audit/log/page` 剥成 `/log/page`，与控制器前缀 `/audit/log` 不一致。该问题属既有配置，本批未改，待中间件就绪后联调定夺。
