@@ -6,8 +6,8 @@
 | # | 任务 | 依赖 | 优先级 | 验收 | 状态 |
 |---|---|---|---|---|---|
 | [ ] A1 | 文档先行：spec/tasks/checklist + `register.md` REQ-SEC-006 + `naming-conventions.md` 4 表与 SDK 包名登记 | 无 | 高 | 文档一致可追溯；4 表与 `@bluewhale/whale-log-sdk` 已登记 | ✅ |
-| [ ] A2 | 4 表 DDL（`whale-audit/db/init.sql` + `whale-auth/db/init.sql`）+ starter 实体/Mapper | A1 | 高 | 字段/索引与 spec §3.1 一致；append-only 无 `update_time`/`deleted` | ⏳ |
-| [ ] A3 | `LogPersistSupport` + `whaleLogExecutor`（core=2/max=4/queue=2048/`CallerRunsPolicy`/前缀 `whale-log-`）+ `LogSink`/`LocalLogSink` + `LogSinkProperties`/`ApiLogProperties` | A2 | 高 | 事务活跃 `afterCommit`、否则投递线程池；异常仅 warn；`sink=mq` 回落 local | ⏳ |
+| [ ] A2 | 4 表 DDL（`whale-audit/db/init.sql` + `whale-auth/db/init.sql`）+ starter 实体/Mapper | A1 | 高 | 字段/索引与 spec §3.1 一致；append-only 无 `update_time`/`deleted` | ✅ |
+| [ ] A3 | `LogPersistSupport` + `whaleLogExecutor`（core=2/max=4/queue=2048/`CallerRunsPolicy`/前缀 `whale-log-`）+ `LogSink`/`LocalLogSink` + `LogSinkProperties`/`ApiLogProperties` | A2 | 高 | 事务活跃 `afterCommit`、否则投递线程池；异常仅 warn；`sink=mq` 回落 local | ⏳（sink/属性已完成，executor 装配于 A7） |
 | [ ] A4 | `ApiLogFilter` + 自研 `LimitedCaching{Request,Response}Wrapper`（后端接口日志） | A3 | 高 | finally `copyBodyToResponse()`；Content-Type 白名单；`shouldNotFilterAsyncDispatch()=true`；`exclude-paths` 含上报接口防回环 | ⏳ |
 | [ ] A5 | `OutboundLogInterceptor` + `OutboundLogRestTemplateCustomizer` + `SensitiveDataMasker#maskJson`（三方调用日志 + AUTH-11 脱敏配置化） | A3 | 高 | 经 `RestTemplateBuilder` 自动挂载；traceId 透传；超时记 `biz_status=0` 并原样抛出 | ⏳ |
 | [ ] A6 | whale-audit `LogIngestController` 上报/查询接口 + `dto`/`vo`/`service`（含 AUTH-06 权限点种子） | A2、A3 | 高 | `items` 上限 50；上报 `permitAll` + `X-User-Id` 回填；查询 `@RequirePermission("sys:audit:log:list")` | ⏳ |

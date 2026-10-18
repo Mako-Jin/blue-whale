@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -80,12 +81,36 @@ public class SensitiveDataMasker {
     private final ObjectMapper objectMapper;
 
     /**
-     * 构造脱敏器
+     * 附加敏感键名（AUTH-11 配置化）：与内置规则并集，命中整体掩码
+     */
+    private final Set<String> extraSecretKeys;
+
+    /**
+     * 构造脱敏器（使用内置规则）
      *
      * @param objectMapper Jackson 序列化器，用于输出脱敏后的 JSON
      */
     public SensitiveDataMasker(ObjectMapper objectMapper) {
+        this(objectMapper, List.of());
+    }
+
+    /**
+     * 构造脱敏器（合并附加敏感键名，AUTH-11）
+     *
+     * @param objectMapper Jackson 序列化器，用于输出脱敏后的 JSON
+     * @param extraSecretKeys 附加敏感键名（忽略大小写、去 {@code _}/{@code -} 后匹配），可为 {@code null}
+     */
+    public SensitiveDataMasker(ObjectMapper objectMapper, Collection<String> extraSecretKeys) {
         this.objectMapper = objectMapper;
+        Set<String> normalized = new LinkedHashSet<>();
+        if (extraSecretKeys != null) {
+            for (String key : extraSecretKeys) {
+                if (key != null && !key.isBlank()) {
+                    normalized.add(normalizeKey(key));
+                }
+            }
+        }
+        this.extraSecretKeys = normalized;
     }
 
     /**
@@ -114,6 +139,30 @@ public class SensitiveDataMasker {
             log.warn("审计参数脱敏序列化失败，本次不记录参数", e);
             return null;
         }
+    }
+
+    /**
+     * 脱敏 JSON 文本（请求体 / 响应体通用，REQ-SEC-006）。
+     *
+     * <p>解析为 Map/List 后递归掩码再序列化；解析失败（非合法 JSON）时**仅按
+     * {@value #MAX_PARAM_LENGTH} 截断**，不抛异常、不丢内容。</p>
+     *
+     * @param json 待脱敏的 JSON 文本，可为 {@code null} 或空
+     * @return 脱敏并截断后的 JSON 文本；入参为空时返回 {@code null}
+     */
+    public String maskJson(String json) {
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+        String masked = json;
+        try {
+            Object parsed = objectMapper.readValue(json, Object.class);
+            masked = objectMapper.writeValueAsString(mask(parsed));
+        } catch (Exception e) {
+            // 非合法 JSON：放弃结构化脱敏，仅截断保留原文，避免丢日志
+            log.debug("日志体非合法 JSON，仅截断不脱敏: length={}", json.length());
+        }
+        return masked.length() <= MAX_PARAM_LENGTH ? masked : masked.substring(0, MAX_PARAM_LENGTH);
     }
 
     /**
@@ -223,7 +272,7 @@ public class SensitiveDataMasker {
             return null;
         }
         String normalized = normalizeKey(key);
-        if (SECRET_KEYS.contains(normalized)) {
+        if (SECRET_KEYS.contains(normalized) || extraSecretKeys.contains(normalized)) {
             return FULL_MASK;
         }
         if (TOKEN_KEYS.contains(normalized)) {
