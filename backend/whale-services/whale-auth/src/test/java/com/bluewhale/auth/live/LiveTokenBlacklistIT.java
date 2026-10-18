@@ -91,7 +91,7 @@ class LiveTokenBlacklistIT {
     @Test
     @DisplayName("跨实例共享：另建一个黑名单实例（同一 Redis）同样命中")
     void shouldShareBlacklistAcrossInstances() {
-        String token = tokenProvider.generateRefreshToken(1L, "admin");
+        String token = tokenProvider.generateRefreshToken(1L, "admin", null);
         blacklist.add(token);
 
         StringRedisTemplate otherTemplate = new StringRedisTemplate(connectionFactory);

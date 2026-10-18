@@ -5,13 +5,13 @@
 
 | # | 任务 | 依赖 | 优先级 | 验收 | 状态 |
 |---|---|---|---|---|---|
-| [ ] A1 | `whale-security` `TokenBlacklistKeys` 新增 `refreshUsedKey(jti)`（`whale:auth:refresh:used:`）与 `refreshFamilyKey(familyId)`（`whale:auth:refresh:family:`）+ 键约定单测 | 无 | 高 | 键前缀/格式正确 | ⏳ |
-| [ ] A2 | `JwtTokenProvider` 新增 `CLAIM_FAMILY_ID`；`generateRefreshToken(userId, username, familyId)` 增携 familyId；更新调用方与单测 | A1 | 高 | refreshToken 含 familyId claim；access 不含 | ⏳ |
-| [ ] A3 | 新增 `RefreshTokenRotationStore` 接口 + `RedisRefreshTokenRotationStore`（`SET NX` + fail-closed）+ `RefreshRotationProperties`（`whale.auth.refresh.rotation.enabled` 默认 false）+ 单测 | A1 | 高 | 首次 true/二次 false；family 吊销可查；异常 fail-closed | ⏳ |
-| [ ] A4 | `AuthService` 接入：`login` 生成 familyId、`buildLoginResponse(loginUser, familyId)`、`refresh` 按 §2.4 顺序实现（开关门控）+ 单测 | A2、A3 | 高 | 开启后二次使用 → 401 且 family 吊销；关闭时行为不变 | ⏳ |
-| [ ] A5 | 构建与门禁：`mvn -B -f backend/pom.xml clean verify -T 1C` + `checkstyle:check` | A1–A4 | 高 | BUILD SUCCESS；全 reactor 0 违规 | ⏳ |
-| [ ] A6 | 留痕收口：检查报告 `docs/reviews/2026-10-18-wave5.13-auth39-refresh-rotation.md` + devlog 追加 + 台账销账（`whale-auth-backlog.md` AUTH-39 / `register.md` REQ-SEC-004） | A5 | 中 | 四类信息齐备；§2.6 偏差留痕 | ⏳ |
-| [ ] A7 | 自动 commit + push（Gitee origin/main） | A6 | 中 | 工作区干净且 `main == origin/main` | ⏳ |
+| [x] A1 | `whale-security` `TokenBlacklistKeys` 新增 `refreshUsedKey(jti)`（`whale:auth:refresh:used:`）与 `refreshFamilyKey(familyId)`（`whale:auth:refresh:family:`）+ 键约定单测 | 无 | 高 | 键前缀/格式正确 | ✅ |
+| [x] A2 | `JwtTokenProvider` 新增 `CLAIM_FAMILY_ID`；`generateRefreshToken(userId, username, familyId)` 增携 familyId；更新调用方与单测 | A1 | 高 | refreshToken 含 familyId claim；access 不含 | ✅ |
+| [x] A3 | 新增 `RefreshTokenRotationStore` 接口 + `RedisRefreshTokenRotationStore`（`SET NX` + fail-closed）+ `RefreshRotationProperties`（`whale.auth.refresh.rotation.enabled` 默认 false）+ 单测 | A1 | 高 | 首次 true/二次 false；family 吊销可查；异常 fail-closed | ✅ |
+| [x] A4 | `AuthService` 接入：`login` 生成 familyId、`buildLoginResponse(loginUser, familyId)`、`refresh` 按 §2.4 顺序实现（开关门控）+ 单测 | A2、A3 | 高 | 开启后二次使用 → 401 且 family 吊销；关闭时行为不变 | ✅ |
+| [x] A5 | 构建与门禁：`mvn -B -f backend/pom.xml clean verify -T 1C` + `checkstyle:check` | A1–A4 | 高 | BUILD SUCCESS；全 reactor 0 违规 | ✅ |
+| [x] A6 | 留痕收口：检查报告 `docs/reviews/2026-10-18-wave5.13-auth39-refresh-rotation.md` + devlog 追加 + 台账销账（`whale-auth-backlog.md` AUTH-39 / `register.md` REQ-SEC-004） | A5 | 中 | 四类信息齐备；§2.6 偏差留痕 | ✅ |
+| [x] A7 | 自动 commit + push（Gitee origin/main） | A6 | 中 | 工作区干净且 `main == origin/main` | ✅ |
 
 ## 实施注意（给实现者的事实约束）
 

@@ -27,6 +27,7 @@ class JwtTokenProviderTest {
 
     private static final String USERNAME = "alice";
     private static final long USER_ID = 1251323419503984640L;
+    private static final String FAMILY_ID = "family-uuid-0001";
     private static final List<String> ROLES = List.of("admin", "user");
     private static final long ACCESS_EXPIRE_MINUTES = 120L;
     private static final long REFRESH_EXPIRE_MINUTES = 1440L;
@@ -61,11 +62,11 @@ class JwtTokenProviderTest {
     }
 
     @Test
-    @DisplayName("generateRefreshToken：tokenType=refresh，且不含 roles")
+    @DisplayName("generateRefreshToken：tokenType=refresh、不含 roles，且携带 familyId claim")
     void shouldGenerateRefreshToken() {
         JwtTokenProvider tokenProvider = provider(ACCESS_EXPIRE_MINUTES, REFRESH_EXPIRE_MINUTES);
 
-        String token = tokenProvider.generateRefreshToken(USER_ID, USERNAME);
+        String token = tokenProvider.generateRefreshToken(USER_ID, USERNAME, FAMILY_ID);
         Claims claims = tokenProvider.parse(token);
 
         assertNotNull(claims);
@@ -73,7 +74,38 @@ class JwtTokenProviderTest {
         assertEquals(USER_ID, ((Number) claims.get(JwtTokenProvider.CLAIM_USER_ID)).longValue());
         assertEquals(JwtTokenProvider.TOKEN_TYPE_REFRESH,
                 claims.get(JwtTokenProvider.CLAIM_TOKEN_TYPE));
+        assertEquals(FAMILY_ID, claims.get(JwtTokenProvider.CLAIM_FAMILY_ID));
         assertNull(claims.get(JwtTokenProvider.CLAIM_ROLES));
+    }
+
+    @Test
+    @DisplayName("generateRefreshToken：familyId 为空时不携带该 claim（轮换关闭/旧令牌场景）")
+    void shouldOmitFamilyClaimWhenFamilyIdAbsent() {
+        JwtTokenProvider tokenProvider = provider(ACCESS_EXPIRE_MINUTES, REFRESH_EXPIRE_MINUTES);
+
+        String token = tokenProvider.generateRefreshToken(USER_ID, USERNAME, null);
+
+        Claims claims = tokenProvider.parse(token);
+        assertNotNull(claims);
+        assertNull(claims.get(JwtTokenProvider.CLAIM_FAMILY_ID));
+    }
+
+    @Test
+    @DisplayName("accessToken 不携带 familyId claim（仅 refreshToken 参与轮换）")
+    void accessTokenShouldNotCarryFamilyClaim() {
+        JwtTokenProvider tokenProvider = provider(ACCESS_EXPIRE_MINUTES, REFRESH_EXPIRE_MINUTES);
+
+        String token = tokenProvider.generateAccessToken(USER_ID, USERNAME, ROLES);
+
+        assertNull(tokenProvider.parse(token).get(JwtTokenProvider.CLAIM_FAMILY_ID));
+    }
+
+    @Test
+    @DisplayName("getRefreshExpireSeconds：等于配置的 refresh 有效期（分钟换算为秒）")
+    void refreshExpireSecondsShouldMatchConfiguration() {
+        JwtTokenProvider tokenProvider = provider(ACCESS_EXPIRE_MINUTES, REFRESH_EXPIRE_MINUTES);
+
+        assertEquals(REFRESH_EXPIRE_MINUTES * SECONDS_PER_MINUTE, tokenProvider.getRefreshExpireSeconds());
     }
 
     @Test

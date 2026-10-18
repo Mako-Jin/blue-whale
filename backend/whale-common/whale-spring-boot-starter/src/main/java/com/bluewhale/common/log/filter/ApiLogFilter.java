@@ -165,7 +165,7 @@ public class ApiLogFilter extends OncePerRequestFilter {
     }
 
     /**
-     * 填充请求侧字段：traceId / 用户 / URI / 方法 / 查询串 / 入参（白名单且脱敏）/ IP / UA
+     * 填充请求侧字段：模块名 / traceId / 用户 / URI / 方法 / 查询串 / 入参（白名单且脱敏）/ IP / UA
      *
      * @param record 待填充记录
      * @param request 原始请求
@@ -174,6 +174,7 @@ public class ApiLogFilter extends OncePerRequestFilter {
      */
     private void fillRequest(ApiLogRecord record, HttpServletRequest request,
                              LimitedCachingRequestWrapper requestWrapper, boolean captureRequest) {
+        record.setModule(properties.getModule());
         record.setTraceId(WebHeaders.traceId(request));
         record.setUserId(parseUserId(WebHeaders.userId(request)));
         record.setUsername(WebHeaders.username(request));

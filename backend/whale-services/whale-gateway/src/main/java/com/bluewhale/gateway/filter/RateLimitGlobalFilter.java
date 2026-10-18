@@ -2,6 +2,7 @@ package com.bluewhale.gateway.filter;
 
 import com.bluewhale.gateway.common.GatewayResponse;
 import com.bluewhale.gateway.config.RateLimitProperties;
+import com.bluewhale.gateway.config.RateLimitProperties.PathRule;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
@@ -12,17 +13,21 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 
 /**
  * 网关入口限流过滤器（T5.4 / AUTH-30）：Redis 计数器 + 固定窗口。
- * <p>键格式 {@code {keyPrefix}:{窗口编号}:{客户端标识}}；计数超过阈值时短路返回 HTTP 429 与
+ * <p>键格式 {@code {keyPrefix}:{规则标识}:{窗口编号}:{客户端标识}}；计数超过阈值时短路返回 HTTP 429 与
  * {@code Result} 同结构 JSON 体，不进入下游过滤器链。</p>
+ * <p>规则选取：{@code whale.gateway.rate-limit.path-rules} 中以 {@link AntPathMatcher} 取最长匹配的
+ * 路径规则（特化优先），未命中则用全局阈值；规则标识维度避免不同规则窗口互相污染。</p>
  * <p>降级策略：Redis 不可用时仅告警并放行，避免限流存储故障阻断全站流量
  * （与令牌黑名单「可用性优先」取舍一致）。</p>
  *
@@ -44,6 +49,9 @@ public class RateLimitGlobalFilter implements GlobalFilter, Ordered {
     /** 无法解析客户端标识时的退化值 */
     private static final String UNKNOWN_CLIENT = "unknown";
 
+    /** 未命中任何路径规则时的规则标识（沿用全局阈值） */
+    private static final String DEFAULT_RULE_KEY = "default";
+
     /** 每秒毫秒数，用于将窗口秒数换算为毫秒 */
     private static final long MILLIS_PER_SECOND = 1000L;
 
@@ -64,6 +72,9 @@ public class RateLimitGlobalFilter implements GlobalFilter, Ordered {
 
     private final ReactiveStringRedisTemplate redisTemplate;
     private final RateLimitProperties properties;
+
+    /** Ant 路径匹配器（线程安全，复用单例） */
+    private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
     /**
      * 构造限流过滤器，注入响应式 Redis 模板与限流配置
@@ -89,12 +100,12 @@ public class RateLimitGlobalFilter implements GlobalFilter, Ordered {
             return chain.filter(exchange);
         }
         String clientId = resolveClientId(exchange);
-        String key = buildKey(clientId);
-        return redisTemplate.opsForValue().increment(key)
-                .flatMap(count -> decide(exchange, chain, key, count))
+        LimitRule rule = resolveRule(matchRule(exchange.getRequest().getPath().value()), clientId);
+        return redisTemplate.opsForValue().increment(rule.key)
+                .flatMap(count -> decide(exchange, chain, rule, count))
                 .onErrorResume(e -> {
                     log.warn("网关限流计数失败（Redis 不可用），按可用性优先降级放行: client={}, key={}, reason={}",
-                            clientId, key, e.getMessage());
+                            clientId, rule.key, e.getMessage());
                     return chain.filter(exchange);
                 });
     }
@@ -104,30 +115,62 @@ public class RateLimitGlobalFilter implements GlobalFilter, Ordered {
      *
      * @param exchange 当前请求上下文
      * @param chain    网关过滤器链
-     * @param key      限流键
+     * @param rule     本次请求命中的限流规则快照（含计数键、阈值与窗口秒数）
      * @param count    当前窗口内累计计数，可能为 {@code null}
      * @return 继续链或写出 429 响应的完成信号
      */
-    private Mono<Void> decide(ServerWebExchange exchange, GatewayFilterChain chain, String key, Long count) {
+    private Mono<Void> decide(ServerWebExchange exchange, GatewayFilterChain chain, LimitRule rule, Long count) {
         long current = count == null ? 0L : count;
         Mono<Boolean> expiration = current == FIRST_COUNT
-                ? redisTemplate.expire(key, Duration.ofSeconds(properties.getWindowSeconds()))
+                ? redisTemplate.expire(rule.key, Duration.ofSeconds(rule.windowSeconds))
                         .defaultIfEmpty(Boolean.TRUE)
                 : Mono.just(Boolean.TRUE);
-        return expiration.flatMap(ignored -> current > properties.getLimit()
+        return expiration.flatMap(ignored -> current > rule.limit
                 ? tooManyRequests(exchange)
                 : chain.filter(exchange));
     }
 
     /**
-     * 构建限流键：{@code {keyPrefix}:{窗口编号}:{客户端标识}}
+     * 在 {@code pathRules} 中选取最长匹配的路径规则（特化优先）
      *
-     * @param clientId 客户端标识
-     * @return Redis 限流计数键
+     * @param path 请求路径
+     * @return 命中的路径规则；无规则配置或均未命中时返回 {@code null}
      */
-    private String buildKey(String clientId) {
-        long window = System.currentTimeMillis() / (properties.getWindowSeconds() * MILLIS_PER_SECOND);
-        return properties.getKeyPrefix() + KEY_SEPARATOR + window + KEY_SEPARATOR + clientId;
+    private PathRule matchRule(String path) {
+        List<PathRule> rules = properties.getPathRules();
+        if (rules == null || rules.isEmpty()) {
+            return null;
+        }
+        PathRule matched = null;
+        for (PathRule rule : rules) {
+            if (rule == null || rule.getPathPattern() == null) {
+                continue;
+            }
+            if (!pathMatcher.match(rule.getPathPattern(), path)) {
+                continue;
+            }
+            if (matched == null || rule.getPathPattern().length() > matched.getPathPattern().length()) {
+                matched = rule;
+            }
+        }
+        return matched;
+    }
+
+    /**
+     * 构建限流规则快照：命中规则以其标识/阈值/窗口为准，未命中沿用全局配置
+     *
+     * @param rule 命中的路径规则，可能为 {@code null}
+     * @param clientId 客户端标识
+     * @return 限流规则快照（含计数键）
+     */
+    private LimitRule resolveRule(PathRule rule, String clientId) {
+        String ruleKey = rule == null ? DEFAULT_RULE_KEY : rule.getPathPattern();
+        int limit = rule == null ? properties.getLimit() : rule.getLimit();
+        int windowSeconds = rule == null ? properties.getWindowSeconds() : rule.getWindowSeconds();
+        long window = System.currentTimeMillis() / (windowSeconds * MILLIS_PER_SECOND);
+        String key = properties.getKeyPrefix() + KEY_SEPARATOR + ruleKey + KEY_SEPARATOR + window
+                + KEY_SEPARATOR + clientId;
+        return new LimitRule(key, limit, windowSeconds);
     }
 
     /**
@@ -170,5 +213,35 @@ public class RateLimitGlobalFilter implements GlobalFilter, Ordered {
     @Override
     public int getOrder() {
         return ORDER;
+    }
+
+    /**
+     * 单次限流判定所需的规则快照：计数键 + 阈值 + 窗口秒数。
+     *
+     * @author BlueWhale
+     */
+    private static final class LimitRule {
+
+        /** Redis 限流计数键（含规则标识与窗口维度） */
+        private final String key;
+
+        /** 本规则单个窗口内允许的最大请求数 */
+        private final int limit;
+
+        /** 本规则固定窗口长度（秒） */
+        private final int windowSeconds;
+
+        /**
+         * 构造限流规则快照
+         *
+         * @param key 计数键
+         * @param limit 阈值
+         * @param windowSeconds 窗口秒数
+         */
+        private LimitRule(String key, int limit, int windowSeconds) {
+            this.key = key;
+            this.limit = limit;
+            this.windowSeconds = windowSeconds;
+        }
     }
 }

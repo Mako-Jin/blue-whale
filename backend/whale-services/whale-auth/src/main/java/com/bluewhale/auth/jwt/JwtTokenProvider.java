@@ -2,6 +2,7 @@ package com.bluewhale.auth.jwt;
 
 import com.bluewhale.auth.config.JwtProperties;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.security.Keys;
@@ -19,7 +20,8 @@ import java.util.UUID;
  * <p>与 whale-gateway 约定：</p>
  * <ul>
  *   <li>算法 HS256，secret = whale.auth.jwt.secret</li>
- *   <li>claims：sub=username、userId、roles（逗号分隔角色 code）、tokenType（access/refresh）、jti</li>
+ *   <li>claims：sub=username、userId、roles（逗号分隔角色 code）、tokenType（access/refresh）、jti、
+ *       familyId（仅 refreshToken 携带，AUTH-39 轮换复用检测用；accessToken 不带）</li>
  *   <li>Header：Authorization: Bearer &lt;token&gt;</li>
  * </ul>
  * <p>{@code jti} 为每枚令牌唯一的随机标识（标准 JWT ID claim），便于登出黑名单按令牌粒度
@@ -36,6 +38,9 @@ public class JwtTokenProvider {
     public static final String TOKEN_TYPE_ACCESS = "access";
     public static final String TOKEN_TYPE_REFRESH = "refresh";
 
+    /** refreshToken 的 family 标识 claim（AUTH-39：一次登录生成，轮换时原样沿用，用于复用检测后整族吊销） */
+    public static final String CLAIM_FAMILY_ID = "familyId";
+
     /** Authorization 头凭据前缀，签发与校验两侧共用，避免各自定义 */
     public static final String BEARER_PREFIX = "Bearer ";
 
@@ -49,6 +54,10 @@ public class JwtTokenProvider {
     @Getter
     private final long accessExpireSeconds;
 
+    /** refreshToken 有效期（秒），供 refresh 轮换时确定 family 吊销标记 TTL 使用 */
+    @Getter
+    private final long refreshExpireSeconds;
+
     /**
      * 构造器：依据配置中的密钥派生 HMAC 密钥，并换算 accessToken 有效期
      *
@@ -58,6 +67,7 @@ public class JwtTokenProvider {
         this.properties = properties;
         this.secretKey = Keys.hmacShaKeyFor(properties.getSecret().getBytes(StandardCharsets.UTF_8));
         this.accessExpireSeconds = properties.getExpireMinutes() * 60;
+        this.refreshExpireSeconds = properties.getRefreshExpireMinutes() * 60;
     }
 
     /**
@@ -84,20 +94,25 @@ public class JwtTokenProvider {
     }
 
     /**
-     * 生成 refreshToken，带唯一 jti
+     * 生成 refreshToken，带唯一 jti；{@code familyId} 存在时携入 {@code familyId} claim（AUTH-39）
      *
      * @param userId 用户 ID
      * @param username 用户名（作为 sub）
+     * @param familyId 令牌 family 标识；{@code null} 或空白时不含该 claim（轮换关闭/旧令牌场景）
      * @return 签名后的 refreshToken 字符串
      */
-    public String generateRefreshToken(Long userId, String username) {
+    public String generateRefreshToken(Long userId, String username, String familyId) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + properties.getRefreshExpireMinutes() * 60_000);
-        return Jwts.builder()
+        JwtBuilder builder = Jwts.builder()
                 .id(UUID.randomUUID().toString())
                 .subject(username)
                 .claim(CLAIM_USER_ID, userId)
-                .claim(CLAIM_TOKEN_TYPE, TOKEN_TYPE_REFRESH)
+                .claim(CLAIM_TOKEN_TYPE, TOKEN_TYPE_REFRESH);
+        if (familyId != null && !familyId.isBlank()) {
+            builder.claim(CLAIM_FAMILY_ID, familyId);
+        }
+        return builder
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(secretKey, Jwts.SIG.HS256)

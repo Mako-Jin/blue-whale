@@ -33,3 +33,10 @@ whale:
   permission:
     header:
       enabled: true
+  # REQ-SEC-006 日志保留期清理：默认关闭（enabled=false 时不装配调度器、不清理）；
+  # 仅清理 api_log/outbound_log/frontend_log/behavior_log 四张日志表，不触碰 audit_log（AUTH-09）。
+  audit:
+    retention:
+      enabled: ${WHALE_AUDIT_RETENTION_ENABLED:false}
+      days: ${WHALE_AUDIT_RETENTION_DAYS:30}
+      cron: ${WHALE_AUDIT_RETENTION_CRON:0 0 3 * * ?}

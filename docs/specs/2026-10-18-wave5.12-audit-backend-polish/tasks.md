@@ -5,12 +5,12 @@
 
 | # | 任务 | 依赖 | 优先级 | 验收 | 状态 |
 |---|---|---|---|---|---|
-| [ ] E1 | `api_log.module` 回填：`ApiLogProperties` 新增 `module`（默认 `${spring.application.name:unknown}`）+ `ApiLogFilter#fillRequest` 设值 + `ApiLogFilterTest` 断言 | 无 | 高 | `module` 非空且等于配置值 | ⏳ |
-| [ ] E2 | 网关按路径限流：`RateLimitProperties` 新增 `pathRules`（`PathRule`：`pathPattern`/`limit`/`windowSeconds`）+ `RateLimitGlobalFilter` 最长匹配选取 + 计数键加规则维度 + `whale-gateway/application.yml` 追加上报路径规则 + `RateLimitGlobalFilterTest` | E1 | 高 | 上报路径命中独立规则；其他路径沿用全局；超阈值 429 | ⏳ |
-| [ ] E3 | 保留期扩多表：新增 `RetentionProperties`（`whale.audit.retention`：`enabled=false`/`days=30`/`cron`）+ `LogRetentionScheduler`（`@ConditionalOnProperty` + `@Scheduled` 清理 4 表）+ `WhaleAuditApplication` 加 `@EnableScheduling` + 单测 | E1 | 高 | `enabled=false` 不清理；`enabled=true` 删除阈值前记录 | ⏳ |
-| [ ] E4 | 构建与门禁：`mvn -B -f backend/pom.xml clean verify -T 1C` + `checkstyle:check` | E1–E3 | 高 | BUILD SUCCESS；全 reactor 0 违规 | ⏳ |
-| [ ] E5 | 留痕收口：检查报告 `docs/reviews/2026-10-18-wave5.12-audit-backend-polish.md` + devlog 追加 + 台账销账（`register.md` REQ-SEC-006 / `next-steps.md`） | E4 | 中 | 四类信息齐备 | ⏳ |
-| [ ] E6 | 自动 commit + push（Gitee origin/main） | E5 | 中 | 工作区干净且 `main == origin/main` | ⏳ |
+| [x] E1 | `api_log.module` 回填：`ApiLogProperties` 新增 `module`（默认 `${spring.application.name:unknown}`）+ `ApiLogFilter#fillRequest` 设值 + `ApiLogFilterTest` 断言 | 无 | 高 | `module` 非空且等于配置值 | ✅ |
+| [x] E2 | 网关按路径限流：`RateLimitProperties` 新增 `pathRules`（`PathRule`：`pathPattern`/`limit`/`windowSeconds`）+ `RateLimitGlobalFilter` 最长匹配选取 + 计数键加规则维度 + `whale-gateway/application.yml` 追加上报路径规则 + `RateLimitGlobalFilterTest` | E1 | 高 | 上报路径命中独立规则；其他路径沿用全局；超阈值 429 | ✅ |
+| [x] E3 | 保留期扩多表：新增 `RetentionProperties`（`whale.audit.retention`：`enabled=false`/`days=30`/`cron`）+ `LogRetentionScheduler`（`@ConditionalOnProperty` + `@Scheduled` 清理 4 表）+ `WhaleAuditApplication` 加 `@EnableScheduling` + 单测 | E1 | 高 | `enabled=false` 不清理；`enabled=true` 删除阈值前记录 | ✅ |
+| [x] E4 | 构建与门禁：`mvn -B -f backend/pom.xml clean verify -T 1C` + `checkstyle:check` | E1–E3 | 高 | BUILD SUCCESS；全 reactor 0 违规 | ✅ |
+| [x] E5 | 留痕收口：检查报告 `docs/reviews/2026-10-18-wave5.12-audit-backend-polish.md` + devlog 追加 + 台账销账（`register.md` REQ-SEC-006 / `next-steps.md`） | E4 | 中 | 四类信息齐备 | ✅ |
+| [x] E6 | 自动 commit + push（Gitee origin/main） | E5 | 中 | 工作区干净且 `main == origin/main` | ✅ |
 
 ## 实施注意（给实现者的事实约束）
 

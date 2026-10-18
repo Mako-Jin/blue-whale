@@ -4,10 +4,15 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * 网关入口限流配置属性（T5.4 / AUTH-30）。
  * <p>基于 Redis 计数器的固定窗口限流：窗口长度由 {@code windowSeconds} 指定，窗口内计数超过 {@code limit}
  * 即短路返回 HTTP 429；{@code enabled=false} 时完全关闭限流。</p>
+ * <p>{@code path-rules} 为按路径特化的更严规则（如前端/行为上报接口），
+ * 命中后以规则自身阈值替代全局阈值；未命中任何规则的路径沿用全局 {@code limit} / {@code windowSeconds}。</p>
  *
  * @author BlueWhale
  */
@@ -27,4 +32,26 @@ public class RateLimitProperties {
 
     /** Redis 限流计数键前缀，默认 whale:gateway:rate-limit */
     private String keyPrefix = "whale:gateway:rate-limit";
+
+    /** 按路径特化的限流规则（默认空列表，此时行为与仅全局规则完全一致） */
+    private List<PathRule> pathRules = new ArrayList<>();
+
+    /**
+     * 按路径限流规则：{@code pathPattern} 命中请求路径时，以本规则的 {@code limit} / {@code windowSeconds}
+     * 替代全局阈值；多条规则命中时取最长 {@code pathPattern}（特化优先）。
+     *
+     * @author BlueWhale
+     */
+    @Data
+    public static class PathRule {
+
+        /** Ant 风格路径模式，如 {@code /audit/log/frontend/**} */
+        private String pathPattern;
+
+        /** 本规则单个窗口内允许的最大请求数 */
+        private int limit;
+
+        /** 本规则固定窗口长度（秒） */
+        private int windowSeconds;
+    }
 }

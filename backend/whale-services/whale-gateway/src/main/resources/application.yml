@@ -87,11 +87,19 @@ whale:
     # T5.4 网关入口限流（Redis 计数器 + 固定窗口，REQ-DIST-003）：
     # window-seconds 为固定窗口长度（秒），limit 为单窗口允许的最大请求数，超阈值返回 HTTP 429 + Result 体；
     # Redis 不可用时降级放行（可用性优先），由 RateLimitGlobalFilter 执行。
-    # 前端/行为上报接口由该全局限流覆盖（全部路径生效），故不新增按路径规则
+    # path-rules 为按路径特化的更严规则（最长匹配优先）：前端/行为上报接口为 permitAll 公开写库，
+    # 单独收紧阈值防刷量（REQ-SEC-006）；未命中规则的路径沿用上方全局阈值。
     rate-limit:
       enabled: ${WHALE_GATEWAY_RATE_LIMIT_ENABLED:true}
       limit: ${WHALE_GATEWAY_RATE_LIMIT:200}
       window-seconds: ${WHALE_GATEWAY_RATE_LIMIT_WINDOW_SECONDS:1}
+      path-rules:
+        - path-pattern: /audit/log/frontend/**
+          limit: ${WHALE_GATEWAY_RATE_LIMIT_REPORT:30}
+          window-seconds: ${WHALE_GATEWAY_RATE_LIMIT_REPORT_WINDOW_SECONDS:1}
+        - path-pattern: /audit/log/behavior/**
+          limit: ${WHALE_GATEWAY_RATE_LIMIT_REPORT:30}
+          window-seconds: ${WHALE_GATEWAY_RATE_LIMIT_REPORT_WINDOW_SECONDS:1}
 
 logging:
   level:

@@ -1,18 +1,22 @@
 package com.bluewhale.auth.service;
 
+import com.bluewhale.auth.config.RefreshRotationProperties;
 import com.bluewhale.auth.dto.RefreshRequest;
 import com.bluewhale.auth.jwt.JwtTokenProvider;
 import com.bluewhale.auth.mapper.SysUserMapper;
 import com.bluewhale.auth.security.LoginUser;
 import com.bluewhale.auth.security.PermissionInterceptor;
+import com.bluewhale.auth.security.RefreshTokenRotationStore;
 import com.bluewhale.auth.security.TokenBlacklist;
 import com.bluewhale.auth.security.UserDetailsServiceImpl;
 import com.bluewhale.auth.vo.AuthMeResponse;
 import com.bluewhale.auth.vo.LoginResponse;
 import com.bluewhale.auth.vo.MenuVO;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.security.degradation.SecurityDegradationAlerter;
 import io.jsonwebtoken.Claims;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,15 +32,18 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
- * {@link AuthService} 单元测试：登出双令牌失效（REQ-SEC-004）、refreshToken 失效校验（T5.6）。
+ * {@link AuthService} 单元测试：登出双令牌失效（REQ-SEC-004）、refreshToken 失效校验（T5.6）、
+ * refreshToken 一次性轮换与复用检测（AUTH-39）。
  *
  * @author BlueWhale
  */
@@ -49,7 +56,11 @@ class AuthServiceTest {
     private static final String USERNAME = "alice";
     private static final long USER_ID = 1251323419503984640L;
     private static final long ACCESS_EXPIRE_SECONDS = 7200L;
+    private static final long REFRESH_EXPIRE_SECONDS = 86400L;
+    private static final long REMAINING_SECONDS = 3600L;
     private static final int UNAUTHORIZED_CODE = 401;
+    private static final String FAMILY_ID = "family-uuid-0001";
+    private static final String JTI = "jti-uuid-0001";
 
     @Mock
     private AuthenticationManager authenticationManager;
@@ -75,8 +86,19 @@ class AuthServiceTest {
     @Mock
     private SysPermissionService permissionService;
 
+    @Mock
+    private RefreshTokenRotationStore refreshRotationStore;
+
+    @Mock
+    private RefreshRotationProperties refreshRotationProperties;
+
     @InjectMocks
     private AuthService authService;
+
+    @BeforeEach
+    void resetAlarmCount() {
+        SecurityDegradationAlerter.resetAlarmCount();
+    }
 
     @AfterEach
     void clearSecurityContext() {
@@ -140,13 +162,94 @@ class AuthServiceTest {
         when(userDetailsService.loadUserByUsername(USERNAME))
                 .thenReturn(new LoginUser(USER_ID, USERNAME, "pwd", "Alice", List.of("admin"), true));
         when(tokenProvider.generateAccessToken(USER_ID, USERNAME, List.of("admin"))).thenReturn("new-access");
-        when(tokenProvider.generateRefreshToken(USER_ID, USERNAME)).thenReturn("new-refresh");
+        // 轮换默认关闭：familyId 原样透传（claim 未携带即 null）
+        when(tokenProvider.generateRefreshToken(USER_ID, USERNAME, null)).thenReturn("new-refresh");
         when(tokenProvider.getAccessExpireSeconds()).thenReturn(ACCESS_EXPIRE_SECONDS);
 
         LoginResponse response = authService.refresh(refreshRequest());
 
         assertEquals("new-access", response.getAccessToken());
         assertEquals("new-refresh", response.getRefreshToken());
+        verifyNoInteractions(refreshRotationStore);
+    }
+
+    @Test
+    @DisplayName("refresh：轮换开启时原子消费旧 refreshToken（入黑名单）并沿用 familyId 换发新令牌")
+    void refreshShouldConsumeTokenWhenRotationEnabled() {
+        Claims claims = refreshClaims();
+        when(claims.getSubject()).thenReturn(USERNAME);
+        when(claims.getId()).thenReturn(JTI);
+        when(claims.get(JwtTokenProvider.CLAIM_FAMILY_ID, String.class)).thenReturn(FAMILY_ID);
+        when(tokenProvider.parse(REFRESH_TOKEN)).thenReturn(claims);
+        when(refreshRotationProperties.isEnabled()).thenReturn(true);
+        when(refreshRotationStore.isFamilyRevoked(FAMILY_ID)).thenReturn(false);
+        when(tokenBlacklist.contains(REFRESH_TOKEN)).thenReturn(false);
+        when(userDetailsService.loadUserByUsername(USERNAME))
+                .thenReturn(new LoginUser(USER_ID, USERNAME, "pwd", "Alice", List.of("admin"), true));
+        when(tokenProvider.getRemainingValiditySeconds(REFRESH_TOKEN)).thenReturn(REMAINING_SECONDS);
+        when(refreshRotationStore.markUsed(JTI, REMAINING_SECONDS)).thenReturn(true);
+        when(tokenProvider.generateAccessToken(USER_ID, USERNAME, List.of("admin"))).thenReturn("new-access");
+        when(tokenProvider.generateRefreshToken(USER_ID, USERNAME, FAMILY_ID)).thenReturn("new-refresh");
+        when(tokenProvider.getAccessExpireSeconds()).thenReturn(ACCESS_EXPIRE_SECONDS);
+
+        LoginResponse response = authService.refresh(refreshRequest());
+
+        assertEquals("new-access", response.getAccessToken());
+        assertEquals("new-refresh", response.getRefreshToken());
+        verify(tokenBlacklist).add(REFRESH_TOKEN);
+        verify(refreshRotationStore, never()).revokeFamily(anyString(), anyLong());
+    }
+
+    @Test
+    @DisplayName("refresh：复用检测命中（旧 refreshToken 二次使用）返回 401 并整族吊销 + 降级告警")
+    void refreshShouldRevokeFamilyWhenReuseDetected() {
+        Claims claims = refreshClaims();
+        when(claims.getSubject()).thenReturn(USERNAME);
+        when(claims.getId()).thenReturn(JTI);
+        when(claims.get(JwtTokenProvider.CLAIM_FAMILY_ID, String.class)).thenReturn(FAMILY_ID);
+        when(tokenProvider.parse(REFRESH_TOKEN)).thenReturn(claims);
+        when(refreshRotationProperties.isEnabled()).thenReturn(true);
+        when(refreshRotationStore.isFamilyRevoked(FAMILY_ID)).thenReturn(false);
+        when(tokenBlacklist.contains(REFRESH_TOKEN)).thenReturn(false);
+        when(userDetailsService.loadUserByUsername(USERNAME))
+                .thenReturn(new LoginUser(USER_ID, USERNAME, "pwd", "Alice", List.of("admin"), true));
+        when(tokenProvider.getRemainingValiditySeconds(REFRESH_TOKEN)).thenReturn(REMAINING_SECONDS);
+        when(refreshRotationStore.markUsed(JTI, REMAINING_SECONDS)).thenReturn(false);
+        when(tokenProvider.getRefreshExpireSeconds()).thenReturn(REFRESH_EXPIRE_SECONDS);
+
+        BizException ex = assertThrows(BizException.class, () -> authService.refresh(refreshRequest()));
+
+        assertEquals(UNAUTHORIZED_CODE, ex.getCode());
+        verify(refreshRotationStore).revokeFamily(FAMILY_ID, REFRESH_EXPIRE_SECONDS);
+        assertEquals(1L, SecurityDegradationAlerter.alarmCount());
+    }
+
+    @Test
+    @DisplayName("refresh：轮换开启但令牌缺少 familyId（旧令牌）返回 401")
+    void refreshShouldRejectTokenWithoutFamilyWhenRotationEnabled() {
+        Claims claims = refreshClaims();
+        when(tokenProvider.parse(REFRESH_TOKEN)).thenReturn(claims);
+        when(refreshRotationProperties.isEnabled()).thenReturn(true);
+
+        BizException ex = assertThrows(BizException.class, () -> authService.refresh(refreshRequest()));
+
+        assertEquals(UNAUTHORIZED_CODE, ex.getCode());
+        verifyNoInteractions(refreshRotationStore, tokenBlacklist);
+    }
+
+    @Test
+    @DisplayName("refresh：轮换开启但 family 已被吊销返回 401")
+    void refreshShouldRejectRevokedFamily() {
+        Claims claims = refreshClaims();
+        when(claims.get(JwtTokenProvider.CLAIM_FAMILY_ID, String.class)).thenReturn(FAMILY_ID);
+        when(tokenProvider.parse(REFRESH_TOKEN)).thenReturn(claims);
+        when(refreshRotationProperties.isEnabled()).thenReturn(true);
+        when(refreshRotationStore.isFamilyRevoked(FAMILY_ID)).thenReturn(true);
+
+        BizException ex = assertThrows(BizException.class, () -> authService.refresh(refreshRequest()));
+
+        assertEquals(UNAUTHORIZED_CODE, ex.getCode());
+        verify(tokenBlacklist, never()).add(anyString());
     }
 
     @Test

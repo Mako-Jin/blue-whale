@@ -1,6 +1,7 @@
 package com.bluewhale.common.log.properties;
 
 import lombok.Data;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.util.ArrayList;
@@ -9,7 +10,7 @@ import java.util.List;
 /**
  * 后端接口日志配置（REQ-SEC-006，{@code ApiLogFilter}）。
  *
- * <p>{@code whale.log.api.*}：开关 / 采样率 / body 缓存上限 / 排除路径。
+ * <p>{@code whale.log.api.*}：开关 / 采样率 / body 缓存上限 / 排除路径 / 模块名。
  * {@code exclude-paths} 默认含上报接口（{@code /audit/log/frontend/**}、
  * {@code /audit/log/behavior/**}）以防上报请求本身被记为接口日志形成回环。</p>
  *
@@ -19,10 +20,20 @@ import java.util.List;
 @ConfigurationProperties(prefix = "whale.log.api")
 public class ApiLogProperties {
 
+    /** 模块名缺失时的退化值 */
+    private static final String DEFAULT_MODULE = "unknown";
+
     /** 默认排除路径：探活、静态资源、错误页与前端上报接口（防回环） */
     private static final List<String> DEFAULT_EXCLUDE_PATHS = List.of(
             "/actuator/**", "/health", "/favicon.ico", "/error",
             "/audit/log/frontend/**", "/audit/log/behavior/**");
+
+    /**
+     * 业务模块名（回填至 {@code api_log.module}）：默认取 {@code spring.application.name}，
+     * 可用 {@code whale.log.api.module} 覆盖，两者均缺失时退化为 {@link #DEFAULT_MODULE}。
+     */
+    @Value("${whale.log.api.module:${spring.application.name:" + DEFAULT_MODULE + "}}")
+    private String module;
 
     /** 接口日志开关 */
     private boolean enabled = true;

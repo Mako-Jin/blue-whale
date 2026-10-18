@@ -39,6 +39,8 @@ class ApiLogFilterTest {
     private static final String NORMAL_URI = "/device/list";
     /** 前端上报接口路径（默认排除） */
     private static final String FRONTEND_REPORT_URI = "/audit/log/frontend/batch";
+    /** 业务模块名（回填 api_log.module 的配置值） */
+    private static final String MODULE_NAME = "whale-auth";
 
     private final ApiLogProperties properties = new ApiLogProperties();
     private final ApiLogMapper apiLogMapper = mock(ApiLogMapper.class);
@@ -64,6 +66,18 @@ class ApiLogFilterTest {
         assertThat(record.getBizStatus()).isEqualTo(1);
         assertThat(record.getCostMs()).isNotNull();
         assertThat(record.getRequestParams()).contains("\"password\":\"******\"").doesNotContain("P@ssw0rd!");
+    }
+
+    @Test
+    @DisplayName("模块名回填：api_log.module 落库值等于配置的模块名")
+    void shouldFillModuleFromProperties() throws Exception {
+        properties.setModule(MODULE_NAME);
+        MockHttpServletRequest request = jsonRequest(NORMAL_URI, "{}");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request, response, capturingChain(new AtomicReference<>()));
+
+        assertThat(captureSingleRecord().getModule()).isEqualTo(MODULE_NAME);
     }
 
     @Test
