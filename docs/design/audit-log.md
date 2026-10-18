@@ -6,7 +6,8 @@
 | 状态 | 设计已定稿 / 核心能力已落地（Wave 5.1b，运行时待验证） |
 | 最后更新 | 2026-10-18 |
 | 作者 | BlueWhale |
-| 落点模块 | `backend/whale-ops/whale-audit`（端口 8088）。**审计核心代码落点：`whale-spring-boot-starter`；`whale-audit` 仅承载查询接口**（详见 §5.1） |
+| 落点模块 | `backend/whale-ops/whale-audit`（服务端口 `9101`）。**审计核心代码落点：`whale-spring-boot-starter`；`whale-audit` 仅承载查询接口**（详见 §5.1） |
+| 整合最终版 | [whale-audit/final/README.md](../whale-audit/final/README.md)（Wave 5.16 收尾：八节整合视图 + `docs/whale-audit/originals/` 副本索引；本文档为设计总纲，整合版以最新口径为准） |
 
 ---
 
