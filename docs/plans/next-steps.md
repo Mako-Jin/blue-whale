@@ -65,6 +65,12 @@
 > **残余**：`api_log.module` 回填、Wave B 前端 `whale-log-sdk` 未开工、MQ 汇聚、保留期扩多表、异步派发丢采集、网关按路径限流。
 > 详见 [devlog §30](../devlog/2026-10-18.md) 与 [检查报告](../reviews/2026-10-18-wave5.10-multichannel-log.md)。
 
+> **Wave 5.11 执行结果（2026-10-18 更新）**：✅ ~~AUTH-01~~（网关侧占位密钥校验：`GatewaySecretPlaceholderChecker` 非 dev 占位/空密钥拒绝启动，对齐 auth 侧 `SecretPlaceholderChecker`）、✅ ~~AUTH-05~~（黑名单降级告警：`whale-security` `SecurityDegradationAlerter` ERROR + `SECURITY_DEGRADATION` 标记 + 计数，auth/网关两处降级分支接入）、✅ ~~AUTH-07~~（读审计**元审计**：`AuditLogController` 三查询接口加 `@AuditLog(type=QUERY)`）、✅ ~~AUTH-13~~（`recordResult()` 返回体落库：`audit_log.result_body` + `AuditLogAspect` 采集脱敏 + 2000 截断 + `AuditLogVO` 暴露）。
+> 同步闭环 ✅ ~~B6 归置~~（`docs/whale-auth/originals/` 49 份副本 + `docs/whale-auth/final/README.md` 整合最终版，原位置不删不动）；对应 [spec](../specs/2026-10-18-wave5.11-auth-residual/spec.md)。
+> 以「**`clean verify -T 1C` BUILD SUCCESS，28 模块全 SUCCESS / 263 用例全绿（security 3 / i18n-sdk 14 / gateway 23 / starter 65 / audit 31 / auth 127，0 fail·0 error·0 skipped）+ `checkstyle:check` 28 模块 0 违规（含 E16 Javadoc 门禁）**」完成验证。
+> **残余**：AUTH-08（审计导出，阻塞 whale-file）/ AUTH-09（保留归档，阻塞 whale-job）/ AUTH-10（MQ 汇聚，阻塞 RabbitMQ）、AUTH-15/16/17（DDD 深水区）、AUTH-32/33/34（前端对接）、AUTH-39（refresh 轮换实施）、Micrometer 指标接入、Wave B 前端 `whale-log-sdk`。
+> 详见 [devlog §31](../devlog/2026-10-18.md) 与 [检查报告](../reviews/2026-10-18-wave5.11-auth-residual.md)。
+
 ### 组 A：分布式基础落地（承接 REQ-DIST-001~003）
 
 | 任务 | 内容 | 依赖 | 优先级 | 验收口径 | 相对规模 |

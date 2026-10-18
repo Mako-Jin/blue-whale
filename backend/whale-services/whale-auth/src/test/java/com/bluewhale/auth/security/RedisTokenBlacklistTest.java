@@ -1,6 +1,8 @@
 package com.bluewhale.auth.security;
 
 import com.bluewhale.auth.jwt.JwtTokenProvider;
+import com.bluewhale.security.degradation.SecurityDegradationAlerter;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -54,6 +56,11 @@ class RedisTokenBlacklistTest {
 
     @InjectMocks
     private RedisTokenBlacklist blacklist;
+
+    @BeforeEach
+    void resetAlarmCount() {
+        SecurityDegradationAlerter.resetAlarmCount();
+    }
 
     @Test
     @DisplayName("add：有效期内 token 以 SHA-256 摘要为键写入，TTL 取剩余有效期")
@@ -116,6 +123,15 @@ class RedisTokenBlacklistTest {
         when(redisTemplate.hasKey(anyString())).thenThrow(new RuntimeException("connection refused"));
 
         assertFalse(blacklist.contains(TOKEN));
+    }
+
+    @Test
+    @DisplayName("contains：Redis 不可用时降级告警计数自增（AUTH-05）")
+    void containsShouldRaiseDegradationAlarmWhenRedisUnavailable() {
+        when(redisTemplate.hasKey(anyString())).thenThrow(new RuntimeException("connection refused"));
+
+        assertFalse(blacklist.contains(TOKEN));
+        assertEquals(1L, SecurityDegradationAlerter.alarmCount());
     }
 
     @Test

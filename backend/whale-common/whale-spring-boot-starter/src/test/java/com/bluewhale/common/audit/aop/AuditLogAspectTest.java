@@ -159,6 +159,53 @@ class AuditLogAspectTest {
         assertThat(captureSingleRecord().getTargetId()).isNull();
     }
 
+    @Test
+    void shouldRecordMaskedResultBodyWhenRecordResultEnabled() throws Throwable {
+        mockRequest("POST", "/user/query", false);
+        ProceedingJoinPoint joinPoint = joinPoint(SampleService.class, "queryUser", new Object[]{null});
+        when(joinPoint.proceed()).thenReturn(new ResultPayload("P@ssw0rd!", "ok"));
+
+        aspect.around(joinPoint, annotation("queryUser", ResultPayload.class));
+
+        String resultBody = captureSingleRecord().getResultBody();
+        assertThat(resultBody).contains("\"password\":\"******\"").doesNotContain("P@ssw0rd!");
+        assertThat(resultBody).contains("\"note\":\"ok\"");
+    }
+
+    @Test
+    void shouldNotRecordResultBodyByDefault() throws Throwable {
+        mockRequest("POST", "/user", false);
+        ProceedingJoinPoint joinPoint = joinPoint(SampleService.class, "createUser", new Object[]{null});
+        when(joinPoint.proceed()).thenReturn(new ResultPayload("P@ssw0rd!", "ok"));
+
+        aspect.around(joinPoint, annotation("createUser", CreatePayload.class));
+
+        assertThat(captureSingleRecord().getResultBody()).isNull();
+    }
+
+    @Test
+    void shouldTruncateOversizedResultBody() throws Throwable {
+        mockRequest("POST", "/user/query", false);
+        ProceedingJoinPoint joinPoint = joinPoint(SampleService.class, "queryUser", new Object[]{null});
+        when(joinPoint.proceed()).thenReturn(new ResultPayload("a", "x".repeat(5000)));
+
+        aspect.around(joinPoint, annotation("queryUser", ResultPayload.class));
+
+        // 与 AuditLogAspect.MAX_RESULT_LENGTH 保持一致的截断上限
+        assertThat(captureSingleRecord().getResultBody()).hasSize(2000);
+    }
+
+    @Test
+    void shouldReturnNullResultBodyWhenNotSerializable() throws Throwable {
+        mockRequest("POST", "/user/query", false);
+        ProceedingJoinPoint joinPoint = joinPoint(SampleService.class, "queryUser", new Object[]{null});
+        when(joinPoint.proceed()).thenReturn(new CyclicPayload());
+
+        aspect.around(joinPoint, annotation("queryUser", ResultPayload.class));
+
+        assertThat(captureSingleRecord().getResultBody()).isNull();
+    }
+
     private AuditLogRecord captureSingleRecord() {
         ArgumentCaptor<AuditLogRecord> captor = ArgumentCaptor.forClass(AuditLogRecord.class);
         verify(auditLogMapper).insert(captor.capture());
@@ -221,6 +268,11 @@ class AuditLogAspectTest {
         public Result<String> createRole(CreatePayload request) {
             return Result.ok();
         }
+
+        @AuditLog(module = "whale-auth", operation = "查询用户", type = OperateType.QUERY, recordResult = true)
+        public Result<String> queryUser(ResultPayload request) {
+            return Result.ok();
+        }
     }
 
     /** 创建类请求样例（含敏感字段） */
@@ -251,6 +303,36 @@ class AuditLogAspectTest {
         LoginPayload(String username, String password) {
             this.username = username;
             this.password = password;
+        }
+    }
+
+    /** 查询类返回体样例（含敏感字段，用于验证 {@code result_body} 脱敏） */
+    static class ResultPayload {
+
+        private final String password;
+        private final String note;
+
+        ResultPayload(String password, String note) {
+            this.password = password;
+            this.note = note;
+        }
+
+        /** Jackson 依据 getter 序列化，password 字段须被掩码规则命中 */
+        public String getPassword() {
+            return password;
+        }
+
+        public String getNote() {
+            return note;
+        }
+    }
+
+    /** 自身引用成环的返回体样例（验证序列化失败仅告警、字段留空） */
+    static class CyclicPayload {
+
+        /** 直接自身引用，触发 Jackson {@code FAIL_ON_SELF_REFERENCES} 而非栈溢出 */
+        public CyclicPayload getSelf() {
+            return this;
         }
     }
 }

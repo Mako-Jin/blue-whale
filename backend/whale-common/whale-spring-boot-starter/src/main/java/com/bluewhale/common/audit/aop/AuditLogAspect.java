@@ -27,6 +27,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.util.StringUtils;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -79,8 +80,13 @@ public class AuditLogAspect {
     private static final int MAX_ERROR_MSG_LENGTH = 512;
     /** target_id 落库长度上限（表字段 VARCHAR(64)） */
     private static final int MAX_TARGET_ID_LENGTH = 64;
+    /** 返回体落库长度上限（表字段 TEXT，落库前仍截断以防膨胀） */
+    private static final int MAX_RESULT_LENGTH = 2000;
     /** 纳秒转毫秒的除数 */
     private static final long NANOS_PER_MILLIS = 1_000_000L;
+
+    /** 返回体序列化器（Jackson 3，线程安全，复用单例） */
+    private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
 
     private final AuditLogMapper auditLogMapper;
     private final SensitiveDataMasker sensitiveDataMasker;
@@ -203,6 +209,7 @@ public class AuditLogAspect {
         record.setTargetType(StringUtils.hasText(auditLog.targetType()) ? auditLog.targetType() : null);
         record.setTargetId(resolveTargetId(joinPoint, auditLog));
         record.setRequestParams(auditLog.recordParams() ? sensitiveDataMasker.maskArguments(joinPoint.getArgs()) : null);
+        record.setResultBody(resolveResultBody(auditLog, result));
         record.setResponseCode(resolveResponseCode(result, failure));
         record.setBizStatus(failure == null ? BIZ_STATUS_SUCCESS : BIZ_STATUS_FAILURE);
         record.setErrorMsg(resolveErrorMsg(failure));
@@ -274,6 +281,33 @@ public class AuditLogAspect {
         String message = failure.getClass().getSimpleName()
                 + (failure.getMessage() == null ? "" : ": " + failure.getMessage());
         return message.length() <= MAX_ERROR_MSG_LENGTH ? message : message.substring(0, MAX_ERROR_MSG_LENGTH);
+    }
+
+    /**
+     * 解析返回体：仅 {@code recordResult=true} 且返回体非空时，序列化 → 脱敏 → 截断。
+     *
+     * <p>序列化 / 脱敏任一步失败只告警并返回 {@code null}，绝不阻断审计主流程；
+     * {@code recordResult=false} 时与未引入该能力前行为完全一致。</p>
+     *
+     * @param auditLog 方法上的审计注解
+     * @param result 目标方法返回值，异常时为 {@code null}
+     * @return 脱敏并截断后的返回体 JSON；不记录或解析失败时返回 {@code null}
+     */
+    private String resolveResultBody(AuditLog auditLog, Object result) {
+        if (!auditLog.recordResult() || result == null) {
+            return null;
+        }
+        try {
+            String json = JSON_MAPPER.writeValueAsString(result);
+            String masked = sensitiveDataMasker.maskJson(json);
+            if (masked == null) {
+                return null;
+            }
+            return masked.length() <= MAX_RESULT_LENGTH ? masked : masked.substring(0, MAX_RESULT_LENGTH);
+        } catch (Exception e) {
+            log.warn("审计返回体序列化失败，忽略该字段: operation={}", auditLog.operation(), e);
+            return null;
+        }
     }
 
     /** targetId：SpEL 求值，求值失败或为空则留空（审计不可因表达式问题失败） */

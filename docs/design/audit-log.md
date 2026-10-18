@@ -4,7 +4,7 @@
 |---|---|
 | 需求编号 | REQ-SEC-001（关联派生需求 REQ-SEC-002 / REQ-SEC-003） |
 | 状态 | 设计已定稿 / 核心能力已落地（Wave 5.1b，运行时待验证） |
-| 最后更新 | 2026-10-17 |
+| 最后更新 | 2026-10-18 |
 | 作者 | BlueWhale |
 | 落点模块 | `backend/whale-ops/whale-audit`（端口 8088）。**审计核心代码落点：`whale-spring-boot-starter`；`whale-audit` 仅承载查询接口**（详见 §5.1） |
 
@@ -74,6 +74,7 @@
 | method | VARCHAR(255) | 是 | 请求方法（全限定类名.方法名） |
 | request_uri | VARCHAR(255) | 是 | 请求URI |
 | request_params | TEXT | 是 | 请求参数（JSON，敏感字段须脱敏后写入） |
+| result_body | TEXT | 是 | 返回体（JSON，脱敏后写入；仅当注解 `recordResult()=true` 时落库，默认不记录） |
 | response_code | INT | 是 | 响应状态码 |
 | ip | VARCHAR(64) | 是 | 操作IP地址（兼容 IPv6） |
 | user_agent | VARCHAR(512) | 是 | 用户代理 |
@@ -128,6 +129,8 @@ public @interface AuditLog {
 
 `OperateType` 为枚举，与 §4.2 `operate_type` 取值一一对应。
 
+`recordResult()` 语义：为 `false`（默认）时**不落返回体**；为 `true` 时切面把返回体经 `SensitiveDataMasker#maskJson` 脱敏并按切面常量上限（`AuditLogAspect#MAX_RESULT_LENGTH`，当前 2000 字符）截断后写入 `result_body` 列（序列化失败仅告警、该字段留空）。因返回体体积通常远大于请求参数、且查询类返回含大量业务数据，**仅对确需取证的核心写操作显式开启**。
+
 ### 5.2 切面设计（`AuditLogAspect`）
 
 | 项 | 设计 |
@@ -161,6 +164,7 @@ public @interface AuditLog {
 | method | `declaringTypeName#name` |
 | request_uri / http_method | `HttpServletRequest` |
 | request_params | 参数 JSON（脱敏后） |
+| result_body | 返回体 JSON（`maskJson` 脱敏 + 2000 截断，仅 `recordResult=true`） |
 | response_code | `Result.code` 或 HTTP 状态码 |
 | biz_status / error_msg | 切面 try/catch 结果 |
 | target_type / target_id | 注解 + SpEL |
@@ -263,10 +267,15 @@ whale-gateway
 
 - 时间范围查询走 `idx_create_time`；仅 `traceId` 命中 `idx_trace_id`；避免无索引组合导致全表扫描。
 - 分页上限（如 `size<=200`）保护；导出走异步任务 + 文件服务（whale-file 8085）。
-- 查询本身属于敏感操作，**读审计也要被审计**（`@AuditLog(type=EXPORT/QUERY)`）。
-- 权限：`@RequirePermission("sys:audit:log:list")`（复用既有注解 + 拦截器），仅审计管理员可见。
+- 查询本身属于敏感操作，**读审计也要被审计**：3 个查询接口已各标注 `@AuditLog(type=QUERY)`，产生 QUERY 元审计并落同库 `audit_log`（见下方「元审计」）。
 
-**实施状态（2026-10-17，Wave 5.1b）**：`GET /audit/log/page`、`GET /audit/log/{id}`、`GET /audit/log/trace/{traceId}` **已实现**（`AuditLogController`，服务内前缀 `/audit/log`；分页按 `create_time` 倒序、`size` 收敛到 `[1, 200]`、`getDetail` 为空抛 `BizException(NOT_FOUND)`）；`POST /audit/log/export`、`@RequirePermission("sys:audit:log:list")`、读审计的元审计**未实现**（登记待做）。
+**实施状态（2026-10-17，Wave 5.1b）**：`GET /audit/log/page`、`GET /audit/log/{id}`、`GET /audit/log/trace/{traceId}` **已实现**（`AuditLogController`，服务内前缀 `/audit/log`；分页按 `create_time` 倒序、`size` 收敛到 `[1, 200]`、`getDetail` 为空抛 `BizException(NOT_FOUND)`）；`@RequirePermission("sys:audit:log:list")` **已实现**。
+
+**元审计（读审计的审计，AUTH-07，2026-10-18）**：3 个查询方法已各标注
+`@AuditLog(operation=…, type=OperateType.QUERY, targetType="audit_log", recordResult=false)`，
+`operation` 分别为「分页查询审计日志」/「查看审计日志详情」/「按链路查询审计日志」；`operate_type` 用枚举 `QUERY`，`target_type` 统一 `audit_log`（控制器内提为常量 `TARGET_TYPE`）。查询本身即敏感操作，故其调用会经 `AuditLogAspect` 异步落一条 QUERY 记录到**同库** `audit_log`，可经 `GET /audit/log/page`（`operateType=QUERY`）反查——元审计数据自证可溯。字段映射遵循 §5.3：`method=declaringTypeName#name`、`request_uri=/audit/log/…`、`request_params` 为查询条件（脱敏后）、`biz_status`/`cost_ms` 由切面采集；`recordResult=false` 故元审计不落 `result_body`（避免查询结果体积膨胀）。
+
+**残余（EXPORT 元审计未落地）**：`POST /audit/log/export` 及其 `@AuditLog(type=EXPORT)` 元审计**未落地**——导出接口本身尚不存在，AUTH-08 阻塞于 whale-file（8085）未启动；待文件服务就绪后与导出接口一并补齐（见 §12 遗留）。
 
 **运行时验证（2026-10-17，Wave 5.1e）**：审计**落库已实机验证**。修复自动配置装配缺陷（见 §5.4「自动装配条件」）后，真实启动 `whale-auth`（8081）跑通 login/logout，`bluewhale_auth.audit_log` 落库 **≥2 行**（LOGIN/LOGOUT，`biz_status=1`，`request_params` 无明文凭据）；`whale-audit`（9101，数据源**临时指向 `bluewhale_auth`**）`GET /audit/log/page` **可见**这些记录。**跨库可见性约束**：阶段一各服务写各自实例下的审计表，故**查询服务必须与写入服务同库/同实例**（或提供合并查询），否则查不到数据；阶段二 MQ 汇聚（§6 方案B / T-AUD-9）落地后消除该约束。详见 [reviews/2026-10-17-wave5.1e-audit-aspect-wiring-fix.md](../reviews/2026-10-17-wave5.1e-audit-aspect-wiring-fix.md)。
 
@@ -314,6 +323,7 @@ whale-gateway
 | T-AUD-7 | 业务服务接入：auth 登录/登出/权限变更打点 ✅ 已落地（Wave 5.1b） | T-AUD-4 | M | 登录、分配角色产生审计记录 |
 | T-AUD-8 | 保留与归档定时任务 ⚠️ 未落地 | T-AUD-2 | M | 过期数据按策略清理 |
 | T-AUD-9 | 阶段二 MQ 汇聚（whale-audit 消费） ⚠️ 未落地（阶段二） | T-AUD-4 | L | 容器就绪后联调 |
+| T-AUD-10 | 读审计的元审计（3 查询接口 `@AuditLog(type=QUERY)`） ✅ 已落地（AUTH-07，2026-10-18） | T-AUD-6 | S | 查询调用产生 QUERY 记录，可经 `/audit/log/page` 反查 |
 
 > 工作量相对量级：S 小 / M 中 / L 大，不含具体工期。
 
@@ -353,6 +363,21 @@ whale-gateway
 - 静态检查：上述三模块 `checkstyle:check` → 0 violations。
 - **Wave 5.1e 实机验证（2026-10-17）**：修复自动配置装配缺陷后，starter 单测 `Tests run: 15, Failures: 0, Errors: 0`；`whale-auth` 真实启动（`Started in 9.64 seconds`）+ login/logout `code=0`；`bluewhale_auth.audit_log` 落库 **6 行**（LOGIN/LOGOUT，`biz_status=1`，`request_params` 无凭据）；`whale-audit`（数据源临时指向 `bluewhale_auth`）`/audit/log/page` 可见记录；`LiveAuditLogIT` `Tests run: 3, Failures: 0, Errors: 0`。
 
-**遗留 / 待做**：T-AUD-8 保留归档、T-AUD-9 MQ 汇聚（阶段二）、`POST /audit/log/export`、`@Sensitive` 注解兜底、脱敏规则配置化、whale-audit 侧 `@RequirePermission("sys:audit:log:list")`、网关路由前缀冲突确认、**阶段一跨库可见性约束**（查询服务须与写入服务同库/同实例，见 §9 运行时验证）。**运行时/端到端验证已完成（Wave 5.1e：落库 + 查询可见）**。
+**遗留 / 待做**：T-AUD-8 保留归档、T-AUD-9 MQ 汇聚（阶段二）、`POST /audit/log/export`（含 EXPORT 元审计，AUTH-08 阻塞于 whale-file）、`@Sensitive` 注解兜底、脱敏规则配置化、网关路由前缀冲突确认、**阶段一跨库可见性约束**（查询服务须与写入服务同库/同实例，见 §9 运行时验证）。~~whale-audit 侧 `@RequirePermission`、读审计的元审计~~ 已补齐（AUTH-06 / AUTH-07）。**运行时/端到端验证已完成（Wave 5.1e：落库 + 查询可见）**。
 
 > 变更留痕：检查报告见 [docs/reviews/2026-10-17-wave5.1b-audit-log.md](../reviews/2026-10-17-wave5.1b-audit-log.md)，任务台账见 [docs/plans/task-breakdown.md](../plans/task-breakdown.md) 与 [docs/plans/next-steps.md](../plans/next-steps.md)。
+
+---
+
+## 13. 实施记录（2026-10-18，AUTH-07 元审计 + `result_body`）
+
+本批为「读审计的元审计」补齐查询接口埋点，并补充返回体落库列（T-AUD-10）。
+
+| 变更点 | 文件 | 说明 |
+|---|---|---|
+| 元审计埋点 | `backend/whale-ops/whale-audit/.../audit/controller/AuditLogController.java` | 3 个查询方法各加 `@AuditLog(type=QUERY, targetType="audit_log", recordResult=false)`；`operation` 为「分页查询审计日志」/「查看审计日志详情」/「按链路查询审计日志」；`TARGET_TYPE` 提为常量；REST 路径 / 返回类型 / `@RequirePermission` 语义不变 |
+| 元审计单测 | `.../src/test/.../audit/controller/AuditLogControllerTest.java` | 反射断言 3 个方法的 `@AuditLog` 存在、`type()=QUERY`、`operation()` 非空、`targetType()=audit_log` |
+| 返回体列 | `audit_log.result_body`（DDL） | 见 §4.1；仅 `recordResult()=true` 时落库 |
+| 返回体语义 | `recordResult()` / `SensitiveDataMasker#maskJson` | 见 §5.1 / §5.3 |
+
+**残余**：`POST /audit/log/export` 与 EXPORT 元审计未落地（AUTH-08 阻塞于 whale-file 未启动）。

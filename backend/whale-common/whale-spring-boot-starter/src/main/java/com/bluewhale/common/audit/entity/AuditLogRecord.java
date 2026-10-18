@@ -67,6 +67,9 @@ public class AuditLogRecord implements Serializable {
     /** 请求参数（JSON 格式，敏感字段已脱敏） */
     private String requestParams;
 
+    /** 返回体（JSON 格式，敏感字段已脱敏并截断；仅 {@code recordResult=true} 时写入） */
+    private String resultBody;
+
     /** 响应状态码 */
     private Integer responseCode;
 

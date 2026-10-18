@@ -272,6 +272,7 @@ public @interface DistributedLock {
 2. **refreshToken 一并失效**（REQ-SEC-004 / T5.6）：access 与 refresh 令牌签发时均带标准 `jti`；`/auth/logout` 接收可选 `refreshToken`（请求体），与头中 accessToken **双写**同一黑名单；`/auth/refresh` 在解析成功后再查黑名单，命中即 401，阻断「登出后仍可用 refreshToken 换发新 accessToken」的提权路径。
 3. **网关侧校验**（REQ-SEC-003 / T5.7）：网关为 WebFlux 响应式栈，采用 `spring-boot-starter-data-redis-reactive` + `ReactiveStringRedisTemplate`，`TokenBlacklistChecker#isBlacklisted` 返回 `Mono<Boolean>`；Redis 不可用 `onErrorResume` → 按未命中降级（与 auth 侧「可用性优先」取舍一致），生产需对 Redis 可用性告警。
 4. 网关 `/auth/refresh`、`/auth/login` 在白名单内，refresh 令牌的失效校验由 auth 侧 `/auth/refresh` 自校验完成。
+5. **降级告警口径（AUTH-05）**：Redis 不可用时，auth `RedisTokenBlacklist` 的 `add`/`contains` 与网关 `TokenBlacklistChecker#isBlacklisted` 均保留「未命中放行」语义不变（`add` 不抛、`contains` 返回 `false`、网关返回 `Mono.just(Boolean.FALSE)`）；同时统一经 `whale-security` 的 `SecurityDegradationAlerter` 输出 **ERROR** 级固定标记 `SECURITY_DEGRADATION` 告警（含场景标识与说明）并自增进程内计数，便于日志平台按标记检索与运维读取。当前**无 Micrometer/Prometheus 指标接入**，可观测性以「ERROR 日志标记 + 进程内计数」替代，**属已登记偏差**，待监控栈就绪后回填指标。
 
 ### 3.7 任务拆分
 

@@ -1,6 +1,8 @@
 package com.bluewhale.gateway.security;
 
+import com.bluewhale.security.degradation.SecurityDegradationAlerter;
 import com.bluewhale.security.token.TokenBlacklistKeys;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -11,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import reactor.core.publisher.Mono;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -32,6 +35,11 @@ class TokenBlacklistCheckerTest {
 
     @InjectMocks
     private TokenBlacklistChecker checker;
+
+    @BeforeEach
+    void resetAlarmCount() {
+        SecurityDegradationAlerter.resetAlarmCount();
+    }
 
     @Test
     @DisplayName("isBlacklisted：键存在返回 true，且键前缀与 auth 侧约定一致")
@@ -69,5 +77,15 @@ class TokenBlacklistCheckerTest {
                 .thenReturn(Mono.error(new RuntimeException("connection refused")));
 
         assertFalse(checker.isBlacklisted(TOKEN).block());
+    }
+
+    @Test
+    @DisplayName("isBlacklisted：Redis 不可用时降级放行且告警计数自增（AUTH-05）")
+    void shouldRaiseDegradationAlarmWhenRedisUnavailable() {
+        when(redisTemplate.hasKey(anyString()))
+                .thenReturn(Mono.error(new RuntimeException("connection refused")));
+
+        assertFalse(checker.isBlacklisted(TOKEN).block());
+        assertEquals(1L, SecurityDegradationAlerter.alarmCount());
     }
 }

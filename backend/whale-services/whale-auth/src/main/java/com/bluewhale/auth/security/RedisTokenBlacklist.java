@@ -1,6 +1,7 @@
 package com.bluewhale.auth.security;
 
 import com.bluewhale.auth.jwt.JwtTokenProvider;
+import com.bluewhale.security.degradation.SecurityDegradationAlerter;
 import com.bluewhale.security.token.TokenBlacklistKeys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,7 +17,8 @@ import java.util.concurrent.TimeUnit;
  * 避免明文凭据落入 Redis keyspace。键约定与 whale-gateway 侧校验实现共用，
  * 保证登出写入与网关校验指向同一键。</p>
  * <p>降级策略：Redis 不可用时 {@link #add} 仅告警不抛异常，{@link #contains} 返回未命中，
- * 保证鉴权链路整体可用（与 whale-i18n-sdk 的 Redis 降级策略一致）。</p>
+ * 保证鉴权链路整体可用（与 whale-i18n-sdk 的 Redis 降级策略一致）。两处降级分支同时经
+ * {@link SecurityDegradationAlerter} 输出 ERROR 级 {@code SECURITY_DEGRADATION} 告警并自增进程内计数。</p>
  *
  * @author BlueWhale
  */
@@ -30,6 +32,12 @@ public class RedisTokenBlacklist implements TokenBlacklist {
 
     /** 最小写入 TTL（秒），避免出现 TTL<=0 导致键永不过期 */
     private static final long MIN_TTL_SECONDS = 1L;
+
+    /** 降级告警场景标识：写入黑名单 */
+    private static final String SCENE_ADD = "auth:token-blacklist:add";
+
+    /** 降级告警场景标识：查询黑名单 */
+    private static final String SCENE_CONTAINS = "auth:token-blacklist:contains";
 
     private final StringRedisTemplate redisTemplate;
     private final JwtTokenProvider tokenProvider;
@@ -46,6 +54,7 @@ public class RedisTokenBlacklist implements TokenBlacklist {
                     .set(TokenBlacklistKeys.blacklistKey(token), PLACEHOLDER_VALUE, ttlSeconds, TimeUnit.SECONDS);
         } catch (RuntimeException e) {
             log.warn("令牌写入黑名单失败（Redis 不可用），本次登出退化为客户端丢弃 token: {}", e.getMessage());
+            SecurityDegradationAlerter.alarm(SCENE_ADD, "令牌写入黑名单失败（Redis 不可用），本次登出退化为客户端丢弃 token", e);
         }
     }
 
@@ -55,6 +64,7 @@ public class RedisTokenBlacklist implements TokenBlacklist {
             return Boolean.TRUE.equals(redisTemplate.hasKey(TokenBlacklistKeys.blacklistKey(token)));
         } catch (RuntimeException e) {
             log.warn("令牌黑名单查询失败（Redis 不可用），按未命中处理: {}", e.getMessage());
+            SecurityDegradationAlerter.alarm(SCENE_CONTAINS, "令牌黑名单查询失败（Redis 不可用），按未命中处理", e);
             return false;
         }
     }

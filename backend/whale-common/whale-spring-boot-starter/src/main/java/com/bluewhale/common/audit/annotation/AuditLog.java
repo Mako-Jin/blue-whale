@@ -44,6 +44,6 @@ public @interface AuditLog {
     /** 是否记录请求参数（脱敏后写入 {@code request_params}） */
     boolean recordParams() default true;
 
-    /** 是否记录返回体（默认关闭；当前 {@code audit_log} 无返回体列，暂不落库，预留能力） */
+    /** 是否记录返回体（默认关闭；脱敏 + 截断后写入 {@code result_body}） */
     boolean recordResult() default false;
 }
