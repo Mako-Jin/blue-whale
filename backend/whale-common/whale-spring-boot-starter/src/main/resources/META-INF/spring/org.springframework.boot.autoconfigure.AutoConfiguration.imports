@@ -7,3 +7,5 @@ com.bluewhale.common.lock.config.DistributedLockAutoConfiguration
 com.bluewhale.common.audit.config.AuditLogAutoConfiguration
 com.bluewhale.common.idempotent.config.IdempotentAutoConfiguration
 com.bluewhale.common.cache.CacheAutoConfiguration
+com.bluewhale.common.log.config.WhaleLogAutoConfiguration
+com.bluewhale.common.security.WhalePermissionAutoConfiguration

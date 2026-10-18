@@ -59,6 +59,12 @@
 > **残余**：注册锁（`@Idempotent` 已等价覆盖）、定时任务/库存锁、T-LOCK-5 降级开关、多实例失效广播、经网关并发实测。
 > 详见 [devlog §29](../devlog/2026-10-18.md) 与 [检查报告](../reviews/2026-10-18-wave5.9-auth-distributed-lock.md)。
 
+> **Wave 5.10 执行结果（2026-10-18 更新）**：✅ ~~审计日志多通道完善（后端 Wave A，REQ-SEC-006）~~（4 表 DDL + `LogPersistSupport`/`whaleLogExecutor` + `ApiLogFilter`（tee 透传）+ 出站拦截器 + `LogIngestController` 上报/查询）。
+> 同步闭环 ✅ ~~AUTH-06~~（审计查询鉴权：因 whale-audit 库无 RBAC 表，改**网关注入权限码头 + starter 通用拦截器**，权限点 `sys:audit:log:list`）+ ✅ ~~AUTH-11~~（脱敏规则配置化 `whale.audit.sensitive.keys` + `SensitiveDataMasker#maskJson`）。
+> 以「**247 单测/IT 全绿（clean verify BUILD SUCCESS）+ Checkstyle 全 29 模块 0 违规 + 实时 IT `LiveApiLogIT`/`LiveFrontendLogIT` 7/0/0**」完成验证。
+> **残余**：`api_log.module` 回填、Wave B 前端 `whale-log-sdk` 未开工、MQ 汇聚、保留期扩多表、异步派发丢采集、网关按路径限流。
+> 详见 [devlog §30](../devlog/2026-10-18.md) 与 [检查报告](../reviews/2026-10-18-wave5.10-multichannel-log.md)。
+
 ### 组 A：分布式基础落地（承接 REQ-DIST-001~003）
 
 | 任务 | 内容 | 依赖 | 优先级 | 验收口径 | 相对规模 |

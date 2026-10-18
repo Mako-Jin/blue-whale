@@ -26,3 +26,10 @@ spring:
 logging:
   level:
     com.bluewhale: debug
+
+# AUTH-06：启用 starter 的 RequirePermissionInterceptor（默认 false，须显式开启），
+# 按网关注入的 X-Permission-Codes 判定本服务查询接口的 sys:audit:log:list 权限。
+whale:
+  permission:
+    header:
+      enabled: true

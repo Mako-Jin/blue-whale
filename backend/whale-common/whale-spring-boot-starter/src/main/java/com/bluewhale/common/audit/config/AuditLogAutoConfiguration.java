@@ -3,6 +3,7 @@ package com.bluewhale.common.audit.config;
 import com.bluewhale.common.audit.aop.AuditLogAspect;
 import com.bluewhale.common.audit.mapper.AuditLogMapper;
 import com.bluewhale.common.audit.support.SensitiveDataMasker;
+import com.bluewhale.common.log.properties.SensitiveKeysProperties;
 import com.bluewhale.common.mybatis.config.MybatisPlusConfig;
 import org.aspectj.lang.annotation.Aspect;
 import org.springframework.beans.factory.ObjectProvider;
@@ -16,6 +17,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import tools.jackson.databind.ObjectMapper;
 
+import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadPoolExecutor;
 
@@ -69,11 +71,21 @@ public class AuditLogAutoConfiguration {
         return executor;
     }
 
-    /** 敏感字段脱敏器：复用 Spring 管理的 Jackson 3 {@code ObjectMapper} */
+    /**
+     * 敏感字段脱敏器：复用 Spring 管理的 Jackson 3 {@code ObjectMapper}，
+     * 并入 {@code whale.audit.sensitive.keys} 附加敏感键名（AUTH-11 配置化）。
+     *
+     * @param objectMapper 全局 Jackson 序列化器
+     * @param sensitiveKeysProvider 附加敏感键配置（未启用多通道日志的服务可能为空）
+     * @return 敏感字段脱敏器
+     */
     @Bean
     @ConditionalOnMissingBean
-    public SensitiveDataMasker sensitiveDataMasker(ObjectMapper objectMapper) {
-        return new SensitiveDataMasker(objectMapper);
+    public SensitiveDataMasker sensitiveDataMasker(ObjectMapper objectMapper,
+                                                   ObjectProvider<SensitiveKeysProperties> sensitiveKeysProvider) {
+        SensitiveKeysProperties sensitiveKeys = sensitiveKeysProvider.getIfAvailable();
+        List<String> extraKeys = sensitiveKeys == null ? List.of() : sensitiveKeys.getKeys();
+        return new SensitiveDataMasker(objectMapper, extraKeys);
     }
 
     /**

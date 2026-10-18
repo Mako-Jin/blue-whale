@@ -77,9 +77,17 @@ whale:
       - /doc.html
       - /webjars/**
       - /favicon.ico
+      # 前端/行为上报接口（REQ-SEC-006）：未登录期也需上报，免 JWT；路径须与 whale-audit 对外路径逐字一致（网关不剥离前缀）
+      - /audit/log/frontend/**
+      - /audit/log/behavior/**
+    # AUTH-06 权限码头注入：JwtAuthGlobalFilter 注入 X-User-Id 后，PermissionHeaderGlobalFilter(order=-50)
+    # 读 Redis 权限码缓存（命中即注入）；未命中/哨兵/异常回落 lb://whale-auth/auth/me，两级均失败注入空串并告警
+    permission-header:
+      enabled: ${WHALE_GATEWAY_PERMISSION_HEADER_ENABLED:true}
     # T5.4 网关入口限流（Redis 计数器 + 固定窗口，REQ-DIST-003）：
     # window-seconds 为固定窗口长度（秒），limit 为单窗口允许的最大请求数，超阈值返回 HTTP 429 + Result 体；
-    # Redis 不可用时降级放行（可用性优先），由 RateLimitGlobalFilter 执行
+    # Redis 不可用时降级放行（可用性优先），由 RateLimitGlobalFilter 执行。
+    # 前端/行为上报接口由该全局限流覆盖（全部路径生效），故不新增按路径规则
     rate-limit:
       enabled: ${WHALE_GATEWAY_RATE_LIMIT_ENABLED:true}
       limit: ${WHALE_GATEWAY_RATE_LIMIT:200}

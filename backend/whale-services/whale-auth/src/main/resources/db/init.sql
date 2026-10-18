@@ -374,4 +374,6 @@ VALUES
     (21, 0, 'sys:dept:edit', '修改部门', 'API', '/dept/**', 'PUT', 21, 1),
     (22, 0, 'sys:dept:delete', '删除部门', 'API', '/dept/{id}', 'DELETE', 22, 1),
     (23, 0, 'sys:user:resetPwd', '重置用户密码', 'API', '/user/{id}/password', 'PUT', 23, 1),
-    (24, 0, 'sys:user:status', '启停用户', 'API', '/user/{id}/status', 'PUT', 24, 1);
+    (24, 0, 'sys:user:status', '启停用户', 'API', '/user/{id}/status', 'PUT', 24, 1),
+    -- AUTH-06（Wave 5.10）：审计日志查询权限点，与 whale-audit 查询接口 @RequirePermission("sys:audit:log:list") 对应
+    (25, 0, 'sys:audit:log:list', '审计日志查询', 'API', '/audit/log/**', 'GET', 25, 1);

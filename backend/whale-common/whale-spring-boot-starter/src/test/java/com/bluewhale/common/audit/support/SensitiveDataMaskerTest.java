@@ -141,6 +141,33 @@ class SensitiveDataMaskerTest {
         assertThat(json).isNotNull().hasSize(MAX_PARAM_LENGTH);
     }
 
+    @Test
+    void shouldMaskSensitiveFieldsInValidJsonBody() {
+        String json = "{\"username\":\"alice\",\"password\":\"P@ssw0rd!\",\"mobile\":\"13800008888\","
+                + "\"nested\":{\"token\":\"jwt-value\"}}";
+
+        String masked = masker.maskJson(json);
+
+        assertThat(masked).contains("\"password\":\"******\"").contains("\"mobile\":\"138****8888\"")
+                .contains("\"token\":\"***\"")
+                .doesNotContain("P@ssw0rd!").doesNotContain("jwt-value").doesNotContain("13800008888");
+    }
+
+    @Test
+    void shouldTruncateInvalidJsonWithoutThrowing() {
+        String invalidJson = "not-a-json {" + "x".repeat(OVER_LIMIT_TEXT_LENGTH);
+
+        String masked = masker.maskJson(invalidJson);
+
+        assertThat(masked).hasSize(MAX_PARAM_LENGTH);
+    }
+
+    @Test
+    void shouldReturnNullForBlankJsonBody() {
+        assertThat(masker.maskJson(null)).isNull();
+        assertThat(masker.maskJson("   ")).isNull();
+    }
+
     @SuppressWarnings("unchecked")
     private static Map<String, Object> asMap(Object value) {
         return (Map<String, Object>) value;

@@ -5,7 +5,7 @@
 | 关联需求 | REQ-SEC-006（多通道日志采集，**本波新增**）、REQ-SEC-001（审计日志）、REQ-SEC-002/003（链路与网关）、REQ-FUNC-002（权限中心 AUTH-06 权限点）、REQ-QA-002（检查留痕） |
 | 任务映射 | Wave A ↔ 方案 A1–A7；AUTH-06（审计查询加权限注解 + 权限点种子）、AUTH-11（脱敏规则配置化）在本波一并闭环 |
 | 生成日期 | 2026-10-18 ｜ 作者：BlueWhale |
-| 依据 | [审计日志服务多通道完善方案](../documents/审计日志服务多通道完善方案.md)（**执行依据**）；[audit-log.md](../../design/audit-log.md) §4/§7/§8/§9；[distributed.md](../../design/distributed.md)；[naming-conventions.md](../../naming-conventions.md) §二/§八 |
+| 依据 | [审计日志服务多通道完善方案](../../../.trae/documents/审计日志服务多通道完善方案.md)（**执行依据**）；[audit-log.md](../../design/audit-log.md) §4/§7/§8/§9；[distributed.md](../../design/distributed.md)；[naming-conventions.md](../../naming-conventions.md) §二/§八 |
 | 执行原则 | 文档先行（REQ-DOC-002）→ 编码 → 按 [code-review-checklist.md](../../checklists/code-review-checklist.md) 自检留报告（REQ-QA-002）→ 构建/实时验证 → 提交推送 |
 
 > 本波次**只做后端 Wave A**；前端 `whale-log-sdk`（Wave B）待 A 批接口冻结后另立 `specs/2026-10-18-wave5.11-whale-log-sdk/`。
@@ -97,10 +97,12 @@ DDL 追加到 `whale-audit/db/init.sql`（4 张表）与 `whale-auth/db/init.sql
 | `properties` | `LogSinkProperties`(`whale.audit`)、`ApiLogProperties`(`whale.log.api`) | 配置绑定 |
 | `filter` | `ApiLogFilter`、`LimitedCachingRequestWrapper`、`LimitedCachingResponseWrapper` | 后端接口日志（**自研包装器**，非 Spring `ContentCaching*`） |
 | `interceptor` | `OutboundLogInterceptor`、`OutboundLogRestTemplateCustomizer` | 出站三方调用日志（经 `RestTemplateBuilder` 自动挂载） |
-| `support` | `LogHeaders`（`X-Trace-Id`/`X-User-Id`/`X-Username` 常量）、`SensitiveDataMasker#maskJson` 扩展 | 头常量复用 + 脱敏复用 |
+| `support` | `SensitiveDataMasker#maskJson` 扩展 | 脱敏复用 |
+| `web` | `WebHeaders`（`X-Trace-Id`/`X-User-Id`/`X-Username`/`X-User-Roles`/`X-Permission-Codes` 常量 + 取值工具） | **全服务共享头常量**（Filter/Interceptor/权限拦截器统一引用，避免多份重复定义） |
+| `security` | `RequirePermissionInterceptor`、`PermissionHeaders` 取值逻辑 | AUTH-06 通用权限判定拦截器（读网关注入的权限码头，见 §八） |
 | `config` | `WhaleLogAutoConfiguration` | `@AutoConfiguration(after={MybatisPlusConfig, AuditLogAutoConfiguration})` + `@ConditionalOnWebApplication(SERVLET)` + `@ConditionalOnClass`；Bean 内 `ObjectProvider<XxxMapper>` 延迟解析 |
 
-`META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 追加 `com.bluewhale.common.log.config.WhaleLogAutoConfiguration`（现 9 行 → 10 行）。
+`META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 追加 `com.bluewhale.common.log.config.WhaleLogAutoConfiguration` 与 `com.bluewhale.common.security.WhalePermissionAutoConfiguration`（现 9 行 → 11 行）。
 
 ### 4.2 `SensitiveDataMasker` 扩展（AUTH-11）
 
@@ -144,7 +146,7 @@ DDL 追加到 `whale-audit/db/init.sql`（4 张表）与 `whale-auth/db/init.sql
 | 风险 / 残余 | 影响 | 处置 |
 |---|---|---|
 | 写放大 | 接口日志行数远大于审计 | 采样 + 排除路径 + body 截断；`api_log` 建议保留期 30 天（`whale.audit.retention.days` 待扩多表） |
-| 响应包装 | 漏 `copyBodyToResponse()` 致客户端空响应 | 自研 wrapper `finally` **必须**回写；Content-Type 白名单跳过文件/大 body |
+| 响应包装 | 缓冲式回写易截断响应体 | **改用 tee 透传**：字节直达客户端 + 镜像入限长缓存，超限停镜像不截断；无需 `copyBodyToResponse()`（**有意偏离**方案参考实现，见 checklist 4.2/4.3） |
 | 线程池积压 | `CallerRunsPolicy` 高负载下由业务线程兜底写库 | 队列 2048 + 采样 + 通道可关闭；不静默丢数据 |
 | 前端上报被刷量 | `permitAll` 公开写库 | 网关限流 + 批量上限 + `client_id` 维度限速 |
 | 跨库可见性 | 阶段一查询服务须与写入服务同库/同实例 | 同 `audit_log` 既有约束；阶段二 MQ 汇聚消除 |
@@ -166,3 +168,60 @@ DDL 追加到 `whale-audit/db/init.sql`（4 张表）与 `whale-auth/db/init.sql
 8) 检查报告 + devlog + 台账销账
 9) commit + push（Gitee origin/main）
 ```
+
+---
+
+## 八、AUTH-06 权限码头方案（本波追加 · 用户已批准）
+
+> 背景：whale-audit 库为 `bluewhale_audit`，**无** `sys_user_role`/`sys_role_permission`/`sys_permission` 等 RBAC 表，
+> 无法直接复用 whale-auth 服务内的 `PermissionInterceptor`（其依赖 `PermissionCache` + `SysRoleService`）。
+> 用户于 2026-10-18 定夺采用「**网关注入权限码头 + starter 通用拦截器**」（复用 `CacheConsistencyTemplate` 已有缓存键）。
+
+### 8.1 链路
+
+```
+[whale-auth] 登录/权限判定 → 缓存键 whale:cache:auth:user:perm:{userId}（值=权限码逗号拼接，空为 __NULL__）
+      │
+      ▼
+[whale-gateway] PermissionHeaderGlobalFilter(order=-50)：
+  已认证请求 → 响应式读 Redis 上述键
+        ├─ 命中且非 __NULL__ → 取权限码
+        └─ 未命中/哨兵/异常 → 回落 GET lb://whale-auth/auth/me（带原 Authorization），取 data.permissions
+  注入 X-Permission-Codes（先移除外部伪造同名头）；解析失败注入空串（下游 fail-closed）并 warn
+      │
+      ▼
+[whale-audit] RequirePermissionInterceptor：读 X-Permission-Codes（缺省回落 X-User-Roles）
+  - 含 super_admin 或含注解 value → 放行
+  - 否则抛 BizException(FORBIDDEN)
+```
+
+### 8.2 组件与落点
+
+| 模块 | 类 | 职责 |
+|---|---|---|
+| `whale-spring-boot-starter` | `com.bluewhale.common.web.WebHeaders` | 头常量（`X-Trace-Id`/`X-User-Id`/`X-Username`/`X-User-Roles`/`X-Permission-Codes`）+ 取值/拆分工具；**全服务共享单一来源** |
+| `whale-spring-boot-starter` | `com.bluewhale.common.security.RequirePermissionInterceptor` | 通用 `HandlerInterceptor`：按 `@RequirePermission` 注解校验（权限码头来源），无注解直接放行 |
+| `whale-spring-boot-starter` | `com.bluewhale.common.security.WhalePermissionAutoConfiguration` | **按需装配**（`whale.permission.header.enabled=true`，默认 `false`）：仅显式开启的服务注册拦截器，避免在 whale-auth 内与本服务 `PermissionInterceptor` 重复判定 |
+| `whale-gateway` | `com.bluewhale.gateway.filter.PermissionHeaderGlobalFilter` | 权限码头注入（顺序 `-50`，晚于 `JwtAuthGlobalFilter` `-100`、早于业务转发）；`@LoadBalanced WebClient` 回落 `/auth/me` |
+| `whale-audit` | `pom.xml` + `application.yml` | 引入 `whale-auth-sdk`（注解）+ 开启 `whale.permission.header.enabled=true`；`LogIngestController` 查询接口 + `AuditLogController` 全部查询接口加 `@RequirePermission("sys:audit:log:list")` |
+| `whale-auth` | `db/init.sql` | 新增权限点种子 `sys:audit:log:list`（审计日志查询） |
+
+- **fail-closed 语义**：whale-audit 查询接口在无有效权限码头时一律拒绝（403）；上报接口维持 `permitAll` 不受影响（无 `@RequirePermission`）。
+- **降级**：Redis 与 `/auth/me` 均不可用时注入空串并告警 → 受保护查询被拒（可用性让位于安全，仅影响审计查询）。
+
+### 8.3 追加配置项
+
+| 配置 | 默认 | 说明 |
+|---|---|---|
+| `whale.permission.header.enabled` | `false` | 服务侧是否启用权限码头判定拦截器（**仅 whale-audit 开启**） |
+| `whale.permission.header.codes-header` | `X-Permission-Codes` | 权限码头名（可改，默认与网关一致） |
+| `whale.gateway.permission-header.enabled` | `true` | 网关是否解析并注入权限码头 |
+
+### 8.4 验收补充
+
+| 项 | 验证方式 | 通过标准 |
+|---|---|---|
+| 权限码头注入 | `PermissionHeaderGlobalFilterTest` | 命中缓存即注入；未命中回落 `/auth/me`；Redis+回落均失败注入空串并告警 |
+| 通用拦截器 | `RequirePermissionInterceptorTest` | 含 `super_admin` 放行；命中权限码放行；无码头拒绝（403）；无注解直放行 |
+| 端到端 | 实时 IT / 手工 | 携带审计权限的用户可查；无权限用户查询 403；未登录 401 |
+
