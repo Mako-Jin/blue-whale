@@ -91,7 +91,7 @@
 | ~~T5.16~~ ✅ **已完成（Wave 5.6，Gitee 侧实机触发待验证）** | Gitee Go 流水线映射：按 `docs/design/cicd.md` 第 6 节把三条 Workflow 映射为 Gitee Go 任务 | 无 | 中 | 推送后在 Gitee 可见流水线执行结果 | M |
 | T5.17 | 门禁升级：把命名/import/结构类规则由 `warning` 提升为 `error`，使 Checkstyle 转为真正阻断 | T5.1–T5.15 清理完毕 | 中 | 违规时 CI 失败 | S |
 | ~~T5.18~~ ✅ **已完成（Wave 5.6）** | JaCoCo 覆盖率接入（阈值 40%/60%/增量 70%，见 cicd.md 第 3 节） | 无 | 中 | 构建产出覆盖率报告并执行阈值校验 | M |
-| ~~T5.19~~ | 单测补充：whale-auth 黑名单/登出逻辑（含 Redis 降级路径，用 mock 或嵌入式替代） | T4.1 | 高 | 新增用例全绿；覆盖正常/降级/TTL 边界 | M |
+| ~~T5.19~~ ✅ **已完成（Wave 5.0；Wave 5.7 延伸补测 AUTH-23）** | 单测补充：whale-auth 黑名单/登出逻辑（含 Redis 降级路径，用 mock 或嵌入式替代）；**延伸（Wave 5.7）**：4 个零覆盖 `ServiceImpl`（Role/Permission/Dept/UserPermission）补测 44 用例 | T4.1 | 高 | 新增用例全绿；覆盖正常/降级/TTL 边界 | M |
 | T5.20 | 全量回归：`mvn clean install -T 1C` + `pnpm build`，按清单出报告后提交推送 | 上述任务 | 高 | 后端 exit 0 / 前端 11 包成功；报告归档 | M |
 
 ### 组 F：前端推进（承接 REQ-FUNC-008 / 009 / 010）
