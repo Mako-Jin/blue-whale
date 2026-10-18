@@ -14,7 +14,7 @@
 | [x] B7 | 冒烟：`scripts/smoke.mjs`（无框架，基于构建产物断言）+ `pnpm --filter @bluewhale/whale-log-sdk build` | B6 | 高 | 构建产出三件；冒烟断言全过 | ✅ |
 | [x] B8 | 集成：`whale-platform` `main.tsx` 调 `initLogSdk` + 其 `package.json` 增依赖；`pnpm -r build`（或 turbo build） | B7 | 中 | 应用可构建，SDK 初始化不抛错 | ✅ |
 | [x] B9 | 留痕收口：检查报告 `docs/reviews/2026-10-18-wave5.14-whale-log-sdk.md` + devlog 追加 + 台账销账（`register.md` REQ-SEC-006 Wave B / `next-steps.md`） | B8 | 中 | 四类信息齐备 | ✅ |
-| [ ] B10 | 自动 commit + push（Gitee origin/main） | B9 | 中 | 工作区干净且 `main == origin/main` | ⏳ |
+| [x] B10 | 自动 commit + push（Gitee origin/main） | B9 | 中 | 工作区干净且 `main == origin/main` | ✅ |
 
 ## 实施注意（给实现者的事实约束）
 

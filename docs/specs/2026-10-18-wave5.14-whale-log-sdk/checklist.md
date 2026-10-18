@@ -34,8 +34,8 @@
 - [x] 5.1 检查报告 `docs/reviews/2026-10-18-wave5.14-whale-log-sdk.md` 逐项对应 [code-review-checklist.md](../../checklists/code-review-checklist.md) 编号（含 D6/E12）
 - [x] 5.2 devlog 追加本波条目，四节（需求项 / 完成项 / 待做项 / 已修正问题项）齐备
 - [x] 5.3 台账销账：`register.md`（REQ-SEC-006 Wave B）、`next-steps.md`
-- [ ] 5.4 变更已 commit 并 push 至 Gitee `origin/main`，工作区干净且 `main == origin/main`
+- [x] 5.4 变更已 commit 并 push 至 Gitee `origin/main`，工作区干净且 `main == origin/main`
 
 ## 六、核验结论
 
-- 核验人：BlueWhale ｜ 日期：2026-10-18 ｜ 结论：待填
+- 核验人：BlueWhale ｜ 日期：2026-10-18 ｜ 结论：**通过**
