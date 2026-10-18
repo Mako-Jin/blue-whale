@@ -41,11 +41,12 @@
 
 | 对象 | 规则 | 示例 |
 |---|---|---|
-| 表名 | 小写 snake_case、**单数**、带域前缀 | `sys_user`、`audit_log`、`erp_order` |
-| 前缀语义 | `sys_` 平台内建 RBAC；`audit_` 审计；`<业务域>_` 业务应用 | —— |
+| 表名 | 小写 snake_case、**单数**、带域前缀 | `sys_user`、`audit_log`、`api_log`、`outbound_log`、`frontend_log`、`behavior_log`、`erp_order` |
+| 前缀语义 | `sys_` 平台内建 RBAC；`audit_` 审计事件；`*_log` 多通道观测日志（Wave 5.10）；`<业务域>_` 业务应用 | —— |
 | 关联表 | `<主表>_<从表>`（均取单数） | `sys_user_role`、`sys_role_permission` |
 | 列名 | 小写 snake_case；布尔 `is_xxx`；时间 `xxx_time`；数量 `xxx_count`；外键 `<实体>_id` | `is_default`、`create_time`、`tenant_id` |
 | 必备列 | `id`（雪花，`BIGINT`）、`create_time`、`update_time`、`deleted`（逻辑删除） | 见 checklist E13 |
+| 必备列例外 | **append-only 追加型表**（审计与多通道日志）**不设** `update_time` / `deleted`：写入后不可修改，按保留策略整批归档/清理 | `audit_log`、`api_log`、`outbound_log`、`frontend_log`、`behavior_log` |
 | 索引 | `idx_<表简称>_<列>` / `uk_<表简称>_<列>` | `uk_sys_user_username` |
 | 禁止 | 大写表名、复数表名（`users`）、无前缀裸表名（`user`） | —— |
 
@@ -157,7 +158,7 @@ Maven 模块目录名 == artifactId == spring.application.name == Nacos 服务�
 
 | 对象 | 规则 | 示例 / 现状 |
 |---|---|---|
-| 共享包 / 组件库 | `@bluewhale/whale-<域>` | `@bluewhale/whale-ui`、`@bluewhale/whale-common-tools` ✔ |
+| 共享包 / 组件库 | `@bluewhale/whale-<域>` | `@bluewhale/whale-ui`、`@bluewhale/whale-common-tools`、`@bluewhale/whale-log-sdk`（Wave B 新建） ✔ |
 | 应用包名 | `whale-<域>`（不加 scope） | `whale-platform`、`whale-portal`、`whale-admin`、`whale-ops` ✔ |
 | 目录名 | 与包名一致（去掉 scope） | `frontend/admin` → 包名 `whale-admin`（**偏差 N-03**） |
 | 微前端分组 | `frontend/platform-apps/`（子应用）、`shared-packages/`（共享包）、`elemental/`（组件库）、`ops/`（运维） | —— |
