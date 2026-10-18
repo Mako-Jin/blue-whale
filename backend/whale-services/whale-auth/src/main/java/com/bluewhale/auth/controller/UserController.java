@@ -16,6 +16,7 @@ import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.core.query.PageQuery;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
+import com.bluewhale.common.idempotent.annotation.Idempotent;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -78,6 +79,7 @@ public class UserController {
     @PostMapping
     @RequirePermission("sys:user:add")
     @AuditLog(operation = "创建用户", type = OperateType.CREATE, targetType = "sys_user")
+    @Idempotent(biz = "auth:user:create", key = "#request.username")
     public Result<UserVO> create(@Valid @RequestBody UserCreateRequest request) {
         return Result.ok(userService.create(request));
     }

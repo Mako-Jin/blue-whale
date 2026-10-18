@@ -1,0 +1,37 @@
+package com.bluewhale.common.cache;
+
+import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
+import org.springframework.data.redis.core.StringRedisTemplate;
+
+/**
+ * 缓存一致性自动配置。
+ * <p>仅在「Spring Data Redis 在类路径 + 容器中存在 {@code StringRedisTemplate}」时生效，
+ * 未引入 Redis 的服务不受影响（依赖为 {@code optional}）。</p>
+ *
+ * @author BlueWhale
+ */
+@AutoConfiguration
+@ConditionalOnClass(StringRedisTemplate.class)
+@EnableConfigurationProperties(CacheProperties.class)
+public class CacheAutoConfiguration {
+
+    /**
+     * 注册缓存一致性模板
+     *
+     * @param redisTemplate Redis 字符串操作模板
+     * @param properties 缓存配置属性
+     * @return 缓存一致性模板实例
+     */
+    @Bean
+    @ConditionalOnBean(StringRedisTemplate.class)
+    @ConditionalOnMissingBean
+    public CacheConsistencyTemplate cacheConsistencyTemplate(StringRedisTemplate redisTemplate,
+                                                             CacheProperties properties) {
+        return new CacheConsistencyTemplate(redisTemplate, properties);
+    }
+}

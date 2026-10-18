@@ -25,7 +25,7 @@
 
 - [x] ~~Nacos 服务发现动态路由~~
 - [x] ~~JWT 全局鉴权过滤器~~
-- [ ] Sentinel 限流熔断
+- [x] ~~网关限流熔断（Redis 计数器 + 429 `Result` 体，Wave 5.6，T5.4；Sentinel 接入转 backlog）~~
 - [x] ~~请求日志 / TraceId 链路追踪~~
 
 ### 2.3 whale-common / whale-tools 公共组件
@@ -69,7 +69,9 @@
 - [x] ~~审计日志落地（`@AuditLog` + AOP 异步写库 + 敏感字段脱敏）~~
 - [x] ~~refreshToken 失效（`jti` + 黑名单）、网关侧黑名单校验（REQ-SEC-003/004）~~
 - [x] ~~分布式 ID 统一与 Long→String 序列化~~
-- [ ] Gitee Go 流水线映射、JaCoCo 覆盖率门禁
+- [x] ~~幂等组件 `@Idempotent`（Redisson SETNX + 结果缓存，Wave 5.6，T5.3）~~
+- [x] ~~缓存一致性工具（Cache-Aside + 空值哨兵 + TTL 抖动 + 延迟双删，Wave 5.6，T5.5）~~
+- [x] ~~Gitee Go 流水线映射、JaCoCo 覆盖率门禁（Wave 5.6，T5.16/T5.18；Gitee 侧实机触发待验证）~~
 
 ## Phase 3：前端平台填充
 

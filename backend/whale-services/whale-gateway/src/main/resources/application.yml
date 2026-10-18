@@ -77,6 +77,13 @@ whale:
       - /doc.html
       - /webjars/**
       - /favicon.ico
+    # T5.4 网关入口限流（Redis 计数器 + 固定窗口，REQ-DIST-003）：
+    # window-seconds 为固定窗口长度（秒），limit 为单窗口允许的最大请求数，超阈值返回 HTTP 429 + Result 体；
+    # Redis 不可用时降级放行（可用性优先），由 RateLimitGlobalFilter 执行
+    rate-limit:
+      enabled: ${WHALE_GATEWAY_RATE_LIMIT_ENABLED:true}
+      limit: ${WHALE_GATEWAY_RATE_LIMIT:200}
+      window-seconds: ${WHALE_GATEWAY_RATE_LIMIT_WINDOW_SECONDS:1}
 
 logging:
   level:

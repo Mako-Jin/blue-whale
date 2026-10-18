@@ -30,6 +30,9 @@ public enum ErrorCode {
     /** 并发冲突：分布式锁获取失败（资源被占用，快速失败） */
     LOCK_ACQUIRE_FAILED(429, "系统繁忙，请稍后重试"),
 
+    /** 重复提交：同一幂等 token 的请求正在处理中或已处理完成 */
+    REPEAT_SUBMIT(409, "请勿重复提交"),
+
     /** 参数错误 */
     PARAM_ERROR(400, "参数错误");
 

@@ -13,7 +13,7 @@
 | 后端 | 25 模块可构建；auth/gateway/i18n 核心能力就绪；Redis 首次被 auth 使用（令牌黑名单） |
 | 前端 | 11 包可构建；基座登录 + 主布局就绪；admin / whale-ui / portal 未启动 |
 | 工程规范 | 需求登记册、检查清单、检查报告机制、Checkstyle 门禁 已建立 |
-| 分布式 | 方案已定稿；**已落地 3 项**（令牌黑名单 auth+网关 / ID 序列化 / 分布式锁工具）；幂等、事务未落地；Wave 5.1c 实机验证：令牌黑名单与分布式锁**通过**；Wave 5.1d：**redisson 升级 4.8.0 后服务可真实启动**（网关侧仍阻塞） |
+| 分布式 | 方案已定稿；**已落地 5 项**（令牌黑名单 auth+网关 / ID 序列化 / 分布式锁工具 / **幂等组件（Wave 5.6，T5.3）** / **缓存一致性工具（Wave 5.6，T5.5）**）+ **网关限流（Wave 5.6，T5.4，Redis 计数器兜底）**；分布式事务未落地；Wave 5.1c 实机验证：令牌黑名单与分布式锁**通过**；Wave 5.1d：**redisson 升级 4.8.0 后服务可真实启动** |
 | 审计 | 注解/切面/脱敏/查询接口已落地；auth 已埋点；**Wave 5.1e 修复既有缺陷并实机验证落库**：`AuditLogAutoConfiguration` 去掉时序不可靠的 `@ConditionalOnBean(AuditLogMapper)`，改 `ObjectProvider` 延迟解析 → 真实服务链路审计切面**已装配**，`bluewhale_auth.audit_log` 由 0 行 → 6 行（LOGIN/LOGOUT、`biz_status=1`、`request_params` 无凭据），`/audit/log/page` 可查、`LiveAuditLogIT` 3/0/0 |
 | 架构 | auth DDD 方案已定稿；代码未迁移 |
 | 阻塞项 | Redis/MySQL **已可用**（Wave 5.1c/5.1d 实机验证；MySQL 3306 以任务书凭据直连）；~~**P0**：`redisson-spring-boot-starter 3.34.1` 与 Spring Boot 4.0.8 不兼容~~ → **✅ 已解除（Wave 5.1d：升级 4.8.0 实测兼容，auth 8081 / audit 9101 启动成功）**；**Nacos 8848 未监听** → 网关/`lb://` 未验证 |
@@ -43,6 +43,11 @@
 >
 > **Wave 5.3 执行结果（2026-10-17 更新）**：✅ AUTH-12（写操作审计埋点 5 → 20）、AUTH-22（新增 `PUT /user/{id}/password`、`PUT /user/{id}/status`，含权限码/审计/值对象/单测）、AUTH-02（gateway jjwt 硬编码 0.12.6 移除，由 whale-parent 统一为 0.12.5）、AUTH-03（refreshToken 轮换 [ADR-001](../design/adr/2026-10-17-refresh-token-rotation.md) 定稿，实施另立 AUTH-39）、AUTH-38（经网关冒烟通过）。
 > 以「**39 单测全绿 + Checkstyle 0 违规**」完成验证；详见 [devlog §23](../devlog/2026-10-17.md) 与 [检查报告](../reviews/2026-10-17-wave5.3-auth-audit-and-account-ops.md)。
+>
+> **Wave 5.6 执行结果（2026-10-18 更新）**：✅ T5.3（幂等组件 `@Idempotent` + 用户创建场景接入）｜ ✅ T5.4（网关限流，**Redis 计数器兜底**替代 Sentinel）｜ ✅ T5.5（缓存一致性工具）｜ ✅ T5.16（Gitee Go 流水线即代码）｜ ✅ T5.18（JaCoCo 覆盖率 + `coverage-gate` 阈值 profile）。
+> 以「**7/7 反应堆模块 SUCCESS + 96 单测全绿（starter 29 / auth 55 / gateway 12）+ Checkstyle 0 违规 + JaCoCo 公共库行覆盖 68.01%**」完成验证；`-Pcoverage-gate` 在 `whale-auth`（行 0.37 < 0.40）按预期 **BUILD FAILURE** 证明门禁生效。
+> **残余**：限流端到端 429 冒烟（本机 6379/8848/8080 未监听）、`coverage-gate` 接入 CI（待 AUTH-23 达标）、Gitee Go 实机触发验证、Sentinel 接入（backlog）。
+> 详见 [devlog §26](../devlog/2026-10-18.md) 与 [检查报告](../reviews/2026-10-18-wave5.6-crosscutting-infra.md)。
 
 ### 组 A：分布式基础落地（承接 REQ-DIST-001~003）
 
@@ -50,9 +55,9 @@
 |---|---|---|---|---|---|
 | ~~T5.1~~ | 分布式 ID 统一：确认各实体主键使用 `IdType.ASSIGN_ID`；`BaseEntity` 显式声明；Long → String 序列化（Jackson 3）避免前端精度丢失 | 无 | 高 | 新插入记录 ID 为 19 位雪花且前端收到字符串 | S |
 | ~~T5.2~~ | `@DistributedLock` 注解 + SpEL key 解析 + Redisson AOP 切面（或先做 `DistributedLockTemplate` 工具类，视复杂度择一） | 无（Redisson 已在 auth） | 高 | 并发调用同 key 互斥；`tryLock` 超时返回业务异常；单测覆盖锁获取/超时 | M |
-| T5.3 | 幂等组件：`@Idempotent` + Token/唯一键，先用于用户注册 | T5.2 | 中 | 重复提交返回同一结果，不产生重复数据 | M |
-| T5.4 | 网关限流：接入 Sentinel（或先用 Redis 计数器兜底） | 网关 | 中 | 超阈值返回 429 + `Result` 体 | M |
-| T5.5 | 缓存一致性约定落地：Cache-Aside + TTL 抖动 + 空值哨兵写入公共工具 | 无 | 中 | 工具类单测通过；i18n 与权限缓存统一改造 | S |
+| ~~T5.3~~ ✅ **已完成（Wave 5.6）** | 幂等组件：`@Idempotent` + Token/唯一键，先用于用户注册 | T5.2 | 中 | 重复提交返回同一结果，不产生重复数据 | M |
+| ~~T5.4~~ ✅ **已完成（Wave 5.6，Redis 计数器兜底）** | 网关限流：接入 Sentinel（或先用 Redis 计数器兜底） | 网关 | 中 | 超阈值返回 429 + `Result` 体 | M |
+| ~~T5.5~~ ✅ **已完成（Wave 5.6）** | 缓存一致性约定落地：Cache-Aside + TTL 抖动 + 空值哨兵写入公共工具 | 无 | 中 | 工具类单测通过；i18n 与权限缓存统一改造 | S |
 
 ### 组 B：安全补口（承接 REQ-SEC-002/003/004）
 
@@ -83,9 +88,9 @@
 
 | 任务 | 内容 | 依赖 | 优先级 | 验收口径 | 相对规模 |
 |---|---|---|---|---|---|
-| T5.16 | Gitee Go 流水线映射：按 `docs/design/cicd.md` 第 6 节把三条 Workflow 映射为 Gitee Go 任务 | 无 | 中 | 推送后在 Gitee 可见流水线执行结果 | M |
+| ~~T5.16~~ ✅ **已完成（Wave 5.6，Gitee 侧实机触发待验证）** | Gitee Go 流水线映射：按 `docs/design/cicd.md` 第 6 节把三条 Workflow 映射为 Gitee Go 任务 | 无 | 中 | 推送后在 Gitee 可见流水线执行结果 | M |
 | T5.17 | 门禁升级：把命名/import/结构类规则由 `warning` 提升为 `error`，使 Checkstyle 转为真正阻断 | T5.1–T5.15 清理完毕 | 中 | 违规时 CI 失败 | S |
-| T5.18 | JaCoCo 覆盖率接入（阈值 40%/60%/增量 70%，见 cicd.md 第 3 节） | 无 | 中 | 构建产出覆盖率报告并执行阈值校验 | M |
+| ~~T5.18~~ ✅ **已完成（Wave 5.6）** | JaCoCo 覆盖率接入（阈值 40%/60%/增量 70%，见 cicd.md 第 3 节） | 无 | 中 | 构建产出覆盖率报告并执行阈值校验 | M |
 | ~~T5.19~~ | 单测补充：whale-auth 黑名单/登出逻辑（含 Redis 降级路径，用 mock 或嵌入式替代） | T4.1 | 高 | 新增用例全绿；覆盖正常/降级/TTL 边界 | M |
 | T5.20 | 全量回归：`mvn clean install -T 1C` + `pnpm build`，按清单出报告后提交推送 | 上述任务 | 高 | 后端 exit 0 / 前端 11 包成功；报告归档 | M |
 
@@ -110,8 +115,8 @@ Wave 5.0（无外部依赖）— 全部完成
 Wave 5.1（依赖 5.0 产物）— 安全收口已闭环
   ├─ ✅ ~~T5.6 refreshToken 一并失效（REQ-SEC-004，P1）~~
   ├─ ✅ ~~T5.7 网关侧黑名单校验（REQ-SEC-003）~~
-  ├─ ✅ ~~T5.10/T5.11/T5.12 审计落地~~   ├─ T5.3 幂等组件
-  ├─ ✅ ~~T5.13 auth DDD 骨架（Wave 5.2 完成）~~  └─ T5.5 缓存一致性工具
+  ├─ ✅ ~~T5.10/T5.11/T5.12 审计落地~~   ├─ ✅ ~~T5.3 幂等组件（Wave 5.6）~~
+  ├─ ✅ ~~T5.13 auth DDD 骨架（Wave 5.2 完成）~~  └─ ✅ ~~T5.5 缓存一致性工具（Wave 5.6）~~
 
 Wave 5.1b（审计收口）— 已闭环：✅ ~~T5.10~~ ｜ ✅ ~~T5.11~~ ｜ ✅ ~~T5.12~~（运行时待中间件）
 
@@ -119,9 +124,14 @@ Wave 5.2（架构迁移 + 前端）— ✅ T5.13 已闭环
   ├─ T5.14/T5.15 auth DDD 迁移  ├─ T5.22 whale-ui
   └─ T5.21 → T5.23 admin 对接
 
+Wave 5.6（横切基础设施）— ✅ 已闭环
+  ├─ ✅ ~~T5.3 幂等组件~~  ├─ ✅ ~~T5.4 网关限流（Redis 计数器兜底）~~
+  ├─ ✅ ~~T5.5 缓存一致性工具~~  ├─ ✅ ~~T5.16 Gitee Go~~  └─ ✅ ~~T5.18 JaCoCo~~
+     └─ 残余：T5.4 端到端 429 冒烟（中间件未运行）｜ coverage-gate 接入 CI（待 AUTH-23）｜ Sentinel 接入
+
 Wave 5.3（交付收口）
-  ├─ T5.4 网关限流  ├─ T5.16 Gitee Go  ├─ T5.18 JaCoCo
-  └─ T5.17 门禁升级 → T5.20 全量回归 + 提交推送
+  ├─ ✅ ~~T5.17 门禁升级（Wave 5.4 完成）~~
+  └─ T5.20 全量回归 + 提交推送
 ```
 
 ---

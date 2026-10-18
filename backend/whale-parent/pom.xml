@@ -60,6 +60,9 @@
         <guava.version>33.3.1-jre</guava.version>
         <httpclient.version>5.4</httpclient.version>
         <slf4j.version>2.0.16</slf4j.version>
+
+        <!-- 覆盖率 -->
+        <jacoco.version>0.8.12</jacoco.version>
     </properties>
 
     <repositories>
@@ -315,5 +318,86 @@
                 </plugin>
             </plugins>
         </pluginManagement>
+
+        <!--
+          JaCoCo 覆盖率接入（T5.18 / AUTH-24，阈值来源 cicd.md §3.3）
+          此处声明于 build/plugins（非 pluginManagement），使全部子模块继承并默认执行：
+            - prepare-agent（initialize）：注入 agent，生成 target/jacoco.exec
+            - report（test）：产出 target/site/jacoco/index.html 与 target/site/jacoco/jacoco.xml
+          默认【不含 check】，保证 mvn test / package / install 默认 BUILD SUCCESS；
+          覆盖率门禁（行 ≥ 40%、分支 ≥ 30%）经 coverage-gate profile 显式启用。
+        -->
+        <plugins>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco.version}</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
+
+    <profiles>
+        <!--
+          coverage-gate：覆盖率门禁 profile，仅在 CI 显式以 -Pcoverage-gate 启用时生效；
+          本地默认构建不启用该 profile，故不影响「提交前 BUILD SUCCESS」约定。
+          阈值来源：docs/design/cicd.md §3.3 首轮基线（行 ≥ 40%、分支 ≥ 30%），未达阈值即构建失败。
+          check 绑定 verify 阶段，复用上面 build/plugins 中的同名 jacoco 插件定义（仅追加 check execution）。
+        -->
+        <profile>
+            <id>coverage-gate</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.jacoco</groupId>
+                        <artifactId>jacoco-maven-plugin</artifactId>
+                        <version>${jacoco.version}</version>
+                        <executions>
+                            <execution>
+                                <id>check</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>check</goal>
+                                </goals>
+                                <configuration>
+                                    <rules>
+                                        <rule>
+                                            <element>BUNDLE</element>
+                                            <limits>
+                                                <limit>
+                                                    <counter>LINE</counter>
+                                                    <value>COVEREDRATIO</value>
+                                                    <minimum>0.40</minimum>
+                                                </limit>
+                                                <limit>
+                                                    <counter>BRANCH</counter>
+                                                    <value>COVEREDRATIO</value>
+                                                    <minimum>0.30</minimum>
+                                                </limit>
+                                            </limits>
+                                        </rule>
+                                    </rules>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

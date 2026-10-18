@@ -1,0 +1,72 @@
+# ============================================================
+# 蓝鲸前端 CI（Gitee Go 流水线即代码）
+# 映射自 .github/workflows/frontend-ci.yml（GitHub 侧备份，保持原样不动）
+# 触发: push main / PR main
+# 阶段: pnpm 安装 -> Lint -> 构建
+#
+# 说明（T5.16 / AUTH-28）:
+#   - 前端工作区根目录为 frontend/（仓库根无 pnpm-workspace.yaml），与 Actions 的
+#     defaults.run.working-directory: frontend 对齐；故命令前缀 cd frontend。
+#   - 版本对齐现有 Actions（Node 24 / pnpm），但 Gitee Go 官方云端编译插件文档
+#     当前列出 Node 上限为 15.12.0（build@nodejs），故 nodeVersion: '24' 的可用性
+#     需在 Gitee 侧实机确认；若插件不支持 24，需回退或改用自带镜像的 shell 步骤。
+# ============================================================
+version: '1.0'
+
+# 流水线标识（仓库内唯一，支持数字/小写字母/中划线/下划线）
+name: frontend-ci
+# 流水线名称（支持中文）
+displayName: 蓝鲸前端 CI
+
+# 触发事件：代码提交（push main）+ Pull Request
+triggers:
+  push:
+    branches:
+      # 精确匹配 main 分支
+      precise:
+        - main
+  pr:
+    branches:
+      precise:
+        - main
+
+# 非必填：流水线级参数（供任务内 ${Key} 引用；此处仅作工具链登记）
+variables:
+  NODE_VERSION: '24'
+
+# 阶段按配置顺序串行执行
+stages:
+  # 阶段一：pnpm 安装 + Lint
+  - name: install-lint
+    displayName: 安装与 Lint
+    strategy: naturally
+    trigger: auto
+    executor: []
+    steps:
+      - step: build@nodejs
+        name: install_lint
+        displayName: pnpm 安装与 Lint
+        nodeVersion: '24'
+        commands:
+          - cd frontend && corepack enable
+          - cd frontend && corepack prepare pnpm@latest --activate
+          - cd frontend && pnpm install --frozen-lockfile
+          - cd frontend && pnpm -r lint
+
+  # 阶段二：构建（turbo）
+  - name: build
+    displayName: 构建
+    strategy: naturally
+    trigger: auto
+    executor: []
+    steps:
+      - step: build@nodejs
+        name: build
+        displayName: turbo 构建
+        nodeVersion: '24'
+        commands:
+          - cd frontend && pnpm turbo run build
+        artifacts:
+          - name: FRONTEND_DIST
+            path:
+              - ./frontend/**/dist/

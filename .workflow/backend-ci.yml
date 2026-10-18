@@ -1,0 +1,88 @@
+# ============================================================
+# 蓝鲸后端 CI（Gitee Go 流水线即代码）
+# 映射自 .github/workflows/backend-ci.yml（GitHub 侧备份，保持原样不动）
+# 触发: push main / PR main
+# 阶段: Checkstyle 静态检查 -> 编译 -> 单测 -> 打包
+#
+# 说明（T5.16 / AUTH-28）:
+#   - Gitee Go 配置文件约定放在仓库根 .workflow/ 目录（见官方文档与本机无法触发，
+#     待 Gitee 侧实机验证）。
+#   - 版本对齐现有 Actions（JDK 21 / Maven），但 Gitee Go 官方云端编译插件文档
+#     当前列出 JDK 上限为 17（build@maven），故 jdkVersion: '21' 的可用性需在
+#     Gitee 侧实机确认；若插件不支持 21，需回退或将构建环境切换为自带镜像。
+# ============================================================
+version: '1.0'
+
+# 流水线标识（仓库内唯一，支持数字/小写字母/中划线/下划线）
+name: backend-ci
+# 流水线名称（支持中文）
+displayName: 蓝鲸后端 CI
+
+# 触发事件：代码提交（push main）+ Pull Request
+triggers:
+  push:
+    branches:
+      # 精确匹配 main 分支
+      precise:
+        - main
+  pr:
+    branches:
+      precise:
+        - main
+
+# 非必填：流水线级参数（供任务内 ${Key} 引用；此处仅作工具链登记）
+variables:
+  JAVA_VERSION: '21'
+  MAVEN_VERSION: '3.9.9'
+
+# 阶段按配置顺序串行执行
+stages:
+  # 阶段一：Checkstyle 静态检查（对齐 cicd.md §3.1 后端质量门禁）
+  - name: static-check
+    displayName: 静态检查
+    strategy: naturally
+    trigger: auto
+    executor: []
+    steps:
+      - step: build@maven
+        name: checkstyle
+        displayName: Checkstyle 静态检查
+        jdkVersion: '21'
+        mavenVersion: '3.9.9'
+        commands:
+          - mvn -B -ntp checkstyle:check
+
+  # 阶段二：编译 + 单元测试（含 JaCoCo 覆盖率报告，T5.18）
+  - name: build-test
+    displayName: 编译与单测
+    strategy: naturally
+    trigger: auto
+    executor: []
+    steps:
+      - step: build@maven
+        name: compile_test
+        displayName: 编译与单元测试
+        jdkVersion: '21'
+        mavenVersion: '3.9.9'
+        commands:
+          - mvn -B -ntp compile
+          - mvn -B -ntp test
+
+  # 阶段三：打包
+  - name: package
+    displayName: 打包
+    strategy: naturally
+    trigger: auto
+    executor: []
+    steps:
+      - step: build@maven
+        name: package
+        displayName: Maven 打包
+        jdkVersion: '21'
+        mavenVersion: '3.9.9'
+        commands:
+          - mvn -B -ntp clean package -DskipTests
+        artifacts:
+          - name: BACKEND_JARS
+            path:
+              - ./backend/**/target/*.jar
