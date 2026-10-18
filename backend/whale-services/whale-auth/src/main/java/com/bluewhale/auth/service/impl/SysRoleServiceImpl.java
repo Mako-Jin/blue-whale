@@ -20,6 +20,7 @@ import com.bluewhale.auth.vo.RoleVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.common.lock.annotation.DistributedLock;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -115,6 +116,7 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @DistributedLock(prefix = "lock", biz = "auth:role", key = "#id", waitTime = 1, leaseTime = 30, failFast = true)
     public void assignPermissions(Long id, List<Long> permissionIds) {
         if (getById(id) == null) {
             throw new BizException(ErrorCode.NOT_FOUND);

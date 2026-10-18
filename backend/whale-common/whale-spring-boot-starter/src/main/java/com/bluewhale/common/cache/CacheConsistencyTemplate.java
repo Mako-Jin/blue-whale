@@ -85,6 +85,17 @@ public class CacheConsistencyTemplate {
     }
 
     /**
+     * 只读缓存原始值：不回源、不写空哨兵，供调用方自实现「先读 → 加锁 → 复查 → 回源」的击穿防护
+     *
+     * @param name 缓存名称（业务域），如 {@code auth:user:perm}
+     * @param id 缓存标识，如用户主键
+     * @return 缓存原始值（空值哨兵亦原样返回）；Key 不存在或 Redis 异常时返回 {@code null}
+     */
+    public String getIfPresent(String name, String id) {
+        return readQuietly(buildKey(name, id));
+    }
+
+    /**
      * 立即删除缓存 Key
      *
      * @param name 缓存名称（业务域）

@@ -118,6 +118,45 @@ class CacheConsistencyTemplateTest {
     }
 
     /**
+     * 只读读取命中：返回缓存原始值，且不回源、不写缓存
+     */
+    @Test
+    void shouldReturnRawValueWhenGetIfPresentHit() {
+        when(valueOperations.get(KEY)).thenReturn("cached");
+
+        String result = template.getIfPresent("user", "1");
+
+        assertThat(result).isEqualTo("cached");
+        verify(valueOperations).get(KEY);
+        verify(valueOperations, never()).set(anyString(), anyString(), any(Duration.class));
+    }
+
+    /**
+     * 只读读取未命中：返回 {@code null}，且不回源、不写空值哨兵
+     */
+    @Test
+    void shouldReturnNullWhenGetIfPresentMiss() {
+        when(valueOperations.get(KEY)).thenReturn(null);
+
+        String result = template.getIfPresent("user", "1");
+
+        assertThat(result).isNull();
+        verify(valueOperations, never()).set(anyString(), anyString(), any(Duration.class));
+    }
+
+    /**
+     * 只读读取异常：Redis 异常时降级返回 {@code null}（交由调用方回源）
+     */
+    @Test
+    void shouldReturnNullWhenGetIfPresentRedisFails() {
+        when(valueOperations.get(KEY)).thenThrow(new IllegalStateException("redis down"));
+
+        String result = template.getIfPresent("user", "1");
+
+        assertThat(result).isNull();
+    }
+
+    /**
      * 立即删除：按 Key 约定删除缓存 Key
      */
     @Test

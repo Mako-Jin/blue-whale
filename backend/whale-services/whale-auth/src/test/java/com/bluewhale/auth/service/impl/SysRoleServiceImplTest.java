@@ -19,6 +19,7 @@ import com.bluewhale.auth.vo.RoleVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.common.lock.annotation.DistributedLock;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,10 +32,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.lang.reflect.Method;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
@@ -281,6 +285,21 @@ class SysRoleServiceImplTest {
 
         assertThrows(BizException.class, () -> roleService.assignPermissions(ROLE_ID, List.of(10L)));
         verify(rolePermissionMapper, never()).delete(ArgumentMatchers.<Wrapper<SysRolePermission>>any());
+    }
+
+    @Test
+    @DisplayName("assignPermissions：方法上 @DistributedLock 接线正确（biz/key/failFast）")
+    void shouldAnnotateAssignPermissionsWithDistributedLock() throws NoSuchMethodException {
+        Method method = SysRoleServiceImpl.class.getMethod("assignPermissions", Long.class, List.class);
+        DistributedLock annotation = method.getAnnotation(DistributedLock.class);
+
+        assertNotNull(annotation);
+        assertEquals("lock", annotation.prefix());
+        assertEquals("auth:role", annotation.biz());
+        assertEquals("#id", annotation.key());
+        assertEquals(1L, annotation.waitTime());
+        assertEquals(30L, annotation.leaseTime());
+        assertTrue(annotation.failFast());
     }
 
     @Test

@@ -51,15 +51,20 @@
 >
 > **Wave 5.8 执行结果（2026-10-18 更新）**：✅ AUTH-20（缓存一致性工具接入权限判定场景：`PermissionInterceptor` 读路径改 Cache-Aside，角色/用户/权限点共 7 处变更点接入失效）。
 > 以「**120 单测全绿（Wave 5.7 基线 99 → 120）+ Checkstyle 全 reactor 0 违规 + JaCoCo 行 0.6755 → 0.7184 / 分支 0.6718 → 0.7238（`clean verify` 口径）**」完成验证，`-Pcoverage-gate` 通过。
-> **残余**：防击穿（同 Key 并发一次回源）→ AUTH-19；多实例失效广播 / Canal 演进；`SysRoleServiceImpl#update` 有意不失效；经网关端到端实测、控制器层单测。
+> **残余**：~~防击穿（同 Key 并发一次回源）→ AUTH-19~~ ✅ Wave 5.9；多实例失效广播 / Canal 演进；`SysRoleServiceImpl#update` 有意不失效；经网关端到端实测、控制器层单测。
 > 详见 [devlog §28](../devlog/2026-10-18.md) 与 [检查报告](../reviews/2026-10-18-wave5.8-auth-permission-cache.md)。
+>
+> **Wave 5.9 执行结果（2026-10-18 更新）**：✅ ~~AUTH-19~~（`@DistributedLock` 场景接入：① 角色权限变更互斥 `lock:auth:role:{roleId}`；② 缓存防击穿 `lock:cache:auth:user:perm:{userId}`）。
+> 以「**126 单测全绿（Wave 5.8 基线 120 → 126）+ Checkstyle 全 reactor 0 违规 + JaCoCo 行 0.7184 → 0.7227 / 分支 0.7238 → 0.7257（`clean verify` 口径）+ 实时 IT `LivePermissionLockIT` 2/0/0（真实 Redis）**」完成验证。
+> **残余**：注册锁（`@Idempotent` 已等价覆盖）、定时任务/库存锁、T-LOCK-5 降级开关、多实例失效广播、经网关并发实测。
+> 详见 [devlog §29](../devlog/2026-10-18.md) 与 [检查报告](../reviews/2026-10-18-wave5.9-auth-distributed-lock.md)。
 
 ### 组 A：分布式基础落地（承接 REQ-DIST-001~003）
 
 | 任务 | 内容 | 依赖 | 优先级 | 验收口径 | 相对规模 |
 |---|---|---|---|---|---|
 | ~~T5.1~~ | 分布式 ID 统一：确认各实体主键使用 `IdType.ASSIGN_ID`；`BaseEntity` 显式声明；Long → String 序列化（Jackson 3）避免前端精度丢失 | 无 | 高 | 新插入记录 ID 为 19 位雪花且前端收到字符串 | S |
-| ~~T5.2~~ | `@DistributedLock` 注解 + SpEL key 解析 + Redisson AOP 切面（或先做 `DistributedLockTemplate` 工具类，视复杂度择一） | 无（Redisson 已在 auth） | 高 | 并发调用同 key 互斥；`tryLock` 超时返回业务异常；单测覆盖锁获取/超时 | M |
+| ~~T5.2~~ ✅ **已落地（Wave 5.0）+ 场景接入（Wave 5.9，AUTH-19）** | `@DistributedLock` 注解 + SpEL key 解析 + Redisson AOP 切面（或先做 `DistributedLockTemplate` 工具类，视复杂度择一） | 无（Redisson 已在 auth） | 高 | 并发调用同 key 互斥；`tryLock` 超时返回业务异常；单测覆盖锁获取/超时 | M |
 | ~~T5.3~~ ✅ **已完成（Wave 5.6）** | 幂等组件：`@Idempotent` + Token/唯一键，先用于用户注册 | T5.2 | 中 | 重复提交返回同一结果，不产生重复数据 | M |
 | ~~T5.4~~ ✅ **已完成（Wave 5.6，Redis 计数器兜底）** | 网关限流：接入 Sentinel（或先用 Redis 计数器兜底） | 网关 | 中 | 超阈值返回 429 + `Result` 体 | M |
 | ~~T5.5~~ ✅ **已完成（Wave 5.6）** | 缓存一致性约定落地：Cache-Aside + TTL 抖动 + 空值哨兵写入公共工具；**Wave 5.8 已把工具接入权限判定场景（AUTH-20）** | 无 | 中 | 工具类单测通过；i18n 与权限缓存统一改造 | S |

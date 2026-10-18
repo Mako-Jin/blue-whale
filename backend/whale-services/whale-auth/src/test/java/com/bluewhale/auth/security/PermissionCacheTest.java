@@ -8,6 +8,8 @@ import com.bluewhale.auth.entity.SysUserRole;
 import com.bluewhale.auth.mapper.SysRolePermissionMapper;
 import com.bluewhale.auth.mapper.SysUserRoleMapper;
 import com.bluewhale.common.cache.CacheConsistencyTemplate;
+import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -23,6 +25,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.time.Duration;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
@@ -58,6 +61,9 @@ class PermissionCacheTest {
     private PermissionCacheProperties properties;
 
     @Mock
+    private PermissionCacheMutex mutex;
+
+    @Mock
     private SysUserRoleMapper userRoleMapper;
 
     @Mock
@@ -77,7 +83,15 @@ class PermissionCacheTest {
 
     @BeforeEach
     void setUp() {
-        permissionCache = new PermissionCache(cacheTemplate, properties, userRoleMapper, rolePermissionMapper);
+        permissionCache = new PermissionCache(cacheTemplate, properties, mutex, userRoleMapper, rolePermissionMapper);
+    }
+
+    /**
+     * 令互斥门面透传 loader（模拟切面正常加锁执行），供未命中路径用例复用
+     */
+    @SuppressWarnings("unchecked")
+    private void stubMutexPassThrough() {
+        when(mutex.load(any(), any())).thenAnswer(inv -> ((Supplier<String>) inv.getArgument(1)).get());
     }
 
     @AfterEach
@@ -109,7 +123,7 @@ class PermissionCacheTest {
         Set<String> codes = permissionCache.getPermissionCodes(USER_ID, () -> List.of("a", "b"));
 
         assertEquals(Set.of("a", "b"), codes);
-        verifyNoInteractions(cacheTemplate);
+        verifyNoInteractions(cacheTemplate, mutex);
     }
 
     @Test
@@ -182,6 +196,7 @@ class PermissionCacheTest {
     void shouldLoadAndCacheWhenMiss() {
         when(properties.isEnabled()).thenReturn(true);
         when(properties.getTtl()).thenReturn(TTL);
+        stubMutexPassThrough();
         AtomicReference<String> joinedValue = new AtomicReference<>();
         when(cacheTemplate.getOrLoad(eq(PermissionCache.PERMISSION_CACHE_NAME), eq(String.valueOf(USER_ID)), eq(TTL), any()))
                 .thenAnswer(invocation -> {
@@ -194,7 +209,58 @@ class PermissionCacheTest {
 
         assertEquals(Set.of("a", "b"), codes);
         assertEquals("a,b", joinedValue.get());
-        verify(cacheTemplate).getOrLoad(eq(PermissionCache.PERMISSION_CACHE_NAME), eq(String.valueOf(USER_ID)), eq(TTL), any());
+        // 外层 getOrLoad + 锁内复查回源 getOrLoad，共 2 次
+        verify(cacheTemplate, times(2))
+                .getOrLoad(eq(PermissionCache.PERMISSION_CACHE_NAME), eq(String.valueOf(USER_ID)), eq(TTL), any());
+        verify(mutex).load(eq(USER_ID), any());
+    }
+
+    @Test
+    @DisplayName("缓存命中：不调用互斥门面（防击穿路径不取锁）")
+    void shouldNotUseMutexWhenCacheHit() {
+        when(properties.isEnabled()).thenReturn(true);
+        when(cacheTemplate.getOrLoad(any(), any(), any(), any())).thenReturn("a,b");
+
+        Set<String> codes = permissionCache.getPermissionCodes(USER_ID, () -> List.of("x"));
+
+        assertEquals(Set.of("a", "b"), codes);
+        verifyNoInteractions(mutex);
+    }
+
+    @Test
+    @DisplayName("未命中：锁内复查缓存命中，则 loader 不被调用（同 Key 并发仅一次回源）")
+    void shouldSkipLoaderWhenRecheckHits() {
+        when(properties.isEnabled()).thenReturn(true);
+        stubMutexPassThrough();
+        when(cacheTemplate.getOrLoad(any(), any(), any(), any())).thenAnswer(inv -> {
+            Supplier<String> reload = inv.getArgument(3);
+            return reload.get();
+        });
+        when(cacheTemplate.getIfPresent(any(), any())).thenReturn("cached,a");
+        AtomicInteger loadCount = new AtomicInteger();
+
+        Set<String> codes = permissionCache.getPermissionCodes(USER_ID, () -> {
+            loadCount.incrementAndGet();
+            return List.of("x");
+        });
+
+        assertEquals(Set.of("cached", "a"), codes);
+        assertEquals(0, loadCount.get());
+    }
+
+    @Test
+    @DisplayName("锁异常：降级直查且仍返回 loader 结果，不阻断权限判定")
+    void shouldFallbackToLoaderWhenMutexFails() {
+        when(properties.isEnabled()).thenReturn(true);
+        when(cacheTemplate.getOrLoad(any(), any(), any(), any())).thenAnswer(inv -> {
+            Supplier<String> reload = inv.getArgument(3);
+            return reload.get();
+        });
+        when(mutex.load(any(), any())).thenThrow(new BizException(ErrorCode.LOCK_ACQUIRE_FAILED));
+
+        Set<String> codes = permissionCache.getPermissionCodes(USER_ID, () -> List.of("a", "b"));
+
+        assertEquals(Set.of("a", "b"), codes);
     }
 
     @Test

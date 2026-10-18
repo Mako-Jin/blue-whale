@@ -8,6 +8,7 @@ import com.bluewhale.auth.mapper.SysRolePermissionMapper;
 import com.bluewhale.auth.mapper.SysUserRoleMapper;
 import com.bluewhale.common.cache.CacheConsistencyTemplate;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -30,9 +31,12 @@ import java.util.function.Supplier;
  * <p>本类不注入 {@code SysRoleService}：读路径的 DB 查询由调用方以 {@link Supplier} 传入，
  * 失效路径的受影响用户反查直接走 Mapper，避免 {@code SysRoleServiceImpl → PermissionCache →
  * SysRoleService} 循环依赖，也不复制权限码查询逻辑。</p>
+ * <p>击穿防护（REQ-DIST-003）：未命中时经独立 Bean {@link PermissionCacheMutex} 互斥回源，并在锁内
+ * <b>复查缓存</b>，使同 Key 并发仅一次回源；锁/Redis 异常时降级直查，不阻断权限判定。</p>
  *
  * @author BlueWhale
  */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class PermissionCache {
@@ -42,6 +46,7 @@ public class PermissionCache {
 
     private final CacheConsistencyTemplate cacheTemplate;
     private final PermissionCacheProperties properties;
+    private final PermissionCacheMutex mutex;
     private final SysUserRoleMapper userRoleMapper;
     private final SysRolePermissionMapper rolePermissionMapper;
 
@@ -57,11 +62,38 @@ public class PermissionCache {
             return toSet(loader.get());
         }
         String value = cacheTemplate.getOrLoad(PERMISSION_CACHE_NAME, String.valueOf(userId),
-                properties.getTtl(), () -> String.join(",", loader.get()));
+                properties.getTtl(), () -> loadUnderLock(userId, loader));
         if (value == null || value.isEmpty()) {
             return Set.of();
         }
         return new LinkedHashSet<>(Arrays.asList(value.split(",")));
+    }
+
+    /**
+     * 互斥回源（防击穿）：经 {@link PermissionCacheMutex} 加锁后在锁内复查缓存，命中则直接返回，
+     * 未命中才真正回源；锁或 Redis 异常时降级直查，保证缓存故障不阻断权限判定。
+     *
+     * @param userId 用户 ID，作为锁 Key 的业务标识
+     * @param loader 缓存未命中时的回源加载器，返回权限码列表
+     * @return 逗号拼接的权限码串（空集合为空串）
+     */
+    private String loadUnderLock(Long userId, Supplier<List<String>> loader) {
+        try {
+            return mutex.load(userId, () -> {
+                String cached = cacheTemplate.getIfPresent(PERMISSION_CACHE_NAME, String.valueOf(userId));
+                if (cached != null) {
+                    return cached;
+                }
+                // 未命中：在锁内完成回源 + 写缓存，使持锁期结束时缓存已就绪，
+                // 后续等待线程复查必命中，保证同 Key 并发仅一次回源（防击穿）
+                return cacheTemplate.getOrLoad(PERMISSION_CACHE_NAME, String.valueOf(userId),
+                        properties.getTtl(), () -> String.join(",", loader.get()));
+            });
+        } catch (Exception ex) {
+            // 锁获取异常（Redis 不可用等）→ 降级直查，不阻断权限判定（Wave 5.8 降级链一致）
+            log.warn("权限缓存互斥回源降级直查, userId={}", userId, ex);
+            return String.join(",", loader.get());
+        }
     }
 
     /**
