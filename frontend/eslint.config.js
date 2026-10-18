@@ -41,6 +41,17 @@ export default tseslint.config(
     },
   },
 
+  // Node 脚本（冒烟脚本等）：补充 Node 全局
+  {
+    files: ['**/*.mjs'],
+    languageOptions: {
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+      },
+    },
+  },
+
   // 关闭与 Prettier 冲突的规则（必须放最后）
   eslintConfigPrettier,
 );

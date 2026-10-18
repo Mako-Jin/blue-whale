@@ -62,7 +62,7 @@
 > **Wave 5.10 执行结果（2026-10-18 更新）**：✅ ~~审计日志多通道完善（后端 Wave A，REQ-SEC-006）~~（4 表 DDL + `LogPersistSupport`/`whaleLogExecutor` + `ApiLogFilter`（tee 透传）+ 出站拦截器 + `LogIngestController` 上报/查询）。
 > 同步闭环 ✅ ~~AUTH-06~~（审计查询鉴权：因 whale-audit 库无 RBAC 表，改**网关注入权限码头 + starter 通用拦截器**，权限点 `sys:audit:log:list`）+ ✅ ~~AUTH-11~~（脱敏规则配置化 `whale.audit.sensitive.keys` + `SensitiveDataMasker#maskJson`）。
 > 以「**247 单测/IT 全绿（clean verify BUILD SUCCESS）+ Checkstyle 全 29 模块 0 违规 + 实时 IT `LiveApiLogIT`/`LiveFrontendLogIT` 7/0/0**」完成验证。
-> **残余**：Wave B 前端 `whale-log-sdk` 未开工（见 Wave 5.14）、MQ 汇聚、异步派发丢采集。（`api_log.module` 回填 / 保留期扩多表 / 网关按路径限流 已由 **Wave 5.12** 闭环）
+> **残余**：~~Wave B 前端 `whale-log-sdk`~~ ✅ **已完成（Wave 5.14）**、MQ 汇聚、异步派发丢采集。（`api_log.module` 回填 / 保留期扩多表 / 网关按路径限流 已由 **Wave 5.12** 闭环）
 > 详见 [devlog §30](../devlog/2026-10-18.md) 与 [检查报告](../reviews/2026-10-18-wave5.10-multichannel-log.md)。
 
 > **Wave 5.12 执行结果（2026-10-18 更新）**：✅ ~~审计后端残余收口（REQ-SEC-006）~~——`api_log.module` 回填（`ApiLogProperties#module` 默认取 `spring.application.name`）、网关**按路径**限流（`RateLimitProperties#pathRules` + `RateLimitGlobalFilter` 最长匹配，上报路径独立阈值）、保留期**扩 4 表**（`RetentionProperties` + `LogRetentionCleaner`/`Scheduler`，默认关闭，**不清理 `audit_log`**）。
@@ -70,6 +70,9 @@
 
 > **Wave 5.13 执行结果（2026-10-18 更新）**：✅ ~~**AUTH-39** refreshToken 一次性轮换实施~~（ADR-001 方案 B）——`TokenBlacklistKeys` 新键（`whale:auth:refresh:used:*` / `:family:*`）+ `JwtTokenProvider#CLAIM_FAMILY_ID` + `RefreshTokenRotationStore`/`RedisRefreshTokenRotationStore`（`SET NX` + fail-closed 降级告警）+ `AuthService#refresh` 按 §2.4 顺序（默认关闭 `whale.auth.refresh.rotation.enabled=false`，关闭态逐字节回归）。
 > 以「**定向单测 + `clean verify -T 1C` BUILD SUCCESS / 292 用例全绿（auth 143 / security 6）+ `checkstyle:check` 28 模块 0 违规**」完成验证。**残余**：前端 token 持久化同步（AUTH-32/34）+ 运行时端到端验证。详见 [devlog §33](../devlog/2026-10-18.md) 与 [检查报告](../reviews/2026-10-18-wave5.13-auth39-refresh-rotation.md)。
+
+> **Wave 5.14 执行结果（2026-10-18 更新）**：✅ ~~前端日志 SDK `whale-log-sdk`（Wave B，REQ-SEC-006 通道③④）~~——新增 `frontend/shared-packages/whale-log-sdk`（`@bluewhale/whale-log-sdk` v0.1.0，**零运行时依赖**，镜像 `whale-common-tools` 的 tsup 布局）：`constants`/`types` + `mask`（Bearer→凭据→身份证→手机号→银行卡 + 递归敏感键 + URL query）+ `console`（劫持保留原输出 + 可还原）+ `behavior`（`PAGE_VIEW`/`CLICK`/`SUBMIT`）+ `batch`（采样/去重/满批或定时 flush/**分片 ≤50**/指数退避）+ `client`（`fetch` + `X-Trace-Id`）+ `sdk`/`index`（`initLogSdk` → `LogSdk{track/log/flush/destroy}`）；`whale-platform` 基座接入。
+> 以「**tsup 三件产物（cjs 22.22 KB / esm 19.39 KB / dts 12.05 KB）+ 无依赖冒烟 `scripts/smoke.mjs` 30 断言全过 + 前端 `pnpm build`（turbo）12/12 + `eslint .` 0 error + `prettier --check` 0 差异**」完成验证。**残余**：MQ 汇聚（阶段二，`whale.audit.sink=mq` 仅预留）、异步派发丢采集、前端 SDK 跨应用接入（当前仅 `whale-platform`）、实时上报端到端验证（待中间件就绪）。详见 [devlog §34](../devlog/2026-10-18.md) 与 [检查报告](../reviews/2026-10-18-wave5.14-whale-log-sdk.md)。
 
 > **Wave 5.11 执行结果（2026-10-18 更新）**：✅ ~~AUTH-01~~（网关侧占位密钥校验：`GatewaySecretPlaceholderChecker` 非 dev 占位/空密钥拒绝启动，对齐 auth 侧 `SecretPlaceholderChecker`）、✅ ~~AUTH-05~~（黑名单降级告警：`whale-security` `SecurityDegradationAlerter` ERROR + `SECURITY_DEGRADATION` 标记 + 计数，auth/网关两处降级分支接入）、✅ ~~AUTH-07~~（读审计**元审计**：`AuditLogController` 三查询接口加 `@AuditLog(type=QUERY)`）、✅ ~~AUTH-13~~（`recordResult()` 返回体落库：`audit_log.result_body` + `AuditLogAspect` 采集脱敏 + 2000 截断 + `AuditLogVO` 暴露）。
 > 同步闭环 ✅ ~~B6 归置~~（`docs/whale-auth/originals/` 49 份副本 + `docs/whale-auth/final/README.md` 整合最终版，原位置不删不动）；对应 [spec](../specs/2026-10-18-wave5.11-auth-residual/spec.md)。
