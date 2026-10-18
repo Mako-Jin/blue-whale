@@ -28,7 +28,7 @@
 - [x] 4.1 检查报告 `docs/reviews/2026-10-18-auth23-serviceimpl-unit-tests.md` 已产出，逐项对应 [code-review-checklist.md](../../checklists/code-review-checklist.md) 编号，结论含未通过项（#1–#3）与修复记录
 - [x] 4.2 `docs/devlog/2026-10-18.md` 已追加本波次条目（§二-27、§三 #53–#55、§四更新），四节（需求项 / 完成项 / 待做项 / 已修正问题项）齐备
 - [x] 4.3 台账销账：`whale-auth-backlog.md` AUTH-23 与 `next-steps.md` T5.19 均为「删除线 + ✅」
-- [ ] 4.4 变更已 commit 并 push 至 Gitee `origin/main`，工作区干净且 `main == origin/main`
+- [x] 4.4 变更已 commit（`d99a696`）并 push 至 Gitee `origin/main`（`3016157..d99a696 main -> main`），工作区干净且 `main == origin/main`
 
 ## 五、残余项登记（本波次明确不做）
 
