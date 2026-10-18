@@ -15,6 +15,7 @@ import com.bluewhale.auth.entity.SysUserRole;
 import com.bluewhale.auth.mapper.SysRoleMapper;
 import com.bluewhale.auth.mapper.SysUserMapper;
 import com.bluewhale.auth.mapper.SysUserRoleMapper;
+import com.bluewhale.auth.security.PermissionCache;
 import com.bluewhale.auth.service.SysUserService;
 import com.bluewhale.auth.vo.UserVO;
 import com.bluewhale.common.core.exception.BizException;
@@ -45,6 +46,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     private final SysUserRoleMapper userRoleMapper;
     private final SysRoleMapper roleMapper;
     private final PasswordEncoder passwordEncoder;
+    private final PermissionCache permissionCache;
 
     @Override
     public PageResult<UserVO> page(long current, long size, String keyword) {
@@ -135,6 +137,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         }
         user.setStatus(status);
         updateById(user);
+        // 用户启停后不再沿用旧判定，失效其权限缓存
+        permissionCache.evictUser(id);
     }
 
     @Override
@@ -146,6 +150,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         removeById(id);
         // 清理用户-角色关联（关联表实体无 deleted 字段，走物理删除）
         userRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, id));
+        // 用户删除后失效其权限缓存
+        permissionCache.evictUser(id);
     }
 
     @Override
@@ -167,6 +173,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             relation.setRoleId(roleId);
             userRoleMapper.insert(relation);
         }
+        // 用户角色变更后失效其权限缓存（提交后生效）
+        permissionCache.evictUser(id);
     }
 
     @Override

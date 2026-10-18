@@ -24,7 +24,8 @@ import java.util.stream.Collectors;
  * <ol>
  *   <li>SecurityContext 中 authorities（角色 code）包含 super_admin → 直接放行（内置超管）</li>
  *   <li>authorities 直接包含权限 code → 放行（预留 token 携带权限点的场景）</li>
- *   <li>兜底走 DB：用户 → 角色 → 权限点（sys_user_role / sys_role_permission / sys_permission）</li>
+ *   <li>兜底走 DB：用户 → 角色 → 权限点（sys_user_role / sys_role_permission / sys_permission），
+ *       结果经 {@link PermissionCache} 缓存（Cache-Aside）</li>
  *   <li>均不满足 → 抛 BizException(ErrorCode.FORBIDDEN)，由 GlobalExceptionHandler 返回 403 Result JSON</li>
  * </ol>
  *
@@ -37,6 +38,7 @@ public class PermissionInterceptor implements HandlerInterceptor {
     /** 内置超级管理员角色 code，拥有全部权限 */
     public static final String SUPER_ADMIN = "super_admin";
 
+    private final PermissionCache permissionCache;
     private final SysRoleService roleService;
 
     @Override
@@ -70,7 +72,8 @@ public class PermissionInterceptor implements HandlerInterceptor {
             return true;
         }
         if (authentication.getPrincipal() instanceof LoginUser loginUser
-                && roleService.listPermissionCodesByUserId(loginUser.getUserId()).contains(required)) {
+                && permissionCache.getPermissionCodes(loginUser.getUserId(),
+                () -> roleService.listPermissionCodesByUserId(loginUser.getUserId())).contains(required)) {
             return true;
         }
         throw new BizException(ErrorCode.FORBIDDEN);

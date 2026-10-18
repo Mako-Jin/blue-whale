@@ -19,11 +19,15 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.method.HandlerMethod;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 /**
@@ -38,6 +42,9 @@ class PermissionInterceptorTest {
     private static final String PERM = "sys:user:list";
 
     @Mock
+    private PermissionCache permissionCache;
+
+    @Mock
     private SysRoleService roleService;
 
     @Mock
@@ -50,7 +57,18 @@ class PermissionInterceptorTest {
 
     @BeforeEach
     void setUp() {
-        interceptor = new PermissionInterceptor(roleService);
+        interceptor = new PermissionInterceptor(permissionCache, roleService);
+    }
+
+    /**
+     * 让 mock 的 {@link PermissionCache} 按真实 Cache-Aside 语义调用调用方传入的 loader，
+     * 从而间接校验拦截器把 {@code roleService::listPermissionCodesByUserId} 作为 loader 传入。
+     */
+    private void cachePassThrough() {
+        when(permissionCache.getPermissionCodes(eq(USER_ID), any())).thenAnswer(invocation -> {
+            Supplier<List<String>> loader = invocation.getArgument(1);
+            return new LinkedHashSet<>(loader.get());
+        });
     }
 
     @AfterEach
@@ -119,18 +137,21 @@ class PermissionInterceptorTest {
     }
 
     @Test
-    @DisplayName("DB 兜底命中权限：放行")
+    @DisplayName("缓存兜底命中权限：放行（loader 委派 roleService）")
     void shouldPassViaDbFallback() throws NoSuchMethodException {
         authenticateAs(List.of("common_user"));
         when(roleService.listPermissionCodesByUserId(USER_ID)).thenReturn(List.of(PERM));
+        cachePassThrough();
+
         assertTrue(interceptor.preHandle(request, response, handler("protectedApi")));
     }
 
     @Test
-    @DisplayName("DB 兜底未命中：抛 403 FORBIDDEN")
+    @DisplayName("缓存兜底未命中：抛 403 FORBIDDEN")
     void shouldRejectWhenNoPermission() throws NoSuchMethodException {
         authenticateAs(List.of("common_user"));
         when(roleService.listPermissionCodesByUserId(USER_ID)).thenReturn(List.of("sys:role:list"));
+        cachePassThrough();
         BizException ex = assertThrows(BizException.class,
                 () -> interceptor.preHandle(request, response, handler("protectedApi")));
         assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());

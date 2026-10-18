@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.auth.dto.PermissionRequest;
 import com.bluewhale.auth.entity.SysPermission;
 import com.bluewhale.auth.mapper.SysPermissionMapper;
+import com.bluewhale.auth.security.PermissionCache;
 import com.bluewhale.auth.vo.PermissionVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -42,11 +43,14 @@ class SysPermissionServiceImplTest {
     @Mock
     private SysPermissionMapper permissionMapper;
 
+    @Mock
+    private PermissionCache permissionCache;
+
     private SysPermissionServiceImpl permissionService;
 
     @BeforeEach
     void setUp() {
-        permissionService = new SysPermissionServiceImpl();
+        permissionService = new SysPermissionServiceImpl(permissionCache);
         ReflectionTestUtils.setField(permissionService, "baseMapper", permissionMapper);
     }
 
@@ -169,6 +173,7 @@ class SysPermissionServiceImplTest {
         permissionService.update(PERM_ID, request("sys:user:edit"));
 
         verify(permissionMapper).updateById(any(SysPermission.class));
+        verify(permissionCache).evictByPermission(PERM_ID);
     }
 
     @Test
@@ -178,16 +183,18 @@ class SysPermissionServiceImplTest {
 
         assertThrows(BizException.class, () -> permissionService.update(PERM_ID, request("sys:user:edit")));
         verify(permissionMapper, never()).updateById(any(SysPermission.class));
+        verify(permissionCache, never()).evictByPermission(any());
     }
 
     @Test
-    @DisplayName("update：编码已被其他权限占用时抛 BizException 且不落库")
+    @DisplayName("update：编码已被其他权限占用时抛 BizException 且不落库、不失效")
     void shouldRejectUpdateWhenCodeDuplicated() {
         when(permissionMapper.selectById(PERM_ID)).thenReturn(permission(PERM_ID, "sys:user:list", "用户列表"));
         when(permissionMapper.selectCount(ArgumentMatchers.<Wrapper<SysPermission>>any())).thenReturn(1L);
 
         assertThrows(BizException.class, () -> permissionService.update(PERM_ID, request("sys:user:edit")));
         verify(permissionMapper, never()).updateById(any(SysPermission.class));
+        verify(permissionCache, never()).evictByPermission(any());
     }
 
     @Test
@@ -198,14 +205,16 @@ class SysPermissionServiceImplTest {
         permissionService.delete(PERM_ID);
 
         verify(permissionMapper).deleteById(PERM_ID);
+        verify(permissionCache).evictByPermission(PERM_ID);
     }
 
     @Test
-    @DisplayName("delete：存在子权限时抛 BizException 且不删除")
+    @DisplayName("delete：存在子权限时抛 BizException 且不删除、不失效")
     void shouldRejectDeleteWhenHasChildren() {
         when(permissionMapper.selectCount(ArgumentMatchers.<Wrapper<SysPermission>>any())).thenReturn(1L);
 
         assertThrows(BizException.class, () -> permissionService.delete(PERM_ID));
         verify(permissionMapper, never()).deleteById(anyLong());
+        verify(permissionCache, never()).evictByPermission(any());
     }
 }

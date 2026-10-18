@@ -1,0 +1,307 @@
+package com.bluewhale.auth.security;
+
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.bluewhale.auth.config.PermissionCacheProperties;
+import com.bluewhale.auth.entity.SysRolePermission;
+import com.bluewhale.auth.entity.SysUserRole;
+import com.bluewhale.auth.mapper.SysRolePermissionMapper;
+import com.bluewhale.auth.mapper.SysUserRoleMapper;
+import com.bluewhale.common.cache.CacheConsistencyTemplate;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+
+import java.time.Duration;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+
+/**
+ * {@link PermissionCache} 单元测试：读路径（命中/回源/空结果/禁用）、失效路径
+ * （用户/角色/权限点反查）与事务提交后失效（AUTH-20 / REQ-DIST-003）。
+ *
+ * @author BlueWhale
+ */
+@ExtendWith(MockitoExtension.class)
+class PermissionCacheTest {
+
+    private static final long USER_ID = 7L;
+    private static final long ROLE_ID = 3L;
+    private static final long PERM_ID = 10L;
+    private static final Duration TTL = Duration.ofMinutes(5);
+
+    @Mock
+    private CacheConsistencyTemplate cacheTemplate;
+
+    @Mock
+    private PermissionCacheProperties properties;
+
+    @Mock
+    private SysUserRoleMapper userRoleMapper;
+
+    @Mock
+    private SysRolePermissionMapper rolePermissionMapper;
+
+    private PermissionCache permissionCache;
+
+    /**
+     * 注册实体元信息缓存：`LambdaQueryWrapper` 按实体解析列名，纯单测无 MyBatis 环境需手动初始化 TableInfo。
+     */
+    @BeforeAll
+    static void initTableInfoCache() {
+        MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "");
+        TableInfoHelper.initTableInfo(assistant, SysUserRole.class);
+        TableInfoHelper.initTableInfo(assistant, SysRolePermission.class);
+    }
+
+    @BeforeEach
+    void setUp() {
+        permissionCache = new PermissionCache(cacheTemplate, properties, userRoleMapper, rolePermissionMapper);
+    }
+
+    @AfterEach
+    void clearTransactionSynchronization() {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+    }
+
+    private static SysUserRole userRole(Long userId, Long roleId) {
+        SysUserRole relation = new SysUserRole();
+        relation.setUserId(userId);
+        relation.setRoleId(roleId);
+        return relation;
+    }
+
+    private static SysRolePermission rolePermission(Long roleId, Long permissionId) {
+        SysRolePermission relation = new SysRolePermission();
+        relation.setRoleId(roleId);
+        relation.setPermissionId(permissionId);
+        return relation;
+    }
+
+    @Test
+    @DisplayName("enabled=false：不读缓存，直接回源并返回 loader 集合")
+    void shouldLoadDirectlyWhenDisabled() {
+        when(properties.isEnabled()).thenReturn(false);
+
+        Set<String> codes = permissionCache.getPermissionCodes(USER_ID, () -> List.of("a", "b"));
+
+        assertEquals(Set.of("a", "b"), codes);
+        verifyNoInteractions(cacheTemplate);
+    }
+
+    @Test
+    @DisplayName("enabled=false：loader 返回空集合时返回空集合")
+    void shouldReturnEmptyWhenDisabledAndLoaderEmpty() {
+        when(properties.isEnabled()).thenReturn(false);
+
+        Set<String> codes = permissionCache.getPermissionCodes(USER_ID, List::of);
+
+        assertTrue(codes.isEmpty());
+    }
+
+    @Test
+    @DisplayName("enabled=false：loader 返回 null 时返回空集合")
+    void shouldReturnEmptyWhenDisabledAndLoaderNull() {
+        when(properties.isEnabled()).thenReturn(false);
+
+        Set<String> codes = permissionCache.getPermissionCodes(USER_ID, () -> null);
+
+        assertTrue(codes.isEmpty());
+    }
+
+    @Test
+    @DisplayName("缓存命中：模板返回值切分为权限码集合")
+    void shouldReturnCodesWhenCacheHit() {
+        when(properties.isEnabled()).thenReturn(true);
+        when(cacheTemplate.getOrLoad(any(), any(), any(), any())).thenReturn("a,b");
+
+        Set<String> codes = permissionCache.getPermissionCodes(USER_ID, () -> List.of("x"));
+
+        assertEquals(Set.of("a", "b"), codes);
+    }
+
+    @Test
+    @DisplayName("缓存命中空结果哨兵：模板返回空串时返回空集合")
+    void shouldReturnEmptyWhenCacheHitEmptyString() {
+        when(properties.isEnabled()).thenReturn(true);
+        when(cacheTemplate.getOrLoad(any(), any(), any(), any())).thenReturn("");
+
+        Set<String> codes = permissionCache.getPermissionCodes(USER_ID, () -> List.of("x"));
+
+        assertTrue(codes.isEmpty());
+    }
+
+    @Test
+    @DisplayName("缓存命中空值：模板返回 null 时返回空集合")
+    void shouldReturnEmptyWhenCacheHitNull() {
+        when(properties.isEnabled()).thenReturn(true);
+        when(cacheTemplate.getOrLoad(any(), any(), any(), any())).thenReturn(null);
+
+        Set<String> codes = permissionCache.getPermissionCodes(USER_ID, () -> List.of("x"));
+
+        assertTrue(codes.isEmpty());
+    }
+
+    @Test
+    @DisplayName("缓存命中：含重复权限码时不抛异常且去重")
+    void shouldDeduplicateWhenCacheHitDuplicate() {
+        when(properties.isEnabled()).thenReturn(true);
+        when(cacheTemplate.getOrLoad(any(), any(), any(), any())).thenReturn("a,a,b");
+
+        Set<String> codes = permissionCache.getPermissionCodes(USER_ID, () -> List.of("x"));
+
+        assertEquals(2, codes.size());
+        assertTrue(codes.containsAll(Set.of("a", "b")));
+    }
+
+    @Test
+    @DisplayName("缓存未命中：以逗号拼接串回源写缓存，name/id/ttl 实参正确")
+    void shouldLoadAndCacheWhenMiss() {
+        when(properties.isEnabled()).thenReturn(true);
+        when(properties.getTtl()).thenReturn(TTL);
+        AtomicReference<String> joinedValue = new AtomicReference<>();
+        when(cacheTemplate.getOrLoad(eq(PermissionCache.PERMISSION_CACHE_NAME), eq(String.valueOf(USER_ID)), eq(TTL), any()))
+                .thenAnswer(invocation -> {
+                    Supplier<String> loader = invocation.getArgument(3);
+                    joinedValue.set(loader.get());
+                    return joinedValue.get();
+                });
+
+        Set<String> codes = permissionCache.getPermissionCodes(USER_ID, () -> List.of("a", "b"));
+
+        assertEquals(Set.of("a", "b"), codes);
+        assertEquals("a,b", joinedValue.get());
+        verify(cacheTemplate).getOrLoad(eq(PermissionCache.PERMISSION_CACHE_NAME), eq(String.valueOf(USER_ID)), eq(TTL), any());
+    }
+
+    @Test
+    @DisplayName("evictUser：无事务同步时立即失效该用户缓存")
+    void shouldEvictUserImmediatelyWhenNoSynchronization() {
+        permissionCache.evictUser(USER_ID);
+
+        verify(cacheTemplate).evict(PermissionCache.PERMISSION_CACHE_NAME, String.valueOf(USER_ID));
+    }
+
+    @Test
+    @DisplayName("evictUsers：null 集合不触发失效")
+    void shouldSkipEvictWhenUserIdsNull() {
+        permissionCache.evictUsers(null);
+
+        verifyNoInteractions(cacheTemplate);
+    }
+
+    @Test
+    @DisplayName("evictUsers：空集合不触发失效")
+    void shouldSkipEvictWhenUserIdsEmpty() {
+        permissionCache.evictUsers(List.of());
+
+        verifyNoInteractions(cacheTemplate);
+    }
+
+    @Test
+    @DisplayName("evictUsers：去重后逐个失效")
+    void shouldEvictEachDistinctUser() {
+        permissionCache.evictUsers(List.of(1L, 1L, 2L));
+
+        verify(cacheTemplate).evict(PermissionCache.PERMISSION_CACHE_NAME, "1");
+        verify(cacheTemplate).evict(PermissionCache.PERMISSION_CACHE_NAME, "2");
+        verify(cacheTemplate, times(2)).evict(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("evictByRole：roleId 为 null 时无任何调用")
+    void shouldSkipEvictByRoleWhenNull() {
+        permissionCache.evictByRole(null);
+
+        verifyNoInteractions(userRoleMapper, cacheTemplate);
+    }
+
+    @Test
+    @DisplayName("evictByRole：按角色反查用户并去重逐个失效")
+    void shouldEvictUsersByRole() {
+        when(userRoleMapper.selectList(any())).thenReturn(List.of(
+                userRole(1L, ROLE_ID), userRole(1L, ROLE_ID), userRole(2L, ROLE_ID)));
+
+        permissionCache.evictByRole(ROLE_ID);
+
+        verify(cacheTemplate).evict(PermissionCache.PERMISSION_CACHE_NAME, "1");
+        verify(cacheTemplate).evict(PermissionCache.PERMISSION_CACHE_NAME, "2");
+        verify(cacheTemplate, times(2)).evict(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("evictByRole：角色下无用户时不触发失效")
+    void shouldSkipEvictByRoleWhenNoUsers() {
+        when(userRoleMapper.selectList(any())).thenReturn(List.of());
+
+        permissionCache.evictByRole(ROLE_ID);
+
+        verifyNoInteractions(cacheTemplate);
+    }
+
+    @Test
+    @DisplayName("evictByPermission：permissionId 为 null 时无任何调用")
+    void shouldSkipEvictByPermissionWhenNull() {
+        permissionCache.evictByPermission(null);
+
+        verifyNoInteractions(rolePermissionMapper, userRoleMapper, cacheTemplate);
+    }
+
+    @Test
+    @DisplayName("evictByPermission：无关联角色时不发起 in 查询、不触发失效")
+    void shouldSkipInQueryWhenNoRoles() {
+        when(rolePermissionMapper.selectList(any())).thenReturn(List.of());
+
+        permissionCache.evictByPermission(PERM_ID);
+
+        verify(userRoleMapper, never()).selectList(any());
+        verifyNoInteractions(cacheTemplate);
+    }
+
+    @Test
+    @DisplayName("evictByPermission：权限→角色→用户两级反查后失效")
+    void shouldEvictUsersByPermission() {
+        when(rolePermissionMapper.selectList(any())).thenReturn(List.of(rolePermission(ROLE_ID, PERM_ID)));
+        when(userRoleMapper.selectList(any())).thenReturn(List.of(userRole(USER_ID, ROLE_ID)));
+
+        permissionCache.evictByPermission(PERM_ID);
+
+        verify(cacheTemplate).evict(PermissionCache.PERMISSION_CACHE_NAME, String.valueOf(USER_ID));
+    }
+
+    @Test
+    @DisplayName("afterCommit：事务同步激活时注册回调，提交后才失效")
+    void shouldDeferEvictUntilAfterCommitWhenSynchronizationActive() {
+        TransactionSynchronizationManager.initSynchronization();
+
+        permissionCache.evictUser(USER_ID);
+        verifyNoInteractions(cacheTemplate);
+
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
+        verify(cacheTemplate).evict(PermissionCache.PERMISSION_CACHE_NAME, String.valueOf(USER_ID));
+    }
+}

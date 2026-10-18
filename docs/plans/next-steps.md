@@ -48,6 +48,11 @@
 > 以「**7/7 反应堆模块 SUCCESS + 96 单测全绿（starter 29 / auth 55 / gateway 12）+ Checkstyle 0 违规 + JaCoCo 公共库行覆盖 68.01%**」完成验证；`-Pcoverage-gate` 在 `whale-auth`（行 0.37 < 0.40）按预期 **BUILD FAILURE** 证明门禁生效。
 > **残余**：限流端到端 429 冒烟（本机 6379/8848/8080 未监听）、`coverage-gate` 接入 CI（待 AUTH-23 达标）、Gitee Go 实机触发验证、Sentinel 接入（backlog）。
 > 详见 [devlog §26](../devlog/2026-10-18.md) 与 [检查报告](../reviews/2026-10-18-wave5.6-crosscutting-infra.md)。
+>
+> **Wave 5.8 执行结果（2026-10-18 更新）**：✅ AUTH-20（缓存一致性工具接入权限判定场景：`PermissionInterceptor` 读路径改 Cache-Aside，角色/用户/权限点共 7 处变更点接入失效）。
+> 以「**120 单测全绿（Wave 5.7 基线 99 → 120）+ Checkstyle 全 reactor 0 违规 + JaCoCo 行 0.6755 → 0.7184 / 分支 0.6718 → 0.7238（`clean verify` 口径）**」完成验证，`-Pcoverage-gate` 通过。
+> **残余**：防击穿（同 Key 并发一次回源）→ AUTH-19；多实例失效广播 / Canal 演进；`SysRoleServiceImpl#update` 有意不失效；经网关端到端实测、控制器层单测。
+> 详见 [devlog §28](../devlog/2026-10-18.md) 与 [检查报告](../reviews/2026-10-18-wave5.8-auth-permission-cache.md)。
 
 ### 组 A：分布式基础落地（承接 REQ-DIST-001~003）
 
@@ -57,7 +62,7 @@
 | ~~T5.2~~ | `@DistributedLock` 注解 + SpEL key 解析 + Redisson AOP 切面（或先做 `DistributedLockTemplate` 工具类，视复杂度择一） | 无（Redisson 已在 auth） | 高 | 并发调用同 key 互斥；`tryLock` 超时返回业务异常；单测覆盖锁获取/超时 | M |
 | ~~T5.3~~ ✅ **已完成（Wave 5.6）** | 幂等组件：`@Idempotent` + Token/唯一键，先用于用户注册 | T5.2 | 中 | 重复提交返回同一结果，不产生重复数据 | M |
 | ~~T5.4~~ ✅ **已完成（Wave 5.6，Redis 计数器兜底）** | 网关限流：接入 Sentinel（或先用 Redis 计数器兜底） | 网关 | 中 | 超阈值返回 429 + `Result` 体 | M |
-| ~~T5.5~~ ✅ **已完成（Wave 5.6）** | 缓存一致性约定落地：Cache-Aside + TTL 抖动 + 空值哨兵写入公共工具 | 无 | 中 | 工具类单测通过；i18n 与权限缓存统一改造 | S |
+| ~~T5.5~~ ✅ **已完成（Wave 5.6）** | 缓存一致性约定落地：Cache-Aside + TTL 抖动 + 空值哨兵写入公共工具；**Wave 5.8 已把工具接入权限判定场景（AUTH-20）** | 无 | 中 | 工具类单测通过；i18n 与权限缓存统一改造 | S |
 
 ### 组 B：安全补口（承接 REQ-SEC-002/003/004）
 

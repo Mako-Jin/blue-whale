@@ -14,6 +14,7 @@ import com.bluewhale.auth.mapper.SysPermissionMapper;
 import com.bluewhale.auth.mapper.SysRoleMapper;
 import com.bluewhale.auth.mapper.SysRolePermissionMapper;
 import com.bluewhale.auth.mapper.SysUserRoleMapper;
+import com.bluewhale.auth.security.PermissionCache;
 import com.bluewhale.auth.vo.RoleVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -64,6 +65,9 @@ class SysRoleServiceImplTest {
     @Mock
     private SysPermissionMapper permissionMapper;
 
+    @Mock
+    private PermissionCache permissionCache;
+
     private SysRoleServiceImpl roleService;
 
     /**
@@ -80,7 +84,7 @@ class SysRoleServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        roleService = new SysRoleServiceImpl(userRoleMapper, rolePermissionMapper, permissionMapper);
+        roleService = new SysRoleServiceImpl(userRoleMapper, rolePermissionMapper, permissionMapper, permissionCache);
         ReflectionTestUtils.setField(roleService, "baseMapper", roleMapper);
     }
 
@@ -199,6 +203,7 @@ class SysRoleServiceImplTest {
         assertEquals(9, vo.getSortNo());
         assertEquals(0, vo.getStatus());
         verify(roleMapper).updateById(any(SysRole.class));
+        verify(permissionCache, never()).evictByRole(any());
     }
 
     @Test
@@ -210,6 +215,7 @@ class SysRoleServiceImplTest {
 
         assertThrows(BizException.class, () -> roleService.update(ROLE_ID, request));
         verify(roleMapper, never()).updateById(any(SysRole.class));
+        verify(permissionCache, never()).evictByRole(any());
     }
 
     @Test
@@ -221,6 +227,7 @@ class SysRoleServiceImplTest {
 
         verify(roleMapper).deleteById(ROLE_ID);
         verify(rolePermissionMapper).delete(ArgumentMatchers.<Wrapper<SysRolePermission>>any());
+        verify(permissionCache).evictByRole(ROLE_ID);
     }
 
     @Test
@@ -241,6 +248,7 @@ class SysRoleServiceImplTest {
 
         verify(rolePermissionMapper).delete(ArgumentMatchers.<Wrapper<SysRolePermission>>any());
         verify(rolePermissionMapper, never()).insert(any(SysRolePermission.class));
+        verify(permissionCache).evictByRole(ROLE_ID);
     }
 
     @Test
@@ -253,6 +261,7 @@ class SysRoleServiceImplTest {
 
         verify(rolePermissionMapper).delete(ArgumentMatchers.<Wrapper<SysRolePermission>>any());
         verify(rolePermissionMapper, times(2)).insert(any(SysRolePermission.class));
+        verify(permissionCache).evictByRole(ROLE_ID);
     }
 
     @Test

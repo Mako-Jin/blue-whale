@@ -7,11 +7,13 @@ import com.bluewhale.auth.domain.model.vo.PermCode;
 import com.bluewhale.auth.dto.PermissionRequest;
 import com.bluewhale.auth.entity.SysPermission;
 import com.bluewhale.auth.mapper.SysPermissionMapper;
+import com.bluewhale.auth.security.PermissionCache;
 import com.bluewhale.auth.service.SysPermissionService;
 import com.bluewhale.auth.vo.PermissionVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -23,7 +25,10 @@ import java.util.List;
  * @author BlueWhale
  */
 @Service
+@RequiredArgsConstructor
 public class SysPermissionServiceImpl extends ServiceImpl<SysPermissionMapper, SysPermission> implements SysPermissionService {
+
+    private final PermissionCache permissionCache;
 
     @Override
     public PageResult<PermissionVO> page(long current, long size, String keyword, String permType) {
@@ -85,6 +90,8 @@ public class SysPermissionServiceImpl extends ServiceImpl<SysPermissionMapper, S
         }
         copyProperties(request, permission);
         updateById(permission);
+        // 权限点变更后失效持有该点位的用户缓存（提交后生效）
+        permissionCache.evictByPermission(id);
     }
 
     @Override
@@ -95,6 +102,8 @@ public class SysPermissionServiceImpl extends ServiceImpl<SysPermissionMapper, S
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "存在子权限，不允许删除");
         }
         removeById(id);
+        // 权限点删除后失效持有该点位的用户缓存（提交后生效）
+        permissionCache.evictByPermission(id);
     }
 
     /**
