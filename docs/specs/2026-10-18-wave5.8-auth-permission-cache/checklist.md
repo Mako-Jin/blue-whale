@@ -33,7 +33,7 @@
 - [x] 4.1 检查报告 `docs/reviews/2026-10-18-wave5.8-auth-permission-cache.md` 逐项对应 [code-review-checklist.md](../../checklists/code-review-checklist.md) 编号，含未通过项与修复记录
 - [x] 4.2 `docs/devlog/2026-10-18.md` 追加本波次条目，四节（需求项 / 完成项 / 待做项 / 已修正问题项）齐备
 - [x] 4.3 台账销账：`whale-auth-backlog.md` AUTH-20 与 `next-steps.md` 对应条目为「删除线 + ✅」
-- [ ] 4.4 变更已 commit 并 push 至 Gitee `origin/main`，工作区干净且 `main == origin/main`
+- [x] 4.4 变更已 commit 并 push 至 Gitee `origin/main`（`c5d60a5`），工作区干净且 `main == origin/main`
 
 ## 五、残余项登记
 

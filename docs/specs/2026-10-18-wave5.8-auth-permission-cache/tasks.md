@@ -18,7 +18,7 @@
 | [x] S11 | 规范门禁：`mvn -f backend/pom.xml checkstyle:check` | S10 | 高 | 全 reactor 0 违规 | ✅ 已完成（含实测证据） |
 | [x] S12 | 留痕收口：检查报告 `docs/reviews/2026-10-18-wave5.8-auth-permission-cache.md` + devlog §28 + §三新增问题项 | S10、S11 | 中 | 四类信息齐备 | ✅ 已完成（含实测证据） |
 | [x] S13 | 台账销账：`whale-auth-backlog.md` AUTH-20、`next-steps.md`（T5.5 场景接入） | S12 | 中 | 删除线 + ✅ | ✅ 已完成（含实测证据） |
-| [ ] S14 | 自动 commit + push（Gitee origin/main） | S13 | 中 | 工作区干净且 `main == origin/main` | ⬜ 待做 |
+| [x] S14 | 自动 commit + push（Gitee origin/main） | S13 | 中 | 工作区干净且 `main == origin/main` | ✅ 已完成（`c5d60a5` 已推送） |
 
 ## 实施注意（给实现者的事实约束）
 
