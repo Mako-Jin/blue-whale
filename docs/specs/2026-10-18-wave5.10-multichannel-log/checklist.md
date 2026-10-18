@@ -76,7 +76,7 @@
 - [x] 9.1 检查报告 `docs/reviews/2026-10-18-wave5.10-multichannel-log.md` 逐项对应 [code-review-checklist.md](../../checklists/code-review-checklist.md) 编号
 - [x] 9.2 `docs/devlog/2026-10-18.md` 追加本波次条目，四节（需求项 / 完成项 / 待做项 / 已修正问题项）齐备
 - [x] 9.3 台账销账：`register.md` REQ-SEC-006 + AUTH-06/11、`whale-auth-backlog.md`、`next-steps.md`（删除线 + ✅）
-- [ ] 9.4 变更已 commit 并 push 至 Gitee `origin/main`，工作区干净且 `main == origin/main`
+- [x] 9.4 变更已 commit（`701a516`）并 push 至 Gitee `origin/main`，工作区干净且 `main == origin/main`
 
 ## 十、核验结论
 

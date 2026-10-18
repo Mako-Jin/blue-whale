@@ -18,7 +18,7 @@
 | [x] A10 | 构建验证：`mvn -f backend/pom.xml clean verify -T 1C` + `mvn -f backend/pom.xml checkstyle:check` | A8、A9 | 高 | BUILD SUCCESS；全 reactor 0 违规 | ✅ |
 | [x] A11 | 留痕收口：检查报告 `docs/reviews/2026-10-18-wave5.10-multichannel-log.md` + devlog §30 + §三新增问题项 | A10 | 中 | 四类信息齐备 | ✅ |
 | [x] A12 | 台账销账：`register.md`（REQ-SEC-006 + AUTH-06/11）、`whale-auth-backlog.md`、`next-steps.md` | A11 | 中 | 删除线 + ✅ | ✅ |
-| [ ] A13 | 自动 commit + push（Gitee origin/main） | A12 | 中 | 工作区干净且 `main == origin/main` | ⏳ |
+| [x] A13 | 自动 commit + push（Gitee origin/main） | A12 | 中 | 工作区干净且 `main == origin/main` | ✅（701a516） |
 
 ## 实施注意（给实现者的事实约束）
 
