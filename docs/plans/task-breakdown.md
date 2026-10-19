@@ -122,6 +122,45 @@
 
 > Wave 5 详细任务清单（含依赖、优先级、验收口径）见 [next-steps.md](next-steps.md)。
 
+## Wave 5.19：whale-job 骨架填充 + 权限中心 DDD 第 2 步 + 审计残余收尾（2026-10-19）
+
+> 用户指令（2026-10-19）：① 继续权限中心；② 继续审计日志；③ 决定下一个服务 → 经决策选定 **whale-job**。
+> 决策依据：whale-job 的表（`job_info`/`job_log`）与网关路由 `/job/**` 均已就绪，且建好后可解锁审计 **AUTH-09**（归档定时任务），与审计诉求直接衔接。
+> 执行原则同前：**先落文档 → 编码 → 自检留报告 → 构建验证**；四轨并行，末尾统一全量回归。
+
+**轨道 A：whale-job 服务填充（T5.24，REQ-FUNC-006）**
+
+- [x] T5.24-a 依赖与配置：`whale-spring-boot-starter`（Result/异常/MyBatis 自动填充）+ datasource（`bluewhale_job`）+ `whale.permission.header.enabled` ✅
+- [x] T5.24-b 实体/Mapper：`JobInfo` / `JobLog`（对齐 `db/init.sql`）+ 分页/逻辑删除 ✅
+- [x] T5.24-c 调度引擎：`JobHandler` SPI + `JobScheduler`（`ThreadPoolTaskScheduler` + `CronTrigger`，无额外依赖）+ 启动装载/增删改后重排 ✅
+- [x] T5.24-d REST：`/job/info` CRUD + `/{id}/status` + `/{id}/run` + `/job/log/page`（`@RequirePermission("sys:job:*")` + `@AuditLog`）✅
+- [x] T5.24-e 权限点种子（whale-auth `db/init.sql` id 26–31）+ 建库 + 构建 + 启动冒烟（8082，Nacos 注册，经网关 `/job/**` 可达；`POST /job/info`+`/{id}/run`+`GET /job/log/page` 均 `code=0`，调度器 1 cron + 1 手动共 2 条日志）✅
+
+**轨道 B：权限中心 DDD 迁移第 2 步（AUTH-15 ↔ T5.14，REQ-ARCH-001）**
+
+- [x] T5.14-a `User` 聚合根 + 内部实体 `UserRoleAssignment` + 不变量（domain，无框架注解；工厂 `create`/`reconstitute` + 行为 `enable`/`disable`）✅
+- [x] T5.14-b `UserRepository` 仓储接口（domain）：save/findById/findByUsername/existsByUsername/replaceRoles ✅
+- [x] T5.14-c `infrastructure/persistence`：PO 复用既有 `SysUser` + `UserRepositoryImpl` + **手写** `UserPersistenceAssembler`（PO↔领域对象字段比对单测）✅
+- [x] T5.14-d 登录链路 `UserDetailsServiceImpl` 改走新仓储（REST 契约不变）+ 单测回归（whale-auth 143 → **164 用例全绿**）✅
+
+**轨道 C：权限中心收尾（AUTH-30 + 台账文书）**
+
+- [x] AUTH-30：网关 **429 端到端冒烟**（Redis 计数器限流实机触发；60 并发打 `/audit/log/frontend/batch` → **30×200 + 30×429**，429 体 `{"code":429,"message":"请求过于频繁，请稍后重试"}`）✅；Sentinel 接入结论：暂缓（现有 Redis 固定窗口满足需求，Sentinel 待后续按需引入）
+- [x] 台账：AUTH-22 / AUTH-32 标记闭合（实际已于 Wave 5.3 / 5.17 完成）✅
+
+**轨道 D：审计日志残余收尾（whale-audit）**
+
+- [x] D-a 四通道查询端点补 `@AuditLog(type=QUERY, targetType=<通道表>)` 元审计 + 单测（`LogIngestControllerMetaAuditTest` 反射断言）✅
+- [x] D-b `@Sensitive` 注解兜底（字段级脱敏），补齐 `SensitiveDataMasker` 注解路径（`maskJson(Object,String)` 重载 + `maskBean` 反射收集 `@Sensitive` 字段）✅
+- [x] D-c 四通道「写—查」运行时端到端验证（经网关 8080：`/audit/log/{frontend,behavior}/batch` 写 → 四通道 `page` 均 `code=0`；`audit_log` 落 QUERY 元审计 4 类）✅
+- [x] D-d（新增，实机发现）**建库 `bluewhale_audit` + 应用 `whale-audit/src/main/resources/db/init.sql`（5 表）** —— 此前库缺失导致审计落库/查询全部报 `Unknown database 'bluewhale_audit'` ✅
+- [x] D-e（新增，实机发现并修复）**网关白名单过宽缺陷**：`/audit/log/frontend/**` 同时放行了需鉴权的查询端点 `/audit/log/frontend/page`，致网关跳过 JWT、漏注入 `X-Permission-Codes` → 下游 403；改为仅放行 `/audit/log/{frontend,behavior}/batch`（限流路径同步收窄）✅
+
+**收尾（串行）**
+
+- [x] AUTH-27 ↔ T5.20：全量回归 `mvn clean install -T 1C`（**28 模块 BUILD SUCCESS**）+ `pnpm build`（**12/12 成功**）+ 报告归档 ✅
+- [x] 更新 roadmap / devlog / whale-auth-backlog / register + 提交推送 Gitee ✅
+
 ## 附录 A：common 契约（Wave 2 遵守）
 
 ```

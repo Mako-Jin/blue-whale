@@ -78,8 +78,9 @@ whale:
       - /webjars/**
       - /favicon.ico
       # 前端/行为上报接口（REQ-SEC-006）：未登录期也需上报，免 JWT；路径须与 whale-audit 对外路径逐字一致（网关不剥离前缀）
-      - /audit/log/frontend/**
-      - /audit/log/behavior/**
+      # 仅放行上报写入端点 /batch；同前缀下的 /page 查询端点须走 JWT + 权限码头（否则漏注入 X-Permission-Codes 导致下游 403）
+      - /audit/log/frontend/batch
+      - /audit/log/behavior/batch
     # AUTH-06 权限码头注入：JwtAuthGlobalFilter 注入 X-User-Id 后，PermissionHeaderGlobalFilter(order=-50)
     # 读 Redis 权限码缓存（命中即注入）；未命中/哨兵/异常回落 lb://whale-auth/auth/me，两级均失败注入空串并告警
     permission-header:
@@ -94,10 +95,10 @@ whale:
       limit: ${WHALE_GATEWAY_RATE_LIMIT:200}
       window-seconds: ${WHALE_GATEWAY_RATE_LIMIT_WINDOW_SECONDS:1}
       path-rules:
-        - path-pattern: /audit/log/frontend/**
+        - path-pattern: /audit/log/frontend/batch
           limit: ${WHALE_GATEWAY_RATE_LIMIT_REPORT:30}
           window-seconds: ${WHALE_GATEWAY_RATE_LIMIT_REPORT_WINDOW_SECONDS:1}
-        - path-pattern: /audit/log/behavior/**
+        - path-pattern: /audit/log/behavior/batch
           limit: ${WHALE_GATEWAY_RATE_LIMIT_REPORT:30}
           window-seconds: ${WHALE_GATEWAY_RATE_LIMIT_REPORT_WINDOW_SECONDS:1}
 

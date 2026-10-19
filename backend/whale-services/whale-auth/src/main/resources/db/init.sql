@@ -378,3 +378,14 @@ VALUES
     (24, 0, 'sys:user:status', '启停用户', 'API', '/user/{id}/status', 'PUT', 24, 1),
     -- AUTH-06（Wave 5.10）：审计日志查询权限点，与 whale-audit 查询接口 @RequirePermission("sys:audit:log:list") 对应
     (25, 0, 'sys:audit:log:list', '审计日志查询', 'API', '/audit/log/**', 'GET', 25, 1);
+
+-- 定时任务管理权限点：与 whale-job 接口 @RequirePermission("sys:job:*") 一一对应
+INSERT INTO sys_permission
+    (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+VALUES
+    (26, 0, 'sys:job:list', '查询定时任务', 'API', '/job/info/**', 'GET', 26, 1),
+    (27, 0, 'sys:job:add', '新增定时任务', 'API', '/job/info', 'POST', 27, 1),
+    (28, 0, 'sys:job:edit', '修改定时任务', 'API', '/job/info/**', 'PUT', 28, 1),
+    (29, 0, 'sys:job:delete', '删除定时任务', 'API', '/job/info/{id}', 'DELETE', 29, 1),
+    (30, 0, 'sys:job:run', '立即执行定时任务', 'API', '/job/info/**', 'POST', 30, 1),
+    (31, 0, 'sys:job:log:list', '查询任务执行日志', 'API', '/job/log/**', 'GET', 31, 1);

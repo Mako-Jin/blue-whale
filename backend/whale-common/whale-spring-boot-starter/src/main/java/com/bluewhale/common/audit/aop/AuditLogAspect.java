@@ -299,7 +299,7 @@ public class AuditLogAspect {
         }
         try {
             String json = JSON_MAPPER.writeValueAsString(result);
-            String masked = sensitiveDataMasker.maskJson(json);
+            String masked = sensitiveDataMasker.maskJson(result, json);
             if (masked == null) {
                 return null;
             }

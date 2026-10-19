@@ -87,7 +87,7 @@
 | REQ-FUNC-003 | whale-gateway 网关（动态路由 + JWT 鉴权 + TraceId） | 已完成（Sentinel 限流待做） | roadmap Phase 2.2 |
 | REQ-FUNC-004 | whale-common 公共组件（Result / 异常 / 分页 / 自动填充） | 已完成 | roadmap Phase 2.3 |
 | REQ-FUNC-005 | whale-i18n 国际化（三级回退 + Redis 缓存） | 已完成（消息 CRUD 接口待做） | roadmap Phase 2.4 |
-| REQ-FUNC-006 | 其余服务骨架填充（job / workflow / form / file / pay / audit / monitor） | 待启动 | roadmap Phase 2.5 |
+| REQ-FUNC-006 | 其余服务骨架填充（job / workflow / form / file / pay / audit / monitor） | 进行中（whale-job 已填充；whale-audit 已可运行） | roadmap Phase 2.5；[devlog Wave 5.19](../devlog/2026-10-19.md) |
 | REQ-FUNC-007 | 前端基座（登录 + 路由守卫 + 主布局 + 主题） | 已完成 | roadmap Phase 3.1 |
 | REQ-FUNC-008 | whale-ui 组件库（ProTable / FormModal / SearchForm） | 待启动 | roadmap Phase 3.2 |
 | REQ-FUNC-009 | admin 后台管理（用户/角色/菜单 + 对接 auth） | 待启动 | roadmap Phase 3.3 |

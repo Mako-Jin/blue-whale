@@ -1,5 +1,6 @@
 package com.bluewhale.common.audit.support;
 
+import com.bluewhale.common.audit.annotation.Sensitive;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -168,6 +169,27 @@ class SensitiveDataMaskerTest {
         assertThat(masker.maskJson("   ")).isNull();
     }
 
+    @Test
+    void shouldMaskAnnotatedSensitiveFieldRegardlessOfKeyRule() {
+        SensitiveFieldSample sample = new SensitiveFieldSample("top-secret-value", "visible");
+        String json = JsonMapper.builder().build().writeValueAsString(sample);
+
+        String masked = masker.maskJson(sample, json);
+
+        assertThat(masked).contains("\"secretNote\":\"******\"").contains("\"note\":\"visible\"")
+                .doesNotContain("top-secret-value");
+    }
+
+    @Test
+    void shouldIgnoreAnnotationWhenOldSignatureUsed() {
+        SensitiveFieldSample sample = new SensitiveFieldSample("top-secret-value", "visible");
+        String json = JsonMapper.builder().build().writeValueAsString(sample);
+
+        String masked = masker.maskJson(json);
+
+        assertThat(masked).contains("\"secretNote\":\"top-secret-value\"");
+    }
+
     @SuppressWarnings("unchecked")
     private static Map<String, Object> asMap(Object value) {
         return (Map<String, Object>) value;
@@ -206,6 +228,28 @@ class SensitiveDataMaskerTest {
 
         BigPayload(String note) {
             this.note = note;
+        }
+    }
+
+    /** 字段级脱敏样例：{@code secretNote} 标注 {@link Sensitive}，{@code note} 未标注作对照 */
+    static class SensitiveFieldSample {
+
+        @Sensitive
+        private final String secretNote;
+
+        private final String note;
+
+        SensitiveFieldSample(String secretNote, String note) {
+            this.secretNote = secretNote;
+            this.note = note;
+        }
+
+        public String getSecretNote() {
+            return secretNote;
+        }
+
+        public String getNote() {
+            return note;
         }
     }
 }

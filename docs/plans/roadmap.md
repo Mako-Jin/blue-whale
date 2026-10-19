@@ -43,8 +43,9 @@
 
 ### 2.5 其余服务骨架填充
 
-- [ ] whale-job（定时任务）、whale-workflow（工作流）、whale-form（表单）、whale-file（文件）、whale-pay（支付）
-- [ ] whale-audit（审计日志）、whale-monitor（监控）、whale-alert（告警）
+- [x] ~~whale-job（定时任务）骨架填充~~（Wave 5.19，T5.24：依赖/配置 + `JobInfo`/`JobLog` + `JobHandler` SPI + `JobScheduler`（`ThreadPoolTaskScheduler`+`CronTrigger`）+ `/job/**` REST + 6 权限点种子 + `bluewhale_job` 建库；8082 经网关冒烟 `code=0`）
+- [ ] whale-workflow（工作流）、whale-form（表单）、whale-file（文件）、whale-pay（支付）
+- [ ] whale-audit（审计日志，**四通道查询 + 元审计 + 出站/接口日志**已落地，Wave 5.19 建 `bluewhale_audit` 库并运行时验证）、whale-monitor（监控）、whale-alert（告警）
 
 ### 2.6 工程规范与分布式基础（2026-10-17 新增）
 

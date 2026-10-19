@@ -1,0 +1,46 @@
+package com.bluewhale.job.entity;
+
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.bluewhale.common.entity.BaseEntity;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+
+/**
+ * 定时任务信息实体，对应表 {@code job_info}。
+ *
+ * <p>公共字段（id / create_time / update_time / deleted）继承自 {@link BaseEntity}，
+ * 其余字段与 {@code db/init.sql} 中的 {@code job_info} 列逐字段对齐。</p>
+ *
+ * @author BlueWhale
+ */
+@Data
+@EqualsAndHashCode(callSuper = true)
+@TableName("job_info")
+public class JobInfo extends BaseEntity {
+
+    private static final long serialVersionUID = 1L;
+
+    /** 任务名称 */
+    private String jobName;
+
+    /** 任务分组，便于分类管理 */
+    private String jobGroup;
+
+    /** Cron 执行表达式，如 {@code 0 0/5 * * * ?} */
+    private String cronExpression;
+
+    /** 执行器 Bean 名称（Spring 容器中的处理器） */
+    private String handlerBean;
+
+    /** 执行器参数（任务执行时透传） */
+    private String handlerParam;
+
+    /** 错过执行策略：SMART / FIRE_ONCE / DO_NOTHING */
+    private String misfirePolicy;
+
+    /** 任务状态：1 运行中 / 0 已停止 */
+    private Integer status;
+
+    /** 备注 */
+    private String remark;
+}

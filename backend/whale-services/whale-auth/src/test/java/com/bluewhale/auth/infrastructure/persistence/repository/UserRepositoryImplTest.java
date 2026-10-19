@@ -1,0 +1,152 @@
+package com.bluewhale.auth.infrastructure.persistence.repository;
+
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
+import com.bluewhale.auth.domain.model.vo.Username;
+import com.bluewhale.auth.domain.user.aggregate.User;
+import com.bluewhale.auth.entity.SysUser;
+import com.bluewhale.auth.entity.SysUserRole;
+import com.bluewhale.auth.mapper.SysUserMapper;
+import com.bluewhale.auth.mapper.SysUserRoleMapper;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.List;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+/**
+ * {@link UserRepositoryImpl} 单元测试（REQ-ARCH-001 / T-DDD-8）：仓储读写与 PO↔领域转换链路。
+ *
+ * @author BlueWhale
+ */
+@ExtendWith(MockitoExtension.class)
+class UserRepositoryImplTest {
+
+    private static final long USER_ID = 5L;
+    private static final String CIPHER = "$2a$10$abcdefghijklmnopqrstuv";
+
+    @Mock
+    private SysUserMapper userMapper;
+
+    @Mock
+    private SysUserRoleMapper userRoleMapper;
+
+    @InjectMocks
+    private UserRepositoryImpl repository;
+
+    /**
+     * 注册实体元信息缓存：{@code LambdaQueryWrapper#eq} 按实体解析列名，纯单测需手动初始化 TableInfo。
+     */
+    @BeforeAll
+    static void initTableInfoCache() {
+        MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "");
+        TableInfoHelper.initTableInfo(assistant, SysUser.class);
+        TableInfoHelper.initTableInfo(assistant, SysUserRole.class);
+    }
+
+    private static SysUser po() {
+        SysUser po = new SysUser();
+        po.setId(USER_ID);
+        po.setUsername("bob_02");
+        po.setPassword(CIPHER);
+        po.setNickname("Bob");
+        po.setStatus(1);
+        return po;
+    }
+
+    @Test
+    @DisplayName("findById：命中返回领域聚合")
+    void shouldFindById() {
+        when(userMapper.selectById(USER_ID)).thenReturn(po());
+
+        Optional<User> result = repository.findById(USER_ID);
+
+        assertTrue(result.isPresent());
+        assertEquals("bob_02", result.get().getUsername().value());
+    }
+
+    @Test
+    @DisplayName("findById：未命中返回空")
+    void shouldReturnEmptyWhenFindByIdMissing() {
+        when(userMapper.selectById(USER_ID)).thenReturn(null);
+
+        assertFalse(repository.findById(USER_ID).isPresent());
+    }
+
+    @Test
+    @DisplayName("findByUsername：命中返回领域聚合")
+    void shouldFindByUsername() {
+        when(userMapper.selectOne(any())).thenReturn(po());
+
+        assertTrue(repository.findByUsername("bob_02").isPresent());
+    }
+
+    @Test
+    @DisplayName("findByUsername：未命中返回空")
+    void shouldReturnEmptyWhenUsernameMissing() {
+        when(userMapper.selectOne(any())).thenReturn(null);
+
+        assertFalse(repository.findByUsername("ghost").isPresent());
+    }
+
+    @Test
+    @DisplayName("existsByUsername：计数大于 0 判定为存在")
+    void shouldReportUsernameExists() {
+        when(userMapper.selectCount(any())).thenReturn(1L);
+
+        assertTrue(repository.existsByUsername("bob_02"));
+    }
+
+    @Test
+    @DisplayName("existsByUsername：计数为 0 或空判定为不存在")
+    void shouldReportUsernameAbsent() {
+        when(userMapper.selectCount(any())).thenReturn(0L);
+
+        assertFalse(repository.existsByUsername("nobody"));
+    }
+
+    @Test
+    @DisplayName("save：无 ID 走新增")
+    void shouldInsertWhenIdAbsent() {
+        repository.save(User.create(Username.of("bob_02"), EncryptedPassword.of(CIPHER),
+                "Bob", null, null, null, 1));
+
+        verify(userMapper).insert(any(SysUser.class));
+        verify(userMapper, never()).updateById(any(SysUser.class));
+    }
+
+    @Test
+    @DisplayName("save：有 ID 走按主键更新")
+    void shouldUpdateWhenIdPresent() {
+        repository.save(User.reconstitute(USER_ID, Username.of("bob_02"), EncryptedPassword.of(CIPHER),
+                "Bob", null, null, null, 1, null, null));
+
+        verify(userMapper).updateById(any(SysUser.class));
+        verify(userMapper, never()).insert(any(SysUser.class));
+    }
+
+    @Test
+    @DisplayName("replaceRoles：先清空关联再逐条重建")
+    void shouldReplaceRoles() {
+        repository.replaceRoles(USER_ID, List.of(1L, 2L));
+
+        verify(userRoleMapper).delete(any());
+        verify(userRoleMapper, times(2)).insert(any(SysUserRole.class));
+    }
+}

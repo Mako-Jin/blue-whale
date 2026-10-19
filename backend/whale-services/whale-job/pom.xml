@@ -51,7 +51,17 @@
         </dependency>
         <dependency>
             <groupId>com.bluewhale</groupId>
+            <artifactId>whale-spring-boot-starter</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.bluewhale</groupId>
             <artifactId>whale-tools</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-auth-sdk</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
