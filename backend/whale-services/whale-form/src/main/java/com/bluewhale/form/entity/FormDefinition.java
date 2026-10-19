@@ -26,7 +26,10 @@ public class FormDefinition extends BaseEntity {
     /** 表单名称 */
     private String name;
 
-    /** 表单结构定义（JSON 文本，最长 64KB，即 65536 字符） */
+    /** 所属表定义 ID（表:表单 1:N，迁移后回填；{@code null} 为未迁移的旧定义） */
+    private Long tableDefinitionId;
+
+    /** 表单结构定义（由字段配置编译的发布快照，JSON 文本，最长 64KB） */
     private String schemaJson;
 
     /** 版本号（默认 1，每次结构变更可递增） */

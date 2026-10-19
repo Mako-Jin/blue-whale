@@ -81,6 +81,21 @@ public final class FormSchemaParser {
     }
 
     /**
+     * 断言列编码（物理列名）合法：匹配 key 正则且不命中保留列
+     *
+     * @param columnCode 列编码
+     * @throws BizException 编码非法或与保留列冲突时抛出 {@code PARAM_ERROR}
+     */
+    public static void assertColumnCode(String columnCode) {
+        if (!StringUtils.hasText(columnCode) || !KEY_PATTERN.matcher(columnCode).matches()) {
+            throw paramError("列编码非法（需匹配 ^[a-z][a-z0-9_]{0,63}$）：" + columnCode);
+        }
+        if (RESERVED_KEYS.contains(columnCode)) {
+            throw paramError("列编码与保留列冲突：" + columnCode);
+        }
+    }
+
+    /**
      * 解析单个字段节点并做白名单校验
      *
      * @param node 字段 JSON 节点

@@ -440,3 +440,13 @@ INSERT INTO sys_permission
     (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
 VALUES
     (52, 0, 'sys:form:publish', '发布表单定义', 'API', '/form/definition/{id}/publish', 'POST', 52, 1);
+
+-- 表单服务权限点（表定义，元数据模型）：与 whale-form @RequirePermission("sys:form:table:*") 一一对应
+INSERT INTO sys_permission
+    (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+VALUES
+    (53, 0, 'sys:form:table:add', '新增表定义', 'API', '/form/table-definition', 'POST', 53, 1),
+    (54, 0, 'sys:form:table:edit', '修改表定义', 'API', '/form/table-definition/**', 'PUT', 54, 1),
+    (55, 0, 'sys:form:table:delete', '删除表定义', 'API', '/form/table-definition/{id}', 'DELETE', 55, 1),
+    (56, 0, 'sys:form:table:list', '查询表定义', 'API', '/form/table-definition/**', 'GET', 56, 1),
+    (57, 0, 'sys:form:table:publish', '发布表定义', 'API', '/form/table-definition/{id}/publish', 'POST', 57, 1);

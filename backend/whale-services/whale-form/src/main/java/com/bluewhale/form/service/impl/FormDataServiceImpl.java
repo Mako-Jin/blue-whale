@@ -9,9 +9,11 @@ import com.bluewhale.form.dto.FormDataQueryRequest;
 import com.bluewhale.form.dto.FormDataSubmitRequest;
 import com.bluewhale.form.entity.FormData;
 import com.bluewhale.form.entity.FormDefinition;
+import com.bluewhale.form.entity.FormTableDefinition;
 import com.bluewhale.form.entity.FormTableRegistry;
 import com.bluewhale.form.mapper.FormDataMapper;
 import com.bluewhale.form.mapper.FormDefinitionMapper;
+import com.bluewhale.form.mapper.FormTableDefinitionMapper;
 import com.bluewhale.form.mapper.FormTableRegistryMapper;
 import com.bluewhale.form.service.FormDataService;
 import com.bluewhale.form.support.FormDataEngine;
@@ -46,6 +48,9 @@ public class FormDataServiceImpl implements FormDataService {
     /** 数据状态：有效 */
     private static final int STATUS_NORMAL = 1;
 
+    /** 版本号默认值 */
+    private static final int DEFAULT_VERSION = 1;
+
     /** 表单数据最大长度（字符数）：64KB */
     private static final int MAX_DATA_LENGTH = 65536;
 
@@ -59,6 +64,8 @@ public class FormDataServiceImpl implements FormDataService {
 
     private final FormDefinitionMapper formDefinitionMapper;
 
+    private final FormTableDefinitionMapper formTableDefinitionMapper;
+
     private final FormTableRegistryMapper formTableRegistryMapper;
 
     private final FormDataEngine formDataEngine;
@@ -68,19 +75,31 @@ public class FormDataServiceImpl implements FormDataService {
     public FormDataVO submit(FormDataSubmitRequest request, String submitter, Long tenantId) {
         FormDefinition definition = requireDefinition(request.getDefinitionId());
         validateDataSize(request.getDataJson());
-        FormTableRegistry registry = requireRegistry(definition.getCode(), definition.getVersion());
-        List<FormField> fields = FormSchemaParser.parse(registry.getSchemaJson());
+        Integer formVersion = definition.getVersion() == null ? DEFAULT_VERSION : definition.getVersion();
+        FormTableDefinition table = definition.getTableDefinitionId() == null
+                ? null : requireTableDefinition(definition.getTableDefinitionId());
+        String routeCode = table == null ? definition.getCode() : table.getTableCode();
+        Integer routeVersion = table == null ? formVersion : tableVersionOf(table);
+        FormTableRegistry registry = requireRegistry(routeCode, routeVersion);
+        String schema = table == null ? registry.getSchemaJson() : definition.getSchemaJson();
+        List<FormField> fields = FormSchemaParser.parse(schema);
         Map<String, Object> data = parseData(request.getDataJson());
         validateFields(fields, data);
         FormData entity = new FormData();
         entity.setTenantId(tenantId);
         entity.setDefinitionId(definition.getId());
         entity.setDefinitionCode(definition.getCode());
-        entity.setDefinitionVersion(registry.getDefinitionVersion());
+        entity.setDefinitionVersion(formVersion);
         entity.setBizKey(request.getBizKey());
         entity.setDataJson(request.getDataJson());
         entity.setSubmitter(submitter);
         entity.setStatus(STATUS_NORMAL);
+        if (table != null) {
+            entity.setTableDefinitionId(table.getId());
+            entity.setTableCode(table.getTableCode());
+            entity.setTableVersion(routeVersion);
+            entity.setFormDefinitionId(definition.getId());
+        }
         formDataMapper.insert(entity);
         formDataEngine.insert(registry.getPhysicalTable(), entity, fields, data);
         return toVo(entity, data);
@@ -89,8 +108,10 @@ public class FormDataServiceImpl implements FormDataService {
     @Override
     public FormDataVO getDetail(Long id, Long tenantId) {
         FormData entity = requireData(id, tenantId);
-        FormTableRegistry registry = requireRegistry(entity.getDefinitionCode(), entity.getDefinitionVersion());
-        List<FormField> fields = FormSchemaParser.parse(registry.getSchemaJson());
+        FormTableRegistry registry = requireRegistry(routeCodeOf(entity), routeVersionOf(entity));
+        String schema = entity.getTableCode() == null
+                ? registry.getSchemaJson() : requireDefinition(entity.getDefinitionId()).getSchemaJson();
+        List<FormField> fields = FormSchemaParser.parse(schema);
         Map<String, Object> data =
                 formDataEngine.selectFields(registry.getPhysicalTable(), entity.getId(), tenantId, fields);
         return toVo(entity, data);
@@ -116,7 +137,7 @@ public class FormDataServiceImpl implements FormDataService {
     public void delete(Long id, Long tenantId) {
         FormData entity = requireData(id, tenantId);
         formDataMapper.deleteById(id);
-        FormTableRegistry registry = requireRegistry(entity.getDefinitionCode(), entity.getDefinitionVersion());
+        FormTableRegistry registry = requireRegistry(routeCodeOf(entity), routeVersionOf(entity));
         formDataEngine.logicDelete(registry.getPhysicalTable(), id, tenantId);
     }
 
@@ -135,17 +156,69 @@ public class FormDataServiceImpl implements FormDataService {
     }
 
     /**
-     * 查询指定（编码 + 版本）的物理表登记，未发布则抛出 {@code PARAM_ERROR}
+     * 查询表定义，不存在则抛出 {@code NOT_FOUND}
      *
-     * @param code 表单定义编码
-     * @param version 表单定义版本
+     * @param tableDefinitionId 表定义ID
+     * @return 表定义实体
+     */
+    private FormTableDefinition requireTableDefinition(Long tableDefinitionId) {
+        FormTableDefinition table = formTableDefinitionMapper.selectById(tableDefinitionId);
+        if (table == null) {
+            throw new BizException(ErrorCode.NOT_FOUND);
+        }
+        return table;
+    }
+
+    /**
+     * 取表单数据的物理表路由编码：元数据模型用 {@code tableCode}，旧模型回落 {@code definitionCode}
+     *
+     * @param entity 表单数据实体
+     * @return 路由编码
+     */
+    private static String routeCodeOf(FormData entity) {
+        return entity.getTableCode() == null ? entity.getDefinitionCode() : entity.getTableCode();
+    }
+
+    /**
+     * 取表单数据的物理表路由版本：元数据模型用 {@code tableVersion}，旧模型回落 {@code definitionVersion}
+     *
+     * @param entity 表单数据实体
+     * @return 路由版本
+     */
+    private static Integer routeVersionOf(FormData entity) {
+        return entity.getTableCode() == null ? entity.getDefinitionVersion() : entity.getTableVersion();
+    }
+
+    /**
+     * 取表定义版本（空则回落默认版本）
+     *
+     * @param table 表定义实体
+     * @return 表定义版本
+     */
+    private static int tableVersionOf(FormTableDefinition table) {
+        return table.getVersion() == null ? DEFAULT_VERSION : table.getVersion();
+    }
+
+    /**
+     * 查询指定（路由编码 + 版本）的物理表登记：先按表维度（元数据模型）查找，
+     * 未命中再按表单维度（旧模型）回落；均未命中则抛出 {@code PARAM_ERROR}
+     *
+     * @param code 路由编码（表编码或表单编码）
+     * @param version 路由版本
      * @return 物理表登记实体
+     * @throws BizException 未发布时抛出 {@code PARAM_ERROR}
      */
     private FormTableRegistry requireRegistry(String code, Integer version) {
         LambdaQueryWrapper<FormTableRegistry> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FormTableRegistry::getDefinitionCode, code);
-        wrapper.eq(FormTableRegistry::getDefinitionVersion, version);
+        wrapper.eq(FormTableRegistry::getTableCode, code);
+        wrapper.eq(FormTableRegistry::getTableVersion, version);
         FormTableRegistry registry = formTableRegistryMapper.selectOne(wrapper);
+        if (registry == null) {
+            LambdaQueryWrapper<FormTableRegistry> legacy = new LambdaQueryWrapper<>();
+            legacy.eq(FormTableRegistry::getDefinitionCode, code);
+            legacy.eq(FormTableRegistry::getDefinitionVersion, version);
+            registry = formTableRegistryMapper.selectOne(legacy);
+        }
         if (registry == null) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "表单未发布或版本已变更，请先发布");
         }

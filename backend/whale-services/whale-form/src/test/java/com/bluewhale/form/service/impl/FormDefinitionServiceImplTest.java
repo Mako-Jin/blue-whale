@@ -7,7 +7,12 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.form.dto.FormDefinitionSaveRequest;
 import com.bluewhale.form.dto.FormQueryRequest;
 import com.bluewhale.form.entity.FormDefinition;
+import com.bluewhale.form.entity.FormFieldConfig;
+import com.bluewhale.form.mapper.FormColumnMetaMapper;
 import com.bluewhale.form.mapper.FormDefinitionMapper;
+import com.bluewhale.form.mapper.FormFieldConfigMapper;
+import com.bluewhale.form.mapper.FormFieldOptionMapper;
+import com.bluewhale.form.mapper.FormTableDefinitionMapper;
 import com.bluewhale.form.vo.FormDefinitionVO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -41,6 +46,18 @@ class FormDefinitionServiceImplTest {
 
     @Mock
     private FormDefinitionMapper formDefinitionMapper;
+
+    @Mock
+    private FormFieldConfigMapper formFieldConfigMapper;
+
+    @Mock
+    private FormFieldOptionMapper formFieldOptionMapper;
+
+    @Mock
+    private FormColumnMetaMapper formColumnMetaMapper;
+
+    @Mock
+    private FormTableDefinitionMapper formTableDefinitionMapper;
 
     @InjectMocks
     private FormDefinitionServiceImpl formDefinitionService;
@@ -107,6 +124,8 @@ class FormDefinitionServiceImplTest {
         entity.setId(1L);
         entity.setCode("form-a");
         when(formDefinitionMapper.selectById(1L)).thenReturn(entity);
+        when(formFieldConfigMapper.selectList(ArgumentMatchers.<Wrapper<FormFieldConfig>>any()))
+                .thenReturn(List.of());
         FormDefinitionSaveRequest request = saveRequest("form-a", "A表单新版");
         request.setSchemaJson("{\"fields\":[]}");
         request.setRemark("备注");
@@ -150,6 +169,8 @@ class FormDefinitionServiceImplTest {
         entity.setCode("form-a");
         entity.setName("A表单");
         when(formDefinitionMapper.selectById(1L)).thenReturn(entity);
+        when(formFieldConfigMapper.selectList(ArgumentMatchers.<Wrapper<FormFieldConfig>>any()))
+                .thenReturn(List.of());
 
         FormDefinitionVO vo = formDefinitionService.getDetail(1L);
 

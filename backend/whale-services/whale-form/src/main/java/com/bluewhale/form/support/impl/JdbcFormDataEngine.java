@@ -48,9 +48,9 @@ public class JdbcFormDataEngine implements FormDataEngine {
         columns.add("tenant_id");
         values.add(record.getTenantId());
         columns.add("definition_id");
-        values.add(record.getDefinitionId());
+        values.add(record.getTableDefinitionId() != null ? record.getTableDefinitionId() : record.getDefinitionId());
         columns.add("definition_version");
-        values.add(record.getDefinitionVersion());
+        values.add(record.getTableVersion() != null ? record.getTableVersion() : record.getDefinitionVersion());
         columns.add("biz_key");
         values.add(record.getBizKey());
         columns.add("submitter");

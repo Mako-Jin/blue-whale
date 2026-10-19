@@ -4,6 +4,7 @@ import lombok.Data;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 表单定义视图对象（字段名为冻结的 JSON 契约，不得改名）。
@@ -24,7 +25,10 @@ public class FormDefinitionVO implements Serializable {
     /** 表单名称 */
     private String name;
 
-    /** 表单结构定义（JSON 文本） */
+    /** 所属表定义ID（元数据模型；{@code null} 为旧模型） */
+    private Long tableDefinitionId;
+
+    /** 表单结构定义（发布快照 JSON 文本） */
     private String schemaJson;
 
     /** 版本号 */
@@ -41,4 +45,7 @@ public class FormDefinitionVO implements Serializable {
 
     /** 更新时间 */
     private LocalDateTime updateTime;
+
+    /** 字段配置集合（含选项；详情接口返回） */
+    private List<FormFieldConfigVO> fields;
 }

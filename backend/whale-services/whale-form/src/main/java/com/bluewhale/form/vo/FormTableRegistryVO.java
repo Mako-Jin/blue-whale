@@ -18,6 +18,15 @@ public class FormTableRegistryVO implements Serializable {
     /** 主键ID */
     private Long id;
 
+    /** 表定义 ID（元数据模型；{@code null} 为旧模型） */
+    private Long tableDefinitionId;
+
+    /** 表编码（元数据模型；旧模型为空） */
+    private String tableCode;
+
+    /** 表版本（元数据模型；旧模型为空） */
+    private Integer tableVersion;
+
     /** 表单定义 ID */
     private Long definitionId;
 

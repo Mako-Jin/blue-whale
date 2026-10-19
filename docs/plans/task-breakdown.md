@@ -402,6 +402,42 @@
 - [x] **E-e 收尾**：检查报告 + devlog + roadmap/task-breakdown 勾选 + commit & push origin（Gitee）
 
 
+## Wave 5.28：whale-form 动态表单元数据模型（三层分离 · 表:表单 1:N）
+
+> 用户指令（2026-10-19）：「有一个动态列的详情表（列/类型/长度/必填/可空/备注）……还有一个表单的属性详情表（显示/排序/属性类型/可编辑/关联字段）……表单和表有一个关联。是不是这样的，你优化一下。」
+> 经 AskUserQuestion 冻结：**(a) 表:表单=1:N｜(b) 选项独立表｜(c) `schema_json` 保留为发布快照｜(d) 本轮仅后端元数据表 + 迁移**。
+> 规格：[wave5.28-form-metadata-model/spec.md](wave5.28-form-metadata-model/spec.md) ｜ 分解：[tasks.md](wave5.28-form-metadata-model/tasks.md)。
+
+**Wave 5.28-a（并行：A 表结构 / B 类型与编译）**
+
+- [x] **A-a 实体**：`FormTableDefinition`/`FormColumnMeta`/`FormFieldConfig`/`FormFieldOption`
+- [x] **A-b Mapper**：4 个元数据 Mapper
+- [x] **A-c 兼容列**：`FormDefinition(+tableDefinitionId)`、`FormTableRegistry(+tableDefinitionId/tableCode/tableVersion)`、`FormData(+table 维度/formDefinitionId)`
+- [x] **A-d DDL**：`whale-form/db/init.sql` 4 新表 + 3 表兼容列/键（+ 增量脚本 `db/migration-5.28.sql`）
+- [x] **B-a/B-b 类型**：`FormDataType`（存储↔MySQL 映射 + 默认 widget）、`FormWidgetType`（控件白名单）
+- [x] **B-c 编译**：`FormMetadataCompiler`（元数据 → `schema_json` 快照）
+
+**Wave 5.28-b（元数据服务 C + 迁移 D）**
+
+- [x] **C-a/C-b DTO/VO**：表定义（含列）、字段配置（含选项）聚合 DTO/VO
+- [x] **C-c 表定义服务**：`FormTableDefinitionService(+Impl)` 聚合 CRUD
+- [x] **C-d 表定义接口**：`FormTableDefinitionController`（`/form/table-definition` CRUD + publish + tables）
+- [x] **C-e 表单视图服务**：`FormDefinitionService(+Impl)` 持久化字段配置/选项 + 编译快照 + 详情带 fields
+- [x] **C-f 权限种子**：`sys:form:table:*`（id 53–57）
+- [x] **D-a 迁移**：`FormMetadataMigrationService(+Impl)`（`schema_json.fields[]` → 元数据，幂等 + 回填 registry/form_data）
+
+**Wave 5.28-c（发布/提交改造 E + 门禁 F）**
+
+- [x] **E-a 发布**：`FormPublishService(+Impl)` 表定义发布建物理表 + 视图发布编译快照 + 幂等确保物理表
+- [x] **E-b 提交**：`FormDataService(+Impl)` 按视图 `field_config` 选列校验 + 表维度路由 + 主表新列
+- [x] **E-c 接线**：`FormController` 表定义发布/列表 + 定义详情带字段
+- [x] **F-a 单测**：`FormMetadataCompilerTest`/`FormTableDefinitionServiceImplTest`/`FormMetadataMigrationServiceImplTest` + 回归（44 / 0 / 0）
+- [x] **F-b 模块门禁**：`mvn -o -f backend/pom.xml -pl :whale-form -am test checkstyle:check` 0 违规
+- [x] **F-c 全量回归**：`mvn -o -f backend/pom.xml clean install -T 1C` 29 模块 SUCCESS
+- [x] **F-d 运行时冒烟**：增量 DDL/迁移落库 + 网关 `/form` 表定义→双表单视图（1:N）→提交→详情→负向
+- [x] **F-e 收尾**：检查报告 + devlog + roadmap/task-breakdown 勾选 + commit & push origin（Gitee）
+
+
 ## 附录 A：common 契约（Wave 2 遵守）
 
 ```

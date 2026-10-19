@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.util.List;
 
 /**
  * 新增/更新表单定义请求。
@@ -26,7 +27,13 @@ public class FormDefinitionSaveRequest implements Serializable {
     @Size(max = 128, message = "表单名称长度不能超过 128")
     private String name;
 
-    /** 表单结构定义（JSON 文本，最长 64KB；超限由服务层校验抛参数错误） */
+    /** 所属表定义 ID（元数据模型；为空则按旧模型以 schemaJson 为准） */
+    private Long tableDefinitionId;
+
+    /** 字段配置集合（元数据模型；整体替换，服务层据此编译 schemaJson 快照） */
+    private List<FormFieldConfigDTO> fields;
+
+    /** 表单结构定义（JSON 文本，最长 64KB；旧模型直接使用，元数据模型下被编译快照覆盖） */
     private String schemaJson;
 
     /** 版本号；为空时新增取默认 1，更新时保持不变 */

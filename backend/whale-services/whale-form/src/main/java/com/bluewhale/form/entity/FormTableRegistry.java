@@ -23,13 +23,22 @@ public class FormTableRegistry extends BaseEntity {
 
     private static final long serialVersionUID = 1L;
 
-    /** 表单定义 ID */
+    /** 表定义 ID（元数据模型；{@code null} 为旧模型） */
+    private Long tableDefinitionId;
+
+    /** 表编码（元数据模型；旧模型回落 {@code definitionCode}） */
+    private String tableCode;
+
+    /** 表版本（元数据模型；旧模型回落 {@code definitionVersion}） */
+    private Integer tableVersion;
+
+    /** 表单定义 ID（旧模型；元数据模型为 {@code null}） */
     private Long definitionId;
 
-    /** 表单定义编码 */
+    /** 表单定义编码（旧模型） */
     private String definitionCode;
 
-    /** 表单定义版本 */
+    /** 表单定义版本（旧模型） */
     private Integer definitionVersion;
 
     /** 物理表名（{@code form_data_{code}_v{version}}） */

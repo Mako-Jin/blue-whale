@@ -32,6 +32,18 @@ public class FormData extends BaseEntity {
     /** 提交时的表单定义版本（冗余快照） */
     private Integer definitionVersion;
 
+    /** 所属表定义 ID（元数据模型；{@code null} 为旧模型） */
+    private Long tableDefinitionId;
+
+    /** 所属表编码（路由物理表；旧模型回落 {@code definitionCode}） */
+    private String tableCode;
+
+    /** 所属表版本（路由物理表；旧模型回落 {@code definitionVersion}） */
+    private Integer tableVersion;
+
+    /** 提交来源的表单视图 ID（元数据模型；{@code null} 为旧模型） */
+    private Long formDefinitionId;
+
     /** 业务键（可选，用于关联外部业务单据） */
     private String bizKey;
 
