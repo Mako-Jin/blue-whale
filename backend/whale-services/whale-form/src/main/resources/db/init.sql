@@ -30,3 +30,24 @@ CREATE TABLE form_definition (
     PRIMARY KEY (id),
     KEY idx_code (code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='表单定义表';
+
+-- ---------------------------------------------------------------------
+-- 表单数据表
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS form_data;
+CREATE TABLE form_data (
+    id                  BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    definition_id       BIGINT        NOT NULL               COMMENT '表单定义ID',
+    definition_code     VARCHAR(64)   NOT NULL               COMMENT '提交时的表单定义编码（冗余）',
+    definition_version  INT           NOT NULL               COMMENT '提交时的表单定义版本（冗余）',
+    biz_key             VARCHAR(64)   DEFAULT NULL           COMMENT '业务键（可选）',
+    data_json           MEDIUMTEXT    NULL                   COMMENT '表单数据JSON（最长64KB）',
+    submitter           VARCHAR(64)   DEFAULT NULL           COMMENT '提交人账号',
+    status              TINYINT       NOT NULL DEFAULT 1     COMMENT '状态：1 有效 / 0 作废',
+    create_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted             TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
+    PRIMARY KEY (id),
+    KEY idx_definition_id (definition_id),
+    KEY idx_biz_key (biz_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='表单数据表';

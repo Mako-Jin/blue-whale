@@ -426,3 +426,11 @@ VALUES
     (46, 0, 'sys:workflow:instance:cancel', '撤销流程实例', 'API', '/workflow/instance/{id}/cancel', 'POST', 46, 1),
     (47, 0, 'sys:workflow:task:list', '查询待办任务', 'API', '/workflow/task/**', 'GET', 47, 1),
     (48, 0, 'sys:workflow:task:approve', '审批待办任务', 'API', '/workflow/task/{id}/{approve|reject}', 'POST', 48, 1);
+
+-- 表单服务权限点（表单数据）：与 whale-form 接口 @RequirePermission("sys:form:data:*") 一一对应
+INSERT INTO sys_permission
+    (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+VALUES
+    (49, 0, 'sys:form:data:submit', '提交表单数据', 'API', '/form/data', 'POST', 49, 1),
+    (50, 0, 'sys:form:data:list', '查询表单数据', 'API', '/form/data/**', 'GET', 50, 1),
+    (51, 0, 'sys:form:data:delete', '删除表单数据', 'API', '/form/data/{id}', 'DELETE', 51, 1);

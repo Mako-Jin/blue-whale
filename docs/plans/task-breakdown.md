@@ -349,6 +349,31 @@
 - [x] commit + push origin（Gitee）
 
 
+## Wave 5.26：whale-form 全闭环（表单数据 `form_data`）
+
+> 规格：[wave5.26-form-closed-loop/spec.md](wave5.26-form-closed-loop/spec.md) ｜ 分解：[tasks.md](wave5.26-form-closed-loop/tasks.md)。
+> 口径（用户确认 2026-10-19）：在 Wave 5.23「表单定义」之上补 `form_data` 表单数据表与提交/查询/删除接口，形成「定义 → 填写 → 数据」最小闭环；**不含**表单↔工作流联动。
+
+**Wave 5.26-a（模块内串行）**
+
+- [x] **A-a 实体与映射**：`FormData`（继承 `BaseEntity`）+ `FormDataMapper`
+- [x] **A-b 请求/视图**：`dto/{FormDataSubmitRequest,FormDataQueryRequest}` + `vo/FormDataVO`
+- [x] **B 服务与接口**：`FormDataService(+Impl)`（submit/详情/分页/删除）+ `FormDataController`（4 接口）
+- [x] **C-a DDL**：`whale-form/db/init.sql` 追加 `form_data` 表
+- [x] **C-b 权限种子**：whale-auth `db/init.sql` 追加 `sys:form:data:submit/list/delete`（49–51）
+- [x] **C-c 单测与门禁**：`FormDataServiceImplTest`；`mvn -o -pl :whale-form -am test checkstyle:check` 全绿（Tests run 16 / 0 / 0，Checkstyle 0 违规）
+
+**Wave 5.26-b（运行时取证）**
+
+- [x] **E2E 建表与冒烟**：建表 + 种子落库；经网关 `/form/**` 闭环——提交 `code=0` → 分页/详情可见 → 逻辑删除后详情 404；负向：定义不存在 404、`dataJson` 为空 400
+
+**Wave 5.26-c（串行：E 收尾）**
+
+- [x] 全量 `mvn clean install -T 1C` SUCCESS（29/29 模块，Total 1:53；构建前停 7 服务释放 jar 锁，构建后重启并核验健康全 200）
+- [x] 检查报告 `docs/reviews/2026-10-19-wave5.26-form-closed-loop.md` + devlog 追加 + roadmap/task-breakdown 勾选
+- [x] commit + push origin（Gitee）
+
+
 ## 附录 A：common 契约（Wave 2 遵守）
 
 ```
