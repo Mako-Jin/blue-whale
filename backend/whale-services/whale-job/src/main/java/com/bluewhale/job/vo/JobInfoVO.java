@@ -47,4 +47,7 @@ public class JobInfoVO implements Serializable {
 
     /** 更新时间 */
     private LocalDateTime updateTime;
+
+    /** 下次执行时间：cron 合法时按当前时间推算，否则为 null */
+    private LocalDateTime nextFireTime;
 }

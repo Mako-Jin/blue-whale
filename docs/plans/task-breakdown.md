@@ -161,6 +161,54 @@
 - [x] AUTH-27 ↔ T5.20：全量回归 `mvn clean install -T 1C`（**28 模块 BUILD SUCCESS**）+ `pnpm build`（**12/12 成功**）+ 报告归档 ✅
 - [x] 更新 roadmap / devlog / whale-auth-backlog / register + 提交推送 Gitee ✅
 
+## Wave 5.20：whale-job「继续完成」——调度健壮性 + 可观测 + 日志清理 + 单测基线（2026-10-19）
+
+> 用户指令（2026-10-19）：继续完成定时任务服务。经决策（AskUserQuestion 四项全选）确定范围；
+> 规格与分解：[spec.md](wave5.20-job/spec.md) / [tasks.md](wave5.20-job/tasks.md)。
+> 非目标：`job_log` **归档导出至对象存储**（依赖 whale-file）继续阻塞，本轮只做本地保留策略清理。
+
+**T1 基础设施**
+
+- [x] T1.1 `config/JobProperties`（`@ConfigurationProperties("whale.job")`，`logRetentionDays` 默认 30）✅
+- [x] T1.2 `scheduler/JobExecutionGuard`（实例内互斥 `running` + 待补跑 `pendingOnce`；`tryEnter`/`exit`/`markPendingOnce`/`consumePendingOnce`/`isRunning`）✅
+- [x] T1.3 `scheduler/JobHandlerRegistry`（`resolve`/`exists`，缺 Bean / 类型不符抛 `PARAM_ERROR`）✅
+
+**T2 调度健壮性（`JobScheduler` 重构）**
+
+- [x] T2.1 注入 `JobHandlerRegistry` / `JobExecutionGuard` / `ObjectProvider<RedissonClient>`（Redisson 缺失自动降级）✅
+- [x] T2.2 `execute` 包可见：`guard.tryEnter` 失败 → `handleOverlap`；成功 → `runWithDistributedLock` + `finally exit` → `drainPendingOnce` ✅
+- [x] T2.3 分布式锁 `lock:job:execute:{jobId}`（`tryLock(0, TimeUnit.SECONDS)`，看门狗续期；未获锁跳过且不补偿；Redis 异常降级放行）+ `unlock` 仅当当前线程持有 ✅
+- [x] T2.4 `misfire_policy` 落地（由死字段转生效）：`DO_NOTHING` 跳过；`FIRE_ONCE`/`SMART` 登记一次性补跑，补跑不再补偿（`drainPendingOnce` 循环消费，栈深有界）✅
+- [x] T2.5 原执行体改为包可见 `doExecute`；`resolveHandler` 下沉至 `JobHandlerRegistry` ✅
+- [x] T2.6 `runOnce` 改 `taskScheduler.execute(...)` 异步（保留同步存在性校验抛 `NOT_FOUND`）✅
+- [x] T2.7 补 `@PreDestroy destroy()` 真正关闭线程池（原 `setWaitForTasksToCompleteOnShutdown` 因非 Spring Bean 管理而未生效）✅
+
+**T3 可观测与校验**
+
+- [x] T3.1 `JobInfoVO` 增 `nextFireTime`✅
+- [x] T3.2 `JobInfoServiceImpl` 创建/更新增 handler Bean 存在性校验（`PARAM_ERROR`）✅
+- [x] T3.3 `toVo` 推算 `nextFireTime`（合法 cron → `CronExpression.parse(cron).next(now)`，否则 null）✅
+
+**T4 归档清理与依赖配置**
+
+- [x] T4.1 `scheduler/handler/JobLogCleanupHandler`（Bean 名 `jobLogCleanupHandler`；逻辑删除超过保留期的 `job_log`）✅
+- [x] T4.2 `WhaleJobApplication` 增 `@ConfigurationPropertiesScan`✅
+- [x] T4.3 `pom.xml` 增 `spring-boot-starter-data-redis` + `redisson-spring-boot-starter`（版本由 parent 管理）✅
+- [x] T4.4 `application.yml` 增 `spring.data.redis`（host/port/password/database，密码走 `SPRING_DATA_REDIS_PASSWORD`）+ `whale.job.log-retention-days`✅
+- [x] T4.5 `db/init.sql` 增内置清理任务种子（id=1，`0 0 3 * * ?`，`jobLogCleanupHandler`，status=1）✅
+
+**T5 单测基线**
+
+- [x] T5.1–T5.6 新增 6 个测试类（`JobExecutionGuardTest` 6 / `JobHandlerRegistryTest` 6 / `JobSchedulerTest` 10 / `JobInfoServiceImplTest` 13 / `JobLogCleanupHandlerTest` 4 / `DemoJobHandlerTest` 3）**共 42 用例全绿** ✅
+
+**T6/T7 验证与收尾**
+
+- [x] T6.1 `mvn -pl ...whale-job test` 42/42 通过；`checkstyle:check` 0 违规 ✅
+- [x] T6.2 全量回归 `mvn clean install -T 1C` **29 模块 BUILD SUCCESS** ✅
+- [x] T6.3 8082 启动冒烟：Redisson 4.8.0 连接成功；种子任务注册（`jobId=1`）；`GET /job/info/page` 返回 `nextFireTime=2026-10-20T03:00:00`；`POST /job/info/1/run` 落 `job_log`（status=1，清理摘要）；Redis `lock:job:*` 执行后已释放 ✅
+- [x] T7 更新 roadmap / devlog / 审查报告 + 提交推送 Gitee ✅
+
+
 ## 附录 A：common 契约（Wave 2 遵守）
 
 ```

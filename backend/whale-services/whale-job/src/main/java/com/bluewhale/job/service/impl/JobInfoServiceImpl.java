@@ -10,6 +10,7 @@ import com.bluewhale.job.dto.JobInfoQueryRequest;
 import com.bluewhale.job.dto.JobInfoUpdateRequest;
 import com.bluewhale.job.entity.JobInfo;
 import com.bluewhale.job.mapper.JobInfoMapper;
+import com.bluewhale.job.scheduler.JobHandlerRegistry;
 import com.bluewhale.job.scheduler.JobScheduler;
 import com.bluewhale.job.service.JobInfoService;
 import com.bluewhale.job.vo.JobInfoVO;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -47,6 +49,8 @@ public class JobInfoServiceImpl implements JobInfoService {
 
     private final JobScheduler jobScheduler;
 
+    private final JobHandlerRegistry jobHandlerRegistry;
+
     @Override
     public PageResult<JobInfoVO> page(JobInfoQueryRequest request) {
         LambdaQueryWrapper<JobInfo> wrapper = new LambdaQueryWrapper<>();
@@ -69,6 +73,7 @@ public class JobInfoServiceImpl implements JobInfoService {
     @Transactional(rollbackFor = Exception.class)
     public JobInfoVO create(JobInfoCreateRequest request) {
         validateCron(request.getCronExpression());
+        validateHandler(request.getHandlerBean());
         JobInfo job = new JobInfo();
         BeanUtils.copyProperties(request, job);
         job.setJobGroup(StringUtils.hasText(request.getJobGroup()) ? request.getJobGroup() : DEFAULT_JOB_GROUP);
@@ -84,6 +89,7 @@ public class JobInfoServiceImpl implements JobInfoService {
     @Transactional(rollbackFor = Exception.class)
     public JobInfoVO update(Long id, JobInfoUpdateRequest request) {
         validateCron(request.getCronExpression());
+        validateHandler(request.getHandlerBean());
         JobInfo job = requireJob(id);
         BeanUtils.copyProperties(request, job);
         if (!StringUtils.hasText(request.getJobGroup())) {
@@ -154,6 +160,18 @@ public class JobInfoServiceImpl implements JobInfoService {
     }
 
     /**
+     * 校验执行器 Bean 在容器中真实存在且实现 {@link com.bluewhale.job.scheduler.JobHandler}
+     *
+     * @param handlerBean 执行器 Bean 名称
+     * @throws BizException 执行器不存在时抛出 {@code PARAM_ERROR}
+     */
+    private void validateHandler(String handlerBean) {
+        if (!jobHandlerRegistry.exists(handlerBean)) {
+            throw new BizException(ErrorCode.PARAM_ERROR);
+        }
+    }
+
+    /**
      * 任务实体转视图对象
      *
      * @param job 任务实体
@@ -162,6 +180,21 @@ public class JobInfoServiceImpl implements JobInfoService {
     private static JobInfoVO toVo(JobInfo job) {
         JobInfoVO vo = new JobInfoVO();
         BeanUtils.copyProperties(job, vo);
+        vo.setNextFireTime(resolveNextFireTime(job));
         return vo;
+    }
+
+    /**
+     * 按 cron 表达式推算下次执行时间
+     *
+     * @param job 任务实体
+     * @return cron 合法时返回下次执行时间，否则返回 {@code null}
+     */
+    private static LocalDateTime resolveNextFireTime(JobInfo job) {
+        String cron = job.getCronExpression();
+        if (!StringUtils.hasText(cron) || !CronExpression.isValidExpression(cron)) {
+            return null;
+        }
+        return CronExpression.parse(cron).next(LocalDateTime.now());
     }
 }

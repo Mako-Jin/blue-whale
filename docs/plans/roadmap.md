@@ -44,6 +44,7 @@
 ### 2.5 其余服务骨架填充
 
 - [x] ~~whale-job（定时任务）骨架填充~~（Wave 5.19，T5.24：依赖/配置 + `JobInfo`/`JobLog` + `JobHandler` SPI + `JobScheduler`（`ThreadPoolTaskScheduler`+`CronTrigger`）+ `/job/**` REST + 6 权限点种子 + `bluewhale_job` 建库；8082 经网关冒烟 `code=0`）
+- [x] ~~whale-job 服务「继续完成」~~（Wave 5.20：调度健壮性〔实例内互斥 `JobExecutionGuard` + Redisson 分布式锁 `lock:job:execute:{jobId}` + `misfire_policy` 落地 + `JobHandlerRegistry` 存在性校验〕+ 可观测〔`JobInfoVO.nextFireTime`、`runOnce` 异步〕+ 日志清理〔`JobLogCleanupHandler` + `whale.job.log-retention-days` + 内置种子任务〕+ 单测基线 42 用例；29 模块构建 SUCCESS，8082 冒烟含分布式锁路径全绿；**归档导出至对象存储仍阻塞于 whale-file**）
 - [ ] whale-workflow（工作流）、whale-form（表单）、whale-file（文件）、whale-pay（支付）
 - [ ] whale-audit（审计日志，**四通道查询 + 元审计 + 出站/接口日志**已落地，Wave 5.19 建 `bluewhale_audit` 库并运行时验证）、whale-monitor（监控）、whale-alert（告警）
 

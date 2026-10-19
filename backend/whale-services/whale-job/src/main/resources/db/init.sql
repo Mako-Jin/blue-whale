@@ -53,3 +53,13 @@ CREATE TABLE job_log (
     KEY idx_job_id (job_id),
     KEY idx_start_time (start_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='定时任务执行日志表';
+
+-- ---------------------------------------------------------------------
+-- 3. 内置任务种子数据
+-- ---------------------------------------------------------------------
+-- 每日 03:00 清理超过保留期的执行日志（handler_bean 对应 JobLogCleanupHandler）；
+-- 保留天数由配置项 whale.job.log-retention-days 控制（默认 30 天），此处默认启动该任务。
+INSERT INTO job_info (id, job_name, job_group, cron_expression, handler_bean, handler_param,
+                      misfire_policy, status, remark)
+VALUES (1, '执行日志清理', 'SYSTEM', '0 0 3 * * ?', 'jobLogCleanupHandler', NULL,
+        'SMART', 1, '内置任务：逻辑删除超过保留期的 job_log，保留天数见 whale.job.log-retention-days');

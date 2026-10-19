@@ -49,6 +49,15 @@
             <artifactId>mysql-connector-j</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <!-- Redis：调度执行防重所需的 Redisson 分布式锁（Redis 不可用时执行链路降级） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.redisson</groupId>
+            <artifactId>redisson-spring-boot-starter</artifactId>
+        </dependency>
         <dependency>
             <groupId>com.bluewhale</groupId>
             <artifactId>whale-spring-boot-starter</artifactId>
