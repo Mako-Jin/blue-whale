@@ -208,6 +208,36 @@
 - [x] T6.3 8082 启动冒烟：Redisson 4.8.0 连接成功；种子任务注册（`jobId=1`）；`GET /job/info/page` 返回 `nextFireTime=2026-10-20T03:00:00`；`POST /job/info/1/run` 落 `job_log`（status=1，清理摘要）；Redis `lock:job:*` 执行后已释放 ✅
 - [x] T7 更新 roadmap / devlog / 审查报告 + 提交推送 Gitee ✅
 
+## Wave 5.21：四轨并行（whale-file 最小可用 + 归档链路解冻 + 网关熔断/动态路由 + 权限 DDD 第 3 步）（2026-10-19）
+
+> 用户指令（2026-10-19）：盘点权限/审计/网关/定时任务四服务未完成项后，经决策（AskUserQuestion 四项全选）确定本轮范围。
+> 规格与分解：[spec.md](wave5.21-four-tracks/spec.md) / [tasks.md](wave5.21-four-tracks/tasks.md)。
+> 冻结契约（spec §三）先落地，各轨仅改自己模块；`whale-gateway/application.yml` 单点所有权归 T4/T5/T6 同一执行单元。
+
+**Wave 5.21-a（并行：T1 / T4 / T5 / T6 / T7 / T8）**
+
+- [x] **T1 whale-file 最小可用**（`whale-services/whale-file`）：`FileStorage` SPI + `LocalFileStorage` + `FileProperties` + `FileInfo`/Mapper/Service/Impl/Controller + DTO/VO + pom 依赖 + yml（datasource/whale.file）；`POST /file/upload`、`POST /file/internal/upload`、`GET /file/{id}/download`、`GET /file/page`、`DELETE /file/{id}`；`whale-auth/db/init.sql` 追加 `sys:file:{upload,download,list,delete}` 4 权限点（id 32–35）；8 单测；**顺带修复 `${server.port:8085}` 自引用循环占位符缺陷** ✅
+- [x] **T4 网关熔断**：`CircuitBreakerGlobalFilter`（order=-75，滑动窗口失败率 + 超时 + 半开探测）+ `CircuitBreakerProperties`（`whale.gateway.circuit-breaker.*`，`apply-to-routes` 默认 `whale-auth`）+ 503 `Result` 体降级；**未引入 resilience4j（自研轻量实现，符合 spec 风险回退条款）**；48 单测 ✅
+- [x] **T5 网关动态路由**：`spring.config.import: optional:nacos:whale-gateway-routes.yaml?group=DEFAULT_GROUP&refreshEnabled=true` + `NacosRouteDefinitionRepository`（Nacos 读 routes JSON）+ 静态路由兜底 ✅
+- [x] **T6 网关内网屏蔽**：`InternalApiDenyGlobalFilter`（`/file/internal/**` → 403 `{"code":403,"message":"内网接口不允许外部访问"}`）✅
+- [x] **T7 DDD 第 3 步（AUTH-16）**：`domain/{role,menu,permission,dept}/**` 四聚合 + `repository` 接口 + `infrastructure/persistence/{assembler,repository}` 四实现 + `DddMigrationProperties`（`whale.auth.ddd.*`，默认 false，服务层按 flag 双路径）；auth 单测 164 → **219**（无回归）✅
+- [x] **T8 台账修订**（零代码）：audit final §2/§6.2 改判、auth backlog AUTH-08/09/16/27 闭合、新建 `docs/plans/whale-gateway-backlog.md`（GW-01~07 + 残余风险）、roadmap §2.2/§2.5 口径、next-steps 加时效提示 ✅
+
+**Wave 5.21-b（并行，依赖 T1 契约）**
+
+- [x] **T2 whale-job 归档导出**：`JobLogArchiveHandler` + `JobArchiveClient`（`RestClient` 直连 `whale.job.file-service-url`）+ `JobProperties#fileServiceUrl/archiveBatchSize` + `db/init.sql` 种子任务 id=2；语义「导出 CSV 上传 whale-file 成功后再逻辑删除，失败不删」；job 48 单测 ✅
+- [x] **T3 whale-audit 导出与归档**：`POST /audit/log/export`（`EXPORT` 元审计）+ `AuditLogArchiver`（挂既有 `LogRetentionScheduler`，`archive-enabled` 默认 false，**只导出不物理删**，append-only 不变）+ `ExportProperties`；audit 59 单测 ✅
+
+**Wave 5.21-c（串行：T9 收尾）**
+
+- [x] 全量回归 `mvn clean install -T 1C` **29 模块 BUILD SUCCESS**（0 fail·0 error）+ 关键模块单测（auth 219 / gateway 48 / job 48 / audit 59 / file 8 / starter 68）✅
+- [x] 增量种子应用：`sys_permission` 31 → **35**；`job_info` 1 → **2**（`bluewhale_file` 建表 + 增量 `INSERT IGNORE`，未重跑含 `DROP TABLE` 的整份脚本）✅
+- [x] 运行时冒烟（起 5 服务 8080/8081/8082/8085/9101 经网关）：login `code=0`；file upload/download/page `code=0`；`/file/internal/upload` **403**；audit export `code=0`（CSV objectKey）；job id=2 run `code=0` ✅
+- [x] **熔断运行时取证**：临时 `WHALE_GATEWAY_CIRCUIT_BREAKER_TIMEOUT_MILLIS=1`/`WINDOW_SIZE=4` 重启网关，`/auth/me` 连续失败填满窗口 → 熔断打开 → **503** `{"code":503,"message":"服务暂时不可用，请稍后重试"}`；恢复默认配置后 `/auth/me` 200 ✅
+- [x] 检查报告 `docs/reviews/2026-10-19-wave5.21-four-tracks.md` + devlog 追加 + roadmap/task-breakdown 勾选 + commit/push origin（Gitee）✅
+
+> 残余（登记未处理）：whale-job/whale-audit 无 `api_log` 表（每请求报 `Table 'api_log' doesn't exist`，与平台既有行为一致，判为非阻断噪音）；workflow/form/pay/config/monitor/alert 等同用 `${server.port:…}` 自引用写法，存在同类潜在缺陷；熔断半开探测与动态路由热刷新未做真实 Nacos 取证。
+
 
 ## 附录 A：common 契约（Wave 2 遵守）
 

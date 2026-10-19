@@ -16,6 +16,8 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -48,6 +50,9 @@ class LogRetentionSchedulerTest {
 
     @Mock
     private LogRetentionCleaner cleaner;
+
+    @Mock
+    private AuditLogArchiver archiver;
 
     private LogRetentionCleaner retentionCleaner;
 
@@ -106,11 +111,37 @@ class LogRetentionSchedulerTest {
     void shouldDelegateConfiguredDaysToCleaner() {
         RetentionProperties properties = new RetentionProperties();
         properties.setDays(CONFIGURED_DAYS);
-        LogRetentionScheduler scheduler = new LogRetentionScheduler(cleaner, properties);
+        LogRetentionScheduler scheduler = new LogRetentionScheduler(cleaner, archiver, properties);
 
         scheduler.cleanExpiredLogs();
 
         verify(cleaner).cleanExpired(CONFIGURED_DAYS);
+    }
+
+    @Test
+    @DisplayName("Scheduler：archive-enabled=false 时不触发归档（默认关闭）")
+    void shouldSkipArchiveWhenDisabled() {
+        RetentionProperties properties = new RetentionProperties();
+        LogRetentionScheduler scheduler = new LogRetentionScheduler(cleaner, archiver, properties);
+
+        scheduler.cleanExpiredLogs();
+
+        assertFalse(properties.isArchiveEnabled(), "归档默认必须关闭");
+        verify(archiver, never()).archive(anyInt());
+    }
+
+    @Test
+    @DisplayName("Scheduler：archive-enabled=true 时按保留天数触发归档导出")
+    void shouldTriggerArchiveWhenEnabled() {
+        RetentionProperties properties = new RetentionProperties();
+        properties.setArchiveEnabled(true);
+        properties.setDays(CONFIGURED_DAYS);
+        LogRetentionScheduler scheduler = new LogRetentionScheduler(cleaner, archiver, properties);
+
+        scheduler.cleanExpiredLogs();
+
+        verify(cleaner).cleanExpired(CONFIGURED_DAYS);
+        verify(archiver).archive(CONFIGURED_DAYS);
     }
 
     @Test

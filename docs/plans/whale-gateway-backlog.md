@@ -1,0 +1,58 @@
+# whale-gateway 网关服务 · 剩余任务台账（Backlog）
+
+| 项 | 内容 |
+|---|---|
+| 关联需求 | REQ-ARCH-003（服务自持一级前缀、网关不剥离）、REQ-DIST-004（限流熔断）、REQ-SEC-003（网关黑名单校验）、REQ-SEC-005（网关占位密钥校验）、REQ-FUNC-006（内网接口收敛） |
+| 生成日期 | 2026-10-19 ｜ 作者：BlueWhale |
+| 数据来源 | [roadmap.md](roadmap.md) §2.2、[whale-auth-backlog.md](whale-auth-backlog.md) ⑦ 网关与联调、[wave5.21-four-tracks/spec.md](wave5.21-four-tracks/spec.md)、`backend/whale-services/whale-gateway/` 源码与 `application.yml` |
+| 落点模块 | `backend/whale-services/whale-gateway`（端口 `8080`，Nacos 服务名 `whale-gateway`）；Spring Cloud Gateway 5.x（`spring-cloud-starter-gateway-server-webflux`，WebFlux 栈） |
+| 快照口径 | **Wave 5.6**：限流（`RateLimitGlobalFilter` Redis 固定窗口 + 429 `Result` 体）；**Wave 5.21**：熔断（自研轻量熔断 `CircuitBreakerGlobalFilter`）+ Nacos 动态路由（`NacosRouteDefinitionRepository`）+ 内网接口屏蔽（`InternalApiDenyGlobalFilter`） |
+
+> 说明：本文档**只新增**，不改动既有计划文件。网关相关历史项 `AUTH-01/29/30/31/38` 仍以 [whale-auth-backlog.md](whale-auth-backlog.md) ⑦ 为准，本文仅承接 Wave 5.21 及后续新增项。
+
+---
+
+## 一、已具备能力（Wave 5.21 后）
+
+| 能力 | 状态 | 依据 |
+|---|---|---|
+| Nacos 服务发现 + 静态路由（8 条） | 已闭环 | `application.yml` `spring.cloud.gateway.routes` |
+| **Nacos 动态路由**（配置中心热刷新） | 已闭环（Wave 5.21） | `spring.config.import=optional:nacos:whale-gateway-routes.yaml?group=DEFAULT_GROUP&refreshEnabled=true` + `route/NacosRouteDefinitionRepository`（snakeyaml 解析、失败返回空列表、监听 `EnvironmentChangeEvent` → `RefreshRoutesEvent`） |
+| JWT 全局鉴权 `JwtAuthGlobalFilter` + 黑名单校验 | 已闭环 | `filter/JwtAuthGlobalFilter`、`TokenBlacklistChecker`（响应式，降级放行 + 告警） |
+| **限流**（Redis 固定窗口） | 已闭环（Wave 5.6；429 端到端 Wave 5.19） | `filter/RateLimitGlobalFilter` + `RateLimitProperties`（`pathRules` 按路径分级） |
+| **熔断降级**（轻量自研） | 已闭环（Wave 5.21） | `filter/CircuitBreakerGlobalFilter`（order=-75）+ `config/CircuitBreakerProperties`（`apply-to-routes`、`timeout-millis`、`failure-rate-threshold`、`sliding-window-size`、`wait-duration-in-open-state-millis`）；503 + `Result` 体降级 |
+| **内网接口屏蔽** | 已闭环（Wave 5.21） | `filter/InternalApiDenyGlobalFilter`（order=-110，`/file/internal/**` → 403） |
+| 请求日志 / TraceId 链路追踪 | 已闭环 | `TraceIdGlobalFilter` |
+| 网关占位密钥校验 | 已闭环（Wave 5.11，AUTH-01） | `config/GatewaySecretPlaceholderChecker` |
+
+---
+
+## 二、剩余任务清单
+
+| 任务 | 内容 | 优先级 | 验收口径 | 当前阻塞 |
+|---|---|---|---|---|
+| **GW-01** ↔ AUTH-30 | Sentinel 接入评估：以 Sentinel 替换/增强现有「限流 + 熔断」自研实现（当前为 Redis 计数器 + 自研熔断） | P3 | 容器/Dashboard 就绪后可灰度对比；不改变 429/503 契约 | 本机无 Sentinel Dashboard；Boot 4 兼容未实测 → **暂缓**（现方案满足需求） |
+| **GW-02** | resilience4j 接入评估：以 `spring-cloud-starter-circuitbreaker-reactor-resilience4j` 替换自研熔断 | P3 | 依赖可解析 + 运行时装配可验证（Boot 4.0.8）；契约 `applyToRoutes` 等价 | **未引入**（Wave 5.21 偏差：5.0.2 可解析但 Boot 4.0.8 运行时装配未能验证，故改自研） |
+| **GW-03** | 动态路由配置治理：Nacos `whale-gateway-routes.yaml` 的 schema 校验 / 灰度发布 / 回滚提示 | P3 | 非法配置不阻断启动且可观测；变更可回滚 | 无 |
+| **GW-04** | 熔断指标可观测：熔断打开/半开/闭合状态与失败率目前仅日志，未暴露 Micrometer 指标 | P2 | 暴露 `gateway.circuit.*` 指标供监控告警 | 无 |
+| **GW-05** | 多路由熔断验证：`apply-to-routes` 现仅纳入 `whale-auth`，其余服务（job/file/audit）待按需纳入并验证 | P2 | 逐路由纳入后经网关验证 503 降级 | 无 |
+| **GW-06** | 内网接口屏蔽覆盖评估：现仅 `/file/internal/**`，其余服务内网端点（如后续 job/audit 内网接口）纳入同一拦截 | P2 | 内网端点经网关一律 403 | 无（当前仅 whale-file 有内网端点） |
+| **GW-07** | 网关层单元/集成测试基线维持：现有 48 用例（含熔断/限流/内网/路由）随新过滤器扩充 | P2 | 新增过滤器均有单测；checkstyle 0 违规 | 无 |
+
+---
+
+## 三、残余风险（未被验证 / 证据不足）
+
+| # | 项 | 现状与风险 |
+|---|---|---|
+| 1 | 熔断仅运行时以「1ms 超时 + 4 窗口」构造故障验证过一次（半开探测路径未在运行时单独取证） | 半开探测由单测覆盖（`CircuitBreakerGlobalFilterTest`），运行时未单独复现 |
+| 2 | 动态路由仅在「配置为空时返回空列表」与「环境变更触发刷新」两种路径有单测 | 未在真实 Nacos 配置中心写入 `whale-gateway-routes.yaml` 并观察热刷新 |
+| 3 | 熔断状态为进程内（单实例） | 多实例部署时各实例独立计数，无全局一致性（可接受，符合本地熔断语义） |
+
+---
+
+## 四、版本与变更记录
+
+| 版本 | 日期 | 作者 | 变更说明 |
+|---|---|---|---|
+| v1.0 | 2026-10-19 | BlueWhale | 初始版。依据 **Wave 5.21**（网关熔断 + Nacos 动态路由 + 内网接口屏蔽）建立网关台账。 |

@@ -46,8 +46,8 @@
 | 通道④ 前端用户行为埋点 | 已闭环（后端接收 + 前端 SDK） | `POST /audit/log/behavior/batch`（permitAll）· 表 `behavior_log` · 查询 `GET /audit/log/behavior/page` · `whale-log-sdk`（Wave 5.14） |
 | 多通道 sink 切换（`whale.audit.sink=local\|mq`） | 部分（`local` 已落地；`mq` 仅预留，未就绪回落 local） | `common/log/properties/LogSinkProperties.java` · `common/log/sink/LogSink.java` |
 | 保留期清理（4 张日志表，默认关闭） | 部分（调度器与清理器已落地，默认 `enabled=false` 不启用；**不清理 `audit_log`**） | `whale-audit` `retention/{LogRetentionScheduler,LogRetentionCleaner}.java` · `config/RetentionProperties.java` |
-| 审计导出（`POST /audit/log/export` + EXPORT 元审计） | **阻塞**（AUTH-08，依赖 whale-file 8085） | `docs/design/audit-log.md` §9 残余 |
-| 审计保留与归档（热/温/冷，`audit_log`） | **阻塞**（AUTH-09，依赖 whale-job） | `docs/design/audit-log.md` §10 |
+| 审计导出（`POST /audit/log/export` + EXPORT 元审计） | 已闭环（Wave 5.21 / AUTH-08） | `whale-audit` `AuditLogController#export` + `support/AuditCsvWriter` + `support/AuditArchiveClient` · `config/AuditExportProperties.java` · `@AuditLog(type=EXPORT, targetType="audit_log", recordResult=false)` |
+| 审计保留与归档（热/温/冷，`audit_log`） | 已闭环（Wave 5.21 / AUTH-09；归档不删数据） | `whale-audit` `retention/AuditLogArchiver.java` · `config/RetentionProperties#archiveEnabled`（默认 `false`）· 归档导出至 whale-file；**`audit_log` append-only，绝不删除/更新** |
 | 阶段二 MQ 汇聚 | **阻塞**（AUTH-10，依赖 RabbitMQ） | `docs/design/audit-log.md` §6 方案B |
 
 ---
@@ -146,11 +146,11 @@
 
 | 项 | 状态 / 处置 |
 |---|---|
-| AUTH-08 审计导出 | **阻塞**：`POST /audit/log/export` 依赖 whale-file（8085）未启动，EXPORT 元审计一并待办 |
-| AUTH-09 审计保留与归档 | **阻塞**：`audit_log` 热/温/冷归档依赖 whale-job 未启动（`whale.audit.retention` 当前仅覆盖 4 张日志表、默认关闭，**不清理 `audit_log`**） |
+| AUTH-08 审计导出 | **已闭环（Wave 5.21）**：`POST /audit/log/export` 落地（`AuditLogController#export` + `AuditLogService#exportLogs`），CSV 上传 whale-file 返回 `objectKey`；带 `@RequirePermission("sys:audit:log:list")` + `@AuditLog(type=EXPORT, targetType="audit_log", recordResult=false)` 元审计 |
+| AUTH-09 审计保留与归档 | **已闭环（Wave 5.21，归档不删数据）**：`AuditLogArchiver` 按保留期导出 `audit_log` 至 whale-file，由 `LogRetentionScheduler` 调度（`whale.audit.retention.archive-enabled` 默认 `false`）。**边界：`audit_log` append-only，归档只读导出、绝不删除/更新** |
 | AUTH-10 阶段二 MQ 汇聚 | **阻塞**：RabbitMQ 未就绪；`@AuditLog` → MQ → whale-audit 落 `bluewhale_audit` 未落地（`whale.audit.sink=mq` 仅预留） |
-| 四通道查询运行时端到端验证 | **残余**：静态门禁通过，端到端验证待中间件就绪 |
-| 多通道查询端点自身元审计 | **残余**：四通道查询端点未加 `@AuditLog(type=QUERY)`（仅 `audit_log` 三查询已加） |
+| 四通道查询运行时端到端验证 | **已闭环（Wave 5.21）**：经网关实测导出 `code=0` 且返回 `objectKey`；四通道查询端点静态门禁 + 运行时冒烟通过 |
+| 多通道查询端点自身元审计 | **残余**：四通道查询端点未加 `@AuditLog(type=QUERY)`（仅 `audit_log` 三查询 + 导出已加） |
 | 异步派发丢采集 | **残余**：`ApiLogFilter#shouldNotFilterAsyncDispatch()=true` |
 | `@Sensitive` 注解兜底 / 脱敏规则表完全配置化 | **残余**：内置规则 + 键名配置化已落地，注解兜底未实现 |
 

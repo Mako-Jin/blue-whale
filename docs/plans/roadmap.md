@@ -23,9 +23,11 @@
 
 ### 2.2 whale-gateway 网关
 
-- [x] ~~Nacos 服务发现动态路由~~
+- [x] ~~Nacos 服务发现动态路由~~（**Wave 5.21 升级**：`spring.config.import=NacosRouteDefinitionRepository` 从 Nacos 配置中心动态加载路由，变更可热刷新）
 - [x] ~~JWT 全局鉴权过滤器~~
-- [x] ~~网关限流熔断（Redis 计数器 + 429 `Result` 体，Wave 5.6，T5.4；Sentinel 接入转 backlog）~~
+- [x] ~~网关限流（Redis 计数器 + 429 `Result` 体，Wave 5.6，T5.4；Sentinel 接入转 backlog）~~
+- [x] ~~网关熔断（Wave 5.21，T5.25：自研轻量熔断 `CircuitBreakerGlobalFilter`〔滑动窗口失败率 + 超时 + 半开探测〕，503 `Result` 体降级；**未引入 resilience4j**，Sentinel 接入转 backlog）~~
+- [x] ~~内网接口屏蔽（Wave 5.21，T5.25：`InternalApiDenyGlobalFilter` 对 `/file/internal/**` 返回 403）~~
 - [x] ~~请求日志 / TraceId 链路追踪~~
 
 ### 2.3 whale-common / whale-tools 公共组件
@@ -45,7 +47,10 @@
 
 - [x] ~~whale-job（定时任务）骨架填充~~（Wave 5.19，T5.24：依赖/配置 + `JobInfo`/`JobLog` + `JobHandler` SPI + `JobScheduler`（`ThreadPoolTaskScheduler`+`CronTrigger`）+ `/job/**` REST + 6 权限点种子 + `bluewhale_job` 建库；8082 经网关冒烟 `code=0`）
 - [x] ~~whale-job 服务「继续完成」~~（Wave 5.20：调度健壮性〔实例内互斥 `JobExecutionGuard` + Redisson 分布式锁 `lock:job:execute:{jobId}` + `misfire_policy` 落地 + `JobHandlerRegistry` 存在性校验〕+ 可观测〔`JobInfoVO.nextFireTime`、`runOnce` 异步〕+ 日志清理〔`JobLogCleanupHandler` + `whale.job.log-retention-days` + 内置种子任务〕+ 单测基线 42 用例；29 模块构建 SUCCESS，8082 冒烟含分布式锁路径全绿；**归档导出至对象存储仍阻塞于 whale-file**）
-- [ ] whale-workflow（工作流）、whale-form（表单）、whale-file（文件）、whale-pay（支付）
+- [x] ~~whale-file（文件）最小可用~~（Wave 5.21，T5.25：存储抽象 `FileStorage`+`LocalFileStorage` + `POST /file/upload`、`POST /file/internal/upload`、`GET /file/{id}/download`、`GET /file/page`、`DELETE /file/{id}` + `sys:file:*` 4 权限点种子 + 8 单测；**未接对象存储**，落地本地文件系统）
+- [x] ~~whale-job 归档导出~~（Wave 5.21，T5.25：`JobLogArchiveHandler` + `jobLogArchiveClient` 导出 CSV 上传 whale-file 成功后再逻辑删除，内置种子任务 id=2；失败不删语义）
+- [x] ~~whale-audit 导出与归档~~（Wave 5.21，T5.25：`POST /audit/log/export`〔`EXPORT` 元审计〕+ `AuditLogArchiver` 归档；**不删除 `audit_log`**，append-only 不变）
+- [ ] whale-workflow（工作流）、whale-form（表单）、whale-pay（支付）
 - [ ] whale-audit（审计日志，**四通道查询 + 元审计 + 出站/接口日志**已落地，Wave 5.19 建 `bluewhale_audit` 库并运行时验证）、whale-monitor（监控）、whale-alert（告警）
 
 ### 2.6 工程规范与分布式基础（2026-10-17 新增）

@@ -27,4 +27,12 @@ public class RetentionProperties {
 
     /** 清理调度 cron（Spring 6 段式），默认每日 03:00 */
     private String cron = "0 0 3 * * ?";
+
+    /**
+     * 是否随保留期调度执行 {@code audit_log} 归档导出（AUTH-09），默认关闭（须显式开启）。
+     *
+     * <p>开启后仅「导出归档并上传 whale-file」，<b>绝不对 {@code audit_log} 做物理/逻辑删除</b>；
+     * 须 {@code whale.audit.retention.enabled=true} 装配调度器后本开关才生效。</p>
+     */
+    private boolean archiveEnabled = false;
 }

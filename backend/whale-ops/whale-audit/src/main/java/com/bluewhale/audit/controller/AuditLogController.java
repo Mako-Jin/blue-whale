@@ -11,10 +11,13 @@ import com.bluewhale.common.core.result.Result;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 审计日志查询接口（只读）。
@@ -62,5 +65,30 @@ public class AuditLogController {
             targetType = TARGET_TYPE, recordResult = false)
     public Result<List<AuditLogVO>> listByTraceId(@PathVariable String traceId) {
         return Result.ok(auditLogService.listByTraceId(traceId));
+    }
+
+    /**
+     * 按条件导出审计日志为 CSV 并上传归档（AUTH-08）。
+     *
+     * <p>入参复用分页查询 DTO {@link AuditLogQueryRequest}（时间范围 / 用户 / 模块 / 操作类型 / 结果 / traceId）；
+     * 行数上限由 {@code whale.audit.export.max-rows} 控制，超限仅取上限行并告警。</p>
+     *
+     * <p>CSV 生成后经 whale-file 内网接口 {@code POST /file/internal/upload}
+     * （{@code bucket=bluewhale-audit-archive}）上传；返回 {@code data} 字段与 whale-file 的
+     * {@code FileUploadVO} 对齐（{@code id/fileName/originalName/bucket/objectKey/fileSize/contentType/md5}），
+     * 本模块不重复定义该类型，以 {@code Map} 承载。</p>
+     *
+     * <p>本方法调用将产生 EXPORT 元审计；上传失败时由服务返回受控失败（{@code code != 0}），不外抛原始异常。
+     * 导出只读 {@code audit_log}，不做任何删除/更新。</p>
+     *
+     * @param request 审计日志查询条件（复用分页查询 DTO）
+     * @return 上传结果响应；无匹配记录时 {@code data} 为空 Map
+     */
+    @PostMapping("/export")
+    @RequirePermission("sys:audit:log:list")
+    @AuditLog(operation = "导出审计日志", type = OperateType.EXPORT,
+            targetType = TARGET_TYPE, recordResult = false)
+    public Result<Map<String, Object>> export(@RequestBody AuditLogQueryRequest request) {
+        return auditLogService.exportCsv(request);
     }
 }

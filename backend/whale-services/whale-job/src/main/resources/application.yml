@@ -42,3 +42,7 @@ whale:
   job:
     # job_log 保留天数：每日清理任务逻辑删除超过该天数的执行流水
     log-retention-days: ${JOB_LOG_RETENTION_DAYS:30}
+    # whale-file 服务内网地址：归档任务经此直连上传导出文件（不经网关）
+    file-service-url: ${WHALE_JOB_FILE_SERVICE_URL:http://127.0.0.1:8085}
+    # 单次归档导出的 job_log 上限条数
+    archive-batch-size: ${WHALE_JOB_ARCHIVE_BATCH_SIZE:2000}

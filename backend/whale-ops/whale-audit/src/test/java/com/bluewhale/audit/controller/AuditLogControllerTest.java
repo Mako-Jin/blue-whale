@@ -50,6 +50,20 @@ class AuditLogControllerTest {
     }
 
     @Test
+    @DisplayName("导出：@AuditLog(type=EXPORT, targetType=audit_log, recordResult=false)")
+    void shouldAnnotateExportWithExportMetaAudit() throws NoSuchMethodException {
+        Method method = AuditLogController.class.getDeclaredMethod("export", AuditLogQueryRequest.class);
+
+        AuditLog annotation = method.getAnnotation(AuditLog.class);
+
+        assertThat(annotation).as("export 应标注 @AuditLog").isNotNull();
+        assertThat(annotation.type()).isEqualTo(OperateType.EXPORT);
+        assertThat(annotation.operation()).isNotBlank();
+        assertThat(annotation.targetType()).isEqualTo(EXPECTED_TARGET_TYPE);
+        assertThat(annotation.recordResult()).isFalse();
+    }
+
+    @Test
     @DisplayName("查询方法均为 QUERY 类型且不落返回体（recordResult=false）")
     void shouldNotRecordResultForQueryMethods() throws NoSuchMethodException {
         List<Method> methods = List.of(

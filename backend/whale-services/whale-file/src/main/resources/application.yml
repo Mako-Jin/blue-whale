@@ -1,5 +1,5 @@
 server:
-  port: ${server.port:8085}
+  port: ${SERVER_PORT:8085}
   servlet:
     context-path: /
 
@@ -8,6 +8,16 @@ spring:
     name: whale-file
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/bluewhale_file?useUnicode=true&characterEncoding=utf8&connectionCollation=utf8mb4_general_ci&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASSWORD:root}
+  servlet:
+    multipart:
+      # 与 whale.file.max-size-bytes（默认 50MB）对齐，超限由服务层校验抛参数错误
+      max-file-size: 50MB
+      max-request-size: 60MB
   cloud:
     nacos:
       discovery:
@@ -21,3 +31,28 @@ spring:
 logging:
   level:
     com.bluewhale: debug
+
+# AUTH-06：启用 starter 的 RequirePermissionInterceptor（默认 false，须显式开启），
+# 按网关注入的 X-Permission-Codes 判定本服务文件接口的 sys:file:* 权限。
+whale:
+  permission:
+    header:
+      enabled: true
+  file:
+    storage:
+      # 本地存储根目录，按 ${root}/${bucket}/${objectKey} 组织落盘
+      root: ${WHALE_FILE_STORAGE_ROOT:D:/data/whale-file}
+    bucket:
+      # 默认桶名：upload 未显式指定 bucket 时使用
+      default: ${WHALE_FILE_BUCKET_DEFAULT:bluewhale}
+    # 单文件最大字节数，默认 50MB；超限抛 BizException(PARAM_ERROR)
+    max-size-bytes: ${WHALE_FILE_MAX_SIZE_BYTES:52428800}
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0

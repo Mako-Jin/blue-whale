@@ -5,8 +5,10 @@ import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.MybatisSqlSessionFactoryBuilder;
 import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
+import com.bluewhale.audit.config.AuditExportProperties;
 import com.bluewhale.audit.dto.AuditLogQueryRequest;
 import com.bluewhale.audit.service.impl.AuditLogServiceImpl;
+import com.bluewhale.audit.support.AuditArchiveClient;
 import com.bluewhale.audit.vo.AuditLogVO;
 import com.bluewhale.common.audit.annotation.AuditLog;
 import com.bluewhale.common.audit.aop.AuditLogAspect;
@@ -100,7 +102,8 @@ class LiveAuditLogIT {
         AspectJProxyFactory proxyFactory = new AspectJProxyFactory(new AuditSampleService());
         proxyFactory.addAspect(aspect);
         sampleService = proxyFactory.getProxy();
-        auditLogService = new AuditLogServiceImpl(mapper);
+        auditLogService = new AuditLogServiceImpl(mapper,
+                new AuditArchiveClient(new AuditExportProperties()), new AuditExportProperties());
     }
 
     @AfterEach

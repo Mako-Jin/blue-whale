@@ -2,13 +2,17 @@ package com.bluewhale.auth.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
+import com.bluewhale.auth.config.DddMigrationProperties;
+import com.bluewhale.auth.domain.menu.repository.MenuRepository;
 import com.bluewhale.auth.dto.MenuRequest;
 import com.bluewhale.auth.entity.SysMenu;
+import com.bluewhale.auth.infrastructure.persistence.assembler.MenuPersistenceAssembler;
 import com.bluewhale.auth.mapper.SysMenuMapper;
 import com.bluewhale.auth.service.SysMenuService;
 import com.bluewhale.auth.vo.MenuVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -21,6 +25,10 @@ import java.util.Set;
 /**
  * 系统菜单服务实现
  *
+ * <p>DDD 迁移（AUTH-16）：读路径（{@code tree}、{@code treeByPermissionCodes}、{@code getDetail} 经
+ * {@code getById}）按开关 {@code whale.auth.ddd.menu} 选择「新 {@link MenuRepository} 仓储」或「旧 Mapper」；
+ * 开关关闭时与迁移前实现逐字节一致。<b>写路径（create/update/delete）本轮仍走旧实现，接入留待 AUTH-17</b>。</p>
+ *
  * @author BlueWhale
  */
 @Service
@@ -29,26 +37,57 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
     /** 顶级菜单的父 ID */
     private static final long ROOT_PARENT_ID = 0L;
 
+    /** DDD 迁移灰度开关（字段注入以保持既有构造器签名不变，既有单测可原样构造） */
+    @Autowired
+    private DddMigrationProperties dddProperties = new DddMigrationProperties();
+
+    /** Menu 聚合仓储（仅当 {@code whale.auth.ddd.menu=true} 时参与读路径） */
+    @Autowired
+    private MenuRepository menuRepository;
+
     @Override
     public List<MenuVO> tree() {
-        List<MenuVO> all = list(new LambdaQueryWrapper<SysMenu>()
-                        .orderByAsc(SysMenu::getSort)
-                        .orderByAsc(SysMenu::getId))
-                .stream().map(MenuVO::from).toList();
+        List<MenuVO> all = loadAllMenus().stream().map(MenuVO::from).toList();
         return buildChildren(all, ROOT_PARENT_ID);
     }
 
     @Override
     public List<MenuVO> treeByPermissionCodes(Set<String> permissionCodes) {
-        List<SysMenu> menus = list(new LambdaQueryWrapper<SysMenu>()
-                .eq(SysMenu::getStatus, 1)
-                .eq(SysMenu::getVisible, 1)
-                .orderByAsc(SysMenu::getSort)
-                .orderByAsc(SysMenu::getId));
+        List<SysMenu> menus = loadEnabledVisibleMenus();
         if (permissionCodes != null) {
             menus = retainGrantedWithAncestors(menus, permissionCodes);
         }
         return buildChildren(menus.stream().map(MenuVO::from).toList(), ROOT_PARENT_ID);
+    }
+
+    /**
+     * 加载全部菜单（按 sort、id 升序）：按 DDD 迁移开关选择新仓储或旧 Mapper（关闭时与迁移前逐字节一致）
+     *
+     * @return 全部菜单实体列表
+     */
+    private List<SysMenu> loadAllMenus() {
+        if (dddProperties.isMenu()) {
+            return menuRepository.findAll().stream().map(MenuPersistenceAssembler::toPo).toList();
+        }
+        return list(new LambdaQueryWrapper<SysMenu>()
+                .orderByAsc(SysMenu::getSort)
+                .orderByAsc(SysMenu::getId));
+    }
+
+    /**
+     * 加载启用且可见菜单（按 sort、id 升序）：按 DDD 迁移开关选择新仓储或旧 Mapper（关闭时与迁移前逐字节一致）
+     *
+     * @return 启用且可见的菜单实体列表
+     */
+    private List<SysMenu> loadEnabledVisibleMenus() {
+        if (dddProperties.isMenu()) {
+            return menuRepository.findEnabledVisible().stream().map(MenuPersistenceAssembler::toPo).toList();
+        }
+        return list(new LambdaQueryWrapper<SysMenu>()
+                .eq(SysMenu::getStatus, 1)
+                .eq(SysMenu::getVisible, 1)
+                .orderByAsc(SysMenu::getSort)
+                .orderByAsc(SysMenu::getId));
     }
 
     /**
@@ -106,11 +145,24 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
 
     @Override
     public MenuVO getDetail(Long id) {
-        SysMenu menu = getById(id);
+        SysMenu menu = loadMenuById(id);
         if (menu == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
         return MenuVO.from(menu);
+    }
+
+    /**
+     * 加载菜单实体：按 DDD 迁移开关选择新仓储或旧 Mapper（关闭时与迁移前逐字节一致）
+     *
+     * @param id 菜单 ID
+     * @return 菜单实体；不存在时返回 {@code null}
+     */
+    private SysMenu loadMenuById(Long id) {
+        if (dddProperties.isMenu()) {
+            return menuRepository.findById(id).map(MenuPersistenceAssembler::toPo).orElse(null);
+        }
+        return getById(id);
     }
 
     @Override

@@ -1,5 +1,11 @@
 # 下一步建议与任务清单（Wave 5）
 
+> ⚠️ **时效提示（2026-10-19 补注）**：本文档的状态快照与任务勾选**停留在 Wave 5.6 前后**，此后已推进至 **Wave 5.21**，多处勾选状态与「残余/阻塞」结论**已过期**。
+> 请以以下**更新源**为准，本文仅保留历史 Wave 编号与任务映射关系：
+> - 任务台账：[roadmap.md](roadmap.md)（§2.2 网关 / §2.5 其余服务骨架）、[whale-auth-backlog.md](whale-auth-backlog.md)、[whale-gateway-backlog.md](whale-gateway-backlog.md)
+> - 各波次结果：`docs/devlog/2026-10-19.md`、`docs/reviews/2026-10-19-wave5.2*.md`、`docs/plans/wave5.21-four-tracks/`
+> - 已闭环的显著变化：whale-file 最小可用 + 归档链路（AUTH-08/09）解锁、网关熔断/动态路由/内网屏蔽（Wave 5.21）、auth DDD 第 3 步（AUTH-16）、全量回归（AUTH-27）
+
 > 关联需求：REQ-PROC-002
 > 生成日期：2026-10-17 ｜ 依据：`docs/devlog/2026-10-17.md`、`docs/requirements/register.md`
 > 执行原则：**先落文档（REQ-DOC-002）→ 编码 → 按清单自检留报告（REQ-QA-002）→ 构建验证 → 提交**

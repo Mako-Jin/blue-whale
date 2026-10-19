@@ -1,29 +1,36 @@
 package com.bluewhale.audit.service.impl;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bluewhale.audit.config.AuditExportProperties;
 import com.bluewhale.audit.dto.AuditLogQueryRequest;
+import com.bluewhale.audit.support.AuditArchiveClient;
 import com.bluewhale.audit.vo.AuditLogVO;
 import com.bluewhale.common.audit.entity.AuditLogRecord;
 import com.bluewhale.common.audit.mapper.AuditLogMapper;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.common.core.result.Result;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 /**
- * 审计查询服务单测（mock Mapper，覆盖分页映射、单条详情、按 traceId 聚合与分页上限）。
+ * 审计查询服务单测（mock Mapper，覆盖分页映射、单条详情、按 traceId 聚合、分页上限与导出归档）。
  *
  * @author BlueWhale
  */
@@ -35,8 +42,13 @@ class AuditLogServiceImplTest {
     private static final String TRACE_ID = "trace-0001";
     private static final String MODULE = "whale-auth";
 
+    private static final String OBJECT_KEY = "bluewhale-audit-archive/2026/auditLog-archive-20261019.csv";
+
     private final AuditLogMapper auditLogMapper = mock(AuditLogMapper.class);
-    private final AuditLogServiceImpl auditLogService = new AuditLogServiceImpl(auditLogMapper);
+    private final AuditArchiveClient archiveClient = mock(AuditArchiveClient.class);
+    private final AuditExportProperties exportProperties = new AuditExportProperties();
+    private final AuditLogServiceImpl auditLogService =
+            new AuditLogServiceImpl(auditLogMapper, archiveClient, exportProperties);
 
     @Test
     void shouldReturnPageResultWithMappedRecords() {
@@ -117,6 +129,45 @@ class AuditLogServiceImplTest {
     void shouldReturnEmptyListWhenTraceIdBlank() {
         assertThat(auditLogService.listByTraceId(" ")).isEmpty();
         verify(auditLogMapper, never()).selectList(any());
+    }
+
+    @Test
+    void shouldUploadCsvAndReturnObjectKeyWhenRecordsExist() {
+        doReturn(List.of(sampleRecord())).when(auditLogMapper).selectList(any());
+        Map<String, Object> uploaded = new HashMap<>();
+        uploaded.put("objectKey", OBJECT_KEY);
+        doReturn(uploaded).when(archiveClient).upload(any(), any(), any());
+
+        Result<Map<String, Object>> result = auditLogService.exportCsv(new AuditLogQueryRequest());
+
+        assertThat(result.getCode()).isEqualTo(ErrorCode.SUCCESS.getCode());
+        assertThat(result.getData()).containsEntry("objectKey", OBJECT_KEY);
+        verify(archiveClient).upload(any(), any(), any());
+    }
+
+    @Test
+    void shouldSkipUploadAndReturnEmptyDataWhenNoRecords() {
+        doReturn(List.of()).when(auditLogMapper).selectList(any());
+
+        Result<Map<String, Object>> result = auditLogService.exportCsv(new AuditLogQueryRequest());
+
+        assertThat(result.getCode()).isEqualTo(ErrorCode.SUCCESS.getCode());
+        assertThat(result.getData()).isEmpty();
+        verify(archiveClient, never()).upload(any(), any(), any());
+    }
+
+    @Test
+    void shouldFailControlledWithoutThrowingWhenUploadFails() {
+        doReturn(List.of(sampleRecord())).when(auditLogMapper).selectList(any());
+        doThrow(new BizException("whale-file unavailable")).when(archiveClient).upload(any(), any(), any());
+
+        assertThatCode(() -> {
+            Result<Map<String, Object>> result = auditLogService.exportCsv(new AuditLogQueryRequest());
+            assertThat(result.getCode()).isEqualTo(ErrorCode.SYSTEM_ERROR.getCode());
+            assertThat(result.getData()).isNull();
+        }).doesNotThrowAnyException();
+
+        verify(archiveClient).upload(any(), any(), any());
     }
 
     private static AuditLogRecord sampleRecord() {

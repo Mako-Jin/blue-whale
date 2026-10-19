@@ -6,6 +6,10 @@ spring:
     name: whale-gateway
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
+  # T5 Nacos 动态路由：从 Nacos 导入网关动态路由配置（dataId/group 见 NacosRouteDefinitionRepository）；
+  # optional: 前缀保证 Nacos 不可用时网关仍能启动，refreshEnabled=true 支持配置变更后刷新路由。
+  config:
+    import: "optional:nacos:whale-gateway-routes.yaml?group=DEFAULT_GROUP&refreshEnabled=true"
   data:
     redis:
       host: ${REDIS_HOST:127.0.0.1}
@@ -101,6 +105,26 @@ whale:
         - path-pattern: /audit/log/behavior/batch
           limit: ${WHALE_GATEWAY_RATE_LIMIT_REPORT:30}
           window-seconds: ${WHALE_GATEWAY_RATE_LIMIT_REPORT_WINDOW_SECONDS:1}
+    # T4 熔断降级（轻量实现，由 CircuitBreakerGlobalFilter 执行）：
+    # timeout-millis 为单次下游调用超时；failure-rate-threshold 为触发阈值（百分比）；
+    # sliding-window-size 为失败率统计窗口；wait-duration-in-open-state-millis 为打开后等待时长；
+    # apply-to-routes 为启用熔断的路由 id，命中后超时/失败按失败率熔断并降级返回 503。
+    circuit-breaker:
+      enabled: ${WHALE_GATEWAY_CIRCUIT_BREAKER_ENABLED:true}
+      timeout-millis: ${WHALE_GATEWAY_CIRCUIT_BREAKER_TIMEOUT_MILLIS:3000}
+      failure-rate-threshold: ${WHALE_GATEWAY_CIRCUIT_BREAKER_FAILURE_RATE:50}
+      sliding-window-size: ${WHALE_GATEWAY_CIRCUIT_BREAKER_WINDOW_SIZE:20}
+      wait-duration-in-open-state-millis: ${WHALE_GATEWAY_CIRCUIT_BREAKER_WAIT_MILLIS:10000}
+      apply-to-routes:
+        - whale-auth
+        - whale-job
+        - whale-file
+        - whale-audit
+    # T6 内网接口屏蔽（由 InternalApiDenyGlobalFilter 执行）：命中 patterns 的外部请求直接返回 403
+    internal-deny:
+      enabled: ${WHALE_GATEWAY_INTERNAL_DENY_ENABLED:true}
+      patterns:
+        - /file/internal/**
 
 logging:
   level:

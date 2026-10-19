@@ -389,3 +389,12 @@ VALUES
     (29, 0, 'sys:job:delete', '删除定时任务', 'API', '/job/info/{id}', 'DELETE', 29, 1),
     (30, 0, 'sys:job:run', '立即执行定时任务', 'API', '/job/info/**', 'POST', 30, 1),
     (31, 0, 'sys:job:log:list', '查询任务执行日志', 'API', '/job/log/**', 'GET', 31, 1);
+
+-- 文件服务权限点：与 whale-file 接口 @RequirePermission("sys:file:*") 一一对应
+INSERT INTO sys_permission
+    (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+VALUES
+    (32, 0, 'sys:file:upload', '文件上传', 'API', '/file/upload', 'POST', 32, 1),
+    (33, 0, 'sys:file:download', '文件下载', 'API', '/file/{id}/download', 'GET', 33, 1),
+    (34, 0, 'sys:file:list', '文件列表', 'API', '/file/page', 'GET', 34, 1),
+    (35, 0, 'sys:file:delete', '文件删除', 'API', '/file/{id}', 'DELETE', 35, 1);

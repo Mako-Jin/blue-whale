@@ -36,7 +36,15 @@ whale:
   # REQ-SEC-006 日志保留期清理：默认关闭（enabled=false 时不装配调度器、不清理）；
   # 仅清理 api_log/outbound_log/frontend_log/behavior_log 四张日志表，不触碰 audit_log（AUTH-09）。
   audit:
+    # AUTH-08 审计导出/归档：导出接口与保留期归档任务共用；fileServiceUrl 为 whale-file 内网直连地址。
+    export:
+      file-service-url: ${WHALE_AUDIT_EXPORT_FILE_SERVICE_URL:http://127.0.0.1:8085}
+      bucket: ${WHALE_AUDIT_EXPORT_BUCKET:bluewhale-audit-archive}
+      max-rows: ${WHALE_AUDIT_EXPORT_MAX_ROWS:50000}
     retention:
       enabled: ${WHALE_AUDIT_RETENTION_ENABLED:false}
       days: ${WHALE_AUDIT_RETENTION_DAYS:30}
       cron: ${WHALE_AUDIT_RETENTION_CRON:0 0 3 * * ?}
+      # AUTH-09 归档开关：默认 false；开启后随保留期 cron 导出 audit_log 过期记录并上传，
+      # 仅导出归档，绝不对 audit_log 做物理/逻辑删除。
+      archive-enabled: ${WHALE_AUDIT_RETENTION_ARCHIVE_ENABLED:false}

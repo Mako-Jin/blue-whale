@@ -63,3 +63,11 @@ INSERT INTO job_info (id, job_name, job_group, cron_expression, handler_bean, ha
                       misfire_policy, status, remark)
 VALUES (1, '执行日志清理', 'SYSTEM', '0 0 3 * * ?', 'jobLogCleanupHandler', NULL,
         'SMART', 1, '内置任务：逻辑删除超过保留期的 job_log，保留天数见 whale.job.log-retention-days');
+
+-- 每日 04:00 归档导出超过保留期的执行日志：导出 CSV 上传 whale-file 成功后再逻辑删除
+-- （handler_bean 对应 JobLogArchiveHandler）；保留天数与单批上限分别由配置项
+-- whale.job.log-retention-days（默认 30 天）与 whale.job.archive-batch-size（默认 2000）控制。
+INSERT INTO job_info (id, job_name, job_group, cron_expression, handler_bean, handler_param,
+                      misfire_policy, status, remark)
+VALUES (2, '执行日志归档', 'SYSTEM', '0 0 4 * * ?', 'jobLogArchiveHandler', NULL,
+        'SMART', 1, '内置任务：导出过期 job_log 至 whale-file 后清理，保留天数见 whale.job.log-retention-days');

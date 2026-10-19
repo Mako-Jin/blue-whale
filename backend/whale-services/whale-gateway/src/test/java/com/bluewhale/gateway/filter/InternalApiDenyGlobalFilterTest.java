@@ -1,0 +1,95 @@
+package com.bluewhale.gateway.filter;
+
+import com.bluewhale.gateway.config.InternalApiDenyProperties;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cloud.gateway.filter.GatewayFilterChain;
+import org.springframework.http.HttpStatus;
+import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
+import org.springframework.mock.web.server.MockServerWebExchange;
+import reactor.core.publisher.Mono;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+
+/**
+ * {@link InternalApiDenyGlobalFilter} 单元测试（T6）：命中内网路径返回 403、非命中放行、开关关闭放行。
+ *
+ * @author BlueWhale
+ */
+@ExtendWith(MockitoExtension.class)
+class InternalApiDenyGlobalFilterTest {
+
+    private static final String INTERNAL_PATH = "http://localhost/file/internal/upload";
+    private static final String PUBLIC_PATH = "http://localhost/file/public/1";
+    private static final String EXPECTED_403_BODY =
+            "{\"code\":403,\"message\":\"内网接口不允许外部访问\",\"data\":null}";
+
+    @Mock
+    private GatewayFilterChain chain;
+
+    private InternalApiDenyProperties properties;
+
+    private InternalApiDenyGlobalFilter filter;
+
+    @BeforeEach
+    void setUp() {
+        properties = new InternalApiDenyProperties();
+        filter = new InternalApiDenyGlobalFilter(properties);
+    }
+
+    /**
+     * 构造指定路径的模拟请求上下文
+     *
+     * @param url 请求 URL
+     * @return 模拟请求上下文
+     */
+    private static MockServerWebExchange buildExchange(String url) {
+        return MockServerWebExchange.from(MockServerHttpRequest.get(url).build());
+    }
+
+    @Test
+    @DisplayName("filter：命中 /file/internal/** 时返回 403 且不进入下游过滤器链")
+    void shouldDenyWhenInternalPathMatched() {
+        MockServerWebExchange exchange = buildExchange(INTERNAL_PATH);
+
+        filter.filter(exchange, chain).block();
+
+        assertEquals(HttpStatus.FORBIDDEN, exchange.getResponse().getStatusCode());
+        assertEquals(EXPECTED_403_BODY, exchange.getResponse().getBodyAsString().block());
+        verifyNoInteractions(chain);
+    }
+
+    @Test
+    @DisplayName("filter：非内网路径放行并继续过滤器链")
+    void shouldPassThroughWhenPathNotMatched() {
+        MockServerWebExchange exchange = buildExchange(PUBLIC_PATH);
+        when(chain.filter(any())).thenReturn(Mono.empty());
+
+        filter.filter(exchange, chain).block();
+
+        verify(chain).filter(any());
+        assertNull(exchange.getResponse().getStatusCode());
+    }
+
+    @Test
+    @DisplayName("filter：开关关闭时内网路径也放行")
+    void shouldPassThroughWhenDisabled() {
+        properties.setEnabled(false);
+        MockServerWebExchange exchange = buildExchange(INTERNAL_PATH);
+        when(chain.filter(any())).thenReturn(Mono.empty());
+
+        filter.filter(exchange, chain).block();
+
+        verify(chain).filter(any());
+        assertNull(exchange.getResponse().getStatusCode());
+    }
+}
