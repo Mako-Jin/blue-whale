@@ -1,8 +1,26 @@
 // 登录态与用户缓存的唯一读写入口（localStorage）
 
+import { useEffect, useState } from 'react';
+
 const ACCESS_TOKEN_KEY = 'whale_admin_access_token';
 const REFRESH_TOKEN_KEY = 'whale_admin_refresh_token';
 const USER_KEY = 'whale_admin_user';
+
+/** 后端 MenuVO：GET /auth/me 返回的可见菜单树节点 */
+export interface MenuNode {
+  id: number;
+  parentId?: number;
+  name: string;
+  path?: string;
+  component?: string;
+  icon?: string;
+  sort?: number;
+  menuType?: string;
+  permissionCode?: string;
+  visible?: number;
+  status?: number;
+  children?: MenuNode[];
+}
 
 export interface UserInfo {
   userId?: number | string;
@@ -10,6 +28,7 @@ export interface UserInfo {
   nickname: string;
   roles: string[];
   permissions?: string[];
+  menus?: MenuNode[];
 }
 
 export interface LoginResponse {
@@ -28,7 +47,7 @@ export interface AuthMeResponse {
   nickname: string;
   roles: string[];
   permissions: string[];
-  menus: unknown[];
+  menus: MenuNode[];
 }
 
 export function getToken(): string | null {
@@ -51,8 +70,31 @@ export function getCurrentUser(): UserInfo | null {
   }
 }
 
+/** 用户态变更订阅（供 React 侧响应菜单/权限刷新，避免首屏后拿不到 /auth/me 结果） */
+type UserListener = () => void;
+const userListeners = new Set<UserListener>();
+
+export function subscribeCurrentUser(listener: UserListener): () => void {
+  userListeners.add(listener);
+  return () => {
+    userListeners.delete(listener);
+  };
+}
+
+function emitUserChange(): void {
+  userListeners.forEach((listener) => listener());
+}
+
+/** React 侧读取当前用户并可响应持久化变更的 hook */
+export function useCurrentUser(): UserInfo | null {
+  const [user, setUser] = useState<UserInfo | null>(() => getCurrentUser());
+  useEffect(() => subscribeCurrentUser(() => setUser(getCurrentUser())), []);
+  return user;
+}
+
 export function saveCurrentUser(user: UserInfo): void {
   localStorage.setItem(USER_KEY, JSON.stringify(user));
+  emitUserChange();
 }
 
 /** 登录成功后落盘令牌与用户基础信息 */
@@ -70,4 +112,5 @@ export function clearAuth(): void {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
+  emitUserChange();
 }

@@ -34,10 +34,10 @@
 | **GW-01** ↔ AUTH-30 | Sentinel 接入评估：以 Sentinel 替换/增强现有「限流 + 熔断」自研实现（当前为 Redis 计数器 + 自研熔断） | P3 | 容器/Dashboard 就绪后可灰度对比；不改变 429/503 契约 | 本机无 Sentinel Dashboard；Boot 4 兼容未实测 → **暂缓**（现方案满足需求） |
 | **GW-02** | resilience4j 接入评估：以 `spring-cloud-starter-circuitbreaker-reactor-resilience4j` 替换自研熔断 | P3 | 依赖可解析 + 运行时装配可验证（Boot 4.0.8）；契约 `applyToRoutes` 等价 | **未引入**（Wave 5.21 偏差：5.0.2 可解析但 Boot 4.0.8 运行时装配未能验证，故改自研） |
 | **GW-03** | 动态路由配置治理：Nacos `whale-gateway-routes.yaml` 的 schema 校验 / 灰度发布 / 回滚提示 | P3 | 非法配置不阻断启动且可观测；变更可回滚 | 无 |
-| **GW-04** | 熔断指标可观测：熔断打开/半开/闭合状态与失败率目前仅日志，未暴露 Micrometer 指标 | P2 | 暴露 `gateway.circuit.*` 指标供监控告警 | 无 |
-| **GW-05** | 多路由熔断验证：`apply-to-routes` 现仅纳入 `whale-auth`，其余服务（job/file/audit）待按需纳入并验证 | P2 | 逐路由纳入后经网关验证 503 降级 | 无 |
-| **GW-06** | 内网接口屏蔽覆盖评估：现仅 `/file/internal/**`，其余服务内网端点（如后续 job/audit 内网接口）纳入同一拦截 | P2 | 内网端点经网关一律 403 | 无（当前仅 whale-file 有内网端点） |
-| **GW-07** | 网关层单元/集成测试基线维持：现有 48 用例（含熔断/限流/内网/路由）随新过滤器扩充 | P2 | 新增过滤器均有单测；checkstyle 0 违规 | 无 |
+| ~~**GW-04**~~ ✅ **已闭环（Wave 5.22）** | 熔断指标可观测：熔断打开/半开/闭合状态与失败率目前仅日志，未暴露 Micrometer 指标 | P2 | 暴露 `gateway.circuit.*` 指标供监控告警 | **已完成**：`CircuitBreakerGlobalFilter` 注入 `ObjectProvider<MeterRegistry>`（缺省静默不注册）；注册 Counter `gateway.circuit.calls{route,result}`、Counter `gateway.circuit.short_circuits{route}`、Gauge `gateway.circuit.state{route}`（0=CLOSED/1=OPEN/2=HALF_OPEN，随熔断器创建登记）；503/429 契约不变 |
+| ~~**GW-05**~~ ✅ **已闭环（Wave 5.22）** | 多路由熔断验证：`apply-to-routes` 现仅纳入 `whale-auth`，其余服务（job/file/audit）待按需纳入并验证 | P2 | 逐路由纳入后经网关验证 503 降级 | **已完成**：`apply-to-routes` 覆盖 `whale-auth, whale-file, whale-job, whale-audit`（yml 与 `CircuitBreakerProperties` 默认值一致）；运行时停 job/file 后经网关各 6 次 → 全 **503** `{"code":503,...}` + 日志「熔断已打开，短路请求并降级」 |
+| ~~**GW-06**~~ ✅ **已闭环（Wave 5.22）** | 内网接口屏蔽覆盖评估：现仅 `/file/internal/**`，其余服务内网端点（如后续 job/audit 内网接口）纳入同一拦截 | P2 | 内网端点经网关一律 403 | **已完成**：`patterns` 配置化语义确认 + 多 pattern / Ant 通配 `**` / 前缀零层级 / 非命中放行单测；类 Javadoc 记录「其余服务当前无内网端点，规则就绪可配置追加」 |
+| ~~**GW-07**~~ ✅ **已闭环（Wave 5.22）** | 网关层单元/集成测试基线维持：现有 48 用例（含熔断/限流/内网/路由）随新过滤器扩充 | P2 | 新增过滤器均有单测；checkstyle 0 违规 | **已完成**：用例 48 → **58**（新增指标与内网规则用例），`checkstyle:check` **0 违规** |
 
 ---
 

@@ -2,7 +2,10 @@ package com.bluewhale.gateway.filter;
 
 import com.bluewhale.gateway.common.GatewayResponse;
 import com.bluewhale.gateway.config.CircuitBreakerProperties;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.cloud.gateway.route.Route;
@@ -35,6 +38,11 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>熔断打开时或下游调用失败/超时时，直接短路写出 HTTP 503 与与业务侧 {@code Result} 同结构的
  * JSON 体，并透传链路追踪头（写法对齐 {@code RateLimitGlobalFilter} 的 429 短路）。</p>
  *
+ * <p>GW-04 熔断指标（Micrometer，均带 {@code route} 标签）：{@code gateway.circuit.calls} 记录每次
+ * 下游调用的成功/失败（{@code result} 标签），{@code gateway.circuit.short_circuits} 记录熔断打开的短路次数，
+ * {@code gateway.circuit.state} 以 0/1/2 反映该路由熔断状态（CLOSED/OPEN/HALF_OPEN）。容器内无
+ * {@link MeterRegistry} 时（例如未启用 Actuator 指标）静默跳过，不影响熔断与降级主流程。</p>
+ *
  * @author BlueWhale
  */
 @Slf4j
@@ -56,7 +64,31 @@ public class CircuitBreakerGlobalFilter implements GlobalFilter, Ordered {
     /** 失败率百分比基数 */
     private static final int PERCENT_BASE = 100;
 
+    /** 下游调用结果计数指标名 */
+    private static final String METER_CALLS = "gateway.circuit.calls";
+
+    /** 熔断打开短路计数指标名 */
+    private static final String METER_SHORT_CIRCUITS = "gateway.circuit.short_circuits";
+
+    /** 熔断状态指标名 */
+    private static final String METER_STATE = "gateway.circuit.state";
+
+    /** 指标路由标签名 */
+    private static final String TAG_ROUTE = "route";
+
+    /** 指标调用结果标签名 */
+    private static final String TAG_RESULT = "result";
+
+    /** 调用成功的 result 标签值 */
+    private static final String RESULT_SUCCESS = "success";
+
+    /** 调用失败的 result 标签值 */
+    private static final String RESULT_FAILURE = "failure";
+
     private final CircuitBreakerProperties properties;
+
+    /** 指标注册表提供者：容器无 MeterRegistry 时返回 {@code null}，指标静默跳过 */
+    private final ObjectProvider<MeterRegistry> meterRegistryProvider;
 
     /** 路由 id 到熔断状态的映射，按路由维度隔离统计窗口 */
     private final Map<String, RouteCircuitBreaker> breakers = new ConcurrentHashMap<>();
@@ -64,10 +96,13 @@ public class CircuitBreakerGlobalFilter implements GlobalFilter, Ordered {
     /**
      * 构造熔断降级过滤器
      *
-     * @param properties 网关熔断降级配置
+     * @param properties            网关熔断降级配置
+     * @param meterRegistryProvider Micrometer 指标注册表提供者，缺省时返回 {@code null} 表示不采集指标
      */
-    public CircuitBreakerGlobalFilter(CircuitBreakerProperties properties) {
+    public CircuitBreakerGlobalFilter(CircuitBreakerProperties properties,
+                                      ObjectProvider<MeterRegistry> meterRegistryProvider) {
         this.properties = properties;
+        this.meterRegistryProvider = meterRegistryProvider;
     }
 
     /**
@@ -87,13 +122,18 @@ public class CircuitBreakerGlobalFilter implements GlobalFilter, Ordered {
         }
         if (!breaker.tryAcquire(System.currentTimeMillis())) {
             log.warn("网关熔断已打开，短路请求并降级: route={}", routeId);
+            countShortCircuit(routeId);
             return unavailable(exchange);
         }
         return chain.filter(exchange)
                 .timeout(Duration.ofMillis(properties.getTimeoutMillis()))
-                .doOnSuccess(unused -> breaker.record(true, System.currentTimeMillis()))
+                .doOnSuccess(unused -> {
+                    breaker.record(true, System.currentTimeMillis());
+                    countCall(routeId, true);
+                })
                 .onErrorResume(e -> {
                     breaker.record(false, System.currentTimeMillis());
+                    countCall(routeId, false);
                     log.warn("下游调用超时或失败，触发网关熔断降级: route={}, reason={}", routeId, e.getMessage());
                     return unavailable(exchange);
                 });
@@ -127,9 +167,67 @@ public class CircuitBreakerGlobalFilter implements GlobalFilter, Ordered {
         if (applyToRoutes == null || !applyToRoutes.contains(routeId)) {
             return null;
         }
-        return breakers.computeIfAbsent(routeId, id -> new RouteCircuitBreaker(
-                properties.getSlidingWindowSize(), properties.getFailureRateThreshold(),
-                properties.getWaitDurationInOpenStateMillis()));
+        return breakers.computeIfAbsent(routeId, id -> {
+            RouteCircuitBreaker breaker = new RouteCircuitBreaker(
+                    properties.getSlidingWindowSize(), properties.getFailureRateThreshold(),
+                    properties.getWaitDurationInOpenStateMillis());
+            registerStateGauge(id, breaker);
+            return breaker;
+        });
+    }
+
+    /**
+     * 获取容器内的 Micrometer 指标注册表
+     *
+     * @return 存在则返回指标注册表；不存在返回 {@code null}，调用方据此静默跳过指标采集
+     */
+    private MeterRegistry resolveRegistry() {
+        return meterRegistryProvider.getIfAvailable();
+    }
+
+    /**
+     * 首次为路由创建熔断器时注册状态 Gauge（值域 0=CLOSED、1=OPEN、2=HALF_OPEN）
+     *
+     * @param routeId 路由 id
+     * @param breaker 该路由的熔断状态机
+     */
+    private void registerStateGauge(String routeId, RouteCircuitBreaker breaker) {
+        MeterRegistry registry = resolveRegistry();
+        if (registry == null) {
+            return;
+        }
+        Gauge.builder(METER_STATE, breaker, RouteCircuitBreaker::stateCode)
+                .tag(TAG_ROUTE, routeId)
+                .description("网关单路由熔断状态：0=CLOSED，1=OPEN，2=HALF_OPEN")
+                .register(registry);
+    }
+
+    /**
+     * 记录一次下游调用结果计数（成功或失败）
+     *
+     * @param routeId 路由 id
+     * @param success 本次调用是否成功
+     */
+    private void countCall(String routeId, boolean success) {
+        MeterRegistry registry = resolveRegistry();
+        if (registry == null) {
+            return;
+        }
+        registry.counter(METER_CALLS, TAG_ROUTE, routeId, TAG_RESULT, success ? RESULT_SUCCESS : RESULT_FAILURE)
+                .increment();
+    }
+
+    /**
+     * 记录一次因熔断打开导致的短路计数
+     *
+     * @param routeId 路由 id
+     */
+    private void countShortCircuit(String routeId) {
+        MeterRegistry registry = resolveRegistry();
+        if (registry == null) {
+            return;
+        }
+        registry.counter(METER_SHORT_CIRCUITS, TAG_ROUTE, routeId).increment();
     }
 
     /**
@@ -203,6 +301,18 @@ public class CircuitBreakerGlobalFilter implements GlobalFilter, Ordered {
             this.windowSize = windowSize;
             this.failureRateThreshold = failureRateThreshold;
             this.waitDurationMillis = waitDurationMillis;
+        }
+
+        /**
+         * 返回熔断状态编码，供 Micrometer Gauge 读取
+         *
+         * @return 0 表示闭合（CLOSED），1 表示打开（OPEN），2 表示半开探测中（HALF_OPEN）
+         */
+        private synchronized int stateCode() {
+            if (!open) {
+                return 0;
+            }
+            return halfOpenProbeInFlight ? 2 : 1;
         }
 
         /**

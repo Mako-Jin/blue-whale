@@ -239,6 +239,37 @@
 > 残余（登记未处理）：whale-job/whale-audit 无 `api_log` 表（每请求报 `Table 'api_log' doesn't exist`，与平台既有行为一致，判为非阻断噪音）；workflow/form/pay/config/monitor/alert 等同用 `${server.port:…}` 自引用写法，存在同类潜在缺陷；熔断半开探测与动态路由热刷新未做真实 Nacos 取证。
 
 
+## Wave 5.22：四轨并行（网关 backlog 收口 + admin 动态路由 + whale-file 对象存储与归档取证 + auth 控制器单测/DDD 灰度）（2026-10-19）
+
+> 用户指令（2026-10-19）：Wave 5.21 交付后经 AskUserQuestion（四项全选）确定本轮范围。
+> 规格与分解：[spec.md](wave5.22-four-tracks/spec.md) / [tasks.md](wave5.22-four-tracks/tasks.md)。
+> 冻结契约（spec §三）：指标命名 `gateway.circuit.*`、`menus[]` 类型与 component 映射、`whale.file.storage.type`、`@WebMvcTest` 隔离口径。
+
+**Wave 5.22-a（并行：A 网关 / B admin / C1 whale-file / D1 auth）**
+
+- [x] **A1 GW-04 熔断 Micrometer 指标**（`whale-gateway`）：`ObjectProvider<MeterRegistry>` 可选注入；注册 `gateway.circuit.calls{route,result}` / `gateway.circuit.short_circuits{route}` / `gateway.circuit.state{route}`（0/1/2）
+- [x] **A2 GW-05 多路由纳入熔断**：`apply-to-routes` 扩为 `whale-auth, whale-file, whale-job, whale-audit`
+- [x] **A3 GW-06 内网屏蔽覆盖**：确认 `patterns` 配置化语义 + 多 pattern/通配单测
+- [x] **A4 GW-07 测试基线**：随 A1/A3 扩充，0 违规
+- [x] **B1–B3 admin 动态路由**（`frontend/admin`）：`menus` 类型建模 + `router/dynamicRoutes.tsx`（menus → RouteObject + component 映射 + 侧栏 items）+ `App.tsx`/`AdminLayout` 接线 + 空回落静态导航
+- [x] **B4 浏览器端到端验证**：侧栏由 menus 驱动、跳转正确、未知 component 不崩
+- [x] **C1 whale-file 对象存储抽象**（`whale-file`）：`whale.file.storage.type=local|minio` + `MinioFileStorage`（`io.minio:minio:8.5.12`）+ `MinioProperties` + 装配选择 + 单测
+- [x] **D1 auth 控制器层单测**（`whale-auth`）：`@WebMvcTest` + `@MockitoBean` 覆盖 6 控制器关键端点
+
+**Wave 5.22-b（并行：运行时取证）**
+
+- [x] **C2 归档链路 e2e**：job id=2 → CSV 上传 whale-file（`file_info` 落库）→ 过期 `job_log` 逻辑删除；audit `archive-enabled=true` → 导出 CSV 且 `audit_log` 未删
+- [x] **D2 DDD 灰度运行时**：`whale.auth.ddd.role/menu/permission/dept=true` 启动 auth，验证 page/tree/detail 与 flag=false 等价
+- [x] **A2 熔断 503 取证**：多路由（file/job）经网关降级验证
+- [x] **D3 AUTH-10 阻塞登记**：无 MQ 依赖 + 无 RabbitMQ → 台账标注阻塞
+
+**Wave 5.22-c（串行：E 收尾）**
+
+- [x] 全量 `mvn clean install -T 1C` SUCCESS + 前端 `pnpm --filter whale-admin build`
+- [x] 检查报告 `docs/reviews/2026-10-19-wave5.22-four-tracks.md` + devlog 追加 + roadmap/task-breakdown/backlog 勾选
+- [x] commit + push origin（Gitee）
+
+
 ## 附录 A：common 契约（Wave 2 遵守）
 
 ```

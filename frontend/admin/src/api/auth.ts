@@ -34,6 +34,7 @@ export async function fetchMe(): Promise<AuthMeResponse> {
     nickname: me.nickname,
     roles: me.roles ?? [],
     permissions: me.permissions ?? [],
+    menus: me.menus ?? [],
   });
   return me;
 }

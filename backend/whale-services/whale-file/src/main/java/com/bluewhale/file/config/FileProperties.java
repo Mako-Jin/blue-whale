@@ -29,6 +29,9 @@ public class FileProperties {
     @Data
     public static class Storage {
 
+        /** 存储类型：{@code local}（本地磁盘）或 {@code minio}（对象存储），默认 {@code local} */
+        private String type = "local";
+
         /** 本地存储根目录，按 {@code ${root}/${bucket}/${objectKey}} 落盘 */
         private String root = "D:/data/whale-file";
     }

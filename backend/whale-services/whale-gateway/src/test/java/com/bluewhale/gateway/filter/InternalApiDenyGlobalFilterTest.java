@@ -13,6 +13,9 @@ import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
 import org.springframework.mock.web.server.MockServerWebExchange;
 import reactor.core.publisher.Mono;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
@@ -85,6 +88,68 @@ class InternalApiDenyGlobalFilterTest {
     void shouldPassThroughWhenDisabled() {
         properties.setEnabled(false);
         MockServerWebExchange exchange = buildExchange(INTERNAL_PATH);
+        when(chain.filter(any())).thenReturn(Mono.empty());
+
+        filter.filter(exchange, chain).block();
+
+        verify(chain).filter(any());
+        assertNull(exchange.getResponse().getStatusCode());
+    }
+
+    @Test
+    @DisplayName("GW-06 filter：配置多个模式时，任一模式命中的路径均拒绝")
+    void shouldDenyWhenAnyOfMultiplePatternsMatched() {
+        properties.setPatterns(new ArrayList<>(List.of("/job/internal/**", "/audit/internal/**")));
+        MockServerWebExchange jobExchange = buildExchange("http://localhost/job/internal/run");
+        MockServerWebExchange auditExchange = buildExchange("http://localhost/audit/internal/dump");
+
+        filter.filter(jobExchange, chain).block();
+        filter.filter(auditExchange, chain).block();
+
+        assertEquals(HttpStatus.FORBIDDEN, jobExchange.getResponse().getStatusCode());
+        assertEquals(HttpStatus.FORBIDDEN, auditExchange.getResponse().getStatusCode());
+        verifyNoInteractions(chain);
+    }
+
+    @Test
+    @DisplayName("GW-06 filter：/file/internal/** 通配匹配多层级深层路径")
+    void shouldDenyDeepNestedPathUnderDoubleStarWildcard() {
+        MockServerWebExchange exchange = buildExchange("http://localhost/file/internal/a/b/c/upload");
+
+        filter.filter(exchange, chain).block();
+
+        assertEquals(HttpStatus.FORBIDDEN, exchange.getResponse().getStatusCode());
+        verifyNoInteractions(chain);
+    }
+
+    @Test
+    @DisplayName("GW-06 filter：/file/internal/** 的 ** 可匹配零层级，即前缀本身也被拒绝")
+    void shouldDenyBasePathOfDoubleStarPattern() {
+        MockServerWebExchange exchange = buildExchange("http://localhost/file/internal");
+
+        filter.filter(exchange, chain).block();
+
+        assertEquals(HttpStatus.FORBIDDEN, exchange.getResponse().getStatusCode());
+        verifyNoInteractions(chain);
+    }
+
+    @Test
+    @DisplayName("GW-06 filter：仅前缀相近但段不匹配的路径（/file/internals/1）放行")
+    void shouldAllowPathThatOnlySharesPrefixText() {
+        MockServerWebExchange exchange = buildExchange("http://localhost/file/internals/1");
+        when(chain.filter(any())).thenReturn(Mono.empty());
+
+        filter.filter(exchange, chain).block();
+
+        verify(chain).filter(any());
+        assertNull(exchange.getResponse().getStatusCode());
+    }
+
+    @Test
+    @DisplayName("GW-06 filter：多模式配置下非命中路径仍放行")
+    void shouldAllowNonMatchingPathWithMultiplePatternsConfigured() {
+        properties.setPatterns(new ArrayList<>(List.of("/file/internal/**", "/job/internal/**")));
+        MockServerWebExchange exchange = buildExchange(PUBLIC_PATH);
         when(chain.filter(any())).thenReturn(Mono.empty());
 
         filter.filter(exchange, chain).block();

@@ -1,0 +1,23 @@
+# 控制器层单元测试（@WebMvcTest 切片）专用配置：
+# 屏蔽 Nacos、Redis、MySQL 等外部依赖，保证测试在无网无库环境下快速且确定地运行。
+spring:
+  cloud:
+    nacos:
+      discovery:
+        enabled: false
+      config:
+        enabled: false
+        import-check:
+          enabled: false
+
+whale:
+  auth:
+    jwt:
+      secret: bluewhale-jwt-secret-2026-please-change-in-production
+      expire-minutes: 120
+      refresh-expire-minutes: 1440
+
+logging:
+  level:
+    com.bluewhale: warn
+    org.springframework: warn

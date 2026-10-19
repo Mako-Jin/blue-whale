@@ -4,6 +4,7 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.file.config.FileProperties;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -23,6 +24,7 @@ import java.nio.file.StandardCopyOption;
  */
 @Component
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = "whale.file.storage.type", havingValue = "local", matchIfMissing = true)
 public class LocalFileStorage implements FileStorage {
 
     private final FileProperties fileProperties;
