@@ -154,8 +154,8 @@
 | 任务 | 内容 | 来源 | 依赖 | 优先级 | 验收口径 | 当前阻塞 |
 |---|---|---|---|---|---|---|
 | **AUTH-32** ↔ **T5.21** | `frontend/admin` 登录对接 `/auth/login` + 登出调 `/auth/logout` | [next-steps T5.21](next-steps.md)、[roadmap §2.1](roadmap.md) | ~~**AUTH-38**（auth 管理前缀路由）~~ ✅ Wave 5.2、~~AUTH-21~~ ✅ Wave 5.2 | P2 | 登出后原 token 请求返回 401 | **前置均已解除**：`/auth/login`、`/auth/me` 与全部管理前缀路由已配，**经网关冒烟已通过（Wave 5.3）** |
-| **AUTH-33** ↔ **T5.22** | `whale-ui`：ProTable / FormModal / SearchForm 二次封装 | [next-steps T5.22](next-steps.md)、[roadmap §3.2](roadmap.md) | 无 | P2 | 组件可独立构建，有示例页 | 无 |
-| **AUTH-34** ↔ **T5.23** | admin 用户/角色/菜单管理页 + 按钮级权限渲染 | [next-steps T5.23](next-steps.md)、[roadmap §3.3](roadmap.md) | AUTH-32、AUTH-33、~~AUTH-21~~ ✅ Wave 5.2 | P2 | 页面可完成 CRUD 且按权限隐藏按钮 | **AUTH-21 已解除**（`/auth/me` 提供 permissions/menus）；余受 AUTH-32/33 牵连 |
+| ~~**AUTH-33** ↔ **T5.22**~~ ✅ **已闭环（Wave 5.18）** | `whale-ui`：ProTable / FormModal / SearchForm 二次封装 | [next-steps T5.22](next-steps.md)、[roadmap §3.2](roadmap.md) | 无 | P2 | 组件可独立构建，有示例页 | **已完成**：`ProTable` / `FormModal` / `SearchForm` + `PermissionProvider` / `AuthButton`（权限组件），独立 tsup 构建含 dts 通过，示例页（组件示例路由）就绪 |
+| ~~**AUTH-34** ↔ **T5.23**~~ ✅ **主体已闭环（Wave 5.18）** | admin 用户/角色/菜单管理页 + 按钮级权限渲染 | [next-steps T5.23](next-steps.md)、[roadmap §3.3](roadmap.md) | AUTH-32、AUTH-33、~~AUTH-21~~ ✅ Wave 5.2 | P2 | 页面可完成 CRUD 且按权限隐藏按钮 | **已完成（Wave 5.18）**：用户/角色/菜单三页 CRUD + 按钮级权限渲染（`PermissionGate` 注入权限码、`AuthButton` 显隐），浏览器端到端通过。**残余**：动态路由（用 `menus[]` 生成导航）；AUTH-32 refresh 轮换的前端运行时验证 |
 
 ---
 

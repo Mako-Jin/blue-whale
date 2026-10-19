@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { getToken } from '../api/auth';
+import { getToken } from '../api/token';
 
 // 未登录访问受保护页面时重定向到 /login
 export function RequireAuth({ children }: { children: ReactNode }) {

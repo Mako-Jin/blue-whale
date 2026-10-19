@@ -84,14 +84,14 @@
 
 ### 3.2 whale-ui 组件库
 
-- [ ] 基于 antd 二次封装：ProTable / FormModal / SearchForm
+- [x] ~~基于 antd 二次封装：ProTable / FormModal / SearchForm~~（Wave 5.18，另附 `PermissionProvider` / `AuthButton` 按钮级权限组件）
 - [ ] 主题 CSS 变量注入
 
 ### 3.3 admin 后台管理
 
-- [ ] 登录页 → 用户 / 角色 / 菜单管理
-- [ ] 对接 whale-auth API
-- [ ] 动态路由 + 按钮级权限渲染（**后端数据源已就绪**：Wave 5.2 `GET /auth/me` 返回 permissions/menus）
+- [x] ~~登录页 → 用户 / 角色 / 菜单管理~~（登录 Wave 5.17 + 三管理页 Wave 5.18）
+- [x] ~~对接 whale-auth API~~（Wave 5.18：user/role/menu/dept/permission 五模块客户端，经网关）
+- [ ] 动态路由 + 按钮级权限渲染（**按钮级权限渲染已落地**：Wave 5.18 `PermissionProvider` + `AuthButton`；**动态路由待做**；后端数据源已就绪：Wave 5.2 `GET /auth/me` 返回 permissions/menus）
 
 ### 3.4 whale-portal 门户
 

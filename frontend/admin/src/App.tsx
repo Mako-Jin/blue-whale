@@ -1,9 +1,14 @@
-// BlueWhale Admin 路由入口：登录页 + 受保护首页
-// 登录/登出均对接 whale-auth 真实接口（经网关转发），用于验证令牌黑名单（REQ-SEC-003）
+// BlueWhale Admin 路由入口：登录页 + 受保护后台（权限门 + 主框架 + 子路由）
 
 import { useRoutes } from 'react-router-dom';
+import AdminLayout from './layouts/AdminLayout';
+import ComponentsDemo from './pages/demo/ComponentsDemo';
 import HomePage from './pages/Home';
 import LoginPage from './pages/Login';
+import MenuList from './pages/menu/MenuList';
+import RoleList from './pages/role/RoleList';
+import UserList from './pages/user/UserList';
+import PermissionGate from './router/PermissionGate';
 import { GuestOnly, RequireAuth } from './router/guards';
 
 const routes = [
@@ -19,9 +24,18 @@ const routes = [
     path: '/',
     element: (
       <RequireAuth>
-        <HomePage />
+        <PermissionGate>
+          <AdminLayout />
+        </PermissionGate>
       </RequireAuth>
     ),
+    children: [
+      { index: true, element: <HomePage /> },
+      { path: 'users', element: <UserList /> },
+      { path: 'roles', element: <RoleList /> },
+      { path: 'menus', element: <MenuList /> },
+      { path: 'components', element: <ComponentsDemo /> },
+    ],
   },
 ];
 

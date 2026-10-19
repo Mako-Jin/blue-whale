@@ -104,6 +104,22 @@
 - [x] ~~⑦检查报告归档：`docs/reviews/2026-10-17-wave5.1b-audit-log.md`~~
 - [ ] 待做：运行时端到端验证（无 Docker）、`POST /audit/log/export`、`@RequirePermission("sys:audit:log:list")`、MQ 汇聚（阶段二）、归档任务、网关 `/audit/**` + StripPrefix 路由前缀冲突确认
 
+## Wave 5.18：whale-ui 二次封装 + admin 三管理页（2026-10-19）
+
+> 承接 [next-steps.md](next-steps.md) 组 F：T5.22 / T5.23。因 T5.23 依赖 T5.22（组件不存在则无从消费），本波合并推进：先落组件，再搭页面，避免二次重构。
+
+- [x] ~~T5.22-a：whale-ui 组件封装~~（`ProTable` / `FormModal` / `SearchForm`）
+- [x] ~~T5.22-b：按钮级权限组件~~（`PermissionProvider` / `usePermission` / `AuthButton`）
+- [x] ~~T5.22-c：whale-ui 独立构建（tsup + dts）+ 示例页~~
+- [x] ~~T5.23-a：admin API 层~~（`http.ts` / `token.ts` + user/role/menu/dept/permission 五模块）
+- [x] ~~T5.23-b：admin 骨架~~（`PermissionGate` / `AdminLayout` / 路由拆分）
+- [x] ~~T5.23-c：用户管理页（CRUD + 启停 + 重置密码 + 分配角色）~~
+- [x] ~~T5.23-d：角色管理页（CRUD + 分配权限）~~
+- [x] ~~T5.23-e：菜单管理页（树表 CRUD）~~
+- [x] ~~T5.23-f：构建验证 + 浏览器端到端（三页 CRUD + 按钮权限隐藏 + 守卫）~~
+- [x] ~~缺陷：admin vite 代理正则未覆盖集合型接口，致 `POST /user|/role|/menu` 落 vite 返回 404~~
+- [ ] 待做：admin 动态路由（`menus[]` 生成导航）、角色/菜单删除与角色分配的 UI 脚本化回归、AUTH-32 refresh 前端运行时验证、`infrastructure/.env.example`
+
 > Wave 5 详细任务清单（含依赖、优先级、验收口径）见 [next-steps.md](next-steps.md)。
 
 ## 附录 A：common 契约（Wave 2 遵守）

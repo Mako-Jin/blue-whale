@@ -63,3 +63,48 @@ body,
   font-weight: 700;
   background: linear-gradient(135deg, #1890ff, #096dd9);
 }
+
+/* ---------- 后台主框架 ---------- */
+
+.admin-logo {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  background: #fff;
+  border-bottom: 1px solid var(--bw-border);
+}
+
+.admin-header-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--bw-text);
+}
+
+.admin-content {
+  padding: 24px;
+}
+
+.admin-loading {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-hint {
+  margin-top: 12px;
+  color: var(--bw-text-secondary);
+  font-size: 13px;
+}

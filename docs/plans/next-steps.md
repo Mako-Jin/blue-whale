@@ -64,6 +64,11 @@
 > 以「**后端 28 模块 `install -DskipTests` 全 SUCCESS + admin `tsc -b && vite build` 通过 + 无头验证 5 步（登出后旧 accessToken 经网关 `GET /auth/me` HTTP 401，Redis `auth:token:blacklist:*` ×2）+ 浏览器端到端 6/6 PASS（守卫重定向→登录→权限码渲染→登出→再拦截）**」完成验证。中间件实机：MySQL 8.0.26（新建 `bluewhale_auth` + init.sql 13 表种子）/ Redis 5.0.14（requirepass，经 `SPRING_DATA_REDIS_PASSWORD` 注入）/ Nacos 2.4.0（外置 MySQL + 认证开启，JDBC 补 `allowPublicKeyRetrieval`、新增专用账号并授 ROLE_ADMIN，经 `SPRING_CLOUD_NACOS_USERNAME/PASSWORD` 注入），凭据均环境变量注入不入仓。
 > **残余**：admin 用户/角色/菜单管理页（T5.23 主体）、AUTH-32/33/34（前端 token 持久化 + refresh 轮换接入的运行时验证）。详见 [devlog](../devlog/2026-10-19.md)。
 
+> **Wave 5.18 执行结果（2026-10-19 更新）**：✅ ~~T5.22 + T5.23 主体（whale-ui 二次封装 + admin 三管理页 + 按钮级权限渲染）~~——`@bluewhale/whale-ui` 新增 `ProTable` / `FormModal` / `SearchForm` 二次封装与 `PermissionProvider` / `usePermission` / `AuthButton` 按钮级权限组件（tsup 构建含 dts 通过）；`frontend/admin` 新增 API 层（`http.ts` 统一 `{code,message,data}` 解析 + Bearer + 401 清态、`token.ts` 登录态读写、user/role/menu/dept/permission 五模块）与骨架（`PermissionGate` 登录后注入权限码、`AdminLayout` 侧栏导航），落地用户（CRUD/启停/重置密码/分配角色）、角色（CRUD/分配权限）、菜单（树表 CRUD）三页 + 组件示例页，操作按钮按权限码渲染。
+> 同步修复缺陷：`vite.config.ts` 代理正则原为 `^/(auth|...)/`（要求前缀后带斜杠），致集合型接口（`POST /user`、`POST /role`、`POST /menu`）落到 vite 自身返回 404；改为 `(/|$)` 后恢复。
+> 以「**whale-ui tsup+dts 通过 + admin `tsc -b && vite build` 通过（1457 modules）+ API 级全 CRUD 冒烟（经网关 8080 / 代理 8001 双路径 `code=0`）+ 浏览器端到端：用户页 CRUD 全通过、角色页「新增/分配权限」通过、菜单页「新增」通过、按钮级权限隐藏通过（缺权限码按钮不渲染）、登出后直访 `/users` 被守卫拦截**」完成验证。
+> **残余**：admin 动态路由（用 `menus[]` 生成导航）待做（现为静态路由）；角色/菜单「删除」与「角色分配」已 API 级验证（UI 交互受无头浏览器点击命中不稳未逐项复验，其 Popconfirm/Modal 形态已在用户页复验）；AUTH-32 refresh 轮换的前端运行时验证；`infrastructure/.env.example`。详见 [devlog](../devlog/2026-10-19.md)。
+
 > **Wave 5.10 执行结果（2026-10-18 更新）**：✅ ~~审计日志多通道完善（后端 Wave A，REQ-SEC-006）~~（4 表 DDL + `LogPersistSupport`/`whaleLogExecutor` + `ApiLogFilter`（tee 透传）+ 出站拦截器 + `LogIngestController` 上报/查询）。
 > 同步闭环 ✅ ~~AUTH-06~~（审计查询鉴权：因 whale-audit 库无 RBAC 表，改**网关注入权限码头 + starter 通用拦截器**，权限点 `sys:audit:log:list`）+ ✅ ~~AUTH-11~~（脱敏规则配置化 `whale.audit.sensitive.keys` + `SensitiveDataMasker#maskJson`）。
 > 以「**247 单测/IT 全绿（clean verify BUILD SUCCESS）+ Checkstyle 全 29 模块 0 违规 + 实时 IT `LiveApiLogIT`/`LiveFrontendLogIT` 7/0/0**」完成验证。
