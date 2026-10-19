@@ -30,3 +30,46 @@ CREATE TABLE process_definition (
     PRIMARY KEY (id),
     KEY idx_code (code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='流程定义表';
+
+-- ---------------------------------------------------------------------
+-- 流程实例表
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS process_instance;
+CREATE TABLE process_instance (
+    id                  BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    definition_id       BIGINT        NOT NULL               COMMENT '流程定义ID',
+    definition_code     VARCHAR(64)   NOT NULL               COMMENT '发起时的流程定义编码（冗余）',
+    definition_version  INT           NOT NULL               COMMENT '发起时的流程定义版本（冗余）',
+    title               VARCHAR(128)  NOT NULL               COMMENT '实例标题',
+    business_key        VARCHAR(64)   DEFAULT NULL           COMMENT '业务键（可选）',
+    status              TINYINT       NOT NULL DEFAULT 0     COMMENT '状态：0 运行中 / 1 已通过 / 2 已驳回 / 3 已撤销',
+    current_index       INT           NOT NULL DEFAULT 0     COMMENT '当前审批节点下标（0 起）',
+    initiator           VARCHAR(64)   DEFAULT NULL           COMMENT '发起人账号',
+    create_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted             TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
+    PRIMARY KEY (id),
+    KEY idx_definition_id (definition_id),
+    KEY idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='流程实例表';
+
+-- ---------------------------------------------------------------------
+-- 待办任务表
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS process_task;
+CREATE TABLE process_task (
+    id           BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    instance_id  BIGINT        NOT NULL               COMMENT '所属流程实例ID',
+    node_index   INT           NOT NULL               COMMENT '审批节点下标（0 起）',
+    node_name    VARCHAR(128)  DEFAULT NULL           COMMENT '节点名称',
+    assignee     VARCHAR(64)   NOT NULL               COMMENT '审批人账号',
+    status       TINYINT       NOT NULL DEFAULT 0     COMMENT '状态：0 待办 / 1 已同意 / 2 已驳回 / 3 已取消',
+    comment      VARCHAR(255)  DEFAULT NULL           COMMENT '审批意见',
+    create_time  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted      TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
+    PRIMARY KEY (id),
+    KEY idx_instance_id (instance_id),
+    KEY idx_assignee (assignee),
+    KEY idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='待办任务表';

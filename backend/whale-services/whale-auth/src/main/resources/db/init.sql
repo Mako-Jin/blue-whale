@@ -416,3 +416,13 @@ VALUES
     (41, 0, 'sys:workflow:edit', '修改流程定义', 'API', '/workflow/definition/**', 'PUT', 41, 1),
     (42, 0, 'sys:workflow:delete', '删除流程定义', 'API', '/workflow/definition/{id}', 'DELETE', 42, 1),
     (43, 0, 'sys:workflow:list', '查询流程定义', 'API', '/workflow/definition/**', 'GET', 43, 1);
+
+-- 工作流服务权限点（流程实例 + 待办审批）：与 whale-workflow 接口 @RequirePermission("sys:workflow:*") 一一对应
+INSERT INTO sys_permission
+    (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+VALUES
+    (44, 0, 'sys:workflow:instance:start', '发起流程实例', 'API', '/workflow/instance', 'POST', 44, 1),
+    (45, 0, 'sys:workflow:instance:list', '查询流程实例', 'API', '/workflow/instance/**', 'GET', 45, 1),
+    (46, 0, 'sys:workflow:instance:cancel', '撤销流程实例', 'API', '/workflow/instance/{id}/cancel', 'POST', 46, 1),
+    (47, 0, 'sys:workflow:task:list', '查询待办任务', 'API', '/workflow/task/**', 'GET', 47, 1),
+    (48, 0, 'sys:workflow:task:approve', '审批待办任务', 'API', '/workflow/task/{id}/{approve|reject}', 'POST', 48, 1);

@@ -52,6 +52,7 @@
 - [x] ~~whale-audit 导出与归档~~（Wave 5.21，T5.25：`POST /audit/log/export`〔`EXPORT` 元审计〕+ `AuditLogArchiver` 归档；**不删除 `audit_log`**，append-only 不变）
 - [x] ~~whale-form（表单）最小可用~~（Wave 5.23：`bluewhale_form` 建库 + `form_definition` 表〔JSON schema ≤64KB〕+ `/form/definition` 5 接口〔新增/更新/删除/详情/分页，`sys:form:add/edit/delete/list` 权限点种子 id 36–39〕+ 8 单测；8084 经网关 `/form/**` 增删改查分页冒烟 `code=0`〔重复 code 400 / 删后 404〕；**仅「定义」侧**，表单数据 `form_data` 与前端设计器未做）
 - [x] ~~whale-workflow（工作流）最小可用~~（Wave 5.24：`bluewhale_workflow` 建库 + `process_definition` 表〔流程 JSON 定义 ≤64KB〕+ `/workflow/definition` 5 接口〔新增/更新/删除/详情/分页，`sys:workflow:add/edit/delete/list` 权限点种子 id 40–43〕+ 8 单测；**修复骨架端口自引用 `${server.port:8083}` → `${SERVER_PORT:8083}`**；8083 经网关 `/workflow/**` 冒烟 `code=0`〔重复 code 400 / 删后 404〕；**仅「定义」侧**，流程实例/待办任务/审批动作未做）
+- [x] ~~whale-workflow 全闭环（流程实例 + 待办任务 + 审批动作）~~（Wave 5.25：`process_instance`/`process_task` 两表 + `/workflow/instance`〔发起/详情含 tasks/分页/撤销〕、`/workflow/task`〔分页/同意推进/驳回〕7 接口 + `sys:workflow:instance:*`、`sys:workflow:task:*` 权限点种子 id 44–48 + 14 单测；**状态流转**：发起 current_index=0 生成首节点待办 → 同意推进（末节点同意 → 实例「已通过」）→ 驳回实例「已驳回」/撤销实例「已撤销」并取消其余待办；8083 经网关 `/workflow/**` 14 步全闭环冒烟全绿〔重复处理 400 / 实例不存在 404〕；顺序单待办模型，会签/并行/转办等未做）
 - [ ] whale-pay（支付）
 - [ ] whale-audit（审计日志，**四通道查询 + 元审计 + 出站/接口日志**已落地，Wave 5.19 建 `bluewhale_audit` 库并运行时验证）、whale-monitor（监控）、whale-alert（告警）
 

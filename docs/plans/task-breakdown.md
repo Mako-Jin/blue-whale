@@ -322,6 +322,33 @@
 - [x] commit + push origin（Gitee）
 
 
+## Wave 5.25：whale-workflow 全闭环——流程实例 + 待办任务 + 审批动作（2026-10-19）
+
+> 用户指令（2026-10-19）：「开始搭建表单工作流服务」→ 经 AskUserQuestion 确认：在 Wave 5.24「流程定义」之上，补**流程实例 + 待办任务 + 审批**，形成「定义 → 发起 → 待办 → 审批 → 状态流转」最小闭环。
+> 规格与分解：[spec.md](wave5.25-workflow-closed-loop/spec.md) / [tasks.md](wave5.25-workflow-closed-loop/tasks.md)。
+> 冻结契约（spec §三）：`process_instance`/`process_task` 两表；`definition_json.nodes` 有序节点契约；`/workflow/instance`、`/workflow/task` 7 接口 + 种 id 44–48；状态流转定义。
+
+**Wave 5.25-a（模块内串行：实体 → 解析 → 服务 → 接口 → DDL → 种子 → 单测）**
+
+- [x] **A-a 实体与映射**：`ProcessInstance`/`ProcessTask` + `ProcessInstanceMapper`/`ProcessTaskMapper`
+- [x] **A-b 节点解析与 DTO/VO**：`support/ProcessNodeParser` + `dto/{ProcessInstanceStartRequest,ProcessInstanceQueryRequest,ProcessTaskQueryRequest,ApprovalRequest}` + `vo/{ProcessInstanceVO,ProcessTaskVO}`
+- [x] **B-a 实例服务与接口**：`ProcessInstanceService(+Impl)`（start/详情(含 tasks)/分页/撤销）+ `ProcessInstanceController`（4 接口）
+- [x] **B-b 待办服务与接口**：`ProcessTaskService(+Impl)`（分页/同意推进/驳回）+ `ProcessTaskController`（2 接口）
+- [x] **C-a DDL**：`whale-workflow/db/init.sql` 追加 `process_instance`、`process_task`
+- [x] **C-b 权限种子**：whale-auth `db/init.sql` 追加 `sys:workflow:instance:start/list/cancel`（44–46）、`sys:workflow:task:list/approve`（47–48）
+- [x] **C-c 单测与门禁**：`ProcessInstanceServiceImplTest` + `ProcessTaskServiceImplTest`；`mvn -o -pl :whale-workflow -am test checkstyle:check` 全绿（Tests run 22 / 0 / 0，Checkstyle 0 违规）
+
+**Wave 5.25-b（运行时取证）**
+
+- [x] **E2E 建表与冒烟**：建表 + 种子落库；经网关 `/workflow/**` 全闭环——发起→同意推进→末节点通过（实例 status=1）；驳回→实例驳回 status=2；撤销→实例 status=3 + 待办 status=3；负向 400「任务已处理」/404
+
+**Wave 5.25-c（串行：E 收尾）**
+
+- [x] 全量 `mvn clean install -T 1C` SUCCESS（29/29 模块，Total 1:45；构建前停 7 服务释放 jar 锁，构建后重启并核验健康全 UP）
+- [x] 检查报告 `docs/reviews/2026-10-19-wave5.25-workflow-closed-loop.md` + devlog 追加 + roadmap/task-breakdown 勾选
+- [x] commit + push origin（Gitee）
+
+
 ## 附录 A：common 契约（Wave 2 遵守）
 
 ```
