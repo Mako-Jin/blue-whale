@@ -49,6 +49,13 @@
             <artifactId>mysql-connector-j</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <!-- Result / PageResult / BizException / BaseEntity / PageQuery / MyBatis-Plus 自动填充 / 权限码头拦截：
+             经本 starter 传递引入（含 whale-auth-sdk 的 @RequirePermission） -->
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-spring-boot-starter</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>com.bluewhale</groupId>
             <artifactId>whale-tools</artifactId>

@@ -297,6 +297,31 @@
 - [x] commit + push origin（Gitee）
 
 
+## Wave 5.24：whale-workflow 骨架填充——流程定义 CRUD 最小可用（2026-10-19）
+
+> 用户指令（2026-10-19）：「开始搭建表单工作流服务」。
+> 经 AskUserQuestion 确认口径：目标服务 = **填充既有 `whale-workflow` 骨架**（不新建服务、不与 whale-form 耦合）；MVP = **流程定义 CRUD 最小可用**。
+> 规格与分解：[spec.md](wave5.24-workflow/spec.md) / [tasks.md](wave5.24-workflow/tasks.md)。
+> 冻结契约（spec §三）：`/workflow/definition` 5 接口 + `sys:workflow:*` 权限码（id 40–43）；`process_definition` 表结构（`definition_json` MEDIUMTEXT ≤64KB）。
+
+**Wave 5.24-a（并行：whale-workflow 服务 + DDL + 种子 + 单测）**
+
+- [x] **T1 骨架接线**：`pom.xml` 增 `whale-spring-boot-starter`；`application.yml` 修端口自引用 `${server.port:8083}` → `${SERVER_PORT:8083}`，补 datasource(`bluewhale_workflow`)/mybatis-plus/权限头开关
+- [x] **T2 业务**：`ProcessDefinition` + Mapper + `ProcessQueryRequest`(继承 `PageQuery`) + `ProcessDefinitionSaveRequest` + VO + Service(+Impl) + `WorkflowController`（5 接口 + `@RequirePermission("sys:workflow:*")`）
+- [x] **T3 DDL 与种子**：`whale-workflow/db/init.sql`（`process_definition`）；whale-auth `db/init.sql` 追加 `sys:workflow:add/edit/delete/list`（id 40–43）
+- [x] **T4 单测**：`ProcessDefinitionServiceImplTest`（CRUD + code 查重 + definition 超限），`mvn -o -pl :whale-workflow test checkstyle:check` 全绿（Tests run 8 / 0 / 0，Checkstyle 0 违规）
+
+**Wave 5.24-b（运行时取证）**
+
+- [x] **E2E 建库与冒烟**：建 `bluewhale_workflow` + DDL + 权限种子落库；起 8083 经网关 `/workflow/**` 冒烟——新增/分页/详情/更新 `code=0`、重复 code `code=400`、删除 `code=0`、删后详情 `code=404`
+
+**Wave 5.24-c（串行：E 收尾）**
+
+- [x] 全量 `mvn clean install -T 1C` SUCCESS（29/29 模块，Total 1:45）
+- [x] 检查报告 `docs/reviews/2026-10-19-wave5.24-workflow.md` + devlog 追加 + roadmap/task-breakdown 勾选
+- [x] commit + push origin（Gitee）
+
+
 ## 附录 A：common 契约（Wave 2 遵守）
 
 ```

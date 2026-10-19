@@ -51,7 +51,8 @@
 - [x] ~~whale-job 归档导出~~（Wave 5.21，T5.25：`JobLogArchiveHandler` + `jobLogArchiveClient` 导出 CSV 上传 whale-file 成功后再逻辑删除，内置种子任务 id=2；失败不删语义）
 - [x] ~~whale-audit 导出与归档~~（Wave 5.21，T5.25：`POST /audit/log/export`〔`EXPORT` 元审计〕+ `AuditLogArchiver` 归档；**不删除 `audit_log`**，append-only 不变）
 - [x] ~~whale-form（表单）最小可用~~（Wave 5.23：`bluewhale_form` 建库 + `form_definition` 表〔JSON schema ≤64KB〕+ `/form/definition` 5 接口〔新增/更新/删除/详情/分页，`sys:form:add/edit/delete/list` 权限点种子 id 36–39〕+ 8 单测；8084 经网关 `/form/**` 增删改查分页冒烟 `code=0`〔重复 code 400 / 删后 404〕；**仅「定义」侧**，表单数据 `form_data` 与前端设计器未做）
-- [ ] whale-workflow（工作流）、whale-pay（支付）
+- [x] ~~whale-workflow（工作流）最小可用~~（Wave 5.24：`bluewhale_workflow` 建库 + `process_definition` 表〔流程 JSON 定义 ≤64KB〕+ `/workflow/definition` 5 接口〔新增/更新/删除/详情/分页，`sys:workflow:add/edit/delete/list` 权限点种子 id 40–43〕+ 8 单测；**修复骨架端口自引用 `${server.port:8083}` → `${SERVER_PORT:8083}`**；8083 经网关 `/workflow/**` 冒烟 `code=0`〔重复 code 400 / 删后 404〕；**仅「定义」侧**，流程实例/待办任务/审批动作未做）
+- [ ] whale-pay（支付）
 - [ ] whale-audit（审计日志，**四通道查询 + 元审计 + 出站/接口日志**已落地，Wave 5.19 建 `bluewhale_audit` 库并运行时验证）、whale-monitor（监控）、whale-alert（告警）
 
 ### 2.6 工程规范与分布式基础（2026-10-17 新增）

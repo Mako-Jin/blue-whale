@@ -407,3 +407,12 @@ VALUES
     (37, 0, 'sys:form:edit', '修改表单定义', 'API', '/form/definition/**', 'PUT', 37, 1),
     (38, 0, 'sys:form:delete', '删除表单定义', 'API', '/form/definition/{id}', 'DELETE', 38, 1),
     (39, 0, 'sys:form:list', '查询表单定义', 'API', '/form/definition/**', 'GET', 39, 1);
+
+-- 工作流服务权限点：与 whale-workflow 接口 @RequirePermission("sys:workflow:*") 一一对应
+INSERT INTO sys_permission
+    (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+VALUES
+    (40, 0, 'sys:workflow:add', '新增流程定义', 'API', '/workflow/definition', 'POST', 40, 1),
+    (41, 0, 'sys:workflow:edit', '修改流程定义', 'API', '/workflow/definition/**', 'PUT', 41, 1),
+    (42, 0, 'sys:workflow:delete', '删除流程定义', 'API', '/workflow/definition/{id}', 'DELETE', 42, 1),
+    (43, 0, 'sys:workflow:list', '查询流程定义', 'API', '/workflow/definition/**', 'GET', 43, 1);
