@@ -27,6 +27,8 @@ public final class WebHeaders {
     public static final String USER_ROLES = "X-User-Roles";
     /** 权限码请求头（权限码逗号拼接） */
     public static final String PERMISSION_CODES = "X-Permission-Codes";
+    /** 租户ID请求头（多租户行级隔离；网关不注入，客户端可选传递，缺省回落默认租户） */
+    public static final String TENANT_ID = "X-Tenant-Id";
 
     /** 工具类不允许实例化 */
     private WebHeaders() {
@@ -79,6 +81,16 @@ public final class WebHeaders {
      */
     public static String userId(HttpServletRequest request) {
         return header(request, USER_ID);
+    }
+
+    /**
+     * 读取租户ID头（原样文本，是否可解析为数字由调用方判断）
+     *
+     * @param request 当前请求
+     * @return 租户ID文本；缺失时返回 {@code null}
+     */
+    public static String tenantId(HttpServletRequest request) {
+        return header(request, TENANT_ID);
     }
 
     /**

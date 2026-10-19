@@ -20,6 +20,9 @@ public class FormData extends BaseEntity {
 
     private static final long serialVersionUID = 1L;
 
+    /** 租户ID（行级隔离；取自 {@code X-Tenant-Id}，缺省 1） */
+    private Long tenantId;
+
     /** 表单定义 ID */
     private Long definitionId;
 

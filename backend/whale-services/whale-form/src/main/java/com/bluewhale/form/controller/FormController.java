@@ -6,7 +6,9 @@ import com.bluewhale.common.core.result.Result;
 import com.bluewhale.form.dto.FormDefinitionSaveRequest;
 import com.bluewhale.form.dto.FormQueryRequest;
 import com.bluewhale.form.service.FormDefinitionService;
+import com.bluewhale.form.service.FormPublishService;
 import com.bluewhale.form.vo.FormDefinitionVO;
+import com.bluewhale.form.vo.FormTableRegistryVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -17,6 +19,8 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * 表单定义管理接口。
@@ -33,6 +37,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class FormController {
 
     private final FormDefinitionService formDefinitionService;
+
+    private final FormPublishService formPublishService;
 
     /**
      * 新增表单定义。
@@ -95,5 +101,29 @@ public class FormController {
     @RequirePermission("sys:form:list")
     public Result<PageResult<FormDefinitionVO>> page(FormQueryRequest request) {
         return Result.ok(formDefinitionService.page(request));
+    }
+
+    /**
+     * 发布表单定义：解析 schema 建物理表并登记版本映射。
+     *
+     * @param id 表单定义ID
+     * @return 物理表登记视图对象
+     */
+    @PostMapping("/definition/{id}/publish")
+    @RequirePermission("sys:form:publish")
+    public Result<FormTableRegistryVO> publish(@PathVariable Long id) {
+        return Result.ok(formPublishService.publish(id));
+    }
+
+    /**
+     * 查询表单定义已发布的物理表登记列表。
+     *
+     * @param id 表单定义ID
+     * @return 登记视图对象列表
+     */
+    @GetMapping("/definition/{id}/tables")
+    @RequirePermission("sys:form:list")
+    public Result<List<FormTableRegistryVO>> tables(@PathVariable Long id) {
+        return Result.ok(formPublishService.listTables(id));
     }
 }

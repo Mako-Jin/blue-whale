@@ -1,0 +1,133 @@
+package com.bluewhale.form.support.impl;
+
+import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.form.entity.FormData;
+import com.bluewhale.form.support.FormDataEngine;
+import com.bluewhale.form.support.FormField;
+import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+/**
+ * 基于 {@link JdbcTemplate} 的表单数据动态数据引擎实现。
+ *
+ * <p>表名与列名均做白名单校验（表名二次正则、列名来自 schema 解析白名单），值一律占位参数化绑定，
+ * 杜绝 SQL 注入（spec §三.3.9）。</p>
+ *
+ * @author BlueWhale
+ */
+@Component
+@RequiredArgsConstructor
+public class JdbcFormDataEngine implements FormDataEngine {
+
+    /** 物理表名二次校验正则 */
+    private static final Pattern TABLE_PATTERN = Pattern.compile("^form_data_[a-z0-9_]+_v[0-9]+$");
+
+    private final JdbcTemplate jdbcTemplate;
+
+    @Override
+    public void executeDdl(String ddl) {
+        jdbcTemplate.execute(ddl);
+    }
+
+    @Override
+    public void insert(String table, FormData record, List<FormField> fields, Map<String, Object> data) {
+        String target = assertTable(table);
+        List<String> columns = new ArrayList<>();
+        List<Object> values = new ArrayList<>();
+        columns.add("id");
+        values.add(record.getId());
+        columns.add("tenant_id");
+        values.add(record.getTenantId());
+        columns.add("definition_id");
+        values.add(record.getDefinitionId());
+        columns.add("definition_version");
+        values.add(record.getDefinitionVersion());
+        columns.add("biz_key");
+        values.add(record.getBizKey());
+        columns.add("submitter");
+        values.add(record.getSubmitter());
+        columns.add("status");
+        values.add(record.getStatus());
+        for (FormField field : fields) {
+            columns.add(field.getKey());
+            values.add(data.get(field.getKey()));
+        }
+        String sql = "INSERT INTO `" + target + "` (" + quoteColumns(columns) + ") VALUES ("
+                + placeholders(columns.size()) + ")";
+        jdbcTemplate.update(sql, values.toArray());
+    }
+
+    @Override
+    public Map<String, Object> selectFields(String table, Long id, Long tenantId, List<FormField> fields) {
+        String target = assertTable(table);
+        if (fields.isEmpty()) {
+            return new LinkedHashMap<>();
+        }
+        List<String> columns = fields.stream().map(FormField::getKey).toList();
+        String sql = "SELECT " + quoteColumns(columns) + " FROM `" + target
+                + "` WHERE `id` = ? AND `tenant_id` = ? AND `deleted` = 0";
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, id, tenantId);
+        Map<String, Object> result = new LinkedHashMap<>();
+        if (!rows.isEmpty()) {
+            result.putAll(rows.get(0));
+        }
+        return result;
+    }
+
+    @Override
+    public void logicDelete(String table, Long id, Long tenantId) {
+        String target = assertTable(table);
+        jdbcTemplate.update("UPDATE `" + target + "` SET `deleted` = 1 WHERE `id` = ? AND `tenant_id` = ?",
+                id, tenantId);
+    }
+
+    /**
+     * 二次校验物理表名白名单（来源为服务端生成，防御性校验）
+     *
+     * @param table 物理表名
+     * @return 校验通过的表名
+     * @throws BizException 表名不匹配白名单时抛出 {@code PARAM_ERROR}
+     */
+    private static String assertTable(String table) {
+        if (table == null || !TABLE_PATTERN.matcher(table).matches()) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "物理表名非法：" + table);
+        }
+        return table;
+    }
+
+    /**
+     * 将列名列表转为反引号包裹的逗号串
+     *
+     * @param columns 列名列表
+     * @return 反引号包裹的列名串
+     */
+    private static String quoteColumns(List<String> columns) {
+        return columns.stream().map(column -> "`" + column + "`").collect(Collectors.joining(", "));
+    }
+
+    /**
+     * 生成指定数量的 JDBC 占位符串
+     *
+     * @param count 占位符数量
+     * @return 形如 {@code ?, ?, ?} 的占位符串
+     */
+    private static String placeholders(int count) {
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < count; i++) {
+            if (i > 0) {
+                builder.append(", ");
+            }
+            builder.append('?');
+        }
+        return builder.toString();
+    }
+}

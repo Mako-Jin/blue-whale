@@ -374,6 +374,34 @@
 - [x] commit + push origin（Gitee）
 
 
+## Wave 5.27：whale-form 动态表引擎（主从分离 · 版本化物理表 · 多租户）
+
+> 用户指令（2026-10-19）：「我想的动态表单……业务多了，是不是这张表会炸。」→ 经 AskUserQuestion 逐轮冻结：**业务用户自助动态表单 + 多租户行级 `tenant_id` + 纯后端引擎 + 保留 `data_json` 过渡 + 版本化建新表 + `X-Tenant-Id` 头（缺省租户 1）**。
+> 规格：[wave5.27-form-dynamic-table-engine/spec.md](wave5.27-form-dynamic-table-engine/spec.md) ｜ 分解：[tasks.md](wave5.27-form-dynamic-table-engine/tasks.md)。
+
+**Wave 5.27-a（并行：A 表与登记 / B 引擎内核 / C 发布接线）**
+
+- [x] **A-a 登记实体**：`FormTableRegistry` + `FormTableRegistryMapper`
+- [x] **A-b DDL**：`whale-form/db/init.sql` 加 `form_data.tenant_id` + `idx_tenant_id`；新增 `form_table_registry`
+- [x] **A-c 共享头**：`WebHeaders` 加 `X-Tenant-Id` 常量 + `tenantId(request)`
+- [x] **B-a schema 解析器**：`support/{FormField,FormSchemaParser}`（key/type 白名单 + 保留列校验）
+- [x] **B-b DDL 生成器**：`support/FormTableDdlGenerator`（表名规则 + 类型映射 + DDL）
+- [x] **B-c 动态数据引擎**：`support/FormDataEngine(+impl/JdbcFormDataEngine)`（JdbcTemplate 参数化 + 表名二次正则）
+- [x] **B-d 租户解析**：`support/TenantResolver`
+- [x] **C-a 发布服务**：`service/FormPublishService(+Impl)`
+- [x] **C-b 发布接口**：`FormController` +`POST /form/definition/{id}/publish`、`GET .../tables`；`vo/FormTableRegistryVO`
+- [x] **C-d 权限种子**：`sys:form:publish`（id 52）
+
+**Wave 5.27-b（数据改造 D + 门禁 E）**
+
+- [x] **D 数据双写改造**：`FormData`/`FormDataVO` 加 `tenantId`(+`fields`)；`FormDataService(+Impl)`/`FormDataController` 走主表+物理表
+- [x] **E-a 单测**：`FormSchemaParserTest`/`FormTableDdlGeneratorTest`/`FormPublishServiceImplTest` + 改造 `FormDataServiceImplTest`
+- [x] **E-b 模块门禁**：`mvn -o -pl :whale-form -am test checkstyle:check` 0 违规
+- [x] **E-c 全量回归**：`mvn clean install -T 1C` SUCCESS
+- [x] **E-d 运行时冒烟**：建库/种子 + 网关 `/form` 发布→提交→详情→列表→删除 + 负向
+- [x] **E-e 收尾**：检查报告 + devlog + roadmap/task-breakdown 勾选 + commit & push origin（Gitee）
+
+
 ## 附录 A：common 契约（Wave 2 遵守）
 
 ```

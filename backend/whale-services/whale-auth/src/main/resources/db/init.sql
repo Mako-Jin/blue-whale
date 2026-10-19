@@ -434,3 +434,9 @@ VALUES
     (49, 0, 'sys:form:data:submit', '提交表单数据', 'API', '/form/data', 'POST', 49, 1),
     (50, 0, 'sys:form:data:list', '查询表单数据', 'API', '/form/data/**', 'GET', 50, 1),
     (51, 0, 'sys:form:data:delete', '删除表单数据', 'API', '/form/data/{id}', 'DELETE', 51, 1);
+
+-- 表单服务权限点（发布）：与 whale-form @RequirePermission("sys:form:publish") 对应
+INSERT INTO sys_permission
+    (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+VALUES
+    (52, 0, 'sys:form:publish', '发布表单定义', 'API', '/form/definition/{id}/publish', 'POST', 52, 1);
