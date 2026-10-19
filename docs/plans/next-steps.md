@@ -59,6 +59,11 @@
 > **残余**：注册锁（`@Idempotent` 已等价覆盖）、定时任务/库存锁、T-LOCK-5 降级开关、多实例失效广播、经网关并发实测。
 > 详见 [devlog §29](../devlog/2026-10-18.md) 与 [检查报告](../reviews/2026-10-18-wave5.9-auth-distributed-lock.md)。
 
+> **Wave 5.17 执行结果（2026-10-19 更新）**：✅ ~~T5.21/T5.23 admin 前端对接（第一段：登录/登出 + 黑名单端到端）~~——`frontend/admin` 由占位 SPA 升级为真实登录：新增 `api/auth.ts`（login/fetchMe/logout，统一响应体 `{code,message,data}` 解析、Bearer 注入、401 清态）、`router/guards.tsx`、`pages/Login.tsx`、`pages/Home.tsx`；修改 `App.tsx`（路由入口）/`main.tsx`（antd App 上下文）/`index.css`（登录页样式）/`vite.config.ts`（端口 8080→8001 + 代理 `auth|user|dept|role|menu|permission|audit` → 网关 8080）。
+> 同步修复 starter 缺陷（P1）：`CacheAutoConfiguration` 补 `@AutoConfigureAfter`（Boot 4 中 `com.bluewhale.*` 字母序先于 Boot Redis 自动配置，`@ConditionalOnBean(StringRedisTemplate)` 提前判定为 false；Wave 5.8 AUTH-20 将 `PermissionCache` 接入 `CacheConsistencyTemplate` 后首次真实启动即暴露）。
+> 以「**后端 28 模块 `install -DskipTests` 全 SUCCESS + admin `tsc -b && vite build` 通过 + 无头验证 5 步（登出后旧 accessToken 经网关 `GET /auth/me` HTTP 401，Redis `auth:token:blacklist:*` ×2）+ 浏览器端到端 6/6 PASS（守卫重定向→登录→权限码渲染→登出→再拦截）**」完成验证。中间件实机：MySQL 8.0.26（新建 `bluewhale_auth` + init.sql 13 表种子）/ Redis 5.0.14（requirepass，经 `SPRING_DATA_REDIS_PASSWORD` 注入）/ Nacos 2.4.0（外置 MySQL + 认证开启，JDBC 补 `allowPublicKeyRetrieval`、新增专用账号并授 ROLE_ADMIN，经 `SPRING_CLOUD_NACOS_USERNAME/PASSWORD` 注入），凭据均环境变量注入不入仓。
+> **残余**：admin 用户/角色/菜单管理页（T5.23 主体）、AUTH-32/33/34（前端 token 持久化 + refresh 轮换接入的运行时验证）。详见 [devlog](../devlog/2026-10-19.md)。
+
 > **Wave 5.10 执行结果（2026-10-18 更新）**：✅ ~~审计日志多通道完善（后端 Wave A，REQ-SEC-006）~~（4 表 DDL + `LogPersistSupport`/`whaleLogExecutor` + `ApiLogFilter`（tee 透传）+ 出站拦截器 + `LogIngestController` 上报/查询）。
 > 同步闭环 ✅ ~~AUTH-06~~（审计查询鉴权：因 whale-audit 库无 RBAC 表，改**网关注入权限码头 + starter 通用拦截器**，权限点 `sys:audit:log:list`）+ ✅ ~~AUTH-11~~（脱敏规则配置化 `whale.audit.sensitive.keys` + `SensitiveDataMasker#maskJson`）。
 > 以「**247 单测/IT 全绿（clean verify BUILD SUCCESS）+ Checkstyle 全 29 模块 0 违规 + 实时 IT `LiveApiLogIT`/`LiveFrontendLogIT` 7/0/0**」完成验证。

@@ -19,7 +19,7 @@
 - [x] ~~Spring Security + `@RequirePermission` 注解拦截~~
 - [x] ~~接口权限注解全覆盖（31 处 `@RequirePermission`，3 → 31）+ 22 条权限点种子 + 2 菜单项（Wave 5.2，AUTH-04）~~
 - [x] ~~当前用户菜单/权限接口 `GET /auth/me`（roles/permissions/menus，Wave 5.2，AUTH-21）~~
-- [ ] 对接 admin 前端登录（**前置已解**：AUTH-38 路由 + AUTH-21 数据源；`/auth/me` 待前端渲染）
+- [x] ~~对接 admin 前端登录（Wave 5.17，2026-10-19：登录/登出经网关联调通过，登出后旧 accessToken 实测 HTTP 401，黑名单端到端达成）~~
 
 ### 2.2 whale-gateway 网关
 
