@@ -270,6 +270,33 @@
 - [x] commit + push origin（Gitee）
 
 
+## Wave 5.23：AUTH-39 残余收口 + whale-form 最小可用（2026-10-19）
+
+> 用户指令（2026-10-19）：① 完成 AUTH-39；② 当前服务任务已完成 → 启动 whale-form 服务。
+> 经 AskUserQuestion 确认口径：**AUTH-39 = 前端自动续期 + 运行时取证**；**whale-form = 表单定义 CRUD 最小可用**。
+> 规格与分解：[spec.md](wave5.23-auth39-form/spec.md) / [tasks.md](wave5.23-auth39-form/tasks.md)。
+> 冻结契约（spec §三）：401→单飞刷新→重放一次；`/form/definition` 5 接口 + `sys:form:*` 权限码；`form_definition` 表结构。
+
+**Wave 5.23-a（并行：T1 admin 续期 / T2 whale-form 服务）**
+
+- [x] **T1-a 前端续期链**（`frontend/admin`）：`api/http.ts` 401→单飞刷新（`refreshOnce`）→重放一次 + `api/auth.ts#refresh()` + `token.ts#saveLogin` 合并既有用户态；`pnpm --filter whale-admin build` SUCCESS（1458 modules）
+- [x] **T2-a whale-form 骨架接线**：`application.yml` 补 datasource(`bluewhale_form`)/mybatis/权限头开关 + `db/init.sql`（`form_definition`）；**修复端口自引用占位符 `${server.port:8084}` → `${SERVER_PORT:8084}`**（启动失败根因）
+- [x] **T2-b whale-form 业务**：`FormDefinition` + Mapper + `FormQueryRequest` + VO + Service(+Impl) + `FormController`（5 接口 + `@RequirePermission`）；pom 补 `whale-spring-boot-starter`
+- [x] **T2-c 权限种子**：whale-auth `db/init.sql` 追加 `sys:form:add/edit/delete/list`（id 36–39），并落 `bluewhale_auth.sys_permission`
+- [x] **T2-d 单测**：`FormDefinitionServiceImplTest` 8 用例（CRUD + code 查重 + schema 超限），Tests run 8 / 0 / 0，checkstyle 0 违规
+
+**Wave 5.23-b（运行时取证）**
+
+- [x] **T1-b AUTH-39 轮换取证**：开关开启 → 登录 → refresh 换新（`used:*` 落键）→ 复用旧 token → **HTTP 200 + 业务码 401**；**Redis `used:*` 4 条 / `family:*` 0 条**；顺序复用由**黑名单 fail-fast** 拦截，family 吊销仅并发争抢触发（ADR-001 R3，属预期，未改 `AuthService` 顺序）
+- [x] **T2-e 建库与冒烟**：建 `bluewhale_form` + DDL + 权限种子落库；起 8084 经网关 `/form/**` 冒烟——新增/分页/详情/更新 `code=0`、重复 code `code=400`、删除 `code=0`、删后详情 `code=404`
+
+**Wave 5.23-c（串行：E 收尾）**
+
+- [x] 全量 `mvn clean install -T 1C` SUCCESS + 前端 `pnpm --filter whale-admin build`
+- [x] 检查报告 `docs/reviews/2026-10-19-wave5.23-auth39-form.md` + devlog 追加 + roadmap/task-breakdown/whale-auth-backlog 勾选
+- [x] commit + push origin（Gitee）
+
+
 ## 附录 A：common 契约（Wave 2 遵守）
 
 ```

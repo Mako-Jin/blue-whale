@@ -15,6 +15,8 @@ import {
 
 export type { AuthMeResponse, LoginResponse, UserInfo } from './token';
 export { clearAuth, getCurrentUser, getRefreshToken, getToken } from './token';
+// AUTH-39 一次一换：显式刷新入口（401 自动续期链路由 http 客户端内置，见 http.ts#refreshSession）
+export { refreshSession as refresh } from './http';
 
 // 登录：POST /auth/login（网关白名单，免 JWT）
 export async function login(username: string, password: string): Promise<LoginResponse> {

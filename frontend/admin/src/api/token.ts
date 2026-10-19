@@ -97,14 +97,19 @@ export function saveCurrentUser(user: UserInfo): void {
   emitUserChange();
 }
 
-/** 登录成功后落盘令牌与用户基础信息 */
+/**
+ * 登录/刷新成功后落盘令牌与用户基础信息。
+ * 合并既有用户态（permissions/menus 等派生数据），避免 AUTH-39 静默续期后动态菜单丢失。
+ */
 export function saveLogin(data: LoginResponse): void {
   localStorage.setItem(ACCESS_TOKEN_KEY, data.accessToken);
   localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
+  const current = getCurrentUser();
   saveCurrentUser({
-    username: data.username,
-    nickname: data.nickname,
-    roles: data.roles ?? [],
+    ...(current ?? { username: data.username, nickname: data.nickname, roles: [] }),
+    username: data.username || current?.username || '',
+    nickname: data.nickname || current?.nickname || '',
+    roles: data.roles?.length ? data.roles : current?.roles ?? [],
   });
 }
 

@@ -1,6 +1,6 @@
-// 统一 HTTP 客户端：解析后端 { code, message, data } 响应体、注入 Bearer、401 清态
+// 统一 HTTP 客户端：解析后端 { code, message, data } 响应体、注入 Bearer、401 自动续期、401 清态
 
-import { clearAuth, getToken } from './token';
+import { clearAuth, getRefreshToken, getToken, saveLogin, type LoginResponse } from './token';
 
 /** 后端统一响应体，code=0 表示成功 */
 export interface Result<T> {
@@ -30,6 +30,12 @@ export class ApiError extends Error {
 // 生产由 Nginx 同源反代；开发由 vite proxy 转发，故默认同源相对路径
 const API_BASE: string = import.meta.env.VITE_API_BASE_URL ?? '';
 
+/** 不做自动续期的路径：登录/刷新自身的 401 直接透传，避免递归续期 */
+const NO_REFRESH_PATHS = new Set(['/auth/login', '/auth/refresh']);
+
+/** 单飞刷新中的 Promise：并发 401 合并为同一次刷新请求 */
+let refreshPromise: Promise<boolean> | null = null;
+
 export interface HttpOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
   body?: unknown;
@@ -55,7 +61,69 @@ function buildQuery(query?: Record<string, unknown>): string {
   return text ? `?${text}` : '';
 }
 
+/** 把响应文本解析为统一响应体；非 JSON 文本返回 null */
+function parseResult<T>(text: string): Result<T> | null {
+  if (!text) {
+    return null;
+  }
+  try {
+    return JSON.parse(text) as Result<T>;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 刷新会话（AUTH-39 一次一换）：POST /auth/refresh 换取新令牌，并整体替换本地双 token。
+ * 刷新成功后发放新 refreshToken，旧 refreshToken 在服务端随之失效（复用即触发整族吊销）。
+ *
+ * @returns 新的登录响应
+ * @throws ApiError 无 refreshToken 或刷新失败时抛出 401
+ */
+export async function refreshSession(): Promise<LoginResponse> {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) {
+    throw new ApiError(401, '无可用 refreshToken，请重新登录');
+  }
+  const response = await fetch(`${API_BASE}/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken }),
+  });
+  const payload = parseResult<LoginResponse>(await response.text());
+  if (response.status !== 200 || !payload || payload.code !== 0 || !payload.data?.accessToken) {
+    throw new ApiError(payload?.code ?? 401, payload?.message ?? '登录已失效，请重新登录');
+  }
+  saveLogin(payload.data);
+  return payload.data;
+}
+
+/** 单飞续期：并发 401 共享同一次刷新请求；返回是否刷新成功 */
+function refreshOnce(): Promise<boolean> {
+  if (!refreshPromise) {
+    refreshPromise = refreshSession()
+      .then(() => true)
+      .catch(() => false)
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
+}
+
 export async function http<T>(path: string, options: HttpOptions = {}): Promise<T> {
+  return send<T>(path, options, true);
+}
+
+/**
+ * 发送请求并按需续期重放。
+ *
+ * @param path 请求路径（同源相对路径）
+ * @param options 请求选项
+ * @param allowRefresh 是否允许在 401 时自动续期并重放（重放仅一次，防递归）
+ * @returns 解析后的业务数据
+ */
+async function send<T>(path: string, options: HttpOptions, allowRefresh: boolean): Promise<T> {
   const { method = 'GET', body, auth = true, query, signal } = options;
 
   const headers = new Headers();
@@ -76,18 +144,13 @@ export async function http<T>(path: string, options: HttpOptions = {}): Promise<
     signal,
   });
 
-  const text = await response.text();
-  let payload: Result<T> | null = null;
-  if (text) {
-    try {
-      payload = JSON.parse(text) as Result<T>;
-    } catch {
-      payload = null;
-    }
-  }
+  const payload = parseResult<T>(await response.text());
 
-  // 401：令牌缺失/过期/已登出（黑名单命中）→ 清本地态并抛错，由路由守卫重定向登录
+  // 401：令牌缺失/过期/已登出（黑名单命中）→ 先静默续期并重放一次，仍失败则清态抛出
   if (response.status === 401) {
+    if (allowRefresh && !NO_REFRESH_PATHS.has(path) && (await refreshOnce())) {
+      return send<T>(path, options, false);
+    }
     clearAuth();
     throw new ApiError(401, payload?.message ?? '登录已失效，请重新登录');
   }
