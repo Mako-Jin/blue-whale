@@ -11,7 +11,14 @@ export default defineConfig({
   },
   server: {
     host: '0.0.0.0',
-    port: 8080,
+    port: 8001,
+    proxy: {
+      // 开发期将 whale-auth 各一级前缀转发到网关（8080），复用网关鉴权/黑名单校验链路
+      '^/(auth|user|dept|role|menu|permission|audit)/': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+    },
   },
   build: {
     target: 'esnext',

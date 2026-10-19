@@ -1,3 +1,11 @@
+:root {
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --bw-text: rgba(0, 0, 0, 0.88);
+  --bw-text-secondary: rgba(0, 0, 0, 0.45);
+  --bw-border: #f0f0f0;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -9,4 +17,49 @@ body,
 #root {
   width: 100%;
   height: 100%;
+}
+
+/* ---------- 登录页 ---------- */
+
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #e6f7ff 0%, #f5f5f5 100%);
+}
+
+.login-card {
+  width: 360px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.login-header h1 {
+  font-size: 20px;
+  margin: 12px 0 4px;
+  color: var(--bw-text);
+}
+
+.login-header p {
+  margin: 0;
+  color: var(--bw-text-secondary);
+}
+
+.login-logo-mark {
+  width: 40px;
+  height: 40px;
+  margin: 0 auto;
+  font-size: 20px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  background: linear-gradient(135deg, #1890ff, #096dd9);
 }
