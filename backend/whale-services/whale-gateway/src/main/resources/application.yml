@@ -62,6 +62,10 @@ spring:
               uri: lb://whale-i18n
               predicates:
                 - Path=/i18n/**
+            - id: whale-alert
+              uri: lb://whale-alert
+              predicates:
+                - Path=/alert/**
             - id: whale-monitor
               uri: lb://whale-monitor
               predicates:

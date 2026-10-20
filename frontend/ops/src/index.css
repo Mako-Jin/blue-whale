@@ -10,3 +10,80 @@ body,
   width: 100%;
   height: 100%;
 }
+
+/* ---------- 登录页 ---------- */
+
+.ops-login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #e6f7ff 0%, #f5f5f5 100%);
+}
+
+.ops-login-card {
+  width: 360px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+.ops-login-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.ops-login-header h1 {
+  font-size: 20px;
+  margin: 12px 0 4px;
+  color: var(--bw-color-text, rgba(0, 0, 0, 0.88));
+}
+
+.ops-login-header p {
+  margin: 0;
+  color: var(--bw-color-text-secondary, rgba(0, 0, 0, 0.45));
+}
+
+.ops-login-logo {
+  width: 40px;
+  height: 40px;
+  margin: 0 auto;
+  font-size: 20px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  background: linear-gradient(135deg, #1890ff, #096dd9);
+}
+
+/* ---------- 运维平台主框架 ---------- */
+
+.ops-logo {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.ops-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  background: #fff;
+  border-bottom: 1px solid var(--bw-color-border, #f0f0f0);
+}
+
+.ops-header-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--bw-color-text, rgba(0, 0, 0, 0.88));
+}
+
+.ops-content {
+  padding: 24px;
+}

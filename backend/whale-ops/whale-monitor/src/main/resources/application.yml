@@ -1,5 +1,5 @@
 server:
-  port: ${server.port:9102}
+  port: ${SERVER_PORT:9102}
   servlet:
     context-path: /
 
@@ -8,6 +8,16 @@ spring:
     name: whale-monitor
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
+  # 本服务为「无库」采集型服务（roadmap §2.5 标「——」）：仅做 Nacos 服务发现聚合，不持有业务库。
+  # 平台 starter（whale-spring-boot-starter）无条件传递引入 MyBatis-Plus + 审计/接口日志模块（均以库为前置），
+  # 故此处排除 DB 相关自动配置，仅保留统一响应体 / 全局异常 / 权限码头等无库能力。
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+      - com.baomidou.mybatisplus.autoconfigure.MybatisPlusAutoConfiguration
+      - com.bluewhale.common.mybatis.config.MybatisPlusConfig
+      - com.bluewhale.common.audit.config.AuditLogAutoConfiguration
+      - com.bluewhale.common.log.config.WhaleLogAutoConfiguration
   cloud:
     nacos:
       discovery:

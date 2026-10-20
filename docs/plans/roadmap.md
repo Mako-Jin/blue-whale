@@ -4,6 +4,8 @@
 
 ## Phase 1：基础设施就绪
 
+> **环境受限待办（本机无 Docker）**：1.1–1.4 依赖 Docker Compose / Nginx 容器，未在本机验证，转入后续具备 Docker 的环境补齐（Wave 5.33 已按用户口径跳过）。
+
 - [ ] 1.1 配置环境变量 — 复制 `.env.example` → `infrastructure/docker/.env`，填入 MySQL/Redis/Nacos 密码
 - [ ] 1.2 启动 Docker Compose — `cd infrastructure/docker && docker compose up -d`
 - [ ] 1.3 验证中间件 — Nacos (http://localhost:8848/nacos)、MySQL 11 个业务库自动建库、Redis 连通
@@ -60,8 +62,8 @@
 - [x] ~~Wave 5.30 表单剩余任务 · 问题修复 · 收尾：补齐 Wave 5.29 遗留三项 —— ①后端 whale-form 列变更**在线迁移**（`FormDataEngine.describeColumns` 描述物理列 + `FormTableDdlGenerator` 增 `columnDef/alterAdd/alterModify/alterDrop/normalizeType/reservedColumns`；`FormPublishServiceImpl.ensurePublished` 统一「无表→CREATE，有表→diff+ALTER」，`publishTableDefinition`/`publishMetadata` 同走该路；DROP 前护栏：元数据仍在（含 `status=0` 停用列）不下发 DROP，被表单视图引用列 `PARAM_ERROR` 前置拦截）；**P1 修复**：`FormTableDefinitionServiceImpl.update` 由「整体逻辑删列+重建」改 `mergeColumns` 按 `columnCode` 就地合并**保列主键**，消除既有表单视图 `column_meta_id` 悬空；②数据导出 `GET /form/data/export`（`format=csv|xlsx`，纯 JDK UTF-8 BOM CSV + 最小 OpenXML XLSX，`EXPORT_MAX_ROWS=5000`，复用 `sys:form:data:list`，**不新增 Maven 依赖**；前端 `api/http.ts downloadBlob` + 数据列表「导出」下拉）；③设计器**撤销/重做**（`past/future` 历史栈 + `commit()` 统一入口 + 按钮 + `Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z`，输入控件内不劫持）~~（2026-10-20 完成：后端 8 改 + 2 新 main + 3 测试、前端 5 改；`mvn -o -f backend/pom.xml clean install` 28/28 模块 **BUILD SUCCESS**（Checkstyle `severity=error` + 全量单测）、`pnpm … whale-form-designer build` 通过（1461 modules）；API 级 E2E E1–E4/E7 全 PASS（编辑只改元数据、发布 ADD/MODIFY/DROP、导出 CSV/XLSX 可打开、负向护栏）＋浏览器实机 E5 撤销/重做 PASS；遗留 E6 真实指针拖拽入画布自动化不可复现，**需人工复核**（本轮未改 DnD 代码，判定无回归）；报告 [reviews/2026-10-20-wave5.30-form-residual.md](../reviews/2026-10-20-wave5.30-form-residual.md)）；规格：[wave5.30-form-residual/spec.md](wave5.30-form-residual/spec.md)
 - [x] ~~Wave 5.31 whale-workflow 引擎升级（状态机 + BPMN 2.0 双向 + JSON 事实源）：扩展现有 `whale-workflow`（不新建模块、不推倒重来），**本轮仅后端** —— ① **通用状态机内核** `support/machine/`（`StateMachine.pickFlow` 统一选路 + `Guard` SPI〔`AlwaysGuard`/`DefaultFlowGuard`，条件本轮不参与选路〕+ 网关透传 + `MAX_GATEWAY_HOPS=16`），`ProcessInstanceServiceImpl#start` / `ProcessTaskServiceImpl#approve` 改由内核驱动（新增 `current_node_key` 定位，为空回落 `currentIndex`）；② **规范化 JSON 为唯一事实源** `{type,nodes[],flows[]}`（`ProcessModelParser` 模式判定：`stateMachine`/legacy/无 type 有 flows；`ProcessModelValidator` 22 错误码 + `CONDITION_IGNORED` 警告；上限 200 节点/400 流转），**向后兼容**旧 `{"nodes":[…]}`（legacy 归一化委托既有 `ProcessNodeParser`，文案逐字节保留）；③ **BPMN 2.0 轻量自研双向**（`BpmnXmlSupport` JDK DOM 加固〔禁 DOCTYPE/外部实体/XInclude + `FEATURE_SECURE_PROCESSING` + 空 `EntityResolver` + 体积卡口 256KB，**不引入 Flowable/Camunda**〕、`BpmnXmlParser` XML→模型〔任意前缀 `assignee`、网关 `default`→`isDefault`、不支持元素点名报错〕、`BpmnXmlWriter` 模型→XML）；④ **3 个新端点** `/workflow/definition/validate`（权限种子 58）、`/workflow/definition/bpmn`（59）、`GET /workflow/definition/{id}/bpmn`（复用 `sys:workflow:list`）；⑤ 库表 `process_instance.current_node_key VARCHAR(64) NULL` + `db/migration-5.31.sql`；**验证**：模块自检 102 用例全绿 + Checkstyle 0 违规；全量回归 `mvn -o clean install -T 1C` **28/28 模块 BUILD SUCCESS**；运行时冒烟（经网关 8080）**28/28 PASS**（G2 legacy `n1→n2→已通过`｜G3 校验 18/18〔LEGACY + `CONDITION_IGNORED` + 16 负向码含 2 个 XML〕｜G4 BPMN 导入→导出→再校验往返｜G5 `current_node_key=NULL` 回落同意成功 + 信封 404/400/401/403）；报告 [reviews/2026-10-20-wave5.31-workflow-engine.md](../reviews/2026-10-20-wave5.31-workflow-engine.md)；规格：[wave5.31-workflow-engine/spec.md](wave5.31-workflow-engine/spec.md)；**前端设计器/BPMN 可视化、条件表达式求值、并行网关/会签未做**~~
 - [x] ~~Wave 5.32 whale-workflow-designer 工作流前端（管理 + 绘制 + 表单绑定）：新建独立前端应用 `frontend/platform-apps/whale-workflow-designer`（端口 8003，proxy 正则 `^/(auth|workflow|form)(/|$)`，storage 前缀 `whale_wf_`，`Id = string` 全链路禁 `Number(id)`）覆盖**四域** —— ① **流程定义管理**（分页/新建/编辑/删除/校验/跳设计器/发起入口/BPMN 导入导出）；② **自由画布设计器**（SVG 自绘 + 复用 `@dnd-kit`，不引入 React Flow：Palette 4 类节点拖入、节点拖动〔`PointerSensor` `activationConstraint:{distance:4}` 区分点击选中/拖拽移动 + 10px 网格吸附〕、连线选中、属性面板 `key`/`name`/`type`/`assignee`/`formId`+`formCode`、`FormPicker` 拉 `GET /form/definition/page` **选表单管理器的表单**、画布 ↔ 规范化 JSON、`/validate` 按 `refKey` 高亮、BPMN 导入导出）；③ **流程发起 + 填表单**（入口 `USER_TASK` 节点 `formId` → `<FormRenderer>` 填报 → `POST /form/data` 取数据 ID → `POST /workflow/instance`，`businessKey` = 数据 ID）；④ **我的待办 + 审批 + 实例监控**（审批抽屉经实例 `businessKey` → `GET /form/data/{id}` → `<FormRenderer disabled>` **只读回显**，同意/驳回；实例详情抽屉含 `currentNodeKey`/`status`/轨迹）。**后端最小可加性补强**（Wave 5.31 事实源上加字段，legacy 零回归）：节点 `formId`/`formCode`/`x`/`y` 显式入 JSON 往返、`USER_TASK_FORM_CODE_INVALID`/`USER_TASK_FORM_INCOMPLETE` 两校验码、BPMN 任意前缀 `formKey`/`formId` 对称往返（坐标不进 XML）、`process_task` 加 `node_key`/`form_id`/`form_code`（幂等 `db/migration-5.32.sql`）、`FormRenderer` 抽进 `elemental/whale-ui` 供 form-designer 与 workflow-designer 共用；**验证**：模块自检 **120 用例全绿**（5.31 基线 102 + 18）+ Checkstyle 0 违规；全量回归 `mvn -o clean install -T 1C` **28/28 模块 BUILD SUCCESS**；前端 `pnpm build` **14/14 任务**；DDL 落库（`process_task` 三列 `varchar(64) YES`）；运行时冒烟 **15/15 PASS**（新字段往返、两新码、待办三列、BPMN `formKey` 往返、信封 401/404）；浏览器实机 E2E **A–G 全链路 PASS**（登录→定义列表→设计器 3 节点 2 连线→节点属性含绑定表单→连线属性→校验 `nodeCount=3 flowCount=2 mode=NORMALIZED`→保存持久化→发起填表单「流程发起成功」→待办只读回显→同意→实例「已通过」轨迹正确）；**遗留**：C4 拖拽手势自动化不可复现（dnd-kit 拖拽源接线已确认正确，`role="button"`+`aria-roledescription="draggable"`，需人工复核）；审批表单仅只读回显；条件表达式仍未求值）；报告 [reviews/2026-10-20-wave5.32-workflow-designer.md](../reviews/2026-10-20-wave5.32-workflow-designer.md)；规格：[wave5.32-workflow-designer/spec.md](wave5.32-workflow-designer/spec.md)~~
-- [ ] whale-pay（支付）
-- [ ] whale-audit（审计日志，**四通道查询 + 元审计 + 出站/接口日志**已落地，Wave 5.19 建 `bluewhale_audit` 库并运行时验证）、whale-monitor（监控）、whale-alert（告警）
+- [x] ~~whale-pay（支付）~~（Wave 5.33 ⑨：建库 `bluewhale_pay` + `pay_order` 表 + `/pay/order`〔page/详情/create/`{id}/pay`/`{id}/cancel〕5 接口 + `sys:pay:*` 权限种子 id 70–73；状态单向 `CREATED→PAID/CANCELLED`；9 单测 + Checkstyle 0 违规）
+- [x] ~~whale-audit（审计日志，**四通道查询 + 元审计 + 出站/接口日志**已落地，Wave 5.19 建 `bluewhale_audit` 库并运行时验证）、whale-monitor（监控）、whale-alert（告警）~~（Wave 5.33 ③④⑤：monitor 补 `GET /monitor/service/list` + `/monitor/service/{name}/instances`〔`DiscoveryClient` 服务与实例健康聚合，`sys:monitor:list` id 64〕；alert 建库 `bluewhale_alert` + `alert_rule`/`alert_record` + `/alert/rule`〔page/详情/create/update/delete/启停〕+ `/alert/record/page` + 权限种子 id 65–69 + 网关 `/alert/**` 路由；audit **仅文档勾选同步**，**MQ 汇聚 / 异步派发标注「环境受限（无 RabbitMQ）backlog」**）
 
 ### 2.6 工程规范与分布式基础（2026-10-17 新增）
 
@@ -112,16 +114,18 @@
 
 ### 3.4 whale-portal 门户
 
-- [ ] 工作台 / 待办 / 消息通知
-- [ ] ERP / OA / MES 入口卡片
+- [x] ~~工作台 / 待办 / 消息通知~~（Wave 5.33 ⑦：`whale-portal` 工作台 4 张统计卡片 + `GET /workflow/task/page` 我的待办表 + 消息通知占位页 + Layout/菜单/路由）
+- [x] ~~ERP / OA / MES 入口卡片~~（Wave 5.33 ⑦：三张入口卡片跳 `/erp` `/oa` `/mes`；`pnpm --filter whale-portal build` 通过）
 
 ## Phase 4：业务应用与运维
 
-- [ ] whale-erp / whale-mes / whale-pdm / whale-oa 各自列表页 + 表单页骨架
-- [ ] 前后端 API 联调
-- [ ] ops 运维平台：服务监控面板、审计日志查询、告警列表（对接 Prometheus）
+- [x] ~~whale-erp / whale-mes / whale-pdm / whale-oa 各自列表页 + 表单页骨架~~（Wave 5.33 ⑧：erp(8102)/oa(8103) 补列表页 + 表单页 + API 层；**新建** mes(8105)/pdm(8106) 子应用并注册进基座 `whale-platform/src/qiankun/apps.ts`；四应用 `pnpm build` 全绿）
+- [ ] 前后端 API 联调（Wave 5.33 ⑧ 仅铺前端骨架，接**占位数据源 + TODO**；后端 `whale-apps/*`〔erp/oa/mes/pdm，9001–9004〕本轮未填充，列后续 wave）
+- [x] ~~ops 运维平台：服务监控面板、审计日志查询、告警列表（对接 Prometheus）~~（Wave 5.33 ⑥：`frontend/ops` 独立 SPA〔端口 8104 + 代理 `/auth|/monitor|/alert|/audit` → 网关 8080，token 前缀 `whale_ops_`〕三页已接 `/monitor/service/list`、`/audit/log/page`、`/alert/rule/page` + `/alert/record/page`（双 Tab）；浏览器实机冒烟通过〔Monitor 6 服务 / Audit 14 条 / Alert 3 条规则〕；**Prometheus/Grafana 对接未做**，留 backlog）
 
 ## Phase 5：部署与 CI/CD
+
+> **环境受限待办（本机无 Docker）**：Dockerfile / GitHub Actions / 生产 compose / Nginx HTTPS 均未在本机验证，转入后续具备 Docker 的环境补齐（Wave 5.33 已按用户口径跳过）。
 
 - [ ] Dockerfile 多阶段构建验证（后端 3 个模板 + 前端）
 - [ ] GitHub Actions CI 跑通

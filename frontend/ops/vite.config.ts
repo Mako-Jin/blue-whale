@@ -11,7 +11,14 @@ export default defineConfig({
   },
   server: {
     host: '0.0.0.0',
-    port: 8081,
+    port: 8104,
+    proxy: {
+      // 运维接口经网关 8080 转发；网关只转发不剥离前缀，路径原样透传
+      '^/(auth|monitor|alert|audit)(/|$)': {
+        target: 'http://127.0.0.1:8080',
+        changeOrigin: true,
+      },
+    },
   },
   build: {
     target: 'esnext',

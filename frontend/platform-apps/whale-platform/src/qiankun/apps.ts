@@ -34,4 +34,18 @@ export const apps: WhaleMicroApp[] = [
     container: '#subapp-container',
     props: { token: 'bluewhale-platform-token' },
   },
+  {
+    name: 'whale-mes',
+    entry: '//localhost:8105',
+    activeRule: '/mes',
+    container: '#subapp-container',
+    props: { token: 'bluewhale-platform-token' },
+  },
+  {
+    name: 'whale-pdm',
+    entry: '//localhost:8106',
+    activeRule: '/pdm',
+    container: '#subapp-container',
+    props: { token: 'bluewhale-platform-token' },
+  },
 ];

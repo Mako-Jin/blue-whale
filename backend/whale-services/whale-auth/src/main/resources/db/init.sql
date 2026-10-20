@@ -472,3 +472,22 @@ INSERT INTO sys_permission
     (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
 VALUES
     (64, 0, 'sys:monitor:list', '查询服务监控', 'API', '/monitor/**', 'GET', 64, 1);
+
+-- 告警中心权限点：与 whale-alert 接口 @RequirePermission("sys:alert:*") 一一对应
+INSERT INTO sys_permission
+    (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+VALUES
+    (65, 0, 'sys:alert:rule:add', '新增告警规则', 'API', '/alert/rule', 'POST', 65, 1),
+    (66, 0, 'sys:alert:rule:edit', '修改告警规则', 'API', '/alert/rule/**', 'PUT', 66, 1),
+    (67, 0, 'sys:alert:rule:delete', '删除告警规则', 'API', '/alert/rule/{id}', 'DELETE', 67, 1),
+    (68, 0, 'sys:alert:rule:list', '查询告警规则', 'API', '/alert/rule/**', 'GET', 68, 1),
+    (69, 0, 'sys:alert:record:list', '查询告警记录', 'API', '/alert/record/**', 'GET', 69, 1);
+
+-- 支付服务权限点：与 whale-pay 接口 @RequirePermission("sys:pay:*") 一一对应
+INSERT INTO sys_permission
+    (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+VALUES
+    (70, 0, 'sys:pay:list', '查询支付单', 'API', '/pay/order/**', 'GET', 70, 1),
+    (71, 0, 'sys:pay:add', '创建支付单', 'API', '/pay/order', 'POST', 71, 1),
+    (72, 0, 'sys:pay:pay', '支付单支付', 'API', '/pay/order/{id}/pay', 'POST', 72, 1),
+    (73, 0, 'sys:pay:cancel', '支付单取消', 'API', '/pay/order/{id}/cancel', 'POST', 73, 1);

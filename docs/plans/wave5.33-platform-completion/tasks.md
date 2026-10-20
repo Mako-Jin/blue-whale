@@ -31,49 +31,52 @@
 
 ## ④ whale-alert 最小可用
 
-- [ ] ④-1 接线：`application.yml` 补 datasource(`bluewhale_alert`)/mybatis + `db/init.sql`（`alert_rule` / `alert_record`）
-- [ ] ④-2 业务：`AlertRule(+Service/Impl/Controller)` + `AlertRecord(+Service/Impl/Controller)` + DTO/VO
-- [ ] ④-3 权限种子：id 65–69
-- [ ] ④-4 网关路由：`/alert/**` → `lb://whale-alert`
-- [ ] ④-5 单测 + 模块自检 + 回归 + 冒烟 + 文档 + push
+- [x] ④-1 接线：`application.yml` 补 datasource(`bluewhale_alert`)/mybatis + `db/init.sql`（`alert_rule` / `alert_record`）
+- [x] ④-2 业务：`AlertRule(+Service/Impl/Controller)` + `AlertRecord(+Service/Impl/Controller)` + DTO/VO
+- [x] ④-3 权限种子：id 65–69
+- [x] ④-4 网关路由：`/alert/**` → `lb://whale-alert`
+- [x] ④-5 单测 + 模块自检 + 回归 + 冒烟 + 文档 + push
 
 ## ⑤ whale-audit 收尾（文档）
 
-- [ ] ⑤-1 `roadmap.md` §2.5 勾选 whale-audit；`task-breakdown.md` 残留标注
-- [ ] ⑤-2 MQ 汇聚 / 异步派发 → 标注「环境受限（无 RabbitMQ）backlog」
+- [x] ⑤-1 `roadmap.md` §2.5 勾选 whale-audit；`task-breakdown.md` 残留标注
+- [x] ⑤-2 MQ 汇聚 / 异步派发 → 标注「环境受限（无 RabbitMQ）backlog」
 
 ## ⑥ frontend/ops 运维平台
 
-- [ ] ⑥-1 基座：vite 端口 8104 + 代理 `/auth|/monitor|/alert|/audit` → 8080；`api/http.ts` + `token.ts`（前缀 `whale_ops_`）+ 登录/守卫
-- [ ] ⑥-2 `pages/Monitor.tsx` 服务监控面板
-- [ ] ⑥-3 `pages/Audit.tsx` 审计日志查询
-- [ ] ⑥-4 `pages/Alert.tsx` 告警列表
-- [ ] ⑥-5 构建 + 浏览器冒烟 + 文档 + push
+- [x] ⑥-1 基座：vite 端口 8104 + 代理 `/auth|/monitor|/alert|/audit` → 8080；`api/http.ts` + `token.ts`（前缀 `whale_ops_`）+ 登录/守卫
+- [x] ⑥-2 `pages/Monitor.tsx` 服务监控面板
+- [x] ⑥-3 `pages/Audit.tsx` 审计日志查询
+- [x] ⑥-4 `pages/Alert.tsx` 告警列表
+- [x] ⑥-5 构建 + 浏览器冒烟 + 文档 + push
 
 ## ⑦ whale-portal 门户
 
-- [ ] ⑦-1 工作台统计卡片 + ERP/OA/MES 入口卡片
-- [ ] ⑦-2 我的待办（`/workflow/task/page`）+ 消息通知占位
-- [ ] ⑦-3 构建 + 文档 + push
+- [x] ⑦-1 工作台统计卡片 + ERP/OA/MES 入口卡片
+- [x] ⑦-2 我的待办（`/workflow/task/page`）+ 消息通知占位
+- [x] ⑦-3 构建 + 文档 + push
 
 ## ⑧ whale-erp / oa / mes / pdm 骨架
 
-- [ ] ⑧-1 `whale-erp`(8102) 列表页 + 表单页 + API 层
-- [ ] ⑧-2 `whale-oa`(8103) 列表页 + 表单页 + API 层
-- [ ] ⑧-3 `whale-mes`(8105) 新建子应用 + 骨架页
-- [ ] ⑧-4 `whale-pdm`(8106) 新建子应用 + 骨架页
-- [ ] ⑧-5 构建 + 文档 + push
+- [x] ⑧-1 `whale-erp`(8102) 列表页 + 表单页 + API 层
+- [x] ⑧-2 `whale-oa`(8103) 列表页 + 表单页 + API 层
+- [x] ⑧-3 `whale-mes`(8105) 新建子应用 + 骨架页
+- [x] ⑧-4 `whale-pdm`(8106) 新建子应用 + 骨架页
+- [x] ⑧-5 构建 + 文档 + push
 
 ## ⑨ whale-pay 最小可用
 
-- [ ] ⑨-1 接线：`application.yml` 补 datasource(`bluewhale_pay`)/mybatis + `db/init.sql`（`pay_order`）
-- [ ] ⑨-2 业务：`PayOrder(+Service/Impl/Controller)`（page/详情/create/`{id}/pay`/`{id}/cancel`）+ DTO/VO
-- [ ] ⑨-3 权限种子：`sys:pay:*`（id 70–73）
-- [ ] ⑨-4 单测 + 模块自检 + 回归 + 冒烟 + 文档 + push
+- [x] ⑨-1 接线：`application.yml` 补 datasource(`bluewhale_pay`)/mybatis + `db/init.sql`（`pay_order`）
+- [x] ⑨-2 业务：`PayOrder(+Service/Impl/Controller)`（page/详情/create/`{id}/pay`/`{id}/cancel`）+ DTO/VO
+- [x] ⑨-3 权限种子：`sys:pay:*`（id 70–73）
+- [x] ⑨-4 单测 + 模块自检 + 回归 + 冒烟 + 文档 + push
 
 ## 收尾
 
-- [ ] Z-1 全量回归 `mvn -o clean install -T 1C` + `pnpm -C frontend build` 全绿
-- [ ] Z-2 roadmap §2.4/§2.5/§3.2/§3.4/Phase 4 勾选 + Phase 1/5 标「环境受限待办」
-- [ ] Z-3 补勾 wave5.20 / wave5.27 / wave5.28 文档漏勾
-- [ ] Z-4 devlog + review 报告 + push origin
+- [x] Z-1 全量回归 `mvn -o clean install -T 1C` + `pnpm -C frontend build` 全绿
+- [x] Z-2 roadmap §2.4/§2.5/§3.2/§3.4/Phase 4 勾选 + Phase 1/5 标「环境受限待办」
+- [x] Z-3 补勾 wave5.20 / wave5.27 / wave5.28 文档漏勾
+- [x] Z-4 devlog + review 报告 + push origin
+- [x] Z-5（验证驱动修复）whale-monitor 两处运行期阻塞：`${server.port:9102}` → `${SERVER_PORT:9102}`；Spring Boot 4 包名迁移 → `spring.autoconfigure.exclude` 改用 `org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration`（原 SB3 旧包名被静默忽略）
+- [x] Z-6（实机库漂移）补齐 `bluewhale_auth.sys_permission` 缺失的 `sys:monitor:list`（id 64）—— `init.sql` 本已含该行，仅实机库未重跑种子
+- [x] Z-7（验证驱动修复）ops「告警中心」改版为「告警规则（默认）+ 告警记录」Tab —— 原仅查空的 `alert_record` 致页面显示 No data
