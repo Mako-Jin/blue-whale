@@ -4,6 +4,7 @@
 //      这里以交叉类型补足列表展示所需字段。
 
 import {
+  Alert,
   App,
   Button,
   Card,
@@ -212,7 +213,7 @@ export default function TableDefinitionList() {
     }
     try {
       await tableDefinitionApi.publish(row.id);
-      message.success('发布成功');
+      message.success('发布成功，物理表结构已同步');
       void fetchList();
     } catch (e) {
       message.error((e as Error).message);
@@ -431,6 +432,13 @@ export default function TableDefinitionList() {
             </Form.Item>
 
             <Divider orientation="left">列定义</Divider>
+            <Alert
+              type="info"
+              showIcon
+              style={{ marginBottom: 12 }}
+              message="列变更仅修改列元数据，不会立即改动物理表"
+              description="点击「发布」后系统会比对并执行 ALTER TABLE（新增列 / 修改列类型 / 删除未被表单视图引用的列）。"
+            />
             <Form.List name="columns">
               {(fields, { add, remove }) => (
                 <>

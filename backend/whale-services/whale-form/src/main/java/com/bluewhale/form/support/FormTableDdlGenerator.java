@@ -6,6 +6,7 @@ import com.bluewhale.form.entity.FormColumnMeta;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -30,6 +31,11 @@ public final class FormTableDdlGenerator {
 
     /** COMMENT 文本最大长度 */
     private static final int MAX_COMMENT_LENGTH = 200;
+
+    /** 物理表公共列（与 {@link FormSchemaParser} 保留列一致，永不参与增量变更） */
+    private static final Set<String> RESERVED_COLUMNS = Set.of(
+            "id", "tenant_id", "definition_id", "definition_version", "biz_key",
+            "submitter", "status", "create_time", "update_time", "deleted");
 
     /** 工具类不允许实例化 */
     private FormTableDdlGenerator() {
@@ -96,12 +102,78 @@ public final class FormTableDdlGenerator {
                                              List<FormColumnMeta> columns) {
         List<String> defs = baseColumnDefs();
         for (FormColumnMeta column : columns) {
-            defs.add("`" + column.getColumnCode() + "` " + FormDataType.mysqlType(
-                    column.getDataType(), column.getLength(), column.getPrecision(), column.getScale())
-                    + " DEFAULT NULL COMMENT '" + escapeComment(column.getColumnName()) + "'");
+            defs.add(columnDef(column));
         }
         defs.addAll(baseIndexDefs());
         return buildDdl(table, "表单数据物理表 " + tableCode + " v" + version, defs);
+    }
+
+    /**
+     * 单个动态列的定义片段（列名 + MySQL 类型 + 注释）
+     *
+     * @param column 列元数据
+     * @return 形如 {@code `code` VARCHAR(255) DEFAULT NULL COMMENT '名称'} 的定义文本
+     * @throws BizException 存储类型/参数非法时抛出 {@code PARAM_ERROR}
+     */
+    public static String columnDef(FormColumnMeta column) {
+        return "`" + column.getColumnCode() + "` " + FormDataType.mysqlType(
+                column.getDataType(), column.getLength(), column.getPrecision(), column.getScale())
+                + " DEFAULT NULL COMMENT '" + escapeComment(column.getColumnName()) + "'";
+    }
+
+    /**
+     * 生成新增列语句
+     *
+     * @param table 物理表名
+     * @param column 待新增列元数据
+     * @return {@code ALTER TABLE} 语句
+     */
+    public static String alterAdd(String table, FormColumnMeta column) {
+        return "ALTER TABLE `" + table + "` ADD COLUMN " + columnDef(column);
+    }
+
+    /**
+     * 生成修改列语句（类型/长度/精度/注释变更）
+     *
+     * @param table 物理表名
+     * @param column 目标列元数据
+     * @return {@code ALTER TABLE} 语句
+     */
+    public static String alterModify(String table, FormColumnMeta column) {
+        return "ALTER TABLE `" + table + "` MODIFY COLUMN " + columnDef(column);
+    }
+
+    /**
+     * 生成删除列语句
+     *
+     * @param table 物理表名
+     * @param columnCode 待删除列编码（须已通过 {@link FormSchemaParser#assertColumnCode(String)} 校验）
+     * @return {@code ALTER TABLE} 语句
+     */
+    public static String alterDrop(String table, String columnCode) {
+        return "ALTER TABLE `" + table + "` DROP COLUMN `" + columnCode + "`";
+    }
+
+    /**
+     * 归一化 MySQL 列类型文本（用于与 {@link FormDataType#mysqlType} 输出比对差异）
+     *
+     * @param mysqlType 原始列类型文本（如 {@code varchar(255)}）
+     * @return 小写、去空格、去反引号后的文本；入参为空时返回空串
+     */
+    public static String normalizeType(String mysqlType) {
+        if (mysqlType == null) {
+            return "";
+        }
+        return mysqlType.replace("`", "").replace(" ", "").toLowerCase();
+    }
+
+    /**
+     * 物理表公共列集合（永不参与结构差异的 ADD / MODIFY / DROP）
+     *
+     * @return 公共列名集合
+     */
+    public static Set<String> reservedColumns() {
+        return RESERVED_COLUMNS;
     }
 
     /**

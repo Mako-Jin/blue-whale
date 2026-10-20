@@ -5,13 +5,18 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.form.dto.FormColumnMetaDTO;
 import com.bluewhale.form.dto.FormTableDefinitionSaveRequest;
 import com.bluewhale.form.entity.FormColumnMeta;
+import com.bluewhale.form.entity.FormDefinition;
+import com.bluewhale.form.entity.FormFieldConfig;
 import com.bluewhale.form.entity.FormTableDefinition;
 import com.bluewhale.form.mapper.FormColumnMetaMapper;
+import com.bluewhale.form.mapper.FormDefinitionMapper;
+import com.bluewhale.form.mapper.FormFieldConfigMapper;
 import com.bluewhale.form.mapper.FormTableDefinitionMapper;
 import com.bluewhale.form.vo.FormTableDefinitionVO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -22,6 +27,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -42,6 +48,12 @@ class FormTableDefinitionServiceImplTest {
 
     @Mock
     private FormColumnMetaMapper formColumnMetaMapper;
+
+    @Mock
+    private FormFieldConfigMapper formFieldConfigMapper;
+
+    @Mock
+    private FormDefinitionMapper formDefinitionMapper;
 
     @InjectMocks
     private FormTableDefinitionServiceImpl formTableDefinitionService;
@@ -73,6 +85,35 @@ class FormTableDefinitionServiceImplTest {
         request.setTableName("业务订单");
         request.setColumns(columns);
         return request;
+    }
+
+    /**
+     * 构造已落库表定义桩对象（编码 {@code biz_order}，与请求编码一致以避免唯一性校验）。
+     *
+     * @return 表定义实体
+     */
+    private static FormTableDefinition tableDefinition() {
+        FormTableDefinition entity = new FormTableDefinition();
+        entity.setId(10L);
+        entity.setTableCode("biz_order");
+        entity.setTableName("业务订单");
+        entity.setVersion(1);
+        return entity;
+    }
+
+    /**
+     * 构造已落库列元数据桩对象。
+     *
+     * @param id 列主键
+     * @param code 列编码
+     * @return 列元数据实体
+     */
+    private static FormColumnMeta existingColumn(Long id, String code) {
+        FormColumnMeta column = new FormColumnMeta();
+        column.setId(id);
+        column.setTableDefinitionId(10L);
+        column.setColumnCode(code);
+        return column;
     }
 
     @Test
@@ -115,5 +156,74 @@ class FormTableDefinitionServiceImplTest {
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         verify(formColumnMetaMapper, never()).insert(any(FormColumnMeta.class));
+    }
+
+    @Test
+    @DisplayName("update：同编码列就地合并并保留原主键")
+    void shouldKeepExistingColumnId() {
+        when(formTableDefinitionMapper.selectById(10L)).thenReturn(tableDefinition());
+        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMeta>>any()))
+                .thenReturn(List.of(existingColumn(100L, "amount")));
+
+        formTableDefinitionService.update(10L, saveRequest(List.of(column("amount", "text"))));
+
+        ArgumentCaptor<FormColumnMeta> captor = ArgumentCaptor.forClass(FormColumnMeta.class);
+        verify(formColumnMetaMapper).updateById(captor.capture());
+        assertEquals(100L, captor.getValue().getId());
+        verify(formColumnMetaMapper, never()).deleteById(anyLong());
+    }
+
+    @Test
+    @DisplayName("update：新增列落库")
+    void shouldInsertNewColumn() {
+        when(formTableDefinitionMapper.selectById(10L)).thenReturn(tableDefinition());
+        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMeta>>any()))
+                .thenReturn(List.of(existingColumn(100L, "amount")));
+
+        formTableDefinitionService.update(10L,
+                saveRequest(List.of(column("amount", "text"), column("remark", "text"))));
+
+        ArgumentCaptor<FormColumnMeta> captor = ArgumentCaptor.forClass(FormColumnMeta.class);
+        verify(formColumnMetaMapper).insert(captor.capture());
+        assertEquals("remark", captor.getValue().getColumnCode());
+    }
+
+    @Test
+    @DisplayName("update：待删列被表单视图引用抛参数错误且不删除")
+    void shouldRejectDeletingReferencedColumn() {
+        when(formTableDefinitionMapper.selectById(10L)).thenReturn(tableDefinition());
+        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMeta>>any()))
+                .thenReturn(List.of(existingColumn(100L, "amount")));
+        FormFieldConfig config = new FormFieldConfig();
+        config.setFormId(5L);
+        config.setColumnMetaId(100L);
+        when(formFieldConfigMapper.selectList(ArgumentMatchers.<Wrapper<FormFieldConfig>>any()))
+                .thenReturn(List.of(config));
+        FormDefinition form = new FormDefinition();
+        form.setId(5L);
+        form.setName("订单表单");
+        form.setTableDefinitionId(10L);
+        when(formDefinitionMapper.selectList(ArgumentMatchers.<Wrapper<FormDefinition>>any()))
+                .thenReturn(List.of(form));
+
+        BizException ex = assertThrows(BizException.class,
+                () -> formTableDefinitionService.update(10L, saveRequest(List.of(column("remark", "text")))));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        verify(formColumnMetaMapper, never()).deleteById(anyLong());
+    }
+
+    @Test
+    @DisplayName("update：待删列未被引用则逻辑删除")
+    void shouldDeleteUnreferencedColumn() {
+        when(formTableDefinitionMapper.selectById(10L)).thenReturn(tableDefinition());
+        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMeta>>any()))
+                .thenReturn(List.of(existingColumn(100L, "amount")));
+        when(formFieldConfigMapper.selectList(ArgumentMatchers.<Wrapper<FormFieldConfig>>any()))
+                .thenReturn(List.of());
+
+        formTableDefinitionService.update(10L, saveRequest(List.of(column("remark", "text"))));
+
+        verify(formColumnMetaMapper).deleteById(100L);
     }
 }

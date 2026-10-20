@@ -9,8 +9,12 @@ import com.bluewhale.form.dto.FormColumnMetaDTO;
 import com.bluewhale.form.dto.FormQueryRequest;
 import com.bluewhale.form.dto.FormTableDefinitionSaveRequest;
 import com.bluewhale.form.entity.FormColumnMeta;
+import com.bluewhale.form.entity.FormDefinition;
+import com.bluewhale.form.entity.FormFieldConfig;
 import com.bluewhale.form.entity.FormTableDefinition;
 import com.bluewhale.form.mapper.FormColumnMetaMapper;
+import com.bluewhale.form.mapper.FormDefinitionMapper;
+import com.bluewhale.form.mapper.FormFieldConfigMapper;
 import com.bluewhale.form.mapper.FormTableDefinitionMapper;
 import com.bluewhale.form.service.FormTableDefinitionService;
 import com.bluewhale.form.support.FormDataType;
@@ -26,8 +30,12 @@ import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * 表定义服务实现（表定义层：表 + 列聚合 CRUD）。
@@ -53,6 +61,10 @@ public class FormTableDefinitionServiceImpl implements FormTableDefinitionServic
     private final FormTableDefinitionMapper formTableDefinitionMapper;
 
     private final FormColumnMetaMapper formColumnMetaMapper;
+
+    private final FormFieldConfigMapper formFieldConfigMapper;
+
+    private final FormDefinitionMapper formDefinitionMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -88,7 +100,7 @@ public class FormTableDefinitionServiceImpl implements FormTableDefinitionServic
             entity.setStatus(request.getStatus());
         }
         formTableDefinitionMapper.updateById(entity);
-        List<FormColumnMeta> columns = replaceColumns(entity.getId(), entity.getVersion(), request.getColumns());
+        List<FormColumnMeta> columns = mergeColumns(entity.getId(), entity.getVersion(), request.getColumns());
         return toVo(entity, columns);
     }
 
@@ -137,23 +149,89 @@ public class FormTableDefinitionServiceImpl implements FormTableDefinitionServic
     }
 
     /**
-     * 全量替换列集合（旧列逻辑删除，新列重建）
+     * 按列编码就地合并列集合（保留既有列主键，缺失列逻辑删除）
+     *
+     * <p><b>列变更只改元数据</b>：本方法不触碰物理表；物理表结构在「发布」时由
+     * {@code FormPublishService} 比对列元数据与现有列后执行 ALTER。就地合并而非「删除重建」
+     * 是关键——重建会生成新的列主键，使既有表单视图的 {@code form_field_config.column_meta_id} 悬空。</p>
      *
      * @param tableDefinitionId 表定义ID
      * @param version 表版本
-     * @param dtos 列请求列表
-     * @return 新列实体列表
+     * @param dtos 列请求列表（可空，空表示清空全部列）
+     * @return 合并后的列实体列表（入参为空时返回空列表）
+     * @throws BizException 列编码/存储类型/参数非法、重复，或待删列被表单视图引用时抛出 {@code PARAM_ERROR}
      */
-    private List<FormColumnMeta> replaceColumns(Long tableDefinitionId, Integer version,
-                                                List<FormColumnMetaDTO> dtos) {
-        LambdaQueryWrapper<FormColumnMeta> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FormColumnMeta::getTableDefinitionId, tableDefinitionId);
-        formColumnMetaMapper.delete(wrapper);
-        return persistColumns(tableDefinitionId, version, dtos);
+    private List<FormColumnMeta> mergeColumns(Long tableDefinitionId, Integer version,
+                                              List<FormColumnMetaDTO> dtos) {
+        List<FormColumnMeta> existing = listColumns(tableDefinitionId);
+        Map<String, FormColumnMeta> existingByCode = existing.stream().collect(Collectors.toMap(
+                FormColumnMeta::getColumnCode, Function.identity(), (first, second) -> first, LinkedHashMap::new));
+        List<FormColumnMeta> result = new ArrayList<>();
+        Set<String> kept = new HashSet<>();
+        if (dtos != null) {
+            Set<String> codes = new HashSet<>();
+            for (FormColumnMetaDTO dto : dtos) {
+                FormSchemaParser.assertColumnCode(dto.getColumnCode());
+                if (!codes.add(dto.getColumnCode())) {
+                    throw paramError("列编码重复：" + dto.getColumnCode());
+                }
+                FormDataType.assertAllowed(dto.getDataType(), dto.getColumnCode());
+                FormDataType.mysqlType(dto.getDataType(), dto.getLength(), dto.getPrecision(), dto.getScale());
+                FormColumnMeta column = existingByCode.get(dto.getColumnCode());
+                if (column == null) {
+                    column = applyColumn(new FormColumnMeta(), dto, tableDefinitionId, version);
+                    formColumnMetaMapper.insert(column);
+                } else {
+                    applyColumn(column, dto, tableDefinitionId, version);
+                    formColumnMetaMapper.updateById(column);
+                }
+                kept.add(dto.getColumnCode());
+                result.add(column);
+            }
+        }
+        for (FormColumnMeta column : existing) {
+            if (!kept.contains(column.getColumnCode())) {
+                assertColumnNotReferenced(column, tableDefinitionId);
+                formColumnMetaMapper.deleteById(column.getId());
+            }
+        }
+        return result;
     }
 
     /**
-     * 逐列校验并落库，返回新列实体列表
+     * 校验待删除列未被本表定义下任一表单视图的字段配置引用
+     *
+     * <p>列元数据一旦逻辑删除，其物理列将在下次发布时被 DROP；若仍被表单视图引用，
+     * 会导致该视图编译 {@code schema_json} 失败并使历史提交数据无列可落。故在此前置拦截。</p>
+     *
+     * @param column 待删除列元数据
+     * @param tableDefinitionId 表定义ID
+     * @throws BizException 存在引用时抛出 {@code PARAM_ERROR}
+     */
+    private void assertColumnNotReferenced(FormColumnMeta column, Long tableDefinitionId) {
+        LambdaQueryWrapper<FormFieldConfig> configWrapper = new LambdaQueryWrapper<>();
+        configWrapper.eq(FormFieldConfig::getColumnMetaId, column.getId());
+        List<FormFieldConfig> configs = formFieldConfigMapper.selectList(configWrapper);
+        if (configs.isEmpty()) {
+            return;
+        }
+        Set<Long> formIds = configs.stream().map(FormFieldConfig::getFormId).collect(Collectors.toSet());
+        LambdaQueryWrapper<FormDefinition> formWrapper = new LambdaQueryWrapper<>();
+        formWrapper.in(FormDefinition::getId, formIds);
+        formWrapper.eq(FormDefinition::getTableDefinitionId, tableDefinitionId);
+        List<FormDefinition> forms = formDefinitionMapper.selectList(formWrapper);
+        if (forms.isEmpty()) {
+            return;
+        }
+        String names = forms.stream()
+                .map(form -> StringUtils.hasText(form.getName()) ? form.getName() : form.getCode())
+                .collect(Collectors.joining("、"));
+        throw paramError("列 " + column.getColumnCode() + " 正被表单视图「" + names
+                + "」引用，请先在设计器中移除该字段后再删除");
+    }
+
+    /**
+     * 逐列校验并落库（新建表定义时使用），返回新列实体列表
      *
      * @param tableDefinitionId 表定义ID
      * @param version 表版本
@@ -175,7 +253,7 @@ public class FormTableDefinitionServiceImpl implements FormTableDefinitionServic
             }
             FormDataType.assertAllowed(dto.getDataType(), dto.getColumnCode());
             FormDataType.mysqlType(dto.getDataType(), dto.getLength(), dto.getPrecision(), dto.getScale());
-            FormColumnMeta column = toColumn(dto, tableDefinitionId, version);
+            FormColumnMeta column = applyColumn(new FormColumnMeta(), dto, tableDefinitionId, version);
             formColumnMetaMapper.insert(column);
             result.add(column);
         }
@@ -183,15 +261,16 @@ public class FormTableDefinitionServiceImpl implements FormTableDefinitionServic
     }
 
     /**
-     * 列请求 → 列实体（补齐默认值）
+     * 列请求 → 列实体（就地写入，保留调用方传入实体的主键）
      *
+     * @param column 目标列实体（新建传 {@code new FormColumnMeta()}，更新传已落库实体）
      * @param dto 列请求
      * @param tableDefinitionId 表定义ID
      * @param version 表版本
-     * @return 列实体
+     * @return 写入后的列实体
      */
-    private static FormColumnMeta toColumn(FormColumnMetaDTO dto, Long tableDefinitionId, Integer version) {
-        FormColumnMeta column = new FormColumnMeta();
+    private static FormColumnMeta applyColumn(FormColumnMeta column, FormColumnMetaDTO dto,
+                                             Long tableDefinitionId, Integer version) {
         column.setTableDefinitionId(tableDefinitionId);
         column.setTableVersion(version);
         column.setColumnCode(dto.getColumnCode());

@@ -1,7 +1,7 @@
 // whale-form 契约层（F1 冻结）：类型字段名与后端 DTO/VO 严格一致，禁止改名；
 // 所有请求方法均为对 http.ts 的薄封装，路径前缀 /form/table-definition、/form/definition、/form/data。
 
-import { del, get, post, put, type PageResult } from './http';
+import { del, downloadBlob, get, post, put, type PageResult } from './http';
 
 // 重要：后端 whale-common JacksonConfig 对 Long 统一走 ToStringSerializer，
 // 雪花 ID 在 JSON 中一律为字符串。前端**必须**按 string 处理，
@@ -127,6 +127,9 @@ export interface FormDataSubmitParams {
   bizKey?: string;
 }
 
+/** 导出格式：csv（text/csv）/ xlsx（Excel） */
+export type ExportFormat = 'csv' | 'xlsx';
+
 /** 表定义 API（服务内前缀 /form/table-definition） */
 export const tableDefinitionApi = {
   page: (query?: PageParams) =>
@@ -158,4 +161,7 @@ export const formDataApi = {
   detail: (id: Id) => get<FormDataItem>(`/form/data/${id}`),
   create: (data: FormDataSubmitParams) => post<FormDataItem>('/form/data', data),
   remove: (id: Id) => del<void>(`/form/data/${id}`),
+  // 导出为原始字节流（响应非 JSON 信封），definitionCode 必填
+  export: (query: PageParams & { definitionCode: string; format?: ExportFormat }) =>
+    downloadBlob('/form/data/export', query),
 };

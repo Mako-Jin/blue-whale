@@ -17,8 +17,10 @@ import com.bluewhale.form.mapper.FormTableDefinitionMapper;
 import com.bluewhale.form.mapper.FormTableRegistryMapper;
 import com.bluewhale.form.service.FormDataService;
 import com.bluewhale.form.support.FormDataEngine;
+import com.bluewhale.form.support.FormDataExportSupport;
 import com.bluewhale.form.support.FormField;
 import com.bluewhale.form.support.FormSchemaParser;
+import com.bluewhale.form.vo.FormDataExportVO;
 import com.bluewhale.form.vo.FormDataVO;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,6 +30,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -56,6 +62,16 @@ public class FormDataServiceImpl implements FormDataService {
 
     /** 单页最大条数：防止深度分页拖垮数据库 */
     private static final long MAX_PAGE_SIZE = 200L;
+
+    /** 导出单次最大条数 */
+    private static final long EXPORT_MAX_ROWS = 5000L;
+
+    /** 导出文件名时间戳格式 */
+    private static final DateTimeFormatter FILE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+
+    /** 导出公共列（位于动态字段之前） */
+    private static final List<String> BASE_EXPORT_HEADERS = List.of(
+            "ID", "表单编码", "版本", "业务键", "提交人", "提交时间", "状态");
 
     /** JSON 解析器（仅读写，线程安全） */
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -139,6 +155,128 @@ public class FormDataServiceImpl implements FormDataService {
         formDataMapper.deleteById(id);
         FormTableRegistry registry = requireRegistry(routeCodeOf(entity), routeVersionOf(entity));
         formDataEngine.logicDelete(registry.getPhysicalTable(), id, tenantId);
+    }
+
+    @Override
+    public FormDataExportVO export(FormDataQueryRequest request, Long tenantId, String format) {
+        if (!StringUtils.hasText(request.getDefinitionCode())) {
+            throw paramError("请先指定表单编码后再导出");
+        }
+        FormDefinition definition = requireDefinitionByCode(request.getDefinitionCode());
+        List<FormField> fields = FormSchemaParser.parse(definition.getSchemaJson());
+        List<String> headers = exportHeaders(fields);
+        List<List<String>> rows = new ArrayList<>();
+        for (FormData entity : listExportData(request, tenantId)) {
+            rows.add(exportRow(entity, fields));
+        }
+        String extension = FormDataExportSupport.extension(format);
+        String filename = "form-data-" + definition.getCode() + "-"
+                + LocalDateTime.now().format(FILE_TIME_FORMATTER) + "." + extension;
+        byte[] content = "xlsx".equalsIgnoreCase(format)
+                ? FormDataExportSupport.xlsx(definition.getName(), headers, rows)
+                : FormDataExportSupport.csv(headers, rows);
+        return new FormDataExportVO(content, filename, FormDataExportSupport.contentType(format));
+    }
+
+    /**
+     * 组装导出表头：公共列 + 表单视图数据字段（按 {@code schema_json} 中的字段顺序）
+     *
+     * @param fields 数据字段列表
+     * @return 表头文本列表
+     */
+    private static List<String> exportHeaders(List<FormField> fields) {
+        List<String> headers = new ArrayList<>(BASE_EXPORT_HEADERS);
+        for (FormField field : fields) {
+            headers.add(StringUtils.hasText(field.getLabel()) ? field.getLabel() : field.getKey());
+        }
+        return headers;
+    }
+
+    /**
+     * 组装单条导出数据行：公共列 + 动态列值（取自 {@code dataJson}，缺失输出空串）
+     *
+     * @param entity 表单数据实体
+     * @param fields 数据字段列表
+     * @return 单元格文本列表
+     */
+    private static List<String> exportRow(FormData entity, List<FormField> fields) {
+        List<String> row = new ArrayList<>();
+        row.add(String.valueOf(entity.getId()));
+        row.add(entity.getDefinitionCode());
+        row.add(String.valueOf(entity.getDefinitionVersion() == null
+                ? DEFAULT_VERSION : entity.getDefinitionVersion()));
+        row.add(entity.getBizKey() == null ? "" : entity.getBizKey());
+        row.add(entity.getSubmitter() == null ? "" : entity.getSubmitter());
+        row.add(entity.getCreateTime() == null ? "" : entity.getCreateTime().toString());
+        row.add(entity.getStatus() == null ? "" : String.valueOf(entity.getStatus()));
+        Map<String, Object> data = parseDataQuietly(entity.getDataJson());
+        for (FormField field : fields) {
+            row.add(formatCell(data.get(field.getKey())));
+        }
+        return row;
+    }
+
+    /**
+     * 解析 {@code dataJson}（容错：非法 JSON 视为空映射，不阻断导出）
+     *
+     * @param dataJson 表单数据 JSON
+     * @return 字段值映射
+     */
+    private static Map<String, Object> parseDataQuietly(String dataJson) {
+        try {
+            return MAPPER.readValue(dataJson, new TypeReference<Map<String, Object>>() {
+            });
+        } catch (Exception e) {
+            return Map.of();
+        }
+    }
+
+    /**
+     * 单元格值转文本（{@code null} 输出空串）
+     *
+     * @param value 原始值
+     * @return 单元格文本
+     */
+    private static String formatCell(Object value) {
+        return value == null ? "" : String.valueOf(value);
+    }
+
+    /**
+     * 查询待导出表单数据（按租户与查询条件过滤，按创建时间倒序，上限 {@code EXPORT_MAX_ROWS} 条）
+     *
+     * @param request 查询条件（{@code definitionCode} 已由调用方保证非空）
+     * @param tenantId 租户ID
+     * @return 表单数据实体列表
+     */
+    private List<FormData> listExportData(FormDataQueryRequest request, Long tenantId) {
+        LambdaQueryWrapper<FormData> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormData::getTenantId, tenantId);
+        wrapper.eq(FormData::getDefinitionCode, request.getDefinitionCode());
+        wrapper.eq(StringUtils.hasText(request.getBizKey()), FormData::getBizKey, request.getBizKey());
+        wrapper.eq(StringUtils.hasText(request.getSubmitter()), FormData::getSubmitter, request.getSubmitter());
+        wrapper.orderByDesc(FormData::getCreateTime);
+        Page<FormData> page = formDataMapper.selectPage(new Page<>(1L, EXPORT_MAX_ROWS), wrapper);
+        return page.getRecords();
+    }
+
+    /**
+     * 按编码查询表单定义（多版本时取版本号最大者）
+     *
+     * @param code 表单定义编码
+     * @return 表单定义实体
+     * @throws BizException 编码无匹配定义时抛出 {@code PARAM_ERROR}
+     */
+    private FormDefinition requireDefinitionByCode(String code) {
+        LambdaQueryWrapper<FormDefinition> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormDefinition::getCode, code);
+        List<FormDefinition> definitions = formDefinitionMapper.selectList(wrapper);
+        if (definitions.isEmpty()) {
+            throw paramError("表单编码不存在：" + code);
+        }
+        return definitions.stream()
+                .max(Comparator.comparingInt(item -> item.getVersion() == null ? DEFAULT_VERSION
+                        : item.getVersion()))
+                .orElse(definitions.get(0));
     }
 
     /**
@@ -314,5 +452,15 @@ public class FormDataServiceImpl implements FormDataService {
         BeanUtils.copyProperties(entity, vo);
         vo.setFields(fields);
         return vo;
+    }
+
+    /**
+     * 构造参数错误异常
+     *
+     * @param message 错误消息
+     * @return 参数错误业务异常
+     */
+    private static BizException paramError(String message) {
+        return new BizException(ErrorCode.PARAM_ERROR.getCode(), message);
     }
 }

@@ -5,6 +5,7 @@ import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.form.entity.FormData;
 import com.bluewhale.form.support.FormDataEngine;
 import com.bluewhale.form.support.FormField;
+import com.bluewhale.form.support.FormTableDdlGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -36,6 +37,23 @@ public class JdbcFormDataEngine implements FormDataEngine {
     @Override
     public void executeDdl(String ddl) {
         jdbcTemplate.execute(ddl);
+    }
+
+    @Override
+    public Map<String, String> describeColumns(String table) {
+        String target = assertTable(table);
+        String sql = "SELECT COLUMN_NAME, COLUMN_TYPE FROM information_schema.COLUMNS"
+                + " WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION";
+        Map<String, String> columns = new LinkedHashMap<>();
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, target);
+        for (Map<String, Object> row : rows) {
+            Object name = row.get("COLUMN_NAME");
+            Object type = row.get("COLUMN_TYPE");
+            if (name != null && type != null) {
+                columns.put(name.toString(), FormTableDdlGenerator.normalizeType(type.toString()));
+            }
+        }
+        return columns;
     }
 
     @Override

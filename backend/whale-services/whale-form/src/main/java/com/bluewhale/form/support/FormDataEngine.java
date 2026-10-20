@@ -23,6 +23,14 @@ public interface FormDataEngine {
     void executeDdl(String ddl);
 
     /**
+     * 描述物理表现有列，用于发布时计算结构差异（ADD / MODIFY / DROP）
+     *
+     * @param table 物理表名
+     * @return 列名 → 归一化 MySQL 列类型（小写、无空格）；表不存在时返回空映射
+     */
+    Map<String, String> describeColumns(String table);
+
+    /**
      * 向物理表插入一条数据（主键、租户与公共列取自 {@code record}，动态列取自 {@code fields}+{@code data}）
      *
      * @param table 物理表名

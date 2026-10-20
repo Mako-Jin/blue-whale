@@ -9,6 +9,7 @@ import {
   Card,
   Descriptions,
   Drawer,
+  Dropdown,
   Form,
   Input,
   Popconfirm,
@@ -16,10 +17,19 @@ import {
   Spin,
   Table,
   Tag,
+  Tooltip,
+  type MenuProps,
   type TableColumnsType,
 } from 'antd';
 import { useSearchParams } from 'react-router-dom';
-import { formApi, formDataApi, type FieldConfig, type FormDataItem, type Id } from '../../api/form';
+import {
+  formApi,
+  formDataApi,
+  type ExportFormat,
+  type FieldConfig,
+  type FormDataItem,
+  type Id,
+} from '../../api/form';
 
 /** 页面查询状态：分页 + 过滤条件 */
 interface QueryState {
@@ -48,6 +58,12 @@ interface DetailView {
   rows: DetailRow[];
   parseError: boolean;
 }
+
+/** 导出菜单项：CSV / Excel(xlsx) */
+const EXPORT_MENU_ITEMS: MenuProps['items'] = [
+  { key: 'csv', label: 'CSV' },
+  { key: 'xlsx', label: 'Excel (xlsx)' },
+];
 
 /** 空值统一显示为短横线，其余原样字符串化（checkbox 的逗号串不拆分） */
 function formatValue(value: unknown): string {
@@ -120,6 +136,8 @@ export default function FormDataList() {
   const [dataSource, setDataSource] = useState<FormDataItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  // 导出中：禁用导出按钮，避免重复触发
+  const [exporting, setExporting] = useState(false);
 
   // 详情 Drawer 状态
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -212,6 +230,37 @@ export default function FormDataList() {
     }
   };
 
+  // 导出：必填 definitionCode，按当前过滤条件导出原始字节流并触发浏览器下载
+  const handleExport = async (format: ExportFormat) => {
+    if (!query.definitionCode) {
+      return;
+    }
+    setExporting(true);
+    try {
+      const { blob, filename } = await formDataApi.export({
+        definitionCode: query.definitionCode,
+        format,
+        bizKey: query.bizKey,
+        submitter: query.submitter,
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+      message.success('导出成功');
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '导出失败');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportMenuClick: MenuProps['onClick'] = ({ key }) => {
+    void handleExport(key as ExportFormat);
+  };
+
   const detailView = useMemo(() => buildDetailView(detail, fieldConfigs), [detail, fieldConfigs]);
 
   const columns: TableColumnsType<FormDataItem> = [
@@ -276,6 +325,23 @@ export default function FormDataList() {
                 查询
               </Button>
               <Button onClick={handleReset}>重置</Button>
+              {query.definitionCode ? (
+                <Dropdown.Button
+                  menu={{ items: EXPORT_MENU_ITEMS, onClick: handleExportMenuClick }}
+                  loading={exporting}
+                  onClick={() => void handleExport('csv')}
+                >
+                  导出
+                </Dropdown.Button>
+              ) : (
+                <Tooltip title="请先选择表单编码">
+                  <span style={{ display: 'inline-block' }}>
+                    <Dropdown.Button menu={{ items: EXPORT_MENU_ITEMS }} disabled>
+                      导出
+                    </Dropdown.Button>
+                  </span>
+                </Tooltip>
+              )}
             </Space>
           </Form.Item>
         </Form>

@@ -13,6 +13,7 @@ import com.bluewhale.form.mapper.FormTableDefinitionMapper;
 import com.bluewhale.form.mapper.FormTableRegistryMapper;
 import com.bluewhale.form.service.FormPublishService;
 import com.bluewhale.form.support.FormDataEngine;
+import com.bluewhale.form.support.FormDataType;
 import com.bluewhale.form.support.FormField;
 import com.bluewhale.form.support.FormSchemaParser;
 import com.bluewhale.form.support.FormTableDdlGenerator;
@@ -22,12 +23,17 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 表单发布服务实现。
  *
- * <p>发布 = 校验编码 → 校验版本未发布 → 解析 schema → 生成 DDL 建物理表 → 登记 registry。
+ * <p>旧模型发布 = 校验编码 → 校验版本未发布 → 解析 schema → 生成 DDL 建物理表 → 登记 registry。
+ * 元数据模型发布 = 校验编码 → 比对列元数据与物理表现有列 → 建表或执行增量 ALTER → 登记/刷新 registry。
  * 物理表名与列名均来自受校验的 schema 白名单（spec §三.3.3、§三.3.9）。</p>
  *
  * @author BlueWhale
@@ -91,19 +97,13 @@ public class FormPublishServiceImpl implements FormPublishService {
     }
 
     /**
-     * 元数据模型发布：确保其表定义物理表已发布（幂等，未发布则建）
+     * 元数据模型发布：确保所属表定义物理表已发布（无表则建表，已有表则按列元数据同步结构）
      *
      * @param definition 表单定义实体（已含 {@code tableDefinitionId}）
      * @return 所属表定义的物理表登记视图对象
      */
     private FormTableRegistryVO publishMetadata(FormDefinition definition) {
-        FormTableDefinition table = requireTableDefinition(definition.getTableDefinitionId());
-        Integer version = table.getVersion() == null ? DEFAULT_VERSION : table.getVersion();
-        FormTableRegistry existing = findRegistry(table.getTableCode(), version);
-        if (existing != null) {
-            return toVo(existing);
-        }
-        return publishTableDefinition(table.getId());
+        return ensurePublished(requireTableDefinition(definition.getTableDefinitionId()));
     }
 
     @Override
@@ -121,26 +121,105 @@ public class FormPublishServiceImpl implements FormPublishService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public FormTableRegistryVO publishTableDefinition(Long tableDefinitionId) {
-        FormTableDefinition definition = requireTableDefinition(tableDefinitionId);
+        return ensurePublished(requireTableDefinition(tableDefinitionId));
+    }
+
+    /**
+     * 发布（幂等 + 增量迁移）：物理表不存在则按列元数据建表；已存在则对比结构差异并执行 ALTER。
+     *
+     * <p><b>列变更只在发布时落到物理表</b>：编辑/删除列仅改 {@code form_column_meta} 元数据，
+     * 本方法比对「目标列元数据」与「物理表现有列」，产出 {@code ADD COLUMN}（新增）、
+     * {@code MODIFY COLUMN}（类型/长度变更）、{@code DROP COLUMN}（元数据已删且未被表单视图引用）。
+     * 物理表公共列永不变更。</p>
+     *
+     * @param definition 表定义实体
+     * @return 物理表登记视图对象（新建时 insert，已存在时刷新列数）
+     * @throws BizException 编码非法、无可发布列或待删列被表单视图引用时抛出 {@code PARAM_ERROR}
+     */
+    private FormTableRegistryVO ensurePublished(FormTableDefinition definition) {
         FormTableDdlGenerator.assertPublishableCode(definition.getTableCode());
         Integer version = definition.getVersion() == null ? DEFAULT_VERSION : definition.getVersion();
-        List<FormColumnMeta> columns = listPublishColumns(tableDefinitionId, version);
+        List<FormColumnMeta> columns = listPublishColumns(definition.getId(), version);
         if (columns.isEmpty()) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "表定义无可发布的列，请先维护列元数据");
         }
         String table = FormTableDdlGenerator.tableName(definition.getTableCode(), version);
-        assertTableVersionNotPublished(definition.getTableCode(), version);
-        formDataEngine.executeDdl(
-                FormTableDdlGenerator.generateFromColumns(table, definition.getTableCode(), version, columns));
-        FormTableRegistry registry = new FormTableRegistry();
-        registry.setTableDefinitionId(definition.getId());
-        registry.setTableCode(definition.getTableCode());
-        registry.setTableVersion(version);
-        registry.setPhysicalTable(table);
-        registry.setFieldCount(columns.size());
-        registry.setStatus(STATUS_NORMAL);
-        formTableRegistryMapper.insert(registry);
+        Map<String, String> existing = formDataEngine.describeColumns(table);
+        if (existing.isEmpty()) {
+            formDataEngine.executeDdl(
+                    FormTableDdlGenerator.generateFromColumns(table, definition.getTableCode(), version, columns));
+        } else {
+            applyAlter(table, columns, existing, listMetadataCodes(definition.getId(), version));
+        }
+        FormTableRegistry registry = findRegistry(definition.getTableCode(), version);
+        if (registry == null) {
+            registry = new FormTableRegistry();
+            registry.setTableDefinitionId(definition.getId());
+            registry.setTableCode(definition.getTableCode());
+            registry.setTableVersion(version);
+            registry.setPhysicalTable(table);
+            registry.setFieldCount(columns.size());
+            registry.setStatus(STATUS_NORMAL);
+            formTableRegistryMapper.insert(registry);
+        } else {
+            registry.setFieldCount(columns.size());
+            formTableRegistryMapper.updateById(registry);
+        }
         return toVo(registry);
+    }
+
+    /**
+     * 对比目标列元数据与物理表现有列，逐条执行增量 DDL
+     *
+     * @param table 物理表名
+     * @param columns 目标列元数据（已按排序号升序）
+     * @param existing 物理表现有列（列名 → 归一化列类型）
+     * @param metadataCodes 该表定义指定版本下**仍存在**的列编码集合（不限状态）：
+     *                      仅「元数据已逻辑删除」的列才允许 DROP，「停用（status=0）」列保留物理列
+     */
+    private void applyAlter(String table, List<FormColumnMeta> columns, Map<String, String> existing,
+                            Set<String> metadataCodes) {
+        Set<String> target = new LinkedHashSet<>();
+        for (FormColumnMeta column : columns) {
+            String code = column.getColumnCode();
+            target.add(code);
+            String currentType = existing.get(code);
+            if (currentType == null) {
+                formDataEngine.executeDdl(FormTableDdlGenerator.alterAdd(table, column));
+                continue;
+            }
+            String wantedType = FormTableDdlGenerator.normalizeType(FormDataType.mysqlType(
+                    column.getDataType(), column.getLength(), column.getPrecision(), column.getScale()));
+            if (!wantedType.equals(currentType)) {
+                formDataEngine.executeDdl(FormTableDdlGenerator.alterModify(table, column));
+            }
+        }
+        for (String code : existing.keySet()) {
+            if (target.contains(code) || FormTableDdlGenerator.reservedColumns().contains(code)
+                    || metadataCodes.contains(code)) {
+                continue;
+            }
+            formDataEngine.executeDdl(FormTableDdlGenerator.alterDrop(table, code));
+        }
+    }
+
+    /**
+     * 查询该表定义指定版本下**全部**列元数据的列编码集合（不限状态）
+     *
+     * <p>用于区分「已逻辑删除的列」（可 DROP）与「停用（{@code status=0}）的列」（保留物理列）。
+     * 被表单视图引用的列无法从元数据中删除（编辑期护栏），故此处只需按元数据是否存在判定。</p>
+     *
+     * @param tableDefinitionId 表定义ID
+     * @param version 表版本
+     * @return 列编码集合（按查询顺序）
+     */
+    private Set<String> listMetadataCodes(Long tableDefinitionId, Integer version) {
+        LambdaQueryWrapper<FormColumnMeta> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormColumnMeta::getTableDefinitionId, tableDefinitionId);
+        wrapper.eq(FormColumnMeta::getTableVersion, version);
+        return formColumnMetaMapper.selectList(wrapper).stream()
+                .map(FormColumnMeta::getColumnCode)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     @Override
@@ -194,19 +273,6 @@ public class FormPublishServiceImpl implements FormPublishService {
         wrapper.eq(FormTableRegistry::getTableCode, tableCode);
         wrapper.eq(FormTableRegistry::getTableVersion, version);
         return formTableRegistryMapper.selectOne(wrapper);
-    }
-
-    /**
-     * 校验该（表编码 + 版本）尚未发布
-     *
-     * @param tableCode 表编码
-     * @param version 表版本
-     * @throws BizException 已发布时抛出 {@code PARAM_ERROR}
-     */
-    private void assertTableVersionNotPublished(String tableCode, Integer version) {
-        if (findRegistry(tableCode, version) != null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "该表版本已发布，如需变更请修改版本号后重新发布");
-        }
     }
 
     /**

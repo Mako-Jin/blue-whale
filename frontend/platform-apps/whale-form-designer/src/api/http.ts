@@ -175,3 +175,87 @@ export const post = <T>(path: string, body?: unknown) => http<T>(path, { method:
 export const put = <T>(path: string, body?: unknown) => http<T>(path, { method: 'PUT', body });
 
 export const del = <T>(path: string) => http<T>(path, { method: 'DELETE' });
+
+/** 文件下载结果：原始字节流 + 从 Content-Disposition 解析出的文件名 */
+export interface DownloadResult {
+  blob: Blob;
+  filename: string;
+}
+
+/** 解析失败时的兜底文件名（无 Content-Disposition 或取不到 filename 时使用） */
+const FALLBACK_FILENAME = 'download';
+
+/**
+ * 从 Content-Disposition 响应头解析文件名（形如 attachment; filename="xxx.csv"）。
+ * 优先取引号内的值，其次取分号前的裸值；对 decodeURIComponent 做 try/catch 回退。
+ *
+ * @param disposition Content-Disposition 响应头原文
+ * @returns 解析出的文件名，解析不到时返回兜底名
+ */
+function parseFilename(disposition: string | null): string {
+  if (!disposition) {
+    return FALLBACK_FILENAME;
+  }
+  const matched = /filename="([^"]+)"/i.exec(disposition) ?? /filename=([^;]+)/i.exec(disposition);
+  const raw = matched?.[1]?.trim();
+  if (!raw) {
+    return FALLBACK_FILENAME;
+  }
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
+/**
+ * 下载原始字节流（导出等接口）：响应体不是 { code, message, data } 信封，故不复用 http<T>。
+ * 401 处理与 send() 一致：先静默续期并重放一次（仅一次，防递归），仍失败则清态抛出；
+ * 非 2xx 时尽力把响应体按信封解析取 message，取不到则回退「请求失败（HTTP xxx）」。
+ *
+ * @param path 请求路径（同源相对路径）
+ * @param query 查询参数（走 buildQuery，自动忽略 undefined/空字符串）
+ * @returns 解析后的文件 Blob 与文件名
+ * @throws ApiError 续期失败仍 401，或响应非 2xx 时抛出
+ */
+export async function downloadBlob(
+  path: string,
+  query?: Record<string, unknown>,
+): Promise<DownloadResult> {
+  return fetchBlob(path, query, true);
+}
+
+/** 下载请求的实际发送逻辑（allowRefresh 控制 401 时是否允许续期重放一次） */
+async function fetchBlob(
+  path: string,
+  query: Record<string, unknown> | undefined,
+  allowRefresh: boolean,
+): Promise<DownloadResult> {
+  const headers = new Headers();
+  const token = getToken();
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  const response = await fetch(`${API_BASE}${path}${buildQuery(query)}`, { method: 'GET', headers });
+
+  // 401：令牌缺失/过期/已登出 → 先续期并重放一次，仍失败则清态抛出
+  if (response.status === 401) {
+    if (allowRefresh && !NO_REFRESH_PATHS.has(path) && (await refreshOnce())) {
+      return fetchBlob(path, query, false);
+    }
+    clearAuth();
+    const payload = parseResult<unknown>(await response.clone().text());
+    throw new ApiError(401, payload?.message ?? '登录已失效，请重新登录');
+  }
+  if (!response.ok) {
+    const payload = parseResult<unknown>(await response.clone().text());
+    throw new ApiError(
+      payload?.code ?? response.status,
+      payload?.message ?? `请求失败（HTTP ${response.status}）`,
+    );
+  }
+
+  const blob = await response.blob();
+  return { blob, filename: parseFilename(response.headers.get('Content-Disposition')) };
+}

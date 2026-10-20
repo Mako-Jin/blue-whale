@@ -465,8 +465,40 @@
 - [x] **F9-a 后端全量回归**：`mvn -f backend/pom.xml clean install`
 - [x] **F9-b 前端构建**：`pnpm -C frontend --filter whale-form-designer build`
 - [x] **F9-c 实机 E2E**：7 步正向 + 2 条负向 + `browser_use` 截图
-- [x] **F9-d/e 收尾**：检查报告 + devlog + roadmap/task-breakdown 勾选
+- [x] **F9-e 收尾**：检查报告 + devlog + roadmap/task-breakdown 勾选
 - [x] **F9-f 提交推送**：commit & push origin（Gitee）
+
+
+## Wave 5.30：表单剩余任务 · 问题修复 · 收尾
+
+> 用户指令（2026-10-20）：「完成表单的剩余任务，修复现有问题，然后收尾」。
+> 经 AskUserQuestion 冻结范围（3 项）：**设计器撤销/重做 + 拖拽手势复验｜列删除/改类型在线迁移｜表单数据导出（CSV / Excel）**；未选表单↔工作流联动。
+> 关键用户口径：「编辑/删除列只改元数据（`form_column_meta`），**发布或确认完成之后**才实际修改真实表结构、执行 `ALTER`」。
+> 规格：[wave5.30-form-residual/spec.md](wave5.30-form-residual/spec.md) ｜ 分解：[tasks.md](wave5.30-form-residual/tasks.md) ｜ 报告：[reviews/2026-10-20-wave5.30-form-residual.md](../reviews/2026-10-20-wave5.30-form-residual.md)。
+
+**Wave 5.30-a（契约冻结 + 3 条并行线）**
+
+- [x] **线 A · 后端列变更在线迁移（R2）**：`FormDataEngine`/`JdbcFormDataEngine` +`describeColumns`；`FormTableDdlGenerator` +`columnDef/alterAdd/alterModify/alterDrop/normalizeType/reservedColumns`；`FormPublishServiceImpl` 抽 `ensurePublished`（CREATE/ALTER diff）+ `listMetadataCodes` DROP 护栏；`FormTableDefinitionServiceImpl.update` 走 `mergeColumns` 保列主键（P1 修复）
+- [x] **线 B · 后端数据导出（R3）**：`support/FormDataExportSupport`（新，纯 JDK CSV/XLSX）、`vo/FormDataExportVO`（新）、`FormDataService(+Impl).export`（≤5000 行、解析 `dataJson`）、`FormDataController` +`GET /form/data/export`
+- [x] **线 C · 前端（R4/R5）**：`api/http.ts downloadBlob` + `api/form.ts ExportFormat/formDataApi.export`；`FormDataList.tsx` 「导出」下拉；`TableDefinitionList.tsx` 迁移语义 `Alert` + 发布文案；`FormDesigner.tsx` 历史栈 + 撤销/重做按钮 + 快捷键
+- [x] **线 D · 并行门禁**：`mvn -o -f backend/pom.xml clean install` 28/28 模块 SUCCESS；`pnpm -C frontend --filter whale-form-designer build` 通过（1461 modules）
+
+**Wave 5.30-b（实机 E2E）**
+
+- [x] **E1** 编辑表定义后物理表 `SHOW COLUMNS` 未变（编辑只改元数据；`amount` 列主键保留，P1 成立）
+- [x] **E2** 发布后物理表新增 `remark2`、`remark` DROP
+- [x] **E3** 改类型 `number → text` 发布后物理列变 `varchar(255)`
+- [x] **E4** 导出 CSV / XLSX（表头/行数正确、XLSX 首字节 `50 4B 03 04`）
+- [x] **E5** 设计器撤销/重做（删除 → `Ctrl+Z` 恢复 → `Ctrl+Y` 再删，按钮禁用态正确）
+- [ ] **E6** 真实指针拖拽入画布复验（**自动化不可复现 → 代码复核通过，需人工复核**；详见报告）
+- [x] **E7** 负向：导出缺 `definitionCode` → `PARAM_ERROR`；DROP 被引用列 → 护栏 `PARAM_ERROR`
+
+**Wave 5.30-c（收尾 R7）**
+
+- [x] **G1** 检查报告：`docs/reviews/2026-10-20-wave5.30-form-residual.md`
+- [x] **G2** devlog：`docs/devlog/2026-10-20.md` 追加 Wave 5.30 段落
+- [x] **G3** 台账勾选：`roadmap.md` §2.5 追加 Wave 5.30 行；`task-breakdown.md` 追加本分组
+- [x] **G4** commit & push `origin`（Gitee `https://gitee.com/StrongToStop/blue-whale.git`）
 
 
 ## 附录 A：common 契约（Wave 2 遵守）

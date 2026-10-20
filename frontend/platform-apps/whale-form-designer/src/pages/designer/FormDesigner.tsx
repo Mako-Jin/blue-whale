@@ -16,7 +16,7 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   formApi,
@@ -58,6 +58,9 @@ function toSaveField(field: DesignerField, index: number): FieldConfig {
     options: layout ? undefined : field.options,
   };
 }
+
+/** 撤销 / 重做历史栈深度上限（超出丢弃最旧快照，避免长时间编辑内存膨胀） */
+const HISTORY_LIMIT = 50;
 
 /** 保存前画布校验：至少一个数据字段、同列不重复、显示名非空 */
 function validateCanvas(fields: DesignerField[]): string | null {
@@ -127,6 +130,106 @@ export default function FormDesigner() {
     [fields, selectedUid],
   );
 
+  // 撤销 / 重做历史栈（R4）：past / future 存于 useRef，入栈出栈不触发渲染；
+  // historyVersion 为变更计数，仅用于驱动工具栏按钮禁用态重渲染（栈内容 React 无法感知）；
+  // fieldsRef 与画布状态同步维护「当前值」，供 commit / 撤销 / 重做在同步上下文中读取快照。
+  const [historyVersion, setHistoryVersion] = useState(0);
+  const pastRef = useRef<DesignerField[][]>([]);
+  const futureRef = useRef<DesignerField[][]>([]);
+  const fieldsRef = useRef<DesignerField[]>([]);
+
+  /** 载入服务端表单（首次 / 保存后回填 / 切换表单）或切换表定义清空：以结果作为新历史基点，不入栈且清空 past / future */
+  const resetFields = useCallback((initial: DesignerField[]) => {
+    fieldsRef.current = initial;
+    pastRef.current = [];
+    futureRef.current = [];
+    setFields(initial);
+    setHistoryVersion((version) => version + 1);
+  }, []);
+
+  /** 画布字段变更统一入口：先把当前值快照压入 past、清空 future，再落地新值（无实际变化时不入栈） */
+  const commit = useCallback(
+    (next: DesignerField[] | ((prev: DesignerField[]) => DesignerField[])) => {
+      const previous = fieldsRef.current;
+      const resolved = typeof next === 'function' ? next(previous) : next;
+      if (resolved === previous) {
+        return;
+      }
+      pastRef.current = [...pastRef.current, previous].slice(-HISTORY_LIMIT);
+      futureRef.current = [];
+      fieldsRef.current = resolved;
+      setFields(resolved);
+      setHistoryVersion((version) => version + 1);
+    },
+    [],
+  );
+
+  /** 撤销：past 弹栈 → 当前值压入 future → 设为弹栈值 */
+  const handleUndo = useCallback(() => {
+    const past = pastRef.current;
+    if (past.length === 0) {
+      return;
+    }
+    const previous = past[past.length - 1];
+    pastRef.current = past.slice(0, -1);
+    futureRef.current = [...futureRef.current, fieldsRef.current].slice(-HISTORY_LIMIT);
+    fieldsRef.current = previous;
+    setFields(previous);
+    setHistoryVersion((version) => version + 1);
+  }, []);
+
+  /** 重做：future 弹栈 → 当前值压入 past → 设为弹栈值 */
+  const handleRedo = useCallback(() => {
+    const future = futureRef.current;
+    if (future.length === 0) {
+      return;
+    }
+    const next = future[future.length - 1];
+    futureRef.current = future.slice(0, -1);
+    pastRef.current = [...pastRef.current, fieldsRef.current].slice(-HISTORY_LIMIT);
+    fieldsRef.current = next;
+    setFields(next);
+    setHistoryVersion((version) => version + 1);
+  }, []);
+
+  // 以 historyVersion 为依赖，在栈增减后重新计算按钮禁用态
+  const canUndo = useMemo(() => pastRef.current.length > 0, [historyVersion]);
+  const canRedo = useMemo(() => futureRef.current.length > 0, [historyVersion]);
+
+  // 快捷键（Windows 口径）：Ctrl+Z 撤销，Ctrl+Y / Ctrl+Shift+Z 重做；
+  // 事件源为输入控件（顶栏输入框、属性面板等）时直接放行，不劫持原生编辑行为。
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!event.ctrlKey) {
+        return;
+      }
+      const target = event.target as HTMLElement | null;
+      if (
+        target !== null &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      const key = event.key.toLowerCase();
+      if (key === 'z' && !event.shiftKey) {
+        event.preventDefault();
+        handleUndo();
+        return;
+      }
+      if (key === 'y' || (key === 'z' && event.shiftKey)) {
+        event.preventDefault();
+        handleRedo();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [handleUndo, handleRedo]);
+
   // 加载表单定义与画布（新建 / 编辑），并解析所属表定义
   useEffect(() => {
     let cancelled = false;
@@ -143,7 +246,8 @@ export default function FormDesigner() {
           setCode(detail.code);
           setName(detail.name);
           setTableId(detail.tableDefinitionId ?? queryTable ?? null);
-          setFields(
+          // 服务端加载结果作为历史基点：不入历史并清空 past / future
+          resetFields(
             (detail.fields ?? [])
               .slice()
               .sort((a, b) => (a.sortNo ?? 0) - (b.sortNo ?? 0))
@@ -154,7 +258,7 @@ export default function FormDesigner() {
           setCode('');
           setName('');
           setTableId(queryTable ?? null);
-          setFields([]);
+          resetFields([]);
         }
         setSelectedUid(null);
       } catch (error) {
@@ -171,7 +275,7 @@ export default function FormDesigner() {
     return () => {
       cancelled = true;
     };
-  }, [definitionId, queryTableId, message]);
+  }, [definitionId, queryTableId, message, resetFields]);
 
   // 加载表定义列（作为调色板数据字段来源）
   useEffect(() => {
@@ -280,7 +384,7 @@ export default function FormDesigner() {
         return;
       }
       const created = buildField(payload);
-      setFields((previous) => {
+      commit((previous) => {
         const next = [...previous];
         const index =
           over.id === CANVAS_DROPPABLE_ID
@@ -295,7 +399,7 @@ export default function FormDesigner() {
 
     // 画布内排序
     if (active.id !== over.id) {
-      setFields((previous) => {
+      commit((previous) => {
         const from = previous.findIndex((field) => field._uid === active.id);
         const to =
           over.id === CANVAS_DROPPABLE_ID
@@ -311,7 +415,7 @@ export default function FormDesigner() {
   };
 
   const handleRemove = (uid: string) => {
-    setFields((previous) => previous.filter((field) => field._uid !== uid));
+    commit((previous) => previous.filter((field) => field._uid !== uid));
     setSelectedUid((current) => (current === uid ? null : current));
   };
 
@@ -319,7 +423,7 @@ export default function FormDesigner() {
     if (!selectedUid) {
       return;
     }
-    setFields((previous) =>
+    commit((previous) =>
       previous.map((field) => (field._uid === selectedUid ? { ...field, ...patch } : field)),
     );
   };
@@ -337,7 +441,7 @@ export default function FormDesigner() {
       okText: '确认切换',
       cancelText: '取消',
       onOk: () => {
-        setFields((previous) => previous.filter((field) => field.columnMetaId == null));
+        commit((previous) => previous.filter((field) => field.columnMetaId == null));
         setSelectedUid(null);
         setTableId(value);
       },
@@ -462,6 +566,16 @@ export default function FormDesigner() {
             </Col>
             <Col span={7}>
               <Space>
+                <Button disabled={!canUndo} title="撤销（Ctrl+Z）" onClick={handleUndo}>
+                  撤销
+                </Button>
+                <Button
+                  disabled={!canRedo}
+                  title="重做（Ctrl+Y / Ctrl+Shift+Z）"
+                  onClick={handleRedo}
+                >
+                  重做
+                </Button>
                 <Button type="primary" loading={saving} onClick={() => void handleSave()}>
                   保存
                 </Button>

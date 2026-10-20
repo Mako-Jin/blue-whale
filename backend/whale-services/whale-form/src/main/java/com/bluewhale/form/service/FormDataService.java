@@ -3,6 +3,7 @@ package com.bluewhale.form.service;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.form.dto.FormDataQueryRequest;
 import com.bluewhale.form.dto.FormDataSubmitRequest;
+import com.bluewhale.form.vo.FormDataExportVO;
 import com.bluewhale.form.vo.FormDataVO;
 
 /**
@@ -47,4 +48,18 @@ public interface FormDataService {
      * @param tenantId 租户ID
      */
     void delete(Long id, Long tenantId);
+
+    /**
+     * 导出表单数据为 CSV / XLSX 字节流
+     *
+     * <p>列顺序 = 公共列（ID/表单编码/版本/业务键/提交人/提交时间/状态）+ 表单视图的数据字段
+     * （取自 {@code schema_json} 快照的 {@code fields[]}，键为 {@code columnCode}）；行取主表
+     * {@code form_data} 并解析 {@code dataJson} 还原各列值，单次查询无 N+1。</p>
+     *
+     * @param request 查询条件：{@code definitionCode} 必填，{@code bizKey} / {@code submitter} 可选
+     * @param tenantId 租户ID
+     * @param format 导出格式：{@code csv} 或 {@code xlsx}
+     * @return 导出产物（内容 + 文件名 + Content-Type）
+     */
+    FormDataExportVO export(FormDataQueryRequest request, Long tenantId, String format);
 }

@@ -8,17 +8,24 @@ import com.bluewhale.form.dto.FormDataQueryRequest;
 import com.bluewhale.form.dto.FormDataSubmitRequest;
 import com.bluewhale.form.service.FormDataService;
 import com.bluewhale.form.support.TenantResolver;
+import com.bluewhale.form.vo.FormDataExportVO;
 import com.bluewhale.form.vo.FormDataVO;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 /**
  * 表单数据管理接口。
@@ -90,5 +97,28 @@ public class FormDataController {
     public Result<Void> delete(@PathVariable Long id, HttpServletRequest httpRequest) {
         formDataService.delete(id, TenantResolver.resolve(httpRequest));
         return Result.ok();
+    }
+
+    /**
+     * 导出表单数据（CSV / XLSX 文件下载，不包 {@code Result} 信封）。
+     *
+     * @param request 查询条件：{@code definitionCode} 必填，{@code bizKey} / {@code submitter} 可选
+     * @param format 导出格式：{@code csv}（默认）或 {@code xlsx}
+     * @param httpRequest 当前请求（读取 {@code X-Tenant-Id} 解析租户）
+     * @return 带 {@code Content-Disposition} 的文件响应
+     */
+    @GetMapping("/export")
+    @RequirePermission("sys:form:data:list")
+    public ResponseEntity<byte[]> export(FormDataQueryRequest request,
+                                         @RequestParam(defaultValue = "csv") String format,
+                                         HttpServletRequest httpRequest) {
+        FormDataExportVO exported =
+                formDataService.export(request, TenantResolver.resolve(httpRequest), format);
+        String filename = URLEncoder.encode(exported.getFilename(), StandardCharsets.UTF_8)
+                .replace("+", "%20");
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, exported.getContentType())
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .body(exported.getContent());
     }
 }
