@@ -44,6 +44,7 @@ CREATE TABLE process_instance (
     business_key        VARCHAR(64)   DEFAULT NULL           COMMENT '业务键（可选）',
     status              TINYINT       NOT NULL DEFAULT 0     COMMENT '状态：0 运行中 / 1 已通过 / 2 已驳回 / 3 已撤销',
     current_index       INT           NOT NULL DEFAULT 0     COMMENT '当前审批节点下标（0 起）',
+    current_node_key    VARCHAR(64)   DEFAULT NULL           COMMENT '当前审批节点键（规范化定义；为空时回落 current_index）',
     initiator           VARCHAR(64)   DEFAULT NULL           COMMENT '发起人账号',
     create_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',

@@ -46,6 +46,22 @@ class ProcessInstanceServiceImplTest {
     private static final String TWO_NODE_JSON = "{\"nodes\":[{\"key\":\"n1\",\"name\":\"一级审批\",\"assignee\":\"admin\"},"
             + "{\"key\":\"n2\",\"name\":\"二级审批\",\"assignee\":\"user\"}]}";
 
+    /** 规范化定义：开始事件 → t1 → t2 → 结束事件 */
+    private static final String NORMALIZED_JSON =
+            "{\"type\":\"stateMachine\",\"nodes\":["
+                    + "{\"key\":\"start\",\"type\":\"START_EVENT\"},"
+                    + "{\"key\":\"t1\",\"type\":\"USER_TASK\",\"name\":\"一级审批\",\"assignee\":\"admin\"},"
+                    + "{\"key\":\"t2\",\"type\":\"USER_TASK\",\"name\":\"二级审批\",\"assignee\":\"user\"},"
+                    + "{\"key\":\"end\",\"type\":\"END_EVENT\"}],"
+                    + "\"flows\":[{\"key\":\"f1\",\"from\":\"start\",\"to\":\"t1\"},"
+                    + "{\"key\":\"f2\",\"from\":\"t1\",\"to\":\"t2\"},{\"key\":\"f3\",\"from\":\"t2\",\"to\":\"end\"}]}";
+
+    /** 规范化定义：开始事件直达结束事件（无审批节点） */
+    private static final String START_END_JSON =
+            "{\"type\":\"stateMachine\",\"nodes\":[{\"key\":\"start\",\"type\":\"START_EVENT\"},"
+                    + "{\"key\":\"end\",\"type\":\"END_EVENT\"}],"
+                    + "\"flows\":[{\"key\":\"f1\",\"from\":\"start\",\"to\":\"end\"}]}";
+
     @Mock
     private ProcessDefinitionMapper processDefinitionMapper;
 
@@ -225,5 +241,37 @@ class ProcessInstanceServiceImplTest {
         assertEquals(1L, result.getTotal());
         assertEquals(1, result.getRecords().size());
         assertEquals(1L, result.getRecords().get(0).getId());
+    }
+
+    @Test
+    @DisplayName("start：规范化定义透传开始事件并以节点键记录当前状态")
+    void shouldStartNormalizedAtFirstUserTaskKey() {
+        when(processDefinitionMapper.selectById(10L)).thenReturn(definition(10L, NORMALIZED_JSON));
+
+        ProcessInstanceVO vo = processInstanceService.start(startRequest(10L), "zhangsan");
+
+        ArgumentCaptor<ProcessInstance> instanceCaptor = ArgumentCaptor.forClass(ProcessInstance.class);
+        verify(processInstanceMapper).insert(instanceCaptor.capture());
+        assertEquals(0, instanceCaptor.getValue().getStatus().intValue());
+        assertEquals(1, instanceCaptor.getValue().getCurrentIndex().intValue());
+        assertEquals("t1", instanceCaptor.getValue().getCurrentNodeKey());
+
+        ArgumentCaptor<ProcessTask> taskCaptor = ArgumentCaptor.forClass(ProcessTask.class);
+        verify(processTaskMapper).insert(taskCaptor.capture());
+        assertEquals(1, taskCaptor.getValue().getNodeIndex().intValue());
+        assertEquals("admin", taskCaptor.getValue().getAssignee());
+        assertEquals("t1", vo.getCurrentNodeKey());
+    }
+
+    @Test
+    @DisplayName("start：无审批节点时实例直接置为已通过且不生成待办")
+    void shouldApproveInstanceWithoutUserTask() {
+        when(processDefinitionMapper.selectById(10L)).thenReturn(definition(10L, START_END_JSON));
+
+        ProcessInstanceVO vo = processInstanceService.start(startRequest(10L), "zhangsan");
+
+        assertEquals(1, vo.getStatus().intValue());
+        verify(processInstanceMapper).insert(any(ProcessInstance.class));
+        verify(processTaskMapper, never()).insert(any(ProcessTask.class));
     }
 }

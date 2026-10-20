@@ -14,7 +14,11 @@ import com.bluewhale.workflow.mapper.ProcessDefinitionMapper;
 import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
 import com.bluewhale.workflow.service.ProcessInstanceService;
-import com.bluewhale.workflow.support.ProcessNodeParser;
+import com.bluewhale.workflow.support.ProcessModel;
+import com.bluewhale.workflow.support.ProcessModelNode;
+import com.bluewhale.workflow.support.ProcessModelParser;
+import com.bluewhale.workflow.support.machine.StateMachine;
+import com.bluewhale.workflow.support.machine.TransitionResult;
 import com.bluewhale.workflow.vo.ProcessInstanceVO;
 import com.bluewhale.workflow.vo.ProcessTaskVO;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +40,9 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
 
     /** 实例状态：运行中 */
     private static final int INSTANCE_RUNNING = 0;
+
+    /** 实例状态：已通过 */
+    private static final int INSTANCE_APPROVED = 1;
 
     /** 实例状态：已撤销 */
     private static final int INSTANCE_CANCELED = 3;
@@ -62,18 +69,22 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
         if (definition == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
-        List<ProcessNodeParser.Node> nodes = ProcessNodeParser.parse(definition.getDefinitionJson());
+        ProcessModel model = ProcessModelParser.parse(definition.getDefinitionJson());
+        TransitionResult result = new StateMachine(model).start();
         ProcessInstance instance = new ProcessInstance();
         instance.setDefinitionId(definition.getId());
         instance.setDefinitionCode(definition.getCode());
         instance.setDefinitionVersion(definition.getVersion());
         instance.setTitle(request.getTitle());
         instance.setBusinessKey(request.getBusinessKey());
-        instance.setStatus(INSTANCE_RUNNING);
-        instance.setCurrentIndex(0);
+        instance.setStatus(result.isUserTask() ? INSTANCE_RUNNING : INSTANCE_APPROVED);
+        instance.setCurrentIndex(result.isUserTask() ? model.indexOf(result.getState()) : 0);
+        instance.setCurrentNodeKey(result.isUserTask() ? result.getState() : null);
         instance.setInitiator(initiator);
         processInstanceMapper.insert(instance);
-        createTask(instance.getId(), 0, nodes.get(0));
+        if (result.isUserTask()) {
+            createTask(instance.getId(), instance.getCurrentIndex(), result.getNode());
+        }
         return toVo(instance);
     }
 
@@ -122,7 +133,7 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
      * @param nodeIndex 节点下标
      * @param node 审批节点
      */
-    private void createTask(Long instanceId, int nodeIndex, ProcessNodeParser.Node node) {
+    private void createTask(Long instanceId, int nodeIndex, ProcessModelNode node) {
         ProcessTask task = new ProcessTask();
         task.setInstanceId(instanceId);
         task.setNodeIndex(nodeIndex);

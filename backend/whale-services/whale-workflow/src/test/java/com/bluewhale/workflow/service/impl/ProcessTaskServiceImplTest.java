@@ -47,6 +47,16 @@ class ProcessTaskServiceImplTest {
     /** 仅含一个审批节点的流程定义 JSON */
     private static final String ONE_NODE_JSON = "{\"nodes\":[{\"key\":\"n1\",\"name\":\"一级审批\",\"assignee\":\"admin\"}]}";
 
+    /** 规范化定义：开始事件 → t1 → t2 → 结束事件 */
+    private static final String NORMALIZED_JSON =
+            "{\"type\":\"stateMachine\",\"nodes\":["
+                    + "{\"key\":\"start\",\"type\":\"START_EVENT\"},"
+                    + "{\"key\":\"t1\",\"type\":\"USER_TASK\",\"name\":\"一级审批\",\"assignee\":\"admin\"},"
+                    + "{\"key\":\"t2\",\"type\":\"USER_TASK\",\"name\":\"二级审批\",\"assignee\":\"user\"},"
+                    + "{\"key\":\"end\",\"type\":\"END_EVENT\"}],"
+                    + "\"flows\":[{\"key\":\"f1\",\"from\":\"start\",\"to\":\"t1\"},"
+                    + "{\"key\":\"f2\",\"from\":\"t1\",\"to\":\"t2\"},{\"key\":\"f3\",\"from\":\"t2\",\"to\":\"end\"}]}";
+
     @Mock
     private ProcessTaskMapper processTaskMapper;
 
@@ -92,6 +102,22 @@ class ProcessTaskServiceImplTest {
         instance.setDefinitionId(definitionId);
         instance.setStatus(status);
         instance.setCurrentIndex(currentIndex);
+        return instance;
+    }
+
+    /**
+     * 构造带当前节点键的流程实例桩对象。
+     *
+     * @param id 实例ID
+     * @param definitionId 流程定义ID
+     * @param status 实例状态
+     * @param currentIndex 当前节点下标
+     * @param currentNodeKey 当前节点键
+     * @return 流程实例实体
+     */
+    private static ProcessInstance keyedInstance(Long id, Long definitionId, int status, int currentIndex, String currentNodeKey) {
+        ProcessInstance instance = instance(id, definitionId, status, currentIndex);
+        instance.setCurrentNodeKey(currentNodeKey);
         return instance;
     }
 
@@ -215,5 +241,57 @@ class ProcessTaskServiceImplTest {
         assertEquals(1L, result.getTotal());
         assertEquals(1, result.getRecords().size());
         assertEquals("admin", result.getRecords().get(0).getAssignee());
+    }
+
+    @Test
+    @DisplayName("approve：以 current_node_key 为准推进（不依赖 currentIndex）")
+    void shouldAdvanceByCurrentNodeKey() {
+        ProcessTask task = pendingTask(100L, 5L, 0);
+        ProcessInstance instance = keyedInstance(5L, 10L, 0, 2, "t1");
+        when(processTaskMapper.selectById(100L)).thenReturn(task);
+        when(processInstanceMapper.selectById(5L)).thenReturn(instance);
+        when(processDefinitionMapper.selectById(10L)).thenReturn(definition(10L, NORMALIZED_JSON));
+
+        processTaskService.approve(100L, null);
+
+        ArgumentCaptor<ProcessTask> captor = ArgumentCaptor.forClass(ProcessTask.class);
+        verify(processTaskMapper).insert(captor.capture());
+        assertEquals("user", captor.getValue().getAssignee());
+        assertEquals("t2", instance.getCurrentNodeKey());
+        assertEquals(2, instance.getCurrentIndex().intValue());
+        assertEquals(0, instance.getStatus().intValue());
+    }
+
+    @Test
+    @DisplayName("approve：current_node_key 为空时回落 currentIndex 解析")
+    void shouldFallbackToCurrentIndex() {
+        ProcessTask task = pendingTask(100L, 5L, 0);
+        ProcessInstance instance = instance(5L, 10L, 0, 1);
+        when(processTaskMapper.selectById(100L)).thenReturn(task);
+        when(processInstanceMapper.selectById(5L)).thenReturn(instance);
+        when(processDefinitionMapper.selectById(10L)).thenReturn(definition(10L, NORMALIZED_JSON));
+
+        processTaskService.approve(100L, null);
+
+        ArgumentCaptor<ProcessTask> captor = ArgumentCaptor.forClass(ProcessTask.class);
+        verify(processTaskMapper).insert(captor.capture());
+        assertEquals("user", captor.getValue().getAssignee());
+        assertEquals("t2", instance.getCurrentNodeKey());
+    }
+
+    @Test
+    @DisplayName("approve：末节点以节点键推进到结束事件并置为已通过")
+    void shouldApproveInstanceWhenKeyedLastNode() {
+        ProcessTask task = pendingTask(100L, 5L, 0);
+        ProcessInstance instance = keyedInstance(5L, 10L, 0, 2, "t2");
+        when(processTaskMapper.selectById(100L)).thenReturn(task);
+        when(processInstanceMapper.selectById(5L)).thenReturn(instance);
+        when(processDefinitionMapper.selectById(10L)).thenReturn(definition(10L, NORMALIZED_JSON));
+
+        processTaskService.approve(100L, null);
+
+        assertEquals(1, instance.getStatus().intValue());
+        assertEquals("end", instance.getCurrentNodeKey());
+        verify(processTaskMapper, never()).insert(any(ProcessTask.class));
     }
 }

@@ -13,7 +13,11 @@ import com.bluewhale.workflow.mapper.ProcessDefinitionMapper;
 import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
 import com.bluewhale.workflow.service.ProcessTaskService;
-import com.bluewhale.workflow.support.ProcessNodeParser;
+import com.bluewhale.workflow.support.ProcessModel;
+import com.bluewhale.workflow.support.ProcessModelNode;
+import com.bluewhale.workflow.support.ProcessModelParser;
+import com.bluewhale.workflow.support.machine.StateMachine;
+import com.bluewhale.workflow.support.machine.TransitionResult;
 import com.bluewhale.workflow.vo.ProcessTaskVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
@@ -86,16 +90,38 @@ public class ProcessTaskServiceImpl implements ProcessTaskService {
         if (definition == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
-        List<ProcessNodeParser.Node> nodes = ProcessNodeParser.parse(definition.getDefinitionJson());
-        int nextIndex = instance.getCurrentIndex() + 1;
-        if (nextIndex >= nodes.size()) {
-            instance.setStatus(INSTANCE_APPROVED);
+        ProcessModel model = ProcessModelParser.parse(definition.getDefinitionJson());
+        String currentKey = resolveCurrentKey(model, instance);
+        TransitionResult result = new StateMachine(model).approve(currentKey);
+        if (result.isUserTask()) {
+            int nextIndex = model.indexOf(result.getState());
+            instance.setCurrentIndex(nextIndex);
+            instance.setCurrentNodeKey(result.getState());
             processInstanceMapper.updateById(instance);
+            createTask(instance.getId(), nextIndex, result.getNode());
             return;
         }
-        instance.setCurrentIndex(nextIndex);
+        instance.setStatus(INSTANCE_APPROVED);
+        if (result.getState() != null) {
+            instance.setCurrentNodeKey(result.getState());
+        }
         processInstanceMapper.updateById(instance);
-        createTask(instance.getId(), nextIndex, nodes.get(nextIndex));
+    }
+
+    /**
+     * 解析实例当前节点键：优先 {@code current_node_key}，为空时回落 {@code currentIndex} 下标（旧行）。
+     *
+     * @param model 流程模型
+     * @param instance 流程实例
+     * @return 当前节点键，无法解析返回 {@code null}
+     */
+    private static String resolveCurrentKey(ProcessModel model, ProcessInstance instance) {
+        if (instance.getCurrentNodeKey() != null && !instance.getCurrentNodeKey().isBlank()) {
+            return instance.getCurrentNodeKey();
+        }
+        int index = instance.getCurrentIndex() == null ? 0 : instance.getCurrentIndex();
+        ProcessModelNode node = model.nodeAt(index);
+        return node == null ? null : node.getKey();
     }
 
     @Override
@@ -152,7 +178,7 @@ public class ProcessTaskServiceImpl implements ProcessTaskService {
      * @param nodeIndex 节点下标
      * @param node 审批节点
      */
-    private void createTask(Long instanceId, int nodeIndex, ProcessNodeParser.Node node) {
+    private void createTask(Long instanceId, int nodeIndex, ProcessModelNode node) {
         ProcessTask task = new ProcessTask();
         task.setInstanceId(instanceId);
         task.setNodeIndex(nodeIndex);

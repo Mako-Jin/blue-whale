@@ -501,6 +501,51 @@
 - [x] **G4** commit & push `origin`（Gitee `https://gitee.com/StrongToStop/blue-whale.git`）
 
 
+## Wave 5.31：whale-workflow 引擎升级（状态机 + BPMN 2.0 双向 + JSON 事实源）
+
+> 用户指令（2026-10-20）：「现在开始搭建工作流服务吧，包含一下三部分：简单的状态机，BPMN2.0，json格式的工作流数据。」
+> 冻结口径（不得更改）：① **扩展现有 `whale-workflow`**（不新建模块、不推倒重来）；② **BPMN 轻量自研双向转换**（不引入 Flowable/Camunda）；③ **通用状态机内核 + 审批跑其上**；④ **本轮仅后端**（前端设计器/BPMN 可视化不在范围）。
+> 主线：规范化 JSON `{type,nodes[],flows[]}` 为唯一事实源 → 状态机内核驱动审批 → BPMN 2.0 XML 双向转换；**向后兼容**旧 `{"nodes":[…]}`。
+> 并行策略：S1/S2/S3 均为 `support/` 下新增包（无文件交集）可并行；S4（库表/种子）与 S1~S3 无交集可并行；S5 依赖 S1~S4；S6 依赖 S5。
+> 规格：[wave5.31-workflow-engine/spec.md](wave5.31-workflow-engine/spec.md) ｜ 分解：[tasks.md](wave5.31-workflow-engine/tasks.md) ｜ 报告：[reviews/2026-10-20-wave5.31-workflow-engine.md](../reviews/2026-10-20-wave5.31-workflow-engine.md)。
+
+**Wave 5.31-a（契约冻结 + 4 条并行线）**
+
+- [x] **线 A · S1 模型层**：`support/` 新增 `ProcessNodeType`/`ProcessModelNode`/`ProcessModelFlow`/`ProcessModel`/`ProcessModelParser`/`ProcessModelValidator`/`ValidationCode`/`ValidationIssue`/`ValidationLevel`/`ValidationReport`/`ProcessModelException`
+- [x] **线 B · S2 状态机内核**：`support/machine/` 新增 `StateMachine`/`StateMachineEvent`/`Transition`/`TransitionResult`/`Guard`/`GuardContext`/`AlwaysGuard`/`DefaultFlowGuard`（纯 Java 可独立单测）
+- [x] **线 C · S3 BPMN 双向**：`support/bpmn/` 新增 `BpmnXmlSupport`（XXE 加固）/`BpmnXmlParser`/`BpmnXmlWriter`（纯 JDK DOM，无第三方库）
+- [x] **线 D · S4 库表/实体/种子**：`process_instance.current_node_key VARCHAR(64) NULL` + `db/migration-5.31.sql` + `entity/ProcessInstance`/`vo/ProcessInstanceVO` 增字段 + `whale-auth/db/init.sql` 种子 58/59
+
+**Wave 5.31-b（S5 服务接线）**
+
+- [x] **E1** `service/ProcessModelService` + `impl`（`validate`/`importBpmn` 委托 `ProcessDefinitionService.create`/`exportBpmn`）
+- [x] **E2** `controller/ProcessModelController`（3 端点，权限 58/59/`sys:workflow:list`）
+- [x] **E3** `dto/{DefinitionValidateRequest,BpmnImportRequest}`、`vo/{ProcessDefinitionValidateVO,ValidationIssueVO}`
+- [x] **E4** `ProcessInstanceServiceImpl#start` 改由内核驱动（legacy 语义零回归）
+- [x] **E5** `ProcessTaskServiceImpl#approve` 改由内核驱动（`resolveCurrentKey`：优先 `currentNodeKey`，空则回落 `currentIndex`）
+
+**Wave 5.31-c（S6/S7 测试与静态门禁）**
+
+- [x] **F1–F6** 新增 7 个测试类（parser 14 / validator 21 / stateMachine 11 / bpmn 5+10+5 / serviceImpl 9）+ 既有实例/任务服务测试扩展（8→10、6→9）；whale-workflow 合计 **102 用例全绿**
+- [x] **F7** `mvn -o -pl :whale-workflow -am test checkstyle:check` → **0 违规**（修 `ProcessModelParser` 无用导入 + `ProcessModelValidator` 两处圈复杂超阈值）
+
+**Wave 5.31-d（全量回归与运行时冒烟）**
+
+- [x] **G1** 停运行中服务释放 jar → `mvn -o -f backend/pom.xml clean install -T 1C` → **28/28 模块 BUILD SUCCESS** → 重启 whale-auth 8081 / whale-workflow 8083 / whale-gateway 8080
+- [x] **G2** legacy 冒烟（定义→发起→同意→同意）：`currentNodeKey` `n1` → `n2` → `status=1`
+- [x] **G3** 校验冒烟 18/18：LEGACY + NORMALIZED`[CONDITION_IGNORED]` + 16 个负向码（含 `XML_DOCTYPE_FORBIDDEN`/`BPMN_UNSUPPORTED_ELEMENT`）
+- [x] **G4** BPMN 往返：导入 → 落规范化 JSON → 导出 657B XML → 再校验 `mode=BPMN valid=true nodes=4 flows=3`
+- [x] **G5** 回落（`current_node_key=NULL` 同意成功推进至 `n2`）+ 负向信封（`404`/`400`/`401`/`403`）
+- [x] **D5** 实机 DDL + 种子：`current_node_key varchar(64) NULL` 已存在；权限 58/59 已就位
+
+**Wave 5.31-e（收尾）**
+
+- [x] **H1** 检查报告：`docs/reviews/2026-10-20-wave5.31-workflow-engine.md`
+- [x] **H2** devlog：`docs/devlog/2026-10-20.md` 追加 Wave 5.31 段落
+- [x] **H3** 台账勾选：`roadmap.md` §2.5 追加 Wave 5.31 行；`task-breakdown.md` 追加本分组
+- [x] **H4** commit & push `origin`（Gitee `https://gitee.com/StrongToStop/blue-whale.git`）
+
+
 ## 附录 A：common 契约（Wave 2 遵守）
 
 ```

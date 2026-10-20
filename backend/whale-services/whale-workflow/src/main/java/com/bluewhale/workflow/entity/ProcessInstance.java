@@ -41,6 +41,9 @@ public class ProcessInstance extends BaseEntity {
     /** 当前审批节点下标（0 起） */
     private Integer currentIndex;
 
+    /** 当前审批节点键（规范化定义；为空时回落 {@code currentIndex}） */
+    private String currentNodeKey;
+
     /** 发起人账号 */
     private String initiator;
 }
