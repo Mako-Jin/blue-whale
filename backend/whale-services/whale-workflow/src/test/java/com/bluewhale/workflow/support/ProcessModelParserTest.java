@@ -190,4 +190,40 @@ class ProcessModelParserTest {
         assertNull(ProcessNodeType.from("unknown"));
         assertNull(ProcessNodeType.from(null));
     }
+
+    @Test
+    @DisplayName("normalized：formId/formCode/x/y 四字段被读入")
+    void shouldReadFormAndCoordinates() {
+        ProcessModel model = ProcessModelParser.parse(
+                "{\"type\":\"stateMachine\",\"nodes\":[{\"key\":\"t1\",\"type\":\"USER_TASK\",\"assignee\":\"a\","
+                        + "\"formId\":\"2112355156699869186\",\"formCode\":\"bw_d29_form\",\"x\":320,\"y\":180}]}");
+
+        ProcessModelNode node = model.getNodes().get(0);
+        assertEquals("2112355156699869186", node.getFormId());
+        assertEquals("bw_d29_form", node.getFormCode());
+        assertEquals(320, node.getX().intValue());
+        assertEquals(180, node.getY().intValue());
+    }
+
+    @Test
+    @DisplayName("normalized：缺失新字段时为 null")
+    void shouldLeaveFormAndCoordinatesNullWhenAbsent() {
+        ProcessModelNode node = ProcessModelParser.parse(NORMALIZED_MODEL).node("t1");
+
+        assertNull(node.getFormId());
+        assertNull(node.getFormCode());
+        assertNull(node.getX());
+        assertNull(node.getY());
+    }
+
+    @Test
+    @DisplayName("legacy：归一化不带 formId/formCode/x/y（保持 null）")
+    void shouldNotCarryFormFieldsForLegacy() {
+        ProcessModelNode node = ProcessModelParser.parse(LEGACY_TWO_NODE).getNodes().get(0);
+
+        assertNull(node.getFormId());
+        assertNull(node.getFormCode());
+        assertNull(node.getX());
+        assertNull(node.getY());
+    }
 }

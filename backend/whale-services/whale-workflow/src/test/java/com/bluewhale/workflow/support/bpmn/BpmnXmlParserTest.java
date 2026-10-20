@@ -2,6 +2,7 @@ package com.bluewhale.workflow.support.bpmn;
 
 import com.bluewhale.workflow.support.ProcessModel;
 import com.bluewhale.workflow.support.ProcessModelException;
+import com.bluewhale.workflow.support.ProcessModelNode;
 import com.bluewhale.workflow.support.ProcessModelParser;
 import com.bluewhale.workflow.support.ProcessNodeType;
 import com.bluewhale.workflow.support.ValidationCode;
@@ -173,5 +174,44 @@ class BpmnXmlParserTest {
 
         assertEquals(2, model.getNodes().size());
         assertNull(model.node("missing"));
+    }
+
+    @Test
+    @DisplayName("parse：userTask 的 plain formKey/formId 映射为 formCode/formId")
+    void shouldParsePlainFormAttributes() {
+        String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+                + "<definitions xmlns=\"http://www.omg.org/spec/BPMN/20100524/MODEL\" targetNamespace=\"http://bw\">"
+                + "<process id=\"p1\"><startEvent id=\"start\"/>"
+                + "<userTask id=\"t1\" assignee=\"a\" formKey=\"bw_d29_form\" formId=\"2112355156699869186\"/>"
+                + "<sequenceFlow id=\"f1\" sourceRef=\"start\" targetRef=\"t1\"/></process></definitions>";
+
+        ProcessModelNode node = BpmnXmlParser.parse(xml).node("t1");
+
+        assertEquals("bw_d29_form", node.getFormCode());
+        assertEquals("2112355156699869186", node.getFormId());
+    }
+
+    @Test
+    @DisplayName("parse：任意前缀的 formKey/formId 属性可识别")
+    void shouldParsePrefixedFormAttributes() {
+        String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+                + "<definitions xmlns=\"http://www.omg.org/spec/BPMN/20100524/MODEL\""
+                + " xmlns:flowable=\"http://flowable.org/bpmn\" targetNamespace=\"http://bw\">"
+                + "<process id=\"p1\"><userTask id=\"t1\" assignee=\"a\""
+                + " flowable:formKey=\"bw_form\" flowable:formId=\"211\"/></process></definitions>";
+
+        ProcessModelNode node = BpmnXmlParser.parse(xml).node("t1");
+
+        assertEquals("bw_form", node.getFormCode());
+        assertEquals("211", node.getFormId());
+    }
+
+    @Test
+    @DisplayName("parse：userTask 无表单属性时 formCode/formId 为 null")
+    void shouldLeaveFormAttributesNullWhenAbsent() {
+        ProcessModelNode node = BpmnXmlParser.parse(BASIC).node("t1");
+
+        assertNull(node.getFormCode());
+        assertNull(node.getFormId());
     }
 }

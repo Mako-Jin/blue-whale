@@ -69,6 +69,12 @@ public final class BpmnXmlWriter {
         if (node.isUserTask() && node.getAssignee() != null) {
             xml.append(" assignee=\"").append(escape(node.getAssignee())).append('"');
         }
+        if (node.isUserTask() && node.getFormCode() != null && !node.getFormCode().isBlank()) {
+            xml.append(" formKey=\"").append(escape(node.getFormCode())).append('"');
+        }
+        if (node.isUserTask() && node.getFormId() != null && !node.getFormId().isBlank()) {
+            xml.append(" formId=\"").append(escape(node.getFormId())).append('"');
+        }
         if (defaultFlowId != null) {
             xml.append(" default=\"").append(escape(defaultFlowId)).append('"');
         }

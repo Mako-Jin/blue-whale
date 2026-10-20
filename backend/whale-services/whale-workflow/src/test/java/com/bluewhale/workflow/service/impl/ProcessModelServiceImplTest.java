@@ -60,6 +60,16 @@ class ProcessModelServiceImplTest {
             + "<definitions xmlns=\"http://www.omg.org/spec/BPMN/20100524/MODEL\">"
             + "<process id=\"p1\"><startEvent id=\"start\"/><serviceTask id=\"s1\"/></process></definitions>";
 
+    /** 含表单绑定与画布坐标的规范化定义 */
+    private static final String NORMALIZED_FORM_JSON =
+            "{\"type\":\"stateMachine\",\"nodes\":["
+                    + "{\"key\":\"start\",\"type\":\"START_EVENT\"},"
+                    + "{\"key\":\"t1\",\"type\":\"USER_TASK\",\"name\":\"审批\",\"assignee\":\"admin\","
+                    + "\"formId\":\"2112355156699869186\",\"formCode\":\"bw_d29_form\",\"x\":320,\"y\":180},"
+                    + "{\"key\":\"end\",\"type\":\"END_EVENT\"}],"
+                    + "\"flows\":[{\"key\":\"f1\",\"from\":\"start\",\"to\":\"t1\"},"
+                    + "{\"key\":\"f2\",\"from\":\"t1\",\"to\":\"end\"}]}";
+
     @Mock
     private ProcessDefinitionService processDefinitionService;
 
@@ -198,5 +208,34 @@ class ProcessModelServiceImplTest {
         String xml = new String(content, StandardCharsets.UTF_8);
         assertTrue(xml.contains("<definitions"));
         assertTrue(xml.contains("<process id=\"wf-a\""));
+    }
+
+    @Test
+    @DisplayName("validate：formId/formCode/x/y 在归一化 JSON 中往返保留")
+    void shouldKeepFormAndCoordinatesInNormalizedJson() {
+        ProcessDefinitionValidateVO vo = processModelService.validate(jsonRequest(NORMALIZED_FORM_JSON));
+
+        assertTrue(vo.isValid());
+        String json = vo.getNormalizedJson();
+        assertTrue(json.contains("\"formId\":\"2112355156699869186\""));
+        assertTrue(json.contains("\"formCode\":\"bw_d29_form\""));
+        assertTrue(json.contains("\"x\":320"));
+        assertTrue(json.contains("\"y\":180"));
+    }
+
+    @Test
+    @DisplayName("exportBpmn：表单绑定节点导出含 plain formKey/formId")
+    void shouldExportBpmnWithFormKey() {
+        ProcessDefinitionVO definition = new ProcessDefinitionVO();
+        definition.setId(2L);
+        definition.setCode("wf-form");
+        definition.setName("表单流程");
+        definition.setDefinitionJson(NORMALIZED_FORM_JSON);
+        when(processDefinitionService.getDetail(2L)).thenReturn(definition);
+
+        String xml = new String(processModelService.exportBpmn(2L), StandardCharsets.UTF_8);
+
+        assertTrue(xml.contains("formKey=\"bw_d29_form\""));
+        assertTrue(xml.contains("formId=\"2112355156699869186\""));
     }
 }

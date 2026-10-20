@@ -164,6 +164,10 @@ public final class BpmnXmlParser {
         node.setType(type);
         node.setName(attribute(element, "name"));
         node.setAssignee(attribute(element, "assignee"));
+        if (type == ProcessNodeType.USER_TASK) {
+            node.setFormCode(attribute(element, "formKey"));
+            node.setFormId(attribute(element, "formId"));
+        }
         return node;
     }
 

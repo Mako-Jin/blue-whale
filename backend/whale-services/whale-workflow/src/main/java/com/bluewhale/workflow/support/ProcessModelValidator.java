@@ -35,6 +35,9 @@ public final class ProcessModelValidator {
     /** 节点键合法字符集 */
     private static final Pattern KEY_PATTERN = Pattern.compile("^[A-Za-z0-9_-]{1,64}$");
 
+    /** 审批节点表单编码合法字符集（字母/数字/下划线/连字符，1~64 字符） */
+    private static final Pattern FORM_CODE_PATTERN = Pattern.compile("^[A-Za-z0-9_-]{1,64}$");
+
     /** JSON 解析器（Jackson 2） */
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
@@ -201,6 +204,34 @@ public final class ProcessModelValidator {
             if (nodeType == ProcessNodeType.USER_TASK && (assignee == null || assignee.isBlank())) {
                 report.add(ValidationIssue.of(ValidationCode.USER_TASK_ASSIGNEE_REQUIRED, key));
             }
+            checkUserTaskForm(report, item, nodeType, key);
+        }
+    }
+
+    /**
+     * 校验审批节点的表单绑定：编码格式与 formId/formCode 成对性。
+     *
+     * <p>仅针对 {@link ProcessNodeType#USER_TASK} 节点；非审批节点携带表单字段时仅被忽略不报错。
+     * 不做跨服务存在性校验（whale-workflow 不依赖 whale-form）。</p>
+     *
+     * @param report 校验报告
+     * @param item 节点 JSON
+     * @param nodeType 节点类型
+     * @param key 节点键（用于定位，可为 {@code null}）
+     */
+    private static void checkUserTaskForm(ValidationReport report, JsonNode item, ProcessNodeType nodeType, String key) {
+        if (nodeType != ProcessNodeType.USER_TASK) {
+            return;
+        }
+        String formId = text(item, "formId");
+        String formCode = text(item, "formCode");
+        boolean hasId = formId != null && !formId.isBlank();
+        boolean hasCode = formCode != null && !formCode.isBlank();
+        if (hasCode && !FORM_CODE_PATTERN.matcher(formCode.trim()).matches()) {
+            report.add(ValidationIssue.of(ValidationCode.USER_TASK_FORM_CODE_INVALID, key));
+        }
+        if (hasId != hasCode) {
+            report.add(ValidationIssue.of(ValidationCode.USER_TASK_FORM_INCOMPLETE, key));
         }
     }
 

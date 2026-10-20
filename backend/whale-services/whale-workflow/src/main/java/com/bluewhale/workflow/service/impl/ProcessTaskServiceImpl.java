@@ -183,6 +183,9 @@ public class ProcessTaskServiceImpl implements ProcessTaskService {
         task.setInstanceId(instanceId);
         task.setNodeIndex(nodeIndex);
         task.setNodeName(node.getName());
+        task.setNodeKey(node.getKey());
+        task.setFormId(node.getFormId());
+        task.setFormCode(node.getFormCode());
         task.setAssignee(node.getAssignee());
         task.setStatus(TASK_PENDING);
         processTaskMapper.insert(task);

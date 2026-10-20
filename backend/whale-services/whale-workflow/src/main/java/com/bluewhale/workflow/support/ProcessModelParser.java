@@ -180,6 +180,10 @@ public final class ProcessModelParser {
         node.setType(nodeType);
         node.setName(text(item, "name"));
         node.setAssignee(text(item, "assignee"));
+        node.setFormId(text(item, "formId"));
+        node.setFormCode(text(item, "formCode"));
+        node.setX(integer(item, "x"));
+        node.setY(integer(item, "y"));
         if (nodeType == ProcessNodeType.USER_TASK && (node.getAssignee() == null || node.getAssignee().isBlank())) {
             throw new ProcessModelException(ValidationCode.USER_TASK_ASSIGNEE_REQUIRED, LEGACY_INVALID_MESSAGE, key);
         }
@@ -213,6 +217,18 @@ public final class ProcessModelParser {
     private static String text(JsonNode item, String field) {
         JsonNode value = item.get(field);
         return value == null || value.isNull() ? null : value.asText();
+    }
+
+    /**
+     * 读取整型字段，缺失或为 {@code null} 返回 {@code null}。
+     *
+     * @param item JSON 节点
+     * @param field 字段名
+     * @return 字段整型值，缺失返回 {@code null}
+     */
+    private static Integer integer(JsonNode item, String field) {
+        JsonNode value = item.get(field);
+        return value == null || value.isNull() ? null : value.asInt();
     }
 
     /**

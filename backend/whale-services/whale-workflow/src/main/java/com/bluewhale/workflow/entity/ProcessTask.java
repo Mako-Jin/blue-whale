@@ -29,6 +29,15 @@ public class ProcessTask extends BaseEntity {
     /** 节点名称 */
     private String nodeName;
 
+    /** 建任务时的节点键（规范化模型用 key；legacy 用合成 key {@code n{i+1}}，可空） */
+    private String nodeKey;
+
+    /** 节点绑定的表单定义 ID（字符串承载，可空） */
+    private String formId;
+
+    /** 节点绑定的表单编码（可空） */
+    private String formCode;
+
     /** 审批人账号 */
     private String assignee;
 

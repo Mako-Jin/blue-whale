@@ -24,6 +24,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -56,6 +57,21 @@ class ProcessTaskServiceImplTest {
                     + "{\"key\":\"end\",\"type\":\"END_EVENT\"}],"
                     + "\"flows\":[{\"key\":\"f1\",\"from\":\"start\",\"to\":\"t1\"},"
                     + "{\"key\":\"f2\",\"from\":\"t1\",\"to\":\"t2\"},{\"key\":\"f3\",\"from\":\"t2\",\"to\":\"end\"}]}";
+
+    /** 规范化定义：二级审批节点绑定表单 */
+    private static final String FORM_JSON =
+            "{\"type\":\"stateMachine\",\"nodes\":["
+                    + "{\"key\":\"start\",\"type\":\"START_EVENT\"},"
+                    + "{\"key\":\"t1\",\"type\":\"USER_TASK\",\"name\":\"一级审批\",\"assignee\":\"admin\"},"
+                    + "{\"key\":\"t2\",\"type\":\"USER_TASK\",\"name\":\"二级审批\",\"assignee\":\"user\","
+                    + "\"formId\":\"2112355156699869186\",\"formCode\":\"bw_d29_form\"},"
+                    + "{\"key\":\"end\",\"type\":\"END_EVENT\"}],"
+                    + "\"flows\":[{\"key\":\"f1\",\"from\":\"start\",\"to\":\"t1\"},"
+                    + "{\"key\":\"f2\",\"from\":\"t1\",\"to\":\"t2\"},{\"key\":\"f3\",\"from\":\"t2\",\"to\":\"end\"}]}";
+
+    /** legacy 定义：节点无 key（归一化时合成 {@code n{i+1}}） */
+    private static final String LEGACY_NO_KEY_JSON =
+            "{\"nodes\":[{\"name\":\"一级审批\",\"assignee\":\"admin\"},{\"name\":\"二级审批\",\"assignee\":\"user\"}]}";
 
     @Mock
     private ProcessTaskMapper processTaskMapper;
@@ -293,5 +309,41 @@ class ProcessTaskServiceImplTest {
         assertEquals(1, instance.getStatus().intValue());
         assertEquals("end", instance.getCurrentNodeKey());
         verify(processTaskMapper, never()).insert(any(ProcessTask.class));
+    }
+
+    @Test
+    @DisplayName("approve：生成下一节点待办时回填 nodeKey/formId/formCode")
+    void shouldBackfillNodeKeyAndFormOnCreateTask() {
+        ProcessTask task = pendingTask(100L, 5L, 0);
+        ProcessInstance instance = keyedInstance(5L, 10L, 0, 1, "t1");
+        when(processTaskMapper.selectById(100L)).thenReturn(task);
+        when(processInstanceMapper.selectById(5L)).thenReturn(instance);
+        when(processDefinitionMapper.selectById(10L)).thenReturn(definition(10L, FORM_JSON));
+
+        processTaskService.approve(100L, null);
+
+        ArgumentCaptor<ProcessTask> captor = ArgumentCaptor.forClass(ProcessTask.class);
+        verify(processTaskMapper).insert(captor.capture());
+        assertEquals("t2", captor.getValue().getNodeKey());
+        assertEquals("2112355156699869186", captor.getValue().getFormId());
+        assertEquals("bw_d29_form", captor.getValue().getFormCode());
+    }
+
+    @Test
+    @DisplayName("approve：legacy 无 key 节点生成待办时 nodeKey 合成 n{i+1}")
+    void shouldSynthesizeNodeKeyForLegacyOnCreateTask() {
+        ProcessTask task = pendingTask(100L, 5L, 0);
+        ProcessInstance instance = instance(5L, 10L, 0, 0);
+        when(processTaskMapper.selectById(100L)).thenReturn(task);
+        when(processInstanceMapper.selectById(5L)).thenReturn(instance);
+        when(processDefinitionMapper.selectById(10L)).thenReturn(definition(10L, LEGACY_NO_KEY_JSON));
+
+        processTaskService.approve(100L, null);
+
+        ArgumentCaptor<ProcessTask> captor = ArgumentCaptor.forClass(ProcessTask.class);
+        verify(processTaskMapper).insert(captor.capture());
+        assertEquals("n2", captor.getValue().getNodeKey());
+        assertNull(captor.getValue().getFormId());
+        assertNull(captor.getValue().getFormCode());
     }
 }

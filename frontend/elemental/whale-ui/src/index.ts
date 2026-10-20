@@ -15,6 +15,10 @@ export type { FormModalProps } from './form/FormModal';
 export { ProTable } from './table/ProTable';
 export type { PageParams, PageResult, ProTableProps, ProTableRef } from './table/ProTable';
 
+// 受控动态表单渲染器（表单设计器预览 + 工作流填报/审批页共用）
+export { FormRenderer } from './components/FormRenderer';
+export type { FormRendererProps, WhaleFormFieldConfig } from './components/FormRenderer';
+
 // 按钮级权限（T5.23）
 export { PermissionProvider, usePermission } from './permission/context';
 export type { PermissionUtils, PermissionProviderProps } from './permission/context';

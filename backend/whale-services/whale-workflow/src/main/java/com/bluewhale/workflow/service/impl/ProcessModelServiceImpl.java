@@ -192,6 +192,10 @@ public class ProcessModelServiceImpl implements ProcessModelService {
             item.put(FIELD_TYPE, node.getType() == null ? null : node.getType().name());
             putIfPresent(item, "name", node.getName());
             putIfPresent(item, "assignee", node.getAssignee());
+            putIfPresent(item, "formId", node.getFormId());
+            putIfPresent(item, "formCode", node.getFormCode());
+            putIfPresentInt(item, "x", node.getX());
+            putIfPresentInt(item, "y", node.getY());
         }
         ArrayNode flows = root.putArray(FIELD_FLOWS);
         for (ProcessModelFlow flow : model.getFlows()) {
@@ -221,6 +225,19 @@ public class ProcessModelServiceImpl implements ProcessModelService {
     private static void putIfPresent(ObjectNode node, String field, String value) {
         if (value != null && !value.isBlank()) {
             node.put(field, value);
+        }
+    }
+
+    /**
+     * 非空时写入整型字段。
+     *
+     * @param node 目标 JSON 对象
+     * @param field 字段名
+     * @param value 字段值，可为 {@code null}
+     */
+    private static void putIfPresentInt(ObjectNode node, String field, Integer value) {
+        if (value != null) {
+            node.put(field, value.intValue());
         }
     }
 }

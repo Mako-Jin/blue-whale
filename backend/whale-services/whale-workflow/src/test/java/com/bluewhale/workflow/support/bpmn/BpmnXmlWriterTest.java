@@ -7,6 +7,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -111,5 +112,61 @@ class BpmnXmlWriterTest {
         assertTrue(out.contains("<conditionExpression"));
         assertTrue(out.contains("amount&gt;100"));
         assertEquals("amount>100", BpmnXmlParser.parse(out).getFlows().get(0).getCondition());
+    }
+
+    /**
+     * 构造带表单绑定与画布坐标的审批节点模型。
+     *
+     * @return 单节点流程模型
+     */
+    private static ProcessModel formBoundModel() {
+        ProcessModel model = new ProcessModel();
+        ProcessModelNode node = new ProcessModelNode();
+        node.setKey("t1");
+        node.setType(ProcessNodeType.USER_TASK);
+        node.setName("审批");
+        node.setAssignee("admin");
+        node.setFormCode("bw_d29_form");
+        node.setFormId("2112355156699869186");
+        node.setX(320);
+        node.setY(180);
+        model.getNodes().add(node);
+        model.reindex();
+        return model;
+    }
+
+    @Test
+    @DisplayName("write：userTask 非空时写出 plain formKey/formId")
+    void shouldWriteFormKeyAndFormId() {
+        String xml = BpmnXmlWriter.write(formBoundModel(), "p1", "示例");
+
+        assertTrue(xml.contains("formKey=\"bw_d29_form\""));
+        assertTrue(xml.contains("formId=\"2112355156699869186\""));
+    }
+
+    @Test
+    @DisplayName("write：不输出画布坐标 x/y")
+    void shouldNotWriteCoordinates() {
+        String xml = BpmnXmlWriter.write(formBoundModel(), "p1", "示例");
+
+        assertFalse(xml.contains("x=\"320\""));
+        assertFalse(xml.contains("y=\"180\""));
+    }
+
+    @Test
+    @DisplayName("write + parse：formKey/formId 往返一致")
+    void shouldRoundTripFormBinding() {
+        String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+                + "<definitions xmlns=\"http://www.omg.org/spec/BPMN/20100524/MODEL\" targetNamespace=\"http://bw\">"
+                + "<process id=\"p1\"><startEvent id=\"start\"/>"
+                + "<userTask id=\"t1\" assignee=\"a\" formKey=\"bw_d29_form\" formId=\"2112355156699869186\"/>"
+                + "<sequenceFlow id=\"f1\" sourceRef=\"start\" targetRef=\"t1\"/></process></definitions>";
+        ProcessModel source = BpmnXmlParser.parse(xml);
+
+        String out = BpmnXmlWriter.write(source, "p1", "示例");
+        ProcessModel reparsed = BpmnXmlParser.parse(out);
+
+        assertEquals("bw_d29_form", reparsed.node("t1").getFormCode());
+        assertEquals("2112355156699869186", reparsed.node("t1").getFormId());
     }
 }

@@ -303,4 +303,74 @@ class ProcessModelValidatorTest {
         assertFalse(report.isValid());
         assertTrue(hasError(report, ValidationCode.MISSING_NODES));
     }
+
+    /**
+     * 构造「开始 → 审批（可选表单绑定）→ 结束」的规范化定义 JSON。
+     *
+     * @param formFragment 审批节点上的表单绑定片段，可为空串
+     * @return 规范化定义 JSON
+     */
+    private static String userTaskFormJson(String formFragment) {
+        return "{\"type\":\"stateMachine\",\"nodes\":["
+                + "{\"key\":\"start\",\"type\":\"START_EVENT\"},"
+                + "{\"key\":\"t1\",\"type\":\"USER_TASK\",\"assignee\":\"admin\"" + formFragment + "},"
+                + "{\"key\":\"end\",\"type\":\"END_EVENT\"}],"
+                + "\"flows\":[{\"key\":\"f1\",\"from\":\"start\",\"to\":\"t1\"},"
+                + "{\"key\":\"f2\",\"from\":\"t1\",\"to\":\"end\"}]}";
+    }
+
+    @Test
+    @DisplayName("审批节点表单绑定成对且编码合法：valid=true")
+    void shouldPassUserTaskFormBinding() {
+        ValidationReport report = ProcessModelValidator.validate(userTaskFormJson(
+                ",\"formId\":\"2112355156699869186\",\"formCode\":\"bw_d29_form\""));
+
+        assertTrue(report.isValid());
+        assertFalse(hasError(report, ValidationCode.USER_TASK_FORM_CODE_INVALID));
+        assertFalse(hasError(report, ValidationCode.USER_TASK_FORM_INCOMPLETE));
+    }
+
+    @Test
+    @DisplayName("审批节点 formCode 非法字符：报 USER_TASK_FORM_CODE_INVALID")
+    void shouldRejectInvalidFormCode() {
+        ValidationReport report = ProcessModelValidator.validate(userTaskFormJson(
+                ",\"formId\":\"211\",\"formCode\":\"bad form\""));
+
+        assertFalse(report.isValid());
+        assertTrue(hasError(report, ValidationCode.USER_TASK_FORM_CODE_INVALID));
+    }
+
+    @Test
+    @DisplayName("审批节点仅 formId 非空：报 USER_TASK_FORM_INCOMPLETE")
+    void shouldRejectFormBindingOnlyFormId() {
+        ValidationReport report = ProcessModelValidator.validate(userTaskFormJson(",\"formId\":\"211\""));
+
+        assertFalse(report.isValid());
+        assertTrue(hasError(report, ValidationCode.USER_TASK_FORM_INCOMPLETE));
+    }
+
+    @Test
+    @DisplayName("审批节点仅 formCode 非空：报 USER_TASK_FORM_INCOMPLETE")
+    void shouldRejectFormBindingOnlyFormCode() {
+        ValidationReport report = ProcessModelValidator.validate(userTaskFormJson(",\"formCode\":\"bw_form\""));
+
+        assertFalse(report.isValid());
+        assertTrue(hasError(report, ValidationCode.USER_TASK_FORM_INCOMPLETE));
+    }
+
+    @Test
+    @DisplayName("非审批节点携带表单字段：不报错（仅被忽略）")
+    void shouldIgnoreFormFieldsOnNonUserTask() {
+        ValidationReport report = ProcessModelValidator.validate(
+                "{\"type\":\"stateMachine\",\"nodes\":["
+                        + "{\"key\":\"start\",\"type\":\"START_EVENT\",\"formId\":\"211\",\"formCode\":\"bad form\"},"
+                        + "{\"key\":\"t1\",\"type\":\"USER_TASK\",\"assignee\":\"admin\"},"
+                        + "{\"key\":\"end\",\"type\":\"END_EVENT\"}],"
+                        + "\"flows\":[{\"key\":\"f1\",\"from\":\"start\",\"to\":\"t1\"},"
+                        + "{\"key\":\"f2\",\"from\":\"t1\",\"to\":\"end\"}]}");
+
+        assertTrue(report.isValid());
+        assertFalse(hasError(report, ValidationCode.USER_TASK_FORM_CODE_INVALID));
+        assertFalse(hasError(report, ValidationCode.USER_TASK_FORM_INCOMPLETE));
+    }
 }

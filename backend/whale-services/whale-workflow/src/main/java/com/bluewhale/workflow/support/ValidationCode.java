@@ -32,6 +32,12 @@ public enum ValidationCode {
     /** 审批节点缺少 assignee */
     USER_TASK_ASSIGNEE_REQUIRED(ValidationLevel.ERROR, "审批节点缺少 assignee"),
 
+    /** 审批节点表单编码非法（非空且不匹配 {@code ^[A-Za-z0-9_-]{1,64}$}） */
+    USER_TASK_FORM_CODE_INVALID(ValidationLevel.ERROR, "审批节点表单编码不合法"),
+
+    /** 审批节点表单绑定不完整（formId 与 formCode 必须成对非空） */
+    USER_TASK_FORM_INCOMPLETE(ValidationLevel.ERROR, "审批节点表单绑定不完整"),
+
     /** 开始事件数量不等于 1 */
     START_EVENT_COUNT(ValidationLevel.ERROR, "开始事件数量必须为 1"),
 

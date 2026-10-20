@@ -546,6 +546,37 @@
 - [x] **H4** commit & push `origin`（Gitee `https://gitee.com/StrongToStop/blue-whale.git`）
 
 
+## Wave 5.32：whale-workflow-designer 工作流前端（管理 + 绘制 + 表单绑定）
+
+> 用户指令（2026-10-20）：「后端已经完成了吗？现在开始前端？管理和绘制，表单可以选择表单管理器的表单。」
+> 冻结口径（AskUserQuestion，4 项）：① 新建独立应用 `whale-workflow-designer`（8003）；② 自研自由画布（SVG + 复用 `@dnd-kit`，不引入 React Flow）；③ 四域（定义管理/发起填表单/待办审批/实例监控）；④ 允许后端最小可加性补强。
+> 并行策略：Phase 1 三轨并行（B 后端补强 / S 共享渲染器 / F0 应用骨架，互无文件交集）；Phase 2 五路并行（F1 设计器 / F2 定义管理 / F3 发起 / F4 待办 / F5 实例，F3/F4 依赖 S+B）；Phase 3 串行收尾。
+> 规格：[wave5.32-workflow-designer/spec.md](wave5.32-workflow-designer/spec.md) ｜ 分解：[tasks.md](wave5.32-workflow-designer/tasks.md) ｜ 报告：[reviews/2026-10-20-wave5.32-workflow-designer.md](../reviews/2026-10-20-wave5.32-workflow-designer.md)。
+
+**Wave 5.32-a（契约冻结 + 三轨并行）**
+
+- [x] **B 轨 · 后端可加性**：`ProcessModelNode` + `formId`/`formCode`/`x`/`y`；`ProcessModelParser.readNode` 读；`ProcessModelServiceImpl.toJson` 写；`ValidationCode` + 2 新码（`USER_TASK_FORM_CODE_INVALID`/`USER_TASK_FORM_INCOMPLETE`）；`BpmnXmlParser`/`BpmnXmlWriter` 对称 `formKey`/`formId`；`process_task` + `node_key`/`form_id`/`form_code` + 实体/VO + 建任务回填；幂等 `db/migration-5.32.sql`
+- [x] **S 轨 · 共享渲染器**：`FormRenderer` 抽进 `elemental/whale-ui`（+ `WhaleFormFieldConfig`）；`whale-form-designer` 改 re-export；`tsup` 补 `external: dayjs`
+- [x] **F0 轨 · 应用骨架**：`platform-apps/whale-workflow-designer`（8003 + 正则 proxy）+ `api/{token,http,auth,workflow,form}.ts` + 路由/布局/登录
+
+**Wave 5.32-b（五路并行 · 前端功能）**
+
+- [x] **F1 设计器**：`pages/designer/{WorkflowDesigner,Palette,Canvas,NodeShape,EdgePath,PropertyPanel,FormPicker}.tsx` + `model.ts`（SVG 画布 + dnd-kit + 连线 + 属性面板 + 表单选择 + 保存/校验 + BPMN）
+- [x] **F2 定义管理**：`pages/definition/DefinitionList.tsx`
+- [x] **F3 发起 + 填表单**：`pages/start/{ProcessStart.tsx,model.ts,formValues.ts}`
+- [x] **F4 待办 + 审批**：`pages/task/TaskCenter.tsx`（表单只读回显）
+- [x] **F5 实例监控**：`pages/instance/{InstanceList.tsx,InstanceDetailDrawer.tsx,statusTag.tsx}`
+
+**Wave 5.32-c（收尾）**
+
+- [x] **V1** 后端全量回归：`mvn -o -f backend/pom.xml clean install -T 1C` → **28/28 模块 BUILD SUCCESS**（271 测试无失败）
+- [x] **V2** DDL 落库（`process_task` 三列 `varchar(64) YES`）+ 运行时冒烟 **15/15 PASS**
+- [x] **V3** 前端全量构建：`pnpm -C frontend build` → **14/14 任务**
+- [x] **V4** 浏览器实机 E2E：A/B/C/C2/C3/D/E/F/G **全 PASS**；**C4 拖拽手势自动化不可复现 → 需人工复核**
+- [x] **V5** 文档收尾：检查报告 + devlog + roadmap §2.5 + task-breakdown 勾选
+- [x] **V6** commit & push `origin`（Gitee `https://gitee.com/StrongToStop/blue-whale.git`）
+
+
 ## 附录 A：common 契约（Wave 2 遵守）
 
 ```
