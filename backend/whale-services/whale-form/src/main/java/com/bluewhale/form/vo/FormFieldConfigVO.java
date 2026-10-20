@@ -43,6 +43,9 @@ public class FormFieldConfigVO implements Serializable {
     /** 排序号 */
     private Integer sortNo;
 
+    /** 栅格宽度：12 半宽 / 24 整宽 */
+    private Integer colSpan;
+
     /** 占位提示 */
     private String placeholder;
 
@@ -63,6 +66,18 @@ public class FormFieldConfigVO implements Serializable {
 
     /** 更新时间 */
     private LocalDateTime updateTime;
+
+    /** 关联列编码（关联列信息冗余回填；{@code columnMetaId == null} 的纯布局字段为 {@code null}） */
+    private String columnCode;
+
+    /** 关联列存储类型（关联列信息冗余回填） */
+    private String dataType;
+
+    /** 关联列是否必填：1 必填 / 0 非必填（关联列信息冗余回填） */
+    private Integer required;
+
+    /** 关联列长度（关联列信息冗余回填，供前端 maxLength 提示） */
+    private Integer maxLength;
 
     /** 选项集合 */
     private List<FormFieldOptionVO> options;

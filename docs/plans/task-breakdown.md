@@ -438,6 +438,37 @@
 - [x] **F-e 收尾**：检查报告 + devlog + roadmap/task-breakdown 勾选 + commit & push origin（Gitee）
 
 
+## Wave 5.29：拖拽式表单设计器（前后端贯通）
+
+> 用户指令（2026-10-20）：「今天打算搭建拖拽式表单搭建，前端后端一起搭建，并贯通。拆分任务，然后逐步搭建。」
+> 经 AskUserQuestion 冻结：**(a) 范围=设计器+渲染填报+数据列表｜(b) `@dnd-kit`｜(c) 独立新应用 8002 真实认证直连网关｜(d) 可新建表也可选已有表｜(e) 栅格 12/24（加 `col_span`）｜(f) 支持纯布局字段**。
+> 规格：[wave5.29-form-designer/spec.md](wave5.29-form-designer/spec.md) ｜ 分解：[tasks.md](wave5.29-form-designer/tasks.md)。
+
+**Wave 5.29-a（F1 契约冻结 + 并行：F2 后端补强 / F3 前端骨架）**
+
+- [x] **F1-a/F1-b 规格与分解**：`wave5.29-form-designer/{spec,tasks}.md`
+- [x] **F1-c/F1-d 台账**：roadmap §2.5 追加 + task-breakdown 追加 Wave 5.29 分组
+- [x] **F1-e 契约冻结**：`whale-form-designer/src/api/form.ts` 类型与接口契约
+- [x] **F2 后端补强**：B1 DDL（`col_span` + `migration-5.29.sql`）、B2 实体/DTO/VO、B3 `enrichColumnInfo` 回填 + 单测 + 模块自检
+- [x] **F3 前端骨架**：新应用骨架 + `api/{token,http,auth,form}.ts` + guards + AppLayout + Login + 装 `@dnd-kit`
+
+**Wave 5.29-b（页面级并行 F4/F5/F7/F8）**
+
+- [x] **F4 表定义管理页**：`pages/table/TableDefinitionList.tsx`（列编辑器 + 发布 + 新建表单视图跳转）
+- [x] **F5 表单视图列表页**：`pages/form/FormList.tsx`（设计/发布/填报/数据/删除）
+- [x] **F7 渲染器与填报页**：`render/FormRenderer.tsx` + `render/FormRender.tsx`（序列化契约）
+- [x] **F8 数据列表页**：`pages/data/FormDataList.tsx`（分页 + 详情 标签:值 + 删除）
+
+**Wave 5.29-c（设计器 F6 + 门禁 F9）**
+
+- [x] **F6-a~e 设计器**：`designer/{FormDesigner,Palette,Canvas,PropertyPanel,FieldPreview}.tsx`（三栏拖拽 + 保存/发布/预览/回填 + 前置校验）
+- [x] **F9-a 后端全量回归**：`mvn -f backend/pom.xml clean install`
+- [x] **F9-b 前端构建**：`pnpm -C frontend --filter whale-form-designer build`
+- [x] **F9-c 实机 E2E**：7 步正向 + 2 条负向 + `browser_use` 截图
+- [x] **F9-d/e 收尾**：检查报告 + devlog + roadmap/task-breakdown 勾选
+- [x] **F9-f 提交推送**：commit & push origin（Gitee）
+
+
 ## 附录 A：common 契约（Wave 2 遵守）
 
 ```

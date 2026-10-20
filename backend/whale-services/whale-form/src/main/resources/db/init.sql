@@ -149,6 +149,7 @@ CREATE TABLE form_field_config (
     show_in_form   TINYINT       NOT NULL DEFAULT 1     COMMENT '表单是否显示：1 显示 / 0 隐藏',
     editable       TINYINT       NOT NULL DEFAULT 1     COMMENT '是否允许编辑：1 可编辑 / 0 只读',
     sort_no        INT           NOT NULL DEFAULT 0     COMMENT '排序号',
+    col_span       INT           NOT NULL DEFAULT 24    COMMENT '栅格宽度：12 半宽 / 24 整宽',
     placeholder    VARCHAR(255)  DEFAULT NULL           COMMENT '占位提示',
     default_value  VARCHAR(255)  DEFAULT NULL           COMMENT '默认值（视图级覆盖）',
     validate_json  VARCHAR(1024) DEFAULT NULL           COMMENT '校验规则JSON（如 {"min":0,"max":150}）',

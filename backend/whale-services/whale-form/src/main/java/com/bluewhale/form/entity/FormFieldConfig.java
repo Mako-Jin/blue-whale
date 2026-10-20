@@ -45,6 +45,9 @@ public class FormFieldConfig extends BaseEntity {
     /** 排序号 */
     private Integer sortNo;
 
+    /** 栅格宽度：12 半宽 / 24 整宽 */
+    private Integer colSpan;
+
     /** 占位提示 */
     private String placeholder;
 

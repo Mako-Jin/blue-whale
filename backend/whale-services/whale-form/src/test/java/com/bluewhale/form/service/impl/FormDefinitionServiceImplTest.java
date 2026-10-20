@@ -1,19 +1,27 @@
 package com.bluewhale.form.service.impl;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.form.dto.FormDefinitionSaveRequest;
+import com.bluewhale.form.dto.FormFieldConfigDTO;
 import com.bluewhale.form.dto.FormQueryRequest;
+import com.bluewhale.form.entity.FormColumnMeta;
 import com.bluewhale.form.entity.FormDefinition;
 import com.bluewhale.form.entity.FormFieldConfig;
+import com.bluewhale.form.entity.FormFieldOption;
+import com.bluewhale.form.entity.FormTableDefinition;
 import com.bluewhale.form.mapper.FormColumnMetaMapper;
 import com.bluewhale.form.mapper.FormDefinitionMapper;
 import com.bluewhale.form.mapper.FormFieldConfigMapper;
 import com.bluewhale.form.mapper.FormFieldOptionMapper;
 import com.bluewhale.form.mapper.FormTableDefinitionMapper;
 import com.bluewhale.form.vo.FormDefinitionVO;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,6 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -61,6 +70,19 @@ class FormDefinitionServiceImplTest {
 
     @InjectMocks
     private FormDefinitionServiceImpl formDefinitionService;
+
+    /**
+     * 注册实体元信息缓存：Lambda 条件构造器会立即按实体解析列名，纯单测无 MyBatis 环境需手动初始化 TableInfo。
+     */
+    @BeforeAll
+    static void initTableInfoCache() {
+        MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "");
+        TableInfoHelper.initTableInfo(assistant, FormDefinition.class);
+        TableInfoHelper.initTableInfo(assistant, FormFieldConfig.class);
+        TableInfoHelper.initTableInfo(assistant, FormFieldOption.class);
+        TableInfoHelper.initTableInfo(assistant, FormColumnMeta.class);
+        TableInfoHelper.initTableInfo(assistant, FormTableDefinition.class);
+    }
 
     /**
      * 构造表单定义保存请求桩对象。
@@ -203,5 +225,83 @@ class FormDefinitionServiceImplTest {
         assertEquals("form-a", result.getRecords().get(0).getCode());
         verify(formDefinitionMapper).selectPage(ArgumentMatchers.<Page<FormDefinition>>any(),
                 ArgumentMatchers.<Wrapper<FormDefinition>>any());
+    }
+
+    @Test
+    @DisplayName("create：元数据模型按 dto 持久化 colSpan（缺省 24）")
+    void shouldPersistColSpanOnCreate() {
+        when(formDefinitionMapper.selectCount(ArgumentMatchers.<Wrapper<FormDefinition>>any())).thenReturn(0L);
+        FormTableDefinition table = new FormTableDefinition();
+        table.setId(9L);
+        when(formTableDefinitionMapper.selectById(9L)).thenReturn(table);
+        FormColumnMeta column = new FormColumnMeta();
+        column.setId(7L);
+        column.setTableDefinitionId(9L);
+        column.setColumnCode("guest_name");
+        column.setColumnName("姓名");
+        column.setDataType("text");
+        column.setRequired(0);
+        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMeta>>any()))
+                .thenReturn(List.of(column));
+        when(formFieldOptionMapper.selectList(ArgumentMatchers.<Wrapper<FormFieldOption>>any()))
+                .thenReturn(List.of());
+        when(formFieldConfigMapper.selectList(ArgumentMatchers.<Wrapper<FormFieldConfig>>any()))
+                .thenReturn(List.of());
+        FormDefinitionSaveRequest request = saveRequest("form-a", "A表单");
+        request.setTableDefinitionId(9L);
+        FormFieldConfigDTO dataField = new FormFieldConfigDTO();
+        dataField.setColumnMetaId(7L);
+        dataField.setFieldLabel("姓名");
+        dataField.setColSpan(12);
+        FormFieldConfigDTO layoutField = new FormFieldConfigDTO();
+        layoutField.setFieldLabel("标题");
+        layoutField.setWidgetType("title");
+        request.setFields(List.of(dataField, layoutField));
+
+        formDefinitionService.create(request);
+
+        ArgumentCaptor<FormFieldConfig> captor = ArgumentCaptor.forClass(FormFieldConfig.class);
+        verify(formFieldConfigMapper, times(2)).insert(captor.capture());
+        assertEquals(12, captor.getAllValues().get(0).getColSpan().intValue());
+        assertEquals(24, captor.getAllValues().get(1).getColSpan().intValue());
+    }
+
+    @Test
+    @DisplayName("getDetail：元数据模型回填关联列信息（columnCode/dataType/required/maxLength/colSpan）")
+    void shouldEnrichColumnInfoOnDetail() {
+        FormDefinition entity = new FormDefinition();
+        entity.setId(1L);
+        entity.setCode("form-a");
+        entity.setTableDefinitionId(9L);
+        when(formDefinitionMapper.selectById(1L)).thenReturn(entity);
+        FormFieldConfig config = new FormFieldConfig();
+        config.setId(100L);
+        config.setFormId(1L);
+        config.setColumnMetaId(7L);
+        config.setFieldLabel("姓名");
+        config.setColSpan(12);
+        when(formFieldConfigMapper.selectList(ArgumentMatchers.<Wrapper<FormFieldConfig>>any()))
+                .thenReturn(List.of(config));
+        when(formFieldOptionMapper.selectList(ArgumentMatchers.<Wrapper<FormFieldOption>>any()))
+                .thenReturn(List.of());
+        FormColumnMeta column = new FormColumnMeta();
+        column.setId(7L);
+        column.setTableDefinitionId(9L);
+        column.setColumnCode("guest_name");
+        column.setDataType("text");
+        column.setRequired(1);
+        column.setLength(64);
+        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMeta>>any()))
+                .thenReturn(List.of(column));
+
+        FormDefinitionVO vo = formDefinitionService.getDetail(1L);
+
+        assertEquals(1, vo.getFields().size());
+        assertEquals("guest_name", vo.getFields().get(0).getColumnCode());
+        assertEquals("text", vo.getFields().get(0).getDataType());
+        assertEquals(1, vo.getFields().get(0).getRequired().intValue());
+        assertEquals(64, vo.getFields().get(0).getMaxLength().intValue());
+        assertEquals(12, vo.getFields().get(0).getColSpan().intValue());
+        verify(formColumnMetaMapper).selectList(ArgumentMatchers.<Wrapper<FormColumnMeta>>any());
     }
 }

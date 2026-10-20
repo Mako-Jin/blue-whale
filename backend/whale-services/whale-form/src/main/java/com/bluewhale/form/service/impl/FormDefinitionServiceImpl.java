@@ -60,6 +60,9 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
     /** 表单版本号默认值 */
     private static final int DEFAULT_VERSION = 1;
 
+    /** 字段栅格宽度默认值（24 为整宽，12 为半宽） */
+    private static final int DEFAULT_COL_SPAN = 24;
+
     /** 表单结构定义最大长度（字符数）：64KB */
     private static final int MAX_SCHEMA_LENGTH = 65536;
 
@@ -101,7 +104,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
             entity.setSchemaJson(compileSnapshot(table, configs));
             formDefinitionMapper.updateById(entity);
         }
-        return toVo(entity, table == null ? null : listFields(entity.getId()));
+        return toDetailVo(entity, table == null ? null : listFields(entity.getId()));
     }
 
     @Override
@@ -138,7 +141,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
         } else {
             deleteFields(entity.getId());
         }
-        return toVo(entity, table == null ? null : listFields(entity.getId()));
+        return toDetailVo(entity, table == null ? null : listFields(entity.getId()));
     }
 
     @Override
@@ -152,7 +155,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
     @Override
     public FormDefinitionVO getDetail(Long id) {
         FormDefinition entity = requireForm(id);
-        return toVo(entity, listFields(id));
+        return toDetailVo(entity, listFields(id));
     }
 
     @Override
@@ -391,6 +394,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
         config.setShowInForm(dto.getShowInForm() == null ? STATUS_NORMAL : dto.getShowInForm());
         config.setEditable(dto.getEditable() == null ? STATUS_NORMAL : dto.getEditable());
         config.setSortNo(dto.getSortNo() == null ? 0 : dto.getSortNo());
+        config.setColSpan(dto.getColSpan() == null ? DEFAULT_COL_SPAN : dto.getColSpan());
         config.setPlaceholder(dto.getPlaceholder());
         config.setDefaultValue(dto.getDefaultValue());
         config.setValidateJson(dto.getValidateJson());
@@ -441,6 +445,48 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
             vo.setFields(fields);
         }
         return vo;
+    }
+
+    /**
+     * 表单定义实体 + 字段配置 → 视图对象（详情场景，回填关联列信息）
+     *
+     * @param entity 表单定义实体
+     * @param fields 字段配置视图对象列表（可空）
+     * @return 表单定义视图对象（字段已回填 {@code columnCode/dataType/required/maxLength}）
+     */
+    private FormDefinitionVO toDetailVo(FormDefinition entity, List<FormFieldConfigVO> fields) {
+        FormDefinitionVO vo = toVo(entity, fields);
+        enrichColumnInfo(vo.getFields(), entity.getTableDefinitionId());
+        return vo;
+    }
+
+    /**
+     * 回填字段配置的关联列信息（列编码 / 存储类型 / 必填 / 长度），供设计器一次请求还原画布
+     *
+     * <p>按 {@code tableDefinitionId} 一次查全列建 Map，无 N+1；纯布局字段（{@code columnMetaId == null}）
+     * 或旧模型（{@code tableDefinitionId == null}）直接跳过。</p>
+     *
+     * @param fields 字段配置视图对象列表（可空）
+     * @param tableDefinitionId 所属表定义ID（可空）
+     */
+    private void enrichColumnInfo(List<FormFieldConfigVO> fields, Long tableDefinitionId) {
+        if (fields == null || fields.isEmpty() || tableDefinitionId == null) {
+            return;
+        }
+        LambdaQueryWrapper<FormColumnMeta> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormColumnMeta::getTableDefinitionId, tableDefinitionId);
+        Map<Long, FormColumnMeta> columnMap = formColumnMetaMapper.selectList(wrapper).stream()
+                .collect(Collectors.toMap(FormColumnMeta::getId, Function.identity()));
+        for (FormFieldConfigVO field : fields) {
+            FormColumnMeta column = field.getColumnMetaId() == null ? null : columnMap.get(field.getColumnMetaId());
+            if (column == null) {
+                continue;
+            }
+            field.setColumnCode(column.getColumnCode());
+            field.setDataType(column.getDataType());
+            field.setRequired(column.getRequired());
+            field.setMaxLength(column.getLength());
+        }
     }
 
     /**
