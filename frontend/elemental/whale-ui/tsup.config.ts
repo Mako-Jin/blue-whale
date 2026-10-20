@@ -6,5 +6,5 @@ export default defineConfig({
   dts: true,
   sourcemap: true,
   clean: true,
-  external: ['react', 'react-dom', 'antd', 'dayjs'],
+  external: ['react', 'react-dom', 'antd', 'dayjs', '@bluewhale/whale-common-theme'],
 });

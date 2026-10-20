@@ -30,3 +30,10 @@ management:
 logging:
   level:
     com.bluewhale: debug
+
+# AUTH-06：启用 starter 的 RequirePermissionInterceptor（默认 false，须显式开启），
+# 按网关注入的 X-Permission-Codes 判定本服务监控接口的 sys:monitor:list 权限。
+whale:
+  permission:
+    header:
+      enabled: true

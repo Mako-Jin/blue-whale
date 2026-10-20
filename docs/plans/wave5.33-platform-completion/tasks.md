@@ -18,16 +18,16 @@
 
 ## ② whale-ui 主题 CSS 变量注入
 
-- [ ] ②-1 核对 `frontend/shared-packages/whale-common-theme` 现状，确定「补齐 vs 复用」
-- [ ] ②-2 `whale-ui/src/theme/`：`vars.css`（`:root` `--whale-*` 令牌）+ `index.ts`（`buildThemeVars` + `applyThemeVars`）+ `src/index.ts` 导出
-- [ ] ②-3 构建验证：`pnpm -C frontend --filter @bluewhale/whale-ui build`（tsup + dts）
-- [ ] ②-4 文档 + push
+- [x] ②-1 核对 `frontend/shared-packages/whale-common-theme` 现状，确定「补齐 vs 复用」
+- [x] ②-2 `whale-ui/src/theme/`：`vars.css`（`:root` `--whale-*` 令牌）+ `index.ts`（`buildThemeVars` + `applyThemeVars`）+ `src/index.ts` 导出
+- [x] ②-3 构建验证：`pnpm -C frontend --filter @bluewhale/whale-ui build`（tsup + dts）
+- [x] ②-4 文档 + push
 
 ## ③ whale-monitor 最小可用
 
-- [ ] ③-1 `MonitorServiceController` + `MonitorService`（Nacos `DiscoveryClient` 服务列表 + 实例健康）
-- [ ] ③-2 权限种子：`sys:monitor:list`（id 64）
-- [ ] ③-3 单测 + 模块自检 + 回归 + 冒烟 + 文档 + push
+- [x] ③-1 `MonitorServiceController` + `MonitorService`（Nacos `DiscoveryClient` 服务列表 + 实例健康）
+- [x] ③-2 权限种子：`sys:monitor:list`（id 64）
+- [x] ③-3 单测 + 模块自检 + 回归 + 冒烟 + 文档 + push
 
 ## ④ whale-alert 最小可用
 

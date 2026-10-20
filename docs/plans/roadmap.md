@@ -102,7 +102,7 @@
 ### 3.2 whale-ui 组件库
 
 - [x] ~~基于 antd 二次封装：ProTable / FormModal / SearchForm~~（Wave 5.18，另附 `PermissionProvider` / `AuthButton` 按钮级权限组件）
-- [ ] 主题 CSS 变量注入
+- [x] ~~主题 CSS 变量注入~~（Wave 5.33 ②：核对确认 `whale-common-theme` 已是权威主题层 → **复用 + 补齐**路线，不造第二套 `--whale-*`；whale-ui 新建 `src/theme/`：`buildThemeVars` 纯函数 + `applyThemeVars`（SSR 安全 + 幂等）覆盖 32 个 `--bw-*` 变量，并统一 re-export `tokens`/`antdThemeConfig`/`getAntdTheme`；`whale-ui build` ESM+CJS+dts 成功）
 
 ### 3.3 admin 后台管理
 

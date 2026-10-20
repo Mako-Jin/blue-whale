@@ -466,3 +466,9 @@ VALUES
     (61, 0, 'sys:i18n:add', '新增国际化消息', 'API', '/i18n/message', 'POST', 61, 1),
     (62, 0, 'sys:i18n:edit', '修改国际化消息', 'API', '/i18n/message/**', 'PUT', 62, 1),
     (63, 0, 'sys:i18n:delete', '删除国际化消息', 'API', '/i18n/message/{id}', 'DELETE', 63, 1);
+
+-- 服务监控权限点：与 whale-monitor 接口 @RequirePermission("sys:monitor:list") 一一对应
+INSERT INTO sys_permission
+    (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+VALUES
+    (64, 0, 'sys:monitor:list', '查询服务监控', 'API', '/monitor/**', 'GET', 64, 1);

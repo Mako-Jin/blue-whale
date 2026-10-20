@@ -24,3 +24,8 @@ export { PermissionProvider, usePermission } from './permission/context';
 export type { PermissionUtils, PermissionProviderProps } from './permission/context';
 export { AuthButton } from './permission/AuthButton';
 export type { AuthButtonProps } from './permission/AuthButton';
+
+// 主题变量注入（Wave 5.33 item ②）：复用 whale-common-theme 的 --bw-* 令牌体系
+export { buildThemeVars, applyThemeVars } from './theme';
+export { tokens, antdThemeConfig, getAntdTheme } from './theme';
+export type { ThemeTokens } from './theme';
