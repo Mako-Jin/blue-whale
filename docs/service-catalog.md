@@ -2,7 +2,7 @@
 
 > 用途：**全平台端口 ↔ 服务 ↔ 组件**的唯一权威清单。看端口即知对应哪个服务，看服务即知其分组、库、对外前缀与职责。
 > 关联需求：REQ-ARCH-005（新增）、REQ-ARCH-004（命名规范，[naming-conventions.md](naming-conventions.md) §八）
-> 最后更新：2026-10-17（Wave 5.1i）｜ 维护：BlueWhale
+> 最后更新：2026-10-20（Wave 5.33 新增 whale-i18n，服务数 15→16、路由 8→9）｜ 维护：BlueWhale
 
 ---
 
@@ -17,7 +17,7 @@
 
 ---
 
-## 一、后端服务清单（15 个）
+## 一、后端服务清单（16 个）
 
 | # | 服务名（Spring / Nacos） | 所属分组 | 模块目录 | 端口 | 对外一级前缀 | 网关路由 | 数据库（`bluewhale_<域>`） | 启动类 | 职责 | 本机状态 |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -28,6 +28,7 @@
 | 5 | `whale-form` | whale-services | `whale-services/whale-form` | **8084** | `/form/**` | ✅ `lb://whale-form` | `bluewhale_form`（**规划，未建库**） | `WhaleFormApplication` | 动态表单 | 可启动 |
 | 6 | `whale-file` | whale-services | `whale-services/whale-file` | **8085** | `/file/**` | ✅ `lb://whale-file` | `bluewhale_file`（**规划，未建库**） | `WhaleFileApplication` | 文件上传下载、附件管理 | 可启动 |
 | 7 | `whale-pay` | whale-services | `whale-services/whale-pay` | **8086** | `/pay/**` | ✅ `lb://whale-pay` | `bluewhale_pay`（**规划，未建库**） | `WhalePayApplication` | 支付与结算 | 可启动 |
+| 7.1 | `whale-i18n` | whale-services | `whale-services/whale-i18n` | **8087** | `/i18n/**` | ✅ `lb://whale-i18n` | **`bluewhale_i18n`**（`sys_i18n_message`，已建） | `WhaleI18nApplication` | 国际化消息 CRUD（复用 whale-i18n-sdk） | 可启动 |
 | 8 | `whale-erp` | whale-apps | `whale-apps/whale-erp` | **9001** | `/erp/**` | ❌ **未配路由** | `bluewhale_erp`（**规划，未建库**） | `WhaleErpApplication` | ERP 业务应用 | 可启动 |
 | 9 | `whale-mes` | whale-apps | `whale-apps/whale-mes` | **9002** | `/mes/**` | ❌ **未配路由** | `bluewhale_mes`（**规划，未建库**） | `WhaleMesApplication` | MES 制造执行 | 可启动 |
 | 10 | `whale-pdm` | whale-apps | `whale-apps/whale-pdm` | **9003** | `/pdm/**` | ❌ **未配路由** | `bluewhale_pdm`（**规划，未建库**） | `WhalePdmApplication` | PDM 产品数据管理 | 可启动 |
@@ -42,7 +43,7 @@
 
 ---
 
-## 二、网关路由映射（`whale-gateway`，现配 8 条）
+## 二、网关路由映射（`whale-gateway`，现配 9 条）
 
 | 路由 id | 断言前缀 | 目标 URI | 对应服务 | 状态 |
 |---|---|---|---|---|
@@ -52,6 +53,7 @@
 | `whale-form` | `Path=/form/**` | `lb://whale-form` | whale-form | ✅ 已配 |
 | `whale-file` | `Path=/file/**` | `lb://whale-file` | whale-file | ✅ 已配 |
 | `whale-pay` | `Path=/pay/**` | `lb://whale-pay` | whale-pay | ✅ 已配 |
+| `whale-i18n` | `Path=/i18n/**` | `lb://whale-i18n` | whale-i18n | ✅ 已配（Wave 5.33） |
 | `whale-monitor` | `Path=/monitor/**` | `lb://whale-monitor` | whale-monitor | ✅ 已配 |
 | `whale-audit` | `Path=/audit/**` | `lb://whale-audit` | whale-audit | ✅ 已配 |
 | —— | `/erp/**`、`/mes/**`、`/pdm/**`、`/oa/**`、`/config/**`、`/alert/**` | —— | whale-erp / mes / pdm / oa / config / alert | ❌ **缺路由**（见 §九 偏差 C-03） |
@@ -111,6 +113,7 @@
 | **8084** | `whale-form` | 后端 | 动态表单 |
 | **8085** | `whale-file` | 后端 | 文件服务 |
 | **8086** | `whale-pay` | 后端 | 支付 |
+| **8087** | `whale-i18n` | 后端 | 国际化消息（Wave 5.33 新增） |
 | **8101** | `whale-portal` | 前端（子应用） | base `/portal` |
 | **8102** | `whale-erp` | 前端（子应用） | base `/erp` |
 | **8103** | `whale-oa` | 前端（子应用） | base `/oa` |
@@ -152,7 +155,7 @@
 | **3306 / 6379 / 5672 / 15672** | MySQL / Redis / RabbitMQ | 3306、6379 已运行；5672/15672 未运行 |
 | **8000–8099** | **前端 dev server**（8000 基座、8101+ 子应用已用 8101–8103）<br>⚠ 现 `admin`=8080、`ops`=8081 落在后端区段，与网关/auth 冲突 | 见偏差 C-01 |
 | **8080** | **网关（唯一后端入口）** | 已运行 |
-| **8081–8099** | **核心服务** | auth 8081、job 8082、workflow 8083、form 8084、file 8085、pay 8086 |
+| **8081–8099** | **核心服务** | auth 8081、job 8082、workflow 8083、form 8084、file 8085、pay 8086、i18n 8087 |
 | **8848 / 8849 / 9848 / 9849** | **Nacos** | 已运行 |
 | **9001–9099** | **业务应用** | erp 9001、mes 9002、pdm 9003、oa 9004 |
 | **9101–9199** | **运维（ops）** | audit 9101、monitor 9102、alert 9103 |
@@ -165,7 +168,7 @@
 | 变量 | 作用 | 默认 | 使用方 |
 |---|---|---|---|
 | `SERVER_PORT` | 网关/审计端口 | 8080 / 9101 | whale-gateway、whale-audit |
-| `server.port` | 其余服务端口 | 见 §一 | job/workflow/form/file/pay/monitor/alert/erp/mes/pdm/oa/config |
+| `server.port` | 其余服务端口 | 见 §一 | job/workflow/form/file/pay/i18n/monitor/alert/erp/mes/pdm/oa/config |
 | `NACOS_ADDR` / `NACOS_SERVER` | 注册中心地址 | `127.0.0.1:8848` | 全部服务（网关用 `NACOS_ADDR`，其余用 `NACOS_SERVER`） |
 | `NACOS_NAMESPACE` | 命名空间 | `public` | 全部服务 |
 | `REDIS_HOST` / `REDIS_PORT` | Redis | `127.0.0.1` / `6379` | whale-gateway、whale-auth |

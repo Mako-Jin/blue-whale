@@ -58,6 +58,10 @@ spring:
               uri: lb://whale-pay
               predicates:
                 - Path=/pay/**
+            - id: whale-i18n
+              uri: lb://whale-i18n
+              predicates:
+                - Path=/i18n/**
             - id: whale-monitor
               uri: lb://whale-monitor
               predicates:

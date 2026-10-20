@@ -92,7 +92,7 @@ Maven 模块目录名 == artifactId == spring.application.name == Nacos 服务�
 | 区段 | 用途 | 现状占用 |
 |---|---|---|
 | `8080` | API 网关（唯一入口） | whale-gateway |
-| `8081–8099` | 核心服务 | auth 8081、job 8082、workflow 8083、form 8084、file 8085、pay 8086 |
+| `8081–8099` | 核心服务 | auth 8081、job 8082、workflow 8083、form 8084、file 8085、pay 8086、i18n 8087 |
 | `9001–9099` | 业务应用 | erp 9001、mes 9002、pdm 9003、oa 9004 |
 | `9101–9199` | 运维服务 | audit 9101、monitor 9102、alert 9103 |
 | `9201–9299` | 注册/配置类辅助服务 | config 9201 |
@@ -185,6 +185,7 @@ Maven 模块目录名 == artifactId == spring.application.name == Nacos 服务�
 | services | whale-form | whale-form | `bluewhale_form`（规划） | `com.bluewhale.form` | 8084 |
 | services | whale-file | whale-file | `bluewhale_file`（规划） | `com.bluewhale.file` | 8085 |
 | services | whale-pay | whale-pay | `bluewhale_pay`（规划） | `com.bluewhale.pay` | 8086 |
+| services | whale-i18n | whale-i18n | `bluewhale_i18n` ✔ | `com.bluewhale.i18n` | 8087 |
 | registry | whale-config | whale-config | 无 | `com.bluewhale.config` | 9201 |
 | ops | whale-audit | whale-audit | `bluewhale_audit` ✔ | `com.bluewhale.audit` | 9101 |
 | ops | whale-monitor | whale-monitor | `bluewhale_monitor`（规划） | `com.bluewhale.monitor` | 9102 |
