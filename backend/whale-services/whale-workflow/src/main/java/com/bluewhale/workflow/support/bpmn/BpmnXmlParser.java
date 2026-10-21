@@ -24,8 +24,10 @@ import java.util.Set;
  *
  * <p>映射见冻结契约 §3.4：{@code startEvent/endEvent/userTask/exclusiveGateway}
  * 四种节点 + {@code sequenceFlow}；{@code assignee} 读任意前缀的同名属性；
- * 网关 {@code default} 属性映射为流转 {@code isDefault}。BPMN-DI、{@code documentation}、
- * {@code extensionElements} 忽略；不支持元素抛 {@code BPMN_UNSUPPORTED_ELEMENT} 并点名元素。</p>
+ * 网关 {@code default} 属性映射为流转 {@code isDefault}；BPMN-DI 的
+ * {@code BPMNShape/bpmnElement} + {@code dc:Bounds} 回读为节点画布坐标 {@code x/y}；
+ * {@code documentation}、{@code extensionElements} 忽略；不支持元素抛
+ * {@code BPMN_UNSUPPORTED_ELEMENT} 并点名元素。</p>
  *
  * @author BlueWhale
  */
@@ -71,6 +73,7 @@ public final class BpmnXmlParser {
         applyGatewayDefaults(process, model);
         model.setDefinitionType(ProcessModelParser.TYPE_STATE_MACHINE);
         model.reindex();
+        applyDiagramCoordinates(document.getDocumentElement(), model);
         return model;
     }
 
@@ -224,6 +227,92 @@ public final class BpmnXmlParser {
                     flow.setIsDefault(true);
                 }
             }
+        }
+    }
+
+    /**
+     * 回读 BPMN-DI 画布坐标：{@code BPMNShape.bpmnElement} 对应节点，读首个 {@code dc:Bounds} 的 x/y。
+     *
+     * <p>图形信息为可选元数据：形状缺失、引用未知节点、坐标非数字均静默跳过。</p>
+     *
+     * @param root 文档根元素，可为 {@code null}
+     * @param model 流程模型
+     */
+    private static void applyDiagramCoordinates(Element root, ProcessModel model) {
+        if (root == null) {
+            return;
+        }
+        List<Element> shapes = new ArrayList<>();
+        collect(root, "BPMNShape", shapes);
+        for (Element shape : shapes) {
+            String elementRef = attribute(shape, "bpmnElement");
+            if (elementRef == null || elementRef.isBlank()) {
+                continue;
+            }
+            ProcessModelNode node = model.node(elementRef.trim());
+            Element bounds = firstChild(shape, "Bounds");
+            if (node == null || bounds == null) {
+                continue;
+            }
+            Integer x = coordinate(bounds, "x");
+            Integer y = coordinate(bounds, "y");
+            if (x != null) {
+                node.setX(x);
+            }
+            if (y != null) {
+                node.setY(y);
+            }
+        }
+    }
+
+    /**
+     * 递归收集指定本地名的后代元素。
+     *
+     * @param parent 父元素
+     * @param name 目标本地名
+     * @param result 结果收集列表
+     */
+    private static void collect(Element parent, String name, List<Element> result) {
+        for (Element child : children(parent)) {
+            if (name.equals(localName(child))) {
+                result.add(child);
+            }
+            collect(child, name, result);
+        }
+    }
+
+    /**
+     * 取首个指定本地名的直属子元素。
+     *
+     * @param parent 父元素
+     * @param name 目标本地名
+     * @return 子元素，缺失返回 {@code null}
+     */
+    private static Element firstChild(Element parent, String name) {
+        for (Element child : children(parent)) {
+            if (name.equals(localName(child))) {
+                return child;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 读取坐标属性并四舍五入为整数。
+     *
+     * @param element 元素
+     * @param name 属性名
+     * @return 坐标值，缺失或非数字返回 {@code null}
+     */
+    private static Integer coordinate(Element element, String name) {
+        String raw = attribute(element, name);
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            return (int) Math.round(Double.parseDouble(raw.trim()));
+        } catch (NumberFormatException e) {
+            return null;
         }
     }
 

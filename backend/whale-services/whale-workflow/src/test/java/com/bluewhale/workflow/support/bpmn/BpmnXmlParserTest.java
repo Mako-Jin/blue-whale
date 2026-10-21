@@ -177,6 +177,51 @@ class BpmnXmlParserTest {
     }
 
     @Test
+    @DisplayName("parse：BPMN-DI 的 BPMNShape/dc:Bounds 回读为节点 x/y")
+    void shouldParseDiagramCoordinates() {
+        String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+                + "<definitions xmlns=\"http://www.omg.org/spec/BPMN/20100524/MODEL\""
+                + " xmlns:bpmndi=\"http://www.omg.org/spec/BPMN/20100524/DI\""
+                + " xmlns:dc=\"http://www.omg.org/spec/DD/20100524/DC\">"
+                + "<process id=\"p1\"><startEvent id=\"start\"/><userTask id=\"t1\" assignee=\"a\"/>"
+                + "<sequenceFlow id=\"f1\" sourceRef=\"start\" targetRef=\"t1\"/></process>"
+                + "<bpmndi:BPMNDiagram id=\"d1\"><bpmndi:BPMNPlane id=\"pl1\" bpmnElement=\"p1\">"
+                + "<bpmndi:BPMNShape id=\"s1\" bpmnElement=\"start\"><dc:Bounds x=\"100\" y=\"80\" width=\"36\" height=\"36\"/></bpmndi:BPMNShape>"
+                + "<bpmndi:BPMNShape id=\"s2\" bpmnElement=\"t1\"><dc:Bounds x=\"240.6\" y=\"99.4\" width=\"120\" height=\"60\"/></bpmndi:BPMNShape>"
+                + "</bpmndi:BPMNPlane></bpmndi:BPMNDiagram></definitions>";
+
+        ProcessModel model = BpmnXmlParser.parse(xml);
+
+        assertEquals(Integer.valueOf(100), model.node("start").getX());
+        assertEquals(Integer.valueOf(80), model.node("start").getY());
+        assertEquals(Integer.valueOf(241), model.node("t1").getX());
+        assertEquals(Integer.valueOf(99), model.node("t1").getY());
+    }
+
+    @Test
+    @DisplayName("parse：DI 形状缺失/引用未知节点/坐标非法时静默忽略")
+    void shouldIgnoreInvalidDiagramShapes() {
+        String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+                + "<definitions xmlns=\"http://www.omg.org/spec/BPMN/20100524/MODEL\""
+                + " xmlns:bpmndi=\"http://www.omg.org/spec/BPMN/20100524/DI\""
+                + " xmlns:dc=\"http://www.omg.org/spec/DD/20100524/DC\">"
+                + "<process id=\"p1\"><startEvent id=\"start\"/><userTask id=\"t1\" assignee=\"a\"/>"
+                + "<sequenceFlow id=\"f1\" sourceRef=\"start\" targetRef=\"t1\"/></process>"
+                + "<bpmndi:BPMNDiagram id=\"d1\"><bpmndi:BPMNPlane id=\"pl1\" bpmnElement=\"p1\">"
+                + "<bpmndi:BPMNShape id=\"s1\" bpmnElement=\"missing\"><dc:Bounds x=\"10\" y=\"20\"/></bpmndi:BPMNShape>"
+                + "<bpmndi:BPMNShape id=\"s2\" bpmnElement=\"t1\"/>"
+                + "<bpmndi:BPMNShape id=\"s3\" bpmnElement=\"start\"><dc:Bounds x=\"abc\" y=\"20\"/></bpmndi:BPMNShape>"
+                + "</bpmndi:BPMNPlane></bpmndi:BPMNDiagram></definitions>";
+
+        ProcessModel model = BpmnXmlParser.parse(xml);
+
+        assertNull(model.node("t1").getX());
+        assertNull(model.node("t1").getY());
+        assertNull(model.node("start").getX());
+        assertEquals(Integer.valueOf(20), model.node("start").getY());
+    }
+
+    @Test
     @DisplayName("parse：userTask 的 plain formKey/formId 映射为 formCode/formId")
     void shouldParsePlainFormAttributes() {
         String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"

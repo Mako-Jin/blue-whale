@@ -145,12 +145,43 @@ class BpmnXmlWriterTest {
     }
 
     @Test
-    @DisplayName("write：不输出画布坐标 x/y")
-    void shouldNotWriteCoordinates() {
+    @DisplayName("write：有坐标时写出 BPMNDiagram/BPMNShape/dc:Bounds")
+    void shouldWriteDiagramWhenCoordinatesPresent() {
         String xml = BpmnXmlWriter.write(formBoundModel(), "p1", "示例");
 
-        assertFalse(xml.contains("x=\"320\""));
-        assertFalse(xml.contains("y=\"180\""));
+        assertTrue(xml.contains("xmlns:bpmndi=\"http://www.omg.org/spec/BPMN/20100524/DI\""));
+        assertTrue(xml.contains("xmlns:dc=\"http://www.omg.org/spec/DD/20100524/DC\""));
+        assertTrue(xml.contains("<bpmndi:BPMNDiagram id=\"BPMNDiagram_p1\">"));
+        assertTrue(xml.contains("<bpmndi:BPMNPlane id=\"BPMNPlane_p1\" bpmnElement=\"p1\">"));
+        assertTrue(xml.contains("<bpmndi:BPMNShape id=\"BPMNShape_t1\" bpmnElement=\"t1\">"));
+        assertTrue(xml.contains("<dc:Bounds x=\"320\" y=\"180\" width=\"120\" height=\"60\"/>"));
+    }
+
+    @Test
+    @DisplayName("write：无坐标时不输出 BPMNDiagram")
+    void shouldSkipDiagramWithoutCoordinates() {
+        ProcessModel model = new ProcessModel();
+        ProcessModelNode node = new ProcessModelNode();
+        node.setKey("t1");
+        node.setType(ProcessNodeType.USER_TASK);
+        node.setAssignee("admin");
+        model.getNodes().add(node);
+        model.reindex();
+
+        String xml = BpmnXmlWriter.write(model, "p1", "示例");
+
+        assertFalse(xml.contains("BPMNDiagram"));
+        assertFalse(xml.contains("BPMNShape"));
+    }
+
+    @Test
+    @DisplayName("write + parse：画布坐标往返一致")
+    void shouldRoundTripCoordinates() {
+        String xml = BpmnXmlWriter.write(formBoundModel(), "p1", "示例");
+        ProcessModel reparsed = BpmnXmlParser.parse(xml);
+
+        assertEquals(Integer.valueOf(320), reparsed.node("t1").getX());
+        assertEquals(Integer.valueOf(180), reparsed.node("t1").getY());
     }
 
     @Test

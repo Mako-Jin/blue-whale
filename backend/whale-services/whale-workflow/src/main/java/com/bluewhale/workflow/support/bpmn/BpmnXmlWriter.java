@@ -10,7 +10,8 @@ import com.bluewhale.workflow.support.ProcessNodeType;
  *
  * <p>与 {@link BpmnXmlParser} 对称：{@code assignee} 统一写 plain 属性；
  * 网关默认流转写 {@code default="flowId"}（偏差点见冻结契约 §3.4）。
- * BPMN-DI / {@code documentation} / {@code extensionElements} 不输出。</p>
+ * 节点带画布坐标时追加 {@code bpmndi:BPMNDiagram}（形状 + {@code dc:Bounds}），
+ * 无坐标则不输出图形信息；{@code documentation} / {@code extensionElements} 不输出。</p>
  *
  * @author BlueWhale
  */
@@ -19,8 +20,26 @@ public final class BpmnXmlWriter {
     /** BPMN 2.0 模型命名空间 */
     private static final String BPMN_NAMESPACE = "http://www.omg.org/spec/BPMN/20100524/MODEL";
 
+    /** BPMN 2.0 图形命名空间 */
+    private static final String BPMNDI_NAMESPACE = "http://www.omg.org/spec/BPMN/20100524/DI";
+
+    /** DD 图形基础命名空间（{@code dc:Bounds}） */
+    private static final String DC_NAMESPACE = "http://www.omg.org/spec/DD/20100524/DC";
+
     /** targetNamespace（BlueWhale 私有） */
     private static final String TARGET_NAMESPACE = "http://bluewhale.io/workflow";
+
+    /** 事件节点图形边长 */
+    private static final int EVENT_SIZE = 36;
+
+    /** 网关节点图形边长 */
+    private static final int GATEWAY_SIZE = 40;
+
+    /** 审批节点图形宽度 */
+    private static final int TASK_WIDTH = 120;
+
+    /** 审批节点图形高度 */
+    private static final int TASK_HEIGHT = 60;
 
     /** 工具类不允许实例化 */
     private BpmnXmlWriter() {
@@ -39,6 +58,8 @@ public final class BpmnXmlWriter {
         xml.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
         xml.append("<definitions xmlns=\"").append(BPMN_NAMESPACE)
                 .append("\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"")
+                .append(" xmlns:bpmndi=\"").append(BPMNDI_NAMESPACE).append('"')
+                .append(" xmlns:dc=\"").append(DC_NAMESPACE).append('"')
                 .append(" targetNamespace=\"").append(TARGET_NAMESPACE).append("\">\n");
         xml.append("  <process id=\"").append(escape(processId))
                 .append("\" name=\"").append(escape(processName)).append("\" isExecutable=\"false\">\n");
@@ -49,8 +70,88 @@ public final class BpmnXmlWriter {
             appendFlow(xml, flow);
         }
         xml.append("  </process>\n");
+        appendDiagram(xml, model, processId);
         xml.append("</definitions>\n");
         return xml.toString();
+    }
+
+    /**
+     * 写出 {@code bpmndi:BPMNDiagram}（仅当存在画布坐标的节点）。
+     *
+     * @param xml 输出缓冲
+     * @param model 流程模型
+     * @param processId process id（作为 plane 的 {@code bpmnElement}）
+     */
+    private static void appendDiagram(StringBuilder xml, ProcessModel model, String processId) {
+        if (!hasCoordinates(model)) {
+            return;
+        }
+        String planeId = "BPMNPlane_" + processId;
+        xml.append("  <bpmndi:BPMNDiagram id=\"").append(escape("BPMNDiagram_" + processId)).append("\">\n");
+        xml.append("    <bpmndi:BPMNPlane id=\"").append(escape(planeId))
+                .append("\" bpmnElement=\"").append(escape(processId)).append("\">\n");
+        for (ProcessModelNode node : model.getNodes()) {
+            if (node.getX() == null && node.getY() == null) {
+                continue;
+            }
+            int x = node.getX() == null ? 0 : node.getX();
+            int y = node.getY() == null ? 0 : node.getY();
+            xml.append("      <bpmndi:BPMNShape id=\"").append(escape("BPMNShape_" + node.getKey()))
+                    .append("\" bpmnElement=\"").append(escape(node.getKey())).append("\">\n");
+            xml.append("        <dc:Bounds x=\"").append(x).append("\" y=\"").append(y)
+                    .append("\" width=\"").append(shapeWidth(node.getType()))
+                    .append("\" height=\"").append(shapeHeight(node.getType())).append("\"/>\n");
+            xml.append("      </bpmndi:BPMNShape>\n");
+        }
+        xml.append("    </bpmndi:BPMNPlane>\n");
+        xml.append("  </bpmndi:BPMNDiagram>\n");
+    }
+
+    /**
+     * 判断模型是否存在画布坐标（任一节点 x 或 y 非空）。
+     *
+     * @param model 流程模型
+     * @return 存在坐标返回 {@code true}
+     */
+    private static boolean hasCoordinates(ProcessModel model) {
+        for (ProcessModelNode node : model.getNodes()) {
+            if (node.getX() != null || node.getY() != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 节点类型 → 图形宽度。
+     *
+     * @param type 节点类型，可为 {@code null}
+     * @return 图形宽度
+     */
+    private static int shapeWidth(ProcessNodeType type) {
+        if (type == ProcessNodeType.USER_TASK || type == ProcessNodeType.COUNTER_SIGN) {
+            return TASK_WIDTH;
+        }
+        if (type == ProcessNodeType.EXCLUSIVE_GATEWAY || type == ProcessNodeType.PARALLEL_GATEWAY) {
+            return GATEWAY_SIZE;
+        }
+        return EVENT_SIZE;
+    }
+
+    /**
+     * 节点类型 → 图形高度。
+     *
+     * @param type 节点类型，可为 {@code null}
+     * @return 图形高度
+     */
+    private static int shapeHeight(ProcessNodeType type) {
+        if (type == ProcessNodeType.USER_TASK || type == ProcessNodeType.COUNTER_SIGN) {
+            return TASK_HEIGHT;
+        }
+        if (type == ProcessNodeType.EXCLUSIVE_GATEWAY || type == ProcessNodeType.PARALLEL_GATEWAY) {
+            return GATEWAY_SIZE;
+        }
+        return EVENT_SIZE;
     }
 
     /**
