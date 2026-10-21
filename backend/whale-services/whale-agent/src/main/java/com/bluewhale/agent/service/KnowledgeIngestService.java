@@ -56,6 +56,8 @@ public class KnowledgeIngestService {
 
     private final AgentIndexMetaService metaService;
 
+    private final FactStoreService factStoreService;
+
     private final AtomicBoolean building = new AtomicBoolean(false);
 
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(runnable -> {
@@ -116,6 +118,7 @@ public class KnowledgeIngestService {
             indexService.markBuildSuccess(millis);
             saveMeta();
             log.info("知识索引全量重建完成：文件={}，块={}，耗时={}ms", files.size(), chunks, millis);
+            rebuildFacts();
         } catch (RuntimeException e) {
             indexService.markBuildFailed();
             log.error("知识索引全量重建失败", e);
@@ -169,6 +172,7 @@ public class KnowledgeIngestService {
             saveMeta();
             log.info("知识索引增量更新完成：变更文件={}，移除文件={}，新增块={}",
                     changedFiles.size(), removedPaths.size(), chunks);
+            rebuildFacts();
         } catch (RuntimeException e) {
             indexService.markBuildFailed();
             log.error("知识索引增量更新失败", e);
@@ -231,6 +235,17 @@ public class KnowledgeIngestService {
                 .endLine(chunk.getEndLine())
                 .wave(chunk.getWave())
                 .build();
+    }
+
+    /**
+     * 重建结构化事实（失败不影响索引结果）。
+     */
+    private void rebuildFacts() {
+        try {
+            factStoreService.rebuild();
+        } catch (RuntimeException e) {
+            log.error("结构化事实重建失败（索引不受影响）", e);
+        }
     }
 
     /**
