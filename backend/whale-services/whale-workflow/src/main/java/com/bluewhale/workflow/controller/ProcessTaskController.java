@@ -5,6 +5,7 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.workflow.dto.ApprovalRequest;
 import com.bluewhale.workflow.dto.ProcessTaskQueryRequest;
+import com.bluewhale.workflow.dto.TaskAddSignRequest;
 import com.bluewhale.workflow.dto.TaskRollbackRequest;
 import com.bluewhale.workflow.dto.TaskTransferRequest;
 import com.bluewhale.workflow.service.ProcessTaskService;
@@ -128,6 +129,20 @@ public class ProcessTaskController {
     @RequirePermission("sys:workflow:task:rollback")
     public Result<Void> rollback(@PathVariable Long id, @Valid @RequestBody TaskRollbackRequest request) {
         processTaskService.rollback(id, request.getTargetNodeKey());
+        return Result.ok();
+    }
+
+    /**
+     * 加签：为当前节点追加同级审批人，追加人全部同意后节点才完成。
+     *
+     * @param id 任务ID
+     * @param request 加签人请求
+     * @return 空结果
+     */
+    @PostMapping("/{id}/add-sign")
+    @RequirePermission("sys:workflow:task:add-sign")
+    public Result<Void> addSign(@PathVariable Long id, @Valid @RequestBody TaskAddSignRequest request) {
+        processTaskService.addSign(id, request.getAssignees());
         return Result.ok();
     }
 }

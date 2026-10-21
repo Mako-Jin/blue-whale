@@ -38,6 +38,12 @@ public final class ConditionGuard implements Guard {
     /** 已解析表达式 */
     private final Expression expression;
 
+    /**
+     * 构造条件守卫。
+     *
+     * @param source 条件原文
+     * @param expression 已解析表达式
+     */
     private ConditionGuard(String source, Expression expression) {
         this.source = source;
         this.expression = expression;

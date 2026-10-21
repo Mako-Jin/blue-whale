@@ -495,10 +495,12 @@ VALUES
     (73, 0, 'sys:pay:cancel', '支付单取消', 'API', '/pay/order/{id}/cancel', 'POST', 73, 1);
 
 -- Wave 5.35 权限点：工作流转办/委派/回退 + 表单数据修改
+-- Wave 5.36 权限点：工作流加签
 INSERT INTO sys_permission
     (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
 VALUES
     (74, 0, 'sys:workflow:task:transfer', '转办待办任务', 'API', '/workflow/task/{id}/transfer', 'PUT', 74, 1),
     (75, 0, 'sys:workflow:task:delegate', '委派待办任务', 'API', '/workflow/task/{id}/{delegate|resolve}', 'PUT', 75, 1),
     (76, 0, 'sys:workflow:task:rollback', '回退待办任务', 'API', '/workflow/task/{id}/rollback', 'POST', 76, 1),
-    (77, 0, 'sys:form:data:edit', '修改表单数据', 'API', '/form/data/{id}', 'PUT', 77, 1);
+    (77, 0, 'sys:form:data:edit', '修改表单数据', 'API', '/form/data/{id}', 'PUT', 77, 1),
+    (78, 0, 'sys:workflow:task:add-sign', '加签待办任务', 'API', '/workflow/task/{id}/add-sign', 'POST', 78, 1);

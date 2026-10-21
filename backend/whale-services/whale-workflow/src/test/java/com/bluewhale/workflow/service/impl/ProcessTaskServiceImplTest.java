@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -348,5 +349,87 @@ class ProcessTaskServiceImplTest {
         assertEquals("n2", captor.getValue().getNodeKey());
         assertNull(captor.getValue().getFormId());
         assertNull(captor.getValue().getFormCode());
+    }
+
+    @Test
+    @DisplayName("addSign：为当前节点追加去重后的加签待办，归属人为发起加签人")
+    void shouldAddSignTasks() {
+        ProcessTask task = pendingTask(100L, 5L, 0);
+        task.setNodeKey("t1");
+        task.setNodeName("一级审批");
+        when(processTaskMapper.selectById(100L)).thenReturn(task);
+        when(processInstanceMapper.selectById(5L)).thenReturn(instance(5L, 10L, 0, 0));
+        when(processTaskMapper.selectList(ArgumentMatchers.<Wrapper<ProcessTask>>any()))
+                .thenReturn(List.of(task));
+
+        processTaskService.addSign(100L, List.of(" lisi ", "wangwu", "lisi"));
+
+        ArgumentCaptor<ProcessTask> captor = ArgumentCaptor.forClass(ProcessTask.class);
+        verify(processTaskMapper, times(2)).insert(captor.capture());
+        assertEquals(List.of("lisi", "wangwu"),
+                captor.getAllValues().stream().map(ProcessTask::getAssignee).toList());
+        for (ProcessTask added : captor.getAllValues()) {
+            assertEquals(0, added.getStatus().intValue());
+            assertEquals("ADD_SIGN", added.getSignType());
+            assertEquals("admin", added.getOwnerId());
+            assertEquals("t1", added.getNodeKey());
+            assertEquals("一级审批", added.getNodeName());
+        }
+    }
+
+    @Test
+    @DisplayName("addSign：加签人已在本节点任务中抛参数错误")
+    void shouldThrowWhenAddSignExistingAssignee() {
+        ProcessTask task = pendingTask(100L, 5L, 0);
+        task.setNodeKey("t1");
+        when(processTaskMapper.selectById(100L)).thenReturn(task);
+        when(processInstanceMapper.selectById(5L)).thenReturn(instance(5L, 10L, 0, 0));
+        when(processTaskMapper.selectList(ArgumentMatchers.<Wrapper<ProcessTask>>any()))
+                .thenReturn(List.of(task));
+
+        BizException ex = assertThrows(BizException.class,
+                () -> processTaskService.addSign(100L, List.of("admin")));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        assertEquals("加签人已在本节点任务中：admin", ex.getMessage());
+        verify(processTaskMapper, never()).insert(any(ProcessTask.class));
+    }
+
+    @Test
+    @DisplayName("addSign：ANY 会签节点不支持加签")
+    void shouldRejectAddSignOnAnyCounterSign() {
+        ProcessTask task = pendingTask(100L, 5L, 0);
+        task.setNodeKey("t1");
+        task.setSignType("COUNTER_SIGN");
+        task.setSignPolicy("ANY");
+        when(processTaskMapper.selectById(100L)).thenReturn(task);
+        when(processInstanceMapper.selectById(5L)).thenReturn(instance(5L, 10L, 0, 0));
+
+        BizException ex = assertThrows(BizException.class,
+                () -> processTaskService.addSign(100L, List.of("lisi")));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        assertEquals("ANY/RATIO 会签节点不支持加签", ex.getMessage());
+        verify(processTaskMapper, never()).insert(any(ProcessTask.class));
+    }
+
+    @Test
+    @DisplayName("approve：同节点仍有待办（加签）时等待不推进")
+    void shouldWaitWhenSameNodeHasPendingTask() {
+        ProcessTask task = pendingTask(100L, 5L, 0);
+        task.setNodeKey("t1");
+        ProcessInstance instance = keyedInstance(5L, 10L, 0, 1, "t1");
+        when(processTaskMapper.selectById(100L)).thenReturn(task);
+        when(processInstanceMapper.selectById(5L)).thenReturn(instance);
+        when(processDefinitionMapper.selectById(10L)).thenReturn(definition(10L, NORMALIZED_JSON));
+        when(processTaskMapper.selectCount(ArgumentMatchers.<Wrapper<ProcessTask>>any()))
+                .thenReturn(1L);
+
+        processTaskService.approve(100L, null);
+
+        assertEquals(1, task.getStatus().intValue());
+        verify(processTaskMapper, never()).insert(any(ProcessTask.class));
+        assertEquals("t1", instance.getCurrentNodeKey());
+        assertEquals(0, instance.getStatus().intValue());
     }
 }

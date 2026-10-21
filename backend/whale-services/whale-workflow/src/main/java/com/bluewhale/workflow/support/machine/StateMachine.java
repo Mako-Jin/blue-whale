@@ -42,7 +42,8 @@ public class StateMachine {
     /** 超限文案 */
     private static final String HOPS_EXCEEDED_MESSAGE = "网关流转超出上限";
 
-    private static final Logger log = LoggerFactory.getLogger(StateMachine.class);
+    /** 日志 */
+    private static final Logger LOG = LoggerFactory.getLogger(StateMachine.class);
 
     /** 流程模型 */
     private final ProcessModel model;
@@ -138,7 +139,7 @@ public class StateMachine {
             return matched.get(0);
         }
         if (matched.size() > 1) {
-            log.warn("多个流转条件同时命中，按定义顺序取首个: node={}, flow={}", nodeKey, matched.get(0).getFlow().getKey());
+            LOG.warn("多个流转条件同时命中，按定义顺序取首个: node={}, flow={}", nodeKey, matched.get(0).getFlow().getKey());
             return matched.get(0);
         }
         for (Transition transition : transitions) {

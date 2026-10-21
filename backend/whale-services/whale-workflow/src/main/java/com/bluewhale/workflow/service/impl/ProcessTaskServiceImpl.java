@@ -27,6 +27,8 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -74,6 +76,15 @@ public class ProcessTaskServiceImpl implements ProcessTaskService {
 
     /** 百分比基数 */
     private static final int PERCENT_BASE = 100;
+
+    /** 加签任务类型标记（普通审批节点追加的审批人） */
+    private static final String SIGN_TYPE_ADD_SIGN = "ADD_SIGN";
+
+    /** 单次加签人数上限 */
+    private static final int MAX_ADD_SIGNERS = 10;
+
+    /** 审批人账号最大长度 */
+    private static final int MAX_ASSIGNEE_LENGTH = 64;
 
     private final ProcessTaskMapper processTaskMapper;
 
@@ -125,8 +136,7 @@ public class ProcessTaskServiceImpl implements ProcessTaskService {
         }
         String nodeKey = resolveCurrentKey(task, model, instance);
         ProcessModelNode node = model.node(nodeKey);
-        if (node != null && node.getType() == ProcessNodeType.COUNTER_SIGN
-                && !counterSignSatisfied(instance.getId(), nodeKey, node)) {
+        if (isWaitingForSameNode(instance.getId(), nodeKey, node)) {
             processInstanceMapper.updateById(instance);
             return;
         }
@@ -373,6 +383,136 @@ public class ProcessTaskServiceImpl implements ProcessTaskService {
         instance.setActiveNodeKeys(null);
         processInstanceMapper.updateById(instance);
         createTasks(instance.getId(), model, List.of(target));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void addSign(Long id, List<String> assignees) {
+        ProcessTask task = requirePendingTask(id);
+        requireRunningInstance(task.getInstanceId());
+        List<String> targets = normalizeAddSigners(assignees);
+        boolean counterSign = ProcessNodeType.COUNTER_SIGN.name().equals(task.getSignType());
+        if (counterSign && !POLICY_ALL.equals(policyOfTask(task))) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "ANY/RATIO 会签节点不支持加签");
+        }
+        for (ProcessTask existing : listTasksOfNode(task)) {
+            if (existing.getStatus() != null && existing.getStatus() == TASK_CANCELED) {
+                continue;
+            }
+            if (existing.getAssignee() != null && targets.contains(existing.getAssignee())) {
+                throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
+                        "加签人已在本节点任务中：" + existing.getAssignee());
+            }
+        }
+        for (String target : targets) {
+            ProcessTask added = new ProcessTask();
+            added.setInstanceId(task.getInstanceId());
+            added.setNodeIndex(task.getNodeIndex());
+            added.setNodeName(task.getNodeName());
+            added.setNodeKey(task.getNodeKey());
+            added.setFormId(task.getFormId());
+            added.setFormCode(task.getFormCode());
+            added.setParentNodeKey(task.getParentNodeKey());
+            added.setAssignee(target);
+            added.setStatus(TASK_PENDING);
+            added.setOwnerId(task.getAssignee());
+            added.setSignType(counterSign ? ProcessNodeType.COUNTER_SIGN.name() : SIGN_TYPE_ADD_SIGN);
+            added.setSignPolicy(counterSign ? POLICY_ALL : null);
+            processTaskMapper.insert(added);
+        }
+    }
+
+    /**
+     * 规范化加签人列表：去空白、去重、校验非空与长度/数量上限。
+     *
+     * @param assignees 原始加签人列表，可为 {@code null}
+     * @return 去重后的加签人列表
+     * @throws BizException 列表为空、账号过长或超过单次上限时抛出 {@code PARAM_ERROR}
+     */
+    private static List<String> normalizeAddSigners(List<String> assignees) {
+        if (assignees == null || assignees.isEmpty()) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "加签人不能为空");
+        }
+        LinkedHashSet<String> unique = new LinkedHashSet<>();
+        for (String raw : assignees) {
+            if (raw == null || raw.isBlank()) {
+                continue;
+            }
+            String target = raw.trim();
+            if (target.length() > MAX_ASSIGNEE_LENGTH) {
+                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "加签人账号长度不能超过 64");
+            }
+            unique.add(target);
+        }
+        if (unique.isEmpty()) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "加签人不能为空");
+        }
+        if (unique.size() > MAX_ADD_SIGNERS) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "单次最多加签 10 人");
+        }
+        return new ArrayList<>(unique);
+    }
+
+    /**
+     * 读取任务快照的会签策略（缺省 ALL）。
+     *
+     * @param task 待办任务
+     * @return 大写的策略文本
+     */
+    private static String policyOfTask(ProcessTask task) {
+        String policy = task.getSignPolicy();
+        return policy == null || policy.isBlank() ? POLICY_ALL : policy.trim().toUpperCase();
+    }
+
+    /**
+     * 查询同一节点上的全部任务（优先按节点键，旧行无节点键时回落节点下标）。
+     *
+     * @param task 当前待办任务
+     * @return 同节点任务列表
+     */
+    private List<ProcessTask> listTasksOfNode(ProcessTask task) {
+        LambdaQueryWrapper<ProcessTask> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ProcessTask::getInstanceId, task.getInstanceId());
+        if (task.getNodeKey() != null && !task.getNodeKey().isBlank()) {
+            wrapper.eq(ProcessTask::getNodeKey, task.getNodeKey());
+        } else {
+            wrapper.eq(ProcessTask::getNodeIndex, task.getNodeIndex());
+        }
+        return processTaskMapper.selectList(wrapper);
+    }
+
+    /**
+     * 判断同节点是否仍有待办（加签/会签场景需等待其余审批人）。
+     *
+     * @param instanceId 流程实例ID
+     * @param nodeKey 节点键
+     * @return 仍有待办返回 {@code true}
+     */
+    private boolean hasPendingTasksOfNode(Long instanceId, String nodeKey) {
+        if (nodeKey == null || nodeKey.isBlank()) {
+            return false;
+        }
+        LambdaQueryWrapper<ProcessTask> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ProcessTask::getInstanceId, instanceId);
+        wrapper.eq(ProcessTask::getNodeKey, nodeKey);
+        wrapper.eq(ProcessTask::getStatus, TASK_PENDING);
+        Long pending = processTaskMapper.selectCount(wrapper);
+        return pending != null && pending > 0;
+    }
+
+    /**
+     * 判定当前同意是否仍需等待同节点其他待办：会签走策略判定，普通/加签节点有待办即等待。
+     *
+     * @param instanceId 流程实例ID
+     * @param nodeKey 节点键
+     * @param node 流程模型节点（可为 {@code null}）
+     * @return 需等待返回 {@code true}
+     */
+    private boolean isWaitingForSameNode(Long instanceId, String nodeKey, ProcessModelNode node) {
+        if (node != null && node.getType() == ProcessNodeType.COUNTER_SIGN) {
+            return !counterSignSatisfied(instanceId, nodeKey, node);
+        }
+        return hasPendingTasksOfNode(instanceId, nodeKey);
     }
 
     /**

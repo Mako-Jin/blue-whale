@@ -133,7 +133,7 @@ export interface ProcessTask {
   formId?: string | null;
   /** 节点绑定的表单编码（可空） */
   formCode?: string | null;
-  /** 任务类型：COUNTER_SIGN 会签 / 空 普通审批 */
+  /** 任务类型：COUNTER_SIGN 会签 / ADD_SIGN 加签 / 空 普通审批 */
   signType?: string | null;
   /** 会签策略快照：ALL / ANY / RATIO:n */
   signPolicy?: string | null;
@@ -200,6 +200,11 @@ export interface TaskTransferRequest {
 /** 回退入参（POST /workflow/task/{id}/rollback） */
 export interface TaskRollbackRequest {
   targetNodeKey: string;
+}
+
+/** 加签入参（POST /workflow/task/{id}/add-sign；单次最多 10 人） */
+export interface TaskAddSignRequest {
+  assignees: string[];
 }
 
 /** 流程定义分页查询条件（GET /workflow/definition/page） */
@@ -278,4 +283,7 @@ export const workflowApi = {
     put<void>(`/workflow/task/${id}/resolve`, data),
   taskRollback: (id: Id, data: TaskRollbackRequest) =>
     post<void>(`/workflow/task/${id}/rollback`, data),
+  /** 加签：为当前节点追加同级审批人，追加人全部同意后节点才完成 */
+  taskAddSign: (id: Id, data: TaskAddSignRequest) =>
+    post<void>(`/workflow/task/${id}/add-sign`, data),
 };

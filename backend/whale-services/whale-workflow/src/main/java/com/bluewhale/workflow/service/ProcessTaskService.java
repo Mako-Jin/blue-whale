@@ -5,6 +5,8 @@ import com.bluewhale.workflow.dto.ApprovalRequest;
 import com.bluewhale.workflow.dto.ProcessTaskQueryRequest;
 import com.bluewhale.workflow.vo.ProcessTaskVO;
 
+import java.util.List;
+
 /**
  * 待办任务服务
  *
@@ -67,4 +69,12 @@ public interface ProcessTaskService {
      * @param targetNodeKey 目标节点键（必须为审批类节点）
      */
     void rollback(Long id, String targetNodeKey);
+
+    /**
+     * 加签：为当前节点追加同级审批人，节点需追加人全部同意后才完成
+     *
+     * @param id 任务ID
+     * @param assignees 加签人账号列表（去空白、去重后非空，单次最多 10 人）
+     */
+    void addSign(Long id, List<String> assignees);
 }

@@ -1,5 +1,5 @@
 // 我的待办 + 审批页：分页待办列表 + 审批抽屉（表单可编辑保存 + 意见 + 同意/驳回）
-// 另提供转办 / 委派 / 回退 / 处理完成（resolve）操作，入参经 Modal + Form 收集。
+// 另提供转办 / 委派 / 回退 / 处理完成（resolve）/ 加签操作，入参经 Modal + Form 收集。
 // 契约层：../../api/workflow（待办/审批/实例）、../../api/form（表单定义/数据），本文件不改动契约层。
 // 雪花 ID 全链路只用 string；审批前若有未保存的表单修改先 PUT /form/data/{id}。
 
@@ -65,7 +65,7 @@ interface InstanceBrief {
 type ApprovalAction = 'approve' | 'reject';
 
 /** 任务办理动作（弹窗收集入参） */
-type TaskAction = 'transfer' | 'delegate' | 'rollback' | 'resolve';
+type TaskAction = 'transfer' | 'delegate' | 'rollback' | 'resolve' | 'addSign';
 
 /** 办理动作弹窗标题 */
 const ACTION_TITLES: Record<TaskAction, string> = {
@@ -73,6 +73,7 @@ const ACTION_TITLES: Record<TaskAction, string> = {
   delegate: '委派任务',
   rollback: '回退任务',
   resolve: '处理完成（交回委派人）',
+  addSign: '加签',
 };
 
 /** 办理动作弹窗表单值 */
@@ -80,7 +81,19 @@ interface ActionFormValues {
   targetUser?: string;
   targetNodeKey?: string;
   comment?: string;
+  assignees?: string;
 }
+
+/** 加签人文本解析：支持逗号/分号/空白/换行分隔，去空白并去重 */
+const parseAssignees = (raw: string | undefined): string[] =>
+  Array.from(
+    new Set(
+      (raw ?? '')
+        .split(/[,，;；\s]+/)
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  );
 
 export default function TaskCenter() {
   const { message } = App.useApp();
@@ -355,6 +368,16 @@ export default function TaskCenter() {
           });
           message.success('已处理完成，任务已交回委派人');
           break;
+        case 'addSign': {
+          const assignees = parseAssignees(values.assignees);
+          if (assignees.length === 0) {
+            message.warning('请输入加签人');
+            return;
+          }
+          await workflowApi.taskAddSign(activeTask.id, { assignees });
+          message.success('已加签');
+          break;
+        }
         default:
           break;
       }
@@ -480,6 +503,7 @@ export default function TaskCenter() {
                 <Button onClick={() => openTaskAction('transfer')}>转办</Button>
                 <Button onClick={() => openTaskAction('delegate')}>委派</Button>
                 <Button onClick={() => openTaskAction('rollback')}>回退</Button>
+                <Button onClick={() => openTaskAction('addSign')}>加签</Button>
                 {activeTask?.delegateFrom ? (
                   <Button type="primary" ghost onClick={() => openTaskAction('resolve')}>
                     处理完成
@@ -514,6 +538,9 @@ export default function TaskCenter() {
             { key: 'comment', label: '已有意见', children: activeTask?.comment || '-' },
             ...(activeTask?.signType === 'COUNTER_SIGN'
               ? [{ key: 'signPolicy', label: '会签策略', children: activeTask?.signPolicy || 'ALL' }]
+              : []),
+            ...(activeTask?.signType === 'ADD_SIGN'
+              ? [{ key: 'signType', label: '任务类型', children: '加签' }]
               : []),
             ...(activeTask?.ownerId && activeTask.ownerId !== activeTask.assignee
               ? [{ key: 'ownerId', label: '任务归属人', children: activeTask.ownerId }]
@@ -621,6 +648,17 @@ export default function TaskCenter() {
           {taskAction === 'resolve' ? (
             <Form.Item name="comment" label="处理意见">
               <Input.TextArea rows={3} placeholder="可选" maxLength={255} />
+            </Form.Item>
+          ) : null}
+
+          {taskAction === 'addSign' ? (
+            <Form.Item
+              name="assignees"
+              label="加签人账号"
+              rules={[{ required: true, message: '请输入加签人账号' }]}
+              extra="多个账号用逗号或换行分隔，单次最多 10 人；加签人全部同意后节点才完成"
+            >
+              <Input.TextArea rows={3} placeholder="如：zhangsan, lisi" maxLength={700} />
             </Form.Item>
           ) : null}
         </Form>
