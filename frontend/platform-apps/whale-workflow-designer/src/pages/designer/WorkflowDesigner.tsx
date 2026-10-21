@@ -4,8 +4,8 @@
 // 校验按 errors[].refKey 高亮节点 / 连线，并以内联 Alert 列明 message / warnings。
 // 模拟按流程变量真实求值选路，回放节点路径（不创建实例）。
 
-import { Alert, App, Button, Card, Input, Modal, Space, Spin, Steps, Tag, Typography } from 'antd';
-import { useEffect, useMemo, useState } from 'react';
+import { Alert, App, Button, Card, Input, Modal, Space, Spin, Steps, Tag, Tooltip, Typography } from 'antd';
+import { useEffect, useMemo, useReducer, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useCurrentUser } from '../../api/token';
 import {
@@ -30,6 +30,64 @@ import {
 } from './model';
 
 const EMPTY_MODEL: CanvasModel = { nodes: [], flows: [] };
+
+/** 撤销栈上限（避免长会话内存膨胀） */
+const MAX_HISTORY = 50;
+
+/** 画布历史状态：当前模型 + 撤销栈 + 重做栈 */
+interface HistoryState {
+  model: CanvasModel;
+  past: CanvasModel[];
+  future: CanvasModel[];
+}
+
+/** 历史动作：commit 记录一次变更，reset 丢弃历史（加载 / 新建） */
+type HistoryAction =
+  | { type: 'commit'; model: CanvasModel }
+  | { type: 'reset'; model: CanvasModel }
+  | { type: 'undo' }
+  | { type: 'redo' };
+
+/** 历史栈 reducer：commit 清空重做栈，undo / redo 在两栈间搬运当前模型 */
+function historyReducer(state: HistoryState, action: HistoryAction): HistoryState {
+  switch (action.type) {
+    case 'commit':
+      if (action.model === state.model) {
+        return state;
+      }
+      return {
+        model: action.model,
+        past: [...state.past, state.model].slice(-MAX_HISTORY),
+        future: [],
+      };
+    case 'reset':
+      return { model: action.model, past: [], future: [] };
+    case 'undo': {
+      const previous = state.past[state.past.length - 1];
+      if (!previous) {
+        return state;
+      }
+      return {
+        model: previous,
+        past: state.past.slice(0, -1),
+        future: [state.model, ...state.future].slice(0, MAX_HISTORY),
+      };
+    }
+    case 'redo': {
+      const next = state.future[0];
+      if (!next) {
+        return state;
+      }
+      return {
+        model: next,
+        past: [...state.past, state.model].slice(-MAX_HISTORY),
+        future: state.future.slice(1),
+      };
+    }
+    default:
+      return state;
+  }
+}
 
 /** 统一把异常转为可展示文案 */
 function toMessage(error: unknown): string {
@@ -63,7 +121,13 @@ export default function WorkflowDesigner() {
   // 路由参数即雪花 ID 字符串，禁止 Number() 转换（>2^53 丢精度）
   const definitionId = id ?? null;
 
-  const [model, setModel] = useState<CanvasModel>(EMPTY_MODEL);
+  // 画布模型走历史栈：每次结构变更 commit 一次，撤销 / 重做在两栈间搬运
+  const [history, dispatch] = useReducer(historyReducer, {
+    model: EMPTY_MODEL,
+    past: [],
+    future: [],
+  });
+  const model = history.model;
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [selected, setSelected] = useState<Selection | null>(null);
@@ -89,7 +153,7 @@ export default function WorkflowDesigner() {
   // 加载既有定义（:id）
   useEffect(() => {
     if (!definitionId) {
-      setModel(EMPTY_MODEL);
+      dispatch({ type: 'reset', model: EMPTY_MODEL });
       setCode('');
       setName('');
       setSelected(null);
@@ -108,7 +172,7 @@ export default function WorkflowDesigner() {
         }
         setCode(definition.code);
         setName(definition.name);
-        setModel(parseDefinition(definition.definitionJson));
+        dispatch({ type: 'reset', model: parseDefinition(definition.definitionJson) });
         setSelected(null);
         setLinkFrom(null);
         setValidation(null);
@@ -135,6 +199,35 @@ export default function WorkflowDesigner() {
 
   const defaultAssignee = user?.username ?? '';
 
+  /** 提交一次画布变更（进入撤销栈并清空重做栈） */
+  const commit = (updater: (prev: CanvasModel) => CanvasModel) => {
+    dispatch({ type: 'commit', model: updater(model) });
+  };
+
+  // Ctrl/Cmd+Z 撤销、Ctrl/Cmd+Y 或 Ctrl/Cmd+Shift+Z 重做（输入框内不劫持）
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) {
+        return;
+      }
+      if (!event.ctrlKey && !event.metaKey) {
+        return;
+      }
+      const key = event.key.toLowerCase();
+      if (key === 'z') {
+        event.preventDefault();
+        dispatch({ type: event.shiftKey ? 'redo' : 'undo' });
+      } else if (key === 'y') {
+        event.preventDefault();
+        dispatch({ type: 'redo' });
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   const handleSelectNode = (key: string) => {
     if (linkFrom && linkFrom !== key) {
       if (model.flows.some((flow) => flow.from === linkFrom && flow.to === key)) {
@@ -144,7 +237,7 @@ export default function WorkflowDesigner() {
         return;
       }
       const flowKey = nextKey('f', model.flows.map((flow) => flow.key));
-      setModel((prev) => ({ ...prev, flows: [...prev.flows, createFlow(linkFrom, key, flowKey)] }));
+      commit((prev) => ({ ...prev, flows: [...prev.flows, createFlow(linkFrom, key, flowKey)] }));
       setSelected({ kind: 'flow', key: flowKey });
       setLinkFrom(null);
       return;
@@ -158,7 +251,7 @@ export default function WorkflowDesigner() {
   };
 
   const handleMoveNode = (key: string, x: number, y: number) => {
-    setModel((prev) => ({
+    commit((prev) => ({
       ...prev,
       nodes: prev.nodes.map((node) => (node.key === key ? { ...node, x, y } : node)),
     }));
@@ -166,13 +259,13 @@ export default function WorkflowDesigner() {
 
   const handleDropNode = (type: CanvasNode['type'], x: number, y: number) => {
     const key = nextKey('n', model.nodes.map((node) => node.key));
-    setModel((prev) => ({ ...prev, nodes: [...prev.nodes, createNode(type, key, x, y, defaultAssignee)] }));
+    commit((prev) => ({ ...prev, nodes: [...prev.nodes, createNode(type, key, x, y, defaultAssignee)] }));
     setSelected({ kind: 'node', key });
     setLinkFrom(null);
   };
 
   const handleChangeNode = (key: string, patch: Partial<CanvasNode>) => {
-    setModel((prev) => ({
+    commit((prev) => ({
       ...prev,
       nodes: prev.nodes.map((node) => (node.key === key ? applyNodePatch(node, patch) : node)),
     }));
@@ -188,7 +281,7 @@ export default function WorkflowDesigner() {
       message.error(`key「${trimmed}」已存在`);
       return false;
     }
-    setModel((prev) => ({
+    commit((prev) => ({
       nodes: prev.nodes.map((node) => (node.key === oldKey ? { ...node, key: trimmed } : node)),
       flows: prev.flows.map((flow) => ({
         ...flow,
@@ -202,7 +295,7 @@ export default function WorkflowDesigner() {
   };
 
   const handleDeleteNode = (key: string) => {
-    setModel((prev) => ({
+    commit((prev) => ({
       nodes: prev.nodes.filter((node) => node.key !== key),
       flows: prev.flows.filter((flow) => flow.from !== key && flow.to !== key),
     }));
@@ -217,7 +310,7 @@ export default function WorkflowDesigner() {
     if (!target) {
       return;
     }
-    setModel((prev) => ({
+    commit((prev) => ({
       ...prev,
       flows: prev.flows.map((flow) => {
         if (flow.key === key) {
@@ -233,7 +326,7 @@ export default function WorkflowDesigner() {
   };
 
   const handleDeleteFlow = (key: string) => {
-    setModel((prev) => ({ ...prev, flows: prev.flows.filter((flow) => flow.key !== key) }));
+    commit((prev) => ({ ...prev, flows: prev.flows.filter((flow) => flow.key !== key) }));
     if (selected?.kind === 'flow' && selected.key === key) {
       setSelected(null);
     }
@@ -399,6 +492,16 @@ export default function WorkflowDesigner() {
       styles={{ body: { padding: 12 } }}
       extra={
         <Space wrap>
+          <Tooltip title="撤销（Ctrl+Z）">
+            <Button disabled={history.past.length === 0} onClick={() => dispatch({ type: 'undo' })}>
+              撤销
+            </Button>
+          </Tooltip>
+          <Tooltip title="重做（Ctrl+Y / Ctrl+Shift+Z）">
+            <Button disabled={history.future.length === 0} onClick={() => dispatch({ type: 'redo' })}>
+              重做
+            </Button>
+          </Tooltip>
           <Button type="primary" loading={saving} onClick={() => void handleSave()}>
             保存
           </Button>
