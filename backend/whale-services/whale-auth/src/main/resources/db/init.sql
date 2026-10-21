@@ -337,7 +337,7 @@ INSERT INTO sys_user_role
 VALUES
     (1, 1, 1);
 
--- 基础菜单：系统管理目录 + 用户 / 角色 / 菜单 / 部门 / 权限 五个菜单项
+-- 基础菜单：系统管理目录 + 用户 / 角色 / 菜单 / 部门 / 权限 / 定时任务 / 文件 七个菜单项
 INSERT INTO sys_menu
     (id, parent_id, name, path, component, icon, sort, menu_type, permission_code, visible, status)
 VALUES
@@ -346,7 +346,9 @@ VALUES
     (3, 1, '角色管理', '/system/role', 'system/role/index', 'peoples', 2, 'MENU', 'sys:role:list', 1, 1),
     (4, 1, '菜单管理', '/system/menu', 'system/menu/index', 'tree-table', 3, 'MENU', 'sys:menu:list', 1, 1),
     (5, 1, '部门管理', '/system/dept', 'system/dept/index', 'tree', 4, 'MENU', 'sys:dept:list', 1, 1),
-    (6, 1, '权限管理', '/system/permission', 'system/permission/index', 'lock', 5, 'MENU', 'sys:permission:list', 1, 1);
+    (6, 1, '权限管理', '/system/permission', 'system/permission/index', 'lock', 5, 'MENU', 'sys:permission:list', 1, 1),
+    (7, 1, '定时任务', '/system/job', 'system/job/index', 'clock-circle', 6, 'MENU', 'sys:job:list', 1, 1),
+    (8, 1, '文件管理', '/system/file', 'system/file/index', 'folder', 7, 'MENU', 'sys:file:list', 1, 1);
 
 -- 权限点：与各控制器 @RequirePermission 注解的 value 一一对应（AUTH-04）
 INSERT INTO sys_permission

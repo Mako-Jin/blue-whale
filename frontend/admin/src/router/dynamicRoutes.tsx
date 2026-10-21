@@ -7,19 +7,30 @@ import type { ComponentType } from 'react';
 import type { RouteObject } from 'react-router-dom';
 import type { MenuNode } from '../api/token';
 import ComponentsDemo from '../pages/demo/ComponentsDemo';
+import DeptList from '../pages/dept/DeptList';
+import FileList from '../pages/file/FileList';
+import JobList from '../pages/job/JobList';
 import MenuList from '../pages/menu/MenuList';
+import PermissionList from '../pages/permission/PermissionList';
 import RoleList from '../pages/role/RoleList';
 import UserList from '../pages/user/UserList';
 
 /** 侧边导航项类型（与 antd Menu items 对齐） */
 export type SidebarItem = NonNullable<MenuProps['items']>[number];
 
-/** 组件标识 → 页面组件（FROZEN 契约键：user / role / menu / components） */
-const COMPONENT_MAP: Record<'user' | 'role' | 'menu' | 'components', ComponentType> = {
+/** 组件标识 → 页面组件（FROZEN 契约键：user / role / menu / components / dept / permission / job / file） */
+const COMPONENT_MAP: Record<
+  'user' | 'role' | 'menu' | 'components' | 'dept' | 'permission' | 'job' | 'file',
+  ComponentType
+> = {
   user: UserList,
   role: RoleList,
   menu: MenuList,
   components: ComponentsDemo,
+  dept: DeptList,
+  permission: PermissionList,
+  job: JobList,
+  file: FileList,
 };
 
 type ComponentKey = keyof typeof COMPONENT_MAP;
@@ -40,8 +51,8 @@ function isComponentKey(value: string): value is ComponentKey {
 
 /**
  * 解析组件标识，同时兼容契约键与路径式取值：
- * user / role / menu / components，
- * 以及 system/user/index → user、system/role/index → role、system/menu/index → menu
+ * user / role / menu / components / dept / permission / job / file，
+ * 以及 system/user/index → user、system/dept/index → dept、system/job/index → job 等
  */
 function resolveComponent(component?: string): ComponentType | undefined {
   if (!component) {

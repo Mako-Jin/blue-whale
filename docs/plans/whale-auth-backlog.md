@@ -225,3 +225,18 @@ Wave E｜被依赖服务 / 中间件未就绪阻塞
 | 17 | ~~**`/auth/refresh` 返回码口径（P2）**~~ → ✅ **已澄清（非缺陷）** | 登出后 refresh 实测 **HTTP 200 + 业务码 401**，为 `Result` 全局统一包装的既有约定（业务码承载语义、HTTP 层恒 200），非缺陷；验收口径统一改为「**业务码 401**」 | [reviews 5.1d §三-4](../reviews/2026-10-17-wave5.1d-boot4-deps-and-startup.md)、[reviews 5.1e §四](../reviews/2026-10-17-wave5.1e-audit-aspect-wiring-fix.md) |
 | 18 | **阶段一审计跨库可见性（P2，固有约束，新发现）** | 阶段一采用「各服务写各自实例库」（auth 写 `bluewhale_auth.audit_log`），而 `whale-audit` 默认读 `bluewhale_audit` → **默认查不到其他服务写入的审计记录**。实测：把 `whale-audit` 数据源临时指向 `bluewhale_auth` 后 `/audit/log/page` 立即可见 `total=4` 条 → 证实「查询服务须与写入服务同库/同实例」。阶段二 MQ 汇聚（AUTH-10）为根治方案 | [reviews 5.1e §四](../reviews/2026-10-17-wave5.1e-audit-aspect-wiring-fix.md)；[audit-log.md](../design/audit-log.md) §6 |
 | 19 | **阶段一审计查询无鉴权（承接 AUTH-06）** | `AuditLogController` 无 `@RequirePermission`，审计数据可被任意调用者读取，属敏感数据暴露面 | [audit-log.md](../design/audit-log.md) §9；AUTH-06 |
+
+---
+
+## 收尾结论（Wave 5.34，2026-10-21）
+
+**已闭环**：权限中心后端 6 控制器 / 37 接口（RBAC+ABAC、JWT + 黑名单、审计、DDD 前 3 步、271 测试）全部就绪；admin 侧本轮补齐 **部门管理**、**权限管理** 两页（此前菜单已入库但落「页面未配置」占位），`sys_menu` 同时补 **定时任务**（id 7）、**文件管理**（id 8）两项，`GET /auth/me` 返回 8 菜单项 / `permissions=73`，浏览器实测四页数据加载正常。
+
+**保持 backlog（本轮不做）**：
+
+| 项 | 说明 |
+|---|---|
+| AUTH-17 | DDD 第 4 步（AppService 分层 + 领域事件），P3 |
+| AUTH-10 | MQ 汇聚根治审计跨库可见性，**环境受限**（本机无 RabbitMQ） |
+| 第 18 项 | 阶段一审计跨库可见性，为架构固有约束，待 AUTH-10 根治 |
+| 第 11 项 | 前端 admin 对接 —— **本轮已由 Wave 5.34 补齐四页，视为闭环** |

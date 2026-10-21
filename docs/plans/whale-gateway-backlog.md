@@ -55,4 +55,5 @@
 
 | 版本 | 日期 | 作者 | 变更说明 |
 |---|---|---|---|
+| v1.1 | 2026-10-21 | BlueWhale | Wave 5.34 收尾：GW-04~07 维持闭环；**GW-01/02/03 明确保持 P3 backlog**（本轮不实现）。另修复潜伏缺陷：`whale-apps` erp/mes/oa/pdm 与 `whale-config` 共 5 处 `${server.port:…}` → `${SERVER_PORT:…}`，消除带 actuator 服务启动时的 `Circular placeholder reference`（与网关无直接耦合，但属同批配置收尾）。 |
 | v1.0 | 2026-10-19 | BlueWhale | 初始版。依据 **Wave 5.21**（网关熔断 + Nacos 动态路由 + 内网接口屏蔽）建立网关台账。 |

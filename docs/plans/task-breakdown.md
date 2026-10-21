@@ -579,6 +579,20 @@
 - [x] **V6** commit & push `origin`（Gitee `https://gitee.com/StrongToStop/blue-whale.git`）
 
 
+**Wave 5.34（六模块收尾 · 前端补齐 + 配置修复）**
+
+- [x] **A1 部门管理页**：`src/api/dept.ts` 增 `createDept`/`updateDept`/`deleteDept` + `src/pages/dept/DeptList.tsx`（树表 + 增删改 + `sys:dept:*` 控权）
+- [x] **A2 权限管理页**：`src/api/permission.ts` 增 CRUD + `src/pages/permission/PermissionList.tsx`（分页 + 类型筛选 + `sys:permission:*` 控权）
+- [x] **A3 定时任务页**：`src/api/job.ts` + `src/pages/job/JobList.tsx`（任务 CRUD/启停/立即执行 + 执行日志双 Tab）
+- [x] **A4 文件管理页**：`src/api/file.ts`（原生 fetch multipart / blob）+ `src/pages/file/FileList.tsx`（上传/下载/删除）
+- [x] **A5 路由与代理**：`dynamicRoutes.tsx` 增 `dept`/`permission`/`job`/`file` 契约键；`vite.config.ts` proxy 增 `/job`、`/file`
+- [x] **B1 菜单种子**：`whale-auth/db/init.sql` 增 id 7/8；新增幂等 `db/migration-5.34.sql` 并落库
+- [x] **C1 端口缺陷**：`whale-apps` erp/mes/oa/pdm + `whale-config` 共 5 处 `${server.port}` → `${SERVER_PORT}`
+- [x] **V1 构建**：`pnpm --filter whale-admin build` 通过；`mvn -o compile -pl` 受影响 5 模块通过
+- [x] **V2 运行时**：四接口 `code=0`；定时任务与文件写链路闭环
+- [x] **V3 浏览器**：四页渲染/日志 Tab 全 PASS，无「页面未配置」，控制台无 error
+- [x] **V4 文档收尾**：规划勾选 + devlog + 检查报告 + roadmap/task-breakdown/backlog 标注
+
 ## 附录 A：common 契约（Wave 2 遵守）
 
 ```

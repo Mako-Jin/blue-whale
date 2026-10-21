@@ -111,6 +111,8 @@
 - [x] ~~登录页 → 用户 / 角色 / 菜单管理~~（登录 Wave 5.17 + 三管理页 Wave 5.18）
 - [x] ~~对接 whale-auth API~~（Wave 5.18：user/role/menu/dept/permission 五模块客户端，经网关）
 - [x] ~~动态路由 + 按钮级权限渲染~~（**均已落地**：按钮级权限渲染 Wave 5.18 `PermissionProvider` + `AuthButton`；**动态路由 Wave 5.22** `frontend/admin` 用 `GET /auth/me` 的 `menus[]` 驱动侧栏与路由，静态兜底保留）
+- [x] ~~admin 部门 / 权限 / 定时任务 / 文件四页~~（Wave 5.34：新增 `pages/{dept,permission,job,file}` + `api/{dept,permission,job,file}`；`COMPONENT_MAP` 增 4 契约键，vite proxy 覆盖 `/job`、`/file`；`sys_menu` 补 id 7/8 + 幂等 `migration-5.34.sql`；浏览器实测四页数据加载正常、无「页面未配置」；报告 [reviews/2026-10-21-wave5.34-module-closure.md](../reviews/2026-10-21-wave5.34-module-closure.md)）
+- [x] ~~端口占位自引用缺陷（5 处）~~（Wave 5.34：`whale-apps` erp/mes/oa/pdm + `whale-config` 的 `${server.port:…}` → `${SERVER_PORT:…}`，消除带 actuator 服务的 `Circular placeholder reference`）
 
 ### 3.4 whale-portal 门户
 

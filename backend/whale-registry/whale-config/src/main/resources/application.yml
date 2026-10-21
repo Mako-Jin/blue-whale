@@ -1,5 +1,5 @@
 server:
-  port: ${server.port:9201}
+  port: ${SERVER_PORT:9201}
   servlet:
     context-path: /
 

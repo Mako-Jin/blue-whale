@@ -16,7 +16,7 @@ export default defineConfig({
       // 开发期将 whale-auth 各一级前缀转发到网关（8080），复用网关鉴权/黑名单校验链路
       // 注意：必须同时匹配「前缀后无路径」的集合型接口（如 POST /user、POST /role、POST /menu），
       // 否则这些请求会落到 vite 自身返回 404
-      '^/(auth|user|dept|role|menu|permission|audit)(/|$)': {
+      '^/(auth|user|dept|role|menu|permission|audit|job|file)(/|$)': {
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
