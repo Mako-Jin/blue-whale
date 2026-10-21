@@ -23,7 +23,7 @@
   - [x] 前端 `pnpm --filter whale-workflow-designer build`
   - [x] 浏览器验证 8003 版本抽屉与分组渲染
   - [x] 更新 `docs/devlog/2026-10-21.md`、`docs/plans/roadmap.md`、`docs/plans/whale-workflow-backlog.md`
-  - [ ] commit + `git push origin main`
+  - [x] commit + `git push origin main`
 
 # Task Dependencies
 - Task 5 依赖 Task 4 中的 `WorkflowDesigner.tsx` 改动（同文件顺序落地）

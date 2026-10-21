@@ -11,4 +11,4 @@
 - [x] 前端 `pnpm --filter whale-workflow-designer build` 通过
 - [x] 浏览器 8003 实机验证通过
 - [x] devlog / roadmap / backlog 已更新
-- [ ] 已提交并推送 Gitee origin main
+- [x] 已提交并推送 Gitee origin main
