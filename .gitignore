@@ -57,6 +57,10 @@ out/
 coverage/
 *.lcov
 
+# ===== Local Runtime Data =====
+# whale-agent 本地 Lucene 索引（可重建，不入库）
+data/
+
 # ===== Logs =====
 logs/
 *.log

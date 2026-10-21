@@ -25,5 +25,6 @@
         <module>whale-i18n</module>
         <module>whale-pay</module>
         <module>whale-gateway</module>
+        <module>whale-agent</module>
     </modules>
 </project>

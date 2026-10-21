@@ -1,0 +1,100 @@
+-- =====================================================================
+-- BlueWhale 微服务平台 - 平台与项目知识 Agent（whale-agent）数据库初始化脚本
+-- =====================================================================
+-- 建议库名   : bluewhale_agent
+-- 数据库版本 : MySQL 8.0+
+-- 字符集     : utf8mb4，排序规则 utf8mb4_general_ci
+-- 存储引擎   : InnoDB
+-- 公共字段   : id BIGINT（雪花算法生成）、create_time、update_time、
+--              deleted TINYINT（逻辑删除：0 未删除 / 1 已删除）
+-- 说明       : 向量检索走进程内 Lucene（data/agent-index/），本库仅存会话、事实与索引元数据
+-- =====================================================================
+
+-- ---------------------------------------------------------------------
+-- 结构化事实表（双通道回答的「事实通道」）
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS agent_fact;
+CREATE TABLE agent_fact (
+    id              BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    fact_type       VARCHAR(32)   NOT NULL               COMMENT '事实类型：SERVICE/ROUTE/PORT/DEPENDENCY/TABLE/COLUMN/COMMIT/ENDPOINT/RUNTIME_SERVICE',
+    fact_key        VARCHAR(255)  NOT NULL               COMMENT '事实键（服务名/路由id/表名/groupId:artifactId 等）',
+    value_json      MEDIUMTEXT    NULL                   COMMENT '事实值JSON（结构化，保留原始层级）',
+    source_path     VARCHAR(512)  DEFAULT NULL           COMMENT '来源路径（仓库相对路径或 git 引用）',
+    captured_at     DATETIME      DEFAULT NULL           COMMENT '采集时间',
+    create_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted         TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
+    PRIMARY KEY (id),
+    KEY idx_fact_type_key (fact_type, fact_key),
+    KEY idx_source_path (source_path)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='知识Agent结构化事实表';
+
+-- ---------------------------------------------------------------------
+-- 会话表
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS agent_conversation;
+CREATE TABLE agent_conversation (
+    id              BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    user_id         BIGINT        NOT NULL               COMMENT '所属用户ID（网关注入 X-User-Id）',
+    title           VARCHAR(128)  DEFAULT NULL           COMMENT '会话标题（默认取首个问题前50字）',
+    scope           VARCHAR(128)  DEFAULT NULL           COMMENT '检索范围（逗号分隔 code,doc,sql,git,runtime；空=全部）',
+    create_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted         TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
+    PRIMARY KEY (id),
+    KEY idx_user_id (user_id, update_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='知识Agent会话表';
+
+-- ---------------------------------------------------------------------
+-- 消息表
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS agent_message;
+CREATE TABLE agent_message (
+    id              BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    conversation_id BIGINT        NOT NULL               COMMENT '所属会话ID',
+    role            VARCHAR(16)   NOT NULL               COMMENT '角色：user / assistant',
+    content         MEDIUMTEXT    NULL                   COMMENT '消息正文（Markdown）',
+    citations_json  MEDIUMTEXT    NULL                   COMMENT '引用块JSON数组（仅 assistant 消息）',
+    tokens          INT           NOT NULL DEFAULT 0     COMMENT 'token 统计（prompt + completion）',
+    create_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted         TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
+    PRIMARY KEY (id),
+    KEY idx_conversation_id (conversation_id, id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='知识Agent消息表';
+
+-- ---------------------------------------------------------------------
+-- 回答评价表
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS agent_feedback;
+CREATE TABLE agent_feedback (
+    id              BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    message_id      BIGINT        NOT NULL               COMMENT '被评价的助手消息ID',
+    user_id         BIGINT        DEFAULT NULL           COMMENT '评价用户ID',
+    rating          TINYINT       NOT NULL               COMMENT '评价：1 有用 / -1 无用',
+    comment         VARCHAR(512)  DEFAULT NULL           COMMENT '评价备注',
+    create_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted         TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
+    PRIMARY KEY (id),
+    KEY idx_message_id (message_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='知识Agent回答评价表';
+
+-- ---------------------------------------------------------------------
+-- 索引元数据表（单行，保留最新一次构建记录）
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS agent_index_meta;
+CREATE TABLE agent_index_meta (
+    id              BIGINT        NOT NULL               COMMENT '主键ID（固定 1，单行表）',
+    index_version   VARCHAR(32)   DEFAULT NULL           COMMENT '索引版本（构建批次标识，如 20261021103000）',
+    file_count      INT           NOT NULL DEFAULT 0     COMMENT '已索引文件数',
+    chunk_count     INT           NOT NULL DEFAULT 0     COMMENT '已索引知识块数',
+    last_build_at   DATETIME      DEFAULT NULL           COMMENT '最近一次构建完成时间',
+    status          VARCHAR(16)   NOT NULL DEFAULT 'EMPTY' COMMENT '构建状态：READY/BUILDING/FAILED/EMPTY',
+    dimension       INT           NOT NULL DEFAULT 0     COMMENT '向量维度（未启用向量为0）',
+    build_millis    BIGINT        DEFAULT NULL           COMMENT '最近一次构建耗时（毫秒）',
+    create_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted         TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='知识Agent索引元数据表';

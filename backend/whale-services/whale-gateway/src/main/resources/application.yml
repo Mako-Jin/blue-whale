@@ -74,6 +74,11 @@ spring:
               uri: lb://whale-audit
               predicates:
                 - Path=/audit/**
+            # Wave 5.47 平台与项目知识 Agent（自持 /agent 一级前缀，不含 StripPrefix）
+            - id: whale-agent
+              uri: lb://whale-agent
+              predicates:
+                - Path=/agent/**
 
 whale:
   gateway:

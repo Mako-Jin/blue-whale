@@ -1,0 +1,59 @@
+server:
+  port: ${SERVER_PORT:8090}
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: whale-agent
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/bluewhale_agent?useUnicode=true&characterEncoding=utf8&connectionCollation=utf8mb4_general_ci&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASSWORD:root}
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+      config:
+        server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+        file-extension: yaml
+
+logging:
+  level:
+    com.bluewhale: debug
+
+# AUTH-06：启用 starter 的 RequirePermissionInterceptor（默认 false，须显式开启），
+# 按网关注入的 X-Permission-Codes 判定本服务 sys:agent:* 权限。
+whale:
+  permission:
+    header:
+      enabled: true
+  agent:
+    # 仓库根目录；留空时按启动目录向上探测（含 backend/pom.xml 与 docs/ 的目录）。
+    repo-root: ${WHALE_AGENT_REPO_ROOT:}
+    # Lucene 索引目录；留空时回落 ${repo-root}/data/agent-index。
+    index-dir: ${WHALE_AGENT_INDEX_DIR:}
+    ingest:
+      # 单文件上限（字节），超出跳过；防止误纳入大二进制/产物
+      max-file-size: ${WHALE_AGENT_MAX_FILE_SIZE:2097152}
+      # 增量扫描周期（秒），0 表示关闭定时扫描，仅手动重建
+      scan-interval-seconds: ${WHALE_AGENT_SCAN_INTERVAL_SECONDS:1800}
+      # 启动后是否立即构建一次索引
+      build-on-startup: ${WHALE_AGENT_BUILD_ON_STARTUP:true}
+    search:
+      default-top-k: ${WHALE_AGENT_DEFAULT_TOP_K:8}
+      max-top-k: ${WHALE_AGENT_MAX_TOP_K:50}
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0

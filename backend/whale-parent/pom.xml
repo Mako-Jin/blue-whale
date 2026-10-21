@@ -61,6 +61,9 @@
         <httpclient.version>5.4</httpclient.version>
         <slf4j.version>2.0.16</slf4j.version>
 
+        <!-- Wave 5.47 知识 Agent：进程内检索内核（本机无 Docker，故不引入 Elasticsearch） -->
+        <lucene.version>10.2.2</lucene.version>
+
         <!-- 覆盖率 -->
         <jacoco.version>0.8.12</jacoco.version>
     </properties>
@@ -240,6 +243,28 @@
                 <groupId>com.github.xiaoymin</groupId>
                 <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
                 <version>${knife4j.version}</version>
+            </dependency>
+
+            <!-- Wave 5.47 Lucene 检索内核 -->
+            <dependency>
+                <groupId>org.apache.lucene</groupId>
+                <artifactId>lucene-core</artifactId>
+                <version>${lucene.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.lucene</groupId>
+                <artifactId>lucene-analysis-common</artifactId>
+                <version>${lucene.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.lucene</groupId>
+                <artifactId>lucene-analysis-smartcn</artifactId>
+                <version>${lucene.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.lucene</groupId>
+                <artifactId>lucene-queryparser</artifactId>
+                <version>${lucene.version}</version>
             </dependency>
 
             <!-- 日志 -->

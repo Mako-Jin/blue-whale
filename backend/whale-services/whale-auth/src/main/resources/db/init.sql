@@ -504,3 +504,13 @@ VALUES
     (76, 0, 'sys:workflow:task:rollback', '回退待办任务', 'API', '/workflow/task/{id}/rollback', 'POST', 76, 1),
     (77, 0, 'sys:form:data:edit', '修改表单数据', 'API', '/form/data/{id}', 'PUT', 77, 1),
     (78, 0, 'sys:workflow:task:add-sign', '加签待办任务', 'API', '/workflow/task/{id}/add-sign', 'POST', 78, 1);
+
+-- Wave 5.47 平台与项目知识 Agent 权限点：与 whale-agent 接口 @RequirePermission("sys:agent:*") 一一对应
+-- 段位约定：Phase 4 业务应用使用 80–99，知识 Agent 预留 100–119
+INSERT INTO sys_permission
+    (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+VALUES
+    (100, 0, 'sys:agent:chat', '知识Agent问答', 'API', '/agent/chat', 'POST', 100, 1),
+    (101, 0, 'sys:agent:search', '知识检索与事实查询', 'API', '/agent/search,/agent/facts', 'GET', 101, 1),
+    (102, 0, 'sys:agent:index:rebuild', '重建知识索引', 'API', '/agent/index/rebuild', 'POST', 102, 1),
+    (103, 0, 'sys:agent:runtime:read', '查看运行时知识', 'API', '/agent/runtime/**', 'GET', 103, 1);
