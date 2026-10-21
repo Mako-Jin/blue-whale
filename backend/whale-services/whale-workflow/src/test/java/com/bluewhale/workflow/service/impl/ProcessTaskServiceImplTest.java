@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.workflow.dto.ApprovalRequest;
 import com.bluewhale.workflow.dto.ProcessTaskQueryRequest;
 import com.bluewhale.workflow.entity.ProcessDefinition;
 import com.bluewhale.workflow.entity.ProcessInstance;
@@ -160,7 +161,9 @@ class ProcessTaskServiceImplTest {
         when(processInstanceMapper.selectById(5L)).thenReturn(instance);
         when(processDefinitionMapper.selectById(10L)).thenReturn(definition(10L, TWO_NODE_JSON));
 
-        processTaskService.approve(100L, "同意");
+        ApprovalRequest approval = new ApprovalRequest();
+        approval.setComment("同意");
+        processTaskService.approve(100L, approval);
 
         assertEquals(1, task.getStatus().intValue());
         assertEquals("同意", task.getComment());

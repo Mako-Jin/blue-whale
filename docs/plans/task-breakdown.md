@@ -593,6 +593,20 @@
 - [x] **V3 浏览器**：四页渲染/日志 Tab 全 PASS，无「页面未配置」，控制台无 error
 - [x] **V4 文档收尾**：规划勾选 + devlog + 检查报告 + roadmap/task-breakdown/backlog 标注
 
+## Wave 5.35（工作流能力补全 + 网关治理）
+
+- [x] **W1 条件表达式求值**：`ConditionGuard`（`SimpleEvaluationContext` 只读绑定）+ `variables_json` + 选路/校验新错误码
+- [x] **W2 并行网关 + 会签**：`PARALLEL_GATEWAY`/`COUNTER_SIGN` + `active_node_keys` fork/join + ALL/ANY/RATIO
+- [x] **W3 转办 / 委派**：`transfer`/`delegate`/`resolve` 三端点 + `owner_id`/`delegate_from`
+- [x] **W4 回退任意节点**：`rollback(targetNodeKey)` 取消当前待办并在目标节点重建
+- [x] **W5 审批时修改表单**：`PUT /form/data/{id}` + `sys:form:data:edit`（种子 74–77）+ 前端抽屉编辑保存
+- [x] **G3 动态路由治理**：校验器 + 整体拒绝 + 双快照 + `gateway.routes.rejected` + `/actuator/routeGovernance`（回滚固定标记）
+- [x] **G2 resilience4j**：替换自研熔断，保留 `apply-to-routes` / 503 `Result` / `gateway.circuit.*`
+- [x] **G1 Sentinel 结案**：评估报告，不引入（离线无制品 + Boot 4 兼容未验证 + 无 Dashboard）
+- [x] **V1-V4**：模块自检（workflow 120 / form 63 / gateway 76）+ 全量 27 模块 SUCCESS + DDL 落库 + 运行时 `SMOKE-ALL-PASS` / `GW-GOVERNANCE-PASS`
+- [x] **V5**：前端 `pnpm build` 通过；浏览器实测登录/待办列表/审批抽屉表单保存 PASS；转办弹窗确认需人工复核
+- [x] **V6**：devlog + review + Sentinel 评估 + roadmap/task-breakdown + 两份 backlog 版本记录 + commit & push
+
 ## 附录 A：common 契约（Wave 2 遵守）
 
 ```

@@ -10,7 +10,13 @@ import { del, downloadBlob, get, post, put, type PageResult } from './http';
 export type Id = string;
 
 /** 节点类型（对应后端 ProcessNodeType 枚举，规范化 JSON 的 nodes[].type） */
-export type NodeType = 'START_EVENT' | 'END_EVENT' | 'USER_TASK' | 'EXCLUSIVE_GATEWAY';
+export type NodeType =
+  | 'START_EVENT'
+  | 'END_EVENT'
+  | 'USER_TASK'
+  | 'EXCLUSIVE_GATEWAY'
+  | 'PARALLEL_GATEWAY'
+  | 'COUNTER_SIGN';
 
 /** 流程流转（对应后端 ProcessModelFlow，规范化 JSON 的 flows[] 元素） */
 export interface ProcessModelFlow {
@@ -30,6 +36,10 @@ export interface ProcessModelNode {
   type: NodeType;
   name?: string | null;
   assignee?: string | null;
+  /** 会签人账号列表（仅 COUNTER_SIGN） */
+  assignees?: string[] | null;
+  /** 会签策略：ALL / ANY / RATIO:n（仅 COUNTER_SIGN，缺省 ALL） */
+  counterSignPolicy?: string | null;
   /** 绑定表单定义 ID（字符串承载，可空） */
   formId?: string | null;
   /** 绑定表单编码（可空） */
@@ -100,6 +110,8 @@ export interface InstanceStartRequest {
   definitionId: Id;
   title: string;
   businessKey?: string;
+  /** 流程变量（条件选路用；随实例落库） */
+  variables?: Record<string, unknown>;
 }
 
 /** 待办任务（对应后端 ProcessTaskVO；nodeKey/formId/formCode 为 Wave 5.32 后端补强字段） */
@@ -121,6 +133,14 @@ export interface ProcessTask {
   formId?: string | null;
   /** 节点绑定的表单编码（可空） */
   formCode?: string | null;
+  /** 任务类型：COUNTER_SIGN 会签 / 空 普通审批 */
+  signType?: string | null;
+  /** 会签策略快照：ALL / ANY / RATIO:n */
+  signPolicy?: string | null;
+  /** 任务归属人（转办后仍为原审批人） */
+  ownerId?: string | null;
+  /** 委派来源人（非委派为空；非空时可执行 resolve） */
+  delegateFrom?: string | null;
 }
 
 /** 校验问题（对应后端 ValidationIssueVO） */
@@ -166,6 +186,20 @@ export interface BpmnImportRequest {
 /** 审批入参（approve/reject 共用） */
 export interface ApprovalRequest {
   comment?: string;
+  /** 本次审批追加的流程变量（供后续条件选路） */
+  variables?: Record<string, unknown>;
+  /** 关联表单数据 ID（可选，后端保留字段） */
+  formDataId?: Id | number;
+}
+
+/** 转办 / 委派入参（PUT /workflow/task/{id}/transfer、/delegate） */
+export interface TaskTransferRequest {
+  targetUser: string;
+}
+
+/** 回退入参（POST /workflow/task/{id}/rollback） */
+export interface TaskRollbackRequest {
+  targetNodeKey: string;
 }
 
 /** 流程定义分页查询条件（GET /workflow/definition/page） */
@@ -235,4 +269,13 @@ export const workflowApi = {
   taskApprove: (id: Id, data?: ApprovalRequest) =>
     post<void>(`/workflow/task/${id}/approve`, data),
   taskReject: (id: Id, data?: ApprovalRequest) => post<void>(`/workflow/task/${id}/reject`, data),
+  taskTransfer: (id: Id, data: TaskTransferRequest) =>
+    put<void>(`/workflow/task/${id}/transfer`, data),
+  taskDelegate: (id: Id, data: TaskTransferRequest) =>
+    put<void>(`/workflow/task/${id}/delegate`, data),
+  /** 完成委派：被委派人处理完，任务交回委派人 */
+  taskResolve: (id: Id, data?: ApprovalRequest) =>
+    put<void>(`/workflow/task/${id}/resolve`, data),
+  taskRollback: (id: Id, data: TaskRollbackRequest) =>
+    post<void>(`/workflow/task/${id}/rollback`, data),
 };

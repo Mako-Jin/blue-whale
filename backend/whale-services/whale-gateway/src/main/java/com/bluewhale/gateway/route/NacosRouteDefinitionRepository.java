@@ -3,6 +3,7 @@ package com.bluewhale.gateway.route;
 import com.alibaba.cloud.nacos.NacosConfigManager;
 import com.alibaba.nacos.api.config.ConfigService;
 import com.alibaba.nacos.api.exception.NacosException;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cloud.context.environment.EnvironmentChangeEvent;
@@ -23,6 +24,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Nacos 动态路由定义仓库（T5）。
@@ -81,20 +83,50 @@ public class NacosRouteDefinitionRepository implements RouteDefinitionRepository
     /** 断言/过滤器通用字段：参数 */
     private static final String FIELD_ARGS = "args";
 
+    /** 动态路由配置被整体拒绝的计数指标名（G3） */
+    private static final String METER_REJECTED = "gateway.routes.rejected";
+
+    /** 指标 dataId 标签名 */
+    private static final String TAG_DATA_ID = "dataId";
+
     private final ObjectProvider<NacosConfigManager> configManagerProvider;
 
     private final ApplicationEventPublisher eventPublisher;
+
+    /** 指标注册表提供者：容器无 MeterRegistry 时返回 {@code null}，指标静默跳过 */
+    private final ObjectProvider<MeterRegistry> meterRegistryProvider;
+
+    /** 当前生效的路由快照（最近一次校验通过的配置） */
+    private volatile List<RouteDefinition> currentRoutes = List.of();
+
+    /** 上一版路由快照（供 {@link #rollback()} 回滚） */
+    private volatile List<RouteDefinition> previousRoutes = List.of();
+
+    /**
+     * 回滚时被放弃的路由签名（{@code null} 表示当前不处于回滚固定状态）。
+     *
+     * <p>回滚后 Nacos 中仍是新版配置，刷新会再次读到新版并把回滚结果覆盖回去；
+     * 记录被放弃版本的签名后，只要 Nacos 内容仍与该签名一致，就保持回滚后的快照不变，
+     * 直到配置真正发生新的变更才清除该标记。</p>
+     */
+    private volatile List<String> abandonedSignatures;
+
+    /** 因校验失败被整体拒绝的配置次数（G3 指标） */
+    private final AtomicLong rejectedCount = new AtomicLong();
 
     /**
      * 构造 Nacos 动态路由仓库
      *
      * @param configManagerProvider Nacos 配置管理器提供者（允许缺失，缺失时动态路由降级为空）
      * @param eventPublisher        应用事件发布器，用于发布路由刷新事件
+     * @param meterRegistryProvider Micrometer 指标注册表提供者，缺省时返回 {@code null} 表示不采集指标
      */
     public NacosRouteDefinitionRepository(ObjectProvider<NacosConfigManager> configManagerProvider,
-                                          ApplicationEventPublisher eventPublisher) {
+                                          ApplicationEventPublisher eventPublisher,
+                                          ObjectProvider<MeterRegistry> meterRegistryProvider) {
         this.configManagerProvider = configManagerProvider;
         this.eventPublisher = eventPublisher;
+        this.meterRegistryProvider = meterRegistryProvider;
     }
 
     /**
@@ -153,7 +185,153 @@ public class NacosRouteDefinitionRepository implements RouteDefinitionRepository
             log.warn("读取 Nacos 动态路由配置失败（不阻断启动）: dataId={}, reason={}", DATA_ID, e.getMessage());
             return List.of();
         }
-        return convert(content);
+        List<RouteDefinition> parsed = convert(content);
+        if (parsed.isEmpty()) {
+            return List.of();
+        }
+        List<String> errors = new ArrayList<>();
+        for (RouteDefinition definition : parsed) {
+            errors.addAll(RouteDefinitionValidator.validate(definition));
+        }
+        if (!errors.isEmpty()) {
+            long rejected = rejectedCount.incrementAndGet();
+            countRejected();
+            log.warn("Nacos 动态路由配置校验失败，整体拒绝并保留上一版: dataId={}, rejectedCount={}, errors={}",
+                    DATA_ID, rejected, errors);
+            return currentRoutes;
+        }
+        if (isAbandoned(parsed)) {
+            log.info("Nacos 动态路由仍为回滚前被放弃的版本，保持回滚后快照: dataId={}, routeCount={}",
+                    DATA_ID, currentRoutes.size());
+            return currentRoutes;
+        }
+        if (sameAsCurrent(parsed)) {
+            log.debug("Nacos 动态路由配置未变化，保持当前快照: dataId={}, routeCount={}", DATA_ID, currentRoutes.size());
+            return currentRoutes;
+        }
+        previousRoutes = currentRoutes;
+        currentRoutes = List.copyOf(parsed);
+        abandonedSignatures = null;
+        return currentRoutes;
+    }
+
+    /**
+     * 判断本次解析结果是否为回滚时被放弃的版本（用于回滚后固定快照）。
+     *
+     * @param parsed 本次解析得到的路由定义列表
+     * @return 处于回滚固定状态且内容与被放弃版本一致时返回 {@code true}
+     */
+    private boolean isAbandoned(List<RouteDefinition> parsed) {
+        List<String> abandoned = abandonedSignatures;
+        if (abandoned == null) {
+            return false;
+        }
+        if (parsed.size() != abandoned.size()) {
+            return false;
+        }
+        for (int i = 0; i < parsed.size(); i++) {
+            if (!signature(parsed.get(i)).equals(abandoned.get(i))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 判断本次解析结果与当前生效快照是否等价（避免同一配置重复刷新时把上一版快照覆盖掉）。
+     *
+     * @param parsed 本次解析得到的路由定义列表
+     * @return 与 {@link #currentRoutes} 等价返回 {@code true}
+     */
+    private boolean sameAsCurrent(List<RouteDefinition> parsed) {
+        if (parsed.size() != currentRoutes.size()) {
+            return false;
+        }
+        for (int i = 0; i < parsed.size(); i++) {
+            if (!signature(parsed.get(i)).equals(signature(currentRoutes.get(i)))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 生成路由定义的比对签名（id / uri / 断言 / 过滤器及其参数）。
+     *
+     * @param definition 路由定义
+     * @return 比对签名
+     */
+    private static String signature(RouteDefinition definition) {
+        StringBuilder builder = new StringBuilder();
+        builder.append(definition.getId()).append('|').append(definition.getUri());
+        for (PredicateDefinition predicate : definition.getPredicates()) {
+            builder.append('|').append(predicate.getName()).append(predicate.getArgs());
+        }
+        for (FilterDefinition filter : definition.getFilters()) {
+            builder.append('|').append(filter.getName()).append(filter.getArgs());
+        }
+        return builder.toString();
+    }
+
+    /**
+     * 获取当前生效的动态路由快照。
+     *
+     * @return 当前路由定义列表（不可变）
+     */
+    public List<RouteDefinition> getCurrentRoutes() {
+        return currentRoutes;
+    }
+
+    /**
+     * 获取上一版动态路由快照（用于治理端点展示与回滚）。
+     *
+     * @return 上一版路由定义列表（不可变）
+     */
+    public List<RouteDefinition> getPreviousRoutes() {
+        return previousRoutes;
+    }
+
+    /**
+     * 获取因校验失败被整体拒绝的配置次数。
+     *
+     * @return 拒绝次数
+     */
+    public long getRejectedCount() {
+        return rejectedCount.get();
+    }
+
+    /**
+     * 记录一次动态路由配置被整体拒绝的指标（容器无 {@link MeterRegistry} 时静默跳过）
+     */
+    private void countRejected() {
+        MeterRegistry meterRegistry = meterRegistryProvider.getIfAvailable();
+        if (meterRegistry == null) {
+            return;
+        }
+        meterRegistry.counter(METER_REJECTED, TAG_DATA_ID, DATA_ID).increment();
+    }
+
+    /**
+     * 回滚到上一版路由快照并触发网关重载。
+     *
+     * <p>回滚后被放弃的版本仍留在 Nacos 中，因此记录其签名；后续刷新只要读到同一版本
+     * 就保持回滚后的快照，避免回滚结果被立即覆盖。Nacos 内容发生新的变更后标记自动失效。</p>
+     *
+     * @return 无上一版可回滚时返回 {@code false}
+     */
+    public synchronized boolean rollback() {
+        if (previousRoutes.isEmpty()) {
+            log.warn("无上一版动态路由快照，回滚请求被忽略: dataId={}", DATA_ID);
+            return false;
+        }
+        List<RouteDefinition> abandoned = currentRoutes;
+        List<RouteDefinition> target = previousRoutes;
+        abandonedSignatures = abandoned.stream().map(NacosRouteDefinitionRepository::signature).toList();
+        previousRoutes = abandoned;
+        currentRoutes = target;
+        eventPublisher.publishEvent(new RefreshRoutesEvent(this));
+        log.info("已回滚到上一版动态路由快照，路由数={}，被放弃路由数={}", currentRoutes.size(), abandoned.size());
+        return true;
     }
 
     /**

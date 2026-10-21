@@ -39,7 +39,8 @@ export default function EdgePath({ flow, from, to, selected = false, error = fal
 
   const stroke = error ? '#ff4d4f' : selected ? '#1677ff' : '#8c8c8c';
   const markerId = error ? 'wf-arrow-error' : selected ? 'wf-arrow-selected' : 'wf-arrow';
-  const label = flow.isDefault ? '默认' : flow.condition;
+  // SVG <text> 不换行：条件多行输入展示时折叠为单行
+  const label = flow.isDefault ? '默认' : flow.condition.replace(/\s+/g, ' ').trim();
 
   return (
     <g>

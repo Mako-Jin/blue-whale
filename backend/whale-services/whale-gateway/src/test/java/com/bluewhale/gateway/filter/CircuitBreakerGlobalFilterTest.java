@@ -194,14 +194,15 @@ class CircuitBreakerGlobalFilterTest {
 
     @Test
     @DisplayName("filter：等待期满后放行一次半开探测，探测成功即恢复闭合")
-    void shouldRecoverAfterHalfOpenProbeSucceeds() {
+    void shouldRecoverAfterHalfOpenProbeSucceeds() throws InterruptedException {
         properties.setSlidingWindowSize(2);
         properties.setFailureRateThreshold(50);
-        properties.setWaitDurationInOpenStateMillis(0);
+        properties.setWaitDurationInOpenStateMillis(1);
         when(chain.filter(any())).thenReturn(Mono.error(new RuntimeException("down")));
 
         filter.filter(buildExchange(PROTECTED_ROUTE), chain).block();
         filter.filter(buildExchange(PROTECTED_ROUTE), chain).block();
+        Thread.sleep(5);
 
         when(chain.filter(any())).thenReturn(Mono.empty());
         MockServerWebExchange probe = buildExchange(PROTECTED_ROUTE);
@@ -258,15 +259,16 @@ class CircuitBreakerGlobalFilterTest {
 
     @Test
     @DisplayName("GW-04 指标：半开探测在途时状态 Gauge 为 HALF_OPEN(2)，探测成功恢复 CLOSED(0)")
-    void shouldReportHalfOpenGaugeDuringProbe() {
+    void shouldReportHalfOpenGaugeDuringProbe() throws InterruptedException {
         properties.setSlidingWindowSize(2);
         properties.setFailureRateThreshold(50);
-        properties.setWaitDurationInOpenStateMillis(0);
+        properties.setWaitDurationInOpenStateMillis(1);
         when(chain.filter(any())).thenReturn(Mono.error(new RuntimeException("down")));
 
         filter.filter(buildExchange(PROTECTED_ROUTE), chain).block();
         filter.filter(buildExchange(PROTECTED_ROUTE), chain).block();
         assertEquals(1, stateValue(PROTECTED_ROUTE), "等待期内应为 OPEN");
+        Thread.sleep(5);
 
         int[] halfOpenState = new int[1];
         when(chain.filter(any())).thenReturn(Mono.fromRunnable(

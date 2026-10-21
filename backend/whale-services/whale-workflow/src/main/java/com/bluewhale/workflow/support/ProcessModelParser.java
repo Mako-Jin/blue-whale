@@ -3,6 +3,7 @@ package com.bluewhale.workflow.support;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -182,12 +183,51 @@ public final class ProcessModelParser {
         node.setAssignee(text(item, "assignee"));
         node.setFormId(text(item, "formId"));
         node.setFormCode(text(item, "formCode"));
+        node.setAssignees(readAssignees(item));
+        node.setCounterSignPolicy(text(item, "counterSignPolicy"));
         node.setX(integer(item, "x"));
         node.setY(integer(item, "y"));
         if (nodeType == ProcessNodeType.USER_TASK && (node.getAssignee() == null || node.getAssignee().isBlank())) {
             throw new ProcessModelException(ValidationCode.USER_TASK_ASSIGNEE_REQUIRED, LEGACY_INVALID_MESSAGE, key);
         }
+        if (nodeType == ProcessNodeType.COUNTER_SIGN && node.getAssignees().isEmpty()) {
+            throw new ProcessModelException(ValidationCode.COUNTER_SIGN_ASSIGNEES_REQUIRED,
+                    "流程定义非法：" + ValidationCode.COUNTER_SIGN_ASSIGNEES_REQUIRED.name(), key);
+        }
+        if (nodeType == ProcessNodeType.COUNTER_SIGN
+                && !ProcessModelValidator.isValidCounterSignPolicy(node.getCounterSignPolicy())) {
+            throw new ProcessModelException(ValidationCode.COUNTER_SIGN_POLICY_INVALID,
+                    "流程定义非法：" + ValidationCode.COUNTER_SIGN_POLICY_INVALID.name(), key);
+        }
         return node;
+    }
+
+    /**
+     * 读取会签人列表：支持 JSON 数组，也兼容逗号分隔文本。
+     *
+     * @param item 节点 JSON
+     * @return 会签人列表（非 {@code null}）
+     */
+    private static List<String> readAssignees(JsonNode item) {
+        List<String> assignees = new ArrayList<>();
+        JsonNode node = item.get("assignees");
+        if (node == null || node.isNull()) {
+            return assignees;
+        }
+        if (node.isArray()) {
+            for (JsonNode entry : node) {
+                if (entry != null && !entry.isNull() && !entry.asText().isBlank()) {
+                    assignees.add(entry.asText().trim());
+                }
+            }
+            return assignees;
+        }
+        for (String part : node.asText().split(",")) {
+            if (!part.isBlank()) {
+                assignees.add(part.trim());
+            }
+        }
+        return assignees;
     }
 
     /**

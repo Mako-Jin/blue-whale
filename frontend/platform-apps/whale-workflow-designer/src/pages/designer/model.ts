@@ -17,6 +17,10 @@ export interface CanvasNode {
   type: NodeType;
   name: string;
   assignee: string;
+  /** 会签人账号列表（仅 COUNTER_SIGN） */
+  assignees: string[];
+  /** 会签策略：ALL / ANY / RATIO:n（仅 COUNTER_SIGN，缺省 ALL） */
+  counterSignPolicy: string;
   formId: string | null;
   formCode: string | null;
   x: number;
@@ -50,6 +54,8 @@ export const NODE_SIZE: Record<NodeType, { width: number; height: number }> = {
   END_EVENT: { width: 64, height: 64 },
   USER_TASK: { width: 168, height: 64 },
   EXCLUSIVE_GATEWAY: { width: 76, height: 76 },
+  PARALLEL_GATEWAY: { width: 76, height: 76 },
+  COUNTER_SIGN: { width: 168, height: 64 },
 };
 
 /** 节点类型主色（与图形描边一致） */
@@ -58,6 +64,8 @@ export const NODE_TYPE_COLORS: Record<NodeType, string> = {
   END_EVENT: '#f5222d',
   USER_TASK: '#1677ff',
   EXCLUSIVE_GATEWAY: '#fa8c16',
+  PARALLEL_GATEWAY: '#13c2c2',
+  COUNTER_SIGN: '#722ed1',
 };
 
 /** 节点类型中文名 */
@@ -66,11 +74,20 @@ export const NODE_TYPE_LABELS: Record<NodeType, string> = {
   END_EVENT: '结束事件',
   USER_TASK: '用户任务',
   EXCLUSIVE_GATEWAY: '排他网关',
+  PARALLEL_GATEWAY: '并行网关',
+  COUNTER_SIGN: '会签',
 };
 
 /** 节点类型下拉选项（属性面板 type 编辑） */
 export const NODE_TYPE_OPTIONS: { value: NodeType; label: string }[] = (
-  ['START_EVENT', 'END_EVENT', 'USER_TASK', 'EXCLUSIVE_GATEWAY'] as NodeType[]
+  [
+    'START_EVENT',
+    'END_EVENT',
+    'USER_TASK',
+    'EXCLUSIVE_GATEWAY',
+    'PARALLEL_GATEWAY',
+    'COUNTER_SIGN',
+  ] as NodeType[]
 ).map((type) => ({ value: type, label: NODE_TYPE_LABELS[type] }));
 
 /** 新建节点的默认名称 */
@@ -79,6 +96,8 @@ const DEFAULT_NODE_NAME: Record<NodeType, string> = {
   END_EVENT: '结束',
   USER_TASK: '审批任务',
   EXCLUSIVE_GATEWAY: '网关',
+  PARALLEL_GATEWAY: '并行网关',
+  COUNTER_SIGN: '会签',
 };
 
 /** 自动布局网格参数（缺坐标节点专用） */
@@ -88,7 +107,14 @@ const AUTO_LAYOUT = { originX: 80, originY: 60, columnWidth: 220, rowHeight: 120
 const KEY_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 
 /** 可识别节点类型集合 */
-const KNOWN_TYPES: NodeType[] = ['START_EVENT', 'END_EVENT', 'USER_TASK', 'EXCLUSIVE_GATEWAY'];
+const KNOWN_TYPES: NodeType[] = [
+  'START_EVENT',
+  'END_EVENT',
+  'USER_TASK',
+  'EXCLUSIVE_GATEWAY',
+  'PARALLEL_GATEWAY',
+  'COUNTER_SIGN',
+];
 
 /** key 是否合法（^[A-Za-z0-9_-]{1,64}$） */
 export function isValidKey(key: string): boolean {
@@ -118,6 +144,8 @@ export function createNode(
     type,
     name: DEFAULT_NODE_NAME[type],
     assignee: type === 'USER_TASK' ? assignee : '',
+    assignees: [],
+    counterSignPolicy: 'ALL',
     formId: null,
     formCode: null,
     x,
@@ -141,6 +169,8 @@ interface DraftNode {
   type: NodeType;
   name: string;
   assignee: string;
+  assignees: string[];
+  counterSignPolicy: string;
   formId: string | null;
   formCode: string | null;
   x: number | null;
@@ -150,6 +180,37 @@ interface DraftNode {
 /** 读取文本字段，非字符串统一返回空串（便于画布受控编辑） */
 function readText(value: unknown): string {
   return typeof value === 'string' ? value : '';
+}
+
+/** 读取字符串列表：数组取非空项，字符串按逗号拆分（与后端 readAssignees 口径一致） */
+function readStringList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .filter((item): item is string => typeof item === 'string')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  if (typeof value === 'string') {
+    return value
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+/** 读取会签策略：非法/缺失回落 ALL，RATIO:n 夹取 1~100（与后端校验口径一致） */
+function readCounterSignPolicy(value: unknown): string {
+  const text = readText(value).trim().toUpperCase();
+  if (!text) {
+    return 'ALL';
+  }
+  const matched = /^RATIO:(\d{1,3})$/.exec(text);
+  if (!matched) {
+    return text === 'ANY' ? 'ANY' : 'ALL';
+  }
+  const ratio = Math.min(100, Math.max(1, Number(matched[1]) || 50));
+  return `RATIO:${ratio}`;
 }
 
 /** 读取整型坐标，非法返回 null */
@@ -176,6 +237,8 @@ function readDraftNode(item: unknown): DraftNode {
     type: readNodeType(raw.type),
     name: readText(raw.name),
     assignee: readText(raw.assignee),
+    assignees: readStringList(raw.assignees),
+    counterSignPolicy: readCounterSignPolicy(raw.counterSignPolicy),
     formId: readText(raw.formId) || null,
     formCode: readText(raw.formCode) || null,
     x: readCoord(raw.x),
@@ -292,6 +355,10 @@ export function toNormalized(model: CanvasModel): NormalizedDefinition {
       }
       if (node.formCode) {
         item.formCode = node.formCode;
+      }
+      if (node.type === 'COUNTER_SIGN') {
+        item.assignees = node.assignees;
+        item.counterSignPolicy = node.counterSignPolicy || 'ALL';
       }
       return item;
     }),

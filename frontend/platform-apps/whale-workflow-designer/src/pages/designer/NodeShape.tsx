@@ -49,6 +49,50 @@ export default function NodeShape({ node, selected = false, error = false }: Nod
         />
       );
       break;
+    case 'PARALLEL_GATEWAY':
+      shape = (
+        <>
+          <polygon
+            points={`${cx},3 ${width - 3},${cy} ${cx},${height - 3} 3,${cy}`}
+            fill={fill}
+            stroke={stroke}
+            strokeWidth={strokeWidth}
+          />
+          <path
+            d={`M ${cx - 8} ${cy} L ${cx + 8} ${cy} M ${cx} ${cy - 8} L ${cx} ${cy + 8}`}
+            stroke={stroke}
+            strokeWidth={2}
+            fill="none"
+          />
+        </>
+      );
+      break;
+    case 'COUNTER_SIGN':
+      shape = (
+        <>
+          <rect
+            x={1.5}
+            y={1.5}
+            width={width - 3}
+            height={height - 3}
+            rx={8}
+            fill={fill}
+            stroke={stroke}
+            strokeWidth={strokeWidth}
+          />
+          <rect
+            x={5.5}
+            y={5.5}
+            width={width - 11}
+            height={height - 11}
+            rx={5}
+            fill="none"
+            stroke={stroke}
+            strokeWidth={1}
+          />
+        </>
+      );
+      break;
     default:
       shape = (
         <rect
@@ -65,26 +109,32 @@ export default function NodeShape({ node, selected = false, error = false }: Nod
       break;
   }
 
-  // USER_TASK 文本内嵌；圆形/菱形文本置于图形下方，避免与图形重叠
-  const inlineText = node.type === 'USER_TASK';
+  // USER_TASK / COUNTER_SIGN 文本内嵌；圆形/菱形文本置于图形下方，避免与图形重叠
+  const inlineText = node.type === 'USER_TASK' || node.type === 'COUNTER_SIGN';
+  const subText =
+    node.type === 'COUNTER_SIGN'
+      ? `${node.assignees.length} 人会签 · ${node.counterSignPolicy || 'ALL'}`
+      : node.assignee
+        ? `@${truncate(node.assignee, 16)}`
+        : '';
 
   return (
     <g>
       {shape}
       {inlineText ? (
         <>
-          <text x={cx} y={node.assignee ? cy - 6 : cy} textAnchor="middle" dominantBaseline="middle" fontSize={13} fill="#1f1f1f">
+          <text x={cx} y={subText ? cy - 6 : cy} textAnchor="middle" dominantBaseline="middle" fontSize={13} fill="#1f1f1f">
             {truncate(name, 18)}
           </text>
-          {node.assignee ? (
+          {subText ? (
             <text x={cx} y={height - 14} textAnchor="middle" dominantBaseline="middle" fontSize={11} fill="#8c8c8c">
-              {`@${truncate(node.assignee, 16)}`}
+              {subText}
             </text>
           ) : null}
         </>
       ) : (
         <text x={cx} y={height + 14} textAnchor="middle" fontSize={12} fill="#595959">
-          {truncate(name, node.type === 'EXCLUSIVE_GATEWAY' ? 8 : 10)}
+          {truncate(name, node.type === 'EXCLUSIVE_GATEWAY' || node.type === 'PARALLEL_GATEWAY' ? 8 : 10)}
         </text>
       )}
     </g>

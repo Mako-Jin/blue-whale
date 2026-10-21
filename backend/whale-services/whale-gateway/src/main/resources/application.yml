@@ -134,6 +134,12 @@ whale:
       patterns:
         - /file/internal/**
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,routeGovernance
+
 logging:
   level:
     org.springframework.cloud.gateway: debug

@@ -3,8 +3,9 @@ package com.bluewhale.workflow.support;
 /**
  * 流程模型节点类型（规范化 JSON 的 {@code nodes[].type} 取值）。
  *
- * <p>仅支持 4 种类型：开始事件、结束事件、用户任务（审批节点）、排他网关。
- * 其它类型（并行网关、服务任务、子流程等）一律不识别，见 {@code ValidationCode#UNKNOWN_NODE_TYPE}。</p>
+ * <p>支持 6 种类型：开始事件、结束事件、用户任务（审批节点）、排他网关、
+ * 并行网关（fork/join）、会签节点。其它类型（服务任务、子流程等）一律不识别，
+ * 见 {@code ValidationCode#UNKNOWN_NODE_TYPE}。</p>
  *
  * @author BlueWhale
  */
@@ -20,7 +21,22 @@ public enum ProcessNodeType {
     USER_TASK,
 
     /** 排他网关（多分支择一，需 isDefault 兜底） */
-    EXCLUSIVE_GATEWAY;
+    EXCLUSIVE_GATEWAY,
+
+    /** 并行网关（多出流为 fork，单出流为 join 透传） */
+    PARALLEL_GATEWAY,
+
+    /** 会签节点（多人审批，按策略判定节点完成） */
+    COUNTER_SIGN;
+
+    /**
+     * 是否为审批类节点（用户任务或会签），运行时需建待办。
+     *
+     * @return 审批类节点返回 {@code true}
+     */
+    public boolean isApproval() {
+        return this == USER_TASK || this == COUNTER_SIGN;
+    }
 
     /**
      * 按文本解析节点类型，不识别返回 {@code null}（大小写不敏感，允许下划线/连字符混排）。

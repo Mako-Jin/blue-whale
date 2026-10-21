@@ -1,8 +1,20 @@
 // 右侧属性面板：编辑选中节点或流转。
-// 节点：key / name / type / assignee（仅 USER_TASK）/ 绑定表单（仅 USER_TASK）/ 删除 / 连线起点；
-// 流转：condition 文本 + isDefault（仅源节点为 EXCLUSIVE_GATEWAY）/ 删除。
+// 节点：key / name / type / assignee（仅 USER_TASK）/ 绑定表单（仅 USER_TASK）/
+//       assignees + counterSignPolicy（仅 COUNTER_SIGN）/ 删除 / 连线起点；
+// 流转：condition（SpEL 文本）+ isDefault（仅源节点为 EXCLUSIVE_GATEWAY）/ 删除。
 
-import { Alert, Button, Empty, Input, Select, Space, Switch, Tag, Typography } from 'antd';
+import {
+  Alert,
+  Button,
+  Empty,
+  Input,
+  InputNumber,
+  Select,
+  Space,
+  Switch,
+  Tag,
+  Typography,
+} from 'antd';
 import { useEffect, useState, type ReactNode } from 'react';
 import FormPicker from './FormPicker';
 import {
@@ -28,6 +40,42 @@ function Item({ label, hint, children }: { label: string; hint?: string; childre
         </Typography.Text>
       ) : null}
     </div>
+  );
+}
+
+/** 会签策略下拉项（比例项在选中时展开百分比输入） */
+const COUNTER_SIGN_POLICY_OPTIONS = [
+  { value: 'ALL', label: '全部同意（ALL）' },
+  { value: 'ANY', label: '任一同意（ANY）' },
+  { value: 'RATIO', label: '按比例（RATIO:n）' },
+];
+
+type CounterSignPolicyKind = 'ALL' | 'ANY' | 'RATIO';
+
+/** 策略文本 → 下拉值（RATIO:n 归一为 RATIO，缺省/非法按 ALL） */
+function toPolicyKind(policy: string): CounterSignPolicyKind {
+  if (policy.startsWith('RATIO:')) {
+    return 'RATIO';
+  }
+  return policy === 'ANY' ? 'ANY' : 'ALL';
+}
+
+/** 从 RATIO:n 中取百分比（缺省/非法回落 50，夹取 1~100） */
+function toPolicyRatio(policy: string): number {
+  const matched = /^RATIO:(\d{1,3})$/.exec(policy.trim().toUpperCase());
+  const parsed = matched ? Number(matched[1]) : 50;
+  return Math.min(100, Math.max(1, Number.isFinite(parsed) ? parsed : 50));
+}
+
+/** 会签人文本 → 账号数组：换行或中英文逗号分隔，去空去重 */
+function parseAssignees(text: string): string[] {
+  return Array.from(
+    new Set(
+      text
+        .split(/[,，\n]/)
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
   );
 }
 
@@ -66,8 +114,16 @@ export default function PropertyPanel({
     setKeyDraft(node?.key ?? '');
   }, [node?.key]);
 
+  // 会签人走本地草稿，失焦时统一解析为 string[]，避免输入逗号/换行时被立即重排
+  const assigneesText = node?.assignees?.join('\n') ?? '';
+  const [assigneesDraft, setAssigneesDraft] = useState('');
+  useEffect(() => {
+    setAssigneesDraft(assigneesText);
+  }, [node?.key, assigneesText]);
+
   if (node) {
     const isUserTask = node.type === 'USER_TASK';
+    const isCounterSign = node.type === 'COUNTER_SIGN';
     const commitKey = () => {
       if (keyDraft !== node.key && !onRenameNode(node.key, keyDraft)) {
         setKeyDraft(node.key);
@@ -122,6 +178,53 @@ export default function PropertyPanel({
           </>
         ) : null}
 
+        {isCounterSign ? (
+          <>
+            <Item label="会签人 (assignees)" hint="账号列表，换行或中英文逗号分隔；COUNTER_SIGN 必填">
+              <Input.TextArea
+                rows={3}
+                value={assigneesDraft}
+                placeholder={'zhangsan\nlisi'}
+                onChange={(event) => setAssigneesDraft(event.target.value)}
+                onBlur={() => onChangeNode(node.key, { assignees: parseAssignees(assigneesDraft) })}
+              />
+            </Item>
+            <Item label="会签策略 (counterSignPolicy)" hint="ALL：全部同意；ANY：任一同意；RATIO:n：同意比例达到 n%">
+              <Select
+                style={{ width: '100%' }}
+                value={toPolicyKind(node.counterSignPolicy)}
+                options={COUNTER_SIGN_POLICY_OPTIONS}
+                onChange={(kind: CounterSignPolicyKind) => {
+                  if (kind === 'RATIO') {
+                    onChangeNode(node.key, {
+                      counterSignPolicy: `RATIO:${toPolicyRatio(node.counterSignPolicy)}`,
+                    });
+                  } else {
+                    onChangeNode(node.key, { counterSignPolicy: kind });
+                  }
+                }}
+              />
+              {toPolicyKind(node.counterSignPolicy) === 'RATIO' ? (
+                <InputNumber
+                  style={{ width: '100%', marginTop: 8 }}
+                  min={1}
+                  max={100}
+                  precision={0}
+                  addonAfter="%"
+                  value={toPolicyRatio(node.counterSignPolicy)}
+                  onChange={(value: number | null) => {
+                    if (typeof value !== 'number') {
+                      return;
+                    }
+                    const ratio = Math.min(100, Math.max(1, Math.round(value)));
+                    onChangeNode(node.key, { counterSignPolicy: `RATIO:${ratio}` });
+                  }}
+                />
+              ) : null}
+            </Item>
+          </>
+        ) : null}
+
         <Space style={{ marginTop: 8 }} wrap>
           {linkFrom === node.key ? (
             <Button onClick={onCancelLink}>取消连线</Button>
@@ -150,10 +253,14 @@ export default function PropertyPanel({
           </Typography.Text>
         </Space>
 
-        <Item label="条件表达式 (condition)" hint="仅文本留存，v1 不做表达式求值">
-          <Input
+        <Item
+          label="条件表达式 (condition)"
+          hint="仅支持比较 / 逻辑运算，变量用 #varName（如 #amount > 1000、#dept == 'IT'）；留空表示无条件默认流。"
+        >
+          <Input.TextArea
+            rows={3}
             value={flow.condition}
-            placeholder="如：amount > 1000"
+            placeholder="#amount > 1000"
             onChange={(event) => onChangeFlow(flow.key, { condition: event.target.value })}
           />
         </Item>

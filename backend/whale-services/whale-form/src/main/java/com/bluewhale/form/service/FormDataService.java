@@ -3,6 +3,7 @@ package com.bluewhale.form.service;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.form.dto.FormDataQueryRequest;
 import com.bluewhale.form.dto.FormDataSubmitRequest;
+import com.bluewhale.form.dto.FormDataUpdateRequest;
 import com.bluewhale.form.vo.FormDataExportVO;
 import com.bluewhale.form.vo.FormDataVO;
 
@@ -22,6 +23,16 @@ public interface FormDataService {
      * @return 表单数据视图对象（含结构化 {@code fields}）
      */
     FormDataVO submit(FormDataSubmitRequest request, String submitter, Long tenantId);
+
+    /**
+     * 修改表单数据（审批环节改表单）：合并提交字段后双写主表与物理表
+     *
+     * @param id 表单数据ID
+     * @param request 修改请求：{@code dataJson} 必填
+     * @param tenantId 租户ID（行级隔离）
+     * @return 表单数据视图对象（含结构化 {@code fields}）
+     */
+    FormDataVO update(Long id, FormDataUpdateRequest request, Long tenantId);
 
     /**
      * 表单数据详情：主记录 + 按其版本从物理表读取的结构化字段

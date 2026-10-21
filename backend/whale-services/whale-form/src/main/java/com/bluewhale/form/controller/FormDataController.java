@@ -6,6 +6,7 @@ import com.bluewhale.common.core.result.Result;
 import com.bluewhale.common.web.WebHeaders;
 import com.bluewhale.form.dto.FormDataQueryRequest;
 import com.bluewhale.form.dto.FormDataSubmitRequest;
+import com.bluewhale.form.dto.FormDataUpdateRequest;
 import com.bluewhale.form.service.FormDataService;
 import com.bluewhale.form.support.TenantResolver;
 import com.bluewhale.form.vo.FormDataExportVO;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -57,6 +59,22 @@ public class FormDataController {
                                      HttpServletRequest httpRequest) {
         return Result.ok(formDataService.submit(request, WebHeaders.username(httpRequest),
                 TenantResolver.resolve(httpRequest)));
+    }
+
+    /**
+     * 修改表单数据（审批环节改表单，主表与物理表同步）。
+     *
+     * @param id 表单数据ID
+     * @param request 修改请求：{@code dataJson} 必填（未提交字段保持原值）
+     * @param httpRequest 当前请求（读取 {@code X-Tenant-Id} 解析租户）
+     * @return 表单数据视图对象（含结构化字段）
+     */
+    @PutMapping("/{id}")
+    @RequirePermission("sys:form:data:edit")
+    public Result<FormDataVO> update(@PathVariable Long id,
+                                     @Valid @RequestBody FormDataUpdateRequest request,
+                                     HttpServletRequest httpRequest) {
+        return Result.ok(formDataService.update(id, request, TenantResolver.resolve(httpRequest)));
     }
 
     /**

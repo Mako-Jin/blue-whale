@@ -5,12 +5,16 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.workflow.dto.ApprovalRequest;
 import com.bluewhale.workflow.dto.ProcessTaskQueryRequest;
+import com.bluewhale.workflow.dto.TaskRollbackRequest;
+import com.bluewhale.workflow.dto.TaskTransferRequest;
 import com.bluewhale.workflow.service.ProcessTaskService;
 import com.bluewhale.workflow.vo.ProcessTaskVO;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -47,13 +51,13 @@ public class ProcessTaskController {
      * 同意任务（推进下一节点；末节点同意则实例通过）。
      *
      * @param id 任务ID
-     * @param request 审批意见请求，可为空
+     * @param request 审批意见与流程变量请求，可为空
      * @return 空结果
      */
     @PostMapping("/{id}/approve")
     @RequirePermission("sys:workflow:task:approve")
     public Result<Void> approve(@PathVariable Long id, @RequestBody(required = false) ApprovalRequest request) {
-        processTaskService.approve(id, request == null ? null : request.getComment());
+        processTaskService.approve(id, request);
         return Result.ok();
     }
 
@@ -68,6 +72,62 @@ public class ProcessTaskController {
     @RequirePermission("sys:workflow:task:approve")
     public Result<Void> reject(@PathVariable Long id, @RequestBody(required = false) ApprovalRequest request) {
         processTaskService.reject(id, request == null ? null : request.getComment());
+        return Result.ok();
+    }
+
+    /**
+     * 转办任务（责任人变更，原审批人记录到 {@code owner_id}）。
+     *
+     * @param id 任务ID
+     * @param request 目标人请求
+     * @return 空结果
+     */
+    @PutMapping("/{id}/transfer")
+    @RequirePermission("sys:workflow:task:transfer")
+    public Result<Void> transfer(@PathVariable Long id, @Valid @RequestBody TaskTransferRequest request) {
+        processTaskService.transfer(id, request.getTargetUser());
+        return Result.ok();
+    }
+
+    /**
+     * 委派任务（处理后需委派人 {@code resolve} 确认）。
+     *
+     * @param id 任务ID
+     * @param request 目标人请求
+     * @return 空结果
+     */
+    @PutMapping("/{id}/delegate")
+    @RequirePermission("sys:workflow:task:delegate")
+    public Result<Void> delegate(@PathVariable Long id, @Valid @RequestBody TaskTransferRequest request) {
+        processTaskService.delegate(id, request.getTargetUser());
+        return Result.ok();
+    }
+
+    /**
+     * 完成委派（被委派人处理后交回委派人确认）。
+     *
+     * @param id 任务ID
+     * @param request 意见请求，可为空
+     * @return 空结果
+     */
+    @PutMapping("/{id}/resolve")
+    @RequirePermission("sys:workflow:task:delegate")
+    public Result<Void> resolve(@PathVariable Long id, @RequestBody(required = false) ApprovalRequest request) {
+        processTaskService.resolve(id, request == null ? null : request.getComment());
+        return Result.ok();
+    }
+
+    /**
+     * 回退到指定审批节点（取消当前待办并重建目标节点待办）。
+     *
+     * @param id 任务ID
+     * @param request 回退目标节点请求
+     * @return 空结果
+     */
+    @PostMapping("/{id}/rollback")
+    @RequirePermission("sys:workflow:task:rollback")
+    public Result<Void> rollback(@PathVariable Long id, @Valid @RequestBody TaskRollbackRequest request) {
+        processTaskService.rollback(id, request.getTargetNodeKey());
         return Result.ok();
     }
 }

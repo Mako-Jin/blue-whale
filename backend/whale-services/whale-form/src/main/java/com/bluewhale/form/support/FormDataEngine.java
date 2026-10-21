@@ -41,6 +41,16 @@ public interface FormDataEngine {
     void insert(String table, FormData record, List<FormField> fields, Map<String, Object> data);
 
     /**
+     * 更新物理表中一条数据的动态列（按租户与逻辑删除过滤）
+     *
+     * @param table 物理表名
+     * @param record 主记录（提供 id / tenantId）
+     * @param fields 动态字段列表（列名白名单）
+     * @param data 字段值映射（key 为字段 key；缺失字段写入 {@code NULL}）
+     */
+    void update(String table, FormData record, List<FormField> fields, Map<String, Object> data);
+
+    /**
      * 读取物理表中指定记录的结构化字段值（按租户与逻辑删除过滤）
      *
      * @param table 物理表名

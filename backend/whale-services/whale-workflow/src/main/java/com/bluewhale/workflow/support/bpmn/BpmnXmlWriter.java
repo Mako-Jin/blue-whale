@@ -130,7 +130,8 @@ public final class BpmnXmlWriter {
             case START_EVENT -> "startEvent";
             case END_EVENT -> "endEvent";
             case EXCLUSIVE_GATEWAY -> "exclusiveGateway";
-            case USER_TASK -> "userTask";
+            case PARALLEL_GATEWAY -> "parallelGateway";
+            case USER_TASK, COUNTER_SIGN -> "userTask";
         };
     }
 

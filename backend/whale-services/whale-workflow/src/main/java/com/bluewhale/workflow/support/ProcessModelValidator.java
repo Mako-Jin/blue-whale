@@ -1,5 +1,6 @@
 package com.bluewhale.workflow.support;
 
+import com.bluewhale.workflow.support.machine.ConditionGuard;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Data;
@@ -37,6 +38,9 @@ public final class ProcessModelValidator {
 
     /** 审批节点表单编码合法字符集（字母/数字/下划线/连字符，1~64 字符） */
     private static final Pattern FORM_CODE_PATTERN = Pattern.compile("^[A-Za-z0-9_-]{1,64}$");
+
+    /** 会签策略合法格式：ALL / ANY / RATIO:1~100 */
+    private static final Pattern COUNTER_SIGN_POLICY_PATTERN = Pattern.compile("^(ALL|ANY|RATIO:([1-9][0-9]?|100))$");
 
     /** JSON 解析器（Jackson 2） */
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -142,9 +146,7 @@ public final class ProcessModelValidator {
         }
         for (ProcessModelFlow flow : model.getFlows()) {
             addEdge(graph, flow);
-            if (flow.getCondition() != null && !flow.getCondition().isBlank()) {
-                report.add(ValidationIssue.of(ValidationCode.CONDITION_IGNORED, flow.getKey()));
-            }
+            checkCondition(report, flow.getCondition(), flow.getKey());
         }
         checkGraph(report, graph);
         return report;
@@ -204,8 +206,43 @@ public final class ProcessModelValidator {
             if (nodeType == ProcessNodeType.USER_TASK && (assignee == null || assignee.isBlank())) {
                 report.add(ValidationIssue.of(ValidationCode.USER_TASK_ASSIGNEE_REQUIRED, key));
             }
+            checkCounterSign(report, item, nodeType, key);
             checkUserTaskForm(report, item, nodeType, key);
         }
+    }
+
+    /**
+     * 校验会签节点：assignees 非空且策略合法。
+     *
+     * @param report 校验报告
+     * @param item 节点 JSON
+     * @param nodeType 节点类型
+     * @param key 节点键（可为 {@code null}）
+     */
+    private static void checkCounterSign(ValidationReport report, JsonNode item, ProcessNodeType nodeType, String key) {
+        if (nodeType != ProcessNodeType.COUNTER_SIGN) {
+            return;
+        }
+        JsonNode assignees = item.get("assignees");
+        boolean hasAssignees = assignees != null && ((assignees.isArray() && !assignees.isEmpty())
+                || (!assignees.isArray() && !assignees.asText().isBlank()));
+        if (!hasAssignees) {
+            report.add(ValidationIssue.of(ValidationCode.COUNTER_SIGN_ASSIGNEES_REQUIRED, key));
+        }
+        if (!isValidCounterSignPolicy(text(item, "counterSignPolicy"))) {
+            report.add(ValidationIssue.of(ValidationCode.COUNTER_SIGN_POLICY_INVALID, key));
+        }
+    }
+
+    /**
+     * 判断会签策略是否合法（缺省视为 ALL）。
+     *
+     * @param policy 会签策略文本，可为 {@code null}
+     * @return 合法返回 {@code true}
+     */
+    public static boolean isValidCounterSignPolicy(String policy) {
+        return policy == null || policy.isBlank()
+                || COUNTER_SIGN_POLICY_PATTERN.matcher(policy.trim().toUpperCase()).matches();
     }
 
     /**
@@ -305,9 +342,26 @@ public final class ProcessModelValidator {
             report.add(ValidationIssue.of(ValidationCode.FLOW_SELF_LOOP, from));
         }
         addEdge(graph, from, to, isDefault(item));
-        String condition = text(item, "condition");
-        if (condition != null && !condition.isBlank()) {
-            report.add(ValidationIssue.of(ValidationCode.CONDITION_IGNORED, key));
+        checkCondition(report, text(item, "condition"), key);
+    }
+
+    /**
+     * 校验流转条件表达式：长度与 SpEL 语法（只解析不求值）。
+     *
+     * @param report 校验报告
+     * @param condition 条件表达式文本，可为 {@code null}
+     * @param flowKey 流转键（定位用）
+     */
+    private static void checkCondition(ValidationReport report, String condition, String flowKey) {
+        if (condition == null || condition.isBlank()) {
+            return;
+        }
+        if (condition.length() > ConditionGuard.MAX_EXPRESSION_LENGTH) {
+            report.add(ValidationIssue.of(ValidationCode.CONDITION_TOO_LONG, flowKey));
+            return;
+        }
+        if (!ConditionGuard.isValid(condition)) {
+            report.add(ValidationIssue.of(ValidationCode.CONDITION_SYNTAX_INVALID, flowKey));
         }
     }
 
@@ -350,6 +404,9 @@ public final class ProcessModelValidator {
                 } else if (outs.size() > 1 && !graph.getDefaultFrom().contains(key)) {
                     report.add(ValidationIssue.of(ValidationCode.GATEWAY_MULTI_BRANCH_NO_DEFAULT, key));
                 }
+            }
+            if (type == ProcessNodeType.PARALLEL_GATEWAY && outs.isEmpty()) {
+                report.add(ValidationIssue.of(ValidationCode.GATEWAY_NO_OUTGOING, key));
             }
             if (type != ProcessNodeType.END_EVENT && outs.isEmpty()) {
                 report.add(ValidationIssue.of(ValidationCode.DEAD_END, key));

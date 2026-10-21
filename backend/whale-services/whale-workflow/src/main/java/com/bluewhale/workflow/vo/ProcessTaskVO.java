@@ -39,6 +39,18 @@ public class ProcessTaskVO implements Serializable {
     /** 审批人账号 */
     private String assignee;
 
+    /** 任务类型：{@code COUNTER_SIGN} 会签 / 空 普通审批 */
+    private String signType;
+
+    /** 会签策略快照 */
+    private String signPolicy;
+
+    /** 任务归属人（转办后仍为原审批人） */
+    private String ownerId;
+
+    /** 委派来源人（非委派为空） */
+    private String delegateFrom;
+
     /** 状态：0 待办 / 1 已同意 / 2 已驳回 / 3 已取消 */
     private Integer status;
 

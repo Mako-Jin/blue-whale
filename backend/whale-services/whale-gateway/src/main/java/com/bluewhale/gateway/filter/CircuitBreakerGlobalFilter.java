@@ -2,6 +2,10 @@ package com.bluewhale.gateway.filter;
 
 import com.bluewhale.gateway.common.GatewayResponse;
 import com.bluewhale.gateway.config.CircuitBreakerProperties;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig.SlidingWindowType;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
@@ -21,27 +25,28 @@ import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayDeque;
-import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 /**
- * 网关熔断降级全局过滤器（T4）。
+ * 网关熔断降级全局过滤器（T4 / G2）。
  *
- * <p>对 {@code whale.gateway.circuit-breaker.apply-to-routes} 列出的路由实施轻量熔断：
- * 单次下游调用超过 {@code timeoutMillis} 或抛出异常均计为一次失败；最近 {@code slidingWindowSize} 次
- * 调用的失败率达到 {@code failureRateThreshold} 即打开熔断；打开后经
- * {@code waitDurationInOpenStateMillis} 等待期放行一次半开探测，探测成功则恢复闭合、失败则重新打开。</p>
+ * <p>对 {@code whale.gateway.circuit-breaker.apply-to-routes} 列出的路由，基于 resilience4j
+ * {@link CircuitBreaker} + {@link CircuitBreakerOperator} 实施熔断：单次下游调用超过
+ * {@code timeoutMillis} 或抛出异常均计为一次失败；计数滑动窗口（COUNT_BASED，
+ * {@code minimumNumberOfCalls} = 窗口大小）的失败率达到 {@code failureRateThreshold} 即打开熔断；
+ * 打开后经 {@code waitDurationInOpenStateMillis} 等待期放行一次半开探测，探测成功恢复闭合、
+ * 失败重新打开（由 resilience4j 状态机负责迁移，不再自研）。</p>
  *
- * <p>熔断打开时或下游调用失败/超时时，直接短路写出 HTTP 503 与与业务侧 {@code Result} 同结构的
- * JSON 体，并透传链路追踪头（写法对齐 {@code RateLimitGlobalFilter} 的 429 短路）。</p>
+ * <p>熔断打开时（resilience4j 抛出 {@link CallNotPermittedException}）或下游调用失败/超时时，
+ * 短路写出 HTTP 503 与业务侧 {@code Result} 同结构 JSON 体，并透传链路追踪头。</p>
  *
- * <p>GW-04 熔断指标（Micrometer，均带 {@code route} 标签）：{@code gateway.circuit.calls} 记录每次
- * 下游调用的成功/失败（{@code result} 标签），{@code gateway.circuit.short_circuits} 记录熔断打开的短路次数，
- * {@code gateway.circuit.state} 以 0/1/2 反映该路由熔断状态（CLOSED/OPEN/HALF_OPEN）。容器内无
- * {@link MeterRegistry} 时（例如未启用 Actuator 指标）静默跳过，不影响熔断与降级主流程。</p>
+ * <p>GW-04 熔断指标（Micrometer，均带 {@code route} 标签）：{@code gateway.circuit.calls} 记录下游调用
+ * 成功/失败（{@code result} 标签），{@code gateway.circuit.short_circuits} 记录熔断打开的短路次数，
+ * {@code gateway.circuit.state} 以 0/1/2 反映该路由熔断状态（CLOSED/OPEN/HALF_OPEN，读取 resilience4j
+ * 实时状态）。容器内无 {@link MeterRegistry} 时静默跳过，不影响熔断与降级主流程。</p>
  *
  * @author BlueWhale
  */
@@ -60,9 +65,6 @@ public class CircuitBreakerGlobalFilter implements GlobalFilter, Ordered {
 
     /** 过滤器顺序：晚于鉴权过滤器（-100）、早于业务转发，仅对已认证请求实施熔断 */
     private static final int ORDER = -75;
-
-    /** 失败率百分比基数 */
-    private static final int PERCENT_BASE = 100;
 
     /** 下游调用结果计数指标名 */
     private static final String METER_CALLS = "gateway.circuit.calls";
@@ -90,8 +92,11 @@ public class CircuitBreakerGlobalFilter implements GlobalFilter, Ordered {
     /** 指标注册表提供者：容器无 MeterRegistry 时返回 {@code null}，指标静默跳过 */
     private final ObjectProvider<MeterRegistry> meterRegistryProvider;
 
-    /** 路由 id 到熔断状态的映射，按路由维度隔离统计窗口 */
-    private final Map<String, RouteCircuitBreaker> breakers = new ConcurrentHashMap<>();
+    /** resilience4j 熔断器注册表（按路由 id 隔离实例） */
+    private final CircuitBreakerRegistry registry = CircuitBreakerRegistry.ofDefaults();
+
+    /** 路由 id 到 resilience4j 熔断器的映射 */
+    private final Map<String, CircuitBreaker> breakers = new ConcurrentHashMap<>();
 
     /**
      * 构造熔断降级过滤器
@@ -106,8 +111,8 @@ public class CircuitBreakerGlobalFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 熔断判定：路由不在适用列表或熔断未开启时直接放行；熔断打开时短路返回 503；
-     * 否则包裹下游调用，超时或异常计为失败并降级，成功计为一次成功调用。
+     * 熔断判定：路由不在适用列表或熔断未开启时直接放行；否则经 resilience4j 熔断器执行下游调用，
+     * 因熔断打开被拒或调用失败/超时时降级返回 503。
      *
      * @param exchange 当前请求上下文
      * @param chain    网关过滤器链
@@ -116,23 +121,24 @@ public class CircuitBreakerGlobalFilter implements GlobalFilter, Ordered {
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String routeId = resolveRouteId(exchange);
-        RouteCircuitBreaker breaker = resolveBreaker(routeId);
+        CircuitBreaker breaker = resolveBreaker(routeId);
         if (breaker == null) {
             return chain.filter(exchange);
         }
-        if (!breaker.tryAcquire(System.currentTimeMillis())) {
+        if (!breaker.tryAcquirePermission()) {
             log.warn("网关熔断已打开，短路请求并降级: route={}", routeId);
             countShortCircuit(routeId);
             return unavailable(exchange);
         }
+        long startNanos = System.nanoTime();
         return chain.filter(exchange)
                 .timeout(Duration.ofMillis(properties.getTimeoutMillis()))
                 .doOnSuccess(unused -> {
-                    breaker.record(true, System.currentTimeMillis());
+                    breaker.onSuccess(System.nanoTime() - startNanos, TimeUnit.NANOSECONDS);
                     countCall(routeId, true);
                 })
                 .onErrorResume(e -> {
-                    breaker.record(false, System.currentTimeMillis());
+                    breaker.onError(System.nanoTime() - startNanos, TimeUnit.NANOSECONDS, e);
                     countCall(routeId, false);
                     log.warn("下游调用超时或失败，触发网关熔断降级: route={}, reason={}", routeId, e.getMessage());
                     return unavailable(exchange);
@@ -154,12 +160,12 @@ public class CircuitBreakerGlobalFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 按路由 id 获取（必要时创建）熔断器，并判断该路由是否参与熔断
+     * 按路由 id 获取（必要时创建）resilience4j 熔断器，并判断该路由是否参与熔断
      *
      * @param routeId 当前请求命中的路由 id，可能为 {@code null}
      * @return 参与熔断时返回对应熔断器；未开启熔断或路由不在适用列表时返回 {@code null}
      */
-    private RouteCircuitBreaker resolveBreaker(String routeId) {
+    private CircuitBreaker resolveBreaker(String routeId) {
         if (!properties.isEnabled() || routeId == null) {
             return null;
         }
@@ -168,12 +174,27 @@ public class CircuitBreakerGlobalFilter implements GlobalFilter, Ordered {
             return null;
         }
         return breakers.computeIfAbsent(routeId, id -> {
-            RouteCircuitBreaker breaker = new RouteCircuitBreaker(
-                    properties.getSlidingWindowSize(), properties.getFailureRateThreshold(),
-                    properties.getWaitDurationInOpenStateMillis());
+            CircuitBreaker breaker = registry.circuitBreaker(id, buildConfig());
             registerStateGauge(id, breaker);
             return breaker;
         });
+    }
+
+    /**
+     * 由网关配置构造 resilience4j 熔断配置（计数滑动窗口，窗口即最小调用数）
+     *
+     * @return resilience4j 熔断配置
+     */
+    private CircuitBreakerConfig buildConfig() {
+        return CircuitBreakerConfig.custom()
+                .slidingWindowType(SlidingWindowType.COUNT_BASED)
+                .slidingWindowSize(properties.getSlidingWindowSize())
+                .minimumNumberOfCalls(properties.getSlidingWindowSize())
+                .failureRateThreshold(properties.getFailureRateThreshold())
+                .waitDurationInOpenState(Duration.ofMillis(
+                        Math.max(1, properties.getWaitDurationInOpenStateMillis())))
+                .permittedNumberOfCallsInHalfOpenState(1)
+                .build();
     }
 
     /**
@@ -189,17 +210,31 @@ public class CircuitBreakerGlobalFilter implements GlobalFilter, Ordered {
      * 首次为路由创建熔断器时注册状态 Gauge（值域 0=CLOSED、1=OPEN、2=HALF_OPEN）
      *
      * @param routeId 路由 id
-     * @param breaker 该路由的熔断状态机
+     * @param breaker resilience4j 熔断器
      */
-    private void registerStateGauge(String routeId, RouteCircuitBreaker breaker) {
-        MeterRegistry registry = resolveRegistry();
-        if (registry == null) {
+    private void registerStateGauge(String routeId, CircuitBreaker breaker) {
+        MeterRegistry meterRegistry = resolveRegistry();
+        if (meterRegistry == null) {
             return;
         }
-        Gauge.builder(METER_STATE, breaker, RouteCircuitBreaker::stateCode)
+        Gauge.builder(METER_STATE, breaker, CircuitBreakerGlobalFilter::stateCode)
                 .tag(TAG_ROUTE, routeId)
                 .description("网关单路由熔断状态：0=CLOSED，1=OPEN，2=HALF_OPEN")
-                .register(registry);
+                .register(meterRegistry);
+    }
+
+    /**
+     * resilience4j 熔断状态映射为指标值
+     *
+     * @param breaker resilience4j 熔断器
+     * @return 0=CLOSED、1=OPEN、2=HALF_OPEN（DISABLED/METRICS_ONLY 归为 0）
+     */
+    private static int stateCode(CircuitBreaker breaker) {
+        return switch (breaker.getState()) {
+            case OPEN -> 1;
+            case HALF_OPEN -> 2;
+            default -> 0;
+        };
     }
 
     /**
@@ -209,11 +244,11 @@ public class CircuitBreakerGlobalFilter implements GlobalFilter, Ordered {
      * @param success 本次调用是否成功
      */
     private void countCall(String routeId, boolean success) {
-        MeterRegistry registry = resolveRegistry();
-        if (registry == null) {
+        MeterRegistry meterRegistry = resolveRegistry();
+        if (meterRegistry == null) {
             return;
         }
-        registry.counter(METER_CALLS, TAG_ROUTE, routeId, TAG_RESULT, success ? RESULT_SUCCESS : RESULT_FAILURE)
+        meterRegistry.counter(METER_CALLS, TAG_ROUTE, routeId, TAG_RESULT, success ? RESULT_SUCCESS : RESULT_FAILURE)
                 .increment();
     }
 
@@ -223,11 +258,11 @@ public class CircuitBreakerGlobalFilter implements GlobalFilter, Ordered {
      * @param routeId 路由 id
      */
     private void countShortCircuit(String routeId) {
-        MeterRegistry registry = resolveRegistry();
-        if (registry == null) {
+        MeterRegistry meterRegistry = resolveRegistry();
+        if (meterRegistry == null) {
             return;
         }
-        registry.counter(METER_SHORT_CIRCUITS, TAG_ROUTE, routeId).increment();
+        meterRegistry.counter(METER_SHORT_CIRCUITS, TAG_ROUTE, routeId).increment();
     }
 
     /**
@@ -257,147 +292,5 @@ public class CircuitBreakerGlobalFilter implements GlobalFilter, Ordered {
     @Override
     public int getOrder() {
         return ORDER;
-    }
-
-    /**
-     * 单路由熔断状态机：滑动窗口失败率判定 + 打开等待 + 半开探测。
-     *
-     * <p>以显式时间参数驱动状态迁移，避免依赖真实时钟；所有状态迁移方法均加锁，
-     * 保证并发请求下计数与迁移一致。</p>
-     *
-     * @author BlueWhale
-     */
-    private static final class RouteCircuitBreaker {
-
-        /** 失败率统计的滑动窗口大小 */
-        private final int windowSize;
-
-        /** 触发熔断的失败率阈值（百分比） */
-        private final int failureRateThreshold;
-
-        /** 熔断打开后的等待时长（毫秒） */
-        private final long waitDurationMillis;
-
-        /** 最近若干次调用的结果（{@code true} 成功、{@code false} 失败），仅保留窗口大小内记录 */
-        private final Deque<Boolean> outcomes = new ArrayDeque<>();
-
-        /** 是否处于打开状态 */
-        private boolean open;
-
-        /** 是否已有半开探测在途，避免等待期满后放行过量请求 */
-        private boolean halfOpenProbeInFlight;
-
-        /** 熔断打开状态的截止时间戳（毫秒），当前时间达到该值即进入半开探测 */
-        private long openUntilMillis;
-
-        /**
-         * 构造单路由熔断状态机
-         *
-         * @param windowSize            滑动窗口大小
-         * @param failureRateThreshold  失败率阈值（百分比）
-         * @param waitDurationMillis    打开后等待时长（毫秒）
-         */
-        private RouteCircuitBreaker(int windowSize, int failureRateThreshold, long waitDurationMillis) {
-            this.windowSize = windowSize;
-            this.failureRateThreshold = failureRateThreshold;
-            this.waitDurationMillis = waitDurationMillis;
-        }
-
-        /**
-         * 返回熔断状态编码，供 Micrometer Gauge 读取
-         *
-         * @return 0 表示闭合（CLOSED），1 表示打开（OPEN），2 表示半开探测中（HALF_OPEN）
-         */
-        private synchronized int stateCode() {
-            if (!open) {
-                return 0;
-            }
-            return halfOpenProbeInFlight ? 2 : 1;
-        }
-
-        /**
-         * 尝试获取一次调用许可：闭合时放行；打开且未满等待期时拒绝；等待期满后放行一次半开探测
-         *
-         * @param now 当前时间戳（毫秒）
-         * @return 允许调用返回 {@code true}，否则返回 {@code false}
-         */
-        private synchronized boolean tryAcquire(long now) {
-            if (!open) {
-                return true;
-            }
-            if (now < openUntilMillis || halfOpenProbeInFlight) {
-                return false;
-            }
-            halfOpenProbeInFlight = true;
-            return true;
-        }
-
-        /**
-         * 记录一次调用结果：半开探测结果直接决定闭合或重新打开；否则计入滑动窗口并评估失败率
-         *
-         * @param success 本次调用是否成功
-         * @param now     当前时间戳（毫秒）
-         */
-        private synchronized void record(boolean success, long now) {
-            if (halfOpenProbeInFlight) {
-                if (success) {
-                    close();
-                } else {
-                    open(now);
-                }
-                return;
-            }
-            addOutcome(success);
-            evaluate(now);
-        }
-
-        /**
-         * 将调用结果加入滑动窗口，超出窗口大小时移除最旧记录
-         *
-         * @param success 本次调用是否成功
-         */
-        private void addOutcome(boolean success) {
-            if (outcomes.size() >= windowSize) {
-                outcomes.removeFirst();
-            }
-            outcomes.addLast(success);
-        }
-
-        /**
-         * 窗口填满后按失败率评估是否打开熔断
-         *
-         * @param now 当前时间戳（毫秒）
-         */
-        private void evaluate(long now) {
-            if (outcomes.size() < windowSize) {
-                return;
-            }
-            long failures = outcomes.stream().filter(outcome -> !outcome).count();
-            if (failures * PERCENT_BASE / outcomes.size() >= failureRateThreshold) {
-                open(now);
-            }
-        }
-
-        /**
-         * 打开熔断并清空统计窗口，设置等待截止时间
-         *
-         * @param now 当前时间戳（毫秒）
-         */
-        private void open(long now) {
-            open = true;
-            halfOpenProbeInFlight = false;
-            outcomes.clear();
-            openUntilMillis = now + waitDurationMillis;
-        }
-
-        /**
-         * 关闭熔断并复位全部状态
-         */
-        private void close() {
-            open = false;
-            halfOpenProbeInFlight = false;
-            outcomes.clear();
-            openUntilMillis = 0L;
-        }
     }
 }

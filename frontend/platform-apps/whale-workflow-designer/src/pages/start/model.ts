@@ -9,6 +9,8 @@ const NODE_TYPES: readonly NodeType[] = [
   'END_EVENT',
   'USER_TASK',
   'EXCLUSIVE_GATEWAY',
+  'PARALLEL_GATEWAY',
+  'COUNTER_SIGN',
 ];
 
 /** 解析后的节点（legacy/缺 type 归一化为 USER_TASK；缺 key 合成 n{i+1}） */
@@ -114,7 +116,7 @@ export function parseDefinitionModel(json: string | null | undefined): ParsedDef
  * 求「入口审批节点」：
  * - legacy：nodes[0]（顺序即流转）。
  * - 规范化：从入口节点（优先 START_EVENT，其次 nodes[0]）沿 flows 透传
- *   START_EVENT / EXCLUSIVE_GATEWAY，直到命中第一个 USER_TASK；
+ *   START_EVENT / EXCLUSIVE_GATEWAY / PARALLEL_GATEWAY，直到命中第一个审批节点（USER_TASK / COUNTER_SIGN）；
  *   网关多出流取 isDefault 的那条；无出流或命中 END_EVENT 视为无审批节点。
  *
  * @param model 解析后的定义模型
@@ -142,14 +144,14 @@ export function findEntryApprovalNode(model: ParsedDefinition): ParsedNode | nul
     }
     visited.add(current.key);
 
-    if (current.type === 'USER_TASK') {
+    if (current.type === 'USER_TASK' || current.type === 'COUNTER_SIGN') {
       return current;
     }
     if (current.type === 'END_EVENT') {
       return null;
     }
 
-    // START_EVENT / EXCLUSIVE_GATEWAY：透传到下一节点
+    // START_EVENT / 网关：透传到下一节点
     const outgoing = model.flows.filter((flow) => flow.from === current?.key);
     if (outgoing.length === 0) {
       return null;

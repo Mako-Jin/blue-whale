@@ -7,6 +7,7 @@ import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.form.dto.FormDataQueryRequest;
 import com.bluewhale.form.dto.FormDataSubmitRequest;
+import com.bluewhale.form.dto.FormDataUpdateRequest;
 import com.bluewhale.form.entity.FormData;
 import com.bluewhale.form.entity.FormDefinition;
 import com.bluewhale.form.entity.FormTableDefinition;
@@ -35,6 +36,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -119,6 +121,25 @@ public class FormDataServiceImpl implements FormDataService {
         formDataMapper.insert(entity);
         formDataEngine.insert(registry.getPhysicalTable(), entity, fields, data);
         return toVo(entity, data);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public FormDataVO update(Long id, FormDataUpdateRequest request, Long tenantId) {
+        FormData entity = requireData(id, tenantId);
+        requireDefinition(entity.getDefinitionId());
+        validateDataSize(request.getDataJson());
+        FormTableRegistry registry = requireRegistry(routeCodeOf(entity), routeVersionOf(entity));
+        String schema = entity.getTableCode() == null
+                ? registry.getSchemaJson() : requireDefinition(entity.getDefinitionId()).getSchemaJson();
+        List<FormField> fields = FormSchemaParser.parse(schema);
+        Map<String, Object> merged = new LinkedHashMap<>(parseDataQuietly(entity.getDataJson()));
+        merged.putAll(parseData(request.getDataJson()));
+        validateFields(fields, merged);
+        entity.setDataJson(writeData(merged));
+        formDataMapper.updateById(entity);
+        formDataEngine.update(registry.getPhysicalTable(), entity, fields, merged);
+        return toVo(entity, merged);
     }
 
     @Override
@@ -391,6 +412,21 @@ public class FormDataServiceImpl implements FormDataService {
             });
         } catch (Exception e) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "表单数据不是合法的 JSON 对象");
+        }
+    }
+
+    /**
+     * 将字段值映射序列化为 JSON 文本
+     *
+     * @param data 字段值映射
+     * @return JSON 文本
+     * @throws BizException 序列化失败时抛出 {@code PARAM_ERROR}
+     */
+    private static String writeData(Map<String, Object> data) {
+        try {
+            return MAPPER.writeValueAsString(data);
+        } catch (Exception e) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "表单数据序列化失败");
         }
     }
 

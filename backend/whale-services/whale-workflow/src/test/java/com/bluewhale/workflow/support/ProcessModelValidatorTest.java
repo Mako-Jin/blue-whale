@@ -93,13 +93,13 @@ class ProcessModelValidatorTest {
     }
 
     @Test
-    @DisplayName("合法规范化：valid=true 且条件产生 CONDITION_IGNORED 警告")
-    void shouldPassNormalizedWithWarning() {
+    @DisplayName("合法规范化：valid=true 且合法条件不再产生 CONDITION_IGNORED 警告")
+    void shouldPassNormalizedWithCondition() {
         ValidationReport report = ProcessModelValidator.validate(NORMALIZED_VALID);
 
         assertTrue(report.isValid());
         assertEquals(ValidationReport.MODE_NORMALIZED, report.getMode());
-        assertTrue(hasWarning(report, ValidationCode.CONDITION_IGNORED));
+        assertFalse(hasWarning(report, ValidationCode.CONDITION_IGNORED));
     }
 
     @Test

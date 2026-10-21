@@ -194,6 +194,11 @@ public class ProcessModelServiceImpl implements ProcessModelService {
             putIfPresent(item, "assignee", node.getAssignee());
             putIfPresent(item, "formId", node.getFormId());
             putIfPresent(item, "formCode", node.getFormCode());
+            if (node.getAssignees() != null && !node.getAssignees().isEmpty()) {
+                ArrayNode assignees = item.putArray("assignees");
+                node.getAssignees().forEach(assignees::add);
+            }
+            putIfPresent(item, "counterSignPolicy", node.getCounterSignPolicy());
             putIfPresentInt(item, "x", node.getX());
             putIfPresentInt(item, "y", node.getY());
         }

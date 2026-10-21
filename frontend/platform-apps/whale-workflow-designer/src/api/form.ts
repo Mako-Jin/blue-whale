@@ -1,7 +1,7 @@
 // whale-form 契约层（工作流侧只读消费，自 whale-form-designer 的 api/form.ts 照搬）：
 // 类型字段名与后端 DTO/VO 严格一致，禁止改名；路径前缀 /form/definition、/form/data。
 
-import { get, post, type PageResult } from './http';
+import { get, post, put, type PageResult } from './http';
 
 // 重要：后端 whale-common JacksonConfig 对 Long 统一走 ToStringSerializer，
 // 雪花 ID 在 JSON 中一律为字符串。前端**必须**按 string 处理，
@@ -99,6 +99,11 @@ export interface FormDataSubmitParams {
   bizKey?: string;
 }
 
+/** 修改表单数据入参（PUT /form/data/{id}）：dataJson 为 JSON 文本，未提交字段由服务端保留原值 */
+export interface FormDataUpdateParams {
+  dataJson: string;
+}
+
 /** 表单定义 API（服务内前缀 /form/definition） */
 export const formApi = {
   page: (query?: PageParams) => get<PageResult<FormDefinition>>('/form/definition/page', query),
@@ -109,4 +114,5 @@ export const formApi = {
 export const formDataApi = {
   create: (data: FormDataSubmitParams) => post<FormDataItem>('/form/data', data),
   detail: (id: Id) => get<FormDataItem>(`/form/data/${id}`),
+  update: (id: Id, data: FormDataUpdateParams) => put<FormDataItem>(`/form/data/${id}`, data),
 };

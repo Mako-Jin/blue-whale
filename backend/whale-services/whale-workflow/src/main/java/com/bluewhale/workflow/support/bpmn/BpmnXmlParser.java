@@ -40,7 +40,7 @@ public final class BpmnXmlParser {
 
     /** 不支持的元素名：导入即报错并点名 */
     private static final Set<String> UNSUPPORTED = Set.of(
-            "serviceTask", "scriptTask", "manualTask", "parallelGateway", "inclusiveGateway",
+            "serviceTask", "scriptTask", "manualTask", "inclusiveGateway",
             "eventBasedGateway", "subProcess", "callActivity", "boundaryEvent",
             "intermediateCatchEvent", "intermediateThrowEvent", "timerEventDefinition", "laneSet", "lane");
 
@@ -49,6 +49,7 @@ public final class BpmnXmlParser {
         NODE_TYPES.put("endEvent", ProcessNodeType.END_EVENT);
         NODE_TYPES.put("userTask", ProcessNodeType.USER_TASK);
         NODE_TYPES.put("exclusiveGateway", ProcessNodeType.EXCLUSIVE_GATEWAY);
+        NODE_TYPES.put("parallelGateway", ProcessNodeType.PARALLEL_GATEWAY);
     }
 
     /** 工具类不允许实例化 */

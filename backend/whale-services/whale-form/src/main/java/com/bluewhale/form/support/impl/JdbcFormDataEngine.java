@@ -85,6 +85,25 @@ public class JdbcFormDataEngine implements FormDataEngine {
     }
 
     @Override
+    public void update(String table, FormData record, List<FormField> fields, Map<String, Object> data) {
+        String target = assertTable(table);
+        if (fields.isEmpty()) {
+            return;
+        }
+        List<String> columns = new ArrayList<>();
+        List<Object> values = new ArrayList<>();
+        for (FormField field : fields) {
+            columns.add(field.getKey());
+            values.add(data.get(field.getKey()));
+        }
+        values.add(record.getId());
+        values.add(record.getTenantId());
+        String sql = "UPDATE `" + target + "` SET " + assignments(columns)
+                + " WHERE `id` = ? AND `tenant_id` = ? AND `deleted` = 0";
+        jdbcTemplate.update(sql, values.toArray());
+    }
+
+    @Override
     public Map<String, Object> selectFields(String table, Long id, Long tenantId, List<FormField> fields) {
         String target = assertTable(table);
         if (fields.isEmpty()) {
@@ -130,6 +149,16 @@ public class JdbcFormDataEngine implements FormDataEngine {
      */
     private static String quoteColumns(List<String> columns) {
         return columns.stream().map(column -> "`" + column + "`").collect(Collectors.joining(", "));
+    }
+
+    /**
+     * 生成 {@code `col` = ?, ...} 形式的赋值串
+     *
+     * @param columns 列名列表
+     * @return 赋值串
+     */
+    private static String assignments(List<String> columns) {
+        return columns.stream().map(column -> "`" + column + "` = ?").collect(Collectors.joining(", "));
     }
 
     /**

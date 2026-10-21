@@ -240,3 +240,5 @@ Wave E｜被依赖服务 / 中间件未就绪阻塞
 | AUTH-10 | MQ 汇聚根治审计跨库可见性，**环境受限**（本机无 RabbitMQ） |
 | 第 18 项 | 阶段一审计跨库可见性，为架构固有约束，待 AUTH-10 根治 |
 | 第 11 项 | 前端 admin 对接 —— **本轮已由 Wave 5.34 补齐四页，视为闭环** |
+
+**Wave 5.35 复核（2026-10-21）**：用户问「auth 要 MQ 干什么？是审计日志吗？」——**是**。AUTH-10 的唯一用途是把各服务 `@AuditLog` 事件经 RabbitMQ 汇聚到 `whale-audit` 统一落库，根治「auth 写 `bluewhale_auth.audit_log`、audit 读 `bluewhale_audit` 查不到」的跨库可见性约束（第 18 项）；**与权限校验、令牌签发链路无关**，auth 不依赖 MQ。本机仍无 RabbitMQ 实例、依赖树也无 AMQP 客户端，维持 backlog，不改变本轮收尾结论。另：本轮新增权限点种子 id 74–77（`sys:workflow:task:transfer`/`delegate`、`sys:form:data:edit` 等），已落库 `bluewhale_auth`。

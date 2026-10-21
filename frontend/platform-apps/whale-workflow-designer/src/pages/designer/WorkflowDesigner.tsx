@@ -31,13 +31,21 @@ function toMessage(error: unknown): string {
   return error instanceof Error ? error.message : '操作失败';
 }
 
-/** 应用节点局部更新（切到非 USER_TASK 时清理审批人 / 表单绑定） */
+/** 应用节点局部更新（切换类型时清理该类型无意义的字段） */
 function applyNodePatch(node: CanvasNode, patch: Partial<CanvasNode>): CanvasNode {
   const next: CanvasNode = { ...node, ...patch };
-  if (patch.type && patch.type !== 'USER_TASK') {
-    next.assignee = '';
-    next.formId = null;
-    next.formCode = null;
+  if (patch.type) {
+    if (patch.type !== 'USER_TASK') {
+      next.assignee = '';
+      next.formId = null;
+      next.formCode = null;
+    }
+    if (patch.type !== 'COUNTER_SIGN') {
+      next.assignees = [];
+      next.counterSignPolicy = 'ALL';
+    } else if (!next.counterSignPolicy) {
+      next.counterSignPolicy = 'ALL';
+    }
   }
   return next;
 }

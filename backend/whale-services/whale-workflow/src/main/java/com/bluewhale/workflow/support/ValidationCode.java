@@ -92,7 +92,25 @@ public enum ValidationCode {
     /** BPMN 含不支持的元素 */
     BPMN_UNSUPPORTED_ELEMENT(ValidationLevel.ERROR, "BPMN 包含不支持的元素"),
 
-    /** 流转条件本轮不参与选路（警告） */
+    /** 流转条件表达式语法非法（SpEL 解析失败） */
+    CONDITION_SYNTAX_INVALID(ValidationLevel.ERROR, "流转条件表达式语法非法"),
+
+    /** 流转条件表达式超长 */
+    CONDITION_TOO_LONG(ValidationLevel.ERROR, "流转条件表达式长度超出上限"),
+
+    /** 流程变量求值失败（运行期） */
+    CONDITION_EVALUATION_FAILED(ValidationLevel.ERROR, "流转条件求值失败"),
+
+    /** 多分支条件均未命中且无默认流转（运行期） */
+    NO_MATCHING_FLOW(ValidationLevel.ERROR, "无匹配的流转分支"),
+
+    /** 会签节点缺少 assignees */
+    COUNTER_SIGN_ASSIGNEES_REQUIRED(ValidationLevel.ERROR, "会签节点缺少 assignees"),
+
+    /** 会签策略非法（须为 ALL / ANY / RATIO:n） */
+    COUNTER_SIGN_POLICY_INVALID(ValidationLevel.ERROR, "会签策略不合法"),
+
+    /** 流转条件本轮不参与选路（警告，仅 legacy 兼容保留） */
     CONDITION_IGNORED(ValidationLevel.WARNING, "流转条件本轮不参与选路，已忽略");
 
     /** 级别 */

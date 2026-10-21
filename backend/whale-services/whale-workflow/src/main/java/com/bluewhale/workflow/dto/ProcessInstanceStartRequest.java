@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.util.Map;
 
 /**
  * 发起流程实例请求。
@@ -29,4 +30,7 @@ public class ProcessInstanceStartRequest implements Serializable {
     /** 业务键（可选，最长 64） */
     @Size(max = 64, message = "业务键长度不能超过 64")
     private String businessKey;
+
+    /** 流程变量（可选，用于条件选路；随实例落库，最长 64KB） */
+    private Map<String, Object> variables;
 }

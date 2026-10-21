@@ -17,6 +17,8 @@ import com.bluewhale.workflow.service.ProcessInstanceService;
 import com.bluewhale.workflow.support.ProcessModel;
 import com.bluewhale.workflow.support.ProcessModelNode;
 import com.bluewhale.workflow.support.ProcessModelParser;
+import com.bluewhale.workflow.support.ProcessNodeType;
+import com.bluewhale.workflow.support.ProcessVariables;
 import com.bluewhale.workflow.support.machine.StateMachine;
 import com.bluewhale.workflow.support.machine.TransitionResult;
 import com.bluewhale.workflow.vo.ProcessInstanceVO;
@@ -70,7 +72,8 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
         ProcessModel model = ProcessModelParser.parse(definition.getDefinitionJson());
-        TransitionResult result = new StateMachine(model).start();
+        String variablesJson = ProcessVariables.write(request.getVariables());
+        TransitionResult result = new StateMachine(model, request.getVariables()).start();
         ProcessInstance instance = new ProcessInstance();
         instance.setDefinitionId(definition.getId());
         instance.setDefinitionCode(definition.getCode());
@@ -81,9 +84,11 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
         instance.setCurrentIndex(result.isUserTask() ? model.indexOf(result.getState()) : 0);
         instance.setCurrentNodeKey(result.isUserTask() ? result.getState() : null);
         instance.setInitiator(initiator);
+        instance.setVariablesJson(variablesJson);
+        instance.setActiveNodeKeys(result.getNodes().size() > 1 ? joinKeys(result.getNodes()) : null);
         processInstanceMapper.insert(instance);
         if (result.isUserTask()) {
-            createTask(instance.getId(), instance.getCurrentIndex(), result.getNode());
+            createTasks(instance.getId(), model, result.getNodes());
         }
         return toVo(instance);
     }
@@ -127,13 +132,35 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
     }
 
     /**
-     * 创建待办任务
+     * 为本次推进抵达的全部审批节点创建待办任务（会签节点按 assignees 展开）。
+     *
+     * @param instanceId 流程实例ID
+     * @param model 流程模型
+     * @param nodes 审批节点列表
+     */
+    private void createTasks(Long instanceId, ProcessModel model, List<ProcessModelNode> nodes) {
+        for (ProcessModelNode node : nodes) {
+            int nodeIndex = model.indexOf(node.getKey());
+            if (node.getType() == ProcessNodeType.COUNTER_SIGN && node.getAssignees() != null) {
+                for (String assignee : node.getAssignees()) {
+                    createTask(instanceId, nodeIndex, node, assignee, node.getCounterSignPolicy());
+                }
+                continue;
+            }
+            createTask(instanceId, nodeIndex, node, node.getAssignee(), null);
+        }
+    }
+
+    /**
+     * 创建单条待办任务
      *
      * @param instanceId 流程实例ID
      * @param nodeIndex 节点下标
      * @param node 审批节点
+     * @param assignee 审批人
+     * @param signPolicy 会签策略（非会签传 {@code null}）
      */
-    private void createTask(Long instanceId, int nodeIndex, ProcessModelNode node) {
+    private void createTask(Long instanceId, int nodeIndex, ProcessModelNode node, String assignee, String signPolicy) {
         ProcessTask task = new ProcessTask();
         task.setInstanceId(instanceId);
         task.setNodeIndex(nodeIndex);
@@ -141,9 +168,23 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
         task.setNodeKey(node.getKey());
         task.setFormId(node.getFormId());
         task.setFormCode(node.getFormCode());
-        task.setAssignee(node.getAssignee());
+        task.setAssignee(assignee);
         task.setStatus(TASK_PENDING);
+        if (node.getType() == ProcessNodeType.COUNTER_SIGN) {
+            task.setSignType(ProcessNodeType.COUNTER_SIGN.name());
+            task.setSignPolicy(signPolicy == null || signPolicy.isBlank() ? "ALL" : signPolicy);
+        }
         processTaskMapper.insert(task);
+    }
+
+    /**
+     * 拼接并行活动节点键（逗号分隔）。
+     *
+     * @param nodes 审批节点列表
+     * @return 逗号分隔的节点键
+     */
+    private static String joinKeys(List<ProcessModelNode> nodes) {
+        return nodes.stream().map(ProcessModelNode::getKey).collect(java.util.stream.Collectors.joining(","));
     }
 
     /**
