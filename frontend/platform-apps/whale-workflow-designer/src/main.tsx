@@ -1,19 +1,19 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
-import { App as AntdApp, ConfigProvider } from 'antd';
-import { antdThemeConfig } from '@bluewhale/whale-common-theme';
+import { App as AntdApp } from 'antd';
+import { ThemeProvider } from '@bluewhale/whale-common-theme';
 import App from './App';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ConfigProvider theme={antdThemeConfig}>
+    <ThemeProvider>
       <AntdApp>
         <BrowserRouter>
           <App />
         </BrowserRouter>
       </AntdApp>
-    </ConfigProvider>
+    </ThemeProvider>
   </React.StrictMode>,
 );

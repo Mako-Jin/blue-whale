@@ -53,7 +53,7 @@ body,
   justify-content: center;
   color: #fff;
   font-weight: 700;
-  background: linear-gradient(135deg, #1890ff, #096dd9);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
 }
 
 /* ---------- 运维平台主框架 ---------- */

@@ -5,6 +5,7 @@ import { App, Button, Layout, Menu, Space, Tag } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { logout } from '../api/auth';
 import { useCurrentUser } from '../api/token';
+import { ThemeSwitcher } from '@bluewhale/whale-common-theme';
 import { collectMenuKeys, getSidebarItems, type SidebarItem } from '../router/dynamicRoutes';
 
 const { Header, Sider, Content } = Layout;
@@ -64,6 +65,7 @@ export default function AdminLayout() {
         <Header className="admin-header">
           <span className="admin-header-title">后台管理平台</span>
           <Space>
+            <ThemeSwitcher compact />
             <span>{user?.nickname ?? user?.username ?? '-'}</span>
             {(user?.roles ?? []).map((role) => (
               <Tag key={role} color="blue">

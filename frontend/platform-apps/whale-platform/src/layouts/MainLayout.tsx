@@ -10,11 +10,9 @@ import {
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  MoonOutlined,
   ProfileOutlined,
   SafetyOutlined,
   SettingOutlined,
-  SunOutlined,
   TeamOutlined,
   UserOutlined,
 } from '@ant-design/icons';
@@ -23,7 +21,7 @@ import type { MenuProps } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { getCurrentUser, logout } from '../api/auth';
 import { getBreadcrumbItems, getRouteTitle, menuConfig } from '../router/menu';
-import { useTheme } from '../theme/context';
+import { ThemeSwitcher } from '@bluewhale/whale-common-theme';
 
 const { Header, Sider, Content } = Layout;
 
@@ -51,7 +49,6 @@ export default function MainLayout() {
   const { message } = App.useApp();
   const navigate = useNavigate();
   const location = useLocation();
-  const { isDark, toggleTheme } = useTheme();
   const [collapsed, setCollapsed] = useState(false);
   const [tabs, setTabs] = useState<TabItem[]>([HOME_TAB]);
   const user = getCurrentUser();
@@ -134,12 +131,7 @@ export default function MainLayout() {
             items={getBreadcrumbItems(activeKey).map((title) => ({ title }))}
           />
           <Space className="platform-header-actions">
-            <Button
-              type="text"
-              aria-label="切换主题"
-              icon={isDark ? <SunOutlined /> : <MoonOutlined />}
-              onClick={toggleTheme}
-            />
+            <ThemeSwitcher compact />
             <Dropdown
               menu={{
                 items: userMenuItems,

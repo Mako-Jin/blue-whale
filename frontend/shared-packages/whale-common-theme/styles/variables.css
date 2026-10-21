@@ -1,22 +1,41 @@
-/* BlueWhale 主题 CSS 变量 */
+/* BlueWhale 统一主题 CSS 变量（默认主题 LOTUS_POND_GREEN，运行时由 themeCore 覆盖） */
 
 :root {
+  /* 主题配色（外部模块同名变量） */
+  --color-primary: #3c3f27;
+  --color-secondary: #937539;
+  --color-accent: #9da780;
+  --color-neutral-dark: #3c3f27;
+  --color-neutral-light: #c5ab71;
+  --color-background: #f8f6ef;
+  --color-card-bg: #ffffff;
+  --color-text: #3c3f27;
+  --color-border: #9da780;
+  --color-focus: var(--color-accent);
+
   /* Brand Colors */
-  --bw-color-primary: #1890ff;
+  --bw-color-primary: #3c3f27;
   --bw-color-success: #52c41a;
   --bw-color-warning: #faad14;
   --bw-color-error: #ff4d4f;
-  --bw-color-info: #1890ff;
+  --bw-color-info: #9da780;
 
   /* Neutrals */
-  --bw-color-text: rgba(0, 0, 0, 0.88);
-  --bw-color-text-secondary: rgba(0, 0, 0, 0.65);
+  --bw-color-text: #3c3f27;
+  --bw-color-text-secondary: #c5ab71;
   --bw-color-text-tertiary: rgba(0, 0, 0, 0.45);
-  --bw-color-border: #d9d9d9;
+  --bw-color-border: #9da780;
   --bw-color-border-secondary: #f0f0f0;
-  --bw-color-bg-layout: #f5f5f5;
+  --bw-color-bg-layout: #f8f6ef;
   --bw-color-bg-container: #ffffff;
   --bw-color-bg-elevated: #ffffff;
+
+  /* 布局别名（兼容既有应用样式） */
+  --bw-text: #3c3f27;
+  --bw-text-secondary: rgba(0, 0, 0, 0.45);
+  --bw-border: #9da780;
+  --bw-header-bg: #ffffff;
+  --bw-content-bg: #f8f6ef;
 
   /* Spacing */
   --bw-spacing-xs: 4px;
@@ -47,4 +66,30 @@
   /* Layout */
   --bw-header-height: 56px;
   --bw-sider-width: 220px;
+}
+
+/* 仅对颜色相关属性过渡，避免性能问题 */
+button,
+a,
+input,
+textarea,
+select,
+dialog,
+[class*='theme-transition'] {
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-text);
+}
+
+/* 焦点可见性支持 */
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
 }

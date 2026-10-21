@@ -12,25 +12,12 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  /* 亮色主题变量 */
-  --bw-text: rgba(0, 0, 0, 0.88);
+  /* 默认主题变量（青荷森绿 亮色，暗色由 themeCore 行内变量注入） */
+  --bw-text: #3c3f27;
   --bw-text-secondary: rgba(0, 0, 0, 0.45);
-  --bw-border: #f0f0f0;
+  --bw-border: #9da780;
   --bw-header-bg: #ffffff;
-  --bw-content-bg: #f5f5f5;
-}
-
-/* 暗色主题变量（由 ThemeProvider 同步 <html data-theme='dark'>） */
-[data-theme='dark'] {
-  color: var(--bw-text);
-  background-color: var(--bw-content-bg);
-  color-scheme: dark;
-
-  --bw-text: rgba(255, 255, 255, 0.85);
-  --bw-text-secondary: rgba(255, 255, 255, 0.45);
-  --bw-border: #303030;
-  --bw-header-bg: #141414;
-  --bw-content-bg: #0f0f0f;
+  --bw-content-bg: #f8f6ef;
 }
 
 * {
@@ -75,7 +62,7 @@ body,
   color: #fff;
   font-weight: 700;
   font-size: 15px;
-  background: linear-gradient(135deg, #1890ff, #096dd9);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
 }
 
 .platform-logo-title {
@@ -120,11 +107,11 @@ body,
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #e6f7ff 0%, #f5f5f5 100%);
-}
-
-[data-theme='dark'] .login-page {
-  background: linear-gradient(135deg, #112a45 0%, #0f0f0f 100%);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-primary) 12%, var(--color-background)) 0%,
+    var(--color-background) 100%
+  );
 }
 
 .login-card {

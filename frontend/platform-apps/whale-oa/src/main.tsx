@@ -1,7 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { ConfigProvider } from 'antd';
-import { antdThemeConfig } from '@bluewhale/whale-common-theme';
+import { ThemeProvider } from '@bluewhale/whale-common-theme';
 import App from './App';
 import './index.css';
 
@@ -14,9 +13,9 @@ function render(props?: { container?: HTMLElement }) {
   root = ReactDOM.createRoot(mountNode);
   root.render(
     <React.StrictMode>
-      <ConfigProvider theme={antdThemeConfig}>
+      <ThemeProvider>
         <App />
-      </ConfigProvider>
+      </ThemeProvider>
     </React.StrictMode>,
   );
 }

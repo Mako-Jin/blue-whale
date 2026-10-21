@@ -1,19 +1,23 @@
-// 主题 Token 定义 - 与 CSS 变量保持一致
+// 主题 Token 定义 - 与 CSS 变量保持一致，默认取主题包默认配色（LOTUS_POND_GREEN 亮色）
+
+import { DEFAULT_THEME_ID, getThemeById } from './palettes';
+
+const defaultPalette = getThemeById(DEFAULT_THEME_ID).light;
 
 export const tokens = {
   // Brand colors
-  colorPrimary: '#1890ff',
+  colorPrimary: defaultPalette.primary,
   colorSuccess: '#52c41a',
   colorWarning: '#faad14',
   colorError: '#ff4d4f',
-  colorInfo: '#1890ff',
+  colorInfo: defaultPalette.accent,
 
   // Neutral
-  colorText: 'rgba(0, 0, 0, 0.88)',
-  colorTextSecondary: 'rgba(0, 0, 0, 0.65)',
-  colorBorder: '#d9d9d9',
-  colorBgLayout: '#f5f5f5',
-  colorBgContainer: '#ffffff',
+  colorText: defaultPalette.text,
+  colorTextSecondary: defaultPalette.neutralLight,
+  colorBorder: defaultPalette.border,
+  colorBgLayout: defaultPalette.background,
+  colorBgContainer: defaultPalette.cardBackground,
 
   // Spacing
   spacingXs: '4px',
