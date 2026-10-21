@@ -4,6 +4,33 @@ import type { ThemeConfig, ThemeId } from './types';
 
 /** 所有主题配置，ID 采用 色系_主色 命名 */
 export const THEME_PALETTES: Record<ThemeId, ThemeConfig> = {
+  // 蓝色系（项目迁移前的原版经典蓝，取自旧 tokens/variables.css）
+  CLASSIC_BLUE: {
+    id: 'CLASSIC_BLUE',
+    light: {
+      primary: '#1890FF',
+      secondary: '#096DD9',
+      accent: '#40A9FF',
+      neutralDark: '#001529',
+      neutralLight: '#E6F7FF',
+      background: '#F5F5F5',
+      cardBackground: '#FFFFFF',
+      text: 'rgba(0, 0, 0, 0.88)',
+      border: '#D9D9D9',
+    },
+    dark: {
+      primary: '#177DDC',
+      secondary: '#096DD9',
+      accent: '#40A9FF',
+      neutralDark: '#F0F0F0',
+      neutralLight: '#001529',
+      background: '#141414',
+      cardBackground: '#1F1F1F',
+      text: 'rgba(255, 255, 255, 0.85)',
+      border: '#303030',
+    },
+  },
+
   // 绿色系
   LOTUS_POND_GREEN: {
     id: 'LOTUS_POND_GREEN',
@@ -169,6 +196,7 @@ export const THEME_PALETTES: Record<ThemeId, ThemeConfig> = {
 
 /** 主题中文名称 */
 const THEME_NAMES: Record<ThemeId, string> = {
+  CLASSIC_BLUE: '经典蓝',
   LOTUS_POND_GREEN: '青荷森绿',
   WISTERIA_BLUE: '紫藤雾蓝',
   NAVY_ROSE: '藏青蔷薇',

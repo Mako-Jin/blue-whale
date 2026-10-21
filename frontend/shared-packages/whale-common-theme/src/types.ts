@@ -2,6 +2,7 @@
 
 /** 主题 ID（业务层定义角色，主题包只提供配色） */
 export type ThemeId =
+  | 'CLASSIC_BLUE'
   | 'LOTUS_POND_GREEN'
   | 'WISTERIA_BLUE'
   | 'NAVY_ROSE'
