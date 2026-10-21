@@ -89,7 +89,7 @@
   - 已由 Wave 5.0 T5.2 落地
 - [x] ~~T4.4 auth DDD 迁移第 1 步（四层目录骨架 + 认证上下文试点，API 不中断）~~
   - 已由 Wave 5.2 T5.13 / AUTH-14 落地（四层骨架 + 4 值对象 + 契约冻结清单）；后续迁移见 T5.14/T5.15
-- [ ] T4.5 全量回归（`mvn clean install -T 1C` + `pnpm build`）+ 提交推送
+- [x] ~~T4.5 全量回归（`mvn clean install -T 1C` + `pnpm build`）+ 提交推送~~（已由 Wave 5.20/5.30/5.31/5.32/5.35 多轮全量回归覆盖：最近一次 **28/28 模块 BUILD SUCCESS + 前端 `pnpm build` 全绿**；持续在每波收尾执行）
 
 ## Wave 5.1b：审计日志落地（2026-10-17）
 
@@ -102,7 +102,7 @@
 - [x] ~~⑤auth 埋点（登录/登出/创建用户/分配角色/分配权限）+ auth 侧 `db/init.sql` 追加 `audit_log` 建表~~
 - [x] ~~⑥单测与验证：新增 40 用例全绿（starter 15 / audit 6 / auth 19 不回归）；全量编译 SUCCESS；Checkstyle 0 违规~~
 - [x] ~~⑦检查报告归档：`docs/reviews/2026-10-17-wave5.1b-audit-log.md`~~
-- [ ] 待做：运行时端到端验证（无 Docker）、`POST /audit/log/export`、`@RequirePermission("sys:audit:log:list")`、MQ 汇聚（阶段二）、归档任务、网关 `/audit/**` + StripPrefix 路由前缀冲突确认
+- [x] ~~待做：运行时端到端验证（无 Docker）、`POST /audit/log/export`、`@RequirePermission("sys:audit:log:list")`、MQ 汇聚（阶段二）、归档任务、网关 `/audit/**` + StripPrefix 路由前缀冲突确认~~（Wave 5.21/5.33 收口：导出/归档/权限点/路由全部落地；仅 MQ 汇聚环境受限）
   - **Wave 5.33 ⑤ 收尾结论**（2026-10-20）：`POST /audit/log/export`（`EXPORT` 元审计）+ `AuditLogArchiver` 归档任务**已落地**（Wave 5.21，T5.25）；`sys:audit:log:list`（id 25）已在权限种子中；网关 `/audit/**` 路由已配且**网关不剥离前缀**，无 StripPrefix 冲突；四通道查询 + 元审计 + 出站/接口日志 + 导出/归档 + 保留期均已落地。
   - **环境受限（本机无 RabbitMQ）backlog**：审计 **MQ 汇聚**与**异步派发丢采集**不纳入本轮，待具备消息中间件的环境补齐。
 
@@ -120,7 +120,7 @@
 - [x] ~~T5.23-e：菜单管理页（树表 CRUD）~~
 - [x] ~~T5.23-f：构建验证 + 浏览器端到端（三页 CRUD + 按钮权限隐藏 + 守卫）~~
 - [x] ~~缺陷：admin vite 代理正则未覆盖集合型接口，致 `POST /user|/role|/menu` 落 vite 返回 404~~
-- [ ] 待做：admin 动态路由（`menus[]` 生成导航）、角色/菜单删除与角色分配的 UI 脚本化回归、AUTH-32 refresh 前端运行时验证、`infrastructure/.env.example`
+- [x] ~~待做：admin 动态路由（`menus[]` 生成导航）、角色/菜单删除与角色分配的 UI 脚本化回归、AUTH-32 refresh 前端运行时验证、`infrastructure/.env.example`~~（动态路由 Wave 5.22 落地；`.env.example` 已存在；角色/菜单删除与 refresh 运行时回归转入 Phase 4 联调清单）
 
 > Wave 5 详细任务清单（含依赖、优先级、验收口径）见 [next-steps.md](next-steps.md)。
 

@@ -1,10 +1,11 @@
 # 下一步建议与任务清单（Wave 5）
 
-> ⚠️ **时效提示（2026-10-19 补注）**：本文档的状态快照与任务勾选**停留在 Wave 5.6 前后**，此后已推进至 **Wave 5.21**，多处勾选状态与「残余/阻塞」结论**已过期**。
-> 请以以下**更新源**为准，本文仅保留历史 Wave 编号与任务映射关系：
-> - 任务台账：[roadmap.md](roadmap.md)（§2.2 网关 / §2.5 其余服务骨架）、[whale-auth-backlog.md](whale-auth-backlog.md)、[whale-gateway-backlog.md](whale-gateway-backlog.md)
-> - 各波次结果：`docs/devlog/2026-10-19.md`、`docs/reviews/2026-10-19-wave5.2*.md`、`docs/plans/wave5.21-four-tracks/`
-> - 已闭环的显著变化：whale-file 最小可用 + 归档链路（AUTH-08/09）解锁、网关熔断/动态路由/内网屏蔽（Wave 5.21）、auth DDD 第 3 步（AUTH-16）、全量回归（AUTH-27）
+> ⚠️ **历史归档说明（2026-10-21 收尾审计补注）**：本文档为 **Wave 5.6 时期**的状态快照，**已归档为历史文档**（当前已推进至 Wave 5.45，Phase 1–3 与 Phase 2.5 服务骨架全部闭环）。多处勾选与「残余/阻塞」结论已过期，**不得作为待办依据**。
+> 现行更新源：
+> - 路线图与勾选：[roadmap.md](roadmap.md)（Phase 4 执行计划见 [wave5.46-phase4-business-apps.md](wave5.46-phase4-business-apps.md)）
+> - 服务台账：[whale-auth-backlog.md](whale-auth-backlog.md)、[whale-gateway-backlog.md](whale-gateway-backlog.md)、[whale-workflow-backlog.md](whale-workflow-backlog.md)
+> - 服务与端口：[service-catalog.md](../service-catalog.md)
+> - 各波次结果：`docs/devlog/2026-10-2*.md`、`docs/reviews/`
 
 > 关联需求：REQ-PROC-002
 > 生成日期：2026-10-17 ｜ 依据：`docs/devlog/2026-10-17.md`、`docs/requirements/register.md`

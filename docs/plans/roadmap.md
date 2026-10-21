@@ -133,8 +133,12 @@
 
 ## Phase 4：业务应用与运维
 
+> **执行计划（2026-10-21 制定）**：[wave5.46-phase4-business-apps.md](wave5.46-phase4-business-apps.md)（四应用同构主线 + 底座/网关/基座/门户收口 + 验收口径）
+
 - [x] ~~whale-erp / whale-mes / whale-pdm / whale-oa 各自列表页 + 表单页骨架~~（Wave 5.33 ⑧：erp(8102)/oa(8103) 补列表页 + 表单页 + API 层；**新建** mes(8105)/pdm(8106) 子应用并注册进基座 `whale-platform/src/qiankun/apps.ts`；四应用 `pnpm build` 全绿）
-- [ ] 前后端 API 联调（Wave 5.33 ⑧ 仅铺前端骨架，接**占位数据源 + TODO**；后端 `whale-apps/*`〔erp/oa/mes/pdm，9001–9004〕本轮未填充，列后续 wave）
+- [ ] 业务应用后端填充（`whale-apps/*`〔erp/oa/mes/pdm，9001–9004〕：DDL + 六端点 + 权限种子 + 网关路由）→ [wave5.46](wave5.46-phase4-business-apps.md) 轨 A–F
+- [ ] 前后端 API 联调（前端占位数据源替换 + 基座 proxy + 真实登录）→ [wave5.46](wave5.46-phase4-business-apps.md) 轨 B–G
+- [ ] 基座 / 门户占位收口（4 个 `PlaceholderPage` + 门户 Dashboard/通知/待办）→ [wave5.46](wave5.46-phase4-business-apps.md) 轨 G
 - [x] ~~ops 运维平台：服务监控面板、审计日志查询、告警列表（对接 Prometheus）~~（Wave 5.33 ⑥：`frontend/ops` 独立 SPA〔端口 8104 + 代理 `/auth|/monitor|/alert|/audit` → 网关 8080，token 前缀 `whale_ops_`〕三页已接 `/monitor/service/list`、`/audit/log/page`、`/alert/rule/page` + `/alert/record/page`（双 Tab）；浏览器实机冒烟通过〔Monitor 6 服务 / Audit 14 条 / Alert 3 条规则〕；**Prometheus/Grafana 对接未做**，留 backlog）
 
 ## Phase 5：部署与 CI/CD
