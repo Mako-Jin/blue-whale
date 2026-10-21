@@ -3,8 +3,10 @@ package com.bluewhale.workflow.controller;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.workflow.dto.BpmnImportRequest;
+import com.bluewhale.workflow.dto.DefinitionSimulateRequest;
 import com.bluewhale.workflow.dto.DefinitionValidateRequest;
 import com.bluewhale.workflow.service.ProcessModelService;
+import com.bluewhale.workflow.vo.ProcessDefinitionSimulateVO;
 import com.bluewhale.workflow.vo.ProcessDefinitionValidateVO;
 import com.bluewhale.workflow.vo.ProcessDefinitionVO;
 import jakarta.validation.Valid;
@@ -44,6 +46,18 @@ public class ProcessModelController {
     @RequirePermission("sys:workflow:definition:validate")
     public Result<ProcessDefinitionValidateVO> validate(@RequestBody DefinitionValidateRequest request) {
         return Result.ok(processModelService.validate(request));
+    }
+
+    /**
+     * 按真实条件求值模拟流程走向（复用校验权限点，不新增权限码）。
+     *
+     * @param request 模拟请求：{@code definitionJson} 与流程变量
+     * @return 模拟结果视图对象
+     */
+    @PostMapping("/definition/simulate")
+    @RequirePermission("sys:workflow:definition:validate")
+    public Result<ProcessDefinitionSimulateVO> simulate(@Valid @RequestBody DefinitionSimulateRequest request) {
+        return Result.ok(processModelService.simulate(request));
     }
 
     /**

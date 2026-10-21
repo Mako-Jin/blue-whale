@@ -173,6 +173,60 @@ export interface DefinitionValidateRequest {
   bpmnXml?: string;
 }
 
+/** 模拟单步（对应后端 SimulateStepVO） */
+export interface SimulateStep {
+  /** 步骤序号（1 起） */
+  order: number;
+  /** 节点 key */
+  nodeKey: string;
+  /** 节点名称（可空） */
+  nodeName?: string | null;
+  /** 节点类型（ProcessNodeType 名称） */
+  nodeType?: string | null;
+  /** 进入本节点的流转 key（首节点为空） */
+  flowKey?: string | null;
+  /** 进入本节点的流转条件（可空） */
+  condition?: string | null;
+  /** 进入本节点的流转是否为默认流 */
+  isDefault?: boolean | null;
+  /** 审批人（仅 USER_TASK） */
+  assignee?: string | null;
+  /** 会签人列表（仅 COUNTER_SIGN） */
+  assignees?: string[] | null;
+  /** 会签策略（仅 COUNTER_SIGN） */
+  counterSignPolicy?: string | null;
+}
+
+/** 选路模拟入参（POST /workflow/definition/simulate） */
+export interface DefinitionSimulateRequest {
+  /** 流程定义 JSON（规范化或 legacy） */
+  definitionJson: string;
+  /** 模拟用流程变量（条件表达式求值上下文） */
+  variables?: Record<string, unknown>;
+}
+
+/** 选路模拟结果（对应后端 ProcessDefinitionSimulateVO） */
+export interface ProcessDefinitionSimulate {
+  /** 定义结构是否合法 */
+  valid: boolean;
+  /** 定义模式：LEGACY / NORMALIZED */
+  mode: 'LEGACY' | 'NORMALIZED';
+  /** 结构错误 */
+  errors: ValidationIssue[];
+  /** 模拟路径（按实际走位顺序） */
+  steps: SimulateStep[];
+  /** 模拟是否结束 */
+  terminated: boolean;
+  /** 是否抵达结束事件 */
+  reachedEnd: boolean;
+  /** 终止节点 key（可空） */
+  terminalNodeKey?: string | null;
+  /** 运行期选路错误码（可空） */
+  errorCode?: string | null;
+  /** 运行期选路错误文案（可空） */
+  errorMessage?: string | null;
+}
+
 /** BPMN 导入入参（POST /workflow/definition/bpmn） */
 export interface BpmnImportRequest {
   code: string;
@@ -256,6 +310,9 @@ export const workflowApi = {
   // 校验：内容非法返回 valid=false（非异常），errors[] 按 refKey 映射画布元素
   definitionValidate: (data: DefinitionValidateRequest) =>
     post<ProcessDefinitionValidate>('/workflow/definition/validate', data),
+  // 选路模拟：按流程变量预演走向，不创建实例（错误落在 VO 字段而非异常）
+  definitionSimulate: (data: DefinitionSimulateRequest) =>
+    post<ProcessDefinitionSimulate>('/workflow/definition/simulate', data),
   definitionBpmnImport: (data: BpmnImportRequest) =>
     post<ProcessDefinition>('/workflow/definition/bpmn', data),
   // BPMN 导出为原始字节流（响应非 JSON 信封），文件名从 Content-Disposition 解析

@@ -1,13 +1,18 @@
 // 自由画布流程设计器（F1）拼装页：调色板 + SVG 画布 + 属性面板，
-// 顶栏提供 保存 / 校验 / 导入 BPMN / 导出 BPMN / 返回列表。
+// 顶栏提供 保存 / 校验 / 模拟 / 导入 BPMN / 导出 BPMN / 返回列表。
 // 路由带 :id → 加载既有定义（GET → 解析 definitionJson）；无 :id → 新建（需填 code/name）。
 // 校验按 errors[].refKey 高亮节点 / 连线，并以内联 Alert 列明 message / warnings。
+// 模拟按流程变量真实求值选路，回放节点路径（不创建实例）。
 
-import { Alert, App, Button, Card, Input, Modal, Space, Spin, Tag, Typography } from 'antd';
+import { Alert, App, Button, Card, Input, Modal, Space, Spin, Steps, Tag, Typography } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useCurrentUser } from '../../api/token';
-import { workflowApi, type ProcessDefinitionValidate } from '../../api/workflow';
+import {
+  workflowApi,
+  type ProcessDefinitionSimulate,
+  type ProcessDefinitionValidate,
+} from '../../api/workflow';
 import Canvas from './Canvas';
 import Palette from './Palette';
 import PropertyPanel from './PropertyPanel';
@@ -74,6 +79,12 @@ export default function WorkflowDesigner() {
   const [bpmnCode, setBpmnCode] = useState('');
   const [bpmnName, setBpmnName] = useState('');
   const [bpmnSubmitting, setBpmnSubmitting] = useState(false);
+
+  // 选路模拟弹窗
+  const [simulateOpen, setSimulateOpen] = useState(false);
+  const [simulateVariables, setSimulateVariables] = useState('{}');
+  const [simulating, setSimulating] = useState(false);
+  const [simulation, setSimulation] = useState<ProcessDefinitionSimulate | null>(null);
 
   // 加载既有定义（:id）
   useEffect(() => {
@@ -272,6 +283,60 @@ export default function WorkflowDesigner() {
     }
   };
 
+  /** 打开模拟弹窗并重置上次结果 */
+  const openSimulate = () => {
+    setSimulation(null);
+    setSimulateVariables('{}');
+    setSimulateOpen(true);
+  };
+
+  /** 解析变量 JSON 文本；非法时提示并返回 null */
+  const parseVariables = (): Record<string, unknown> | null => {
+    const raw = simulateVariables.trim();
+    if (!raw) {
+      return {};
+    }
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        message.warning('流程变量必须是 JSON 对象，如 {"amount": 200}');
+        return null;
+      }
+      return parsed as Record<string, unknown>;
+    } catch {
+      message.error('流程变量不是合法 JSON');
+      return null;
+    }
+  };
+
+  const handleSimulate = async () => {
+    const variables = parseVariables();
+    if (variables === null) {
+      return;
+    }
+    setSimulating(true);
+    try {
+      const result = await workflowApi.definitionSimulate({
+        definitionJson: serializeDefinition(model),
+        variables,
+      });
+      setSimulation(result);
+      if (result.valid && !result.errorCode && result.reachedEnd) {
+        message.success('模拟完成：已抵达结束事件');
+      }
+    } catch (error) {
+      message.error(toMessage(error));
+    } finally {
+      setSimulating(false);
+    }
+  };
+
+  /** 定位到模拟路径中的节点并关闭弹窗 */
+  const locateStep = (key: string) => {
+    setSelected({ kind: 'node', key });
+    setSimulateOpen(false);
+  };
+
   const handleExportBpmn = async () => {
     if (!definitionId) {
       message.warning('请先保存流程定义后再导出 BPMN');
@@ -340,6 +405,7 @@ export default function WorkflowDesigner() {
           <Button loading={validating} onClick={() => void handleValidate()}>
             校验
           </Button>
+          <Button onClick={openSimulate}>模拟</Button>
           <Button onClick={openBpmnImport}>导入 BPMN</Button>
           <Button disabled={!definitionId} onClick={() => void handleExportBpmn()}>
             导出 BPMN
@@ -448,6 +514,94 @@ export default function WorkflowDesigner() {
           </div>
         </div>
       </Spin>
+
+      <Modal
+        title="选路模拟"
+        open={simulateOpen}
+        width={760}
+        okText={simulation ? '关闭' : '开始模拟'}
+        confirmLoading={simulating}
+        onOk={() => {
+          if (simulation) {
+            setSimulateOpen(false);
+            return;
+          }
+          void handleSimulate();
+        }}
+        onCancel={() => setSimulateOpen(false)}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+          <Typography.Text type="secondary">
+            按当前画布定义与流程变量真实求值选路（不创建实例）。变量键可直接写在条件里，如 amount &gt; 100。
+          </Typography.Text>
+          <Input.TextArea
+            rows={5}
+            placeholder='{"amount": 200}'
+            value={simulateVariables}
+            onChange={(event) => setSimulateVariables(event.target.value)}
+          />
+          {simulation && !simulation.valid ? (
+            <Alert
+              type="error"
+              showIcon
+              message={`定义结构非法（${simulation.errors.length} 个错误）`}
+              description={
+                <ul style={{ margin: 0, paddingLeft: 18 }}>
+                  {simulation.errors.map((issue, index) => (
+                    <li key={`${issue.code}-${index}`}>
+                      {issue.code}：{issue.message}
+                      {issue.refKey ? `（${issue.refKey}）` : ''}
+                    </li>
+                  ))}
+                </ul>
+              }
+            />
+          ) : null}
+          {simulation && simulation.valid && simulation.errorCode ? (
+            <Alert
+              type="error"
+              showIcon
+              message={`选路失败：${simulation.errorCode}`}
+              description={simulation.errorMessage ?? '流程变量不足以选出分支'}
+            />
+          ) : null}
+          {simulation && simulation.valid && !simulation.errorCode ? (
+            <Alert
+              type={simulation.reachedEnd ? 'success' : 'warning'}
+              showIcon
+              message={
+                simulation.reachedEnd
+                  ? `已抵达结束事件（mode=${simulation.mode}）`
+                  : `停在节点 ${simulation.terminalNodeKey ?? '-'}`
+              }
+              description={`模拟路径 ${simulation.steps.length} 步`}
+            />
+          ) : null}
+          {simulation && simulation.steps.length > 0 ? (
+            <Steps
+              direction="vertical"
+              size="small"
+              items={simulation.steps.map((step) => ({
+                title: `#${step.order} ${step.nodeName || step.nodeKey}`,
+                description: (
+                  <Space size={4} wrap>
+                    <Tag>{step.nodeType ?? '-'}</Tag>
+                    <Typography.Text type="secondary">{step.nodeKey}</Typography.Text>
+                    {step.flowKey ? (
+                      <Typography.Text type="secondary">入边 {step.flowKey}</Typography.Text>
+                    ) : null}
+                    {step.condition ? <Tag color="blue">{step.condition}</Tag> : null}
+                    {step.isDefault ? <Tag color="orange">默认流</Tag> : null}
+                    <Button size="small" type="link" onClick={() => locateStep(step.nodeKey)}>
+                      定位
+                    </Button>
+                  </Space>
+                ),
+              }))}
+            />
+          ) : null}
+        </Space>
+      </Modal>
 
       <Modal
         title="导入 BPMN"

@@ -2,11 +2,14 @@ package com.bluewhale.workflow.service.impl;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.workflow.dto.BpmnImportRequest;
+import com.bluewhale.workflow.dto.DefinitionSimulateRequest;
 import com.bluewhale.workflow.dto.DefinitionValidateRequest;
 import com.bluewhale.workflow.dto.ProcessDefinitionSaveRequest;
 import com.bluewhale.workflow.service.ProcessDefinitionService;
+import com.bluewhale.workflow.vo.ProcessDefinitionSimulateVO;
 import com.bluewhale.workflow.vo.ProcessDefinitionVO;
 import com.bluewhale.workflow.vo.ProcessDefinitionValidateVO;
+import com.bluewhale.workflow.vo.SimulateStepVO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,10 +19,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -69,6 +75,34 @@ class ProcessModelServiceImplTest {
                     + "{\"key\":\"end\",\"type\":\"END_EVENT\"}],"
                     + "\"flows\":[{\"key\":\"f1\",\"from\":\"start\",\"to\":\"t1\"},"
                     + "{\"key\":\"f2\",\"from\":\"t1\",\"to\":\"end\"}]}";
+
+    /** 双分支定义：金额大于 100 走 manager，否则走默认 clerk */
+    private static final String DUAL_BRANCH_JSON =
+            "{\"type\":\"stateMachine\",\"nodes\":["
+                    + "{\"key\":\"start\",\"type\":\"START_EVENT\"},"
+                    + "{\"key\":\"gw\",\"type\":\"EXCLUSIVE_GATEWAY\"},"
+                    + "{\"key\":\"high\",\"type\":\"USER_TASK\",\"name\":\"高额审批\",\"assignee\":\"manager\"},"
+                    + "{\"key\":\"low\",\"type\":\"USER_TASK\",\"name\":\"低额审批\",\"assignee\":\"clerk\"},"
+                    + "{\"key\":\"end\",\"type\":\"END_EVENT\"}],"
+                    + "\"flows\":[{\"key\":\"f0\",\"from\":\"start\",\"to\":\"gw\"},"
+                    + "{\"key\":\"fHigh\",\"from\":\"gw\",\"to\":\"high\",\"condition\":\"amount > 100\"},"
+                    + "{\"key\":\"fLow\",\"from\":\"gw\",\"to\":\"low\",\"isDefault\":true},"
+                    + "{\"key\":\"fh\",\"from\":\"high\",\"to\":\"end\"},"
+                    + "{\"key\":\"fl\",\"from\":\"low\",\"to\":\"end\"}]}";
+
+    /** 多条件无默认流定义（运行期可能无匹配分支） */
+    private static final String NO_DEFAULT_BRANCH_JSON =
+            "{\"type\":\"stateMachine\",\"nodes\":["
+                    + "{\"key\":\"start\",\"type\":\"START_EVENT\"},"
+                    + "{\"key\":\"t1\",\"type\":\"USER_TASK\",\"name\":\"审批\",\"assignee\":\"admin\"},"
+                    + "{\"key\":\"a\",\"type\":\"USER_TASK\",\"name\":\"A\",\"assignee\":\"alice\"},"
+                    + "{\"key\":\"b\",\"type\":\"USER_TASK\",\"name\":\"B\",\"assignee\":\"bob\"},"
+                    + "{\"key\":\"end\",\"type\":\"END_EVENT\"}],"
+                    + "\"flows\":[{\"key\":\"f0\",\"from\":\"start\",\"to\":\"t1\"},"
+                    + "{\"key\":\"fa\",\"from\":\"t1\",\"to\":\"a\",\"condition\":\"amount > 100\"},"
+                    + "{\"key\":\"fb\",\"from\":\"t1\",\"to\":\"b\",\"condition\":\"level == 'VIP'\"},"
+                    + "{\"key\":\"fa2\",\"from\":\"a\",\"to\":\"end\"},"
+                    + "{\"key\":\"fb2\",\"from\":\"b\",\"to\":\"end\"}]}";
 
     @Mock
     private ProcessDefinitionService processDefinitionService;
@@ -237,5 +271,100 @@ class ProcessModelServiceImplTest {
 
         assertTrue(xml.contains("formKey=\"bw_d29_form\""));
         assertTrue(xml.contains("formId=\"2112355156699869186\""));
+    }
+
+    /**
+     * 构造模拟请求。
+     *
+     * @param definitionJson 定义 JSON
+     * @param variables 流程变量，可为 {@code null}
+     * @return 模拟请求
+     */
+    private static DefinitionSimulateRequest simulateRequest(String definitionJson, Map<String, Object> variables) {
+        DefinitionSimulateRequest request = new DefinitionSimulateRequest();
+        request.setDefinitionJson(definitionJson);
+        request.setVariables(variables);
+        return request;
+    }
+
+    /**
+     * 提取模拟路径的节点键序列。
+     *
+     * @param vo 模拟结果
+     * @return 节点键列表
+     */
+    private static List<String> keysOf(ProcessDefinitionSimulateVO vo) {
+        return vo.getSteps().stream().map(SimulateStepVO::getNodeKey).toList();
+    }
+
+    @Test
+    @DisplayName("simulate：条件命中走 high 分支并抵达结束事件")
+    void shouldSimulateConditionalBranch() {
+        ProcessDefinitionSimulateVO vo = processModelService.simulate(
+                simulateRequest(DUAL_BRANCH_JSON, Map.of("amount", 200)));
+
+        assertTrue(vo.isValid());
+        assertEquals("NORMALIZED", vo.getMode());
+        assertTrue(vo.isReachedEnd());
+        assertEquals("end", vo.getTerminalNodeKey());
+        assertNull(vo.getErrorCode());
+        assertEquals(List.of("start", "gw", "high", "end"), keysOf(vo));
+        SimulateStepVO branch = vo.getSteps().get(2);
+        assertEquals("fHigh", branch.getFlowKey());
+        assertEquals("amount > 100", branch.getCondition());
+        assertFalse(branch.getIsDefault());
+        assertEquals("manager", branch.getAssignee());
+    }
+
+    @Test
+    @DisplayName("simulate：条件未命中走默认流 low 分支")
+    void shouldSimulateDefaultBranch() {
+        ProcessDefinitionSimulateVO vo = processModelService.simulate(
+                simulateRequest(DUAL_BRANCH_JSON, Map.of("amount", 10)));
+
+        assertTrue(vo.isReachedEnd());
+        assertEquals(List.of("start", "gw", "low", "end"), keysOf(vo));
+        SimulateStepVO branch = vo.getSteps().get(2);
+        assertEquals("fLow", branch.getFlowKey());
+        assertTrue(branch.getIsDefault());
+        assertEquals("clerk", branch.getAssignee());
+        assertEquals("USER_TASK", branch.getNodeType());
+    }
+
+    @Test
+    @DisplayName("simulate：条件均未命中且无默认流返回 NO_MATCHING_FLOW")
+    void shouldReportNoMatchingFlow() {
+        ProcessDefinitionSimulateVO vo = processModelService.simulate(
+                simulateRequest(NO_DEFAULT_BRANCH_JSON, Map.of("amount", 10, "level", "NORMAL")));
+
+        assertTrue(vo.isValid());
+        assertEquals("NO_MATCHING_FLOW", vo.getErrorCode());
+        assertNotNull(vo.getErrorMessage());
+        assertFalse(vo.isReachedEnd());
+        assertEquals("t1", vo.getTerminalNodeKey());
+        assertEquals(List.of("start", "t1"), keysOf(vo));
+    }
+
+    @Test
+    @DisplayName("simulate：非法 JSON 返回 valid=false 且无路径")
+    void shouldRejectInvalidDefinitionOnSimulate() {
+        ProcessDefinitionSimulateVO vo = processModelService.simulate(simulateRequest("not-a-json", null));
+
+        assertFalse(vo.isValid());
+        assertFalse(vo.getErrors().isEmpty());
+        assertEquals("MISSING_NODES", vo.getErrors().get(0).getCode());
+        assertTrue(vo.getSteps().isEmpty());
+    }
+
+    @Test
+    @DisplayName("simulate：legacy 定义按顺序走完节点")
+    void shouldSimulateLegacyDefinition() {
+        ProcessDefinitionSimulateVO vo = processModelService.simulate(simulateRequest(LEGACY_JSON, null));
+
+        assertTrue(vo.isValid());
+        assertEquals("LEGACY", vo.getMode());
+        assertEquals(List.of("n1", "n2"), keysOf(vo));
+        assertEquals("n2", vo.getTerminalNodeKey());
+        assertFalse(vo.isReachedEnd());
     }
 }

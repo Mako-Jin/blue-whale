@@ -1,7 +1,9 @@
 package com.bluewhale.workflow.service;
 
 import com.bluewhale.workflow.dto.BpmnImportRequest;
+import com.bluewhale.workflow.dto.DefinitionSimulateRequest;
 import com.bluewhale.workflow.dto.DefinitionValidateRequest;
+import com.bluewhale.workflow.vo.ProcessDefinitionSimulateVO;
 import com.bluewhale.workflow.vo.ProcessDefinitionValidateVO;
 import com.bluewhale.workflow.vo.ProcessDefinitionVO;
 
@@ -19,6 +21,14 @@ public interface ProcessModelService {
      * @return 校验视图对象
      */
     ProcessDefinitionValidateVO validate(DefinitionValidateRequest request);
+
+    /**
+     * 按真实条件求值模拟流程走向（不创建实例、不落库）。
+     *
+     * @param request 模拟请求：{@code definitionJson} 与流程变量
+     * @return 模拟结果（结构错误 / 运行期选路错误 / 节点路径）
+     */
+    ProcessDefinitionSimulateVO simulate(DefinitionSimulateRequest request);
 
     /**
      * 导入 BPMN XML 建流程定义（XML → 规范化 JSON 落库）。
