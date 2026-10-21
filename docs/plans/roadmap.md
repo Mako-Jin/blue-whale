@@ -150,6 +150,17 @@
 - [ ] 生产环境 `docker-compose.prod.yml` 验证
 - [ ] Nginx 生产配置 + HTTPS
 
+## Phase 6：平台与项目知识 Agent
+
+> **执行计划（2026-10-21 制定，待评审）**：[wave5.47-project-agent.md](wave5.47-project-agent.md)（Java 21 + 内嵌 Lucene 双通道 RAG；代码/文档/DDL/版本/Git/运行时六类知识源；Web 工作台；MCP 二期）
+
+- [ ] 轨 A 底座与索引（Lucene 依赖验证 / 采集器 / 五类切分 / BM25+向量检索）
+- [ ] 轨 B 结构化事实层（服务/路由/端口、DDL 表字段、依赖版本、Git、运行时）
+- [ ] 轨 C 问答编排（OpenAI 兼容 API + SSE 流式 + 引用校验 + 逐级降级）
+- [ ] 轨 D 前端工作台 `whale-agent`（8004 /agent，会话 + 证据面板 + 范围开关）
+- [ ] 轨 E 治理与评测（权限点 / 脱敏 / 审计 / 40 题黄金集）
+- [ ] 轨 F（可选，二期）MCP / IDE 接入
+
 ---
 
 ## 里程碑顺序
