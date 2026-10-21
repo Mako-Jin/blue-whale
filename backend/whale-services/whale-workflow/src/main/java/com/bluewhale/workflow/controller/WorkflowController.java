@@ -3,10 +3,14 @@ package com.bluewhale.workflow.controller;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
+import com.bluewhale.workflow.dto.DefinitionMigrationRequest;
+import com.bluewhale.workflow.dto.DefinitionPublishRequest;
 import com.bluewhale.workflow.dto.ProcessDefinitionSaveRequest;
 import com.bluewhale.workflow.dto.ProcessQueryRequest;
 import com.bluewhale.workflow.service.ProcessDefinitionService;
+import com.bluewhale.workflow.vo.DefinitionMigrationVO;
 import com.bluewhale.workflow.vo.ProcessDefinitionVO;
+import com.bluewhale.workflow.vo.ProcessDefinitionVersionVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -17,6 +21,8 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * 流程定义管理接口。
@@ -95,5 +101,45 @@ public class WorkflowController {
     @RequirePermission("sys:workflow:list")
     public Result<PageResult<ProcessDefinitionVO>> page(ProcessQueryRequest request) {
         return Result.ok(processDefinitionService.page(request));
+    }
+
+    /**
+     * 流程定义版本快照列表（版本号倒序）。
+     *
+     * @param id 流程定义ID
+     * @return 版本快照列表
+     */
+    @GetMapping("/definition/{id}/versions")
+    @RequirePermission("sys:workflow:list")
+    public Result<List<ProcessDefinitionVersionVO>> versions(@PathVariable Long id) {
+        return Result.ok(processDefinitionService.versions(id));
+    }
+
+    /**
+     * 发布指定版本：切换定义表内容，新实例按该版本发起。
+     *
+     * @param id 流程定义ID
+     * @param request 发布请求：version 必填
+     * @return 切换后的流程定义视图对象
+     */
+    @PostMapping("/definition/{id}/publish")
+    @RequirePermission("sys:workflow:edit")
+    public Result<ProcessDefinitionVO> publish(@PathVariable Long id,
+                                               @Valid @RequestBody DefinitionPublishRequest request) {
+        return Result.ok(processDefinitionService.publish(id, request.getVersion()));
+    }
+
+    /**
+     * 把运行中实例迁移到目标版本。
+     *
+     * @param id 流程定义ID
+     * @param request 迁移请求：targetVersion 必填
+     * @return 迁移结果
+     */
+    @PostMapping("/definition/{id}/migrate")
+    @RequirePermission("sys:workflow:edit")
+    public Result<DefinitionMigrationVO> migrate(@PathVariable Long id,
+                                                 @Valid @RequestBody DefinitionMigrationRequest request) {
+        return Result.ok(processDefinitionService.migrate(id, request));
     }
 }

@@ -8,9 +8,11 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.workflow.dto.ProcessInstanceQueryRequest;
 import com.bluewhale.workflow.dto.ProcessInstanceStartRequest;
 import com.bluewhale.workflow.entity.ProcessDefinition;
+import com.bluewhale.workflow.entity.ProcessDefinitionVersion;
 import com.bluewhale.workflow.entity.ProcessInstance;
 import com.bluewhale.workflow.entity.ProcessTask;
 import com.bluewhale.workflow.mapper.ProcessDefinitionMapper;
+import com.bluewhale.workflow.mapper.ProcessDefinitionVersionMapper;
 import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
 import com.bluewhale.workflow.service.ProcessInstanceService;
@@ -58,7 +60,12 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
     /** 单页最大条数：防止深度分页拖垮数据库 */
     private static final long MAX_PAGE_SIZE = 200L;
 
+    /** 版本快照发布状态：已发布 */
+    private static final int PUBLISH_PUBLISHED = 1;
+
     private final ProcessDefinitionMapper processDefinitionMapper;
+
+    private final ProcessDefinitionVersionMapper processDefinitionVersionMapper;
 
     private final ProcessInstanceMapper processInstanceMapper;
 
@@ -71,13 +78,15 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
         if (definition == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
-        ProcessModel model = ProcessModelParser.parse(definition.getDefinitionJson());
+        ProcessDefinitionVersion published = findPublishedSnapshot(definition.getId());
+        String definitionJson = published == null ? definition.getDefinitionJson() : published.getDefinitionJson();
+        ProcessModel model = ProcessModelParser.parse(definitionJson);
         String variablesJson = ProcessVariables.write(request.getVariables());
         TransitionResult result = new StateMachine(model, request.getVariables()).start();
         ProcessInstance instance = new ProcessInstance();
         instance.setDefinitionId(definition.getId());
         instance.setDefinitionCode(definition.getCode());
-        instance.setDefinitionVersion(definition.getVersion());
+        instance.setDefinitionVersion(published == null ? definition.getVersion() : published.getVersion());
         instance.setTitle(request.getTitle());
         instance.setBusinessKey(request.getBusinessKey());
         instance.setStatus(result.isUserTask() ? INSTANCE_RUNNING : INSTANCE_APPROVED);
@@ -129,6 +138,24 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
         instance.setStatus(INSTANCE_CANCELED);
         processInstanceMapper.updateById(instance);
         cancelPendingTasks(id);
+    }
+
+    /**
+     * 查询定义当前已发布的版本快照（版本号最大者）。
+     *
+     * <p>发起时优先使用已发布快照：编辑中的草稿版本不会影响新实例，
+     * 只有发布动作才会切换新实例使用的定义内容。</p>
+     *
+     * @param definitionId 流程定义ID
+     * @return 已发布快照，不存在返回 {@code null}
+     */
+    private ProcessDefinitionVersion findPublishedSnapshot(Long definitionId) {
+        LambdaQueryWrapper<ProcessDefinitionVersion> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ProcessDefinitionVersion::getDefinitionId, definitionId);
+        wrapper.eq(ProcessDefinitionVersion::getPublishStatus, PUBLISH_PUBLISHED);
+        wrapper.orderByDesc(ProcessDefinitionVersion::getVersion);
+        List<ProcessDefinitionVersion> snapshots = processDefinitionVersionMapper.selectList(wrapper);
+        return snapshots.isEmpty() ? null : snapshots.get(0);
     }
 
     /**

@@ -32,6 +32,23 @@ CREATE TABLE process_definition (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='流程定义表';
 
 -- ---------------------------------------------------------------------
+-- 流程定义版本快照表
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS process_definition_version;
+CREATE TABLE process_definition_version (
+    id               BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    definition_id    BIGINT        NOT NULL               COMMENT '流程定义ID',
+    version          INT           NOT NULL               COMMENT '版本号（与定义表 version 对应）',
+    definition_json  MEDIUMTEXT    NULL                   COMMENT '该版本的流程定义JSON快照',
+    publish_status   TINYINT       NOT NULL DEFAULT 0     COMMENT '发布状态：0 草稿 / 1 已发布',
+    create_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted          TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
+    PRIMARY KEY (id),
+    KEY idx_definition_version (definition_id, version)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='流程定义版本快照表';
+
+-- ---------------------------------------------------------------------
 -- 流程实例表
 -- ---------------------------------------------------------------------
 DROP TABLE IF EXISTS process_instance;

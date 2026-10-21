@@ -8,9 +8,11 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.workflow.dto.ApprovalRequest;
 import com.bluewhale.workflow.dto.ProcessTaskQueryRequest;
 import com.bluewhale.workflow.entity.ProcessDefinition;
+import com.bluewhale.workflow.entity.ProcessDefinitionVersion;
 import com.bluewhale.workflow.entity.ProcessInstance;
 import com.bluewhale.workflow.entity.ProcessTask;
 import com.bluewhale.workflow.mapper.ProcessDefinitionMapper;
+import com.bluewhale.workflow.mapper.ProcessDefinitionVersionMapper;
 import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
 import com.bluewhale.workflow.service.ProcessTaskService;
@@ -88,9 +90,11 @@ public class ProcessTaskServiceImpl implements ProcessTaskService {
 
     private final ProcessTaskMapper processTaskMapper;
 
-    private final ProcessInstanceMapper processInstanceMapper;
-
     private final ProcessDefinitionMapper processDefinitionMapper;
+
+    private final ProcessDefinitionVersionMapper processDefinitionVersionMapper;
+
+    private final ProcessInstanceMapper processInstanceMapper;
 
     @Override
     public PageResult<ProcessTaskVO> page(ProcessTaskQueryRequest request) {
@@ -125,11 +129,7 @@ public class ProcessTaskServiceImpl implements ProcessTaskService {
         task.setStatus(TASK_APPROVED);
         task.setComment(comment);
         processTaskMapper.updateById(task);
-        ProcessDefinition definition = processDefinitionMapper.selectById(instance.getDefinitionId());
-        if (definition == null) {
-            throw new BizException(ErrorCode.NOT_FOUND);
-        }
-        ProcessModel model = ProcessModelParser.parse(definition.getDefinitionJson());
+        ProcessModel model = ProcessModelParser.parse(resolveInstanceJson(instance));
         Map<String, Object> merged = ProcessVariables.merge(instance.getVariablesJson(), variables);
         if (variables != null && !variables.isEmpty()) {
             instance.setVariablesJson(ProcessVariables.write(merged));
@@ -367,11 +367,7 @@ public class ProcessTaskServiceImpl implements ProcessTaskService {
     public void rollback(Long id, String targetNodeKey) {
         ProcessTask task = requirePendingTask(id);
         ProcessInstance instance = requireRunningInstance(task.getInstanceId());
-        ProcessDefinition definition = processDefinitionMapper.selectById(instance.getDefinitionId());
-        if (definition == null) {
-            throw new BizException(ErrorCode.NOT_FOUND);
-        }
-        ProcessModel model = ProcessModelParser.parse(definition.getDefinitionJson());
+        ProcessModel model = ProcessModelParser.parse(resolveInstanceJson(instance));
         ProcessModelNode target = model.node(targetNodeKey);
         if (target == null || target.getType() == null || !target.getType().isApproval()) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "回退目标必须为审批节点");
@@ -561,6 +557,43 @@ public class ProcessTaskServiceImpl implements ProcessTaskService {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "实例非运行中");
         }
         return instance;
+    }
+
+    /**
+     * 取实例锁定版本的流程定义 JSON：优先版本快照，缺失回落定义表最新内容。
+     *
+     * @param instance 流程实例
+     * @return 流程定义JSON
+     * @throws BizException 定义与快照均缺失时抛出 {@code NOT_FOUND}
+     */
+    private String resolveInstanceJson(ProcessInstance instance) {
+        ProcessDefinitionVersion snapshot = findSnapshot(instance.getDefinitionId(), instance.getDefinitionVersion());
+        if (snapshot != null && snapshot.getDefinitionJson() != null && !snapshot.getDefinitionJson().isBlank()) {
+            return snapshot.getDefinitionJson();
+        }
+        ProcessDefinition definition = processDefinitionMapper.selectById(instance.getDefinitionId());
+        if (definition == null) {
+            throw new BizException(ErrorCode.NOT_FOUND);
+        }
+        return definition.getDefinitionJson();
+    }
+
+    /**
+     * 按定义ID与版本号查询版本快照。
+     *
+     * @param definitionId 流程定义ID
+     * @param version 版本号
+     * @return 快照实体，不存在返回 {@code null}
+     */
+    private ProcessDefinitionVersion findSnapshot(Long definitionId, Integer version) {
+        if (definitionId == null || version == null) {
+            return null;
+        }
+        LambdaQueryWrapper<ProcessDefinitionVersion> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ProcessDefinitionVersion::getDefinitionId, definitionId);
+        wrapper.eq(ProcessDefinitionVersion::getVersion, version);
+        List<ProcessDefinitionVersion> snapshots = processDefinitionVersionMapper.selectList(wrapper);
+        return snapshots.isEmpty() ? null : snapshots.get(0);
     }
 
     /**

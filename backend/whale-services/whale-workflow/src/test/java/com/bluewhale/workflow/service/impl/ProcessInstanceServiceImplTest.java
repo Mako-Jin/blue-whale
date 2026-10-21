@@ -7,9 +7,11 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.workflow.dto.ProcessInstanceQueryRequest;
 import com.bluewhale.workflow.dto.ProcessInstanceStartRequest;
 import com.bluewhale.workflow.entity.ProcessDefinition;
+import com.bluewhale.workflow.entity.ProcessDefinitionVersion;
 import com.bluewhale.workflow.entity.ProcessInstance;
 import com.bluewhale.workflow.entity.ProcessTask;
 import com.bluewhale.workflow.mapper.ProcessDefinitionMapper;
+import com.bluewhale.workflow.mapper.ProcessDefinitionVersionMapper;
 import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
 import com.bluewhale.workflow.vo.ProcessInstanceVO;
@@ -64,6 +66,9 @@ class ProcessInstanceServiceImplTest {
 
     @Mock
     private ProcessDefinitionMapper processDefinitionMapper;
+
+    @Mock
+    private ProcessDefinitionVersionMapper processDefinitionVersionMapper;
 
     @Mock
     private ProcessInstanceMapper processInstanceMapper;
@@ -261,6 +266,24 @@ class ProcessInstanceServiceImplTest {
         assertEquals(1, taskCaptor.getValue().getNodeIndex().intValue());
         assertEquals("admin", taskCaptor.getValue().getAssignee());
         assertEquals("t1", vo.getCurrentNodeKey());
+    }
+
+    @Test
+    @DisplayName("start：优先使用锁定版本的快照 JSON")
+    void shouldPreferSnapshotJsonOnStart() {
+        when(processDefinitionMapper.selectById(10L)).thenReturn(definition(10L, TWO_NODE_JSON));
+        ProcessDefinitionVersion snapshot = new ProcessDefinitionVersion();
+        snapshot.setDefinitionId(10L);
+        snapshot.setVersion(1);
+        snapshot.setDefinitionJson(NORMALIZED_JSON);
+        snapshot.setPublishStatus(1);
+        when(processDefinitionVersionMapper.selectList(ArgumentMatchers.<Wrapper<ProcessDefinitionVersion>>any()))
+                .thenReturn(List.of(snapshot));
+
+        ProcessInstanceVO vo = processInstanceService.start(startRequest(10L), "zhangsan");
+
+        assertEquals("t1", vo.getCurrentNodeKey());
+        assertEquals(1, vo.getCurrentIndex().intValue());
     }
 
     @Test

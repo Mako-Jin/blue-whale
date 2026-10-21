@@ -7,9 +7,11 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.workflow.dto.ApprovalRequest;
 import com.bluewhale.workflow.dto.ProcessTaskQueryRequest;
 import com.bluewhale.workflow.entity.ProcessDefinition;
+import com.bluewhale.workflow.entity.ProcessDefinitionVersion;
 import com.bluewhale.workflow.entity.ProcessInstance;
 import com.bluewhale.workflow.entity.ProcessTask;
 import com.bluewhale.workflow.mapper.ProcessDefinitionMapper;
+import com.bluewhale.workflow.mapper.ProcessDefinitionVersionMapper;
 import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
 import com.bluewhale.workflow.vo.ProcessTaskVO;
@@ -83,6 +85,9 @@ class ProcessTaskServiceImplTest {
 
     @Mock
     private ProcessDefinitionMapper processDefinitionMapper;
+
+    @Mock
+    private ProcessDefinitionVersionMapper processDefinitionVersionMapper;
 
     @InjectMocks
     private ProcessTaskServiceImpl processTaskService;
@@ -177,6 +182,31 @@ class ProcessTaskServiceImplTest {
         assertEquals(1, captor.getValue().getNodeIndex().intValue());
         assertEquals("user", captor.getValue().getAssignee());
         assertEquals(0, captor.getValue().getStatus().intValue());
+    }
+
+    @Test
+    @DisplayName("approve：优先按实例锁定版本的快照推进")
+    void shouldPreferSnapshotOnApprove() {
+        ProcessTask task = pendingTask(100L, 5L, 0);
+        task.setNodeKey("t1");
+        ProcessInstance instance = keyedInstance(5L, 10L, 0, 1, "t1");
+        instance.setDefinitionVersion(1);
+        when(processTaskMapper.selectById(100L)).thenReturn(task);
+        when(processInstanceMapper.selectById(5L)).thenReturn(instance);
+        ProcessDefinitionVersion snapshot = new ProcessDefinitionVersion();
+        snapshot.setDefinitionId(10L);
+        snapshot.setVersion(1);
+        snapshot.setDefinitionJson(NORMALIZED_JSON);
+        when(processDefinitionVersionMapper.selectList(ArgumentMatchers.<Wrapper<ProcessDefinitionVersion>>any()))
+                .thenReturn(List.of(snapshot));
+
+        processTaskService.approve(100L, null);
+
+        assertEquals(2, instance.getCurrentIndex().intValue());
+        assertEquals("t2", instance.getCurrentNodeKey());
+        ArgumentCaptor<ProcessTask> captor = ArgumentCaptor.forClass(ProcessTask.class);
+        verify(processTaskMapper).insert(captor.capture());
+        assertEquals("user", captor.getValue().getAssignee());
     }
 
     @Test

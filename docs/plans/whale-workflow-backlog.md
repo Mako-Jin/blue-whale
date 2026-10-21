@@ -7,7 +7,7 @@
 |---|---|---|---|
 | 1 | 加签（ADD_SIGN） | ✅ 已结案（Wave 5.36） | `POST /workflow/task/{id}/add-sign`；同节点追加待办全部完成后才推进；ANY/RATIO 会签拒绝；权限种子 78；见 [devlog 2026-10-21 §八](../devlog/2026-10-21.md) |
 | 2 | 设计器多分支真实选路模拟 | ✅ 已结案（Wave 5.37） | `POST /workflow/definition/simulate`；`StateMachine.pickTransition` + `ConditionGuard` 真实求值，返回逐步路径（入边 key/condition/isDefault），不建实例；前端「模拟」弹窗按路径定位节点；见 [devlog 2026-10-21 §九](../devlog/2026-10-21.md) |
-| 3 | 定义版本快照 / 发布 / 实例迁移 | ⏳ 待开始 | `process_definition` 版本列 + 发布态 + 实例锁定版本；DDL 变更 |
+| 3 | 定义版本快照 / 发布 / 实例迁移 | ✅ 已结案（Wave 5.38） | 新表 `process_definition_version`（快照 + 发布态）；定义 JSON 变更版本自增写草稿，`publish` 切换新实例版本，`migrate` 按节点键迁移运行中实例；发起优先已发布快照，审批/回退按实例锁定版本解析；见 [devlog 2026-10-21 §十](../devlog/2026-10-21.md) |
 | 4 | BPMN-DI 坐标回写 / 图形保真 | ⏳ 待开始 | 导出 BPMN 时写 `bpmndi:BPMNDiagram`，导入时读 `x/y`；XML 双向往返 |
 | 5 | 画布高级能力 | ⏳ 待开始 | 撤销重做 / 缩放平移 / 对齐线 / 吸附 / 分组 / 泳道（纯前端大改） |
 | 6 | 人工复核清单收口 | ⏳ 待开始 | 转办弹窗交互、dnd-kit 真实指针拖拽手势（自动化不可复现） |
