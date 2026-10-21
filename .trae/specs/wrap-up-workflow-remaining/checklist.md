@@ -1,0 +1,14 @@
+- [x] 无 groups 的旧定义解析 / 校验 / 保存 / BPMN 导出行为不变
+- [x] 分组 key 非法、重复、超限、未知引用分别返回对应校验码
+- [x] 含分组的定义 BPMN 导出后导入，分组与节点归属一致
+- [x] 设计器顶栏「版本」按钮存在且无 definitionId 时禁用
+- [x] 版本抽屉展示版本列表，支持发布并刷新定义
+- [x] 迁移 Modal 以字符串提交实例 ID，展示 migrated/skipped/failed 摘要
+- [x] 画布渲染分组虚线容器与标题，不拦截鼠标命中
+- [x] 节点属性面板可设置/清空所属分组
+- [x] 分组 Modal 支持新建/重命名/删除，删除后成员置未分组
+- [x] 后端 Maven test + checkstyle 通过
+- [x] 前端 `pnpm --filter whale-workflow-designer build` 通过
+- [x] 浏览器 8003 实机验证通过
+- [x] devlog / roadmap / backlog 已更新
+- [ ] 已提交并推送 Gitee origin main

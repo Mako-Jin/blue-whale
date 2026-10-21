@@ -1,7 +1,7 @@
 // 画布模型 ↔ 规范化 JSON（definitionJson）的序列化 / 反序列化 —— 纯函数，便于复用与单测。
 //
-// 冻结契约（Wave 5.32 spec §3.3）：规范化 JSON 为 { type:"stateMachine", nodes[], flows[] }；
-// 节点键须匹配 ^[A-Za-z0-9_-]{1,64}$；key 缺失 / 非法 / 重复时自动生成 n1/f1…（避开已占用）；
+// 冻结契约（Wave 5.32 spec §3.3）：规范化 JSON 为 { type:"stateMachine", groups?[], nodes[], flows[] }；
+// 节点键须匹配 ^[A-Za-z0-9_-]{1,64}$；key 缺失 / 非法 / 重复时自动生成 n1/f1/g1…（避开已占用）；
 // 缺 x/y 的节点（legacy {"nodes":[…]} 或 BPMN 导入）按「列宽 220 / 行高 120」网格自动布局并在保存时回填。
 // legacy 兼容：根对象无 type 且无 flows → 节点顺序即流转顺序（f1..f(n-1)），节点统一按 USER_TASK
 //   （与后端 ProcessModelParser#legacy 归一化口径一致）。
@@ -10,6 +10,15 @@ import type { NodeType, NormalizedDefinition, ProcessModelFlow, ProcessModelNode
 
 /** 画布本体（SVG 容器）的 droppable id */
 export const CANVAS_DROPPABLE_ID = 'wf-canvas';
+
+/** 自动生成 key 的前缀：n 节点 / f 流转 / g 分组 */
+type KeyPrefix = 'n' | 'f' | 'g';
+
+/** 画布分组 / 泳道（容器矩形由成员节点包围盒派生，不持久化坐标） */
+export interface CanvasGroup {
+  key: string;
+  name: string;
+}
 
 /** 画布节点：坐标以图形左上角为基准（保证圆形/菱形/矩形统一） */
 export interface CanvasNode {
@@ -25,6 +34,8 @@ export interface CanvasNode {
   formCode: string | null;
   x: number;
   y: number;
+  /** 所属分组 key（null 表示未分组） */
+  groupKey: string | null;
 }
 
 /** 画布流转 */
@@ -40,6 +51,8 @@ export interface CanvasFlow {
 export interface CanvasModel {
   nodes: CanvasNode[];
   flows: CanvasFlow[];
+  /** 分组 / 泳道（可选，旧定义无分组时为空数组） */
+  groups: CanvasGroup[];
 }
 
 /** 画布选中元素（节点或流转） */
@@ -122,7 +135,7 @@ export function isValidKey(key: string): boolean {
 }
 
 /** 生成未占用的顺序键（prefix + 递增数字），避开 existing 中已存在的键 */
-export function nextKey(prefix: 'n' | 'f', existing: Iterable<string>): string {
+export function nextKey(prefix: KeyPrefix, existing: Iterable<string>): string {
   const used = new Set(existing);
   let index = 1;
   while (used.has(`${prefix}${index}`)) {
@@ -150,7 +163,13 @@ export function createNode(
     formCode: null,
     x,
     y,
+    groupKey: null,
   };
+}
+
+/** 新建画布分组 */
+export function createGroup(key: string, name: string): CanvasGroup {
+  return { key, name };
 }
 
 /** 新建画布流转 */
@@ -175,6 +194,13 @@ interface DraftNode {
   formCode: string | null;
   x: number | null;
   y: number | null;
+  groupKey: string | null;
+}
+
+/** 反序列化草稿分组（key 可能缺失，由 parseDefinition 统一补齐） */
+interface DraftGroup {
+  key: string;
+  name: string;
 }
 
 /** 读取文本字段，非字符串统一返回空串（便于画布受控编辑） */
@@ -243,6 +269,16 @@ function readDraftNode(item: unknown): DraftNode {
     formCode: readText(raw.formCode) || null,
     x: readCoord(raw.x),
     y: readCoord(raw.y),
+    groupKey: readText(raw.groupKey).trim() || null,
+  };
+}
+
+/** 读取单个分组为草稿 */
+function readDraftGroup(item: unknown): DraftGroup {
+  const raw = (item && typeof item === 'object' ? item : {}) as Record<string, unknown>;
+  return {
+    key: readText(raw.key).trim(),
+    name: readText(raw.name),
   };
 }
 
@@ -258,8 +294,8 @@ function readDraftFlow(item: unknown): CanvasFlow {
   };
 }
 
-/** 补齐 key：非法 / 重复 → 生成 n{k} 并登记占用（就地改草稿） */
-function ensureKeys<T extends { key: string }>(items: T[], prefix: 'n' | 'f'): void {
+/** 补齐 key：非法 / 重复 → 生成 {prefix}k 并登记占用（就地改草稿） */
+function ensureKeys<T extends { key: string }>(items: T[], prefix: KeyPrefix): void {
   const used = new Set<string>();
   items.forEach((item) => {
     const candidate = item.key;
@@ -295,26 +331,35 @@ function ensureCoordinates(drafts: DraftNode[]): CanvasNode[] {
  */
 export function parseDefinition(definitionJson?: string | null): CanvasModel {
   if (!definitionJson || !definitionJson.trim()) {
-    return { nodes: [], flows: [] };
+    return { nodes: [], flows: [], groups: [] };
   }
   let root: unknown;
   try {
     root = JSON.parse(definitionJson);
   } catch {
-    return { nodes: [], flows: [] };
+    return { nodes: [], flows: [], groups: [] };
   }
   if (!root || typeof root !== 'object' || Array.isArray(root)) {
-    return { nodes: [], flows: [] };
+    return { nodes: [], flows: [], groups: [] };
   }
   const obj = root as Record<string, unknown>;
   const rawNodes = Array.isArray(obj.nodes) ? obj.nodes : [];
+  const rawGroups = Array.isArray(obj.groups) ? obj.groups : [];
+  const groupDrafts = rawGroups.map((item) => readDraftGroup(item));
+  ensureKeys(groupDrafts, 'g');
+  const groups: CanvasGroup[] = groupDrafts.map((group) => ({ ...group }));
+  const groupKeys = new Set(groups.map((group) => group.key));
   if (rawNodes.length === 0) {
-    return { nodes: [], flows: [] };
+    return { nodes: [], flows: [], groups };
   }
 
   const drafts = rawNodes.map((item) => readDraftNode(item));
   ensureKeys(drafts, 'n');
-  const nodes = ensureCoordinates(drafts);
+  // 节点归属引用不存在的分组时回落为未分组（与后端 NODE_GROUP_UNKNOWN 的容错口径一致）
+  const nodes = ensureCoordinates(drafts).map((node) => ({
+    ...node,
+    groupKey: node.groupKey && groupKeys.has(node.groupKey) ? node.groupKey : null,
+  }));
   const nodeKeys = new Set(nodes.map((node) => node.key));
 
   const rawFlows = Array.isArray(obj.flows) ? obj.flows : [];
@@ -326,7 +371,7 @@ export function parseDefinition(definitionJson?: string | null): CanvasModel {
       .map((item) => readDraftFlow(item))
       .filter((flow) => flow.from !== flow.to && nodeKeys.has(flow.from) && nodeKeys.has(flow.to));
     ensureKeys(flows, 'f');
-    return { nodes, flows };
+    return { nodes, flows, groups };
   }
 
   // legacy：无 flows → 节点顺序即流转顺序 f1..f(n-1)
@@ -334,12 +379,12 @@ export function parseDefinition(definitionJson?: string | null): CanvasModel {
   for (let i = 0; i + 1 < nodes.length; i += 1) {
     flows.push(createFlow(nodes[i].key, nodes[i + 1].key, `f${i + 1}`));
   }
-  return { nodes, flows };
+  return { nodes, flows, groups };
 }
 
-/** 画布模型 → 规范化定义对象（{type:"stateMachine",nodes[],flows[]}） */
+/** 画布模型 → 规范化定义对象（{type:"stateMachine",groups?[],nodes[],flows[]}） */
 export function toNormalized(model: CanvasModel): NormalizedDefinition {
-  return {
+  const definition: NormalizedDefinition = {
     type: 'stateMachine',
     nodes: model.nodes.map((node) => {
       const item: ProcessModelNode = {
@@ -356,6 +401,9 @@ export function toNormalized(model: CanvasModel): NormalizedDefinition {
       if (node.formCode) {
         item.formCode = node.formCode;
       }
+      if (node.groupKey) {
+        item.groupKey = node.groupKey;
+      }
       if (node.type === 'COUNTER_SIGN') {
         item.assignees = node.assignees;
         item.counterSignPolicy = node.counterSignPolicy || 'ALL';
@@ -370,6 +418,10 @@ export function toNormalized(model: CanvasModel): NormalizedDefinition {
       return item;
     }),
   };
+  if (model.groups.length > 0) {
+    definition.groups = model.groups.map((group) => ({ key: group.key, name: group.name }));
+  }
+  return definition;
 }
 
 /** 画布模型 → 规范化定义 JSON 文本（保存 / 校验入参） */

@@ -82,6 +82,9 @@ public final class ProcessModelValidator {
             return report;
         }
         checkNodeLimit(report, nodesNode);
+        if (normalized) {
+            checkGroups(report, root);
+        }
         Graph graph = new Graph();
         checkNodes(report, nodesNode, normalized, graph);
         checkFlows(report, flowsNode, graph);
@@ -126,6 +129,59 @@ public final class ProcessModelValidator {
     }
 
     /**
+     * 校验分组数组：条数上限、key 合法性 / 重复、节点归属引用。
+     *
+     * <p>仅规范化模式调用；legacy 定义无分组语义。</p>
+     *
+     * @param report 校验报告
+     * @param root 定义 JSON 根节点
+     */
+    private static void checkGroups(ValidationReport report, JsonNode root) {
+        JsonNode groupsNode = root.get("groups");
+        if (groupsNode == null || !groupsNode.isArray()) {
+            return;
+        }
+        if (groupsNode.size() > ProcessModelParser.MAX_GROUPS) {
+            report.add(ValidationIssue.of(ValidationCode.TOO_MANY_GROUPS,
+                    "分组数 " + groupsNode.size() + " 超出上限 " + ProcessModelParser.MAX_GROUPS, null));
+        }
+        Set<String> groupKeys = new LinkedHashSet<>();
+        for (JsonNode item : groupsNode) {
+            String key = text(item, "key");
+            if (key == null || key.isBlank() || !KEY_PATTERN.matcher(key.trim()).matches()) {
+                report.add(ValidationIssue.of(ValidationCode.GROUP_KEY_INVALID,
+                        key == null || key.isBlank() ? "分组缺少 key" : "分组 key 不合法：" + key,
+                        key == null || key.isBlank() ? null : key));
+                continue;
+            }
+            String trimmed = key.trim();
+            if (!groupKeys.add(trimmed)) {
+                report.add(ValidationIssue.of(ValidationCode.GROUP_KEY_DUPLICATE, trimmed));
+            }
+        }
+        checkNodeGroups(report, root.get("nodes"), groupKeys);
+    }
+
+    /**
+     * 校验节点归属：非空的 {@code groupKey} 必须命中已声明分组。
+     *
+     * @param report 校验报告
+     * @param nodesNode 节点 JSON 数组，可为 {@code null}
+     * @param groupKeys 已声明的分组键集合
+     */
+    private static void checkNodeGroups(ValidationReport report, JsonNode nodesNode, Set<String> groupKeys) {
+        if (nodesNode == null || !nodesNode.isArray()) {
+            return;
+        }
+        for (JsonNode item : nodesNode) {
+            String groupKey = text(item, "groupKey");
+            if (groupKey != null && !groupKey.isBlank() && !groupKeys.contains(groupKey.trim())) {
+                report.add(ValidationIssue.of(ValidationCode.NODE_GROUP_UNKNOWN, text(item, "key")));
+            }
+        }
+    }
+
+    /**
      * 校验已构建的流程模型（供 BPMN 导入复用，模型键/引用已由解析器保证）。
      *
      * @param model 流程模型
@@ -148,8 +204,30 @@ public final class ProcessModelValidator {
             addEdge(graph, flow);
             checkCondition(report, flow.getCondition(), flow.getKey());
         }
+        checkModelGroups(report, model);
         checkGraph(report, graph);
         return report;
+    }
+
+    /**
+     * 校验模型内分组归属（BPMN 泳道导入后复用）。
+     *
+     * @param report 校验报告
+     * @param model 流程模型
+     */
+    private static void checkModelGroups(ValidationReport report, ProcessModel model) {
+        Set<String> groupKeys = new LinkedHashSet<>();
+        for (ProcessModelGroup group : model.getGroups()) {
+            if (group.getKey() != null) {
+                groupKeys.add(group.getKey());
+            }
+        }
+        for (ProcessModelNode node : model.getNodes()) {
+            if (node.getGroupKey() != null && !node.getGroupKey().isBlank()
+                    && !groupKeys.contains(node.getGroupKey())) {
+                report.add(ValidationIssue.of(ValidationCode.NODE_GROUP_UNKNOWN, node.getKey()));
+            }
+        }
     }
 
     /**

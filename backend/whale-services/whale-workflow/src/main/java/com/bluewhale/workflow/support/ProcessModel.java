@@ -8,12 +8,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 流程模型（规范化 JSON 的内存表示）：节点集合 + 流转集合。
+ * 流程模型（规范化 JSON 的内存表示）：节点集合 + 流转集合 + 可选分组集合。
  *
  * <p>由 {@link ProcessModelParser} 从 {@code definition_json} 解析而来，是状态机内核
  * ({@code support.machine.StateMachine}) 的唯一输入。若来源为 legacy
  * {@code {"nodes":[…]}}，则 {@link #legacy} 为 {@code true}，节点被归一化为顺序
- * {@code USER_TASK} 并自动补 {@code i→i+1} 顺序流，保证与 Wave 5.25 语义一致。</p>
+ * {@code USER_TASK} 并自动补 {@code i→i+1} 顺序流，保证与 Wave 5.25 语义一致。
+ * {@link #groups} 为可选的画布分组元数据，不影响运行期流转。</p>
  *
  * @author BlueWhale
  */
@@ -31,6 +32,9 @@ public class ProcessModel {
 
     /** 流转集合 */
     private List<ProcessModelFlow> flows = new ArrayList<>();
+
+    /** 画布分组 / 泳道集合（可选，旧定义无分组时为空） */
+    private List<ProcessModelGroup> groups = new ArrayList<>();
 
     /** 节点键 → 节点（解析期构建），便于 O(1) 检索 */
     private transient Map<String, ProcessModelNode> nodeIndex = new LinkedHashMap<>();
@@ -57,6 +61,24 @@ public class ProcessModel {
      */
     public ProcessModelNode node(String key) {
         return key == null ? null : nodeIndex.get(key);
+    }
+
+    /**
+     * 按分组键查询分组。
+     *
+     * @param key 分组键
+     * @return 命中分组，未命中返回 {@code null}
+     */
+    public ProcessModelGroup group(String key) {
+        if (key == null) {
+            return null;
+        }
+        for (ProcessModelGroup group : groups) {
+            if (key.equals(group.getKey())) {
+                return group;
+            }
+        }
+        return null;
     }
 
     /**

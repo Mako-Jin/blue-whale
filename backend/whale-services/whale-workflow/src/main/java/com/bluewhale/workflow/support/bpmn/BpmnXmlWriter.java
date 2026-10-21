@@ -2,8 +2,12 @@ package com.bluewhale.workflow.support.bpmn;
 
 import com.bluewhale.workflow.support.ProcessModel;
 import com.bluewhale.workflow.support.ProcessModelFlow;
+import com.bluewhale.workflow.support.ProcessModelGroup;
 import com.bluewhale.workflow.support.ProcessModelNode;
 import com.bluewhale.workflow.support.ProcessNodeType;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * BPMN 2.0 XML 写出器：把规范化 {@link ProcessModel} 序列化为 BPMN XML。
@@ -41,6 +45,12 @@ public final class BpmnXmlWriter {
     /** 审批节点图形高度 */
     private static final int TASK_HEIGHT = 60;
 
+    /** 泳道容器内边距 */
+    private static final int LANE_PADDING = 24;
+
+    /** 泳道容器顶部标题区高度 */
+    private static final int LANE_LABEL_HEIGHT = 24;
+
     /** 工具类不允许实例化 */
     private BpmnXmlWriter() {
     }
@@ -69,10 +79,69 @@ public final class BpmnXmlWriter {
         for (ProcessModelFlow flow : model.getFlows()) {
             appendFlow(xml, flow);
         }
+        appendLanes(xml, model, processId);
         xml.append("  </process>\n");
         appendDiagram(xml, model, processId);
         xml.append("</definitions>\n");
         return xml.toString();
+    }
+
+    /**
+     * 写出 {@code laneSet}：每个有成员节点的分组映射为一个 {@code lane}，
+     * 成员以 {@code flowNodeRef} 列出；无成员的分组不输出。
+     *
+     * @param xml 输出缓冲
+     * @param model 流程模型
+     * @param processId process id（作为 laneSet id 后缀）
+     */
+    private static void appendLanes(StringBuilder xml, ProcessModel model, String processId) {
+        if (model.getGroups().isEmpty()) {
+            return;
+        }
+        List<String> lanes = new ArrayList<>();
+        for (ProcessModelGroup group : model.getGroups()) {
+            List<String> members = membersOf(model, group.getKey());
+            if (members.isEmpty()) {
+                continue;
+            }
+            StringBuilder lane = new StringBuilder();
+            lane.append("    <lane id=\"").append(escape(group.getKey())).append('"');
+            if (group.getName() != null && !group.getName().isBlank()) {
+                lane.append(" name=\"").append(escape(group.getName())).append('"');
+            }
+            lane.append(">\n");
+            for (String member : members) {
+                lane.append("      <flowNodeRef>").append(escape(member)).append("</flowNodeRef>\n");
+            }
+            lane.append("    </lane>\n");
+            lanes.add(lane.toString());
+        }
+        if (lanes.isEmpty()) {
+            return;
+        }
+        xml.append("    <laneSet id=\"").append(escape("LaneSet_" + processId)).append("\">\n");
+        lanes.forEach(xml::append);
+        xml.append("    </laneSet>\n");
+    }
+
+    /**
+     * 取分组下的成员节点键（保持节点定义顺序）。
+     *
+     * @param model 流程模型
+     * @param groupKey 分组键
+     * @return 成员节点键列表（非 {@code null}）
+     */
+    private static List<String> membersOf(ProcessModel model, String groupKey) {
+        List<String> members = new ArrayList<>();
+        if (groupKey == null) {
+            return members;
+        }
+        for (ProcessModelNode node : model.getNodes()) {
+            if (groupKey.equals(node.getGroupKey())) {
+                members.add(node.getKey());
+            }
+        }
+        return members;
     }
 
     /**
@@ -103,8 +172,53 @@ public final class BpmnXmlWriter {
                     .append("\" height=\"").append(shapeHeight(node.getType())).append("\"/>\n");
             xml.append("      </bpmndi:BPMNShape>\n");
         }
+        for (ProcessModelGroup group : model.getGroups()) {
+            int[] bounds = groupBounds(model, group.getKey());
+            if (bounds == null) {
+                continue;
+            }
+            xml.append("      <bpmndi:BPMNShape id=\"").append(escape("BPMNShape_lane_" + group.getKey()))
+                    .append("\" bpmnElement=\"").append(escape(group.getKey())).append("\">\n");
+            xml.append("        <dc:Bounds x=\"").append(bounds[0]).append("\" y=\"").append(bounds[1])
+                    .append("\" width=\"").append(bounds[2]).append("\" height=\"").append(bounds[3]).append("\"/>\n");
+            xml.append("      </bpmndi:BPMNShape>\n");
+        }
         xml.append("    </bpmndi:BPMNPlane>\n");
         xml.append("  </bpmndi:BPMNDiagram>\n");
+    }
+
+    /**
+     * 计算分组容器包围盒（仅统计带画布坐标的成员节点）。
+     *
+     * @param model 流程模型
+     * @param groupKey 分组键
+     * @return {@code [x, y, width, height]}；无带坐标成员时返回 {@code null}
+     */
+    private static int[] groupBounds(ProcessModel model, String groupKey) {
+        if (groupKey == null) {
+            return null;
+        }
+        int minX = Integer.MAX_VALUE;
+        int minY = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE;
+        int maxY = Integer.MIN_VALUE;
+        boolean found = false;
+        for (ProcessModelNode node : model.getNodes()) {
+            if (!groupKey.equals(node.getGroupKey()) || node.getX() == null || node.getY() == null) {
+                continue;
+            }
+            found = true;
+            minX = Math.min(minX, node.getX());
+            minY = Math.min(minY, node.getY());
+            maxX = Math.max(maxX, node.getX() + shapeWidth(node.getType()));
+            maxY = Math.max(maxY, node.getY() + shapeHeight(node.getType()));
+        }
+        if (!found) {
+            return null;
+        }
+        int x = Math.max(0, minX - LANE_PADDING);
+        int y = Math.max(0, minY - LANE_PADDING - LANE_LABEL_HEIGHT);
+        return new int[] {x, y, maxX + LANE_PADDING - x, maxY + LANE_PADDING - y};
     }
 
     /**

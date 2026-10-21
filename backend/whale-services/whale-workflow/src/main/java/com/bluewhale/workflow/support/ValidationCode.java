@@ -110,6 +110,18 @@ public enum ValidationCode {
     /** 会签策略非法（须为 ALL / ANY / RATIO:n） */
     COUNTER_SIGN_POLICY_INVALID(ValidationLevel.ERROR, "会签策略不合法"),
 
+    /** 分组 key 缺失或不合法（字符集/长度） */
+    GROUP_KEY_INVALID(ValidationLevel.ERROR, "分组 key 不合法"),
+
+    /** 分组 key 重复 */
+    GROUP_KEY_DUPLICATE(ValidationLevel.ERROR, "分组 key 重复"),
+
+    /** 节点引用了不存在的分组 */
+    NODE_GROUP_UNKNOWN(ValidationLevel.ERROR, "节点引用了不存在的分组"),
+
+    /** 分组数超出上限 */
+    TOO_MANY_GROUPS(ValidationLevel.ERROR, "分组数超出上限"),
+
     /** 流转条件本轮不参与选路（警告，仅 legacy 兼容保留） */
     CONDITION_IGNORED(ValidationLevel.WARNING, "流转条件本轮不参与选路，已忽略");
 

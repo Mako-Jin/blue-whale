@@ -11,6 +11,7 @@ import com.bluewhale.workflow.service.ProcessModelService;
 import com.bluewhale.workflow.support.ProcessModel;
 import com.bluewhale.workflow.support.ProcessModelException;
 import com.bluewhale.workflow.support.ProcessModelFlow;
+import com.bluewhale.workflow.support.ProcessModelGroup;
 import com.bluewhale.workflow.support.ProcessModelNode;
 import com.bluewhale.workflow.support.ProcessModelParser;
 import com.bluewhale.workflow.support.ProcessModelValidator;
@@ -59,6 +60,9 @@ public class ProcessModelServiceImpl implements ProcessModelService {
 
     /** JSON 字段：流转数组 */
     private static final String FIELD_FLOWS = "flows";
+
+    /** JSON 字段：分组数组 */
+    private static final String FIELD_GROUPS = "groups";
 
     /** JSON 序列化器（Jackson 2，与 support 层一致） */
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -441,6 +445,14 @@ public class ProcessModelServiceImpl implements ProcessModelService {
         ObjectNode root = OBJECT_MAPPER.createObjectNode();
         root.put(FIELD_TYPE, model.getDefinitionType() == null
                 ? ProcessModelParser.TYPE_STATE_MACHINE : model.getDefinitionType());
+        if (!model.getGroups().isEmpty()) {
+            ArrayNode groups = root.putArray(FIELD_GROUPS);
+            for (ProcessModelGroup group : model.getGroups()) {
+                ObjectNode item = groups.addObject();
+                putIfPresent(item, "key", group.getKey());
+                putIfPresent(item, "name", group.getName());
+            }
+        }
         ArrayNode nodes = root.putArray(FIELD_NODES);
         for (ProcessModelNode node : model.getNodes()) {
             ObjectNode item = nodes.addObject();
@@ -457,6 +469,7 @@ public class ProcessModelServiceImpl implements ProcessModelService {
             putIfPresent(item, "counterSignPolicy", node.getCounterSignPolicy());
             putIfPresentInt(item, "x", node.getX());
             putIfPresentInt(item, "y", node.getY());
+            putIfPresent(item, "groupKey", node.getGroupKey());
         }
         ArrayNode flows = root.putArray(FIELD_FLOWS);
         for (ProcessModelFlow flow : model.getFlows()) {

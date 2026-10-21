@@ -161,6 +161,17 @@ export default function PropertyPanel({
           />
         </Item>
 
+        <Item label="所属分组" hint="分组容器由成员节点位置自动包围；在顶栏「分组」中管理">
+          <Select
+            allowClear
+            style={{ width: '100%' }}
+            placeholder="未分组"
+            value={node.groupKey ?? undefined}
+            options={model.groups.map((group) => ({ value: group.key, label: group.name || group.key }))}
+            onChange={(value) => onChangeNode(node.key, { groupKey: value ?? null })}
+          />
+        </Item>
+
         {isUserTask ? (
           <>
             <Item label="审批人 (assignee)" hint="USER_TASK 必填，账号名">

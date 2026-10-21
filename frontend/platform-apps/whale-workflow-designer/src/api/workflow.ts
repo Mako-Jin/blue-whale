@@ -18,6 +18,15 @@ export type NodeType =
   | 'PARALLEL_GATEWAY'
   | 'COUNTER_SIGN';
 
+/**
+ * 画布分组 / 泳道（规范化 JSON 的可选 groups[] 元素）。
+ * 仅存语义元数据，容器矩形由成员节点包围盒派生，不持久化坐标。
+ */
+export interface ProcessModelGroup {
+  key: string;
+  name?: string | null;
+}
+
 /** 流程流转（对应后端 ProcessModelFlow，规范化 JSON 的 flows[] 元素） */
 export interface ProcessModelFlow {
   key: string;
@@ -48,11 +57,15 @@ export interface ProcessModelNode {
   x?: number | null;
   /** 画布 Y 坐标（可空；legacy/BPMN 导入的节点无坐标） */
   y?: number | null;
+  /** 所属分组 key（可空；引用 groups[].key） */
+  groupKey?: string | null;
 }
 
 /** 规范化流程定义 JSON（definitionJson 解析后的结构） */
 export interface NormalizedDefinition {
   type: 'stateMachine';
+  /** 画布分组 / 泳道（可选，旧定义无此字段） */
+  groups?: ProcessModelGroup[];
   nodes: ProcessModelNode[];
   flows: ProcessModelFlow[];
 }
@@ -80,6 +93,44 @@ export interface DefinitionSaveRequest {
   version?: number;
   status?: number;
   remark?: string;
+}
+
+/** 流程定义版本快照（对应后端 ProcessDefinitionVersionVO） */
+export interface ProcessDefinitionVersion {
+  id: Id;
+  definitionId: Id;
+  /** 版本号 */
+  version: number;
+  /** 该版本的流程定义 JSON 快照 */
+  definitionJson?: string | null;
+  /** 发布状态：0 草稿 / 1 已发布 */
+  publishStatus?: number | null;
+  createTime?: string;
+  updateTime?: string;
+}
+
+/** 发布指定版本入参（POST /workflow/definition/{id}/publish） */
+export interface DefinitionPublishRequest {
+  version: number;
+}
+
+/** 实例版本迁移入参（POST /workflow/definition/{id}/migrate） */
+export interface DefinitionMigrationRequest {
+  /** 目标版本号（须存在对应快照） */
+  targetVersion: number;
+  /** 指定实例 ID 列表；为空表示该定义下全部运行中实例（字符串承载雪花 ID） */
+  instanceIds?: Id[];
+}
+
+/** 实例版本迁移结果（对应后端 DefinitionMigrationVO） */
+export interface DefinitionMigrationResult {
+  definitionId: Id;
+  targetVersion: number;
+  migrated: number;
+  skipped: number;
+  failed: number;
+  /** 失败明细：`实例ID: 原因` */
+  failures: string[];
 }
 
 /** 流程实例（对应后端 ProcessInstanceVO） */
@@ -317,6 +368,15 @@ export const workflowApi = {
     post<ProcessDefinition>('/workflow/definition/bpmn', data),
   // BPMN 导出为原始字节流（响应非 JSON 信封），文件名从 Content-Disposition 解析
   definitionBpmnExport: (id: Id) => downloadBlob(`/workflow/definition/${id}/bpmn`),
+  // 版本快照：版本号倒序；publishStatus 0 草稿 / 1 已发布
+  definitionVersions: (id: Id) =>
+    get<ProcessDefinitionVersion[]>(`/workflow/definition/${id}/versions`),
+  // 发布指定版本：切换定义表内容，新实例按该版本发起
+  definitionPublish: (id: Id, data: DefinitionPublishRequest) =>
+    post<ProcessDefinition>(`/workflow/definition/${id}/publish`, data),
+  // 迁移运行中实例到目标版本（instanceIds 为空表示全部运行中实例）
+  definitionMigrate: (id: Id, data: DefinitionMigrationRequest) =>
+    post<DefinitionMigrationResult>(`/workflow/definition/${id}/migrate`, data),
 
   // 流程实例 API（服务内前缀 /workflow/instance）
   instancePage: (query?: InstanceQuery) =>

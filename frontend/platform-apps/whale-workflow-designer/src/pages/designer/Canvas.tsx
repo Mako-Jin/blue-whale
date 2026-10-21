@@ -56,6 +56,10 @@ const CANVAS_MIN_WIDTH = 1200;
 const CANVAS_MIN_HEIGHT = 640;
 const CANVAS_PADDING = 120;
 
+/** 分组容器内边距与顶部标题区高度 */
+const GROUP_PADDING = 24;
+const GROUP_LABEL_HEIGHT = 24;
+
 /** 拖拽源 data 结构（Palette 与画布节点共用判别字段 source） */
 interface DraggableData {
   source?: 'palette' | 'node';
@@ -79,6 +83,41 @@ function snap(value: number): number {
 /** 夹取缩放比例 */
 function clampZoom(value: number): number {
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
+}
+
+/**
+ * 计算分组容器包围盒（仅统计归属该分组的节点，坐标由节点派生，不持久化）。
+ *
+ * @param groupKey 分组键
+ * @param nodes 全部画布节点
+ * @returns 容器矩形；分组下无节点时返回 null
+ */
+function groupBounds(
+  groupKey: string,
+  nodes: CanvasNode[],
+): { x: number; y: number; width: number; height: number } | null {
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  let found = false;
+  nodes.forEach((node) => {
+    if (node.groupKey !== groupKey) {
+      return;
+    }
+    const size = NODE_SIZE[node.type];
+    found = true;
+    minX = Math.min(minX, node.x);
+    minY = Math.min(minY, node.y);
+    maxX = Math.max(maxX, node.x + size.width);
+    maxY = Math.max(maxY, node.y + size.height);
+  });
+  if (!found) {
+    return null;
+  }
+  const x = Math.max(0, minX - GROUP_PADDING);
+  const y = Math.max(0, minY - GROUP_PADDING - GROUP_LABEL_HEIGHT);
+  return { x, y, width: maxX + GROUP_PADDING - x, height: maxY + GROUP_PADDING - y };
 }
 
 /** 取偏差最小的候选（无候选返回 undefined） */
@@ -476,6 +515,32 @@ export default function Canvas({
               pointerEvents="none"
             />
           ) : null}
+
+          <g>
+            {model.groups.map((group) => {
+              const bounds = groupBounds(group.key, model.nodes);
+              if (!bounds) {
+                return null;
+              }
+              return (
+                <g key={group.key} pointerEvents="none">
+                  <rect
+                    x={bounds.x}
+                    y={bounds.y}
+                    width={bounds.width}
+                    height={bounds.height}
+                    rx={8}
+                    fill="rgba(22,119,255,0.04)"
+                    stroke="#91caff"
+                    strokeDasharray="6 4"
+                  />
+                  <text x={bounds.x + 10} y={bounds.y + 16} fontSize={12} fill="#1677ff">
+                    {group.name || group.key}
+                  </text>
+                </g>
+              );
+            })}
+          </g>
 
           <g>
             {model.flows.map((flow) => {

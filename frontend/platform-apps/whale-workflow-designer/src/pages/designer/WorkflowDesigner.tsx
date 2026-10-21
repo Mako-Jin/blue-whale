@@ -4,32 +4,54 @@
 // 校验按 errors[].refKey 高亮节点 / 连线，并以内联 Alert 列明 message / warnings。
 // 模拟按流程变量真实求值选路，回放节点路径（不创建实例）。
 
-import { Alert, App, Button, Card, Input, Modal, Space, Spin, Steps, Tag, Tooltip, Typography } from 'antd';
+import {
+  Alert,
+  App,
+  Button,
+  Card,
+  Drawer,
+  Input,
+  InputNumber,
+  Modal,
+  Popconfirm,
+  Space,
+  Spin,
+  Steps,
+  Table,
+  Tag,
+  Tooltip,
+  Typography,
+  type TableProps,
+} from 'antd';
 import { useEffect, useMemo, useReducer, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useCurrentUser } from '../../api/token';
 import {
   workflowApi,
+  type DefinitionMigrationResult,
   type ProcessDefinitionSimulate,
   type ProcessDefinitionValidate,
+  type ProcessDefinitionVersion,
 } from '../../api/workflow';
 import Canvas from './Canvas';
 import Palette from './Palette';
 import PropertyPanel from './PropertyPanel';
 import {
   createFlow,
+  createGroup,
   createNode,
   isValidKey,
   nextKey,
   parseDefinition,
   serializeDefinition,
   type CanvasFlow,
+  type CanvasGroup,
   type CanvasModel,
   type CanvasNode,
   type Selection,
 } from './model';
 
-const EMPTY_MODEL: CanvasModel = { nodes: [], flows: [] };
+const EMPTY_MODEL: CanvasModel = { nodes: [], flows: [], groups: [] };
 
 /** 撤销栈上限（避免长会话内存膨胀） */
 const MAX_HISTORY = 50;
@@ -149,6 +171,21 @@ export default function WorkflowDesigner() {
   const [simulateVariables, setSimulateVariables] = useState('{}');
   const [simulating, setSimulating] = useState(false);
   const [simulation, setSimulation] = useState<ProcessDefinitionSimulate | null>(null);
+
+  // 分组 / 泳道弹窗
+  const [groupOpen, setGroupOpen] = useState(false);
+  const [groupName, setGroupName] = useState('');
+
+  // 版本管理抽屉与迁移弹窗
+  const [versionOpen, setVersionOpen] = useState(false);
+  const [versionLoading, setVersionLoading] = useState(false);
+  const [versions, setVersions] = useState<ProcessDefinitionVersion[]>([]);
+  const [publishingVersion, setPublishingVersion] = useState<number | null>(null);
+  const [migrateOpen, setMigrateOpen] = useState(false);
+  const [migrateVersion, setMigrateVersion] = useState<number | null>(null);
+  const [migrateIds, setMigrateIds] = useState('');
+  const [migrating, setMigrating] = useState(false);
+  const [migration, setMigration] = useState<DefinitionMigrationResult | null>(null);
 
   // 加载既有定义（:id）
   useEffect(() => {
@@ -282,6 +319,7 @@ export default function WorkflowDesigner() {
       return false;
     }
     commit((prev) => ({
+      ...prev,
       nodes: prev.nodes.map((node) => (node.key === oldKey ? { ...node, key: trimmed } : node)),
       flows: prev.flows.map((flow) => ({
         ...flow,
@@ -296,6 +334,7 @@ export default function WorkflowDesigner() {
 
   const handleDeleteNode = (key: string) => {
     commit((prev) => ({
+      ...prev,
       nodes: prev.nodes.filter((node) => node.key !== key),
       flows: prev.flows.filter((flow) => flow.from !== key && flow.to !== key),
     }));
@@ -486,6 +525,192 @@ export default function WorkflowDesigner() {
     }
   };
 
+  /** 新建分组：名称必填，key 自动生成 */
+  const handleCreateGroup = () => {
+    const trimmed = groupName.trim();
+    if (!trimmed) {
+      message.warning('请填写分组名称');
+      return;
+    }
+    const key = nextKey('g', model.groups.map((group) => group.key));
+    commit((prev) => ({ ...prev, groups: [...prev.groups, createGroup(key, trimmed)] }));
+    setGroupName('');
+    message.success(`分组「${trimmed}」已创建`);
+  };
+
+  const handleRenameGroup = (key: string, name: string) => {
+    commit((prev) => ({
+      ...prev,
+      groups: prev.groups.map((group) => (group.key === key ? { ...group, name } : group)),
+    }));
+  };
+
+  const handleDeleteGroup = (key: string) => {
+    commit((prev) => ({
+      ...prev,
+      groups: prev.groups.filter((group) => group.key !== key),
+      nodes: prev.nodes.map((node) => (node.groupKey === key ? { ...node, groupKey: null } : node)),
+    }));
+  };
+
+  /** 拉取版本快照列表 */
+  const loadVersions = async () => {
+    if (!definitionId) {
+      return;
+    }
+    setVersionLoading(true);
+    try {
+      const result = await workflowApi.definitionVersions(definitionId);
+      setVersions(result);
+    } catch (error) {
+      message.error(toMessage(error));
+    } finally {
+      setVersionLoading(false);
+    }
+  };
+
+  /** 打开版本抽屉并重置迁移状态 */
+  const openVersions = () => {
+    setMigration(null);
+    setMigrateOpen(false);
+    setVersionOpen(true);
+    void loadVersions();
+  };
+
+  /** 发布指定版本，并同步定义表内容到画布 */
+  const handlePublish = async (version: number) => {
+    if (!definitionId) {
+      return;
+    }
+    setPublishingVersion(version);
+    try {
+      await workflowApi.definitionPublish(definitionId, { version });
+      message.success(`已发布版本 v${version}`);
+      await loadVersions();
+      const definition = await workflowApi.definitionDetail(definitionId);
+      setCode(definition.code);
+      setName(definition.name);
+      dispatch({ type: 'reset', model: parseDefinition(definition.definitionJson) });
+      setSelected(null);
+      setLinkFrom(null);
+      setValidation(null);
+    } catch (error) {
+      message.error(toMessage(error));
+    } finally {
+      setPublishingVersion(null);
+    }
+  };
+
+  /** 打开迁移弹窗并预填目标版本 */
+  const openMigrate = (version: number) => {
+    setMigration(null);
+    setMigrateVersion(version);
+    setMigrateIds('');
+    setMigrateOpen(true);
+  };
+
+  /** 迁移运行中实例到目标版本（实例 ID 保持字符串，避免雪花 ID 丢精度） */
+  const handleMigrate = async () => {
+    if (!definitionId) {
+      return;
+    }
+    if (migrateVersion === null) {
+      message.warning('请填写目标版本号');
+      return;
+    }
+    const ids = migrateIds
+      .split(/[\s,，]+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+    setMigrating(true);
+    try {
+      const result = await workflowApi.definitionMigrate(definitionId, {
+        targetVersion: migrateVersion,
+        ...(ids.length > 0 ? { instanceIds: ids } : {}),
+      });
+      setMigration(result);
+      message.success(`迁移完成：成功 ${result.migrated} / 跳过 ${result.skipped} / 失败 ${result.failed}`);
+    } catch (error) {
+      message.error(toMessage(error));
+    } finally {
+      setMigrating(false);
+    }
+  };
+
+  const versionColumns: TableProps<ProcessDefinitionVersion>['columns'] = [
+    {
+      title: '版本',
+      dataIndex: 'version',
+      width: 90,
+      render: (version: number) => <Tag color="blue">v{version}</Tag>,
+    },
+    {
+      title: '状态',
+      dataIndex: 'publishStatus',
+      width: 100,
+      render: (status?: number | null) =>
+        status === 1 ? <Tag color="green">已发布</Tag> : <Tag>草稿</Tag>,
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'createTime',
+      render: (createTime?: string) => createTime ?? '-',
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 140,
+      render: (_, record) => (
+        <Space size={4}>
+          <Button
+            type="link"
+            size="small"
+            loading={publishingVersion === record.version}
+            onClick={() => void handlePublish(record.version)}
+          >
+            发布
+          </Button>
+          <Button type="link" size="small" onClick={() => openMigrate(record.version)}>
+            迁移
+          </Button>
+        </Space>
+      ),
+    },
+  ];
+
+  const groupColumns: TableProps<CanvasGroup>['columns'] = [
+    { title: 'key', dataIndex: 'key', width: 110 },
+    {
+      title: '名称',
+      dataIndex: 'name',
+      render: (_, record) => (
+        <Input
+          size="small"
+          value={record.name}
+          onChange={(event) => handleRenameGroup(record.key, event.target.value)}
+        />
+      ),
+    },
+    {
+      title: '节点数',
+      key: 'count',
+      width: 90,
+      render: (_, record) => model.nodes.filter((node) => node.groupKey === record.key).length,
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 80,
+      render: (_, record) => (
+        <Popconfirm title="删除后成员将变为未分组" onConfirm={() => handleDeleteGroup(record.key)}>
+          <Button type="link" size="small" danger>
+            删除
+          </Button>
+        </Popconfirm>
+      ),
+    },
+  ];
+
   return (
     <Card
       title="流程设计器"
@@ -507,6 +732,10 @@ export default function WorkflowDesigner() {
           </Button>
           <Button loading={validating} onClick={() => void handleValidate()}>
             校验
+          </Button>
+          <Button onClick={() => setGroupOpen(true)}>分组</Button>
+          <Button disabled={!definitionId} onClick={openVersions}>
+            版本
           </Button>
           <Button onClick={openSimulate}>模拟</Button>
           <Button onClick={openBpmnImport}>导入 BPMN</Button>
@@ -734,6 +963,110 @@ export default function WorkflowDesigner() {
             value={bpmnXml}
             onChange={(event) => setBpmnXml(event.target.value)}
           />
+        </Space>
+      </Modal>
+
+      <Modal
+        title="分组 / 泳道"
+        open={groupOpen}
+        footer={null}
+        width={520}
+        onCancel={() => setGroupOpen(false)}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+          <Space.Compact style={{ width: '100%' }}>
+            <Input
+              placeholder="新分组名称"
+              value={groupName}
+              onChange={(event) => setGroupName(event.target.value)}
+              onPressEnter={handleCreateGroup}
+            />
+            <Button type="primary" onClick={handleCreateGroup}>
+              新建
+            </Button>
+          </Space.Compact>
+          <Table
+            size="small"
+            rowKey="key"
+            pagination={false}
+            dataSource={model.groups}
+            columns={groupColumns}
+            locale={{ emptyText: '暂无分组' }}
+          />
+          <Typography.Text type="secondary">
+            容器矩形按成员节点包围盒自动派生；在右侧属性面板为节点选择所属分组。
+          </Typography.Text>
+        </Space>
+      </Modal>
+
+      <Drawer
+        title="版本管理"
+        width={640}
+        open={versionOpen}
+        onClose={() => setVersionOpen(false)}
+        extra={
+          <Button size="small" onClick={() => void loadVersions()}>
+            刷新
+          </Button>
+        }
+      >
+        <Spin spinning={versionLoading}>
+          <Space direction="vertical" style={{ width: '100%' }} size="middle">
+            <Typography.Text type="secondary">
+              发布后新实例按该版本发起；迁移把运行中实例切换到目标版本的结构。
+            </Typography.Text>
+            <Table
+              size="small"
+              rowKey="id"
+              dataSource={versions}
+              columns={versionColumns}
+              pagination={false}
+              locale={{ emptyText: '暂无版本快照' }}
+            />
+          </Space>
+        </Spin>
+      </Drawer>
+
+      <Modal
+        title="迁移运行中实例"
+        open={migrateOpen}
+        okText="开始迁移"
+        confirmLoading={migrating}
+        onOk={() => void handleMigrate()}
+        onCancel={() => setMigrateOpen(false)}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+          <InputNumber
+            min={1}
+            precision={0}
+            value={migrateVersion}
+            onChange={(value) => setMigrateVersion(typeof value === 'number' ? value : null)}
+          />
+          <Input.TextArea
+            rows={4}
+            placeholder="实例 ID（可选，逗号/换行分隔；留空=全部运行中实例）"
+            value={migrateIds}
+            onChange={(event) => setMigrateIds(event.target.value)}
+          />
+          <Typography.Text type="secondary">
+            实例 ID 按字符串提交，避免雪花 ID 精度丢失。
+          </Typography.Text>
+          {migration ? (
+            <Alert
+              type={migration.failed > 0 ? 'warning' : 'success'}
+              showIcon
+              message={`迁移完成：成功 ${migration.migrated} / 跳过 ${migration.skipped} / 失败 ${migration.failed}`}
+              description={
+                migration.failures.length > 0 ? (
+                  <ul style={{ margin: 0, paddingLeft: 18 }}>
+                    {migration.failures.map((failure, index) => (
+                      <li key={`${failure}-${index}`}>{failure}</li>
+                    ))}
+                  </ul>
+                ) : undefined
+              }
+            />
+          ) : null}
         </Space>
       </Modal>
     </Card>

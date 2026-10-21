@@ -32,6 +32,9 @@ public final class ProcessModelParser {
     /** 流转数上限 */
     public static final int MAX_FLOWS = 400;
 
+    /** 分组数上限 */
+    public static final int MAX_GROUPS = 50;
+
     /** 定义类型文本 */
     private static final String FIELD_TYPE = "type";
 
@@ -40,6 +43,9 @@ public final class ProcessModelParser {
 
     /** 流转数组字段 */
     private static final String FIELD_FLOWS = "flows";
+
+    /** 分组数组字段 */
+    private static final String FIELD_GROUPS = "groups";
 
     /** legacy 非法定义的固定文案（与 {@link ProcessNodeParser} 完全一致） */
     private static final String LEGACY_INVALID_MESSAGE = "流程定义缺少有效审批节点";
@@ -138,20 +144,72 @@ public final class ProcessModelParser {
         }
         ProcessModel model = new ProcessModel();
         model.setDefinitionType(type == null || type.isBlank() ? TYPE_STATE_MACHINE : type);
+        readGroups(model, root);
         for (JsonNode item : nodesNode) {
             model.getNodes().add(readNode(item));
         }
-        JsonNode flowsNode = root.get(FIELD_FLOWS);
-        if (flowsNode != null && flowsNode.isArray()) {
-            if (flowsNode.size() > MAX_FLOWS) {
-                throw tooManyFlows(flowsNode.size());
-            }
-            for (JsonNode item : flowsNode) {
-                model.getFlows().add(readFlow(item));
-            }
-        }
+        readFlows(model, root);
         model.reindex();
         return model;
+    }
+
+    /**
+     * 读取可选分组数组并写入模型。
+     *
+     * @param model 流程模型
+     * @param root 定义 JSON 根节点
+     * @throws ProcessModelException 分组数量超限或分组结构非法时抛出
+     */
+    private static void readGroups(ProcessModel model, JsonNode root) {
+        JsonNode groupsNode = root.get(FIELD_GROUPS);
+        if (groupsNode == null || !groupsNode.isArray()) {
+            return;
+        }
+        if (groupsNode.size() > MAX_GROUPS) {
+            throw tooManyGroups(groupsNode.size());
+        }
+        for (JsonNode item : groupsNode) {
+            model.getGroups().add(readGroup(item));
+        }
+    }
+
+    /**
+     * 读取可选流转数组并写入模型。
+     *
+     * @param model 流程模型
+     * @param root 定义 JSON 根节点
+     * @throws ProcessModelException 流转数量超限或流转结构非法时抛出
+     */
+    private static void readFlows(ProcessModel model, JsonNode root) {
+        JsonNode flowsNode = root.get(FIELD_FLOWS);
+        if (flowsNode == null || !flowsNode.isArray()) {
+            return;
+        }
+        if (flowsNode.size() > MAX_FLOWS) {
+            throw tooManyFlows(flowsNode.size());
+        }
+        for (JsonNode item : flowsNode) {
+            model.getFlows().add(readFlow(item));
+        }
+    }
+
+    /**
+     * 解析单个分组。
+     *
+     * @param item 分组 JSON
+     * @return 流程模型分组
+     * @throws ProcessModelException 分组 key 缺失或不合法时抛出
+     */
+    private static ProcessModelGroup readGroup(JsonNode item) {
+        String key = text(item, "key");
+        if (key == null || !KEY_PATTERN.matcher(key.trim()).matches()) {
+            throw new ProcessModelException(ValidationCode.GROUP_KEY_INVALID,
+                    "流程定义非法：" + ValidationCode.GROUP_KEY_INVALID.name(), key);
+        }
+        ProcessModelGroup group = new ProcessModelGroup();
+        group.setKey(key.trim());
+        group.setName(text(item, "name"));
+        return group;
     }
 
     /**
@@ -187,6 +245,7 @@ public final class ProcessModelParser {
         node.setCounterSignPolicy(text(item, "counterSignPolicy"));
         node.setX(integer(item, "x"));
         node.setY(integer(item, "y"));
+        node.setGroupKey(text(item, "groupKey"));
         if (nodeType == ProcessNodeType.USER_TASK && (node.getAssignee() == null || node.getAssignee().isBlank())) {
             throw new ProcessModelException(ValidationCode.USER_TASK_ASSIGNEE_REQUIRED, LEGACY_INVALID_MESSAGE, key);
         }
@@ -291,5 +350,16 @@ public final class ProcessModelParser {
     private static ProcessModelException tooManyFlows(int actual) {
         return new ProcessModelException(ValidationCode.TOO_MANY_FLOWS,
                 "流程定义非法：流转数 " + actual + " 超出上限 " + MAX_FLOWS);
+    }
+
+    /**
+     * 构造分组数超限异常。
+     *
+     * @param actual 实际分组数
+     * @return 流程模型异常
+     */
+    private static ProcessModelException tooManyGroups(int actual) {
+        return new ProcessModelException(ValidationCode.TOO_MANY_GROUPS,
+                "流程定义非法：分组数 " + actual + " 超出上限 " + MAX_GROUPS);
     }
 }

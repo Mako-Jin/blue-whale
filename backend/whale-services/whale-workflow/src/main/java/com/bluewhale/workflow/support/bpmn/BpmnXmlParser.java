@@ -3,6 +3,7 @@ package com.bluewhale.workflow.support.bpmn;
 import com.bluewhale.workflow.support.ProcessModel;
 import com.bluewhale.workflow.support.ProcessModelException;
 import com.bluewhale.workflow.support.ProcessModelFlow;
+import com.bluewhale.workflow.support.ProcessModelGroup;
 import com.bluewhale.workflow.support.ProcessModelNode;
 import com.bluewhale.workflow.support.ProcessModelParser;
 import com.bluewhale.workflow.support.ProcessNodeType;
@@ -18,6 +19,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * BPMN 2.0 XML 解析器：把 BPMN XML 映射为规范化 {@link ProcessModel}。
@@ -36,15 +38,19 @@ public final class BpmnXmlParser {
     /** 元素名 → 节点类型映射 */
     private static final Map<String, ProcessNodeType> NODE_TYPES = new LinkedHashMap<>();
 
+    /** 分组键合法字符集（与规范化 JSON 的 key 规则一致） */
+    private static final Pattern KEY_PATTERN = Pattern.compile("^[A-Za-z0-9_-]{1,64}$");
+
     /** 忽略（非错误）的元素名：其子树整体跳过 */
     private static final Set<String> IGNORED = Set.of(
-            "BPMNDiagram", "BPMNPlane", "BPMNShape", "BPMNEdge", "documentation", "extensionElements");
+            "BPMNDiagram", "BPMNPlane", "BPMNShape", "BPMNEdge", "documentation", "extensionElements",
+            "flowNodeRef");
 
     /** 不支持的元素名：导入即报错并点名 */
     private static final Set<String> UNSUPPORTED = Set.of(
             "serviceTask", "scriptTask", "manualTask", "inclusiveGateway",
             "eventBasedGateway", "subProcess", "callActivity", "boundaryEvent",
-            "intermediateCatchEvent", "intermediateThrowEvent", "timerEventDefinition", "laneSet", "lane");
+            "intermediateCatchEvent", "intermediateThrowEvent", "timerEventDefinition");
 
     static {
         NODE_TYPES.put("startEvent", ProcessNodeType.START_EVENT);
@@ -73,6 +79,7 @@ public final class BpmnXmlParser {
         applyGatewayDefaults(process, model);
         model.setDefinitionType(ProcessModelParser.TYPE_STATE_MACHINE);
         model.reindex();
+        readLanes(process, model);
         applyDiagramCoordinates(document.getDocumentElement(), model);
         return model;
     }
@@ -205,6 +212,55 @@ public final class BpmnXmlParser {
             }
         }
         return null;
+    }
+
+    /**
+     * 回读泳道：{@code laneSet/lane} → 分组，{@code flowNodeRef} → 节点归属。
+     *
+     * <p>泳道为可选图形语义：lane 缺少合法 id（不满足分组键规则）或键重复时跳过；
+     * 节点已归属其他泳道时保持首个归属（不覆盖）。</p>
+     *
+     * @param process process 元素
+     * @param model 流程模型（节点索引已构建）
+     */
+    private static void readLanes(Element process, ProcessModel model) {
+        for (Element laneSet : children(process)) {
+            if (!"laneSet".equals(localName(laneSet))) {
+                continue;
+            }
+            for (Element lane : children(laneSet)) {
+                if ("lane".equals(localName(lane))) {
+                    readLane(lane, model);
+                }
+            }
+        }
+    }
+
+    /**
+     * 读取单个 {@code lane} 元素并回填成员节点归属。
+     *
+     * @param lane lane 元素
+     * @param model 流程模型
+     */
+    private static void readLane(Element lane, ProcessModel model) {
+        String key = attribute(lane, "id");
+        if (key == null || !KEY_PATTERN.matcher(key.trim()).matches() || model.group(key.trim()) != null) {
+            return;
+        }
+        ProcessModelGroup group = new ProcessModelGroup();
+        group.setKey(key.trim());
+        group.setName(attribute(lane, "name"));
+        model.getGroups().add(group);
+        for (Element ref : children(lane)) {
+            if (!"flowNodeRef".equals(localName(ref))) {
+                continue;
+            }
+            String text = ref.getTextContent();
+            ProcessModelNode node = model.node(text == null ? null : text.trim());
+            if (node != null && (node.getGroupKey() == null || node.getGroupKey().isBlank())) {
+                node.setGroupKey(group.getKey());
+            }
+        }
     }
 
     /**

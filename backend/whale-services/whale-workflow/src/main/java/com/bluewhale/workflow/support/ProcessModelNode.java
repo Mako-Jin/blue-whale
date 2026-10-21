@@ -42,6 +42,9 @@ public class ProcessModelNode {
     /** 画布纵坐标（自由画布设计器持久化用，可空） */
     private Integer y;
 
+    /** 所属画布分组键（引用 {@link ProcessModelGroup#getKey()}，可空表示未分组） */
+    private String groupKey;
+
     /**
      * 判断节点是否为审批节点。
      *
