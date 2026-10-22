@@ -25,16 +25,13 @@ if (!(window as unknown as { __POWERED_BY_QIANKUN__?: boolean }).__POWERED_BY_QI
 }
 
 export async function bootstrap() {
-  console.log('[whale-oa] qiankun bootstrap');
 }
 
 export async function mount(props: { container?: HTMLElement }) {
-  console.log('[whale-oa] qiankun mount', props);
   render(props);
 }
 
 export async function unmount() {
-  console.log('[whale-oa] qiankun unmount');
   root?.unmount();
   root = null;
 }

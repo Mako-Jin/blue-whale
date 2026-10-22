@@ -180,7 +180,7 @@ export default function TaskCenter() {
    * 抽屉内加载表单：formId → 表单定义 fields；实例 businessKey → 表单数据 fields（键为 columnCode）。
    * 任一步缺失或失败即降级为「无表单数据」占位，**不阻塞审批提交**（F4-c）。
    */
-  const loadForm = async (task: ProcessTask) => {
+  const loadForm = useCallback(async (task: ProcessTask) => {
     setDrawerLoading(true);
     try {
       if (!task.formId) {
@@ -221,10 +221,10 @@ export default function TaskCenter() {
     } finally {
       setDrawerLoading(false);
     }
-  };
+  }, []);
 
   /** 打开审批（待办）/ 查看（非待办）抽屉 */
-  const openDrawer = (record: ProcessTask) => {
+  const openDrawer = useCallback((record: ProcessTask) => {
     setActiveTask(record);
     setDrawerOpen(true);
     setComment(record.comment ?? '');
@@ -235,7 +235,7 @@ export default function TaskCenter() {
     setFormDirty(false);
     setFormError(null);
     void loadForm(record);
-  };
+  }, [loadForm]);
 
   /** 关闭抽屉并复位当前任务 */
   const closeDrawer = () => {
@@ -438,7 +438,7 @@ export default function TaskCenter() {
         ),
       },
     ],
-    [instanceMap],
+    [instanceMap, openDrawer],
   );
 
   const readOnly = activeTask !== null && activeTask.status !== 0;

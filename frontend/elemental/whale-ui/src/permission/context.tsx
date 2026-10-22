@@ -25,6 +25,7 @@ export interface PermissionUtils {
 }
 
 /** 读取当前权限上下文 */
+// eslint-disable-next-line react-refresh/only-export-components -- Provider 与 hook 同文件导出，保持包入口聚合
 export function usePermission(): PermissionUtils {
   const permissions = useContext(PermissionContext);
 

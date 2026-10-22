@@ -36,6 +36,7 @@ const COMPONENT_MAP: Record<
 type ComponentKey = keyof typeof COMPONENT_MAP;
 
 /** 未匹配到已注册组件时的占位页——渲染在布局内容区，保证不崩溃 */
+// eslint-disable-next-line react-refresh/only-export-components -- 内部占位组件，不对外导出
 function UnmatchedPage() {
   return <Result status="404" title="页面未配置" subTitle="该菜单未匹配到已注册的页面组件" />;
 }

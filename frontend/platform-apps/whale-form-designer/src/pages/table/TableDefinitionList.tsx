@@ -203,7 +203,6 @@ export default function TableDefinitionList() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modalOpen, editRecord, form, message]);
 
   /** 发布：失败时把后端 message 原样展示（如「该表版本已发布…」） */

@@ -193,7 +193,9 @@ export default function FormDesigner() {
   }, []);
 
   // 以 historyVersion 为依赖，在栈增减后重新计算按钮禁用态
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- historyVersion 仅用于触发重算，回调内不引用
   const canUndo = useMemo(() => pastRef.current.length > 0, [historyVersion]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- 同上
   const canRedo = useMemo(() => futureRef.current.length > 0, [historyVersion]);
 
   // 快捷键（Windows 口径）：Ctrl+Z 撤销，Ctrl+Y / Ctrl+Shift+Z 重做；

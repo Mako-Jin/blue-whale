@@ -46,6 +46,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
  *
  * @returns 主题状态与操作方法
  */
+// eslint-disable-next-line react-refresh/only-export-components -- Provider 与 hook 同文件导出，保持包入口聚合
 export function useTheme() {
   const [state, setState] = useState(() => {
     themeCore.init();
