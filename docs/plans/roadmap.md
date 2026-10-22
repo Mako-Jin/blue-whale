@@ -150,6 +150,7 @@
 - [x] ~~构建可复现~~（2026-10-22 平台评审 P0-2：仓库根入库 Maven Wrapper 3.9.9（only-script）+ `.mvn/jvm.config`；`check-env.ps1` 增加 JDK 21 断言；启动脚本统一 `WHALE_JAVA_HOME`，Nacos 用 `WHALE_NACOS_JAVA_HOME`）
 - [x] ~~E2E 冒烟（两批）~~（2026-10-22 平台评审 P0-3：新建 `frontend/e2e`（`@bluewhale/e2e`）+ Playwright `webServer`（8001/8002/8003）；用例 A 登录/菜单按权限渲染、用例 B 建表→加列→发布→填报→列表可见、用例 C 发起流程→首节点审批→会签（ALL 两人）→通过；`pnpm e2e` **3 passed**，两批均做反向验证失败闭环）
 - [x] ~~文档唯一真相~~（2026-10-22 平台评审 P0-4：README 版本/端口表改为指向 `whale-parent/pom.xml` 与 `service-catalog.md`；`architecture.md` Sentinel 表述修正为「Redis 限流 + resilience4j 熔断，Sentinel 未引入」；新增 `scripts/check-doc-consistency.ps1` 以 POM 为唯一版本源，现行事实文档 0 过期标记，注入 `4.0.0-M3` 时退出码 1；`docs/*/originals/` 经用户确认保留现状，不清理）
+- [x] ~~仓库卫生~~（2026-10-22 平台评审 P1-4：`.gitignore` 补 `/work/`、`/.workbuddy/`、`derby.log`（`data/` 覆盖 `data/agent-index/`）；`git ls-files` 审计 `target/work/logs/*.jar/*.log/node_modules/dist` 均 0 命中；补入平台评估报告修复断链；`.trae/specs/` 保留入库；`git status` 干净）
 - [ ] 生产环境 `docker-compose.prod.yml` 验证
 - [ ] Nginx 生产配置 + HTTPS
 

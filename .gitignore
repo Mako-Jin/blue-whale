@@ -60,8 +60,14 @@ coverage/
 *.lcov
 
 # ===== Local Runtime Data =====
-# whale-agent 本地 Lucene 索引（可重建，不入库）
+# whale-agent 本地 Lucene 索引（可重建，不入库；含 data/agent-index/）
 data/
+# Tomcat / 容器临时工作目录（根目录，不入库）
+/work/
+# 本地代理工具状态（不入库）
+/.workbuddy/
+# Derby 运行日志（*.log 已覆盖，显式登记避免规则调整后遗漏）
+derby.log
 
 # ===== Logs =====
 logs/

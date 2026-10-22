@@ -113,11 +113,12 @@
 - **验收**：`curl /actuator/prometheus` 返回 `http_server_requests_*` 指标；compose 配置静态校验通过。
 - **规模**：M ｜ **依赖**：无（compose 部分依赖 Docker 环境）
 
-### P1-4 仓库卫生
+### P1-4 仓库卫生（已完成 2026-10-22）
 - **步骤**
-  1. `.gitignore` 补充 `derby.log`、`work/`、`data/agent-index/`、`.workbuddy/`；确认 `.trae/specs/` 需保留入库。
-  2. 清理工作区已跟踪的构建产物（`work/Tomcat` 等），仅保留源码与配置。
-- **验收**：`git status` 干净；新克隆仓库无运行期产物。
+  1. ✅ `.gitignore` 补充 `/work/`、`/.workbuddy/`、`derby.log` 显式登记（`data/` 已覆盖 `data/agent-index/`）；确认 `.trae/specs/` 保留入库（spec-driven 交付留痕）。
+  2. ✅ 已跟踪文件审计：`git ls-files` 中 `target/`、`work/`、`logs/`、`*.log`、`*.jar`、`node_modules/`、`dist/` 均 0 命中，无需删除已跟踪构建产物。
+  3. ✅ 补入 `docs/reviews/2026-10-22-platform-evaluation.md`（devlog 与整改清单均引用，缺失会断链）。
+- **验收**：✅ `git status --porcelain` 干净；`git check-ignore -v` 对 `derby.log` / `.workbuddy` / `work` / `target` / `data` / `logs` / `*.log` 全部命中；按 `git ls-files` 模拟全新克隆无运行期产物。
 - **规模**：S ｜ **依赖**：无
 
 ## 四、P2：结构性优化（业务稳定后再做）
