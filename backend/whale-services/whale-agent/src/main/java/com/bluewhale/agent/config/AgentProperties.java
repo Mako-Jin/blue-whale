@@ -41,6 +41,9 @@ public class AgentProperties {
     /** 问答配置 */
     private Qa qa = new Qa();
 
+    /** MCP / IDE 接入配置（轨 F） */
+    private Mcp mcp = new Mcp();
+
     /**
      * 解析仓库根目录：显式配置 → 向上探测 → 当前工作目录。
      *
@@ -146,5 +149,30 @@ public class AgentProperties {
 
         /** 携带的历史消息条数（user + assistant） */
         private int historyMessages = 6;
+    }
+
+    /**
+     * MCP 接入参数。
+     *
+     * <p>默认关闭；仅在显式配置 {@code token} 后对外提供只读工具，
+     * 供 Trae / IDE 等本地 MCP 客户端直连服务端口使用（不经网关）。</p>
+     */
+    @Data
+    public static class Mcp {
+
+        /** 是否启用 MCP 端点 */
+        private boolean enabled = false;
+
+        /** 本地只读 Token（不入仓，通过环境变量注入） */
+        private String token;
+
+        /** 单次检索最大条数 */
+        private int maxSearchResults = 20;
+
+        /** 单次读取文件最大行数 */
+        private int maxReadLines = 400;
+
+        /** 单次读取文件最大字符数 */
+        private int maxReadChars = 20_000;
     }
 }

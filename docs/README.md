@@ -13,7 +13,9 @@ docs/
 ├── agent/               # 知识 Agent 评测资产
 │   └── golden-set.json      # 40 题黄金集（结构化/表结构/代码/文档）
 ├── ops/                 # 运维手册
-│   └── agent-index-ops.md   # 知识索引重建/状态/排障
+│   ├── agent-index-ops.md   # 知识索引重建/状态/排障
+│   ├── agent-mcp.md         # 知识 Agent MCP / IDE 接入
+│   └── slo.md               # SLO 与 PromQL
 ├── design/              # 架构与专项设计（定稿后方可进入编码）
 │   ├── audit-log.md         # 审计日志方案
 │   ├── distributed.md       # 分布式 ID / 锁 / 事务 / 幂等

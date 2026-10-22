@@ -64,6 +64,13 @@ whale:
       max-chunk-chars: ${WHALE_AGENT_QA_MAX_CHUNK_CHARS:1200}
       max-facts: ${WHALE_AGENT_QA_MAX_FACTS:12}
       history-messages: ${WHALE_AGENT_QA_HISTORY_MESSAGES:6}
+    # 轨 F：MCP / IDE 接入（默认关闭；配置 token 后才对外提供只读工具）
+    mcp:
+      enabled: ${WHALE_AGENT_MCP_ENABLED:false}
+      token: ${WHALE_AGENT_MCP_TOKEN:}
+      max-search-results: ${WHALE_AGENT_MCP_MAX_SEARCH_RESULTS:20}
+      max-read-lines: ${WHALE_AGENT_MCP_MAX_READ_LINES:400}
+      max-read-chars: ${WHALE_AGENT_MCP_MAX_READ_CHARS:20000}
 
 mybatis-plus:
   configuration:

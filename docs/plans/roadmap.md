@@ -171,7 +171,7 @@
 - [x] 轨 C 问答编排（OpenAI 兼容 API + SSE 流式 + 引用校验 + 逐级降级）—— 2026-10-22 完成 C1–C5：`POST /agent/chat`（meta/delta/done/error）、意图路由、事实+BM25 召回、提示词引用编号、引用校验、会话/消息/评价接口；未配置 Key 时降级检索摘要，经网关验收通过；向量/RRF/embeddings 暂缓
 - [x] 轨 D 前端工作台 `whale-agent`（8004 /agent，会话 + 证据面板 + 范围开关）—— 2026-10-22 完成：独立应用 `frontend/platform-apps/whale-agent`（8004，真实认证直连网关，storage 前缀 `whale_agent_`，proxy `^/(auth|agent)`），三栏工作台（会话/范围、SSE 打字机消息流、`[Sx]` 证据面板）+ 索引徽标/重建 + 有用/无用评价；`tsc -b && vite build` 通过，浏览器实机 9 步验收全绿
 - [x] ~~轨 E 治理与评测（权限点 / 脱敏 / 审计 / 40 题黄金集）~~ —— 2026-10-22 完成 E1–E4：`RUNTIME_SERVICE` 按 `sys:agent:runtime:read` 隔离（越权 403、默认剔除）、三查询接口 `@AuditLog(QUERY)` + `audit_log` 落库、脱敏器空值 NPE 修复、auth 菜单种子 id 9/10；40 题黄金集 + `scripts/agent-eval.ps1` 实机评测**总体 40/40（100%）、结构化 20/20（100%）、引用有效 298/298（100%）** 三项阈值全 PASS，报告 [reviews/2026-10-22-wave5.47-agent-eval.md](../reviews/2026-10-22-wave5.47-agent-eval.md)；运维手册 [ops/agent-index-ops.md](../ops/agent-index-ops.md)
-- [ ] 轨 F（可选，二期）MCP / IDE 接入
+- [x] ~~轨 F（可选，二期）MCP / IDE 接入~~ —— 2026-10-22 完成：`POST /agent/mcp`（JSON-RPC 2.0，protocolVersion `2024-11-05`）暴露 `search_knowledge` / `get_fact` / `read_file` / `list_services` 四个只读工具；本地 Token（`X-MCP-Token` 或 `Authorization: Bearer`，常量时间比较）鉴权，未配置 Token 返回 503；路径穿越/符号链接越界/敏感文件/构建产物/`RUNTIME_*` 事实全部拒绝；直连 8090 不经网关；13 项 MCP 单测（模块 29 项全绿）+ 实机 10 项正反向验收通过，手册 [ops/agent-mcp.md](../ops/agent-mcp.md)
 
 ---
 
