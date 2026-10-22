@@ -6,6 +6,8 @@ import { ThemeProvider } from '@bluewhale/whale-common-theme';
 import App from './App';
 import './index.css';
 
+const unusedForCiCheck = 1;
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ThemeProvider>
