@@ -2,10 +2,9 @@
 # 蓝鲸代码质量门禁 - Checkstyle（后端）+ ESLint / Prettier（前端）
 # 对应需求 REQ-QA-001 / REQ-QA-002 / REQ-CICD-001
 # 规则集: config/checkstyle/whale-checkstyle.xml
-# 策略: 当前为「报告模式」——仅 error 级违规阻断构建；
-#       规则收敛后逐步把关键规则(命名/import/结构)提升为 error 以转为阻断门禁。
-# 注意: 本仓库 origin 指向 Gitee，GitHub Actions 不会自动触发；
-#       Gitee Go 的等价配置见 docs/design/cicd.md 第 6 节。
+# 策略: 阻断门禁——error 级违规（结构/命名/复杂度/Javadoc）直接失败；
+#       MagicNumber 仍为 info 级，仅提示不阻断。
+# 运行: GitHub Actions（Mako-Jin/blue-whale-platform），push/PR 到 main 且命中 paths 时触发。
 # ============================================================
 
 name: Code Quality
@@ -53,13 +52,10 @@ jobs:
           fi
           chmod +x mvnw
 
-      # 生成含全部级别的 XML 报告（warning/info 也会落入报告，便于趋势跟踪）
-      - name: Checkstyle Report
-        run: ./mvnw -B -ntp checkstyle:checkstyle
-
-      # 门禁：仅 error 级违规会失败（当前规则集为 warning，故不会阻断）
+      # checkstyle:check 已绑定到 validate 阶段（whale-parent），不解析模块依赖，
+      # 因此在未构建过模块的干净仓库上也能直接执行；报告输出到各模块 target/checkstyle-result.xml
       - name: Checkstyle Gate
-        run: ./mvnw -B -ntp checkstyle:check
+        run: ./mvnw -B -ntp validate
 
       - name: Upload Checkstyle Reports
         if: always()

@@ -1,6 +1,8 @@
 package com.bluewhale.form.service.impl;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.form.dto.FormColumnMetaDTO;
 import com.bluewhale.form.dto.FormTableDefinitionSaveRequest;
@@ -13,6 +15,8 @@ import com.bluewhale.form.mapper.FormDefinitionMapper;
 import com.bluewhale.form.mapper.FormFieldConfigMapper;
 import com.bluewhale.form.mapper.FormTableDefinitionMapper;
 import com.bluewhale.form.vo.FormTableDefinitionVO;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -57,6 +61,23 @@ class FormTableDefinitionServiceImplTest {
 
     @InjectMocks
     private FormTableDefinitionServiceImpl formTableDefinitionService;
+
+    /**
+     * 初始化 MyBatis-Plus 实体元数据（lambda 列名缓存）。
+     *
+     * <p>纯 Mockito 单测不启动 Spring/MyBatis 上下文，{@code LambdaQueryWrapper} 解析列名依赖
+     * 全局 {@code TableInfo} 缓存。缓存由其他测试类填充时顺序相关，在 Linux（CI）与 Windows
+     * 下执行顺序不同，会出现 {@code can not find lambda cache for this entity} 的偶发失败；
+     * 故在此显式初始化本类用到的全部实体。</p>
+     */
+    @BeforeAll
+    static void initLambdaCache() {
+        MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "");
+        TableInfoHelper.initTableInfo(assistant, FormTableDefinition.class);
+        TableInfoHelper.initTableInfo(assistant, FormColumnMeta.class);
+        TableInfoHelper.initTableInfo(assistant, FormFieldConfig.class);
+        TableInfoHelper.initTableInfo(assistant, FormDefinition.class);
+    }
 
     /**
      * 构造列请求桩对象。

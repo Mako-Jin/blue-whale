@@ -353,6 +353,23 @@
           覆盖率门禁（行 ≥ 40%、分支 ≥ 30%）经 coverage-gate profile 显式启用。
         -->
         <plugins>
+            <!--
+              Checkstyle 门禁绑定 validate：check 目标不解析模块依赖，干净仓库（CI 首次构建）也可直接执行；
+              配置来自上方 pluginManagement（规则集位于仓库根 config/checkstyle）。
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>checkstyle-gate</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
