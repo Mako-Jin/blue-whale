@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   whale-parent - 所有服务的父POM，统一管理依赖版本
-  Spring Boot 4.0.0-M3 + Spring Cloud 2024.0.0-M3 + Spring Cloud Alibaba 2023.0.3.2
+  框架版本以本文件 <properties> 为准（spring-boot.version / spring-cloud.version / spring-cloud-alibaba.version）
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"

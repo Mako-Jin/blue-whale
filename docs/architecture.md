@@ -101,12 +101,14 @@
 ### Spring Boot 4
 - 基于 Spring Framework 7，性能进一步提升
 - GraalVM AOT 原生镜像支持更好
-- 注意：当前为里程碑版本（4.0.0-M3），生产使用前建议跟进正式版
+- 当前使用 Boot 4 正式版（GA），**具体版本号以 [whale-parent/pom.xml](../backend/whale-parent/pom.xml) 的 `spring-boot.version` 为准**，本文件不再重复版本号
 
 ### Spring Cloud Gateway
 - 响应式（WebFlux），高并发、低延迟
 - 动态路由从 Nacos 读取
-- 集成 Sentinel 限流熔断
+- 限流：Redis 计数器（网关全局过滤器），超限返回 429 统一 `Result` 体
+- 熔断：resilience4j（版本见父 POM），降级返回 503 统一 `Result` 体
+- **Sentinel 未引入**（评估结论见 [reviews/2026-10-21-wave5.35-sentinel-evaluation.md](reviews/2026-10-21-wave5.35-sentinel-evaluation.md)）
 
 ### qiankun
 - 基于 single-spa 的微前端方案，社区成熟

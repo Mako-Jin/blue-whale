@@ -77,14 +77,14 @@
 - **规模**：L ｜ **依赖**：P0-1（需流水线可跑）；本机跑 E2E 需先启动 whale-form（8084）与 whale-workflow（8083）。
 - **CI 决策**：整改清单步骤 4 允许本地 `pnpm e2e` 口径；GitHub Actions 暂无 MySQL/Redis/Nacos 全栈 job，本轮不新增 workflow，待全栈 job 就绪后挂载。
 
-### P0-4 文档唯一真相
+### P0-4 文档唯一真相（已完成 2026-10-22，步骤 4 待用户确认）
 - **现状**：`README.md` 仍写 Spring Boot `4.0.0-M3`、Cloud `2024.0.0-M3`、Nacos `2.3`，与 `whale-parent/pom.xml`（4.0.8 / 2025.1.2）不一致；`architecture.md` 写「集成 Sentinel」而实际未引入。
 - **步骤**
-  1. README 版本表、端口表改为链接 `service-catalog.md` / `pom.xml`，删除硬编码版本。
-  2. 修正 `architecture.md` 的 Sentinel 表述为「自研限流 + resilience4j 熔断，Sentinel 未引入」。
-  3. 新增 `scripts/check-doc-consistency.ps1`：从 `whale-parent/pom.xml` 解析 Boot/Cloud 版本，与 README、architecture 中的版本字符串比对，不一致退出码 1。
-  4. `docs/*/originals/` 副本清理：**需用户确认**（建议改为 git 历史引用），确认后单独执行。
-- **验收**：脚本在人为改错版本时失败；全仓检索 `4.0.0-M3` 为 0 命中。
+  1. ✅ README 版本表改为「版本来源」链接 `whale-parent/pom.xml` / `service-catalog.md`，删除全部硬编码版本；端口表改为链接 `service-catalog.md` §五。
+  2. ✅ 修正 `architecture.md`：Boot 段落不再重复版本号，改为指向父 POM；Sentinel 表述改为「Redis 计数器限流 + resilience4j 熔断，Sentinel 未引入」；同步清理 `whale-parent/pom.xml` 顶部注释中的过期版本。
+  3. ✅ 新增 `scripts/check-doc-consistency.ps1`：从 `whale-parent/pom.xml` 解析 `spring-boot.version` / `spring-cloud.version` / `spring-cloud-alibaba.version`，校验 README 与 architecture 中的显式版本声明，并拦截过期标记（`4.0.0-M3`、`2024.0.0-M3`、`2023.0.3.2`）；不一致输出 `DOC-CONSISTENCY-FAIL` 且退出码 1。
+  4. ⏳ `docs/*/originals/` 副本清理：**待用户确认**（建议改为 git 历史引用），确认后单独执行。
+- **验收**：✅ 脚本 `DOC-CONSISTENCY-PASS`；注入 `Spring Boot 4.0.0-M3` 后两项报错、退出码 1，恢复后通过；**现行事实文档（README / architecture / service-catalog）检索过期标记 0 命中**。历史归档（`docs/devlog/`、`docs/reviews/`、`docs/*/originals/`）按「不改写历史」保留原文，不在本项清理范围。
 - **规模**：S ｜ **依赖**：无
 
 ## 三、P1：降低结构性成本

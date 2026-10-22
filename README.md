@@ -4,25 +4,27 @@
 
 ## 技术栈
 
-| 层级 | 技术 | 版本 |
+> 本表只描述技术选型，**不硬编码版本号**。版本以代码与清单为唯一事实源，避免文档与构建漂移。
+
+| 层级 | 技术 | 版本来源 |
 |---|---|---|
-| 后端框架 | Spring Boot | 4.0.0-M3 |
-| 微服务 | Spring Cloud + Spring Cloud Alibaba | 2024.0.0-M3 |
-| JDK | OpenJDK | 21 |
-| 构建工具 | Apache Maven | 3.9+ |
-| 前端框架 | React + TypeScript | 19 + 5.6 |
-| 构建工具 | Vite | 6 |
-| 微前端 | qiankun | 2 |
-| Monorepo | Turborepo + pnpm workspace | 2 + 10 |
-| 网关 | Spring Cloud Gateway | - |
-| 注册配置 | Nacos | 2.3 |
-| 数据库 | MySQL | 8.4 |
-| 缓存 | Redis + Redisson | 7 |
-| 消息队列 | RabbitMQ | 3 |
-| 容器化 | Docker Compose / Kubernetes | - |
-| 反向代理 | Nginx | - |
-| 监控 | Spring Boot Admin + Prometheus | - |
-| CI/CD | GitHub Actions | - |
+| 后端框架 | Spring Boot | [backend/whale-parent/pom.xml](backend/whale-parent/pom.xml)（`spring-boot.version`） |
+| 微服务 | Spring Cloud + Spring Cloud Alibaba | 同上（`spring-cloud.version` / `spring-cloud-alibaba.version`） |
+| JDK | OpenJDK | 同上（`java.version`） |
+| 构建工具 | Apache Maven | [mvnw](mvnw) / [.mvn/wrapper](.mvn/wrapper) |
+| 前端框架 | React + TypeScript | [frontend/package.json](frontend/package.json) |
+| 构建工具 | Vite | 各前端应用 `package.json` |
+| 微前端 | qiankun | [frontend/package.json](frontend/package.json) |
+| Monorepo | Turborepo + pnpm workspace | [frontend/package.json](frontend/package.json) |
+| 网关 | Spring Cloud Gateway | [backend/whale-parent/pom.xml](backend/whale-parent/pom.xml) |
+| 注册配置 | Nacos | [docs/service-catalog.md](docs/service-catalog.md) §四 |
+| 数据库 | MySQL | [docs/service-catalog.md](docs/service-catalog.md) §四 |
+| 缓存 | Redis + Redisson | 同上 |
+| 消息队列 | RabbitMQ | 同上 |
+| 容器化 | Docker Compose / Kubernetes | [infrastructure/docker](infrastructure/docker) |
+| 反向代理 | Nginx | [infrastructure/docker/nginx](infrastructure/docker/nginx) |
+| 监控 | Spring Boot Admin + Prometheus | [docs/service-catalog.md](docs/service-catalog.md) §四 |
+| CI/CD | GitHub Actions | [.github/workflows](.github/workflows) |
 
 ## 目录结构
 
@@ -87,13 +89,7 @@ pnpm run dev              # 同时启动所有应用
 
 ### 4. 访问
 
-| 服务 | URL |
-|---|---|
-| API 网关 | http://localhost:8080 |
-| qiankun 基座 | http://localhost:8000 |
-| 后台管理 | http://localhost:8080 |
-| 运维平台 | http://localhost:8081 |
-| Nacos | http://localhost:8848/nacos |
+全部端口与服务地址以 [docs/service-catalog.md](docs/service-catalog.md) §五「端口 → 服务 速查」为唯一权威清单；本机开发默认从网关 `http://localhost:8080` 进入。
 
 ## 架构说明
 
