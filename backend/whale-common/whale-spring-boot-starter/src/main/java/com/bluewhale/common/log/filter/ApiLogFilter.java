@@ -180,7 +180,7 @@ public class ApiLogFilter extends OncePerRequestFilter {
         record.setUsername(WebHeaders.username(request));
         record.setRequestUri(request.getRequestURI());
         record.setHttpMethod(request.getMethod());
-        record.setQueryString(request.getQueryString());
+        record.setQueryString(sensitiveDataMasker.maskQueryString(request.getQueryString()));
         record.setRequestParams(captureRequest ? sensitiveDataMasker.maskJson(requestWrapper.getCapturedBody()) : null);
         record.setIp(resolveIp(request));
         record.setUserAgent(WebHeaders.header(request, HttpHeaders.USER_AGENT));

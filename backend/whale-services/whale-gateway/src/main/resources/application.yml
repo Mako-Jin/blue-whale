@@ -143,6 +143,8 @@ whale:
       enabled: ${WHALE_GATEWAY_INTERNAL_DENY_ENABLED:true}
       patterns:
         - /file/internal/**
+        # P1-3 审计汇聚摄入端点：仅服务间内网调用，经网关访问一律 403
+        - /audit/log/ingest/**
 
 management:
   endpoints:

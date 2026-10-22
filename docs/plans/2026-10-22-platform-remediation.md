@@ -14,7 +14,7 @@
 | 文档「唯一真相」（阶段二-6） | **采纳（拆分）** | 先做 README 版本表改链接 + 一致性校验脚本；`originals/` 副本清理需单独确认 |
 | 前端请求层 5 份 → 1 份（P1-2） | **采纳** | 抽 `@bluewhale/http`，先替换 3 个平台应用，再收 admin/ops |
 | 巨型组件拆分（P1-2） | **采纳（P2 级）** | `WorkflowDesigner` 1074 行拆 store/panels/canvas |
-| 可观测性最小闭环（P1-4） | **部分采纳** | 代码侧加 `micrometer-registry-prometheus` 并验证 `/actuator/prometheus`；compose 栈因本机无 Docker 转后续环境 |
+| 可观测性最小闭环（P1-3b） | 部分采纳 | 代码侧加 `micrometer-registry-prometheus` 并验证 `/actuator/prometheus`；compose 栈因本机无 Docker 转后续环境 |
 | 商业应用空心化（P0-2） | **调整** | **不删空壳**，改为「冻结扩张 + 选定 OA 请假打通一条真实闭环」 |
 | 16 → 12 服务合并（阶段二-4） | **不采纳** | 合并/删除会牵动端口、路由、前端包、建库四处，收益低于迁移成本；冻结即可 |
 | 主仓迁 GitHub（阶段一-1 A） | **不采纳** | 主仓仍在 Gitee；GitHub 直连不稳定，仅新建镜像仓 `Mako-Jin/blue-whale-platform`（remote `ci`）承载 CI |
@@ -105,7 +105,19 @@
 - **验收**：✅ 不设 `MYSQL_PASSWORD` 启动 whale-i18n → 退出码 1、报错明确；`OPTIONS` 预检允许来源 → 200 + `Access-Control-Allow-Origin`，`http://evil.example` → 403 无 ACAO。
 - **规模**：S ｜ **依赖**：无
 
-### P1-3 可观测性最小闭环（代码侧）
+### P1-3 审计日志与脱敏（已完成 2026-10-22）
+
+> 用户口径的 P1-3；规格与任务见 [2026-10-22-p1-3-audit-masking/](./2026-10-22-p1-3-audit-masking/spec.md)。原清单同名 P1-3（可观测性）另记为 **P1-3b**，不与本项混做。
+
+- **步骤**
+  1. ✅ 查询串脱敏：`SensitiveDataMasker#maskQueryString` 按 `&` 分段、key 归一化后套用 secret/token/手机号/身份证/银行卡/邮箱规则；`SECRET_KEYS` 扩至 11 键；`ApiLogFilter` 的 `query_string` 与 `OutboundLogInterceptor` 的 `target_uri` 均改走该入口。
+  2. ✅ 审计跨库汇聚：starter 新增 `whale.audit.forward.*` 与 `AuditLogForwarder`，`AuditLogAspect` 改为「转发成功即视为已汇聚，失败回退本地落库」，业务线程零阻塞（独立线程池 + 800ms 超时）。
+  3. ✅ whale-audit 新增内网摄入 `POST /audit/log/ingest`（≤50 条、强制 `id=null`、事务落库），网关 `internal-deny` 屏蔽该路径，`ApiLogFilter` 默认排除防回环。
+  4. ✅ whale-auth 单点试点开启转发（其余服务本轮不开启）。
+- **验收**：✅ starter 77 项单测全绿；4 模块 `package` BUILD SUCCESS。实机：登录后 `bluewhale_audit.audit_log` 出现 `module=whale-auth` 新记录；`bluewhale_auth.api_log.query_string` 为 `token=***&password=******&mobile=138****8000`；停 9101 后登录仍本地落库并有转发失败告警；经网关 `POST /audit/log/ingest` → 403。
+- **规模**：M ｜ **依赖**：无（无 MQ，HTTP 单条转发）
+
+### P1-3b 可观测性最小闭环（代码侧）
 - **步骤**
   1. 各业务服务 pom 引入 `micrometer-registry-prometheus`，暴露 `/actuator/prometheus`（网关与 auth 优先）。
   2. 定义 3 个 SLO 指标口径并写入 `docs/ops/`：登录 P95、表单提交成功率、审批流转 P95。
@@ -161,7 +173,7 @@ P0-1 CI 生效 ──► P0-2 构建可复现 ──► P0-3 E2E（第一批）
                                             ▼
                         P1-1 统一请求层 ──► P2-1 巨型组件拆分
                                             ▼
-                        P1-3 可观测性 ──► 业务闭环（OA/MES 二选一）
+                        P1-3b 可观测性 ──► 业务闭环（OA/MES 二选一）
 ```
 
 ## 七、明确不做

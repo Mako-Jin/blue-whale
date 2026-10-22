@@ -204,14 +204,14 @@ public class OutboundLogInterceptor implements ClientHttpRequestInterceptor {
     }
 
     /**
-     * 拼接目标 URI（路径 + 查询串）
+     * 拼接目标 URI（路径 + 脱敏后的查询串）
      *
      * @param uri 请求 URI
      * @return 目标 URI
      */
-    private static String buildTargetUri(URI uri) {
+    private String buildTargetUri(URI uri) {
         String path = uri.getPath();
-        String query = uri.getQuery();
+        String query = sensitiveDataMasker.maskQueryString(uri.getRawQuery());
         if (query == null || query.isEmpty()) {
             return path;
         }

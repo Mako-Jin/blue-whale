@@ -5,6 +5,7 @@ import com.bluewhale.audit.service.AuditLogService;
 import com.bluewhale.audit.vo.AuditLogVO;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.common.audit.annotation.AuditLog;
+import com.bluewhale.common.audit.entity.AuditLogRecord;
 import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
@@ -20,13 +21,15 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 审计日志查询接口（只读）。
+ * 审计日志查询接口。
  * <p>服务内路径 {@code /audit/log/**}；经网关路由时按 {@code Path=/audit/**} 规则转发，
  * 外部路径与本文档一致（见 doc 调用示例）。</p>
  * <p>查询本身属敏感操作，已通过 {@code @RequirePermission("sys:audit:log:list")} 限制为审计管理员可见
  * （AUTH-06：由网关权限码头 {@code X-Permission-Codes} + starter {@code RequirePermissionInterceptor} 判定）。</p>
  * <p>读审计亦须留痕（AUTH-07）：本类 3 个查询方法均标注 {@code @AuditLog(type=QUERY)}，
  * 调用将产生 QUERY 元审计记录并落到同库 {@code audit_log}，可经 {@code /audit/log/page} 反查。</p>
+ * <p>例外：{@code POST /audit/log/ingest} 为服务间内网摄入入口（P1-3 跨库汇聚），
+ * 不校验用户权限、不产生元审计，由网关 {@code internal-deny} 屏蔽外部访问。</p>
  *
  * @author BlueWhale
  */
@@ -90,5 +93,20 @@ public class AuditLogController {
             targetType = TARGET_TYPE, recordResult = false)
     public Result<Map<String, Object>> export(@RequestBody AuditLogQueryRequest request) {
         return auditLogService.exportCsv(request);
+    }
+
+    /**
+     * 接收其他服务转发的审计记录（内网摄入，P1-3 跨库汇聚）。
+     *
+     * <p>调用方为平台内服务（当前仅 whale-auth 试点），不携带用户身份与权限码头，
+     * 因此<b>不</b>加 {@code @RequirePermission}；同时不标注 {@code @AuditLog}，
+     * 避免摄入动作产生新的审计记录形成放大。外部访问由网关 {@code internal-deny} 返回 403。</p>
+     *
+     * @param records 审计记录列表（单次最多 50 条，主键由本库重新生成）
+     * @return 实际入库条数
+     */
+    @PostMapping("/ingest")
+    public Result<Integer> ingest(@RequestBody List<AuditLogRecord> records) {
+        return Result.ok(auditLogService.ingest(records));
     }
 }

@@ -2,6 +2,8 @@ package com.bluewhale.common.audit.config;
 
 import com.bluewhale.common.audit.aop.AuditLogAspect;
 import com.bluewhale.common.audit.mapper.AuditLogMapper;
+import com.bluewhale.common.audit.properties.AuditLogForwardProperties;
+import com.bluewhale.common.audit.support.AuditLogForwarder;
 import com.bluewhale.common.audit.support.SensitiveDataMasker;
 import com.bluewhale.common.log.properties.SensitiveKeysProperties;
 import com.bluewhale.common.mybatis.config.MybatisPlusConfig;
@@ -11,7 +13,9 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.env.Environment;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -40,6 +44,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 @AutoConfiguration(after = MybatisPlusConfig.class)
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @ConditionalOnClass({AuditLogMapper.class, Aspect.class, ObjectMapper.class})
+@EnableConfigurationProperties(AuditLogForwardProperties.class)
 public class AuditLogAutoConfiguration {
 
     /** 审计线程池核心线程数：审计为低频 IO，单线程足够 */
@@ -89,6 +94,22 @@ public class AuditLogAutoConfiguration {
     }
 
     /**
+     * 审计日志转发器：仅在 {@code whale.audit.forward.enabled=true} 时装配。
+     * <p>转发失败由 {@link AuditLogAspect} 回退本地落库；未开启时不装配，行为与现状一致。</p>
+     *
+     * @param properties 转发配置
+     * @param objectMapper Spring 管理的 Jackson 序列化器
+     * @return 审计日志转发器
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "whale.audit.forward", name = "enabled", havingValue = "true")
+    public AuditLogForwarder auditLogForwarder(AuditLogForwardProperties properties,
+                                               ObjectMapper objectMapper) {
+        return new AuditLogForwarder(properties, objectMapper);
+    }
+
+    /**
      * 审计切面。
      * <p>{@link AuditLogMapper} 在<b>本方法执行时</b>（Bean 实例化期）经 {@link ObjectProvider} 延迟解析，
      * 规避 {@code @ConditionalOnBean} 在配置类解析期早于 {@code @MapperScan} 的时序陷阱（详见类注释）；
@@ -99,11 +120,13 @@ public class AuditLogAutoConfiguration {
     public AuditLogAspect auditLogAspect(ObjectProvider<AuditLogMapper> auditLogMapperProvider,
                                          SensitiveDataMasker sensitiveDataMasker,
                                          @Qualifier("auditLogExecutor") Executor auditLogExecutor,
-                                         Environment environment) {
+                                         Environment environment,
+                                         ObjectProvider<AuditLogForwarder> auditLogForwarderProvider) {
         AuditLogMapper auditLogMapper = auditLogMapperProvider.getIfAvailable();
         if (auditLogMapper == null) {
             return null;
         }
-        return new AuditLogAspect(auditLogMapper, sensitiveDataMasker, auditLogExecutor, environment);
+        return new AuditLogAspect(auditLogMapper, sensitiveDataMasker, auditLogExecutor, environment,
+                auditLogForwarderProvider.getIfAvailable());
     }
 }

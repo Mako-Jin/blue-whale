@@ -3,6 +3,7 @@ package com.bluewhale.common.audit.aop;
 import com.bluewhale.common.audit.annotation.AuditLog;
 import com.bluewhale.common.audit.entity.AuditLogRecord;
 import com.bluewhale.common.audit.mapper.AuditLogMapper;
+import com.bluewhale.common.audit.support.AuditLogForwarder;
 import com.bluewhale.common.audit.support.SensitiveDataMasker;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.result.Result;
@@ -92,6 +93,8 @@ public class AuditLogAspect {
     private final SensitiveDataMasker sensitiveDataMasker;
     private final Executor auditLogExecutor;
     private final Environment environment;
+    /** 审计转发器；未开启转发时为 {@code null}，此时直接本地落库 */
+    private final AuditLogForwarder auditLogForwarder;
 
     /** SpEL 解析器（线程安全，复用单例） */
     private final ExpressionParser expressionParser = new SpelExpressionParser();
@@ -106,15 +109,18 @@ public class AuditLogAspect {
      * @param sensitiveDataMasker 敏感数据脱敏器
      * @param auditLogExecutor 审计落库线程池
      * @param environment Spring 环境，用于读取应用名
+     * @param auditLogForwarder 审计转发器，可为 {@code null}（未开启跨库汇聚）
      */
     public AuditLogAspect(AuditLogMapper auditLogMapper,
                           SensitiveDataMasker sensitiveDataMasker,
                           Executor auditLogExecutor,
-                          Environment environment) {
+                          Environment environment,
+                          AuditLogForwarder auditLogForwarder) {
         this.auditLogMapper = auditLogMapper;
         this.sensitiveDataMasker = sensitiveDataMasker;
         this.auditLogExecutor = auditLogExecutor;
         this.environment = environment;
+        this.auditLogForwarder = auditLogForwarder;
     }
 
     /**
@@ -165,11 +171,14 @@ public class AuditLogAspect {
     }
 
     /**
-     * 提交线程池落库
+     * 提交线程池：优先转发到 whale-audit，转发失败回退本地落库（保证不丢审计）
      */
     private void persist(AuditLogRecord record) {
         try {
             auditLogExecutor.execute(() -> {
+                if (auditLogForwarder != null && auditLogForwarder.forward(record)) {
+                    return;
+                }
                 try {
                     auditLogMapper.insert(record);
                 } catch (Exception e) {

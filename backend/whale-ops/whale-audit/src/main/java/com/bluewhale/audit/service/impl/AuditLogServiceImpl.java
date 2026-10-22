@@ -19,13 +19,15 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.Map;
 
 /**
- * 审计日志查询服务实现（查询只读，不做任何写入，保持表 append-only 语义；导出仅生成 CSV 并上传归档）
+ * 审计日志查询服务实现（查询只读，不做任何写入，保持表 append-only 语义；导出仅生成 CSV 并上传归档；
+ * 另提供内网摄入入口用于跨服务审计汇聚，摄入仅追加、不更新）
  *
  * @author BlueWhale
  */
@@ -39,6 +41,9 @@ public class AuditLogServiceImpl implements AuditLogService {
 
     /** 单页最小条数 */
     private static final long MIN_PAGE_SIZE = 1L;
+
+    /** 单次摄入最大条数（防刷量） */
+    public static final int MAX_INGEST_SIZE = 50;
 
     /** 上传结果中对象存储键字段名（与 whale-file FileUploadVO 对齐） */
     private static final String FIELD_OBJECT_KEY = "objectKey";
@@ -98,6 +103,29 @@ public class AuditLogServiceImpl implements AuditLogService {
             log.warn("审计日志导出失败（受控失败，不外抛原始异常）: reason={}", e.getMessage(), e);
             return Result.fail(ErrorCode.SYSTEM_ERROR.getCode(), "审计日志导出失败: " + e.getMessage());
         }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int ingest(List<AuditLogRecord> records) {
+        if (records == null || records.isEmpty()) {
+            return 0;
+        }
+        if (records.size() > MAX_INGEST_SIZE) {
+            throw new BizException(ErrorCode.PARAM_ERROR);
+        }
+        int inserted = 0;
+        for (AuditLogRecord record : records) {
+            if (record == null) {
+                continue;
+            }
+            // 主键由本库重新生成，避免与来源库雪花 ID 冲突
+            record.setId(null);
+            auditLogMapper.insert(record);
+            inserted++;
+        }
+        log.info("审计日志内网摄入完成: count={}", inserted);
+        return inserted;
     }
 
     /**

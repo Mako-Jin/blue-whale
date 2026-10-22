@@ -6,6 +6,8 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.time.temporal.Temporal;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -37,8 +39,9 @@ import java.util.UUID;
 public class SensitiveDataMasker {
 
     /** 密码类字段（整体掩码，永不落明文/密文） */
-    private static final Set<String> SECRET_KEYS =
-            Set.of("password", "oldpassword", "newpassword", "confirmpassword");
+    private static final Set<String> SECRET_KEYS = Set.of(
+            "password", "oldpassword", "newpassword", "confirmpassword",
+            "secret", "secretkey", "clientsecret", "privatekey", "apikey", "appsecret", "accesskey");
     /** 令牌类字段（整体掩码） */
     private static final Set<String> TOKEN_KEYS =
             Set.of("token", "authorization", "accesstoken", "refreshtoken");
@@ -196,6 +199,101 @@ public class SensitiveDataMasker {
             log.debug("日志体非合法 JSON，仅截断不脱敏: length={}", json.length());
         }
         return masked.length() <= MAX_PARAM_LENGTH ? masked : masked.substring(0, MAX_PARAM_LENGTH);
+    }
+
+    /**
+     * 脱敏 URL 查询串（{@code k=v&k2=v2}），用于接口日志与出站调用日志。
+     *
+     * <p>按 {@code &} 拆分后逐段处理：只替换值，保留键名与顺序；未命中规则的段原样保留。
+     * 键名与值均按 UTF-8 解码后再匹配规则（解码失败降级用原文），因此
+     * {@code ?password=P%40ss} 也会被识别并整体掩码。</p>
+     *
+     * <p>任何解析异常只降级为「原文截断」，绝不抛出；结果按 {@value #MAX_PARAM_LENGTH} 截断。</p>
+     *
+     * @param queryString 原始查询串（不含 {@code ?}），可为 {@code null} 或空
+     * @return 脱敏并截断后的查询串；入参为空时返回 {@code null}
+     */
+    public String maskQueryString(String queryString) {
+        if (queryString == null || queryString.isBlank()) {
+            return null;
+        }
+        String masked = queryString;
+        try {
+            String[] pairs = queryString.split("&", -1);
+            StringBuilder builder = new StringBuilder(queryString.length());
+            for (int i = 0; i < pairs.length; i++) {
+                if (i > 0) {
+                    builder.append('&');
+                }
+                builder.append(maskQueryPair(pairs[i]));
+            }
+            masked = builder.toString();
+        } catch (Exception e) {
+            log.debug("查询串脱敏失败，仅截断保留原文: length={}", queryString.length());
+        }
+        return masked.length() <= MAX_PARAM_LENGTH ? masked : masked.substring(0, MAX_PARAM_LENGTH);
+    }
+
+    /**
+     * 掩码单个 {@code k=v} 段；无 {@code =} 的段原样返回
+     *
+     * @param pair 查询串片段
+     * @return 掩码后的片段
+     */
+    private String maskQueryPair(String pair) {
+        int equalsIndex = pair.indexOf('=');
+        if (equalsIndex < 0) {
+            return pair;
+        }
+        String key = pair.substring(0, equalsIndex);
+        String value = pair.substring(equalsIndex + 1);
+        return key + "=" + maskQueryValue(key, value);
+    }
+
+    /**
+     * 按查询串键名命中规则表掩码值
+     *
+     * @param rawKey 原始键名（可能含百分号编码）
+     * @param rawValue 原始值（可能含百分号编码）
+     * @return 掩码后的值；未命中规则时返回原始值
+     */
+    private String maskQueryValue(String rawKey, String rawValue) {
+        String normalized = normalizeKey(decodeSafely(rawKey));
+        if (SECRET_KEYS.contains(normalized) || extraSecretKeys.contains(normalized)) {
+            return FULL_MASK;
+        }
+        if (TOKEN_KEYS.contains(normalized)) {
+            return TOKEN_MASK;
+        }
+        if (!MOBILE_KEYS.contains(normalized) && !ID_CARD_KEYS.contains(normalized)
+                && !BANK_CARD_KEYS.contains(normalized) && !EMAIL_KEYS.contains(normalized)) {
+            return rawValue;
+        }
+        String value = decodeSafely(rawValue);
+        if (MOBILE_KEYS.contains(normalized)) {
+            return maskMobile(value);
+        }
+        if (ID_CARD_KEYS.contains(normalized)) {
+            return maskIdCard(value);
+        }
+        if (BANK_CARD_KEYS.contains(normalized)) {
+            return maskBankCard(value);
+        }
+        return maskEmail(value);
+    }
+
+    /**
+     * URL 解码，失败时返回原文（查询串可能未编码或含非法百分号）
+     *
+     * @param text 待解码文本
+     * @return 解码结果
+     */
+    private static String decodeSafely(String text) {
+        try {
+            return URLDecoder.decode(text, StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException e) {
+            return text;
+        }
     }
 
     /**

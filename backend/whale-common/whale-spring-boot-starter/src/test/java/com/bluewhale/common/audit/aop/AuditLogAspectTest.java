@@ -4,6 +4,7 @@ import com.bluewhale.common.audit.annotation.AuditLog;
 import com.bluewhale.common.audit.entity.AuditLogRecord;
 import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.audit.mapper.AuditLogMapper;
+import com.bluewhale.common.audit.support.AuditLogForwarder;
 import com.bluewhale.common.audit.support.SensitiveDataMasker;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -26,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -48,7 +50,8 @@ class AuditLogAspectTest {
             auditLogMapper,
             new SensitiveDataMasker(JsonMapper.builder().build()),
             Runnable::run,
-            environment);
+            environment,
+            null);
 
     @AfterEach
     void clearRequestContext() {
@@ -204,6 +207,48 @@ class AuditLogAspectTest {
         aspect.around(joinPoint, annotation("queryUser", ResultPayload.class));
 
         assertThat(captureSingleRecord().getResultBody()).isNull();
+    }
+
+    @Test
+    void shouldSkipLocalInsertWhenForwardSucceeds() throws Throwable {
+        AuditLogForwarder forwarder = mock(AuditLogForwarder.class);
+        when(forwarder.forward(any())).thenReturn(true);
+        AuditLogAspect forwardingAspect = new AuditLogAspect(
+                auditLogMapper,
+                new SensitiveDataMasker(JsonMapper.builder().build()),
+                Runnable::run,
+                environment,
+                forwarder);
+
+        mockRequest("POST", "/user", false);
+        ProceedingJoinPoint joinPoint = joinPoint(SampleService.class, "createUser", new Object[]{null});
+        when(joinPoint.proceed()).thenReturn(Result.ok());
+
+        forwardingAspect.around(joinPoint, annotation("createUser", CreatePayload.class));
+
+        verify(forwarder).forward(any(AuditLogRecord.class));
+        verify(auditLogMapper, never()).insert(any(AuditLogRecord.class));
+    }
+
+    @Test
+    void shouldFallbackToLocalInsertWhenForwardFails() throws Throwable {
+        AuditLogForwarder forwarder = mock(AuditLogForwarder.class);
+        when(forwarder.forward(any())).thenReturn(false);
+        AuditLogAspect forwardingAspect = new AuditLogAspect(
+                auditLogMapper,
+                new SensitiveDataMasker(JsonMapper.builder().build()),
+                Runnable::run,
+                environment,
+                forwarder);
+
+        mockRequest("POST", "/user", false);
+        ProceedingJoinPoint joinPoint = joinPoint(SampleService.class, "createUser", new Object[]{null});
+        when(joinPoint.proceed()).thenReturn(Result.ok());
+
+        forwardingAspect.around(joinPoint, annotation("createUser", CreatePayload.class));
+
+        verify(forwarder).forward(any(AuditLogRecord.class));
+        verify(auditLogMapper).insert(any(AuditLogRecord.class));
     }
 
     private AuditLogRecord captureSingleRecord() {

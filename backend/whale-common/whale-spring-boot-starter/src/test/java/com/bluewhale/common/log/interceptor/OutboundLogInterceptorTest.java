@@ -160,6 +160,20 @@ class OutboundLogInterceptorTest {
         assertThat(record.getResponseBody()).contains("\"token\":\"***\"").doesNotContain("secret-token");
     }
 
+    @Test
+    @DisplayName("查询串脱敏：target_uri 中 token/password 为掩码")
+    void shouldMaskSensitiveQueryStringInTargetUri() {
+        String url = TARGET_URL + "?token=jwt-value&password=plain-secret&page=1";
+        server.expect(requestTo(url)).andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
+
+        restTemplate.getForObject(url, String.class);
+
+        assertThat(captureSingleRecord().getTargetUri())
+                .isEqualTo("/device?token=***&password=******&page=1")
+                .doesNotContain("jwt-value")
+                .doesNotContain("plain-secret");
+    }
+
     /**
      * 捕获单条出站日志记录
      *

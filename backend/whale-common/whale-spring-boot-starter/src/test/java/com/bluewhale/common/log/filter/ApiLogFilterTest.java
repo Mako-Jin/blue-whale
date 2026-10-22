@@ -81,6 +81,21 @@ class ApiLogFilterTest {
     }
 
     @Test
+    @DisplayName("查询串脱敏：token/password 不复明文落库")
+    void shouldMaskSensitiveQueryString() throws Exception {
+        MockHttpServletRequest request = jsonRequest(NORMAL_URI, "{}");
+        request.setQueryString("token=jwt-value&password=P%40ssw0rd&page=1");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request, response, capturingChain(new AtomicReference<>()));
+
+        assertThat(captureSingleRecord().getQueryString())
+                .isEqualTo("token=***&password=******&page=1")
+                .doesNotContain("jwt-value")
+                .doesNotContain("P@ssw0rd");
+    }
+
+    @Test
     @DisplayName("排除路径命中：shouldNotFilter 返回 true 且不落库")
     void shouldSkipExcludedPath() throws Exception {
         MockHttpServletRequest request = jsonRequest(FRONTEND_REPORT_URI, "{}");

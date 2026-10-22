@@ -2,6 +2,7 @@ package com.bluewhale.audit.service;
 
 import com.bluewhale.audit.dto.AuditLogQueryRequest;
 import com.bluewhale.audit.vo.AuditLogVO;
+import com.bluewhale.common.audit.entity.AuditLogRecord;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
 
@@ -9,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 审计日志查询服务（只读 + 导出归档）
+ * 审计日志服务（查询 / 导出归档 + 内网摄入）
  *
  * @author BlueWhale
  */
@@ -53,4 +54,15 @@ public interface AuditLogService {
      * @return 上传结果响应；无数据时 {@code data} 为空 Map；上传失败时 {@code code} 非 0
      */
     Result<Map<String, Object>> exportCsv(AuditLogQueryRequest request);
+
+    /**
+     * 接收其他服务转发的审计记录（内网摄入，P1-3 跨库汇聚）。
+     *
+     * <p>记录主键一律重置为 {@code null}，由本库雪花算法重新生成，避免跨库主键冲突；
+     * 单次最多 50 条，超限抛 {@code PARAM_ERROR}。</p>
+     *
+     * @param records 待入库的审计记录
+     * @return 实际入库条数
+     */
+    int ingest(List<AuditLogRecord> records);
 }

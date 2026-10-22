@@ -23,10 +23,10 @@ public class ApiLogProperties {
     /** 模块名缺失时的退化值 */
     private static final String DEFAULT_MODULE = "unknown";
 
-    /** 默认排除路径：探活、静态资源、错误页与前端上报接口（防回环） */
+    /** 默认排除路径：探活、静态资源、错误页、前端上报接口与审计摄入（防回环） */
     private static final List<String> DEFAULT_EXCLUDE_PATHS = List.of(
             "/actuator/**", "/health", "/favicon.ico", "/error",
-            "/audit/log/frontend/**", "/audit/log/behavior/**");
+            "/audit/log/frontend/**", "/audit/log/behavior/**", "/audit/log/ingest/**");
 
     /**
      * 业务模块名（回填至 {@code api_log.module}）：默认取 {@code spring.application.name}，

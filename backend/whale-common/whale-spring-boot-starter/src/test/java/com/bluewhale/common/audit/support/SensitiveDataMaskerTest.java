@@ -170,6 +170,41 @@ class SensitiveDataMaskerTest {
     }
 
     @Test
+    void shouldMaskSensitiveQueryStringValues() {
+        String masked = masker.maskQueryString(
+                "token=jwt-value&password=P%40ssw0rd&page=1&mobile=13800008888");
+
+        assertThat(masked).isEqualTo("token=***&password=******&page=1&mobile=138****8888");
+    }
+
+    @Test
+    void shouldMaskExpandedSecretKeysInQueryString() {
+        String masked = masker.maskQueryString(
+                "clientSecret=abc&apiKey=xyz&accessKey=ak&name=alice");
+
+        assertThat(masked).isEqualTo("clientSecret=******&apiKey=******&accessKey=******&name=alice");
+    }
+
+    @Test
+    void shouldMaskQueriesWithEncodedKeysAndDetachedPairs() {
+        assertThat(masker.maskQueryString("flag&pass%77ord=secret"))
+                .isEqualTo("flag&pass%77ord=******");
+    }
+
+    @Test
+    void shouldReturnNullForBlankQueryString() {
+        assertThat(masker.maskQueryString(null)).isNull();
+        assertThat(masker.maskQueryString("   ")).isNull();
+    }
+
+    @Test
+    void shouldTruncateOversizedQueryString() {
+        String query = "note=" + "x".repeat(OVER_LIMIT_TEXT_LENGTH);
+
+        assertThat(masker.maskQueryString(query)).hasSize(MAX_PARAM_LENGTH);
+    }
+
+    @Test
     void shouldMaskAnnotatedSensitiveFieldRegardlessOfKeyRule() {
         SensitiveFieldSample sample = new SensitiveFieldSample("top-secret-value", "visible");
         String json = JsonMapper.builder().build().writeValueAsString(sample);
