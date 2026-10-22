@@ -122,6 +122,26 @@ public class FactStoreService {
     }
 
     /**
+     * 按类型与键前缀/关键词模糊查询事实。
+     *
+     * @param factType 事实类型
+     * @param keyword  键关键词（SQL LIKE，自动包裹 {@code %}）
+     * @param limit    返回条数
+     * @return 事实列表
+     */
+    public List<AgentFact> queryLike(String factType, String keyword, Integer limit) {
+        if (!StringUtils.hasText(factType) || !StringUtils.hasText(keyword)) {
+            return List.of();
+        }
+        LambdaQueryWrapper<AgentFact> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(AgentFact::getFactType, factType);
+        wrapper.like(AgentFact::getFactKey, keyword);
+        wrapper.orderByAsc(AgentFact::getFactKey);
+        wrapper.last("LIMIT " + normalizeLimit(limit));
+        return factMapper.selectList(wrapper);
+    }
+
+    /**
      * 事实值 JSON 转对象（失败时返回原始字符串）。
      *
      * @param valueJson 事实值 JSON

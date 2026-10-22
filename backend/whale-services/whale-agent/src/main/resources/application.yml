@@ -48,6 +48,21 @@ whale:
     search:
       default-top-k: ${WHALE_AGENT_DEFAULT_TOP_K:8}
       max-top-k: ${WHALE_AGENT_MAX_TOP_K:50}
+    # OpenAI 兼容模型；未配置 api-key 时自动降级为检索摘要（不报错、不出网）
+    llm:
+      enabled: ${WHALE_AGENT_LLM_ENABLED:true}
+      base-url: ${WHALE_AGENT_LLM_BASE_URL:https://api.openai.com/v1}
+      api-key: ${WHALE_AGENT_LLM_API_KEY:}
+      model: ${WHALE_AGENT_LLM_MODEL:gpt-4o-mini}
+      timeout-millis: ${WHALE_AGENT_LLM_TIMEOUT_MILLIS:60000}
+      max-tokens: ${WHALE_AGENT_LLM_MAX_TOKENS:1024}
+      temperature: ${WHALE_AGENT_LLM_TEMPERATURE:0.2}
+    # 问答编排参数
+    qa:
+      evidence-top-k: ${WHALE_AGENT_QA_EVIDENCE_TOP_K:8}
+      max-chunk-chars: ${WHALE_AGENT_QA_MAX_CHUNK_CHARS:1200}
+      max-facts: ${WHALE_AGENT_QA_MAX_FACTS:12}
+      history-messages: ${WHALE_AGENT_QA_HISTORY_MESSAGES:6}
 
 mybatis-plus:
   configuration:

@@ -35,6 +35,12 @@ public class AgentProperties {
     /** 检索配置 */
     private Search search = new Search();
 
+    /** 模型配置 */
+    private Llm llm = new Llm();
+
+    /** 问答配置 */
+    private Qa qa = new Qa();
+
     /**
      * 解析仓库根目录：显式配置 → 向上探测 → 当前工作目录。
      *
@@ -93,5 +99,52 @@ public class AgentProperties {
 
         /** 最大返回条数 */
         private int maxTopK = 50;
+    }
+
+    /**
+     * OpenAI 兼容模型参数（未配置 api-key 时自动降级为检索摘要）。
+     */
+    @Data
+    public static class Llm {
+
+        /** 是否启用模型（关闭后始终走检索摘要） */
+        private boolean enabled = true;
+
+        /** API 基地址（含版本段，如 {@code https://api.openai.com/v1}） */
+        private String baseUrl = "https://api.openai.com/v1";
+
+        /** API Key（不入仓，通过环境变量注入） */
+        private String apiKey;
+
+        /** 对话模型名 */
+        private String model = "gpt-4o-mini";
+
+        /** 请求超时（毫秒） */
+        private int timeoutMillis = 60_000;
+
+        /** 单次回答最大 token */
+        private int maxTokens = 1024;
+
+        /** 采样温度 */
+        private double temperature = 0.2D;
+    }
+
+    /**
+     * 问答编排参数。
+     */
+    @Data
+    public static class Qa {
+
+        /** 证据块最多条数 */
+        private int evidenceTopK = 8;
+
+        /** 单个证据块最大字符数 */
+        private int maxChunkChars = 1200;
+
+        /** 事实块最多条数 */
+        private int maxFacts = 12;
+
+        /** 携带的历史消息条数（user + assistant） */
+        private int historyMessages = 6;
     }
 }
