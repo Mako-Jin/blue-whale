@@ -155,6 +155,10 @@
 - [x] ~~审计日志与脱敏~~（2026-10-22 平台评审 P1-3 用户口径：`SensitiveDataMasker#maskQueryString` 覆盖 `api_log.query_string` 与 `outbound_log.target_uri`（secret 11 键 / token / 手机号 / 证件 / 银行卡 / 邮箱）；starter 新增 `AuditLogForwarder` + `whale.audit.forward.*`，whale-auth 试点转发到 whale-audit `POST /audit/log/ingest`，失败回退本地；网关 `internal-deny` 403 屏蔽摄入；starter 77 项单测全绿、实机正向 + 两项反向验证通过）
 - [x] ~~前端统一请求层~~（2026-10-22 平台评审 P1-1：新建 `frontend/shared-packages/http`（`@bluewhale/http`），统一信封 / Bearer / HTTP 401 单飞刷新重放 / `ApiError` / `X-Trace-Id` / `downloadBlob` / `streamSse`；10 个应用（admin、ops、portal、form-designer、workflow-designer、agent、erp、mes、oa、pdm）改为薄适配 `api/client.ts` 并删除各自 `api/http.ts`；共享包 smoke 全绿、10 应用 build+lint 全绿、Playwright E2E 3 passed）
 - [x] ~~可观测性最小闭环（Prometheus）~~（2026-10-22 平台评审 P1-3b：`whale-parent` 显式管理 `micrometer-registry-prometheus` 1.16.7；12 个服务暴露 `/actuator/prometheus` 并统一 `application` 标签；auth/workflow 开 HTTP 耗时直方图；新增 [ops/slo.md](../ops/slo.md) 3 条 SLO + PromQL；8081/8083/8080/9101 实测 200 且 `_bucket` 存在）
+- [x] ~~巨型组件拆分~~（2026-10-22 平台评审 P2-1：`WorkflowDesigner` 1049→146、`Canvas` 663→192、`TaskCenter` 646→39、`DefinitionList` 592→20，拆入 `store/`、`panels/`、`canvas/`、`task/`、`definition/`；`src` 无 >400 行文件；build + ESLint + 浏览器回归 + E2E 3 passed）
+- [x] ~~God Service 拆分~~（2026-10-22 平台评审 P2-2：`ProcessTaskServiceImpl` 651→67 行纯委派，新增 `service/impl/task/` 8 个命令 + 3 个支撑类，写命令独立事务；147 单测全绿，新 jar 重启后 E2E 3 passed）
+- [x] ~~API 契约自动化~~（2026-10-22 平台评审 P2-3：whale-auth 接入 springdoc 3.1.1，`/v3/api-docs` 200（24 paths）；连带将 `commons-lang3` 抬至 3.20.0 修复 `Strings` 缺失；admin `openapi:types` 生成 41KB 类型且 build/lint 通过）
+- [x] ~~分支与评审策略~~（2026-10-22 平台评审 P2-4：本轮 P2 变更走 `wave5.48-p2-refactor` 分支后合入 `main`；Gitee PR 需网页手工补建，PR 环节待下一次 Wave 验证）
 - [ ] 生产环境 `docker-compose.prod.yml` 验证
 - [ ] Nginx 生产配置 + HTTPS
 

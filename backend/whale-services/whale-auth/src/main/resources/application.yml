@@ -1,6 +1,13 @@
 server:
   port: 8081
 
+# P2-3：API 契约自动化（仅服务直连端口，网关未放行）
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
 spring:
   application:
     name: whale-auth

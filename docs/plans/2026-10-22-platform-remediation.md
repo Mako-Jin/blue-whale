@@ -137,24 +137,25 @@
 
 ## 四、P2：结构性优化（业务稳定后再做）
 
-### P2-1 巨型组件拆分
-- `WorkflowDesigner.tsx`（1074 行）→ `store/`（画布状态与历史栈）+ `panels/`（属性面板）+ `canvas/`；`TaskCenter.tsx`（668 行）、`Canvas.tsx`（663 行）同法。
-- **验收**：单文件 ≤400 行；工作流设计器浏览器回归通过。
+### P2-1 巨型组件拆分（已完成 2026-10-22）
+- `WorkflowDesigner.tsx`（1049 行）→ `store/`（会话/画布状态/历史栈）+ `panels/`（工具栏、元信息、校验、分组、模拟、BPMN、版本）+ `canvas/`（场景渲染、交互 hook、几何、节点）；`TaskCenter.tsx`（646 行）→ `task/`（列表、审批抽屉、动作弹窗、hooks）；`Canvas.tsx`（663 行）→ 渲染层 + 交互层。顺带拆分 `DefinitionList.tsx`（592 → 4 文件）。
+- **验收**：`src` 下无 >400 行文件（`model.ts` 恰 400）；`pnpm --filter whale-workflow-designer build` / ESLint 通过；浏览器回归（三栏渲染、画布节点点击联动属性面板、待办/实例页）通过；E2E 3 passed。
 - **规模**：M
 
-### P2-2 God Service 拆分
-- `ProcessTaskServiceImpl`（706 行 / 34 方法）按动作拆 `ApproveCommand / RejectCommand / CounterSignCommand / TransferCommand`，每个类只依赖必要 Mapper。
-- **验收**：现有单测全绿；`/workflow/task/*` 行为不变。
+### P2-2 God Service 拆分（已完成 2026-10-22）
+- `ProcessTaskServiceImpl`（651 行）拆出 `service/impl/task/` 下 8 个命令（Approve/Reject/CounterSign/Transfer/Delegate/Rollback/AddSign/TaskQuery）+ 3 个支撑类，门面降至 67 行仅做委派；写命令保留 `@Transactional`，跨 Bean 调用无自调用失效。
+- **验收**：`mvn -o -pl whale-services/whale-workflow -am test`：**147 tests, 0 failures**；重建 fat jar 后 E2E 3 passed（`/workflow/task/*` 行为不变）。
 - **规模**：M
 
-### P2-3 API 契约自动化
-- 试点 1 个服务引入 springdoc-openapi，验证 Spring Boot 4 + Jackson 3 兼容；前端用 `openapi-typescript` 生成类型。
-- **验收**：`/v3/api-docs` 可访问；生成类型可编译。
+### P2-3 API 契约自动化（已完成 2026-10-22）
+- whale-auth 试点 `springdoc-openapi-starter-webmvc-ui:3.1.1`（Boot 4 / Jackson 3）；实测发现其依赖 `commons-lang3` 的 `Strings`（3.18+），故将父 POM `commons-lang3.version` 抬升至 3.20.0。前端 admin 增加 `openapi:types` 脚本（`openapi-typescript` 7.13）生成 `src/api/generated/auth-schema.d.ts`。
+- **验收**：`GET http://127.0.0.1:8081/v3/api-docs` → 200（24 paths）；生成类型 41KB，admin `build` + `lint` 通过；网关仅路由 `/auth/**`，契约端点不对外暴露。
 - **规模**：M
 
-### P2-4 分支与评审策略（可选）
+### P2-4 分支与评审策略（可选，流程约定 2026-10-22）
 - 关键变更开 `wave5.x-*` 分支 + PR，要求 CI 绿后合并；日常文档/小修仍可直推 `main`。
-- **验收**：下一次 Wave 交付走分支 + PR 各一次。
+- 本轮 P2 变更已在 `wave5.48-p2-refactor` 分支完成并推送，合入 `main` 后保留分支；Gitee 侧 PR 需人工在网页创建（本机无 Gitee API 凭据），GitHub 因网络不可达暂缓。
+- **验收**：下一次 Wave 交付走分支 + PR 各一次（PR 环节待补）。
 - **规模**：S
 
 ## 五、业务价值：不删空壳，改为「冻结 + 打通一条」

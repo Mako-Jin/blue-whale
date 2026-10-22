@@ -14,13 +14,24 @@ import com.bluewhale.workflow.mapper.ProcessDefinitionMapper;
 import com.bluewhale.workflow.mapper.ProcessDefinitionVersionMapper;
 import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
+import com.bluewhale.workflow.service.ProcessTaskService;
+import com.bluewhale.workflow.service.impl.task.AddSignCommand;
+import com.bluewhale.workflow.service.impl.task.ApproveCommand;
+import com.bluewhale.workflow.service.impl.task.CounterSignCommand;
+import com.bluewhale.workflow.service.impl.task.DelegateCommand;
+import com.bluewhale.workflow.service.impl.task.InstanceModelLoader;
+import com.bluewhale.workflow.service.impl.task.RejectCommand;
+import com.bluewhale.workflow.service.impl.task.RollbackCommand;
+import com.bluewhale.workflow.service.impl.task.TaskCommandSupport;
+import com.bluewhale.workflow.service.impl.task.TaskQueryCommand;
+import com.bluewhale.workflow.service.impl.task.TransferCommand;
 import com.bluewhale.workflow.vo.ProcessTaskVO;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -89,8 +100,25 @@ class ProcessTaskServiceImplTest {
     @Mock
     private ProcessDefinitionVersionMapper processDefinitionVersionMapper;
 
-    @InjectMocks
-    private ProcessTaskServiceImpl processTaskService;
+    private ProcessTaskService processTaskService;
+
+    /**
+     * 以 Mock Mapper 组装真实命令对象与委派门面（事务注解由 Spring 代理承担，单测只验证委托行为）。
+     */
+    @BeforeEach
+    void setUp() {
+        TaskCommandSupport support = new TaskCommandSupport(processTaskMapper, processInstanceMapper);
+        InstanceModelLoader loader = new InstanceModelLoader(processDefinitionMapper, processDefinitionVersionMapper);
+        CounterSignCommand counterSignCommand = new CounterSignCommand(processTaskMapper);
+        processTaskService = new ProcessTaskServiceImpl(
+                new TaskQueryCommand(processTaskMapper),
+                new ApproveCommand(processTaskMapper, processInstanceMapper, support, loader, counterSignCommand),
+                new RejectCommand(processTaskMapper, processInstanceMapper, support),
+                new TransferCommand(processTaskMapper, support),
+                new DelegateCommand(processTaskMapper, support),
+                new RollbackCommand(processInstanceMapper, support, loader),
+                new AddSignCommand(processTaskMapper, support));
+    }
 
     /**
      * 构造待办任务桩对象。

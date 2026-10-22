@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "clean": "rimraf dist",
-    "lint": "eslint src --max-warnings 0"
+    "lint": "eslint src --max-warnings 0",
+    "openapi:types": "openapi-typescript http://127.0.0.1:8081/v3/api-docs -o src/api/generated/auth-schema.d.ts"
   },
   "dependencies": {
     "@bluewhale/http": "workspace:*",
@@ -24,6 +25,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.3",
+    "openapi-typescript": "^7.13.0",
     "rimraf": "^6.0.1",
     "typescript": "^5.6.3",
     "vite": "^6.0.0"

@@ -33,6 +33,11 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
+        <!-- P2-3：OpenAPI 契约导出（/v3/api-docs）与 Swagger UI -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+        </dependency>
         <!-- P1-3b：暴露 /actuator/prometheus 供 Prometheus 抓取 -->
         <dependency>
             <groupId>io.micrometer</groupId>

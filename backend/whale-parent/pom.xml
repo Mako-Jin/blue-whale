@@ -55,9 +55,12 @@
 
         <!-- API文档 -->
         <knife4j.version>4.5.0</knife4j.version>
+        <!-- P2-3：springdoc 3.x 对应 Spring Boot 4 / Jackson 3 -->
+        <springdoc.version>3.1.1</springdoc.version>
 
         <!-- 其他 -->
-        <commons-lang3.version>3.14.0</commons-lang3.version>
+        <!-- P2-3：springdoc 3.1.1 依赖 commons-lang3 3.18+ 的 Strings，故同步抬升 -->
+        <commons-lang3.version>3.20.0</commons-lang3.version>
         <guava.version>33.3.1-jre</guava.version>
         <httpclient.version>5.4</httpclient.version>
         <slf4j.version>2.0.16</slf4j.version>
@@ -250,6 +253,12 @@
                 <groupId>com.github.xiaoymin</groupId>
                 <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
                 <version>${knife4j.version}</version>
+            </dependency>
+            <!-- P2-3：API 契约自动化试点（whale-auth） -->
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${springdoc.version}</version>
             </dependency>
 
             <!-- Wave 5.47 Lucene 检索内核 -->
