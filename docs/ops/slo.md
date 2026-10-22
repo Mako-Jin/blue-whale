@@ -58,3 +58,19 @@ http_server_requests_seconds_bucket{application="whale-auth",method="POST",statu
 ```
 
 故 SLO-1 / SLO-3 的 `histogram_quantile` 查询可直接使用。
+
+## 本地运行 Prometheus + Grafana（非 Docker）
+
+二进制与运行数据均在 `tools/monitoring`（`/tools/` 已在 `.gitignore`）：
+
+```powershell
+$base='D:/BlueWhale/BlueWhale/tools/monitoring'
+Start-Process .\tools\monitoring\prometheus\prometheus-3.13.5.windows-amd64\prometheus.exe `
+  -ArgumentList "--config.file=$base/prometheus.local.yml","--storage.tsdb.path=$base/data/prometheus","--web.listen-address=127.0.0.1:9090"
+Start-Process .\tools\monitoring\grafana-13.2.4\bin\grafana.exe `
+  -ArgumentList 'server',"--homepath=D:/BlueWhale/BlueWhale/tools/monitoring/grafana-13.2.4","--config=$base/grafana.ini"
+```
+
+- Prometheus：`http://127.0.0.1:9090`，抓取目标见 `tools/monitoring/prometheus.local.yml`（8080–8090 / 9001–9004 / 9101–9103 / 9201 / 8848）。
+- Grafana：`http://127.0.0.1:3000`，数据源 `Prometheus` 由 `grafana-provisioning` 自动注入，默认 `admin/admin`，仅监听回环地址。
+- 后端服务未启动时目标显示 `down` 属正常，启动后查询 `up` 即可确认。
