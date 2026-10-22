@@ -157,7 +157,7 @@
 - [x] 轨 A 底座与索引（Lucene 依赖验证 / 采集器 / 五类切分 / BM25 检索）—— 2026-10-21 完成 A1–A5，全仓 1248 文件 / 7666 块，建索引 6.3s；向量与 RRF 融合并入轨 C
 - [x] 轨 B 结构化事实层（服务/路由/端口、DDL 表字段、依赖版本、Git、运行时）—— 2026-10-21 完成 B1–B5，9 类事实 894 条，重建 3.5s；`GET /agent/facts` 经网关验收通过
 - [x] 轨 C 问答编排（OpenAI 兼容 API + SSE 流式 + 引用校验 + 逐级降级）—— 2026-10-22 完成 C1–C5：`POST /agent/chat`（meta/delta/done/error）、意图路由、事实+BM25 召回、提示词引用编号、引用校验、会话/消息/评价接口；未配置 Key 时降级检索摘要，经网关验收通过；向量/RRF/embeddings 暂缓
-- [ ] 轨 D 前端工作台 `whale-agent`（8004 /agent，会话 + 证据面板 + 范围开关）
+- [x] 轨 D 前端工作台 `whale-agent`（8004 /agent，会话 + 证据面板 + 范围开关）—— 2026-10-22 完成：独立应用 `frontend/platform-apps/whale-agent`（8004，真实认证直连网关，storage 前缀 `whale_agent_`，proxy `^/(auth|agent)`），三栏工作台（会话/范围、SSE 打字机消息流、`[Sx]` 证据面板）+ 索引徽标/重建 + 有用/无用评价；`tsc -b && vite build` 通过，浏览器实机 9 步验收全绿
 - [ ] 轨 E 治理与评测（权限点 / 脱敏 / 审计 / 40 题黄金集）
 - [ ] 轨 F（可选，二期）MCP / IDE 接入
 
