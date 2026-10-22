@@ -45,12 +45,9 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Maven Wrapper Setup
-        run: |
-          if [ ! -f mvnw ]; then
-            mvn -N wrapper:wrapper -Dmaven=3.9.9
-          fi
-          chmod +x mvnw
+      # mvnw 已入库（P0-2）；Windows 提交不保留可执行位，Linux runner 需补 chmod
+      - name: Maven Wrapper Executable
+        run: chmod +x mvnw
 
       # checkstyle:check 已绑定到 validate 阶段（whale-parent），不解析模块依赖，
       # 因此在未构建过模块的干净仓库上也能直接执行；报告输出到各模块 target/checkstyle-result.xml
