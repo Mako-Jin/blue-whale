@@ -12,8 +12,8 @@
 - [x] 评测结果：总体 40/40、结构化 20/20、引用有效 298/298，三项阈值 PASS
 - [x] 报告归档 `docs/reviews/2026-10-22-wave5.47-agent-eval.md`
 - [x] `docs/ops/agent-index-ops.md` 覆盖重建/状态/排障
-- [ ] roadmap 轨 E 勾选并附验收摘要
-- [ ] devlog `2026-10-22.md` 追加轨 E 章节
-- [ ] `docs/README.md` 目录树含 `agent/` 与 `ops/`
-- [ ] 后端构建通过（`mvn -pl whale-services/whale-agent -am package`）
-- [ ] 代码已提交并 push origin main（Gitee）
+- [x] roadmap 轨 E 勾选并附验收摘要
+- [x] devlog `2026-10-22.md` 追加轨 E 章节
+- [x] `docs/README.md` 目录树含 `agent/` 与 `ops/`
+- [x] 后端构建通过（`mvn -pl whale-services/whale-agent -am package`）
+- [x] 代码已提交并 push origin main（Gitee）
