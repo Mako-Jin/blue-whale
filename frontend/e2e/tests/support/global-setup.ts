@@ -1,11 +1,11 @@
-// 前置依赖自检：网关/auth/form 任一未就绪时快速失败，并给出可操作的启动提示。
+// 前置依赖自检：网关/auth/form/workflow 任一未就绪时快速失败，并给出可操作的启动提示。
 
 import { request } from '@playwright/test';
 import { API_BASE_URL } from '../../playwright.config';
-import { fetchMe, login, pageTableDefinitionsByCode } from './api';
+import { fetchMe, login, pageTableDefinitionsByCode, pageWorkflowDefinitions } from './api';
 
 const BACKEND_HINT = [
-  '请先启动：MySQL(3306)、Redis(6379)、Nacos(8848)、whale-gateway(8080)、whale-auth(8081)、whale-form(8084)',
+  '请先启动：MySQL(3306)、Redis(6379)、Nacos(8848)、whale-gateway(8080)、whale-auth(8081)、whale-form(8084)、whale-workflow(8083)',
   `当前网关地址：${API_BASE_URL}`,
 ].join('\n');
 
@@ -37,6 +37,21 @@ export default async function globalSetup(): Promise<void> {
         message.includes('HTTP 500')
       ) {
         throw new Error(`E2E 前置失败：whale-form 服务不可用。\n${BACKEND_HINT}\n原因：${message}`);
+      }
+    }
+
+    try {
+      await pageWorkflowDefinitions(ctx, token, 'e2e_bootstrap_probe');
+    } catch (error) {
+      const message = (error as Error).message;
+      if (
+        message.includes('HTTP 503') ||
+        message.includes('HTTP 502') ||
+        message.includes('HTTP 500')
+      ) {
+        throw new Error(
+          `E2E 前置失败：whale-workflow 服务不可用。\n${BACKEND_HINT}\n原因：${message}`,
+        );
       }
     }
   } finally {

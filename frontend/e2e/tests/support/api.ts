@@ -164,3 +164,104 @@ export async function deleteResource(
     // 清理失败不影响用例结论
   }
 }
+
+/** 工作流定义（仅取断言所需字段） */
+export interface WorkflowDefinitionRecord {
+  id: string;
+  code: string;
+}
+
+/** 工作流任务（状态 0 待办 / 1 已同意 / 2 已驳回 / 3 已取消） */
+export interface WorkflowTaskRecord {
+  id: string;
+  instanceId: string;
+  nodeName?: string | null;
+  nodeKey?: string | null;
+  status?: number;
+  signType?: string | null;
+  signPolicy?: string | null;
+}
+
+/** 流程实例（状态 0 运行中 / 1 已通过 / 2 已驳回 / 3 已撤销） */
+export interface WorkflowInstanceRecord {
+  id: string;
+  definitionId: string;
+  definitionCode: string;
+  title: string;
+  status: number;
+  currentNodeKey?: string | null;
+  /** 仅详情接口填充 */
+  tasks?: WorkflowTaskRecord[];
+}
+
+/** 按编码查询流程定义分页（编码精确匹配，空结果属正常） */
+export async function pageWorkflowDefinitions(
+  ctx: APIRequestContext,
+  token: string,
+  code?: string,
+): Promise<PageResult<WorkflowDefinitionRecord>> {
+  const query = code ? `&code=${encodeURIComponent(code)}` : '';
+  const response = await ctx.get(
+    `${API_BASE_URL}/workflow/definition/page?current=1&size=50${query}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  return readEnvelope<PageResult<WorkflowDefinitionRecord>>(response, '查询流程定义');
+}
+
+/** 创建流程定义（含规范化 JSON），返回定义记录 */
+export async function createWorkflowDefinition(
+  ctx: APIRequestContext,
+  token: string,
+  payload: Record<string, unknown>,
+): Promise<WorkflowDefinitionRecord> {
+  const response = await ctx.post(`${API_BASE_URL}/workflow/definition`, {
+    headers: { Authorization: `Bearer ${token}` },
+    data: payload,
+  });
+  return readEnvelope<WorkflowDefinitionRecord>(response, '创建流程定义');
+}
+
+/** 按标题模糊查询流程实例，返回首个命中记录 */
+export async function findWorkflowInstanceByTitle(
+  ctx: APIRequestContext,
+  token: string,
+  title: string,
+): Promise<WorkflowInstanceRecord> {
+  const response = await ctx.get(
+    `${API_BASE_URL}/workflow/instance/page?current=1&size=20&title=${encodeURIComponent(title)}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  const data = await readEnvelope<PageResult<WorkflowInstanceRecord>>(response, '查询流程实例');
+  const record = data.records.find((item) => item.title === title);
+  if (!record) {
+    throw new Error(`流程实例不存在：${title}`);
+  }
+  return record;
+}
+
+/** 流程实例详情（含任务轨迹） */
+export async function workflowInstanceDetail(
+  ctx: APIRequestContext,
+  token: string,
+  id: string,
+): Promise<WorkflowInstanceRecord> {
+  const response = await ctx.get(`${API_BASE_URL}/workflow/instance/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return readEnvelope<WorkflowInstanceRecord>(response, '查询流程实例详情');
+}
+
+/** 撤销运行中的流程实例（清理阶段使用，失败不抛错） */
+export async function cancelWorkflowInstance(
+  ctx: APIRequestContext,
+  token: string,
+  id: string,
+): Promise<void> {
+  try {
+    await ctx.post(`${API_BASE_URL}/workflow/instance/${id}/cancel`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch {
+    // 清理失败不影响用例结论
+  }
+}
