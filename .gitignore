@@ -26,6 +26,10 @@ dist/
 *.tsbuildinfo
 next/
 .cache/
+# Playwright E2E 产物
+frontend/e2e/test-results/
+frontend/e2e/playwright-report/
+frontend/e2e/.playwright/
 .parcel-cache/
 .vite/
 eslint.config.*.cache

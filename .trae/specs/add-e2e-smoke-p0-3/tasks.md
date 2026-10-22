@@ -1,0 +1,34 @@
+# Tasks：P0-3 E2E 冒烟（第一批）
+
+- [x] T1 新建 `frontend/e2e` workspace 包与配置
+  - [x] `frontend/pnpm-workspace.yaml` 增加 `- 'e2e'`
+  - [x] `frontend/e2e/package.json`（@bluewhale/e2e、test/test:ui/report/lint）
+  - [x] `frontend/e2e/playwright.config.ts`（globalSetup、workers=1、trace/screenshot、双 webServer）
+  - [x] `frontend/package.json` 增加 `e2e` 脚本
+  - [x] `.gitignore` 追加测试产物目录
+- [x] T2 安装依赖与浏览器
+  - [x] `pnpm install`（更新 lockfile）
+  - [x] `pnpm --filter @bluewhale/e2e exec playwright install chromium`
+- [x] T3 测试支撑代码
+  - [x] `tests/support/api.ts`（login / fetchMe / 表单接口封装 + code===0 断言）
+  - [x] `tests/support/global-setup.ts`（auth 8081、form 8084、menus 非空三项前置检查）
+- [x] T4 用例 A：`tests/login-menu.spec.ts`
+  - [x] 未登录访问 `/users` → 跳 `/login`
+  - [x] admin/123456 登录 → `/`
+  - [x] 侧边栏顶层菜单与 `/auth/me` menus 集合完全一致
+  - [x] `sys:agent:chat` → `知识助手` 可见；点击 `系统管理 → 用户管理` 渲染表格
+- [x] T5 用例 B：`tests/form-loop.spec.ts`
+  - [x] UI 建表 + 加列 + 发布
+  - [x] API 创建表单定义（tableDefinitionId + fields，绕开拖拽）
+  - [x] UI 填报提交
+  - [x] UI 数据列表可见 + 详情含字段值
+  - [x] API 复核 `total >= 1`；afterAll 尽力清理
+- [x] T6 本地验证
+  - [x] 启动 whale-form（如未运行），`check-env` 四项 PASS
+  - [x] `pnpm e2e` → 2 passed
+  - [x] 故意过滤 `知识助手` → 用例 A 失败；恢复后通过
+  - [x] `pnpm --filter @bluewhale/e2e lint` 与根 `format:check` 通过
+- [x] T7 文档与提交
+  - [x] devlog 追加 P0-3 章节
+  - [x] 整改清单 P0-3 勾选第一批完成
+  - [x] 提交并 push Gitee origin
