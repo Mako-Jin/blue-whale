@@ -2,6 +2,8 @@
 // 后端统一响应体：{ code, message, data }，code=0 表示成功
 // 本模块是「登出令牌黑名单」前端联调入口（REQ-SEC-003）
 
+import { AppEvents, eventBus } from '@bluewhale/whale-common-tools';
+
 import { get, post } from './client';
 import {
   clearAuth,
@@ -22,6 +24,8 @@ export { refreshSession as refresh } from './client';
 export async function login(username: string, password: string): Promise<LoginResponse> {
   const data = await post<LoginResponse>('/auth/login', { username, password });
   saveLogin(data);
+  // 审计：登录成功留痕（敏感字段由 tracker 统一脱敏）
+  eventBus.emit(AppEvents.AUTH_LOGIN, { username, roles: data.roles });
   return data;
 }
 
@@ -29,6 +33,7 @@ export async function login(username: string, password: string): Promise<LoginRe
 export async function fetchMe(): Promise<AuthMeResponse> {
   const me = await get<AuthMeResponse>('/auth/me');
   const user = getCurrentUser();
+  const beforePermissions = (user?.permissions ?? []).join(',');
   saveCurrentUser({
     ...(user ?? { username: me.username, nickname: me.nickname, roles: [] }),
     userId: me.userId,
@@ -38,16 +43,27 @@ export async function fetchMe(): Promise<AuthMeResponse> {
     permissions: me.permissions ?? [],
     menus: me.menus ?? [],
   });
+  // 审计：权限集发生变化（含首次授权）时留痕
+  if (beforePermissions !== (me.permissions ?? []).join(',')) {
+    eventBus.emit(AppEvents.AUTH_PERMISSION_CHANGE, {
+      userId: me.userId,
+      username: me.username,
+      permissions: me.permissions ?? [],
+    });
+  }
   return me;
 }
 
 // 登出：POST /auth/logout（需 accessToken）——后端将 accessToken 与 refreshToken 写入 Redis 黑名单
 export async function logout(): Promise<void> {
+  const user = getCurrentUser();
   try {
     await post<void>('/auth/logout', { refreshToken: getRefreshToken() });
   } catch {
     // 登出接口异常（离线/网络故障）不阻断本地登出，保证用户始终能退出
   } finally {
     clearAuth();
+    // 审计：无论服务端登出是否成功，本地退出一律留痕
+    eventBus.emit(AppEvents.AUTH_LOGOUT, { userId: user?.userId, username: user?.username });
   }
 }

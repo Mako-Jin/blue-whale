@@ -90,22 +90,39 @@ function ensureId(storageKey: string): string {
   return generated;
 }
 
-/** 默认用户ID解析：读取本地登录态 {@code whale_user} 的 {@code id} 字段。 */
+/** 默认用户ID解析：从本地各应用的登录态缓存中解析数值型用户ID。 */
 function defaultResolveUserId(): number | null {
-  try {
-    if (typeof localStorage === 'undefined') {
-      return null;
-    }
-    const raw = localStorage.getItem(STORAGE_KEY_USER);
-    if (!raw) {
-      return null;
-    }
-    const parsed = JSON.parse(raw) as { id?: unknown };
-    const id = parsed?.id;
-    return typeof id === 'number' && Number.isFinite(id) ? id : null;
-  } catch {
+  if (typeof localStorage === 'undefined') {
     return null;
   }
+  // 各应用登录态缓存键不同（whale_user / whale_admin_user / whale_ops_user / whale_wf_user ...），
+  // 统一扫描以 user 结尾的键并兼容 id / userId 两种字段，避免上报记录的 user_id 丢失。
+  const keys: string[] = [];
+  for (let i = 0; i < localStorage.length; i += 1) {
+    const key = localStorage.key(i);
+    if (key && (key === STORAGE_KEY_USER || key.toLowerCase().endsWith('user'))) {
+      keys.push(key);
+    }
+  }
+  // 宿主约定的键优先，其余按扫描顺序
+  keys.sort((a, b) => Number(b === STORAGE_KEY_USER) - Number(a === STORAGE_KEY_USER));
+  for (const key of keys) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw) as { id?: unknown; userId?: unknown };
+      const value = parsed?.userId ?? parsed?.id;
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        return value;
+      }
+      if (typeof value === 'string' && /^\d+$/.test(value)) {
+        return Number(value);
+      }
+    } catch {
+      // 单个键解析失败不影响其他键
+    }
+  }
+  return null;
 }
 
 /** 读取浏览器 UA（非浏览器返回 null）。 */

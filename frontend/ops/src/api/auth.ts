@@ -1,6 +1,8 @@
 // whale-auth 认证 API 客户端（经网关转发）
 // 后端统一响应体：{ code, message, data }，code=0 表示成功
 
+import { AppEvents, eventBus } from '@bluewhale/whale-common-tools';
+
 import { get, post } from './client';
 import { getCurrentUser, saveCurrentUser, saveLogin, type LoginResponse } from './token';
 
@@ -25,6 +27,8 @@ export interface MeResponse {
 export async function login(payload: LoginPayload): Promise<LoginResponse> {
   const data = await post<LoginResponse>('/auth/login', payload);
   saveLogin(data);
+  // 审计：登录成功留痕（敏感字段由 tracker 统一脱敏）
+  eventBus.emit(AppEvents.AUTH_LOGIN, { username: payload.username, roles: data.roles });
   return data;
 }
 

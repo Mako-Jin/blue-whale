@@ -1,5 +1,6 @@
 // BasicLayout - 运维平台主框架：左侧导航 + 顶部用户区（登出）+ 内容出口
 
+import { AppEvents, eventBus } from '@bluewhale/whale-common-tools';
 import { useEffect, useState } from 'react';
 import { App, Button, Layout, Menu, Space } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
@@ -39,7 +40,10 @@ export default function BasicLayout() {
   }, []);
 
   const handleLogout = () => {
+    const user = getCurrentUser();
     clearAuth();
+    // 审计：本地退出留痕
+    eventBus.emit(AppEvents.AUTH_LOGOUT, { username: user?.username });
     message.success('已退出登录');
     navigate('/login', { replace: true });
   };

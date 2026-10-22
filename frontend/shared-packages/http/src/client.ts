@@ -3,6 +3,8 @@
 // 注意：本包是纯库构建产物，禁止使用 import.meta.env（tsup 库构建会失败），
 // baseUrl 必须由各应用在 createHttpClient 时传入。
 
+import { AppEvents, eventBus } from '@bluewhale/whale-common-tools';
+
 /** 后端统一响应体，code=0 表示成功 */
 export interface Result<T = unknown> {
   code: number;
@@ -236,6 +238,8 @@ export function createHttpClient<TLogin extends LoginData = LoginData>(
       throw new ApiError(payload?.code ?? 401, payload?.message ?? '登录已失效，请重新登录');
     }
     config.saveLogin?.(payload.data);
+    // 审计：令牌自动续期成功留痕（只记录触发原因，不落任何令牌值）
+    eventBus.emit(AppEvents.AUTH_TOKEN_REFRESH, { trigger: '401' });
     return payload.data;
   }
 

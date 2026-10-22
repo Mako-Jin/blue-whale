@@ -1,5 +1,6 @@
 // qiankun 基座入口 - 注册微应用并监听路由变化
 
+import { AppEvents, eventBus } from '@bluewhale/whale-common-tools';
 import {
   registerMicroApps,
   start,
@@ -25,6 +26,8 @@ function notifySubAppError(message: string): void {
   const failed = apps.find((app) => message.includes(app.name));
   if (!failed) return;
   console.error(`[qiankun] 子应用 ${failed.name} 加载失败:`, message);
+  // 审计：子应用加载失败必须留痕，便于定位发布/资源 404 问题
+  eventBus.emit(AppEvents.SUB_APP_ERROR, { appName: failed.name, message });
   subAppErrorListeners.forEach((listener) => listener(failed.name));
 }
 
