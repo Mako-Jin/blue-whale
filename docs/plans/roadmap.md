@@ -147,6 +147,7 @@
 
 - [ ] Dockerfile 多阶段构建验证（后端 3 个模板 + 前端）
 - [x] ~~GitHub Actions CI 跑通~~（2026-10-22 平台评审 P0-1：GitHub 镜像仓 `Mako-Jin/blue-whale-platform`（remote `ci`）触发 Backend CI / Frontend CI / Code Quality 全绿；故意引入未使用变量 + 缺 Javadoc 后三条全部变红，revert 后恢复全绿；Checkstyle 绑定 `validate` 阶段阻断）
+- [x] ~~构建可复现~~（2026-10-22 平台评审 P0-2：仓库根入库 Maven Wrapper 3.9.9（only-script）+ `.mvn/jvm.config`；`check-env.ps1` 增加 JDK 21 断言；启动脚本统一 `WHALE_JAVA_HOME`，Nacos 用 `WHALE_NACOS_JAVA_HOME`）
 - [ ] 生产环境 `docker-compose.prod.yml` 验证
 - [ ] Nginx 生产配置 + HTTPS
 

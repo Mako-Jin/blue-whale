@@ -1,3 +1,10 @@
+# JDK 21：优先 WHALE_JAVA_HOME，缺省回退本机安装路径；Nacos 2.4 需 JDK 17，单独用 WHALE_NACOS_JAVA_HOME
+$javaHome = if ($env:WHALE_JAVA_HOME) { $env:WHALE_JAVA_HOME } else { 'D:\tools\installer\jdk\java21' }
+$nacosJavaHome = if ($env:WHALE_NACOS_JAVA_HOME) { $env:WHALE_NACOS_JAVA_HOME } else { 'D:\tools\installer\jdk\java17' }
+foreach ($home in @($javaHome, $nacosJavaHome)) {
+  if (-not (Test-Path "$home\bin\java.exe")) { throw "未找到 JDK：$home（请设置 WHALE_JAVA_HOME / WHALE_NACOS_JAVA_HOME）" }
+}
+
 $logDir = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'logs'
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 
@@ -22,7 +29,7 @@ Start-Process -FilePath 'D:\tools\installer\mysql\bin\mysqld.exe' -ArgumentList 
 Start-Process -FilePath 'D:\tools\installer\redis\redis-server.exe' -ArgumentList 'redis.windows.conf' `
   -WorkingDirectory 'D:\tools\installer\redis' -WindowStyle Hidden `
   -RedirectStandardOutput "$logDir\redis.log" -RedirectStandardError "$logDir\redis.err"
-$env:JAVA_HOME = 'D:\tools\installer\jdk\java17'
+$env:JAVA_HOME = $nacosJavaHome
 Start-Process -FilePath 'D:\tools\installer\nacos\bin\startup.cmd' -ArgumentList '-m', 'standalone' `
   -WorkingDirectory 'D:\tools\installer\nacos\bin' -WindowStyle Hidden
 
@@ -31,7 +38,7 @@ Wait-Port 6379 'redis' 30 | Out-Null
 Wait-Port 8848 'nacos' 90 | Out-Null
 
 # 2) 业务服务（本轮收尾所需：gateway / auth / job / file）
-$env:JAVA_HOME = 'D:\tools\installer\jdk\java21'
+$env:JAVA_HOME = $javaHome
 $env:NACOS_SERVER = '127.0.0.1:8848'
 $java = "$($env:JAVA_HOME)\bin\java.exe"
 $base = 'd:\BlueWhale\BlueWhale\backend'

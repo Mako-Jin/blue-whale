@@ -5,9 +5,7 @@ target/
 *.war
 *.ear
 *.log
-.mvn/
-mvnw
-mvnw.cmd
+# Maven Wrapper（mvnw / mvnw.cmd / .mvn/wrapper）入库，保证无本机 Maven 也能构建
 
 # ===== IDE =====
 .idea/

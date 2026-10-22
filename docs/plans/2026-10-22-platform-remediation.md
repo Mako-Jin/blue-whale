@@ -9,7 +9,7 @@
 | 报告建议 | 结论 | 处理方式 |
 |---|---|---|
 | 让质量门禁真正生效（P0-1） | **采纳（最高优先，已完成）** | Gitee Go 为预付费服务未开通，改走 GitHub Actions 镜像仓；三条流水线触发、变红、恢复绿均已实测 |
-| 固化构建环境（P0-3） | **采纳** | 提交 mvnw + `.mvn/jvm.config`，脚本显式 `JAVA_HOME`，`check-env` 加 JDK 21 断言 |
+| 固化构建环境（P0-2） | **采纳（已完成）** | 根目录入库 mvnw（3.9.9）+ `.mvn/jvm.config`，脚本显式 `WHALE_JAVA_HOME`，`check-env` 加 JDK 21 断言 |
 | 三条 E2E 冒烟（阶段一-3） | **采纳（分两批）** | 先登录 + 表单闭环 2 条，工作流闭环随后；Playwright 挂进同一条流水线 |
 | 文档「唯一真相」（阶段二-6） | **采纳（拆分）** | 先做 README 版本表改链接 + 一致性校验脚本；`originals/` 副本清理需单独确认 |
 | 前端请求层 5 份 → 1 份（P1-2） | **采纳** | 抽 `@bluewhale/http`，先替换 3 个平台应用，再收 admin/ops |
@@ -42,14 +42,17 @@
 - **验收**：✅ 已完成（正向绿、反向红闭环）。
 - **规模**：M ｜ **依赖**：无 ｜ **附录**：GitHub 网络间歇超时，push 需重试；日常需 `git push origin main` + `git push ci main`。
 
-### P0-2 构建可复现
-- **现状**：`mvnw` / `mvnw.cmd` 未入库且被 `.gitignore` 忽略；无 `backend/.mvn/jvm.config`；`scripts/*.ps1` 无 `JAVA_HOME` 声明。
-- **步骤**
-  1. `cd backend && mvn -N wrapper:wrapper -Dmaven=3.9.9`，把 `mvnw`、`mvnw.cmd`、`.mvn/wrapper/*` 入库，并从 `.gitignore` 移除。
-  2. 新增 `backend/.mvn/jvm.config`（如 `-Xmx2g`）。
-  3. `scripts/check-env.ps1` 增加 JDK 版本断言：`java -version` 必须为 21（或 `JAVA_HOME` 指向 21），否则退出码非 0。
-  4. 启动/构建脚本统一在头部设置 `$env:JAVA_HOME`（从 `WHALE_JAVA_HOME` 读取，缺省回退本机路径）。
-- **验收**：清空 `JAVA_HOME` 后执行 `backend\mvnw.cmd -v` 仍能报出 Java 21；`check-env.ps1` 在 JDK 17 环境下失败、21 环境下通过。
+### P0-2 构建可复现（已完成 2026-10-22）
+- **实际落点调整**：计划的 `backend/mvnw` 改为**仓库根** `mvnw`。根 `pom.xml` 是聚合入口，CI 与 Checkstyle 的 `configLocation`（`${maven.multiModuleProjectDirectory}`）都以仓库根为基准；在 `backend/` 单独生成 wrapper 反而会让 `validate` 阶段找不到规则集。
+- **已完成**
+  1. 根目录生成并入库 Maven Wrapper（wrapper 3.3.4 only-script + Maven 3.9.9，阿里云镜像）：`mvnw` / `mvnw.cmd` / `.mvn/wrapper/maven-wrapper.properties`；`.gitignore` 移除 `.mvn/`、`mvnw`、`mvnw.cmd` 三条忽略规则。
+  2. 新增根 `.mvn/jvm.config`：`-Xmx2g`。
+  3. `infrastructure/scripts/check-env.ps1`（计划写作 `scripts/check-env.ps1`，实际文件在 `infrastructure/scripts/`）新增 JDK 21 断言：`JAVA_HOME/bin/java` 优先、缺省回退 PATH 上的 `java`，主版本非 21 计入失败并以退出码 1 结束。
+  4. `scripts/dev/{whale-stack,whale-stack534,whale-hold,whale-start-all}.ps1` 头部统一 `$env:JAVA_HOME`：优先 `WHALE_JAVA_HOME`，缺省回退 `D:\tools\installer\jdk\java21` 并校验存在；Nacos 2.4 需要的 JDK 17 单独由 `WHALE_NACOS_JAVA_HOME` 提供。
+- **实测结果**
+  - 清空 `JAVA_HOME` 后执行 `.\mvnw.cmd -v` → `Apache Maven 3.9.9` + `Java version: 21.0.8`（首次自动下载 3.9.9 到 `~/.m2/wrapper`）。
+  - `check-env.ps1`：`JAVA_HOME` 指向 JDK 17 → `[FAIL] JDK 21 ... 当前为 17`，退出码 1；指向 JDK 21 → JDK / MySQL / Redis / Nacos 四项 PASS，退出码 0。
+- **验收**：✅ 已完成。
 - **规模**：S ｜ **依赖**：无
 
 ### P0-3 E2E 冒烟（Playwright，两批）

@@ -1,4 +1,7 @@
-$java = 'D:\tools\installer\jdk\java21\bin\java.exe'
+# JDK 21：优先 WHALE_JAVA_HOME，缺省回退本机安装路径
+$javaHome = if ($env:WHALE_JAVA_HOME) { $env:WHALE_JAVA_HOME } else { 'D:\tools\installer\jdk\java21' }
+if (-not (Test-Path "$javaHome\bin\java.exe")) { throw "未找到 JDK：$javaHome（请设置 WHALE_JAVA_HOME）" }
+$java = "$javaHome\bin\java.exe"
 $base = 'd:\BlueWhale\BlueWhale\backend'
 $logDir = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'logs'
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
@@ -13,7 +16,7 @@ function Start-Svc($name, $jar, $port, $extra) {
   $psi.Arguments = "-jar `"$jar`""
   $psi.UseShellExecute = $false
   $psi.CreateNoWindow = $true
-  $psi.EnvironmentVariables['JAVA_HOME'] = 'D:\tools\installer\jdk\java21'
+  $psi.EnvironmentVariables['JAVA_HOME'] = $javaHome
   $psi.EnvironmentVariables['SERVER_PORT'] = "$port"
   if ($extra) { $extra.GetEnumerator() | ForEach-Object { $psi.EnvironmentVariables[$_.Key] = $_.Value } }
   $p = [System.Diagnostics.Process]::Start($psi)
