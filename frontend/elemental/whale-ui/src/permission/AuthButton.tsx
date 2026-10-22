@@ -16,7 +16,8 @@ export interface AuthButtonProps extends ButtonProps {
 export function AuthButton({ perm, anyOf, fallback = null, ...rest }: AuthButtonProps) {
   const { has, hasAny } = usePermission();
 
-  const allowed = (perm ? has(perm) : true) && (anyOf && anyOf.length > 0 ? hasAny(...anyOf) : true);
+  const allowed =
+    (perm ? has(perm) : true) && (anyOf && anyOf.length > 0 ? hasAny(...anyOf) : true);
 
   if (!allowed) {
     return <>{fallback}</>;

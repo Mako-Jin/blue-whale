@@ -109,7 +109,10 @@ function applyTheme(theme: ThemeConfig, mode: ThemeMode): void {
   style.setProperty('--bw-color-bg-layout', palette.background);
   style.setProperty('--bw-color-bg-container', palette.cardBackground);
   style.setProperty('--bw-text', palette.text);
-  style.setProperty('--bw-text-secondary', mode === 'light' ? 'rgba(0, 0, 0, 0.45)' : 'rgba(255, 255, 255, 0.45)');
+  style.setProperty(
+    '--bw-text-secondary',
+    mode === 'light' ? 'rgba(0, 0, 0, 0.45)' : 'rgba(255, 255, 255, 0.45)',
+  );
   style.setProperty('--bw-border', palette.border);
   style.setProperty('--bw-header-bg', palette.cardBackground);
   style.setProperty('--bw-content-bg', palette.background);

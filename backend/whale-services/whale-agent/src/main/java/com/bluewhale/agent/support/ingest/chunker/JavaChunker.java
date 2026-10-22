@@ -67,31 +67,74 @@ public class JavaChunker implements DocumentChunker {
         List<int[]> methodRanges = new ArrayList<>();
         for (int i = 0; i < lines.size(); i++) {
             String line = lines.get(i);
-            if (depth == 0 && classStart < 0) {
-                Matcher typeMatcher = TYPE_DECL.matcher(line);
-                if (typeMatcher.find() && !line.trim().startsWith("*")) {
-                    className = typeMatcher.group(2);
-                    classStart = i;
-                }
+            String detected = detectTypeName(depth, classStart, line);
+            if (detected != null) {
+                className = detected;
+                classStart = i;
             } else if (depth == 1 && classStart >= 0 && isMethodDeclaration(line)) {
                 int end = findUnitEnd(lines, i, depth);
-                String name = methodName(line, className);
                 methodRanges.add(new int[]{i, end});
-                units.add(new Unit(className + "#" + name, i, end, lines.subList(i, end + 1)));
+                units.add(new Unit(className + "#" + methodName(line, className), i, end, lines.subList(i, end + 1)));
             }
             depth += braceDelta(line);
-            if (classStart >= 0 && classEnd < 0 && depth <= 0 && i > classStart) {
-                classEnd = i;
-            }
+            classEnd = detectClassEnd(classEnd, classStart, depth, i);
         }
-        if (classStart >= 0) {
-            int headerEnd = methodRanges.isEmpty() ? (classEnd < 0 ? lines.size() - 1 : classEnd)
-                    : methodRanges.get(0)[0] - 1;
-            if (headerEnd >= classStart) {
-                units.add(0, new Unit(className, classStart, headerEnd, lines.subList(classStart, headerEnd + 1)));
-            }
-        }
+        appendClassHeader(units, className, classStart, classEnd, methodRanges, lines);
         return units;
+    }
+
+    /**
+     * 识别类型声明行并返回类型名（非类型声明返回 {@code null}）。
+     *
+     * @param depth 当前花括号深度
+     * @param classStart 已识别的类起始行（-1 表示尚未识别）
+     * @param line 源码行
+     * @return 类型名或 {@code null}
+     */
+    private String detectTypeName(int depth, int classStart, String line) {
+        if (depth != 0 || classStart >= 0 || line.trim().startsWith("*")) {
+            return null;
+        }
+        Matcher matcher = TYPE_DECL.matcher(line);
+        return matcher.find() ? matcher.group(2) : null;
+    }
+
+    /**
+     * 更新类结束行：花括号回到 0 深度后的首行即类结束行。
+     *
+     * @param classEnd 当前记录到的类结束行（-1 表示未结束）
+     * @param classStart 类起始行
+     * @param depth 当前花括号深度
+     * @param index 当前行下标
+     * @return 更新后的类结束行
+     */
+    private int detectClassEnd(int classEnd, int classStart, int depth, int index) {
+        if (classStart < 0 || classEnd >= 0 || depth > 0 || index <= classStart) {
+            return classEnd;
+        }
+        return index;
+    }
+
+    /**
+     * 把类头（类声明到首个方法前）作为一个单元插入队首。
+     *
+     * @param units 单元列表
+     * @param className 类名
+     * @param classStart 类起始行
+     * @param classEnd 类结束行
+     * @param methodRanges 方法行区间
+     * @param lines 源行
+     */
+    private void appendClassHeader(List<Unit> units, String className, int classStart, int classEnd,
+                                   List<int[]> methodRanges, List<String> lines) {
+        if (classStart < 0) {
+            return;
+        }
+        int headerEnd = methodRanges.isEmpty() ? (classEnd < 0 ? lines.size() - 1 : classEnd)
+                : methodRanges.get(0)[0] - 1;
+        if (headerEnd >= classStart) {
+            units.add(0, new Unit(className, classStart, headerEnd, lines.subList(classStart, headerEnd + 1)));
+        }
     }
 
     /**
@@ -218,6 +261,10 @@ public class JavaChunker implements DocumentChunker {
     /**
      * 源码单元。
      *
+     * @param title 单元标题
+     * @param startLine 起始行号
+     * @param endLine 结束行号
+     * @param lines 单元源行
      * @author BlueWhale
      */
     private record Unit(String title, int startLine, int endLine, List<String> lines) {

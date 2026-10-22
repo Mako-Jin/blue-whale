@@ -121,7 +121,9 @@ function groupBounds(
 }
 
 /** 取偏差最小的候选（无候选返回 undefined） */
-function closest(candidates: { delta: number; line: number }[]): { delta: number; line: number } | undefined {
+function closest(
+  candidates: { delta: number; line: number }[],
+): { delta: number; line: number } | undefined {
   return candidates.reduce<{ delta: number; line: number } | undefined>(
     (best, item) => (!best || Math.abs(item.delta) < Math.abs(best.delta) ? item : best),
     undefined,
@@ -141,7 +143,12 @@ function alignNode(node: CanvasNode, x: number, y: number, others: CanvasNode[])
   const size = NODE_SIZE[node.type];
   const xCandidates: { delta: number; line: number }[] = [];
   const yCandidates: { delta: number; line: number }[] = [];
-  const push = (list: { delta: number; line: number }[], value: number, target: number, line: number) => {
+  const push = (
+    list: { delta: number; line: number }[],
+    value: number,
+    target: number,
+    line: number,
+  ) => {
     const delta = target - value;
     if (Math.abs(delta) <= ALIGN_THRESHOLD) {
       list.push({ delta, line });
@@ -151,13 +158,23 @@ function alignNode(node: CanvasNode, x: number, y: number, others: CanvasNode[])
     const otherSize = NODE_SIZE[other.type];
     // 竖向：左-左 / 中-中 / 右-右 / 左-右 / 右-左
     push(xCandidates, x, other.x, other.x);
-    push(xCandidates, x + size.width / 2, other.x + otherSize.width / 2, other.x + otherSize.width / 2);
+    push(
+      xCandidates,
+      x + size.width / 2,
+      other.x + otherSize.width / 2,
+      other.x + otherSize.width / 2,
+    );
     push(xCandidates, x + size.width, other.x + otherSize.width, other.x + otherSize.width);
     push(xCandidates, x, other.x + otherSize.width, other.x + otherSize.width);
     push(xCandidates, x + size.width, other.x, other.x);
     // 横向：上-上 / 中-中 / 下-下 / 上-下 / 下-上
     push(yCandidates, y, other.y, other.y);
-    push(yCandidates, y + size.height / 2, other.y + otherSize.height / 2, other.y + otherSize.height / 2);
+    push(
+      yCandidates,
+      y + size.height / 2,
+      other.y + otherSize.height / 2,
+      other.y + otherSize.height / 2,
+    );
     push(yCandidates, y + size.height, other.y + otherSize.height, other.y + otherSize.height);
     push(yCandidates, y, other.y + otherSize.height, other.y + otherSize.height);
     push(yCandidates, y + size.height, other.y, other.y);
@@ -362,7 +379,7 @@ export default function Canvas({
 
   const handleDragStart = (event: DragStartEvent) => {
     const data = event.active.data.current as DraggableData | undefined;
-    setActiveType(data?.source === 'palette' ? data.nodeType ?? null : null);
+    setActiveType(data?.source === 'palette' ? (data.nodeType ?? null) : null);
   };
 
   const handleDragMove = (event: DragMoveEvent) => {
@@ -404,8 +421,10 @@ export default function Canvas({
       }
       const rect = container.getBoundingClientRect();
       // 落点 = 拖拽拖影中心（客户端坐标）→ 画布局部坐标（按缩放还原）
-      const centerX = (translated.left + translated.width / 2 - rect.left + container.scrollLeft) / zoom;
-      const centerY = (translated.top + translated.height / 2 - rect.top + container.scrollTop) / zoom;
+      const centerX =
+        (translated.left + translated.width / 2 - rect.left + container.scrollLeft) / zoom;
+      const centerY =
+        (translated.top + translated.height / 2 - rect.top + container.scrollTop) / zoom;
       const size = NODE_SIZE[data.nodeType];
       onDropNode(data.nodeType, snap(centerX - size.width / 2), snap(centerY - size.height / 2));
     }
@@ -468,178 +487,202 @@ export default function Canvas({
             cursor: panRef.current ? 'grabbing' : 'default',
           }}
         >
-        <svg
-          width={width * zoom}
-          height={height * zoom}
-          viewBox={`0 0 ${width} ${height}`}
-          style={{ display: 'block' }}
-          onClick={(event) => {
-            if (event.target === event.currentTarget) {
-              onClearSelection();
-            }
-          }}
-        >
-          <defs>
-            <marker id="wf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#8c8c8c" />
-            </marker>
-            <marker id="wf-arrow-selected" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#1677ff" />
-            </marker>
-            <marker id="wf-arrow-error" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#ff4d4f" />
-            </marker>
-          </defs>
-
-          {guide.x !== null ? (
-            <line
-              x1={guide.x}
-              y1={0}
-              x2={guide.x}
-              y2={height}
-              stroke="#1677ff"
-              strokeWidth={1}
-              strokeDasharray="4 3"
-              pointerEvents="none"
-            />
-          ) : null}
-          {guide.y !== null ? (
-            <line
-              x1={0}
-              y1={guide.y}
-              x2={width}
-              y2={guide.y}
-              stroke="#1677ff"
-              strokeWidth={1}
-              strokeDasharray="4 3"
-              pointerEvents="none"
-            />
-          ) : null}
-
-          <g>
-            {model.groups.map((group) => {
-              const bounds = groupBounds(group.key, model.nodes);
-              if (!bounds) {
-                return null;
+          <svg
+            width={width * zoom}
+            height={height * zoom}
+            viewBox={`0 0 ${width} ${height}`}
+            style={{ display: 'block' }}
+            onClick={(event) => {
+              if (event.target === event.currentTarget) {
+                onClearSelection();
               }
-              return (
-                <g key={group.key} pointerEvents="none">
-                  <rect
-                    x={bounds.x}
-                    y={bounds.y}
-                    width={bounds.width}
-                    height={bounds.height}
-                    rx={8}
-                    fill="rgba(22,119,255,0.04)"
-                    stroke="#91caff"
-                    strokeDasharray="6 4"
-                  />
-                  <text x={bounds.x + 10} y={bounds.y + 16} fontSize={12} fill="#1677ff">
-                    {group.name || group.key}
-                  </text>
-                </g>
-              );
-            })}
-          </g>
-
-          <g>
-            {model.flows.map((flow) => {
-              const from = nodesByKey.get(flow.from);
-              const to = nodesByKey.get(flow.to);
-              if (!from || !to) {
-                return null;
-              }
-              return (
-                <EdgePath
-                  key={flow.key}
-                  flow={flow}
-                  from={from}
-                  to={to}
-                  selected={selected?.kind === 'flow' && selected.key === flow.key}
-                  error={errorKeys.has(flow.key)}
-                  onSelect={onSelectFlow}
-                />
-              );
-            })}
-          </g>
-
-          <g>
-            {model.nodes.map((node) => (
-              <DraggableNode
-                key={node.key}
-                node={node}
-                selected={selected?.kind === 'node' && selected.key === node.key}
-                error={errorKeys.has(node.key)}
-                onSelect={onSelectNode}
-              />
-            ))}
-          </g>
-        </svg>
-
-        {model.nodes.length === 0 ? (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#bfbfbf',
-              pointerEvents: 'none',
             }}
           >
-            从左侧拖入节点开始绘制流程
-          </div>
-        ) : null}
+            <defs>
+              <marker
+                id="wf-arrow"
+                viewBox="0 0 10 10"
+                refX="9"
+                refY="5"
+                markerWidth="7"
+                markerHeight="7"
+                orient="auto-start-reverse"
+              >
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#8c8c8c" />
+              </marker>
+              <marker
+                id="wf-arrow-selected"
+                viewBox="0 0 10 10"
+                refX="9"
+                refY="5"
+                markerWidth="7"
+                markerHeight="7"
+                orient="auto-start-reverse"
+              >
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#1677ff" />
+              </marker>
+              <marker
+                id="wf-arrow-error"
+                viewBox="0 0 10 10"
+                refX="9"
+                refY="5"
+                markerWidth="7"
+                markerHeight="7"
+                orient="auto-start-reverse"
+              >
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#ff4d4f" />
+              </marker>
+            </defs>
 
-        {linkFrom ? (
+            {guide.x !== null ? (
+              <line
+                x1={guide.x}
+                y1={0}
+                x2={guide.x}
+                y2={height}
+                stroke="#1677ff"
+                strokeWidth={1}
+                strokeDasharray="4 3"
+                pointerEvents="none"
+              />
+            ) : null}
+            {guide.y !== null ? (
+              <line
+                x1={0}
+                y1={guide.y}
+                x2={width}
+                y2={guide.y}
+                stroke="#1677ff"
+                strokeWidth={1}
+                strokeDasharray="4 3"
+                pointerEvents="none"
+              />
+            ) : null}
+
+            <g>
+              {model.groups.map((group) => {
+                const bounds = groupBounds(group.key, model.nodes);
+                if (!bounds) {
+                  return null;
+                }
+                return (
+                  <g key={group.key} pointerEvents="none">
+                    <rect
+                      x={bounds.x}
+                      y={bounds.y}
+                      width={bounds.width}
+                      height={bounds.height}
+                      rx={8}
+                      fill="rgba(22,119,255,0.04)"
+                      stroke="#91caff"
+                      strokeDasharray="6 4"
+                    />
+                    <text x={bounds.x + 10} y={bounds.y + 16} fontSize={12} fill="#1677ff">
+                      {group.name || group.key}
+                    </text>
+                  </g>
+                );
+              })}
+            </g>
+
+            <g>
+              {model.flows.map((flow) => {
+                const from = nodesByKey.get(flow.from);
+                const to = nodesByKey.get(flow.to);
+                if (!from || !to) {
+                  return null;
+                }
+                return (
+                  <EdgePath
+                    key={flow.key}
+                    flow={flow}
+                    from={from}
+                    to={to}
+                    selected={selected?.kind === 'flow' && selected.key === flow.key}
+                    error={errorKeys.has(flow.key)}
+                    onSelect={onSelectFlow}
+                  />
+                );
+              })}
+            </g>
+
+            <g>
+              {model.nodes.map((node) => (
+                <DraggableNode
+                  key={node.key}
+                  node={node}
+                  selected={selected?.kind === 'node' && selected.key === node.key}
+                  error={errorKeys.has(node.key)}
+                  onSelect={onSelectNode}
+                />
+              ))}
+            </g>
+          </svg>
+
+          {model.nodes.length === 0 ? (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#bfbfbf',
+                pointerEvents: 'none',
+              }}
+            >
+              从左侧拖入节点开始绘制流程
+            </div>
+          ) : null}
+
+          {linkFrom ? (
+            <div
+              style={{
+                position: 'absolute',
+                top: 8,
+                left: 8,
+                padding: '2px 8px',
+                borderRadius: 4,
+                background: 'rgba(22,119,255,0.1)',
+                color: '#1677ff',
+                fontSize: 12,
+              }}
+            >
+              连线中：点击目标节点完成连线（点击空白取消）
+            </div>
+          ) : null}
+
           <div
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
             style={{
               position: 'absolute',
-              top: 8,
-              left: 8,
-              padding: '2px 8px',
-              borderRadius: 4,
-              background: 'rgba(22,119,255,0.1)',
-              color: '#1677ff',
+              right: 12,
+              bottom: 12,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              padding: '4px 6px',
+              borderRadius: 6,
+              background: 'rgba(255,255,255,0.92)',
+              border: '1px solid #e5e5e5',
               fontSize: 12,
             }}
           >
-            连线中：点击目标节点完成连线（点击空白取消）
+            <button type="button" title="缩小" onClick={() => applyZoom(zoom / ZOOM_STEP)}>
+              −
+            </button>
+            <span style={{ minWidth: 40, textAlign: 'center' }}>{Math.round(zoom * 100)}%</span>
+            <button type="button" title="放大" onClick={() => applyZoom(zoom * ZOOM_STEP)}>
+              +
+            </button>
+            <button type="button" title="适应画布" onClick={fitCanvas}>
+              适应
+            </button>
+            <button type="button" title="重置为 100%" onClick={() => applyZoom(1)}>
+              重置
+            </button>
           </div>
-        ) : null}
-
-        <div
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={(event) => event.stopPropagation()}
-          style={{
-            position: 'absolute',
-            right: 12,
-            bottom: 12,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-            padding: '4px 6px',
-            borderRadius: 6,
-            background: 'rgba(255,255,255,0.92)',
-            border: '1px solid #e5e5e5',
-            fontSize: 12,
-          }}
-        >
-          <button type="button" title="缩小" onClick={() => applyZoom(zoom / ZOOM_STEP)}>
-            −
-          </button>
-          <span style={{ minWidth: 40, textAlign: 'center' }}>{Math.round(zoom * 100)}%</span>
-          <button type="button" title="放大" onClick={() => applyZoom(zoom * ZOOM_STEP)}>
-            +
-          </button>
-          <button type="button" title="适应画布" onClick={fitCanvas}>
-            适应
-          </button>
-          <button type="button" title="重置为 100%" onClick={() => applyZoom(1)}>
-            重置
-          </button>
-        </div>
         </div>
       </div>
 

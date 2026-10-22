@@ -7,7 +7,13 @@ import { App, Button, Card, Empty, Skeleton } from 'antd';
 import { useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
-import { formApi, formDataApi, type FieldConfig, type FormDefinition, type WidgetType } from '../api/form';
+import {
+  formApi,
+  formDataApi,
+  type FieldConfig,
+  type FormDefinition,
+  type WidgetType,
+} from '../api/form';
 import FormRenderer from './FormRenderer';
 
 /** 纯布局控件集合（无关联列，不参与提交） */
@@ -27,10 +33,7 @@ function isEmptyValue(value: unknown): boolean {
 }
 
 /** 浅比较：受控值回写时未变化则保留原引用，避免无谓重渲染 */
-function isSameValues(
-  previous: Record<string, unknown>,
-  next: Record<string, unknown>,
-): boolean {
+function isSameValues(previous: Record<string, unknown>, next: Record<string, unknown>): boolean {
   const keys = new Set([...Object.keys(previous), ...Object.keys(next)]);
   for (const key of keys) {
     if (previous[key] !== next[key]) {

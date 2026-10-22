@@ -196,7 +196,14 @@ export default function PermissionList() {
               {
                 name: 'permType',
                 label: '类型',
-                element: <Select allowClear options={PERM_TYPE_OPTIONS} placeholder="全部" style={{ width: 140 }} />,
+                element: (
+                  <Select
+                    allowClear
+                    options={PERM_TYPE_OPTIONS}
+                    placeholder="全部"
+                    style={{ width: 140 }}
+                  />
+                ),
               },
             ]}
             onSearch={(values) => {

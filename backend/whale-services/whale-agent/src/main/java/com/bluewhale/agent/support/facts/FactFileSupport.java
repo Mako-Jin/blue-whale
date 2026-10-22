@@ -24,6 +24,9 @@ public final class FactFileSupport {
             "target", "node_modules", "dist", "build", "out", ".git", ".idea",
             ".vscode", "data", "logs", "coverage", ".mvn");
 
+    /**
+     * 工具类禁止实例化。
+     */
     private FactFileSupport() {
     }
 

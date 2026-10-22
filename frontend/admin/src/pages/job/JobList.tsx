@@ -347,7 +347,9 @@ export default function JobList() {
                       {
                         name: 'jobId',
                         label: '任务ID',
-                        element: <InputNumber min={1} placeholder="任务ID" style={{ width: 140 }} />,
+                        element: (
+                          <InputNumber min={1} placeholder="任务ID" style={{ width: 140 }} />
+                        ),
                       },
                       {
                         name: 'status',

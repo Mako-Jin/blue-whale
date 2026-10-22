@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { App, Button, Card, Space, Table, Tag, type TableProps } from 'antd';
-import { getInstances, getServiceList, type ServiceInstanceVO, type ServiceSummaryVO } from '../api/monitor';
+import {
+  getInstances,
+  getServiceList,
+  type ServiceInstanceVO,
+  type ServiceSummaryVO,
+} from '../api/monitor';
 
 const serviceColumns: TableProps<ServiceSummaryVO>['columns'] = [
   { title: '服务名', dataIndex: 'serviceName' },
@@ -27,7 +32,9 @@ const instanceColumns: TableProps<ServiceInstanceVO>['columns'] = [
     title: '健康状态',
     dataIndex: 'healthy',
     width: 120,
-    render: (healthy: boolean) => <Tag color={healthy ? 'success' : 'error'}>{healthy ? '健康' : '不健康'}</Tag>,
+    render: (healthy: boolean) => (
+      <Tag color={healthy ? 'success' : 'error'}>{healthy ? '健康' : '不健康'}</Tag>
+    ),
   },
   { title: '状态', dataIndex: 'status', width: 120, render: (value?: string) => value ?? '-' },
   { title: '元数据摘要', dataIndex: 'serviceName', render: (value?: string) => value ?? '-' },
@@ -86,10 +93,7 @@ export default function Monitor() {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Card
-        title="服务概览"
-        extra={<Button onClick={handleRefresh}>刷新</Button>}
-      >
+      <Card title="服务概览" extra={<Button onClick={handleRefresh}>刷新</Button>}>
         <Table<ServiceSummaryVO>
           rowKey="serviceName"
           columns={serviceColumns}
@@ -100,13 +104,16 @@ export default function Monitor() {
             onClick: () => handleSelect(row),
             style: {
               cursor: 'pointer',
-              background: row.serviceName === selectedService ? 'rgba(24, 144, 255, 0.08)' : undefined,
+              background:
+                row.serviceName === selectedService ? 'rgba(24, 144, 255, 0.08)' : undefined,
             },
           })}
         />
       </Card>
 
-      <Card title={selectedService ? `实例列表：${selectedService}` : '实例列表（点击上方服务行查看）'}>
+      <Card
+        title={selectedService ? `实例列表：${selectedService}` : '实例列表（点击上方服务行查看）'}
+      >
         <Table<ServiceInstanceVO>
           rowKey={(row) => `${row.host}:${row.port}`}
           columns={instanceColumns}

@@ -44,7 +44,11 @@ function createFakeJwt(user: UserInfo): string {
     iat: nowSeconds,
     exp: nowSeconds + 24 * 60 * 60,
   };
-  return [base64UrlEncode(header), base64UrlEncode(payload), base64UrlEncode('bluewhale-mock-signature')].join('.');
+  return [
+    base64UrlEncode(header),
+    base64UrlEncode(payload),
+    base64UrlEncode('bluewhale-mock-signature'),
+  ].join('.');
 }
 
 export function getToken(): string | null {

@@ -109,7 +109,7 @@ export function saveLogin(data: LoginResponse): void {
     ...(current ?? { username: data.username, nickname: data.nickname, roles: [] }),
     username: data.username || current?.username || '',
     nickname: data.nickname || current?.nickname || '',
-    roles: data.roles?.length ? data.roles : current?.roles ?? [],
+    roles: data.roles?.length ? data.roles : (current?.roles ?? []),
   });
 }
 

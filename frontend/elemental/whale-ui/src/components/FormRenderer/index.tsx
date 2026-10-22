@@ -24,13 +24,7 @@ export type WhaleFormId = string;
 
 /** 列存储类型（与后端 DTO/VO 字段名保持一致） */
 export type WhaleFormDataType =
-  | 'text'
-  | 'textarea'
-  | 'number'
-  | 'date'
-  | 'datetime'
-  | 'select'
-  | 'bool';
+  'text' | 'textarea' | 'number' | 'date' | 'datetime' | 'select' | 'bool';
 
 /** 控件类型；后 3 个（title/divider/text-note）为纯布局控件 */
 export type WhaleFormWidgetType =
@@ -188,9 +182,7 @@ function renderControl(field: WhaleFormFieldConfig, disabled: boolean) {
     case 'checkbox':
       return <Checkbox.Group options={toOptions(field)} disabled={disabled} />;
     case 'date':
-      return (
-        <DatePicker format="YYYY-MM-DD" placeholder={field.placeholder} disabled={disabled} />
-      );
+      return <DatePicker format="YYYY-MM-DD" placeholder={field.placeholder} disabled={disabled} />;
     case 'datetime':
       return (
         <DatePicker
@@ -266,7 +258,10 @@ export function FormRenderer({ fields, value, onChange, disabled }: FormRenderer
     <Form form={form} layout="vertical" onValuesChange={handleValuesChange}>
       <Row gutter={16}>
         {visibleFields.map((field, index) => (
-          <Col key={field.id ?? `${field.columnCode ?? 'layout'}-${index}`} span={field.colSpan ?? 24}>
+          <Col
+            key={field.id ?? `${field.columnCode ?? 'layout'}-${index}`}
+            span={field.colSpan ?? 24}
+          >
             {renderField(field)}
           </Col>
         ))}

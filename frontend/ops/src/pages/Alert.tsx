@@ -13,8 +13,18 @@ const LEVEL_COLOR: Record<string, string> = {
 };
 
 const ruleColumns: TableProps<AlertRuleVO>['columns'] = [
-  { title: '规则名称', dataIndex: 'ruleName', width: 180, render: (value?: string) => value ?? '-' },
-  { title: '规则编码', dataIndex: 'ruleCode', width: 160, render: (value?: string) => value ?? '-' },
+  {
+    title: '规则名称',
+    dataIndex: 'ruleName',
+    width: 180,
+    render: (value?: string) => value ?? '-',
+  },
+  {
+    title: '规则编码',
+    dataIndex: 'ruleCode',
+    width: 160,
+    render: (value?: string) => value ?? '-',
+  },
   { title: '监控指标', dataIndex: 'metric', width: 160, render: (value?: string) => value ?? '-' },
   {
     title: '触发条件',
@@ -26,7 +36,8 @@ const ruleColumns: TableProps<AlertRuleVO>['columns'] = [
     title: '级别',
     dataIndex: 'level',
     width: 100,
-    render: (value?: string) => (value ? <Tag color={LEVEL_COLOR[value.toUpperCase()] ?? 'default'}>{value}</Tag> : '-'),
+    render: (value?: string) =>
+      value ? <Tag color={LEVEL_COLOR[value.toUpperCase()] ?? 'default'}>{value}</Tag> : '-',
   },
   { title: '通知通道', dataIndex: 'channel', width: 120, render: (value?: string) => value ?? '-' },
   {
@@ -35,21 +46,42 @@ const ruleColumns: TableProps<AlertRuleVO>['columns'] = [
     width: 100,
     render: (value?: number) => (value === 1 ? <Tag color="success">启用</Tag> : <Tag>停用</Tag>),
   },
-  { title: '创建时间', dataIndex: 'createTime', width: 180, render: (value?: string) => value ?? '-' },
+  {
+    title: '创建时间',
+    dataIndex: 'createTime',
+    width: 180,
+    render: (value?: string) => value ?? '-',
+  },
 ];
 
 const recordColumns: TableProps<AlertRecordVO>['columns'] = [
-  { title: '规则编码', dataIndex: 'ruleCode', width: 160, render: (value?: string) => value ?? '-' },
+  {
+    title: '规则编码',
+    dataIndex: 'ruleCode',
+    width: 160,
+    render: (value?: string) => value ?? '-',
+  },
   {
     title: '级别',
     dataIndex: 'alertLevel',
     width: 100,
-    render: (value?: string) => (value ? <Tag color={LEVEL_COLOR[value.toUpperCase()] ?? 'default'}>{value}</Tag> : '-'),
+    render: (value?: string) =>
+      value ? <Tag color={LEVEL_COLOR[value.toUpperCase()] ?? 'default'}>{value}</Tag> : '-',
   },
   { title: '内容', dataIndex: 'content', render: (value?: string) => value ?? '-' },
   { title: '状态', dataIndex: 'status', width: 120, render: (value?: string) => value ?? '-' },
-  { title: '触发时间', dataIndex: 'triggerTime', width: 180, render: (value?: string) => value ?? '-' },
-  { title: '恢复时间', dataIndex: 'recoverTime', width: 180, render: (value?: string) => value ?? '-' },
+  {
+    title: '触发时间',
+    dataIndex: 'triggerTime',
+    width: 180,
+    render: (value?: string) => value ?? '-',
+  },
+  {
+    title: '恢复时间',
+    dataIndex: 'recoverTime',
+    width: 180,
+    render: (value?: string) => value ?? '-',
+  },
 ];
 
 function RuleTable() {
@@ -60,7 +92,9 @@ function RuleTable() {
       title="告警规则"
       columns={ruleColumns}
       request={pageAlertRule}
-      onError={(error) => message.error(error instanceof Error ? error.message : '告警规则加载失败')}
+      onError={(error) =>
+        message.error(error instanceof Error ? error.message : '告警规则加载失败')
+      }
     />
   );
 }
@@ -73,7 +107,9 @@ function RecordTable() {
       title="告警记录"
       columns={recordColumns}
       request={pageAlertRecord}
-      onError={(error) => message.error(error instanceof Error ? error.message : '告警记录加载失败')}
+      onError={(error) =>
+        message.error(error instanceof Error ? error.message : '告警记录加载失败')
+      }
     />
   );
 }

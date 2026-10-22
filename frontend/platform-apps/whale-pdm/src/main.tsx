@@ -24,8 +24,7 @@ if (!(window as unknown as { __POWERED_BY_QIANKUN__?: boolean }).__POWERED_BY_QI
   render();
 }
 
-export async function bootstrap() {
-}
+export async function bootstrap() {}
 
 export async function mount(props: { container?: HTMLElement }) {
   render(props);

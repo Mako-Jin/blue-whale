@@ -215,7 +215,11 @@ export default function MenuList() {
             treeData={[{ value: 0, title: '顶级菜单', children: toOptions(menus, editRecord?.id) }]}
           />
         </Form.Item>
-        <Form.Item name="name" label="菜单名称" rules={[{ required: true, message: '请输入菜单名称' }]}>
+        <Form.Item
+          name="name"
+          label="菜单名称"
+          rules={[{ required: true, message: '请输入菜单名称' }]}
+        >
           <Input />
         </Form.Item>
         <Form.Item name="menuType" label="菜单类型" initialValue="MENU">

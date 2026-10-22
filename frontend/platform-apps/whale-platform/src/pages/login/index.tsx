@@ -43,7 +43,11 @@ export default function LoginPage() {
           size="large"
         >
           <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>
-            <Input prefix={<UserOutlined />} placeholder="用户名（admin）" autoComplete="username" />
+            <Input
+              prefix={<UserOutlined />}
+              placeholder="用户名（admin）"
+              autoComplete="username"
+            />
           </Form.Item>
           <Form.Item name="password" rules={[{ required: true, message: '请输入密码' }]}>
             <Input.Password

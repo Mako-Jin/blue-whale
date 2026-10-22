@@ -1,7 +1,20 @@
 // 角色管理页 - 分页查询 / 新增 / 编辑 / 删除 / 分配权限
 // 操作按钮均按权限码渲染（AuthButton / usePermission），无权限自动隐藏
 
-import { App, Button, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Table, Tag, type TableProps } from 'antd';
+import {
+  App,
+  Button,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Popconfirm,
+  Select,
+  Space,
+  Table,
+  Tag,
+  type TableProps,
+} from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import {
   AuthButton,
@@ -238,7 +251,11 @@ export default function RoleList() {
         >
           <Input placeholder="如 ROLE_AUDITOR" disabled={Boolean(editRecord)} />
         </Form.Item>
-        <Form.Item name="roleName" label="角色名称" rules={[{ required: true, message: '请输入角色名称' }]}>
+        <Form.Item
+          name="roleName"
+          label="角色名称"
+          rules={[{ required: true, message: '请输入角色名称' }]}
+        >
           <Input />
         </Form.Item>
         <Form.Item name="description" label="描述">
@@ -277,7 +294,9 @@ export default function RoleList() {
             { title: '类型', dataIndex: 'permType', width: 80 },
           ]}
         />
-        <div className="admin-hint">已选 {checkedPermIds.length} / {allPermissions.length}</div>
+        <div className="admin-hint">
+          已选 {checkedPermIds.length} / {allPermissions.length}
+        </div>
       </Modal>
     </>
   );

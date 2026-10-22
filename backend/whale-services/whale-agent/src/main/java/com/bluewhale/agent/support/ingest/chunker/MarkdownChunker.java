@@ -140,6 +140,8 @@ public class MarkdownChunker implements DocumentChunker {
     /**
      * 标题节点。
      *
+     * @param level 标题层级（1-6）
+     * @param text 标题文本
      * @author BlueWhale
      */
     private record Heading(int level, String text) {
@@ -148,6 +150,9 @@ public class MarkdownChunker implements DocumentChunker {
     /**
      * 标题下的段落。
      *
+     * @param title 段落标题
+     * @param startLine 段落起始行号
+     * @param lines 段落源行
      * @author BlueWhale
      */
     private record Section(String title, int startLine, List<String> lines) {

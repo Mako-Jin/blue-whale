@@ -18,7 +18,9 @@ export default function AppLayout() {
   const location = useLocation();
   const { message } = App.useApp();
   const user = useCurrentUser();
-  const [permissions, setPermissions] = useState<string[]>(() => getCurrentUser()?.permissions ?? []);
+  const [permissions, setPermissions] = useState<string[]>(
+    () => getCurrentUser()?.permissions ?? [],
+  );
 
   // 首次进入补拉 /auth/me，用于「重建」按钮与权限相关的可见性
   useEffect(() => {

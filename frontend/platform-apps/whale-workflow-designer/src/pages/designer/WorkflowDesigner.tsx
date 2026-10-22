@@ -230,7 +230,12 @@ export default function WorkflowDesigner() {
   }, [definitionId, message]);
 
   const errorKeys = useMemo(
-    () => new Set((validation?.errors ?? []).map((issue) => issue.refKey).filter((key): key is string => !!key)),
+    () =>
+      new Set(
+        (validation?.errors ?? [])
+          .map((issue) => issue.refKey)
+          .filter((key): key is string => !!key),
+      ),
     [validation],
   );
 
@@ -273,7 +278,10 @@ export default function WorkflowDesigner() {
         setSelected({ kind: 'node', key });
         return;
       }
-      const flowKey = nextKey('f', model.flows.map((flow) => flow.key));
+      const flowKey = nextKey(
+        'f',
+        model.flows.map((flow) => flow.key),
+      );
       commit((prev) => ({ ...prev, flows: [...prev.flows, createFlow(linkFrom, key, flowKey)] }));
       setSelected({ kind: 'flow', key: flowKey });
       setLinkFrom(null);
@@ -295,8 +303,14 @@ export default function WorkflowDesigner() {
   };
 
   const handleDropNode = (type: CanvasNode['type'], x: number, y: number) => {
-    const key = nextKey('n', model.nodes.map((node) => node.key));
-    commit((prev) => ({ ...prev, nodes: [...prev.nodes, createNode(type, key, x, y, defaultAssignee)] }));
+    const key = nextKey(
+      'n',
+      model.nodes.map((node) => node.key),
+    );
+    commit((prev) => ({
+      ...prev,
+      nodes: [...prev.nodes, createNode(type, key, x, y, defaultAssignee)],
+    }));
     setSelected({ kind: 'node', key });
     setLinkFrom(null);
   };
@@ -381,7 +395,11 @@ export default function WorkflowDesigner() {
       return;
     }
     setSaving(true);
-    const payload = { code: code.trim(), name: name.trim(), definitionJson: serializeDefinition(model) };
+    const payload = {
+      code: code.trim(),
+      name: name.trim(),
+      definitionJson: serializeDefinition(model),
+    };
     try {
       if (definitionId) {
         await workflowApi.definitionUpdate(definitionId, payload);
@@ -403,10 +421,14 @@ export default function WorkflowDesigner() {
   const handleValidate = async () => {
     setValidating(true);
     try {
-      const result = await workflowApi.definitionValidate({ definitionJson: serializeDefinition(model) });
+      const result = await workflowApi.definitionValidate({
+        definitionJson: serializeDefinition(model),
+      });
       setValidation(result);
       if (result.valid) {
-        message.success(`校验通过（节点 ${result.nodeCount} / 流转 ${result.flowCount}，模式 ${result.mode}）`);
+        message.success(
+          `校验通过（节点 ${result.nodeCount} / 流转 ${result.flowCount}，模式 ${result.mode}）`,
+        );
       }
     } catch (error) {
       message.error(toMessage(error));
@@ -532,7 +554,10 @@ export default function WorkflowDesigner() {
       message.warning('请填写分组名称');
       return;
     }
-    const key = nextKey('g', model.groups.map((group) => group.key));
+    const key = nextKey(
+      'g',
+      model.groups.map((group) => group.key),
+    );
     commit((prev) => ({ ...prev, groups: [...prev.groups, createGroup(key, trimmed)] }));
     setGroupName('');
     message.success(`分组「${trimmed}」已创建`);
@@ -629,7 +654,9 @@ export default function WorkflowDesigner() {
         ...(ids.length > 0 ? { instanceIds: ids } : {}),
       });
       setMigration(result);
-      message.success(`迁移完成：成功 ${result.migrated} / 跳过 ${result.skipped} / 失败 ${result.failed}`);
+      message.success(
+        `迁移完成：成功 ${result.migrated} / 跳过 ${result.skipped} / 失败 ${result.failed}`,
+      );
     } catch (error) {
       message.error(toMessage(error));
     } finally {
@@ -723,7 +750,10 @@ export default function WorkflowDesigner() {
             </Button>
           </Tooltip>
           <Tooltip title="重做（Ctrl+Y / Ctrl+Shift+Z）">
-            <Button disabled={history.future.length === 0} onClick={() => dispatch({ type: 'redo' })}>
+            <Button
+              disabled={history.future.length === 0}
+              onClick={() => dispatch({ type: 'redo' })}
+            >
               重做
             </Button>
           </Tooltip>
@@ -864,7 +894,8 @@ export default function WorkflowDesigner() {
       >
         <Space direction="vertical" style={{ width: '100%' }} size="middle">
           <Typography.Text type="secondary">
-            按当前画布定义与流程变量真实求值选路（不创建实例）。变量键可直接写在条件里，如 amount &gt; 100。
+            按当前画布定义与流程变量真实求值选路（不创建实例）。变量键可直接写在条件里，如 amount
+            &gt; 100。
           </Typography.Text>
           <Input.TextArea
             rows={5}

@@ -147,26 +147,29 @@ export default function AgentWorkbench() {
   }, []);
 
   /** 打开某个会话 */
-  const openConversation = useCallback(async (id: string) => {
-    if (abortRef.current) {
-      abortRef.current.abort();
-      abortRef.current = null;
-    }
-    setStreaming(false);
-    setConversationId(id);
-    setActiveEvidenceKey(null);
-    setActiveCitation(null);
-    setMessagesLoading(true);
-    try {
-      const list = await listMessages(id);
-      setMessages((list ?? []).map(toUiMessage));
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : '加载会话消息失败');
-      setMessages([]);
-    } finally {
-      setMessagesLoading(false);
-    }
-  }, [toast]);
+  const openConversation = useCallback(
+    async (id: string) => {
+      if (abortRef.current) {
+        abortRef.current.abort();
+        abortRef.current = null;
+      }
+      setStreaming(false);
+      setConversationId(id);
+      setActiveEvidenceKey(null);
+      setActiveCitation(null);
+      setMessagesLoading(true);
+      try {
+        const list = await listMessages(id);
+        setMessages((list ?? []).map(toUiMessage));
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : '加载会话消息失败');
+        setMessages([]);
+      } finally {
+        setMessagesLoading(false);
+      }
+    },
+    [toast],
+  );
 
   /** 新建会话（清空当前上下文） */
   const startNewConversation = () => {
@@ -254,15 +257,17 @@ export default function AgentWorkbench() {
             void refreshConversations();
           },
           onError: (errorMessage) => {
-            patchMessage(assistantKey, (item) => ({ ...item, streaming: false, error: errorMessage }));
+            patchMessage(assistantKey, (item) => ({
+              ...item,
+              streaming: false,
+              error: errorMessage,
+            }));
           },
         },
         controller.signal,
       );
       // 流结束但未收到 done（后端异常/连接中断）时兜底关闭打字机
-      patchMessage(assistantKey, (item) =>
-        item.streaming ? { ...item, streaming: false } : item,
-      );
+      patchMessage(assistantKey, (item) => (item.streaming ? { ...item, streaming: false } : item));
       if (resolvedId) {
         void refreshConversations();
       }
@@ -456,7 +461,9 @@ export default function AgentWorkbench() {
                     <Space size={4} wrap>
                       {item.intent && <Tag>{item.intent}</Tag>}
                       {item.degraded && <Tag color="gold">降级：检索摘要</Tag>}
-                      {item.tokens != null && <span className="agent-message-meta">{item.tokens} tokens</span>}
+                      {item.tokens != null && (
+                        <span className="agent-message-meta">{item.tokens} tokens</span>
+                      )}
                       {item.citations.length > 0 && (
                         <Button
                           type="link"

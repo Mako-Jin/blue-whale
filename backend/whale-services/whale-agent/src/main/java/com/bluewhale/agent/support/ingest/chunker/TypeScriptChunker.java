@@ -169,6 +169,10 @@ public class TypeScriptChunker implements DocumentChunker {
     /**
      * 源码单元。
      *
+     * @param title 单元标题
+     * @param startLine 起始行号
+     * @param endLine 结束行号
+     * @param lines 单元源行
      * @author BlueWhale
      */
     private record Unit(String title, int startLine, int endLine, List<String> lines) {

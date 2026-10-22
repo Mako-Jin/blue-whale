@@ -45,7 +45,10 @@ export const LAYOUT_LABELS: Record<string, string> = {
 
 /** 是否为纯布局字段（关联列为空且控件为布局控件） */
 export function isLayoutField(field: FieldConfig): boolean {
-  return field.columnMetaId == null || (field.widgetType != null && LAYOUT_WIDGETS.includes(field.widgetType));
+  return (
+    field.columnMetaId == null ||
+    (field.widgetType != null && LAYOUT_WIDGETS.includes(field.widgetType))
+  );
 }
 
 /** 存储类型 → 默认控件类型（bool→switch，其余同名回落；select→select） */

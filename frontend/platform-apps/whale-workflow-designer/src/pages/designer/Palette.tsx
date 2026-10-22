@@ -55,8 +55,7 @@ function PaletteItem({ type }: { type: NodeType }) {
               : type === 'EXCLUSIVE_GATEWAY' || type === 'PARALLEL_GATEWAY'
                 ? 2
                 : 3,
-          border:
-            type === 'COUNTER_SIGN' ? `3px double ${color}` : `2px solid ${color}`,
+          border: type === 'COUNTER_SIGN' ? `3px double ${color}` : `2px solid ${color}`,
           transform:
             type === 'EXCLUSIVE_GATEWAY' || type === 'PARALLEL_GATEWAY'
               ? 'rotate(45deg)'

@@ -564,7 +564,11 @@ export default function DefinitionList() {
           <Space direction="vertical" size={12} style={{ width: '100%' }}>
             <Descriptions column={2} size="small" bordered>
               <Descriptions.Item label="是否合法">
-                {validateResult.valid ? <Tag color="green">合法</Tag> : <Tag color="red">不合法</Tag>}
+                {validateResult.valid ? (
+                  <Tag color="green">合法</Tag>
+                ) : (
+                  <Tag color="red">不合法</Tag>
+                )}
               </Descriptions.Item>
               <Descriptions.Item label="模式">{validateResult.mode}</Descriptions.Item>
               <Descriptions.Item label="节点数">{validateResult.nodeCount}</Descriptions.Item>

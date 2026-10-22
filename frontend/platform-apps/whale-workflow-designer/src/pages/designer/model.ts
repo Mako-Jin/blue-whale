@@ -6,7 +6,12 @@
 // legacy 兼容：根对象无 type 且无 flows → 节点顺序即流转顺序（f1..f(n-1)），节点统一按 USER_TASK
 //   （与后端 ProcessModelParser#legacy 归一化口径一致）。
 
-import type { NodeType, NormalizedDefinition, ProcessModelFlow, ProcessModelNode } from '../../api/workflow';
+import type {
+  NodeType,
+  NormalizedDefinition,
+  ProcessModelFlow,
+  ProcessModelNode,
+} from '../../api/workflow';
 
 /** 画布本体（SVG 容器）的 droppable id */
 export const CANVAS_DROPPABLE_ID = 'wf-canvas';
@@ -299,9 +304,10 @@ function ensureKeys<T extends { key: string }>(items: T[], prefix: KeyPrefix): v
   const used = new Set<string>();
   items.forEach((item) => {
     const candidate = item.key;
-    item.key = candidate && isValidKey(candidate) && !used.has(candidate)
-      ? candidate
-      : nextKey(prefix, used);
+    item.key =
+      candidate && isValidKey(candidate) && !used.has(candidate)
+        ? candidate
+        : nextKey(prefix, used);
     used.add(item.key);
   });
 }
@@ -411,7 +417,12 @@ export function toNormalized(model: CanvasModel): NormalizedDefinition {
       return item;
     }),
     flows: model.flows.map((flow) => {
-      const item: ProcessModelFlow = { key: flow.key, from: flow.from, to: flow.to, isDefault: flow.isDefault };
+      const item: ProcessModelFlow = {
+        key: flow.key,
+        from: flow.from,
+        to: flow.to,
+        isDefault: flow.isDefault,
+      };
       if (flow.condition) {
         item.condition = flow.condition;
       }

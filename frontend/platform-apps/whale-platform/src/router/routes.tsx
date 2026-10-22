@@ -40,7 +40,9 @@ export const routes = [
       // 国际化演示 - 占位页
       {
         path: 'i18n-demo',
-        element: <PlaceholderPage title="国际化演示" description="多语言能力演示入口，功能规划中" />,
+        element: (
+          <PlaceholderPage title="国际化演示" description="多语言能力演示入口，功能规划中" />
+        ),
       },
       // 子应用路由 - qiankun 根据 activeRule 激活
       { path: 'portal/*', element: <SubAppContainer /> },

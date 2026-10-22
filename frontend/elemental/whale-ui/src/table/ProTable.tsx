@@ -1,7 +1,15 @@
 // ProTable - 分页表格二次封装：查询区 + 工具栏 + 受控分页 + 命令式刷新
 
 import { Card, Space, Table, type TableProps } from 'antd';
-import { useCallback, useEffect, useImperativeHandle, useRef, useState, type ReactNode, type Ref } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type ReactNode,
+  type Ref,
+} from 'react';
 
 /** 分页请求参数 */
 export interface PageParams {
@@ -75,7 +83,8 @@ export function ProTable<T extends object, Q extends object = Record<string, nev
   const load = useCallback(async (page: number, pageSize: number) => {
     setLoading(true);
     try {
-      const query = { ...(paramsRef.current ?? {}), current: page, size: pageSize } as Q & PageParams;
+      const query = { ...(paramsRef.current ?? {}), current: page, size: pageSize } as Q &
+        PageParams;
       const result = await requestRef.current(query);
       setRecords(result?.records ?? []);
       setTotal(result?.total ?? 0);

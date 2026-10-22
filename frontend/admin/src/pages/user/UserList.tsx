@@ -347,7 +347,14 @@ export default function UserList() {
         <Form.Item
           name="password"
           label={editRecord ? '密码（留空则不修改）' : '密码'}
-          rules={editRecord ? [{ min: 6, message: '密码至少 6 位' }] : [{ required: true, message: '请输入密码' }, { min: 6, message: '密码至少 6 位' }]}
+          rules={
+            editRecord
+              ? [{ min: 6, message: '密码至少 6 位' }]
+              : [
+                  { required: true, message: '请输入密码' },
+                  { min: 6, message: '密码至少 6 位' },
+                ]
+          }
         >
           <Input.Password placeholder={editRecord ? '留空表示不修改' : '至少 6 位'} />
         </Form.Item>
@@ -378,7 +385,10 @@ export default function UserList() {
         <Form.Item
           name="password"
           label="新密码"
-          rules={[{ required: true, message: '请输入新密码' }, { min: 6, message: '密码至少 6 位' }]}
+          rules={[
+            { required: true, message: '请输入新密码' },
+            { min: 6, message: '密码至少 6 位' },
+          ]}
         >
           <Input.Password placeholder="至少 6 位" />
         </Form.Item>

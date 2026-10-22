@@ -15,12 +15,7 @@ import {
   Table,
   type TableColumnsType,
 } from 'antd';
-import {
-  workflowApi,
-  type Id,
-  type InstanceQuery,
-  type ProcessInstance,
-} from '../../api/workflow';
+import { workflowApi, type Id, type InstanceQuery, type ProcessInstance } from '../../api/workflow';
 import InstanceDetailDrawer from './InstanceDetailDrawer';
 import { InstanceStatusTag } from './statusTag';
 
@@ -180,8 +175,18 @@ export default function InstanceList() {
       ellipsis: true,
       render: (_, record) => renderCurrentNode(record),
     },
-    { title: '发起人', dataIndex: 'initiator', width: 120, render: (value?: string) => value || '-' },
-    { title: '创建时间', dataIndex: 'createTime', width: 180, render: (value?: string) => value || '-' },
+    {
+      title: '发起人',
+      dataIndex: 'initiator',
+      width: 120,
+      render: (value?: string) => value || '-',
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'createTime',
+      width: 180,
+      render: (value?: string) => value || '-',
+    },
     {
       title: '操作',
       key: 'action',

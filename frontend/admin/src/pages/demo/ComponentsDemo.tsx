@@ -80,7 +80,12 @@ export default function ComponentsDemo() {
       setRows((prev) =>
         prev.map((row) =>
           row.id === editRecord.id
-            ? { ...row, name: values.name, category: values.category, amount: values.amount ?? row.amount }
+            ? {
+                ...row,
+                name: values.name,
+                category: values.category,
+                amount: values.amount ?? row.amount,
+              }
             : row,
         ),
       );
@@ -146,7 +151,11 @@ export default function ComponentsDemo() {
         search={
           <SearchForm
             items={[
-              { name: 'keyword', label: '名称', element: <Input allowClear placeholder="名称关键字" /> },
+              {
+                name: 'keyword',
+                label: '名称',
+                element: <Input allowClear placeholder="名称关键字" />,
+              },
               {
                 name: 'category',
                 label: '分类',
@@ -179,9 +188,9 @@ export default function ComponentsDemo() {
 
       <Space style={{ marginTop: 16 }} direction="vertical">
         <span className="admin-hint">
-          按钮级权限演示：当前账号拥有 {permissions.length} 个权限码。
-          「编辑 / 新增示例数据」需要 sys:user:edit / sys:user:add，因此可见；
-          下面这个按钮需要不存在的 sys:demo:not-exist，故不会渲染。
+          按钮级权限演示：当前账号拥有 {permissions.length} 个权限码。 「编辑 / 新增示例数据」需要
+          sys:user:edit / sys:user:add，因此可见； 下面这个按钮需要不存在的
+          sys:demo:not-exist，故不会渲染。
         </span>
         <AuthButton perm="sys:demo:not-exist" type="primary" danger>
           需要 sys:demo:not-exist 权限的按钮

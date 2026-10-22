@@ -31,8 +31,7 @@ if (!(window as unknown as { __POWERED_BY_QIANKUN__?: boolean }).__POWERED_BY_QI
 }
 
 // qiankun 生命周期
-export async function bootstrap() {
-}
+export async function bootstrap() {}
 
 export async function mount(props: { container?: HTMLElement }) {
   render(props);

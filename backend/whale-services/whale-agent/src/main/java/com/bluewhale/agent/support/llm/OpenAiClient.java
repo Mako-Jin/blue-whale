@@ -50,6 +50,11 @@ public class OpenAiClient implements LlmClient {
 
     private final HttpClient httpClient;
 
+    /**
+     * 依据平台配置构建客户端（连接超时取自 {@code bluewhale.agent.llm.timeout-millis}）。
+     *
+     * @param properties AGENT 服务配置
+     */
     public OpenAiClient(AgentProperties properties) {
         this.properties = properties;
         this.httpClient = HttpClient.newBuilder()

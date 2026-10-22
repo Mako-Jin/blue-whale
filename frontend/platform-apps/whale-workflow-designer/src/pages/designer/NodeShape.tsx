@@ -29,12 +29,21 @@ export default function NodeShape({ node, selected = false, error = false }: Nod
   let shape: ReactElement;
   switch (node.type) {
     case 'START_EVENT':
-      shape = <circle cx={cx} cy={cy} r={cx - 3} fill={fill} stroke={stroke} strokeWidth={strokeWidth} />;
+      shape = (
+        <circle cx={cx} cy={cy} r={cx - 3} fill={fill} stroke={stroke} strokeWidth={strokeWidth} />
+      );
       break;
     case 'END_EVENT':
       shape = (
         <>
-          <circle cx={cx} cy={cy} r={cx - 3} fill={fill} stroke={stroke} strokeWidth={strokeWidth} />
+          <circle
+            cx={cx}
+            cy={cy}
+            r={cx - 3}
+            fill={fill}
+            stroke={stroke}
+            strokeWidth={strokeWidth}
+          />
           <circle cx={cx} cy={cy} r={cx - 9} fill="none" stroke={stroke} strokeWidth={1.5} />
         </>
       );
@@ -123,18 +132,35 @@ export default function NodeShape({ node, selected = false, error = false }: Nod
       {shape}
       {inlineText ? (
         <>
-          <text x={cx} y={subText ? cy - 6 : cy} textAnchor="middle" dominantBaseline="middle" fontSize={13} fill="#1f1f1f">
+          <text
+            x={cx}
+            y={subText ? cy - 6 : cy}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fontSize={13}
+            fill="#1f1f1f"
+          >
             {truncate(name, 18)}
           </text>
           {subText ? (
-            <text x={cx} y={height - 14} textAnchor="middle" dominantBaseline="middle" fontSize={11} fill="#8c8c8c">
+            <text
+              x={cx}
+              y={height - 14}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize={11}
+              fill="#8c8c8c"
+            >
               {subText}
             </text>
           ) : null}
         </>
       ) : (
         <text x={cx} y={height + 14} textAnchor="middle" fontSize={12} fill="#595959">
-          {truncate(name, node.type === 'EXCLUSIVE_GATEWAY' || node.type === 'PARALLEL_GATEWAY' ? 8 : 10)}
+          {truncate(
+            name,
+            node.type === 'EXCLUSIVE_GATEWAY' || node.type === 'PARALLEL_GATEWAY' ? 8 : 10,
+          )}
         </text>
       )}
     </g>

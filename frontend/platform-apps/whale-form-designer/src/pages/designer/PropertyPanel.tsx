@@ -50,7 +50,9 @@ function OptionEditor({
       <Button
         type="dashed"
         block
-        onClick={() => onChange([...list, { optionLabel: '', optionValue: '', sortNo: list.length }])}
+        onClick={() =>
+          onChange([...list, { optionLabel: '', optionValue: '', sortNo: list.length }])
+        }
       >
         新增选项
       </Button>
@@ -119,7 +121,9 @@ export default function PropertyPanel({ field, columnsById, onChange }: Property
   }
 
   const showOptions =
-    field.widgetType === 'select' || field.widgetType === 'radio' || field.widgetType === 'checkbox';
+    field.widgetType === 'select' ||
+    field.widgetType === 'radio' ||
+    field.widgetType === 'checkbox';
 
   return (
     <div>
@@ -181,10 +185,7 @@ export default function PropertyPanel({ field, columnsById, onChange }: Property
       </Item>
       {showOptions ? (
         <Item label="选项">
-          <OptionEditor
-            options={field.options}
-            onChange={(next) => onChange({ options: next })}
-          />
+          <OptionEditor options={field.options} onChange={(next) => onChange({ options: next })} />
         </Item>
       ) : null}
     </div>

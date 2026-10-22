@@ -224,18 +224,21 @@ export default function TaskCenter() {
   }, []);
 
   /** 打开审批（待办）/ 查看（非待办）抽屉 */
-  const openDrawer = useCallback((record: ProcessTask) => {
-    setActiveTask(record);
-    setDrawerOpen(true);
-    setComment(record.comment ?? '');
-    setFormReady(false);
-    setFormFields([]);
-    setFormValues({});
-    setFormDataId(null);
-    setFormDirty(false);
-    setFormError(null);
-    void loadForm(record);
-  }, [loadForm]);
+  const openDrawer = useCallback(
+    (record: ProcessTask) => {
+      setActiveTask(record);
+      setDrawerOpen(true);
+      setComment(record.comment ?? '');
+      setFormReady(false);
+      setFormFields([]);
+      setFormValues({});
+      setFormDataId(null);
+      setFormDirty(false);
+      setFormError(null);
+      void loadForm(record);
+    },
+    [loadForm],
+  );
 
   /** 关闭抽屉并复位当前任务 */
   const closeDrawer = () => {
@@ -393,8 +396,18 @@ export default function TaskCenter() {
 
   const columns: TableColumnsType<ProcessTask> = useMemo(
     () => [
-      { title: '节点名称', dataIndex: 'nodeName', width: 160, render: (v: string | null) => v || '-' },
-      { title: '审批人', dataIndex: 'assignee', width: 120, render: (v: string | null) => v || '-' },
+      {
+        title: '节点名称',
+        dataIndex: 'nodeName',
+        width: 160,
+        render: (v: string | null) => v || '-',
+      },
+      {
+        title: '审批人',
+        dataIndex: 'assignee',
+        width: 120,
+        render: (v: string | null) => v || '-',
+      },
       {
         title: '所属实例',
         key: 'instance',
@@ -537,7 +550,13 @@ export default function TaskCenter() {
             { key: 'createTime', label: '创建时间', children: activeTask?.createTime || '-' },
             { key: 'comment', label: '已有意见', children: activeTask?.comment || '-' },
             ...(activeTask?.signType === 'COUNTER_SIGN'
-              ? [{ key: 'signPolicy', label: '会签策略', children: activeTask?.signPolicy || 'ALL' }]
+              ? [
+                  {
+                    key: 'signPolicy',
+                    label: '会签策略',
+                    children: activeTask?.signPolicy || 'ALL',
+                  },
+                ]
               : []),
             ...(activeTask?.signType === 'ADD_SIGN'
               ? [{ key: 'signType', label: '任务类型', children: '加签' }]
@@ -581,10 +600,7 @@ export default function TaskCenter() {
               onChange={readOnly ? undefined : handleFormChange}
             />
           ) : drawerLoading ? null : (
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description={formError ?? '无表单数据'}
-            />
+            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={formError ?? '无表单数据'} />
           )}
         </Spin>
 

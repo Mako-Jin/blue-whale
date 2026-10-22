@@ -237,7 +237,10 @@ async function fetchBlob(
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_BASE}${path}${buildQuery(query)}`, { method: 'GET', headers });
+  const response = await fetch(`${API_BASE}${path}${buildQuery(query)}`, {
+    method: 'GET',
+    headers,
+  });
 
   // 401：令牌缺失/过期/已登出 → 先续期并重放一次，仍失败则清态抛出
   if (response.status === 401) {

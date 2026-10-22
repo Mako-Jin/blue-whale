@@ -59,7 +59,10 @@ export default function MainLayout() {
   useEffect(() => {
     setTabs((prev) => {
       if (prev.some((tab) => tab.key === activeKey)) return prev;
-      return [...prev, { key: activeKey, label: getRouteTitle(activeKey), closable: activeKey !== '/' }];
+      return [
+        ...prev,
+        { key: activeKey, label: getRouteTitle(activeKey), closable: activeKey !== '/' },
+      ];
     });
   }, [activeKey]);
 

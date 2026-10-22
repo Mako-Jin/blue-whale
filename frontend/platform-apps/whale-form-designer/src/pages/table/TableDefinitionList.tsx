@@ -484,11 +484,8 @@ export default function TableDefinitionList() {
                         <Col span={8}>
                           <Form.Item noStyle shouldUpdate>
                             {() => {
-                              const dataType = form.getFieldValue([
-                                'columns',
-                                name,
-                                'dataType',
-                              ]) as DataType | undefined;
+                              const dataType = form.getFieldValue(['columns', name, 'dataType']) as
+                                DataType | undefined;
                               if (dataType === 'number') {
                                 return (
                                   <Row gutter={12}>

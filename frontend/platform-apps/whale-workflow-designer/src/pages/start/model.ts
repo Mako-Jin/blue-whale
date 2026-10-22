@@ -107,7 +107,9 @@ export function parseDefinitionModel(json: string | null | undefined): ParsedDef
     })
     .filter((flow): flow is ProcessModelFlow => flow !== null);
 
-  const hasTypedNode = container.nodes.some((item) => toNodeType(asRecord(item).type) !== undefined);
+  const hasTypedNode = container.nodes.some(
+    (item) => toNodeType(asRecord(item).type) !== undefined,
+  );
 
   return { nodes, flows, legacy: !hasTypedNode && flows.length === 0 };
 }
@@ -157,7 +159,9 @@ export function findEntryApprovalNode(model: ParsedDefinition): ParsedNode | nul
       return null;
     }
     const nextFlow =
-      outgoing.length === 1 ? outgoing[0] : outgoing.find((flow) => flow.isDefault) ?? outgoing[0];
+      outgoing.length === 1
+        ? outgoing[0]
+        : (outgoing.find((flow) => flow.isDefault) ?? outgoing[0]);
     current = model.nodes.find((node) => node.key === nextFlow.to);
   }
   return null;

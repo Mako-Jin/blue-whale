@@ -69,7 +69,9 @@ export default function EvidencePanel({ citations, activeId, footer }: EvidenceP
                     </Tooltip>
                   )}
                 </Space>
-                <div className="evidence-heading">{citation.title || citation.factKey || citation.path}</div>
+                <div className="evidence-heading">
+                  {citation.title || citation.factKey || citation.path}
+                </div>
                 <div className="evidence-path">
                   {link ? (
                     <a href={link} target="_blank" rel="noreferrer">
@@ -78,7 +80,9 @@ export default function EvidencePanel({ citations, activeId, footer }: EvidenceP
                   ) : (
                     <span>{citation.path}</span>
                   )}
-                  {lineLabel(citation) && <span className="evidence-lines">{lineLabel(citation)}</span>}
+                  {lineLabel(citation) && (
+                    <span className="evidence-lines">{lineLabel(citation)}</span>
+                  )}
                 </div>
                 {citation.snippet && <pre className="evidence-snippet">{citation.snippet}</pre>}
               </div>

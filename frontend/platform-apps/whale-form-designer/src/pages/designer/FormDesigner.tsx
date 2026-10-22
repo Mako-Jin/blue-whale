@@ -333,7 +333,8 @@ export default function FormDesigner() {
   /** 调色板载荷 → 画布字段（回填关联列信息，便于预览与属性面板只读展示） */
   const buildField = useCallback(
     (payload: PalettePayload): DesignerField => {
-      const column = payload.columnMetaId != null ? columnsById.get(payload.columnMetaId) : undefined;
+      const column =
+        payload.columnMetaId != null ? columnsById.get(payload.columnMetaId) : undefined;
       return {
         _uid: nextUid(),
         columnMetaId: payload.columnMetaId,

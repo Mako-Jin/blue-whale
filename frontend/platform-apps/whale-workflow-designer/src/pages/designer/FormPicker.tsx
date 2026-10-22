@@ -35,7 +35,11 @@ export default function FormPicker({ value, onChange }: FormPickerProps) {
         }
         const records = (result?.records ?? [])
           .filter((item) => !!item.id)
-          .map((item) => ({ value: item.id as string, label: item.name || item.code, code: item.code }));
+          .map((item) => ({
+            value: item.id as string,
+            label: item.name || item.code,
+            code: item.code,
+          }));
         setOptions(records);
       })
       .catch(() => {

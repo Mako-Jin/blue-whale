@@ -106,7 +106,8 @@ export default function PropertyPanel({
   onCancelLink,
 }: PropertyPanelProps) {
   const node = selection?.kind === 'node' ? findNode(model, selection.key) : undefined;
-  const flow = selection?.kind === 'flow' ? model.flows.find((item) => item.key === selection.key) : undefined;
+  const flow =
+    selection?.kind === 'flow' ? model.flows.find((item) => item.key === selection.key) : undefined;
 
   // key 编辑走本地草稿，避免每输入一个字符就重建流转引用
   const [keyDraft, setKeyDraft] = useState('');
@@ -167,7 +168,10 @@ export default function PropertyPanel({
             style={{ width: '100%' }}
             placeholder="未分组"
             value={node.groupKey ?? undefined}
-            options={model.groups.map((group) => ({ value: group.key, label: group.name || group.key }))}
+            options={model.groups.map((group) => ({
+              value: group.key,
+              label: group.name || group.key,
+            }))}
             onChange={(value) => onChangeNode(node.key, { groupKey: value ?? null })}
           />
         </Item>
@@ -181,17 +185,17 @@ export default function PropertyPanel({
               />
             </Item>
             <Item label="绑定表单" hint="选中后同时回填 formId 与 formCode">
-              <FormPicker
-                value={node.formId}
-                onChange={(patch) => onChangeNode(node.key, patch)}
-              />
+              <FormPicker value={node.formId} onChange={(patch) => onChangeNode(node.key, patch)} />
             </Item>
           </>
         ) : null}
 
         {isCounterSign ? (
           <>
-            <Item label="会签人 (assignees)" hint="账号列表，换行或中英文逗号分隔；COUNTER_SIGN 必填">
+            <Item
+              label="会签人 (assignees)"
+              hint="账号列表，换行或中英文逗号分隔；COUNTER_SIGN 必填"
+            >
               <Input.TextArea
                 rows={3}
                 value={assigneesDraft}
@@ -200,7 +204,10 @@ export default function PropertyPanel({
                 onBlur={() => onChangeNode(node.key, { assignees: parseAssignees(assigneesDraft) })}
               />
             </Item>
-            <Item label="会签策略 (counterSignPolicy)" hint="ALL：全部同意；ANY：任一同意；RATIO:n：同意比例达到 n%">
+            <Item
+              label="会签策略 (counterSignPolicy)"
+              hint="ALL：全部同意；ANY：任一同意；RATIO:n：同意比例达到 n%"
+            >
               <Select
                 style={{ width: '100%' }}
                 value={toPolicyKind(node.counterSignPolicy)}

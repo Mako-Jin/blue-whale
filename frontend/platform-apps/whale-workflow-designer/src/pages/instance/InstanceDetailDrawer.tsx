@@ -47,7 +47,11 @@ function sortTasks(tasks: ProcessTask[]): ProcessTask[] {
     .map((entry) => entry.task);
 }
 
-export default function InstanceDetailDrawer({ open, instanceId, onClose }: InstanceDetailDrawerProps) {
+export default function InstanceDetailDrawer({
+  open,
+  instanceId,
+  onClose,
+}: InstanceDetailDrawerProps) {
   const { message } = App.useApp();
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<ProcessInstance | null>(null);

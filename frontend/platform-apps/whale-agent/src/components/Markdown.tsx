@@ -105,7 +105,11 @@ function parseBlocks(source: string): Block[] {
     }
 
     const paragraph: string[] = [];
-    while (index < lines.length && lines[index].trim() && !(paragraph.length > 0 && startsBlock(lines[index]))) {
+    while (
+      index < lines.length &&
+      lines[index].trim() &&
+      !(paragraph.length > 0 && startsBlock(lines[index]))
+    ) {
       paragraph.push(lines[index]);
       index += 1;
     }
@@ -189,7 +193,7 @@ export default function Markdown({ content, onCitation, activeCitation }: Markdo
               </pre>
             );
           case 'heading': {
-            const Tag = (`h${Math.min(block.level + 1, 6)}` as unknown) as 'h2';
+            const Tag = `h${Math.min(block.level + 1, 6)}` as unknown as 'h2';
             return (
               <Tag key={key} className="md-heading">
                 {renderInline(block.text, key, onCitation, activeCitation)}

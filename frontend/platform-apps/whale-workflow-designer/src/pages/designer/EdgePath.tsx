@@ -13,7 +13,14 @@ interface EdgePathProps {
   onSelect: (key: string) => void;
 }
 
-export default function EdgePath({ flow, from, to, selected = false, error = false, onSelect }: EdgePathProps) {
+export default function EdgePath({
+  flow,
+  from,
+  to,
+  selected = false,
+  error = false,
+  onSelect,
+}: EdgePathProps) {
   const fromSize = NODE_SIZE[from.type];
   const toSize = NODE_SIZE[to.type];
   const sx = from.x + fromSize.width / 2;

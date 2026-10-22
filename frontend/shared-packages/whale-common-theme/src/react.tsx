@@ -104,11 +104,7 @@ export function ThemeSwitcher({ compact = false }: ThemeSwitcherProps) {
         onChange={(value: ThemeId) => setTheme(value)}
       />
       <Tooltip title={mode === 'dark' ? '切换到亮色' : '切换到暗色'}>
-        <Button
-          size={compact ? 'small' : 'middle'}
-          aria-label="切换明暗模式"
-          onClick={toggleMode}
-        >
+        <Button size={compact ? 'small' : 'middle'} aria-label="切换明暗模式" onClick={toggleMode}>
           {mode === 'dark' ? '亮色' : '暗色'}
         </Button>
       </Tooltip>
