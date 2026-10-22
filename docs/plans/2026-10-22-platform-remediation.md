@@ -49,9 +49,11 @@
   2. 新增根 `.mvn/jvm.config`：`-Xmx2g`。
   3. `infrastructure/scripts/check-env.ps1`（计划写作 `scripts/check-env.ps1`，实际文件在 `infrastructure/scripts/`）新增 JDK 21 断言：`JAVA_HOME/bin/java` 优先、缺省回退 PATH 上的 `java`，主版本非 21 计入失败并以退出码 1 结束。
   4. `scripts/dev/{whale-stack,whale-stack534,whale-hold,whale-start-all}.ps1` 头部统一 `$env:JAVA_HOME`：优先 `WHALE_JAVA_HOME`，缺省回退 `D:\tools\installer\jdk\java21` 并校验存在；Nacos 2.4 需要的 JDK 17 单独由 `WHALE_NACOS_JAVA_HOME` 提供。
+  5. `backend-ci.yml` / `code-quality.yml` 删除冗余的 `mvn -N wrapper:wrapper` 兜底分支，仅保留 `chmod +x mvnw`（Windows 提交不保留可执行位）。
 - **实测结果**
   - 清空 `JAVA_HOME` 后执行 `.\mvnw.cmd -v` → `Apache Maven 3.9.9` + `Java version: 21.0.8`（首次自动下载 3.9.9 到 `~/.m2/wrapper`）。
   - `check-env.ps1`：`JAVA_HOME` 指向 JDK 17 → `[FAIL] JDK 21 ... 当前为 17`，退出码 1；指向 JDK 21 → JDK / MySQL / Redis / Nacos 四项 PASS，退出码 0。
+- **备注**：Gitee 已推送（`d70d07b` / `c3c47ae`）；GitHub `ci` 推送时 443 连续超时，待网络恢复后补推 `git push ci main`，届时会触发 Backend CI / Code Quality 在 Linux runner 上验证入库后的 wrapper。
 - **验收**：✅ 已完成。
 - **规模**：S ｜ **依赖**：无
 
