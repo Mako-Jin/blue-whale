@@ -1,25 +1,83 @@
 /**
  * console 劫持：采集 debug/info/warn/error 调用，同时保留原始输出与可还原能力。
  *
- * <p>回环防护：SDK 内部若需输出日志，必须使用 {@link originalConsole} 导出的原始引用，
- * 禁止经被劫持的 console 输出，避免自生自报。</p>
+ * <p>回环防护：SDK 内部与结构化 Logger 必须使用 {@link originalConsole}（或
+ * {@link getOriginalConsole}）导出的原始引用，禁止经被劫持的 console 输出，
+ * 避免“同一条日志被 onRecord 与 console 劫持各采集一次”。</p>
  */
-
-/* eslint-disable no-console -- 本模块职责即包装 console，需直接引用原始 console 方法 */
 
 import { DEFAULT_CONSOLE_LEVELS } from './constants';
 import type { LogLevel } from './types';
 
+/** 支持的 console 方法名。 */
+export type NativeConsoleMethod =
+  | 'log'
+  | 'info'
+  | 'debug'
+  | 'warn'
+  | 'error'
+  | 'table'
+  | 'group'
+  | 'groupCollapsed'
+  | 'groupEnd'
+  | 'clear';
+
 /** console 采集级别对应的方法名。 */
 type ConsoleMethod = 'debug' | 'info' | 'warn' | 'error';
 
-/** 原始（未被劫持）console 方法引用，供 SDK 内部安全输出使用。 */
-export const originalConsole: Record<ConsoleMethod, (...args: unknown[]) => void> = {
-  debug: console.debug.bind(console),
-  info: console.info.bind(console),
-  warn: console.warn.bind(console),
-  error: console.error.bind(console),
+/** 全局原始 console 存档键（供 qiankun 子应用复用宿主已保存的原始引用）。 */
+const ORIGINAL_CONSOLE_KEY = '__BLUEWHALE_ORIGINAL_CONSOLE__';
+
+/** 取原始方法并绑定 console。 */
+function bindNative(method: NativeConsoleMethod): (...args: unknown[]) => void {
+  const target = console as unknown as Record<string, unknown>;
+  const fn = target[method];
+  if (typeof fn !== 'function') {
+    return () => undefined;
+  }
+  return (fn as (...args: unknown[]) => void).bind(console);
+}
+
+/** 原始（未被劫持）console 方法引用，供 SDK 与 Logger 安全输出使用。 */
+export const originalConsole: Record<NativeConsoleMethod, (...args: unknown[]) => void> = {
+  log: bindNative('log'),
+  info: bindNative('info'),
+  debug: bindNative('debug'),
+  warn: bindNative('warn'),
+  error: bindNative('error'),
+  table: bindNative('table'),
+  group: bindNative('group'),
+  groupCollapsed: bindNative('groupCollapsed'),
+  groupEnd: bindNative('groupEnd'),
+  clear: bindNative('clear'),
 };
+
+/** 把本次的原始 console 存档到全局，供其他构建副本复用。 */
+export function publishOriginalConsole(): void {
+  try {
+    (globalThis as Record<string, unknown>)[ORIGINAL_CONSOLE_KEY] = originalConsole;
+  } catch {
+    // 全局对象不可写时忽略，本副本仍可使用模块内快照
+  }
+}
+
+/**
+ * 获取原始 console。
+ *
+ * <p>优先返回全局存档：qiankun 子应用加载时宿主的 SDK 早已劫持 console，
+ * 子应用模块内的快照可能拿到的是“已劫持版本”，用全局存档才能避免重复采集。</p>
+ */
+export function getOriginalConsole(): Record<NativeConsoleMethod, (...args: unknown[]) => void> {
+  try {
+    const stored = (globalThis as Record<string, unknown>)[ORIGINAL_CONSOLE_KEY];
+    if (stored) {
+      return stored as Record<NativeConsoleMethod, (...args: unknown[]) => void>;
+    }
+  } catch {
+    // 忽略读取失败
+  }
+  return originalConsole;
+}
 
 /** console 级别到 console 方法名的映射。 */
 const LEVEL_METHOD: Record<LogLevel, ConsoleMethod> = {

@@ -5,6 +5,8 @@
  * 不得改名；{@code items} 上限 50，SDK 侧自动分片。</p>
  */
 
+import type { AuditTracker } from './tracker';
+
 /** console / 开发者日志级别（与后端 {@code frontend_log.log_level} 取值一致）。 */
 export type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
 
@@ -92,6 +94,15 @@ export type Transport = (url: string, body: LogBatchRequest) => Promise<boolean>
 export interface LogSdkConfig {
   /** 总开关（默认 true） */
   enabled?: boolean;
+  /**
+   * 是否复用全局单例（默认 true）。
+   *
+   * <p>宿主与 qiankun 子应用会各自加载一份 SDK；开启单例可避免 console 被重复劫持、
+   * 页面浏览被重复采集。单元测试或需要独立实例时传 false。</p>
+   */
+  singleton?: boolean;
+  /** 应用版本 / 构建号，随审计事件上报 */
+  release?: string;
   /** 上报基地址（默认空串，即同源相对路径） */
   baseUrl?: string;
   /** 开发者日志上报端点（默认 /audit/log/frontend/batch） */
@@ -120,6 +131,10 @@ export interface LogSdkConfig {
 export interface ResolvedLogSdkConfig {
   /** 总开关 */
   enabled: boolean;
+  /** 是否复用全局单例 */
+  singleton: boolean;
+  /** 应用版本 / 构建号 */
+  release: string | undefined;
   /** 上报基地址 */
   baseUrl: string;
   /** 开发者日志上报端点 */
@@ -156,4 +171,6 @@ export interface LogSdk {
   destroy: () => void;
   /** 生效的配置快照 */
   readonly config: ResolvedLogSdkConfig;
+  /** 全局审计事件追踪器（通道④，落库 behavior_log） */
+  readonly tracker: AuditTracker;
 }

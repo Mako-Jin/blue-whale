@@ -6,6 +6,12 @@ import { LogChannel } from './batch';
 import { installBehaviorCapture, type BehaviorCaptureHandle } from './behavior';
 import { createFetchTransport } from './client';
 import {
+  installConsoleCapture,
+  publishOriginalConsole,
+  type ConsoleCaptureHandle,
+} from './console';
+import { createAuditTracker, type AuditTracker } from './tracker';
+import {
   BEHAVIOR_ENDPOINT,
   DEFAULT_BACKOFF_BASE_MS,
   DEFAULT_BATCH_INTERVAL_MS,
@@ -19,7 +25,6 @@ import {
   STORAGE_KEY_TRACE_ID,
   STORAGE_KEY_USER,
 } from './constants';
-import { installConsoleCapture, type ConsoleCaptureHandle } from './console';
 import { maskSensitive, maskText, maskUrl } from './mask';
 import type {
   EventType,
@@ -108,6 +113,44 @@ function readUserAgent(): string | null {
   return typeof navigator !== 'undefined' ? navigator.userAgent : null;
 }
 
+/** 读取当前路由（非浏览器返回 undefined）。 */
+function readRoute(): string | undefined {
+  return typeof location !== 'undefined' ? location.pathname : undefined;
+}
+
+/** 全局 SDK 存档键：宿主与 qiankun 子应用共享同一实例。 */
+const GLOBAL_SDK_KEY = '__BLUEWHALE_LOG_SDK__';
+
+/** 读取全局 SDK 单例。 */
+export function getGlobalLogSdk(): LogSdk | undefined {
+  try {
+    return (globalThis as Record<string, unknown>)[GLOBAL_SDK_KEY] as LogSdk | undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** 写入全局 SDK 单例。 */
+function storeGlobalLogSdk(sdk: LogSdk): void {
+  try {
+    (globalThis as Record<string, unknown>)[GLOBAL_SDK_KEY] = sdk;
+  } catch {
+    // 全局对象不可写时退化为模块内实例，不影响主流程
+  }
+}
+
+/** 清理全局 SDK 单例（仅当仍是当前实例时）。 */
+function clearGlobalLogSdk(sdk: LogSdk): void {
+  try {
+    const registry = globalThis as Record<string, unknown>;
+    if (registry[GLOBAL_SDK_KEY] === sdk) {
+      delete registry[GLOBAL_SDK_KEY];
+    }
+  } catch {
+    // 忽略
+  }
+}
+
 /** 读取当前页面地址并按隐私规则掩码 query（非浏览器返回 null）。 */
 function currentPageUrl(privacy: PrivacyOptions): string | null {
   if (typeof location === 'undefined') {
@@ -148,6 +191,8 @@ function joinUrl(baseUrl: string, endpoint: string): string {
 function resolveConfig(config: LogSdkConfig): ResolvedLogSdkConfig {
   return {
     enabled: config.enabled ?? true,
+    singleton: config.singleton ?? true,
+    release: config.release,
     baseUrl: config.baseUrl ?? '',
     frontendEndpoint: config.frontendEndpoint ?? FRONTEND_ENDPOINT,
     behaviorEndpoint: config.behaviorEndpoint ?? BEHAVIOR_ENDPOINT,
@@ -175,14 +220,28 @@ function resolveConfig(config: LogSdkConfig): ResolvedLogSdkConfig {
   };
 }
 
+/** 空操作追踪器（禁用态使用）。 */
+function createNoopTracker(): AuditTracker {
+  return {
+    track: () => null,
+    subscribe: () => () => undefined,
+    use: () => () => undefined,
+    updateContext: () => undefined,
+    getContext: () => ({ sessionId: '' }),
+    clearUser: () => undefined,
+  };
+}
+
 /** 构造禁用态（或降级）SDK：所有方法为空操作，近乎零开销。 */
 function createNoopSdk(config: ResolvedLogSdkConfig): LogSdk {
+  const tracker = createNoopTracker();
   return {
     track: () => undefined,
     log: () => undefined,
     flush: async () => undefined,
     destroy: () => undefined,
     config,
+    tracker,
   };
 }
 
@@ -200,6 +259,18 @@ export function initLogSdk(config: LogSdkConfig = {}): LogSdk {
   if (!resolved.enabled) {
     return createNoopSdk(resolved);
   }
+
+  // 宿主与 qiankun 子应用各自打包一份 SDK，复用全局实例可避免 console 被重复劫持、
+  // PAGE_VIEW 被重复采集；子应用配置以宿主为准。
+  if (resolved.singleton) {
+    const existing = getGlobalLogSdk();
+    if (existing) {
+      return existing;
+    }
+  }
+
+  // 把劫持前的原生 console 挂到全局，供 Logger 等场景拿回干净输出通道
+  publishOriginalConsole();
 
   const traceId = ensureId(STORAGE_KEY_TRACE_ID);
   const clientId = ensureId(STORAGE_KEY_CLIENT_ID);
@@ -244,6 +315,39 @@ export function initLogSdk(config: LogSdkConfig = {}): LogSdk {
     transport: resolved.transport,
     buildRequest,
     onError: resolved.onError,
+  });
+
+  /**
+   * 全局审计事件追踪器。
+   *
+   * <p>业务侧只需要表达“发生了什么”，上下文补齐、脱敏、中间件、JSON 安全化都在内核完成；
+   * 出口直接落到行为通道，最终写入 {@code behavior_log}。</p>
+   */
+  const tracker = createAuditTracker({
+    context: {
+      sessionId: clientId,
+      userId: resolveUserId(),
+      route: readRoute(),
+      release: resolved.release,
+    },
+    privacy: resolved.privacy,
+    contextProvider: () => ({
+      userId: resolveUserId(),
+      route: readRoute(),
+    }),
+    sink: (event) => {
+      behaviorChannel.push({
+        eventType: event.eventType,
+        eventName: event.eventName,
+        target: event.target ? event.target.slice(0, 255) : undefined,
+        payload:
+          event.payload === undefined
+            ? undefined
+            : safeStringifyMasked(event.payload, resolved.privacy),
+        timestamp: event.timestamp,
+      });
+    },
+    onError: (error) => resolved.onError(error),
   });
 
   /** 提取首个 Error 的堆栈（已掩码）。 */
@@ -302,9 +406,9 @@ export function initLogSdk(config: LogSdkConfig = {}): LogSdk {
     emit: pushBehavior,
   });
 
-  return {
+  const sdk: LogSdk = {
     track: (eventName: string, payload?: unknown, eventType: EventType = 'CUSTOM') => {
-      pushBehavior(eventType, eventName, null, payload);
+      tracker.track(eventName, payload, { eventType });
     },
     log: (level: LogLevel, ...args: unknown[]) => {
       pushDeveloperLog(level, args);
@@ -318,7 +422,15 @@ export function initLogSdk(config: LogSdkConfig = {}): LogSdk {
       behaviorHandle.destroy();
       frontendChannel.destroy();
       behaviorChannel.destroy();
+      clearGlobalLogSdk(sdk);
     },
     config: resolved,
+    tracker,
   };
+
+  if (resolved.singleton) {
+    storeGlobalLogSdk(sdk);
+  }
+
+  return sdk;
 }

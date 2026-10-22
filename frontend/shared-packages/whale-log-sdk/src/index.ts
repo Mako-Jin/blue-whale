@@ -5,15 +5,33 @@
  * （掩码 / 分块 / 采样 / 队列）供高级用法与无框架冒烟脚本断言。</p>
  */
 
-export { initLogSdk } from './sdk';
+export { initLogSdk, getGlobalLogSdk } from './sdk';
 export { LogChannel, chunkItems, itemKey, shouldSample } from './batch';
 export type { ChannelConfig } from './batch';
 export { maskSensitive, maskText, maskUrl } from './mask';
 export type { MaskOptions } from './mask';
-export { installConsoleCapture, originalConsole } from './console';
-export type { ConsoleCaptureHandle, ConsoleCaptureOptions } from './console';
+export {
+  getOriginalConsole,
+  installConsoleCapture,
+  originalConsole,
+  publishOriginalConsole,
+} from './console';
+export type { ConsoleCaptureHandle, ConsoleCaptureOptions, NativeConsoleMethod } from './console';
 export { installBehaviorCapture } from './behavior';
 export type { BehaviorCaptureHandle, BehaviorCaptureOptions, BehaviorEmit } from './behavior';
+export { createAuditTracker } from './tracker';
+export type {
+  AuditContext,
+  AuditEvent,
+  AuditEventListener,
+  AuditMiddleware,
+  AuditSink,
+  AuditTrackOptions,
+  AuditTracker,
+  AuditTrackerOptions,
+} from './tracker';
+export { DEFAULT_AUDIT_EVENTS, getAuditLogging, initAuditLogging } from './audit';
+export type { AuditLoggingHandle, AuditLoggingOptions } from './audit';
 export { createFetchTransport } from './client';
 export * from './constants';
 export type {

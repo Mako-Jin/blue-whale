@@ -6,6 +6,8 @@
 
 import {
   chunkItems,
+  getGlobalLogSdk,
+  initAuditLogging,
   initLogSdk,
   LogChannel,
   maskSensitive,
@@ -13,6 +15,7 @@ import {
   maskUrl,
   shouldSample,
 } from '../dist/index.mjs';
+import { eventBus, logger } from '@bluewhale/whale-common-tools';
 
 let passed = 0;
 
@@ -164,6 +167,86 @@ async function run() {
   equal(captured.length, 1, 'sdk-console上报次数');
   equal(captured[0].items[0].logLevel, 'DEBUG', 'sdk-console级别');
   equal(captured[0].items[0].message, 'hello token=******', 'sdk-console已掩码');
+
+  // 12) 审计追踪器：语义化 track → 行为通道，载荷已脱敏
+  const auditSent = [];
+  const auditSdk = initLogSdk({
+    singleton: false,
+    console: { enabled: false },
+    behavior: { autoPageView: false, autoClick: false, autoSubmit: false },
+    batch: { intervalMs: 0, size: 1000 },
+    transport: async (url, body) => {
+      auditSent.push({ url, body });
+      return true;
+    },
+  });
+  auditSdk.tracker.track('auth.login', { password: 'p@ss', user: 'alice' });
+  await auditSdk.flush();
+  equal(auditSent.length, 1, 'tracker-上报次数');
+  equal(auditSent[0].body.items[0].eventName, 'auth.login', 'tracker-事件名');
+  equal(auditSent[0].body.items[0].eventType, 'CUSTOM', 'tracker-事件类型');
+  equal(
+    JSON.parse(auditSent[0].body.items[0].payload).password,
+    '******',
+    'tracker-载荷已脱敏',
+  );
+  auditSdk.destroy();
+
+  // 13) 全局单例：重复初始化复用同一实例
+  const first = initLogSdk({
+    console: { enabled: false },
+    behavior: { autoPageView: false, autoClick: false, autoSubmit: false },
+    batch: { intervalMs: 0, size: 1000 },
+    transport: async () => true,
+  });
+  const second = initLogSdk({
+    console: { enabled: false },
+    behavior: { autoPageView: false, autoClick: false, autoSubmit: false },
+    batch: { intervalMs: 0, size: 1000 },
+    transport: async () => true,
+  });
+  equal(first === second, true, 'singleton-复用实例');
+  equal(getGlobalLogSdk() === first, true, 'singleton-全局存档');
+  first.destroy();
+  equal(getGlobalLogSdk(), undefined, 'singleton-销毁后清理');
+
+  // 14) 审计接入：Logger onRecord + 事件总线白名单 → 后端两个端点
+  const frontendPackets = [];
+  const behaviorPackets = [];
+  const handle = initAuditLogging({
+    singleton: false,
+    console: { enabled: false },
+    behavior: { autoPageView: false, autoClick: false, autoSubmit: false },
+    batch: { intervalMs: 0, size: 1000 },
+    transport: async (url, body) => {
+      (url.includes('behavior') ? behaviorPackets : frontendPackets).push(body);
+      return true;
+    },
+  });
+
+  logger.info('用户登录成功', { userId: 1 });
+  eventBus.emit('auth:login', { password: 'p@ss' });
+  eventBus.emit('route:change', { to: '/home' });
+  eventBus.emit('custom:event', { ok: true }, { audit: true });
+  await handle.sdk.flush();
+
+  equal(frontendPackets.length, 1, '审计-Logger上报到通道③');
+  equal(frontendPackets[0].items[0].logLevel, 'INFO', '审计-Logger级别映射');
+  equal(
+    frontendPackets[0].items[0].message.startsWith('[app] 用户登录成功'),
+    true,
+    '审计-Logger保留命名空间',
+  );
+  equal(behaviorPackets.length, 1, '审计-事件合并上报');
+  equal(behaviorPackets[0].items.length, 2, '审计-白名单与强制开关');
+  equal(behaviorPackets[0].items[0].eventName, 'auth.login', '审计-事件名映射');
+  equal(
+    JSON.parse(behaviorPackets[0].items[0].payload).data.password,
+    '******',
+    '审计-事件载荷脱敏',
+  );
+  equal(behaviorPackets[0].items[1].eventName, 'custom.event', '审计-audit强制写入');
+  handle.dispose();
 
   console.log(`smoke passed: ${passed} assertions`);
 }

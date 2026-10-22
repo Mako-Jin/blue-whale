@@ -14,6 +14,7 @@
     "@bluewhale/http": "workspace:*",
     "@bluewhale/whale-common-theme": "workspace:*",
     "@bluewhale/whale-common-tools": "workspace:*",
+    "@bluewhale/whale-log-sdk": "workspace:*",
     "@bluewhale/whale-ui": "workspace:*",
     "antd": "^5.21.0",
     "dayjs": "^1.11.13",
