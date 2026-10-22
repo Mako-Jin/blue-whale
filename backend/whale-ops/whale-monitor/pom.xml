@@ -32,6 +32,11 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
+        <!-- P1-3b：暴露 /actuator/prometheus 供 Prometheus 抓取 -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
         <!-- Spring Boot Admin Server（需在 whale-parent 中管理版本，此处先声明） -->
         <!-- <dependency>
             <groupId>de.codecentric</groupId>

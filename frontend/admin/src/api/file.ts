@@ -2,7 +2,7 @@
 // 上传/下载走原生 fetch：上传不能手动设置 Content-Type（需保留浏览器生成的 boundary），
 // 下载需要读取二进制 blob，统一 HTTP 客户端只解析 JSON 信封，故不复用。
 
-import { del, get, type PageResult, type Result } from './http';
+import { del, get, type PageResult, type Result } from './client';
 import { getToken } from './token';
 
 export interface FileInfoVO {

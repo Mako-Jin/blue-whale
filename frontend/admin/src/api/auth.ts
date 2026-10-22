@@ -2,7 +2,7 @@
 // 后端统一响应体：{ code, message, data }，code=0 表示成功
 // 本模块是「登出令牌黑名单」前端联调入口（REQ-SEC-003）
 
-import { get, post } from './http';
+import { get, post } from './client';
 import {
   clearAuth,
   getCurrentUser,
@@ -16,7 +16,7 @@ import {
 export type { AuthMeResponse, LoginResponse, UserInfo } from './token';
 export { clearAuth, getCurrentUser, getRefreshToken, getToken } from './token';
 // AUTH-39 一次一换：显式刷新入口（401 自动续期链路由 http 客户端内置，见 http.ts#refreshSession）
-export { refreshSession as refresh } from './http';
+export { refreshSession as refresh } from './client';
 
 // 登录：POST /auth/login（网关白名单，免 JWT）
 export async function login(username: string, password: string): Promise<LoginResponse> {

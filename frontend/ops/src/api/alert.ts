@@ -1,6 +1,6 @@
 // whale-alert 告警规则 / 记录查询 API 客户端（经网关 /alert/** 转发）
 
-import { get, type PageResult } from './http';
+import { get, type PageResult } from './client';
 
 /** 告警规则视图对象（字段与后端 alert_rule 对齐） */
 export interface AlertRuleVO {

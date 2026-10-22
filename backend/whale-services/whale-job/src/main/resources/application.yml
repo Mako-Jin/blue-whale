@@ -47,3 +47,12 @@ whale:
     file-service-url: ${WHALE_JOB_FILE_SERVICE_URL:http://127.0.0.1:8085}
     # 单次归档导出的 job_log 上限条数
     archive-batch-size: ${WHALE_JOB_ARCHIVE_BATCH_SIZE:2000}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}

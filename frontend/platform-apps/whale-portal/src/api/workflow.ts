@@ -3,7 +3,7 @@
 // 后端接口：GET /workflow/task/page（经网关 8080 代理到 whale-workflow）。
 // 查询失败（服务未启动 / 未授权 / 网络异常）时返回空数组并 console.warn，保证门户页面可用。
 
-import { http } from './http';
+import { http } from './client';
 
 /** 待办任务（字段对齐 backend ProcessTaskVO 冻结契约） */
 export interface WorkflowTask {

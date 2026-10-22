@@ -1,6 +1,6 @@
 // whale-monitor 服务监控 API 客户端（经网关 /monitor/** 转发）
 
-import { get } from './http';
+import { get } from './client';
 
 /** GET /monitor/service/list 返回的服务聚合概览 */
 export interface ServiceSummaryVO {

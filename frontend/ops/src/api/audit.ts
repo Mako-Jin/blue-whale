@@ -1,6 +1,6 @@
 // whale-audit 审计日志查询 API 客户端（经网关 /audit/** 转发）
 
-import { get, type PageResult } from './http';
+import { get, type PageResult } from './client';
 
 /** 审计日志视图对象（字段与后端 AuditLogVO 对齐） */
 export interface AuditLogVO {

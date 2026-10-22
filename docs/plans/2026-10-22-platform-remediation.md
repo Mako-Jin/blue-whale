@@ -89,13 +89,14 @@
 
 ## 三、P1：降低结构性成本
 
-### P1-1 前端统一请求层
-- **现状**：`admin / ops / erp / oa / form-designer / workflow-designer / agent / portal` 各自实现 `api/http.ts`。
+### P1-1 前端统一请求层（已完成 2026-10-22）
+- **现状**：`admin / ops / erp / oa / form-designer / workflow-designer / agent / portal` 各自实现 `api/http.ts`（实盘 10 份，含 mes/pdm）。
 - **步骤**
-  1. 在 `frontend/shared-packages/` 新建 `@bluewhale/http`：`{code,message,data}` 解析、Bearer 注入、401 单飞刷新重放、`X-Trace-Id`、`downloadBlob`、`streamSse`。
-  2. 先替换 3 个平台应用（form-designer / workflow-designer / agent），保留各应用 `api/*.ts` 业务层不动。
-  3. 再替换 admin / ops 及 4 个业务应用，删除重复实现。
-- **验收**：全仓 `api/http.ts` 仅剩共享包一处；三个应用登录、401 刷新、SSE 流式回归通过。
+  1. ✅ 新建 `frontend/shared-packages/http`（`@bluewhale/http`）：`createHttpClient` 统一信封解包、Bearer 注入、401 单飞刷新重放、`X-Trace-Id`（32 位十六进制）、`downloadBlob`、`streamSse`；库构建不引用 `import.meta.env`，baseUrl 由各应用注入。
+  2. ✅ 10 个应用新增 `src/api/client.ts` 薄适配（各自 token 模块注入），业务层 `api/*.ts` 仅改 import 路径。
+  3. ✅ 删除 10 份 `api/http.ts`，全仓 `frontend/**/api/http.ts` 为 0；新增 `scripts/smoke.mjs` 覆盖信封/Bearer/并发 401 单飞/业务码/下载/SSE/链路 ID。
+- **验收**：✅ 共享包 build + smoke 全通过；10 个应用 build、lint 全绿；Playwright E2E **3 passed**（admin 登录菜单、表单闭环、工作流闭环）回归通过。
+- **遗留**：agent 应用登录页已随构建验证，SSE 实机对话回归未跑（依赖模型配置）；共享层 SSE 解析已由 smoke 覆盖。
 - **规模**：M ｜ **依赖**：无
 
 ### P1-2 安全默认值与 CORS（已完成 2026-10-22）
@@ -117,12 +118,13 @@
 - **验收**：✅ starter 77 项单测全绿；4 模块 `package` BUILD SUCCESS。实机：登录后 `bluewhale_audit.audit_log` 出现 `module=whale-auth` 新记录；`bluewhale_auth.api_log.query_string` 为 `token=***&password=******&mobile=138****8000`；停 9101 后登录仍本地落库并有转发失败告警；经网关 `POST /audit/log/ingest` → 403。
 - **规模**：M ｜ **依赖**：无（无 MQ，HTTP 单条转发）
 
-### P1-3b 可观测性最小闭环（代码侧）
+### P1-3b 可观测性最小闭环（代码侧，已完成 2026-10-22）
 - **步骤**
-  1. 各业务服务 pom 引入 `micrometer-registry-prometheus`，暴露 `/actuator/prometheus`（网关与 auth 优先）。
-  2. 定义 3 个 SLO 指标口径并写入 `docs/ops/`：登录 P95、表单提交成功率、审批流转 P95。
-  3. Prometheus + Grafana compose 服务：**本机无 Docker，转具备 Docker 的环境执行**，本轮只交付配置与抓取规则。
-- **验收**：`curl /actuator/prometheus` 返回 `http_server_requests_*` 指标；compose 配置静态校验通过。
+  1. ✅ `whale-parent` 版本管理新增 `micrometer-registry-prometheus`（1.16.7，Boot BOM 未覆盖该 artifact）；12 个运行时服务 pom 引入依赖。
+  2. ✅ 12 个服务 yml 暴露 `health,info,prometheus` 并统一 `management.metrics.tags.application`；网关保留 `routeGovernance`、monitor 保留 `include "*"`；auth/workflow 额外开启 `percentiles-histogram[http.server.requests]` 以支撑 P95。
+  3. ✅ SLO 口径写入 [docs/ops/slo.md](../ops/slo.md)：登录 P95、表单提交成功率、审批流转 P95，含 PromQL 与实测指标名。
+  4. Prometheus + Grafana compose 服务：**本机无 Docker，转具备 Docker 的环境执行**，本轮只交付配置与抓取规则。
+- **验收**：✅ gateway/auth/audit `/actuator/prometheus` 均 200；实测指标为 `http_server_requests_seconds_*`（含 `application` 标签）；auth 登录后可见 `http_server_requests_seconds_bucket`，SLO-1/3 查询可用。
 - **规模**：M ｜ **依赖**：无（compose 部分依赖 Docker 环境）
 
 ### P1-4 仓库卫生（已完成 2026-10-22）

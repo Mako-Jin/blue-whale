@@ -1,7 +1,7 @@
 // whale-auth 认证 API 客户端（经网关转发）
 // 后端统一响应体：{ code, message, data }，code=0 表示成功
 
-import { get, post } from './http';
+import { get, post } from './client';
 import { getCurrentUser, saveCurrentUser, saveLogin, type LoginResponse } from './token';
 
 export type { LoginResponse, OpsUserInfo } from './token';

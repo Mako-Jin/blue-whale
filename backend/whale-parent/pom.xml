@@ -33,6 +33,7 @@
             <spring-boot.version>4.0.8</spring-boot.version>
             <spring-cloud.version>2025.1.2</spring-cloud.version>
             <spring-cloud-alibaba.version>2025.1.0.0</spring-cloud-alibaba.version>
+            <micrometer.version>1.16.7</micrometer.version>
 
         <!-- 持久层 -->
         <mybatis-plus.version>3.5.17</mybatis-plus.version>
@@ -151,6 +152,12 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-starter-actuator</artifactId>
                 <version>${spring-boot.version}</version>
+            </dependency>
+            <!-- P1-3b：Prometheus 指标注册表（与 Spring Boot 4.0.8 的 micrometer 版本对齐） -->
+            <dependency>
+                <groupId>io.micrometer</groupId>
+                <artifactId>micrometer-registry-prometheus</artifactId>
+                <version>${micrometer.version}</version>
             </dependency>
 
             <!-- 持久层 -->

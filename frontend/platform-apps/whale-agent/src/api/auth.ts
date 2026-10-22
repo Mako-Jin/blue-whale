@@ -1,6 +1,6 @@
 // whale-auth 真实认证 API 客户端（经网关转发）——复用 workflow-designer 版实现
 
-import { get, post } from './http';
+import { get, post } from './client';
 import {
   clearAuth,
   getCurrentUser,
@@ -14,7 +14,7 @@ import {
 export type { AuthMeResponse, LoginResponse, UserInfo } from './token';
 export { clearAuth, getCurrentUser, getRefreshToken, getToken } from './token';
 // 显式刷新入口（401 自动续期链路由 http 客户端内置）
-export { refreshSession as refresh } from './http';
+export { refreshSession as refresh } from './client';
 
 // 登录：POST /auth/login（网关白名单，免 JWT）
 export async function login(username: string, password: string): Promise<LoginResponse> {

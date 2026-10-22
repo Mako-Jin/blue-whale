@@ -1,7 +1,7 @@
 // whale-form 契约层（工作流侧只读消费，自 whale-form-designer 的 api/form.ts 照搬）：
 // 类型字段名与后端 DTO/VO 严格一致，禁止改名；路径前缀 /form/definition、/form/data。
 
-import { get, post, put, type PageResult } from './http';
+import { get, post, put, type PageResult } from './client';
 
 // 重要：后端 whale-common JacksonConfig 对 Long 统一走 ToStringSerializer，
 // 雪花 ID 在 JSON 中一律为字符串。前端**必须**按 string 处理，

@@ -1,7 +1,7 @@
 // whale-agent 契约层：问答 SSE、会话、评价、索引运维
 // 后端响应均为 { code, message, data } 信封（SSE 除外），Id 一律 string 避免雪花精度丢失
 
-import { del, get, post, streamSse, type PageResult } from './http';
+import { del, get, post, streamSse, type PageResult } from './client';
 
 /** 检索范围键（与后端 AgentConversationService.normalizeScope 白名单一致） */
 export type ScopeKey = 'code' | 'doc' | 'sql' | 'config' | 'git' | 'runtime';

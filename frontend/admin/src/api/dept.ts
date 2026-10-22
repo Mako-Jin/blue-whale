@@ -1,6 +1,6 @@
 // 部门 API（经网关 → whale-auth /dept）
 
-import { del, get, post, put } from './http';
+import { del, get, post, put } from './client';
 
 export interface DeptVO {
   id: number;

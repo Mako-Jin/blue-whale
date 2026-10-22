@@ -1,6 +1,6 @@
 // 定时任务 API（经网关 → whale-job /job）
 
-import { del, get, post, put, type PageResult } from './http';
+import { del, get, post, put, type PageResult } from './client';
 
 export interface JobInfoVO {
   id: number;

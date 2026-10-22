@@ -1,6 +1,6 @@
 // 角色管理 API（经网关 → whale-auth /role）
 
-import { del, get, post, put, type PageResult } from './http';
+import { del, get, post, put, type PageResult } from './client';
 
 export interface RoleVO {
   id: number;

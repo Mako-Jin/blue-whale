@@ -1,6 +1,6 @@
 // 菜单管理 API（经网关 → whale-auth /menu）
 
-import { del, get, post, put } from './http';
+import { del, get, post, put } from './client';
 
 /** 菜单类型：DIR 目录 / MENU 菜单 */
 export type MenuType = 'DIR' | 'MENU';

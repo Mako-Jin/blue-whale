@@ -55,3 +55,16 @@ logging:
   level:
     com.bluewhale: debug
     org.springframework: info
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      # P1-3b：开启 HTTP 请求耗时直方图，供 SLO-1 登录 P95 的 histogram_quantile 查询使用
+      percentiles-histogram:
+        "[http.server.requests]": true

@@ -49,3 +49,12 @@ whale:
       # AUTH-09 归档开关：默认 false；开启后随保留期 cron 导出 audit_log 过期记录并上传，
       # 仅导出归档，绝不对 audit_log 做物理/逻辑删除。
       archive-enabled: ${WHALE_AUDIT_RETENTION_ARCHIVE_ENABLED:false}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}

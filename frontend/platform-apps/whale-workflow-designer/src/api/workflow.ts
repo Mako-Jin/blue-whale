@@ -1,7 +1,7 @@
 // whale-workflow 契约层（Wave 5.32 冻结）：类型字段名与后端 controller/dto/vo 严格一致，禁止改名；
 // 所有请求方法均为对 http.ts 的薄封装，服务内路径前缀 /workflow/definition、/workflow/instance、/workflow/task。
 
-import { del, downloadBlob, get, post, put, type PageResult } from './http';
+import { del, downloadBlob, get, post, put, type PageResult } from './client';
 
 // 重要：后端 whale-common JacksonConfig 对 Long 统一走 ToStringSerializer，
 // 雪花 ID 在 JSON 中一律为字符串。前端**必须**按 string 处理，

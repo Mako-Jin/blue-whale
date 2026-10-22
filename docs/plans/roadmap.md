@@ -153,6 +153,8 @@
 - [x] ~~仓库卫生~~（2026-10-22 平台评审 P1-4：`.gitignore` 补 `/work/`、`/.workbuddy/`、`derby.log`（`data/` 覆盖 `data/agent-index/`）；`git ls-files` 审计 `target/work/logs/*.jar/*.log/node_modules/dist` 均 0 命中；补入平台评估报告修复断链；`.trae/specs/` 保留入库；`git status` 干净）
 - [x] ~~安全默认值与 CORS~~（2026-10-22 平台评审 P1-2：10 个服务 yml 移除 `${MYSQL_PASSWORD:root}`，新增 starter `DataSourcePasswordGuard` 空口令拒绝启动并给出 `MYSQL_PASSWORD` 指引；网关新增 `whale.gateway.cors.allowed-origins` + `CorsWebFilter`，预检允许来源 200、`http://evil.example` 403）
 - [x] ~~审计日志与脱敏~~（2026-10-22 平台评审 P1-3 用户口径：`SensitiveDataMasker#maskQueryString` 覆盖 `api_log.query_string` 与 `outbound_log.target_uri`（secret 11 键 / token / 手机号 / 证件 / 银行卡 / 邮箱）；starter 新增 `AuditLogForwarder` + `whale.audit.forward.*`，whale-auth 试点转发到 whale-audit `POST /audit/log/ingest`，失败回退本地；网关 `internal-deny` 403 屏蔽摄入；starter 77 项单测全绿、实机正向 + 两项反向验证通过）
+- [x] ~~前端统一请求层~~（2026-10-22 平台评审 P1-1：新建 `frontend/shared-packages/http`（`@bluewhale/http`），统一信封 / Bearer / HTTP 401 单飞刷新重放 / `ApiError` / `X-Trace-Id` / `downloadBlob` / `streamSse`；10 个应用（admin、ops、portal、form-designer、workflow-designer、agent、erp、mes、oa、pdm）改为薄适配 `api/client.ts` 并删除各自 `api/http.ts`；共享包 smoke 全绿、10 应用 build+lint 全绿、Playwright E2E 3 passed）
+- [x] ~~可观测性最小闭环（Prometheus）~~（2026-10-22 平台评审 P1-3b：`whale-parent` 显式管理 `micrometer-registry-prometheus` 1.16.7；12 个服务暴露 `/actuator/prometheus` 并统一 `application` 标签；auth/workflow 开 HTTP 耗时直方图；新增 [ops/slo.md](../ops/slo.md) 3 条 SLO + PromQL；8081/8083/8080/9101 实测 200 且 `_bucket` 存在）
 - [ ] 生产环境 `docker-compose.prod.yml` 验证
 - [ ] Nginx 生产配置 + HTTPS
 

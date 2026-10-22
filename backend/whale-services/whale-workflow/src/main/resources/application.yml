@@ -43,3 +43,16 @@ mybatis-plus:
       logic-delete-field: deleted
       logic-delete-value: 1
       logic-not-delete-value: 0
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      # P1-3b：开启 HTTP 请求耗时直方图，供 SLO-3 审批流转 P95 的 histogram_quantile 查询使用
+      percentiles-histogram:
+        "[http.server.requests]": true
