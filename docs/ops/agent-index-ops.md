@@ -17,6 +17,8 @@
 | 定时增量扫描 | 1800 秒（0 关闭） | `whale.agent.ingest.scan-interval-seconds` |
 | 检索默认/最大 TopK | 8 / 50 | `whale.agent.search.default-top-k` / `max-top-k` |
 | 问答证据数上限 | 8 块 | `whale.agent.qa.evidence-top-k` |
+| 自主工具编排 | `true`（需模型 Key） | `whale.agent.qa.agentic-enabled` / `WHALE_AGENT_QA_AGENTIC_ENABLED` |
+| 编排最大工具轮数 | 4（代码硬上限 12） | `whale.agent.qa.max-tool-steps` / `WHALE_AGENT_QA_MAX_TOOL_STEPS` |
 
 索引元数据落 `bluewhale_agent.agent_index_meta`（单行）：`status`（READY/BUILDING/FAILED/EMPTY）、
 `index_version`、`file_count`、`chunk_count`、`last_build_at`、`build_millis`。
@@ -68,6 +70,8 @@ curl.exe -s -H "X-User-Id: 1" -H "X-Permission-Codes: sys:agent:search" `
 | 检索结果为空 | `q` 过于宽泛或索引未就绪 | 补充服务名/表名/接口路径等关键词；先重建 |
 | 问答返回「知识库中未找到」 | 同上，或 scope 限制了类型 | 放开检索范围（`scope` 为空=全部） |
 | 问答显示「模型未接入」 | 未配置 `whale.agent.llm.api-key` | 属预期降级（返回检索摘要），配置 Key 后恢复模型生成 |
+| 问答没有调用工具 | 模型未配置，或 `agentic-enabled=false` | 自主编排仅在模型可用时启用；确认 Key 与 `whale.agent.qa.agentic-enabled` |
+| 回答只有「已检索到的资料」 | 编排中模型最终返回 `null` 或空文本 | 检查模型网关连通性与超时；`degraded=true` 时属预期兜底 |
 | 引用被丢弃 | `CitationValidator` 校验路径/行号不存在 | 重建索引；确认文件仍在仓库中 |
 | 构建耗时长 | 目录被误纳入（如 node_modules） | 检查排除清单（见 §五） |
 

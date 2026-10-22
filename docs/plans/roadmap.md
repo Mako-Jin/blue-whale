@@ -173,6 +173,18 @@
 - [x] ~~轨 E 治理与评测（权限点 / 脱敏 / 审计 / 40 题黄金集）~~ —— 2026-10-22 完成 E1–E4：`RUNTIME_SERVICE` 按 `sys:agent:runtime:read` 隔离（越权 403、默认剔除）、三查询接口 `@AuditLog(QUERY)` + `audit_log` 落库、脱敏器空值 NPE 修复、auth 菜单种子 id 9/10；40 题黄金集 + `scripts/agent-eval.ps1` 实机评测**总体 40/40（100%）、结构化 20/20（100%）、引用有效 298/298（100%）** 三项阈值全 PASS，报告 [reviews/2026-10-22-wave5.47-agent-eval.md](../reviews/2026-10-22-wave5.47-agent-eval.md)；运维手册 [ops/agent-index-ops.md](../ops/agent-index-ops.md)
 - [x] ~~轨 F（可选，二期）MCP / IDE 接入~~ —— 2026-10-22 完成：`POST /agent/mcp`（JSON-RPC 2.0，protocolVersion `2024-11-05`）暴露 `search_knowledge` / `get_fact` / `read_file` / `list_services` 四个只读工具；本地 Token（`X-MCP-Token` 或 `Authorization: Bearer`，常量时间比较）鉴权，未配置 Token 返回 503；路径穿越/符号链接越界/敏感文件/构建产物/`RUNTIME_*` 事实全部拒绝；直连 8090 不经网关；13 项 MCP 单测（模块 29 项全绿）+ 实机 10 项正反向验收通过，手册 [ops/agent-mcp.md](../ops/agent-mcp.md)
 
+## Phase 7：Agent 自主编排（tool-calling / ReAct）
+
+> 背景：Phase 6 的问答是「一次召回 + 一次生成」的 RAG，模型不决定检索路径；本阶段把 MCP 四工具升级为模型可调用的 function，由模型自主多轮取证。
+> 依赖：需要可用的 OpenAI 兼容模型（`whale.agent.llm.api-key`）；未配置时自动走原单轮 RAG，行为不变。
+
+- [x] 轨 A LLM 层扩展：`ChatMessage` 支持 `tool` 角色与 `tool_calls`，新增 `LlmToolCall` / `LlmToolSpec` / `LlmToolTurn`，`LlmClient.completeWithTools` 默认返回 `null`（旧实现零破坏），`OpenAiClient` 实现 `tools` + `tool_choice:"auto"` 请求与 `tool_calls` 解析
+- [x] 轨 B 工具注册表：`KnowledgeToolRegistry` 把 MCP 四工具适配为 function 定义（JSON Schema + 输出压缩），复用 `McpToolService` 的只读与安全校验
+- [x] 轨 C 编排循环：`ToolCallingAgent` 实现 ReAct 循环（`max-tool-steps`，硬上限 12）；未知工具/参数非法/内部异常作为文本回填不中断；证据按登记顺序编 `S1..Sn` 并回填「可用引用编号」；模型失败回落已取证摘要（`degraded=true`）
+- [x] 轨 D 服务接入：`ChatService` 双路径（`agentic-enabled && 模型可用` → 自主编排，否则原单轮 RAG）；新增 SSE `tool` 事件（前端 `default` 分支忽略，后续可接）；回答经 `CitationValidator` 校验后落库
+- [x] 轨 E 验证与文档：新增 `ToolCallingAgentTest` 6 项 + `OpenAiClientToolTest` 3 项，模块 **38 项测试全绿**；配置项 `whale.agent.qa.agentic-enabled` / `max-tool-steps` 写入 [ops/agent-index-ops.md](../ops/agent-index-ops.md)；实机需模型 Key，暂不做无 Key 实跑
+- [ ] 轨 F（待模型 Key）实机验收：确认多轮工具调用、SSE `tool` 事件、引用编号一致；并把工具轨迹展示到工作台
+
 ---
 
 ## 里程碑顺序

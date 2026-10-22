@@ -64,6 +64,9 @@ whale:
       max-chunk-chars: ${WHALE_AGENT_QA_MAX_CHUNK_CHARS:1200}
       max-facts: ${WHALE_AGENT_QA_MAX_FACTS:12}
       history-messages: ${WHALE_AGENT_QA_HISTORY_MESSAGES:6}
+      # 自主工具编排（配置模型后生效）：开启后由模型自行决定检索步骤，关闭则退回单轮 RAG
+      agentic-enabled: ${WHALE_AGENT_QA_AGENTIC_ENABLED:true}
+      max-tool-steps: ${WHALE_AGENT_QA_MAX_TOOL_STEPS:4}
     # 轨 F：MCP / IDE 接入（默认关闭；配置 token 后才对外提供只读工具）
     mcp:
       enabled: ${WHALE_AGENT_MCP_ENABLED:false}

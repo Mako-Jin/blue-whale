@@ -149,6 +149,12 @@ public class AgentProperties {
 
         /** 携带的历史消息条数（user + assistant） */
         private int historyMessages = 6;
+
+        /** 是否启用自主工具编排（配置模型后生效；关闭则退回单轮 RAG） */
+        private boolean agenticEnabled = true;
+
+        /** 自主编排最大工具轮数（硬上限 12） */
+        private int maxToolSteps = 4;
     }
 
     /**

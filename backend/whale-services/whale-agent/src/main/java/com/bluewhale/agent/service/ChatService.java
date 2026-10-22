@@ -8,6 +8,9 @@ import com.bluewhale.agent.dto.CitationVO;
 import com.bluewhale.agent.entity.AgentConversation;
 import com.bluewhale.agent.entity.AgentFact;
 import com.bluewhale.agent.entity.AgentMessage;
+import com.bluewhale.agent.support.agent.ToolCallingAgent;
+import com.bluewhale.agent.support.agent.ToolCallingResult;
+import com.bluewhale.agent.support.agent.ToolEvidence;
 import com.bluewhale.agent.support.index.AgentIndexService;
 import com.bluewhale.agent.support.index.SearchHit;
 import com.bluewhale.agent.support.llm.ChatMessage;
@@ -83,6 +86,8 @@ public class ChatService {
 
     private final LlmClient llmClient;
 
+    private final ToolCallingAgent toolCallingAgent;
+
     private final AgentProperties properties;
 
     /** 问答线程池：每次提问一个虚拟线程，避免阻塞 Tomcat 请求线程 */
@@ -124,24 +129,38 @@ public class ChatService {
         try {
             QuestionIntent intent = intentRouter.route(question);
             List<ChatMessage> history = history(conversation.getId());
-            List<Citation> citations = collectCitations(question, scope, intent, includeRuntime);
             conversationService.append(conversation.getId(), AgentConversationService.ROLE_USER,
                     question, null, 0);
 
-            boolean degraded = !llmClient.available();
-            send(emitter, "meta", ChatMetaVO.builder()
-                    .conversationId(String.valueOf(conversation.getId()))
-                    .intent(intent.name())
-                    .degraded(degraded)
-                    .citations(toVOs(citations))
-                    .build());
-
+            boolean modelAvailable = llmClient.available();
+            boolean agentic = modelAvailable && properties.getQa().isAgenticEnabled();
+            List<Citation> citations;
             StringBuilder answer = new StringBuilder();
-            if (degraded) {
-                answer.append(summary(question, citations));
+            boolean degraded = !modelAvailable;
+            if (agentic) {
+                // 自主编排：先发 meta 占位，模型自行多轮调工具取证，再一次性推送最终回答
+                send(emitter, "meta", meta(conversation, intent, false, List.of()));
+                ToolCallingResult result = toolCallingAgent.run(history, question, scope,
+                        (trace, evidence) -> sendQuietly(emitter, "tool", trace));
+                citations = agentCitations(result.evidence());
+                if (StringUtils.hasText(result.content())) {
+                    answer.append(result.content());
+                    degraded = result.degraded();
+                } else {
+                    citations = collectCitations(question, scope, intent, includeRuntime);
+                    answer.append(summary(question, citations));
+                    degraded = true;
+                }
                 send(emitter, "delta", Map.of("text", answer.toString()));
             } else {
-                degraded = stream(question, citations, history, answer, emitter);
+                citations = collectCitations(question, scope, intent, includeRuntime);
+                send(emitter, "meta", meta(conversation, intent, degraded, citations));
+                if (degraded) {
+                    answer.append(summary(question, citations));
+                    send(emitter, "delta", Map.of("text", answer.toString()));
+                } else {
+                    degraded = stream(question, citations, history, answer, emitter);
+                }
             }
             if (answer.length() == 0) {
                 answer.append(emptyAnswer(question, citations));
@@ -168,6 +187,42 @@ public class ChatService {
             sendQuietly(emitter, "error", Map.of("message", "问答执行失败：" + safeMessage(e)));
             emitter.complete();
         }
+    }
+
+    /**
+     * 构造 meta 事件。
+     *
+     * @param conversation 会话
+     * @param intent       意图
+     * @param degraded     是否降级
+     * @param citations    证据（自主编排先占位为空，最终由 done 补全）
+     * @return meta 视图对象
+     */
+    private static ChatMetaVO meta(AgentConversation conversation, QuestionIntent intent,
+                                   boolean degraded, List<Citation> citations) {
+        return ChatMetaVO.builder()
+                .conversationId(String.valueOf(conversation.getId()))
+                .intent(intent.name())
+                .degraded(degraded)
+                .citations(toVOs(citations))
+                .build();
+    }
+
+    /**
+     * 自主编排证据转引用（编号 S1..Sn 与工具结果回填的编号一致）。
+     *
+     * @param evidence 工具证据
+     * @return 校验后的引用
+     */
+    private List<Citation> agentCitations(List<ToolEvidence> evidence) {
+        List<Citation> citations = new ArrayList<>(evidence.size());
+        int seq = 1;
+        for (ToolEvidence item : evidence) {
+            citations.add(new Citation("S" + seq++, item.kind(), item.path(), item.title(),
+                    item.startLine(), item.endLine(), item.snippet(), item.factType(),
+                    item.factKey(), item.score()));
+        }
+        return citationValidator.validate(citations);
     }
 
     /**

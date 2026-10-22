@@ -19,6 +19,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -96,11 +97,66 @@ public class OpenAiClient implements LlmClient {
     }
 
     @Override
+    public LlmToolTurn completeWithTools(List<ChatMessage> messages, List<LlmToolSpec> tools) {
+        if (!available()) {
+            return null;
+        }
+        try {
+            HttpRequest request = request(messages, false, tools);
+            HttpResponse<String> response = httpClient.send(request,
+                    HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() != 200) {
+                log.warn("模型工具调用失败：status={}, body={}", response.statusCode(), truncate(response.body()));
+                return null;
+            }
+            return parseToolTurn(response.body());
+        } catch (IOException e) {
+            log.warn("模型工具调用异常：{}", e.getMessage());
+            return null;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("模型工具调用被中断");
+            return null;
+        }
+    }
+
+    /**
+     * 解析非流式响应中的文本与工具调用。
+     *
+     * @param body 响应体
+     * @return 单轮响应；结构异常返回 {@code null}
+     */
+    static LlmToolTurn parseToolTurn(String body) {
+        try {
+            JsonNode message = MAPPER.readTree(body).path("choices").path(0).path("message");
+            JsonNode contentNode = message.path("content");
+            String content = contentNode.isTextual() ? contentNode.asText() : null;
+            List<LlmToolCall> calls = new ArrayList<>();
+            JsonNode callNodes = message.path("tool_calls");
+            if (callNodes.isArray()) {
+                for (JsonNode call : callNodes) {
+                    JsonNode function = call.path("function");
+                    String id = call.path("id").asText();
+                    String name = function.path("name").asText();
+                    JsonNode arguments = function.path("arguments");
+                    String raw = arguments.isTextual() ? arguments.asText() : arguments.toString();
+                    if (StringUtils.hasText(name)) {
+                        calls.add(new LlmToolCall(id, name, raw == null ? "{}" : raw));
+                    }
+                }
+            }
+            return new LlmToolTurn(content, calls);
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    @Override
     public void stream(List<ChatMessage> messages, Consumer<String> onDelta) throws IOException {
         if (!available()) {
             throw new IOException("模型未配置");
         }
-        HttpRequest request = request(messages, true);
+        HttpRequest request = request(messages, true, List.of());
         HttpResponse<InputStream> response;
         try {
             response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
@@ -155,6 +211,18 @@ public class OpenAiClient implements LlmClient {
      * @return HTTP 请求
      */
     private HttpRequest request(List<ChatMessage> messages, boolean stream) {
+        return request(messages, stream, List.of());
+    }
+
+    /**
+     * 构造请求（可携带工具定义）。
+     *
+     * @param messages 消息列表
+     * @param stream   是否流式
+     * @param tools    工具定义（空表示普通对话）
+     * @return HTTP 请求
+     */
+    private HttpRequest request(List<ChatMessage> messages, boolean stream, List<LlmToolSpec> tools) {
         AgentProperties.Llm llm = properties.getLlm();
         ObjectNode body = MAPPER.createObjectNode();
         body.put("model", llm.getModel());
@@ -163,7 +231,19 @@ public class OpenAiClient implements LlmClient {
         body.put("max_tokens", llm.getMaxTokens());
         ArrayNode array = body.putArray("messages");
         for (ChatMessage message : messages) {
-            array.addObject().put("role", message.role()).put("content", message.content());
+            array.add(messageNode(message));
+        }
+        if (tools != null && !tools.isEmpty()) {
+            ArrayNode toolArray = body.putArray("tools");
+            for (LlmToolSpec tool : tools) {
+                ObjectNode item = toolArray.addObject();
+                item.put("type", "function");
+                ObjectNode function = item.putObject("function");
+                function.put("name", tool.name());
+                function.put("description", tool.description());
+                function.set("parameters", tool.parameters());
+            }
+            body.put("tool_choice", "auto");
         }
         return HttpRequest.newBuilder()
                 .uri(URI.create(trimTrailingSlash(llm.getBaseUrl()) + "/chat/completions"))
@@ -172,6 +252,37 @@ public class OpenAiClient implements LlmClient {
                 .header("Authorization", "Bearer " + llm.getApiKey())
                 .POST(HttpRequest.BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8))
                 .build();
+    }
+
+    /**
+     * 消息序列化（兼容 tool 角色与 assistant 工具调用）。
+     *
+     * @param message 消息
+     * @return JSON 节点
+     */
+    private static ObjectNode messageNode(ChatMessage message) {
+        ObjectNode node = MAPPER.createObjectNode();
+        node.put("role", message.role());
+        if (message.content() == null) {
+            node.putNull("content");
+        } else {
+            node.put("content", message.content());
+        }
+        if (StringUtils.hasText(message.toolCallId())) {
+            node.put("tool_call_id", message.toolCallId());
+        }
+        if (message.toolCalls() != null && !message.toolCalls().isEmpty()) {
+            ArrayNode calls = node.putArray("tool_calls");
+            for (LlmToolCall call : message.toolCalls()) {
+                ObjectNode item = calls.addObject();
+                item.put("id", call.id());
+                item.put("type", "function");
+                ObjectNode function = item.putObject("function");
+                function.put("name", call.name());
+                function.put("arguments", call.arguments());
+            }
+        }
+        return node;
     }
 
     /**
