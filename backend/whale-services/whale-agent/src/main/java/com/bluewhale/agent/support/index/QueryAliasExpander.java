@@ -50,6 +50,34 @@ public final class QueryAliasExpander {
         ALIASES.put("注册", List.of("nacos", "discovery", "registry"));
         ALIASES.put("配置", List.of("config", "properties", "yaml"));
         ALIASES.put("服务", List.of("service", "module"));
+        ALIASES.put("引用", List.of("citation", "validator", "cite"));
+        ALIASES.put("校验", List.of("validate", "validator", "valid"));
+        ALIASES.put("脱敏", List.of("sensitive", "mask", "masker"));
+        ALIASES.put("扫描", List.of("scan", "scanner"));
+        ALIASES.put("排除", List.of("exclude", "excluded"));
+        ALIASES.put("鉴权", List.of("auth", "jwt", "authentication"));
+        ALIASES.put("过滤器", List.of("filter"));
+        ALIASES.put("评测", List.of("eval", "evaluation"));
+        ALIASES.put("客户端", List.of("client", "sse"));
+        ALIASES.put("流式", List.of("sse", "stream"));
+        ALIASES.put("流式回答", List.of("chatservice", "sseemitter"));
+        ALIASES.put("意图", List.of("intent", "router"));
+        ALIASES.put("运行时", List.of("runtime"));
+        ALIASES.put("事实", List.of("fact"));
+        ALIASES.put("脚本", List.of("script", "ps1"));
+        ALIASES.put("工作台", List.of("workbench"));
+        ALIASES.put("文档", List.of("docs", "documentation"));
+        ALIASES.put("构建", List.of("build", "ingest"));
+        ALIASES.put("知识索引", List.of("agentindexservice", "knowledgeingestservice", "index", "ingest"));
+        ALIASES.put("知识助手", List.of("agent", "chat"));
+        ALIASES.put("知识", List.of("knowledge", "agent"));
+        ALIASES.put("权限点", List.of("permission", "agent"));
+        ALIASES.put("权限拦截器", List.of("requirepermissioninterceptor", "interceptor"));
+        ALIASES.put("拦截器", List.of("interceptor", "requirepermissioninterceptor"));
+        ALIASES.put("采集器", List.of("collector", "factcollector"));
+        ALIASES.put("sse", List.of("streamsse", "sendsse", "http"));
+        ALIASES.put("运行时事实", List.of("runtime", "fact", "agentfactcontroller"));
+        ALIASES.put("仓库扫描", List.of("repositoryscanner", "scan", "scanner"));
     }
 
     /** 工具类不允许实例化 */

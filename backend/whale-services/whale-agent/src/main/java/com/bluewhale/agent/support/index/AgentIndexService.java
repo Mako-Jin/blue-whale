@@ -297,12 +297,13 @@ public class AgentIndexService implements DisposableBean {
                     BooleanClause.Occur.SHOULD);
         }
         for (String token : codeTokens) {
-            builder.add(new BoostQuery(new TermQuery(new Term(AgentIndexFields.TITLE_CODE, token)), 2.5f),
-                    BooleanClause.Occur.SHOULD);
+            boolean identifier = isIdentifierToken(token);
+            builder.add(new BoostQuery(new TermQuery(new Term(AgentIndexFields.TITLE_CODE, token)),
+                    identifier ? 6.0f : 2.5f), BooleanClause.Occur.SHOULD);
             builder.add(new BoostQuery(new TermQuery(new Term(AgentIndexFields.CONTENT_CODE, token)), 1.2f),
                     BooleanClause.Occur.SHOULD);
-            builder.add(new BoostQuery(new TermQuery(new Term(AgentIndexFields.PATH_TEXT, token)), 1.8f),
-                    BooleanClause.Occur.SHOULD);
+            builder.add(new BoostQuery(new TermQuery(new Term(AgentIndexFields.PATH_TEXT, token)),
+                    identifier ? 4.0f : 1.8f), BooleanClause.Occur.SHOULD);
         }
         if (kinds != null && !kinds.isEmpty()) {
             BooleanQuery.Builder filter = new BooleanQuery.Builder();
@@ -311,7 +312,73 @@ public class AgentIndexService implements DisposableBean {
             }
             builder.add(filter.build(), BooleanClause.Occur.FILTER);
         }
-        return builder.build();
+        BooleanQuery.Builder outer = new BooleanQuery.Builder();
+        outer.add(builder.build(), BooleanClause.Occur.MUST);
+        if (isCodeIntent(question)) {
+            outer.add(new BoostQuery(new TermQuery(new Term(AgentIndexFields.KIND, "code")), 6.0f),
+                    BooleanClause.Occur.SHOULD);
+        }
+        if (isDocIntent(question)) {
+            outer.add(new BoostQuery(new TermQuery(new Term(AgentIndexFields.KIND, "doc")), 4.0f),
+                    BooleanClause.Occur.SHOULD);
+        }
+        return outer.build();
+    }
+
+    /**
+     * 判断是否为类名/文件名式标识符（小写 ASCII、长度 ≥11），用于路径与标题加权。
+     *
+     * <p>长度门槛刻意高于通用词（如 {@code permission}、{@code workflow}），
+     * 只让 {@code chatservice}、{@code agentindexservice} 这类全名生效。</p>
+     *
+     * @param token 检索词
+     * @return 标识符返回 {@code true}
+     */
+    private boolean isIdentifierToken(String token) {
+        if (token == null || token.length() < 11) {
+            return false;
+        }
+        for (int i = 0; i < token.length(); i++) {
+            char c = token.charAt(i);
+            if (c < 'a' || c > 'z') {
+                if (c < '0' || c > '9') {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 判断是否为代码意图（命中类/文件/实现等词时加权 code 切块）。
+     *
+     * @param question 用户问题
+     * @return 代码意图返回 {@code true}
+     */
+    private boolean isCodeIntent(String question) {
+        String lower = question.toLowerCase();
+        for (String word : List.of("类", "文件", "源码", "代码", "实现", "脚本", "扫描", "拦截器", "过滤器", "采集器")) {
+            if (lower.contains(word)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 判断是否为文档意图（命中文档/手册/规范等词时加权 doc 切块）。
+     *
+     * @param question 用户问题
+     * @return 文档意图返回 {@code true}
+     */
+    private boolean isDocIntent(String question) {
+        String lower = question.toLowerCase();
+        for (String word : List.of("文档", "手册", "规范", "约定", "指南")) {
+            if (lower.contains(word)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

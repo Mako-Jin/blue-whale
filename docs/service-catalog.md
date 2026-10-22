@@ -37,7 +37,7 @@
 | 13 | `whale-monitor` | whale-ops | `whale-ops/whale-monitor` | **9102** | `/monitor/**` | ✅ `lb://whale-monitor` | ——（采集为主） | `WhaleMonitorApplication` | 监控指标采集 | 可启动 |
 | 14 | `whale-alert` | whale-ops | `whale-ops/whale-alert` | **9103** | `/alert/**` | ✅ `lb://whale-alert` | **`bluewhale_alert`**（已建库） | `WhaleAlertApplication` | 告警通知 | 可启动 |
 | 15 | `whale-config` | whale-registry | `whale-registry/whale-config` | **9201** | `/config/**` | ❌ **未配路由** | ——（配置来自 Nacos） | `WhaleConfigApplication` | 配置中心管理面 | 可启动 |
-| 16 | `whale-agent` | whale-services | `whale-services/whale-agent` | **8090** | `/agent/**` | ✅ `lb://whale-agent` | **`bluewhale_agent`**（5 表，已建） | `WhaleAgentApplication` | 平台与项目知识 Agent（Lucene 检索 + 事实层 + 问答编排） | **已运行**（已在 Nacos 注册，Wave 5.47） |
+| 16 | `whale-agent` | whale-services | `whale-services/whale-agent` | **8090** | `/agent/**` | ✅ `lb://whale-agent` | **`bluewhale_agent`**（6 表，已建） | `WhaleAgentApplication` | 平台与项目知识 Agent（Lucene 检索 + 事实层 + 问答编排） | **已运行**（已在 Nacos 注册，Wave 5.47） |
 
 > 「对外一级前缀」= 服务自持的前缀，网关**只转发、不剥离**（REQ-ARCH-003）。
 > 网关 `discovery.locator.enabled=true` 已开启服务发现路由：`lb://whale-<域>` → `http://<服务实例>`。
@@ -79,6 +79,7 @@
 | 8 | whale-pdm | `frontend/platform-apps/whale-pdm` | `whale-pdm` | qiankun **子应用**（PDM） | **8106** | `/pdm` | 微应用名 `whale-pdm` |
 | 9 | whale-form-designer | `frontend/platform-apps/whale-form-designer` | `whale-form-designer` | 独立 SPA（拖拽式表单设计器） | **8002** | `/` | 直连网关 8080，非 qiankun 子应用 |
 | 10 | whale-workflow-designer | `frontend/platform-apps/whale-workflow-designer` | `whale-workflow-designer` | 独立 SPA（工作流设计器 + 发起 + 待办） | **8003** | `/` | 直连网关 8080，非 qiankun 子应用 |
+| 11 | whale-agent | `frontend/platform-apps/whale-agent` | `whale-agent` | 独立 SPA（知识问答工作台） | **8004** | `/` | 直连网关 8080，非 qiankun 子应用（Wave 5.47） |
 
 共享包（不占端口）：`frontend/shared-packages/whale-common-tools`、`whale-common-theme`、`whale-common-three`、`whale-log-sdk`、`frontend/elemental/whale-ui`、`frontend/games/whale-games-core`（NPM scope `@bluewhale/`）。
 
@@ -116,6 +117,7 @@
 | **8001** | `whale-admin` | 前端（管理端） | 独立 SPA |
 | **8002** | `whale-form-designer` | 前端（独立 SPA） | 表单设计器 |
 | **8003** | `whale-workflow-designer` | 前端（独立 SPA） | 工作流设计器 |
+| **8004** | `whale-agent` | 前端（独立 SPA） | 知识问答工作台（Wave 5.47） |
 | **8080** | `whale-gateway` | 后端 | **唯一 API 入口** |
 | **8081** | `whale-auth` | 后端 | 认证与权限中心 |
 | **8082** | `whale-job` | 后端 | 定时任务 |
@@ -166,7 +168,7 @@
 | **80 / 443** | Nginx 反代与 TLS | 规划（compose） |
 | **3000 / 9090** | 监控看板 / 指标 | 规划 |
 | **3306 / 6379 / 5672 / 15672** | MySQL / Redis / RabbitMQ | 3306、6379 已运行；5672/15672 未运行 |
-| **8000–8099** | **前端 dev server**：基座 `8000`、admin `8001`、form-designer `8002`、workflow-designer `8003` | 已落地（C-01 已解） |
+| **8000–8099** | **前端 dev server**：基座 `8000`、admin `8001`、form-designer `8002`、workflow-designer `8003`、agent `8004` | 已落地（C-01 已解） |
 | **8080** | **网关（唯一后端入口）** | 已运行 |
 | **8081–8099** | **核心服务** | auth 8081、job 8082、workflow 8083、form 8084、file 8085、pay 8086、i18n 8087 |
 | **8101–8199** | **qiankun 子应用 + 运维端** | portal 8101、erp 8102、oa 8103、ops 8104、mes 8105、pdm 8106 |

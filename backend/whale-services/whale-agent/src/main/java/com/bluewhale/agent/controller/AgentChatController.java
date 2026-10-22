@@ -6,6 +6,8 @@ import com.bluewhale.agent.service.AgentConversationService;
 import com.bluewhale.agent.service.ChatService;
 import com.bluewhale.agent.support.web.UserContext;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
+import com.bluewhale.common.audit.annotation.AuditLog;
+import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.core.result.Result;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -29,6 +31,9 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @RequiredArgsConstructor
 public class AgentChatController {
 
+    /** 运行时事实权限码 */
+    private static final String RUNTIME_PERMISSION = "sys:agent:runtime:read";
+
     private final ChatService chatService;
 
     private final AgentConversationService conversationService;
@@ -42,8 +47,10 @@ public class AgentChatController {
      */
     @PostMapping("/chat")
     @RequirePermission("sys:agent:chat")
+    @AuditLog(operation = "知识问答", type = OperateType.QUERY, targetType = "agent_conversation")
     public SseEmitter chat(@Valid @RequestBody ChatRequest request, HttpServletRequest httpRequest) {
-        return chatService.chat(request, UserContext.requireUserId(httpRequest));
+        boolean includeRuntime = UserContext.hasPermission(httpRequest, RUNTIME_PERMISSION);
+        return chatService.chat(request, UserContext.requireUserId(httpRequest), includeRuntime);
     }
 
     /**

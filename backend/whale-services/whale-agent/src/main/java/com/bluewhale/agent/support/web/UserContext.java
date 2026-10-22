@@ -32,4 +32,18 @@ public final class UserContext {
             throw new BizException("用户标识非法");
         }
     }
+
+    /**
+     * 判断当前请求是否持有指定权限码（网关 {@code PermissionHeaderGlobalFilter} 注入）。
+     *
+     * <p>用于数据可见性过滤等无法由 {@code @RequirePermission} 静态表达的细粒度场景；
+     * 请求头缺失时视为无权限。</p>
+     *
+     * @param request 当前请求
+     * @param code    权限码，如 {@code sys:agent:runtime:read}
+     * @return 是否持有该权限
+     */
+    public static boolean hasPermission(HttpServletRequest request, String code) {
+        return WebHeaders.splitCodes(WebHeaders.header(request, WebHeaders.PERMISSION_CODES)).contains(code);
+    }
 }

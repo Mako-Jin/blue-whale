@@ -43,12 +43,15 @@ public class FactStoreService {
     /** 查询最大条数 */
     private static final int MAX_LIMIT = 500;
 
+    /** 运行时事实类型（受 {@code sys:agent:runtime:read} 权限保护） */
+    public static final String RUNTIME_SERVICE = "RUNTIME_SERVICE";
+
     /** 采集时间格式 */
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     /** 支持的事实类型（重建前统一清空，避免采集器失败时残留旧数据） */
     private static final List<String> FACT_TYPES = List.of(
-            "SERVICE", "ROUTE", "PORT", "DEPENDENCY", "TABLE", "COLUMN", "COMMIT", "ENDPOINT", "RUNTIME_SERVICE");
+            "SERVICE", "ROUTE", "PORT", "DEPENDENCY", "TABLE", "COLUMN", "COMMIT", "ENDPOINT", RUNTIME_SERVICE);
 
     private final List<FactCollector> collectors;
 
@@ -113,9 +116,28 @@ public class FactStoreService {
      * @return 事实列表
      */
     public List<AgentFact> query(String factType, String factKey, Integer limit) {
+        return query(factType, factKey, limit, true);
+    }
+
+    /**
+     * 按类型与键查询事实，可排除运行时事实。
+     *
+     * <p>调用方无 {@code sys:agent:runtime:read} 权限时传 {@code includeRuntime = false}：
+     * 未指定类型（全量浏览）场景下剔除 {@link #RUNTIME_SERVICE}；指定类型由调用方自行拒绝。</p>
+     *
+     * @param factType       事实类型（可空，空表示不限）
+     * @param factKey        事实键（可空，空表示不限）
+     * @param limit          返回条数（可空）
+     * @param includeRuntime 是否包含运行时事实
+     * @return 事实列表
+     */
+    public List<AgentFact> query(String factType, String factKey, Integer limit, boolean includeRuntime) {
         LambdaQueryWrapper<AgentFact> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(StringUtils.hasText(factType), AgentFact::getFactType, factType);
         wrapper.eq(StringUtils.hasText(factKey), AgentFact::getFactKey, factKey);
+        if (!includeRuntime && !StringUtils.hasText(factType)) {
+            wrapper.ne(AgentFact::getFactType, RUNTIME_SERVICE);
+        }
         wrapper.orderByAsc(AgentFact::getFactType).orderByAsc(AgentFact::getFactKey);
         wrapper.last("LIMIT " + normalizeLimit(limit));
         return factMapper.selectList(wrapper);
@@ -136,6 +158,26 @@ public class FactStoreService {
         LambdaQueryWrapper<AgentFact> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(AgentFact::getFactType, factType);
         wrapper.like(AgentFact::getFactKey, keyword);
+        wrapper.orderByAsc(AgentFact::getFactKey);
+        wrapper.last("LIMIT " + normalizeLimit(limit));
+        return factMapper.selectList(wrapper);
+    }
+
+    /**
+     * 按类型与值关键词模糊查询事实。
+     *
+     * @param factType 事实类型
+     * @param keyword  值关键词（SQL LIKE，自动包裹 {@code %}）
+     * @param limit    返回条数
+     * @return 事实列表
+     */
+    public List<AgentFact> queryValueLike(String factType, String keyword, Integer limit) {
+        if (!StringUtils.hasText(factType) || !StringUtils.hasText(keyword)) {
+            return List.of();
+        }
+        LambdaQueryWrapper<AgentFact> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(AgentFact::getFactType, factType);
+        wrapper.like(AgentFact::getValueJson, keyword);
         wrapper.orderByAsc(AgentFact::getFactKey);
         wrapper.last("LIMIT " + normalizeLimit(limit));
         return factMapper.selectList(wrapper);

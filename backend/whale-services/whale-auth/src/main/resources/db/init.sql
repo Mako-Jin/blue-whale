@@ -338,6 +338,7 @@ VALUES
     (1, 1, 1);
 
 -- 基础菜单：系统管理目录 + 用户 / 角色 / 菜单 / 部门 / 权限 / 定时任务 / 文件 七个菜单项
+--            + 知识助手目录与知识问答菜单（Wave 5.47）
 INSERT INTO sys_menu
     (id, parent_id, name, path, component, icon, sort, menu_type, permission_code, visible, status)
 VALUES
@@ -348,7 +349,9 @@ VALUES
     (5, 1, '部门管理', '/system/dept', 'system/dept/index', 'tree', 4, 'MENU', 'sys:dept:list', 1, 1),
     (6, 1, '权限管理', '/system/permission', 'system/permission/index', 'lock', 5, 'MENU', 'sys:permission:list', 1, 1),
     (7, 1, '定时任务', '/system/job', 'system/job/index', 'clock-circle', 6, 'MENU', 'sys:job:list', 1, 1),
-    (8, 1, '文件管理', '/system/file', 'system/file/index', 'folder', 7, 'MENU', 'sys:file:list', 1, 1);
+    (8, 1, '文件管理', '/system/file', 'system/file/index', 'folder', 7, 'MENU', 'sys:file:list', 1, 1),
+    (9, 0, '知识助手', '/agent', NULL, 'message', 2, 'DIR', NULL, 1, 1),
+    (10, 9, '知识问答', '/agent/chat', 'agent/chat/index', 'comment', 1, 'MENU', 'sys:agent:chat', 1, 1);
 
 -- 权限点：与各控制器 @RequirePermission 注解的 value 一一对应（AUTH-04）
 INSERT INTO sys_permission

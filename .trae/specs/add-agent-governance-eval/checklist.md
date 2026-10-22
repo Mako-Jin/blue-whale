@@ -1,0 +1,19 @@
+- [x] 未携带 `sys:agent:runtime:read` 时 `GET /agent/facts?type=RUNTIME_SERVICE` 返回 403
+- [x] 未携带该权限且不带 `type` 查询时结果不含 `RUNTIME_SERVICE`
+- [x] 携带该权限时运行时事实正常返回
+- [x] 问答引用对无权限用户不出现 `RUNTIME_SERVICE` 事实
+- [x] `bluewhale_agent.audit_log` DDL 与 `migration-5.47.sql` 齐备且幂等
+- [x] `/agent/search`、`/agent/facts`、`/agent/chat` 均标注 `@AuditLog(operation, QUERY, recordParams=true, recordResult=false)`
+- [x] 实机调用后 `audit_log` 出现 `operate_type=QUERY` 记录
+- [x] `SensitiveDataMasker` 空值不再抛 NPE，相关单测通过
+- [x] 索引产物扫描无明文密码/密钥（命中均为 `***` 或键名）
+- [x] `docs/agent/golden-set.json` 40 题（structured/schema/code/doc 各 10）
+- [x] `scripts/agent-eval.ps1` 可执行并输出 Markdown 报告 + 阈值退出码
+- [x] 评测结果：总体 40/40、结构化 20/20、引用有效 298/298，三项阈值 PASS
+- [x] 报告归档 `docs/reviews/2026-10-22-wave5.47-agent-eval.md`
+- [x] `docs/ops/agent-index-ops.md` 覆盖重建/状态/排障
+- [ ] roadmap 轨 E 勾选并附验收摘要
+- [ ] devlog `2026-10-22.md` 追加轨 E 章节
+- [ ] `docs/README.md` 目录树含 `agent/` 与 `ops/`
+- [ ] 后端构建通过（`mvn -pl whale-services/whale-agent -am package`）
+- [ ] 代码已提交并 push origin main（Gitee）

@@ -124,7 +124,19 @@ public class SensitiveDataMasker {
         if (args == null || args.length == 0) {
             return null;
         }
-        Object payload = args.length == 1 ? args[0] : List.of(args);
+        // 剔除 Servlet 基础设施参数（容器对象，序列化会产生大量内部字段且无审计价值）；
+        // 同时避免 List.of(...) 对 null 实参抛 NPE（可选参数缺省为 null 是常见场景）。
+        List<Object> payloads = new ArrayList<>(args.length);
+        for (Object arg : args) {
+            if (arg instanceof jakarta.servlet.ServletRequest || arg instanceof jakarta.servlet.ServletResponse) {
+                continue;
+            }
+            payloads.add(arg);
+        }
+        if (payloads.isEmpty()) {
+            return null;
+        }
+        Object payload = payloads.size() == 1 ? payloads.get(0) : payloads;
         if (payload == null) {
             return null;
         }

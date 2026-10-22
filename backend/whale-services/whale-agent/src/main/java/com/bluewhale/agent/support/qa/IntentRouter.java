@@ -18,7 +18,8 @@ public class IntentRouter {
     /** 结构化诉求关键词 */
     private static final List<String> STRUCTURED_WORDS = List.of(
             "端口", "port", "版本", "version", "依赖", "路由", "网关", "服务清单",
-            "表结构", "表字段", "字段", "列类型", "ddl", "主键", "启动类", "端点", "接口路径");
+            "表结构", "表字段", "字段", "列类型", "ddl", "主键", "启动类", "端点", "接口路径",
+            "数据库", "数据源", "权限", "权限点", "事实", "运行时");
 
     /** 语义诉求关键词 */
     private static final List<String> SEMANTIC_WORDS = List.of(

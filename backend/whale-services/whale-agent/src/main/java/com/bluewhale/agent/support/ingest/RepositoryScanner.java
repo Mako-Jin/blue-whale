@@ -106,13 +106,20 @@ public class RepositoryScanner {
      */
     boolean isEligible(Path root, Path path) {
         Path relative = root.relativize(path);
+        String relativePath = relative.toString().replace('\\', '/');
+        String fileName = path.getFileName().toString();
+        String lowerName = fileName.toLowerCase(Locale.ROOT);
+        if (relativePath.equals("docs/agent/golden-set.json")) {
+            return false;
+        }
+        if (relativePath.startsWith("docs/reviews/") && lowerName.contains("agent-eval")) {
+            return false;
+        }
         for (Path segment : relative) {
             if (EXCLUDED_DIRS.contains(segment.toString().toLowerCase(Locale.ROOT))) {
                 return false;
             }
         }
-        String fileName = path.getFileName().toString();
-        String lowerName = fileName.toLowerCase(Locale.ROOT);
         if (EXCLUDED_FILES.contains(lowerName) || isSensitive(lowerName)) {
             return false;
         }

@@ -4,6 +4,8 @@ import com.bluewhale.agent.dto.SearchHitVO;
 import com.bluewhale.agent.service.AgentSearchService;
 import com.bluewhale.agent.support.index.SearchHit;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
+import com.bluewhale.common.audit.annotation.AuditLog;
+import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.core.result.Result;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,6 +41,7 @@ public class AgentSearchController {
      */
     @GetMapping("/search")
     @RequirePermission("sys:agent:search")
+    @AuditLog(operation = "知识检索", type = OperateType.QUERY, targetType = "agent_index")
     public Result<List<SearchHitVO>> search(@RequestParam("q") String q,
                                             @RequestParam(value = "topK", required = false) Integer topK,
                                             @RequestParam(value = "kind", required = false) String kind) {

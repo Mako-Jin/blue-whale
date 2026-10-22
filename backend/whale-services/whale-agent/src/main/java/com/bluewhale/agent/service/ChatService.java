@@ -94,34 +94,37 @@ public class ChatService {
      * <p>会话归属与参数校验在调用线程内同步完成，校验失败直接抛出业务异常（统一 JSON 错误响应）；
      * 生成过程在虚拟线程中执行，事件依次为 {@code meta → delta* → done|error}。</p>
      *
-     * @param request 提问请求
-     * @param userId  当前用户
+     * @param request        提问请求
+     * @param userId         当前用户
+     * @param includeRuntime 是否包含运行时事实（取决于 {@code sys:agent:runtime:read} 权限）
      * @return SSE 发射器
      */
-    public SseEmitter chat(ChatRequest request, Long userId) {
+    public SseEmitter chat(ChatRequest request, Long userId, boolean includeRuntime) {
         String question = request.getQuestion().trim();
         String scope = AgentConversationService.normalizeScope(request.getScope());
         AgentConversation conversation = conversationService.resolve(
                 request.getConversationId(), userId, question, scope);
         SseEmitter emitter = new SseEmitter(EMITTER_TIMEOUT_MILLIS);
-        executor.submit(() -> answer(conversation, question, scope, emitter));
+        executor.submit(() -> answer(conversation, question, scope, includeRuntime, emitter));
         return emitter;
     }
 
     /**
      * 执行一次问答（异步线程）。
      *
-     * @param conversation 会话
-     * @param question     问题
-     * @param scope        检索范围
-     * @param emitter      SSE 发射器
+     * @param conversation   会话
+     * @param question       问题
+     * @param scope          检索范围
+     * @param includeRuntime 是否包含运行时事实
+     * @param emitter        SSE 发射器
      */
-    private void answer(AgentConversation conversation, String question, String scope, SseEmitter emitter) {
+    private void answer(AgentConversation conversation, String question, String scope,
+                        boolean includeRuntime, SseEmitter emitter) {
         long start = System.currentTimeMillis();
         try {
             QuestionIntent intent = intentRouter.route(question);
             List<ChatMessage> history = history(conversation.getId());
-            List<Citation> citations = collectCitations(question, scope, intent);
+            List<Citation> citations = collectCitations(question, scope, intent, includeRuntime);
             conversationService.append(conversation.getId(), AgentConversationService.ROLE_USER,
                     question, null, 0);
 
@@ -200,16 +203,18 @@ public class ChatService {
     /**
      * 召回证据：结构化事实 + BM25 全文命中，编号从 S1 起连续分配。
      *
-     * @param question 问题
-     * @param scope    检索范围
-     * @param intent   意图
+     * @param question       问题
+     * @param scope          检索范围
+     * @param intent         意图
+     * @param includeRuntime 是否包含运行时事实
      * @return 通过校验的引用
      */
-    private List<Citation> collectCitations(String question, String scope, QuestionIntent intent) {
+    private List<Citation> collectCitations(String question, String scope, QuestionIntent intent,
+                                            boolean includeRuntime) {
         List<Citation> citations = new ArrayList<>();
         int seq = 1;
         if (intent != QuestionIntent.SEMANTIC) {
-            for (AgentFact fact : factRetriever.retrieve(question)) {
+            for (AgentFact fact : factRetriever.retrieve(question, includeRuntime)) {
                 citations.add(new Citation("S" + seq++, "fact", fact.getSourcePath(), fact.getFactKey(),
                         null, null, truncate(fact.getValueJson(), FACT_SNIPPET_LIMIT),
                         fact.getFactType(), fact.getFactKey(), null));
