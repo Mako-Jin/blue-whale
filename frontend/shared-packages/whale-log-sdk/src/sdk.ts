@@ -125,6 +125,17 @@ function defaultResolveUserId(): number | null {
   return null;
 }
 
+/** 把追踪上下文中的用户ID归一化为数字（字符串数字可转，其余视为缺失）。 */
+function toNumericUserId(value: string | number | null | undefined): number | null {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value === 'string' && /^\d+$/.test(value)) {
+    return Number(value);
+  }
+  return null;
+}
+
 /** 读取浏览器 UA（非浏览器返回 null）。 */
 function readUserAgent(): string | null {
   return typeof navigator !== 'undefined' ? navigator.userAgent : null;
@@ -301,10 +312,29 @@ export function initLogSdk(config: LogSdkConfig = {}): LogSdk {
     }
   };
 
+  /**
+   * 条目级用户ID快照。
+   *
+   * <p>上报是定时批量的，登出等场景在条目产生后立即清空本地登录态，
+   * 到发送时刻已经解析不到用户；因此在条目入队时记录当时的用户ID，
+   * 批量发送时作为兜底，保证审计记录仍能归属到触发用户。</p>
+   */
+  const itemUserIds = new WeakMap<LogItem, number | null>();
+
+  /** 记录条目产生时的用户ID快照。 */
+  const snapshotUserId = <T extends LogItem>(item: T): T => {
+    itemUserIds.set(item, resolveUserId());
+    return item;
+  };
+
   /** 构造批量上报体（pageUrl 于发送时实时计算并掩码）。 */
   const buildRequest = (items: LogItem[]): LogBatchRequest => ({
     traceId,
-    userId: resolveUserId(),
+    // 优先当前登录态；登出等「产生后登录态已被清空」的场景回落到条目产生时的用户快照
+    userId: resolveUserId() ?? items.reduce<number | null>(
+      (found, item) => found ?? itemUserIds.get(item) ?? null,
+      null,
+    ),
     clientId,
     pageUrl: currentPageUrl(resolved.privacy),
     items,
@@ -353,7 +383,7 @@ export function initLogSdk(config: LogSdkConfig = {}): LogSdk {
       route: readRoute(),
     }),
     sink: (event) => {
-      behaviorChannel.push({
+      const item: LogItem = {
         eventType: event.eventType,
         eventName: event.eventName,
         target: event.target ? event.target.slice(0, 255) : undefined,
@@ -362,7 +392,10 @@ export function initLogSdk(config: LogSdkConfig = {}): LogSdk {
             ? undefined
             : safeStringifyMasked(event.payload, resolved.privacy),
         timestamp: event.timestamp,
-      });
+      };
+      // 事件产生时的用户ID最准（例如登出事件发出后才清空登录态）
+      itemUserIds.set(item, toNumericUserId(event.userId) ?? resolveUserId());
+      behaviorChannel.push(item);
     },
     onError: (error) => resolved.onError(error),
   });
@@ -379,13 +412,15 @@ export function initLogSdk(config: LogSdkConfig = {}): LogSdk {
 
   /** 采集一条开发者日志（通道③）。 */
   const pushDeveloperLog = (level: LogLevel, args: unknown[]): void => {
-    frontendChannel.push({
-      logLevel: level,
-      message: args.map(formatArg).join(' '),
-      stack: extractStack(args),
-      browser: readUserAgent() ?? undefined,
-      timestamp: Date.now(),
-    });
+    frontendChannel.push(
+      snapshotUserId({
+        logLevel: level,
+        message: args.map(formatArg).join(' '),
+        stack: extractStack(args),
+        browser: readUserAgent() ?? undefined,
+        timestamp: Date.now(),
+      }),
+    );
   };
 
   /** 采集一条用户行为（通道④）。 */
@@ -395,16 +430,18 @@ export function initLogSdk(config: LogSdkConfig = {}): LogSdk {
     target: string | null,
     payload: unknown,
   ): void => {
-    behaviorChannel.push({
-      eventType,
-      eventName,
-      target: target ?? undefined,
-      payload:
-        payload === undefined || payload === null
-          ? undefined
-          : safeStringifyMasked(payload, resolved.privacy),
-      timestamp: Date.now(),
-    });
+    behaviorChannel.push(
+      snapshotUserId({
+        eventType,
+        eventName,
+        target: target ?? undefined,
+        payload:
+          payload === undefined || payload === null
+            ? undefined
+            : safeStringifyMasked(payload, resolved.privacy),
+        timestamp: Date.now(),
+      }),
+    );
   };
 
   let consoleHandle: ConsoleCaptureHandle | null = null;

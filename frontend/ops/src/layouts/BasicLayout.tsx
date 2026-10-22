@@ -41,9 +41,9 @@ export default function BasicLayout() {
 
   const handleLogout = () => {
     const user = getCurrentUser();
+    // 审计：本地退出留痕（先于清态，保证上报能解析到当前用户）
+    eventBus.emit(AppEvents.AUTH_LOGOUT, { userId: user?.userId, username: user?.username });
     clearAuth();
-    // 审计：本地退出留痕
-    eventBus.emit(AppEvents.AUTH_LOGOUT, { username: user?.username });
     message.success('已退出登录');
     navigate('/login', { replace: true });
   };

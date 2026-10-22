@@ -60,8 +60,8 @@ export async function logout(): Promise<void> {
   } catch {
     // 登出接口异常（离线/网络故障）不阻断本地登出，保证用户始终能退出
   } finally {
-    clearAuth();
-    // 审计：无论服务端登出是否成功，本地退出一律留痕
+    // 审计：无论服务端登出是否成功，本地退出一律留痕（先于清态，保证上报能解析到当前用户）
     eventBus.emit(AppEvents.AUTH_LOGOUT, { userId: user?.userId, username: user?.username });
+    clearAuth();
   }
 }
