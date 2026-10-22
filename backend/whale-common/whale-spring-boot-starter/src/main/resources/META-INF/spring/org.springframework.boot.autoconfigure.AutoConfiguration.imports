@@ -9,3 +9,4 @@ com.bluewhale.common.idempotent.config.IdempotentAutoConfiguration
 com.bluewhale.common.cache.CacheAutoConfiguration
 com.bluewhale.common.log.config.WhaleLogAutoConfiguration
 com.bluewhale.common.security.WhalePermissionAutoConfiguration
+com.bluewhale.common.security.DataSourcePasswordGuardAutoConfiguration

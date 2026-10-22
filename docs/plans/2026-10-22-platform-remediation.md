@@ -98,11 +98,11 @@
 - **验收**：全仓 `api/http.ts` 仅剩共享包一处；三个应用登录、401 刷新、SSE 流式回归通过。
 - **规模**：M ｜ **依赖**：无
 
-### P1-2 安全默认值与 CORS
+### P1-2 安全默认值与 CORS（已完成 2026-10-22）
 - **步骤**
-  1. 9 个 yml 的 `MYSQL_PASSWORD: root` 改为 `${MYSQL_PASSWORD:}` 或 dev 专用占位并注释；启动时对空值给出明确报错。
-  2. 网关新增可配置 CORS（`whale.gateway.cors.allowed-origins`，dev 默认 `http://localhost:*` 的具体白名单），生产由 Nginx 同源兜底。
-- **验收**：不设环境变量时启动报错信息明确；`OPTIONS` 预检在允许来源下返回正确头，非白名单来源被拒。
+  1. ✅ 实际盘点 **10 个** yml（清单原写 9 个）：`${MYSQL_PASSWORD:root}` → `${MYSQL_PASSWORD:}` 并注释；新增 starter `DataSourcePasswordGuard`（仅 `spring.datasource.url` 存在时生效），密码为空时启动抛 `IllegalStateException`，报错含服务名与 `MYSQL_PASSWORD` 指引。
+  2. ✅ 网关新增 `whale.gateway.cors.allowed-origins`（dev 默认 `http://localhost:*`、`http://127.0.0.1:*`，`WHALE_GATEWAY_CORS_ALLOWED_ORIGINS` 覆盖）与 `CorsWebFilter`；生产由 Nginx 同源兜底。
+- **验收**：✅ 不设 `MYSQL_PASSWORD` 启动 whale-i18n → 退出码 1、报错明确；`OPTIONS` 预检允许来源 → 200 + `Access-Control-Allow-Origin`，`http://evil.example` → 403 无 ACAO。
 - **规模**：S ｜ **依赖**：无
 
 ### P1-3 可观测性最小闭环（代码侧）

@@ -20,6 +20,9 @@ public class WhaleGatewayProperties {
     /** JWT 配置 */
     private Jwt jwt = new Jwt();
 
+    /** CORS 配置（P1-2） */
+    private Cors cors = new Cors();
+
     /** 不需要认证的白名单路径（支持 Ant 通配符） */
     private List<String> whiteList = new ArrayList<>();
 
@@ -40,5 +43,21 @@ public class WhaleGatewayProperties {
 
         /** HS256 签名密钥，必须与 whale-auth 签发侧一致 */
         private String secret = DEFAULT_PLACEHOLDER_SECRET;
+    }
+
+    /**
+     * 跨域配置（P1-2）
+     *
+     * @author BlueWhale
+     */
+    @Data
+    public static class Cors {
+
+        /**
+         * 允许的来源模式（{@code allowedOriginPatterns}，支持 {@code http://localhost:*} 通配形式）。
+         * <p>默认值仅覆盖本机联调端口；生产环境应通过环境变量
+         * {@code WHALE_GATEWAY_CORS_ALLOWED_ORIGINS} 覆盖为具体域名白名单。</p>
+         */
+        private List<String> allowedOrigins = new ArrayList<>(List.of("http://localhost:*", "http://127.0.0.1:*"));
     }
 }

@@ -12,7 +12,8 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://127.0.0.1:3306/bluewhale_job?useUnicode=true&characterEncoding=utf8&connectionCollation=utf8mb4_general_ci&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     username: ${MYSQL_USER:root}
-    password: ${MYSQL_PASSWORD:root}
+    # P1-2 安全默认值：不再提供 root 默认口令；未设置 MYSQL_PASSWORD 时由启动守卫给出明确报错
+    password: ${MYSQL_PASSWORD:}
   data:
     redis:
       host: ${REDIS_HOST:127.0.0.1}
