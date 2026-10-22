@@ -146,20 +146,27 @@
 | B. GitHub Actions（保留） | GitHub push/tag/PR | 保持现有 3 条 workflow，需代码同步到 GitHub 并开通 Actions | 复用现有流水线 | GitHub 网络不稳定（历史上推送超时） |
 | C. 双写（A+B） | 两侧 | Gitee Go 为日常 CI 主链路；GitHub 作镜像仓库同步后跑 Actions | 双保险 | 维护两套配置，成本最高 |
 
-### 6.3 推荐
+### 6.3 推荐（2026-10-22 更新：实际落地方案 B）
 
-**阶段一：方案 A（Gitee Go 为主）**，在 Gitee 侧新增 `.workflow/` 流水线覆盖 静态检查 → 构建 → 单测 → 制品；**保留 `.github/workflows/` 原样作为 GitHub 侧备份能力**（不做改动，供将来迁回 GitHub 时复用）。
+**实际落地：方案 B（GitHub Actions）**。Gitee Go 为预付费增值服务，本仓库未开通，无法免费触发；已在 GitHub 新建私有镜像仓 `Mako-Jin/blue-whale-platform`（remote `ci`）承接 CI，Gitee `origin` 继续作为主托管与推送目标。
 
-**阶段二：方案 C（双写）**，当需对外开源/使用 GHCR 生态时，`git remote add github` 双 remote 推送，GitHub 侧复用现有 Actions。
+日常推送需双 remote：
 
-Gitee Go 流水线要点（与现有 Actions 对齐）：
+```powershell
+git push origin main   # Gitee 主仓
+git push ci main       # GitHub 镜像仓，触发 Backend CI / Frontend CI / Code Quality
+```
+
+实测（2026-10-22）：push 触发正常；故意引入未使用变量 + 缺 Javadoc 后三条流水线全部变红，revert 后恢复全绿。GitHub 直连偶发超时，push 失败时重试即可。
+
+`.workflow/` 保留为 Gitee Go 开通后的备用配置，下表作为届时迁移参考：
 
 | 阶段 | Gitee Go 配置 |
 |---|---|
 | 环境 | `maven:3.9-eclipse-temurin-21` / `node:24`（或使用 Gitee 提供的构建镜像） |
 | 触发 | `push` main + `PR` + `tag v*.*.*` |
 | 后端 | `mvn -B -ntp test` → `mvn -B -ntp clean package -DskipTests` |
-| 前端 | `corepack enable` → `pnpm install --frozen-lockfile` → `pnpm -r lint` → `pnpm turbo run build` |
+| 前端 | `pnpm/action-setup` 等价安装 pnpm 10.33 → `pnpm install --frozen-lockfile` → `pnpm lint` → `pnpm turbo run build` |
 | 制品 | 上传到 Gitee 制品库（替代 GHCR 上传） |
 | 镜像 | Gitee 支持推送至 `registry.gitee.com` 或自建 Harbor |
 

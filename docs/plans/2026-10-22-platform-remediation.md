@@ -8,7 +8,7 @@
 
 | 报告建议 | 结论 | 处理方式 |
 |---|---|---|
-| 让质量门禁真正生效（P0-1） | **采纳（最高优先）** | 走 Gitee Go 路线（`.workflow/` 已有映射），先实测触发一次，再消灭 lint noop |
+| 让质量门禁真正生效（P0-1） | **采纳（最高优先，已完成）** | Gitee Go 为预付费服务未开通，改走 GitHub Actions 镜像仓；三条流水线触发、变红、恢复绿均已实测 |
 | 固化构建环境（P0-3） | **采纳** | 提交 mvnw + `.mvn/jvm.config`，脚本显式 `JAVA_HOME`，`check-env` 加 JDK 21 断言 |
 | 三条 E2E 冒烟（阶段一-3） | **采纳（分两批）** | 先登录 + 表单闭环 2 条，工作流闭环随后；Playwright 挂进同一条流水线 |
 | 文档「唯一真相」（阶段二-6） | **采纳（拆分）** | 先做 README 版本表改链接 + 一致性校验脚本；`originals/` 副本清理需单独确认 |
@@ -17,7 +17,7 @@
 | 可观测性最小闭环（P1-4） | **部分采纳** | 代码侧加 `micrometer-registry-prometheus` 并验证 `/actuator/prometheus`；compose 栈因本机无 Docker 转后续环境 |
 | 商业应用空心化（P0-2） | **调整** | **不删空壳**，改为「冻结扩张 + 选定 OA 请假打通一条真实闭环」 |
 | 16 → 12 服务合并（阶段二-4） | **不采纳** | 合并/删除会牵动端口、路由、前端包、建库四处，收益低于迁移成本；冻结即可 |
-| 主仓迁 GitHub（阶段一-1 A） | **不采纳** | 本机 GitHub HTTPS 直连超时；Gitee Go 路径已具备映射文件 |
+| 主仓迁 GitHub（阶段一-1 A） | **不采纳** | 主仓仍在 Gitee；GitHub 直连不稳定，仅新建镜像仓 `Mako-Jin/blue-whale-platform`（remote `ci`）承载 CI |
 | TanStack Query / 全量数据层（阶段二-5） | **暂缓** | 先统一请求层，再按页面复杂度评估，避免一次性大改 |
 | API 契约自动化（阶段三-9） | **暂缓（P2）** | springdoc 需先验证 Spring Boot 4 + Jackson 3 兼容性 |
 | God Service 拆分（阶段三-10） | **暂缓（P2）** | `ProcessTaskServiceImpl` 706 行，待业务闭环稳定后拆 |
@@ -26,15 +26,21 @@
 
 ## 二、P0：先让「验证」可信
 
-### P0-1 CI 真正生效（Gitee Go）
-- **现状**：`.workflow/backend-ci.yml`、`frontend-ci.yml` 已存在但从未实测触发；`frontend/` 下 17 个 `package.json` 的 `lint` 均为 `echo 'lint: noop'`。
-- **步骤**
-  1. 在 Gitee 仓库绑定 Gitee Go 流水线，推送一次触发，记录首次运行结果与失败原因（重点确认 `build@maven` 的 JDK 21、`build@nodejs` 的 Node 24 是否可用）。
-  2. 若插件版本不支持：后端改自带镜像/shell 步骤安装 JDK 21，前端锁定 Node 24 可用镜像。
-  3. 17 个包统一 `"lint": "eslint src --max-warnings 0"`（无 src 的包改为 `eslint . --max-warnings 0` 或移除 lint 脚本）。
-  4. `frontend-ci.yml` 移除 lint 的 `continue-on-error`（若存在），Checkstyle 保持 `severity=error` 阻断。
-- **验收**：故意提交一个未使用变量 / 故意违反一条 Checkstyle 规则，对应流水线必须变红；恢复后必须变绿。
-- **规模**：M ｜ **依赖**：无
+### P0-1 CI 真正生效（GitHub Actions，已完成 2026-10-22）
+- **原计划**：走 Gitee Go（`.workflow/` 已有映射）。**实际受阻**：Gitee Go 为预付费增值服务，仓库未开通，无法免费触发。
+- **最终路线**：新建 GitHub 私有镜像仓 `Mako-Jin/blue-whale-platform`（remote `ci`），复用 `.github/workflows/`；Gitee `origin` 仍为主托管。
+- **已完成**
+  1. 17 个前端包 `lint` 由 `echo 'lint: noop'` 改为 `eslint src --max-warnings 0`，清零存量告警（react-refresh / no-console / exhaustive-deps）。
+  2. `pnpm format` 统一 69 个文件格式，`format:check` 可在 CI 阻断。
+  3. 两条 workflow 改用 `pnpm/action-setup@v4`（原 corepack 方案在 setup-node 缓存前不可用）。
+  4. Checkstyle 17 处 error 级违规清零；`checkstyle:check` 绑定到 `validate` 阶段（不解析模块依赖，干净仓库可直接执行），CI 改为 `./mvnw -B -ntp validate`。
+  5. 修复 `FormTableDefinitionServiceImplTest` 的 MyBatis-Plus lambda 缓存顺序依赖（Linux/Windows 测试顺序差异导致 CI 偶发失败）。
+- **实测结果**
+  - 触发：push `3e273bd` / `c4fd77b` → Backend CI、Frontend CI、Code Quality 均被触发。
+  - 阻断：故意提交未使用变量 + 缺 Javadoc 的类（`f9bbcbd`）→ **三条流水线全部 failure**。
+  - 恢复：revert 后（`93018b3`）→ **三条流水线全部 success**。
+- **验收**：✅ 已完成（正向绿、反向红闭环）。
+- **规模**：M ｜ **依赖**：无 ｜ **附录**：GitHub 网络间歇超时，push 需重试；日常需 `git push origin main` + `git push ci main`。
 
 ### P0-2 构建可复现
 - **现状**：`mvnw` / `mvnw.cmd` 未入库且被 `.gitignore` 忽略；无 `backend/.mvn/jvm.config`；`scripts/*.ps1` 无 `JAVA_HOME` 声明。
