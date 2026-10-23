@@ -5,8 +5,10 @@ import com.bluewhale.common.log.entity.ApiLogRecord;
 import com.bluewhale.common.log.mapper.ApiLogMapper;
 import com.bluewhale.common.log.properties.ApiLogProperties;
 import com.bluewhale.common.log.sink.LogPersistSupport;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -23,13 +25,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 /**
  * 后端接口日志过滤器单测（REQ-SEC-006 A4 / checklist 8.1）。
  *
  * <p>用 {@link MockHttpServletRequest}/{@link MockHttpServletResponse} + 同步 sink（{@code task.run()}）
- * 覆盖：正常落库、排除路径跳过、采样率 0 跳过、超大 body 透传不丢、异步派发跳过、默认排除路径含上报接口。</p>
+ * 覆盖：正常落库、排除路径跳过、采样率 0 跳过、超大 body 透传不丢、异步派发只落库一次（含请求体与最终响应）、
+ * 幂等标记防重复、默认排除路径含上报接口。</p>
  *
  * @author BlueWhale
  */
@@ -139,9 +143,46 @@ class ApiLogFilterTest {
     }
 
     @Test
-    @DisplayName("异步派发：shouldNotFilterAsyncDispatch 返回 true")
-    void shouldNotFilterAsyncDispatch() {
-        assertThat(filter.shouldNotFilterAsyncDispatch()).isTrue();
+    @DisplayName("异步派发：首次暂存不落库，ASYNC 派发按最终响应落库一次")
+    void shouldRecordOnceOnAsyncDispatch() throws Exception {
+        MockHttpServletRequest request = jsonRequest(NORMAL_URI, "{\"username\":\"alice\"}");
+        request.setAsyncSupported(true);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request, response, (req, resp) -> {
+            ((HttpServletRequest) req).getInputStream().readAllBytes();
+            ((HttpServletRequest) req).startAsync();
+        });
+
+        assertThat(filter.shouldNotFilterAsyncDispatch()).isFalse();
+        verify(apiLogMapper, never()).insert(any(ApiLogRecord.class));
+
+        request.setDispatcherType(DispatcherType.ASYNC);
+        filter.doFilter(request, response, (req, resp) -> {
+            ((HttpServletResponse) resp).setContentType("application/json");
+            java.io.PrintWriter writer = ((HttpServletResponse) resp).getWriter();
+            writer.write("{\"code\":0,\"data\":[]}");
+            writer.flush();
+        });
+
+        ApiLogRecord record = captureSingleRecord();
+        assertThat(record.getRequestUri()).isEqualTo(NORMAL_URI);
+        assertThat(record.getRequestParams()).contains("\"username\":\"alice\"");
+        assertThat(record.getResponseBody()).contains("\"code\":0");
+        assertThat(record.getResponseCode()).isEqualTo(200);
+        verify(apiLogMapper, times(1)).insert(any(ApiLogRecord.class));
+    }
+
+    @Test
+    @DisplayName("幂等标记：同一请求重复进入过滤器只落库一次")
+    void shouldPersistOnceForSameRequest() throws Exception {
+        MockHttpServletRequest request = jsonRequest(NORMAL_URI, "{}");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request, response, capturingChain(new AtomicReference<>()));
+        filter.doFilter(request, response, (req, resp) -> { });
+
+        verify(apiLogMapper, times(1)).insert(any(ApiLogRecord.class));
     }
 
     @Test

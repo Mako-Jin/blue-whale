@@ -151,7 +151,7 @@
 | AUTH-10 阶段二 MQ 汇聚 | **阻塞**：RabbitMQ 未就绪；`@AuditLog` → MQ → whale-audit 落 `bluewhale_audit` 未落地（`whale.audit.sink=mq` 仅预留） |
 | 四通道查询运行时端到端验证 | **已闭环（Wave 5.21）**：经网关实测导出 `code=0` 且返回 `objectKey`；四通道查询端点静态门禁 + 运行时冒烟通过 |
 | 多通道查询端点自身元审计 | **残余**：四通道查询端点未加 `@AuditLog(type=QUERY)`（仅 `audit_log` 三查询 + 导出已加） |
-| 异步派发丢采集 | **残余**：`ApiLogFilter#shouldNotFilterAsyncDispatch()=true` |
+| 异步派发丢采集 | **已闭环（2026-10-23 P3）**：`ApiLogFilter` 放行 ASYNC 派发，首次派发暂存采样决策/开始时间/请求体，ASYNC 完成后按最终响应落库，幂等标记防重复；同步/异步均只落库一次 |
 | `@Sensitive` 注解兜底 / 脱敏规则表完全配置化 | **残余**：内置规则 + 键名配置化已落地，注解兜底未实现 |
 
 ---

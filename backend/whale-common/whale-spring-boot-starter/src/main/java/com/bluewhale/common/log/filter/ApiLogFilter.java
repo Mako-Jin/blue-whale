@@ -28,8 +28,10 @@ import java.util.concurrent.ThreadLocalRandom;
  * 请求与响应体经 {@code LimitedCaching*} 包装器 tee 透传，仅在 Content-Type 为 JSON 或表单时采集，
  * 且经 {@link SensitiveDataMasker#maskJson(String)} 脱敏。</p>
  *
- * <p>隔离性：<b>{@link #shouldNotFilterAsyncDispatch()} 返回 {@code true}</b>（异步派发不重复采集）；
- * 组装/落库任何异常仅告警，绝不冒泡影响业务主流程。排除路径由 {@code whale.log.api.exclude-paths}
+ * <p>隔离性：<b>异步派发同样采集且只落库一次</b>——首次派发若已启动异步处理，
+ * 仅缓存采样决策、开始时间与请求体，待 ASYNC 派发完成后以最终响应落库；
+ * 采样决策跨派发复用，落库前写入幂等标记，避免重复采集。组装/落库任何异常仅告警，
+ * 绝不冒泡影响业务主流程。排除路径由 {@code whale.log.api.exclude-paths}
  * 控制，默认含前端上报接口以防回环。</p>
  *
  * @author BlueWhale
@@ -39,6 +41,14 @@ public class ApiLogFilter extends OncePerRequestFilter {
 
     /** 落库通道标识 */
     private static final String CHANNEL = "api";
+    /** 采样决策属性（首次派发判定，异步派发沿用） */
+    private static final String ATTR_SAMPLED = ApiLogFilter.class.getName() + ".sampled";
+    /** 请求开始时间属性（异步派发计算总耗时） */
+    private static final String ATTR_START_MILLIS = ApiLogFilter.class.getName() + ".startMillis";
+    /** 首次派发捕获的请求体属性（异步派发复用） */
+    private static final String ATTR_REQUEST_BODY = ApiLogFilter.class.getName() + ".requestBody";
+    /** 已落库幂等标记属性 */
+    private static final String ATTR_RECORDED = ApiLogFilter.class.getName() + ".recorded";
     /** 代理转发IP头 */
     private static final String FORWARDED_FOR_HEADER = "X-Forwarded-For";
     /** 业务成功标记 */
@@ -82,7 +92,7 @@ public class ApiLogFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilterAsyncDispatch() {
-        return true;
+        return false;
     }
 
     @Override
@@ -106,33 +116,98 @@ public class ApiLogFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        if (!sampled()) {
+        if (Boolean.TRUE.equals(request.getAttribute(ATTR_RECORDED))) {
             filterChain.doFilter(request, response);
             return;
         }
-        long startMillis = System.currentTimeMillis();
-        LimitedCachingRequestWrapper requestWrapper =
-                new LimitedCachingRequestWrapper(request, properties.getMaxBodyLength());
+        boolean asyncDispatch = isAsyncDispatch(request);
+        if (!resolveSampled(request)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+        long startMillis = resolveStartMillis(request, asyncDispatch);
+        LimitedCachingRequestWrapper requestWrapper = asyncDispatch
+                ? null : new LimitedCachingRequestWrapper(request, properties.getMaxBodyLength());
         LimitedCachingResponseWrapper responseWrapper =
                 new LimitedCachingResponseWrapper(response, properties.getMaxBodyLength());
-        boolean captureRequest = isCapturable(request.getContentType());
+        boolean captureRequest = !asyncDispatch && isCapturable(request.getContentType());
+        String initialRequestBody = asyncDispatch
+                ? (String) request.getAttribute(ATTR_REQUEST_BODY) : null;
         Exception failure = null;
         try {
-            filterChain.doFilter(requestWrapper, responseWrapper);
+            filterChain.doFilter(requestWrapper == null ? request : requestWrapper, responseWrapper);
         } catch (Exception e) {
             failure = e;
             throw e;
         } finally {
-            try {
-                ApiLogRecord record = new ApiLogRecord();
-                fillRequest(record, request, requestWrapper, captureRequest);
-                fillResponse(record, responseWrapper, failure);
-                fillResult(record, failure, startMillis);
-                persistSupport.submit(() -> persist(record), CHANNEL);
-            } catch (Exception e) {
-                log.warn("接口日志组装/投递失败，不影响业务主流程: uri={}", request.getRequestURI(), e);
+            if (!asyncDispatch && request.isAsyncStarted()) {
+                // 异步处理尚未完成：仅暂存上下文，待 ASYNC 派发拿到最终响应后再采集
+                request.setAttribute(ATTR_START_MILLIS, startMillis);
+                request.setAttribute(ATTR_REQUEST_BODY,
+                        captureRequest ? requestWrapper.getCapturedBody() : null);
+            } else {
+                String capturedRequestBody = asyncDispatch
+                        ? initialRequestBody
+                        : (captureRequest ? requestWrapper.getCapturedBody() : null);
+                record(request, responseWrapper, failure, startMillis, capturedRequestBody);
             }
         }
+    }
+
+    /**
+     * 采集并投递接口日志：组装异常仅告警，先置幂等标记避免重复采集
+     *
+     * @param request 当前请求
+     * @param responseWrapper 响应包装器
+     * @param failure 链路异常；成功时为 {@code null}
+     * @param startMillis 请求开始时间（毫秒）
+     * @param capturedRequestBody 请求体镜像（可能来自首次派发暂存）
+     */
+    private void record(HttpServletRequest request, LimitedCachingResponseWrapper responseWrapper,
+                        Exception failure, long startMillis, String capturedRequestBody) {
+        try {
+            ApiLogRecord record = new ApiLogRecord();
+            fillRequest(record, request, capturedRequestBody);
+            fillResponse(record, responseWrapper, failure);
+            fillResult(record, failure, startMillis);
+            request.setAttribute(ATTR_RECORDED, Boolean.TRUE);
+            persistSupport.submit(() -> persist(record), CHANNEL);
+        } catch (Exception e) {
+            log.warn("接口日志组装/投递失败，不影响业务主流程: uri={}", request.getRequestURI(), e);
+        }
+    }
+
+    /**
+     * 解析采样决策：首次派发判定并暂存，异步派发沿用同一结果，避免两次随机导致漏采
+     *
+     * @param request 当前请求
+     * @return 是否采样
+     */
+    private boolean resolveSampled(HttpServletRequest request) {
+        Object cached = request.getAttribute(ATTR_SAMPLED);
+        if (cached instanceof Boolean decision) {
+            return decision;
+        }
+        boolean decision = sampled();
+        request.setAttribute(ATTR_SAMPLED, decision);
+        return decision;
+    }
+
+    /**
+     * 解析请求开始时间：异步派发复用首次派发暂存值，保证耗时为端到端总耗时
+     *
+     * @param request 当前请求
+     * @param asyncDispatch 是否为异步派发
+     * @return 请求开始时间（毫秒）
+     */
+    private long resolveStartMillis(HttpServletRequest request, boolean asyncDispatch) {
+        if (asyncDispatch) {
+            Object cached = request.getAttribute(ATTR_START_MILLIS);
+            if (cached instanceof Long millis) {
+                return millis;
+            }
+        }
+        return System.currentTimeMillis();
     }
 
     /**
@@ -169,11 +244,9 @@ public class ApiLogFilter extends OncePerRequestFilter {
      *
      * @param record 待填充记录
      * @param request 原始请求
-     * @param requestWrapper 请求包装器（提供限长镜像的请求体）
-     * @param captureRequest 是否采集请求体（Content-Type 白名单）
+     * @param capturedRequestBody 请求体镜像（异步派发来自首次派发暂存）；无采集时为 {@code null}
      */
-    private void fillRequest(ApiLogRecord record, HttpServletRequest request,
-                             LimitedCachingRequestWrapper requestWrapper, boolean captureRequest) {
+    private void fillRequest(ApiLogRecord record, HttpServletRequest request, String capturedRequestBody) {
         record.setModule(properties.getModule());
         record.setTraceId(WebHeaders.traceId(request));
         record.setUserId(parseUserId(WebHeaders.userId(request)));
@@ -181,7 +254,8 @@ public class ApiLogFilter extends OncePerRequestFilter {
         record.setRequestUri(request.getRequestURI());
         record.setHttpMethod(request.getMethod());
         record.setQueryString(sensitiveDataMasker.maskQueryString(request.getQueryString()));
-        record.setRequestParams(captureRequest ? sensitiveDataMasker.maskJson(requestWrapper.getCapturedBody()) : null);
+        record.setRequestParams(capturedRequestBody == null
+                ? null : sensitiveDataMasker.maskJson(capturedRequestBody));
         record.setIp(resolveIp(request));
         record.setUserAgent(WebHeaders.header(request, HttpHeaders.USER_AGENT));
     }

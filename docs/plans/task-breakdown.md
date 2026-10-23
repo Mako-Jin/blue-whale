@@ -104,7 +104,7 @@
 - [x] ~~⑦检查报告归档：`docs/reviews/2026-10-17-wave5.1b-audit-log.md`~~
 - [x] ~~待做：运行时端到端验证（无 Docker）、`POST /audit/log/export`、`@RequirePermission("sys:audit:log:list")`、MQ 汇聚（阶段二）、归档任务、网关 `/audit/**` + StripPrefix 路由前缀冲突确认~~（Wave 5.21/5.33 收口：导出/归档/权限点/路由全部落地；仅 MQ 汇聚环境受限）
   - **Wave 5.33 ⑤ 收尾结论**（2026-10-20）：`POST /audit/log/export`（`EXPORT` 元审计）+ `AuditLogArchiver` 归档任务**已落地**（Wave 5.21，T5.25）；`sys:audit:log:list`（id 25）已在权限种子中；网关 `/audit/**` 路由已配且**网关不剥离前缀**，无 StripPrefix 冲突；四通道查询 + 元审计 + 出站/接口日志 + 导出/归档 + 保留期均已落地。
-  - **环境受限（本机无 RabbitMQ）backlog**：审计 **MQ 汇聚**与**异步派发丢采集**不纳入本轮，待具备消息中间件的环境补齐。
+  - **环境受限（本机无 RabbitMQ）backlog**：审计 **MQ 汇聚**不纳入本轮，待具备消息中间件的环境补齐；**异步派发丢采集**已由 2026-10-23 P3 第 2 项修复（非 MQ 依赖，原登记归类有误）。
 
 ## Wave 5.18：whale-ui 二次封装 + admin 三管理页（2026-10-19）
 
