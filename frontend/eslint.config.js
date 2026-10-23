@@ -41,13 +41,19 @@ export default tseslint.config(
     },
   },
 
-  // Node 脚本（冒烟脚本等）：补充 Node 全局
+  // Node 脚本（冒烟脚本等）：补充 Node 全局与 Node 18+ 内置 Web API
   {
     files: ['**/*.mjs'],
     languageOptions: {
       globals: {
         console: 'readonly',
         process: 'readonly',
+        setTimeout: 'readonly',
+        Response: 'readonly',
+        Headers: 'readonly',
+        Blob: 'readonly',
+        TextEncoder: 'readonly',
+        ReadableStream: 'readonly',
       },
     },
   },
