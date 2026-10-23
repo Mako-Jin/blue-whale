@@ -7,10 +7,13 @@ import com.bluewhale.common.web.WebHeaders;
 import com.bluewhale.file.dto.ChunkUploadCompleteRequest;
 import com.bluewhale.file.dto.ChunkUploadInitRequest;
 import com.bluewhale.file.dto.FileQueryRequest;
+import com.bluewhale.file.dto.FileRapidUploadRequest;
 import com.bluewhale.file.service.FileInfoService;
 import com.bluewhale.file.vo.ChunkUploadInitVO;
 import com.bluewhale.file.vo.FileInfoVO;
 import com.bluewhale.file.vo.FilePresignedVO;
+import com.bluewhale.file.vo.FileQuotaVO;
+import com.bluewhale.file.vo.FileRapidUploadVO;
 import com.bluewhale.file.vo.FileUploadVO;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -34,6 +37,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * 文件服务接口。
@@ -52,6 +56,12 @@ public class FileController {
 
     /** 下载文件名缺失时的占位名 */
     private static final String FALLBACK_FILENAME = "download";
+
+    /** 禁止浏览器嗅探响应内容类型的安全响应头 */
+    private static final String NOSNIFF_HEADER = "X-Content-Type-Options";
+
+    /** 禁止嗅探的响应头取值 */
+    private static final String NOSNIFF_VALUE = "nosniff";
 
     private final FileInfoService fileInfoService;
 
@@ -104,7 +114,27 @@ public class FileController {
         FileInfoVO info = fileInfoService.getDetail(id);
         Resource resource = fileInfoService.loadResource(id);
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, buildContentDisposition(info.getOriginalName()))
+                .header(HttpHeaders.CONTENT_DISPOSITION, buildContentDisposition(info.getOriginalName(), false))
+                .contentType(resolveMediaType(info.getContentType()))
+                .contentLength(info.getFileSize() == null ? 0L : info.getFileSize())
+                .body(resource);
+    }
+
+    /**
+     * 在线预览文件内容：安全类型以 {@code inline} 呈现，其余类型回落 {@code attachment} 下载。
+     *
+     * @param id 文件ID
+     * @return 文件内容流式响应
+     */
+    @GetMapping("/{id}/preview")
+    @RequirePermission("sys:file:download")
+    public ResponseEntity<Resource> preview(@PathVariable Long id) {
+        FileInfoVO info = fileInfoService.getDetail(id);
+        Resource resource = fileInfoService.loadResource(id);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        buildContentDisposition(info.getOriginalName(), isPreviewable(info.getContentType())))
+                .header(NOSNIFF_HEADER, NOSNIFF_VALUE)
                 .contentType(resolveMediaType(info.getContentType()))
                 .contentLength(info.getFileSize() == null ? 0L : info.getFileSize())
                 .body(resource);
@@ -180,6 +210,32 @@ public class FileController {
     }
 
     /**
+     * 秒传（哈希去重）：命中已有物理对象时仅登记新元数据，不重复上传内容。
+     *
+     * @param request 秒传请求：fileName、md5（32 位十六进制）、size、contentType（可选）
+     * @param httpRequest 当前请求（用于读取网关 {@code X-User-Id} 回填上传人）
+     * @return 秒传结果：命中时携带新登记的元数据，未命中时 {@code hit=false}
+     */
+    @PostMapping("/upload/rapid")
+    @RequirePermission("sys:file:upload")
+    public Result<FileRapidUploadVO> rapidUpload(@Valid @RequestBody FileRapidUploadRequest request,
+                                                 HttpServletRequest httpRequest) {
+        return Result.ok(fileInfoService.rapidUpload(request, resolveUploaderId(httpRequest)));
+    }
+
+    /**
+     * 查询当前用户的个人存储配额与用量。
+     *
+     * @param httpRequest 当前请求（用于读取网关 {@code X-User-Id}）
+     * @return 配额视图对象；无用户态时返回不限配额
+     */
+    @GetMapping("/quota")
+    @RequirePermission("sys:file:list")
+    public Result<FileQuotaVO> quota(HttpServletRequest httpRequest) {
+        return Result.ok(fileInfoService.quota(resolveUploaderId(httpRequest)));
+    }
+
+    /**
      * 分页查询文件元数据。
      *
      * @param request 查询条件：originalName 模糊、bucket 等值、createTime 起止
@@ -223,14 +279,35 @@ public class FileController {
     }
 
     /**
-     * 构建下载响应头中的 {@code Content-Disposition}（RFC 5987，UTF-8 文件名）
+     * 构建响应头中的 {@code Content-Disposition}（RFC 5987，UTF-8 文件名）
      *
      * @param originalName 原始文件名
+     * @param inline 是否以 {@code inline} 方式呈现（预览）；否则 {@code attachment} 下载
      * @return Content-Disposition 头值
      */
-    private static String buildContentDisposition(String originalName) {
+    private static String buildContentDisposition(String originalName, boolean inline) {
         String name = StringUtils.hasText(originalName) ? originalName : FALLBACK_FILENAME;
-        return ContentDisposition.attachment().filename(name, StandardCharsets.UTF_8).build().toString();
+        ContentDisposition.Builder disposition = inline
+                ? ContentDisposition.inline() : ContentDisposition.attachment();
+        return disposition.filename(name, StandardCharsets.UTF_8).build().toString();
+    }
+
+    /**
+     * 判断 MIME 类型是否可在线预览：图片、音视频、文本与 PDF 为安全类型（不区分大小写）
+     *
+     * @param contentType 存储的 MIME 类型
+     * @return 可安全内联预览时返回 {@code true}
+     */
+    private static boolean isPreviewable(String contentType) {
+        if (!StringUtils.hasText(contentType)) {
+            return false;
+        }
+        String type = contentType.trim().toLowerCase(Locale.ROOT);
+        return type.startsWith("image/")
+                || type.startsWith("video/")
+                || type.startsWith("audio/")
+                || type.startsWith("text/")
+                || type.equals("application/pdf");
     }
 
     /**

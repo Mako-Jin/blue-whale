@@ -9,12 +9,15 @@ import com.bluewhale.file.config.FileProperties;
 import com.bluewhale.file.dto.ChunkUploadCompleteRequest;
 import com.bluewhale.file.dto.ChunkUploadInitRequest;
 import com.bluewhale.file.dto.FileQueryRequest;
+import com.bluewhale.file.dto.FileRapidUploadRequest;
 import com.bluewhale.file.entity.FileInfo;
 import com.bluewhale.file.mapper.FileInfoMapper;
 import com.bluewhale.file.storage.FileStorage;
 import com.bluewhale.file.vo.ChunkUploadInitVO;
 import com.bluewhale.file.vo.FileInfoVO;
 import com.bluewhale.file.vo.FilePresignedVO;
+import com.bluewhale.file.vo.FileQuotaVO;
+import com.bluewhale.file.vo.FileRapidUploadVO;
 import com.bluewhale.file.vo.FileUploadVO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -132,6 +135,44 @@ class FileInfoServiceImplTest {
         request.setContentType("video/mp4");
         request.setSize(size);
         return request;
+    }
+
+    /**
+     * 构造秒传请求。
+     *
+     * @param fileName 原始文件名
+     * @param md5 文件 MD5
+     * @param size 文件字节数
+     * @param contentType MIME 类型，可为 {@code null}
+     * @return 秒传请求
+     */
+    private static FileRapidUploadRequest rapidRequest(String fileName, String md5, long size, String contentType) {
+        FileRapidUploadRequest request = new FileRapidUploadRequest();
+        request.setFileName(fileName);
+        request.setMd5(md5);
+        request.setSize(size);
+        request.setContentType(contentType);
+        return request;
+    }
+
+    /**
+     * 构造命中的既有文件记录。
+     *
+     * @param size 文件字节数
+     * @return 文件实体
+     */
+    private static FileInfo existingFile(long size) {
+        FileInfo existing = new FileInfo();
+        existing.setId(11L);
+        existing.setFileName("stored.pdf");
+        existing.setOriginalName("origin.pdf");
+        existing.setBucket("bluewhale");
+        existing.setObjectKey("2026/10/19/stored.pdf");
+        existing.setFileSize(size);
+        existing.setContentType("application/pdf");
+        existing.setMd5("d41d8cd98f00b204e9800998ecf8427e");
+        existing.setStatus(1);
+        return existing;
     }
 
     @Test
@@ -379,5 +420,184 @@ class FileInfoServiceImplTest {
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertTrue(ex.getMessage().contains("分片总大小与声明大小不一致"));
+    }
+
+    @Test
+    @DisplayName("rapidUpload：命中已有对象时复用 bucket/objectKey 仅登记新元数据，不写存储")
+    void shouldRapidUploadHitWithoutStoring() {
+        when(fileInfoMapper.selectOne(ArgumentMatchers.<Wrapper<FileInfo>>any())).thenReturn(existingFile(123L));
+
+        FileRapidUploadVO vo = fileInfoService.rapidUpload(
+                rapidRequest("copy.pdf", "D41D8CD98F00B204E9800998ECF8427E", 123L, null), UPLOADER_ID);
+
+        assertTrue(vo.isHit());
+        assertNotNull(vo.getFile());
+        assertEquals("bluewhale", vo.getFile().getBucket());
+        assertEquals("2026/10/19/stored.pdf", vo.getFile().getObjectKey());
+        assertEquals("copy.pdf", vo.getFile().getOriginalName());
+        assertEquals("application/pdf", vo.getFile().getContentType());
+        assertEquals(Long.valueOf(123L), vo.getFile().getFileSize());
+        ArgumentCaptor<FileInfo> captor = ArgumentCaptor.forClass(FileInfo.class);
+        verify(fileInfoMapper).insert(captor.capture());
+        assertEquals("2026/10/19/stored.pdf", captor.getValue().getObjectKey());
+        assertEquals("d41d8cd98f00b204e9800998ecf8427e", captor.getValue().getMd5());
+        assertEquals(UPLOADER_ID, captor.getValue().getUploaderId());
+        verify(fileStorage, never()).store(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("rapidUpload：未命中时返回 hit=false 且不落库、不占配额")
+    void shouldRapidUploadMissWithoutPersisting() {
+        when(fileInfoMapper.selectOne(ArgumentMatchers.<Wrapper<FileInfo>>any())).thenReturn(null);
+
+        FileRapidUploadVO vo = fileInfoService.rapidUpload(
+                rapidRequest("copy.pdf", "d41d8cd98f00b204e9800998ecf8427e", 123L, "application/pdf"), UPLOADER_ID);
+
+        assertFalse(vo.isHit());
+        verify(fileInfoMapper, never()).insert(any(FileInfo.class));
+        verify(fileInfoMapper, never()).selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any());
+        verify(fileStorage, never()).store(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("rapidUpload：命中但配额不足时抛参数错误且不落库")
+    void shouldRejectRapidUploadWhenQuotaExceeded() {
+        fileProperties.setQuotaBytes(1000L);
+        when(fileInfoMapper.selectOne(ArgumentMatchers.<Wrapper<FileInfo>>any())).thenReturn(existingFile(500L));
+        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any())).thenReturn(List.of(800L));
+
+        BizException ex = assertThrows(BizException.class, () -> fileInfoService.rapidUpload(
+                rapidRequest("copy.pdf", "d41d8cd98f00b204e9800998ecf8427e", 500L, null), UPLOADER_ID));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        assertTrue(ex.getMessage().contains("超出个人存储配额"));
+        verify(fileInfoMapper, never()).insert(any(FileInfo.class));
+    }
+
+    @Test
+    @DisplayName("upload：配额不足时抛参数错误且不写存储")
+    void shouldRejectUploadWhenQuotaExceeded() throws IOException {
+        fileProperties.setQuotaBytes(1000L);
+        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any())).thenReturn(List.of(990L));
+        MultipartFile file = multipartFile(new byte[20], "big.bin");
+
+        BizException ex = assertThrows(BizException.class, () -> fileInfoService.upload(file, null, UPLOADER_ID));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        assertTrue(ex.getMessage().contains("超出个人存储配额"));
+        verify(fileStorage, never()).store(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("upload：配额为 0 表示不限，上传成功且不查询用量")
+    void shouldUploadWhenQuotaUnlimited() throws IOException {
+        fileProperties.setQuotaBytes(0L);
+        MultipartFile file = multipartFile("unlimited".getBytes(StandardCharsets.UTF_8), "a.txt");
+
+        FileUploadVO vo = fileInfoService.upload(file, null, UPLOADER_ID);
+
+        assertEquals("a.txt", vo.getOriginalName());
+        verify(fileInfoMapper, never()).selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any());
+    }
+
+    @Test
+    @DisplayName("quota：返回已用量与剩余量")
+    void shouldReturnQuotaUsage() {
+        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any())).thenReturn(List.of(123L));
+
+        FileQuotaVO vo = fileInfoService.quota(UPLOADER_ID);
+
+        assertEquals(123L, vo.getUsedBytes());
+        assertEquals(fileProperties.getQuotaBytes(), vo.getQuotaBytes());
+        assertEquals(fileProperties.getQuotaBytes() - 123L, vo.getRemainingBytes());
+        assertFalse(vo.isUnlimited());
+    }
+
+    @Test
+    @DisplayName("quota：无用户态时返回不限配额且不查库")
+    void shouldReturnUnlimitedQuotaWithoutUser() {
+        FileQuotaVO vo = fileInfoService.quota(null);
+
+        assertTrue(vo.isUnlimited());
+        assertEquals(0L, vo.getUsedBytes());
+        assertEquals(0L, vo.getRemainingBytes());
+        verify(fileInfoMapper, never()).selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any());
+    }
+
+    @Test
+    @DisplayName("quota：配额配置为 0 时返回不限且不查库")
+    void shouldReturnUnlimitedQuotaWhenConfiguredUnlimited() {
+        fileProperties.setQuotaBytes(0L);
+
+        FileQuotaVO vo = fileInfoService.quota(UPLOADER_ID);
+
+        assertTrue(vo.isUnlimited());
+        assertEquals(0L, vo.getQuotaBytes());
+        verify(fileInfoMapper, never()).selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any());
+    }
+
+    @Test
+    @DisplayName("quota：聚合结果为空时已用量返回 0")
+    void shouldReturnZeroUsageWhenNoRecords() {
+        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any())).thenReturn(List.of());
+
+        FileQuotaVO vo = fileInfoService.quota(UPLOADER_ID);
+
+        assertEquals(0L, vo.getUsedBytes());
+        assertEquals(fileProperties.getQuotaBytes(), vo.getRemainingBytes());
+        assertFalse(vo.isUnlimited());
+    }
+
+    @Test
+    @DisplayName("quota：聚合结果兼容字符串类型")
+    void shouldParseStringUsage() {
+        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any())).thenReturn(List.of("456"));
+
+        FileQuotaVO vo = fileInfoService.quota(UPLOADER_ID);
+
+        assertEquals(456L, vo.getUsedBytes());
+        assertEquals(fileProperties.getQuotaBytes() - 456L, vo.getRemainingBytes());
+    }
+
+    @Test
+    @DisplayName("quota：聚合查询异常时抛系统错误")
+    void shouldThrowSystemErrorWhenUsageQueryFails() {
+        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any()))
+                .thenThrow(new IllegalStateException("db down"));
+
+        BizException ex = assertThrows(BizException.class, () -> fileInfoService.quota(UPLOADER_ID));
+
+        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("upload：用量恰好达到配额上限时仍允许上传")
+    void shouldAllowUploadAtQuotaBoundary() throws IOException {
+        fileProperties.setQuotaBytes(1000L);
+        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any())).thenReturn(List.of(980L));
+        MultipartFile file = multipartFile(new byte[20], "edge.bin");
+
+        FileUploadVO vo = fileInfoService.upload(file, null, UPLOADER_ID);
+
+        assertEquals(20L, vo.getFileSize());
+        verify(fileStorage).store(eq("bluewhale"), anyString(), any(InputStream.class));
+    }
+
+    @Test
+    @DisplayName("分片上传：配额不足时 complete 抛参数错误且不写存储")
+    void shouldRejectChunkUploadWhenQuotaExceeded() {
+        fileProperties.setQuotaBytes(1000L);
+        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any())).thenReturn(List.of(990L));
+        ChunkUploadCompleteRequest complete = new ChunkUploadCompleteRequest();
+        complete.setUploadId("00000000-0000-0000-0000-000000000000");
+        complete.setFileName("video.bin");
+        complete.setSize(20L);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> fileInfoService.completeChunkUpload(complete, UPLOADER_ID));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        assertTrue(ex.getMessage().contains("超出个人存储配额"));
+        verify(fileStorage, never()).store(any(), any(), any());
     }
 }

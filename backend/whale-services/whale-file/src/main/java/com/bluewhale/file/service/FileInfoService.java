@@ -4,9 +4,12 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.file.dto.ChunkUploadCompleteRequest;
 import com.bluewhale.file.dto.ChunkUploadInitRequest;
 import com.bluewhale.file.dto.FileQueryRequest;
+import com.bluewhale.file.dto.FileRapidUploadRequest;
 import com.bluewhale.file.vo.ChunkUploadInitVO;
 import com.bluewhale.file.vo.FileInfoVO;
 import com.bluewhale.file.vo.FilePresignedVO;
+import com.bluewhale.file.vo.FileQuotaVO;
+import com.bluewhale.file.vo.FileRapidUploadVO;
 import com.bluewhale.file.vo.FileUploadVO;
 import org.springframework.core.io.Resource;
 import org.springframework.web.multipart.MultipartFile;
@@ -29,6 +32,23 @@ public interface FileInfoService {
      * @return 上传结果视图对象
      */
     FileUploadVO upload(MultipartFile file, String bucket, Long uploaderId);
+
+    /**
+     * 秒传（哈希去重）：按 MD5 + 大小匹配已有物理对象，命中时仅登记新元数据、不复制物理对象
+     *
+     * @param request 秒传请求（文件名、MD5、大小、可选 MIME 类型）
+     * @param uploaderId 上传用户 ID；无登录态时可为 {@code null}
+     * @return 秒传结果：命中时 {@code hit=true} 且携带新登记的文件元数据，未命中时 {@code hit=false}
+     */
+    FileRapidUploadVO rapidUpload(FileRapidUploadRequest request, Long uploaderId);
+
+    /**
+     * 查询个人存储配额与用量
+     *
+     * @param uploaderId 上传用户 ID；为 {@code null} 时返回不限配额
+     * @return 配额视图对象
+     */
+    FileQuotaVO quota(Long uploaderId);
 
     /**
      * 分页查询文件元数据

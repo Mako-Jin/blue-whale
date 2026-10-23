@@ -1,6 +1,7 @@
 package com.bluewhale.file.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -9,6 +10,7 @@ import com.bluewhale.file.config.FileProperties;
 import com.bluewhale.file.dto.ChunkUploadCompleteRequest;
 import com.bluewhale.file.dto.ChunkUploadInitRequest;
 import com.bluewhale.file.dto.FileQueryRequest;
+import com.bluewhale.file.dto.FileRapidUploadRequest;
 import com.bluewhale.file.entity.FileInfo;
 import com.bluewhale.file.mapper.FileInfoMapper;
 import com.bluewhale.file.service.FileInfoService;
@@ -16,6 +18,8 @@ import com.bluewhale.file.storage.FileStorage;
 import com.bluewhale.file.vo.ChunkUploadInitVO;
 import com.bluewhale.file.vo.FileInfoVO;
 import com.bluewhale.file.vo.FilePresignedVO;
+import com.bluewhale.file.vo.FileQuotaVO;
+import com.bluewhale.file.vo.FileRapidUploadVO;
 import com.bluewhale.file.vo.FileUploadVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
@@ -40,6 +44,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.stream.IntStream;
@@ -109,9 +114,63 @@ public class FileInfoServiceImpl implements FileInfoService {
         if (file.getSize() > fileProperties.getMaxSizeBytes()) {
             throw new BizException(ErrorCode.PARAM_ERROR);
         }
+        validateQuota(file.getSize(), uploaderId);
         byte[] bytes = readBytes(file);
         return persistFile(new ByteArrayInputStream(bytes), file.getOriginalFilename(), file.getContentType(),
                 bytes.length, DigestUtils.md5DigestAsHex(bytes), bucket, uploaderId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public FileRapidUploadVO rapidUpload(FileRapidUploadRequest request, Long uploaderId) {
+        validateDeclaredSize(request.getSize());
+        String md5 = request.getMd5().toLowerCase(Locale.ROOT);
+        LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FileInfo::getMd5, md5)
+                .eq(FileInfo::getFileSize, request.getSize())
+                .eq(FileInfo::getStatus, STATUS_NORMAL)
+                .orderByAsc(FileInfo::getId)
+                .last("LIMIT 1");
+        FileInfo existing = fileInfoMapper.selectOne(wrapper);
+        FileRapidUploadVO vo = new FileRapidUploadVO();
+        if (existing == null) {
+            vo.setHit(false);
+            return vo;
+        }
+        validateQuota(request.getSize(), uploaderId);
+        FileInfo entity = new FileInfo();
+        entity.setFileName(existing.getFileName());
+        entity.setOriginalName(resolveOriginalName(request.getFileName()));
+        entity.setBucket(existing.getBucket());
+        entity.setObjectKey(existing.getObjectKey());
+        entity.setFileSize(existing.getFileSize());
+        entity.setContentType(StringUtils.hasText(request.getContentType())
+                ? request.getContentType() : existing.getContentType());
+        entity.setMd5(existing.getMd5());
+        entity.setStatus(STATUS_NORMAL);
+        entity.setUploaderId(uploaderId);
+        fileInfoMapper.insert(entity);
+        vo.setHit(true);
+        vo.setFile(toUploadVo(entity));
+        return vo;
+    }
+
+    @Override
+    public FileQuotaVO quota(Long uploaderId) {
+        FileQuotaVO vo = new FileQuotaVO();
+        long quota = fileProperties.getQuotaBytes();
+        vo.setQuotaBytes(quota);
+        if (uploaderId == null || quota <= 0) {
+            vo.setUsedBytes(0L);
+            vo.setRemainingBytes(0L);
+            vo.setUnlimited(true);
+            return vo;
+        }
+        long used = sumUsedBytes(uploaderId);
+        vo.setUsedBytes(used);
+        vo.setRemainingBytes(Math.max(quota - used, 0L));
+        vo.setUnlimited(false);
+        return vo;
     }
 
     @Override
@@ -207,6 +266,7 @@ public class FileInfoServiceImpl implements FileInfoService {
     public FileUploadVO completeChunkUpload(ChunkUploadCompleteRequest request, Long uploaderId) {
         long size = request.getSize();
         validateDeclaredSize(size);
+        validateQuota(size, uploaderId);
         Path dir = requireChunkDir(request.getUploadId());
         int expectedCount = expectedChunkCount(size);
         List<Integer> uploaded = listUploadedIndexes(dir);
@@ -318,6 +378,69 @@ public class FileInfoServiceImpl implements FileInfoService {
         if (size > fileProperties.getMaxSizeBytes()) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "文件大小超出上限");
         }
+    }
+
+    /**
+     * 校验个人存储配额：不限配额或无用户态时直接放行，否则拒绝超出配额的写入
+     *
+     * @param incomingSize 本次拟写入的字节数
+     * @param uploaderId 上传用户 ID；无登录态时为 {@code null}
+     * @throws BizException 超出个人存储配额时抛出 {@code PARAM_ERROR}
+     */
+    private void validateQuota(long incomingSize, Long uploaderId) {
+        long quota = fileProperties.getQuotaBytes();
+        if (quota <= 0 || uploaderId == null) {
+            return;
+        }
+        long used = sumUsedBytes(uploaderId);
+        if (used + incomingSize > quota) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "超出个人存储配额");
+        }
+    }
+
+    /**
+     * 统计指定用户已用存储字节数（仅统计状态正常且未逻辑删除的文件）
+     *
+     * @param uploaderId 上传用户 ID
+     * @return 已用字节数；无记录时返回 0
+     * @throws BizException 查询失败时抛出 {@code SYSTEM_ERROR}
+     */
+    private long sumUsedBytes(Long uploaderId) {
+        QueryWrapper<FileInfo> wrapper = new QueryWrapper<>();
+        wrapper.select("COALESCE(SUM(file_size), 0) AS total")
+                .eq("uploader_id", uploaderId)
+                .eq("status", STATUS_NORMAL);
+        List<Object> values;
+        try {
+            values = fileInfoMapper.selectObjs(wrapper);
+        } catch (RuntimeException e) {
+            throw new BizException(ErrorCode.SYSTEM_ERROR);
+        }
+        if (values == null || values.isEmpty() || values.get(0) == null) {
+            return 0L;
+        }
+        return toBytes(values.get(0));
+    }
+
+    /**
+     * 将聚合查询结果转换为字节数，兼容数值与字符串两种驱动返回类型
+     *
+     * @param value 聚合查询首列值
+     * @return 字节数
+     * @throws BizException 无法解析时抛出 {@code SYSTEM_ERROR}
+     */
+    private static long toBytes(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value instanceof CharSequence text) {
+            try {
+                return Long.parseLong(text.toString().trim());
+            } catch (NumberFormatException e) {
+                throw new BizException(ErrorCode.SYSTEM_ERROR);
+            }
+        }
+        throw new BizException(ErrorCode.SYSTEM_ERROR);
     }
 
     /**

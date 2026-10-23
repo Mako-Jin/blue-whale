@@ -24,6 +24,9 @@ public class FileProperties {
     /** 分片上传分片大小，默认 5242880（即 5MB） */
     private long chunkSizeBytes = 5242880L;
 
+    /** 单用户存储配额字节数，默认 1073741824（即 1GB）；{@code <=0} 表示不限 */
+    private long quotaBytes = 1073741824L;
+
     /**
      * 本地存储配置项。
      *
