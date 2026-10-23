@@ -40,6 +40,23 @@
             <artifactId>whale-tools</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!--
+          本地文案管理接口可选的平台依赖：Result/PageResult/AuditLog 来自 starter，
+          RequirePermission 来自 auth-sdk。均标记 optional，不向下游传递，
+          接入服务本身已依赖这些构件；缺失时自动配置按条件跳过。
+        -->
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-spring-boot-starter</artifactId>
+            <version>${project.version}</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-auth-sdk</artifactId>
+            <version>${project.version}</version>
+            <optional>true</optional>
+        </dependency>
         <!-- 测试 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

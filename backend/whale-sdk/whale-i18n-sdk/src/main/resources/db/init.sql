@@ -1,13 +1,15 @@
 -- =====================================================================
 -- BlueWhale 微服务平台 - 国际化 SDK（whale-i18n-sdk）数据库初始化脚本
 -- =====================================================================
--- 建议库名   : bluewhale_i18n
+-- 建议库名   : 各服务自己的业务库（Wave 5.50 起不再集中建库，SDK 启动自动建表）
+-- 说明       : 本脚本为「手工预建表」备选；默认 auto-init=true 时由
+--              db/i18n/mysql/sys_i18n_message.sql 在服务启动时幂等创建
 -- 数据库版本 : MySQL 8.0+
 -- 字符集     : utf8mb4，排序规则 utf8mb4_general_ci（完整支持多语言字符与 emoji）
 -- 存储引擎   : InnoDB
 -- 公共字段   : id BIGINT（雪花算法生成）、create_time、update_time、
 --              deleted TINYINT（逻辑删除：0 未删除 / 1 已删除）
--- 说明       : 本表供 I18nDatabaseProvider SPI 实现读取，
+-- 用途       : 本表供 I18nDatabaseProvider SPI 实现读取，
 --              按 (message_key, locale) 定位唯一一条文案
 -- =====================================================================
 

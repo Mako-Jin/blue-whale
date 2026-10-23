@@ -41,11 +41,6 @@ CREATE DATABASE IF NOT EXISTS bluewhale_audit
   DEFAULT CHARACTER SET utf8mb4
   DEFAULT COLLATE utf8mb4_unicode_ci;
 
--- ---- 国际化 ----
-CREATE DATABASE IF NOT EXISTS bluewhale_i18n
-  DEFAULT CHARACTER SET utf8mb4
-  DEFAULT COLLATE utf8mb4_unicode_ci;
-
 -- ---- 支付 ----
 CREATE DATABASE IF NOT EXISTS bluewhale_pay
   DEFAULT CHARACTER SET utf8mb4

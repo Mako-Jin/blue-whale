@@ -47,7 +47,7 @@
 | **common** | whale-tools | 通用工具包 |
 | | whale-security | 加密算法、JWT |
 | | whale-spring-boot-starter | 自动配置 Starter |
-| **sdk** | whale-i18n-sdk | 国际化（数据库 > 属性文件 > 默认值） |
+| **sdk** | whale-i18n-sdk | 国际化（数据库 > 属性文件 > 默认值）；随服务启动自动建 `sys_i18n_message`，各服务自持 `i18n/<模块>/messages*.properties`，本地管理接口按服务开关 |
 | | whale-auth-sdk | 认证鉴权 SDK |
 | **services** | whale-auth | 权限中心（RBAC + ABAC 六层级） |
 | | whale-gateway | API 网关 |

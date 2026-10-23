@@ -86,7 +86,7 @@
 | REQ-FUNC-002 | whale-auth 权限中心（RBAC + ABAC 六层级） | 已完成（API 齐备 + 31 处权限注解 + 菜单接口；admin 前端已对接，Wave 5.17/5.18） | roadmap Phase 2.1 |
 | REQ-FUNC-003 | whale-gateway 网关（动态路由 + JWT 鉴权 + TraceId） | 已完成（限流 + resilience4j 熔断 + 动态路由治理 + 内网屏蔽闭环；Sentinel 经评估**不引入**，Wave 5.35） | roadmap Phase 2.2 |
 | REQ-FUNC-004 | whale-common 公共组件（Result / 异常 / 分页 / 自动填充） | 已完成 | roadmap Phase 2.3 |
-| REQ-FUNC-005 | whale-i18n 国际化（三级回退 + Redis 缓存） | 已完成（消息 CRUD 接口已落地，Wave 5.33：whale-i18n 服务 8087） | roadmap Phase 2.4 |
+| REQ-FUNC-005 | whale-i18n 国际化（三级回退 + Redis 缓存） | 已完成（Wave 5.50 改为 SDK 自治：随各服务启动自动建 `sys_i18n_message`、自持 `i18n/<模块>` 文案，本地 CRUD 按服务开关；集中服务 `whale-i18n` 已删除） | roadmap Phase 2.4 |
 | REQ-FUNC-006 | 其余服务骨架填充（job / workflow / form / file / pay / audit / monitor / alert / i18n） | 已完成（Wave 5.19–5.33 全部填充；**不含** erp/mes/pdm/oa 业务应用，另列 Phase 4） | roadmap Phase 2.5；[wave5.46 规划](../plans/wave5.46-phase4-business-apps.md) |
 | REQ-FUNC-007 | 前端基座（登录 + 路由守卫 + 主布局 + 主题） | 已完成 | roadmap Phase 3.1 |
 | REQ-FUNC-008 | whale-ui 组件库（ProTable / FormModal / SearchForm） | 已完成（Wave 5.18；含 PermissionProvider / AuthButton / FormRenderer） | roadmap Phase 3.2 |

@@ -45,6 +45,7 @@
 - [x] ~~三级优先级实现：数据库 > 属性文件 > 默认值~~
 - [x] ~~Redis 缓存（+SPI 数据源实现，14 个单测全绿）~~
 - [x] ~~消息 CRUD 接口~~（Wave 5.33 ①：新建服务 `whale-i18n`（8087，`/i18n/**`，`bluewhale_i18n`），复用 SDK 实体/Mapper/缓存清理；`/i18n/message` 5 端点 + 权限种子 id 60–63 + 网关路由；9 单测 + 全量回归 271 测试全绿；直连冒烟 10/10 + 网关冒烟 3/3 PASS）
+- [x] ~~国际化下沉为 SDK 自治（取消集中服务）~~（Wave 5.50：SDK 启动时在**各服务自己的库**幂等建 `sys_i18n_message`，扫描 `classpath*:i18n/**/messages.properties` 自动注册 basename，新增按服务默认关闭的本地文案 CRUD〔`whale.i18n.admin`〕；试点 `whale-auth`（开启，`/auth/i18n/message`）与 `whale-file`（关闭）；**删除** `whale-i18n` 模块/路由/`bluewhale_i18n` 库/前端 `/i18n-demo`；SDK **31 用例全绿**，auth/file 启动自动建表 + 网关 CRUD 冒烟通过；见 [devlog §二十](../devlog/2026-10-23.md) 与 [wave5.50](../plans/wave5.50-i18n-starter/spec.md)）
 
 ### 2.5 其余服务骨架填充
 

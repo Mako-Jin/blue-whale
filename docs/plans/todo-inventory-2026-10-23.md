@@ -17,7 +17,7 @@
 | 5 | whale-form | 8084 | 可用 | ① 字段级索引自动优化未做（Wave 5.27 起遗留）② 表单 ↔ 工作流联动需端到端验收（发起入口已接 `formId`，缺跨模块回归用例） |
 | 6 | whale-file | 8085 | 可用 | 无（Wave 5.49：存储插件化，`local`/`minio` 插件可切换，MinIO 自动建桶已解锁 job/audit 归档；见 [devlog §十九](../devlog/2026-10-23.md)） |
 | 7 | whale-pay | 8086 | 最小实现 | 仅订单 CRUD + 支付/取消占位动作；无真实支付渠道、对账、退款 |
-| 8 | whale-i18n | 8087 | 可用 | 无（前端「国际化演示」仍是基座占位页） |
+| — | ~~whale-i18n~~ | ~~8087~~ | **已删除** | Wave 5.50：国际化下沉 `whale-i18n-sdk`（各服务库自建 `sys_i18n_message`、自持文案），服务/路由/`bluewhale_i18n` 库已移除 |
 | 9 | whale-agent | 8090 | 可用 | 问答 / 事实层 / MCP 已闭环；服务目录事实重建的耗时约束（<5s）无持续回归 |
 | 10 | whale-audit | 9101 | 可用 | 已闭环（HTTP + MQ 双通道）；RabbitMQ 管理插件未启用，死信队列无法从控制台重放 |
 | 11 | whale-monitor | 9102 | 最小实现 | 仅 `/monitor/service` 服务列表；**未接入 Prometheus 抓取/存储**（与 ops 前端同源缺口） |
@@ -36,7 +36,7 @@
 
 | # | 应用 | 端口 | 现状 | 待办 |
 |---|---|---|---|---|
-| 1 | whale-platform（qiankun 基座） | 8000 | 可用 | ① 4 个 `PlaceholderPage` 收口：用户/角色/菜单管理、国际化演示 ② qiankun 已注册 `erp/oa/mes/pdm` 四子应用，但基座路由只挂载 `portal/erp/oa`，**缺 `/mes/*`、`/pdm/*` 挂载点** |
+| 1 | whale-platform（qiankun 基座） | 8000 | 可用 | ① 3 个 `PlaceholderPage` 收口：用户/角色/菜单管理（国际化演示页已于 Wave 5.50 随集中服务删除） ② qiankun 已注册 `erp/oa/mes/pdm` 四子应用，但基座路由只挂载 `portal/erp/oa`，**缺 `/mes/*`、`/pdm/*` 挂载点** |
 | 2 | whale-admin | 8001 | 可用 | ① 动态路由仍是静态注册（`dynamicRoutes.tsx` 未配置时显示「页面未配置」兜底）② 角色/菜单删除与「角色分配」交互未逐项复验 ③ 无表单/工作流/审计页面（分别由独立应用承担） |
 | 3 | whale-ops | 8104 | 可用 | Monitor 页数据来自 `/monitor/service`；**Prometheus/Grafana 对接未做**，告警页无通知渠道展示 |
 | 4 | whale-portal | 8101 | 最小实现 | ① Dashboard 3 个统计写死 0（进行中流程 / 未读通知 / 系统服务数）② 「我的待办」的「去处理」为占位（未跳 `/workflow/task/{id}`）③ 通知中心为静态 mock（`MOCK_NOTICES`） |
@@ -70,7 +70,7 @@
 1. **Phase 4 轨 A–F**：`whale-apps/*` 选一个域（建议 OA 请假）打通「DDL → 端点 → 权限种子 → 网关路由 → 前端页面」真实闭环，避免四个空壳同时扩张。
 2. **网关补 5 条路由** + 基座补 `/mes/*`、`/pdm/*` 挂载点（各 1 处配置，收益立竿见影）。
 3. **whale-portal 三处占位收口**（Dashboard 统计 / 待办跳转 / 通知中心）——直接决定门户可用性。
-4. **基座 4 个 PlaceholderPage 收口**（用户/角色/菜单/国际化），可与 admin 页面复用。
+4. **基座 3 个 PlaceholderPage 收口**（用户/角色/菜单），可与 admin 页面复用。
 5. ✅ **~~whale-file 接对象存储（S3/MinIO）+ 解锁 job/audit 归档~~**（已完成，Wave 5.49：插件化 `local`/`minio` + 自动建桶；见 [devlog §十九](../devlog/2026-10-23.md)）。
 6. **whale-alert 通知渠道**（至少邮件 + Webhook）与 **whale-monitor Prometheus 接入**，补齐运维闭环。
 7. **T-CI-7 镜像扩面 + coverage-gate 接 CI**，把已就绪的 Dockerfile 模板铺到全部服务。

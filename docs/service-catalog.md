@@ -28,7 +28,6 @@
 | 5 | `whale-form` | whale-services | `whale-services/whale-form` | **8084** | `/form/**` | ✅ `lb://whale-form` | **`bluewhale_form`**（已建库） | `WhaleFormApplication` | 动态表单 | 可启动 |
 | 6 | `whale-file` | whale-services | `whale-services/whale-file` | **8085** | `/file/**` | ✅ `lb://whale-file` | **`bluewhale_file`**（已建库） | `WhaleFileApplication` | 文件上传下载、附件管理 | 可启动 |
 | 7 | `whale-pay` | whale-services | `whale-services/whale-pay` | **8086** | `/pay/**` | ✅ `lb://whale-pay` | **`bluewhale_pay`**（已建库） | `WhalePayApplication` | 支付与结算 | 可启动 |
-| 7.1 | `whale-i18n` | whale-services | `whale-services/whale-i18n` | **8087** | `/i18n/**` | ✅ `lb://whale-i18n` | **`bluewhale_i18n`**（`sys_i18n_message`，已建） | `WhaleI18nApplication` | 国际化消息 CRUD（复用 whale-i18n-sdk） | 可启动 |
 | 8 | `whale-erp` | whale-apps | `whale-apps/whale-erp` | **9001** | `/erp/**` | ❌ **未配路由** | `bluewhale_erp`（**规划，未建库**） | `WhaleErpApplication` | ERP 业务应用 | 可启动 |
 | 9 | `whale-mes` | whale-apps | `whale-apps/whale-mes` | **9002** | `/mes/**` | ❌ **未配路由** | `bluewhale_mes`（**规划，未建库**） | `WhaleMesApplication` | MES 制造执行 | 可启动 |
 | 10 | `whale-pdm` | whale-apps | `whale-apps/whale-pdm` | **9003** | `/pdm/**` | ❌ **未配路由** | `bluewhale_pdm`（**规划，未建库**） | `WhalePdmApplication` | PDM 产品数据管理 | 可启动 |
@@ -54,7 +53,6 @@
 | `whale-form` | `Path=/form/**` | `lb://whale-form` | whale-form | ✅ 已配 |
 | `whale-file` | `Path=/file/**` | `lb://whale-file` | whale-file | ✅ 已配 |
 | `whale-pay` | `Path=/pay/**` | `lb://whale-pay` | whale-pay | ✅ 已配 |
-| `whale-i18n` | `Path=/i18n/**` | `lb://whale-i18n` | whale-i18n | ✅ 已配（Wave 5.33） |
 | `whale-alert` | `Path=/alert/**` | `lb://whale-alert` | whale-alert | ✅ 已配（Wave 5.33） |
 | `whale-monitor` | `Path=/monitor/**` | `lb://whale-monitor` | whale-monitor | ✅ 已配 |
 | `whale-audit` | `Path=/audit/**` | `lb://whale-audit` | whale-audit | ✅ 已配 |
@@ -125,7 +123,6 @@
 | **8084** | `whale-form` | 后端 | 动态表单 |
 | **8085** | `whale-file` | 后端 | 文件服务 |
 | **8086** | `whale-pay` | 后端 | 支付 |
-| **8087** | `whale-i18n` | 后端 | 国际化消息（Wave 5.33 新增） |
 | **8101** | `whale-portal` | 前端（子应用） | base `/portal` |
 | **8102** | `whale-erp` | 前端（子应用） | base `/erp` |
 | **8103** | `whale-oa` | 前端（子应用） | base `/oa` |
@@ -170,7 +167,7 @@
 | **3306 / 6379 / 5672 / 15672** | MySQL / Redis / RabbitMQ | 3306、6379 已运行；5672/15672 未运行 |
 | **8000–8099** | **前端 dev server**：基座 `8000`、admin `8001`、form-designer `8002`、workflow-designer `8003`、agent `8004` | 已落地（C-01 已解） |
 | **8080** | **网关（唯一后端入口）** | 已运行 |
-| **8081–8099** | **核心服务** | auth 8081、job 8082、workflow 8083、form 8084、file 8085、pay 8086、i18n 8087 |
+| **8081–8099** | **核心服务** | auth 8081、job 8082、workflow 8083、form 8084、file 8085、pay 8086（8087 已随 `whale-i18n` 服务删除释放，Wave 5.50） |
 | **8101–8199** | **qiankun 子应用 + 运维端** | portal 8101、erp 8102、oa 8103、ops 8104、mes 8105、pdm 8106 |
 | **8848 / 8849 / 9848 / 9849** | **Nacos** | 已运行 |
 | **9001–9099** | **业务应用** | erp 9001、mes 9002、pdm 9003、oa 9004 |
@@ -183,7 +180,7 @@
 
 | 变量 | 作用 | 默认 | 使用方 |
 |---|---|---|---|
-| `SERVER_PORT` | 服务端口 | 见 §一 | 网关/审计/job/workflow/form/file/pay/i18n/monitor/alert/erp/mes/pdm/oa/config（`whale-auth` 仍硬编码 8081，见 C-02） |
+| `SERVER_PORT` | 服务端口 | 见 §一 | 网关/审计/job/workflow/form/file/pay/monitor/alert/erp/mes/pdm/oa/config（`whale-auth` 仍硬编码 8081，见 C-02） |
 | `NACOS_ADDR` / `NACOS_SERVER` | 注册中心地址 | `127.0.0.1:8848` | 全部服务（网关用 `NACOS_ADDR`，其余用 `NACOS_SERVER`） |
 | `NACOS_NAMESPACE` | 命名空间 | `public` | 全部服务 |
 | `REDIS_HOST` / `REDIS_PORT` | Redis | `127.0.0.1` / `6379` | whale-gateway、whale-auth |
@@ -205,7 +202,7 @@
 | **C-03** | `whale-gateway` **缺 5 条路由**：`/erp/**`、`/mes/**`、`/pdm/**`、`/oa/**`、`/config/**`；~~`/alert/**` 缺路由~~ → **✅ 已解（Wave 5.33）**；~~`/auth/**` 未覆盖用户/部门/角色/菜单/权限管理接口（AUTH-38）~~ → **✅ 已解（Wave 5.2）**：`whale-auth` 路由 `Path` 扩为 `/auth,/user,/dept,/role,/menu,/permission` | **P1** | 余下 5 条待随 Phase 4 业务应用实现补齐（见 [wave5.46-phase4-business-apps.md](plans/wave5.46-phase4-business-apps.md)），逐条冒烟 |
 | **C-04** | Nacos 版本/端口不一致：本机 3.2.4（控制台 8849）vs compose 镜像 2.3.2（控制台 8848） | P2 | 统一 compose 镜像至 3.x 并同步端口、健康检查（`/nacos/actuator/health/liveness`） |
 | **C-05** | 注册中心环境变量名分裂：网关 `NACOS_ADDR` vs 其余 `NACOS_SERVER` | P3 | 统一为 `NACOS_SERVER`（保留 `NACOS_ADDR` 兼容期），登记后批量替换 |
-| **C-06** | ~~8 个业务服务库在规范 §八 已登记库名，但 `application.yml` **均未配数据源**、库亦未建~~ | **已解（部分）** | **✅ 已整改**：auth/audit/job/workflow/form/file/pay/i18n/alert 共 9 个服务均已配数据源并建库；**剩余** `erp/mes/pdm/oa` 四个业务应用尚未配数据源、未建库（随 Phase 4 落地） |
+| **C-06** | ~~8 个业务服务库在规范 §八 已登记库名，但 `application.yml` **均未配数据源**、库亦未建~~ | **已解（部分）** | **✅ 已整改**：auth/audit/job/workflow/form/file/pay/alert 共 8 个服务均已配数据源并建库（原 `whale-i18n` 服务及 `bluewhale_i18n` 库已于 Wave 5.50 删除，国际化改由 SDK 在各服务库内自建 `sys_i18n_message`）；**剩余** `erp/mes/pdm/oa` 四个业务应用尚未配数据源、未建库（随 Phase 4 落地） |
 | **C-07** | Prometheus/Grafana/Sentinel 仅在文档中「规划」，compose 未定义、网关未接 Sentinel | P3 | 待监控需求明确后补 compose 服务与端口登记 |
 
 > 说明：C-04 中 Nacos 版本以**本机实装为准**（历史记录存在 2.4.0 / 3.2.4 两种口径），整改前须先 `nacos/bin/startup.cmd -v` 或读 `conf/application.properties` 核实。

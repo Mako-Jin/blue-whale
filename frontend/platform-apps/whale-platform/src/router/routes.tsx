@@ -37,13 +37,6 @@ export const routes = [
       { path: 'system/users', element: <PlaceholderPage title="用户管理" /> },
       { path: 'system/roles', element: <PlaceholderPage title="角色管理" /> },
       { path: 'system/menus', element: <PlaceholderPage title="菜单管理" /> },
-      // 国际化演示 - 占位页
-      {
-        path: 'i18n-demo',
-        element: (
-          <PlaceholderPage title="国际化演示" description="多语言能力演示入口，功能规划中" />
-        ),
-      },
       // 子应用路由 - qiankun 根据 activeRule 激活
       { path: 'portal/*', element: <SubAppContainer /> },
       { path: 'erp/*', element: <SubAppContainer /> },

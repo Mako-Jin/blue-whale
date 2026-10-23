@@ -39,6 +39,14 @@ whale:
   permission:
     header:
       enabled: true
+  # Wave 5.50：国际化 SDK 自治化。启动时在本服务库幂等创建 sys_i18n_message，
+  # 文案回退源为 classpath:i18n/file/messages*；本地管理接口保持默认关闭。
+  i18n:
+    enabled: true
+    auto-init: true
+    module-scan-enabled: true
+    admin:
+      enabled: false
   file:
     storage:
       # 活动存储插件类型：local（本地磁盘，默认）| minio（MinIO/S3 兼容对象存储）

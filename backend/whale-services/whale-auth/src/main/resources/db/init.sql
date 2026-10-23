@@ -463,14 +463,15 @@ VALUES
     (58, 0, 'sys:workflow:definition:validate', '校验流程定义', 'API', '/workflow/definition/validate', 'POST', 58, 1),
     (59, 0, 'sys:workflow:definition:bpmnImport', '导入 BPMN 流程定义', 'API', '/workflow/definition/bpmn', 'POST', 59, 1);
 
--- 国际化消息服务权限点：与 whale-i18n 接口 @RequirePermission("sys:i18n:*") 一一对应
+-- 服务内置国际化文案管理权限点（Wave 5.50）：与 whale-i18n-sdk 本地接口 @RequirePermission("sys:i18n:*") 对应；
+-- 试点落在 whale-auth 的 /auth/i18n/message，其他服务按需在各自权限体系登记。
 INSERT INTO sys_permission
     (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
 VALUES
-    (60, 0, 'sys:i18n:list', '查询国际化消息', 'API', '/i18n/message/**', 'GET', 60, 1),
-    (61, 0, 'sys:i18n:add', '新增国际化消息', 'API', '/i18n/message', 'POST', 61, 1),
-    (62, 0, 'sys:i18n:edit', '修改国际化消息', 'API', '/i18n/message/**', 'PUT', 62, 1),
-    (63, 0, 'sys:i18n:delete', '删除国际化消息', 'API', '/i18n/message/{id}', 'DELETE', 63, 1);
+    (60, 0, 'sys:i18n:list', '查询国际化消息', 'API', '/auth/i18n/message/**', 'GET', 60, 1),
+    (61, 0, 'sys:i18n:add', '新增国际化消息', 'API', '/auth/i18n/message', 'POST', 61, 1),
+    (62, 0, 'sys:i18n:edit', '修改国际化消息', 'API', '/auth/i18n/message/**', 'PUT', 62, 1),
+    (63, 0, 'sys:i18n:delete', '删除国际化消息', 'API', '/auth/i18n/message/{id}', 'DELETE', 63, 1);
 
 -- 服务监控权限点：与 whale-monitor 接口 @RequirePermission("sys:monitor:list") 一一对应
 INSERT INTO sys_permission

@@ -106,6 +106,12 @@
             <artifactId>whale-auth-sdk</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- 国际化 starter：本服务库自动建 sys_i18n_message + 自带 i18n/auth 文案 + 本地管理接口 -->
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-i18n-sdk</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>

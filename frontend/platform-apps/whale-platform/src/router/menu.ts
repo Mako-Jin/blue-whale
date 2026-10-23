@@ -18,7 +18,6 @@ export const menuConfig: MenuNode[] = [
       { key: '/system/menus', label: '菜单管理' },
     ],
   },
-  { key: '/i18n-demo', label: '国际化演示' },
   { key: '/portal', label: '门户应用' },
   { key: '/erp', label: 'ERP 应用' },
   { key: '/oa', label: 'OA 应用' },

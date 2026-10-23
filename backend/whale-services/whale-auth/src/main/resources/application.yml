@@ -61,6 +61,16 @@ whale:
       exchange: ${WHALE_AUDIT_MQ_EXCHANGE:bluewhale.audit.exchange}
       routing-key: ${WHALE_AUDIT_MQ_ROUTING_KEY:audit.log}
 
+  # Wave 5.50：国际化 SDK 自治化。启动时在本服务库幂等创建 sys_i18n_message，
+  # 文案回退源为 classpath:i18n/auth/messages*；本地管理接口显式开启（默认关闭）。
+  i18n:
+    enabled: true
+    auto-init: true
+    module-scan-enabled: true
+    admin:
+      enabled: true
+      path: /auth/i18n/message
+
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true

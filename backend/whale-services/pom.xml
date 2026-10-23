@@ -22,7 +22,6 @@
         <module>whale-workflow</module>
         <module>whale-form</module>
         <module>whale-file</module>
-        <module>whale-i18n</module>
         <module>whale-pay</module>
         <module>whale-gateway</module>
         <module>whale-agent</module>
