@@ -1,0 +1,71 @@
+# BlueWhale 平台告警规则（本地 / 生产通用）
+# 由 tools/monitoring/prometheus.local.yml 的 rule_files 引用，生产侧可直接挂载本文件。
+# 未接入 Alertmanager 时，规则命中会以 FIRING 状态展示在 Prometheus /alerts 与 Grafana 面板中。
+
+groups:
+  - name: bluewhale-availability
+    rules:
+      - alert: ServiceDown
+        expr: up{job=~"whale-.*|nacos"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: '服务不可用：{{ $labels.job }} / {{ $labels.instance }}'
+          description: 'Prometheus 已连续 1 分钟无法抓取 {{ $labels.instance }}（job={{ $labels.job }}），请检查进程与端口。'
+
+      - alert: TargetFlapping
+        expr: changes(up{job=~"whale-.*"}[10m]) > 4
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: '抓取抖动：{{ $labels.job }} / {{ $labels.instance }}'
+          description: '10 分钟内 up 状态变化超过 4 次，服务可能反复重启或网络不稳定。'
+
+  - name: bluewhale-http
+    rules:
+      - alert: Http5xxRateHigh
+        expr: |
+          sum by (application) (rate(http_server_requests_seconds_count{application=~"whale-.*",status=~"5.."}[5m]))
+          /
+          clamp_min(sum by (application) (rate(http_server_requests_seconds_count{application=~"whale-.*"}[5m])), 1e-9)
+          > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: '5xx 错误率过高：{{ $labels.application }}'
+          description: '{{ $labels.application }} 近 5 分钟 5xx 占比超过 5%（当前 {{ $value | humanizePercentage }}）。'
+
+      - alert: LoginP95Slow
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (rate(http_server_requests_seconds_bucket{application="whale-auth",uri="/auth/login"}[5m]))
+          ) > 1.5
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: '登录 P95 超过 1500ms'
+          description: 'SLO-1 失守：whale-auth 登录接口 P95 为 {{ $value }}s，持续 5 分钟。'
+
+  - name: bluewhale-jvm
+    rules:
+      - alert: JvmHeapHigh
+        expr: |
+          sum by (application) (jvm_memory_used_bytes{application=~"whale-.*",area="heap"})
+          /
+          clamp_min(sum by (application) (jvm_memory_max_bytes{application=~"whale-.*",area="heap"}), 1)
+          > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: 'JVM 堆使用率过高：{{ $labels.application }}'
+          description: '{{ $labels.application }} 堆使用率 {{ $value | humanizePercentage }}，持续 5 分钟，注意 OOM 风险。'

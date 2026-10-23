@@ -74,3 +74,44 @@ Start-Process .\tools\monitoring\grafana-13.2.4\bin\grafana.exe `
 - Prometheus：`http://127.0.0.1:9090`，抓取目标见 `tools/monitoring/prometheus.local.yml`（8080–8090 / 9001–9004 / 9101–9103 / 9201 / 8848）。
 - Grafana：`http://127.0.0.1:3000`，数据源 `Prometheus` 由 `grafana-provisioning` 自动注入，默认 `admin/admin`，仅监听回环地址。
 - 后端服务未启动时目标显示 `down` 属正常，启动后查询 `up` 即可确认。
+
+## 告警规则（Prometheus，版本化）
+
+- 规则文件：`deploy/monitoring/prometheus-rules.yml`，共 5 条，按 `availability / http / jvm` 三组。
+- 本地由 `tools/monitoring/prometheus.local.yml` 的 `rule_files` 引用；生产可直接挂载同一文件。
+- 规则清单：
+
+| 规则 | 表达式要点 | for | 级别 |
+| --- | --- | --- | --- |
+| ServiceDown | `up{job=~"whale-.*\|nacos"} == 0` | 1m | critical |
+| TargetFlapping | `changes(up{job=~"whale-.*"}[10m]) > 4` | 5m | warning |
+| Http5xxRateHigh | 5xx 占比 > 5%（按 application） | 5m | critical |
+| LoginP95Slow | 登录 P95 > 1.5s（SLO-1） | 5m | warning |
+| JvmHeapHigh | 堆使用率 > 85%（按 application） | 5m | warning |
+
+- 校验与查看：
+
+```powershell
+.\tools\monitoring\prometheus\prometheus-3.13.5.windows-amd64\promtool.exe check rules .\deploy\monitoring\prometheus-rules.yml
+curl http://127.0.0.1:9090/api/v1/rules
+curl http://127.0.0.1:9090/api/v1/alerts
+```
+
+- 未接入 Alertmanager：规则命中以 `FIRING` 状态展示在 `http://127.0.0.1:9090/alerts`，Grafana 侧可在同一数据源上用 `ALERTS{alertstate="firing"}` 建面板。
+- 热加载配置：Prometheus 启动参数已加 `--web.enable-lifecycle`，改规则后执行 `curl -X POST http://127.0.0.1:9090/-/reload`。
+
+## Grafana 仪表盘（版本化）
+
+- 仪表盘 JSON：`deploy/monitoring/grafana/dashboards/bluewhale-overview.json`（uid `bluewhale-overview`，标题「BlueWhale 平台监控总览」）。
+- 自动加载：`tools/monitoring/grafana-provisioning/dashboards/bluewhale.yml` 指向上述目录，30s 轮询，文件夹 `BlueWhale`。
+- 数据源：`Prometheus`，uid `prometheus`（`grafana-provisioning/datasources/prometheus.yml`）。
+- 访问：`http://127.0.0.1:3000/d/bluewhale-overview`（本地 admin/admin，仅回环监听）。
+- 面板（11 个）：存活抓取目标、登录 P95（SLO-1）、5xx 错误率、审计上报 QPS、HTTP QPS（按服务）、5xx 错误率（按服务）、P95/P99 时延、JVM 堆使用率、GC 暂停速率、抓取目标存活明细。
+
+## 本地监控闭环验证（2026-10-23）
+
+- 启动组合：MySQL 3306 + Redis 6379 + Nacos 8848 + whale-gateway 8080 + whale-auth 8081 + whale-audit 9101 + Prometheus 9090 + Grafana 3000。
+- 抓取结果：`whale-gateway` / `whale-auth` / `whale-ops(9101)` 三个目标 `up=1`；其余 15 个未启动目标 `down` 并触发 `ServiceDown`（本地按需启动，属预期）。
+- 实测指标：登录 P95 ≈ 0.153s；平台总 QPS ≈ 0.42；审计上报 QPS ≈ 0.086；whale-auth 堆使用率 ≈ 18%。
+- 校验方式：`/api/v1/rules`（3 组 5 条）、`/api/v1/alerts`（15 条 ServiceDown FIRING）、Grafana `/api/dashboards/uid/bluewhale-overview`（16 panels）、Grafana `/api/ds/query`（返回 0.389）。
+- 已知问题与处理：Grafana 首次启动报 `Datasource provisioning error: data source not found`（旧 `grafana.db` 数据源 uid 与新增 `uid: prometheus` 冲突），备份 `grafana.db` 后重建即恢复；旧库已保留为 `grafana.db.bak-20261023`。
