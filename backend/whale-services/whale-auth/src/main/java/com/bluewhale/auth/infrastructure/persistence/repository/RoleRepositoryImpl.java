@@ -50,6 +50,13 @@ public class RoleRepositoryImpl implements RoleRepository {
     }
 
     @Override
+    public Optional<Role> findByCode(String roleCode) {
+        SysRole po = roleMapper.selectOne(new LambdaQueryWrapper<SysRole>()
+                .eq(SysRole::getRoleCode, roleCode));
+        return Optional.ofNullable(po).map(RolePersistenceAssembler::toDomain);
+    }
+
+    @Override
     public List<Role> listEnabledByIds(Collection<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             return List.of();

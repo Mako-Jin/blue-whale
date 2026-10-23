@@ -95,7 +95,8 @@ public class RoleAppService {
         Role role = Role.create(roleCode, command.roleName(), command.description(), command.sortNo(),
                 command.status());
         roleRepository.save(role);
-        return RoleVO.from(role);
+        // 保存后回查以回填数据库生成的主键与时间戳，保证与旧实现返回的视图字段一致
+        return RoleVO.from(roleRepository.findByCode(roleCode.value()).orElse(role));
     }
 
     /**

@@ -1,5 +1,11 @@
 package com.bluewhale.auth.controller;
 
+import com.bluewhale.auth.application.role.RoleAppService;
+import com.bluewhale.auth.application.role.command.AssignRolePermissionsCommand;
+import com.bluewhale.auth.application.role.command.CreateRoleCommand;
+import com.bluewhale.auth.application.role.command.UpdateRoleCommand;
+import com.bluewhale.auth.application.role.query.RolePageQuery;
+import com.bluewhale.auth.config.DddMigrationProperties;
 import com.bluewhale.auth.dto.AssignPermissionsRequest;
 import com.bluewhale.auth.dto.RoleCreateRequest;
 import com.bluewhale.auth.dto.RoleUpdateRequest;
@@ -28,6 +34,9 @@ import java.util.List;
 /**
  * 角色管理：CRUD / 分配权限（权限点 + 菜单）
  *
+ * <p>迁移期双路径：{@code whale.auth.ddd.role=true} 时走 {@code application} 层 AppService，
+ * 否则走既有 {@code SysRoleService}；REST 路径与出入参保持不变。</p>
+ *
  * @author BlueWhale
  */
 @RestController
@@ -36,6 +45,8 @@ import java.util.List;
 public class RoleController {
 
     private final SysRoleService roleService;
+    private final RoleAppService roleAppService;
+    private final DddMigrationProperties dddMigrationProperties;
 
     /**
      * 分页查询角色
@@ -48,6 +59,10 @@ public class RoleController {
     @RequirePermission("sys:role:list")
     public Result<PageResult<RoleVO>> page(PageQuery pageQuery,
                                            @RequestParam(required = false) String keyword) {
+        if (dddMigrationProperties.isRole()) {
+            return Result.ok(roleAppService.page(
+                    new RolePageQuery(pageQuery.getCurrent(), pageQuery.getSize(), keyword)));
+        }
         return Result.ok(roleService.page(pageQuery.getCurrent(), pageQuery.getSize(), keyword));
     }
 
@@ -60,7 +75,7 @@ public class RoleController {
     @GetMapping("/{id}")
     @RequirePermission("sys:role:list")
     public Result<RoleVO> detail(@PathVariable Long id) {
-        return Result.ok(roleService.getDetail(id));
+        return Result.ok(dddMigrationProperties.isRole() ? roleAppService.getDetail(id) : roleService.getDetail(id));
     }
 
     /**
@@ -73,6 +88,10 @@ public class RoleController {
     @RequirePermission("sys:role:add")
     @AuditLog(operation = "创建角色", type = OperateType.CREATE, targetType = "sys_role")
     public Result<RoleVO> create(@Valid @RequestBody RoleCreateRequest request) {
+        if (dddMigrationProperties.isRole()) {
+            return Result.ok(roleAppService.create(new CreateRoleCommand(request.getRoleCode(),
+                    request.getRoleName(), request.getDescription(), request.getSortNo(), request.getStatus())));
+        }
         return Result.ok(roleService.create(request));
     }
 
@@ -87,6 +106,10 @@ public class RoleController {
     @RequirePermission("sys:role:edit")
     @AuditLog(operation = "更新角色", type = OperateType.UPDATE, targetType = "sys_role", targetId = "#id")
     public Result<RoleVO> update(@PathVariable Long id, @Valid @RequestBody RoleUpdateRequest request) {
+        if (dddMigrationProperties.isRole()) {
+            return Result.ok(roleAppService.update(id, new UpdateRoleCommand(request.getRoleName(),
+                    request.getDescription(), request.getSortNo(), request.getStatus())));
+        }
         return Result.ok(roleService.update(id, request));
     }
 
@@ -100,7 +123,11 @@ public class RoleController {
     @RequirePermission("sys:role:delete")
     @AuditLog(operation = "删除角色", type = OperateType.DELETE, targetType = "sys_role", targetId = "#id")
     public Result<Void> delete(@PathVariable Long id) {
-        roleService.delete(id);
+        if (dddMigrationProperties.isRole()) {
+            roleAppService.delete(id);
+        } else {
+            roleService.delete(id);
+        }
         return Result.ok();
     }
 
@@ -116,7 +143,12 @@ public class RoleController {
     @AuditLog(operation = "分配角色权限", type = OperateType.GRANT, targetType = "sys_role", targetId = "#id")
     public Result<Void> assignPermissions(@PathVariable Long id,
                                           @Valid @RequestBody AssignPermissionsRequest request) {
-        roleService.assignPermissions(id, request.getPermissionIds());
+        if (dddMigrationProperties.isRole()) {
+            roleAppService.assignPermissions(id,
+                    new AssignRolePermissionsCommand(request.getPermissionIds()));
+        } else {
+            roleService.assignPermissions(id, request.getPermissionIds());
+        }
         return Result.ok();
     }
 
@@ -129,6 +161,8 @@ public class RoleController {
     @GetMapping("/{id}/permissions")
     @RequirePermission("sys:role:list")
     public Result<List<Long>> permissionIds(@PathVariable Long id) {
-        return Result.ok(roleService.listPermissionIds(id));
+        return Result.ok(dddMigrationProperties.isRole()
+                ? roleAppService.listPermissionIds(id)
+                : roleService.listPermissionIds(id));
     }
 }

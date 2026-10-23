@@ -1,5 +1,8 @@
 package com.bluewhale.auth.controller;
 
+import com.bluewhale.auth.application.dept.DeptAppService;
+import com.bluewhale.auth.application.dept.command.SaveDeptCommand;
+import com.bluewhale.auth.config.DddMigrationProperties;
 import com.bluewhale.auth.dto.DeptRequest;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.auth.service.SysDeptService;
@@ -23,6 +26,9 @@ import java.util.List;
 /**
  * 部门管理：CRUD + 树形查询
  *
+ * <p>迁移期双路径：{@code whale.auth.ddd.dept=true} 时走 {@code application} 层 AppService，
+ * 否则走既有 {@code SysDeptService}；REST 路径与出入参保持不变。</p>
+ *
  * @author BlueWhale
  */
 @RestController
@@ -31,6 +37,8 @@ import java.util.List;
 public class DeptController {
 
     private final SysDeptService deptService;
+    private final DeptAppService deptAppService;
+    private final DddMigrationProperties dddMigrationProperties;
 
     /**
      * 部门树：parentId=0 为根，按 sort 升序
@@ -40,7 +48,7 @@ public class DeptController {
     @GetMapping("/tree")
     @RequirePermission("sys:dept:list")
     public Result<List<DeptVO>> tree() {
-        return Result.ok(deptService.tree());
+        return Result.ok(dddMigrationProperties.isDept() ? deptAppService.tree() : deptService.tree());
     }
 
     /**
@@ -52,7 +60,7 @@ public class DeptController {
     @GetMapping("/{id}")
     @RequirePermission("sys:dept:list")
     public Result<DeptVO> detail(@PathVariable Long id) {
-        return Result.ok(deptService.getDetail(id));
+        return Result.ok(dddMigrationProperties.isDept() ? deptAppService.getDetail(id) : deptService.getDetail(id));
     }
 
     /**
@@ -65,7 +73,11 @@ public class DeptController {
     @RequirePermission("sys:dept:add")
     @AuditLog(operation = "创建部门", type = OperateType.CREATE, targetType = "sys_dept")
     public Result<Void> create(@Valid @RequestBody DeptRequest request) {
-        deptService.create(request);
+        if (dddMigrationProperties.isDept()) {
+            deptAppService.create(toCommand(request));
+        } else {
+            deptService.create(request);
+        }
         return Result.ok();
     }
 
@@ -80,7 +92,11 @@ public class DeptController {
     @RequirePermission("sys:dept:edit")
     @AuditLog(operation = "更新部门", type = OperateType.UPDATE, targetType = "sys_dept", targetId = "#id")
     public Result<Void> update(@PathVariable Long id, @Valid @RequestBody DeptRequest request) {
-        deptService.update(id, request);
+        if (dddMigrationProperties.isDept()) {
+            deptAppService.update(id, toCommand(request));
+        } else {
+            deptService.update(id, request);
+        }
         return Result.ok();
     }
 
@@ -94,7 +110,22 @@ public class DeptController {
     @RequirePermission("sys:dept:delete")
     @AuditLog(operation = "删除部门", type = OperateType.DELETE, targetType = "sys_dept", targetId = "#id")
     public Result<Void> delete(@PathVariable Long id) {
-        deptService.delete(id);
+        if (dddMigrationProperties.isDept()) {
+            deptAppService.delete(id);
+        } else {
+            deptService.delete(id);
+        }
         return Result.ok();
+    }
+
+    /**
+     * 请求参数转换为应用层命令
+     *
+     * @param request 部门请求参数
+     * @return 保存部门命令
+     */
+    private SaveDeptCommand toCommand(DeptRequest request) {
+        return new SaveDeptCommand(request.getParentId(), request.getDeptName(), request.getSort(),
+                request.getLeader());
     }
 }

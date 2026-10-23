@@ -43,7 +43,7 @@
   - 修改 `UserTest`、`UserPersistenceAssemblerTest`、`UserRepositoryImplTest`
   - 验收：新增 ≥ 45 用例，全绿
 
-- [ ] **T9-9 全量验证与文档**
+- [x] **T9-9 全量验证与文档**
   - `mvn -o -f backend/pom.xml -pl whale-services/whale-auth -am test` 全绿（≥ 264 用例）
   - 追加 `docs/devlog/2026-10-23.md`；更新 backlog AUTH-17 行
   - 提交并推送 Gitee，尝试 GitHub 镜像

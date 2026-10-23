@@ -1,5 +1,9 @@
 package com.bluewhale.auth.controller;
 
+import com.bluewhale.auth.application.permission.PermissionAppService;
+import com.bluewhale.auth.application.permission.command.SavePermissionCommand;
+import com.bluewhale.auth.application.permission.query.PermissionPageQuery;
+import com.bluewhale.auth.config.DddMigrationProperties;
 import com.bluewhale.auth.dto.PermissionRequest;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.auth.service.SysPermissionService;
@@ -24,6 +28,9 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 权限点管理：CRUD + 分页
  *
+ * <p>迁移期双路径：{@code whale.auth.ddd.permission=true} 时走 {@code application} 层 AppService，
+ * 否则走既有 {@code SysPermissionService}；REST 路径与出入参保持不变。</p>
+ *
  * @author BlueWhale
  */
 @RestController
@@ -32,6 +39,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class PermissionController {
 
     private final SysPermissionService permissionService;
+    private final PermissionAppService permissionAppService;
+    private final DddMigrationProperties dddMigrationProperties;
 
     /**
      * 分页查询权限点
@@ -46,6 +55,10 @@ public class PermissionController {
     public Result<PageResult<PermissionVO>> page(PageQuery pageQuery,
                                                  @RequestParam(required = false) String keyword,
                                                  @RequestParam(required = false) String permType) {
+        if (dddMigrationProperties.isPermission()) {
+            return Result.ok(permissionAppService.page(new PermissionPageQuery(
+                    pageQuery.getCurrent(), pageQuery.getSize(), keyword, permType)));
+        }
         return Result.ok(permissionService.page(pageQuery.getCurrent(), pageQuery.getSize(), keyword, permType));
     }
 
@@ -58,7 +71,9 @@ public class PermissionController {
     @GetMapping("/{id}")
     @RequirePermission("sys:permission:list")
     public Result<PermissionVO> detail(@PathVariable Long id) {
-        return Result.ok(permissionService.getDetail(id));
+        return Result.ok(dddMigrationProperties.isPermission()
+                ? permissionAppService.getDetail(id)
+                : permissionService.getDetail(id));
     }
 
     /**
@@ -71,7 +86,11 @@ public class PermissionController {
     @RequirePermission("sys:permission:add")
     @AuditLog(operation = "创建权限点", type = OperateType.CREATE, targetType = "sys_permission")
     public Result<Void> create(@Valid @RequestBody PermissionRequest request) {
-        permissionService.create(request);
+        if (dddMigrationProperties.isPermission()) {
+            permissionAppService.create(toCommand(request));
+        } else {
+            permissionService.create(request);
+        }
         return Result.ok();
     }
 
@@ -86,7 +105,11 @@ public class PermissionController {
     @RequirePermission("sys:permission:edit")
     @AuditLog(operation = "更新权限点", type = OperateType.UPDATE, targetType = "sys_permission", targetId = "#id")
     public Result<Void> update(@PathVariable Long id, @Valid @RequestBody PermissionRequest request) {
-        permissionService.update(id, request);
+        if (dddMigrationProperties.isPermission()) {
+            permissionAppService.update(id, toCommand(request));
+        } else {
+            permissionService.update(id, request);
+        }
         return Result.ok();
     }
 
@@ -100,7 +123,23 @@ public class PermissionController {
     @RequirePermission("sys:permission:delete")
     @AuditLog(operation = "删除权限点", type = OperateType.DELETE, targetType = "sys_permission", targetId = "#id")
     public Result<Void> delete(@PathVariable Long id) {
-        permissionService.delete(id);
+        if (dddMigrationProperties.isPermission()) {
+            permissionAppService.delete(id);
+        } else {
+            permissionService.delete(id);
+        }
         return Result.ok();
+    }
+
+    /**
+     * 请求参数转换为应用层命令
+     *
+     * @param request 权限点请求参数
+     * @return 保存权限点命令
+     */
+    private SavePermissionCommand toCommand(PermissionRequest request) {
+        return new SavePermissionCommand(request.getParentId(), request.getPermCode(), request.getPermName(),
+                request.getPermType(), request.getPath(), request.getMethod(), request.getSortNo(),
+                request.getStatus());
     }
 }

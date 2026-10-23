@@ -1,5 +1,7 @@
 package com.bluewhale.auth.controller;
 
+import com.bluewhale.auth.application.menu.MenuAppService;
+import com.bluewhale.auth.config.DddMigrationProperties;
 import com.bluewhale.auth.dto.MenuRequest;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.auth.service.SysMenuService;
@@ -7,6 +9,7 @@ import com.bluewhale.auth.vo.MenuVO;
 import com.bluewhale.common.audit.annotation.AuditLog;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.handler.GlobalExceptionHandler;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -46,7 +49,9 @@ class MenuControllerTest {
     private static final int PARAM_ERROR_CODE = 400;
 
     private final SysMenuService menuService = mock(SysMenuService.class);
-    private final MenuController controller = new MenuController(menuService);
+    private final MenuAppService menuAppService = mock(MenuAppService.class);
+    private final DddMigrationProperties ddd = new DddMigrationProperties();
+    private final MenuController controller = new MenuController(menuService, menuAppService, ddd);
 
     private MockMvc mockMvc;
 
@@ -61,6 +66,14 @@ class MenuControllerTest {
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setValidator(validator)
                 .build();
+    }
+
+    /**
+     * 每个用例结束后复位灰度开关，避免测试类共享的配置实例串扰
+     */
+    @AfterEach
+    void resetDddFlag() {
+        ddd.setMenu(false);
     }
 
     /**
@@ -176,6 +189,33 @@ class MenuControllerTest {
                 .andExpect(jsonPath("$.message").value("菜单名称不能为空"));
 
         verify(menuService, never()).create(any());
+    }
+
+    @Test
+    @DisplayName("分流：menu=false 时 GET /menu/{id} 走旧 SysMenuService")
+    void detailShouldUseLegacyServiceWhenMenuFlagDisabled() throws Exception {
+        when(menuService.getDetail(MENU_ID)).thenReturn(menuVO());
+
+        mockMvc.perform(get("/menu/{id}", MENU_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
+
+        verify(menuService).getDetail(MENU_ID);
+        verify(menuAppService, never()).getDetail(MENU_ID);
+    }
+
+    @Test
+    @DisplayName("分流：menu=true 时 GET /menu/{id} 走 MenuAppService")
+    void detailShouldUseAppServiceWhenMenuFlagEnabled() throws Exception {
+        ddd.setMenu(true);
+        when(menuAppService.getDetail(MENU_ID)).thenReturn(menuVO());
+
+        mockMvc.perform(get("/menu/{id}", MENU_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
+
+        verify(menuAppService).getDetail(MENU_ID);
+        verify(menuService, never()).getDetail(MENU_ID);
     }
 
     @Test

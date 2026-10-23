@@ -1,5 +1,8 @@
 package com.bluewhale.auth.controller;
 
+import com.bluewhale.auth.application.user.UserAppService;
+import com.bluewhale.auth.application.userpermission.UserPermissionAppService;
+import com.bluewhale.auth.config.DddMigrationProperties;
 import com.bluewhale.auth.dto.AssignRolesRequest;
 import com.bluewhale.auth.dto.ChangePasswordRequest;
 import com.bluewhale.auth.dto.UpdateAttrsRequest;
@@ -17,6 +20,7 @@ import com.bluewhale.common.core.handler.GlobalExceptionHandler;
 import com.bluewhale.common.core.query.PageQuery;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.idempotent.annotation.Idempotent;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -57,7 +61,11 @@ class UserControllerTest {
 
     private final SysUserService userService = mock(SysUserService.class);
     private final SysUserPermissionService userPermissionService = mock(SysUserPermissionService.class);
-    private final UserController controller = new UserController(userService, userPermissionService);
+    private final UserAppService userAppService = mock(UserAppService.class);
+    private final UserPermissionAppService userPermissionAppService = mock(UserPermissionAppService.class);
+    private final DddMigrationProperties ddd = new DddMigrationProperties();
+    private final UserController controller = new UserController(
+            userService, userPermissionService, userAppService, userPermissionAppService, ddd);
 
     private MockMvc mockMvc;
 
@@ -72,6 +80,14 @@ class UserControllerTest {
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setValidator(validator)
                 .build();
+    }
+
+    /**
+     * 每个用例结束后复位灰度开关，避免测试类共享的配置实例串扰
+     */
+    @AfterEach
+    void resetDddFlag() {
+        ddd.setUser(false);
     }
 
     /**
@@ -282,6 +298,48 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.message").value("用户名不能为空"));
 
         verify(userService, never()).create(any());
+    }
+
+    @Test
+    @DisplayName("分流：user=false 时 GET /user/{id} 走旧 SysUserService")
+    void detailShouldUseLegacyServiceWhenUserFlagDisabled() throws Exception {
+        when(userService.getDetail(USER_ID)).thenReturn(userVO());
+
+        mockMvc.perform(get("/user/{id}", USER_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
+
+        verify(userService).getDetail(USER_ID);
+        verify(userAppService, never()).getDetail(USER_ID);
+    }
+
+    @Test
+    @DisplayName("分流：user=true 时 GET /user/{id} 走 UserAppService")
+    void detailShouldUseAppServiceWhenUserFlagEnabled() throws Exception {
+        ddd.setUser(true);
+        when(userAppService.getDetail(USER_ID)).thenReturn(userVO());
+
+        mockMvc.perform(get("/user/{id}", USER_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
+
+        verify(userAppService).getDetail(USER_ID);
+        verify(userService, never()).getDetail(USER_ID);
+    }
+
+    @Test
+    @DisplayName("分流：user=true 时 GET /user/{id}/attrs 走 UserPermissionAppService")
+    void attrsShouldUseAppServiceWhenUserFlagEnabled() throws Exception {
+        ddd.setUser(true);
+        when(userPermissionAppService.listByUserId(USER_ID)).thenReturn(List.of(userAttrVO()));
+
+        mockMvc.perform(get("/user/{id}/attrs", USER_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()))
+                .andExpect(jsonPath("$.data[0].attrKey").value("dept"));
+
+        verify(userPermissionAppService).listByUserId(USER_ID);
+        verify(userPermissionService, never()).listByUserId(USER_ID);
     }
 
     @Test

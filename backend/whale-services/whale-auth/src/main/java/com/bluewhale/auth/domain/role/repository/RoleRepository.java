@@ -31,6 +31,14 @@ public interface RoleRepository {
     Optional<Role> findById(Long id);
 
     /**
+     * 按角色编码查询角色聚合
+     *
+     * @param roleCode 角色编码
+     * @return 角色聚合；不存在时返回空
+     */
+    Optional<Role> findByCode(String roleCode);
+
+    /**
      * 按角色 ID 集合查询其中处于启用状态的角色（对应 {@code listRoleCodesByUserId} 对 {@code sys_role} 的读）
      *
      * @param ids 角色 ID 集合

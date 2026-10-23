@@ -108,7 +108,8 @@ public class UserAppService {
         User user = User.create(username, password, command.nickname(), command.phone(), command.email(),
                 command.avatar(), command.deptId(), command.status());
         userRepository.save(user);
-        return UserVO.from(user);
+        // 保存后回查以回填数据库生成的主键与时间戳，保证与旧实现返回的视图字段一致
+        return UserVO.from(userRepository.findByUsername(username.value()).orElse(user));
     }
 
     /**

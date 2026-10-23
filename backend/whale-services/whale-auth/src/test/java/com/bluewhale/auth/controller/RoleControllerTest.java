@@ -1,5 +1,7 @@
 package com.bluewhale.auth.controller;
 
+import com.bluewhale.auth.application.role.RoleAppService;
+import com.bluewhale.auth.config.DddMigrationProperties;
 import com.bluewhale.auth.dto.AssignPermissionsRequest;
 import com.bluewhale.auth.dto.RoleCreateRequest;
 import com.bluewhale.auth.dto.RoleUpdateRequest;
@@ -11,6 +13,7 @@ import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.handler.GlobalExceptionHandler;
 import com.bluewhale.common.core.query.PageQuery;
 import com.bluewhale.common.core.result.PageResult;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -50,7 +53,9 @@ class RoleControllerTest {
     private static final int PARAM_ERROR_CODE = 400;
 
     private final SysRoleService roleService = mock(SysRoleService.class);
-    private final RoleController controller = new RoleController(roleService);
+    private final RoleAppService roleAppService = mock(RoleAppService.class);
+    private final DddMigrationProperties ddd = new DddMigrationProperties();
+    private final RoleController controller = new RoleController(roleService, roleAppService, ddd);
 
     private MockMvc mockMvc;
 
@@ -65,6 +70,14 @@ class RoleControllerTest {
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setValidator(validator)
                 .build();
+    }
+
+    /**
+     * 每个用例结束后复位灰度开关，避免测试类共享的配置实例串扰
+     */
+    @AfterEach
+    void resetDddFlag() {
+        ddd.setRole(false);
     }
 
     /**
@@ -212,6 +225,33 @@ class RoleControllerTest {
                 .andExpect(jsonPath("$.message").value("角色编码不能为空"));
 
         verify(roleService, never()).create(any());
+    }
+
+    @Test
+    @DisplayName("分流：role=false 时 GET /role/{id} 走旧 SysRoleService")
+    void detailShouldUseLegacyServiceWhenRoleFlagDisabled() throws Exception {
+        when(roleService.getDetail(ROLE_ID)).thenReturn(roleVO());
+
+        mockMvc.perform(get("/role/{id}", ROLE_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
+
+        verify(roleService).getDetail(ROLE_ID);
+        verify(roleAppService, never()).getDetail(ROLE_ID);
+    }
+
+    @Test
+    @DisplayName("分流：role=true 时 GET /role/{id} 走 RoleAppService")
+    void detailShouldUseAppServiceWhenRoleFlagEnabled() throws Exception {
+        ddd.setRole(true);
+        when(roleAppService.getDetail(ROLE_ID)).thenReturn(roleVO());
+
+        mockMvc.perform(get("/role/{id}", ROLE_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
+
+        verify(roleAppService).getDetail(ROLE_ID);
+        verify(roleService, never()).getDetail(ROLE_ID);
     }
 
     @Test
