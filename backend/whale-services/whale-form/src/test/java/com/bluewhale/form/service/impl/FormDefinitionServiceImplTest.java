@@ -6,20 +6,24 @@ import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.form.dto.FormDefinitionCopyRequest;
 import com.bluewhale.form.dto.FormDefinitionSaveRequest;
 import com.bluewhale.form.dto.FormFieldConfigDTO;
 import com.bluewhale.form.dto.FormQueryRequest;
 import com.bluewhale.form.entity.FormColumnMeta;
 import com.bluewhale.form.entity.FormDefinition;
+import com.bluewhale.form.entity.FormDefinitionVersion;
 import com.bluewhale.form.entity.FormFieldConfig;
 import com.bluewhale.form.entity.FormFieldOption;
 import com.bluewhale.form.entity.FormTableDefinition;
 import com.bluewhale.form.mapper.FormColumnMetaMapper;
 import com.bluewhale.form.mapper.FormDefinitionMapper;
+import com.bluewhale.form.mapper.FormDefinitionVersionMapper;
 import com.bluewhale.form.mapper.FormFieldConfigMapper;
 import com.bluewhale.form.mapper.FormFieldOptionMapper;
 import com.bluewhale.form.mapper.FormTableDefinitionMapper;
 import com.bluewhale.form.vo.FormDefinitionVO;
+import com.bluewhale.form.vo.FormDefinitionVersionVO;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -32,10 +36,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.Serializable;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -68,6 +75,9 @@ class FormDefinitionServiceImplTest {
     @Mock
     private FormTableDefinitionMapper formTableDefinitionMapper;
 
+    @Mock
+    private FormDefinitionVersionMapper formDefinitionVersionMapper;
+
     @InjectMocks
     private FormDefinitionServiceImpl formDefinitionService;
 
@@ -82,6 +92,7 @@ class FormDefinitionServiceImplTest {
         TableInfoHelper.initTableInfo(assistant, FormFieldOption.class);
         TableInfoHelper.initTableInfo(assistant, FormColumnMeta.class);
         TableInfoHelper.initTableInfo(assistant, FormTableDefinition.class);
+        TableInfoHelper.initTableInfo(assistant, FormDefinitionVersion.class);
     }
 
     /**
@@ -303,5 +314,207 @@ class FormDefinitionServiceImplTest {
         assertEquals(64, vo.getFields().get(0).getMaxLength().intValue());
         assertEquals(12, vo.getFields().get(0).getColSpan().intValue());
         verify(formColumnMetaMapper).selectList(ArgumentMatchers.<Wrapper<FormColumnMeta>>any());
+    }
+
+    /**
+     * 构造源表单定义桩对象（旧模型）。
+     *
+     * @param id 定义ID
+     * @param code 编码
+     * @param name 名称
+     * @return 表单定义
+     */
+    private static FormDefinition sourceDefinition(Long id, String code, String name) {
+        FormDefinition source = new FormDefinition();
+        source.setId(id);
+        source.setCode(code);
+        source.setName(name);
+        source.setSchemaJson("{\"fields\":[]}");
+        source.setVersion(3);
+        source.setStatus(1);
+        return source;
+    }
+
+    @Test
+    @DisplayName("copy：未指定编码/名称时生成 _copy 与「（副本）」且版本为 1")
+    void shouldCopyWithGeneratedCodeAndName() {
+        when(formDefinitionMapper.selectById(1L)).thenReturn(sourceDefinition(1L, "form-a", "A表单"));
+        when(formDefinitionMapper.selectCount(ArgumentMatchers.<Wrapper<FormDefinition>>any())).thenReturn(0L);
+        when(formFieldConfigMapper.selectList(ArgumentMatchers.<Wrapper<FormFieldConfig>>any()))
+                .thenReturn(List.of());
+
+        FormDefinitionVO vo = formDefinitionService.copy(1L, null);
+
+        ArgumentCaptor<FormDefinition> captor = ArgumentCaptor.forClass(FormDefinition.class);
+        verify(formDefinitionMapper).insert(captor.capture());
+        assertEquals("form-a_copy", captor.getValue().getCode());
+        assertEquals("A表单（副本）", captor.getValue().getName());
+        assertEquals(1, captor.getValue().getVersion().intValue());
+        assertEquals(1, captor.getValue().getStatus().intValue());
+        assertEquals("{\"fields\":[]}", captor.getValue().getSchemaJson());
+        assertEquals("form-a_copy", vo.getCode());
+    }
+
+    @Test
+    @DisplayName("copy：显式编码已存在时抛参数错误且不落库")
+    void shouldRejectCopyWhenExplicitCodeDuplicate() {
+        when(formDefinitionMapper.selectById(1L)).thenReturn(sourceDefinition(1L, "form-a", "A表单"));
+        when(formDefinitionMapper.selectCount(ArgumentMatchers.<Wrapper<FormDefinition>>any())).thenReturn(1L);
+        FormDefinitionCopyRequest request = new FormDefinitionCopyRequest();
+        request.setCode("form-b");
+
+        BizException ex = assertThrows(BizException.class,
+                () -> formDefinitionService.copy(1L, request));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        verify(formDefinitionMapper, never()).insert(any(FormDefinition.class));
+    }
+
+    @Test
+    @DisplayName("copy：显式编码/名称生效，字段与选项被复制")
+    void shouldCopyFieldsAndOptions() {
+        when(formDefinitionMapper.selectById(1L)).thenReturn(sourceDefinition(1L, "form-a", "A表单"));
+        FormFieldConfig first = new FormFieldConfig();
+        first.setId(11L);
+        first.setFormId(1L);
+        first.setFieldLabel("姓名");
+        first.setSortNo(0);
+        FormFieldConfig second = new FormFieldConfig();
+        second.setId(12L);
+        second.setFormId(1L);
+        second.setFieldLabel("状态");
+        second.setSortNo(1);
+        when(formFieldConfigMapper.selectList(ArgumentMatchers.<Wrapper<FormFieldConfig>>any()))
+                .thenReturn(List.of(first, second));
+        FormFieldOption option = new FormFieldOption();
+        option.setId(21L);
+        option.setFieldConfigId(12L);
+        option.setOptionLabel("启用");
+        option.setOptionValue("A");
+        option.setSortNo(0);
+        when(formFieldOptionMapper.selectList(ArgumentMatchers.<Wrapper<FormFieldOption>>any()))
+                .thenReturn(List.of(option));
+        FormDefinitionCopyRequest request = new FormDefinitionCopyRequest();
+        request.setCode("form-b");
+        request.setName("B表单");
+
+        FormDefinitionVO vo = formDefinitionService.copy(1L, request);
+
+        assertEquals("form-b", vo.getCode());
+        assertEquals("B表单", vo.getName());
+        ArgumentCaptor<FormFieldConfig> configCaptor = ArgumentCaptor.forClass(FormFieldConfig.class);
+        verify(formFieldConfigMapper, times(2)).insert(configCaptor.capture());
+        assertEquals("姓名", configCaptor.getAllValues().get(0).getFieldLabel());
+        assertNull(configCaptor.getAllValues().get(0).getId());
+        ArgumentCaptor<FormFieldOption> optionCaptor = ArgumentCaptor.forClass(FormFieldOption.class);
+        verify(formFieldOptionMapper).insert(optionCaptor.capture());
+        assertEquals("A", optionCaptor.getValue().getOptionValue());
+    }
+
+    @Test
+    @DisplayName("create：成功落库后写入版本快照")
+    void shouldWriteSnapshotOnCreate() {
+        when(formDefinitionMapper.selectCount(ArgumentMatchers.<Wrapper<FormDefinition>>any())).thenReturn(0L);
+
+        formDefinitionService.create(saveRequest("form-a", "A表单"));
+
+        ArgumentCaptor<FormDefinitionVersion> captor = ArgumentCaptor.forClass(FormDefinitionVersion.class);
+        verify(formDefinitionVersionMapper).insert(captor.capture());
+        assertEquals(1, captor.getValue().getVersion().intValue());
+        assertTrue(captor.getValue().getSnapshotJson().contains("\"code\":\"form-a\""));
+        assertTrue(captor.getValue().getSnapshotJson().contains("\"fields\":[]"));
+        verify(formDefinitionVersionMapper).delete(ArgumentMatchers.<Wrapper<FormDefinitionVersion>>any());
+    }
+
+    @Test
+    @DisplayName("update：成功后按当前版本号写入快照（版本号保持不变）")
+    void shouldWriteSnapshotOnUpdate() {
+        FormDefinition entity = sourceDefinition(1L, "form-a", "A表单");
+        entity.setVersion(2);
+        when(formDefinitionMapper.selectById(1L)).thenReturn(entity);
+        when(formFieldConfigMapper.selectList(ArgumentMatchers.<Wrapper<FormFieldConfig>>any()))
+                .thenReturn(List.of());
+
+        formDefinitionService.update(1L, saveRequest("form-a", "A表单新版"));
+
+        ArgumentCaptor<FormDefinitionVersion> captor = ArgumentCaptor.forClass(FormDefinitionVersion.class);
+        verify(formDefinitionVersionMapper).insert(captor.capture());
+        assertEquals(2, captor.getValue().getVersion().intValue());
+        assertEquals(2, entity.getVersion().intValue());
+    }
+
+    @Test
+    @DisplayName("rollback：恢复快照的定义与字段，版本号加一")
+    void shouldRollbackAndIncreaseVersion() {
+        FormDefinition entity = sourceDefinition(1L, "form-a", "当前版本");
+        entity.setVersion(3);
+        when(formDefinitionMapper.selectById(1L)).thenReturn(entity);
+        FormDefinitionVersion snapshot = new FormDefinitionVersion();
+        snapshot.setId(9L);
+        snapshot.setDefinitionId(1L);
+        snapshot.setVersion(2);
+        snapshot.setSnapshotJson("{\"definition\":{\"code\":\"form-a\",\"name\":\"旧版\","
+                + "\"tableDefinitionId\":null,\"schemaJson\":\"{\\\"fields\\\":[]}\",\"version\":2,"
+                + "\"status\":1,\"remark\":\"r\"},\"fields\":[{\"columnMetaId\":null,"
+                + "\"fieldLabel\":\"标题\",\"widgetType\":\"title\",\"showInList\":1,\"showInForm\":1,"
+                + "\"editable\":1,\"sortNo\":0,\"colSpan\":24,\"placeholder\":null,\"defaultValue\":null,"
+                + "\"validateJson\":null,\"remark\":null,\"status\":1,\"options\":[{\"optionLabel\":\"A\","
+                + "\"optionValue\":\"A\",\"sortNo\":0}]}]}");
+        when(formDefinitionVersionMapper.selectList(
+                ArgumentMatchers.<Wrapper<FormDefinitionVersion>>any())).thenReturn(List.of(snapshot));
+        when(formFieldConfigMapper.selectList(ArgumentMatchers.<Wrapper<FormFieldConfig>>any()))
+                .thenReturn(List.of());
+
+        FormDefinitionVO vo = formDefinitionService.rollback(1L, 2);
+
+        assertEquals("旧版", entity.getName());
+        assertEquals("{\"fields\":[]}", entity.getSchemaJson());
+        assertEquals(4, entity.getVersion().intValue());
+        assertEquals(4, vo.getVersion().intValue());
+        verify(formDefinitionMapper).updateById(entity);
+        ArgumentCaptor<FormFieldConfig> configCaptor = ArgumentCaptor.forClass(FormFieldConfig.class);
+        verify(formFieldConfigMapper).insert(configCaptor.capture());
+        assertEquals("标题", configCaptor.getValue().getFieldLabel());
+        verify(formFieldOptionMapper).insert(any(FormFieldOption.class));
+        ArgumentCaptor<FormDefinitionVersion> versionCaptor =
+                ArgumentCaptor.forClass(FormDefinitionVersion.class);
+        verify(formDefinitionVersionMapper).insert(versionCaptor.capture());
+        assertEquals(4, versionCaptor.getValue().getVersion().intValue());
+    }
+
+    @Test
+    @DisplayName("rollback：目标版本快照不存在抛 NOT_FOUND 且不更新")
+    void shouldThrowWhenRollbackVersionMissing() {
+        when(formDefinitionMapper.selectById(1L)).thenReturn(sourceDefinition(1L, "form-a", "A表单"));
+        when(formDefinitionVersionMapper.selectList(
+                ArgumentMatchers.<Wrapper<FormDefinitionVersion>>any())).thenReturn(List.of());
+
+        BizException ex = assertThrows(BizException.class,
+                () -> formDefinitionService.rollback(1L, 99));
+
+        assertEquals(NOT_FOUND_CODE, ex.getCode());
+        verify(formDefinitionMapper, never()).updateById(any(FormDefinition.class));
+    }
+
+    @Test
+    @DisplayName("listVersions：按版本号降序返回版本与创建时间")
+    void shouldListVersionsDescending() {
+        when(formDefinitionMapper.selectById(1L)).thenReturn(sourceDefinition(1L, "form-a", "A表单"));
+        FormDefinitionVersion latest = new FormDefinitionVersion();
+        latest.setVersion(3);
+        latest.setCreateTime(LocalDateTime.of(2026, 10, 23, 12, 0));
+        FormDefinitionVersion older = new FormDefinitionVersion();
+        older.setVersion(2);
+        older.setCreateTime(LocalDateTime.of(2026, 10, 22, 12, 0));
+        when(formDefinitionVersionMapper.selectList(
+                ArgumentMatchers.<Wrapper<FormDefinitionVersion>>any()))
+                .thenReturn(List.of(latest, older));
+
+        List<FormDefinitionVersionVO> versions = formDefinitionService.listVersions(1L);
+
+        assertEquals(2, versions.size());
+        assertEquals(3, versions.get(0).getVersion().intValue());
+        assertEquals(2, versions.get(1).getVersion().intValue());
+        assertEquals(LocalDateTime.of(2026, 10, 23, 12, 0), versions.get(0).getCreateTime());
     }
 }

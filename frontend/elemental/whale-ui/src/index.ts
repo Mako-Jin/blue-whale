@@ -26,6 +26,13 @@ export type {
   WhaleFormWidgetType,
   WhaleUploadedFile,
 } from './components/FormRenderer';
+// 表单字段联动规则类型（随字段 schema 一并对外暴露）
+export type {
+  LinkageAction,
+  LinkageCondition,
+  LinkageOperator,
+  LinkageRule,
+} from './components/FormRenderer/linkage';
 
 // 按钮级权限（T5.23）
 export { PermissionProvider, usePermission } from './permission/context';

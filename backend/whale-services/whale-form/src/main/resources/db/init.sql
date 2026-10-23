@@ -180,3 +180,17 @@ CREATE TABLE form_field_option (
     PRIMARY KEY (id),
     KEY idx_field_config_id (field_config_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='字段选项表（选项层）';
+
+-- ---------------------------------------------------------------------
+-- 表单定义版本快照表（版本回滚）
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS form_definition_version;
+CREATE TABLE form_definition_version (
+  id BIGINT NOT NULL COMMENT '主键ID（雪花算法）',
+  definition_id BIGINT NOT NULL COMMENT '表单定义ID',
+  version INT NOT NULL COMMENT '版本号',
+  snapshot_json MEDIUMTEXT NOT NULL COMMENT '定义+字段+选项的完整快照JSON',
+  create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (id),
+  KEY idx_definition_version (definition_id, version)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='表单定义版本快照表';

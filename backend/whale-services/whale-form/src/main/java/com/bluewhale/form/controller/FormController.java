@@ -3,11 +3,13 @@ package com.bluewhale.form.controller;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
+import com.bluewhale.form.dto.FormDefinitionCopyRequest;
 import com.bluewhale.form.dto.FormDefinitionSaveRequest;
 import com.bluewhale.form.dto.FormQueryRequest;
 import com.bluewhale.form.service.FormDefinitionService;
 import com.bluewhale.form.service.FormPublishService;
 import com.bluewhale.form.vo.FormDefinitionVO;
+import com.bluewhale.form.vo.FormDefinitionVersionVO;
 import com.bluewhale.form.vo.FormTableRegistryVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -125,5 +127,44 @@ public class FormController {
     @RequirePermission("sys:form:list")
     public Result<List<FormTableRegistryVO>> tables(@PathVariable Long id) {
         return Result.ok(formPublishService.listTables(id));
+    }
+
+    /**
+     * 复制表单定义（含字段配置与选项）。
+     *
+     * @param id 源表单定义ID
+     * @param request 复制请求（可为空，编码/名称由服务端生成）
+     * @return 新表单定义视图对象
+     */
+    @PostMapping("/definition/{id}/copy")
+    @RequirePermission("sys:form:add")
+    public Result<FormDefinitionVO> copy(@PathVariable Long id,
+                                         @Valid @RequestBody(required = false) FormDefinitionCopyRequest request) {
+        return Result.ok(formDefinitionService.copy(id, request));
+    }
+
+    /**
+     * 查询表单定义的版本快照列表（按版本号降序）。
+     *
+     * @param id 表单定义ID
+     * @return 版本快照视图对象列表
+     */
+    @GetMapping("/definition/{id}/versions")
+    @RequirePermission("sys:form:list")
+    public Result<List<FormDefinitionVersionVO>> versions(@PathVariable Long id) {
+        return Result.ok(formDefinitionService.listVersions(id));
+    }
+
+    /**
+     * 回滚表单定义到指定版本（回滚本身产生新版本）。
+     *
+     * @param id 表单定义ID
+     * @param version 目标版本号
+     * @return 回滚后的表单定义视图对象
+     */
+    @PostMapping("/definition/{id}/rollback/{version}")
+    @RequirePermission("sys:form:edit")
+    public Result<FormDefinitionVO> rollback(@PathVariable Long id, @PathVariable Integer version) {
+        return Result.ok(formDefinitionService.rollback(id, version));
     }
 }

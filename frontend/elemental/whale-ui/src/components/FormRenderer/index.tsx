@@ -23,6 +23,7 @@ import {
   type TableProps,
 } from 'antd';
 import dayjs from 'dayjs';
+import { isFieldDisabled, isFieldRequired, isFieldVisible, type LinkageRule } from './linkage';
 
 /** 后端 Long 类主键/外键，统一以字符串承载（雪花 ID 在 JSON 中一律为字符串） */
 export type WhaleFormId = string;
@@ -105,6 +106,8 @@ export interface WhaleFormFieldConfig {
   children?: WhaleFormSubField[];
   minRows?: number;
   maxRows?: number;
+  // 字段联动规则（仅当存在时参与显示/必填/禁用判断）
+  linkage?: LinkageRule;
 }
 
 /** 渲染器入参（设计器预览与填报页共用） */
@@ -692,6 +695,8 @@ export function FormRenderer({
 }: FormRendererProps) {
   const [form] = Form.useForm();
   const runtime: FileRuntime = { authToken, apiBaseUrl, uploadFile, downloadFile };
+  // 联动评估所用的当前表单值（与外部受控 value 同形，内部编辑时实时更新）
+  const [linkageValues, setLinkageValues] = useState<Record<string, unknown>>(value ?? {});
 
   // 受控同步：外部 value 变化时写入内部 Form（含 switch 1/0 ↔ boolean 等类型转换）
   useEffect(() => {
@@ -699,6 +704,7 @@ export function FormRenderer({
       return;
     }
     form.setFieldsValue(toInternalValues(fields, value));
+    setLinkageValues(value);
   }, [fields, form, value]);
 
   // 内部值变化 → 回传全量字段值（switch 转回 1/0）
@@ -706,7 +712,9 @@ export function FormRenderer({
     _changedValues: Record<string, unknown>,
     allValues: Record<string, unknown>,
   ) => {
-    onChange?.(toExternalValues(fields, allValues));
+    const external = toExternalValues(fields, allValues);
+    setLinkageValues(external);
+    onChange?.(external);
   };
 
   // 渲染单个字段：布局字段 / 数据字段（无 columnCode 的脏数据不渲染）
@@ -720,12 +728,21 @@ export function FormRenderer({
     }
     const resolved = resolveFieldExtras(field);
     const multiValue = field.widgetType === 'attachment' || field.widgetType === 'subtable';
+    // 联动：无 linkage 时 required/disabled 判定与改动前一致
+    const linkageField = {
+      key: columnCode,
+      required: field.required === 1,
+      linkage: field.linkage,
+    };
+    const required = isFieldRequired(linkageField, linkageValues);
+    const fieldDisabled =
+      !!disabled || field.editable === 0 || isFieldDisabled(linkageField, linkageValues);
     return (
       <Form.Item
         name={columnCode}
         label={field.fieldLabel}
         rules={
-          field.required === 1
+          required
             ? [
                 multiValue
                   ? {
@@ -739,13 +756,17 @@ export function FormRenderer({
         }
         valuePropName={field.widgetType === 'switch' ? 'checked' : 'value'}
       >
-        {renderControl(resolved, !!disabled || field.editable === 0, runtime)}
+        {renderControl(resolved, fieldDisabled, runtime)}
       </Form.Item>
     );
   };
 
-  // 仅渲染表单中可见字段（showInForm !== 0，undefined 视为显示）
-  const visibleFields = fields.filter((field) => field.showInForm !== 0);
+  // 仅渲染表单中可见字段（showInForm !== 0，undefined 视为显示；联动隐藏的字段不渲染但值保留）
+  const visibleFields = fields
+    .filter((field) => field.showInForm !== 0)
+    .filter((field) =>
+      isFieldVisible({ key: field.columnCode ?? '', linkage: field.linkage }, linkageValues),
+    );
 
   return (
     <Form form={form} layout="vertical" onValuesChange={handleValuesChange}>

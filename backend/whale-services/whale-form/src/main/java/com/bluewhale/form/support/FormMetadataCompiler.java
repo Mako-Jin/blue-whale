@@ -48,21 +48,14 @@ public final class FormMetadataCompiler {
      */
     public static String compile(List<FormFieldConfig> configs, Map<Long, FormColumnMeta> columns,
                                  Map<Long, List<FormFieldOption>> options) {
+        Set<String> keys = collectKeys(configs, columns);
         ArrayNode fields = MAPPER.createArrayNode();
-        Set<String> keys = new HashSet<>();
         for (FormFieldConfig config : configs) {
             if (config.getColumnMetaId() == null) {
                 continue;
             }
             FormColumnMeta column = columns.get(config.getColumnMetaId());
-            if (column == null) {
-                throw paramError("字段配置关联的列不存在：" + config.getColumnMetaId());
-            }
-            String key = column.getColumnCode();
-            if (!keys.add(key)) {
-                throw paramError("同一表单视图重复引用列：" + key);
-            }
-            fields.add(toFieldNode(config, column, options.get(config.getId())));
+            fields.add(toFieldNode(config, column, options.get(config.getId()), keys));
         }
         if (fields.isEmpty()) {
             throw paramError("表单视图未配置任何数据字段");
@@ -73,15 +66,41 @@ public final class FormMetadataCompiler {
     }
 
     /**
+     * 第一阶段：收集全部数据字段 key，并校验关联列存在且不重复引用
+     *
+     * @param configs 字段配置列表
+     * @param columns 列元数据映射
+     * @return 数据字段 key 集合
+     * @throws BizException 关联列缺失或重复引用列时抛出 {@code PARAM_ERROR}
+     */
+    private static Set<String> collectKeys(List<FormFieldConfig> configs, Map<Long, FormColumnMeta> columns) {
+        Set<String> keys = new HashSet<>();
+        for (FormFieldConfig config : configs) {
+            if (config.getColumnMetaId() == null) {
+                continue;
+            }
+            FormColumnMeta column = columns.get(config.getColumnMetaId());
+            if (column == null) {
+                throw paramError("字段配置关联的列不存在：" + config.getColumnMetaId());
+            }
+            if (!keys.add(column.getColumnCode())) {
+                throw paramError("同一表单视图重复引用列：" + column.getColumnCode());
+            }
+        }
+        return keys;
+    }
+
+    /**
      * 单个字段配置 → schema 字段节点
      *
      * @param config 字段配置
      * @param column 关联列元数据
      * @param options 该字段的选项列表（可空）
+     * @param allKeys 本表单全部数据字段 key 集合（联动校验用）
      * @return schema 字段节点
      */
     private static ObjectNode toFieldNode(FormFieldConfig config, FormColumnMeta column,
-                                          List<FormFieldOption> options) {
+                                          List<FormFieldOption> options, Set<String> allKeys) {
         ObjectNode node = MAPPER.createObjectNode();
         String label = StringUtils.hasText(config.getFieldLabel()) ? config.getFieldLabel() : column.getColumnName();
         node.put("key", column.getColumnCode());
@@ -99,21 +118,26 @@ public final class FormMetadataCompiler {
                 optionArray.add(option.getOptionValue());
             }
         }
-        applyFieldExtras(node, column.getDataType(), config.getValidateJson(), label);
+        applyFieldExtras(node, column.getDataType(), config.getValidateJson(), label,
+                column.getColumnCode(), allKeys);
         return node;
     }
 
     /**
-     * 把字段配置里的扩展规则（附件 multiple/accept/maxCount、子表 children/minRows/maxRows）
-     * 合并进 schema 字段节点。扩展规则以 {@code validateJson} 文本持久化，避免改动既有表结构。
+     * 把字段配置里的扩展规则（附件 multiple/accept/maxCount、子表 children/minRows/maxRows、
+     * 字段联动 linkage）合并进 schema 字段节点。扩展规则以 {@code validateJson} 文本持久化，
+     * 避免改动既有表结构。
      *
      * @param node schema 字段节点
      * @param dataType 存储类型
      * @param validateJson 字段配置的校验规则 JSON（可空）
      * @param label 字段显示名（错误提示）
-     * @throws BizException 扩展规则不是合法 JSON 对象时抛出 {@code PARAM_ERROR}
+     * @param currentKey 当前字段 key（联动禁止自引用）
+     * @param allKeys 本表单全部数据字段 key 集合
+     * @throws BizException 扩展规则或联动规则非法时抛出 {@code PARAM_ERROR}
      */
-    private static void applyFieldExtras(ObjectNode node, String dataType, String validateJson, String label) {
+    private static void applyFieldExtras(ObjectNode node, String dataType, String validateJson, String label,
+                                         String currentKey, Set<String> allKeys) {
         if (!StringUtils.hasText(validateJson)) {
             return;
         }
@@ -141,6 +165,11 @@ public final class FormMetadataCompiler {
             }
             node.put("minRows", Math.max(extra.path("minRows").asInt(0), 0));
             node.put("maxRows", Math.max(extra.path("maxRows").asInt(0), 0));
+        }
+        JsonNode linkage = extra.get("linkage");
+        if (linkage != null) {
+            FormLinkageValidator.validate(linkage, currentKey, allKeys, label);
+            node.set("linkage", linkage);
         }
     }
 

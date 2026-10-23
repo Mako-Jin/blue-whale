@@ -126,4 +126,97 @@ class FormMetadataCompilerTest {
 
         assertEquals(400, ex.getCode());
     }
+
+    @Test
+    @DisplayName("compile：合法 linkage 原样写入 schema 字段节点")
+    void shouldWriteLinkageNode() throws Exception {
+        FormColumnMeta nameColumn = column(1L, "name", "姓名", "text", 50, 0);
+        FormColumnMeta statusColumn = column(2L, "status", "状态", "select", null, 0);
+        FormFieldConfig nameConfig = config(11L, 1L, "姓名", "text", 1);
+        nameConfig.setValidateJson("{\"linkage\":{\"action\":\"show\",\"logic\":\"or\","
+                + "\"conditions\":[{\"field\":\"status\",\"operator\":\"eq\",\"value\":\"A\"}]}}");
+        FormFieldConfig statusConfig = config(12L, 2L, "状态", "select", 1);
+
+        String json = FormMetadataCompiler.compile(List.of(nameConfig, statusConfig),
+                Map.of(1L, nameColumn, 2L, statusColumn), Map.of());
+
+        JsonNode linkage = MAPPER.readTree(json).get("fields").get(0).get("linkage");
+        assertEquals("show", linkage.get("action").asText());
+        assertEquals("or", linkage.get("logic").asText());
+        assertEquals("status", linkage.get("conditions").get(0).get("field").asText());
+    }
+
+    @Test
+    @DisplayName("compile：linkage 动作非法抛参数错误")
+    void shouldRejectInvalidLinkageAction() {
+        FormColumnMeta nameColumn = column(1L, "name", "姓名", "text", 50, 0);
+        FormFieldConfig nameConfig = config(11L, 1L, "姓名", "text", 1);
+        nameConfig.setValidateJson("{\"linkage\":{\"action\":\"toggle\","
+                + "\"conditions\":[{\"field\":\"name\",\"operator\":\"eq\",\"value\":\"A\"}]}}");
+
+        BizException ex = assertThrows(BizException.class, () -> FormMetadataCompiler.compile(
+                List.of(nameConfig), Map.of(1L, nameColumn), Map.of()));
+
+        assertEquals(400, ex.getCode());
+    }
+
+    @Test
+    @DisplayName("compile：linkage 引用不存在的字段抛参数错误")
+    void shouldRejectLinkageUnknownField() {
+        FormColumnMeta nameColumn = column(1L, "name", "姓名", "text", 50, 0);
+        FormFieldConfig nameConfig = config(11L, 1L, "姓名", "text", 1);
+        nameConfig.setValidateJson("{\"linkage\":{\"action\":\"hide\","
+                + "\"conditions\":[{\"field\":\"missing\",\"operator\":\"empty\"}]}}");
+
+        BizException ex = assertThrows(BizException.class, () -> FormMetadataCompiler.compile(
+                List.of(nameConfig), Map.of(1L, nameColumn), Map.of()));
+
+        assertEquals(400, ex.getCode());
+    }
+
+    @Test
+    @DisplayName("compile：linkage 自引用抛参数错误")
+    void shouldRejectLinkageSelfReference() {
+        FormColumnMeta nameColumn = column(1L, "name", "姓名", "text", 50, 0);
+        FormFieldConfig nameConfig = config(11L, 1L, "姓名", "text", 1);
+        nameConfig.setValidateJson("{\"linkage\":{\"action\":\"disable\","
+                + "\"conditions\":[{\"field\":\"name\",\"operator\":\"notEmpty\"}]}}");
+
+        BizException ex = assertThrows(BizException.class, () -> FormMetadataCompiler.compile(
+                List.of(nameConfig), Map.of(1L, nameColumn), Map.of()));
+
+        assertEquals(400, ex.getCode());
+    }
+
+    @Test
+    @DisplayName("compile：linkage 的 in 取值为空抛参数错误")
+    void shouldRejectLinkageEmptyInValue() {
+        FormColumnMeta nameColumn = column(1L, "name", "姓名", "text", 50, 0);
+        FormColumnMeta statusColumn = column(2L, "status", "状态", "select", null, 0);
+        FormFieldConfig nameConfig = config(11L, 1L, "姓名", "text", 1);
+        nameConfig.setValidateJson("{\"linkage\":{\"action\":\"require\","
+                + "\"conditions\":[{\"field\":\"status\",\"operator\":\"in\",\"value\":\"\"}]}}");
+        FormFieldConfig statusConfig = config(12L, 2L, "状态", "select", 1);
+
+        BizException ex = assertThrows(BizException.class, () -> FormMetadataCompiler.compile(
+                List.of(nameConfig, statusConfig), Map.of(1L, nameColumn, 2L, statusColumn), Map.of()));
+
+        assertEquals(400, ex.getCode());
+    }
+
+    @Test
+    @DisplayName("compile：linkage 条件含未知键抛参数错误")
+    void shouldRejectLinkageUnknownConditionKey() {
+        FormColumnMeta nameColumn = column(1L, "name", "姓名", "text", 50, 0);
+        FormColumnMeta statusColumn = column(2L, "status", "状态", "select", null, 0);
+        FormFieldConfig nameConfig = config(11L, 1L, "姓名", "text", 1);
+        nameConfig.setValidateJson("{\"linkage\":{\"action\":\"show\","
+                + "\"conditions\":[{\"field\":\"status\",\"operator\":\"eq\",\"value\":\"A\",\"extra\":1}]}}");
+        FormFieldConfig statusConfig = config(12L, 2L, "状态", "select", 1);
+
+        BizException ex = assertThrows(BizException.class, () -> FormMetadataCompiler.compile(
+                List.of(nameConfig, statusConfig), Map.of(1L, nameColumn, 2L, statusColumn), Map.of()));
+
+        assertEquals(400, ex.getCode());
+    }
 }

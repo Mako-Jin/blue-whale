@@ -5,17 +5,20 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.form.dto.FormDefinitionCopyRequest;
 import com.bluewhale.form.dto.FormDefinitionSaveRequest;
 import com.bluewhale.form.dto.FormFieldConfigDTO;
 import com.bluewhale.form.dto.FormFieldOptionDTO;
 import com.bluewhale.form.dto.FormQueryRequest;
 import com.bluewhale.form.entity.FormColumnMeta;
 import com.bluewhale.form.entity.FormDefinition;
+import com.bluewhale.form.entity.FormDefinitionVersion;
 import com.bluewhale.form.entity.FormFieldConfig;
 import com.bluewhale.form.entity.FormFieldOption;
 import com.bluewhale.form.entity.FormTableDefinition;
 import com.bluewhale.form.mapper.FormColumnMetaMapper;
 import com.bluewhale.form.mapper.FormDefinitionMapper;
+import com.bluewhale.form.mapper.FormDefinitionVersionMapper;
 import com.bluewhale.form.mapper.FormFieldConfigMapper;
 import com.bluewhale.form.mapper.FormFieldOptionMapper;
 import com.bluewhale.form.mapper.FormTableDefinitionMapper;
@@ -23,8 +26,13 @@ import com.bluewhale.form.service.FormDefinitionService;
 import com.bluewhale.form.support.FormMetadataCompiler;
 import com.bluewhale.form.support.FormWidgetType;
 import com.bluewhale.form.vo.FormDefinitionVO;
+import com.bluewhale.form.vo.FormDefinitionVersionVO;
 import com.bluewhale.form.vo.FormFieldConfigVO;
 import com.bluewhale.form.vo.FormFieldOptionVO;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
@@ -69,6 +77,24 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
     /** 单页最大条数：防止深度分页拖垮数据库 */
     private static final long MAX_PAGE_SIZE = 200L;
 
+    /** 复制编码后缀 */
+    private static final String COPY_CODE_SUFFIX = "_copy";
+
+    /** 复制名称后缀 */
+    private static final String COPY_NAME_SUFFIX = "（副本）";
+
+    /** 复制编码的最大尝试次数 */
+    private static final int MAX_COPY_ATTEMPTS = 100;
+
+    /** 表单编码最大长度 */
+    private static final int MAX_CODE_LENGTH = 64;
+
+    /** 表单名称最大长度 */
+    private static final int MAX_NAME_LENGTH = 128;
+
+    /** 版本快照 JSON 序列化器 */
+    private static final ObjectMapper SNAPSHOT_MAPPER = new ObjectMapper();
+
     private final FormDefinitionMapper formDefinitionMapper;
 
     private final FormFieldConfigMapper formFieldConfigMapper;
@@ -78,6 +104,8 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
     private final FormColumnMetaMapper formColumnMetaMapper;
 
     private final FormTableDefinitionMapper formTableDefinitionMapper;
+
+    private final FormDefinitionVersionMapper formDefinitionVersionMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -104,6 +132,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
             entity.setSchemaJson(compileSnapshot(table, configs));
             formDefinitionMapper.updateById(entity);
         }
+        writeVersionSnapshot(entity);
         return toDetailVo(entity, table == null ? null : listFields(entity.getId()));
     }
 
@@ -141,6 +170,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
         } else {
             deleteFields(entity.getId());
         }
+        writeVersionSnapshot(entity);
         return toDetailVo(entity, table == null ? null : listFields(entity.getId()));
     }
 
@@ -170,6 +200,171 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
         List<FormDefinitionVO> records = page.getRecords().stream()
                 .map(entity -> toVo(entity, null)).toList();
         return PageResult.of(records, page.getTotal(), page.getCurrent(), page.getSize());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public FormDefinitionVO copy(Long id, FormDefinitionCopyRequest request) {
+        FormDefinition source = requireForm(id);
+        FormDefinition entity = new FormDefinition();
+        entity.setCode(resolveCopyCode(source.getCode(), request));
+        entity.setName(resolveCopyName(source.getName(), request));
+        entity.setTableDefinitionId(source.getTableDefinitionId());
+        entity.setSchemaJson(source.getSchemaJson());
+        entity.setVersion(DEFAULT_VERSION);
+        entity.setStatus(STATUS_NORMAL);
+        entity.setRemark(source.getRemark());
+        formDefinitionMapper.insert(entity);
+        List<FormFieldConfig> configs = copyFields(entity.getId(), source.getId());
+        if (source.getTableDefinitionId() != null) {
+            FormTableDefinition table = requireTableDefinition(source.getTableDefinitionId());
+            entity.setSchemaJson(compileSnapshot(table, configs));
+            formDefinitionMapper.updateById(entity);
+        }
+        writeVersionSnapshot(entity);
+        return toDetailVo(entity, listFields(entity.getId()));
+    }
+
+    @Override
+    public List<FormDefinitionVersionVO> listVersions(Long id) {
+        requireForm(id);
+        LambdaQueryWrapper<FormDefinitionVersion> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormDefinitionVersion::getDefinitionId, id);
+        wrapper.orderByDesc(FormDefinitionVersion::getVersion);
+        wrapper.orderByDesc(FormDefinitionVersion::getId);
+        return formDefinitionVersionMapper.selectList(wrapper).stream()
+                .map(FormDefinitionServiceImpl::toVersionVo).toList();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public FormDefinitionVO rollback(Long id, Integer version) {
+        FormDefinition entity = requireForm(id);
+        FormDefinitionVersion snapshot = findSnapshot(id, version);
+        JsonNode root = parseSnapshot(snapshot.getSnapshotJson());
+        JsonNode definition = root.path("definition");
+        restoreDefinition(entity, definition);
+        int currentVersion = entity.getVersion() == null ? DEFAULT_VERSION : entity.getVersion();
+        entity.setVersion(currentVersion + 1);
+        deleteFields(id);
+        List<FormFieldConfig> configs = restoreFields(id, root.path("fields"));
+        if (entity.getTableDefinitionId() != null) {
+            entity.setSchemaJson(recompile(entity.getTableDefinitionId(), configs, entity.getSchemaJson()));
+        }
+        formDefinitionMapper.updateById(entity);
+        writeVersionSnapshot(entity);
+        return toDetailVo(entity, listFields(id));
+    }
+
+    /**
+     * 按复制请求解析新表单编码：显式编码校验唯一，否则生成 {@code _copy}、{@code _copy2}…
+     *
+     * @param sourceCode 源表单编码
+     * @param request 复制请求（可空）
+     * @return 唯一的新表单编码
+     * @throws BizException 显式编码已存在或无法生成唯一编码时抛出 {@code PARAM_ERROR}
+     */
+    private String resolveCopyCode(String sourceCode, FormDefinitionCopyRequest request) {
+        if (request != null && StringUtils.hasText(request.getCode())) {
+            assertCodeUnique(request.getCode(), null);
+            return request.getCode();
+        }
+        String base = sourceCode + COPY_CODE_SUFFIX;
+        for (int i = 1; i <= MAX_COPY_ATTEMPTS; i++) {
+            String candidate = i == 1 ? base : base + i;
+            if (candidate.length() <= MAX_CODE_LENGTH && isCodeAvailable(candidate)) {
+                return candidate;
+            }
+        }
+        throw paramError("无法生成唯一表单编码");
+    }
+
+    /**
+     * 按复制请求解析新表单名称：显式名称优先，否则生成 {@code <源name>（副本）} 并截断超长
+     *
+     * @param sourceName 源表单名称
+     * @param request 复制请求（可空）
+     * @return 新表单名称
+     */
+    private static String resolveCopyName(String sourceName, FormDefinitionCopyRequest request) {
+        if (request != null && StringUtils.hasText(request.getName())) {
+            return request.getName();
+        }
+        String name = sourceName + COPY_NAME_SUFFIX;
+        return name.length() > MAX_NAME_LENGTH ? name.substring(0, MAX_NAME_LENGTH) : name;
+    }
+
+    /**
+     * 判断表单编码是否未被占用
+     *
+     * @param code 表单编码
+     * @return 未被占用返回 {@code true}
+     */
+    private boolean isCodeAvailable(String code) {
+        LambdaQueryWrapper<FormDefinition> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormDefinition::getCode, code);
+        Long count = formDefinitionMapper.selectCount(wrapper);
+        return count == null || count == 0;
+    }
+
+    /**
+     * 复制源表单的字段配置与选项（按排序号顺序，生成新主键）
+     *
+     * @param targetFormId 目标表单定义ID
+     * @param sourceFormId 源表单定义ID
+     * @return 新字段配置列表
+     */
+    private List<FormFieldConfig> copyFields(Long targetFormId, Long sourceFormId) {
+        List<FormFieldConfig> sources = listConfigs(sourceFormId);
+        Map<Long, List<FormFieldOption>> optionMap = loadOptions(sources);
+        List<FormFieldConfig> result = new ArrayList<>();
+        for (FormFieldConfig source : sources) {
+            FormFieldConfig config = new FormFieldConfig();
+            BeanUtils.copyProperties(source, config);
+            config.setId(null);
+            config.setFormId(targetFormId);
+            config.setCreateTime(null);
+            config.setUpdateTime(null);
+            config.setDeleted(null);
+            formFieldConfigMapper.insert(config);
+            persistRawOptions(config.getId(), optionMap.get(source.getId()));
+            result.add(config);
+        }
+        return result;
+    }
+
+    /**
+     * 查询表单定义下全部字段配置（按排序号升序）
+     *
+     * @param formId 表单定义ID
+     * @return 字段配置列表
+     */
+    private List<FormFieldConfig> listConfigs(Long formId) {
+        LambdaQueryWrapper<FormFieldConfig> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormFieldConfig::getFormId, formId);
+        wrapper.orderByAsc(FormFieldConfig::getSortNo);
+        return formFieldConfigMapper.selectList(wrapper);
+    }
+
+    /**
+     * 按源选项实体复制选项并落库
+     *
+     * @param fieldConfigId 目标字段配置ID
+     * @param options 源选项实体列表（可空）
+     */
+    private void persistRawOptions(Long fieldConfigId, List<FormFieldOption> options) {
+        if (options == null) {
+            return;
+        }
+        for (FormFieldOption source : options) {
+            FormFieldOption option = new FormFieldOption();
+            option.setFieldConfigId(fieldConfigId);
+            option.setOptionLabel(source.getOptionLabel());
+            option.setOptionValue(source.getOptionValue());
+            option.setSortNo(source.getSortNo() == null ? 0 : source.getSortNo());
+            option.setStatus(source.getStatus() == null ? STATUS_NORMAL : source.getStatus());
+            formFieldOptionMapper.insert(option);
+        }
     }
 
     /**
@@ -487,6 +682,283 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
             field.setRequired(column.getRequired());
             field.setMaxLength(column.getLength());
         }
+    }
+
+    /**
+     * 查询指定版本快照（同版本多条取 ID 最大一条），不存在则抛出 {@code NOT_FOUND}
+     *
+     * @param definitionId 表单定义ID
+     * @param version 版本号
+     * @return 版本快照实体
+     */
+    private FormDefinitionVersion findSnapshot(Long definitionId, Integer version) {
+        if (version == null) {
+            throw new BizException(ErrorCode.NOT_FOUND);
+        }
+        LambdaQueryWrapper<FormDefinitionVersion> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormDefinitionVersion::getDefinitionId, definitionId);
+        wrapper.eq(FormDefinitionVersion::getVersion, version);
+        wrapper.orderByDesc(FormDefinitionVersion::getId);
+        List<FormDefinitionVersion> snapshots = formDefinitionVersionMapper.selectList(wrapper);
+        if (snapshots.isEmpty()) {
+            throw new BizException(ErrorCode.NOT_FOUND);
+        }
+        return snapshots.get(0);
+    }
+
+    /**
+     * 解析版本快照 JSON
+     *
+     * @param snapshotJson 快照 JSON 文本
+     * @return 快照根节点
+     */
+    private static JsonNode parseSnapshot(String snapshotJson) {
+        try {
+            JsonNode root = SNAPSHOT_MAPPER.readTree(snapshotJson);
+            if (root == null || !root.isObject()) {
+                throw paramError("版本快照格式非法");
+            }
+            return root;
+        } catch (BizException e) {
+            throw e;
+        } catch (Exception e) {
+            throw paramError("版本快照格式非法");
+        }
+    }
+
+    /**
+     * 用快照中的定义信息恢复表单定义（编码冲突时抛参数错误）
+     *
+     * @param entity 待恢复的表单定义实体
+     * @param definition 快照的定义节点
+     */
+    private void restoreDefinition(FormDefinition entity, JsonNode definition) {
+        String code = textOrNull(definition, "code");
+        if (StringUtils.hasText(code) && !Objects.equals(code, entity.getCode())) {
+            assertCodeUnique(code, null);
+            entity.setCode(code);
+        }
+        entity.setName(textOrNull(definition, "name"));
+        entity.setTableDefinitionId(longOrNull(definition, "tableDefinitionId"));
+        entity.setSchemaJson(textOrNull(definition, "schemaJson"));
+        entity.setRemark(textOrNull(definition, "remark"));
+        Integer status = intOrNull(definition, "status");
+        entity.setStatus(status == null ? STATUS_NORMAL : status);
+    }
+
+    /**
+     * 按快照字段数组重建字段配置与选项（新主键）
+     *
+     * @param formId 表单定义ID
+     * @param fields 快照字段数组
+     * @return 新字段配置列表
+     */
+    private List<FormFieldConfig> restoreFields(Long formId, JsonNode fields) {
+        List<FormFieldConfig> result = new ArrayList<>();
+        if (fields == null || !fields.isArray()) {
+            return result;
+        }
+        for (JsonNode node : fields) {
+            FormFieldConfig config = snapshotToConfig(formId, node);
+            formFieldConfigMapper.insert(config);
+            restoreOptions(config.getId(), node.path("options"));
+            result.add(config);
+        }
+        return result;
+    }
+
+    /**
+     * 快照字段节点 → 字段配置实体
+     *
+     * @param formId 表单定义ID
+     * @param node 快照字段节点
+     * @return 字段配置实体
+     */
+    private static FormFieldConfig snapshotToConfig(Long formId, JsonNode node) {
+        FormFieldConfig config = new FormFieldConfig();
+        config.setFormId(formId);
+        config.setColumnMetaId(longOrNull(node, "columnMetaId"));
+        config.setFieldLabel(textOrNull(node, "fieldLabel"));
+        config.setWidgetType(textOrNull(node, "widgetType"));
+        config.setShowInList(intOrNull(node, "showInList"));
+        config.setShowInForm(intOrNull(node, "showInForm"));
+        config.setEditable(intOrNull(node, "editable"));
+        config.setSortNo(intOrNull(node, "sortNo"));
+        config.setColSpan(intOrNull(node, "colSpan"));
+        config.setPlaceholder(textOrNull(node, "placeholder"));
+        config.setDefaultValue(textOrNull(node, "defaultValue"));
+        config.setValidateJson(textOrNull(node, "validateJson"));
+        config.setRemark(textOrNull(node, "remark"));
+        config.setStatus(intOrNull(node, "status"));
+        return config;
+    }
+
+    /**
+     * 按快照选项数组重建字段选项
+     *
+     * @param fieldConfigId 字段配置ID
+     * @param options 快照选项数组
+     */
+    private void restoreOptions(Long fieldConfigId, JsonNode options) {
+        if (options == null || !options.isArray()) {
+            return;
+        }
+        for (JsonNode node : options) {
+            FormFieldOption option = new FormFieldOption();
+            option.setFieldConfigId(fieldConfigId);
+            option.setOptionLabel(textOrNull(node, "optionLabel"));
+            option.setOptionValue(textOrNull(node, "optionValue"));
+            Integer sortNo = intOrNull(node, "sortNo");
+            option.setSortNo(sortNo == null ? 0 : sortNo);
+            Integer status = intOrNull(node, "status");
+            option.setStatus(status == null ? STATUS_NORMAL : status);
+            formFieldOptionMapper.insert(option);
+        }
+    }
+
+    /**
+     * 元数据模型下重新编译 {@code schema_json}；编译失败且快照 schema 非空时沿用快照
+     *
+     * @param tableDefinitionId 表定义ID
+     * @param configs 重建后的字段配置
+     * @param snapshotSchema 快照中的 schema JSON（可空）
+     * @return {@code schema_json} 文本
+     */
+    private String recompile(Long tableDefinitionId, List<FormFieldConfig> configs, String snapshotSchema) {
+        try {
+            return compileSnapshot(requireTableDefinition(tableDefinitionId), configs);
+        } catch (BizException e) {
+            if (StringUtils.hasText(snapshotSchema)) {
+                return snapshotSchema;
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * 写入当前版本的快照（先删除同定义同版本的旧快照）
+     *
+     * @param entity 表单定义实体（版本号需已确定）
+     */
+    private void writeVersionSnapshot(FormDefinition entity) {
+        LambdaQueryWrapper<FormDefinitionVersion> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FormDefinitionVersion::getDefinitionId, entity.getId());
+        wrapper.eq(FormDefinitionVersion::getVersion, entity.getVersion());
+        formDefinitionVersionMapper.delete(wrapper);
+        FormDefinitionVersion snapshot = new FormDefinitionVersion();
+        snapshot.setDefinitionId(entity.getId());
+        snapshot.setVersion(entity.getVersion());
+        snapshot.setSnapshotJson(buildSnapshot(entity));
+        formDefinitionVersionMapper.insert(snapshot);
+    }
+
+    /**
+     * 构建「定义 + 字段 + 选项」完整快照 JSON
+     *
+     * @param entity 表单定义实体
+     * @return 快照 JSON 文本
+     */
+    private String buildSnapshot(FormDefinition entity) {
+        ObjectNode root = SNAPSHOT_MAPPER.createObjectNode();
+        ObjectNode definition = root.putObject("definition");
+        definition.put("code", entity.getCode());
+        definition.put("name", entity.getName());
+        definition.put("tableDefinitionId", entity.getTableDefinitionId());
+        definition.put("schemaJson", entity.getSchemaJson());
+        definition.put("version", entity.getVersion());
+        definition.put("status", entity.getStatus());
+        definition.put("remark", entity.getRemark());
+        List<FormFieldConfig> configs = listConfigs(entity.getId());
+        Map<Long, List<FormFieldOption>> optionMap = loadOptions(configs);
+        ArrayNode fields = root.putArray("fields");
+        for (FormFieldConfig config : configs) {
+            fields.add(toSnapshotField(config, optionMap.get(config.getId())));
+        }
+        return root.toString();
+    }
+
+    /**
+     * 字段配置 → 快照字段节点（含选项）
+     *
+     * @param config 字段配置
+     * @param options 选项列表（可空）
+     * @return 快照字段节点
+     */
+    private static ObjectNode toSnapshotField(FormFieldConfig config, List<FormFieldOption> options) {
+        ObjectNode node = SNAPSHOT_MAPPER.createObjectNode();
+        node.put("columnMetaId", config.getColumnMetaId());
+        node.put("fieldLabel", config.getFieldLabel());
+        node.put("widgetType", config.getWidgetType());
+        node.put("showInList", config.getShowInList());
+        node.put("showInForm", config.getShowInForm());
+        node.put("editable", config.getEditable());
+        node.put("sortNo", config.getSortNo());
+        node.put("colSpan", config.getColSpan());
+        node.put("placeholder", config.getPlaceholder());
+        node.put("defaultValue", config.getDefaultValue());
+        node.put("validateJson", config.getValidateJson());
+        node.put("remark", config.getRemark());
+        node.put("status", config.getStatus());
+        ArrayNode optionArray = node.putArray("options");
+        if (options == null) {
+            return node;
+        }
+        for (FormFieldOption option : options) {
+            ObjectNode optionNode = optionArray.addObject();
+            optionNode.put("optionLabel", option.getOptionLabel());
+            optionNode.put("optionValue", option.getOptionValue());
+            optionNode.put("sortNo", option.getSortNo());
+        }
+        return node;
+    }
+
+    /**
+     * 读取文本属性
+     *
+     * @param node 父节点
+     * @param field 属性名
+     * @return 文本值；缺失或非文本时为 {@code null}
+     */
+    private static String textOrNull(JsonNode node, String field) {
+        JsonNode value = node == null ? null : node.get(field);
+        return value == null || value.isNull() || !value.isTextual() ? null : value.asText();
+    }
+
+    /**
+     * 读取整型属性
+     *
+     * @param node 父节点
+     * @param field 属性名
+     * @return 整型值；缺失或非数值时为 {@code null}
+     */
+    private static Integer intOrNull(JsonNode node, String field) {
+        JsonNode value = node == null ? null : node.get(field);
+        return value == null || !value.isNumber() ? null : value.asInt();
+    }
+
+    /**
+     * 读取长整型属性
+     *
+     * @param node 父节点
+     * @param field 属性名
+     * @return 长整型值；缺失或非数值时为 {@code null}
+     */
+    private static Long longOrNull(JsonNode node, String field) {
+        JsonNode value = node == null ? null : node.get(field);
+        return value == null || !value.isNumber() ? null : value.asLong();
+    }
+
+    /**
+     * 版本快照实体 → 视图对象
+     *
+     * @param snapshot 版本快照实体
+     * @return 版本快照视图对象
+     */
+    private static FormDefinitionVersionVO toVersionVo(FormDefinitionVersion snapshot) {
+        FormDefinitionVersionVO vo = new FormDefinitionVersionVO();
+        vo.setVersion(snapshot.getVersion());
+        vo.setCreateTime(snapshot.getCreateTime());
+        return vo;
     }
 
     /**
