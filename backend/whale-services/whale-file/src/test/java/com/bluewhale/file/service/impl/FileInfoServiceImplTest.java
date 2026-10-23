@@ -6,39 +6,53 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.file.config.FileProperties;
+import com.bluewhale.file.dto.ChunkUploadCompleteRequest;
+import com.bluewhale.file.dto.ChunkUploadInitRequest;
 import com.bluewhale.file.dto.FileQueryRequest;
 import com.bluewhale.file.entity.FileInfo;
 import com.bluewhale.file.mapper.FileInfoMapper;
 import com.bluewhale.file.storage.FileStorage;
+import com.bluewhale.file.vo.ChunkUploadInitVO;
 import com.bluewhale.file.vo.FileInfoVO;
+import com.bluewhale.file.vo.FilePresignedVO;
 import com.bluewhale.file.vo.FileUploadVO;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.springframework.util.DigestUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * {@link FileInfoServiceImpl} 上传落元数据、超限拒绝、下载缺失与分页条件传递单元测试。
+ * {@link FileInfoServiceImpl} 上传落元数据、超限拒绝、下载缺失、分页条件、预签名与分片上传单元测试。
  *
  * @author BlueWhale
  */
@@ -48,6 +62,12 @@ class FileInfoServiceImplTest {
     private static final int NOT_FOUND_CODE = 404;
     private static final long UPLOADER_ID = 9L;
 
+    /** 分片测试用的分片大小：10 字节 */
+    private static final long TEST_CHUNK_SIZE = 10L;
+
+    @TempDir
+    Path tempDir;
+
     private final FileInfoMapper fileInfoMapper = mock(FileInfoMapper.class);
 
     private final FileStorage fileStorage = mock(FileStorage.class);
@@ -56,6 +76,15 @@ class FileInfoServiceImplTest {
 
     private final FileInfoServiceImpl fileInfoService =
             new FileInfoServiceImpl(fileInfoMapper, fileStorage, fileProperties);
+
+    /**
+     * 以临时目录作为存储根目录，并设置较小的分片大小便于构造多分片场景。
+     */
+    @BeforeEach
+    void setUp() {
+        fileProperties.getStorage().setRoot(tempDir.toString());
+        fileProperties.setChunkSizeBytes(TEST_CHUNK_SIZE);
+    }
 
     /**
      * 构造上传文件桩对象：内容、大小、原始名与 MIME 类型。
@@ -73,6 +102,36 @@ class FileInfoServiceImplTest {
         when(file.getOriginalFilename()).thenReturn(originalName);
         when(file.getContentType()).thenReturn("application/pdf");
         return file;
+    }
+
+    /**
+     * 构造分片上传桩对象：仅提供流式读取能力。
+     *
+     * @param content 分片内容
+     * @return MultipartFile 桩对象
+     * @throws IOException 桩设定期不抛出，仅为对齐 {@code getInputStream} 声明
+     */
+    private static MultipartFile chunkPart(byte[] content) throws IOException {
+        MultipartFile file = mock(MultipartFile.class);
+        when(file.isEmpty()).thenReturn(content.length == 0);
+        when(file.getSize()).thenReturn((long) content.length);
+        when(file.getInputStream()).thenReturn(new ByteArrayInputStream(content));
+        return file;
+    }
+
+    /**
+     * 构造分片上传初始化请求。
+     *
+     * @param fileName 原始文件名
+     * @param size 文件总字节数
+     * @return 初始化请求
+     */
+    private static ChunkUploadInitRequest initRequest(String fileName, long size) {
+        ChunkUploadInitRequest request = new ChunkUploadInitRequest();
+        request.setFileName(fileName);
+        request.setContentType("video/mp4");
+        request.setSize(size);
+        return request;
     }
 
     @Test
@@ -147,5 +206,178 @@ class FileInfoServiceImplTest {
         assertNotNull(result.getRecords().get(0).getObjectKey());
         verify(fileInfoMapper).selectPage(ArgumentMatchers.<Page<FileInfo>>any(),
                 ArgumentMatchers.<Wrapper<FileInfo>>any());
+    }
+
+    @Test
+    @DisplayName("presignedUrl：默认 600 秒并回传存储生成的 URL")
+    void shouldPresignWithDefaultExpiry() {
+        FileInfo entity = new FileInfo();
+        entity.setId(5L);
+        entity.setBucket("bluewhale");
+        entity.setObjectKey("2026/10/19/a.txt");
+        when(fileInfoMapper.selectById(5L)).thenReturn(entity);
+        when(fileStorage.presignedDownloadUrl("bluewhale", "2026/10/19/a.txt", 600))
+                .thenReturn("http://127.0.0.1:9000/bluewhale/2026/10/19/a.txt?sign=x");
+
+        FilePresignedVO vo = fileInfoService.presignedUrl(5L, null);
+
+        assertEquals("http://127.0.0.1:9000/bluewhale/2026/10/19/a.txt?sign=x", vo.getUrl());
+        assertEquals(Integer.valueOf(600), vo.getExpiresSeconds());
+    }
+
+    @Test
+    @DisplayName("presignedUrl：有效期超过 3600 秒时截断为 3600")
+    void shouldClampPresignExpiry() {
+        FileInfo entity = new FileInfo();
+        entity.setId(5L);
+        entity.setBucket("bluewhale");
+        entity.setObjectKey("2026/10/19/a.txt");
+        when(fileInfoMapper.selectById(5L)).thenReturn(entity);
+        when(fileStorage.presignedDownloadUrl("bluewhale", "2026/10/19/a.txt", 3600))
+                .thenReturn("http://x");
+
+        FilePresignedVO vo = fileInfoService.presignedUrl(5L, 9999);
+
+        assertEquals(Integer.valueOf(3600), vo.getExpiresSeconds());
+        verify(fileStorage).presignedDownloadUrl("bluewhale", "2026/10/19/a.txt", 3600);
+    }
+
+    @Test
+    @DisplayName("presignedUrl：local 存储不支持预签名，透传参数错误")
+    void shouldRejectPresignWhenStorageUnsupported() {
+        FileInfo entity = new FileInfo();
+        entity.setId(5L);
+        entity.setBucket("bluewhale");
+        entity.setObjectKey("2026/10/19/a.txt");
+        when(fileInfoMapper.selectById(5L)).thenReturn(entity);
+        when(fileStorage.presignedDownloadUrl(anyString(), anyString(), anyInt()))
+                .thenThrow(new BizException(ErrorCode.PARAM_ERROR.getCode(), "仅 MinIO 存储支持预签名"));
+
+        BizException ex = assertThrows(BizException.class, () -> fileInfoService.presignedUrl(5L, 600));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        assertTrue(ex.getMessage().contains("仅 MinIO 存储支持预签名"));
+    }
+
+    @Test
+    @DisplayName("分片上传：init → 上传 2 个分片 → complete 合并落存储并写元数据")
+    void shouldCompleteChunkUpload() throws IOException {
+        ChunkUploadInitVO initVo = fileInfoService.initChunkUpload(initRequest("video.bin", 12L));
+
+        assertNotNull(initVo.getUploadId());
+        assertEquals(TEST_CHUNK_SIZE, initVo.getChunkSize());
+        assertEquals(List.of(), initVo.getUploadedIndexes());
+        assertEquals(List.of(0), fileInfoService.uploadChunkPart(initVo.getUploadId(), 0,
+                chunkPart("hello".getBytes(StandardCharsets.UTF_8))));
+        assertEquals(List.of(0, 1), fileInfoService.uploadChunkPart(initVo.getUploadId(), 1,
+                chunkPart(" whale!".getBytes(StandardCharsets.UTF_8))));
+        assertEquals(List.of(0, 1), fileInfoService.chunkUploadStatus(initVo.getUploadId()));
+
+        byte[][] stored = new byte[1][];
+        doAnswer(invocation -> {
+            stored[0] = invocation.<InputStream>getArgument(2).readAllBytes();
+            return null;
+        }).when(fileStorage).store(eq("bluewhale"), anyString(), any(InputStream.class));
+
+        ChunkUploadCompleteRequest complete = new ChunkUploadCompleteRequest();
+        complete.setUploadId(initVo.getUploadId());
+        complete.setFileName("video.bin");
+        complete.setSize(12L);
+        FileUploadVO vo = fileInfoService.completeChunkUpload(complete, UPLOADER_ID);
+
+        byte[] expected = "hello whale!".getBytes(StandardCharsets.UTF_8);
+        assertArrayEquals(expected, stored[0]);
+        assertEquals("video.bin", vo.getOriginalName());
+        assertEquals("bluewhale", vo.getBucket());
+        assertEquals(12L, vo.getFileSize());
+        assertEquals("video/mp4", vo.getContentType());
+        assertEquals(DigestUtils.md5DigestAsHex(expected), vo.getMd5());
+        assertTrue(vo.getObjectKey().endsWith(".bin"));
+        ArgumentCaptor<FileInfo> captor = ArgumentCaptor.forClass(FileInfo.class);
+        verify(fileInfoMapper).insert(captor.capture());
+        assertEquals(Long.valueOf(12L), captor.getValue().getFileSize());
+        assertEquals(UPLOADER_ID, captor.getValue().getUploaderId());
+        assertFalse(Files.exists(tempDir.resolve("tmp").resolve(initVo.getUploadId())),
+                "合并成功后应清理临时目录");
+    }
+
+    @Test
+    @DisplayName("分片上传：续传 init 返回已上传分片索引")
+    void shouldResumeChunkUpload() throws IOException {
+        ChunkUploadInitVO initVo = fileInfoService.initChunkUpload(initRequest("video.bin", 12L));
+        fileInfoService.uploadChunkPart(initVo.getUploadId(), 0, chunkPart("hello".getBytes(StandardCharsets.UTF_8)));
+
+        ChunkUploadInitRequest resume = initRequest("video.bin", 12L);
+        resume.setUploadId(initVo.getUploadId());
+        ChunkUploadInitVO resumed = fileInfoService.initChunkUpload(resume);
+
+        assertEquals(initVo.getUploadId(), resumed.getUploadId());
+        assertEquals(List.of(0), resumed.getUploadedIndexes());
+    }
+
+    @Test
+    @DisplayName("分片上传：缺片时 complete 抛参数错误并提示缺失索引，且保留临时目录")
+    void shouldRejectIncompleteChunks() throws IOException {
+        ChunkUploadInitVO initVo = fileInfoService.initChunkUpload(initRequest("video.bin", 12L));
+        fileInfoService.uploadChunkPart(initVo.getUploadId(), 0,
+                chunkPart("hello".getBytes(StandardCharsets.UTF_8)));
+
+        ChunkUploadCompleteRequest complete = new ChunkUploadCompleteRequest();
+        complete.setUploadId(initVo.getUploadId());
+        complete.setFileName("video.bin");
+        complete.setSize(12L);
+        BizException ex = assertThrows(BizException.class,
+                () -> fileInfoService.completeChunkUpload(complete, UPLOADER_ID));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        assertTrue(ex.getMessage().contains("缺少分片索引"));
+        assertTrue(ex.getMessage().contains("1"));
+        verify(fileStorage, never()).store(any(), any(), any());
+        verify(fileInfoMapper, never()).insert(any(FileInfo.class));
+        assertTrue(Files.exists(tempDir.resolve("tmp").resolve(initVo.getUploadId())),
+                "失败时保留分片供续传");
+    }
+
+    @Test
+    @DisplayName("分片上传：总大小超过 max-size-bytes 时 complete 抛参数错误")
+    void shouldRejectOversizeChunkUpload() throws IOException {
+        ChunkUploadInitVO initVo = fileInfoService.initChunkUpload(initRequest("video.bin", 12L));
+        fileInfoService.uploadChunkPart(initVo.getUploadId(), 0,
+                chunkPart("hello".getBytes(StandardCharsets.UTF_8)));
+        fileInfoService.uploadChunkPart(initVo.getUploadId(), 1,
+                chunkPart(" whale!".getBytes(StandardCharsets.UTF_8)));
+        fileProperties.setMaxSizeBytes(5L);
+
+        ChunkUploadCompleteRequest complete = new ChunkUploadCompleteRequest();
+        complete.setUploadId(initVo.getUploadId());
+        complete.setFileName("video.bin");
+        complete.setSize(12L);
+        BizException ex = assertThrows(BizException.class,
+                () -> fileInfoService.completeChunkUpload(complete, UPLOADER_ID));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        assertTrue(ex.getMessage().contains("超出上限"));
+        verify(fileStorage, never()).store(any(), any(), any());
+        verify(fileInfoMapper, never()).insert(any(FileInfo.class));
+    }
+
+    @Test
+    @DisplayName("分片上传：分片总大小与声明大小不一致时抛参数错误")
+    void shouldRejectChunkSizeMismatch() throws IOException {
+        ChunkUploadInitVO initVo = fileInfoService.initChunkUpload(initRequest("video.bin", 20L));
+        fileInfoService.uploadChunkPart(initVo.getUploadId(), 0,
+                chunkPart("hello".getBytes(StandardCharsets.UTF_8)));
+        fileInfoService.uploadChunkPart(initVo.getUploadId(), 1,
+                chunkPart(" whale!".getBytes(StandardCharsets.UTF_8)));
+
+        ChunkUploadCompleteRequest complete = new ChunkUploadCompleteRequest();
+        complete.setUploadId(initVo.getUploadId());
+        complete.setFileName("video.bin");
+        complete.setSize(20L);
+        BizException ex = assertThrows(BizException.class,
+                () -> fileInfoService.completeChunkUpload(complete, UPLOADER_ID));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        assertTrue(ex.getMessage().contains("分片总大小与声明大小不一致"));
     }
 }

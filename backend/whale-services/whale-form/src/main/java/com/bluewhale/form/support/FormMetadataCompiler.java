@@ -5,6 +5,7 @@ import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.form.entity.FormColumnMeta;
 import com.bluewhale.form.entity.FormFieldConfig;
 import com.bluewhale.form.entity.FormFieldOption;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -98,7 +99,49 @@ public final class FormMetadataCompiler {
                 optionArray.add(option.getOptionValue());
             }
         }
+        applyFieldExtras(node, column.getDataType(), config.getValidateJson(), label);
         return node;
+    }
+
+    /**
+     * 把字段配置里的扩展规则（附件 multiple/accept/maxCount、子表 children/minRows/maxRows）
+     * 合并进 schema 字段节点。扩展规则以 {@code validateJson} 文本持久化，避免改动既有表结构。
+     *
+     * @param node schema 字段节点
+     * @param dataType 存储类型
+     * @param validateJson 字段配置的校验规则 JSON（可空）
+     * @param label 字段显示名（错误提示）
+     * @throws BizException 扩展规则不是合法 JSON 对象时抛出 {@code PARAM_ERROR}
+     */
+    private static void applyFieldExtras(ObjectNode node, String dataType, String validateJson, String label) {
+        if (!StringUtils.hasText(validateJson)) {
+            return;
+        }
+        JsonNode extra;
+        try {
+            extra = MAPPER.readTree(validateJson);
+        } catch (Exception e) {
+            throw paramError("字段 " + label + " 的扩展配置不是合法 JSON");
+        }
+        if (extra == null || !extra.isObject()) {
+            throw paramError("字段 " + label + " 的扩展配置必须为 JSON 对象");
+        }
+        if (FormDataType.ATTACHMENT.equals(dataType)) {
+            node.put("multiple", extra.path("multiple").asBoolean(true));
+            node.put("maxCount", Math.max(extra.path("maxCount").asInt(0), 0));
+            JsonNode accept = extra.get("accept");
+            if (accept != null && !accept.isNull() && StringUtils.hasText(accept.asText())) {
+                node.put("accept", accept.asText());
+            }
+        }
+        if (FormDataType.SUBTABLE.equals(dataType)) {
+            JsonNode children = extra.get("children");
+            if (children != null && children.isArray()) {
+                node.set("children", children);
+            }
+            node.put("minRows", Math.max(extra.path("minRows").asInt(0), 0));
+            node.put("maxRows", Math.max(extra.path("maxRows").asInt(0), 0));
+        }
     }
 
     /**

@@ -3,6 +3,7 @@
 
 import { Button, Descriptions, Drawer, Empty, Input, Space, Spin, Tag, Typography } from 'antd';
 import { FormRenderer } from '@bluewhale/whale-ui';
+import { getToken } from '../../api/token';
 import type { ApprovalController } from './useApprovalDrawer';
 import type { TaskAction } from './constants';
 
@@ -138,6 +139,8 @@ export default function ApprovalDrawer({ approval, onOpenTaskAction }: ApprovalD
             value={formValues}
             disabled={readOnly}
             onChange={readOnly ? undefined : handleFormChange}
+            authToken={getToken() ?? undefined}
+            apiBaseUrl={import.meta.env.VITE_API_BASE_URL ?? ''}
           />
         ) : drawerLoading ? null : (
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={formError ?? '无表单数据'} />

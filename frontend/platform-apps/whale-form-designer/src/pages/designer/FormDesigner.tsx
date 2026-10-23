@@ -26,12 +26,17 @@ import {
   type FormDefinition,
   type Id,
 } from '../../api/form';
+import { getToken } from '../../api/token';
 import FormRenderer from '../../render/FormRenderer';
 import Canvas from './Canvas';
 import Palette from './Palette';
 import PropertyPanel from './PropertyPanel';
 import {
   CANVAS_DROPPABLE_ID,
+  buildValidateJson,
+  defaultAttachmentExtras,
+  defaultSubtableExtras,
+  hydrateField,
   isLayoutField,
   nextUid,
   type DesignerField,
@@ -52,7 +57,7 @@ function toSaveField(field: DesignerField, index: number): FieldConfig {
     colSpan: field.colSpan ?? 24,
     placeholder: layout ? undefined : field.placeholder,
     defaultValue: layout ? undefined : field.defaultValue,
-    validateJson: field.validateJson,
+    validateJson: buildValidateJson(field),
     remark: field.remark,
     status: field.status ?? 1,
     options: layout ? undefined : field.options,
@@ -253,7 +258,7 @@ export default function FormDesigner() {
             (detail.fields ?? [])
               .slice()
               .sort((a, b) => (a.sortNo ?? 0) - (b.sortNo ?? 0))
-              .map((field) => ({ ...field, _uid: nextUid() })),
+              .map((field) => ({ ...hydrateField(field), _uid: nextUid() })),
           );
         } else {
           setDefinition(null);
@@ -335,6 +340,8 @@ export default function FormDesigner() {
     (payload: PalettePayload): DesignerField => {
       const column =
         payload.columnMetaId != null ? columnsById.get(payload.columnMetaId) : undefined;
+      const isComposite =
+        payload.widgetType === 'attachment' || payload.widgetType === 'subtable';
       return {
         _uid: nextUid(),
         columnMetaId: payload.columnMetaId,
@@ -345,7 +352,9 @@ export default function FormDesigner() {
         editable: 1,
         colSpan: 24,
         status: 1,
-        placeholder: column ? `请输入${column.columnName || column.columnCode}` : undefined,
+        placeholder: column && !isComposite
+          ? `请输入${column.columnName || column.columnCode}`
+          : undefined,
         options:
           payload.widgetType === 'select' ||
           payload.widgetType === 'radio' ||
@@ -356,6 +365,9 @@ export default function FormDesigner() {
         dataType: column?.dataType,
         required: column?.required,
         maxLength: column?.length,
+        // 复合字段的扩展配置，保存时序列化到 validateJson
+        ...(payload.widgetType === 'attachment' ? defaultAttachmentExtras() : {}),
+        ...(payload.widgetType === 'subtable' ? defaultSubtableExtras() : {}),
       };
     },
     [columnsById],
@@ -646,7 +658,11 @@ export default function FormDesigner() {
         onClose={() => setPreviewOpen(false)}
         destroyOnClose
       >
-        <FormRenderer fields={fields} />
+        <FormRenderer
+          fields={fields}
+          authToken={getToken() ?? undefined}
+          apiBaseUrl={import.meta.env.VITE_API_BASE_URL ?? ''}
+        />
         <div style={{ marginTop: 8, color: '#999' }}>
           预览为交互态，仅用于检验布局与控件；实际提交以填报页为准。
         </div>

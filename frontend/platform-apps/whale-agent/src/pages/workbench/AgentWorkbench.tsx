@@ -14,9 +14,11 @@ import {
   type Citation,
   type Conversation,
   type ScopeKey,
+  type ToolTrace,
 } from '../../api/agent';
 import EvidencePanel from '../../components/EvidencePanel';
 import Markdown from '../../components/Markdown';
+import ToolTracePanel from '../../components/ToolTracePanel';
 
 /** 界面消息模型（用户消息与助手回答共用，助手消息在流式过程中持续增长） */
 interface UiMessage {
@@ -27,6 +29,8 @@ interface UiMessage {
   role: 'user' | 'assistant';
   content: string;
   citations: Citation[];
+  /** 本轮工具调用轨迹（流式过程中实时追加；历史消息为空） */
+  toolTraces: ToolTrace[];
   intent?: string;
   degraded?: boolean;
   tokens?: number;
@@ -96,6 +100,7 @@ function toUiMessage(message: {
     role: message.role === 'user' ? 'user' : 'assistant',
     content: message.content ?? '',
     citations: message.citations ?? [],
+    toolTraces: [],
     tokens: message.tokens,
   };
 }
@@ -210,8 +215,15 @@ export default function AgentWorkbench() {
     const assistantKey = `a-${stamp}`;
     setMessages((prev) => [
       ...prev,
-      { key: userKey, role: 'user', content: text, citations: [] },
-      { key: assistantKey, role: 'assistant', content: '', citations: [], streaming: true },
+      { key: userKey, role: 'user', content: text, citations: [], toolTraces: [] },
+      {
+        key: assistantKey,
+        role: 'assistant',
+        content: '',
+        citations: [],
+        toolTraces: [],
+        streaming: true,
+      },
     ]);
     setQuestion('');
     setStreaming(true);
@@ -240,6 +252,12 @@ export default function AgentWorkbench() {
               degraded: meta.degraded,
             }));
             setActiveCitation(meta.citations?.[0]?.sourceId ?? null);
+          },
+          onTool: (trace) => {
+            patchMessage(assistantKey, (item) => ({
+              ...item,
+              toolTraces: [...item.toolTraces, trace],
+            }));
           },
           onDelta: (delta) => {
             patchMessage(assistantKey, (item) => ({ ...item, content: item.content + delta }));
@@ -456,6 +474,9 @@ export default function AgentWorkbench() {
                     </>
                   )}
                 </div>
+                {item.role === 'assistant' && item.toolTraces.length > 0 && (
+                  <ToolTracePanel traces={item.toolTraces} streaming={item.streaming} />
+                )}
                 {item.role === 'assistant' && !item.streaming && !item.error && (
                   <div className="agent-message-footer">
                     <Space size={4} wrap>

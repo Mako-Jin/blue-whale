@@ -94,4 +94,78 @@ class FormSchemaParserTest {
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
     }
+
+    @Test
+    @DisplayName("parse：attachment 缺省 multiple=true、maxCount=0，并回填 accept")
+    void shouldParseAttachmentWithDefaults() {
+        List<FormField> fields = FormSchemaParser.parse(
+                "{\"fields\":[{\"key\":\"files\",\"label\":\"附件\",\"type\":\"attachment\"},"
+                        + "{\"key\":\"docs\",\"label\":\"资料\",\"type\":\"attachment\",\"multiple\":false,"
+                        + "\"accept\":\".pdf\",\"maxCount\":3}]}");
+
+        assertEquals(2, fields.size());
+        assertEquals(Boolean.TRUE, fields.get(0).getMultiple());
+        assertEquals(0, fields.get(0).getMaxCount().intValue());
+        assertEquals(Boolean.FALSE, fields.get(1).getMultiple());
+        assertEquals(".pdf", fields.get(1).getAccept());
+        assertEquals(3, fields.get(1).getMaxCount().intValue());
+    }
+
+    @Test
+    @DisplayName("parse：attachment maxCount 为负数抛参数错误")
+    void shouldThrowWhenAttachmentMaxCountNegative() {
+        BizException ex = assertThrows(BizException.class,
+                () -> FormSchemaParser.parse("{\"fields\":[{\"key\":\"files\",\"type\":\"attachment\","
+                        + "\"maxCount\":-1}]}"));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+    }
+
+    @Test
+    @DisplayName("parse：subtable 解析 children/minRows/maxRows")
+    void shouldParseSubtable() {
+        List<FormField> fields = FormSchemaParser.parse(
+                "{\"fields\":[{\"key\":\"lines\",\"label\":\"明细\",\"type\":\"subtable\",\"minRows\":1,"
+                        + "\"maxRows\":5,\"children\":[{\"key\":\"product\",\"label\":\"商品\",\"type\":\"text\","
+                        + "\"required\":true},{\"key\":\"amount\",\"label\":\"数量\",\"type\":\"number\"}]}]}");
+
+        FormField subtable = fields.get(0);
+        assertEquals(2, subtable.getChildren().size());
+        assertEquals("product", subtable.getChildren().get(0).getKey());
+        assertTrue(subtable.getChildren().get(0).isRequired());
+        assertEquals("number", subtable.getChildren().get(1).getType());
+        assertEquals(1, subtable.getMinRows().intValue());
+        assertEquals(5, subtable.getMaxRows().intValue());
+    }
+
+    @Test
+    @DisplayName("parse：subtable 子字段禁止嵌套子表")
+    void shouldThrowWhenNestedSubtable() {
+        BizException ex = assertThrows(BizException.class,
+                () -> FormSchemaParser.parse("{\"fields\":[{\"key\":\"lines\",\"type\":\"subtable\","
+                        + "\"children\":[{\"key\":\"inner\",\"type\":\"subtable\",\"children\":["
+                        + "{\"key\":\"v\",\"type\":\"text\"}]}]}]}"));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        assertTrue(ex.getMessage().contains("不允许嵌套子表"));
+    }
+
+    @Test
+    @DisplayName("parse：subtable children 缺失抛参数错误")
+    void shouldThrowWhenSubtableChildrenMissing() {
+        BizException ex = assertThrows(BizException.class,
+                () -> FormSchemaParser.parse("{\"fields\":[{\"key\":\"lines\",\"type\":\"subtable\"}]}"));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+    }
+
+    @Test
+    @DisplayName("parse：subtable 子字段使用附件类型抛参数错误")
+    void shouldThrowWhenSubtableChildAttachment() {
+        BizException ex = assertThrows(BizException.class,
+                () -> FormSchemaParser.parse("{\"fields\":[{\"key\":\"lines\",\"type\":\"subtable\","
+                        + "\"children\":[{\"key\":\"files\",\"type\":\"attachment\"}]}]}"));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+    }
 }

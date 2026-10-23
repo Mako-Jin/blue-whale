@@ -29,10 +29,11 @@ public class RetentionProperties {
     private String cron = "0 0 3 * * ?";
 
     /**
-     * 是否随保留期调度执行 {@code audit_log} 归档导出（AUTH-09），默认关闭（须显式开启）。
+     * 是否随保留期调度执行 {@code audit_log} 归档导出（AUTH-09），<b>默认开启</b>（可显式关闭）。
      *
      * <p>开启后仅「导出归档并上传 whale-file」，<b>绝不对 {@code audit_log} 做物理/逻辑删除</b>；
-     * 须 {@code whale.audit.retention.enabled=true} 装配调度器后本开关才生效。</p>
+     * 归档与清理解耦：即使 {@code whale.audit.retention.enabled=false}（不清理 4 张日志表），
+     * 本开关为 {@code true} 时调度器仍会装配并只执行归档。</p>
      */
-    private boolean archiveEnabled = false;
+    private boolean archiveEnabled = true;
 }

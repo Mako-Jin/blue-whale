@@ -45,6 +45,12 @@ import java.util.concurrent.TimeUnit;
  * {@link JobHandler}，再回写 {@code end_time} / {@code status}（成功 1 / 失败 -1）/
  * {@code result} / {@code error_msg}，全程 try/catch，异常绝不中断调度线程。</p>
  *
+ * <p>失败重试：单次触发内按 {@code max_retry} / {@code retry_interval_seconds} 串行重试，
+ * 每次尝试都回写 {@code job_log.retry_count}；重试全程持有实例内互斥与分布式锁，
+ * 因此重试期间不会与其他触发并发执行；超过上限后回写失败终态（{@code status=-1}）。
+ * 分片：按 {@code shard_total} 串行执行各分片，分片序号写入 {@code job_log.shard_index}，
+ * 并经 {@link JobExecutionContext} 透传给执行器；单分片行为与旧逻辑一致。</p>
+ *
  * @author BlueWhale
  */
 @Slf4j
@@ -72,6 +78,24 @@ public class JobScheduler {
 
     /** 结果/错误信息落库长度上限（TEXT 字段，落库前截断防膨胀） */
     private static final int MAX_MESSAGE_LENGTH = 2000;
+
+    /** 默认重试次数上限：0 表示不重试 */
+    private static final int DEFAULT_MAX_RETRY = 0;
+
+    /** 重试次数上限（防止误配导致线程长期占用） */
+    private static final int MAX_RETRY_LIMIT = 5;
+
+    /** 默认重试间隔秒数 */
+    private static final int DEFAULT_RETRY_INTERVAL_SECONDS = 60;
+
+    /** 默认分片总数：1 表示不分片 */
+    private static final int DEFAULT_SHARD_TOTAL = 1;
+
+    /** 分片总数上限 */
+    private static final int MAX_SHARD_TOTAL = 16;
+
+    /** 毫秒换算基数 */
+    private static final long MILLIS_PER_SECOND = 1000L;
 
     /** 分布式锁键前缀 */
     private static final String LOCK_KEY_PREFIX = "lock:job:execute:";
@@ -302,35 +326,187 @@ public class JobScheduler {
     }
 
     /**
-     * 执行一次任务并落执行日志：异常只记录，绝不向调度线程抛出
+     * 执行一次任务并落执行日志：按分片总数串行执行各分片，异常只记录，绝不向调度线程抛出
      *
      * <p>包可见以便单元测试直接验证落库与异常处理。</p>
      *
      * @param job 任务定义
      */
     void doExecute(JobInfo job) {
+        int shardTotal = resolveShardTotal(job.getShardTotal());
+        int failedShards = 0;
+        for (int shardIndex = 0; shardIndex < shardTotal; shardIndex++) {
+            if (!executeShard(job, shardIndex, shardTotal)) {
+                failedShards++;
+            }
+        }
+        if (failedShards > 0) {
+            log.warn("任务分片执行完成，存在失败分片: jobId={}, 失败分片数={}/{}",
+                    job.getId(), failedShards, shardTotal);
+        }
+    }
+
+    /**
+     * 执行单个分片：失败时按上限与间隔串行重试，每次尝试回写 {@code retry_count}
+     *
+     * @param job        任务定义
+     * @param shardIndex 当前分片序号（从 0 开始）
+     * @param shardTotal 分片总数
+     * @return 最终成功返回 {@code true}；重试耗尽仍失败返回 {@code false}
+     */
+    private boolean executeShard(JobInfo job, int shardIndex, int shardTotal) {
+        JobLog jobLog = insertRunningLog(job, shardIndex);
+        int maxRetry = resolveMaxRetry(job.getMaxRetry());
+        long intervalMillis = resolveRetryIntervalSeconds(job.getRetryIntervalSeconds()) * MILLIS_PER_SECOND;
+        for (int retryCount = 0; ; retryCount++) {
+            try {
+                String result = invokeHandler(job, shardIndex, shardTotal, retryCount);
+                markSuccess(jobLog, result, retryCount);
+                return true;
+            } catch (Exception e) {
+                if (retryCount >= maxRetry) {
+                    markFailure(jobLog, e, retryCount);
+                    log.warn("任务执行失败且重试已耗尽: jobId={}, jobName={}, shardIndex={}/{}, retryCount={}",
+                            job.getId(), job.getJobName(), shardIndex, shardTotal, retryCount, e);
+                    return false;
+                }
+                jobLog.setRetryCount(retryCount + 1);
+                jobLogMapper.updateById(jobLog);
+                log.warn("任务执行失败，{} 秒后进行第 {} 次重试: jobId={}, shardIndex={}/{}",
+                        intervalMillis / MILLIS_PER_SECOND, retryCount + 1, job.getId(), shardIndex, shardTotal, e);
+                if (!awaitRetry(intervalMillis)) {
+                    markFailure(jobLog, e, retryCount + 1);
+                    return false;
+                }
+            }
+        }
+    }
+
+    /**
+     * 插入执行中日志（{@code status=0}）
+     *
+     * @param job        任务定义
+     * @param shardIndex 当前分片序号
+     * @return 已落库的执行日志实体（主键已回填）
+     */
+    private JobLog insertRunningLog(JobInfo job, int shardIndex) {
         JobLog jobLog = new JobLog();
         jobLog.setJobId(job.getId());
         jobLog.setJobName(job.getJobName());
         jobLog.setHandlerBean(job.getHandlerBean());
         jobLog.setStartTime(LocalDateTime.now());
         jobLog.setStatus(LOG_STATUS_RUNNING);
+        jobLog.setRetryCount(0);
+        jobLog.setShardIndex(shardIndex);
         jobLogMapper.insert(jobLog);
-        try {
-            JobHandler handler = jobHandlerRegistry.resolve(job.getHandlerBean());
-            String result = handler.execute(job.getHandlerParam());
-            jobLog.setEndTime(LocalDateTime.now());
-            jobLog.setStatus(LOG_STATUS_SUCCESS);
-            jobLog.setResult(truncate(result));
-        } catch (Exception e) {
-            jobLog.setEndTime(LocalDateTime.now());
-            jobLog.setStatus(LOG_STATUS_FAILURE);
-            jobLog.setErrorMsg(truncate(e.getClass().getSimpleName()
-                    + (e.getMessage() == null ? "" : ": " + e.getMessage())));
-            log.warn("任务执行失败: jobId={}, jobName={}", job.getId(), job.getJobName(), e);
-        } finally {
-            jobLogMapper.updateById(jobLog);
+        return jobLog;
+    }
+
+    /**
+     * 调用执行器：将分片与重试信息封装为上下文透传
+     *
+     * @param job        任务定义
+     * @param shardIndex 当前分片序号
+     * @param shardTotal 分片总数
+     * @param retryCount 本次执行已重试次数
+     * @return 执行结果摘要
+     * @throws Exception 执行器执行失败时抛出
+     */
+    private String invokeHandler(JobInfo job, int shardIndex, int shardTotal, int retryCount) throws Exception {
+        JobHandler handler = jobHandlerRegistry.resolve(job.getHandlerBean());
+        JobExecutionContext context = new JobExecutionContext(job.getId(), job.getJobName(),
+                job.getHandlerParam(), shardIndex, shardTotal, retryCount);
+        return handler.executeWithContext(context);
+    }
+
+    /**
+     * 回写成功终态
+     *
+     * @param jobLog     执行日志实体
+     * @param result     执行结果摘要
+     * @param retryCount 本次执行已重试次数
+     */
+    private void markSuccess(JobLog jobLog, String result, int retryCount) {
+        jobLog.setEndTime(LocalDateTime.now());
+        jobLog.setStatus(LOG_STATUS_SUCCESS);
+        jobLog.setRetryCount(retryCount);
+        jobLog.setResult(truncate(result));
+        jobLogMapper.updateById(jobLog);
+    }
+
+    /**
+     * 回写失败终态（重试耗尽或被中断）
+     *
+     * @param jobLog     执行日志实体
+     * @param e          失败异常
+     * @param retryCount 本次执行已重试次数
+     */
+    private void markFailure(JobLog jobLog, Exception e, int retryCount) {
+        jobLog.setEndTime(LocalDateTime.now());
+        jobLog.setStatus(LOG_STATUS_FAILURE);
+        jobLog.setRetryCount(retryCount);
+        jobLog.setErrorMsg(truncate(e.getClass().getSimpleName()
+                + (e.getMessage() == null ? "" : ": " + e.getMessage())));
+        jobLogMapper.updateById(jobLog);
+    }
+
+    /**
+     * 等待重试间隔
+     *
+     * @param intervalMillis 重试间隔毫秒数
+     * @return 正常等待完成返回 {@code true}；等待被中断返回 {@code false}（终止重试）
+     */
+    private static boolean awaitRetry(long intervalMillis) {
+        if (intervalMillis <= 0) {
+            return true;
         }
+        try {
+            Thread.sleep(intervalMillis);
+            return true;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("重试等待被中断，终止本次重试", e);
+            return false;
+        }
+    }
+
+    /**
+     * 归一化重试次数上限
+     *
+     * @param maxRetry 配置值（可为空）
+     * @return 空或负数返回 0，超过上限按上限截断
+     */
+    private static int resolveMaxRetry(Integer maxRetry) {
+        if (maxRetry == null || maxRetry < 0) {
+            return DEFAULT_MAX_RETRY;
+        }
+        return Math.min(maxRetry, MAX_RETRY_LIMIT);
+    }
+
+    /**
+     * 归一化重试间隔秒数
+     *
+     * @param retryIntervalSeconds 配置值（可为空）
+     * @return 空返回默认 60 秒，负数按 0 处理
+     */
+    private static int resolveRetryIntervalSeconds(Integer retryIntervalSeconds) {
+        if (retryIntervalSeconds == null) {
+            return DEFAULT_RETRY_INTERVAL_SECONDS;
+        }
+        return Math.max(retryIntervalSeconds, 0);
+    }
+
+    /**
+     * 归一化分片总数
+     *
+     * @param shardTotal 配置值（可为空）
+     * @return 空或小于 1 返回 1，超过上限按上限截断
+     */
+    private static int resolveShardTotal(Integer shardTotal) {
+        if (shardTotal == null || shardTotal < DEFAULT_SHARD_TOTAL) {
+            return DEFAULT_SHARD_TOTAL;
+        }
+        return Math.min(shardTotal, MAX_SHARD_TOTAL);
     }
 
     /**

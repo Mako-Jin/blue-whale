@@ -6,7 +6,7 @@ import { useCallback, useState } from 'react';
 import type { WhaleFormFieldConfig } from '@bluewhale/whale-ui';
 import { formApi, formDataApi } from '../../api/form';
 import { workflowApi, type ApprovalRequest, type Id, type ProcessTask } from '../../api/workflow';
-import { serializeValues } from '../start/formValues';
+import { serializeValues, stringifyFormData } from '../start/formValues';
 import type { ApprovalAction, InstanceBrief } from './constants';
 
 interface UseApprovalDrawerOptions {
@@ -147,7 +147,7 @@ export function useApprovalDrawer({
     }
     setSavingForm(true);
     try {
-      const dataJson = JSON.stringify(serializeValues(formFields, formValues));
+      const dataJson = stringifyFormData(serializeValues(formFields, formValues));
       await formDataApi.update(formDataId, { dataJson });
       setFormDirty(false);
       message.success('表单已保存');

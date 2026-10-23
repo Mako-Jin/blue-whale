@@ -21,6 +21,9 @@ public class FileProperties {
     /** 单文件最大字节数，默认 52428800（即 50MB）；超限抛 {@code PARAM_ERROR} */
     private long maxSizeBytes = 52428800L;
 
+    /** 分片上传分片大小，默认 5242880（即 5MB） */
+    private long chunkSizeBytes = 5242880L;
+
     /**
      * 本地存储配置项。
      *

@@ -41,6 +41,12 @@ public class JobLog extends BaseEntity {
     /** 执行状态：1 成功 / 0 执行中 / -1 失败 */
     private Integer status;
 
+    /** 本次执行已重试次数（首次执行为 0） */
+    private Integer retryCount;
+
+    /** 当前分片序号（从 0 开始；不分片为 0） */
+    private Integer shardIndex;
+
     /** 失败原因（异常信息摘要） */
     private String errorMsg;
 

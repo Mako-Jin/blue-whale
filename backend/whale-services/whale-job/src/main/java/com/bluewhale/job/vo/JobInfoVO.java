@@ -36,6 +36,15 @@ public class JobInfoVO implements Serializable {
     /** 错过执行策略 */
     private String misfirePolicy;
 
+    /** 失败重试次数上限 */
+    private Integer maxRetry;
+
+    /** 重试间隔秒数 */
+    private Integer retryIntervalSeconds;
+
+    /** 分片总数 */
+    private Integer shardTotal;
+
     /** 任务状态：1 运行中 / 0 已停止 */
     private Integer status;
 

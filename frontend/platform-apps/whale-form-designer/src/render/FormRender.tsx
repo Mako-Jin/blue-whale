@@ -14,7 +14,22 @@ import {
   type FormDefinition,
   type WidgetType,
 } from '../api/form';
+import { getToken } from '../api/token';
 import FormRenderer from './FormRenderer';
+
+/** 附件文件 ID 占位前缀：序列化时替换为裸数字，避免雪花 ID 经 Number() 丢精度 */
+const FILE_ID_TOKEN_PREFIX = '__BW_FILE_ID__';
+
+/** 附件值 → 占位标记数组（提交前还原为 JSON 数字字面量） */
+function markFileIds(value: unknown): string[] {
+  const ids = Array.isArray(value) ? value : [];
+  return ids.map((id) => `${FILE_ID_TOKEN_PREFIX}${String(id)}__`);
+}
+
+/** 序列化提交载荷：附件占位标记还原为数字字面量（后端要求文件 ID 数组元素为数字） */
+function stringifyPayload(payload: Record<string, unknown>): string {
+  return JSON.stringify(payload).replace(/"__BW_FILE_ID__(\d+)__"/g, '$1');
+}
 
 /** 纯布局控件集合（无关联列，不参与提交） */
 const LAYOUT_WIDGETS: readonly WidgetType[] = ['title', 'divider', 'text-note'];
@@ -75,6 +90,14 @@ function serializeValues(
         break;
       case 'number':
         payload[code] = Number(current);
+        break;
+      case 'attachment':
+        // 仅保存文件 ID，序列化时还原为数字字面量
+        payload[code] = markFileIds(current);
+        break;
+      case 'subtable':
+        // 行对象数组原样提交（后端按 children 校验并忽略空行）
+        payload[code] = Array.isArray(current) ? current : [];
         break;
       default:
         // text / textarea / select / radio
@@ -161,7 +184,7 @@ export default function FormRender() {
     setSubmitting(true);
     try {
       const payload = serializeValues(fields, values);
-      await formDataApi.create({ definitionId, dataJson: JSON.stringify(payload) });
+      await formDataApi.create({ definitionId, dataJson: stringifyPayload(payload) });
       message.success('提交成功');
       setValues({}); // 重置表单
     } catch (error) {
@@ -181,7 +204,13 @@ export default function FormRender() {
 
   return (
     <Card title={definition.name}>
-      <FormRenderer fields={fields} value={values} onChange={handleChange} />
+      <FormRenderer
+        fields={fields}
+        value={values}
+        onChange={handleChange}
+        authToken={getToken() ?? undefined}
+        apiBaseUrl={import.meta.env.VITE_API_BASE_URL ?? ''}
+      />
       <div style={{ marginTop: 16 }}>
         <Button type="primary" loading={submitting} onClick={() => void handleSubmit()}>
           提交

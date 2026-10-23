@@ -4,11 +4,16 @@ import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.common.web.WebHeaders;
+import com.bluewhale.file.dto.ChunkUploadCompleteRequest;
+import com.bluewhale.file.dto.ChunkUploadInitRequest;
 import com.bluewhale.file.dto.FileQueryRequest;
 import com.bluewhale.file.service.FileInfoService;
+import com.bluewhale.file.vo.ChunkUploadInitVO;
 import com.bluewhale.file.vo.FileInfoVO;
+import com.bluewhale.file.vo.FilePresignedVO;
 import com.bluewhale.file.vo.FileUploadVO;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ContentDisposition;
@@ -21,12 +26,14 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 /**
  * 文件服务接口。
@@ -101,6 +108,75 @@ public class FileController {
                 .contentType(resolveMediaType(info.getContentType()))
                 .contentLength(info.getFileSize() == null ? 0L : info.getFileSize())
                 .body(resource);
+    }
+
+    /**
+     * 生成预签名下载 URL（仅 MinIO 存储支持；local 模式返回参数错误）。
+     *
+     * @param id 文件ID
+     * @param expiresSeconds 有效期（秒），默认 600、上限 3600
+     * @return 预签名 URL 与生效有效期
+     */
+    @GetMapping("/{id}/presigned")
+    @RequirePermission("sys:file:download")
+    public Result<FilePresignedVO> presigned(@PathVariable Long id,
+                                             @RequestParam(value = "expiresSeconds", required = false)
+                                             Integer expiresSeconds) {
+        return Result.ok(fileInfoService.presignedUrl(id, expiresSeconds));
+    }
+
+    /**
+     * 初始化分片上传会话（支持传入既有 uploadId 续传）。
+     *
+     * @param request 初始化请求：fileName、contentType、size、bucket（可选）、uploadId（可选，续传）
+     * @return uploadId、分片大小与已上传分片索引
+     */
+    @PostMapping("/upload/chunk/init")
+    @RequirePermission("sys:file:upload")
+    public Result<ChunkUploadInitVO> initChunkUpload(@Valid @RequestBody ChunkUploadInitRequest request) {
+        return Result.ok(fileInfoService.initChunkUpload(request));
+    }
+
+    /**
+     * 上传单个分片（同一索引重复上传覆盖）。
+     *
+     * @param file 分片内容，必填
+     * @param uploadId 上传会话 ID
+     * @param index 分片索引（从 0 开始）
+     * @return 已上传分片索引（升序）
+     */
+    @PostMapping("/upload/chunk/part")
+    @RequirePermission("sys:file:upload")
+    public Result<List<Integer>> uploadChunkPart(@RequestParam("file") MultipartFile file,
+                                                 @RequestParam("uploadId") String uploadId,
+                                                 @RequestParam("index") int index) {
+        return Result.ok(fileInfoService.uploadChunkPart(uploadId, index, file));
+    }
+
+    /**
+     * 查询分片上传会话的已上传分片索引。
+     *
+     * @param uploadId 上传会话 ID
+     * @return 已上传分片索引（升序）
+     */
+    @GetMapping("/upload/chunk/{uploadId}/status")
+    @RequirePermission("sys:file:upload")
+    public Result<List<Integer>> chunkUploadStatus(@PathVariable String uploadId) {
+        return Result.ok(fileInfoService.chunkUploadStatus(uploadId));
+    }
+
+    /**
+     * 完成分片上传：校验完整性后合并落存储并登记元数据。
+     *
+     * @param request 完成请求：uploadId、fileName、size、bucket（可选）
+     * @param httpRequest 当前请求（用于读取网关 {@code X-User-Id} 回填上传人）
+     * @return 上传结果，与普通上传接口一致
+     */
+    @PostMapping("/upload/chunk/complete")
+    @RequirePermission("sys:file:upload")
+    public Result<FileUploadVO> completeChunkUpload(@Valid @RequestBody ChunkUploadCompleteRequest request,
+                                                    HttpServletRequest httpRequest) {
+        return Result.ok(fileInfoService.completeChunkUpload(request, resolveUploaderId(httpRequest)));
     }
 
     /**

@@ -19,6 +19,7 @@ import {
 } from 'antd';
 import { FormRenderer } from '@bluewhale/whale-ui';
 import { formApi, formDataApi, type FormDefinition } from '../../api/form';
+import { getToken } from '../../api/token';
 import {
   workflowApi,
   type Id,
@@ -26,7 +27,12 @@ import {
   type ProcessInstance,
 } from '../../api/workflow';
 import { findEntryApprovalNode, parseDefinitionModel, type ParsedNode } from './model';
-import { findMissingRequired, isSameValues, serializeValues } from './formValues';
+import {
+  findMissingRequired,
+  isSameValues,
+  serializeValues,
+  stringifyFormData,
+} from './formValues';
 
 const { Text } = Typography;
 
@@ -201,7 +207,7 @@ export default function ProcessStart() {
         const payload = serializeValues(fields, values);
         const created = await formDataApi.create({
           definitionId: entryFormId,
-          dataJson: JSON.stringify(payload),
+          dataJson: stringifyFormData(payload),
         });
         businessKey = created.id;
       }
@@ -276,6 +282,8 @@ export default function ProcessStart() {
           fields={formDefinition.fields ?? []}
           value={values}
           onChange={handleValuesChange}
+          authToken={getToken() ?? undefined}
+          apiBaseUrl={import.meta.env.VITE_API_BASE_URL ?? ''}
         />
       </Space>
     );

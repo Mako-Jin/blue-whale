@@ -2,10 +2,35 @@
 // 数据字段的「关联列 / 存储类型 / 必填 / 长度」来自列元数据（只读）；控件候选按存储类型过滤。
 // 使用受控输入直连画布状态（不依赖 Form 实例），避免与画布受控数据冲突。
 
-import { Button, Empty, Input, Radio, Select, Space, Switch, Tag, Typography } from 'antd';
+import {
+  Button,
+  Empty,
+  Input,
+  InputNumber,
+  Radio,
+  Select,
+  Space,
+  Switch,
+  Tag,
+  Typography,
+} from 'antd';
 import type { ReactNode } from 'react';
-import type { ColumnMeta, FieldOption, Id, WidgetType } from '../../api/form';
-import { WIDGET_LABELS, isLayoutField, widgetCandidates, type DesignerField } from './types';
+import type {
+  BasicDataType,
+  ColumnMeta,
+  FieldOption,
+  Id,
+  SubFieldConfig,
+  WidgetType,
+} from '../../api/form';
+import {
+  BASIC_DATA_TYPES,
+  BASIC_TYPE_LABELS,
+  WIDGET_LABELS,
+  isLayoutField,
+  widgetCandidates,
+  type DesignerField,
+} from './types';
 
 /** 简单表单项：标签 + 控件 */
 function Item({ label, children }: { label: string; children: ReactNode }) {
@@ -55,6 +80,80 @@ function OptionEditor({
         }
       >
         新增选项
+      </Button>
+    </div>
+  );
+}
+
+/** 子表子字段编辑器：添加/删除、key/label/类型/必填 */
+function SubFieldEditor({
+  children,
+  onChange,
+}: {
+  children?: SubFieldConfig[];
+  onChange: (next: SubFieldConfig[]) => void;
+}) {
+  const list = children ?? [];
+  const update = (index: number, patch: Partial<SubFieldConfig>) =>
+    onChange(list.map((child, i) => (i === index ? { ...child, ...patch } : child)));
+  return (
+    <div>
+      {list.length === 0 ? (
+        <Typography.Text type="secondary">尚未添加子字段</Typography.Text>
+      ) : null}
+      {list.map((child, index) => (
+        <div
+          key={index}
+          style={{ border: '1px solid #f0f0f0', borderRadius: 4, padding: 8, marginBottom: 8 }}
+        >
+          <Space direction="vertical" size={6} style={{ width: '100%' }}>
+            <Space wrap>
+              <Input
+                style={{ width: 150 }}
+                placeholder="key（如 item_name）"
+                value={child.key}
+                onChange={(event) => update(index, { key: event.target.value })}
+              />
+              <Input
+                style={{ width: 110 }}
+                placeholder="显示名"
+                value={child.label}
+                onChange={(event) => update(index, { label: event.target.value })}
+              />
+            </Space>
+            <Space wrap>
+              <Select
+                style={{ width: 110 }}
+                value={child.type}
+                options={BASIC_DATA_TYPES.map((type) => ({
+                  value: type,
+                  label: BASIC_TYPE_LABELS[type],
+                }))}
+                onChange={(value: BasicDataType) => update(index, { type: value })}
+              />
+              <Typography.Text type="secondary">必填</Typography.Text>
+              <Switch
+                size="small"
+                checked={child.required === true}
+                onChange={(checked) => update(index, { required: checked })}
+              />
+              <Button
+                type="link"
+                danger
+                onClick={() => onChange(list.filter((_, i) => i !== index))}
+              >
+                删除
+              </Button>
+            </Space>
+          </Space>
+        </div>
+      ))}
+      <Button
+        type="dashed"
+        block
+        onClick={() => onChange([...list, { key: '', label: '', type: 'text', required: false }])}
+      >
+        新增子字段
       </Button>
     </div>
   );
@@ -124,6 +223,8 @@ export default function PropertyPanel({ field, columnsById, onChange }: Property
     field.widgetType === 'select' ||
     field.widgetType === 'radio' ||
     field.widgetType === 'checkbox';
+  const isAttachment = dataType === 'attachment' || field.widgetType === 'attachment';
+  const isSubtable = dataType === 'subtable' || field.widgetType === 'subtable';
 
   return (
     <div>
@@ -187,6 +288,57 @@ export default function PropertyPanel({ field, columnsById, onChange }: Property
         <Item label="选项">
           <OptionEditor options={field.options} onChange={(next) => onChange({ options: next })} />
         </Item>
+      ) : null}
+      {isAttachment ? (
+        <>
+          <Item label="允许多文件">
+            <Switch
+              checked={field.multiple !== false}
+              onChange={(checked) => onChange({ multiple: checked })}
+            />
+          </Item>
+          <Item label="最大文件数（0 不限）">
+            <InputNumber
+              min={0}
+              style={{ width: '100%' }}
+              value={field.maxCount ?? 0}
+              onChange={(value) => onChange({ maxCount: typeof value === 'number' ? value : 0 })}
+            />
+          </Item>
+          <Item label="允许的文件类型">
+            <Input
+              value={field.accept}
+              placeholder="如 image/*,.pdf"
+              onChange={(event) => onChange({ accept: event.target.value })}
+            />
+          </Item>
+        </>
+      ) : null}
+      {isSubtable ? (
+        <>
+          <Item label="子字段">
+            <SubFieldEditor
+              children={field.children}
+              onChange={(next) => onChange({ children: next })}
+            />
+          </Item>
+          <Item label="最少行数（0 不限）">
+            <InputNumber
+              min={0}
+              style={{ width: '100%' }}
+              value={field.minRows ?? 0}
+              onChange={(value) => onChange({ minRows: typeof value === 'number' ? value : 0 })}
+            />
+          </Item>
+          <Item label="最多行数（0 不限）">
+            <InputNumber
+              min={0}
+              style={{ width: '100%' }}
+              value={field.maxRows ?? 0}
+              onChange={(value) => onChange({ maxRows: typeof value === 'number' ? value : 0 })}
+            />
+          </Item>
+        </>
       ) : null}
     </div>
   );

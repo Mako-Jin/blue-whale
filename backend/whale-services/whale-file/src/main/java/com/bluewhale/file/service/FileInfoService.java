@@ -1,11 +1,17 @@
 package com.bluewhale.file.service;
 
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.file.dto.ChunkUploadCompleteRequest;
+import com.bluewhale.file.dto.ChunkUploadInitRequest;
 import com.bluewhale.file.dto.FileQueryRequest;
+import com.bluewhale.file.vo.ChunkUploadInitVO;
 import com.bluewhale.file.vo.FileInfoVO;
+import com.bluewhale.file.vo.FilePresignedVO;
 import com.bluewhale.file.vo.FileUploadVO;
 import org.springframework.core.io.Resource;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 /**
  * 文件信息服务
@@ -54,4 +60,48 @@ public interface FileInfoService {
      * @param id 文件ID
      */
     void delete(Long id);
+
+    /**
+     * 生成预签名下载 URL（仅 MinIO 存储支持）
+     *
+     * @param id 文件ID
+     * @param expiresSeconds 有效期（秒）；为空或非正数时取默认 600，超过 3600 截断为 3600
+     * @return 预签名 URL 视图对象
+     */
+    FilePresignedVO presignedUrl(Long id, Integer expiresSeconds);
+
+    /**
+     * 初始化分片上传会话
+     *
+     * @param request 初始化请求（文件名、MIME 类型、总大小、桶、可选续传 uploadId）
+     * @return 上传会话信息（uploadId、分片大小、已上传分片索引）
+     */
+    ChunkUploadInitVO initChunkUpload(ChunkUploadInitRequest request);
+
+    /**
+     * 上传单个分片（同索引重复上传覆盖）
+     *
+     * @param uploadId 上传会话 ID
+     * @param index 分片索引（从 0 开始）
+     * @param file 分片内容
+     * @return 已上传分片索引（升序）
+     */
+    List<Integer> uploadChunkPart(String uploadId, int index, MultipartFile file);
+
+    /**
+     * 查询分片上传会话的已上传分片索引
+     *
+     * @param uploadId 上传会话 ID
+     * @return 已上传分片索引（升序）
+     */
+    List<Integer> chunkUploadStatus(String uploadId);
+
+    /**
+     * 完成分片上传：校验分片完整性后合并落存储并登记元数据
+     *
+     * @param request 完成请求（uploadId、文件名、总大小、桶）
+     * @param uploaderId 上传用户 ID；无登录态时可为 {@code null}
+     * @return 上传结果视图对象
+     */
+    FileUploadVO completeChunkUpload(ChunkUploadCompleteRequest request, Long uploaderId);
 }

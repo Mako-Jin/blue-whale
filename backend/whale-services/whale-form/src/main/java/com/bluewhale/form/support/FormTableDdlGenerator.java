@@ -201,6 +201,10 @@ public final class FormTableDdlGenerator {
                 return "VARCHAR(255)";
             case "bool":
                 return "TINYINT";
+            case FormDataType.ATTACHMENT:
+            case FormDataType.SUBTABLE:
+                // 附件/子表值均为 JSON 数组，统一以 TEXT 承载
+                return "TEXT";
             default:
                 throw paramError("字段 type 非法：" + field.getType());
         }

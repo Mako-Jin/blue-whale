@@ -8,6 +8,20 @@ import type { FieldConfig, WidgetType } from '../../api/form';
 /** 纯布局控件集合（无关联列，不参与提交） */
 const LAYOUT_WIDGETS: readonly WidgetType[] = ['title', 'divider', 'text-note'];
 
+/** 附件文件 ID 占位前缀：序列化时替换为裸数字，避免雪花 ID 经 Number() 丢精度 */
+const FILE_ID_TOKEN_PREFIX = '__BW_FILE_ID__';
+
+/** 附件值 → 占位标记数组（提交前由 stringifyFormData 还原为数字字面量） */
+function markFileIds(value: unknown): string[] {
+  const ids = Array.isArray(value) ? value : [];
+  return ids.map((id) => `${FILE_ID_TOKEN_PREFIX}${String(id)}__`);
+}
+
+/** 序列化提交载荷：附件占位标记还原为数字字面量（后端要求文件 ID 数组元素为数字） */
+export function stringifyFormData(payload: Record<string, unknown>): string {
+  return JSON.stringify(payload).replace(/"__BW_FILE_ID__(\d+)__"/g, '$1');
+}
+
 /** 是否纯布局字段 */
 export function isLayoutWidget(widgetType?: WidgetType): boolean {
   return widgetType !== undefined && LAYOUT_WIDGETS.includes(widgetType);
@@ -69,6 +83,14 @@ export function serializeValues(
         break;
       case 'number':
         payload[code] = Number(current);
+        break;
+      case 'attachment':
+        // 仅保存文件 ID，序列化时还原为数字字面量
+        payload[code] = markFileIds(current);
+        break;
+      case 'subtable':
+        // 行对象数组原样提交（后端按 children 校验并忽略空行）
+        payload[code] = Array.isArray(current) ? current : [];
         break;
       default:
         // text / textarea / select / radio

@@ -42,9 +42,16 @@ public final class FormWidgetType {
     /** 控件：开关 */
     public static final String SWITCH = "switch";
 
+    /** 控件：附件上传 */
+    public static final String ATTACHMENT = "attachment";
+
+    /** 控件：子表（明细） */
+    public static final String SUBTABLE = "subtable";
+
     /** 控件类型白名单 */
     private static final Set<String> ALLOWED =
-            Set.of(TEXT, TEXTAREA, NUMBER, SELECT, RADIO, CHECKBOX, DATE, DATETIME, SWITCH);
+            Set.of(TEXT, TEXTAREA, NUMBER, SELECT, RADIO, CHECKBOX, DATE, DATETIME, SWITCH,
+                    ATTACHMENT, SUBTABLE);
 
     /** 工具类不允许实例化 */
     private FormWidgetType() {

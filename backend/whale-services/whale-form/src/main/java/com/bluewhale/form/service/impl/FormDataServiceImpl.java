@@ -19,6 +19,7 @@ import com.bluewhale.form.mapper.FormTableRegistryMapper;
 import com.bluewhale.form.service.FormDataService;
 import com.bluewhale.form.support.FormDataEngine;
 import com.bluewhale.form.support.FormDataExportSupport;
+import com.bluewhale.form.support.FormDataType;
 import com.bluewhale.form.support.FormField;
 import com.bluewhale.form.support.FormSchemaParser;
 import com.bluewhale.form.vo.FormDataExportVO;
@@ -31,9 +32,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.math.BigInteger;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -448,20 +451,213 @@ public class FormDataServiceImpl implements FormDataService {
             }
         }
         for (FormField field : fields) {
-            if (field.isRequired() && isBlank(data.get(field.getKey()))) {
+            Object value = data.get(field.getKey());
+            if (field.isRequired() && isBlank(value)) {
                 throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "字段 " + field.getLabel() + " 为必填");
+            }
+            if (value == null) {
+                continue;
+            }
+            validateFieldValue(field, value);
+        }
+    }
+
+    /**
+     * 校验附件/子表等复合字段的值形态；基础字段保持既有宽松校验
+     *
+     * @param field 字段定义
+     * @param value 字段值
+     * @throws BizException 值形态不合规时抛出 {@code PARAM_ERROR}
+     */
+    private static void validateFieldValue(FormField field, Object value) {
+        if (FormDataType.ATTACHMENT.equals(field.getType())) {
+            validateAttachment(field, value);
+            return;
+        }
+        if (FormDataType.SUBTABLE.equals(field.getType())) {
+            validateSubtable(field, value);
+        }
+    }
+
+    /**
+     * 校验附件值：必须是文件 ID 数字数组，且满足 multiple / maxCount
+     *
+     * @param field 字段定义
+     * @param value 字段值
+     * @throws BizException 非数组、元素非数字或数量越界时抛出 {@code PARAM_ERROR}
+     */
+    private static void validateAttachment(FormField field, Object value) {
+        if (!(value instanceof Collection<?> files)) {
+            throw paramError("字段 " + field.getLabel() + " 的值必须是文件 ID 数组");
+        }
+        if (Boolean.FALSE.equals(field.getMultiple()) && files.size() > 1) {
+            throw paramError("字段 " + field.getLabel() + " 仅允许上传一个文件");
+        }
+        if (field.getMaxCount() != null && field.getMaxCount() > 0 && files.size() > field.getMaxCount()) {
+            throw paramError("字段 " + field.getLabel() + " 最多允许上传 " + field.getMaxCount() + " 个文件");
+        }
+        for (Object item : files) {
+            if (!isIntegerNumber(item)) {
+                throw paramError("字段 " + field.getLabel() + " 的文件 ID 必须为数字");
             }
         }
     }
 
     /**
-     * 判断字段值是否为空（{@code null} 或空白字符串）
+     * 校验子表值：必须是行对象数组；空行忽略，按 children 校验每行必填与类型
+     *
+     * @param field 字段定义
+     * @param value 字段值
+     * @throws BizException 非数组、行非对象、未知子字段、必填缺失、类型不符或行数越界时抛出 {@code PARAM_ERROR}
+     */
+    private static void validateSubtable(FormField field, Object value) {
+        if (!(value instanceof Collection<?> rows)) {
+            throw paramError("字段 " + field.getLabel() + " 的值必须是行对象数组");
+        }
+        List<Map<?, ?>> effectiveRows = effectiveRows(rows, field.getLabel());
+        assertRowCount(field, effectiveRows.size());
+        List<FormField> children = field.getChildren() == null ? List.of() : field.getChildren();
+        Set<String> childKeys = new HashSet<>();
+        for (FormField child : children) {
+            childKeys.add(child.getKey());
+        }
+        for (Map<?, ?> row : effectiveRows) {
+            validateSubtableRow(field, children, childKeys, row);
+        }
+    }
+
+    /**
+     * 提取有效子表行（非空行），并校验每行必须为对象
+     *
+     * @param rows 原始行集合
+     * @param label 字段显示名（错误提示）
+     * @return 有效行列表
+     * @throws BizException 行不是对象时抛出 {@code PARAM_ERROR}
+     */
+    private static List<Map<?, ?>> effectiveRows(Collection<?> rows, String label) {
+        List<Map<?, ?>> effectiveRows = new ArrayList<>();
+        for (Object row : rows) {
+            if (!(row instanceof Map<?, ?> map)) {
+                throw paramError("字段 " + label + " 的子表行必须为对象");
+            }
+            if (!isEmptyRow(map)) {
+                effectiveRows.add(map);
+            }
+        }
+        return effectiveRows;
+    }
+
+    /**
+     * 校验子表有效行数是否满足 minRows / maxRows
+     *
+     * @param field 字段定义
+     * @param rowCount 有效行数
+     * @throws BizException 行数越界时抛出 {@code PARAM_ERROR}
+     */
+    private static void assertRowCount(FormField field, int rowCount) {
+        if (field.getMaxRows() != null && field.getMaxRows() > 0 && rowCount > field.getMaxRows()) {
+            throw paramError("字段 " + field.getLabel() + " 的子表行数不能超过 " + field.getMaxRows());
+        }
+        if (field.getMinRows() != null && field.getMinRows() > 0 && rowCount < field.getMinRows()) {
+            throw paramError("字段 " + field.getLabel() + " 的子表至少需要 " + field.getMinRows() + " 行");
+        }
+    }
+
+    /**
+     * 校验单个子表行：禁止未知子字段，并校验必填与类型
+     *
+     * @param field 子表字段定义
+     * @param children 子字段定义列表
+     * @param childKeys 合法子字段 key 集合
+     * @param row 行对象
+     * @throws BizException 校验不通过时抛出 {@code PARAM_ERROR}
+     */
+    private static void validateSubtableRow(FormField field, List<FormField> children,
+                                            Set<String> childKeys, Map<?, ?> row) {
+        for (Object rowKey : row.keySet()) {
+            if (!childKeys.contains(String.valueOf(rowKey))) {
+                throw paramError("字段 " + field.getLabel() + " 存在未定义的子字段：" + rowKey);
+            }
+        }
+        for (FormField child : children) {
+            Object cell = row.get(child.getKey());
+            if (child.isRequired() && isBlank(cell)) {
+                throw paramError("字段 " + field.getLabel() + " 的子字段 " + child.getLabel() + " 为必填");
+            }
+            if (cell != null && !matchesType(child.getType(), cell)) {
+                throw paramError("字段 " + field.getLabel() + " 的子字段 " + child.getLabel() + " 类型不符");
+            }
+        }
+    }
+
+    /**
+     * 判断子表行是否为空行（所有单元格均视为空）
+     *
+     * @param row 行对象
+     * @return 空行返回 {@code true}
+     */
+    private static boolean isEmptyRow(Map<?, ?> row) {
+        for (Object value : row.values()) {
+            if (!isBlank(value)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 子字段值类型匹配（仅基础类型）
+     *
+     * @param type 子字段类型
+     * @param value 单元格值
+     * @return 匹配返回 {@code true}
+     */
+    private static boolean matchesType(String type, Object value) {
+        switch (type) {
+            case FormDataType.NUMBER:
+                return value instanceof Number;
+            case FormDataType.BOOL:
+                return value instanceof Boolean
+                        || (value instanceof Number number && (number.longValue() == 0L || number.longValue() == 1L));
+            case FormDataType.TEXT:
+            case FormDataType.TEXTAREA:
+            case FormDataType.SELECT:
+            case FormDataType.DATE:
+            case FormDataType.DATETIME:
+                return value instanceof String;
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * 判断是否为整数数字（排除字符串、浮点与 {@code null}）
+     *
+     * @param value 待判定值
+     * @return 整数数字返回 {@code true}
+     */
+    private static boolean isIntegerNumber(Object value) {
+        return value instanceof Byte || value instanceof Short || value instanceof Integer
+                || value instanceof Long || value instanceof BigInteger;
+    }
+
+    /**
+     * 判断字段值是否为空（{@code null}、空白字符串、空集合或空映射）
      *
      * @param value 字段值
      * @return 为空返回 {@code true}
      */
     private static boolean isBlank(Object value) {
-        return value == null || (value instanceof String text && !StringUtils.hasText(text));
+        if (value == null) {
+            return true;
+        }
+        if (value instanceof String text) {
+            return !StringUtils.hasText(text);
+        }
+        if (value instanceof Collection<?> collection) {
+            return collection.isEmpty();
+        }
+        return value instanceof Map<?, ?> map && map.isEmpty();
     }
 
     /**

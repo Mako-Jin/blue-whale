@@ -27,6 +27,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyMap;
@@ -90,6 +91,18 @@ class FormDataServiceImplTest {
         registry.setDefinitionVersion(1);
         registry.setPhysicalTable(TABLE);
         registry.setSchemaJson("{\"fields\":[{\"key\":\"name\",\"label\":\"姓名\",\"type\":\"text\",\"required\":true}]}");
+        return registry;
+    }
+
+    /**
+     * 构造使用指定 schema 的物理表登记桩对象。
+     *
+     * @param schemaJson 表单结构定义
+     * @return 登记实体
+     */
+    private static FormTableRegistry registryWithSchema(String schemaJson) {
+        FormTableRegistry registry = registry();
+        registry.setSchemaJson(schemaJson);
         return registry;
     }
 
@@ -274,5 +287,147 @@ class FormDataServiceImplTest {
 
         assertEquals(1L, result.getTotal());
         assertEquals("lisi", result.getRecords().get(0).getSubmitter());
+    }
+
+    @Test
+    @DisplayName("submit：attachment 值为数字数组时通过")
+    void shouldSubmitAttachmentArray() {
+        when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L));
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistry>>any()))
+                .thenReturn(registryWithSchema("{\"fields\":[{\"key\":\"files\",\"label\":\"附件\","
+                        + "\"type\":\"attachment\",\"multiple\":true,\"maxCount\":3}]}"));
+
+        FormDataVO vo = formDataService.submit(
+                submitRequest(10L, "{\"files\":[2113434502638284801,2]}"), "lisi", TENANT);
+
+        List<?> files = (List<?>) vo.getFields().get("files");
+        assertEquals(2, files.size());
+    }
+
+    @Test
+    @DisplayName("submit：attachment 值非数组抛参数错误")
+    void shouldThrowWhenAttachmentNotArray() {
+        when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L));
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistry>>any()))
+                .thenReturn(registryWithSchema("{\"fields\":[{\"key\":\"files\",\"label\":\"附件\","
+                        + "\"type\":\"attachment\"}]}"));
+
+        BizException ex = assertThrows(BizException.class,
+                () -> formDataService.submit(submitRequest(10L, "{\"files\":\"211\"}"), "lisi", TENANT));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        verify(formDataMapper, never()).insert(any(FormData.class));
+    }
+
+    @Test
+    @DisplayName("submit：attachment 数组元素为字符串抛参数错误")
+    void shouldThrowWhenAttachmentElementNotNumber() {
+        when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L));
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistry>>any()))
+                .thenReturn(registryWithSchema("{\"fields\":[{\"key\":\"files\",\"label\":\"附件\","
+                        + "\"type\":\"attachment\"}]}"));
+
+        BizException ex = assertThrows(BizException.class,
+                () -> formDataService.submit(submitRequest(10L, "{\"files\":[\"211\"]}"), "lisi", TENANT));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+    }
+
+    @Test
+    @DisplayName("submit：attachment 超过 maxCount 抛参数错误")
+    void shouldThrowWhenAttachmentExceedsMaxCount() {
+        when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L));
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistry>>any()))
+                .thenReturn(registryWithSchema("{\"fields\":[{\"key\":\"files\",\"label\":\"附件\","
+                        + "\"type\":\"attachment\",\"maxCount\":1}]}"));
+
+        BizException ex = assertThrows(BizException.class,
+                () -> formDataService.submit(submitRequest(10L, "{\"files\":[1,2]}"), "lisi", TENANT));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+    }
+
+    /**
+     * 构造子表 schema 桩文本。
+     *
+     * @param maxRows 最大行数（0 不限制）
+     * @return schema JSON
+     */
+    private static String subtableSchema(int maxRows) {
+        return "{\"fields\":[{\"key\":\"lines\",\"label\":\"明细\",\"type\":\"subtable\",\"maxRows\":"
+                + maxRows + ",\"children\":[{\"key\":\"product\",\"label\":\"商品\",\"type\":\"text\","
+                + "\"required\":true},{\"key\":\"amount\",\"label\":\"数量\",\"type\":\"number\"}]}]}";
+    }
+
+    @Test
+    @DisplayName("submit：subtable 合法行通过且忽略空行")
+    void shouldSubmitSubtableAndIgnoreEmptyRows() {
+        when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L));
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistry>>any()))
+                .thenReturn(registryWithSchema(subtableSchema(1)));
+
+        FormDataVO vo = formDataService.submit(submitRequest(10L,
+                "{\"lines\":[{\"product\":\"\",\"amount\":null},{\"product\":\"苹果\",\"amount\":2}]}"),
+                "lisi", TENANT);
+
+        List<?> lines = (List<?>) vo.getFields().get("lines");
+        assertEquals(2, lines.size());
+    }
+
+    @Test
+    @DisplayName("submit：subtable 行必填子字段缺失抛参数错误")
+    void shouldThrowWhenSubtableRequiredMissing() {
+        when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L));
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistry>>any()))
+                .thenReturn(registryWithSchema(subtableSchema(0)));
+
+        BizException ex = assertThrows(BizException.class,
+                () -> formDataService.submit(submitRequest(10L,
+                        "{\"lines\":[{\"amount\":2}]}"), "lisi", TENANT));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        assertTrue(ex.getMessage().contains("商品"));
+    }
+
+    @Test
+    @DisplayName("submit：subtable 子字段类型不符抛参数错误")
+    void shouldThrowWhenSubtableTypeMismatch() {
+        when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L));
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistry>>any()))
+                .thenReturn(registryWithSchema(subtableSchema(0)));
+
+        BizException ex = assertThrows(BizException.class,
+                () -> formDataService.submit(submitRequest(10L,
+                        "{\"lines\":[{\"product\":\"苹果\",\"amount\":\"两个\"}]}"), "lisi", TENANT));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+    }
+
+    @Test
+    @DisplayName("submit：subtable 超过 maxRows 抛参数错误")
+    void shouldThrowWhenSubtableExceedsMaxRows() {
+        when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L));
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistry>>any()))
+                .thenReturn(registryWithSchema(subtableSchema(1)));
+
+        BizException ex = assertThrows(BizException.class,
+                () -> formDataService.submit(submitRequest(10L,
+                        "{\"lines\":[{\"product\":\"苹果\"},{\"product\":\"梨\"}]}"), "lisi", TENANT));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        assertTrue(ex.getMessage().contains("不能超过"));
+    }
+
+    @Test
+    @DisplayName("submit：subtable 行不是对象抛参数错误")
+    void shouldThrowWhenSubtableRowNotObject() {
+        when(formDefinitionMapper.selectById(10L)).thenReturn(definition(10L));
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistry>>any()))
+                .thenReturn(registryWithSchema(subtableSchema(0)));
+
+        BizException ex = assertThrows(BizException.class,
+                () -> formDataService.submit(submitRequest(10L, "{\"lines\":[\"x\"]}"), "lisi", TENANT));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
     }
 }

@@ -4,16 +4,19 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.file.config.MinioProperties;
 import io.minio.GetObjectArgs;
+import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
 import io.minio.errors.ErrorResponseException;
+import io.minio.http.Method;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.io.InputStream;
+import java.util.concurrent.TimeUnit;
 
 /**
  * MinIO 对象存储实现：仅当 {@code whale.file.storage.type=minio} 时装配。
@@ -73,6 +76,21 @@ public class MinioFileStorage implements FileStorage {
                     .object(objectKey)
                     .build();
             minioClient.removeObject(args);
+        } catch (Exception e) {
+            throw new BizException(ErrorCode.SYSTEM_ERROR);
+        }
+    }
+
+    @Override
+    public String presignedDownloadUrl(String bucket, String objectKey, int expiresSeconds) {
+        try {
+            GetPresignedObjectUrlArgs args = GetPresignedObjectUrlArgs.builder()
+                    .method(Method.GET)
+                    .bucket(resolveBucket(bucket))
+                    .object(objectKey)
+                    .expiry(expiresSeconds, TimeUnit.SECONDS)
+                    .build();
+            return minioClient.getPresignedObjectUrl(args);
         } catch (Exception e) {
             throw new BizException(ErrorCode.SYSTEM_ERROR);
         }

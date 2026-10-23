@@ -50,6 +50,8 @@ const DATA_TYPE_OPTIONS = [
   { value: 'datetime', label: '日期时间' },
   { value: 'select', label: '下拉' },
   { value: 'bool', label: '布尔' },
+  { value: 'attachment', label: '附件' },
+  { value: 'subtable', label: '子表' },
 ];
 
 const NULLABLE_OPTIONS = [

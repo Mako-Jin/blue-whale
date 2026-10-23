@@ -9,8 +9,12 @@ import { get, post, put, type PageResult } from './client';
 /** 后端 Long 类主键/外键，统一以字符串承载 */
 export type Id = string;
 
-/** 列存储类型 */
-export type DataType = 'text' | 'textarea' | 'number' | 'date' | 'datetime' | 'select' | 'bool';
+/** 基础列存储类型（子表子字段仅允许这些类型） */
+export type BasicDataType =
+  'text' | 'textarea' | 'number' | 'date' | 'datetime' | 'select' | 'bool';
+
+/** 列存储类型（attachment / subtable 值以 JSON 数组落 TEXT 列） */
+export type DataType = BasicDataType | 'attachment' | 'subtable';
 
 /** 控件类型；后 3 个（title/divider/text-note）为纯布局控件 */
 export type WidgetType =
@@ -23,6 +27,8 @@ export type WidgetType =
   | 'date'
   | 'datetime'
   | 'switch'
+  | 'attachment'
+  | 'subtable'
   | 'title'
   | 'divider'
   | 'text-note';

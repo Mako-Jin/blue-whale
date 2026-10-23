@@ -2,6 +2,7 @@
 // 数据字段控件形态需与填报页 FormRenderer 保持一致，避免「所见非所得」。
 
 import {
+  Button,
   Checkbox,
   DatePicker,
   Divider,
@@ -56,6 +57,41 @@ function renderDataControl(field: DesignerField) {
       );
     case 'switch':
       return <Switch disabled />;
+    case 'attachment': {
+      const limit =
+        field.maxCount !== undefined && field.maxCount > 0
+          ? `最多 ${field.maxCount} 个`
+          : field.multiple === false
+            ? '仅 1 个'
+            : '支持多个';
+      return (
+        <div>
+          <Button size="small" disabled>
+            上传文件
+          </Button>
+          <Typography.Text type="secondary" style={{ marginLeft: 8 }}>
+            {limit}
+          </Typography.Text>
+        </div>
+      );
+    }
+    case 'subtable': {
+      const childCount = field.children?.length ?? 0;
+      const rowHint =
+        field.maxRows !== undefined && field.maxRows > 0 ? `最多 ${field.maxRows} 行` : '行数不限';
+      return (
+        <div>
+          <Typography.Text type="secondary">
+            子表：{childCount} 个子字段，{rowHint}
+          </Typography.Text>
+          <div style={{ marginTop: 4 }}>
+            <Button size="small" type="dashed" disabled>
+              新增行
+            </Button>
+          </div>
+        </div>
+      );
+    }
     default:
       return <Input placeholder={field.placeholder} disabled />;
   }

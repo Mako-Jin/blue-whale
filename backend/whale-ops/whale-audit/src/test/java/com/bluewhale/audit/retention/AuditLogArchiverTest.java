@@ -1,12 +1,15 @@
 package com.bluewhale.audit.retention;
 
 import com.bluewhale.audit.config.AuditExportProperties;
+import com.bluewhale.audit.retention.entity.AuditArchiveWatermark;
+import com.bluewhale.audit.retention.mapper.AuditArchiveWatermarkMapper;
 import com.bluewhale.audit.support.AuditArchiveClient;
 import com.bluewhale.common.audit.entity.AuditLogRecord;
 import com.bluewhale.common.audit.mapper.AuditLogMapper;
 import com.bluewhale.common.core.exception.BizException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -16,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
@@ -25,7 +29,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 /**
  * {@code audit_log} 归档任务单测（AUTH-09）：过期记录导出上传、无记录跳过、
- * 上传失败受控、<b>任何路径下均不调用 {@code audit_log} 删除 Mapper 方法</b>。
+ * 上传失败受控、<b>任何路径下均不调用 {@code audit_log} 删除 Mapper 方法</b>、
+ * 上传成功推进归档水位且失败不推进。
  *
  * @author BlueWhale
  */
@@ -39,6 +44,9 @@ class AuditLogArchiverTest {
     private AuditLogMapper auditLogMapper;
 
     @Mock
+    private AuditArchiveWatermarkMapper watermarkMapper;
+
+    @Mock
     private AuditArchiveClient archiveClient;
 
     private final AuditExportProperties exportProperties = new AuditExportProperties();
@@ -49,7 +57,8 @@ class AuditLogArchiverTest {
         Map<String, Object> uploaded = new HashMap<>();
         uploaded.put("objectKey", "bluewhale-audit-archive/2026/auditLog-archive-20261019.csv");
         doReturn(uploaded).when(archiveClient).upload(any(), any(), any());
-        AuditLogArchiver archiver = new AuditLogArchiver(auditLogMapper, archiveClient, exportProperties);
+        AuditLogArchiver archiver =
+                new AuditLogArchiver(auditLogMapper, watermarkMapper, archiveClient, exportProperties);
 
         archiver.archive(RETENTION_DAYS);
 
@@ -63,24 +72,71 @@ class AuditLogArchiverTest {
     @Test
     void shouldSkipUploadWhenNoExpiredRecords() {
         doReturn(List.of()).when(auditLogMapper).selectList(any());
-        AuditLogArchiver archiver = new AuditLogArchiver(auditLogMapper, archiveClient, exportProperties);
+        AuditLogArchiver archiver =
+                new AuditLogArchiver(auditLogMapper, watermarkMapper, archiveClient, exportProperties);
 
         archiver.archive(RETENTION_DAYS);
 
         verifyNoInteractions(archiveClient);
         verify(auditLogMapper, never()).delete(any());
+        verify(watermarkMapper, never()).insert(any(AuditArchiveWatermark.class));
+        verify(watermarkMapper, never()).updateById(any(AuditArchiveWatermark.class));
     }
 
     @Test
     void shouldNotThrowWhenUploadFails() {
         doReturn(List.of(sampleRecord())).when(auditLogMapper).selectList(any());
         doThrow(new BizException("whale-file unavailable")).when(archiveClient).upload(any(), any(), any());
-        AuditLogArchiver archiver = new AuditLogArchiver(auditLogMapper, archiveClient, exportProperties);
+        AuditLogArchiver archiver =
+                new AuditLogArchiver(auditLogMapper, watermarkMapper, archiveClient, exportProperties);
 
         assertDoesNotThrow(() -> archiver.archive(RETENTION_DAYS));
 
         verify(archiveClient).upload(any(), any(), any());
         verify(auditLogMapper, never()).delete(any());
+        verify(auditLogMapper, never()).deleteById(any());
+        verify(auditLogMapper, never()).deleteByIds(any());
+        verify(auditLogMapper, never()).updateById(any(AuditLogRecord.class));
+        verify(watermarkMapper, never()).insert(any(AuditArchiveWatermark.class));
+        verify(watermarkMapper, never()).updateById(any(AuditArchiveWatermark.class));
+    }
+
+    @Test
+    void shouldInsertWatermarkWhenArchiveSucceedsFirstTime() {
+        AuditLogRecord record = sampleRecord();
+        doReturn(List.of(record)).when(auditLogMapper).selectList(any());
+        Map<String, Object> uploaded = new HashMap<>();
+        uploaded.put("objectKey", "bluewhale/auditLog-archive.csv");
+        doReturn(uploaded).when(archiveClient).upload(any(), any(), any());
+        AuditLogArchiver archiver =
+                new AuditLogArchiver(auditLogMapper, watermarkMapper, archiveClient, exportProperties);
+
+        archiver.archive(RETENTION_DAYS);
+
+        ArgumentCaptor<AuditArchiveWatermark> captor = ArgumentCaptor.forClass(AuditArchiveWatermark.class);
+        verify(watermarkMapper).insert(captor.capture());
+        assertEquals(1L, captor.getValue().getId());
+        assertEquals(record.getCreateTime(), captor.getValue().getLastCreateTime());
+        assertEquals(record.getId(), captor.getValue().getLastId());
+    }
+
+    @Test
+    void shouldUpdateExistingWatermarkAfterArchive() {
+        AuditArchiveWatermark existing = new AuditArchiveWatermark();
+        existing.setId(1L);
+        existing.setLastCreateTime(LocalDateTime.now().minusDays(120));
+        existing.setLastId(1L);
+        doReturn(existing).when(watermarkMapper).selectById(1L);
+        doReturn(List.of(sampleRecord())).when(auditLogMapper).selectList(any());
+        doReturn(Map.of("objectKey", "bluewhale/auditLog-archive.csv"))
+                .when(archiveClient).upload(any(), any(), any());
+        AuditLogArchiver archiver =
+                new AuditLogArchiver(auditLogMapper, watermarkMapper, archiveClient, exportProperties);
+
+        archiver.archive(RETENTION_DAYS);
+
+        verify(watermarkMapper).updateById(any(AuditArchiveWatermark.class));
+        verify(watermarkMapper, never()).insert(any(AuditArchiveWatermark.class));
     }
 
     private static AuditLogRecord sampleRecord() {

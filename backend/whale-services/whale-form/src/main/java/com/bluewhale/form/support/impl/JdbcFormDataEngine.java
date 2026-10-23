@@ -4,13 +4,18 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.form.entity.FormData;
 import com.bluewhale.form.support.FormDataEngine;
+import com.bluewhale.form.support.FormDataType;
 import com.bluewhale.form.support.FormField;
 import com.bluewhale.form.support.FormTableDdlGenerator;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +36,9 @@ public class JdbcFormDataEngine implements FormDataEngine {
 
     /** 物理表名二次校验正则 */
     private static final Pattern TABLE_PATTERN = Pattern.compile("^form_data_[a-z0-9_]+_v[0-9]+$");
+
+    /** JSON 解析器（附件/子表数组值序列化与反序列化） */
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -77,7 +85,7 @@ public class JdbcFormDataEngine implements FormDataEngine {
         values.add(record.getStatus());
         for (FormField field : fields) {
             columns.add(field.getKey());
-            values.add(data.get(field.getKey()));
+            values.add(toJdbcValue(data.get(field.getKey())));
         }
         String sql = "INSERT INTO `" + target + "` (" + quoteColumns(columns) + ") VALUES ("
                 + placeholders(columns.size()) + ")";
@@ -94,7 +102,7 @@ public class JdbcFormDataEngine implements FormDataEngine {
         List<Object> values = new ArrayList<>();
         for (FormField field : fields) {
             columns.add(field.getKey());
-            values.add(data.get(field.getKey()));
+            values.add(toJdbcValue(data.get(field.getKey())));
         }
         values.add(record.getId());
         values.add(record.getTenantId());
@@ -117,6 +125,11 @@ public class JdbcFormDataEngine implements FormDataEngine {
         if (!rows.isEmpty()) {
             result.putAll(rows.get(0));
         }
+        for (FormField field : fields) {
+            if (result.containsKey(field.getKey())) {
+                result.put(field.getKey(), fromJdbcValue(field, result.get(field.getKey())));
+            }
+        }
         return result;
     }
 
@@ -125,6 +138,45 @@ public class JdbcFormDataEngine implements FormDataEngine {
         String target = assertTable(table);
         jdbcTemplate.update("UPDATE `" + target + "` SET `deleted` = 1 WHERE `id` = ? AND `tenant_id` = ?",
                 id, tenantId);
+    }
+
+    /**
+     * 写库前把附件/子表的数组/对象值序列化为 JSON 文本（其余标量原样返回）
+     *
+     * @param value 字段值
+     * @return JDBC 可绑定的值
+     * @throws BizException 序列化失败时抛出 {@code PARAM_ERROR}
+     */
+    private static Object toJdbcValue(Object value) {
+        if (value instanceof Collection<?> || value instanceof Map<?, ?>) {
+            try {
+                return MAPPER.writeValueAsString(value);
+            } catch (Exception e) {
+                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "附件/子表数据序列化失败");
+            }
+        }
+        return value;
+    }
+
+    /**
+     * 读库后把附件/子表的 JSON 文本还原为数组（解析失败保留原始文本）
+     *
+     * @param field 字段定义
+     * @param value 物理表原始值
+     * @return 还原后的值
+     */
+    private static Object fromJdbcValue(FormField field, Object value) {
+        boolean jsonType = FormDataType.ATTACHMENT.equals(field.getType())
+                || FormDataType.SUBTABLE.equals(field.getType());
+        if (!jsonType || !(value instanceof String text) || !StringUtils.hasText(text)) {
+            return value;
+        }
+        try {
+            return MAPPER.readValue(text, new TypeReference<List<Object>>() {
+            });
+        } catch (Exception e) {
+            return value;
+        }
     }
 
     /**

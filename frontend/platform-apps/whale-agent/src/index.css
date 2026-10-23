@@ -303,6 +303,68 @@ body,
   color: var(--bw-text-secondary);
 }
 
+/* ---------- 工具轨迹 ---------- */
+
+.agent-tool-traces {
+  width: 100%;
+  max-width: min(860px, 100%);
+  margin-top: 6px;
+}
+
+.agent-tool-traces .ant-collapse-header {
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--bw-text-secondary);
+}
+
+.agent-tool-traces .ant-collapse-content-box {
+  padding: 4px 10px 8px;
+}
+
+.agent-tool-traces-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.agent-tool-traces-running {
+  color: var(--bw-text-secondary);
+}
+
+.agent-tool-trace-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.agent-tool-trace-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  padding: 4px 0;
+  font-size: 12px;
+  color: var(--bw-text-secondary);
+}
+
+.agent-tool-trace-row + .agent-tool-trace-row {
+  border-top: 1px dashed var(--bw-border);
+}
+
+.agent-tool-trace-row .ant-tag {
+  margin-inline-end: 0;
+}
+
+.agent-tool-trace-step {
+  font-weight: 600;
+  color: var(--bw-text);
+}
+
+.agent-tool-trace-error {
+  color: #cf1322;
+  overflow-wrap: anywhere;
+}
+
 /* 打字机光标 */
 .agent-caret {
   display: inline-block;

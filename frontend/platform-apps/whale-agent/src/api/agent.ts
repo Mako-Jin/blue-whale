@@ -57,6 +57,24 @@ export interface ChatMeta {
   citations?: Citation[];
 }
 
+/** SSE tool 事件：单步工具调用轨迹（自主编排每执行一次工具推送一条） */
+export interface ToolTrace {
+  /** 轮次 */
+  step: number;
+  /** 工具名 */
+  name: string;
+  /** 参数 JSON（后端已截断，仅用于展示） */
+  arguments?: string;
+  /** 是否成功 */
+  success: boolean;
+  /** 耗时（毫秒） */
+  elapsedMillis: number;
+  /** 新增证据条数 */
+  evidenceCount: number;
+  /** 错误信息（成功时为 null） */
+  error?: string | null;
+}
+
 /** SSE done 事件：回答结束，返回落库消息ID与统计 */
 export interface ChatDone {
   conversationId: string;
@@ -90,6 +108,7 @@ export interface ChatRequest {
 /** SSE 回调集合 */
 export interface ChatStreamHandlers {
   onMeta?: (meta: ChatMeta) => void;
+  onTool?: (trace: ToolTrace) => void;
   onDelta?: (text: string) => void;
   onDone?: (done: ChatDone) => void;
   onError?: (message: string) => void;
@@ -122,6 +141,9 @@ export async function streamChat(
       switch (event) {
         case 'meta':
           handlers.onMeta?.(data as ChatMeta);
+          break;
+        case 'tool':
+          handlers.onTool?.(data as ToolTrace);
           break;
         case 'delta': {
           const text = (data as { text?: string })?.text ?? '';

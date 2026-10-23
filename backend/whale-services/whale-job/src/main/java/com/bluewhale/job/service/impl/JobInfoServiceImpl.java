@@ -42,6 +42,15 @@ public class JobInfoServiceImpl implements JobInfoService {
     /** 默认错过执行策略 */
     private static final String DEFAULT_MISFIRE_POLICY = "SMART";
 
+    /** 默认重试次数上限：0 表示不重试 */
+    private static final int DEFAULT_MAX_RETRY = 0;
+
+    /** 默认重试间隔秒数 */
+    private static final int DEFAULT_RETRY_INTERVAL_SECONDS = 60;
+
+    /** 默认分片总数：1 表示不分片 */
+    private static final int DEFAULT_SHARD_TOTAL = 1;
+
     /** 单页最大条数：防止深度分页拖垮数据库 */
     private static final long MAX_PAGE_SIZE = 200L;
 
@@ -79,6 +88,10 @@ public class JobInfoServiceImpl implements JobInfoService {
         job.setJobGroup(StringUtils.hasText(request.getJobGroup()) ? request.getJobGroup() : DEFAULT_JOB_GROUP);
         job.setMisfirePolicy(StringUtils.hasText(request.getMisfirePolicy())
                 ? request.getMisfirePolicy() : DEFAULT_MISFIRE_POLICY);
+        job.setMaxRetry(request.getMaxRetry() == null ? DEFAULT_MAX_RETRY : request.getMaxRetry());
+        job.setRetryIntervalSeconds(request.getRetryIntervalSeconds() == null
+                ? DEFAULT_RETRY_INTERVAL_SECONDS : request.getRetryIntervalSeconds());
+        job.setShardTotal(request.getShardTotal() == null ? DEFAULT_SHARD_TOTAL : request.getShardTotal());
         job.setStatus(request.getStatus() == null ? 0 : request.getStatus());
         jobInfoMapper.insert(job);
         jobScheduler.reschedule(job.getId());
@@ -91,12 +104,24 @@ public class JobInfoServiceImpl implements JobInfoService {
         validateCron(request.getCronExpression());
         validateHandler(request.getHandlerBean());
         JobInfo job = requireJob(id);
+        Integer maxRetry = job.getMaxRetry();
+        Integer retryIntervalSeconds = job.getRetryIntervalSeconds();
+        Integer shardTotal = job.getShardTotal();
         BeanUtils.copyProperties(request, job);
         if (!StringUtils.hasText(request.getJobGroup())) {
             job.setJobGroup(DEFAULT_JOB_GROUP);
         }
         if (!StringUtils.hasText(request.getMisfirePolicy())) {
             job.setMisfirePolicy(DEFAULT_MISFIRE_POLICY);
+        }
+        if (request.getMaxRetry() == null) {
+            job.setMaxRetry(maxRetry);
+        }
+        if (request.getRetryIntervalSeconds() == null) {
+            job.setRetryIntervalSeconds(retryIntervalSeconds);
+        }
+        if (request.getShardTotal() == null) {
+            job.setShardTotal(shardTotal);
         }
         if (request.getStatus() == null) {
             job.setStatus(0);

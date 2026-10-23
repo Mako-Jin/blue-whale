@@ -9,8 +9,12 @@ import { del, downloadBlob, get, post, put, type PageResult } from './client';
 /** 后端 Long 类主键/外键，统一以字符串承载 */
 export type Id = string;
 
-/** 列存储类型 */
-export type DataType = 'text' | 'textarea' | 'number' | 'date' | 'datetime' | 'select' | 'bool';
+/** 基础列存储类型（子表子字段仅允许这些类型） */
+export type BasicDataType =
+  'text' | 'textarea' | 'number' | 'date' | 'datetime' | 'select' | 'bool';
+
+/** 列存储类型（attachment / subtable 值以 JSON 数组落 TEXT 列） */
+export type DataType = BasicDataType | 'attachment' | 'subtable';
 
 /** 控件类型；后 3 个（title/divider/text-note）为纯布局控件 */
 export type WidgetType =
@@ -23,6 +27,8 @@ export type WidgetType =
   | 'date'
   | 'datetime'
   | 'switch'
+  | 'attachment'
+  | 'subtable'
   | 'title'
   | 'divider'
   | 'text-note';
@@ -62,6 +68,16 @@ export interface FieldOption {
   sortNo?: number;
 }
 
+/** 子表子字段定义（持久化在 validateJson.children，仅基础类型） */
+export interface SubFieldConfig {
+  key: string;
+  label: string;
+  type: BasicDataType;
+  required?: boolean;
+  maxLength?: number;
+  options?: string[];
+}
+
 /** 表单字段配置（对应后端 FormFieldConfigDTO / FormFieldConfigVO） */
 export interface FieldConfig {
   id?: Id;
@@ -84,6 +100,14 @@ export interface FieldConfig {
   dataType?: DataType;
   required?: number;
   maxLength?: number;
+  // 附件扩展配置（保存时序列化到 validateJson）
+  multiple?: boolean;
+  accept?: string;
+  maxCount?: number;
+  // 子表扩展配置（保存时序列化到 validateJson）
+  children?: SubFieldConfig[];
+  minRows?: number;
+  maxRows?: number;
 }
 
 /** 表单定义（对应后端 FormDefinitionSaveRequest / FormDefinitionVO） */

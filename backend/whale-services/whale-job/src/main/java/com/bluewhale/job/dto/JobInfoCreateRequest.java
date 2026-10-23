@@ -1,5 +1,7 @@
 package com.bluewhale.job.dto;
 
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -38,6 +40,20 @@ public class JobInfoCreateRequest {
     /** 错过执行策略：SMART / FIRE_ONCE / DO_NOTHING，默认 SMART */
     @Size(max = 16, message = "错过执行策略长度不能超过 16")
     private String misfirePolicy;
+
+    /** 失败重试次数上限，默认 0（不重试） */
+    @Min(value = 0, message = "重试次数上限不能小于 0")
+    @Max(value = 5, message = "重试次数上限不能超过 5")
+    private Integer maxRetry;
+
+    /** 重试间隔秒数，默认 60 */
+    @Min(value = 0, message = "重试间隔不能小于 0")
+    private Integer retryIntervalSeconds;
+
+    /** 分片总数，默认 1（不分片） */
+    @Min(value = 1, message = "分片总数不能小于 1")
+    @Max(value = 16, message = "分片总数不能超过 16")
+    private Integer shardTotal;
 
     /** 任务状态：1 运行中 / 0 已停止，默认 0 */
     private Integer status;

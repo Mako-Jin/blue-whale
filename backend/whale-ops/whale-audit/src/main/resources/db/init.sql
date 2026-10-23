@@ -55,6 +55,21 @@ CREATE TABLE audit_log (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='操作审计日志表';
 
 -- ---------------------------------------------------------------------
+-- 审计日志归档水位表（AUTH-09，Wave 5.48）
+-- 设计说明：audit_log 为 append-only，归档只导出不删除；以单行水位记录
+--           上一轮成功归档批次的最后一条 create_time + id，避免每轮 cron
+--           重复导出同一批过期记录。
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS audit_archive_watermark;
+CREATE TABLE audit_archive_watermark (
+    id               BIGINT   NOT NULL               COMMENT '固定单行主键，恒为 1',
+    last_create_time DATETIME DEFAULT NULL           COMMENT '已归档批次的最后一条 audit_log.create_time',
+    last_id          BIGINT   DEFAULT NULL           COMMENT '已归档批次的最后一条 audit_log.id（同一 create_time 内去重）',
+    update_time      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '水位更新时间',
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='审计日志归档水位表';
+
+-- ---------------------------------------------------------------------
 -- 多通道观测日志表（REQ-SEC-006，Wave 5.10）
 -- 设计说明：与 audit_log 一致为 append-only（无 update_time / deleted），
 --           id 雪花、create_time 即记录产生时间；4 张独立表，不污染 audit_log 语义。

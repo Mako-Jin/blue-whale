@@ -48,6 +48,8 @@ whale:
       default: ${WHALE_FILE_BUCKET_DEFAULT:bluewhale}
     # 单文件最大字节数，默认 50MB；超限抛 BizException(PARAM_ERROR)
     max-size-bytes: ${WHALE_FILE_MAX_SIZE_BYTES:52428800}
+    # 分片上传分片大小，默认 5MB
+    chunk-size-bytes: ${WHALE_FILE_CHUNK_SIZE_BYTES:5242880}
 
 mybatis-plus:
   configuration:

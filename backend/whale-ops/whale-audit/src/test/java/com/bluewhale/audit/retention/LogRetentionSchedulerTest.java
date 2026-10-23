@@ -15,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.never;
@@ -23,7 +24,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
- * 日志保留期清理单测（REQ-SEC-006 / checklist 8.2）：4 表清理、单表失败隔离、调度器按配置天数委派、默认关闭。
+ * 日志保留期清理单测（REQ-SEC-006 / checklist 8.2）：4 表清理、单表失败隔离、调度器按配置天数委派；
+ * 归档开关默认启用、清理开关默认关闭，两者互不影响。
  *
  * @author BlueWhale
  */
@@ -107,9 +109,10 @@ class LogRetentionSchedulerTest {
     }
 
     @Test
-    @DisplayName("Scheduler：按配置的保留天数委派清理器")
+    @DisplayName("Scheduler：清理开关开启时按配置的保留天数委派清理器")
     void shouldDelegateConfiguredDaysToCleaner() {
         RetentionProperties properties = new RetentionProperties();
+        properties.setEnabled(true);
         properties.setDays(CONFIGURED_DAYS);
         LogRetentionScheduler scheduler = new LogRetentionScheduler(cleaner, archiver, properties);
 
@@ -119,14 +122,16 @@ class LogRetentionSchedulerTest {
     }
 
     @Test
-    @DisplayName("Scheduler：archive-enabled=false 时不触发归档（默认关闭）")
+    @DisplayName("Scheduler：archive-enabled=false 时跳过归档，清理仍按开关执行")
     void shouldSkipArchiveWhenDisabled() {
         RetentionProperties properties = new RetentionProperties();
+        properties.setEnabled(true);
+        properties.setArchiveEnabled(false);
         LogRetentionScheduler scheduler = new LogRetentionScheduler(cleaner, archiver, properties);
 
         scheduler.cleanExpiredLogs();
 
-        assertFalse(properties.isArchiveEnabled(), "归档默认必须关闭");
+        verify(cleaner).cleanExpired(properties.getDays());
         verify(archiver, never()).archive(anyInt());
     }
 
@@ -134,6 +139,7 @@ class LogRetentionSchedulerTest {
     @DisplayName("Scheduler：archive-enabled=true 时按保留天数触发归档导出")
     void shouldTriggerArchiveWhenEnabled() {
         RetentionProperties properties = new RetentionProperties();
+        properties.setEnabled(true);
         properties.setArchiveEnabled(true);
         properties.setDays(CONFIGURED_DAYS);
         LogRetentionScheduler scheduler = new LogRetentionScheduler(cleaner, archiver, properties);
@@ -145,11 +151,25 @@ class LogRetentionSchedulerTest {
     }
 
     @Test
-    @DisplayName("RetentionProperties：默认关闭清理，默认保留 30 天")
-    void shouldDefaultDisabledWithThirtyDays() {
+    @DisplayName("Scheduler：清理关闭但归档开启时只归档、不清理日志表（默认组合）")
+    void shouldArchiveWithoutCleanupWhenRetentionDisabled() {
+        RetentionProperties properties = new RetentionProperties();
+        properties.setDays(CONFIGURED_DAYS);
+        LogRetentionScheduler scheduler = new LogRetentionScheduler(cleaner, archiver, properties);
+
+        scheduler.cleanExpiredLogs();
+
+        verify(cleaner, never()).cleanExpired(anyInt());
+        verify(archiver).archive(CONFIGURED_DAYS);
+    }
+
+    @Test
+    @DisplayName("RetentionProperties：默认开启归档，默认关闭清理，默认保留 30 天")
+    void shouldDefaultArchiveEnabledAndCleanupDisabled() {
         RetentionProperties properties = new RetentionProperties();
 
-        assertFalse(properties.isEnabled(), "默认必须关闭，避免误删");
+        assertTrue(properties.isArchiveEnabled(), "归档默认必须开启");
+        assertFalse(properties.isEnabled(), "清理默认必须关闭，避免误删");
         assertEquals(RETENTION_DAYS, properties.getDays());
         verifyNoInteractions(apiLogMapper);
     }

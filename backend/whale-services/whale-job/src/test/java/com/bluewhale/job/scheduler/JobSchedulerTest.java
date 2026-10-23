@@ -12,6 +12,7 @@ import org.mockito.ArgumentCaptor;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.ObjectProvider;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -27,6 +28,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -198,6 +200,125 @@ class JobSchedulerTest {
         scheduler.runOnce(1L);
 
         verify(jobLogMapper, timeout(5000)).updateById(any(JobLog.class));
+    }
+
+    @Test
+    @DisplayName("重试：未配置 maxRetry 时失败即终态，仅尝试一次")
+    void shouldFailImmediatelyWhenRetryNotConfigured() {
+        AtomicInteger attempts = new AtomicInteger();
+        when(jobHandlerRegistry.resolve("demoJobHandler")).thenReturn(param -> {
+            attempts.incrementAndGet();
+            throw new IllegalStateException("boom");
+        });
+
+        scheduler.doExecute(job(1L, "SMART"));
+
+        assertEquals(1, attempts.get());
+        ArgumentCaptor<JobLog> insertCaptor = ArgumentCaptor.forClass(JobLog.class);
+        ArgumentCaptor<JobLog> updateCaptor = ArgumentCaptor.forClass(JobLog.class);
+        verify(jobLogMapper).insert(insertCaptor.capture());
+        verify(jobLogMapper).updateById(updateCaptor.capture());
+        assertEquals(LOG_STATUS_FAILURE, updateCaptor.getValue().getStatus());
+        assertEquals(0, updateCaptor.getValue().getRetryCount().intValue());
+        assertEquals(0, insertCaptor.getValue().getShardIndex().intValue());
+    }
+
+    @Test
+    @DisplayName("重试：maxRetry=2 时最多尝试 3 次，终态 retryCount=2")
+    void shouldRetryUntilMaxRetry() {
+        AtomicInteger attempts = new AtomicInteger();
+        when(jobHandlerRegistry.resolve("demoJobHandler")).thenReturn(param -> {
+            attempts.incrementAndGet();
+            throw new IllegalStateException("boom");
+        });
+        JobInfo job = job(1L, "SMART");
+        job.setMaxRetry(2);
+        job.setRetryIntervalSeconds(0);
+
+        scheduler.doExecute(job);
+
+        assertEquals(3, attempts.get());
+        ArgumentCaptor<JobLog> updateCaptor = ArgumentCaptor.forClass(JobLog.class);
+        verify(jobLogMapper, times(3)).updateById(updateCaptor.capture());
+        assertEquals(LOG_STATUS_FAILURE, updateCaptor.getValue().getStatus());
+        assertEquals(2, updateCaptor.getValue().getRetryCount().intValue());
+    }
+
+    @Test
+    @DisplayName("重试：失败一次后成功则不再重试")
+    void shouldStopRetryingAfterSuccess() {
+        AtomicInteger attempts = new AtomicInteger();
+        when(jobHandlerRegistry.resolve("demoJobHandler")).thenReturn(param -> {
+            if (attempts.incrementAndGet() == 1) {
+                throw new IllegalStateException("boom");
+            }
+            return "ok";
+        });
+        JobInfo job = job(1L, "SMART");
+        job.setMaxRetry(2);
+        job.setRetryIntervalSeconds(0);
+
+        scheduler.doExecute(job);
+
+        assertEquals(2, attempts.get());
+        ArgumentCaptor<JobLog> updateCaptor = ArgumentCaptor.forClass(JobLog.class);
+        verify(jobLogMapper, times(2)).updateById(updateCaptor.capture());
+        JobLog last = updateCaptor.getValue();
+        assertEquals(LOG_STATUS_SUCCESS, last.getStatus());
+        assertEquals(1, last.getRetryCount().intValue());
+        assertEquals("ok", last.getResult());
+    }
+
+    @Test
+    @DisplayName("分片：shardTotal=3 时执行器依次收到 0/1/2 三个分片")
+    void shouldPassShardIndexToHandler() {
+        List<JobExecutionContext> contexts = new ArrayList<>();
+        when(jobHandlerRegistry.resolve("demoJobHandler")).thenReturn(new JobHandler() {
+            @Override
+            public String execute(String param) {
+                return "unused";
+            }
+
+            @Override
+            public String executeWithContext(JobExecutionContext context) {
+                contexts.add(context);
+                return "shard-" + context.getShardIndex();
+            }
+        });
+        JobInfo job = job(1L, "SMART");
+        job.setShardTotal(3);
+
+        scheduler.doExecute(job);
+
+        assertEquals(3, contexts.size());
+        for (int shardIndex = 0; shardIndex < contexts.size(); shardIndex++) {
+            assertEquals(shardIndex, contexts.get(shardIndex).getShardIndex());
+            assertEquals(3, contexts.get(shardIndex).getShardTotal());
+        }
+        ArgumentCaptor<JobLog> insertCaptor = ArgumentCaptor.forClass(JobLog.class);
+        verify(jobLogMapper, times(3)).insert(insertCaptor.capture());
+        List<Integer> shardIndexes = insertCaptor.getAllValues().stream()
+                .map(JobLog::getShardIndex).toList();
+        assertEquals(List.of(0, 1, 2), shardIndexes);
+    }
+
+    @Test
+    @DisplayName("分片：shardTotal=1 时旧执行器（仅实现 execute(String)）行为不变")
+    void shouldKeepLegacyBehaviorForSingleShard() {
+        when(jobHandlerRegistry.resolve("demoJobHandler")).thenReturn(param -> "legacy:" + param);
+        JobInfo job = job(1L, "SMART");
+        job.setHandlerParam("p");
+
+        scheduler.doExecute(job);
+
+        ArgumentCaptor<JobLog> insertCaptor = ArgumentCaptor.forClass(JobLog.class);
+        ArgumentCaptor<JobLog> updateCaptor = ArgumentCaptor.forClass(JobLog.class);
+        verify(jobLogMapper).insert(insertCaptor.capture());
+        verify(jobLogMapper).updateById(updateCaptor.capture());
+        assertEquals(0, insertCaptor.getValue().getShardIndex().intValue());
+        assertEquals(0, insertCaptor.getValue().getRetryCount().intValue());
+        assertEquals(LOG_STATUS_SUCCESS, updateCaptor.getValue().getStatus());
+        assertEquals("legacy:p", updateCaptor.getValue().getResult());
     }
 
     @Test

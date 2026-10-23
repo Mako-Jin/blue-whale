@@ -86,4 +86,14 @@ class LocalFileStorageTest {
 
         assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
     }
+
+    @Test
+    @DisplayName("presignedDownloadUrl：local 模式不支持，抛参数错误并提示仅 MinIO 支持")
+    void shouldRejectPresignOnLocalStorage() {
+        BizException ex = assertThrows(BizException.class,
+                () -> localStorage.presignedDownloadUrl("bluewhale", "a.txt", 600));
+
+        assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
+        assertTrue(ex.getMessage().contains("仅 MinIO 存储支持预签名"));
+    }
 }

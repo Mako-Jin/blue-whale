@@ -37,9 +37,15 @@ public final class FormDataType {
     /** 存储类型：布尔 */
     public static final String BOOL = "bool";
 
+    /** 存储类型：附件（文件 ID 数组，以 JSON 文本落库） */
+    public static final String ATTACHMENT = "attachment";
+
+    /** 存储类型：子表（行对象数组，以 JSON 文本落库） */
+    public static final String SUBTABLE = "subtable";
+
     /** 存储类型白名单 */
     private static final Set<String> ALLOWED =
-            Set.of(TEXT, TEXTAREA, NUMBER, DATE, DATETIME, SELECT, BOOL);
+            Set.of(TEXT, TEXTAREA, NUMBER, DATE, DATETIME, SELECT, BOOL, ATTACHMENT, SUBTABLE);
 
     /** 文本字段默认长度 */
     public static final int DEFAULT_TEXT_LENGTH = 255;
@@ -125,6 +131,10 @@ public final class FormDataType {
                 return "VARCHAR(" + SELECT_LENGTH + ")";
             case BOOL:
                 return "TINYINT";
+            case ATTACHMENT:
+            case SUBTABLE:
+                // 附件/子表值均为 JSON 数组，统一以 TEXT 承载
+                return "TEXT";
             default:
                 throw paramError("存储类型非法：" + dataType);
         }
