@@ -1,56 +1,58 @@
 # ============================================================
 # 蓝鲸前端 - pnpm + turbo + Nginx 多阶段构建
+# 构建上下文：仓库根目录（前端 workspace 位于 frontend/）
+#   docker build -f deploy/frontend/Dockerfile -t bluewhale/whale-web .
 # ============================================================
 
-ARG NODE_VERSION=24
-ARG NGINX_VERSION=alpine
+ARG NODE_IMAGE=node:24-alpine
+ARG NGINX_IMAGE=nginx:alpine
 
 # ---- Stage 1: Build ----
-FROM node:${NODE_VERSION}-alpine AS builder
+FROM ${NODE_IMAGE} AS builder
+
+# 应用名（frontend/<app>/package.json 的 name），默认主控台
+ARG APP_NAME=whale-admin
+# 应用目录（相对 frontend/，包名与目录名不一定相同）
+ARG APP_DIR=admin
 
 ENV PNPM_HOME="/pnpm" \
     PATH="/pnpm:$PATH" \
-    TURBO_TELEMETRY_DISABLED=1
+    TURBO_TELEMETRY_DISABLED=1 \
+    CI=true
 
-# pnpm 8+ 内置 corepack
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Node 24 自带 corepack，pnpm 版本由 package.json 的 packageManager 字段锁定
+RUN corepack enable
 
 WORKDIR /build
 
-# 拷贝 workspace 描述文件, 最大化缓存
-COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
-# 如果是 turborepo, 根目录需要
-COPY turbo.json ./
+COPY frontend ./
 
-# 全量安装依赖 (prod + dev, 因为要 build)
+# 全量安装依赖（含 devDependencies，vite/tsc 构建需要）
 RUN pnpm install --frozen-lockfile
 
-# 拷贝所有包
-COPY . .
-
-# 构建生产包 (按需替换过滤规则)
-RUN pnpm turbo run build --filter=@bluewhale/web...
+# 构建目标应用及其 workspace 依赖（@bluewhale/whale-ui 等需先构建）
+# 注意：COPY frontend ./ 拷贝的是目录内容，workspace 直接位于 /build
+RUN pnpm turbo run build --filter="${APP_NAME}..." \
+    && mkdir -p /out \
+    && cp -r "${APP_DIR}/dist/." /out/
 
 # ---- Stage 2: Runtime ----
-FROM nginx:${NGINX_VERSION} AS runner
+FROM ${NGINX_IMAGE} AS runner
 
 LABEL org.opencontainers.image.title="bluewhale-web"
-LABEL org.opencontainers.image.description="蓝鲸前端 SPA (qiankun 微前端)"
+LABEL org.opencontainers.image.description="蓝鲸前端 SPA"
 LABEL org.opencontainers.image.vendor="BlueWhale"
 
 ENV TZ=Asia/Shanghai
 
-RUN apk add --no-cache tzdata && \
-    cp /usr/share/zoneinfo/$TZ /etc/localtime && \
-    echo $TZ > /etc/timezone
+RUN apk add --no-cache tzdata \
+    && cp /usr/share/zoneinfo/$TZ /etc/localtime \
+    && echo $TZ > /etc/timezone
 
-# 默认 SPA 回退
-COPY --from=builder /build/apps/web/dist /usr/share/nginx/html
-# 如存在 qiankun 子应用
-# COPY --from=builder /build/apps/sub-app/auth/dist /usr/share/nginx/html/sub-app/auth
-# COPY --from=builder /build/apps/sub-app/workflow/dist /usr/share/nginx/html/sub-app/workflow
+COPY --from=builder /out /usr/share/nginx/html
 
-# 精简版 nginx 配置, 正式环境可由 infrastructure/docker/nginx/conf.d 覆盖
+# 精简版 nginx 配置：仅做 SPA 回退与静态缓存；
+# 生产环境由 infrastructure/docker/nginx/conf.d（HTTPS + 反代）覆盖
 COPY <<'EOF' /etc/nginx/conf.d/default.conf
 server {
     listen       80;
@@ -58,6 +60,12 @@ server {
 
     root   /usr/share/nginx/html;
     index  index.html;
+
+    location = /healthz {
+        access_log off;
+        add_header Content-Type text/plain;
+        return 200 'ok';
+    }
 
     location / {
         try_files $uri $uri/ /index.html;
@@ -72,4 +80,5 @@ server {
 EOF
 
 EXPOSE 80
+
 CMD ["nginx", "-g", "daemon off;"]

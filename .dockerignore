@@ -1,0 +1,32 @@
+# 镜像构建上下文忽略清单（docker-deploy 以仓库根为 context）
+.git
+.github
+.idea
+.vscode
+.trae
+.workbuddy
+.workflow
+
+# 文档与本地工具，不参与镜像构建
+docs
+tools
+scripts
+
+# 构建产物（镜像内部重新构建）
+target
+**/target
+**/node_modules
+**/dist
+**/.turbo
+**/*.tsbuildinfo
+
+# 运行期数据与日志
+logs
+data
+work
+*.log
+
+# 本地环境变量与证书（运行时注入，不入镜像）
+.env
+.env.*
+infrastructure/docker/nginx/ssl

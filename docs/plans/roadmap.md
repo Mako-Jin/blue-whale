@@ -143,9 +143,9 @@
 
 ## Phase 5：部署与 CI/CD
 
-> **状态（2026-10-23）**：Docker Desktop 已启动。Nginx HTTPS、生产 compose 覆盖层与中间件编排已在 Phase 1 实机验证（[devlog §十六](../devlog/2026-10-23.md)）；剩余待验证项为后端/前端镜像的多阶段构建产物本身。
+> **状态（2026-10-23）**：Docker Desktop 已启动。Nginx HTTPS、生产 compose 覆盖层与中间件编排已在 Phase 1 实机验证（[devlog §十六](../devlog/2026-10-23.md)）；后端 3 个 Dockerfile 模板 + 前端镜像的多阶段构建已实机构建并运行验证（[devlog §十七](../devlog/2026-10-23.md)）。
 
-- [ ] Dockerfile 多阶段构建验证（后端 3 个模板 + 前端）— 基础镜像构建参数已就绪（`NGINX_BASE_IMAGE` 等），Docker Hub 需经镜像站拉取
+- [x] ~~Dockerfile 多阶段构建验证（后端 3 个模板 + 前端）~~（2026-10-23：模板对齐真实布局——后端以仓库根为上下文、`-pl <module> -am` 多模块构建，新增 `whale-auth` 模板与参数化通用模板 `sample`（`MODULE_PATH`/`SERVICE_PORT`），前端补 `APP_NAME`/`APP_DIR` 双参数；实机构建 4 个镜像全部成功：gateway 613MB / auth 712MB / 通用模板(whale-file) 599MB / web 95.6MB，均非 root，网关容器实测引导成功、前端 `healthz`/SPA 回退/assets 全 200；新增根 `.dockerignore`）
 - [x] ~~GitHub Actions CI 跑通~~（2026-10-22 平台评审 P0-1：GitHub 镜像仓 `Mako-Jin/blue-whale-platform`（remote `ci`）触发 Backend CI / Frontend CI / Code Quality 全绿；故意引入未使用变量 + 缺 Javadoc 后三条全部变红，revert 后恢复全绿；Checkstyle 绑定 `validate` 阶段阻断）
 - [x] ~~构建可复现~~（2026-10-22 平台评审 P0-2：仓库根入库 Maven Wrapper 3.9.9（only-script）+ `.mvn/jvm.config`；`check-env.ps1` 增加 JDK 21 断言；启动脚本统一 `WHALE_JAVA_HOME`，Nacos 用 `WHALE_NACOS_JAVA_HOME`）
 - [x] ~~E2E 冒烟（两批）~~（2026-10-22 平台评审 P0-3：新建 `frontend/e2e`（`@bluewhale/e2e`）+ Playwright `webServer`（8001/8002/8003）；用例 A 登录/菜单按权限渲染、用例 B 建表→加列→发布→填报→列表可见、用例 C 发起流程→首节点审批→会签（ALL 两人）→通过；`pnpm e2e` **3 passed**，两批均做反向验证失败闭环）
