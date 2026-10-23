@@ -1,14 +1,16 @@
 package com.bluewhale.auth.application.role;
 
+import com.bluewhale.auth.application.event.DomainEventPublisher;
 import com.bluewhale.auth.application.role.command.AssignRolePermissionsCommand;
 import com.bluewhale.auth.application.role.command.CreateRoleCommand;
 import com.bluewhale.auth.application.role.command.UpdateRoleCommand;
 import com.bluewhale.auth.application.role.query.RolePageQuery;
+import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
+import com.bluewhale.auth.domain.event.RoleDomainEvent;
 import com.bluewhale.auth.domain.model.vo.RoleCode;
 import com.bluewhale.auth.domain.permission.repository.PermissionRepository;
 import com.bluewhale.auth.domain.role.aggregate.Role;
 import com.bluewhale.auth.domain.role.repository.RoleRepository;
-import com.bluewhale.auth.security.PermissionCache;
 import com.bluewhale.auth.vo.RoleVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -53,7 +55,7 @@ class RoleAppServiceTest {
     private PermissionRepository permissionRepository;
 
     @Mock
-    private PermissionCache permissionCache;
+    private DomainEventPublisher eventPublisher;
 
     @InjectMocks
     private RoleAppService roleAppService;
@@ -112,9 +114,11 @@ class RoleAppServiceTest {
     }
 
     @Test
-    @DisplayName("create：编码可用时落库并取默认排序/状态")
+    @DisplayName("create：编码可用时落库并取默认排序/状态，发布 CREATED 事件")
     void shouldCreateRoleWhenCodeAvailable() {
         when(roleRepository.existsByCode("test_role")).thenReturn(false);
+        when(roleRepository.findByCode("test_role")).thenReturn(Optional.of(Role.reconstitute(
+                ROLE_ID, RoleCode.of("test_role"), "测试角色", null, 0, Role.STATUS_ENABLED, CREATED, UPDATED)));
 
         RoleVO vo = roleAppService.create(new CreateRoleCommand("test_role", "测试角色", null, null, null));
 
@@ -123,6 +127,7 @@ class RoleAppServiceTest {
         assertEquals(0, vo.getSortNo());
         assertEquals(Role.STATUS_ENABLED, vo.getStatus());
         verify(roleRepository).save(any(Role.class));
+        verify(eventPublisher).publish(new RoleDomainEvent(ROLE_ID, ChangeType.CREATED));
     }
 
     @Test
@@ -139,21 +144,22 @@ class RoleAppServiceTest {
         assertEquals(9, vo.getSortNo());
         assertEquals(Role.STATUS_DISABLED, vo.getStatus());
         verify(roleRepository).save(stored);
+        verify(eventPublisher).publish(new RoleDomainEvent(ROLE_ID, ChangeType.UPDATED));
     }
 
     @Test
-    @DisplayName("delete：删除角色并失效该角色下用户的权限缓存")
-    void shouldDeleteRoleAndEvictByRole() {
+    @DisplayName("delete：删除角色并发布 DELETED 事件")
+    void shouldDeleteRoleAndPublishEvent() {
         when(roleRepository.findById(ROLE_ID)).thenReturn(Optional.of(role("测试角色")));
 
         roleAppService.delete(ROLE_ID);
 
         verify(roleRepository).deleteById(ROLE_ID);
-        verify(permissionCache).evictByRole(ROLE_ID);
+        verify(eventPublisher).publish(new RoleDomainEvent(ROLE_ID, ChangeType.DELETED));
     }
 
     @Test
-    @DisplayName("assignPermissions：存在无效权限 ID 时抛 BizException 且不写关联、不失效缓存")
+    @DisplayName("assignPermissions：存在无效权限 ID 时抛 BizException 且不写关联、不发布事件")
     void shouldRejectAssignPermissionsWhenPermissionInvalid() {
         when(roleRepository.findById(ROLE_ID)).thenReturn(Optional.of(role("测试角色")));
         List<Long> permissionIds = List.of(10L, 11L);
@@ -165,12 +171,12 @@ class RoleAppServiceTest {
         assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
         assertEquals("存在无效的权限ID", ex.getMessage());
         verify(roleRepository, never()).replacePermissions(any(), anyList());
-        verify(permissionCache, never()).evictByRole(any());
+        verify(eventPublisher, never()).publish(any());
     }
 
     @Test
-    @DisplayName("assignPermissions：权限全部有效时重建关联并失效角色缓存")
-    void shouldAssignPermissionsAndEvictByRole() {
+    @DisplayName("assignPermissions：权限全部有效时重建关联并发布 PERMISSIONS_ASSIGNED 事件")
+    void shouldAssignPermissionsAndPublishEvent() {
         when(roleRepository.findById(ROLE_ID)).thenReturn(Optional.of(role("测试角色")));
         List<Long> permissionIds = List.of(10L, 11L);
         when(permissionRepository.countByIds(anyList())).thenReturn(2L);
@@ -178,7 +184,7 @@ class RoleAppServiceTest {
         roleAppService.assignPermissions(ROLE_ID, new AssignRolePermissionsCommand(permissionIds));
 
         verify(roleRepository).replacePermissions(ROLE_ID, permissionIds);
-        verify(permissionCache).evictByRole(ROLE_ID);
+        verify(eventPublisher).publish(new RoleDomainEvent(ROLE_ID, ChangeType.PERMISSIONS_ASSIGNED));
     }
 
     @Test

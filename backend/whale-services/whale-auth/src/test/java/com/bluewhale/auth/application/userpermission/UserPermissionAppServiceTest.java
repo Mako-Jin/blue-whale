@@ -1,6 +1,9 @@
 package com.bluewhale.auth.application.userpermission;
 
+import com.bluewhale.auth.application.event.DomainEventPublisher;
 import com.bluewhale.auth.application.userpermission.command.ReplaceUserAttrsCommand;
+import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
+import com.bluewhale.auth.domain.event.UserPermissionDomainEvent;
 import com.bluewhale.auth.domain.permission.aggregate.UserPermissionAttribute;
 import com.bluewhale.auth.domain.permission.repository.UserPermissionRepository;
 import com.bluewhale.auth.vo.UserAttrVO;
@@ -32,6 +35,9 @@ class UserPermissionAppServiceTest {
     @Mock
     private UserPermissionRepository userPermissionRepository;
 
+    @Mock
+    private DomainEventPublisher eventPublisher;
+
     @InjectMocks
     private UserPermissionAppService userPermissionAppService;
 
@@ -54,6 +60,7 @@ class UserPermissionAppServiceTest {
         userPermissionAppService.replaceUserAttrs(USER_ID, new ReplaceUserAttrsCommand(List.of()));
 
         verify(userPermissionRepository).replaceAll(USER_ID, List.of());
+        verify(eventPublisher).publish(new UserPermissionDomainEvent(USER_ID, ChangeType.ATTRS_REPLACED));
     }
 
     @Test
@@ -70,5 +77,6 @@ class UserPermissionAppServiceTest {
                         && list.stream().allMatch(attr -> attr.getUserId().equals(USER_ID))
                         && "deptId".equals(list.get(0).getAttrKey())
                         && "east".equals(list.get(1).getAttrValue())));
+        verify(eventPublisher).publish(new UserPermissionDomainEvent(USER_ID, ChangeType.ATTRS_REPLACED));
     }
 }

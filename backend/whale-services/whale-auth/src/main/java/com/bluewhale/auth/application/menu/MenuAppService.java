@@ -1,6 +1,9 @@
 package com.bluewhale.auth.application.menu;
 
+import com.bluewhale.auth.application.event.DomainEventPublisher;
 import com.bluewhale.auth.application.menu.command.SaveMenuCommand;
+import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
+import com.bluewhale.auth.domain.event.MenuDomainEvent;
 import com.bluewhale.auth.domain.menu.aggregate.Menu;
 import com.bluewhale.auth.domain.menu.repository.MenuRepository;
 import com.bluewhale.auth.vo.MenuVO;
@@ -18,8 +21,8 @@ import java.util.Set;
  * 菜单应用服务（AUTH-17 / T-DDD-9）
  *
  * <p>承载管理端菜单用例编排：菜单树 / 权限过滤菜单树 / 详情 / 新增 / 更新 / 删除。
- * 依赖仅限 {@link MenuRepository} 与既有 VO，返回 VO 而非领域对象；树组装与祖先保留
- * 语义与旧 {@code SysMenuServiceImpl} 逐行等价。</p>
+ * 依赖仅限 {@link MenuRepository}、{@link DomainEventPublisher} 与既有 VO，返回 VO 而非领域对象；
+ * 树组装与祖先保留语义与旧 {@code SysMenuServiceImpl} 逐行等价。</p>
  *
  * @author BlueWhale
  */
@@ -29,13 +32,18 @@ public class MenuAppService {
     /** Menu 聚合仓储 */
     private final MenuRepository menuRepository;
 
+    /** 领域事件发布端口（供审计等下游消费） */
+    private final DomainEventPublisher domainEventPublisher;
+
     /**
      * 构造器注入
      *
      * @param menuRepository 菜单聚合仓储
+     * @param domainEventPublisher 领域事件发布端口
      */
-    public MenuAppService(MenuRepository menuRepository) {
+    public MenuAppService(MenuRepository menuRepository, DomainEventPublisher domainEventPublisher) {
         this.menuRepository = menuRepository;
+        this.domainEventPublisher = domainEventPublisher;
     }
 
     /**
@@ -85,6 +93,7 @@ public class MenuAppService {
                 command.icon(), command.sort(), command.menuType(), command.permissionCode(),
                 command.visible(), command.status());
         menuRepository.save(menu);
+        domainEventPublisher.publish(new MenuDomainEvent(menu.getId(), ChangeType.CREATED));
     }
 
     /**
@@ -101,6 +110,7 @@ public class MenuAppService {
                 command.icon(), command.sort(), command.menuType(), command.permissionCode(),
                 command.visible(), command.status());
         menuRepository.save(menu);
+        domainEventPublisher.publish(new MenuDomainEvent(id, ChangeType.UPDATED));
     }
 
     /**
@@ -114,6 +124,7 @@ public class MenuAppService {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "存在子菜单，不允许删除");
         }
         menuRepository.deleteById(id);
+        domainEventPublisher.publish(new MenuDomainEvent(id, ChangeType.DELETED));
     }
 
     /**

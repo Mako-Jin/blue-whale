@@ -1,11 +1,13 @@
 package com.bluewhale.auth.application.permission;
 
+import com.bluewhale.auth.application.event.DomainEventPublisher;
 import com.bluewhale.auth.application.permission.command.SavePermissionCommand;
 import com.bluewhale.auth.application.permission.query.PermissionPageQuery;
+import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
+import com.bluewhale.auth.domain.event.PermissionDomainEvent;
 import com.bluewhale.auth.domain.model.vo.PermCode;
 import com.bluewhale.auth.domain.permission.aggregate.Permission;
 import com.bluewhale.auth.domain.permission.repository.PermissionRepository;
-import com.bluewhale.auth.security.PermissionCache;
 import com.bluewhale.auth.vo.PermissionVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -18,8 +20,8 @@ import java.util.List;
  * 权限点应用服务（AUTH-17 / T-DDD-9）
  *
  * <p>承载管理端权限点用例编排：分页 / 全量权限码 / 详情 / 新增 / 更新 / 删除。
- * 依赖仅限 {@link PermissionRepository}、{@link PermissionCache} 与既有 VO/PageResult；
- * 缓存失效点与旧 {@code SysPermissionServiceImpl} 逐点一致（更新、删除后按权限点失效）。</p>
+ * 依赖仅限 {@link PermissionRepository}、{@link DomainEventPublisher} 与既有 VO/PageResult；
+ * 更新、删除后发布领域事件，由基础设施层监听器在事务提交后按权限点失效用户缓存。</p>
  *
  * @author BlueWhale
  */
@@ -29,18 +31,19 @@ public class PermissionAppService {
     /** Permission 聚合仓储 */
     private final PermissionRepository permissionRepository;
 
-    /** 权限判定缓存（写路径的失效入口） */
-    private final PermissionCache permissionCache;
+    /** 领域事件发布端口（缓存失效等副作用由基础设施层监听） */
+    private final DomainEventPublisher domainEventPublisher;
 
     /**
      * 构造器注入
      *
      * @param permissionRepository 权限点聚合仓储
-     * @param permissionCache 权限判定缓存
+     * @param domainEventPublisher 领域事件发布端口
      */
-    public PermissionAppService(PermissionRepository permissionRepository, PermissionCache permissionCache) {
+    public PermissionAppService(PermissionRepository permissionRepository,
+                                DomainEventPublisher domainEventPublisher) {
         this.permissionRepository = permissionRepository;
-        this.permissionCache = permissionCache;
+        this.domainEventPublisher = domainEventPublisher;
     }
 
     /**
@@ -95,10 +98,11 @@ public class PermissionAppService {
         Permission permission = Permission.create(command.parentId(), permCode, command.permName(),
                 command.permType(), command.path(), command.method(), command.sortNo(), command.status());
         permissionRepository.save(permission);
+        domainEventPublisher.publish(new PermissionDomainEvent(permission.getId(), ChangeType.CREATED));
     }
 
     /**
-     * 更新权限点（校验权限码唯一性后落库，并失效持有该点位的用户缓存）
+     * 更新权限点（校验权限码唯一性后落库，并发布更新事件）
      *
      * @param id 权限点 ID
      * @param command 权限点更新命令
@@ -114,12 +118,12 @@ public class PermissionAppService {
         permission.applyChanges(command.parentId(), permCode, command.permName(), command.permType(),
                 command.path(), command.method(), command.sortNo(), command.status());
         permissionRepository.save(permission);
-        // 权限点变更后失效持有该点位的用户缓存（提交后生效）
-        permissionCache.evictByPermission(id);
+        // 权限点变更后发布事件，由监听器在提交后失效持有该点位的用户缓存
+        domainEventPublisher.publish(new PermissionDomainEvent(id, ChangeType.UPDATED));
     }
 
     /**
-     * 删除权限点（存在子权限时拒绝，成功后失效持有该点位的用户缓存）
+     * 删除权限点（存在子权限时拒绝，成功后发布删除事件）
      *
      * @param id 权限点 ID
      * @throws BizException 存在子权限时抛出 {@link ErrorCode#PARAM_ERROR}
@@ -129,7 +133,7 @@ public class PermissionAppService {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "存在子权限，不允许删除");
         }
         permissionRepository.deleteById(id);
-        // 权限点删除后失效持有该点位的用户缓存（提交后生效）
-        permissionCache.evictByPermission(id);
+        // 权限点删除后发布事件，由监听器在提交后失效持有该点位的用户缓存
+        domainEventPublisher.publish(new PermissionDomainEvent(id, ChangeType.DELETED));
     }
 }

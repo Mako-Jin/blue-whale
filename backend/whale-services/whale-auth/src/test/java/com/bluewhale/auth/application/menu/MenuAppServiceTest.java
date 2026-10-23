@@ -1,6 +1,9 @@
 package com.bluewhale.auth.application.menu;
 
+import com.bluewhale.auth.application.event.DomainEventPublisher;
 import com.bluewhale.auth.application.menu.command.SaveMenuCommand;
+import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
+import com.bluewhale.auth.domain.event.MenuDomainEvent;
 import com.bluewhale.auth.domain.menu.aggregate.Menu;
 import com.bluewhale.auth.domain.menu.repository.MenuRepository;
 import com.bluewhale.auth.vo.MenuVO;
@@ -42,6 +45,9 @@ class MenuAppServiceTest {
 
     @Mock
     private MenuRepository menuRepository;
+
+    @Mock
+    private DomainEventPublisher eventPublisher;
 
     @InjectMocks
     private MenuAppService menuAppService;
@@ -117,6 +123,7 @@ class MenuAppServiceTest {
         assertEquals(Menu.MENU_TYPE_MENU, saved.getMenuType());
         assertEquals(Menu.VISIBLE_SHOWN, saved.getVisible());
         assertEquals(Menu.STATUS_ENABLED, saved.getStatus());
+        verify(eventPublisher).publish(new MenuDomainEvent(null, ChangeType.CREATED));
     }
 
     @Test
@@ -148,6 +155,7 @@ class MenuAppServiceTest {
         assertEquals("sys:user:list", saved.getPermissionCode());
         assertEquals(Menu.VISIBLE_HIDDEN, saved.getVisible());
         assertEquals(Menu.STATUS_DISABLED, saved.getStatus());
+        verify(eventPublisher).publish(new MenuDomainEvent(ROOT_ID, ChangeType.UPDATED));
     }
 
     @Test
@@ -170,5 +178,6 @@ class MenuAppServiceTest {
         menuAppService.delete(ROOT_ID);
 
         verify(menuRepository).deleteById(ROOT_ID);
+        verify(eventPublisher).publish(new MenuDomainEvent(ROOT_ID, ChangeType.DELETED));
     }
 }

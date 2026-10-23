@@ -1,17 +1,19 @@
 package com.bluewhale.auth.application.user;
 
+import com.bluewhale.auth.application.event.DomainEventPublisher;
 import com.bluewhale.auth.application.user.command.AssignUserRolesCommand;
 import com.bluewhale.auth.application.user.command.ChangeUserPasswordCommand;
 import com.bluewhale.auth.application.user.command.ChangeUserStatusCommand;
 import com.bluewhale.auth.application.user.command.CreateUserCommand;
 import com.bluewhale.auth.application.user.command.UpdateUserCommand;
 import com.bluewhale.auth.application.user.query.UserPageQuery;
+import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
+import com.bluewhale.auth.domain.event.UserDomainEvent;
 import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
 import com.bluewhale.auth.domain.model.vo.Username;
 import com.bluewhale.auth.domain.role.repository.RoleRepository;
 import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
-import com.bluewhale.auth.security.PermissionCache;
 import com.bluewhale.auth.vo.UserVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -25,12 +27,13 @@ import java.util.List;
 /**
  * 用户管理应用服务：编排用户聚合与用户-角色关联的管理端用例（REQ-ARCH-001 / T-DDD-9）。
  *
- * <p>依赖方向遵循 DDD 四层约定：仅依赖领域层聚合/值对象/仓储端口、口令加密器与权限缓存，
+ * <p>依赖方向遵循 DDD 四层约定：仅依赖领域层聚合/值对象/仓储端口、口令加密器与领域事件发布端口，
  * 不依赖 {@code entity}/{@code mapper}/{@code infrastructure}/{@code service}。返回视图对象或
  * {@link PageResult}，不向调用方泄漏领域对象与持久化对象。</p>
  *
- * <p>语义与旧 {@code SysUserServiceImpl} 逐条对齐：同样的校验顺序、异常文案与业务码，
- * 同样的缓存失效点（启停 / 删除 / 角色变更时失效用户权限缓存）；事务边界仅放在多写方法上。</p>
+ * <p>语义与旧 {@code SysUserServiceImpl} 逐条对齐：同样的校验顺序、异常文案与业务码；
+ * 启停 / 删除 / 角色变更等写操作改发领域事件，由基础设施层监听器在事务提交后失效用户权限缓存；
+ * 事务边界仅放在多写方法上。</p>
  *
  * @author BlueWhale
  */
@@ -51,8 +54,8 @@ public class UserAppService {
     /** 口令加密器（明文口令落库前统一加密） */
     private final PasswordEncoder passwordEncoder;
 
-    /** 权限判定缓存（写路径的失效入口） */
-    private final PermissionCache permissionCache;
+    /** 领域事件发布端口（缓存失效等副作用由基础设施层监听） */
+    private final DomainEventPublisher domainEventPublisher;
 
     /**
      * 构造器注入
@@ -60,14 +63,14 @@ public class UserAppService {
      * @param userRepository 用户聚合仓储
      * @param roleRepository 角色聚合仓储
      * @param passwordEncoder 口令加密器
-     * @param permissionCache 权限判定缓存
+     * @param domainEventPublisher 领域事件发布端口
      */
     public UserAppService(UserRepository userRepository, RoleRepository roleRepository,
-                          PasswordEncoder passwordEncoder, PermissionCache permissionCache) {
+                          PasswordEncoder passwordEncoder, DomainEventPublisher domainEventPublisher) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
-        this.permissionCache = permissionCache;
+        this.domainEventPublisher = domainEventPublisher;
     }
 
     /**
@@ -109,7 +112,9 @@ public class UserAppService {
                 command.avatar(), command.deptId(), command.status());
         userRepository.save(user);
         // 保存后回查以回填数据库生成的主键与时间戳，保证与旧实现返回的视图字段一致
-        return UserVO.from(userRepository.findByUsername(username.value()).orElse(user));
+        User persisted = userRepository.findByUsername(username.value()).orElse(user);
+        domainEventPublisher.publish(new UserDomainEvent(persisted.getId(), ChangeType.CREATED));
+        return UserVO.from(persisted);
     }
 
     /**
@@ -130,6 +135,7 @@ public class UserAppService {
             user.changeStatus(command.status());
         }
         userRepository.save(user);
+        domainEventPublisher.publish(new UserDomainEvent(id, ChangeType.UPDATED));
         return UserVO.from(user);
     }
 
@@ -143,10 +149,11 @@ public class UserAppService {
         User user = requireUser(id);
         user.changePassword(EncryptedPassword.of(passwordEncoder.encode(command.rawPassword())));
         userRepository.save(user);
+        domainEventPublisher.publish(new UserDomainEvent(id, ChangeType.PASSWORD_CHANGED));
     }
 
     /**
-     * 变更用户状态：校验目标状态合法后保存，并失效该用户的权限缓存
+     * 变更用户状态：校验目标状态合法后保存，并发布状态变更事件
      *
      * @param id 用户 ID
      * @param command 变更状态命令
@@ -159,12 +166,12 @@ public class UserAppService {
         }
         user.changeStatus(status);
         userRepository.save(user);
-        // 用户启停后不再沿用旧判定，失效其权限缓存
-        permissionCache.evictUser(id);
+        // 用户启停后不再沿用旧判定，发布事件由监听器失效其权限缓存
+        domainEventPublisher.publish(new UserDomainEvent(id, ChangeType.STATUS_CHANGED));
     }
 
     /**
-     * 删除用户：逻辑删除用户并清理用户-角色关联，随后失效其权限缓存
+     * 删除用户：逻辑删除用户并清理用户-角色关联，随后发布删除事件
      *
      * @param id 用户 ID
      */
@@ -172,12 +179,12 @@ public class UserAppService {
     public void delete(Long id) {
         requireUser(id);
         userRepository.deleteById(id);
-        // 用户删除后失效其权限缓存
-        permissionCache.evictUser(id);
+        // 用户删除后发布事件，由监听器失效其权限缓存
+        domainEventPublisher.publish(new UserDomainEvent(id, ChangeType.DELETED));
     }
 
     /**
-     * 全量覆盖用户角色：校验角色有效性后重建关联，并失效该用户的权限缓存
+     * 全量覆盖用户角色：校验角色有效性后重建关联，并发布角色分配事件
      *
      * @param id 用户 ID
      * @param command 分配角色命令
@@ -190,8 +197,8 @@ public class UserAppService {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "存在无效的角色ID");
         }
         userRepository.replaceRoles(id, roleIds);
-        // 用户角色变更后失效其权限缓存（提交后生效）
-        permissionCache.evictUser(id);
+        // 用户角色变更后发布事件，由监听器在提交后失效其权限缓存
+        domainEventPublisher.publish(new UserDomainEvent(id, ChangeType.ROLES_ASSIGNED));
     }
 
     /**

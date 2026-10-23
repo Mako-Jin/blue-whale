@@ -1,11 +1,13 @@
 package com.bluewhale.auth.application.permission;
 
+import com.bluewhale.auth.application.event.DomainEventPublisher;
 import com.bluewhale.auth.application.permission.command.SavePermissionCommand;
 import com.bluewhale.auth.application.permission.query.PermissionPageQuery;
+import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
+import com.bluewhale.auth.domain.event.PermissionDomainEvent;
 import com.bluewhale.auth.domain.model.vo.PermCode;
 import com.bluewhale.auth.domain.permission.aggregate.Permission;
 import com.bluewhale.auth.domain.permission.repository.PermissionRepository;
-import com.bluewhale.auth.security.PermissionCache;
 import com.bluewhale.auth.vo.PermissionVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -45,7 +47,7 @@ class PermissionAppServiceTest {
     private PermissionRepository permissionRepository;
 
     @Mock
-    private PermissionCache permissionCache;
+    private DomainEventPublisher eventPublisher;
 
     @InjectMocks
     private PermissionAppService permissionAppService;
@@ -120,6 +122,7 @@ class PermissionAppServiceTest {
         assertEquals(Permission.ROOT_PARENT_ID, saved.getParentId());
         assertEquals(0, saved.getSortNo());
         assertEquals(Permission.STATUS_ENABLED, saved.getStatus());
+        verify(eventPublisher).publish(new PermissionDomainEvent(null, ChangeType.CREATED));
     }
 
     @Test
@@ -130,7 +133,7 @@ class PermissionAppServiceTest {
         assertThrows(BizException.class, () -> permissionAppService.update(PERM_ID,
                 new SavePermissionCommand(null, "sys:user:edit", "用户编辑", "API", null, null, null, null)));
         verify(permissionRepository, never()).save(any(Permission.class));
-        verify(permissionCache, never()).evictByPermission(any());
+        verify(eventPublisher, never()).publish(any());
     }
 
     @Test
@@ -145,7 +148,7 @@ class PermissionAppServiceTest {
 
         assertEquals("权限编码已存在", ex.getMessage());
         verify(permissionRepository, never()).save(any(Permission.class));
-        verify(permissionCache, never()).evictByPermission(any());
+        verify(eventPublisher, never()).publish(any());
     }
 
     @Test
@@ -167,7 +170,7 @@ class PermissionAppServiceTest {
         assertEquals("BUTTON", saved.getPermType());
         assertEquals(9, saved.getSortNo());
         assertEquals(Permission.STATUS_DISABLED, saved.getStatus());
-        verify(permissionCache).evictByPermission(PERM_ID);
+        verify(eventPublisher).publish(new PermissionDomainEvent(PERM_ID, ChangeType.UPDATED));
     }
 
     @Test
@@ -180,7 +183,7 @@ class PermissionAppServiceTest {
         assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
         assertEquals("存在子权限，不允许删除", ex.getMessage());
         verify(permissionRepository, never()).deleteById(anyLong());
-        verify(permissionCache, never()).evictByPermission(any());
+        verify(eventPublisher, never()).publish(any());
     }
 
     @Test
@@ -191,6 +194,6 @@ class PermissionAppServiceTest {
         permissionAppService.delete(PERM_ID);
 
         verify(permissionRepository).deleteById(PERM_ID);
-        verify(permissionCache).evictByPermission(PERM_ID);
+        verify(eventPublisher).publish(new PermissionDomainEvent(PERM_ID, ChangeType.DELETED));
     }
 }

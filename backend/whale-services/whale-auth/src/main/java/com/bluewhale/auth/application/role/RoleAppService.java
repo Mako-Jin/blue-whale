@@ -1,14 +1,16 @@
 package com.bluewhale.auth.application.role;
 
+import com.bluewhale.auth.application.event.DomainEventPublisher;
 import com.bluewhale.auth.application.role.command.AssignRolePermissionsCommand;
 import com.bluewhale.auth.application.role.command.CreateRoleCommand;
 import com.bluewhale.auth.application.role.command.UpdateRoleCommand;
 import com.bluewhale.auth.application.role.query.RolePageQuery;
+import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
+import com.bluewhale.auth.domain.event.RoleDomainEvent;
 import com.bluewhale.auth.domain.model.vo.RoleCode;
 import com.bluewhale.auth.domain.permission.repository.PermissionRepository;
 import com.bluewhale.auth.domain.role.aggregate.Role;
 import com.bluewhale.auth.domain.role.repository.RoleRepository;
-import com.bluewhale.auth.security.PermissionCache;
 import com.bluewhale.auth.vo.RoleVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -22,13 +24,14 @@ import java.util.List;
 /**
  * 角色管理应用服务：编排角色聚合与角色-权限关联的管理端用例（REQ-ARCH-001 / T-DDD-9）。
  *
- * <p>依赖方向遵循 DDD 四层约定：仅依赖领域层聚合/值对象/仓储端口与权限缓存，不依赖
+ * <p>依赖方向遵循 DDD 四层约定：仅依赖领域层聚合/值对象/仓储端口与领域事件发布端口，不依赖
  * {@code entity}/{@code mapper}/{@code infrastructure}/{@code service}。返回视图对象或
  * {@link PageResult}，不向调用方泄漏领域对象与持久化对象。</p>
  *
  * <p>语义与旧 {@code SysRoleServiceImpl} 逐条对齐：同样的校验顺序、异常文案与业务码；
- * 角色删除与权限变更后失效该角色下用户的权限缓存；{@code assignPermissions} 保留与旧实现
- * 一致的分布式锁（锁 {@code lock:auth:role:{id}}），事务边界仅放在多写方法上。</p>
+ * 角色删除与权限变更后发布领域事件，由基础设施层监听器在事务提交后失效该角色下用户的权限缓存；
+ * {@code assignPermissions} 保留与旧实现一致的分布式锁（锁 {@code lock:auth:role:{id}}），
+ * 事务边界仅放在多写方法上。</p>
  *
  * @author BlueWhale
  */
@@ -41,21 +44,21 @@ public class RoleAppService {
     /** Permission 聚合仓储（仅用于校验待分配权限点是否全部有效） */
     private final PermissionRepository permissionRepository;
 
-    /** 权限判定缓存（写路径的失效入口） */
-    private final PermissionCache permissionCache;
+    /** 领域事件发布端口（缓存失效等副作用由基础设施层监听） */
+    private final DomainEventPublisher domainEventPublisher;
 
     /**
      * 构造器注入
      *
      * @param roleRepository 角色聚合仓储
      * @param permissionRepository 权限点聚合仓储
-     * @param permissionCache 权限判定缓存
+     * @param domainEventPublisher 领域事件发布端口
      */
     public RoleAppService(RoleRepository roleRepository, PermissionRepository permissionRepository,
-                          PermissionCache permissionCache) {
+                          DomainEventPublisher domainEventPublisher) {
         this.roleRepository = roleRepository;
         this.permissionRepository = permissionRepository;
-        this.permissionCache = permissionCache;
+        this.domainEventPublisher = domainEventPublisher;
     }
 
     /**
@@ -96,7 +99,9 @@ public class RoleAppService {
                 command.status());
         roleRepository.save(role);
         // 保存后回查以回填数据库生成的主键与时间戳，保证与旧实现返回的视图字段一致
-        return RoleVO.from(roleRepository.findByCode(roleCode.value()).orElse(role));
+        Role persisted = roleRepository.findByCode(roleCode.value()).orElse(role);
+        domainEventPublisher.publish(new RoleDomainEvent(persisted.getId(), ChangeType.CREATED));
+        return RoleVO.from(persisted);
     }
 
     /**
@@ -117,11 +122,12 @@ public class RoleAppService {
             role.changeStatus(command.status());
         }
         roleRepository.save(role);
+        domainEventPublisher.publish(new RoleDomainEvent(id, ChangeType.UPDATED));
         return RoleVO.from(role);
     }
 
     /**
-     * 删除角色：逻辑删除角色并清理角色-权限关联，随后失效该角色下用户的权限缓存
+     * 删除角色：逻辑删除角色并清理角色-权限关联，随后发布删除事件
      *
      * @param id 角色 ID
      */
@@ -129,12 +135,12 @@ public class RoleAppService {
     public void delete(Long id) {
         requireRole(id);
         roleRepository.deleteById(id);
-        // 角色删除后该角色下用户的权限码集合变化，失效其缓存（提交后生效）
-        permissionCache.evictByRole(id);
+        // 角色删除后该角色下用户的权限码集合变化，发布事件由监听器失效其缓存
+        domainEventPublisher.publish(new RoleDomainEvent(id, ChangeType.DELETED));
     }
 
     /**
-     * 全量覆盖角色权限：校验权限点有效性后重建关联，并失效该角色下用户的权限缓存
+     * 全量覆盖角色权限：校验权限点有效性后重建关联，并发布权限分配事件
      *
      * @param id 角色 ID
      * @param command 分配权限命令
@@ -148,8 +154,8 @@ public class RoleAppService {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "存在无效的权限ID");
         }
         roleRepository.replacePermissions(id, permissionIds);
-        // 角色权限变更后该角色下用户的权限码集合变化，失效其缓存（提交后生效）
-        permissionCache.evictByRole(id);
+        // 角色权限变更后发布事件，由监听器在提交后失效该角色下用户的缓存
+        domainEventPublisher.publish(new RoleDomainEvent(id, ChangeType.PERMISSIONS_ASSIGNED));
     }
 
     /**

@@ -1,8 +1,11 @@
 package com.bluewhale.auth.application.dept;
 
 import com.bluewhale.auth.application.dept.command.SaveDeptCommand;
+import com.bluewhale.auth.application.event.DomainEventPublisher;
 import com.bluewhale.auth.domain.dept.aggregate.Dept;
 import com.bluewhale.auth.domain.dept.repository.DeptRepository;
+import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
+import com.bluewhale.auth.domain.event.DeptDomainEvent;
 import com.bluewhale.auth.vo.DeptVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -40,6 +43,9 @@ class DeptAppServiceTest {
 
     @Mock
     private DeptRepository deptRepository;
+
+    @Mock
+    private DomainEventPublisher eventPublisher;
 
     @InjectMocks
     private DeptAppService deptAppService;
@@ -84,6 +90,7 @@ class DeptAppServiceTest {
         assertEquals(Dept.ROOT_PARENT_ID, saved.getParentId());
         assertEquals(0, saved.getSort());
         assertEquals("财务部", saved.getDeptName());
+        verify(eventPublisher).publish(new DeptDomainEvent(null, ChangeType.CREATED));
     }
 
     @Test
@@ -100,6 +107,7 @@ class DeptAppServiceTest {
         assertEquals("新名", saved.getDeptName());
         assertEquals(5, saved.getSort());
         assertEquals("新负责人", saved.getLeader());
+        verify(eventPublisher).publish(new DeptDomainEvent(ROOT_ID, ChangeType.UPDATED));
     }
 
     @Test
@@ -132,5 +140,6 @@ class DeptAppServiceTest {
         deptAppService.delete(ROOT_ID);
 
         verify(deptRepository).deleteById(ROOT_ID);
+        verify(eventPublisher).publish(new DeptDomainEvent(ROOT_ID, ChangeType.DELETED));
     }
 }

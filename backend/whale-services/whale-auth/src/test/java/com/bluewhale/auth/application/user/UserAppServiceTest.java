@@ -1,17 +1,19 @@
 package com.bluewhale.auth.application.user;
 
+import com.bluewhale.auth.application.event.DomainEventPublisher;
 import com.bluewhale.auth.application.user.command.AssignUserRolesCommand;
 import com.bluewhale.auth.application.user.command.ChangeUserPasswordCommand;
 import com.bluewhale.auth.application.user.command.ChangeUserStatusCommand;
 import com.bluewhale.auth.application.user.command.CreateUserCommand;
 import com.bluewhale.auth.application.user.command.UpdateUserCommand;
 import com.bluewhale.auth.application.user.query.UserPageQuery;
+import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
+import com.bluewhale.auth.domain.event.UserDomainEvent;
 import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
 import com.bluewhale.auth.domain.model.vo.Username;
 import com.bluewhale.auth.domain.role.repository.RoleRepository;
 import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
-import com.bluewhale.auth.security.PermissionCache;
 import com.bluewhale.auth.vo.UserVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -62,7 +64,7 @@ class UserAppServiceTest {
     private PasswordEncoder passwordEncoder;
 
     @Mock
-    private PermissionCache permissionCache;
+    private DomainEventPublisher eventPublisher;
 
     @InjectMocks
     private UserAppService userAppService;
@@ -129,6 +131,7 @@ class UserAppServiceTest {
     void shouldCreateUserWhenUsernameAvailable() {
         when(userRepository.existsByUsername("alice_01")).thenReturn(false);
         when(passwordEncoder.encode("pwd123")).thenReturn(NEW_CIPHER);
+        when(userRepository.findByUsername("alice_01")).thenReturn(Optional.of(user("Alice")));
 
         UserVO vo = userAppService.create(
                 new CreateUserCommand("alice_01", "pwd123", "Alice", "138", "a@b.com", "avatar.png", 3L, null));
@@ -138,6 +141,7 @@ class UserAppServiceTest {
         assertEquals("avatar.png", vo.getAvatar());
         assertEquals(User.STATUS_ENABLED, vo.getStatus());
         verify(userRepository).save(any(User.class));
+        verify(eventPublisher).publish(new UserDomainEvent(USER_ID, ChangeType.CREATED));
     }
 
     @Test
@@ -157,6 +161,7 @@ class UserAppServiceTest {
         assertEquals(User.STATUS_DISABLED, vo.getStatus());
         assertEquals(NEW_CIPHER, stored.getPassword().value());
         verify(userRepository).save(stored);
+        verify(eventPublisher).publish(new UserDomainEvent(USER_ID, ChangeType.UPDATED));
     }
 
     @Test
@@ -170,10 +175,11 @@ class UserAppServiceTest {
 
         assertEquals(NEW_CIPHER, stored.getPassword().value());
         verify(userRepository).save(stored);
+        verify(eventPublisher).publish(new UserDomainEvent(USER_ID, ChangeType.PASSWORD_CHANGED));
     }
 
     @Test
-    @DisplayName("changeStatus：非法状态抛 BizException 且不落库、不失效缓存")
+    @DisplayName("changeStatus：非法状态抛 BizException 且不落库、不发布事件")
     void shouldRejectIllegalStatus() {
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user("Alice")));
 
@@ -183,12 +189,12 @@ class UserAppServiceTest {
         assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
         assertEquals("状态值非法，仅支持 1（启用）/ 0（停用）", ex.getMessage());
         verify(userRepository, never()).save(any(User.class));
-        verify(permissionCache, never()).evictUser(any());
+        verify(eventPublisher, never()).publish(any());
     }
 
     @Test
-    @DisplayName("changeStatus：合法状态落库并失效用户权限缓存")
-    void shouldChangeStatusAndEvictUserCache() {
+    @DisplayName("changeStatus：合法状态落库并发布 STATUS_CHANGED 事件")
+    void shouldChangeStatusAndPublishEvent() {
         User stored = user("Alice");
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(stored));
 
@@ -196,22 +202,22 @@ class UserAppServiceTest {
 
         assertEquals(User.STATUS_DISABLED, stored.getStatus());
         verify(userRepository).save(stored);
-        verify(permissionCache).evictUser(USER_ID);
+        verify(eventPublisher).publish(new UserDomainEvent(USER_ID, ChangeType.STATUS_CHANGED));
     }
 
     @Test
-    @DisplayName("delete：删除用户并失效其权限缓存")
-    void shouldDeleteUserAndEvictUserCache() {
+    @DisplayName("delete：删除用户并发布 DELETED 事件")
+    void shouldDeleteUserAndPublishEvent() {
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user("Alice")));
 
         userAppService.delete(USER_ID);
 
         verify(userRepository).deleteById(USER_ID);
-        verify(permissionCache).evictUser(USER_ID);
+        verify(eventPublisher).publish(new UserDomainEvent(USER_ID, ChangeType.DELETED));
     }
 
     @Test
-    @DisplayName("assignRoles：存在无效角色 ID 时抛 BizException 且不写关联、不失效缓存")
+    @DisplayName("assignRoles：存在无效角色 ID 时抛 BizException 且不写关联、不发布事件")
     void shouldRejectAssignRolesWhenRoleInvalid() {
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user("Alice")));
         List<Long> roleIds = List.of(1L, 2L);
@@ -223,12 +229,12 @@ class UserAppServiceTest {
         assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
         assertEquals("存在无效的角色ID", ex.getMessage());
         verify(userRepository, never()).replaceRoles(any(), anyList());
-        verify(permissionCache, never()).evictUser(any());
+        verify(eventPublisher, never()).publish(any());
     }
 
     @Test
-    @DisplayName("assignRoles：角色全部有效时重建关联并失效用户权限缓存")
-    void shouldAssignRolesAndEvictUserCache() {
+    @DisplayName("assignRoles：角色全部有效时重建关联并发布 ROLES_ASSIGNED 事件")
+    void shouldAssignRolesAndPublishEvent() {
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user("Alice")));
         List<Long> roleIds = List.of(1L, 2L);
         when(roleRepository.countByIds(anyList())).thenReturn(2L);
@@ -236,7 +242,7 @@ class UserAppServiceTest {
         userAppService.assignRoles(USER_ID, new AssignUserRolesCommand(roleIds));
 
         verify(userRepository).replaceRoles(USER_ID, roleIds);
-        verify(permissionCache).evictUser(USER_ID);
+        verify(eventPublisher).publish(new UserDomainEvent(USER_ID, ChangeType.ROLES_ASSIGNED));
     }
 
     @Test

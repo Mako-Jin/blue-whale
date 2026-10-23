@@ -1,8 +1,11 @@
 package com.bluewhale.auth.application.dept;
 
 import com.bluewhale.auth.application.dept.command.SaveDeptCommand;
+import com.bluewhale.auth.application.event.DomainEventPublisher;
 import com.bluewhale.auth.domain.dept.aggregate.Dept;
 import com.bluewhale.auth.domain.dept.repository.DeptRepository;
+import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
+import com.bluewhale.auth.domain.event.DeptDomainEvent;
 import com.bluewhale.auth.vo.DeptVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -13,8 +16,9 @@ import java.util.List;
 /**
  * 部门应用服务（AUTH-17 / T-DDD-9）
  *
- * <p>承载管理端部门用例编排：部门树 / 详情 / 新增 / 更新 / 删除。依赖仅限 {@link DeptRepository}
- * 与既有 VO，返回 VO 而非领域对象；树组装语义与旧 {@code SysDeptServiceImpl} 逐行等价。</p>
+ * <p>承载管理端部门用例编排：部门树 / 详情 / 新增 / 更新 / 删除。依赖仅限 {@link DeptRepository}、
+ * {@link DomainEventPublisher} 与既有 VO，返回 VO 而非领域对象；树组装语义与旧
+ * {@code SysDeptServiceImpl} 逐行等价。</p>
  *
  * @author BlueWhale
  */
@@ -24,13 +28,18 @@ public class DeptAppService {
     /** Dept 聚合仓储 */
     private final DeptRepository deptRepository;
 
+    /** 领域事件发布端口（供审计等下游消费） */
+    private final DomainEventPublisher domainEventPublisher;
+
     /**
      * 构造器注入
      *
      * @param deptRepository 部门聚合仓储
+     * @param domainEventPublisher 领域事件发布端口
      */
-    public DeptAppService(DeptRepository deptRepository) {
+    public DeptAppService(DeptRepository deptRepository, DomainEventPublisher domainEventPublisher) {
         this.deptRepository = deptRepository;
+        this.domainEventPublisher = domainEventPublisher;
     }
 
     /**
@@ -64,6 +73,7 @@ public class DeptAppService {
     public void create(SaveDeptCommand command) {
         Dept dept = Dept.create(command.parentId(), command.deptName(), command.sort(), command.leader());
         deptRepository.save(dept);
+        domainEventPublisher.publish(new DeptDomainEvent(dept.getId(), ChangeType.CREATED));
     }
 
     /**
@@ -78,6 +88,7 @@ public class DeptAppService {
                 .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
         dept.applyChanges(command.parentId(), command.deptName(), command.sort(), command.leader());
         deptRepository.save(dept);
+        domainEventPublisher.publish(new DeptDomainEvent(id, ChangeType.UPDATED));
     }
 
     /**
@@ -91,6 +102,7 @@ public class DeptAppService {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "存在子部门，不允许删除");
         }
         deptRepository.deleteById(id);
+        domainEventPublisher.publish(new DeptDomainEvent(id, ChangeType.DELETED));
     }
 
     /**
