@@ -4,12 +4,12 @@
 
 ## Phase 1：基础设施就绪
 
-> **环境受限待办（本机无 Docker）**：1.1–1.4 依赖 Docker Compose / Nginx 容器，未在本机验证，转入后续具备 Docker 的环境补齐（Wave 5.33 已按用户口径跳过）。
+> **状态（2026-10-23）**：Docker Desktop 已启动（daemon 29.9.2），Phase 1 四项已用镜像站完成实机验证（详见 [devlog §十六](../devlog/2026-10-23.md)）。注意 Docker Hub 直连仍不可用，需在 `.env` 用镜像站变量覆盖基础镜像名。
 
-- [ ] 1.1 配置环境变量 — 复制 `.env.example` → `infrastructure/docker/.env`，填入 MySQL/Redis/Nacos 密码
-- [ ] 1.2 启动 Docker Compose — `cd infrastructure/docker && docker compose up -d`
-- [ ] 1.3 验证中间件 — Nacos (http://localhost:8848/nacos)、MySQL 11 个业务库自动建库、Redis 连通
-- [ ] 1.4 验证 Nginx 配置 — 静态资源 / API 网关 / 微前端三套 conf.d 联调
+- [x] ~~1.1 配置环境变量 — 复制 `.env.example` → `infrastructure/docker/.env`，填入 MySQL/Redis/Nacos 密码~~（`.env.example` 补齐端口/镜像/Nacos Token/TLS 变量与 `bluewhale_*` 连接串）
+- [x] ~~1.2 启动 Docker Compose — `cd infrastructure/docker && docker compose up -d`~~（实机拉起 mysql/redis/nacos/rabbitmq/nginx 五服务，全部 healthy；默认端口与本机中间件冲突时可用 `*_HOST_PORT` 错位）
+- [x] ~~1.3 验证中间件 — Nacos (http://localhost:8848/nacos)、MySQL 11 个业务库自动建库、Redis 连通~~（MySQL 实建 16 个 `bluewhale_*` 库 + `whale_user` 通配授权；Redis 密码生效 `NOAUTH→PONG`、AOF 开启；Nacos 认证模式 `/nacos=302`、health=200；RabbitMQ 4 管理 API=200）
+- [x] ~~1.4 验证 Nginx 配置 — 静态资源 / API 网关 / 微前端三套 conf.d 联调~~（`nginx -t` 通过；HTTP 301→HTTPS、HSTS/X-CTO/XFO/Referrer 安全头、TLS1.3+ALPN h2、`/api/**` 经网关登录 `code=0` 端到端打通；自签证书脚本 `infrastructure/scripts/gen-dev-cert.ps1`）
 
 ## Phase 2：后端核心服务填充（按优先级）
 
@@ -143,9 +143,9 @@
 
 ## Phase 5：部署与 CI/CD
 
-> **环境受限待办（本机无 Docker）**：Dockerfile / 生产 compose / Nginx HTTPS 均未在本机验证，转入后续具备 Docker 的环境补齐（Wave 5.33 已按用户口径跳过）。
+> **状态（2026-10-23）**：Docker Desktop 已启动。Nginx HTTPS、生产 compose 覆盖层与中间件编排已在 Phase 1 实机验证（[devlog §十六](../devlog/2026-10-23.md)）；剩余待验证项为后端/前端镜像的多阶段构建产物本身。
 
-- [ ] Dockerfile 多阶段构建验证（后端 3 个模板 + 前端）
+- [ ] Dockerfile 多阶段构建验证（后端 3 个模板 + 前端）— 基础镜像构建参数已就绪（`NGINX_BASE_IMAGE` 等），Docker Hub 需经镜像站拉取
 - [x] ~~GitHub Actions CI 跑通~~（2026-10-22 平台评审 P0-1：GitHub 镜像仓 `Mako-Jin/blue-whale-platform`（remote `ci`）触发 Backend CI / Frontend CI / Code Quality 全绿；故意引入未使用变量 + 缺 Javadoc 后三条全部变红，revert 后恢复全绿；Checkstyle 绑定 `validate` 阶段阻断）
 - [x] ~~构建可复现~~（2026-10-22 平台评审 P0-2：仓库根入库 Maven Wrapper 3.9.9（only-script）+ `.mvn/jvm.config`；`check-env.ps1` 增加 JDK 21 断言；启动脚本统一 `WHALE_JAVA_HOME`，Nacos 用 `WHALE_NACOS_JAVA_HOME`）
 - [x] ~~E2E 冒烟（两批）~~（2026-10-22 平台评审 P0-3：新建 `frontend/e2e`（`@bluewhale/e2e`）+ Playwright `webServer`（8001/8002/8003）；用例 A 登录/菜单按权限渲染、用例 B 建表→加列→发布→填报→列表可见、用例 C 发起流程→首节点审批→会签（ALL 两人）→通过；`pnpm e2e` **3 passed**，两批均做反向验证失败闭环）
