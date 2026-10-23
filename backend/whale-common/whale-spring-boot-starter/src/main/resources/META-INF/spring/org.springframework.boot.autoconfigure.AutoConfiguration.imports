@@ -5,6 +5,7 @@ com.bluewhale.common.core.handler.GlobalExceptionHandler
 com.bluewhale.common.jackson.config.JacksonConfig
 com.bluewhale.common.lock.config.DistributedLockAutoConfiguration
 com.bluewhale.common.audit.config.AuditLogAutoConfiguration
+com.bluewhale.common.audit.config.AuditMqAutoConfiguration
 com.bluewhale.common.idempotent.config.IdempotentAutoConfiguration
 com.bluewhale.common.cache.CacheAutoConfiguration
 com.bluewhale.common.log.config.WhaleLogAutoConfiguration

@@ -81,6 +81,11 @@
             <groupId>org.redisson</groupId>
             <artifactId>redisson-spring-boot-starter</artifactId>
         </dependency>
+        <!-- AUTH-10：审计 MQ 汇聚生产者（试点服务），未开启 whale.audit.mq.publish-enabled 时不发消息 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
         <dependency>
             <groupId>com.bluewhale</groupId>
             <artifactId>whale-spring-boot-starter</artifactId>

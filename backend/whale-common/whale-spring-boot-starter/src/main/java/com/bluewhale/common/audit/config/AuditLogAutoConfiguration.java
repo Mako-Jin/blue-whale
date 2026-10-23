@@ -4,6 +4,7 @@ import com.bluewhale.common.audit.aop.AuditLogAspect;
 import com.bluewhale.common.audit.mapper.AuditLogMapper;
 import com.bluewhale.common.audit.properties.AuditLogForwardProperties;
 import com.bluewhale.common.audit.support.AuditLogForwarder;
+import com.bluewhale.common.audit.support.AuditLogMqPublisher;
 import com.bluewhale.common.audit.support.SensitiveDataMasker;
 import com.bluewhale.common.log.properties.SensitiveKeysProperties;
 import com.bluewhale.common.mybatis.config.MybatisPlusConfig;
@@ -121,12 +122,13 @@ public class AuditLogAutoConfiguration {
                                          SensitiveDataMasker sensitiveDataMasker,
                                          @Qualifier("auditLogExecutor") Executor auditLogExecutor,
                                          Environment environment,
-                                         ObjectProvider<AuditLogForwarder> auditLogForwarderProvider) {
+                                         ObjectProvider<AuditLogForwarder> auditLogForwarderProvider,
+                                         ObjectProvider<AuditLogMqPublisher> auditLogMqPublisherProvider) {
         AuditLogMapper auditLogMapper = auditLogMapperProvider.getIfAvailable();
         if (auditLogMapper == null) {
             return null;
         }
         return new AuditLogAspect(auditLogMapper, sensitiveDataMasker, auditLogExecutor, environment,
-                auditLogForwarderProvider.getIfAvailable());
+                auditLogMqPublisherProvider.getIfAvailable(), auditLogForwarderProvider.getIfAvailable());
     }
 }

@@ -23,6 +23,13 @@ spring:
     redis:
       host: ${REDIS_HOST:127.0.0.1}
       port: ${REDIS_PORT:6379}
+  # AUTH-10 审计 MQ 汇聚（生产端）：RabbitMQ 连接。默认 guest/guest 仅适用于本机开发，
+  # 生产须以环境变量覆盖；Broker 不可达时 MQ 投递失败会自动回退 HTTP 转发与本地落库。
+  rabbitmq:
+    host: ${RABBITMQ_HOST:127.0.0.1}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
   cloud:
     nacos:
       discovery:
@@ -47,6 +54,12 @@ whale:
       enabled: ${WHALE_AUDIT_FORWARD_ENABLED:true}
       url: ${WHALE_AUDIT_FORWARD_URL:http://127.0.0.1:9101}
       timeout-millis: ${WHALE_AUDIT_FORWARD_TIMEOUT_MILLIS:800}
+    # AUTH-10 审计 MQ 汇聚（生产端）：默认关闭；开启后审计记录优先投递 RabbitMQ，
+    # 投递失败自动回退 HTTP 转发（forward）与本地落库，不丢记录。
+    mq:
+      publish-enabled: ${WHALE_AUDIT_MQ_PUBLISH_ENABLED:false}
+      exchange: ${WHALE_AUDIT_MQ_EXCHANGE:bluewhale.audit.exchange}
+      routing-key: ${WHALE_AUDIT_MQ_ROUTING_KEY:audit.log}
 
 mybatis-plus:
   configuration:

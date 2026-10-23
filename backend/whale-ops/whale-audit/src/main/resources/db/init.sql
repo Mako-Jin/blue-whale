@@ -167,3 +167,17 @@ CREATE TABLE behavior_log (
     KEY idx_client_id (client_id),
     KEY idx_event_type (event_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='前端用户行为埋点日志表';
+
+-- ---------------------------------------------------------------------
+-- 审计 MQ 消息去重表（AUTH-10，RabbitMQ 汇聚幂等）
+-- 设计说明：RabbitMQ 为「至少一次」投递语义，消费端以生产者生成的 messageId
+--           为主键去重；去重行与 audit_log 同事务写入，主键冲突说明消息已消费，
+--           直接跳过，保证 audit_log 不被重复追加。超过保留期可随审计日志一并清理。
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS audit_mq_message;
+CREATE TABLE audit_mq_message (
+    message_id  VARCHAR(64) NOT NULL               COMMENT 'MQ 消息ID（生产者生成的 32 位 UUID，幂等去重键）',
+    create_time DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '首次消费时间',
+    PRIMARY KEY (message_id),
+    KEY idx_create_time (create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='审计 MQ 消息去重表';

@@ -200,7 +200,7 @@
 |---|---|
 | AUTH-08 审计导出 | **阻塞**：`POST /audit/log/export` 依赖 whale-file（8085）未启动，EXPORT 元审计一并待办 |
 | AUTH-09 保留与归档任务 | **阻塞**：依赖 whale-job 未启动；热/温/冷策略与 `whale.audit.retention.days` 已设计 |
-| AUTH-10 阶段二 MQ 汇聚 | **阻塞**：RabbitMQ 未就绪；`@AuditLog` → MQ → whale-audit 落 `bluewhale_audit` 未落地 |
+| AUTH-10 阶段二 MQ 汇聚 | **已闭环（2026-10-23）**：`AuditLogMqPublisher`（MQ→HTTP→本地三级降级）+ whale-audit 消费落 `bluewhale_audit`，`audit_mq_message` 幂等 + DLQ；whale-auth 已接 `WHALE_AUDIT_MQ_PUBLISH_ENABLED` 试点并实机验证 |
 | AUTH-15 / AUTH-16 / AUTH-17 DDD 深水区 | **残余**：User 聚合与仓储（15）、Role/Menu/Permission/Dept 聚合 + 灰度开关（16）、AppService/领域事件/清理旧实现（17）均未启动 |
 | AUTH-32 / AUTH-33 / AUTH-34 前端对接 | **残余**：admin 登录/登出对接（32）、`whale-ui` 组件封装（33）、管理页 + 按钮级权限渲染（34）；前置 `/auth/me`、网关路由均已解除 |
 | AUTH-39 refresh 轮换实施 | **残余**：ADR-001 已采纳但未实现（旧 token 黑名单 + 复用检测 family 吊销 + 前端 token 持久化），待排期 |

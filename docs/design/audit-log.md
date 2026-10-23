@@ -218,6 +218,14 @@ public @interface AuditLog {
 
 - **决策**：当前保持 `AuditLogForwarder` 为默认通道；若后续引入 MQ，选 RabbitMQ，并在同一 PR 内补生产者/消费者幂等与死信重放验证。
 
+### 6.2 AUTH-10 落地记录（2026-10-23）
+
+- **通道顺序**：`AuditLogAspect` 落库改为 **MQ → HTTP 转发 → 本地 insert** 三级降级；MQ 与 HTTP 均对外只返回布尔值，失败不抛异常，保证审计不阻断主业务。
+- **拓扑与开关**：交换机 `bluewhale.audit.exchange`（direct）/ 队列 `bluewhale.audit.queue` / 死信 `bluewhale.audit.dlx` + `bluewhale.audit.dlq`，全部 durable；生产者 `whale.audit.mq.publish-enabled`、消费者 `whale.audit.mq.consume-enabled` 默认 `false`，按需开启。
+- **幂等**：生产者消息设 `messageId`（32 位 UUID）；消费者以 `audit_mq_message(message_id PK)` 去重，去重行与 `audit_log` 落库同事务，冲突即跳过（RabbitMQ 至少一次语义下的必要保障）。
+- **死信**：业务队列声明 `x-dead-letter-exchange` / `x-dead-letter-routing-key`，监听器 `default-requeue-rejected=false` + 3 次指数退避重试；非法 JSON / 缺失 `messageId` 直接拒绝且不重新入队。
+- **验证**：单测覆盖幂等冲突、毒消息拒绝、正常落库与发布失败降级；实机（RabbitMQ 4.4.0）经网关登录 1 次 → `bluewhale_audit.audit_log` +1、`audit_mq_message` +1，且 `bluewhale_auth.audit_log` 无新增，证明 MQ 通道生效。详见 [devlog 2026-10-23 §十五](../devlog/2026-10-23.md)。
+
 ---
 
 ## 7. 敏感字段脱敏策略
@@ -349,7 +357,7 @@ whale-gateway
 | T-AUD-6 | whale-audit 查询接口（分页/详情/按 traceId） ✅ 已落地（Wave 5.1b） | T-AUD-2 | M | 接口返回 `PageResult` |
 | T-AUD-7 | 业务服务接入：auth 登录/登出/权限变更打点 ✅ 已落地（Wave 5.1b） | T-AUD-4 | M | 登录、分配角色产生审计记录 |
 | T-AUD-8 | 保留与归档定时任务 ⚠️ 未落地 | T-AUD-2 | M | 过期数据按策略清理 |
-| T-AUD-9 | 阶段二 MQ 汇聚（whale-audit 消费） ⚠️ 未落地（阶段二） | T-AUD-4 | L | 容器就绪后联调 |
+| T-AUD-9 | 阶段二 MQ 汇聚（whale-audit 消费） ✅ 已落地（AUTH-10，2026-10-23） | T-AUD-4 | L | 幂等去重 + 死信拓扑 + 实机登录链路验证 |
 | T-AUD-10 | 读审计的元审计（3 查询接口 `@AuditLog(type=QUERY)`） ✅ 已落地（AUTH-07，2026-10-18） | T-AUD-6 | S | 查询调用产生 QUERY 记录，可经 `/audit/log/page` 反查 |
 
 > 工作量相对量级：S 小 / M 中 / L 大，不含具体工期。

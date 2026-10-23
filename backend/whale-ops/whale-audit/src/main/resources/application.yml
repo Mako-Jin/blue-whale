@@ -14,6 +14,24 @@ spring:
     username: ${MYSQL_USER:root}
     # P1-2 安全默认值：不再提供 root 默认口令；未设置 MYSQL_PASSWORD 时由启动守卫给出明确报错
     password: ${MYSQL_PASSWORD:}
+  # AUTH-10 审计 MQ 汇聚（消费端）：RabbitMQ 连接与监听重试策略。
+  # 默认 guest/guest 仅适用于本机开发；生产须以环境变量覆盖。
+  rabbitmq:
+    host: ${RABBITMQ_HOST:127.0.0.1}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    listener:
+      simple:
+        acknowledge-mode: auto
+        # 重试耗尽后不重新入队，经死信交换机转入 DLQ，避免毒消息无限回环
+        default-requeue-rejected: false
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 500ms
+          multiplier: 2
+          max-interval: 5000ms
   cloud:
     nacos:
       discovery:
@@ -50,6 +68,15 @@ whale:
       # 仅导出归档，绝不对 audit_log 做物理/逻辑删除。归档与清理解耦：
       # enabled 仍默认 false（不清理 4 张日志表），但 archive-enabled=true 时调度器照常装配并归档。
       archive-enabled: ${WHALE_AUDIT_RETENTION_ARCHIVE_ENABLED:true}
+    # AUTH-10 MQ 汇聚（消费端）：默认关闭，开启后声明审计交换机/队列/死信拓扑并消费落库。
+    # 依赖增量脚本 db/migration-auth10.sql 创建 audit_mq_message 去重表。
+    mq:
+      consume-enabled: ${WHALE_AUDIT_MQ_CONSUME_ENABLED:false}
+      exchange: ${WHALE_AUDIT_MQ_EXCHANGE:bluewhale.audit.exchange}
+      routing-key: ${WHALE_AUDIT_MQ_ROUTING_KEY:audit.log}
+      queue: ${WHALE_AUDIT_MQ_QUEUE:bluewhale.audit.queue}
+      dead-letter-exchange: ${WHALE_AUDIT_MQ_DLX:bluewhale.audit.dlx}
+      dead-letter-queue: ${WHALE_AUDIT_MQ_DLQ:bluewhale.audit.dlq}
 
 management:
   endpoints:

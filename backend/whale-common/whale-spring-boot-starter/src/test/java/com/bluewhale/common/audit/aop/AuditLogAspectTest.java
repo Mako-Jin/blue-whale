@@ -5,6 +5,7 @@ import com.bluewhale.common.audit.entity.AuditLogRecord;
 import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.audit.mapper.AuditLogMapper;
 import com.bluewhale.common.audit.support.AuditLogForwarder;
+import com.bluewhale.common.audit.support.AuditLogMqPublisher;
 import com.bluewhale.common.audit.support.SensitiveDataMasker;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -51,6 +52,7 @@ class AuditLogAspectTest {
             new SensitiveDataMasker(JsonMapper.builder().build()),
             Runnable::run,
             environment,
+            null,
             null);
 
     @AfterEach
@@ -218,6 +220,7 @@ class AuditLogAspectTest {
                 new SensitiveDataMasker(JsonMapper.builder().build()),
                 Runnable::run,
                 environment,
+                null,
                 forwarder);
 
         mockRequest("POST", "/user", false);
@@ -239,6 +242,7 @@ class AuditLogAspectTest {
                 new SensitiveDataMasker(JsonMapper.builder().build()),
                 Runnable::run,
                 environment,
+                null,
                 forwarder);
 
         mockRequest("POST", "/user", false);
@@ -247,6 +251,80 @@ class AuditLogAspectTest {
 
         forwardingAspect.around(joinPoint, annotation("createUser", CreatePayload.class));
 
+        verify(forwarder).forward(any(AuditLogRecord.class));
+        verify(auditLogMapper).insert(any(AuditLogRecord.class));
+    }
+
+    @Test
+    void shouldPreferMqAndSkipHttpAndLocalWhenPublishSucceeds() throws Throwable {
+        AuditLogMqPublisher publisher = mock(AuditLogMqPublisher.class);
+        AuditLogForwarder forwarder = mock(AuditLogForwarder.class);
+        when(publisher.publish(any())).thenReturn(true);
+        AuditLogAspect mqAspect = new AuditLogAspect(
+                auditLogMapper,
+                new SensitiveDataMasker(JsonMapper.builder().build()),
+                Runnable::run,
+                environment,
+                publisher,
+                forwarder);
+
+        mockRequest("POST", "/user", false);
+        ProceedingJoinPoint joinPoint = joinPoint(SampleService.class, "createUser", new Object[]{null});
+        when(joinPoint.proceed()).thenReturn(Result.ok());
+
+        mqAspect.around(joinPoint, annotation("createUser", CreatePayload.class));
+
+        verify(publisher).publish(any(AuditLogRecord.class));
+        verify(forwarder, never()).forward(any());
+        verify(auditLogMapper, never()).insert(any(AuditLogRecord.class));
+    }
+
+    @Test
+    void shouldFallbackFromMqToHttpWhenPublishFails() throws Throwable {
+        AuditLogMqPublisher publisher = mock(AuditLogMqPublisher.class);
+        AuditLogForwarder forwarder = mock(AuditLogForwarder.class);
+        when(publisher.publish(any())).thenReturn(false);
+        when(forwarder.forward(any())).thenReturn(true);
+        AuditLogAspect mqAspect = new AuditLogAspect(
+                auditLogMapper,
+                new SensitiveDataMasker(JsonMapper.builder().build()),
+                Runnable::run,
+                environment,
+                publisher,
+                forwarder);
+
+        mockRequest("POST", "/user", false);
+        ProceedingJoinPoint joinPoint = joinPoint(SampleService.class, "createUser", new Object[]{null});
+        when(joinPoint.proceed()).thenReturn(Result.ok());
+
+        mqAspect.around(joinPoint, annotation("createUser", CreatePayload.class));
+
+        verify(publisher).publish(any(AuditLogRecord.class));
+        verify(forwarder).forward(any(AuditLogRecord.class));
+        verify(auditLogMapper, never()).insert(any(AuditLogRecord.class));
+    }
+
+    @Test
+    void shouldFallbackToLocalInsertWhenMqAndHttpBothFail() throws Throwable {
+        AuditLogMqPublisher publisher = mock(AuditLogMqPublisher.class);
+        AuditLogForwarder forwarder = mock(AuditLogForwarder.class);
+        when(publisher.publish(any())).thenReturn(false);
+        when(forwarder.forward(any())).thenReturn(false);
+        AuditLogAspect mqAspect = new AuditLogAspect(
+                auditLogMapper,
+                new SensitiveDataMasker(JsonMapper.builder().build()),
+                Runnable::run,
+                environment,
+                publisher,
+                forwarder);
+
+        mockRequest("POST", "/user", false);
+        ProceedingJoinPoint joinPoint = joinPoint(SampleService.class, "createUser", new Object[]{null});
+        when(joinPoint.proceed()).thenReturn(Result.ok());
+
+        mqAspect.around(joinPoint, annotation("createUser", CreatePayload.class));
+
+        verify(publisher).publish(any(AuditLogRecord.class));
         verify(forwarder).forward(any(AuditLogRecord.class));
         verify(auditLogMapper).insert(any(AuditLogRecord.class));
     }

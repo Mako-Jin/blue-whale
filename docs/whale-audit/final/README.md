@@ -148,7 +148,7 @@
 |---|---|
 | AUTH-08 审计导出 | **已闭环（Wave 5.21）**：`POST /audit/log/export` 落地（`AuditLogController#export` + `AuditLogService#exportLogs`），CSV 上传 whale-file 返回 `objectKey`；带 `@RequirePermission("sys:audit:log:list")` + `@AuditLog(type=EXPORT, targetType="audit_log", recordResult=false)` 元审计 |
 | AUTH-09 审计保留与归档 | **已闭环（Wave 5.21，归档不删数据）**：`AuditLogArchiver` 按保留期导出 `audit_log` 至 whale-file，由 `LogRetentionScheduler` 调度（`whale.audit.retention.archive-enabled` 默认 `false`）。**边界：`audit_log` append-only，归档只读导出、绝不删除/更新** |
-| AUTH-10 阶段二 MQ 汇聚 | **阻塞**：RabbitMQ 未就绪；`@AuditLog` → MQ → whale-audit 落 `bluewhale_audit` 未落地（`whale.audit.sink=mq` 仅预留） |
+| AUTH-10 阶段二 MQ 汇聚 | **已闭环（2026-10-23）**：starter `AuditLogMqPublisher`（MQ→HTTP→本地三级降级）+ whale-audit `@RabbitListener` 消费者、`audit_mq_message` 幂等表、DLX/DLQ 死信拓扑；whale-auth 试点实机登录验证通过（`audit_log` +1 / `audit_mq_message` +1 / 原库 0 行），开关 `whale.audit.mq.publish-enabled` / `consume-enabled` 默认 `false` |
 | 四通道查询运行时端到端验证 | **已闭环（Wave 5.21）**：经网关实测导出 `code=0` 且返回 `objectKey`；四通道查询端点静态门禁 + 运行时冒烟通过 |
 | 多通道查询端点自身元审计 | **残余**：四通道查询端点未加 `@AuditLog(type=QUERY)`（仅 `audit_log` 三查询 + 导出已加） |
 | 异步派发丢采集 | **已闭环（2026-10-23 P3）**：`ApiLogFilter` 放行 ASYNC 派发，首次派发暂存采样决策/开始时间/请求体，ASYNC 完成后按最终响应落库，幂等标记防重复；同步/异步均只落库一次 |

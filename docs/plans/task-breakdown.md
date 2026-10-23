@@ -102,9 +102,9 @@
 - [x] ~~⑤auth 埋点（登录/登出/创建用户/分配角色/分配权限）+ auth 侧 `db/init.sql` 追加 `audit_log` 建表~~
 - [x] ~~⑥单测与验证：新增 40 用例全绿（starter 15 / audit 6 / auth 19 不回归）；全量编译 SUCCESS；Checkstyle 0 违规~~
 - [x] ~~⑦检查报告归档：`docs/reviews/2026-10-17-wave5.1b-audit-log.md`~~
-- [x] ~~待做：运行时端到端验证（无 Docker）、`POST /audit/log/export`、`@RequirePermission("sys:audit:log:list")`、MQ 汇聚（阶段二）、归档任务、网关 `/audit/**` + StripPrefix 路由前缀冲突确认~~（Wave 5.21/5.33 收口：导出/归档/权限点/路由全部落地；仅 MQ 汇聚环境受限）
+- [x] ~~待做：运行时端到端验证（无 Docker）、`POST /audit/log/export`、`@RequirePermission("sys:audit:log:list")`、MQ 汇聚（阶段二）、归档任务、网关 `/audit/**` + StripPrefix 路由前缀冲突确认~~（Wave 5.21/5.33 收口：导出/归档/权限点/路由全部落地；MQ 汇聚已于 2026-10-23 AUTH-10 落地）
   - **Wave 5.33 ⑤ 收尾结论**（2026-10-20）：`POST /audit/log/export`（`EXPORT` 元审计）+ `AuditLogArchiver` 归档任务**已落地**（Wave 5.21，T5.25）；`sys:audit:log:list`（id 25）已在权限种子中；网关 `/audit/**` 路由已配且**网关不剥离前缀**，无 StripPrefix 冲突；四通道查询 + 元审计 + 出站/接口日志 + 导出/归档 + 保留期均已落地。
-  - **环境受限（本机无 RabbitMQ）backlog**：审计 **MQ 汇聚**不纳入本轮，待具备消息中间件的环境补齐；**异步派发丢采集**已由 2026-10-23 P3 第 2 项修复（非 MQ 依赖，原登记归类有误）。
+  - ~~**环境受限（本机无 RabbitMQ）backlog**：审计 **MQ 汇聚**不纳入本轮，待具备消息中间件的环境补齐~~ → **✅ 已落地（AUTH-10，2026-10-23）**：本机 RabbitMQ 4.4.0（5672）可用；starter 新增 MQ 发布器（`whale.audit.mq.publish-enabled`）+ whale-audit 消费者（`consume-enabled`，direct 交换机 + DLX/DLQ + `audit_mq_message` 幂等去重），`AuditLogAspect` 降级链改为 MQ → HTTP → 本地；三个模块 BUILD SUCCESS（starter 84 / auth 301 / audit 69）、Checkstyle 0；实机登录 1 次 → `bluewhale_audit.audit_log` +1、`audit_mq_message` +1 且 auth 本地库无新增。详见 [devlog 2026-10-23 §十五](../devlog/2026-10-23.md)。**异步派发丢采集**已由 2026-10-23 P3 第 2 项修复（非 MQ 依赖，原登记归类有误）。
 
 ## Wave 5.18：whale-ui 二次封装 + admin 三管理页（2026-10-19）
 

@@ -4,6 +4,7 @@ import com.bluewhale.common.audit.annotation.AuditLog;
 import com.bluewhale.common.audit.entity.AuditLogRecord;
 import com.bluewhale.common.audit.mapper.AuditLogMapper;
 import com.bluewhale.common.audit.support.AuditLogForwarder;
+import com.bluewhale.common.audit.support.AuditLogMqPublisher;
 import com.bluewhale.common.audit.support.SensitiveDataMasker;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.result.Result;
@@ -93,6 +94,8 @@ public class AuditLogAspect {
     private final SensitiveDataMasker sensitiveDataMasker;
     private final Executor auditLogExecutor;
     private final Environment environment;
+    /** 审计 MQ 发布器；未开启 MQ 汇聚时为 {@code null}，此时直接走 HTTP 转发或本地落库 */
+    private final AuditLogMqPublisher auditLogMqPublisher;
     /** 审计转发器；未开启转发时为 {@code null}，此时直接本地落库 */
     private final AuditLogForwarder auditLogForwarder;
 
@@ -109,17 +112,20 @@ public class AuditLogAspect {
      * @param sensitiveDataMasker 敏感数据脱敏器
      * @param auditLogExecutor 审计落库线程池
      * @param environment Spring 环境，用于读取应用名
+     * @param auditLogMqPublisher 审计 MQ 发布器，可为 {@code null}（未开启 MQ 汇聚）
      * @param auditLogForwarder 审计转发器，可为 {@code null}（未开启跨库汇聚）
      */
     public AuditLogAspect(AuditLogMapper auditLogMapper,
                           SensitiveDataMasker sensitiveDataMasker,
                           Executor auditLogExecutor,
                           Environment environment,
+                          AuditLogMqPublisher auditLogMqPublisher,
                           AuditLogForwarder auditLogForwarder) {
         this.auditLogMapper = auditLogMapper;
         this.sensitiveDataMasker = sensitiveDataMasker;
         this.auditLogExecutor = auditLogExecutor;
         this.environment = environment;
+        this.auditLogMqPublisher = auditLogMqPublisher;
         this.auditLogForwarder = auditLogForwarder;
     }
 
@@ -171,11 +177,17 @@ public class AuditLogAspect {
     }
 
     /**
-     * 提交线程池：优先转发到 whale-audit，转发失败回退本地落库（保证不丢审计）
+     * 提交线程池：优先投递 MQ，其次转发到 whale-audit，均失败回退本地落库（保证不丢审计）。
+     *
+     * <p>AUTH-10：三条通道按「MQ → HTTP → 本地」降级，任一成功即结束；
+     * MQ 未开启时行为与引入 MQ 前完全一致。</p>
      */
     private void persist(AuditLogRecord record) {
         try {
             auditLogExecutor.execute(() -> {
+                if (auditLogMqPublisher != null && auditLogMqPublisher.publish(record)) {
+                    return;
+                }
                 if (auditLogForwarder != null && auditLogForwarder.forward(record)) {
                     return;
                 }

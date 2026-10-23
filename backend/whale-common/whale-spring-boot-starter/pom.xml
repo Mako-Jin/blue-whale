@@ -47,6 +47,12 @@
             <artifactId>spring-boot-starter-data-redis</artifactId>
             <optional>true</optional>
         </dependency>
+        <!-- AUTH-10 审计 MQ 汇聚：RabbitMQ 生产者。optional=true，仅当使用方显式引入 amqp starter 时才装配发布器 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+            <optional>true</optional>
+        </dependency>
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
