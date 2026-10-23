@@ -1,11 +1,8 @@
-package com.bluewhale.file.storage;
+package com.bluewhale.file.storage.plugin.local;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
-import com.bluewhale.file.config.FileProperties;
-import lombok.RequiredArgsConstructor;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.stereotype.Component;
+import com.bluewhale.file.storage.api.StoragePlugin;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -15,19 +12,48 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 
 /**
- * 本地文件系统存储实现：按 {@code ${root}/${bucket}/${objectKey}} 组织落盘。
+ * 本地文件系统存储插件：按 {@code ${root}/${bucket}/${objectKey}} 组织落盘。
  *
- * <p>本机未部署对象存储（MinIO），故以本地磁盘作为{@link FileStorage}的落地实现；
- * 定位路径统一做目录穿越防护，拒绝 {@code objectKey} 含 {@code ..} 或归一化后越出根目录。</p>
+ * <p>定位路径统一做目录穿越防护，拒绝 {@code objectKey} 含 {@code ..} 或归一化后越出根目录；
+ * 不支持预签名下载，由服务侧在调用前根据 {@link #supportsPresigned()} 拦截。</p>
  *
  * @author BlueWhale
  */
-@Component
-@RequiredArgsConstructor
-@ConditionalOnProperty(name = "whale.file.storage.type", havingValue = "local", matchIfMissing = true)
-public class LocalFileStorage implements FileStorage {
+public class LocalStoragePlugin implements StoragePlugin {
 
-    private final FileProperties fileProperties;
+    /** 插件类型标识 */
+    public static final String TYPE = "local";
+
+    private final Path root;
+
+    /**
+     * 以配置构造本地存储插件，并确保根目录存在。
+     *
+     * @param properties 本地存储配置
+     */
+    public LocalStoragePlugin(LocalStorageProperties properties) {
+        this.root = Paths.get(properties.getRoot()).toAbsolutePath().normalize();
+        try {
+            Files.createDirectories(root);
+        } catch (IOException e) {
+            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "本地存储根目录创建失败: " + root);
+        }
+    }
+
+    @Override
+    public String getType() {
+        return TYPE;
+    }
+
+    @Override
+    public String getDisplayName() {
+        return "本地文件系统";
+    }
+
+    @Override
+    public boolean supportsPresigned() {
+        return false;
+    }
 
     @Override
     public void store(String bucket, String objectKey, InputStream in) {
@@ -66,6 +92,11 @@ public class LocalFileStorage implements FileStorage {
         }
     }
 
+    @Override
+    public String presignedDownloadUrl(String bucket, String objectKey, int expiresSeconds) {
+        throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "本地存储插件不支持预签名下载");
+    }
+
     /**
      * 解析 {@code bucket + objectKey} 对应的落盘路径，并做目录穿越防护。
      *
@@ -78,7 +109,6 @@ public class LocalFileStorage implements FileStorage {
         if (objectKey == null || objectKey.contains("..")) {
             throw new BizException(ErrorCode.PARAM_ERROR);
         }
-        Path root = Paths.get(fileProperties.getStorage().getRoot()).normalize();
         Path target = root.resolve(bucket).resolve(objectKey).normalize();
         if (!target.startsWith(root)) {
             throw new BizException(ErrorCode.PARAM_ERROR);

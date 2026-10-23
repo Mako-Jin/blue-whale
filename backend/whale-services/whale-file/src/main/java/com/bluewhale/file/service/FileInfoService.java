@@ -82,7 +82,7 @@ public interface FileInfoService {
     void delete(Long id);
 
     /**
-     * 生成预签名下载 URL（仅 MinIO 存储支持）
+     * 生成预签名下载 URL（仅支持预签名能力的对象存储插件可用）
      *
      * @param id 文件ID
      * @param expiresSeconds 有效期（秒）；为空或非正数时取默认 600，超过 3600 截断为 3600

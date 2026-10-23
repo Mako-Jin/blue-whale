@@ -1,9 +1,10 @@
-package com.bluewhale.file.storage;
+package com.bluewhale.file.storage.plugin.minio;
 
-import com.bluewhale.file.config.MinioProperties;
+import io.minio.BucketExistsArgs;
 import io.minio.GetObjectArgs;
 import io.minio.GetObjectResponse;
 import io.minio.GetPresignedObjectUrlArgs;
+import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
@@ -19,47 +20,84 @@ import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * {@link MinioFileStorage} 以 Mockito 桩 {@link MinioClient} 校验上传、读取、删除的 SDK 调用与流回传。
+ * {@link MinioStoragePlugin} 以 Mockito 桩 {@link MinioClient} 校验桶初始化、上传、读取、删除与预签名。
  *
  * @author BlueWhale
  */
-class MinioFileStorageTest {
+class MinioStoragePluginTest {
 
     private MinioClient minioClient;
 
-    private MinioFileStorage minioFileStorage;
+    private MinioStorageProperties properties;
+
+    private MinioStoragePlugin plugin;
 
     /**
-     * 以桩化的 MinioClient 与配置构造被测对象。
+     * 以桩化的 MinioClient 与配置构造被测插件。
      */
     @BeforeEach
     void setUp() {
         minioClient = mock(MinioClient.class);
-        MinioProperties minioProperties = new MinioProperties();
-        minioProperties.setBucket("bluewhale");
-        minioFileStorage = new MinioFileStorage(minioClient, minioProperties);
+        properties = new MinioStorageProperties();
+        properties.setBucket("bluewhale");
+        plugin = new MinioStoragePlugin(minioClient, properties);
     }
 
     @Test
-    @DisplayName("store：调用 putObject 上传对象")
+    @DisplayName("插件元信息：type=minio、支持预签名")
+    void shouldExposeMetadata() {
+        assertEquals(MinioStoragePlugin.TYPE, plugin.getType());
+        assertTrue(plugin.supportsPresigned());
+    }
+
+    @Test
+    @DisplayName("store：桶已存在时直接 putObject 上传对象")
     void shouldStoreViaPutObject() throws Exception {
+        when(minioClient.bucketExists(any(BucketExistsArgs.class))).thenReturn(true);
         byte[] content = "hello whale".getBytes(StandardCharsets.UTF_8);
 
-        minioFileStorage.store("mybucket", "2026/10/19/a.txt", new ByteArrayInputStream(content));
+        plugin.store("mybucket", "2026/10/19/a.txt", new ByteArrayInputStream(content));
 
+        verify(minioClient).putObject(any(PutObjectArgs.class));
+        verify(minioClient, never()).makeBucket(any(MakeBucketArgs.class));
+    }
+
+    @Test
+    @DisplayName("store：桶缺失时自动创建（解锁归档独立桶）")
+    void shouldCreateBucketWhenMissing() throws Exception {
+        when(minioClient.bucketExists(any(BucketExistsArgs.class))).thenReturn(false);
+        byte[] content = "archive".getBytes(StandardCharsets.UTF_8);
+
+        plugin.store("bluewhale-audit-archive", "2026/10/19/a.csv", new ByteArrayInputStream(content));
+
+        verify(minioClient).makeBucket(any(MakeBucketArgs.class));
+        verify(minioClient).putObject(any(PutObjectArgs.class));
+    }
+
+    @Test
+    @DisplayName("store：关闭自动建桶时只上传不探测")
+    void shouldSkipBucketCreationWhenDisabled() throws Exception {
+        properties.setAutoCreateBucket(false);
+        byte[] content = "archive".getBytes(StandardCharsets.UTF_8);
+
+        plugin.store("bluewhale", "a.txt", new ByteArrayInputStream(content));
+
+        verify(minioClient, never()).bucketExists(any(BucketExistsArgs.class));
         verify(minioClient).putObject(any(PutObjectArgs.class));
     }
 
     @Test
     @DisplayName("delete：调用 removeObject 删除对象")
     void shouldDeleteViaRemoveObject() throws Exception {
-        minioFileStorage.delete("mybucket", "a.txt");
+        plugin.delete("mybucket", "a.txt");
 
         verify(minioClient).removeObject(any(RemoveObjectArgs.class));
     }
@@ -70,7 +108,7 @@ class MinioFileStorageTest {
         GetObjectResponse response = mock(GetObjectResponse.class);
         when(minioClient.getObject(any(GetObjectArgs.class))).thenReturn(response);
 
-        InputStream in = minioFileStorage.load("mybucket", "2026/10/19/a.txt");
+        InputStream in = plugin.load("mybucket", "2026/10/19/a.txt");
 
         assertSame(response, in);
         verify(minioClient).getObject(any(GetObjectArgs.class));
@@ -82,7 +120,7 @@ class MinioFileStorageTest {
         String expected = "http://127.0.0.1:9000/bluewhale/2026/10/19/a.txt?X-Amz-Signature=x";
         when(minioClient.getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class))).thenReturn(expected);
 
-        String url = minioFileStorage.presignedDownloadUrl(null, "2026/10/19/a.txt", 600);
+        String url = plugin.presignedDownloadUrl(null, "2026/10/19/a.txt", 600);
 
         assertEquals(expected, url);
         ArgumentCaptor<GetPresignedObjectUrlArgs> captor =

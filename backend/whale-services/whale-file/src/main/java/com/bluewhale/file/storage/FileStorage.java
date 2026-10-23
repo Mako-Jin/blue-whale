@@ -6,10 +6,10 @@ import com.bluewhale.common.core.exception.ErrorCode;
 import java.io.InputStream;
 
 /**
- * 文件存储抽象：屏蔽底层存储介质差异，当前提供本地文件系统与 MinIO 两种实现。
+ * 文件存储端口：屏蔽底层存储介质差异，由插件注册表委派给当前活动插件。
  *
- * <p>定位由 {@code bucket + objectKey} 二元组完成，后续可平滑替换为对象存储实现
- * （如 MinIO/S3），而业务侧无需改动。</p>
+ * <p>定位由 {@code bucket + objectKey} 二元组完成；本地磁盘、MinIO/S3 等介质以独立插件
+ * 提供，业务侧无需感知具体实现。</p>
  *
  * @author BlueWhale
  */
@@ -44,16 +44,16 @@ public interface FileStorage {
     /**
      * 生成预签名下载 URL。
      *
-     * <p>默认实现不支持预签名（本地文件系统无此能力），由对象存储实现覆盖；
+     * <p>默认实现不支持预签名（本地文件系统无此能力），由对象存储插件覆盖；
      * 调用方无需感知具体存储类型。</p>
      *
      * @param bucket 桶名称
      * @param objectKey 桶内对象键
      * @param expiresSeconds 有效期（秒）
      * @return 预签名下载 URL
-     * @throws BizException 当前存储实现不支持预签名时抛出参数错误
+     * @throws BizException 当前存储插件不支持预签名时抛出参数错误
      */
     default String presignedDownloadUrl(String bucket, String objectKey, int expiresSeconds) {
-        throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "仅 MinIO 存储支持预签名");
+        throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "当前存储插件不支持预签名下载");
     }
 }

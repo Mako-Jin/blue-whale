@@ -1,8 +1,7 @@
-package com.bluewhale.file.storage;
+package com.bluewhale.file.storage.plugin.local;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
-import com.bluewhale.file.config.FileProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,35 +21,43 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * {@link LocalFileStorage} 本地落盘、读取、删除与目录穿越防护单元测试。
+ * {@link LocalStoragePlugin} 本地落盘、读取、删除与目录穿越防护单元测试。
  *
  * @author BlueWhale
  */
-class LocalFileStorageTest {
+class LocalStoragePluginTest {
 
     @TempDir
     Path tempDir;
 
-    private LocalFileStorage localStorage;
+    private LocalStoragePlugin plugin;
 
     /**
-     * 以临时目录作为存储根目录构造被测对象。
+     * 以临时目录作为存储根目录构造被测插件。
      */
     @BeforeEach
     void setUp() {
-        FileProperties properties = new FileProperties();
-        properties.getStorage().setRoot(tempDir.toString());
-        localStorage = new LocalFileStorage(properties);
+        LocalStorageProperties properties = new LocalStorageProperties();
+        properties.setRoot(tempDir.toString());
+        plugin = new LocalStoragePlugin(properties);
+    }
+
+    @Test
+    @DisplayName("插件元信息：type=local、展示名非空、不支持预签名")
+    void shouldExposeMetadata() {
+        assertEquals(LocalStoragePlugin.TYPE, plugin.getType());
+        assertEquals("本地文件系统", plugin.getDisplayName());
+        assertFalse(plugin.supportsPresigned());
     }
 
     @Test
     @DisplayName("store/load：按 root/bucket/objectKey 落盘且内容往返一致")
     void shouldStoreAndLoad() throws IOException {
         byte[] content = "hello whale".getBytes(StandardCharsets.UTF_8);
-        localStorage.store("bluewhale", "2026/10/19/a.txt", new ByteArrayInputStream(content));
+        plugin.store("bluewhale", "2026/10/19/a.txt", new ByteArrayInputStream(content));
 
         assertTrue(Files.exists(tempDir.resolve("bluewhale").resolve("2026/10/19/a.txt")));
-        try (InputStream in = localStorage.load("bluewhale", "2026/10/19/a.txt")) {
+        try (InputStream in = plugin.load("bluewhale", "2026/10/19/a.txt")) {
             assertArrayEquals(content, in.readAllBytes());
         }
     }
@@ -58,7 +65,7 @@ class LocalFileStorageTest {
     @Test
     @DisplayName("load：文件不存在抛 NOT_FOUND")
     void shouldThrowWhenLoadMissing() {
-        BizException ex = assertThrows(BizException.class, () -> localStorage.load("bluewhale", "missing.txt"));
+        BizException ex = assertThrows(BizException.class, () -> plugin.load("bluewhale", "missing.txt"));
 
         assertEquals(ErrorCode.NOT_FOUND.getCode(), ex.getCode());
     }
@@ -67,10 +74,10 @@ class LocalFileStorageTest {
     @DisplayName("delete：物理文件被移除")
     void shouldDelete() {
         byte[] content = "x".getBytes(StandardCharsets.UTF_8);
-        localStorage.store("bluewhale", "a.txt", new ByteArrayInputStream(content));
+        plugin.store("bluewhale", "a.txt", new ByteArrayInputStream(content));
         Path stored = tempDir.resolve("bluewhale").resolve("a.txt");
 
-        localStorage.delete("bluewhale", "a.txt");
+        plugin.delete("bluewhale", "a.txt");
 
         assertFalse(Files.exists(stored));
     }
@@ -82,18 +89,18 @@ class LocalFileStorageTest {
         ByteArrayInputStream in = new ByteArrayInputStream(content);
 
         BizException ex = assertThrows(BizException.class,
-                () -> localStorage.store("bluewhale", "../evil.txt", in));
+                () -> plugin.store("bluewhale", "../evil.txt", in));
 
         assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
     }
 
     @Test
-    @DisplayName("presignedDownloadUrl：local 模式不支持，抛参数错误并提示仅 MinIO 支持")
-    void shouldRejectPresignOnLocalStorage() {
+    @DisplayName("presignedDownloadUrl：本地插件不支持，抛参数错误")
+    void shouldRejectPresign() {
         BizException ex = assertThrows(BizException.class,
-                () -> localStorage.presignedDownloadUrl("bluewhale", "a.txt", 600));
+                () -> plugin.presignedDownloadUrl("bluewhale", "a.txt", 600));
 
         assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
-        assertTrue(ex.getMessage().contains("仅 MinIO 存储支持预签名"));
+        assertTrue(ex.getMessage().contains("不支持预签名"));
     }
 }

@@ -28,17 +28,17 @@ public class FileProperties {
     private long quotaBytes = 1073741824L;
 
     /**
-     * 本地存储配置项。
+     * 存储配置项（与插件注册表共用前缀 {@code whale.file.storage}）。
      *
      * @author BlueWhale
      */
     @Data
     public static class Storage {
 
-        /** 存储类型：{@code local}（本地磁盘）或 {@code minio}（对象存储），默认 {@code local} */
+        /** 活动存储插件类型：{@code local}（本地磁盘）或 {@code minio}（对象存储），默认 {@code local} */
         private String type = "local";
 
-        /** 本地存储根目录，按 {@code ${root}/${bucket}/${objectKey}} 落盘 */
+        /** 本地插件根目录及分片临时目录根，按 {@code ${root}/${bucket}/${objectKey}} 落盘 */
         private String root = "D:/data/whale-file";
     }
 

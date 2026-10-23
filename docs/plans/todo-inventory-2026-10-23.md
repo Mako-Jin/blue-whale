@@ -12,10 +12,10 @@
 |---|---|---|---|---|
 | 1 | whale-gateway | 8080 | 可用 | ① 为 `/erp/**`、`/mes/**`、`/pdm/**`、`/oa/**`、`/config/**` 补路由（现 11 条，缺 5 条）② 熔断半开探测仅单测覆盖，运行态未单独取证（残余风险，非功能缺口）③ T-CI-7：镜像构建扩至全服务 |
 | 2 | whale-auth | 8081 | 可用 | ① `replaceUserAttrs` 非空批量写路径缺单测（需真实 Mapper 代理）② 端口仍硬编码 8081，未走 `${SERVER_PORT}`（service-catalog 偏差 C-02）③ 前端按钮级权限渲染需在 admin 逐页复验 |
-| 3 | whale-job | 8082 | 可用 | 调度「多实例失效广播」未覆盖（`next-steps` §五 残余）；归档导出已通（本地存储） |
+| 3 | whale-job | 8082 | 可用 | 调度「多实例失效广播」未覆盖（`next-steps` §五 残余）；归档导出已通，Wave 5.49 起可落对象存储 |
 | 4 | whale-workflow | 8083 | 可用 | backlog 6 项全部结案；仅剩 dnd-kit 真实指针拖拽需人工复核（前端侧） |
 | 5 | whale-form | 8084 | 可用 | ① 字段级索引自动优化未做（Wave 5.27 起遗留）② 表单 ↔ 工作流联动需端到端验收（发起入口已接 `formId`，缺跨模块回归用例） |
-| 6 | whale-file | 8085 | 可用 | **未接对象存储**，当前仅本地文件系统 `LocalFileStorage` |
+| 6 | whale-file | 8085 | 可用 | 无（Wave 5.49：存储插件化，`local`/`minio` 插件可切换，MinIO 自动建桶已解锁 job/audit 归档；见 [devlog §十九](../devlog/2026-10-23.md)） |
 | 7 | whale-pay | 8086 | 最小实现 | 仅订单 CRUD + 支付/取消占位动作；无真实支付渠道、对账、退款 |
 | 8 | whale-i18n | 8087 | 可用 | 无（前端「国际化演示」仍是基座占位页） |
 | 9 | whale-agent | 8090 | 可用 | 问答 / 事实层 / MCP 已闭环；服务目录事实重建的耗时约束（<5s）无持续回归 |
@@ -71,7 +71,7 @@
 2. **网关补 5 条路由** + 基座补 `/mes/*`、`/pdm/*` 挂载点（各 1 处配置，收益立竿见影）。
 3. **whale-portal 三处占位收口**（Dashboard 统计 / 待办跳转 / 通知中心）——直接决定门户可用性。
 4. **基座 4 个 PlaceholderPage 收口**（用户/角色/菜单/国际化），可与 admin 页面复用。
-5. **whale-file 接对象存储**（S3/MinIO），同时解锁 job/audit 归档的存储诉求。
+5. ✅ **~~whale-file 接对象存储（S3/MinIO）+ 解锁 job/audit 归档~~**（已完成，Wave 5.49：插件化 `local`/`minio` + 自动建桶；见 [devlog §十九](../devlog/2026-10-23.md)）。
 6. **whale-alert 通知渠道**（至少邮件 + Webhook）与 **whale-monitor Prometheus 接入**，补齐运维闭环。
 7. **T-CI-7 镜像扩面 + coverage-gate 接 CI**，把已就绪的 Dockerfile 模板铺到全部服务。
 8. **Phase 5 两处勾选合并**（prod compose 实机验证、Nginx 生产配置与 Phase 1 去重）。

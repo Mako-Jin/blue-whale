@@ -41,8 +41,20 @@ whale:
       enabled: true
   file:
     storage:
-      # 本地存储根目录，按 ${root}/${bucket}/${objectKey} 组织落盘
+      # 活动存储插件类型：local（本地磁盘，默认）| minio（MinIO/S3 兼容对象存储）
+      type: ${WHALE_FILE_STORAGE_TYPE:local}
+      # 本地插件根目录，同时作为分片上传临时目录根：按 ${root}/${bucket}/${objectKey} 落盘
       root: ${WHALE_FILE_STORAGE_ROOT:D:/data/whale-file}
+    # MinIO/S3 插件配置：endpoint 非空时插件自动装配；type=minio 时选为活动插件。
+    # 生产/联调通过环境变量注入，凭据不入仓。
+    minio:
+      # endpoint: http://127.0.0.1:9000
+      access-key: ${WHALE_FILE_MINIO_ACCESS_KEY:}
+      secret-key: ${WHALE_FILE_MINIO_SECRET_KEY:}
+      bucket: ${WHALE_FILE_MINIO_BUCKET:bluewhale}
+      region: ${WHALE_FILE_MINIO_REGION:}
+      # 写入前自动创建缺失桶：解锁 job/audit 归档独立桶，无需人工预建
+      auto-create-bucket: ${WHALE_FILE_MINIO_AUTO_CREATE_BUCKET:true}
     bucket:
       # 默认桶名：upload 未显式指定 bucket 时使用
       default: ${WHALE_FILE_BUCKET_DEFAULT:bluewhale}

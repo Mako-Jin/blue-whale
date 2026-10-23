@@ -292,12 +292,12 @@ class FileInfoServiceImplTest {
         entity.setObjectKey("2026/10/19/a.txt");
         when(fileInfoMapper.selectById(5L)).thenReturn(entity);
         when(fileStorage.presignedDownloadUrl(anyString(), anyString(), anyInt()))
-                .thenThrow(new BizException(ErrorCode.PARAM_ERROR.getCode(), "仅 MinIO 存储支持预签名"));
+                .thenThrow(new BizException(ErrorCode.PARAM_ERROR.getCode(), "当前存储插件不支持预签名下载"));
 
         BizException ex = assertThrows(BizException.class, () -> fileInfoService.presignedUrl(5L, 600));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
-        assertTrue(ex.getMessage().contains("仅 MinIO 存储支持预签名"));
+        assertTrue(ex.getMessage().contains("当前存储插件不支持预签名下载"));
     }
 
     @Test

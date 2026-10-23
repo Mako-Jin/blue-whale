@@ -141,7 +141,7 @@ public class FileController {
     }
 
     /**
-     * 生成预签名下载 URL（仅 MinIO 存储支持；local 模式返回参数错误）。
+     * 生成预签名下载 URL（仅支持预签名能力的对象存储插件可用；local 模式返回参数错误）。
      *
      * @param id 文件ID
      * @param expiresSeconds 有效期（秒），默认 600、上限 3600
