@@ -2,8 +2,10 @@ package com.bluewhale.agent.service;
 
 import com.bluewhale.agent.config.AgentProperties;
 import com.bluewhale.agent.support.index.AgentIndexService;
+import com.bluewhale.agent.support.index.RrfFuser;
 import com.bluewhale.agent.support.index.SearchHit;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashSet;
@@ -11,17 +13,21 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 检索服务：参数归一化后委托 {@link AgentIndexService} 执行 BM25 检索。
+ * 检索服务：BM25 + 向量双通道召回，经 RRF 融合后返回统一排序。
  *
- * <p>后续问答编排的混合检索（向量 + RRF）也在此层扩展，保持控制器与索引实现解耦。</p>
+ * <p>向量通道不可用（未启用、索引无向量、查询向量化失败）时自动回落纯 BM25，
+ * 保证任何配置下检索链路可用；控制器、问答编排与 MCP 工具共用此入口。</p>
  *
  * @author BlueWhale
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AgentSearchService {
 
     private final AgentIndexService indexService;
+
+    private final EmbeddingService embeddingService;
 
     private final AgentProperties properties;
 
@@ -31,7 +37,7 @@ public class AgentSearchService {
      * @param question 用户问题
      * @param topK 期望条数（为空取默认值，超过上限按上限截断）
      * @param kinds 知识类型过滤（空表示不过滤）
-     * @return 命中结果
+     * @return 命中结果（融合分数）
      */
     public List<SearchHit> search(String question, Integer topK, Set<String> kinds) {
         int max = properties.getSearch().getMaxTopK();
@@ -39,7 +45,52 @@ public class AgentSearchService {
         if (effective <= 0) {
             effective = properties.getSearch().getDefaultTopK();
         }
-        return indexService.search(question, effective, kinds);
+        int candidate = Math.max(effective, properties.getSearch().getCandidateTopK());
+        List<SearchHit> bm25 = indexService.search(question, candidate, kinds);
+        List<SearchHit> vector = vectorHits(question, candidate, kinds);
+        if (vector.isEmpty()) {
+            return limit(bm25, effective);
+        }
+        return RrfFuser.fuse(List.of(
+                        new RrfFuser.Ranking(bm25, properties.getSearch().getBm25Weight()),
+                        new RrfFuser.Ranking(vector, properties.getSearch().getVectorWeight())),
+                properties.getSearch().getRrfK(), effective);
+    }
+
+    /**
+     * 向量通道召回（异常/不可用时返回空列表）。
+     *
+     * @param question 用户问题
+     * @param topK 候选条数
+     * @param kinds 知识类型过滤
+     * @return 向量命中（按相似度降序）
+     */
+    private List<SearchHit> vectorHits(String question, int topK, Set<String> kinds) {
+        if (!properties.getSearch().isVectorEnabled() || !embeddingService.available()
+                || indexService.indexedDimension() <= 0) {
+            return List.of();
+        }
+        float[] queryVector = embeddingService.embed(question);
+        if (queryVector == null || queryVector.length != indexService.indexedDimension()) {
+            return List.of();
+        }
+        try {
+            return indexService.searchVector(queryVector, topK, kinds);
+        } catch (RuntimeException e) {
+            log.warn("向量检索失败，本次退回纯 BM25：{}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
+     * 截断结果列表。
+     *
+     * @param hits 命中列表
+     * @param topK 条数
+     * @return 截断结果
+     */
+    private static List<SearchHit> limit(List<SearchHit> hits, int topK) {
+        return hits.size() <= topK ? hits : hits.subList(0, topK);
     }
 
     /**

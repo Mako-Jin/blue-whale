@@ -28,4 +28,7 @@ public class IndexStats {
 
     /** 最近一次构建耗时（毫秒） */
     private final Long buildMillis;
+
+    /** 向量维度（未启用向量为 0） */
+    private final int dimension;
 }

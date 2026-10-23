@@ -1,6 +1,7 @@
 package com.bluewhale.agent.support.index;
 
 import com.bluewhale.agent.config.AgentProperties;
+import com.bluewhale.agent.service.EmbeddingService;
 import com.bluewhale.agent.support.ingest.Chunk;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +13,7 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
+import org.apache.lucene.document.KnnFloatVectorField;
 import org.apache.lucene.document.StoredField;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
@@ -20,10 +22,12 @@ import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.StoredFields;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.index.VectorSimilarityFunction;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.BoostQuery;
 import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.KnnFloatVectorQuery;
 import org.apache.lucene.search.MatchNoDocsQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
@@ -44,6 +48,7 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -67,7 +72,12 @@ public class AgentIndexService implements DisposableBean {
     /** 单次查询最多使用的分词数，避免超长问题拖慢检索 */
     private static final int MAX_QUERY_TOKENS = 24;
 
+    /** 单块参与向量化的最大字符数（标题 + 正文截断） */
+    private static final int MAX_EMBED_CHARS = 2000;
+
     private final AgentProperties properties;
+
+    private final EmbeddingService embeddingService;
 
     private final ReentrantLock writeLock = new ReentrantLock();
 
@@ -79,6 +89,12 @@ public class AgentIndexService implements DisposableBean {
 
     private SearcherManager searcherManager;
 
+    /** 索引内实际向量维度（0 表示无向量） */
+    private volatile int indexedDimension;
+
+    /** 索引构建时的 embedding 签名 */
+    private volatile String indexedSignature = "none";
+
     private volatile String status = "EMPTY";
 
     private volatile LocalDateTime lastBuildAt;
@@ -88,10 +104,12 @@ public class AgentIndexService implements DisposableBean {
     /**
      * 构造索引服务。
      *
-     * @param properties Agent 配置
+     * @param properties       Agent 配置
+     * @param embeddingService 向量化服务
      */
-    public AgentIndexService(AgentProperties properties) {
+    public AgentIndexService(AgentProperties properties, EmbeddingService embeddingService) {
         this.properties = properties;
+        this.embeddingService = embeddingService;
     }
 
     /**
@@ -115,8 +133,10 @@ public class AgentIndexService implements DisposableBean {
             writer = new IndexWriter(directory, config);
             writer.commit();
             searcherManager = new SearcherManager(writer, new SearcherFactory());
+            refreshIndexedMeta();
             status = count() > 0 ? "READY" : "EMPTY";
-            log.info("知识索引初始化完成：dir={}，块数={}", indexDir, count());
+            log.info("知识索引初始化完成：dir={}，块数={}，向量维度={}，embedding={}",
+                    indexDir, count(), indexedDimension, indexedSignature);
         } catch (IOException e) {
             throw new IllegalStateException("知识索引初始化失败", e);
         }
@@ -168,17 +188,51 @@ public class AgentIndexService implements DisposableBean {
         if (chunks == null || chunks.isEmpty()) {
             return;
         }
+        List<float[]> vectors = embedChunks(chunks);
+        String signature = embeddingService.signature();
         writeLock.lock();
         try {
             int seq = 0;
-            for (Chunk chunk : chunks) {
-                writer.addDocument(toDocument(chunk, hash, seq++));
+            for (int i = 0; i < chunks.size(); i++) {
+                writer.addDocument(toDocument(chunks.get(i), hash, seq++, vectors.get(i), signature));
             }
         } catch (IOException e) {
             throw new UncheckedIOException("写入索引失败: " + path, e);
         } finally {
             writeLock.unlock();
         }
+    }
+
+    /**
+     * 批量向量化知识块（不可用时返回全 {@code null}，块仍按 BM25 可用）。
+     *
+     * @param chunks 知识块
+     * @return 与入参等长的向量列表
+     */
+    private List<float[]> embedChunks(List<Chunk> chunks) {
+        if (!embeddingService.available()) {
+            return new ArrayList<>(Collections.nCopies(chunks.size(), (float[]) null));
+        }
+        List<String> texts = new ArrayList<>(chunks.size());
+        for (Chunk chunk : chunks) {
+            texts.add(embedText(chunk));
+        }
+        List<float[]> vectors = embeddingService.embedBatch(texts);
+        if (vectors.size() != chunks.size()) {
+            return new ArrayList<>(Collections.nCopies(chunks.size(), (float[]) null));
+        }
+        return vectors;
+    }
+
+    /**
+     * 组装向量化输入（标题 + 正文，超长截断）。
+     *
+     * @param chunk 知识块
+     * @return 待向量化文本
+     */
+    private String embedText(Chunk chunk) {
+        String text = nullToEmpty(chunk.getTitle()) + "\n" + nullToEmpty(chunk.getContent());
+        return text.length() <= MAX_EMBED_CHARS ? text : text.substring(0, MAX_EMBED_CHARS);
     }
 
     /**
@@ -190,6 +244,7 @@ public class AgentIndexService implements DisposableBean {
             writer.commit();
             searcherManager.maybeRefreshBlocking();
             lastBuildAt = LocalDateTime.now();
+            refreshIndexedMeta();
             status = count() > 0 ? "READY" : "EMPTY";
         } catch (IOException e) {
             throw new UncheckedIOException("提交索引失败", e);
@@ -257,6 +312,56 @@ public class AgentIndexService implements DisposableBean {
     }
 
     /**
+     * 向量（KNN）检索。
+     *
+     * @param vector 查询向量（须与索引维度一致）
+     * @param topK 返回条数
+     * @param kinds 知识类型过滤（空表示不过滤）
+     * @return 命中结果（按余弦相似度降序）；索引无向量或维度不符返回空列表
+     */
+    public List<SearchHit> searchVector(float[] vector, int topK, Set<String> kinds) {
+        if (vector == null || topK <= 0 || indexedDimension <= 0 || vector.length != indexedDimension) {
+            return List.of();
+        }
+        IndexSearcher searcher = acquireSearcher();
+        try {
+            Query filter = kindFilter(kinds);
+            Query query = filter == null
+                    ? new KnnFloatVectorQuery(AgentIndexFields.VECTOR, vector, topK)
+                    : new KnnFloatVectorQuery(AgentIndexFields.VECTOR, vector, topK, filter);
+            TopDocs topDocs = searcher.search(query, topK);
+            StoredFields storedFields = searcher.storedFields();
+            List<SearchHit> hits = new ArrayList<>();
+            for (ScoreDoc scoreDoc : topDocs.scoreDocs) {
+                hits.add(toHit(storedFields.document(scoreDoc.doc), scoreDoc.score));
+            }
+            return hits;
+        } catch (IOException e) {
+            throw new UncheckedIOException("向量检索失败", e);
+        } finally {
+            releaseSearcher(searcher);
+        }
+    }
+
+    /**
+     * 当前索引的向量维度。
+     *
+     * @return 维度；无向量返回 0
+     */
+    public int indexedDimension() {
+        return indexedDimension;
+    }
+
+    /**
+     * 当前索引的 embedding 签名（如 {@code hash:256}；未写入向量为 {@code none}）。
+     *
+     * @return 签名
+     */
+    public String indexedSignature() {
+        return indexedSignature;
+    }
+
+    /**
      * 当前索引块数。
      *
      * @return 文档数
@@ -306,11 +411,10 @@ public class AgentIndexService implements DisposableBean {
                     identifier ? 4.0f : 1.8f), BooleanClause.Occur.SHOULD);
         }
         if (kinds != null && !kinds.isEmpty()) {
-            BooleanQuery.Builder filter = new BooleanQuery.Builder();
-            for (String kind : kinds) {
-                filter.add(new TermQuery(new Term(AgentIndexFields.KIND, kind)), BooleanClause.Occur.SHOULD);
+            Query filter = kindFilter(kinds);
+            if (filter != null) {
+                builder.add(filter, BooleanClause.Occur.FILTER);
             }
-            builder.add(filter.build(), BooleanClause.Occur.FILTER);
         }
         BooleanQuery.Builder outer = new BooleanQuery.Builder();
         outer.add(builder.build(), BooleanClause.Occur.MUST);
@@ -323,6 +427,23 @@ public class AgentIndexService implements DisposableBean {
                     BooleanClause.Occur.SHOULD);
         }
         return outer.build();
+    }
+
+    /**
+     * 构建知识类型过滤查询（BM25 与向量通道共用）。
+     *
+     * @param kinds 类型集合
+     * @return 过滤查询；空集合返回 {@code null}
+     */
+    private Query kindFilter(Set<String> kinds) {
+        if (kinds == null || kinds.isEmpty()) {
+            return null;
+        }
+        BooleanQuery.Builder filter = new BooleanQuery.Builder();
+        for (String kind : kinds) {
+            filter.add(new TermQuery(new Term(AgentIndexFields.KIND, kind)), BooleanClause.Occur.SHOULD);
+        }
+        return filter.build();
     }
 
     /**
@@ -424,9 +545,11 @@ public class AgentIndexService implements DisposableBean {
      * @param chunk 知识块
      * @param hash 文件哈希
      * @param seq 块序号
+     * @param vector 向量（可为 {@code null}）
+     * @param signature embedding 签名
      * @return Lucene 文档
      */
-    private Document toDocument(Chunk chunk, String hash, int seq) {
+    private Document toDocument(Chunk chunk, String hash, int seq, float[] vector, String signature) {
         String content = nullToEmpty(chunk.getContent());
         String title = nullToEmpty(chunk.getTitle());
         Document document = new Document();
@@ -445,7 +568,37 @@ public class AgentIndexService implements DisposableBean {
         document.add(new StringField(AgentIndexFields.WAVE, nullToEmpty(chunk.getWave()), Field.Store.YES));
         document.add(new StoredField(AgentIndexFields.HASH, hash));
         document.add(new StringField(AgentIndexFields.VISIBILITY, "public", Field.Store.YES));
+        if (vector != null && vector.length > 0) {
+            document.add(new KnnFloatVectorField(AgentIndexFields.VECTOR, vector,
+                    VectorSimilarityFunction.COSINE));
+        }
+        document.add(new StoredField(AgentIndexFields.VECTOR_DIM, vector == null ? 0 : vector.length));
+        document.add(new StoredField(AgentIndexFields.EMBED_SIG, nullToEmpty(signature)));
         return document;
+    }
+
+    /**
+     * 读取索引当前的向量维度与 embedding 签名（取任一存活文档的存储字段）。
+     */
+    private void refreshIndexedMeta() {
+        IndexSearcher searcher = acquireSearcher();
+        try {
+            indexedDimension = 0;
+            indexedSignature = "none";
+            for (LeafReaderContext context : searcher.getIndexReader().leaves()) {
+                if (context.reader().numDocs() <= 0) {
+                    continue;
+                }
+                Document document = context.reader().storedFields().document(0);
+                indexedDimension = intValue(document.get(AgentIndexFields.VECTOR_DIM));
+                indexedSignature = nullToEmpty(document.get(AgentIndexFields.EMBED_SIG));
+                return;
+            }
+        } catch (IOException e) {
+            log.warn("读取索引向量元数据失败", e);
+        } finally {
+            releaseSearcher(searcher);
+        }
     }
 
     /**
@@ -497,6 +650,7 @@ public class AgentIndexService implements DisposableBean {
                 .lastBuildAt(lastBuildAt)
                 .status(status)
                 .buildMillis(buildMillis)
+                .dimension(indexedDimension)
                 .build();
     }
 

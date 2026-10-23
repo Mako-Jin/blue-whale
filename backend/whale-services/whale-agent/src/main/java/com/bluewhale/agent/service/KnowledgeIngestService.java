@@ -58,6 +58,8 @@ public class KnowledgeIngestService {
 
     private final FactStoreService factStoreService;
 
+    private final EmbeddingService embeddingService;
+
     private final AtomicBoolean building = new AtomicBoolean(false);
 
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(runnable -> {
@@ -103,6 +105,17 @@ public class KnowledgeIngestService {
             log.info("已有索引构建任务在执行，跳过本次重建");
             return;
         }
+        try {
+            runFullRebuild();
+        } finally {
+            building.set(false);
+        }
+    }
+
+    /**
+     * 执行全量重建（调用方须已持有 {@code building} 标记）。
+     */
+    private void runFullRebuild() {
         long start = System.currentTimeMillis();
         indexService.markBuildStart();
         try {
@@ -117,23 +130,49 @@ public class KnowledgeIngestService {
             long millis = System.currentTimeMillis() - start;
             indexService.markBuildSuccess(millis);
             saveMeta();
-            log.info("知识索引全量重建完成：文件={}，块={}，耗时={}ms", files.size(), chunks, millis);
+            log.info("知识索引全量重建完成：文件={}，块={}，耗时={}ms，向量维度={}",
+                    files.size(), chunks, millis, indexService.indexedDimension());
             rebuildFacts();
         } catch (RuntimeException e) {
             indexService.markBuildFailed();
             log.error("知识索引全量重建失败", e);
+        }
+    }
+
+    /**
+     * 增量扫描：仅重建哈希变化文件，删除已移除文件；embedding 签名变化时回落全量重建。
+     */
+    public void incrementalScan() {
+        if (!building.compareAndSet(false, true)) {
+            return;
+        }
+        try {
+            if (embeddingChanged()) {
+                log.info("embedding 签名变更（索引={}，期望={}），改为全量重建",
+                        indexService.indexedSignature(), embeddingService.signature());
+                runFullRebuild();
+                return;
+            }
+            runIncremental();
         } finally {
             building.set(false);
         }
     }
 
     /**
-     * 增量扫描：仅重建哈希变化文件，删除已移除文件。
+     * 判断索引内的 embedding 签名是否与当前配置不一致（需全量重建）。
+     *
+     * @return 不一致返回 {@code true}
      */
-    public void incrementalScan() {
-        if (!building.compareAndSet(false, true)) {
-            return;
-        }
+    private boolean embeddingChanged() {
+        return indexService.count() > 0
+                && !embeddingService.signature().equals(indexService.indexedSignature());
+    }
+
+    /**
+     * 执行增量扫描（调用方须已持有 {@code building} 标记）。
+     */
+    private void runIncremental() {
         long start = System.currentTimeMillis();
         indexService.markBuildStart();
         try {
@@ -176,8 +215,6 @@ public class KnowledgeIngestService {
         } catch (RuntimeException e) {
             indexService.markBuildFailed();
             log.error("知识索引增量更新失败", e);
-        } finally {
-            building.set(false);
         }
     }
 

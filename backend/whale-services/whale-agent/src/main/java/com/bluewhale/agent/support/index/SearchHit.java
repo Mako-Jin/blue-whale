@@ -41,4 +41,25 @@ public class SearchHit {
 
     /** BM25 分数 */
     private final float score;
+
+    /**
+     * 复制命中并替换分数（RRF 融合使用，原分数不再具备可比性）。
+     *
+     * @param newScore 融合分数
+     * @return 新命中对象
+     */
+    public SearchHit withScore(double newScore) {
+        return SearchHit.builder()
+                .id(id)
+                .kind(kind)
+                .module(module)
+                .path(path)
+                .title(title)
+                .content(content)
+                .startLine(startLine)
+                .endLine(endLine)
+                .wave(wave)
+                .score((float) newScore)
+                .build();
+    }
 }

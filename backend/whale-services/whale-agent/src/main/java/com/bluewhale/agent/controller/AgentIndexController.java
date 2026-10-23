@@ -4,6 +4,7 @@ import com.bluewhale.agent.config.AgentProperties;
 import com.bluewhale.agent.dto.IndexStatusVO;
 import com.bluewhale.agent.entity.AgentIndexMeta;
 import com.bluewhale.agent.service.AgentIndexMetaService;
+import com.bluewhale.agent.service.EmbeddingService;
 import com.bluewhale.agent.service.KnowledgeIngestService;
 import com.bluewhale.agent.support.index.IndexStats;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
@@ -31,6 +32,8 @@ public class AgentIndexController {
 
     private final AgentIndexMetaService metaService;
 
+    private final EmbeddingService embeddingService;
+
     private final AgentProperties properties;
 
     /**
@@ -50,6 +53,8 @@ public class AgentIndexController {
                 .lastBuildAt(stats.getLastBuildAt() != null ? stats.getLastBuildAt()
                         : (meta == null ? null : meta.getLastBuildAt()))
                 .buildMillis(stats.getBuildMillis())
+                .dimension(stats.getDimension())
+                .embedding(embeddingService.providerName())
                 .indexDir(properties.resolveIndexDir().toString())
                 .build());
     }

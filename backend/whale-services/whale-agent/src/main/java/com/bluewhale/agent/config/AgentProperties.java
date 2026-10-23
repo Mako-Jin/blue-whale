@@ -35,6 +35,9 @@ public class AgentProperties {
     /** 检索配置 */
     private Search search = new Search();
 
+    /** 文本向量（embedding）配置 */
+    private Embedding embedding = new Embedding();
+
     /** 模型配置 */
     private Llm llm = new Llm();
 
@@ -102,6 +105,55 @@ public class AgentProperties {
 
         /** 最大返回条数 */
         private int maxTopK = 50;
+
+        /** 是否启用向量通道（BM25 + 向量 RRF 融合） */
+        private boolean vectorEnabled = true;
+
+        /** 每个通道参与融合的候选条数（不足时按实际条数） */
+        private int candidateTopK = 50;
+
+        /** RRF 平滑常数 k（论文默认 60） */
+        private int rrfK = 60;
+
+        /** BM25 通道融合权重 */
+        private double bm25Weight = 1.0D;
+
+        /** 向量通道融合权重 */
+        private double vectorWeight = 1.0D;
+    }
+
+    /**
+     * 文本向量（embedding）参数。
+     *
+     * <p>{@code auto} 模式下配置了 API Key 时走 OpenAI 兼容 {@code /embeddings} 接口，
+     * 否则降级为本地确定性哈希向量（无外部依赖、无出网），保证向量通道始终可用。</p>
+     */
+    @Data
+    public static class Embedding {
+
+        /** 是否启用向量化（关闭后索引不写向量，检索退回纯 BM25） */
+        private boolean enabled = true;
+
+        /** 提供方：auto / openai / hash / none */
+        private String provider = "auto";
+
+        /** API 基地址（含版本段）；为空时回退 {@code llm.base-url} */
+        private String baseUrl;
+
+        /** API Key（不入仓，通过环境变量注入）；为空时回退 {@code llm.api-key} */
+        private String apiKey;
+
+        /** 向量模型名 */
+        private String model = "text-embedding-3-small";
+
+        /** 向量维度：0 表示自动（本地哈希默认 256，远程模型以接口返回为准） */
+        private int dimension;
+
+        /** 请求超时（毫秒） */
+        private int timeoutMillis = 20_000;
+
+        /** 批量请求条数 */
+        private int batchSize = 16;
     }
 
     /**

@@ -52,6 +52,12 @@ public final class AgentIndexFields {
     /** 向量字段（启用 embedding 时写入） */
     public static final String VECTOR = "vector";
 
+    /** 向量维度（存储；0 表示该块未写向量） */
+    public static final String VECTOR_DIM = "vector_dim";
+
+    /** embedding 签名（存储，如 {@code hash:256}、{@code none}） */
+    public static final String EMBED_SIG = "embed_sig";
+
     /** 工具类不允许实例化 */
     private AgentIndexFields() {
     }

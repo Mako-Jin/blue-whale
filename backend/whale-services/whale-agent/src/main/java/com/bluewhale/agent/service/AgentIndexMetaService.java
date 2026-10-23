@@ -57,7 +57,7 @@ public class AgentIndexMetaService {
             meta.setChunkCount(stats.getChunkCount());
             meta.setLastBuildAt(stats.getLastBuildAt());
             meta.setStatus(stats.getStatus());
-            meta.setDimension(0);
+            meta.setDimension(stats.getDimension());
             meta.setBuildMillis(stats.getBuildMillis());
             if (insert) {
                 mapper.insert(meta);

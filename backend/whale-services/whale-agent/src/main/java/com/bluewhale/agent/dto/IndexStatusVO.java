@@ -32,6 +32,12 @@ public class IndexStatusVO {
     /** 最近构建耗时（毫秒） */
     private Long buildMillis;
 
+    /** 向量维度（未启用向量为 0） */
+    private Integer dimension;
+
+    /** 向量提供方：hash / openai / none */
+    private String embedding;
+
     /** 索引目录（便于运维排查） */
     private String indexDir;
 }

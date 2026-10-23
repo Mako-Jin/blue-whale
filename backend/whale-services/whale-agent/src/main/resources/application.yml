@@ -49,6 +49,22 @@ whale:
     search:
       default-top-k: ${WHALE_AGENT_DEFAULT_TOP_K:8}
       max-top-k: ${WHALE_AGENT_MAX_TOP_K:50}
+      # 混合检索：BM25 + 向量（RRF 融合）；任一通道不可用时自动退化
+      vector-enabled: ${WHALE_AGENT_SEARCH_VECTOR_ENABLED:true}
+      candidate-top-k: ${WHALE_AGENT_SEARCH_CANDIDATE_TOP_K:50}
+      rrf-k: ${WHALE_AGENT_SEARCH_RRF_K:60}
+      bm25-weight: ${WHALE_AGENT_SEARCH_BM25_WEIGHT:1.0}
+      vector-weight: ${WHALE_AGENT_SEARCH_VECTOR_WEIGHT:1.0}
+    # 文本向量：auto = 有 API Key 走 OpenAI 兼容 /embeddings，否则本地哈希向量（无出网）
+    embedding:
+      enabled: ${WHALE_AGENT_EMBEDDING_ENABLED:true}
+      provider: ${WHALE_AGENT_EMBEDDING_PROVIDER:auto}
+      base-url: ${WHALE_AGENT_EMBEDDING_BASE_URL:}
+      api-key: ${WHALE_AGENT_EMBEDDING_API_KEY:}
+      model: ${WHALE_AGENT_EMBEDDING_MODEL:text-embedding-3-small}
+      dimension: ${WHALE_AGENT_EMBEDDING_DIMENSION:0}
+      timeout-millis: ${WHALE_AGENT_EMBEDDING_TIMEOUT_MILLIS:20000}
+      batch-size: ${WHALE_AGENT_EMBEDDING_BATCH_SIZE:16}
     # OpenAI 兼容模型；未配置 api-key 时自动降级为检索摘要（不报错、不出网）
     llm:
       enabled: ${WHALE_AGENT_LLM_ENABLED:true}

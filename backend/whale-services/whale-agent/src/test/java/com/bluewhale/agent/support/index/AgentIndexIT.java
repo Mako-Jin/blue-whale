@@ -2,6 +2,7 @@ package com.bluewhale.agent.support.index;
 
 import com.bluewhale.agent.config.AgentProperties;
 import com.bluewhale.agent.service.AgentIndexMetaService;
+import com.bluewhale.agent.service.EmbeddingService;
 import com.bluewhale.agent.service.FactStoreService;
 import com.bluewhale.agent.service.KnowledgeIngestService;
 import com.bluewhale.agent.support.ingest.ChunkerRegistry;
@@ -24,6 +25,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -44,6 +46,8 @@ class AgentIndexIT {
 
     private KnowledgeIngestService ingestService;
 
+    private EmbeddingService embeddingService;
+
     @BeforeEach
     void setUp() throws Exception {
         AgentProperties properties = new AgentProperties();
@@ -52,14 +56,17 @@ class AgentIndexIT {
         properties.setIndexDir(indexDir.toString());
         properties.getIngest().setBuildOnStartup(false);
         properties.getIngest().setScanIntervalSeconds(0);
+        properties.getEmbedding().setProvider("hash");
         List<DocumentChunker> chunkers = List.of(new MarkdownChunker(), new JavaChunker(),
                 new TypeScriptChunker(), new SqlChunker(), new ConfigChunker());
         ChunkerRegistry registry = new ChunkerRegistry(chunkers);
         RepositoryScanner scanner = new RepositoryScanner(properties, registry);
-        indexService = new AgentIndexService(properties);
+        embeddingService = new EmbeddingService(properties);
+        embeddingService.init();
+        indexService = new AgentIndexService(properties, embeddingService);
         indexService.init();
         ingestService = new KnowledgeIngestService(properties, scanner, registry, indexService,
-                mock(AgentIndexMetaService.class), mock(FactStoreService.class));
+                mock(AgentIndexMetaService.class), mock(FactStoreService.class), embeddingService);
     }
 
     @AfterEach
@@ -79,6 +86,19 @@ class AgentIndexIT {
                 || hit.getPath().contains("service-catalog"));
         assertTrue(matched, "前 3 命中应包含网关配置或 service-catalog，实际="
                 + hits.stream().map(SearchHit::getPath).toList());
+    }
+
+    @Test
+    @DisplayName("真实仓库建索引后写入向量，向量检索可命中且维度一致")
+    void shouldIndexVectorsAndSearchByVector() {
+        ingestService.rebuild();
+        assertEquals(256, indexService.indexedDimension(), "哈希向量维度应为 256");
+        assertTrue(indexService.indexedSignature().startsWith("hash:"), "签名应记录哈希提供方");
+        float[] query = embeddingService.embed("网关路由");
+        List<SearchHit> hits = indexService.searchVector(query, 5, Set.of());
+        assertFalse(hits.isEmpty(), "向量检索应命中知识块");
+        assertTrue(hits.stream().allMatch(hit -> hit.getScore() >= -1.0F && hit.getScore() <= 1.0F),
+                "余弦相似度应在 [-1, 1] 区间");
     }
 
     /**
