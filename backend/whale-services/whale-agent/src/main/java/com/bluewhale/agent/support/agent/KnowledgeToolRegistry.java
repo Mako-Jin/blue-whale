@@ -311,8 +311,11 @@ public class KnowledgeToolRegistry {
      */
     private static ObjectNode factSchema() {
         ObjectNode properties = MAPPER.createObjectNode();
-        properties.set("type", property("string", "事实类型，如 PORT / TABLE / DEPENDENCY"));
-        properties.set("key", property("string", "事实键，如服务名或表名"));
+        properties.set("type", property("string",
+                "事实类型，必须从以下取值中选一个：SERVICE（服务元数据）、ROUTE（网关路由）、PORT（端口）、"
+                        + "DEPENDENCY（依赖版本）、TABLE（表）、COLUMN（列）、COMMIT（Git 提交）、ENDPOINT（接口端点）"));
+        properties.set("key", property("string",
+                "事实键；查端口时通常传服务名，如 whale-file；查表时传表名，如 sys_user"));
         properties.set("limit", property("integer", "返回条数，默认 50，上限 200"));
         return schema(properties);
     }

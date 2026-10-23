@@ -183,7 +183,7 @@
 - [x] 轨 C 编排循环：`ToolCallingAgent` 实现 ReAct 循环（`max-tool-steps`，硬上限 12）；未知工具/参数非法/内部异常作为文本回填不中断；证据按登记顺序编 `S1..Sn` 并回填「可用引用编号」；模型失败回落已取证摘要（`degraded=true`）
 - [x] 轨 D 服务接入：`ChatService` 双路径（`agentic-enabled && 模型可用` → 自主编排，否则原单轮 RAG）；新增 SSE `tool` 事件（前端 `default` 分支忽略，后续可接）；回答经 `CitationValidator` 校验后落库
 - [x] 轨 E 验证与文档：新增 `ToolCallingAgentTest` 6 项 + `OpenAiClientToolTest` 3 项，模块 **38 项测试全绿**；配置项 `whale.agent.qa.agentic-enabled` / `max-tool-steps` 写入 [ops/agent-index-ops.md](../ops/agent-index-ops.md)；实机需模型 Key，暂不做无 Key 实跑
-- [ ] 轨 F（待模型 Key）实机验收：确认多轮工具调用、SSE `tool` 事件、引用编号一致；并把工具轨迹展示到工作台
+- [ ] 轨 F 实机验收（2026-10-23：已用本地 Ollama `qwen2.5:3b` 完成实机验收——多轮工具调用、SSE `tool` 事件、引用编号 S1..Sn 与事实来源均通过；**剩余：工具轨迹前端展示**）
 
 ---
 
