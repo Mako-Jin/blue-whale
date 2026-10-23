@@ -73,7 +73,7 @@
 
 - [x] 追加 `docs/devlog/2026-10-23.md` §二十。
 - [x] 更新 `docs/plans/roadmap.md` 2.4 小节、`docs/service-catalog.md` 端口/路由/库表、`docs/architecture.md` 与 `docs/plans/todo-inventory-2026-10-23.md` 相关条目（并同步 `naming-conventions.md`、`requirements/register.md`）。
-- [ ] `git add` 相关文件并提交，推送 Gitee origin；GitHub 镜像尝试一次，失败跳过。
+- [x] `git add` 相关文件并提交，推送 Gitee origin；GitHub 镜像尝试一次，失败跳过。（提交 `c8374d9`，Gitee `main` 与 GitHub `main` 均已同步）
 
 **验收**：提交成功；devlog 与 roadmap 可追溯到本 spec。
 
