@@ -112,4 +112,56 @@ class UserTest {
         assertEquals("EncryptedPassword(***)", user.getPassword().toString());
         assertFalse(user.getPassword().toString().contains("$2a$"));
     }
+
+    @Test
+    @DisplayName("reconstitute：avatar 与 lastLoginTime 原样承载")
+    void shouldCarryAvatarAndLastLoginTime() {
+        LocalDateTime lastLogin = LocalDateTime.of(2026, 2, 2, 10, 0);
+
+        User user = User.reconstitute(9L, username(), CIPHER, "Alice", "138", "a@b.com", "avatar.png", 3L,
+                User.STATUS_ENABLED, lastLogin, LocalDateTime.of(2026, 1, 1, 0, 0),
+                LocalDateTime.of(2026, 1, 2, 0, 0));
+
+        assertEquals("avatar.png", user.getAvatar());
+        assertEquals(lastLogin, user.getLastLoginTime());
+    }
+
+    @Test
+    @DisplayName("行为：changeProfile 全量覆盖昵称/手机号/邮箱/头像/部门")
+    void shouldChangeProfile() {
+        User user = User.create(username(), CIPHER, "Alice", "138", "a@b.com", 3L, 1);
+
+        user.changeProfile("Alice2", "139", "n@b.com", "new-avatar.png", 9L);
+
+        assertEquals("Alice2", user.getNickname());
+        assertEquals("139", user.getPhone());
+        assertEquals("n@b.com", user.getEmail());
+        assertEquals("new-avatar.png", user.getAvatar());
+        assertEquals(9L, user.getDeptId());
+    }
+
+    @Test
+    @DisplayName("行为：changePassword 非 BCrypt 密文抛参数错误且原口令不变")
+    void shouldRejectNonBcryptPasswordOnChange() {
+        User user = User.create(username(), CIPHER, "Alice", null, null, null, 1);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> user.changePassword(EncryptedPassword.of("plaintext")));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        assertEquals("口令必须为 BCrypt 密文", ex.getMessage());
+        assertEquals(CIPHER.value(), user.getPassword().value());
+    }
+
+    @Test
+    @DisplayName("行为：changeStatus 非法值抛参数错误且原状态不变")
+    void shouldRejectIllegalStatusOnChange() {
+        User user = User.create(username(), CIPHER, "Alice", null, null, null, 1);
+
+        BizException ex = assertThrows(BizException.class, () -> user.changeStatus(9));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        assertEquals("状态值非法，仅支持 1（启用）/ 0（停用）", ex.getMessage());
+        assertEquals(User.STATUS_ENABLED, user.getStatus());
+    }
 }

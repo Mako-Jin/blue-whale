@@ -1,6 +1,7 @@
 package com.bluewhale.auth.infrastructure.persistence.repository;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.entity.UserRoleAssignment;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
@@ -11,6 +12,7 @@ import com.bluewhale.auth.mapper.SysUserMapper;
 import com.bluewhale.auth.mapper.SysUserRoleMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.Optional;
@@ -65,5 +67,33 @@ public class UserRepositoryImpl implements UserRepository {
         for (Long roleId : roleIds) {
             userRoleMapper.insert(UserPersistenceAssembler.toAssignmentPo(UserRoleAssignment.of(userId, roleId)));
         }
+    }
+
+    @Override
+    public List<Long> listRoleIds(Long userId) {
+        return userRoleMapper.selectList(new LambdaQueryWrapper<SysUserRole>()
+                        .eq(SysUserRole::getUserId, userId))
+                .stream().map(SysUserRole::getRoleId).toList();
+    }
+
+    @Override
+    public UserPage page(long current, long size, String keyword) {
+        LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
+        if (StringUtils.hasText(keyword)) {
+            wrapper.and(w -> w.like(SysUser::getUsername, keyword)
+                    .or().like(SysUser::getNickname, keyword)
+                    .or().like(SysUser::getPhone, keyword));
+        }
+        wrapper.orderByDesc(SysUser::getCreateTime);
+        Page<SysUser> page = userMapper.selectPage(new Page<>(current, size), wrapper);
+        List<User> records = page.getRecords().stream().map(UserPersistenceAssembler::toDomain).toList();
+        return new UserPage(records, page.getTotal());
+    }
+
+    @Override
+    public void deleteById(Long id) {
+        userMapper.deleteById(id);
+        // 关联表实体无 deleted 字段，走物理删除
+        userRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, id));
     }
 }

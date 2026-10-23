@@ -222,6 +222,29 @@ public class Permission {
     }
 
     /**
+     * 行为：一次性应用更新接口的全部字段（空值默认与 {@link #create} 保持一致）
+     *
+     * @param parentId 父权限点 ID，为空时按 0（顶级）处理
+     * @param permCode 权限码值对象
+     * @param permName 权限名称
+     * @param permType 权限类型（SYSTEM / MENU / API / BUTTON / DATA / ATTR）
+     * @param path 接口路径
+     * @param method 请求方法
+     * @param sortNo 排序号，为空时按 0 处理
+     * @param status 状态，为空时按启用处理
+     */
+    public void applyChanges(Long parentId, PermCode permCode, String permName, String permType,
+                             String path, String method, Integer sortNo, Integer status) {
+        moveTo(parentId == null ? ROOT_PARENT_ID : parentId);
+        changeCode(permCode);
+        rename(permName);
+        changeType(permType);
+        changeApi(path, method);
+        changeSort(sortNo == null ? 0 : sortNo);
+        changeStatus(status == null ? STATUS_ENABLED : status);
+    }
+
+    /**
      * 判定当前权限点是否启用
      *
      * @return 启用返回 true，停用返回 false

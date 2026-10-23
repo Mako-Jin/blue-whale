@@ -1,5 +1,6 @@
 package com.bluewhale.auth.vo;
 
+import com.bluewhale.auth.domain.dept.aggregate.Dept;
 import com.bluewhale.auth.entity.SysDept;
 import lombok.Data;
 
@@ -33,6 +34,24 @@ public class DeptVO implements Serializable {
      * @return 部门视图对象
      */
     public static DeptVO from(SysDept dept) {
+        DeptVO vo = new DeptVO();
+        vo.setId(dept.getId());
+        vo.setParentId(dept.getParentId());
+        vo.setDeptName(dept.getDeptName());
+        vo.setSort(dept.getSort());
+        vo.setLeader(dept.getLeader());
+        vo.setCreateTime(dept.getCreateTime());
+        vo.setUpdateTime(dept.getUpdateTime());
+        return vo;
+    }
+
+    /**
+     * 由部门聚合根转换为视图对象
+     *
+     * @param dept 部门聚合根
+     * @return 部门视图对象
+     */
+    public static DeptVO from(Dept dept) {
         DeptVO vo = new DeptVO();
         vo.setId(dept.getId());
         vo.setParentId(dept.getParentId());

@@ -1,5 +1,6 @@
 package com.bluewhale.auth.vo;
 
+import com.bluewhale.auth.domain.permission.aggregate.Permission;
 import com.bluewhale.auth.entity.SysPermission;
 import lombok.Data;
 
@@ -39,6 +40,28 @@ public class PermissionVO implements Serializable {
         vo.setId(permission.getId());
         vo.setParentId(permission.getParentId());
         vo.setPermCode(permission.getPermCode());
+        vo.setPermName(permission.getPermName());
+        vo.setPermType(permission.getPermType());
+        vo.setPath(permission.getPath());
+        vo.setMethod(permission.getMethod());
+        vo.setSortNo(permission.getSortNo());
+        vo.setStatus(permission.getStatus());
+        vo.setCreateTime(permission.getCreateTime());
+        vo.setUpdateTime(permission.getUpdateTime());
+        return vo;
+    }
+
+    /**
+     * 由权限点聚合根转换为视图对象
+     *
+     * @param permission 权限点聚合根
+     * @return 权限点视图对象
+     */
+    public static PermissionVO from(Permission permission) {
+        PermissionVO vo = new PermissionVO();
+        vo.setId(permission.getId());
+        vo.setParentId(permission.getParentId());
+        vo.setPermCode(permission.getPermCode().value());
         vo.setPermName(permission.getPermName());
         vo.setPermType(permission.getPermType());
         vo.setPath(permission.getPath());

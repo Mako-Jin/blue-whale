@@ -40,8 +40,10 @@ public final class UserPersistenceAssembler {
                 po.getNickname(),
                 po.getPhone(),
                 po.getEmail(),
+                po.getAvatar(),
                 po.getDeptId(),
                 status,
+                po.getLastLoginTime(),
                 po.getCreateTime(),
                 po.getUpdateTime());
     }
@@ -60,8 +62,10 @@ public final class UserPersistenceAssembler {
         po.setNickname(user.getNickname());
         po.setPhone(user.getPhone());
         po.setEmail(user.getEmail());
+        po.setAvatar(user.getAvatar());
         po.setDeptId(user.getDeptId());
         po.setStatus(user.getStatus());
+        po.setLastLoginTime(user.getLastLoginTime());
         po.setCreateTime(user.getCreateTime());
         po.setUpdateTime(user.getUpdateTime());
         return po;

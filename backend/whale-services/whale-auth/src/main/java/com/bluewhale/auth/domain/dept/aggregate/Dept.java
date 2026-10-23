@@ -135,6 +135,21 @@ public class Dept {
     }
 
     /**
+     * 行为：一次性应用更新接口的全部字段（空值默认与 {@link #create} 保持一致）
+     *
+     * @param parentId 父部门 ID，为空时按 0（顶级）处理
+     * @param deptName 部门名称
+     * @param sort 排序号，为空时按 0 处理
+     * @param leader 负责人
+     */
+    public void applyChanges(Long parentId, String deptName, Integer sort, String leader) {
+        moveTo(parentId == null ? ROOT_PARENT_ID : parentId);
+        rename(deptName);
+        changeSort(sort == null ? 0 : sort);
+        changeLeader(leader);
+    }
+
+    /**
      * 获取部门 ID
      *
      * @return 部门 ID（新建且未落库时为 {@code null}）

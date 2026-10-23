@@ -50,4 +50,19 @@ public interface MenuRepository {
      * @return 启用且可见的菜单聚合列表
      */
     List<Menu> findEnabledVisible();
+
+    /**
+     * 统计指定父菜单下的直接子菜单数量（供删除前树完整性校验）
+     *
+     * @param parentId 父菜单 ID
+     * @return 子菜单数量
+     */
+    long countChildren(Long parentId);
+
+    /**
+     * 删除菜单（逻辑删除）
+     *
+     * @param id 菜单 ID
+     */
+    void deleteById(Long id);
 }

@@ -32,12 +32,14 @@ public class User {
 
     private final Long id;
     private final Username username;
-    private final EncryptedPassword password;
+    private EncryptedPassword password;
     private String nickname;
     private String phone;
     private String email;
+    private String avatar;
     private Long deptId;
     private int status;
+    private LocalDateTime lastLoginTime;
     private final LocalDateTime createTime;
     private LocalDateTime updateTime;
 
@@ -50,13 +52,16 @@ public class User {
      * @param nickname 昵称
      * @param phone 手机号
      * @param email 邮箱
+     * @param avatar 头像地址
      * @param deptId 所属部门 ID
      * @param status 状态（1 启用 / 0 停用）
+     * @param lastLoginTime 最近登录时间
      * @param createTime 创建时间
      * @param updateTime 更新时间
      */
     private User(Long id, Username username, EncryptedPassword password, String nickname, String phone,
-                 String email, Long deptId, int status, LocalDateTime createTime, LocalDateTime updateTime) {
+                 String email, String avatar, Long deptId, int status, LocalDateTime lastLoginTime,
+                 LocalDateTime createTime, LocalDateTime updateTime) {
         if (username == null) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "用户名不能为空");
         }
@@ -72,8 +77,10 @@ public class User {
         this.nickname = nickname;
         this.phone = phone;
         this.email = email;
+        this.avatar = avatar;
         this.deptId = deptId;
         this.status = status;
+        this.lastLoginTime = lastLoginTime;
         this.createTime = createTime;
         this.updateTime = updateTime;
     }
@@ -86,15 +93,33 @@ public class User {
      * @param nickname 昵称
      * @param phone 手机号
      * @param email 邮箱
+     * @param avatar 头像地址
+     * @param deptId 所属部门 ID
+     * @param status 状态（1 启用 / 0 停用），为空时按启用处理
+     * @return 新建的用户聚合根
+     */
+    public static User create(Username username, EncryptedPassword password, String nickname, String phone,
+                              String email, String avatar, Long deptId, Integer status) {
+        LocalDateTime now = LocalDateTime.now();
+        int resolved = status == null ? STATUS_ENABLED : status;
+        return new User(null, username, password, nickname, phone, email, avatar, deptId, resolved, null, now, now);
+    }
+
+    /**
+     * 工厂方法（兼容重载）：不含头像的新建用户
+     *
+     * @param username 用户名值对象
+     * @param password 口令密文值对象
+     * @param nickname 昵称
+     * @param phone 手机号
+     * @param email 邮箱
      * @param deptId 所属部门 ID
      * @param status 状态（1 启用 / 0 停用），为空时按启用处理
      * @return 新建的用户聚合根
      */
     public static User create(Username username, EncryptedPassword password, String nickname, String phone,
                               String email, Long deptId, Integer status) {
-        LocalDateTime now = LocalDateTime.now();
-        int resolved = status == null ? STATUS_ENABLED : status;
-        return new User(null, username, password, nickname, phone, email, deptId, resolved, now, now);
+        return create(username, password, nickname, phone, email, null, deptId, status);
     }
 
     /**
@@ -103,6 +128,32 @@ public class User {
      * @param id 用户 ID
      * @param username 用户名值对象
      * @param password 口令密文值对象（必须为 BCrypt 密文）
+     * @param nickname 昵称
+     * @param phone 手机号
+     * @param email 邮箱
+     * @param avatar 头像地址
+     * @param deptId 所属部门 ID
+     * @param status 状态（1 启用 / 0 停用），为空时按停用处理
+     * @param lastLoginTime 最近登录时间
+     * @param createTime 创建时间
+     * @param updateTime 更新时间
+     * @return 还原的用户聚合根
+     */
+    public static User reconstitute(Long id, Username username, EncryptedPassword password, String nickname,
+                                    String phone, String email, String avatar, Long deptId, Integer status,
+                                    LocalDateTime lastLoginTime, LocalDateTime createTime,
+                                    LocalDateTime updateTime) {
+        int resolved = status == null ? STATUS_DISABLED : status;
+        return new User(id, username, password, nickname, phone, email, avatar, deptId, resolved,
+                lastLoginTime, createTime, updateTime);
+    }
+
+    /**
+     * 重建方法（兼容重载）：不含头像与最近登录时间的还原
+     *
+     * @param id 用户 ID
+     * @param username 用户名值对象
+     * @param password 口令密文值对象
      * @param nickname 昵称
      * @param phone 手机号
      * @param email 邮箱
@@ -115,8 +166,8 @@ public class User {
     public static User reconstitute(Long id, Username username, EncryptedPassword password, String nickname,
                                     String phone, String email, Long deptId, Integer status,
                                     LocalDateTime createTime, LocalDateTime updateTime) {
-        int resolved = status == null ? STATUS_DISABLED : status;
-        return new User(id, username, password, nickname, phone, email, deptId, resolved, createTime, updateTime);
+        return reconstitute(id, username, password, nickname, phone, email, null, deptId, status,
+                null, createTime, updateTime);
     }
 
     /**
@@ -142,6 +193,50 @@ public class User {
      */
     public boolean isEnabled() {
         return status == STATUS_ENABLED;
+    }
+
+    /**
+     * 行为：变更用户资料（对应更新接口的昵称/手机号/邮箱/头像/部门赋值）
+     *
+     * @param nickname 昵称
+     * @param phone 手机号
+     * @param email 邮箱
+     * @param avatar 头像地址
+     * @param deptId 所属部门 ID
+     */
+    public void changeProfile(String nickname, String phone, String email, String avatar, Long deptId) {
+        this.nickname = nickname;
+        this.phone = phone;
+        this.email = email;
+        this.avatar = avatar;
+        this.deptId = deptId;
+        this.updateTime = LocalDateTime.now();
+    }
+
+    /**
+     * 行为：重置口令（明文必须先经 BCrypt 加密，此处只接受密文值对象）
+     *
+     * @param password 新口令密文值对象
+     */
+    public void changePassword(EncryptedPassword password) {
+        if (password == null || !BCRYPT_PATTERN.matcher(password.value()).matches()) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "口令必须为 BCrypt 密文");
+        }
+        this.password = password;
+        this.updateTime = LocalDateTime.now();
+    }
+
+    /**
+     * 行为：变更状态（对应启停接口的 {@code status} 赋值）
+     *
+     * @param status 新状态（1 启用 / 0 停用）
+     */
+    public void changeStatus(int status) {
+        if (status != STATUS_ENABLED && status != STATUS_DISABLED) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "状态值非法，仅支持 1（启用）/ 0（停用）");
+        }
+        this.status = status;
+        this.updateTime = LocalDateTime.now();
     }
 
     /**
@@ -196,6 +291,24 @@ public class User {
      */
     public String getEmail() {
         return email;
+    }
+
+    /**
+     * 获取头像地址
+     *
+     * @return 头像地址
+     */
+    public String getAvatar() {
+        return avatar;
+    }
+
+    /**
+     * 获取最近登录时间
+     *
+     * @return 最近登录时间
+     */
+    public LocalDateTime getLastLoginTime() {
+        return lastLoginTime;
     }
 
     /**

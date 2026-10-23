@@ -50,4 +50,39 @@ public interface UserRepository {
      * @param roleIds 目标角色 ID 列表
      */
     void replaceRoles(Long userId, List<Long> roleIds);
+
+    /**
+     * 查询用户已分配的角色 ID 列表
+     *
+     * @param userId 用户 ID
+     * @return 角色 ID 列表
+     */
+    List<Long> listRoleIds(Long userId);
+
+    /**
+     * 分页查询用户（{@code keyword} 模糊匹配用户名/昵称/手机号，按创建时间降序）
+     *
+     * @param current 当前页码
+     * @param size 每页条数
+     * @param keyword 用户名/昵称/手机号模糊匹配关键字（可空）
+     * @return 用户分页结果
+     */
+    UserPage page(long current, long size, String keyword);
+
+    /**
+     * 删除用户（逻辑删除用户并按物理删除清理用户-角色关联）
+     *
+     * @param id 用户 ID
+     */
+    void deleteById(Long id);
+
+    /**
+     * 用户分页结果：领域层自有分页载体，避免向领域层泄漏 MyBatis 分页类型。
+     *
+     * @param records 当前页用户聚合列表
+     * @param total 总记录数
+     * @author BlueWhale
+     */
+    record UserPage(List<User> records, long total) {
+    }
 }

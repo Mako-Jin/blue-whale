@@ -49,6 +49,45 @@ public interface RoleRepository {
     RolePage page(long current, long size, String keyword);
 
     /**
+     * 判断角色编码是否已存在（供角色编码唯一性不变量校验）
+     *
+     * @param roleCode 角色编码
+     * @return 已存在返回 true，否则返回 false
+     */
+    boolean existsByCode(String roleCode);
+
+    /**
+     * 统计给定角色 ID 中实际存在的记录数（供分配角色时校验目标角色是否全部有效）
+     *
+     * @param ids 角色 ID 集合
+     * @return 存在的记录数；{@code ids} 为空时返回 0
+     */
+    long countByIds(Collection<Long> ids);
+
+    /**
+     * 删除角色（逻辑删除角色并按物理删除清理角色-权限关联）
+     *
+     * @param id 角色 ID
+     */
+    void deleteById(Long id);
+
+    /**
+     * 全量覆盖角色-权限关联（先清空后重建）
+     *
+     * @param roleId 角色 ID
+     * @param permissionIds 目标权限点 ID 列表
+     */
+    void replacePermissions(Long roleId, List<Long> permissionIds);
+
+    /**
+     * 查询角色已分配的权限点 ID 列表
+     *
+     * @param roleId 角色 ID
+     * @return 权限点 ID 列表
+     */
+    List<Long> listPermissionIds(Long roleId);
+
+    /**
      * 角色分页结果：领域层自有分页载体，避免向领域层泄漏 MyBatis 分页类型。
      *
      * @param records 当前页角色聚合列表

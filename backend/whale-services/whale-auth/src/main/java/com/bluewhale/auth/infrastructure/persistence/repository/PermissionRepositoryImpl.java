@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -67,5 +68,38 @@ public class PermissionRepositoryImpl implements PermissionRepository {
         List<Permission> records = page.getRecords().stream()
                 .map(PermissionPersistenceAssembler::toDomain).toList();
         return new PermissionPage(records, page.getTotal());
+    }
+
+    @Override
+    public boolean existsByPermCode(String permCode, Long excludeId) {
+        LambdaQueryWrapper<SysPermission> wrapper = new LambdaQueryWrapper<SysPermission>()
+                .eq(SysPermission::getPermCode, permCode);
+        if (excludeId != null) {
+            wrapper.ne(SysPermission::getId, excludeId);
+        }
+        Long count = permissionMapper.selectCount(wrapper);
+        return count != null && count > 0;
+    }
+
+    @Override
+    public long countByIds(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return 0L;
+        }
+        Long count = permissionMapper.selectCount(new LambdaQueryWrapper<SysPermission>()
+                .in(SysPermission::getId, ids));
+        return count == null ? 0L : count;
+    }
+
+    @Override
+    public long countChildren(Long parentId) {
+        Long count = permissionMapper.selectCount(new LambdaQueryWrapper<SysPermission>()
+                .eq(SysPermission::getParentId, parentId));
+        return count == null ? 0L : count;
+    }
+
+    @Override
+    public void deleteById(Long id) {
+        permissionMapper.deleteById(id);
     }
 }

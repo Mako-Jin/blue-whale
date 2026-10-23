@@ -1,5 +1,6 @@
 package com.bluewhale.auth.vo;
 
+import com.bluewhale.auth.domain.permission.aggregate.UserPermissionAttribute;
 import com.bluewhale.auth.entity.SysUserPermission;
 import lombok.Data;
 
@@ -34,6 +35,22 @@ public class UserAttrVO implements Serializable {
         vo.setPermissionId(entity.getPermissionId());
         vo.setAttrKey(entity.getAttrKey());
         vo.setAttrValue(entity.getAttrValue());
+        return vo;
+    }
+
+    /**
+     * 由用户属性聚合根转换为视图对象
+     *
+     * @param attribute 用户属性聚合根
+     * @return 用户属性视图对象
+     */
+    public static UserAttrVO from(UserPermissionAttribute attribute) {
+        UserAttrVO vo = new UserAttrVO();
+        vo.setId(attribute.getId());
+        vo.setUserId(attribute.getUserId());
+        vo.setPermissionId(attribute.getPermissionId());
+        vo.setAttrKey(attribute.getAttrKey());
+        vo.setAttrValue(attribute.getAttrValue());
         return vo;
     }
 }

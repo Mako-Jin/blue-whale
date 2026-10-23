@@ -248,6 +248,32 @@ public class Menu {
     }
 
     /**
+     * 行为：一次性应用更新接口的全部字段（空值默认与 {@link #create} 保持一致）
+     *
+     * @param parentId 父菜单 ID，为空时按 0（顶级）处理
+     * @param name 菜单名称
+     * @param path 前端路由路径
+     * @param component 前端组件路径
+     * @param icon 图标
+     * @param sort 排序号，为空时按 0 处理
+     * @param menuType 菜单类型，为空时按 MENU 处理
+     * @param permissionCode 关联权限编码
+     * @param visible 是否可见，为空时按显示处理
+     * @param status 状态，为空时按启用处理
+     */
+    public void applyChanges(Long parentId, String name, String path, String component, String icon, Integer sort,
+                             String menuType, String permissionCode, Integer visible, Integer status) {
+        moveTo(parentId == null ? ROOT_PARENT_ID : parentId);
+        rename(name);
+        changeRoute(path, component, icon);
+        changeSort(sort == null ? 0 : sort);
+        changeMenuType(menuType == null || menuType.isBlank() ? MENU_TYPE_MENU : menuType);
+        bindPermissionCode(permissionCode);
+        changeVisible(visible == null ? VISIBLE_SHOWN : visible);
+        changeStatus(status == null ? STATUS_ENABLED : status);
+    }
+
+    /**
      * 判定当前菜单是否为目录
      *
      * @return 目录返回 true，菜单返回 false

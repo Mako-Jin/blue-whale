@@ -66,4 +66,16 @@ public class MenuRepositoryImpl implements MenuRepository {
                 .orderByAsc(SysMenu::getId));
         return pos.stream().map(MenuPersistenceAssembler::toDomain).toList();
     }
+
+    @Override
+    public long countChildren(Long parentId) {
+        Long count = menuMapper.selectCount(new LambdaQueryWrapper<SysMenu>()
+                .eq(SysMenu::getParentId, parentId));
+        return count == null ? 0L : count;
+    }
+
+    @Override
+    public void deleteById(Long id) {
+        menuMapper.deleteById(id);
+    }
 }

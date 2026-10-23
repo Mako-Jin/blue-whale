@@ -1,5 +1,6 @@
 package com.bluewhale.auth.vo;
 
+import com.bluewhale.auth.domain.role.aggregate.Role;
 import com.bluewhale.auth.entity.SysRole;
 import lombok.Data;
 
@@ -35,6 +36,25 @@ public class RoleVO implements Serializable {
         RoleVO vo = new RoleVO();
         vo.setId(role.getId());
         vo.setRoleCode(role.getRoleCode());
+        vo.setRoleName(role.getRoleName());
+        vo.setDescription(role.getDescription());
+        vo.setSortNo(role.getSortNo());
+        vo.setStatus(role.getStatus());
+        vo.setCreateTime(role.getCreateTime());
+        vo.setUpdateTime(role.getUpdateTime());
+        return vo;
+    }
+
+    /**
+     * 由角色聚合根转换为视图对象
+     *
+     * @param role 角色聚合根
+     * @return 角色视图对象
+     */
+    public static RoleVO from(Role role) {
+        RoleVO vo = new RoleVO();
+        vo.setId(role.getId());
+        vo.setRoleCode(role.getRoleCode().value());
         vo.setRoleName(role.getRoleName());
         vo.setDescription(role.getDescription());
         vo.setSortNo(role.getSortNo());

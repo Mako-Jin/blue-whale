@@ -43,4 +43,19 @@ public interface DeptRepository {
      * @return 该父部门下的子部门聚合列表
      */
     List<Dept> findAllByParentId(Long parentId);
+
+    /**
+     * 统计指定父部门下的直接子部门数量（供删除前树完整性校验）
+     *
+     * @param parentId 父部门 ID
+     * @return 子部门数量
+     */
+    long countChildren(Long parentId);
+
+    /**
+     * 删除部门（逻辑删除）
+     *
+     * @param id 部门 ID
+     */
+    void deleteById(Long id);
 }

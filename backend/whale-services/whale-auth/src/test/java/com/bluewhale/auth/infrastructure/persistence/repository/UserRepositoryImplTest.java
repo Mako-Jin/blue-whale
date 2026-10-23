@@ -1,10 +1,13 @@
 package com.bluewhale.auth.infrastructure.persistence.repository;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
 import com.bluewhale.auth.domain.model.vo.Username;
 import com.bluewhale.auth.domain.user.aggregate.User;
+import com.bluewhale.auth.domain.user.repository.UserRepository;
 import com.bluewhale.auth.entity.SysUser;
 import com.bluewhale.auth.entity.SysUserRole;
 import com.bluewhale.auth.mapper.SysUserMapper;
@@ -14,6 +17,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -148,5 +153,51 @@ class UserRepositoryImplTest {
 
         verify(userRoleMapper).delete(any());
         verify(userRoleMapper, times(2)).insert(any(SysUserRole.class));
+    }
+
+    @Test
+    @DisplayName("page：关键字与分页参数透传，结果映射为领域聚合")
+    void shouldPageWithKeywordAndPagination() {
+        Page<SysUser> page = new Page<>(2, 5);
+        page.setRecords(List.of(po()));
+        page.setTotal(6L);
+        when(userMapper.selectPage(ArgumentMatchers.<Page<SysUser>>any(),
+                ArgumentMatchers.<Wrapper<SysUser>>any())).thenReturn(page);
+
+        UserRepository.UserPage result = repository.page(2, 5, "bob");
+
+        assertEquals(1, result.records().size());
+        assertEquals("bob_02", result.records().get(0).getUsername().value());
+        assertEquals(6L, result.total());
+        ArgumentCaptor<Page> pageCaptor = ArgumentCaptor.forClass(Page.class);
+        verify(userMapper).selectPage(pageCaptor.capture(), ArgumentMatchers.<Wrapper<SysUser>>any());
+        assertEquals(2L, pageCaptor.getValue().getCurrent());
+        assertEquals(5L, pageCaptor.getValue().getSize());
+    }
+
+    @Test
+    @DisplayName("deleteById：删除用户并物理清理用户-角色关联")
+    void shouldDeleteUserAndCleanRelations() {
+        repository.deleteById(USER_ID);
+
+        verify(userMapper).deleteById(USER_ID);
+        verify(userRoleMapper).delete(ArgumentMatchers.<Wrapper<SysUserRole>>any());
+    }
+
+    @Test
+    @DisplayName("listRoleIds：返回用户关联的角色 ID 列表")
+    void shouldListRoleIds() {
+        SysUserRole first = new SysUserRole();
+        first.setUserId(USER_ID);
+        first.setRoleId(1L);
+        SysUserRole second = new SysUserRole();
+        second.setUserId(USER_ID);
+        second.setRoleId(2L);
+        when(userRoleMapper.selectList(ArgumentMatchers.<Wrapper<SysUserRole>>any()))
+                .thenReturn(List.of(first, second));
+
+        List<Long> roleIds = repository.listRoleIds(USER_ID);
+
+        assertEquals(List.of(1L, 2L), roleIds);
     }
 }

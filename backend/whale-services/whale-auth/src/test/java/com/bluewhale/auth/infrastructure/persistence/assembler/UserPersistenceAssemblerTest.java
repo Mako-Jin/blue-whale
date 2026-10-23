@@ -103,6 +103,30 @@ class UserPersistenceAssemblerTest {
     }
 
     @Test
+    @DisplayName("PO → 领域：avatar 与 lastLoginTime 原样承载")
+    void shouldMapAvatarAndLastLoginTimeToDomain() {
+        SysUser po = fullPo();
+
+        User user = UserPersistenceAssembler.toDomain(po);
+
+        assertEquals("avatar.png", user.getAvatar());
+        assertEquals(po.getLastLoginTime(), user.getLastLoginTime());
+    }
+
+    @Test
+    @DisplayName("领域 → PO：avatar 与 lastLoginTime 原样写回")
+    void shouldMapAvatarAndLastLoginTimeToPo() {
+        LocalDateTime lastLogin = LocalDateTime.of(2026, 2, 2, 10, 0, 0);
+        User domain = User.reconstitute(5L, Username.of("bob_02"), EncryptedPassword.of(CIPHER), "Bob",
+                "13900000000", "b@c.com", "avatar.png", 4L, User.STATUS_ENABLED, lastLogin, CREATED, UPDATED);
+
+        SysUser po = UserPersistenceAssembler.toPo(domain);
+
+        assertEquals("avatar.png", po.getAvatar());
+        assertEquals(lastLogin, po.getLastLoginTime());
+    }
+
+    @Test
     @DisplayName("用户-角色分配：PO ↔ 领域双向字段一致")
     void shouldMapRoleAssignmentBothWays() {
         SysUserRole po = new SysUserRole();

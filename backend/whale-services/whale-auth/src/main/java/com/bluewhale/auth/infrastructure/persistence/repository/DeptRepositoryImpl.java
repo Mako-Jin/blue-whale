@@ -56,4 +56,16 @@ public class DeptRepositoryImpl implements DeptRepository {
                 .eq(SysDept::getParentId, parentId));
         return pos.stream().map(DeptPersistenceAssembler::toDomain).toList();
     }
+
+    @Override
+    public long countChildren(Long parentId) {
+        Long count = deptMapper.selectCount(new LambdaQueryWrapper<SysDept>()
+                .eq(SysDept::getParentId, parentId));
+        return count == null ? 0L : count;
+    }
+
+    @Override
+    public void deleteById(Long id) {
+        deptMapper.deleteById(id);
+    }
 }
