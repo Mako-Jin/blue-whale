@@ -47,6 +47,14 @@ whale:
     file-service-url: ${WHALE_JOB_FILE_SERVICE_URL:http://127.0.0.1:8085}
     # 单次归档导出的 job_log 上限条数
     archive-batch-size: ${WHALE_JOB_ARCHIVE_BATCH_SIZE:2000}
+    # 失败告警：webhook-url 为空时仅写本地告警日志并落库 job_alert
+    alert:
+      enabled: ${WHALE_JOB_ALERT_ENABLED:true}
+      webhook-url: ${WHALE_JOB_ALERT_WEBHOOK_URL:}
+      cooldown-seconds: ${WHALE_JOB_ALERT_COOLDOWN_SECONDS:300}
+      connect-timeout-millis: ${WHALE_JOB_ALERT_CONNECT_TIMEOUT_MILLIS:2000}
+      read-timeout-millis: ${WHALE_JOB_ALERT_READ_TIMEOUT_MILLIS:3000}
+      max-error-length: ${WHALE_JOB_ALERT_MAX_ERROR_LENGTH:500}
 
 management:
   endpoints:

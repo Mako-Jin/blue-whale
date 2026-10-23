@@ -5,13 +5,19 @@ import com.bluewhale.common.audit.annotation.AuditLog;
 import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
+import com.bluewhale.job.dto.JobAlertQueryRequest;
+import com.bluewhale.job.dto.JobDependencySetRequest;
 import com.bluewhale.job.dto.JobInfoCreateRequest;
 import com.bluewhale.job.dto.JobInfoQueryRequest;
 import com.bluewhale.job.dto.JobInfoUpdateRequest;
 import com.bluewhale.job.dto.JobLogQueryRequest;
 import com.bluewhale.job.dto.JobStatusRequest;
+import com.bluewhale.job.service.JobAlertService;
+import com.bluewhale.job.service.JobDependencyService;
 import com.bluewhale.job.service.JobInfoService;
 import com.bluewhale.job.service.JobLogService;
+import com.bluewhale.job.vo.JobAlertVO;
+import com.bluewhale.job.vo.JobDependencyVO;
 import com.bluewhale.job.vo.JobInfoVO;
 import com.bluewhale.job.vo.JobLogVO;
 import jakarta.validation.Valid;
@@ -46,6 +52,10 @@ public class JobController {
     private final JobInfoService jobInfoService;
 
     private final JobLogService jobLogService;
+
+    private final JobDependencyService jobDependencyService;
+
+    private final JobAlertService jobAlertService;
 
     /** 分页查询定时任务 */
     @GetMapping("/info/page")
@@ -109,5 +119,28 @@ public class JobController {
     @RequirePermission("sys:job:log:list")
     public Result<PageResult<JobLogVO>> logPage(JobLogQueryRequest request) {
         return Result.ok(jobLogService.page(request));
+    }
+
+    /** 查询任务依赖关系（上游与下游） */
+    @GetMapping("/info/{id}/dependencies")
+    @RequirePermission("sys:job:list")
+    public Result<JobDependencyVO> dependencies(@PathVariable Long id) {
+        return Result.ok(jobDependencyService.getDependencies(id));
+    }
+
+    /** 全量替换任务的上游依赖（保存后按是否存在上游重新调度） */
+    @PostMapping("/info/{id}/dependencies")
+    @RequirePermission("sys:job:edit")
+    @AuditLog(operation = "配置定时任务依赖", type = OperateType.UPDATE, targetType = TARGET_TYPE, targetId = "#id")
+    public Result<JobDependencyVO> saveDependencies(@PathVariable Long id,
+                                                    @RequestBody JobDependencySetRequest request) {
+        return Result.ok(jobDependencyService.saveDependencies(id, request));
+    }
+
+    /** 分页查询任务失败告警记录 */
+    @GetMapping("/alert/page")
+    @RequirePermission("sys:job:log:list")
+    public Result<PageResult<JobAlertVO>> alertPage(JobAlertQueryRequest request) {
+        return Result.ok(jobAlertService.page(request));
     }
 }

@@ -1,8 +1,10 @@
 package com.bluewhale.job.scheduler;
 
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.job.alert.JobAlertNotifier;
 import com.bluewhale.job.entity.JobInfo;
 import com.bluewhale.job.entity.JobLog;
+import com.bluewhale.job.mapper.JobDependencyMapper;
 import com.bluewhale.job.mapper.JobInfoMapper;
 import com.bluewhale.job.mapper.JobLogMapper;
 import org.junit.jupiter.api.AfterEach;
@@ -48,16 +50,20 @@ class JobSchedulerTest {
 
     private final JobLogMapper jobLogMapper = mock(JobLogMapper.class);
 
+    private final JobDependencyMapper jobDependencyMapper = mock(JobDependencyMapper.class);
+
     private final JobHandlerRegistry jobHandlerRegistry = mock(JobHandlerRegistry.class);
 
     private final JobExecutionGuard executionGuard = new JobExecutionGuard();
+
+    private final JobAlertNotifier jobAlertNotifier = mock(JobAlertNotifier.class);
 
     @SuppressWarnings("unchecked")
     private final ObjectProvider<RedissonClient> redissonClientProvider =
             (ObjectProvider<RedissonClient>) mock(ObjectProvider.class);
 
-    private final JobScheduler scheduler = new JobScheduler(jobInfoMapper, jobLogMapper,
-            jobHandlerRegistry, executionGuard, redissonClientProvider);
+    private final JobScheduler scheduler = new JobScheduler(jobInfoMapper, jobLogMapper, jobDependencyMapper,
+            jobHandlerRegistry, executionGuard, redissonClientProvider, jobAlertNotifier);
 
     @AfterEach
     void tearDown() {

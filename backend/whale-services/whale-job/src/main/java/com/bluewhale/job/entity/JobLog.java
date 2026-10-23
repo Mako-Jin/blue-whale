@@ -32,6 +32,12 @@ public class JobLog extends BaseEntity {
     /** 执行器 Bean 名称（冗余） */
     private String handlerBean;
 
+    /** 执行批次ID：一次根触发与其链式下游共享同一 runId */
+    private String runId;
+
+    /** 触发类型：CRON 定时 / MANUAL 手动 / CHAIN 依赖链 */
+    private String triggerType;
+
     /** 开始执行时间 */
     private LocalDateTime startTime;
 

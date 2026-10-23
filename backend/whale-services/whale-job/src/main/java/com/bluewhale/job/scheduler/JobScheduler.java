@@ -3,8 +3,11 @@ package com.bluewhale.job.scheduler;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.job.alert.JobAlertNotifier;
+import com.bluewhale.job.entity.JobDependency;
 import com.bluewhale.job.entity.JobInfo;
 import com.bluewhale.job.entity.JobLog;
+import com.bluewhale.job.mapper.JobDependencyMapper;
 import com.bluewhale.job.mapper.JobInfoMapper;
 import com.bluewhale.job.mapper.JobLogMapper;
 import jakarta.annotation.PostConstruct;
@@ -25,6 +28,7 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -50,6 +54,10 @@ import java.util.concurrent.TimeUnit;
  * 因此重试期间不会与其他触发并发执行；超过上限后回写失败终态（{@code status=-1}）。
  * 分片：按 {@code shard_total} 串行执行各分片，分片序号写入 {@code job_log.shard_index}，
  * 并经 {@link JobExecutionContext} 透传给执行器；单分片行为与旧逻辑一致。</p>
+ *
+ * <p>依赖编排：根触发（cron / 手动）生成 {@code runId}；存在上游依赖的任务不注册自身 cron，
+ * 仅在上游任务全部分片成功且其所有上游在同一 {@code runId} 下均成功后，以 {@code CHAIN}
+ * 触发类型提交下游执行，链深度上限 32。无依赖任务的 cron / 重试 / 分片 / misfire / 锁行为保持不变。</p>
  *
  * @author BlueWhale
  */
@@ -103,15 +111,31 @@ public class JobScheduler {
     /** 错过执行策略：放弃错过的执行，不补跑 */
     private static final String MISFIRE_DO_NOTHING = "DO_NOTHING";
 
+    /** 触发类型：cron 定时 */
+    private static final String TRIGGER_CRON = "CRON";
+
+    /** 触发类型：手动 */
+    private static final String TRIGGER_MANUAL = "MANUAL";
+
+    /** 触发类型：依赖链 */
+    private static final String TRIGGER_CHAIN = "CHAIN";
+
+    /** 依赖链深度上限：超限后停止向下游传递 */
+    private static final int MAX_CHAIN_DEPTH = 32;
+
     private final JobInfoMapper jobInfoMapper;
 
     private final JobLogMapper jobLogMapper;
+
+    private final JobDependencyMapper jobDependencyMapper;
 
     private final JobHandlerRegistry jobHandlerRegistry;
 
     private final JobExecutionGuard executionGuard;
 
     private final ObjectProvider<RedissonClient> redissonClientProvider;
+
+    private final JobAlertNotifier jobAlertNotifier;
 
     /** jobId 到已注册调度的映射 */
     private final Map<Long, ScheduledFuture<?>> scheduledFutures = new ConcurrentHashMap<>();
@@ -181,7 +205,9 @@ public class JobScheduler {
     }
 
     /**
-     * 立即触发一次指定任务（异步执行，不阻塞请求线程）
+     * 立即触发一次指定任务（异步执行，不阻塞请求线程）。
+     *
+     * <p>手动触发忽略上游门禁，直接以 {@code MANUAL} 类型执行并生成新的 {@code runId}。</p>
      *
      * @param jobId 任务ID
      * @throws BizException 任务不存在时抛出 {@code NOT_FOUND}
@@ -191,15 +217,23 @@ public class JobScheduler {
         if (job == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
-        taskScheduler.execute(() -> execute(job));
+        String runId = newRunId();
+        taskScheduler.execute(() -> executeWithRun(job, runId, TRIGGER_MANUAL, 0));
     }
 
     /**
-     * 按 cron 表达式注册任务调度；cron 非法或缺失时跳过并告警
+     * 按 cron 表达式注册任务调度；cron 非法或缺失时跳过并告警。
+     *
+     * <p>存在上游依赖的任务不注册自身 cron，仅由上游成功执行后链式触发。</p>
      *
      * @param job 任务定义
      */
     private void register(JobInfo job) {
+        if (hasUpstreamDependency(job.getId())) {
+            log.info("任务存在上游依赖，跳过 cron 注册，仅由上游成功后链式触发: jobId={}, jobName={}",
+                    job.getId(), job.getJobName());
+            return;
+        }
         String cron = job.getCronExpression();
         if (!StringUtils.hasText(cron) || !CronExpression.isValidExpression(cron)) {
             log.warn("任务 cron 表达式非法，跳过注册: jobId={}, cron={}", job.getId(), cron);
@@ -213,35 +247,62 @@ public class JobScheduler {
     }
 
     /**
-     * 触发一次任务执行：实例内互斥 + 分布式锁，结束后消费待补跑标记。
+     * 判断任务是否存在上游依赖
+     *
+     * @param jobId 任务ID
+     * @return 存在至少一条上游依赖返回 {@code true}
+     */
+    private boolean hasUpstreamDependency(Long jobId) {
+        Long count = jobDependencyMapper.selectCount(new LambdaQueryWrapper<JobDependency>()
+                .eq(JobDependency::getJobId, jobId));
+        return count != null && count > 0;
+    }
+
+    /**
+     * 触发一次任务执行（cron 根触发）：生成 {@code runId}，触发类型为 {@code CRON}。
      *
      * <p>包可见以便单元测试直接驱动执行路径。</p>
      *
      * @param job 任务定义
      */
     void execute(JobInfo job) {
+        executeWithRun(job, newRunId(), TRIGGER_CRON, 0);
+    }
+
+    /**
+     * 在指定运行上下文下触发一次任务执行：实例内互斥 + 分布式锁，结束后消费待补跑标记。
+     *
+     * @param job 任务定义
+     * @param runId 执行批次ID
+     * @param triggerType 触发类型
+     * @param depth 依赖链深度（根触发为 0）
+     */
+    private void executeWithRun(JobInfo job, String runId, String triggerType, int depth) {
         Long jobId = job.getId();
         if (!executionGuard.tryEnter(jobId)) {
             handleOverlap(job);
             return;
         }
         try {
-            runWithDistributedLock(job);
+            runWithDistributedLock(job, runId, triggerType, depth);
         } finally {
             executionGuard.exit(jobId);
         }
-        drainPendingOnce(job);
+        drainPendingOnce(job, runId, triggerType, depth);
     }
 
     /**
      * 在分布式锁保护下执行一次任务；Redisson 不可用时降级为仅实例内互斥。
      *
      * @param job 任务定义
+     * @param runId 执行批次ID
+     * @param triggerType 触发类型
+     * @param depth 依赖链深度
      */
-    private void runWithDistributedLock(JobInfo job) {
+    private void runWithDistributedLock(JobInfo job, String runId, String triggerType, int depth) {
         RedissonClient client = redissonClientProvider.getIfAvailable();
         if (client == null) {
-            doExecute(job);
+            doExecute(job, runId, triggerType, depth);
             return;
         }
         RLock lock = client.getLock(LOCK_KEY_PREFIX + job.getId());
@@ -250,7 +311,7 @@ public class JobScheduler {
             return;
         }
         try {
-            doExecute(job);
+            doExecute(job, runId, triggerType, depth);
         } finally {
             unlock(lock);
         }
@@ -309,8 +370,11 @@ public class JobScheduler {
      * 消费待补跑标记：在当前执行结束后补跑一次；补跑期间再次发生重叠则重新登记，栈深有界
      *
      * @param job 任务定义
+     * @param runId 执行批次ID
+     * @param triggerType 触发类型
+     * @param depth 依赖链深度
      */
-    private void drainPendingOnce(JobInfo job) {
+    private void drainPendingOnce(JobInfo job, String runId, String triggerType, int depth) {
         Long jobId = job.getId();
         while (executionGuard.consumePendingOnce(jobId)) {
             if (!executionGuard.tryEnter(jobId)) {
@@ -318,7 +382,7 @@ public class JobScheduler {
                 return;
             }
             try {
-                runWithDistributedLock(job);
+                runWithDistributedLock(job, runId, triggerType, depth);
             } finally {
                 executionGuard.exit(jobId);
             }
@@ -326,24 +390,129 @@ public class JobScheduler {
     }
 
     /**
-     * 执行一次任务并落执行日志：按分片总数串行执行各分片，异常只记录，绝不向调度线程抛出
+     * 执行一次任务并落执行日志：生成 {@code runId}，触发类型为 {@code CRON}。
      *
      * <p>包可见以便单元测试直接验证落库与异常处理。</p>
      *
      * @param job 任务定义
      */
     void doExecute(JobInfo job) {
+        doExecute(job, newRunId(), TRIGGER_CRON, 0);
+    }
+
+    /**
+     * 在指定运行上下文下执行一次任务并落执行日志：按分片总数串行执行各分片，
+     * 全部分片成功后触发下游依赖任务，异常只记录，绝不向调度线程抛出。
+     *
+     * <p>包可见以便单元测试直接验证落库与依赖编排。</p>
+     *
+     * @param job 任务定义
+     * @param runId 执行批次ID
+     * @param triggerType 触发类型
+     * @param depth 依赖链深度
+     */
+    void doExecute(JobInfo job, String runId, String triggerType, int depth) {
         int shardTotal = resolveShardTotal(job.getShardTotal());
         int failedShards = 0;
         for (int shardIndex = 0; shardIndex < shardTotal; shardIndex++) {
-            if (!executeShard(job, shardIndex, shardTotal)) {
+            if (!executeShard(job, shardIndex, shardTotal, runId, triggerType)) {
                 failedShards++;
             }
         }
         if (failedShards > 0) {
             log.warn("任务分片执行完成，存在失败分片: jobId={}, 失败分片数={}/{}",
                     job.getId(), failedShards, shardTotal);
+            return;
         }
+        triggerDownstream(job, runId, depth);
+    }
+
+    /**
+     * 触发下游依赖任务：仅对上游全部成功的下游任务以 {@code CHAIN} 类型异步提交执行。
+     *
+     * <p>依赖链深度超过 {@value #MAX_CHAIN_DEPTH} 时告警并停止下传。</p>
+     *
+     * @param job 刚执行成功的上游任务
+     * @param runId 执行批次ID（下游沿用）
+     * @param depth 当前依赖链深度
+     */
+    void triggerDownstream(JobInfo job, String runId, int depth) {
+        if (depth >= MAX_CHAIN_DEPTH) {
+            log.warn("任务依赖链深度超过上限，停止下传: jobId={}, runId={}, depth={}",
+                    job.getId(), runId, depth);
+            return;
+        }
+        List<Long> downstreamIds = listDownstreamJobIds(job.getId());
+        if (downstreamIds.isEmpty()) {
+            return;
+        }
+        List<JobInfo> downstreamJobs = jobInfoMapper.selectList(new LambdaQueryWrapper<JobInfo>()
+                .in(JobInfo::getId, downstreamIds)
+                .eq(JobInfo::getStatus, STATUS_RUNNING));
+        downstreamJobs.forEach(downstream -> submitDownstream(downstream, runId, depth));
+    }
+
+    /**
+     * 提交单个下游任务：门禁通过则以同一 {@code runId}、{@code CHAIN} 类型提交调度线程池
+     *
+     * @param downstream 下游任务
+     * @param runId 执行批次ID
+     * @param depth 当前依赖链深度
+     */
+    private void submitDownstream(JobInfo downstream, String runId, int depth) {
+        if (!isUpstreamSatisfied(downstream.getId(), runId)) {
+            log.debug("下游任务的上游未全部在本轮成功，跳过链式触发: downstreamJobId={}, runId={}",
+                    downstream.getId(), runId);
+            return;
+        }
+        taskScheduler.execute(() -> executeWithRun(downstream, runId, TRIGGER_CHAIN, depth + 1));
+        log.info("上游任务成功，已提交下游链式触发: downstreamJobId={}, runId={}, depth={}",
+                downstream.getId(), runId, depth + 1);
+    }
+
+    /**
+     * 上游门禁：下游任务的全部上游在同一 {@code runId} 下都必须存在成功执行记录
+     *
+     * @param downstreamJobId 下游任务ID
+     * @param runId 执行批次ID
+     * @return 全部上游均成功返回 {@code true}；任一上游无记录或未成功返回 {@code false}
+     */
+    boolean isUpstreamSatisfied(Long downstreamJobId, String runId) {
+        List<JobDependency> dependencies = jobDependencyMapper.selectList(new LambdaQueryWrapper<JobDependency>()
+                .eq(JobDependency::getJobId, downstreamJobId));
+        for (JobDependency dependency : dependencies) {
+            Long successCount = jobLogMapper.selectCount(new LambdaQueryWrapper<JobLog>()
+                    .eq(JobLog::getJobId, dependency.getUpstreamJobId())
+                    .eq(JobLog::getRunId, runId)
+                    .eq(JobLog::getStatus, LOG_STATUS_SUCCESS));
+            if (successCount == null || successCount <= 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 查询指定任务的下游任务ID列表
+     *
+     * @param jobId 上游任务ID
+     * @return 下游任务ID列表（去重）
+     */
+    private List<Long> listDownstreamJobIds(Long jobId) {
+        return jobDependencyMapper.selectList(new LambdaQueryWrapper<JobDependency>()
+                        .eq(JobDependency::getUpstreamJobId, jobId)).stream()
+                .map(JobDependency::getJobId)
+                .distinct()
+                .toList();
+    }
+
+    /**
+     * 生成执行批次ID：UUID 去横线
+     *
+     * @return 32 位执行批次ID
+     */
+    private static String newRunId() {
+        return UUID.randomUUID().toString().replace("-", "");
     }
 
     /**
@@ -352,10 +521,12 @@ public class JobScheduler {
      * @param job        任务定义
      * @param shardIndex 当前分片序号（从 0 开始）
      * @param shardTotal 分片总数
+     * @param runId      执行批次ID
+     * @param triggerType 触发类型
      * @return 最终成功返回 {@code true}；重试耗尽仍失败返回 {@code false}
      */
-    private boolean executeShard(JobInfo job, int shardIndex, int shardTotal) {
-        JobLog jobLog = insertRunningLog(job, shardIndex);
+    private boolean executeShard(JobInfo job, int shardIndex, int shardTotal, String runId, String triggerType) {
+        JobLog jobLog = insertRunningLog(job, shardIndex, runId, triggerType);
         int maxRetry = resolveMaxRetry(job.getMaxRetry());
         long intervalMillis = resolveRetryIntervalSeconds(job.getRetryIntervalSeconds()) * MILLIS_PER_SECOND;
         for (int retryCount = 0; ; retryCount++) {
@@ -365,7 +536,7 @@ public class JobScheduler {
                 return true;
             } catch (Exception e) {
                 if (retryCount >= maxRetry) {
-                    markFailure(jobLog, e, retryCount);
+                    markFailure(job, jobLog, e, retryCount);
                     log.warn("任务执行失败且重试已耗尽: jobId={}, jobName={}, shardIndex={}/{}, retryCount={}",
                             job.getId(), job.getJobName(), shardIndex, shardTotal, retryCount, e);
                     return false;
@@ -375,7 +546,7 @@ public class JobScheduler {
                 log.warn("任务执行失败，{} 秒后进行第 {} 次重试: jobId={}, shardIndex={}/{}",
                         intervalMillis / MILLIS_PER_SECOND, retryCount + 1, job.getId(), shardIndex, shardTotal, e);
                 if (!awaitRetry(intervalMillis)) {
-                    markFailure(jobLog, e, retryCount + 1);
+                    markFailure(job, jobLog, e, retryCount + 1);
                     return false;
                 }
             }
@@ -387,13 +558,17 @@ public class JobScheduler {
      *
      * @param job        任务定义
      * @param shardIndex 当前分片序号
+     * @param runId      执行批次ID
+     * @param triggerType 触发类型
      * @return 已落库的执行日志实体（主键已回填）
      */
-    private JobLog insertRunningLog(JobInfo job, int shardIndex) {
+    private JobLog insertRunningLog(JobInfo job, int shardIndex, String runId, String triggerType) {
         JobLog jobLog = new JobLog();
         jobLog.setJobId(job.getId());
         jobLog.setJobName(job.getJobName());
         jobLog.setHandlerBean(job.getHandlerBean());
+        jobLog.setRunId(runId);
+        jobLog.setTriggerType(triggerType);
         jobLog.setStartTime(LocalDateTime.now());
         jobLog.setStatus(LOG_STATUS_RUNNING);
         jobLog.setRetryCount(0);
@@ -435,19 +610,37 @@ public class JobScheduler {
     }
 
     /**
-     * 回写失败终态（重试耗尽或被中断）
+     * 回写失败终态（重试耗尽或被中断），随后发送失败告警。
      *
+     * <p>告警组件异常一律吞掉，绝不影响调度主流程。</p>
+     *
+     * @param job        任务定义
      * @param jobLog     执行日志实体
      * @param e          失败异常
      * @param retryCount 本次执行已重试次数
      */
-    private void markFailure(JobLog jobLog, Exception e, int retryCount) {
+    private void markFailure(JobInfo job, JobLog jobLog, Exception e, int retryCount) {
         jobLog.setEndTime(LocalDateTime.now());
         jobLog.setStatus(LOG_STATUS_FAILURE);
         jobLog.setRetryCount(retryCount);
         jobLog.setErrorMsg(truncate(e.getClass().getSimpleName()
                 + (e.getMessage() == null ? "" : ": " + e.getMessage())));
         jobLogMapper.updateById(jobLog);
+        notifyFailure(job, jobLog);
+    }
+
+    /**
+     * 发送失败告警：告警组件异常只记录，绝不外抛
+     *
+     * @param job 任务定义
+     * @param jobLog 已回写失败终态的执行日志
+     */
+    private void notifyFailure(JobInfo job, JobLog jobLog) {
+        try {
+            jobAlertNotifier.notifyFailure(job, jobLog);
+        } catch (Exception e) {
+            log.warn("任务失败告警发送异常，已忽略: jobId={}, logId={}", job.getId(), jobLog.getId(), e);
+        }
     }
 
     /**

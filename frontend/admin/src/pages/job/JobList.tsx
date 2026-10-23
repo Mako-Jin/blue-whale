@@ -14,9 +14,10 @@ import {
   Tabs,
   Tag,
   Tooltip,
+  Typography,
   type TableProps,
 } from 'antd';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   AuthButton,
   FormModal,
@@ -29,10 +30,15 @@ import {
   changeJobStatus,
   createJob,
   deleteJob,
+  getJobDependencies,
+  pageJobAlert,
   pageJobInfo,
   pageJobLog,
   runJob,
+  setJobDependencies,
   updateJob,
+  type JobAlertVO,
+  type JobDependencyVO,
   type JobInfoVO,
   type JobLogVO,
   type JobPayload,
@@ -45,12 +51,18 @@ interface JobFormValues {
   handlerBean: string;
   handlerParam?: string;
   misfirePolicy?: string;
+  maxRetry?: number;
+  retryIntervalSeconds?: number;
+  shardTotal?: number;
   status?: number;
   remark?: string;
+  /** 上游依赖任务 ID（仅编辑场景，任务本身字段之外单独提交） */
+  upstreamJobIds?: number[];
 }
 
 type JobQuery = { keyword?: string; status?: number };
 type JobLogQuery = { jobId?: number; status?: number };
+type JobAlertQuery = { jobId?: number };
 
 const MISFIRE_OPTIONS = [
   { value: 'SMART', label: 'SMART（智能补跑）' },
@@ -69,6 +81,20 @@ const LOG_STATUS_OPTIONS = [
   { value: -1, label: '失败' },
 ];
 
+const TRIGGER_TYPE_LABELS: Record<string, string> = {
+  CRON: '定时触发',
+  MANUAL: '手动触发',
+  CHAIN: '链式触发',
+};
+
+const ALERT_LEVEL_COLOR: Record<string, string> = {
+  INFO: 'blue',
+  WARN: 'warning',
+  WARNING: 'warning',
+  ERROR: 'error',
+  CRITICAL: 'error',
+};
+
 /** 日志状态标签：1 成功 / 0 执行中 / -1 失败 */
 function renderLogStatus(value: number | undefined, errorMsg?: string) {
   if (value === 1) {
@@ -84,6 +110,58 @@ function renderLogStatus(value: number | undefined, errorMsg?: string) {
   );
 }
 
+/** 告警状态标签：1 成功 / -1 失败 / 0 待发 */
+function renderAlertStatus(value: number | undefined) {
+  if (value === 1) {
+    return <Tag color="success">成功</Tag>;
+  }
+  if (value === -1) {
+    return <Tag color="error">失败</Tag>;
+  }
+  return <Tag>待发</Tag>;
+}
+
+const alertColumns: TableProps<JobAlertVO>['columns'] = [
+  {
+    title: '任务',
+    dataIndex: 'jobName',
+    width: 180,
+    render: (value: string | undefined, row) =>
+      value ? `${value}（#${row.jobId}）` : `#${row.jobId}`,
+  },
+  {
+    title: '级别',
+    dataIndex: 'level',
+    width: 100,
+    render: (value: string | undefined) =>
+      value ? <Tag color={ALERT_LEVEL_COLOR[value.toUpperCase()] ?? 'default'}>{value}</Tag> : '-',
+  },
+  {
+    title: '渠道',
+    dataIndex: 'channel',
+    width: 120,
+    render: (value: string | undefined) => value ?? '-',
+  },
+  {
+    title: '状态',
+    dataIndex: 'status',
+    width: 100,
+    render: (value: number | undefined) => renderAlertStatus(value),
+  },
+  {
+    title: '错误摘要',
+    dataIndex: 'errorMsg',
+    ellipsis: true,
+    render: (value: string | undefined, row) => value ?? row.message ?? '-',
+  },
+  {
+    title: '时间',
+    dataIndex: 'createTime',
+    width: 180,
+    render: (value: string | undefined) => value ?? '-',
+  },
+];
+
 export default function JobList() {
   const { message } = App.useApp();
   const { has } = usePermission();
@@ -94,14 +172,72 @@ export default function JobList() {
   const [status, setStatus] = useState<number | undefined>(undefined);
   const [logJobId, setLogJobId] = useState<number | undefined>(undefined);
   const [logStatus, setLogStatus] = useState<number | undefined>(undefined);
+  const [alertJobId, setAlertJobId] = useState<number | undefined>(undefined);
 
   const [editorOpen, setEditorOpen] = useState(false);
   const [editRecord, setEditRecord] = useState<JobInfoVO | null>(null);
+  const [editorInitial, setEditorInitial] = useState<Partial<JobFormValues> | undefined>(undefined);
+  const [dependency, setDependency] = useState<JobDependencyVO | null>(null);
+  const [dependencyLoading, setDependencyLoading] = useState(false);
+  const [jobOptions, setJobOptions] = useState<{ value: number; label: string }[]>([]);
   const [editorForm] = Form.useForm<JobFormValues>();
 
   const showError = (error: unknown, fallback: string) => {
     message.error(error instanceof Error ? error.message : fallback);
   };
+
+  const openEditor = (record: JobInfoVO | null) => {
+    setEditRecord(record);
+    setDependency(null);
+    setDependencyLoading(false);
+    setEditorInitial(
+      record
+        ? {
+            ...record,
+            maxRetry: record.maxRetry ?? 0,
+            retryIntervalSeconds: record.retryIntervalSeconds ?? 60,
+            shardTotal: record.shardTotal ?? 1,
+          }
+        : undefined,
+    );
+    setEditorOpen(true);
+  };
+
+  // 编辑场景：回填上游依赖，并加载候选任务（排除自身）
+  useEffect(() => {
+    if (!editorOpen || !editRecord) {
+      return;
+    }
+    const jobId = editRecord.id;
+    let cancelled = false;
+    setDependencyLoading(true);
+    Promise.all([getJobDependencies(jobId), pageJobInfo({ current: 1, size: 200 })])
+      .then(([dependencyVO, result]) => {
+        if (cancelled) {
+          return;
+        }
+        setDependency(dependencyVO);
+        editorForm.setFieldsValue({ upstreamJobIds: dependencyVO.upstreamJobIds ?? [] });
+        setJobOptions(
+          result.records
+            .filter((record) => record.id !== jobId)
+            .map((record) => ({ value: record.id, label: `${record.jobName}（#${record.id}）` })),
+        );
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          message.error(error instanceof Error ? error.message : '依赖信息加载失败');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setDependencyLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [editorOpen, editRecord, editorForm, message]);
 
   const handleToggleStatus = async (row: JobInfoVO, next: number) => {
     try {
@@ -141,12 +277,17 @@ export default function JobList() {
       handlerBean: values.handlerBean,
       handlerParam: values.handlerParam || undefined,
       misfirePolicy: values.misfirePolicy,
+      maxRetry: values.maxRetry ?? 0,
+      retryIntervalSeconds: values.retryIntervalSeconds ?? 60,
+      shardTotal: values.shardTotal ?? 1,
       status: values.status,
       remark: values.remark || undefined,
     };
     try {
       if (editRecord) {
         await updateJob(editRecord.id, payload);
+        // 保存任务后全量替换上游依赖
+        await setJobDependencies(editRecord.id, values.upstreamJobIds ?? []);
         message.success('任务已更新');
       } else {
         await createJob(payload);
@@ -195,15 +336,7 @@ export default function JobList() {
       width: 240,
       render: (_, row) => (
         <Space size={4} wrap>
-          <AuthButton
-            perm="sys:job:edit"
-            type="link"
-            size="small"
-            onClick={() => {
-              setEditRecord(row);
-              setEditorOpen(true);
-            }}
-          >
+          <AuthButton perm="sys:job:edit" type="link" size="small" onClick={() => openEditor(row)}>
             编辑
           </AuthButton>
           {has('sys:job:run') && (
@@ -257,6 +390,30 @@ export default function JobList() {
       dataIndex: 'status',
       width: 100,
       render: (value: number | undefined, row) => renderLogStatus(value, row.errorMsg),
+    },
+    {
+      title: '触发方式',
+      dataIndex: 'triggerType',
+      width: 110,
+      render: (value: string | undefined) => (value ? (TRIGGER_TYPE_LABELS[value] ?? value) : '-'),
+    },
+    {
+      title: '批次',
+      dataIndex: 'runId',
+      width: 180,
+      render: (value: string | undefined) =>
+        value ? (
+          <Tooltip title={value}>
+            <Typography.Text
+              ellipsis
+              style={{ maxWidth: 150, display: 'inline-block', verticalAlign: 'bottom' }}
+            >
+              {value}
+            </Typography.Text>
+          </Tooltip>
+        ) : (
+          '-'
+        ),
     },
     {
       title: '结果',
@@ -315,14 +472,7 @@ export default function JobList() {
                   />
                 }
                 toolbar={
-                  <AuthButton
-                    perm="sys:job:add"
-                    type="primary"
-                    onClick={() => {
-                      setEditRecord(null);
-                      setEditorOpen(true);
-                    }}
-                  >
+                  <AuthButton perm="sys:job:add" type="primary" onClick={() => openEditor(null)}>
                     新增任务
                   </AuthButton>
                 }
@@ -380,6 +530,40 @@ export default function JobList() {
               />
             ),
           },
+          {
+            key: 'alert',
+            label: '告警记录',
+            children: (
+              <ProTable<JobAlertVO, JobAlertQuery>
+                rowKey="id"
+                title="告警记录"
+                columns={alertColumns}
+                request={pageJobAlert}
+                params={{ jobId: alertJobId }}
+                onError={(error) => showError(error, '告警记录加载失败')}
+                search={
+                  <SearchForm
+                    items={[
+                      {
+                        name: 'jobId',
+                        label: '任务ID',
+                        element: (
+                          <InputNumber min={1} placeholder="任务ID" style={{ width: 140 }} />
+                        ),
+                      },
+                    ]}
+                    onSearch={(values) => {
+                      const rawJobId = values.jobId as number | null | undefined;
+                      setAlertJobId(
+                        rawJobId === undefined || rawJobId === null ? undefined : Number(rawJobId),
+                      );
+                    }}
+                    onReset={() => setAlertJobId(undefined)}
+                  />
+                }
+              />
+            ),
+          },
         ]}
       />
 
@@ -387,7 +571,7 @@ export default function JobList() {
         open={editorOpen}
         title={editRecord ? `编辑任务：${editRecord.jobName}` : '新增任务'}
         form={editorForm}
-        initialValues={editRecord ?? undefined}
+        initialValues={editorInitial}
         onOk={handleSubmit}
         onCancel={() => setEditorOpen(false)}
       >
@@ -421,6 +605,50 @@ export default function JobList() {
         <Form.Item name="misfirePolicy" label="错过执行策略" initialValue="SMART">
           <Select options={MISFIRE_OPTIONS} />
         </Form.Item>
+        <Form.Item
+          name="maxRetry"
+          label="失败重试次数"
+          initialValue={0}
+          extra="0 表示不重试，最多 5 次"
+        >
+          <InputNumber min={0} max={5} precision={0} style={{ width: '100%' }} />
+        </Form.Item>
+        <Form.Item
+          name="retryIntervalSeconds"
+          label="重试间隔（秒）"
+          initialValue={60}
+          extra="两次重试之间的等待时间"
+        >
+          <InputNumber min={0} precision={0} style={{ width: '100%' }} />
+        </Form.Item>
+        <Form.Item
+          name="shardTotal"
+          label="分片总数"
+          initialValue={1}
+          extra="1 表示不分片，最多 16 片"
+        >
+          <InputNumber min={1} max={16} precision={0} style={{ width: '100%' }} />
+        </Form.Item>
+        {editRecord && (
+          <Form.Item name="upstreamJobIds" label="上游依赖">
+            <Select
+              mode="multiple"
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              loading={dependencyLoading}
+              options={jobOptions}
+              placeholder="选择前置任务，可多选"
+            />
+          </Form.Item>
+        )}
+        {editRecord && (dependency?.downstreamJobIds.length ?? 0) > 0 && (
+          <Form.Item label="下游依赖">
+            <Typography.Text type="secondary">
+              已被 {dependency?.downstreamJobIds.length} 个任务依赖
+            </Typography.Text>
+          </Form.Item>
+        )}
         <Form.Item name="status" label="状态" initialValue={0}>
           <Select options={JOB_STATUS_OPTIONS} />
         </Form.Item>

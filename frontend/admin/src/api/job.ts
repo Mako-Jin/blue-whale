@@ -10,6 +10,12 @@ export interface JobInfoVO {
   handlerBean: string;
   handlerParam?: string;
   misfirePolicy?: string;
+  /** 失败重试次数上限：0 不重试，上限 5 */
+  maxRetry?: number;
+  /** 重试间隔秒数，默认 60 */
+  retryIntervalSeconds?: number;
+  /** 分片总数：1 不分片，上限 16 */
+  shardTotal?: number;
   status?: number;
   remark?: string;
   createTime?: string;
@@ -27,6 +33,33 @@ export interface JobLogVO {
   status?: number;
   errorMsg?: string;
   result?: string;
+  /** 执行批次号 */
+  runId?: string;
+  /** 触发方式：CRON / MANUAL / CHAIN */
+  triggerType?: string;
+  createTime?: string;
+}
+
+/** 任务上下游依赖 */
+export interface JobDependencyVO {
+  jobId: number;
+  upstreamJobIds: number[];
+  downstreamJobIds: number[];
+}
+
+/** 任务失败告警记录 */
+export interface JobAlertVO {
+  id: number;
+  jobId: number;
+  jobName?: string;
+  logId?: number;
+  runId?: string;
+  level?: string;
+  channel?: string;
+  /** 1 成功 / -1 失败 / 0 待发 */
+  status?: number;
+  message?: string;
+  errorMsg?: string;
   createTime?: string;
 }
 
@@ -47,6 +80,14 @@ export interface JobLogPageParams {
   size: number;
 }
 
+/** 告警记录分页查询参数：level 告警级别 */
+export interface JobAlertPageParams {
+  jobId?: number;
+  level?: string;
+  current: number;
+  size: number;
+}
+
 /** 新增/更新任务请求体 */
 export interface JobPayload {
   jobName: string;
@@ -56,6 +97,12 @@ export interface JobPayload {
   handlerParam?: string;
   /** 错过执行策略：SMART / FIRE_ONCE / DO_NOTHING */
   misfirePolicy?: string;
+  /** 失败重试次数上限：0 不重试，上限 5 */
+  maxRetry?: number;
+  /** 重试间隔秒数，默认 60 */
+  retryIntervalSeconds?: number;
+  /** 分片总数：1 不分片，上限 16 */
+  shardTotal?: number;
   status?: number;
   remark?: string;
 }
@@ -86,4 +133,17 @@ export function runJob(id: number): Promise<void> {
 
 export function pageJobLog(params: JobLogPageParams): Promise<PageResult<JobLogVO>> {
   return get<PageResult<JobLogVO>>('/job/log/page', { ...params });
+}
+
+export function getJobDependencies(id: number): Promise<JobDependencyVO> {
+  return get<JobDependencyVO>(`/job/info/${id}/dependencies`);
+}
+
+/** 全量替换上游依赖 */
+export function setJobDependencies(id: number, upstreamJobIds: number[]): Promise<void> {
+  return post<void>(`/job/info/${id}/dependencies`, { upstreamJobIds });
+}
+
+export function pageJobAlert(params: JobAlertPageParams): Promise<PageResult<JobAlertVO>> {
+  return get<PageResult<JobAlertVO>>('/job/alert/page', { ...params });
 }

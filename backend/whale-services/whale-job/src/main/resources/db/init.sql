@@ -8,7 +8,8 @@
 -- 公共字段   : id BIGINT（雪花算法生成）、create_time、update_time、
 --              deleted TINYINT（逻辑删除：0 未删除 / 1 已删除）
 -- 说明       : job_log 为执行流水表，冗余 job_name / handler_bean 便于检索；
---              job_id 为逻辑外键
+--              job_id 为逻辑外键；job_dependency 描述任务 DAG 依赖边；
+--              job_alert 记录任务失败告警流水
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
@@ -44,6 +45,8 @@ CREATE TABLE job_log (
     job_id       BIGINT        NOT NULL               COMMENT '任务ID（逻辑关联 job_info.id）',
     job_name     VARCHAR(64)   NOT NULL               COMMENT '任务名称（冗余，便于日志检索）',
     handler_bean VARCHAR(128)  NOT NULL               COMMENT '执行器 Bean 名称（冗余）',
+    run_id       VARCHAR(64)   DEFAULT NULL           COMMENT '执行批次ID：一次根触发与其链式下游共享同一 run_id',
+    trigger_type VARCHAR(16)   NOT NULL DEFAULT 'CRON' COMMENT '触发类型：CRON 定时 / MANUAL 手动 / CHAIN 依赖链',
     start_time   DATETIME      NOT NULL               COMMENT '开始执行时间',
     end_time     DATETIME      DEFAULT NULL           COMMENT '执行结束时间（执行中为 NULL）',
     status       TINYINT       NOT NULL DEFAULT 0     COMMENT '执行状态：1 成功 / 0 执行中 / -1 失败',
@@ -56,11 +59,51 @@ CREATE TABLE job_log (
     deleted      TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_job_id (job_id),
+    KEY idx_run_id (run_id),
     KEY idx_start_time (start_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='定时任务执行日志表';
 
 -- ---------------------------------------------------------------------
--- 3. 内置任务种子数据
+-- 3. 定时任务依赖关系表（DAG 上游/下游边）
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS job_dependency;
+CREATE TABLE job_dependency (
+    id              BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    job_id          BIGINT        NOT NULL               COMMENT '下游任务ID（逻辑关联 job_info.id）',
+    upstream_job_id BIGINT        NOT NULL               COMMENT '上游任务ID（逻辑关联 job_info.id）',
+    create_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted         TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_job_upstream (job_id, upstream_job_id),
+    KEY idx_upstream_job (upstream_job_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='定时任务依赖关系表';
+
+-- ---------------------------------------------------------------------
+-- 4. 定时任务失败告警表
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS job_alert;
+CREATE TABLE job_alert (
+    id          BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    job_id      BIGINT        NOT NULL               COMMENT '任务ID（逻辑关联 job_info.id）',
+    job_name    VARCHAR(64)   NOT NULL               COMMENT '任务名称（冗余）',
+    log_id      BIGINT        DEFAULT NULL           COMMENT '关联执行日志ID（逻辑关联 job_log.id）',
+    run_id      VARCHAR(64)   DEFAULT NULL           COMMENT '执行批次ID（与 job_log.run_id 一致）',
+    level       VARCHAR(16)   NOT NULL DEFAULT 'ERROR' COMMENT '告警级别，默认 ERROR',
+    channel     VARCHAR(32)   DEFAULT NULL           COMMENT '告警通道：LOG 仅本地日志 / WEBHOOK 外发',
+    status      TINYINT       NOT NULL DEFAULT 0     COMMENT '投递状态：1 成功 / -1 失败 / 0 待发',
+    message     VARCHAR(512)  DEFAULT NULL           COMMENT '告警摘要',
+    error_msg   TEXT          NULL                   COMMENT '失败原因（异常信息摘要）',
+    create_time DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted     TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
+    PRIMARY KEY (id),
+    KEY idx_job_id (job_id),
+    KEY idx_create_time (create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='定时任务失败告警表';
+
+-- ---------------------------------------------------------------------
+-- 5. 内置任务种子数据
 -- ---------------------------------------------------------------------
 -- 每日 03:00 清理超过保留期的执行日志（handler_bean 对应 JobLogCleanupHandler）；
 -- 保留天数由配置项 whale.job.log-retention-days 控制（默认 30 天），此处默认启动该任务。
