@@ -1,8 +1,8 @@
 package com.bluewhale.auth.security;
 
+import com.bluewhale.auth.application.role.RoleAppService;
 import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
-import com.bluewhale.auth.service.SysRoleService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -25,13 +25,13 @@ import java.util.List;
 public class UserDetailsServiceImpl implements UserDetailsService {
 
     private final UserRepository userRepository;
-    private final SysRoleService roleService;
+    private final RoleAppService roleAppService;
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("用户不存在: " + username));
-        List<String> roles = roleService.listRoleCodesByUserId(user.getId());
+        List<String> roles = roleAppService.listRoleCodesByUserId(user.getId());
         return new LoginUser(user.getId(), user.getUsername().value(), user.getPassword().value(),
                 user.getNickname(), roles, user.isEnabled());
     }

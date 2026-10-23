@@ -1,17 +1,16 @@
 package com.bluewhale.auth.controller;
 
 import com.bluewhale.auth.application.permission.PermissionAppService;
-import com.bluewhale.auth.config.DddMigrationProperties;
+import com.bluewhale.auth.application.permission.command.SavePermissionCommand;
+import com.bluewhale.auth.application.permission.query.PermissionPageQuery;
 import com.bluewhale.auth.dto.PermissionRequest;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
-import com.bluewhale.auth.service.SysPermissionService;
 import com.bluewhale.auth.vo.PermissionVO;
 import com.bluewhale.common.audit.annotation.AuditLog;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.handler.GlobalExceptionHandler;
 import com.bluewhale.common.core.query.PageQuery;
 import com.bluewhale.common.core.result.PageResult;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -50,11 +49,8 @@ class PermissionControllerTest {
     private static final long PERMISSION_ID = 21L;
     private static final int PARAM_ERROR_CODE = 400;
 
-    private final SysPermissionService permissionService = mock(SysPermissionService.class);
     private final PermissionAppService permissionAppService = mock(PermissionAppService.class);
-    private final DddMigrationProperties ddd = new DddMigrationProperties();
-    private final PermissionController controller = new PermissionController(
-            permissionService, permissionAppService, ddd);
+    private final PermissionController controller = new PermissionController(permissionAppService);
 
     private MockMvc mockMvc;
 
@@ -69,14 +65,6 @@ class PermissionControllerTest {
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setValidator(validator)
                 .build();
-    }
-
-    /**
-     * 每个用例结束后复位灰度开关，避免测试类共享的配置实例串扰
-     */
-    @AfterEach
-    void resetDddFlag() {
-        ddd.setPermission(false);
     }
 
     /**
@@ -125,7 +113,7 @@ class PermissionControllerTest {
     @Test
     @DisplayName("GET /permission/page：返回 code=0 与分页数据形状")
     void pageShouldReturnPageResult() throws Exception {
-        when(permissionService.page(1L, 10L, null, "API"))
+        when(permissionAppService.page(new PermissionPageQuery(1L, 10L, null, "API")))
                 .thenReturn(PageResult.of(List.of(permissionVO()), 1L, 1L, 10L));
 
         mockMvc.perform(get("/permission/page").param("permType", "API"))
@@ -135,20 +123,20 @@ class PermissionControllerTest {
                 .andExpect(jsonPath("$.data.current").value(1L))
                 .andExpect(jsonPath("$.data.records[0].permCode").value("sys:permission:list"));
 
-        verify(permissionService).page(1L, 10L, null, "API");
+        verify(permissionAppService).page(new PermissionPageQuery(1L, 10L, null, "API"));
     }
 
     @Test
     @DisplayName("GET /permission/{id}：返回 code=0 与权限点详情")
     void detailShouldReturnPermission() throws Exception {
-        when(permissionService.getDetail(PERMISSION_ID)).thenReturn(permissionVO());
+        when(permissionAppService.getDetail(PERMISSION_ID)).thenReturn(permissionVO());
 
         mockMvc.perform(get("/permission/{id}", PERMISSION_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()))
                 .andExpect(jsonPath("$.data.permType").value("API"));
 
-        verify(permissionService).getDetail(PERMISSION_ID);
+        verify(permissionAppService).getDetail(PERMISSION_ID);
     }
 
     @Test
@@ -160,7 +148,7 @@ class PermissionControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
 
-        verify(permissionService).create(any(PermissionRequest.class));
+        verify(permissionAppService).create(any(SavePermissionCommand.class));
     }
 
     @Test
@@ -172,7 +160,7 @@ class PermissionControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
 
-        verify(permissionService).update(eq(PERMISSION_ID), any(PermissionRequest.class));
+        verify(permissionAppService).update(eq(PERMISSION_ID), any(SavePermissionCommand.class));
     }
 
     @Test
@@ -182,7 +170,7 @@ class PermissionControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
 
-        verify(permissionService).delete(PERMISSION_ID);
+        verify(permissionAppService).delete(PERMISSION_ID);
     }
 
     @Test
@@ -195,34 +183,7 @@ class PermissionControllerTest {
                 .andExpect(jsonPath("$.code").value(PARAM_ERROR_CODE))
                 .andExpect(jsonPath("$.message").value("权限类型不能为空"));
 
-        verify(permissionService, never()).create(any());
-    }
-
-    @Test
-    @DisplayName("分流：permission=false 时 GET /permission/{id} 走旧 SysPermissionService")
-    void detailShouldUseLegacyServiceWhenPermissionFlagDisabled() throws Exception {
-        when(permissionService.getDetail(PERMISSION_ID)).thenReturn(permissionVO());
-
-        mockMvc.perform(get("/permission/{id}", PERMISSION_ID))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
-
-        verify(permissionService).getDetail(PERMISSION_ID);
-        verify(permissionAppService, never()).getDetail(PERMISSION_ID);
-    }
-
-    @Test
-    @DisplayName("分流：permission=true 时 GET /permission/{id} 走 PermissionAppService")
-    void detailShouldUseAppServiceWhenPermissionFlagEnabled() throws Exception {
-        ddd.setPermission(true);
-        when(permissionAppService.getDetail(PERMISSION_ID)).thenReturn(permissionVO());
-
-        mockMvc.perform(get("/permission/{id}", PERMISSION_ID))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
-
-        verify(permissionAppService).getDetail(PERMISSION_ID);
-        verify(permissionService, never()).getDetail(PERMISSION_ID);
+        verify(permissionAppService, never()).create(any());
     }
 
     @Test

@@ -1,10 +1,10 @@
 package com.bluewhale.auth.security;
 
+import com.bluewhale.auth.application.role.RoleAppService;
 import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
 import com.bluewhale.auth.domain.model.vo.Username;
 import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
-import com.bluewhale.auth.service.SysRoleService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,7 +38,7 @@ class UserDetailsServiceImplTest {
     private UserRepository userRepository;
 
     @Mock
-    private SysRoleService roleService;
+    private RoleAppService roleAppService;
 
     @InjectMocks
     private UserDetailsServiceImpl service;
@@ -52,7 +52,7 @@ class UserDetailsServiceImplTest {
     @DisplayName("用户存在且启用：返回 LoginUser 并装配角色")
     void shouldLoadEnabledUser() {
         when(userRepository.findByUsername("tester")).thenReturn(Optional.of(user(1)));
-        when(roleService.listRoleCodesByUserId(USER_ID)).thenReturn(List.of("super_admin"));
+        when(roleAppService.listRoleCodesByUserId(USER_ID)).thenReturn(List.of("super_admin"));
 
         UserDetails details = service.loadUserByUsername("tester");
 
@@ -74,7 +74,7 @@ class UserDetailsServiceImplTest {
     @DisplayName("用户停用（status=0）：isEnabled=false")
     void shouldMarkDisabledWhenStatusZero() {
         when(userRepository.findByUsername("tester")).thenReturn(Optional.of(user(0)));
-        when(roleService.listRoleCodesByUserId(USER_ID)).thenReturn(List.of());
+        when(roleAppService.listRoleCodesByUserId(USER_ID)).thenReturn(List.of());
 
         assertFalse(service.loadUserByUsername("tester").isEnabled());
     }
@@ -83,7 +83,7 @@ class UserDetailsServiceImplTest {
     @DisplayName("status 为 null：重建时归一化为停用，isEnabled=false")
     void shouldMarkDisabledWhenStatusNull() {
         when(userRepository.findByUsername("tester")).thenReturn(Optional.of(user(null)));
-        when(roleService.listRoleCodesByUserId(USER_ID)).thenReturn(List.of());
+        when(roleAppService.listRoleCodesByUserId(USER_ID)).thenReturn(List.of());
 
         assertFalse(service.loadUserByUsername("tester").isEnabled());
     }

@@ -1,26 +1,22 @@
 package com.bluewhale.auth.live;
 
-import com.baomidou.mybatisplus.core.MybatisConfiguration;
-import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.bluewhale.auth.application.event.DomainEventPublisher;
+import com.bluewhale.auth.application.role.RoleAppService;
+import com.bluewhale.auth.application.role.command.AssignRolePermissionsCommand;
 import com.bluewhale.auth.config.PermissionCacheProperties;
-import com.bluewhale.auth.entity.SysPermission;
-import com.bluewhale.auth.entity.SysRole;
-import com.bluewhale.auth.entity.SysRolePermission;
-import com.bluewhale.auth.entity.SysUserRole;
-import com.bluewhale.auth.mapper.SysPermissionMapper;
-import com.bluewhale.auth.mapper.SysRoleMapper;
+import com.bluewhale.auth.domain.model.vo.RoleCode;
+import com.bluewhale.auth.domain.permission.repository.PermissionRepository;
+import com.bluewhale.auth.domain.role.aggregate.Role;
+import com.bluewhale.auth.domain.role.repository.RoleRepository;
 import com.bluewhale.auth.mapper.SysRolePermissionMapper;
 import com.bluewhale.auth.mapper.SysUserRoleMapper;
 import com.bluewhale.auth.security.PermissionCache;
 import com.bluewhale.auth.security.PermissionCacheMutex;
-import com.bluewhale.auth.service.SysRoleService;
-import com.bluewhale.auth.service.impl.SysRoleServiceImpl;
 import com.bluewhale.common.cache.CacheConsistencyTemplate;
 import com.bluewhale.common.cache.CacheProperties;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.lock.aop.DistributedLockAspect;
-import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -32,10 +28,10 @@ import org.redisson.config.Config;
 import org.springframework.aop.aspectj.annotation.AspectJProxyFactory;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -85,13 +81,6 @@ class LivePermissionLockIT {
 
     @BeforeAll
     static void setUpClass() {
-        // 注册实体元信息缓存：`LambdaQueryWrapper` 需按实体解析列名，纯 IT 无 MyBatis 环境需手动初始化 TableInfo
-        MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "");
-        TableInfoHelper.initTableInfo(assistant, SysRole.class);
-        TableInfoHelper.initTableInfo(assistant, SysPermission.class);
-        TableInfoHelper.initTableInfo(assistant, SysRolePermission.class);
-        TableInfoHelper.initTableInfo(assistant, SysUserRole.class);
-
         Config config = new Config();
         config.useSingleServer().setAddress(REDIS_ADDRESS);
         redissonClient = Redisson.create(config);
@@ -117,44 +106,40 @@ class LivePermissionLockIT {
     @Test
     @DisplayName("场景①同角色并发：持锁期间第二调用快速失败 LOCK_ACQUIRE_FAILED，Redis 中锁确实被持有")
     void shouldRejectConcurrentAssignPermissionsOnSameRole() throws Exception {
-        SysRoleMapper roleMapper = mock(SysRoleMapper.class);
-        SysUserRoleMapper userRoleMapper = mock(SysUserRoleMapper.class);
-        SysRolePermissionMapper rolePermissionMapper = mock(SysRolePermissionMapper.class);
-        SysPermissionMapper permissionMapper = mock(SysPermissionMapper.class);
-        PermissionCache permissionCache = mock(PermissionCache.class);
+        RoleRepository roleRepository = mock(RoleRepository.class);
+        PermissionRepository permissionRepository = mock(PermissionRepository.class);
+        DomainEventPublisher eventPublisher = mock(DomainEventPublisher.class);
 
-        SysRole role = new SysRole();
-        role.setId(ROLE_ID);
-        role.setRoleCode("it_role");
-        role.setRoleName("实时IT角色");
-        when(roleMapper.selectById(ROLE_ID)).thenReturn(role);
+        Role role = Role.reconstitute(ROLE_ID, RoleCode.of("it_role"), "实时IT角色", null, 0,
+                Role.STATUS_ENABLED, null, null);
+        when(roleRepository.findById(ROLE_ID)).thenReturn(Optional.of(role));
 
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         // 非空权限列表 → 权限 ID 校验处阻塞，模拟「持锁下的慢事务」
-        when(permissionMapper.selectCount(any())).thenAnswer(inv -> {
+        when(permissionRepository.countByIds(any())).thenAnswer(inv -> {
             entered.countDown();
             release.await(AWAIT_SECONDS, TimeUnit.SECONDS);
             return 1L;
         });
 
-        SysRoleServiceImpl target = new SysRoleServiceImpl(userRoleMapper, rolePermissionMapper,
-                permissionMapper, permissionCache);
-        ReflectionTestUtils.setField(target, "baseMapper", roleMapper);
+        RoleAppService target = new RoleAppService(roleRepository, permissionRepository, eventPublisher);
 
         AspectJProxyFactory proxyFactory = new AspectJProxyFactory(target);
         proxyFactory.setProxyTargetClass(true);
         proxyFactory.addAspect(aspect);
-        SysRoleService proxy = proxyFactory.getProxy();
+        RoleAppService proxy = proxyFactory.getProxy();
 
         ExecutorService pool = Executors.newSingleThreadExecutor();
         try {
-            Future<?> holder = pool.submit(() -> proxy.assignPermissions(ROLE_ID, List.of(10L)));
+            Future<?> holder = pool.submit(() -> proxy.assignPermissions(ROLE_ID,
+                    new AssignRolePermissionsCommand(List.of(10L))));
             assertThat(entered.await(AWAIT_SECONDS, TimeUnit.SECONDS)).isTrue();
             // 持锁期间：锁在 Redis 中确实被持有
             assertThat(redissonClient.getLock(EXPECTED_ROLE_LOCK_KEY).isLocked()).isTrue();
 
-            assertThatThrownBy(() -> proxy.assignPermissions(ROLE_ID, List.of(10L)))
+            assertThatThrownBy(() -> proxy.assignPermissions(ROLE_ID,
+                    new AssignRolePermissionsCommand(List.of(10L))))
                     .isInstanceOf(BizException.class)
                     .satisfies(ex -> assertThat(((BizException) ex).getCode())
                             .isEqualTo(ErrorCode.LOCK_ACQUIRE_FAILED.getCode()));

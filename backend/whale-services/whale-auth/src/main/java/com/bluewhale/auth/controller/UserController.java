@@ -9,7 +9,6 @@ import com.bluewhale.auth.application.user.command.UpdateUserCommand;
 import com.bluewhale.auth.application.user.query.UserPageQuery;
 import com.bluewhale.auth.application.userpermission.UserPermissionAppService;
 import com.bluewhale.auth.application.userpermission.command.ReplaceUserAttrsCommand;
-import com.bluewhale.auth.config.DddMigrationProperties;
 import com.bluewhale.auth.dto.AssignRolesRequest;
 import com.bluewhale.auth.dto.ChangePasswordRequest;
 import com.bluewhale.auth.dto.UpdateAttrsRequest;
@@ -17,8 +16,6 @@ import com.bluewhale.auth.dto.UserCreateRequest;
 import com.bluewhale.auth.dto.UserStatusRequest;
 import com.bluewhale.auth.dto.UserUpdateRequest;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
-import com.bluewhale.auth.service.SysUserPermissionService;
-import com.bluewhale.auth.service.SysUserService;
 import com.bluewhale.auth.vo.UserAttrVO;
 import com.bluewhale.auth.vo.UserVO;
 import com.bluewhale.common.audit.annotation.AuditLog;
@@ -44,8 +41,7 @@ import java.util.List;
 /**
  * 用户管理：CRUD / 分配角色 / ABAC 属性读写
  *
- * <p>迁移期双路径：{@code whale.auth.ddd.user=true} 时走 {@code application} 层 AppService，
- * 否则走既有 {@code Sys*Service}（与迁移前行为一致）；REST 路径与出入参保持不变。</p>
+ * <p>统一委派 {@code application} 层 AppService；REST 路径与出入参保持不变（AUTH-17 收口）。</p>
  *
  * @author BlueWhale
  */
@@ -54,11 +50,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserController {
 
-    private final SysUserService userService;
-    private final SysUserPermissionService userPermissionService;
     private final UserAppService userAppService;
     private final UserPermissionAppService userPermissionAppService;
-    private final DddMigrationProperties dddMigrationProperties;
 
     /**
      * 分页查询用户
@@ -71,11 +64,8 @@ public class UserController {
     @RequirePermission("sys:user:list")
     public Result<PageResult<UserVO>> page(PageQuery pageQuery,
                                            @RequestParam(required = false) String keyword) {
-        if (dddMigrationProperties.isUser()) {
-            return Result.ok(userAppService.page(
-                    new UserPageQuery(pageQuery.getCurrent(), pageQuery.getSize(), keyword)));
-        }
-        return Result.ok(userService.page(pageQuery.getCurrent(), pageQuery.getSize(), keyword));
+        return Result.ok(userAppService.page(
+                new UserPageQuery(pageQuery.getCurrent(), pageQuery.getSize(), keyword)));
     }
 
     /**
@@ -87,7 +77,7 @@ public class UserController {
     @GetMapping("/{id}")
     @RequirePermission("sys:user:list")
     public Result<UserVO> detail(@PathVariable Long id) {
-        return Result.ok(dddMigrationProperties.isUser() ? userAppService.getDetail(id) : userService.getDetail(id));
+        return Result.ok(userAppService.getDetail(id));
     }
 
     /**
@@ -101,12 +91,9 @@ public class UserController {
     @AuditLog(operation = "创建用户", type = OperateType.CREATE, targetType = "sys_user")
     @Idempotent(biz = "auth:user:create", key = "#request.username")
     public Result<UserVO> create(@Valid @RequestBody UserCreateRequest request) {
-        if (dddMigrationProperties.isUser()) {
-            return Result.ok(userAppService.create(new CreateUserCommand(request.getUsername(),
-                    request.getPassword(), request.getNickname(), request.getPhone(), request.getEmail(),
-                    request.getAvatar(), request.getDeptId(), request.getStatus())));
-        }
-        return Result.ok(userService.create(request));
+        return Result.ok(userAppService.create(new CreateUserCommand(request.getUsername(),
+                request.getPassword(), request.getNickname(), request.getPhone(), request.getEmail(),
+                request.getAvatar(), request.getDeptId(), request.getStatus())));
     }
 
     /**
@@ -120,12 +107,9 @@ public class UserController {
     @RequirePermission("sys:user:edit")
     @AuditLog(operation = "更新用户", type = OperateType.UPDATE, targetType = "sys_user", targetId = "#id")
     public Result<UserVO> update(@PathVariable Long id, @Valid @RequestBody UserUpdateRequest request) {
-        if (dddMigrationProperties.isUser()) {
-            return Result.ok(userAppService.update(id, new UpdateUserCommand(request.getPassword(),
-                    request.getNickname(), request.getPhone(), request.getEmail(), request.getAvatar(),
-                    request.getDeptId(), request.getStatus())));
-        }
-        return Result.ok(userService.update(id, request));
+        return Result.ok(userAppService.update(id, new UpdateUserCommand(request.getPassword(),
+                request.getNickname(), request.getPhone(), request.getEmail(), request.getAvatar(),
+                request.getDeptId(), request.getStatus())));
     }
 
     /**
@@ -138,11 +122,7 @@ public class UserController {
     @RequirePermission("sys:user:delete")
     @AuditLog(operation = "删除用户", type = OperateType.DELETE, targetType = "sys_user", targetId = "#id")
     public Result<Void> delete(@PathVariable Long id) {
-        if (dddMigrationProperties.isUser()) {
-            userAppService.delete(id);
-        } else {
-            userService.delete(id);
-        }
+        userAppService.delete(id);
         return Result.ok();
     }
 
@@ -158,11 +138,7 @@ public class UserController {
     @AuditLog(operation = "重置用户密码", type = OperateType.UPDATE, targetType = "sys_user",
             targetId = "#id", recordParams = false)
     public Result<Void> changePassword(@PathVariable Long id, @Valid @RequestBody ChangePasswordRequest request) {
-        if (dddMigrationProperties.isUser()) {
-            userAppService.changePassword(id, new ChangeUserPasswordCommand(request.getPassword()));
-        } else {
-            userService.changePassword(id, request);
-        }
+        userAppService.changePassword(id, new ChangeUserPasswordCommand(request.getPassword()));
         return Result.ok();
     }
 
@@ -177,11 +153,7 @@ public class UserController {
     @RequirePermission("sys:user:status")
     @AuditLog(operation = "启停用户", type = OperateType.UPDATE, targetType = "sys_user", targetId = "#id")
     public Result<Void> changeStatus(@PathVariable Long id, @Valid @RequestBody UserStatusRequest request) {
-        if (dddMigrationProperties.isUser()) {
-            userAppService.changeStatus(id, new ChangeUserStatusCommand(request.getStatus()));
-        } else {
-            userService.changeStatus(id, request);
-        }
+        userAppService.changeStatus(id, new ChangeUserStatusCommand(request.getStatus()));
         return Result.ok();
     }
 
@@ -196,11 +168,7 @@ public class UserController {
     @RequirePermission("sys:user:assign")
     @AuditLog(operation = "分配用户角色", type = OperateType.GRANT, targetType = "sys_user", targetId = "#id")
     public Result<Void> assignRoles(@PathVariable Long id, @Valid @RequestBody AssignRolesRequest request) {
-        if (dddMigrationProperties.isUser()) {
-            userAppService.assignRoles(id, new AssignUserRolesCommand(request.getRoleIds()));
-        } else {
-            userService.assignRoles(id, request.getRoleIds());
-        }
+        userAppService.assignRoles(id, new AssignUserRolesCommand(request.getRoleIds()));
         return Result.ok();
     }
 
@@ -213,7 +181,7 @@ public class UserController {
     @GetMapping("/{id}/roles")
     @RequirePermission("sys:user:list")
     public Result<List<Long>> roleIds(@PathVariable Long id) {
-        return Result.ok(dddMigrationProperties.isUser() ? userAppService.listRoleIds(id) : userService.listRoleIds(id));
+        return Result.ok(userAppService.listRoleIds(id));
     }
 
     /**
@@ -225,9 +193,7 @@ public class UserController {
     @GetMapping("/{id}/attrs")
     @RequirePermission("sys:user:list")
     public Result<List<UserAttrVO>> attrs(@PathVariable Long id) {
-        return Result.ok(dddMigrationProperties.isUser()
-                ? userPermissionAppService.listByUserId(id)
-                : userPermissionService.listByUserId(id));
+        return Result.ok(userPermissionAppService.listByUserId(id));
     }
 
     /**
@@ -241,15 +207,11 @@ public class UserController {
     @RequirePermission("sys:user:edit")
     @AuditLog(operation = "更新用户属性", type = OperateType.UPDATE, targetType = "sys_user", targetId = "#id")
     public Result<Void> updateAttrs(@PathVariable Long id, @Valid @RequestBody UpdateAttrsRequest request) {
-        if (dddMigrationProperties.isUser()) {
-            List<ReplaceUserAttrsCommand.UserAttrCommand> attrs = request.getAttrs().stream()
-                    .map(item -> new ReplaceUserAttrsCommand.UserAttrCommand(
-                            item.getPermissionId(), item.getAttrKey(), item.getAttrValue()))
-                    .toList();
-            userPermissionAppService.replaceUserAttrs(id, new ReplaceUserAttrsCommand(attrs));
-        } else {
-            userPermissionService.replaceUserAttrs(id, request);
-        }
+        List<ReplaceUserAttrsCommand.UserAttrCommand> attrs = request.getAttrs().stream()
+                .map(item -> new ReplaceUserAttrsCommand.UserAttrCommand(
+                        item.getPermissionId(), item.getAttrKey(), item.getAttrValue()))
+                .toList();
+        userPermissionAppService.replaceUserAttrs(id, new ReplaceUserAttrsCommand(attrs));
         return Result.ok();
     }
 }

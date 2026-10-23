@@ -28,9 +28,9 @@ import java.util.function.Supplier;
  * <p>写路径：{@link #evictUser(Long)} / {@link #evictUsers(Collection)} / {@link #evictByRole(Long)} /
  * {@link #evictByPermission(Long)} 统一在事务提交后失效受影响用户的缓存，避免「事务未提交即删缓存」
  * 的脏缓存窗口。</p>
- * <p>本类不注入 {@code SysRoleService}：读路径的 DB 查询由调用方以 {@link Supplier} 传入，
- * 失效路径的受影响用户反查直接走 Mapper，避免 {@code SysRoleServiceImpl → PermissionCache →
- * SysRoleService} 循环依赖，也不复制权限码查询逻辑。</p>
+ * <p>本类不注入 {@code RoleAppService}：读路径的 DB 查询由调用方以 {@link Supplier} 传入，
+ * 失效路径的受影响用户反查直接走 Mapper，避免 {@code RoleAppService → PermissionCache →
+ * RoleAppService} 循环依赖，也不复制权限码查询逻辑。</p>
  * <p>击穿防护（REQ-DIST-003）：未命中时经独立 Bean {@link PermissionCacheMutex} 互斥回源，并在锁内
  * <b>复查缓存</b>，使同 Key 并发仅一次回源；锁/Redis 异常时降级直查，不阻断权限判定。</p>
  *

@@ -1,6 +1,6 @@
 package com.bluewhale.auth.security;
 
-import com.bluewhale.auth.service.SysRoleService;
+import com.bluewhale.auth.application.role.RoleAppService;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
@@ -39,7 +39,7 @@ public class PermissionInterceptor implements HandlerInterceptor {
     public static final String SUPER_ADMIN = "super_admin";
 
     private final PermissionCache permissionCache;
-    private final SysRoleService roleService;
+    private final RoleAppService roleAppService;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
@@ -73,7 +73,7 @@ public class PermissionInterceptor implements HandlerInterceptor {
         }
         if (authentication.getPrincipal() instanceof LoginUser loginUser
                 && permissionCache.getPermissionCodes(loginUser.getUserId(),
-                () -> roleService.listPermissionCodesByUserId(loginUser.getUserId())).contains(required)) {
+                () -> roleAppService.listPermissionCodesByUserId(loginUser.getUserId())).contains(required)) {
             return true;
         }
         throw new BizException(ErrorCode.FORBIDDEN);

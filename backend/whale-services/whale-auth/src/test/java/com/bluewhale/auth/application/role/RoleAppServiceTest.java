@@ -194,4 +194,57 @@ class RoleAppServiceTest {
 
         assertEquals(List.of(10L), roleAppService.listPermissionIds(ROLE_ID));
     }
+
+    @Test
+    @DisplayName("listRoleCodesByUserId：用户无角色时返回空列表且不再查启用角色")
+    void shouldReturnEmptyRoleCodesWhenUserHasNoRole() {
+        when(roleRepository.listRoleIdsByUserId(ROLE_ID)).thenReturn(List.of());
+
+        assertEquals(List.of(), roleAppService.listRoleCodesByUserId(ROLE_ID));
+        verify(roleRepository, never()).listEnabledByIds(any());
+    }
+
+    @Test
+    @DisplayName("listRoleCodesByUserId：用户有角色时返回启用角色编码")
+    void shouldReturnRoleCodesWhenUserHasRole() {
+        when(roleRepository.listRoleIdsByUserId(ROLE_ID)).thenReturn(List.of(ROLE_ID, 8L));
+        when(roleRepository.listEnabledByIds(List.of(ROLE_ID, 8L))).thenReturn(List.of(
+                role("测试角色"),
+                Role.reconstitute(8L, RoleCode.of("ops"), "运维", null, 0,
+                        Role.STATUS_ENABLED, CREATED, UPDATED)));
+
+        assertEquals(List.of("test_role", "ops"), roleAppService.listRoleCodesByUserId(ROLE_ID));
+    }
+
+    @Test
+    @DisplayName("listPermissionCodesByUserId：按角色→权限点链路返回启用权限码")
+    void shouldReturnPermissionCodesByUserId() {
+        when(roleRepository.listRoleIdsByUserId(ROLE_ID)).thenReturn(List.of(ROLE_ID));
+        when(roleRepository.listPermissionIdsByRoleIds(List.of(ROLE_ID))).thenReturn(List.of(10L, 11L));
+        when(roleRepository.listEnabledPermissionCodesByIds(List.of(10L, 11L)))
+                .thenReturn(List.of("sys:user:list", "sys:role:list"));
+
+        assertEquals(List.of("sys:user:list", "sys:role:list"),
+                roleAppService.listPermissionCodesByUserId(ROLE_ID));
+        verify(roleRepository).listEnabledPermissionCodesByIds(List.of(10L, 11L));
+    }
+
+    @Test
+    @DisplayName("listPermissionCodesByUserId：用户无角色时返回空列表且不查权限关联")
+    void shouldReturnEmptyPermissionCodesWhenUserHasNoRole() {
+        when(roleRepository.listRoleIdsByUserId(ROLE_ID)).thenReturn(List.of());
+
+        assertEquals(List.of(), roleAppService.listPermissionCodesByUserId(ROLE_ID));
+        verify(roleRepository, never()).listPermissionIdsByRoleIds(any());
+    }
+
+    @Test
+    @DisplayName("listPermissionCodesByUserId：角色无权限关联时返回空列表且不查权限码")
+    void shouldReturnEmptyPermissionCodesWhenRoleHasNoPermission() {
+        when(roleRepository.listRoleIdsByUserId(ROLE_ID)).thenReturn(List.of(ROLE_ID));
+        when(roleRepository.listPermissionIdsByRoleIds(List.of(ROLE_ID))).thenReturn(List.of());
+
+        assertEquals(List.of(), roleAppService.listPermissionCodesByUserId(ROLE_ID));
+        verify(roleRepository, never()).listEnabledPermissionCodesByIds(any());
+    }
 }

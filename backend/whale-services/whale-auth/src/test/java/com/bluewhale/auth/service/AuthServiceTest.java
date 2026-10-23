@@ -1,5 +1,8 @@
 package com.bluewhale.auth.service;
 
+import com.bluewhale.auth.application.menu.MenuAppService;
+import com.bluewhale.auth.application.permission.PermissionAppService;
+import com.bluewhale.auth.application.role.RoleAppService;
 import com.bluewhale.auth.config.RefreshRotationProperties;
 import com.bluewhale.auth.dto.RefreshRequest;
 import com.bluewhale.auth.jwt.JwtTokenProvider;
@@ -78,13 +81,13 @@ class AuthServiceTest {
     private TokenBlacklist tokenBlacklist;
 
     @Mock
-    private SysRoleService roleService;
+    private RoleAppService roleAppService;
 
     @Mock
-    private SysMenuService menuService;
+    private MenuAppService menuAppService;
 
     @Mock
-    private SysPermissionService permissionService;
+    private PermissionAppService permissionAppService;
 
     @Mock
     private RefreshTokenRotationStore refreshRotationStore;
@@ -284,29 +287,29 @@ class AuthServiceTest {
         LoginUser superAdmin = new LoginUser(USER_ID, USERNAME, "pwd", "Admin",
                 List.of(PermissionInterceptor.SUPER_ADMIN), true);
         authenticate(superAdmin);
-        when(permissionService.listAllCodes()).thenReturn(List.of("sys:user:list", "sys:role:list"));
-        when(menuService.treeByPermissionCodes(null)).thenReturn(List.of(new MenuVO()));
+        when(permissionAppService.listAllCodes()).thenReturn(List.of("sys:user:list", "sys:role:list"));
+        when(menuAppService.treeByPermissionCodes(null)).thenReturn(List.of(new MenuVO()));
 
         AuthMeResponse response = authService.me();
 
         assertEquals(List.of("sys:user:list", "sys:role:list"), response.getPermissions());
         assertEquals(1, response.getMenus().size());
-        verifyNoInteractions(roleService);
+        verifyNoInteractions(roleAppService);
     }
 
     @Test
     @DisplayName("me：普通用户按角色授权返回权限码并据此过滤菜单树")
     void meShouldReturnGrantedPermissionsForNormalUser() {
         authenticate(new LoginUser(USER_ID, USERNAME, "pwd", "Alice", List.of("admin"), true));
-        when(roleService.listPermissionCodesByUserId(USER_ID)).thenReturn(List.of("sys:user:list"));
-        when(menuService.treeByPermissionCodes(Set.of("sys:user:list"))).thenReturn(List.of(new MenuVO()));
+        when(roleAppService.listPermissionCodesByUserId(USER_ID)).thenReturn(List.of("sys:user:list"));
+        when(menuAppService.treeByPermissionCodes(Set.of("sys:user:list"))).thenReturn(List.of(new MenuVO()));
 
         AuthMeResponse response = authService.me();
 
         assertEquals(List.of("sys:user:list"), response.getPermissions());
         assertEquals(USER_ID, response.getUserId());
         assertEquals(List.of("admin"), response.getRoles());
-        verifyNoInteractions(permissionService);
+        verifyNoInteractions(permissionAppService);
     }
 
     @Test

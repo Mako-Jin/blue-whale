@@ -169,6 +169,47 @@ public class RoleAppService {
     }
 
     /**
+     * 查询用户拥有的启用角色编码（用户 → 角色，过滤停用角色）
+     *
+     * <p>与旧 {@code SysRoleServiceImpl#listRoleCodesByUserId} 逐行等价：先查用户角色 ID，
+     * 为空直接返回空列表，再按启用状态过滤并映射为角色编码。</p>
+     *
+     * @param userId 用户 ID
+     * @return 启用角色编码列表；用户无角色时返回空列表
+     */
+    public List<String> listRoleCodesByUserId(Long userId) {
+        List<Long> roleIds = roleRepository.listRoleIdsByUserId(userId);
+        if (roleIds.isEmpty()) {
+            return List.of();
+        }
+        return roleRepository.listEnabledByIds(roleIds).stream()
+                .map(role -> role.getRoleCode().value())
+                .toList();
+    }
+
+    /**
+     * 查询用户经由角色获得的启用权限码（用户 → 角色 → 权限点，逐层去重并过滤停用）
+     *
+     * <p>与旧 {@code SysRoleServiceImpl#listPermissionCodesByUserId} 逐行等价：先查用户角色 ID，
+     * 为空返回空列表；再查角色关联权限点 ID（去重），为空返回空列表；最后仅保留启用权限点的
+     * 权限码（去重）。</p>
+     *
+     * @param userId 用户 ID
+     * @return 权限码列表；用户无角色或无有效权限关联时返回空列表
+     */
+    public List<String> listPermissionCodesByUserId(Long userId) {
+        List<Long> roleIds = roleRepository.listRoleIdsByUserId(userId);
+        if (roleIds.isEmpty()) {
+            return List.of();
+        }
+        List<Long> permissionIds = roleRepository.listPermissionIdsByRoleIds(roleIds);
+        if (permissionIds.isEmpty()) {
+            return List.of();
+        }
+        return roleRepository.listEnabledPermissionCodesByIds(permissionIds);
+    }
+
+    /**
      * 加载角色聚合，不存在时抛出资源不存在异常
      *
      * @param id 角色 ID

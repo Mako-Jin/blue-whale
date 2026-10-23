@@ -2,10 +2,8 @@ package com.bluewhale.auth.controller;
 
 import com.bluewhale.auth.application.menu.MenuAppService;
 import com.bluewhale.auth.application.menu.command.SaveMenuCommand;
-import com.bluewhale.auth.config.DddMigrationProperties;
 import com.bluewhale.auth.dto.MenuRequest;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
-import com.bluewhale.auth.service.SysMenuService;
 import com.bluewhale.auth.vo.MenuVO;
 import com.bluewhale.common.audit.annotation.AuditLog;
 import com.bluewhale.common.audit.enums.OperateType;
@@ -26,8 +24,7 @@ import java.util.List;
 /**
  * 菜单管理：CRUD + 树形查询
  *
- * <p>迁移期双路径：{@code whale.auth.ddd.menu=true} 时走 {@code application} 层 AppService，
- * 否则走既有 {@code SysMenuService}；REST 路径与出入参保持不变。</p>
+ * <p>统一委派 {@link MenuAppService}；REST 路径与出入参保持不变（AUTH-17 收口）。</p>
  *
  * @author BlueWhale
  */
@@ -36,9 +33,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class MenuController {
 
-    private final SysMenuService menuService;
     private final MenuAppService menuAppService;
-    private final DddMigrationProperties dddMigrationProperties;
 
     /**
      * 菜单树：parentId=0 为根，按 sort 升序
@@ -48,7 +43,7 @@ public class MenuController {
     @GetMapping("/tree")
     @RequirePermission("sys:menu:list")
     public Result<List<MenuVO>> tree() {
-        return Result.ok(dddMigrationProperties.isMenu() ? menuAppService.tree() : menuService.tree());
+        return Result.ok(menuAppService.tree());
     }
 
     /**
@@ -60,7 +55,7 @@ public class MenuController {
     @GetMapping("/{id}")
     @RequirePermission("sys:menu:list")
     public Result<MenuVO> detail(@PathVariable Long id) {
-        return Result.ok(dddMigrationProperties.isMenu() ? menuAppService.getDetail(id) : menuService.getDetail(id));
+        return Result.ok(menuAppService.getDetail(id));
     }
 
     /**
@@ -73,11 +68,7 @@ public class MenuController {
     @RequirePermission("sys:menu:add")
     @AuditLog(operation = "创建菜单", type = OperateType.CREATE, targetType = "sys_menu")
     public Result<Void> create(@Valid @RequestBody MenuRequest request) {
-        if (dddMigrationProperties.isMenu()) {
-            menuAppService.create(toCommand(request));
-        } else {
-            menuService.create(request);
-        }
+        menuAppService.create(toCommand(request));
         return Result.ok();
     }
 
@@ -92,11 +83,7 @@ public class MenuController {
     @RequirePermission("sys:menu:edit")
     @AuditLog(operation = "更新菜单", type = OperateType.UPDATE, targetType = "sys_menu", targetId = "#id")
     public Result<Void> update(@PathVariable Long id, @Valid @RequestBody MenuRequest request) {
-        if (dddMigrationProperties.isMenu()) {
-            menuAppService.update(id, toCommand(request));
-        } else {
-            menuService.update(id, request);
-        }
+        menuAppService.update(id, toCommand(request));
         return Result.ok();
     }
 
@@ -110,11 +97,7 @@ public class MenuController {
     @RequirePermission("sys:menu:delete")
     @AuditLog(operation = "删除菜单", type = OperateType.DELETE, targetType = "sys_menu", targetId = "#id")
     public Result<Void> delete(@PathVariable Long id) {
-        if (dddMigrationProperties.isMenu()) {
-            menuAppService.delete(id);
-        } else {
-            menuService.delete(id);
-        }
+        menuAppService.delete(id);
         return Result.ok();
     }
 

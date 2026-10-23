@@ -1,7 +1,7 @@
 package com.bluewhale.auth.security;
 
+import com.bluewhale.auth.application.role.RoleAppService;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
-import com.bluewhale.auth.service.SysRoleService;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import jakarta.servlet.http.HttpServletRequest;
@@ -45,7 +45,7 @@ class PermissionInterceptorTest {
     private PermissionCache permissionCache;
 
     @Mock
-    private SysRoleService roleService;
+    private RoleAppService roleAppService;
 
     @Mock
     private HttpServletRequest request;
@@ -57,12 +57,12 @@ class PermissionInterceptorTest {
 
     @BeforeEach
     void setUp() {
-        interceptor = new PermissionInterceptor(permissionCache, roleService);
+        interceptor = new PermissionInterceptor(permissionCache, roleAppService);
     }
 
     /**
      * 让 mock 的 {@link PermissionCache} 按真实 Cache-Aside 语义调用调用方传入的 loader，
-     * 从而间接校验拦截器把 {@code roleService::listPermissionCodesByUserId} 作为 loader 传入。
+     * 从而间接校验拦截器把 {@code roleAppService::listPermissionCodesByUserId} 作为 loader 传入。
      */
     private void cachePassThrough() {
         when(permissionCache.getPermissionCodes(eq(USER_ID), any())).thenAnswer(invocation -> {
@@ -137,10 +137,10 @@ class PermissionInterceptorTest {
     }
 
     @Test
-    @DisplayName("缓存兜底命中权限：放行（loader 委派 roleService）")
+    @DisplayName("缓存兜底命中权限：放行（loader 委派 roleAppService）")
     void shouldPassViaDbFallback() throws NoSuchMethodException {
         authenticateAs(List.of("common_user"));
-        when(roleService.listPermissionCodesByUserId(USER_ID)).thenReturn(List.of(PERM));
+        when(roleAppService.listPermissionCodesByUserId(USER_ID)).thenReturn(List.of(PERM));
         cachePassThrough();
 
         assertTrue(interceptor.preHandle(request, response, handler("protectedApi")));
@@ -150,7 +150,7 @@ class PermissionInterceptorTest {
     @DisplayName("缓存兜底未命中：抛 403 FORBIDDEN")
     void shouldRejectWhenNoPermission() throws NoSuchMethodException {
         authenticateAs(List.of("common_user"));
-        when(roleService.listPermissionCodesByUserId(USER_ID)).thenReturn(List.of("sys:role:list"));
+        when(roleAppService.listPermissionCodesByUserId(USER_ID)).thenReturn(List.of("sys:role:list"));
         cachePassThrough();
         BizException ex = assertThrows(BizException.class,
                 () -> interceptor.preHandle(request, response, handler("protectedApi")));

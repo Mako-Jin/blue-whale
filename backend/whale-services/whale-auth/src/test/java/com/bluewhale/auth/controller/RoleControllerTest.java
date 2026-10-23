@@ -1,19 +1,20 @@
 package com.bluewhale.auth.controller;
 
 import com.bluewhale.auth.application.role.RoleAppService;
-import com.bluewhale.auth.config.DddMigrationProperties;
+import com.bluewhale.auth.application.role.command.AssignRolePermissionsCommand;
+import com.bluewhale.auth.application.role.command.CreateRoleCommand;
+import com.bluewhale.auth.application.role.command.UpdateRoleCommand;
+import com.bluewhale.auth.application.role.query.RolePageQuery;
 import com.bluewhale.auth.dto.AssignPermissionsRequest;
 import com.bluewhale.auth.dto.RoleCreateRequest;
 import com.bluewhale.auth.dto.RoleUpdateRequest;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
-import com.bluewhale.auth.service.SysRoleService;
 import com.bluewhale.auth.vo.RoleVO;
 import com.bluewhale.common.audit.annotation.AuditLog;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.handler.GlobalExceptionHandler;
 import com.bluewhale.common.core.query.PageQuery;
 import com.bluewhale.common.core.result.PageResult;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -52,10 +53,8 @@ class RoleControllerTest {
     private static final long ROLE_ID = 31L;
     private static final int PARAM_ERROR_CODE = 400;
 
-    private final SysRoleService roleService = mock(SysRoleService.class);
     private final RoleAppService roleAppService = mock(RoleAppService.class);
-    private final DddMigrationProperties ddd = new DddMigrationProperties();
-    private final RoleController controller = new RoleController(roleService, roleAppService, ddd);
+    private final RoleController controller = new RoleController(roleAppService);
 
     private MockMvc mockMvc;
 
@@ -70,14 +69,6 @@ class RoleControllerTest {
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setValidator(validator)
                 .build();
-    }
-
-    /**
-     * 每个用例结束后复位灰度开关，避免测试类共享的配置实例串扰
-     */
-    @AfterEach
-    void resetDddFlag() {
-        ddd.setRole(false);
     }
 
     /**
@@ -124,7 +115,8 @@ class RoleControllerTest {
     @Test
     @DisplayName("GET /role/page：返回 code=0 与分页数据形状")
     void pageShouldReturnPageResult() throws Exception {
-        when(roleService.page(1L, 10L, null)).thenReturn(PageResult.of(List.of(roleVO()), 1L, 1L, 10L));
+        when(roleAppService.page(new RolePageQuery(1L, 10L, null)))
+                .thenReturn(PageResult.of(List.of(roleVO()), 1L, 1L, 10L));
 
         mockMvc.perform(get("/role/page"))
                 .andExpect(status().isOk())
@@ -132,26 +124,26 @@ class RoleControllerTest {
                 .andExpect(jsonPath("$.data.total").value(1L))
                 .andExpect(jsonPath("$.data.records[0].roleCode").value("admin"));
 
-        verify(roleService).page(1L, 10L, null);
+        verify(roleAppService).page(new RolePageQuery(1L, 10L, null));
     }
 
     @Test
     @DisplayName("GET /role/{id}：返回 code=0 与角色详情")
     void detailShouldReturnRole() throws Exception {
-        when(roleService.getDetail(ROLE_ID)).thenReturn(roleVO());
+        when(roleAppService.getDetail(ROLE_ID)).thenReturn(roleVO());
 
         mockMvc.perform(get("/role/{id}", ROLE_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()))
                 .andExpect(jsonPath("$.data.roleName").value("管理员"));
 
-        verify(roleService).getDetail(ROLE_ID);
+        verify(roleAppService).getDetail(ROLE_ID);
     }
 
     @Test
     @DisplayName("POST /role：合法请求创建成功并返回 code=0")
     void createShouldReturnSuccess() throws Exception {
-        when(roleService.create(any(RoleCreateRequest.class))).thenReturn(roleVO());
+        when(roleAppService.create(any(CreateRoleCommand.class))).thenReturn(roleVO());
 
         mockMvc.perform(post("/role")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -160,13 +152,13 @@ class RoleControllerTest {
                 .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()))
                 .andExpect(jsonPath("$.data.roleCode").value("admin"));
 
-        verify(roleService).create(any(RoleCreateRequest.class));
+        verify(roleAppService).create(any(CreateRoleCommand.class));
     }
 
     @Test
     @DisplayName("PUT /role/{id}：合法请求更新成功并返回 code=0")
     void updateShouldReturnSuccess() throws Exception {
-        when(roleService.update(eq(ROLE_ID), any(RoleUpdateRequest.class))).thenReturn(roleVO());
+        when(roleAppService.update(eq(ROLE_ID), any(UpdateRoleCommand.class))).thenReturn(roleVO());
 
         mockMvc.perform(put("/role/{id}", ROLE_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -175,7 +167,7 @@ class RoleControllerTest {
                 .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()))
                 .andExpect(jsonPath("$.data.id").value(ROLE_ID));
 
-        verify(roleService).update(eq(ROLE_ID), any(RoleUpdateRequest.class));
+        verify(roleAppService).update(eq(ROLE_ID), any(UpdateRoleCommand.class));
     }
 
     @Test
@@ -185,7 +177,7 @@ class RoleControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
 
-        verify(roleService).delete(ROLE_ID);
+        verify(roleAppService).delete(ROLE_ID);
     }
 
     @Test
@@ -197,13 +189,14 @@ class RoleControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
 
-        verify(roleService).assignPermissions(eq(ROLE_ID), eq(List.of(1L, 2L)));
+        verify(roleAppService).assignPermissions(eq(ROLE_ID),
+                eq(new AssignRolePermissionsCommand(List.of(1L, 2L))));
     }
 
     @Test
     @DisplayName("GET /role/{id}/permissions：返回已分配权限 ID 列表")
     void permissionIdsShouldReturnIds() throws Exception {
-        when(roleService.listPermissionIds(ROLE_ID)).thenReturn(List.of(1L, 2L));
+        when(roleAppService.listPermissionIds(ROLE_ID)).thenReturn(List.of(1L, 2L));
 
         mockMvc.perform(get("/role/{id}/permissions", ROLE_ID))
                 .andExpect(status().isOk())
@@ -211,7 +204,7 @@ class RoleControllerTest {
                 .andExpect(jsonPath("$.data[0]").value(1L))
                 .andExpect(jsonPath("$.data[1]").value(2L));
 
-        verify(roleService).listPermissionIds(ROLE_ID);
+        verify(roleAppService).listPermissionIds(ROLE_ID);
     }
 
     @Test
@@ -224,34 +217,7 @@ class RoleControllerTest {
                 .andExpect(jsonPath("$.code").value(PARAM_ERROR_CODE))
                 .andExpect(jsonPath("$.message").value("角色编码不能为空"));
 
-        verify(roleService, never()).create(any());
-    }
-
-    @Test
-    @DisplayName("分流：role=false 时 GET /role/{id} 走旧 SysRoleService")
-    void detailShouldUseLegacyServiceWhenRoleFlagDisabled() throws Exception {
-        when(roleService.getDetail(ROLE_ID)).thenReturn(roleVO());
-
-        mockMvc.perform(get("/role/{id}", ROLE_ID))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
-
-        verify(roleService).getDetail(ROLE_ID);
-        verify(roleAppService, never()).getDetail(ROLE_ID);
-    }
-
-    @Test
-    @DisplayName("分流：role=true 时 GET /role/{id} 走 RoleAppService")
-    void detailShouldUseAppServiceWhenRoleFlagEnabled() throws Exception {
-        ddd.setRole(true);
-        when(roleAppService.getDetail(ROLE_ID)).thenReturn(roleVO());
-
-        mockMvc.perform(get("/role/{id}", ROLE_ID))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
-
-        verify(roleAppService).getDetail(ROLE_ID);
-        verify(roleService, never()).getDetail(ROLE_ID);
+        verify(roleAppService, never()).create(any());
     }
 
     @Test

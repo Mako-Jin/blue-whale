@@ -2,13 +2,18 @@ package com.bluewhale.auth.infrastructure.persistence.repository;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bluewhale.auth.domain.permission.aggregate.Permission;
 import com.bluewhale.auth.domain.role.aggregate.Role;
 import com.bluewhale.auth.domain.role.repository.RoleRepository;
+import com.bluewhale.auth.entity.SysPermission;
 import com.bluewhale.auth.entity.SysRole;
 import com.bluewhale.auth.entity.SysRolePermission;
+import com.bluewhale.auth.entity.SysUserRole;
 import com.bluewhale.auth.infrastructure.persistence.assembler.RolePersistenceAssembler;
+import com.bluewhale.auth.mapper.SysPermissionMapper;
 import com.bluewhale.auth.mapper.SysRoleMapper;
 import com.bluewhale.auth.mapper.SysRolePermissionMapper;
+import com.bluewhale.auth.mapper.SysUserRoleMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
@@ -32,6 +37,8 @@ public class RoleRepositoryImpl implements RoleRepository {
 
     private final SysRoleMapper roleMapper;
     private final SysRolePermissionMapper rolePermissionMapper;
+    private final SysUserRoleMapper userRoleMapper;
+    private final SysPermissionMapper permissionMapper;
 
     @Override
     public void save(Role role) {
@@ -102,6 +109,34 @@ public class RoleRepositoryImpl implements RoleRepository {
         // 关联表实体无 deleted 字段，走物理删除
         rolePermissionMapper.delete(new LambdaQueryWrapper<SysRolePermission>()
                 .eq(SysRolePermission::getRoleId, id));
+    }
+
+    @Override
+    public List<Long> listRoleIdsByUserId(Long userId) {
+        return userRoleMapper.selectList(new LambdaQueryWrapper<SysUserRole>()
+                        .eq(SysUserRole::getUserId, userId))
+                .stream().map(SysUserRole::getRoleId).toList();
+    }
+
+    @Override
+    public List<Long> listPermissionIdsByRoleIds(Collection<Long> roleIds) {
+        if (roleIds == null || roleIds.isEmpty()) {
+            return List.of();
+        }
+        return rolePermissionMapper.selectList(new LambdaQueryWrapper<SysRolePermission>()
+                        .in(SysRolePermission::getRoleId, roleIds))
+                .stream().map(SysRolePermission::getPermissionId).distinct().toList();
+    }
+
+    @Override
+    public List<String> listEnabledPermissionCodesByIds(Collection<Long> permissionIds) {
+        if (permissionIds == null || permissionIds.isEmpty()) {
+            return List.of();
+        }
+        return permissionMapper.selectList(new LambdaQueryWrapper<SysPermission>()
+                        .in(SysPermission::getId, permissionIds)
+                        .eq(SysPermission::getStatus, Permission.STATUS_ENABLED))
+                .stream().map(SysPermission::getPermCode).distinct().toList();
     }
 
     @Override

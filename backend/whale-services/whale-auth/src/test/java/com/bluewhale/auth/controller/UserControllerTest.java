@@ -1,8 +1,14 @@
 package com.bluewhale.auth.controller;
 
 import com.bluewhale.auth.application.user.UserAppService;
+import com.bluewhale.auth.application.user.command.AssignUserRolesCommand;
+import com.bluewhale.auth.application.user.command.ChangeUserPasswordCommand;
+import com.bluewhale.auth.application.user.command.ChangeUserStatusCommand;
+import com.bluewhale.auth.application.user.command.CreateUserCommand;
+import com.bluewhale.auth.application.user.command.UpdateUserCommand;
+import com.bluewhale.auth.application.user.query.UserPageQuery;
 import com.bluewhale.auth.application.userpermission.UserPermissionAppService;
-import com.bluewhale.auth.config.DddMigrationProperties;
+import com.bluewhale.auth.application.userpermission.command.ReplaceUserAttrsCommand;
 import com.bluewhale.auth.dto.AssignRolesRequest;
 import com.bluewhale.auth.dto.ChangePasswordRequest;
 import com.bluewhale.auth.dto.UpdateAttrsRequest;
@@ -10,8 +16,6 @@ import com.bluewhale.auth.dto.UserCreateRequest;
 import com.bluewhale.auth.dto.UserStatusRequest;
 import com.bluewhale.auth.dto.UserUpdateRequest;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
-import com.bluewhale.auth.service.SysUserPermissionService;
-import com.bluewhale.auth.service.SysUserService;
 import com.bluewhale.auth.vo.UserAttrVO;
 import com.bluewhale.auth.vo.UserVO;
 import com.bluewhale.common.audit.annotation.AuditLog;
@@ -20,7 +24,6 @@ import com.bluewhale.common.core.handler.GlobalExceptionHandler;
 import com.bluewhale.common.core.query.PageQuery;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.idempotent.annotation.Idempotent;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -59,13 +62,9 @@ class UserControllerTest {
     private static final long USER_ID = 41L;
     private static final int PARAM_ERROR_CODE = 400;
 
-    private final SysUserService userService = mock(SysUserService.class);
-    private final SysUserPermissionService userPermissionService = mock(SysUserPermissionService.class);
     private final UserAppService userAppService = mock(UserAppService.class);
     private final UserPermissionAppService userPermissionAppService = mock(UserPermissionAppService.class);
-    private final DddMigrationProperties ddd = new DddMigrationProperties();
-    private final UserController controller = new UserController(
-            userService, userPermissionService, userAppService, userPermissionAppService, ddd);
+    private final UserController controller = new UserController(userAppService, userPermissionAppService);
 
     private MockMvc mockMvc;
 
@@ -80,14 +79,6 @@ class UserControllerTest {
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setValidator(validator)
                 .build();
-    }
-
-    /**
-     * 每个用例结束后复位灰度开关，避免测试类共享的配置实例串扰
-     */
-    @AfterEach
-    void resetDddFlag() {
-        ddd.setUser(false);
     }
 
     /**
@@ -148,7 +139,8 @@ class UserControllerTest {
     @Test
     @DisplayName("GET /user/page：返回 code=0 与分页数据形状")
     void pageShouldReturnPageResult() throws Exception {
-        when(userService.page(2L, 5L, "alice")).thenReturn(PageResult.of(List.of(userVO()), 1L, 2L, 5L));
+        when(userAppService.page(new UserPageQuery(2L, 5L, "alice")))
+                .thenReturn(PageResult.of(List.of(userVO()), 1L, 2L, 5L));
 
         mockMvc.perform(get("/user/page").param("current", "2").param("size", "5").param("keyword", "alice"))
                 .andExpect(status().isOk())
@@ -157,26 +149,26 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.data.size").value(5L))
                 .andExpect(jsonPath("$.data.records[0].username").value("alice"));
 
-        verify(userService).page(2L, 5L, "alice");
+        verify(userAppService).page(new UserPageQuery(2L, 5L, "alice"));
     }
 
     @Test
     @DisplayName("GET /user/{id}：返回 code=0 与用户详情")
     void detailShouldReturnUser() throws Exception {
-        when(userService.getDetail(USER_ID)).thenReturn(userVO());
+        when(userAppService.getDetail(USER_ID)).thenReturn(userVO());
 
         mockMvc.perform(get("/user/{id}", USER_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()))
                 .andExpect(jsonPath("$.data.username").value("alice"));
 
-        verify(userService).getDetail(USER_ID);
+        verify(userAppService).getDetail(USER_ID);
     }
 
     @Test
     @DisplayName("POST /user：合法请求创建成功并返回 code=0")
     void createShouldReturnSuccess() throws Exception {
-        when(userService.create(any(UserCreateRequest.class))).thenReturn(userVO());
+        when(userAppService.create(any(CreateUserCommand.class))).thenReturn(userVO());
 
         mockMvc.perform(post("/user")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -185,13 +177,13 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()))
                 .andExpect(jsonPath("$.data.id").value(USER_ID));
 
-        verify(userService).create(any(UserCreateRequest.class));
+        verify(userAppService).create(any(CreateUserCommand.class));
     }
 
     @Test
     @DisplayName("PUT /user/{id}：合法请求更新成功并返回 code=0")
     void updateShouldReturnSuccess() throws Exception {
-        when(userService.update(eq(USER_ID), any(UserUpdateRequest.class))).thenReturn(userVO());
+        when(userAppService.update(eq(USER_ID), any(UpdateUserCommand.class))).thenReturn(userVO());
 
         mockMvc.perform(put("/user/{id}", USER_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -199,7 +191,7 @@ class UserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
 
-        verify(userService).update(eq(USER_ID), any(UserUpdateRequest.class));
+        verify(userAppService).update(eq(USER_ID), any(UpdateUserCommand.class));
     }
 
     @Test
@@ -209,7 +201,7 @@ class UserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
 
-        verify(userService).delete(USER_ID);
+        verify(userAppService).delete(USER_ID);
     }
 
     @Test
@@ -221,7 +213,7 @@ class UserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
 
-        verify(userService).changePassword(eq(USER_ID), any(ChangePasswordRequest.class));
+        verify(userAppService).changePassword(eq(USER_ID), any(ChangeUserPasswordCommand.class));
     }
 
     @Test
@@ -233,7 +225,7 @@ class UserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
 
-        verify(userService).changeStatus(eq(USER_ID), any(UserStatusRequest.class));
+        verify(userAppService).changeStatus(eq(USER_ID), any(ChangeUserStatusCommand.class));
     }
 
     @Test
@@ -245,13 +237,13 @@ class UserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
 
-        verify(userService).assignRoles(eq(USER_ID), eq(List.of(1L, 2L)));
+        verify(userAppService).assignRoles(eq(USER_ID), eq(new AssignUserRolesCommand(List.of(1L, 2L))));
     }
 
     @Test
     @DisplayName("GET /user/{id}/roles：返回已分配角色 ID 列表")
     void roleIdsShouldReturnIds() throws Exception {
-        when(userService.listRoleIds(USER_ID)).thenReturn(List.of(1L, 2L));
+        when(userAppService.listRoleIds(USER_ID)).thenReturn(List.of(1L, 2L));
 
         mockMvc.perform(get("/user/{id}/roles", USER_ID))
                 .andExpect(status().isOk())
@@ -259,20 +251,20 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.data[0]").value(1L))
                 .andExpect(jsonPath("$.data[1]").value(2L));
 
-        verify(userService).listRoleIds(USER_ID);
+        verify(userAppService).listRoleIds(USER_ID);
     }
 
     @Test
     @DisplayName("GET /user/{id}/attrs：返回用户 ABAC 属性列表")
     void attrsShouldReturnList() throws Exception {
-        when(userPermissionService.listByUserId(USER_ID)).thenReturn(List.of(userAttrVO()));
+        when(userPermissionAppService.listByUserId(USER_ID)).thenReturn(List.of(userAttrVO()));
 
         mockMvc.perform(get("/user/{id}/attrs", USER_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()))
                 .andExpect(jsonPath("$.data[0].attrKey").value("dept"));
 
-        verify(userPermissionService).listByUserId(USER_ID);
+        verify(userPermissionAppService).listByUserId(USER_ID);
     }
 
     @Test
@@ -284,7 +276,7 @@ class UserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
 
-        verify(userPermissionService).replaceUserAttrs(eq(USER_ID), any(UpdateAttrsRequest.class));
+        verify(userPermissionAppService).replaceUserAttrs(eq(USER_ID), any(ReplaceUserAttrsCommand.class));
     }
 
     @Test
@@ -297,49 +289,7 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.code").value(PARAM_ERROR_CODE))
                 .andExpect(jsonPath("$.message").value("用户名不能为空"));
 
-        verify(userService, never()).create(any());
-    }
-
-    @Test
-    @DisplayName("分流：user=false 时 GET /user/{id} 走旧 SysUserService")
-    void detailShouldUseLegacyServiceWhenUserFlagDisabled() throws Exception {
-        when(userService.getDetail(USER_ID)).thenReturn(userVO());
-
-        mockMvc.perform(get("/user/{id}", USER_ID))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
-
-        verify(userService).getDetail(USER_ID);
-        verify(userAppService, never()).getDetail(USER_ID);
-    }
-
-    @Test
-    @DisplayName("分流：user=true 时 GET /user/{id} 走 UserAppService")
-    void detailShouldUseAppServiceWhenUserFlagEnabled() throws Exception {
-        ddd.setUser(true);
-        when(userAppService.getDetail(USER_ID)).thenReturn(userVO());
-
-        mockMvc.perform(get("/user/{id}", USER_ID))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
-
-        verify(userAppService).getDetail(USER_ID);
-        verify(userService, never()).getDetail(USER_ID);
-    }
-
-    @Test
-    @DisplayName("分流：user=true 时 GET /user/{id}/attrs 走 UserPermissionAppService")
-    void attrsShouldUseAppServiceWhenUserFlagEnabled() throws Exception {
-        ddd.setUser(true);
-        when(userPermissionAppService.listByUserId(USER_ID)).thenReturn(List.of(userAttrVO()));
-
-        mockMvc.perform(get("/user/{id}/attrs", USER_ID))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()))
-                .andExpect(jsonPath("$.data[0].attrKey").value("dept"));
-
-        verify(userPermissionAppService).listByUserId(USER_ID);
-        verify(userPermissionService, never()).listByUserId(USER_ID);
+        verify(userAppService, never()).create(any());
     }
 
     @Test

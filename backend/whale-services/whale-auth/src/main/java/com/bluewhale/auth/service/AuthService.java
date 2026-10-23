@@ -1,6 +1,9 @@
 package com.bluewhale.auth.service;
 
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.bluewhale.auth.application.menu.MenuAppService;
+import com.bluewhale.auth.application.permission.PermissionAppService;
+import com.bluewhale.auth.application.role.RoleAppService;
 import com.bluewhale.auth.config.RefreshRotationProperties;
 import com.bluewhale.auth.dto.LoginRequest;
 import com.bluewhale.auth.dto.RefreshRequest;
@@ -62,9 +65,9 @@ public class AuthService {
     private final UserDetailsServiceImpl userDetailsService;
     private final SysUserMapper userMapper;
     private final TokenBlacklist tokenBlacklist;
-    private final SysRoleService roleService;
-    private final SysMenuService menuService;
-    private final SysPermissionService permissionService;
+    private final RoleAppService roleAppService;
+    private final MenuAppService menuAppService;
+    private final PermissionAppService permissionAppService;
     private final RefreshTokenRotationStore refreshRotationStore;
     private final RefreshRotationProperties refreshRotationProperties;
 
@@ -162,11 +165,11 @@ public class AuthService {
         List<String> roles = loginUser.getRoles();
         boolean superAdmin = roles.contains(PermissionInterceptor.SUPER_ADMIN);
         List<String> permissions = superAdmin
-                ? permissionService.listAllCodes()
-                : roleService.listPermissionCodesByUserId(loginUser.getUserId());
+                ? permissionAppService.listAllCodes()
+                : roleAppService.listPermissionCodesByUserId(loginUser.getUserId());
         List<MenuVO> menus = superAdmin
-                ? menuService.treeByPermissionCodes(null)
-                : menuService.treeByPermissionCodes(Set.copyOf(permissions));
+                ? menuAppService.treeByPermissionCodes(null)
+                : menuAppService.treeByPermissionCodes(Set.copyOf(permissions));
         AuthMeResponse response = new AuthMeResponse();
         response.setUserId(loginUser.getUserId());
         response.setUsername(loginUser.getUsername());

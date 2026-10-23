@@ -9,7 +9,8 @@ import java.util.Optional;
 /**
  * Role 聚合仓储端口（ADR-AUTH-004）：契约定义于领域层，由 {@code infrastructure} 适配实现。
  *
- * <p>本轮（AUTH-16）仅覆盖读路径；写路径与角色-权限关联维护留待 AUTH-17。</p>
+ * <p>覆盖角色聚合读写、角色-权限关联维护，以及登录/鉴权链路所需的按用户反查角色与权限码能力
+ * （AUTH-17 收口）。</p>
  *
  * @author BlueWhale
  */
@@ -78,6 +79,30 @@ public interface RoleRepository {
      * @param id 角色 ID
      */
     void deleteById(Long id);
+
+    /**
+     * 查询用户关联的角色 ID 列表（对应 {@code sys_user_role} 的读）
+     *
+     * @param userId 用户 ID
+     * @return 角色 ID 列表；用户未关联任何角色时返回空列表
+     */
+    List<Long> listRoleIdsByUserId(Long userId);
+
+    /**
+     * 查询给定角色集合关联的权限点 ID（去重）
+     *
+     * @param roleIds 角色 ID 集合
+     * @return 权限点 ID 列表（去重）；{@code roleIds} 为空时返回空列表
+     */
+    List<Long> listPermissionIdsByRoleIds(Collection<Long> roleIds);
+
+    /**
+     * 查询给定权限点中处于启用状态的权限码（去重）
+     *
+     * @param permissionIds 权限点 ID 集合
+     * @return 启用权限码列表（去重）；{@code permissionIds} 为空时返回空列表
+     */
+    List<String> listEnabledPermissionCodesByIds(Collection<Long> permissionIds);
 
     /**
      * 全量覆盖角色-权限关联（先清空后重建）

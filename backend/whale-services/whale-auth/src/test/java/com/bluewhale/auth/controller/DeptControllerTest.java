@@ -1,15 +1,13 @@
 package com.bluewhale.auth.controller;
 
 import com.bluewhale.auth.application.dept.DeptAppService;
-import com.bluewhale.auth.config.DddMigrationProperties;
+import com.bluewhale.auth.application.dept.command.SaveDeptCommand;
 import com.bluewhale.auth.dto.DeptRequest;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
-import com.bluewhale.auth.service.SysDeptService;
 import com.bluewhale.auth.vo.DeptVO;
 import com.bluewhale.common.audit.annotation.AuditLog;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.handler.GlobalExceptionHandler;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -48,10 +46,8 @@ class DeptControllerTest {
     private static final long DEPT_ID = 3L;
     private static final int PARAM_ERROR_CODE = 400;
 
-    private final SysDeptService deptService = mock(SysDeptService.class);
     private final DeptAppService deptAppService = mock(DeptAppService.class);
-    private final DddMigrationProperties ddd = new DddMigrationProperties();
-    private final DeptController controller = new DeptController(deptService, deptAppService, ddd);
+    private final DeptController controller = new DeptController(deptAppService);
 
     private MockMvc mockMvc;
 
@@ -66,14 +62,6 @@ class DeptControllerTest {
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setValidator(validator)
                 .build();
-    }
-
-    /**
-     * 每个用例结束后复位灰度开关，避免测试类共享的配置实例串扰
-     */
-    @AfterEach
-    void resetDddFlag() {
-        ddd.setDept(false);
     }
 
     /**
@@ -120,7 +108,7 @@ class DeptControllerTest {
     @Test
     @DisplayName("GET /dept/tree：返回 code=0 与部门树")
     void treeShouldReturnDeptTree() throws Exception {
-        when(deptService.tree()).thenReturn(List.of(deptVO()));
+        when(deptAppService.tree()).thenReturn(List.of(deptVO()));
 
         mockMvc.perform(get("/dept/tree"))
                 .andExpect(status().isOk())
@@ -128,20 +116,20 @@ class DeptControllerTest {
                 .andExpect(jsonPath("$.data[0].id").value(DEPT_ID))
                 .andExpect(jsonPath("$.data[0].deptName").value("研发中心"));
 
-        verify(deptService).tree();
+        verify(deptAppService).tree();
     }
 
     @Test
     @DisplayName("GET /dept/{id}：返回 code=0 与部门详情")
     void detailShouldReturnDept() throws Exception {
-        when(deptService.getDetail(DEPT_ID)).thenReturn(deptVO());
+        when(deptAppService.getDetail(DEPT_ID)).thenReturn(deptVO());
 
         mockMvc.perform(get("/dept/{id}", DEPT_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()))
                 .andExpect(jsonPath("$.data.deptName").value("研发中心"));
 
-        verify(deptService).getDetail(DEPT_ID);
+        verify(deptAppService).getDetail(DEPT_ID);
     }
 
     @Test
@@ -153,7 +141,7 @@ class DeptControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
 
-        verify(deptService).create(any(DeptRequest.class));
+        verify(deptAppService).create(any(SaveDeptCommand.class));
     }
 
     @Test
@@ -165,7 +153,7 @@ class DeptControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
 
-        verify(deptService).update(eq(DEPT_ID), any(DeptRequest.class));
+        verify(deptAppService).update(eq(DEPT_ID), any(SaveDeptCommand.class));
     }
 
     @Test
@@ -175,7 +163,7 @@ class DeptControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
 
-        verify(deptService).delete(DEPT_ID);
+        verify(deptAppService).delete(DEPT_ID);
     }
 
     @Test
@@ -188,34 +176,7 @@ class DeptControllerTest {
                 .andExpect(jsonPath("$.code").value(PARAM_ERROR_CODE))
                 .andExpect(jsonPath("$.message").value("部门名称不能为空"));
 
-        verify(deptService, never()).create(any());
-    }
-
-    @Test
-    @DisplayName("分流：dept=false 时 GET /dept/{id} 走旧 SysDeptService")
-    void detailShouldUseLegacyServiceWhenDeptFlagDisabled() throws Exception {
-        when(deptService.getDetail(DEPT_ID)).thenReturn(deptVO());
-
-        mockMvc.perform(get("/dept/{id}", DEPT_ID))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
-
-        verify(deptService).getDetail(DEPT_ID);
-        verify(deptAppService, never()).getDetail(DEPT_ID);
-    }
-
-    @Test
-    @DisplayName("分流：dept=true 时 GET /dept/{id} 走 DeptAppService")
-    void detailShouldUseAppServiceWhenDeptFlagEnabled() throws Exception {
-        ddd.setDept(true);
-        when(deptAppService.getDetail(DEPT_ID)).thenReturn(deptVO());
-
-        mockMvc.perform(get("/dept/{id}", DEPT_ID))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
-
-        verify(deptAppService).getDetail(DEPT_ID);
-        verify(deptService, never()).getDetail(DEPT_ID);
+        verify(deptAppService, never()).create(any());
     }
 
     @Test
