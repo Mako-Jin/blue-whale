@@ -1,1 +1,2 @@
 com.bluewhale.file.storage.plugin.local.LocalStorageAutoConfiguration
+com.bluewhale.file.storage.plugin.minio.MinioStorageAutoConfiguration
