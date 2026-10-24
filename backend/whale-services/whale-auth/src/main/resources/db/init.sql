@@ -517,7 +517,9 @@ VALUES
     (100, 0, 'sys:agent:chat', '知识Agent问答', 'API', '/agent/chat', 'POST', 100, 1),
     (101, 0, 'sys:agent:search', '知识检索与事实查询', 'API', '/agent/search,/agent/facts', 'GET', 101, 1),
     (102, 0, 'sys:agent:index:rebuild', '重建知识索引', 'API', '/agent/index/rebuild', 'POST', 102, 1),
-    (103, 0, 'sys:agent:runtime:read', '查看运行时知识', 'API', '/agent/runtime/**', 'GET', 103, 1);
+    (103, 0, 'sys:agent:runtime:read', '查看运行时知识', 'API', '/agent/runtime/**', 'GET', 103, 1),
+    (104, 0, 'sys:ai:data:read', '智能体只读数据查询', 'API', '/agent/tools/data-query', 'POST', 104, 1),
+    (105, 0, 'sys:ai:ops:form', '智能体平台写操作确认', 'API', '/agent/ops/**', 'POST', 105, 1);
 
 -- Wave 5.52 自研 WebIM 权限点：与 whale-im 接口 @RequirePermission("sys:im:chat") 对应
 -- 段位约定：IM 预留 120–139（菜单随前端 whale-im 子应用落地后再登记，避免出现指向 404 的菜单）
