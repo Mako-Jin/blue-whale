@@ -1,6 +1,6 @@
 # Wave 5.52 规划：WebIM + LangChain 智能体
 
-> 制定日期：2026-10-24 ｜ 状态：**实现中**（M0 设计冻结 + M1 T2–T6、M2 T7–T9、M3 T10–T13、M4 T14–T16、M5 T17 已完成，见 §八）
+> 制定日期：2026-10-24 ｜ 状态：**实现中**（M0 设计冻结 + M1 T2–T6、M2 T7–T9、M3 T10–T13、M4 T14–T16、M5 T17–T18 已完成，见 §八）
 > 关联：`whale-agent`（8090，Wave 5.47）、`whale-gateway`（8080）、`whale-file`（8085）、`whale-auth`（8081）
 
 ## 一、目标
@@ -207,7 +207,7 @@ intent ──> retrieve(knowledge/facts) ──> think ──> tools ──> ver
 ### M5 加固与验收
 
 - [x] T17 限流、敏感内容遮蔽、异常降级（2026-10-24 完成：whale-im 按用户分钟级限流（Redis 计数、超限落提示、Redis 故障放行）+ `AgentTraceMasker` 对工具轨迹/引用键值与密钥赋值脱敏；whale-agent 错误信息落库前复用 `SensitiveContentMasker`；既有超时/异常降级保持；89 + 113 例全绿、Checkstyle 0，见 devlog §二十）
-- [ ] T18 前端 build/lint、后端单测、Python pytest、Checkstyle
+- [x] T18 前端 build/lint、后端单测、Python pytest、Checkstyle（2026-10-24 完成：`pnpm lint` EXIT=0，`pnpm build` 18/18 成功；whale-agent 89 例、whale-im 113 例全绿且 Checkstyle 0；`compileall` 通过、pytest 39 passed（TEMP `langgraph` 替身）；见 devlog §二十一）
 - [ ] T19 实机联调与验收记录（devlog + review）
 
 ## 九、验收口径
