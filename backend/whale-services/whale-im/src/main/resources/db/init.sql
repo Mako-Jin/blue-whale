@@ -66,10 +66,11 @@ CREATE TABLE IF NOT EXISTS im_message (
     reply_to        BIGINT       DEFAULT NULL           COMMENT '被回复消息ID（逻辑关联 im_message.id）',
     status          TINYINT      NOT NULL DEFAULT 1     COMMENT '状态：1 正常 / 0 已撤回',
     create_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted         TINYINT      NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_conversation_client (conversation_id, client_msg_id),
-    KEY idx_conversation_seq (conversation_id, seq),
+    UNIQUE KEY uk_conversation_seq (conversation_id, seq),
     KEY idx_create_time (create_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='IM 消息表';
 

@@ -518,3 +518,10 @@ VALUES
     (101, 0, 'sys:agent:search', '知识检索与事实查询', 'API', '/agent/search,/agent/facts', 'GET', 101, 1),
     (102, 0, 'sys:agent:index:rebuild', '重建知识索引', 'API', '/agent/index/rebuild', 'POST', 102, 1),
     (103, 0, 'sys:agent:runtime:read', '查看运行时知识', 'API', '/agent/runtime/**', 'GET', 103, 1);
+
+-- Wave 5.52 自研 WebIM 权限点：与 whale-im 接口 @RequirePermission("sys:im:chat") 对应
+-- 段位约定：IM 预留 120–139（菜单随前端 whale-im 子应用落地后再登记，避免出现指向 404 的菜单）
+INSERT INTO sys_permission
+    (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+VALUES
+    (120, 0, 'sys:im:chat', 'IM 会话与消息', 'API', '/im/**', 'GET,POST', 120, 1);
