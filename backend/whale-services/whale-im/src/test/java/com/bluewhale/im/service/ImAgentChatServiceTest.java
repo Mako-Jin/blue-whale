@@ -93,7 +93,7 @@ class ImAgentChatServiceTest {
 
     private final ImAgentChatService service = new ImAgentChatService(bindingMapper, runMapper,
             conversationMapper, messageMapper, seqAllocator, broadcaster, client, botService,
-            redisTemplate, objectMapper, executor);
+            redisTemplate, objectMapper, executor, 20);
 
     /**
      * 绑定 Redis 值操作桩，默认允许首次触发。
@@ -147,6 +147,31 @@ class ImAgentChatServiceTest {
         verify(conversationMapper).update(any(), any());
 
         verify(runMapper).update(any(), argThat(wrapper -> true));
+    }
+
+    @Test
+    @DisplayName("限流：超过每分钟上限时落提示消息且不触发智能体")
+    void shouldRejectWhenRateLimited() throws Exception {
+        when(conversationMapper.selectById(CONVERSATION_ID)).thenReturn(botConversation());
+        when(bindingMapper.selectOne(any())).thenReturn(binding());
+        when(botService.botUserId()).thenReturn(BOT_USER_ID);
+        when(seqAllocator.next(eq(CONVERSATION_ID), anyLong())).thenReturn(6L);
+        when(valueOperations.increment(anyString())).thenReturn(21L);
+        when(messageMapper.insert(any(ImMessage.class))).thenAnswer(invocation -> {
+            invocation.getArgument(0, ImMessage.class).setId(REPLY_ID);
+            return 1;
+        });
+
+        service.onUserMessage(userMessage(), "sys:im:chat");
+
+        verify(executor, never()).execute(any());
+        verify(client, never()).stream(anyString(), any(), any(), any());
+        ArgumentCaptor<ImMessage> messageCaptor = ArgumentCaptor.forClass(ImMessage.class);
+        verify(messageMapper).insert(messageCaptor.capture());
+        assertEquals("BOT", messageCaptor.getValue().getSenderType());
+        assertEquals("TEXT", messageCaptor.getValue().getContentType());
+        assertTrue(messageCaptor.getValue().getContent().contains("过于频繁"));
+        verify(broadcaster).broadcast(eq(CONVERSATION_ID), any());
     }
 
     @Test

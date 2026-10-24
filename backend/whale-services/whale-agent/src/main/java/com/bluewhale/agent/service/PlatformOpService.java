@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.bluewhale.agent.config.AgentProperties;
 import com.bluewhale.agent.entity.AgentOperation;
 import com.bluewhale.agent.mapper.AgentOperationMapper;
+import com.bluewhale.agent.support.ingest.SensitiveContentMasker;
 import com.bluewhale.agent.support.ops.OperationInvoker;
 import com.bluewhale.agent.support.ops.PlatformOperationCatalog;
 import com.bluewhale.common.core.exception.BizException;
@@ -423,6 +424,7 @@ public class PlatformOpService {
         if (message == null) {
             return null;
         }
-        return message.length() > 500 ? message.substring(0, 500) : message;
+        String masked = SensitiveContentMasker.mask(message);
+        return masked.length() > 500 ? masked.substring(0, 500) : masked;
     }
 }

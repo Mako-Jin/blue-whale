@@ -60,6 +60,8 @@ whale:
       base-url: ${WHALE_IM_AGENT_BASE_URL:http://127.0.0.1:8090}
       timeout-seconds: ${WHALE_IM_AGENT_TIMEOUT_SECONDS:120}
       pool-size: ${WHALE_IM_AGENT_POOL_SIZE:4}
+      # 单用户每分钟提问上限（Redis 计数；超限落提示消息，不触发智能体）
+      rate-limit-per-minute: ${WHALE_IM_AGENT_RATE_LIMIT_PER_MINUTE:20}
 
 mybatis-plus:
   configuration:

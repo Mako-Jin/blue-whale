@@ -11,10 +11,12 @@ import com.bluewhale.im.mapper.ImAgentRunMapper;
 import com.bluewhale.im.mapper.ImConversationMapper;
 import com.bluewhale.im.mapper.ImMessageMapper;
 import com.bluewhale.im.support.AgentStreamClient;
+import com.bluewhale.im.support.AgentTraceMasker;
 import com.bluewhale.im.ws.ImMessageBroadcaster;
 import com.bluewhale.im.ws.WsFrames;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -53,6 +55,18 @@ public class ImAgentChatService {
 
     /** 触发去重键有效期（小时） */
     private static final long TRIGGER_TTL_HOURS = 24L;
+
+    /** 提问限流键前缀（按用户 + 分钟窗口） */
+    private static final String RATE_KEY_PREFIX = "whale:im:agent:rate:";
+
+    /** 限流键有效期（秒），略大于窗口便于自然过期 */
+    private static final long RATE_TTL_SECONDS = 90L;
+
+    /** 限流提示文案 */
+    private static final String RATE_LIMIT_HINT = "提问过于频繁，请稍后再试";
+
+    /** 每分钟毫秒数（限流窗口） */
+    private static final long MILLIS_PER_MINUTE = 60_000L;
 
     /** 发送者类型：机器人 */
     private static final String SENDER_BOT = "BOT";
@@ -118,6 +132,9 @@ public class ImAgentChatService {
 
     private final ThreadPoolTaskExecutor executor;
 
+    /** 单用户每分钟提问上限 */
+    private final int rateLimitPerMinute;
+
     /**
      * 构造机器人回答编排服务。
      *
@@ -129,16 +146,18 @@ public class ImAgentChatService {
      * @param broadcaster       广播器
      * @param agentStreamClient 智能体流式客户端
      * @param botService        机器人会话服务（提供机器人ID）
-     * @param redisTemplate     Redis 模板（触发去重）
+     * @param redisTemplate     Redis 模板（触发去重/限流）
      * @param objectMapper      JSON 序列化器
      * @param executor          流式调用线程池
+     * @param rateLimitPerMinute 单用户每分钟提问上限
      */
     public ImAgentChatService(ImAgentBindingMapper bindingMapper, ImAgentRunMapper runMapper,
                               ImConversationMapper conversationMapper, ImMessageMapper messageMapper,
                               MessageSeqAllocator seqAllocator, ImMessageBroadcaster broadcaster,
                               AgentStreamClient agentStreamClient, ImBotService botService,
                               StringRedisTemplate redisTemplate, ObjectMapper objectMapper,
-                              @Qualifier("imAgentExecutor") ThreadPoolTaskExecutor executor) {
+                              @Qualifier("imAgentExecutor") ThreadPoolTaskExecutor executor,
+                              @Value("${whale.im.agent.rate-limit-per-minute:20}") int rateLimitPerMinute) {
         this.bindingMapper = bindingMapper;
         this.runMapper = runMapper;
         this.conversationMapper = conversationMapper;
@@ -150,6 +169,7 @@ public class ImAgentChatService {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
         this.executor = executor;
+        this.rateLimitPerMinute = Math.max(1, rateLimitPerMinute);
     }
 
     /**
@@ -188,7 +208,48 @@ public class ImAgentChatService {
         Long requestMessageId = message.getId();
         Long userId = message.getSenderId();
         String question = content;
+        if (!allowWithinRateLimit(userId)) {
+            notifyRateLimited(conversationId);
+            return;
+        }
         executor.execute(() -> execute(conversationId, requestMessageId, userId, question, binding, permissionCodes));
+    }
+
+    /**
+     * 单用户分钟级限流：Redis 计数，超过上限拒绝本次触发。
+     *
+     * <p>Redis 不可用时放行（降级优先于限流），仅记录告警。</p>
+     *
+     * @param userId 提问用户ID
+     * @return 允许本次请求返回 {@code true}
+     */
+    private boolean allowWithinRateLimit(Long userId) {
+        if (userId == null) {
+            return true;
+        }
+        String key = RATE_KEY_PREFIX + userId + ":" + (System.currentTimeMillis() / MILLIS_PER_MINUTE);
+        try {
+            Long count = redisTemplate.opsForValue().increment(key);
+            if (count != null && count == 1L) {
+                redisTemplate.expire(key, Duration.ofSeconds(RATE_TTL_SECONDS));
+            }
+            return count == null || count <= rateLimitPerMinute;
+        } catch (RuntimeException e) {
+            log.warn("提问限流计数失败，按放行处理: userId={}", userId, e);
+            return true;
+        }
+    }
+
+    /**
+     * 限流提示：落一条 BOT 文本消息并广播，不创建运行记录。
+     *
+     * @param conversationId 会话ID
+     */
+    private void notifyRateLimited(Long conversationId) {
+        ImMessage hint = appendMessage(conversationId, botService.botUserId(), SENDER_BOT,
+                CONTENT_TEXT, RATE_LIMIT_HINT);
+        broadcaster.broadcast(conversationId, ImMessageService.toVo(hint));
+        log.info("提问触发限流: conversationId={}", conversationId);
     }
 
     /**
@@ -327,7 +388,7 @@ public class ImAgentChatService {
         switch (event) {
             case "meta" -> handleMeta(run, conversationId, binding, node, state);
             case "delta" -> handleDelta(run, conversationId, node, state);
-            case "tool" -> state.tools.add(copyValue(node));
+            case "tool" -> state.tools.add(AgentTraceMasker.mask(copyValue(node)));
             case "confirm" -> handleConfirm(run, conversationId, node, state);
             case "done" -> handleDone(node, state);
             case "error" -> throw new IOException(text(node, "message", "智能体执行失败"));
@@ -453,7 +514,7 @@ public class ImAgentChatService {
         if (citations != null && citations.isArray()) {
             List<Object> items = new ArrayList<>(citations.size());
             for (JsonNode item : citations) {
-                items.add(copyValue(item));
+                items.add(AgentTraceMasker.mask(copyValue(item)));
             }
             state.citations = items;
         }
