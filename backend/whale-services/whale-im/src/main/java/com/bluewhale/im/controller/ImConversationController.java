@@ -8,6 +8,7 @@ import com.bluewhale.im.dto.ReadRequest;
 import com.bluewhale.im.dto.SendMessageRequest;
 import com.bluewhale.im.entity.ImConversation;
 import com.bluewhale.im.entity.ImMessage;
+import com.bluewhale.im.service.ImBotService;
 import com.bluewhale.im.service.ImConversationService;
 import com.bluewhale.im.service.ImMemberService;
 import com.bluewhale.im.service.ImMessageService;
@@ -49,6 +50,8 @@ public class ImConversationController {
     private final ImMessageService messageService;
 
     private final ImMemberService memberService;
+
+    private final ImBotService botService;
 
     /**
      * 我的会话列表。
@@ -141,6 +144,17 @@ public class ImConversationController {
                                HttpServletRequest httpRequest) {
         messageService.recall(id, UserContext.requireUserId(httpRequest), messageId);
         return Result.ok();
+    }
+
+    /**
+     * 获取或初始化「当前用户 × 蓝鲸助手」的机器人会话（幂等）。
+     *
+     * @param httpRequest 当前请求（读取网关 {@code X-User-Id}）
+     * @return 机器人会话
+     */
+    @PostMapping("/bot")
+    public Result<ConversationVO> openBotConversation(HttpServletRequest httpRequest) {
+        return Result.ok(botService.openDefault(UserContext.requireUserId(httpRequest)));
     }
 
     /**

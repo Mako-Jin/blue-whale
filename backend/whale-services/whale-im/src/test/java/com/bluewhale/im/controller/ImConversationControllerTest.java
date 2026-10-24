@@ -4,6 +4,7 @@ import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.common.web.WebHeaders;
 import com.bluewhale.im.entity.ImConversation;
 import com.bluewhale.im.entity.ImMessage;
+import com.bluewhale.im.service.ImBotService;
 import com.bluewhale.im.service.ImConversationService;
 import com.bluewhale.im.service.ImMemberService;
 import com.bluewhale.im.service.ImMessageService;
@@ -53,8 +54,10 @@ class ImConversationControllerTest {
 
     private final ImMemberService memberService = mock(ImMemberService.class);
 
+    private final ImBotService botService = mock(ImBotService.class);
+
     private final ImConversationController controller =
-            new ImConversationController(conversationService, messageService, memberService);
+            new ImConversationController(conversationService, messageService, memberService, botService);
 
     private MockMvc mockMvc;
 
@@ -179,6 +182,19 @@ class ImConversationControllerTest {
                 .andExpect(status().isOk());
 
         verify(messageService).recall(CONVERSATION_ID, USER_ID, 9L);
+    }
+
+    @Test
+    @DisplayName("POST /im/conversations/bot：返回机器人会话")
+    void botConversationShouldReturnVo() throws Exception {
+        when(botService.openDefault(USER_ID))
+                .thenReturn(ConversationVO.builder().id("200").type("BOT").title("蓝鲸助手").unread(0L).build());
+
+        mockMvc.perform(post("/im/conversations/bot")
+                        .header(WebHeaders.USER_ID, String.valueOf(USER_ID)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value("200"))
+                .andExpect(jsonPath("$.data.type").value("BOT"));
     }
 
     @Test

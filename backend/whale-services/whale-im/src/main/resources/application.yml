@@ -50,6 +50,11 @@ whale:
       presence-ttl-seconds: ${WHALE_IM_PRESENCE_TTL_SECONDS:90}
     # 消息撤回时限（秒）：自落库起算，超时不允许撤回
     recall-window-seconds: ${WHALE_IM_RECALL_WINDOW_SECONDS:120}
+    # 内置机器人「蓝鲸助手」：逻辑用户ID不落 sys_user，仅用于 BOT 会话成员与消息发送者
+    bot:
+      name: ${WHALE_IM_BOT_NAME:蓝鲸助手}
+      user-id: ${WHALE_IM_BOT_USER_ID:900000000000000001}
+      scenario: ${WHALE_IM_BOT_SCENARIO:DEFAULT}
 
 mybatis-plus:
   configuration:
