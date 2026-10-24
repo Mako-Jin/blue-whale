@@ -15,6 +15,7 @@ on:
     paths:
       - 'backend/**'
       - 'frontend/**'
+      - 'ai/**'
       - 'config/checkstyle/**'
       - '.github/workflows/code-quality.yml'
   pull_request:
@@ -22,6 +23,7 @@ on:
     paths:
       - 'backend/**'
       - 'frontend/**'
+      - 'ai/**'
       - 'config/checkstyle/**'
       - '.github/workflows/code-quality.yml'
 
@@ -92,3 +94,30 @@ jobs:
 
       - name: Prettier Check
         run: pnpm format:check
+
+  ai-pytest:
+    name: AI · Python 3.12 + pytest
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ai/whale-ai
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      # 固化 3.12，避免 runner 默认解释器漂移（本机曾出现 3.15 误用）
+      - name: Install Python 3.12
+        run: uv python install 3.12
+
+      - name: Sync Dependencies (locked)
+        run: uv sync --frozen --extra dev
+
+      - name: pytest
+        run: uv run --python 3.12 pytest
