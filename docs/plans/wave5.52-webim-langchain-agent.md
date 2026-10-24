@@ -1,6 +1,6 @@
 # Wave 5.52 规划：WebIM + LangChain 智能体
 
-> 制定日期：2026-10-24 ｜ 状态：**规划中**（本轮只出方案，不编码）
+> 制定日期：2026-10-24 ｜ 状态：**实现中**（M0 设计冻结 + M1 T2/T3 已完成，见 §八）
 > 关联：`whale-agent`（8090，Wave 5.47）、`whale-gateway`（8080）、`whale-file`（8085）、`whale-auth`（8081）
 
 ## 一、目标
@@ -174,13 +174,13 @@ intent ──> retrieve(knowledge/facts) ──> think ──> tools ──> ver
 
 ### M0 设计冻结
 
-- [ ] T0 评审本文档；在 `docs/requirements/register.md` 登记 REQ-FUNC-011/012/013、REQ-SEC-007
-- [ ] T1 在 `docs/service-catalog.md` 登记 8091/8092/8107、`/im/**` 与 WS 路由、`bluewhale_im`
+- [x] T0 评审本文档；在 `docs/requirements/register.md` 登记 REQ-FUNC-011/012/013、REQ-SEC-007（2026-10-24 完成，见登记册第四节）
+- [x] T1 在 `docs/service-catalog.md` 登记 8091/8092/8107、`/im/**` 与 WS 路由、`bluewhale_im`（2026-10-24 完成）
 
 ### M1 IM 核心
 
-- [ ] T2 `whale-im` 模块骨架（端口/库/配置/启动类/Nacos）
-- [ ] T3 5 张表 DDL + 幂等迁移脚本
+- [x] T2 `whale-im` 模块骨架（端口/库/配置/启动类/Nacos）（2026-10-24 完成，构建 + Checkstyle 通过）
+- [x] T3 5 张表 DDL + 幂等迁移脚本（2026-10-24 完成，`db/init.sql` `CREATE TABLE IF NOT EXISTS`；建库执行留待联调）
 - [ ] T4 会话与消息 REST（含 `clientMsgId` 幂等、游标分页）
 - [ ] T5 WebSocket 通道 + ticket 鉴权 + 心跳 + 在线状态
 - [ ] T6 已读/未读、群成员管理、附件走 `whale-file`

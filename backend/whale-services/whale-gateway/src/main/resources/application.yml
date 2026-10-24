@@ -75,6 +75,17 @@ spring:
               uri: lb://whale-agent
               predicates:
                 - Path=/agent/**
+            # Wave 5.52 自研 WebIM：WS 升级路由 order=-1 先于 REST 路由匹配（同前缀 /im/ws）；
+            # 两条路由均不含 StripPrefix，服务自持 /im 一级前缀（REQ-ARCH-003）
+            - id: whale-im-ws
+              uri: lb:ws://whale-im
+              order: -1
+              predicates:
+                - Path=/im/ws
+            - id: whale-im
+              uri: lb://whale-im
+              predicates:
+                - Path=/im/**
 
 whale:
   gateway:
@@ -99,6 +110,9 @@ whale:
       # 仅放行上报写入端点 /batch；同前缀下的 /page 查询端点须走 JWT + 权限码头（否则漏注入 X-Permission-Codes 导致下游 403）
       - /audit/log/frontend/batch
       - /audit/log/behavior/batch
+      # Wave 5.52 WebIM WebSocket 升级：浏览器 WS 无法携带 Authorization 头，
+      # 鉴权改由 60s 一次性 ticket（POST /im/ws-ticket 已走标准 JWT）；URL 中严禁出现 JWT。
+      - /im/ws
     # AUTH-06 权限码头注入：JwtAuthGlobalFilter 注入 X-User-Id 后，PermissionHeaderGlobalFilter(order=-50)
     # 读 Redis 权限码缓存（命中即注入）；未命中/哨兵/异常回落 lb://whale-auth/auth/me，两级均失败注入空串并告警
     permission-header:

@@ -2,7 +2,7 @@
 
 > 用途：本项目所有需求（业务功能 + 工程规范）的统一台账。
 > 规则：**任何需求在动手实现之前，必须先在此登记编号与验收标准**（见 REQ-DOC-002）。
-> 最后更新：2026-10-21（收尾审计同步：REQ-FUNC-002/003/005/006/008/009/010 状态回填至实际完成度；Phase 4 业务应用转入 [wave5.46 规划](../plans/wave5.46-phase4-business-apps.md)） ｜ 维护：BlueWhale
+> 最后更新：2026-10-24（**Wave 5.52 M0 设计冻结**：新增登记 REQ-FUNC-011 自研 WebIM、REQ-FUNC-012 LangChain 智能体、REQ-FUNC-013 平台操作分级确认、REQ-SEC-007 智能体工具权限与确认令牌；详见 [wave5.52 规划](../plans/wave5.52-webim-langchain-agent.md)） ｜ 维护：BlueWhale
 > Wave 5.16：**审计服务文档收尾（REQ-DOC-002 / REQ-QA-002，REQ-SEC-001/006 文档整合）**——① `docs/whale-audit/originals/` 归置审计相关原始文档副本 **26 份**（design 1 + scheme 1 + specs 5 目录 15 + reviews 6 + devlog 3；**原位文件不删不动**）；② `docs/whale-audit/final/README.md` 整合最终版（八节：需求与范围 / 能力矩阵 / 接口与权限点清单〔2 控制器 9 端点〕/ 关键配置项 / 表结构〔5 表〕/ 已闭环与残余阻塞 / 原文索引 / 版本记录），以原位最新文件与源码为准。**本波零代码变更**。详见 [reviews/2026-10-18-wave5.16-audit-service-finalization.md](../reviews/2026-10-18-wave5.16-audit-service-finalization.md) 与 [whale-audit/final/README.md](../whale-audit/final/README.md)。
 > Wave 5.15：**审计服务 ①② 通道查询补齐（REQ-SEC-006）**——为 `api_log`（通道①）/`outbound_log`（通道②）补齐与 ③④ 对称的分页查询端点 `GET /audit/log/api/page`、`GET /audit/log/outbound/page`（`@RequirePermission("sys:audit:log:list")`，返回 `Result<PageResult<VO>>`）；新增 DTO（继承 `PageQuery`，时间范围 `@DateTimeFormat`）+ VO（`Serializable`，字段与实体一一对应）+ Service/Impl（`size` 收敛 `[1,200]`、`create_time` 倒序、等值条件带「是否提供」开关、时间 `ge/le`，命中既有索引）；四通道「写—查」对称达成。门禁：`-pl :whale-audit -am test` **46 用例全绿**（含不回归）、`checkstyle:check` **28 模块 0 违规**。详见 [reviews/2026-10-18-wave5.15-audit-channel-query.md](../reviews/2026-10-18-wave5.15-audit-channel-query.md)。
 > Wave 5.14：**前端日志 SDK（Wave B，REQ-SEC-006 通道③④）**——新增共享包 `@bluewhale/whale-log-sdk`（`frontend/shared-packages/whale-log-sdk`，v0.1.0，**零运行时依赖**）：console 劫持采集（保留原输出 + 可还原）+ 行为埋点（`PAGE_VIEW`/`CLICK`/`SUBMIT`）+ 脱敏（递归敏感键 + URL query，键与后端 `SensitiveDataMasker` 对齐）+ 批量通道（采样/去重/满批或定时 flush/**分片 ≤50**/指数退避）+ `fetch` 上报（`X-Trace-Id`）；`whale-platform` 基座接入 `initLogSdk()`。**不改后端**（契约沿用 Wave 5.10 冻结接口）。门禁：tsup **三件产物**（cjs/esm/dts）+ 无依赖冒烟 **30 断言全过** + 前端 `pnpm build` **12/12** + `eslint` **0 error** + `prettier` **0 差异**。详见 [reviews/2026-10-18-wave5.14-whale-log-sdk.md](../reviews/2026-10-18-wave5.14-whale-log-sdk.md)。
@@ -78,7 +78,18 @@
 
 ---
 
-## 四、既有需求基线（引自路线图，仅登记不重复展开）
+## 四、Wave 5.52 新增需求（WebIM + LangChain 智能体，2026-10-24 登记）
+
+| 编号 | 需求描述 | 来源 | 优先级 | 状态 | 落点 | 验收标准 |
+|---|---|---|---|---|---|---|
+| REQ-FUNC-011 | **自研 WebIM**：1:1 / 群聊 / 机器人会话，消息历史与游标分页、未读/已读、在线状态、图片与文件附件；会话与消息数据落 `bluewhale_im` | 用户指令（Wave 5.52） | 高 | 设计已定稿（[wave5.52 规划](../plans/wave5.52-webim-langchain-agent.md) §五） | `backend/whale-services/whale-im`（8091，`/im/**`、`/im/ws`）+ `frontend/platform-apps/whale-im`（8107，base `/im`） | ① 5 表（`im_conversation`/`im_conversation_member`/`im_message`/`im_agent_binding`/`im_agent_run`）DDL 落地且索引与规划 §5.1 一致；② REST：会话列表/建会话/历史消息（`beforeSeq` 游标）/发消息/已读上报，`clientMsgId` 唯一索引保证重发幂等；③ WS：`POST /im/ws-ticket` 换 60s 一次性 ticket，**WS URL 不含 JWT**，无 ticket 拒绝升级；④ 断线按 `lastSeq` 补拉后消息完整且顺序正确；⑤ 附件经 `whale-file` 上传只存引用；⑥ 前端 build/lint EXIT=0，`console` 统一走 `createLogger` |
+| REQ-FUNC-012 | **LangChain 智能体**：回答平台架构 / 技术实现 / 数据口径问题，流式输出，引用可回溯；IM 单聊与群内 `@蓝鲸助手` 均可触发 | 用户指令（Wave 5.52） | 高 | 设计已定稿（[wave5.52 规划](../plans/wave5.52-webim-langchain-agent.md) §六） | `ai/whale-ai`（Python FastAPI + LangChain/LangGraph，8092 仅内网）+ `whale-agent`（8090，引擎开关 `whale.agent.qa.engine=legacy\|langchain`） | ① Python 服务**不持业务库凭据**，检索/事实/文档工具回调 Java 侧执行；② LangGraph 编排 `intent → retrieve → think → tools → verify_citations → answer`，工具步数 ≤6、总预算 120s；③ 流式帧与既有 SSE 契约（`meta`/`delta`/`done`/`error`）对齐，`done` 引用集合与正文标记一致；④ 记忆写 Redis `whale:ai:memory:<conversationId>`（TTL 7 天）；⑤ 开关默认 `legacy`，关闭态行为与现网一致；⑥ `pytest` 全绿 |
+| REQ-FUNC-013 | **平台操作能力（分级 + 人工确认 + 审计）**：L0 只读自动执行、L1 只读数据白名单查询、L2 写操作必须一次性确认令牌 | 用户指令（Wave 5.52） | 高 | 设计已定稿（[wave5.52 规划](../plans/wave5.52-webim-langchain-agent.md) §6.3–6.5） | `whale-ai` 工具声明 + `whale-agent` 确认/执行/审计 + `whale-im` 确认卡片（`POST /im/agent-runs/{id}/confirm`） | ① `knowledge_search`/`fact_get`/`doc_read`（L0，`sys:agent:chat`）自动执行；② `data_query`（L1，`sys:ai:data:read`）仅 SELECT、白名单视图、自动 `LIMIT 200`、5s 超时、敏感字段脱敏，非白名单/写 SQL/多语句一律拒绝；③ `platform_op`（L2）**未确认不下发**，`WAITING_CONFIRM` + `confirmation_id` 一次性令牌 5 分钟有效，绑定同一用户与权限码；④ 审计可按 `confirmation_id` 追溯（发起人/确认人/工具名/参数哈希/目标服务/结果码/耗时） |
+| REQ-SEC-007 | **智能体工具权限与确认令牌**：L0/L1/L2 工具分级授权；WS 侧 ticket 鉴权；确认令牌一次性、短时效、绑定用户与权限码；敏感参数不落原文 | 用户指令（Wave 5.52） | 高 | 设计已定稿（[wave5.52 规划](../plans/wave5.52-webim-langchain-agent.md) §5.4、§6.3–6.5） | `whale-im` ticket/`im_agent_run` + `whale-agent` 工具权限校验与审计 + `whale-security`（如需）| ① 每个工具声明风险级与权限码，缺码即拒；② WS ticket 存 `whale:im:ticket:<uuid>`（60s、一次性、绑定 userId），消费即删；③ 确认令牌一次性、5 分钟过期、不可跨用户/跨权限码复用；④ 审计记录参数哈希而非敏感原值；⑤ 单元测试覆盖「无权/过期/已用/跨用户」四类拒绝路径 |
+
+---
+
+## 五、既有需求基线（引自路线图，仅登记不重复展开）
 
 | 编号 | 需求描述 | 状态 | 来源 |
 |---|---|---|---|
@@ -95,7 +106,7 @@
 
 ---
 
-## 五、变更控制流程（REQ-DOC-002 落地）
+## 六、变更控制流程（REQ-DOC-002 落地）
 
 ```
 提出需求
