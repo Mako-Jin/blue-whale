@@ -190,6 +190,12 @@ public class AgentProperties {
     @Data
     public static class Qa {
 
+        /** 问答引擎：{@code legacy}（Java 内置）或 {@code langchain}（ai/whale-ai 内网服务） */
+        private String engine = "legacy";
+
+        /** LangChain 引擎参数 */
+        private Langchain langchain = new Langchain();
+
         /** 证据块最多条数 */
         private int evidenceTopK = 8;
 
@@ -207,6 +213,28 @@ public class AgentProperties {
 
         /** 自主编排最大工具轮数（硬上限 12） */
         private int maxToolSteps = 4;
+
+        /**
+         * 是否走 LangChain 引擎。
+         *
+         * @return {@code true} 表示委托 ai/whale-ai 流式问答
+         */
+        public boolean isLangchain() {
+            return "langchain".equalsIgnoreCase(engine);
+        }
+    }
+
+    /**
+     * LangChain 引擎（ai/whale-ai）连接参数。
+     */
+    @Data
+    public static class Langchain {
+
+        /** 服务基地址（仅内网，不注册网关） */
+        private String baseUrl = "http://127.0.0.1:8092";
+
+        /** 流式问答总超时（秒） */
+        private int timeoutSeconds = 120;
     }
 
     /**

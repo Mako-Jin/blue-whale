@@ -31,6 +31,12 @@ class Settings(BaseSettings):
     tool_timeout_seconds: int = 20
     total_budget_seconds: int = 120
     agent_base_url: str = "http://127.0.0.1:8090"
+    # 仓库根目录：配置后按路径存在性校验引用（与 whale-agent CitationValidator 对齐），留空只做结构校验
+    repo_root: str = ""
+    # 单次知识检索条数
+    search_top_k: int = 8
+    # 结构化问题的事实条数上限
+    fact_limit: int = 8
 
 
 class LlmSettings(BaseSettings):

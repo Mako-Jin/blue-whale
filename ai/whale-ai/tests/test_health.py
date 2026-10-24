@@ -1,8 +1,12 @@
-"""健康检查与骨架图单测。"""
+"""健康检查与图入口单测。"""
 
+from __future__ import annotations
+
+import pytest
 from fastapi.testclient import TestClient
 
-from whale_ai.graph import PLACEHOLDER_ANSWER, run_agent
+import whale_ai.graph.nodes as nodes
+from whale_ai.graph import build_graph, run_agent
 from whale_ai.main import app
 
 client = TestClient(app)
@@ -16,16 +20,21 @@ def test_health_returns_ok() -> None:
     assert body["status"] == "ok"
     assert body["service"] == "whale-ai"
     assert body["engine"] == "langgraph"
-    assert body["graph"] == "skeleton"
+    assert body["graph"] == "qa-v1"
 
 
-def test_run_agent_returns_placeholder_answer() -> None:
-    state = run_agent("平台架构如何？", conversation_id=7)
+def test_graph_compiles() -> None:
+    assert build_graph() is not None
 
-    assert state["answer"] == PLACEHOLDER_ANSWER
-    assert state["intent"] == "SKELETON"
+
+def test_run_agent_keeps_conversation_id(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(nodes, "execute_tool", lambda *args, **kwargs: {"count": 0, "items": []})
+
+    state = run_agent("平台架构如何？", conversation_id=7, llm_client=_UnavailableLlm())
+
     assert state["conversation_id"] == 7
-    assert state["degraded"] is False
+    assert state["intent"] == "SEMANTIC"
+    assert state["degraded"] is True
 
 
 def test_tools_endpoint_returns_l0_catalog() -> None:
@@ -36,3 +45,13 @@ def test_tools_endpoint_returns_l0_catalog() -> None:
     assert {tool["name"] for tool in tools} == {"knowledge_search", "fact_get", "doc_read"}
     assert all(tool["riskLevel"] == "L0" for tool in tools)
 
+
+class _UnavailableLlm:
+    """未配置模型替身，避免测试触发真实网络请求。"""
+
+    available = False
+
+    def stream(self, messages: list[dict[str, str]]) -> list[str]:
+        """不可用时不应被调用。"""
+        del messages
+        raise AssertionError("未配置模型时不应调用 stream")

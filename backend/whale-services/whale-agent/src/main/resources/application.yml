@@ -76,6 +76,11 @@ whale:
       temperature: ${WHALE_AGENT_LLM_TEMPERATURE:0.2}
     # 问答编排参数
     qa:
+      # 问答引擎：legacy = Java 内置（默认）；langchain = 委托 ai/whale-ai（内网 8092）
+      engine: ${WHALE_AGENT_QA_ENGINE:legacy}
+      langchain:
+        base-url: ${WHALE_AI_BASE_URL:http://127.0.0.1:8092}
+        timeout-seconds: ${WHALE_AI_TIMEOUT_SECONDS:120}
       evidence-top-k: ${WHALE_AGENT_QA_EVIDENCE_TOP_K:8}
       max-chunk-chars: ${WHALE_AGENT_QA_MAX_CHUNK_CHARS:1200}
       max-facts: ${WHALE_AGENT_QA_MAX_FACTS:12}
