@@ -17,6 +17,7 @@ import java.util.Map;
  *   <li>{@code ping} / {@code pong}：客户端心跳与服务端应答</li>
  *   <li>{@code message.new}：新消息推送（载荷为 REST 同构的 {@link MessageVO}）</li>
  *   <li>{@code message.recalled}：消息撤回通知</li>
+ *   <li>{@code agent.meta} / {@code agent.delta} / {@code agent.done} / {@code agent.error}：机器人流式回答</li>
  *   <li>{@code error}：协议错误提示</li>
  * </ul>
  *
@@ -41,6 +42,18 @@ public final class WsFrames {
 
     /** 协议错误帧 */
     public static final String TYPE_ERROR = "error";
+
+    /** 机器人回答元信息帧 */
+    public static final String TYPE_AGENT_META = "agent.meta";
+
+    /** 机器人回答增量帧 */
+    public static final String TYPE_AGENT_DELTA = "agent.delta";
+
+    /** 机器人回答完成帧 */
+    public static final String TYPE_AGENT_DONE = "agent.done";
+
+    /** 机器人回答失败帧 */
+    public static final String TYPE_AGENT_ERROR = "agent.error";
 
     /** 时间格式 */
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
@@ -104,6 +117,82 @@ public final class WsFrames {
         frame.put("messageId", String.valueOf(messageId));
         frame.put("seq", seq);
         frame.put("operatorId", operatorId == null ? null : String.valueOf(operatorId));
+        return frame;
+    }
+
+    /**
+     * 构造机器人回答元信息帧。
+     *
+     * @param conversationId       IM 会话ID
+     * @param runId                运行记录ID
+     * @param agentConversationId  智能体会话ID（可空）
+     * @param intent               意图（可空）
+     * @param degraded             是否降级回答
+     * @return 帧对象
+     */
+    public static Map<String, Object> agentMeta(Long conversationId, Long runId, String agentConversationId,
+                                                String intent, boolean degraded) {
+        Map<String, Object> frame = frame(TYPE_AGENT_META);
+        frame.put("conversationId", String.valueOf(conversationId));
+        frame.put("runId", String.valueOf(runId));
+        frame.put("agentConversationId", agentConversationId);
+        frame.put("intent", intent);
+        frame.put("degraded", degraded);
+        return frame;
+    }
+
+    /**
+     * 构造机器人回答增量帧。
+     *
+     * @param conversationId IM 会话ID
+     * @param runId          运行记录ID
+     * @param text           本次增量文本
+     * @return 帧对象
+     */
+    public static Map<String, Object> agentDelta(Long conversationId, Long runId, String text) {
+        Map<String, Object> frame = frame(TYPE_AGENT_DELTA);
+        frame.put("conversationId", String.valueOf(conversationId));
+        frame.put("runId", String.valueOf(runId));
+        frame.put("text", text);
+        return frame;
+    }
+
+    /**
+     * 构造机器人回答完成帧。
+     *
+     * @param conversationId IM 会话ID
+     * @param runId          运行记录ID
+     * @param messageId      机器人回复消息ID
+     * @param tokens         估算 token 数
+     * @param elapsedMillis  耗时（毫秒）
+     * @param degraded       是否降级回答
+     * @return 帧对象
+     */
+    public static Map<String, Object> agentDone(Long conversationId, Long runId, Long messageId,
+                                                int tokens, long elapsedMillis, boolean degraded) {
+        Map<String, Object> frame = frame(TYPE_AGENT_DONE);
+        frame.put("conversationId", String.valueOf(conversationId));
+        frame.put("runId", String.valueOf(runId));
+        frame.put("messageId", String.valueOf(messageId));
+        frame.put("tokens", tokens);
+        frame.put("elapsedMillis", elapsedMillis);
+        frame.put("degraded", degraded);
+        return frame;
+    }
+
+    /**
+     * 构造机器人回答失败帧。
+     *
+     * @param conversationId IM 会话ID
+     * @param runId          运行记录ID
+     * @param message        错误提示
+     * @return 帧对象
+     */
+    public static Map<String, Object> agentError(Long conversationId, Long runId, String message) {
+        Map<String, Object> frame = frame(TYPE_AGENT_ERROR);
+        frame.put("conversationId", String.valueOf(conversationId));
+        frame.put("runId", String.valueOf(runId));
+        frame.put("message", message);
         return frame;
     }
 

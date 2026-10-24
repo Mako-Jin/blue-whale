@@ -4,6 +4,7 @@ import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.common.web.WebHeaders;
 import com.bluewhale.im.entity.ImConversation;
 import com.bluewhale.im.entity.ImMessage;
+import com.bluewhale.im.service.ImAgentChatService;
 import com.bluewhale.im.service.ImBotService;
 import com.bluewhale.im.service.ImConversationService;
 import com.bluewhale.im.service.ImMemberService;
@@ -56,8 +57,10 @@ class ImConversationControllerTest {
 
     private final ImBotService botService = mock(ImBotService.class);
 
+    private final ImAgentChatService agentChatService = mock(ImAgentChatService.class);
+
     private final ImConversationController controller =
-            new ImConversationController(conversationService, messageService, memberService, botService);
+            new ImConversationController(conversationService, messageService, memberService, botService, agentChatService);
 
     private MockMvc mockMvc;
 
@@ -160,6 +163,8 @@ class ImConversationControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.seq").value(5))
                 .andExpect(jsonPath("$.data.clientMsgId").value("c-1"));
+
+        verify(agentChatService).onUserMessage(any(), any());
     }
 
     @Test

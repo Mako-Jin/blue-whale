@@ -2,12 +2,14 @@ package com.bluewhale.im.controller;
 
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.common.core.result.Result;
+import com.bluewhale.common.web.WebHeaders;
 import com.bluewhale.im.dto.AddMembersRequest;
 import com.bluewhale.im.dto.CreateConversationRequest;
 import com.bluewhale.im.dto.ReadRequest;
 import com.bluewhale.im.dto.SendMessageRequest;
 import com.bluewhale.im.entity.ImConversation;
 import com.bluewhale.im.entity.ImMessage;
+import com.bluewhale.im.service.ImAgentChatService;
 import com.bluewhale.im.service.ImBotService;
 import com.bluewhale.im.service.ImConversationService;
 import com.bluewhale.im.service.ImMemberService;
@@ -52,6 +54,8 @@ public class ImConversationController {
     private final ImMemberService memberService;
 
     private final ImBotService botService;
+
+    private final ImAgentChatService agentChatService;
 
     /**
      * 我的会话列表。
@@ -111,6 +115,7 @@ public class ImConversationController {
                                   @Valid @RequestBody SendMessageRequest request,
                                   HttpServletRequest httpRequest) {
         ImMessage message = messageService.send(id, UserContext.requireUserId(httpRequest), request);
+        agentChatService.onUserMessage(message, WebHeaders.header(httpRequest, WebHeaders.PERMISSION_CODES));
         return Result.ok(ImMessageService.toVo(message));
     }
 

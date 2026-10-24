@@ -1,0 +1,529 @@
+package com.bluewhale.im.service;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.bluewhale.im.entity.ImAgentBinding;
+import com.bluewhale.im.entity.ImAgentRun;
+import com.bluewhale.im.entity.ImConversation;
+import com.bluewhale.im.entity.ImMessage;
+import com.bluewhale.im.mapper.ImAgentBindingMapper;
+import com.bluewhale.im.mapper.ImAgentRunMapper;
+import com.bluewhale.im.mapper.ImConversationMapper;
+import com.bluewhale.im.mapper.ImMessageMapper;
+import com.bluewhale.im.support.AgentStreamClient;
+import com.bluewhale.im.ws.ImMessageBroadcaster;
+import com.bluewhale.im.ws.WsFrames;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * 机器人回答编排：机器人会话收到用户消息后，调用 {@code whale-agent} 的 SSE 流式接口，
+ * 把 {@code meta/delta/tool/done/error} 转换为 WS 帧并落库机器人回复。
+ *
+ * <p>关键约束：流式调用在独立线程执行，不阻塞消息发送请求；回答以 {@code sender_type=BOT}
+ * 落库（失败时为 {@code SYSTEM} 提示），数据库始终为唯一事实源；超时/异常一律降级为
+ * 提示消息 + {@code agent.error} 帧，不影响会话继续使用。</p>
+ *
+ * @author BlueWhale
+ */
+@Slf4j
+@Service
+public class ImAgentChatService {
+
+    /** 会话类型：机器人会话 */
+    private static final String TYPE_BOT = "BOT";
+
+    /** 发送者类型：机器人 */
+    private static final String SENDER_BOT = "BOT";
+
+    /** 发送者类型：系统 */
+    private static final String SENDER_SYSTEM = "SYSTEM";
+
+    /** 内容类型：Markdown */
+    private static final String CONTENT_MARKDOWN = "MARKDOWN";
+
+    /** 内容类型：纯文本 */
+    private static final String CONTENT_TEXT = "TEXT";
+
+    /** 运行状态：运行中 */
+    private static final String STATUS_RUNNING = "RUNNING";
+
+    /** 运行状态：成功 */
+    private static final String STATUS_SUCCESS = "SUCCESS";
+
+    /** 运行状态：失败 */
+    private static final String STATUS_FAILED = "FAILED";
+
+    /** 降级提示文案 */
+    private static final String DEGRADED_HINT = "智能体暂时不可用，请稍后重试";
+
+    /** 中断提示文案 */
+    private static final String INTERRUPTED_HINT = "回答已中断，请稍后重试";
+
+    /** 问题最大长度（与 whale-agent {@code ChatRequest} 对齐） */
+    private static final int MAX_QUESTION_LENGTH = 2000;
+
+    /** 消息序号重试次数 */
+    private static final int MAX_SEQ_ATTEMPTS = 3;
+
+    /** 绑定启用 */
+    private static final int BINDING_ENABLED = 1;
+
+    private final ImAgentBindingMapper bindingMapper;
+
+    private final ImAgentRunMapper runMapper;
+
+    private final ImConversationMapper conversationMapper;
+
+    private final ImMessageMapper messageMapper;
+
+    private final MessageSeqAllocator seqAllocator;
+
+    private final ImMessageBroadcaster broadcaster;
+
+    private final AgentStreamClient agentStreamClient;
+
+    private final ImBotService botService;
+
+    private final ObjectMapper objectMapper;
+
+    private final ThreadPoolTaskExecutor executor;
+
+    /**
+     * 构造机器人回答编排服务。
+     *
+     * @param bindingMapper     绑定 Mapper
+     * @param runMapper         运行记录 Mapper
+     * @param conversationMapper 会话 Mapper
+     * @param messageMapper     消息 Mapper
+     * @param seqAllocator      序号分配器
+     * @param broadcaster       广播器
+     * @param agentStreamClient 智能体流式客户端
+     * @param botService        机器人会话服务（提供机器人ID）
+     * @param objectMapper      JSON 序列化器
+     * @param executor          流式调用线程池
+     */
+    public ImAgentChatService(ImAgentBindingMapper bindingMapper, ImAgentRunMapper runMapper,
+                              ImConversationMapper conversationMapper, ImMessageMapper messageMapper,
+                              MessageSeqAllocator seqAllocator, ImMessageBroadcaster broadcaster,
+                              AgentStreamClient agentStreamClient, ImBotService botService,
+                              ObjectMapper objectMapper,
+                              @Qualifier("imAgentExecutor") ThreadPoolTaskExecutor executor) {
+        this.bindingMapper = bindingMapper;
+        this.runMapper = runMapper;
+        this.conversationMapper = conversationMapper;
+        this.messageMapper = messageMapper;
+        this.seqAllocator = seqAllocator;
+        this.broadcaster = broadcaster;
+        this.agentStreamClient = agentStreamClient;
+        this.botService = botService;
+        this.objectMapper = objectMapper;
+        this.executor = executor;
+    }
+
+    /**
+     * 用户消息落库后触发机器人回答（仅 BOT 会话；群内 @ 触发由 T9 扩展）。
+     *
+     * <p>异步执行，立即返回；无绑定、非 BOT 会话或内容为空时静默跳过。</p>
+     *
+     * @param message         已落库的用户消息
+     * @param permissionCodes 当前用户权限码（透传智能体做权限校验）
+     */
+    public void onUserMessage(ImMessage message, String permissionCodes) {
+        if (message == null || !ImMessageService.SENDER_USER.equals(message.getSenderType())) {
+            return;
+        }
+        if (!StringUtils.hasText(message.getContent())) {
+            return;
+        }
+        ImConversation conversation = conversationMapper.selectById(message.getConversationId());
+        if (conversation == null || !TYPE_BOT.equals(conversation.getType())) {
+            return;
+        }
+        ImAgentBinding binding = enabledBinding(conversation.getId());
+        if (binding == null) {
+            return;
+        }
+        Long conversationId = conversation.getId();
+        Long requestMessageId = message.getId();
+        Long userId = message.getSenderId();
+        String question = message.getContent();
+        executor.execute(() -> execute(conversationId, requestMessageId, userId, question, binding, permissionCodes));
+    }
+
+    /**
+     * 执行一次流式回答（独立线程）。
+     *
+     * @param conversationId 会话ID
+     * @param requestMessageId 触发消息ID
+     * @param userId           提问用户ID
+     * @param question         问题文本
+     * @param binding          会话机器人绑定
+     * @param permissionCodes  权限码
+     */
+    private void execute(Long conversationId, Long requestMessageId, Long userId, String question,
+                         ImAgentBinding binding, String permissionCodes) {
+        ImAgentRun run = startRun(conversationId, requestMessageId);
+        RunState state = new RunState();
+        long started = System.currentTimeMillis();
+        Long botUserId = botService.botUserId();
+        try {
+            agentStreamClient.stream(requestBody(binding, question), userId, permissionCodes,
+                    (event, data) -> handleEvent(run, conversationId, binding, event, data, state));
+            if (!state.done) {
+                throw new IOException("智能体未返回完成事件");
+            }
+            ImMessage reply = persistReply(conversationId, botUserId, SENDER_BOT, CONTENT_MARKDOWN,
+                    state.answer.toString());
+            finishRun(run, STATUS_SUCCESS, state, reply.getId());
+            broadcaster.broadcast(conversationId, ImMessageService.toVo(reply));
+            broadcaster.broadcastFrame(conversationId, WsFrames.agentDone(conversationId, run.getId(), reply.getId(),
+                    state.tokens, System.currentTimeMillis() - started, state.degraded));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            degrade(conversationId, run, state, botUserId, INTERRUPTED_HINT, e);
+        } catch (Exception e) {
+            degrade(conversationId, run, state, botUserId, DEGRADED_HINT, e);
+        }
+    }
+
+    /**
+     * 降级：落系统提示消息、标记运行失败并推送失败帧。
+     *
+     * @param conversationId 会话ID
+     * @param run            运行记录
+     * @param state          运行状态
+     * @param botUserId      机器人ID（系统提示的发送者）
+     * @param hint           提示文案
+     * @param cause          原始异常
+     */
+    private void degrade(Long conversationId, ImAgentRun run, RunState state, Long botUserId,
+                         String hint, Exception cause) {
+        log.warn("智能体回答失败: conversationId={}, runId={}", conversationId, run.getId(), cause);
+        ImMessage reply = persistReply(conversationId, botUserId, SENDER_SYSTEM, CONTENT_TEXT, hint);
+        finishRun(run, STATUS_FAILED, state, reply.getId());
+        broadcaster.broadcastFrame(conversationId, WsFrames.agentError(conversationId, run.getId(), hint));
+        broadcaster.broadcast(conversationId, ImMessageService.toVo(reply));
+    }
+
+    /**
+     * 处理单个 SSE 事件并转换为 WS 帧。
+     *
+     * @param run            运行记录
+     * @param conversationId 会话ID
+     * @param binding        机器人绑定
+     * @param event          事件名
+     * @param data           事件 JSON
+     * @param state          运行状态
+     * @throws IOException 事件不合法或智能体返回错误
+     */
+    private void handleEvent(ImAgentRun run, Long conversationId, ImAgentBinding binding,
+                             String event, String data, RunState state) throws IOException {
+        JsonNode node;
+        try {
+            node = objectMapper.readTree(data);
+        } catch (RuntimeException e) {
+            throw new IOException("智能体事件解析失败", e);
+        }
+        switch (event) {
+            case "meta" -> handleMeta(run, conversationId, binding, node, state);
+            case "delta" -> handleDelta(run, conversationId, node, state);
+            case "tool" -> state.tools.add(copyValue(node));
+            case "done" -> handleDone(node, state);
+            case "error" -> throw new IOException(text(node, "message", "智能体执行失败"));
+            default -> log.debug("忽略未知智能体事件: event={}", event);
+        }
+    }
+
+    /**
+     * 处理 {@code meta} 事件：回填智能体会话ID并推送元信息帧。
+     *
+     * @param run            运行记录
+     * @param conversationId 会话ID
+     * @param binding        机器人绑定
+     * @param node           事件 JSON
+     * @param state          运行状态
+     */
+    private void handleMeta(ImAgentRun run, Long conversationId, ImAgentBinding binding,
+                            JsonNode node, RunState state) {
+        String agentConversationId = text(node, "conversationId", null);
+        state.degraded = boolValue(node, "degraded");
+        if (StringUtils.hasText(agentConversationId)
+                && !agentConversationId.equals(binding.getAgentConversationId())) {
+            LambdaUpdateWrapper<ImAgentBinding> wrapper = new LambdaUpdateWrapper<>();
+            wrapper.eq(ImAgentBinding::getId, binding.getId());
+            wrapper.set(ImAgentBinding::getAgentConversationId, agentConversationId);
+            bindingMapper.update(null, wrapper);
+        }
+        broadcaster.broadcastFrame(conversationId,
+                WsFrames.agentMeta(conversationId, run.getId(), agentConversationId,
+                        text(node, "intent", null), state.degraded));
+    }
+
+    /**
+     * 处理 {@code delta} 事件：累加文本并推送增量帧。
+     *
+     * @param run            运行记录
+     * @param conversationId 会话ID
+     * @param node           事件 JSON
+     * @param state          运行状态
+     */
+    private void handleDelta(ImAgentRun run, Long conversationId, JsonNode node, RunState state) {
+        String chunk = text(node, "text", "");
+        if (!StringUtils.hasText(chunk)) {
+            return;
+        }
+        state.answer.append(chunk);
+        broadcaster.broadcastFrame(conversationId, WsFrames.agentDelta(conversationId, run.getId(), chunk));
+    }
+
+    /**
+     * 处理 {@code done} 事件：记录 token、降级标记与引用清单。
+     *
+     * @param node  事件 JSON
+     * @param state 运行状态
+     */
+    private void handleDone(JsonNode node, RunState state) {
+        state.done = true;
+        state.tokens = node.path("tokens").asInt(0);
+        state.degraded = state.degraded || boolValue(node, "degraded");
+        JsonNode citations = node.get("citations");
+        if (citations != null && citations.isArray()) {
+            List<Object> items = new ArrayList<>(citations.size());
+            for (JsonNode item : citations) {
+                items.add(copyValue(item));
+            }
+            state.citations = items;
+        }
+    }
+
+    /**
+     * 创建运行记录（状态 RUNNING）。
+     *
+     * @param conversationId   会话ID
+     * @param requestMessageId 触发消息ID
+     * @return 运行记录
+     */
+    private ImAgentRun startRun(Long conversationId, Long requestMessageId) {
+        ImAgentRun run = new ImAgentRun();
+        run.setConversationId(conversationId);
+        run.setRequestMessageId(requestMessageId);
+        run.setStatus(STATUS_RUNNING);
+        run.setStartedAt(LocalDateTime.now());
+        runMapper.insert(run);
+        return run;
+    }
+
+    /**
+     * 结束运行记录：写状态、回复消息ID、轨迹与结束时间。
+     *
+     * @param run            运行记录
+     * @param status         最终状态
+     * @param state          运行状态
+     * @param responseMessageId 回复消息ID
+     */
+    private void finishRun(ImAgentRun run, String status, RunState state, Long responseMessageId) {
+        LambdaUpdateWrapper<ImAgentRun> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(ImAgentRun::getId, run.getId());
+        wrapper.set(ImAgentRun::getStatus, status);
+        wrapper.set(ImAgentRun::getResponseMessageId, responseMessageId);
+        wrapper.set(ImAgentRun::getFinishedAt, LocalDateTime.now());
+        wrapper.set(ImAgentRun::getToolTraceJson, traceJson(state));
+        runMapper.update(null, wrapper);
+    }
+
+    /**
+     * 序列化工具轨迹与引用。
+     *
+     * @param state 运行状态
+     * @return JSON 文本
+     */
+    private String traceJson(RunState state) {
+        Map<String, Object> trace = new LinkedHashMap<>();
+        trace.put("tools", state.tools);
+        trace.put("citations", state.citations);
+        try {
+            return objectMapper.writeValueAsString(trace);
+        } catch (RuntimeException e) {
+            log.warn("工具轨迹序列化失败", e);
+            return null;
+        }
+    }
+
+    /**
+     * 落库机器人回复并推进会话游标。
+     *
+     * @param conversationId 会话ID
+     * @param senderId       发送者ID（机器人或系统）
+     * @param senderType     发送者类型
+     * @param contentType    内容类型
+     * @param content        回答内容
+     * @return 已落库消息
+     */
+    private ImMessage persistReply(Long conversationId, Long senderId, String senderType,
+                                   String contentType, String content) {
+        for (int attempt = 0; attempt < MAX_SEQ_ATTEMPTS; attempt++) {
+            ImConversation conversation = conversationMapper.selectById(conversationId);
+            long lastSeq = conversation == null || conversation.getLastSeq() == null ? 0L : conversation.getLastSeq();
+            long seq = seqAllocator.next(conversationId, lastSeq);
+            ImMessage message = new ImMessage();
+            message.setConversationId(conversationId);
+            message.setSeq(seq);
+            message.setSenderId(senderId);
+            message.setSenderType(senderType);
+            message.setContentType(contentType);
+            message.setContent(content);
+            message.setStatus(1);
+            try {
+                messageMapper.insert(message);
+                touchConversation(conversationId, seq, message.getId());
+                return message;
+            } catch (DuplicateKeyException e) {
+                log.warn("机器人回复序号冲突，重新分配: conversationId={}, seq={}", conversationId, seq);
+            }
+        }
+        throw new IllegalStateException("机器人回复落库失败");
+    }
+
+    /**
+     * 推进会话最后序号与活跃时间。
+     *
+     * @param conversationId 会话ID
+     * @param seq            消息序号
+     * @param messageId      消息ID
+     */
+    private void touchConversation(Long conversationId, Long seq, Long messageId) {
+        LambdaUpdateWrapper<ImConversation> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(ImConversation::getId, conversationId);
+        wrapper.lt(ImConversation::getLastSeq, seq);
+        wrapper.set(ImConversation::getLastSeq, seq);
+        wrapper.set(ImConversation::getLastMessageId, messageId);
+        wrapper.set(ImConversation::getLastActiveAt, LocalDateTime.now());
+        conversationMapper.update(null, wrapper);
+    }
+
+    /**
+     * 查询会话启用的机器人绑定。
+     *
+     * @param conversationId 会话ID
+     * @return 绑定；不存在返回 {@code null}
+     */
+    private ImAgentBinding enabledBinding(Long conversationId) {
+        LambdaQueryWrapper<ImAgentBinding> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ImAgentBinding::getConversationId, conversationId);
+        wrapper.eq(ImAgentBinding::getEnabled, BINDING_ENABLED);
+        wrapper.last("LIMIT 1");
+        return bindingMapper.selectOne(wrapper);
+    }
+
+    /**
+     * 构造智能体提问请求体。
+     *
+     * @param binding  机器人绑定
+     * @param question 问题文本
+     * @return JSON 文本
+     */
+    private String requestBody(ImAgentBinding binding, String question) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        Long agentConversationId = parseId(binding.getAgentConversationId());
+        if (agentConversationId != null) {
+            body.put("conversationId", agentConversationId);
+        }
+        body.put("question", question.length() > MAX_QUESTION_LENGTH
+                ? question.substring(0, MAX_QUESTION_LENGTH) : question);
+        try {
+            return objectMapper.writeValueAsString(body);
+        } catch (RuntimeException e) {
+            throw new IllegalStateException("智能体请求序列化失败", e);
+        }
+    }
+
+    /**
+     * 解析智能体会话ID。
+     *
+     * @param value 原始文本
+     * @return 数值ID；非法或空返回 {@code null}
+     */
+    private static Long parseId(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        try {
+            return Long.valueOf(value);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /**
+     * 读取文本字段。
+     *
+     * @param node          JSON 对象
+     * @param field         字段名
+     * @param defaultValue  缺省值
+     * @return 字段文本
+     */
+    private static String text(JsonNode node, String field, String defaultValue) {
+        JsonNode value = node.get(field);
+        return value == null || value.isNull() ? defaultValue : value.asText();
+    }
+
+    /**
+     * 读取布尔字段。
+     *
+     * @param node  JSON 对象
+     * @param field 字段名
+     * @return 字段值；缺失时返回 {@code false}
+     */
+    private static boolean boolValue(JsonNode node, String field) {
+        JsonNode value = node.get(field);
+        return value != null && !value.isNull() && value.asBoolean(false);
+    }
+
+    /**
+     * 把 JSON 节点转为通用对象（便于落库与再序列化）。
+     *
+     * @param node JSON 节点
+     * @return 通用对象
+     */
+    private Object copyValue(JsonNode node) {
+        return objectMapper.convertValue(node, Object.class);
+    }
+
+    /**
+     * 单次运行的中间状态。
+     */
+    private static final class RunState {
+
+        /** 已累积的回答文本 */
+        private final StringBuilder answer = new StringBuilder();
+
+        /** 工具调用轨迹 */
+        private final List<Object> tools = new ArrayList<>();
+
+        /** 引用清单 */
+        private List<Object> citations = new ArrayList<>();
+
+        /** 是否降级 */
+        private boolean degraded;
+
+        /** token 估算 */
+        private int tokens;
+
+        /** 是否已收到 done */
+        private boolean done;
+    }
+}

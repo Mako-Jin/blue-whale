@@ -55,6 +55,11 @@ whale:
       name: ${WHALE_IM_BOT_NAME:蓝鲸助手}
       user-id: ${WHALE_IM_BOT_USER_ID:900000000000000001}
       scenario: ${WHALE_IM_BOT_SCENARIO:DEFAULT}
+    # 智能体流式调用（whale-agent SSE /agent/chat）；timeout-seconds 为建连与首字节超时
+    agent:
+      base-url: ${WHALE_IM_AGENT_BASE_URL:http://127.0.0.1:8090}
+      timeout-seconds: ${WHALE_IM_AGENT_TIMEOUT_SECONDS:120}
+      pool-size: ${WHALE_IM_AGENT_POOL_SIZE:4}
 
 mybatis-plus:
   configuration:

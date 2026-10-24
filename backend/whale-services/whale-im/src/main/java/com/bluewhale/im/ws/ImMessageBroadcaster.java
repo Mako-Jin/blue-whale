@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 新消息 WS 广播器。
@@ -45,6 +46,24 @@ public class ImMessageBroadcaster {
                     conversationId, message.getSeq(), memberIds.size());
         } catch (RuntimeException e) {
             log.warn("消息推送失败（已落库，不影响发送）: conversationId={}", conversationId, e);
+        }
+    }
+
+    /**
+     * 向会话全部成员推送任意帧（机器人流式帧等）。
+     *
+     * @param conversationId 会话ID
+     * @param frame          待推送帧
+     */
+    public void broadcastFrame(Long conversationId, Map<String, Object> frame) {
+        try {
+            List<Long> memberIds = memberIds(conversationId);
+            if (memberIds.isEmpty()) {
+                return;
+            }
+            registry.send(memberIds, frame);
+        } catch (RuntimeException e) {
+            log.warn("帧推送失败: conversationId={}, type={}", conversationId, frame.get("type"), e);
         }
     }
 
