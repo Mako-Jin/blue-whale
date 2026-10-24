@@ -1,9 +1,13 @@
 // workflow.ts —— 工作流待办 API 层
 //
 // 后端接口：GET /workflow/task/page（经网关 8080 代理到 whale-workflow）。
-// 查询失败（服务未启动 / 未授权 / 网络异常）时返回空数组并 console.warn，保证门户页面可用。
+// 查询失败（服务未启动 / 未授权 / 网络异常）时返回空数组并记录日志，保证门户页面可用。
+
+import { createLogger } from '@bluewhale/whale-common-tools';
 
 import { http } from './client';
+
+const logger = createLogger('whale-portal › workflow');
 
 /** 待办任务（字段对齐 backend ProcessTaskVO 冻结契约） */
 export interface WorkflowTask {
@@ -66,7 +70,7 @@ function buildQuery(params: WorkflowTaskQuery): string {
 
 /**
  * 分页查询当前用户待办任务。
- * 失败时返回空数组并 console.warn，保证页面可用。
+ * 失败时返回空数组并记录日志，保证页面可用。
  */
 export async function pageMyTask(params: WorkflowTaskQuery = {}): Promise<WorkflowTask[]> {
   try {
@@ -75,7 +79,7 @@ export async function pageMyTask(params: WorkflowTaskQuery = {}): Promise<Workfl
     );
     return page?.records ?? [];
   } catch (error) {
-    console.warn('[whale-portal] 查询待办任务失败，返回空列表', error);
+    logger.warn('查询待办任务失败，返回空列表', error);
     return [];
   }
 }

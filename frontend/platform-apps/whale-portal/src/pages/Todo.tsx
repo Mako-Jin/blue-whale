@@ -2,7 +2,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Button, Space, Table, Tag } from 'antd';
 import type { TableProps } from 'antd';
+import { createLogger } from '@bluewhale/whale-common-tools';
 import { pageMyTask, type WorkflowTask } from '../api/workflow';
+
+const logger = createLogger('whale-portal › todo');
 
 /** 任务状态文案 */
 const STATUS_LABEL: Record<number, string> = {
@@ -56,7 +59,7 @@ export default function Todo() {
       width: 120,
       render: () => (
         // TODO: 接入任务审批页（跳转 /workflow/task/{id}），当前为占位
-        <Button type="link" onClick={() => console.warn('[whale-portal] 「去处理」为占位实现')}>
+        <Button type="link" onClick={() => logger.warn('「去处理」为占位实现')}>
           去处理
         </Button>
       ),
