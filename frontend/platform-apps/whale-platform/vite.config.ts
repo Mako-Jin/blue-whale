@@ -17,6 +17,7 @@ const GATEWAY_PREFIXES = [
   '/mes',
   '/pdm',
   '/oa',
+  '/im',
   '/workflow',
   '/form',
   '/file',

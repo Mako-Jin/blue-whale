@@ -9,16 +9,18 @@ import {
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  MessageOutlined,
   ProfileOutlined,
   SafetyOutlined,
   SettingOutlined,
   TeamOutlined,
   UserOutlined,
 } from '@ant-design/icons';
-import { App, Avatar, Breadcrumb, Button, Dropdown, Layout, Menu, Space, Tabs } from 'antd';
+import { App, Avatar, Badge, Breadcrumb, Button, Dropdown, Layout, Menu, Space, Tabs } from 'antd';
 import type { MenuProps } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { logout, useCurrentUser } from '../api/auth';
+import { useImUnread } from '../hooks/useImUnread';
 import { getBreadcrumbItems, getRouteTitle, menuConfig } from '../router/menu';
 import { ThemeSwitcher } from '@bluewhale/whale-common-theme';
 
@@ -41,6 +43,7 @@ const MENU_ICONS: Record<string, ReactNode> = {
   '/portal': <CloudOutlined />,
   '/erp': <ProfileOutlined />,
   '/oa': <FileTextOutlined />,
+  '/im': <MessageOutlined />,
 };
 
 export default function MainLayout() {
@@ -50,6 +53,7 @@ export default function MainLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [tabs, setTabs] = useState<TabItem[]>([HOME_TAB]);
   const user = useCurrentUser();
+  const imUnread = useImUnread(user?.permissions?.includes('sys:im:chat') ?? false);
 
   const activeKey = location.pathname;
 
@@ -88,7 +92,14 @@ export default function MainLayout() {
   const siderMenuItems: MenuProps['items'] = menuConfig.map((item) => ({
     key: item.key,
     icon: MENU_ICONS[item.key],
-    label: item.label,
+    label:
+      item.key === '/im' ? (
+        <Badge count={imUnread} size="small" offset={[10, 0]}>
+          {item.label}
+        </Badge>
+      ) : (
+        item.label
+      ),
     children: item.children?.map((child) => ({
       key: child.key,
       icon: MENU_ICONS[child.key],

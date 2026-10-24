@@ -205,6 +205,8 @@ class ImAgentChatServiceTest {
         assertEquals("CARD", messageCaptor.getValue().getContentType());
         assertEquals("BOT", messageCaptor.getValue().getSenderType());
         assertTrue(messageCaptor.getValue().getContent().contains("\"confirmationId\":\"c-1\""));
+        // runId 随卡片落库，前端刷新后仍可确认
+        assertTrue(messageCaptor.getValue().getContent().contains("\"runId\":\"900\""));
 
         verify(broadcaster).broadcastFrame(eq(CONVERSATION_ID),
                 argThat(frame -> "agent.confirm".equals(frame.get("type"))

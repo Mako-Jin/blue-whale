@@ -461,6 +461,8 @@ public class ImAgentChatService {
         String expiresAt = text(node, "expiresAt", "");
         Map<String, Object> card = new LinkedHashMap<>();
         card.put("type", "platform_op");
+        // runId 随卡片落库，刷新后仍能凭 content 调用 /im/agent-runs/{id}/confirm
+        card.put("runId", String.valueOf(run.getId()));
         card.put("confirmationId", confirmationId);
         card.put("operation", operation);
         card.put("summary", summary);

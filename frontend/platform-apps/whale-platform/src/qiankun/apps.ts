@@ -4,6 +4,8 @@
 // activeRule: 激活路由规则
 // container: 挂载容器选择器
 
+import { getCurrentUser, getToken } from '../api/token';
+
 export interface WhaleMicroApp {
   name: string;
   entry: string;
@@ -47,5 +49,23 @@ export const apps: WhaleMicroApp[] = [
     activeRule: '/pdm',
     container: '#subapp-container',
     props: { token: 'bluewhale-platform-token' },
+  },
+  {
+    name: 'whale-im',
+    entry: '//localhost:8107',
+    activeRule: '/im',
+    container: '#subapp-container',
+    // 开发态与基座不同源，localStorage 不共享，需显式注入登录态读取器
+    props: {
+      token: 'bluewhale-platform-token',
+      getToken,
+      getUserId: () => {
+        const current = getCurrentUser();
+        return current?.userId === undefined || current?.userId === null
+          ? null
+          : String(current.userId);
+      },
+      getPermissions: () => getCurrentUser()?.permissions ?? [],
+    },
   },
 ];

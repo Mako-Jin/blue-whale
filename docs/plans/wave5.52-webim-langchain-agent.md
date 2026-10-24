@@ -169,6 +169,7 @@ intent ──> retrieve(knowledge/facts) ──> think ──> tools ──> ver
 - 机器人消息：流式打字、引用角标（点击跳到文档行）、工具轨迹折叠、👍/👎 反馈、确认按钮。
 - 基座导航新增「消息」入口与全局未读角标；权限码 `sys:im:*` 接入 `PermissionProvider`。
 - 日志统一使用 `createLogger('whale-im › ...')`，不直接使用 `console`。
+- **实现状态（2026-10-24，T18b 完成）**：`frontend/platform-apps/whale-im` 已落地（8107 / base `/im`，qiankun），三层布局、WS 实时通道、机器人流式/轨迹/确认卡片与成员面板齐备；基座「消息」菜单、`/im` 路由、30s 未读角标与 `sys:im:chat` 权限接入完成，`/im` 走 `Accept: text/html` 旁路；子应用与基座 lint 0 warning、全 workspace build 19/19。
 
 ## 八、阶段计划与任务
 
@@ -208,6 +209,7 @@ intent ──> retrieve(knowledge/facts) ──> think ──> tools ──> ver
 
 - [x] T17 限流、敏感内容遮蔽、异常降级（2026-10-24 完成：whale-im 按用户分钟级限流（Redis 计数、超限落提示、Redis 故障放行）+ `AgentTraceMasker` 对工具轨迹/引用键值与密钥赋值脱敏；whale-agent 错误信息落库前复用 `SensitiveContentMasker`；既有超时/异常降级保持；89 + 113 例全绿、Checkstyle 0，见 devlog §二十）
 - [x] T18 前端 build/lint、后端单测、Python pytest、Checkstyle（2026-10-24 完成：`pnpm lint` EXIT=0，`pnpm build` 18/18 成功；whale-agent 89 例、whale-im 113 例全绿且 Checkstyle 0；`compileall` 通过、pytest 39 passed（TEMP `langgraph` 替身）；见 devlog §二十一）
+- [x] T18b 补齐 `whale-im` 前端子应用与基座接入（2026-10-24 完成：8107 / base `/im`，三层布局 + WS ticket/心跳/重连补拉 + 机器人流式/工具轨迹/引用/确认卡片 + 成员面板；基座「消息」菜单、`/im` 路由、未读角标与 `sys:im:chat` 接入；lint 0 warning、build 19/19、whale-im 113 例全绿 + Checkstyle 0；见 devlog §二十二）
 - [ ] T19 实机联调与验收记录（devlog + review）
 
 ## 九、验收口径
