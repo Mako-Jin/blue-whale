@@ -16,4 +16,4 @@
 - [x] 14. whale-im 单测补充确认事件与确认接口
 - [x] 15. 验证：`mvn -q whale-agent clean test`、`mvn -q whale-im test`、两者 `checkstyle:check`；Python `compileall` + `pytest`
 - [x] 16. 文档：规划 T15 勾选、devlog §十八、`docs/reviews/2026-10-24-wave5.52-m4-t15-platform-op.md`
-- [ ] 17. 提交 `feat(agent): T15 platform_op confirmation flow` 并推送 `origin/main`
+- [x] 17. 提交 `feat(agent): T15 platform_op confirmation flow` 并推送 `origin/main`

@@ -17,4 +17,4 @@
 - [x] whale-im 单测全绿 + Checkstyle 0
 - [x] Python `compileall` + `pytest` 全绿
 - [x] 规划、devlog、检查报告已更新
-- [ ] 提交并推送 Gitee `origin/main`
+- [x] 提交并推送 Gitee `origin/main`
