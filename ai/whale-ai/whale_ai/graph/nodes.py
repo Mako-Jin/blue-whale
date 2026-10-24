@@ -15,6 +15,7 @@ from whale_ai.config import get_settings
 from whale_ai.graph.citations import align_citations, build_summary, validate_citations
 from whale_ai.graph.state import AgentState
 from whale_ai.llm import LlmError, build_messages, get_llm_client
+from whale_ai.memory import append_turn
 from whale_ai.tools import ToolContext, ToolError, execute_tool
 
 logger = logging.getLogger(__name__)
@@ -130,8 +131,14 @@ def answer_node(state: AgentState) -> dict[str, Any]:
     client = state.get("llm_client") or get_llm_client()
     if client.available and citations:
         buffer: list[str] = []
+        messages = build_messages(
+            state.get("question") or "",
+            citations,
+            state.get("history") or [],
+            str(state.get("memory_summary") or ""),
+        )
         try:
-            for delta in client.stream(build_messages(state.get("question") or "", citations)):
+            for delta in client.stream(messages):
                 buffer.append(delta)
                 _emit(state, "delta", {"text": delta})
             return {"answer": "".join(buffer), "degraded": False}
@@ -148,6 +155,23 @@ def verify_node(state: AgentState) -> dict[str, Any]:
     """引用校验并收敛到正文实际标记的集合。"""
     citations = validate_citations(state.get("citations") or [], get_settings().repo_root)
     return {"citations": align_citations(state.get("answer") or "", citations)}
+
+
+def remember_node(state: AgentState) -> dict[str, Any]:
+    """把本轮问答写入会话记忆；失败不阻塞问答（append_turn 内已兜底）。"""
+    store = state.get("memory_store")
+    if store is None:
+        return {}
+    settings = get_settings()
+    append_turn(
+        store,
+        state.get("conversation_id"),
+        state.get("question") or "",
+        state.get("answer") or "",
+        settings.memory_max_turns,
+        settings.memory_summary_chars,
+    )
+    return {}
 
 
 def _fact_citations(items: list[dict[str, Any]], start_seq: int) -> list[dict[str, Any]]:

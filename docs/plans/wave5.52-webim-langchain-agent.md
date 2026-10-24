@@ -1,6 +1,6 @@
 # Wave 5.52 规划：WebIM + LangChain 智能体
 
-> 制定日期：2026-10-24 ｜ 状态：**实现中**（M0 设计冻结 + M1 T2–T6、M2 T7–T9、M3 T10–T12 已完成，见 §八）
+> 制定日期：2026-10-24 ｜ 状态：**实现中**（M0 设计冻结 + M1 T2–T6、M2 T7–T9、M3 T10–T13 已完成，见 §八）
 > 关联：`whale-agent`（8090，Wave 5.47）、`whale-gateway`（8080）、`whale-file`（8085）、`whale-auth`（8081）
 
 ## 一、目标
@@ -196,7 +196,7 @@ intent ──> retrieve(knowledge/facts) ──> think ──> tools ──> ver
 - [x] T10 `ai/whale-ai` 骨架（FastAPI/LangGraph/配置/健康检查）（2026-10-24 完成，`compileall` 通过；pytest 因本机 Python 3.15 缺 `zstandard` 轮子待环境，见 devlog §十三）
 - [x] T11 `knowledge_search`、`fact_get`、`doc_read` 三个只读工具打通（2026-10-24 完成：Java `/agent/tools/**` 统一 `sys:agent:chat`，Python `tools` 包 + `/v1/tools`，63 例 Java 用例全绿；见 devlog §十四）
 - [x] T12 引用校验与流式输出，接入 `whale-agent` 引擎开关（2026-10-24 完成：LangGraph 四节点图 + 引用标记收敛 + OpenAI 兼容流式；`whale.agent.qa.engine=legacy|langchain` 默认 legacy，Java 侧透传/落库；Java 65 例全绿，Python 单测受环境阻塞，见 devlog §十五）
-- [ ] T13 记忆（Redis）与会话摘要
+- [x] T13 记忆（Redis）与会话摘要（2026-10-24 完成：`whale:ai:memory:<id>` 单键 + TTL 7 天，最近 10 轮 + 规则摘要，图末 `remember` 节点落库；11 例真实依赖单测通过，图用例经替身全量 33 例，见 devlog §十六）
 
 ### M4 平台操作
 

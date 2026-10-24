@@ -22,6 +22,9 @@ class AgentState(TypedDict, total=False):
     citations: list[dict[str, Any]]
     tool_steps: int
     degraded: bool
+    history: list[dict[str, str]]
+    memory_summary: str
     emit: Callable[[str, dict[str, Any]], None] | None
     tool_client: Any
     llm_client: Any
+    memory_store: Any

@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     redis_url: str = "redis://127.0.0.1:6379/0"
     memory_ttl_seconds: int = 604800
+    # 记忆窗口：保留最近 N 轮，更早轮次压缩进摘要
+    memory_max_turns: int = 10
+    # 摘要总长上限（字符）
+    memory_summary_chars: int = 1200
     max_tool_steps: int = 6
     tool_timeout_seconds: int = 20
     total_budget_seconds: int = 120

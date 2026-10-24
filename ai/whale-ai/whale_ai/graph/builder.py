@@ -1,7 +1,7 @@
-"""LangGraph 编排图：``intent → retrieve → answer → verify_citations``。
+"""LangGraph 编排图：``intent → retrieve → answer → verify_citations → remember``。
 
 ``run_agent()`` 是唯一执行入口；流式端点通过状态注入 ``emit`` 回调，
-在同一张图上完成 token 级下发，不另立执行路径。
+在同一张图上完成 token 级下发，不另立执行路径。会话记忆在入口读取、在末节点写回。
 """
 
 from __future__ import annotations
@@ -11,8 +11,16 @@ from typing import Any
 
 from langgraph.graph import END, START, StateGraph
 
-from whale_ai.graph.nodes import answer_node, intent_node, retrieve_node, verify_node
+from whale_ai.config import get_settings
+from whale_ai.graph.nodes import (
+    answer_node,
+    intent_node,
+    remember_node,
+    retrieve_node,
+    verify_node,
+)
 from whale_ai.graph.state import AgentState
+from whale_ai.memory import get_memory_store, load_memory
 
 Emit = Callable[[str, dict[str, Any]], None]
 
@@ -24,11 +32,13 @@ def build_graph():
     graph.add_node("retrieve", retrieve_node)
     graph.add_node("answer", answer_node)
     graph.add_node("verify_citations", verify_node)
+    graph.add_node("remember", remember_node)
     graph.add_edge(START, "intent")
     graph.add_edge("intent", "retrieve")
     graph.add_edge("retrieve", "answer")
     graph.add_edge("answer", "verify_citations")
-    graph.add_edge("verify_citations", END)
+    graph.add_edge("verify_citations", "remember")
+    graph.add_edge("remember", END)
     return graph.compile()
 
 
@@ -44,6 +54,7 @@ def run_agent(
     emit: Emit | None = None,
     tool_client: Any = None,
     llm_client: Any = None,
+    memory_store: Any = None,
 ) -> AgentState:
     """执行一次问答图。
 
@@ -56,10 +67,14 @@ def run_agent(
         emit: 可选事件回调（``meta``/``tool``/``delta``）。
         tool_client: 可选工具客户端替身（测试用）。
         llm_client: 可选模型客户端替身（测试用）。
+        memory_store: 可选记忆存储替身（测试用），默认取 Redis 单例。
 
     Returns:
         合并后的运行状态（含 ``citations``、``answer``、``degraded``）。
     """
+    store = memory_store if memory_store is not None else get_memory_store()
+    settings = get_settings()
+    memory = load_memory(store, conversation_id, settings.memory_max_turns)
     return _COMPILED.invoke(
         {
             "question": question,
@@ -67,9 +82,12 @@ def run_agent(
             "scope": scope,
             "user_id": user_id,
             "permission_codes": permission_codes,
+            "history": memory["turns"],
+            "memory_summary": memory["summary"],
             "tool_steps": 0,
             "emit": emit,
             "tool_client": tool_client,
             "llm_client": llm_client,
+            "memory_store": store,
         }
     )

@@ -8,6 +8,7 @@ import pytest
 
 import whale_ai.graph.nodes as nodes
 from whale_ai.graph import run_agent
+from whale_ai.memory import InMemoryStore
 from whale_ai.tools import ToolError
 
 HITS: list[dict[str, Any]] = [
@@ -107,3 +108,32 @@ def test_run_agent_survives_tool_failure(monkeypatch: pytest.MonkeyPatch) -> Non
 
     assert state["citations"] == []
     assert "知识库中未找到" in state["answer"]
+
+
+def test_run_agent_recalls_history_and_writes_memory(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(nodes, "execute_tool", _fake_tool)
+    store = InMemoryStore()
+    llm = RecordingLlm(["[S1]"])
+
+    first = run_agent("端口是多少？", conversation_id=21, llm_client=llm, memory_store=store)
+    assert first["history"] == []
+
+    second = run_agent("那网关呢？", conversation_id=21, llm_client=llm, memory_store=store)
+    assert [turn["question"] for turn in second["history"]] == ["端口是多少？"]
+    assert "端口是多少？" in [message["content"] for message in llm.messages[1]]
+
+    record = store.load(21)
+    assert [turn["question"] for turn in record["turns"]] == ["端口是多少？", "那网关呢？"]
+
+
+class RecordingLlm(FakeLlm):
+    """记录每次收到的消息，用于断言历史注入。"""
+
+    def __init__(self, chunks: list[str]) -> None:
+        super().__init__(chunks)
+        self.messages: list[list[dict[str, str]]] = []
+
+    def stream(self, messages: list[dict[str, str]]) -> Any:
+        """记录消息后按块返回。"""
+        self.messages.append(list(messages))
+        yield from self.chunks

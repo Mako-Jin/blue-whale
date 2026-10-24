@@ -5,6 +5,7 @@ from __future__ import annotations
 import httpx
 
 from whale_ai.llm.client import LlmClient, LlmError, parse_line
+from whale_ai.llm.prompts import build_messages
 
 
 def test_parse_line_extracts_content() -> None:
@@ -48,3 +49,23 @@ def test_available_requires_key_and_enabled() -> None:
     assert LlmClient("http://llm", "k", "m", 1).available is True
     assert LlmClient("http://llm", "", "m", 1).available is False
     assert LlmClient("http://llm", "k", "m", 1, enabled=False).available is False
+
+
+def test_build_messages_injects_history_and_summary() -> None:
+    citations = [
+        {"sourceId": "S1", "path": "docs/a.md", "startLine": 1, "endLine": 2, "snippet": "x"}
+    ]
+
+    messages = build_messages(
+        "现在的问题",
+        citations,
+        [{"question": "之前的问题", "answer": "之前的回答"}],
+        "更早的摘要",
+    )
+
+    assert [item["role"] for item in messages] == ["system", "system", "user", "assistant", "user"]
+    assert "更早的摘要" in messages[1]["content"]
+    assert messages[2]["content"] == "之前的问题"
+    assert messages[3]["content"] == "之前的回答"
+    assert "现在的问题" in messages[-1]["content"]
+    assert "[S1]" in messages[-1]["content"]

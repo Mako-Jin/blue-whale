@@ -7,21 +7,45 @@ from typing import Any
 SYSTEM_PROMPT = (
     "你是蓝鲸平台的智能体助手，只依据给定证据回答架构、技术与数据问题。\n"
     "要求：\n"
-    "1. 每条结论后用 [S1] 形式标注来源，编号必须来自证据清单；\n"
+    "1. 每条结论后用 [S1] 形式标注来源，编号必须来自本次证据清单；\n"
     "2. 证据不足时明确说明缺少什么，不得编造路径、行号或配置；\n"
-    "3. 使用简洁的中文 Markdown 回答。"
+    "3. 历史对话中的 [S1] 等标记只代表历史来源，本次回答必须使用本次证据编号；\n"
+    "4. 使用简洁的中文 Markdown 回答。"
 )
 
 MAX_SNIPPET_CHARS = 800
 
 
-def build_messages(question: str, citations: list[dict[str, Any]]) -> list[dict[str, str]]:
-    """组装模型消息（system + 带证据的 user）。"""
+def build_messages(
+    question: str,
+    citations: list[dict[str, Any]],
+    history: list[dict[str, str]] | None = None,
+    summary: str = "",
+) -> list[dict[str, str]]:
+    """组装模型消息（system + 可选历史 + 带证据的当前问题）。
+
+    Args:
+        question: 当前问题。
+        citations: 本次证据清单。
+        history: 最近若干轮问答（``question``/``answer``）。
+        summary: 更早轮次压缩后的摘要。
+
+    Returns:
+        OpenAI 协议消息列表。
+    """
+    messages: list[dict[str, str]] = [{"role": "system", "content": SYSTEM_PROMPT}]
+    if summary:
+        messages.append({"role": "system", "content": f"更早对话摘要：\n{summary}"})
+    for turn in history or []:
+        asked = str(turn.get("question") or "")
+        replied = str(turn.get("answer") or "")
+        if asked:
+            messages.append({"role": "user", "content": asked})
+        if replied:
+            messages.append({"role": "assistant", "content": replied})
     evidence = _format_evidence(citations) or "（无可用证据）"
-    return [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": f"证据清单：\n{evidence}\n\n问题：{question}"},
-    ]
+    messages.append({"role": "user", "content": f"证据清单：\n{evidence}\n\n问题：{question}"})
+    return messages
 
 
 def _format_evidence(citations: list[dict[str, Any]]) -> str:
