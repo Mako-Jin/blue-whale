@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@ant-design/icons": "^5.6.1",
+    "@bluewhale/http": "workspace:*",
     "@bluewhale/whale-common-theme": "workspace:*",
     "@bluewhale/whale-common-tools": "workspace:*",
     "@bluewhale/whale-log-sdk": "workspace:*",

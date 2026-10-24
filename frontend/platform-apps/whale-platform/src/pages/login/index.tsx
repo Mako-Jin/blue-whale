@@ -1,10 +1,10 @@
-// 登录页 - mock 登录（admin / 123456）
+// 登录页 - 对接 whale-auth 真实接口（POST /auth/login，经网关转发）
 
 import { useState } from 'react';
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { App, Button, Card, Form, Input } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { login } from '../../api/auth';
+import { fetchMe, login } from '../../api/auth';
 
 interface LoginFormValues {
   username: string;
@@ -20,6 +20,12 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(values.username, values.password);
+      try {
+        // 拉取权限码与菜单，供子应用共享；失败不阻断登录，进入页面后仍可按需重取
+        await fetchMe();
+      } catch {
+        // 权限拉取失败不阻断登录
+      }
       message.success('登录成功');
       navigate('/', { replace: true });
     } catch (error) {
@@ -45,14 +51,14 @@ export default function LoginPage() {
           <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>
             <Input
               prefix={<UserOutlined />}
-              placeholder="用户名（admin）"
+              placeholder="请输入用户名"
               autoComplete="username"
             />
           </Form.Item>
           <Form.Item name="password" rules={[{ required: true, message: '请输入密码' }]}>
             <Input.Password
               prefix={<LockOutlined />}
-              placeholder="密码（123456）"
+              placeholder="请输入密码"
               autoComplete="current-password"
             />
           </Form.Item>

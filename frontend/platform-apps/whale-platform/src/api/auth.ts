@@ -1,89 +1,68 @@
-// Mock 认证 API - 后端未就绪，本地模拟登录
-// 约定账号：admin / 123456
+// 基座认证 API 客户端（经网关转发到 whale-auth）
+// 后端统一响应体：{ code, message, data }，code=0 表示成功
 
-const TOKEN_STORAGE_KEY = 'whale_token';
-const USER_STORAGE_KEY = 'whale_user';
+import { AppEvents, eventBus } from '@bluewhale/whale-common-tools';
 
-export interface UserInfo {
-  username: string;
-  nickname: string;
-  roles: string[];
+import { get, post } from './client';
+import {
+  clearAuth,
+  getCurrentUser,
+  getRefreshToken,
+  saveCurrentUser,
+  saveLogin,
+  type AuthMeResponse,
+  type LoginResponse,
+} from './token';
+
+export type { AuthMeResponse, LoginResponse, UserInfo } from './token';
+export { clearAuth, getCurrentUser, getRefreshToken, getToken, useCurrentUser } from './token';
+// 显式刷新入口（401 自动续期链路由 http 客户端内置）
+export { refreshSession as refresh } from './client';
+
+// 登录：POST /auth/login（网关白名单，免 JWT）
+export async function login(username: string, password: string): Promise<LoginResponse> {
+  const data = await post<LoginResponse>('/auth/login', { username, password });
+  saveLogin(data);
+  // 审计：登录成功留痕（敏感字段由 tracker 统一脱敏）
+  eventBus.emit(AppEvents.AUTH_LOGIN, { username, roles: data.roles });
+  return data;
 }
 
-export interface LoginResult {
-  token: string;
-  user: UserInfo;
-}
-
-const MOCK_ACCOUNT = { username: 'admin', password: '123456' };
-
-const MOCK_USER: UserInfo = {
-  username: 'admin',
-  nickname: '系统管理员',
-  roles: ['admin'],
-};
-
-// base64url 编码（兼容中文等非 ASCII 字符）
-function base64UrlEncode(value: unknown): string {
-  const bytes = new TextEncoder().encode(JSON.stringify(value));
-  let binary = '';
-  bytes.forEach((byte) => {
-    binary += String.fromCharCode(byte);
+// 当前登录用户：GET /auth/me（需 accessToken）——校验令牌有效性并刷新权限码，供子应用共享
+export async function fetchMe(): Promise<AuthMeResponse> {
+  const me = await get<AuthMeResponse>('/auth/me');
+  const user = getCurrentUser();
+  const beforePermissions = (user?.permissions ?? []).join(',');
+  saveCurrentUser({
+    ...(user ?? { username: me.username, nickname: me.nickname, roles: [] }),
+    userId: me.userId,
+    username: me.username,
+    nickname: me.nickname,
+    roles: me.roles ?? [],
+    permissions: me.permissions ?? [],
+    menus: me.menus ?? [],
   });
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  // 审计：权限集发生变化（含首次授权）时留痕
+  if (beforePermissions !== (me.permissions ?? []).join(',')) {
+    eventBus.emit(AppEvents.AUTH_PERMISSION_CHANGE, {
+      userId: me.userId,
+      username: me.username,
+      permissions: me.permissions ?? [],
+    });
+  }
+  return me;
 }
 
-// 生成带 exp 的假 JWT（仅供 mock 登录流程使用，无真实签名）
-function createFakeJwt(user: UserInfo): string {
-  const nowSeconds = Math.floor(Date.now() / 1000);
-  const header = { alg: 'HS256', typ: 'JWT' };
-  const payload = {
-    sub: user.username,
-    nickname: user.nickname,
-    roles: user.roles,
-    iat: nowSeconds,
-    exp: nowSeconds + 24 * 60 * 60,
-  };
-  return [
-    base64UrlEncode(header),
-    base64UrlEncode(payload),
-    base64UrlEncode('bluewhale-mock-signature'),
-  ].join('.');
-}
-
-export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_STORAGE_KEY);
-}
-
-export function getCurrentUser(): UserInfo | null {
-  const raw = localStorage.getItem(USER_STORAGE_KEY);
-  if (!raw) return null;
+// 登出：POST /auth/logout（需 accessToken）——后端将 accessToken 与 refreshToken 写入 Redis 黑名单
+export async function logout(): Promise<void> {
+  const user = getCurrentUser();
   try {
-    return JSON.parse(raw) as UserInfo;
+    await post<void>('/auth/logout', { refreshToken: getRefreshToken() });
   } catch {
-    return null;
+    // 登出接口异常（离线/网络故障）不阻断本地登出，保证用户始终能退出
+  } finally {
+    // 审计：无论服务端登出是否成功，本地退出一律留痕（先于清态，保证上报能解析到当前用户）
+    eventBus.emit(AppEvents.AUTH_LOGOUT, { userId: user?.userId, username: user?.username });
+    clearAuth();
   }
-}
-
-export function clearAuth(): void {
-  localStorage.removeItem(TOKEN_STORAGE_KEY);
-  localStorage.removeItem(USER_STORAGE_KEY);
-}
-
-export function logout(): void {
-  clearAuth();
-}
-
-export async function login(username: string, password: string): Promise<LoginResult> {
-  // 模拟网络请求延迟
-  await new Promise((resolve) => setTimeout(resolve, 600));
-
-  if (username !== MOCK_ACCOUNT.username || password !== MOCK_ACCOUNT.password) {
-    throw new Error('用户名或密码错误');
-  }
-
-  const result: LoginResult = { token: createFakeJwt(MOCK_USER), user: MOCK_USER };
-  localStorage.setItem(TOKEN_STORAGE_KEY, result.token);
-  localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(result.user));
-  return result;
 }

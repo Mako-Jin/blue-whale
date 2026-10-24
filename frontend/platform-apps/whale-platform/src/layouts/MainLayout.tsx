@@ -18,7 +18,7 @@ import {
 import { App, Avatar, Breadcrumb, Button, Dropdown, Layout, Menu, Space, Tabs } from 'antd';
 import type { MenuProps } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { getCurrentUser, logout } from '../api/auth';
+import { logout, useCurrentUser } from '../api/auth';
 import { getBreadcrumbItems, getRouteTitle, menuConfig } from '../router/menu';
 import { ThemeSwitcher } from '@bluewhale/whale-common-theme';
 
@@ -49,7 +49,7 @@ export default function MainLayout() {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [tabs, setTabs] = useState<TabItem[]>([HOME_TAB]);
-  const user = getCurrentUser();
+  const user = useCurrentUser();
 
   const activeKey = location.pathname;
 
@@ -79,8 +79,8 @@ export default function MainLayout() {
     }
   };
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     message.success('已退出登录');
     navigate('/login', { replace: true });
   };
