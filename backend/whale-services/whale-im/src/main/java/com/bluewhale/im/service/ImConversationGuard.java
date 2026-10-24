@@ -38,12 +38,26 @@ public class ImConversationGuard {
         if (conversation == null) {
             throw new BizException("会话不存在或无权访问");
         }
-        LambdaQueryWrapper<ImConversationMember> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ImConversationMember::getConversationId, conversationId);
-        wrapper.eq(ImConversationMember::getUserId, userId);
-        if (memberMapper.selectCount(wrapper) == 0) {
+        if (requireMemberRecord(conversationId, userId) == null) {
             throw new BizException("会话不存在或无权访问");
         }
         return conversation;
+    }
+
+    /**
+     * 读取当前用户的成员记录（校验成员身份并返回角色信息）。
+     *
+     * <p>不存在时返回 {@code null}，由调用方决定提示口径；群管理类操作需要拿到
+     * {@code role} 判断权限，故单独提供本方法，避免重复查询。</p>
+     *
+     * @param conversationId 会话ID
+     * @param userId         当前用户ID
+     * @return 成员记录；非成员返回 {@code null}
+     */
+    public ImConversationMember requireMemberRecord(Long conversationId, Long userId) {
+        LambdaQueryWrapper<ImConversationMember> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ImConversationMember::getConversationId, conversationId);
+        wrapper.eq(ImConversationMember::getUserId, userId);
+        return memberMapper.selectOne(wrapper);
     }
 }

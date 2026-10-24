@@ -10,13 +10,16 @@ import com.bluewhale.im.entity.ImMessage;
 import com.bluewhale.im.mapper.ImConversationMapper;
 import com.bluewhale.im.mapper.ImConversationMemberMapper;
 import com.bluewhale.im.mapper.ImMessageMapper;
+import com.bluewhale.im.support.AttachmentPayloadValidator;
 import com.bluewhale.im.vo.MessagePageVO;
 import com.bluewhale.im.ws.ImMessageBroadcaster;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DuplicateKeyException;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -25,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
@@ -69,8 +73,20 @@ class ImMessageServiceTest {
 
     private final ImMessageBroadcaster broadcaster = mock(ImMessageBroadcaster.class);
 
+    private final AttachmentPayloadValidator attachmentValidator = mock(AttachmentPayloadValidator.class);
+
     private final ImMessageService service = new ImMessageService(
-            messageMapper, conversationMapper, memberMapper, guard, seqAllocator, broadcaster);
+            messageMapper, conversationMapper, memberMapper, guard, seqAllocator, broadcaster,
+            attachmentValidator, 120L);
+
+    /**
+     * 附件校验默认原样放行，避免影响非附件用例的断言。
+     */
+    @BeforeEach
+    void setUp() {
+        when(attachmentValidator.validateAndNormalize(anyString(), anyString()))
+                .thenAnswer(invocation -> invocation.getArgument(1));
+    }
 
     @Test
     @DisplayName("send：同一 clientMsgId 重复提交返回首次落库消息，不再插入")
@@ -163,6 +179,65 @@ class ImMessageServiceTest {
         assertEquals(8L, page.getRecords().get(0).getSeq());
         assertEquals(9L, page.getRecords().get(1).getSeq());
         assertTrue(page.isHasMore());
+    }
+
+    @Test
+    @DisplayName("recall：非发送者不能撤回")
+    void recallShouldRejectNonSender() {
+        ImMessage message = message(5L);
+        message.setSenderId(99L);
+        when(messageMapper.selectById(5L)).thenReturn(message);
+
+        assertThrows(BizException.class, () -> service.recall(CONVERSATION_ID, USER_ID, 5L));
+        verify(messageMapper, never()).update(isNull(), any());
+        verify(broadcaster, never()).broadcastRecalled(anyLong(), anyLong(), anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("recall：超过撤回时限时拒绝")
+    void recallShouldRejectExpiredMessage() {
+        ImMessage message = message(5L);
+        message.setCreateTime(LocalDateTime.now().minusMinutes(10));
+        when(messageMapper.selectById(5L)).thenReturn(message);
+
+        assertThrows(BizException.class, () -> service.recall(CONVERSATION_ID, USER_ID, 5L));
+        verify(messageMapper, never()).update(isNull(), any());
+    }
+
+    @Test
+    @DisplayName("recall：已撤回消息重复撤回幂等返回，不再更新与广播")
+    void recallShouldBeIdempotent() {
+        ImMessage message = message(5L);
+        message.setStatus(0);
+        when(messageMapper.selectById(5L)).thenReturn(message);
+
+        service.recall(CONVERSATION_ID, USER_ID, 5L);
+
+        verify(messageMapper, never()).update(isNull(), any());
+        verify(broadcaster, never()).broadcastRecalled(anyLong(), anyLong(), anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("recall：发送者在时限内撤回成功并广播")
+    void recallShouldSucceedAndBroadcast() {
+        ImMessage message = message(5L);
+        message.setCreateTime(LocalDateTime.now().minusSeconds(10));
+        when(messageMapper.selectById(5L)).thenReturn(message);
+
+        service.recall(CONVERSATION_ID, USER_ID, 5L);
+
+        verify(messageMapper).update(isNull(), any());
+        verify(broadcaster).broadcastRecalled(CONVERSATION_ID, 5L, 5L, USER_ID);
+    }
+
+    @Test
+    @DisplayName("recall：消息不属于该会话时拒绝")
+    void recallShouldRejectForeignMessage() {
+        ImMessage message = message(5L);
+        message.setConversationId(999L);
+        when(messageMapper.selectById(5L)).thenReturn(message);
+
+        assertThrows(BizException.class, () -> service.recall(CONVERSATION_ID, USER_ID, 5L));
     }
 
     /**

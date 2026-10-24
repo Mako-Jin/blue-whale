@@ -2,20 +2,24 @@ package com.bluewhale.im.controller;
 
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.common.core.result.Result;
+import com.bluewhale.im.dto.AddMembersRequest;
 import com.bluewhale.im.dto.CreateConversationRequest;
 import com.bluewhale.im.dto.ReadRequest;
 import com.bluewhale.im.dto.SendMessageRequest;
 import com.bluewhale.im.entity.ImConversation;
 import com.bluewhale.im.entity.ImMessage;
 import com.bluewhale.im.service.ImConversationService;
+import com.bluewhale.im.service.ImMemberService;
 import com.bluewhale.im.service.ImMessageService;
 import com.bluewhale.im.support.web.UserContext;
 import com.bluewhale.im.vo.ConversationVO;
+import com.bluewhale.im.vo.MemberVO;
 import com.bluewhale.im.vo.MessagePageVO;
 import com.bluewhale.im.vo.MessageVO;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -43,6 +47,8 @@ public class ImConversationController {
     private final ImConversationService conversationService;
 
     private final ImMessageService messageService;
+
+    private final ImMemberService memberService;
 
     /**
      * 我的会话列表。
@@ -118,6 +124,78 @@ public class ImConversationController {
                              @Valid @RequestBody ReadRequest request,
                              HttpServletRequest httpRequest) {
         conversationService.markRead(id, UserContext.requireUserId(httpRequest), request.getSeq());
+        return Result.ok();
+    }
+
+    /**
+     * 撤回消息（仅发送者本人，超时拒绝）。
+     *
+     * @param id          会话ID
+     * @param messageId   消息ID
+     * @param httpRequest 当前请求（读取网关 {@code X-User-Id}）
+     * @return 空结果
+     */
+    @PostMapping("/{id}/messages/{messageId}/recall")
+    public Result<Void> recall(@PathVariable Long id,
+                               @PathVariable Long messageId,
+                               HttpServletRequest httpRequest) {
+        messageService.recall(id, UserContext.requireUserId(httpRequest), messageId);
+        return Result.ok();
+    }
+
+    /**
+     * 群成员列表。
+     *
+     * @param id          会话ID
+     * @param httpRequest 当前请求（读取网关 {@code X-User-Id}）
+     * @return 成员列表
+     */
+    @GetMapping("/{id}/members")
+    public Result<List<MemberVO>> members(@PathVariable Long id, HttpServletRequest httpRequest) {
+        return Result.ok(memberService.list(id, UserContext.requireUserId(httpRequest)));
+    }
+
+    /**
+     * 添加群成员（群主 / 管理员）。
+     *
+     * @param id          会话ID
+     * @param request     待添加成员
+     * @param httpRequest 当前请求（读取网关 {@code X-User-Id}）
+     * @return 实际新增成员
+     */
+    @PostMapping("/{id}/members")
+    public Result<List<MemberVO>> addMembers(@PathVariable Long id,
+                                             @Valid @RequestBody AddMembersRequest request,
+                                             HttpServletRequest httpRequest) {
+        return Result.ok(memberService.add(id, UserContext.requireUserId(httpRequest), request.getMemberIds()));
+    }
+
+    /**
+     * 移除群成员（群主 / 管理员）。
+     *
+     * @param id          会话ID
+     * @param userId      被移除用户ID
+     * @param httpRequest 当前请求（读取网关 {@code X-User-Id}）
+     * @return 空结果
+     */
+    @DeleteMapping("/{id}/members/{userId}")
+    public Result<Void> removeMember(@PathVariable Long id,
+                                     @PathVariable Long userId,
+                                     HttpServletRequest httpRequest) {
+        memberService.remove(id, UserContext.requireUserId(httpRequest), userId);
+        return Result.ok();
+    }
+
+    /**
+     * 主动退群（群主不可退群）。
+     *
+     * @param id          会话ID
+     * @param httpRequest 当前请求（读取网关 {@code X-User-Id}）
+     * @return 空结果
+     */
+    @PostMapping("/{id}/quit")
+    public Result<Void> quit(@PathVariable Long id, HttpServletRequest httpRequest) {
+        memberService.quit(id, UserContext.requireUserId(httpRequest));
         return Result.ok();
     }
 }

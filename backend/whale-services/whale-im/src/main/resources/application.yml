@@ -48,6 +48,8 @@ whale:
       # WS ticket 有效期（秒）与在线状态 TTL（秒）
       ticket-ttl-seconds: ${WHALE_IM_WS_TICKET_TTL_SECONDS:60}
       presence-ttl-seconds: ${WHALE_IM_PRESENCE_TTL_SECONDS:90}
+    # 消息撤回时限（秒）：自落库起算，超时不允许撤回
+    recall-window-seconds: ${WHALE_IM_RECALL_WINDOW_SECONDS:120}
 
 mybatis-plus:
   configuration:

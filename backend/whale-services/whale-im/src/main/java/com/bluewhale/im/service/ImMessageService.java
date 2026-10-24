@@ -10,17 +10,19 @@ import com.bluewhale.im.entity.ImMessage;
 import com.bluewhale.im.mapper.ImConversationMapper;
 import com.bluewhale.im.mapper.ImConversationMemberMapper;
 import com.bluewhale.im.mapper.ImMessageMapper;
+import com.bluewhale.im.support.AttachmentPayloadValidator;
 import com.bluewhale.im.vo.MessagePageVO;
 import com.bluewhale.im.vo.MessageVO;
 import com.bluewhale.im.ws.ImMessageBroadcaster;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -29,6 +31,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 消息服务：发送（幂等 + 序号分配）、历史游标拉取、会话最后一条摘要。
@@ -39,7 +42,6 @@ import java.util.Map;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ImMessageService {
 
     /** 发送者类型：用户 */
@@ -47,6 +49,9 @@ public class ImMessageService {
 
     /** 消息状态：正常 */
     private static final int STATUS_NORMAL = 1;
+
+    /** 消息状态：已撤回 */
+    private static final int STATUS_RECALLED = 0;
 
     /** 默认分页条数 */
     private static final int DEFAULT_LIMIT = 30;
@@ -71,6 +76,38 @@ public class ImMessageService {
     private final MessageSeqAllocator seqAllocator;
 
     private final ImMessageBroadcaster broadcaster;
+
+    private final AttachmentPayloadValidator attachmentValidator;
+
+    /** 允许撤回的时间窗口（秒），自消息落库起算 */
+    private final long recallWindowSeconds;
+
+    /**
+     * 构造消息服务。
+     *
+     * @param messageMapper       消息 Mapper
+     * @param conversationMapper  会话 Mapper
+     * @param memberMapper        成员 Mapper
+     * @param guard               成员校验
+     * @param seqAllocator        序号分配器
+     * @param broadcaster         WS 广播器
+     * @param attachmentValidator 附件内容校验
+     * @param recallWindowSeconds 撤回时限（秒）
+     */
+    public ImMessageService(ImMessageMapper messageMapper, ImConversationMapper conversationMapper,
+                            ImConversationMemberMapper memberMapper, ImConversationGuard guard,
+                            MessageSeqAllocator seqAllocator, ImMessageBroadcaster broadcaster,
+                            AttachmentPayloadValidator attachmentValidator,
+                            @Value("${whale.im.recall-window-seconds:120}") long recallWindowSeconds) {
+        this.messageMapper = messageMapper;
+        this.conversationMapper = conversationMapper;
+        this.memberMapper = memberMapper;
+        this.guard = guard;
+        this.seqAllocator = seqAllocator;
+        this.broadcaster = broadcaster;
+        this.attachmentValidator = attachmentValidator;
+        this.recallWindowSeconds = recallWindowSeconds;
+    }
 
     /**
      * 发送消息（同一会话内 {@code clientMsgId} 幂等）。
@@ -135,6 +172,41 @@ public class ImMessageService {
             records.add(toVo(message));
         }
         return MessagePageVO.builder().records(records).hasMore(hasMore).build();
+    }
+
+    /**
+     * 撤回消息：仅发送者本人、且在该会话撤回时限内可撤回。
+     *
+     * <p>撤回后清空消息内容并将状态置为 {@value #STATUS_RECALLED}，向会话成员推送
+     * {@code message.recalled} 帧；重复撤回幂等返回，不重复广播。</p>
+     *
+     * @param conversationId 会话ID
+     * @param userId         当前用户ID
+     * @param messageId      消息ID
+     */
+    @Transactional
+    public void recall(Long conversationId, Long userId, Long messageId) {
+        guard.requireMember(conversationId, userId);
+        ImMessage message = messageMapper.selectById(messageId);
+        if (message == null || !Objects.equals(message.getConversationId(), conversationId)) {
+            throw new BizException("消息不存在或无权撤回");
+        }
+        if (!Objects.equals(message.getSenderId(), userId)) {
+            throw new BizException("只能撤回自己发送的消息");
+        }
+        if (Integer.valueOf(STATUS_RECALLED).equals(message.getStatus())) {
+            return;
+        }
+        if (isRecallExpired(message)) {
+            throw new BizException("超过撤回时限");
+        }
+        LambdaUpdateWrapper<ImMessage> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(ImMessage::getId, messageId);
+        wrapper.eq(ImMessage::getStatus, STATUS_NORMAL);
+        wrapper.set(ImMessage::getStatus, STATUS_RECALLED);
+        wrapper.set(ImMessage::getContent, null);
+        messageMapper.update(null, wrapper);
+        pushRecalledAfterCommit(conversationId, messageId, message.getSeq(), userId);
     }
 
     /**
@@ -219,7 +291,7 @@ public class ImMessageService {
         message.setSenderId(userId);
         message.setSenderType(SENDER_USER);
         message.setContentType(request.getContentType());
-        message.setContent(request.getContent());
+        message.setContent(attachmentValidator.validateAndNormalize(request.getContentType(), request.getContent()));
         message.setClientMsgId(request.getClientMsgId());
         message.setReplyTo(request.getReplyTo());
         message.setStatus(STATUS_NORMAL);
@@ -292,6 +364,42 @@ public class ImMessageService {
             });
         } else {
             broadcaster.broadcast(conversationId, vo);
+        }
+    }
+
+    /**
+     * 判断消息是否已超过撤回时限（落库时间缺失时按未超时处理）。
+     *
+     * @param message 消息实体
+     * @return 是否已超时
+     */
+    private boolean isRecallExpired(ImMessage message) {
+        LocalDateTime createTime = message.getCreateTime();
+        if (createTime == null) {
+            return false;
+        }
+        LocalDateTime deadline = createTime.plus(Duration.ofSeconds(recallWindowSeconds));
+        return LocalDateTime.now().isAfter(deadline);
+    }
+
+    /**
+     * 事务提交后推送撤回通知。
+     *
+     * @param conversationId 会话ID
+     * @param messageId      消息ID
+     * @param seq            消息序号
+     * @param operatorId     操作人ID
+     */
+    private void pushRecalledAfterCommit(Long conversationId, Long messageId, Long seq, Long operatorId) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    broadcaster.broadcastRecalled(conversationId, messageId, seq, operatorId);
+                }
+            });
+        } else {
+            broadcaster.broadcastRecalled(conversationId, messageId, seq, operatorId);
         }
     }
 

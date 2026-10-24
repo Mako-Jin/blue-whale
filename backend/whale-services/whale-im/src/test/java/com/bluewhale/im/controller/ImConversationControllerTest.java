@@ -5,8 +5,10 @@ import com.bluewhale.common.web.WebHeaders;
 import com.bluewhale.im.entity.ImConversation;
 import com.bluewhale.im.entity.ImMessage;
 import com.bluewhale.im.service.ImConversationService;
+import com.bluewhale.im.service.ImMemberService;
 import com.bluewhale.im.service.ImMessageService;
 import com.bluewhale.im.vo.ConversationVO;
+import com.bluewhale.im.vo.MemberVO;
 import com.bluewhale.im.vo.MessagePageVO;
 import com.bluewhale.im.vo.MessageVO;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,6 +28,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -48,7 +51,10 @@ class ImConversationControllerTest {
 
     private final ImMessageService messageService = mock(ImMessageService.class);
 
-    private final ImConversationController controller = new ImConversationController(conversationService, messageService);
+    private final ImMemberService memberService = mock(ImMemberService.class);
+
+    private final ImConversationController controller =
+            new ImConversationController(conversationService, messageService, memberService);
 
     private MockMvc mockMvc;
 
@@ -163,5 +169,58 @@ class ImConversationControllerTest {
                 .andExpect(status().isOk());
 
         verify(conversationService).markRead(CONVERSATION_ID, USER_ID, 5L);
+    }
+
+    @Test
+    @DisplayName("POST /im/conversations/{id}/messages/{messageId}/recall：透传撤回")
+    void recallShouldDelegateToService() throws Exception {
+        mockMvc.perform(post("/im/conversations/{id}/messages/{messageId}/recall", CONVERSATION_ID, 9L)
+                        .header(WebHeaders.USER_ID, String.valueOf(USER_ID)))
+                .andExpect(status().isOk());
+
+        verify(messageService).recall(CONVERSATION_ID, USER_ID, 9L);
+    }
+
+    @Test
+    @DisplayName("GET /im/conversations/{id}/members：返回成员列表")
+    void membersShouldReturnList() throws Exception {
+        when(memberService.list(CONVERSATION_ID, USER_ID))
+                .thenReturn(List.of(MemberVO.builder().userId("10").role("OWNER").build()));
+
+        mockMvc.perform(get("/im/conversations/{id}/members", CONVERSATION_ID)
+                        .header(WebHeaders.USER_ID, String.valueOf(USER_ID)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].userId").value("10"))
+                .andExpect(jsonPath("$.data[0].role").value("OWNER"));
+    }
+
+    @Test
+    @DisplayName("POST /im/conversations/{id}/members：memberIds 为空时返回 400")
+    void addMembersShouldRejectEmpty() throws Exception {
+        mockMvc.perform(post("/im/conversations/{id}/members", CONVERSATION_ID)
+                        .header(WebHeaders.USER_ID, String.valueOf(USER_ID))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"memberIds\":[]}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("DELETE /im/conversations/{id}/members/{userId}：透传移除成员")
+    void removeMemberShouldDelegateToService() throws Exception {
+        mockMvc.perform(delete("/im/conversations/{id}/members/{userId}", CONVERSATION_ID, 9L)
+                        .header(WebHeaders.USER_ID, String.valueOf(USER_ID)))
+                .andExpect(status().isOk());
+
+        verify(memberService).remove(CONVERSATION_ID, USER_ID, 9L);
+    }
+
+    @Test
+    @DisplayName("POST /im/conversations/{id}/quit：透传退群")
+    void quitShouldDelegateToService() throws Exception {
+        mockMvc.perform(post("/im/conversations/{id}/quit", CONVERSATION_ID)
+                        .header(WebHeaders.USER_ID, String.valueOf(USER_ID)))
+                .andExpect(status().isOk());
+
+        verify(memberService).quit(CONVERSATION_ID, USER_ID);
     }
 }

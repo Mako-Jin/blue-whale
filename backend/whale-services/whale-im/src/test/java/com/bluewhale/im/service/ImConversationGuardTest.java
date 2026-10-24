@@ -2,6 +2,7 @@ package com.bluewhale.im.service;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.im.entity.ImConversation;
+import com.bluewhale.im.entity.ImConversationMember;
 import com.bluewhale.im.mapper.ImConversationMapper;
 import com.bluewhale.im.mapper.ImConversationMemberMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -45,7 +46,7 @@ class ImConversationGuardTest {
         ImConversation conversation = new ImConversation();
         conversation.setId(CONVERSATION_ID);
         when(conversationMapper.selectById(anyLong())).thenReturn(conversation);
-        when(memberMapper.selectCount(any())).thenReturn(0L);
+        when(memberMapper.selectOne(any())).thenReturn(null);
 
         assertThrows(BizException.class, () -> guard.requireMember(CONVERSATION_ID, USER_ID));
     }
@@ -56,7 +57,7 @@ class ImConversationGuardTest {
         ImConversation conversation = new ImConversation();
         conversation.setId(CONVERSATION_ID);
         when(conversationMapper.selectById(anyLong())).thenReturn(conversation);
-        when(memberMapper.selectCount(any())).thenReturn(1L);
+        when(memberMapper.selectOne(any())).thenReturn(new ImConversationMember());
 
         assertSame(conversation, guard.requireMember(CONVERSATION_ID, USER_ID));
     }

@@ -62,6 +62,16 @@ class ImMessageBroadcasterTest {
         assertDoesNotThrow(() -> broadcaster.broadcast(CONVERSATION_ID, message));
     }
 
+    @Test
+    @DisplayName("broadcastRecalled：向会话全部成员推送撤回帧")
+    void broadcastRecalledShouldSendToAllMembers() {
+        when(memberMapper.selectList(any())).thenReturn(List.of(member(10L), member(11L)));
+
+        broadcaster.broadcastRecalled(CONVERSATION_ID, 9L, 5L, 10L);
+
+        verify(registry).send(eq(List.of(10L, 11L)), any());
+    }
+
     /**
      * 构造会话成员
      *

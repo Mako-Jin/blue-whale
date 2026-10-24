@@ -16,6 +16,7 @@ import java.util.Map;
  *   <li>{@code ready}：连接建立后的首帧，携带当前用户、服务器时间与心跳间隔</li>
  *   <li>{@code ping} / {@code pong}：客户端心跳与服务端应答</li>
  *   <li>{@code message.new}：新消息推送（载荷为 REST 同构的 {@link MessageVO}）</li>
+ *   <li>{@code message.recalled}：消息撤回通知</li>
  *   <li>{@code error}：协议错误提示</li>
  * </ul>
  *
@@ -34,6 +35,9 @@ public final class WsFrames {
 
     /** 新消息推送帧 */
     public static final String TYPE_MESSAGE_NEW = "message.new";
+
+    /** 消息撤回通知帧 */
+    public static final String TYPE_MESSAGE_RECALLED = "message.recalled";
 
     /** 协议错误帧 */
     public static final String TYPE_ERROR = "error";
@@ -82,6 +86,24 @@ public final class WsFrames {
     public static Map<String, Object> messageNew(MessageVO message) {
         Map<String, Object> frame = frame(TYPE_MESSAGE_NEW);
         frame.put("message", message);
+        return frame;
+    }
+
+    /**
+     * 构造消息撤回通知帧。
+     *
+     * @param conversationId 会话ID
+     * @param messageId      被撤回消息ID
+     * @param seq            被撤回消息序号
+     * @param operatorId     操作人ID
+     * @return 帧对象
+     */
+    public static Map<String, Object> messageRecalled(Long conversationId, Long messageId, Long seq, Long operatorId) {
+        Map<String, Object> frame = frame(TYPE_MESSAGE_RECALLED);
+        frame.put("conversationId", String.valueOf(conversationId));
+        frame.put("messageId", String.valueOf(messageId));
+        frame.put("seq", seq);
+        frame.put("operatorId", operatorId == null ? null : String.valueOf(operatorId));
         return frame;
     }
 

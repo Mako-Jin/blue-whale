@@ -49,6 +49,27 @@ public class ImMessageBroadcaster {
     }
 
     /**
+     * 向会话全部成员推送撤回通知。
+     *
+     * @param conversationId 会话ID
+     * @param messageId      被撤回消息ID
+     * @param seq            被撤回消息序号
+     * @param operatorId     操作人ID
+     */
+    public void broadcastRecalled(Long conversationId, Long messageId, Long seq, Long operatorId) {
+        try {
+            List<Long> memberIds = memberIds(conversationId);
+            if (memberIds.isEmpty()) {
+                return;
+            }
+            registry.send(memberIds, WsFrames.messageRecalled(conversationId, messageId, seq, operatorId));
+            log.debug("撤回通知已推送: conversationId={}, messageId={}", conversationId, messageId);
+        } catch (RuntimeException e) {
+            log.warn("撤回通知推送失败（撤回已生效，客户端补拉可见）: conversationId={}", conversationId, e);
+        }
+    }
+
+    /**
      * 查询会话成员用户ID。
      *
      * @param conversationId 会话ID
