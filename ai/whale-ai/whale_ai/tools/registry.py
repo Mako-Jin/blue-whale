@@ -1,19 +1,21 @@
 """只读工具注册表：名称、风险级、权限码、JSON Schema 与参数映射。
 
-规划 §6.3 规定三个 L0 只读工具全部由 Java 侧执行；本模块只维护契约，
+规划 §6.3 规定工具全部由 Java 侧执行；本模块只维护契约，
 执行统一走 :class:`~whale_ai.tools.client.AgentToolClient`。
+L0 工具（检索/事实/文档）走 ``sys:agent:chat``，L1 数据查询单独走 ``sys:ai:data:read``。
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from whale_ai.tools.client import AgentToolClient, ToolError, get_agent_tool_client
 
 TOOL_PERMISSION = "sys:agent:chat"
 TOOL_RISK_LEVEL = "L0"
+MAX_SQL_CHARS = 4000
 
 
 @dataclass(frozen=True)
@@ -33,14 +35,16 @@ class ToolDefinition:
     endpoint: str
     input_schema: dict[str, Any]
     build_payload: Callable[[dict[str, Any]], dict[str, Any]]
+    risk_level: str = field(default=TOOL_RISK_LEVEL)
+    permission: str = field(default=TOOL_PERMISSION)
 
     def describe(self) -> dict[str, Any]:
         """转为 ``GET /v1/tools`` 的公开描述（不含端点与实现细节）。"""
         return {
             "name": self.name,
             "description": self.description,
-            "riskLevel": TOOL_RISK_LEVEL,
-            "permission": TOOL_PERMISSION,
+            "riskLevel": self.risk_level,
+            "permission": self.permission,
             "inputSchema": self.input_schema,
         }
 
@@ -96,6 +100,13 @@ def _doc_payload(arguments: dict[str, Any]) -> dict[str, Any]:
     return payload
 
 
+def _data_payload(arguments: dict[str, Any]) -> dict[str, Any]:
+    sql = _require_text(arguments, "sql")
+    if len(sql) > MAX_SQL_CHARS:
+        raise ToolError(f"SQL 过长（上限 {MAX_SQL_CHARS} 字符）")
+    return {"sql": sql}
+
+
 TOOLS: dict[str, ToolDefinition] = {
     "knowledge_search": ToolDefinition(
         name="knowledge_search",
@@ -144,6 +155,19 @@ TOOLS: dict[str, ToolDefinition] = {
             "required": ["path"],
         },
         build_payload=_doc_payload,
+    ),
+    "data_query": ToolDefinition(
+        name="data_query",
+        description="在只读白名单视图上执行受限 SELECT（自动 LIMIT、脱敏、5s 超时）。",
+        endpoint="data-query",
+        input_schema={
+            "type": "object",
+            "properties": {"sql": {"type": "string", "description": "SELECT 语句"}},
+            "required": ["sql"],
+        },
+        build_payload=_data_payload,
+        risk_level="L1",
+        permission="sys:ai:data:read",
     ),
 }
 

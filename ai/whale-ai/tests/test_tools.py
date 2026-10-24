@@ -73,9 +73,51 @@ def test_unknown_tool_raises_tool_error() -> None:
         execute_tool("no_such_tool", {}, ToolContext())
 
 
-def test_list_tools_exposes_three_l0_tools() -> None:
+def test_data_query_maps_sql_and_forwards_data_permission() -> None:
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["headers"] = request.headers
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(200, json={"code": 0, "data": {"count": 1, "rows": []}})
+
+    execute_tool(
+        "data_query",
+        {"sql": "select service_name from v_ai_agent_fact_summary"},
+        ToolContext(user_id="7", permission_codes="sys:ai:data:read"),
+        client=_client(handler),
+    )
+
+    body = captured["body"]
+    assert isinstance(body, dict)
+    assert body == {"sql": "select service_name from v_ai_agent_fact_summary"}
+    headers = captured["headers"]
+    assert isinstance(headers, httpx.Headers)
+    assert headers["X-Permission-Codes"] == "sys:ai:data:read"
+
+
+def test_data_query_rejects_missing_or_oversized_sql() -> None:
+    with pytest.raises(ToolError, match="缺少必填参数"):
+        execute_tool("data_query", {"sql": "   "}, ToolContext())
+
+    with pytest.raises(ToolError, match="SQL 过长"):
+        execute_tool("data_query", {"sql": "select " + "x" * 4000}, ToolContext())
+
+
+def test_list_tools_exposes_l0_and_l1_catalog() -> None:
     tools = list_tools()
 
-    assert {tool["name"] for tool in tools} == {"knowledge_search", "fact_get", "doc_read"}
-    assert all(tool["riskLevel"] == "L0" for tool in tools)
-    assert all(tool["permission"] == "sys:agent:chat" for tool in tools)
+    assert {tool["name"] for tool in tools} == {
+        "knowledge_search",
+        "fact_get",
+        "doc_read",
+        "data_query",
+    }
+    risk_by_name = {tool["name"]: tool["riskLevel"] for tool in tools}
+    assert risk_by_name["data_query"] == "L1"
+    assert all(level == "L0" for name, level in risk_by_name.items() if name != "data_query")
+    permission_by_name = {tool["name"]: tool["permission"] for tool in tools}
+    assert permission_by_name["data_query"] == "sys:ai:data:read"
+    assert all(
+        code == "sys:agent:chat" for name, code in permission_by_name.items() if name != "data_query"
+    )

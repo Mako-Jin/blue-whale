@@ -8,6 +8,8 @@ import org.springframework.util.StringUtils;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 知识 Agent 配置（{@code whale.agent.*}）。
@@ -46,6 +48,9 @@ public class AgentProperties {
 
     /** MCP / IDE 接入配置（轨 F） */
     private Mcp mcp = new Mcp();
+
+    /** 只读数据查询配置（T14） */
+    private DataQuery data = new DataQuery();
 
     /**
      * 解析仓库根目录：显式配置 → 向上探测 → 当前工作目录。
@@ -235,6 +240,38 @@ public class AgentProperties {
 
         /** 流式问答总超时（秒） */
         private int timeoutSeconds = 120;
+    }
+
+    /**
+     * 只读数据查询参数。
+     *
+     * <p>默认关闭；配置 {@code url} 后启用独立只读账号连接（仅授权白名单视图），
+     * 不参与主数据源与 MyBatis 事务。</p>
+     */
+    @Data
+    public static class DataQuery {
+
+        /** 是否启用只读数据通道 */
+        private boolean enabled = false;
+
+        /** 只读账号 JDBC 地址（如 {@code jdbc:mysql://host:3306/bluewhale_agent?...}） */
+        private String url;
+
+        /** 只读账号 */
+        private String username = "whale_ai_ro";
+
+        /** 只读账号口令（环境变量注入，不入仓） */
+        private String password;
+
+        /** 允许访问的视图（库内名称，忽略大小写） */
+        private List<String> allowedViews = new ArrayList<>(
+                List.of("v_ai_agent_fact_summary", "v_ai_agent_usage_summary"));
+
+        /** 单次返回行数上限 */
+        private int maxRows = 200;
+
+        /** 查询超时（秒） */
+        private int timeoutSeconds = 5;
     }
 
     /**

@@ -88,6 +88,15 @@ whale:
       # 自主工具编排（配置模型后生效）：开启后由模型自行决定检索步骤，关闭则退回单轮 RAG
       agentic-enabled: ${WHALE_AGENT_QA_AGENTIC_ENABLED:true}
       max-tool-steps: ${WHALE_AGENT_QA_MAX_TOOL_STEPS:4}
+    # T14 只读数据通道：默认关闭；配置独立只读账号后启用（仅授权白名单视图）
+    data:
+      enabled: ${WHALE_AGENT_DATA_ENABLED:false}
+      url: ${WHALE_AGENT_DATA_URL:}
+      username: ${WHALE_AGENT_DATA_USERNAME:whale_ai_ro}
+      password: ${WHALE_AGENT_DATA_PASSWORD:}
+      allowed-views: ${WHALE_AGENT_DATA_ALLOWED_VIEWS:v_ai_agent_fact_summary,v_ai_agent_usage_summary}
+      max-rows: ${WHALE_AGENT_DATA_MAX_ROWS:200}
+      timeout-seconds: ${WHALE_AGENT_DATA_TIMEOUT_SECONDS:5}
     # 轨 F：MCP / IDE 接入（默认关闭；配置 token 后才对外提供只读工具）
     mcp:
       enabled: ${WHALE_AGENT_MCP_ENABLED:false}

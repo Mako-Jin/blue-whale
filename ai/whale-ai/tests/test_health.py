@@ -37,13 +37,20 @@ def test_run_agent_keeps_conversation_id(monkeypatch: pytest.MonkeyPatch) -> Non
     assert state["degraded"] is True
 
 
-def test_tools_endpoint_returns_l0_catalog() -> None:
+def test_tools_endpoint_returns_tool_catalog() -> None:
     response = client.get("/v1/tools")
 
     assert response.status_code == 200
     tools = response.json()["tools"]
-    assert {tool["name"] for tool in tools} == {"knowledge_search", "fact_get", "doc_read"}
-    assert all(tool["riskLevel"] == "L0" for tool in tools)
+    assert {tool["name"] for tool in tools} == {
+        "knowledge_search",
+        "fact_get",
+        "doc_read",
+        "data_query",
+    }
+    risk_by_name = {tool["name"]: tool["riskLevel"] for tool in tools}
+    assert risk_by_name["data_query"] == "L1"
+    assert all(level == "L0" for name, level in risk_by_name.items() if name != "data_query")
 
 
 class _UnavailableLlm:
