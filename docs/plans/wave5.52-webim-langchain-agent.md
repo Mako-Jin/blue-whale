@@ -194,9 +194,9 @@ intent ──> retrieve(knowledge/facts) ──> think ──> tools ──> ver
 
 ### M3 LangChain 服务
 
-- [x] T10 `ai/whale-ai` 骨架（FastAPI/LangGraph/配置/健康检查）（2026-10-24 完成，`compileall` 通过；pytest 因本机 Python 3.15 缺 `zstandard` 轮子待环境，见 devlog §十三）
+- [x] T10 `ai/whale-ai` 骨架（FastAPI/LangGraph/配置/健康检查）（2026-10-24 完成，`compileall` 通过；pytest 当时因本机 Python 3.15 缺 `zstandard` 轮子待环境，现已由 Python 3.12.15 项目 `.venv` 复验 39 passed，见 devlog §十三、§二十五）
 - [x] T11 `knowledge_search`、`fact_get`、`doc_read` 三个只读工具打通（2026-10-24 完成：Java `/agent/tools/**` 统一 `sys:agent:chat`，Python `tools` 包 + `/v1/tools`，63 例 Java 用例全绿；见 devlog §十四）
-- [x] T12 引用校验与流式输出，接入 `whale-agent` 引擎开关（2026-10-24 完成：LangGraph 四节点图 + 引用标记收敛 + OpenAI 兼容流式；`whale.agent.qa.engine=legacy|langchain` 默认 legacy，Java 侧透传/落库；Java 65 例全绿，Python 单测受环境阻塞，见 devlog §十五）
+- [x] T12 引用校验与流式输出，接入 `whale-agent` 引擎开关（2026-10-24 完成：LangGraph 四节点图 + 引用标记收敛 + OpenAI 兼容流式；`whale.agent.qa.engine=legacy|langchain` 默认 legacy，Java 侧透传/落库；Java 65 例全绿，Python 单测当时受环境阻塞，现已由 Python 3.12.15 项目 `.venv` 复验 `langgraph` 图用例，见 devlog §十五、§二十五）
 - [x] T13 记忆（Redis）与会话摘要（2026-10-24 完成：`whale:ai:memory:<id>` 单键 + TTL 7 天，最近 10 轮 + 规则摘要，图末 `remember` 节点落库；11 例真实依赖单测通过，图用例经替身全量 33 例，见 devlog §十六）
 
 ### M4 平台操作
@@ -208,7 +208,7 @@ intent ──> retrieve(knowledge/facts) ──> think ──> tools ──> ver
 ### M5 加固与验收
 
 - [x] T17 限流、敏感内容遮蔽、异常降级（2026-10-24 完成：whale-im 按用户分钟级限流（Redis 计数、超限落提示、Redis 故障放行）+ `AgentTraceMasker` 对工具轨迹/引用键值与密钥赋值脱敏；whale-agent 错误信息落库前复用 `SensitiveContentMasker`；既有超时/异常降级保持；89 + 113 例全绿、Checkstyle 0，见 devlog §二十）
-- [x] T18 前端 build/lint、后端单测、Python pytest、Checkstyle（2026-10-24 完成：`pnpm lint` EXIT=0，`pnpm build` 18/18 成功；whale-agent 89 例、whale-im 113 例全绿且 Checkstyle 0；`compileall` 通过、pytest 39 passed（TEMP `langgraph` 替身）；见 devlog §二十一）
+- [x] T18 前端 build/lint、后端单测、Python pytest、Checkstyle（2026-10-24 完成：`pnpm lint` EXIT=0，`pnpm build` 18/18 成功；whale-agent 89 例、whale-im 113 例全绿且 Checkstyle 0；`compileall` 通过、pytest 39 passed（当时用 TEMP `langgraph` 替身，现已由项目 `.venv`/Python 3.12.15 + 真实 `langgraph` 复验，见 devlog §二十一、§二十五）
 - [x] T18b 补齐 `whale-im` 前端子应用与基座接入（2026-10-24 完成：8107 / base `/im`，三层布局 + WS ticket/心跳/重连补拉 + 机器人流式/工具轨迹/引用/确认卡片 + 成员面板；基座「消息」菜单、`/im` 路由、未读角标与 `sys:im:chat` 接入；lint 0 warning、build 19/19、whale-im 113 例全绿 + Checkstyle 0；见 devlog §二十二）
 - [x] T19 实机联调与验收记录（devlog + review）（2026-10-24 完成：本机原生中间件 + 网关链路，实机脚本 51 例全 PASS（17 API / 9 实时 / 14 数据与写操作 / 11 机器人），前端子应用渲染与实时收发浏览器验证通过，三模块 294 例单测 + Checkstyle 0、pytest 39 passed、lint/build EXIT=0；见 devlog §二十四与 [T19 验收记录](../reviews/2026-10-24-wave5.52-m5-t19-acceptance.md)）
 
