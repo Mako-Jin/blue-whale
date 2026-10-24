@@ -17,7 +17,7 @@ import java.util.Map;
  *   <li>{@code ping} / {@code pong}：客户端心跳与服务端应答</li>
  *   <li>{@code message.new}：新消息推送（载荷为 REST 同构的 {@link MessageVO}）</li>
  *   <li>{@code message.recalled}：消息撤回通知</li>
- *   <li>{@code agent.meta} / {@code agent.delta} / {@code agent.done} / {@code agent.error}：机器人流式回答</li>
+ *   <li>{@code agent.meta} / {@code agent.delta} / {@code agent.done} / {@code agent.error} / {@code agent.confirm}：机器人流式回答与写操作确认</li>
  *   <li>{@code error}：协议错误提示</li>
  * </ul>
  *
@@ -54,6 +54,9 @@ public final class WsFrames {
 
     /** 机器人回答失败帧 */
     public static final String TYPE_AGENT_ERROR = "agent.error";
+
+    /** 写操作确认卡片帧 */
+    public static final String TYPE_AGENT_CONFIRM = "agent.confirm";
 
     /** 时间格式 */
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
@@ -193,6 +196,34 @@ public final class WsFrames {
         frame.put("conversationId", String.valueOf(conversationId));
         frame.put("runId", String.valueOf(runId));
         frame.put("message", message);
+        return frame;
+    }
+
+    /**
+     * 构造写操作确认卡片帧。
+     *
+     * @param conversationId   IM 会话ID
+     * @param runId            运行记录ID
+     * @param messageId        卡片消息ID
+     * @param confirmationId   确认令牌ID
+     * @param operation        操作名
+     * @param summary          参数摘要
+     * @param permission       所需权限码
+     * @param expiresAt        过期时间
+     * @return 帧对象
+     */
+    public static Map<String, Object> agentConfirm(Long conversationId, Long runId, Long messageId,
+                                                   String confirmationId, String operation, String summary,
+                                                   String permission, String expiresAt) {
+        Map<String, Object> frame = frame(TYPE_AGENT_CONFIRM);
+        frame.put("conversationId", String.valueOf(conversationId));
+        frame.put("runId", String.valueOf(runId));
+        frame.put("messageId", messageId == null ? null : String.valueOf(messageId));
+        frame.put("confirmationId", confirmationId);
+        frame.put("operation", operation);
+        frame.put("summary", summary);
+        frame.put("permission", permission);
+        frame.put("expiresAt", expiresAt);
         return frame;
     }
 

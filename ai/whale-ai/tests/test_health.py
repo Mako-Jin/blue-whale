@@ -47,10 +47,14 @@ def test_tools_endpoint_returns_tool_catalog() -> None:
         "fact_get",
         "doc_read",
         "data_query",
+        "platform_op",
     }
     risk_by_name = {tool["name"]: tool["riskLevel"] for tool in tools}
     assert risk_by_name["data_query"] == "L1"
-    assert all(level == "L0" for name, level in risk_by_name.items() if name != "data_query")
+    assert risk_by_name["platform_op"] == "L2"
+    assert all(
+        level == "L0" for name, level in risk_by_name.items() if name not in ("data_query", "platform_op")
+    )
 
 
 class _UnavailableLlm:

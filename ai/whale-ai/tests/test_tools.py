@@ -4,8 +4,13 @@ import json
 
 import httpx
 import pytest
+from fastapi.testclient import TestClient
 
+from whale_ai.api import routes
+from whale_ai.main import app
 from whale_ai.tools import AgentToolClient, ToolContext, ToolError, execute_tool, list_tools
+
+client = TestClient(app)
 
 
 def _client(handler) -> AgentToolClient:
@@ -104,6 +109,86 @@ def test_data_query_rejects_missing_or_oversized_sql() -> None:
         execute_tool("data_query", {"sql": "select " + "x" * 4000}, ToolContext())
 
 
+def test_platform_op_maps_operation_and_params() -> None:
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["headers"] = request.headers
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(200, json={"code": 0, "data": {"confirmationId": "c-1", "status": "PENDING"}})
+
+    data = execute_tool(
+        "platform_op",
+        {"operation": "form.definition.create", "params": {"code": "demo", "name": "示例表单"}},
+        ToolContext(user_id="7", permission_codes="sys:agent:chat,sys:ai:ops:form"),
+        client=_client(handler),
+    )
+
+    assert data == {"confirmationId": "c-1", "status": "PENDING"}
+    body = captured["body"]
+    assert isinstance(body, dict)
+    assert body == {
+        "operation": "form.definition.create",
+        "params": {"code": "demo", "name": "示例表单"},
+    }
+    headers = captured["headers"]
+    assert isinstance(headers, httpx.Headers)
+    assert headers["X-Permission-Codes"] == "sys:agent:chat,sys:ai:ops:form"
+
+
+def test_platform_op_rejects_missing_operation_or_invalid_params() -> None:
+    with pytest.raises(ToolError, match="缺少必填参数"):
+        execute_tool("platform_op", {}, ToolContext())
+
+    with pytest.raises(ToolError, match="必须是对象"):
+        execute_tool("platform_op", {"operation": "form.definition.create", "params": "x"}, ToolContext())
+
+
+def test_confirm_proxies_to_agent_with_identity(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    class StubClient:
+        def confirm(self, confirmation_id, approved, user_id, permission_codes):
+            captured.update(
+                confirmation_id=confirmation_id,
+                approved=approved,
+                user_id=user_id,
+                permission_codes=permission_codes,
+            )
+            return {"confirmationId": confirmation_id, "status": "SUCCESS"}
+
+    monkeypatch.setattr(routes, "get_agent_tool_client", lambda: StubClient())
+
+    response = client.post(
+        "/v1/agent/confirm",
+        json={"confirmationId": "c-1", "approved": True},
+        headers={"X-User-Id": "7", "X-Permission-Codes": "sys:ai:ops:form"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"confirmationId": "c-1", "status": "SUCCESS"}
+    assert captured == {
+        "confirmation_id": "c-1",
+        "approved": True,
+        "user_id": "7",
+        "permission_codes": "sys:ai:ops:form",
+    }
+
+
+def test_confirm_returns_502_when_agent_rejects(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FailingClient:
+        def confirm(self, confirmation_id, approved, user_id, permission_codes):
+            del confirmation_id, approved, user_id, permission_codes
+            raise ToolError("确认令牌已使用或已失效")
+
+    monkeypatch.setattr(routes, "get_agent_tool_client", lambda: FailingClient())
+
+    response = client.post("/v1/agent/confirm", json={"confirmationId": "c-1", "approved": True})
+
+    assert response.status_code == 502
+    assert "已使用" in response.json()["detail"]
+
+
 def test_list_tools_exposes_l0_and_l1_catalog() -> None:
     tools = list_tools()
 
@@ -112,12 +197,22 @@ def test_list_tools_exposes_l0_and_l1_catalog() -> None:
         "fact_get",
         "doc_read",
         "data_query",
+        "platform_op",
     }
     risk_by_name = {tool["name"]: tool["riskLevel"] for tool in tools}
     assert risk_by_name["data_query"] == "L1"
-    assert all(level == "L0" for name, level in risk_by_name.items() if name != "data_query")
+    assert risk_by_name["platform_op"] == "L2"
+    assert all(
+        level == "L0"
+        for name, level in risk_by_name.items()
+        if name not in ("data_query", "platform_op")
+    )
     permission_by_name = {tool["name"]: tool["permission"] for tool in tools}
     assert permission_by_name["data_query"] == "sys:ai:data:read"
+    assert permission_by_name["platform_op"] == "sys:ai:ops:*"
     assert all(
-        code == "sys:agent:chat" for name, code in permission_by_name.items() if name != "data_query"
+        code == "sys:agent:chat"
+        for name, code in permission_by_name.items()
+        if name not in ("data_query", "platform_op")
     )
+

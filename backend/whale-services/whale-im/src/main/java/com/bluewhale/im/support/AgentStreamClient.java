@@ -3,6 +3,8 @@ package com.bluewhale.im.support;
 import com.bluewhale.common.web.WebHeaders;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.net.URI;
@@ -41,6 +43,15 @@ public class AgentStreamClient {
 
     private static final String CHAT_PATH = "/agent/chat";
 
+    /** 写操作确认/拒绝路径前缀 */
+    private static final String OPS_PATH_PREFIX = "/agent/ops/";
+
+    /** 确认动作 */
+    private static final String ACTION_CONFIRM = "confirm";
+
+    /** 拒绝动作 */
+    private static final String ACTION_REJECT = "reject";
+
     private static final String CONTENT_TYPE = "Content-Type";
 
     private static final String ACCEPT = "Accept";
@@ -55,16 +66,21 @@ public class AgentStreamClient {
 
     private final long timeoutSeconds;
 
+    private final ObjectMapper objectMapper;
+
     /**
      * 构造客户端。
      *
      * @param baseUrl        智能体服务地址（whale-agent）
      * @param timeoutSeconds 建连与首字节超时（秒）
+     * @param objectMapper   JSON 解析器
      */
     public AgentStreamClient(@Value("${whale.im.agent.base-url:http://127.0.0.1:8090}") String baseUrl,
-                             @Value("${whale.im.agent.timeout-seconds:120}") long timeoutSeconds) {
+                             @Value("${whale.im.agent.timeout-seconds:120}") long timeoutSeconds,
+                             ObjectMapper objectMapper) {
         this.baseUrl = trimTrailingSlash(baseUrl);
         this.timeoutSeconds = timeoutSeconds;
+        this.objectMapper = objectMapper;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(timeoutSeconds))
                 .build();
@@ -103,6 +119,48 @@ public class AgentStreamClient {
             lines.forEach(line -> dispatch(parser.accept(line), handler));
         }
         dispatch(parser.flush(), handler);
+    }
+
+    /**
+     * 确认或拒绝一次平台写操作（一次性令牌）。
+     *
+     * @param confirmationId  确认令牌ID
+     * @param approved        {@code true} 执行；{@code false} 拒绝
+     * @param userId          当前用户ID（必须与令牌发起人一致）
+     * @param permissionCodes 当前用户权限码
+     * @return 智能体返回的 {@code Result.data} 节点
+     * @throws IOException          HTTP 非 2xx、业务码非 0 或响应解析失败
+     * @throws InterruptedException 线程被中断
+     */
+    public JsonNode confirmOperation(String confirmationId, boolean approved, Long userId, String permissionCodes)
+            throws IOException, InterruptedException {
+        String action = approved ? ACTION_CONFIRM : ACTION_REJECT;
+        HttpRequest.Builder builder = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + OPS_PATH_PREFIX + confirmationId + "/" + action))
+                .timeout(Duration.ofSeconds(timeoutSeconds))
+                .header(CONTENT_TYPE, APPLICATION_JSON)
+                .POST(HttpRequest.BodyPublishers.ofString("{}"));
+        if (userId != null) {
+            builder.header(WebHeaders.USER_ID, String.valueOf(userId));
+        }
+        if (permissionCodes != null && !permissionCodes.isBlank()) {
+            builder.header(WebHeaders.PERMISSION_CODES, permissionCodes);
+        }
+        HttpResponse<String> response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            throw new IOException("平台操作接口返回状态 " + response.statusCode());
+        }
+        JsonNode body;
+        try {
+            body = objectMapper.readTree(response.body());
+        } catch (RuntimeException e) {
+            throw new IOException("平台操作响应解析失败", e);
+        }
+        if (body == null || body.path("code").asInt(-1) != 0) {
+            String message = body == null ? "平台操作响应为空" : body.path("message").asText("平台操作确认失败");
+            throw new IOException(message);
+        }
+        return body.path("data");
     }
 
     /**

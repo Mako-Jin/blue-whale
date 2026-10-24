@@ -107,6 +107,16 @@ def _data_payload(arguments: dict[str, Any]) -> dict[str, Any]:
     return {"sql": sql}
 
 
+def _platform_op_payload(arguments: dict[str, Any]) -> dict[str, Any]:
+    operation = _require_text(arguments, "operation")
+    params = arguments.get("params")
+    if params is None:
+        params = {}
+    if not isinstance(params, dict):
+        raise ToolError("参数 params 必须是对象")
+    return {"operation": operation, "params": params}
+
+
 TOOLS: dict[str, ToolDefinition] = {
     "knowledge_search": ToolDefinition(
         name="knowledge_search",
@@ -168,6 +178,28 @@ TOOLS: dict[str, ToolDefinition] = {
         build_payload=_data_payload,
         risk_level="L1",
         permission="sys:ai:data:read",
+    ),
+    "platform_op": ToolDefinition(
+        name="platform_op",
+        description="发起平台写操作（建表单等）：仅生成一次性确认卡片，用户确认后由 Java 侧执行。",
+        endpoint="platform-op",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "description": "操作名，当前仅 form.definition.create",
+                },
+                "params": {
+                    "type": "object",
+                    "description": "操作参数，如表单 code/name",
+                },
+            },
+            "required": ["operation"],
+        },
+        build_payload=_platform_op_payload,
+        risk_level="L2",
+        permission="sys:ai:ops:*",
     ),
 }
 

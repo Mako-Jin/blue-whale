@@ -97,6 +97,13 @@ whale:
       allowed-views: ${WHALE_AGENT_DATA_ALLOWED_VIEWS:v_ai_agent_fact_summary,v_ai_agent_usage_summary}
       max-rows: ${WHALE_AGENT_DATA_MAX_ROWS:200}
       timeout-seconds: ${WHALE_AGENT_DATA_TIMEOUT_SECONDS:5}
+    # T15 平台写操作：默认关闭；开启后模型仅创建确认令牌，用户确认后才转发下游写请求
+    ops:
+      enabled: ${WHALE_AGENT_OPS_ENABLED:false}
+      ttl-seconds: ${WHALE_AGENT_OPS_TTL_SECONDS:300}
+      timeout-seconds: ${WHALE_AGENT_OPS_TIMEOUT_SECONDS:10}
+      targets:
+        form: ${WHALE_AGENT_OPS_TARGET_FORM:http://127.0.0.1:8084}
     # 轨 F：MCP / IDE 接入（默认关闭；配置 token 后才对外提供只读工具）
     mcp:
       enabled: ${WHALE_AGENT_MCP_ENABLED:false}

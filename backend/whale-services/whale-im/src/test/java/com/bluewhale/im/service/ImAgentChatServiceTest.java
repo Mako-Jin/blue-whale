@@ -150,6 +150,44 @@ class ImAgentChatServiceTest {
     }
 
     @Test
+    @DisplayName("确认链路：confirm 事件落 CARD 消息、运行置 WAITING_CONFIRM 并推送卡片帧")
+    void shouldPersistCardAndWaitConfirm() throws Exception {
+        stubRunnableExecutor();
+        when(conversationMapper.selectById(CONVERSATION_ID)).thenReturn(botConversation());
+        when(bindingMapper.selectOne(any())).thenReturn(binding());
+        when(botService.botUserId()).thenReturn(BOT_USER_ID);
+        when(seqAllocator.next(eq(CONVERSATION_ID), anyLong())).thenReturn(6L);
+        when(runMapper.insert(any(ImAgentRun.class))).thenAnswer(invocation -> {
+            invocation.getArgument(0, ImAgentRun.class).setId(900L);
+            return 1;
+        });
+        when(messageMapper.insert(any(ImMessage.class))).thenAnswer(invocation -> {
+            invocation.getArgument(0, ImMessage.class).setId(REPLY_ID);
+            return 1;
+        });
+        doAnswer(invocation -> {
+            AgentStreamClient.EventHandler handler = invocation.getArgument(3);
+            handler.onEvent("confirm", "{\"confirmationId\":\"c-1\",\"operation\":\"form.definition.create\","
+                    + "\"summary\":\"创建表单定义：示例（demo）\",\"permission\":\"sys:ai:ops:form\","
+                    + "\"expiresAt\":\"2026-10-24T12:00:00\"}");
+            return null;
+        }).when(client).stream(anyString(), eq(USER_ID), any(), any());
+
+        service.onUserMessage(userMessage(), "sys:ai:ops:form");
+
+        ArgumentCaptor<ImMessage> messageCaptor = ArgumentCaptor.forClass(ImMessage.class);
+        verify(messageMapper, times(1)).insert(messageCaptor.capture());
+        assertEquals("CARD", messageCaptor.getValue().getContentType());
+        assertEquals("BOT", messageCaptor.getValue().getSenderType());
+        assertTrue(messageCaptor.getValue().getContent().contains("\"confirmationId\":\"c-1\""));
+
+        verify(broadcaster).broadcastFrame(eq(CONVERSATION_ID),
+                argThat(frame -> "agent.confirm".equals(frame.get("type"))
+                        && "c-1".equals(frame.get("confirmationId"))));
+        verify(runMapper, times(1)).update(any(), any());
+    }
+
+    @Test
     @DisplayName("失败链路：智能体异常时落系统提示并推送 agent.error")
     void shouldDegradeWhenAgentFails() throws Exception {
         stubRunnableExecutor();

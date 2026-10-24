@@ -66,8 +66,14 @@ public class ImAgentChatService {
     /** 内容类型：纯文本 */
     private static final String CONTENT_TEXT = "TEXT";
 
+    /** 内容类型：确认卡片 */
+    private static final String CONTENT_CARD = "CARD";
+
     /** 运行状态：运行中 */
     private static final String STATUS_RUNNING = "RUNNING";
+
+    /** 运行状态：等待确认 */
+    private static final String STATUS_WAITING_CONFIRM = "WAITING_CONFIRM";
 
     /** 运行状态：成功 */
     private static final String STATUS_SUCCESS = "SUCCESS";
@@ -260,6 +266,9 @@ public class ImAgentChatService {
         try {
             agentStreamClient.stream(requestBody(binding, question), userId, permissionCodes,
                     (event, data) -> handleEvent(run, conversationId, binding, event, data, state));
+            if (state.awaitingConfirm) {
+                return;
+            }
             if (!state.done) {
                 throw new IOException("智能体未返回完成事件");
             }
@@ -319,6 +328,7 @@ public class ImAgentChatService {
             case "meta" -> handleMeta(run, conversationId, binding, node, state);
             case "delta" -> handleDelta(run, conversationId, node, state);
             case "tool" -> state.tools.add(copyValue(node));
+            case "confirm" -> handleConfirm(run, conversationId, node, state);
             case "done" -> handleDone(node, state);
             case "error" -> throw new IOException(text(node, "message", "智能体执行失败"));
             default -> log.debug("忽略未知智能体事件: event={}", event);
@@ -365,6 +375,68 @@ public class ImAgentChatService {
         }
         state.answer.append(chunk);
         broadcaster.broadcastFrame(conversationId, WsFrames.agentDelta(conversationId, run.getId(), chunk));
+    }
+
+    /**
+     * 处理 {@code confirm} 事件：落确认卡片消息、运行置 {@code WAITING_CONFIRM} 并推送卡片帧。
+     *
+     * <p>卡片内容为 JSON（{@code type/confirmationId/operation/summary/permission/expiresAt}），
+     * 前端按 {@code content_type=CARD} 渲染；未确认前不会触发任何写操作。</p>
+     *
+     * @param run            运行记录
+     * @param conversationId 会话ID
+     * @param node           事件 JSON
+     * @param state          运行状态
+     */
+    private void handleConfirm(ImAgentRun run, Long conversationId, JsonNode node, RunState state) {
+        String confirmationId = text(node, "confirmationId", null);
+        if (!StringUtils.hasText(confirmationId)) {
+            log.warn("确认事件缺少 confirmationId，忽略: runId={}", run.getId());
+            return;
+        }
+        String operation = text(node, "operation", "");
+        String summary = text(node, "summary", "");
+        String permission = text(node, "permission", "");
+        String expiresAt = text(node, "expiresAt", "");
+        Map<String, Object> card = new LinkedHashMap<>();
+        card.put("type", "platform_op");
+        card.put("confirmationId", confirmationId);
+        card.put("operation", operation);
+        card.put("summary", summary);
+        card.put("permission", permission);
+        card.put("expiresAt", expiresAt);
+        String cardJson;
+        try {
+            cardJson = objectMapper.writeValueAsString(card);
+        } catch (RuntimeException e) {
+            throw new IllegalStateException("确认卡片序列化失败", e);
+        }
+        ImMessage message = appendMessage(conversationId, botService.botUserId(), SENDER_BOT, CONTENT_CARD, cardJson);
+        LambdaUpdateWrapper<ImAgentRun> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(ImAgentRun::getId, run.getId());
+        wrapper.set(ImAgentRun::getStatus, STATUS_WAITING_CONFIRM);
+        wrapper.set(ImAgentRun::getConfirmationJson, cardJson);
+        runMapper.update(null, wrapper);
+        broadcaster.broadcast(conversationId, ImMessageService.toVo(message));
+        broadcaster.broadcastFrame(conversationId, WsFrames.agentConfirm(conversationId, run.getId(), message.getId(),
+                confirmationId, operation, summary, permission, expiresAt));
+        state.awaitingConfirm = true;
+        state.done = true;
+    }
+
+    /**
+     * 追加一条机器人/系统消息（供确认结果回写等复用）。
+     *
+     * @param conversationId 会话ID
+     * @param senderId       发送者ID
+     * @param senderType     发送者类型（BOT/SYSTEM）
+     * @param contentType    内容类型
+     * @param content        消息内容
+     * @return 已落库消息
+     */
+    public ImMessage appendMessage(Long conversationId, Long senderId, String senderType,
+                                   String contentType, String content) {
+        return persistReply(conversationId, senderId, senderType, contentType, content);
     }
 
     /**
@@ -602,5 +674,8 @@ public class ImAgentChatService {
 
         /** 是否已收到 done */
         private boolean done;
+
+        /** 是否已进入待确认状态 */
+        private boolean awaitingConfirm;
     }
 }

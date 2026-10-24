@@ -16,7 +16,7 @@ from whale_ai import __version__
 from whale_ai.api.schemas import ChatRequest, ConfirmRequest, HealthResponse
 from whale_ai.config import get_llm_settings, get_settings
 from whale_ai.graph import run_agent
-from whale_ai.tools import list_tools
+from whale_ai.tools import ToolError, get_agent_tool_client, list_tools
 
 logger = logging.getLogger(__name__)
 
@@ -126,7 +126,20 @@ async def _stream(
             break
 
 
-@router.post("/v1/agent/confirm", summary="写操作确认（未实现）")
-async def agent_confirm(request: ConfirmRequest) -> None:
-    """写操作确认占位：M4 接入确认协议后实现。"""
-    raise HTTPException(status_code=501, detail=f"确认协议尚未实现：{request.confirmation_id}")
+@router.post("/v1/agent/confirm", summary="写操作确认")
+async def agent_confirm(
+    request: ConfirmRequest,
+    user_id: str | None = Header(default=None, alias="X-User-Id"),
+    permission_codes: str | None = Header(default=None, alias="X-Permission-Codes"),
+) -> Any:
+    """代理到 whale-agent 的一次性确认令牌接口。
+
+    Python 侧不持有确认状态：``approved=true`` 转发 confirm，``false`` 转发 reject；
+    身份与权限码原样透传，越权与过期由 Java 侧统一判定。
+    """
+    try:
+        return get_agent_tool_client().confirm(
+            request.confirmation_id, request.approved, user_id, permission_codes
+        )
+    except ToolError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc

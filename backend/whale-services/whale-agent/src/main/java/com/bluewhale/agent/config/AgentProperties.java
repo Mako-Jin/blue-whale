@@ -9,7 +9,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 知识 Agent 配置（{@code whale.agent.*}）。
@@ -51,6 +53,9 @@ public class AgentProperties {
 
     /** 只读数据查询配置（T14） */
     private DataQuery data = new DataQuery();
+
+    /** 平台写操作配置（T15） */
+    private Ops ops = new Ops();
 
     /**
      * 解析仓库根目录：显式配置 → 向上探测 → 当前工作目录。
@@ -297,5 +302,37 @@ public class AgentProperties {
 
         /** 单次读取文件最大字符数 */
         private int maxReadChars = 20_000;
+    }
+
+    /**
+     * 平台写操作参数（L2，人工确认后执行）。
+     *
+     * <p>默认关闭；开启后模型只能创建确认令牌，真正的写请求必须由用户确认触发。</p>
+     */
+    @Data
+    public static class Ops {
+
+        /** 是否启用平台写操作 */
+        private boolean enabled = false;
+
+        /** 确认令牌有效期（秒） */
+        private int ttlSeconds = 300;
+
+        /** 下游调用超时（秒） */
+        private int timeoutSeconds = 10;
+
+        /** 目标服务基地址（键为操作目录中的 target） */
+        private Map<String, String> targets = defaultTargets();
+
+        /**
+         * 默认目标服务地址。
+         *
+         * @return 目标服务映射
+         */
+        private static Map<String, String> defaultTargets() {
+            Map<String, String> targets = new LinkedHashMap<>();
+            targets.put("form", "http://127.0.0.1:8084");
+            return targets;
+        }
     }
 }

@@ -81,6 +81,35 @@ CREATE TABLE agent_feedback (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='知识Agent回答评价表';
 
 -- ---------------------------------------------------------------------
+-- 平台写操作确认表（T15：L2 写操作一次性确认令牌）
+-- 设计说明：一条记录即一个令牌；PENDING → CONFIRMED 使用条件更新保证只执行一次，
+--          拒绝/超时分别落 REJECTED/EXPIRED；参数哈希与结果供审计追溯。
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS agent_operation;
+CREATE TABLE agent_operation (
+    id              BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    confirmation_id VARCHAR(64)   NOT NULL               COMMENT '确认令牌ID（UUID）',
+    user_id         BIGINT        NOT NULL               COMMENT '发起用户ID',
+    conversation_id BIGINT        DEFAULT NULL           COMMENT '来源智能体会话ID',
+    operation       VARCHAR(64)   NOT NULL               COMMENT '操作名，如 form.definition.create',
+    params_json     TEXT          NULL                   COMMENT '操作参数JSON',
+    params_hash     VARCHAR(64)   DEFAULT NULL           COMMENT '参数SHA-256哈希（审计比对）',
+    permission      VARCHAR(64)   NOT NULL               COMMENT '执行所需权限码，如 sys:ai:ops:form',
+    status          VARCHAR(16)   NOT NULL DEFAULT 'PENDING' COMMENT '状态：PENDING/CONFIRMED/REJECTED/EXPIRED/SUCCESS/FAILED',
+    expires_at      DATETIME      NOT NULL               COMMENT '确认有效期',
+    confirmed_at    DATETIME      DEFAULT NULL           COMMENT '确认时间',
+    result_json     TEXT          NULL                   COMMENT '下游响应JSON',
+    error_msg       VARCHAR(512)  DEFAULT NULL           COMMENT '失败原因',
+    create_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted         TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_confirmation_id (confirmation_id),
+    KEY idx_user_status (user_id, status),
+    KEY idx_operation (operation)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='知识Agent平台写操作确认表';
+
+-- ---------------------------------------------------------------------
 -- 索引元数据表（单行，保留最新一次构建记录）
 -- ---------------------------------------------------------------------
 DROP TABLE IF EXISTS agent_index_meta;
