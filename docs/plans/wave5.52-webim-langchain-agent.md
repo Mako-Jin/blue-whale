@@ -253,8 +253,8 @@ intent ──> retrieve(knowledge/facts) ──> think ──> tools ──> ver
 ### 11.3 待做项
 
 - ✅ ~~部署前置：执行 `bluewhale_im`/`whale-auth`/`whale-agent` 建库脚本、既有库 `agent_operation` ALTER 与 `migration-5.52-im-loose-ends.sql`、只读账号与视图、生产环境开关~~ **已完成（2026-10-24，见 [部署前置检查单](../ops/deploy-prerequisites-5.52.md) 与 devlog §二十六）**：三库 DDL、IM 幂等键/评价字段、`agent_operation` 四列、只读账号与两个白名单视图均已核验；补齐 `sys:ai:data:read` / `sys:ai:ops:form` 权限种子并回填权限展示属性。
-- 目标环境残余：将 `'whale_ai_ro'@'%'` 收紧至应用网段并替换强口令；配置 `WHALE_AGENT_LLM_API_KEY` 后复验真实模型回答。
-- 后续迭代项：WS 逐行读超时（`AgentStreamClient` 流式读循环重构）、基座未读角标改 WS 全局未读通道、历史轨迹与反馈的更多运营视图。
+- ✅ ~~目标环境残余：将 `'whale_ai_ro'@'%'` 收紧至应用网段并替换强口令；配置 `WHALE_AGENT_LLM_API_KEY` 后复验真实模型回答~~ **已完成（2026-10-24）**：只读账号已收紧为 `localhost`/`127.0.0.1` 并轮换 24 位强口令；本机 Ollama + `qwen2.5:1.5b-instruct` 接入，`/agent/chat` 返回 `degraded=false` 的真实模型回答（31.3s），只读通道复验通过。
+- 后续迭代项：WS 逐行读超时（`AgentStreamClient` 流式读循环重构）、基座未读角标改 WS 全局未读通道、`uv.lock` 生成与 CI 固化 Python 3.12、`whale-form` 下游联调、历史轨迹与反馈的更多运营视图。
 
 ### 11.4 已修正问题项
 
