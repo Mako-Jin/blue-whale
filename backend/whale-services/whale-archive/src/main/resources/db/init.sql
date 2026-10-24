@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS archive_item (
     source_id        VARCHAR(64)   NOT NULL               COMMENT '来源实例ID（字符串承载，避免前端精度丢失）',
     definition_code  VARCHAR(64)   DEFAULT NULL           COMMENT '流程定义编码',
     business_key     VARCHAR(128)  DEFAULT NULL           COMMENT '业务单号 / 表单数据ID',
-    initiator        BIGINT        DEFAULT NULL           COMMENT '发起人ID（逻辑关联 sys_user.id）',
+    initiator        VARCHAR(64)   DEFAULT NULL           COMMENT '发起人账号（工作流 process_instance.initiator）',
     finished_at      DATETIME      DEFAULT NULL           COMMENT '来源实例办结时间',
     item_status      TINYINT       NOT NULL DEFAULT 0     COMMENT '状态：0 待整理 / 1 已归档 / 2 已销毁',
     summary          VARCHAR(2000) DEFAULT NULL           COMMENT '档案摘要',
@@ -144,6 +144,22 @@ CREATE TABLE IF NOT EXISTS archive_sequence (
     PRIMARY KEY (id),
     UNIQUE KEY uk_category_year (category_code, year)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='档号流水表';
+
+-- ---------------------------------------------------------------------
+-- 同步游标表：记录工作流增量拉取的办结时间水位（服务重启后继续，不重扫全量）
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS archive_sync_state (
+    id          BIGINT       NOT NULL               COMMENT '主键ID（雪花算法）',
+    name        VARCHAR(64)  NOT NULL               COMMENT '游标名称（如 workflow_approved）',
+    cursor_time DATETIME     DEFAULT NULL           COMMENT '已处理到的工作流实例更新时间水位',
+    last_run_at DATETIME     DEFAULT NULL           COMMENT '最近一次同步开始时间',
+    last_result VARCHAR(1000) DEFAULT NULL          COMMENT '最近一次同步结果摘要',
+    create_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted     TINYINT      NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='档案同步游标表';
 
 -- ---------------------------------------------------------------------
 -- 操作审计日志表（与 whale-audit 同构，append-only）

@@ -22,6 +22,7 @@ import com.bluewhale.form.support.FormDataExportSupport;
 import com.bluewhale.form.support.FormDataType;
 import com.bluewhale.form.support.FormField;
 import com.bluewhale.form.support.FormSchemaParser;
+import com.bluewhale.form.vo.FormArchiveVO;
 import com.bluewhale.form.vo.FormDataExportVO;
 import com.bluewhale.form.vo.FormDataVO;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -155,6 +156,21 @@ public class FormDataServiceImpl implements FormDataService {
         Map<String, Object> data =
                 formDataEngine.selectFields(registry.getPhysicalTable(), entity.getId(), tenantId, fields);
         return toVo(entity, data);
+    }
+
+    @Override
+    public FormArchiveVO getArchiveDetail(Long id, Long tenantId) {
+        FormData entity = requireData(id, tenantId);
+        FormTableRegistry registry = requireRegistry(routeCodeOf(entity), routeVersionOf(entity));
+        String schema = entity.getTableCode() == null
+                ? registry.getSchemaJson() : requireDefinition(entity.getDefinitionId()).getSchemaJson();
+        List<FormField> fields = FormSchemaParser.parse(schema);
+        Map<String, Object> data =
+                formDataEngine.selectFields(registry.getPhysicalTable(), entity.getId(), tenantId, fields);
+        FormArchiveVO vo = new FormArchiveVO();
+        vo.setData(toVo(entity, data));
+        vo.setFieldDefinitions(fields);
+        return vo;
     }
 
     @Override

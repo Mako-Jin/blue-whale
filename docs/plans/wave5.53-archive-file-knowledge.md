@@ -1,6 +1,6 @@
 # Wave 5.53 规划：档案服务 + 文件知识库
 
-> 制定日期：2026-10-24 ｜ 状态：**M0 设计定稿、M1 档案底座已完成**（2026-10-24；M2–M5 未开工）
+> 制定日期：2026-10-24 ｜ 状态：**M0 设计定稿、M1 档案底座、M2 工作流归档接入已完成**（2026-10-24；M3–M5 未开工）
 > 关联服务：`whale-workflow`（8083）、`whale-form`（8084）、`whale-file`（8085）、`whale-agent`（8090）、`whale-gateway`（8080）、`whale-auth`（8081）、`whale-audit`（9101）
 > 关联需求：REQ-FUNC-014（档案服务）、REQ-FUNC-015（文件知识库）、REQ-SEC-008（档案与知识库可见性）
 
@@ -145,7 +145,7 @@
 | file | GET | `/file/internal/{id}` | 文件元数据 |
 | file | GET | `/file/internal/{id}/content` | 文件内容流（知识抽取用） |
 | file | POST | `/file/internal/{id}/lock` / `/unlock` | 归档锁定/解锁（`status=2`） |
-| archive | GET | `/archive/internal/refs?fileId=` | 文件是否被档案引用（删除前置校验） |
+| archive | GET | `/archive/internal/refs?fileId=` | 文件是否被档案引用（删除前置校验）；**M2 决策：以 `/file/internal/{id}/lock`（`status=2`）拦截删除，本接口暂不启用** |
 
 ### 5.4 归档主流程
 
@@ -211,7 +211,7 @@
 | 模块 | 改动 | 里程碑 |
 |---|---|---|
 | `backend/whale-services/whale-archive`（新建） | 实体/Mapper/Service/Controller/配置/DDL/单测 | M1–M3 |
-| `whale-workflow` | `/internal/instance/**` 只读接口；`process_instance.finished_at` 迁移；`ApproveCommand` 结束态回填 | M2 |
+| `whale-workflow` | `/internal/instance/**` 只读接口；**办结时间取 `process_instance.update_time`**（不改既有库加 `finished_at` 列，审批通过时状态与更新时间同事务写入） | M2 |
 | `whale-form` | `/internal/data/{id}`（数据 + 字段定义） | M2 |
 | `whale-file` | `/internal/changes`、`/internal/{id}`、`/internal/{id}/content`、`/internal/{id}/lock|unlock`；`file_info.status=2` | M2、M4 |
 | `whale-agent` | Tika 依赖、`agent_knowledge_file`、文件采集器/`FileChunker`、知识接口、检索权限字段 | M4–M5 |
@@ -240,13 +240,13 @@
 - [x] A4 权限种子 + 网关路由 + internal-deny + service-catalog 登记。
 - [x] A5 单测（门类/规则/档号并发）+ Checkstyle 0 + 构建。
 
-### M2 工作流归档接入（A6–A10）
+### M2 工作流归档接入（A6–A10）——**已完成（2026-10-24）**
 
-- [ ] A6 `whale-workflow` 内网接口 + `finished_at` 迁移（幂等）。
-- [ ] A7 `whale-form` 内网数据/字段接口。
-- [ ] A8 `whale-file` 内网变更/内容/锁定接口。
-- [ ] A9 同步调度 + 幂等台账 + 快照生成上传 + 附件递归提取 + 规则命中。
-- [ ] A10 单测：幂等重放、驳回/撤销不归档、附件含子表、锁定后删除冲突、失败重试。
+- [x] A6 `whale-workflow` 内网接口：`/workflow/internal/instance/approved`（`status=1`，`update_time,id` 游标，`updateTime` 即办结时间）+ `/{id}/detail`（实例 + 定义快照 JSON + 任务轨迹）。
+- [x] A7 `whale-form` 内网接口：`/form/internal/data/{id}` 返回表单值（结构化 `fields`）+ 字段定义（含 `attachment`/`subtable`）。
+- [x] A8 `whale-file` 内网接口：`/file/internal/changes|{id}|{id}/content|{id}/lock|{id}/unlock`；`status=2` 归档锁定，锁定文件删除返回参数错误。
+- [x] A9 同步调度 + 幂等台账 + 快照生成上传 + 附件递归提取 + 规则命中：`archive_sync_state` 持久化游标；`archive_source_record` 记录成功/失败与重试次数；快照写入 `whale-archive` 桶并返回 SHA-256；附件（含子表）全部锁定；未命中规则进待整理。
+- [x] A10 单测：幂等重放、驳回/撤销不归档、附件含子表、锁定后删除冲突、失败重试、快照确定性与命名；Checkstyle 0、受影响模块构建成功。
 
 ### M3 档案检索与前端（A11–A13）
 
@@ -318,12 +318,14 @@
 - 现状核对：归档对象、附件承载方式、索引能力、内网接口缺口。
 - 决策 D1–D10、服务/端口/库登记方案、数据模型、接口清单、同步流程、里程碑与验收口径。
 - 需求登记（登记册 §五）。
+- M1：`whale-archive` 模块骨架、DDL、门类/规则 CRUD、档号并发生成、权限种子、网关路由与 internal-deny、17 用例与门禁。
+- M2：workflow/form/file 三组内网接口；同步调度（游标持久化 + 失败重试 + 手动触发）、规则命中、不可变快照（SHA-256）、附件递归提取与锁定、幂等台账；新增 28/3/6 用例并通过 Checkstyle 0。
 
 ### 11.3 待做项
 
 - 评审确认 §2.1 四项待定决策。
-- M1–M5 共 23 项任务（见 §八）。
-- M1 首项：`service-catalog.md` 登记 `whale-archive` 8093 / `bluewhale_archive` / `/archive/**`。
+- M3–M5 共 13 项任务（见 §八）。
+- 部署前置：执行 `bluewhale_archive` 建库/建表脚本与 `migration-5.53.sql` 权限种子（本机 MySQL8 root 口令未提供，脚本已就绪待执行）。
 
 ### 11.4 已修正问题项
 
@@ -331,3 +333,5 @@
 - 澄清知识库不新建服务：复用 `whale-agent` 的 Lucene/向量/引用体系，仅新增采集与权限字段。
 - 澄清「所有文件」需排除图片/音视频（无 OCR/ASR），并以 MIME 白名单与大小上限控制风险。
 - 澄清无 MQ 条件下的一致性方案：游标轮询 + 幂等唯一键，而非事件驱动。
+- 办结时间不新增 `finished_at` 列：沿用 `process_instance.update_time`，避免对既有工作流库做破坏性 DDL。
+- 快照 JSON 时间统一为 ISO-8601 字符串，不依赖 JSON 映射器的时间模块配置，保证跨环境摘要可复算。

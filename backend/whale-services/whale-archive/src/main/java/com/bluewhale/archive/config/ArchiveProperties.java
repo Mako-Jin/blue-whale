@@ -21,6 +21,9 @@ public class ArchiveProperties {
     /** 工作流增量同步配置（M2 启用） */
     private Sync sync = new Sync();
 
+    /** 内网服务地址与超时配置 */
+    private Integration integration = new Integration();
+
     /**
      * 档号配置：前缀 + 流水号宽度。
      *
@@ -52,5 +55,38 @@ public class ArchiveProperties {
 
         /** 单页拉取条数 */
         private int pageSize = 100;
+
+        /** 单条来源失败最大重试次数（达到后不再自动重试） */
+        private int maxAttempts = 3;
+
+        /** 每轮重试扫描的失败台账条数上限 */
+        private int retryBatchSize = 50;
+    }
+
+    /**
+     * 内网服务地址与超时配置：档案服务以 RestClient 直连各服务内网接口，不经网关。
+     *
+     * @author BlueWhale
+     */
+    @Data
+    public static class Integration {
+
+        /** 工作流服务基址 */
+        private String workflowUrl = "http://127.0.0.1:8083";
+
+        /** 表单服务基址 */
+        private String formUrl = "http://127.0.0.1:8084";
+
+        /** 文件服务基址 */
+        private String fileUrl = "http://127.0.0.1:8085";
+
+        /** 读取表单数据使用的租户ID（表单服务按租户行级隔离） */
+        private long tenantId = 1L;
+
+        /** 建立连接超时（毫秒） */
+        private int connectTimeoutMillis = 5000;
+
+        /** 读取响应超时（毫秒） */
+        private int readTimeoutMillis = 60000;
     }
 }

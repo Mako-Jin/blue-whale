@@ -24,7 +24,7 @@ CREATE TABLE file_info (
     file_size     BIGINT        NOT NULL DEFAULT 0     COMMENT '文件大小（字节）',
     content_type  VARCHAR(128)  DEFAULT NULL           COMMENT '文件MIME类型，如 image/png',
     md5           VARCHAR(32)   DEFAULT NULL           COMMENT '文件MD5摘要（用于去重/秒传/完整性校验）',
-    status        TINYINT       NOT NULL DEFAULT 1     COMMENT '状态：1 正常 / 0 禁用',
+    status        TINYINT       NOT NULL DEFAULT 1     COMMENT '状态：1 正常 / 0 禁用 / 2 归档锁定',
     uploader_id   BIGINT        DEFAULT NULL           COMMENT '上传用户ID（逻辑关联 sys_user.id）',
     create_time   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',

@@ -4,6 +4,7 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.form.dto.FormDataQueryRequest;
 import com.bluewhale.form.dto.FormDataSubmitRequest;
 import com.bluewhale.form.dto.FormDataUpdateRequest;
+import com.bluewhale.form.vo.FormArchiveVO;
 import com.bluewhale.form.vo.FormDataExportVO;
 import com.bluewhale.form.vo.FormDataVO;
 
@@ -42,6 +43,17 @@ public interface FormDataService {
      * @return 表单数据视图对象（含结构化 {@code fields}）
      */
     FormDataVO getDetail(Long id, Long tenantId);
+
+    /**
+     * 表单归档详情：表单数据（含结构化字段）+ 字段定义（含附件/子表结构）
+     *
+     * <p>仅供档案服务（whale-archive）生成快照，网关对 {@code /form/internal/**} 返回 403，外部不可达。</p>
+     *
+     * @param id 表单数据ID
+     * @param tenantId 租户ID
+     * @return 归档详情视图对象
+     */
+    FormArchiveVO getArchiveDetail(Long id, Long tenantId);
 
     /**
      * 分页查询表单数据（按租户过滤）

@@ -40,11 +40,21 @@ whale:
     number:
       prefix: ${WHALE_ARCHIVE_NUMBER_PREFIX:BW}
       sequence-width: ${WHALE_ARCHIVE_NUMBER_WIDTH:6}
-    # 工作流已通过实例增量同步（M2 启用；M1 仅登记配置，调度器未接入）
+    # 工作流已通过实例增量同步（M2：调度器 + 手动触发）
     sync:
       enabled: ${WHALE_ARCHIVE_SYNC_ENABLED:false}
       cron: ${WHALE_ARCHIVE_SYNC_CRON:0 */5 * * * *}
       page-size: ${WHALE_ARCHIVE_SYNC_PAGE_SIZE:100}
+      max-attempts: ${WHALE_ARCHIVE_SYNC_MAX_ATTEMPTS:3}
+      retry-batch-size: ${WHALE_ARCHIVE_SYNC_RETRY_BATCH:50}
+    # 内网服务直连地址（不经网关；生产按部署拓扑覆盖）
+    integration:
+      workflow-url: ${WHALE_ARCHIVE_WORKFLOW_URL:http://127.0.0.1:8083}
+      form-url: ${WHALE_ARCHIVE_FORM_URL:http://127.0.0.1:8084}
+      file-url: ${WHALE_ARCHIVE_FILE_URL:http://127.0.0.1:8085}
+      tenant-id: ${WHALE_ARCHIVE_TENANT_ID:1}
+      connect-timeout-millis: ${WHALE_ARCHIVE_CONNECT_TIMEOUT:5000}
+      read-timeout-millis: ${WHALE_ARCHIVE_READ_TIMEOUT:60000}
 
 mybatis-plus:
   configuration:

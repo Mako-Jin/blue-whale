@@ -1,5 +1,7 @@
 package com.bluewhale.archive.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.bluewhale.common.entity.BaseEntity;
 import lombok.Data;
@@ -34,7 +36,8 @@ public class ArchiveSourceRecord extends BaseEntity {
     /** 已重试次数 */
     private Integer retryCount;
 
-    /** 最近一次失败原因（已脱敏） */
+    /** 最近一次失败原因（已脱敏；成功时清空，需允许写入 NULL） */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private String lastError;
 
     /** 最近一次同步时间 */

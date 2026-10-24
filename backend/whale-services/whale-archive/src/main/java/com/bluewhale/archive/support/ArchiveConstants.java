@@ -78,6 +78,27 @@ public final class ArchiveConstants {
     /** 流程定义编码格式（字母、数字、下划线、点、连字符） */
     public static final String DEFINITION_CODE_PATTERN = "^[A-Za-z0-9_.-]+$";
 
+    /** 表单字段类型：附件 */
+    public static final String FORM_TYPE_ATTACHMENT = "attachment";
+
+    /** 表单字段类型：子表 */
+    public static final String FORM_TYPE_SUBTABLE = "subtable";
+
+    /** 自动归档开关：开启 */
+    public static final int AUTO_ARCHIVE_ON = 1;
+
+    /** 工作流同步游标名称 */
+    public static final String SYNC_CURSOR_WORKFLOW_APPROVED = "workflow_approved";
+
+    /** 失败原因最大长度（与 archive_source_record.last_error 对齐） */
+    public static final int MAX_ERROR_LENGTH = 1000;
+
+    /** 快照文件后缀 */
+    public static final String SNAPSHOT_FILE_SUFFIX = ".json";
+
+    /** 快照 MIME 类型 */
+    public static final String SNAPSHOT_CONTENT_TYPE = "application/json";
+
     /** 工具类不允许实例化 */
     private ArchiveConstants() {
     }

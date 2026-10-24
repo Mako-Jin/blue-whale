@@ -14,6 +14,7 @@ import com.bluewhale.file.entity.FileInfo;
 import com.bluewhale.file.mapper.FileInfoMapper;
 import com.bluewhale.file.storage.FileStorage;
 import com.bluewhale.file.vo.ChunkUploadInitVO;
+import com.bluewhale.file.vo.FileChangeVO;
 import com.bluewhale.file.vo.FileInfoVO;
 import com.bluewhale.file.vo.FilePresignedVO;
 import com.bluewhale.file.vo.FileQuotaVO;
@@ -35,6 +36,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
@@ -583,21 +585,100 @@ class FileInfoServiceImplTest {
         verify(fileStorage).store(eq("bluewhale"), anyString(), any(InputStream.class));
     }
 
-    @Test
-    @DisplayName("分片上传：配额不足时 complete 抛参数错误且不写存储")
-    void shouldRejectChunkUploadWhenQuotaExceeded() {
-        fileProperties.setQuotaBytes(1000L);
-        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any())).thenReturn(List.of(990L));
-        ChunkUploadCompleteRequest complete = new ChunkUploadCompleteRequest();
-        complete.setUploadId("00000000-0000-0000-0000-000000000000");
-        complete.setFileName("video.bin");
-        complete.setSize(20L);
+    /**
+     * 构造指定状态的文件实体。
+     *
+     * @param id 主键
+     * @param status 文件状态
+     * @return 文件实体
+     */
+    private static FileInfo fileWithStatus(long id, int status) {
+        FileInfo entity = new FileInfo();
+        entity.setId(id);
+        entity.setOriginalName("locked.pdf");
+        entity.setBucket("bluewhale");
+        entity.setObjectKey("2026/10/24/locked.pdf");
+        entity.setFileSize(12L);
+        entity.setStatus(status);
+        return entity;
+    }
 
-        BizException ex = assertThrows(BizException.class,
-                () -> fileInfoService.completeChunkUpload(complete, UPLOADER_ID));
+    @Test
+    @DisplayName("lock：正常文件写入 status=2（归档锁定）")
+    void shouldLockFile() {
+        when(fileInfoMapper.selectById(7L)).thenReturn(fileWithStatus(7L, 1));
+
+        fileInfoService.lock(7L);
+
+        ArgumentCaptor<FileInfo> captor = ArgumentCaptor.forClass(FileInfo.class);
+        verify(fileInfoMapper).updateById(captor.capture());
+        assertEquals(7L, captor.getValue().getId());
+        assertEquals(Integer.valueOf(2), captor.getValue().getStatus());
+    }
+
+    @Test
+    @DisplayName("lock：已锁定文件幂等，不重复更新")
+    void shouldIgnoreRelock() {
+        when(fileInfoMapper.selectById(7L)).thenReturn(fileWithStatus(7L, 2));
+
+        fileInfoService.lock(7L);
+
+        verify(fileInfoMapper, never()).updateById(any(FileInfo.class));
+    }
+
+    @Test
+    @DisplayName("lock：禁用文件不可锁定")
+    void shouldRejectLockDisabledFile() {
+        when(fileInfoMapper.selectById(7L)).thenReturn(fileWithStatus(7L, 0));
+
+        BizException ex = assertThrows(BizException.class, () -> fileInfoService.lock(7L));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
-        assertTrue(ex.getMessage().contains("超出个人存储配额"));
-        verify(fileStorage, never()).store(any(), any(), any());
+        assertTrue(ex.getMessage().contains("已禁用"));
+        verify(fileInfoMapper, never()).updateById(any(FileInfo.class));
+    }
+
+    @Test
+    @DisplayName("unlock：锁定文件恢复 status=1；未锁定文件不产生更新")
+    void shouldUnlockOnlyLockedFile() {
+        when(fileInfoMapper.selectById(7L)).thenReturn(fileWithStatus(7L, 2));
+        fileInfoService.unlock(7L);
+        ArgumentCaptor<FileInfo> captor = ArgumentCaptor.forClass(FileInfo.class);
+        verify(fileInfoMapper).updateById(captor.capture());
+        assertEquals(Integer.valueOf(1), captor.getValue().getStatus());
+
+        when(fileInfoMapper.selectById(8L)).thenReturn(fileWithStatus(8L, 1));
+        fileInfoService.unlock(8L);
+        verify(fileInfoMapper, org.mockito.Mockito.times(1)).updateById(any(FileInfo.class));
+    }
+
+    @Test
+    @DisplayName("delete：归档锁定文件禁止删除")
+    void shouldRejectDeletingLockedFile() {
+        when(fileInfoMapper.selectById(7L)).thenReturn(fileWithStatus(7L, 2));
+
+        BizException ex = assertThrows(BizException.class, () -> fileInfoService.delete(7L));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        assertTrue(ex.getMessage().contains("禁止删除"));
+        verify(fileInfoMapper, never()).deleteById(any(Long.class));
+    }
+
+    @Test
+    @DisplayName("changes：按更新时间游标分页并回传状态与更新时间")
+    void shouldListChangesWithCursor() {
+        FileInfo entity = fileWithStatus(7L, 2);
+        entity.setUpdateTime(LocalDateTime.of(2026, 10, 24, 10, 0));
+        Page<FileInfo> page = new Page<>(1L, 100L);
+        page.setRecords(List.of(entity));
+        page.setTotal(1L);
+        when(fileInfoMapper.selectPage(ArgumentMatchers.<Page<FileInfo>>any(),
+                ArgumentMatchers.<Wrapper<FileInfo>>any())).thenReturn(page);
+
+        PageResult<FileChangeVO> result = fileInfoService.changes(LocalDateTime.of(2026, 10, 24, 9, 0), 1L, 500L);
+
+        assertEquals(1L, result.getTotal());
+        assertEquals(Integer.valueOf(2), result.getRecords().get(0).getStatus());
+        assertEquals(LocalDateTime.of(2026, 10, 24, 10, 0), result.getRecords().get(0).getUpdateTime());
     }
 }

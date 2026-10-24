@@ -16,6 +16,7 @@ import com.bluewhale.file.mapper.FileInfoMapper;
 import com.bluewhale.file.service.FileInfoService;
 import com.bluewhale.file.storage.FileStorage;
 import com.bluewhale.file.vo.ChunkUploadInitVO;
+import com.bluewhale.file.vo.FileChangeVO;
 import com.bluewhale.file.vo.FileInfoVO;
 import com.bluewhale.file.vo.FilePresignedVO;
 import com.bluewhale.file.vo.FileQuotaVO;
@@ -40,6 +41,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -61,6 +63,9 @@ public class FileInfoServiceImpl implements FileInfoService {
 
     /** 文件状态：正常 */
     private static final int STATUS_NORMAL = 1;
+
+    /** 文件状态：归档锁定（不可删除，内容不可变更） */
+    private static final int STATUS_LOCKED = 2;
 
     /** 单页最大条数：防止深度分页拖垮数据库 */
     private static final long MAX_PAGE_SIZE = 200L;
@@ -202,8 +207,62 @@ public class FileInfoServiceImpl implements FileInfoService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
-        requireFile(id);
+        FileInfo entity = requireFile(id);
+        if (entity.getStatus() != null && entity.getStatus() == STATUS_LOCKED) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "文件已归档锁定，禁止删除");
+        }
         fileInfoMapper.deleteById(id);
+    }
+
+    @Override
+    public PageResult<FileChangeVO> changes(LocalDateTime since, long current, long size) {
+        long pageCurrent = Math.max(current, 1L);
+        long pageSize = Math.min(Math.max(size, 1L), MAX_PAGE_SIZE);
+        LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
+        wrapper.gt(since != null, FileInfo::getUpdateTime, since);
+        wrapper.orderByAsc(FileInfo::getUpdateTime);
+        wrapper.orderByAsc(FileInfo::getId);
+        Page<FileInfo> page = fileInfoMapper.selectPage(new Page<>(pageCurrent, pageSize), wrapper);
+        List<FileChangeVO> records = page.getRecords().stream()
+                .map(FileInfoServiceImpl::toChangeVo)
+                .toList();
+        return PageResult.of(records, page.getTotal(), page.getCurrent(), page.getSize());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void lock(Long id) {
+        FileInfo entity = requireFile(id);
+        if (entity.getStatus() != null && entity.getStatus() == STATUS_LOCKED) {
+            return;
+        }
+        if (entity.getStatus() != null && entity.getStatus() != STATUS_NORMAL) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "文件已禁用，不可锁定");
+        }
+        updateStatus(id, STATUS_LOCKED);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void unlock(Long id) {
+        FileInfo entity = requireFile(id);
+        if (entity.getStatus() == null || entity.getStatus() != STATUS_LOCKED) {
+            return;
+        }
+        updateStatus(id, STATUS_NORMAL);
+    }
+
+    /**
+     * 更新文件状态（仅写入 status 列）
+     *
+     * @param id 文件ID
+     * @param status 目标状态
+     */
+    private void updateStatus(Long id, int status) {
+        FileInfo update = new FileInfo();
+        update.setId(id);
+        update.setStatus(status);
+        fileInfoMapper.updateById(update);
     }
 
     @Override
@@ -708,6 +767,18 @@ public class FileInfoServiceImpl implements FileInfoService {
      */
     private static FileInfoVO toVo(FileInfo entity) {
         FileInfoVO vo = new FileInfoVO();
+        BeanUtils.copyProperties(entity, vo);
+        return vo;
+    }
+
+    /**
+     * 文件实体转变更流视图对象
+     *
+     * @param entity 文件信息实体
+     * @return 文件变更视图对象
+     */
+    private static FileChangeVO toChangeVo(FileInfo entity) {
+        FileChangeVO vo = new FileChangeVO();
         BeanUtils.copyProperties(entity, vo);
         return vo;
     }

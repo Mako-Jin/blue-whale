@@ -61,8 +61,8 @@ public class ArchiveItem extends BaseEntity {
     /** 业务单号 / 表单数据ID */
     private String businessKey;
 
-    /** 发起人ID */
-    private Long initiator;
+    /** 发起人账号（工作流实例发起人，字符串账号） */
+    private String initiator;
 
     /** 来源实例办结时间 */
     private LocalDateTime finishedAt;

@@ -6,6 +6,7 @@ import com.bluewhale.file.dto.ChunkUploadInitRequest;
 import com.bluewhale.file.dto.FileQueryRequest;
 import com.bluewhale.file.dto.FileRapidUploadRequest;
 import com.bluewhale.file.vo.ChunkUploadInitVO;
+import com.bluewhale.file.vo.FileChangeVO;
 import com.bluewhale.file.vo.FileInfoVO;
 import com.bluewhale.file.vo.FilePresignedVO;
 import com.bluewhale.file.vo.FileQuotaVO;
@@ -14,6 +15,7 @@ import com.bluewhale.file.vo.FileUploadVO;
 import org.springframework.core.io.Resource;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -65,6 +67,37 @@ public interface FileInfoService {
      * @return 文件视图对象
      */
     FileInfoVO getDetail(Long id);
+
+    /**
+     * 按更新时间游标分页查询文件变更流（内网接口专用）
+     *
+     * <p>排序固定为 {@code update_time ASC, id ASC}，调用方以返回记录的最大
+     * {@code updateTime} 作为下一轮游标；已逻辑删除的文件不在变更流中。</p>
+     *
+     * @param since 游标下界（不含），可为 {@code null} 表示不限
+     * @param current 页码（小于 1 时按 1 处理）
+     * @param size 每页条数（1..200，越界自动收敛）
+     * @return 文件变更分页结果
+     */
+    PageResult<FileChangeVO> changes(LocalDateTime since, long current, long size);
+
+    /**
+     * 锁定文件（归档不可变）：状态置 {@code 2 归档锁定}
+     *
+     * <p>幂等：已锁定文件再次锁定不报错；已禁用文件不可锁定。</p>
+     *
+     * @param id 文件ID
+     */
+    void lock(Long id);
+
+    /**
+     * 解锁文件：状态由 {@code 2 归档锁定} 恢复为 {@code 1 正常}
+     *
+     * <p>幂等：未锁定文件调用不报错且状态不变。</p>
+     *
+     * @param id 文件ID
+     */
+    void unlock(Long id);
 
     /**
      * 读取文件内容为流式资源
