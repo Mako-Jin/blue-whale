@@ -6,9 +6,12 @@ import com.bluewhale.im.vo.WsTicketVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.util.Collections;
 import java.util.UUID;
 
 /**
@@ -26,6 +29,18 @@ public class WsTicketService {
 
     /** ticket 键前缀（REQ-ARCH-004 命名：whale:域:用途:标识） */
     private static final String TICKET_KEY_PREFIX = "whale:im:ticket:";
+
+    /**
+     * 原子取删脚本：GET 后 DEL，保证同一次 ticket 只能被消费一次。
+     *
+     * <p>不直接使用 {@code GETDEL}（服务端命令，要求 Redis ≥ 6.2），
+     * Lua 脚本在 Redis 5 及以上均可原子执行。</p>
+     */
+    private static final RedisScript<String> CONSUME_SCRIPT = new DefaultRedisScript<>(
+            "local v = redis.call('GET', KEYS[1]); "
+                    + "if v then redis.call('DEL', KEYS[1]) end; "
+                    + "return v",
+            String.class);
 
     private final StringRedisTemplate redisTemplate;
 
@@ -74,7 +89,8 @@ public class WsTicketService {
             return null;
         }
         try {
-            String value = redisTemplate.opsForValue().getAndDelete(TICKET_KEY_PREFIX + ticket);
+            String value = redisTemplate.execute(CONSUME_SCRIPT,
+                    Collections.singletonList(TICKET_KEY_PREFIX + ticket));
             return value == null ? null : Long.valueOf(value);
         } catch (RuntimeException e) {
             log.warn("WS ticket 消费失败: {}", e.getMessage());

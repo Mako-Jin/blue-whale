@@ -44,7 +44,8 @@ const gatewayBypass = (req: ProxyRequest): string | undefined =>
 const proxy = Object.fromEntries(
   GATEWAY_PREFIXES.map((prefix) => [
     `^${prefix}(/|$)`,
-    { target: GATEWAY_TARGET, changeOrigin: true, bypass: gatewayBypass },
+    // ws:true 让 IM 子应用的 /im/ws 握手经基座端口透传到网关
+    { target: GATEWAY_TARGET, changeOrigin: true, ws: true, bypass: gatewayBypass },
   ]),
 );
 

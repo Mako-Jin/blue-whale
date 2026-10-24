@@ -210,7 +210,7 @@ intent ──> retrieve(knowledge/facts) ──> think ──> tools ──> ver
 - [x] T17 限流、敏感内容遮蔽、异常降级（2026-10-24 完成：whale-im 按用户分钟级限流（Redis 计数、超限落提示、Redis 故障放行）+ `AgentTraceMasker` 对工具轨迹/引用键值与密钥赋值脱敏；whale-agent 错误信息落库前复用 `SensitiveContentMasker`；既有超时/异常降级保持；89 + 113 例全绿、Checkstyle 0，见 devlog §二十）
 - [x] T18 前端 build/lint、后端单测、Python pytest、Checkstyle（2026-10-24 完成：`pnpm lint` EXIT=0，`pnpm build` 18/18 成功；whale-agent 89 例、whale-im 113 例全绿且 Checkstyle 0；`compileall` 通过、pytest 39 passed（TEMP `langgraph` 替身）；见 devlog §二十一）
 - [x] T18b 补齐 `whale-im` 前端子应用与基座接入（2026-10-24 完成：8107 / base `/im`，三层布局 + WS ticket/心跳/重连补拉 + 机器人流式/工具轨迹/引用/确认卡片 + 成员面板；基座「消息」菜单、`/im` 路由、未读角标与 `sys:im:chat` 接入；lint 0 warning、build 19/19、whale-im 113 例全绿 + Checkstyle 0；见 devlog §二十二）
-- [ ] T19 实机联调与验收记录（devlog + review）
+- [x] T19 实机联调与验收记录（devlog + review）（2026-10-24 完成：本机原生中间件 + 网关链路，实机脚本 51 例全 PASS（17 API / 9 实时 / 14 数据与写操作 / 11 机器人），前端子应用渲染与实时收发浏览器验证通过，三模块 294 例单测 + Checkstyle 0、pytest 39 passed、lint/build EXIT=0；见 devlog §二十四与 [T19 验收记录](../reviews/2026-10-24-wave5.52-m5-t19-acceptance.md)）
 
 ## 九、验收口径
 
@@ -252,9 +252,8 @@ intent ──> retrieve(knowledge/facts) ──> think ──> tools ──> ver
 
 ### 11.3 待做项
 
-- T19 实机联调与验收记录（见第八节）：需 Nacos/MySQL/Redis/网关 8080 与 `WHALE_AGENT_QA_ENGINE=langchain`。
 - 部署前置：执行 `bluewhale_im`/`whale-auth`/`whale-agent` 建库脚本、既有库 `agent_operation` ALTER 与 `migration-5.52-im-loose-ends.sql`、只读账号与视图、生产环境开关。
-- 后续迭代项：WS 逐行读超时（`AgentStreamClient` 流式读循环重构）、基座未读角标改 WS 全局通道、历史轨迹与反馈的更多运营视图。
+- 后续迭代项：WS 逐行读超时（`AgentStreamClient` 流式读循环重构）、基座未读角标改 WS 全局通道、历史轨迹与反馈的更多运营视图；配置 `WHALE_AGENT_LLM_API_KEY` 后补齐真实模型回答的实机复验。
 
 ### 11.4 已修正问题项
 

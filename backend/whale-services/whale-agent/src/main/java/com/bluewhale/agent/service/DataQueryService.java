@@ -6,6 +6,7 @@ import com.bluewhale.agent.support.dataquery.DataQueryGuard;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
@@ -41,6 +42,7 @@ public class DataQueryService {
      *
      * @param properties Agent 配置
      */
+    @Autowired
     public DataQueryService(AgentProperties properties) {
         this.properties = properties;
     }
@@ -67,7 +69,9 @@ public class DataQueryService {
         if (!data.isEnabled() || !StringUtils.hasText(data.getUrl())) {
             throw new BizException(ErrorCode.FORBIDDEN.getCode(), "数据查询通道未启用");
         }
-        DataQueryGuard.GuardedQuery guarded = DataQueryGuard.check(sql, data.getAllowedViews(), data.getMaxRows());
+        int maxRows = Math.max(1, data.getMaxRows());
+        // 多取一行用于准确判定「是否被截断」；最终返回仍裁剪到 maxRows
+        DataQueryGuard.GuardedQuery guarded = DataQueryGuard.check(sql, data.getAllowedViews(), maxRows + 1);
         long started = System.currentTimeMillis();
         List<Map<String, Object>> rows;
         try {
@@ -76,7 +80,6 @@ public class DataQueryService {
             log.warn("只读数据查询失败：{}", e.getMessage());
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "查询失败，请检查 SQL 与白名单视图授权");
         }
-        int maxRows = Math.max(1, data.getMaxRows());
         boolean truncated = rows.size() > maxRows;
         List<Map<String, Object>> limited = truncated ? new ArrayList<>(rows.subList(0, maxRows)) : rows;
         List<Map<String, Object>> masked = DataMasker.maskRows(limited);

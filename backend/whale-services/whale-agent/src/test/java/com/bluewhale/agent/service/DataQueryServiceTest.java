@@ -27,7 +27,7 @@ import static org.mockito.Mockito.mock;
 class DataQueryServiceTest {
 
     @Test
-    @DisplayName("查询成功：附执行 SQL、裁剪到上限并脱敏")
+    @DisplayName("查询成功：多取一行判定截断、裁剪到上限并脱敏")
     void shouldQueryAndMask() {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
         List<Map<String, Object>> rows = new ArrayList<>();
@@ -44,7 +44,7 @@ class DataQueryServiceTest {
 
         assertThat(result.get("count")).isEqualTo(200);
         assertThat(result.get("truncated")).isEqualTo(true);
-        assertThat((String) result.get("sql")).endsWith("LIMIT 200");
+        assertThat((String) result.get("sql")).endsWith("LIMIT 201");
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> masked = (List<Map<String, Object>>) result.get("rows");
         assertThat(masked.get(0).get("phone")).isEqualTo("***");

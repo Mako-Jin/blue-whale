@@ -8,14 +8,18 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.core.script.RedisScript;
 
 import java.time.Duration;
+import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
@@ -72,9 +76,12 @@ class WsTicketServiceTest {
     @Test
     @DisplayName("consume：原子取删返回绑定用户ID")
     void consumeShouldReturnUserId() {
-        when(valueOperations.getAndDelete("whale:im:ticket:abc")).thenReturn(String.valueOf(USER_ID));
+        when(redisTemplate.execute(any(RedisScript.class), anyList()))
+                .thenReturn(String.valueOf(USER_ID));
 
         assertEquals(USER_ID, service.consume("abc"));
+        verify(redisTemplate).execute(any(RedisScript.class),
+                eq(Collections.singletonList("whale:im:ticket:abc")));
     }
 
     @Test
@@ -87,8 +94,17 @@ class WsTicketServiceTest {
     @Test
     @DisplayName("consume：已使用或已过期的 ticket 返回 null")
     void consumeShouldReturnNullWhenMissing() {
-        when(valueOperations.getAndDelete("whale:im:ticket:used")).thenReturn(null);
+        when(redisTemplate.execute(any(RedisScript.class), anyList())).thenReturn(null);
 
         assertNull(service.consume("used"));
+    }
+
+    @Test
+    @DisplayName("consume：Redis 异常时失败关闭，返回 null")
+    void consumeShouldFailClosedWhenRedisError() {
+        when(redisTemplate.execute(any(RedisScript.class), anyList()))
+                .thenThrow(new IllegalStateException("ERR unknown command"));
+
+        assertNull(service.consume("abc"));
     }
 }

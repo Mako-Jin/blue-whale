@@ -14,10 +14,20 @@ interface ProxyRequest {
   headers: { accept?: string };
 }
 
-// `/im` 同时是子应用路由与后端 API 前缀：浏览器文档导航（Accept 含 text/html）
-// 必须旁路给 vite SPA fallback，否则刷新会被转发到网关导致白屏
-const gatewayBypass = (req: ProxyRequest): string | undefined =>
-  req.method === 'GET' && req.headers.accept?.includes('text/html') ? req.url : undefined;
+// `/im` 同时是子应用路由与后端 API 前缀：只有后端接口需要转发网关，
+// 文档导航与静态资源（qiankun 拉入口时 Accept 为 `*/*`）必须旁路给 vite，否则会 401 白屏
+const IM_API_PREFIXES = ['/im/conversations', '/im/agent-runs', '/im/ws-ticket', '/im/ws'];
+
+const isImApi = (pathname: string): boolean =>
+  IM_API_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+
+const gatewayBypass = (req: ProxyRequest): string | undefined => {
+  const pathname = (req.url ?? '').split('?')[0];
+  if (req.method === 'GET' && pathname.startsWith('/im') && !isImApi(pathname)) {
+    return req.url;
+  }
+  return req.method === 'GET' && req.headers.accept?.includes('text/html') ? req.url : undefined;
+};
 
 export default defineConfig({
   plugins: [
