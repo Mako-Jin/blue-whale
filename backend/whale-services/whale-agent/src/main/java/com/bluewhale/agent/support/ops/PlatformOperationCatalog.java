@@ -79,7 +79,7 @@ public final class PlatformOperationCatalog {
     }
 
     /**
-     * 构建操作定义：表单编码/名称必填，描述可选。
+     * 构建操作定义：表单编码/名称必填，备注（{@code remark}，与 whale-form 字段同名）可选。
      *
      * @return 操作目录
      */
@@ -92,7 +92,7 @@ public final class PlatformOperationCatalog {
                 "POST",
                 "/form/definition",
                 List.of("code", "name"),
-                List.of("code", "name", "description"),
+                List.of("code", "name", "remark"),
                 "创建表单定义",
                 params -> "创建表单定义：" + text(params, "name") + "（" + text(params, "code") + "）");
         Map<String, Operation> operations = new LinkedHashMap<>();

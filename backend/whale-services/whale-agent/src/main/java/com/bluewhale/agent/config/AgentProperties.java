@@ -270,7 +270,8 @@ public class AgentProperties {
 
         /** 允许访问的视图（库内名称，忽略大小写） */
         private List<String> allowedViews = new ArrayList<>(
-                List.of("v_ai_agent_fact_summary", "v_ai_agent_usage_summary"));
+                List.of("v_ai_agent_fact_summary", "v_ai_agent_usage_summary",
+                        "v_ai_agent_feedback_summary", "v_ai_agent_ops_summary"));
 
         /** 单次返回行数上限 */
         private int maxRows = 200;

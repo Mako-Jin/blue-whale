@@ -192,7 +192,7 @@ TOOLS: dict[str, ToolDefinition] = {
                 },
                 "params": {
                     "type": "object",
-                    "description": "操作参数，如表单 code/name",
+                    "description": "操作参数，如表单 code/name/remark",
                 },
             },
             "required": ["operation"],

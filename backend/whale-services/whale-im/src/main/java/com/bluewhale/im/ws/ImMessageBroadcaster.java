@@ -108,6 +108,24 @@ public class ImMessageBroadcaster {
     }
 
     /**
+     * 向单个用户推送未读数变更（多端同步，不广播给会话其他成员）。
+     *
+     * @param userId         目标用户ID
+     * @param conversationId 会话ID
+     * @param unread         该会话最新未读数
+     */
+    public void broadcastUnread(Long userId, Long conversationId, long unread) {
+        if (userId == null) {
+            return;
+        }
+        try {
+            registry.send(userId, WsFrames.unreadChanged(conversationId, unread));
+        } catch (RuntimeException e) {
+            log.warn("未读数推送失败（不影响已读落库）: conversationId={}, userId={}", conversationId, userId, e);
+        }
+    }
+
+    /**
      * 查询会话成员用户ID。
      *
      * @param conversationId 会话ID

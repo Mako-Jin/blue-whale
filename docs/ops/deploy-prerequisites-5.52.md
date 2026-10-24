@@ -13,8 +13,8 @@
 | 2 | IM 既有库增量（幂等键 + 评价） | [migration-5.52-im-loose-ends.sql](../../backend/whale-services/whale-im/src/main/resources/db/migration-5.52-im-loose-ends.sql) | 仅对旧库执行一次（MySQL 8 不支持 `ADD COLUMN IF NOT EXISTS`） | `im_conversation.pair_key` + `uk_pair_key` 存在；`im_agent_run.feedback` 存在；`SINGLE/BOT` 的 `pair_key` 空值为 **0** |
 | 3 | `bluewhale_agent` 建库与 DDL | [whale-agent/db/init.sql](../../backend/whale-services/whale-agent/src/main/resources/db/init.sql) | 新库直接执行；**既有库禁止整份重跑**（含 `DROP TABLE`） | 7 张表齐全；`agent_operation` 具备 `target / confirmed_by / result_code / elapsed_ms` 四列（既有库已按列 `ALTER` 补齐） |
 | 4 | `whale-auth` 增量权限种子 | [migration-5.52.sql](../../backend/whale-services/whale-auth/src/main/resources/db/migration-5.52.sql) | `INSERT IGNORE` + 仅补空属性，幂等 | 4 个权限码均存在且 `path/method` 已回填：`sys:agent:chat`、`sys:im:chat`、`sys:ai:data:read`、`sys:ai:ops:form` |
-| 5 | 只读账号 `whale_ai_ro` | [data-query-ro.sql](../../backend/whale-services/whale-agent/src/main/resources/db/data-query-ro.sql) | 以 root 执行 | 已收紧为 `@'localhost'` + `@'127.0.0.1'`，删除 `@'%'`；口令已轮换为 24 位随机强口令；**未授予库级权限**，仅两个视图 `SELECT`。实测：视图查询成功，查询基表 `agent_fact` 报 `ERROR 1142` |
-| 6 | 白名单视图 | 同上 | `CREATE OR REPLACE VIEW` | 两视图存在；T19 实机 14 例已验证「非白名单表/写 SQL/多语句 → 403」；本轮再次经 `/agent/tools/data-query` 实测返回 5 行聚合结果（20ms） |
+| 5 | 只读账号 `whale_ai_ro` | [data-query-ro.sql](../../backend/whale-services/whale-agent/src/main/resources/db/data-query-ro.sql) | 以 root 执行 | 已收紧为 `@'localhost'` + `@'127.0.0.1'`，删除 `@'%'`；口令已轮换为 24 位随机强口令；**未授予库级权限**，仅四个视图 `SELECT`。实测：视图查询成功，查询基表 `agent_operation` 报 `ERROR 1142` |
+| 6 | 白名单视图（4 个） | 同上 | `CREATE OR REPLACE VIEW` | `v_ai_agent_fact_summary`、`v_ai_agent_usage_summary`、`v_ai_agent_feedback_summary`、`v_ai_agent_ops_summary` 均存在；T19 实机 14 例已验证「非白名单表/写 SQL/多语句 → 403」；本轮经 `/agent/tools/data-query` 实测 ops 视图返回 4 行、feedback 视图返回 0 行，均为 `code=0` |
 
 ### 1.1 本轮修正的脚本缺口
 
@@ -64,7 +64,7 @@ WHERE deleted=0 AND type IN ('SINGLE','BOT') AND pair_key IS NULL;         -- �
 | `WHALE_AGENT_QA_ENGINE` | `legacy` | `langchain`（联调验证通过后切换） | Java 内置问答 / 委托 `ai/whale-ai`（8092） |
 | `WHALE_AGENT_DATA_ENABLED` | `false` | 按需 `true`，且必须同时配置下方四项 | 开启只读数据通道 |
 | `WHALE_AGENT_DATA_URL` / `USERNAME` / `PASSWORD` | 空 / `whale_ai_ro` / 空 | 指向 `bluewhale_agent`，口令同步为强口令 | 只读连接（独立连接，不参与主事务） |
-| `WHALE_AGENT_DATA_ALLOWED_VIEWS` | 两个汇总视图 | 保持白名单，勿放宽到基表 | SQL 守卫的视图白名单 |
+| `WHALE_AGENT_DATA_ALLOWED_VIEWS` | 四个汇总视图（fact / usage / feedback / ops） | 保持白名单，勿放宽到基表 | SQL 守卫的视图白名单 |
 | `WHALE_AGENT_OPS_ENABLED` | `false` | 按需 `true` | 平台写操作确认流程 |
 | `WHALE_AGENT_OPS_TARGET_FORM` | `http://127.0.0.1:8084` | 指向实际 `whale-form` 地址 | 下游写目标 |
 | `WHALE_AGENT_LLM_BASE_URL` | `https://api.openai.com/v1` | 本机 Ollama：`http://127.0.0.1:11434/v1` | OpenAI 兼容端点 |
@@ -106,3 +106,22 @@ WHERE deleted=0 AND type IN ('SINGLE','BOT') AND pair_key IS NULL;         -- �
 | 2 | 新环境执行 `data-query-ro.sql` 前替换 `CHANGE_ME_STRONG_PASSWORD` 并同步 `WHALE_AGENT_DATA_PASSWORD` | 强口令属环境机密，不入仓 |
 | 3 | 云端模型部署时替换 `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` | 本机验证使用 Ollama；云端需按供应商填写 |
 | 4 | 既有库 `agent_operation` 的按列 `ALTER` | 新库由 `init.sql` 直接建全列；旧库禁止整份重跑 |
+
+---
+
+## 六、`whale-form` 下游联调（8084，本机）
+
+- 建库：`CREATE DATABASE bluewhale_form` 后执行 [whale-form/db/init.sql](../../backend/whale-services/whale-form/src/main/resources/db/init.sql)，共 8 张表（`form_definition` 等），语句为 `DROP + CREATE`，仅可在空库执行。
+- 服务：`whale-form.jar`，端口 8084，已注册 Nacos。
+- 联调链路（`WHALE_AGENT_OPS_ENABLED=true`、`WHALE_AGENT_OPS_TARGET_FORM=http://127.0.0.1:8084`）：
+
+| 步骤 | 请求 | 结果 |
+|---|---|---|
+| 1 | `POST /agent/tools/platform-op` `{operation:form.definition.create, params:{code,name,remark}}` | `code=0`，返回 `WAITING_CONFIRM` 与 `confirmationId` |
+| 2 | `POST /agent/ops/{id}/confirm`（同一用户，权限含 `sys:ai:ops:form` + `sys:form:add`） | `code=0`，下游创建成功并回写 `id` |
+| 3 | `GET /form/definition/{id}`（8084，`sys:form:list`） | 返回与提交一致的 `code/name/remark` |
+| 4 | 同令牌二次确认 | `409`，提示令牌已使用或已失效（一次性语义成立） |
+| 5 | 落库核对 | `form_definition` 有记录；`agent_operation` 状态 `SUCCESS`、`target=form` |
+
+- 参数对齐：操作目录原允许 `description`，但 `whale-form` 的 `FormDefinitionSaveRequest` 字段为 `remark`，导致备注被静默丢弃；已统一为 `remark`（Java 目录 + Python `platform_op` 工具描述同步）。
+- 下游同时执行自身 RBAC：确认时透传调用方 `X-User-Id` / `X-Permission-Codes`，因此用户除 `sys:ai:ops:form` 外还需具备 `sys:form:add`。

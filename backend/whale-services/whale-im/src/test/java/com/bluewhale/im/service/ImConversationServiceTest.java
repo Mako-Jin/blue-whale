@@ -255,6 +255,22 @@ class ImConversationServiceTest {
     }
 
     @Test
+    @DisplayName("markRead：落库后按成员真实游标推送未读数")
+    void markReadShouldBroadcastRemainingUnread() {
+        ImConversation conversation = new ImConversation();
+        conversation.setId(CONVERSATION_ID);
+        conversation.setLastSeq(10L);
+        ImConversationMember stored = member(USER_ID, "MEMBER");
+        stored.setLastReadSeq(7L);
+        when(guard.requireMember(CONVERSATION_ID, USER_ID)).thenReturn(conversation);
+        when(guard.requireMemberRecord(CONVERSATION_ID, USER_ID)).thenReturn(stored);
+
+        service.markRead(CONVERSATION_ID, USER_ID, 7L);
+
+        verify(broadcaster).broadcastUnread(USER_ID, CONVERSATION_ID, 3L);
+    }
+
+    @Test
     @DisplayName("markRead：序号为 0 时不更新游标")
     void markReadShouldSkipZero() {
         ImConversation conversation = new ImConversation();

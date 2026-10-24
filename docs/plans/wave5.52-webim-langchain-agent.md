@@ -169,7 +169,7 @@ intent ──> retrieve(knowledge/facts) ──> think ──> tools ──> ver
 - 机器人消息：流式打字、引用角标（点击跳到文档行）、工具轨迹折叠、👍/👎 反馈、确认按钮。
 - 基座导航新增「消息」入口与全局未读角标；权限码 `sys:im:*` 接入 `PermissionProvider`。
 - 日志统一使用 `createLogger('whale-im › ...')`，不直接使用 `console`。
-- **实现状态（2026-10-24，T18b 完成）**：`frontend/platform-apps/whale-im` 已落地（8107 / base `/im`，qiankun），三层布局、WS 实时通道、机器人流式/轨迹/确认卡片与成员面板齐备；基座「消息」菜单、`/im` 路由、30s 未读角标与 `sys:im:chat` 权限接入完成，`/im` 走 `Accept: text/html` 旁路；子应用与基座 lint 0 warning、全 workspace build 19/19。
+- **实现状态（2026-10-24，T18b 完成）**：`frontend/platform-apps/whale-im` 已落地（8107 / base `/im`，qiankun），三层布局、WS 实时通道、机器人流式/轨迹/确认卡片与成员面板齐备；基座「消息」菜单、`/im` 路由、未读角标（后于 2026-10-24 改为 WS 全局未读通道，见 §11.3）与 `sys:im:chat` 权限接入完成，`/im` 走 `Accept: text/html` 旁路；子应用与基座 lint 0 warning、全 workspace build 19/19。
 
 ## 八、阶段计划与任务
 
@@ -254,7 +254,10 @@ intent ──> retrieve(knowledge/facts) ──> think ──> tools ──> ver
 
 - ✅ ~~部署前置：执行 `bluewhale_im`/`whale-auth`/`whale-agent` 建库脚本、既有库 `agent_operation` ALTER 与 `migration-5.52-im-loose-ends.sql`、只读账号与视图、生产环境开关~~ **已完成（2026-10-24，见 [部署前置检查单](../ops/deploy-prerequisites-5.52.md) 与 devlog §二十六）**：三库 DDL、IM 幂等键/评价字段、`agent_operation` 四列、只读账号与两个白名单视图均已核验；补齐 `sys:ai:data:read` / `sys:ai:ops:form` 权限种子并回填权限展示属性。
 - ✅ ~~目标环境残余：将 `'whale_ai_ro'@'%'` 收紧至应用网段并替换强口令；配置 `WHALE_AGENT_LLM_API_KEY` 后复验真实模型回答~~ **已完成（2026-10-24）**：只读账号已收紧为 `localhost`/`127.0.0.1` 并轮换 24 位强口令；本机 Ollama + `qwen2.5:1.5b-instruct` 接入，`/agent/chat` 返回 `degraded=false` 的真实模型回答（31.3s），只读通道复验通过。
-- 后续迭代项：WS 逐行读超时（`AgentStreamClient` 流式读循环重构）、基座未读角标改 WS 全局未读通道、`whale-form` 下游联调、历史轨迹与反馈的更多运营视图。
+- ✅ ~~WS 逐行读超时~~ **已完成（2026-10-24）**：`AgentStreamClient` 改为「守护线程读流 + 有界队列 + 相邻行空闲超时」，超时抛 `SocketTimeoutException` 并关闭底层流；新增 3 例单测。
+- ✅ ~~基座未读角标改 WS 全局未读通道~~ **已完成（2026-10-24）**：`useImUnread` 改为 `/im/ws` 订阅 `message.new` / 新增 `unread.changed` 帧，首连、重连与窗口聚焦时 REST 校准，移除 30s 轮询。
+- ✅ ~~`whale-form` 下游联调~~ **已完成（2026-10-24）**：确认令牌 → 表单创建 → 详情回读 → 二次确认 409 全链路通过；`description` 参数对齐为 `remark`。
+- ✅ ~~历史轨迹与反馈的更多运营视图~~ **已完成（2026-10-24）**：新增 `v_ai_agent_feedback_summary`、`v_ai_agent_ops_summary` 并授予 `whale_ai_ro`，白名单同步 4 视图。
 - ✅ ~~`uv.lock` 生成与 CI 固化 Python 3.12~~ **已完成（2026-10-24，devlog §二十八）**：`uv.lock` 入库，GitHub `code-quality.yml` 新增 `ai-pytest`（Python 3.12 + pytest，39 项通过）；Gitee Go 流水线待补 AI 阶段。
 
 ### 11.4 已修正问题项

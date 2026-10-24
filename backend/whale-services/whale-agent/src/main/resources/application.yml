@@ -94,7 +94,7 @@ whale:
       url: ${WHALE_AGENT_DATA_URL:}
       username: ${WHALE_AGENT_DATA_USERNAME:whale_ai_ro}
       password: ${WHALE_AGENT_DATA_PASSWORD:}
-      allowed-views: ${WHALE_AGENT_DATA_ALLOWED_VIEWS:v_ai_agent_fact_summary,v_ai_agent_usage_summary}
+      allowed-views: ${WHALE_AGENT_DATA_ALLOWED_VIEWS:v_ai_agent_fact_summary,v_ai_agent_usage_summary,v_ai_agent_feedback_summary,v_ai_agent_ops_summary}
       max-rows: ${WHALE_AGENT_DATA_MAX_ROWS:200}
       timeout-seconds: ${WHALE_AGENT_DATA_TIMEOUT_SECONDS:5}
     # T15 平台写操作：默认关闭；开启后模型仅创建确认令牌，用户确认后才转发下游写请求

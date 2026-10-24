@@ -236,7 +236,8 @@ public class ImConversationService {
      */
     public void markRead(Long conversationId, Long userId, long seq) {
         ImConversation conversation = guard.requireMember(conversationId, userId);
-        long target = Math.min(Math.max(seq, 0L), nvl(conversation.getLastSeq()));
+        long lastSeq = nvl(conversation.getLastSeq());
+        long target = Math.min(Math.max(seq, 0L), lastSeq);
         if (target <= 0L) {
             return;
         }
@@ -246,6 +247,21 @@ public class ImConversationService {
         wrapper.lt(ImConversationMember::getLastReadSeq, target);
         wrapper.set(ImConversationMember::getLastReadSeq, target);
         memberMapper.update(null, wrapper);
+        broadcaster.broadcastUnread(userId, conversationId, remainingUnread(conversationId, userId, lastSeq));
+    }
+
+    /**
+     * 已读落库后计算该会话的真实未读数（以成员表游标为准，避免客户端上报滞后造成误报）。
+     *
+     * @param conversationId 会话ID
+     * @param userId         用户ID
+     * @param lastSeq        会话最新序号
+     * @return 未读数（不小于 0）
+     */
+    private long remainingUnread(Long conversationId, Long userId, long lastSeq) {
+        ImConversationMember member = guard.requireMemberRecord(conversationId, userId);
+        long readSeq = member == null ? 0L : nvl(member.getLastReadSeq());
+        return Math.max(0L, lastSeq - readSeq);
     }
 
     /**

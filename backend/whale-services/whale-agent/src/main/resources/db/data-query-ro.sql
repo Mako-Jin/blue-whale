@@ -12,7 +12,7 @@
 --   WHALE_AGENT_DATA_ENABLED=true
 --   WHALE_AGENT_DATA_URL=jdbc:mysql://<host>:3306/bluewhale_agent?...
 --   WHALE_AGENT_DATA_USERNAME=whale_ai_ro
---   WHALE_AGENT_DATA_ALLOWED_VIEWS=v_ai_agent_fact_summary,v_ai_agent_usage_summary
+--   WHALE_AGENT_DATA_ALLOWED_VIEWS=v_ai_agent_fact_summary,v_ai_agent_usage_summary,v_ai_agent_feedback_summary,v_ai_agent_ops_summary
 -- =====================================================================
 
 CREATE USER IF NOT EXISTS 'whale_ai_ro'@'localhost' IDENTIFIED BY 'CHANGE_ME_STRONG_PASSWORD';
@@ -44,9 +44,41 @@ FROM agent_message
 WHERE deleted = 0
 GROUP BY DATE(create_time);
 
+-- ---------------------------------------------------------------------
+-- 白名单视图 3：用户反馈按日汇总（不含评论正文，避免读走敏感文本）
+-- ---------------------------------------------------------------------
+CREATE OR REPLACE VIEW v_ai_agent_feedback_summary AS
+SELECT DATE(create_time)                                                AS stat_date,
+       COUNT(*)                                                         AS feedback_count,
+       COUNT(DISTINCT message_id)                                       AS rated_message_count,
+       ROUND(AVG(rating), 2)                                            AS avg_rating,
+       SUM(CASE WHEN rating <= 2 THEN 1 ELSE 0 END)                     AS low_rating_count
+FROM agent_feedback
+WHERE deleted = 0
+GROUP BY DATE(create_time);
+
+-- ---------------------------------------------------------------------
+-- 白名单视图 4：平台写操作历史按日/操作/目标/状态汇总（不含参数与结果正文）
+-- ---------------------------------------------------------------------
+CREATE OR REPLACE VIEW v_ai_agent_ops_summary AS
+SELECT DATE(create_time)                                                AS stat_date,
+       operation                                                        AS operation,
+       target                                                           AS target,
+       status                                                           AS status,
+       COUNT(*)                                                         AS op_count,
+       ROUND(AVG(elapsed_ms), 0)                                        AS avg_elapsed_ms,
+       MAX(elapsed_ms)                                                  AS max_elapsed_ms
+FROM agent_operation
+WHERE deleted = 0
+GROUP BY DATE(create_time), operation, target, status;
+
 GRANT SELECT ON bluewhale_agent.v_ai_agent_fact_summary TO 'whale_ai_ro'@'localhost';
 GRANT SELECT ON bluewhale_agent.v_ai_agent_usage_summary TO 'whale_ai_ro'@'localhost';
+GRANT SELECT ON bluewhale_agent.v_ai_agent_feedback_summary TO 'whale_ai_ro'@'localhost';
+GRANT SELECT ON bluewhale_agent.v_ai_agent_ops_summary TO 'whale_ai_ro'@'localhost';
 GRANT SELECT ON bluewhale_agent.v_ai_agent_fact_summary TO 'whale_ai_ro'@'127.0.0.1';
 GRANT SELECT ON bluewhale_agent.v_ai_agent_usage_summary TO 'whale_ai_ro'@'127.0.0.1';
+GRANT SELECT ON bluewhale_agent.v_ai_agent_feedback_summary TO 'whale_ai_ro'@'127.0.0.1';
+GRANT SELECT ON bluewhale_agent.v_ai_agent_ops_summary TO 'whale_ai_ro'@'127.0.0.1';
 
 FLUSH PRIVILEGES;

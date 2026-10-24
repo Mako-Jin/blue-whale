@@ -7,20 +7,27 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Iterator;
 import java.util.Optional;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
 /**
  * 智能体流式调用客户端：以 SSE 消费 {@code POST /agent/chat} 并逐事件回调。
  *
  * <p>复用调用方的 {@code X-User-Id} / {@code X-Permission-Codes}，不做服务身份提权，
- * 因此智能体侧的权限校验结果与用户在网关下一致。请求超时 {@code whale.im.agent.timeout-seconds}
- * 作用于建立响应（首字节），流式中途断开会以 {@link IOException} 抛给调用方做降级。</p>
+ * 因此智能体侧的权限校验结果与用户在网关下一致。超时参数 {@code whale.im.agent.timeout-seconds}
+ * 同时作用于建连、首字节与**流式读取的空闲间隔**：任意一行超过该时长未到达即按超时中断，
+ * 避免上游挂起导致机器人回答线程被永久占用。</p>
  *
  * @author BlueWhale
  */
@@ -59,6 +66,9 @@ public class AgentStreamClient {
     private static final String APPLICATION_JSON = "application/json";
 
     private static final String TEXT_EVENT_STREAM = "text/event-stream";
+
+    /** 秒 → 毫秒换算 */
+    private static final long MILLIS_PER_SECOND = 1000L;
 
     private final HttpClient httpClient;
 
@@ -112,11 +122,18 @@ public class AgentStreamClient {
         HttpRequest request = builder.POST(HttpRequest.BodyPublishers.ofString(body)).build();
         HttpResponse<Stream<String>> response = httpClient.send(request, HttpResponse.BodyHandlers.ofLines());
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            closeQuietly(response.body());
             throw new IOException("智能体服务返回状态 " + response.statusCode());
         }
         SseEventParser parser = new SseEventParser();
-        try (Stream<String> lines = response.body()) {
-            lines.forEach(line -> dispatch(parser.accept(line), handler));
+        // 逐行读取改为「后台读取线程 + 空闲超时」模式：HttpClient 仅对首字节生效，
+        // 无法约束流式读取中途的挂起，必须在上游沉默超时时主动失败并关闭流。
+        try (LinePump pump = new LinePump(response.body(), timeoutSeconds * MILLIS_PER_SECOND)) {
+            Optional<String> line = pump.next();
+            while (line.isPresent()) {
+                dispatch(parser.accept(line.get()), handler);
+                line = pump.next();
+            }
         }
         dispatch(parser.flush(), handler);
     }
@@ -168,16 +185,27 @@ public class AgentStreamClient {
      *
      * @param event   解析结果
      * @param handler 事件回调
+     * @throws IOException 回调主动中止流
      */
-    private static void dispatch(Optional<SseEventParser.SseEvent> event, EventHandler handler) {
+    private static void dispatch(Optional<SseEventParser.SseEvent> event, EventHandler handler)
+            throws IOException {
         if (event.isEmpty()) {
             return;
         }
         SseEventParser.SseEvent sseEvent = event.get();
+        handler.onEvent(sseEvent.name(), sseEvent.data());
+    }
+
+    /**
+     * 静默关闭响应流（仅释放连接，不影响主流程异常）。
+     *
+     * @param stream 响应流
+     */
+    private static void closeQuietly(Stream<String> stream) {
         try {
-            handler.onEvent(sseEvent.name(), sseEvent.data());
-        } catch (IOException e) {
-            throw new StreamAbortException(e);
+            stream.close();
+        } catch (RuntimeException ignored) {
+            // 状态码异常优先抛出，关闭失败不覆盖原始异常
         }
     }
 
@@ -195,19 +223,132 @@ public class AgentStreamClient {
     }
 
     /**
-     * 回调中断包装：把受检异常从 {@code Stream#forEach} 中带出。
+     * 带空闲超时的逐行读取泵。
+     *
+     * <p>{@link HttpClient} 的请求超时只覆盖建连与响应头，一旦响应头返回，后续
+     * {@code Stream#iterator()} 的阻塞读不再受任何超时约束。本类把读取放到守护线程，
+     * 通过有界队列交给调用线程；调用线程按「相邻两行之间的最大间隔」计时，
+     * 超时即抛 {@link SocketTimeoutException} 并关闭底层流，防止上游静默挂起。</p>
      */
-    private static final class StreamAbortException extends RuntimeException {
+    static final class LinePump implements AutoCloseable {
 
-        private static final long serialVersionUID = 1L;
+        /** 流结束哨兵 */
+        private static final Object END = new Object();
+
+        /** 队列容量：足以缓冲一段突发的事件行，同时给上游施加背压 */
+        private static final int QUEUE_CAPACITY = 256;
+
+        /** 读取线程与消费线程之间的交接队列 */
+        private final BlockingQueue<Object> queue = new LinkedBlockingQueue<>(QUEUE_CAPACITY);
+
+        /** 读取线程异常（流结束哨兵到达后由消费线程抛出） */
+        private final AtomicReference<Throwable> failure = new AtomicReference<>();
+
+        /** 底层响应流（关闭时用于中断阻塞读） */
+        private final Stream<String> source;
+
+        /** 后台读取线程 */
+        private final Thread worker;
+
+        /** 空闲超时（毫秒） */
+        private final long idleTimeoutMillis;
+
+        /** 是否已关闭 */
+        private volatile boolean closed;
 
         /**
-         * 包装原始异常。
+         * 启动后台读取。
          *
-         * @param cause 原始异常
+         * @param source            响应行流
+         * @param idleTimeoutMillis 相邻两行最大间隔（毫秒）
          */
-        private StreamAbortException(IOException cause) {
-            super(cause);
+        LinePump(Stream<String> source, long idleTimeoutMillis) {
+            this.source = source;
+            this.idleTimeoutMillis = idleTimeoutMillis;
+            this.worker = new Thread(this::drain, "agent-sse-reader");
+            this.worker.setDaemon(true);
+            this.worker.start();
+        }
+
+        /**
+         * 取下一行，超过空闲超时即抛异常。
+         *
+         * @return 下一行；流正常结束时返回空
+         * @throws IOException          读取失败或空闲超时
+         * @throws InterruptedException 等待被中断
+         */
+        Optional<String> next() throws IOException, InterruptedException {
+            long deadline = deadlineFromNow();
+            while (true) {
+                long remainingNanos = deadline - System.nanoTime();
+                if (remainingNanos <= 0) {
+                    throw new SocketTimeoutException(
+                            "智能体流式响应空闲超过 " + idleTimeoutMillis + "ms");
+                }
+                Object item = queue.poll(remainingNanos, TimeUnit.NANOSECONDS);
+                if (item == null) {
+                    continue;
+                }
+                if (item == END) {
+                    return endOfStream();
+                }
+                deadline = deadlineFromNow();
+                return Optional.of((String) item);
+            }
+        }
+
+        /**
+         * 关闭读取：置位标记并中断后台线程，同时关闭底层流解除阻塞读。
+         */
+        @Override
+        public void close() {
+            closed = true;
+            worker.interrupt();
+            closeQuietly(source);
+        }
+
+        /**
+         * 处理流结束：有异常则包装为 {@link IOException}，否则返回空。
+         *
+         * @return 空（正常结束）
+         * @throws IOException 读取线程异常
+         */
+        private Optional<String> endOfStream() throws IOException {
+            Throwable cause = failure.get();
+            if (cause == null) {
+                return Optional.empty();
+            }
+            if (cause instanceof IOException ioException) {
+                throw ioException;
+            }
+            throw new IOException("智能体流式响应读取失败", cause);
+        }
+
+        /**
+         * 计算下一次空闲截止时间。
+         *
+         * @return 截止时间（{@link System#nanoTime()} 口径）
+         */
+        private long deadlineFromNow() {
+            return System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(idleTimeoutMillis);
+        }
+
+        /**
+         * 后台消费响应流，逐行入队，结束或异常时投递哨兵。
+         */
+        private void drain() {
+            try (Stream<String> lines = source) {
+                Iterator<String> iterator = lines.iterator();
+                while (!closed && iterator.hasNext()) {
+                    queue.put(iterator.next());
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (RuntimeException e) {
+                failure.set(e);
+            } finally {
+                queue.offer(END);
+            }
         }
     }
 }

@@ -17,6 +17,7 @@ import java.util.Map;
  *   <li>{@code ping} / {@code pong}：客户端心跳与服务端应答</li>
  *   <li>{@code message.new}：新消息推送（载荷为 REST 同构的 {@link MessageVO}）</li>
  *   <li>{@code message.recalled}：消息撤回通知</li>
+ *   <li>{@code unread.changed}：当前用户某会话未读数变更（仅推送给本人，供基座角标使用）</li>
  *   <li>{@code agent.meta} / {@code agent.delta} / {@code agent.done} / {@code agent.error} / {@code agent.confirm}：机器人流式回答与写操作确认</li>
  *   <li>{@code error}：协议错误提示</li>
  * </ul>
@@ -42,6 +43,9 @@ public final class WsFrames {
 
     /** 群成员变更通知帧 */
     public static final String TYPE_MEMBER_CHANGED = "member.changed";
+
+    /** 未读数变更帧（仅推送本人） */
+    public static final String TYPE_UNREAD_CHANGED = "unread.changed";
 
     /** 机器人工具调用帧 */
     public static final String TYPE_AGENT_TOOL = "agent.tool";
@@ -142,6 +146,23 @@ public final class WsFrames {
         frame.put("conversationId", String.valueOf(conversationId));
         frame.put("action", action);
         frame.put("userId", userId == null ? null : String.valueOf(userId));
+        return frame;
+    }
+
+    /**
+     * 构造未读数变更帧。
+     *
+     * <p>只推送给该用户自己的在线会话（多端同步），不推给会话其他成员，
+     * 避免泄露他人的阅读进度。</p>
+     *
+     * @param conversationId 会话ID
+     * @param unread         该会话的最新未读数
+     * @return 帧对象
+     */
+    public static Map<String, Object> unreadChanged(Long conversationId, long unread) {
+        Map<String, Object> frame = frame(TYPE_UNREAD_CHANGED);
+        frame.put("conversationId", String.valueOf(conversationId));
+        frame.put("unread", unread);
         return frame;
     }
 
