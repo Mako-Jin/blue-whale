@@ -34,6 +34,13 @@ frontend/e2e/.playwright/
 .vite/
 eslint.config.*.cache
 
+# ===== Python / whale-ai =====
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.uv/
+
 # ===== OS =====
 .DS_Store
 Thumbs.db
