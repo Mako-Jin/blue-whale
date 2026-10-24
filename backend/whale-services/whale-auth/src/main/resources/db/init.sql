@@ -351,7 +351,14 @@ VALUES
     (7, 1, '定时任务', '/system/job', 'system/job/index', 'clock-circle', 6, 'MENU', 'sys:job:list', 1, 1),
     (8, 1, '文件管理', '/system/file', 'system/file/index', 'folder', 7, 'MENU', 'sys:file:list', 1, 1),
     (9, 0, '知识助手', '/agent', NULL, 'message', 2, 'DIR', NULL, 1, 1),
-    (10, 9, '知识问答', '/agent/chat', 'agent/chat/index', 'comment', 1, 'MENU', 'sys:agent:chat', 1, 1);
+    (10, 9, '知识问答', '/agent/chat', 'agent/chat/index', 'comment', 1, 'MENU', 'sys:agent:chat', 1, 1),
+    -- Wave 5.53 M3：档案管理目录与四页（门类/规则/检索/同步）
+    (11, 0, '档案管理', '/archive', NULL, 'folder-open', 3, 'DIR', NULL, 1, 1),
+    (12, 11, '门类管理', '/archive/category', 'archive/category/index', 'tree', 1, 'MENU', 'sys:archive:category:list', 1, 1),
+    (13, 11, '归档规则', '/archive/rule', 'archive/rule/index', 'setting', 2, 'MENU', 'sys:archive:rule:list', 1, 1),
+    (14, 11, '档案检索', '/archive/item', 'archive/item/index', 'search', 3, 'MENU', 'sys:archive:item:list', 1, 1),
+    (15, 11, '同步状态', '/archive/sync', 'archive/sync/index', 'sync', 4, 'MENU', 'sys:archive:item:list', 1, 1),
+    (16, 11, '待整理', '/archive/pending', 'archive/pending/index', 'inbox', 0, 'MENU', 'sys:archive:item:list', 1, 1);
 
 -- 权限点：与各控制器 @RequirePermission 注解的 value 一一对应（AUTH-04）
 INSERT INTO sys_permission

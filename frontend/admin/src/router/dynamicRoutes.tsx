@@ -6,6 +6,11 @@ import type { MenuProps } from 'antd';
 import type { ComponentType } from 'react';
 import type { RouteObject } from 'react-router-dom';
 import type { MenuNode } from '../api/token';
+import ArchiveCategoryList from '../pages/archive/CategoryList';
+import ArchiveItemList from '../pages/archive/ItemList';
+import ArchivePendingList from '../pages/archive/PendingList';
+import ArchiveRuleList from '../pages/archive/RuleList';
+import ArchiveSyncStatus from '../pages/archive/SyncStatus';
 import ComponentsDemo from '../pages/demo/ComponentsDemo';
 import DeptList from '../pages/dept/DeptList';
 import FileList from '../pages/file/FileList';
@@ -18,9 +23,21 @@ import UserList from '../pages/user/UserList';
 /** 侧边导航项类型（与 antd Menu items 对齐） */
 export type SidebarItem = NonNullable<MenuProps['items']>[number];
 
-/** 组件标识 → 页面组件（FROZEN 契约键：user / role / menu / components / dept / permission / job / file） */
+/** 组件标识 → 页面组件（契约键：user / role / menu / components / dept / permission / job / file / archive/*） */
 const COMPONENT_MAP: Record<
-  'user' | 'role' | 'menu' | 'components' | 'dept' | 'permission' | 'job' | 'file',
+  | 'user'
+  | 'role'
+  | 'menu'
+  | 'components'
+  | 'dept'
+  | 'permission'
+  | 'job'
+  | 'file'
+  | 'archive/category'
+  | 'archive/rule'
+  | 'archive/item'
+  | 'archive/pending'
+  | 'archive/sync',
   ComponentType
 > = {
   user: UserList,
@@ -31,6 +48,11 @@ const COMPONENT_MAP: Record<
   permission: PermissionList,
   job: JobList,
   file: FileList,
+  'archive/category': ArchiveCategoryList,
+  'archive/rule': ArchiveRuleList,
+  'archive/item': ArchiveItemList,
+  'archive/pending': ArchivePendingList,
+  'archive/sync': ArchiveSyncStatus,
 };
 
 type ComponentKey = keyof typeof COMPONENT_MAP;

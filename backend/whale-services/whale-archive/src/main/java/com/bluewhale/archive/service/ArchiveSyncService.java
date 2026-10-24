@@ -24,6 +24,7 @@ import com.bluewhale.archive.remote.RemoteInstanceDetail;
 import com.bluewhale.archive.support.ArchiveConstants;
 import com.bluewhale.archive.support.ArchiveSnapshotBuilder;
 import com.bluewhale.archive.support.AttachmentExtractor;
+import com.bluewhale.archive.support.CategoryPathResolver;
 import com.bluewhale.archive.vo.ArchiveSyncResultVO;
 import com.bluewhale.archive.vo.ArchiveSyncStatusVO;
 import com.bluewhale.common.core.exception.BizException;
@@ -70,9 +71,6 @@ public class ArchiveSyncService {
 
     /** 出参：失败（已记录台账，下一轮重试） */
     private static final int OUTCOME_FAILED = 4;
-
-    /** 门类路径分隔符 */
-    private static final String CATEGORY_PATH_SEPARATOR = "/";
 
     /** 业务键中表单ID前缀分隔符 */
     private static final String BUSINESS_KEY_SEPARATOR = ":";
@@ -322,7 +320,7 @@ public class ArchiveSyncService {
         item.setExpireAt(resolveExpireAt(item.getRetentionYears(), finishedAt));
         if (category != null) {
             item.setCategoryId(category.getId());
-            item.setCategoryPath(buildCategoryPath(category));
+            item.setCategoryPath(CategoryPathResolver.resolve(categoryMapper, category));
         }
         if (autoArchive) {
             item.setArchiveNo(numberService.next(category.getCode(), year));
@@ -455,27 +453,6 @@ public class ArchiveSyncService {
                 .eq(ArchiveRule::getEnabled, ArchiveConstants.STATUS_ENABLED)
                 .orderByAsc(ArchiveRule::getId));
         return rules.isEmpty() ? null : rules.get(0);
-    }
-
-    /**
-     * 构建门类路径（祖先编码以 / 连接）。
-     *
-     * @param category 门类
-     * @return 门类路径，例如 {@code DOC/FIN}
-     */
-    private String buildCategoryPath(ArchiveCategory category) {
-        List<String> codes = new ArrayList<>();
-        ArchiveCategory current = category;
-        int depth = 0;
-        while (current != null && depth < ArchiveConstants.MAX_TREE_DEPTH) {
-            codes.add(0, current.getCode());
-            if (current.getParentId() == null || current.getParentId() == ArchiveConstants.ROOT_PARENT_ID) {
-                break;
-            }
-            current = categoryMapper.selectById(current.getParentId());
-            depth++;
-        }
-        return String.join(CATEGORY_PATH_SEPARATOR, codes);
     }
 
     /**

@@ -6,10 +6,20 @@
 -- 全新建库 : 请直接执行 init.sql，无需本脚本（init.sql 已同步这些权限点）。
 -- 说明     : 幂等（INSERT IGNORE 按唯一键去重）。段位约定：档案预留 140–159。
 --            · 140–143 门类 / 规则维护（M1 已落地接口）
---            · 144–150 条目 / 下载 / 销毁 / 同步（M3–M4 接口落地后生效）
+--            · 144–150 条目 / 下载 / 销毁 / 同步（M3 已落地接口）
 --            super_admin 默认拥有全部权限，其余角色由授权界面分配。
---            菜单项待 admin 档案管理前端页面落地后再登记，避免指向 404。
+--            M3 起同步登记 admin 档案管理菜单（11 目录 + 12–15 四页）。
 -- =====================================================================
+
+INSERT IGNORE INTO sys_menu
+    (id, parent_id, name, path, component, icon, sort, menu_type, permission_code, visible, status)
+VALUES
+    (11, 0, '档案管理', '/archive', NULL, 'folder-open', 3, 'DIR', NULL, 1, 1),
+    (12, 11, '门类管理', '/archive/category', 'archive/category/index', 'tree', 1, 'MENU', 'sys:archive:category:list', 1, 1),
+    (13, 11, '归档规则', '/archive/rule', 'archive/rule/index', 'setting', 2, 'MENU', 'sys:archive:rule:list', 1, 1),
+    (14, 11, '档案检索', '/archive/item', 'archive/item/index', 'search', 3, 'MENU', 'sys:archive:item:list', 1, 1),
+    (15, 11, '同步状态', '/archive/sync', 'archive/sync/index', 'sync', 4, 'MENU', 'sys:archive:item:list', 1, 1),
+    (16, 11, '待整理', '/archive/pending', 'archive/pending/index', 'inbox', 0, 'MENU', 'sys:archive:item:list', 1, 1);
 
 INSERT IGNORE INTO sys_permission
     (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)

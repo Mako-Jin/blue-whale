@@ -3,6 +3,8 @@ package com.bluewhale.archive.client;
 import com.bluewhale.archive.config.ArchiveProperties;
 import com.bluewhale.archive.remote.RemoteFileMeta;
 import com.bluewhale.archive.support.RemoteHttpSupport;
+import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.ByteArrayResource;
@@ -34,6 +36,9 @@ public class FileArchiveClient {
     /** 内网锁定路径模板 */
     private static final String LOCK_PATH = "/file/internal/{id}/lock";
 
+    /** 内网内容流路径模板 */
+    private static final String CONTENT_PATH = "/file/internal/{id}/content";
+
     /** multipart 文件字段名 */
     private static final String PARAM_FILE = "file";
 
@@ -48,6 +53,9 @@ public class FileArchiveClient {
 
     /** 锁定文件动作描述 */
     private static final String ACTION_LOCK = "锁定档案文件";
+
+    /** 读取文件内容动作描述 */
+    private static final String ACTION_DOWNLOAD = "读取档案文件内容";
 
     /** 响应数据中的文件ID字段 */
     private static final String FIELD_ID = "id";
@@ -140,5 +148,29 @@ public class FileArchiveClient {
                         }),
                 ACTION_LOCK);
         RemoteHttpSupport.requireData(response, ACTION_LOCK);
+    }
+
+    /**
+     * 读取文件二进制内容（经档案权限校验后的代理下载）。
+     *
+     * @param id 文件ID
+     * @return 文件字节内容
+     */
+    public byte[] content(Long id) {
+        byte[] content;
+        try {
+            content = restClient.get()
+                    .uri(CONTENT_PATH, id)
+                    .retrieve()
+                    .body(byte[].class);
+        } catch (HttpClientErrorException.NotFound e) {
+            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "档案文件不存在或已被删除");
+        } catch (Exception e) {
+            throw RemoteHttpSupport.failure(ACTION_DOWNLOAD, e.getMessage());
+        }
+        if (content == null) {
+            throw RemoteHttpSupport.failure(ACTION_DOWNLOAD, "文件内容为空");
+        }
+        return content;
     }
 }
