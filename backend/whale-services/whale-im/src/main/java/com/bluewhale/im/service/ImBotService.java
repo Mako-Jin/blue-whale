@@ -116,6 +116,35 @@ public class ImBotService {
     }
 
     /**
+     * 机器人展示名（群内 {@code @} 触发识别用）。
+     *
+     * @return 机器人展示名
+     */
+    public String botName() {
+        return botName;
+    }
+
+    /**
+     * 群聊启用机器人：补齐机器人成员与绑定关系（幂等自愈）。
+     *
+     * <p>群内首次 {@code @} 机器人时调用；若该群已被显式停用（{@code enabled=0}），
+     * 不重复启用，由调用方按启用位判定是否触发。</p>
+     *
+     * @param conversationId 群聊会话ID
+     * @return 绑定关系；查询不到返回 {@code null}
+     */
+    @Transactional
+    public ImAgentBinding ensureGroupBinding(Long conversationId) {
+        ensureMember(conversationId, botUserId, MEMBER_BOT, ROLE_MEMBER);
+        ensureBinding(conversationId);
+        LambdaQueryWrapper<ImAgentBinding> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ImAgentBinding::getConversationId, conversationId);
+        wrapper.eq(ImAgentBinding::getBotUserId, botUserId);
+        wrapper.last("LIMIT 1");
+        return bindingMapper.selectOne(wrapper);
+    }
+
+    /**
      * 定位当前用户既有的机器人会话。
      *
      * @param userId 当前用户ID

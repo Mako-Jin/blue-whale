@@ -1,6 +1,6 @@
 # Wave 5.52 规划：WebIM + LangChain 智能体
 
-> 制定日期：2026-10-24 ｜ 状态：**实现中**（M0 设计冻结 + M1 T2–T6、M2 T7–T8 已完成，见 §八）
+> 制定日期：2026-10-24 ｜ 状态：**实现中**（M0 设计冻结 + M1 T2–T6、M2 T7–T9 已完成，见 §八）
 > 关联：`whale-agent`（8090，Wave 5.47）、`whale-gateway`（8080）、`whale-file`（8085）、`whale-auth`（8081）
 
 ## 一、目标
@@ -189,7 +189,7 @@ intent ──> retrieve(knowledge/facts) ──> think ──> tools ──> ver
 
 - [x] T7 机器人账号与 BOT 会话初始化（2026-10-24 完成，85 用例全绿 + Checkstyle 0，见 devlog §十）
 - [x] T8 SSE → WS 帧转换、消息落库、超时降级（2026-10-24 完成，94 用例全绿 + Checkstyle 0，见 devlog §十一）
-- [ ] T9 群内 @ 触发与去重
+- [x] T9 群内 @ 触发与去重（2026-10-24 完成，101 用例全绿 + Checkstyle 0，见 devlog §十二）
 
 ### M3 LangChain 服务
 

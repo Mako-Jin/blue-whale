@@ -13,14 +13,18 @@ import com.bluewhale.im.mapper.ImMessageMapper;
 import com.bluewhale.im.support.AgentStreamClient;
 import com.bluewhale.im.ws.ImMessageBroadcaster;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -33,6 +37,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -78,13 +83,26 @@ class ImAgentChatServiceTest {
 
     private final ImBotService botService = mock(ImBotService.class);
 
+    private final StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+
+    private final ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
+
     private final ThreadPoolTaskExecutor executor = mock(ThreadPoolTaskExecutor.class);
 
     private final ObjectMapper objectMapper = JsonMapper.builder().build();
 
     private final ImAgentChatService service = new ImAgentChatService(bindingMapper, runMapper,
             conversationMapper, messageMapper, seqAllocator, broadcaster, client, botService,
-            objectMapper, executor);
+            redisTemplate, objectMapper, executor);
+
+    /**
+     * 绑定 Redis 值操作桩，默认允许首次触发。
+     */
+    @BeforeEach
+    void setUp() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.setIfAbsent(anyString(), anyString(), any(Duration.class))).thenReturn(true);
+    }
 
     @Test
     @DisplayName("成功链路：meta/delta/done 转帧，回复以 BOT 落库并推进序号")
@@ -199,6 +217,63 @@ class ImAgentChatServiceTest {
         verify(executor, never()).execute(any(Runnable.class));
     }
 
+    @Test
+    @DisplayName("群聊：@蓝鲸助手 触发智能体并透传权限码")
+    void shouldTriggerGroupWhenMentioningBot() throws Exception {
+        stubRunnableExecutor();
+        when(conversationMapper.selectById(CONVERSATION_ID)).thenReturn(groupConversation());
+        when(bindingMapper.selectOne(any())).thenReturn(binding());
+        when(botService.botName()).thenReturn("蓝鲸助手");
+        stubSuccessfulStream();
+
+        service.onUserMessage(groupMessage("@蓝鲸助手 平台架构如何？"), "sys:im:chat");
+
+        verify(client).stream(anyString(), eq(USER_ID), eq("sys:im:chat"), any());
+    }
+
+    @Test
+    @DisplayName("群聊：未 @ 机器人时不触发")
+    void shouldSkipGroupWithoutMention() throws Exception {
+        when(conversationMapper.selectById(CONVERSATION_ID)).thenReturn(groupConversation());
+        when(botService.botName()).thenReturn("蓝鲸助手");
+
+        service.onUserMessage(groupMessage("大家好"), null);
+
+        verify(executor, never()).execute(any(Runnable.class));
+        verify(client, never()).stream(anyString(), anyLong(), any(), any());
+    }
+
+    @Test
+    @DisplayName("群聊：首次 @ 时自愈补齐绑定并触发")
+    void shouldCreateBindingForGroupOnFirstMention() throws Exception {
+        stubRunnableExecutor();
+        when(conversationMapper.selectById(CONVERSATION_ID)).thenReturn(groupConversation());
+        when(bindingMapper.selectOne(any())).thenReturn(null);
+        when(botService.botName()).thenReturn("蓝鲸助手");
+        when(botService.ensureGroupBinding(CONVERSATION_ID)).thenReturn(binding());
+        stubSuccessfulStream();
+
+        service.onUserMessage(groupMessage("@蓝鲸助手 你好"), null);
+
+        verify(botService).ensureGroupBinding(CONVERSATION_ID);
+        verify(client).stream(anyString(), eq(USER_ID), any(), any());
+    }
+
+    @Test
+    @DisplayName("去重：同一消息重复投递只触发一次")
+    void shouldTriggerOncePerMessage() throws Exception {
+        stubRunnableExecutor();
+        when(conversationMapper.selectById(CONVERSATION_ID)).thenReturn(botConversation());
+        when(bindingMapper.selectOne(any())).thenReturn(binding());
+        when(valueOperations.setIfAbsent(anyString(), anyString(), any(Duration.class))).thenReturn(true, false);
+        stubSuccessfulStream();
+
+        service.onUserMessage(userMessage(), null);
+        service.onUserMessage(userMessage(), null);
+
+        verify(executor, times(1)).execute(any(Runnable.class));
+    }
+
     /**
      * 让线程池在当前线程同步执行，便于断言。
      */
@@ -207,6 +282,20 @@ class ImAgentChatServiceTest {
             invocation.getArgument(0, Runnable.class).run();
             return null;
         }).when(executor).execute(any(Runnable.class));
+    }
+
+    /**
+     * 桩：智能体返回增量与完成事件。
+     *
+     * @throws Exception 记录桩时可能抛出受检异常
+     */
+    private void stubSuccessfulStream() throws Exception {
+        doAnswer(invocation -> {
+            AgentStreamClient.EventHandler handler = invocation.getArgument(3);
+            handler.onEvent("delta", "{\"text\":\"你好\"}");
+            handler.onEvent("done", "{\"tokens\":1}");
+            return null;
+        }).when(client).stream(anyString(), anyLong(), any(), any());
     }
 
     /**
@@ -221,6 +310,33 @@ class ImAgentChatServiceTest {
         conversation.setOwnerId(USER_ID);
         conversation.setLastSeq(5L);
         return conversation;
+    }
+
+    /**
+     * 构造群聊会话。
+     *
+     * @return 会话实体
+     */
+    private static ImConversation groupConversation() {
+        ImConversation conversation = new ImConversation();
+        conversation.setId(CONVERSATION_ID);
+        conversation.setType("GROUP");
+        conversation.setTitle("项目群");
+        conversation.setOwnerId(USER_ID);
+        conversation.setLastSeq(5L);
+        return conversation;
+    }
+
+    /**
+     * 构造指定内容的用户消息。
+     *
+     * @param content 消息内容
+     * @return 消息实体
+     */
+    private static ImMessage groupMessage(String content) {
+        ImMessage message = userMessage();
+        message.setContent(content);
+        return message;
     }
 
     /**

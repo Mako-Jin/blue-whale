@@ -16,6 +16,7 @@ import com.bluewhale.im.ws.WsFrames;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -23,6 +24,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -45,6 +47,12 @@ public class ImAgentChatService {
 
     /** 会话类型：机器人会话 */
     private static final String TYPE_BOT = "BOT";
+
+    /** 触发去重键前缀（同一条消息只触发一次） */
+    private static final String TRIGGER_KEY_PREFIX = "whale:im:agent:trigger:";
+
+    /** 触发去重键有效期（小时） */
+    private static final long TRIGGER_TTL_HOURS = 24L;
 
     /** 发送者类型：机器人 */
     private static final String SENDER_BOT = "BOT";
@@ -98,6 +106,8 @@ public class ImAgentChatService {
 
     private final ImBotService botService;
 
+    private final StringRedisTemplate redisTemplate;
+
     private final ObjectMapper objectMapper;
 
     private final ThreadPoolTaskExecutor executor;
@@ -113,6 +123,7 @@ public class ImAgentChatService {
      * @param broadcaster       广播器
      * @param agentStreamClient 智能体流式客户端
      * @param botService        机器人会话服务（提供机器人ID）
+     * @param redisTemplate     Redis 模板（触发去重）
      * @param objectMapper      JSON 序列化器
      * @param executor          流式调用线程池
      */
@@ -120,7 +131,7 @@ public class ImAgentChatService {
                               ImConversationMapper conversationMapper, ImMessageMapper messageMapper,
                               MessageSeqAllocator seqAllocator, ImMessageBroadcaster broadcaster,
                               AgentStreamClient agentStreamClient, ImBotService botService,
-                              ObjectMapper objectMapper,
+                              StringRedisTemplate redisTemplate, ObjectMapper objectMapper,
                               @Qualifier("imAgentExecutor") ThreadPoolTaskExecutor executor) {
         this.bindingMapper = bindingMapper;
         this.runMapper = runMapper;
@@ -130,14 +141,19 @@ public class ImAgentChatService {
         this.broadcaster = broadcaster;
         this.agentStreamClient = agentStreamClient;
         this.botService = botService;
+        this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
         this.executor = executor;
     }
 
     /**
-     * 用户消息落库后触发机器人回答（仅 BOT 会话；群内 @ 触发由 T9 扩展）。
+     * 用户消息落库后触发机器人回答。
      *
-     * <p>异步执行，立即返回；无绑定、非 BOT 会话或内容为空时静默跳过。</p>
+     * <p>触发口径：{@code BOT} 会话直接触发；{@code GROUP} 会话仅在内容包含
+     * {@code @机器人名} 时触发，并在首次使用时补齐机器人成员与绑定。同一消息ID
+     * 通过 Redis 原子占位去重，重复投递（HTTP 重试/并发重发）只触发一次。</p>
+     *
+     * <p>异步执行，立即返回；无绑定、非目标会话或内容为空时静默跳过。</p>
      *
      * @param message         已落库的用户消息
      * @param permissionCodes 当前用户权限码（透传智能体做权限校验）
@@ -146,22 +162,83 @@ public class ImAgentChatService {
         if (message == null || !ImMessageService.SENDER_USER.equals(message.getSenderType())) {
             return;
         }
-        if (!StringUtils.hasText(message.getContent())) {
+        String content = message.getContent();
+        if (!StringUtils.hasText(content)) {
             return;
         }
         ImConversation conversation = conversationMapper.selectById(message.getConversationId());
-        if (conversation == null || !TYPE_BOT.equals(conversation.getType())) {
+        if (conversation == null) {
             return;
         }
-        ImAgentBinding binding = enabledBinding(conversation.getId());
+        ImAgentBinding binding = resolveBinding(conversation, content);
         if (binding == null) {
+            return;
+        }
+        if (!claimTrigger(message.getId())) {
+            log.debug("消息已触发过机器人，跳过重复投递: messageId={}", message.getId());
             return;
         }
         Long conversationId = conversation.getId();
         Long requestMessageId = message.getId();
         Long userId = message.getSenderId();
-        String question = message.getContent();
+        String question = content;
         executor.execute(() -> execute(conversationId, requestMessageId, userId, question, binding, permissionCodes));
+    }
+
+    /**
+     * 解析消息对应的机器人绑定：BOT 会话直接返回启用绑定；
+     * GROUP 会话在内容 {@code @机器人} 时返回启用绑定，缺失则自愈创建。
+     *
+     * @param conversation 会话
+     * @param content      用户消息内容
+     * @return 绑定；不满足触发条件返回 {@code null}
+     */
+    private ImAgentBinding resolveBinding(ImConversation conversation, String content) {
+        if (TYPE_BOT.equals(conversation.getType())) {
+            return enabledBinding(conversation.getId());
+        }
+        if (!ImConversationService.TYPE_GROUP.equals(conversation.getType()) || !mentionsBot(content)) {
+            return null;
+        }
+        ImAgentBinding binding = enabledBinding(conversation.getId());
+        if (binding != null) {
+            return binding;
+        }
+        ImAgentBinding ensured = botService.ensureGroupBinding(conversation.getId());
+        return ensured != null && Integer.valueOf(BINDING_ENABLED).equals(ensured.getEnabled()) ? ensured : null;
+    }
+
+    /**
+     * 判断消息是否包含 {@code @机器人名}。
+     *
+     * @param content 消息内容
+     * @return 包含返回 {@code true}
+     */
+    private boolean mentionsBot(String content) {
+        String botName = botService.botName();
+        return StringUtils.hasText(botName) && content.contains("@" + botName);
+    }
+
+    /**
+     * 原子占位：同一条消息只允许一次触发。
+     *
+     * <p>Redis 不可用时放行（宁可重复回答，不丢回答），仅记录告警。</p>
+     *
+     * @param messageId 触发消息ID
+     * @return 首次占位返回 {@code true}
+     */
+    private boolean claimTrigger(Long messageId) {
+        if (messageId == null) {
+            return false;
+        }
+        try {
+            Boolean claimed = redisTemplate.opsForValue()
+                    .setIfAbsent(TRIGGER_KEY_PREFIX + messageId, "1", Duration.ofHours(TRIGGER_TTL_HOURS));
+            return Boolean.TRUE.equals(claimed);
+        } catch (RuntimeException e) {
+            log.warn("机器人触发去重键写入失败，按未触发继续: messageId={}", messageId, e);
+            return true;
+        }
     }
 
     /**

@@ -142,6 +142,50 @@ class ImBotServiceTest {
         verify(memberMapper, times(1)).insert(any(ImConversationMember.class));
     }
 
+    @Test
+    @DisplayName("botName：返回配置的机器人展示名")
+    void shouldExposeBotName() {
+        assertEquals("蓝鲸助手", service.botName());
+    }
+
+    @Test
+    @DisplayName("ensureGroupBinding：补齐机器人成员与绑定并返回启用绑定")
+    void shouldEnsureGroupBinding() {
+        ImAgentBinding existing = new ImAgentBinding();
+        existing.setId(50L);
+        existing.setConversationId(CONVERSATION_ID);
+        existing.setBotUserId(BOT_USER_ID);
+        existing.setEnabled(1);
+        when(memberMapper.selectCount(any())).thenReturn(0L);
+        when(bindingMapper.selectCount(any())).thenReturn(0L);
+        when(bindingMapper.selectOne(any())).thenReturn(existing);
+
+        ImAgentBinding result = service.ensureGroupBinding(CONVERSATION_ID);
+
+        assertEquals(existing, result);
+        ArgumentCaptor<ImConversationMember> memberCaptor = ArgumentCaptor.forClass(ImConversationMember.class);
+        verify(memberMapper).insert(memberCaptor.capture());
+        assertEquals(Long.valueOf(BOT_USER_ID), memberCaptor.getValue().getUserId());
+        assertEquals("BOT", memberCaptor.getValue().getMemberType());
+        verify(bindingMapper).insert(any(ImAgentBinding.class));
+    }
+
+    @Test
+    @DisplayName("ensureGroupBinding：已被停用的绑定不重复启用")
+    void shouldKeepDisabledGroupBinding() {
+        ImAgentBinding disabled = new ImAgentBinding();
+        disabled.setId(50L);
+        disabled.setEnabled(0);
+        when(memberMapper.selectCount(any())).thenReturn(1L);
+        when(bindingMapper.selectCount(any())).thenReturn(1L);
+        when(bindingMapper.selectOne(any())).thenReturn(disabled);
+
+        ImAgentBinding result = service.ensureGroupBinding(CONVERSATION_ID);
+
+        assertEquals(0, result.getEnabled());
+        verify(bindingMapper, never()).insert(any(ImAgentBinding.class));
+    }
+
     /**
      * 构造既有 BOT 会话。
      *
