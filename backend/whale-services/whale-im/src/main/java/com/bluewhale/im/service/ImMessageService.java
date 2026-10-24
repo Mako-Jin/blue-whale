@@ -3,6 +3,7 @@ package com.bluewhale.im.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.im.dto.SendMessageRequest;
 import com.bluewhale.im.entity.ImConversation;
 import com.bluewhale.im.entity.ImConversationMember;
@@ -46,6 +47,15 @@ public class ImMessageService {
 
     /** 发送者类型：用户 */
     public static final String SENDER_USER = "USER";
+
+    /** 会话类型：群聊 */
+    private static final String TYPE_GROUP = "GROUP";
+
+    /** 会话角色：群主 */
+    private static final String ROLE_OWNER = "OWNER";
+
+    /** 会话角色：管理员 */
+    private static final String ROLE_ADMIN = "ADMIN";
 
     /** 消息状态：正常 */
     private static final int STATUS_NORMAL = 1;
@@ -175,7 +185,7 @@ public class ImMessageService {
     }
 
     /**
-     * 撤回消息：仅发送者本人、且在该会话撤回时限内可撤回。
+     * 撤回消息：发送者本人（限时）或群主/管理员（不限时）可撤回。
      *
      * <p>撤回后清空消息内容并将状态置为 {@value #STATUS_RECALLED}，向会话成员推送
      * {@code message.recalled} 帧；重复撤回幂等返回，不重复广播。</p>
@@ -186,19 +196,24 @@ public class ImMessageService {
      */
     @Transactional
     public void recall(Long conversationId, Long userId, Long messageId) {
-        guard.requireMember(conversationId, userId);
+        ImConversation conversation = guard.requireMember(conversationId, userId);
         ImMessage message = messageMapper.selectById(messageId);
         if (message == null || !Objects.equals(message.getConversationId(), conversationId)) {
-            throw new BizException("消息不存在或无权撤回");
+            throw new BizException(ErrorCode.NOT_FOUND, "消息不存在或无权撤回");
         }
-        if (!Objects.equals(message.getSenderId(), userId)) {
-            throw new BizException("只能撤回自己发送的消息");
+        ImConversationMember operator = guard.requireMemberRecord(conversationId, userId);
+        boolean self = Objects.equals(message.getSenderId(), userId);
+        boolean manager = TYPE_GROUP.equals(conversation.getType())
+                && operator != null
+                && (ROLE_OWNER.equals(operator.getRole()) || ROLE_ADMIN.equals(operator.getRole()));
+        if (!self && !manager) {
+            throw new BizException(ErrorCode.FORBIDDEN, "只能撤回自己发送的消息");
         }
         if (Integer.valueOf(STATUS_RECALLED).equals(message.getStatus())) {
             return;
         }
-        if (isRecallExpired(message)) {
-            throw new BizException("超过撤回时限");
+        if (self && isRecallExpired(message)) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "超过撤回时限");
         }
         LambdaUpdateWrapper<ImMessage> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(ImMessage::getId, messageId);
@@ -272,7 +287,7 @@ public class ImMessageService {
                 log.warn("消息序号冲突，重新分配: conversationId={}, seq={}", conversation.getId(), seq);
             }
         }
-        throw new BizException("消息发送繁忙，请稍后重试");
+        throw new BizException(ErrorCode.LOCK_ACQUIRE_FAILED, "消息发送繁忙，请稍后重试");
     }
 
     /**

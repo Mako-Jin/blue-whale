@@ -100,6 +100,7 @@ export default function App() {
                 loading={im.loadingMessages}
                 hasMore={im.hasMore}
                 runByMessageId={im.runByMessageId}
+                onResolveRunId={im.resolveRunId}
                 onLoadMore={() => {
                   void im.loadMore();
                 }}

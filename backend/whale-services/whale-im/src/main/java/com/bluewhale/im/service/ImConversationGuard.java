@@ -2,6 +2,7 @@ package com.bluewhale.im.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.im.entity.ImConversation;
 import com.bluewhale.im.entity.ImConversationMember;
 import com.bluewhale.im.mapper.ImConversationMapper;
@@ -36,10 +37,10 @@ public class ImConversationGuard {
     public ImConversation requireMember(Long conversationId, Long userId) {
         ImConversation conversation = conversationMapper.selectById(conversationId);
         if (conversation == null) {
-            throw new BizException("会话不存在或无权访问");
+            throw new BizException(ErrorCode.NOT_FOUND, "会话不存在或无权访问");
         }
         if (requireMemberRecord(conversationId, userId) == null) {
-            throw new BizException("会话不存在或无权访问");
+            throw new BizException(ErrorCode.NOT_FOUND, "会话不存在或无权访问");
         }
         return conversation;
     }

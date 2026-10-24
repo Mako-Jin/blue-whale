@@ -31,6 +31,9 @@ public class ImConversation extends BaseEntity {
     /** 会话创建人ID（逻辑关联 sys_user.id） */
     private Long ownerId;
 
+    /** 幂等键：单聊=用户对、机器人会话=用户ID、群聊为空 */
+    private String pairKey;
+
     /** 当前最大消息序号 */
     private Long lastSeq;
 

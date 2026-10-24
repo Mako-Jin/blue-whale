@@ -2,6 +2,7 @@ package com.bluewhale.auth.domain.user.repository;
 
 import com.bluewhale.auth.domain.user.aggregate.User;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -68,6 +69,14 @@ public interface UserRepository {
      * @return 用户分页结果
      */
     UserPage page(long current, long size, String keyword);
+
+    /**
+     * 批量查询「启用」状态的用户 ID（供服务间成员合法性校验使用）
+     *
+     * @param ids 待校验用户 ID 集合（调用方保证去重）
+     * @return 存在且启用的用户 ID 列表；入参为空时返回空列表
+     */
+    List<Long> findEnabledIds(Collection<Long> ids);
 
     /**
      * 删除用户（逻辑删除用户并按物理删除清理用户-角色关联）

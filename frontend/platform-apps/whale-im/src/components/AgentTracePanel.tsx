@@ -11,7 +11,9 @@ const logger = createLogger('whale-im › trace');
 const { Text } = Typography;
 
 interface AgentTracePanelProps {
-  runId: string;
+  runId?: string;
+  /** 历史消息按消息ID懒加载运行ID */
+  resolveRunId?: () => Promise<string | undefined>;
 }
 
 /** 引用条目：展示编号/标题/路径，路径可复制 */
@@ -116,7 +118,7 @@ function TraceBody({
   );
 }
 
-export default function AgentTracePanel({ runId }: AgentTracePanelProps) {
+export default function AgentTracePanel({ runId, resolveRunId }: AgentTracePanelProps) {
   const [openKeys, setOpenKeys] = useState<string[]>([]);
   const [detail, setDetail] = useState<AgentRunDetail | null>(null);
   const [loading, setLoading] = useState(false);
@@ -128,8 +130,14 @@ export default function AgentTracePanel({ runId }: AgentTracePanelProps) {
     }
     let cancelled = false;
     setLoading(true);
-    imApi
-      .getRun(runId)
+    const load = async (): Promise<AgentRunDetail> => {
+      const id = runId ?? (await resolveRunId?.());
+      if (!id) {
+        throw new Error('缺少运行记录ID');
+      }
+      return imApi.getRun(id);
+    };
+    load()
       .then((result) => {
         if (!cancelled) {
           setDetail(result);
@@ -149,7 +157,7 @@ export default function AgentTracePanel({ runId }: AgentTracePanelProps) {
     return () => {
       cancelled = true;
     };
-  }, [openKeys, detail, loading, runId]);
+  }, [openKeys, detail, loading, resolveRunId, runId]);
 
   return (
     <Collapse

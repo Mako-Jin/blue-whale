@@ -28,6 +28,18 @@ public class BizException extends RuntimeException {
     }
 
     /**
+     * 以错误码枚举与消息构造业务异常
+     *
+     * <p>保留枚举的状态码，仅覆盖提示文案，供同一状态码下按场景给出更具体的说明。</p>
+     *
+     * @param errorCode 错误码枚举
+     * @param message 错误消息
+     */
+    public BizException(ErrorCode errorCode, String message) {
+        this(errorCode.getCode(), message);
+    }
+
+    /**
      * 以错误码与消息构造业务异常
      *
      * @param code 错误码

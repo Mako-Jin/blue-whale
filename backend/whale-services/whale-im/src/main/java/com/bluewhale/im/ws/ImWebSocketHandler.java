@@ -69,7 +69,10 @@ public class ImWebSocketHandler extends TextWebSocketHandler {
             closeQuietly(session, CloseStatus.POLICY_VIOLATION);
             return;
         }
-        registry.register(userId, session);
+        if (!registry.register(userId, session)) {
+            closeQuietly(session, CloseStatus.POLICY_VIOLATION);
+            return;
+        }
         presenceService.touch(userId);
         registry.send(userId, WsFrames.ready(userId, heartbeatSeconds));
         log.info("WS 已连接: userId={}, sessionId={}", userId, session.getId());

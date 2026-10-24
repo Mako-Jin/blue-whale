@@ -57,6 +57,8 @@ class ImWebSocketHandlerTest {
     @Test
     @DisplayName("连接建立：注册会话、标记在线并下发 ready 首帧")
     void connectShouldRegisterAndSendReady() {
+        when(registry.register(USER_ID, session)).thenReturn(true);
+
         handler.afterConnectionEstablished(session);
 
         verify(registry).register(USER_ID, session);

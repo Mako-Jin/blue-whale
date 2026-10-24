@@ -6,8 +6,11 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.im.entity.ImConversation;
 import com.bluewhale.im.entity.ImConversationMember;
 import com.bluewhale.im.mapper.ImConversationMemberMapper;
+import com.bluewhale.im.support.UserDirectoryClient;
 import com.bluewhale.im.vo.MemberVO;
+import com.bluewhale.im.ws.ImMessageBroadcaster;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -49,7 +52,19 @@ class ImMemberServiceTest {
 
     private final ImConversationGuard guard = mock(ImConversationGuard.class);
 
-    private final ImMemberService service = new ImMemberService(memberMapper, guard);
+    private final ImMessageBroadcaster broadcaster = mock(ImMessageBroadcaster.class);
+
+    private final UserDirectoryClient userDirectoryClient = mock(UserDirectoryClient.class);
+
+    private final ImMemberService service = new ImMemberService(memberMapper, guard, broadcaster, userDirectoryClient);
+
+    /**
+     * 默认放行成员合法性校验，具体用例按需覆盖。
+     */
+    @BeforeEach
+    void setUp() {
+        when(userDirectoryClient.missingUserIds(any())).thenReturn(List.of());
+    }
 
     @Test
     @DisplayName("list：群主优先，其余按角色排序，用户ID以字符串输出")
@@ -152,6 +167,7 @@ class ImMemberServiceTest {
         service.remove(CONVERSATION_ID, OPERATOR_ID, MEMBER_ID);
 
         verify(memberMapper).deleteMember(CONVERSATION_ID, MEMBER_ID);
+        verify(broadcaster).broadcastMemberChanged(CONVERSATION_ID, "REMOVE", MEMBER_ID);
     }
 
     @Test
@@ -173,6 +189,7 @@ class ImMemberServiceTest {
         service.quit(CONVERSATION_ID, OPERATOR_ID);
 
         verify(memberMapper).deleteMember(CONVERSATION_ID, OPERATOR_ID);
+        verify(broadcaster).broadcastMemberChanged(CONVERSATION_ID, "QUIT", OPERATOR_ID);
     }
 
     @Test

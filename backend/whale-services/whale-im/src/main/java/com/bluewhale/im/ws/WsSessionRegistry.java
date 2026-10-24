@@ -33,6 +33,9 @@ public class WsSessionRegistry {
     /** Jackson 序列化器（Spring 管理的 Jackson 3 实例） */
     private final ObjectMapper objectMapper;
 
+    /** 单用户最大并行连接数（多端登录上限） */
+    private static final int MAX_SESSIONS_PER_USER = 5;
+
     /** 用户ID → 该用户的全部在线会话 */
     private final Map<Long, Set<WebSocketSession>> sessions = new ConcurrentHashMap<>();
 
@@ -41,9 +44,17 @@ public class WsSessionRegistry {
      *
      * @param userId  用户ID
      * @param session WebSocket 会话
+     * @return 是否注册成功；超过单用户连接上限返回 {@code false}
      */
-    public void register(Long userId, WebSocketSession session) {
-        sessions.computeIfAbsent(userId, key -> ConcurrentHashMap.newKeySet()).add(session);
+    public boolean register(Long userId, WebSocketSession session) {
+        Set<WebSocketSession> userSessions = sessions.computeIfAbsent(userId, key -> ConcurrentHashMap.newKeySet());
+        synchronized (userSessions) {
+            if (userSessions.size() >= MAX_SESSIONS_PER_USER) {
+                log.warn("WS 连接数超过上限，拒绝新连接: userId={}", userId);
+                return false;
+            }
+            return userSessions.add(session);
+        }
     }
 
     /**

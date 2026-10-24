@@ -207,12 +207,25 @@ public class ImAgentChatService {
         Long conversationId = conversation.getId();
         Long requestMessageId = message.getId();
         Long userId = message.getSenderId();
-        String question = content;
+        String question = TYPE_BOT.equals(conversation.getType()) ? content : stripMention(content);
         if (!allowWithinRateLimit(userId)) {
             notifyRateLimited(conversationId);
             return;
         }
         executor.execute(() -> execute(conversationId, requestMessageId, userId, question, binding, permissionCodes));
+    }
+
+    /**
+     * 去掉群消息中的 {@code @机器人名} 前缀，避免把称呼拼进问题。
+     *
+     * <p>清洗后为空（仅 {@code @} 机器人）时回退原文，交给智能体按空问题处理。</p>
+     *
+     * @param content 原始消息
+     * @return 清洗后的问题
+     */
+    private String stripMention(String content) {
+        String cleaned = content.replace("@" + botService.botName(), " ").trim();
+        return StringUtils.hasText(cleaned) ? cleaned : content;
     }
 
     /**
@@ -388,7 +401,7 @@ public class ImAgentChatService {
         switch (event) {
             case "meta" -> handleMeta(run, conversationId, binding, node, state);
             case "delta" -> handleDelta(run, conversationId, node, state);
-            case "tool" -> state.tools.add(AgentTraceMasker.mask(copyValue(node)));
+            case "tool" -> handleTool(run, conversationId, node, state);
             case "confirm" -> handleConfirm(run, conversationId, node, state);
             case "done" -> handleDone(node, state);
             case "error" -> throw new IOException(text(node, "message", "智能体执行失败"));
@@ -436,6 +449,20 @@ public class ImAgentChatService {
         }
         state.answer.append(chunk);
         broadcaster.broadcastFrame(conversationId, WsFrames.agentDelta(conversationId, run.getId(), chunk));
+    }
+
+    /**
+     * 处理 {@code tool} 事件：脱敏后累积轨迹并实时推送 {@code agent.tool} 帧。
+     *
+     * @param run            运行记录
+     * @param conversationId 会话ID
+     * @param node           事件 JSON
+     * @param state          运行状态
+     */
+    private void handleTool(ImAgentRun run, Long conversationId, JsonNode node, RunState state) {
+        Object masked = AgentTraceMasker.mask(copyValue(node));
+        state.tools.add(masked);
+        broadcaster.broadcastFrame(conversationId, WsFrames.agentTool(conversationId, run.getId(), masked));
     }
 
     /**

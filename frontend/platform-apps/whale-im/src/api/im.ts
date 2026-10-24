@@ -144,6 +144,11 @@ export const imApi = {
   quit: (id: string) => post<void>(`/im/conversations/${id}/quit`),
   wsTicket: () => post<WsTicketVO>('/im/ws-ticket'),
   getRun: (id: string) => get<AgentRunDetail>(`/im/agent-runs/${id}`),
+  /** 按机器人回复消息ID定位运行记录（历史消息轨迹入口） */
+  getRunByMessage: (messageId: string) =>
+    get<{ runId: string }>(`/im/agent-runs/by-message/${messageId}`),
+  submitFeedback: (id: string, rating: 'UP' | 'DOWN') =>
+    post<void>(`/im/agent-runs/${id}/feedback`, { rating }),
   confirmRun: (id: string, approved: boolean) =>
     post<Record<string, unknown>>(`/im/agent-runs/${id}/confirm`, { approved }),
 };

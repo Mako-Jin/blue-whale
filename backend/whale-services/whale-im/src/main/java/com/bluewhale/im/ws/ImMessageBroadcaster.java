@@ -89,6 +89,25 @@ public class ImMessageBroadcaster {
     }
 
     /**
+     * 向会话全部成员推送群成员变更通知。
+     *
+     * @param conversationId 会话ID
+     * @param action         动作
+     * @param userId         变更用户ID
+     */
+    public void broadcastMemberChanged(Long conversationId, String action, Long userId) {
+        try {
+            List<Long> memberIds = memberIds(conversationId);
+            if (memberIds.isEmpty()) {
+                return;
+            }
+            registry.send(memberIds, WsFrames.memberChanged(conversationId, action, userId));
+        } catch (RuntimeException e) {
+            log.warn("成员变更通知推送失败: conversationId={}, action={}", conversationId, action, e);
+        }
+    }
+
+    /**
      * 查询会话成员用户ID。
      *
      * @param conversationId 会话ID

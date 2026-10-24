@@ -29,6 +29,9 @@ class WsSessionRegistryTest {
 
     private static final long USER_ID = 10L;
 
+    /** 与 {@link WsSessionRegistry} 的单用户连接上限保持一致 */
+    private static final int MAX_SESSIONS = 5;
+
     private final ObjectMapper objectMapper = JsonMapper.builder().build();
 
     private final WsSessionRegistry registry = new WsSessionRegistry(objectMapper);
@@ -64,6 +67,16 @@ class WsSessionRegistryTest {
 
         assertFalse(registry.unregister(USER_ID, session));
         assertTrue(registry.unregister(USER_ID, second));
+    }
+
+    @Test
+    @DisplayName("register：单用户超过连接上限时拒绝新连接")
+    void registerShouldRejectOverLimit() {
+        for (int i = 0; i < MAX_SESSIONS; i++) {
+            assertTrue(registry.register(USER_ID, mock(WebSocketSession.class)));
+        }
+
+        assertFalse(registry.register(USER_ID, mock(WebSocketSession.class)));
     }
 
     @Test

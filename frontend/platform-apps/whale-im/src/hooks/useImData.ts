@@ -64,6 +64,7 @@ export function useImData() {
   const activeIdRef = useRef<string | null>(null);
   const messagesRef = useRef<MessageVO[]>([]);
   const conversationsRef = useRef<ConversationVO[]>([]);
+  const runByMessageIdRef = useRef<Record<string, string>>({});
 
   useEffect(() => {
     activeIdRef.current = activeId;
@@ -76,6 +77,10 @@ export function useImData() {
   useEffect(() => {
     conversationsRef.current = conversations;
   }, [conversations]);
+
+  useEffect(() => {
+    runByMessageIdRef.current = runByMessageId;
+  }, [runByMessageId]);
 
   /** 会话列表加载（按最后活跃时间倒序） */
   const loadConversations = useCallback(async () => {
@@ -458,12 +463,56 @@ export function useImData() {
           setStreaming((prev) => prev.filter((item) => item.runId !== runId));
           break;
         }
+        case 'member.changed': {
+          const conversationId = String(frame.conversationId ?? '');
+          if (!conversationId) {
+            return;
+          }
+          if (frame.action === 'DISSOLVED') {
+            if (conversationId === activeIdRef.current) {
+              setActiveId(null);
+              activeIdRef.current = null;
+              setMessages([]);
+              setMembers([]);
+            }
+            setConversations((prev) => prev.filter((item) => item.id !== conversationId));
+            message.warning('该群聊已解散');
+            return;
+          }
+          if (conversationId === activeIdRef.current) {
+            void reloadMembers();
+          }
+          void loadConversations();
+          break;
+        }
         default:
           break;
       }
     },
-    [applyIncomingMessage],
+    [applyIncomingMessage, loadConversations, message, reloadMembers],
   );
+
+  /**
+   * 历史机器人消息按 messageId 懒加载运行ID（工具轨迹与反馈入口）。
+   *
+   * 命中缓存直接返回；未命中调用后端定位并写回缓存，失败返回 undefined。
+   */
+  const resolveRunId = useCallback(async (messageId: string): Promise<string | undefined> => {
+    const known = runByMessageIdRef.current[messageId];
+    if (known) {
+      return known;
+    }
+    try {
+      const found = await imApi.getRunByMessage(messageId);
+      if (found?.runId) {
+        setRunByMessageId((prev) => ({ ...prev, [messageId]: found.runId }));
+        return found.runId;
+      }
+    } catch (error) {
+      logger.warn('运行记录定位失败', error);
+    }
+    return undefined;
+  }, []);
 
   /** 重连后：刷新会话列表 + 按 lastSeq 补拉当前会话 */
   const refreshAfterReconnect = useCallback(async () => {
@@ -513,6 +562,7 @@ export function useImData() {
     createConversation,
     openBotConversation,
     handleFrame,
+    resolveRunId,
     refreshAfterReconnect,
   };
 }

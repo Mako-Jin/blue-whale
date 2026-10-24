@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -26,6 +27,9 @@ import java.util.Optional;
 @Repository
 @RequiredArgsConstructor
 public class UserRepositoryImpl implements UserRepository {
+
+    /** 状态：启用 */
+    private static final int STATUS_ENABLED = 1;
 
     private final SysUserMapper userMapper;
     private final SysUserRoleMapper userRoleMapper;
@@ -88,6 +92,18 @@ public class UserRepositoryImpl implements UserRepository {
         Page<SysUser> page = userMapper.selectPage(new Page<>(current, size), wrapper);
         List<User> records = page.getRecords().stream().map(UserPersistenceAssembler::toDomain).toList();
         return new UserPage(records, page.getTotal());
+    }
+
+    @Override
+    public List<Long> findEnabledIds(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
+        wrapper.select(SysUser::getId);
+        wrapper.in(SysUser::getId, ids);
+        wrapper.eq(SysUser::getStatus, STATUS_ENABLED);
+        return userMapper.selectList(wrapper).stream().map(SysUser::getId).toList();
     }
 
     @Override

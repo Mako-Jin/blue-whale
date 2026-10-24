@@ -13,6 +13,7 @@ import {
 } from '@ant-design/icons';
 import { createLogger } from '@bluewhale/whale-common-tools';
 import type { AttachmentData, ConfirmationCardData, MessageVO } from '../api/im';
+import { imApi } from '../api/im';
 import { downloadFile, previewBlob } from '../api/file';
 import { formatSize, formatTime, previewText } from '../utils/format';
 import { renderMarkdown } from '../utils/markdown';
@@ -30,6 +31,7 @@ interface MessageItemProps {
   senderName: string;
   replied?: MessageVO | null;
   runId?: string;
+  onResolveRunId: (messageId: string) => Promise<string | undefined>;
   onRecall: (messageId: string) => void;
   onJumpTo: (messageId: string) => void;
 }
@@ -151,23 +153,43 @@ function AttachmentFile({ data }: { data: AttachmentData }) {
   );
 }
 
-/** 机器人反馈（本地记录，后端反馈接口待后续） */
-function BotFeedback({ runId }: { runId: string }) {
-  const [value, setValue] = useState<FeedbackValue | null>(null);
+/** 机器人反馈：优先写后端运行记录，失败时保留本地记录兜底 */
+function BotFeedback({
+  messageId,
+  runId,
+  onResolveRunId,
+}: {
+  messageId: string;
+  runId?: string;
+  onResolveRunId: (messageId: string) => Promise<string | undefined>;
+}) {
+  const [value, setValue] = useState<FeedbackValue | null>(() => readFeedback()[messageId] ?? null);
+  const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    setValue(readFeedback()[runId] ?? null);
-  }, [runId]);
-
-  const toggle = (next: FeedbackValue) => {
+  const toggle = async (next: FeedbackValue) => {
     const store = readFeedback();
-    if (store[runId] === next) {
-      delete store[runId];
+    if (store[messageId] === next) {
+      delete store[messageId];
     } else {
-      store[runId] = next;
+      store[messageId] = next;
     }
     localStorage.setItem(FEEDBACK_KEY, JSON.stringify(store));
-    setValue(store[runId] ?? null);
+    setValue(store[messageId] ?? null);
+    if (!store[messageId]) {
+      return;
+    }
+    const effectiveRunId = runId ?? (await onResolveRunId(messageId));
+    if (!effectiveRunId) {
+      return;
+    }
+    setBusy(true);
+    try {
+      await imApi.submitFeedback(effectiveRunId, next === 'up' ? 'UP' : 'DOWN');
+    } catch (error) {
+      logger.warn('反馈提交失败，已保留本地记录', error);
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -176,15 +198,21 @@ function BotFeedback({ runId }: { runId: string }) {
         size="small"
         type="text"
         aria-label="回答有帮助"
+        disabled={busy}
         icon={value === 'up' ? <LikeFilled style={{ color: '#1677ff' }} /> : <LikeOutlined />}
-        onClick={() => toggle('up')}
+        onClick={() => {
+          void toggle('up');
+        }}
       />
       <Button
         size="small"
         type="text"
         aria-label="回答无帮助"
+        disabled={busy}
         icon={value === 'down' ? <DislikeFilled style={{ color: '#ff4d4f' }} /> : <DislikeOutlined />}
-        onClick={() => toggle('down')}
+        onClick={() => {
+          void toggle('down');
+        }}
       />
     </Space>
   );
@@ -223,6 +251,7 @@ export default function MessageItem({
   senderName,
   replied,
   runId,
+  onResolveRunId,
   onRecall,
   onJumpTo,
 }: MessageItemProps) {
@@ -275,10 +304,10 @@ export default function MessageItem({
           )}
           <MessageContent message={message} runId={runId} />
         </div>
-        {isBot && runId && (
+        {isBot && (runId || message.contentType === 'MARKDOWN') && (
           <div className="im-bot-actions">
-            <AgentTracePanel runId={runId} />
-            <BotFeedback runId={runId} />
+            <AgentTracePanel runId={runId} resolveRunId={() => onResolveRunId(message.id)} />
+            <BotFeedback messageId={message.id} runId={runId} onResolveRunId={onResolveRunId} />
           </div>
         )}
         {isMe && (

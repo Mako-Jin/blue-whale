@@ -3,14 +3,18 @@ package com.bluewhale.im.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.im.dto.CreateConversationRequest;
 import com.bluewhale.im.entity.ImConversation;
 import com.bluewhale.im.entity.ImConversationMember;
 import com.bluewhale.im.mapper.ImConversationMapper;
 import com.bluewhale.im.mapper.ImConversationMemberMapper;
+import com.bluewhale.im.support.UserDirectoryClient;
 import com.bluewhale.im.vo.ConversationVO;
 import com.bluewhale.im.vo.MessageVO;
+import com.bluewhale.im.ws.ImMessageBroadcaster;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -69,6 +73,10 @@ public class ImConversationService {
 
     private final ImMessageService messageService;
 
+    private final ImMessageBroadcaster broadcaster;
+
+    private final UserDirectoryClient userDirectoryClient;
+
     /**
      * 创建会话。
      *
@@ -84,28 +92,95 @@ public class ImConversationService {
         String type = request.getType();
         List<Long> others = normalizeMembers(request.getMemberIds(), userId);
         if (TYPE_SINGLE.equals(type) && others.size() != 1) {
-            throw new BizException("单聊必须且只能指定 1 位对方");
+            throw new BizException(ErrorCode.PARAM_ERROR, "单聊必须且只能指定 1 位对方");
         }
         if (!TYPE_SINGLE.equals(type)) {
             if (!StringUtils.hasText(request.getTitle())) {
-                throw new BizException("群聊必须填写标题");
+                throw new BizException(ErrorCode.PARAM_ERROR, "群聊必须填写标题");
             }
             if (others.size() > MAX_MEMBERS - 1) {
-                throw new BizException("群成员上限 200 人");
+                throw new BizException(ErrorCode.PARAM_ERROR, "群成员上限 200 人");
+            }
+        }
+        requireExistingUsers(others);
+        String pairKey = TYPE_SINGLE.equals(type) ? singlePairKey(userId, others.get(0)) : null;
+        if (pairKey != null) {
+            ImConversation existing = findByPairKey(pairKey);
+            if (existing != null) {
+                return existing;
             }
         }
         ImConversation conversation = new ImConversation();
         conversation.setType(type);
         conversation.setTitle(TYPE_SINGLE.equals(type) ? null : request.getTitle().trim());
         conversation.setOwnerId(userId);
+        conversation.setPairKey(pairKey);
         conversation.setLastSeq(0L);
         conversation.setLastActiveAt(LocalDateTime.now());
-        conversationMapper.insert(conversation);
+        try {
+            conversationMapper.insert(conversation);
+        } catch (DuplicateKeyException e) {
+            // 并发重复创建：唯一索引兜底，返回先落库的会话
+            ImConversation existing = pairKey == null ? null : findByPairKey(pairKey);
+            if (existing == null) {
+                throw e;
+            }
+            return existing;
+        }
         addMember(conversation.getId(), userId, ROLE_OWNER);
         for (Long other : others) {
             addMember(conversation.getId(), other, ROLE_MEMBER);
         }
         return conversation;
+    }
+
+    /**
+     * 转让群主（仅现任群主可操作，目标必须是群成员）。
+     *
+     * @param conversationId 会话ID
+     * @param operatorId     操作人ID
+     * @param targetUserId   新群主ID
+     */
+    @Transactional
+    public void transfer(Long conversationId, Long operatorId, Long targetUserId) {
+        ImConversation conversation = guard.requireMember(conversationId, operatorId);
+        requireGroup(conversation);
+        ImConversationMember operator = guard.requireMemberRecord(conversationId, operatorId);
+        if (operator == null || !ROLE_OWNER.equals(operator.getRole())) {
+            throw new BizException(ErrorCode.FORBIDDEN, "仅群主可以转让群聊");
+        }
+        if (Objects.equals(operatorId, targetUserId)) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "不能转让给自己");
+        }
+        ImConversationMember target = guard.requireMemberRecord(conversationId, targetUserId);
+        if (target == null) {
+            throw new BizException(ErrorCode.NOT_FOUND, "该用户不是群成员");
+        }
+        LambdaUpdateWrapper<ImConversation> ownerWrapper = new LambdaUpdateWrapper<>();
+        ownerWrapper.eq(ImConversation::getId, conversationId);
+        ownerWrapper.set(ImConversation::getOwnerId, targetUserId);
+        conversationMapper.update(null, ownerWrapper);
+        updateRole(conversationId, operatorId, ROLE_MEMBER);
+        updateRole(conversationId, targetUserId, ROLE_OWNER);
+        broadcaster.broadcastMemberChanged(conversationId, "TRANSFER", targetUserId);
+    }
+
+    /**
+     * 解散群聊（仅群主可操作，逻辑删除会话后成员不可再访问）。
+     *
+     * @param conversationId 会话ID
+     * @param operatorId     操作人ID
+     */
+    @Transactional
+    public void dissolve(Long conversationId, Long operatorId) {
+        ImConversation conversation = guard.requireMember(conversationId, operatorId);
+        requireGroup(conversation);
+        ImConversationMember operator = guard.requireMemberRecord(conversationId, operatorId);
+        if (operator == null || !ROLE_OWNER.equals(operator.getRole())) {
+            throw new BizException(ErrorCode.FORBIDDEN, "仅群主可以解散群聊");
+        }
+        broadcaster.broadcastMemberChanged(conversationId, "DISSOLVED", operatorId);
+        conversationMapper.deleteById(conversationId);
     }
 
     /**
@@ -192,6 +267,76 @@ public class ImConversationService {
                 .lastActiveAt(format(conversation.getLastActiveAt()))
                 .lastMessage(lastMessage)
                 .build();
+    }
+
+    /**
+     * 按幂等键查询会话。
+     *
+     * @param pairKey 幂等键
+     * @return 会话；不存在返回 {@code null}
+     */
+    private ImConversation findByPairKey(String pairKey) {
+        LambdaQueryWrapper<ImConversation> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ImConversation::getPairKey, pairKey);
+        wrapper.last("LIMIT 1");
+        return conversationMapper.selectOne(wrapper);
+    }
+
+    /**
+     * 单聊幂等键（用户ID升序，保证双方口径一致）。
+     *
+     * @param left  用户A
+     * @param right 用户B
+     * @return 幂等键
+     */
+    private static String singlePairKey(Long left, Long right) {
+        long min = Math.min(left, right);
+        long max = Math.max(left, right);
+        return "S:" + min + ":" + max;
+    }
+
+    /**
+     * 校验会话为群聊。
+     *
+     * @param conversation 会话
+     */
+    private static void requireGroup(ImConversation conversation) {
+        if (!TYPE_GROUP.equals(conversation.getType())) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "仅群聊支持该操作");
+        }
+    }
+
+    /**
+     * 校验成员用户真实存在且启用。
+     *
+     * <p>用户目录不可用（校验关闭 / 无实例 / 调用失败）时跳过校验，避免 IM 主流程被
+     * 认证服务的瞬时故障阻断；仅在拿到结果时拒绝不存在或已停用的用户。</p>
+     *
+     * @param userIds 待校验用户ID
+     */
+    private void requireExistingUsers(List<Long> userIds) {
+        if (userIds.isEmpty()) {
+            return;
+        }
+        List<Long> missing = userDirectoryClient.missingUserIds(userIds);
+        if (!missing.isEmpty()) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "以下用户不存在或已停用: " + missing);
+        }
+    }
+
+    /**
+     * 更新成员角色。
+     *
+     * @param conversationId 会话ID
+     * @param userId         成员用户ID
+     * @param role           新角色
+     */
+    private void updateRole(Long conversationId, Long userId, String role) {
+        LambdaUpdateWrapper<ImConversationMember> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(ImConversationMember::getConversationId, conversationId);
+        wrapper.eq(ImConversationMember::getUserId, userId);
+        wrapper.set(ImConversationMember::getRole, role);
+        memberMapper.update(null, wrapper);
     }
 
     /**

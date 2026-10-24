@@ -1,6 +1,7 @@
 package com.bluewhale.im.service;
 
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.im.vo.WsTicketVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -57,7 +58,7 @@ public class WsTicketService {
                     Duration.ofSeconds(ticketTtlSeconds));
         } catch (RuntimeException e) {
             log.error("WS ticket 写入失败: userId={}", userId, e);
-            throw new BizException("即时通讯通道暂不可用，请稍后重试");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "即时通讯通道暂不可用，请稍后重试");
         }
         return WsTicketVO.builder().ticket(ticket).expiresIn(ticketTtlSeconds).build();
     }

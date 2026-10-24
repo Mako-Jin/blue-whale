@@ -50,6 +50,14 @@ whale:
       presence-ttl-seconds: ${WHALE_IM_PRESENCE_TTL_SECONDS:90}
     # 消息撤回时限（秒）：自落库起算，超时不允许撤回
     recall-window-seconds: ${WHALE_IM_RECALL_WINDOW_SECONDS:120}
+    # 群成员合法性校验：创建会话 / 添加群成员前经内网调用 whale-auth POST /user/internal/exists
+    member:
+      validation-enabled: ${WHALE_IM_MEMBER_VALIDATION_ENABLED:true}
+      timeout-seconds: ${WHALE_IM_MEMBER_VALIDATION_TIMEOUT_SECONDS:3}
+    # 用户目录服务（默认走 Nacos 服务发现；显式 base-url 时优先使用，便于本地联调）
+    auth:
+      service-name: ${WHALE_IM_AUTH_SERVICE_NAME:whale-auth}
+      base-url: ${WHALE_IM_AUTH_BASE_URL:}
     # 内置机器人「蓝鲸助手」：逻辑用户ID不落 sys_user，仅用于 BOT 会话成员与消息发送者
     bot:
       name: ${WHALE_IM_BOT_NAME:蓝鲸助手}

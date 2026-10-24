@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS im_conversation (
     type            VARCHAR(16)  NOT NULL               COMMENT '会话类型：SINGLE 单聊 / GROUP 群聊 / BOT 机器人会话',
     title           VARCHAR(128) DEFAULT NULL           COMMENT '会话标题（群聊必填；单聊由前端按对方展示）',
     owner_id        BIGINT       NOT NULL               COMMENT '会话创建人ID（逻辑关联 sys_user.id）',
+    pair_key        VARCHAR(64)  DEFAULT NULL           COMMENT '幂等键：SINGLE=min:max 用户对；BOT=B:用户ID；GROUP 为空（唯一索引保证单聊/机器人会话唯一）',
     last_seq        BIGINT       NOT NULL DEFAULT 0     COMMENT '当前最大消息序号（发送时递增）',
     last_message_id BIGINT       DEFAULT NULL           COMMENT '最后一条消息ID（逻辑关联 im_message.id）',
     last_active_at  DATETIME     DEFAULT NULL           COMMENT '最后活跃时间（会话列表排序依据）',
@@ -27,6 +28,7 @@ CREATE TABLE IF NOT EXISTS im_conversation (
     update_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted         TINYINT      NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
+    UNIQUE KEY uk_pair_key (pair_key),
     KEY idx_owner_id (owner_id),
     KEY idx_last_active_at (last_active_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='IM 会话表';
@@ -102,6 +104,7 @@ CREATE TABLE IF NOT EXISTS im_agent_run (
     status              VARCHAR(24) NOT NULL DEFAULT 'PENDING' COMMENT '运行状态：PENDING / RUNNING / WAITING_CONFIRM / SUCCESS / FAILED',
     tool_trace_json     JSON        DEFAULT NULL           COMMENT '工具调用轨迹（工具名/参数摘要/结果码/耗时）',
     confirmation_json   JSON        DEFAULT NULL           COMMENT '写操作确认信息（confirmation_id/权限码/参数摘要/过期时间）',
+    feedback            VARCHAR(8)  DEFAULT NULL           COMMENT '机器人回答评价：UP 有用 / DOWN 无用 / NULL 未评价',
     started_at          DATETIME    DEFAULT NULL           COMMENT '开始时间',
     finished_at         DATETIME    DEFAULT NULL           COMMENT '结束时间',
     create_time         DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',

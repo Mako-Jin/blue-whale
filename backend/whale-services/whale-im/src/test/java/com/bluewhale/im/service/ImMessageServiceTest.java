@@ -86,6 +86,7 @@ class ImMessageServiceTest {
     void setUp() {
         when(attachmentValidator.validateAndNormalize(anyString(), anyString()))
                 .thenAnswer(invocation -> invocation.getArgument(1));
+        when(guard.requireMember(CONVERSATION_ID, USER_ID)).thenReturn(conversation(9L));
     }
 
     @Test
@@ -222,6 +223,26 @@ class ImMessageServiceTest {
     void recallShouldSucceedAndBroadcast() {
         ImMessage message = message(5L);
         message.setCreateTime(LocalDateTime.now().minusSeconds(10));
+        when(messageMapper.selectById(5L)).thenReturn(message);
+
+        service.recall(CONVERSATION_ID, USER_ID, 5L);
+
+        verify(messageMapper).update(isNull(), any());
+        verify(broadcaster).broadcastRecalled(CONVERSATION_ID, 5L, 5L, USER_ID);
+    }
+
+    @Test
+    @DisplayName("recall：群管理员可代撤回他人消息且不受时限约束")
+    void recallShouldAllowGroupManager() {
+        ImConversation group = conversation(9L);
+        group.setType("GROUP");
+        when(guard.requireMember(CONVERSATION_ID, USER_ID)).thenReturn(group);
+        ImConversationMember admin = new ImConversationMember();
+        admin.setRole("ADMIN");
+        when(guard.requireMemberRecord(CONVERSATION_ID, USER_ID)).thenReturn(admin);
+        ImMessage message = message(5L);
+        message.setSenderId(99L);
+        message.setCreateTime(LocalDateTime.now().minusHours(1));
         when(messageMapper.selectById(5L)).thenReturn(message);
 
         service.recall(CONVERSATION_ID, USER_ID, 5L);

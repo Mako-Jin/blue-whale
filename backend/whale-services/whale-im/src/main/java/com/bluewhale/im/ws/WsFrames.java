@@ -40,6 +40,12 @@ public final class WsFrames {
     /** 消息撤回通知帧 */
     public static final String TYPE_MESSAGE_RECALLED = "message.recalled";
 
+    /** 群成员变更通知帧 */
+    public static final String TYPE_MEMBER_CHANGED = "member.changed";
+
+    /** 机器人工具调用帧 */
+    public static final String TYPE_AGENT_TOOL = "agent.tool";
+
     /** 协议错误帧 */
     public static final String TYPE_ERROR = "error";
 
@@ -120,6 +126,38 @@ public final class WsFrames {
         frame.put("messageId", String.valueOf(messageId));
         frame.put("seq", seq);
         frame.put("operatorId", operatorId == null ? null : String.valueOf(operatorId));
+        return frame;
+    }
+
+    /**
+     * 构造群成员变更通知帧。
+     *
+     * @param conversationId 会话ID
+     * @param action         动作：ADD / REMOVE / QUIT / TRANSFER / DISSOLVED
+     * @param userId         变更用户ID（解散时为操作人ID）
+     * @return 帧对象
+     */
+    public static Map<String, Object> memberChanged(Long conversationId, String action, Long userId) {
+        Map<String, Object> frame = frame(TYPE_MEMBER_CHANGED);
+        frame.put("conversationId", String.valueOf(conversationId));
+        frame.put("action", action);
+        frame.put("userId", userId == null ? null : String.valueOf(userId));
+        return frame;
+    }
+
+    /**
+     * 构造机器人工具调用帧。
+     *
+     * @param conversationId IM 会话ID
+     * @param runId          运行记录ID
+     * @param tool           脱敏后的工具事件
+     * @return 帧对象
+     */
+    public static Map<String, Object> agentTool(Long conversationId, Long runId, Object tool) {
+        Map<String, Object> frame = frame(TYPE_AGENT_TOOL);
+        frame.put("conversationId", String.valueOf(conversationId));
+        frame.put("runId", String.valueOf(runId));
+        frame.put("tool", tool);
         return frame;
     }
 

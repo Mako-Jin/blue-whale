@@ -252,8 +252,9 @@ intent ──> retrieve(knowledge/facts) ──> think ──> tools ──> ver
 
 ### 11.3 待做项
 
-- M0–M5 全部编码与验收任务（见第八节）。
-- 需求登记册、服务清单、架构文档在 M0 同步更新。
+- T19 实机联调与验收记录（见第八节）：需 Nacos/MySQL/Redis/网关 8080 与 `WHALE_AGENT_QA_ENGINE=langchain`。
+- 部署前置：执行 `bluewhale_im`/`whale-auth`/`whale-agent` 建库脚本、既有库 `agent_operation` ALTER 与 `migration-5.52-im-loose-ends.sql`、只读账号与视图、生产环境开关。
+- 后续迭代项：WS 逐行读超时（`AgentStreamClient` 流式读循环重构）、基座未读角标改 WS 全局通道、历史轨迹与反馈的更多运营视图。
 
 ### 11.4 已修正问题项
 

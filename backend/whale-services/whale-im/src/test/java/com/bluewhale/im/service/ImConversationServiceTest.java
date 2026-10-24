@@ -8,9 +8,12 @@ import com.bluewhale.im.entity.ImConversation;
 import com.bluewhale.im.entity.ImConversationMember;
 import com.bluewhale.im.mapper.ImConversationMapper;
 import com.bluewhale.im.mapper.ImConversationMemberMapper;
+import com.bluewhale.im.support.UserDirectoryClient;
 import com.bluewhale.im.vo.ConversationVO;
 import com.bluewhale.im.vo.MessageVO;
+import com.bluewhale.im.ws.ImMessageBroadcaster;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -62,8 +65,30 @@ class ImConversationServiceTest {
 
     private final ImMessageService messageService = mock(ImMessageService.class);
 
+    private final ImMessageBroadcaster broadcaster = mock(ImMessageBroadcaster.class);
+
+    private final UserDirectoryClient userDirectoryClient = mock(UserDirectoryClient.class);
+
     private final ImConversationService service =
-            new ImConversationService(conversationMapper, memberMapper, guard, messageService);
+            new ImConversationService(conversationMapper, memberMapper, guard, messageService, broadcaster,
+                    userDirectoryClient);
+
+    /**
+     * 默认放行成员合法性校验，具体用例按需覆盖。
+     */
+    @BeforeEach
+    void setUp() {
+        when(userDirectoryClient.missingUserIds(any())).thenReturn(List.of());
+    }
+
+    @Test
+    @DisplayName("create：成员不存在或已停用时拒绝创建")
+    void createShouldRejectMissingMembers() {
+        when(userDirectoryClient.missingUserIds(any())).thenReturn(List.of(2L));
+
+        assertThrows(BizException.class, () -> service.create(USER_ID, request("SINGLE", null, List.of(2L))));
+        verify(conversationMapper, never()).insert(any(ImConversation.class));
+    }
 
     @Test
     @DisplayName("create：单聊必须且只能指定 1 位对方")
@@ -111,6 +136,69 @@ class ImConversationServiceTest {
         assertEquals(0L, members.get(0).getLastReadSeq());
         assertEquals("MEMBER", members.get(1).getRole());
         assertEquals(2L, members.get(1).getUserId());
+    }
+
+    @Test
+    @DisplayName("create：单聊已存在时按 pair_key 返回既有会话，不再插入")
+    void createSingleShouldReturnExistingByPairKey() {
+        ImConversation existing = new ImConversation();
+        existing.setId(CONVERSATION_ID);
+        existing.setType(ImConversationService.TYPE_SINGLE);
+        existing.setOwnerId(USER_ID);
+        existing.setPairKey("S:2:10");
+        when(conversationMapper.selectOne(any())).thenReturn(existing);
+
+        ImConversation result = service.create(USER_ID, request("SINGLE", null, List.of(2L)));
+
+        assertEquals(CONVERSATION_ID, result.getId());
+        verify(conversationMapper, never()).insert(any(ImConversation.class));
+        verify(memberMapper, never()).insert(any(ImConversationMember.class));
+    }
+
+    @Test
+    @DisplayName("transfer：群主转让后双方角色互换并广播成员变更")
+    void transferShouldSwapRoles() {
+        when(guard.requireMember(CONVERSATION_ID, USER_ID)).thenReturn(group());
+        when(guard.requireMemberRecord(CONVERSATION_ID, USER_ID)).thenReturn(member(USER_ID, "OWNER"));
+        when(guard.requireMemberRecord(CONVERSATION_ID, 2L)).thenReturn(member(2L, "MEMBER"));
+
+        service.transfer(CONVERSATION_ID, USER_ID, 2L);
+
+        verify(conversationMapper).update(isNull(), any());
+        verify(memberMapper, times(2)).update(isNull(), any());
+        verify(broadcaster).broadcastMemberChanged(CONVERSATION_ID, "TRANSFER", 2L);
+    }
+
+    @Test
+    @DisplayName("transfer：非群主拒绝转让")
+    void transferShouldRejectNonOwner() {
+        when(guard.requireMember(CONVERSATION_ID, USER_ID)).thenReturn(group());
+        when(guard.requireMemberRecord(CONVERSATION_ID, USER_ID)).thenReturn(member(USER_ID, "ADMIN"));
+
+        assertThrows(BizException.class, () -> service.transfer(CONVERSATION_ID, USER_ID, 2L));
+        verify(memberMapper, never()).update(isNull(), any());
+    }
+
+    @Test
+    @DisplayName("dissolve：群主解散群聊后逻辑删除会话并广播")
+    void dissolveShouldDeleteConversation() {
+        when(guard.requireMember(CONVERSATION_ID, USER_ID)).thenReturn(group());
+        when(guard.requireMemberRecord(CONVERSATION_ID, USER_ID)).thenReturn(member(USER_ID, "OWNER"));
+
+        service.dissolve(CONVERSATION_ID, USER_ID);
+
+        verify(conversationMapper).deleteById(CONVERSATION_ID);
+        verify(broadcaster).broadcastMemberChanged(CONVERSATION_ID, "DISSOLVED", USER_ID);
+    }
+
+    @Test
+    @DisplayName("dissolve：非群主拒绝解散")
+    void dissolveShouldRejectNonOwner() {
+        when(guard.requireMember(CONVERSATION_ID, USER_ID)).thenReturn(group());
+        when(guard.requireMemberRecord(CONVERSATION_ID, USER_ID)).thenReturn(member(USER_ID, "MEMBER"));
+
+        assertThrows(BizException.class, () -> service.dissolve(CONVERSATION_ID, USER_ID));
+        verify(conversationMapper, never()).deleteById(any(Long.class));
     }
 
     @Test
@@ -177,6 +265,36 @@ class ImConversationServiceTest {
         service.markRead(CONVERSATION_ID, USER_ID, 0L);
 
         verify(memberMapper, never()).update(isNull(), any());
+    }
+
+    /**
+     * 构造群聊会话
+     *
+     * @return 会话实体
+     */
+    private static ImConversation group() {
+        ImConversation conversation = new ImConversation();
+        conversation.setId(CONVERSATION_ID);
+        conversation.setType(ImConversationService.TYPE_GROUP);
+        conversation.setOwnerId(USER_ID);
+        return conversation;
+    }
+
+    /**
+     * 构造成员记录
+     *
+     * @param userId 用户ID
+     * @param role   角色
+     * @return 成员实体
+     */
+    private static ImConversationMember member(long userId, String role) {
+        ImConversationMember member = new ImConversationMember();
+        member.setConversationId(CONVERSATION_ID);
+        member.setUserId(userId);
+        member.setMemberType("USER");
+        member.setRole(role);
+        member.setLastReadSeq(0L);
+        return member;
     }
 
     /**

@@ -1,7 +1,9 @@
 package com.bluewhale.im.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.im.entity.ImAgentRun;
 import com.bluewhale.im.entity.ImMessage;
 import com.bluewhale.im.mapper.ImAgentRunMapper;
@@ -76,17 +78,17 @@ public class ImAgentRunService {
     public Map<String, Object> confirm(Long runId, boolean approved, Long userId, String permissionCodes) {
         ImAgentRun run = runMapper.selectById(runId);
         if (run == null) {
-            throw new BizException("运行记录不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "运行记录不存在");
         }
         guard.requireMember(run.getConversationId(), userId);
         if (!STATUS_WAITING_CONFIRM.equals(run.getStatus())) {
-            throw new BizException("该运行不在待确认状态");
+            throw new BizException(ErrorCode.REPEAT_SUBMIT.getCode(), "该运行不在待确认状态");
         }
         JsonNode card = readCard(run.getConfirmationJson());
         String confirmationId = card.path("confirmationId").asText("");
         String operation = card.path("operation").asText("");
         if (!StringUtils.hasText(confirmationId)) {
-            throw new BizException("确认信息缺失，请重新发起");
+            throw new BizException(ErrorCode.PARAM_ERROR, "确认信息缺失，请重新发起");
         }
         try {
             JsonNode data = agentStreamClient.confirmOperation(confirmationId, approved, userId, permissionCodes);
@@ -104,6 +106,62 @@ public class ImAgentRunService {
     }
 
     /**
+     * 记录机器人回答评价（👍/👎），同一运行覆盖写入。
+     *
+     * @param runId  运行记录ID
+     * @param userId 当前用户ID
+     * @param rating 评价：UP / DOWN
+     */
+    public void feedback(Long runId, Long userId, String rating) {
+        ImAgentRun run = runMapper.selectById(runId);
+        if (run == null) {
+            throw new BizException(ErrorCode.NOT_FOUND, "运行记录不存在");
+        }
+        guard.requireMember(run.getConversationId(), userId);
+        LambdaUpdateWrapper<ImAgentRun> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(ImAgentRun::getId, runId);
+        wrapper.set(ImAgentRun::getFeedback, rating);
+        runMapper.update(null, wrapper);
+    }
+
+    /**
+     * 按机器人回复消息ID定位运行记录（历史消息轨迹入口）。
+     *
+     * @param messageId 回复消息ID
+     * @param userId    当前用户ID
+     * @return 运行记录ID
+     */
+    public Long runIdByMessage(Long messageId, Long userId) {
+        LambdaQueryWrapper<ImAgentRun> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ImAgentRun::getResponseMessageId, messageId);
+        wrapper.orderByDesc(ImAgentRun::getId);
+        wrapper.last("LIMIT 1");
+        ImAgentRun run = runMapper.selectOne(wrapper);
+        if (run == null) {
+            run = runByRequestMessage(messageId);
+        }
+        if (run == null) {
+            throw new BizException(ErrorCode.NOT_FOUND, "该消息没有关联的智能体运行记录");
+        }
+        guard.requireMember(run.getConversationId(), userId);
+        return run.getId();
+    }
+
+    /**
+     * 按触发消息ID兜底查询运行记录。
+     *
+     * @param messageId 触发消息ID
+     * @return 运行记录；不存在返回 {@code null}
+     */
+    private ImAgentRun runByRequestMessage(Long messageId) {
+        LambdaQueryWrapper<ImAgentRun> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ImAgentRun::getRequestMessageId, messageId);
+        wrapper.orderByDesc(ImAgentRun::getId);
+        wrapper.last("LIMIT 1");
+        return runMapper.selectOne(wrapper);
+    }
+
+    /**
      * 查询运行轨迹：状态、工具调用、引用与确认信息。
      *
      * <p>仅会话成员可查看；{@code tool_trace_json} 解析失败时降级为空集合，不影响主字段返回。</p>
@@ -115,7 +173,7 @@ public class ImAgentRunService {
     public Map<String, Object> detail(Long runId, Long userId) {
         ImAgentRun run = runMapper.selectById(runId);
         if (run == null) {
-            throw new BizException("运行记录不存在");
+            throw new BizException(ErrorCode.NOT_FOUND, "运行记录不存在");
         }
         guard.requireMember(run.getConversationId(), userId);
         Map<String, Object> detail = new LinkedHashMap<>();
@@ -198,12 +256,12 @@ public class ImAgentRunService {
      */
     private JsonNode readCard(String json) {
         if (!StringUtils.hasText(json)) {
-            throw new BizException("确认信息缺失，请重新发起");
+            throw new BizException(ErrorCode.PARAM_ERROR, "确认信息缺失，请重新发起");
         }
         try {
             return objectMapper.readTree(json);
         } catch (RuntimeException e) {
-            throw new BizException("确认信息解析失败，请重新发起");
+            throw new BizException(ErrorCode.PARAM_ERROR, "确认信息解析失败，请重新发起");
         }
     }
 

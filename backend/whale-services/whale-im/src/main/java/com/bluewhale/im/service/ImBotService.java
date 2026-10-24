@@ -1,6 +1,9 @@
 package com.bluewhale.im.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.im.entity.ImAgentBinding;
 import com.bluewhale.im.entity.ImConversation;
 import com.bluewhale.im.entity.ImConversationMember;
@@ -9,6 +12,7 @@ import com.bluewhale.im.mapper.ImConversationMapper;
 import com.bluewhale.im.mapper.ImConversationMemberMapper;
 import com.bluewhale.im.vo.ConversationVO;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,14 +36,20 @@ public class ImBotService {
     /** 会话类型：机器人会话 */
     public static final String TYPE_BOT = "BOT";
 
+    /** 会话类型：群聊 */
+    private static final String TYPE_GROUP = "GROUP";
+
+    /** 会话角色：群主 */
+    private static final String ROLE_OWNER = "OWNER";
+
+    /** 会话角色：管理员 */
+    private static final String ROLE_ADMIN = "ADMIN";
+
     /** 成员类型：用户 */
     private static final String MEMBER_USER = "USER";
 
     /** 成员类型：机器人 */
     private static final String MEMBER_BOT = "BOT";
-
-    /** 会话角色：群主（机器人会话归属于用户本人） */
-    private static final String ROLE_OWNER = "OWNER";
 
     /** 会话角色：成员 */
     private static final String ROLE_MEMBER = "MEMBER";
@@ -52,6 +62,8 @@ public class ImBotService {
     private final ImConversationMemberMapper memberMapper;
 
     private final ImAgentBindingMapper bindingMapper;
+
+    private final ImConversationGuard guard;
 
     /** 机器人展示名（会话标题） */
     private final String botName;
@@ -68,18 +80,20 @@ public class ImBotService {
      * @param conversationMapper 会话 Mapper
      * @param memberMapper       成员 Mapper
      * @param bindingMapper      绑定 Mapper
+     * @param guard              会话成员校验
      * @param botName            机器人展示名
      * @param botUserId          机器人逻辑用户ID
      * @param botScenario        默认智能体场景
      */
     public ImBotService(ImConversationMapper conversationMapper, ImConversationMemberMapper memberMapper,
-                        ImAgentBindingMapper bindingMapper,
+                        ImAgentBindingMapper bindingMapper, ImConversationGuard guard,
                         @Value("${whale.im.bot.name:蓝鲸助手}") String botName,
                         @Value("${whale.im.bot.user-id:900000000000000001}") Long botUserId,
                         @Value("${whale.im.bot.scenario:DEFAULT}") String botScenario) {
         this.conversationMapper = conversationMapper;
         this.memberMapper = memberMapper;
         this.bindingMapper = bindingMapper;
+        this.guard = guard;
         this.botName = botName;
         this.botUserId = botUserId;
         this.botScenario = botScenario;
@@ -95,7 +109,17 @@ public class ImBotService {
     public ConversationVO openDefault(Long userId) {
         ImConversation conversation = findExisting(userId);
         if (conversation == null) {
-            conversation = createConversation(userId);
+            try {
+                conversation = createConversation(userId);
+            } catch (DuplicateKeyException e) {
+                // 并发首建：pair_key 唯一索引兜底，返回先落库的会话
+                conversation = findExisting(userId);
+                if (conversation == null) {
+                    throw e;
+                }
+                ensureMember(conversation.getId(), userId, MEMBER_USER, ROLE_OWNER);
+                ensureBinding(conversation.getId());
+            }
         } else {
             ensureMember(conversation.getId(), userId, MEMBER_USER, ROLE_OWNER);
             ensureBinding(conversation.getId());
@@ -104,6 +128,38 @@ public class ImBotService {
         long lastReadSeq = member == null || member.getLastReadSeq() == null ? 0L : member.getLastReadSeq();
         long lastSeq = conversation.getLastSeq() == null ? 0L : conversation.getLastSeq();
         return ImConversationService.toVo(conversation, Math.max(0L, lastSeq - lastReadSeq), null);
+    }
+
+    /**
+     * 启用或停用群聊机器人（群主 / 管理员）。
+     *
+     * <p>停用后群内 {@code @机器人} 不再触发；启用时自动补齐机器人成员与绑定。</p>
+     *
+     * @param conversationId 群聊会话ID
+     * @param operatorId     操作人ID
+     * @param enabled        是否启用
+     */
+    @Transactional
+    public void setGroupBotEnabled(Long conversationId, Long operatorId, boolean enabled) {
+        ImConversation conversation = guard.requireMember(conversationId, operatorId);
+        if (!TYPE_GROUP.equals(conversation.getType())) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "仅群聊支持机器人开关");
+        }
+        ImConversationMember operator = guard.requireMemberRecord(conversationId, operatorId);
+        if (operator == null || (!ROLE_OWNER.equals(operator.getRole()) && !ROLE_ADMIN.equals(operator.getRole()))) {
+            throw new BizException(ErrorCode.FORBIDDEN, "仅群主或管理员可管理机器人");
+        }
+        ImAgentBinding binding = findBinding(conversationId);
+        if (binding == null) {
+            binding = ensureGroupBinding(conversationId);
+        }
+        if (binding == null) {
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "机器人绑定初始化失败");
+        }
+        LambdaUpdateWrapper<ImAgentBinding> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(ImAgentBinding::getId, binding.getId());
+        wrapper.set(ImAgentBinding::getEnabled, enabled ? BINDING_ENABLED : 0);
+        bindingMapper.update(null, wrapper);
     }
 
     /**
@@ -151,6 +207,13 @@ public class ImBotService {
      * @return 会话实体；不存在返回 {@code null}
      */
     private ImConversation findExisting(Long userId) {
+        LambdaQueryWrapper<ImConversation> byPairKey = new LambdaQueryWrapper<>();
+        byPairKey.eq(ImConversation::getPairKey, "B:" + userId);
+        byPairKey.last("LIMIT 1");
+        ImConversation existing = conversationMapper.selectOne(byPairKey);
+        if (existing != null) {
+            return existing;
+        }
         LambdaQueryWrapper<ImConversation> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ImConversation::getType, TYPE_BOT);
         wrapper.eq(ImConversation::getOwnerId, userId);
@@ -170,6 +233,7 @@ public class ImBotService {
         conversation.setType(TYPE_BOT);
         conversation.setTitle(botName);
         conversation.setOwnerId(userId);
+        conversation.setPairKey("B:" + userId);
         conversation.setLastSeq(0L);
         conversation.setLastActiveAt(LocalDateTime.now());
         conversationMapper.insert(conversation);
@@ -219,6 +283,20 @@ public class ImBotService {
         binding.setAgentScenario(botScenario);
         binding.setEnabled(BINDING_ENABLED);
         bindingMapper.insert(binding);
+    }
+
+    /**
+     * 查询会话的机器人绑定。
+     *
+     * @param conversationId 会话ID
+     * @return 绑定；不存在返回 {@code null}
+     */
+    private ImAgentBinding findBinding(Long conversationId) {
+        LambdaQueryWrapper<ImAgentBinding> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ImAgentBinding::getConversationId, conversationId);
+        wrapper.eq(ImAgentBinding::getBotUserId, botUserId);
+        wrapper.last("LIMIT 1");
+        return bindingMapper.selectOne(wrapper);
     }
 
     /**

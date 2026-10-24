@@ -5,9 +5,11 @@ import com.bluewhale.common.audit.annotation.AuditLog;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.common.web.WebHeaders;
 import com.bluewhale.im.dto.AgentConfirmRequest;
+import com.bluewhale.im.dto.FeedbackRequest;
 import com.bluewhale.im.service.ImAgentRunService;
 import com.bluewhale.im.support.web.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -64,5 +66,34 @@ public class ImAgentRunController {
     @GetMapping("/{id}")
     public Result<Map<String, Object>> detail(@PathVariable Long id, HttpServletRequest httpRequest) {
         return Result.ok(runService.detail(id, UserContext.requireUserId(httpRequest)));
+    }
+
+    /**
+     * 按机器人回复消息ID定位运行记录（历史消息的「工具轨迹」入口）。
+     *
+     * @param messageId   回复消息ID
+     * @param httpRequest 当前请求（读取网关 {@code X-User-Id}）
+     * @return 运行ID
+     */
+    @GetMapping("/by-message/{messageId}")
+    public Result<Map<String, Object>> byMessage(@PathVariable Long messageId, HttpServletRequest httpRequest) {
+        Long runId = runService.runIdByMessage(messageId, UserContext.requireUserId(httpRequest));
+        return Result.ok(Map.of("runId", String.valueOf(runId)));
+    }
+
+    /**
+     * 记录机器人回答评价（👍/👎）。
+     *
+     * @param id          运行记录ID
+     * @param request     反馈请求
+     * @param httpRequest 当前请求（读取网关 {@code X-User-Id}）
+     * @return 空结果
+     */
+    @PostMapping("/{id}/feedback")
+    public Result<Void> feedback(@PathVariable Long id,
+                                 @Valid @RequestBody FeedbackRequest request,
+                                 HttpServletRequest httpRequest) {
+        runService.feedback(id, UserContext.requireUserId(httpRequest), request.getRating());
+        return Result.ok();
     }
 }

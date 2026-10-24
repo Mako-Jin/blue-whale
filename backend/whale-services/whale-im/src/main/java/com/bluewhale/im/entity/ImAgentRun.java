@@ -37,6 +37,9 @@ public class ImAgentRun extends BaseEntity {
     /** 写操作确认信息（JSON 文本） */
     private String confirmationJson;
 
+    /** 机器人回答评价：UP / DOWN（空表示未评价） */
+    private String feedback;
+
     /** 开始时间 */
     private LocalDateTime startedAt;
 

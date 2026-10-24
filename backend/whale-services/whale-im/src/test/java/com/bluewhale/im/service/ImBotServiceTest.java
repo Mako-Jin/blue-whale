@@ -2,6 +2,7 @@ package com.bluewhale.im.service;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.im.entity.ImAgentBinding;
 import com.bluewhale.im.entity.ImConversation;
 import com.bluewhale.im.entity.ImConversationMember;
@@ -13,11 +14,14 @@ import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.dao.DuplicateKeyException;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -53,8 +57,10 @@ class ImBotServiceTest {
 
     private final ImAgentBindingMapper bindingMapper = mock(ImAgentBindingMapper.class);
 
+    private final ImConversationGuard guard = mock(ImConversationGuard.class);
+
     private final ImBotService service = new ImBotService(conversationMapper, memberMapper, bindingMapper,
-            "蓝鲸助手", BOT_USER_ID, "DEFAULT");
+            guard, "蓝鲸助手", BOT_USER_ID, "DEFAULT");
 
     @Test
     @DisplayName("openDefault：首次调用创建 BOT 会话、双成员与绑定")
@@ -184,6 +190,77 @@ class ImBotServiceTest {
 
         assertEquals(0, result.getEnabled());
         verify(bindingMapper, never()).insert(any(ImAgentBinding.class));
+    }
+
+    @Test
+    @DisplayName("openDefault：并发首建撞唯一索引时返回已落库会话")
+    void shouldRecoverFromDuplicateKeyOnConcurrentCreate() {
+        when(conversationMapper.selectOne(any()))
+                .thenReturn(null)
+                .thenReturn(null)
+                .thenReturn(conversation(0L));
+        when(conversationMapper.insert(any(ImConversation.class)))
+                .thenThrow(new DuplicateKeyException("dup"));
+        when(memberMapper.selectCount(any())).thenReturn(1L);
+        when(bindingMapper.selectCount(any())).thenReturn(1L);
+
+        ConversationVO vo = service.openDefault(USER_ID);
+
+        assertEquals("100", vo.getId());
+        verify(conversationMapper, times(1)).insert(any(ImConversation.class));
+        verify(bindingMapper, never()).insert(any(ImAgentBinding.class));
+    }
+
+    @Test
+    @DisplayName("setGroupBotEnabled：管理员可停用群机器人")
+    void shouldToggleGroupBotForAdmin() {
+        when(guard.requireMember(CONVERSATION_ID, USER_ID)).thenReturn(groupConversation());
+        when(guard.requireMemberRecord(CONVERSATION_ID, USER_ID)).thenReturn(operator("ADMIN"));
+        ImAgentBinding binding = new ImAgentBinding();
+        binding.setId(50L);
+        when(bindingMapper.selectOne(any())).thenReturn(binding);
+
+        service.setGroupBotEnabled(CONVERSATION_ID, USER_ID, false);
+
+        verify(bindingMapper).update(isNull(), any());
+    }
+
+    @Test
+    @DisplayName("setGroupBotEnabled：普通成员无权操作")
+    void shouldRejectPlainMemberToggle() {
+        when(guard.requireMember(CONVERSATION_ID, USER_ID)).thenReturn(groupConversation());
+        when(guard.requireMemberRecord(CONVERSATION_ID, USER_ID)).thenReturn(operator("MEMBER"));
+
+        assertThrows(BizException.class, () -> service.setGroupBotEnabled(CONVERSATION_ID, USER_ID, false));
+        verify(bindingMapper, never()).update(isNull(), any());
+    }
+
+    /**
+     * 构造群聊会话。
+     *
+     * @return 会话实体
+     */
+    private static ImConversation groupConversation() {
+        ImConversation conversation = new ImConversation();
+        conversation.setId(CONVERSATION_ID);
+        conversation.setType("GROUP");
+        conversation.setOwnerId(USER_ID);
+        return conversation;
+    }
+
+    /**
+     * 构造操作人成员记录。
+     *
+     * @param role 角色
+     * @return 成员实体
+     */
+    private static ImConversationMember operator(String role) {
+        ImConversationMember member = new ImConversationMember();
+        member.setConversationId(CONVERSATION_ID);
+        member.setUserId(USER_ID);
+        member.setMemberType("USER");
+        member.setRole(role);
+        return member;
     }
 
     /**

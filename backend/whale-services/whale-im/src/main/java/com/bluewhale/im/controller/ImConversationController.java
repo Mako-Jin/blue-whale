@@ -4,9 +4,11 @@ import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.common.web.WebHeaders;
 import com.bluewhale.im.dto.AddMembersRequest;
+import com.bluewhale.im.dto.BotToggleRequest;
 import com.bluewhale.im.dto.CreateConversationRequest;
 import com.bluewhale.im.dto.ReadRequest;
 import com.bluewhale.im.dto.SendMessageRequest;
+import com.bluewhale.im.dto.TransferOwnerRequest;
 import com.bluewhale.im.entity.ImConversation;
 import com.bluewhale.im.entity.ImMessage;
 import com.bluewhale.im.service.ImAgentChatService;
@@ -215,6 +217,52 @@ public class ImConversationController {
     @PostMapping("/{id}/quit")
     public Result<Void> quit(@PathVariable Long id, HttpServletRequest httpRequest) {
         memberService.quit(id, UserContext.requireUserId(httpRequest));
+        return Result.ok();
+    }
+
+    /**
+     * 转让群主（仅群主）。
+     *
+     * @param id          会话ID
+     * @param request     转让请求
+     * @param httpRequest 当前请求（读取网关 {@code X-User-Id}）
+     * @return 空结果
+     */
+    @PostMapping("/{id}/transfer")
+    public Result<Void> transfer(@PathVariable Long id,
+                                 @Valid @RequestBody TransferOwnerRequest request,
+                                 HttpServletRequest httpRequest) {
+        conversationService.transfer(id, UserContext.requireUserId(httpRequest), request.getTargetUserId());
+        return Result.ok();
+    }
+
+    /**
+     * 解散群聊（仅群主，逻辑删除）。
+     *
+     * @param id          会话ID
+     * @param httpRequest 当前请求（读取网关 {@code X-User-Id}）
+     * @return 空结果
+     */
+    @DeleteMapping("/{id}")
+    public Result<Void> dissolve(@PathVariable Long id, HttpServletRequest httpRequest) {
+        conversationService.dissolve(id, UserContext.requireUserId(httpRequest));
+        return Result.ok();
+    }
+
+    /**
+     * 启用或停用群聊机器人（群主 / 管理员）。
+     *
+     * @param id          会话ID
+     * @param request     开关请求
+     * @param httpRequest 当前请求（读取网关 {@code X-User-Id}）
+     * @return 空结果
+     */
+    @PostMapping("/{id}/bot")
+    public Result<Void> toggleBot(@PathVariable Long id,
+                                  @Valid @RequestBody BotToggleRequest request,
+                                  HttpServletRequest httpRequest) {
+        botService.setGroupBotEnabled(id, UserContext.requireUserId(httpRequest),
+                Boolean.TRUE.equals(request.getEnabled()));
         return Result.ok();
     }
 }

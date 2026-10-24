@@ -2,10 +2,13 @@ package com.bluewhale.im.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.im.entity.ImConversation;
 import com.bluewhale.im.entity.ImConversationMember;
 import com.bluewhale.im.mapper.ImConversationMemberMapper;
+import com.bluewhale.im.support.UserDirectoryClient;
 import com.bluewhale.im.vo.MemberVO;
+import com.bluewhale.im.ws.ImMessageBroadcaster;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -56,6 +59,10 @@ public class ImMemberService {
 
     private final ImConversationGuard guard;
 
+    private final ImMessageBroadcaster broadcaster;
+
+    private final UserDirectoryClient userDirectoryClient;
+
     /**
      * 查询群成员列表（成员即可查看）。
      *
@@ -104,7 +111,11 @@ public class ImMemberService {
             }
         }
         if (existing.size() + toInsert.size() > MAX_MEMBERS) {
-            throw new BizException("群成员上限 200 人");
+            throw new BizException(ErrorCode.PARAM_ERROR, "群成员上限 200 人");
+        }
+        List<Long> missing = userDirectoryClient.missingUserIds(toInsert);
+        if (!missing.isEmpty()) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "以下用户不存在或已停用: " + missing);
         }
         List<MemberVO> added = new ArrayList<>(toInsert.size());
         for (Long candidate : toInsert) {
@@ -115,6 +126,9 @@ public class ImMemberService {
             } catch (DuplicateKeyException e) {
                 // 并发重复添加：已由其他请求插入，跳过即可
             }
+        }
+        for (MemberVO member : added) {
+            broadcaster.broadcastMemberChanged(conversationId, "ADD", Long.valueOf(member.getUserId()));
         }
         return added;
     }
@@ -132,19 +146,20 @@ public class ImMemberService {
         requireGroup(conversation);
         ImConversationMember operator = requireManager(conversationId, operatorId);
         if (Objects.equals(operatorId, targetUserId)) {
-            throw new BizException("请使用退群操作移除自己");
+            throw new BizException(ErrorCode.PARAM_ERROR, "请使用退群操作移除自己");
         }
         ImConversationMember target = guard.requireMemberRecord(conversationId, targetUserId);
         if (target == null) {
-            throw new BizException("该用户不是群成员");
+            throw new BizException(ErrorCode.NOT_FOUND, "该用户不是群成员");
         }
         if (ROLE_OWNER.equals(target.getRole())) {
-            throw new BizException("不能移除群主");
+            throw new BizException(ErrorCode.FORBIDDEN, "不能移除群主");
         }
         if (ROLE_ADMIN.equals(target.getRole()) && !ROLE_OWNER.equals(operator.getRole())) {
-            throw new BizException("只有群主可以移除管理员");
+            throw new BizException(ErrorCode.FORBIDDEN, "只有群主可以移除管理员");
         }
         memberMapper.deleteMember(conversationId, targetUserId);
+        broadcaster.broadcastMemberChanged(conversationId, "REMOVE", targetUserId);
     }
 
     /**
@@ -159,9 +174,10 @@ public class ImMemberService {
         requireGroup(conversation);
         ImConversationMember self = guard.requireMemberRecord(conversationId, userId);
         if (self != null && ROLE_OWNER.equals(self.getRole())) {
-            throw new BizException("群主不能退群");
+            throw new BizException(ErrorCode.FORBIDDEN, "群主不能退群");
         }
         memberMapper.deleteMember(conversationId, userId);
+        broadcaster.broadcastMemberChanged(conversationId, "QUIT", userId);
     }
 
     /**
@@ -201,7 +217,7 @@ public class ImMemberService {
      */
     private static void requireGroup(ImConversation conversation) {
         if (!TYPE_GROUP.equals(conversation.getType())) {
-            throw new BizException("仅群聊支持成员管理");
+            throw new BizException(ErrorCode.PARAM_ERROR, "仅群聊支持成员管理");
         }
     }
 
@@ -215,10 +231,10 @@ public class ImMemberService {
     private ImConversationMember requireManager(Long conversationId, Long operatorId) {
         ImConversationMember operator = guard.requireMemberRecord(conversationId, operatorId);
         if (operator == null) {
-            throw new BizException("会话不存在或无权访问");
+            throw new BizException(ErrorCode.NOT_FOUND, "会话不存在或无权访问");
         }
         if (!ROLE_OWNER.equals(operator.getRole()) && !ROLE_ADMIN.equals(operator.getRole())) {
-            throw new BizException("仅群主或管理员可管理群成员");
+            throw new BizException(ErrorCode.FORBIDDEN, "仅群主或管理员可管理群成员");
         }
         return operator;
     }

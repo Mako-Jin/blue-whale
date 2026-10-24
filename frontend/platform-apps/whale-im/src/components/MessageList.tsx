@@ -19,6 +19,7 @@ interface MessageListProps {
   loading: boolean;
   hasMore: boolean;
   runByMessageId: Record<string, string>;
+  onResolveRunId: (messageId: string) => Promise<string | undefined>;
   onLoadMore: () => void;
   onRecall: (messageId: string) => void;
 }
@@ -45,6 +46,7 @@ export default function MessageList({
   loading,
   hasMore,
   runByMessageId,
+  onResolveRunId,
   onLoadMore,
   onRecall,
 }: MessageListProps) {
@@ -114,6 +116,7 @@ export default function MessageList({
                 senderName={senderName(message, conversation, currentUserId)}
                 replied={replied}
                 runId={runByMessageId[message.id]}
+                onResolveRunId={onResolveRunId}
                 onRecall={onRecall}
                 onJumpTo={jumpTo}
               />
