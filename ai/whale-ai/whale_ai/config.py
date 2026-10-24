@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     max_tool_steps: int = 6
     tool_timeout_seconds: int = 20
     total_budget_seconds: int = 120
+    agent_base_url: str = "http://127.0.0.1:8090"
 
 
 class LlmSettings(BaseSettings):

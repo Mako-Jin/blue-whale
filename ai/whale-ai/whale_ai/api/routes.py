@@ -15,6 +15,7 @@ from whale_ai import __version__
 from whale_ai.api.schemas import ChatRequest, ConfirmRequest, HealthResponse
 from whale_ai.config import get_llm_settings
 from whale_ai.graph import PLACEHOLDER_ANSWER, run_agent
+from whale_ai.tools import list_tools
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +45,12 @@ async def health() -> HealthResponse:
         graph="skeleton",
         llm_configured=get_llm_settings().configured,
     )
+
+
+@router.get("/v1/tools", summary="只读工具清单")
+async def tools() -> dict[str, object]:
+    """返回 L0 只读工具契约（名称、风险级、权限码与 JSON Schema）。"""
+    return {"tools": list_tools()}
 
 
 @router.post("/v1/agent/stream", summary="流式问答（骨架占位）")

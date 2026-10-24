@@ -26,3 +26,13 @@ def test_run_agent_returns_placeholder_answer() -> None:
     assert state["intent"] == "SKELETON"
     assert state["conversation_id"] == 7
     assert state["degraded"] is False
+
+
+def test_tools_endpoint_returns_l0_catalog() -> None:
+    response = client.get("/v1/tools")
+
+    assert response.status_code == 200
+    tools = response.json()["tools"]
+    assert {tool["name"] for tool in tools} == {"knowledge_search", "fact_get", "doc_read"}
+    assert all(tool["riskLevel"] == "L0" for tool in tools)
+
