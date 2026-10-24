@@ -12,11 +12,14 @@ import com.bluewhale.im.mapper.ImConversationMemberMapper;
 import com.bluewhale.im.mapper.ImMessageMapper;
 import com.bluewhale.im.vo.MessagePageVO;
 import com.bluewhale.im.vo.MessageVO;
+import com.bluewhale.im.ws.ImMessageBroadcaster;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -67,6 +70,8 @@ public class ImMessageService {
 
     private final MessageSeqAllocator seqAllocator;
 
+    private final ImMessageBroadcaster broadcaster;
+
     /**
      * 发送消息（同一会话内 {@code clientMsgId} 幂等）。
      *
@@ -85,6 +90,7 @@ public class ImMessageService {
         ImMessage message = insertWithRetry(conversation, userId, request);
         touchConversation(conversationId, message.getSeq(), message.getId());
         markSenderRead(conversationId, userId, message.getSeq());
+        pushAfterCommit(message);
         return message;
     }
 
@@ -265,6 +271,28 @@ public class ImMessageService {
         wrapper.lt(ImConversationMember::getLastReadSeq, seq);
         wrapper.set(ImConversationMember::getLastReadSeq, seq);
         memberMapper.update(null, wrapper);
+    }
+
+    /**
+     * 事务提交后向会话成员推送新消息。
+     *
+     * <p>提交前推送会让客户端先于落库可见，补拉时查不到该序号；无事务上下文（单测/内部调用）时直接推送。</p>
+     *
+     * @param message 已落库消息
+     */
+    private void pushAfterCommit(ImMessage message) {
+        MessageVO vo = toVo(message);
+        Long conversationId = message.getConversationId();
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    broadcaster.broadcast(conversationId, vo);
+                }
+            });
+        } else {
+            broadcaster.broadcast(conversationId, vo);
+        }
     }
 
     /**

@@ -39,6 +39,15 @@ whale:
   permission:
     header:
       enabled: true
+  im:
+    ws:
+      # 握手阶段允许的来源；生产同源部署可收紧为具体域名（ticket 为一次性凭证，不入 URL 日志）
+      allowed-origins: ${WHALE_IM_WS_ALLOWED_ORIGINS:*}
+      # 服务端建议心跳间隔（秒），客户端按其一半频率发送 ping 帧
+      heartbeat-seconds: ${WHALE_IM_WS_HEARTBEAT_SECONDS:30}
+      # WS ticket 有效期（秒）与在线状态 TTL（秒）
+      ticket-ttl-seconds: ${WHALE_IM_WS_TICKET_TTL_SECONDS:60}
+      presence-ttl-seconds: ${WHALE_IM_PRESENCE_TTL_SECONDS:90}
 
 mybatis-plus:
   configuration:

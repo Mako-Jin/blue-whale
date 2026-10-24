@@ -1,6 +1,6 @@
 # Wave 5.52 规划：WebIM + LangChain 智能体
 
-> 制定日期：2026-10-24 ｜ 状态：**实现中**（M0 设计冻结 + M1 T2/T3/T4 已完成，见 §八）
+> 制定日期：2026-10-24 ｜ 状态：**实现中**（M0 设计冻结 + M1 T2/T3/T4/T5 已完成，见 §八）
 > 关联：`whale-agent`（8090，Wave 5.47）、`whale-gateway`（8080）、`whale-file`（8085）、`whale-auth`（8081）
 
 ## 一、目标
@@ -182,7 +182,7 @@ intent ──> retrieve(knowledge/facts) ──> think ──> tools ──> ver
 - [x] T2 `whale-im` 模块骨架（端口/库/配置/启动类/Nacos）（2026-10-24 完成，构建 + Checkstyle 通过）
 - [x] T3 5 张表 DDL + 幂等迁移脚本（2026-10-24 完成，`db/init.sql` `CREATE TABLE IF NOT EXISTS`；建库执行留待联调）
 - [x] T4 会话与消息 REST（含 `clientMsgId` 幂等、游标分页）（2026-10-24 完成，27 用例全绿 + Checkstyle 0，见 devlog §七）
-- [ ] T5 WebSocket 通道 + ticket 鉴权 + 心跳 + 在线状态
+- [x] T5 WebSocket 通道 + ticket 鉴权 + 心跳 + 在线状态（2026-10-24 完成，51 用例全绿 + Checkstyle 0，见 devlog §八）
 - [ ] T6 已读/未读、群成员管理、附件走 `whale-file`
 
 ### M2 机器人接入

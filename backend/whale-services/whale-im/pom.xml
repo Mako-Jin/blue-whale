@@ -28,6 +28,11 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
+        <!-- T5：/im/ws 消息通道（Spring WebSocket + Tomcat JSR-356 容器） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
+        </dependency>
         <!-- P1-3b：暴露 /actuator/prometheus 供 Prometheus 抓取 -->
         <dependency>
             <groupId>io.micrometer</groupId>

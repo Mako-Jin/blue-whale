@@ -11,6 +11,7 @@ import com.bluewhale.im.mapper.ImConversationMapper;
 import com.bluewhale.im.mapper.ImConversationMemberMapper;
 import com.bluewhale.im.mapper.ImMessageMapper;
 import com.bluewhale.im.vo.MessagePageVO;
+import com.bluewhale.im.ws.ImMessageBroadcaster;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
@@ -65,8 +67,10 @@ class ImMessageServiceTest {
 
     private final MessageSeqAllocator seqAllocator = mock(MessageSeqAllocator.class);
 
+    private final ImMessageBroadcaster broadcaster = mock(ImMessageBroadcaster.class);
+
     private final ImMessageService service = new ImMessageService(
-            messageMapper, conversationMapper, memberMapper, guard, seqAllocator);
+            messageMapper, conversationMapper, memberMapper, guard, seqAllocator, broadcaster);
 
     @Test
     @DisplayName("send：同一 clientMsgId 重复提交返回首次落库消息，不再插入")
@@ -82,6 +86,7 @@ class ImMessageServiceTest {
         assertSame(existing, result);
         verify(messageMapper, never()).insert(any(ImMessage.class));
         verify(conversationMapper, never()).update(isNull(), any());
+        verify(broadcaster, never()).broadcast(anyLong(), any());
     }
 
     @Test
@@ -100,6 +105,7 @@ class ImMessageServiceTest {
         assertEquals("c-2", result.getClientMsgId());
         verify(conversationMapper).update(isNull(), any());
         verify(memberMapper).update(isNull(), any());
+        verify(broadcaster).broadcast(eq(CONVERSATION_ID), any());
     }
 
     @Test
