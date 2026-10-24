@@ -83,6 +83,7 @@ class PlatformOpServiceTest {
         assertThat(record.getStatus()).isEqualTo("PENDING");
         assertThat(record.getUserId()).isEqualTo(USER_ID);
         assertThat(record.getPermission()).isEqualTo("sys:ai:ops:form");
+        assertThat(record.getTarget()).isEqualTo("form");
         assertThat(record.getParamsJson()).contains("demo").doesNotContain("unknown");
         assertThat(record.getParamsHash()).hasSize(64);
         assertThat(card.get("confirmationId")).isEqualTo(record.getConfirmationId());
@@ -119,7 +120,8 @@ class PlatformOpServiceTest {
     @Test
     @DisplayName("确认成功：透传身份调用下游并回写状态")
     void shouldConfirmAndInvokeTarget() throws Exception {
-        when(mapper.selectOne(any())).thenReturn(pendingRecord(USER_ID));
+        AgentOperation record = pendingRecord(USER_ID);
+        when(mapper.selectOne(any())).thenReturn(record);
         when(mapper.update(any(), any())).thenReturn(1);
         when(invoker.invoke(anyString(), anyMap(), eq(USER_ID), eq("sys:agent:chat,sys:ai:ops:form")))
                 .thenReturn(Map.of("id", "12"));
@@ -127,6 +129,9 @@ class PlatformOpServiceTest {
         Map<String, Object> result = service.confirm(CONFIRMATION_ID, USER_ID, "sys:agent:chat,sys:ai:ops:form");
 
         assertThat(result).containsEntry("id", "12");
+        assertThat(record.getConfirmedBy()).isEqualTo(USER_ID);
+        assertThat(record.getResultCode()).isZero();
+        assertThat(record.getElapsedMs()).isNotNull();
         verify(invoker).invoke(eq("http://127.0.0.1:8084/form/definition"),
                 anyMap(), eq(USER_ID), eq("sys:agent:chat,sys:ai:ops:form"));
     }

@@ -44,17 +44,29 @@ public class AgentOperation extends BaseEntity {
     /** 执行所需权限码 */
     private String permission;
 
+    /** 目标服务（配置键，如 form） */
+    private String target;
+
     /** 状态：PENDING/CONFIRMED/REJECTED/EXPIRED/SUCCESS/FAILED */
     private String status;
 
     /** 过期时间 */
     private LocalDateTime expiresAt;
 
+    /** 确认人用户ID（令牌绑定发起人，当前与 userId 一致） */
+    private Long confirmedBy;
+
     /** 确认时间 */
     private LocalDateTime confirmedAt;
 
     /** 下游响应 JSON */
     private String resultJson;
+
+    /** 结果码：0 成功 / 500 失败 */
+    private Integer resultCode;
+
+    /** 执行耗时（毫秒） */
+    private Integer elapsedMs;
 
     /** 失败原因 */
     private String errorMsg;

@@ -1,6 +1,6 @@
 # Wave 5.52 规划：WebIM + LangChain 智能体
 
-> 制定日期：2026-10-24 ｜ 状态：**实现中**（M0 设计冻结 + M1 T2–T6、M2 T7–T9、M3 T10–T13、M4 T14–T15 已完成，见 §八）
+> 制定日期：2026-10-24 ｜ 状态：**实现中**（M0 设计冻结 + M1 T2–T6、M2 T7–T9、M3 T10–T13、M4 T14–T16 已完成，见 §八）
 > 关联：`whale-agent`（8090，Wave 5.47）、`whale-gateway`（8080）、`whale-file`（8085）、`whale-auth`（8081）
 
 ## 一、目标
@@ -202,7 +202,7 @@ intent ──> retrieve(knowledge/facts) ──> think ──> tools ──> ver
 
 - [x] T14 `data_query` 只读数据通道（白名单视图 + SQL 守卫 + 脱敏）（2026-10-24 完成：`DataQueryGuard`/`DataMasker`/`DataQueryService` + `/agent/tools/data-query`（`sys:ai:data:read`）；Java 79 例全绿 + Checkstyle 0，Python 35 例通过；默认关闭，见 devlog §十七）
 - [x] T15 `platform_op` 工具 + 确认卡片 + 一次性确认令牌（2026-10-24 完成：`PlatformOperationCatalog` 仅登记 `form.definition.create`，`agent_operation` 表 + `PlatformOpService` 条件更新一次性令牌（5 分钟、绑用户），`/agent/tools/platform-op` 与 `/agent/ops/{id}/confirm|reject`；Python `platform_op`（L2、`sys:ai:ops:*`）+ `/v1/agent/confirm` 代理；whale-im 落 `CARD` 消息 + `WAITING_CONFIRM` + `/im/agent-runs/{id}/confirm`；Java 89 + 106 例全绿、Checkstyle 0，Python 39 例通过；默认关闭，见 devlog §十八）
-- [ ] T16 审计落库与轨迹展示
+- [x] T16 审计落库与轨迹展示（2026-10-24 完成：`agent_operation` 增 `target/confirmed_by/result_code/elapsed_ms` 并在确认/拒绝时回写，whale-agent `audit_log` 按 `confirmation_id`（`target_id`）追溯；whale-im 新增 `audit_log` DDL 与 `POST /im/agent-runs/{id}/confirm` 审计，新增 `GET /im/agent-runs/{id}` 返回状态/工具/引用/确认/耗时；89 + 109 例全绿、Checkstyle 0，见 devlog §十九）
 
 ### M5 加固与验收
 

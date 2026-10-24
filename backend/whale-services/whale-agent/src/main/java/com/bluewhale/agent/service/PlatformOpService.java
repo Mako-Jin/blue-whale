@@ -107,6 +107,7 @@ public class PlatformOpService {
         record.setParamsJson(writeJson(body));
         record.setParamsHash(sha256(record.getParamsJson()));
         record.setPermission(operation.permission());
+        record.setTarget(operation.target());
         record.setStatus(STATUS_PENDING);
         record.setExpiresAt(LocalDateTime.now().plusSeconds(Math.max(1, properties.getOps().getTtlSeconds())));
         operationMapper.insert(record);
@@ -133,22 +134,24 @@ public class PlatformOpService {
         }
         PlatformOperationCatalog.Operation operation = PlatformOperationCatalog.require(record.getOperation());
         requirePermission(operation, permissionCodes);
-        if (claim(record) == 0) {
+        if (claim(record, userId) == 0) {
             throw new BizException(ErrorCode.REPEAT_SUBMIT.getCode(), "确认令牌已使用或已失效");
         }
         Map<String, Object> body = readJson(record.getParamsJson());
         String url = targetUrl(operation);
+        long startedMillis = System.currentTimeMillis();
         try {
             Map<String, Object> data = operationInvoker.invoke(url, body, userId, permissionCodes);
-            finish(record, STATUS_SUCCESS, writeJson(data), null);
+            finish(record, STATUS_SUCCESS, writeJson(data), null, 0, elapsed(startedMillis));
             log.info("平台操作执行成功: confirmationId={}, operation={}", confirmationId, operation.name());
             return data;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            finish(record, STATUS_FAILED, null, "执行被中断");
+            finish(record, STATUS_FAILED, null, "执行被中断", ErrorCode.SYSTEM_ERROR.getCode(), elapsed(startedMillis));
             throw new BizException("平台操作执行被中断");
         } catch (IOException | RuntimeException e) {
-            finish(record, STATUS_FAILED, null, e.getMessage());
+            finish(record, STATUS_FAILED, null, e.getMessage(), ErrorCode.SYSTEM_ERROR.getCode(),
+                    elapsed(startedMillis));
             log.warn("平台操作执行失败: confirmationId={}, operation={}", confirmationId, operation.name(), e);
             throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "平台操作执行失败：" + e.getMessage());
         }
@@ -172,10 +175,13 @@ public class PlatformOpService {
         wrapper.eq(AgentOperation::getId, record.getId());
         wrapper.eq(AgentOperation::getStatus, STATUS_PENDING);
         wrapper.set(AgentOperation::getStatus, STATUS_REJECTED);
+        wrapper.set(AgentOperation::getConfirmedBy, userId);
+        wrapper.set(AgentOperation::getConfirmedAt, LocalDateTime.now());
         if (operationMapper.update(null, wrapper) == 0) {
             throw new BizException(ErrorCode.REPEAT_SUBMIT.getCode(), "确认令牌已失效");
         }
         record.setStatus(STATUS_REJECTED);
+        record.setConfirmedBy(userId);
         return statusOf(record);
     }
 
@@ -227,16 +233,23 @@ public class PlatformOpService {
      * 原子占用令牌：仅 {@code PENDING} 且未过期时置为 {@code CONFIRMED}。
      *
      * @param record 记录
+     * @param userId 确认人用户ID
      * @return 影响行数（0 表示已被使用或已过期）
      */
-    private int claim(AgentOperation record) {
+    private int claim(AgentOperation record, Long userId) {
         LambdaUpdateWrapper<AgentOperation> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(AgentOperation::getId, record.getId());
         wrapper.eq(AgentOperation::getStatus, STATUS_PENDING);
         wrapper.gt(AgentOperation::getExpiresAt, LocalDateTime.now());
         wrapper.set(AgentOperation::getStatus, STATUS_CONFIRMED);
+        wrapper.set(AgentOperation::getConfirmedBy, userId);
         wrapper.set(AgentOperation::getConfirmedAt, LocalDateTime.now());
-        return operationMapper.update(null, wrapper);
+        int rows = operationMapper.update(null, wrapper);
+        if (rows > 0) {
+            record.setStatus(STATUS_CONFIRMED);
+            record.setConfirmedBy(userId);
+        }
+        return rows;
     }
 
     /**
@@ -259,16 +272,33 @@ public class PlatformOpService {
      * @param status    最终状态
      * @param result    结果 JSON（成功时）
      * @param errorMsg  错误信息（失败时）
+     * @param resultCode 结果码（0 成功 / 500 失败）
+     * @param elapsedMs 执行耗时（毫秒）
      */
-    private void finish(AgentOperation record, String status, String result, String errorMsg) {
+    private void finish(AgentOperation record, String status, String result, String errorMsg,
+                        Integer resultCode, Integer elapsedMs) {
         LambdaUpdateWrapper<AgentOperation> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(AgentOperation::getId, record.getId());
         wrapper.set(AgentOperation::getStatus, status);
         wrapper.set(AgentOperation::getResultJson, result);
         wrapper.set(AgentOperation::getErrorMsg, truncate(errorMsg));
+        wrapper.set(AgentOperation::getResultCode, resultCode);
+        wrapper.set(AgentOperation::getElapsedMs, elapsedMs);
         operationMapper.update(null, wrapper);
         record.setStatus(status);
         record.setResultJson(result);
+        record.setResultCode(resultCode);
+        record.setElapsedMs(elapsedMs);
+    }
+
+    /**
+     * 计算执行耗时。
+     *
+     * @param startedMillis 开始时间戳（毫秒）
+     * @return 耗时毫秒数
+     */
+    private static int elapsed(long startedMillis) {
+        return (int) Math.min(Integer.MAX_VALUE, System.currentTimeMillis() - startedMillis);
     }
 
     /**

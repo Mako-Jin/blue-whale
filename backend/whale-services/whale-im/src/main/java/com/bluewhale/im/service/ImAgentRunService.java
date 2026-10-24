@@ -16,6 +16,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -100,6 +101,93 @@ public class ImAgentRunService {
             log.warn("平台操作确认失败: runId={}, confirmationId={}", runId, confirmationId, e);
             return complete(run, STATUS_FAILED, "平台操作执行失败：" + e.getMessage());
         }
+    }
+
+    /**
+     * 查询运行轨迹：状态、工具调用、引用与确认信息。
+     *
+     * <p>仅会话成员可查看；{@code tool_trace_json} 解析失败时降级为空集合，不影响主字段返回。</p>
+     *
+     * @param runId  运行记录ID
+     * @param userId 当前用户ID
+     * @return 轨迹视图
+     */
+    public Map<String, Object> detail(Long runId, Long userId) {
+        ImAgentRun run = runMapper.selectById(runId);
+        if (run == null) {
+            throw new BizException("运行记录不存在");
+        }
+        guard.requireMember(run.getConversationId(), userId);
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("runId", String.valueOf(run.getId()));
+        detail.put("conversationId", String.valueOf(run.getConversationId()));
+        detail.put("status", run.getStatus());
+        detail.put("requestMessageId", asString(run.getRequestMessageId()));
+        detail.put("responseMessageId", asString(run.getResponseMessageId()));
+        detail.put("startedAt", run.getStartedAt() == null ? null : run.getStartedAt().toString());
+        detail.put("finishedAt", run.getFinishedAt() == null ? null : run.getFinishedAt().toString());
+        detail.put("durationMs", durationMs(run));
+        detail.put("tools", tracePart(run.getToolTraceJson(), "tools"));
+        detail.put("citations", tracePart(run.getToolTraceJson(), "citations"));
+        detail.put("confirmation", readOrNull(run.getConfirmationJson()));
+        return detail;
+    }
+
+    /**
+     * 读取工具轨迹中的某个字段。
+     *
+     * @param json 轨迹 JSON
+     * @param field 字段名（tools / citations）
+     * @return 字段节点；缺失或解析失败时为空数组
+     */
+    private JsonNode tracePart(String json, String field) {
+        JsonNode trace = readOrNull(json);
+        if (trace == null) {
+            return objectMapper.createArrayNode();
+        }
+        JsonNode part = trace.get(field);
+        return part == null || part.isNull() ? objectMapper.createArrayNode() : part;
+    }
+
+    /**
+     * 解析 JSON 文本。
+     *
+     * @param json JSON 文本
+     * @return 节点；空文本或解析失败返回 {@code null}
+     */
+    private JsonNode readOrNull(String json) {
+        if (!StringUtils.hasText(json)) {
+            return null;
+        }
+        try {
+            return objectMapper.readTree(json);
+        } catch (RuntimeException e) {
+            log.warn("运行轨迹解析失败", e);
+            return null;
+        }
+    }
+
+    /**
+     * 计算运行耗时。
+     *
+     * @param run 运行记录
+     * @return 耗时毫秒；缺少起止时间时为 {@code null}
+     */
+    private static Long durationMs(ImAgentRun run) {
+        if (run.getStartedAt() == null || run.getFinishedAt() == null) {
+            return null;
+        }
+        return Duration.between(run.getStartedAt(), run.getFinishedAt()).toMillis();
+    }
+
+    /**
+     * 长整型转字符串（避免前端精度丢失）。
+     *
+     * @param value 数值
+     * @return 字符串或 {@code null}
+     */
+    private static String asString(Long value) {
+        return value == null ? null : String.valueOf(value);
     }
 
     /**

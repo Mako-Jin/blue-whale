@@ -17,6 +17,7 @@ import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -143,6 +144,69 @@ class ImAgentRunServiceTest {
                 .isInstanceOf(BizException.class)
                 .hasMessageContaining("无权访问");
         verify(client, never()).confirmOperation(anyString(), eq(true), anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("轨迹查询：返回工具、引用、确认信息与耗时")
+    void shouldReturnRunTraceDetail() {
+        when(runMapper.selectById(RUN_ID)).thenReturn(finishedRun());
+
+        Map<String, Object> detail = service.detail(RUN_ID, USER_ID);
+
+        assertThat(detail).containsEntry("runId", String.valueOf(RUN_ID))
+                .containsEntry("conversationId", String.valueOf(CONVERSATION_ID))
+                .containsEntry("status", "SUCCESS")
+                .containsEntry("durationMs", 1500L);
+        assertThat((JsonNode) detail.get("tools")).hasSize(1);
+        assertThat((JsonNode) detail.get("citations")).hasSize(1);
+        assertThat(detail.get("confirmation")).isNotNull();
+        verify(guard).requireMember(CONVERSATION_ID, USER_ID);
+    }
+
+    @Test
+    @DisplayName("轨迹查询：轨迹缺失或损坏时降级为空集合")
+    void shouldDegradeTraceWhenMalformed() {
+        ImAgentRun run = finishedRun();
+        run.setToolTraceJson("not-json");
+        when(runMapper.selectById(RUN_ID)).thenReturn(run);
+
+        Map<String, Object> detail = service.detail(RUN_ID, USER_ID);
+
+        assertThat((JsonNode) detail.get("tools")).isEmpty();
+        assertThat((JsonNode) detail.get("citations")).isEmpty();
+        assertThat(detail).containsEntry("durationMs", 1500L);
+    }
+
+    @Test
+    @DisplayName("轨迹查询：记录不存在或非成员时拒绝")
+    void shouldRejectDetailWhenMissingOrNotMember() {
+        when(runMapper.selectById(RUN_ID)).thenReturn(null);
+
+        assertThatThrownBy(() -> service.detail(RUN_ID, USER_ID))
+                .isInstanceOf(BizException.class)
+                .hasMessageContaining("运行记录不存在");
+
+        when(runMapper.selectById(RUN_ID)).thenReturn(finishedRun());
+        when(guard.requireMember(CONVERSATION_ID, USER_ID)).thenThrow(new BizException("会话不存在或无权访问"));
+
+        assertThatThrownBy(() -> service.detail(RUN_ID, USER_ID))
+                .isInstanceOf(BizException.class)
+                .hasMessageContaining("无权访问");
+    }
+
+    /**
+     * 构造已完成的运行记录（含工具轨迹与引用）。
+     *
+     * @return 运行记录
+     */
+    private static ImAgentRun finishedRun() {
+        ImAgentRun run = waitingRun();
+        run.setStatus("SUCCESS");
+        run.setToolTraceJson("{\"tools\":[{\"name\":\"knowledge_search\",\"status\":\"ok\"}],"
+                + "\"citations\":[{\"path\":\"docs/a.md\",\"line\":3}]}");
+        run.setStartedAt(LocalDateTime.of(2026, 10, 24, 10, 0, 0));
+        run.setFinishedAt(LocalDateTime.of(2026, 10, 24, 10, 0, 1, 500_000_000));
+        return run;
     }
 
     /**
