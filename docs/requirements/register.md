@@ -2,7 +2,7 @@
 
 > 用途：本项目所有需求（业务功能 + 工程规范）的统一台账。
 > 规则：**任何需求在动手实现之前，必须先在此登记编号与验收标准**（见 REQ-DOC-002）。
-> 最后更新：2026-10-24（**Wave 5.52 M0 设计冻结**：新增登记 REQ-FUNC-011 自研 WebIM、REQ-FUNC-012 LangChain 智能体、REQ-FUNC-013 平台操作分级确认、REQ-SEC-007 智能体工具权限与确认令牌；详见 [wave5.52 规划](../plans/wave5.52-webim-langchain-agent.md)） ｜ 维护：BlueWhale
+> 最后更新：2026-10-24（**Wave 5.53 M1 档案底座完成**：`whale-archive` 8093 / `bluewhale_archive` 6 表 / 门类与规则 CRUD / 档号并发生成 / 权限种子 140–150 / 网关路由与 internal-deny；17 用例全绿 + 全 reactor Checkstyle 0；REQ-FUNC-014 转实现中；详见 [wave5.53 规划](../plans/wave5.53-archive-file-knowledge.md)；同日前序登记 REQ-FUNC-011/012/013、REQ-SEC-007 见 §四） ｜ 维护：BlueWhale
 > Wave 5.16：**审计服务文档收尾（REQ-DOC-002 / REQ-QA-002，REQ-SEC-001/006 文档整合）**——① `docs/whale-audit/originals/` 归置审计相关原始文档副本 **26 份**（design 1 + scheme 1 + specs 5 目录 15 + reviews 6 + devlog 3；**原位文件不删不动**）；② `docs/whale-audit/final/README.md` 整合最终版（八节：需求与范围 / 能力矩阵 / 接口与权限点清单〔2 控制器 9 端点〕/ 关键配置项 / 表结构〔5 表〕/ 已闭环与残余阻塞 / 原文索引 / 版本记录），以原位最新文件与源码为准。**本波零代码变更**。详见 [reviews/2026-10-18-wave5.16-audit-service-finalization.md](../reviews/2026-10-18-wave5.16-audit-service-finalization.md) 与 [whale-audit/final/README.md](../whale-audit/final/README.md)。
 > Wave 5.15：**审计服务 ①② 通道查询补齐（REQ-SEC-006）**——为 `api_log`（通道①）/`outbound_log`（通道②）补齐与 ③④ 对称的分页查询端点 `GET /audit/log/api/page`、`GET /audit/log/outbound/page`（`@RequirePermission("sys:audit:log:list")`，返回 `Result<PageResult<VO>>`）；新增 DTO（继承 `PageQuery`，时间范围 `@DateTimeFormat`）+ VO（`Serializable`，字段与实体一一对应）+ Service/Impl（`size` 收敛 `[1,200]`、`create_time` 倒序、等值条件带「是否提供」开关、时间 `ge/le`，命中既有索引）；四通道「写—查」对称达成。门禁：`-pl :whale-audit -am test` **46 用例全绿**（含不回归）、`checkstyle:check` **28 模块 0 违规**。详见 [reviews/2026-10-18-wave5.15-audit-channel-query.md](../reviews/2026-10-18-wave5.15-audit-channel-query.md)。
 > Wave 5.14：**前端日志 SDK（Wave B，REQ-SEC-006 通道③④）**——新增共享包 `@bluewhale/whale-log-sdk`（`frontend/shared-packages/whale-log-sdk`，v0.1.0，**零运行时依赖**）：console 劫持采集（保留原输出 + 可还原）+ 行为埋点（`PAGE_VIEW`/`CLICK`/`SUBMIT`）+ 脱敏（递归敏感键 + URL query，键与后端 `SensitiveDataMasker` 对齐）+ 批量通道（采样/去重/满批或定时 flush/**分片 ≤50**/指数退避）+ `fetch` 上报（`X-Trace-Id`）；`whale-platform` 基座接入 `initLogSdk()`。**不改后端**（契约沿用 Wave 5.10 冻结接口）。门禁：tsup **三件产物**（cjs/esm/dts）+ 无依赖冒烟 **30 断言全过** + 前端 `pnpm build` **12/12** + `eslint` **0 error** + `prettier` **0 差异**。详见 [reviews/2026-10-18-wave5.14-whale-log-sdk.md](../reviews/2026-10-18-wave5.14-whale-log-sdk.md)。
@@ -89,7 +89,17 @@
 
 ---
 
-## 五、既有需求基线（引自路线图，仅登记不重复展开）
+## 五、Wave 5.53 新增需求（档案服务 + 文件知识库，2026-10-24 登记）
+
+| 编号 | 需求描述 | 来源 | 优先级 | 状态 | 落点 | 验收标准 |
+|---|---|---|---|---|---|---|
+| REQ-FUNC-014 | **档案服务**：凡经工作流审批**通过**（`process_instance.status=1`）的文档均可归档；支持档案门类、档号、保管期限、密级、不可变快照、表单附件、审批轨迹、检索与下载 | 用户指令（Wave 5.53） | 高 | **实现中**（M1 底座已完成：服务/DDL/门类/规则/档号；M2–M3 待做） | 新服务 `backend/whale-services/whale-archive`（8093，`/archive/**`，`bluewhale_archive` 5 表）+ `whale-workflow`/`whale-form`/`whale-file` 内网只读接口 + `frontend/admin` 档案管理页 | ① 审批通过 5 分钟内进入待整理/已归档，驳回与撤销永不归档；② 同一实例重复同步 N 次条目恒为 1、档号不重复；③ 快照含实例/表单值/字段标签/审批轨迹/附件清单且 `sha256` 可复算；④ attachment 字段（含子表）附件全部收集并锁定（`file_info.status=2`），锁定文件删除返回冲突；⑤ 并发 20 次确认归档档号唯一；⑥ 无 `sys:archive:*` 拒绝访问，归档/整理/确认/销毁/下载均有审计；⑦ 新模块单测全绿 + Checkstyle 0 + 全模块构建成功 |
+| REQ-FUNC-015 | **文件知识库**：`whale-file` 中全部业务文件自动解析、切分、索引，构成可检索知识库，供 `whale-agent` 问答、引用、追溯；支持增量同步、删除下架、失败重试与手工重建 | 用户指令（Wave 5.53） | 高 | 设计已定稿（[wave5.53 规划](../plans/wave5.53-archive-file-knowledge.md) §六） | `whale-agent`（8090）新增 `agent_knowledge_file` + Tika 解析 + `FileChunker` + 知识管理接口；`whale-file` 新增 `/internal/changes`、`/internal/{id}/content` | ① 允许 MIME：pdf/docx/xlsx/pptx/txt/md/html/csv，单文件 ≤20MB、抽取 ≤100 万字符；② 入库文件检索命中且引用含文件名与 `file:<id>`；③ 删除/停用后检索不可见；④ 损坏/超大/不支持文件置 `SKIPPED/FAILED` 且不阻塞队列；⑤ md5 未变不重复抽取，变更触发重建；⑥ 单测覆盖 6 类文档与异常路径，Checkstyle 0、构建成功 |
+| REQ-SEC-008 | **档案与知识库可见性**：档案按权限码与密级（1 公开 / 2 内部 / 3 秘密）过滤；索引块新增 `permission_code` 字段，检索先过滤后召回；归档文件加锁防误删 | 用户指令（Wave 5.53） | 高 | **实现中**（M1：权限种子 `sys:archive:*` + 网关 internal-deny；锁定与索引权限字段待 M2–M4） | `whale-archive` 权限注解 + `whale-agent` 检索过滤 + `whale-file` `status=2` + `whale-auth` 权限种子 | ① 普通文件知识沿用 `sys:agent:chat`；档案快照另需 `sys:archive:item:read`；② 密级 3 内容仅授权用户命中，普通用户不可见；③ 敏感内容（口令/证件/手机号）经 `SensitiveContentMasker` 脱敏后才入索引；④ 归档锁定文件不可删除，删除前置引用校验通过 |
+
+---
+
+## 六、既有需求基线（引自路线图，仅登记不重复展开）
 
 | 编号 | 需求描述 | 状态 | 来源 |
 |---|---|---|---|
@@ -106,7 +116,7 @@
 
 ---
 
-## 六、变更控制流程（REQ-DOC-002 落地）
+## 七、变更控制流程（REQ-DOC-002 落地）
 
 ```
 提出需求

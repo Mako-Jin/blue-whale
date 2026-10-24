@@ -86,6 +86,12 @@ spring:
               uri: lb://whale-im
               predicates:
                 - Path=/im/**
+            # Wave 5.53 档案服务：自持 /archive 一级前缀（不含 StripPrefix，REQ-ARCH-003）；
+            # 内网 /archive/internal/** 由 internal-deny 统一 403
+            - id: whale-archive
+              uri: lb://whale-archive
+              predicates:
+                - Path=/archive/**
 
 whale:
   gateway:
@@ -148,11 +154,16 @@ whale:
         - whale-job
         - whale-file
         - whale-audit
+        - whale-archive
     # T6 内网接口屏蔽（由 InternalApiDenyGlobalFilter 执行）：命中 patterns 的外部请求直接返回 403
     internal-deny:
       enabled: ${WHALE_GATEWAY_INTERNAL_DENY_ENABLED:true}
       patterns:
         - /file/internal/**
+        # Wave 5.53 档案同步只读通道：workflow / form / file / archive 的 /internal/** 仅限 Nacos 内网直连
+        - /workflow/internal/**
+        - /form/internal/**
+        - /archive/internal/**
         # P1-3 审计汇聚摄入端点：仅服务间内网调用，经网关访问一律 403
         - /audit/log/ingest/**
         # Wave 5.52 IM 群成员合法性校验：仅 whale-im 经内网直连 whale-auth 调用
