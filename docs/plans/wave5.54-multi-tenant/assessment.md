@@ -715,3 +715,53 @@ curl -s -X POST http://localhost:8080/auth/refresh -H 'Content-Type: application
 
 - `api/auth.ts` 新增 `listMyTenants()`（`GET /auth/tenants`）与 `switchTenant(tenantId, tenantCode)`（`POST /auth/tenant/switch`，携带当前 `refreshToken`；成功即 `saveLogin`，失败不落盘）。
 - `AdminLayout` 挂载时拉取租户列表；数量 > 1 时以 `Select` 替换原静态租户标签，切换成功 `window.location.replace('/')` 全量重建权限/菜单/请求头；加载失败与非多租户场景保持原标签，不影响登录态。
+
+### 15.14 Phase 5.3 执行计划（成员与角色管理，2026-10-25）
+
+**目标**：让租户管理员维护「本租户成员与租户内角色」，并让平台租户维护「用户可进入哪些租户」；所有写操作按租户收口，不得触及其他租户的角色关联。
+
+#### 交付文件
+
+| 类别 | 文件 | 改动 |
+|---|---|---|
+| 文档 | 本评估稿 + `docs/requirements/register.md` | 本节执行计划；REQ-ARCH-006 / REQ-FUNC-016 状态 |
+| 领域端口 | `UserTenantRepository` | 新增 `listEnabledUserIds(tenantId)`、`exists(userId, tenantId)`、`disable(userId, tenantId)` |
+| 仓储实现 | `UserTenantRepositoryImpl` | 按租户列启用成员、关系存在性、软停用（`status=0`，不物理删除） |
+| 应用服务 | `TenantMembershipAppService` | 成员列表、租户内角色分配、平台绑定/解绑关系；发布 `UserDomainEvent` 失效权限缓存 |
+| 权限码 | `TenantProvisioningAppService` | 平台专属码集合化：`sys:tenant:list/add/edit/status/renew` 与 `sys:user:tenant` 不下发；成员码 165/166 正常下发 |
+| VO/DTO | `TenantMemberVO`、`BindUserTenantRequest` | 成员视图（用户信息 + 本租户角色）与绑定入参 |
+| 控制器 | `TenantController`、`UserController` | `GET /tenant/members`、`PUT /tenant/members/{userId}/roles`、`POST /user/{userId}/tenants`、`DELETE /user/{userId}/tenants/{tenantId}` |
+| 数据库 | `init.sql`、`migration-5.54-tenant-membership.sql` | 权限 165–167；`sys_menu` 新增「租户成员」；为既有 `tenant_admin` 角色授权 165/166 |
+| 前端 | `api/tenant.ts`、`pages/tenant/TenantMemberList.tsx`、`router/dynamicRoutes.tsx` | 成员列表 + 角色分配 + 绑定/解绑；组件契约键 `tenant/member` |
+| 单测 | `whale-auth/src/test/java/...` | 成员列表、跨租户角色拒绝、首页关系禁删、绑定/解绑幂等 |
+
+#### 接口与语义
+
+| 方法 | 路径 | 权限 | 语义 |
+|---|---|---|---|
+| GET | `/tenant/members` | `sys:tenant:member:list`（165） | 当前租户启用关系成员 + 用户基本信息（按 ID 跨租户加载）+ 本租户角色 |
+| PUT | `/tenant/members/{userId}/roles` | `sys:tenant:member:assign`（166） | 全量覆盖该用户在本租户的角色；非成员 404；角色必须属于本租户（否则 400） |
+| POST | `/user/{userId}/tenants` | `sys:user:tenant`（167，仅平台租户） | 增加可进入租户关系；用户不存在 404、目标租户不可用 400、已存在幂等 |
+| DELETE | `/user/{userId}/tenants/{tenantId}` | `sys:user:tenant`（167，仅平台租户） | 软停用关系；首页租户关系 400 禁删；关系不存在 404 |
+
+- `sys_user_role` 仍无 `tenant_id`：租户归属由 `sys_role.tenant_id` 推导，`replaceRoles` 只清理/重建本租户角色行。
+- 角色分配与关系变更发布 `UserDomainEvent`（`ROLES_ASSIGNED`），由既有监听器失效权限缓存。
+- 审计：角色分配、绑定、解绑均 `@AuditLog`；不记录敏感参数。
+
+#### 实施顺序
+
+1. 落本节执行计划（文档先行）。
+2. 领域端口 + 仓储实现 + 成员服务（列表/分配/绑定/解绑）。
+3. 权限码与菜单迁移（`init.sql` + 幂等脚本，含既有 `tenant_admin` 授权）。
+4. 控制器端点 + 审计注解。
+5. 前端 API + 成员页 + 路由契约键。
+6. 单测 → `whale-auth` 构建 + Checkstyle → admin `tsc/vite/lint`。
+7. 检查报告 → 提交推送。
+
+#### 验收
+
+1. 成员列表只返回本租户启用关系；不出现其他租户成员。
+2. 给成员分配本租户角色成功，切回另一租户时权限不变；传入其他租户角色 ID 被拒。
+3. 非成员分配角色 404；平台租户为任意用户绑定/解绑关系成功且幂等。
+4. 删除首页关系 400；解绑后该用户 refresh 401、`/auth/tenants` 不再返回该租户。
+5. `whale-auth` 单测全绿 + Checkstyle 0；admin lint/build 通过。

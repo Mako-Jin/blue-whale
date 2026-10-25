@@ -2,6 +2,7 @@
 
 > 用途：本项目所有需求（业务功能 + 工程规范）的统一台账。
 > 规则：**任何需求在动手实现之前，必须先在此登记编号与验收标准**（见 REQ-DOC-002）。
+> Wave 5.54：**多租户隔离体系与一人多租户切换**——新增登记 REQ-ARCH-006（多租户隔离，`sys_tenant` + RBAC 租户化 + 网关可信注入 + 租户行插件 + 业务域铺开）与 REQ-FUNC-016（S4 一人多租户切换：`sys_user_tenant`、`/auth/tenants`、`/auth/tenant/switch`、`/tenant/members`）。Phase 0–4 与 Phase 5.1/5.2 已完成并推送（`1bef439`），Phase 5.3 成员与角色管理、5.4 双租户 E2E 进行中；详见 [wave5.54 评估稿](../plans/wave5.54-multi-tenant/assessment.md) 与 [Phase 5.2 检查报告](../reviews/2026-10-25-wave5.54-phase5.2-tenant-switcher.md)。
 > 最后更新：2026-10-25（**Wave 5.53 M3 档案检索与 admin 五页完成**：`whale-archive` 新增条目分页/详情/整理/确认/销毁/下载/统计 7 端点 + 审计，沉淀 `CategoryPathResolver` 与 `UserContext`；`frontend/admin` 新增 `api/archive.ts` 与门类/规则/待整理/检索/同步五页，注册 `archive/*` 组件契约键与菜单 11–16；archive **39 用例**全绿 + Checkstyle 0，admin `tsc + vite build`、`eslint --max-warnings 0` 通过；MySQL8 已执行建库/7 表 DDL/权限种子（8.0.45；菜单 11–16 重跑并核验 6 行）；**A13 真机联调已通过**（直连 workflow/form/file/archive：审批办结→可见 28 秒、档号 `BW-A13TEST-2026-000001/000002/000003` 唯一、下载 200 + RFC 5987 + `nosniff`、无权限码/错码 `code=403`、`file_info.status=2`、`audit_log` 7 行；archive **39 用例**全绿 + Checkstyle 0）；REQ-FUNC-014 / REQ-SEC-008 仍为实现中（M4–M5 待做）；详见 [wave5.53 规划](../plans/wave5.53-archive-file-knowledge.md) 与 [M3 检查报告](../reviews/2026-10-25-wave5.53-m3-archive-search-admin.md)；同日前序登记 REQ-FUNC-011/012/013、REQ-SEC-007 见 §四） ｜ 维护：BlueWhale
 > Wave 5.16：**审计服务文档收尾（REQ-DOC-002 / REQ-QA-002，REQ-SEC-001/006 文档整合）**——① `docs/whale-audit/originals/` 归置审计相关原始文档副本 **26 份**（design 1 + scheme 1 + specs 5 目录 15 + reviews 6 + devlog 3；**原位文件不删不动**）；② `docs/whale-audit/final/README.md` 整合最终版（八节：需求与范围 / 能力矩阵 / 接口与权限点清单〔2 控制器 9 端点〕/ 关键配置项 / 表结构〔5 表〕/ 已闭环与残余阻塞 / 原文索引 / 版本记录），以原位最新文件与源码为准。**本波零代码变更**。详见 [reviews/2026-10-18-wave5.16-audit-service-finalization.md](../reviews/2026-10-18-wave5.16-audit-service-finalization.md) 与 [whale-audit/final/README.md](../whale-audit/final/README.md)。
 > Wave 5.15：**审计服务 ①② 通道查询补齐（REQ-SEC-006）**——为 `api_log`（通道①）/`outbound_log`（通道②）补齐与 ③④ 对称的分页查询端点 `GET /audit/log/api/page`、`GET /audit/log/outbound/page`（`@RequirePermission("sys:audit:log:list")`，返回 `Result<PageResult<VO>>`）；新增 DTO（继承 `PageQuery`，时间范围 `@DateTimeFormat`）+ VO（`Serializable`，字段与实体一一对应）+ Service/Impl（`size` 收敛 `[1,200]`、`create_time` 倒序、等值条件带「是否提供」开关、时间 `ge/le`，命中既有索引）；四通道「写—查」对称达成。门禁：`-pl :whale-audit -am test` **46 用例全绿**（含不回归）、`checkstyle:check` **28 模块 0 违规**。详见 [reviews/2026-10-18-wave5.15-audit-channel-query.md](../reviews/2026-10-18-wave5.15-audit-channel-query.md)。
@@ -99,7 +100,16 @@
 
 ---
 
-## 六、既有需求基线（引自路线图，仅登记不重复展开）
+## 六、Wave 5.54 新增需求（多租户隔离与一人多租户，2026-10-25 登记）
+
+| 编号 | 需求描述 | 来源 | 优先级 | 状态 | 落点 | 验收标准 |
+|---|---|---|---|---|---|---|
+| REQ-ARCH-006 | **多租户隔离体系（共享库 + 行级 `tenant_id`）**：① `sys_tenant` 租户实体与生命周期；② `sys_user/sys_role/sys_menu/sys_dept` 租户化，唯一键复合；③ 网关只信 JWT `tenantId` 注入、清除客户端伪造头；④ `TenantContext` + MyBatis-Plus 租户行插件统一过滤；⑤ 业务表（表单/文件/IM/工作流/Agent/档案/任务/支付/告警/审计）补齐 `tenant_id`；⑥ 异步与服务间调用租户传播；⑦ 租户配额与停用 | 用户指令（Wave 5.54） | 高 | **实现中**（Phase 0–4 已完成 2026-10-25：止血/租户模型/RBAC 租户化/横切插件/业务域铺开/前端租户管理与请求头注入；Phase 5 一人多租户进行中） | [wave5.54 评估稿](../plans/wave5.54-multi-tenant/assessment.md) + `whale-auth`（`sys_tenant`/RBAC/租户上下文/开通/管理）、`whale-gateway`（JwtAuthGlobalFilter）、`whale-spring-boot-starter`（租户插件）、各服务 `db/init.sql` 与 `migration-5.54-tenant-*.sql` | ① 客户端自带 `X-Tenant-Id` 一律被清除，受保护路径以 JWT `tenantId` 为准，缺失即 401（MT-01/MT-02）；② 跨租户详情/分页/删除视为不存在，写操作租户条件强制（MT-03~MT-05）；③ 审计写入 `tenant_id`（MT-06）；④ 各域迁移脚本幂等、init.sql 同构（MT-08/MT-12）；⑤ 单测 + Checkstyle 0 + 构建通过 |
+| REQ-FUNC-016 | **一人多租户切换（S4）**：同一自然人可属于多个租户，登录后可在启用租户间切换；切换只换当前租户上下文与角色权限，不换账号；租户管理员可维护本租户成员与租户内角色 | 用户指令（Wave 5.54 Phase 5） | 高 | **实现中**（5.1 后端模型/切换、5.2 admin 顶栏切换器已完成 2026-10-25；5.3 成员与角色管理、5.4 双租户 E2E 待做） | [wave5.54 评估稿 §十五](../plans/wave5.54-multi-tenant/assessment.md#十五一人多租户s4切换器设计待评审) + `sys_user_tenant` + `/auth/tenants`、`/auth/tenant/switch`、`/tenant/members`、`/user/{userId}/tenants` + `frontend/admin` 顶栏与租户成员页 | ① 单租户用户不出现切换器；双租户切换后 `userId` 不变、令牌 `tenantId` 与角色/菜单均为目标租户；② 旧 access/refresh 令牌切换后立即 401；③ 关系撤销后 refresh 401，非成员切换 403，目标租户停用/过期 403；④ 租户内角色分配只影响本租户，不删除该用户在其他租户的角色；⑤ 首页关系禁止删除；⑥ `AUTH_TENANT_SWITCH` 审计可按 `userId/fromTenantId/toTenantId` 检索 |
+
+---
+
+## 七、既有需求基线（引自路线图，仅登记不重复展开）
 
 | 编号 | 需求描述 | 状态 | 来源 |
 |---|---|---|---|
@@ -116,7 +126,7 @@
 
 ---
 
-## 七、变更控制流程（REQ-DOC-002 落地）
+## 八、变更控制流程（REQ-DOC-002 落地）
 
 ```
 提出需求
