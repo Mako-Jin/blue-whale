@@ -20,7 +20,7 @@ import java.util.UUID;
  *
  * <p>消息属性：{@code messageId} 为 32 位无横线 UUID（消费端据此幂等去重）、
  * 投递模式 {@code PERSISTENT}（Broker 持久化队列 + 持久化消息）、
- * {@code contentType=application/json}；请求体为单条记录的 JSON。</p>
+ * {@code contentType=application/json}、{@code tenantId} 消息头；请求体为单条记录的 JSON。</p>
  *
  * @author BlueWhale
  */
@@ -29,6 +29,9 @@ public class AuditLogMqPublisher {
 
     /** 消息内容类型 */
     private static final String CONTENT_TYPE_JSON = "application/json";
+
+    /** 租户ID消息头（Wave 5.54 Phase 2：消费端/排障可按租户过滤） */
+    public static final String TENANT_ID_HEADER = "tenantId";
 
     private final RabbitTemplate rabbitTemplate;
 
@@ -65,6 +68,7 @@ public class AuditLogMqPublisher {
                         messageProperties.setMessageId(UUID.randomUUID().toString().replace("-", ""));
                         messageProperties.setDeliveryMode(MessageDeliveryMode.PERSISTENT);
                         messageProperties.setContentType(CONTENT_TYPE_JSON);
+                        messageProperties.setHeader(TENANT_ID_HEADER, record.getTenantId());
                         return message;
                     });
             return true;

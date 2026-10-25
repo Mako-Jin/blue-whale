@@ -1,5 +1,6 @@
 # BlueWhale Spring Boot Starter 自动配置
 com.bluewhale.starter.autoconfigure.WhaleAutoConfiguration
+com.bluewhale.common.tenant.TenantContextAutoConfiguration
 com.bluewhale.common.mybatis.config.MybatisPlusConfig
 com.bluewhale.common.core.handler.GlobalExceptionHandler
 com.bluewhale.common.jackson.config.JacksonConfig

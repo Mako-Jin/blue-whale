@@ -6,7 +6,7 @@ import com.bluewhale.auth.application.tenant.command.UpdateTenantCommand;
 import com.bluewhale.auth.application.tenant.query.TenantPageQuery;
 import com.bluewhale.auth.domain.tenant.aggregate.Tenant;
 import com.bluewhale.auth.domain.tenant.repository.TenantRepository;
-import com.bluewhale.auth.security.TenantContext;
+import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.auth.vo.TenantVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -36,6 +36,7 @@ public class TenantAppService {
     public static final String DEFAULT_TENANT_CODE = "default";
 
     private final TenantRepository tenantRepository;
+    private final TenantStatusCache tenantStatusCache;
 
     /**
      * 登录租户解析：按租户编码定位「启用且未过期」的租户；编码为空回落默认租户
@@ -139,6 +140,7 @@ public class TenantAppService {
             tenant.disable();
         }
         Tenant saved = tenantRepository.save(tenant);
+        tenantStatusCache.sync(saved);
         log.info("租户状态变更: tenantId={}, status={}", id, status);
         return TenantVO.from(saved);
     }

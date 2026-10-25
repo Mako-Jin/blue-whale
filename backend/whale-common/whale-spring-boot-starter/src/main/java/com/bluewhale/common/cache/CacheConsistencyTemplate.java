@@ -1,5 +1,6 @@
 package com.bluewhale.common.cache;
 
+import com.bluewhale.common.tenant.TenantKeys;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
@@ -14,7 +15,7 @@ import java.util.function.Supplier;
  * 缓存一致性模板（Cache-Aside，字符串值语义）。
  * <p>提供 {@link #getOrLoad(String, String, Duration, Supplier)}（未命中回源 + 空值哨兵防穿透 +
  * TTL 抖动防雪崩）、{@link #evict(String, String)} 与 {@link #evictWithDelay(String, String, Duration)}
- * （延迟双删）。Key 约定 {@code {keyPrefix}:{name}:{id}}。</p>
+ * （延迟双删）。Key 约定 {@code whale:{tenantId}:cache:{name}:{id}}。</p>
  * <p>Redis 任何异常均降级处理：读失败直接回源，写/删失败仅告警忽略，不阻断业务主流程。
  * 击穿防护（同 Key 并发仅一次回源）由 {@code @DistributedLock} 场景接入承担，不在本工具内实现。</p>
  *
@@ -22,9 +23,6 @@ import java.util.function.Supplier;
  */
 @Slf4j
 public class CacheConsistencyTemplate {
-
-    /** Key 分段分隔符 */
-    private static final String KEY_SEPARATOR = ":";
 
     /** 延迟双删线程名，便于问题定位 */
     private static final String EVICT_THREAD_NAME = "whale-cache-evict";
@@ -167,14 +165,16 @@ public class CacheConsistencyTemplate {
     }
 
     /**
-     * 拼接缓存 Key：{@code {keyPrefix}:{name}:{id}}
+     * 拼接缓存 Key：{@code whale:{tenantId}:cache:{name}:{id}}（Wave 5.54 Phase 2）
+     *
+     * <p>租户段缺失时回落 {@code 0}，保证不同租户的同名缓存互不覆盖。</p>
      *
      * @param name 缓存名称（业务域）
      * @param id 缓存标识
      * @return Redis Key
      */
     private String buildKey(String name, String id) {
-        return properties.getKeyPrefix() + KEY_SEPARATOR + name + KEY_SEPARATOR + id;
+        return TenantKeys.cacheKey(name, id);
     }
 
     /**

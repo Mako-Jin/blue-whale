@@ -6,7 +6,7 @@ import com.bluewhale.auth.domain.menu.repository.MenuRepository;
 import com.bluewhale.auth.entity.SysMenu;
 import com.bluewhale.auth.infrastructure.persistence.assembler.MenuPersistenceAssembler;
 import com.bluewhale.auth.mapper.SysMenuMapper;
-import com.bluewhale.auth.security.TenantContext;
+import com.bluewhale.common.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 

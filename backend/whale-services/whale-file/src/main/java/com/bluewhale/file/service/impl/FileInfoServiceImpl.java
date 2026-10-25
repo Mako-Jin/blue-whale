@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.file.config.FileProperties;
 import com.bluewhale.file.dto.ChunkUploadCompleteRequest;
 import com.bluewhale.file.dto.ChunkUploadInitRequest;
@@ -72,6 +73,9 @@ public class FileInfoServiceImpl implements FileInfoService {
 
     /** 对象键日期目录格式 */
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd");
+
+    /** 对象键租户目录前缀（Wave 5.54 Phase 2：存储层按租户隔离） */
+    private static final String TENANT_KEY_PREFIX = "tenants/";
 
     /** 原始文件名缺失时的占位名 */
     private static final String UNKNOWN_FILENAME = "unknown";
@@ -405,6 +409,14 @@ public class FileInfoServiceImpl implements FileInfoService {
         if (entity == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
+        Long tenantId = TenantContext.get();
+        if (tenantId != null) {
+            String tenantPrefix = TENANT_KEY_PREFIX + tenantId + "/";
+            if (entity.getObjectKey() == null || !entity.getObjectKey().startsWith(tenantPrefix)) {
+                // 跨租户按不存在处理，避免泄露文件是否存在
+                throw new BizException(ErrorCode.NOT_FOUND);
+            }
+        }
         return entity;
     }
 
@@ -732,7 +744,7 @@ public class FileInfoServiceImpl implements FileInfoService {
     }
 
     /**
-     * 生成对象键：{@code yyyy/MM/dd/<uuid>.<ext>}
+     * 生成对象键：{@code tenants/{tenantId}/yyyy/MM/dd/<uuid>.<ext>}
      *
      * @param originalName 原始文件名（用于提取扩展名）
      * @return 对象键
@@ -741,7 +753,8 @@ public class FileInfoServiceImpl implements FileInfoService {
         String extension = StringUtils.getFilenameExtension(originalName);
         String suffix = StringUtils.hasText(extension) ? "." + extension : "";
         String uuid = UUID.randomUUID().toString().replace("-", "");
-        return LocalDate.now().format(DATE_FORMATTER) + "/" + uuid + suffix;
+        return TENANT_KEY_PREFIX + TenantContext.segment() + "/"
+                + LocalDate.now().format(DATE_FORMATTER) + "/" + uuid + suffix;
     }
 
     /**

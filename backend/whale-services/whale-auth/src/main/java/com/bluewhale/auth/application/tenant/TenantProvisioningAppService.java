@@ -62,6 +62,7 @@ public class TenantProvisioningAppService {
     private final UserRepository userRepository;
     private final PermissionRepository permissionRepository;
     private final PasswordEncoder passwordEncoder;
+    private final TenantStatusCache tenantStatusCache;
 
     /**
      * 开通租户：创建租户并完成管理员、默认角色、菜单与部门根初始化
@@ -106,6 +107,7 @@ public class TenantProvisioningAppService {
                 EncryptedPassword.of(passwordEncoder.encode(command.rawPassword())), command.adminNickname(),
                 null, null, null, rootDept.getId(), User.STATUS_ENABLED));
         userRepository.replaceRoles(admin.getId(), List.of(adminRole.getId()));
+        tenantStatusCache.sync(tenant);
 
         log.info("租户开通完成: tenantId={}, tenantCode={}, adminUserId={}, menuCount={}",
                 tenantId, tenantCode, admin.getId(), permissionIds.size());

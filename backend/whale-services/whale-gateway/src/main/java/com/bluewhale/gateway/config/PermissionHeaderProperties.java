@@ -9,8 +9,9 @@ import org.springframework.stereotype.Component;
  *
  * <p>{@code whale.gateway.permission-header.*}：{@code enabled} 控制是否由
  * {@code PermissionHeaderGlobalFilter} 解析并注入权限码头；{@code codesHeader} 为注入的头名；
- * {@code cacheKeyPrefix} 与 {@code nullSentinel} 与 whale-auth 侧 {@code CacheConsistencyTemplate}
- * 的 Key 约定（{@code {keyPrefix}:{name}:{id}}）和空值哨兵保持一致，避免两侧口径漂移。</p>
+ * {@code cacheKeyPrefix}、{@code tenantIdHeader} 与 {@code nullSentinel} 与 whale-auth 侧
+ * {@code CacheConsistencyTemplate} 的 Key 约定（{@code whale:{tenantId}:cache:{name}:{id}}）
+ * 和空值哨兵保持一致，避免两侧口径漂移。</p>
  *
  * @author BlueWhale
  */
@@ -25,8 +26,11 @@ public class PermissionHeaderProperties {
     /** 权限码头名（与 whale-audit 侧 {@code whale.permission.header.codes-header} 默认值一致） */
     private String codesHeader = "X-Permission-Codes";
 
-    /** 权限码缓存键前缀，最终键为 {@code {cacheKeyPrefix}:{userId}}（name 段已并入前缀） */
-    private String cacheKeyPrefix = "whale:cache:auth:user:perm";
+    /** 权限码缓存键前缀，最终键为 {@code {cacheKeyPrefix}:{tenantId}:cache:auth:user:perm:{userId}} */
+    private String cacheKeyPrefix = "whale";
+
+    /** 租户 ID 请求头（由 JwtAuthGlobalFilter 从 JWT claim 注入） */
+    private String tenantIdHeader = "X-Tenant-Id";
 
     /** 空值哨兵串，与 whale-auth 侧 {@code whale.cache.null-sentinel} 默认值一致，命中视为未命中 */
     private String nullSentinel = "__NULL__";

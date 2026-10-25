@@ -216,18 +216,19 @@
 - `TenantContext` 暂位于 `whale-auth`；Phase 2 上移到 `whale-spring-boot-starter` 并配合 MyBatis-Plus 租户行插件统一覆盖全模块。
 - 一人多租户（S4）仍未支持：`sys_user.tenant_id` 为单值，令牌中的租户即账号归属租户。
 
-### Phase 2：横切能力（P1）
+### Phase 2：横切能力（P1）——已完成（2026-10-25）
 
-1. `whale-spring-boot-starter` 新增 `TenantContext` + `TenantContextFilter`（Servlet）+ `TenantContextHolder`；请求结束 `clear`。
-2. MyBatis-Plus `TenantLineInnerInterceptor`：默认给所有表加 `tenant_id` 条件；白名单表（`sys_tenant`、`sys_i18n_message`、平台字典）显式忽略。
+1. `whale-spring-boot-starter` 新增 `TenantContext`（ThreadLocal）+ `TenantContextFilter`（Servlet 最高优先级自动注册）+ `TenantContextTaskDecorator`；请求结束 `clear`，auth 本地实现删除并统一引用 starter。
+2. MyBatis-Plus `TenantLineInnerInterceptor`：采用**显式表清单**（`whale.tenant.sql.tables`）自动追加 `tenant_id` 条件，默认覆盖 RBAC 4 表与 5 张日志表；无租户上下文的线程与未列入表忽略。Phase 3 业务表铺开后再切换为「全表 + 忽略白名单」。
 3. 传播：
-   - 线程池装饰器（审计、异步索引）传递 `TenantContext`；
-   - MQ 消息头携带 `tenantId`；
-   - 定时任务按租户遍历（`sys_tenant` 启用列表）；
-   - 内部 HTTP 客户端统一注入 `X-Tenant-Id`，删除 `whale.archive.integration.tenant-id` 固定配置。
-4. 缓存与锁：Key 统一 `whale:{tenantId}:...`；权限缓存改 `whale:{tenantId}:cache:auth:user:perm:{userId}`。
-5. 对象存储：`objectKey = tenants/{tenantId}/yyyy/MM/dd/<uuid>.<ext>`；下载/预签名校验租户。
-6. 审计：`api_log`/`outbound_log`/`frontend_log`/`behavior_log` 均补 `tenant_id` 写入与索引。
+   - 审计线程池与日志线程池接入 `TenantContextTaskDecorator`；
+   - 审计 MQ 消息头携带 `tenantId`；
+   - 档案定时同步按配置租户列表逐租户绑定上下文（暂为配置驱动，Phase 3 接入租户目录）；
+   - `FormArchiveClient` 从 `TenantContext` 取租户注入 `X-Tenant-Id`，删除 `whale.archive.integration.tenant-id` 固定配置。
+4. 缓存与锁：Key 统一 `whale:{tenantId}:...`；权限缓存改 `whale:{tenantId}:cache:auth:user:perm:{userId}`（网关读取口径同步）。
+5. 对象存储：`objectKey = tenants/{tenantId}/yyyy/MM/dd/<uuid>.<ext>`；按 `fileId` 下载/预览/删除时校验对象键租户前缀，跨租户按 404 处理。
+6. 审计：`api_log`/`outbound_log`/`frontend_log`/`behavior_log` 均补 `tenant_id` 写入与 `(tenant_id, create_time)` 索引。
+7. 网关：新增租户状态缓存校验，auth 启停租户即写 `whale:{tenantId}:cache:auth:tenant:status`，网关在验签与黑名单校验后读取，命中 `0` 直接 401；Redis 不可用时按启用降级放行并告警。
 
 ### Phase 3：业务域铺开（P2）
 
@@ -307,3 +308,14 @@
 | 完成项 | ① `sys_tenant` 增加 `tenant_type/expire_time/quota_json`，id=1 标记 PLATFORM；② `sys_role/sys_menu/sys_dept` 增加 `tenant_id`，角色唯一键改 `(tenant_id, role_code)`；③ 5 个实体/聚合/Assembler、4 个仓储、4 个 AppService 全量租户化；④ `TenantContext` + `TenantContextFilter` 失败关闭；⑤ `TenantProvisioningAppService` 事务化开通；⑥ `/tenant` 六个管理接口 + 平台租户准入；⑦ 登录/刷新校验过期；⑧ `init.sql` 同步、`migration-5.54-tenant-rbac.sql` 幂等脚本；⑨ auth 单测 322 个全通过；⑩ 后端全模块 `mvn install -DskipTests` BUILD SUCCESS |
 | 待做项 | ① 网关租户状态缓存校验（停用租户存量令牌）；② `TenantContext` 上移 starter + MyBatis 租户插件；③ 前端租户管理页与 E2E；④ 联调环境执行 RBAC 迁移脚本 |
 | 已修正问题项 | ① 仓储改造后登录租户解析误改 400：恢复为 401，与刷新链路一致；② `save` 改为返回回填主键的聚合，移除“保存后按用户名回查”的竞态；③ 角色/菜单/部门写路径统一从 `TenantContext` 取租户，禁止默认租户回落 |
+
+---
+
+## 十一、Phase 2 执行记录（2026-10-25）
+
+| 类别 | 内容 |
+|---|---|
+| 需求项 | ① 租户上下文上移 starter 并全服务生效；② MyBatis 行级租户插件；③ 异步/线程池/MQ/定时任务/内部调用租户传播；④ 缓存与锁 Key 带租户；⑤ 对象存储租户前缀与访问校验；⑥ 四类日志补 `tenant_id` 与索引；⑦ 网关租户状态校验收口停用租户存量令牌 |
+| 完成项 | ① 新增 `com.bluewhale.common.tenant.TenantContext/TenantContextFilter/TenantContextTaskDecorator/TenantKeys/TenantSqlProperties/TenantContextAutoConfiguration`，auth 删除本地同名实现并全量改引用；② `MybatisPlusConfig` 接入 `TenantLineInnerInterceptor`（显式表清单，租户插件先于分页）；③ 审计/日志线程池接入装饰器，审计 MQ 增加 `tenantId` 头，`FormArchiveClient` 删除固定租户配置并改用上下文，档案定时同步逐租户绑定上下文；④ `CacheConsistencyTemplate` 与 `DistributedLockAspect` Key 统一 `whale:{tenantId}:...`，网关权限缓存 Key 同步；⑤ 文件对象键增加 `tenants/{tenantId}/` 前缀，按 ID 访问校验租户前缀；⑥ 四类日志实体与写入补 `tenantId`，`init.sql` 双库同步，新增 `migration-5.54-tenant-logs.sql`；⑦ 新增 `TenantStatusKeys`（whale-security）、`TenantStatusChecker`（gateway）与 `TenantStatusCache`（auth，含启动预热与启停即时写入）；⑧ starter/auth/gateway/file/archive/audit 单测通过，后端全模块 `mvn install` BUILD SUCCESS |
+| 待做项 | ① MyBatis 插件在 Phase 3 切换为「全表默认 + 白名单忽略」，当前为显式表清单（未铺开 `tenant_id` 的业务表若强制追加会 SQL 失败）；② 定时任务租户清单暂由 `whale.archive.sync.tenant-ids` 配置提供，Phase 3 接入 `sys_tenant` 启用租户目录后改为动态查询；③ Agent 文件知识同步按租户游标分区依赖 `agent_knowledge_file` 铺开 `tenant_id`，留待 Phase 3；④ 存量对象键无 `tenants/` 前缀，需在联调环境执行一次对象迁移或保留只读兼容窗口；⑤ 联调环境需在 `bluewhale_auth` 与 `bluewhale_audit` 两库分别执行 `migration-5.54-tenant-logs.sql` |
+| 已修正问题项 | ① `CacheProperties.keyPrefix` 删除后测试仍按旧 Key 断言：统一改为 `whale:{tenantId}:cache:{name}:{id}` 并显式绑定租户；② 网关新增状态校验后测试未桩化导致 `UnnecessaryStubbingException`：改为按用例精确桩化；③ `TenantContext` 上移后 auth 测试仍使用旧包名：测试迁移到 starter 的 `com.bluewhale.common.tenant` 包；④ `FormArchiveClient` 删除固定租户后定时同步无上下文：调度器改为逐租户设置/清理 `TenantContext`；⑤ 停用租户的存量令牌：网关验签后增加 Redis 状态校验并补充 401 单测 |

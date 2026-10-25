@@ -7,7 +7,7 @@ import java.time.Duration;
 
 /**
  * 缓存一致性配置属性。
- * <p>Key 约定 {@code {keyPrefix}:{name}:{id}}；空值以 {@code nullSentinel} 短 TTL 写入防穿透，
+ * <p>Key 约定 {@code whale:{tenantId}:cache:{name}:{id}}；空值以 {@code nullSentinel} 短 TTL 写入防穿透，
  * 正常值 TTL 叠加 ±{@code ttlJitterPercent}% 随机抖动防雪崩。</p>
  *
  * @author BlueWhale
@@ -15,9 +15,6 @@ import java.time.Duration;
 @Data
 @ConfigurationProperties(prefix = "whale.cache")
 public class CacheProperties {
-
-    /** Redis Key 前缀，与命名规范 REQ-ARCH-004 对齐 */
-    private String keyPrefix = "whale:cache";
 
     /** 空值哨兵串：命中该值视为缓存空结果，直接返回 {@code null} 且不再回源 */
     private String nullSentinel = "__NULL__";

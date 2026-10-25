@@ -14,7 +14,7 @@ import com.bluewhale.auth.domain.model.vo.Username;
 import com.bluewhale.auth.domain.role.repository.RoleRepository;
 import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
-import com.bluewhale.auth.security.TenantContext;
+import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.auth.vo.UserVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;

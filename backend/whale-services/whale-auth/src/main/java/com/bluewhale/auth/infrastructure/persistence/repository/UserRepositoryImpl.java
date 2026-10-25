@@ -10,7 +10,7 @@ import com.bluewhale.auth.entity.SysUserRole;
 import com.bluewhale.auth.infrastructure.persistence.assembler.UserPersistenceAssembler;
 import com.bluewhale.auth.mapper.SysUserMapper;
 import com.bluewhale.auth.mapper.SysUserRoleMapper;
-import com.bluewhale.auth.security.TenantContext;
+import com.bluewhale.common.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;

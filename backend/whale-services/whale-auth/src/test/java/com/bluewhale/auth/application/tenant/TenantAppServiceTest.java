@@ -5,7 +5,7 @@ import com.bluewhale.auth.application.tenant.command.RenewTenantCommand;
 import com.bluewhale.auth.application.tenant.query.TenantPageQuery;
 import com.bluewhale.auth.domain.tenant.aggregate.Tenant;
 import com.bluewhale.auth.domain.tenant.repository.TenantRepository;
-import com.bluewhale.auth.security.TenantContext;
+import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.common.core.exception.BizException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,6 +36,9 @@ class TenantAppServiceTest {
 
     @Mock
     private TenantRepository tenantRepository;
+
+    @Mock
+    private TenantStatusCache tenantStatusCache;
 
     @InjectMocks
     private TenantAppService service;

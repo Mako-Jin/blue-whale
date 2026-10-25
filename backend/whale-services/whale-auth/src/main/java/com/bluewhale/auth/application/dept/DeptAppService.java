@@ -6,7 +6,7 @@ import com.bluewhale.auth.domain.dept.aggregate.Dept;
 import com.bluewhale.auth.domain.dept.repository.DeptRepository;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.DeptDomainEvent;
-import com.bluewhale.auth.security.TenantContext;
+import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.auth.vo.DeptVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;

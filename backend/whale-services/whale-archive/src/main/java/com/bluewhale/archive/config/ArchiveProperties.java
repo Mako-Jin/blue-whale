@@ -3,6 +3,8 @@ package com.bluewhale.archive.config;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.util.List;
+
 /**
  * 档案服务配置项。
  *
@@ -61,6 +63,14 @@ public class ArchiveProperties {
 
         /** 每轮重试扫描的失败台账条数上限 */
         private int retryBatchSize = 50;
+
+        /**
+         * 定时同步遍历的租户ID列表。
+         *
+         * <p>Phase 2 暂由配置提供（与表单服务的行级租户隔离对齐）；
+         * Phase 3 业务表铺开 tenant_id 后改为从租户目录动态查询启用租户。</p>
+         */
+        private List<Long> tenantIds = List.of(1L);
     }
 
     /**
@@ -79,9 +89,6 @@ public class ArchiveProperties {
 
         /** 文件服务基址 */
         private String fileUrl = "http://127.0.0.1:8085";
-
-        /** 读取表单数据使用的租户ID（表单服务按租户行级隔离） */
-        private long tenantId = 1L;
 
         /** 建立连接超时（毫秒） */
         private int connectTimeoutMillis = 5000;

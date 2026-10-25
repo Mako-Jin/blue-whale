@@ -182,6 +182,7 @@ class FileInfoServiceImplTest {
     void shouldUploadAndPersistMetadata() throws IOException {
         byte[] content = "report-body".getBytes(StandardCharsets.UTF_8);
         MultipartFile file = multipartFile(content, "report.pdf");
+        com.bluewhale.common.tenant.TenantContext.set(1L);
 
         FileUploadVO vo = fileInfoService.upload(file, null, UPLOADER_ID);
 
@@ -189,7 +190,8 @@ class FileInfoServiceImplTest {
         assertEquals("bluewhale", vo.getBucket());
         assertEquals((long) content.length, vo.getFileSize());
         assertEquals(DigestUtils.md5DigestAsHex(content), vo.getMd5());
-        assertTrue(vo.getObjectKey().startsWith(LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd")) + "/"));
+        assertTrue(vo.getObjectKey().startsWith("tenants/1/"
+                + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd")) + "/"));
         assertTrue(vo.getObjectKey().endsWith(".pdf"));
         assertTrue(vo.getFileName().endsWith(".pdf"));
         verify(fileStorage).store(eq("bluewhale"), eq(vo.getObjectKey()), any(InputStream.class));
@@ -198,6 +200,7 @@ class FileInfoServiceImplTest {
         assertEquals(UPLOADER_ID, captor.getValue().getUploaderId());
         assertEquals(1, captor.getValue().getStatus().intValue());
         assertEquals("bluewhale", captor.getValue().getBucket());
+        com.bluewhale.common.tenant.TenantContext.clear();
     }
 
     @Test

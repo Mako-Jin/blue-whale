@@ -2,6 +2,7 @@ package com.bluewhale.gateway.filter;
 
 import com.bluewhale.gateway.common.GatewayResponse;
 import com.bluewhale.gateway.config.WhaleGatewayProperties;
+import com.bluewhale.gateway.security.TenantStatusChecker;
 import com.bluewhale.gateway.security.TokenBlacklistChecker;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
@@ -53,15 +54,20 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
     private final WhaleGatewayProperties properties;
     private final TokenBlacklistChecker tokenBlacklistChecker;
 
+    private final TenantStatusChecker tenantStatusChecker;
+
     /**
      * 构造过滤器，注入网关配置与令牌黑名单校验器
      *
      * @param properties            网关配置属性
      * @param tokenBlacklistChecker 令牌黑名单校验器
+     * @param tenantStatusChecker   租户状态校验器（停用租户存量令牌拒绝）
      */
-    public JwtAuthGlobalFilter(WhaleGatewayProperties properties, TokenBlacklistChecker tokenBlacklistChecker) {
+    public JwtAuthGlobalFilter(WhaleGatewayProperties properties, TokenBlacklistChecker tokenBlacklistChecker,
+                               TenantStatusChecker tenantStatusChecker) {
         this.properties = properties;
         this.tokenBlacklistChecker = tokenBlacklistChecker;
+        this.tenantStatusChecker = tenantStatusChecker;
     }
 
     @Override
@@ -105,8 +111,16 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
                             log.warn("令牌命中登出黑名单: path={}", path);
                             return unauthorized(exchange);
                         }
-                        ServerHttpRequest mutatedRequest = withIdentityHeaders(request, claims, tenantId);
-                        return chain.filter(exchange.mutate().request(mutatedRequest).build());
+                        return tenantStatusChecker.isDisabled(tenantId)
+                                .flatMap(disabled -> {
+                                    if (Boolean.TRUE.equals(disabled)) {
+                                        log.warn("租户已停用，拒绝存量令牌访问: path={}, tenantId={}", path, tenantId);
+                                        return unauthorized(exchange);
+                                    }
+                                    ServerHttpRequest mutatedRequest =
+                                            withIdentityHeaders(request, claims, tenantId);
+                                    return chain.filter(exchange.mutate().request(mutatedRequest).build());
+                                });
                     });
         } catch (JwtException | IllegalArgumentException e) {
             log.warn("JWT 校验失败: path={}, reason={}", path, e.getMessage());

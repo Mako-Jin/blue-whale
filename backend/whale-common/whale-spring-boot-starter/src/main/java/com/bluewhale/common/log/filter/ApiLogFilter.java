@@ -5,6 +5,7 @@ import com.bluewhale.common.log.entity.ApiLogRecord;
 import com.bluewhale.common.log.mapper.ApiLogMapper;
 import com.bluewhale.common.log.properties.ApiLogProperties;
 import com.bluewhale.common.log.sink.LogPersistSupport;
+import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.common.web.WebHeaders;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -251,6 +252,7 @@ public class ApiLogFilter extends OncePerRequestFilter {
         record.setTraceId(WebHeaders.traceId(request));
         record.setUserId(parseUserId(WebHeaders.userId(request)));
         record.setUsername(WebHeaders.username(request));
+        record.setTenantId(TenantContext.get());
         record.setRequestUri(request.getRequestURI());
         record.setHttpMethod(request.getMethod());
         record.setQueryString(sensitiveDataMasker.maskQueryString(request.getQueryString()));

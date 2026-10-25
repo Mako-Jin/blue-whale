@@ -14,7 +14,7 @@ import com.bluewhale.auth.mapper.SysPermissionMapper;
 import com.bluewhale.auth.mapper.SysRoleMapper;
 import com.bluewhale.auth.mapper.SysRolePermissionMapper;
 import com.bluewhale.auth.mapper.SysUserRoleMapper;
-import com.bluewhale.auth.security.TenantContext;
+import com.bluewhale.common.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;

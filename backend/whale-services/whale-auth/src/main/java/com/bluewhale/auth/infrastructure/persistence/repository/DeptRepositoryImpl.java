@@ -6,7 +6,7 @@ import com.bluewhale.auth.domain.dept.repository.DeptRepository;
 import com.bluewhale.auth.entity.SysDept;
 import com.bluewhale.auth.infrastructure.persistence.assembler.DeptPersistenceAssembler;
 import com.bluewhale.auth.mapper.SysDeptMapper;
-import com.bluewhale.auth.security.TenantContext;
+import com.bluewhale.common.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 

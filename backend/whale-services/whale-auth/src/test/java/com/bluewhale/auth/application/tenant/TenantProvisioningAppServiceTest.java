@@ -80,6 +80,9 @@ class TenantProvisioningAppServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private TenantStatusCache tenantStatusCache;
+
     @InjectMocks
     private TenantProvisioningAppService service;
 

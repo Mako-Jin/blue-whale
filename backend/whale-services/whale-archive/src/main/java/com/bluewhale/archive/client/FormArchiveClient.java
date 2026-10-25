@@ -3,6 +3,7 @@ package com.bluewhale.archive.client;
 import com.bluewhale.archive.config.ArchiveProperties;
 import com.bluewhale.archive.remote.RemoteFormArchive;
 import com.bluewhale.archive.support.RemoteHttpSupport;
+import com.bluewhale.common.tenant.TenantContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
@@ -14,8 +15,9 @@ import java.util.Map;
 /**
  * 表单服务内网客户端。
  *
- * <p>调用 {@code /form/internal/data/{id}} 读取表单值与字段定义；按配置租户传递
- * {@code X-Tenant-Id}；数据不存在（404）时返回 {@code null}，由档案侧按「无表单」降级。</p>
+ * <p>调用 {@code /form/internal/data/{id}} 读取表单值与字段定义；从当前
+ * {@link TenantContext} 取租户并传递 {@code X-Tenant-Id}；数据不存在（404）时返回
+ * {@code null}，由档案侧按「无表单」降级。</p>
  *
  * @author BlueWhale
  */
@@ -35,8 +37,6 @@ public class FormArchiveClient {
 
     private final ObjectMapper objectMapper;
 
-    private final long tenantId;
-
     /**
      * 以集成配置构建客户端。
      *
@@ -47,7 +47,6 @@ public class FormArchiveClient {
         this.restClient = RemoteHttpSupport.build(properties.getIntegration().getFormUrl(),
                 properties.getIntegration());
         this.objectMapper = objectMapper;
-        this.tenantId = properties.getIntegration().getTenantId();
     }
 
     /**
@@ -61,7 +60,7 @@ public class FormArchiveClient {
         try {
             response = restClient.get()
                     .uri(DETAIL_PATH, dataId)
-                    .header(HEADER_TENANT, String.valueOf(tenantId))
+                    .header(HEADER_TENANT, String.valueOf(TenantContext.requireId()))
                     .retrieve()
                     .body(new ParameterizedTypeReference<Map<String, Object>>() {
                     });

@@ -10,6 +10,7 @@ import com.bluewhale.audit.service.BehaviorLogService;
 import com.bluewhale.audit.vo.BehaviorLogVO;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.log.entity.BehaviorLogRecord;
+import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.common.log.mapper.BehaviorLogMapper;
 import com.bluewhale.common.log.sink.LogPersistSupport;
 import lombok.RequiredArgsConstructor;
@@ -110,6 +111,7 @@ public class BehaviorLogServiceImpl implements BehaviorLogService {
         BehaviorLogRecord record = new BehaviorLogRecord();
         record.setTraceId(request.getTraceId());
         record.setUserId(userId);
+        record.setTenantId(TenantContext.get());
         record.setClientId(request.getClientId());
         record.setPageUrl(request.getPageUrl());
         record.setEventType(item.getEventType());

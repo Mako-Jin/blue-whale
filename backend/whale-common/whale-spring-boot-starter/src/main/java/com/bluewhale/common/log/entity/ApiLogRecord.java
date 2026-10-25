@@ -37,6 +37,9 @@ public class ApiLogRecord implements Serializable {
     /** 操作用户名（冗余存储，用户删除后仍可追溯） */
     private String username;
 
+    /** 租户ID（网关可信注入，缺失为 NULL） */
+    private Long tenantId;
+
     /** 业务模块，如 whale-auth */
     private String module;
 

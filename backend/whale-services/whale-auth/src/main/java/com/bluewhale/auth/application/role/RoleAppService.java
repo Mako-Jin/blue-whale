@@ -11,7 +11,7 @@ import com.bluewhale.auth.domain.model.vo.RoleCode;
 import com.bluewhale.auth.domain.permission.repository.PermissionRepository;
 import com.bluewhale.auth.domain.role.aggregate.Role;
 import com.bluewhale.auth.domain.role.repository.RoleRepository;
-import com.bluewhale.auth.security.TenantContext;
+import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.auth.vo.RoleVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;

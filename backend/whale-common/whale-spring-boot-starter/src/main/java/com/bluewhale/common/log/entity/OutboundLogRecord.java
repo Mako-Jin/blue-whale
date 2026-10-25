@@ -37,6 +37,9 @@ public class OutboundLogRecord implements Serializable {
     /** 发起调用的用户名 */
     private String username;
 
+    /** 租户ID（请求上下文，缺失为 NULL） */
+    private Long tenantId;
+
     /** 业务模块，如 whale-auth */
     private String module;
 

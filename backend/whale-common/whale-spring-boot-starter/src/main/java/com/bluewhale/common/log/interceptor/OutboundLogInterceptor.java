@@ -4,6 +4,7 @@ import com.bluewhale.common.audit.support.SensitiveDataMasker;
 import com.bluewhale.common.log.entity.OutboundLogRecord;
 import com.bluewhale.common.log.mapper.OutboundLogMapper;
 import com.bluewhale.common.log.sink.LogPersistSupport;
+import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.common.web.WebHeaders;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -148,6 +149,7 @@ public class OutboundLogInterceptor implements ClientHttpRequestInterceptor {
         record.setTraceId(resolveTraceId());
         record.setUserId(resolveUserId());
         record.setUsername(resolveUsername());
+        record.setTenantId(TenantContext.get());
         record.setTargetHost(uri.getAuthority());
         record.setTargetUri(buildTargetUri(uri));
         record.setHttpMethod(request.getMethod().name());

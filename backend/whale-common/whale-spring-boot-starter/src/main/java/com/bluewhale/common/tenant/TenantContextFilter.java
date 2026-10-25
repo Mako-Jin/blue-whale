@@ -1,4 +1,4 @@
-package com.bluewhale.auth.security;
+package com.bluewhale.common.tenant;
 
 import com.bluewhale.common.web.WebHeaders;
 import jakarta.servlet.FilterChain;
@@ -6,26 +6,24 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
-import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
 /**
- * 租户上下文过滤器（Wave 5.54 Phase 1）。
+ * 租户上下文过滤器（Wave 5.54 Phase 2）。
  *
  * <p>从网关可信注入的 {@code X-Tenant-Id} 请求头解析租户 ID 并写入 {@link TenantContext}，
  * 请求结束后清理 ThreadLocal。登录/刷新等白名单请求无租户头，上下文保持为空，
- * 由登录链路使用 {@link LoginTenantContext} 显式指定租户，二者互不干扰。</p>
+ * 由登录链路使用 {@code LoginTenantContext} 显式指定租户，二者互不干扰。</p>
+ *
+ * <p>本过滤器由 starter 自动配置注册到 Servlet 容器，对所有服务生效；
+ * 必须早于 Spring Security 过滤器链执行，以保证认证阶段的权限缓存按租户读取。</p>
  *
  * @author BlueWhale
  */
 @Slf4j
-@Component
-@Order(Ordered.HIGHEST_PRECEDENCE)
 public class TenantContextFilter extends OncePerRequestFilter {
 
     /**

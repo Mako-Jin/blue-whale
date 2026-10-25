@@ -1,6 +1,7 @@
 package com.bluewhale.gateway.filter;
 
 import com.bluewhale.gateway.config.WhaleGatewayProperties;
+import com.bluewhale.gateway.security.TenantStatusChecker;
 import com.bluewhale.gateway.security.TokenBlacklistChecker;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -25,6 +26,7 @@ import java.util.Date;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -51,13 +53,16 @@ class JwtAuthGlobalFilterTest {
     @Mock
     private TokenBlacklistChecker tokenBlacklistChecker;
 
+    @Mock
+    private TenantStatusChecker tenantStatusChecker;
+
     private JwtAuthGlobalFilter filter;
 
     @BeforeEach
     void setUp() {
         WhaleGatewayProperties properties = new WhaleGatewayProperties();
         properties.getJwt().setSecret(SECRET);
-        filter = new JwtAuthGlobalFilter(properties, tokenBlacklistChecker);
+        filter = new JwtAuthGlobalFilter(properties, tokenBlacklistChecker, tenantStatusChecker);
     }
 
     private static String token(String tokenType) {
@@ -96,12 +101,28 @@ class JwtAuthGlobalFilterTest {
     }
 
     @Test
+    @DisplayName("filter：租户已停用时返回 401，且不转发下游")
+    void shouldReturnUnauthorizedWhenTenantDisabled() {
+        String accessToken = token("access");
+        MockServerWebExchange exchange = exchangeWithBearer(accessToken);
+        GatewayFilterChain chain = mock(GatewayFilterChain.class);
+        when(tokenBlacklistChecker.isBlacklisted(accessToken)).thenReturn(Mono.just(Boolean.FALSE));
+        when(tenantStatusChecker.isDisabled(String.valueOf(TENANT_ID))).thenReturn(Mono.just(Boolean.TRUE));
+
+        filter.filter(exchange, chain).block();
+
+        assertEquals(HttpStatus.UNAUTHORIZED, exchange.getResponse().getStatusCode());
+        verifyNoInteractions(chain);
+    }
+
+    @Test
     @DisplayName("filter：未命中黑名单时放行，并注入 X-User-Id / X-Username / X-User-Roles / X-Tenant-Id")
     void shouldPassThroughAndInjectIdentityHeadersWhenNotBlacklisted() {
         String accessToken = token("access");
         MockServerWebExchange exchange = exchangeWithBearer(accessToken);
         GatewayFilterChain chain = mock(GatewayFilterChain.class);
         when(tokenBlacklistChecker.isBlacklisted(accessToken)).thenReturn(Mono.just(Boolean.FALSE));
+        when(tenantStatusChecker.isDisabled(anyString())).thenReturn(Mono.just(Boolean.FALSE));
         when(chain.filter(any())).thenReturn(Mono.empty());
 
         filter.filter(exchange, chain).block();
@@ -125,6 +146,7 @@ class JwtAuthGlobalFilterTest {
                 .build());
         GatewayFilterChain chain = mock(GatewayFilterChain.class);
         when(tokenBlacklistChecker.isBlacklisted(accessToken)).thenReturn(Mono.just(Boolean.FALSE));
+        when(tenantStatusChecker.isDisabled(anyString())).thenReturn(Mono.just(Boolean.FALSE));
         when(chain.filter(any())).thenReturn(Mono.empty());
 
         filter.filter(exchange, chain).block();
@@ -164,7 +186,8 @@ class JwtAuthGlobalFilterTest {
         WhaleGatewayProperties properties = new WhaleGatewayProperties();
         properties.getJwt().setSecret(SECRET);
         properties.setWhiteList(java.util.List.of("/auth/login"));
-        JwtAuthGlobalFilter whiteListFilter = new JwtAuthGlobalFilter(properties, tokenBlacklistChecker);
+        JwtAuthGlobalFilter whiteListFilter = new JwtAuthGlobalFilter(properties, tokenBlacklistChecker,
+                tenantStatusChecker);
         MockServerWebExchange exchange = MockServerWebExchange.from(MockServerHttpRequest
                 .post("http://localhost/auth/login")
                 .header("X-Tenant-Id", "999")
@@ -196,7 +219,8 @@ class JwtAuthGlobalFilterTest {
     void shouldRejectTokenWithInvalidSignature() {
         WhaleGatewayProperties otherProperties = new WhaleGatewayProperties();
         otherProperties.getJwt().setSecret("another-unit-test-secret-key-9876543210-abcdefgh");
-        JwtAuthGlobalFilter otherFilter = new JwtAuthGlobalFilter(otherProperties, tokenBlacklistChecker);
+        JwtAuthGlobalFilter otherFilter = new JwtAuthGlobalFilter(otherProperties, tokenBlacklistChecker,
+                tenantStatusChecker);
         MockServerWebExchange exchange = exchangeWithBearer(token("access"));
         GatewayFilterChain chain = mock(GatewayFilterChain.class);
 

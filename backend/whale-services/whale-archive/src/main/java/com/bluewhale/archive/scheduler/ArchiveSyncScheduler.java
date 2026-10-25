@@ -1,6 +1,8 @@
 package com.bluewhale.archive.scheduler;
 
+import com.bluewhale.archive.config.ArchiveProperties;
 import com.bluewhale.archive.service.ArchiveSyncService;
+import com.bluewhale.common.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -23,15 +25,25 @@ public class ArchiveSyncScheduler {
 
     private final ArchiveSyncService archiveSyncService;
 
+    private final ArchiveProperties properties;
+
     /**
-     * 按配置表达式执行一轮同步。
+     * 按配置表达式逐租户执行一轮同步。
+     *
+     * <p>每个租户独立绑定 {@link TenantContext}，单租户异常只记录日志，
+     * 不影响其余租户与后续调度。</p>
      */
     @Scheduled(cron = "${whale.archive.sync.cron:0 */5 * * * *}")
     public void sync() {
-        try {
-            archiveSyncService.runOnce();
-        } catch (Exception e) {
-            log.warn("定时档案同步失败: {}", e.getMessage());
+        for (Long tenantId : properties.getSync().getTenantIds()) {
+            TenantContext.set(tenantId);
+            try {
+                archiveSyncService.runOnce();
+            } catch (Exception e) {
+                log.warn("定时档案同步失败: tenantId={}, reason={}", tenantId, e.getMessage());
+            } finally {
+                TenantContext.clear();
+            }
         }
     }
 }

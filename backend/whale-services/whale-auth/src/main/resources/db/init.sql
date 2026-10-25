@@ -254,6 +254,7 @@ CREATE TABLE api_log (
     trace_id       VARCHAR(64)   DEFAULT NULL           COMMENT '链路追踪ID（跨服务调用串联）',
     user_id        BIGINT        DEFAULT NULL           COMMENT '操作用户ID（匿名访问为 NULL）',
     username       VARCHAR(64)   DEFAULT NULL           COMMENT '操作用户名',
+    tenant_id      BIGINT        DEFAULT NULL           COMMENT '租户ID（网关可信注入）',
     module         VARCHAR(64)   DEFAULT NULL           COMMENT '业务模块，如 whale-auth',
     request_uri    VARCHAR(255)  DEFAULT NULL           COMMENT '请求URI',
     http_method    VARCHAR(16)   DEFAULT NULL           COMMENT 'HTTP 方法：GET/POST/PUT/DELETE',
@@ -271,6 +272,7 @@ CREATE TABLE api_log (
     KEY idx_trace_id (trace_id),
     KEY idx_create_time (create_time),
     KEY idx_user_id (user_id),
+    KEY idx_tenant_create (tenant_id, create_time),
     KEY idx_biz_status (biz_status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='后端接口日志表';
 
@@ -281,6 +283,7 @@ CREATE TABLE outbound_log (
     trace_id       VARCHAR(64)   DEFAULT NULL           COMMENT '链路追踪ID（出站请求头透传）',
     user_id        BIGINT        DEFAULT NULL           COMMENT '发起调用的用户ID',
     username       VARCHAR(64)   DEFAULT NULL           COMMENT '发起调用的用户名',
+    tenant_id      BIGINT        DEFAULT NULL           COMMENT '租户ID（请求上下文）',
     module         VARCHAR(64)   DEFAULT NULL           COMMENT '业务模块，如 whale-auth',
     target_host    VARCHAR(255)  DEFAULT NULL           COMMENT '目标主机（host:port）',
     target_uri     VARCHAR(512)  DEFAULT NULL           COMMENT '目标URI（含路径，query 已脱敏）',
@@ -296,6 +299,7 @@ CREATE TABLE outbound_log (
     KEY idx_trace_id (trace_id),
     KEY idx_create_time (create_time),
     KEY idx_target_host (target_host),
+    KEY idx_tenant_create (tenant_id, create_time),
     KEY idx_biz_status (biz_status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='后端出站三方调用日志表';
 
@@ -305,6 +309,7 @@ CREATE TABLE frontend_log (
     id          BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
     trace_id    VARCHAR(64)   DEFAULT NULL           COMMENT '链路追踪ID',
     user_id     BIGINT        DEFAULT NULL           COMMENT '上报用户ID（token 存在时由网关回填）',
+    tenant_id   BIGINT        DEFAULT NULL           COMMENT '租户ID（网关可信注入）',
     client_id   VARCHAR(64)   DEFAULT NULL           COMMENT '前端客户端标识（一次会话唯一）',
     page_url    VARCHAR(1024) DEFAULT NULL           COMMENT '页面URL（query 已掩码）',
     log_level   VARCHAR(16)   DEFAULT NULL           COMMENT '日志级别：DEBUG/INFO/WARN/ERROR',
@@ -316,6 +321,7 @@ CREATE TABLE frontend_log (
     KEY idx_trace_id (trace_id),
     KEY idx_create_time (create_time),
     KEY idx_client_id (client_id),
+    KEY idx_tenant_create (tenant_id, create_time),
     KEY idx_log_level (log_level)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='前端开发者日志表';
 
@@ -325,6 +331,7 @@ CREATE TABLE behavior_log (
     id          BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
     trace_id    VARCHAR(64)   DEFAULT NULL           COMMENT '链路追踪ID',
     user_id     BIGINT        DEFAULT NULL           COMMENT '上报用户ID（token 存在时由网关回填）',
+    tenant_id   BIGINT        DEFAULT NULL           COMMENT '租户ID（网关可信注入）',
     client_id   VARCHAR(64)   DEFAULT NULL           COMMENT '前端客户端标识（一次会话唯一）',
     event_type  VARCHAR(32)   DEFAULT NULL           COMMENT '事件类型：PAGE_VIEW/CLICK/SUBMIT/CUSTOM',
     event_name  VARCHAR(128)  DEFAULT NULL           COMMENT '事件名称，如 用户管理页访问',
@@ -336,6 +343,7 @@ CREATE TABLE behavior_log (
     KEY idx_trace_id (trace_id),
     KEY idx_create_time (create_time),
     KEY idx_client_id (client_id),
+    KEY idx_tenant_create (tenant_id, create_time),
     KEY idx_event_type (event_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='前端用户行为埋点日志表';
 

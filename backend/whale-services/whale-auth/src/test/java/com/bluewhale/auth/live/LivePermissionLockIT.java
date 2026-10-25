@@ -14,6 +14,7 @@ import com.bluewhale.auth.security.PermissionCache;
 import com.bluewhale.auth.security.PermissionCacheMutex;
 import com.bluewhale.common.cache.CacheConsistencyTemplate;
 import com.bluewhale.common.cache.CacheProperties;
+import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.lock.aop.DistributedLockAspect;
@@ -72,7 +73,7 @@ class LivePermissionLockIT {
     private static final int CONCURRENCY = 8;
     private static final long AWAIT_SECONDS = 5L;
     private static final long LOADER_DELAY_MILLIS = 30L;
-    private static final String EXPECTED_ROLE_LOCK_KEY = "lock:auth:role:" + ROLE_ID;
+    private static final String EXPECTED_ROLE_LOCK_KEY = "whale:1:lock:auth:role:" + ROLE_ID;
 
     private static RedissonClient redissonClient;
     private static LettuceConnectionFactory connectionFactory;
@@ -106,6 +107,7 @@ class LivePermissionLockIT {
     @Test
     @DisplayName("场景①同角色并发：持锁期间第二调用快速失败 LOCK_ACQUIRE_FAILED，Redis 中锁确实被持有")
     void shouldRejectConcurrentAssignPermissionsOnSameRole() throws Exception {
+        TenantContext.set(1L);
         RoleRepository roleRepository = mock(RoleRepository.class);
         PermissionRepository permissionRepository = mock(PermissionRepository.class);
         DomainEventPublisher eventPublisher = mock(DomainEventPublisher.class);
@@ -149,6 +151,7 @@ class LivePermissionLockIT {
         } finally {
             release.countDown();
             pool.shutdownNow();
+            TenantContext.clear();
         }
     }
 

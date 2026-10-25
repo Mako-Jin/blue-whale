@@ -30,8 +30,8 @@ import static org.mockito.Mockito.when;
  */
 class CacheConsistencyTemplateTest {
 
-    /** Key 约定 {@code whale:cache:user:1} */
-    private static final String KEY = "whale:cache:user:1";
+    /** Key 约定 {@code whale:1:cache:user:1}（租户 1） */
+    private static final String KEY = "whale:1:cache:user:1";
 
     /** 空值哨兵默认值 */
     private static final String NULL_SENTINEL = "__NULL__";
@@ -49,7 +49,16 @@ class CacheConsistencyTemplateTest {
      */
     @BeforeEach
     void setUp() {
+        com.bluewhale.common.tenant.TenantContext.set(1L);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+    }
+
+    /**
+     * 清理租户上下文，避免线程复用污染后续用例
+     */
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() {
+        com.bluewhale.common.tenant.TenantContext.clear();
     }
 
     /**

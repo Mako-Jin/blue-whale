@@ -3,6 +3,7 @@ package com.bluewhale.common.lock.aop;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.lock.annotation.DistributedLock;
+import com.bluewhale.common.tenant.TenantKeys;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -41,7 +42,7 @@ public class DistributedLockAspect {
      */
     public static final int LOCK_ASPECT_ORDER = Ordered.HIGHEST_PRECEDENCE + 100;
 
-    /** Key 分段分隔符，与设计约定 {@code lock:{biz}:{id}} 对齐 */
+    /** Key 分段分隔符 */
     private static final String KEY_SEPARATOR = ":";
 
     /** 无 SpEL 时的退化 Key 连接符 */
@@ -116,14 +117,13 @@ public class DistributedLockAspect {
     }
 
     /**
-     * 解析锁 Key：{@code {prefix}:{biz}:{SpEL 求值}}；SpEL 为空时退化为
-     * {@code {prefix}:{biz}:{类名}.{方法名}}
+     * 解析锁 Key：{@code whale:{tenantId}:{prefix}:{biz}:{SpEL 求值}}；SpEL 为空时退化为
+     * {@code whale:{tenantId}:{prefix}:{biz}:{类名}.{方法名}}
      */
     private String buildLockKey(ProceedingJoinPoint joinPoint, DistributedLock annotation) {
         MethodSignature signature = (MethodSignature) joinPoint.getSignature();
-        StringBuilder keyBuilder = new StringBuilder(annotation.prefix())
-                .append(KEY_SEPARATOR)
-                .append(annotation.biz());
+        StringBuilder keyBuilder = new StringBuilder(
+                TenantKeys.lockPrefix(annotation.prefix(), annotation.biz()));
         if (annotation.key().isEmpty()) {
             keyBuilder.append(KEY_SEPARATOR)
                     .append(signature.getDeclaringType().getSimpleName())

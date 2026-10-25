@@ -26,7 +26,7 @@ import java.util.Map;
  * <p>链路：{@code JwtAuthGlobalFilter}(order=-100) 验签并注入 {@code X-User-Id} 后，本过滤器
  * (order=-50) 解析当前用户权限码并注入权限码头；顺序晚于鉴权、早于业务转发。</p>
  *
- * <p>解析优先级：先读 Redis 缓存键 {@code whale:cache:auth:user:perm:{userId}}（值为权限码逗号串，
+ * <p>解析优先级：先读 Redis 缓存键 {@code whale:{tenantId}:cache:auth:user:perm:{userId}}（值为权限码逗号串，
  * 空集合写成哨兵 {@code __NULL__}）；未命中 / 命中哨兵 / 读取异常时回落
  * {@code GET lb://whale-auth/auth/me}（带原请求 Authorization），解析 {@code data.permissions} 数组。</p>
  *
@@ -46,8 +46,14 @@ public class PermissionHeaderGlobalFilter implements GlobalFilter, Ordered {
     /** 用户ID请求头（由 JwtAuthGlobalFilter 注入，禁止复用 starter 常量，见类注释） */
     private static final String USER_ID_HEADER = "X-User-Id";
 
-    /** 权限码缓存键与业务段之间的分隔符 */
+    /** Redis Key 分段分隔符 */
     private static final String KEY_SEPARATOR = ":";
+
+    /** 权限码缓存名（与 whale-auth 的 PermissionCache.PERMISSION_CACHE_NAME 对齐） */
+    private static final String PERMISSION_CACHE_NAME = "auth:user:perm";
+
+    /** 缺失租户头时的未知租户段 */
+    private static final String UNKNOWN_TENANT = "0";
 
     /** 回落拉取权限码的服务地址（lb:// 由负载均衡 WebClient 解析） */
     private static final String AUTH_ME_URI = "lb://whale-auth/auth/me";
@@ -117,7 +123,10 @@ public class PermissionHeaderGlobalFilter implements GlobalFilter, Ordered {
      * @return 权限码逗号串；两级解析均失败时为空串
      */
     private Mono<String> resolveCodes(ServerHttpRequest request, String userId) {
-        String key = properties.getCacheKeyPrefix() + KEY_SEPARATOR + userId;
+        String tenantId = request.getHeaders().getFirst(properties.getTenantIdHeader());
+        String tenantSegment = tenantId == null || tenantId.isBlank() ? UNKNOWN_TENANT : tenantId.trim();
+        String key = properties.getCacheKeyPrefix() + KEY_SEPARATOR + tenantSegment + KEY_SEPARATOR
+                + "cache" + KEY_SEPARATOR + PERMISSION_CACHE_NAME + KEY_SEPARATOR + userId;
         Mono<String> cached = redisTemplate.opsForValue().get(key)
                 .filter(this::isCacheHit)
                 .onErrorResume(e -> {

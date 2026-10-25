@@ -10,6 +10,7 @@ import com.bluewhale.audit.service.FrontendLogService;
 import com.bluewhale.audit.vo.FrontendLogVO;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.log.entity.FrontendLogRecord;
+import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.common.log.mapper.FrontendLogMapper;
 import com.bluewhale.common.log.sink.LogPersistSupport;
 import lombok.RequiredArgsConstructor;
@@ -110,6 +111,7 @@ public class FrontendLogServiceImpl implements FrontendLogService {
         FrontendLogRecord record = new FrontendLogRecord();
         record.setTraceId(request.getTraceId());
         record.setUserId(userId);
+        record.setTenantId(TenantContext.get());
         record.setClientId(request.getClientId());
         record.setPageUrl(request.getPageUrl());
         record.setLogLevel(item.getLogLevel());

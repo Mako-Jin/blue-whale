@@ -33,6 +33,9 @@ public class BehaviorLogRecord implements Serializable {
     /** 上报用户ID（token 存在时由网关回填） */
     private Long userId;
 
+    /** 租户ID（网关可信注入，缺失为 NULL） */
+    private Long tenantId;
+
     /** 前端客户端标识（一次会话唯一） */
     private String clientId;
 

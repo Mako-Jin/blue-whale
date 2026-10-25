@@ -8,6 +8,7 @@ import com.bluewhale.common.audit.support.AuditLogMqPublisher;
 import com.bluewhale.common.audit.support.SensitiveDataMasker;
 import com.bluewhale.common.log.properties.SensitiveKeysProperties;
 import com.bluewhale.common.mybatis.config.MybatisPlusConfig;
+import com.bluewhale.common.tenant.TenantContextTaskDecorator;
 import org.aspectj.lang.annotation.Aspect;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -70,6 +71,7 @@ public class AuditLogAutoConfiguration {
         executor.setMaxPoolSize(MAX_POOL_SIZE);
         executor.setQueueCapacity(QUEUE_CAPACITY);
         executor.setThreadNamePrefix(THREAD_NAME_PREFIX);
+        executor.setTaskDecorator(new TenantContextTaskDecorator());
         executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
         executor.setWaitForTasksToCompleteOnShutdown(true);
         executor.setAwaitTerminationSeconds(AWAIT_TERMINATION_SECONDS);

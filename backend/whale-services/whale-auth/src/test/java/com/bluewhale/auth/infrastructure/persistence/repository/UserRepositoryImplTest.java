@@ -12,7 +12,7 @@ import com.bluewhale.auth.entity.SysUser;
 import com.bluewhale.auth.entity.SysUserRole;
 import com.bluewhale.auth.mapper.SysUserMapper;
 import com.bluewhale.auth.mapper.SysUserRoleMapper;
-import com.bluewhale.auth.security.TenantContext;
+import com.bluewhale.common.tenant.TenantContext;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
