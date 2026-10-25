@@ -480,92 +480,97 @@ pnpm --filter @bluewhale/e2e test
 
 ### 15.1 目标与不变量
 
-- 目标：一个自然人用同一套登录凭证，在多个租户间切换；切换后令牌、角色、菜单、数据上下文全部切到目标租户。
+- 目标：一个自然人用同一套登录凭证与同一 `userId` 在多个租户间切换；切换只改变令牌中的租户上下文，角色/权限/菜单/数据全部按目标租户重新解析。
 - 不变量：
   1. 任何时刻令牌只绑定一个租户；服务端仍以 JWT `tenantId` 为准。
-  2. 租户内账号（`sys_user`）仍是 RBAC 载体，`(tenant_id, username)` 唯一不变。
-  3. 跨租户关系只存在于新增关系表，业务表不因此放宽行级过滤。
-  4. 切换必须显式校验成员关系，不接受客户端传入的 userId/roles。
+  2. **切换不换 `userId`、不换 `sub`**：账号只有一条 `sys_user`（归属首页租户），`(tenant_id, username)` 唯一规则不变。
+  3. 租户隔离由 `sys_role.tenant_id` + 业务表行级 `tenant_id` 过滤实现；新增关系只回答「该用户可进入哪些租户」，不放宽业务过滤。
+  4. 角色解析必须按当前租户过滤 `sys_role`，禁止把其他租户的角色带入权限码计算。
+  5. 切换必须显式校验关系，不接受客户端传入的 userId/roles。
 
 ### 15.2 现状约束
 
 - `sys_user.tenant_id` 单值，账号归属唯一租户；同名账号可在不同租户各自存在（S3 已支持）。
 - 登录按 `tenantCode + username + password` 定位 `(tenant_id, username)` 账号；JWT 写入 `tenantId`、`userId`、`sub`。
 - 刷新按 `refreshToken` 的 `tenantId` claim + `sub` 重新加载启用账号。
-- 权限缓存 Key 已含租户；`TenantContext` 由网关 `X-Tenant-Id` 注入。
-- 结论：切换不能复用同一 `userId` 跨租户承载角色，必须为每个目标租户准备一个“成员账号”，切换即换 `userId`。
+- 权限缓存 Key 已含租户；`TenantContext` 由网关 `X-Tenant-Id` 注入；菜单、部门、角色均带 `tenant_id`。
+- `sys_user_role` / `sys_role_permission` 本身**没有** `tenant_id` 列，租户归属由 `role_id` 关联 `sys_role.tenant_id` 推导。
+- 结论：切换只需为同一 `userId` 增加「可进入租户」关系，并在签发令牌时按目标租户重算角色；不需要成员账号，也不换 `userId`。
+- 现状缺口（本期一并修复）：`RoleRepositoryImpl#listRoleIdsByUserId` 只查 `sys_user_role`、未按 `sys_role.tenant_id` 过滤；`listPermissionIdsByRoleIds` 直接按角色 ID 取权限。同一用户在其他租户的角色权限会被计入当前租户。新模型下必须以当前租户过滤后的角色 ID 作为权限计算入口。
 
 ### 15.3 数据模型：`sys_user_tenant`
 
 ```sql
 CREATE TABLE IF NOT EXISTS sys_user_tenant (
-  id                BIGINT       NOT NULL COMMENT '主键',
-  principal_user_id BIGINT       NOT NULL COMMENT '登录主体账号ID（首页租户账号）',
-  member_user_id    BIGINT       NOT NULL COMMENT '目标租户内账号ID（承载角色/菜单/部门）',
-  tenant_id         BIGINT       NOT NULL COMMENT '目标租户ID',
-  status            TINYINT      NOT NULL DEFAULT 1 COMMENT '1 启用 / 0 停用',
-  create_time       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  update_time       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  id          BIGINT   NOT NULL COMMENT '主键',
+  user_id     BIGINT   NOT NULL COMMENT '全局用户ID（sys_user.id，切换前后不变）',
+  tenant_id   BIGINT   NOT NULL COMMENT '可进入的租户ID',
+  status      TINYINT  NOT NULL DEFAULT 1 COMMENT '1 启用 / 0 停用',
+  create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  UNIQUE KEY uk_principal_tenant (principal_user_id, tenant_id),
-  UNIQUE KEY uk_member_user (member_user_id),
+  UNIQUE KEY uk_user_tenant (user_id, tenant_id),
   KEY idx_tenant_id (tenant_id)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '用户-租户成员关系（跨租户，忽略行级租户过滤）';
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '用户可进入的租户关系（跨租户，忽略行级租户过滤）';
 ```
 
-- 关系表**加入 MyBatis 租户插件忽略白名单**，查询必须显式带 `principal_user_id` / `member_user_id` 条件。
+- 关系表**加入 MyBatis 租户插件忽略白名单**，所有查询显式带 `user_id` 条件。
 - 采用物理删除（无 `deleted` 列），避免软删与唯一键冲突。
-- 首页关系：每个 `sys_user` 必有一行 `principal=member=self, tenant=self.tenant`。
-- `member_user_id` 唯一保证一个账号只属于一条成员关系，防止“同一账号被两个主体认领”。
+- 首页关系：每个 `sys_user` 必有一行 `(user_id=self, tenant_id=self.tenant)`；`sys_user.tenant_id` 仅表示首页/登录定位，切换不修改。
+- 不再创建“成员账号”：目标租户的角色直接写入 `sys_user_role`（`user_id` 不变、`role_id` 属于目标租户），由 `sys_role.tenant_id` 天然完成租户归属。
 
 ### 15.4 认证与令牌流
 
 ```
 登录（tenantCode + username + password）
-  └─ 定位首页账号 → 签发 tenantId=首页, userId=首页账号
+  └─ 按 (tenantCode, username) 定位账号 → 签发 tenantId=账号归属租户，userId/sub 取自该账号
        │
-       ├─ GET /auth/tenants → 解析主体：member_user_id=当前userId 的关系取其 principal_user_id
-       │                      再列出该主体全部启用关系（租户启用且未过期），标记当前项
+       ├─ GET /auth/tenants → 按 userId 列出 sys_user_tenant 启用关系（租户启用且未过期），标记当前项
        │
        └─ POST /auth/tenant/switch { tenantId }
-            ├─ 取当前 SecurityContext 的 LoginUser.userId
-            ├─ 解析主体 principal_user_id（无关系则主体=自身）
-            ├─ 校验关系存在、status=1、目标租户启用且未过期、成员账号启用
+            ├─ 从 SecurityContext 取 userId（不信任客户端）
+            ├─ 校验 (userId, tenantId) 关系存在且启用、目标租户启用且未过期、用户启用
+            ├─ 置 TenantContext=目标租户，按目标租户重算角色（sys_user_role ⋈ sys_role.tenant_id）
             ├─ 将当前 accessToken + 提交的 refreshToken 写入黑名单（开启轮换时吊销 family）
-            └─ 签发新令牌：tenantId=目标租户，userId=member_user_id，sub=成员账号 username，新 familyId
+            └─ 签发新令牌：tenantId=目标租户，userId/sub 不变，新 familyId
 ```
 
-- 刷新：在现有 `tenantId` 与 `sub` 校验之外，新增「`(member_user_id=userId, tenant_id)` 关系存在且启用」校验；关系被撤销后 refresh 立即 401。
-- 登出：不变，按当前令牌黑名单失效。
-- 不新增 JWT claim；网关、租户状态校验、权限缓存均无需改动。
+- 刷新：`userId` 取自 token claim；用户按 ID 加载（`sys_user` 归属首页，需绕过行级租户过滤）；校验 `(userId, tenantId)` 关系；角色按令牌 `tenantId` 解析。关系撤销后 refresh 立即 401。
+- `/auth/me`：角色、权限码、菜单均按当前租户解析；权限缓存 Key 已含租户，切换不会串权限。
+- 角色解析入口统一改为「先取当前租户下的启用角色，再取权限」；`sys_user_role` 的跨租户行不会泄漏到当前租户。
+- 登出、网关、租户状态校验均不变；不新增 JWT claim。
 - 旧 accessToken 在切换时被黑名单，避免新旧租户令牌并存。
+- 角色变更后的缓存失效按角色所属租户执行，不影响该用户在其他租户的缓存。
 
 ### 15.5 接口契约
 
 | 方法 | 路径 | 权限 | 说明 |
 |---|---|---|---|
-| GET | `/auth/tenants` | 已登录 | 返回 `[{tenantId, tenantCode, tenantName, current, memberUsername}]`，仅启用且未过期租户 |
-| POST | `/auth/tenant/switch` | 已登录 | 入参 `{tenantId}`；出参同 `LoginResponse`（新令牌 + tenantId/username/nickname/roles） |
-| GET | `/user/{userId}/tenant-memberships` | `sys:user:tenant` | 平台租户：查看某账号的成员关系 |
-| POST | `/user/{userId}/tenant-memberships` | `sys:user:tenant` | 入参 `{tenantId, memberUsername}`；仅绑定目标租户**已存在**账号，不跨租户建号 |
-| DELETE | `/user/{userId}/tenant-memberships/{tenantId}` | `sys:user:tenant` | 解除关系；不允许删除首页关系 |
+| GET | `/auth/tenants` | 已登录 | 返回 `[{tenantId, tenantCode, tenantName, current}]`，仅启用且未过期租户；`userId` 与登录态一致 |
+| POST | `/auth/tenant/switch` | 已登录 | 入参 `{tenantId}`；出参同 `LoginResponse`（新令牌 + tenantId/username/nickname/roles，`userId` 不变） |
+| GET | `/tenant/members` | `sys:tenant:member:list` | 当前租户成员：关系表 + 用户基本信息（跨租户按 ID 查）+ 本租户角色 |
+| PUT | `/tenant/members/{userId}/roles` | `sys:tenant:member:assign` | 全量覆盖该用户在本租户的角色；只删除/写入 `role_id` 属于本租户的关联行 |
+| POST | `/user/{userId}/tenants` | `sys:user:tenant` | 平台租户：为已有用户增加可进入租户关系 |
+| DELETE | `/user/{userId}/tenants/{tenantId}` | `sys:user:tenant` | 解除关系；不允许删除首页关系 |
 
-- `switch` 失败语义：非成员 `403`；目标租户停用/过期 `403`（文案区分）；成员账号停用 `401`。
-- 成员绑定只接受“目标租户已有账号”，创建账号仍由该租户管理员完成，避免平台越权造号。
-- 新增权限码 `sys:user:tenant`（建议 165），同时更新 `init.sql` 与幂等迁移。
+- `switch` 失败语义：非成员 `403`；目标租户停用/过期 `403`（文案区分）；用户停用 `401`。
+- 角色分配必须按租户收口：`PUT /tenant/members/{userId}/roles` 只处理当前租户角色的关联，禁止清空该用户在其他租户的 `sys_user_role`。
+- 新增权限码 `sys:user:tenant`、`sys:tenant:member:list`、`sys:tenant:member:assign`（建议 165–167），同时更新 `init.sql` 与幂等迁移。
+- `sys_user_role` 保持无 `tenant_id` 列，租户归属一律由关联的 `sys_role.tenant_id` 推导；不新增关系表租户列。
 
 ### 15.6 服务端改造点
 
 | 文件/层 | 改动 |
 |---|---|
-| `whale-auth` DB | 新增 `sys_user_tenant` 建表 + 回填；`init.sql` 同步；`migration-5.54-tenant-membership.sql` 幂等 |
+| `whale-auth` DB | 新增 `sys_user_tenant` 建表 + 首页关系回填；`init.sql` 同步；`migration-5.54-tenant-membership.sql` 幂等 |
 | `SysUserTenant` 实体/Mapper/仓储 | 关系读写；加入租户插件忽略白名单 |
-| `TenantMembershipAppService` | 解析主体、列表、绑定/解绑、校验 |
-| `UserAppService` / `TenantProvisioningAppService` | 新建账号（含租户初始管理员）时写首页关系，保证不变量 |
-| `AuthService` | 新增 `listTenants()`、`switchTenant()`；`refresh()` 增加关系校验 |
-| `JwtTokenProvider` / `LoginUser` | 复用现有签发方法，无需改签名 |
-| `UserDetailsServiceImpl` | 新增按 `userId + tenantId` 加载成员账号的方法（切换用） |
-| `AuthController` / `UserController` | 新增 4 个接口；`@AuditLog` 记录切换与绑定 |
+| `TenantMembershipAppService` | 按 userId 列可进入租户、关系校验、绑定/解绑 |
+| `RoleRepositoryImpl` | `listRoleIdsByUserId` 改为「`sys_user_role` ⋈ `sys_role` 且 `tenant_id=当前租户` 且启用」；`listPermissionCodesByUserId` 以租户内角色 ID 为入口，修复跨租户权限计入 |
+| `UserRepository` / `SysUserMapper` | 新增按 ID 加载（忽略租户行过滤），供切换与刷新使用（`sys_user` 归属首页租户）；`UserDetailsServiceImpl` 增加 `loadUserById` 装配目标租户角色 |
+| `UserAppService` / `TenantProvisioningAppService` | 新建账号（含租户初始管理员）时写首页关系 |
+| `AuthService` | 新增 `listTenants()`、`switchTenant()`；`refresh()` 改为按 `userId` claim 加载并校验关系 |
+| `TenantMemberAppService` / `UserAppService` | 租户成员列表、租户内角色分配、平台绑定/解绑关系 |
+| `AuthController` / `UserController` / `TenantController` | 新增 6 个接口；`@AuditLog` 记录切换与关系变更 |
 | 网关 | 无需改动 |
 
 ### 15.7 前端改造点（admin 优先）
@@ -578,41 +583,46 @@ CREATE TABLE IF NOT EXISTS sys_user_tenant (
 ### 15.8 安全与边界
 
 - 关系表跨租户，只由 `TenantMembershipAppService` 访问，禁止在业务查询中 join 绕过租户过滤。
-- 切换只信 `SecurityContext`，客户端不能指定 `userId/memberUserId`。
-- 旧令牌切换即失效；关系撤销后 refresh 失效，但存量 accessToken 最长存活一个 access TTL（与停用租户同级的已知限制，需要时在网关增加关系校验缓存）。
-- 首页关系禁止删除；停用关系不删除，仅 `status=0`。
-- 审计：`AUTH_TENANT_SWITCH` 记录 `fromTenantId/toTenantId/principalUserId/memberUserId`。
+- 切换只信 `SecurityContext`，客户端不能指定 `userId`。
+- 角色分配按租户收口：只增删本租户角色的 `sys_user_role` 行，禁止整用户全量删除导致其他租户角色丢失。
+- 用户启停是全局的（同一条 `sys_user` 记录），停用后所有租户均拒绝；这是单账号模型的明确取舍。
+- 关系撤销后 refresh 失效，但存量 accessToken 最长存活一个 access TTL（与停用租户同级的已知限制）。
+- 首页关系禁止删除；停用关系保留并置 `status=0`。
+- 审计：`AUTH_TENANT_SWITCH` 记录 `userId/fromTenantId/toTenantId`。
 
 ### 15.9 迁移与回填
 
 ```sql
 -- 幂等建表后回填首页关系
-INSERT INTO sys_user_tenant (id, principal_user_id, member_user_id, tenant_id, status)
-SELECT s.id, s.id, s.id, s.tenant_id, 1
+INSERT INTO sys_user_tenant (id, user_id, tenant_id, status)
+SELECT s.id, s.id, s.tenant_id, 1
 FROM sys_user s
 WHERE NOT EXISTS (
-  SELECT 1 FROM sys_user_tenant m WHERE m.member_user_id = s.id
+  SELECT 1 FROM sys_user_tenant m WHERE m.user_id = s.id
 );
 ```
 
 - 新库由 `init.sql` 直接建表；存量库执行 `migration-5.54-tenant-membership.sql`。
-- 回填后可抽查：`SELECT COUNT(*) FROM sys_user s LEFT JOIN sys_user_tenant m ON m.member_user_id = s.id WHERE m.id IS NULL;` 期望 0。
+- 回填后可抽查：`SELECT COUNT(*) FROM sys_user s LEFT JOIN sys_user_tenant m ON m.user_id = s.id WHERE m.id IS NULL;` 期望 0。
 
 ### 15.10 验收标准
 
 1. 单租户用户：`/auth/tenants` 仅返回首页租户，前端不出现切换器。
-2. 双租户用户：切换后 `/auth/me` 的 `tenantId`、角色、菜单均来自目标租户；数据查询只返回目标租户数据。
-3. 切换后旧 accessToken/refreshToken 立即失效（401）。
-4. 非成员切换 403；目标租户停用或过期 403；成员账号停用 401。
-5. 关系撤销后，该租户 refresh 401，其他租户不受影响。
-6. 从成员租户再次切换回首页租户成功（主体解析正确）。
-7. 审计可按 `fromTenantId/toTenantId` 检索到切换记录。
+2. 双租户用户：切换前后 `userId`/`sub` 不变，令牌 `tenantId` 变为目标租户；`/auth/me` 的角色、权限码、菜单均来自目标租户。
+3. 角色隔离：同一用户在 A、B 各有一个角色时，切换到 B 后只能得到 B 角色对应权限，A 的权限码不得出现。
+4. 数据隔离：切换后业务查询只返回目标租户数据；旧租户数据不可见。
+5. 切换后旧 accessToken/refreshToken 立即失效（401）。
+6. 刷新：即使 `sys_user.tenant_id` 仍是首页租户，按 `userId` claim 也能在目标租户下刷新成功；关系撤销后 refresh 401。
+7. 非成员切换 403；目标租户停用或过期 403；用户停用 401。
+8. 从目标租户再次切回首页租户成功；角色恢复为首页租户角色。
+9. 租户内角色分配只影响本租户：在 B 调整该用户角色后，切回 A 的权限不变。
+10. 审计可按 `userId/fromTenantId/toTenantId` 检索到切换记录。
 
 ### 15.11 分阶段实施
 
 | 阶段 | 内容 | 交付 |
 |---|---|---|
-| 5.1 后端模型与切换 | 关系表/迁移/回填、首页关系写入、`/auth/tenants`、`/auth/tenant/switch`、refresh 关系校验、单测 | 可切换的后端能力 |
+| 5.1 后端模型与切换 | `sys_user_tenant` 建表/迁移/回填、首页关系写入、**角色解析按租户过滤修复**、`/auth/tenants`、`/auth/tenant/switch`、refresh 按 `userId` 加载 + 关系校验、单测 | 同 `userId` 可切换的后端能力 |
 | 5.2 admin 切换器 | 顶栏 Select、切换后重载、失败提示 | 一人多租户可用 |
-| 5.3 成员绑定管理 | 平台租户绑定/解绑 API + 页面（权限码 `sys:user:tenant`） | 运营可维护关系 |
-| 5.4 回归与文档 | 双租户 E2E、隔离回归、更新本评估稿 | 验收闭环 |
+| 5.3 成员与角色管理 | `/tenant/members` 列表 + 本租户角色分配、平台绑定/解绑关系、页面与权限码 | 运营可维护关系与租户内角色 |
+| 5.4 回归与文档 | 双租户 E2E（含角色隔离）、隔离回归、更新本评估稿 | 验收闭环 |
