@@ -275,6 +275,6 @@
 | 类别 | 内容 |
 |---|---|
 | 需求项 | ① 考察现有项目多租户实现；② 识别隔离缺口与风险；③ 给出可落地的完善场景与分阶段方案；④ 按确认结论（共享库行级 / 仅 Phase 0 / 登录填租户码）实施止血 |
-| 完成项 | ① 盘点 auth 8 表、10 个业务域 40+ 表的租户字段；② 梳理 JWT/网关/服务内上下文链路；③ 定位 P0 伪造租户头越权路径；④ 输出 S1–S10 场景与 Phase 0–4 路线；⑤ 给出 D1–D6 决策；⑥ Phase 0 代码落地（网关清头+claim 注入、sys_tenant、sys_user.tenant_id、登录 tenantCode、JWT tenantId、表单 fail-closed、审计租户、6 个前端登录页）；⑦ auth/starter/gateway/form 模块单测通过 |
-| 待做项 | ① Phase 1 租户管理 API、角色/菜单/部门租户化、租户开通与停用；② Phase 2 `TenantContext` + MyBatis 租户插件 + 异步/MQ/服务间传播 + 缓存/锁/存储前缀；③ Phase 3 表单元数据、文件、IM、工作流、Agent、档案、任务、支付、告警铺开；④ Phase 4 租户切换与运营台；⑤ 在联调环境执行 `migration-5.54-tenant.sql` 并回归登录/表单链路 |
-| 已修正问题项 | ① 旧令牌无租户 claim 的越权兜底：改为 401，不回落默认租户；② 白名单路径伪造租户头：同样清除；③ Mockito 严格桩在“租户解析前失败”用例误报：改用 lenient；④ 新增领域类缺少方法 Javadoc：按 checkstyle 补齐 |
+| 完成项 | ① 盘点 auth 8 表、10 个业务域 40+ 表的租户字段；② 梳理 JWT/网关/服务内上下文链路；③ 定位 P0 伪造租户头越权路径；④ 输出 S1–S10 场景与 Phase 0–4 路线；⑤ 给出 D1–D6 决策；⑥ Phase 0 代码落地（网关清头+claim 注入、sys_tenant、sys_user.tenant_id、登录 tenantCode、JWT tenantId、表单 fail-closed、审计租户、6 个前端登录页）；⑦ auth/starter/gateway/form 模块单测通过；⑧ 后端全模块 `mvn install` 通过（含 checkstyle 与全部单测） |
+| 待做项 | ① Phase 1 租户管理 API、角色/菜单/部门租户化、租户开通与停用；② Phase 2 `TenantContext` + MyBatis 租户插件 + 异步/MQ/服务间传播 + 缓存/锁/存储前缀；③ Phase 3 表单元数据、文件、IM、工作流、Agent、档案、任务、支付、告警铺开；④ Phase 4 租户切换与运营台；⑤ 在联调环境执行 `migration-5.54-tenant.sql` 并回归登录/表单链路；⑥ 前端构建验证：本机执行 node/pnpm 时命令沙箱后端异常（`SandboxBackendFailed`），本次仅完成人工代码审查，需在正常环境补跑 `pnpm build` |
+| 已修正问题项 | ① 旧令牌无租户 claim 的越权兜底：改为 401，不回落默认租户；② 白名单路径伪造租户头：同样清除；③ Mockito 严格桩在“租户解析前失败”用例误报：改用 lenient；④ 新增领域类缺少方法 Javadoc：按 checkstyle 补齐；⑤ `JwtUtilsTest` 篡改令牌用例偶发失败：改为确定性篡改签名段首字符 |
