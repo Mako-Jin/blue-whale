@@ -57,6 +57,14 @@ class FileDocumentParserTest {
     }
 
     @Test
+    @DisplayName("JSON 档案快照按原文抽取")
+    void shouldParseJsonSnapshot() {
+        String json = "{\"version\":1,\"instance\":{\"title\":\"采购审批\"}}";
+        String text = parser.parse(bytes(json), "archive-WORKFLOW-1.json", "application/json");
+        assertTrue(text.contains("采购审批"));
+    }
+
+    @Test
     @DisplayName("损坏的 PDF 判定为不可重试")
     void shouldRejectCorruptedPdf() {
         FileParseException error = assertThrows(FileParseException.class,

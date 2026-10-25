@@ -33,6 +33,16 @@ class FileChunkerTest {
     }
 
     @Test
+    @DisplayName("档案快照切块使用 archive 类型")
+    void shouldUseArchiveKind() {
+        List<Chunk> chunks = chunker.chunk("file:9", "whale-archive", "archive-WORKFLOW-1.json",
+                "{\"instance\":{\"title\":\"采购审批\"}}", FileChunker.KIND_ARCHIVE);
+        assertEquals(1, chunks.size());
+        assertEquals(FileChunker.KIND_ARCHIVE, chunks.get(0).getKind());
+        assertEquals("whale-archive", chunks.get(0).getModule());
+    }
+
+    @Test
     @DisplayName("表格按行切块且每块重复表头")
     void shouldRepeatHeaderForTable() {
         StringBuilder builder = new StringBuilder("姓名,部门\n");

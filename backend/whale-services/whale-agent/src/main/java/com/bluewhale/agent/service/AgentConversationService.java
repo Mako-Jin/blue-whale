@@ -50,7 +50,8 @@ public class AgentConversationService {
     private static final int TITLE_LIMIT = 50;
 
     /** 检索范围可选值 */
-    private static final Set<String> SCOPE_VALUES = Set.of("code", "doc", "sql", "config", "git", "runtime");
+    private static final Set<String> SCOPE_VALUES = Set.of(
+            "code", "doc", "sql", "config", "git", "runtime", "file", "archive");
 
     /** 角色：用户 */
     public static final String ROLE_USER = "user";

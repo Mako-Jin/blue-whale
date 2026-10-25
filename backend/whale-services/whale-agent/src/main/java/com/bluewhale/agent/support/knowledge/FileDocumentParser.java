@@ -17,6 +17,7 @@ import org.xml.sax.SAXException;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -58,15 +59,19 @@ public class FileDocumentParser {
     private static final String MIME_PPTX =
             "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 
+    /** 白名单：JSON（档案快照） */
+    private static final String MIME_JSON = "application/json";
+
     /** 允许的 MIME 类型 */
     private static final Set<String> ALLOWED_MIME = Set.of(
             MIME_PDF, MIME_DOCX, MIME_XLSX, MIME_PPTX,
             "text/plain", "text/markdown", "text/x-web-markdown", "text/html",
-            "application/xhtml+xml", "text/csv", "application/csv", "text/x-csv");
+            "application/xhtml+xml", "text/csv", "application/csv", "text/x-csv",
+            MIME_JSON, "text/json");
 
     /** 允许的扩展名（MIME 探测失败时的兜底） */
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
-            "pdf", "docx", "xlsx", "pptx", "txt", "md", "markdown", "html", "htm", "csv");
+            "pdf", "docx", "xlsx", "pptx", "txt", "md", "markdown", "html", "htm", "csv", "json");
 
     /** 解析线程池：固定两线程，避免并发解析拖垮内存 */
     private final ExecutorService executor = Executors.newFixedThreadPool(2, runnable -> {
@@ -112,6 +117,9 @@ public class FileDocumentParser {
         if (!ALLOWED_MIME.contains(mime)) {
             throw new FileParseException(false, "不支持的文件类型: " + mime);
         }
+        if (MIME_JSON.equals(mime) || "text/json".equals(mime)) {
+            return jsonText(content, properties.getKnowledge().getMaxChars());
+        }
         Future<String> future = executor.submit(() -> extract(content, fileName));
         try {
             return future.get(properties.getKnowledge().getTimeoutSeconds(), TimeUnit.SECONDS);
@@ -128,6 +136,18 @@ public class FileDocumentParser {
             }
             throw new FileParseException(false, "文档解析失败: " + messageOf(cause), cause);
         }
+    }
+
+    /**
+     * 读取 JSON 文本：档案快照为标准 JSON，直接按 UTF-8 解码，避免 Tika 探测差异。
+     *
+     * @param content 文件字节内容
+     * @param maxChars 字符上限
+     * @return UTF-8 文本（超限截断）
+     */
+    private String jsonText(byte[] content, int maxChars) {
+        String text = new String(content, StandardCharsets.UTF_8);
+        return text.length() <= maxChars ? text : text.substring(0, maxChars);
     }
 
     /**

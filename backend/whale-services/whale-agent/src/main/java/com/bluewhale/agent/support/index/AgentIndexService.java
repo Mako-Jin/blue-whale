@@ -14,6 +14,7 @@ import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.KnnFloatVectorField;
+import org.apache.lucene.document.SortedDocValuesField;
 import org.apache.lucene.document.StoredField;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
@@ -28,6 +29,7 @@ import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.BoostQuery;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.KnnFloatVectorQuery;
+import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.MatchNoDocsQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
@@ -37,6 +39,7 @@ import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.util.BytesRef;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -324,12 +327,25 @@ public class AgentIndexService implements DisposableBean {
      * @return 命中结果（按分数降序）
      */
     public List<SearchHit> search(String question, int topK, Set<String> kinds) {
+        return search(question, topK, kinds, null);
+    }
+
+    /**
+     * BM25 检索（带权限过滤）。
+     *
+     * @param question 用户问题
+     * @param topK 返回条数
+     * @param kinds 知识类型过滤（空表示不过滤）
+     * @param permissionCodes 用户权限码（{@code null} 表示不启用权限过滤；空集合表示仅普通知识块）
+     * @return 命中结果（按分数降序）
+     */
+    public List<SearchHit> search(String question, int topK, Set<String> kinds, Set<String> permissionCodes) {
         if (!StringUtils.hasText(question) || topK <= 0) {
             return List.of();
         }
         IndexSearcher searcher = acquireSearcher();
         try {
-            Query query = buildQuery(question, kinds);
+            Query query = buildQuery(question, kinds, permissionCodes);
             TopDocs topDocs = searcher.search(query, topK);
             StoredFields storedFields = searcher.storedFields();
             List<SearchHit> hits = new ArrayList<>();
@@ -353,12 +369,26 @@ public class AgentIndexService implements DisposableBean {
      * @return 命中结果（按余弦相似度降序）；索引无向量或维度不符返回空列表
      */
     public List<SearchHit> searchVector(float[] vector, int topK, Set<String> kinds) {
+        return searchVector(vector, topK, kinds, null);
+    }
+
+    /**
+     * 向量（KNN）检索（带权限过滤）。
+     *
+     * @param vector 查询向量（须与索引维度一致）
+     * @param topK 返回条数
+     * @param kinds 知识类型过滤（空表示不过滤）
+     * @param permissionCodes 用户权限码（{@code null} 表示不启用权限过滤）
+     * @return 命中结果（按余弦相似度降序）；索引无向量或维度不符返回空列表
+     */
+    public List<SearchHit> searchVector(float[] vector, int topK, Set<String> kinds,
+                                        Set<String> permissionCodes) {
         if (vector == null || topK <= 0 || indexedDimension <= 0 || vector.length != indexedDimension) {
             return List.of();
         }
         IndexSearcher searcher = acquireSearcher();
         try {
-            Query filter = kindFilter(kinds);
+            Query filter = combineFilters(kindFilter(kinds), permissionFilter(permissionCodes));
             Query query = filter == null
                     ? new KnnFloatVectorQuery(AgentIndexFields.VECTOR, vector, topK)
                     : new KnnFloatVectorQuery(AgentIndexFields.VECTOR, vector, topK, filter);
@@ -413,9 +443,10 @@ public class AgentIndexService implements DisposableBean {
      *
      * @param question 用户问题
      * @param kinds 类型过滤
+     * @param permissionCodes 用户权限码（{@code null} 表示不过滤）
      * @return Lucene 查询
      */
-    private Query buildQuery(String question, Set<String> kinds) {
+    private Query buildQuery(String question, Set<String> kinds, Set<String> permissionCodes) {
         List<String> cnTokens = tokenize(AgentIndexFields.CONTENT, question, false);
         List<String> codeTokens = new ArrayList<>(tokenize(AgentIndexFields.CONTENT_CODE, question, true));
         for (String alias : QueryAliasExpander.expand(question)) {
@@ -449,6 +480,10 @@ public class AgentIndexService implements DisposableBean {
                 builder.add(filter, BooleanClause.Occur.FILTER);
             }
         }
+        Query visible = permissionFilter(permissionCodes);
+        if (visible != null) {
+            builder.add(visible, BooleanClause.Occur.FILTER);
+        }
         BooleanQuery.Builder outer = new BooleanQuery.Builder();
         outer.add(builder.build(), BooleanClause.Occur.MUST);
         if (isCodeIntent(question)) {
@@ -460,6 +495,53 @@ public class AgentIndexService implements DisposableBean {
                     BooleanClause.Occur.SHOULD);
         }
         return outer.build();
+    }
+
+    /**
+     * 构建权限过滤：无权限码的知识块恒可见，受限知识块须命中用户权限码之一。
+     *
+     * @param permissionCodes 用户权限码（{@code null} 表示不启用过滤）
+     * @return 过滤查询；未启用返回 {@code null}
+     */
+    private Query permissionFilter(Set<String> permissionCodes) {
+        if (permissionCodes == null) {
+            return null;
+        }
+        BooleanQuery publicOnly = new BooleanQuery.Builder()
+                .add(new MatchAllDocsQuery(), BooleanClause.Occur.MUST)
+                .add(new TermQuery(new Term(AgentIndexFields.PERMISSION_RESTRICTED, "1")),
+                        BooleanClause.Occur.MUST_NOT)
+                .build();
+        BooleanQuery.Builder visible = new BooleanQuery.Builder();
+        visible.add(publicOnly, BooleanClause.Occur.SHOULD);
+        for (String code : permissionCodes) {
+            if (StringUtils.hasText(code)) {
+                visible.add(new TermQuery(new Term(AgentIndexFields.PERMISSION_CODE, code)),
+                        BooleanClause.Occur.SHOULD);
+            }
+        }
+        visible.setMinimumNumberShouldMatch(1);
+        return visible.build();
+    }
+
+    /**
+     * 合并两个过滤查询（任一为空返回另一个）。
+     *
+     * @param kindFilter 类型过滤
+     * @param visible 权限过滤
+     * @return 合并查询；均为空返回 {@code null}
+     */
+    private Query combineFilters(Query kindFilter, Query visible) {
+        if (kindFilter == null) {
+            return visible;
+        }
+        if (visible == null) {
+            return kindFilter;
+        }
+        return new BooleanQuery.Builder()
+                .add(kindFilter, BooleanClause.Occur.MUST)
+                .add(visible, BooleanClause.Occur.MUST)
+                .build();
     }
 
     /**
@@ -614,7 +696,10 @@ public class AgentIndexService implements DisposableBean {
             document.add(new StringField(AgentIndexFields.FILE_ID, String.valueOf(fileId), Field.Store.YES));
         }
         if (StringUtils.hasText(permissionCode)) {
+            document.add(new StringField(AgentIndexFields.PERMISSION_RESTRICTED, "1", Field.Store.NO));
             document.add(new StringField(AgentIndexFields.PERMISSION_CODE, permissionCode, Field.Store.YES));
+            document.add(new SortedDocValuesField(AgentIndexFields.PERMISSION_CODE,
+                    new BytesRef(permissionCode)));
         }
         return document;
     }
@@ -661,8 +746,26 @@ public class AgentIndexService implements DisposableBean {
                 .startLine(intValue(document.get(AgentIndexFields.START_LINE)))
                 .endLine(intValue(document.get(AgentIndexFields.END_LINE)))
                 .wave(nullToEmpty(document.get(AgentIndexFields.WAVE)))
+                .fileId(longValue(document.get(AgentIndexFields.FILE_ID)))
                 .score(score)
                 .build();
+    }
+
+    /**
+     * 读取 StoredField 中的长整型。
+     *
+     * @param value 字符串值
+     * @return 数值；缺失或非法返回 {@code null}
+     */
+    private Long longValue(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        try {
+            return Long.valueOf(value);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     /**

@@ -12,10 +12,11 @@ package com.bluewhale.agent.support.agent;
  * @param factType  事实类型（fact 专用）
  * @param factKey   事实键（fact 专用）
  * @param score     检索分数（chunk 专用）
+ * @param fileId    文件服务文件ID（业务文件/档案知识块专用）
  * @author BlueWhale
  */
 public record ToolEvidence(String kind, String path, String title, Integer startLine, Integer endLine,
-                           String snippet, String factType, String factKey, Double score) {
+                           String snippet, String factType, String factKey, Double score, Long fileId) {
 
     /**
      * 去重键：同一路径行区间或同一事实只保留一次。

@@ -4,6 +4,7 @@ import com.bluewhale.agent.config.AgentProperties;
 import com.bluewhale.agent.entity.AgentKnowledgeFile;
 import com.bluewhale.agent.support.index.AgentIndexService;
 import com.bluewhale.agent.support.ingest.Chunk;
+import com.bluewhale.agent.support.knowledge.ArchiveSecurityClient;
 import com.bluewhale.agent.support.knowledge.FileChunker;
 import com.bluewhale.agent.support.knowledge.FileDocumentParser;
 import com.bluewhale.agent.support.knowledge.FileKnowledgeClient;
@@ -49,6 +50,8 @@ class FileKnowledgeSyncServiceTest {
 
     private FileKnowledgeClient fileClient;
 
+    private ArchiveSecurityClient archiveSecurityClient;
+
     private FileDocumentParser documentParser;
 
     private FileChunker fileChunker;
@@ -63,12 +66,13 @@ class FileKnowledgeSyncServiceTest {
     void setUp() {
         properties = new AgentProperties();
         fileClient = mock(FileKnowledgeClient.class);
+        archiveSecurityClient = mock(ArchiveSecurityClient.class);
         documentParser = mock(FileDocumentParser.class);
         fileChunker = mock(FileChunker.class);
         fileService = mock(AgentKnowledgeFileService.class);
         indexService = mock(AgentIndexService.class);
-        syncService = new FileKnowledgeSyncService(properties, fileClient, documentParser, fileChunker,
-                fileService, indexService);
+        syncService = new FileKnowledgeSyncService(properties, fileClient, archiveSecurityClient,
+                documentParser, fileChunker, fileService, indexService);
     }
 
     @AfterEach
@@ -97,7 +101,8 @@ class FileKnowledgeSyncServiceTest {
         when(fileClient.changes(any(), anyLong(), anyLong())).thenReturn(List.of(change("m2")));
         when(fileClient.content(FILE_ID)).thenReturn(new byte[]{1, 2, 3});
         when(documentParser.parse(any(), eq("制度.docx"), any())).thenReturn("正文");
-        when(fileChunker.chunk(PATH, "whale-file", "制度.docx", "正文")).thenReturn(List.of(chunk()));
+        when(fileChunker.chunk(PATH, "whale-file", "制度.docx", "正文", FileChunker.KIND_FILE))
+                .thenReturn(List.of(chunk()));
 
         syncService.runOnce();
 
@@ -108,6 +113,43 @@ class FileKnowledgeSyncServiceTest {
         assertEquals(KnowledgeConstants.STATUS_INDEXED, latest.getIndexStatus());
         assertEquals(1, latest.getChunkCount().intValue());
         assertEquals(0, latest.getAttempts().intValue());
+    }
+
+    @Test
+    @DisplayName("档案桶写入 archive 类型与密级权限码")
+    void shouldIndexArchiveWithSecurityPermission() {
+        RemoteFileChange archive = archiveChange("m3");
+        when(fileService.find(FILE_ID)).thenReturn(indexed("m1"));
+        when(fileClient.changes(any(), anyLong(), anyLong())).thenReturn(List.of(archive));
+        when(fileClient.content(FILE_ID)).thenReturn(new byte[]{'j'});
+        when(documentParser.parse(any(), eq("archive-WORKFLOW-1.json"), any())).thenReturn("{}");
+        when(archiveSecurityClient.securityLevel(FILE_ID)).thenReturn(3);
+        when(fileChunker.chunk(PATH, "whale-archive", "archive-WORKFLOW-1.json", "{}",
+                FileChunker.KIND_ARCHIVE)).thenReturn(List.of(chunk()));
+
+        syncService.runOnce();
+
+        verify(indexService).addFileChunks(eq(PATH), eq("m3"), anyList(), eq(FILE_ID),
+                eq("sys:archive:secret:read"));
+        assertEquals(KnowledgeConstants.SOURCE_ARCHIVE, saved().getSource());
+        assertEquals(KnowledgeConstants.STATUS_INDEXED, saved().getIndexStatus());
+    }
+
+    @Test
+    @DisplayName("档案密级不可用时拒绝入索引")
+    void shouldSkipArchiveWhenSecurityUnavailable() {
+        RemoteFileChange archive = archiveChange("m3");
+        when(fileService.find(FILE_ID)).thenReturn(indexed("m1"));
+        when(fileClient.changes(any(), anyLong(), anyLong())).thenReturn(List.of(archive));
+        when(fileClient.content(FILE_ID)).thenReturn(new byte[]{'j'});
+        when(documentParser.parse(any(), eq("archive-WORKFLOW-1.json"), any())).thenReturn("{}");
+        when(archiveSecurityClient.securityLevel(FILE_ID)).thenReturn(null);
+
+        syncService.runOnce();
+
+        verify(indexService).deletePaths(List.of(PATH));
+        verify(indexService, never()).addFileChunks(anyString(), anyString(), anyList(), any(), any());
+        assertEquals(KnowledgeConstants.STATUS_SKIPPED, saved().getIndexStatus());
     }
 
     @Test
@@ -233,6 +275,20 @@ class FileKnowledgeSyncServiceTest {
         change.setStatus(1);
         change.setDeleted(0);
         change.setUpdateTime(LocalDateTime.of(2026, 2, 1, 9, 0));
+        return change;
+    }
+
+    /**
+     * 构造档案变更记录。
+     *
+     * @param md5 文件摘要
+     * @return 变更记录
+     */
+    private RemoteFileChange archiveChange(String md5) {
+        RemoteFileChange change = change(md5);
+        change.setBucket("whale-archive");
+        change.setOriginalName("archive-WORKFLOW-1.json");
+        change.setContentType("application/json");
         return change;
     }
 

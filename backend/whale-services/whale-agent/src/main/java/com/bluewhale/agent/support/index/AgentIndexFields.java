@@ -64,6 +64,9 @@ public final class AgentIndexFields {
     /** 知识块所需权限码（档案知识过滤；普通文件为空） */
     public static final String PERMISSION_CODE = "permission_code";
 
+    /** 受限标记（仅受限知识块写入，用于精确判定是否存在权限约束） */
+    public static final String PERMISSION_RESTRICTED = "permission_restricted";
+
     /** 工具类不允许实例化 */
     private AgentIndexFields() {
     }

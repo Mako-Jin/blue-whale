@@ -13,6 +13,7 @@ import com.bluewhale.agent.support.agent.ToolCallingResult;
 import com.bluewhale.agent.support.agent.ToolEvidence;
 import com.bluewhale.agent.support.index.AgentIndexService;
 import com.bluewhale.agent.support.index.SearchHit;
+import com.bluewhale.agent.support.knowledge.KnowledgePermissionContext;
 import com.bluewhale.agent.support.llm.ChatMessage;
 import com.bluewhale.agent.support.llm.LlmClient;
 import com.bluewhale.agent.support.qa.Citation;
@@ -21,6 +22,7 @@ import com.bluewhale.agent.support.qa.FactRetriever;
 import com.bluewhale.agent.support.qa.IntentRouter;
 import com.bluewhale.agent.support.qa.PromptAssembler;
 import com.bluewhale.agent.support.qa.QuestionIntent;
+import com.bluewhale.common.web.WebHeaders;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PreDestroy;
@@ -59,7 +61,7 @@ public class ChatService {
     private static final long EMITTER_TIMEOUT_MILLIS = 180_000L;
 
     /** 全文索引支持的范围类型 */
-    private static final Set<String> INDEX_KINDS = Set.of("code", "doc", "sql", "config");
+    private static final Set<String> INDEX_KINDS = Set.of("code", "doc", "sql", "config", "file", "archive");
 
     /** 事实片段最大字符数 */
     private static final int FACT_SNIPPET_LIMIT = 600;
@@ -102,15 +104,16 @@ public class ChatService {
      * @param request        提问请求
      * @param userId         当前用户
      * @param includeRuntime 是否包含运行时事实（取决于 {@code sys:agent:runtime:read} 权限）
+     * @param permissionCodes 网关透传的权限码（逗号分隔，用于档案知识过滤）
      * @return SSE 发射器
      */
-    public SseEmitter chat(ChatRequest request, Long userId, boolean includeRuntime) {
+    public SseEmitter chat(ChatRequest request, Long userId, boolean includeRuntime, String permissionCodes) {
         String question = request.getQuestion().trim();
         String scope = AgentConversationService.normalizeScope(request.getScope());
         AgentConversation conversation = conversationService.resolve(
                 request.getConversationId(), userId, question, scope);
         SseEmitter emitter = new SseEmitter(EMITTER_TIMEOUT_MILLIS);
-        executor.submit(() -> answer(conversation, question, scope, includeRuntime, emitter));
+        executor.submit(() -> answer(conversation, question, scope, includeRuntime, permissionCodes, emitter));
         return emitter;
     }
 
@@ -121,10 +124,12 @@ public class ChatService {
      * @param question       问题
      * @param scope          检索范围
      * @param includeRuntime 是否包含运行时事实
+     * @param permissionCodes 权限码（逗号分隔）
      * @param emitter        SSE 发射器
      */
     private void answer(AgentConversation conversation, String question, String scope,
-                        boolean includeRuntime, SseEmitter emitter) {
+                        boolean includeRuntime, String permissionCodes, SseEmitter emitter) {
+        KnowledgePermissionContext.set(WebHeaders.splitCodes(permissionCodes));
         long start = System.currentTimeMillis();
         try {
             QuestionIntent intent = intentRouter.route(question);
@@ -186,6 +191,8 @@ public class ChatService {
             log.error("问答执行失败：conversationId={}", conversation.getId(), e);
             sendQuietly(emitter, "error", Map.of("message", "问答执行失败：" + safeMessage(e)));
             emitter.complete();
+        } finally {
+            KnowledgePermissionContext.clear();
         }
     }
 
@@ -220,7 +227,7 @@ public class ChatService {
         for (ToolEvidence item : evidence) {
             citations.add(new Citation("S" + seq++, item.kind(), item.path(), item.title(),
                     item.startLine(), item.endLine(), item.snippet(), item.factType(),
-                    item.factKey(), item.score()));
+                    item.factKey(), item.score(), item.fileId()));
         }
         return citationValidator.validate(citations);
     }
@@ -272,7 +279,7 @@ public class ChatService {
             for (AgentFact fact : factRetriever.retrieve(question, includeRuntime)) {
                 citations.add(new Citation("S" + seq++, "fact", fact.getSourcePath(), fact.getFactKey(),
                         null, null, truncate(fact.getValueJson(), FACT_SNIPPET_LIMIT),
-                        fact.getFactType(), fact.getFactKey(), null));
+                        fact.getFactType(), fact.getFactKey(), null, null));
             }
         }
         Set<String> kinds = indexKinds(scope);
@@ -284,7 +291,8 @@ public class ChatService {
             for (SearchHit hit : hits) {
                 citations.add(new Citation("S" + seq++, "chunk", hit.getPath(), hit.getTitle(),
                         hit.getStartLine(), hit.getEndLine(),
-                        truncate(hit.getContent(), maxChars), null, null, (double) hit.getScore()));
+                        truncate(hit.getContent(), maxChars), null, null, (double) hit.getScore(),
+                        hit.getFileId()));
             }
         }
         return citationValidator.validate(citations);

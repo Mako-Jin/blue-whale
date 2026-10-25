@@ -1,6 +1,6 @@
 # Wave 5.53 规划：档案服务 + 文件知识库
 
-> 制定日期：2026-10-24 ｜ 状态：**M0–M4 已完成（含 A13 真机联调通过）**（2026-10-25；M5 未开工）
+> 制定日期：2026-10-24 ｜ 状态：**M0–M5 已完成（含 A13 真机联调通过）**（2026-10-25）
 > 关联服务：`whale-workflow`（8083）、`whale-form`（8084）、`whale-file`（8085）、`whale-agent`（8090）、`whale-gateway`（8080）、`whale-auth`（8081）、`whale-audit`（9101）
 > 关联需求：REQ-FUNC-014（档案服务）、REQ-FUNC-015（文件知识库）、REQ-SEC-008（档案与知识库可见性）
 
@@ -262,11 +262,11 @@
 - [x] K4 知识库管理接口 + 权限码 + 审计：`GET /agent/knowledge/files/page`、`POST /files/{fileId}/reindex`、`PUT /files/{fileId}/enabled`、`POST /rebuild`、`GET /stats`；权限 `sys:agent:knowledge:list/manage`（106/107）；重索引/启停/重建均 `@AuditLog`。
 - [x] K5 单测：6 类文档（txt/md/html/csv/docx/xlsx/pptx/pdf）、损坏/超大/不支持、删除即消失、md5 未变不重建、失败退避；`whale-agent` 全量 56 例、`whale-file` 56 例全绿，Checkstyle 0。
 
-### M5 档案知识融合与权限（K6–K8）
+### M5 档案知识融合与权限（K6–K8）——**已完成（2026-10-25）**
 
-- [ ] K6 `whale-archive` 桶 → `kind=archive` + 档案权限码。
-- [ ] K7 检索 `permission_code` 过滤 + 密级；问答范围开关 `file/archive`；证据展示文件名/下载。
-- [ ] K8 验收：档案快照可检索；无权限用户不可见；敏感内容不入索引。
+- [x] K6 `whale-archive` 桶 → `kind=archive` + 档案权限码：`AgentProperties.Knowledge` 新增 `archiveBucket/archiveUrl/archivePermissionCode/archiveSecretPermissionCode`；`FileDocumentParser` 白名单补 `application/json`、`text/json` 并按 UTF-8 直读快照；`FileChunker` 增加 kind 重载；`ArchiveFileMapper.selectSecurityByFileId`（同文件多条目取最严）+ `GET /archive/internal/files/{fileId}/security`（网关 internal-deny 屏蔽）；agent 新增 `ArchiveSecurityClient`，密级不可用即 `SKIPPED`（fail-closed）；同步按桶写 `kind=archive`、`source=ARCHIVE`，密级 3 → `sys:archive:secret:read`，1/2 → `sys:archive:item:read`。
+- [x] K7 检索 `permission_code` 过滤 + 密级；问答范围开关 `file/archive`；证据展示文件名/下载：索引受限块写 `permission_restricted` 标记 + `permission_code`（StringField + SortedDocValues）；BM25/KNN 均加权限过滤（无约束块恒可见，受限块须命中用户权限码之一）；`KnowledgePermissionContext` 线程内透传 `X-Permission-Codes`（未设置按空集合处理）；`AgentConversationService`/前端范围新增 `file/archive`；`SearchHit`/`Citation`/`CitationVO` 带 `fileId` 与 `downloadUrl`，证据面板支持下载。
+- [x] K8 验收：档案快照可检索、无权限用户不可见、敏感内容不入索引；新增权限码 `sys:archive:secret:read`（151，auth `init.sql` + `migration-5.53.sql`）；单测覆盖 JSON 解析、archive 切块、档案密级权限码、密级缺失 fail-closed、检索权限过滤（匿名/条目权限/秘密级权限）。
 
 ---
 
@@ -322,12 +322,13 @@
 - M2：workflow/form/file 三组内网接口；同步调度（游标持久化 + 失败重试 + 手动触发）、规则命中、不可变快照（SHA-256）、附件递归提取与锁定、幂等台账；新增 28/3/6 用例并通过 Checkstyle 0。
 - M3：档案条目分页/详情/整理/确认/销毁/下载/统计接口与审计；admin 五页与动态路由；A13 直连真机验收通过（28 秒可见、档号唯一、下载与权限矩阵）。
 - M4：`agent_knowledge_file` 采集台账与状态机；Tika 解析（白名单/大小/字符/超时/隔离线程池）；`FileChunker` 与脱敏；`FileKnowledgeClient` 增量拉取、md5 去重、删除/停用下架、失败指数退避；Lucene `file_id`/`permission_code` 字段；知识库管理接口、权限种子与审计；新增 17 用例全绿。
+- M5：档案桶 `kind=archive` + 归档 JSON 快照直读；`/archive/internal/files/{fileId}/security` 密级查询（同文件取最严）；同步侧密级 → 权限码映射与 fail-closed；BM25/KNN 权限过滤（受限标记 + 权限码，普通块恒可见）；问答/检索线程透传幂等权限上下文；范围开关 `file/archive`；证据 `fileId` + 下载；`sys:archive:secret:read`（151）权限种子；新增 5 类用例。
 
 ### 11.3 待做项
 
 - 评审确认 §2.1 四项待定决策。
-- M5 共 3 项任务（K6–K8，见 §八）。
-- 部署前置：执行 `bluewhale_agent` 的 `migration-5.53.sql`（`agent_knowledge_file`）、`whale-auth` 的 `migration-5.53.sql`（权限 106/107）与 `bluewhale_archive` 建库/建表脚本（本机 MySQL8 root 口令未提供，脚本已就绪待执行）。
+- 部署前置：执行 `bluewhale_agent` 的 `migration-5.53.sql`（`agent_knowledge_file`）、`whale-auth` 的 `migration-5.53.sql`（权限 106/107/151）与 `bluewhale_archive` 建库/建表脚本（本机 MySQL8 root 口令未提供，脚本已就绪待执行）。
+- 真机补测：档案快照入索引后，用无权限/条目权限/秘密级权限三种码头验证检索命中差异。
 
 ### 11.4 已修正问题项
 

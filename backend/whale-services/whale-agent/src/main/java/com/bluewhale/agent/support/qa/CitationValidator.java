@@ -63,7 +63,7 @@ public class CitationValidator {
                 int end = citation.endLine() == null ? (int) total : Math.min(citation.endLine(), (int) total);
                 result.add(new Citation(citation.sourceId(), citation.kind(), path, citation.title(),
                         citation.startLine(), end, citation.snippet(), citation.factType(),
-                        citation.factKey(), citation.score()));
+                        citation.factKey(), citation.score(), citation.fileId()));
             } else {
                 result.add(citation);
             }

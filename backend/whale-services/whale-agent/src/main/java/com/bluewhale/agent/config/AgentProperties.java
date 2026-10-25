@@ -347,6 +347,18 @@ public class AgentProperties {
         /** 文件服务基址（服务间直连，不经网关） */
         private String fileUrl = "http://127.0.0.1:8085";
 
+        /** 档案服务基址（查询档案文件密级，服务间直连） */
+        private String archiveUrl = "http://127.0.0.1:8093";
+
+        /** 档案桶名（按前缀匹配，命中后知识类型为 archive） */
+        private String archiveBucket = "whale-archive";
+
+        /** 档案条目读权限码（密级 1/2 使用） */
+        private String archivePermissionCode = "sys:archive:item:read";
+
+        /** 档案秘密级权限码（密级 3 使用，仅授权角色可见） */
+        private String archiveSecretPermissionCode = "sys:archive:secret:read";
+
         /** 建立连接超时（毫秒） */
         private int connectTimeoutMillis = 5000;
 

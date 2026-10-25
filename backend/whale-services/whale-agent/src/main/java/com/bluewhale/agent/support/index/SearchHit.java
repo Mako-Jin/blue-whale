@@ -42,6 +42,9 @@ public class SearchHit {
     /** BM25 分数 */
     private final float score;
 
+    /** 文件服务文件ID（普通知识块为 {@code null}） */
+    private final Long fileId;
+
     /**
      * 复制命中并替换分数（RRF 融合使用，原分数不再具备可比性）。
      *
@@ -59,6 +62,7 @@ public class SearchHit {
                 .startLine(startLine)
                 .endLine(endLine)
                 .wave(wave)
+                .fileId(fileId)
                 .score((float) newScore)
                 .build();
     }

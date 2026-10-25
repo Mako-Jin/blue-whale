@@ -17,9 +17,10 @@ package com.bluewhale.agent.support.qa;
  * @param factType  事实类型（仅 fact）
  * @param factKey   事实键（仅 fact）
  * @param score     检索分数（仅 chunk）
+ * @param fileId    文件服务文件ID（业务文件/档案知识块，可空）
  * @author BlueWhale
  */
 public record Citation(String sourceId, String kind, String path, String title,
                        Integer startLine, Integer endLine, String snippet,
-                       String factType, String factKey, Double score) {
+                       String factType, String factKey, Double score, Long fileId) {
 }

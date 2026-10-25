@@ -115,6 +115,7 @@ public class KnowledgeToolRegistry {
                 Integer endLine = intValue(item.get("endLine"));
                 String snippet = truncate(text(item.get("snippet")), EVIDENCE_SNIPPET_LIMIT);
                 Double score = doubleValue(item.get("score"));
+                Long fileId = longValue(item.get("fileId"));
                 ObjectNode node = array.addObject();
                 node.put("path", path);
                 node.put("startLine", startLine);
@@ -122,7 +123,7 @@ public class KnowledgeToolRegistry {
                 node.put("title", title);
                 node.put("snippet", snippet);
                 evidence.add(new ToolEvidence("chunk", path, title, startLine, endLine, snippet,
-                        null, null, score));
+                        null, null, score, fileId));
             }
         }
         text.put("count", evidence.size());
@@ -156,7 +157,7 @@ public class KnowledgeToolRegistry {
                 node.put("value", value);
                 node.put("sourcePath", sourcePath);
                 evidence.add(new ToolEvidence("fact", sourcePath, key, null, null, value,
-                        type, key, null));
+                        type, key, null, null));
             }
         }
         text.put("count", evidence.size());
@@ -183,7 +184,7 @@ public class KnowledgeToolRegistry {
         text.put("truncated", Boolean.TRUE.equals(result.get("truncated")));
         text.put("content", truncate(content, READ_TEXT_LIMIT));
         ToolEvidence evidence = new ToolEvidence("chunk", path, path, startLine, endLine,
-                truncate(content, EVIDENCE_SNIPPET_LIMIT), null, null, null);
+                truncate(content, EVIDENCE_SNIPPET_LIMIT), null, null, null, null);
         return new ToolExecution(truncate(text.toString(), MODEL_TEXT_LIMIT), List.of(evidence));
     }
 
@@ -273,6 +274,26 @@ public class KnowledgeToolRegistry {
     private static Double doubleValue(Object value) {
         if (value instanceof Number number) {
             return number.doubleValue();
+        }
+        return null;
+    }
+
+    /**
+     * 安全转长整型。
+     *
+     * @param value 值
+     * @return 长整型；无法转换返回 {@code null}
+     */
+    private static Long longValue(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value != null) {
+            try {
+                return Long.valueOf(String.valueOf(value).trim());
+            } catch (NumberFormatException e) {
+                return null;
+            }
         }
         return null;
     }

@@ -6,6 +6,7 @@ import com.bluewhale.agent.entity.AgentKnowledgeFile;
 import com.bluewhale.agent.support.index.AgentIndexService;
 import com.bluewhale.agent.support.ingest.Chunk;
 import com.bluewhale.agent.support.ingest.SensitiveContentMasker;
+import com.bluewhale.agent.support.knowledge.ArchiveSecurityClient;
 import com.bluewhale.agent.support.knowledge.FileChunker;
 import com.bluewhale.agent.support.knowledge.FileDocumentParser;
 import com.bluewhale.agent.support.knowledge.FileKnowledgeClient;
@@ -63,12 +64,17 @@ public class FileKnowledgeSyncService {
     /** 知识块路径前缀 */
     private static final String PATH_PREFIX = "file:";
 
+    /** 档案秘密级阈值：密级 ≥ 3 需秘密级权限码 */
+    private static final int SECRET_LEVEL = 3;
+
     /** 并发保护：同一时刻仅允许一轮同步 */
     private final AtomicBoolean running = new AtomicBoolean(false);
 
     private final AgentProperties properties;
 
     private final FileKnowledgeClient fileClient;
+
+    private final ArchiveSecurityClient archiveSecurityClient;
 
     private final FileDocumentParser documentParser;
 
@@ -140,6 +146,7 @@ public class FileKnowledgeSyncService {
             }
             try {
                 indexService.deleteKind(FileChunker.KIND_FILE);
+                indexService.deleteKind(FileChunker.KIND_ARCHIVE);
                 indexService.commitAndRefresh();
                 fileService.deleteAllRows();
                 doRun();
@@ -398,13 +405,26 @@ public class FileKnowledgeSyncService {
         }
         String path = pathOf(fileId);
         String module = change.getBucket() == null ? "" : change.getBucket();
-        List<Chunk> chunks = fileChunker.chunk(path, module, change.getOriginalName(), text);
+        boolean archive = isArchive(module);
+        String permissionCode = null;
+        String kind = FileChunker.KIND_FILE;
+        if (archive) {
+            Integer securityLevel = archiveSecurityClient.securityLevel(fileId);
+            if (securityLevel == null) {
+                removeIndex(fileId, context);
+                markSkipped(record, "档案密级不可用，拒绝入索引");
+                return OUTCOME_SKIPPED;
+            }
+            permissionCode = permissionCodeOf(securityLevel);
+            kind = FileChunker.KIND_ARCHIVE;
+        }
+        List<Chunk> chunks = fileChunker.chunk(path, module, change.getOriginalName(), text, kind);
         List<Chunk> safeChunks = new ArrayList<>(chunks.size());
         for (Chunk chunk : chunks) {
             safeChunks.add(mask(chunk));
         }
         indexService.deletePaths(List.of(path));
-        indexService.addFileChunks(path, change.getMd5(), safeChunks, fileId, null);
+        indexService.addFileChunks(path, change.getMd5(), safeChunks, fileId, permissionCode);
         context.dirty = true;
         record.setIndexStatus(KnowledgeConstants.STATUS_INDEXED);
         record.setChunkCount(safeChunks.size());
@@ -495,6 +515,8 @@ public class FileKnowledgeSyncService {
             record.setSource(KnowledgeConstants.SOURCE_FILE);
             record.setIndexStatus(KnowledgeConstants.STATUS_PENDING);
         }
+        record.setSource(isArchive(change.getBucket())
+                ? KnowledgeConstants.SOURCE_ARCHIVE : KnowledgeConstants.SOURCE_FILE);
         record.setBucket(change.getBucket());
         record.setOriginalName(change.getOriginalName());
         record.setContentType(change.getContentType());
@@ -564,6 +586,29 @@ public class FileKnowledgeSyncService {
             }
         }
         return false;
+    }
+
+    /**
+     * 判断桶是否属于档案桶（按配置前缀匹配）。
+     *
+     * @param bucket 桶名
+     * @return 档案桶返回 {@code true}
+     */
+    private boolean isArchive(String bucket) {
+        String archiveBucket = properties.getKnowledge().getArchiveBucket();
+        return StringUtils.hasText(archiveBucket) && bucket != null && bucket.startsWith(archiveBucket.trim());
+    }
+
+    /**
+     * 按密级选择最低可见权限码：密级 3 用秘密级码，其余用档案条目读码。
+     *
+     * @param securityLevel 密级
+     * @return 权限码
+     */
+    private String permissionCodeOf(int securityLevel) {
+        AgentProperties.Knowledge knowledge = properties.getKnowledge();
+        return securityLevel >= SECRET_LEVEL
+                ? knowledge.getArchiveSecretPermissionCode() : knowledge.getArchivePermissionCode();
     }
 
     /**

@@ -100,6 +100,40 @@ class AgentIndexVectorTest {
         assertFalse(hits.isEmpty());
     }
 
+    @Test
+    @DisplayName("权限码过滤：受限知识块仅授权可见，普通块恒可见")
+    void shouldFilterByPermissionCode() {
+        indexService.addFileChunks("file:900", "hash-9", List.of(
+                chunk("archive", "file:900", "秘密档案", "档案 密级 秘密 采购 审批 内容")),
+                900L, "sys:archive:secret:read");
+        indexService.addFileChunks("file:901", "hash-10", List.of(
+                chunk("archive", "file:901", "内部档案", "档案 密级 内部 采购 审批 内容")),
+                901L, "sys:archive:item:read");
+        indexService.commitAndRefresh();
+
+        List<SearchHit> all = indexService.search("档案 采购 审批", 10, Set.of());
+        assertTrue(all.stream().anyMatch(hit -> "docs/workflow.md".equals(hit.getPath())),
+                "未启用权限过滤时应命中普通知识块");
+
+        List<SearchHit> anonymous = indexService.search("档案 采购 审批", 10, Set.of(), Set.of());
+        assertTrue(anonymous.stream().noneMatch(hit -> hit.getPath().startsWith("file:")),
+                "无权限码时不得返回档案知识块");
+        assertTrue(anonymous.stream().anyMatch(hit -> "docs/workflow.md".equals(hit.getPath())),
+                "普通知识块应保持可见");
+
+        List<SearchHit> itemReader = indexService.search("档案 采购 审批", 10, Set.of(),
+                Set.of("sys:archive:item:read"));
+        assertTrue(itemReader.stream().anyMatch(hit -> "file:901".equals(hit.getPath())));
+        assertFalse(itemReader.stream().anyMatch(hit -> "file:900".equals(hit.getPath())),
+                "内部档案权限不得看见秘密级档案");
+
+        List<SearchHit> secretReader = indexService.search("档案 采购 审批", 10, Set.of(),
+                Set.of("sys:archive:item:read", "sys:archive:secret:read"));
+        SearchHit secret = secretReader.stream()
+                .filter(hit -> "file:900".equals(hit.getPath())).findFirst().orElseThrow();
+        assertEquals(900L, secret.getFileId());
+    }
+
     /**
      * 构造知识块。
      *

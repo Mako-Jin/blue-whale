@@ -43,7 +43,7 @@ class AgentSearchServiceTest {
         embeddingService = mock(EmbeddingService.class);
         properties = new AgentProperties();
         searchService = new AgentSearchService(indexService, embeddingService, properties);
-        when(indexService.search(eq(QUESTION), anyInt(), any()))
+        when(indexService.search(eq(QUESTION), anyInt(), any(), any()))
                 .thenReturn(List.of(hit("a"), hit("b"), hit("c")));
     }
 
@@ -53,7 +53,7 @@ class AgentSearchServiceTest {
         when(embeddingService.available()).thenReturn(true);
         when(indexService.indexedDimension()).thenReturn(256);
         when(embeddingService.embed(QUESTION)).thenReturn(new float[256]);
-        when(indexService.searchVector(any(), anyInt(), any()))
+        when(indexService.searchVector(any(), anyInt(), any(), any()))
                 .thenReturn(List.of(hit("b"), hit("c"), hit("a")));
 
         List<SearchHit> result = searchService.search(QUESTION, 3, Set.of());
@@ -69,7 +69,7 @@ class AgentSearchServiceTest {
         List<SearchHit> result = searchService.search(QUESTION, 2, Set.of());
 
         assertEquals(List.of("a", "b"), ids(result));
-        verify(indexService, never()).searchVector(any(), anyInt(), any());
+        verify(indexService, never()).searchVector(any(), anyInt(), any(), any());
     }
 
     @Test
@@ -82,7 +82,7 @@ class AgentSearchServiceTest {
         List<SearchHit> result = searchService.search(QUESTION, 3, Set.of());
 
         assertEquals(List.of("a", "b", "c"), ids(result));
-        verify(indexService, never()).searchVector(any(), anyInt(), any());
+        verify(indexService, never()).searchVector(any(), anyInt(), any(), any());
     }
 
     @Test
@@ -94,7 +94,7 @@ class AgentSearchServiceTest {
         List<SearchHit> result = searchService.search(QUESTION, 3, Set.of());
 
         assertEquals(List.of("a", "b", "c"), ids(result));
-        verify(indexService, never()).searchVector(any(), anyInt(), any());
+        verify(indexService, never()).searchVector(any(), anyInt(), any(), any());
     }
 
     @Test
@@ -103,7 +103,7 @@ class AgentSearchServiceTest {
         when(embeddingService.available()).thenReturn(true);
         when(indexService.indexedDimension()).thenReturn(256);
         when(embeddingService.embed(anyString())).thenReturn(new float[256]);
-        when(indexService.searchVector(any(), anyInt(), any()))
+        when(indexService.searchVector(any(), anyInt(), any(), any()))
                 .thenThrow(new IllegalStateException("索引不可用"));
 
         List<SearchHit> result = searchService.search(QUESTION, 3, Set.of());

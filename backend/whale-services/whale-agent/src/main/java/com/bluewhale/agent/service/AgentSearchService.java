@@ -4,6 +4,7 @@ import com.bluewhale.agent.config.AgentProperties;
 import com.bluewhale.agent.support.index.AgentIndexService;
 import com.bluewhale.agent.support.index.RrfFuser;
 import com.bluewhale.agent.support.index.SearchHit;
+import com.bluewhale.agent.support.knowledge.KnowledgePermissionContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -40,14 +41,28 @@ public class AgentSearchService {
      * @return 命中结果（融合分数）
      */
     public List<SearchHit> search(String question, Integer topK, Set<String> kinds) {
+        return search(question, topK, kinds, KnowledgePermissionContext.current());
+    }
+
+    /**
+     * 执行检索（显式指定权限码）。
+     *
+     * @param question 用户问题
+     * @param topK 期望条数（为空取默认值，超过上限按上限截断）
+     * @param kinds 知识类型过滤（空表示不过滤）
+     * @param permissionCodes 用户权限码（{@code null} 表示不启用权限过滤）
+     * @return 命中结果（融合分数）
+     */
+    public List<SearchHit> search(String question, Integer topK, Set<String> kinds,
+                                  Set<String> permissionCodes) {
         int max = properties.getSearch().getMaxTopK();
         int effective = topK == null ? properties.getSearch().getDefaultTopK() : Math.min(topK, max);
         if (effective <= 0) {
             effective = properties.getSearch().getDefaultTopK();
         }
         int candidate = Math.max(effective, properties.getSearch().getCandidateTopK());
-        List<SearchHit> bm25 = indexService.search(question, candidate, kinds);
-        List<SearchHit> vector = vectorHits(question, candidate, kinds);
+        List<SearchHit> bm25 = indexService.search(question, candidate, kinds, permissionCodes);
+        List<SearchHit> vector = vectorHits(question, candidate, kinds, permissionCodes);
         if (vector.isEmpty()) {
             return limit(bm25, effective);
         }
@@ -63,9 +78,11 @@ public class AgentSearchService {
      * @param question 用户问题
      * @param topK 候选条数
      * @param kinds 知识类型过滤
+     * @param permissionCodes 用户权限码（{@code null} 表示不过滤）
      * @return 向量命中（按相似度降序）
      */
-    private List<SearchHit> vectorHits(String question, int topK, Set<String> kinds) {
+    private List<SearchHit> vectorHits(String question, int topK, Set<String> kinds,
+                                       Set<String> permissionCodes) {
         if (!properties.getSearch().isVectorEnabled() || !embeddingService.available()
                 || indexService.indexedDimension() <= 0) {
             return List.of();
@@ -75,7 +92,7 @@ public class AgentSearchService {
             return List.of();
         }
         try {
-            return indexService.searchVector(queryVector, topK, kinds);
+            return indexService.searchVector(queryVector, topK, kinds, permissionCodes);
         } catch (RuntimeException e) {
             log.warn("向量检索失败，本次退回纯 BM25：{}", e.getMessage());
             return List.of();

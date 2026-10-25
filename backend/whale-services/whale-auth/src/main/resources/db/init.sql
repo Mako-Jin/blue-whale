@@ -559,4 +559,5 @@ VALUES
     (147, 0, 'sys:archive:item:archive', '确认归档', 'API', '/archive/item/{id}/confirm', 'POST', 147, 1),
     (148, 0, 'sys:archive:item:download', '下载档案文件', 'API', '/archive/item/{id}/files/{fileId}/download', 'GET', 148, 1),
     (149, 0, 'sys:archive:item:destroy', '销毁档案', 'API', '/archive/item/{id}/destroy', 'POST', 149, 1),
-    (150, 0, 'sys:archive:sync:run', '触发档案同步', 'API', '/archive/sync/run', 'POST', 150, 1);
+    (150, 0, 'sys:archive:sync:run', '触发档案同步', 'API', '/archive/sync/run', 'POST', 150, 1),
+    (151, 0, 'sys:archive:secret:read', '检索秘密级档案知识', 'API', '/agent/search,/agent/chat', 'GET,POST', 151, 1);

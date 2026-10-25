@@ -49,6 +49,12 @@ public class CitationVO {
     /** 检索分数（仅 chunk） */
     private Double score;
 
+    /** 文件服务文件ID（业务文件/档案知识块，可空） */
+    private Long fileId;
+
+    /** 文件下载地址（有文件ID时生成，经文件服务权限校验） */
+    private String downloadUrl;
+
     /**
      * 由领域对象转换。
      *
@@ -67,6 +73,8 @@ public class CitationVO {
                 .factType(citation.factType())
                 .factKey(citation.factKey())
                 .score(citation.score())
+                .fileId(citation.fileId())
+                .downloadUrl(citation.fileId() == null ? null : "/file/" + citation.fileId() + "/download")
                 .build();
     }
 }

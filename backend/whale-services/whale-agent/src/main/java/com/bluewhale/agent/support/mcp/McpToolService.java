@@ -78,6 +78,7 @@ public class McpToolService {
             item.put("kind", hit.getKind());
             item.put("module", hit.getModule());
             item.put("title", hit.getTitle());
+            item.put("fileId", hit.getFileId());
             item.put("score", hit.getScore());
             item.put("snippet", hit.getContent());
             items.add(item);

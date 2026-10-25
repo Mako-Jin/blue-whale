@@ -19,6 +19,12 @@ function kindLabel(citation: Citation): string {
   if (citation.kind === 'fact') {
     return citation.factType ? `事实 · ${citation.factType}` : '结构化事实';
   }
+  if (citation.kind === 'archive') {
+    return '档案';
+  }
+  if (citation.kind === 'file') {
+    return '业务文件';
+  }
   return '知识块';
 }
 
@@ -82,6 +88,11 @@ export default function EvidencePanel({ citations, activeId, footer }: EvidenceP
                   )}
                   {lineLabel(citation) && (
                     <span className="evidence-lines">{lineLabel(citation)}</span>
+                  )}
+                  {citation.downloadUrl && (
+                    <a href={citation.downloadUrl} target="_blank" rel="noreferrer">
+                      下载
+                    </a>
                   )}
                 </div>
                 {citation.snippet && <pre className="evidence-snippet">{citation.snippet}</pre>}

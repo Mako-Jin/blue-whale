@@ -3,10 +3,13 @@ package com.bluewhale.agent.controller;
 import com.bluewhale.agent.dto.SearchHitVO;
 import com.bluewhale.agent.service.AgentSearchService;
 import com.bluewhale.agent.support.index.SearchHit;
+import com.bluewhale.agent.support.knowledge.KnowledgePermissionContext;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.common.audit.annotation.AuditLog;
 import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.core.result.Result;
+import com.bluewhale.common.web.WebHeaders;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -44,8 +47,16 @@ public class AgentSearchController {
     @AuditLog(operation = "知识检索", type = OperateType.QUERY, targetType = "agent_index")
     public Result<List<SearchHitVO>> search(@RequestParam("q") String q,
                                             @RequestParam(value = "topK", required = false) Integer topK,
-                                            @RequestParam(value = "kind", required = false) String kind) {
-        List<SearchHit> hits = searchService.search(q, topK, AgentSearchService.parseKinds(kind));
+                                            @RequestParam(value = "kind", required = false) String kind,
+                                            HttpServletRequest httpRequest) {
+        KnowledgePermissionContext.set(
+                WebHeaders.splitCodes(WebHeaders.header(httpRequest, WebHeaders.PERMISSION_CODES)));
+        List<SearchHit> hits;
+        try {
+            hits = searchService.search(q, topK, AgentSearchService.parseKinds(kind));
+        } finally {
+            KnowledgePermissionContext.clear();
+        }
         List<SearchHitVO> result = new ArrayList<>(hits.size());
         for (SearchHit hit : hits) {
             result.add(SearchHitVO.builder()

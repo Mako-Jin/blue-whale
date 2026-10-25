@@ -39,8 +39,8 @@ class CitationValidatorTest {
     @DisplayName("丢弃不存在的路径，保留真实文件")
     void dropMissingPath() {
         List<Citation> result = validator.validate(List.of(
-                new Citation("S1", "chunk", "demo.md", "demo", 1, 3, "x", null, null, 1.0D),
-                new Citation("S2", "chunk", "missing.md", "missing", 1, 3, "y", null, null, 0.5D)));
+                new Citation("S1", "chunk", "demo.md", "demo", 1, 3, "x", null, null, 1.0D, null),
+                new Citation("S2", "chunk", "missing.md", "missing", 1, 3, "y", null, null, 0.5D, null)));
         assertEquals(1, result.size());
         assertEquals("S1", result.get(0).sourceId());
     }
@@ -49,7 +49,7 @@ class CitationValidatorTest {
     @DisplayName("行号超出文件实际行数时裁剪")
     void trimLines() {
         List<Citation> result = validator.validate(List.of(
-                new Citation("S1", "chunk", "demo.md", "demo", 2, 99, "x", null, null, 1.0D)));
+                new Citation("S1", "chunk", "demo.md", "demo", 2, 99, "x", null, null, 1.0D, null)));
         assertEquals(1, result.size());
         assertEquals(2, result.get(0).startLine());
         assertEquals(3, result.get(0).endLine());
@@ -59,8 +59,8 @@ class CitationValidatorTest {
     @DisplayName("git/runtime 虚拟来源不做文件存在性校验")
     void virtualSources() {
         List<Citation> result = validator.validate(List.of(
-                new Citation("S1", "fact", "git:abc123", "commit", null, null, "x", "COMMIT", "abc123", null),
-                new Citation("S2", "fact", "runtime:nacos", "runtime", null, null, "y", "RUNTIME_SERVICE", "x", null)));
+                new Citation("S1", "fact", "git:abc123", "commit", null, null, "x", "COMMIT", "abc123", null, null),
+                new Citation("S2", "fact", "runtime:nacos", "runtime", null, null, "y", "RUNTIME_SERVICE", "x", null, null)));
         assertEquals(2, result.size());
         assertTrue(result.stream().allMatch(item -> item.path().startsWith("git:") || item.path().startsWith("runtime:")));
     }

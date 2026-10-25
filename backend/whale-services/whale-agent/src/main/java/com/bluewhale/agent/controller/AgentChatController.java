@@ -60,12 +60,12 @@ public class AgentChatController {
     @AuditLog(operation = "知识问答", type = OperateType.QUERY, targetType = "agent_conversation")
     public SseEmitter chat(@Valid @RequestBody ChatRequest request, HttpServletRequest httpRequest) {
         Long userId = UserContext.requireUserId(httpRequest);
+        String permissionCodes = WebHeaders.header(httpRequest, WebHeaders.PERMISSION_CODES);
         if (properties.getQa().isLangchain()) {
-            return langchainChatService.chat(request, userId,
-                    WebHeaders.header(httpRequest, WebHeaders.PERMISSION_CODES));
+            return langchainChatService.chat(request, userId, permissionCodes);
         }
         boolean includeRuntime = UserContext.hasPermission(httpRequest, RUNTIME_PERMISSION);
-        return chatService.chat(request, userId, includeRuntime);
+        return chatService.chat(request, userId, includeRuntime, permissionCodes);
     }
 
     /**

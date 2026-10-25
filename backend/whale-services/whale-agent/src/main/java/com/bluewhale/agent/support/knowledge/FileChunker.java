@@ -35,8 +35,11 @@ public class FileChunker {
     /** 知识块类型：业务文件 */
     public static final String KIND_FILE = "file";
 
+    /** 知识块类型：档案快照 */
+    public static final String KIND_ARCHIVE = "archive";
+
     /**
-     * 切分文件文本。
+     * 切分文件文本（默认为业务文件类型）。
      *
      * @param path 知识块路径（{@code file:<id>}）
      * @param module 所属模块（桶名）
@@ -45,6 +48,20 @@ public class FileChunker {
      * @return 知识块列表；无有效内容返回空列表
      */
     public List<Chunk> chunk(String path, String module, String title, String content) {
+        return chunk(path, module, title, content, KIND_FILE);
+    }
+
+    /**
+     * 切分文件文本。
+     *
+     * @param path 知识块路径（{@code file:<id>}）
+     * @param module 所属模块（桶名）
+     * @param title 标题（原始文件名）
+     * @param content 抽取文本
+     * @param kind 知识块类型（{@code file} / {@code archive}）
+     * @return 知识块列表；无有效内容返回空列表
+     */
+    public List<Chunk> chunk(String path, String module, String title, String content, String kind) {
         List<Chunk> chunks = new ArrayList<>();
         if (!StringUtils.hasText(content)) {
             return chunks;
@@ -52,12 +69,12 @@ public class FileChunker {
         String normalized = content.replace("\r\n", "\n").replace('\r', '\n');
         String extension = extensionOf(title);
         if (TABLE_EXTENSIONS.contains(extension)) {
-            chunkTable(path, module, title, normalized, chunks);
+            chunkTable(path, module, title, kind, normalized, chunks);
             return chunks;
         }
         String[] pages = normalized.split("\\f", -1);
         for (String page : pages) {
-            window(path, module, title, page, chunks);
+            window(path, module, title, kind, page, chunks);
         }
         return chunks;
     }
@@ -68,13 +85,15 @@ public class FileChunker {
      * @param path 知识块路径
      * @param module 所属模块
      * @param title 标题
+     * @param kind 知识块类型
      * @param content 表格文本（行分隔）
      * @param chunks 输出列表
      */
-    private void chunkTable(String path, String module, String title, String content, List<Chunk> chunks) {
+    private void chunkTable(String path, String module, String title, String kind,
+                            String content, List<Chunk> chunks) {
         String[] lines = content.split("\n", -1);
         if (lines.length <= 1) {
-            window(path, module, title, content, chunks);
+            window(path, module, title, kind, content, chunks);
             return;
         }
         String header = lines[0];
@@ -86,7 +105,7 @@ public class FileChunker {
             }
             int projected = builder.length() + header.length() + line.length() + 2;
             if (builder.length() > 0 && projected > MAX_CHARS) {
-                chunks.add(build(path, module, title, header + "\n" + builder));
+                chunks.add(build(path, module, title, kind, header + "\n" + builder));
                 builder.setLength(0);
             }
             if (builder.length() > 0) {
@@ -95,7 +114,7 @@ public class FileChunker {
             builder.append(line);
         }
         if (builder.length() > 0) {
-            chunks.add(build(path, module, title, header + "\n" + builder));
+            chunks.add(build(path, module, title, kind, header + "\n" + builder));
         }
     }
 
@@ -105,10 +124,12 @@ public class FileChunker {
      * @param path 知识块路径
      * @param module 所属模块
      * @param title 标题
+     * @param kind 知识块类型
      * @param text 页内文本
      * @param chunks 输出列表
      */
-    private void window(String path, String module, String title, String text, List<Chunk> chunks) {
+    private void window(String path, String module, String title, String kind,
+                        String text, List<Chunk> chunks) {
         String value = text == null ? "" : text.trim();
         int length = value.length();
         int start = 0;
@@ -122,7 +143,7 @@ public class FileChunker {
             }
             String piece = value.substring(start, end).trim();
             if (!piece.isEmpty()) {
-                chunks.add(build(path, module, title, piece));
+                chunks.add(build(path, module, title, kind, piece));
             }
             if (end >= length) {
                 break;
@@ -137,12 +158,13 @@ public class FileChunker {
      * @param path 知识块路径
      * @param module 所属模块
      * @param title 标题
+     * @param kind 知识块类型
      * @param content 块正文
      * @return 知识块
      */
-    private Chunk build(String path, String module, String title, String content) {
+    private Chunk build(String path, String module, String title, String kind, String content) {
         return Chunk.builder()
-                .kind(KIND_FILE)
+                .kind(kind)
                 .module(module)
                 .path(path)
                 .title(title)
