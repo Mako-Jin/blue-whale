@@ -12,9 +12,9 @@
 | 序号 | 优先级 | 事项 | 状态 | 依赖 / 阻塞 | 验收口径 |
 |---|---|---|---|---|---|
 | 0 | P0 | 落地优先级执行台账 + 登记多租户切换需求 | **已完成**（2026-10-25） | 无 | 本文件 + register.md 中 REQ-ARCH-006 / REQ-FUNC-016 |
-| 1 | P0 | Wave 5.54 部署验证与存量数据/对象迁移 | 待启动 | **需用户提供 MySQL 口令与 mysql CLI 路径**（`MYSQL_PASSWORD` 为空）；Redis 6379 / Nacos 8848 未监听 | 逐库执行 `migration-5.54-tenant-*.sql` 幂等通过；对象键 `tenants/` 前缀迁移；评估稿 §十四 冒烟与 E2E 通过 |
+| 1 | P0 | Wave 5.54 部署验证与存量数据/对象迁移 | **部分完成**（2026-10-25；库迁移与对象键已完成，冒烟/E2E 阻塞） | MySQL 已可用；**Redis 6379 / Nacos 8848 不可用** → API 冒烟与 E2E 阻塞 | 14 个 5.54 脚本两轮幂等通过；12 库 `tenant_id` 覆盖校验通过；`file_info` 7/7 对象键带 `tenants/1/` 前缀；§十四 API 冒烟与 E2E 待 Redis/Nacos；详见 [检查报告](../reviews/2026-10-25-wave5.54-5.53-deploy-execution.md) |
 | 2 | P0 | S4 一人多租户（Phase 5.3 / 5.4 剩余） | **进行中**（5.1/5.2/5.3 已完成；5.4 E2E 待联调环境） | 5.4 需 Redis/Nacos/MySQL 与双租户数据 | 5.3 成员列表 + 租户内角色分配 + 平台绑定/解绑（已完成，见 [5.3 检查报告](../reviews/2026-10-25-wave5.54-phase5.3-tenant-members.md)）；5.4 双租户 E2E 与角色隔离回归 |
-| 3 | P0 | Wave 5.53 部署脚本执行与密级矩阵复测 | 待启动 | 同上（需 MySQL 口令）；`bluewhale_agent`/`whale-auth` 迁移未执行 | `sys:archive:secret:read` 授权落库；档案快照三级权限矩阵真机复测 |
+| 3 | P0 | Wave 5.53 部署脚本执行与密级矩阵复测 | **部分完成**（2026-10-25；脚本与授权已落库，真机矩阵阻塞） | 三级矩阵需 auth/archive/agent/网关运行 + 秘密级快照；Redis/Nacos 不可用 | `whale-auth`/`whale-agent` `migration-5.53.sql` 执行通过；`sys:archive:secret:read`（151）已授予 super_admin；权限 140–151 / 档案菜单 11–16 校验通过；三级权限矩阵真机复测待环境；详见 [检查报告](../reviews/2026-10-25-wave5.54-5.53-deploy-execution.md) |
 | 4 | P0 | Wave 5.52 剩余项（Gitee Go AI 阶段、未读汇总帧等） | **已完成**（2026-10-25；实机触发待 Gitee 侧） | 远端触发需 Gitee Go 环境 | 未读汇总帧已于 2026-10-24 完成；`.workflow/ai-ci.yml` 补齐 uv 3.12 + pytest 阶段，与 GitHub `ai-pytest` 对齐 |
 | 5 | P1 | 需求登记册状态校准 + REQ-ARCH-002 多数据库设计 | **已完成**（2026-10-25） | 无 | 登记册全量校准（仅 REQ-ARCH-002 需更新，其余与代码事实一致）；产出 [design/multi-database.md](../design/multi-database.md)（现状基线 + 方言选择 + DDL 映射 + T1–T6 + 风险） |
 | 6 | P2 | 网关补 5 条路由 + 基座 `/mes` `/pdm` 挂载 | **已完成**（2026-10-25；冒烟待环境） | 路由冒烟需服务与 Nacos 就绪 | 5 条 `lb://` 路由已写入网关 yml；基座挂载 `/mes/*`、`/pdm/*` 并补菜单/图标；`whale-platform` 构建通过 |
@@ -44,3 +44,5 @@
 | 2026-10-25 | 序号 7 | portal 修复 token 键错配（`whale_token` → `whale_platform_access_token`），Dashboard 四项统计接真实接口，待办审批抽屉（同意/驳回），通知接告警记录 + IM 双源；基座用户/角色/菜单改为真实只读页并删除 `PlaceholderPage`；两应用 tsc+vite+eslint 全绿；详见 [检查报告](../reviews/2026-10-25-p2-portal-platform-placeholders.md) |
 | 2026-10-25 | 序号 8 | 新增 `whale.alert.notify` 配置与邮件/Webhook 通知服务、Alertmanager 入站端点（双令牌头 + 网关内网屏蔽）、版本化 `prometheus.yml`/`alertmanager.yml`、ops Prometheus/Grafana 外链；whale-alert 20 用例全绿、Checkstyle 0，gateway/ops 构建通过；详见 [检查报告](../reviews/2026-10-25-p2-alert-notify-prometheus.md) |
 | 2026-10-25 | 序号 9 | OA 请假闭环：`oa_leave` DDL + 6 端点 + 权限 168–171 + 前端列表/表单；CI：Backend CI 改 `-Pcoverage-gate verify`（全 reactor 通过）、镜像矩阵覆盖 18 服务；whale-oa 6 用例全绿、Checkstyle 0，OA 前端 build+lint 通过；详见 [检查报告](../reviews/2026-10-25-p3-oa-leave-ci.md) |
+| 2026-10-25 | 序号 1 | MySQL 口令到位后：新建 `bluewhale_job/pay/alert` 三库；补齐 agent/audit/auth 缺失表；14 个 5.54 脚本两轮幂等通过；12 库 `tenant_id` 覆盖校验通过；`file_info` 对象键 7/7 迁移为 `tenants/1/`；API 冒烟与 E2E 因 Redis/Nacos 不可用阻塞；详见 [检查报告](../reviews/2026-10-25-wave5.54-5.53-deploy-execution.md) |
+| 2026-10-25 | 序号 3 | `whale-auth` 与 `whale-agent` 的 `migration-5.53.sql` 执行通过；`sys:archive:secret:read`（151）授予 super_admin 并验证落库；权限 140–151、档案菜单 11–16 校验通过；三级权限矩阵真机复测因 Redis/Nacos 不可用阻塞；详见 [检查报告](../reviews/2026-10-25-wave5.54-5.53-deploy-execution.md) |

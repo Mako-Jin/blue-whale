@@ -357,7 +357,7 @@
 |---|---|
 | 需求项 | ① 表单元数据/文件/IM/工作流/Agent/档案/任务/支付/告警铺开 `tenant_id`；② MyBatis 插件切「全表默认 + 白名单忽略」；③ 表单物理表按租户命名；④ Agent 知识索引租户分区与按租户同步；⑤ 任务/档案定时任务按租户目录执行；⑥ 存量数据回填默认租户；⑦ 幂等迁移脚本与文档 |
 | 完成项 | ① 10 个库 `init.sql` 同步新增 `tenant_id` 与索引，业务唯一键升级为租户复合键；② 新增 10 份 `migration-5.54-tenant-business.sql`（列默认 1，存量自动归属默认租户）；③ `TenantSqlProperties` 改为 `ignoreTables` 白名单，`MybatisPlusConfig` 全表默认隔离；④ 非默认租户表单物理表名带 `t{tenantId}_` 段；⑤ Lucene 文档写入 `tenant_id`（平台知识 0），BM25/KNN 检索强制租户过滤并兼容历史无字段文档；⑥ 文件知识同步与档案同步接入租户目录（auth `/tenant/internal/enabled-ids`），档案→文件/工作流、Agent→文件内部调用透传 `X-Tenant-Id`；⑦ 任务调度按 `job_info.tenant_id` 绑定上下文；⑧ Agent/档案/任务相关模块单测与后端全量构建通过 |
-| 待做项 | ① 联调环境按库执行 `migration-5.54-tenant-business.sql` 并回归各域租户隔离用例；② 存量对象键迁移（无 `tenants/` 前缀）仍待执行；③ Agent 一次性重建索引（清掉无租户字段的历史文档）建议在维护窗口执行；④ 一人多租户（S4）与 Phase 4 前端租户切换/运营台 |
+| 待做项 | ① **已完成（2026-10-25）**：新建 `bluewhale_job/pay/alert` 三库，11 个业务库 + auth 日志迁移两轮幂等通过，12 库 `tenant_id` 覆盖校验通过（详见 [执行报告](../../reviews/2026-10-25-wave5.54-5.53-deploy-execution.md)）；② **已完成（元数据层，2026-10-25）**：`file_info` 7/7 对象键迁移为 `tenants/1/` 前缀；本地对象桶为空，无物理文件搬移，远端对象存储环境仍需同步搬移；③ Agent 一次性重建索引（清掉无租户字段的历史文档）建议在维护窗口执行；④ 一人多租户（S4）5.4 双租户 E2E 与 Phase 4 前端租户切换/运营台 |
 | 已知限制 | ① 平台级知识（代码/文档/`agent_fact`）对所有租户可见，按设计保留；② RBAC 关系表沿用全局唯一 ID 关联，不加租户列（写入白名单）；③ 表单动态物理表租户隔离依赖已发布物理表固定名，租户编码变更不支持，仅支持编码级隔离 |
 
 ---
@@ -402,6 +402,8 @@
 | `bluewhale_job` | `whale-job/.../migration-5.54-tenant-business.sql` | `job_info.tenant_id` 存在 |
 | `bluewhale_pay` | `whale-pay/.../migration-5.54-tenant-business.sql` | `pay_order.tenant_id` 存在 |
 | `bluewhale_alert` | `backend/whale-ops/whale-alert/.../migration-5.54-tenant-business.sql` | `alert_rule.tenant_id` 存在 |
+
+**执行结果（2026-10-25）**：上表 11 个业务库 + `bluewhale_auth` 核心/日志共 14 个脚本已全部执行，并以第二轮复跑验证幂等（14/14 退出码 0）；12 库 `tenant_id` 列覆盖校验全部通过。执行中补齐了缺失库（job/pay/alert）与缺失表（agent 知识文件、audit/auth 四类日志表），未删除既有数据。详见 [执行报告](../../reviews/2026-10-25-wave5.54-5.53-deploy-execution.md)。14.4 API 冒烟与 14.5 E2E 仍因 Redis/Nacos 不可用而阻塞。
 
 执行方式（PowerShell 不支持 `<` 输入重定向，需借 `cmd /c`）：
 
