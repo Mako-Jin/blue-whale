@@ -1,7 +1,7 @@
 # Wave 5.55 · 项目管理服务（whale-pm）规划
 
 > 目标：新建一个对标 Jira / 禅道的项目管理服务，覆盖「项目空间 → 工作项 → 迭代 → 看板 → 报表」主线，并与平台既有的认证、权限、租户、文件、工作流、IM、审计能力打通。
-> 制定日期：2026-10-25 ｜ 状态：**M2 已实施**（项目域 + 工作项域闭环；M3–M5 待做） ｜ 关联：REQ-FUNC-018 / REQ-FUNC-019 / REQ-ARCH-008 / REQ-SEC-009
+> 制定日期：2026-10-25 ｜ 状态：**M3 已实施**（项目域 + 工作项域 + 迭代看板闭环；M4–M5 待做） ｜ 关联：REQ-FUNC-018 / REQ-FUNC-019 / REQ-ARCH-008 / REQ-SEC-009
 > 上游依据：[roadmap.md](roadmap.md)、[service-catalog.md](../service-catalog.md)、[naming-conventions.md](../naming-conventions.md)、[wave5.46 业务应用规划](wave5.46-phase4-business-apps.md)、[wave5.54 多租户评估](wave5.54-multi-tenant/assessment.md)
 
 ---

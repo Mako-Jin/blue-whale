@@ -9,7 +9,7 @@
 --              update_time、deleted（逻辑删除 0/1，与 MyBatis-Plus 配置对齐）
 -- 说明       : 表间关联均为逻辑外键（不建物理 FOREIGN KEY），便于微服务独立演进；
 --              租户隔离由 starter 的 TenantLineInnerInterceptor 统一追加 tenant_id 条件。
--- 波次       : Wave 5.55 M1（项目域：项目 / 成员 / 状态 / 流转）
+-- 波次       : Wave 5.55 M1（项目域）+ M2（工作项域）+ M3（迭代与看板）
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
@@ -257,3 +257,83 @@ VALUES
      1001, 'MEDIUM', 1, 1, NULL, 5.0, '2026-11-30', 'demo,story', '000000001000', 0),
     (3002, 1, 1, 2, 'DEMO-2', 'TASK', '示例任务：补充单元测试', '演示用子任务',
      1002, 'HIGH', 1, 1, 3001, 3.0, '2026-11-15', 'demo,task', '000000002000', 0);
+
+-- =====================================================================
+-- Wave 5.55 M3：迭代与看板
+-- =====================================================================
+
+-- ---------------------------------------------------------------------
+-- 12. 迭代表
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS pm_sprint;
+CREATE TABLE pm_sprint (
+    id           BIGINT       NOT NULL            COMMENT '主键ID（雪花算法）',
+    tenant_id    BIGINT       NOT NULL DEFAULT 1  COMMENT '租户ID（行级隔离）',
+    project_id   BIGINT       NOT NULL            COMMENT '项目ID',
+    name         VARCHAR(64)  NOT NULL            COMMENT '迭代名称',
+    goal         VARCHAR(512) DEFAULT NULL        COMMENT '迭代目标',
+    start_date   DATE         DEFAULT NULL        COMMENT '开始日期',
+    end_date     DATE         DEFAULT NULL        COMMENT '结束日期',
+    status       VARCHAR(16)  NOT NULL DEFAULT 'FUTURE' COMMENT '状态：FUTURE 未启动 / ACTIVE 进行中 / CLOSED 已关闭',
+    create_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted      TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_pm_sprint_name (tenant_id, project_id, name),
+    KEY idx_pm_sprint_project (tenant_id, project_id, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='项目迭代表';
+
+-- ---------------------------------------------------------------------
+-- 13. 看板表
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS pm_board;
+CREATE TABLE pm_board (
+    id           BIGINT       NOT NULL            COMMENT '主键ID（雪花算法）',
+    tenant_id    BIGINT       NOT NULL DEFAULT 1  COMMENT '租户ID（行级隔离）',
+    project_id   BIGINT       NOT NULL            COMMENT '项目ID',
+    name         VARCHAR(64)  NOT NULL            COMMENT '看板名称',
+    board_type   VARCHAR(16)  NOT NULL DEFAULT 'SCRUM' COMMENT '看板类型：SCRUM 敏捷 / KANBAN 看板',
+    create_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted      TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_pm_board_name (tenant_id, project_id, name),
+    KEY idx_pm_board_project (tenant_id, project_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='项目看板表';
+
+-- ---------------------------------------------------------------------
+-- 14. 看板列表
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS pm_board_column;
+CREATE TABLE pm_board_column (
+    id           BIGINT       NOT NULL            COMMENT '主键ID（雪花算法）',
+    tenant_id    BIGINT       NOT NULL DEFAULT 1  COMMENT '租户ID（行级隔离）',
+    board_id     BIGINT       NOT NULL            COMMENT '看板ID',
+    status_id    BIGINT       NOT NULL            COMMENT '映射状态ID',
+    name         VARCHAR(64)  NOT NULL            COMMENT '列名称',
+    sort_no      INT          NOT NULL DEFAULT 0  COMMENT '排序号（升序）',
+    wip_limit    INT          NOT NULL DEFAULT 0  COMMENT 'WIP 上限（0 表示不限）',
+    create_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted      TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_pm_board_column_status (tenant_id, board_id, status_id),
+    KEY idx_pm_board_column_sort (tenant_id, board_id, sort_no)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='看板列表';
+
+-- ---------------------------------------------------------------------
+-- 15. 迭代与看板种子数据（仅默认租户）
+-- ---------------------------------------------------------------------
+INSERT INTO pm_sprint (id, tenant_id, project_id, name, goal, start_date, end_date, status)
+VALUES
+    (4001, 1, 1, 'Sprint 1', '演示迭代：登录体验优化', '2026-11-01', '2026-11-15', 'ACTIVE');
+
+INSERT INTO pm_board (id, tenant_id, project_id, name, board_type)
+VALUES
+    (5001, 1, 1, '演示看板', 'SCRUM');
+
+INSERT INTO pm_board_column (id, tenant_id, board_id, status_id, name, sort_no, wip_limit)
+VALUES
+    (5101, 1, 5001, 1001, '待办', 1, 0),
+    (5102, 1, 5001, 1002, '进行中', 2, 5),
+    (5103, 1, 5001, 1003, '已完成', 3, 0);

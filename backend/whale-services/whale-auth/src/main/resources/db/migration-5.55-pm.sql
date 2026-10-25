@@ -68,7 +68,32 @@ VALUES
      'sys:pm:transition:list', 1, 1);
 
 -- =====================================================================
+-- Wave 5.55 M3：迭代与看板（权限点 197–200 + 菜单 22–23）
+-- =====================================================================
+INSERT IGNORE INTO sys_permission
+    (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+VALUES
+    (197, 0, 'sys:pm:sprint:list', '查询迭代与迭代工作项', 'API',
+     '/pm/sprint/page,/pm/sprint/{id},/pm/sprint/{id}/item', 'GET', 197, 1),
+    (198, 0, 'sys:pm:sprint:manage', '维护迭代与迭代工作项', 'API',
+     '/pm/sprint,/pm/sprint/{id},/pm/sprint/{id}/start,/pm/sprint/{id}/close,'
+     '/pm/sprint/{id}/item,/pm/sprint/{id}/item/{itemId}', 'POST,PUT,DELETE', 198, 1),
+    (199, 0, 'sys:pm:board:view', '查询看板与执行视图', 'API',
+     '/pm/board,/pm/board/{id},/pm/board/{id}/view', 'GET', 199, 1),
+    (200, 0, 'sys:pm:board:manage', '维护看板与看板列', 'API',
+     '/pm/board,/pm/board/{id},/pm/board/{id}/column,/pm/board/{id}/column/{columnId}',
+     'POST,PUT,DELETE', 200, 1);
+
+INSERT IGNORE INTO sys_menu
+    (id, parent_id, name, path, component, icon, sort, menu_type, permission_code, visible, status)
+VALUES
+    (22, 18, '迭代管理', '/pm/sprint', 'pm/sprint/index', 'calendar', 4, 'MENU',
+     'sys:pm:sprint:list', 1, 1),
+    (23, 18, '看板', '/pm/board', 'pm/board/index', 'kanban', 5, 'MENU',
+     'sys:pm:board:view', 1, 1);
+
+-- =====================================================================
 -- 完成。校验建议：
---   SELECT id, perm_code FROM sys_permission WHERE id BETWEEN 172 AND 196;
---   SELECT id, name, path FROM sys_menu WHERE id BETWEEN 18 AND 21;
+--   SELECT id, perm_code FROM sys_permission WHERE id BETWEEN 172 AND 200;
+--   SELECT id, name, path FROM sys_menu WHERE id BETWEEN 18 AND 23;
 -- =====================================================================

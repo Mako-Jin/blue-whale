@@ -2,22 +2,32 @@ package com.bluewhale.pm.application.assembler;
 
 import com.bluewhale.pm.infrastructure.entity.PmActivity;
 import com.bluewhale.pm.infrastructure.entity.PmAttachment;
+import com.bluewhale.pm.infrastructure.entity.PmBoard;
+import com.bluewhale.pm.infrastructure.entity.PmBoardColumn;
 import com.bluewhale.pm.infrastructure.entity.PmComment;
 import com.bluewhale.pm.infrastructure.entity.PmProject;
 import com.bluewhale.pm.infrastructure.entity.PmProjectMember;
+import com.bluewhale.pm.infrastructure.entity.PmSprint;
 import com.bluewhale.pm.infrastructure.entity.PmStatus;
 import com.bluewhale.pm.infrastructure.entity.PmTransition;
 import com.bluewhale.pm.infrastructure.entity.PmWorkItem;
 import com.bluewhale.pm.infrastructure.entity.PmWorkItemLink;
 import com.bluewhale.pm.interfaces.vo.ActivityVO;
+import com.bluewhale.pm.interfaces.vo.BoardColumnVO;
+import com.bluewhale.pm.interfaces.vo.BoardColumnViewVO;
+import com.bluewhale.pm.interfaces.vo.BoardVO;
 import com.bluewhale.pm.interfaces.vo.ProjectMemberVO;
 import com.bluewhale.pm.interfaces.vo.ProjectVO;
+import com.bluewhale.pm.interfaces.vo.SprintVO;
 import com.bluewhale.pm.interfaces.vo.StatusVO;
 import com.bluewhale.pm.interfaces.vo.TransitionVO;
 import com.bluewhale.pm.interfaces.vo.WorkItemAttachmentVO;
 import com.bluewhale.pm.interfaces.vo.WorkItemCommentVO;
 import com.bluewhale.pm.interfaces.vo.WorkItemLinkVO;
 import com.bluewhale.pm.interfaces.vo.WorkItemVO;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * PM 实体与视图对象转换器（ID 一律转为字符串）
@@ -201,6 +211,95 @@ public final class PmAssembler {
         }
         vo.setLinkType(link.getLinkType());
         vo.setCreateTime(link.getCreateTime());
+        return vo;
+    }
+
+    /**
+     * 迭代实体转视图对象
+     *
+     * @param sprint 迭代实体
+     * @return 迭代视图对象
+     */
+    public static SprintVO toSprintVo(PmSprint sprint) {
+        SprintVO vo = new SprintVO();
+        vo.setId(asString(sprint.getId()));
+        vo.setProjectId(asString(sprint.getProjectId()));
+        vo.setName(sprint.getName());
+        vo.setGoal(sprint.getGoal());
+        vo.setStartDate(sprint.getStartDate());
+        vo.setEndDate(sprint.getEndDate());
+        vo.setStatus(sprint.getStatus());
+        vo.setCreateTime(sprint.getCreateTime());
+        vo.setUpdateTime(sprint.getUpdateTime());
+        return vo;
+    }
+
+    /**
+     * 看板实体转视图对象
+     *
+     * @param board    看板实体
+     * @param columns  列配置
+     * @param statuses 状态索引（按状态ID）
+     * @return 看板视图对象
+     */
+    public static BoardVO toBoardVo(PmBoard board, List<PmBoardColumn> columns, Map<Long, PmStatus> statuses) {
+        BoardVO vo = new BoardVO();
+        vo.setId(asString(board.getId()));
+        vo.setProjectId(asString(board.getProjectId()));
+        vo.setName(board.getName());
+        vo.setBoardType(board.getBoardType());
+        vo.setColumns(columns.stream()
+                .map(column -> toBoardColumnVo(column, statuses.get(column.getStatusId())))
+                .toList());
+        vo.setCreateTime(board.getCreateTime());
+        vo.setUpdateTime(board.getUpdateTime());
+        return vo;
+    }
+
+    /**
+     * 看板列实体转视图对象
+     *
+     * @param column 看板列实体
+     * @param status 映射状态，可为 {@code null}
+     * @return 看板列视图对象
+     */
+    public static BoardColumnVO toBoardColumnVo(PmBoardColumn column, PmStatus status) {
+        BoardColumnVO vo = new BoardColumnVO();
+        vo.setId(asString(column.getId()));
+        vo.setBoardId(asString(column.getBoardId()));
+        vo.setStatusId(asString(column.getStatusId()));
+        if (status != null) {
+            vo.setStatusCode(status.getCode());
+        }
+        vo.setName(column.getName());
+        vo.setSortNo(column.getSortNo());
+        vo.setWipLimit(column.getWipLimit());
+        return vo;
+    }
+
+    /**
+     * 看板列转执行视图（含列内工作项与 WIP 状态）
+     *
+     * @param column 看板列实体
+     * @param status 映射状态，可为 {@code null}
+     * @param items  列内工作项
+     * @return 看板列执行视图
+     */
+    public static BoardColumnViewVO toBoardColumnViewVo(PmBoardColumn column, PmStatus status,
+            List<WorkItemVO> items) {
+        BoardColumnViewVO vo = new BoardColumnViewVO();
+        vo.setId(asString(column.getId()));
+        vo.setStatusId(asString(column.getStatusId()));
+        if (status != null) {
+            vo.setStatusCode(status.getCode());
+        }
+        vo.setName(column.getName());
+        vo.setSortNo(column.getSortNo());
+        vo.setWipLimit(column.getWipLimit());
+        vo.setItemCount(items.size());
+        int limit = column.getWipLimit() == null ? 0 : column.getWipLimit();
+        vo.setOverloaded(limit > 0 && items.size() > limit);
+        vo.setItems(items);
         return vo;
     }
 
