@@ -17,7 +17,8 @@
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS archive_category (
     id              BIGINT       NOT NULL               COMMENT '主键ID（雪花算法）',
-    code            VARCHAR(32)  NOT NULL               COMMENT '门类编码（业务唯一，如 GL/WS）',
+    tenant_id       BIGINT       NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
+    code            VARCHAR(32)  NOT NULL               COMMENT '门类编码（租户内唯一，如 GL/WS）',
     name            VARCHAR(128) NOT NULL               COMMENT '门类名称',
     parent_id       BIGINT       NOT NULL DEFAULT 0     COMMENT '上级门类ID（0 表示根节点）',
     level           INT          NOT NULL DEFAULT 1     COMMENT '层级（根节点为 1）',
@@ -29,7 +30,7 @@ CREATE TABLE IF NOT EXISTS archive_category (
     update_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted         TINYINT      NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
-    UNIQUE KEY uk_code (code),
+    UNIQUE KEY uk_tenant_code (tenant_id, code),
     KEY idx_parent_id (parent_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='档案门类表';
 
@@ -38,7 +39,8 @@ CREATE TABLE IF NOT EXISTS archive_category (
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS archive_rule (
     id              BIGINT       NOT NULL               COMMENT '主键ID（雪花算法）',
-    definition_code VARCHAR(64)  NOT NULL               COMMENT '工作流定义编码（业务唯一）',
+    tenant_id       BIGINT       NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
+    definition_code VARCHAR(64)  NOT NULL               COMMENT '工作流定义编码（租户内唯一）',
     category_id     BIGINT       NOT NULL               COMMENT '归档门类ID（逻辑关联 archive_category.id）',
     retention_years INT          DEFAULT NULL           COMMENT '保管期限（年；NULL 表示长期）',
     security_level  TINYINT      NOT NULL DEFAULT 2     COMMENT '密级：1 公开 / 2 内部 / 3 秘密',
@@ -48,7 +50,7 @@ CREATE TABLE IF NOT EXISTS archive_rule (
     update_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted         TINYINT      NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
-    UNIQUE KEY uk_definition_code (definition_code),
+    UNIQUE KEY uk_tenant_definition_code (tenant_id, definition_code),
     KEY idx_category_id (category_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='归档规则表';
 
@@ -57,7 +59,8 @@ CREATE TABLE IF NOT EXISTS archive_rule (
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS archive_item (
     id               BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
-    archive_no       VARCHAR(64)   DEFAULT NULL           COMMENT '档号（确认归档时分配，唯一；BW-门类-年度-流水）',
+    tenant_id        BIGINT        NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
+    archive_no       VARCHAR(64)   DEFAULT NULL           COMMENT '档号（确认归档时分配，租户内唯一；BW-门类-年度-流水）',
     title            VARCHAR(255)  NOT NULL               COMMENT '档案标题',
     category_id      BIGINT        DEFAULT NULL           COMMENT '门类ID（逻辑关联 archive_category.id）',
     category_path    VARCHAR(512)  DEFAULT NULL           COMMENT '门类路径（编码以 / 连接，便于检索）',
@@ -83,8 +86,8 @@ CREATE TABLE IF NOT EXISTS archive_item (
     update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted          TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
-    UNIQUE KEY uk_archive_no (archive_no),
-    UNIQUE KEY uk_source (source_type, source_id),
+    UNIQUE KEY uk_tenant_archive_no (tenant_id, archive_no),
+    UNIQUE KEY uk_tenant_source (tenant_id, source_type, source_id),
     KEY idx_category_year (category_id, year),
     KEY idx_item_status (item_status),
     KEY idx_finished_at (finished_at)
@@ -95,6 +98,7 @@ CREATE TABLE IF NOT EXISTS archive_item (
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS archive_file (
     id            BIGINT       NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id     BIGINT       NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
     item_id       BIGINT       NOT NULL               COMMENT '档案条目ID（逻辑关联 archive_item.id）',
     file_id       BIGINT       NOT NULL               COMMENT '文件ID（逻辑关联 whale-file 的 file_info.id）',
     file_role     VARCHAR(16)  NOT NULL               COMMENT '文件角色：ORIGINAL 原件 / ATTACHMENT 附件 / SNAPSHOT 快照',
@@ -108,6 +112,7 @@ CREATE TABLE IF NOT EXISTS archive_file (
     deleted       TINYINT      NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_item_file_role (item_id, file_id, file_role),
+    KEY idx_tenant_id (tenant_id),
     KEY idx_file_id (file_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='档案文件引用表';
 
@@ -116,6 +121,7 @@ CREATE TABLE IF NOT EXISTS archive_file (
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS archive_source_record (
     id           BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id    BIGINT        NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
     source_type  VARCHAR(32)   NOT NULL               COMMENT '来源类型：WORKFLOW 工作流实例',
     source_id    VARCHAR(64)   NOT NULL               COMMENT '来源实例ID',
     sync_status  TINYINT       NOT NULL DEFAULT 0     COMMENT '同步状态：0 待处理 / 1 成功 / 2 失败',
@@ -126,7 +132,7 @@ CREATE TABLE IF NOT EXISTS archive_source_record (
     update_time  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted      TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
-    UNIQUE KEY uk_source (source_type, source_id),
+    UNIQUE KEY uk_tenant_source (tenant_id, source_type, source_id),
     KEY idx_sync_status (sync_status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='档案同步台账表';
 
@@ -135,6 +141,7 @@ CREATE TABLE IF NOT EXISTS archive_source_record (
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS archive_sequence (
     id            BIGINT      NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id     BIGINT      NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
     category_code VARCHAR(32) NOT NULL               COMMENT '门类编码',
     year          INT         NOT NULL               COMMENT '归档年度',
     current_value BIGINT      NOT NULL DEFAULT 0     COMMENT '当前已分配流水号',
@@ -142,7 +149,7 @@ CREATE TABLE IF NOT EXISTS archive_sequence (
     update_time   DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted       TINYINT     NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
-    UNIQUE KEY uk_category_year (category_code, year)
+    UNIQUE KEY uk_tenant_category_year (tenant_id, category_code, year)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='档号流水表';
 
 -- ---------------------------------------------------------------------
@@ -150,6 +157,7 @@ CREATE TABLE IF NOT EXISTS archive_sequence (
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS archive_sync_state (
     id          BIGINT       NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id   BIGINT       NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离；游标按租户独立）',
     name        VARCHAR(64)  NOT NULL               COMMENT '游标名称（如 workflow_approved）',
     cursor_time DATETIME     DEFAULT NULL           COMMENT '已处理到的工作流实例更新时间水位',
     last_run_at DATETIME     DEFAULT NULL           COMMENT '最近一次同步开始时间',
@@ -158,7 +166,7 @@ CREATE TABLE IF NOT EXISTS archive_sync_state (
     update_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted     TINYINT      NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
-    UNIQUE KEY uk_name (name)
+    UNIQUE KEY uk_tenant_name (tenant_id, name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='档案同步游标表';
 
 -- ---------------------------------------------------------------------

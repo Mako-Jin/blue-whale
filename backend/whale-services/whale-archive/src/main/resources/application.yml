@@ -47,13 +47,14 @@ whale:
       page-size: ${WHALE_ARCHIVE_SYNC_PAGE_SIZE:100}
       max-attempts: ${WHALE_ARCHIVE_SYNC_MAX_ATTEMPTS:3}
       retry-batch-size: ${WHALE_ARCHIVE_SYNC_RETRY_BATCH:50}
-      # 定时同步遍历的租户（Phase 2 配置驱动，Phase 3 改为租户目录动态查询）
-      tenant-ids: ${WHALE_ARCHIVE_SYNC_TENANT_IDS:1}
+      # 定时同步遍历的租户：留空则由租户目录（whale-auth）动态查询可用租户
+      tenant-ids: ${WHALE_ARCHIVE_SYNC_TENANT_IDS:}
     # 内网服务直连地址（不经网关；生产按部署拓扑覆盖）
     integration:
       workflow-url: ${WHALE_ARCHIVE_WORKFLOW_URL:http://127.0.0.1:8083}
       form-url: ${WHALE_ARCHIVE_FORM_URL:http://127.0.0.1:8084}
       file-url: ${WHALE_ARCHIVE_FILE_URL:http://127.0.0.1:8085}
+      auth-url: ${WHALE_ARCHIVE_AUTH_URL:http://127.0.0.1:8081}
       connect-timeout-millis: ${WHALE_ARCHIVE_CONNECT_TIMEOUT:5000}
       read-timeout-millis: ${WHALE_ARCHIVE_READ_TIMEOUT:60000}
 

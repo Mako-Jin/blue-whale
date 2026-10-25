@@ -16,6 +16,9 @@ import com.bluewhale.common.core.exception.ErrorCode;
  */
 public final class TenantContext {
 
+    /** 默认租户（平台运营租户，存量数据归属） */
+    public static final long DEFAULT_TENANT_ID = 1L;
+
     /** 未知租户兜底值：仅用于日志/审计等不允许空租户的落库场景 */
     public static final long UNKNOWN_TENANT_ID = 0L;
 

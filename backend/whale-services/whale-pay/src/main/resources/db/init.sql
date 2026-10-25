@@ -19,7 +19,8 @@
 DROP TABLE IF EXISTS pay_order;
 CREATE TABLE pay_order (
     id            BIGINT         NOT NULL            COMMENT '主键ID（雪花算法）',
-    order_no      VARCHAR(64)    NOT NULL            COMMENT '支付单号（业务唯一）',
+    tenant_id     BIGINT         NOT NULL DEFAULT 1  COMMENT '租户ID（行级隔离）',
+    order_no      VARCHAR(64)    NOT NULL            COMMENT '支付单号（租户内唯一）',
     business_key  VARCHAR(128)   DEFAULT NULL        COMMENT '业务标识（外部订单号 / 业务键）',
     amount        DECIMAL(18,2)  NOT NULL            COMMENT '支付金额',
     currency      VARCHAR(8)     NOT NULL DEFAULT 'CNY' COMMENT '币种，默认 CNY',
@@ -31,7 +32,7 @@ CREATE TABLE pay_order (
     update_time   DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted       TINYINT        NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
-    UNIQUE KEY uk_order_no (order_no),
+    UNIQUE KEY uk_tenant_order_no (tenant_id, order_no),
     KEY idx_business_key (business_key),
     KEY idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='支付单表';

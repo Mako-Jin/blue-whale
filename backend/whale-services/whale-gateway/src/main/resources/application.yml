@@ -168,6 +168,8 @@ whale:
         - /audit/log/ingest/**
         # Wave 5.52 IM 群成员合法性校验：仅 whale-im 经内网直连 whale-auth 调用
         - /user/internal/**
+        # Wave 5.54 租户目录：仅档案/知识库等后台任务经内网直连 whale-auth 查询可用租户
+        - /tenant/internal/**
 
 management:
   endpoints:

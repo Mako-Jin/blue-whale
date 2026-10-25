@@ -1,5 +1,6 @@
 package com.bluewhale.im.support;
 
+import com.bluewhale.common.tenant.TenantContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.client.ServiceInstance;
@@ -48,6 +49,9 @@ public class UserDirectoryClient {
 
     /** 单次校验批量上限（与 whale-auth 入参约束一致） */
     private static final int MAX_BATCH = 200;
+
+    /** 租户请求头（auth 按租户过滤用户目录，限定群成员同租户） */
+    private static final String HEADER_TENANT = "X-Tenant-Id";
 
     private final RestClient restClient;
 
@@ -109,9 +113,14 @@ public class UserDirectoryClient {
             return Optional.empty();
         }
         try {
-            String body = restClient.post()
+            RestClient.RequestBodySpec request = restClient.post()
                     .uri(endpoint + EXISTS_PATH)
-                    .contentType(MediaType.APPLICATION_JSON)
+                    .contentType(MediaType.APPLICATION_JSON);
+            Long tenantId = TenantContext.get();
+            if (tenantId != null) {
+                request.header(HEADER_TENANT, String.valueOf(tenantId));
+            }
+            String body = request
                     .body(Map.of("userIds", batch))
                     .retrieve()
                     .body(String.class);

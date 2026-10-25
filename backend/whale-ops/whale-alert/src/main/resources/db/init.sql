@@ -19,8 +19,9 @@
 DROP TABLE IF EXISTS alert_rule;
 CREATE TABLE alert_rule (
     id               BIGINT        NOT NULL                COMMENT '主键ID（雪花算法）',
+    tenant_id        BIGINT        NOT NULL DEFAULT 1      COMMENT '租户ID（行级隔离）',
     rule_name        VARCHAR(128)  NOT NULL                COMMENT '规则名称',
-    rule_code        VARCHAR(64)   NOT NULL                COMMENT '规则编码（逻辑唯一），如 cpu_high',
+    rule_code        VARCHAR(64)   NOT NULL                COMMENT '规则编码（租户内逻辑唯一），如 cpu_high',
     metric           VARCHAR(64)   DEFAULT NULL            COMMENT '监控指标，如 cpu.usage',
     target           VARCHAR(128)  DEFAULT NULL            COMMENT '监控目标（服务名 / 实例 / 资源标识）',
     operator         VARCHAR(16)   DEFAULT NULL            COMMENT '比较运算符：GT / GE / LT / LE / EQ / NE',
@@ -34,7 +35,7 @@ CREATE TABLE alert_rule (
     update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted          TINYINT       NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
-    UNIQUE KEY uk_rule_code (rule_code)
+    UNIQUE KEY uk_tenant_rule_code (tenant_id, rule_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='告警规则表';
 
 -- ---------------------------------------------------------------------
@@ -43,6 +44,7 @@ CREATE TABLE alert_rule (
 DROP TABLE IF EXISTS alert_record;
 CREATE TABLE alert_record (
     id           BIGINT       NOT NULL            COMMENT '主键ID（雪花算法）',
+    tenant_id    BIGINT       NOT NULL DEFAULT 1  COMMENT '租户ID（行级隔离）',
     rule_id      BIGINT       DEFAULT NULL        COMMENT '告警规则ID（逻辑关联 alert_rule.id）',
     rule_code    VARCHAR(64)  DEFAULT NULL        COMMENT '告警规则编码（冗余，便于记录独立查询）',
     alert_level  VARCHAR(16)  DEFAULT NULL        COMMENT '告警级别：INFO / WARN / ERROR / CRITICAL',
@@ -54,6 +56,7 @@ CREATE TABLE alert_record (
     update_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted      TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
+    KEY idx_tenant_id (tenant_id),
     KEY idx_rule_code (rule_code),
     KEY idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='告警记录表';

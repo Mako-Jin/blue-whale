@@ -20,7 +20,8 @@
 DROP TABLE IF EXISTS form_definition;
 CREATE TABLE form_definition (
     id                  BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
-    code                VARCHAR(64)   NOT NULL               COMMENT '表单编码（业务唯一，逻辑删除冲突由服务层前置校验）',
+    tenant_id           BIGINT        NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
+    code                VARCHAR(64)   NOT NULL               COMMENT '表单编码（租户内唯一，逻辑删除冲突由服务层前置校验）',
     name                VARCHAR(128)  NOT NULL               COMMENT '表单名称',
     table_definition_id BIGINT        DEFAULT NULL           COMMENT '所属表定义ID（表:表单 1:N，迁移后回填；NULL 为未迁移的旧定义）',
     schema_json         MEDIUMTEXT    NULL                   COMMENT '表单结构定义JSON（由字段配置编译的发布快照，最长64KB）',
@@ -31,7 +32,7 @@ CREATE TABLE form_definition (
     update_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted             TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
-    KEY idx_code (code),
+    KEY idx_tenant_code (tenant_id, code),
     KEY idx_table_definition_id (table_definition_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='表单定义表（表单视图层）';
 
@@ -70,13 +71,14 @@ CREATE TABLE form_data (
 DROP TABLE IF EXISTS form_table_registry;
 CREATE TABLE form_table_registry (
     id                  BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id           BIGINT        NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离；物理表按租户独立）',
     table_definition_id BIGINT        DEFAULT NULL           COMMENT '表定义ID（元数据模型；NULL 为旧模型）',
     table_code          VARCHAR(64)   DEFAULT NULL           COMMENT '表编码（元数据模型；旧模型回落 definition_code）',
     table_version       INT           DEFAULT NULL           COMMENT '表版本（元数据模型；旧模型回落 definition_version）',
     definition_id       BIGINT        DEFAULT NULL           COMMENT '表单定义ID（旧模型；元数据模型为 NULL）',
     definition_code     VARCHAR(64)   DEFAULT NULL           COMMENT '表单定义编码（旧模型）',
     definition_version  INT           DEFAULT NULL           COMMENT '表单定义版本（旧模型）',
-    physical_table      VARCHAR(64)   NOT NULL               COMMENT '物理表名（form_data_{code}_v{version}）',
+    physical_table      VARCHAR(64)   NOT NULL               COMMENT '物理表名（默认租户 form_data_{code}_v{version}；其他租户 form_data_t{tenantId}_{code}_v{version}）',
     field_count         INT           NOT NULL DEFAULT 0     COMMENT '动态字段数量',
     schema_json         MEDIUMTEXT    NULL                   COMMENT '发布时的表单结构定义快照（JSON）',
     status              TINYINT       NOT NULL DEFAULT 1     COMMENT '状态：1 生效 / 0 废弃',
@@ -84,8 +86,9 @@ CREATE TABLE form_table_registry (
     update_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted             TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
-    KEY idx_code_version (definition_code, definition_version),
-    KEY idx_table_code_version (table_code, table_version),
+    KEY idx_tenant_id (tenant_id),
+    KEY idx_tenant_code_version (tenant_id, definition_code, definition_version),
+    KEY idx_tenant_table_code_version (tenant_id, table_code, table_version),
     KEY idx_definition_id (definition_id),
     KEY idx_table_definition_id (table_definition_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='表单物理表登记表';
@@ -96,7 +99,8 @@ CREATE TABLE form_table_registry (
 DROP TABLE IF EXISTS form_table_definition;
 CREATE TABLE form_table_definition (
     id           BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
-    table_code   VARCHAR(64)   NOT NULL               COMMENT '表编码（业务唯一；物理表名来源，^[a-z][a-z0-9_]{0,39}$）',
+    tenant_id    BIGINT        NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
+    table_code   VARCHAR(64)   NOT NULL               COMMENT '表编码（租户内唯一；物理表名来源，^[a-z][a-z0-9_]{0,39}$）',
     table_name   VARCHAR(128)  NOT NULL               COMMENT '表名称',
     version      INT           NOT NULL DEFAULT 1     COMMENT '版本号',
     remark       VARCHAR(255)  DEFAULT NULL           COMMENT '备注',
@@ -105,7 +109,7 @@ CREATE TABLE form_table_definition (
     update_time  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted      TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
-    KEY idx_table_code (table_code)
+    KEY idx_tenant_table_code (tenant_id, table_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='表定义表（表定义层）';
 
 -- ---------------------------------------------------------------------
@@ -114,6 +118,7 @@ CREATE TABLE form_table_definition (
 DROP TABLE IF EXISTS form_column_meta;
 CREATE TABLE form_column_meta (
     id                  BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id           BIGINT        NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
     table_definition_id BIGINT        NOT NULL               COMMENT '表定义ID',
     table_version       INT           NOT NULL DEFAULT 1     COMMENT '该列所属表版本（发布 version=N 取 table_version=N）',
     column_code         VARCHAR(64)   NOT NULL               COMMENT '列编码（物理列名；^[a-z][a-z0-9_]{0,63}$，不得命中保留列）',
@@ -132,6 +137,7 @@ CREATE TABLE form_column_meta (
     update_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted             TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
+    KEY idx_tenant_id (tenant_id),
     KEY idx_table_definition_id (table_definition_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='列元数据表（表定义层 · 动态列详情）';
 
@@ -141,6 +147,7 @@ CREATE TABLE form_column_meta (
 DROP TABLE IF EXISTS form_field_config;
 CREATE TABLE form_field_config (
     id             BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id      BIGINT        NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
     form_id        BIGINT        NOT NULL               COMMENT '表单定义ID',
     column_meta_id BIGINT        DEFAULT NULL           COMMENT '关联列元数据ID；NULL 为纯布局字段（标题/分割线/说明）',
     field_label    VARCHAR(128)  NOT NULL               COMMENT '字段显示名',
@@ -159,6 +166,7 @@ CREATE TABLE form_field_config (
     update_time    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted        TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
+    KEY idx_tenant_id (tenant_id),
     KEY idx_form_id (form_id),
     KEY idx_column_meta_id (column_meta_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='表单字段配置表（表单视图层 · 字段属性详情）';
@@ -169,6 +177,7 @@ CREATE TABLE form_field_config (
 DROP TABLE IF EXISTS form_field_option;
 CREATE TABLE form_field_option (
     id              BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id       BIGINT        NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
     field_config_id BIGINT        NOT NULL               COMMENT '表单字段配置ID',
     option_label    VARCHAR(128)  NOT NULL               COMMENT '选项显示名',
     option_value    VARCHAR(128)  NOT NULL               COMMENT '选项值',
@@ -178,6 +187,7 @@ CREATE TABLE form_field_option (
     update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted         TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
+    KEY idx_tenant_id (tenant_id),
     KEY idx_field_config_id (field_config_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='字段选项表（选项层）';
 
@@ -187,10 +197,12 @@ CREATE TABLE form_field_option (
 DROP TABLE IF EXISTS form_definition_version;
 CREATE TABLE form_definition_version (
   id BIGINT NOT NULL COMMENT '主键ID（雪花算法）',
+  tenant_id BIGINT NOT NULL DEFAULT 1 COMMENT '租户ID（行级隔离）',
   definition_id BIGINT NOT NULL COMMENT '表单定义ID',
   version INT NOT NULL COMMENT '版本号',
   snapshot_json MEDIUMTEXT NOT NULL COMMENT '定义+字段+选项的完整快照JSON',
   create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (id),
+  KEY idx_tenant_id (tenant_id),
   KEY idx_definition_version (definition_id, version)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='表单定义版本快照表';

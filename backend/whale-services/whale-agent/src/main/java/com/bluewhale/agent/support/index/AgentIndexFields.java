@@ -67,6 +67,9 @@ public final class AgentIndexFields {
     /** 受限标记（仅受限知识块写入，用于精确判定是否存在权限约束） */
     public static final String PERMISSION_RESTRICTED = "permission_restricted";
 
+    /** 租户ID（平台级知识为 0，业务知识为租户ID；检索时强制过滤） */
+    public static final String TENANT = "tenant_id";
+
     /** 工具类不允许实例化 */
     private AgentIndexFields() {
     }

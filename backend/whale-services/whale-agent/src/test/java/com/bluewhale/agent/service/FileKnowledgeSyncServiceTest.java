@@ -11,6 +11,7 @@ import com.bluewhale.agent.support.knowledge.FileKnowledgeClient;
 import com.bluewhale.agent.support.knowledge.FileParseException;
 import com.bluewhale.agent.support.knowledge.KnowledgeConstants;
 import com.bluewhale.agent.support.knowledge.RemoteFileChange;
+import com.bluewhale.agent.support.knowledge.TenantDirectoryClient;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -50,6 +51,8 @@ class FileKnowledgeSyncServiceTest {
 
     private FileKnowledgeClient fileClient;
 
+    private TenantDirectoryClient tenantDirectoryClient;
+
     private ArchiveSecurityClient archiveSecurityClient;
 
     private FileDocumentParser documentParser;
@@ -66,13 +69,14 @@ class FileKnowledgeSyncServiceTest {
     void setUp() {
         properties = new AgentProperties();
         fileClient = mock(FileKnowledgeClient.class);
+        tenantDirectoryClient = mock(TenantDirectoryClient.class);
         archiveSecurityClient = mock(ArchiveSecurityClient.class);
         documentParser = mock(FileDocumentParser.class);
         fileChunker = mock(FileChunker.class);
         fileService = mock(AgentKnowledgeFileService.class);
         indexService = mock(AgentIndexService.class);
-        syncService = new FileKnowledgeSyncService(properties, fileClient, archiveSecurityClient,
-                documentParser, fileChunker, fileService, indexService);
+        syncService = new FileKnowledgeSyncService(properties, fileClient, tenantDirectoryClient,
+                archiveSecurityClient, documentParser, fileChunker, fileService, indexService);
     }
 
     @AfterEach

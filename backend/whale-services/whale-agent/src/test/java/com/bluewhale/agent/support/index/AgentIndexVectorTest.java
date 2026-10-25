@@ -4,6 +4,7 @@ import com.bluewhale.agent.config.AgentProperties;
 import com.bluewhale.agent.service.EmbeddingService;
 import com.bluewhale.agent.support.embedding.HashEmbeddingProvider;
 import com.bluewhale.agent.support.ingest.Chunk;
+import com.bluewhale.common.tenant.TenantContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -132,6 +133,33 @@ class AgentIndexVectorTest {
         SearchHit secret = secretReader.stream()
                 .filter(hit -> "file:900".equals(hit.getPath())).findFirst().orElseThrow();
         assertEquals(900L, secret.getFileId());
+    }
+
+    @Test
+    @DisplayName("租户过滤：仅返回当前租户与平台级知识")
+    void shouldFilterByTenant() {
+        indexService.addFileChunks("file:tenant2", "hash-t2", List.of(
+                chunk("file", "file:tenant2", "租户二文件", "租户专用 隔离 数据 二")),
+                2L, null, 2L);
+        indexService.addFileChunks("file:tenant3", "hash-t3", List.of(
+                chunk("file", "file:tenant3", "租户三文件", "租户专用 隔离 数据 三")),
+                3L, null, 3L);
+        indexService.commitAndRefresh();
+
+        Long previous = TenantContext.get();
+        try {
+            TenantContext.set(2L);
+            List<SearchHit> tenant2 = indexService.search("租户专用 隔离 数据", 10, Set.of());
+            assertTrue(tenant2.stream().anyMatch(hit -> "file:tenant2".equals(hit.getPath())));
+            assertFalse(tenant2.stream().anyMatch(hit -> "file:tenant3".equals(hit.getPath())),
+                    "租户二不得检索到租户三的文件知识");
+
+            List<SearchHit> platform = indexService.search("网关路由", 10, Set.of());
+            assertTrue(platform.stream().anyMatch(hit -> "deploy/gateway-routes.yml".equals(hit.getPath())),
+                    "平台级知识对所有租户可见");
+        } finally {
+            TenantContext.set(previous);
+        }
     }
 
     /**

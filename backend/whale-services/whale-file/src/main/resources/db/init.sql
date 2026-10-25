@@ -17,6 +17,7 @@
 DROP TABLE IF EXISTS file_info;
 CREATE TABLE file_info (
     id            BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id     BIGINT        NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
     file_name     VARCHAR(255)  NOT NULL               COMMENT '存储文件名（系统生成的唯一名称）',
     original_name VARCHAR(255)  NOT NULL               COMMENT '原始文件名（用户上传时的文件名）',
     bucket        VARCHAR(64)   NOT NULL               COMMENT '对象存储桶名称',
@@ -30,6 +31,7 @@ CREATE TABLE file_info (
     update_time   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted       TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
-    KEY idx_md5 (md5),
+    KEY idx_tenant_id (tenant_id),
+    KEY idx_tenant_md5 (tenant_id, md5),
     KEY idx_uploader_id (uploader_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='文件信息表';

@@ -230,7 +230,7 @@
 6. 审计：`api_log`/`outbound_log`/`frontend_log`/`behavior_log` 均补 `tenant_id` 写入与 `(tenant_id, create_time)` 索引。
 7. 网关：新增租户状态缓存校验，auth 启停租户即写 `whale:{tenantId}:cache:auth:tenant:status`，网关在验签与黑名单校验后读取，命中 `0` 直接 401；Redis 不可用时按启用降级放行并告警。
 
-### Phase 3：业务域铺开（P2）
+### Phase 3：业务域铺开（P2）——已完成（2026-10-25）
 
 按“风险 × 改动量”排序：
 
@@ -241,6 +241,15 @@
 5. IM（5 表）加 `tenant_id`；群成员校验限定同租户。
 6. 工作流（4 表）加 `tenant_id`；流程定义按租户发布，任务查询加租户。
 7. 任务/支付/告警（`job_*`、`pay_order`、`alert_*`）加 `tenant_id`。
+
+已落地要点：
+
+- **数据库**：10 个库的 `init.sql` 已同步；新增 `migration-5.54-tenant-business.sql`（每服务一份、幂等），列默认 1 自动回填存量数据；业务唯一键统一升级为租户复合键（表单 code/table_code、IM pair_key、档案档号/来源/流水/游标、支付单号、告警规则码）。
+- **MyBatis**：插件切换为「全表默认 + 忽略白名单」，白名单为 `sys_tenant`、`sys_permission`、`sys_i18n_message`、RBAC 关系表、审计归档水位/MQ 去重表、`agent_fact`/`agent_index_meta`。
+- **表单**：非默认租户物理表名 `form_data_t{tenantId}_{code}_v{version}`，默认租户沿用历史表名，存量物理表无需重命名。
+- **Agent**：Lucene 文档写入 `tenant_id`（平台知识为 0），检索强制过滤「当前租户 + 平台知识」，升级前无租户字段的文档按平台知识兼容；文件知识同步按租户目录逐租户执行。
+- **任务/档案**：任务调度执行时以 `job_info.tenant_id` 绑定上下文；档案同步接入 auth 内网租户目录 `/tenant/internal/enabled-ids`，目录不可用回退默认租户。
+- **内部调用**：档案→文件/工作流、Agent→文件均透传 `X-Tenant-Id`，缺失上下文失败关闭。
 
 ### Phase 4：前端与运营（P2）
 
@@ -319,3 +328,14 @@
 | 完成项 | ① 新增 `com.bluewhale.common.tenant.TenantContext/TenantContextFilter/TenantContextTaskDecorator/TenantKeys/TenantSqlProperties/TenantContextAutoConfiguration`，auth 删除本地同名实现并全量改引用；② `MybatisPlusConfig` 接入 `TenantLineInnerInterceptor`（显式表清单，租户插件先于分页）；③ 审计/日志线程池接入装饰器，审计 MQ 增加 `tenantId` 头，`FormArchiveClient` 删除固定租户配置并改用上下文，档案定时同步逐租户绑定上下文；④ `CacheConsistencyTemplate` 与 `DistributedLockAspect` Key 统一 `whale:{tenantId}:...`，网关权限缓存 Key 同步；⑤ 文件对象键增加 `tenants/{tenantId}/` 前缀，按 ID 访问校验租户前缀；⑥ 四类日志实体与写入补 `tenantId`，`init.sql` 双库同步，新增 `migration-5.54-tenant-logs.sql`；⑦ 新增 `TenantStatusKeys`（whale-security）、`TenantStatusChecker`（gateway）与 `TenantStatusCache`（auth，含启动预热与启停即时写入）；⑧ starter/auth/gateway/file/archive/audit 单测通过，后端全模块 `mvn install` BUILD SUCCESS |
 | 待做项 | ① MyBatis 插件在 Phase 3 切换为「全表默认 + 白名单忽略」，当前为显式表清单（未铺开 `tenant_id` 的业务表若强制追加会 SQL 失败）；② 定时任务租户清单暂由 `whale.archive.sync.tenant-ids` 配置提供，Phase 3 接入 `sys_tenant` 启用租户目录后改为动态查询；③ Agent 文件知识同步按租户游标分区依赖 `agent_knowledge_file` 铺开 `tenant_id`，留待 Phase 3；④ 存量对象键无 `tenants/` 前缀，需在联调环境执行一次对象迁移或保留只读兼容窗口；⑤ 联调环境需在 `bluewhale_auth` 与 `bluewhale_audit` 两库分别执行 `migration-5.54-tenant-logs.sql` |
 | 已修正问题项 | ① `CacheProperties.keyPrefix` 删除后测试仍按旧 Key 断言：统一改为 `whale:{tenantId}:cache:{name}:{id}` 并显式绑定租户；② 网关新增状态校验后测试未桩化导致 `UnnecessaryStubbingException`：改为按用例精确桩化；③ `TenantContext` 上移后 auth 测试仍使用旧包名：测试迁移到 starter 的 `com.bluewhale.common.tenant` 包；④ `FormArchiveClient` 删除固定租户后定时同步无上下文：调度器改为逐租户设置/清理 `TenantContext`；⑤ 停用租户的存量令牌：网关验签后增加 Redis 状态校验并补充 401 单测 |
+
+---
+
+## 十二、Phase 3 执行记录（2026-10-25）
+
+| 类别 | 内容 |
+|---|---|
+| 需求项 | ① 表单元数据/文件/IM/工作流/Agent/档案/任务/支付/告警铺开 `tenant_id`；② MyBatis 插件切「全表默认 + 白名单忽略」；③ 表单物理表按租户命名；④ Agent 知识索引租户分区与按租户同步；⑤ 任务/档案定时任务按租户目录执行；⑥ 存量数据回填默认租户；⑦ 幂等迁移脚本与文档 |
+| 完成项 | ① 10 个库 `init.sql` 同步新增 `tenant_id` 与索引，业务唯一键升级为租户复合键；② 新增 10 份 `migration-5.54-tenant-business.sql`（列默认 1，存量自动归属默认租户）；③ `TenantSqlProperties` 改为 `ignoreTables` 白名单，`MybatisPlusConfig` 全表默认隔离；④ 非默认租户表单物理表名带 `t{tenantId}_` 段；⑤ Lucene 文档写入 `tenant_id`（平台知识 0），BM25/KNN 检索强制租户过滤并兼容历史无字段文档；⑥ 文件知识同步与档案同步接入租户目录（auth `/tenant/internal/enabled-ids`），档案→文件/工作流、Agent→文件内部调用透传 `X-Tenant-Id`；⑦ 任务调度按 `job_info.tenant_id` 绑定上下文；⑧ Agent/档案/任务相关模块单测与后端全量构建通过 |
+| 待做项 | ① 联调环境按库执行 `migration-5.54-tenant-business.sql` 并回归各域租户隔离用例；② 存量对象键迁移（无 `tenants/` 前缀）仍待执行；③ Agent 一次性重建索引（清掉无租户字段的历史文档）建议在维护窗口执行；④ 一人多租户（S4）与 Phase 4 前端租户切换/运营台 |
+| 已知限制 | ① 平台级知识（代码/文档/`agent_fact`）对所有租户可见，按设计保留；② RBAC 关系表沿用全局唯一 ID 关联，不加租户列（写入白名单）；③ 表单动态物理表租户隔离依赖已发布物理表固定名，租户编码变更不支持，仅支持编码级隔离 |

@@ -1,6 +1,7 @@
 package com.bluewhale.agent.support.knowledge;
 
 import com.bluewhale.agent.config.AgentProperties;
+import com.bluewhale.common.tenant.TenantContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -52,6 +53,9 @@ public class FileKnowledgeClient {
     /** 响应字段：分页记录 */
     private static final String FIELD_RECORDS = "records";
 
+    /** 租户请求头（文件服务按租户隔离文件查询） */
+    private static final String HEADER_TENANT = "X-Tenant-Id";
+
     private final RestClient restClient;
 
     /**
@@ -87,6 +91,7 @@ public class FileKnowledgeClient {
                     }
                     return uriBuilder.build();
                 })
+                .header(HEADER_TENANT, tenantHeader())
                 .retrieve()
                 .body(new ParameterizedTypeReference<Map<String, Object>>() {
                 });
@@ -118,6 +123,7 @@ public class FileKnowledgeClient {
         try {
             response = restClient.get()
                     .uri(DETAIL_PATH, fileId)
+                    .header(HEADER_TENANT, tenantHeader())
                     .retrieve()
                     .body(new ParameterizedTypeReference<Map<String, Object>>() {
                     });
@@ -138,11 +144,25 @@ public class FileKnowledgeClient {
         try {
             return restClient.get()
                     .uri(CONTENT_PATH, fileId)
+                    .header(HEADER_TENANT, tenantHeader())
                     .retrieve()
                     .body(byte[].class);
         } catch (HttpClientErrorException.NotFound e) {
             return null;
         }
+    }
+
+    /**
+     * 取当前租户请求头；缺失租户上下文时失败关闭，避免跨租户拉取文件。
+     *
+     * @return 租户ID字符串
+     */
+    private String tenantHeader() {
+        Long tenantId = TenantContext.get();
+        if (tenantId == null) {
+            throw new IllegalStateException("缺少租户上下文，无法调用文件服务");
+        }
+        return String.valueOf(tenantId);
     }
 
     /**

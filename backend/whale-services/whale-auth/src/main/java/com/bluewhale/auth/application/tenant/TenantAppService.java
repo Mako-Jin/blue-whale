@@ -63,6 +63,22 @@ public class TenantAppService {
     }
 
     /**
+     * 查询全部可用租户 ID（启用且未过期），供后台定时任务按租户游标执行
+     *
+     * <p>内网接口，仅服务间直连调用，不做平台租户校验。</p>
+     *
+     * @return 可用租户 ID（升序）
+     */
+    public List<Long> listEnabledTenantIds() {
+        LocalDateTime now = LocalDateTime.now();
+        return tenantRepository.findAll().stream()
+                .filter(tenant -> tenant.isAvailableAt(now))
+                .map(Tenant::getId)
+                .sorted()
+                .toList();
+    }
+
+    /**
      * 租户分页列表（仅平台租户）
      *
      * @param query 分页查询条件

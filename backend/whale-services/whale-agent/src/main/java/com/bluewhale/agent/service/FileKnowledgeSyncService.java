@@ -13,8 +13,10 @@ import com.bluewhale.agent.support.knowledge.FileKnowledgeClient;
 import com.bluewhale.agent.support.knowledge.FileParseException;
 import com.bluewhale.agent.support.knowledge.KnowledgeConstants;
 import com.bluewhale.agent.support.knowledge.RemoteFileChange;
+import com.bluewhale.agent.support.knowledge.TenantDirectoryClient;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.tenant.TenantContext;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -76,6 +78,8 @@ public class FileKnowledgeSyncService {
     private final AgentProperties properties;
 
     private final FileKnowledgeClient fileClient;
+
+    private final TenantDirectoryClient tenantDirectoryClient;
 
     private final ArchiveSecurityClient archiveSecurityClient;
 
@@ -143,10 +147,17 @@ public class FileKnowledgeSyncService {
         if (running.get()) {
             return false;
         }
+        Long tenantId = TenantContext.get();
+        if (tenantId == null) {
+            log.warn("缺少租户上下文，拒绝执行文件知识库全量重建");
+            return false;
+        }
         executor.submit(() -> {
             if (!running.compareAndSet(false, true)) {
                 return;
             }
+            Long previousTenant = TenantContext.get();
+            TenantContext.set(tenantId);
             try {
                 indexService.deleteKind(FileChunker.KIND_FILE);
                 indexService.deleteKind(FileChunker.KIND_ARCHIVE);
@@ -156,6 +167,7 @@ public class FileKnowledgeSyncService {
             } catch (RuntimeException e) {
                 log.error("文件知识库全量重建失败", e);
             } finally {
+                TenantContext.set(previousTenant);
                 running.set(false);
             }
         });
@@ -701,16 +713,40 @@ public class FileKnowledgeSyncService {
     }
 
     /**
-     * 安全执行一轮同步（异常不外抛，供调度器使用）。
+     * 按租户目录逐租户安全执行一轮同步（异常不外抛，供调度器使用）。
+     *
+     * <p>租户清单优先取显式配置；未配置时查询租户目录，目录不可用回退默认租户 1。
+     * 每个租户独立绑定 {@link TenantContext}，单租户异常不影响其余租户。</p>
      */
     private void runOnceSafely() {
-        try {
-            runOnce();
-        } catch (BizException e) {
-            log.info("文件知识库同步跳过: {}", e.getMessage());
-        } catch (RuntimeException e) {
-            log.error("文件知识库同步异常", e);
+        for (Long tenantId : resolveTenantIds()) {
+            Long previousTenant = TenantContext.get();
+            TenantContext.set(tenantId);
+            try {
+                runOnce();
+            } catch (BizException e) {
+                log.info("文件知识库同步跳过: tenantId={}, reason={}", tenantId, e.getMessage());
+            } catch (RuntimeException e) {
+                log.error("文件知识库同步异常: tenantId={}", tenantId, e);
+            } finally {
+                TenantContext.set(previousTenant);
+            }
         }
+    }
+
+    /**
+     * 解析本轮同步的租户清单：显式配置优先，否则查询租户目录，目录为空回退默认租户。
+     *
+     * @return 租户ID列表（非空）
+     */
+    private List<Long> resolveTenantIds() {
+        AgentProperties.Knowledge knowledge = properties.getKnowledge();
+        List<Long> configured = knowledge.getSyncTenantIds();
+        if (configured != null && !configured.isEmpty()) {
+            return configured;
+        }
+        List<Long> enabled = tenantDirectoryClient.listEnabledTenantIds();
+        return enabled.isEmpty() ? List.of(TenantContext.DEFAULT_TENANT_ID) : enabled;
     }
 
     /**

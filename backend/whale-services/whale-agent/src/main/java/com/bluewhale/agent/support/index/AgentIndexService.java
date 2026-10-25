@@ -3,6 +3,7 @@ package com.bluewhale.agent.support.index;
 import com.bluewhale.agent.config.AgentProperties;
 import com.bluewhale.agent.service.EmbeddingService;
 import com.bluewhale.agent.support.ingest.Chunk;
+import com.bluewhale.common.tenant.TenantContext;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.lucene.analysis.Analyzer;
@@ -27,6 +28,7 @@ import org.apache.lucene.index.VectorSimilarityFunction;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.BoostQuery;
+import org.apache.lucene.search.FieldExistsQuery;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.KnnFloatVectorQuery;
 import org.apache.lucene.search.MatchAllDocsQuery;
@@ -77,6 +79,9 @@ public class AgentIndexService implements DisposableBean {
 
     /** 单块参与向量化的最大字符数（标题 + 正文截断） */
     private static final int MAX_EMBED_CHARS = 2000;
+
+    /** 平台级知识（代码/文档/平台事实）的租户标记，对所有租户可见 */
+    private static final long PLATFORM_TENANT_ID = 0L;
 
     private final AgentProperties properties;
 
@@ -188,7 +193,7 @@ public class AgentIndexService implements DisposableBean {
      * @param chunks 知识块列表
      */
     public void addFileChunks(String path, String hash, List<Chunk> chunks) {
-        addFileChunks(path, hash, chunks, null, null);
+        addFileChunks(path, hash, chunks, null, null, PLATFORM_TENANT_ID);
     }
 
     /**
@@ -201,6 +206,23 @@ public class AgentIndexService implements DisposableBean {
      * @param permissionCode 所需权限码（可为 {@code null}）
      */
     public void addFileChunks(String path, String hash, List<Chunk> chunks, Long fileId, String permissionCode) {
+        Long tenant = TenantContext.get();
+        addFileChunks(path, hash, chunks, fileId, permissionCode,
+                tenant == null ? TenantContext.DEFAULT_TENANT_ID : tenant);
+    }
+
+    /**
+     * 写入单个文件的全部知识块（显式指定租户）。
+     *
+     * @param path 知识块路径
+     * @param hash 文件内容哈希
+     * @param chunks 知识块列表
+     * @param fileId 文件服务文件ID（可为 {@code null}）
+     * @param permissionCode 所需权限码（可为 {@code null}）
+     * @param tenantId 租户ID（{@code 0} 表示平台级知识）
+     */
+    public void addFileChunks(String path, String hash, List<Chunk> chunks, Long fileId, String permissionCode,
+                              long tenantId) {
         if (chunks == null || chunks.isEmpty()) {
             return;
         }
@@ -211,7 +233,7 @@ public class AgentIndexService implements DisposableBean {
             int seq = 0;
             for (int i = 0; i < chunks.size(); i++) {
                 writer.addDocument(toDocument(chunks.get(i), hash, seq++, vectors.get(i), signature,
-                        fileId, permissionCode));
+                        fileId, permissionCode, tenantId));
             }
         } catch (IOException e) {
             throw new UncheckedIOException("写入索引失败: " + path, e);
@@ -221,7 +243,9 @@ public class AgentIndexService implements DisposableBean {
     }
 
     /**
-     * 按知识类型删除全部文档（文件知识库全量重建前调用）。
+     * 按知识类型删除当前租户的全部文档（文件知识库全量重建前调用）。
+     *
+     * <p>默认租户同时清理历史遗留的无租户字段文档，保证升级前的文件知识被重建。</p>
      *
      * @param kind 知识类型（如 {@code file}）
      */
@@ -231,12 +255,34 @@ public class AgentIndexService implements DisposableBean {
         }
         writeLock.lock();
         try {
-            writer.deleteDocuments(new Term(AgentIndexFields.KIND, kind));
+            writer.deleteDocuments(tenantScopedKindQuery(kind));
         } catch (IOException e) {
             throw new UncheckedIOException("按类型删除索引失败: " + kind, e);
         } finally {
             writeLock.unlock();
         }
+    }
+
+    /**
+     * 构建「类型 + 租户」删除查询：默认租户兼容无租户字段的历史文档。
+     *
+     * @param kind 知识类型
+     * @return 删除查询
+     */
+    private Query tenantScopedKindQuery(String kind) {
+        Long tenant = TenantContext.get();
+        long tenantId = tenant == null ? TenantContext.DEFAULT_TENANT_ID : tenant;
+        BooleanQuery.Builder tenantQuery = new BooleanQuery.Builder()
+                .add(new TermQuery(new Term(AgentIndexFields.TENANT, String.valueOf(tenantId))),
+                        BooleanClause.Occur.SHOULD);
+        if (tenantId == TenantContext.DEFAULT_TENANT_ID) {
+            tenantQuery.add(missingTenantQuery(), BooleanClause.Occur.SHOULD);
+        }
+        tenantQuery.setMinimumNumberShouldMatch(1);
+        return new BooleanQuery.Builder()
+                .add(new TermQuery(new Term(AgentIndexFields.KIND, kind)), BooleanClause.Occur.MUST)
+                .add(tenantQuery.build(), BooleanClause.Occur.MUST)
+                .build();
     }
 
     /**
@@ -388,7 +434,8 @@ public class AgentIndexService implements DisposableBean {
         }
         IndexSearcher searcher = acquireSearcher();
         try {
-            Query filter = combineFilters(kindFilter(kinds), permissionFilter(permissionCodes));
+            Query filter = combineFilters(
+                    combineFilters(kindFilter(kinds), permissionFilter(permissionCodes)), tenantFilter());
             Query query = filter == null
                     ? new KnnFloatVectorQuery(AgentIndexFields.VECTOR, vector, topK)
                     : new KnnFloatVectorQuery(AgentIndexFields.VECTOR, vector, topK, filter);
@@ -484,6 +531,7 @@ public class AgentIndexService implements DisposableBean {
         if (visible != null) {
             builder.add(visible, BooleanClause.Occur.FILTER);
         }
+        builder.add(tenantFilter(), BooleanClause.Occur.FILTER);
         BooleanQuery.Builder outer = new BooleanQuery.Builder();
         outer.add(builder.build(), BooleanClause.Occur.MUST);
         if (isCodeIntent(question)) {
@@ -522,6 +570,36 @@ public class AgentIndexService implements DisposableBean {
         }
         visible.setMinimumNumberShouldMatch(1);
         return visible.build();
+    }
+
+    /**
+     * 构建租户过滤：仅命中「当前租户」与「平台级知识（租户 0）」，并兼容升级前无租户字段的历史文档。
+     *
+     * @return 租户过滤查询
+     */
+    private Query tenantFilter() {
+        Long tenant = TenantContext.get();
+        long tenantId = tenant == null ? TenantContext.DEFAULT_TENANT_ID : tenant;
+        BooleanQuery.Builder filter = new BooleanQuery.Builder()
+                .add(new TermQuery(new Term(AgentIndexFields.TENANT, String.valueOf(tenantId))),
+                        BooleanClause.Occur.SHOULD)
+                .add(new TermQuery(new Term(AgentIndexFields.TENANT, String.valueOf(PLATFORM_TENANT_ID))),
+                        BooleanClause.Occur.SHOULD)
+                .add(missingTenantQuery(), BooleanClause.Occur.SHOULD);
+        filter.setMinimumNumberShouldMatch(1);
+        return filter.build();
+    }
+
+    /**
+     * 匹配缺少租户字段的历史文档（升级前索引）。
+     *
+     * @return 缺少租户字段的查询
+     */
+    private Query missingTenantQuery() {
+        return new BooleanQuery.Builder()
+                .add(new MatchAllDocsQuery(), BooleanClause.Occur.MUST)
+                .add(new FieldExistsQuery(AgentIndexFields.TENANT), BooleanClause.Occur.MUST_NOT)
+                .build();
     }
 
     /**
@@ -667,12 +745,15 @@ public class AgentIndexService implements DisposableBean {
      * @return Lucene 文档
      */
     private Document toDocument(Chunk chunk, String hash, int seq, float[] vector, String signature,
-                                Long fileId, String permissionCode) {
+                                Long fileId, String permissionCode, long tenantId) {
         String content = nullToEmpty(chunk.getContent());
         String title = nullToEmpty(chunk.getTitle());
         Document document = new Document();
         document.add(new StringField(AgentIndexFields.ID,
                 chunk.getKind() + ":" + chunk.getPath() + ":" + hash + ":" + seq, Field.Store.YES));
+        String tenantValue = String.valueOf(tenantId);
+        document.add(new StringField(AgentIndexFields.TENANT, tenantValue, Field.Store.YES));
+        document.add(new SortedDocValuesField(AgentIndexFields.TENANT, new BytesRef(tenantValue)));
         document.add(new StringField(AgentIndexFields.KIND, nullToEmpty(chunk.getKind()), Field.Store.YES));
         document.add(new StringField(AgentIndexFields.MODULE, nullToEmpty(chunk.getModule()), Field.Store.YES));
         document.add(new StringField(AgentIndexFields.PATH, chunk.getPath(), Field.Store.YES));

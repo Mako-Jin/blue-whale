@@ -367,6 +367,12 @@ public class AgentProperties {
 
         /** 不纳入知识库的桶（逗号分隔，匹配桶名前缀） */
         private List<String> excludedBuckets = new ArrayList<>();
+
+        /** 显式指定定时同步的租户ID列表；为空时从租户目录查询可用租户 */
+        private List<Long> syncTenantIds = new ArrayList<>();
+
+        /** 认证服务基址（查询可用租户目录，服务间直连） */
+        private String authUrl = "http://127.0.0.1:8081";
     }
 
     /**

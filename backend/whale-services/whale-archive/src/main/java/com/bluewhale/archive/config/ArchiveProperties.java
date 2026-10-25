@@ -65,12 +65,12 @@ public class ArchiveProperties {
         private int retryBatchSize = 50;
 
         /**
-         * 定时同步遍历的租户ID列表。
+         * 显式指定定时同步遍历的租户ID列表。
          *
-         * <p>Phase 2 暂由配置提供（与表单服务的行级租户隔离对齐）；
-         * Phase 3 业务表铺开 tenant_id 后改为从租户目录动态查询启用租户。</p>
+         * <p>为空时从租户目录（whale-auth 内网接口）动态查询「启用且未过期」的租户；
+         * 目录不可用时回退默认租户 1，保证调度不中断。</p>
          */
-        private List<Long> tenantIds = List.of(1L);
+        private List<Long> tenantIds = List.of();
     }
 
     /**
@@ -89,6 +89,9 @@ public class ArchiveProperties {
 
         /** 文件服务基址 */
         private String fileUrl = "http://127.0.0.1:8085";
+
+        /** 认证服务基址（查询可用租户目录） */
+        private String authUrl = "http://127.0.0.1:8081";
 
         /** 建立连接超时（毫秒） */
         private int connectTimeoutMillis = 5000;

@@ -116,6 +116,9 @@ whale:
       max-attempts: ${WHALE_AGENT_KNOWLEDGE_MAX_ATTEMPTS:3}
       retry-base-seconds: ${WHALE_AGENT_KNOWLEDGE_RETRY_BASE_SECONDS:60}
       file-url: ${WHALE_AGENT_FILE_URL:http://127.0.0.1:8085}
+      # 定时同步租户：留空则由租户目录（whale-auth）动态查询可用租户
+      sync-tenant-ids: ${WHALE_AGENT_KNOWLEDGE_SYNC_TENANT_IDS:}
+      auth-url: ${WHALE_AGENT_AUTH_URL:http://127.0.0.1:8081}
       connect-timeout-millis: ${WHALE_AGENT_KNOWLEDGE_CONNECT_TIMEOUT_MILLIS:5000}
       read-timeout-millis: ${WHALE_AGENT_KNOWLEDGE_READ_TIMEOUT_MILLIS:60000}
       excluded-buckets: ${WHALE_AGENT_KNOWLEDGE_EXCLUDED_BUCKETS:}

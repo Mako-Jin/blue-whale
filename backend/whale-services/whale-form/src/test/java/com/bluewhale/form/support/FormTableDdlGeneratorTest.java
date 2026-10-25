@@ -1,6 +1,7 @@
 package com.bluewhale.form.support;
 
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.form.entity.FormColumnMeta;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,9 +24,24 @@ class FormTableDdlGeneratorTest {
     private static final int PARAM_ERROR_CODE = 400;
 
     @Test
-    @DisplayName("tableName：按 code 与 version 生成表名")
+    @DisplayName("tableName：按 code 与 version 生成表名，默认租户沿用历史命名")
     void shouldGenerateTableName() {
         assertEquals("form_data_fm_a_v2", FormTableDdlGenerator.tableName("fm_a", 2));
+        assertEquals("form_data_fm_a_v2", FormTableDdlGenerator.tableName(1L, "fm_a", 2));
+    }
+
+    @Test
+    @DisplayName("tableName：非默认租户物理表名带租户段")
+    void shouldGenerateTenantScopedTableName() {
+        assertEquals("form_data_t2_fm_a_v2", FormTableDdlGenerator.tableName(2L, "fm_a", 2));
+
+        Long previous = TenantContext.get();
+        try {
+            TenantContext.set(7L);
+            assertEquals("form_data_t7_fm_a_v2", FormTableDdlGenerator.tableName("fm_a", 2));
+        } finally {
+            TenantContext.set(previous);
+        }
     }
 
     @Test

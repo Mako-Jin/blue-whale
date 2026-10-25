@@ -30,6 +30,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 /**
  * 租户管理（Wave 5.54 Phase 1）：平台运营租户开通、查询、启停与续期。
  *
@@ -45,6 +47,16 @@ public class TenantController {
 
     private final TenantAppService tenantAppService;
     private final TenantProvisioningAppService tenantProvisioningAppService;
+
+    /**
+     * 内网查询可用租户 ID（启用且未过期），供档案/知识库等后台任务按租户执行
+     *
+     * @return 可用租户 ID 列表
+     */
+    @GetMapping("/internal/enabled-ids")
+    public Result<List<Long>> enabledIds() {
+        return Result.ok(tenantAppService.listEnabledTenantIds());
+    }
 
     /**
      * 分页查询租户

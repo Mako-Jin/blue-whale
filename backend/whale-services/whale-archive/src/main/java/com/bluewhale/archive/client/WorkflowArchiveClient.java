@@ -4,6 +4,7 @@ import com.bluewhale.archive.config.ArchiveProperties;
 import com.bluewhale.archive.remote.RemoteApprovedPage;
 import com.bluewhale.archive.remote.RemoteInstanceDetail;
 import com.bluewhale.archive.support.RemoteHttpSupport;
+import com.bluewhale.common.tenant.TenantContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
@@ -36,6 +37,9 @@ public class WorkflowArchiveClient {
 
     /** 拉取实例归档详情动作描述 */
     private static final String ACTION_DETAIL = "拉取实例归档详情";
+
+    /** 租户请求头（工作流按租户隔离实例与任务） */
+    private static final String HEADER_TENANT = "X-Tenant-Id";
 
     private final RestClient restClient;
 
@@ -103,8 +107,22 @@ public class WorkflowArchiveClient {
     private Map<String, Object> getMap(String uri, Object... uriVariables) {
         return restClient.get()
                 .uri(uri, uriVariables)
+                .header(HEADER_TENANT, tenantHeader())
                 .retrieve()
                 .body(new ParameterizedTypeReference<Map<String, Object>>() {
                 });
+    }
+
+    /**
+     * 取当前租户请求头；缺失租户上下文时失败关闭，避免跨租户拉取实例。
+     *
+     * @return 租户ID字符串
+     */
+    private String tenantHeader() {
+        Long tenantId = TenantContext.get();
+        if (tenantId == null) {
+            throw new IllegalStateException("缺少租户上下文，无法调用工作流服务");
+        }
+        return String.valueOf(tenantId);
     }
 }

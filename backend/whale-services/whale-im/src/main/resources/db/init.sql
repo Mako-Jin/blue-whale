@@ -17,6 +17,7 @@
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS im_conversation (
     id              BIGINT       NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id       BIGINT       NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
     type            VARCHAR(16)  NOT NULL               COMMENT '会话类型：SINGLE 单聊 / GROUP 群聊 / BOT 机器人会话',
     title           VARCHAR(128) DEFAULT NULL           COMMENT '会话标题（群聊必填；单聊由前端按对方展示）',
     owner_id        BIGINT       NOT NULL               COMMENT '会话创建人ID（逻辑关联 sys_user.id）',
@@ -28,7 +29,7 @@ CREATE TABLE IF NOT EXISTS im_conversation (
     update_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted         TINYINT      NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
-    UNIQUE KEY uk_pair_key (pair_key),
+    UNIQUE KEY uk_tenant_pair_key (tenant_id, pair_key),
     KEY idx_owner_id (owner_id),
     KEY idx_last_active_at (last_active_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='IM 会话表';
@@ -38,6 +39,7 @@ CREATE TABLE IF NOT EXISTS im_conversation (
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS im_conversation_member (
     id            BIGINT      NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id     BIGINT      NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
     conversation_id BIGINT    NOT NULL               COMMENT '会话ID（逻辑关联 im_conversation.id）',
     user_id       BIGINT      NOT NULL               COMMENT '用户ID / BOT 用户ID（逻辑关联 sys_user.id）',
     member_type   VARCHAR(16) NOT NULL DEFAULT 'USER' COMMENT '成员类型：USER 用户 / BOT 机器人',
@@ -50,6 +52,7 @@ CREATE TABLE IF NOT EXISTS im_conversation_member (
     deleted       TINYINT     NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_conversation_user (conversation_id, user_id),
+    KEY idx_tenant_id (tenant_id),
     KEY idx_user_id (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='IM 会话成员与已读游标表';
 
@@ -58,6 +61,7 @@ CREATE TABLE IF NOT EXISTS im_conversation_member (
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS im_message (
     id              BIGINT       NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id       BIGINT       NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
     conversation_id BIGINT       NOT NULL               COMMENT '会话ID（逻辑关联 im_conversation.id）',
     seq             BIGINT       NOT NULL               COMMENT '会话内单调递增序号（Redis INCR 分配）',
     sender_id       BIGINT       NOT NULL               COMMENT '发送者ID / BOT 用户ID（逻辑关联 sys_user.id）',
@@ -73,6 +77,7 @@ CREATE TABLE IF NOT EXISTS im_message (
     PRIMARY KEY (id),
     UNIQUE KEY uk_conversation_client (conversation_id, client_msg_id),
     UNIQUE KEY uk_conversation_seq (conversation_id, seq),
+    KEY idx_tenant_id (tenant_id),
     KEY idx_create_time (create_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='IM 消息表';
 
@@ -81,6 +86,7 @@ CREATE TABLE IF NOT EXISTS im_message (
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS im_agent_binding (
     id                    BIGINT       NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id             BIGINT       NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
     conversation_id       BIGINT       NOT NULL               COMMENT '会话ID（逻辑关联 im_conversation.id）',
     bot_user_id           BIGINT       NOT NULL               COMMENT '机器人用户ID（逻辑关联 sys_user.id）',
     agent_scenario        VARCHAR(32)  NOT NULL DEFAULT 'DEFAULT' COMMENT '智能体场景：DEFAULT / ARCH / DATA / OPS',
@@ -90,7 +96,8 @@ CREATE TABLE IF NOT EXISTS im_agent_binding (
     update_time           DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted               TINYINT      NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
-    UNIQUE KEY uk_conversation_bot (conversation_id, bot_user_id)
+    UNIQUE KEY uk_conversation_bot (conversation_id, bot_user_id),
+    KEY idx_tenant_id (tenant_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='IM 会话与智能体绑定表';
 
 -- ---------------------------------------------------------------------
@@ -98,6 +105,7 @@ CREATE TABLE IF NOT EXISTS im_agent_binding (
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS im_agent_run (
     id                  BIGINT      NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id           BIGINT      NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
     conversation_id     BIGINT      NOT NULL               COMMENT '会话ID（逻辑关联 im_conversation.id）',
     request_message_id  BIGINT      DEFAULT NULL           COMMENT '触发本次运行的用户消息ID（逻辑关联 im_message.id）',
     response_message_id BIGINT      DEFAULT NULL           COMMENT '智能体回复消息ID（逻辑关联 im_message.id）',
@@ -111,6 +119,7 @@ CREATE TABLE IF NOT EXISTS im_agent_run (
     update_time         DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted             TINYINT     NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
+    KEY idx_tenant_id (tenant_id),
     KEY idx_conversation_id (conversation_id),
     KEY idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='IM 智能体运行记录表';

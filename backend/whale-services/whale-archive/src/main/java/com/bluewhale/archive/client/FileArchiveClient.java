@@ -5,6 +5,7 @@ import com.bluewhale.archive.remote.RemoteFileMeta;
 import com.bluewhale.archive.support.RemoteHttpSupport;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.tenant.TenantContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.ByteArrayResource;
@@ -60,6 +61,9 @@ public class FileArchiveClient {
     /** 响应数据中的文件ID字段 */
     private static final String FIELD_ID = "id";
 
+    /** 租户请求头（文件服务按租户隔离） */
+    private static final String HEADER_TENANT = "X-Tenant-Id";
+
     private final RestClient restClient;
 
     private final ObjectMapper objectMapper;
@@ -96,6 +100,7 @@ public class FileArchiveClient {
         Map<String, Object> response = RemoteHttpSupport.call(
                 () -> restClient.post()
                         .uri(UPLOAD_PATH)
+                        .header(HEADER_TENANT, tenantHeader())
                         .contentType(MediaType.MULTIPART_FORM_DATA)
                         .body(body)
                         .retrieve()
@@ -109,6 +114,19 @@ public class FileArchiveClient {
             throw RemoteHttpSupport.failure(ACTION_UPLOAD, "响应缺少文件ID");
         }
         return fileId;
+    }
+
+    /**
+     * 取当前租户请求头；缺失租户上下文时失败关闭，避免跨租户读写文件。
+     *
+     * @return 租户ID字符串
+     */
+    private String tenantHeader() {
+        Long tenantId = TenantContext.get();
+        if (tenantId == null) {
+            throw new IllegalStateException("缺少租户上下文，无法调用文件服务");
+        }
+        return String.valueOf(tenantId);
     }
 
     /**
@@ -143,6 +161,7 @@ public class FileArchiveClient {
         try {
             response = restClient.get()
                     .uri(DETAIL_PATH, id)
+                    .header(HEADER_TENANT, tenantHeader())
                     .retrieve()
                     .body(new ParameterizedTypeReference<Map<String, Object>>() {
                     });
@@ -164,6 +183,7 @@ public class FileArchiveClient {
         Map<String, Object> response = RemoteHttpSupport.call(
                 () -> restClient.post()
                         .uri(LOCK_PATH, id)
+                        .header(HEADER_TENANT, tenantHeader())
                         .retrieve()
                         .body(new ParameterizedTypeReference<Map<String, Object>>() {
                         }),
@@ -182,6 +202,7 @@ public class FileArchiveClient {
         try {
             content = restClient.get()
                     .uri(CONTENT_PATH, id)
+                    .header(HEADER_TENANT, tenantHeader())
                     .retrieve()
                     .body(byte[].class);
         } catch (HttpClientErrorException.NotFound e) {

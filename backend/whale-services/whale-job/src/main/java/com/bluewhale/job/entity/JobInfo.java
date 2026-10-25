@@ -20,6 +20,9 @@ public class JobInfo extends BaseEntity {
 
     private static final long serialVersionUID = 1L;
 
+    /** 所属租户ID（调度执行时绑定租户上下文） */
+    private Long tenantId;
+
     /** 任务名称 */
     private String jobName;
 

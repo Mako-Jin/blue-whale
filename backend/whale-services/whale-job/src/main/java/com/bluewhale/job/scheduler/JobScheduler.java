@@ -3,6 +3,7 @@ package com.bluewhale.job.scheduler;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.job.alert.JobAlertNotifier;
 import com.bluewhale.job.entity.JobDependency;
 import com.bluewhale.job.entity.JobInfo;
@@ -279,16 +280,22 @@ public class JobScheduler {
      */
     private void executeWithRun(JobInfo job, String runId, String triggerType, int depth) {
         Long jobId = job.getId();
-        if (!executionGuard.tryEnter(jobId)) {
-            handleOverlap(job);
-            return;
-        }
+        Long previousTenant = TenantContext.get();
+        TenantContext.set(job.getTenantId() == null ? TenantContext.DEFAULT_TENANT_ID : job.getTenantId());
         try {
-            runWithDistributedLock(job, runId, triggerType, depth);
+            if (!executionGuard.tryEnter(jobId)) {
+                handleOverlap(job);
+                return;
+            }
+            try {
+                runWithDistributedLock(job, runId, triggerType, depth);
+            } finally {
+                executionGuard.exit(jobId);
+            }
+            drainPendingOnce(job, runId, triggerType, depth);
         } finally {
-            executionGuard.exit(jobId);
+            TenantContext.set(previousTenant);
         }
-        drainPendingOnce(job, runId, triggerType, depth);
     }
 
     /**

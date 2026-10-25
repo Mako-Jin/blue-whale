@@ -48,7 +48,7 @@ public class MybatisPlusConfig {
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
         if (tenantSqlProperties.isEnabled()) {
             interceptor.addInnerInterceptor(new TenantLineInnerInterceptor(
-                    new ConfiguredTenantLineHandler(tenantSqlProperties.getTables())));
+                    new ConfiguredTenantLineHandler(tenantSqlProperties.getIgnoreTables())));
         }
         interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
         return interceptor;
@@ -76,24 +76,24 @@ public class MybatisPlusConfig {
     }
 
     /**
-     * 基于显式表清单的租户处理器。
+     * 基于忽略白名单的租户处理器。
      *
-     * <p>未配置的表与无租户上下文的线程（启动期/未传播的后台任务）一律忽略，
-     * 避免对尚未铺开 {@code tenant_id} 的业务表生成非法 SQL。</p>
+     * <p>默认对所有表追加租户条件；平台共享表与无租户上下文的线程
+     * （启动期/未传播的后台任务）忽略，避免生成非法 SQL 或串租户。</p>
      *
      * @author BlueWhale
      */
     private static final class ConfiguredTenantLineHandler implements TenantLineHandler {
 
-        private final List<String> tables;
+        private final List<String> ignoreTables;
 
         /**
          * 构造租户处理器
          *
-         * @param tables 需要自动追加租户条件的表名（大小写不敏感）
+         * @param ignoreTables 不参与租户隔离的表名（大小写不敏感）
          */
-        private ConfiguredTenantLineHandler(List<String> tables) {
-            this.tables = tables == null ? List.of() : tables.stream()
+        private ConfiguredTenantLineHandler(List<String> ignoreTables) {
+            this.ignoreTables = ignoreTables == null ? List.of() : ignoreTables.stream()
                     .map(table -> table.toLowerCase(Locale.ROOT)).toList();
         }
 
@@ -113,7 +113,7 @@ public class MybatisPlusConfig {
             if (tableName == null || TenantContext.get() == null) {
                 return true;
             }
-            return !tables.contains(tableName.toLowerCase(Locale.ROOT));
+            return ignoreTables.contains(tableName.toLowerCase(Locale.ROOT));
         }
     }
 }

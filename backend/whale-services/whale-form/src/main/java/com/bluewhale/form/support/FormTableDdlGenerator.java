@@ -2,6 +2,7 @@ package com.bluewhale.form.support;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.form.entity.FormColumnMeta;
 
 import java.util.ArrayList;
@@ -54,15 +55,33 @@ public final class FormTableDdlGenerator {
     }
 
     /**
-     * 生成物理表名并校验长度不超过 64 字符
+     * 生成物理表名并校验长度不超过 64 字符（租户取自 {@link TenantContext}）
+     *
+     * <p>默认租户（1）沿用历史表名 {@code form_data_{code}_v{version}}，保证存量物理表无需重命名；
+     * 其他租户使用 {@code form_data_t{tenantId}_{code}_v{version}}，避免不同租户同名表编码的列冲突。</p>
      *
      * @param code 表单定义编码（或表编码）
      * @param version 版本
-     * @return 物理表名 {@code form_data_{code}_v{version}}
+     * @return 物理表名
      * @throws BizException 表名超长时抛出 {@code PARAM_ERROR}
      */
     public static String tableName(String code, Integer version) {
-        String table = TABLE_PREFIX + code + "_v" + version;
+        return tableName(TenantContext.get(), code, version);
+    }
+
+    /**
+     * 按指定租户生成物理表名并校验长度不超过 64 字符
+     *
+     * @param tenantId 租户ID（{@code null} 视为默认租户 1）
+     * @param code 表单定义编码（或表编码）
+     * @param version 版本
+     * @return 物理表名
+     * @throws BizException 表名超长时抛出 {@code PARAM_ERROR}
+     */
+    public static String tableName(Long tenantId, String code, Integer version) {
+        long tenant = tenantId == null ? TenantContext.DEFAULT_TENANT_ID : tenantId;
+        String tenantSegment = tenant == TenantContext.DEFAULT_TENANT_ID ? "" : "t" + tenant + "_";
+        String table = TABLE_PREFIX + tenantSegment + code + "_v" + version;
         if (table.length() > MAX_IDENTIFIER_LENGTH) {
             throw paramError("物理表名超过 64 字符：" + table);
         }

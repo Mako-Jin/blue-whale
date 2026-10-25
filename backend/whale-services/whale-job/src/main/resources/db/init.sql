@@ -18,6 +18,7 @@
 DROP TABLE IF EXISTS job_info;
 CREATE TABLE job_info (
     id              BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id       BIGINT        NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离；调度时绑定对应租户上下文）',
     job_name        VARCHAR(64)   NOT NULL               COMMENT '任务名称',
     job_group       VARCHAR(64)   NOT NULL DEFAULT 'DEFAULT' COMMENT '任务分组，便于分类管理',
     cron_expression VARCHAR(64)   DEFAULT NULL           COMMENT 'Cron 执行表达式，如 0 0/5 * * * ?',
@@ -33,6 +34,7 @@ CREATE TABLE job_info (
     update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted         TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
+    KEY idx_tenant_id (tenant_id),
     KEY idx_handler_bean (handler_bean)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='定时任务信息表';
 
@@ -42,6 +44,7 @@ CREATE TABLE job_info (
 DROP TABLE IF EXISTS job_log;
 CREATE TABLE job_log (
     id           BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id    BIGINT        NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
     job_id       BIGINT        NOT NULL               COMMENT '任务ID（逻辑关联 job_info.id）',
     job_name     VARCHAR(64)   NOT NULL               COMMENT '任务名称（冗余，便于日志检索）',
     handler_bean VARCHAR(128)  NOT NULL               COMMENT '执行器 Bean 名称（冗余）',
@@ -58,6 +61,7 @@ CREATE TABLE job_log (
     update_time  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间（结束时回写 end_time/status 等字段）',
     deleted      TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
+    KEY idx_tenant_id (tenant_id),
     KEY idx_job_id (job_id),
     KEY idx_run_id (run_id),
     KEY idx_start_time (start_time)
@@ -69,6 +73,7 @@ CREATE TABLE job_log (
 DROP TABLE IF EXISTS job_dependency;
 CREATE TABLE job_dependency (
     id              BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id       BIGINT        NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
     job_id          BIGINT        NOT NULL               COMMENT '下游任务ID（逻辑关联 job_info.id）',
     upstream_job_id BIGINT        NOT NULL               COMMENT '上游任务ID（逻辑关联 job_info.id）',
     create_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -76,6 +81,7 @@ CREATE TABLE job_dependency (
     deleted         TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_job_upstream (job_id, upstream_job_id),
+    KEY idx_tenant_id (tenant_id),
     KEY idx_upstream_job (upstream_job_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='定时任务依赖关系表';
 
@@ -85,6 +91,7 @@ CREATE TABLE job_dependency (
 DROP TABLE IF EXISTS job_alert;
 CREATE TABLE job_alert (
     id          BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id   BIGINT        NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
     job_id      BIGINT        NOT NULL               COMMENT '任务ID（逻辑关联 job_info.id）',
     job_name    VARCHAR(64)   NOT NULL               COMMENT '任务名称（冗余）',
     log_id      BIGINT        DEFAULT NULL           COMMENT '关联执行日志ID（逻辑关联 job_log.id）',
@@ -98,6 +105,7 @@ CREATE TABLE job_alert (
     update_time DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted     TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
+    KEY idx_tenant_id (tenant_id),
     KEY idx_job_id (job_id),
     KEY idx_create_time (create_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='定时任务失败告警表';

@@ -35,6 +35,7 @@ CREATE TABLE agent_fact (
 DROP TABLE IF EXISTS agent_conversation;
 CREATE TABLE agent_conversation (
     id              BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id       BIGINT        NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
     user_id         BIGINT        NOT NULL               COMMENT '所属用户ID（网关注入 X-User-Id）',
     title           VARCHAR(128)  DEFAULT NULL           COMMENT '会话标题（默认取首个问题前50字）',
     scope           VARCHAR(128)  DEFAULT NULL           COMMENT '检索范围（逗号分隔 code,doc,sql,git,runtime；空=全部）',
@@ -42,7 +43,7 @@ CREATE TABLE agent_conversation (
     update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted         TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
-    KEY idx_user_id (user_id, update_time)
+    KEY idx_tenant_user (tenant_id, user_id, update_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='知识Agent会话表';
 
 -- ---------------------------------------------------------------------
@@ -51,6 +52,7 @@ CREATE TABLE agent_conversation (
 DROP TABLE IF EXISTS agent_message;
 CREATE TABLE agent_message (
     id              BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id       BIGINT        NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
     conversation_id BIGINT        NOT NULL               COMMENT '所属会话ID',
     role            VARCHAR(16)   NOT NULL               COMMENT '角色：user / assistant',
     content         MEDIUMTEXT    NULL                   COMMENT '消息正文（Markdown）',
@@ -60,6 +62,7 @@ CREATE TABLE agent_message (
     update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted         TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
+    KEY idx_tenant_id (tenant_id),
     KEY idx_conversation_id (conversation_id, id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='知识Agent消息表';
 
@@ -69,6 +72,7 @@ CREATE TABLE agent_message (
 DROP TABLE IF EXISTS agent_feedback;
 CREATE TABLE agent_feedback (
     id              BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id       BIGINT        NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
     message_id      BIGINT        NOT NULL               COMMENT '被评价的助手消息ID',
     user_id         BIGINT        DEFAULT NULL           COMMENT '评价用户ID',
     rating          TINYINT       NOT NULL               COMMENT '评价：1 有用 / -1 无用',
@@ -77,6 +81,7 @@ CREATE TABLE agent_feedback (
     update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted         TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
+    KEY idx_tenant_id (tenant_id),
     KEY idx_message_id (message_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='知识Agent回答评价表';
 
@@ -88,6 +93,7 @@ CREATE TABLE agent_feedback (
 DROP TABLE IF EXISTS agent_operation;
 CREATE TABLE agent_operation (
     id              BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id       BIGINT        NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
     confirmation_id VARCHAR(64)   NOT NULL               COMMENT '确认令牌ID（UUID）',
     user_id         BIGINT        NOT NULL               COMMENT '发起用户ID',
     conversation_id BIGINT        DEFAULT NULL           COMMENT '来源智能体会话ID',
@@ -109,6 +115,7 @@ CREATE TABLE agent_operation (
     deleted         TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_confirmation_id (confirmation_id),
+    KEY idx_tenant_id (tenant_id),
     KEY idx_user_status (user_id, status),
     KEY idx_operation (operation)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='知识Agent平台写操作确认表';
@@ -180,6 +187,7 @@ CREATE TABLE audit_log (
 DROP TABLE IF EXISTS agent_knowledge_file;
 CREATE TABLE agent_knowledge_file (
     id                 BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id          BIGINT        NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离；同步游标按租户独立）',
     file_id            BIGINT        NOT NULL               COMMENT '文件服务文件ID（file_info.id）',
     bucket             VARCHAR(64)   DEFAULT NULL           COMMENT '对象存储桶',
     original_name      VARCHAR(255)  DEFAULT NULL           COMMENT '原始文件名',
@@ -201,6 +209,7 @@ CREATE TABLE agent_knowledge_file (
     deleted            TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_file_id (file_id),
+    KEY idx_tenant_id (tenant_id),
     KEY idx_index_status (index_status),
     KEY idx_source_update (source_update_time, id),
     KEY idx_retry (index_status, next_retry_at)

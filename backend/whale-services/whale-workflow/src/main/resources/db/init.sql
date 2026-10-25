@@ -18,7 +18,8 @@
 DROP TABLE IF EXISTS process_definition;
 CREATE TABLE process_definition (
     id               BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
-    code             VARCHAR(64)   NOT NULL               COMMENT '流程编码（业务唯一，逻辑删除冲突由服务层前置校验）',
+    tenant_id        BIGINT        NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
+    code             VARCHAR(64)   NOT NULL               COMMENT '流程编码（租户内唯一，逻辑删除冲突由服务层前置校验）',
     name             VARCHAR(128)  NOT NULL               COMMENT '流程名称',
     definition_json  MEDIUMTEXT    NULL                   COMMENT '流程定义JSON（节点与流转，最长64KB）',
     version          INT           NOT NULL DEFAULT 1     COMMENT '版本号',
@@ -28,7 +29,7 @@ CREATE TABLE process_definition (
     update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted          TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
-    KEY idx_code (code)
+    KEY idx_tenant_code (tenant_id, code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='流程定义表';
 
 -- ---------------------------------------------------------------------
@@ -37,6 +38,7 @@ CREATE TABLE process_definition (
 DROP TABLE IF EXISTS process_definition_version;
 CREATE TABLE process_definition_version (
     id               BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id        BIGINT        NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
     definition_id    BIGINT        NOT NULL               COMMENT '流程定义ID',
     version          INT           NOT NULL               COMMENT '版本号（与定义表 version 对应）',
     definition_json  MEDIUMTEXT    NULL                   COMMENT '该版本的流程定义JSON快照',
@@ -45,6 +47,7 @@ CREATE TABLE process_definition_version (
     update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted          TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
+    KEY idx_tenant_id (tenant_id),
     KEY idx_definition_version (definition_id, version)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='流程定义版本快照表';
 
@@ -54,6 +57,7 @@ CREATE TABLE process_definition_version (
 DROP TABLE IF EXISTS process_instance;
 CREATE TABLE process_instance (
     id                  BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id           BIGINT        NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
     definition_id       BIGINT        NOT NULL               COMMENT '流程定义ID',
     definition_code     VARCHAR(64)   NOT NULL               COMMENT '发起时的流程定义编码（冗余）',
     definition_version  INT           NOT NULL               COMMENT '发起时的流程定义版本（冗余）',
@@ -69,6 +73,7 @@ CREATE TABLE process_instance (
     update_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted             TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
+    KEY idx_tenant_id (tenant_id),
     KEY idx_definition_id (definition_id),
     KEY idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='流程实例表';
@@ -79,6 +84,7 @@ CREATE TABLE process_instance (
 DROP TABLE IF EXISTS process_task;
 CREATE TABLE process_task (
     id           BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id    BIGINT        NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
     instance_id  BIGINT        NOT NULL               COMMENT '所属流程实例ID',
     node_index   INT           NOT NULL               COMMENT '审批节点下标（0 起）',
     node_name    VARCHAR(128)  DEFAULT NULL           COMMENT '节点名称',
@@ -97,6 +103,7 @@ CREATE TABLE process_task (
     update_time  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted      TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
+    KEY idx_tenant_id (tenant_id),
     KEY idx_instance_id (instance_id),
     KEY idx_assignee (assignee),
     KEY idx_status (status)
