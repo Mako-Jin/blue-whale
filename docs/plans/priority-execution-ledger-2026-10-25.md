@@ -18,7 +18,7 @@
 | 4 | P0 | Wave 5.52 剩余项（Gitee Go AI 阶段、未读汇总帧等） | **已完成**（2026-10-25；实机触发待 Gitee 侧） | 远端触发需 Gitee Go 环境 | 未读汇总帧已于 2026-10-24 完成；`.workflow/ai-ci.yml` 补齐 uv 3.12 + pytest 阶段，与 GitHub `ai-pytest` 对齐 |
 | 5 | P1 | 需求登记册状态校准 + REQ-ARCH-002 多数据库设计 | **已完成**（2026-10-25） | 无 | 登记册全量校准（仅 REQ-ARCH-002 需更新，其余与代码事实一致）；产出 [design/multi-database.md](../design/multi-database.md)（现状基线 + 方言选择 + DDL 映射 + T1–T6 + 风险） |
 | 6 | P2 | 网关补 5 条路由 + 基座 `/mes` `/pdm` 挂载 | **已完成**（2026-10-25；冒烟待环境） | 路由冒烟需服务与 Nacos 就绪 | 5 条 `lb://` 路由已写入网关 yml；基座挂载 `/mes/*`、`/pdm/*` 并补菜单/图标；`whale-platform` 构建通过 |
-| 7 | P2 | portal 三处占位收口 + 基座 3 个 PlaceholderPage | 待启动 | 依赖待办统计/通知/工作流接口 | Dashboard 真实统计；待办「去处理」跳转 `/workflow/task/{id}`；通知中心接真实接口；用户/角色/菜单页收口 |
+| 7 | P2 | portal 三处占位收口 + 基座 3 个 PlaceholderPage | **已完成**（2026-10-25；实机 E2E 待环境） | 浏览器 E2E 需 MySQL/Redis/Nacos 与全部服务就绪 | Dashboard 四项统计接真实接口；待办「去处理」改为门户内审批抽屉（同意/驳回）；通知中心接告警记录 + IM 会话双源；用户/角色/菜单改为真实只读页；详见 [检查报告](../reviews/2026-10-25-p2-portal-platform-placeholders.md) |
 | 8 | P2 | alert 通知渠道 + monitor Prometheus 接入 | 待启动 | 需邮件/Webhook 配置与 Prometheus 栈 | 至少邮件 + Webhook；monitor 可抓取/存储并供 ops 展示 |
 | 9 | P3 | Phase 4 业务应用（OA 请假闭环）+ CI/部署收口 | 待启动 | 依赖 P2 网关路由与前端占位收口 | `whale-apps` OA 域 DDL→六端点→权限种子→路由→前端页面闭环；T-CI-7 镜像扩面 + coverage-gate 接 CI |
 
@@ -41,3 +41,4 @@
 | 2026-10-25 | 序号 4 | `.workflow/ai-ci.yml` 补齐 Gitee Go AI 阶段（uv sync --frozen + pytest，Python 3.12），与 GitHub `ai-pytest` 对齐；实机触发待 Gitee 侧 |
 | 2026-10-25 | 序号 5 | 登记册校准：仅 REQ-ARCH-002 由「未设计」改为「设计已定稿」；新增 [design/multi-database.md](../design/multi-database.md)（现状统计：InnoDB 31 处、ON UPDATE 29 处、MySQL 幂等语法 21 处；Mapper 无专有函数） |
 | 2026-10-25 | 序号 6 | 网关补 `/erp` `/mes` `/pdm` `/oa` `/config` 5 条 `lb://` 路由；基座挂载 `/mes/*` `/pdm/*` + 菜单/图标；service-catalog C-03 关闭；`whale-platform` tsc+vite 通过 |
+| 2026-10-25 | 序号 7 | portal 修复 token 键错配（`whale_token` → `whale_platform_access_token`），Dashboard 四项统计接真实接口，待办审批抽屉（同意/驳回），通知接告警记录 + IM 双源；基座用户/角色/菜单改为真实只读页并删除 `PlaceholderPage`；两应用 tsc+vite+eslint 全绿；详见 [检查报告](../reviews/2026-10-25-p2-portal-platform-placeholders.md) |

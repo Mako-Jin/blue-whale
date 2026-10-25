@@ -49,7 +49,7 @@ export interface WorkflowTaskQuery {
 }
 
 /** 后端分页结果信封（PageResult） */
-interface PageResult<T> {
+export interface PageResult<T> {
   records: T[];
   total: number;
   size: number;
@@ -69,17 +69,52 @@ function buildQuery(params: WorkflowTaskQuery): string {
 }
 
 /**
- * 分页查询当前用户待办任务。
- * 失败时返回空数组并记录日志，保证页面可用。
+ * 分页查询当前用户待办任务（含总数）。
+ * 失败时返回空页并记录日志，保证页面可用。
  */
-export async function pageMyTask(params: WorkflowTaskQuery = {}): Promise<WorkflowTask[]> {
+export async function pageMyTaskPage(
+  params: WorkflowTaskQuery = {},
+): Promise<PageResult<WorkflowTask>> {
   try {
     const page = await http.get<PageResult<WorkflowTask>>(
       `/workflow/task/page${buildQuery(params)}`,
     );
-    return page?.records ?? [];
+    return {
+      records: page?.records ?? [],
+      total: page?.total ?? 0,
+      size: page?.size ?? 0,
+      current: page?.current ?? 0,
+    };
   } catch (error) {
     logger.warn('查询待办任务失败，返回空列表', error);
-    return [];
+    return { records: [], total: 0, size: 0, current: 0 };
   }
+}
+
+/**
+ * 分页查询待办任务记录。
+ * 失败时返回空数组并记录日志，保证页面可用。
+ */
+export async function pageMyTask(params: WorkflowTaskQuery = {}): Promise<WorkflowTask[]> {
+  return (await pageMyTaskPage(params)).records;
+}
+
+/** 统计运行中的流程实例数（status=0），失败时抛错由调用方降级展示 */
+export async function countRunningInstances(): Promise<number> {
+  const page = await http.get<PageResult<unknown>>('/workflow/instance/page?status=0&pageSize=1');
+  return page?.total ?? 0;
+}
+
+/** 同意待办任务（可选审批意见） */
+export async function approveTask(id: number, comment?: string): Promise<void> {
+  await http.post<void>(`/workflow/task/${id}/approve`, {
+    comment: comment?.trim() || undefined,
+  });
+}
+
+/** 驳回待办任务（可选审批意见） */
+export async function rejectTask(id: number, comment?: string): Promise<void> {
+  await http.post<void>(`/workflow/task/${id}/reject`, {
+    comment: comment?.trim() || undefined,
+  });
 }

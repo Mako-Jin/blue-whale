@@ -3,8 +3,10 @@
 
 import { lazy, Suspense } from 'react';
 import Dashboard from '../pages/Dashboard';
-import PlaceholderPage from '../pages/PlaceholderPage';
+import MenuList from '../pages/system/MenuList';
+import RoleList from '../pages/system/RoleList';
 import SubAppContainer from '../pages/SubAppContainer';
+import UserList from '../pages/system/UserList';
 import { GuestOnly, RequireAuth } from './guards';
 
 const MainLayout = lazy(() => import('../layouts/MainLayout'));
@@ -33,10 +35,10 @@ export const routes = [
     children: [
       // 工作台（首页，多标签页中固定不可关）
       { index: true, element: <Dashboard /> },
-      // 系统管理 - 占位页
-      { path: 'system/users', element: <PlaceholderPage title="用户管理" /> },
-      { path: 'system/roles', element: <PlaceholderPage title="角色管理" /> },
-      { path: 'system/menus', element: <PlaceholderPage title="菜单管理" /> },
+      // 系统管理（只读查询，维护仍在 whale-admin）
+      { path: 'system/users', element: <UserList /> },
+      { path: 'system/roles', element: <RoleList /> },
+      { path: 'system/menus', element: <MenuList /> },
       // 子应用路由 - qiankun 根据 activeRule 激活
       { path: 'portal/*', element: <SubAppContainer /> },
       { path: 'erp/*', element: <SubAppContainer /> },

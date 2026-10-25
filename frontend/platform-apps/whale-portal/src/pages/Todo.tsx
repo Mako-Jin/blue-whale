@@ -1,11 +1,10 @@
-// 我的待办：antd Table 展示 pageMyTask() 结果（任务名 / 流程实例 / 节点 / 创建时间 / 操作）
+// 我的待办：antd Table 展示待办分页结果（任务名 / 流程实例 / 节点 / 创建时间 / 操作）
+// 「去处理」打开审批抽屉，可填写意见后同意 / 驳回（POST /workflow/task/{id}/approve|reject）
 import { useCallback, useEffect, useState } from 'react';
-import { Button, Space, Table, Tag } from 'antd';
+import { App, Button, Descriptions, Drawer, Input, Space, Table, Tag } from 'antd';
 import type { TableProps } from 'antd';
-import { createLogger } from '@bluewhale/whale-common-tools';
-import { pageMyTask, type WorkflowTask } from '../api/workflow';
-
-const logger = createLogger('whale-portal › todo');
+import { getCurrentUser } from '../api/client';
+import { approveTask, pageMyTaskPage, rejectTask, type WorkflowTask } from '../api/workflow';
 
 /** 任务状态文案 */
 const STATUS_LABEL: Record<number, string> = {
@@ -24,13 +23,22 @@ const STATUS_COLOR: Record<number, string> = {
 };
 
 export default function Todo() {
+  const { message } = App.useApp();
   const [data, setData] = useState<WorkflowTask[]>([]);
   const [loading, setLoading] = useState(false);
+  const [activeTask, setActiveTask] = useState<WorkflowTask | null>(null);
+  const [comment, setComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setData(await pageMyTask({ pageSize: 50 }));
+      const page = await pageMyTaskPage({
+        pageSize: 50,
+        status: 0,
+        assignee: getCurrentUser()?.username,
+      });
+      setData(page.records);
     } finally {
       setLoading(false);
     }
@@ -39,6 +47,34 @@ export default function Todo() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  /** 打开审批抽屉并清空上次意见 */
+  const openTask = (task: WorkflowTask) => {
+    setActiveTask(task);
+    setComment(task.comment ?? '');
+  };
+
+  /** 提交审批：同意 / 驳回后关闭抽屉并刷新列表 */
+  const submit = async (action: 'approve' | 'reject') => {
+    if (!activeTask) {
+      return;
+    }
+    setSubmitting(true);
+    try {
+      if (action === 'approve') {
+        await approveTask(activeTask.id, comment);
+      } else {
+        await rejectTask(activeTask.id, comment);
+      }
+      message.success(action === 'approve' ? '已同意' : '已驳回');
+      setActiveTask(null);
+      await load();
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '审批提交失败');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const columns: TableProps<WorkflowTask>['columns'] = [
     { title: '任务名', dataIndex: 'nodeName', key: 'nodeName' },
@@ -57,9 +93,8 @@ export default function Todo() {
       title: '操作',
       key: 'action',
       width: 120,
-      render: () => (
-        // TODO: 接入任务审批页（跳转 /workflow/task/{id}），当前为占位
-        <Button type="link" onClick={() => logger.warn('「去处理」为占位实现')}>
+      render: (_value, record) => (
+        <Button type="link" disabled={record.status !== 0} onClick={() => openTask(record)}>
           去处理
         </Button>
       ),
@@ -70,6 +105,42 @@ export default function Todo() {
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
       <Button onClick={() => void load()}>刷新</Button>
       <Table<WorkflowTask> rowKey="id" loading={loading} columns={columns} dataSource={data} />
+
+      <Drawer
+        title="待办审批"
+        width={520}
+        open={activeTask !== null}
+        onClose={() => setActiveTask(null)}
+        extra={
+          <Space>
+            <Button onClick={() => setActiveTask(null)}>取消</Button>
+            <Button danger loading={submitting} onClick={() => void submit('reject')}>
+              驳回
+            </Button>
+            <Button type="primary" loading={submitting} onClick={() => void submit('approve')}>
+              同意
+            </Button>
+          </Space>
+        }
+      >
+        {activeTask && (
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <Descriptions column={1} size="small" bordered>
+              <Descriptions.Item label="任务名">{activeTask.nodeName}</Descriptions.Item>
+              <Descriptions.Item label="流程实例">{activeTask.instanceId}</Descriptions.Item>
+              <Descriptions.Item label="节点键">{activeTask.nodeKey}</Descriptions.Item>
+              <Descriptions.Item label="审批人">{activeTask.assignee ?? '-'}</Descriptions.Item>
+              <Descriptions.Item label="创建时间">{activeTask.createTime}</Descriptions.Item>
+            </Descriptions>
+            <Input.TextArea
+              rows={4}
+              value={comment}
+              placeholder="填写审批意见（可选）"
+              onChange={(event) => setComment(event.target.value)}
+            />
+          </Space>
+        )}
+      </Drawer>
     </Space>
   );
 }
