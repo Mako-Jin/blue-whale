@@ -60,6 +60,31 @@ export async function fetchMe(): Promise<AuthMeResponse> {
   return me;
 }
 
+/** 后端 MyTenantVO：GET /auth/tenants 列表项（Wave 5.54 Phase 5.1） */
+export interface MyTenantVO {
+  tenantId: number | string;
+  tenantCode: string;
+  tenantName: string;
+  /** 是否为当前令牌所在租户 */
+  current: boolean;
+}
+
+// 我的租户：GET /auth/tenants（仅需登录）——切换器数据源
+export async function listMyTenants(): Promise<MyTenantVO[]> {
+  return get<MyTenantVO[]>('/auth/tenants');
+}
+
+// 切换租户：POST /auth/tenant/switch（Wave 5.54 Phase 5.2）
+// 成功即落盘新令牌与目标租户编码；失败不改变本地登录态，由调用方提示
+export async function switchTenant(tenantId: number | string, tenantCode: string): Promise<LoginResponse> {
+  const data = await post<LoginResponse>('/auth/tenant/switch', {
+    tenantId,
+    refreshToken: getRefreshToken(),
+  });
+  saveLogin(data, tenantCode);
+  return data;
+}
+
 // 登出：POST /auth/logout（需 accessToken）——后端将 accessToken 与 refreshToken 写入 Redis 黑名单
 export async function logout(): Promise<void> {
   const user = getCurrentUser();

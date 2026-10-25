@@ -701,3 +701,17 @@ curl -s -X POST http://localhost:8080/auth/refresh -H 'Content-Type: application
 - 验证：`mvn -pl backend/whale-services/whale-auth -am test` → 330 个用例全部通过，Checkstyle 0 违规。
 
 **已知限制（沿用 15.8）**：关系撤销后存量 accessToken 仍存活至多一个 access TTL；成员列表/租户内角色分配/平台绑定关系在 5.3 交付。
+
+### 15.13 Phase 5.2 执行计划与记录（admin 切换器）
+
+| 类别 | 内容 |
+|---|---|
+| 需求项 | ① 顶栏展示「我的租户」切换器，仅当可进入租户数 > 1 时出现；② 切换只调用 `POST /auth/tenant/switch`，成功后落盘新令牌与目标租户编码并全量重载；③ 失败保持当前会话并给出可读提示；④ 单租户用户不出现切换器 |
+| 交付 | `frontend/admin/src/api/auth.ts`（`MyTenantVO` + `listMyTenants` + `switchTenant`）、`frontend/admin/src/layouts/AdminLayout.tsx`（`Select` + 切换处理 + 失败提示） |
+| 验收 | ① `pnpm --filter whale-admin lint` 与 `build`（含 `tsc -b`）EXIT=0；② 单租户账号顶栏仅显示原租户标签；③ 双租户账号切换后页面重载、`/auth/me` 的 `tenantId`/角色/菜单均为目标租户；④ 切换失败（403/401/网络）保留当前令牌并提示 |
+| 待做项 | 5.3 成员列表与租户内角色分配、平台绑定/解绑关系；5.4 双租户 E2E |
+
+**实施记录（2026-10-25）**：
+
+- `api/auth.ts` 新增 `listMyTenants()`（`GET /auth/tenants`）与 `switchTenant(tenantId, tenantCode)`（`POST /auth/tenant/switch`，携带当前 `refreshToken`；成功即 `saveLogin`，失败不落盘）。
+- `AdminLayout` 挂载时拉取租户列表；数量 > 1 时以 `Select` 替换原静态租户标签，切换成功 `window.location.replace('/')` 全量重建权限/菜单/请求头；加载失败与非多租户场景保持原标签，不影响登录态。
