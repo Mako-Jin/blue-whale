@@ -48,6 +48,12 @@ public class ImMessageService {
     /** 发送者类型：用户 */
     public static final String SENDER_USER = "USER";
 
+    /** 发送者类型：机器人（站内通知） */
+    private static final String SENDER_BOT = "BOT";
+
+    /** 内容类型：纯文本（站内通知） */
+    private static final String CONTENT_TYPE_TEXT = "TEXT";
+
     /** 会话类型：群聊 */
     private static final String TYPE_GROUP = "GROUP";
 
@@ -137,6 +143,33 @@ public class ImMessageService {
         ImMessage message = insertWithRetry(conversation, userId, request);
         touchConversation(conversationId, message.getSeq(), message.getId());
         markSenderRead(conversationId, userId, message.getSeq());
+        pushAfterCommit(message);
+        return message;
+    }
+
+    /**
+     * 以机器人身份发送纯文本消息（服务间内网站内通知）。
+     *
+     * <p>{@code clientMsgId} 在同一会话内幂等；发送方记为机器人，接收人未读数自然递增。</p>
+     *
+     * @param conversationId 会话ID
+     * @param botUserId      机器人用户ID
+     * @param content        通知正文
+     * @param clientMsgId    幂等键
+     * @return 已落库消息；重复提交时返回首次落库的消息
+     */
+    @Transactional
+    public ImMessage sendAsBot(Long conversationId, Long botUserId, String content, String clientMsgId) {
+        ImConversation conversation = conversationMapper.selectById(conversationId);
+        if (conversation == null) {
+            throw new BizException(ErrorCode.NOT_FOUND, "会话不存在");
+        }
+        ImMessage existing = findByClientMsgId(conversationId, clientMsgId);
+        if (existing != null) {
+            return existing;
+        }
+        ImMessage message = insertBotWithRetry(conversation, botUserId, content, clientMsgId);
+        touchConversation(conversationId, message.getSeq(), message.getId());
         pushAfterCommit(message);
         return message;
     }
@@ -300,15 +333,65 @@ public class ImMessageService {
      * @return 消息实体
      */
     private ImMessage buildMessage(Long conversationId, Long userId, SendMessageRequest request, long seq) {
+        return buildMessage(conversationId, userId, SENDER_USER, request.getContentType(),
+                attachmentValidator.validateAndNormalize(request.getContentType(), request.getContent()),
+                request.getClientMsgId(), request.getReplyTo(), seq);
+    }
+
+    /**
+     * 插入机器人消息；序号冲突时重新分配（最多 {@value #MAX_SEQ_ATTEMPTS} 次）。
+     *
+     * @param conversation 会话
+     * @param botUserId    机器人用户ID
+     * @param content      通知正文
+     * @param clientMsgId  幂等键
+     * @return 落库消息
+     */
+    private ImMessage insertBotWithRetry(ImConversation conversation, Long botUserId, String content,
+                                         String clientMsgId) {
+        long baseSeq = conversation.getLastSeq() == null ? 0L : conversation.getLastSeq();
+        for (int attempt = 0; attempt < MAX_SEQ_ATTEMPTS; attempt++) {
+            long seq = seqAllocator.next(conversation.getId(), baseSeq);
+            ImMessage message = buildMessage(conversation.getId(), botUserId, SENDER_BOT, CONTENT_TYPE_TEXT,
+                    content, clientMsgId, null, seq);
+            try {
+                messageMapper.insert(message);
+                return message;
+            } catch (DuplicateKeyException e) {
+                ImMessage existing = findByClientMsgId(conversation.getId(), clientMsgId);
+                if (existing != null) {
+                    return existing;
+                }
+                log.warn("机器人消息序号冲突，重新分配: conversationId={}, seq={}", conversation.getId(), seq);
+            }
+        }
+        throw new BizException(ErrorCode.LOCK_ACQUIRE_FAILED, "消息发送繁忙，请稍后重试");
+    }
+
+    /**
+     * 组装待落库消息（发送者类型与内容类型由调用方指定）。
+     *
+     * @param conversationId 会话ID
+     * @param senderId       发送者ID
+     * @param senderType     发送者类型
+     * @param contentType    内容类型
+     * @param content        已校验内容
+     * @param clientMsgId    幂等键
+     * @param replyTo        被回复消息ID
+     * @param seq            已分配序号
+     * @return 消息实体
+     */
+    private ImMessage buildMessage(Long conversationId, Long senderId, String senderType, String contentType,
+                                   String content, String clientMsgId, Long replyTo, long seq) {
         ImMessage message = new ImMessage();
         message.setConversationId(conversationId);
         message.setSeq(seq);
-        message.setSenderId(userId);
-        message.setSenderType(SENDER_USER);
-        message.setContentType(request.getContentType());
-        message.setContent(attachmentValidator.validateAndNormalize(request.getContentType(), request.getContent()));
-        message.setClientMsgId(request.getClientMsgId());
-        message.setReplyTo(request.getReplyTo());
+        message.setSenderId(senderId);
+        message.setSenderType(senderType);
+        message.setContentType(contentType);
+        message.setContent(content);
+        message.setClientMsgId(clientMsgId);
+        message.setReplyTo(replyTo);
         message.setStatus(STATUS_NORMAL);
         return message;
     }

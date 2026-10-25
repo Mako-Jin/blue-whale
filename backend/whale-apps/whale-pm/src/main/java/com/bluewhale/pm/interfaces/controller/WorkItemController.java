@@ -7,6 +7,7 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.common.web.WebHeaders;
 import com.bluewhale.pm.application.service.WorkItemAppService;
+import com.bluewhale.pm.application.service.WorkItemApprovalAppService;
 import com.bluewhale.pm.application.service.WorkItemAttachmentAppService;
 import com.bluewhale.pm.application.service.WorkItemCommentAppService;
 import com.bluewhale.pm.application.service.WorkItemLinkAppService;
@@ -68,6 +69,8 @@ public class WorkItemController {
     private final WorkItemAttachmentAppService attachmentAppService;
 
     private final WorkItemLinkAppService linkAppService;
+
+    private final WorkItemApprovalAppService approvalAppService;
 
     /**
      * 分页查询工作项
@@ -344,6 +347,26 @@ public class WorkItemController {
             @RequestHeader(value = WebHeaders.USER_ID, required = false) String userHeader) {
         linkAppService.delete(id, operatorId(userHeader));
         return Result.ok();
+    }
+
+    /**
+     * 发起工作项审批（可选能力，{@code whale.pm.approval.enabled=false} 时返回业务提示）
+     *
+     * @param id               工作项ID
+     * @param userHeader       用户ID请求头
+     * @param usernameHeader   用户账号请求头
+     * @param permissionHeader 权限码请求头（透传给 workflow 判定审批权限）
+     * @return 流程实例ID
+     */
+    @PostMapping("/work-item/{id}/approval")
+    @RequirePermission("sys:pm:item:approval")
+    @AuditLog(operation = "发起工作项审批", type = OperateType.UPDATE, targetType = TARGET_ITEM)
+    public Result<String> submitApproval(@PathVariable Long id,
+            @RequestHeader(value = WebHeaders.USER_ID, required = false) String userHeader,
+            @RequestHeader(value = WebHeaders.USERNAME, required = false) String usernameHeader,
+            @RequestHeader(value = WebHeaders.PERMISSION_CODES, required = false) String permissionHeader) {
+        return Result.ok(approvalAppService.submit(id, operatorId(userHeader),
+                usernameHeader, permissionHeader));
     }
 
     /**

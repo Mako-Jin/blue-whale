@@ -7,6 +7,9 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.pm.application.assembler.PmAssembler;
+import com.bluewhale.pm.application.notify.PmNotifyEvent;
+import com.bluewhale.pm.application.notify.PmNotifyKind;
+import com.bluewhale.pm.application.notify.PmNotifyPublisher;
 import com.bluewhale.pm.domain.model.ActivityAction;
 import com.bluewhale.pm.domain.model.Priority;
 import com.bluewhale.pm.domain.model.WorkItemType;
@@ -93,6 +96,8 @@ public class WorkItemAppService {
     private final ItemSequenceGenerator sequenceGenerator;
 
     private final WorkItemActivityAppService activityAppService;
+
+    private final PmNotifyPublisher notifyPublisher;
 
     /**
      * 分页查询工作项（按排序值升序）。
@@ -186,6 +191,7 @@ public class WorkItemAppService {
         workItemMapper.insert(item);
         activityAppService.record(project.getId(), item.getId(), operatorId, ActivityAction.CREATE,
                 null, null, item.getItemKey());
+        notifyAssign(item, operatorId);
         log.info("工作项已创建: projectId={}, itemId={}, key={}", project.getId(), item.getId(), item.getItemKey());
         return PmAssembler.toWorkItemVo(item, status);
     }
@@ -211,6 +217,7 @@ public class WorkItemAppService {
         WorkItemType type = WorkItemType.from(request.getType());
         Priority priority = resolvePriority(request.getPriority());
         validateParent(item.getProjectId(), type, request.getParentId(), id);
+        Long previousAssignee = item.getAssigneeId();
         int affected = workItemMapper.update(null, new LambdaUpdateWrapper<PmWorkItem>()
                 .eq(PmWorkItem::getId, id)
                 .eq(PmWorkItem::getVersion, item.getVersion())
@@ -242,6 +249,9 @@ public class WorkItemAppService {
         item.setLabels(request.getLabels());
         item.setExtensionJson(request.getExtensionJson());
         item.setVersion(item.getVersion() + 1);
+        if (!Objects.equals(previousAssignee, request.getAssigneeId())) {
+            notifyAssign(item, operatorId);
+        }
         log.info("工作项已更新: itemId={}, version={}", id, item.getVersion());
         return toVo(item);
     }
@@ -320,6 +330,7 @@ public class WorkItemAppService {
                 "status", oldCode, target.getCode());
         item.setStatusId(target.getId());
         item.setVersion(item.getVersion() + 1);
+        notifyTransition(item, operatorId, from, target);
         log.info("工作项状态已流转: itemId={}, from={}, to={}", id, oldCode, target.getCode());
         return PmAssembler.toWorkItemVo(item, target);
     }
@@ -636,5 +647,52 @@ public class WorkItemAppService {
      */
     private String asText(Object value) {
         return value == null ? null : String.valueOf(value);
+    }
+
+    /**
+     * 发布「被指派」通知（无负责人时跳过，发布器再过滤本人）。
+     *
+     * @param item       工作项
+     * @param operatorId 操作人用户ID
+     */
+    private void notifyAssign(PmWorkItem item, Long operatorId) {
+        if (item.getAssigneeId() == null) {
+            return;
+        }
+        notifyPublisher.publish(PmNotifyEvent.builder()
+                .projectId(item.getProjectId())
+                .workItemId(item.getId())
+                .itemKey(item.getItemKey())
+                .itemTitle(item.getTitle())
+                .kind(PmNotifyKind.ASSIGN)
+                .operatorId(operatorId)
+                .recipientIds(PmNotifyEvent.recipients(item.getAssigneeId()))
+                .detail("你被指派为该工作项的负责人")
+                .build());
+    }
+
+    /**
+     * 发布「状态变更」通知。
+     *
+     * @param item       工作项
+     * @param operatorId 操作人用户ID
+     * @param from       原状态
+     * @param to         目标状态
+     */
+    private void notifyTransition(PmWorkItem item, Long operatorId, PmStatus from, PmStatus to) {
+        if (item.getAssigneeId() == null) {
+            return;
+        }
+        String fromName = from == null ? "未知状态" : from.getName();
+        notifyPublisher.publish(PmNotifyEvent.builder()
+                .projectId(item.getProjectId())
+                .workItemId(item.getId())
+                .itemKey(item.getItemKey())
+                .itemTitle(item.getTitle())
+                .kind(PmNotifyKind.TRANSITION)
+                .operatorId(operatorId)
+                .recipientIds(PmNotifyEvent.recipients(item.getAssigneeId()))
+                .detail("状态由「" + fromName + "」变更为「" + to.getName() + "」")
+                .build());
     }
 }

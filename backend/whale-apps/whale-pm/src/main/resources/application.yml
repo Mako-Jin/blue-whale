@@ -43,6 +43,19 @@ whale:
     # 工作项 key 序列（M2 使用）；首版仅登记配置口径，不启用 Redis
     item-seq:
       key-prefix: whale:pm:itemseq
+    # M5 可选集成：站内通知（默认关闭，开启后指派/评论/流转经 whale-im 内网接口投递）
+    notify:
+      enabled: ${PM_NOTIFY_ENABLED:false}
+      im-url: ${PM_NOTIFY_IM_URL:http://127.0.0.1:8091}
+      connect-timeout-millis: 1000
+      read-timeout-millis: 2000
+    # M5 可选集成：工作流审批（默认关闭，开启后需配置流程定义ID）
+    approval:
+      enabled: ${PM_APPROVAL_ENABLED:false}
+      definition-id: ${PM_APPROVAL_DEFINITION_ID:}
+      workflow-url: ${PM_APPROVAL_WORKFLOW_URL:http://127.0.0.1:8083}
+      connect-timeout-millis: 1000
+      read-timeout-millis: 3000
 
 mybatis-plus:
   configuration:

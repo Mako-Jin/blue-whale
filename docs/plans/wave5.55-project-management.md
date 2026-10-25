@@ -1,7 +1,7 @@
 # Wave 5.55 · 项目管理服务（whale-pm）规划
 
 > 目标：新建一个对标 Jira / 禅道的项目管理服务，覆盖「项目空间 → 工作项 → 迭代 → 看板 → 报表」主线，并与平台既有的认证、权限、租户、文件、工作流、IM、审计能力打通。
-> 制定日期：2026-10-25 ｜ 状态：**M4 已实施**（项目域 + 工作项域 + 迭代看板 + 报表与前端；M5 待做） ｜ 关联：REQ-FUNC-018 / REQ-FUNC-019 / REQ-ARCH-008 / REQ-SEC-009
+> 制定日期：2026-10-25 ｜ 状态：**M5 已实施**（项目域 + 工作项域 + 迭代看板 + 报表与前端 + 集成收尾，Wave 5.55 全部里程碑完成） ｜ 关联：REQ-FUNC-018 / REQ-FUNC-019 / REQ-ARCH-008 / REQ-SEC-009
 > 上游依据：[roadmap.md](roadmap.md)、[service-catalog.md](../service-catalog.md)、[naming-conventions.md](../naming-conventions.md)、[wave5.46 业务应用规划](wave5.46-phase4-business-apps.md)、[wave5.54 多租户评估](wave5.54-multi-tenant/assessment.md)
 
 ---
@@ -236,9 +236,9 @@ DDL 落地方式：`db/init.sql`（全量、可重建）+ `db/migration-5.55-*.s
 
 - **权限点 172–199**（预留 28 个，首版使用 172–190）：`sys:pm:project:{list,add,edit,delete,config}`、`sys:pm:project:member:{list,manage}`、`sys:pm:workitem:{list,add,edit,delete,transition}`、`sys:pm:comment:{list,add,delete}`、`sys:pm:attachment:{add,delete}`、`sys:pm:sprint:{list,manage}`、`sys:pm:board:{view,manage}`、`sys:pm:report:view`。
 - **菜单 18–29**（预留 12 个，首版使用 18–23）：18「项目管理」目录；19 项目列表 `/pm/project`；20 看板 `/pm/board`；21 迭代 `/pm/sprint`；22 报表 `/pm/report`；23 项目设置 `/pm/setting`。
-- **实际落地（M1 + M2 + M3 + M4）**：权限点 172–186 项目域（`sys:pm:project|member|status|transition:*`）、187–196 工作项域（`sys:pm:item|comment|attachment|link:*`）、197–200 迭代与看板、201 报表（`sys:pm:report:view`）；菜单 18–24（项目管理 / 项目列表 / 状态配置 / 流转配置 / 迭代管理 / 看板 / 项目报表），M5+ 继续 25–29。
+- **实际落地（M1 + M2 + M3 + M4 + M5）**：权限点 172–186 项目域（`sys:pm:project|member|status|transition:*`）、187–196 工作项域（`sys:pm:item|comment|attachment|link:*`）、197–200 迭代与看板、201 报表（`sys:pm:report:view`）、202 审批（`sys:pm:item:approval`）；菜单 18–24（项目管理 / 项目列表 / 状态配置 / 流转配置 / 迭代管理 / 看板 / 项目报表），M6+ 继续 25–29。
 - 菜单随 `business` 租户开通模板复制（沿用 Wave 5.54 Phase 5.3 机制）。
-- 网关新增 `/pm/internal/**` 内网屏蔽，外部访问 403。
+- 网关新增 `/pm/internal/**` 内网屏蔽，外部访问 403；M5 同步为 whale-im 增加 `/im/internal/**` 内网屏蔽（站内通知通道）。
 
 ### 3.9 前端设计（`whale-pm`）
 
@@ -320,11 +320,11 @@ DDL 落地方式：`db/init.sql`（全量、可重建）+ `db/migration-5.55-*.s
 
 | 任务 | 交付物 | 验收 |
 |---|---|---|
-| M5-T1 IM 通知（可选） | 指派/评论/流转通知，开关默认关闭 | 关闭态零副作用；开启失败仅 warn |
-| M5-T2 工作流审批（可选） | 需求评审/变更审批对接，`businessKey=workItemId` | 默认关闭；开启后实例可查 |
-| M5-T3 CI 与镜像 | `docker-deploy.yml` 矩阵 + `coverage-gate` | 新服务进入矩阵；覆盖率达标 |
-| M5-T4 全量验证 | `mvn clean install`、全量单测、Checkstyle、前端全量构建 | 全绿 |
-| M5-T5 文档与交付 | service-catalog 终态、roadmap 勾选、devlog 四类信息、最终检查报告 | 文档齐全 |
+| M5-T1 IM 通知（可选） | whale-im 新增 `POST /im/internal/notify` 内网通道；pm 侧 `ImNotifyClient` + `PmNotifyPublisher`（`afterCommit` 异步、租户透传、失败仅 warn），指派/评论/流转三类触发；`whale.pm.notify.enabled` 默认关闭 | 关闭态零副作用；开启失败仅 warn（已由单测覆盖） |
+| M5-T2 工作流审批（可选） | `WorkItemApprovalAppService` + `WorkflowApprovalClient`，`businessKey=workItemId`，身份与权限码透传；`POST /pm/work-item/{id}/approval`（权限 202）；`whale.pm.approval.enabled` 默认关闭 | 关闭态返回业务提示且无外部调用；开启后返回实例ID并记录动态 |
+| M5-T3 CI 与镜像 | `docker-deploy.yml` 矩阵（M1 已纳入 whale-pm 9005）+ `coverage-gate` | 新服务进入矩阵；覆盖率达标 |
+| M5-T4 全量验证 | `mvn clean install`、全量单测、Checkstyle、前端全量构建 | 全绿（pm 127 例 / im 138 例） |
+| M5-T5 文档与交付 | service-catalog 终态、roadmap 勾选、devlog 四类信息、最终检查报告、集成冒烟脚本 | 文档齐全 |
 | M5-T6 提交推送 | 提交 + 推送 Gitee `origin/main` | 工作树干净、远端同步 |
 
 ---

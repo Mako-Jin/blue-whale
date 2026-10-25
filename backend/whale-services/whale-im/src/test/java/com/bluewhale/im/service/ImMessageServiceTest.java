@@ -155,6 +155,52 @@ class ImMessageServiceTest {
     }
 
     @Test
+    @DisplayName("sendAsBot：会话不存在时拒绝")
+    void sendAsBotShouldRejectMissingConversation() {
+        when(conversationMapper.selectById(CONVERSATION_ID)).thenReturn(null);
+
+        assertThrows(BizException.class,
+                () -> service.sendAsBot(CONVERSATION_ID, 900L, "通知", "n-1"));
+        verify(messageMapper, never()).insert(any(ImMessage.class));
+    }
+
+    @Test
+    @DisplayName("sendAsBot：同一 clientMsgId 重复提交返回首次落库消息")
+    void sendAsBotShouldBeIdempotent() {
+        when(conversationMapper.selectById(CONVERSATION_ID)).thenReturn(conversation(4L));
+        ImMessage existing = new ImMessage();
+        existing.setId(910L);
+        existing.setSeq(4L);
+        when(messageMapper.selectOne(any())).thenReturn(existing);
+
+        ImMessage result = service.sendAsBot(CONVERSATION_ID, 900L, "通知", "n-2");
+
+        assertSame(existing, result);
+        verify(messageMapper, never()).insert(any(ImMessage.class));
+        verify(broadcaster, never()).broadcast(anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("sendAsBot：机器人身份落库、推进会话游标并广播")
+    void sendAsBotShouldInsertBotMessage() {
+        when(conversationMapper.selectById(CONVERSATION_ID)).thenReturn(conversation(4L));
+        when(messageMapper.selectOne(any())).thenReturn(null);
+        when(seqAllocator.next(CONVERSATION_ID, 4L)).thenReturn(5L);
+        stubInsertId(messageMapper);
+
+        ImMessage result = service.sendAsBot(CONVERSATION_ID, 900L, "指派通知", "n-3");
+
+        assertEquals(5L, result.getSeq());
+        assertEquals("BOT", result.getSenderType());
+        assertEquals("TEXT", result.getContentType());
+        assertEquals(900L, result.getSenderId());
+        assertEquals("指派通知", result.getContent());
+        verify(conversationMapper).update(isNull(), any());
+        verify(memberMapper, never()).update(isNull(), any());
+        verify(broadcaster).broadcast(eq(CONVERSATION_ID), any());
+    }
+
+    @Test
     @DisplayName("history：afterSeq 断线补拉按 seq 升序且 hasMore 正确")
     void historyAfterSeqShouldBeAscending() {
         when(guard.requireMember(CONVERSATION_ID, USER_ID)).thenReturn(conversation(9L));

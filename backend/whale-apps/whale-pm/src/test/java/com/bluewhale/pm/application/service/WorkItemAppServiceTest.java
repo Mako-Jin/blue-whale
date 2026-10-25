@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.pm.application.notify.PmNotifyPublisher;
 import com.bluewhale.pm.domain.model.ActivityAction;
 import com.bluewhale.pm.infrastructure.client.ItemSequenceGenerator;
 import com.bluewhale.pm.infrastructure.entity.PmAttachment;
@@ -78,9 +79,11 @@ class WorkItemAppServiceTest {
 
     private final WorkItemActivityAppService activityAppService = mock(WorkItemActivityAppService.class);
 
+    private final PmNotifyPublisher notifyPublisher = mock(PmNotifyPublisher.class);
+
     private final WorkItemAppService service = new WorkItemAppService(workItemMapper, statusMapper,
             transitionMapper, commentMapper, attachmentMapper, linkMapper, projectGuard, projectAccessGuard,
-            workItemGuard, sequenceGenerator, activityAppService);
+            workItemGuard, sequenceGenerator, activityAppService, notifyPublisher);
 
     /**
      * 初始化 MyBatis-Plus 实体元数据（lambda 列名缓存）

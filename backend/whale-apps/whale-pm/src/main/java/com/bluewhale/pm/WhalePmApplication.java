@@ -3,12 +3,14 @@ package com.bluewhale.pm;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
+import org.springframework.scheduling.annotation.EnableAsync;
 
 /**
  * 项目管理服务启动类
  *
  * @author BlueWhale
  */
+@EnableAsync
 @SpringBootApplication
 @EnableDiscoveryClient
 public class WhalePmApplication {
