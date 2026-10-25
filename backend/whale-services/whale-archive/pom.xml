@@ -65,6 +65,16 @@
             <artifactId>whale-tools</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!--
+            内网响应解析与归档快照使用 Jackson 2 API（随 Nacos 客户端传递引入 databind 2.21.5），
+            但传递依赖不含 Java 8 时间模块，导致 LocalDateTime 反序列化失败；此处显式补齐同版本模块，
+            由 ArchiveJacksonConfig#objectMapper 的 findAndRegisterModules 自动注册。
+        -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <version>2.21.5</version>
+        </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>

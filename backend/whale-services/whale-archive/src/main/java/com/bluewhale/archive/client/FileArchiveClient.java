@@ -104,11 +104,32 @@ public class FileArchiveClient {
                 ACTION_UPLOAD);
         Object data = RemoteHttpSupport.requireData(response, ACTION_UPLOAD);
         Map<?, ?> dataMap = data instanceof Map<?, ?> map ? map : Map.of();
-        Object id = dataMap.get(FIELD_ID);
-        if (!(id instanceof Number number)) {
+        Long fileId = parseId(dataMap.get(FIELD_ID));
+        if (fileId == null) {
             throw RemoteHttpSupport.failure(ACTION_UPLOAD, "响应缺少文件ID");
         }
-        return number.longValue();
+        return fileId;
+    }
+
+    /**
+     * 解析文件ID：平台统一响应体会把 {@code Long} 序列化为字符串（精度保护），
+     * 因此同时兼容数字与数字字符串两种形态。
+     *
+     * @param value 响应中的原始ID值
+     * @return 文件ID；无法解析时返回 {@code null}
+     */
+    static Long parseId(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value instanceof String text && !text.isBlank()) {
+            try {
+                return Long.valueOf(text.trim());
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
     }
 
     /**
