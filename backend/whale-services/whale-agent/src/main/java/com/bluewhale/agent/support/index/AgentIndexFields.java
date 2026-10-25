@@ -58,6 +58,12 @@ public final class AgentIndexFields {
     /** embedding 签名（存储，如 {@code hash:256}、{@code none}） */
     public static final String EMBED_SIG = "embed_sig";
 
+    /** 文件服务文件ID（Wave 5.53 M4：业务文件知识块） */
+    public static final String FILE_ID = "file_id";
+
+    /** 知识块所需权限码（档案知识过滤；普通文件为空） */
+    public static final String PERMISSION_CODE = "permission_code";
+
     /** 工具类不允许实例化 */
     private AgentIndexFields() {
     }

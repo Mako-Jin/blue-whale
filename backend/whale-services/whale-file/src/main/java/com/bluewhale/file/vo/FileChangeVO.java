@@ -45,6 +45,9 @@ public class FileChangeVO implements Serializable {
     /** 上传用户 ID */
     private Long uploaderId;
 
+    /** 逻辑删除标记：0 未删除 / 1 已删除（知识库据此移除索引） */
+    private Integer deleted;
+
     /** 创建时间 */
     private LocalDateTime createTime;
 

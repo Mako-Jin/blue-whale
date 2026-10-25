@@ -104,6 +104,21 @@ whale:
       timeout-seconds: ${WHALE_AGENT_OPS_TIMEOUT_SECONDS:10}
       targets:
         form: ${WHALE_AGENT_OPS_TARGET_FORM:http://127.0.0.1:8084}
+    # Wave 5.53 M4：文件知识库采集（whale-file 业务文件自动解析入库）
+    knowledge:
+      enabled: ${WHALE_AGENT_KNOWLEDGE_ENABLED:true}
+      sync-on-startup: ${WHALE_AGENT_KNOWLEDGE_SYNC_ON_STARTUP:false}
+      sync-interval-seconds: ${WHALE_AGENT_KNOWLEDGE_SYNC_INTERVAL_SECONDS:600}
+      page-size: ${WHALE_AGENT_KNOWLEDGE_PAGE_SIZE:200}
+      max-file-size: ${WHALE_AGENT_KNOWLEDGE_MAX_FILE_SIZE:20971520}
+      max-chars: ${WHALE_AGENT_KNOWLEDGE_MAX_CHARS:1000000}
+      timeout-seconds: ${WHALE_AGENT_KNOWLEDGE_TIMEOUT_SECONDS:30}
+      max-attempts: ${WHALE_AGENT_KNOWLEDGE_MAX_ATTEMPTS:3}
+      retry-base-seconds: ${WHALE_AGENT_KNOWLEDGE_RETRY_BASE_SECONDS:60}
+      file-url: ${WHALE_AGENT_FILE_URL:http://127.0.0.1:8085}
+      connect-timeout-millis: ${WHALE_AGENT_KNOWLEDGE_CONNECT_TIMEOUT_MILLIS:5000}
+      read-timeout-millis: ${WHALE_AGENT_KNOWLEDGE_READ_TIMEOUT_MILLIS:60000}
+      excluded-buckets: ${WHALE_AGENT_KNOWLEDGE_EXCLUDED_BUCKETS:}
     # 轨 F：MCP / IDE 接入（默认关闭；配置 token 后才对外提供只读工具）
     mcp:
       enabled: ${WHALE_AGENT_MCP_ENABLED:false}

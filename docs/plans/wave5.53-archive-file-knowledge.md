@@ -1,6 +1,6 @@
 # Wave 5.53 规划：档案服务 + 文件知识库
 
-> 制定日期：2026-10-24 ｜ 状态：**M0–M3 已完成（含 A13 真机联调通过）**（2026-10-25；M4–M5 未开工）
+> 制定日期：2026-10-24 ｜ 状态：**M0–M4 已完成（含 A13 真机联调通过）**（2026-10-25；M5 未开工）
 > 关联服务：`whale-workflow`（8083）、`whale-form`（8084）、`whale-file`（8085）、`whale-agent`（8090）、`whale-gateway`（8080）、`whale-auth`（8081）、`whale-audit`（9101）
 > 关联需求：REQ-FUNC-014（档案服务）、REQ-FUNC-015（文件知识库）、REQ-SEC-008（档案与知识库可见性）
 
@@ -254,13 +254,13 @@
 - [x] A12 admin 五页（门类/规则/待整理/档案检索/同步状态）+ 权限按钮（真机联调归 A13）。
 - [x] A13 验收：审批通过 → 5 分钟内可见；档号唯一；下载与权限矩阵。（2026-10-25 直连模式实测：办结 → 可见 **28 秒**，定时同步 cron 默认 `0 */5 * * * *`；`BW-A13TEST-2026-000001/000002/000003` 唯一；下载 200 + `attachment` + RFC 5987 + `nosniff`；无权限码/错码 = `code=403`，正确 = `code=0`；重跑同步 `pulled=0` 无重复；`file_info.status=2`；`audit_log` 7 行）
 
-### M4 文件知识库（K1–K5，可与 M1–M3 并行）
+### M4 文件知识库（K1–K5，可与 M1–M3 并行）——**已完成（2026-10-25）**
 
-- [ ] K1 `agent_knowledge_file` DDL + 变更游标 + 状态机。
-- [ ] K2 Tika 解析器（白名单/大小/超时/安全）+ `FileChunker` + 脱敏。
-- [ ] K3 索引写入/删除 + 增量与删除同步 + 失败重试。
-- [ ] K4 知识库管理接口 + 权限码 + 审计。
-- [ ] K5 单测：6 类文档、损坏/超大/不支持、删除即消失、md5 未变不重建。
+- [x] K1 `agent_knowledge_file` DDL + 变更游标 + 状态机：`init.sql` / `migration-5.53.sql` 同构建表；`file_id` 唯一；`source_update_time` 取最大值为游标（不额外建状态表）；状态 `PENDING/INDEXING/INDEXED/SKIPPED/FAILED` + `attempts/last_error/next_retry_at/indexed_at/md5`。
+- [x] K2 Tika 解析器（白名单/20MB/100 万字符/30s 超时/线程池隔离）+ `FileChunker`（≤1200 字、重叠 150、表格重复表头、`\f` 分页）+ 脱敏，异常分 `retryable` 与不可重试两类。
+- [x] K3 索引写入/删除 + 增量与删除同步 + 失败重试：新增 `file_id`/`permission_code` 存储字段；`FileKnowledgeClient` 对接 `/file/internal/changes|{id}|{id}/content`；`whale-file` 变更流纳入逻辑删除行（`deleted`）；md5 未变不重建；删除/停用即删索引；失败指数退避 ≤3 次。
+- [x] K4 知识库管理接口 + 权限码 + 审计：`GET /agent/knowledge/files/page`、`POST /files/{fileId}/reindex`、`PUT /files/{fileId}/enabled`、`POST /rebuild`、`GET /stats`；权限 `sys:agent:knowledge:list/manage`（106/107）；重索引/启停/重建均 `@AuditLog`。
+- [x] K5 单测：6 类文档（txt/md/html/csv/docx/xlsx/pptx/pdf）、损坏/超大/不支持、删除即消失、md5 未变不重建、失败退避；`whale-agent` 全量 56 例、`whale-file` 56 例全绿，Checkstyle 0。
 
 ### M5 档案知识融合与权限（K6–K8）
 
@@ -320,12 +320,14 @@
 - 需求登记（登记册 §五）。
 - M1：`whale-archive` 模块骨架、DDL、门类/规则 CRUD、档号并发生成、权限种子、网关路由与 internal-deny、17 用例与门禁。
 - M2：workflow/form/file 三组内网接口；同步调度（游标持久化 + 失败重试 + 手动触发）、规则命中、不可变快照（SHA-256）、附件递归提取与锁定、幂等台账；新增 28/3/6 用例并通过 Checkstyle 0。
+- M3：档案条目分页/详情/整理/确认/销毁/下载/统计接口与审计；admin 五页与动态路由；A13 直连真机验收通过（28 秒可见、档号唯一、下载与权限矩阵）。
+- M4：`agent_knowledge_file` 采集台账与状态机；Tika 解析（白名单/大小/字符/超时/隔离线程池）；`FileChunker` 与脱敏；`FileKnowledgeClient` 增量拉取、md5 去重、删除/停用下架、失败指数退避；Lucene `file_id`/`permission_code` 字段；知识库管理接口、权限种子与审计；新增 17 用例全绿。
 
 ### 11.3 待做项
 
 - 评审确认 §2.1 四项待定决策。
-- M3–M5 共 13 项任务（见 §八）。
-- 部署前置：执行 `bluewhale_archive` 建库/建表脚本与 `migration-5.53.sql` 权限种子（本机 MySQL8 root 口令未提供，脚本已就绪待执行）。
+- M5 共 3 项任务（K6–K8，见 §八）。
+- 部署前置：执行 `bluewhale_agent` 的 `migration-5.53.sql`（`agent_knowledge_file`）、`whale-auth` 的 `migration-5.53.sql`（权限 106/107）与 `bluewhale_archive` 建库/建表脚本（本机 MySQL8 root 口令未提供，脚本已就绪待执行）。
 
 ### 11.4 已修正问题项
 

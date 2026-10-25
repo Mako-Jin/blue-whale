@@ -57,6 +57,9 @@ public class AgentProperties {
     /** 平台写操作配置（T15） */
     private Ops ops = new Ops();
 
+    /** 文件知识库采集配置（Wave 5.53 M4） */
+    private Knowledge knowledge = new Knowledge();
+
     /**
      * 解析仓库根目录：显式配置 → 向上探测 → 当前工作目录。
      *
@@ -303,6 +306,55 @@ public class AgentProperties {
 
         /** 单次读取文件最大字符数 */
         private int maxReadChars = 20_000;
+    }
+
+    /**
+     * 文件知识库采集参数（Wave 5.53 M4）。
+     *
+     * <p>定时增量拉取 {@code whale-file} 变更流，经 Tika 解析、脱敏、切块后写入
+     * Lucene；单文件大小、抽取字符数与解析超时均设硬上限，避免不可信文档拖垮进程。</p>
+     */
+    @Data
+    public static class Knowledge {
+
+        /** 是否启用文件知识库采集 */
+        private boolean enabled = true;
+
+        /** 启动后是否立即执行一轮同步 */
+        private boolean syncOnStartup = false;
+
+        /** 增量同步周期（秒），0 表示仅手动触发 */
+        private int syncIntervalSeconds = 600;
+
+        /** 变更流单页条数（文件服务上限 200） */
+        private int pageSize = 200;
+
+        /** 单文件大小上限（字节），默认 20MB */
+        private long maxFileSize = 20L * 1024 * 1024;
+
+        /** 单文件抽取字符上限，默认 100 万 */
+        private int maxChars = 1_000_000;
+
+        /** 单文件解析超时（秒） */
+        private int timeoutSeconds = 30;
+
+        /** 失败重试上限 */
+        private int maxAttempts = 3;
+
+        /** 指数退避基数（秒）：第 n 次失败后等待 base * 2^(n-1) */
+        private int retryBaseSeconds = 60;
+
+        /** 文件服务基址（服务间直连，不经网关） */
+        private String fileUrl = "http://127.0.0.1:8085";
+
+        /** 建立连接超时（毫秒） */
+        private int connectTimeoutMillis = 5000;
+
+        /** 读取响应超时（毫秒） */
+        private int readTimeoutMillis = 60000;
+
+        /** 不纳入知识库的桶（逗号分隔，匹配桶名前缀） */
+        private List<String> excludedBuckets = new ArrayList<>();
     }
 
     /**

@@ -669,11 +669,9 @@ class FileInfoServiceImplTest {
     void shouldListChangesWithCursor() {
         FileInfo entity = fileWithStatus(7L, 2);
         entity.setUpdateTime(LocalDateTime.of(2026, 10, 24, 10, 0));
-        Page<FileInfo> page = new Page<>(1L, 100L);
-        page.setRecords(List.of(entity));
-        page.setTotal(1L);
-        when(fileInfoMapper.selectPage(ArgumentMatchers.<Page<FileInfo>>any(),
-                ArgumentMatchers.<Wrapper<FileInfo>>any())).thenReturn(page);
+        when(fileInfoMapper.selectChanges(ArgumentMatchers.any(), ArgumentMatchers.anyLong(),
+                ArgumentMatchers.anyLong())).thenReturn(List.of(entity));
+        when(fileInfoMapper.countChanges(ArgumentMatchers.any())).thenReturn(1L);
 
         PageResult<FileChangeVO> result = fileInfoService.changes(LocalDateTime.of(2026, 10, 24, 9, 0), 1L, 500L);
 

@@ -218,15 +218,12 @@ public class FileInfoServiceImpl implements FileInfoService {
     public PageResult<FileChangeVO> changes(LocalDateTime since, long current, long size) {
         long pageCurrent = Math.max(current, 1L);
         long pageSize = Math.min(Math.max(size, 1L), MAX_PAGE_SIZE);
-        LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
-        wrapper.gt(since != null, FileInfo::getUpdateTime, since);
-        wrapper.orderByAsc(FileInfo::getUpdateTime);
-        wrapper.orderByAsc(FileInfo::getId);
-        Page<FileInfo> page = fileInfoMapper.selectPage(new Page<>(pageCurrent, pageSize), wrapper);
-        List<FileChangeVO> records = page.getRecords().stream()
+        long offset = (pageCurrent - 1) * pageSize;
+        List<FileInfo> rows = fileInfoMapper.selectChanges(since, offset, pageSize);
+        List<FileChangeVO> records = rows.stream()
                 .map(FileInfoServiceImpl::toChangeVo)
                 .toList();
-        return PageResult.of(records, page.getTotal(), page.getCurrent(), page.getSize());
+        return PageResult.of(records, fileInfoMapper.countChanges(since), pageCurrent, pageSize);
     }
 
     @Override

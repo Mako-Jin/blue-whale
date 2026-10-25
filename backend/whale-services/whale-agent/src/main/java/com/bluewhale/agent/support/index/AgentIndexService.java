@@ -185,6 +185,19 @@ public class AgentIndexService implements DisposableBean {
      * @param chunks 知识块列表
      */
     public void addFileChunks(String path, String hash, List<Chunk> chunks) {
+        addFileChunks(path, hash, chunks, null, null);
+    }
+
+    /**
+     * 写入单个文件的全部知识块（业务文件知识库）。
+     *
+     * @param path 知识块路径（{@code file:<id>}）
+     * @param hash 文件内容哈希
+     * @param chunks 知识块列表
+     * @param fileId 文件服务文件ID（可为 {@code null}）
+     * @param permissionCode 所需权限码（可为 {@code null}）
+     */
+    public void addFileChunks(String path, String hash, List<Chunk> chunks, Long fileId, String permissionCode) {
         if (chunks == null || chunks.isEmpty()) {
             return;
         }
@@ -194,10 +207,30 @@ public class AgentIndexService implements DisposableBean {
         try {
             int seq = 0;
             for (int i = 0; i < chunks.size(); i++) {
-                writer.addDocument(toDocument(chunks.get(i), hash, seq++, vectors.get(i), signature));
+                writer.addDocument(toDocument(chunks.get(i), hash, seq++, vectors.get(i), signature,
+                        fileId, permissionCode));
             }
         } catch (IOException e) {
             throw new UncheckedIOException("写入索引失败: " + path, e);
+        } finally {
+            writeLock.unlock();
+        }
+    }
+
+    /**
+     * 按知识类型删除全部文档（文件知识库全量重建前调用）。
+     *
+     * @param kind 知识类型（如 {@code file}）
+     */
+    public void deleteKind(String kind) {
+        if (!StringUtils.hasText(kind)) {
+            return;
+        }
+        writeLock.lock();
+        try {
+            writer.deleteDocuments(new Term(AgentIndexFields.KIND, kind));
+        } catch (IOException e) {
+            throw new UncheckedIOException("按类型删除索引失败: " + kind, e);
         } finally {
             writeLock.unlock();
         }
@@ -547,9 +580,12 @@ public class AgentIndexService implements DisposableBean {
      * @param seq 块序号
      * @param vector 向量（可为 {@code null}）
      * @param signature embedding 签名
+     * @param fileId 文件服务文件ID（可为 {@code null}）
+     * @param permissionCode 所需权限码（可为 {@code null}）
      * @return Lucene 文档
      */
-    private Document toDocument(Chunk chunk, String hash, int seq, float[] vector, String signature) {
+    private Document toDocument(Chunk chunk, String hash, int seq, float[] vector, String signature,
+                                Long fileId, String permissionCode) {
         String content = nullToEmpty(chunk.getContent());
         String title = nullToEmpty(chunk.getTitle());
         Document document = new Document();
@@ -574,6 +610,12 @@ public class AgentIndexService implements DisposableBean {
         }
         document.add(new StoredField(AgentIndexFields.VECTOR_DIM, vector == null ? 0 : vector.length));
         document.add(new StoredField(AgentIndexFields.EMBED_SIG, nullToEmpty(signature)));
+        if (fileId != null) {
+            document.add(new StringField(AgentIndexFields.FILE_ID, String.valueOf(fileId), Field.Store.YES));
+        }
+        if (StringUtils.hasText(permissionCode)) {
+            document.add(new StringField(AgentIndexFields.PERMISSION_CODE, permissionCode, Field.Store.YES));
+        }
         return document;
     }
 

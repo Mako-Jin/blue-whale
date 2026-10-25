@@ -528,6 +528,15 @@ VALUES
     (104, 0, 'sys:ai:data:read', '智能体只读数据查询', 'API', '/agent/tools/data-query', 'POST', 104, 1),
     (105, 0, 'sys:ai:ops:form', '智能体平台写操作确认', 'API', '/agent/ops/**', 'POST', 105, 1);
 
+-- Wave 5.53 文件知识库权限点：与 whale-agent 知识库管理接口一致
+INSERT INTO sys_permission
+    (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+VALUES
+    (106, 0, 'sys:agent:knowledge:list', '查看文件知识库', 'API',
+     '/agent/knowledge/files/page,/agent/knowledge/stats', 'GET', 106, 1),
+    (107, 0, 'sys:agent:knowledge:manage', '管理文件知识库', 'API',
+     '/agent/knowledge/**', 'POST,PUT', 107, 1);
+
 -- Wave 5.52 自研 WebIM 权限点：与 whale-im 接口 @RequirePermission("sys:im:chat") 对应
 -- 段位约定：IM 预留 120–139（菜单随前端 whale-im 子应用落地后再登记，避免出现指向 404 的菜单）
 INSERT INTO sys_permission

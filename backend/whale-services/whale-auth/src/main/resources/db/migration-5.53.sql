@@ -35,3 +35,18 @@ VALUES
     (148, 0, 'sys:archive:item:download', '下载档案文件', 'API', '/archive/item/{id}/files/{fileId}/download', 'GET', 148, 1),
     (149, 0, 'sys:archive:item:destroy', '销毁档案', 'API', '/archive/item/{id}/destroy', 'POST', 149, 1),
     (150, 0, 'sys:archive:sync:run', '触发档案同步', 'API', '/archive/sync/run', 'POST', 150, 1);
+
+-- ---------------------------------------------------------------------
+-- Wave 5.53 M4：文件知识库权限点（whale-agent 8090）
+-- · 106 查看文件知识库（分页与统计，只读）
+-- · 107 管理文件知识库（重建 / 重索引 / 启停）
+-- 说明：复用 100–107 段位，不与档案预留段位 140–159 冲突。
+-- ---------------------------------------------------------------------
+
+INSERT IGNORE INTO sys_permission
+    (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+VALUES
+    (106, 0, 'sys:agent:knowledge:list', '查看文件知识库', 'API',
+     '/agent/knowledge/files/page,/agent/knowledge/stats', 'GET', 106, 1),
+    (107, 0, 'sys:agent:knowledge:manage', '管理文件知识库', 'API',
+     '/agent/knowledge/**', 'POST,PUT', 107, 1);
