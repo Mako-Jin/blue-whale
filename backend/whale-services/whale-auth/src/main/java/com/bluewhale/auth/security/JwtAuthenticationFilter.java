@@ -69,18 +69,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
         Long tenantId = resolveTenantId(claims);
-        if (tenantId == null) {
-            log.debug("accessToken 缺少租户 claim，按未认证处理: username={}", claims.getSubject());
+        Long userId = resolveUserId(claims);
+        if (tenantId == null || userId == null) {
+            log.debug("accessToken 缺少租户或用户 claim，按未认证处理: username={}", claims.getSubject());
             return;
         }
         try {
-            UserDetails userDetails;
-            LoginTenantContext.set(tenantId);
-            try {
-                userDetails = userDetailsService.loadUserByUsername(claims.getSubject());
-            } finally {
-                LoginTenantContext.clear();
-            }
+            // 一人多租户：令牌租户可能不是账号首页租户，按 userId 跨租户加载并按令牌租户解析角色
+            UserDetails userDetails = userDetailsService.loadUserById(userId, tenantId);
             if (!userDetails.isEnabled()) {
                 return;
             }
@@ -100,7 +96,28 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      * @return 租户 ID；缺失或非法时返回 {@code null}
      */
     private static Long resolveTenantId(Claims claims) {
-        Object raw = claims.get(JwtTokenProvider.CLAIM_TENANT_ID);
+        return resolveLongClaim(claims, JwtTokenProvider.CLAIM_TENANT_ID);
+    }
+
+    /**
+     * 从 accessToken 载荷解析用户 ID
+     *
+     * @param claims 令牌载荷
+     * @return 用户 ID；缺失或非法时返回 {@code null}
+     */
+    private static Long resolveUserId(Claims claims) {
+        return resolveLongClaim(claims, JwtTokenProvider.CLAIM_USER_ID);
+    }
+
+    /**
+     * 解析数值型 claim
+     *
+     * @param claims 令牌载荷
+     * @param claimName claim 名称
+     * @return 数值；缺失或非法时返回 {@code null}
+     */
+    private static Long resolveLongClaim(Claims claims, String claimName) {
+        Object raw = claims.get(claimName);
         if (raw == null) {
             return null;
         }

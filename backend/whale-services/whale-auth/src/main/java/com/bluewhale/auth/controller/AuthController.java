@@ -3,10 +3,12 @@ package com.bluewhale.auth.controller;
 import com.bluewhale.auth.dto.LoginRequest;
 import com.bluewhale.auth.dto.LogoutRequest;
 import com.bluewhale.auth.dto.RefreshRequest;
+import com.bluewhale.auth.dto.SwitchTenantRequest;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.auth.service.AuthService;
 import com.bluewhale.auth.vo.AuthMeResponse;
 import com.bluewhale.auth.vo.LoginResponse;
+import com.bluewhale.auth.vo.MyTenantVO;
 import com.bluewhale.common.audit.annotation.AuditLog;
 import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.core.result.Result;
@@ -19,6 +21,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * 认证接口：登录 / 刷新 Token / 登出
@@ -66,6 +70,33 @@ public class AuthController {
     @RequirePermission
     public Result<AuthMeResponse> me() {
         return Result.ok(authService.me());
+    }
+
+    /**
+     * 我的租户：当前用户可进入的租户列表（仅需登录，供前端切换器判断是否展示）。
+     *
+     * @return 启用且当前可用的租户列表，当前令牌租户标记 {@code current=true}
+     */
+    @GetMapping("/tenants")
+    @RequirePermission
+    public Result<List<MyTenantVO>> listTenants() {
+        return Result.ok(authService.listTenants());
+    }
+
+    /**
+     * 切换租户：同一 {@code userId} / {@code sub} 只更换令牌租户上下文与角色。
+     * <p>{@code recordParams = false}：请求体含 refreshToken，凭据绝不落库。</p>
+     *
+     * @param authorization 请求头 {@code Authorization: Bearer <token>}（可空）
+     * @param request 切换请求（目标租户 + 可选当前 refreshToken）
+     * @return 目标租户下的登录响应（新 accessToken / refreshToken）
+     */
+    @PostMapping("/tenant/switch")
+    @AuditLog(operation = "切换租户", type = OperateType.OTHER, targetType = "sys_user", recordParams = false)
+    public Result<LoginResponse> switchTenant(
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+            @Valid @RequestBody SwitchTenantRequest request) {
+        return Result.ok(authService.switchTenant(authorization, request));
     }
 
     /**

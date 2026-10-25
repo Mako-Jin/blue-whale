@@ -1,0 +1,27 @@
+package com.bluewhale.auth.dto;
+
+import jakarta.validation.constraints.NotNull;
+import lombok.Data;
+
+import java.io.Serializable;
+
+/**
+ * 切换租户请求（Wave 5.54 Phase 5.1）。
+ *
+ * <p>只接受目标租户 ID；用户身份一律取自 {@code SecurityContext}，不接受客户端传入
+ * {@code userId} / 角色。{@code refreshToken} 可选，携带时随旧 accessToken 一并写入黑名单。</p>
+ *
+ * @author BlueWhale
+ */
+@Data
+public class SwitchTenantRequest implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
+    /** 目标租户 ID（必须是当前用户可进入的租户） */
+    @NotNull(message = "租户ID不能为空")
+    private Long tenantId;
+
+    /** 当前 refreshToken（可选；携带时在切换成功后立即失效） */
+    private String refreshToken;
+}

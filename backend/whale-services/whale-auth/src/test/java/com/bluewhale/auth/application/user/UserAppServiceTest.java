@@ -1,6 +1,7 @@
 package com.bluewhale.auth.application.user;
 
 import com.bluewhale.auth.application.event.DomainEventPublisher;
+import com.bluewhale.auth.application.tenant.TenantMembershipAppService;
 import com.bluewhale.auth.application.user.command.AssignUserRolesCommand;
 import com.bluewhale.auth.application.user.command.ChangeUserPasswordCommand;
 import com.bluewhale.auth.application.user.command.ChangeUserStatusCommand;
@@ -68,6 +69,9 @@ class UserAppServiceTest {
 
     @Mock
     private DomainEventPublisher eventPublisher;
+
+    @Mock
+    private TenantMembershipAppService tenantMembershipAppService;
 
     @InjectMocks
     private UserAppService userAppService;
@@ -156,6 +160,8 @@ class UserAppServiceTest {
         assertEquals("avatar.png", vo.getAvatar());
         assertEquals(User.STATUS_ENABLED, vo.getStatus());
         verify(userRepository).save(any(User.class));
+        // 一人多租户：新建账号必须写入首页租户关系
+        verify(tenantMembershipAppService).ensureHomeMembership(USER_ID, 1L);
         verify(eventPublisher).publish(new UserDomainEvent(USER_ID, ChangeType.CREATED));
     }
 

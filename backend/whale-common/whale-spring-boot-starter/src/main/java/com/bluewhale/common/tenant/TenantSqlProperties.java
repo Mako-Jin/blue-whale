@@ -25,11 +25,12 @@ public class TenantSqlProperties {
      * 不参与自动租户隔离的表名（小写）。
      *
      * <p>包括：平台共享表（租户清单、权限点、国际化词条、Agent 平台知识/索引元数据、
-     * 审计归档水位与 MQ 去重表）以及通过全局唯一 ID 关联的 RBAC 关系表。</p>
+     * 审计归档水位与 MQ 去重表）、通过全局唯一 ID 关联的 RBAC 关系表，以及
+     * 「一人多租户」用户-租户关系表（{@code sys_user_tenant}，跨租户且查询显式带 user_id）。</p>
      */
     private List<String> ignoreTables = List.of(
             "sys_tenant", "sys_permission", "sys_i18n_message",
-            "sys_user_role", "sys_role_permission", "sys_user_permission",
+            "sys_user_role", "sys_role_permission", "sys_user_permission", "sys_user_tenant",
             "audit_archive_watermark", "audit_mq_message",
             "agent_fact", "agent_index_meta");
 }

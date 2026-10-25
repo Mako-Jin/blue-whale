@@ -160,6 +160,24 @@ CREATE TABLE sys_user_role (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='用户-角色关联表';
 
 -- ---------------------------------------------------------------------
+-- 6.1 用户可进入租户关系表（Wave 5.54 Phase 5.1：一人多租户）
+--     跨租户关系表，不参与行级租户过滤；user_id 全局唯一，
+--     切换租户只改令牌 tenantId，不换 user_id / sub。
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS sys_user_tenant;
+CREATE TABLE sys_user_tenant (
+    id          BIGINT   NOT NULL            COMMENT '主键ID（雪花算法）',
+    user_id     BIGINT   NOT NULL            COMMENT '全局用户ID（逻辑关联 sys_user.id，切换前后不变）',
+    tenant_id   BIGINT   NOT NULL            COMMENT '可进入的租户ID（逻辑关联 sys_tenant.id）',
+    status      TINYINT  NOT NULL DEFAULT 1  COMMENT '状态：1 启用 / 0 停用',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_user_tenant (user_id, tenant_id),
+    KEY idx_tenant_id (tenant_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='用户可进入的租户关系表（一人多租户）';
+
+-- ---------------------------------------------------------------------
 -- 7. 角色-权限关联表
 -- ---------------------------------------------------------------------
 DROP TABLE IF EXISTS sys_role_permission;
@@ -377,6 +395,12 @@ INSERT INTO sys_user_role
     (id, user_id, role_id)
 VALUES
     (1, 1, 1);
+
+-- admin 用户的首页租户关系（一人多租户：切换只换 tenantId，userId/sub 不变）
+INSERT INTO sys_user_tenant
+    (id, user_id, tenant_id, status)
+VALUES
+    (1, 1, 1, 1);
 
 -- 基础菜单：系统管理目录 + 用户 / 角色 / 菜单 / 部门 / 权限 / 定时任务 / 文件 七个菜单项
 --            + 知识助手目录与知识问答菜单（Wave 5.47）

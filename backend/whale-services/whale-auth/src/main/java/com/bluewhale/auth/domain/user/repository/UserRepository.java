@@ -30,6 +30,18 @@ public interface UserRepository {
     Optional<User> findById(Long id);
 
     /**
+     * 按用户 ID 加载用户聚合，忽略租户行级过滤（Wave 5.54 Phase 5.1）。
+     *
+     * <p>{@code sys_user} 归属首页租户，而令牌租户可能是该用户切换后的其他租户，
+     * 因此刷新、JWT 过滤器与切换必须按全局唯一 {@code userId} 定位账号，不能按
+     * {@code (tenantId, userId)} 查。调用方仍需自行校验用户与令牌租户的成员关系。</p>
+     *
+     * @param id 用户 ID
+     * @return 用户聚合；不存在或已逻辑删除时返回空
+     */
+    Optional<User> findByIdAcrossTenants(Long id);
+
+    /**
      * 按用户名查询用户聚合（当前租户内查询）
      *
      * @param username 用户名
@@ -56,15 +68,15 @@ public interface UserRepository {
     boolean existsByUsername(Long tenantId, String username);
 
     /**
-     * 全量覆盖用户-角色关联（先清空后重建）
+     * 全量覆盖用户在当前租户内的角色关联（只清理并重建本租户角色的关联行）
      *
      * @param userId 用户 ID
-     * @param roleIds 目标角色 ID 列表
+     * @param roleIds 目标角色 ID 列表（属于当前租户）
      */
     void replaceRoles(Long userId, List<Long> roleIds);
 
     /**
-     * 查询用户已分配的角色 ID 列表
+     * 查询用户在当前租户内的角色 ID 列表
      *
      * @param userId 用户 ID
      * @return 角色 ID 列表

@@ -132,8 +132,14 @@ public class RoleRepositoryImpl implements RoleRepository {
 
     @Override
     public List<Long> listRoleIdsByUserId(Long userId) {
+        // 一人多租户（Wave 5.54 Phase 5.1）：sys_user_role 无 tenant_id，
+        // 必须 join sys_role 按当前租户 + 启用状态收口，禁止把其他租户的角色带入权限计算
+        Long tenantId = TenantContext.requireId();
         return userRoleMapper.selectList(new LambdaQueryWrapper<SysUserRole>()
-                        .eq(SysUserRole::getUserId, userId))
+                        .eq(SysUserRole::getUserId, userId)
+                        .inSql(SysUserRole::getRoleId,
+                                "SELECT id FROM sys_role WHERE tenant_id = " + tenantId
+                                        + " AND status = " + Role.STATUS_ENABLED + " AND deleted = 0"))
                 .stream().map(SysUserRole::getRoleId).toList();
     }
 
@@ -142,8 +148,13 @@ public class RoleRepositoryImpl implements RoleRepository {
         if (roleIds == null || roleIds.isEmpty()) {
             return List.of();
         }
+        // 防御性租户收口：即使调用方传入跨租户角色 ID，也只解析当前租户内的角色
+        Long tenantId = TenantContext.requireId();
         return rolePermissionMapper.selectList(new LambdaQueryWrapper<SysRolePermission>()
-                        .in(SysRolePermission::getRoleId, roleIds))
+                        .in(SysRolePermission::getRoleId, roleIds)
+                        .inSql(SysRolePermission::getRoleId,
+                                "SELECT id FROM sys_role WHERE tenant_id = " + tenantId
+                                        + " AND deleted = 0"))
                 .stream().map(SysRolePermission::getPermissionId).distinct().toList();
     }
 

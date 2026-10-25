@@ -626,3 +626,78 @@ WHERE NOT EXISTS (
 | 5.2 admin 切换器 | 顶栏 Select、切换后重载、失败提示 | 一人多租户可用 |
 | 5.3 成员与角色管理 | `/tenant/members` 列表 + 本租户角色分配、平台绑定/解绑关系、页面与权限码 | 运营可维护关系与租户内角色 |
 | 5.4 回归与文档 | 双租户 E2E（含角色隔离）、隔离回归、更新本评估稿 | 验收闭环 |
+
+### 15.12 Phase 5.1 执行计划（后端模型与切换）
+
+**目标**：同一 `userId` 可在多个租户间切换；切换只换令牌 `tenantId` 与角色上下文，不换 `sub`；同时修复既有跨租户角色/权限泄漏缺口。
+
+#### 交付文件
+
+| 类别 | 文件 | 改动 |
+|---|---|---|
+| 文档 | `docs/plans/wave5.54-multi-tenant/assessment.md` | 本节执行计划 |
+| 建库 | `whale-auth/src/main/resources/db/init.sql` | 新增 `sys_user_tenant` 建表与 admin 首页关系种子 |
+| 迁移 | `whale-auth/src/main/resources/db/migration-5.54-tenant-membership.sql` | 幂等建表 + 首页关系回填（`NOT EXISTS`） |
+| 实体 | `auth/entity/SysUserTenant.java`、`auth/mapper/SysUserTenantMapper.java` | 关系表 PO 与 Mapper |
+| 领域端口 | `auth/domain/user/repository/UserTenantRepository.java` | 启用关系查询、关系存在性、首页关系幂等写入 |
+| 仓储实现 | `auth/infrastructure/persistence/repository/UserTenantRepositoryImpl.java` | MyBatis-Plus 实现（关系表忽略租户行过滤，显式带 `user_id`） |
+| 应用服务 | `auth/application/tenant/TenantMembershipAppService.java` | 列出可进入租户、切换关系校验（403 语义）、刷新关系校验（401 语义）、首页关系写入 |
+| VO/DTO | `auth/vo/MyTenantVO.java`、`auth/dto/SwitchTenantRequest.java` | 租户列表项、切换入参（`tenantId` + 可选 `refreshToken`） |
+| 认证 | `AuthService`、`AuthController` | `listTenants()`、`switchTenant()`；`refresh()` 改按 `userId` claim 加载并校验关系；新增 `GET /auth/tenants`、`POST /auth/tenant/switch` |
+| 用户装配 | `UserDetailsServiceImpl`、`JwtAuthenticationFilter` | 新增 `loadUserById(userId, tenantId)`；过滤器与刷新统一按 `userId` 加载，避免令牌租户≠账号首页租户时认证失败 |
+| 仓储修复 | `RoleRepositoryImpl` | `listRoleIdsByUserId` 加入 `sys_role.tenant_id + status=1 + deleted=0` 过滤；`listPermissionIdsByRoleIds` 增加租户内角色防御过滤 |
+| 用户仓储 | `UserRepository` / `UserRepositoryImpl` | 新增 `findByIdAcrossTenants`（临时清空/恢复 `TenantContext`，用于首页账号加载）；`replaceRoles` / `listRoleIds` 只处理当前租户角色关联，避免跨租户误删 |
+| 首页关系 | `UserAppService`、`TenantProvisioningAppService` | 新建账号（含租户初始管理员）后写首页关系 |
+| 横切 | `TenantSqlProperties` | 忽略白名单加入 `sys_user_tenant` |
+| 单测 | `whale-auth/src/test/java/...` | 关系校验、切换令牌、角色按租户隔离 |
+
+#### 实施顺序
+
+1. 落本节执行计划。
+2. 数据库：`init.sql` 建表 + 种子；新增幂等迁移并回填，回填后缺失数必须为 0。
+3. 模型与仓储：实体/Mapper/领域端口/实现/白名单。
+4. 角色解析修复（先修复泄漏，再开放切换）。
+5. 用户按 ID 跨租户加载 + JWT 过滤器改造。
+6. 成员服务 + `AuthService` 切换/列表/刷新 + 控制器端点。
+7. 新账号写首页关系。
+8. 单测。
+9. 人工代码检查 → 提交 → 推送 `origin/main`。
+
+#### 验收命令
+
+```bash
+# 1) 建表与回填
+mysql -u<user> -p bluewhale_auth < backend/whale-services/whale-auth/src/main/resources/db/migration-5.54-tenant-membership.sql
+mysql -u<user> -p bluewhale_auth -e "SHOW CREATE TABLE sys_user_tenant"
+mysql -u<user> -p bluewhale_auth -e "SELECT COUNT(*) FROM sys_user s LEFT JOIN sys_user_tenant m ON m.user_id = s.id WHERE m.id IS NULL"
+# 期望：表存在；缺失关系数为 0
+
+# 2) 构建与单测
+mvn -pl backend/whale-services/whale-auth -am test
+
+# 3) 接口：登录 → 租户列表 → 切换 → 旧令牌失效
+curl -s -X POST http://localhost:8080/auth/login -H 'Content-Type: application/json' \
+  -d '{"tenantCode":"default","username":"admin","password":"123456"}'
+curl -s http://localhost:8080/auth/tenants -H "Authorization: Bearer <accessToken>"
+curl -s -X POST http://localhost:8080/auth/tenant/switch -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer <accessToken>" \
+  -d '{"tenantId":<targetTenantId>,"refreshToken":"<refreshToken>"}'
+curl -s http://localhost:8080/auth/me -H "Authorization: Bearer <oldAccessToken>"   # 期望 401
+curl -s http://localhost:8080/auth/me -H "Authorization: Bearer <newAccessToken>"   # 期望 tenantId=目标，角色/菜单来自目标租户
+curl -s -X POST http://localhost:8080/auth/refresh -H 'Content-Type: application/json' \
+  -d '{"refreshToken":"<oldRefreshToken>"}'                                         # 期望 401
+curl -s -X POST http://localhost:8080/auth/refresh -H 'Content-Type: application/json' \
+  -d '{"refreshToken":"<newRefreshToken>"}'                                         # 期望在目标租户成功
+```
+
+**已落地（2026-10-25）**：
+
+- 建表与回填：`init.sql` 新增 `sys_user_tenant`（唯一 `(user_id, tenant_id)`）与 admin 首页关系种子；新增幂等脚本 `migration-5.54-tenant-membership.sql`（`CREATE TABLE IF NOT EXISTS` + `NOT EXISTS` 回填）。
+- 模型与仓储：`SysUserTenant` / `SysUserTenantMapper` / `UserTenantRepository` / `UserTenantRepositoryImpl` / `TenantMembershipAppService`；`sys_user_tenant` 加入租户行过滤忽略白名单。
+- 角色隔离修复：`RoleRepositoryImpl#listRoleIdsByUserId` 通过 `sys_role` 子查询收口租户 + 启用 + 未删除；`listPermissionIdsByRoleIds` 增加租户内角色防御过滤；`UserRepository#replaceRoles` / `listRoleIds` 只处理当前租户角色关联。
+- 令牌链路：`UserDetailsServiceImpl#loadUserById`（按全局 `userId` 跨租户加载、按令牌租户解析角色）；`JwtAuthenticationFilter`、`AuthService#refresh`、切换流程统一按 `userId` claim，不再依赖用户名或账号首页租户。
+- 切换接口：`GET /auth/tenants`、`POST /auth/tenant/switch`（出参同登录，旧 access/refresh 写黑名单，轮换开启时吊销 family，新会话新 familyId）。
+- 首页关系写入：新建账号与租户开通的初始管理员均写入首页关系。
+- 验证：`mvn -pl backend/whale-services/whale-auth -am test` → 330 个用例全部通过，Checkstyle 0 违规。
+
+**已知限制（沿用 15.8）**：关系撤销后存量 accessToken 仍存活至多一个 access TTL；成员列表/租户内角色分配/平台绑定关系在 5.3 交付。

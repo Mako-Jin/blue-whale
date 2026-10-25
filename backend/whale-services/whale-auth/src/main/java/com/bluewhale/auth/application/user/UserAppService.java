@@ -1,6 +1,7 @@
 package com.bluewhale.auth.application.user;
 
 import com.bluewhale.auth.application.event.DomainEventPublisher;
+import com.bluewhale.auth.application.tenant.TenantMembershipAppService;
 import com.bluewhale.auth.application.user.command.AssignUserRolesCommand;
 import com.bluewhale.auth.application.user.command.ChangeUserPasswordCommand;
 import com.bluewhale.auth.application.user.command.ChangeUserStatusCommand;
@@ -58,6 +59,9 @@ public class UserAppService {
     /** 领域事件发布端口（缓存失效等副作用由基础设施层监听） */
     private final DomainEventPublisher domainEventPublisher;
 
+    /** 用户-租户关系服务（一人多租户：新建账号写首页关系） */
+    private final TenantMembershipAppService tenantMembershipAppService;
+
     /**
      * 构造器注入
      *
@@ -65,13 +69,16 @@ public class UserAppService {
      * @param roleRepository 角色聚合仓储
      * @param passwordEncoder 口令加密器
      * @param domainEventPublisher 领域事件发布端口
+     * @param tenantMembershipAppService 用户-租户关系服务
      */
     public UserAppService(UserRepository userRepository, RoleRepository roleRepository,
-                          PasswordEncoder passwordEncoder, DomainEventPublisher domainEventPublisher) {
+                          PasswordEncoder passwordEncoder, DomainEventPublisher domainEventPublisher,
+                          TenantMembershipAppService tenantMembershipAppService) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.domainEventPublisher = domainEventPublisher;
+        this.tenantMembershipAppService = tenantMembershipAppService;
     }
 
     /**
@@ -114,6 +121,8 @@ public class UserAppService {
                 command.email(), command.avatar(), command.deptId(), command.status());
         // 保存并回填数据库生成的主键与时间戳
         User persisted = userRepository.save(user);
+        // 一人多租户：新账号必须拥有首页租户关系，否则切换器与刷新校验都会判为无关系
+        tenantMembershipAppService.ensureHomeMembership(persisted.getId(), tenantId);
         domainEventPublisher.publish(new UserDomainEvent(persisted.getId(), ChangeType.CREATED));
         return UserVO.from(persisted);
     }

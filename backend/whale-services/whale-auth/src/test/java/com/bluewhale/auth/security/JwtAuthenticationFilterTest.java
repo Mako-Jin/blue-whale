@@ -67,9 +67,10 @@ class JwtAuthenticationFilterTest {
 
     private void givenAccessClaims(String subject) {
         when(claims.get(JwtTokenProvider.CLAIM_TOKEN_TYPE, String.class)).thenReturn(JwtTokenProvider.TOKEN_TYPE_ACCESS);
-        when(claims.getSubject()).thenReturn(subject);
+        lenient().when(claims.getSubject()).thenReturn(subject);
         // 黑名单分支在租户解析前即返回，使用 lenient 避免严格桩校验误报
         lenient().when(claims.get(JwtTokenProvider.CLAIM_TENANT_ID)).thenReturn(1L);
+        lenient().when(claims.get(JwtTokenProvider.CLAIM_USER_ID)).thenReturn(1L);
     }
 
     @Test
@@ -87,7 +88,7 @@ class JwtAuthenticationFilterTest {
         givenBearer("a.b.c");
         when(tokenProvider.parse("a.b.c")).thenReturn(claims);
         givenAccessClaims("tester");
-        when(userDetailsService.loadUserByUsername("tester"))
+        when(userDetailsService.loadUserById(1L, 1L))
                 .thenReturn(new LoginUser(1L, 1L, "tester", "pwd", "T", List.of("super_admin"), true));
 
         filter.doFilterInternal(request, response, filterChain);
@@ -129,7 +130,7 @@ class JwtAuthenticationFilterTest {
         when(tokenProvider.parse("d.d.d")).thenReturn(claims);
         givenAccessClaims("tester");
         when(tokenBlacklist.contains("d.d.d")).thenReturn(false);
-        when(userDetailsService.loadUserByUsername("tester"))
+        when(userDetailsService.loadUserById(1L, 1L))
                 .thenReturn(new LoginUser(1L, 1L, "tester", "pwd", "T", List.of(), false));
 
         filter.doFilterInternal(request, response, filterChain);
@@ -144,7 +145,7 @@ class JwtAuthenticationFilterTest {
         when(tokenProvider.parse("m.m.m")).thenReturn(claims);
         givenAccessClaims("ghost");
         when(tokenBlacklist.contains("m.m.m")).thenReturn(false);
-        when(userDetailsService.loadUserByUsername("ghost"))
+        when(userDetailsService.loadUserById(1L, 1L))
                 .thenThrow(new UsernameNotFoundException("用户不存在: ghost"));
 
         filter.doFilterInternal(request, response, filterChain);
@@ -160,6 +161,21 @@ class JwtAuthenticationFilterTest {
         when(claims.get(JwtTokenProvider.CLAIM_TOKEN_TYPE, String.class))
                 .thenReturn(JwtTokenProvider.TOKEN_TYPE_ACCESS);
         when(claims.getSubject()).thenReturn("tester");
+
+        filter.doFilterInternal(request, response, filterChain);
+
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+    }
+
+    @Test
+    @DisplayName("accessToken 缺少 userId claim：不写入认证")
+    void shouldRejectTokenWithoutUserClaim() throws Exception {
+        givenBearer("u.u.u");
+        when(tokenProvider.parse("u.u.u")).thenReturn(claims);
+        when(claims.get(JwtTokenProvider.CLAIM_TOKEN_TYPE, String.class))
+                .thenReturn(JwtTokenProvider.TOKEN_TYPE_ACCESS);
+        when(claims.getSubject()).thenReturn("tester");
+        when(claims.get(JwtTokenProvider.CLAIM_TENANT_ID)).thenReturn(1L);
 
         filter.doFilterInternal(request, response, filterChain);
 

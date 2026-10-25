@@ -109,4 +109,25 @@ class UserDetailsServiceImplTest {
 
         assertThrows(UsernameNotFoundException.class, () -> service.loadUserByUsername("tester"));
     }
+
+    @Test
+    @DisplayName("loadUserById：按全局 userId 跨租户加载，角色在令牌租户下解析")
+    void shouldLoadUserByIdWithTokenTenant() {
+        long targetTenantId = 2L;
+        when(userRepository.findByIdAcrossTenants(USER_ID)).thenReturn(Optional.of(user(1)));
+        when(roleAppService.listRoleCodesByUserId(USER_ID)).thenReturn(List.of("tenant_admin"));
+
+        LoginUser details = service.loadUserById(USER_ID, targetTenantId);
+
+        assertEquals(USER_ID, details.getUserId());
+        assertEquals(targetTenantId, details.getTenantId());
+        assertTrue(details.getRoles().contains("tenant_admin"));
+    }
+
+    @Test
+    @DisplayName("loadUserById：缺少 userId 或 tenantId 时拒绝加载")
+    void shouldRejectLoadUserByIdWithoutIdentifiers() {
+        assertThrows(UsernameNotFoundException.class, () -> service.loadUserById(null, TENANT_ID));
+        assertThrows(UsernameNotFoundException.class, () -> service.loadUserById(USER_ID, null));
+    }
 }

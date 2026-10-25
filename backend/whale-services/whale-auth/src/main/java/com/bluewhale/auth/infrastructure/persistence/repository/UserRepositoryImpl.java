@@ -55,6 +55,20 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
+    public Optional<User> findByIdAcrossTenants(Long id) {
+        // sys_user 归属首页租户，令牌租户可能是切换后的其他租户：
+        // 临时清空租户上下文以绕过行级过滤，读取后立即恢复原值（含 null）
+        Long previous = TenantContext.get();
+        TenantContext.clear();
+        try {
+            SysUser po = userMapper.selectById(id);
+            return Optional.ofNullable(po).map(UserPersistenceAssembler::toDomain);
+        } finally {
+            TenantContext.set(previous);
+        }
+    }
+
+    @Override
     public Optional<User> findByUsername(String username) {
         SysUser po = userMapper.selectOne(new LambdaQueryWrapper<SysUser>()
                 .eq(SysUser::getTenantId, TenantContext.requireId())
@@ -82,7 +96,12 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public void replaceRoles(Long userId, List<Long> roleIds) {
-        userRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, userId));
+        // 一人多租户：只清理当前租户角色的关联行，避免误删该用户在其他租户的角色
+        Long tenantId = TenantContext.requireId();
+        userRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>()
+                .eq(SysUserRole::getUserId, userId)
+                .inSql(SysUserRole::getRoleId,
+                        "SELECT id FROM sys_role WHERE tenant_id = " + tenantId));
         for (Long roleId : roleIds) {
             userRoleMapper.insert(UserPersistenceAssembler.toAssignmentPo(UserRoleAssignment.of(userId, roleId)));
         }
@@ -90,8 +109,12 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public List<Long> listRoleIds(Long userId) {
+        // 仅返回当前租户内的角色关联（跨租户角色不参与本租户的角色管理展示）
+        Long tenantId = TenantContext.requireId();
         return userRoleMapper.selectList(new LambdaQueryWrapper<SysUserRole>()
-                        .eq(SysUserRole::getUserId, userId))
+                        .eq(SysUserRole::getUserId, userId)
+                        .inSql(SysUserRole::getRoleId,
+                                "SELECT id FROM sys_role WHERE tenant_id = " + tenantId))
                 .stream().map(SysUserRole::getRoleId).toList();
     }
 

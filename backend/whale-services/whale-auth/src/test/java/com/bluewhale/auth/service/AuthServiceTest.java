@@ -4,8 +4,10 @@ import com.bluewhale.auth.application.menu.MenuAppService;
 import com.bluewhale.auth.application.permission.PermissionAppService;
 import com.bluewhale.auth.application.role.RoleAppService;
 import com.bluewhale.auth.application.tenant.TenantAppService;
+import com.bluewhale.auth.application.tenant.TenantMembershipAppService;
 import com.bluewhale.auth.config.RefreshRotationProperties;
 import com.bluewhale.auth.dto.RefreshRequest;
+import com.bluewhale.auth.dto.SwitchTenantRequest;
 import com.bluewhale.auth.jwt.JwtTokenProvider;
 import com.bluewhale.auth.mapper.SysUserMapper;
 import com.bluewhale.auth.security.LoginUser;
@@ -16,6 +18,7 @@ import com.bluewhale.auth.security.UserDetailsServiceImpl;
 import com.bluewhale.auth.vo.AuthMeResponse;
 import com.bluewhale.auth.vo.LoginResponse;
 import com.bluewhale.auth.vo.MenuVO;
+import com.bluewhale.auth.vo.MyTenantVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.security.degradation.SecurityDegradationAlerter;
 import io.jsonwebtoken.Claims;
@@ -38,6 +41,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -101,6 +105,9 @@ class AuthServiceTest {
     @Mock
     private TenantAppService tenantAppService;
 
+    @Mock
+    private TenantMembershipAppService tenantMembershipAppService;
+
     @InjectMocks
     private AuthService authService;
 
@@ -133,7 +140,15 @@ class AuthServiceTest {
                 .thenReturn(JwtTokenProvider.TOKEN_TYPE_REFRESH);
         // 部分用例在租户解析前即失败，使用 lenient 避免严格桩校验误报
         lenient().when(claims.get(JwtTokenProvider.CLAIM_TENANT_ID)).thenReturn(TENANT_ID);
+        lenient().when(claims.get(JwtTokenProvider.CLAIM_USER_ID)).thenReturn(USER_ID);
         return claims;
+    }
+
+    private static SwitchTenantRequest switchRequest(long tenantId) {
+        SwitchTenantRequest request = new SwitchTenantRequest();
+        request.setTenantId(tenantId);
+        request.setRefreshToken(REFRESH_TOKEN);
+        return request;
     }
 
     @Test
@@ -167,10 +182,10 @@ class AuthServiceTest {
     @DisplayName("refresh：未失效的 refreshToken 正常换发新令牌")
     void refreshShouldIssueNewTokensWhenNotBlacklisted() {
         Claims claims = refreshClaims();
-        when(claims.getSubject()).thenReturn(USERNAME);
+        lenient().when(claims.getSubject()).thenReturn(USERNAME);
         when(tokenProvider.parse(REFRESH_TOKEN)).thenReturn(claims);
         when(tokenBlacklist.contains(REFRESH_TOKEN)).thenReturn(false);
-        when(userDetailsService.loadUserByUsername(USERNAME))
+        when(userDetailsService.loadUserById(USER_ID, TENANT_ID))
                 .thenReturn(new LoginUser(TENANT_ID, USER_ID, USERNAME, "pwd", "Alice", List.of("admin"), true));
         when(tokenProvider.generateAccessToken(TENANT_ID, USER_ID, USERNAME, List.of("admin")))
                 .thenReturn("new-access");
@@ -189,14 +204,14 @@ class AuthServiceTest {
     @DisplayName("refresh：轮换开启时原子消费旧 refreshToken（入黑名单）并沿用 familyId 换发新令牌")
     void refreshShouldConsumeTokenWhenRotationEnabled() {
         Claims claims = refreshClaims();
-        when(claims.getSubject()).thenReturn(USERNAME);
+        lenient().when(claims.getSubject()).thenReturn(USERNAME);
         when(claims.getId()).thenReturn(JTI);
         when(claims.get(JwtTokenProvider.CLAIM_FAMILY_ID, String.class)).thenReturn(FAMILY_ID);
         when(tokenProvider.parse(REFRESH_TOKEN)).thenReturn(claims);
         when(refreshRotationProperties.isEnabled()).thenReturn(true);
         when(refreshRotationStore.isFamilyRevoked(FAMILY_ID)).thenReturn(false);
         when(tokenBlacklist.contains(REFRESH_TOKEN)).thenReturn(false);
-        when(userDetailsService.loadUserByUsername(USERNAME))
+        when(userDetailsService.loadUserById(USER_ID, TENANT_ID))
                 .thenReturn(new LoginUser(TENANT_ID, USER_ID, USERNAME, "pwd", "Alice", List.of("admin"), true));
         when(tokenProvider.getRemainingValiditySeconds(REFRESH_TOKEN)).thenReturn(REMAINING_SECONDS);
         when(refreshRotationStore.markUsed(JTI, REMAINING_SECONDS)).thenReturn(true);
@@ -217,14 +232,14 @@ class AuthServiceTest {
     @DisplayName("refresh：复用检测命中（旧 refreshToken 二次使用）返回 401 并整族吊销 + 降级告警")
     void refreshShouldRevokeFamilyWhenReuseDetected() {
         Claims claims = refreshClaims();
-        when(claims.getSubject()).thenReturn(USERNAME);
+        lenient().when(claims.getSubject()).thenReturn(USERNAME);
         when(claims.getId()).thenReturn(JTI);
         when(claims.get(JwtTokenProvider.CLAIM_FAMILY_ID, String.class)).thenReturn(FAMILY_ID);
         when(tokenProvider.parse(REFRESH_TOKEN)).thenReturn(claims);
         when(refreshRotationProperties.isEnabled()).thenReturn(true);
         when(refreshRotationStore.isFamilyRevoked(FAMILY_ID)).thenReturn(false);
         when(tokenBlacklist.contains(REFRESH_TOKEN)).thenReturn(false);
-        when(userDetailsService.loadUserByUsername(USERNAME))
+        when(userDetailsService.loadUserById(USER_ID, TENANT_ID))
                 .thenReturn(new LoginUser(TENANT_ID, USER_ID, USERNAME, "pwd", "Alice", List.of("admin"), true));
         when(tokenProvider.getRemainingValiditySeconds(REFRESH_TOKEN)).thenReturn(REMAINING_SECONDS);
         when(refreshRotationStore.markUsed(JTI, REMAINING_SECONDS)).thenReturn(false);
@@ -329,6 +344,77 @@ class AuthServiceTest {
         BizException ex = assertThrows(BizException.class, () -> authService.me());
 
         assertEquals(UNAUTHORIZED_CODE, ex.getCode());
+    }
+
+    @Test
+    @DisplayName("refresh：令牌缺少 userId claim 时返回 401")
+    void refreshShouldRejectTokenWithoutUserClaim() {
+        Claims claims = mock(Claims.class);
+        when(claims.get(JwtTokenProvider.CLAIM_TOKEN_TYPE, String.class))
+                .thenReturn(JwtTokenProvider.TOKEN_TYPE_REFRESH);
+        lenient().when(claims.get(JwtTokenProvider.CLAIM_TENANT_ID)).thenReturn(TENANT_ID);
+        when(tokenProvider.parse(REFRESH_TOKEN)).thenReturn(claims);
+
+        BizException ex = assertThrows(BizException.class, () -> authService.refresh(refreshRequest()));
+
+        assertEquals(UNAUTHORIZED_CODE, ex.getCode());
+        verifyNoInteractions(userDetailsService, tokenBlacklist);
+    }
+
+    @Test
+    @DisplayName("listTenants：按当前登录用户与当前租户返回可进入租户列表")
+    void listTenantsShouldDelegateToMembershipService() {
+        authenticate(new LoginUser(TENANT_ID, USER_ID, USERNAME, "pwd", "Alice", List.of("admin"), true));
+        MyTenantVO current = new MyTenantVO();
+        current.setTenantId(TENANT_ID);
+        current.setCurrent(true);
+        when(tenantMembershipAppService.listMyTenants(USER_ID, TENANT_ID)).thenReturn(List.of(current));
+
+        List<MyTenantVO> tenants = authService.listTenants();
+
+        assertEquals(1, tenants.size());
+        assertEquals(TENANT_ID, tenants.get(0).getTenantId());
+    }
+
+    @Test
+    @DisplayName("switchTenant：校验关系后按同一 userId 签发目标租户令牌，并失效旧 access/refresh")
+    void switchTenantShouldIssueTokensForTargetTenant() {
+        authenticate(new LoginUser(TENANT_ID, USER_ID, USERNAME, "pwd", "Alice", List.of("admin"), true));
+        long targetTenantId = 2L;
+        when(userDetailsService.loadUserById(USER_ID, targetTenantId)).thenReturn(
+                new LoginUser(targetTenantId, USER_ID, USERNAME, "pwd", "Alice", List.of("tenant_admin"), true));
+        when(tokenProvider.generateAccessToken(targetTenantId, USER_ID, USERNAME, List.of("tenant_admin")))
+                .thenReturn("new-access");
+        when(tokenProvider.generateRefreshToken(
+                org.mockito.ArgumentMatchers.eq(targetTenantId),
+                org.mockito.ArgumentMatchers.eq(USER_ID),
+                org.mockito.ArgumentMatchers.eq(USERNAME),
+                anyString())).thenReturn("new-refresh");
+        when(tokenProvider.getAccessExpireSeconds()).thenReturn(ACCESS_EXPIRE_SECONDS);
+
+        LoginResponse response = authService.switchTenant(BEARER_ACCESS, switchRequest(targetTenantId));
+
+        assertEquals(targetTenantId, response.getTenantId());
+        assertEquals("new-access", response.getAccessToken());
+        assertEquals("new-refresh", response.getRefreshToken());
+        verify(tenantMembershipAppService).requireSwitchable(USER_ID, targetTenantId);
+        verify(tokenBlacklist).add(ACCESS_TOKEN);
+        verify(tokenBlacklist).add(REFRESH_TOKEN);
+    }
+
+    @Test
+    @DisplayName("switchTenant：无权进入目标租户时返回 403，不签发令牌")
+    void switchTenantShouldRejectNonMember() {
+        authenticate(new LoginUser(TENANT_ID, USER_ID, USERNAME, "pwd", "Alice", List.of("admin"), true));
+        long targetTenantId = 2L;
+        doThrow(new BizException(403, "无权进入该租户"))
+                .when(tenantMembershipAppService).requireSwitchable(USER_ID, targetTenantId);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> authService.switchTenant(BEARER_ACCESS, switchRequest(targetTenantId)));
+
+        assertEquals(403, ex.getCode());
+        verifyNoInteractions(userDetailsService, tokenBlacklist);
     }
 
     @Test

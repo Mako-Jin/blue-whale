@@ -5,9 +5,11 @@ import com.bluewhale.auth.application.menu.MenuAppService;
 import com.bluewhale.auth.application.permission.PermissionAppService;
 import com.bluewhale.auth.application.role.RoleAppService;
 import com.bluewhale.auth.application.tenant.TenantAppService;
+import com.bluewhale.auth.application.tenant.TenantMembershipAppService;
 import com.bluewhale.auth.config.RefreshRotationProperties;
 import com.bluewhale.auth.dto.LoginRequest;
 import com.bluewhale.auth.dto.RefreshRequest;
+import com.bluewhale.auth.dto.SwitchTenantRequest;
 import com.bluewhale.auth.entity.SysUser;
 import com.bluewhale.auth.jwt.JwtTokenProvider;
 import com.bluewhale.auth.mapper.SysUserMapper;
@@ -20,6 +22,7 @@ import com.bluewhale.auth.security.UserDetailsServiceImpl;
 import com.bluewhale.auth.vo.AuthMeResponse;
 import com.bluewhale.auth.vo.LoginResponse;
 import com.bluewhale.auth.vo.MenuVO;
+import com.bluewhale.auth.vo.MyTenantVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.security.degradation.SecurityDegradationAlerter;
@@ -73,6 +76,7 @@ public class AuthService {
     private final RefreshTokenRotationStore refreshRotationStore;
     private final RefreshRotationProperties refreshRotationProperties;
     private final TenantAppService tenantAppService;
+    private final TenantMembershipAppService tenantMembershipAppService;
 
     /**
      * 登录：AuthenticationManager 走 UserDetailsService + BCryptPasswordEncoder 校验
@@ -129,20 +133,56 @@ public class AuthService {
         }
         String familyId = resolveRotatingFamilyId(claims);
         Long tenantId = resolveTokenTenantId(claims);
+        Long userId = resolveTokenUserId(claims);
         tenantAppService.ensureEnabled(tenantId);
+        // 一人多租户：关系撤销后 refresh 立即失效，避免旧令牌继续换取目标租户令牌
+        tenantMembershipAppService.requireEnabledMembership(userId, tenantId);
         if (tokenBlacklist.contains(refreshToken)) {
             log.debug("refreshToken 命中登出黑名单，拒绝换发新令牌: username={}", claims.getSubject());
             throw new BizException(401, REVOKED_REFRESH_TOKEN_MESSAGE);
         }
-        UserDetails userDetails;
-        LoginTenantContext.set(tenantId);
-        try {
-            userDetails = loadEnabledUser(claims.getSubject());
-        } finally {
-            LoginTenantContext.clear();
-        }
+        UserDetails userDetails = loadEnabledUser(userId, tenantId);
         consumeRotatingToken(refreshToken, claims, familyId);
         return buildLoginResponse((LoginUser) userDetails, familyId);
+    }
+
+    /**
+     * 当前用户可进入的租户列表（一人多租户切换器数据源）。
+     *
+     * @return 启用且当前可用的租户列表，当前令牌租户标记 {@code current=true}
+     */
+    public List<MyTenantVO> listTenants() {
+        LoginUser loginUser = currentLoginUser();
+        return tenantMembershipAppService.listMyTenants(loginUser.getUserId(), loginUser.getTenantId());
+    }
+
+    /**
+     * 切换租户：同一 {@code userId} / {@code sub} 只更换令牌中的租户上下文与角色。
+     *
+     * <p>切换成功后将当前 accessToken 与提交的 refreshToken 写入黑名单（开启轮换时
+     * 吊销整个 family），避免新旧租户令牌并存；新令牌使用全新 familyId。</p>
+     *
+     * @param authorization 请求头原始值，形如 {@code Bearer <token>}（可空）
+     * @param request 切换请求（目标租户 + 可选当前 refreshToken）
+     * @return 新租户下的登录响应（同登录出参）
+     */
+    public LoginResponse switchTenant(String authorization, SwitchTenantRequest request) {
+        LoginUser current = currentLoginUser();
+        Long targetTenantId = request.getTenantId();
+        tenantMembershipAppService.requireSwitchable(current.getUserId(), targetTenantId);
+        LoginUser switched;
+        try {
+            switched = userDetailsService.loadUserById(current.getUserId(), targetTenantId);
+        } catch (UsernameNotFoundException e) {
+            throw new BizException(401, "账号不存在或已停用");
+        }
+        if (!switched.isEnabled()) {
+            throw new BizException(401, "账号已停用");
+        }
+        invalidateSwitchTokens(authorization, request.getRefreshToken());
+        log.info("用户切换租户: userId={}, fromTenantId={}, toTenantId={}",
+                current.getUserId(), current.getTenantId(), targetTenantId);
+        return buildLoginResponse(switched, UUID.randomUUID().toString());
     }
 
     /**
@@ -175,10 +215,7 @@ public class AuthService {
      * @return 当前登录用户的角色、权限码与可见菜单树
      */
     public AuthMeResponse me() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !(authentication.getPrincipal() instanceof LoginUser loginUser)) {
-            throw new BizException(ErrorCode.UNAUTHORIZED);
-        }
+        LoginUser loginUser = currentLoginUser();
         List<String> roles = loginUser.getRoles();
         boolean superAdmin = roles.contains(PermissionInterceptor.SUPER_ADMIN);
         List<String> permissions = superAdmin
@@ -257,16 +294,36 @@ public class AuthService {
     }
 
     /**
-     * 加载并校验用户可用性（存在且未停用）
+     * 从令牌载荷解析用户 ID（Wave 5.54 Phase 5.1：一人多租户按 userId 定位账号）
      *
-     * @param username 用户名
+     * @param claims 令牌载荷
+     * @return 用户 ID
+     * @throws BizException claim 缺失或非法时抛出 401
+     */
+    private static Long resolveTokenUserId(Claims claims) {
+        Object raw = claims.get(JwtTokenProvider.CLAIM_USER_ID);
+        if (raw == null) {
+            throw new BizException(401, INVALID_REFRESH_TOKEN_MESSAGE);
+        }
+        try {
+            return Long.valueOf(String.valueOf(raw));
+        } catch (NumberFormatException e) {
+            throw new BizException(401, INVALID_REFRESH_TOKEN_MESSAGE);
+        }
+    }
+
+    /**
+     * 加载并校验用户可用性（按全局 userId 跨租户加载，角色在令牌租户下解析）
+     *
+     * @param userId 全局用户 ID
+     * @param tenantId 令牌租户 ID
      * @return 用户详情
      * @throws BizException 用户不存在或已停用时抛出 401
      */
-    private UserDetails loadEnabledUser(String username) {
+    private UserDetails loadEnabledUser(Long userId, Long tenantId) {
         UserDetails userDetails;
         try {
-            userDetails = userDetailsService.loadUserByUsername(username);
+            userDetails = userDetailsService.loadUserById(userId, tenantId);
         } catch (UsernameNotFoundException e) {
             throw new BizException(401, INVALID_REFRESH_TOKEN_MESSAGE);
         }
@@ -274,6 +331,46 @@ public class AuthService {
             throw new BizException(401, "账号已停用");
         }
         return userDetails;
+    }
+
+    /**
+     * 切换租户时失效旧令牌：accessToken 与 refreshToken 均写黑名单；
+     * 轮换开启且 refreshToken 携带 familyId 时整族吊销，阻断旧会话继续轮换。
+     *
+     * @param authorization 请求头原始值（可空）
+     * @param refreshToken 当前 refreshToken（可空）
+     */
+    private void invalidateSwitchTokens(String authorization, String refreshToken) {
+        String accessToken = resolveBearerToken(authorization);
+        if (accessToken != null) {
+            tokenBlacklist.add(accessToken);
+        }
+        if (!StringUtils.hasText(refreshToken)) {
+            return;
+        }
+        tokenBlacklist.add(refreshToken);
+        if (!refreshRotationProperties.isEnabled()) {
+            return;
+        }
+        Claims claims = tokenProvider.parse(refreshToken);
+        String familyId = claims == null ? null : claims.get(JwtTokenProvider.CLAIM_FAMILY_ID, String.class);
+        if (StringUtils.hasText(familyId)) {
+            refreshRotationStore.revokeFamily(familyId, tokenProvider.getRefreshExpireSeconds());
+        }
+    }
+
+    /**
+     * 从 SecurityContext 取当前登录用户（不接受客户端传入身份）
+     *
+     * @return 当前登录用户
+     * @throws BizException 未认证时抛出 401
+     */
+    private static LoginUser currentLoginUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof LoginUser loginUser)) {
+            throw new BizException(ErrorCode.UNAUTHORIZED);
+        }
+        return loginUser;
     }
 
     /**

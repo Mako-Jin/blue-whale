@@ -83,6 +83,9 @@ class TenantProvisioningAppServiceTest {
     @Mock
     private TenantStatusCache tenantStatusCache;
 
+    @Mock
+    private TenantMembershipAppService tenantMembershipAppService;
+
     @InjectMocks
     private TenantProvisioningAppService service;
 
