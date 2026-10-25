@@ -1,0 +1,69 @@
+// 租户管理 API（经网关 → whale-auth /tenant）
+// Wave 5.54 Phase 4：仅平台租户（tenant_type=PLATFORM）可访问，业务租户返回 403
+
+import { get, post, put, type PageResult } from './client';
+
+export type TenantType = 'PLATFORM' | 'TENANT';
+
+export interface TenantVO {
+  id: number;
+  tenantCode: string;
+  tenantName: string;
+  tenantType: TenantType;
+  /** 1 启用 / 0 停用 */
+  status?: number;
+  /** 到期时间，为空表示长期有效 */
+  expireTime?: string;
+  /** 配额 JSON，如 {"maxUsers":50,"maxStorageMb":1024} */
+  quotaJson?: string;
+  createTime?: string;
+  updateTime?: string;
+}
+
+export interface TenantPageParams {
+  keyword?: string;
+  status?: number;
+  current: number;
+  size: number;
+}
+
+export interface TenantCreatePayload {
+  tenantCode: string;
+  tenantName: string;
+  expireTime?: string;
+  quotaJson?: string;
+  adminUsername: string;
+  adminPassword: string;
+  adminNickname?: string;
+}
+
+export interface TenantUpdatePayload {
+  tenantName?: string;
+  quotaJson?: string;
+}
+
+export function pageTenants(params: TenantPageParams): Promise<PageResult<TenantVO>> {
+  return get<PageResult<TenantVO>>('/tenant/page', { ...params });
+}
+
+export function getTenant(id: number): Promise<TenantVO> {
+  return get<TenantVO>(`/tenant/${id}`);
+}
+
+/** 开通租户：创建租户并初始化管理员、默认角色、菜单与部门根 */
+export function createTenant(payload: TenantCreatePayload): Promise<TenantVO> {
+  return post<TenantVO>('/tenant', payload);
+}
+
+export function updateTenant(id: number, payload: TenantUpdatePayload): Promise<TenantVO> {
+  return put<TenantVO>(`/tenant/${id}`, payload);
+}
+
+export function changeTenantStatus(id: number, status: number): Promise<TenantVO> {
+  return put<TenantVO>(`/tenant/${id}/status`, { status });
+}
+
+/** 续期：新到期时间必须晚于当前时间（yyyy-MM-dd HH:mm:ss） */
+export function renewTenant(id: number, expireTime: string): Promise<TenantVO> {
+  return put<TenantVO>(`/tenant/${id}/renew`, { expireTime });
+}

@@ -24,6 +24,10 @@ export interface MenuNode {
 
 export interface UserInfo {
   userId?: number | string;
+  /** 所属租户 ID（由登录响应与 /auth/me 回写，供顶栏展示与请求头注入） */
+  tenantId?: number | string;
+  /** 登录时填写的租户编码（仅展示用，服务端以 JWT 为准） */
+  tenantCode?: string;
   username: string;
   nickname: string;
   roles: string[];
@@ -36,12 +40,14 @@ export interface LoginResponse {
   refreshToken: string;
   tokenType: string;
   expiresIn: number;
+  tenantId?: number | string;
   username: string;
   nickname: string;
   roles: string[];
 }
 
 export interface AuthMeResponse {
+  tenantId?: number | string;
   userId: number | string;
   username: string;
   nickname: string;
@@ -100,13 +106,18 @@ export function saveCurrentUser(user: UserInfo): void {
 /**
  * 登录/刷新成功后落盘令牌与用户基础信息。
  * 合并既有用户态（permissions/menus 等派生数据），避免 AUTH-39 静默续期后动态菜单丢失。
+ *
+ * @param data 登录或刷新响应
+ * @param tenantCode 登录表单填写的租户编码（仅人工登录时传入，续期保持既有值）
  */
-export function saveLogin(data: LoginResponse): void {
+export function saveLogin(data: LoginResponse, tenantCode?: string): void {
   localStorage.setItem(ACCESS_TOKEN_KEY, data.accessToken);
   localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
   const current = getCurrentUser();
   saveCurrentUser({
     ...(current ?? { username: data.username, nickname: data.nickname, roles: [] }),
+    tenantId: data.tenantId ?? current?.tenantId,
+    tenantCode: tenantCode?.trim() || current?.tenantCode,
     username: data.username || current?.username || '',
     nickname: data.nickname || current?.nickname || '',
     roles: data.roles?.length ? data.roles : (current?.roles ?? []),

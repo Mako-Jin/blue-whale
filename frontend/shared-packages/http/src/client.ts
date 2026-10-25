@@ -69,6 +69,11 @@ export interface HttpClientConfig<TLogin extends LoginData = LoginData> {
   getToken?: () => string | null;
   /** 读取 refreshToken；与 saveLogin 同时提供才启用自动续期 */
   getRefreshToken?: () => string | null;
+  /**
+   * 读取当前租户 ID；提供后所有请求注入 X-Tenant-Id。
+   * 仅用于展示与兼容：服务端以 JWT 的 tenantId claim 为准，网关会清除入站值并重新注入。
+   */
+  getTenantId?: () => string | number | null | undefined;
   /** 刷新成功后落盘新令牌 */
   saveLogin?: (data: TLogin) => void;
   /** 401 且无法续期时清理本地登录态 */
@@ -200,10 +205,17 @@ export function createHttpClient<TLogin extends LoginData = LoginData>(
   /** 单飞刷新中的 Promise：并发 401 合并为同一次刷新请求 */
   let refreshPromise: Promise<boolean> | null = null;
 
-  /** 构造基础请求头并注入链路 ID */
+  /**
+   * 构造基础请求头并注入链路 ID。
+   * 配置了 getTenantId 时同时注入 X-Tenant-Id（服务端仍以 JWT 租户声明为准）。
+   */
   function newHeaders(): Headers {
     const headers = new Headers();
     headers.set('X-Trace-Id', createTraceId());
+    const tenantId = config.getTenantId?.();
+    if (tenantId !== undefined && tenantId !== null && tenantId !== '') {
+      headers.set('X-Tenant-Id', String(tenantId));
+    }
     return headers;
   }
 

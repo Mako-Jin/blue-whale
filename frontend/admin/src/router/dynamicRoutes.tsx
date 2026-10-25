@@ -18,16 +18,18 @@ import JobList from '../pages/job/JobList';
 import MenuList from '../pages/menu/MenuList';
 import PermissionList from '../pages/permission/PermissionList';
 import RoleList from '../pages/role/RoleList';
+import TenantList from '../pages/tenant/TenantList';
 import UserList from '../pages/user/UserList';
 
 /** 侧边导航项类型（与 antd Menu items 对齐） */
 export type SidebarItem = NonNullable<MenuProps['items']>[number];
 
-/** 组件标识 → 页面组件（契约键：user / role / menu / components / dept / permission / job / file / archive/*） */
+/** 组件标识 → 页面组件（契约键：user / role / menu / tenant / components / dept / permission / job / file / archive/*） */
 const COMPONENT_MAP: Record<
   | 'user'
   | 'role'
   | 'menu'
+  | 'tenant'
   | 'components'
   | 'dept'
   | 'permission'
@@ -43,6 +45,7 @@ const COMPONENT_MAP: Record<
   user: UserList,
   role: RoleList,
   menu: MenuList,
+  tenant: TenantList,
   components: ComponentsDemo,
   dept: DeptList,
   permission: PermissionList,

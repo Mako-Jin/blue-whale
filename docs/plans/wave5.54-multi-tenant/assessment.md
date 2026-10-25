@@ -259,6 +259,26 @@
 4. 请求层统一注入租户头（仅用于展示/兼容，服务端仍以 JWT 为准）。
 5. E2E：租户 A/B 双账号并行，验证菜单、数据、文件、知识库互不可见。
 
+**Phase 4 执行计划（2026-10-25，编码完成；构建验证待正常环境补跑）**
+
+- 范围与取舍：
+  - 登录租户码已由 Phase 0 完成（6 个前端应用登录页均带 `tenantCode`），本期补「登录/`/auth/me` 的 `tenantId` 落地 + 登录输入的 `tenantCode` 持久化 + 顶栏展示当前租户」。
+  - 一人多租户切换器本期不实现：`sys_user.tenant_id` 为单值，账号归属租户唯一（D3 后续项），切换需先补齐「用户-租户多对多 + 换令牌」后端能力。
+  - 审计导出不在本期：后端暂无租户级审计导出接口，避免前端空壳按钮。
+- 文件与改动：
+  - `frontend/shared-packages/http/src/client.ts`：`HttpClientConfig` 增加可选 `getTenantId`，在普通请求/文件下载/SSE 三类发送前统一注入 `X-Tenant-Id`（不传则保持原行为；服务端仍以 JWT claim 为准，网关会清除入站并重新注入）。
+  - `frontend/admin/src/api/token.ts`：`LoginResponse`/`AuthMeResponse`/`UserInfo` 补 `tenantId`，`UserInfo` 补展示用 `tenantCode`；`saveLogin(data, tenantCode?)` 合并保存，保留既有权限/菜单。
+  - `frontend/admin/src/api/auth.ts`：登录成功时把表单租户码一并落盘；`fetchMe` 回写 `tenantId`。
+  - `frontend/admin/src/api/client.ts`：接入 `getTenantId`（读取当前登录用户 `tenantId`）。
+  - `frontend/admin/src/api/tenant.ts`（新增）：`/tenant` 分页/详情/开通/更新/启停/续期，类型对齐 `TenantVO` 与后端 DTO。
+  - `frontend/admin/src/pages/tenant/TenantList.tsx`（新增）：`ProTable + SearchForm + FormModal + AuthButton` 风格，列表展示编码/名称/类型/状态/到期/配额；开通（编码、名称、管理员、到期、配额 JSON）、编辑（名称/配额）、启停、续期；平台租户行禁止停用。
+  - `frontend/admin/src/App.tsx`、`router/dynamicRoutes.tsx`、`layouts/AdminLayout.tsx`：注册 `/tenants` 静态路由与 `tenant` 组件契约键；导航在动态菜单未包含 `/tenants` 且具备 `sys:tenant:list` 时补充入口；顶栏展示当前租户编码。
+- 验收：
+  - 平台租户账号可见「租户管理」入口；非平台租户即使直接访问 `/tenants` 也因后端 `requirePlatformTenant()` 返回 403。
+  - 开通/编辑/启停/续期均按权限码 `sys:tenant:add|edit|status|renew` 控制按钮，成功后列表刷新。
+  - 所有 admin 请求携带 `X-Tenant-Id`（与 JWT 一致），伪造该头不影响服务端隔离结论。
+  - admin `tsc -b && vite build` 通过；不改变未接入应用的既有行为。
+
 ---
 
 ## 七、关键决策（需确认）
@@ -339,3 +359,14 @@
 | 完成项 | ① 10 个库 `init.sql` 同步新增 `tenant_id` 与索引，业务唯一键升级为租户复合键；② 新增 10 份 `migration-5.54-tenant-business.sql`（列默认 1，存量自动归属默认租户）；③ `TenantSqlProperties` 改为 `ignoreTables` 白名单，`MybatisPlusConfig` 全表默认隔离；④ 非默认租户表单物理表名带 `t{tenantId}_` 段；⑤ Lucene 文档写入 `tenant_id`（平台知识 0），BM25/KNN 检索强制租户过滤并兼容历史无字段文档；⑥ 文件知识同步与档案同步接入租户目录（auth `/tenant/internal/enabled-ids`），档案→文件/工作流、Agent→文件内部调用透传 `X-Tenant-Id`；⑦ 任务调度按 `job_info.tenant_id` 绑定上下文；⑧ Agent/档案/任务相关模块单测与后端全量构建通过 |
 | 待做项 | ① 联调环境按库执行 `migration-5.54-tenant-business.sql` 并回归各域租户隔离用例；② 存量对象键迁移（无 `tenants/` 前缀）仍待执行；③ Agent 一次性重建索引（清掉无租户字段的历史文档）建议在维护窗口执行；④ 一人多租户（S4）与 Phase 4 前端租户切换/运营台 |
 | 已知限制 | ① 平台级知识（代码/文档/`agent_fact`）对所有租户可见，按设计保留；② RBAC 关系表沿用全局唯一 ID 关联，不加租户列（写入白名单）；③ 表单动态物理表租户隔离依赖已发布物理表固定名，租户编码变更不支持，仅支持编码级隔离 |
+
+---
+
+## 十三、Phase 4 执行记录（2026-10-25）
+
+| 类别 | 内容 |
+|---|---|
+| 需求项 | ① 登录返回的租户信息在前端落地并展示；② 共享请求层统一注入 `X-Tenant-Id`；③ 平台租户管理页（分页/开通/编辑配额/启停/续期）；④ 租户管理路由与权限可见导航；⑤ 前端构建验证与文档 |
+| 完成项 | ① `@bluewhale/http` 的 `HttpClientConfig` 新增可选 `getTenantId`，在 `newHeaders()` 统一注入 `X-Tenant-Id`（普通请求/下载/SSE/续期全部覆盖，未配置时保持原行为）；② admin `LoginResponse`/`AuthMeResponse`/`UserInfo` 补 `tenantId`，`UserInfo` 补展示用 `tenantCode`，`saveLogin(data, tenantCode?)` 合并落盘，`fetchMe` 回写租户；③ admin 顶栏展示「租户 {tenantCode 或 tenantId}」标签；④ 新增 `api/tenant.ts`（`/tenant` 分页/详情/开通/更新/启停/续期，字段对齐 `TenantVO` 与后端 DTO）；⑤ 新增 `pages/tenant/TenantList.tsx`（`ProTable + SearchForm + FormModal + AuthButton`，平台租户行禁止停用，按钮按 `sys:tenant:*` 权限码隐藏）；⑥ `App.tsx` 注册 `/tenants` 静态路由，`dynamicRoutes` 增加 `tenant` 组件契约键，`AdminLayout` 在动态菜单缺失且持有 `sys:tenant:list` 时补充入口；⑦ admin `vite.config.ts` 开发代理增加 `tenant` 前缀 |
+| 待做项 | ① 一人多租户切换器（D3，需先补「用户-租户多对多 + 换令牌」后端能力）；② 租户 A/B 双账号 E2E（依赖双租户联调环境）；③ 租户级审计导出（后端暂无接口）；④ 联调环境执行各库 `migration-5.54-tenant-*.sql`；⑤ 在正常环境补跑 `pnpm --filter @bluewhale/http build`、`pnpm --filter whale-admin build`（含 `tsc -b`）与 `pnpm --filter whale-admin lint` |
+| 已知限制 | ① 本次命令执行环境返回 `sandbox backend failed`（含 `node -v`），前端构建与 lint 未能在本机执行，仅完成人工类型审查；② `dist/` 为构建产物且被 git 忽略，需先构建 `@bluewhale/http` 再构建 admin；③ 请求头租户仅兼容展示，服务端仍以 JWT `tenantId` claim 为准，伪造请求头不改变隔离结论；④ 业务租户即使直接访问 `/tenants`，后端 `requirePlatformTenant()` 返回 403 |

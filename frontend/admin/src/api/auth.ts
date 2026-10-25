@@ -28,7 +28,7 @@ export async function login(username: string, password: string, tenantCode?: str
     username,
     password,
   });
-  saveLogin(data);
+  saveLogin(data, tenantCode);
   // 审计：登录成功留痕（敏感字段由 tracker 统一脱敏）
   eventBus.emit(AppEvents.AUTH_LOGIN, { username, roles: data.roles });
   return data;
@@ -42,6 +42,7 @@ export async function fetchMe(): Promise<AuthMeResponse> {
   saveCurrentUser({
     ...(user ?? { username: me.username, nickname: me.nickname, roles: [] }),
     userId: me.userId,
+    tenantId: me.tenantId ?? user?.tenantId,
     username: me.username,
     nickname: me.nickname,
     roles: me.roles ?? [],

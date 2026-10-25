@@ -16,8 +16,20 @@ const NAV_ITEMS: SidebarItem[] = [
   { key: '/users', label: '用户管理' },
   { key: '/roles', label: '角色管理' },
   { key: '/menus', label: '菜单管理' },
+  { key: '/tenants', label: '租户管理' },
   { key: '/components', label: '组件示例' },
 ];
+
+/**
+ * 动态菜单未包含租户管理时补一个入口。
+ * 仅平台租户账号持有 sys:tenant:list 权限码，业务租户不会看到该入口。
+ */
+function withTenantNav(items: SidebarItem[], canManageTenants: boolean): SidebarItem[] {
+  if (!canManageTenants || collectMenuKeys(items).includes('/tenants')) {
+    return items;
+  }
+  return [...items, { key: '/tenants', label: '租户管理' }];
+}
 
 /** 路径与导航 key 的最长前缀匹配，未命中时回退首页 '/' */
 function findSelectedKey(keys: string[], pathname: string): string {
@@ -39,9 +51,12 @@ export default function AdminLayout() {
   const { message } = App.useApp();
   const user = useCurrentUser();
 
+  const canManageTenants = (user?.permissions ?? []).includes('sys:tenant:list');
   const dynamicItems = getSidebarItems(user?.menus);
-  const navItems = dynamicItems.length > 0 ? dynamicItems : NAV_ITEMS;
+  const navItems =
+    dynamicItems.length > 0 ? withTenantNav(dynamicItems, canManageTenants) : NAV_ITEMS;
   const selectedKey = findSelectedKey(collectMenuKeys(navItems), location.pathname);
+  const tenantLabel = user?.tenantCode || user?.tenantId;
 
   const handleLogout = async () => {
     await logout();
@@ -66,6 +81,7 @@ export default function AdminLayout() {
           <span className="admin-header-title">后台管理平台</span>
           <Space>
             <ThemeSwitcher compact />
+            {tenantLabel ? <Tag color="geekblue">租户 {tenantLabel}</Tag> : null}
             <span>{user?.nickname ?? user?.username ?? '-'}</span>
             {(user?.roles ?? []).map((role) => (
               <Tag key={role} color="blue">

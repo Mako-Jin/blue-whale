@@ -10,6 +10,7 @@ import HomePage from './pages/Home';
 import LoginPage from './pages/Login';
 import MenuList from './pages/menu/MenuList';
 import RoleList from './pages/role/RoleList';
+import TenantList from './pages/tenant/TenantList';
 import UserList from './pages/user/UserList';
 import { getDynamicRoutes } from './router/dynamicRoutes';
 import PermissionGate from './router/PermissionGate';
@@ -43,6 +44,7 @@ export default function App() {
         { path: 'users', element: <UserList /> },
         { path: 'roles', element: <RoleList /> },
         { path: 'menus', element: <MenuList /> },
+        { path: 'tenants', element: <TenantList /> },
         { path: 'components', element: <ComponentsDemo /> },
         ...dynamicRoutes,
       ],
