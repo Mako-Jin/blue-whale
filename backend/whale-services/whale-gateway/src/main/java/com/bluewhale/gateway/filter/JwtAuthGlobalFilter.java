@@ -42,7 +42,9 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
     private static final String USER_ID_HEADER = "X-User-Id";
     private static final String USERNAME_HEADER = "X-Username";
     private static final String USER_ROLES_HEADER = "X-User-Roles";
+    private static final String TENANT_ID_HEADER = "X-Tenant-Id";
     private static final String CLAIM_USER_ID = "userId";
+    private static final String CLAIM_TENANT_ID = "tenantId";
     private static final String CLAIM_ROLES = "roles";
     private static final String CLAIM_TOKEN_TYPE = "tokenType";
     private static final String TOKEN_TYPE_ACCESS = "access";
@@ -68,7 +70,8 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
         String path = request.getURI().getPath();
 
         if (isWhiteListed(path)) {
-            return chain.filter(exchange);
+            // 白名单同样清除外部伪造的租户头，避免绕过认证后污染下游租户上下文
+            return chain.filter(exchange.mutate().request(withoutTenantHeader(request)).build());
         }
 
         String authorization = request.getHeaders().getFirst(AUTHORIZATION_HEADER);
@@ -90,13 +93,19 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
                 log.warn("非 accessToken 访问受保护资源: path={}", path);
                 return unauthorized(exchange);
             }
+            // 令牌必须绑定租户：旧令牌（无 tenantId claim）一律拒绝，避免下游静默回落默认租户
+            String tenantId = stringify(claims.get(CLAIM_TENANT_ID));
+            if (tenantId.isBlank()) {
+                log.warn("accessToken 缺少 tenantId claim: path={}", path);
+                return unauthorized(exchange);
+            }
             return tokenBlacklistChecker.isBlacklisted(token)
                     .flatMap(blacklisted -> {
                         if (Boolean.TRUE.equals(blacklisted)) {
                             log.warn("令牌命中登出黑名单: path={}", path);
                             return unauthorized(exchange);
                         }
-                        ServerHttpRequest mutatedRequest = withIdentityHeaders(request, claims);
+                        ServerHttpRequest mutatedRequest = withIdentityHeaders(request, claims, tenantId);
                         return chain.filter(exchange.mutate().request(mutatedRequest).build());
                     });
         } catch (JwtException | IllegalArgumentException e) {
@@ -117,13 +126,14 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 先移除外部伪造的身份头，再注入网关解析出的身份信息
+     * 先移除外部伪造的身份与租户头，再注入网关解析出的身份信息
      *
-     * @param request 原始请求
-     * @param claims  已通过签名校验的令牌载荷
+     * @param request  原始请求
+     * @param claims   已通过签名校验的令牌载荷
+     * @param tenantId 令牌中的租户 ID
      * @return 注入身份头后的新请求
      */
-    private static ServerHttpRequest withIdentityHeaders(ServerHttpRequest request, Claims claims) {
+    private static ServerHttpRequest withIdentityHeaders(ServerHttpRequest request, Claims claims, String tenantId) {
         String userId = stringify(claims.get(CLAIM_USER_ID));
         String username = stringify(claims.getSubject());
         String roles = stringify(claims.get(CLAIM_ROLES));
@@ -132,10 +142,24 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
                     headers.remove(USER_ID_HEADER);
                     headers.remove(USERNAME_HEADER);
                     headers.remove(USER_ROLES_HEADER);
+                    headers.remove(TENANT_ID_HEADER);
                     headers.set(USER_ID_HEADER, userId);
                     headers.set(USERNAME_HEADER, username);
                     headers.set(USER_ROLES_HEADER, roles);
+                    headers.set(TENANT_ID_HEADER, tenantId);
                 })
+                .build();
+    }
+
+    /**
+     * 清除入站租户头（仅用于免认证白名单路径）
+     *
+     * @param request 原始请求
+     * @return 清除 {@code X-Tenant-Id} 后的新请求
+     */
+    private static ServerHttpRequest withoutTenantHeader(ServerHttpRequest request) {
+        return request.mutate()
+                .headers(headers -> headers.remove(TENANT_ID_HEADER))
                 .build();
     }
 

@@ -10,8 +10,9 @@ import java.util.Set;
  * 全服务共享的链路与权限请求头常量及取值工具（REQ-SEC-006 / AUTH-06）。
  *
  * <p>{@code X-Trace-Id} 由网关 {@code TraceIdGlobalFilter} 注入，{@code X-User-Id} / {@code X-Username}
- * 由 {@code JwtAuthGlobalFilter} 注入，{@code X-Permission-Codes} 由 {@code PermissionHeaderGlobalFilter}
- * 注入；Filter / Interceptor / 权限拦截器统一引用本类，避免多份重复定义与取值口径漂移。</p>
+ * / {@code X-Tenant-Id} 由 {@code JwtAuthGlobalFilter} 注入，{@code X-Permission-Codes} 由
+ * {@code PermissionHeaderGlobalFilter} 注入；Filter / Interceptor / 权限拦截器统一引用本类，
+ * 避免多份重复定义与取值口径漂移。</p>
  *
  * @author BlueWhale
  */
@@ -27,7 +28,7 @@ public final class WebHeaders {
     public static final String USER_ROLES = "X-User-Roles";
     /** 权限码请求头（权限码逗号拼接） */
     public static final String PERMISSION_CODES = "X-Permission-Codes";
-    /** 租户ID请求头（多租户行级隔离；网关不注入，客户端可选传递，缺省回落默认租户） */
+    /** 租户ID请求头（多租户行级隔离；由网关从 JWT tenantId claim 可信注入） */
     public static final String TENANT_ID = "X-Tenant-Id";
 
     /** 工具类不允许实例化 */

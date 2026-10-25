@@ -18,6 +18,8 @@ public class SysUser implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private Long id;
+    /** 所属租户ID（逻辑关联 sys_tenant.id） */
+    private Long tenantId;
     private String username;
     /** 登录密码（BCrypt 密文），任何查询响应不得返回 */
     private String password;

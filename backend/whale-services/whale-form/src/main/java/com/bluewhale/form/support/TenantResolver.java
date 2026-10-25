@@ -7,17 +7,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.util.StringUtils;
 
 /**
- * 租户解析工具：由请求头 {@code X-Tenant-Id} 解析行级租户 ID。
+ * 租户解析工具：由网关注入的请求头 {@code X-Tenant-Id} 解析行级租户 ID。
  *
- * <p>平台当前无租户模型，故取值优先读请求头（客户端可选传递）；缺失回落默认租户
- * {@link #DEFAULT_TENANT_ID}；非法（非数字）抛 {@code PARAM_ERROR}。</p>
+ * <p>Wave 5.54 Phase 0：租户头由网关从 JWT 可信注入，服务端不再回落默认租户。
+ * 缺失视为租户上下文异常（{@code PARAM_ERROR}），非法（非数字）同样抛 {@code PARAM_ERROR}。</p>
  *
  * @author BlueWhale
  */
 public final class TenantResolver {
-
-    /** 默认租户ID */
-    public static final long DEFAULT_TENANT_ID = 1L;
 
     /** 工具类不允许实例化 */
     private TenantResolver() {
@@ -27,13 +24,13 @@ public final class TenantResolver {
      * 从请求头解析租户ID
      *
      * @param request 当前请求
-     * @return 租户ID；缺省回落 {@link #DEFAULT_TENANT_ID}
-     * @throws BizException 头值非数字时抛出 {@code PARAM_ERROR}
+     * @return 租户ID
+     * @throws BizException 头缺失或非数字时抛出 {@code PARAM_ERROR}
      */
     public static Long resolve(HttpServletRequest request) {
         String raw = WebHeaders.tenantId(request);
         if (!StringUtils.hasText(raw)) {
-            return DEFAULT_TENANT_ID;
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "缺少租户上下文");
         }
         try {
             return Long.parseLong(raw.trim());

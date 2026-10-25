@@ -68,8 +68,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             log.debug("token 命中登出黑名单，按未认证处理: username={}", claims.getSubject());
             return;
         }
+        Long tenantId = resolveTenantId(claims);
+        if (tenantId == null) {
+            log.debug("accessToken 缺少租户 claim，按未认证处理: username={}", claims.getSubject());
+            return;
+        }
         try {
-            UserDetails userDetails = userDetailsService.loadUserByUsername(claims.getSubject());
+            UserDetails userDetails;
+            LoginTenantContext.set(tenantId);
+            try {
+                userDetails = userDetailsService.loadUserByUsername(claims.getSubject());
+            } finally {
+                LoginTenantContext.clear();
+            }
             if (!userDetails.isEnabled()) {
                 return;
             }
@@ -79,6 +90,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             SecurityContextHolder.getContext().setAuthentication(authentication);
         } catch (UsernameNotFoundException ignored) {
             // token 对应的用户不存在，保持未认证状态，由 EntryPoint 返回 401
+        }
+    }
+
+    /**
+     * 从 accessToken 载荷解析租户 ID
+     *
+     * @param claims 令牌载荷
+     * @return 租户 ID；缺失或非法时返回 {@code null}
+     */
+    private static Long resolveTenantId(Claims claims) {
+        Object raw = claims.get(JwtTokenProvider.CLAIM_TENANT_ID);
+        if (raw == null) {
+            return null;
+        }
+        try {
+            return Long.valueOf(String.valueOf(raw));
+        } catch (NumberFormatException e) {
+            return null;
         }
     }
 }

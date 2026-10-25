@@ -33,6 +33,7 @@ import java.util.UUID;
 public class JwtTokenProvider {
 
     public static final String CLAIM_USER_ID = "userId";
+    public static final String CLAIM_TENANT_ID = "tenantId";
     public static final String CLAIM_ROLES = "roles";
     public static final String CLAIM_TOKEN_TYPE = "tokenType";
     public static final String TOKEN_TYPE_ACCESS = "access";
@@ -71,20 +72,22 @@ public class JwtTokenProvider {
     }
 
     /**
-     * 生成 accessToken：sub=username、userId、roles（逗号分隔角色 code），带唯一 jti
+     * 生成 accessToken：sub=username、userId、tenantId、roles（逗号分隔角色 code），带唯一 jti
      *
+     * @param tenantId 租户 ID（网关据此注入 X-Tenant-Id）
      * @param userId 用户 ID
      * @param username 用户名（作为 sub）
      * @param roles 角色 code 列表（逗号分隔写入 roles claim）
      * @return 签名后的 accessToken 字符串
      */
-    public String generateAccessToken(Long userId, String username, List<String> roles) {
+    public String generateAccessToken(Long tenantId, Long userId, String username, List<String> roles) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + properties.getExpireMinutes() * 60_000);
         return Jwts.builder()
                 .id(UUID.randomUUID().toString())
                 .subject(username)
                 .claim(CLAIM_USER_ID, userId)
+                .claim(CLAIM_TENANT_ID, tenantId)
                 .claim(CLAIM_ROLES, String.join(",", roles))
                 .claim(CLAIM_TOKEN_TYPE, TOKEN_TYPE_ACCESS)
                 .issuedAt(now)
@@ -96,18 +99,20 @@ public class JwtTokenProvider {
     /**
      * 生成 refreshToken，带唯一 jti；{@code familyId} 存在时携入 {@code familyId} claim（AUTH-39）
      *
+     * @param tenantId 租户 ID
      * @param userId 用户 ID
      * @param username 用户名（作为 sub）
      * @param familyId 令牌 family 标识；{@code null} 或空白时不含该 claim（轮换关闭/旧令牌场景）
      * @return 签名后的 refreshToken 字符串
      */
-    public String generateRefreshToken(Long userId, String username, String familyId) {
+    public String generateRefreshToken(Long tenantId, Long userId, String username, String familyId) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + properties.getRefreshExpireMinutes() * 60_000);
         JwtBuilder builder = Jwts.builder()
                 .id(UUID.randomUUID().toString())
                 .subject(username)
                 .claim(CLAIM_USER_ID, userId)
+                .claim(CLAIM_TENANT_ID, tenantId)
                 .claim(CLAIM_TOKEN_TYPE, TOKEN_TYPE_REFRESH);
         if (familyId != null && !familyId.isBlank()) {
             builder.claim(CLAIM_FAMILY_ID, familyId);

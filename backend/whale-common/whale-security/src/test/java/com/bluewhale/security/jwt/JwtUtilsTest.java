@@ -71,8 +71,13 @@ class JwtUtilsTest {
     @DisplayName("校验：篡改令牌返回 false")
     void shouldRejectTamperedToken() {
         String token = JwtUtils.generateToken(Map.of("k", "v"), SECRET, TTL_MILLIS);
-        String tampered = token.substring(0, token.length() - 1)
-                + (token.endsWith("a") ? "b" : "a");
+        // 篡改签名段首字符：Base64URL 首字符直接决定签名字节前 6 位，可确定性破坏验签；
+        // 若只改末字符，可能因尾部填充位被忽略而仍能通过校验（历史用例曾偶发失败）。
+        int signatureStart = token.lastIndexOf('.') + 1;
+        char original = token.charAt(signatureStart);
+        String tampered = token.substring(0, signatureStart)
+                + (original == 'A' ? 'B' : 'A')
+                + token.substring(signatureStart + 1);
         assertFalse(JwtUtils.validateToken(tampered, SECRET));
     }
 

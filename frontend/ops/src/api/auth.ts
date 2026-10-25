@@ -10,6 +10,8 @@ export type { LoginResponse, OpsUserInfo } from './token';
 export { clearAuth, getCurrentUser, getToken } from './token';
 
 export interface LoginPayload {
+  /** 租户编码，留空由后端回落到默认租户 default（Wave 5.54 Phase 0） */
+  tenantCode?: string;
   username: string;
   password: string;
 }
@@ -25,7 +27,10 @@ export interface MeResponse {
 
 // 登录：POST /auth/login（网关白名单，免 JWT）
 export async function login(payload: LoginPayload): Promise<LoginResponse> {
-  const data = await post<LoginResponse>('/auth/login', payload);
+  const data = await post<LoginResponse>('/auth/login', {
+    ...payload,
+    tenantCode: payload.tenantCode?.trim() || undefined,
+  });
   saveLogin(data);
   // 审计：登录成功留痕（敏感字段由 tracker 统一脱敏）
   eventBus.emit(AppEvents.AUTH_LOGIN, { username: payload.username, roles: data.roles });

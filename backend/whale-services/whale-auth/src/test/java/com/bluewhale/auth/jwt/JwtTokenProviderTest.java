@@ -26,6 +26,7 @@ class JwtTokenProviderTest {
     private static final String OTHER_SECRET = "another-unit-test-secret-key-9876543210-abcdefgh";
 
     private static final String USERNAME = "alice";
+    private static final long TENANT_ID = 1L;
     private static final long USER_ID = 1251323419503984640L;
     private static final String FAMILY_ID = "family-uuid-0001";
     private static final List<String> ROLES = List.of("admin", "user");
@@ -50,12 +51,13 @@ class JwtTokenProviderTest {
     void shouldGenerateParsableAccessToken() {
         JwtTokenProvider tokenProvider = provider(ACCESS_EXPIRE_MINUTES, REFRESH_EXPIRE_MINUTES);
 
-        String token = tokenProvider.generateAccessToken(USER_ID, USERNAME, ROLES);
+        String token = tokenProvider.generateAccessToken(TENANT_ID, USER_ID, USERNAME, ROLES);
         Claims claims = tokenProvider.parse(token);
 
         assertNotNull(claims);
         assertEquals(USERNAME, claims.getSubject());
         assertEquals(USER_ID, ((Number) claims.get(JwtTokenProvider.CLAIM_USER_ID)).longValue());
+        assertEquals(TENANT_ID, ((Number) claims.get(JwtTokenProvider.CLAIM_TENANT_ID)).longValue());
         assertEquals("admin,user", claims.get(JwtTokenProvider.CLAIM_ROLES));
         assertEquals(JwtTokenProvider.TOKEN_TYPE_ACCESS,
                 claims.get(JwtTokenProvider.CLAIM_TOKEN_TYPE));
@@ -66,7 +68,7 @@ class JwtTokenProviderTest {
     void shouldGenerateRefreshToken() {
         JwtTokenProvider tokenProvider = provider(ACCESS_EXPIRE_MINUTES, REFRESH_EXPIRE_MINUTES);
 
-        String token = tokenProvider.generateRefreshToken(USER_ID, USERNAME, FAMILY_ID);
+        String token = tokenProvider.generateRefreshToken(TENANT_ID, USER_ID, USERNAME, FAMILY_ID);
         Claims claims = tokenProvider.parse(token);
 
         assertNotNull(claims);
@@ -83,7 +85,7 @@ class JwtTokenProviderTest {
     void shouldOmitFamilyClaimWhenFamilyIdAbsent() {
         JwtTokenProvider tokenProvider = provider(ACCESS_EXPIRE_MINUTES, REFRESH_EXPIRE_MINUTES);
 
-        String token = tokenProvider.generateRefreshToken(USER_ID, USERNAME, null);
+        String token = tokenProvider.generateRefreshToken(TENANT_ID, USER_ID, USERNAME, null);
 
         Claims claims = tokenProvider.parse(token);
         assertNotNull(claims);
@@ -95,7 +97,7 @@ class JwtTokenProviderTest {
     void accessTokenShouldNotCarryFamilyClaim() {
         JwtTokenProvider tokenProvider = provider(ACCESS_EXPIRE_MINUTES, REFRESH_EXPIRE_MINUTES);
 
-        String token = tokenProvider.generateAccessToken(USER_ID, USERNAME, ROLES);
+        String token = tokenProvider.generateAccessToken(TENANT_ID, USER_ID, USERNAME, ROLES);
 
         assertNull(tokenProvider.parse(token).get(JwtTokenProvider.CLAIM_FAMILY_ID));
     }
@@ -112,7 +114,7 @@ class JwtTokenProviderTest {
     @DisplayName("parse：签名不匹配的 token 返回 null（密钥参与校验，不信任 token 头 alg）")
     void parseShouldReturnNullWhenSignatureMismatch() {
         String token = provider(ACCESS_EXPIRE_MINUTES, REFRESH_EXPIRE_MINUTES)
-                .generateAccessToken(USER_ID, USERNAME, ROLES);
+                .generateAccessToken(TENANT_ID, USER_ID, USERNAME, ROLES);
 
         JwtTokenProvider otherProvider = provider(OTHER_SECRET, ACCESS_EXPIRE_MINUTES, REFRESH_EXPIRE_MINUTES);
 
@@ -124,7 +126,7 @@ class JwtTokenProviderTest {
     void remainingValidityShouldBePositiveForValidToken() {
         JwtTokenProvider tokenProvider = provider(ACCESS_EXPIRE_MINUTES, REFRESH_EXPIRE_MINUTES);
 
-        String token = tokenProvider.generateAccessToken(USER_ID, USERNAME, ROLES);
+        String token = tokenProvider.generateAccessToken(TENANT_ID, USER_ID, USERNAME, ROLES);
         long remaining = tokenProvider.getRemainingValiditySeconds(token);
 
         assertTrue(remaining > 0L, "有效 token 的剩余有效期应为正数");
@@ -137,7 +139,7 @@ class JwtTokenProviderTest {
     void remainingValidityShouldBeZeroForExpiredToken() {
         JwtTokenProvider expiredProvider = provider(-1L, REFRESH_EXPIRE_MINUTES);
 
-        String token = expiredProvider.generateAccessToken(USER_ID, USERNAME, ROLES);
+        String token = expiredProvider.generateAccessToken(TENANT_ID, USER_ID, USERNAME, ROLES);
 
         assertEquals(0L, expiredProvider.getRemainingValiditySeconds(token));
     }

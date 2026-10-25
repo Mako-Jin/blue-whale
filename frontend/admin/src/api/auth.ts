@@ -21,8 +21,13 @@ export { clearAuth, getCurrentUser, getRefreshToken, getToken } from './token';
 export { refreshSession as refresh } from './client';
 
 // 登录：POST /auth/login（网关白名单，免 JWT）
-export async function login(username: string, password: string): Promise<LoginResponse> {
-  const data = await post<LoginResponse>('/auth/login', { username, password });
+// tenantCode 为租户编码，留空由后端回落到默认租户 default（Wave 5.54 Phase 0）
+export async function login(username: string, password: string, tenantCode?: string): Promise<LoginResponse> {
+  const data = await post<LoginResponse>('/auth/login', {
+    tenantCode: tenantCode?.trim() || undefined,
+    username,
+    password,
+  });
   saveLogin(data);
   // 审计：登录成功留痕（敏感字段由 tracker 统一脱敏）
   eventBus.emit(AppEvents.AUTH_LOGIN, { username, roles: data.roles });

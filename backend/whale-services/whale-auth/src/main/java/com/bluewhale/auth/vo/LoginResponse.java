@@ -21,6 +21,8 @@ public class LoginResponse implements Serializable {
     private String tokenType;
     /** accessToken 有效期（秒） */
     private long expiresIn;
+    /** 所属租户 ID（Wave 5.54：令牌已绑定租户） */
+    private Long tenantId;
     private String username;
     private String nickname;
     /** 角色 code 列表 */

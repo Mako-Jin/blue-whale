@@ -59,6 +59,15 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
+    public Optional<User> findByTenantIdAndUsername(Long tenantId, String username) {
+        SysUser po = userMapper.selectOne(new LambdaQueryWrapper<SysUser>()
+                .eq(SysUser::getTenantId, tenantId)
+                .eq(SysUser::getUsername, username)
+                .last("limit 1"));
+        return Optional.ofNullable(po).map(UserPersistenceAssembler::toDomain);
+    }
+
+    @Override
     public boolean existsByUsername(String username) {
         Long count = userMapper.selectCount(new LambdaQueryWrapper<SysUser>()
                 .eq(SysUser::getUsername, username));

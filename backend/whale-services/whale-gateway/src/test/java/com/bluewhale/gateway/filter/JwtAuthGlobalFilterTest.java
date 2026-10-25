@@ -44,6 +44,7 @@ class JwtAuthGlobalFilterTest {
     private static final String USERNAME = "alice";
     private static final long USER_ID = 1251323419503984640L;
     private static final String ROLES = "admin,user";
+    private static final long TENANT_ID = 1L;
     private static final long TOKEN_TTL_MILLIS = 60_000L;
     private static final String PROTECTED_PATH = "http://localhost/auth/users";
 
@@ -65,6 +66,7 @@ class JwtAuthGlobalFilterTest {
         return Jwts.builder()
                 .subject(USERNAME)
                 .claim("userId", USER_ID)
+                .claim("tenantId", TENANT_ID)
                 .claim("roles", ROLES)
                 .claim("tokenType", tokenType)
                 .issuedAt(now)
@@ -94,7 +96,7 @@ class JwtAuthGlobalFilterTest {
     }
 
     @Test
-    @DisplayName("filter：未命中黑名单时放行，并注入 X-User-Id / X-Username / X-User-Roles")
+    @DisplayName("filter：未命中黑名单时放行，并注入 X-User-Id / X-Username / X-User-Roles / X-Tenant-Id")
     void shouldPassThroughAndInjectIdentityHeadersWhenNotBlacklisted() {
         String accessToken = token("access");
         MockServerWebExchange exchange = exchangeWithBearer(accessToken);
@@ -110,6 +112,71 @@ class JwtAuthGlobalFilterTest {
         assertEquals(String.valueOf(USER_ID), headers.getFirst("X-User-Id"));
         assertEquals(USERNAME, headers.getFirst("X-Username"));
         assertEquals(ROLES, headers.getFirst("X-User-Roles"));
+        assertEquals(String.valueOf(TENANT_ID), headers.getFirst("X-Tenant-Id"));
+    }
+
+    @Test
+    @DisplayName("filter：客户端伪造的 X-Tenant-Id 被 JWT 租户覆盖")
+    void shouldOverrideForgedTenantHeader() {
+        String accessToken = token("access");
+        MockServerWebExchange exchange = MockServerWebExchange.from(MockServerHttpRequest.get(PROTECTED_PATH)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                .header("X-Tenant-Id", "999")
+                .build());
+        GatewayFilterChain chain = mock(GatewayFilterChain.class);
+        when(tokenBlacklistChecker.isBlacklisted(accessToken)).thenReturn(Mono.just(Boolean.FALSE));
+        when(chain.filter(any())).thenReturn(Mono.empty());
+
+        filter.filter(exchange, chain).block();
+
+        ArgumentCaptor<ServerWebExchange> captor = ArgumentCaptor.forClass(ServerWebExchange.class);
+        verify(chain).filter(captor.capture());
+        assertEquals(String.valueOf(TENANT_ID),
+                captor.getValue().getRequest().getHeaders().getFirst("X-Tenant-Id"));
+    }
+
+    @Test
+    @DisplayName("filter：缺少 tenantId claim 的旧令牌返回 401")
+    void shouldRejectTokenWithoutTenantClaim() {
+        SecretKey key = Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
+        Date now = new Date();
+        String legacyToken = Jwts.builder()
+                .subject(USERNAME)
+                .claim("userId", USER_ID)
+                .claim("roles", ROLES)
+                .claim("tokenType", "access")
+                .issuedAt(now)
+                .expiration(new Date(now.getTime() + TOKEN_TTL_MILLIS))
+                .signWith(key, Jwts.SIG.HS256)
+                .compact();
+        MockServerWebExchange exchange = exchangeWithBearer(legacyToken);
+        GatewayFilterChain chain = mock(GatewayFilterChain.class);
+
+        filter.filter(exchange, chain).block();
+
+        assertEquals(HttpStatus.UNAUTHORIZED, exchange.getResponse().getStatusCode());
+        verifyNoInteractions(chain);
+    }
+
+    @Test
+    @DisplayName("filter：白名单路径清除客户端传入的 X-Tenant-Id")
+    void shouldStripForgedTenantHeaderForWhiteListPath() {
+        WhaleGatewayProperties properties = new WhaleGatewayProperties();
+        properties.getJwt().setSecret(SECRET);
+        properties.setWhiteList(java.util.List.of("/auth/login"));
+        JwtAuthGlobalFilter whiteListFilter = new JwtAuthGlobalFilter(properties, tokenBlacklistChecker);
+        MockServerWebExchange exchange = MockServerWebExchange.from(MockServerHttpRequest
+                .post("http://localhost/auth/login")
+                .header("X-Tenant-Id", "999")
+                .build());
+        GatewayFilterChain chain = mock(GatewayFilterChain.class);
+        when(chain.filter(any())).thenReturn(Mono.empty());
+
+        whiteListFilter.filter(exchange, chain).block();
+
+        ArgumentCaptor<ServerWebExchange> captor = ArgumentCaptor.forClass(ServerWebExchange.class);
+        verify(chain).filter(captor.capture());
+        assertEquals(null, captor.getValue().getRequest().getHeaders().getFirst("X-Tenant-Id"));
     }
 
     @Test

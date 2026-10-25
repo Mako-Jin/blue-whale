@@ -3,6 +3,7 @@ package com.bluewhale.auth.service;
 import com.bluewhale.auth.application.menu.MenuAppService;
 import com.bluewhale.auth.application.permission.PermissionAppService;
 import com.bluewhale.auth.application.role.RoleAppService;
+import com.bluewhale.auth.application.tenant.TenantAppService;
 import com.bluewhale.auth.config.RefreshRotationProperties;
 import com.bluewhale.auth.dto.RefreshRequest;
 import com.bluewhale.auth.jwt.JwtTokenProvider;
@@ -37,6 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -57,6 +59,7 @@ class AuthServiceTest {
     private static final String REFRESH_TOKEN = "refresh-token-original";
     private static final String BEARER_ACCESS = "Bearer " + ACCESS_TOKEN;
     private static final String USERNAME = "alice";
+    private static final long TENANT_ID = 1L;
     private static final long USER_ID = 1251323419503984640L;
     private static final long ACCESS_EXPIRE_SECONDS = 7200L;
     private static final long REFRESH_EXPIRE_SECONDS = 86400L;
@@ -95,6 +98,9 @@ class AuthServiceTest {
     @Mock
     private RefreshRotationProperties refreshRotationProperties;
 
+    @Mock
+    private TenantAppService tenantAppService;
+
     @InjectMocks
     private AuthService authService;
 
@@ -125,6 +131,8 @@ class AuthServiceTest {
         Claims claims = mock(Claims.class);
         when(claims.get(JwtTokenProvider.CLAIM_TOKEN_TYPE, String.class))
                 .thenReturn(JwtTokenProvider.TOKEN_TYPE_REFRESH);
+        // 部分用例在租户解析前即失败，使用 lenient 避免严格桩校验误报
+        lenient().when(claims.get(JwtTokenProvider.CLAIM_TENANT_ID)).thenReturn(TENANT_ID);
         return claims;
     }
 
@@ -163,10 +171,11 @@ class AuthServiceTest {
         when(tokenProvider.parse(REFRESH_TOKEN)).thenReturn(claims);
         when(tokenBlacklist.contains(REFRESH_TOKEN)).thenReturn(false);
         when(userDetailsService.loadUserByUsername(USERNAME))
-                .thenReturn(new LoginUser(USER_ID, USERNAME, "pwd", "Alice", List.of("admin"), true));
-        when(tokenProvider.generateAccessToken(USER_ID, USERNAME, List.of("admin"))).thenReturn("new-access");
+                .thenReturn(new LoginUser(TENANT_ID, USER_ID, USERNAME, "pwd", "Alice", List.of("admin"), true));
+        when(tokenProvider.generateAccessToken(TENANT_ID, USER_ID, USERNAME, List.of("admin")))
+                .thenReturn("new-access");
         // 轮换默认关闭：familyId 原样透传（claim 未携带即 null）
-        when(tokenProvider.generateRefreshToken(USER_ID, USERNAME, null)).thenReturn("new-refresh");
+        when(tokenProvider.generateRefreshToken(TENANT_ID, USER_ID, USERNAME, null)).thenReturn("new-refresh");
         when(tokenProvider.getAccessExpireSeconds()).thenReturn(ACCESS_EXPIRE_SECONDS);
 
         LoginResponse response = authService.refresh(refreshRequest());
@@ -188,11 +197,12 @@ class AuthServiceTest {
         when(refreshRotationStore.isFamilyRevoked(FAMILY_ID)).thenReturn(false);
         when(tokenBlacklist.contains(REFRESH_TOKEN)).thenReturn(false);
         when(userDetailsService.loadUserByUsername(USERNAME))
-                .thenReturn(new LoginUser(USER_ID, USERNAME, "pwd", "Alice", List.of("admin"), true));
+                .thenReturn(new LoginUser(TENANT_ID, USER_ID, USERNAME, "pwd", "Alice", List.of("admin"), true));
         when(tokenProvider.getRemainingValiditySeconds(REFRESH_TOKEN)).thenReturn(REMAINING_SECONDS);
         when(refreshRotationStore.markUsed(JTI, REMAINING_SECONDS)).thenReturn(true);
-        when(tokenProvider.generateAccessToken(USER_ID, USERNAME, List.of("admin"))).thenReturn("new-access");
-        when(tokenProvider.generateRefreshToken(USER_ID, USERNAME, FAMILY_ID)).thenReturn("new-refresh");
+        when(tokenProvider.generateAccessToken(TENANT_ID, USER_ID, USERNAME, List.of("admin")))
+                .thenReturn("new-access");
+        when(tokenProvider.generateRefreshToken(TENANT_ID, USER_ID, USERNAME, FAMILY_ID)).thenReturn("new-refresh");
         when(tokenProvider.getAccessExpireSeconds()).thenReturn(ACCESS_EXPIRE_SECONDS);
 
         LoginResponse response = authService.refresh(refreshRequest());
@@ -215,7 +225,7 @@ class AuthServiceTest {
         when(refreshRotationStore.isFamilyRevoked(FAMILY_ID)).thenReturn(false);
         when(tokenBlacklist.contains(REFRESH_TOKEN)).thenReturn(false);
         when(userDetailsService.loadUserByUsername(USERNAME))
-                .thenReturn(new LoginUser(USER_ID, USERNAME, "pwd", "Alice", List.of("admin"), true));
+                .thenReturn(new LoginUser(TENANT_ID, USER_ID, USERNAME, "pwd", "Alice", List.of("admin"), true));
         when(tokenProvider.getRemainingValiditySeconds(REFRESH_TOKEN)).thenReturn(REMAINING_SECONDS);
         when(refreshRotationStore.markUsed(JTI, REMAINING_SECONDS)).thenReturn(false);
         when(tokenProvider.getRefreshExpireSeconds()).thenReturn(REFRESH_EXPIRE_SECONDS);
@@ -284,7 +294,7 @@ class AuthServiceTest {
     @Test
     @DisplayName("me：内置超管授予全量权限码与全部启用可见菜单")
     void meShouldGrantAllForSuperAdmin() {
-        LoginUser superAdmin = new LoginUser(USER_ID, USERNAME, "pwd", "Admin",
+        LoginUser superAdmin = new LoginUser(TENANT_ID, USER_ID, USERNAME, "pwd", "Admin",
                 List.of(PermissionInterceptor.SUPER_ADMIN), true);
         authenticate(superAdmin);
         when(permissionAppService.listAllCodes()).thenReturn(List.of("sys:user:list", "sys:role:list"));
@@ -300,13 +310,14 @@ class AuthServiceTest {
     @Test
     @DisplayName("me：普通用户按角色授权返回权限码并据此过滤菜单树")
     void meShouldReturnGrantedPermissionsForNormalUser() {
-        authenticate(new LoginUser(USER_ID, USERNAME, "pwd", "Alice", List.of("admin"), true));
+        authenticate(new LoginUser(TENANT_ID, USER_ID, USERNAME, "pwd", "Alice", List.of("admin"), true));
         when(roleAppService.listPermissionCodesByUserId(USER_ID)).thenReturn(List.of("sys:user:list"));
         when(menuAppService.treeByPermissionCodes(Set.of("sys:user:list"))).thenReturn(List.of(new MenuVO()));
 
         AuthMeResponse response = authService.me();
 
         assertEquals(List.of("sys:user:list"), response.getPermissions());
+        assertEquals(TENANT_ID, response.getTenantId());
         assertEquals(USER_ID, response.getUserId());
         assertEquals(List.of("admin"), response.getRoles());
         verifyNoInteractions(permissionAppService);
@@ -318,5 +329,19 @@ class AuthServiceTest {
         BizException ex = assertThrows(BizException.class, () -> authService.me());
 
         assertEquals(UNAUTHORIZED_CODE, ex.getCode());
+    }
+
+    @Test
+    @DisplayName("refresh：令牌缺少 tenantId claim 时返回 401")
+    void refreshShouldRejectTokenWithoutTenantClaim() {
+        Claims claims = mock(Claims.class);
+        when(claims.get(JwtTokenProvider.CLAIM_TOKEN_TYPE, String.class))
+                .thenReturn(JwtTokenProvider.TOKEN_TYPE_REFRESH);
+        when(tokenProvider.parse(REFRESH_TOKEN)).thenReturn(claims);
+
+        BizException ex = assertThrows(BizException.class, () -> authService.refresh(refreshRequest()));
+
+        assertEquals(UNAUTHORIZED_CODE, ex.getCode());
+        verifyNoInteractions(userDetailsService, tokenBlacklist);
     }
 }

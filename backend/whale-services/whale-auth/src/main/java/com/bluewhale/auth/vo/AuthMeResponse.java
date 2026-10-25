@@ -15,6 +15,7 @@ public class AuthMeResponse implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    private Long tenantId;
     private Long userId;
     private String username;
     private String nickname;

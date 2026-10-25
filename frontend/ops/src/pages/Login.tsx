@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { login } from '../api/auth';
 
 interface LoginFormValues {
+  tenantCode?: string;
   username: string;
   password: string;
 }
@@ -38,9 +39,12 @@ export default function LoginPage() {
         </div>
         <Form<LoginFormValues>
           onFinish={handleFinish}
-          initialValues={{ username: 'admin', password: '' }}
+          initialValues={{ tenantCode: 'default', username: 'admin', password: '' }}
           size="large"
         >
+          <Form.Item name="tenantCode">
+            <Input placeholder="租户编码（默认 default）" autoComplete="organization" />
+          </Form.Item>
           <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>
             <Input placeholder="用户名（admin）" autoComplete="username" />
           </Form.Item>

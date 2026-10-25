@@ -42,6 +42,7 @@ class AuditLogAspectTest {
 
     private static final String GATEWAY_USER_ID = "1001";
     private static final String GATEWAY_USERNAME = "alice";
+    private static final String GATEWAY_TENANT_ID = "1";
     private static final String GATEWAY_TRACE_ID = "trace-id-from-gateway";
 
     private final AuditLogMapper auditLogMapper = mock(AuditLogMapper.class);
@@ -73,6 +74,7 @@ class AuditLogAspectTest {
         assertThat(record.getTraceId()).isEqualTo(GATEWAY_TRACE_ID);
         assertThat(record.getUserId()).isEqualTo(Long.valueOf(GATEWAY_USER_ID));
         assertThat(record.getUsername()).isEqualTo(GATEWAY_USERNAME);
+        assertThat(record.getTenantId()).isEqualTo(Long.valueOf(GATEWAY_TENANT_ID));
         assertThat(record.getModule()).isEqualTo("whale-auth");
         assertThat(record.getOperation()).isEqualTo("创建用户");
         assertThat(record.getOperateType()).isEqualTo(OperateType.CREATE.name());
@@ -109,6 +111,7 @@ class AuditLogAspectTest {
         // 未携带网关注入头时用户字段留空，但 traceId 仍按网关规格兜底生成
         assertThat(record.getUserId()).isNull();
         assertThat(record.getUsername()).isNull();
+        assertThat(record.getTenantId()).isZero();
         assertThat(record.getTraceId()).hasSize(32);
     }
 
@@ -344,6 +347,7 @@ class AuditLogAspectTest {
             request.addHeader(AuditLogAspect.TRACE_ID_HEADER, GATEWAY_TRACE_ID);
             request.addHeader(AuditLogAspect.USER_ID_HEADER, GATEWAY_USER_ID);
             request.addHeader(AuditLogAspect.USERNAME_HEADER, GATEWAY_USERNAME);
+            request.addHeader(AuditLogAspect.TENANT_ID_HEADER, GATEWAY_TENANT_ID);
             request.addHeader("X-Forwarded-For", "10.1.1.1, 10.1.1.2");
         }
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));

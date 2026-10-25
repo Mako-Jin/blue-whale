@@ -13,12 +13,29 @@
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
+-- 0. 租户表（Wave 5.54 Phase 0：最小租户模型）
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS sys_tenant;
+CREATE TABLE sys_tenant (
+    id          BIGINT        NOT NULL                COMMENT '主键ID（雪花算法）',
+    tenant_code VARCHAR(64)   NOT NULL                COMMENT '租户编码（唯一），登录时使用',
+    tenant_name VARCHAR(128)  NOT NULL                COMMENT '租户名称',
+    status      TINYINT       NOT NULL DEFAULT 1      COMMENT '状态：1 启用 / 0 停用',
+    create_time DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted     TINYINT       NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_tenant_code (tenant_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='租户表';
+
+-- ---------------------------------------------------------------------
 -- 1. 系统用户表
 -- ---------------------------------------------------------------------
 DROP TABLE IF EXISTS sys_user;
 CREATE TABLE sys_user (
     id              BIGINT        NOT NULL                COMMENT '主键ID（雪花算法）',
-    username        VARCHAR(64)   NOT NULL                COMMENT '登录账号（唯一）',
+    tenant_id       BIGINT        NOT NULL DEFAULT 1      COMMENT '所属租户ID（逻辑关联 sys_tenant.id）',
+    username        VARCHAR(64)   NOT NULL                COMMENT '登录账号（租户内唯一）',
     password        VARCHAR(100)  NOT NULL                COMMENT '登录密码（BCrypt 密文）',
     nickname        VARCHAR(64)   DEFAULT NULL            COMMENT '用户昵称',
     phone           VARCHAR(20)   DEFAULT NULL            COMMENT '手机号',
@@ -31,7 +48,8 @@ CREATE TABLE sys_user (
     update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted         TINYINT       NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
-    UNIQUE KEY uk_username (username)
+    UNIQUE KEY uk_tenant_username (tenant_id, username),
+    KEY idx_tenant_id (tenant_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='系统用户表';
 
 -- ---------------------------------------------------------------------
@@ -316,14 +334,20 @@ CREATE TABLE behavior_log (
 -- 内置种子数据
 -- =====================================================================
 
+-- 内置默认租户（id=1，tenant_code=default）：存量数据统一归属该租户
+INSERT INTO sys_tenant
+    (id, tenant_code, tenant_name, status)
+VALUES
+    (1, 'default', '默认租户', 1);
+
 -- 内置超级管理员用户（id=1）
 -- password 为 BCrypt 密文（由项目内 BCryptPasswordEncoder 生成），明文为 123456。
 -- 该密文经 BCryptPasswordEncoder.matches("123456", 密文) 实测校验通过，可用于首次登录。
 -- 首次部署后请立即修改默认密码。
 INSERT INTO sys_user
-    (id, username, password, nickname, phone, email, avatar, dept_id, status, last_login_time)
+    (id, tenant_id, username, password, nickname, phone, email, avatar, dept_id, status, last_login_time)
 VALUES
-    (1, 'admin', '$2a$10$rzq21So0/Oj02kDlvSr2K.lWaqOwb6TzkgwhuGRKIRGnlJV.F/l8m', '超级管理员', NULL, NULL, NULL, NULL, 1, NULL);
+    (1, 1, 'admin', '$2a$10$rzq21So0/Oj02kDlvSr2K.lWaqOwb6TzkgwhuGRKIRGnlJV.F/l8m', '超级管理员', NULL, NULL, NULL, NULL, 1, NULL);
 
 -- 内置超级管理员角色（role_code = super_admin）
 INSERT INTO sys_role

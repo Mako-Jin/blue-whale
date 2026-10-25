@@ -67,6 +67,10 @@ public class AuditLogAspect {
     public static final String USER_ID_HEADER = "X-User-Id";
     /** 用户名头（与网关 {@code JwtAuthGlobalFilter} 一致） */
     public static final String USERNAME_HEADER = "X-Username";
+    /** 租户ID头（与网关 {@code JwtAuthGlobalFilter} 一致，Wave 5.54） */
+    public static final String TENANT_ID_HEADER = "X-Tenant-Id";
+    /** 缺失/非法租户时的兜底值：0 表示未知，避免审计租户维度为空 */
+    private static final long UNKNOWN_TENANT_ID = 0L;
 
     /** 代理转发IP头 */
     private static final String FORWARDED_FOR_HEADER = "X-Forwarded-For";
@@ -219,6 +223,7 @@ public class AuditLogAspect {
 
         AuditLogRecord record = new AuditLogRecord();
         record.setTraceId(resolveTraceId(request));
+        record.setTenantId(resolveTenantId(request));
         record.setUserId(resolveUserId(request));
         record.setUsername(headerOrNull(request, USERNAME_HEADER));
         record.setModule(resolveModule(auditLog));
@@ -253,6 +258,25 @@ public class AuditLogAspect {
     private static String resolveTraceId(HttpServletRequest request) {
         String traceId = headerOrNull(request, TRACE_ID_HEADER);
         return traceId != null ? traceId : UUID.randomUUID().toString().replace("-", "");
+    }
+
+    /**
+     * 租户ID：取网关注入头；缺失或非法统一记为 0（未知租户），保证审计记录租户维度非空
+     *
+     * @param request 当前请求，可为 {@code null}
+     * @return 租户 ID；缺失或非法时返回 {@link #UNKNOWN_TENANT_ID}
+     */
+    private static Long resolveTenantId(HttpServletRequest request) {
+        String tenantId = headerOrNull(request, TENANT_ID_HEADER);
+        if (tenantId == null) {
+            return UNKNOWN_TENANT_ID;
+        }
+        try {
+            return Long.valueOf(tenantId);
+        } catch (NumberFormatException e) {
+            log.warn("网关注入的 X-Tenant-Id 非法，按未知租户处理: value={}", tenantId);
+            return UNKNOWN_TENANT_ID;
+        }
     }
 
     /** 用户ID：取网关注入头，非数字视为未提供 */

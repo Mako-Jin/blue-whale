@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { fetchMe, login } from '../../api/auth';
 
 interface LoginFormValues {
+  tenantCode?: string;
   username: string;
   password: string;
 }
@@ -19,7 +20,7 @@ export default function LoginPage() {
   const handleFinish = async (values: LoginFormValues) => {
     setLoading(true);
     try {
-      await login(values.username, values.password);
+      await login(values.username, values.password, values.tenantCode);
       try {
         // 拉取权限码与菜单，供子应用共享；失败不阻断登录，进入页面后仍可按需重取
         await fetchMe();
@@ -45,9 +46,12 @@ export default function LoginPage() {
         </div>
         <Form<LoginFormValues>
           onFinish={handleFinish}
-          initialValues={{ username: 'admin', password: '' }}
+          initialValues={{ tenantCode: 'default', username: 'admin', password: '' }}
           size="large"
         >
+          <Form.Item name="tenantCode">
+            <Input placeholder="租户编码（默认 default）" autoComplete="organization" />
+          </Form.Item>
           <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>
             <Input
               prefix={<UserOutlined />}

@@ -29,10 +29,14 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user = userRepository.findByUsername(username)
+        Long tenantId = LoginTenantContext.current();
+        if (tenantId == null) {
+            throw new UsernameNotFoundException("缺少租户上下文: " + username);
+        }
+        User user = userRepository.findByTenantIdAndUsername(tenantId, username)
                 .orElseThrow(() -> new UsernameNotFoundException("用户不存在: " + username));
         List<String> roles = roleAppService.listRoleCodesByUserId(user.getId());
-        return new LoginUser(user.getId(), user.getUsername().value(), user.getPassword().value(),
+        return new LoginUser(tenantId, user.getId(), user.getUsername().value(), user.getPassword().value(),
                 user.getNickname(), roles, user.isEnabled());
     }
 }

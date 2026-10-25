@@ -4,12 +4,14 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.bluewhale.auth.application.menu.MenuAppService;
 import com.bluewhale.auth.application.permission.PermissionAppService;
 import com.bluewhale.auth.application.role.RoleAppService;
+import com.bluewhale.auth.application.tenant.TenantAppService;
 import com.bluewhale.auth.config.RefreshRotationProperties;
 import com.bluewhale.auth.dto.LoginRequest;
 import com.bluewhale.auth.dto.RefreshRequest;
 import com.bluewhale.auth.entity.SysUser;
 import com.bluewhale.auth.jwt.JwtTokenProvider;
 import com.bluewhale.auth.mapper.SysUserMapper;
+import com.bluewhale.auth.security.LoginTenantContext;
 import com.bluewhale.auth.security.LoginUser;
 import com.bluewhale.auth.security.PermissionInterceptor;
 import com.bluewhale.auth.security.RefreshTokenRotationStore;
@@ -70,6 +72,7 @@ public class AuthService {
     private final PermissionAppService permissionAppService;
     private final RefreshTokenRotationStore refreshRotationStore;
     private final RefreshRotationProperties refreshRotationProperties;
+    private final TenantAppService tenantAppService;
 
     /**
      * 登录：AuthenticationManager 走 UserDetailsService + BCryptPasswordEncoder 校验
@@ -78,7 +81,10 @@ public class AuthService {
      * @return 登录响应（含 accessToken 与 refreshToken）
      */
     public LoginResponse login(LoginRequest request) {
+        Long tenantId = tenantAppService.resolveEnabledTenantId(request.getTenantCode());
         Authentication authentication;
+        // UserDetailsService 只接收用户名，需在认证前绑定租户，确保按（租户, 用户名）定位账号
+        LoginTenantContext.set(tenantId);
         try {
             authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword()));
@@ -87,8 +93,11 @@ public class AuthService {
         } catch (DisabledException e) {
             throw new BizException(401, "账号已停用");
         } catch (AuthenticationException e) {
-            log.warn("认证失败: username={}, reason={}", request.getUsername(), e.getMessage());
+            log.warn("认证失败: tenantId={}, username={}, reason={}",
+                    tenantId, request.getUsername(), e.getMessage());
             throw new BizException(401, "认证失败");
+        } finally {
+            LoginTenantContext.clear();
         }
         LoginUser loginUser = (LoginUser) authentication.getPrincipal();
         // 记录最后登录时间
@@ -119,11 +128,19 @@ public class AuthService {
             throw new BizException(401, INVALID_REFRESH_TOKEN_MESSAGE);
         }
         String familyId = resolveRotatingFamilyId(claims);
+        Long tenantId = resolveTokenTenantId(claims);
+        tenantAppService.ensureEnabled(tenantId);
         if (tokenBlacklist.contains(refreshToken)) {
             log.debug("refreshToken 命中登出黑名单，拒绝换发新令牌: username={}", claims.getSubject());
             throw new BizException(401, REVOKED_REFRESH_TOKEN_MESSAGE);
         }
-        UserDetails userDetails = loadEnabledUser(claims.getSubject());
+        UserDetails userDetails;
+        LoginTenantContext.set(tenantId);
+        try {
+            userDetails = loadEnabledUser(claims.getSubject());
+        } finally {
+            LoginTenantContext.clear();
+        }
         consumeRotatingToken(refreshToken, claims, familyId);
         return buildLoginResponse((LoginUser) userDetails, familyId);
     }
@@ -171,6 +188,7 @@ public class AuthService {
                 ? menuAppService.treeByPermissionCodes(null)
                 : menuAppService.treeByPermissionCodes(Set.copyOf(permissions));
         AuthMeResponse response = new AuthMeResponse();
+        response.setTenantId(loginUser.getTenantId());
         response.setUserId(loginUser.getUserId());
         response.setUsername(loginUser.getUsername());
         response.setNickname(loginUser.getNickname());
@@ -217,6 +235,25 @@ public class AuthService {
             throw new BizException(401, REVOKED_REFRESH_TOKEN_MESSAGE);
         }
         return familyId;
+    }
+
+    /**
+     * 从 refreshToken 载荷解析租户 ID（Wave 5.54：令牌必须绑定租户）
+     *
+     * @param claims refreshToken 载荷
+     * @return 租户 ID
+     * @throws BizException claim 缺失或非法时抛出 401
+     */
+    private static Long resolveTokenTenantId(Claims claims) {
+        Object raw = claims.get(JwtTokenProvider.CLAIM_TENANT_ID);
+        if (raw == null) {
+            throw new BizException(401, INVALID_REFRESH_TOKEN_MESSAGE);
+        }
+        try {
+            return Long.valueOf(String.valueOf(raw));
+        } catch (NumberFormatException e) {
+            throw new BizException(401, INVALID_REFRESH_TOKEN_MESSAGE);
+        }
     }
 
     /**
@@ -275,11 +312,13 @@ public class AuthService {
     private LoginResponse buildLoginResponse(LoginUser loginUser, String familyId) {
         LoginResponse response = new LoginResponse();
         List<String> roles = loginUser.getRoles();
-        response.setAccessToken(tokenProvider.generateAccessToken(loginUser.getUserId(), loginUser.getUsername(), roles));
+        response.setAccessToken(tokenProvider.generateAccessToken(
+                loginUser.getTenantId(), loginUser.getUserId(), loginUser.getUsername(), roles));
         response.setRefreshToken(tokenProvider.generateRefreshToken(
-                loginUser.getUserId(), loginUser.getUsername(), familyId));
+                loginUser.getTenantId(), loginUser.getUserId(), loginUser.getUsername(), familyId));
         response.setTokenType("Bearer");
         response.setExpiresIn(tokenProvider.getAccessExpireSeconds());
+        response.setTenantId(loginUser.getTenantId());
         response.setUsername(loginUser.getUsername());
         response.setNickname(loginUser.getNickname());
         response.setRoles(roles);

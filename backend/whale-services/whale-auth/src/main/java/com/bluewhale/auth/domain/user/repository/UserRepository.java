@@ -37,6 +37,15 @@ public interface UserRepository {
     Optional<User> findByUsername(String username);
 
     /**
+     * 按租户与用户名查询用户聚合（Wave 5.54 Phase 0：用户名在租户内唯一）
+     *
+     * @param tenantId 租户 ID
+     * @param username 用户名
+     * @return 用户聚合；不存在时返回空
+     */
+    Optional<User> findByTenantIdAndUsername(Long tenantId, String username);
+
+    /**
      * 判断用户名是否已存在（供用户唯一性不变量跨聚合校验）
      *
      * @param username 用户名

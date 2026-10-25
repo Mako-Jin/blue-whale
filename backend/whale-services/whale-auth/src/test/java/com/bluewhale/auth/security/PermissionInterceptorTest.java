@@ -96,7 +96,7 @@ class PermissionInterceptorTest {
 
     private static void authenticateAs(List<String> authorities) {
         List<SimpleGrantedAuthority> granted = authorities.stream().map(SimpleGrantedAuthority::new).toList();
-        LoginUser principal = new LoginUser(USER_ID, "tester", "pwd", "T", List.of(), true);
+        LoginUser principal = new LoginUser(1L, USER_ID, "tester", "pwd", "T", List.of(), true);
         UsernamePasswordAuthenticationToken auth =
                 new UsernamePasswordAuthenticationToken(principal, null, granted);
         SecurityContextHolder.getContext().setAuthentication(auth);

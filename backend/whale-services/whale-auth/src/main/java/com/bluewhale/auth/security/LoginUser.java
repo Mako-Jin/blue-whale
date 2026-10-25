@@ -19,6 +19,7 @@ public class LoginUser implements UserDetails {
 
     private static final long serialVersionUID = 1L;
 
+    private final Long tenantId;
     private final Long userId;
     private final String username;
     private final String password;
@@ -30,6 +31,7 @@ public class LoginUser implements UserDetails {
     /**
      * 构造器：基于用户基础信息与角色 code 列表构建登录用户
      *
+     * @param tenantId 所属租户 ID
      * @param userId 用户 ID
      * @param username 用户名
      * @param password 加密后的密码
@@ -37,7 +39,9 @@ public class LoginUser implements UserDetails {
      * @param roles 角色 code 列表，内部做不可变拷贝；传 {@code null} 视为空列表
      * @param enabled 账号是否启用
      */
-    public LoginUser(Long userId, String username, String password, String nickname, List<String> roles, boolean enabled) {
+    public LoginUser(Long tenantId, Long userId, String username, String password,
+                     String nickname, List<String> roles, boolean enabled) {
+        this.tenantId = tenantId;
         this.userId = userId;
         this.username = username;
         this.password = password;

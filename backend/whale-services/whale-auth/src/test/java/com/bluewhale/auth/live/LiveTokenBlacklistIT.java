@@ -68,7 +68,7 @@ class LiveTokenBlacklistIT {
     @Test
     @DisplayName("有效期内 token：写入摘要键（TTL>0），contains=true，键前缀/摘要长度符合约定")
     void shouldWriteDigestKeyWithPositiveTtlAndHit() {
-        String token = tokenProvider.generateAccessToken(1L, "admin", List.of("super_admin"));
+        String token = tokenProvider.generateAccessToken(1L, 1L, "admin", List.of("super_admin"));
         long remaining = tokenProvider.getRemainingValiditySeconds(token);
         assertThat(remaining).isBetween(SIXTY_SECONDS - TTL_TOLERANCE, SIXTY_SECONDS);
 
@@ -91,7 +91,7 @@ class LiveTokenBlacklistIT {
     @Test
     @DisplayName("跨实例共享：另建一个黑名单实例（同一 Redis）同样命中")
     void shouldShareBlacklistAcrossInstances() {
-        String token = tokenProvider.generateRefreshToken(1L, "admin", null);
+        String token = tokenProvider.generateRefreshToken(1L, 1L, "admin", null);
         blacklist.add(token);
 
         StringRedisTemplate otherTemplate = new StringRedisTemplate(connectionFactory);
@@ -107,7 +107,7 @@ class LiveTokenBlacklistIT {
         expiredProperties.setExpireMinutes(0);
         expiredProperties.setRefreshExpireMinutes(0);
         JwtTokenProvider expiredProvider = new JwtTokenProvider(expiredProperties);
-        String expiredToken = expiredProvider.generateAccessToken(1L, "admin", List.of());
+        String expiredToken = expiredProvider.generateAccessToken(1L, 1L, "admin", List.of());
 
         assertThat(tokenProvider.getRemainingValiditySeconds(expiredToken)).isLessThan(1L);
 
