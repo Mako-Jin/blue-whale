@@ -1,0 +1,62 @@
+# ============================================================
+# 蓝鲸 AI 服务 CI（Gitee Go 流水线即代码）
+# 映射自 .github/workflows/code-quality.yml 的 ai-pytest 作业（GitHub 侧保持原样）
+# 触发: push main / PR main
+# 阶段: 安装 uv -> Python 3.12 -> 依赖（locked）-> pytest
+#
+# 说明（Wave 5.52 §11.3 收尾）:
+#   - 与 backend-ci.yml / frontend-ci.yml 同一约定：配置文件置于仓库根 .workflow/，
+#     Gitee 侧需实机触发验证；插件 build@python 的可用版本以 Gitee 官方文档为准。
+#   - 依赖固化：使用仓库内 ai/whale-ai/uv.lock（--frozen 禁止漂移）；解释器固定 3.12，
+#     避免 runner 默认版本漂移（本机曾出现 3.15 误用）。
+# ============================================================
+version: '1.0'
+
+name: ai-ci
+displayName: 蓝鲸 AI CI
+
+triggers:
+  push:
+    branches:
+      precise:
+        - main
+  pr:
+    branches:
+      precise:
+        - main
+
+variables:
+  PYTHON_VERSION: '3.12'
+
+stages:
+  # 阶段一：依赖安装（locked）
+  - name: setup
+    displayName: 依赖安装
+    strategy: naturally
+    trigger: auto
+    executor: []
+    steps:
+      - step: build@python
+        name: sync_dependencies
+        displayName: uv sync（frozen）
+        pythonVersion: '3.12'
+        commands:
+          - python -m pip install --upgrade pip
+          - python -m pip install uv
+          - cd ai/whale-ai && uv python install 3.12
+          - cd ai/whale-ai && uv sync --frozen --extra dev
+
+  # 阶段二：单测（对齐 GitHub ai-pytest）
+  - name: pytest
+    displayName: 单元测试
+    strategy: naturally
+    trigger: auto
+    executor: []
+    steps:
+      - step: build@python
+        name: pytest
+        displayName: pytest
+        pythonVersion: '3.12'
+        commands:
+          - python -m pip install uv
+          - cd ai/whale-ai && uv run --python 3.12 pytest

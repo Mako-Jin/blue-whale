@@ -15,7 +15,7 @@
 | 1 | P0 | Wave 5.54 部署验证与存量数据/对象迁移 | 待启动 | **需用户提供 MySQL 口令与 mysql CLI 路径**（`MYSQL_PASSWORD` 为空）；Redis 6379 / Nacos 8848 未监听 | 逐库执行 `migration-5.54-tenant-*.sql` 幂等通过；对象键 `tenants/` 前缀迁移；评估稿 §十四 冒烟与 E2E 通过 |
 | 2 | P0 | S4 一人多租户（Phase 5.3 / 5.4 剩余） | **进行中**（5.1/5.2/5.3 已完成；5.4 E2E 待联调环境） | 5.4 需 Redis/Nacos/MySQL 与双租户数据 | 5.3 成员列表 + 租户内角色分配 + 平台绑定/解绑（已完成，见 [5.3 检查报告](../reviews/2026-10-25-wave5.54-phase5.3-tenant-members.md)）；5.4 双租户 E2E 与角色隔离回归 |
 | 3 | P0 | Wave 5.53 部署脚本执行与密级矩阵复测 | 待启动 | 同上（需 MySQL 口令）；`bluewhale_agent`/`whale-auth` 迁移未执行 | `sys:archive:secret:read` 授权落库；档案快照三级权限矩阵真机复测 |
-| 4 | P0 | Wave 5.52 剩余项（Gitee Go AI 阶段、未读汇总帧等） | 待启动 | Gitee Go 需远端触发；IM 未读汇总帧依赖 WS 联调环境 | `.workflow/` AI 阶段实跑；IM 未读汇总帧契约与前端联调 |
+| 4 | P0 | Wave 5.52 剩余项（Gitee Go AI 阶段、未读汇总帧等） | **已完成**（2026-10-25；实机触发待 Gitee 侧） | 远端触发需 Gitee Go 环境 | 未读汇总帧已于 2026-10-24 完成；`.workflow/ai-ci.yml` 补齐 uv 3.12 + pytest 阶段，与 GitHub `ai-pytest` 对齐 |
 | 5 | P1 | 需求登记册状态校准 + REQ-ARCH-002 多数据库设计 | 待启动 | 无 | 登记册状态与代码事实一致；产出 `design/multi-database.md`（方言可切换 + DDL 版本化 + 去 MySQL 专有依赖） |
 | 6 | P2 | 网关补 5 条路由 + 基座 `/mes` `/pdm` 挂载 | 待启动 | 无（纯配置） | `/erp/**`、`/mes/**`、`/pdm/**`、`/oa/**`、`/config/**` 路由生效；基座路由挂载 `/mes/*`、`/pdm/*` |
 | 7 | P2 | portal 三处占位收口 + 基座 3 个 PlaceholderPage | 待启动 | 依赖待办统计/通知/工作流接口 | Dashboard 真实统计；待办「去处理」跳转 `/workflow/task/{id}`；通知中心接真实接口；用户/角色/菜单页收口 |
@@ -38,3 +38,4 @@
 | 2026-10-25 | 序号 0 | 台账落地；register.md 新增 REQ-ARCH-006 / REQ-FUNC-016 并重排章节号为六/七/八 |
 | 2026-10-25 | 序号 2（5.1/5.2） | 后端切换能力 commit `9a6b679`；admin 顶栏切换器 commit `1bef439`；`whale-auth` 330 用例全绿、Checkstyle 0，admin lint/build 通过 |
 | 2026-10-25 | 序号 2（5.3） | 成员/角色/绑定/解绑 4 端点 + 权限 165–167 + 菜单 17 + admin 成员页；`whale-auth` 394 用例全绿、Checkstyle 0，admin lint/build 通过；详见 [5.3 检查报告](../reviews/2026-10-25-wave5.54-phase5.3-tenant-members.md) |
+| 2026-10-25 | 序号 4 | `.workflow/ai-ci.yml` 补齐 Gitee Go AI 阶段（uv sync --frozen + pytest，Python 3.12），与 GitHub `ai-pytest` 对齐；实机触发待 Gitee 侧 |

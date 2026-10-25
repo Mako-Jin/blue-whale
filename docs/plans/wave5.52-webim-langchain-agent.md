@@ -258,7 +258,7 @@ intent ──> retrieve(knowledge/facts) ──> think ──> tools ──> ver
 - ✅ ~~基座未读角标改 WS 全局未读通道~~ **已完成（2026-10-24）**：`useImUnread` 改为 `/im/ws` 订阅 `message.new` / 新增 `unread.changed` 帧，首连、重连与窗口聚焦时 REST 校准，移除 30s 轮询。
 - ✅ ~~`whale-form` 下游联调~~ **已完成（2026-10-24）**：确认令牌 → 表单创建 → 详情回读 → 二次确认 409 全链路通过；`description` 参数对齐为 `remark`。
 - ✅ ~~历史轨迹与反馈的更多运营视图~~ **已完成（2026-10-24）**：新增 `v_ai_agent_feedback_summary`、`v_ai_agent_ops_summary` 并授予 `whale_ai_ro`，白名单同步 4 视图。
-- ✅ ~~`uv.lock` 生成与 CI 固化 Python 3.12~~ **已完成（2026-10-24，devlog §二十八）**：`uv.lock` 入库，GitHub `code-quality.yml` 新增 `ai-pytest`（Python 3.12 + pytest，39 项通过）；Gitee Go 流水线待补 AI 阶段。
+- ✅ ~~`uv.lock` 生成与 CI 固化 Python 3.12~~ **已完成（2026-10-24，devlog §二十八）**：`uv.lock` 入库，GitHub `code-quality.yml` 新增 `ai-pytest`（Python 3.12 + pytest，39 项通过）；Gitee Go AI 阶段已于 2026-10-25 补齐（`.workflow/ai-ci.yml`：uv sync --frozen + pytest，实机触发待 Gitee 侧验证）。
 
 ### 11.4 已修正问题项
 
