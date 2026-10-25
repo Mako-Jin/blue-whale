@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { App as AntdApp } from 'antd';
 import { ThemeProvider } from '@bluewhale/whale-common-theme';
 import { initAuditLogging } from '@bluewhale/whale-log-sdk';
 import App from './App';
@@ -18,7 +19,9 @@ function render(props?: { container?: HTMLElement }) {
   root.render(
     <React.StrictMode>
       <ThemeProvider>
-        <App />
+        <AntdApp>
+          <App />
+        </AntdApp>
       </ThemeProvider>
     </React.StrictMode>,
   );

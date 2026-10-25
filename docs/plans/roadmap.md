@@ -138,8 +138,8 @@
 > **执行计划（2026-10-21 制定）**：[wave5.46-phase4-business-apps.md](wave5.46-phase4-business-apps.md)（四应用同构主线 + 底座/网关/基座/门户收口 + 验收口径）
 
 - [x] ~~whale-erp / whale-mes / whale-pdm / whale-oa 各自列表页 + 表单页骨架~~（Wave 5.33 ⑧：erp(8102)/oa(8103) 补列表页 + 表单页 + API 层；**新建** mes(8105)/pdm(8106) 子应用并注册进基座 `whale-platform/src/qiankun/apps.ts`；四应用 `pnpm build` 全绿）
-- [ ] 业务应用后端填充（`whale-apps/*`〔erp/oa/mes/pdm，9001–9004〕：DDL + 六端点 + 权限种子 + 网关路由）→ [wave5.46](wave5.46-phase4-business-apps.md) 轨 A–F
-- [ ] 前后端 API 联调（前端占位数据源替换 + 基座 proxy + 真实登录）→ [wave5.46](wave5.46-phase4-business-apps.md) 轨 B–G
+- [ ] 业务应用后端填充（`whale-apps/*`〔erp/oa/mes/pdm，9001–9004〕：DDL + 六端点 + 权限种子 + 网关路由）→ [wave5.46](wave5.46-phase4-business-apps.md) 轨 A–F（**2026-10-25：`whale-oa` 请假域已完成 DDL + 6 端点 + 权限 168–171 + 网关 `/oa/**`**，见 [检查报告](../reviews/2026-10-25-p3-oa-leave-ci.md)；erp/mes/pdm 待做）
+- [ ] 前后端 API 联调（前端占位数据源替换 + 基座 proxy + 真实登录）→ [wave5.46](wave5.46-phase4-business-apps.md) 轨 B–G（**2026-10-25：`whale-oa` 请假列表/表单已接真实接口并恢复基座鉴权**；erp/mes/pdm 待做）
 - [x] ~~基座 / 门户占位收口（4 个 `PlaceholderPage` + 门户 Dashboard/通知/待办）~~（2026-10-25：基座用户/角色/菜单改为真实只读页并删除 `PlaceholderPage`；门户 Dashboard 四项统计接真实接口、待办审批抽屉、通知接告警 + IM 双源；详见 [检查报告](../reviews/2026-10-25-p2-portal-platform-placeholders.md)）→ [wave5.46](wave5.46-phase4-business-apps.md) 轨 G
 - [x] ~~ops 运维平台：服务监控面板、审计日志查询、告警列表（对接 Prometheus）~~（Wave 5.33 ⑥：`frontend/ops` 独立 SPA〔端口 8104 + 代理 `/auth|/monitor|/alert|/audit` → 网关 8080，token 前缀 `whale_ops_`〕三页已接 `/monitor/service/list`、`/audit/log/page`、`/alert/rule/page` + `/alert/record/page`（双 Tab）；浏览器实机冒烟通过〔Monitor 6 服务 / Audit 14 条 / Alert 3 条规则〕；2026-10-25：ops Monitor 页补 Prometheus/Grafana 外链，Alertmanager→whale-alert 入站与邮件/Webhook 通知打通〔REQ-ARCH-007〕，详见 [检查报告](../reviews/2026-10-25-p2-alert-notify-prometheus.md)）
 
@@ -148,6 +148,7 @@
 > **状态（2026-10-23）**：Docker Desktop 已启动。Nginx HTTPS、生产 compose 覆盖层与中间件编排已在 Phase 1 实机验证（[devlog §十六](../devlog/2026-10-23.md)）；后端 3 个 Dockerfile 模板 + 前端镜像的多阶段构建已实机构建并运行验证（[devlog §十七](../devlog/2026-10-23.md)）。
 
 - [x] ~~Dockerfile 多阶段构建验证（后端 3 个模板 + 前端）~~（2026-10-23：模板对齐真实布局——后端以仓库根为上下文、`-pl <module> -am` 多模块构建，新增 `whale-auth` 模板与参数化通用模板 `sample`（`MODULE_PATH`/`SERVICE_PORT`），前端补 `APP_NAME`/`APP_DIR` 双参数；实机构建 4 个镜像全部成功：gateway 613MB / auth 712MB / 通用模板(whale-file) 599MB / web 95.6MB，均非 root，网关容器实测引导成功、前端 `healthz`/SPA 回退/assets 全 200；新增根 `.dockerignore`）
+- [x] ~~T-CI-7 镜像扩面 + coverage-gate 接 CI~~（2026-10-25：`docker-deploy.yml` 改为 18 个后端服务矩阵并统一 `deploy/backend/sample/Dockerfile`；Backend CI 与 Gitee Go 备用流水线改为 `-Pcoverage-gate verify` 并上传 JaCoCo 报告；全 reactor 本地 `BUILD SUCCESS`，详见 [检查报告](../reviews/2026-10-25-p3-oa-leave-ci.md)）
 - [x] ~~GitHub Actions CI 跑通~~（2026-10-22 平台评审 P0-1：GitHub 镜像仓 `Mako-Jin/blue-whale-platform`（remote `ci`）触发 Backend CI / Frontend CI / Code Quality 全绿；故意引入未使用变量 + 缺 Javadoc 后三条全部变红，revert 后恢复全绿；Checkstyle 绑定 `validate` 阶段阻断）
 - [x] ~~构建可复现~~（2026-10-22 平台评审 P0-2：仓库根入库 Maven Wrapper 3.9.9（only-script）+ `.mvn/jvm.config`；`check-env.ps1` 增加 JDK 21 断言；启动脚本统一 `WHALE_JAVA_HOME`，Nacos 用 `WHALE_NACOS_JAVA_HOME`）
 - [x] ~~E2E 冒烟（两批）~~（2026-10-22 平台评审 P0-3：新建 `frontend/e2e`（`@bluewhale/e2e`）+ Playwright `webServer`（8001/8002/8003）；用例 A 登录/菜单按权限渲染、用例 B 建表→加列→发布→填报→列表可见、用例 C 发起流程→首节点审批→会签（ALL 两人）→通过；`pnpm e2e` **3 passed**，两批均做反向验证失败闭环）

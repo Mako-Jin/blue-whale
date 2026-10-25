@@ -1,6 +1,8 @@
 # ============================================================
-# Docker 镜像构建与推送
+# Docker 镜像构建与推送（T-CI-7：镜像扩面至全部后端服务 + 前端）
 # 触发: tag push / workflow_dispatch
+# 后端统一使用参数化模板 deploy/backend/sample/Dockerfile，
+# 按矩阵注入 MODULE_PATH / SERVICE_PORT；前端走 deploy/frontend/Dockerfile。
 # ============================================================
 
 name: Docker Build & Deploy
@@ -22,12 +24,76 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  BACKEND_IMAGE: ghcr.io/${{ github.repository }}/whale-gateway
-  FRONTEND_IMAGE: ghcr.io/${{ github.repository }}/whale-web
 
 jobs:
-  build-push:
-    name: Build & Push Images
+  backend:
+    name: Backend · ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { service: whale-gateway, module: whale-services/whale-gateway, port: 8080 }
+          - { service: whale-auth, module: whale-services/whale-auth, port: 8081 }
+          - { service: whale-job, module: whale-services/whale-job, port: 8082 }
+          - { service: whale-workflow, module: whale-services/whale-workflow, port: 8083 }
+          - { service: whale-form, module: whale-services/whale-form, port: 8084 }
+          - { service: whale-file, module: whale-services/whale-file, port: 8085 }
+          - { service: whale-pay, module: whale-services/whale-pay, port: 8086 }
+          - { service: whale-agent, module: whale-services/whale-agent, port: 8090 }
+          - { service: whale-im, module: whale-services/whale-im, port: 8091 }
+          - { service: whale-archive, module: whale-services/whale-archive, port: 8093 }
+          - { service: whale-erp, module: whale-apps/whale-erp, port: 9001 }
+          - { service: whale-mes, module: whale-apps/whale-mes, port: 9002 }
+          - { service: whale-pdm, module: whale-apps/whale-pdm, port: 9003 }
+          - { service: whale-oa, module: whale-apps/whale-oa, port: 9004 }
+          - { service: whale-audit, module: whale-ops/whale-audit, port: 9101 }
+          - { service: whale-monitor, module: whale-ops/whale-monitor, port: 9102 }
+          - { service: whale-alert, module: whale-ops/whale-alert, port: 9103 }
+          - { service: whale-config, module: whale-registry/whale-config, port: 9201 }
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute Image Tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.service }}
+          tags: |
+            type=ref,event=tag
+            type=sha,prefix=sha-
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & Push ${{ matrix.service }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./deploy/backend/sample/Dockerfile
+          push: true
+          build-args: |
+            MODULE_PATH=${{ matrix.module }}
+            SERVICE_PORT=${{ matrix.port }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  frontend:
+    name: Frontend · whale-web
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -48,9 +114,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: |
-            ${{ env.BACKEND_IMAGE }}
-            ${{ env.FRONTEND_IMAGE }}
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/whale-web
           tags: |
             type=ref,event=tag
             type=sha,prefix=sha-
@@ -58,19 +122,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # ---- Backend ----
-      - name: Build & Push whale-gateway
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./deploy/backend/whale-gateway/Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      # ---- Frontend ----
       - name: Build & Push whale-web
         uses: docker/build-push-action@v5
         with:

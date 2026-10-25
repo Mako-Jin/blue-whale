@@ -644,4 +644,10 @@ VALUES
     (165, 0, 'sys:tenant:member:list', '查询租户成员', 'API', '/tenant/members', 'GET', 165, 1),
     (166, 0, 'sys:tenant:member:assign', '分配租户成员角色', 'API', '/tenant/members/{userId}/roles', 'PUT', 166, 1),
     (167, 0, 'sys:user:tenant', '绑定用户租户', 'API',
-     '/user/{id}/tenants,/user/{id}/tenants/{tenantId}', 'POST,DELETE', 167, 1);
+     '/user/{id}/tenants,/user/{id}/tenants/{tenantId}', 'POST,DELETE', 167, 1),
+    -- Wave 5.46 轨 G：OA 请假闭环（168–171）
+    (168, 0, 'sys:oa:leave:list', '查询请假申请', 'API', '/oa/leave/page,/oa/leave/{id}', 'GET', 168, 1),
+    (169, 0, 'sys:oa:leave:add', '新增请假申请', 'API', '/oa/leave', 'POST', 169, 1),
+    (170, 0, 'sys:oa:leave:edit', '编辑/审批请假申请', 'API',
+     '/oa/leave/{id},/oa/leave/{id}/status', 'PUT', 170, 1),
+    (171, 0, 'sys:oa:leave:delete', '删除请假申请', 'API', '/oa/leave/{id}', 'DELETE', 171, 1);

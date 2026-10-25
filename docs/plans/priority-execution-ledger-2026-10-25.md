@@ -20,7 +20,7 @@
 | 6 | P2 | 网关补 5 条路由 + 基座 `/mes` `/pdm` 挂载 | **已完成**（2026-10-25；冒烟待环境） | 路由冒烟需服务与 Nacos 就绪 | 5 条 `lb://` 路由已写入网关 yml；基座挂载 `/mes/*`、`/pdm/*` 并补菜单/图标；`whale-platform` 构建通过 |
 | 7 | P2 | portal 三处占位收口 + 基座 3 个 PlaceholderPage | **已完成**（2026-10-25；实机 E2E 待环境） | 浏览器 E2E 需 MySQL/Redis/Nacos 与全部服务就绪 | Dashboard 四项统计接真实接口；待办「去处理」改为门户内审批抽屉（同意/驳回）；通知中心接告警记录 + IM 会话双源；用户/角色/菜单改为真实只读页；详见 [检查报告](../reviews/2026-10-25-p2-portal-platform-placeholders.md) |
 | 8 | P2 | alert 通知渠道 + monitor Prometheus 接入 | **已完成**（2026-10-25；实机联调待环境） | Alertmanager/邮件实机联调需 Prometheus 栈 + 邮件服务器 + MySQL | 邮件 + Webhook 通道已实现；`/alert/internal/prometheus` 入站落库并按规则通知；网关屏蔽内网前缀；版本化 `prometheus.yml` + `alertmanager.yml`；ops Monitor 页可跳转 Prometheus/Grafana；详见 [检查报告](../reviews/2026-10-25-p2-alert-notify-prometheus.md) |
-| 9 | P3 | Phase 4 业务应用（OA 请假闭环）+ CI/部署收口 | 待启动 | 依赖 P2 网关路由与前端占位收口 | `whale-apps` OA 域 DDL→六端点→权限种子→路由→前端页面闭环；T-CI-7 镜像扩面 + coverage-gate 接 CI |
+| 9 | P3 | Phase 4 业务应用（OA 请假闭环）+ CI/部署收口 | **已完成**（2026-10-25；E2E/镜像实机构建待环境） | 浏览器 E2E 需 MySQL/Redis/Nacos 与全部服务；镜像实机构建需 Docker 与 registry 凭据 | `whale-apps` OA 域 DDL（`oa_leave`）→六端点→权限 168–171→网关 `/oa/**`→前端列表/表单闭环；T-CI-7 镜像矩阵覆盖 18 个后端服务；`coverage-gate` 接入 GitHub Actions + Gitee Go（本地全 reactor 通过）；详见 [检查报告](../reviews/2026-10-25-p3-oa-leave-ci.md) |
 
 ---
 
@@ -43,3 +43,4 @@
 | 2026-10-25 | 序号 6 | 网关补 `/erp` `/mes` `/pdm` `/oa` `/config` 5 条 `lb://` 路由；基座挂载 `/mes/*` `/pdm/*` + 菜单/图标；service-catalog C-03 关闭；`whale-platform` tsc+vite 通过 |
 | 2026-10-25 | 序号 7 | portal 修复 token 键错配（`whale_token` → `whale_platform_access_token`），Dashboard 四项统计接真实接口，待办审批抽屉（同意/驳回），通知接告警记录 + IM 双源；基座用户/角色/菜单改为真实只读页并删除 `PlaceholderPage`；两应用 tsc+vite+eslint 全绿；详见 [检查报告](../reviews/2026-10-25-p2-portal-platform-placeholders.md) |
 | 2026-10-25 | 序号 8 | 新增 `whale.alert.notify` 配置与邮件/Webhook 通知服务、Alertmanager 入站端点（双令牌头 + 网关内网屏蔽）、版本化 `prometheus.yml`/`alertmanager.yml`、ops Prometheus/Grafana 外链；whale-alert 20 用例全绿、Checkstyle 0，gateway/ops 构建通过；详见 [检查报告](../reviews/2026-10-25-p2-alert-notify-prometheus.md) |
+| 2026-10-25 | 序号 9 | OA 请假闭环：`oa_leave` DDL + 6 端点 + 权限 168–171 + 前端列表/表单；CI：Backend CI 改 `-Pcoverage-gate verify`（全 reactor 通过）、镜像矩阵覆盖 18 服务；whale-oa 6 用例全绿、Checkstyle 0，OA 前端 build+lint 通过；详见 [检查报告](../reviews/2026-10-25-p3-oa-leave-ci.md) |

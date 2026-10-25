@@ -61,12 +61,13 @@ stages:
     steps:
       - step: build@maven
         name: compile_test
-        displayName: 编译与单元测试
+        displayName: 编译与单元测试（含覆盖率门禁）
         jdkVersion: '21'
         mavenVersion: '3.9.9'
         commands:
           - mvn -B -ntp compile
-          - mvn -B -ntp test
+          # coverage-gate：行 ≥ 40% / 分支 ≥ 30%，未达阈值直接失败（REQ-CICD-001）
+          - mvn -B -ntp -Pcoverage-gate verify
 
   # 阶段三：打包
   - name: package

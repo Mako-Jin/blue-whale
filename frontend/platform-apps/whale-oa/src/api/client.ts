@@ -1,20 +1,51 @@
-// 极简请求层：基于 @bluewhale/http，供后续接入后端接口（无鉴权）
+// OA 子应用请求层：基于 @bluewhale/http，保留原 request(url, init) 语义
 //
-// 后端统一返回 `Result` 信封：{ code, message, data }，
-//   code === 0 表示成功，其余为业务错误码；解包后直接返回 data。
-// 前端统一使用相对路径请求（如 `/oa/leave/list`），
-//   由 dev server / 生产 Nginx 经网关 8080 代理到对应后端服务。
+// 后端统一返回 `Result` 信封：{ code, message, data }，code === 0 表示成功。
+// token 与当前用户从基座缓存读取（qiankun 与基座同源），请求自动带 Authorization。
+// 前端统一使用相对路径（如 `/oa/leave/page`），由基座 / Nginx 经网关 8080 代理。
 
 import { createHttpClient, type HttpOptions } from '@bluewhale/http';
 
-const client = createHttpClient();
+/** 基座 token 存储 key（对齐 whale-platform/src/api/token.ts） */
+const TOKEN_STORAGE_KEY = 'whale_platform_access_token';
 
-/** 发起请求并解包 Result 信封：成功返回 data，HTTP 异常或业务码非 0 时抛错。 */
+/** 基座用户缓存 key */
+const USER_STORAGE_KEY = 'whale_platform_user';
+
+/** 基座缓存的当前用户（仅取表单默认值所需字段） */
+export interface OaUser {
+  userId?: number | string;
+  username?: string;
+  nickname?: string;
+}
+
+/** 读取当前登录 token（未登录时为 null） */
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_STORAGE_KEY);
+}
+
+/** 读取基座缓存的当前用户（无缓存或解析失败时为 null） */
+export function getCurrentUser(): OaUser | null {
+  const raw = localStorage.getItem(USER_STORAGE_KEY);
+  if (!raw) {
+    return null;
+  }
+  try {
+    return JSON.parse(raw) as OaUser;
+  } catch {
+    return null;
+  }
+}
+
+const client = createHttpClient({ getToken });
+
+/** 发起请求并解包 Result 信封：HTTP 异常或业务码非 0 时抛错。 */
 export async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const { method = 'GET', body, signal } = init ?? {};
+  const { method = 'GET', body, headers, signal } = init ?? {};
   return client.http<T>(url, {
     method: method as HttpOptions['method'],
     body,
+    headers,
     signal: signal ?? undefined,
   });
 }

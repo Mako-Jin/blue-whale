@@ -1,45 +1,99 @@
-// OA 业务 API 层（骨架）
+// OA 请假 API 层：对齐 whale-oa 的 6 个端点（page/detail/create/update/updateStatus/delete）
 //
-// TODO: 接入后端 /oa/** 接口，经网关 8080 代理；后端未填充前先接占位数据源。
-// 后续接入时替换为：http.get('/oa/document/list') / http.post('/oa/document', payload) 等。
+// 后端字段：id 为雪花 Long（JSON number）；DATE 序列化为 YYYY-MM-DD；状态为枚举字符串。
 
-/** 公文状态 */
-export type OaDocumentStatus = 'ENABLED' | 'DISABLED';
+import { http } from './client';
 
-/** 公文/流程单据记录 */
-export interface OaDocument {
-  id: string;
-  /** 编码 */
+/** 请假状态 */
+export type OaLeaveStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+
+/** 请假类型 */
+export type OaLeaveType = 'ANNUAL' | 'SICK' | 'PERSONAL';
+
+/** 请假申请（字段对齐 backend OaLeaveVO） */
+export interface OaLeave {
+  id: number;
   code: string;
-  /** 名称 */
-  name: string;
-  /** 状态 */
-  status: OaDocumentStatus;
-  /** 备注 */
+  applicant: string;
+  leaveType: OaLeaveType;
+  startDate: string;
+  endDate: string;
+  days: number;
+  reason?: string;
+  status: OaLeaveStatus;
+  remark?: string;
+  createTime?: string;
+  updateTime?: string;
+}
+
+/** 新增 / 编辑入参（字段对齐 backend OaLeaveSaveRequest） */
+export interface OaLeaveInput {
+  code: string;
+  applicant: string;
+  leaveType: OaLeaveType;
+  startDate: string;
+  endDate: string;
+  days: number;
+  reason?: string;
   remark?: string;
 }
 
-/** 新增/编辑入参（编辑时携带 id） */
-export interface OaDocumentInput {
-  id?: string;
-  code: string;
-  name: string;
-  status: OaDocumentStatus;
-  remark?: string;
+/** 分页查询入参 */
+export interface OaLeaveQuery {
+  current?: number;
+  size?: number;
+  code?: string;
+  status?: OaLeaveStatus | '';
+  applicant?: string;
+  leaveType?: OaLeaveType | '';
 }
 
-/** 占位数据源（后端未填充前使用） */
-const MOCK_DOCUMENTS: OaDocument[] = [
-  { id: '1', code: 'OA-001', name: '示例公文 A', status: 'ENABLED', remark: '占位数据' },
-  { id: '2', code: 'OA-002', name: '示例公文 B', status: 'DISABLED', remark: '占位数据' },
-];
-
-/** 查询公文/流程单据列表 */
-export function listOaDocuments(): Promise<OaDocument[]> {
-  return Promise.resolve(MOCK_DOCUMENTS.map((item) => ({ ...item })));
+/** 后端分页结果信封 */
+export interface PageResult<T> {
+  records: T[];
+  total: number;
+  size: number;
+  current: number;
 }
 
-/** 保存公文/流程单据（新增或编辑） */
-export function saveOaDocument(input: OaDocumentInput): Promise<OaDocument> {
-  return Promise.resolve({ ...input, id: input.id ?? String(Date.now()) });
+/** 拼装查询串（跳过空值） */
+function buildQuery(params: OaLeaveQuery): string {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      search.set(key, String(value));
+    }
+  });
+  const query = search.toString();
+  return query ? `?${query}` : '';
+}
+
+/** 分页查询请假申请 */
+export function pageLeaves(params: OaLeaveQuery = {}): Promise<PageResult<OaLeave>> {
+  return http.get<PageResult<OaLeave>>(`/oa/leave/page${buildQuery(params)}`);
+}
+
+/** 请假申请详情 */
+export function getLeave(id: number): Promise<OaLeave> {
+  return http.get<OaLeave>(`/oa/leave/${id}`);
+}
+
+/** 新增请假申请 */
+export function createLeave(input: OaLeaveInput): Promise<OaLeave> {
+  return http.post<OaLeave>('/oa/leave', input);
+}
+
+/** 更新请假申请 */
+export function updateLeave(id: number, input: OaLeaveInput): Promise<OaLeave> {
+  return http.put<OaLeave>(`/oa/leave/${id}`, input);
+}
+
+/** 审批 / 撤销请假申请 */
+export function updateLeaveStatus(id: number, status: OaLeaveStatus): Promise<void> {
+  return http.put<void>(`/oa/leave/${id}/status`, { status });
+}
+
+/** 删除请假申请（逻辑删除） */
+export function deleteLeave(id: number): Promise<void> {
+  return http.del<void>(`/oa/leave/${id}`);
 }

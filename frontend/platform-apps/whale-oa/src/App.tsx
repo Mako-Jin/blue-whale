@@ -1,36 +1,40 @@
-// OA 子应用根组件：Layout + 菜单，列表页承载数据，表单由 Modal 承载
+// OA 子应用根组件：Layout + 菜单，请假列表承载数据，表单由 Modal 承载
 import { useState } from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { Layout, Menu } from 'antd';
 import type { MenuProps } from 'antd';
 import List from './pages/List';
 import FormModal from './pages/Form';
-import { type OaDocument } from './api/oa';
+import type { OaLeave } from './api/oa';
 
 const { Header, Content, Sider } = Layout;
 
-/** 菜单项：列表管理 / 新增（打开表单弹窗） */
+/** 菜单项：请假管理 / 新增申请（打开表单弹窗） */
 const menuItems: MenuProps['items'] = [
-  { key: 'list', label: '列表管理' },
-  { key: 'create', label: '新增' },
+  { key: 'list', label: '请假管理' },
+  { key: 'create', label: '新增申请' },
 ];
 
 export default function App() {
   const [selectedKey, setSelectedKey] = useState('list');
   const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<OaDocument | null>(null);
+  const [editing, setEditing] = useState<OaLeave | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  const openCreate = () => {
+    setEditing(null);
+    setFormOpen(true);
+  };
 
   const handleMenuClick: MenuProps['onClick'] = ({ key }) => {
     setSelectedKey(key);
     if (key === 'create') {
-      setEditing(null);
-      setFormOpen(true);
+      openCreate();
     }
   };
 
-  const handleEdit = (item: OaDocument) => {
-    setEditing(item);
+  const handleEdit = (leave: OaLeave) => {
+    setEditing(leave);
     setFormOpen(true);
   };
 
@@ -44,7 +48,7 @@ export default function App() {
     <BrowserRouter basename="/oa">
       <Layout style={{ minHeight: '100%' }}>
         <Header style={{ display: 'flex', alignItems: 'center', color: '#fff' }}>
-          <span style={{ fontSize: 16, fontWeight: 600 }}>Whale OA - OA 子应用</span>
+          <span style={{ fontSize: 16, fontWeight: 600 }}>Whale OA - 请假管理</span>
         </Header>
         <Layout>
           <Sider width={200} theme="light">
@@ -56,7 +60,7 @@ export default function App() {
             />
           </Sider>
           <Content style={{ padding: 16 }}>
-            <List refreshKey={refreshKey} onCreate={() => setFormOpen(true)} onEdit={handleEdit} />
+            <List refreshKey={refreshKey} onCreate={openCreate} onEdit={handleEdit} />
           </Content>
         </Layout>
       </Layout>

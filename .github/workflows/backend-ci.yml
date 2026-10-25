@@ -43,11 +43,18 @@ jobs:
       - name: Maven Wrapper Executable
         run: chmod +x mvnw
 
-      - name: Maven Test
-        run: ./mvnw -B -ntp test
+      # coverage-gate profile：行 ≥ 40% / 分支 ≥ 30%（whale-parent），
+      # verify 同时完成单测、覆盖率报告与打包，未达阈值直接失败（REQ-CICD-001）。
+      - name: Maven Verify + Coverage Gate
+        run: ./mvnw -B -ntp -Pcoverage-gate verify
 
-      - name: Maven Package
-        run: ./mvnw -B -ntp clean package -DskipTests
+      - name: Upload JaCoCo Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-reports
+          path: '**/target/site/jacoco/**'
+          retention-days: 7
 
       - name: Upload JAR Artifact
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
