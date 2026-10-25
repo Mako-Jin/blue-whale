@@ -3,7 +3,7 @@
 > 用途：本项目所有需求（业务功能 + 工程规范）的统一台账。
 > 规则：**任何需求在动手实现之前，必须先在此登记编号与验收标准**（见 REQ-DOC-002）。
 > Wave 5.54：**多租户隔离体系与一人多租户切换**——新增登记 REQ-ARCH-006（多租户隔离，`sys_tenant` + RBAC 租户化 + 网关可信注入 + 租户行插件 + 业务域铺开）与 REQ-FUNC-016（S4 一人多租户切换：`sys_user_tenant`、`/auth/tenants`、`/auth/tenant/switch`、`/tenant/members`）。Phase 0–4 与 Phase 5.1/5.2 已完成并推送（`1bef439`），Phase 5.3 成员与角色管理、5.4 双租户 E2E 进行中；详见 [wave5.54 评估稿](../plans/wave5.54-multi-tenant/assessment.md) 与 [Phase 5.2 检查报告](../reviews/2026-10-25-wave5.54-phase5.2-tenant-switcher.md)。
-> 最后更新：2026-10-25（**Wave 5.53 M3 档案检索与 admin 五页完成**：`whale-archive` 新增条目分页/详情/整理/确认/销毁/下载/统计 7 端点 + 审计，沉淀 `CategoryPathResolver` 与 `UserContext`；`frontend/admin` 新增 `api/archive.ts` 与门类/规则/待整理/检索/同步五页，注册 `archive/*` 组件契约键与菜单 11–16；archive **39 用例**全绿 + Checkstyle 0，admin `tsc + vite build`、`eslint --max-warnings 0` 通过；MySQL8 已执行建库/7 表 DDL/权限种子（8.0.45；菜单 11–16 重跑并核验 6 行）；**A13 真机联调已通过**（直连 workflow/form/file/archive：审批办结→可见 28 秒、档号 `BW-A13TEST-2026-000001/000002/000003` 唯一、下载 200 + RFC 5987 + `nosniff`、无权限码/错码 `code=403`、`file_info.status=2`、`audit_log` 7 行；archive **39 用例**全绿 + Checkstyle 0）；REQ-FUNC-014 / REQ-SEC-008 仍为实现中（M4–M5 待做）；详见 [wave5.53 规划](../plans/wave5.53-archive-file-knowledge.md) 与 [M3 检查报告](../reviews/2026-10-25-wave5.53-m3-archive-search-admin.md)；同日前序登记 REQ-FUNC-011/012/013、REQ-SEC-007 见 §四） ｜ 维护：BlueWhale
+> 最后更新：2026-10-25（**Wave 5.55 项目管理服务规划登记**：新增 REQ-FUNC-018 项目空间与工作项、REQ-FUNC-019 迭代/看板/报表、REQ-ARCH-008 新服务架构与平台集成、REQ-SEC-009 项目级访问控制与审计；服务落位 `whale-apps/whale-pm`（9005、`/pm/**`、`bluewhale_pm`），前端 8108 base `/pm`，权限点预留 172–199、菜单预留 18–29；详见 [wave5.55 规划](../plans/wave5.55-project-management.md)。前序 **Wave 5.53 M3 档案检索与 admin 五页完成**：`whale-archive` 新增条目分页/详情/整理/确认/销毁/下载/统计 7 端点 + 审计，沉淀 `CategoryPathResolver` 与 `UserContext`；`frontend/admin` 新增 `api/archive.ts` 与门类/规则/待整理/检索/同步五页，注册 `archive/*` 组件契约键与菜单 11–16；archive **39 用例**全绿 + Checkstyle 0，admin `tsc + vite build`、`eslint --max-warnings 0` 通过；MySQL8 已执行建库/7 表 DDL/权限种子（8.0.45；菜单 11–16 重跑并核验 6 行）；**A13 真机联调已通过**（直连 workflow/form/file/archive：审批办结→可见 28 秒、档号 `BW-A13TEST-2026-000001/000002/000003` 唯一、下载 200 + RFC 5987 + `nosniff`、无权限码/错码 `code=403`、`file_info.status=2`、`audit_log` 7 行；archive **39 用例**全绿 + Checkstyle 0）；REQ-FUNC-014 / REQ-SEC-008 仍为实现中（M4–M5 待做）；详见 [wave5.53 规划](../plans/wave5.53-archive-file-knowledge.md) 与 [M3 检查报告](../reviews/2026-10-25-wave5.53-m3-archive-search-admin.md)；同日前序登记 REQ-FUNC-011/012/013、REQ-SEC-007 见 §四） ｜ 维护：BlueWhale
 > Wave 5.16：**审计服务文档收尾（REQ-DOC-002 / REQ-QA-002，REQ-SEC-001/006 文档整合）**——① `docs/whale-audit/originals/` 归置审计相关原始文档副本 **26 份**（design 1 + scheme 1 + specs 5 目录 15 + reviews 6 + devlog 3；**原位文件不删不动**）；② `docs/whale-audit/final/README.md` 整合最终版（八节：需求与范围 / 能力矩阵 / 接口与权限点清单〔2 控制器 9 端点〕/ 关键配置项 / 表结构〔5 表〕/ 已闭环与残余阻塞 / 原文索引 / 版本记录），以原位最新文件与源码为准。**本波零代码变更**。详见 [reviews/2026-10-18-wave5.16-audit-service-finalization.md](../reviews/2026-10-18-wave5.16-audit-service-finalization.md) 与 [whale-audit/final/README.md](../whale-audit/final/README.md)。
 > Wave 5.15：**审计服务 ①② 通道查询补齐（REQ-SEC-006）**——为 `api_log`（通道①）/`outbound_log`（通道②）补齐与 ③④ 对称的分页查询端点 `GET /audit/log/api/page`、`GET /audit/log/outbound/page`（`@RequirePermission("sys:audit:log:list")`，返回 `Result<PageResult<VO>>`）；新增 DTO（继承 `PageQuery`，时间范围 `@DateTimeFormat`）+ VO（`Serializable`，字段与实体一一对应）+ Service/Impl（`size` 收敛 `[1,200]`、`create_time` 倒序、等值条件带「是否提供」开关、时间 `ge/le`，命中既有索引）；四通道「写—查」对称达成。门禁：`-pl :whale-audit -am test` **46 用例全绿**（含不回归）、`checkstyle:check` **28 模块 0 违规**。详见 [reviews/2026-10-18-wave5.15-audit-channel-query.md](../reviews/2026-10-18-wave5.15-audit-channel-query.md)。
 > Wave 5.14：**前端日志 SDK（Wave B，REQ-SEC-006 通道③④）**——新增共享包 `@bluewhale/whale-log-sdk`（`frontend/shared-packages/whale-log-sdk`，v0.1.0，**零运行时依赖**）：console 劫持采集（保留原输出 + 可还原）+ 行为埋点（`PAGE_VIEW`/`CLICK`/`SUBMIT`）+ 脱敏（递归敏感键 + URL query，键与后端 `SensitiveDataMasker` 对齐）+ 批量通道（采样/去重/满批或定时 flush/**分片 ≤50**/指数退避）+ `fetch` 上报（`X-Trace-Id`）；`whale-platform` 基座接入 `initLogSdk()`。**不改后端**（契约沿用 Wave 5.10 冻结接口）。门禁：tsup **三件产物**（cjs/esm/dts）+ 无依赖冒烟 **30 断言全过** + 前端 `pnpm build` **12/12** + `eslint` **0 error** + `prettier` **0 差异**。详见 [reviews/2026-10-18-wave5.14-whale-log-sdk.md](../reviews/2026-10-18-wave5.14-whale-log-sdk.md)。
@@ -116,7 +116,18 @@
 
 ---
 
-## 七、既有需求基线（引自路线图，仅登记不重复展开）
+## 七、Wave 5.55 新增需求（项目管理服务 whale-pm，2026-10-25 登记）
+
+| 编号 | 需求描述 | 来源 | 优先级 | 状态 | 落点（文档 / 代码） | 验收标准 |
+|---|---|---|---|---|---|---|
+| REQ-FUNC-018 | **项目空间与工作项**：项目（key/名称/类型/可见性/负责人/状态）与成员角色（ADMIN/MEMBER/VIEWER）；统一工作项模型（Epic/Story/Task/Bug/Subtask），支持父子层级、指派/报告人、优先级、故事点、截止日期、标签、状态流转、评论、附件引用、动态时间线与工作项关联 | 用户指令（2026-10-25，新建项目管理服务） | 高 | 待启动（规划已产出，待评审） | [wave5.55 规划](../plans/wave5.55-project-management.md) + `backend/whale-apps/whale-pm`（9005，`/pm/**`，`bluewhale_pm`） | ① 项目 `key`、工作项 `item_key`、`rank` 均唯一；② 子任务必须同项目且有父项；③ 状态流转只允许配置边，非法流转 400；④ 评论/附件/动态/关联闭环，附件只存 `file_id` 引用；⑤ 创建幂等（`clientRequestId`），并发编辑有冲突语义；⑥ 单测覆盖正常/无权限/不存在/跨租户/并发路径 |
+| REQ-FUNC-019 | **迭代、看板与报表**：迭代（Sprint）创建/启动/关闭，Backlog 拖拽排序与批量移入迭代；看板列映射状态、WIP 上限、列间拖拽即状态流转；燃尽/速率/累积流/成员负载四类报表 | 用户指令（2026-10-25） | 高 | 待启动（规划已产出，待评审） | [wave5.55 规划](../plans/wave5.55-project-management.md) + `whale-pm`（`/pm/sprint`、`/pm/board`、`/pm/report`）+ `frontend/platform-apps/whale-pm`（8108，base `/pm`） | ① 同项目最多 1 个 ACTIVE 迭代，关闭后不可再加入工作项；② 排序接口并发 20 次不重号且顺序稳定；③ WIP 超限拖拽被拒；④ 报表空数据返回空序列不报错、单项目查询上限 1 年；⑤ 前端 8 页经基座 `/pm` 可达，`pnpm build`/`lint` 通过 |
+| REQ-ARCH-008 | **项目管理服务架构与平台集成**：新建业务应用 `whale-pm`（9005、`/pm/**`、`bluewhale_pm`、包 `com.bluewhale.pm`），DDD-lite 四层；复用 auth（RBAC/租户）、gateway（路由/鉴权）、file（附件）、workflow（可选审批）、im（可选通知）、audit（审计）；所有业务表带 `tenant_id` | 用户指令（2026-10-25） | 高 | 待启动（规划已产出，待评审） | [wave5.55 规划 §三](../plans/wave5.55-project-management.md) + [service-catalog.md](../service-catalog.md) + [naming-conventions.md](../naming-conventions.md) + `whale-apps/pom.xml` | ① `模块目录 = artifactId = spring.application.name = whale-pm`、库 `bluewhale_pm`、包 `com.bluewhale.pm`、Redis `whale:pm:*` 全部符合命名规范；② 端口 9005、前端 8108、网关 `/pm/**` 与 `/pm/internal/**` 403 登记并生效；③ 服务清单、命名域词表、roadmap 同步更新；④ CI 镜像矩阵与覆盖率门禁纳入新服务 |
+| REQ-SEC-009 | **项目级访问控制与审计**：功能权限 `sys:pm:*`（172–199 预留）与项目角色双层校验；写操作统一审计；跨租户不可见；网关清除伪造租户头 | 用户指令（2026-10-25） | 高 | 待启动（规划已产出，待评审） | `whale-auth/db/migration-5.55-pm.sql` + `whale-pm` 权限注解与 `@AuditLog` + [wave5.55 规划 §3.6/§3.8](../plans/wave5.55-project-management.md) | ① 无 `sys:pm:*` 返回 403；VIEWER 只读、非成员按 404/403 语义；② 项目/工作项/迭代/看板/成员写操作均落 `audit_log`，可按 `targetType + targetId` 追溯；③ 跨租户详情/分页/修改一律不可见；④ 权限点与菜单种子幂等，重跑不重号 |
+
+---
+
+## 八、既有需求基线（引自路线图，仅登记不重复展开）
 
 | 编号 | 需求描述 | 状态 | 来源 |
 |---|---|---|---|
@@ -133,7 +144,7 @@
 
 ---
 
-## 八、变更控制流程（REQ-DOC-002 落地）
+## 九、变更控制流程（REQ-DOC-002 落地）
 
 ```
 提出需求
