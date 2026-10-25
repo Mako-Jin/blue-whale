@@ -1,5 +1,6 @@
 package com.bluewhale.auth.controller;
 
+import com.bluewhale.auth.application.tenant.TenantMembershipAppService;
 import com.bluewhale.auth.application.user.UserAppService;
 import com.bluewhale.auth.application.user.command.AssignUserRolesCommand;
 import com.bluewhale.auth.application.user.command.ChangeUserPasswordCommand;
@@ -64,7 +65,9 @@ class UserControllerTest {
 
     private final UserAppService userAppService = mock(UserAppService.class);
     private final UserPermissionAppService userPermissionAppService = mock(UserPermissionAppService.class);
-    private final UserController controller = new UserController(userAppService, userPermissionAppService);
+    private final TenantMembershipAppService tenantMembershipAppService = mock(TenantMembershipAppService.class);
+    private final UserController controller = new UserController(userAppService, userPermissionAppService,
+            tenantMembershipAppService);
 
     private MockMvc mockMvc;
 

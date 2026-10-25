@@ -1,13 +1,23 @@
 package com.bluewhale.auth.application.tenant;
 
+import com.bluewhale.auth.application.event.DomainEventPublisher;
+import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
+import com.bluewhale.auth.domain.event.UserDomainEvent;
+import com.bluewhale.auth.domain.role.aggregate.Role;
+import com.bluewhale.auth.domain.role.repository.RoleRepository;
 import com.bluewhale.auth.domain.tenant.aggregate.Tenant;
 import com.bluewhale.auth.domain.tenant.repository.TenantRepository;
+import com.bluewhale.auth.domain.user.aggregate.User;
+import com.bluewhale.auth.domain.user.repository.UserRepository;
 import com.bluewhale.auth.domain.user.repository.UserTenantRepository;
 import com.bluewhale.auth.vo.MyTenantVO;
+import com.bluewhale.auth.vo.TenantMemberVO;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -32,6 +42,10 @@ public class TenantMembershipAppService {
 
     private final UserTenantRepository userTenantRepository;
     private final TenantRepository tenantRepository;
+    private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
+    private final TenantAppService tenantAppService;
+    private final DomainEventPublisher domainEventPublisher;
 
     /**
      * 写入用户首页租户关系（幂等；新建账号与租户开通时调用）
@@ -92,5 +106,113 @@ public class TenantMembershipAppService {
         if (!tenant.isAvailableAt(LocalDateTime.now())) {
             throw new BizException(403, "目标租户已停用或已过期");
         }
+    }
+
+    /**
+     * 列出当前租户的启用成员（Wave 5.54 Phase 5.3）。
+     *
+     * <p>用户基本信息按全局 {@code userId} 跨租户加载；角色只取当前租户内的关联。</p>
+     *
+     * @return 成员列表；无成员时返回空列表
+     */
+    public List<TenantMemberVO> listMembers() {
+        Long tenantId = TenantContext.requireId();
+        return userTenantRepository.listEnabledUserIds(tenantId).stream()
+                .map(userId -> userRepository.findByIdAcrossTenants(userId)
+                        .map(user -> toMember(user, tenantId))
+                        .orElse(null))
+                .filter(member -> member != null)
+                .toList();
+    }
+
+    /**
+     * 全量覆盖成员在当前租户内的角色（只影响本租户角色关联）。
+     *
+     * @param userId 用户 ID
+     * @param roleIds 目标角色 ID 列表（必须全部属于当前租户）
+     * @throws BizException 非本租户成员或角色无效时抛出
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void assignMemberRoles(Long userId, List<Long> roleIds) {
+        Long tenantId = TenantContext.requireId();
+        if (!userTenantRepository.existsEnabled(userId, tenantId)) {
+            throw new BizException(404, "成员不存在或关系已停用");
+        }
+        userRepository.findByIdAcrossTenants(userId)
+                .orElseThrow(() -> new BizException(404, "用户不存在"));
+        List<Long> targets = roleIds == null ? List.of() : roleIds;
+        if (!targets.isEmpty() && roleRepository.countByIds(targets) != targets.size()) {
+            throw new BizException(400, "存在无效的角色ID");
+        }
+        userRepository.replaceRoles(userId, targets);
+        domainEventPublisher.publish(new UserDomainEvent(userId, ChangeType.ROLES_ASSIGNED));
+    }
+
+    /**
+     * 平台租户为用户绑定可进入的租户关系（幂等）。
+     *
+     * @param userId 用户 ID
+     * @param tenantId 目标租户 ID
+     * @throws BizException 用户/租户不存在或租户不可用时抛出
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void bindTenant(Long userId, Long tenantId) {
+        tenantAppService.requirePlatformTenant();
+        userRepository.findByIdAcrossTenants(userId)
+                .orElseThrow(() -> new BizException(404, "用户不存在"));
+        Tenant tenant = tenantRepository.findById(tenantId)
+                .orElseThrow(() -> new BizException(404, "租户不存在"));
+        if (!tenant.isAvailableAt(LocalDateTime.now())) {
+            throw new BizException(400, "目标租户已停用或已过期");
+        }
+        userTenantRepository.ensureEnabled(userId, tenantId);
+        domainEventPublisher.publish(new UserDomainEvent(userId, ChangeType.ROLES_ASSIGNED));
+    }
+
+    /**
+     * 平台租户解除用户与租户的关系（软停用；首页关系禁止删除）。
+     *
+     * @param userId 用户 ID
+     * @param tenantId 目标租户 ID
+     * @throws BizException 首页关系、关系不存在或用户不存在时抛出
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void unbindTenant(Long userId, Long tenantId) {
+        tenantAppService.requirePlatformTenant();
+        User user = userRepository.findByIdAcrossTenants(userId)
+                .orElseThrow(() -> new BizException(404, "用户不存在"));
+        if (tenantId.equals(user.getTenantId())) {
+            throw new BizException(400, "首页租户关系不允许解除");
+        }
+        if (!userTenantRepository.exists(userId, tenantId)) {
+            throw new BizException(404, "租户关系不存在");
+        }
+        userTenantRepository.disable(userId, tenantId);
+        domainEventPublisher.publish(new UserDomainEvent(userId, ChangeType.ROLES_ASSIGNED));
+    }
+
+    /**
+     * 组装成员视图（用户信息 + 当前租户内角色）
+     *
+     * @param user 用户聚合
+     * @param tenantId 当前租户 ID
+     * @return 成员视图
+     */
+    private TenantMemberVO toMember(User user, Long tenantId) {
+        TenantMemberVO member = new TenantMemberVO();
+        member.setUserId(user.getId());
+        member.setUsername(user.getUsername().value());
+        member.setNickname(user.getNickname());
+        member.setPhone(user.getPhone());
+        member.setStatus(user.getStatus());
+        List<Long> roleIds = userRepository.listRoleIds(user.getId());
+        List<Role> roles = roleRepository.listEnabledByIds(roleIds).stream()
+                .filter(role -> tenantId.equals(role.getTenantId()))
+                .toList();
+        member.setRoles(roles.stream()
+                .map(role -> TenantMemberVO.RoleItem.of(role.getId(),
+                        role.getRoleCode().value(), role.getRoleName()))
+                .toList());
+        return member;
     }
 }

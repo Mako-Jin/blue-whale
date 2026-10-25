@@ -19,6 +19,7 @@ import MenuList from '../pages/menu/MenuList';
 import PermissionList from '../pages/permission/PermissionList';
 import RoleList from '../pages/role/RoleList';
 import TenantList from '../pages/tenant/TenantList';
+import TenantMemberList from '../pages/tenant/TenantMemberList';
 import UserList from '../pages/user/UserList';
 
 /** 侧边导航项类型（与 antd Menu items 对齐） */
@@ -30,6 +31,7 @@ const COMPONENT_MAP: Record<
   | 'role'
   | 'menu'
   | 'tenant'
+  | 'tenant/member'
   | 'components'
   | 'dept'
   | 'permission'
@@ -46,6 +48,7 @@ const COMPONENT_MAP: Record<
   role: RoleList,
   menu: MenuList,
   tenant: TenantList,
+  'tenant/member': TenantMemberList,
   components: ComponentsDemo,
   dept: DeptList,
   permission: PermissionList,

@@ -423,7 +423,10 @@ VALUES
     (13, 11, '归档规则', '/archive/rule', 'archive/rule/index', 'setting', 2, 'MENU', 'sys:archive:rule:list', 1, 1),
     (14, 11, '档案检索', '/archive/item', 'archive/item/index', 'search', 3, 'MENU', 'sys:archive:item:list', 1, 1),
     (15, 11, '同步状态', '/archive/sync', 'archive/sync/index', 'sync', 4, 'MENU', 'sys:archive:item:list', 1, 1),
-    (16, 11, '待整理', '/archive/pending', 'archive/pending/index', 'inbox', 0, 'MENU', 'sys:archive:item:list', 1, 1);
+    (16, 11, '待整理', '/archive/pending', 'archive/pending/index', 'inbox', 0, 'MENU', 'sys:archive:item:list', 1, 1),
+    -- Wave 5.54 Phase 5.3：租户成员管理（business 租户开通时随菜单模板复制）
+    (17, 1, '租户成员', '/system/tenant-member', 'tenant/member/index', 'team', 8, 'MENU',
+     'sys:tenant:member:list', 1, 1);
 
 -- 权限点：与各控制器 @RequirePermission 注解的 value 一一对应（AUTH-04）
 INSERT INTO sys_permission
@@ -636,4 +639,9 @@ VALUES
     (161, 0, 'sys:tenant:add', '开通租户', 'API', '/tenant', 'POST', 161, 1),
     (162, 0, 'sys:tenant:edit', '编辑租户', 'API', '/tenant/{id}', 'PUT', 162, 1),
     (163, 0, 'sys:tenant:status', '启停租户', 'API', '/tenant/{id}/status', 'PUT', 163, 1),
-    (164, 0, 'sys:tenant:renew', '租户续期', 'API', '/tenant/{id}/renew', 'PUT', 164, 1);
+    (164, 0, 'sys:tenant:renew', '租户续期', 'API', '/tenant/{id}/renew', 'PUT', 164, 1),
+    -- Wave 5.54 Phase 5.3：租户成员管理（165–166 下发给租户管理员；167 仅平台租户）
+    (165, 0, 'sys:tenant:member:list', '查询租户成员', 'API', '/tenant/members', 'GET', 165, 1),
+    (166, 0, 'sys:tenant:member:assign', '分配租户成员角色', 'API', '/tenant/members/{userId}/roles', 'PUT', 166, 1),
+    (167, 0, 'sys:user:tenant', '绑定用户租户', 'API',
+     '/user/{id}/tenants,/user/{id}/tenants/{tenantId}', 'POST,DELETE', 167, 1);

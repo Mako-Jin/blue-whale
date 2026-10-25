@@ -1,17 +1,20 @@
 package com.bluewhale.auth.controller;
 
 import com.bluewhale.auth.application.tenant.TenantAppService;
+import com.bluewhale.auth.application.tenant.TenantMembershipAppService;
 import com.bluewhale.auth.application.tenant.TenantProvisioningAppService;
 import com.bluewhale.auth.application.tenant.command.ChangeTenantStatusCommand;
 import com.bluewhale.auth.application.tenant.command.CreateTenantCommand;
 import com.bluewhale.auth.application.tenant.command.RenewTenantCommand;
 import com.bluewhale.auth.application.tenant.command.UpdateTenantCommand;
 import com.bluewhale.auth.application.tenant.query.TenantPageQuery;
+import com.bluewhale.auth.dto.AssignRolesRequest;
 import com.bluewhale.auth.dto.TenantCreateRequest;
 import com.bluewhale.auth.dto.TenantRenewRequest;
 import com.bluewhale.auth.dto.TenantStatusRequest;
 import com.bluewhale.auth.dto.TenantUpdateRequest;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
+import com.bluewhale.auth.vo.TenantMemberVO;
 import com.bluewhale.auth.vo.TenantVO;
 import com.bluewhale.common.audit.annotation.AuditLog;
 import com.bluewhale.common.audit.enums.OperateType;
@@ -47,6 +50,7 @@ public class TenantController {
 
     private final TenantAppService tenantAppService;
     private final TenantProvisioningAppService tenantProvisioningAppService;
+    private final TenantMembershipAppService tenantMembershipAppService;
 
     /**
      * 内网查询可用租户 ID（启用且未过期），供档案/知识库等后台任务按租户执行
@@ -56,6 +60,34 @@ public class TenantController {
     @GetMapping("/internal/enabled-ids")
     public Result<List<Long>> enabledIds() {
         return Result.ok(tenantAppService.listEnabledTenantIds());
+    }
+
+    /**
+     * 查询当前租户成员（Wave 5.54 Phase 5.3）：启用关系成员 + 本租户角色
+     *
+     * @return 成员列表
+     */
+    @GetMapping("/members")
+    @RequirePermission("sys:tenant:member:list")
+    public Result<List<TenantMemberVO>> members() {
+        return Result.ok(tenantMembershipAppService.listMembers());
+    }
+
+    /**
+     * 全量覆盖成员在当前租户内的角色：授权变更属敏感操作，必留痕
+     *
+     * @param userId 用户 ID
+     * @param request 角色分配请求
+     * @return 操作结果
+     */
+    @PutMapping("/members/{userId}/roles")
+    @RequirePermission("sys:tenant:member:assign")
+    @AuditLog(operation = "分配租户成员角色", type = OperateType.GRANT, targetType = "sys_user",
+            targetId = "#userId")
+    public Result<Void> assignMemberRoles(@PathVariable Long userId,
+                                          @Valid @RequestBody AssignRolesRequest request) {
+        tenantMembershipAppService.assignMemberRoles(userId, request.getRoleIds());
+        return Result.ok();
     }
 
     /**

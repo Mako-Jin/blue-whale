@@ -1,5 +1,6 @@
 package com.bluewhale.auth.controller;
 
+import com.bluewhale.auth.application.tenant.TenantMembershipAppService;
 import com.bluewhale.auth.application.user.UserAppService;
 import com.bluewhale.auth.application.user.command.AssignUserRolesCommand;
 import com.bluewhale.auth.application.user.command.ChangeUserPasswordCommand;
@@ -10,6 +11,7 @@ import com.bluewhale.auth.application.user.query.UserPageQuery;
 import com.bluewhale.auth.application.userpermission.UserPermissionAppService;
 import com.bluewhale.auth.application.userpermission.command.ReplaceUserAttrsCommand;
 import com.bluewhale.auth.dto.AssignRolesRequest;
+import com.bluewhale.auth.dto.BindUserTenantRequest;
 import com.bluewhale.auth.dto.ChangePasswordRequest;
 import com.bluewhale.auth.dto.UpdateAttrsRequest;
 import com.bluewhale.auth.dto.UserCreateRequest;
@@ -52,6 +54,7 @@ public class UserController {
 
     private final UserAppService userAppService;
     private final UserPermissionAppService userPermissionAppService;
+    private final TenantMembershipAppService tenantMembershipAppService;
 
     /**
      * 分页查询用户
@@ -212,6 +215,36 @@ public class UserController {
                         item.getPermissionId(), item.getAttrKey(), item.getAttrValue()))
                 .toList();
         userPermissionAppService.replaceUserAttrs(id, new ReplaceUserAttrsCommand(attrs));
+        return Result.ok();
+    }
+
+    /**
+     * 为用户绑定可进入的租户（Wave 5.54 Phase 5.3，仅平台租户）
+     *
+     * @param id 用户 ID
+     * @param request 绑定请求（含目标租户 ID）
+     * @return 操作结果
+     */
+    @PostMapping("/{id}/tenants")
+    @RequirePermission("sys:user:tenant")
+    @AuditLog(operation = "绑定用户租户", type = OperateType.GRANT, targetType = "sys_user", targetId = "#id")
+    public Result<Void> bindTenant(@PathVariable Long id, @Valid @RequestBody BindUserTenantRequest request) {
+        tenantMembershipAppService.bindTenant(id, request.getTenantId());
+        return Result.ok();
+    }
+
+    /**
+     * 解除用户与租户的关系（Wave 5.54 Phase 5.3，仅平台租户；首页关系禁止删除）
+     *
+     * @param id 用户 ID
+     * @param tenantId 目标租户 ID
+     * @return 操作结果
+     */
+    @DeleteMapping("/{id}/tenants/{tenantId}")
+    @RequirePermission("sys:user:tenant")
+    @AuditLog(operation = "解绑用户租户", type = OperateType.DELETE, targetType = "sys_user", targetId = "#id")
+    public Result<Void> unbindTenant(@PathVariable Long id, @PathVariable Long tenantId) {
+        tenantMembershipAppService.unbindTenant(id, tenantId);
         return Result.ok();
     }
 }

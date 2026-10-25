@@ -1,10 +1,22 @@
 package com.bluewhale.auth.application.tenant;
 
+import com.bluewhale.auth.application.event.DomainEventPublisher;
+import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
+import com.bluewhale.auth.domain.event.UserDomainEvent;
+import com.bluewhale.auth.domain.model.vo.RoleCode;
+import com.bluewhale.auth.domain.model.vo.Username;
+import com.bluewhale.auth.domain.role.aggregate.Role;
+import com.bluewhale.auth.domain.role.repository.RoleRepository;
 import com.bluewhale.auth.domain.tenant.aggregate.Tenant;
 import com.bluewhale.auth.domain.tenant.repository.TenantRepository;
+import com.bluewhale.auth.domain.user.aggregate.User;
+import com.bluewhale.auth.domain.user.repository.UserRepository;
 import com.bluewhale.auth.domain.user.repository.UserTenantRepository;
 import com.bluewhale.auth.vo.MyTenantVO;
+import com.bluewhale.auth.vo.TenantMemberVO;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.tenant.TenantContext;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,6 +32,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -37,8 +52,21 @@ class TenantMembershipAppServiceTest {
     private UserTenantRepository userTenantRepository;
     @Mock
     private TenantRepository tenantRepository;
+    @Mock
+    private UserRepository userRepository;
+    @Mock
+    private RoleRepository roleRepository;
+    @Mock
+    private TenantAppService tenantAppService;
+    @Mock
+    private DomainEventPublisher domainEventPublisher;
     @InjectMocks
     private TenantMembershipAppService service;
+
+    @AfterEach
+    void clearTenantContext() {
+        TenantContext.clear();
+    }
 
     @Test
     @DisplayName("requireSwitchable：非成员切换返回 403，且不读取租户")
@@ -87,6 +115,131 @@ class TenantMembershipAppServiceTest {
         assertEquals(1, tenants.size());
         assertEquals(1L, tenants.get(0).getTenantId());
         assertTrue(tenants.get(0).isCurrent());
+    }
+
+    @Test
+    @DisplayName("listMembers：只返回本租户启用关系，角色按当前租户过滤")
+    void listMembersShouldReturnTenantMembersOnly() {
+        TenantContext.set(5L);
+        Long userId2 = 1251323419503984641L;
+        when(userTenantRepository.listEnabledUserIds(5L)).thenReturn(List.of(USER_ID, userId2));
+        User user1 = user(USER_ID, "alice");
+        when(userRepository.findByIdAcrossTenants(USER_ID)).thenReturn(Optional.of(user1));
+        when(userRepository.findByIdAcrossTenants(userId2)).thenReturn(Optional.empty());
+        when(userRepository.listRoleIds(USER_ID)).thenReturn(List.of(10L, 20L));
+        Role tenantRole = role(10L, 5L, "tenant_admin");
+        Role platformRole = role(20L, 1L, "platform_admin");
+        when(roleRepository.listEnabledByIds(List.of(10L, 20L)))
+                .thenReturn(List.of(tenantRole, platformRole));
+
+        List<TenantMemberVO> members = service.listMembers();
+
+        assertEquals(1, members.size());
+        assertEquals(USER_ID, members.get(0).getUserId());
+        assertEquals(1, members.get(0).getRoles().size());
+        assertEquals("tenant_admin", members.get(0).getRoles().get(0).getRoleCode());
+    }
+
+    @Test
+    @DisplayName("assignMemberRoles：非本租户成员返回 404，不写角色关联")
+    void assignMemberRolesShouldRejectNonMember() {
+        TenantContext.set(5L);
+        when(userTenantRepository.existsEnabled(USER_ID, 5L)).thenReturn(false);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> service.assignMemberRoles(USER_ID, List.of(10L)));
+
+        assertEquals(404, ex.getCode());
+        verify(userRepository, never()).replaceRoles(any(), any());
+    }
+
+    @Test
+    @DisplayName("assignMemberRoles：角色不属于当前租户返回 400")
+    void assignMemberRolesShouldRejectForeignRole() {
+        TenantContext.set(5L);
+        User user = user(USER_ID, "alice");
+        when(userTenantRepository.existsEnabled(USER_ID, 5L)).thenReturn(true);
+        when(userRepository.findByIdAcrossTenants(USER_ID)).thenReturn(Optional.of(user));
+        when(roleRepository.countByIds(List.of(20L))).thenReturn(0L);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> service.assignMemberRoles(USER_ID, List.of(20L)));
+
+        assertEquals(400, ex.getCode());
+        verify(userRepository, never()).replaceRoles(any(), any());
+    }
+
+    @Test
+    @DisplayName("bindTenant：目标租户停用返回 400，不写关系")
+    void bindTenantShouldRejectUnavailableTenant() {
+        User user = user(USER_ID, "alice");
+        Tenant tenant = tenant(2L, "t2", "租户2", false);
+        when(userRepository.findByIdAcrossTenants(USER_ID)).thenReturn(Optional.of(user));
+        when(tenantRepository.findById(2L)).thenReturn(Optional.of(tenant));
+
+        BizException ex = assertThrows(BizException.class, () -> service.bindTenant(USER_ID, 2L));
+
+        assertEquals(400, ex.getCode());
+        verify(userTenantRepository, never()).ensureEnabled(any(), any());
+    }
+
+    @Test
+    @DisplayName("bindTenant：写入关系并发布权限缓存失效事件")
+    void bindTenantShouldPersistRelation() {
+        User user = user(USER_ID, "alice");
+        Tenant tenant = tenant(2L, "t2", "租户2", true);
+        when(userRepository.findByIdAcrossTenants(USER_ID)).thenReturn(Optional.of(user));
+        when(tenantRepository.findById(2L)).thenReturn(Optional.of(tenant));
+
+        service.bindTenant(USER_ID, 2L);
+
+        verify(userTenantRepository).ensureEnabled(USER_ID, 2L);
+        verify(domainEventPublisher).publish(new UserDomainEvent(USER_ID, ChangeType.ROLES_ASSIGNED));
+    }
+
+    @Test
+    @DisplayName("unbindTenant：首页租户关系禁止删除")
+    void unbindTenantShouldRejectHomeRelation() {
+        User user = user(USER_ID, "alice");
+        when(userRepository.findByIdAcrossTenants(USER_ID)).thenReturn(Optional.of(user));
+
+        BizException ex = assertThrows(BizException.class, () -> service.unbindTenant(USER_ID, 1L));
+
+        assertEquals(400, ex.getCode());
+        verify(userTenantRepository, never()).disable(any(), any());
+    }
+
+    @Test
+    @DisplayName("unbindTenant：关系不存在返回 404")
+    void unbindTenantShouldRejectMissingRelation() {
+        User user = user(USER_ID, "alice");
+        when(userRepository.findByIdAcrossTenants(USER_ID)).thenReturn(Optional.of(user));
+        when(userTenantRepository.exists(USER_ID, 2L)).thenReturn(false);
+
+        BizException ex = assertThrows(BizException.class, () -> service.unbindTenant(USER_ID, 2L));
+
+        assertEquals(404, ex.getCode());
+        verify(userTenantRepository, never()).disable(any(), any());
+    }
+
+    private static User user(Long id, String username) {
+        User user = mock(User.class);
+        org.mockito.Mockito.lenient().when(user.getId()).thenReturn(id);
+        org.mockito.Mockito.lenient().when(user.getUsername()).thenReturn(Username.of(username));
+        org.mockito.Mockito.lenient().when(user.getNickname()).thenReturn(username);
+        org.mockito.Mockito.lenient().when(user.getPhone()).thenReturn("13800000000");
+        org.mockito.Mockito.lenient().when(user.getStatus()).thenReturn(1);
+        org.mockito.Mockito.lenient().when(user.getTenantId()).thenReturn(1L);
+        return user;
+    }
+
+    private static Role role(Long id, Long tenantId, String roleCode) {
+        Role role = mock(Role.class);
+        org.mockito.Mockito.lenient().when(role.getId()).thenReturn(id);
+        org.mockito.Mockito.lenient().when(role.getTenantId()).thenReturn(tenantId);
+        org.mockito.Mockito.lenient().when(role.getRoleCode()).thenReturn(RoleCode.of(roleCode));
+        org.mockito.Mockito.lenient().when(role.getRoleName()).thenReturn(roleCode);
+        return role;
     }
 
     private static Tenant tenant(Long id, String code, String name, boolean available) {

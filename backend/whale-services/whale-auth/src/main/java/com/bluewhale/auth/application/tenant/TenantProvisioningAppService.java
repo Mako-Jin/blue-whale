@@ -31,12 +31,13 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 租户开通应用服务（Wave 5.54 Phase 1）。
  *
  * <p><b>编排步骤</b>：创建租户 → 初始化部门根 → 复制平台菜单模板 → 创建默认角色 {@code tenant_admin}
- * 并授予除 {@code sys:tenant:*} 外的全部权限 → 创建初始管理员并绑定默认角色。</p>
+ * 并授予除平台专属码外的全部权限 → 创建初始管理员并绑定默认角色。</p>
  *
  * <p><b>幂等与一致性</b>：① 分布式锁按租户编码串行，避免并发重复开通；
  * ② 全流程单事务，任一步失败整体回滚，重试从零开始，不会留下半初始化租户；
@@ -51,8 +52,15 @@ public class TenantProvisioningAppService {
 
     /** 新租户默认管理员角色编码 */
     public static final String DEFAULT_TENANT_ADMIN_ROLE = "tenant_admin";
-    /** 平台侧专属权限码前缀：不下发给业务租户 */
-    private static final String PLATFORM_ONLY_PERM_PREFIX = "sys:tenant:";
+    /**
+     * 平台侧专属权限码：不下发给业务租户。
+     *
+     * <p>只收口「平台运营」动作；{@code sys:tenant:member:list/assign} 属于租户管理员
+     * 的本租户成员管理能力，必须正常下发。</p>
+     */
+    private static final Set<String> PLATFORM_ONLY_PERM_CODES = Set.of(
+            "sys:tenant:list", "sys:tenant:add", "sys:tenant:edit", "sys:tenant:status",
+            "sys:tenant:renew", "sys:user:tenant");
 
     private final TenantAppService tenantAppService;
     private final TenantRepository tenantRepository;
@@ -96,7 +104,7 @@ public class TenantProvisioningAppService {
 
         // 3. 默认角色：租户管理员，授予除平台租户管理外的全部启用权限
         List<Long> permissionIds = permissionRepository.findEnabledAll().stream()
-                .filter(permission -> !permission.getPermCode().value().startsWith(PLATFORM_ONLY_PERM_PREFIX))
+                .filter(permission -> !PLATFORM_ONLY_PERM_CODES.contains(permission.getPermCode().value()))
                 .map(Permission::getId)
                 .toList();
         Role adminRole = roleRepository.save(Role.create(tenantId, RoleCode.of(DEFAULT_TENANT_ADMIN_ROLE),

@@ -1,7 +1,7 @@
 // 租户管理 API（经网关 → whale-auth /tenant）
 // Wave 5.54 Phase 4：仅平台租户（tenant_type=PLATFORM）可访问，业务租户返回 403
 
-import { get, post, put, type PageResult } from './client';
+import { del, get, post, put, type PageResult } from './client';
 
 export type TenantType = 'PLATFORM' | 'TENANT';
 
@@ -66,4 +66,42 @@ export function changeTenantStatus(id: number, status: number): Promise<TenantVO
 /** 续期：新到期时间必须晚于当前时间（yyyy-MM-dd HH:mm:ss） */
 export function renewTenant(id: number, expireTime: string): Promise<TenantVO> {
   return put<TenantVO>(`/tenant/${id}/renew`, { expireTime });
+}
+
+/** 租户成员内的角色项（Wave 5.54 Phase 5.3） */
+export interface TenantMemberRoleVO {
+  id: number;
+  roleCode: string;
+  roleName: string;
+}
+
+/** 当前租户成员：启用关系 + 本租户角色 */
+export interface TenantMemberVO {
+  userId: number;
+  username: string;
+  nickname?: string;
+  phone?: string;
+  /** 用户状态：1 启用 / 0 停用（全局生效） */
+  status?: number;
+  roles: TenantMemberRoleVO[];
+}
+
+/** 查询当前租户成员（GET /tenant/members） */
+export function listTenantMembers(): Promise<TenantMemberVO[]> {
+  return get<TenantMemberVO[]>('/tenant/members');
+}
+
+/** 全量覆盖成员在本租户内的角色 */
+export function assignTenantMemberRoles(userId: number, roleIds: number[]): Promise<void> {
+  return put<void>(`/tenant/members/${userId}/roles`, { roleIds });
+}
+
+/** 平台租户：为用户绑定可进入的租户 */
+export function bindUserTenant(userId: number, tenantId: number): Promise<void> {
+  return post<void>(`/user/${userId}/tenants`, { tenantId });
+}
+
+/** 平台租户：解除用户与租户的关系（首页关系由后端拒绝） */
+export function unbindUserTenant(userId: number, tenantId: number): Promise<void> {
+  return del<void>(`/user/${userId}/tenants/${tenantId}`);
 }

@@ -8,7 +8,10 @@
 -- 幂等说明 : CREATE TABLE IF NOT EXISTS + 回填 NOT EXISTS，可重复执行，不删除任何业务数据。
 -- 变更内容 :
 --   1. 新增 sys_user_tenant：记录「同一 userId 可进入哪些租户」；
---   2. 回填首页关系：每个 sys_user 必有一行 (user_id=self, tenant_id=self.tenant)。
+--   2. 回填首页关系：每个 sys_user 必有一行 (user_id=self, tenant_id=self.tenant)；
+--   3. Phase 5.3：新增租户成员权限点 165–167 与「租户成员」菜单（INSERT IGNORE 幂等）。
+-- 授权说明 : 遵循既有约定，本脚本不写 sys_role_permission；新开通租户由
+--            TenantProvisioningAppService 自动授予 165/166，存量租户由角色分配界面补授。
 -- 说明     : 该表为跨租户关系表，不参与 MyBatis 行级租户过滤（见 whale.tenant.sql.ignore-tables），
 --            所有查询必须显式带 user_id 条件。
 -- =====================================================================
@@ -40,9 +43,29 @@ WHERE NOT EXISTS (
     SELECT 1 FROM sys_user_tenant m WHERE m.user_id = s.id
 );
 
+-- ---------------------------------------------------------------------
+-- 3. Phase 5.3：租户成员权限点（165–167）与菜单
+-- ---------------------------------------------------------------------
+INSERT IGNORE INTO sys_permission
+    (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+VALUES
+    (165, 0, 'sys:tenant:member:list', '查询租户成员', 'API', '/tenant/members', 'GET', 165, 1),
+    (166, 0, 'sys:tenant:member:assign', '分配租户成员角色', 'API',
+     '/tenant/members/{userId}/roles', 'PUT', 166, 1),
+    (167, 0, 'sys:user:tenant', '绑定用户租户', 'API',
+     '/user/{id}/tenants,/user/{id}/tenants/{tenantId}', 'POST,DELETE', 167, 1);
+
+INSERT IGNORE INTO sys_menu
+    (id, tenant_id, parent_id, name, path, component, icon, sort, menu_type, permission_code, visible, status)
+VALUES
+    (17, 1, 1, '租户成员', '/system/tenant-member', 'tenant/member/index', 'team', 8, 'MENU',
+     'sys:tenant:member:list', 1, 1);
+
 -- =====================================================================
 -- 完成。校验建议：
 --   SHOW CREATE TABLE sys_user_tenant;
+--   SELECT id, perm_code FROM sys_permission WHERE id BETWEEN 165 AND 167;
+--   SELECT id, tenant_id, path FROM sys_menu WHERE id = 17;
 --   -- 缺失首页关系数，期望 0
 --   SELECT COUNT(*) FROM sys_user s
 --     LEFT JOIN sys_user_tenant m ON m.user_id = s.id WHERE m.id IS NULL;

@@ -23,6 +23,8 @@ public class UserTenantRepositoryImpl implements UserTenantRepository {
 
     /** 状态：启用 */
     private static final int STATUS_ENABLED = 1;
+    /** 状态：停用 */
+    private static final int STATUS_DISABLED = 0;
 
     private final SysUserTenantMapper mapper;
 
@@ -45,11 +47,25 @@ public class UserTenantRepositoryImpl implements UserTenantRepository {
     }
 
     @Override
-    public void ensureEnabled(Long userId, Long tenantId) {
-        SysUserTenant existing = mapper.selectOne(new LambdaQueryWrapper<SysUserTenant>()
+    public List<Long> listEnabledUserIds(Long tenantId) {
+        return mapper.selectList(new LambdaQueryWrapper<SysUserTenant>()
+                        .eq(SysUserTenant::getTenantId, tenantId)
+                        .eq(SysUserTenant::getStatus, STATUS_ENABLED)
+                        .orderByAsc(SysUserTenant::getUserId))
+                .stream().map(SysUserTenant::getUserId).toList();
+    }
+
+    @Override
+    public boolean exists(Long userId, Long tenantId) {
+        Long count = mapper.selectCount(new LambdaQueryWrapper<SysUserTenant>()
                 .eq(SysUserTenant::getUserId, userId)
-                .eq(SysUserTenant::getTenantId, tenantId)
-                .last("limit 1"));
+                .eq(SysUserTenant::getTenantId, tenantId));
+        return count != null && count > 0;
+    }
+
+    @Override
+    public void ensureEnabled(Long userId, Long tenantId) {
+        SysUserTenant existing = findRelation(userId, tenantId);
         if (existing == null) {
             SysUserTenant relation = new SysUserTenant();
             relation.setUserId(userId);
@@ -62,5 +78,28 @@ public class UserTenantRepositoryImpl implements UserTenantRepository {
             existing.setStatus(STATUS_ENABLED);
             mapper.updateById(existing);
         }
+    }
+
+    @Override
+    public void disable(Long userId, Long tenantId) {
+        SysUserTenant existing = findRelation(userId, tenantId);
+        if (existing != null && (existing.getStatus() == null || existing.getStatus() != STATUS_DISABLED)) {
+            existing.setStatus(STATUS_DISABLED);
+            mapper.updateById(existing);
+        }
+    }
+
+    /**
+     * 查询关系行（不区分启用/停用；跨租户表，显式带 user_id）
+     *
+     * @param userId 用户 ID
+     * @param tenantId 租户 ID
+     * @return 关系行；不存在时返回 null
+     */
+    private SysUserTenant findRelation(Long userId, Long tenantId) {
+        return mapper.selectOne(new LambdaQueryWrapper<SysUserTenant>()
+                .eq(SysUserTenant::getUserId, userId)
+                .eq(SysUserTenant::getTenantId, tenantId)
+                .last("limit 1"));
     }
 }
