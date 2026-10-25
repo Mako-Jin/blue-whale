@@ -68,4 +68,21 @@ export const apps: WhaleMicroApp[] = [
       getPermissions: () => getCurrentUser()?.permissions ?? [],
     },
   },
+  {
+    name: 'whale-pm',
+    entry: '//localhost:8108',
+    activeRule: '/pm',
+    container: '#subapp-container',
+    props: {
+      token: 'bluewhale-platform-token',
+      getToken,
+      getUserId: () => {
+        const current = getCurrentUser();
+        return current?.userId === undefined || current?.userId === null
+          ? null
+          : String(current.userId);
+      },
+      getPermissions: () => getCurrentUser()?.permissions ?? [],
+    },
+  },
 ];

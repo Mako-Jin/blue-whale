@@ -24,6 +24,7 @@ export const menuConfig: MenuNode[] = [
   { key: '/mes', label: 'MES 应用' },
   { key: '/pdm', label: 'PDM 应用' },
   { key: '/im', label: '消息' },
+  { key: '/pm', label: '项目管理' },
 ];
 
 const routeTitles = new Map<string, string>();

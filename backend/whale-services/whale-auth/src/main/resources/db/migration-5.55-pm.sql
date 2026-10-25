@@ -1,14 +1,17 @@
 -- =====================================================================
--- Wave 5.55 M1 + M2：项目管理（whale-pm）权限点与菜单迁移脚本（幂等）
+-- Wave 5.55 M1 + M2 + M3 + M4：项目管理（whale-pm）权限点与菜单迁移脚本（幂等）
 -- =====================================================================
 -- 适用库   : bluewhale_auth
 -- 执行方式 : mysql -u<user> -p bluewhale_auth < migration-5.55-pm.sql
 -- 幂等说明 : INSERT IGNORE，可重复执行，不修改/删除任何既有数据。
 -- 变更内容 : 权限点 172–186（项目 / 成员 / 状态 / 流转 共 15 个）
---            + 权限点 187–196（工作项 / 评论 / 附件 / 关联 共 10 个）+ 菜单 18–21。
--- 编号约定 : 172–186 为 M1 占用；187–196 为 M2 占用；M3+ 从 197 起编。
+--            + 权限点 187–196（工作项 / 评论 / 附件 / 关联 共 10 个）+ 菜单 18–21
+--            + 权限点 197–200（迭代 / 看板 共 4 个）+ 菜单 22–23
+--            + 权限点 201（报表查看）+ 菜单 24。
+-- 编号约定 : 172–186 为 M1 占用；187–196 为 M2 占用；197–200 为 M3 占用；
+--            201 为 M4 占用；M5+ 从 202 起编。
 -- 授权说明 : 遵循既有约定，本脚本不写 sys_role_permission；上线后请在
---            「角色管理」为租户管理员 / 业务角色勾选 172–196。
+--            「角色管理」为租户管理员 / 业务角色勾选 172–201。
 -- 前置条件 : bluewhale_pm 库已执行 backend/whale-apps/whale-pm/src/main/resources/db/init.sql。
 -- =====================================================================
 
@@ -93,7 +96,23 @@ VALUES
      'sys:pm:board:view', 1, 1);
 
 -- =====================================================================
+-- Wave 5.55 M4：报表（权限点 201 + 菜单 24）
+-- =====================================================================
+INSERT IGNORE INTO sys_permission
+    (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+VALUES
+    (201, 0, 'sys:pm:report:view', '查看项目报表', 'API',
+     '/pm/report/burndown,/pm/report/velocity,/pm/report/cumulative-flow,/pm/report/workload',
+     'GET', 201, 1);
+
+INSERT IGNORE INTO sys_menu
+    (id, parent_id, name, path, component, icon, sort, menu_type, permission_code, visible, status)
+VALUES
+    (24, 18, '项目报表', '/pm/report', 'pm/report/index', 'chart', 6, 'MENU',
+     'sys:pm:report:view', 1, 1);
+
+-- =====================================================================
 -- 完成。校验建议：
---   SELECT id, perm_code FROM sys_permission WHERE id BETWEEN 172 AND 200;
---   SELECT id, name, path FROM sys_menu WHERE id BETWEEN 18 AND 23;
+--   SELECT id, perm_code FROM sys_permission WHERE id BETWEEN 172 AND 201;
+--   SELECT id, name, path FROM sys_menu WHERE id BETWEEN 18 AND 24;
 -- =====================================================================

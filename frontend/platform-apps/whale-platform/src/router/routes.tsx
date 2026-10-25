@@ -47,6 +47,8 @@ export const routes = [
       { path: 'pdm/*', element: <SubAppContainer /> },
       // 消息中心（whale-im 子应用，具体页面由 qiankun 接管）
       { path: 'im/*', element: <SubAppContainer /> },
+      // 项目管理（whale-pm 子应用，对标 Jira / 禅道）
+      { path: 'pm/*', element: <SubAppContainer /> },
     ],
   },
 ];

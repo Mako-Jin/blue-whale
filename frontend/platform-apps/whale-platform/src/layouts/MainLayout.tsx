@@ -12,6 +12,7 @@ import {
   MenuUnfoldOutlined,
   MessageOutlined,
   ProfileOutlined,
+  ProjectOutlined,
   SafetyOutlined,
   SettingOutlined,
   TeamOutlined,
@@ -47,6 +48,7 @@ const MENU_ICONS: Record<string, ReactNode> = {
   '/mes': <DeploymentUnitOutlined />,
   '/pdm': <ProfileOutlined />,
   '/im': <MessageOutlined />,
+  '/pm': <ProjectOutlined />,
 };
 
 export default function MainLayout() {

@@ -613,7 +613,7 @@
 - [x] **M1 项目域**：`whale-apps/whale-pm` 骨架（9005 / `/pm/**` / `bluewhale_pm`）+ 4 表 DDL + 项目/成员/状态/流转 17 端点 + 权限点 172–186 + 菜单 18–21 + 网关路由 + internal-deny + 单测 41 项 + 冒烟脚本 + 检查报告
 - [x] **M2 工作项域**：`pm_work_item` 统一模型（Epic/Story/Task/Bug/Subtask）+ 状态机 + 评论/附件/动态/关联 + 权限点 187–196 + 冒烟脚本 + 单测 81 项 + 检查报告
 - [x] **M3 迭代与看板**：Sprint 生命周期 + 工作项入迭代 + `pm_board`/`pm_board_column` + WIP 拖拽 + 权限点 197–200 / 菜单 22–23 + 单测 106 项 + 冒烟脚本 + 检查报告
-- [ ] **M4 报表与前端**：燃尽/速率/累积流/负载 4 报表 + `frontend/platform-apps/whale-pm`（8108）+ 基座挂载
+- [x] **M4 报表与前端**：燃尽/速率/累积流/负载 4 报表（权限 201、Redis 5 分钟缓存、1 年区间护栏）+ `frontend/platform-apps/whale-pm`（8108、base `/pm`，8 页面）+ 基座 qiankun 挂载（菜单 24）；whale-pm 116 例单测全绿、前端 `lint` / `build` 通过
 - [ ] **M5 集成与收尾**：IM 通知 / workflow 审批（可选、默认关闭）+ 镜像矩阵 + 集成冒烟 + 文档
 
 ## 附录 A：common 契约（Wave 2 遵守）
