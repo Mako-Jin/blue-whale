@@ -370,3 +370,249 @@
 | 完成项 | ① `@bluewhale/http` 的 `HttpClientConfig` 新增可选 `getTenantId`，在 `newHeaders()` 统一注入 `X-Tenant-Id`（普通请求/下载/SSE/续期全部覆盖，未配置时保持原行为）；② admin `LoginResponse`/`AuthMeResponse`/`UserInfo` 补 `tenantId`，`UserInfo` 补展示用 `tenantCode`，`saveLogin(data, tenantCode?)` 合并落盘，`fetchMe` 回写租户；③ admin 顶栏展示「租户 {tenantCode 或 tenantId}」标签；④ 新增 `api/tenant.ts`（`/tenant` 分页/详情/开通/更新/启停/续期，字段对齐 `TenantVO` 与后端 DTO）；⑤ 新增 `pages/tenant/TenantList.tsx`（`ProTable + SearchForm + FormModal + AuthButton`，平台租户行禁止停用，按钮按 `sys:tenant:*` 权限码隐藏）；⑥ `App.tsx` 注册 `/tenants` 静态路由，`dynamicRoutes` 增加 `tenant` 组件契约键，`AdminLayout` 在动态菜单缺失且持有 `sys:tenant:list` 时补充入口；⑦ admin `vite.config.ts` 开发代理增加 `tenant` 前缀 |
 | 待做项 | ① 一人多租户切换器（D3，需先补「用户-租户多对多 + 换令牌」后端能力）；② 租户 A/B 双账号 E2E（依赖双租户联调环境）；③ 租户级审计导出（后端暂无接口）；④ 联调环境执行各库 `migration-5.54-tenant-*.sql`；⑤ 在正常环境补跑 `pnpm --filter @bluewhale/http build`、`pnpm --filter whale-admin build`（含 `tsc -b`）与 `pnpm --filter whale-admin lint` |
 | 已知限制 | ① 本次命令执行环境返回 `sandbox backend failed`（含 `node -v`），前端构建与 lint 未能在本机执行，仅完成人工类型审查；② `dist/` 为构建产物且被 git 忽略，需先构建 `@bluewhale/http` 再构建 admin；③ 请求头租户仅兼容展示，服务端仍以 JWT `tenantId` claim 为准，伪造请求头不改变隔离结论；④ 业务租户即使直接访问 `/tenants`，后端 `requirePlatformTenant()` 返回 403 |
+
+---
+
+## 十四、验证清单（正常环境执行）
+
+> 本机 Trae 执行器对 `node` / `pnpm` / `where.exe` 返回 `sandbox backend failed`（`git` 正常），以下命令需在普通 PowerShell 5 终端执行。
+> 执行顺序：依赖 → 后端构建 → 数据库迁移 → 前端构建 → 启动服务 → API 冒烟 → E2E → 手工验收。
+> 每项通过后在“结果”列记录命令输出摘要与时间。
+
+### 14.1 依赖与后端构建
+
+| # | 命令 | 通过标准 |
+|---|---|---|
+| 1 | `cd f:\blue-whale\frontend; pnpm install --frozen-lockfile` | 退出码 0，无 lockfile 变更 |
+| 2 | `mvn -f f:\blue-whale\backend\pom.xml install -DskipTests=false` | `BUILD SUCCESS`；checkstyle、单测全部通过 |
+| 3 | `mvn -f f:\blue-whale\backend\pom.xml -pl whale-services/whale-auth -am test -DskipTests=false` | auth 模块单测通过（含租户解析、JWT claim、审计租户用例） |
+
+### 14.2 数据库迁移（逐库执行，脚本均幂等）
+
+| 库 | 脚本（`{module}` 内） | 关键验证 SQL |
+|---|---|---|
+| `bluewhale_auth` | `backend/whale-services/whale-auth/src/main/resources/db/migration-5.54-tenant.sql`、`migration-5.54-tenant-rbac.sql`、`migration-5.54-tenant-business.sql` | `SELECT tenant_code, tenant_type, status FROM sys_tenant;` 期望 `default / PLATFORM / 1`；`SELECT perm_code FROM sys_permission WHERE perm_code LIKE 'sys:tenant:%';` 期望 5 行 |
+| `bluewhale_audit` | `backend/whale-ops/whale-audit/src/main/resources/db/migration-5.54-tenant-logs.sql` | `audit_log.tenant_id` 已回填为 `1`，无 `NULL` 历史行 |
+| `bluewhale_form` | `whale-form/.../migration-5.54-tenant-business.sql` | `form_definition.tenant_id` 存在且历史行=1 |
+| `bluewhale_file` | `whale-file/.../migration-5.54-tenant-business.sql` | `file_info.tenant_id` 存在且历史行=1 |
+| `bluewhale_im` | `whale-im/.../migration-5.54-tenant-business.sql` | `im_conversation.tenant_id` 存在 |
+| `bluewhale_workflow` | `whale-workflow/.../migration-5.54-tenant-business.sql` | `process_definition.tenant_id` 存在 |
+| `bluewhale_agent` | `whale-agent/.../migration-5.54-tenant-business.sql` | `agent_conversation.tenant_id` 存在 |
+| `bluewhale_archive` | `whale-archive/.../migration-5.54-tenant-business.sql` | `archive_item.tenant_id` 存在 |
+| `bluewhale_job` | `whale-job/.../migration-5.54-tenant-business.sql` | `job_info.tenant_id` 存在 |
+| `bluewhale_pay` | `whale-pay/.../migration-5.54-tenant-business.sql` | `pay_order.tenant_id` 存在 |
+| `bluewhale_alert` | `backend/whale-ops/whale-alert/.../migration-5.54-tenant-business.sql` | `alert_rule.tenant_id` 存在 |
+
+执行方式（PowerShell 不支持 `<` 输入重定向，需借 `cmd /c`）：
+
+```powershell
+cmd /c "mysql -h 127.0.0.1 -P 3306 -u root -p bluewhale_auth < f:\blue-whale\backend\whale-services\whale-auth\src\main\resources\db\migration-5.54-tenant.sql"
+```
+
+列存在性通用检查：
+
+```sql
+SELECT COUNT(*) FROM information_schema.columns
+WHERE table_schema = 'bluewhale_form' AND table_name = 'form_definition' AND column_name = 'tenant_id';
+-- 期望 1
+```
+
+### 14.3 前端构建与 lint
+
+| # | 命令（cwd = `f:\blue-whale\frontend`） | 通过标准 |
+|---|---|---|
+| 1 | `pnpm --filter @bluewhale/http build` | 生成 `shared-packages/http/dist`（`dist/` 被 git 忽略） |
+| 2 | `pnpm --filter whale-admin lint` | `--max-warnings 0` 通过 |
+| 3 | `pnpm --filter whale-admin build` | `tsc -b` 与 `vite build` 均成功 |
+| 4 | `pnpm --filter @bluewhale/whale-ui build`（如改共享组件） | 成功 |
+
+### 14.4 API 冒烟（PowerShell）
+
+前置：网关（默认 `:8080`）、auth、form 已启动；平台管理员密码以实际环境为准。
+
+```powershell
+# 1) 平台租户登录：tenantId 必须为 1
+$p = Invoke-RestMethod -Method Post -Uri http://localhost:8080/auth/login -ContentType 'application/json' `
+  -Body (@{ username = 'admin'; password = '实际密码'; tenantCode = 'default' } | ConvertTo-Json)
+$ph = @{ Authorization = "Bearer $($p.accessToken)" }
+(Invoke-RestMethod -Uri http://localhost:8080/auth/me -Headers $ph).tenantId   # 期望 1
+
+# 2) 租户管理仅平台租户：业务租户令牌必须 403
+# 先以业务租户管理员登录得到 $b，再：
+Invoke-RestMethod -Uri 'http://localhost:8080/tenant/page?current=1&size=10' -Headers @{ Authorization = "Bearer $($b.accessToken)" }
+# 期望 403
+
+# 3) 伪造租户头无效：平台令牌 + X-Tenant-Id=2 查询表单数据，结果仍限租户 1
+Invoke-RestMethod -Uri 'http://localhost:8080/form/data/{code}/page?current=1&size=10' `
+  -Headers @{ Authorization = "Bearer $($p.accessToken)"; 'X-Tenant-Id' = '2' }
+
+# 4) 停用租户：登录 401；存量 accessToken 经网关 401（Phase 2 租户状态校验）
+# 5) 开通租户后：新租户管理员可登录；重复 tenantCode 返回 4xx 且不产生半初始化数据
+```
+
+### 14.5 E2E
+
+```powershell
+cd f:\blue-whale\frontend
+pnpm --filter @bluewhale/e2e test
+```
+
+- 前置：网关/auth/form/workflow 就绪；Playwright 自动拉起 admin(:8001)、表单设计器(:8002)、工作流设计器(:8003)。
+- 地址可用 `E2E_ADMIN_BASE_URL` / `E2E_FORM_BASE_URL` / `E2E_WORKFLOW_BASE_URL` / `E2E_API_BASE_URL` 覆盖。
+- 现有用例：`login-menu.spec.ts`、`form-loop.spec.ts`、`workflow-loop.spec.ts`；租户隔离与切换用例随 Phase 5 增加 `tenant-switch.spec.ts`。
+
+### 14.6 手工验收（admin）
+
+| 场景 | 步骤 | 期望 |
+|---|---|---|
+| 顶栏租户标识 | `default` 登录 | 顶栏出现「租户 default」标签 |
+| 租户管理入口 | 平台管理员登录 | 动态菜单缺失时也出现「租户管理」 |
+| 非平台不可见 | 业务租户管理员登录 | 无「租户管理」入口；直接访问 `/tenants` 收到 403 提示 |
+| 开通租户 | 填写编码/名称/管理员/到期/配额 | 列表新增；新管理员可登录；重复编码失败 |
+| 编辑与配额 | 修改名称与配额 JSON | 列表即时刷新，配额摘要正确展示 |
+| 启停 | 切换业务租户状态 | 停用后该租户登录 401；平台租户行开关禁用 |
+| 续期 | 选择新到期时间 | 到期时间更新；早于当前时间被拒 |
+| 请求头兼容 | DevTools 观察 admin 请求 | 携带 `X-Tenant-Id`，且与 JWT 租户一致 |
+
+---
+
+## 十五、一人多租户（S4）切换器设计（待评审）
+
+### 15.1 目标与不变量
+
+- 目标：一个自然人用同一套登录凭证，在多个租户间切换；切换后令牌、角色、菜单、数据上下文全部切到目标租户。
+- 不变量：
+  1. 任何时刻令牌只绑定一个租户；服务端仍以 JWT `tenantId` 为准。
+  2. 租户内账号（`sys_user`）仍是 RBAC 载体，`(tenant_id, username)` 唯一不变。
+  3. 跨租户关系只存在于新增关系表，业务表不因此放宽行级过滤。
+  4. 切换必须显式校验成员关系，不接受客户端传入的 userId/roles。
+
+### 15.2 现状约束
+
+- `sys_user.tenant_id` 单值，账号归属唯一租户；同名账号可在不同租户各自存在（S3 已支持）。
+- 登录按 `tenantCode + username + password` 定位 `(tenant_id, username)` 账号；JWT 写入 `tenantId`、`userId`、`sub`。
+- 刷新按 `refreshToken` 的 `tenantId` claim + `sub` 重新加载启用账号。
+- 权限缓存 Key 已含租户；`TenantContext` 由网关 `X-Tenant-Id` 注入。
+- 结论：切换不能复用同一 `userId` 跨租户承载角色，必须为每个目标租户准备一个“成员账号”，切换即换 `userId`。
+
+### 15.3 数据模型：`sys_user_tenant`
+
+```sql
+CREATE TABLE IF NOT EXISTS sys_user_tenant (
+  id                BIGINT       NOT NULL COMMENT '主键',
+  principal_user_id BIGINT       NOT NULL COMMENT '登录主体账号ID（首页租户账号）',
+  member_user_id    BIGINT       NOT NULL COMMENT '目标租户内账号ID（承载角色/菜单/部门）',
+  tenant_id         BIGINT       NOT NULL COMMENT '目标租户ID',
+  status            TINYINT      NOT NULL DEFAULT 1 COMMENT '1 启用 / 0 停用',
+  create_time       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  update_time       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_principal_tenant (principal_user_id, tenant_id),
+  UNIQUE KEY uk_member_user (member_user_id),
+  KEY idx_tenant_id (tenant_id)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '用户-租户成员关系（跨租户，忽略行级租户过滤）';
+```
+
+- 关系表**加入 MyBatis 租户插件忽略白名单**，查询必须显式带 `principal_user_id` / `member_user_id` 条件。
+- 采用物理删除（无 `deleted` 列），避免软删与唯一键冲突。
+- 首页关系：每个 `sys_user` 必有一行 `principal=member=self, tenant=self.tenant`。
+- `member_user_id` 唯一保证一个账号只属于一条成员关系，防止“同一账号被两个主体认领”。
+
+### 15.4 认证与令牌流
+
+```
+登录（tenantCode + username + password）
+  └─ 定位首页账号 → 签发 tenantId=首页, userId=首页账号
+       │
+       ├─ GET /auth/tenants → 解析主体：member_user_id=当前userId 的关系取其 principal_user_id
+       │                      再列出该主体全部启用关系（租户启用且未过期），标记当前项
+       │
+       └─ POST /auth/tenant/switch { tenantId }
+            ├─ 取当前 SecurityContext 的 LoginUser.userId
+            ├─ 解析主体 principal_user_id（无关系则主体=自身）
+            ├─ 校验关系存在、status=1、目标租户启用且未过期、成员账号启用
+            ├─ 将当前 accessToken + 提交的 refreshToken 写入黑名单（开启轮换时吊销 family）
+            └─ 签发新令牌：tenantId=目标租户，userId=member_user_id，sub=成员账号 username，新 familyId
+```
+
+- 刷新：在现有 `tenantId` 与 `sub` 校验之外，新增「`(member_user_id=userId, tenant_id)` 关系存在且启用」校验；关系被撤销后 refresh 立即 401。
+- 登出：不变，按当前令牌黑名单失效。
+- 不新增 JWT claim；网关、租户状态校验、权限缓存均无需改动。
+- 旧 accessToken 在切换时被黑名单，避免新旧租户令牌并存。
+
+### 15.5 接口契约
+
+| 方法 | 路径 | 权限 | 说明 |
+|---|---|---|---|
+| GET | `/auth/tenants` | 已登录 | 返回 `[{tenantId, tenantCode, tenantName, current, memberUsername}]`，仅启用且未过期租户 |
+| POST | `/auth/tenant/switch` | 已登录 | 入参 `{tenantId}`；出参同 `LoginResponse`（新令牌 + tenantId/username/nickname/roles） |
+| GET | `/user/{userId}/tenant-memberships` | `sys:user:tenant` | 平台租户：查看某账号的成员关系 |
+| POST | `/user/{userId}/tenant-memberships` | `sys:user:tenant` | 入参 `{tenantId, memberUsername}`；仅绑定目标租户**已存在**账号，不跨租户建号 |
+| DELETE | `/user/{userId}/tenant-memberships/{tenantId}` | `sys:user:tenant` | 解除关系；不允许删除首页关系 |
+
+- `switch` 失败语义：非成员 `403`；目标租户停用/过期 `403`（文案区分）；成员账号停用 `401`。
+- 成员绑定只接受“目标租户已有账号”，创建账号仍由该租户管理员完成，避免平台越权造号。
+- 新增权限码 `sys:user:tenant`（建议 165），同时更新 `init.sql` 与幂等迁移。
+
+### 15.6 服务端改造点
+
+| 文件/层 | 改动 |
+|---|---|
+| `whale-auth` DB | 新增 `sys_user_tenant` 建表 + 回填；`init.sql` 同步；`migration-5.54-tenant-membership.sql` 幂等 |
+| `SysUserTenant` 实体/Mapper/仓储 | 关系读写；加入租户插件忽略白名单 |
+| `TenantMembershipAppService` | 解析主体、列表、绑定/解绑、校验 |
+| `UserAppService` / `TenantProvisioningAppService` | 新建账号（含租户初始管理员）时写首页关系，保证不变量 |
+| `AuthService` | 新增 `listTenants()`、`switchTenant()`；`refresh()` 增加关系校验 |
+| `JwtTokenProvider` / `LoginUser` | 复用现有签发方法，无需改签名 |
+| `UserDetailsServiceImpl` | 新增按 `userId + tenantId` 加载成员账号的方法（切换用） |
+| `AuthController` / `UserController` | 新增 4 个接口；`@AuditLog` 记录切换与绑定 |
+| 网关 | 无需改动 |
+
+### 15.7 前端改造点（admin 优先）
+
+- 新增 `api/auth.ts#listMyTenants / switchTenant`（类型 `MyTenantVO`、`LoginResponse`）。
+- 顶栏 `AdminLayout`：当可切换租户数 > 1 时展示 `Select`；切换调用接口成功后 `saveLogin(data, targetTenantCode)`，随后 `window.location.replace('/')` 全量重载，确保权限/菜单/请求头全部按新租户重建。
+- 切换失败保持当前会话并提示；单租户用户不显示切换器。
+- 其他 5 个前端应用本期不改，后续可抽 `whale-ui` 的 `TenantSwitcher` 复用。
+
+### 15.8 安全与边界
+
+- 关系表跨租户，只由 `TenantMembershipAppService` 访问，禁止在业务查询中 join 绕过租户过滤。
+- 切换只信 `SecurityContext`，客户端不能指定 `userId/memberUserId`。
+- 旧令牌切换即失效；关系撤销后 refresh 失效，但存量 accessToken 最长存活一个 access TTL（与停用租户同级的已知限制，需要时在网关增加关系校验缓存）。
+- 首页关系禁止删除；停用关系不删除，仅 `status=0`。
+- 审计：`AUTH_TENANT_SWITCH` 记录 `fromTenantId/toTenantId/principalUserId/memberUserId`。
+
+### 15.9 迁移与回填
+
+```sql
+-- 幂等建表后回填首页关系
+INSERT INTO sys_user_tenant (id, principal_user_id, member_user_id, tenant_id, status)
+SELECT s.id, s.id, s.id, s.tenant_id, 1
+FROM sys_user s
+WHERE NOT EXISTS (
+  SELECT 1 FROM sys_user_tenant m WHERE m.member_user_id = s.id
+);
+```
+
+- 新库由 `init.sql` 直接建表；存量库执行 `migration-5.54-tenant-membership.sql`。
+- 回填后可抽查：`SELECT COUNT(*) FROM sys_user s LEFT JOIN sys_user_tenant m ON m.member_user_id = s.id WHERE m.id IS NULL;` 期望 0。
+
+### 15.10 验收标准
+
+1. 单租户用户：`/auth/tenants` 仅返回首页租户，前端不出现切换器。
+2. 双租户用户：切换后 `/auth/me` 的 `tenantId`、角色、菜单均来自目标租户；数据查询只返回目标租户数据。
+3. 切换后旧 accessToken/refreshToken 立即失效（401）。
+4. 非成员切换 403；目标租户停用或过期 403；成员账号停用 401。
+5. 关系撤销后，该租户 refresh 401，其他租户不受影响。
+6. 从成员租户再次切换回首页租户成功（主体解析正确）。
+7. 审计可按 `fromTenantId/toTenantId` 检索到切换记录。
+
+### 15.11 分阶段实施
+
+| 阶段 | 内容 | 交付 |
+|---|---|---|
+| 5.1 后端模型与切换 | 关系表/迁移/回填、首页关系写入、`/auth/tenants`、`/auth/tenant/switch`、refresh 关系校验、单测 | 可切换的后端能力 |
+| 5.2 admin 切换器 | 顶栏 Select、切换后重载、失败提示 | 一人多租户可用 |
+| 5.3 成员绑定管理 | 平台租户绑定/解绑 API + 页面（权限码 `sys:user:tenant`） | 运营可维护关系 |
+| 5.4 回归与文档 | 双租户 E2E、隔离回归、更新本评估稿 | 验收闭环 |
