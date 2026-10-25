@@ -93,7 +93,7 @@ Maven 模块目录名 == artifactId == spring.application.name == Nacos 服务�
 |---|---|---|
 | `8080` | API 网关（唯一入口） | whale-gateway |
 | `8081–8099` | 核心服务 | auth 8081、job 8082、workflow 8083、form 8084、file 8085、pay 8086（8087 随 `whale-i18n` 删除释放，Wave 5.50） |
-| `9001–9099` | 业务应用 | erp 9001、mes 9002、pdm 9003、oa 9004 |
+| `9001–9099` | 业务应用 | erp 9001、mes 9002、pdm 9003、oa 9004、pm 9005 |
 | `9101–9199` | 运维服务 | audit 9101、monitor 9102、alert 9103 |
 | `9201–9299` | 注册/配置类辅助服务 | config 9201 |
 | `8848/8849/9848/9849` | Nacos 基础设施（非本平台服务） | Nacos 3.2.4 |
@@ -194,6 +194,7 @@ Maven 模块目录名 == artifactId == spring.application.name == Nacos 服务�
 | apps | whale-mes | whale-mes | `bluewhale_mes`（规划） | `com.bluewhale.mes` | 9002 |
 | apps | whale-pdm | whale-pdm | `bluewhale_pdm`（规划） | `com.bluewhale.pdm` | 9003 |
 | apps | whale-oa | whale-oa | `bluewhale_oa`（规划） | `com.bluewhale.oa` | 9004 |
+| apps | whale-pm | whale-pm | `bluewhale_pm`（DDL 就绪，待建库） | `com.bluewhale.pm` | 9005 |
 | infra | Nacos 3.2.4 | — | **`bluewhale_nacos`**（本波次整改，原 `nacos`） | — | 8848 / 8849（9848 / 9849） |
 | infra | Redis / MySQL | — | 不建业务库 | — | 6379 / 3306 |
 

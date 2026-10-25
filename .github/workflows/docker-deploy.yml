@@ -50,6 +50,7 @@ jobs:
           - { service: whale-mes, module: whale-apps/whale-mes, port: 9002 }
           - { service: whale-pdm, module: whale-apps/whale-pdm, port: 9003 }
           - { service: whale-oa, module: whale-apps/whale-oa, port: 9004 }
+          - { service: whale-pm, module: whale-apps/whale-pm, port: 9005 }
           - { service: whale-audit, module: whale-ops/whale-audit, port: 9101 }
           - { service: whale-monitor, module: whale-ops/whale-monitor, port: 9102 }
           - { service: whale-alert, module: whale-ops/whale-alert, port: 9103 }

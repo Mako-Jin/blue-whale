@@ -607,6 +607,15 @@
 - [x] **V5**：前端 `pnpm build` 通过；浏览器实测登录/待办列表/审批抽屉表单保存 PASS；转办弹窗确认需人工复核
 - [x] **V6**：devlog + review + Sentinel 评估 + roadmap/task-breakdown + 两份 backlog 版本记录 + commit & push
 
+## Wave 5.55（项目管理服务 whale-pm）
+
+- [x] **M0 设计定稿**：规划 [wave5.55-project-management.md](wave5.55-project-management.md) + service-catalog / naming-conventions / roadmap 登记 + REQ-FUNC-018/019、REQ-ARCH-008、REQ-SEC-009 入库
+- [x] **M1 项目域**：`whale-apps/whale-pm` 骨架（9005 / `/pm/**` / `bluewhale_pm`）+ 4 表 DDL + 项目/成员/状态/流转 17 端点 + 权限点 172–186 + 菜单 18–21 + 网关路由 + internal-deny + 单测 41 项 + 冒烟脚本 + 检查报告
+- [ ] **M2 工作项域**：`pm_work_item` 统一模型（Epic/Story/Task/Bug/Subtask）+ 状态机 + 评论/附件/动态/关联 + 权限点 187–199
+- [ ] **M3 迭代与看板**：Sprint 生命周期 + Backlog Rank + 看板列/WIP + 拖拽流转
+- [ ] **M4 报表与前端**：燃尽/速率/累积流/负载 4 报表 + `frontend/platform-apps/whale-pm`（8108）+ 基座挂载
+- [ ] **M5 集成与收尾**：IM 通知 / workflow 审批（可选、默认关闭）+ 镜像矩阵 + 集成冒烟 + 文档
+
 ## 附录 A：common 契约（Wave 2 遵守）
 
 ```

@@ -115,6 +115,12 @@ spring:
               uri: lb://whale-oa
               predicates:
                 - Path=/oa/**
+            # Wave 5.55 项目管理服务：自持 /pm 一级前缀（不含 StripPrefix，REQ-ARCH-003）；
+            # 内网 /pm/internal/** 由 internal-deny 统一 403
+            - id: whale-pm
+              uri: lb://whale-pm
+              predicates:
+                - Path=/pm/**
             - id: whale-config
               uri: lb://whale-config
               predicates:
@@ -199,6 +205,8 @@ whale:
         - /tenant/internal/**
         # REQ-ARCH-007：Prometheus Alertmanager 入站告警仅限内网直连 whale-alert
         - /alert/internal/**
+        # Wave 5.55 项目管理内网通道：仅服务间内网直连 whale-pm
+        - /pm/internal/**
 
 management:
   endpoints:

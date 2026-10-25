@@ -1,0 +1,52 @@
+-- =====================================================================
+-- Wave 5.55 M1：项目管理（whale-pm）权限点与菜单迁移脚本（幂等）
+-- =====================================================================
+-- 适用库   : bluewhale_auth
+-- 执行方式 : mysql -u<user> -p bluewhale_auth < migration-5.55-pm.sql
+-- 幂等说明 : INSERT IGNORE，可重复执行，不修改/删除任何既有数据。
+-- 变更内容 : 权限点 172–186（项目 / 成员 / 状态 / 流转 共 15 个）+ 菜单 18–21。
+-- 编号约定 : 172–186 为 M1 占用；M2 工作项域从 187 起编（预留 187–199）。
+-- 授权说明 : 遵循既有约定，本脚本不写 sys_role_permission；上线后请在
+--            「角色管理」为租户管理员 / 业务角色勾选 172–186。
+-- 前置条件 : bluewhale_pm 库已执行 backend/whale-apps/whale-pm/src/main/resources/db/init.sql。
+-- =====================================================================
+
+INSERT IGNORE INTO sys_permission
+    (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+VALUES
+    (172, 0, 'sys:pm:project:list', '查询项目', 'API',
+     '/pm/project/page,/pm/project/{id}', 'GET', 172, 1),
+    (173, 0, 'sys:pm:project:add', '新增项目', 'API', '/pm/project', 'POST', 173, 1),
+    (174, 0, 'sys:pm:project:edit', '编辑/归档项目', 'API',
+     '/pm/project/{id},/pm/project/{id}/status', 'PUT', 174, 1),
+    (175, 0, 'sys:pm:project:delete', '删除项目', 'API', '/pm/project/{id}', 'DELETE', 175, 1),
+    (176, 0, 'sys:pm:member:list', '查询项目成员', 'API', '/pm/project/{id}/member', 'GET', 176, 1),
+    (177, 0, 'sys:pm:member:add', '新增项目成员', 'API', '/pm/project/{id}/member', 'POST', 177, 1),
+    (178, 0, 'sys:pm:member:edit', '变更成员角色', 'API', '/pm/member/{id}', 'PUT', 178, 1),
+    (179, 0, 'sys:pm:member:delete', '移除项目成员', 'API', '/pm/member/{id}', 'DELETE', 179, 1),
+    (180, 0, 'sys:pm:status:list', '查询状态配置', 'API', '/pm/project/{id}/status', 'GET', 180, 1),
+    (181, 0, 'sys:pm:status:add', '新增状态', 'API', '/pm/project/{id}/status', 'POST', 181, 1),
+    (182, 0, 'sys:pm:status:edit', '更新状态', 'API', '/pm/status/{id}', 'PUT', 182, 1),
+    (183, 0, 'sys:pm:status:delete', '删除状态', 'API', '/pm/status/{id}', 'DELETE', 183, 1),
+    (184, 0, 'sys:pm:transition:list', '查询流转配置', 'API',
+     '/pm/project/{id}/transition', 'GET', 184, 1),
+    (185, 0, 'sys:pm:transition:add', '新增状态流转', 'API',
+     '/pm/project/{id}/transition', 'POST', 185, 1),
+    (186, 0, 'sys:pm:transition:delete', '删除状态流转', 'API', '/pm/transition/{id}', 'DELETE', 186, 1);
+
+INSERT IGNORE INTO sys_menu
+    (id, parent_id, name, path, component, icon, sort, menu_type, permission_code, visible, status)
+VALUES
+    (18, 0, '项目管理', '/pm', NULL, 'project', 4, 'DIR', NULL, 1, 1),
+    (19, 18, '项目列表', '/pm/project', 'pm/project/index', 'list', 1, 'MENU',
+     'sys:pm:project:list', 1, 1),
+    (20, 18, '状态配置', '/pm/settings/status', 'pm/settings/status/index', 'setting', 2, 'MENU',
+     'sys:pm:status:list', 1, 1),
+    (21, 18, '流转配置', '/pm/settings/transition', 'pm/settings/transition/index', 'swap', 3, 'MENU',
+     'sys:pm:transition:list', 1, 1);
+
+-- =====================================================================
+-- 完成。校验建议：
+--   SELECT id, perm_code FROM sys_permission WHERE id BETWEEN 172 AND 186;
+--   SELECT id, name, path FROM sys_menu WHERE id BETWEEN 18 AND 21;
+-- =====================================================================

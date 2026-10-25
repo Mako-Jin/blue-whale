@@ -21,5 +21,6 @@
         <module>whale-mes</module>
         <module>whale-pdm</module>
         <module>whale-oa</module>
+        <module>whale-pm</module>
     </modules>
 </project>
