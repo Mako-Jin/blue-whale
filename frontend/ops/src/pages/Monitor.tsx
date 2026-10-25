@@ -9,6 +9,9 @@ import {
   type ServiceSummaryVO,
 } from '../api/monitor';
 
+const PROMETHEUS_URL = import.meta.env.VITE_PROMETHEUS_URL ?? 'http://127.0.0.1:9090';
+const GRAFANA_URL = import.meta.env.VITE_GRAFANA_URL ?? 'http://127.0.0.1:3000';
+
 const serviceColumns: TableProps<ServiceSummaryVO>['columns'] = [
   { title: '服务名', dataIndex: 'serviceName' },
   { title: '实例数', dataIndex: 'instanceCount', width: 120 },
@@ -93,7 +96,20 @@ export default function Monitor() {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Card title="服务概览" extra={<Button onClick={handleRefresh}>刷新</Button>}>
+      <Card
+        title="服务概览"
+        extra={
+          <Space>
+            <Button type="link" href={PROMETHEUS_URL} target="_blank" rel="noreferrer">
+              Prometheus
+            </Button>
+            <Button type="link" href={GRAFANA_URL} target="_blank" rel="noreferrer">
+              Grafana
+            </Button>
+            <Button onClick={handleRefresh}>刷新</Button>
+          </Space>
+        }
+      >
         <Table<ServiceSummaryVO>
           rowKey="serviceName"
           columns={serviceColumns}

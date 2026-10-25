@@ -78,7 +78,9 @@ Start-Process .\tools\monitoring\grafana-13.2.4\bin\grafana.exe `
 ## 告警规则（Prometheus，版本化）
 
 - 规则文件：`deploy/monitoring/prometheus-rules.yml`，共 5 条，按 `availability / http / jvm` 三组。
-- 本地由 `tools/monitoring/prometheus.local.yml` 的 `rule_files` 引用；生产可直接挂载同一文件。
+- 抓取 + Alertmanager 配置：`deploy/monitoring/prometheus.yml`、`deploy/monitoring/alertmanager.yml`。
+- 本地由 `tools/monitoring/prometheus.local.yml` 的 `rule_files` 引用；也可直接用版本化的
+  `deploy/monitoring/prometheus.yml` 启动（`prometheus --config.file=deploy/monitoring/prometheus.yml`）。
 - 规则清单：
 
 | 规则 | 表达式要点 | for | 级别 |
@@ -97,8 +99,47 @@ curl http://127.0.0.1:9090/api/v1/rules
 curl http://127.0.0.1:9090/api/v1/alerts
 ```
 
-- 未接入 Alertmanager：规则命中以 `FIRING` 状态展示在 `http://127.0.0.1:9090/alerts`，Grafana 侧可在同一数据源上用 `ALERTS{alertstate="firing"}` 建面板。
 - 热加载配置：Prometheus 启动参数已加 `--web.enable-lifecycle`，改规则后执行 `curl -X POST http://127.0.0.1:9090/-/reload`。
+
+## Alertmanager 与告警中心闭环（2026-10-25，REQ-ARCH-007）
+
+链路：`Prometheus 规则命中 → Alertmanager → whale-alert /alert/internal/prometheus → alert_record → 通知渠道`。
+
+- **Prometheus 抓取**：`deploy/monitoring/prometheus.yml` 覆盖全部服务
+  （8080–8086 / 8090 / 8091 / 8093 / 9001–9004 / 9101–9103 / 9201 / 8848），
+  `job` 名均以 `whale-` 开头以匹配规则；Docker 部署时把 `127.0.0.1` 换成 `host.docker.internal`。
+- **Alertmanager**：`deploy/monitoring/alertmanager.yml` 路由到
+  `http://127.0.0.1:9103/alert/internal/prometheus`，`send_resolved: true`，
+  令牌通过 `Authorization: Bearer <token>` 传递。
+- **后端入站**：`whale-alert` 的 `AlertPrometheusController` 校验 `X-Alert-Token`
+  或 `Authorization: Bearer`，与 `whale.alert.notify.webhook-token`（环境变量
+  `ALERT_WEBHOOK_TOKEN`，本地默认 `bluewhale-alert-token`）常量时间比较；
+  `firing` 落 `FIRING`、`resolved` 落 `RECOVERED`，网关对 `/alert/internal/**` 统一 403。
+- **通知渠道**（规则 `channel` 选择，目标地址为全局配置）：
+  - `EMAIL`：`ALERT_EMAIL_ENABLED=true` + `ALERT_EMAIL_FROM` + `ALERT_EMAIL_TO`（逗号分隔），
+    并配置 `SPRING_MAIL_HOST` / `SPRING_MAIL_USERNAME` / `SPRING_MAIL_PASSWORD` 以创建 `JavaMailSender`；
+    未配置时自动跳过并记日志。
+  - `WEBHOOK`：`ALERT_WEBHOOK_ENABLED=true` + `ALERT_WEBHOOK_URL`，POST JSON
+    （`ruleCode / ruleName / metric / target / level / status / content / triggerTime`）。
+  - `SMS` 暂未接入，记录告警日志后跳过；`NONE` 不通知。
+  - 通知失败只记日志，不回滚记录，也不影响入站接口返回。
+- **运维展示**：`frontend/ops` 监控页顶部提供 Prometheus / Grafana 外链
+  （`VITE_PROMETHEUS_URL`、`VITE_GRAFANA_URL`，默认 `http://127.0.0.1:9090` / `http://127.0.0.1:3000`）；
+  告警页“告警记录”直接展示入站落库结果。
+- **验证入口**：
+
+```powershell
+# 规则与配置校验
+promtool check rules deploy/monitoring/prometheus-rules.yml
+promtool check config deploy/monitoring/prometheus.yml
+# 手工模拟 Alertmanager 入站（需服务已启动）
+curl -X POST http://127.0.0.1:9103/alert/internal/prometheus `
+  -H "X-Alert-Token: bluewhale-alert-token" -H "Content-Type: application/json" `
+  -d '{"version":"4","status":"firing","alerts":[{"status":"firing","labels":{"alertname":"ServiceDown","severity":"critical"},"annotations":{"summary":"手工联调"},"startsAt":"2026-10-25T10:00:00+08:00"}]}'
+```
+
+> 已知边界：入站告警未做按 `fingerprint` 去重，Alertmanager 重复通知会追加记录（保留告警历史）；
+> 入站无 JWT / 租户头，记录归属默认租户（`tenant_id=1`）。
 
 ## Grafana 仪表盘（版本化）
 

@@ -34,6 +34,22 @@ whale:
   permission:
     header:
       enabled: true
+  # REQ-ARCH-007：告警通知渠道与 Alertmanager 入站
+  alert:
+    notify:
+      # Alertmanager 入站校验令牌；生产环境必须通过 ALERT_WEBHOOK_TOKEN 覆盖
+      webhook-token: ${ALERT_WEBHOOK_TOKEN:bluewhale-alert-token}
+      email:
+        enabled: ${ALERT_EMAIL_ENABLED:false}
+        from: ${ALERT_EMAIL_FROM:}
+        to: ${ALERT_EMAIL_TO:}
+      webhook:
+        enabled: ${ALERT_WEBHOOK_ENABLED:false}
+        url: ${ALERT_WEBHOOK_URL:}
+        timeout-millis: ${ALERT_WEBHOOK_TIMEOUT:3000}
+
+# 邮件通道依赖 Spring Mail 自动装配：设置 SPRING_MAIL_HOST / SPRING_MAIL_USERNAME /
+# SPRING_MAIL_PASSWORD 后 JavaMailSender 才会创建；未配置时邮件通知自动跳过。
 
 mybatis-plus:
   configuration:

@@ -191,6 +191,8 @@ whale:
         - /user/internal/**
         # Wave 5.54 租户目录：仅档案/知识库等后台任务经内网直连 whale-auth 查询可用租户
         - /tenant/internal/**
+        # REQ-ARCH-007：Prometheus Alertmanager 入站告警仅限内网直连 whale-alert
+        - /alert/internal/**
 
 management:
   endpoints:

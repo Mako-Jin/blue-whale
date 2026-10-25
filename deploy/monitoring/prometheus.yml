@@ -1,0 +1,100 @@
+# BlueWhale Prometheus 抓取与告警配置（REQ-ARCH-007）
+#
+# 用法（裸机本地）：
+#   prometheus --config.file=deploy/monitoring/prometheus.yml
+# 用法（Docker）：把 targets 中的 127.0.0.1 换成 host.docker.internal，
+# 并把 alertmanager targets 指向 alertmanager 容器名。
+#
+# 所有 Java 服务统一暴露 /actuator/prometheus；job 名必须以 whale- 开头，
+# 以匹配 prometheus-rules.yml 中 up{job=~"whale-.*|nacos"} 等表达式。
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - prometheus-rules.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - 127.0.0.1:9093
+
+scrape_configs:
+  - job_name: whale-gateway
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['127.0.0.1:8080']
+  - job_name: whale-auth
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['127.0.0.1:8081']
+  - job_name: whale-job
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['127.0.0.1:8082']
+  - job_name: whale-workflow
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['127.0.0.1:8083']
+  - job_name: whale-form
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['127.0.0.1:8084']
+  - job_name: whale-file
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['127.0.0.1:8085']
+  - job_name: whale-pay
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['127.0.0.1:8086']
+  - job_name: whale-agent
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['127.0.0.1:8090']
+  - job_name: whale-im
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['127.0.0.1:8091']
+  - job_name: whale-archive
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['127.0.0.1:8093']
+  - job_name: whale-erp
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['127.0.0.1:9001']
+  - job_name: whale-mes
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['127.0.0.1:9002']
+  - job_name: whale-pdm
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['127.0.0.1:9003']
+  - job_name: whale-oa
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['127.0.0.1:9004']
+  - job_name: whale-audit
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['127.0.0.1:9101']
+  - job_name: whale-monitor
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['127.0.0.1:9102']
+  - job_name: whale-alert
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['127.0.0.1:9103']
+  - job_name: whale-config
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['127.0.0.1:9201']
+  # Nacos 2.x 自带 Prometheus 指标端点；仅用于 up 健康探活与基础监控
+  - job_name: nacos
+    metrics_path: /nacos/metrics
+    static_configs:
+      - targets: ['127.0.0.1:8848']

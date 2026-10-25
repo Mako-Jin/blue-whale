@@ -106,6 +106,7 @@
 |---|---|---|---|---|---|---|
 | REQ-ARCH-006 | **多租户隔离体系（共享库 + 行级 `tenant_id`）**：① `sys_tenant` 租户实体与生命周期；② `sys_user/sys_role/sys_menu/sys_dept` 租户化，唯一键复合；③ 网关只信 JWT `tenantId` 注入、清除客户端伪造头；④ `TenantContext` + MyBatis-Plus 租户行插件统一过滤；⑤ 业务表（表单/文件/IM/工作流/Agent/档案/任务/支付/告警/审计）补齐 `tenant_id`；⑥ 异步与服务间调用租户传播；⑦ 租户配额与停用 | 用户指令（Wave 5.54） | 高 | **实现中**（Phase 0–4 已完成 2026-10-25：止血/租户模型/RBAC 租户化/横切插件/业务域铺开/前端租户管理与请求头注入；Phase 5 一人多租户进行中） | [wave5.54 评估稿](../plans/wave5.54-multi-tenant/assessment.md) + `whale-auth`（`sys_tenant`/RBAC/租户上下文/开通/管理）、`whale-gateway`（JwtAuthGlobalFilter）、`whale-spring-boot-starter`（租户插件）、各服务 `db/init.sql` 与 `migration-5.54-tenant-*.sql` | ① 客户端自带 `X-Tenant-Id` 一律被清除，受保护路径以 JWT `tenantId` 为准，缺失即 401（MT-01/MT-02）；② 跨租户详情/分页/删除视为不存在，写操作租户条件强制（MT-03~MT-05）；③ 审计写入 `tenant_id`（MT-06）；④ 各域迁移脚本幂等、init.sql 同构（MT-08/MT-12）；⑤ 单测 + Checkstyle 0 + 构建通过 |
 | REQ-FUNC-016 | **一人多租户切换（S4）**：同一自然人可属于多个租户，登录后可在启用租户间切换；切换只换当前租户上下文与角色权限，不换账号；租户管理员可维护本租户成员与租户内角色 | 用户指令（Wave 5.54 Phase 5） | 高 | **实现中**（5.1 后端模型/切换、5.2 admin 顶栏切换器已完成 2026-10-25；5.3 成员与角色管理、5.4 双租户 E2E 待做） | [wave5.54 评估稿 §十五](../plans/wave5.54-multi-tenant/assessment.md#十五一人多租户s4切换器设计待评审) + `sys_user_tenant` + `/auth/tenants`、`/auth/tenant/switch`、`/tenant/members`、`/user/{userId}/tenants` + `frontend/admin` 顶栏与租户成员页 | ① 单租户用户不出现切换器；双租户切换后 `userId` 不变、令牌 `tenantId` 与角色/菜单均为目标租户；② 旧 access/refresh 令牌切换后立即 401；③ 关系撤销后 refresh 401，非成员切换 403，目标租户停用/过期 403；④ 租户内角色分配只影响本租户，不删除该用户在其他租户的角色；⑤ 首页关系禁止删除；⑥ `AUTH_TENANT_SWITCH` 审计可按 `userId/fromTenantId/toTenantId` 检索 |
+| REQ-ARCH-007 | **运维可观测闭环**：告警通知渠道（邮件 / Webhook）可配置并随告警记录触发；Prometheus 抓取、规则、Alertmanager 与告警中心打通；运维端可跳转 Prometheus / Grafana 查看 | 用户指令（2026-10-25，台账序号 8） | 中 | **已完成**（2026-10-25） | `whale-alert`（`AlertNotifyProperties` / `AlertNotifyService` / `/alert/internal/prometheus`）+ `whale-gateway`（`/alert/internal/**` 内网屏蔽）+ `deploy/monitoring/{prometheus.yml,alertmanager.yml}` + `frontend/ops` Monitor 页外链 | ① 规则 `channel=EMAIL` 且有收件人时告警记录落库后发送邮件；`channel=WEBHOOK` 且配置 URL 时 POST JSON；失败仅记日志不回滚记录；② `/alert/internal/prometheus` 校验 `X-Alert-Token`，网关对外一律 403；③ Alertmanager 按 `firing/resolved` 落 `FIRING/RECOVERED` 记录；④ Prometheus 配置含全部服务抓取目标 + 5 条规则 + Alertmanager；⑤ 单测覆盖邮件/Webhook/跳过路径，Checkstyle 0，构建通过 |
 
 ---
 
@@ -122,7 +123,7 @@
 | REQ-FUNC-007 | 前端基座（登录 + 路由守卫 + 主布局 + 主题） | 已完成 | roadmap Phase 3.1 |
 | REQ-FUNC-008 | whale-ui 组件库（ProTable / FormModal / SearchForm） | 已完成（Wave 5.18；含 PermissionProvider / AuthButton / FormRenderer） | roadmap Phase 3.2 |
 | REQ-FUNC-009 | admin 后台管理（用户/角色/菜单 + 对接 auth） | 已完成（Wave 5.17/5.18/5.34：六管理页 + 动态路由 + 按钮级权限） | roadmap Phase 3.3 |
-| REQ-FUNC-010 | whale-portal 门户（工作台 / 待办 / 消息） | 已完成（Wave 5.33 ⑦；Dashboard 统计与通知中心仍为占位，见 Phase 4 规划） | roadmap Phase 3.4 |
+| REQ-FUNC-010 | whale-portal 门户（工作台 / 待办 / 消息） | 已完成（Wave 5.33 ⑦；2026-10-25 占位收口：Dashboard 真实统计、待办审批抽屉、通知接告警 + IM 双源，见 [检查报告](../reviews/2026-10-25-p2-portal-platform-placeholders.md)） | roadmap Phase 3.4 |
 
 ---
 

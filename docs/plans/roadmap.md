@@ -141,7 +141,7 @@
 - [ ] 业务应用后端填充（`whale-apps/*`〔erp/oa/mes/pdm，9001–9004〕：DDL + 六端点 + 权限种子 + 网关路由）→ [wave5.46](wave5.46-phase4-business-apps.md) 轨 A–F
 - [ ] 前后端 API 联调（前端占位数据源替换 + 基座 proxy + 真实登录）→ [wave5.46](wave5.46-phase4-business-apps.md) 轨 B–G
 - [x] ~~基座 / 门户占位收口（4 个 `PlaceholderPage` + 门户 Dashboard/通知/待办）~~（2026-10-25：基座用户/角色/菜单改为真实只读页并删除 `PlaceholderPage`；门户 Dashboard 四项统计接真实接口、待办审批抽屉、通知接告警 + IM 双源；详见 [检查报告](../reviews/2026-10-25-p2-portal-platform-placeholders.md)）→ [wave5.46](wave5.46-phase4-business-apps.md) 轨 G
-- [x] ~~ops 运维平台：服务监控面板、审计日志查询、告警列表（对接 Prometheus）~~（Wave 5.33 ⑥：`frontend/ops` 独立 SPA〔端口 8104 + 代理 `/auth|/monitor|/alert|/audit` → 网关 8080，token 前缀 `whale_ops_`〕三页已接 `/monitor/service/list`、`/audit/log/page`、`/alert/rule/page` + `/alert/record/page`（双 Tab）；浏览器实机冒烟通过〔Monitor 6 服务 / Audit 14 条 / Alert 3 条规则〕；**Prometheus/Grafana 对接未做**，留 backlog）
+- [x] ~~ops 运维平台：服务监控面板、审计日志查询、告警列表（对接 Prometheus）~~（Wave 5.33 ⑥：`frontend/ops` 独立 SPA〔端口 8104 + 代理 `/auth|/monitor|/alert|/audit` → 网关 8080，token 前缀 `whale_ops_`〕三页已接 `/monitor/service/list`、`/audit/log/page`、`/alert/rule/page` + `/alert/record/page`（双 Tab）；浏览器实机冒烟通过〔Monitor 6 服务 / Audit 14 条 / Alert 3 条规则〕；2026-10-25：ops Monitor 页补 Prometheus/Grafana 外链，Alertmanager→whale-alert 入站与邮件/Webhook 通知打通〔REQ-ARCH-007〕，详见 [检查报告](../reviews/2026-10-25-p2-alert-notify-prometheus.md)）
 
 ## Phase 5：部署与 CI/CD
 
