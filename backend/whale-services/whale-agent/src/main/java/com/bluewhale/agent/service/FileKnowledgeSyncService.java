@@ -67,6 +67,9 @@ public class FileKnowledgeSyncService {
     /** 档案秘密级阈值：密级 ≥ 3 需秘密级权限码 */
     private static final int SECRET_LEVEL = 3;
 
+    /** 文件状态：归档锁定（原件/附件归档后由 whale-file 置为该状态） */
+    private static final int ARCHIVED_STATUS = 2;
+
     /** 并发保护：同一时刻仅允许一轮同步 */
     private final AtomicBoolean running = new AtomicBoolean(false);
 
@@ -405,7 +408,7 @@ public class FileKnowledgeSyncService {
         }
         String path = pathOf(fileId);
         String module = change.getBucket() == null ? "" : change.getBucket();
-        boolean archive = isArchive(module);
+        boolean archive = archived(change);
         String permissionCode = null;
         String kind = FileChunker.KIND_FILE;
         if (archive) {
@@ -472,17 +475,22 @@ public class FileKnowledgeSyncService {
     }
 
     /**
-     * 判断 md5 与状态均未变化（可直接跳过重建）。
+     * 判断 md5 与归档状态均未变化（可直接跳过重建）。
      *
      * @param existing 已有台账（可为 {@code null}）
      * @param change 变更记录
      * @return 未变更返回 {@code true}
      */
     private boolean unchanged(AgentKnowledgeFile existing, RemoteFileChange change) {
-        return existing != null
-                && KnowledgeConstants.STATUS_INDEXED.equals(existing.getIndexStatus())
-                && StringUtils.hasText(existing.getMd5())
-                && existing.getMd5().equals(change.getMd5());
+        if (existing == null
+                || !KnowledgeConstants.STATUS_INDEXED.equals(existing.getIndexStatus())
+                || !StringUtils.hasText(existing.getMd5())
+                || !existing.getMd5().equals(change.getMd5())) {
+            return false;
+        }
+        String expected = archived(change) ? KnowledgeConstants.SOURCE_ARCHIVE : KnowledgeConstants.SOURCE_FILE;
+        String actual = existing.getSource() == null ? KnowledgeConstants.SOURCE_FILE : existing.getSource();
+        return expected.equals(actual);
     }
 
     /**
@@ -515,7 +523,7 @@ public class FileKnowledgeSyncService {
             record.setSource(KnowledgeConstants.SOURCE_FILE);
             record.setIndexStatus(KnowledgeConstants.STATUS_PENDING);
         }
-        record.setSource(isArchive(change.getBucket())
+        record.setSource(archived(change)
                 ? KnowledgeConstants.SOURCE_ARCHIVE : KnowledgeConstants.SOURCE_FILE);
         record.setBucket(change.getBucket());
         record.setOriginalName(change.getOriginalName());
@@ -589,12 +597,26 @@ public class FileKnowledgeSyncService {
     }
 
     /**
+     * 判断文件是否已归档：档案桶快照，或被归档锁定的原件/附件。
+     *
+     * <p>原件与附件归档时仍在原业务桶、仅状态置 {@code 2}，因此不能只按桶判定，
+     * 否则归档内容会继续以公开知识块被检索到。</p>
+     *
+     * @param change 变更记录
+     * @return 已归档返回 {@code true}
+     */
+    private boolean archived(RemoteFileChange change) {
+        return isArchiveBucket(change.getBucket())
+                || (change.getStatus() != null && change.getStatus() == ARCHIVED_STATUS);
+    }
+
+    /**
      * 判断桶是否属于档案桶（按配置前缀匹配）。
      *
      * @param bucket 桶名
      * @return 档案桶返回 {@code true}
      */
-    private boolean isArchive(String bucket) {
+    private boolean isArchiveBucket(String bucket) {
         String archiveBucket = properties.getKnowledge().getArchiveBucket();
         return StringUtils.hasText(archiveBucket) && bucket != null && bucket.startsWith(archiveBucket.trim());
     }

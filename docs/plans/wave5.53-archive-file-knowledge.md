@@ -264,7 +264,7 @@
 
 ### M5 档案知识融合与权限（K6–K8）——**已完成（2026-10-25）**
 
-- [x] K6 `whale-archive` 桶 → `kind=archive` + 档案权限码：`AgentProperties.Knowledge` 新增 `archiveBucket/archiveUrl/archivePermissionCode/archiveSecretPermissionCode`；`FileDocumentParser` 白名单补 `application/json`、`text/json` 并按 UTF-8 直读快照；`FileChunker` 增加 kind 重载；`ArchiveFileMapper.selectSecurityByFileId`（同文件多条目取最严）+ `GET /archive/internal/files/{fileId}/security`（网关 internal-deny 屏蔽）；agent 新增 `ArchiveSecurityClient`，密级不可用即 `SKIPPED`（fail-closed）；同步按桶写 `kind=archive`、`source=ARCHIVE`，密级 3 → `sys:archive:secret:read`，1/2 → `sys:archive:item:read`。
+- [x] K6 `whale-archive` 桶 → `kind=archive` + 档案权限码：`AgentProperties.Knowledge` 新增 `archiveBucket/archiveUrl/archivePermissionCode/archiveSecretPermissionCode`；`FileDocumentParser` 白名单补 `application/json`、`text/json` 并按 UTF-8 直读快照；`FileChunker` 增加 kind 重载；`ArchiveFileMapper.selectSecurityByFileId`（同文件多条目取最严）+ `GET /archive/internal/files/{fileId}/security`（网关 internal-deny 屏蔽）；agent 新增 `ArchiveSecurityClient`，密级不可用即 `SKIPPED`（fail-closed）；同步按「档案桶 或 `status=2` 归档锁定」写 `kind=archive`、`source=ARCHIVE`，密级 3 → `sys:archive:secret:read`，1/2 → `sys:archive:item:read`；原件/附件归档后同样受密级保护，解锁后自动降级为 `kind=file`。
 - [x] K7 检索 `permission_code` 过滤 + 密级；问答范围开关 `file/archive`；证据展示文件名/下载：索引受限块写 `permission_restricted` 标记 + `permission_code`（StringField + SortedDocValues）；BM25/KNN 均加权限过滤（无约束块恒可见，受限块须命中用户权限码之一）；`KnowledgePermissionContext` 线程内透传 `X-Permission-Codes`（未设置按空集合处理）；`AgentConversationService`/前端范围新增 `file/archive`；`SearchHit`/`Citation`/`CitationVO` 带 `fileId` 与 `downloadUrl`，证据面板支持下载。
 - [x] K8 验收：档案快照可检索、无权限用户不可见、敏感内容不入索引；新增权限码 `sys:archive:secret:read`（151，auth `init.sql` + `migration-5.53.sql`）；单测覆盖 JSON 解析、archive 切块、档案密级权限码、密级缺失 fail-closed、检索权限过滤（匿名/条目权限/秘密级权限）。
 

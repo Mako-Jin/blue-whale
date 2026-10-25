@@ -153,6 +153,44 @@ class FileKnowledgeSyncServiceTest {
     }
 
     @Test
+    @DisplayName("原件归档锁定后按档案权限索引")
+    void shouldIndexLockedOriginalAsArchive() {
+        RemoteFileChange locked = change("m3");
+        locked.setStatus(2);
+        when(fileService.find(FILE_ID)).thenReturn(indexed("m1"));
+        when(fileClient.changes(any(), anyLong(), anyLong())).thenReturn(List.of(locked));
+        when(fileClient.content(FILE_ID)).thenReturn(new byte[]{'x'});
+        when(documentParser.parse(any(), eq("制度.docx"), any())).thenReturn("正文");
+        when(archiveSecurityClient.securityLevel(FILE_ID)).thenReturn(2);
+        when(fileChunker.chunk(PATH, "whale-file", "制度.docx", "正文", FileChunker.KIND_ARCHIVE))
+                .thenReturn(List.of(chunk()));
+
+        syncService.runOnce();
+
+        verify(indexService).addFileChunks(eq(PATH), eq("m3"), anyList(), eq(FILE_ID),
+                eq("sys:archive:item:read"));
+        assertEquals(KnowledgeConstants.SOURCE_ARCHIVE, saved().getSource());
+    }
+
+    @Test
+    @DisplayName("解除归档锁定时降级为普通知识块重建")
+    void shouldDowngradeToFileAfterUnlock() {
+        AgentKnowledgeFile existing = indexed("m1");
+        existing.setSource(KnowledgeConstants.SOURCE_ARCHIVE);
+        when(fileService.find(FILE_ID)).thenReturn(existing);
+        when(fileClient.changes(any(), anyLong(), anyLong())).thenReturn(List.of(change("m1")));
+        when(fileClient.content(FILE_ID)).thenReturn(new byte[]{'x'});
+        when(documentParser.parse(any(), eq("制度.docx"), any())).thenReturn("正文");
+        when(fileChunker.chunk(PATH, "whale-file", "制度.docx", "正文", FileChunker.KIND_FILE))
+                .thenReturn(List.of(chunk()));
+
+        syncService.runOnce();
+
+        verify(indexService).addFileChunks(eq(PATH), eq("m1"), anyList(), eq(FILE_ID), isNull());
+        assertEquals(KnowledgeConstants.SOURCE_FILE, saved().getSource());
+    }
+
+    @Test
     @DisplayName("删除或停用文件立即移除索引并置 SKIPPED")
     void shouldRemoveIndexWhenDeleted() {
         AgentKnowledgeFile existing = indexed("m1");
