@@ -403,7 +403,7 @@
 | `bluewhale_pay` | `whale-pay/.../migration-5.54-tenant-business.sql` | `pay_order.tenant_id` 存在 |
 | `bluewhale_alert` | `backend/whale-ops/whale-alert/.../migration-5.54-tenant-business.sql` | `alert_rule.tenant_id` 存在 |
 
-**执行结果（2026-10-25）**：上表 11 个业务库 + `bluewhale_auth` 核心/日志共 14 个脚本已全部执行，并以第二轮复跑验证幂等（14/14 退出码 0）；12 库 `tenant_id` 列覆盖校验全部通过。执行中补齐了缺失库（job/pay/alert）与缺失表（agent 知识文件、audit/auth 四类日志表），未删除既有数据。详见 [执行报告](../../reviews/2026-10-25-wave5.54-5.53-deploy-execution.md)。14.4 API 冒烟与 14.5 E2E 仍因 Redis/Nacos 不可用而阻塞。
+**执行结果（2026-10-25）**：上表 11 个业务库 + `bluewhale_auth` 核心/日志共 14 个脚本已全部执行，并以第二轮复跑验证幂等（14/14 退出码 0）；12 库 `tenant_id` 列覆盖校验全部通过。执行中补齐了缺失库（job/pay/alert）与缺失表（agent 知识文件、audit/auth 四类日志表），未删除既有数据。Redis/Nacos 已由 `tools` 内原生进程启动，§14.4 已执行通过；14.5 E2E 待前端三应用就绪。详见 [执行报告](../../reviews/2026-10-25-wave5.54-5.53-deploy-execution.md)。
 
 执行方式（PowerShell 不支持 `<` 输入重定向，需借 `cmd /c`）：
 
@@ -432,6 +432,8 @@ WHERE table_schema = 'bluewhale_form' AND table_name = 'form_definition' AND col
 
 前置：网关（默认 `:8080`）、auth、form 已启动；平台管理员密码以实际环境为准。
 
+> 2026-10-25 实测发现：网关缺少 `/tenant/**` 路由，`/tenant/page` 经网关返回 404 而非预期的 200/403。已补 `whale-auth-tenant` 路由（`Path=/tenant/**`，`/tenant/internal/**` 仍由 `internal-deny` 屏蔽），随后重跑本节步骤。
+
 ```powershell
 # 1) 平台租户登录：tenantId 必须为 1
 $p = Invoke-RestMethod -Method Post -Uri http://localhost:8080/auth/login -ContentType 'application/json' `
@@ -451,6 +453,21 @@ Invoke-RestMethod -Uri 'http://localhost:8080/form/data/{code}/page?current=1&si
 # 4) 停用租户：登录 401；存量 accessToken 经网关 401（Phase 2 租户状态校验）
 # 5) 开通租户后：新租户管理员可登录；重复 tenantCode 返回 4xx 且不产生半初始化数据
 ```
+
+**执行结果（2026-10-25，经网关 8080）**：
+
+| # | 结果 |
+|---|---|
+| 1 | 登录 `code=0`；`/auth/me` → `tenantId=1`、`roles=super_admin` |
+| 2 | 业务租户令牌访问 `/tenant/page` → `403` |
+| 3 | 平台令牌 + 伪造 `X-Tenant-Id=<acmeId>` → `/auth/me` 仍为 `tenantId=1`，伪造头被网关剥离 |
+| 4 | 停用 `acme` 后登录 → `401`「租户已停用或已过期」；恢复后登录 `code=0` |
+| 5 | 开通 `acme` → `code=0`；菜单 11/11 复制、部门根 1、`tenant_admin` 24 项权限、管理员与首页关系各 1；重复编码 `default` → `400` 且无新增数据 |
+
+补充说明：
+- 曾出现一次开通 `500`（菜单父子乱序触发三元拆箱 NPE），已修复并补回归用例，见 [执行报告](../../reviews/2026-10-25-wave5.54-5.53-deploy-execution.md) 第五章。
+- 相同 `tenantCode` 在 `@Idempotent` 窗口（1h）内重放返回缓存成功，不重复落库；窗口外由唯一性校验返回 400。
+- 网关曾缺 `/tenant/**` 路由（返回 404），已补 `whale-auth-tenant` 路由，`/tenant/internal/**` 仍由 `internal-deny` 屏蔽。
 
 ### 14.5 E2E
 

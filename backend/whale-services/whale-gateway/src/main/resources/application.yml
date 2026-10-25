@@ -38,6 +38,12 @@ spring:
               uri: lb://whale-auth
               predicates:
                 - Path=/auth/**,/user/**,/dept/**,/role/**,/menu/**,/permission/**
+            # Wave 5.54 Phase 1/5.3 租户管理与成员：/tenant/** 同属 whale-auth；
+            # /tenant/internal/** 由 internal-deny 统一 403，对外仅暴露运营接口
+            - id: whale-auth-tenant
+              uri: lb://whale-auth
+              predicates:
+                - Path=/tenant/**
             - id: whale-job
               uri: lb://whale-job
               predicates:

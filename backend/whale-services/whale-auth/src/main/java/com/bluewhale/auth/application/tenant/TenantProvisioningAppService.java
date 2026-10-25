@@ -139,8 +139,10 @@ public class TenantProvisioningAppService {
             Iterator<Menu> iterator = remaining.iterator();
             while (iterator.hasNext()) {
                 Menu source = iterator.next();
+                // 父节点尚未映射时 get() 返回 null，属于「本轮跳过、下一轮重试」的正常情形；
+                // 必须保持三元两端同为 Long，避免与原始字面量 0L 混用触发自动拆箱 NPE
                 Long mappedParentId = source.getParentId() == 0L
-                        ? 0L : idMapping.get(source.getParentId());
+                        ? Long.valueOf(Menu.ROOT_PARENT_ID) : idMapping.get(source.getParentId());
                 if (mappedParentId == null) {
                     continue;
                 }

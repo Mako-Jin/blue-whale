@@ -159,6 +159,61 @@ class TenantProvisioningAppServiceTest {
     }
 
     @Test
+    @DisplayName("开通：子菜单先于父菜单返回时不报错，按轮次解析父子层级")
+    void shouldCopyMenusWhenChildListedBeforeParent() {
+        AtomicLong menuIdSequence = new AtomicLong(20_000L);
+        when(tenantAppService.requirePlatformTenant()).thenReturn(platformTenant());
+        when(tenantRepository.findByCode("acme")).thenReturn(Optional.empty());
+        when(tenantRepository.save(any(Tenant.class))).thenAnswer(invocation -> {
+            Tenant draft = invocation.getArgument(0);
+            return Tenant.reconstitute(NEW_TENANT_ID, draft.getTenantCode(), draft.getTenantName(), "TENANT",
+                    draft.getStatus(), draft.getExpireTime(), draft.getQuotaJson(),
+                    draft.getCreateTime(), draft.getUpdateTime());
+        });
+        when(deptRepository.save(any(Dept.class))).thenAnswer(invocation -> {
+            Dept draft = invocation.getArgument(0);
+            return Dept.reconstitute(ROOT_DEPT_ID, draft.getTenantId(), draft.getParentId(), draft.getDeptName(),
+                    draft.getSort(), draft.getLeader(), draft.getCreateTime(), draft.getUpdateTime());
+        });
+        // 故意把子菜单排在父菜单之前，模拟无序遍历
+        when(menuRepository.findAllByTenantId(Tenant.PLATFORM_TENANT_ID))
+                .thenReturn(List.of(platformMenu(11L, 10L, "租户管理", "MENU", null),
+                        platformMenu(10L, 0L, "系统管理", "DIR", null)));
+        when(menuRepository.save(any(Menu.class))).thenAnswer(invocation -> {
+            Menu draft = invocation.getArgument(0);
+            long id = menuIdSequence.incrementAndGet();
+            return Menu.reconstitute(id, draft.getTenantId(), draft.getParentId(), draft.getName(), draft.getPath(),
+                    draft.getComponent(), draft.getIcon(), draft.getSort(), draft.getMenuType(),
+                    draft.getPermissionCode(), draft.getVisible(), draft.getStatus(), NOW, NOW);
+        });
+        when(permissionRepository.findEnabledAll()).thenReturn(List.of());
+        when(roleRepository.save(any(Role.class))).thenAnswer(invocation -> {
+            Role draft = invocation.getArgument(0);
+            return Role.reconstitute(ROLE_ID, draft.getTenantId(), draft.getRoleCode(), draft.getRoleName(),
+                    draft.getDescription(), draft.getSortNo(), draft.getStatus(),
+                    draft.getCreateTime(), draft.getUpdateTime());
+        });
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+            User draft = invocation.getArgument(0);
+            return User.reconstitute(ADMIN_ID, draft.getTenantId(), draft.getUsername(), draft.getPassword(),
+                    draft.getNickname(), draft.getPhone(), draft.getEmail(), draft.getDeptId(), draft.getStatus(),
+                    draft.getCreateTime(), draft.getUpdateTime());
+        });
+        when(passwordEncoder.encode("initPwd")).thenReturn(CIPHER);
+
+        service.provision(new CreateTenantCommand("acme", "ACME", null, null, "admin", "initPwd", "管理员"));
+
+        ArgumentCaptor<Menu> menuCaptor = ArgumentCaptor.forClass(Menu.class);
+        verify(menuRepository, times(2)).save(menuCaptor.capture());
+        List<Menu> saved = menuCaptor.getAllValues();
+        assertEquals("系统管理", saved.get(0).getName());
+        assertEquals(Long.valueOf(Menu.ROOT_PARENT_ID), saved.get(0).getParentId());
+        assertEquals("租户管理", saved.get(1).getName());
+        // 子菜单在第二轮落库，父 ID 指向第一轮保存父菜单时返回的 20001
+        assertEquals(Long.valueOf(20_001L), saved.get(1).getParentId());
+    }
+
+    @Test
     @DisplayName("开通：租户编码已存在时快速失败且不落库")
     void shouldRejectDuplicateTenantCode() {
         when(tenantAppService.requirePlatformTenant()).thenReturn(platformTenant());
