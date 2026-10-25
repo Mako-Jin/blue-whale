@@ -21,6 +21,8 @@ export const menuConfig: MenuNode[] = [
   { key: '/portal', label: '门户应用' },
   { key: '/erp', label: 'ERP 应用' },
   { key: '/oa', label: 'OA 应用' },
+  { key: '/mes', label: 'MES 应用' },
+  { key: '/pdm', label: 'PDM 应用' },
   { key: '/im', label: '消息' },
 ];
 

@@ -28,14 +28,14 @@
 | 5 | `whale-form` | whale-services | `whale-services/whale-form` | **8084** | `/form/**` | ✅ `lb://whale-form` | **`bluewhale_form`**（已建库） | `WhaleFormApplication` | 动态表单 | 可启动 |
 | 6 | `whale-file` | whale-services | `whale-services/whale-file` | **8085** | `/file/**` | ✅ `lb://whale-file` | **`bluewhale_file`**（已建库） | `WhaleFileApplication` | 文件上传下载、附件管理 | 可启动 |
 | 7 | `whale-pay` | whale-services | `whale-services/whale-pay` | **8086** | `/pay/**` | ✅ `lb://whale-pay` | **`bluewhale_pay`**（已建库） | `WhalePayApplication` | 支付与结算 | 可启动 |
-| 8 | `whale-erp` | whale-apps | `whale-apps/whale-erp` | **9001** | `/erp/**` | ❌ **未配路由** | `bluewhale_erp`（**规划，未建库**） | `WhaleErpApplication` | ERP 业务应用 | 可启动 |
-| 9 | `whale-mes` | whale-apps | `whale-apps/whale-mes` | **9002** | `/mes/**` | ❌ **未配路由** | `bluewhale_mes`（**规划，未建库**） | `WhaleMesApplication` | MES 制造执行 | 可启动 |
-| 10 | `whale-pdm` | whale-apps | `whale-apps/whale-pdm` | **9003** | `/pdm/**` | ❌ **未配路由** | `bluewhale_pdm`（**规划，未建库**） | `WhalePdmApplication` | PDM 产品数据管理 | 可启动 |
-| 11 | `whale-oa` | whale-apps | `whale-apps/whale-oa` | **9004** | `/oa/**` | ❌ **未配路由** | `bluewhale_oa`（**规划，未建库**） | `WhaleOaApplication` | OA 协同办公 | 可启动 |
+| 8 | `whale-erp` | whale-apps | `whale-apps/whale-erp` | **9001** | `/erp/**` | ✅ 已配路由（2026-10-25） | `bluewhale_erp`（**规划，未建库**） | `WhaleErpApplication` | ERP 业务应用 | 可启动 |
+| 9 | `whale-mes` | whale-apps | `whale-apps/whale-mes` | **9002** | `/mes/**` | ✅ 已配路由（2026-10-25） | `bluewhale_mes`（**规划，未建库**） | `WhaleMesApplication` | MES 制造执行 | 可启动 |
+| 10 | `whale-pdm` | whale-apps | `whale-apps/whale-pdm` | **9003** | `/pdm/**` | ✅ 已配路由（2026-10-25） | `bluewhale_pdm`（**规划，未建库**） | `WhalePdmApplication` | PDM 产品数据管理 | 可启动 |
+| 11 | `whale-oa` | whale-apps | `whale-apps/whale-oa` | **9004** | `/oa/**` | ✅ 已配路由（2026-10-25） | `bluewhale_oa`（**规划，未建库**） | `WhaleOaApplication` | OA 协同办公 | 可启动 |
 | 12 | `whale-audit` | whale-ops | `whale-ops/whale-audit` | **9101** | `/audit/**` | ✅ `lb://whale-audit` | **`bluewhale_audit`**（`audit_log`，已建） | `WhaleAuditApplication` | 审计日志落库与查询 | **已运行**（已在 Nacos 注册） |
 | 13 | `whale-monitor` | whale-ops | `whale-ops/whale-monitor` | **9102** | `/monitor/**` | ✅ `lb://whale-monitor` | ——（采集为主） | `WhaleMonitorApplication` | 监控指标采集 | 可启动 |
 | 14 | `whale-alert` | whale-ops | `whale-ops/whale-alert` | **9103** | `/alert/**` | ✅ `lb://whale-alert` | **`bluewhale_alert`**（已建库） | `WhaleAlertApplication` | 告警通知 | 可启动 |
-| 15 | `whale-config` | whale-registry | `whale-registry/whale-config` | **9201** | `/config/**` | ❌ **未配路由** | ——（配置来自 Nacos） | `WhaleConfigApplication` | 配置中心管理面 | 可启动 |
+| 15 | `whale-config` | whale-registry | `whale-registry/whale-config` | **9201** | `/config/**` | ✅ 已配路由（2026-10-25） | ——（配置来自 Nacos） | `WhaleConfigApplication` | 配置中心管理面 | 可启动 |
 | 16 | `whale-agent` | whale-services | `whale-services/whale-agent` | **8090** | `/agent/**` | ✅ `lb://whale-agent` | **`bluewhale_agent`**（6 表，已建） | `WhaleAgentApplication` | 平台与项目知识 Agent（Lucene 检索 + 事实层 + 问答编排） | **已运行**（已在 Nacos 注册，Wave 5.47） |
 | 17 | `whale-im` | whale-services | `whale-services/whale-im` | **8091** | `/im/**`、`/im/ws` | ✅ `lb://whale-im` / `lb:ws://whale-im` | **`bluewhale_im`**（5 表，**规划**） | `WhaleImApplication` | 自研 WebIM：会话/消息/已读/在线/机器人会话；WS ticket 鉴权 | **规划**（Wave 5.52） |
 | 18 | `whale-archive` | whale-services | `whale-services/whale-archive` | **8093** | `/archive/**` | ✅ `lb://whale-archive` | **`bluewhale_archive`**（6 表，脚本已就绪） | `WhaleArchiveApplication` | 档案服务：门类/规则/条目/档号/快照/检索；只读拉取工作流已通过实例与表单附件 | **可启动**（Wave 5.53 M1 底座完成，未起服） |
@@ -63,7 +63,11 @@
 | `whale-im` | `Path=/im/**`（**排除** `/im/ws`） | `lb://whale-im` | whale-im | 🟡 规划（Wave 5.52；**不配 `StripPrefix`**） |
 | `whale-im-ws` | `Path=/im/ws` | `lb:ws://whale-im` | whale-im | 🟡 规划（Wave 5.52；保留 `Upgrade`/`Connection` 头，鉴权走 60s 一次性 ticket） |
 | `whale-archive` | `Path=/archive/**` | `lb://whale-archive` | whale-archive | ✅ 已配（Wave 5.53 M1；**不配 `StripPrefix`**，内网 `/archive/internal/**` 由 internal-deny 403） |
-| —— | `/erp/**`、`/mes/**`、`/pdm/**`、`/oa/**`、`/config/**` | —— | whale-erp / mes / pdm / oa / config | ❌ **缺路由**（见 §九 偏差 C-03） |
+| whale-erp | `Path=/erp/**` | `lb://whale-erp` | whale-erp | ✅ 已配（2026-10-25） |
+| whale-mes | `Path=/mes/**` | `lb://whale-mes` | whale-mes | ✅ 已配（2026-10-25） |
+| whale-pdm | `Path=/pdm/**` | `lb://whale-pdm` | whale-pdm | ✅ 已配（2026-10-25） |
+| whale-oa | `Path=/oa/**` | `lb://whale-oa` | whale-oa | ✅ 已配（2026-10-25） |
+| whale-config | `Path=/config/**` | `lb://whale-config` | whale-config | ✅ 已配（2026-10-25） |
 
 **网关免鉴权白名单**：`/auth/login`、`/auth/refresh`、`/actuator/**`、`/v3/api-docs/**`、`/doc.html`、`/webjars/**`、`/favicon.ico`、`/audit/log/frontend/batch`、`/audit/log/behavior/batch`（后两条为前端/行为日志上报，Wave 5.19 起仅放行 batch 写入端点）。
 
@@ -216,7 +220,7 @@
 |---|---|---|---|
 | **C-01** | ~~前端 dev 端口与后端冲突：`frontend/admin` 8080 = 网关 8080、`frontend/ops` 8081 = `whale-auth` 8081~~ | **已解** | **✅ 已整改**：admin → **8001**、ops → **8104**，与后端端口区段无冲突 |
 | **C-02** | `whale-auth` 端口硬编码 `server.port: 8081`，未按其他服务写法 `${SERVER_PORT:8081}` 外置 | P3 | 改为 `${SERVER_PORT:8081}`，与规范统一 |
-| **C-03** | `whale-gateway` **缺 5 条路由**：`/erp/**`、`/mes/**`、`/pdm/**`、`/oa/**`、`/config/**`；~~`/alert/**` 缺路由~~ → **✅ 已解（Wave 5.33）**；~~`/auth/**` 未覆盖用户/部门/角色/菜单/权限管理接口（AUTH-38）~~ → **✅ 已解（Wave 5.2）**：`whale-auth` 路由 `Path` 扩为 `/auth,/user,/dept,/role,/menu,/permission` | **P1** | 余下 5 条待随 Phase 4 业务应用实现补齐（见 [wave5.46-phase4-business-apps.md](plans/wave5.46-phase4-business-apps.md)），逐条冒烟 |
+| **C-03** | ~~`whale-gateway` **缺 5 条路由**：`/erp/**`、`/mes/**`、`/pdm/**`、`/oa/**`、`/config/**`~~ | **已解（2026-10-25）** | **✅ 已整改**：5 条路由已写入 `whale-gateway/src/main/resources/application.yml`，统一 `lb://`（自持一级前缀，不含 `StripPrefix`）；基座同步挂载 `/mes/*`、`/pdm/*` 并补菜单/图标；路由冒烟需服务与 Nacos 就绪后执行 |
 | **C-04** | Nacos 版本/端口不一致：本机 3.2.4（控制台 8849）vs compose 镜像 2.3.2（控制台 8848） | P2 | 统一 compose 镜像至 3.x 并同步端口、健康检查（`/nacos/actuator/health/liveness`） |
 | **C-05** | 注册中心环境变量名分裂：网关 `NACOS_ADDR` vs 其余 `NACOS_SERVER` | P3 | 统一为 `NACOS_SERVER`（保留 `NACOS_ADDR` 兼容期），登记后批量替换 |
 | **C-06** | ~~8 个业务服务库在规范 §八 已登记库名，但 `application.yml` **均未配数据源**、库亦未建~~ | **已解（部分）** | **✅ 已整改**：auth/audit/job/workflow/form/file/pay/alert 共 8 个服务均已配数据源并建库（原 `whale-i18n` 服务及 `bluewhale_i18n` 库已于 Wave 5.50 删除，国际化改由 SDK 在各服务库内自建 `sys_i18n_message`）；**剩余** `erp/mes/pdm/oa` 四个业务应用尚未配数据源、未建库（随 Phase 4 落地） |

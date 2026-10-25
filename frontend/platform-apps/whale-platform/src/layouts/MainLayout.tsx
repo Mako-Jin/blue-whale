@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import {
   AppstoreOutlined,
   CloudOutlined,
+  DeploymentUnitOutlined,
   FileTextOutlined,
   HomeOutlined,
   LogoutOutlined,
@@ -43,6 +44,8 @@ const MENU_ICONS: Record<string, ReactNode> = {
   '/portal': <CloudOutlined />,
   '/erp': <ProfileOutlined />,
   '/oa': <FileTextOutlined />,
+  '/mes': <DeploymentUnitOutlined />,
+  '/pdm': <ProfileOutlined />,
   '/im': <MessageOutlined />,
 };
 

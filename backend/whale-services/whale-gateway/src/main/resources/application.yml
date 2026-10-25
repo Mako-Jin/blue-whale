@@ -92,6 +92,27 @@ spring:
               uri: lb://whale-archive
               predicates:
                 - Path=/archive/**
+            # Wave 5.54 P2 偏差 C-03 收口：业务应用与配置中心补路由（自持一级前缀，不含 StripPrefix）
+            - id: whale-erp
+              uri: lb://whale-erp
+              predicates:
+                - Path=/erp/**
+            - id: whale-mes
+              uri: lb://whale-mes
+              predicates:
+                - Path=/mes/**
+            - id: whale-pdm
+              uri: lb://whale-pdm
+              predicates:
+                - Path=/pdm/**
+            - id: whale-oa
+              uri: lb://whale-oa
+              predicates:
+                - Path=/oa/**
+            - id: whale-config
+              uri: lb://whale-config
+              predicates:
+                - Path=/config/**
 
 whale:
   gateway:

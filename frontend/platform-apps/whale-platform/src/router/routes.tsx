@@ -41,6 +41,8 @@ export const routes = [
       { path: 'portal/*', element: <SubAppContainer /> },
       { path: 'erp/*', element: <SubAppContainer /> },
       { path: 'oa/*', element: <SubAppContainer /> },
+      { path: 'mes/*', element: <SubAppContainer /> },
+      { path: 'pdm/*', element: <SubAppContainer /> },
       // 消息中心（whale-im 子应用，具体页面由 qiankun 接管）
       { path: 'im/*', element: <SubAppContainer /> },
     ],
