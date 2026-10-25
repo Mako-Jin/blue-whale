@@ -1,7 +1,7 @@
 # Wave 5.55 · 项目管理服务（whale-pm）规划
 
 > 目标：新建一个对标 Jira / 禅道的项目管理服务，覆盖「项目空间 → 工作项 → 迭代 → 看板 → 报表」主线，并与平台既有的认证、权限、租户、文件、工作流、IM、审计能力打通。
-> 制定日期：2026-10-25 ｜ 状态：**M1 已实施**（项目域闭环；M2–M5 待做） ｜ 关联：REQ-FUNC-018 / REQ-FUNC-019 / REQ-ARCH-008 / REQ-SEC-009
+> 制定日期：2026-10-25 ｜ 状态：**M2 已实施**（项目域 + 工作项域闭环；M3–M5 待做） ｜ 关联：REQ-FUNC-018 / REQ-FUNC-019 / REQ-ARCH-008 / REQ-SEC-009
 > 上游依据：[roadmap.md](roadmap.md)、[service-catalog.md](../service-catalog.md)、[naming-conventions.md](../naming-conventions.md)、[wave5.46 业务应用规划](wave5.46-phase4-business-apps.md)、[wave5.54 多租户评估](wave5.54-multi-tenant/assessment.md)
 
 ---
@@ -236,6 +236,7 @@ DDL 落地方式：`db/init.sql`（全量、可重建）+ `db/migration-5.55-*.s
 
 - **权限点 172–199**（预留 28 个，首版使用 172–190）：`sys:pm:project:{list,add,edit,delete,config}`、`sys:pm:project:member:{list,manage}`、`sys:pm:workitem:{list,add,edit,delete,transition}`、`sys:pm:comment:{list,add,delete}`、`sys:pm:attachment:{add,delete}`、`sys:pm:sprint:{list,manage}`、`sys:pm:board:{view,manage}`、`sys:pm:report:view`。
 - **菜单 18–29**（预留 12 个，首版使用 18–23）：18「项目管理」目录；19 项目列表 `/pm/project`；20 看板 `/pm/board`；21 迭代 `/pm/sprint`；22 报表 `/pm/report`；23 项目设置 `/pm/setting`。
+- **实际落地（M1 + M2）**：权限点 172–186 项目域（`sys:pm:project|member|status|transition:*`）、187–196 工作项域（`sys:pm:item|comment|attachment|link:*`）；菜单 18–21（项目管理 / 项目列表 / 状态配置 / 流转配置），M3+ 继续 22–29。
 - 菜单随 `business` 租户开通模板复制（沿用 Wave 5.54 Phase 5.3 机制）。
 - 网关新增 `/pm/internal/**` 内网屏蔽，外部访问 403。
 

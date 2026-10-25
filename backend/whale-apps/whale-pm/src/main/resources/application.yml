@@ -14,6 +14,11 @@ spring:
     username: ${MYSQL_USER:root}
     # P1-2 安全默认值：未设置 MYSQL_PASSWORD 时由启动守卫给出明确报错
     password: ${MYSQL_PASSWORD:}
+  # M2 工作项编号序列依赖 Redis（whale:pm:itemseq:<projectId>）
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
   cloud:
     nacos:
       discovery:
