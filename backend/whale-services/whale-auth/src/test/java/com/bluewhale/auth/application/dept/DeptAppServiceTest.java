@@ -6,9 +6,12 @@ import com.bluewhale.auth.domain.dept.aggregate.Dept;
 import com.bluewhale.auth.domain.dept.repository.DeptRepository;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.DeptDomainEvent;
+import com.bluewhale.auth.security.TenantContext;
 import com.bluewhale.auth.vo.DeptVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,8 +53,18 @@ class DeptAppServiceTest {
     @InjectMocks
     private DeptAppService deptAppService;
 
+    @BeforeEach
+    void bindTenant() {
+        TenantContext.set(1L);
+    }
+
+    @AfterEach
+    void clearTenant() {
+        TenantContext.clear();
+    }
+
     private static Dept dept(Long id, Long parentId, String name, int sort) {
-        return Dept.reconstitute(id, parentId, name, sort, "负责人", NOW, NOW);
+        return Dept.reconstitute(id, 1L, parentId, name, sort, "负责人", NOW, NOW);
     }
 
     @Test
@@ -82,6 +95,8 @@ class DeptAppServiceTest {
     @Test
     @DisplayName("create：落库并取默认父节点/排序")
     void shouldCreateWithDefaults() {
+        when(deptRepository.save(any(Dept.class))).thenAnswer(inv -> inv.getArgument(0));
+
         deptAppService.create(new SaveDeptCommand(null, "财务部", null, null));
 
         ArgumentCaptor<Dept> captor = ArgumentCaptor.forClass(Dept.class);

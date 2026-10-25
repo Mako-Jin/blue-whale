@@ -18,11 +18,12 @@ public interface MenuRepository {
      * 保存菜单聚合（无 ID 时新增，有 ID 时按主键更新）
      *
      * @param menu 菜单聚合根
+     * @return 回填主键后的菜单聚合根
      */
-    void save(Menu menu);
+    Menu save(Menu menu);
 
     /**
-     * 按菜单 ID 查询菜单聚合
+     * 按菜单 ID 查询菜单聚合（当前租户内查询，跨租户视为不存在）
      *
      * @param id 菜单 ID
      * @return 菜单聚合；不存在时返回空
@@ -30,11 +31,19 @@ public interface MenuRepository {
     Optional<Menu> findById(Long id);
 
     /**
-     * 查询全部菜单（按 sort 升序、id 升序，对应菜单树 {@code tree} 的读）
+     * 查询全部菜单（当前租户内，按 sort 升序、id 升序，对应菜单树 {@code tree} 的读）
      *
      * @return 全部菜单聚合列表
      */
     List<Menu> findAll();
+
+    /**
+     * 查询指定租户的全部菜单（租户开通复制菜单模板时使用）
+     *
+     * @param tenantId 租户 ID
+     * @return 该租户的菜单聚合列表
+     */
+    List<Menu> findAllByTenantId(Long tenantId);
 
     /**
      * 查询指定父菜单下的直接子菜单

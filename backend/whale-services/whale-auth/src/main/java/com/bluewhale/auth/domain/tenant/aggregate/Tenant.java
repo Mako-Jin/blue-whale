@@ -1,38 +1,100 @@
 package com.bluewhale.auth.domain.tenant.aggregate;
 
+import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
+
+import java.time.LocalDateTime;
+import java.util.regex.Pattern;
+
 /**
- * Tenant 聚合根（对应 {@code sys_tenant}，Wave 5.54 Phase 0）。
+ * Tenant 聚合根（对应 {@code sys_tenant}，Wave 5.54 Phase 1）。
  *
- * <p><b>不变量</b>：① {@code tenantCode} 非空；② 仅 {@code status=1} 的租户可用于登录与签发令牌。</p>
+ * <p><b>不变量</b>：① {@code tenantCode} 非空且仅允许字母/数字/下划线/中划线；② {@code tenantName} 非空；
+ * ③ {@code tenantType ∈ {PLATFORM, TENANT}}；④ 仅 {@code status=1} 且未过期的租户可用于登录与签发令牌。</p>
  * <p>本类为纯领域对象，不依赖 Spring / MyBatis / Web 等框架类型。</p>
  *
  * @author BlueWhale
  */
 public class Tenant {
 
+    /** 租户类型：平台运营租户（仅该类租户可管理租户清单） */
+    public static final String TYPE_PLATFORM = "PLATFORM";
+    /** 租户类型：普通业务租户 */
+    public static final String TYPE_TENANT = "TENANT";
     /** 状态：启用 */
     public static final int STATUS_ENABLED = 1;
     /** 状态：停用 */
     public static final int STATUS_DISABLED = 0;
+    /** 平台租户固定 ID：存量数据统一归属该租户 */
+    public static final long PLATFORM_TENANT_ID = 1L;
+
+    /** 租户编码格式：2–64 位字母/数字/下划线/中划线 */
+    private static final Pattern CODE_PATTERN = Pattern.compile("^[A-Za-z0-9_-]{2,64}$");
 
     private final Long id;
     private final String tenantCode;
-    private final String tenantName;
-    private final int status;
+    private String tenantName;
+    private final String tenantType;
+    private int status;
+    private LocalDateTime expireTime;
+    private String quotaJson;
+    private final LocalDateTime createTime;
+    private LocalDateTime updateTime;
 
     /**
-     * 构造器：仅允许通过 {@link #reconstitute(Long, String, String, Integer)} 重建聚合
+     * 私有构造器：集中校验聚合不变量
      *
-     * @param id 租户 ID
+     * @param id 租户 ID（新建时为 {@code null}）
      * @param tenantCode 租户编码
      * @param tenantName 租户名称
-     * @param status 状态
+     * @param tenantType 租户类型（PLATFORM / TENANT）
+     * @param status 状态（1 启用 / 0 停用）
+     * @param expireTime 到期时间（{@code null} 表示长期有效）
+     * @param quotaJson 配额 JSON
+     * @param createTime 创建时间
+     * @param updateTime 更新时间
      */
-    private Tenant(Long id, String tenantCode, String tenantName, int status) {
+    private Tenant(Long id, String tenantCode, String tenantName, String tenantType, int status,
+                   LocalDateTime expireTime, String quotaJson, LocalDateTime createTime,
+                   LocalDateTime updateTime) {
+        if (tenantCode == null || !CODE_PATTERN.matcher(tenantCode).matches()) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
+                    "租户编码非法，仅支持 2–64 位字母、数字、下划线或中划线");
+        }
+        if (tenantName == null || tenantName.isBlank()) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "租户名称不能为空");
+        }
+        if (!TYPE_PLATFORM.equals(tenantType) && !TYPE_TENANT.equals(tenantType)) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
+                    "租户类型非法，仅支持 PLATFORM（平台）/ TENANT（业务租户）");
+        }
+        if (status != STATUS_ENABLED && status != STATUS_DISABLED) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "状态值非法，仅支持 1（启用）/ 0（停用）");
+        }
         this.id = id;
         this.tenantCode = tenantCode;
         this.tenantName = tenantName;
+        this.tenantType = tenantType;
         this.status = status;
+        this.expireTime = expireTime;
+        this.quotaJson = quotaJson;
+        this.createTime = createTime;
+        this.updateTime = updateTime;
+    }
+
+    /**
+     * 工厂方法：新建业务租户（默认启用）
+     *
+     * @param tenantCode 租户编码
+     * @param tenantName 租户名称
+     * @param expireTime 到期时间（{@code null} 表示长期有效）
+     * @param quotaJson 配额 JSON
+     * @return 新建的租户聚合
+     */
+    public static Tenant create(String tenantCode, String tenantName, LocalDateTime expireTime, String quotaJson) {
+        LocalDateTime now = LocalDateTime.now();
+        return new Tenant(null, tenantCode, tenantName, TYPE_TENANT, STATUS_ENABLED, expireTime, quotaJson,
+                now, now);
     }
 
     /**
@@ -41,12 +103,72 @@ public class Tenant {
      * @param id 租户 ID
      * @param tenantCode 租户编码
      * @param tenantName 租户名称
+     * @param tenantType 租户类型，为空时按 TENANT 处理
      * @param status 状态（1 启用 / 0 停用），{@code null} 按停用处理
+     * @param expireTime 到期时间
+     * @param quotaJson 配额 JSON
+     * @param createTime 创建时间
+     * @param updateTime 更新时间
      * @return 租户聚合
      */
-    public static Tenant reconstitute(Long id, String tenantCode, String tenantName, Integer status) {
-        return new Tenant(id, tenantCode, tenantName,
-                status == null ? STATUS_DISABLED : status);
+    public static Tenant reconstitute(Long id, String tenantCode, String tenantName, String tenantType,
+                                      Integer status, LocalDateTime expireTime, String quotaJson,
+                                      LocalDateTime createTime, LocalDateTime updateTime) {
+        String resolvedType = tenantType == null || tenantType.isBlank() ? TYPE_TENANT : tenantType;
+        return new Tenant(id, tenantCode, tenantName, resolvedType,
+                status == null ? STATUS_DISABLED : status, expireTime, quotaJson, createTime, updateTime);
+    }
+
+    /**
+     * 行为：重命名租户
+     *
+     * @param tenantName 新租户名称
+     */
+    public void rename(String tenantName) {
+        if (tenantName == null || tenantName.isBlank()) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "租户名称不能为空");
+        }
+        this.tenantName = tenantName;
+        this.updateTime = LocalDateTime.now();
+    }
+
+    /**
+     * 行为：变更配额 JSON
+     *
+     * @param quotaJson 配额 JSON
+     */
+    public void changeQuota(String quotaJson) {
+        this.quotaJson = quotaJson;
+        this.updateTime = LocalDateTime.now();
+    }
+
+    /**
+     * 行为：续期
+     *
+     * @param expireTime 新到期时间，必须晚于当前时间
+     */
+    public void renew(LocalDateTime expireTime) {
+        if (expireTime == null || !expireTime.isAfter(LocalDateTime.now())) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "续期时间必须晚于当前时间");
+        }
+        this.expireTime = expireTime;
+        this.updateTime = LocalDateTime.now();
+    }
+
+    /**
+     * 行为：启用租户
+     */
+    public void enable() {
+        this.status = STATUS_ENABLED;
+        this.updateTime = LocalDateTime.now();
+    }
+
+    /**
+     * 行为：停用租户
+     */
+    public void disable() {
+        this.status = STATUS_DISABLED;
+        this.updateTime = LocalDateTime.now();
     }
 
     /**
@@ -56,6 +178,35 @@ public class Tenant {
      */
     public boolean isEnabled() {
         return status == STATUS_ENABLED;
+    }
+
+    /**
+     * 判断租户在指定时间是否已过期
+     *
+     * @param now 判定时间
+     * @return 已过期返回 {@code true}
+     */
+    public boolean isExpiredAt(LocalDateTime now) {
+        return expireTime != null && !expireTime.isAfter(now);
+    }
+
+    /**
+     * 判断租户在指定时间是否可用（启用且未过期）
+     *
+     * @param now 判定时间
+     * @return 可用返回 {@code true}
+     */
+    public boolean isAvailableAt(LocalDateTime now) {
+        return isEnabled() && !isExpiredAt(now);
+    }
+
+    /**
+     * 判断是否为平台运营租户
+     *
+     * @return 平台租户返回 {@code true}
+     */
+    public boolean isPlatform() {
+        return TYPE_PLATFORM.equals(tenantType);
     }
 
     /**
@@ -86,11 +237,56 @@ public class Tenant {
     }
 
     /**
+     * 获取租户类型
+     *
+     * @return 租户类型（PLATFORM / TENANT）
+     */
+    public String getTenantType() {
+        return tenantType;
+    }
+
+    /**
      * 获取租户状态
      *
      * @return 状态（1 启用 / 0 停用）
      */
     public int getStatus() {
         return status;
+    }
+
+    /**
+     * 获取到期时间
+     *
+     * @return 到期时间；长期有效时返回 {@code null}
+     */
+    public LocalDateTime getExpireTime() {
+        return expireTime;
+    }
+
+    /**
+     * 获取配额 JSON
+     *
+     * @return 配额 JSON
+     */
+    public String getQuotaJson() {
+        return quotaJson;
+    }
+
+    /**
+     * 获取创建时间
+     *
+     * @return 创建时间
+     */
+    public LocalDateTime getCreateTime() {
+        return createTime;
+    }
+
+    /**
+     * 获取更新时间
+     *
+     * @return 更新时间
+     */
+    public LocalDateTime getUpdateTime() {
+        return updateTime;
     }
 }

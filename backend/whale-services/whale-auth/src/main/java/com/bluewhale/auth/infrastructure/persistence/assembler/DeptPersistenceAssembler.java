@@ -28,6 +28,7 @@ public final class DeptPersistenceAssembler {
     public static Dept toDomain(SysDept po) {
         return Dept.reconstitute(
                 po.getId(),
+                po.getTenantId(),
                 po.getParentId(),
                 po.getDeptName(),
                 po.getSort(),
@@ -45,6 +46,7 @@ public final class DeptPersistenceAssembler {
     public static SysDept toPo(Dept dept) {
         SysDept po = new SysDept();
         po.setId(dept.getId());
+        po.setTenantId(dept.getTenantId());
         po.setParentId(dept.getParentId());
         po.setDeptName(dept.getDeptName());
         po.setSort(dept.getSort());

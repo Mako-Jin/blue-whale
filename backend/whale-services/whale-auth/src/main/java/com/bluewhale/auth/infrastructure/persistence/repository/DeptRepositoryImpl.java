@@ -6,6 +6,7 @@ import com.bluewhale.auth.domain.dept.repository.DeptRepository;
 import com.bluewhale.auth.entity.SysDept;
 import com.bluewhale.auth.infrastructure.persistence.assembler.DeptPersistenceAssembler;
 import com.bluewhale.auth.mapper.SysDeptMapper;
+import com.bluewhale.auth.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
@@ -27,24 +28,28 @@ public class DeptRepositoryImpl implements DeptRepository {
     private final SysDeptMapper deptMapper;
 
     @Override
-    public void save(Dept dept) {
+    public Dept save(Dept dept) {
         SysDept po = DeptPersistenceAssembler.toPo(dept);
         if (po.getId() == null) {
             deptMapper.insert(po);
         } else {
             deptMapper.updateById(po);
         }
+        return DeptPersistenceAssembler.toDomain(po);
     }
 
     @Override
     public Optional<Dept> findById(Long id) {
-        SysDept po = deptMapper.selectById(id);
+        SysDept po = deptMapper.selectOne(new LambdaQueryWrapper<SysDept>()
+                .eq(SysDept::getId, id)
+                .eq(SysDept::getTenantId, TenantContext.requireId()));
         return Optional.ofNullable(po).map(DeptPersistenceAssembler::toDomain);
     }
 
     @Override
     public List<Dept> findAll() {
         List<SysDept> pos = deptMapper.selectList(new LambdaQueryWrapper<SysDept>()
+                .eq(SysDept::getTenantId, TenantContext.requireId())
                 .orderByAsc(SysDept::getSort)
                 .orderByAsc(SysDept::getId));
         return pos.stream().map(DeptPersistenceAssembler::toDomain).toList();
@@ -53,6 +58,7 @@ public class DeptRepositoryImpl implements DeptRepository {
     @Override
     public List<Dept> findAllByParentId(Long parentId) {
         List<SysDept> pos = deptMapper.selectList(new LambdaQueryWrapper<SysDept>()
+                .eq(SysDept::getTenantId, TenantContext.requireId())
                 .eq(SysDept::getParentId, parentId));
         return pos.stream().map(DeptPersistenceAssembler::toDomain).toList();
     }
@@ -60,12 +66,15 @@ public class DeptRepositoryImpl implements DeptRepository {
     @Override
     public long countChildren(Long parentId) {
         Long count = deptMapper.selectCount(new LambdaQueryWrapper<SysDept>()
+                .eq(SysDept::getTenantId, TenantContext.requireId())
                 .eq(SysDept::getParentId, parentId));
         return count == null ? 0L : count;
     }
 
     @Override
     public void deleteById(Long id) {
-        deptMapper.deleteById(id);
+        deptMapper.delete(new LambdaQueryWrapper<SysDept>()
+                .eq(SysDept::getId, id)
+                .eq(SysDept::getTenantId, TenantContext.requireId()));
     }
 }

@@ -11,10 +11,13 @@ import com.bluewhale.auth.domain.model.vo.RoleCode;
 import com.bluewhale.auth.domain.permission.repository.PermissionRepository;
 import com.bluewhale.auth.domain.role.aggregate.Role;
 import com.bluewhale.auth.domain.role.repository.RoleRepository;
+import com.bluewhale.auth.security.TenantContext;
 import com.bluewhale.auth.vo.RoleVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -60,8 +63,18 @@ class RoleAppServiceTest {
     @InjectMocks
     private RoleAppService roleAppService;
 
+    @BeforeEach
+    void bindTenant() {
+        TenantContext.set(1L);
+    }
+
+    @AfterEach
+    void clearTenant() {
+        TenantContext.clear();
+    }
+
     private static Role role(String name) {
-        return Role.reconstitute(ROLE_ID, RoleCode.of("test_role"), name, "描述", 1,
+        return Role.reconstitute(ROLE_ID, 1L, RoleCode.of("test_role"), name, "描述", 1,
                 Role.STATUS_ENABLED, CREATED, UPDATED);
     }
 
@@ -117,8 +130,8 @@ class RoleAppServiceTest {
     @DisplayName("create：编码可用时落库并取默认排序/状态，发布 CREATED 事件")
     void shouldCreateRoleWhenCodeAvailable() {
         when(roleRepository.existsByCode("test_role")).thenReturn(false);
-        when(roleRepository.findByCode("test_role")).thenReturn(Optional.of(Role.reconstitute(
-                ROLE_ID, RoleCode.of("test_role"), "测试角色", null, 0, Role.STATUS_ENABLED, CREATED, UPDATED)));
+        when(roleRepository.save(any(Role.class))).thenReturn(Role.reconstitute(
+                ROLE_ID, 1L, RoleCode.of("test_role"), "测试角色", null, 0, Role.STATUS_ENABLED, CREATED, UPDATED));
 
         RoleVO vo = roleAppService.create(new CreateRoleCommand("test_role", "测试角色", null, null, null));
 
@@ -210,7 +223,7 @@ class RoleAppServiceTest {
         when(roleRepository.listRoleIdsByUserId(ROLE_ID)).thenReturn(List.of(ROLE_ID, 8L));
         when(roleRepository.listEnabledByIds(List.of(ROLE_ID, 8L))).thenReturn(List.of(
                 role("测试角色"),
-                Role.reconstitute(8L, RoleCode.of("ops"), "运维", null, 0,
+                Role.reconstitute(8L, 1L, RoleCode.of("ops"), "运维", null, 0,
                         Role.STATUS_ENABLED, CREATED, UPDATED)));
 
         assertEquals(List.of("test_role", "ops"), roleAppService.listRoleCodesByUserId(ROLE_ID));

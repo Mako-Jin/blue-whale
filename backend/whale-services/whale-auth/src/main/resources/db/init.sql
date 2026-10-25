@@ -13,14 +13,17 @@
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
--- 0. 租户表（Wave 5.54 Phase 0：最小租户模型）
+-- 0. 租户表（Wave 5.54：租户模型 + 生命周期与配额）
 -- ---------------------------------------------------------------------
 DROP TABLE IF EXISTS sys_tenant;
 CREATE TABLE sys_tenant (
     id          BIGINT        NOT NULL                COMMENT '主键ID（雪花算法）',
     tenant_code VARCHAR(64)   NOT NULL                COMMENT '租户编码（唯一），登录时使用',
     tenant_name VARCHAR(128)  NOT NULL                COMMENT '租户名称',
+    tenant_type VARCHAR(16)   NOT NULL DEFAULT 'TENANT' COMMENT '租户类型：PLATFORM 平台运营 / TENANT 业务租户',
     status      TINYINT       NOT NULL DEFAULT 1      COMMENT '状态：1 启用 / 0 停用',
+    expire_time DATETIME      DEFAULT NULL            COMMENT '到期时间，NULL 表示长期有效',
+    quota_json  VARCHAR(1024) DEFAULT NULL            COMMENT '配额 JSON，如 {"maxUsers":50,"maxStorageMb":1024}',
     create_time DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted     TINYINT       NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',
@@ -58,7 +61,8 @@ CREATE TABLE sys_user (
 DROP TABLE IF EXISTS sys_role;
 CREATE TABLE sys_role (
     id          BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
-    role_code   VARCHAR(64)   NOT NULL               COMMENT '角色编码（唯一），如 super_admin',
+    tenant_id   BIGINT        NOT NULL DEFAULT 1     COMMENT '所属租户ID（逻辑关联 sys_tenant.id）',
+    role_code   VARCHAR(64)   NOT NULL               COMMENT '角色编码（租户内唯一），如 super_admin',
     role_name   VARCHAR(64)   NOT NULL               COMMENT '角色名称',
     description VARCHAR(255)  DEFAULT NULL           COMMENT '角色描述',
     sort_no     INT           NOT NULL DEFAULT 0     COMMENT '显示顺序（越小越靠前）',
@@ -67,7 +71,8 @@ CREATE TABLE sys_role (
     update_time DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted     TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
-    UNIQUE KEY uk_role_code (role_code)
+    UNIQUE KEY uk_tenant_role_code (tenant_id, role_code),
+    KEY idx_tenant_id (tenant_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='系统角色表';
 
 -- ---------------------------------------------------------------------
@@ -100,6 +105,7 @@ CREATE TABLE sys_permission (
 DROP TABLE IF EXISTS sys_menu;
 CREATE TABLE sys_menu (
     id              BIGINT        NOT NULL              COMMENT '主键ID（雪花算法）',
+    tenant_id       BIGINT        NOT NULL DEFAULT 1    COMMENT '所属租户ID（逻辑关联 sys_tenant.id）',
     parent_id       BIGINT        NOT NULL DEFAULT 0    COMMENT '父菜单ID，0 表示顶级（逻辑关联 sys_menu.id）',
     name            VARCHAR(64)   NOT NULL              COMMENT '菜单名称',
     path            VARCHAR(255)  DEFAULT NULL          COMMENT '前端路由路径，如 /system/user',
@@ -114,6 +120,7 @@ CREATE TABLE sys_menu (
     update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted         TINYINT       NOT NULL DEFAULT 0    COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
+    KEY idx_tenant_id (tenant_id),
     KEY idx_parent_id (parent_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='系统菜单表';
 
@@ -123,6 +130,7 @@ CREATE TABLE sys_menu (
 DROP TABLE IF EXISTS sys_dept;
 CREATE TABLE sys_dept (
     id          BIGINT       NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id   BIGINT       NOT NULL DEFAULT 1     COMMENT '所属租户ID（逻辑关联 sys_tenant.id）',
     parent_id   BIGINT       NOT NULL DEFAULT 0     COMMENT '父部门ID，0 表示顶级（逻辑关联 sys_dept.id）',
     dept_name   VARCHAR(64)  NOT NULL               COMMENT '部门名称',
     sort        INT          NOT NULL DEFAULT 0     COMMENT '显示顺序（越小越靠前）',
@@ -131,6 +139,7 @@ CREATE TABLE sys_dept (
     update_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted     TINYINT      NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
+    KEY idx_tenant_id (tenant_id),
     KEY idx_parent_id (parent_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='系统部门表';
 
@@ -334,11 +343,11 @@ CREATE TABLE behavior_log (
 -- 内置种子数据
 -- =====================================================================
 
--- 内置默认租户（id=1，tenant_code=default）：存量数据统一归属该租户
+-- 内置平台租户（id=1，tenant_code=default）：存量数据统一归属该租户
 INSERT INTO sys_tenant
-    (id, tenant_code, tenant_name, status)
+    (id, tenant_code, tenant_name, tenant_type, status)
 VALUES
-    (1, 'default', '默认租户', 1);
+    (1, 'default', '默认租户', 'PLATFORM', 1);
 
 -- 内置超级管理员用户（id=1）
 -- password 为 BCrypt 密文（由项目内 BCryptPasswordEncoder 生成），明文为 123456。
@@ -585,3 +594,14 @@ VALUES
     (149, 0, 'sys:archive:item:destroy', '销毁档案', 'API', '/archive/item/{id}/destroy', 'POST', 149, 1),
     (150, 0, 'sys:archive:sync:run', '触发档案同步', 'API', '/archive/sync/run', 'POST', 150, 1),
     (151, 0, 'sys:archive:secret:read', '检索秘密级档案知识', 'API', '/agent/search,/agent/chat', 'GET,POST', 151, 1);
+
+-- Wave 5.54 多租户平台权限点：仅平台租户（tenant_type=PLATFORM）可访问
+-- 段位约定：租户管理预留 160–179
+INSERT INTO sys_permission
+    (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+VALUES
+    (160, 0, 'sys:tenant:list', '查询租户', 'API', '/tenant/page,/tenant/{id}', 'GET', 160, 1),
+    (161, 0, 'sys:tenant:add', '开通租户', 'API', '/tenant', 'POST', 161, 1),
+    (162, 0, 'sys:tenant:edit', '编辑租户', 'API', '/tenant/{id}', 'PUT', 162, 1),
+    (163, 0, 'sys:tenant:status', '启停租户', 'API', '/tenant/{id}/status', 'PUT', 163, 1),
+    (164, 0, 'sys:tenant:renew', '租户续期', 'API', '/tenant/{id}/renew', 'PUT', 164, 1);

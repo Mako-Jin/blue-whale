@@ -6,6 +6,7 @@ import com.bluewhale.auth.domain.dept.aggregate.Dept;
 import com.bluewhale.auth.domain.dept.repository.DeptRepository;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.DeptDomainEvent;
+import com.bluewhale.auth.security.TenantContext;
 import com.bluewhale.auth.vo.DeptVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -71,9 +72,10 @@ public class DeptAppService {
      * @param command 部门新增命令
      */
     public void create(SaveDeptCommand command) {
-        Dept dept = Dept.create(command.parentId(), command.deptName(), command.sort(), command.leader());
-        deptRepository.save(dept);
-        domainEventPublisher.publish(new DeptDomainEvent(dept.getId(), ChangeType.CREATED));
+        Dept dept = Dept.create(TenantContext.requireId(), command.parentId(), command.deptName(),
+                command.sort(), command.leader());
+        Dept persisted = deptRepository.save(dept);
+        domainEventPublisher.publish(new DeptDomainEvent(persisted.getId(), ChangeType.CREATED));
     }
 
     /**

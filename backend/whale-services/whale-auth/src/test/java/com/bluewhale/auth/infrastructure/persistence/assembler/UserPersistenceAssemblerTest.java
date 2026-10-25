@@ -31,6 +31,7 @@ class UserPersistenceAssemblerTest {
     private static SysUser fullPo() {
         SysUser po = new SysUser();
         po.setId(5L);
+        po.setTenantId(1L);
         po.setUsername("bob_02");
         po.setPassword(CIPHER);
         po.setNickname("Bob");
@@ -47,7 +48,7 @@ class UserPersistenceAssemblerTest {
     }
 
     private static User fullDomain() {
-        return User.reconstitute(5L, Username.of("bob_02"), EncryptedPassword.of(CIPHER), "Bob",
+        return User.reconstitute(5L, 1L, Username.of("bob_02"), EncryptedPassword.of(CIPHER), "Bob",
                 "13900000000", "b@c.com", 4L, User.STATUS_ENABLED, CREATED, UPDATED);
     }
 
@@ -117,7 +118,7 @@ class UserPersistenceAssemblerTest {
     @DisplayName("领域 → PO：avatar 与 lastLoginTime 原样写回")
     void shouldMapAvatarAndLastLoginTimeToPo() {
         LocalDateTime lastLogin = LocalDateTime.of(2026, 2, 2, 10, 0, 0);
-        User domain = User.reconstitute(5L, Username.of("bob_02"), EncryptedPassword.of(CIPHER), "Bob",
+        User domain = User.reconstitute(5L, 1L, Username.of("bob_02"), EncryptedPassword.of(CIPHER), "Bob",
                 "13900000000", "b@c.com", "avatar.png", 4L, User.STATUS_ENABLED, lastLogin, CREATED, UPDATED);
 
         SysUser po = UserPersistenceAssembler.toPo(domain);

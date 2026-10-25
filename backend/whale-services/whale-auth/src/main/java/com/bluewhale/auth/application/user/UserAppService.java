@@ -14,6 +14,7 @@ import com.bluewhale.auth.domain.model.vo.Username;
 import com.bluewhale.auth.domain.role.repository.RoleRepository;
 import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
+import com.bluewhale.auth.security.TenantContext;
 import com.bluewhale.auth.vo.UserVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -102,17 +103,17 @@ public class UserAppService {
      * @return 新建用户视图对象
      */
     public UserVO create(CreateUserCommand command) {
+        Long tenantId = TenantContext.requireId();
         // 值对象前置校验用户名不变量
         Username username = Username.of(command.username());
-        if (userRepository.existsByUsername(username.value())) {
+        if (userRepository.existsByUsername(tenantId, username.value())) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "用户名已存在");
         }
         EncryptedPassword password = EncryptedPassword.of(passwordEncoder.encode(command.rawPassword()));
-        User user = User.create(username, password, command.nickname(), command.phone(), command.email(),
-                command.avatar(), command.deptId(), command.status());
-        userRepository.save(user);
-        // 保存后回查以回填数据库生成的主键与时间戳，保证与旧实现返回的视图字段一致
-        User persisted = userRepository.findByUsername(username.value()).orElse(user);
+        User user = User.create(tenantId, username, password, command.nickname(), command.phone(),
+                command.email(), command.avatar(), command.deptId(), command.status());
+        // 保存并回填数据库生成的主键与时间戳
+        User persisted = userRepository.save(user);
         domainEventPublisher.publish(new UserDomainEvent(persisted.getId(), ChangeType.CREATED));
         return UserVO.from(persisted);
     }

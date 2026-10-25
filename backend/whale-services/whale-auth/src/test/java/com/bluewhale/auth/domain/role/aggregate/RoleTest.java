@@ -26,7 +26,7 @@ class RoleTest {
     @Test
     @DisplayName("create：合法构造，默认排序 0、默认启用并回填各字段")
     void shouldCreateEnabledRoleByDefault() {
-        Role role = Role.create(CODE, "测试角色", "描述", null, null);
+        Role role = Role.create(1L, CODE, "测试角色", "描述", null, null);
 
         assertNull(role.getId());
         assertEquals("test_role", role.getRoleCode().value());
@@ -40,7 +40,7 @@ class RoleTest {
     @Test
     @DisplayName("create：显式停用状态与排序号生效")
     void shouldCreateDisabledRoleWhenStatusZero() {
-        Role role = Role.create(CODE, "测试角色", null, 9, 0);
+        Role role = Role.create(1L, CODE, "测试角色", null, 9, 0);
 
         assertEquals(9, role.getSortNo());
         assertEquals(Role.STATUS_DISABLED, role.getStatus());
@@ -51,7 +51,7 @@ class RoleTest {
     @DisplayName("不变量①：角色编码为空抛参数错误")
     void shouldRejectNullRoleCode() {
         BizException ex = assertThrows(BizException.class,
-                () -> Role.create(null, "测试角色", null, null, null));
+                () -> Role.create(1L, null, "测试角色", null, null, null));
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
     }
 
@@ -59,14 +59,14 @@ class RoleTest {
     @DisplayName("不变量②：角色名称为空抛参数错误")
     void shouldRejectBlankRoleName() {
         BizException ex = assertThrows(BizException.class,
-                () -> Role.create(CODE, "  ", null, null, null));
+                () -> Role.create(1L, CODE, "  ", null, null, null));
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
     }
 
     @Test
     @DisplayName("不变量③：reconstitute 非法状态抛参数错误")
     void shouldRejectIllegalStatus() {
-        assertThrows(BizException.class, () -> Role.reconstitute(1L, CODE, "测试角色", null, 1, 9, null, null));
+        assertThrows(BizException.class, () -> Role.reconstitute(1L, 1L, CODE, "测试角色", null, 1, 9, null, null));
     }
 
     @Test
@@ -74,7 +74,7 @@ class RoleTest {
     void shouldReconstituteWithDefaultStatusWhenNull() {
         LocalDateTime created = LocalDateTime.of(2026, 1, 1, 0, 0);
 
-        Role role = Role.reconstitute(7L, CODE, "测试角色", "描述", null, null, created, created);
+        Role role = Role.reconstitute(7L, 1L, CODE, "测试角色", "描述", null, null, created, created);
 
         assertEquals(7L, role.getId());
         assertEquals("描述", role.getDescription());
@@ -86,7 +86,7 @@ class RoleTest {
     @Test
     @DisplayName("行为：rename/changeDescription/changeSortNo 各自生效")
     void shouldApplyProfileChanges() {
-        Role role = Role.create(CODE, "旧名", "旧描述", 1, 1);
+        Role role = Role.create(1L, CODE, "旧名", "旧描述", 1, 1);
 
         role.rename("新名");
         role.changeDescription("新描述");
@@ -100,7 +100,7 @@ class RoleTest {
     @Test
     @DisplayName("行为：rename 空名称抛参数错误")
     void shouldRejectRenameWithBlankName() {
-        Role role = Role.create(CODE, "旧名", null, 1, 1);
+        Role role = Role.create(1L, CODE, "旧名", null, 1, 1);
 
         assertThrows(BizException.class, () -> role.rename(""));
     }
@@ -108,7 +108,7 @@ class RoleTest {
     @Test
     @DisplayName("行为：disable/enable/changeStatus 状态流转")
     void shouldToggleStatus() {
-        Role role = Role.create(CODE, "测试角色", null, 1, 1);
+        Role role = Role.create(1L, CODE, "测试角色", null, 1, 1);
 
         role.disable();
         assertEquals(Role.STATUS_DISABLED, role.getStatus());

@@ -29,6 +29,7 @@ public final class MenuPersistenceAssembler {
     public static Menu toDomain(SysMenu po) {
         return Menu.reconstitute(
                 po.getId(),
+                po.getTenantId(),
                 po.getParentId(),
                 po.getName(),
                 po.getPath(),
@@ -52,6 +53,7 @@ public final class MenuPersistenceAssembler {
     public static SysMenu toPo(Menu menu) {
         SysMenu po = new SysMenu();
         po.setId(menu.getId());
+        po.setTenantId(menu.getTenantId());
         po.setParentId(menu.getParentId());
         po.setName(menu.getName());
         po.setPath(menu.getPath());

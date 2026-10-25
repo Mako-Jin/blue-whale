@@ -34,6 +34,7 @@ public class Menu {
     public static final long ROOT_PARENT_ID = 0L;
 
     private final Long id;
+    private final Long tenantId;
     private Long parentId;
     private String name;
     private String path;
@@ -51,6 +52,7 @@ public class Menu {
      * 私有构造器：集中校验聚合不变量
      *
      * @param id 菜单 ID（新建时为 {@code null}）
+     * @param tenantId 所属租户 ID
      * @param parentId 父菜单 ID（0 表示顶级）
      * @param name 菜单名称
      * @param path 前端路由路径
@@ -64,9 +66,12 @@ public class Menu {
      * @param createTime 创建时间
      * @param updateTime 更新时间
      */
-    private Menu(Long id, Long parentId, String name, String path, String component, String icon, int sort,
-                 String menuType, String permissionCode, int visible, int status,
+    private Menu(Long id, Long tenantId, Long parentId, String name, String path, String component, String icon,
+                 int sort, String menuType, String permissionCode, int visible, int status,
                  LocalDateTime createTime, LocalDateTime updateTime) {
+        if (tenantId == null) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "菜单所属租户不能为空");
+        }
         if (parentId == null) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "父菜单 ID 不能为空（0 表示顶级）");
         }
@@ -83,6 +88,7 @@ public class Menu {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "状态值非法，仅支持 1（启用）/ 0（停用）");
         }
         this.id = id;
+        this.tenantId = tenantId;
         this.parentId = parentId;
         this.name = name;
         this.path = path;
@@ -100,6 +106,7 @@ public class Menu {
     /**
      * 工厂方法：新建菜单（无 ID），空值取默认（parentId=0、sort=0、menuType=MENU、visible=1、status=1）
      *
+     * @param tenantId 所属租户 ID
      * @param parentId 父菜单 ID，为空时按 0（顶级）处理
      * @param name 菜单名称
      * @param path 前端路由路径
@@ -112,10 +119,11 @@ public class Menu {
      * @param status 状态，为空时按启用处理
      * @return 新建的菜单聚合根
      */
-    public static Menu create(Long parentId, String name, String path, String component, String icon, Integer sort,
-                              String menuType, String permissionCode, Integer visible, Integer status) {
+    public static Menu create(Long tenantId, Long parentId, String name, String path, String component, String icon,
+                              Integer sort, String menuType, String permissionCode, Integer visible,
+                              Integer status) {
         LocalDateTime now = LocalDateTime.now();
-        return new Menu(null, parentId == null ? ROOT_PARENT_ID : parentId, name, path, component, icon,
+        return new Menu(null, tenantId, parentId == null ? ROOT_PARENT_ID : parentId, name, path, component, icon,
                 sort == null ? 0 : sort, menuType == null || menuType.isBlank() ? MENU_TYPE_MENU : menuType,
                 permissionCode, visible == null ? VISIBLE_SHOWN : visible,
                 status == null ? STATUS_ENABLED : status, now, now);
@@ -125,6 +133,7 @@ public class Menu {
      * 重建方法：由持久化数据还原菜单聚合根
      *
      * @param id 菜单 ID
+     * @param tenantId 所属租户 ID
      * @param parentId 父菜单 ID，为空时按 0（顶级）处理
      * @param name 菜单名称
      * @param path 前端路由路径
@@ -139,10 +148,11 @@ public class Menu {
      * @param updateTime 更新时间
      * @return 还原的菜单聚合根
      */
-    public static Menu reconstitute(Long id, Long parentId, String name, String path, String component, String icon,
-                                    Integer sort, String menuType, String permissionCode, Integer visible,
-                                    Integer status, LocalDateTime createTime, LocalDateTime updateTime) {
-        return new Menu(id, parentId == null ? ROOT_PARENT_ID : parentId, name, path, component, icon,
+    public static Menu reconstitute(Long id, Long tenantId, Long parentId, String name, String path,
+                                    String component, String icon, Integer sort, String menuType,
+                                    String permissionCode, Integer visible, Integer status,
+                                    LocalDateTime createTime, LocalDateTime updateTime) {
+        return new Menu(id, tenantId, parentId == null ? ROOT_PARENT_ID : parentId, name, path, component, icon,
                 sort == null ? 0 : sort, menuType == null || menuType.isBlank() ? MENU_TYPE_MENU : menuType,
                 permissionCode, visible == null ? VISIBLE_SHOWN : visible,
                 status == null ? STATUS_ENABLED : status, createTime, updateTime);
@@ -289,6 +299,15 @@ public class Menu {
      */
     public Long getId() {
         return id;
+    }
+
+    /**
+     * 获取所属租户 ID
+     *
+     * @return 所属租户 ID
+     */
+    public Long getTenantId() {
+        return tenantId;
     }
 
     /**

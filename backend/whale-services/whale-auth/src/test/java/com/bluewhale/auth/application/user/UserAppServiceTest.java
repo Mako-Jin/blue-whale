@@ -14,10 +14,13 @@ import com.bluewhale.auth.domain.model.vo.Username;
 import com.bluewhale.auth.domain.role.repository.RoleRepository;
 import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
+import com.bluewhale.auth.security.TenantContext;
 import com.bluewhale.auth.vo.UserVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -69,8 +72,18 @@ class UserAppServiceTest {
     @InjectMocks
     private UserAppService userAppService;
 
+    @BeforeEach
+    void bindTenant() {
+        TenantContext.set(1L);
+    }
+
+    @AfterEach
+    void clearTenant() {
+        TenantContext.clear();
+    }
+
     private static User user(String nickname) {
-        return User.reconstitute(USER_ID, Username.of("alice_01"), EncryptedPassword.of(CIPHER), nickname,
+        return User.reconstitute(USER_ID, 1L, Username.of("alice_01"), EncryptedPassword.of(CIPHER), nickname,
                 "13800000000", "a@b.com", "avatar.png", 3L, User.STATUS_ENABLED,
                 LocalDateTime.of(2026, 1, 1, 8, 0, 0), CREATED, UPDATED);
     }
@@ -115,7 +128,7 @@ class UserAppServiceTest {
     @Test
     @DisplayName("create：用户名已存在时抛 BizException 且不落库、不加密")
     void shouldRejectCreateWhenUsernameExists() {
-        when(userRepository.existsByUsername("alice_01")).thenReturn(true);
+        when(userRepository.existsByUsername(1L, "alice_01")).thenReturn(true);
 
         BizException ex = assertThrows(BizException.class, () -> userAppService.create(
                 new CreateUserCommand("alice_01", "pwd123", "Alice", null, null, null, null, null)));
@@ -129,9 +142,11 @@ class UserAppServiceTest {
     @Test
     @DisplayName("create：用户名可用时加密口令并落库，默认启用")
     void shouldCreateUserWhenUsernameAvailable() {
-        when(userRepository.existsByUsername("alice_01")).thenReturn(false);
+        when(userRepository.existsByUsername(1L, "alice_01")).thenReturn(false);
         when(passwordEncoder.encode("pwd123")).thenReturn(NEW_CIPHER);
-        when(userRepository.findByUsername("alice_01")).thenReturn(Optional.of(user("Alice")));
+        when(userRepository.save(any(User.class))).thenReturn(User.reconstitute(USER_ID, 1L,
+                Username.of("alice_01"), EncryptedPassword.of(NEW_CIPHER), "Alice", "138", "a@b.com",
+                "avatar.png", 3L, User.STATUS_ENABLED, null, CREATED, UPDATED));
 
         UserVO vo = userAppService.create(
                 new CreateUserCommand("alice_01", "pwd123", "Alice", "138", "a@b.com", "avatar.png", 3L, null));

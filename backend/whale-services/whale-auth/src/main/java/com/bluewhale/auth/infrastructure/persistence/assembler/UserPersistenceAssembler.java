@@ -35,6 +35,7 @@ public final class UserPersistenceAssembler {
         int status = po.getStatus() == null ? User.STATUS_DISABLED : po.getStatus();
         return User.reconstitute(
                 po.getId(),
+                po.getTenantId(),
                 Username.of(po.getUsername()),
                 EncryptedPassword.of(po.getPassword()),
                 po.getNickname(),
@@ -57,6 +58,7 @@ public final class UserPersistenceAssembler {
     public static SysUser toPo(User user) {
         SysUser po = new SysUser();
         po.setId(user.getId());
+        po.setTenantId(user.getTenantId());
         po.setUsername(user.getUsername().value());
         po.setPassword(user.getPassword().value());
         po.setNickname(user.getNickname());

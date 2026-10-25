@@ -24,6 +24,7 @@ class DeptPersistenceAssemblerTest {
     private static SysDept fullPo() {
         SysDept po = new SysDept();
         po.setId(5L);
+        po.setTenantId(1L);
         po.setParentId(3L);
         po.setDeptName("研发部");
         po.setSort(2);
@@ -35,7 +36,7 @@ class DeptPersistenceAssemblerTest {
     }
 
     private static Dept fullDomain() {
-        return Dept.reconstitute(5L, 3L, "研发部", 2, "张三", CREATED, UPDATED);
+        return Dept.reconstitute(5L, 1L, 3L, "研发部", 2, "张三", CREATED, UPDATED);
     }
 
     @Test

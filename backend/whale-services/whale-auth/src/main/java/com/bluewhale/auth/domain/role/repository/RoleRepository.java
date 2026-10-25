@@ -20,11 +20,12 @@ public interface RoleRepository {
      * 保存角色聚合（无 ID 时新增，有 ID 时按主键更新）
      *
      * @param role 角色聚合根
+     * @return 回填主键后的角色聚合根
      */
-    void save(Role role);
+    Role save(Role role);
 
     /**
-     * 按角色 ID 查询角色聚合
+     * 按角色 ID 查询角色聚合（当前租户内查询，跨租户视为不存在）
      *
      * @param id 角色 ID
      * @return 角色聚合；不存在时返回空
@@ -32,12 +33,21 @@ public interface RoleRepository {
     Optional<Role> findById(Long id);
 
     /**
-     * 按角色编码查询角色聚合
+     * 按角色编码查询角色聚合（当前租户内查询）
      *
      * @param roleCode 角色编码
      * @return 角色聚合；不存在时返回空
      */
     Optional<Role> findByCode(String roleCode);
+
+    /**
+     * 按租户与角色编码查询角色聚合（租户开通等跨租户编排使用）
+     *
+     * @param tenantId 租户 ID
+     * @param roleCode 角色编码
+     * @return 角色聚合；不存在时返回空
+     */
+    Optional<Role> findByTenantIdAndCode(Long tenantId, String roleCode);
 
     /**
      * 按角色 ID 集合查询其中处于启用状态的角色（对应 {@code listRoleCodesByUserId} 对 {@code sys_role} 的读）
@@ -58,7 +68,7 @@ public interface RoleRepository {
     RolePage page(long current, long size, String keyword);
 
     /**
-     * 判断角色编码是否已存在（供角色编码唯一性不变量校验）
+     * 判断角色编码在当前租户内是否已存在（供角色编码唯一性不变量校验）
      *
      * @param roleCode 角色编码
      * @return 已存在返回 true，否则返回 false
@@ -66,7 +76,7 @@ public interface RoleRepository {
     boolean existsByCode(String roleCode);
 
     /**
-     * 统计给定角色 ID 中实际存在的记录数（供分配角色时校验目标角色是否全部有效）
+     * 统计当前租户内给定角色 ID 中实际存在的记录数（供分配角色时校验目标角色是否全部有效）
      *
      * @param ids 角色 ID 集合
      * @return 存在的记录数；{@code ids} 为空时返回 0

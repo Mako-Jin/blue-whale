@@ -4,7 +4,7 @@ import com.bluewhale.auth.domain.tenant.aggregate.Tenant;
 import com.bluewhale.auth.entity.SysTenant;
 
 /**
- * Tenant 聚合与其持久化对象（PO）的转换器（Wave 5.54 Phase 0）。
+ * Tenant 聚合与其持久化对象（PO）的转换器（Wave 5.54 Phase 1）。
  *
  * @author BlueWhale
  */
@@ -23,6 +23,27 @@ public final class TenantPersistenceAssembler {
      * @return 租户聚合
      */
     public static Tenant toDomain(SysTenant po) {
-        return Tenant.reconstitute(po.getId(), po.getTenantCode(), po.getTenantName(), po.getStatus());
+        return Tenant.reconstitute(po.getId(), po.getTenantCode(), po.getTenantName(), po.getTenantType(),
+                po.getStatus(), po.getExpireTime(), po.getQuotaJson(), po.getCreateTime(), po.getUpdateTime());
+    }
+
+    /**
+     * 领域对象 → PO：仅转换 Tenant 聚合所承载的字段
+     *
+     * @param tenant 租户聚合
+     * @return 租户持久化对象
+     */
+    public static SysTenant toPo(Tenant tenant) {
+        SysTenant po = new SysTenant();
+        po.setId(tenant.getId());
+        po.setTenantCode(tenant.getTenantCode());
+        po.setTenantName(tenant.getTenantName());
+        po.setTenantType(tenant.getTenantType());
+        po.setStatus(tenant.getStatus());
+        po.setExpireTime(tenant.getExpireTime());
+        po.setQuotaJson(tenant.getQuotaJson());
+        po.setCreateTime(tenant.getCreateTime());
+        po.setUpdateTime(tenant.getUpdateTime());
+        return po;
     }
 }

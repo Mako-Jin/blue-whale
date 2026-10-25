@@ -18,6 +18,8 @@ public class SysMenu implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private Long id;
+    /** 所属租户ID（逻辑关联 sys_tenant.id） */
+    private Long tenantId;
     /** 父菜单ID，0 表示顶级 */
     private Long parentId;
     private String name;

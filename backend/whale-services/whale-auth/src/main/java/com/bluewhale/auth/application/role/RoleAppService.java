@@ -11,6 +11,7 @@ import com.bluewhale.auth.domain.model.vo.RoleCode;
 import com.bluewhale.auth.domain.permission.repository.PermissionRepository;
 import com.bluewhale.auth.domain.role.aggregate.Role;
 import com.bluewhale.auth.domain.role.repository.RoleRepository;
+import com.bluewhale.auth.security.TenantContext;
 import com.bluewhale.auth.vo.RoleVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -90,16 +91,16 @@ public class RoleAppService {
      * @return 新建角色视图对象
      */
     public RoleVO create(CreateRoleCommand command) {
+        Long tenantId = TenantContext.requireId();
         // 值对象前置校验角色编码不变量
         RoleCode roleCode = RoleCode.of(command.roleCode());
         if (roleRepository.existsByCode(roleCode.value())) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "角色编码已存在");
         }
-        Role role = Role.create(roleCode, command.roleName(), command.description(), command.sortNo(),
+        Role role = Role.create(tenantId, roleCode, command.roleName(), command.description(), command.sortNo(),
                 command.status());
-        roleRepository.save(role);
-        // 保存后回查以回填数据库生成的主键与时间戳，保证与旧实现返回的视图字段一致
-        Role persisted = roleRepository.findByCode(roleCode.value()).orElse(role);
+        // 保存并回填数据库生成的主键与时间戳
+        Role persisted = roleRepository.save(role);
         domainEventPublisher.publish(new RoleDomainEvent(persisted.getId(), ChangeType.CREATED));
         return RoleVO.from(persisted);
     }

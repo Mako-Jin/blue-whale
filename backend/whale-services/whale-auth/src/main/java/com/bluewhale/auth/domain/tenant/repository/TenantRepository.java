@@ -2,14 +2,25 @@ package com.bluewhale.auth.domain.tenant.repository;
 
 import com.bluewhale.auth.domain.tenant.aggregate.Tenant;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
- * Tenant 聚合仓储端口（Wave 5.54 Phase 0）：契约定义于领域层，由 {@code infrastructure} 适配实现。
+ * Tenant 聚合仓储端口（Wave 5.54）：契约定义于领域层，由 {@code infrastructure} 适配实现。
+ *
+ * <p>{@code sys_tenant} 为全局表，本仓储不参与租户行级过滤。</p>
  *
  * @author BlueWhale
  */
 public interface TenantRepository {
+
+    /**
+     * 保存租户聚合（无 ID 时新增，有 ID 时按主键更新）
+     *
+     * @param tenant 租户聚合
+     * @return 回填主键与时间戳后的租户聚合
+     */
+    Tenant save(Tenant tenant);
 
     /**
      * 按租户编码查询租户
@@ -26,4 +37,11 @@ public interface TenantRepository {
      * @return 租户聚合；不存在时返回空
      */
     Optional<Tenant> findById(Long id);
+
+    /**
+     * 查询全部租户（按创建时间降序）
+     *
+     * @return 租户聚合列表
+     */
+    List<Tenant> findAll();
 }

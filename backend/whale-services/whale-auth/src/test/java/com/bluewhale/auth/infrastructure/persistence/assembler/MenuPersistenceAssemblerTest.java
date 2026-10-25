@@ -24,6 +24,7 @@ class MenuPersistenceAssemblerTest {
     private static SysMenu fullPo() {
         SysMenu po = new SysMenu();
         po.setId(5L);
+        po.setTenantId(1L);
         po.setParentId(3L);
         po.setName("用户管理");
         po.setPath("/user");
@@ -41,7 +42,7 @@ class MenuPersistenceAssemblerTest {
     }
 
     private static Menu fullDomain() {
-        return Menu.reconstitute(5L, 3L, "用户管理", "/user", "system/user", "user", 2,
+        return Menu.reconstitute(5L, 1L, 3L, "用户管理", "/user", "system/user", "user", 2,
                 Menu.MENU_TYPE_MENU, "sys:user:list", Menu.VISIBLE_SHOWN, Menu.STATUS_ENABLED, CREATED, UPDATED);
     }
 

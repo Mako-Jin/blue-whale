@@ -189,14 +189,32 @@
 4. ~~审计写入租户~~ → 已完成：缺失/非法记 `0`。
 5. ~~单测~~ → 已完成：新增租户解析、JWT claim、网关伪造头/旧令牌、审计租户用例。
 
-### Phase 1：租户模型与登录闭环（P1）
+### Phase 1：租户模型与 RBAC 租户化（P1）——已完成（2026-10-25）
 
-1. `sys_tenant`：`id`、`tenant_code`、`tenant_name`、`type`（PLATFORM/TENANT）、`status`、`expire_time`、`quota_json`、审计字段。
-2. `sys_user` 增加 `tenant_id`，唯一键改 `(tenant_id, username, deleted)`；`sys_dept`、`sys_role`、`sys_menu` 增加 `tenant_id`；角色码唯一改 `(tenant_id, role_code)`。
+原始规划：
+
+1. `sys_tenant`：`id`、`tenant_code`、`tenant_name`、`tenant_type`（PLATFORM/TENANT）、`status`、`expire_time`、`quota_json`、审计字段。
+2. `sys_user` 增加 `tenant_id`，唯一键改 `(tenant_id, username)`；`sys_dept`、`sys_role`、`sys_menu` 增加 `tenant_id`；角色码唯一改 `(tenant_id, role_code)`。
 3. 权限点保持平台级（`sys_permission` 不加租户），菜单按租户复制模板。
-4. 租户开通服务：创建租户 → 初始化管理员 → 复制默认角色/菜单 → 初始化部门根 → 记录开通审计；全程幂等（`tenant_code` 唯一 + 分布式锁）。
-5. 租户管理 API：列表/详情/启用停用/配额；权限码 `sys:tenant:*`，仅平台租户可访问。
+4. 租户开通服务：创建租户 → 初始化管理员 → 复制默认角色/菜单 → 初始化部门根；全程幂等（`tenant_code` 唯一 + 分布式锁）。
+5. 租户管理 API：列表/详情/启用停用/续期/配额；权限码 `sys:tenant:*`，仅平台租户可访问。
 6. 停用租户：登录拒绝、令牌校验拒绝（网关查租户状态缓存）、异步任务跳过。
+
+已落地：
+
+- **租户模型**：`sys_tenant` 新增 `tenant_type`（id=1 为 `PLATFORM`，新开通为 `TENANT`）、`expire_time`、`quota_json`；`Tenant` 聚合补齐不变量、`enable/disable/renew/rename/changeQuota` 行为与 `isAvailableAt` 判定。
+- **RBAC 租户化**：`sys_role`/`sys_menu`/`sys_dept` 增加 `tenant_id`（存量默认 1）；角色编码唯一键升级为 `(tenant_id, role_code)`；`SysRole/SysMenu/SysDept` 实体、`Role/Menu/Dept/User` 聚合、5 个 Assembler、4 个仓储与 4 个 AppService 全部按租户读写；用户名唯一性改为 `(tenant_id, username)`。
+- **租户上下文**：新增 `TenantContext`（ThreadLocal）+ `TenantContextFilter`（从网关可信 `X-Tenant-Id` 注入，请求结束清理，缺失即 400 失败关闭），接入 `SecurityConfig`；仓储读路径自动追加租户条件，跨租户详情/分页/删除视为不存在。
+- **租户开通**：`TenantProvisioningAppService` 单事务编排「建租户 → 部门根 → 复制平台菜单（保持父子层级）→ 创建默认角色 `tenant_admin`（授予除 `sys:tenant:*` 外全部启用权限）→ 创建管理员并绑定角色」；`@DistributedLock` 按租户编码串行，`tenant_code` 唯一键兜底，失败整体回滚。
+- **租户管理 API**：`/tenant` 提供分页/详情/开通/编辑/启停/续期，权限码 `sys:tenant:list|add|edit|status|renew`（160–164）；应用层强制 `requirePlatformTenant()`，非平台租户一律 403；平台租户自身禁止停用。
+- **生命周期**：登录与刷新均要求「启用且未过期」；续期必须晚于当前时间。
+- **数据库脚本**：全新建库同步 `init.sql`；存量库新增幂等脚本 `migration-5.54-tenant-rbac.sql`（列/索引/权限点先检测再变更）。
+
+已知偏差（留待 Phase 2）：
+
+- 停用租户的**存量 accessToken** 在过期前仍可通过网关访问其他服务：网关当前不查询租户状态。登录/刷新已拒绝，网关侧租户状态校验需随「租户状态缓存 + 网关读取」在 Phase 2 收口。
+- `TenantContext` 暂位于 `whale-auth`；Phase 2 上移到 `whale-spring-boot-starter` 并配合 MyBatis-Plus 租户行插件统一覆盖全模块。
+- 一人多租户（S4）仍未支持：`sys_user.tenant_id` 为单值，令牌中的租户即账号归属租户。
 
 ### Phase 2：横切能力（P1）
 
@@ -242,7 +260,7 @@
 | D3 | 一人多租户 | 支持 / 不支持 | 支持，令牌携带“当前租户”，切换即换令牌 |
 | D4 | 平台超管读业务数据 | 默认禁止 / 二次授权 | 默认禁止，二次授权 + 审计 |
 | D5 | 默认租户回落 | 拒绝 / 回落 1 | **拒绝**（P0 止血口径） |
-| D6 | 本期范围 | 仅 P0 / P0+P1 / 全阶段 | 仅 P0 + P1 登录闭环 |
+| D6 | 本期范围 | 仅 P0 / P0+Phase 1 / 全阶段 | P0 + Phase 1（均已完成）；Phase 2 起按阶段推进 |
 
 ---
 
@@ -276,5 +294,16 @@
 |---|---|
 | 需求项 | ① 考察现有项目多租户实现；② 识别隔离缺口与风险；③ 给出可落地的完善场景与分阶段方案；④ 按确认结论（共享库行级 / 仅 Phase 0 / 登录填租户码）实施止血 |
 | 完成项 | ① 盘点 auth 8 表、10 个业务域 40+ 表的租户字段；② 梳理 JWT/网关/服务内上下文链路；③ 定位 P0 伪造租户头越权路径；④ 输出 S1–S10 场景与 Phase 0–4 路线；⑤ 给出 D1–D6 决策；⑥ Phase 0 代码落地（网关清头+claim 注入、sys_tenant、sys_user.tenant_id、登录 tenantCode、JWT tenantId、表单 fail-closed、审计租户、6 个前端登录页）；⑦ auth/starter/gateway/form 模块单测通过；⑧ 后端全模块 `mvn install` 通过（含 checkstyle 与全部单测） |
-| 待做项 | ① Phase 1 租户管理 API、角色/菜单/部门租户化、租户开通与停用；② Phase 2 `TenantContext` + MyBatis 租户插件 + 异步/MQ/服务间传播 + 缓存/锁/存储前缀；③ Phase 3 表单元数据、文件、IM、工作流、Agent、档案、任务、支付、告警铺开；④ Phase 4 租户切换与运营台；⑤ 在联调环境执行 `migration-5.54-tenant.sql` 并回归登录/表单链路；⑥ 前端构建验证：本机执行 node/pnpm 时命令沙箱后端异常（`SandboxBackendFailed`），本次仅完成人工代码审查，需在正常环境补跑 `pnpm build` |
+| 待做项 | ① Phase 2 `TenantContext` 上移 starter + MyBatis 租户插件 + 异步/MQ/服务间传播 + 缓存/锁/存储前缀 + 网关租户状态校验；② Phase 3 表单元数据、文件、IM、工作流、Agent、档案、任务、支付、告警铺开；③ Phase 4 租户切换与运营台；④ 在联调环境执行 `migration-5.54-tenant-rbac.sql` 并回归登录/租户开通/RBAC 链路；⑤ 前端构建验证：本机执行 node/pnpm 时命令沙箱后端异常（`SandboxBackendFailed`），本次仅完成人工代码审查，需在正常环境补跑 `pnpm build` |
 | 已修正问题项 | ① 旧令牌无租户 claim 的越权兜底：改为 401，不回落默认租户；② 白名单路径伪造租户头：同样清除；③ Mockito 严格桩在“租户解析前失败”用例误报：改用 lenient；④ 新增领域类缺少方法 Javadoc：按 checkstyle 补齐；⑤ `JwtUtilsTest` 篡改令牌用例偶发失败：改为确定性篡改签名段首字符 |
+
+---
+
+## 十、Phase 1 执行记录（2026-10-25）
+
+| 类别 | 内容 |
+|---|---|
+| 需求项 | ① `sys_tenant` 生命周期/配额字段与租户管理 API；② 角色/菜单/部门租户化与租户内唯一；③ 租户开通（管理员、默认角色、菜单模板、部门根）；④ 启停/续期；⑤ 幂等迁移脚本与文档 |
+| 完成项 | ① `sys_tenant` 增加 `tenant_type/expire_time/quota_json`，id=1 标记 PLATFORM；② `sys_role/sys_menu/sys_dept` 增加 `tenant_id`，角色唯一键改 `(tenant_id, role_code)`；③ 5 个实体/聚合/Assembler、4 个仓储、4 个 AppService 全量租户化；④ `TenantContext` + `TenantContextFilter` 失败关闭；⑤ `TenantProvisioningAppService` 事务化开通；⑥ `/tenant` 六个管理接口 + 平台租户准入；⑦ 登录/刷新校验过期；⑧ `init.sql` 同步、`migration-5.54-tenant-rbac.sql` 幂等脚本；⑨ auth 单测 322 个全通过；⑩ 后端全模块 `mvn install -DskipTests` BUILD SUCCESS |
+| 待做项 | ① 网关租户状态缓存校验（停用租户存量令牌）；② `TenantContext` 上移 starter + MyBatis 租户插件；③ 前端租户管理页与 E2E；④ 联调环境执行 RBAC 迁移脚本 |
+| 已修正问题项 | ① 仓储改造后登录租户解析误改 400：恢复为 401，与刷新链路一致；② `save` 改为返回回填主键的聚合，移除“保存后按用户名回查”的竞态；③ 角色/菜单/部门写路径统一从 `TenantContext` 取租户，禁止默认租户回落 |

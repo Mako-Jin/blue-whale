@@ -10,6 +10,7 @@ import com.bluewhale.auth.entity.SysUserRole;
 import com.bluewhale.auth.infrastructure.persistence.assembler.UserPersistenceAssembler;
 import com.bluewhale.auth.mapper.SysUserMapper;
 import com.bluewhale.auth.mapper.SysUserRoleMapper;
+import com.bluewhale.auth.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
@@ -35,24 +36,28 @@ public class UserRepositoryImpl implements UserRepository {
     private final SysUserRoleMapper userRoleMapper;
 
     @Override
-    public void save(User user) {
+    public User save(User user) {
         SysUser po = UserPersistenceAssembler.toPo(user);
         if (po.getId() == null) {
             userMapper.insert(po);
         } else {
             userMapper.updateById(po);
         }
+        return UserPersistenceAssembler.toDomain(po);
     }
 
     @Override
     public Optional<User> findById(Long id) {
-        SysUser po = userMapper.selectById(id);
+        SysUser po = userMapper.selectOne(new LambdaQueryWrapper<SysUser>()
+                .eq(SysUser::getId, id)
+                .eq(SysUser::getTenantId, TenantContext.requireId()));
         return Optional.ofNullable(po).map(UserPersistenceAssembler::toDomain);
     }
 
     @Override
     public Optional<User> findByUsername(String username) {
         SysUser po = userMapper.selectOne(new LambdaQueryWrapper<SysUser>()
+                .eq(SysUser::getTenantId, TenantContext.requireId())
                 .eq(SysUser::getUsername, username)
                 .last("limit 1"));
         return Optional.ofNullable(po).map(UserPersistenceAssembler::toDomain);
@@ -68,8 +73,9 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
-    public boolean existsByUsername(String username) {
+    public boolean existsByUsername(Long tenantId, String username) {
         Long count = userMapper.selectCount(new LambdaQueryWrapper<SysUser>()
+                .eq(SysUser::getTenantId, tenantId)
                 .eq(SysUser::getUsername, username));
         return count != null && count > 0;
     }
@@ -92,6 +98,7 @@ public class UserRepositoryImpl implements UserRepository {
     @Override
     public UserPage page(long current, long size, String keyword) {
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SysUser::getTenantId, TenantContext.requireId());
         if (StringUtils.hasText(keyword)) {
             wrapper.and(w -> w.like(SysUser::getUsername, keyword)
                     .or().like(SysUser::getNickname, keyword)
@@ -112,12 +119,16 @@ public class UserRepositoryImpl implements UserRepository {
         wrapper.select(SysUser::getId);
         wrapper.in(SysUser::getId, ids);
         wrapper.eq(SysUser::getStatus, STATUS_ENABLED);
+        // 服务间成员校验：有租户上下文时限制在同租户内，无上下文时保持既有的全局行为（Phase 3 收口）
+        wrapper.eq(TenantContext.get() != null, SysUser::getTenantId, TenantContext.get());
         return userMapper.selectList(wrapper).stream().map(SysUser::getId).toList();
     }
 
     @Override
     public void deleteById(Long id) {
-        userMapper.deleteById(id);
+        userMapper.delete(new LambdaQueryWrapper<SysUser>()
+                .eq(SysUser::getId, id)
+                .eq(SysUser::getTenantId, TenantContext.requireId()));
         // 关联表实体无 deleted 字段，走物理删除
         userRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, id));
     }

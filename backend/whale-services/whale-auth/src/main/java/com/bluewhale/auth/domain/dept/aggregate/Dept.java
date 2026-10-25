@@ -20,6 +20,7 @@ public class Dept {
     public static final long ROOT_PARENT_ID = 0L;
 
     private final Long id;
+    private final Long tenantId;
     private Long parentId;
     private String deptName;
     private int sort;
@@ -31,6 +32,7 @@ public class Dept {
      * 私有构造器：集中校验聚合不变量
      *
      * @param id 部门 ID（新建时为 {@code null}）
+     * @param tenantId 所属租户 ID
      * @param parentId 父部门 ID（0 表示顶级）
      * @param deptName 部门名称
      * @param sort 排序号
@@ -38,8 +40,11 @@ public class Dept {
      * @param createTime 创建时间
      * @param updateTime 更新时间
      */
-    private Dept(Long id, Long parentId, String deptName, int sort, String leader,
+    private Dept(Long id, Long tenantId, Long parentId, String deptName, int sort, String leader,
                  LocalDateTime createTime, LocalDateTime updateTime) {
+        if (tenantId == null) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "部门所属租户不能为空");
+        }
         if (parentId == null) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "父部门 ID 不能为空（0 表示顶级）");
         }
@@ -47,6 +52,7 @@ public class Dept {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "部门名称不能为空");
         }
         this.id = id;
+        this.tenantId = tenantId;
         this.parentId = parentId;
         this.deptName = deptName;
         this.sort = sort;
@@ -58,15 +64,16 @@ public class Dept {
     /**
      * 工厂方法：新建部门（无 ID），{@code parentId}/{@code sort} 为空时取默认（0 / 0）
      *
+     * @param tenantId 所属租户 ID
      * @param parentId 父部门 ID，为空时按 0（顶级）处理
      * @param deptName 部门名称
      * @param sort 排序号，为空时按 0 处理
      * @param leader 负责人
      * @return 新建的部门聚合根
      */
-    public static Dept create(Long parentId, String deptName, Integer sort, String leader) {
+    public static Dept create(Long tenantId, Long parentId, String deptName, Integer sort, String leader) {
         LocalDateTime now = LocalDateTime.now();
-        return new Dept(null, parentId == null ? ROOT_PARENT_ID : parentId, deptName,
+        return new Dept(null, tenantId, parentId == null ? ROOT_PARENT_ID : parentId, deptName,
                 sort == null ? 0 : sort, leader, now, now);
     }
 
@@ -74,6 +81,7 @@ public class Dept {
      * 重建方法：由持久化数据还原部门聚合根
      *
      * @param id 部门 ID
+     * @param tenantId 所属租户 ID
      * @param parentId 父部门 ID，为空时按 0（顶级）处理
      * @param deptName 部门名称
      * @param sort 排序号，为空时按 0 处理
@@ -82,9 +90,9 @@ public class Dept {
      * @param updateTime 更新时间
      * @return 还原的部门聚合根
      */
-    public static Dept reconstitute(Long id, Long parentId, String deptName, Integer sort, String leader,
-                                    LocalDateTime createTime, LocalDateTime updateTime) {
-        return new Dept(id, parentId == null ? ROOT_PARENT_ID : parentId, deptName,
+    public static Dept reconstitute(Long id, Long tenantId, Long parentId, String deptName, Integer sort,
+                                    String leader, LocalDateTime createTime, LocalDateTime updateTime) {
+        return new Dept(id, tenantId, parentId == null ? ROOT_PARENT_ID : parentId, deptName,
                 sort == null ? 0 : sort, leader, createTime, updateTime);
     }
 
@@ -156,6 +164,15 @@ public class Dept {
      */
     public Long getId() {
         return id;
+    }
+
+    /**
+     * 获取所属租户 ID
+     *
+     * @return 所属租户 ID
+     */
+    public Long getTenantId() {
+        return tenantId;
     }
 
     /**

@@ -110,7 +110,7 @@ class LivePermissionLockIT {
         PermissionRepository permissionRepository = mock(PermissionRepository.class);
         DomainEventPublisher eventPublisher = mock(DomainEventPublisher.class);
 
-        Role role = Role.reconstitute(ROLE_ID, RoleCode.of("it_role"), "实时IT角色", null, 0,
+        Role role = Role.reconstitute(ROLE_ID, 1L, RoleCode.of("it_role"), "实时IT角色", null, 0,
                 Role.STATUS_ENABLED, null, null);
         when(roleRepository.findById(ROLE_ID)).thenReturn(Optional.of(role));
 

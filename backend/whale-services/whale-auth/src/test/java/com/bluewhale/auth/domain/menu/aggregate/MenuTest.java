@@ -24,7 +24,7 @@ class MenuTest {
     @Test
     @DisplayName("create：合法构造，空值取默认（父节点 0、排序 0、MENU、显示、启用）")
     void shouldCreateWithDefaults() {
-        Menu menu = Menu.create(null, "用户管理", "/user", "system/user", "user", null, null, null, null, null);
+        Menu menu = Menu.create(1L, null, "用户管理", "/user", "system/user", "user", null, null, null, null, null);
 
         assertNull(menu.getId());
         assertEquals(Menu.ROOT_PARENT_ID, menu.getParentId());
@@ -39,7 +39,7 @@ class MenuTest {
     @Test
     @DisplayName("create：显式目录类型与隐藏停用生效")
     void shouldCreateWithExplicitValues() {
-        Menu menu = Menu.create(3L, "系统管理", null, null, null, 9, Menu.MENU_TYPE_DIR,
+        Menu menu = Menu.create(1L, 3L, "系统管理", null, null, null, 9, Menu.MENU_TYPE_DIR,
                 null, Menu.VISIBLE_HIDDEN, Menu.STATUS_DISABLED);
 
         assertEquals(3L, menu.getParentId());
@@ -54,7 +54,7 @@ class MenuTest {
     @DisplayName("不变量①：菜单名称为空抛参数错误")
     void shouldRejectBlankName() {
         BizException ex = assertThrows(BizException.class,
-                () -> Menu.create(0L, " ", null, null, null, null, null, null, null, null));
+                () -> Menu.create(1L, 0L, " ", null, null, null, null, null, null, null, null));
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
     }
 
@@ -62,16 +62,16 @@ class MenuTest {
     @DisplayName("不变量②：菜单类型非法抛参数错误")
     void shouldRejectIllegalMenuType() {
         assertThrows(BizException.class,
-                () -> Menu.create(0L, "用户管理", null, null, null, null, "PAGE", null, null, null));
+                () -> Menu.create(1L, 0L, "用户管理", null, null, null, null, "PAGE", null, null, null));
     }
 
     @Test
     @DisplayName("不变量③：可见性与状态越界抛参数错误")
     void shouldRejectIllegalVisibleAndStatus() {
         assertThrows(BizException.class,
-                () -> Menu.create(0L, "用户管理", null, null, null, null, null, null, 2, null));
+                () -> Menu.create(1L, 0L, "用户管理", null, null, null, null, null, null, 2, null));
         assertThrows(BizException.class,
-                () -> Menu.create(0L, "用户管理", null, null, null, null, null, null, null, 5));
+                () -> Menu.create(1L, 0L, "用户管理", null, null, null, null, null, null, null, 5));
     }
 
     @Test
@@ -79,7 +79,7 @@ class MenuTest {
     void shouldReconstituteWithNormalizedParent() {
         LocalDateTime created = LocalDateTime.of(2026, 1, 1, 0, 0);
 
-        Menu menu = Menu.reconstitute(7L, null, "用户管理", "/user", "system/user", "user", null,
+        Menu menu = Menu.reconstitute(7L, 1L, null, "用户管理", "/user", "system/user", "user", null,
                 null, "sys:user:list", null, null, created, created);
 
         assertEquals(7L, menu.getId());
@@ -91,7 +91,7 @@ class MenuTest {
     @Test
     @DisplayName("行为：moveTo/rename/changeRoute/changeSort 各自生效")
     void shouldApplyProfileChanges() {
-        Menu menu = Menu.create(0L, "旧名", "/old", "old", "old", 1, Menu.MENU_TYPE_MENU, null, 1, 1);
+        Menu menu = Menu.create(1L, 0L, "旧名", "/old", "old", "old", 1, Menu.MENU_TYPE_MENU, null, 1, 1);
 
         menu.moveTo(3L);
         menu.rename("新名");
@@ -109,7 +109,7 @@ class MenuTest {
     @Test
     @DisplayName("行为：changeMenuType/bindPermissionCode/changeVisible/changeStatus 各自生效")
     void shouldApplyAttributeChanges() {
-        Menu menu = Menu.create(0L, "用户管理", null, null, null, 1, Menu.MENU_TYPE_MENU, null, 1, 1);
+        Menu menu = Menu.create(1L, 0L, "用户管理", null, null, null, 1, Menu.MENU_TYPE_MENU, null, 1, 1);
 
         menu.changeMenuType(Menu.MENU_TYPE_DIR);
         menu.bindPermissionCode("sys:user:list");
@@ -125,7 +125,7 @@ class MenuTest {
     @Test
     @DisplayName("行为：非法入参（rename 空、moveTo null、类型/可见性/状态越界）抛参数错误")
     void shouldRejectIllegalChanges() {
-        Menu menu = Menu.create(0L, "用户管理", null, null, null, 1, Menu.MENU_TYPE_MENU, null, 1, 1);
+        Menu menu = Menu.create(1L, 0L, "用户管理", null, null, null, 1, Menu.MENU_TYPE_MENU, null, 1, 1);
 
         assertThrows(BizException.class, () -> menu.rename(""));
         assertThrows(BizException.class, () -> menu.moveTo(null));

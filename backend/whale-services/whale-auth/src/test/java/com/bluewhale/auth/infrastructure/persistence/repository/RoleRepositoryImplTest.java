@@ -10,8 +10,11 @@ import com.bluewhale.auth.mapper.SysPermissionMapper;
 import com.bluewhale.auth.mapper.SysRoleMapper;
 import com.bluewhale.auth.mapper.SysRolePermissionMapper;
 import com.bluewhale.auth.mapper.SysUserRoleMapper;
+import com.bluewhale.auth.security.TenantContext;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -56,6 +59,16 @@ class RoleRepositoryImplTest {
 
     @InjectMocks
     private RoleRepositoryImpl repository;
+
+    @BeforeEach
+    void bindTenant() {
+        TenantContext.set(1L);
+    }
+
+    @AfterEach
+    void clearTenant() {
+        TenantContext.clear();
+    }
 
     /**
      * 注册实体元信息缓存：{@code LambdaQueryWrapper} 按实体解析列名，纯单测需手动初始化 TableInfo。

@@ -4,6 +4,7 @@ import com.bluewhale.auth.security.JwtAuthenticationFilter;
 import com.bluewhale.auth.security.PermissionInterceptor;
 import com.bluewhale.auth.security.RestAccessDeniedHandler;
 import com.bluewhale.auth.security.RestAuthenticationEntryPoint;
+import com.bluewhale.auth.security.TenantContextFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -32,6 +33,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final TenantContextFilter tenantContextFilter;
     private final RestAuthenticationEntryPoint authenticationEntryPoint;
     private final RestAccessDeniedHandler accessDeniedHandler;
     private final PermissionInterceptor permissionInterceptor;
@@ -57,6 +59,7 @@ public class SecurityConfig {
                 .exceptionHandling(handler -> handler
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler))
+                .addFilterBefore(tenantContextFilter, JwtAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

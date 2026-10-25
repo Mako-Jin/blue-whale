@@ -57,7 +57,7 @@ class UserDetailsServiceImplTest {
     }
 
     private static User user(Integer status) {
-        return User.reconstitute(USER_ID, Username.of("tester"), EncryptedPassword.of("$2a$cipher"),
+        return User.reconstitute(USER_ID, TENANT_ID, Username.of("tester"), EncryptedPassword.of("$2a$cipher"),
                 "T", null, null, null, status, null, null);
     }
 

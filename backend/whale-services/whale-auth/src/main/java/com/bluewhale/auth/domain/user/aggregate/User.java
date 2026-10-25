@@ -11,10 +11,10 @@ import java.util.regex.Pattern;
 /**
  * User 聚合根（对应 {@code sys_user}，REQ-ARCH-001 / T-DDD-4）。
  *
- * <p><b>不变量</b>：① {@code username} 非空且格式合法（其全局唯一性由
- * {@link com.bluewhale.auth.domain.user.repository.UserRepository#existsByUsername(String)}
+ * <p><b>不变量</b>：① {@code username} 非空且格式合法（其租户内唯一性由
+ * {@link com.bluewhale.auth.domain.user.repository.UserRepository#existsByUsername(Long, String)}
  * 跨聚合校验）；② 口令必须为 BCrypt 密文（以 {@link EncryptedPassword} 承载，禁止明文）；
- * ③ {@code status ∈ {1 启用, 0 停用}}。</p>
+ * ③ {@code status ∈ {1 启用, 0 停用}}；④ 用户必须归属某个租户。</p>
  *
  * <p>本类为纯领域对象，不依赖 Spring / MyBatis / Web 等框架类型。</p>
  *
@@ -31,6 +31,7 @@ public class User {
     private static final Pattern BCRYPT_PATTERN = Pattern.compile("^\\$2[aby]\\$.+$");
 
     private final Long id;
+    private final Long tenantId;
     private final Username username;
     private EncryptedPassword password;
     private String nickname;
@@ -47,6 +48,7 @@ public class User {
      * 私有构造器：集中校验聚合不变量
      *
      * @param id 用户 ID（新建时为 {@code null}）
+     * @param tenantId 所属租户 ID
      * @param username 用户名值对象
      * @param password 口令密文值对象（必须为 BCrypt 密文）
      * @param nickname 昵称
@@ -59,9 +61,12 @@ public class User {
      * @param createTime 创建时间
      * @param updateTime 更新时间
      */
-    private User(Long id, Username username, EncryptedPassword password, String nickname, String phone,
-                 String email, String avatar, Long deptId, int status, LocalDateTime lastLoginTime,
+    private User(Long id, Long tenantId, Username username, EncryptedPassword password, String nickname,
+                 String phone, String email, String avatar, Long deptId, int status, LocalDateTime lastLoginTime,
                  LocalDateTime createTime, LocalDateTime updateTime) {
+        if (tenantId == null) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "用户所属租户不能为空");
+        }
         if (username == null) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "用户名不能为空");
         }
@@ -72,6 +77,7 @@ public class User {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "状态值非法，仅支持 1（启用）/ 0（停用）");
         }
         this.id = id;
+        this.tenantId = tenantId;
         this.username = username;
         this.password = password;
         this.nickname = nickname;
@@ -88,6 +94,7 @@ public class User {
     /**
      * 工厂方法：新建用户（无 ID），{@code status} 为空时默认启用
      *
+     * @param tenantId 所属租户 ID
      * @param username 用户名值对象
      * @param password 口令密文值对象（必须为 BCrypt 密文）
      * @param nickname 昵称
@@ -98,16 +105,18 @@ public class User {
      * @param status 状态（1 启用 / 0 停用），为空时按启用处理
      * @return 新建的用户聚合根
      */
-    public static User create(Username username, EncryptedPassword password, String nickname, String phone,
-                              String email, String avatar, Long deptId, Integer status) {
+    public static User create(Long tenantId, Username username, EncryptedPassword password, String nickname,
+                              String phone, String email, String avatar, Long deptId, Integer status) {
         LocalDateTime now = LocalDateTime.now();
         int resolved = status == null ? STATUS_ENABLED : status;
-        return new User(null, username, password, nickname, phone, email, avatar, deptId, resolved, null, now, now);
+        return new User(null, tenantId, username, password, nickname, phone, email, avatar, deptId, resolved,
+                null, now, now);
     }
 
     /**
      * 工厂方法（兼容重载）：不含头像的新建用户
      *
+     * @param tenantId 所属租户 ID
      * @param username 用户名值对象
      * @param password 口令密文值对象
      * @param nickname 昵称
@@ -117,15 +126,16 @@ public class User {
      * @param status 状态（1 启用 / 0 停用），为空时按启用处理
      * @return 新建的用户聚合根
      */
-    public static User create(Username username, EncryptedPassword password, String nickname, String phone,
-                              String email, Long deptId, Integer status) {
-        return create(username, password, nickname, phone, email, null, deptId, status);
+    public static User create(Long tenantId, Username username, EncryptedPassword password, String nickname,
+                              String phone, String email, Long deptId, Integer status) {
+        return create(tenantId, username, password, nickname, phone, email, null, deptId, status);
     }
 
     /**
      * 重建方法：由持久化数据还原用户聚合根（{@code status} 为空时按停用处理，与既有登录判定一致）
      *
      * @param id 用户 ID
+     * @param tenantId 所属租户 ID
      * @param username 用户名值对象
      * @param password 口令密文值对象（必须为 BCrypt 密文）
      * @param nickname 昵称
@@ -139,12 +149,12 @@ public class User {
      * @param updateTime 更新时间
      * @return 还原的用户聚合根
      */
-    public static User reconstitute(Long id, Username username, EncryptedPassword password, String nickname,
-                                    String phone, String email, String avatar, Long deptId, Integer status,
-                                    LocalDateTime lastLoginTime, LocalDateTime createTime,
+    public static User reconstitute(Long id, Long tenantId, Username username, EncryptedPassword password,
+                                    String nickname, String phone, String email, String avatar, Long deptId,
+                                    Integer status, LocalDateTime lastLoginTime, LocalDateTime createTime,
                                     LocalDateTime updateTime) {
         int resolved = status == null ? STATUS_DISABLED : status;
-        return new User(id, username, password, nickname, phone, email, avatar, deptId, resolved,
+        return new User(id, tenantId, username, password, nickname, phone, email, avatar, deptId, resolved,
                 lastLoginTime, createTime, updateTime);
     }
 
@@ -152,6 +162,7 @@ public class User {
      * 重建方法（兼容重载）：不含头像与最近登录时间的还原
      *
      * @param id 用户 ID
+     * @param tenantId 所属租户 ID
      * @param username 用户名值对象
      * @param password 口令密文值对象
      * @param nickname 昵称
@@ -163,10 +174,10 @@ public class User {
      * @param updateTime 更新时间
      * @return 还原的用户聚合根
      */
-    public static User reconstitute(Long id, Username username, EncryptedPassword password, String nickname,
-                                    String phone, String email, Long deptId, Integer status,
+    public static User reconstitute(Long id, Long tenantId, Username username, EncryptedPassword password,
+                                    String nickname, String phone, String email, Long deptId, Integer status,
                                     LocalDateTime createTime, LocalDateTime updateTime) {
-        return reconstitute(id, username, password, nickname, phone, email, null, deptId, status,
+        return reconstitute(id, tenantId, username, password, nickname, phone, email, null, deptId, status,
                 null, createTime, updateTime);
     }
 
@@ -246,6 +257,15 @@ public class User {
      */
     public Long getId() {
         return id;
+    }
+
+    /**
+     * 获取所属租户 ID
+     *
+     * @return 所属租户 ID
+     */
+    public Long getTenantId() {
+        return tenantId;
     }
 
     /**

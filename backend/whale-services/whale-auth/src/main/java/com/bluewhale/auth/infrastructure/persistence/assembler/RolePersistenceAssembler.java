@@ -31,6 +31,7 @@ public final class RolePersistenceAssembler {
     public static Role toDomain(SysRole po) {
         return Role.reconstitute(
                 po.getId(),
+                po.getTenantId(),
                 RoleCode.of(po.getRoleCode()),
                 po.getRoleName(),
                 po.getDescription(),
@@ -49,6 +50,7 @@ public final class RolePersistenceAssembler {
     public static SysRole toPo(Role role) {
         SysRole po = new SysRole();
         po.setId(role.getId());
+        po.setTenantId(role.getTenantId());
         po.setRoleCode(role.getRoleCode().value());
         po.setRoleName(role.getRoleName());
         po.setDescription(role.getDescription());

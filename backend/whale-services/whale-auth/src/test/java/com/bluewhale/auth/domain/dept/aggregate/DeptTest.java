@@ -22,7 +22,7 @@ class DeptTest {
     @Test
     @DisplayName("create：合法构造，默认父节点 0、默认排序 0 并回填各字段")
     void shouldCreateWithDefaults() {
-        Dept dept = Dept.create(null, "总部", null, "张三");
+        Dept dept = Dept.create(1L, null, "总部", null, "张三");
 
         assertNull(dept.getId());
         assertEquals(Dept.ROOT_PARENT_ID, dept.getParentId());
@@ -34,7 +34,7 @@ class DeptTest {
     @Test
     @DisplayName("create：显式父节点与排序生效")
     void shouldCreateWithExplicitValues() {
-        Dept dept = Dept.create(3L, "研发部", 5, null);
+        Dept dept = Dept.create(1L, 3L, "研发部", 5, null);
 
         assertEquals(3L, dept.getParentId());
         assertEquals(5, dept.getSort());
@@ -43,7 +43,7 @@ class DeptTest {
     @Test
     @DisplayName("不变量①：部门名称为空抛参数错误")
     void shouldRejectBlankDeptName() {
-        BizException ex = assertThrows(BizException.class, () -> Dept.create(0L, " ", null, null));
+        BizException ex = assertThrows(BizException.class, () -> Dept.create(1L, 0L, " ", null, null));
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
     }
 
@@ -52,7 +52,7 @@ class DeptTest {
     void shouldNormalizeNullParentToRoot() {
         LocalDateTime created = LocalDateTime.of(2026, 1, 1, 0, 0);
 
-        Dept dept = Dept.reconstitute(7L, null, "总部", null, "李四", created, created);
+        Dept dept = Dept.reconstitute(7L, 1L, null, "总部", null, "李四", created, created);
 
         assertEquals(7L, dept.getId());
         assertEquals(Dept.ROOT_PARENT_ID, dept.getParentId());
@@ -63,7 +63,7 @@ class DeptTest {
     @Test
     @DisplayName("行为：moveTo/rename/changeSort/changeLeader 各自生效")
     void shouldApplyChanges() {
-        Dept dept = Dept.create(0L, "旧名", 1, "旧负责人");
+        Dept dept = Dept.create(1L, 0L, "旧名", 1, "旧负责人");
 
         dept.moveTo(3L);
         dept.rename("新名");
@@ -79,7 +79,7 @@ class DeptTest {
     @Test
     @DisplayName("行为：moveTo/rename 非法入参抛参数错误")
     void shouldRejectIllegalChanges() {
-        Dept dept = Dept.create(0L, "总部", 1, null);
+        Dept dept = Dept.create(1L, 0L, "总部", 1, null);
 
         assertThrows(BizException.class, () -> dept.moveTo(null));
         assertThrows(BizException.class, () -> dept.rename(""));

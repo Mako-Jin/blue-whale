@@ -18,11 +18,12 @@ public interface DeptRepository {
      * 保存部门聚合（无 ID 时新增，有 ID 时按主键更新）
      *
      * @param dept 部门聚合根
+     * @return 回填主键后的部门聚合根
      */
-    void save(Dept dept);
+    Dept save(Dept dept);
 
     /**
-     * 按部门 ID 查询部门聚合
+     * 按部门 ID 查询部门聚合（当前租户内查询，跨租户视为不存在）
      *
      * @param id 部门 ID
      * @return 部门聚合；不存在时返回空
@@ -30,7 +31,7 @@ public interface DeptRepository {
     Optional<Dept> findById(Long id);
 
     /**
-     * 查询全部部门（按 sort 升序、id 升序，对应部门树 {@code tree} 的读）
+     * 查询全部部门（当前租户内，按 sort 升序、id 升序，对应部门树 {@code tree} 的读）
      *
      * @return 全部部门聚合列表
      */

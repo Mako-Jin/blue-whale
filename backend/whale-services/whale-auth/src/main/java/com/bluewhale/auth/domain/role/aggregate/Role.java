@@ -24,6 +24,7 @@ public class Role {
     public static final int STATUS_DISABLED = 0;
 
     private final Long id;
+    private final Long tenantId;
     private final RoleCode roleCode;
     private String roleName;
     private String description;
@@ -36,6 +37,7 @@ public class Role {
      * 私有构造器：集中校验聚合不变量
      *
      * @param id 角色 ID（新建时为 {@code null}）
+     * @param tenantId 所属租户 ID
      * @param roleCode 角色编码值对象
      * @param roleName 角色名称
      * @param description 角色描述
@@ -44,8 +46,11 @@ public class Role {
      * @param createTime 创建时间
      * @param updateTime 更新时间
      */
-    private Role(Long id, RoleCode roleCode, String roleName, String description, int sortNo, int status,
-                 LocalDateTime createTime, LocalDateTime updateTime) {
+    private Role(Long id, Long tenantId, RoleCode roleCode, String roleName, String description, int sortNo,
+                 int status, LocalDateTime createTime, LocalDateTime updateTime) {
+        if (tenantId == null) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "角色所属租户不能为空");
+        }
         if (roleCode == null) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "角色编码不能为空");
         }
@@ -56,6 +61,7 @@ public class Role {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "状态值非法，仅支持 1（启用）/ 0（停用）");
         }
         this.id = id;
+        this.tenantId = tenantId;
         this.roleCode = roleCode;
         this.roleName = roleName;
         this.description = description;
@@ -68,6 +74,7 @@ public class Role {
     /**
      * 工厂方法：新建角色（无 ID），{@code sortNo}/{@code status} 为空时取默认（0 / 启用）
      *
+     * @param tenantId 所属租户 ID
      * @param roleCode 角色编码值对象
      * @param roleName 角色名称
      * @param description 角色描述
@@ -75,9 +82,10 @@ public class Role {
      * @param status 状态（1 启用 / 0 停用），为空时按启用处理
      * @return 新建的角色聚合根
      */
-    public static Role create(RoleCode roleCode, String roleName, String description, Integer sortNo, Integer status) {
+    public static Role create(Long tenantId, RoleCode roleCode, String roleName, String description, Integer sortNo,
+                              Integer status) {
         LocalDateTime now = LocalDateTime.now();
-        return new Role(null, roleCode, roleName, description, sortNo == null ? 0 : sortNo,
+        return new Role(null, tenantId, roleCode, roleName, description, sortNo == null ? 0 : sortNo,
                 status == null ? STATUS_ENABLED : status, now, now);
     }
 
@@ -85,6 +93,7 @@ public class Role {
      * 重建方法：由持久化数据还原角色聚合根
      *
      * @param id 角色 ID
+     * @param tenantId 所属租户 ID
      * @param roleCode 角色编码值对象
      * @param roleName 角色名称
      * @param description 角色描述
@@ -94,9 +103,10 @@ public class Role {
      * @param updateTime 更新时间
      * @return 还原的角色聚合根
      */
-    public static Role reconstitute(Long id, RoleCode roleCode, String roleName, String description, Integer sortNo,
-                                    Integer status, LocalDateTime createTime, LocalDateTime updateTime) {
-        return new Role(id, roleCode, roleName, description, sortNo == null ? 0 : sortNo,
+    public static Role reconstitute(Long id, Long tenantId, RoleCode roleCode, String roleName, String description,
+                                    Integer sortNo, Integer status, LocalDateTime createTime,
+                                    LocalDateTime updateTime) {
+        return new Role(id, tenantId, roleCode, roleName, description, sortNo == null ? 0 : sortNo,
                 status == null ? STATUS_ENABLED : status, createTime, updateTime);
     }
 
@@ -176,6 +186,15 @@ public class Role {
      */
     public Long getId() {
         return id;
+    }
+
+    /**
+     * 获取所属租户 ID
+     *
+     * @return 所属租户 ID
+     */
+    public Long getTenantId() {
+        return tenantId;
     }
 
     /**

@@ -31,7 +31,7 @@ class UserTest {
     @Test
     @DisplayName("create：合法构造，默认启用并回填各字段")
     void shouldCreateEnabledUserByDefault() {
-        User user = User.create(username(), CIPHER, "Alice", "13800000000", "a@b.com", 3L, null);
+        User user = User.create(1L, username(), CIPHER, "Alice", "13800000000", "a@b.com", 3L, null);
 
         assertNull(user.getId());
         assertEquals("alice_01", user.getUsername().value());
@@ -46,7 +46,7 @@ class UserTest {
     @Test
     @DisplayName("create：显式停用状态生效")
     void shouldCreateDisabledUserWhenStatusZero() {
-        User user = User.create(username(), CIPHER, "Alice", null, null, null, 0);
+        User user = User.create(1L, username(), CIPHER, "Alice", null, null, null, 0);
 
         assertEquals(User.STATUS_DISABLED, user.getStatus());
         assertFalse(user.isEnabled());
@@ -56,7 +56,7 @@ class UserTest {
     @DisplayName("不变量①：username 为空抛参数错误")
     void shouldRejectNullUsername() {
         BizException ex = assertThrows(BizException.class,
-                () -> User.create(null, CIPHER, "Alice", null, null, null, 1));
+                () -> User.create(1L, null, CIPHER, "Alice", null, null, null, 1));
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
     }
 
@@ -64,14 +64,14 @@ class UserTest {
     @DisplayName("不变量②：口令非 BCrypt 密文抛参数错误")
     void shouldRejectNonBcryptPassword() {
         BizException ex = assertThrows(BizException.class,
-                () -> User.create(username(), EncryptedPassword.of("plaintext"), "Alice", null, null, null, 1));
+                () -> User.create(1L, username(), EncryptedPassword.of("plaintext"), "Alice", null, null, null, 1));
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
     }
 
     @Test
     @DisplayName("不变量③：reconstitute 非法状态抛参数错误")
     void shouldRejectIllegalStatus() {
-        assertThrows(BizException.class, () -> User.reconstitute(1L, username(), CIPHER, "Alice",
+        assertThrows(BizException.class, () -> User.reconstitute(1L, 1L, username(), CIPHER, "Alice",
                 null, null, null, 9, null, null));
     }
 
@@ -80,7 +80,7 @@ class UserTest {
     void shouldReconstituteAsDisabledWhenStatusNull() {
         LocalDateTime created = LocalDateTime.of(2026, 1, 1, 0, 0);
 
-        User user = User.reconstitute(7L, username(), CIPHER, "Alice", "138", "a@b.com", 2L,
+        User user = User.reconstitute(7L, 1L, username(), CIPHER, "Alice", "138", "a@b.com", 2L,
                 null, created, created);
 
         assertEquals(7L, user.getId());
@@ -93,7 +93,7 @@ class UserTest {
     @Test
     @DisplayName("状态流转：disable 与 enable 互斥切换")
     void shouldToggleStatus() {
-        User user = User.create(username(), CIPHER, "Alice", null, null, null, 1);
+        User user = User.create(1L, username(), CIPHER, "Alice", null, null, null, 1);
 
         user.disable();
         assertEquals(User.STATUS_DISABLED, user.getStatus());
@@ -107,7 +107,7 @@ class UserTest {
     @Test
     @DisplayName("口令以值对象承载且 toString 为掩码，不外泄密文")
     void shouldMaskPassword() {
-        User user = User.create(username(), CIPHER, "Alice", null, null, null, 1);
+        User user = User.create(1L, username(), CIPHER, "Alice", null, null, null, 1);
 
         assertEquals("EncryptedPassword(***)", user.getPassword().toString());
         assertFalse(user.getPassword().toString().contains("$2a$"));
@@ -118,7 +118,7 @@ class UserTest {
     void shouldCarryAvatarAndLastLoginTime() {
         LocalDateTime lastLogin = LocalDateTime.of(2026, 2, 2, 10, 0);
 
-        User user = User.reconstitute(9L, username(), CIPHER, "Alice", "138", "a@b.com", "avatar.png", 3L,
+        User user = User.reconstitute(9L, 1L, username(), CIPHER, "Alice", "138", "a@b.com", "avatar.png", 3L,
                 User.STATUS_ENABLED, lastLogin, LocalDateTime.of(2026, 1, 1, 0, 0),
                 LocalDateTime.of(2026, 1, 2, 0, 0));
 
@@ -129,7 +129,7 @@ class UserTest {
     @Test
     @DisplayName("行为：changeProfile 全量覆盖昵称/手机号/邮箱/头像/部门")
     void shouldChangeProfile() {
-        User user = User.create(username(), CIPHER, "Alice", "138", "a@b.com", 3L, 1);
+        User user = User.create(1L, username(), CIPHER, "Alice", "138", "a@b.com", 3L, 1);
 
         user.changeProfile("Alice2", "139", "n@b.com", "new-avatar.png", 9L);
 
@@ -143,7 +143,7 @@ class UserTest {
     @Test
     @DisplayName("行为：changePassword 非 BCrypt 密文抛参数错误且原口令不变")
     void shouldRejectNonBcryptPasswordOnChange() {
-        User user = User.create(username(), CIPHER, "Alice", null, null, null, 1);
+        User user = User.create(1L, username(), CIPHER, "Alice", null, null, null, 1);
 
         BizException ex = assertThrows(BizException.class,
                 () -> user.changePassword(EncryptedPassword.of("plaintext")));
@@ -156,7 +156,7 @@ class UserTest {
     @Test
     @DisplayName("行为：changeStatus 非法值抛参数错误且原状态不变")
     void shouldRejectIllegalStatusOnChange() {
-        User user = User.create(username(), CIPHER, "Alice", null, null, null, 1);
+        User user = User.create(1L, username(), CIPHER, "Alice", null, null, null, 1);
 
         BizException ex = assertThrows(BizException.class, () -> user.changeStatus(9));
 

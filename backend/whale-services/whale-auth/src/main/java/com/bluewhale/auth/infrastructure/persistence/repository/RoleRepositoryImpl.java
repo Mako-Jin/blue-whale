@@ -14,6 +14,7 @@ import com.bluewhale.auth.mapper.SysPermissionMapper;
 import com.bluewhale.auth.mapper.SysRoleMapper;
 import com.bluewhale.auth.mapper.SysRolePermissionMapper;
 import com.bluewhale.auth.mapper.SysUserRoleMapper;
+import com.bluewhale.auth.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
@@ -41,24 +42,36 @@ public class RoleRepositoryImpl implements RoleRepository {
     private final SysPermissionMapper permissionMapper;
 
     @Override
-    public void save(Role role) {
+    public Role save(Role role) {
         SysRole po = RolePersistenceAssembler.toPo(role);
         if (po.getId() == null) {
             roleMapper.insert(po);
         } else {
             roleMapper.updateById(po);
         }
+        return RolePersistenceAssembler.toDomain(po);
     }
 
     @Override
     public Optional<Role> findById(Long id) {
-        SysRole po = roleMapper.selectById(id);
+        SysRole po = roleMapper.selectOne(new LambdaQueryWrapper<SysRole>()
+                .eq(SysRole::getId, id)
+                .eq(SysRole::getTenantId, TenantContext.requireId()));
         return Optional.ofNullable(po).map(RolePersistenceAssembler::toDomain);
     }
 
     @Override
     public Optional<Role> findByCode(String roleCode) {
         SysRole po = roleMapper.selectOne(new LambdaQueryWrapper<SysRole>()
+                .eq(SysRole::getTenantId, TenantContext.requireId())
+                .eq(SysRole::getRoleCode, roleCode));
+        return Optional.ofNullable(po).map(RolePersistenceAssembler::toDomain);
+    }
+
+    @Override
+    public Optional<Role> findByTenantIdAndCode(Long tenantId, String roleCode) {
+        SysRole po = roleMapper.selectOne(new LambdaQueryWrapper<SysRole>()
+                .eq(SysRole::getTenantId, tenantId)
                 .eq(SysRole::getRoleCode, roleCode));
         return Optional.ofNullable(po).map(RolePersistenceAssembler::toDomain);
     }
@@ -77,6 +90,7 @@ public class RoleRepositoryImpl implements RoleRepository {
     @Override
     public RolePage page(long current, long size, String keyword) {
         LambdaQueryWrapper<SysRole> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SysRole::getTenantId, TenantContext.requireId());
         if (StringUtils.hasText(keyword)) {
             wrapper.and(w -> w.like(SysRole::getRoleCode, keyword)
                     .or().like(SysRole::getRoleName, keyword));
@@ -90,6 +104,7 @@ public class RoleRepositoryImpl implements RoleRepository {
     @Override
     public boolean existsByCode(String roleCode) {
         Long count = roleMapper.selectCount(new LambdaQueryWrapper<SysRole>()
+                .eq(SysRole::getTenantId, TenantContext.requireId())
                 .eq(SysRole::getRoleCode, roleCode));
         return count != null && count > 0;
     }
@@ -99,13 +114,17 @@ public class RoleRepositoryImpl implements RoleRepository {
         if (ids == null || ids.isEmpty()) {
             return 0L;
         }
-        Long count = roleMapper.selectCount(new LambdaQueryWrapper<SysRole>().in(SysRole::getId, ids));
+        Long count = roleMapper.selectCount(new LambdaQueryWrapper<SysRole>()
+                .eq(SysRole::getTenantId, TenantContext.requireId())
+                .in(SysRole::getId, ids));
         return count == null ? 0L : count;
     }
 
     @Override
     public void deleteById(Long id) {
-        roleMapper.deleteById(id);
+        roleMapper.delete(new LambdaQueryWrapper<SysRole>()
+                .eq(SysRole::getId, id)
+                .eq(SysRole::getTenantId, TenantContext.requireId()));
         // 关联表实体无 deleted 字段，走物理删除
         rolePermissionMapper.delete(new LambdaQueryWrapper<SysRolePermission>()
                 .eq(SysRolePermission::getRoleId, id));

@@ -12,8 +12,11 @@ import com.bluewhale.auth.entity.SysUser;
 import com.bluewhale.auth.entity.SysUserRole;
 import com.bluewhale.auth.mapper.SysUserMapper;
 import com.bluewhale.auth.mapper.SysUserRoleMapper;
+import com.bluewhale.auth.security.TenantContext;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -55,6 +58,16 @@ class UserRepositoryImplTest {
     @InjectMocks
     private UserRepositoryImpl repository;
 
+    @BeforeEach
+    void bindTenant() {
+        TenantContext.set(1L);
+    }
+
+    @AfterEach
+    void clearTenant() {
+        TenantContext.clear();
+    }
+
     /**
      * 注册实体元信息缓存：{@code LambdaQueryWrapper#eq} 按实体解析列名，纯单测需手动初始化 TableInfo。
      */
@@ -68,6 +81,7 @@ class UserRepositoryImplTest {
     private static SysUser po() {
         SysUser po = new SysUser();
         po.setId(USER_ID);
+        po.setTenantId(1L);
         po.setUsername("bob_02");
         po.setPassword(CIPHER);
         po.setNickname("Bob");
@@ -78,7 +92,7 @@ class UserRepositoryImplTest {
     @Test
     @DisplayName("findById：命中返回领域聚合")
     void shouldFindById() {
-        when(userMapper.selectById(USER_ID)).thenReturn(po());
+        when(userMapper.selectOne(any())).thenReturn(po());
 
         Optional<User> result = repository.findById(USER_ID);
 
@@ -89,7 +103,7 @@ class UserRepositoryImplTest {
     @Test
     @DisplayName("findById：未命中返回空")
     void shouldReturnEmptyWhenFindByIdMissing() {
-        when(userMapper.selectById(USER_ID)).thenReturn(null);
+        when(userMapper.selectOne(any())).thenReturn(null);
 
         assertFalse(repository.findById(USER_ID).isPresent());
     }
@@ -115,7 +129,7 @@ class UserRepositoryImplTest {
     void shouldReportUsernameExists() {
         when(userMapper.selectCount(any())).thenReturn(1L);
 
-        assertTrue(repository.existsByUsername("bob_02"));
+        assertTrue(repository.existsByUsername(1L, "bob_02"));
     }
 
     @Test
@@ -123,13 +137,13 @@ class UserRepositoryImplTest {
     void shouldReportUsernameAbsent() {
         when(userMapper.selectCount(any())).thenReturn(0L);
 
-        assertFalse(repository.existsByUsername("nobody"));
+        assertFalse(repository.existsByUsername(1L, "nobody"));
     }
 
     @Test
     @DisplayName("save：无 ID 走新增")
     void shouldInsertWhenIdAbsent() {
-        repository.save(User.create(Username.of("bob_02"), EncryptedPassword.of(CIPHER),
+        repository.save(User.create(1L, Username.of("bob_02"), EncryptedPassword.of(CIPHER),
                 "Bob", null, null, null, 1));
 
         verify(userMapper).insert(any(SysUser.class));
@@ -139,7 +153,7 @@ class UserRepositoryImplTest {
     @Test
     @DisplayName("save：有 ID 走按主键更新")
     void shouldUpdateWhenIdPresent() {
-        repository.save(User.reconstitute(USER_ID, Username.of("bob_02"), EncryptedPassword.of(CIPHER),
+        repository.save(User.reconstitute(USER_ID, 1L, Username.of("bob_02"), EncryptedPassword.of(CIPHER),
                 "Bob", null, null, null, 1, null, null));
 
         verify(userMapper).updateById(any(SysUser.class));
@@ -180,7 +194,7 @@ class UserRepositoryImplTest {
     void shouldDeleteUserAndCleanRelations() {
         repository.deleteById(USER_ID);
 
-        verify(userMapper).deleteById(USER_ID);
+        verify(userMapper).delete(ArgumentMatchers.<Wrapper<SysUser>>any());
         verify(userRoleMapper).delete(ArgumentMatchers.<Wrapper<SysUserRole>>any());
     }
 

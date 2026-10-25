@@ -6,9 +6,12 @@ import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.MenuDomainEvent;
 import com.bluewhale.auth.domain.menu.aggregate.Menu;
 import com.bluewhale.auth.domain.menu.repository.MenuRepository;
+import com.bluewhale.auth.security.TenantContext;
 import com.bluewhale.auth.vo.MenuVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -52,8 +55,18 @@ class MenuAppServiceTest {
     @InjectMocks
     private MenuAppService menuAppService;
 
+    @BeforeEach
+    void bindTenant() {
+        TenantContext.set(1L);
+    }
+
+    @AfterEach
+    void clearTenant() {
+        TenantContext.clear();
+    }
+
     private static Menu menu(Long id, Long parentId, String name, String menuType, String permissionCode) {
-        return Menu.reconstitute(id, parentId, name, "/" + id, "component/" + id, "icon", 0, menuType,
+        return Menu.reconstitute(id, 1L, parentId, name, "/" + id, "component/" + id, "icon", 0, menuType,
                 permissionCode, Menu.VISIBLE_SHOWN, Menu.STATUS_ENABLED, NOW, NOW);
     }
 
@@ -112,6 +125,8 @@ class MenuAppServiceTest {
     @Test
     @DisplayName("create：空值默认由聚合适配（父节点 0、排序 0、MENU、显示、启用）")
     void shouldCreateWithDefaults() {
+        when(menuRepository.save(any(Menu.class))).thenAnswer(inv -> inv.getArgument(0));
+
         menuAppService.create(new SaveMenuCommand(null, "用户管理", "/user", "system/user", "user",
                 null, null, null, null, null));
 

@@ -17,11 +17,12 @@ public interface UserRepository {
      * 保存用户聚合（无 ID 时新增，有 ID 时按主键更新）
      *
      * @param user 用户聚合根
+     * @return 回填主键后的用户聚合根
      */
-    void save(User user);
+    User save(User user);
 
     /**
-     * 按用户 ID 查询用户聚合
+     * 按用户 ID 查询用户聚合（租户内查询，跨租户视为不存在）
      *
      * @param id 用户 ID
      * @return 用户聚合；不存在时返回空
@@ -29,7 +30,7 @@ public interface UserRepository {
     Optional<User> findById(Long id);
 
     /**
-     * 按用户名查询用户聚合（原样匹配，不做格式前置校验，以保持登录链路对外行为不变）
+     * 按用户名查询用户聚合（当前租户内查询）
      *
      * @param username 用户名
      * @return 用户聚合；不存在时返回空
@@ -46,12 +47,13 @@ public interface UserRepository {
     Optional<User> findByTenantIdAndUsername(Long tenantId, String username);
 
     /**
-     * 判断用户名是否已存在（供用户唯一性不变量跨聚合校验）
+     * 判断用户名在指定租户内是否已存在（供用户唯一性不变量跨聚合校验）
      *
+     * @param tenantId 租户 ID
      * @param username 用户名
      * @return 已存在返回 true，否则返回 false
      */
-    boolean existsByUsername(String username);
+    boolean existsByUsername(Long tenantId, String username);
 
     /**
      * 全量覆盖用户-角色关联（先清空后重建）

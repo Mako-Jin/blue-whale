@@ -27,6 +27,7 @@ class RolePersistenceAssemblerTest {
     private static SysRole fullPo() {
         SysRole po = new SysRole();
         po.setId(5L);
+        po.setTenantId(1L);
         po.setRoleCode("test_role");
         po.setRoleName("测试角色");
         po.setDescription("描述");
@@ -39,7 +40,7 @@ class RolePersistenceAssemblerTest {
     }
 
     private static Role fullDomain() {
-        return Role.reconstitute(5L, RoleCode.of("test_role"), "测试角色", "描述", 3,
+        return Role.reconstitute(5L, 1L, RoleCode.of("test_role"), "测试角色", "描述", 3,
                 Role.STATUS_ENABLED, CREATED, UPDATED);
     }
 
