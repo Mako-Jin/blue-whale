@@ -10,6 +10,13 @@ function Show($label, $obj) {
 function ExpectReject($label, [scriptblock]$action) {
     try {
         $result = & $action
+        # 业务异常以 HTTP 200 + Result.code!=0 返回，兼容两种拒绝形态
+        if ($null -ne $result -and $result.code -ne 0) {
+            Write-Host "== $label =="
+            Write-Host "expected business rejection: code=$($result.code) message=$($result.message)"
+            Write-Host ""
+            return
+        }
         Show "$label.unexpectedSuccess" $result
     } catch {
         Write-Host "== $label =="
@@ -18,7 +25,7 @@ function ExpectReject($label, [scriptblock]$action) {
     }
 }
 
-$login = Invoke-RestMethod -Method Post -Uri "$base/auth/login" -ContentType 'application/json' -Body '{"username":"admin","password":"123456"}'
+$login = Invoke-RestMethod -Method Post -Uri "$base/auth/login" -ContentType 'application/json; charset=utf-8' -Body '{"username":"admin","password":"123456"}'
 $token = $login.data.accessToken
 if (-not $token) { throw "login failed" }
 Write-Host "login ok, token length=$($token.Length)"
@@ -33,7 +40,7 @@ $projectBody = @{
     visibility  = 'TEAM'
     leadUserId  = 1
 } | ConvertTo-Json -Compress
-$project = Invoke-RestMethod -Method Post -Uri "$base/pm/project" -Headers $h -ContentType 'application/json' -Body $projectBody
+$project = Invoke-RestMethod -Method Post -Uri "$base/pm/project" -Headers $h -ContentType 'application/json; charset=utf-8' -Body $projectBody
 Show '1.createProject' $project
 $projectId = $project.data.id
 
@@ -52,18 +59,18 @@ $itemBody = @{
     assigneeId   = 2
     storyPoints  = 3
 } | ConvertTo-Json -Compress
-$item = Invoke-RestMethod -Method Post -Uri "$base/pm/work-item" -Headers $h -ContentType 'application/json' -Body $itemBody
+$item = Invoke-RestMethod -Method Post -Uri "$base/pm/work-item" -Headers $h -ContentType 'application/json; charset=utf-8' -Body $itemBody
 Show '3.createAssignedItem' $item
 $itemId = $item.data.id
 
 # 4) 新增评论（评论通知默认关闭，不影响主事务）
 $commentBody = @{ content = '集成冒烟评论' } | ConvertTo-Json -Compress
-$comment = Invoke-RestMethod -Method Post -Uri "$base/pm/work-item/$itemId/comment" -Headers $h -ContentType 'application/json' -Body $commentBody
+$comment = Invoke-RestMethod -Method Post -Uri "$base/pm/work-item/$itemId/comment" -Headers $h -ContentType 'application/json; charset=utf-8' -Body $commentBody
 Show '4.addComment' $comment
 
 # 5) 状态流转（流转通知默认关闭）
 $transitionBody = @{ targetStatusId = [long]$doingStatusId } | ConvertTo-Json -Compress
-$transitioned = Invoke-RestMethod -Method Put -Uri "$base/pm/work-item/$itemId/transition" -Headers $h -ContentType 'application/json' -Body $transitionBody
+$transitioned = Invoke-RestMethod -Method Put -Uri "$base/pm/work-item/$itemId/transition" -Headers $h -ContentType 'application/json; charset=utf-8' -Body $transitionBody
 Show '5.transitionItem' $transitioned
 
 # 6) 动态时间线应记录创建 / 评论 / 流转

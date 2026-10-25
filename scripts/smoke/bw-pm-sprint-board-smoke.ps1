@@ -10,6 +10,13 @@ function Show($label, $obj) {
 function ExpectReject($label, [scriptblock]$action) {
     try {
         $result = & $action
+        # 业务异常以 HTTP 200 + Result.code!=0 返回，兼容两种拒绝形态
+        if ($null -ne $result -and $result.code -ne 0) {
+            Write-Host "== $label =="
+            Write-Host "expected business rejection: code=$($result.code) message=$($result.message)"
+            Write-Host ""
+            return
+        }
         Show "$label.unexpectedSuccess" $result
     } catch {
         Write-Host "== $label =="
@@ -18,7 +25,7 @@ function ExpectReject($label, [scriptblock]$action) {
     }
 }
 
-$login = Invoke-RestMethod -Method Post -Uri "$base/auth/login" -ContentType 'application/json' -Body '{"username":"admin","password":"123456"}'
+$login = Invoke-RestMethod -Method Post -Uri "$base/auth/login" -ContentType 'application/json; charset=utf-8' -Body '{"username":"admin","password":"123456"}'
 $token = $login.data.accessToken
 if (-not $token) { throw "login failed" }
 Write-Host "login ok, token length=$($token.Length)"
@@ -33,7 +40,7 @@ $projectBody = @{
     visibility  = 'TEAM'
     leadUserId  = 1
 } | ConvertTo-Json -Compress
-$project = Invoke-RestMethod -Method Post -Uri "$base/pm/project" -Headers $h -ContentType 'application/json' -Body $projectBody
+$project = Invoke-RestMethod -Method Post -Uri "$base/pm/project" -Headers $h -ContentType 'application/json; charset=utf-8' -Body $projectBody
 Show '1.createProject' $project
 $projectId = $project.data.id
 
@@ -52,7 +59,7 @@ $sprintBody = @{
     startDate = '2026-11-01'
     endDate   = '2026-11-15'
 } | ConvertTo-Json -Compress
-$sprint = Invoke-RestMethod -Method Post -Uri "$base/pm/sprint" -Headers $h -ContentType 'application/json' -Body $sprintBody
+$sprint = Invoke-RestMethod -Method Post -Uri "$base/pm/sprint" -Headers $h -ContentType 'application/json; charset=utf-8' -Body $sprintBody
 Show '3.createSprint' $sprint
 $sprintId = $sprint.data.id
 
@@ -62,16 +69,16 @@ Show '4.pageSprints' $sprintPage
 
 # 5) 创建两个工作项
 $item1Body = @{ projectId = [long]$projectId; type = 'STORY'; title = '迭代故事一'; priority = 'HIGH' } | ConvertTo-Json -Compress
-$item1 = Invoke-RestMethod -Method Post -Uri "$base/pm/work-item" -Headers $h -ContentType 'application/json' -Body $item1Body
+$item1 = Invoke-RestMethod -Method Post -Uri "$base/pm/work-item" -Headers $h -ContentType 'application/json; charset=utf-8' -Body $item1Body
 $item2Body = @{ projectId = [long]$projectId; type = 'TASK'; title = '迭代任务二'; priority = 'MEDIUM' } | ConvertTo-Json -Compress
-$item2 = Invoke-RestMethod -Method Post -Uri "$base/pm/work-item" -Headers $h -ContentType 'application/json' -Body $item2Body
+$item2 = Invoke-RestMethod -Method Post -Uri "$base/pm/work-item" -Headers $h -ContentType 'application/json; charset=utf-8' -Body $item2Body
 Show '5.createItems' @{ item1 = $item1.data; item2 = $item2.data }
 $item1Id = $item1.data.id
 $item2Id = $item2.data.id
 
 # 6) 批量加入迭代
 $addBody = @{ itemIds = @([long]$item1Id, [long]$item2Id) } | ConvertTo-Json -Compress
-$added = Invoke-RestMethod -Method Post -Uri "$base/pm/sprint/$sprintId/item" -Headers $h -ContentType 'application/json' -Body $addBody
+$added = Invoke-RestMethod -Method Post -Uri "$base/pm/sprint/$sprintId/item" -Headers $h -ContentType 'application/json; charset=utf-8' -Body $addBody
 Show '6.addSprintItems' $added
 
 # 7) 查询迭代内工作项
@@ -89,7 +96,7 @@ $sprint2Body = @{
     startDate = '2026-11-16'
     endDate   = '2026-11-30'
 } | ConvertTo-Json -Compress
-$sprint2 = Invoke-RestMethod -Method Post -Uri "$base/pm/sprint" -Headers $h -ContentType 'application/json' -Body $sprint2Body
+$sprint2 = Invoke-RestMethod -Method Post -Uri "$base/pm/sprint" -Headers $h -ContentType 'application/json; charset=utf-8' -Body $sprint2Body
 $sprint2Id = $sprint2.data.id
 ExpectReject '9.negative.secondActiveSprint' {
     Invoke-RestMethod -Method Put -Uri "$base/pm/sprint/$sprint2Id/start" -Headers $h
@@ -97,7 +104,7 @@ ExpectReject '9.negative.secondActiveSprint' {
 
 # 10) 创建看板
 $boardBody = @{ projectId = [long]$projectId; name = '冒烟看板'; boardType = 'SCRUM' } | ConvertTo-Json -Compress
-$board = Invoke-RestMethod -Method Post -Uri "$base/pm/board" -Headers $h -ContentType 'application/json' -Body $boardBody
+$board = Invoke-RestMethod -Method Post -Uri "$base/pm/board" -Headers $h -ContentType 'application/json; charset=utf-8' -Body $boardBody
 Show '10.createBoard' $board
 $boardId = $board.data.id
 
@@ -114,7 +121,7 @@ $columns = @(
 $columnIds = @()
 foreach ($column in $columns) {
     $columnBody = $column | ConvertTo-Json -Compress
-    $created = Invoke-RestMethod -Method Post -Uri "$base/pm/board/$boardId/column" -Headers $h -ContentType 'application/json' -Body $columnBody
+    $created = Invoke-RestMethod -Method Post -Uri "$base/pm/board/$boardId/column" -Headers $h -ContentType 'application/json; charset=utf-8' -Body $columnBody
     $columnIds += $created.data.id
 }
 Show '12.addColumns' $columnIds
@@ -129,13 +136,13 @@ Show '14.boardView' $boardView
 
 # 15) 拖拽：TODO -> 进行中
 $drag1Body = @{ workItemId = [long]$item1Id; targetStatusId = [long]$doingStatusId } | ConvertTo-Json -Compress
-$dragged = Invoke-RestMethod -Method Put -Uri "$base/pm/board/$boardId/drag" -Headers $h -ContentType 'application/json' -Body $drag1Body
+$dragged = Invoke-RestMethod -Method Put -Uri "$base/pm/board/$boardId/drag" -Headers $h -ContentType 'application/json; charset=utf-8' -Body $drag1Body
 Show '15.dragItem1' $dragged
 
 # 16) 负向：第二项拖入进行中触发 WIP 上限
 ExpectReject '16.negative.wipExceeded' {
     $drag2Body = @{ workItemId = [long]$item2Id; targetStatusId = [long]$doingStatusId } | ConvertTo-Json -Compress
-    Invoke-RestMethod -Method Put -Uri "$base/pm/board/$boardId/drag" -Headers $h -ContentType 'application/json' -Body $drag2Body
+    Invoke-RestMethod -Method Put -Uri "$base/pm/board/$boardId/drag" -Headers $h -ContentType 'application/json; charset=utf-8' -Body $drag2Body
 }
 
 # 17) 将第二项移出迭代
@@ -149,7 +156,7 @@ Show '18.closeSprint' $closed
 # 19) 负向：已关闭迭代禁止加入工作项
 ExpectReject '19.negative.addItemToClosedSprint' {
     $addAgain = @{ itemIds = @([long]$item2Id) } | ConvertTo-Json -Compress
-    Invoke-RestMethod -Method Post -Uri "$base/pm/sprint/$sprintId/item" -Headers $h -ContentType 'application/json' -Body $addAgain
+    Invoke-RestMethod -Method Post -Uri "$base/pm/sprint/$sprintId/item" -Headers $h -ContentType 'application/json; charset=utf-8' -Body $addAgain
 }
 
 # 20) 负向：非未启动迭代不可删除

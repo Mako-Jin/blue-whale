@@ -7,7 +7,7 @@ function Show($label, $obj) {
     Write-Host ""
 }
 
-$login = Invoke-RestMethod -Method Post -Uri "$base/auth/login" -ContentType 'application/json' -Body '{"username":"admin","password":"123456"}'
+$login = Invoke-RestMethod -Method Post -Uri "$base/auth/login" -ContentType 'application/json; charset=utf-8' -Body '{"username":"admin","password":"123456"}'
 $token = $login.data.accessToken
 if (-not $token) { throw "login failed" }
 Write-Host "login ok, token length=$($token.Length)"
@@ -23,7 +23,7 @@ $projectBody = @{
     leadUserId  = 1
     description = 'Wave 5.55 M2 冒烟'
 } | ConvertTo-Json -Compress
-$project = Invoke-RestMethod -Method Post -Uri "$base/pm/project" -Headers $h -ContentType 'application/json' -Body $projectBody
+$project = Invoke-RestMethod -Method Post -Uri "$base/pm/project" -Headers $h -ContentType 'application/json; charset=utf-8' -Body $projectBody
 Show '1.createProject' $project
 $projectId = $project.data.id
 
@@ -46,14 +46,14 @@ $itemBody = @{
     labels          = 'smoke,m2'
     clientRequestId = $idem
 } | ConvertTo-Json -Compress
-$created = Invoke-RestMethod -Method Post -Uri "$base/pm/work-item" -Headers $h -ContentType 'application/json' -Body $itemBody
+$created = Invoke-RestMethod -Method Post -Uri "$base/pm/work-item" -Headers $h -ContentType 'application/json; charset=utf-8' -Body $itemBody
 Show '3.createItem' $created
 $itemId = $created.data.id
 $itemKey = $created.data.key
 $itemVersion = $created.data.version
 
 # 4) 幂等重放：同一 clientRequestId 返回同一条
-$replayed = Invoke-RestMethod -Method Post -Uri "$base/pm/work-item" -Headers $h -ContentType 'application/json' -Body $itemBody
+$replayed = Invoke-RestMethod -Method Post -Uri "$base/pm/work-item" -Headers $h -ContentType 'application/json; charset=utf-8' -Body $itemBody
 Show '4.idempotentReplay' $replayed
 
 # 5) 第二个工作项（用于关联）
@@ -63,7 +63,7 @@ $bugBody = @{
     title     = '冒烟缺陷'
     priority  = 'MEDIUM'
 } | ConvertTo-Json -Compress
-$bug = Invoke-RestMethod -Method Post -Uri "$base/pm/work-item" -Headers $h -ContentType 'application/json' -Body $bugBody
+$bug = Invoke-RestMethod -Method Post -Uri "$base/pm/work-item" -Headers $h -ContentType 'application/json; charset=utf-8' -Body $bugBody
 Show '5.createBug' $bug
 $bugId = $bug.data.id
 
@@ -85,12 +85,12 @@ $updateBody = @{
     assigneeId  = 2
     version     = [int]$itemVersion
 } | ConvertTo-Json -Compress
-$updated = Invoke-RestMethod -Method Put -Uri "$base/pm/work-item/$itemId" -Headers $h -ContentType 'application/json' -Body $updateBody
+$updated = Invoke-RestMethod -Method Put -Uri "$base/pm/work-item/$itemId" -Headers $h -ContentType 'application/json; charset=utf-8' -Body $updateBody
 Show '8.updateItem' $updated
 
 # 9) 新增评论
 $commentBody = @{ content = '冒烟评论：进展顺利' } | ConvertTo-Json -Compress
-$comment = Invoke-RestMethod -Method Post -Uri "$base/pm/work-item/$itemId/comment" -Headers $h -ContentType 'application/json' -Body $commentBody
+$comment = Invoke-RestMethod -Method Post -Uri "$base/pm/work-item/$itemId/comment" -Headers $h -ContentType 'application/json; charset=utf-8' -Body $commentBody
 Show '9.addComment' $comment
 $commentId = $comment.data.id
 
@@ -100,7 +100,7 @@ Show '10.listComments' $comments
 
 # 11) 登记附件（仅 file_id 引用）
 $attachBody = @{ fileId = 900000001; fileName = '冒烟附件.txt' } | ConvertTo-Json -Compress
-$attach = Invoke-RestMethod -Method Post -Uri "$base/pm/work-item/$itemId/attachment" -Headers $h -ContentType 'application/json' -Body $attachBody
+$attach = Invoke-RestMethod -Method Post -Uri "$base/pm/work-item/$itemId/attachment" -Headers $h -ContentType 'application/json; charset=utf-8' -Body $attachBody
 Show '11.addAttachment' $attach
 $attachmentId = $attach.data.id
 
@@ -110,7 +110,7 @@ Show '12.listAttachments' $attachments
 
 # 13) 新增关联
 $linkBody = @{ targetItemId = [long]$bugId; linkType = 'RELATES' } | ConvertTo-Json -Compress
-$link = Invoke-RestMethod -Method Post -Uri "$base/pm/work-item/$itemId/link" -Headers $h -ContentType 'application/json' -Body $linkBody
+$link = Invoke-RestMethod -Method Post -Uri "$base/pm/work-item/$itemId/link" -Headers $h -ContentType 'application/json; charset=utf-8' -Body $linkBody
 Show '13.addLink' $link
 $linkId = $link.data.id
 
@@ -118,15 +118,19 @@ $linkId = $link.data.id
 $links = Invoke-RestMethod -Method Get -Uri "$base/pm/work-item/$itemId/link" -Headers $h
 Show '14.listLinks' $links
 
-# 15) 状态流转 TODO -> DONE
+# 15) 状态流转 TODO -> IN_PROGRESS -> DONE（默认流转链：开始 / 完成，不允许跳过中间态）
+$doingStatusId = [long](($statuses.data | Where-Object { $_.code -eq 'IN_PROGRESS' }).id)
+$movedBody = @{ targetStatusId = [long]$doingStatusId; comment = '冒烟开始' } | ConvertTo-Json -Compress
+$moved = Invoke-RestMethod -Method Put -Uri "$base/pm/work-item/$itemId/transition" -Headers $h -ContentType 'application/json; charset=utf-8' -Body $movedBody
+Show '15a.transitionToInProgress' $moved
 $transitionBody = @{ targetStatusId = [long]$doneStatusId; comment = '冒烟完成' } | ConvertTo-Json -Compress
-$transitioned = Invoke-RestMethod -Method Put -Uri "$base/pm/work-item/$itemId/transition" -Headers $h -ContentType 'application/json' -Body $transitionBody
-Show '15.transition' $transitioned
+$transitioned = Invoke-RestMethod -Method Put -Uri "$base/pm/work-item/$itemId/transition" -Headers $h -ContentType 'application/json; charset=utf-8' -Body $transitionBody
+Show '15b.transitionToDone' $transitioned
 
 # 16) 负向：目标状态不存在
 try {
     $badTransition = @{ targetStatusId = 999999999 } | ConvertTo-Json -Compress
-    $bad = Invoke-RestMethod -Method Put -Uri "$base/pm/work-item/$itemId/transition" -Headers $h -ContentType 'application/json' -Body $badTransition
+    $bad = Invoke-RestMethod -Method Put -Uri "$base/pm/work-item/$itemId/transition" -Headers $h -ContentType 'application/json; charset=utf-8' -Body $badTransition
     Show '16.negative.transitionUnknownStatus' $bad
 } catch {
     Write-Host "== 16.negative.transitionUnknownStatus =="
@@ -136,7 +140,7 @@ try {
 
 # 17) 排序：移动到缺陷之前
 $rankBody = @{ afterItemId = [long]$bugId } | ConvertTo-Json -Compress
-$ranked = Invoke-RestMethod -Method Put -Uri "$base/pm/work-item/$itemId/rank" -Headers $h -ContentType 'application/json' -Body $rankBody
+$ranked = Invoke-RestMethod -Method Put -Uri "$base/pm/work-item/$itemId/rank" -Headers $h -ContentType 'application/json; charset=utf-8' -Body $rankBody
 Show '17.rank' $ranked
 
 # 18) 工作项动态
@@ -155,7 +159,7 @@ try {
         title     = '冒烟任务（改）'
         statusId  = [long]$doneStatusId
     } | ConvertTo-Json -Compress
-    $direct = Invoke-RestMethod -Method Put -Uri "$base/pm/work-item/$itemId" -Headers $h -ContentType 'application/json' -Body $directBody
+    $direct = Invoke-RestMethod -Method Put -Uri "$base/pm/work-item/$itemId" -Headers $h -ContentType 'application/json; charset=utf-8' -Body $directBody
     Show '20.negative.directStatusUpdate' $direct
 } catch {
     Write-Host "== 20.negative.directStatusUpdate =="
