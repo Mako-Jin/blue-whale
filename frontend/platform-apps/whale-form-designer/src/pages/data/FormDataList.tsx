@@ -104,17 +104,44 @@ function filterOpsFor(dataType: DataType | undefined): FilterOp[] {
     case 'number':
     case 'date':
     case 'datetime':
-      return ['eq', 'ne', 'gt', 'gte', 'lt', 'lte', 'isNull', 'notNull'];
+      return ['eq', 'ne', 'gt', 'gte', 'lt', 'lte', 'in', 'between', 'isNull', 'notNull'];
     case 'bool':
-      return ['eq', 'ne', 'isNull', 'notNull'];
+      return ['eq', 'ne', 'in', 'isNull', 'notNull'];
     default:
-      return ['eq', 'ne', 'like', 'isNull', 'notNull'];
+      return ['eq', 'ne', 'like', 'in', 'isNull', 'notNull'];
   }
 }
 
 /** 操作符是否需要填写值 */
 function needsValue(op: FilterOp): boolean {
   return op !== 'isNull' && op !== 'notNull';
+}
+
+/** 是否多值操作符（in 集合 / between 区间），值控件走独立分支 */
+function isMultiValueOp(op: FilterOp): boolean {
+  return op === 'in' || op === 'between';
+}
+
+/** 多值草稿清洗：统一转字符串并去首尾空白 */
+function cleanDraftValues(values: Array<string | number>): string[] {
+  return values.map((value) => String(value).trim());
+}
+
+/** in 条件值去空去重（保持输入顺序） */
+function uniqueDraftValues(values: string[]): string[] {
+  return Array.from(new Set(values.filter((value) => value.length > 0)));
+}
+
+/** 按字段类型转换多值条件：number 转数值，其余保留文本；非法返回 null */
+function buildMultiValues(
+  dataType: DataType | undefined,
+  values: string[],
+): Array<string | number> | null {
+  if (dataType !== 'number') {
+    return values;
+  }
+  const numbers = values.map((value) => Number(value));
+  return numbers.some((value) => Number.isNaN(value)) ? null : numbers;
 }
 
 /** 动态条件序列化为查询参数（空条件返回 undefined，避免请求携带无用字段） */
@@ -133,6 +160,15 @@ function formatValue(value: unknown): string {
     return '-';
   }
   return String(value);
+}
+
+/** 条件值展示：多值按操作符连接（between 用 ~，in 用逗号） */
+function formatFilterValue(filter: DataFilter): string {
+  if (Array.isArray(filter.value)) {
+    const separator = filter.op === 'between' ? ' ~ ' : ', ';
+    return filter.value.map((item) => formatValue(item)).join(separator);
+  }
+  return formatValue(filter.value);
 }
 
 /**
@@ -207,12 +243,31 @@ export default function FormDataList() {
   const [draftField, setDraftField] = useState<string | undefined>(undefined);
   const [draftOp, setDraftOp] = useState<FilterOp>('eq');
   const [draftValue, setDraftValue] = useState<string | number | undefined>(undefined);
+  // in / between 的多值草稿（number 区间存数值，其余存文本）
+  const [draftValues, setDraftValues] = useState<Array<string | number>>([]);
 
   const selectedField = useMemo(
     () => dynamicFields.find((field) => field.columnCode === draftField),
     [dynamicFields, draftField],
   );
   const draftOps = useMemo(() => filterOpsFor(selectedField?.dataType), [selectedField]);
+
+  // 清空草稿：字段/操作符/标量值/多值统一复位
+  const resetDraft = () => {
+    setDraftField(undefined);
+    setDraftOp('eq');
+    setDraftValue(undefined);
+    setDraftValues([]);
+  };
+
+  // 更新多值草稿指定下标（between 的起始/结束分别编辑）
+  const updateDraftValueAt = (index: number, value: string | number) => {
+    setDraftValues((prev) => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
+  };
 
   // 详情 Drawer 状态
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -282,26 +337,54 @@ export default function FormDataList() {
     };
   }, [query.definitionCode]);
 
-  // 添加动态条件：数值/布尔做类型转换，为空类操作符不携带值
+  // 添加动态条件：标量按类型转换，in/between 组装数组，为空类操作符不携带值
   const handleAddFilter = () => {
     if (!draftField) {
       message.warning('请选择过滤字段');
       return;
     }
-    if (needsValue(draftOp) && (draftValue === undefined || draftValue === '')) {
+    if (!needsValue(draftOp)) {
+      setDynamicFilters((prev) => [...prev, { field: draftField, op: draftOp }]);
+      resetDraft();
+      return;
+    }
+    if (draftOp === 'in') {
+      const cleaned = uniqueDraftValues(cleanDraftValues(draftValues));
+      if (cleaned.length === 0) {
+        message.warning('请填写至少一个过滤值');
+        return;
+      }
+      const values = buildMultiValues(selectedField?.dataType, cleaned);
+      if (!values) {
+        message.warning('过滤值必须为数值');
+        return;
+      }
+      setDynamicFilters((prev) => [...prev, { field: draftField, op: 'in', value: values }]);
+      resetDraft();
+      return;
+    }
+    if (draftOp === 'between') {
+      const cleaned = cleanDraftValues(draftValues);
+      if (cleaned.length < 2 || cleaned[0] === '' || cleaned[1] === '') {
+        message.warning('介于需要填写起始和结束两个值');
+        return;
+      }
+      const values = buildMultiValues(selectedField?.dataType, [cleaned[0], cleaned[1]]);
+      if (!values) {
+        message.warning('区间值必须为数值');
+        return;
+      }
+      setDynamicFilters((prev) => [...prev, { field: draftField, op: 'between', value: values }]);
+      resetDraft();
+      return;
+    }
+    if (draftValue === undefined || draftValue === '') {
       message.warning('请填写过滤值');
       return;
     }
-    const withValue = needsValue(draftOp);
-    const value = !withValue
-      ? undefined
-      : selectedField?.dataType === 'bool'
-        ? draftValue === 'true'
-        : draftValue;
+    const value = selectedField?.dataType === 'bool' ? draftValue === 'true' : draftValue;
     setDynamicFilters((prev) => [...prev, { field: draftField, op: draftOp, value }]);
-    setDraftField(undefined);
-    setDraftOp('eq');
-    setDraftValue(undefined);
+    resetDraft();
   };
 
   // 移除动态条件
@@ -316,9 +399,7 @@ export default function FormDataList() {
     const codeChanged = nextCode !== query.definitionCode;
     if (codeChanged) {
       setDynamicFilters([]);
-      setDraftField(undefined);
-      setDraftOp('eq');
-      setDraftValue(undefined);
+      resetDraft();
     }
     setQuery((prev) => ({
       ...prev,
@@ -334,9 +415,7 @@ export default function FormDataList() {
   const handleReset = () => {
     form.setFieldsValue({ definitionCode: '', bizKey: '', submitter: '' });
     setDynamicFilters([]);
-    setDraftField(undefined);
-    setDraftOp('eq');
-    setDraftValue(undefined);
+    resetDraft();
     setQuery({ current: 1, size: 10 });
   };
 
@@ -456,6 +535,153 @@ export default function FormDataList() {
     },
   ];
 
+  // in 条件值控件：布尔/选项字段走多选，其余用标签输入（回车或逗号分隔）
+  const renderInControl = () => {
+    const dataType = selectedField?.dataType;
+    if (dataType === 'bool') {
+      return (
+        <Select
+          id="filter-value-multi"
+          mode="multiple"
+          placeholder="值（可多选）"
+          style={{ minWidth: 140 }}
+          value={draftValues as string[]}
+          options={[
+            { value: 'true', label: '是' },
+            { value: 'false', label: '否' },
+          ]}
+          onChange={(values: string[]) => setDraftValues(values)}
+        />
+      );
+    }
+    const options = selectedField?.options;
+    if (dataType === 'select' && options && options.length > 0) {
+      return (
+        <Select
+          id="filter-value-multi"
+          mode="multiple"
+          placeholder="值（可多选）"
+          style={{ minWidth: 180 }}
+          value={draftValues as string[]}
+          options={options.map((option) => ({
+            value: option.optionValue,
+            label: option.optionLabel,
+          }))}
+          onChange={(values: string[]) => setDraftValues(values)}
+        />
+      );
+    }
+    return (
+      <Select
+        id="filter-value-multi"
+        mode="tags"
+        placeholder="输入后回车，可多个"
+        style={{ minWidth: 220 }}
+        value={draftValues as string[]}
+        tokenSeparators={[',']}
+        onChange={(values: string[]) => setDraftValues(values)}
+      />
+    );
+  };
+
+  // between 条件值控件：数值用两个数字框，日期/文本用两个输入框
+  const renderBetweenControl = () => {
+    if (selectedField?.dataType === 'number') {
+      return (
+        <Space.Compact>
+          <InputNumber
+            id="filter-between-from"
+            placeholder="起始值"
+            style={{ width: 120 }}
+            value={typeof draftValues[0] === 'number' ? draftValues[0] : undefined}
+            onChange={(value) => updateDraftValueAt(0, value ?? '')}
+          />
+          <InputNumber
+            id="filter-between-to"
+            placeholder="结束值"
+            style={{ width: 120 }}
+            value={typeof draftValues[1] === 'number' ? draftValues[1] : undefined}
+            onChange={(value) => updateDraftValueAt(1, value ?? '')}
+          />
+        </Space.Compact>
+      );
+    }
+    const placeholder =
+      selectedField?.dataType === 'datetime' ? 'yyyy-MM-dd HH:mm:ss' : 'yyyy-MM-dd';
+    return (
+      <Space.Compact>
+        <Input
+          id="filter-between-from"
+          allowClear
+          placeholder={`起始 ${placeholder}`}
+          style={{ width: 190 }}
+          value={typeof draftValues[0] === 'string' ? draftValues[0] : undefined}
+          onChange={(event) => updateDraftValueAt(0, event.target.value)}
+        />
+        <Input
+          id="filter-between-to"
+          allowClear
+          placeholder={`结束 ${placeholder}`}
+          style={{ width: 190 }}
+          value={typeof draftValues[1] === 'string' ? draftValues[1] : undefined}
+          onChange={(event) => updateDraftValueAt(1, event.target.value)}
+        />
+      </Space.Compact>
+    );
+  };
+
+  // 值控件分派：空值判断不渲染，in/between 走多值分支，其余按字段类型渲染标量
+  const renderValueControl = () => {
+    if (!needsValue(draftOp)) {
+      return null;
+    }
+    if (isMultiValueOp(draftOp)) {
+      return draftOp === 'in' ? renderInControl() : renderBetweenControl();
+    }
+    if (selectedField?.dataType === 'bool') {
+      return (
+        <Select
+          id="filter-value-bool"
+          placeholder="值"
+          style={{ width: 110 }}
+          value={draftValue as string | undefined}
+          options={[
+            { value: 'true', label: '是' },
+            { value: 'false', label: '否' },
+          ]}
+          onChange={(value: string) => setDraftValue(value)}
+        />
+      );
+    }
+    if (selectedField?.dataType === 'number') {
+      return (
+        <InputNumber
+          id="filter-value-number"
+          placeholder="数值"
+          style={{ width: 140 }}
+          value={typeof draftValue === 'number' ? draftValue : undefined}
+          onChange={(value) => setDraftValue(value ?? undefined)}
+        />
+      );
+    }
+    const placeholder =
+      selectedField?.dataType === 'date'
+        ? 'yyyy-MM-dd'
+        : selectedField?.dataType === 'datetime'
+          ? 'yyyy-MM-dd HH:mm:ss'
+          : '过滤值';
+    return (
+      <Input
+        id="filter-value-text"
+        allowClear
+        placeholder={placeholder}
+        style={{ width: 170 }}
+        value={typeof draftValue === 'string' ? draftValue : undefined}
+        onChange={(event) => setDraftValue(event.target.value)}
+      />
+    );
+  };
+
   return (
     <div>
       <Card size="small" style={{ marginBottom: 12 }}>
@@ -503,6 +729,7 @@ export default function FormDataList() {
           <div style={{ marginTop: 12 }}>
             <Space wrap>
               <Select
+                id="filter-field"
                 placeholder="过滤字段"
                 style={{ width: 170 }}
                 value={draftField}
@@ -515,43 +742,21 @@ export default function FormDataList() {
                   setDraftField(value);
                   setDraftOp(filterOpsFor(nextField?.dataType)[0]);
                   setDraftValue(undefined);
+                  setDraftValues([]);
                 }}
               />
               <Select
-                style={{ width: 120 }}
+                id="filter-op"
+                style={{ width: 130 }}
                 value={draftOp}
                 options={draftOps.map((op) => ({ value: op, label: FILTER_OP_LABELS[op] }))}
-                onChange={(value: FilterOp) => setDraftOp(value)}
+                onChange={(value: FilterOp) => {
+                  setDraftOp(value);
+                  setDraftValue(undefined);
+                  setDraftValues([]);
+                }}
               />
-              {needsValue(draftOp) ? (
-                selectedField?.dataType === 'bool' ? (
-                  <Select
-                    placeholder="值"
-                    style={{ width: 110 }}
-                    value={draftValue as string | undefined}
-                    options={[
-                      { value: 'true', label: '是' },
-                      { value: 'false', label: '否' },
-                    ]}
-                    onChange={(value: string) => setDraftValue(value)}
-                  />
-                ) : selectedField?.dataType === 'number' ? (
-                  <InputNumber
-                    placeholder="数值"
-                    style={{ width: 140 }}
-                    value={typeof draftValue === 'number' ? draftValue : undefined}
-                    onChange={(value) => setDraftValue(value ?? undefined)}
-                  />
-                ) : (
-                  <Input
-                    allowClear
-                    placeholder={selectedField?.dataType === 'date' ? 'yyyy-MM-dd' : '过滤值'}
-                    style={{ width: 170 }}
-                    value={typeof draftValue === 'string' ? draftValue : undefined}
-                    onChange={(event) => setDraftValue(event.target.value)}
-                  />
-                )
-              ) : null}
+              {renderValueControl()}
               <Button onClick={handleAddFilter}>添加条件</Button>
             </Space>
             {dynamicFilters.length > 0 ? (
@@ -563,7 +768,7 @@ export default function FormDataList() {
                     onClose={() => handleRemoveFilter(index)}
                   >
                     {fieldLabelOf(dynamicFields, filter.field)} {FILTER_OP_LABELS[filter.op]}
-                    {needsValue(filter.op) ? ` ${formatValue(filter.value)}` : ''}
+                    {needsValue(filter.op) ? ` ${formatFilterValue(filter)}` : ''}
                   </Tag>
                 ))}
               </div>

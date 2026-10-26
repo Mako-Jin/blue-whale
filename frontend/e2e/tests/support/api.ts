@@ -88,6 +88,45 @@ export async function fetchMe(ctx: APIRequestContext, token: string): Promise<Me
   return readEnvelope<MeResponse>(response, '查询当前用户');
 }
 
+/** 创建表定义（元数据模型：表编码 + 列集合） */
+export async function createTableDefinition(
+  ctx: APIRequestContext,
+  token: string,
+  payload: Record<string, unknown>,
+): Promise<TableDefinitionRecord> {
+  const response = await ctx.post(`${API_BASE_URL}/form/table-definition`, {
+    headers: { Authorization: `Bearer ${token}` },
+    data: payload,
+  });
+  return readEnvelope<TableDefinitionRecord>(response, '创建表定义');
+}
+
+/** 发布表定义（生成/对齐物理表与字段索引） */
+export async function publishTableDefinition(
+  ctx: APIRequestContext,
+  token: string,
+  id: string,
+): Promise<void> {
+  const response = await ctx.post(`${API_BASE_URL}/form/table-definition/${id}/publish`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  await readEnvelope<void>(response, '发布表定义');
+}
+
+/** 提交表单数据（dataJson 为 JSON 文本） */
+export async function submitFormData(
+  ctx: APIRequestContext,
+  token: string,
+  definitionId: string,
+  dataJson: string,
+): Promise<FormDataRecord> {
+  const response = await ctx.post(`${API_BASE_URL}/form/data`, {
+    headers: { Authorization: `Bearer ${token}` },
+    data: { definitionId, dataJson },
+  });
+  return readEnvelope<FormDataRecord>(response, '提交表单数据');
+}
+
 /** 按表编码精确查询表定义（列表接口为等值匹配） */
 export async function pageTableDefinitionsByCode(
   ctx: APIRequestContext,
