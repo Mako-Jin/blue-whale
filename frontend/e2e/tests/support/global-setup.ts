@@ -5,7 +5,7 @@ import { API_BASE_URL } from '../../playwright.config';
 import { fetchMe, login, pageTableDefinitionsByCode, pageWorkflowDefinitions } from './api';
 
 const BACKEND_HINT = [
-  '请先启动：MySQL(3306)、Redis(6379)、Nacos(8848)、whale-gateway(8080)、whale-auth(8081)、whale-form(8084)、whale-workflow(8083)',
+  '请先启动：MySQL(3306)、Redis(6379)、Nacos(8848)、whale-gateway(8080)、whale-service-auth(8081)、whale-form(8084)、whale-workflow(8083)',
   `当前网关地址：${API_BASE_URL}`,
 ].join('\n');
 
@@ -17,7 +17,7 @@ export default async function globalSetup(): Promise<void> {
       token = await login(ctx);
     } catch (error) {
       throw new Error(
-        `E2E 前置失败：网关或 whale-auth 不可用。\n${BACKEND_HINT}\n原因：${(error as Error).message}`,
+        `E2E 前置失败：网关或 whale-service-auth 不可用。\n${BACKEND_HINT}\n原因：${(error as Error).message}`,
       );
     }
 

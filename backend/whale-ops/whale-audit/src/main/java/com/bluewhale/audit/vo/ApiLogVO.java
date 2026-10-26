@@ -27,7 +27,7 @@ public class ApiLogVO implements Serializable {
     /** 操作用户名（冗余存储，用户删除后仍可追溯） */
     private String username;
 
-    /** 业务模块，如 whale-auth */
+    /** 业务模块，如 whale-service-auth */
     private String module;
 
     /** 请求URI */

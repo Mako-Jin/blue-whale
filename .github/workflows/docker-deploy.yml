@@ -37,7 +37,7 @@ jobs:
       matrix:
         include:
           - { service: whale-gateway, module: whale-services/whale-gateway, port: 8080 }
-          - { service: whale-auth, module: whale-services/whale-auth, port: 8081 }
+          - { service: whale-service-auth, module: whale-services/whale-service-auth/whale-service-auth-starter, port: 8081 }
           - { service: whale-job, module: whale-services/whale-job, port: 8082 }
           - { service: whale-workflow, module: whale-services/whale-workflow, port: 8083 }
           - { service: whale-form, module: whale-services/whale-form, port: 8084 }

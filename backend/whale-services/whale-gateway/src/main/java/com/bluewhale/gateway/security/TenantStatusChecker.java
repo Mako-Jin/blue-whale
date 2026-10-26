@@ -10,7 +10,7 @@ import reactor.core.publisher.Mono;
 /**
  * 网关侧租户状态校验（Wave 5.54 Phase 2）。
  *
- * <p>whale-auth 在租户启停时写入 {@code whale:{tenantId}:cache:auth:tenant:status}，
+ * <p>whale-service-auth 在租户启停时写入 {@code whale:{tenantId}:cache:auth:tenant:status}，
  * 网关在 JWT 验签后读取：值为 {@code 0} 视为停用，立即拒绝存量 accessToken。</p>
  *
  * <p>降级策略：缓存缺失或 Redis 不可用时按「启用」放行（登录/刷新已做数据库校验），

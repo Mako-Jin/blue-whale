@@ -49,7 +49,7 @@
 | | whale-spring-boot-starter | 自动配置 Starter |
 | **sdk** | whale-i18n-sdk | 国际化（数据库 > 属性文件 > 默认值）；随服务启动自动建 `sys_i18n_message`，各服务自持 `i18n/<模块>/messages*.properties`，本地管理接口按服务开关 |
 | | whale-auth-sdk | 认证鉴权 SDK |
-| **services** | whale-auth | 权限中心（RBAC + ABAC 六层级） |
+| **services** | whale-service-auth | 权限中心（RBAC + ABAC 六层级） |
 | | whale-gateway | API 网关 |
 | | whale-job / workflow / form / file / pay | 基础服务 |
 | **apps** | whale-erp / mes / pdm / oa | 业务应用 |
@@ -60,15 +60,15 @@
 **规则（REQ-ARCH-003，Wave 5.1f 定稿）**：**服务自持对外一级路径前缀，网关只做转发、不剥离前缀。**
 
 - 后端服务的 Controller 路径即**对外路径**，不做「网关去前缀、服务无前缀」的二次映射：
-  - `whale-auth`：`AuthController` → `/auth/login`、`/auth/refresh`、`/auth/logout`；`UserController` → `/user/**`；另有 `/dept/**`、`/role/**`、`/menu/**`、`/permission/**`
+  - `whale-service-auth`：`AuthController` → `/auth/login`、`/auth/refresh`、`/auth/logout`；`UserController` → `/user/**`；另有 `/dept/**`、`/role/**`、`/menu/**`、`/permission/**`
   - `whale-audit`：`AuditLogController` → `/audit/log/**`
 - 网关路由形如 `Path=/{segment}/**` → `uri: lb://whale-{service}`，**不得使用 `StripPrefix`** 过滤器。
 - 鉴权白名单两侧按**同一对外路径**书写，避免「网关放行路径」与「服务放行路径」漂移：
   - 网关：`whale.gateway.jwt.white-list`（`/auth/login`、`/auth/refresh`、`/actuator/**` …）
-  - 服务：`whale-auth` `SecurityConfig#authorizeHttpRequests`（`/auth/login`、`/auth/refresh`、`/auth/logout` …）
+  - 服务：`whale-service-auth` `SecurityConfig#authorizeHttpRequests`（`/auth/login`、`/auth/refresh`、`/auth/logout` …）
 
 > **反面案例（Wave 5.1f 实测根因，AUTH-29）**：网关曾对 `/auth/**`、`/audit/**` 配 `StripPrefix=1`，
-> 于是 `POST /auth/login` 被改写为 `/login` 转发给 `whale-auth`；该路径不在服务侧
+> 于是 `POST /auth/login` 被改写为 `/login` 转发给 `whale-service-auth`；该路径不在服务侧
 > `SecurityConfig` 的 permitAll 列表内 → 服务 `RestAuthenticationEntryPoint` 直接返回
 > `401 {"code":401,"message":"未认证"}`（HTTP 401），与网关 JWT 过滤器无关，从表面看极易误判为
 > 「网关白名单未生效」。同类问题会让 `/user/**`、`/dept/**` 等路径根本无法被 `/auth/**` 路由命中。
@@ -80,7 +80,7 @@
 **规则（REQ-ARCH-004，Wave 5.1g 定稿）**：全平台命名统一以「品牌词根 `bluewhale` + 产品词根 `whale`」为骨架，**看名字即知属于哪一层、哪个域、做什么**。全量规则、域词表与映射速查表见 [naming-conventions.md](naming-conventions.md)，要点：
 
 - **数据库**：`bluewhale_<域>`，一服务一库；**基础设施同前缀**（Nacos 库为 `bluewhale_nacos`，非裸 `nacos`）；
-- **服务/模块**：`whale-<域>`，且 `模块目录 == artifactId == spring.application.name == Nacos 服务名`（`lb://whale-auth` 的可用前提）；
+- **服务/模块**：`whale-<域>`，且 `模块目录 == artifactId == spring.application.name == Nacos 服务名`（`lb://whale-service-auth` 的可用前提）；
 - **Java 包**：`com.bluewhale.<域>[.<层>]`；公共能力 `com.bluewhale.common.<能力>`；SDK 以 `.sdk` 结尾；
 - **配置**：`whale.<域>.<能力>`；环境变量 `WHALE_<域>_<键>`；
 - **Redis key**：`whale:<域>:<用途>:<标识>`；

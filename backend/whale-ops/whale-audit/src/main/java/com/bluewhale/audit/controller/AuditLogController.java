@@ -98,7 +98,7 @@ public class AuditLogController {
     /**
      * 接收其他服务转发的审计记录（内网摄入，P1-3 跨库汇聚）。
      *
-     * <p>调用方为平台内服务（当前仅 whale-auth 试点），不携带用户身份与权限码头，
+     * <p>调用方为平台内服务（当前仅 whale-service-auth 试点），不携带用户身份与权限码头，
      * 因此<b>不</b>加 {@code @RequirePermission}；同时不标注 {@code @AuditLog}，
      * 避免摄入动作产生新的审计记录形成放大。外部访问由网关 {@code internal-deny} 返回 403。</p>
      *

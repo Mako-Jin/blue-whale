@@ -76,7 +76,7 @@ mvn clean install -DskipTests
 mvn -pl whale-services/whale-gateway spring-boot:run
 
 # 启动权限中心
-mvn -pl whale-services/whale-auth spring-boot:run
+mvn -pl whale-services/whale-service-auth/whale-service-auth-starter spring-boot:run
 ```
 
 ### 3. 前端

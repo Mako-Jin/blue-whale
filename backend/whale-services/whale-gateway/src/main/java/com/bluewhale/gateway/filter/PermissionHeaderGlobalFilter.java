@@ -28,7 +28,7 @@ import java.util.Map;
  *
  * <p>解析优先级：先读 Redis 缓存键 {@code whale:{tenantId}:cache:auth:user:perm:{userId}}（值为权限码逗号串，
  * 空集合写成哨兵 {@code __NULL__}）；未命中 / 命中哨兵 / 读取异常时回落
- * {@code GET lb://whale-auth/auth/me}（带原请求 Authorization），解析 {@code data.permissions} 数组。</p>
+ * {@code GET lb://whale-service-auth/auth/me}（带原请求 Authorization），解析 {@code data.permissions} 数组。</p>
  *
  * <p><b>fail-closed</b>：两级解析均失败时注入<b>空串</b>并仅告警（不抛异常），下游 whale-audit 的
  * {@code RequirePermissionInterceptor} 将据此拒绝受保护查询。</p>
@@ -49,14 +49,14 @@ public class PermissionHeaderGlobalFilter implements GlobalFilter, Ordered {
     /** Redis Key 分段分隔符 */
     private static final String KEY_SEPARATOR = ":";
 
-    /** 权限码缓存名（与 whale-auth 的 PermissionCache.PERMISSION_CACHE_NAME 对齐） */
+    /** 权限码缓存名（与 whale-service-auth 的 PermissionCache.PERMISSION_CACHE_NAME 对齐） */
     private static final String PERMISSION_CACHE_NAME = "auth:user:perm";
 
     /** 缺失租户头时的未知租户段 */
     private static final String UNKNOWN_TENANT = "0";
 
     /** 回落拉取权限码的服务地址（lb:// 由负载均衡 WebClient 解析） */
-    private static final String AUTH_ME_URI = "lb://whale-auth/auth/me";
+    private static final String AUTH_ME_URI = "lb://whale-service-auth/auth/me";
 
     /** /auth/me 响应体中的业务数据字段名 */
     private static final String FIELD_DATA = "data";
@@ -149,7 +149,7 @@ public class PermissionHeaderGlobalFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 回落调用 {@code lb://whale-auth/auth/me}，解析 {@code data.permissions} 拼接为权限码串。
+     * 回落调用 {@code lb://whale-service-auth/auth/me}，解析 {@code data.permissions} 拼接为权限码串。
      *
      * <p>调用或解析失败时仅告警并返回空（由上游 {@code defaultIfEmpty("")} 归为空串），保证 fail-closed。</p>
      *
@@ -160,7 +160,7 @@ public class PermissionHeaderGlobalFilter implements GlobalFilter, Ordered {
     private Mono<String> fallbackFromAuthMe(ServerHttpRequest request, String userId) {
         String authorization = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
         // Wave 5.53 真机复测修复：/auth/me 依赖租户上下文（TenantContextFilter 强制 X-Tenant-Id），
-        // 缺失时 whale-auth 返回 HTTP 200 信封 + code=400 + data=null，parsePermissions 静默解析为空串，
+        // 缺失时 whale-service-auth 返回 HTTP 200 信封 + code=400 + data=null，parsePermissions 静默解析为空串，
         // 导致权限码头被注入为空、下游受限知识块被全部过滤；此处透传网关注入的租户头。
         String tenantId = request.getHeaders().getFirst(properties.getTenantIdHeader());
         return webClientBuilder.build()

@@ -37,7 +37,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class CircuitBreakerGlobalFilterTest {
 
-    private static final String PROTECTED_ROUTE = "whale-auth";
+    private static final String PROTECTED_ROUTE = "whale-service-auth";
     private static final String OTHER_ROUTE = "whale-pay";
     private static final String PATH = "http://localhost/auth/login";
     private static final String METER_CALLS = "gateway.circuit.calls";

@@ -27,7 +27,7 @@ import java.nio.charset.StandardCharsets;
 
 /**
  * JWT 全局认证过滤器。
- * 约定与 whale-auth 签发侧一字不差：HS256；claims：sub=username、userId、roles（逗号分隔）、tokenType。
+ * 约定与 whale-service-auth 签发侧一字不差：HS256；claims：sub=username、userId、roles（逗号分隔）、tokenType。
  * 认证通过后向下游注入 X-User-Id、X-Username、X-User-Roles（先清除外部伪造的同名入站头）。
  * <p>校验顺序：签名/过期 → 令牌类型必须为 access（拒绝以 refreshToken 冒充访问令牌）→
  * 查询分布式登出黑名单（REQ-SEC-003）→ 注入身份头放行。</p>

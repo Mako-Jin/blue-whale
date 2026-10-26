@@ -1,4 +1,4 @@
-// 用户管理 API（经网关 → whale-auth /user）
+// 用户管理 API（经网关 → whale-service-auth /user）
 
 import { del, get, post, put, type PageResult } from './client';
 

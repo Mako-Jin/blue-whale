@@ -1,4 +1,4 @@
-// 角色管理 API（经网关 → whale-auth /role）
+// 角色管理 API（经网关 → whale-service-auth /role）
 
 import { del, get, post, put, type PageResult } from './client';
 

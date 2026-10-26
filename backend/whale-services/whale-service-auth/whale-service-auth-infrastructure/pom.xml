@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 基础设施层：仓储实现、持久化装配器、安全/JWT/配置、领域事件发布与监听 -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.bluewhale</groupId>
+        <artifactId>whale-service-auth</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>whale-service-auth-infrastructure</artifactId>
+    <name>Whale Service Auth Infrastructure</name>
+    <description>权限中心基础设施层</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-service-auth-domain</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-service-auth-application</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-spring-boot-starter</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- jjwt、令牌黑名单与刷新轮换所需的安全能力 -->
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-security</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- @RequirePermission 注解 -->
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-auth-sdk</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.redisson</groupId>
+            <artifactId>redisson-spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+    </dependencies>
+</project>

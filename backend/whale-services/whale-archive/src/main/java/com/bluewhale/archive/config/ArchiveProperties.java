@@ -67,7 +67,7 @@ public class ArchiveProperties {
         /**
          * 显式指定定时同步遍历的租户ID列表。
          *
-         * <p>为空时从租户目录（whale-auth 内网接口）动态查询「启用且未过期」的租户；
+         * <p>为空时从租户目录（whale-service-auth 内网接口）动态查询「启用且未过期」的租户；
          * 目录不可用时回退默认租户 1，保证调度不中断。</p>
          */
         private List<Long> tenantIds = List.of();

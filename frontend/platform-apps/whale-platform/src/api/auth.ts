@@ -1,4 +1,4 @@
-// 基座认证 API 客户端（经网关转发到 whale-auth）
+// 基座认证 API 客户端（经网关转发到 whale-service-auth）
 // 后端统一响应体：{ code, message, data }，code=0 表示成功
 
 import { AppEvents, eventBus } from '@bluewhale/whale-common-tools';

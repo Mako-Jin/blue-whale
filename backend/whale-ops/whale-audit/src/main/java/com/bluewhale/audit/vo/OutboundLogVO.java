@@ -27,7 +27,7 @@ public class OutboundLogVO implements Serializable {
     /** 发起调用的用户名 */
     private String username;
 
-    /** 业务模块，如 whale-auth */
+    /** 业务模块，如 whale-service-auth */
     private String module;
 
     /** 目标主机（host:port） */

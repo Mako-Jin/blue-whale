@@ -1,4 +1,4 @@
-// whale-auth 真实认证 API 客户端（经网关转发）
+// whale-service-auth 真实认证 API 客户端（经网关转发）
 // 后端统一响应体：{ code, message, data }，code=0 表示成功
 // 本模块是「登出令牌黑名单」前端联调入口（REQ-SEC-003）
 

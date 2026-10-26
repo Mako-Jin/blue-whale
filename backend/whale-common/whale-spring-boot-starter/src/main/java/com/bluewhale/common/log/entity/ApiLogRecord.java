@@ -40,7 +40,7 @@ public class ApiLogRecord implements Serializable {
     /** 租户ID（网关可信注入，缺失为 NULL） */
     private Long tenantId;
 
-    /** 业务模块，如 whale-auth */
+    /** 业务模块，如 whale-service-auth */
     private String module;
 
     /** 请求URI */

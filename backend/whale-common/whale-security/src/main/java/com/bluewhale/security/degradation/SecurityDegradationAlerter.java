@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * <p>当安全组件（如令牌黑名单存储）不可用而被迫降级放行时，调用方通过本类输出
  * ERROR 级告警并按固定标记 {@value #ALARM_MARKER} 统一检索口径；同时自增进程内计数，
  * 供测试与运维读取降级次数。本类为纯静态工具，不作为 Spring Bean，以免在
- * Servlet（whale-auth）与 WebFlux（whale-gateway）两侧引入装配差异，也不改动任何
+ * Servlet（whale-service-auth）与 WebFlux（whale-gateway）两侧引入装配差异，也不改动任何
  * 既有构造器签名。</p>
  * <p>偏差登记：当前未接入 Micrometer/Prometheus 指标，可观测性以「ERROR 日志标记 +
  * 进程内计数」替代，属已登记偏差，待监控栈就绪后回填指标。</p>

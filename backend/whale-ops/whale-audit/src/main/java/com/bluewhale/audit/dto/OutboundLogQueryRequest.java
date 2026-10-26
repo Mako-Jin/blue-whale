@@ -28,7 +28,7 @@ public class OutboundLogQueryRequest extends PageQuery {
     /** 发起调用的用户ID */
     private Long userId;
 
-    /** 业务模块，如 whale-auth */
+    /** 业务模块，如 whale-service-auth */
     private String module;
 
     /** 目标主机（host:port，精确匹配） */

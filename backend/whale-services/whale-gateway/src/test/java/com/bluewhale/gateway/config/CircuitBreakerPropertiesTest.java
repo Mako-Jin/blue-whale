@@ -31,7 +31,7 @@ class CircuitBreakerPropertiesTest {
         assertEquals(50, properties.getFailureRateThreshold());
         assertEquals(20, properties.getSlidingWindowSize());
         assertEquals(10000, properties.getWaitDurationInOpenStateMillis());
-        assertEquals(List.of("whale-auth", "whale-job", "whale-file", "whale-audit"), properties.getApplyToRoutes());
+        assertEquals(List.of("whale-service-auth", "whale-job", "whale-file", "whale-audit"), properties.getApplyToRoutes());
     }
 
     @Test
@@ -43,7 +43,7 @@ class CircuitBreakerPropertiesTest {
                 .withProperty(PREFIX + ".failure-rate-threshold", "80")
                 .withProperty(PREFIX + ".sliding-window-size", "5")
                 .withProperty(PREFIX + ".wait-duration-in-open-state-millis", "2000")
-                .withProperty(PREFIX + ".apply-to-routes[0]", "whale-auth")
+                .withProperty(PREFIX + ".apply-to-routes[0]", "whale-service-auth")
                 .withProperty(PREFIX + ".apply-to-routes[1]", "whale-pay");
 
         CircuitBreakerProperties properties = Binder.get(environment)
@@ -55,6 +55,6 @@ class CircuitBreakerPropertiesTest {
         assertEquals(80, properties.getFailureRateThreshold());
         assertEquals(5, properties.getSlidingWindowSize());
         assertEquals(2000, properties.getWaitDurationInOpenStateMillis());
-        assertEquals(List.of("whale-auth", "whale-pay"), properties.getApplyToRoutes());
+        assertEquals(List.of("whale-service-auth", "whale-pay"), properties.getApplyToRoutes());
     }
 }

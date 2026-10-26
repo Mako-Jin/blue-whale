@@ -14,7 +14,7 @@ import java.util.Map;
 /**
  * 租户目录内网客户端（Wave 5.54 Phase 3）。
  *
- * <p>调用 whale-auth 的 {@code /tenant/internal/enabled-ids} 获取「启用且未过期」的租户ID，
+ * <p>调用 whale-service-auth 的 {@code /tenant/internal/enabled-ids} 获取「启用且未过期」的租户ID，
  * 供文件知识库定时同步逐租户执行；目录不可用时返回空列表，由调度器回退默认租户。</p>
  *
  * @author BlueWhale

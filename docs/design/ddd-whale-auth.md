@@ -1,12 +1,12 @@
-# whale-auth 权限服务 DDD 架构设计
+# whale-service-auth 权限服务 DDD 架构设计
 
 | 项 | 内容 |
 |---|---|
 | 需求编号 | REQ-ARCH-001 |
-| 状态 | 设计已定稿 / 实现待启动 |
-| 最后更新 | 2026-10-17 |
+| 状态 | 已落地（2026-10-26 完成 Maven 五模块拆分） |
+| 最后更新 | 2026-10-26 |
 | 作者 | BlueWhale |
-| 落点模块 | `backend/whale-services/whale-auth`（端口 8081） |
+| 落点模块 | `backend/whale-services/whale-service-auth`（可部署子模块 `whale-service-auth-starter`，端口 8081） |
 
 ---
 
@@ -195,7 +195,7 @@ com.bluewhale.auth
 - 每步保持 **REST API 路径与出入参完全不变**（qiankun 前端与网关路由已依赖 `/auth/**`、`/user/**` 等）。
 - **并行新旧实现**通过配置开关（如 `whale.auth.ddd.{context}.enabled`，默认 `false`），先灰度再到默认开启。
 - **回滚**：开关回退 + 保留旧 `ServiceImpl` 至迁移完成后再清理（不提前删）。
-- 每步结束跑 `mvn -pl whale-services/whale-auth -am compile` + 接口回归。
+- 每步结束跑 `mvn -pl whale-services/whale-service-auth/whale-service-auth-starter -am compile` + 接口回归。
 
 ---
 

@@ -1,4 +1,4 @@
-// 菜单管理 API（经网关 → whale-auth /menu）
+// 菜单管理 API（经网关 → whale-service-auth /menu）
 
 import { del, get, post, put } from './client';
 

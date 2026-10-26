@@ -27,7 +27,7 @@ public class ApiLogQueryRequest extends PageQuery {
     /** 操作用户ID（匿名访问为 NULL） */
     private Long userId;
 
-    /** 业务模块，如 whale-auth */
+    /** 业务模块，如 whale-service-auth */
     private String module;
 
     /** 请求URI（精确匹配） */

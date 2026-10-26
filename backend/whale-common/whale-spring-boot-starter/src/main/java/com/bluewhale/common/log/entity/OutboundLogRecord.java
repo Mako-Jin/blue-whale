@@ -40,7 +40,7 @@ public class OutboundLogRecord implements Serializable {
     /** 租户ID（请求上下文，缺失为 NULL） */
     private Long tenantId;
 
-    /** 业务模块，如 whale-auth */
+    /** 业务模块，如 whale-service-auth */
     private String module;
 
     /** 目标主机（host:port） */

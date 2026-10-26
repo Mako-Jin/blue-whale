@@ -8,7 +8,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * 权限码头判定配置（AUTH-06）。
  *
  * <p>{@code whale.permission.header.*}：{@code enabled} 控制是否装配 {@link RequirePermissionInterceptor}
- * （默认 {@code false}，仅显式开启的服务生效，避免在 whale-auth 内与本服务 {@code PermissionInterceptor}
+ * （默认 {@code false}，仅显式开启的服务生效，避免在 whale-service-auth 内与本服务 {@code PermissionInterceptor}
  * 重复判定）；{@code codes-header} 为权限码头名（可改，默认与网关一致）。</p>
  *
  * @author BlueWhale

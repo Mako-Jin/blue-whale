@@ -14,7 +14,7 @@
 | 用途 | 规则 | 示例 |
 |---|---|---|
 | 品牌词根（库、Java 包、NPM scope） | `bluewhale`（全小写） | `bluewhale_auth`、`com.bluewhale.auth`、`@bluewhale/whale-ui` |
-| 产品词根（模块、服务、NPM 包、配置、Redis 命名空间） | `whale`（全小写） | `whale-auth`、`whale.gateway.jwt`、`whale:auth:token:...` |
+| 产品词根（模块、服务、NPM 包、配置、Redis 命名空间） | `whale`（全小写） | `whale-service-auth`、`whale.gateway.jwt`、`whale:auth:token:...` |
 | 多词分隔（目录 / 模块 / NPM 包 / 容器） | `-`（kebab-case） | `whale-spring-boot-starter` |
 | 多词分隔（库 / 表 / 列 / SQL 对象） | `_`（snake_case） | `bluewhale_auth`、`sys_user_role` |
 | 多词分隔（Java 包） | `.`（全小写） | `com.bluewhale.auth.security` |
@@ -74,7 +74,7 @@
 Maven 模块目录名 == artifactId == spring.application.name == Nacos 服务名 == 容器/进程名
 ```
 
-- 网关 `lb://whale-auth` 中的 `whale-auth` 即 Nacos 服务名，改名即断链 —— 该铁律是 `lb://` 路由可用的前提；
+- 网关 `lb://whale-service-auth` 中的 `whale-service-auth` 即 Nacos 服务名，改名即断链 —— 该铁律是 `lb://` 路由可用的前提；
 - `<域>` 统一取自 §八 域词表，新增服务须先在此登记域词，再创建模块。
 
 ### 3.3 组件类型后缀
@@ -179,7 +179,7 @@ Maven 模块目录名 == artifactId == spring.application.name == Nacos 服务�
 | sdk | whale-auth-sdk | — | — | `com.bluewhale.auth.sdk` | — |
 | sdk | whale-i18n-sdk | — | — | `com.bluewhale.i18n.sdk`（目标，现为 `com.bluewhale.i18n`） | — |
 | services | whale-gateway | whale-gateway | 无 | `com.bluewhale.gateway` | 8080 |
-| services | whale-auth | whale-auth | `bluewhale_auth` ✔ | `com.bluewhale.auth` | 8081 |
+| services | whale-service-auth | whale-service-auth | `bluewhale_auth` ✔ | `com.bluewhale.auth` | 8081 |
 | services | whale-job | whale-job | `bluewhale_job`（规划） | `com.bluewhale.job` | 8082 |
 | services | whale-workflow | whale-workflow | `bluewhale_workflow`（规划） | `com.bluewhale.workflow` | 8083 |
 | services | whale-form | whale-form | `bluewhale_form`（规划） | `com.bluewhale.form` | 8084 |

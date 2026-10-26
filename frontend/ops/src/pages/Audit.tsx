@@ -56,7 +56,7 @@ export default function Audit() {
             {
               name: 'module',
               label: '模块',
-              element: <Input allowClear placeholder="如 whale-auth" />,
+              element: <Input allowClear placeholder="如 whale-service-auth" />,
             },
             {
               name: 'requestUri',

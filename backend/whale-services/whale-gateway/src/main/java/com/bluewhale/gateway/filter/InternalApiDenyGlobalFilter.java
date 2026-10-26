@@ -28,7 +28,7 @@ import java.util.List;
  * <p>过滤器顺序置于鉴权（{@code JwtAuthGlobalFilter} order=-100）之前，确保内网路径即使未携带
  * 合法令牌也直接以 403 拒绝，而非回落为 401。</p>
  *
- * <p>GW-06：当前仅 whale-file 暴露 {@code /file/internal/**} 内网接口，其余服务（whale-auth、whale-job、
+ * <p>GW-06：当前仅 whale-file 暴露 {@code /file/internal/**} 内网接口，其余服务（whale-service-auth、whale-job、
  * whale-audit 等）暂无内网端点；本规则已就绪，后续任何服务新增内网接口只需在
  * {@code whale.gateway.internal-deny.patterns} 追加对应 Ant 路径模式（如 {@code /job/internal/**}）即可生效，
  * 无需改动本过滤器代码。</p>

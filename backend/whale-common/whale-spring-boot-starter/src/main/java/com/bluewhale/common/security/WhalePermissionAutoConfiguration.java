@@ -16,7 +16,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  *
  * <p>生效条件：Servlet Web 应用 + 类路径存在 {@link RequirePermission} 注解 +
  * {@code whale.permission.header.enabled=true}（默认 {@code false}）。<b>仅显式开启的服务</b>才注册
- * {@link RequirePermissionInterceptor}，避免在 whale-auth 内与本服务 {@code PermissionInterceptor}
+ * {@link RequirePermissionInterceptor}，避免在 whale-service-auth 内与本服务 {@code PermissionInterceptor}
  * 重复判定（本波仅 whale-audit 开启）。</p>
  *
  * @author BlueWhale

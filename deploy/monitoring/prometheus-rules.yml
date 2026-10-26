@@ -44,7 +44,7 @@ groups:
       - alert: LoginP95Slow
         expr: |
           histogram_quantile(0.95,
-            sum by (le) (rate(http_server_requests_seconds_bucket{application="whale-auth",uri="/auth/login"}[5m]))
+            sum by (le) (rate(http_server_requests_seconds_bucket{application="whale-service-auth",uri="/auth/login"}[5m]))
           ) > 1.5
         for: 5m
         labels:
@@ -52,7 +52,7 @@ groups:
           team: platform
         annotations:
           summary: '登录 P95 超过 1500ms'
-          description: 'SLO-1 失守：whale-auth 登录接口 P95 为 {{ $value }}s，持续 5 分钟。'
+          description: 'SLO-1 失守：whale-service-auth 登录接口 P95 为 {{ $value }}s，持续 5 分钟。'
 
   - name: bluewhale-jvm
     rules:

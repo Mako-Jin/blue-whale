@@ -22,11 +22,11 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * 用户目录客户端：经内网直连 {@code whale-auth} 批量校验用户是否存在且启用。
+ * 用户目录客户端：经内网直连 {@code whale-service-auth} 批量校验用户是否存在且启用。
  *
  * <p>调用 {@code POST /user/internal/exists}（该路径已在网关注册为内网接口，外部访问 403），
  * 地址优先取 {@code whale.im.auth.base-url}，未配置时经 {@link DiscoveryClient} 解析
- * {@code whale-auth} 实例。</p>
+ * {@code whale-service-auth} 实例。</p>
  *
  * <p><strong>可用性优先</strong>：校验关闭、无可用实例、网络异常或响应非 0 时统一返回
  * {@link Optional#empty()}，由调用方跳过校验而不是阻断 IM 主流程；仅在成功取得结果时
@@ -47,7 +47,7 @@ public class UserDirectoryClient {
     /** 响应码缺失时的取值 */
     private static final int MISSING_CODE = -1;
 
-    /** 单次校验批量上限（与 whale-auth 入参约束一致） */
+    /** 单次校验批量上限（与 whale-service-auth 入参约束一致） */
     private static final int MAX_BATCH = 200;
 
     /** 租户请求头（auth 按租户过滤用户目录，限定群成员同租户） */
@@ -78,7 +78,7 @@ public class UserDirectoryClient {
     public UserDirectoryClient(DiscoveryClient discoveryClient,
                                ObjectMapper objectMapper,
                                @Value("${whale.im.auth.base-url:}") String baseUrl,
-                               @Value("${whale.im.auth.service-name:whale-auth}") String serviceName,
+                               @Value("${whale.im.auth.service-name:whale-service-auth}") String serviceName,
                                @Value("${whale.im.member.validation-enabled:true}") boolean validationEnabled,
                                @Value("${whale.im.member.timeout-seconds:3}") long timeoutSeconds) {
         this.discoveryClient = discoveryClient;

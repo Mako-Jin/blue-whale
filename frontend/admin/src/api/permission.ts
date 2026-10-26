@@ -1,4 +1,4 @@
-// 权限点 API（经网关 → whale-auth /permission）
+// 权限点 API（经网关 → whale-service-auth /permission）
 
 import { del, get, post, put, type PageResult } from './client';
 

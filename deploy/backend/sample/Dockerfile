@@ -2,8 +2,8 @@
 # 蓝鲸后端业务服务通用 Dockerfile 模板（参数化，含网关/业务/APP 均适用）
 # 构建上下文：仓库根目录
 #   docker build -f deploy/backend/sample/Dockerfile \
-#     --build-arg MODULE_PATH=whale-services/whale-auth \
-#     --build-arg SERVICE_PORT=8081 -t bluewhale/whale-auth .
+#     --build-arg MODULE_PATH=whale-services/whale-service-auth/whale-service-auth-starter \
+#     --build-arg SERVICE_PORT=8081 -t bluewhale/whale-service-auth .
 # 说明：MODULE_PATH 为相对 backend/ 的模块路径（Maven -pl 坐标）
 # ============================================================
 
@@ -14,7 +14,7 @@ ARG JRE_IMAGE=eclipse-temurin:21-jre-alpine
 FROM ${MAVEN_IMAGE} AS builder
 
 # 构建期参数（FROM 之后需重新声明才能用于 RUN）
-ARG MODULE_PATH=whale-services/whale-auth
+ARG MODULE_PATH=whale-services/whale-service-auth/whale-service-auth-starter
 
 WORKDIR /build
 

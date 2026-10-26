@@ -1,4 +1,4 @@
-// 登录页 - 对接 whale-auth 真实接口（POST /auth/login，经网关转发）
+// 登录页 - 对接 whale-service-auth 真实接口（POST /auth/login，经网关转发）
 
 import { useState } from 'react';
 import { App, Button, Card, Form, Input } from 'antd';

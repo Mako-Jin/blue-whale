@@ -1,4 +1,4 @@
-// whale-auth 认证 API 客户端（经网关转发）
+// whale-service-auth 认证 API 客户端（经网关转发）
 // 后端统一响应体：{ code, message, data }，code=0 表示成功
 
 import { AppEvents, eventBus } from '@bluewhale/whale-common-tools';

@@ -28,7 +28,7 @@ whale:
   gateway:
     dynamic-routes:
       - id: whale-smoke-route
-        uri: lb://whale-auth
+        uri: lb://whale-service-auth
         predicates:
           - name: Path
             args:
@@ -41,7 +41,7 @@ whale:
   gateway:
     dynamic-routes:
       - id: whale-bad-route
-        uri: lb://whale-auth
+        uri: lb://whale-service-auth
         predicates:
           - name: Path
             args:
@@ -54,7 +54,7 @@ whale:
   gateway:
     dynamic-routes:
       - id: whale-smoke-route2
-        uri: lb://whale-auth
+        uri: lb://whale-service-auth
         predicates:
           - name: Path
             args:

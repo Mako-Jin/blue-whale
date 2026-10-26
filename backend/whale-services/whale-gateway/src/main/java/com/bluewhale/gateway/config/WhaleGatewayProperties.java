@@ -41,7 +41,7 @@ public class WhaleGatewayProperties {
          */
         public static final String DEFAULT_PLACEHOLDER_SECRET = "bluewhale-jwt-secret-2026-please-change-in-production";
 
-        /** HS256 签名密钥，必须与 whale-auth 签发侧一致 */
+        /** HS256 签名密钥，必须与 whale-service-auth 签发侧一致 */
         private String secret = DEFAULT_PLACEHOLDER_SECRET;
     }
 

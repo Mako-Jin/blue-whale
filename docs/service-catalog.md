@@ -22,7 +22,7 @@
 | # | 服务名（Spring / Nacos） | 所属分组 | 模块目录 | 端口 | 对外一级前缀 | 网关路由 | 数据库（`bluewhale_<域>`） | 启动类 | 职责 | 本机状态 |
 |---|---|---|---|---|---|---|---|---|---|---|
 | 1 | `whale-gateway` | whale-services | `whale-services/whale-gateway` | **8080** | ——（唯一入口） | —— | 无（仅 Redis 存放黑名单） | `WhaleGatewayApplication` | 统一入口：路由转发、JWT 鉴权、令牌黑名单校验、TraceId | **已运行**（已在 Nacos 注册） |
-| 2 | `whale-auth` | whale-services | `whale-services/whale-auth` | **8081** | `/auth/**`（另自持 `/user`、`/dept`、`/role`、`/menu`、`/permission`） | ✅ `lb://whale-auth` | **`bluewhale_auth`**（13 表，已建） | `WhaleAuthApplication` | 认证与权限中心：登录/刷新/注销、RBAC+ABAC、用户/部门/角色/菜单/权限 | **已运行**（已在 Nacos 注册） |
+| 2 | `whale-service-auth` | whale-services | `whale-services/whale-service-auth`（starter 模块 `whale-service-auth-starter`） | **8081** | `/auth/**`（另自持 `/user`、`/dept`、`/role`、`/menu`、`/permission`） | ✅ `lb://whale-service-auth` | **`bluewhale_auth`**（13 表，已建） | `WhaleAuthApplication` | 认证与权限中心：登录/刷新/注销、RBAC+ABAC、用户/部门/角色/菜单/权限 | **已运行**（已在 Nacos 注册） |
 | 3 | `whale-job` | whale-services | `whale-services/whale-job` | **8082** | `/job/**` | ✅ `lb://whale-job` | **`bluewhale_job`**（已建库） | `WhaleJobApplication` | 定时任务调度 | 可启动 |
 | 4 | `whale-workflow` | whale-services | `whale-services/whale-workflow` | **8083** | `/workflow/**` | ✅ `lb://whale-workflow` | **`bluewhale_workflow`**（已建库） | `WhaleWorkflowApplication` | 工作流引擎（审批流） | 可启动 |
 | 5 | `whale-form` | whale-services | `whale-services/whale-form` | **8084** | `/form/**` | ✅ `lb://whale-form` | **`bluewhale_form`**（已建库） | `WhaleFormApplication` | 动态表单 | 可启动 |
@@ -52,7 +52,7 @@
 
 | 路由 id | 断言前缀 | 目标 URI | 对应服务 | 状态 |
 |---|---|---|---|---|
-| `whale-auth` | `Path=/auth/**,/user/**,/dept/**,/role/**,/menu/**,/permission/**` | `lb://whale-auth` | whale-auth | ✅ 已配（Wave 5.2/AUTH-38 补齐管理前缀） |
+| `whale-service-auth` | `Path=/auth/**,/user/**,/dept/**,/role/**,/menu/**,/permission/**` | `lb://whale-service-auth` | whale-service-auth | ✅ 已配（Wave 5.2/AUTH-38 补齐管理前缀） |
 | `whale-job` | `Path=/job/**` | `lb://whale-job` | whale-job | ✅ 已配 |
 | `whale-workflow` | `Path=/workflow/**` | `lb://whale-workflow` | whale-workflow | ✅ 已配 |
 | `whale-form` | `Path=/form/**` | `lb://whale-form` | whale-form | ✅ 已配 |
@@ -106,7 +106,7 @@
 |---|---|---|---|---|---|---|
 | 1 | **MySQL** | 业务库 + Nacos 外置存储 | **3306**（TCP） | 8.0.45（本机 `D:\mysql8`）／镜像 8.4（compose） | 本机原生；compose `bw-mysql` | **已运行**。库：`bluewhale_auth`、`bluewhale_audit`、`bluewhale_nacos`、`bluewhale_agent`、**`bluewhale_im`（规划，Wave 5.52）**（另有外部遗留 `yc-sts-db-auth` / `yc-sts-db-flow`，登记不改名） |
 | 2 | **Redis** | 令牌黑名单、i18n 缓存、分布式锁 | **6379**（TCP） | 5.0.14.1（本机 `tools/`）／镜像 7-alpine（compose） | 本机原生；compose `bw-redis` | **已运行** |
-| 3 | **Nacos** | 服务注册发现 + 配置中心 | **8848**（HTTP OpenAPI + 主服务）<br>**8849**（控制台，仅 3.x 独立控制台）<br>**9848**（gRPC 客户端→服务端）<br>**9849**（gRPC 服务端→服务端，集群） | 2.4.0（本机 `tools/nacos`）／镜像 2.4.0（compose） | 本机原生（standalone + MySQL 外置存储）；compose `bw-nacos` | **已运行**（PID 实测监听 8848/9848；已注册 `whale-gateway` / `whale-auth` / `whale-audit`） |
+| 3 | **Nacos** | 服务注册发现 + 配置中心 | **8848**（HTTP OpenAPI + 主服务）<br>**8849**（控制台，仅 3.x 独立控制台）<br>**9848**（gRPC 客户端→服务端）<br>**9849**（gRPC 服务端→服务端，集群） | 2.4.0（本机 `tools/nacos`）／镜像 2.4.0（compose） | 本机原生（standalone + MySQL 外置存储）；compose `bw-nacos` | **已运行**（PID 实测监听 8848/9848；已注册 `whale-gateway` / `whale-service-auth` / `whale-audit`） |
 | 4 | **RabbitMQ** | 审计日志汇聚、异步消息（规划） | **5672**（AMQP）<br>**15672**（Management 控制台） | 4-management-alpine | compose `bw-rabbitmq` | ⚠ **未启动**（compose 服务已定义，本机未拉起） |
 | 5 | **Nginx** | 反向代理 + 前端静态资源 + TLS | **80**（HTTP）<br>**443**（HTTPS） | 自建镜像（`infrastructure/docker/nginx`） | compose `bw-nginx` | ⚠ **未启动**（compose 服务已定义，本机未拉起） |
 | 6 | **Prometheus** | 指标采集 | **9090**（默认，`PROMETHEUS_HOST_PORT` 可覆盖） | v2.54.1（compose `PROMETHEUS_IMAGE`） | compose `bw-prometheus`（挂载 `infrastructure/prometheus/prometheus-docker.yml` + `deploy/monitoring/prometheus-rules.yml`） | **已运行**（healthcheck healthy；抓取宿主机 gateway/auth/workflow/contract 均为 up） |
@@ -134,7 +134,7 @@
 | **8003** | `whale-workflow-designer` | 前端（独立 SPA） | 工作流设计器 |
 | **8004** | `whale-agent` | 前端（独立 SPA） | 知识问答工作台（Wave 5.47） |
 | **8080** | `whale-gateway` | 后端 | **唯一 API 入口** |
-| **8081** | `whale-auth` | 后端 | 认证与权限中心 |
+| **8081** | `whale-service-auth` | 后端 | 认证与权限中心 |
 | **8082** | `whale-job` | 后端 | 定时任务 |
 | **8083** | `whale-workflow` | 后端 | 工作流 |
 | **8084** | `whale-form` | 后端 | 动态表单 |
@@ -180,8 +180,8 @@
 |---|---|---|---|
 | 前端（任意） | 网关 | `http://<host>:8080/<一级前缀>/...` | 唯一对外入口，不再直连业务服务 |
 | 网关 | 各后端服务 | `lb://whale-<域>` | Nacos 服务发现，服务名 = `spring.application.name` |
-| 任意后端服务 | `whale-auth` | `lb://whale-auth` 或 SDK `whale-auth-sdk` | 包 `com.bluewhale.auth.sdk` |
-| `whale-im` | `whale-auth` | `POST /user/internal/exists`（Nacos 直连，不经网关） | 群成员 / 单聊对方合法性校验（存在且启用）；网关已列入 `internal-deny`，外部访问 403 |
+| 任意后端服务 | `whale-service-auth` | `lb://whale-service-auth` 或 SDK `whale-auth-sdk` | 包 `com.bluewhale.auth.sdk` |
+| `whale-im` | `whale-service-auth` | `POST /user/internal/exists`（Nacos 直连，不经网关） | 群成员 / 单聊对方合法性校验（存在且启用）；网关已列入 `internal-deny`，外部访问 403 |
 | 任意后端服务 | `whale-file` | `lb://whale-file` | —— |
 | `whale-im` | `whale-agent` | `lb://whale-agent`（`POST /agent/chat`，SSE） | 机器人问答；透传 `X-User-Id` / `X-Permission-Codes`（Wave 5.52 规划） |
 | `whale-agent` | `whale-ai` | `http://<内网>:8092/v1/agent/*`（`WHALE_AI_BASE_URL`） | LangChain 编排；**不经网关、不注册 Nacos**（Wave 5.52 规划） |
@@ -216,11 +216,11 @@
 | `PROMETHEUS_HOST_PORT` / `ALERTMANAGER_HOST_PORT` / `GRAFANA_HOST_PORT` | 可观测性端口 | `9090` / `9093` / `3000` | compose `bw-prometheus` / `bw-alertmanager` / `bw-grafana` |
 | `PROMETHEUS_RETENTION` | 指标保留期 | `15d` | compose `bw-prometheus` |
 | `GRAFANA_ADMIN_PASSWORD` | Grafana 管理员口令 | `admin`（仅供本机） | compose `bw-grafana` |
-| `REDIS_HOST` / `REDIS_PORT` | Redis | `127.0.0.1` / `6379` | whale-gateway、whale-auth、**whale-im**（seq/ticket/presence） |
-| `MYSQL_USER` / `MYSQL_PASSWORD` | 库账号 | 见各 yml | whale-auth、whale-audit、**whale-im** |
+| `REDIS_HOST` / `REDIS_PORT` | Redis | `127.0.0.1` / `6379` | whale-gateway、whale-service-auth、**whale-im**（seq/ticket/presence） |
+| `MYSQL_USER` / `MYSQL_PASSWORD` | 库账号 | 见各 yml | whale-service-auth、whale-audit、**whale-im** |
 | `WHALE_AI_BASE_URL` | Python 智能体内网地址 | `http://127.0.0.1:8092` | whale-agent（Wave 5.52） |
 | `WHALE_AGENT_QA_ENGINE` | 问答引擎开关 | `legacy` | whale-agent（`legacy`/`langchain`） |
-| `JWT_SECRET` | 认证签名密钥 | 开发占位（非 dev 拒绝启动） | whale-auth |
+| `JWT_SECRET` | 认证签名密钥 | 开发占位（非 dev 拒绝启动） | whale-service-auth |
 | `WHALE_GATEWAY_JWT_SECRET` | 网关校验密钥 | 开发占位 | whale-gateway |
 | `SPRING_PROFILES_ACTIVE` | 环境 | `dev` | 全部服务 |
 

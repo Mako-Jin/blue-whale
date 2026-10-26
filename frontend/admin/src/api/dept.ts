@@ -1,4 +1,4 @@
-// 部门 API（经网关 → whale-auth /dept）
+// 部门 API（经网关 → whale-service-auth /dept）
 
 import { del, get, post, put } from './client';
 

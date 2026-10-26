@@ -17,7 +17,7 @@
     <description>BlueWhale 服务类别聚合模块</description>
 
     <modules>
-        <module>whale-auth</module>
+        <module>whale-service-auth</module>
         <module>whale-job</module>
         <module>whale-workflow</module>
         <module>whale-form</module>

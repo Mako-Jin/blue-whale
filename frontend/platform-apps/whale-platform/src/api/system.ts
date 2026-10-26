@@ -1,6 +1,6 @@
 // system.ts —— 基座系统管理只读查询（用户 / 角色 / 菜单）
 //
-// 后端：whale-auth 经网关转发，分页参数 current/size，响应为 Result<PageResult<T>>。
+// 后端：whale-service-auth 经网关转发，分页参数 current/size，响应为 Result<PageResult<T>>。
 
 import { get, type PageResult } from './client';
 

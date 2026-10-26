@@ -1,4 +1,4 @@
-// 租户管理 API（经网关 → whale-auth /tenant）
+// 租户管理 API（经网关 → whale-service-auth /tenant）
 // Wave 5.54 Phase 4：仅平台租户（tenant_type=PLATFORM）可访问，业务租户返回 403
 
 import { del, get, post, put, type PageResult } from './client';

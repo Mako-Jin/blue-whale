@@ -116,7 +116,7 @@
 
 | 类型 | 命名 | 说明 |
 |---|---|---|
-| 后端 JAR | `{artifactId}.jar`（`finalName=${project.artifactId}`，如 `whale-auth.jar`） | 各模块 `target/` 下，CI 汇总为 `backend-jars` |
+| 后端 JAR | `{artifactId}.jar`（`finalName=${project.artifactId}`，如 `whale-service-auth.jar`） | 各模块 `target/` 下，CI 汇总为 `backend-jars` |
 | 前端产物 | `**/dist/` | qiankun 基座与子应用各自 dist，汇总为 `frontend-dist` |
 
 ### 5.2 镜像（GHCR 现状 + 规范）

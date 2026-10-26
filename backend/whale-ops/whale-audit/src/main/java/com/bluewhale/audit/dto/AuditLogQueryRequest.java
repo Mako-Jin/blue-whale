@@ -26,7 +26,7 @@ public class AuditLogQueryRequest extends PageQuery {
     /** 操作用户名（模糊匹配） */
     private String username;
 
-    /** 业务模块，如 whale-auth */
+    /** 业务模块，如 whale-service-auth */
     private String module;
 
     /** 操作类型：LOGIN/LOGOUT/CREATE/UPDATE/DELETE/QUERY/GRANT/EXPORT/IMPORT/OTHER */

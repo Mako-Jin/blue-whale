@@ -6,7 +6,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 
 /**
- * 令牌黑名单键约定（whale-auth 写入 / whale-gateway 校验共用同一实现）。
+ * 令牌黑名单键约定（whale-service-auth 写入 / whale-gateway 校验共用同一实现）。
  * <p>键结构：{@code auth:token:blacklist:<sha256(token)>}，值为固定占位符，
  * 仅以键是否存在判定命中；使用摘要而非 token 原文作为键名，避免明文凭据落入
  * Redis keyspace 与日志。两侧必须共用本类构造键，避免各自实现导致格式漂移、
