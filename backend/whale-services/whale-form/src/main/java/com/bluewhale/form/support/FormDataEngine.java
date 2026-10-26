@@ -4,6 +4,7 @@ import com.bluewhale.form.entity.FormData;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 表单数据动态数据引擎：以物理表为落点进行结构化字段的建表、写入、读取与逻辑删除。
@@ -29,6 +30,14 @@ public interface FormDataEngine {
      * @return 列名 → 归一化 MySQL 列类型（小写、无空格）；表不存在时返回空映射
      */
     Map<String, String> describeColumns(String table);
+
+    /**
+     * 查询物理表现有索引名，用于发布时对齐字段级自动索引
+     *
+     * @param table 物理表名
+     * @return 现有索引名集合（含主键索引名 {@code PRIMARY}）；表不存在时返回空集合
+     */
+    Set<String> describeIndexes(String table);
 
     /**
      * 向物理表插入一条数据（主键、租户与公共列取自 {@code record}，动态列取自 {@code fields}+{@code data}）

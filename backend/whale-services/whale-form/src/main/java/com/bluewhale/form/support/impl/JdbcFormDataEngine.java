@@ -17,8 +17,10 @@ import org.springframework.util.StringUtils;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -62,6 +64,14 @@ public class JdbcFormDataEngine implements FormDataEngine {
             }
         }
         return columns;
+    }
+
+    @Override
+    public Set<String> describeIndexes(String table) {
+        String target = assertTable(table);
+        String sql = "SELECT DISTINCT INDEX_NAME FROM information_schema.STATISTICS"
+                + " WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?";
+        return new LinkedHashSet<>(jdbcTemplate.queryForList(sql, String.class, target));
     }
 
     @Override

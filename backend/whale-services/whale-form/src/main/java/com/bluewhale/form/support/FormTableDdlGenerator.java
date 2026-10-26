@@ -6,7 +6,9 @@ import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.form.entity.FormColumnMeta;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -32,6 +34,15 @@ public final class FormTableDdlGenerator {
 
     /** COMMENT 文本最大长度 */
     private static final int MAX_COMMENT_LENGTH = 200;
+
+    /** 字段级自动索引名前缀（仅管理此前缀的索引，不触碰其他索引） */
+    public static final String AUTO_INDEX_PREFIX = "idx_f_";
+
+    /** 单表自动索引数量上限（控制写放大，超出按列顺序截断） */
+    public static final int MAX_AUTO_INDEXES = 16;
+
+    /** 文本列可建全列索引的最大长度（utf8mb4 下 191*4=764 字节，兼容 767 字节索引前缀限制） */
+    public static final int MAX_INDEXED_TEXT_LENGTH = 191;
 
     /** 物理表公共列（与 {@link FormSchemaParser} 保留列一致，永不参与增量变更） */
     private static final Set<String> RESERVED_COLUMNS = Set.of(
@@ -104,6 +115,7 @@ public final class FormTableDdlGenerator {
                     + " DEFAULT NULL COMMENT '" + escapeComment(field.getLabel()) + "'");
         }
         defs.addAll(baseIndexDefs());
+        defs.addAll(autoIndexDefsForFields(fields));
         return buildDdl(table, "表单数据物理表 " + code + " v" + version, defs);
     }
 
@@ -124,6 +136,7 @@ public final class FormTableDdlGenerator {
             defs.add(columnDef(column));
         }
         defs.addAll(baseIndexDefs());
+        defs.addAll(autoIndexDefs(columns));
         return buildDdl(table, "表单数据物理表 " + tableCode + " v" + version, defs);
     }
 
@@ -171,6 +184,153 @@ public final class FormTableDdlGenerator {
      */
     public static String alterDrop(String table, String columnCode) {
         return "ALTER TABLE `" + table + "` DROP COLUMN `" + columnCode + "`";
+    }
+
+    /**
+     * 判断列是否适合建字段级索引
+     *
+     * <p>仅高选择性/常用于过滤的标量类型（number/date/datetime/select）与短文本（长度 ≤
+     * {@link #MAX_INDEXED_TEXT_LENGTH}）建索引；长文本、附件、子表与布尔（低区分度）不建。</p>
+     *
+     * @param dataType 存储类型
+     * @param length 文本长度（仅 text 生效，可空视为 {@link FormDataType#DEFAULT_TEXT_LENGTH}）
+     * @return 适合建索引返回 {@code true}
+     */
+    public static boolean isIndexable(String dataType, Integer length) {
+        if (dataType == null) {
+            return false;
+        }
+        switch (dataType) {
+            case FormDataType.NUMBER:
+            case FormDataType.DATE:
+            case FormDataType.DATETIME:
+            case FormDataType.SELECT:
+                return true;
+            case FormDataType.TEXT:
+                int textLength = length == null ? FormDataType.DEFAULT_TEXT_LENGTH : length;
+                return textLength <= MAX_INDEXED_TEXT_LENGTH;
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * 字段级自动索引名（{@code idx_f_<列编码>}）
+     *
+     * @param columnCode 列编码
+     * @return 索引名；列编码过长导致索引名超过 64 字符时返回 {@code null}（跳过该列索引）
+     */
+    public static String autoIndexName(String columnCode) {
+        String name = AUTO_INDEX_PREFIX + columnCode;
+        return name.length() > MAX_IDENTIFIER_LENGTH ? null : name;
+    }
+
+    /**
+     * 单列自动索引定义片段（含数量上限截断）
+     *
+     * @param columnCode 列编码
+     * @return 形如 {@code KEY `idx_f_x` (`x`)} 的定义文本；不可索引时返回 {@code null}
+     */
+    public static String autoIndexDef(String columnCode) {
+        String name = autoIndexName(columnCode);
+        return name == null ? null : "KEY `" + name + "` (`" + columnCode + "`)";
+    }
+
+    /**
+     * 生成新增索引语句（发布时对齐存量物理表的字段级索引）
+     *
+     * @param table 物理表名
+     * @param columnCode 列编码
+     * @return {@code ALTER TABLE ... ADD INDEX} 语句
+     */
+    public static String alterAddIndex(String table, String columnCode) {
+        String name = autoIndexName(columnCode);
+        return "ALTER TABLE `" + table + "` ADD INDEX `" + (name == null ? AUTO_INDEX_PREFIX + columnCode : name)
+                + "` (`" + columnCode + "`)";
+    }
+
+    /**
+     * 生成删除索引语句（仅用于此前缀的自动索引，列已删除或不再满足索引条件时回收）
+     *
+     * @param table 物理表名
+     * @param indexName 索引名（须以 {@link #AUTO_INDEX_PREFIX} 开头）
+     * @return {@code ALTER TABLE ... DROP INDEX} 语句
+     * @throws BizException 索引名非自动索引前缀时抛出 {@code PARAM_ERROR}
+     */
+    public static String alterDropIndex(String table, String indexName) {
+        if (indexName == null || !indexName.startsWith(AUTO_INDEX_PREFIX)) {
+            throw paramError("仅允许删除自动索引（前缀 " + AUTO_INDEX_PREFIX + "）：" + indexName);
+        }
+        return "ALTER TABLE `" + table + "` DROP INDEX `" + indexName + "`";
+    }
+
+    /**
+     * 元数据模型下应存在的字段级索引定义列表（按列顺序，最多 {@link #MAX_AUTO_INDEXES} 个）
+     *
+     * @param columns 列元数据列表
+     * @return 索引定义列表（不含不合格列）
+     */
+    public static List<String> autoIndexDefs(List<FormColumnMeta> columns) {
+        List<String> defs = new ArrayList<>();
+        for (FormColumnMeta column : columns) {
+            if (defs.size() >= MAX_AUTO_INDEXES) {
+                break;
+            }
+            if (!isIndexable(column.getDataType(), column.getLength())) {
+                continue;
+            }
+            String def = autoIndexDef(column.getColumnCode());
+            if (def != null) {
+                defs.add(def);
+            }
+        }
+        return defs;
+    }
+
+    /**
+     * 旧模型（schema 字段）下应存在的字段级索引定义列表（按字段顺序，最多 {@link #MAX_AUTO_INDEXES} 个）
+     *
+     * @param fields 字段定义列表
+     * @return 索引定义列表（不含不合格字段）
+     */
+    public static List<String> autoIndexDefsForFields(List<FormField> fields) {
+        List<String> defs = new ArrayList<>();
+        for (FormField field : fields) {
+            if (defs.size() >= MAX_AUTO_INDEXES) {
+                break;
+            }
+            if (!isIndexable(field.getType(), field.getMaxLength())) {
+                continue;
+            }
+            String def = autoIndexDef(field.getKey());
+            if (def != null) {
+                defs.add(def);
+            }
+        }
+        return defs;
+    }
+
+    /**
+     * 元数据模型下应存在的自动索引名集合（与 {@link #autoIndexDefs(List)} 顺序一致）
+     *
+     * @param columns 列元数据列表
+     * @return 索引名 → 列编码映射（保持列顺序）
+     */
+    public static Map<String, String> autoIndexes(List<FormColumnMeta> columns) {
+        Map<String, String> indexes = new LinkedHashMap<>();
+        for (FormColumnMeta column : columns) {
+            if (indexes.size() >= MAX_AUTO_INDEXES) {
+                break;
+            }
+            if (!isIndexable(column.getDataType(), column.getLength())) {
+                continue;
+            }
+            String name = autoIndexName(column.getColumnCode());
+            if (name != null) {
+                indexes.put(name, column.getColumnCode());
+            }
+        }
+        return indexes;
     }
 
     /**

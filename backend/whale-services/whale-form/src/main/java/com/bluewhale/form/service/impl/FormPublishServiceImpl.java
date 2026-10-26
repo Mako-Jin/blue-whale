@@ -150,6 +150,7 @@ public class FormPublishServiceImpl implements FormPublishService {
                     FormTableDdlGenerator.generateFromColumns(table, definition.getTableCode(), version, columns));
         } else {
             applyAlter(table, columns, existing, listMetadataCodes(definition.getId(), version));
+            syncIndexes(table, columns);
         }
         FormTableRegistry registry = findRegistry(definition.getTableCode(), version);
         if (registry == null) {
@@ -200,6 +201,29 @@ public class FormPublishServiceImpl implements FormPublishService {
                 continue;
             }
             formDataEngine.executeDdl(FormTableDdlGenerator.alterDrop(table, code));
+        }
+    }
+
+    /**
+     * 对齐存量物理表的字段级自动索引（幂等）：补齐缺失索引、回收已不合格（列已删/类型变化）的自动索引
+     *
+     * <p>仅管理 {@code idx_f_} 前缀的索引，公共索引与人工索引不动；新建表时索引已随 DDL 生成，无需再对齐。</p>
+     *
+     * @param table 物理表名
+     * @param columns 目标列元数据（已按排序号升序）
+     */
+    private void syncIndexes(String table, List<FormColumnMeta> columns) {
+        Map<String, String> desired = FormTableDdlGenerator.autoIndexes(columns);
+        Set<String> existing = formDataEngine.describeIndexes(table);
+        for (Map.Entry<String, String> entry : desired.entrySet()) {
+            if (!existing.contains(entry.getKey())) {
+                formDataEngine.executeDdl(FormTableDdlGenerator.alterAddIndex(table, entry.getValue()));
+            }
+        }
+        for (String name : existing) {
+            if (name.startsWith(FormTableDdlGenerator.AUTO_INDEX_PREFIX) && !desired.containsKey(name)) {
+                formDataEngine.executeDdl(FormTableDdlGenerator.alterDropIndex(table, name));
+            }
         }
     }
 

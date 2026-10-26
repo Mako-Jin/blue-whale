@@ -23,6 +23,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -332,5 +333,65 @@ class FormPublishServiceImplTest {
         verify(formTableRegistryMapper, never()).insert(any(FormTableRegistry.class));
         verify(formDataEngine, never()).executeDdl(anyString());
         assertEquals(1, vo.getFieldCount().intValue());
+    }
+
+    @Test
+    @DisplayName("publishTableDefinition：存量表缺字段级索引则 ADD INDEX")
+    void shouldAddMissingAutoIndex() {
+        when(formTableDefinitionMapper.selectById(11L)).thenReturn(tableDefinition(11L, "biz_order"));
+        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMeta>>any()))
+                .thenReturn(List.of(column("amount", "金额", "number", null)));
+        when(formDataEngine.describeColumns("form_data_biz_order_v1"))
+                .thenReturn(Map.of("amount", "decimal(18,4)"));
+        when(formDataEngine.describeIndexes("form_data_biz_order_v1"))
+                .thenReturn(Set.of("PRIMARY", "idx_tenant_id", "idx_biz_key"));
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistry>>any()))
+                .thenReturn(null);
+
+        formPublishService.publishTableDefinition(11L);
+
+        ArgumentCaptor<String> ddlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(formDataEngine).executeDdl(ddlCaptor.capture());
+        assertEquals("ALTER TABLE `form_data_biz_order_v1` ADD INDEX `idx_f_amount` (`amount`)",
+                ddlCaptor.getValue());
+    }
+
+    @Test
+    @DisplayName("publishTableDefinition：列不再满足索引条件则回收自动索引")
+    void shouldDropStaleAutoIndex() {
+        when(formTableDefinitionMapper.selectById(11L)).thenReturn(tableDefinition(11L, "biz_order"));
+        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMeta>>any()))
+                .thenReturn(List.of(column("remark", "备注", "textarea", null)));
+        when(formDataEngine.describeColumns("form_data_biz_order_v1"))
+                .thenReturn(Map.of("remark", "text"));
+        when(formDataEngine.describeIndexes("form_data_biz_order_v1"))
+                .thenReturn(Set.of("PRIMARY", "idx_f_remark", "idx_tenant_id"));
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistry>>any()))
+                .thenReturn(null);
+
+        formPublishService.publishTableDefinition(11L);
+
+        ArgumentCaptor<String> ddlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(formDataEngine).executeDdl(ddlCaptor.capture());
+        assertEquals("ALTER TABLE `form_data_biz_order_v1` DROP INDEX `idx_f_remark`",
+                ddlCaptor.getValue());
+    }
+
+    @Test
+    @DisplayName("publishTableDefinition：索引已对齐时不重复下发 DDL")
+    void shouldSkipAlignedAutoIndex() {
+        when(formTableDefinitionMapper.selectById(11L)).thenReturn(tableDefinition(11L, "biz_order"));
+        when(formColumnMetaMapper.selectList(ArgumentMatchers.<Wrapper<FormColumnMeta>>any()))
+                .thenReturn(List.of(column("amount", "金额", "number", null)));
+        when(formDataEngine.describeColumns("form_data_biz_order_v1"))
+                .thenReturn(Map.of("amount", "decimal(18,4)"));
+        when(formDataEngine.describeIndexes("form_data_biz_order_v1"))
+                .thenReturn(Set.of("PRIMARY", "idx_f_amount"));
+        when(formTableRegistryMapper.selectOne(ArgumentMatchers.<Wrapper<FormTableRegistry>>any()))
+                .thenReturn(null);
+
+        formPublishService.publishTableDefinition(11L);
+
+        verify(formDataEngine, never()).executeDdl(anyString());
     }
 }

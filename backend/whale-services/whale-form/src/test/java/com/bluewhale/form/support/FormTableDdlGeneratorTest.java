@@ -6,7 +6,9 @@ import com.bluewhale.form.entity.FormColumnMeta;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -80,6 +82,67 @@ class FormTableDdlGeneratorTest {
     }
 
     @Test
+    @DisplayName("generate：可索引字段自动生成 idx_f_ 索引，长文本与布尔不建索引")
+    void shouldGenerateAutoIndexesInDdl() {
+        String ddl = FormTableDdlGenerator.generate("form_data_fm_b_v1", "fm_b", 1,
+                List.of(field("amount", "number", null),
+                        field("code", "text", 64),
+                        field("remark", "text", 500),
+                        field("enabled", "bool", null),
+                        field("detail", "textarea", null)));
+
+        assertTrue(ddl.contains("KEY `idx_f_amount` (`amount`)"));
+        assertTrue(ddl.contains("KEY `idx_f_code` (`code`)"));
+        assertFalse(ddl.contains("idx_f_remark"));
+        assertFalse(ddl.contains("idx_f_enabled"));
+        assertFalse(ddl.contains("idx_f_detail"));
+    }
+
+    @Test
+    @DisplayName("autoIndexes：按列顺序采集、跳过不可索引列、上限 16 个")
+    void shouldCollectAutoIndexes() {
+        List<FormColumnMeta> columns = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            columns.add(column("n" + i, "数值" + i, "number", null));
+        }
+        columns.add(column("memo", "备注", "textarea", null));
+
+        Map<String, String> indexes = FormTableDdlGenerator.autoIndexes(columns);
+
+        assertEquals(16, indexes.size());
+        assertEquals("n0", indexes.get("idx_f_n0"));
+        assertFalse(indexes.containsKey("idx_f_memo"));
+    }
+
+    @Test
+    @DisplayName("autoIndexes：text 长度超过 191 不建索引，select/date 建索引")
+    void shouldFilterIndexableTypes() {
+        Map<String, String> indexes = FormTableDdlGenerator.autoIndexes(List.of(
+                column("code", "编码", "text", 191),
+                column("long_code", "长编码", "text", 192),
+                column("stage", "阶段", "select", null),
+                column("due_date", "截止日", "date", null),
+                column("created", "创建时间", "datetime", null),
+                column("flag", "标记", "bool", null)));
+
+        assertEquals(Set.of("idx_f_code", "idx_f_stage", "idx_f_due_date", "idx_f_created"),
+                indexes.keySet());
+    }
+
+    @Test
+    @DisplayName("alterAddIndex / alterDropIndex：仅允许回收自动索引")
+    void shouldGenerateIndexAlter() {
+        assertEquals("ALTER TABLE `form_data_fm_a_v1` ADD INDEX `idx_f_amount` (`amount`)",
+                FormTableDdlGenerator.alterAddIndex("form_data_fm_a_v1", "amount"));
+        assertEquals("ALTER TABLE `form_data_fm_a_v1` DROP INDEX `idx_f_legacy`",
+                FormTableDdlGenerator.alterDropIndex("form_data_fm_a_v1", "idx_f_legacy"));
+
+        BizException ex = assertThrows(BizException.class,
+                () -> FormTableDdlGenerator.alterDropIndex("form_data_fm_a_v1", "idx_biz_key"));
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+    }
+
+    @Test
     @DisplayName("columnDef：列名加反引号、含类型与 COMMENT")
     void shouldDefineColumn() {
         String def = FormTableDdlGenerator.columnDef(column("code", "名称", "text", 255));
@@ -137,6 +200,18 @@ class FormTableDdlGeneratorTest {
      */
     private static FormField field(String type, Integer maxLength) {
         return new FormField("name", "姓名", type, false, maxLength);
+    }
+
+    /**
+     * 构造指定 key 的字段定义桩对象。
+     *
+     * @param key 字段 key
+     * @param type 字段类型
+     * @param maxLength 文本长度
+     * @return 字段定义
+     */
+    private static FormField field(String key, String type, Integer maxLength) {
+        return new FormField(key, key, type, false, maxLength);
     }
 
     /**
