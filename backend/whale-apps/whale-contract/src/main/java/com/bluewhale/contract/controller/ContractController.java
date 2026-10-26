@@ -157,6 +157,19 @@ public class ContractController {
     }
 
     /**
+     * 合同生效（仅 SIGNED）
+     *
+     * @param id 合同ID
+     * @return 生效后的合同
+     */
+    @PostMapping("/{id}/effective")
+    @RequirePermission("sys:contract:effective")
+    @AuditLog(operation = "合同生效", type = OperateType.UPDATE, targetType = TARGET_TYPE, targetId = "#id")
+    public Result<ContractVO> effective(@PathVariable Long id) {
+        return Result.ok(contractService.effective(id));
+    }
+
+    /**
      * 归档合同（仅 EFFECTIVE）
      *
      * @param id 合同ID

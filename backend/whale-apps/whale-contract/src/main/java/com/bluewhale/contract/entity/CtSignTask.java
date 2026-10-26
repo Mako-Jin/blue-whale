@@ -43,6 +43,12 @@ public class CtSignTask extends BaseEntity {
     /** 三方平台任务ID（M3 启用） */
     private String providerTaskId;
 
+    /** 关联工作流任务ID（三方回调后由内部完成接口推进） */
+    private Long workflowTaskId;
+
+    /** 三方签署链接 */
+    private String signUrl;
+
     /** 状态：PENDING/SIGNING/SIGNED/REFUSED/EXPIRED */
     private String status;
 

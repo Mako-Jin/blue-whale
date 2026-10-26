@@ -12,6 +12,10 @@ import com.bluewhale.contract.esign.EsignHashUtils;
 import com.bluewhale.contract.esign.FileClient;
 import com.bluewhale.contract.esign.PdfStampService;
 import com.bluewhale.contract.esign.SignatureService;
+import com.bluewhale.contract.esign.provider.EsignProvider;
+import com.bluewhale.contract.esign.provider.EsignProviderRegistry;
+import com.bluewhale.contract.esign.provider.EsignTaskCommand;
+import com.bluewhale.contract.esign.provider.EsignTaskResult;
 import com.bluewhale.contract.entity.CtContract;
 import com.bluewhale.contract.entity.CtContractParty;
 import com.bluewhale.contract.entity.CtContractVersion;
@@ -35,6 +39,7 @@ import com.bluewhale.contract.vo.VerifyResultVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
@@ -79,6 +84,9 @@ public class SignServiceImpl implements SignService {
     /** 任务状态：待签 */
     private static final String TASK_PENDING = "PENDING";
 
+    /** 任务状态：签署中（已推送三方待签） */
+    private static final String TASK_SIGNING = "SIGNING";
+
     /** 任务状态：已签 */
     private static final String TASK_SIGNED = "SIGNED";
 
@@ -91,8 +99,8 @@ public class SignServiceImpl implements SignService {
     /** 印章/授权状态：启用 */
     private static final String STATUS_ENABLED = "ENABLED";
 
-    /** 默认签署渠道 */
-    private static final String PROVIDER_LOCAL = "LOCAL";
+    /** 本地签署渠道 */
+    private static final String PROVIDER_LOCAL = "local";
 
     private final CtContractMapper contractMapper;
 
@@ -114,9 +122,12 @@ public class SignServiceImpl implements SignService {
 
     private final SignatureService signatureService;
 
+    private final EsignProviderRegistry providerRegistry;
+
     private final TransactionTemplate transactionTemplate;
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public List<SignTaskVO> start(Long contractId, SignStartRequest request, OperatorContext operator) {
         CtContract contract = requireContract(contractId);
         String status = contract.getStatus();
@@ -134,8 +145,9 @@ public class SignServiceImpl implements SignService {
                 .max(Integer::compareTo)
                 .orElse(0);
         Long versionId = currentVersionId(contract);
-        String provider = request == null || !StringUtils.hasText(request.getProvider())
-                ? PROVIDER_LOCAL : request.getProvider().toUpperCase(Locale.ROOT);
+        EsignProvider esignProvider = request == null || !StringUtils.hasText(request.getProvider())
+                ? providerRegistry.defaultProvider() : providerRegistry.require(request.getProvider());
+        String provider = esignProvider.name().toUpperCase(Locale.ROOT);
         int created = 0;
         for (SignTaskCreateRequest spec : specs) {
             if (alreadyCovered(existing, spec)) {
@@ -148,9 +160,19 @@ public class SignServiceImpl implements SignService {
             task.setSignerUserId(spec.getSignerUserId());
             task.setSignerParty(spec.getSignerParty());
             task.setSignerName(spec.getSignerName());
+            task.setWorkflowTaskId(spec.getWorkflowTaskId());
             task.setProvider(provider);
             task.setStatus(TASK_PENDING);
             signTaskMapper.insert(task);
+            if (!PROVIDER_LOCAL.equalsIgnoreCase(esignProvider.name())) {
+                EsignTaskResult esignTask = esignProvider.createTask(new EsignTaskCommand(task.getId(),
+                        contract.getId(), contract.getCode(), contract.getTitle(),
+                        task.getSignerName(), task.getSignerParty()));
+                task.setProviderTaskId(esignTask.providerTaskId());
+                task.setSignUrl(esignTask.signUrl());
+                task.setStatus(TASK_SIGNING);
+                signTaskMapper.updateById(task);
+            }
             existing.add(task);
             created++;
         }
@@ -707,6 +729,9 @@ public class SignServiceImpl implements SignService {
         vo.setSignerParty(task.getSignerParty());
         vo.setSignerName(task.getSignerName());
         vo.setProvider(task.getProvider());
+        vo.setProviderTaskId(task.getProviderTaskId());
+        vo.setSignUrl(task.getSignUrl());
+        vo.setWorkflowTaskId(task.getWorkflowTaskId() == null ? null : String.valueOf(task.getWorkflowTaskId()));
         vo.setStatus(task.getStatus());
         vo.setSignedAt(task.getSignedAt());
         vo.setSignedFileId(task.getSignedFileId() == null ? null : String.valueOf(task.getSignedFileId()));

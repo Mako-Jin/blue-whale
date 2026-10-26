@@ -165,6 +165,7 @@ export default function SignCenter() {
     },
     { title: '签署方', dataIndex: 'signerParty', width: 90, render: (value) => value || '-' },
     { title: '签署人', dataIndex: 'signerName', width: 110, render: (value) => value || '-' },
+    { title: '渠道', dataIndex: 'provider', width: 100, render: (value: string | null) => value || '-' },
     {
       title: '状态',
       dataIndex: 'status',
@@ -176,20 +177,25 @@ export default function SignCenter() {
       title: '操作',
       key: 'actions',
       width: 180,
-      render: (_, record) => (
-        <Space size={0}>
-          {hasPermission('sys:contract:sign:execute') ? (
-            <>
-              <Button type="link" size="small" onClick={() => openSign(record)}>
-                签署
-              </Button>
-              <Button type="link" size="small" danger onClick={() => openRefuse(record)}>
-                拒签
-              </Button>
-            </>
-          ) : null}
-        </Space>
-      ),
+      render: (_, record) =>
+        record.signUrl ? (
+          <Typography.Link href={record.signUrl} target="_blank" rel="noreferrer">
+            去三方签署
+          </Typography.Link>
+        ) : (
+          <Space size={0}>
+            {hasPermission('sys:contract:sign:execute') ? (
+              <>
+                <Button type="link" size="small" onClick={() => openSign(record)}>
+                  签署
+                </Button>
+                <Button type="link" size="small" danger onClick={() => openRefuse(record)}>
+                  拒签
+                </Button>
+              </>
+            ) : null}
+          </Space>
+        ),
     },
   ];
 
@@ -207,7 +213,7 @@ export default function SignCenter() {
         <Alert
           type="info"
           showIcon
-          message="仅展示当前登录人待签署（PENDING/SIGNING）的任务；用章需在印章管理中提前授权，未授权将返回 403 并留审计。"
+          message="仅展示当前登录人待签署（PENDING/SIGNING）的任务；三方渠道任务显示签署链接，本地渠道用章需提前授权，未授权将返回 403 并留审计。"
         />
         <Table
           rowKey="id"

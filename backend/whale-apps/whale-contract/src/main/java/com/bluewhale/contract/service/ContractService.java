@@ -85,6 +85,14 @@ public interface ContractService {
     ContractVO terminate(Long id);
 
     /**
+     * 合同生效（仅 SIGNED）
+     *
+     * @param id 合同ID
+     * @return 生效后的合同
+     */
+    ContractVO effective(Long id);
+
+    /**
      * 归档合同（仅 EFFECTIVE）
      *
      * @param id 合同ID

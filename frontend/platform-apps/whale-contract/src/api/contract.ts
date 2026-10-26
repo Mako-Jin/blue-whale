@@ -119,6 +119,7 @@ export const contractApi = {
   submit: (id: string) => http.post<Contract>(`/contract/${id}/submit`),
   withdraw: (id: string) => http.post<Contract>(`/contract/${id}/withdraw`),
   terminate: (id: string) => http.post<Contract>(`/contract/${id}/terminate`),
+  effective: (id: string) => http.post<Contract>(`/contract/${id}/effective`),
   archive: (id: string) => http.post<Contract>(`/contract/${id}/archive`),
   versions: (id: string) => http.get<ContractVersion[]>(`/contract/${id}/versions`),
   createVersion: (id: string, input: { fileId?: number; sha256?: string; changeNote?: string }) =>

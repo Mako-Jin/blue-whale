@@ -61,4 +61,13 @@ public class ProcessTask extends BaseEntity {
 
     /** 委派来源人（委派任务记录原审批人；非委派为空） */
     private String delegateFrom;
+
+    /** 实际完成人用户ID（内网系统完成时记录调用方账号） */
+    private Long operatorId;
+
+    /** 操作类型：USER 用户 / SYSTEM 系统或回调 */
+    private String operatorType;
+
+    /** 操作来源：ESIGN_CALLBACK / MANUAL / SCHEDULER 等 */
+    private String operatorSource;
 }

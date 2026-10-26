@@ -1,6 +1,6 @@
-# Wave 5.61 合同管理与电子签章 —— 设计稿（M1/M2 已实现）
+# Wave 5.61 合同管理与电子签章 —— 设计稿（M1/M2/M3 已实现）
 
-> 状态：**M1 已实现（2026-10-26）；M2 已实现（2026-10-26，印章/授权/本地盖章/签名/证据链/验签/作废）；M3 待启动**
+> 状态：**M1 已实现（2026-10-26）；M2 已实现（2026-10-26，印章/授权/本地盖章/签名/证据链/验签/作废）；M3 已实现（2026-10-26，第三方签章适配/回调验签与幂等/流程推进/生效归档）**
 > 来源：用户提问「合同管理和电子签章，电子签章流程是不是也可以兼容」（2026-10-26）
 > 需求登记：REQ-FUNC-020 / REQ-FUNC-021 / REQ-ARCH-009 / REQ-SEC-010（见 [requirements/register.md](../requirements/register.md)）
 > 结论：**流程编排层可完全复用现有工作流引擎；印章、PDF 盖章、数字签名与证据链需新建**。
@@ -291,8 +291,10 @@ public interface EsignProvider {
 
 ### M3 第三方签章与证据链（约 1 波）
 
-- 交付：`EsignProvider` 三实现 + 回调接口 + `ct_esign_callback` + 证据链 + `/workflow/internal/task/{id}/complete` + 归档衔接 + 菜单 31。
-- 验收：① 回调重放 10 次仅推进一次；② 验签非法/超时窗口一律拒绝并落审计；③ 证据链中断可被 `verify` 检出；④ 签署完成后归档可见（若启用归档）；⑤ provider 切换只改配置不改代码。
+- [x] 交付：`EsignProvider` 三实现 + 回调接口 + `ct_esign_callback` + 证据链 + `/workflow/internal/task/{id}/complete` + 归档衔接 + 菜单 31。
+- [x] 验收：① 回调重放 10 次仅推进一次；② 验签非法/超时窗口一律拒绝并落审计；③ 证据链中断可被 `verify` 检出；④ 签署完成后归档可见（若启用归档）；⑤ provider 切换只改配置不改代码。
+- 落地记录：provider 适配层 [`esign/provider`](../../backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/esign/provider)、回调 [`EsignCallbackServiceImpl`](../../backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/service/impl/EsignCallbackServiceImpl.java)、workflow 内部接口 [`WorkflowInternalTaskController`](../../backend/whale-services/whale-workflow/src/main/java/com/bluewhale/workflow/controller/WorkflowInternalTaskController.java)、迁移 `migration-5.63-contract-esign-callback.sql` / `migration-5.63-workflow-task-operator.sql` / `migration-5.63-contract-esign-m3.sql`、前端证据中心 `EvidenceCenter.tsx`、冒烟 [bw-contract-m3-smoke.ps1](../../scripts/smoke/bw-contract-m3-smoke.ps1)；验收报告见 [2026-10-26-p3-wave5.61-contract-m3.md](../reviews/2026-10-26-p3-wave5.61-contract-m3.md)。
+- M3 简化（后续迭代）：三方通道为 HMAC 骨架（未调真实平台 API，未接实名意愿认证与持牌 CA/TSA）；回调乱序的定时 `queryTask` 补偿未做；`whale-archive` 内部快照接口未新增，归档仍为合同侧状态流转。
 
 ---
 
@@ -319,3 +321,5 @@ public interface EsignProvider {
 |---|---|---|
 | 2026-10-26 | v0.1 | 初稿：兼容性评估、9 表模型、流程模板与异步回调方案、分期与验收；待评审后进入 M1 |
 | 2026-10-26 | v1.0 | M1 落地：whale-contract 9006 + 4 表 + `/contract/**` + 权限 215–222 + 菜单 28 + 前端 8109；修正流程模板字段（`type=stateMachine`、节点 `key`、`USER_TASK.assignee`） |
+| 2026-10-26 | v1.1 | M2 落地：印章/授权/签署任务/签章记录 4 表 + PDFBox 骑缝盖章 + PKCS#7 签名验签 + 链式哈希证据链 + 权限 223–231 + 菜单 29/30 + 前端印章管理与签署中心 |
+| 2026-10-26 | v1.2 | M3 落地：`EsignProvider` 适配层与配置切换 + `ct_esign_callback` 幂等 + HMAC 验签/时间窗 + workflow 内部完成接口 + 生效接口（权限 232）+ 菜单 31 证据中心 + 前端证据中心页；Wave 5.61 三阶段闭环 |

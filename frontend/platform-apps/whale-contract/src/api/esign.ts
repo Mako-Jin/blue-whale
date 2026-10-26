@@ -44,6 +44,9 @@ export interface SignTask {
   signerParty?: string | null;
   signerName?: string | null;
   provider?: string | null;
+  providerTaskId?: string | null;
+  signUrl?: string | null;
+  workflowTaskId?: string | null;
   status: string;
   signedAt?: string | null;
   signedFileId?: string | null;
@@ -128,7 +131,12 @@ export interface SealGrantInput {
 /** 发起签署入参 */
 export interface SignStartInput {
   provider?: string;
-  tasks?: Array<{ signerUserId?: number; signerParty?: string; signerName?: string }>;
+  tasks?: Array<{
+    signerUserId?: number;
+    signerParty?: string;
+    signerName?: string;
+    workflowTaskId?: number;
+  }>;
 }
 
 /** 本地签署入参 */

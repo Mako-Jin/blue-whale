@@ -5,6 +5,7 @@ import ContractList from './pages/ContractList';
 import ContractDetail from './pages/ContractDetail';
 import SealList from './pages/SealList';
 import SignCenter from './pages/SignCenter';
+import EvidenceCenter from './pages/EvidenceCenter';
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
         <Route path="/" element={<ContractList />} />
         <Route path="/seal" element={<SealList />} />
         <Route path="/sign" element={<SignCenter />} />
+        <Route path="/evidence" element={<EvidenceCenter />} />
         <Route path="/:id" element={<ContractDetail />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

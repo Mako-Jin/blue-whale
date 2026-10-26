@@ -47,11 +47,32 @@ whale:
       base-url: ${CONTRACT_FILE_URL:http://127.0.0.1:8085}
       connect-timeout-millis: 1000
       read-timeout-millis: 5000
-    # Wave 5.61 M2：本地签章（P12 未配置时仅视觉盖章 + 哈希，algorithm=NONE）
+    # Wave 5.61 M2/M3：签章与第三方电子签渠道
+    # provider 默认 local；切换 esignbao/fadada/ssq 只改此处或 CONTRACT_ESIGN_PROVIDER，无需改代码
     esign:
       p12-path: ${CONTRACT_ESIGN_P12_PATH:}
       p12-password: ${CONTRACT_ESIGN_P12_PASSWORD:}
       tsa-url: ${CONTRACT_ESIGN_TSA_URL:}
+      provider: ${CONTRACT_ESIGN_PROVIDER:local}
+      callback-window-seconds: ${CONTRACT_ESIGN_CALLBACK_WINDOW_SECONDS:300}
+      # 回调 HMAC 密钥：默认值仅本地联调，生产必须通过环境变量覆盖
+      callback-secret: ${CONTRACT_ESIGN_CALLBACK_SECRET:bluewhale-esign-dev-callback-secret}
+      providers:
+        esignbao:
+          base-url: ${CONTRACT_ESIGN_ESIGNBAO_BASE_URL:}
+          app-id: ${CONTRACT_ESIGN_ESIGNBAO_APP_ID:}
+          app-secret: ${CONTRACT_ESIGN_ESIGNBAO_APP_SECRET:}
+          sign-url-template: ${CONTRACT_ESIGN_ESIGNBAO_SIGN_URL:}
+        fadada:
+          base-url: ${CONTRACT_ESIGN_FADADA_BASE_URL:}
+          app-id: ${CONTRACT_ESIGN_FADADA_APP_ID:}
+          app-secret: ${CONTRACT_ESIGN_FADADA_APP_SECRET:}
+          sign-url-template: ${CONTRACT_ESIGN_FADADA_SIGN_URL:}
+        ssq:
+          base-url: ${CONTRACT_ESIGN_SSQ_BASE_URL:}
+          app-id: ${CONTRACT_ESIGN_SSQ_APP_ID:}
+          app-secret: ${CONTRACT_ESIGN_SSQ_APP_SECRET:}
+          sign-url-template: ${CONTRACT_ESIGN_SSQ_SIGN_URL:}
 
 mybatis-plus:
   configuration:

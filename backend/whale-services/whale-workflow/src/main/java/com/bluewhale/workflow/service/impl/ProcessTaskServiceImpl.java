@@ -3,9 +3,11 @@ package com.bluewhale.workflow.service.impl;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.workflow.dto.ApprovalRequest;
 import com.bluewhale.workflow.dto.ProcessTaskQueryRequest;
+import com.bluewhale.workflow.dto.TaskCompleteRequest;
 import com.bluewhale.workflow.service.ProcessTaskService;
 import com.bluewhale.workflow.service.impl.task.AddSignCommand;
 import com.bluewhale.workflow.service.impl.task.ApproveCommand;
+import com.bluewhale.workflow.service.impl.task.CompleteCommand;
 import com.bluewhale.workflow.service.impl.task.DelegateCommand;
 import com.bluewhale.workflow.service.impl.task.RejectCommand;
 import com.bluewhale.workflow.service.impl.task.RollbackCommand;
@@ -42,6 +44,8 @@ public class ProcessTaskServiceImpl implements ProcessTaskService {
     private final RollbackCommand rollbackCommand;
 
     private final AddSignCommand addSignCommand;
+
+    private final CompleteCommand completeCommand;
 
     @Override
     public PageResult<ProcessTaskVO> page(ProcessTaskQueryRequest request) {
@@ -81,5 +85,10 @@ public class ProcessTaskServiceImpl implements ProcessTaskService {
     @Override
     public void addSign(Long id, List<String> assignees) {
         addSignCommand.addSign(id, assignees);
+    }
+
+    @Override
+    public void completeInternal(Long id, TaskCompleteRequest request) {
+        completeCommand.complete(id, request);
     }
 }

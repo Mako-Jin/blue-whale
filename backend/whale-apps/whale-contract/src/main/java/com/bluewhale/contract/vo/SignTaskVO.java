@@ -51,6 +51,15 @@ public class SignTaskVO implements Serializable {
     /** 签署渠道 */
     private String provider;
 
+    /** 三方平台任务ID */
+    private String providerTaskId;
+
+    /** 三方签署链接 */
+    private String signUrl;
+
+    /** 关联工作流任务ID */
+    private String workflowTaskId;
+
     /** 状态 */
     private String status;
 

@@ -265,6 +265,17 @@ public class ContractServiceImpl implements ContractService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public ContractVO effective(Long id) {
+        CtContract contract = requireContract(id);
+        requireStatus(contract, "生效", ContractStatus.SIGNED);
+        contract.setStatus(ContractStatus.EFFECTIVE.name());
+        contractMapper.updateById(contract);
+        log.info("合同已生效: id={}", id);
+        return toVo(contract);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public ContractVO archive(Long id) {
         CtContract contract = requireContract(id);
         requireStatus(contract, "归档", ContractStatus.EFFECTIVE);

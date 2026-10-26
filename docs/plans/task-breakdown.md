@@ -620,7 +620,7 @@
 
 - [x] **M1 合同主数据与审批编排**：新模块 `whale-apps/whale-contract`（9006 / `/contract/**` / `bluewhale_contract`）+ 4 表（`ct_contract`/`ct_contract_party`/`ct_contract_version`/`ct_contract_flow`）+ `api_log` + 11 接口（CRUD / submit / withdraw / terminate / archive / versions）+ 状态机 + 工作流提交与审批结果同步 + 权限 215–222 + 菜单 28 + 网关路由 + 前端 `whale-contract`（8109）；冒烟 18/18 + 检查报告
 - [x] **M2 电子签章**：`ct_seal` / `ct_seal_grant` / `ct_sign_task` / `ct_sign_record` + `audit_log` + 用章授权校验与审计（403）+ PDFBox 视觉盖章（含骑缝）+ BouncyCastle PKCS#7 签名/验签 + 证据链 `chain_hash` + 拒签/作废 + 权限 223–231 + 菜单 29/30 + 前端印章管理页与签署中心页；冒烟 27/27、前端 build/lint 通过
-- [ ] **M3 第三方签章**：`ct_esign_callback` + `EsignProvider` 适配层（e签宝/法大大/上上签）+ 回调验签/时间戳窗口/幂等 + workflow 内部完成接口（`POST /workflow/internal/task/{id}/complete`）
+- [x] **M3 第三方签章**：`ct_esign_callback`（唯一键幂等）+ `EsignProvider` 适配层（local/e签宝/法大大/上上签，配置切换）+ HMAC-SHA256 回调验签与 ±300s 时间窗 + 三方证据落库/链式哈希 + workflow 内部完成接口（`POST /workflow/internal/task/{id}/complete`，`SYSTEM:ESIGN_CALLBACK`）+ 签署发起对接 provider + 生效接口（权限 232）+ 菜单 31 证据中心 + 网关回调白名单 + 前端证据中心页；冒烟 00–27 全通过、前端 build/lint 通过
 
 ## 附录 A：common 契约（Wave 2 遵守）
 

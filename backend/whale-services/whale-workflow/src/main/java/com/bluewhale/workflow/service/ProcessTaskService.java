@@ -3,6 +3,7 @@ package com.bluewhale.workflow.service;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.workflow.dto.ApprovalRequest;
 import com.bluewhale.workflow.dto.ProcessTaskQueryRequest;
+import com.bluewhale.workflow.dto.TaskCompleteRequest;
 import com.bluewhale.workflow.vo.ProcessTaskVO;
 
 import java.util.List;
@@ -77,4 +78,12 @@ public interface ProcessTaskService {
      * @param assignees 加签人账号列表（去空白、去重后非空，单次最多 10 人）
      */
     void addSign(Long id, List<String> assignees);
+
+    /**
+     * 内网完成任务（第三方签章回调等异步场景，幂等）
+     *
+     * @param id 任务ID
+     * @param request 完成请求（动作/意见/变量/来源）
+     */
+    void completeInternal(Long id, TaskCompleteRequest request);
 }
