@@ -14,7 +14,7 @@
 | 2 | whale-auth | 8081 | 可用 | ① `replaceUserAttrs` 非空批量写路径缺单测（需真实 Mapper 代理）② 端口仍硬编码 8081，未走 `${SERVER_PORT}`（service-catalog 偏差 C-02）③ 前端按钮级权限渲染需在 admin 逐页复验 |
 | 3 | whale-job | 8082 | 可用 | 调度「多实例失效广播」已于 2026-10-26 落地（Redisson RTopic，双实例实机验证）；`whale-auth` 缓存侧广播仍为独立残余；归档导出已通，Wave 5.49 起可落对象存储 |
 | 4 | whale-workflow | 8083 | 可用 | backlog 6 项全部结案；dnd-kit 真实指针拖拽已于 2026-10-26 人工复核通过（前端侧） |
-| 5 | whale-form | 8084 | 可用 | ① ~~字段级索引自动优化未做（Wave 5.27 起遗留）~~ 已于 2026-10-26 落地（建表内联 `idx_f_` + 发布对齐/回收，见 [报告](../reviews/2026-10-26-p5-form-field-index-auto.md)）② ~~动态字段条件检索未做（查询侧）~~ 已于 2026-10-26 落地（`filters` API + 前端筛选构建区含 `in`/`between`，日期/时间区间、标量比较与 `in` 集合均接 `DatePicker`，Playwright 端到端通过，见 [检索报告](../reviews/2026-10-26-p5-form-dynamic-filter.md)、[UI 报告](../reviews/2026-10-26-p5-form-dynamic-filter-ui.md)）③ 表单 ↔ 工作流联动需端到端验收（发起入口已接 `formId`，缺跨模块回归用例） |
+| 5 | whale-form | 8084 | 可用 | ① ~~字段级索引自动优化未做（Wave 5.27 起遗留）~~ 已于 2026-10-26 落地（建表内联 `idx_f_` + 发布对齐/回收，见 [报告](../reviews/2026-10-26-p5-form-field-index-auto.md)）② ~~动态字段条件检索未做（查询侧）~~ 已于 2026-10-26 落地（`filters` API + 前端筛选构建区含 `in`/`between`，日期/时间区间、标量比较与 `in` 集合均接 `DatePicker` 且面板文案中文化，Playwright 端到端通过，见 [检索报告](../reviews/2026-10-26-p5-form-dynamic-filter.md)、[UI 报告](../reviews/2026-10-26-p5-form-dynamic-filter-ui.md)）③ 表单 ↔ 工作流联动需端到端验收（发起入口已接 `formId`，缺跨模块回归用例） |
 | 6 | whale-file | 8085 | 可用 | 无（Wave 5.49：存储插件化，`local`/`minio` 插件可切换，MinIO 自动建桶已解锁 job/audit 归档；见 [devlog §十九](../devlog/2026-10-23.md)） |
 | 7 | whale-pay | 8086 | 最小实现 | 仅订单 CRUD + 支付/取消占位动作；无真实支付渠道、对账、退款 |
 | — | ~~whale-i18n~~ | ~~8087~~ | **已删除** | Wave 5.50：国际化下沉 `whale-i18n-sdk`（各服务库自建 `sys_i18n_message`、自持文案），服务/路由/`bluewhale_i18n` 库已移除 |

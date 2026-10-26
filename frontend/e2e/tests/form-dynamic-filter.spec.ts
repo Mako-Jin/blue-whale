@@ -301,6 +301,8 @@ test('动态字段筛选：between 数值/日期/日期时间区间 / in 选项�
   await chooseOp(page, '介于');
   // 日期区间必须渲染 DatePicker（.ant-picker）而非文本输入
   await expect(page.locator('.ant-picker')).toHaveCount(2);
+  await page.locator('#filter-between-from').click();
+  await expect(page.locator('.ant-picker-dropdown:visible').getByText('今天', { exact: true })).toBeVisible();
   await page.locator('#filter-between-from').fill('2026-03-01');
   await page.locator('#filter-between-from').press('Enter');
   await page.locator('#filter-between-to').fill('2026-12-31');
@@ -329,6 +331,7 @@ test('动态字段筛选：between 数值/日期/日期时间区间 / in 选项�
   await expect(page.locator('.ant-picker')).toHaveCount(2);
   await page.locator('#filter-between-from').click();
   await expect(page.locator('.ant-picker-time-panel').first()).toBeVisible();
+  await expect(page.locator('.ant-picker-dropdown:visible').getByText('此刻', { exact: true })).toBeVisible();
   await page.locator('#filter-between-from').fill('2026-03-01 00:00:00');
   await page.locator('#filter-between-from').press('Enter');
   await page.locator('#filter-between-to').fill('2026-12-01 23:59:59');
