@@ -13,7 +13,7 @@
 | 1 | whale-gateway | 8080 | 可用 | ① 为 `/erp/**`、`/mes/**`、`/pdm/**`、`/oa/**`、`/config/**` 补路由（现 11 条，缺 5 条）② 熔断半开探测仅单测覆盖，运行态未单独取证（残余风险，非功能缺口）③ T-CI-7：镜像构建扩至全服务 |
 | 2 | whale-auth | 8081 | 可用 | ① `replaceUserAttrs` 非空批量写路径缺单测（需真实 Mapper 代理）② 端口仍硬编码 8081，未走 `${SERVER_PORT}`（service-catalog 偏差 C-02）③ 前端按钮级权限渲染需在 admin 逐页复验 |
 | 3 | whale-job | 8082 | 可用 | 调度「多实例失效广播」未覆盖（`next-steps` §五 残余）；归档导出已通，Wave 5.49 起可落对象存储 |
-| 4 | whale-workflow | 8083 | 可用 | backlog 6 项全部结案；仅剩 dnd-kit 真实指针拖拽需人工复核（前端侧） |
+| 4 | whale-workflow | 8083 | 可用 | backlog 6 项全部结案；dnd-kit 真实指针拖拽已于 2026-10-26 人工复核通过（前端侧） |
 | 5 | whale-form | 8084 | 可用 | ① 字段级索引自动优化未做（Wave 5.27 起遗留）② 表单 ↔ 工作流联动需端到端验收（发起入口已接 `formId`，缺跨模块回归用例） |
 | 6 | whale-file | 8085 | 可用 | 无（Wave 5.49：存储插件化，`local`/`minio` 插件可切换，MinIO 自动建桶已解锁 job/audit 归档；见 [devlog §十九](../devlog/2026-10-23.md)） |
 | 7 | whale-pay | 8086 | 最小实现 | 仅订单 CRUD + 支付/取消占位动作；无真实支付渠道、对账、退款 |
@@ -41,7 +41,7 @@
 | 3 | whale-ops | 8104 | 可用 | Monitor 页数据来自 `/monitor/service`；**Prometheus/Grafana 对接未做**，告警页无通知渠道展示 |
 | 4 | whale-portal | 8101 | 最小实现 | ① Dashboard 3 个统计写死 0（进行中流程 / 未读通知 / 系统服务数）② 「我的待办」的「去处理」为占位（未跳 `/workflow/task/{id}`）③ 通知中心为静态 mock（`MOCK_NOTICES`） |
 | 5 | whale-form-designer | 8002 | 可用 | 主链路闭环；dnd-kit 真实指针拖拽自动化不可复现，需人工复核 |
-| 6 | whale-workflow-designer | 8003 | 可用 | backlog 全结案；同上 dnd-kit 人工复核 |
+| 6 | whale-workflow-designer | 8003 | 可用 | backlog 全结案；dnd-kit 拖拽已于 2026-10-26 人工复核通过（[报告](../reviews/2026-10-26-p3-e6-designer-drag-manual.md)） |
 | 7 | whale-agent | 8004 | 可用 | 工作台/证据面板/工具链已闭环 |
 | 8 | whale-erp | 8102 | 空壳 | 2 页占位，`api/erp.ts` 明确标注「接占位数据源，待后端 `/erp/**`」 |
 | 9 | whale-oa | 8103 | 空壳 | 同上，待 `/oa/**` |

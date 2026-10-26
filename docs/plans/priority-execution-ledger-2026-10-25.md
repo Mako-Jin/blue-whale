@@ -34,6 +34,7 @@
 | 20 | P3 | Wave 5.61 M3 遗留：签署回调乱序/丢失定时补偿 | **已完成**（2026-10-26） | 三方 `queryTask` 仍为骨架（恒 `SIGNING`），真实终态推进待平台 API | `EsignCallbackSigner` 统一验签/补偿签名口径；`SignTaskReconcileJob` 轮询超时 `SIGNING` 非 local 任务，终态时以 `RECONCILE-<taskId>-<action>` 自签内部回调复用既有幂等/证据/流程链路；`whale.contract.esign.reconcile.*` 五项可环境变量覆盖；单测 4/4、构建+Checkstyle 通过、实机三类任务筛选与不误推进验证通过；详见 [检查报告](../reviews/2026-10-26-p3-esign-callback-reconcile.md) |
 | 21 | P3 | Sentinel 限流评估收口 + 网关限流实机生效 | **已完成**（2026-10-26） | Sentinel 重开需制品库/Dashboard 或热点参数等诉求 | Sentinel 依 GW-01 评估结案不引入，C-07 关闭；修复网关未加载 Redis 口令导致限流降级放行；实机验证特化规则 60 并发 → 429×30+503×30、全局 400 并发 → 429×18，回归 login/me/contract 全 `code=0`；详见 [检查报告](../reviews/2026-10-26-p3-gateway-rate-limit-sentinel-close.md) |
 | 22 | P3 | whale-archive 内部快照衔接（合同归档入档） | **已完成**（2026-10-26） | 条目停留「待整理」，档号需档案人员确认；原件未锁定 | archive 新增 `POST /archive/internal/items`（快照上传 + SHA-256 + 待整理条目 + 台账，`(sourceType,sourceId)` 幂等）；contract 归档推送快照并回填 `archive_item_id`；M3 冒烟 00–27 全通过，实机条目/文件/台账/幂等/回读摘要一致；详见 [检查报告](../reviews/2026-10-26-p3-contract-archive-snapshot.md) |
+| 23 | P3 | 工作流设计器拖拽人工复核（Wave 5.32 V4/C4，E6） | **已完成**（2026-10-26） | `whale-form-designer`（8002）同源实现本轮未单独复核，保留原标注 | 8003 真实浏览器复核三项：调色板拖入画布生成节点（`wf-node-n2`）、右侧属性面板联动改名、画布内移动；控制台 4 条 error 均为 antd 弃用提示；临时节点未保存未发布；详见 [检查报告](../reviews/2026-10-26-p3-e6-designer-drag-manual.md) |
 
 ---
 
@@ -82,3 +83,4 @@
 | 2026-10-26 | 序号 20（M3.5） | 回调乱序补偿：`EsignCallbackSigner` 统一验签/补偿签名；`SignTaskReconcileJob` 轮询超时 `SIGNING` 非 local 任务，终态自签 `RECONCILE-<taskId>-<action>` 内部回调复用既有链路；`reconcile.*` 五项配置；单测 4/4、构建+Checkstyle 通过、实机三类任务筛选验证通过；详见 [检查报告](../reviews/2026-10-26-p3-esign-callback-reconcile.md) |
 | 2026-10-26 | 序号 21 | Sentinel 结案（沿用 GW-01 评估，C-07 关闭）+ 修复网关未加载 Redis 口令导致的限流降级放行；重注入凭据重启后特化规则 60 并发 429×30/503×30、全局 400 并发 429×18、无降级告警；详见 [检查报告](../reviews/2026-10-26-p3-gateway-rate-limit-sentinel-close.md) |
 | 2026-10-26 | 序号 22 | 归档快照衔接：archive 新增 `POST /archive/internal/items`（白名单 CONTRACT、1MB 限额、`(sourceType,sourceId)` 幂等、快照上传+SHA-256+待整理条目+台账）；contract `archive()` 先推送再落状态并回填 `archive_item_id`；单测 7/7、M3 冒烟 00–27 全通过、实机归档条目/文件引用/台账/幂等/回读摘要校验通过；顺带修复冒烟脚本固定 `evidenceNo` 不可重跑问题；详见 [检查报告](../reviews/2026-10-26-p3-contract-archive-snapshot.md) |
+| 2026-10-26 | 序号 23 | 拖拽人工复核：8003 设计器真实指针流复核「调色板拖入画布→节点生成→属性面板联动→画布内移动」三项全部通过，Wave 5.32 `V4/C4` 遗留关闭；临时节点未保存未发布；8002 表单设计器同源实现留待其轮次复核；详见 [检查报告](../reviews/2026-10-26-p3-e6-designer-drag-manual.md) |

@@ -574,7 +574,7 @@
 - [x] **V1** 后端全量回归：`mvn -o -f backend/pom.xml clean install -T 1C` → **28/28 模块 BUILD SUCCESS**（271 测试无失败）
 - [x] **V2** DDL 落库（`process_task` 三列 `varchar(64) YES`）+ 运行时冒烟 **15/15 PASS**
 - [x] **V3** 前端全量构建：`pnpm -C frontend build` → **14/14 任务**
-- [x] **V4** 浏览器实机 E2E：A/B/C/C2/C3/D/E/F/G **全 PASS**；**C4 拖拽手势自动化不可复现 → 需人工复核**
+- [x] **V4** 浏览器实机 E2E：A/B/C/C2/C3/D/E/F/G **全 PASS**；**C4 拖拽手势自动化不可复现 → 2026-10-26 人工复核通过**（[检查报告](../reviews/2026-10-26-p3-e6-designer-drag-manual.md)）
 - [x] **V5** 文档收尾：检查报告 + devlog + roadmap §2.5 + task-breakdown 勾选
 - [x] **V6** commit & push `origin`（Gitee `https://gitee.com/StrongToStop/blue-whale.git`）
 
