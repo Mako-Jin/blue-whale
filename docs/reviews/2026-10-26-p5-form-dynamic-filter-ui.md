@@ -58,9 +58,9 @@
 
 ### 3.2 Playwright 端到端
 
-`pnpm --filter @bluewhale/e2e exec playwright test tests/form-dynamic-filter.spec.ts --retries=0` → **1 passed（13.3s）**。
+`pnpm --filter @bluewhale/e2e exec playwright test tests/form-dynamic-filter.spec.ts --retries=0` → **1 passed（12.8s）**。
 
-用例通过 API 预置独立表定义与表单（`amount` number、`stage` select(新建/完成)、`memo` text、`due_date` date），发布后写入 5 条数据（第 5 条 `stage=hold` 用于证明条件生效）：
+用例通过 API 预置独立表定义与表单（`amount` number、`stage` select(新建/完成)、`memo` text、`due_date` date、`due_at` datetime），发布后写入 5 条数据（第 5 条 `stage=hold` 用于证明条件生效）：
 
 | 步骤 | UI 操作 | 断言 |
 |---|---|---|
@@ -70,7 +70,8 @@
 | in（文本） | 备注 + 属于 + 标签 `beta`、`omega` | `共 2 条`（等值匹配，不含 `beta gamma`） |
 | between（日期） | 到期日 + 介于 + DatePicker 2026-03-01 / 2026-12-31 | 渲染 2 个 `.ant-picker`，`共 3 条`，Tag `到期日 介于 2026-03-01 ~ 2026-12-31` |
 | 标量日期比较 | 到期日 + 大于 + DatePicker 2026-06-01 | 渲染 1 个 `.ant-picker`，`共 2 条`，Tag `到期日 大于 2026-06-01` |
-| API 对账 | `memo in [beta,omega]`、`due_date between [2026-03-01,2026-12-31]` | `total=2` / `total=3`，与 UI 一致 |
+| between（日期时间） | 到期时间 + 介于 + 两个 `showTime` DatePicker | 渲染 2 个 `.ant-picker` 且时间面板可见，`共 3 条`，Tag `到期时间 介于 2026-03-01 00:00:00 ~ 2026-12-01 23:59:59` |
+| API 对账 | `memo in [beta,omega]`、`due_date between [...]`、`due_at between [...]` | `total=2` / `3` / `3`，与 UI 一致 |
 
 用例结束自动清理数据、表单定义与表定义。
 

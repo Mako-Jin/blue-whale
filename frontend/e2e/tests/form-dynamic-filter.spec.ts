@@ -80,10 +80,10 @@ async function search(page: Page): Promise<void> {
   await page.getByRole('button', { name: /查\s*询/ }).click();
 }
 
-test('动态字段筛选：between 数值/日期区间 / in 选项与文本', async ({ page, request }) => {
+test('动态字段筛选：between 数值/日期/日期时间区间 / in 选项与文本', async ({ page, request }) => {
   token = await login(request);
 
-  // 1) 建表定义（number/select/text/date）并发布
+  // 1) 建表定义（number/select/text/date/datetime）并发布
   const table = await createTableDefinition(request, token, {
     tableCode,
     tableName: `E2E筛选表${suffix}`,
@@ -127,6 +127,15 @@ test('动态字段筛选：between 数值/日期区间 / in 选项与文本', as
         nullable: 1,
         required: 0,
         sortNo: 3,
+        status: 1,
+      },
+      {
+        columnCode: 'due_at',
+        columnName: '到期时间',
+        dataType: 'datetime',
+        nullable: 1,
+        required: 0,
+        sortNo: 4,
         status: 1,
       },
     ],
@@ -200,17 +209,34 @@ test('动态字段筛选：between 数值/日期区间 / in 选项与文本', as
         colSpan: 24,
         status: 1,
       },
+      {
+        columnMetaId: columnId('due_at'),
+        fieldLabel: '到期时间',
+        widgetType: 'datetime',
+        showInList: 1,
+        showInForm: 1,
+        editable: 1,
+        sortNo: 4,
+        colSpan: 24,
+        status: 1,
+      },
     ],
   });
   formId = form.id;
 
   // 3) 预置 5 条数据：stage=hold 的一条用于证明 in 条件确实生效
   const rows = [
-    { amount: 50, stage: 'new', due_date: '2026-01-10' },
-    { amount: 100, stage: 'new', memo: 'beta', due_date: '2026-03-01' },
-    { amount: 150, stage: 'done', memo: 'alpha', due_date: '2026-06-01' },
-    { amount: 200, stage: 'done', memo: 'beta gamma', due_date: '2026-12-01' },
-    { amount: 300, stage: 'hold', memo: 'omega', due_date: '2027-01-01' },
+    { amount: 50, stage: 'new', due_date: '2026-01-10', due_at: '2026-01-10 08:00:00' },
+    { amount: 100, stage: 'new', memo: 'beta', due_date: '2026-03-01', due_at: '2026-03-01 09:30:00' },
+    { amount: 150, stage: 'done', memo: 'alpha', due_date: '2026-06-01', due_at: '2026-06-01 10:00:00' },
+    {
+      amount: 200,
+      stage: 'done',
+      memo: 'beta gamma',
+      due_date: '2026-12-01',
+      due_at: '2026-12-01 11:15:00',
+    },
+    { amount: 300, stage: 'hold', memo: 'omega', due_date: '2027-01-01', due_at: '2027-01-01 12:00:00' },
   ];
   for (const row of rows) {
     const record = await submitFormData(request, token, formId, JSON.stringify(row));
@@ -293,7 +319,27 @@ test('动态字段筛选：between 数值/日期区间 / in 选项与文本', as
   await search(page);
   await expect(page.getByText('共 2 条')).toBeVisible();
 
-  // 10) API 对账：同一 filters 经网关命中数与 UI 一致
+  // 10) between（日期时间选择器）：到期时间 2026-03-01 00:00:00..2026-12-01 23:59:59 → 3 条
+  await removeTag(page, '到期日 大于');
+  await chooseField(page, '到期时间');
+  await chooseOp(page, '介于');
+  await expect(page.locator('.ant-picker')).toHaveCount(2);
+  await page.locator('#filter-between-from').click();
+  await expect(page.locator('.ant-picker-time-panel').first()).toBeVisible();
+  await page.locator('#filter-between-from').fill('2026-03-01 00:00:00');
+  await page.locator('#filter-between-from').press('Enter');
+  await page.locator('#filter-between-to').fill('2026-12-01 23:59:59');
+  await page.locator('#filter-between-to').press('Enter');
+  await page.getByRole('button', { name: '添加条件' }).click();
+  await expect(
+    page
+      .locator('.ant-tag')
+      .filter({ hasText: '到期时间 介于 2026-03-01 00:00:00 ~ 2026-12-01 23:59:59' }),
+  ).toBeVisible();
+  await search(page);
+  await expect(page.getByText('共 3 条')).toBeVisible();
+
+  // 11) API 对账：同一 filters 经网关命中数与 UI 一致
   const apiResponse = await request.get(
     `${API_BASE_URL}/form/data/page?current=1&size=10&definitionCode=${encodeURIComponent(
       formCode,
@@ -320,4 +366,22 @@ test('动态字段筛选：between 数值/日期区间 / in 选项与文本', as
   };
   expect(dateEnvelope.code).toBe(0);
   expect(Number(dateEnvelope.data.total)).toBe(3);
+
+  const dateTimeResponse = await request.get(
+    `${API_BASE_URL}/form/data/page?current=1&size=10&definitionCode=${encodeURIComponent(
+      formCode,
+    )}&filters=${encodeURIComponent(
+      JSON.stringify([
+        { field: 'due_at', op: 'between', value: ['2026-03-01 00:00:00', '2026-12-01 23:59:59'] },
+      ]),
+    )}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  expect(dateTimeResponse.ok()).toBeTruthy();
+  const dateTimeEnvelope = (await dateTimeResponse.json()) as {
+    code: number;
+    data: { total: number | string };
+  };
+  expect(dateTimeEnvelope.code).toBe(0);
+  expect(Number(dateTimeEnvelope.data.total)).toBe(3);
 });
