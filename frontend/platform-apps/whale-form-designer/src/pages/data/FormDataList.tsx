@@ -677,17 +677,26 @@ export default function FormDataList() {
         />
       );
     }
-    const placeholder =
-      selectedField?.dataType === 'date'
-        ? 'yyyy-MM-dd'
-        : selectedField?.dataType === 'datetime'
-          ? 'yyyy-MM-dd HH:mm:ss'
-          : '过滤值';
+    if (selectedField?.dataType === 'date' || selectedField?.dataType === 'datetime') {
+      const isDateTime = selectedField.dataType === 'datetime';
+      const format = isDateTime ? 'YYYY-MM-DD HH:mm:ss' : 'YYYY-MM-DD';
+      return (
+        <DatePicker
+          id="filter-value-date"
+          showTime={isDateTime}
+          format={format}
+          placeholder={isDateTime ? '时间' : '日期'}
+          style={{ width: 200 }}
+          value={toDayjs(draftValue)}
+          onChange={(value) => setDraftValue(value ? value.format(format) : undefined)}
+        />
+      );
+    }
     return (
       <Input
         id="filter-value-text"
         allowClear
-        placeholder={placeholder}
+        placeholder="过滤值"
         style={{ width: 170 }}
         value={typeof draftValue === 'string' ? draftValue : undefined}
         onChange={(event) => setDraftValue(event.target.value)}

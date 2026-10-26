@@ -39,6 +39,7 @@
 - **`between`**
   - `number`：两个 `InputNumber`（起始 / 结束）；
   - `date` / `datetime`：两个 `DatePicker`，`date` 格式 `YYYY-MM-DD`，`datetime` 开启 `showTime` 并使用 `YYYY-MM-DD HH:mm:ss`；面板选择或键盘输入均可，清空即移除该边界值。
+- **标量日期/时间比较**（`eq` / `ne` / `gt` / `gte` / `lt` / `lte`）：`date` / `datetime` 同样使用单个 `DatePicker`（`datetime` 开启 `showTime`），格式与区间一致，不再使用文本输入。
 - **校验**：`in` 去空去重后至少 1 个值；`between` 必须两个非空值；`number` 多值/区间非法时提示「过滤值必须为数值」/「区间值必须为数值」。
 - **Tag 展示**：`in` 用逗号连接，`between` 用 `~` 连接（如 `金额 介于 60 ~ 210`）。
 - **状态复位**：切换字段/操作符、添加条件、变更表单编码、重置查询时统一清空标量值与多值草稿。
@@ -57,7 +58,7 @@
 
 ### 3.2 Playwright 端到端
 
-`pnpm --filter @bluewhale/e2e exec playwright test tests/form-dynamic-filter.spec.ts --retries=0` → **1 passed（10.5s）**。
+`pnpm --filter @bluewhale/e2e exec playwright test tests/form-dynamic-filter.spec.ts --retries=0` → **1 passed（13.3s）**。
 
 用例通过 API 预置独立表定义与表单（`amount` number、`stage` select(新建/完成)、`memo` text、`due_date` date），发布后写入 5 条数据（第 5 条 `stage=hold` 用于证明条件生效）：
 
@@ -68,6 +69,7 @@
 | in（选项） | 阶段 + 属于 + 新建/完成 | `共 4 条`（排除 `hold`） |
 | in（文本） | 备注 + 属于 + 标签 `beta`、`omega` | `共 2 条`（等值匹配，不含 `beta gamma`） |
 | between（日期） | 到期日 + 介于 + DatePicker 2026-03-01 / 2026-12-31 | 渲染 2 个 `.ant-picker`，`共 3 条`，Tag `到期日 介于 2026-03-01 ~ 2026-12-31` |
+| 标量日期比较 | 到期日 + 大于 + DatePicker 2026-06-01 | 渲染 1 个 `.ant-picker`，`共 2 条`，Tag `到期日 大于 2026-06-01` |
 | API 对账 | `memo in [beta,omega]`、`due_date between [2026-03-01,2026-12-31]` | `total=2` / `total=3`，与 UI 一致 |
 
 用例结束自动清理数据、表单定义与表定义。
@@ -78,7 +80,7 @@ antd Select 的 `role="option"` 节点位于 `height:0;width:0;overflow:hidden` 
 
 ## 四、遗留
 
-- 日期/时间区间已接 `DatePicker`（`datetime` 开启 `showTime`）；标量比较（`eq/gt` 等）仍为文本输入，后续可按需统一为日期选择器。
+- 日期/时间区间与标量比较均已接 `DatePicker`（`datetime` 开启 `showTime`）；`in` 的日期/时间集合仍为标签文本输入（需多值选择器时可再迭代）。
 - 应用未配置 antd `ConfigProvider` 中文 locale，DatePicker 面板文案沿用全局默认（英文）；如后续统一站点语言，可一处接入。
 - `number` 的 `in` 使用标签输入，未做可视化数值校验提示（提交前统一转换）。
 - 条件组合仅 AND；深分页上限、多版本合并内存排序等后端约束不变，见[上一轮报告](2026-10-26-p5-form-dynamic-filter.md)第五章。

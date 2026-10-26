@@ -45,8 +45,7 @@ test.afterAll(async ({ request }) => {
  */
 async function pickOption(page: Page, label: string): Promise<void> {
   await page
-    .locator('.ant-select-dropdown:visible .ant-select-item-option')
-    .filter({ hasText: label })
+    .locator(`.ant-select-dropdown:visible .ant-select-item-option[title="${label}"]`)
     .click();
 }
 
@@ -282,7 +281,19 @@ test('动态字段筛选：between 数值/日期区间 / in 选项与文本', as
   await search(page);
   await expect(page.getByText('共 3 条')).toBeVisible();
 
-  // 9) API 对账：同一 filters 经网关命中数与 UI 一致
+  // 9) 标量日期比较：到期日 > 2026-06-01，单值也走 DatePicker → 2 条
+  await removeTag(page, '到期日 介于');
+  await chooseField(page, '到期日');
+  await chooseOp(page, '大于');
+  await expect(page.locator('.ant-picker')).toHaveCount(1);
+  await page.locator('#filter-value-date').fill('2026-06-01');
+  await page.locator('#filter-value-date').press('Enter');
+  await page.getByRole('button', { name: '添加条件' }).click();
+  await expect(page.locator('.ant-tag').filter({ hasText: '到期日 大于 2026-06-01' })).toBeVisible();
+  await search(page);
+  await expect(page.getByText('共 2 条')).toBeVisible();
+
+  // 10) API 对账：同一 filters 经网关命中数与 UI 一致
   const apiResponse = await request.get(
     `${API_BASE_URL}/form/data/page?current=1&size=10&definitionCode=${encodeURIComponent(
       formCode,
