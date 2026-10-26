@@ -303,7 +303,7 @@ class UserControllerTest {
         assertPermission("create", "sys:user:add", UserCreateRequest.class);
         assertPermission("update", "sys:user:edit", Long.class, UserUpdateRequest.class);
         assertPermission("delete", "sys:user:delete", Long.class);
-        assertPermission("changePassword", "sys:user:resetPwd", Long.class, ChangePasswordRequest.class);
+        assertPermission("changePassword", "sys:user:resetpwd", Long.class, ChangePasswordRequest.class);
         assertPermission("changeStatus", "sys:user:status", Long.class, UserStatusRequest.class);
         assertPermission("assignRoles", "sys:user:assign", Long.class, AssignRolesRequest.class);
         assertPermission("roleIds", "sys:user:list", Long.class);

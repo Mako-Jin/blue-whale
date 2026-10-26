@@ -67,7 +67,7 @@ public class ProcessModelController {
      * @return 流程定义视图对象
      */
     @PostMapping("/definition/bpmn")
-    @RequirePermission("sys:workflow:definition:bpmnImport")
+    @RequirePermission("sys:workflow:definition:bpmnimport")
     public Result<ProcessDefinitionVO> importBpmn(@Valid @RequestBody BpmnImportRequest request) {
         return Result.ok(processModelService.importBpmn(request));
     }

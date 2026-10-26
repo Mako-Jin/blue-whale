@@ -260,7 +260,7 @@ export default function UserList() {
             编辑
           </AuthButton>
           <AuthButton
-            perm="sys:user:resetPwd"
+            perm="sys:user:resetpwd"
             type="link"
             size="small"
             onClick={() => {

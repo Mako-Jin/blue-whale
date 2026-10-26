@@ -140,7 +140,7 @@ public class ProcessTaskController {
      * @return 空结果
      */
     @PostMapping("/{id}/add-sign")
-    @RequirePermission("sys:workflow:task:add-sign")
+    @RequirePermission("sys:workflow:task:addsign")
     public Result<Void> addSign(@PathVariable Long id, @Valid @RequestBody TaskAddSignRequest request) {
         processTaskService.addSign(id, request.getAssignees());
         return Result.ok();

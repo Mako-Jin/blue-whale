@@ -137,7 +137,7 @@ public class UserController {
      * @return 操作结果
      */
     @PutMapping("/{id}/password")
-    @RequirePermission("sys:user:resetPwd")
+    @RequirePermission("sys:user:resetpwd")
     @AuditLog(operation = "重置用户密码", type = OperateType.UPDATE, targetType = "sys_user",
             targetId = "#id", recordParams = false)
     public Result<Void> changePassword(@PathVariable Long id, @Valid @RequestBody ChangePasswordRequest request) {

@@ -454,7 +454,7 @@ VALUES
     (20, 0, 'sys:dept:add', '新增部门', 'API', '/dept', 'POST', 20, 1),
     (21, 0, 'sys:dept:edit', '修改部门', 'API', '/dept/**', 'PUT', 21, 1),
     (22, 0, 'sys:dept:delete', '删除部门', 'API', '/dept/{id}', 'DELETE', 22, 1),
-    (23, 0, 'sys:user:resetPwd', '重置用户密码', 'API', '/user/{id}/password', 'PUT', 23, 1),
+    (23, 0, 'sys:user:resetpwd', '重置用户密码', 'API', '/user/{id}/password', 'PUT', 23, 1),
     (24, 0, 'sys:user:status', '启停用户', 'API', '/user/{id}/status', 'PUT', 24, 1),
     -- AUTH-06（Wave 5.10）：审计日志查询权限点，与 whale-audit 查询接口 @RequirePermission("sys:audit:log:list") 对应
     (25, 0, 'sys:audit:log:list', '审计日志查询', 'API', '/audit/log/**', 'GET', 25, 1);
@@ -536,7 +536,7 @@ INSERT INTO sys_permission
     (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
 VALUES
     (58, 0, 'sys:workflow:definition:validate', '校验流程定义', 'API', '/workflow/definition/validate', 'POST', 58, 1),
-    (59, 0, 'sys:workflow:definition:bpmnImport', '导入 BPMN 流程定义', 'API', '/workflow/definition/bpmn', 'POST', 59, 1);
+    (59, 0, 'sys:workflow:definition:bpmnimport', '导入 BPMN 流程定义', 'API', '/workflow/definition/bpmn', 'POST', 59, 1);
 
 -- 服务内置国际化文案管理权限点（Wave 5.50）：与 whale-i18n-sdk 本地接口 @RequirePermission("sys:i18n:*") 对应；
 -- 试点落在 whale-auth 的 /auth/i18n/message，其他服务按需在各自权限体系登记。
@@ -582,7 +582,7 @@ VALUES
     (75, 0, 'sys:workflow:task:delegate', '委派待办任务', 'API', '/workflow/task/{id}/{delegate|resolve}', 'PUT', 75, 1),
     (76, 0, 'sys:workflow:task:rollback', '回退待办任务', 'API', '/workflow/task/{id}/rollback', 'POST', 76, 1),
     (77, 0, 'sys:form:data:edit', '修改表单数据', 'API', '/form/data/{id}', 'PUT', 77, 1),
-    (78, 0, 'sys:workflow:task:add-sign', '加签待办任务', 'API', '/workflow/task/{id}/add-sign', 'POST', 78, 1);
+    (78, 0, 'sys:workflow:task:addsign', '加签待办任务', 'API', '/workflow/task/{id}/add-sign', 'POST', 78, 1);
 
 -- Wave 5.47 平台与项目知识 Agent 权限点：与 whale-agent 接口 @RequirePermission("sys:agent:*") 一一对应
 -- 段位约定：Phase 4 业务应用使用 80–99，知识 Agent 预留 100–119
