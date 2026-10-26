@@ -141,4 +141,13 @@ public class AgentKnowledgeFileService {
     public void deleteAllRows() {
         mapper.deleteAllRows();
     }
+
+    /**
+     * 事实索引全量重建后，将已索引台账重置为待处理以便下一轮同步自愈重建。
+     *
+     * @return 重置行数
+     */
+    public int resetIndexedToPending() {
+        return mapper.resetIndexedToPending();
+    }
 }

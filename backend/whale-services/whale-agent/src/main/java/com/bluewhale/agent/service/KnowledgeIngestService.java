@@ -10,6 +10,7 @@ import com.bluewhale.agent.support.ingest.DocumentChunker;
 import com.bluewhale.agent.support.ingest.RepositoryScanner;
 import com.bluewhale.agent.support.ingest.ScannedFile;
 import com.bluewhale.agent.support.ingest.SensitiveContentMasker;
+import com.bluewhale.agent.support.knowledge.KnowledgeConstants;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -59,6 +60,8 @@ public class KnowledgeIngestService {
     private final FactStoreService factStoreService;
 
     private final EmbeddingService embeddingService;
+
+    private final AgentKnowledgeFileService knowledgeFileService;
 
     private final AtomicBoolean building = new AtomicBoolean(false);
 
@@ -133,6 +136,11 @@ public class KnowledgeIngestService {
             log.info("知识索引全量重建完成：文件={}，块={}，耗时={}ms，向量维度={}",
                     files.size(), chunks, millis, indexService.indexedDimension());
             rebuildFacts();
+            // deleteAll 会同时清空文件/档案知识块：重置台账为 PENDING，由下一轮文件知识同步自愈重建
+            int reset = knowledgeFileService.resetIndexedToPending();
+            if (reset > 0) {
+                log.info("文件知识台账已重置待处理：{} 条，等待下一轮同步重建", reset);
+            }
         } catch (RuntimeException e) {
             indexService.markBuildFailed();
             log.error("知识索引全量重建失败", e);
@@ -191,6 +199,11 @@ public class KnowledgeIngestService {
             }
             List<String> removedPaths = new ArrayList<>();
             for (String path : existing.keySet()) {
+                // 文件知识块（file: 前缀）由 FileKnowledgeSyncService 独立管理生命周期，
+                // 不参与仓库扫描比对，严禁在此误删
+                if (path.startsWith(KnowledgeConstants.FILE_PATH_PREFIX)) {
+                    continue;
+                }
                 if (!currentPaths.contains(path)) {
                     removedPaths.add(path);
                 }

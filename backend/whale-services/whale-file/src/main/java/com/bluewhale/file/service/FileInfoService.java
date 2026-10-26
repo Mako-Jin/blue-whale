@@ -69,6 +69,15 @@ public interface FileInfoService {
     FileInfoVO getDetail(Long id);
 
     /**
+     * 文件变更视图详情（内网接口专用）：含状态、逻辑删除标记与更新时间，
+     * 供 whale-agent 知识库单文件重建判定可采集性。
+     *
+     * @param id 文件ID
+     * @return 文件变更视图对象
+     */
+    FileChangeVO getChangeDetail(Long id);
+
+    /**
      * 按更新时间游标分页查询文件变更流（内网接口专用）
      *
      * <p>排序固定为 {@code update_time ASC, id ASC}，调用方以返回记录的最大

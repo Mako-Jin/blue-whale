@@ -64,7 +64,7 @@ public class FileKnowledgeSyncService {
     private static final int RETRY_BATCH_SIZE = 50;
 
     /** 知识块路径前缀 */
-    private static final String PATH_PREFIX = "file:";
+    private static final String PATH_PREFIX = KnowledgeConstants.FILE_PATH_PREFIX;
 
     /** 档案秘密级阈值：密级 ≥ 3 需秘密级权限码 */
     private static final int SECRET_LEVEL = 3;

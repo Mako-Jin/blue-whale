@@ -37,6 +37,9 @@ public final class KnowledgeConstants {
     /** 失败原因最大存储长度 */
     public static final int MAX_ERROR_LENGTH = 500;
 
+    /** 文件知识块索引路径前缀（由 FileKnowledgeSyncService 独立管理生命周期） */
+    public static final String FILE_PATH_PREFIX = "file:";
+
     /** 工具类不允许实例化 */
     private KnowledgeConstants() {
     }

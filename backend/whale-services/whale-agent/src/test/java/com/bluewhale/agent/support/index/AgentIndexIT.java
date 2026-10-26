@@ -4,6 +4,7 @@ import com.bluewhale.agent.config.AgentProperties;
 import com.bluewhale.agent.service.AgentIndexMetaService;
 import com.bluewhale.agent.service.EmbeddingService;
 import com.bluewhale.agent.service.FactStoreService;
+import com.bluewhale.agent.service.AgentKnowledgeFileService;
 import com.bluewhale.agent.service.KnowledgeIngestService;
 import com.bluewhale.agent.support.ingest.ChunkerRegistry;
 import com.bluewhale.agent.support.ingest.DocumentChunker;
@@ -66,7 +67,8 @@ class AgentIndexIT {
         indexService = new AgentIndexService(properties, embeddingService);
         indexService.init();
         ingestService = new KnowledgeIngestService(properties, scanner, registry, indexService,
-                mock(AgentIndexMetaService.class), mock(FactStoreService.class), embeddingService);
+                mock(AgentIndexMetaService.class), mock(FactStoreService.class), embeddingService,
+                mock(AgentKnowledgeFileService.class));
     }
 
     @AfterEach

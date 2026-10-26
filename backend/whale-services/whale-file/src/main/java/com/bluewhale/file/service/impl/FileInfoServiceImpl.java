@@ -203,6 +203,11 @@ public class FileInfoServiceImpl implements FileInfoService {
     }
 
     @Override
+    public FileChangeVO getChangeDetail(Long id) {
+        return toChangeVo(requireFile(id));
+    }
+
+    @Override
     public Resource loadResource(Long id) {
         FileInfo entity = requireFile(id);
         return new InputStreamResource(fileStorage.load(entity.getBucket(), entity.getObjectKey()));

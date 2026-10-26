@@ -65,14 +65,14 @@ public class FileInternalController {
     }
 
     /**
-     * 文件元数据。
+     * 文件元数据（变更视图，含状态与逻辑删除标记，供知识库采集判定）。
      *
      * @param id 文件ID
-     * @return 文件视图对象
+     * @return 文件变更视图对象
      */
     @GetMapping("/{id}")
-    public Result<FileInfoVO> detail(@PathVariable Long id) {
-        return Result.ok(fileInfoService.getDetail(id));
+    public Result<FileChangeVO> detail(@PathVariable Long id) {
+        return Result.ok(fileInfoService.getChangeDetail(id));
     }
 
     /**

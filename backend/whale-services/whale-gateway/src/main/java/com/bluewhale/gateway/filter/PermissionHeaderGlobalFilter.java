@@ -159,12 +159,19 @@ public class PermissionHeaderGlobalFilter implements GlobalFilter, Ordered {
      */
     private Mono<String> fallbackFromAuthMe(ServerHttpRequest request, String userId) {
         String authorization = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+        // Wave 5.53 真机复测修复：/auth/me 依赖租户上下文（TenantContextFilter 强制 X-Tenant-Id），
+        // 缺失时 whale-auth 返回 HTTP 200 信封 + code=400 + data=null，parsePermissions 静默解析为空串，
+        // 导致权限码头被注入为空、下游受限知识块被全部过滤；此处透传网关注入的租户头。
+        String tenantId = request.getHeaders().getFirst(properties.getTenantIdHeader());
         return webClientBuilder.build()
                 .get()
                 .uri(AUTH_ME_URI)
                 .headers(headers -> {
                     if (authorization != null && !authorization.isBlank()) {
                         headers.set(HttpHeaders.AUTHORIZATION, authorization);
+                    }
+                    if (tenantId != null && !tenantId.isBlank()) {
+                        headers.set(properties.getTenantIdHeader(), tenantId.trim());
                     }
                 })
                 .retrieve()

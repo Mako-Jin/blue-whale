@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.bluewhale.agent.entity.AgentKnowledgeFile;
 import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 /**
  * 文件知识库采集台账 Mapper。
@@ -25,4 +26,13 @@ public interface AgentKnowledgeFileMapper extends BaseMapper<AgentKnowledgeFile>
      */
     @Select("SELECT COALESCE(SUM(chunk_count), 0) FROM agent_knowledge_file WHERE deleted = 0")
     long sumChunkCount();
+
+    /**
+     * 事实索引全量重建后调用：将已索引台账重置为待处理，
+     * 交由下一轮文件知识同步重新采集（全量重建会清空全部索引块）。
+     *
+     * @return 受影响行数
+     */
+    @Update("UPDATE agent_knowledge_file SET index_status = 'PENDING' WHERE deleted = 0 AND index_status = 'INDEXED'")
+    int resetIndexedToPending();
 }
