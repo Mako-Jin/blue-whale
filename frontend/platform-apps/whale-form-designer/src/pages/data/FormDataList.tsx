@@ -85,6 +85,9 @@ const FILTERABLE_TYPES = new Set<DataType>([
   'bool',
 ]);
 
+/** in 条件值上限（与后端 MAX_IN_VALUES 对齐） */
+const MAX_IN_VALUES = 50;
+
 /** 操作符中文名 */
 const FILTER_OP_LABELS: Record<FilterOp, string> = {
   eq: '等于',
@@ -278,6 +281,11 @@ export default function FormDataList() {
       next[index] = value;
       return next;
     });
+  };
+
+  // 移除多值草稿指定下标（in 的日期集合 Tag 关闭）
+  const removeDraftValueAt = (index: number) => {
+    setDraftValues((prev) => prev.filter((_, current) => current !== index));
   };
 
   // 详情 Drawer 状态
@@ -546,9 +554,54 @@ export default function FormDataList() {
     },
   ];
 
-  // in 条件值控件：布尔/选项字段走多选，其余用标签输入（回车或逗号分隔）
+  // in 的日期/时间集合：已选值以 Tag 展示，DatePicker 选完即追加（受控保持空白）
+  const renderInDateControl = () => {
+    const isDateTime = selectedField?.dataType === 'datetime';
+    const format = isDateTime ? 'YYYY-MM-DD HH:mm:ss' : 'YYYY-MM-DD';
+    const handlePick = (value: Dayjs | null) => {
+      if (!value) {
+        return;
+      }
+      const text = value.format(format);
+      if (draftValues.includes(text)) {
+        return;
+      }
+      if (draftValues.length >= MAX_IN_VALUES) {
+        message.warning(`最多添加 ${MAX_IN_VALUES} 个值`);
+        return;
+      }
+      setDraftValues((prev) => [...prev, text]);
+    };
+    return (
+      <Space wrap>
+        {draftValues.map((value, index) => (
+          <Tag
+            key={`${String(value)}-${index}`}
+            closable
+            onClose={() => removeDraftValueAt(index)}
+          >
+            {String(value)}
+          </Tag>
+        ))}
+        <DatePicker
+          id="filter-in-date"
+          showTime={isDateTime}
+          format={format}
+          placeholder={isDateTime ? '添加时间' : '添加日期'}
+          style={{ width: 200 }}
+          value={undefined}
+          onChange={handlePick}
+        />
+      </Space>
+    );
+  };
+
+  // in 条件值控件：日期/时间用「Tag + DatePicker」集合，布尔/选项字段走多选，其余用标签输入
   const renderInControl = () => {
     const dataType = selectedField?.dataType;
+    if (dataType === 'date' || dataType === 'datetime') {
+      return renderInDateControl();
+    }
     if (dataType === 'bool') {
       return (
         <Select

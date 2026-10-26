@@ -35,6 +35,7 @@
 - **`in`**
   - `bool`：多选「是 / 否」；
   - `select`（字段配置有选项）：用字段 `options` 渲染多选，提交 `optionValue` 数组；
+  - `date` / `datetime`：已选值以可关闭 `Tag` 展示，`DatePicker` 选完即追加（受控保持空白、自动去重、上限 50；`datetime` 开启 `showTime`）；
   - `text` / `textarea` / `number`：`Select mode="tags"`，回车或逗号分隔录入，`number` 提交前转数值。
 - **`between`**
   - `number`：两个 `InputNumber`（起始 / 结束）；
@@ -58,7 +59,7 @@
 
 ### 3.2 Playwright 端到端
 
-`pnpm --filter @bluewhale/e2e exec playwright test tests/form-dynamic-filter.spec.ts --retries=0` → **1 passed（12.8s）**。
+`pnpm --filter @bluewhale/e2e exec playwright test tests/form-dynamic-filter.spec.ts --retries=0` → **1 passed（16.2s）**。
 
 用例通过 API 预置独立表定义与表单（`amount` number、`stage` select(新建/完成)、`memo` text、`due_date` date、`due_at` datetime），发布后写入 5 条数据（第 5 条 `stage=hold` 用于证明条件生效）：
 
@@ -71,7 +72,8 @@
 | between（日期） | 到期日 + 介于 + DatePicker 2026-03-01 / 2026-12-31 | 渲染 2 个 `.ant-picker`，`共 3 条`，Tag `到期日 介于 2026-03-01 ~ 2026-12-31` |
 | 标量日期比较 | 到期日 + 大于 + DatePicker 2026-06-01 | 渲染 1 个 `.ant-picker`，`共 2 条`，Tag `到期日 大于 2026-06-01` |
 | between（日期时间） | 到期时间 + 介于 + 两个 `showTime` DatePicker | 渲染 2 个 `.ant-picker` 且时间面板可见，`共 3 条`，Tag `到期时间 介于 2026-03-01 00:00:00 ~ 2026-12-01 23:59:59` |
-| API 对账 | `memo in [beta,omega]`、`due_date between [...]`、`due_at between [...]` | `total=2` / `3` / `3`，与 UI 一致 |
+| in（日期集合） | 到期日 + 属于 + DatePicker 逐个添加 2026-03-01 / 2026-12-01 | 2 个可关闭草稿 Tag，`共 2 条`，Tag `到期日 属于 2026-03-01, 2026-12-01` |
+| API 对账 | `memo in [...]`、`due_date between [...]`、`due_at between [...]`、`due_date in [...]` | `total=2` / `3` / `3` / `2`，与 UI 一致 |
 
 用例结束自动清理数据、表单定义与表定义。
 
@@ -81,7 +83,7 @@ antd Select 的 `role="option"` 节点位于 `height:0;width:0;overflow:hidden` 
 
 ## 四、遗留
 
-- 日期/时间区间与标量比较均已接 `DatePicker`（`datetime` 开启 `showTime`）；`in` 的日期/时间集合仍为标签文本输入（需多值选择器时可再迭代）。
+- 日期/时间区间、标量比较与 `in` 集合均已接 `DatePicker`；`in` 集合为逐个选择追加（不支持一次框选/区间批量导入），上限 50。
 - 应用未配置 antd `ConfigProvider` 中文 locale，DatePicker 面板文案沿用全局默认（英文）；如后续统一站点语言，可一处接入。
 - `number` 的 `in` 使用标签输入，未做可视化数值校验提示（提交前统一转换）。
 - 条件组合仅 AND；深分页上限、多版本合并内存排序等后端约束不变，见[上一轮报告](2026-10-26-p5-form-dynamic-filter.md)第五章。

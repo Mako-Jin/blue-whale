@@ -80,7 +80,10 @@ async function search(page: Page): Promise<void> {
   await page.getByRole('button', { name: /查\s*询/ }).click();
 }
 
-test('动态字段筛选：between 数值/日期/日期时间区间 / in 选项与文本', async ({ page, request }) => {
+test('动态字段筛选：between 数值/日期/日期时间区间 / in 选项、文本与日期集合', async ({
+  page,
+  request,
+}) => {
   token = await login(request);
 
   // 1) 建表定义（number/select/text/date/datetime）并发布
@@ -339,7 +342,25 @@ test('动态字段筛选：between 数值/日期/日期时间区间 / in 选项�
   await search(page);
   await expect(page.getByText('共 3 条')).toBeVisible();
 
-  // 11) API 对账：同一 filters 经网关命中数与 UI 一致
+  // 11) in（日期集合）：到期日属于 2026-03-01 / 2026-12-01 → 2 条
+  await removeTag(page, '到期时间 介于');
+  await chooseField(page, '到期日');
+  await chooseOp(page, '属于');
+  await expect(page.locator('#filter-in-date')).toBeVisible();
+  await page.locator('#filter-in-date').fill('2026-03-01');
+  await page.locator('#filter-in-date').press('Enter');
+  await page.locator('#filter-in-date').fill('2026-12-01');
+  await page.locator('#filter-in-date').press('Enter');
+  await expect(page.locator('.ant-tag').filter({ hasText: '2026-03-01' })).toBeVisible();
+  await expect(page.locator('.ant-tag').filter({ hasText: '2026-12-01' })).toBeVisible();
+  await page.getByRole('button', { name: '添加条件' }).click();
+  await expect(
+    page.locator('.ant-tag').filter({ hasText: '到期日 属于 2026-03-01, 2026-12-01' }),
+  ).toBeVisible();
+  await search(page);
+  await expect(page.getByText('共 2 条')).toBeVisible();
+
+  // 12) API 对账：同一 filters 经网关命中数与 UI 一致
   const apiResponse = await request.get(
     `${API_BASE_URL}/form/data/page?current=1&size=10&definitionCode=${encodeURIComponent(
       formCode,
@@ -384,4 +405,20 @@ test('动态字段筛选：between 数值/日期/日期时间区间 / in 选项�
   };
   expect(dateTimeEnvelope.code).toBe(0);
   expect(Number(dateTimeEnvelope.data.total)).toBe(3);
+
+  const inDateResponse = await request.get(
+    `${API_BASE_URL}/form/data/page?current=1&size=10&definitionCode=${encodeURIComponent(
+      formCode,
+    )}&filters=${encodeURIComponent(
+      JSON.stringify([{ field: 'due_date', op: 'in', value: ['2026-03-01', '2026-12-01'] }]),
+    )}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  expect(inDateResponse.ok()).toBeTruthy();
+  const inDateEnvelope = (await inDateResponse.json()) as {
+    code: number;
+    data: { total: number | string };
+  };
+  expect(inDateEnvelope.code).toBe(0);
+  expect(Number(inDateEnvelope.data.total)).toBe(2);
 });
