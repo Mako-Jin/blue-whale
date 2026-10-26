@@ -163,8 +163,8 @@
 - [x] ~~God Service 拆分~~（2026-10-22 平台评审 P2-2：`ProcessTaskServiceImpl` 651→67 行纯委派，新增 `service/impl/task/` 8 个命令 + 3 个支撑类，写命令独立事务；147 单测全绿，新 jar 重启后 E2E 3 passed）
 - [x] ~~API 契约自动化~~（2026-10-22 平台评审 P2-3：whale-auth 接入 springdoc 3.1.1，`/v3/api-docs` 200（24 paths）；连带将 `commons-lang3` 抬至 3.20.0 修复 `Strings` 缺失；admin `openapi:types` 生成 41KB 类型且 build/lint 通过）
 - [x] ~~分支与评审策略~~（2026-10-22 平台评审 P2-4：本轮 P2 变更走 `wave5.48-p2-refactor` 分支后合入 `main`；Gitee PR 需网页手工补建，PR 环节待下一次 Wave 验证）
-- [ ] 生产环境 `docker-compose.prod.yml` 验证
-- [ ] Nginx 生产配置 + HTTPS
+- [x] ~~生产环境 `docker-compose.prod.yml` 验证~~（2026-10-26 P3-10：prod 覆盖层经 `docker compose config` 在引擎运行态合并校验通过（资源限制 / `no-new-privileges` / `read_only`+`tmpfs` / Let's Encrypt 证书卷均正确解析）；宿主机无 Let's Encrypt 证书，覆盖层运行时未实跑，开发编排容器化 Nginx HTTPS 已验证；详见 [检查报告](../reviews/2026-10-26-p3-docker-prod-nginx-https.md)）
+- [x] ~~Nginx 生产配置 + HTTPS~~（2026-10-26 P3-10：`nginx -t` 全配置语法通过；自签证书 CN=bluewhale.local / SAN 覆盖 api/app/localhost / 有效期至 2029-01-25 且公私钥匹配；容器化实测 HTTP→HTTPS 301、`/api/**` 经 `host.docker.internal:8080` 网关登录 `code=0`）
 
 ## Phase 6：平台与项目知识 Agent
 

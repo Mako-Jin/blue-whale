@@ -29,6 +29,7 @@
 | 15 | P3 | P3-9a ERP 物料业务闭环（后端填充 + 前端联调） | **已完成**（2026-10-26） | 无 | `whale-erp` 补数据源/mybatis-plus/prometheus 与 `erp_item` DDL；5 接口接权限点 203–206 + 审计；前端 `api/erp.ts` 去 mock 接网关；构建成功、9001 UP、网关 CRUD 4/4、前端 tsc+build 通过；详见 [检查报告](../reviews/2026-10-26-p3-erp-item.md) |
 | 16 | P3 | P3-9b MES 工单业务闭环 | **已完成**（2026-10-26） | 无 | `whale-mes` 补数据源/mybatis-plus/prometheus 与 `mes_work_order` DDL；5 接口接权限点 207–210 + 审计；前端 `api/mes.ts` 去 mock 接网关；构建成功、9002 UP、网关 CRUD 5/5、前端 tsc+build 通过；详见 [检查报告](../reviews/2026-10-26-p3-mes-work-order.md) |
 | 17 | P3 | P3-9c PDM 产品业务闭环 | **已完成**（2026-10-26） | 无 | `whale-pdm` 补数据源/mybatis-plus/prometheus 与 `pdm_product` DDL；5 接口接权限点 211–214 + 审计；前端 `api/pdm.ts` 去 mock 接网关；构建成功、9003 UP、网关 CRUD 5/5、前端 tsc+build 通过；详见 [检查报告](../reviews/2026-10-26-p3-pdm-product.md) |
+| 18 | P3 | P3-10 docker-compose.prod 验证 + Nginx HTTPS | **已完成**（2026-10-26） | prod 覆盖层运行时需宿主机 Let's Encrypt 证书 | `docker compose config` 引擎运行态合并校验通过（资源限制/`no-new-privileges`/`read_only`/证书卷）；`nginx -t` 全配置通过；自签证书 SAN/有效期/公私钥匹配校验通过；本机与容器化双路实测 HTTP→HTTPS 301、`/api/**` 网关登录 `code=0`；详见 [检查报告](../reviews/2026-10-26-p3-docker-prod-nginx-https.md) |
 
 ---
 
@@ -69,3 +70,4 @@
 | 2026-10-26 | 序号 15（P3-9a） | ERP 物料闭环：`erp_item` 库表 + 5 接口（权限 203–206）+ 前端去 mock；构建成功、9001 UP、网关 CRUD 4/4、tsc+build 通过；详见 [检查报告](../reviews/2026-10-26-p3-erp-item.md) |
 | 2026-10-26 | 序号 16（P3-9b） | MES 生产工单闭环：`mes_work_order` 库表 + 5 接口（权限 207–210、菜单 26）+ 前端去 mock；构建成功、9002 UP、网关 CRUD 5/5、`api_log` 落 5 行、tsc+build 通过；详见 [检查报告](../reviews/2026-10-26-p3-mes-work-order.md) |
 | 2026-10-26 | 序号 17（P3-9c） | PDM 产品闭环：`pdm_product` 库表 + 5 接口（权限 211–214、菜单 27）+ 前端去 mock；构建成功、9003 UP、网关 CRUD 5/5、`api_log` 落 5 行、tsc+build 通过；P3-9 三子任务全部闭环；详见 [检查报告](../reviews/2026-10-26-p3-pdm-product.md) |
+| 2026-10-26 | 序号 18（P3-10） | 部署收口：prod 覆盖层 `docker compose config` 引擎态校验通过；`nginx -t` 全配置通过；自签证书 SAN/有效期/公私钥匹配；本机 8088/8443 与容器化 80/443 双路实测 HTTPS 反向代理（HTTP→301、`/api/auth/login` code=0）；prod 覆盖层实跑受 Let's Encrypt 证书路径阻塞已记录；详见 [检查报告](../reviews/2026-10-26-p3-docker-prod-nginx-https.md) |
