@@ -21,6 +21,7 @@
 | 7 | P2 | portal 三处占位收口 + 基座 3 个 PlaceholderPage | **已完成**（2026-10-25；实机 E2E 待环境） | 浏览器 E2E 需 MySQL/Redis/Nacos 与全部服务就绪 | Dashboard 四项统计接真实接口；待办「去处理」改为门户内审批抽屉（同意/驳回）；通知中心接告警记录 + IM 会话双源；用户/角色/菜单改为真实只读页；详见 [检查报告](../reviews/2026-10-25-p2-portal-platform-placeholders.md) |
 | 8 | P2 | alert 通知渠道 + monitor Prometheus 接入 | **已完成**（2026-10-25；实机联调待环境） | Alertmanager/邮件实机联调需 Prometheus 栈 + 邮件服务器 + MySQL | 邮件 + Webhook 通道已实现；`/alert/internal/prometheus` 入站落库并按规则通知；网关屏蔽内网前缀；版本化 `prometheus.yml` + `alertmanager.yml`；ops Monitor 页可跳转 Prometheus/Grafana；详见 [检查报告](../reviews/2026-10-25-p2-alert-notify-prometheus.md) |
 | 9 | P3 | Phase 4 业务应用（OA 请假闭环）+ CI/部署收口 | **已完成**（2026-10-25；E2E/镜像实机构建待环境） | 浏览器 E2E 需 MySQL/Redis/Nacos 与全部服务；镜像实机构建需 Docker 与 registry 凭据 | `whale-apps` OA 域 DDL（`oa_leave`）→六端点→权限 168–171→网关 `/oa/**`→前端列表/表单闭环；T-CI-7 镜像矩阵覆盖 18 个后端服务；`coverage-gate` 接入 GitHub Actions + Gitee Go（本地全 reactor 通过）；详见 [检查报告](../reviews/2026-10-25-p3-oa-leave-ci.md) |
+| 10 | P2 | `ImBotService#openDefault` 并发首建失败修复（5.55 部署验证 P2-1/B16） | **已完成**（2026-10-26） | 无 | 恢复读改 `REQUIRES_NEW + READ_COMMITTED` 独立事务跳出 REPEATABLE READ 快照；新增事务属性断言与双线程并发用例；whale-im 139 用例全绿、Checkstyle 0；详见 [检查报告](../reviews/2026-10-26-p2-imbot-concurrent-create.md) |
 
 ---
 
@@ -53,3 +54,4 @@
 | 2026-10-26 | 序号 1（收尾） | 本机拉起全环境（5 服务新 jar）；修复 PermCode 平台级 bug（驼峰码 `resetPwd`/`bpmnImport` 导致 /auth/me 400，改全小写 + migration-5.56，前一日已修 `add-sign`）；§14.5 E2E 3/3 通过；Agent 索引重建 READY（2107 文件/13438 块）；详见 [检查报告](../reviews/2026-10-26-wave5.54-e2e-agent-index.md) |
 | 2026-10-26 | 序号 2（5.4 E2E） | 新增 `tenant-switch.spec.ts`（数据自包含：API 确保 acme + admin 绑定）；修复雪花 ID `Number()` 精度丢失导致绑定 404；切换 acme→新令牌 tenantId 校验→切回默认全过；全量 E2E 4/4 绿 |
 | 2026-10-26 | 序号 3（密级矩阵复测） | 三级密级权限矩阵经网关真机复测 **PASS**（e2e_none 0/0、e2e_item 密级 2 可见/密级 3 不可见、e2e_secret 均可见）；同步修复 4 个检索链路缺陷：增量扫描误删 `file:` 知识块、`/file/internal/{id}` 契约缺 status 字段致单文件重建恒 SKIPPED、全量重建无台账自愈、网关 `/auth/me` 回落未透传 `X-Tenant-Id` 致权限码头静默为空；详见 [检查报告](../reviews/2026-10-26-wave5.53-security-matrix.md) |
+| 2026-10-26 | 序号 10（P2-4） | `ImBotService#openDefault` 并发首建修复：恢复读包入 `REQUIRES_NEW + READ_COMMITTED` 独立事务，跳出外层 REPEATABLE READ 快照；新增事务属性断言 + 双线程并发用例；whale-im 139 用例全绿、Checkstyle 0；详见 [检查报告](../reviews/2026-10-26-p2-imbot-concurrent-create.md) |

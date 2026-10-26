@@ -15,8 +15,17 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.TransactionStatus;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -59,8 +68,17 @@ class ImBotServiceTest {
 
     private final ImConversationGuard guard = mock(ImConversationGuard.class);
 
+    private final PlatformTransactionManager txManager = mock(PlatformTransactionManager.class);
+
     private final ImBotService service = new ImBotService(conversationMapper, memberMapper, bindingMapper,
-            guard, "蓝鲸助手", BOT_USER_ID, "DEFAULT");
+            guard, txManager, "蓝鲸助手", BOT_USER_ID, "DEFAULT");
+
+    /**
+     * 恢复读走真实 {@code TransactionTemplate}，mock 事务管理器直接放行。
+     */
+    ImBotServiceTest() {
+        when(txManager.getTransaction(any())).thenReturn(mock(TransactionStatus.class));
+    }
 
     @Test
     @DisplayName("openDefault：首次调用创建 BOT 会话、双成员与绑定")
@@ -209,6 +227,48 @@ class ImBotServiceTest {
         assertEquals("100", vo.getId());
         verify(conversationMapper, times(1)).insert(any(ImConversation.class));
         verify(bindingMapper, never()).insert(any(ImAgentBinding.class));
+
+        // 恢复读必须跳出外层 REPEATABLE READ 快照：REQUIRES_NEW + READ_COMMITTED
+        ArgumentCaptor<TransactionDefinition> txCaptor = ArgumentCaptor.forClass(TransactionDefinition.class);
+        verify(txManager).getTransaction(txCaptor.capture());
+        assertEquals(TransactionDefinition.PROPAGATION_REQUIRES_NEW,
+                txCaptor.getValue().getPropagationBehavior());
+        assertEquals(TransactionDefinition.ISOLATION_READ_COMMITTED,
+                txCaptor.getValue().getIsolationLevel());
+    }
+
+    @Test
+    @DisplayName("openDefault：双线程并发首建，仅一方落库，双方均拿到会话")
+    void shouldSucceedForBothThreadsOnConcurrentFirstCreate() throws Exception {
+        AtomicBoolean committed = new AtomicBoolean(false);
+        ImConversation stored = conversation(0L);
+        when(conversationMapper.selectOne(any()))
+                .thenAnswer(invocation -> committed.get() ? stored : null);
+        when(conversationMapper.insert(any(ImConversation.class))).thenAnswer(invocation -> {
+            if (committed.compareAndSet(false, true)) {
+                // 模拟 MyBatis-Plus 主键回填
+                invocation.getArgument(0, ImConversation.class).setId(CONVERSATION_ID);
+                return 1;
+            }
+            throw new DuplicateKeyException("dup");
+        });
+        when(memberMapper.selectCount(any())).thenReturn(1L);
+        when(bindingMapper.selectCount(any())).thenReturn(1L);
+        when(memberMapper.selectOne(any())).thenReturn(null);
+
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            List<Future<ConversationVO>> futures = new ArrayList<>();
+            for (int i = 0; i < 2; i++) {
+                futures.add(pool.submit(() -> service.openDefault(USER_ID)));
+            }
+            for (Future<ConversationVO> future : futures) {
+                ConversationVO vo = future.get(10, TimeUnit.SECONDS);
+                assertEquals("100", vo.getId());
+            }
+        } finally {
+            pool.shutdownNow();
+        }
     }
 
     @Test

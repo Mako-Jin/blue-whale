@@ -14,7 +14,9 @@ import com.bluewhale.im.vo.ConversationVO;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
 
@@ -74,19 +76,24 @@ public class ImBotService {
     /** 默认智能体场景 */
     private final String botScenario;
 
+    /** 并发首建恢复读事务模板：REQUIRES_NEW + READ_COMMITTED，跳出外层 REPEATABLE READ 快照 */
+    private final TransactionTemplate recoveryReadTemplate;
+
     /**
      * 构造机器人会话服务。
      *
-     * @param conversationMapper 会话 Mapper
-     * @param memberMapper       成员 Mapper
-     * @param bindingMapper      绑定 Mapper
-     * @param guard              会话成员校验
-     * @param botName            机器人展示名
-     * @param botUserId          机器人逻辑用户ID
-     * @param botScenario        默认智能体场景
+     * @param conversationMapper  会话 Mapper
+     * @param memberMapper        成员 Mapper
+     * @param bindingMapper       绑定 Mapper
+     * @param guard               会话成员校验
+     * @param transactionManager  事务管理器（并发首建恢复读用）
+     * @param botName             机器人展示名
+     * @param botUserId           机器人逻辑用户ID
+     * @param botScenario         默认智能体场景
      */
     public ImBotService(ImConversationMapper conversationMapper, ImConversationMemberMapper memberMapper,
                         ImAgentBindingMapper bindingMapper, ImConversationGuard guard,
+                        PlatformTransactionManager transactionManager,
                         @Value("${whale.im.bot.name:蓝鲸助手}") String botName,
                         @Value("${whale.im.bot.user-id:900000000000000001}") Long botUserId,
                         @Value("${whale.im.bot.scenario:DEFAULT}") String botScenario) {
@@ -97,6 +104,11 @@ public class ImBotService {
         this.botName = botName;
         this.botUserId = botUserId;
         this.botScenario = botScenario;
+        this.recoveryReadTemplate = new TransactionTemplate(transactionManager);
+        this.recoveryReadTemplate.setPropagationBehavior(
+                org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        this.recoveryReadTemplate.setIsolationLevel(
+                org.springframework.transaction.TransactionDefinition.ISOLATION_READ_COMMITTED);
     }
 
     /**
@@ -112,13 +124,21 @@ public class ImBotService {
             try {
                 conversation = createConversation(userId);
             } catch (DuplicateKeyException e) {
-                // 并发首建：pair_key 唯一索引兜底，返回先落库的会话
-                conversation = findExisting(userId);
+                // 并发首建：pair_key 唯一索引兜底，返回先落库的会话。
+                // 恢复读须在 REQUIRES_NEW + READ_COMMITTED 新事务中执行——外层事务
+                // （REPEATABLE READ）的快照已在首次 findExisting 建立，同事务重读
+                // 看不到并发事务已提交的行，会误判为 null 而重复抛出。
+                conversation = recoveryReadTemplate.execute(status -> {
+                    ImConversation found = findExisting(userId);
+                    if (found != null) {
+                        ensureMember(found.getId(), userId, MEMBER_USER, ROLE_OWNER);
+                        ensureBinding(found.getId());
+                    }
+                    return found;
+                });
                 if (conversation == null) {
                     throw e;
                 }
-                ensureMember(conversation.getId(), userId, MEMBER_USER, ROLE_OWNER);
-                ensureBinding(conversation.getId());
             }
         } else {
             ensureMember(conversation.getId(), userId, MEMBER_USER, ROLE_OWNER);
