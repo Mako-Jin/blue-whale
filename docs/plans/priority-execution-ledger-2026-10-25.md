@@ -23,6 +23,7 @@
 | 9 | P3 | Phase 4 业务应用（OA 请假闭环）+ CI/部署收口 | **已完成**（2026-10-25；E2E/镜像实机构建待环境） | 浏览器 E2E 需 MySQL/Redis/Nacos 与全部服务；镜像实机构建需 Docker 与 registry 凭据 | `whale-apps` OA 域 DDL（`oa_leave`）→六端点→权限 168–171→网关 `/oa/**`→前端列表/表单闭环；T-CI-7 镜像矩阵覆盖 18 个后端服务；`coverage-gate` 接入 GitHub Actions + Gitee Go（本地全 reactor 通过）；详见 [检查报告](../reviews/2026-10-25-p3-oa-leave-ci.md) |
 | 10 | P2 | `ImBotService#openDefault` 并发首建失败修复（5.55 部署验证 P2-1/B16） | **已完成**（2026-10-26） | 无 | 恢复读改 `REQUIRES_NEW + READ_COMMITTED` 独立事务跳出 REPEATABLE READ 快照；新增事务属性断言与双线程并发用例；whale-im 139 用例全绿、Checkstyle 0；详见 [检查报告](../reviews/2026-10-26-p2-imbot-concurrent-create.md) |
 | 11 | P2 | PM 审批开启态联调（5.55 遗留） | **已完成**（2026-10-26） | 无 | 补建 `bluewhale_pm` 库；创建流程定义 2114553480332849153；whale-pm 开启态发起审批→动态记录→workflow 实例对账→审批完结 8/8 通过；固化 `bw-pm-approval-smoke.ps1`；详见 [检查报告](../reviews/2026-10-26-p2-pm-approval-enabled.md) |
+| 12 | P2 | PM 权限点 172–202 真实业务角色补授（5.55 遗留） | **已完成**（2026-10-26） | 无 | `migration-5.57-pm-role-grant.sql` 建 pm_manager(31 全量)/pm_member(16 子集) 并授权 + 补 workflow `instance:start`(44)；pm_mgr/pm_mem 网关级 12 项正负向验证全过；详见 [检查报告](../reviews/2026-10-26-p2-pm-role-grant.md) |
 
 ---
 
@@ -57,3 +58,4 @@
 | 2026-10-26 | 序号 3（密级矩阵复测） | 三级密级权限矩阵经网关真机复测 **PASS**（e2e_none 0/0、e2e_item 密级 2 可见/密级 3 不可见、e2e_secret 均可见）；同步修复 4 个检索链路缺陷：增量扫描误删 `file:` 知识块、`/file/internal/{id}` 契约缺 status 字段致单文件重建恒 SKIPPED、全量重建无台账自愈、网关 `/auth/me` 回落未透传 `X-Tenant-Id` 致权限码头静默为空；详见 [检查报告](../reviews/2026-10-26-wave5.53-security-matrix.md) |
 | 2026-10-26 | 序号 10（P2-4） | `ImBotService#openDefault` 并发首建修复：恢复读包入 `REQUIRES_NEW + READ_COMMITTED` 独立事务，跳出外层 REPEATABLE READ 快照；新增事务属性断言 + 双线程并发用例；whale-im 139 用例全绿、Checkstyle 0；详见 [检查报告](../reviews/2026-10-26-p2-imbot-concurrent-create.md) |
 | 2026-10-26 | 序号 11（P2-5） | PM 审批开启态联调闭环：补建 `bluewhale_pm` 库（12 表）、流程定义 2114553480332849153、PM 开启态全链路 8/8 通过（发起→动态→实例对账→审批完结）；新增回归脚本 `bw-pm-approval-smoke.ps1`；详见 [检查报告](../reviews/2026-10-26-p2-pm-approval-enabled.md) |
+| 2026-10-26 | 序号 12（P2-6） | PM 权限 172–202 落真实业务角色：`migration-5.57-pm-role-grant.sql`（pm_manager 31 全量 / pm_member 16 子集 + workflow `instance:start` 44）；pm_mgr/pm_mem 经网关 12 项正负向验证全过（含 403 边界与发起审批闭环）；详见 [检查报告](../reviews/2026-10-26-p2-pm-role-grant.md) |
