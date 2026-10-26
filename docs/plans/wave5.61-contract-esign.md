@@ -294,7 +294,15 @@ public interface EsignProvider {
 - [x] 交付：`EsignProvider` 三实现 + 回调接口 + `ct_esign_callback` + 证据链 + `/workflow/internal/task/{id}/complete` + 归档衔接 + 菜单 31。
 - [x] 验收：① 回调重放 10 次仅推进一次；② 验签非法/超时窗口一律拒绝并落审计；③ 证据链中断可被 `verify` 检出；④ 签署完成后归档可见（若启用归档）；⑤ provider 切换只改配置不改代码。
 - 落地记录：provider 适配层 [`esign/provider`](../../backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/esign/provider)、回调 [`EsignCallbackServiceImpl`](../../backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/service/impl/EsignCallbackServiceImpl.java)、workflow 内部接口 [`WorkflowInternalTaskController`](../../backend/whale-services/whale-workflow/src/main/java/com/bluewhale/workflow/controller/WorkflowInternalTaskController.java)、迁移 `migration-5.63-contract-esign-callback.sql` / `migration-5.63-workflow-task-operator.sql` / `migration-5.63-contract-esign-m3.sql`、前端证据中心 `EvidenceCenter.tsx`、冒烟 [bw-contract-m3-smoke.ps1](../../scripts/smoke/bw-contract-m3-smoke.ps1)；验收报告见 [2026-10-26-p3-wave5.61-contract-m3.md](../reviews/2026-10-26-p3-wave5.61-contract-m3.md)。
-- M3 简化（后续迭代）：三方通道为 HMAC 骨架（未调真实平台 API，未接实名意愿认证与持牌 CA/TSA）；回调乱序的定时 `queryTask` 补偿未做；`whale-archive` 内部快照接口未新增，归档仍为合同侧状态流转。
+- M3 简化（后续迭代）：三方通道为 HMAC 骨架（未调真实平台 API，未接实名意愿认证与持牌 CA/TSA）；`whale-archive` 内部快照接口未新增，归档仍为合同侧状态流转。
+
+### M3.5 回调乱序补偿（2026-10-26）—— **已完成**
+
+- [x] 交付：`EsignCallbackSigner`（统一验签/补偿签名口径）+ `SignTaskReconcileJob`（超时 `SIGNING` 非 local 任务定时 `queryTask`，终态时自签内部回调交既有 `EsignCallbackService`）+ `whale.contract.esign.reconcile.{enabled,interval-ms,initial-delay-ms,stale-seconds,batch-size}` 配置（环境变量 `CONTRACT_ESIGN_RECONCILE_*` 可覆盖）。
+- [x] 验收：① `package` 通过且 Checkstyle 0；② 单测 4/4（终态映射 / 非终态不推进 / 拒签带原因 / 缺密钥跳过）；③ 实机三类任务（过期三方 / LOCAL / 未超时）仅过期三方被轮询，骨架渠道恒 `SIGNING` 时任务不被误推进；④ 幂等键 `RECONCILE-<taskId>-<action>`，同任务重复补偿不重复推进。
+- 落地记录：补丁位于 [`esign/reconcile`](../../backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/esign/reconcile) 与 [`EsignCallbackSigner`](../../backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/esign/provider/EsignCallbackSigner.java)；验收报告见 [2026-10-26-p3-esign-callback-reconcile.md](../reviews/2026-10-26-p3-esign-callback-reconcile.md)。
+- 遗留：三方 `queryTask` 仍为骨架实现（恒 `SIGNING`），真实终态推进待平台 API 接入后启用。
+
 
 ---
 
@@ -306,7 +314,7 @@ public interface EsignProvider {
 | R2 | 引擎无异步事件节点 | 采用 §5.3 方案 B 内部完成接口，改动小且可审计 |
 | R3 | 外部签署方实名与意愿认证 | 交由三方平台；平台侧只存证据编号 |
 | R4 | 印章图片泄露 | 预览水印 + 原图权限 + 全部用章留痕 |
-| R5 | 回调乱序/重复 | 幂等表 + 状态机单向流转 + 定时 `queryTask` 兜底 |
+| R5 | 回调乱序/重复 | 幂等表 + 状态机单向流转 + 定时 `queryTask` 兜底（**已落地**：`SignTaskReconcileJob`，见 M3.5） |
 | R6 | 合同金额分级规则频繁变化 | 先用流程变量 + 条件网关；若需运营配置再评估规则表 |
 | Q1 | 是否需要骑缝章、多页跨页章？ | 建议 M2 支持骑缝，跨页签章按页坐标 |
 | Q2 | 是否需要外部相对方在平台内注册？ | 建议不注册，走三方 H5；平台仅存签署人姓名/手机号（脱敏） |

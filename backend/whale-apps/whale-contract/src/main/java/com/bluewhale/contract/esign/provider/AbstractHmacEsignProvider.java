@@ -5,12 +5,8 @@ import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.contract.config.ContractEsignProperties;
 import org.springframework.util.StringUtils;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
-import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
-import java.util.Base64;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
@@ -28,16 +24,13 @@ import java.util.UUID;
 public abstract class AbstractHmacEsignProvider implements EsignProvider {
 
     /** 时间戳请求头 */
-    private static final String HEADER_TIMESTAMP = "X-Esign-Timestamp";
+    private static final String HEADER_TIMESTAMP = EsignCallbackSigner.HEADER_TIMESTAMP;
 
     /** 随机数请求头 */
-    private static final String HEADER_NONCE = "X-Esign-Nonce";
+    private static final String HEADER_NONCE = EsignCallbackSigner.HEADER_NONCE;
 
     /** 签名请求头 */
-    private static final String HEADER_SIGNATURE = "X-Esign-Signature";
-
-    /** HMAC 算法 */
-    private static final String HMAC_ALGORITHM = "HmacSHA256";
+    private static final String HEADER_SIGNATURE = EsignCallbackSigner.HEADER_SIGNATURE;
 
     /** 秒级时间戳阈值（10 位） */
     private static final long SECOND_TIMESTAMP_MAX = 9_999_999_999L;
@@ -161,12 +154,6 @@ public abstract class AbstractHmacEsignProvider implements EsignProvider {
      * @return Base64 签名
      */
     private String hmacBase64(String secret, String content) {
-        try {
-            Mac mac = Mac.getInstance(HMAC_ALGORITHM);
-            mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), HMAC_ALGORITHM));
-            return Base64.getEncoder().encodeToString(mac.doFinal(content.getBytes(StandardCharsets.UTF_8)));
-        } catch (GeneralSecurityException ex) {
-            throw new IllegalStateException("HMAC-SHA256 计算失败", ex);
-        }
+        return EsignCallbackSigner.hmacBase64(secret, content);
     }
 }

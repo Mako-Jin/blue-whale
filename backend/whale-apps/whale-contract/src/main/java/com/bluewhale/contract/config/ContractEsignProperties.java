@@ -45,6 +45,9 @@ public class ContractEsignProperties {
     /** 三方渠道接入参数，按渠道名索引 */
     private Map<String, ProviderConfig> providers = new LinkedHashMap<>();
 
+    /** 回调补偿（乱序/丢失回调兜底） */
+    private Reconcile reconcile = new Reconcile();
+
     /**
      * 是否启用数字签名。
      *
@@ -52,6 +55,24 @@ public class ContractEsignProperties {
      */
     public boolean isDigitalSignatureEnabled() {
         return p12Path != null && !p12Path.isBlank();
+    }
+
+    /**
+     * 回调补偿配置：对长时间停留在 {@code SIGNING} 的非 local 任务轮询三方状态，
+     * 发现终态时以内部签名回调走与真实回调一致的幂等链路。
+     */
+    @Getter
+    @Setter
+    public static class Reconcile {
+
+        /** 是否启用补偿轮询 */
+        private boolean enabled = true;
+
+        /** 任务停留超过该秒数才参与轮询 */
+        private int staleSeconds = 120;
+
+        /** 单轮最多处理任务数 */
+        private int batchSize = 50;
     }
 
     /**

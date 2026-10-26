@@ -73,6 +73,13 @@ whale:
           app-id: ${CONTRACT_ESIGN_SSQ_APP_ID:}
           app-secret: ${CONTRACT_ESIGN_SSQ_APP_SECRET:}
           sign-url-template: ${CONTRACT_ESIGN_SSQ_SIGN_URL:}
+      # 回调补偿：对停留超时的非 local SIGNING 任务轮询三方状态，发现终态时走内部签名回调
+      reconcile:
+        enabled: ${CONTRACT_ESIGN_RECONCILE_ENABLED:true}
+        interval-ms: ${CONTRACT_ESIGN_RECONCILE_INTERVAL_MS:60000}
+        initial-delay-ms: ${CONTRACT_ESIGN_RECONCILE_INITIAL_DELAY_MS:30000}
+        stale-seconds: ${CONTRACT_ESIGN_RECONCILE_STALE_SECONDS:120}
+        batch-size: ${CONTRACT_ESIGN_RECONCILE_BATCH_SIZE:50}
 
 mybatis-plus:
   configuration:
