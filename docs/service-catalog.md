@@ -17,7 +17,7 @@
 
 ---
 
-## 一、后端服务清单（20 个：Java 19 + Python 1）
+## 一、后端服务清单（21 个：Java 20 + Python 1）
 
 | # | 服务名（Spring / Nacos） | 所属分组 | 模块目录 | 端口 | 对外一级前缀 | 网关路由 | 数据库（`bluewhale_<域>`） | 启动类 | 职责 | 本机状态 |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -41,13 +41,14 @@
 | 18 | `whale-archive` | whale-services | `whale-services/whale-archive` | **8093** | `/archive/**` | ✅ `lb://whale-archive` | **`bluewhale_archive`**（6 表，脚本已就绪） | `WhaleArchiveApplication` | 档案服务：门类/规则/条目/档号/快照/检索；只读拉取工作流已通过实例与表单附件 | **可启动**（Wave 5.53 M1 底座完成，未起服） |
 | 19 | `whale-ai`（Python / FastAPI） | ——（`ai/` 独立树，**不进 Maven reactor**） | `ai/whale-ai` | **8092** | 无（**仅内网**，不注册网关、不注册 Nacos） | ❌ 不配（由 `whale-agent` 内网调用） | 无（记忆存 Redis `whale:ai:memory:*`） | `main:app`（uvicorn） | LangChain/LangGraph 编排、工具循环、确认态；**不持业务库凭据** | **骨架已落地**（Wave 5.52 T10；pytest 待 Python 3.11/3.12 环境） |
 | 20 | `whale-pm` | whale-apps | `whale-apps/whale-pm` | **9005** | `/pm/**` | ✅ 已配路由（2026-10-25） | **`bluewhale_pm`**（4 表 DDL 就绪，**待建库**） | `WhalePmApplication` | 项目管理（对标 Jira/禅道）：项目空间/成员/状态流转（M1）、工作项（M2）、迭代看板（M3）、报表（M4）、站内通知 + 工作流审批（M5，默认关闭） | **可启动**（Wave 5.55 M1–M5 完成；未起服） |
+| 21 | `whale-contract` | whale-apps | `whale-apps/whale-contract` | **9006** | `/contract/**` | ✅ `lb://whale-contract`（2026-10-26） | **`bluewhale_contract`**（4 表 + `api_log`） | `WhaleContractApplication` | 合同管理：起草/相对方/版本/审批/终止/归档（M1）；印章/PDF 盖章/数字签名/三方签章（M2–M3） | **可启动**（Wave 5.61 M1 完成） |
 
 > 「对外一级前缀」= 服务自持的前缀，网关**只转发、不剥离**（REQ-ARCH-003）。
 > 网关 `discovery.locator.enabled=true` 已开启服务发现路由：`lb://whale-<域>` → `http://<服务实例>`。
 
 ---
 
-## 二、网关路由映射（`whale-gateway`，现配 20 条；Wave 5.55 新增 `/pm/**`）
+## 二、网关路由映射（`whale-gateway`，现配 21 条；Wave 5.61 新增 `/contract/**`）
 
 | 路由 id | 断言前缀 | 目标 URI | 对应服务 | 状态 |
 |---|---|---|---|---|
@@ -70,12 +71,13 @@
 | whale-oa | `Path=/oa/**` | `lb://whale-oa` | whale-oa | ✅ 已配（2026-10-25） |
 | whale-config | `Path=/config/**` | `lb://whale-config` | whale-config | ✅ 已配（2026-10-25） |
 | `whale-pm` | `Path=/pm/**` | `lb://whale-pm` | whale-pm | ✅ 已配（Wave 5.55 M1；**不配 `StripPrefix`**，内网 `/pm/internal/**` 由 internal-deny 403） |
+| `whale-contract` | `Path=/contract/**` | `lb://whale-contract` | whale-contract | ✅ 已配（Wave 5.61 M1；**不配 `StripPrefix`**，内网 `/contract/internal/**` 由 internal-deny 403） |
 
 **网关免鉴权白名单**：`/auth/login`、`/auth/refresh`、`/actuator/**`、`/v3/api-docs/**`、`/doc.html`、`/webjars/**`、`/favicon.ico`、`/audit/log/frontend/batch`、`/audit/log/behavior/batch`（后两条为前端/行为日志上报，Wave 5.19 起仅放行 batch 写入端点）。
 
 ---
 
-## 三、前端应用清单（13 个，开发态端口）
+## 三、前端应用清单（14 个，开发态端口）
 
 | # | 应用 | 目录 | 包名（NPM） | 角色 | 开发端口 | base 路径 | 备注 |
 |---|---|---|---|---|---|---|---|
@@ -92,6 +94,7 @@
 | 11 | whale-agent | `frontend/platform-apps/whale-agent` | `whale-agent` | 独立 SPA（知识问答工作台） | **8004** | `/` | 直连网关 8080，非 qiankun 子应用（Wave 5.47） |
 | 12 | whale-im | `frontend/platform-apps/whale-im` | `whale-im` | qiankun **子应用**（即时通讯 + 蓝鲸助手） | **8107** | `/im` | 微应用名 `whale-im`（Wave 5.52 规划）；`/im` 同时为 API 前缀，沿用 `Accept: text/html` 旁路 |
 | 13 | whale-pm | `frontend/platform-apps/whale-pm` | `whale-pm` | qiankun **子应用**（项目管理） | **8108** | `/pm` | 微应用名 `whale-pm`（Wave 5.55；M4 交付页面） |
+| 14 | whale-contract | `frontend/platform-apps/whale-contract` | `whale-contract` | qiankun **子应用**（合同管理：列表 + 详情/版本/流程） | **8109** | `/contract` | 微应用名 `whale-contract`（Wave 5.61 M1） |
 
 共享包（不占端口）：`frontend/shared-packages/whale-common-tools`、`whale-common-theme`、`whale-common-three`、`whale-log-sdk`、`frontend/elemental/whale-ui`、`frontend/games/whale-games-core`（NPM scope `@bluewhale/`）。
 
@@ -149,6 +152,7 @@
 | **8106** | `whale-pdm` | 前端（子应用） | base `/pdm` |
 | **8107** | `whale-im` | 前端（子应用） | base `/im`（规划） |
 | **8108** | `whale-pm` | 前端（子应用） | base `/pm`（Wave 5.55 M4） |
+| **8109** | `whale-contract` | 前端（子应用） | base `/contract`（Wave 5.61 M1） |
 | **8848** | Nacos | 基础设施 | HTTP OpenAPI + 主服务（contextPath `/nacos`） |
 | **8849** | Nacos Console | 基础设施 | 控制台（Nacos 3.x） |
 | **8858** | Sentinel Dashboard | 基础设施 | 规划（未引入） |
@@ -157,6 +161,7 @@
 | **9003** | `whale-pdm` | 后端 | PDM（缺网关路由） |
 | **9004** | `whale-oa` | 后端 | OA |
 | **9005** | `whale-pm` | 后端 | 项目管理（Wave 5.55 M1） |
+| **9006** | `whale-contract` | 后端 | 合同管理（Wave 5.61 M1） |
 | **9090** | Prometheus | 基础设施 | 规划（compose 未定义） |
 | **9101** | `whale-audit` | 后端 | 审计日志 |
 | **9102** | `whale-monitor` | 后端 | 监控采集 |
@@ -192,9 +197,9 @@
 | **8000–8099** | **前端 dev server**：基座 `8000`、admin `8001`、form-designer `8002`、workflow-designer `8003`、agent `8004` | 已落地（C-01 已解） |
 | **8080** | **网关（唯一后端入口）** | 已运行 |
 | **8081–8099** | **核心服务** | auth 8081、job 8082、workflow 8083、form 8084、file 8085、pay 8086、**agent 8090、im 8091、ai 8092（Python）、archive 8093**（8087 已随 `whale-i18n` 服务删除释放，Wave 5.50） |
-| **8101–8199** | **qiankun 子应用 + 运维端** | portal 8101、erp 8102、oa 8103、ops 8104、mes 8105、pdm 8106、**im 8107、pm 8108** |
+| **8101–8199** | **qiankun 子应用 + 运维端** | portal 8101、erp 8102、oa 8103、ops 8104、mes 8105、pdm 8106、**im 8107、pm 8108、contract 8109** |
 | **8848 / 8849 / 9848 / 9849** | **Nacos** | 已运行 |
-| **9001–9099** | **业务应用** | erp 9001、mes 9002、pdm 9003、oa 9004、**pm 9005** |
+| **9001–9099** | **业务应用** | erp 9001、mes 9002、pdm 9003、oa 9004、**pm 9005、contract 9006** |
 | **9101–9199** | **运维（ops）** | audit 9101、monitor 9102、alert 9103 |
 | **9201–9299** | **注册与配置** | config 9201 |
 

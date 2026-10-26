@@ -25,6 +25,7 @@ export const menuConfig: MenuNode[] = [
   { key: '/pdm', label: 'PDM 应用' },
   { key: '/im', label: '消息' },
   { key: '/pm', label: '项目管理' },
+  { key: '/contract', label: '合同管理' },
 ];
 
 const routeTitles = new Map<string, string>();

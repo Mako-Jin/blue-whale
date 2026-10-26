@@ -49,6 +49,7 @@ const MENU_ICONS: Record<string, ReactNode> = {
   '/pdm': <ProfileOutlined />,
   '/im': <MessageOutlined />,
   '/pm': <ProjectOutlined />,
+  '/contract': <FileTextOutlined />,
 };
 
 export default function MainLayout() {

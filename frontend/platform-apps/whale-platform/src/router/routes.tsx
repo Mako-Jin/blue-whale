@@ -49,6 +49,8 @@ export const routes = [
       { path: 'im/*', element: <SubAppContainer /> },
       // 项目管理（whale-pm 子应用，对标 Jira / 禅道）
       { path: 'pm/*', element: <SubAppContainer /> },
+      // 合同管理（whale-contract 子应用，Wave 5.61 M1）
+      { path: 'contract/*', element: <SubAppContainer /> },
     ],
   },
 ];

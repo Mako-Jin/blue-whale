@@ -616,6 +616,12 @@
 - [x] **M4 报表与前端**：燃尽/速率/累积流/负载 4 报表（权限 201、Redis 5 分钟缓存、1 年区间护栏）+ `frontend/platform-apps/whale-pm`（8108、base `/pm`，8 页面）+ 基座 qiankun 挂载（菜单 24）；whale-pm 116 例单测全绿、前端 `lint` / `build` 通过
 - [x] **M5 集成与收尾**：whale-im `POST /im/internal/notify` 内网通知通道 + 网关 `/im/internal/**` 屏蔽；whale-pm 站内通知（`whale.pm.notify.enabled=false`，指派/评论/流转，`afterCommit` 异步 + 租户透传 + 失败仅 warn）；workflow 审批（`whale.pm.approval.enabled=false`，`POST /pm/work-item/{id}/approval`，权限 202）；集成冒烟脚本 + 文档；whale-pm 127 例 / whale-im 138 例单测全绿
 
+## Wave 5.61（合同管理与电子签章）
+
+- [x] **M1 合同主数据与审批编排**：新模块 `whale-apps/whale-contract`（9006 / `/contract/**` / `bluewhale_contract`）+ 4 表（`ct_contract`/`ct_contract_party`/`ct_contract_version`/`ct_contract_flow`）+ `api_log` + 11 接口（CRUD / submit / withdraw / terminate / archive / versions）+ 状态机 + 工作流提交与审批结果同步 + 权限 215–222 + 菜单 28 + 网关路由 + 前端 `whale-contract`（8109）；冒烟 18/18 + 检查报告
+- [ ] **M2 电子签章**：`ct_seal` / `ct_seal_grant` / `ct_sign_task` / `ct_sign_record` + 用章授权校验与审计 + PDFBox 视觉盖章（含骑缝）+ PKCS#7 签名/验签 + 证据链 `chain_hash`
+- [ ] **M3 第三方签章**：`ct_esign_callback` + `EsignProvider` 适配层（e签宝/法大大/上上签）+ 回调验签/时间戳窗口/幂等 + workflow 内部完成接口（`POST /workflow/internal/task/{id}/complete`）
+
 ## 附录 A：common 契约（Wave 2 遵守）
 
 ```

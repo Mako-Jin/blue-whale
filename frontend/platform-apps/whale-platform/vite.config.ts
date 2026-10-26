@@ -16,6 +16,8 @@ const GATEWAY_PREFIXES = [
   '/erp',
   '/mes',
   '/pdm',
+  '/pm',
+  '/contract',
   '/oa',
   '/im',
   '/workflow',

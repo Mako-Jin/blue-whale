@@ -121,6 +121,12 @@ spring:
               uri: lb://whale-pm
               predicates:
                 - Path=/pm/**
+            # Wave 5.61 合同管理与电子签章：自持 /contract 一级前缀（不含 StripPrefix）；
+            # 内网 /contract/internal/** 由 internal-deny 统一 403
+            - id: whale-contract
+              uri: lb://whale-contract
+              predicates:
+                - Path=/contract/**
             - id: whale-config
               uri: lb://whale-config
               predicates:
@@ -209,6 +215,8 @@ whale:
         - /alert/internal/**
         # Wave 5.55 项目管理内网通道：仅服务间内网直连 whale-pm
         - /pm/internal/**
+        # Wave 5.61 合同内网通道：仅服务间内网直连 whale-contract（到期提醒等）
+        - /contract/internal/**
 
 management:
   endpoints:

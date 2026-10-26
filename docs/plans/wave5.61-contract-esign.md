@@ -1,6 +1,6 @@
-# Wave 5.61 合同管理与电子签章 —— 设计稿（待评审）
+# Wave 5.61 合同管理与电子签章 —— 设计稿（M1 已实现）
 
-> 状态：**设计稿（待评审，未进入编码）**
+> 状态：**M1 已实现（2026-10-26）；M2–M3 待启动**
 > 来源：用户提问「合同管理和电子签章，电子签章流程是不是也可以兼容」（2026-10-26）
 > 需求登记：REQ-FUNC-020 / REQ-FUNC-021 / REQ-ARCH-009 / REQ-SEC-010（见 [requirements/register.md](../requirements/register.md)）
 > 结论：**流程编排层可完全复用现有工作流引擎；印章、PDF 盖章、数字签名与证据链需新建**。
@@ -105,19 +105,19 @@ DRAFT ──提交──► APPROVING ──审批通过──► APPROVED ─�
 
 ```json
 {
-  "type": "CONTRACT",
+  "type": "stateMachine",
   "nodes": [
-    { "id": "start",   "type": "START_EVENT" },
-    { "id": "dept",    "type": "USER_TASK", "name": "部门负责人", "assignees": ["${deptLeader}"] },
-    { "id": "amount",  "type": "EXCLUSIVE_GATEWAY", "name": "金额分级" },
-    { "id": "legal",   "type": "USER_TASK", "name": "法务审核", "assignees": ["${legal}"] },
-    { "id": "finance", "type": "USER_TASK", "name": "财务审核", "assignees": ["${finance}"] },
-    { "id": "sealUse", "type": "USER_TASK", "name": "用章审批", "assignees": ["${sealKeeper}"] },
-    { "id": "signA",   "type": "USER_TASK", "name": "甲方签署", "assignees": ["${partyASigner}"] },
-    { "id": "signB",   "type": "PARALLEL_GATEWAY", "name": "双方并签" },
-    { "id": "signB1",  "type": "USER_TASK", "name": "乙方签署", "assignees": ["${partyBSigner}"] },
-    { "id": "signB2",  "type": "USER_TASK", "name": "见证签署", "assignees": ["${witness}"] },
-    { "id": "end",     "type": "END_EVENT" }
+    { "key": "start",   "type": "START_EVENT" },
+    { "key": "dept",    "type": "USER_TASK", "name": "部门负责人", "assignee": "${deptLeader}" },
+    { "key": "amount",  "type": "EXCLUSIVE_GATEWAY", "name": "金额分级" },
+    { "key": "legal",   "type": "USER_TASK", "name": "法务审核", "assignee": "${legal}" },
+    { "key": "finance", "type": "USER_TASK", "name": "财务审核", "assignee": "${finance}" },
+    { "key": "sealUse", "type": "USER_TASK", "name": "用章审批", "assignee": "${sealKeeper}" },
+    { "key": "signA",   "type": "USER_TASK", "name": "甲方签署", "assignee": "${partyASigner}" },
+    { "key": "signB",   "type": "PARALLEL_GATEWAY", "name": "双方并签" },
+    { "key": "signB1",  "type": "USER_TASK", "name": "乙方签署", "assignee": "${partyBSigner}" },
+    { "key": "signB2",  "type": "USER_TASK", "name": "见证签署", "assignee": "${witness}" },
+    { "key": "end",     "type": "END_EVENT" }
   ],
   "flows": [
     { "from": "start", "to": "dept" },
@@ -135,6 +135,10 @@ DRAFT ──提交──► APPROVING ──审批通过──► APPROVED ─�
   ]
 }
 ```
+
+> **引擎字段约束（M1 实机校验修正）**：`type` 仅接受 `stateMachine`（其它值报 `UNKNOWN_DEFINITION_TYPE`）；
+> 节点主键字段为 `key`（不是 `id`），普通 `USER_TASK` 用单值 `assignee`（必填），
+> `COUNTER_SIGN` 才使用 `assignees` 数组 + `counterSignPolicy`；流转键可选。
 
 - 变量：`contractId`、`version`、`amount`、`category`、`partyType`、签署人账号；由合同服务启动实例时注入。
 - `businessKey` 约定：`contract:{contractId}:v{version}`，用于合同侧反查与归档关联。
@@ -273,10 +277,12 @@ public interface EsignProvider {
 
 ## 十、分期与验收
 
-### M1 合同主流程（约 1 波）
+### M1 合同主流程（约 1 波）—— **已完成（2026-10-26）**
 
 - 交付：`whale-contract` 骨架（pom/yml/启动类）+ 4 表 DDL + 合同 CRUD/提交/撤回/终止/归档 + 流程启动与实例状态同步 + 文件引用 + 权限 215–222 + 菜单 28 + 网关路由 + 前端列表/编辑/审批详情。
 - 验收：① `mvn package` 通过且 9006 healthy；② 提交后生成流程实例，`businessKey` 正确；③ 审批全部通过后合同转 `APPROVED`，驳回转 `REJECTED` 且可修订重提；④ 网关 CRUD 与状态流转冒烟全 `code=0`；⑤ 前端 `tsc` + `build` 通过；⑥ 跨租户不可见。
+- 落地记录：后端 [whale-contract](../../backend/whale-apps/whale-contract)、权限迁移 [migration-5.61-contract.sql](../../backend/whale-services/whale-auth/src/main/resources/db/migration-5.61-contract.sql)、网关 `/contract/**`、前端 [whale-contract](../../frontend/platform-apps/whale-contract)（8109）、冒烟 [bw-contract-m1-smoke.ps1](../../scripts/smoke/bw-contract-m1-smoke.ps1)；验收报告见 [2026-10-26-p3-wave5.61-contract-m1.md](../reviews/2026-10-26-p3-wave5.61-contract-m1.md)。
+- M1 简化：列表用 antd `Table`（未引入 ProTable），编辑用弹窗表单（未接 `FormRenderer`），正文文件仅存 `file_id` 引用（上传 UI 留待 M2 随签署页一并接入）；签署阶段状态（`SIGNING/SIGNED/EFFECTIVE`）由 M2 驱动。
 
 ### M2 印章与本地盖章（约 1 波）
 
@@ -312,3 +318,4 @@ public interface EsignProvider {
 | 日期 | 版本 | 说明 |
 |---|---|---|
 | 2026-10-26 | v0.1 | 初稿：兼容性评估、9 表模型、流程模板与异步回调方案、分期与验收；待评审后进入 M1 |
+| 2026-10-26 | v1.0 | M1 落地：whale-contract 9006 + 4 表 + `/contract/**` + 权限 215–222 + 菜单 28 + 前端 8109；修正流程模板字段（`type=stateMachine`、节点 `key`、`USER_TASK.assignee`） |

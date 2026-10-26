@@ -22,5 +22,6 @@
         <module>whale-pdm</module>
         <module>whale-oa</module>
         <module>whale-pm</module>
+        <module>whale-contract</module>
     </modules>
 </project>
