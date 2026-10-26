@@ -13,7 +13,7 @@
 |---|---|---|---|---|---|
 | 0 | P0 | 落地优先级执行台账 + 登记多租户切换需求 | **已完成**（2026-10-25） | 无 | 本文件 + register.md 中 REQ-ARCH-006 / REQ-FUNC-016 |
 | 1 | P0 | Wave 5.54 部署验证与存量数据/对象迁移 | **已完成**（2026-10-26；库迁移、对象键、§14.4 API 冒烟、§14.5 E2E、Agent 索引重建全部闭环） | 无 | 14 个 5.54 脚本两轮幂等通过；12 库 `tenant_id` 覆盖校验通过；`file_info` 7/7 对象键带 `tenants/1/` 前缀；§14.4 经网关 9 步全通过；§14.5 E2E 3/3 通过；Agent 索引 READY（2107 文件/13438 块）；详见 [10-25 检查报告](../reviews/2026-10-25-wave5.54-5.53-deploy-execution.md) 与 [10-26 检查报告](../reviews/2026-10-26-wave5.54-e2e-agent-index.md) |
-| 2 | P0 | S4 一人多租户（Phase 5.3 / 5.4 剩余） | **部分完成**（5.1–5.3 已完成；5.4 后端切换已实测通过，浏览器 E2E 待前端） | 浏览器 E2E 需 admin 前端与全部服务 | 5.3 成员列表 + 租户内角色分配 + 平台绑定/解绑（已完成，见 [5.3 检查报告](../reviews/2026-10-25-wave5.54-phase5.3-tenant-members.md)）；5.4 `/auth/tenants` + `/auth/tenant/switch` 实测：userId 不变、tenantId 切换、角色按目标租户重算、旧令牌 401 |
+| 2 | P0 | S4 一人多租户（Phase 5.3 / 5.4 剩余） | **已完成**（2026-10-26；5.1–5.4 全部闭环，浏览器 E2E 通过） | 无 | 5.3 成员列表 + 租户内角色分配 + 平台绑定/解绑（见 [5.3 检查报告](../reviews/2026-10-25-wave5.54-phase5.3-tenant-members.md)）；5.4 后端切换实测通过 + 浏览器 E2E `tenant-switch.spec.ts` 通过（切换 acme→租户上下文生效→切回默认）；全量 E2E 4/4 绿 |
 | 3 | P0 | Wave 5.53 部署脚本执行与密级矩阵复测 | **部分完成**（2026-10-25；脚本与授权已落库，真机矩阵待档案/Agent 服务） | 三级矩阵需 whale-archive + whale-agent + 秘密级快照（Redis/Nacos 已可用） | `whale-auth`/`whale-agent` `migration-5.53.sql` 执行通过；`sys:archive:secret:read`（151）已授予 super_admin；权限 140–151 / 档案菜单 11–16 校验通过；三级权限矩阵真机复测待环境；详见 [检查报告](../reviews/2026-10-25-wave5.54-5.53-deploy-execution.md) |
 | 4 | P0 | Wave 5.52 剩余项（Gitee Go AI 阶段、未读汇总帧等） | **已完成**（2026-10-25；实机触发待 Gitee 侧） | 远端触发需 Gitee Go 环境 | 未读汇总帧已于 2026-10-24 完成；`.workflow/ai-ci.yml` 补齐 uv 3.12 + pytest 阶段，与 GitHub `ai-pytest` 对齐 |
 | 5 | P1 | 需求登记册状态校准 + REQ-ARCH-002 多数据库设计 | **已完成**（2026-10-25） | 无 | 登记册全量校准（仅 REQ-ARCH-002 需更新，其余与代码事实一致）；产出 [design/multi-database.md](../design/multi-database.md)（现状基线 + 方言选择 + DDL 映射 + T1–T6 + 风险） |
@@ -51,3 +51,4 @@
 | 2026-10-25 | 序号 2（5.4 切换） | `admin` 加入 acme（`sys_user_tenant` + `tenant_admin`）；`/auth/tenants` 2 条且 current 标记正确；`/auth/tenant/switch` 后 userId=1 不变、tenantId 切换、角色重算、旧令牌 401；浏览器 E2E 待前端 |
 | 2026-10-25 | 汇总报告 | 生成 [待办列表执行状态报告](../reviews/2026-10-25-priority-backlog-status-report.md)：10 项中 7 项已完成、3 项部分完成（序号 1/2/3），剩余缺口均为环境依赖 |
 | 2026-10-26 | 序号 1（收尾） | 本机拉起全环境（5 服务新 jar）；修复 PermCode 平台级 bug（驼峰码 `resetPwd`/`bpmnImport` 导致 /auth/me 400，改全小写 + migration-5.56，前一日已修 `add-sign`）；§14.5 E2E 3/3 通过；Agent 索引重建 READY（2107 文件/13438 块）；详见 [检查报告](../reviews/2026-10-26-wave5.54-e2e-agent-index.md) |
+| 2026-10-26 | 序号 2（5.4 E2E） | 新增 `tenant-switch.spec.ts`（数据自包含：API 确保 acme + admin 绑定）；修复雪花 ID `Number()` 精度丢失导致绑定 404；切换 acme→新令牌 tenantId 校验→切回默认全过；全量 E2E 4/4 绿 |
