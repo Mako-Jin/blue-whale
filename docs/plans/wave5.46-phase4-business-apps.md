@@ -46,7 +46,7 @@
 | 应用 | 端口 | 库 | 核心表 | 对外路径 | 权限码前缀 | 前端契约 |
 |---|---|---|---|---|---|---|
 | whale-erp | 9001 | `bluewhale_erp` | `erp_item`（物料/商品） | `/erp/item` | `sys:erp:item:*` | `ErpItem` |
-| whale-mes | 9002 | `bluewhale_mes` | `mes_work_order`（生产工单） | `/mes/work-order` | `sys:mes:work-order:*` | `MesWorkOrder` |
+| whale-mes | 9002 | `bluewhale_mes` | `mes_work_order`（生产工单） | `/mes/work-order` | `sys:mes:workorder:*` | `MesWorkOrder` |
 | whale-pdm | 9003 | `bluewhale_pdm` | `pdm_product`（产品/图纸） | `/pdm/product` | `sys:pdm:product:*` | `PdmProduct` |
 | whale-oa | 9004 | `bluewhale_oa` | `oa_document`（公文/流程单据） | `/oa/document` | `sys:oa:document:*` | `OaDocument` |
 

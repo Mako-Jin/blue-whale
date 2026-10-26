@@ -1,5 +1,5 @@
 server:
-  port: 8081
+  port: ${SERVER_PORT:8081}
 
 # P2-3：API 契约自动化（仅服务直连端口，网关未放行）
 springdoc:
@@ -33,10 +33,10 @@ spring:
   cloud:
     nacos:
       discovery:
-        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+        server-addr: ${NACOS_SERVER:${NACOS_ADDR:127.0.0.1:8848}}
         namespace: ${NACOS_NAMESPACE:public}
       config:
-        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+        server-addr: ${NACOS_SERVER:${NACOS_ADDR:127.0.0.1:8848}}
         namespace: ${NACOS_NAMESPACE:public}
         file-extension: yaml
 

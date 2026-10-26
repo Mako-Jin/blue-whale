@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
  * MES 生产工单接口
  *
  * <p>服务内路径 {@code /mes/work-order/**}，经网关按 {@code Path=/mes/**} 转发；
- * 全部接口受 {@code sys:mes:work-order:*} 权限保护，写操作均留审计日志。</p>
+ * 全部接口受 {@code sys:mes:workorder:*} 权限保护，写操作均留审计日志。</p>
  *
  * @author BlueWhale
  */
@@ -45,7 +45,7 @@ public class MesWorkOrderController {
      * @return 分页结果
      */
     @GetMapping("/page")
-    @RequirePermission("sys:mes:work-order:list")
+    @RequirePermission("sys:mes:workorder:list")
     public Result<PageResult<MesWorkOrderVO>> page(MesWorkOrderQueryRequest request) {
         return Result.ok(mesWorkOrderService.page(request));
     }
@@ -57,7 +57,7 @@ public class MesWorkOrderController {
      * @return 工单详情
      */
     @GetMapping("/{id}")
-    @RequirePermission("sys:mes:work-order:list")
+    @RequirePermission("sys:mes:workorder:list")
     public Result<MesWorkOrderVO> detail(@PathVariable Long id) {
         return Result.ok(mesWorkOrderService.getDetail(id));
     }
@@ -69,7 +69,7 @@ public class MesWorkOrderController {
      * @return 新增后的工单
      */
     @PostMapping
-    @RequirePermission("sys:mes:work-order:add")
+    @RequirePermission("sys:mes:workorder:add")
     @AuditLog(operation = "新增生产工单", type = OperateType.CREATE, targetType = TARGET_TYPE)
     public Result<MesWorkOrderVO> create(@Valid @RequestBody MesWorkOrderSaveRequest request) {
         return Result.ok(mesWorkOrderService.create(request));
@@ -83,7 +83,7 @@ public class MesWorkOrderController {
      * @return 更新后的工单
      */
     @PutMapping("/{id}")
-    @RequirePermission("sys:mes:work-order:edit")
+    @RequirePermission("sys:mes:workorder:edit")
     @AuditLog(operation = "更新生产工单", type = OperateType.UPDATE, targetType = TARGET_TYPE, targetId = "#id")
     public Result<MesWorkOrderVO> update(@PathVariable Long id, @Valid @RequestBody MesWorkOrderSaveRequest request) {
         return Result.ok(mesWorkOrderService.update(id, request));
@@ -96,7 +96,7 @@ public class MesWorkOrderController {
      * @return 空响应体
      */
     @DeleteMapping("/{id}")
-    @RequirePermission("sys:mes:work-order:delete")
+    @RequirePermission("sys:mes:workorder:delete")
     @AuditLog(operation = "删除生产工单", type = OperateType.DELETE, targetType = TARGET_TYPE, targetId = "#id")
     public Result<Void> delete(@PathVariable Long id) {
         mesWorkOrderService.delete(id);

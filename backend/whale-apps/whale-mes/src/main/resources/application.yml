@@ -29,7 +29,7 @@ logging:
     com.bluewhale: debug
 
 # 启用 starter 的 RequirePermissionInterceptor，按网关注入的
-# X-Permission-Codes 判定 MES 工单接口的 sys:mes:work-order:* 权限。
+# X-Permission-Codes 判定 MES 工单接口的 sys:mes:workorder:* 权限。
 whale:
   permission:
     header:

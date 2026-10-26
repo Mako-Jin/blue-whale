@@ -15,12 +15,12 @@
 INSERT IGNORE INTO sys_permission
     (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
 VALUES
-    (207, 0, 'sys:mes:work-order:list', '查询生产工单', 'API', '/mes/work-order/page,/mes/work-order/{id}', 'GET', 207, 1),
-    (208, 0, 'sys:mes:work-order:add', '新增生产工单', 'API', '/mes/work-order', 'POST', 208, 1),
-    (209, 0, 'sys:mes:work-order:edit', '编辑生产工单', 'API', '/mes/work-order/{id}', 'PUT', 209, 1),
-    (210, 0, 'sys:mes:work-order:delete', '删除生产工单', 'API', '/mes/work-order/{id}', 'DELETE', 210, 1);
+    (207, 0, 'sys:mes:workorder:list', '查询生产工单', 'API', '/mes/work-order/page,/mes/work-order/{id}', 'GET', 207, 1),
+    (208, 0, 'sys:mes:workorder:add', '新增生产工单', 'API', '/mes/work-order', 'POST', 208, 1),
+    (209, 0, 'sys:mes:workorder:edit', '编辑生产工单', 'API', '/mes/work-order/{id}', 'PUT', 209, 1),
+    (210, 0, 'sys:mes:workorder:delete', '删除生产工单', 'API', '/mes/work-order/{id}', 'DELETE', 210, 1);
 
 INSERT IGNORE INTO sys_menu
     (id, tenant_id, parent_id, name, path, component, icon, sort, menu_type, permission_code, visible, status)
 VALUES
-    (26, 1, 0, '工单管理', '/mes', 'mes/index', 'profile', 26, 'MENU', 'sys:mes:work-order:list', 1, 1);
+    (26, 1, 0, '工单管理', '/mes', 'mes/index', 'profile', 26, 'MENU', 'sys:mes:workorder:list', 1, 1);

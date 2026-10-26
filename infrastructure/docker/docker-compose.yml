@@ -136,6 +136,90 @@ services:
       - bw-net
 
   # ----------------------------------------------------------
+  # Prometheus 指标抓取（REQ-ARCH-007）
+  # 后端服务跑在宿主机，抓取 targets 统一使用 host.docker.internal
+  # ----------------------------------------------------------
+  prometheus:
+    image: ${PROMETHEUS_IMAGE:-prom/prometheus:v2.54.1}
+    container_name: bw-prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-15d}
+      - --web.enable-lifecycle
+    ports:
+      - "${PROMETHEUS_HOST_PORT:-9090}:9090"
+    volumes:
+      - ../prometheus/prometheus-docker.yml:/etc/prometheus/prometheus.yml:ro
+      - ../../deploy/monitoring/prometheus-rules.yml:/etc/prometheus/prometheus-rules.yml:ro
+      - prometheus_data:/prometheus
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9090/-/ready || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+    logging: *default-logging
+    networks:
+      - bw-net
+
+  # ----------------------------------------------------------
+  # Alertmanager 告警路由（webhook → 宿主机 whale-alert 9103）
+  # ----------------------------------------------------------
+  alertmanager:
+    image: ${ALERTMANAGER_IMAGE:-prom/alertmanager:v0.27.0}
+    container_name: bw-alertmanager
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    ports:
+      - "${ALERTMANAGER_HOST_PORT:-9093}:9093"
+    volumes:
+      - ../prometheus/alertmanager-docker.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9093/-/ready || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+    logging: *default-logging
+    networks:
+      - bw-net
+
+  # ----------------------------------------------------------
+  # Grafana 可视化（数据源经 provisioning 指向 prometheus）
+  # ----------------------------------------------------------
+  grafana:
+    image: ${GRAFANA_IMAGE:-grafana/grafana:11.2.0}
+    container_name: bw-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      TZ: Asia/Shanghai
+    ports:
+      - "${GRAFANA_HOST_PORT:-3000}:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ../prometheus/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+    logging: *default-logging
+    networks:
+      - bw-net
+
+  # ----------------------------------------------------------
   # Nginx 网关 (反向代理 + 静态资源 + HTTPS)
   # 注意: 后端服务默认运行在宿主机, upstream 指向 host.docker.internal
   # ----------------------------------------------------------
@@ -172,6 +256,9 @@ volumes:
   redis_data:
   nacos_data:
   rabbitmq_data:
+  prometheus_data:
+  alertmanager_data:
+  grafana_data:
   bw_frontend_dist:
 
 networks:

@@ -23,7 +23,7 @@ function Start-Svc($name, $jar, $port, $extra) {
   Write-Host "$name pid=$($p.Id) port=$port"
 }
 
-Start-Svc 'gateway' "$base\whale-services\whale-gateway\target\whale-gateway.jar" 8080 @{ NACOS_ADDR = '127.0.0.1:8848' }
+Start-Svc 'gateway' "$base\whale-services\whale-gateway\target\whale-gateway.jar" 8080 @{ NACOS_SERVER = '127.0.0.1:8848' }
 Start-Svc 'auth'    "$base\whale-services\whale-auth\target\whale-auth.jar"       8081 $null
 Start-Svc 'alert'   "$base\whale-ops\whale-alert\target\whale-alert.jar"          9103 $null
 Start-Svc 'audit'   "$base\whale-ops\whale-audit\target\whale-audit.jar"          9101 $null

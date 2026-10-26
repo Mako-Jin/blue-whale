@@ -1,0 +1,103 @@
+# BlueWhale Prometheus 抓取配置（Docker Compose 版，REQ-ARCH-007）
+#
+# 与 deploy/monitoring/prometheus.yml 保持同一 job 命名（job 名必须以 whale- 开头，
+# 以匹配 prometheus-rules.yml 的 up{job=~"whale-.*|nacos"} 等表达式），差异仅在网络地址：
+#   - 宿主机裸机版：targets 为 127.0.0.1:<port>
+#   - 容器编排版：后端服务默认跑在宿主机，targets 用 host.docker.internal:<port>
+#   - alertmanager 指向容器名 alertmanager:9093
+# 规则文件由 compose 挂载自 deploy/monitoring/prometheus-rules.yml
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/prometheus-rules.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+scrape_configs:
+  - job_name: whale-gateway
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['host.docker.internal:8080']
+  - job_name: whale-auth
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['host.docker.internal:8081']
+  - job_name: whale-job
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['host.docker.internal:8082']
+  - job_name: whale-workflow
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['host.docker.internal:8083']
+  - job_name: whale-form
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['host.docker.internal:8084']
+  - job_name: whale-file
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['host.docker.internal:8085']
+  - job_name: whale-pay
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['host.docker.internal:8086']
+  - job_name: whale-agent
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['host.docker.internal:8090']
+  - job_name: whale-im
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['host.docker.internal:8091']
+  - job_name: whale-archive
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['host.docker.internal:8093']
+  - job_name: whale-erp
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['host.docker.internal:9001']
+  - job_name: whale-mes
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['host.docker.internal:9002']
+  - job_name: whale-pdm
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['host.docker.internal:9003']
+  - job_name: whale-oa
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['host.docker.internal:9004']
+  - job_name: whale-contract
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['host.docker.internal:9006']
+  - job_name: whale-audit
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['host.docker.internal:9101']
+  - job_name: whale-monitor
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['host.docker.internal:9102']
+  - job_name: whale-alert
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['host.docker.internal:9103']
+  - job_name: whale-config
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['host.docker.internal:9201']
+  # Nacos 2.x 自带 Prometheus 指标端点
+  - job_name: nacos
+    metrics_path: /nacos/metrics
+    static_configs:
+      - targets: ['nacos:8848']

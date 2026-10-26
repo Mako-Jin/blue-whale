@@ -12,7 +12,7 @@
 |---|---|
 | 数据来源 | 实测核对：各服务 `src/main/resources/application.yml` 的 `server.port` / `spring.application.name` / `datasource.url`、`whale-gateway/application.yml` 路由、各前端 `vite.config.ts` 的 `server.port`、`infrastructure/docker/docker-compose*.yml`、本机 `Get-NetTCPConnection` 实监听核验 |
 | 「本机状态」含义 | **已运行**＝本机实测监听/注册过；**可启动**＝模块已具备启动条件、尚未在本机启动；**规划**＝仅设计登记，无实现 |
-| 端口分段 | 见 §七；服务端口一律用 `${SERVER_PORT:xxxx}` 或 `${server.port:xxxx}` 外置可覆盖（`whale-auth` 当前为硬编码 `8081`，见 §九 偏差 C-02） |
+| 端口分段 | 见 §七；服务端口一律用 `${SERVER_PORT:xxxx}` 或 `${server.port:xxxx}` 外置可覆盖 |
 | 命名铁律 | `模块目录 == artifactId == spring.application.name == Nacos 服务名 == whale-<域>`（[naming-conventions.md](naming-conventions.md) §三） |
 
 ---
@@ -106,15 +106,15 @@
 |---|---|---|---|---|---|---|
 | 1 | **MySQL** | 业务库 + Nacos 外置存储 | **3306**（TCP） | 8.0.45（本机 `D:\mysql8`）／镜像 8.4（compose） | 本机原生；compose `bw-mysql` | **已运行**。库：`bluewhale_auth`、`bluewhale_audit`、`bluewhale_nacos`、`bluewhale_agent`、**`bluewhale_im`（规划，Wave 5.52）**（另有外部遗留 `yc-sts-db-auth` / `yc-sts-db-flow`，登记不改名） |
 | 2 | **Redis** | 令牌黑名单、i18n 缓存、分布式锁 | **6379**（TCP） | 5.0.14.1（本机 `tools/`）／镜像 7-alpine（compose） | 本机原生；compose `bw-redis` | **已运行** |
-| 3 | **Nacos** | 服务注册发现 + 配置中心 | **8848**（HTTP OpenAPI + 主服务）<br>**8849**（控制台，仅 3.x 独立控制台）<br>**9848**（gRPC 客户端→服务端）<br>**9849**（gRPC 服务端→服务端，集群） | 3.2.4（本机 `tools/nacos`）／镜像 2.3.2（compose） | 本机原生（standalone + MySQL 外置存储）；compose `bw-nacos` | **已运行**（PID 实测监听 8848/8849/9848/9849；已注册 `whale-gateway` / `whale-auth` / `whale-audit`） |
-| 4 | **RabbitMQ** | 审计日志汇聚、异步消息（规划） | **5672**（AMQP）<br>**15672**（Management 控制台） | 3-management-alpine | 仅 compose `bw-rabbitmq`（profiles: `messaging`） | ⚠ **未运行**（本机无 Docker）→ 审计「跨库可见性」等验证受阻 |
-| 5 | **Nginx** | 反向代理 + 前端静态资源 + TLS | **80**（HTTP）<br>**443**（HTTPS） | 自建镜像（`infrastructure/docker/nginx`） | 仅 compose `bw-nginx` | ⚠ **未运行**（本机无 Docker） |
-| 6 | **Prometheus** | 指标采集 | **9090**（默认） | —— | 仅有 `infrastructure/prometheus/prometheus.yml`，**compose 未定义该服务** | 规划 |
-| 7 | **Grafana** | 监控看板 | **3000**（默认） | —— | **未定义**（无 compose / 无配置） | 规划 |
-| 8 | **Sentinel Dashboard** | 流控/熔断控制台（REQ-ARCH 限流方案） | **8858**（默认） | —— | **未引入**（`whale-gateway` 未接 Sentinel） | 规划 |
+| 3 | **Nacos** | 服务注册发现 + 配置中心 | **8848**（HTTP OpenAPI + 主服务）<br>**8849**（控制台，仅 3.x 独立控制台）<br>**9848**（gRPC 客户端→服务端）<br>**9849**（gRPC 服务端→服务端，集群） | 2.4.0（本机 `tools/nacos`）／镜像 2.4.0（compose） | 本机原生（standalone + MySQL 外置存储）；compose `bw-nacos` | **已运行**（PID 实测监听 8848/9848；已注册 `whale-gateway` / `whale-auth` / `whale-audit`） |
+| 4 | **RabbitMQ** | 审计日志汇聚、异步消息（规划） | **5672**（AMQP）<br>**15672**（Management 控制台） | 4-management-alpine | compose `bw-rabbitmq` | ⚠ **未启动**（compose 服务已定义，本机未拉起） |
+| 5 | **Nginx** | 反向代理 + 前端静态资源 + TLS | **80**（HTTP）<br>**443**（HTTPS） | 自建镜像（`infrastructure/docker/nginx`） | compose `bw-nginx` | ⚠ **未启动**（compose 服务已定义，本机未拉起） |
+| 6 | **Prometheus** | 指标采集 | **9090**（默认，`PROMETHEUS_HOST_PORT` 可覆盖） | v2.54.1（compose `PROMETHEUS_IMAGE`） | compose `bw-prometheus`（挂载 `infrastructure/prometheus/prometheus-docker.yml` + `deploy/monitoring/prometheus-rules.yml`） | **已运行**（healthcheck healthy；抓取宿主机 gateway/auth/workflow/contract 均为 up） |
+| 7 | **Grafana** | 监控看板 | **3000**（默认，`GRAFANA_HOST_PORT` 可覆盖） | 11.2.0（compose `GRAFANA_IMAGE`） | compose `bw-grafana`（provisioning 自动装配 Prometheus 数据源） | **已运行**（`/api/health` ok；数据源 `BlueWhale Prometheus` 已装配） |
+| 8 | **Alertmanager** | 告警路由（webhook → `whale-alert`） | **9093**（默认，`ALERTMANAGER_HOST_PORT` 可覆盖） | v0.27.0（compose `ALERTMANAGER_IMAGE`） | compose `bw-alertmanager`（挂载 `infrastructure/prometheus/alertmanager-docker.yml`） | **已运行**（`amtool check-config` SUCCESS，`/-/ready` 200） |
+| 9 | **Sentinel Dashboard** | 流控/熔断控制台（REQ-ARCH 限流方案） | **8858**（默认） | —— | **未引入**（`whale-gateway` 未接 Sentinel） | 规划 |
 
-> Nacos 端口版本差异：本机 3.2.4 控制台独立于 **8849**；compose 内 2.3.2 控制台与 API 同处 **8848**（`/nacos`）。升级 compose 镜像时须同步端口与健康检查（见 §九 偏差 C-04）。
-> Nacos 3.x 已移除 v1 OpenAPI（`/nacos/v1/ns/service/list` 返回 501、`/nacos/v1/console/health/readiness` 返回 404），服务列表核验请改用控制台或日志。
+> Nacos 版本以本机实装 2.4.0 为准，compose 镜像已统一 v2.4.0（原 3.2.4/2.3.2 口径不一致的偏差 C-04 已闭合）；健康检查使用 `/nacos/actuator/health`。
 
 ---
 
@@ -124,7 +124,7 @@
 |---|---|---|---|
 | **80** | Nginx | 基础设施 | HTTP 入口（compose，未运行） |
 | **443** | Nginx | 基础设施 | HTTPS 入口（compose，未运行） |
-| **3000** | Grafana | 基础设施 | 规划 |
+| **3000** | Grafana | 基础设施 | 监控看板（compose `bw-grafana`） |
 | **3306** | MySQL | 基础设施 | 业务库 + `bluewhale_nacos` |
 | **5672** | RabbitMQ | 基础设施 | AMQP（未运行） |
 | **6379** | Redis | 基础设施 | 黑名单 / 缓存 / 锁 |
@@ -154,19 +154,20 @@
 | **8108** | `whale-pm` | 前端（子应用） | base `/pm`（Wave 5.55 M4） |
 | **8109** | `whale-contract` | 前端（子应用） | base `/contract`（Wave 5.61 M1） |
 | **8848** | Nacos | 基础设施 | HTTP OpenAPI + 主服务（contextPath `/nacos`） |
-| **8849** | Nacos Console | 基础设施 | 控制台（Nacos 3.x） |
+| **8849** | Nacos Console | 基础设施 | 控制台（仅 Nacos 3.x；本机 2.4.0 无独立控制台端口） |
 | **8858** | Sentinel Dashboard | 基础设施 | 规划（未引入） |
-| **9001** | `whale-erp` | 后端 | ERP（缺网关路由） |
-| **9002** | `whale-mes` | 后端 | MES（缺网关路由） |
-| **9003** | `whale-pdm` | 后端 | PDM（缺网关路由） |
+| **9001** | `whale-erp` | 后端 | ERP |
+| **9002** | `whale-mes` | 后端 | MES |
+| **9003** | `whale-pdm` | 后端 | PDM |
 | **9004** | `whale-oa` | 后端 | OA |
 | **9005** | `whale-pm` | 后端 | 项目管理（Wave 5.55 M1） |
 | **9006** | `whale-contract` | 后端 | 合同管理（Wave 5.61 M1） |
-| **9090** | Prometheus | 基础设施 | 规划（compose 未定义） |
+| **9090** | Prometheus | 基础设施 | 指标采集（compose `bw-prometheus`） |
+| **9093** | Alertmanager | 基础设施 | 告警路由（compose `bw-alertmanager`） |
 | **9101** | `whale-audit` | 后端 | 审计日志 |
 | **9102** | `whale-monitor` | 后端 | 监控采集 |
 | **9103** | `whale-alert` | 后端 | 告警 |
-| **9201** | `whale-config` | 后端 | 配置中心管理面（缺网关路由） |
+| **9201** | `whale-config` | 后端 | 配置中心管理面 |
 | **9848** | Nacos | 基础设施 | gRPC 客户端→服务端 |
 | **9849** | Nacos | 基础设施 | gRPC 服务端→服务端（集群） |
 | **15672** | RabbitMQ | 基础设施 | Management 控制台（未运行） |
@@ -192,7 +193,7 @@
 | 区段 | 用途 | 现状 |
 |---|---|---|
 | **80 / 443** | Nginx 反代与 TLS | 规划（compose） |
-| **3000 / 9090** | 监控看板 / 指标 | 规划 |
+| **3000 / 9090 / 9093** | 监控看板 / 指标 / 告警路由 | 已落地（compose `bw-grafana` / `bw-prometheus` / `bw-alertmanager`，端口可经 `*_HOST_PORT` 覆盖） |
 | **3306 / 6379 / 5672 / 15672** | MySQL / Redis / RabbitMQ | 3306、6379 已运行；5672/15672 未运行 |
 | **8000–8099** | **前端 dev server**：基座 `8000`、admin `8001`、form-designer `8002`、workflow-designer `8003`、agent `8004` | 已落地（C-01 已解） |
 | **8080** | **网关（唯一后端入口）** | 已运行 |
@@ -209,9 +210,12 @@
 
 | 变量 | 作用 | 默认 | 使用方 |
 |---|---|---|---|
-| `SERVER_PORT` | 服务端口 | 见 §一 | 网关/审计/job/workflow/form/file/pay/monitor/alert/erp/mes/pdm/oa/config（`whale-auth` 仍硬编码 8081，见 C-02） |
-| `NACOS_ADDR` / `NACOS_SERVER` | 注册中心地址 | `127.0.0.1:8848` | 全部服务（网关用 `NACOS_ADDR`，其余用 `NACOS_SERVER`） |
+| `SERVER_PORT` | 服务端口 | 见 §一 | 全部后端服务（含 `whale-auth`，已外置为 `${SERVER_PORT:8081}`） |
+| `NACOS_SERVER` / `NACOS_ADDR` | 注册中心地址 | `127.0.0.1:8848` | 全部服务（统一首选 `NACOS_SERVER`；`NACOS_ADDR` 仅作兼容回退） |
 | `NACOS_NAMESPACE` | 命名空间 | `public` | 全部服务 |
+| `PROMETHEUS_HOST_PORT` / `ALERTMANAGER_HOST_PORT` / `GRAFANA_HOST_PORT` | 可观测性端口 | `9090` / `9093` / `3000` | compose `bw-prometheus` / `bw-alertmanager` / `bw-grafana` |
+| `PROMETHEUS_RETENTION` | 指标保留期 | `15d` | compose `bw-prometheus` |
+| `GRAFANA_ADMIN_PASSWORD` | Grafana 管理员口令 | `admin`（仅供本机） | compose `bw-grafana` |
 | `REDIS_HOST` / `REDIS_PORT` | Redis | `127.0.0.1` / `6379` | whale-gateway、whale-auth、**whale-im**（seq/ticket/presence） |
 | `MYSQL_USER` / `MYSQL_PASSWORD` | 库账号 | 见各 yml | whale-auth、whale-audit、**whale-im** |
 | `WHALE_AI_BASE_URL` | Python 智能体内网地址 | `http://127.0.0.1:8092` | whale-agent（Wave 5.52） |
@@ -229,14 +233,14 @@
 | 编号 | 问题 | 优先级 | 处置建议 |
 |---|---|---|---|
 | **C-01** | ~~前端 dev 端口与后端冲突：`frontend/admin` 8080 = 网关 8080、`frontend/ops` 8081 = `whale-auth` 8081~~ | **已解** | **✅ 已整改**：admin → **8001**、ops → **8104**，与后端端口区段无冲突 |
-| **C-02** | `whale-auth` 端口硬编码 `server.port: 8081`，未按其他服务写法 `${SERVER_PORT:8081}` 外置 | P3 | 改为 `${SERVER_PORT:8081}`，与规范统一 |
+| **C-02** | ~~`whale-auth` 端口硬编码 `server.port: 8081`~~ | **已解（2026-10-26）** | **✅ 已整改**：改为 `${SERVER_PORT:8081}`，服务端口全部可外置覆盖 |
 | **C-03** | ~~`whale-gateway` **缺 5 条路由**：`/erp/**`、`/mes/**`、`/pdm/**`、`/oa/**`、`/config/**`~~ | **已解（2026-10-25）** | **✅ 已整改**：5 条路由已写入 `whale-gateway/src/main/resources/application.yml`，统一 `lb://`（自持一级前缀，不含 `StripPrefix`）；基座同步挂载 `/mes/*`、`/pdm/*` 并补菜单/图标；路由冒烟需服务与 Nacos 就绪后执行 |
-| **C-04** | Nacos 版本/端口不一致：本机 3.2.4（控制台 8849）vs compose 镜像 2.3.2（控制台 8848） | P2 | 统一 compose 镜像至 3.x 并同步端口、健康检查（`/nacos/actuator/health/liveness`） |
-| **C-05** | 注册中心环境变量名分裂：网关 `NACOS_ADDR` vs 其余 `NACOS_SERVER` | P3 | 统一为 `NACOS_SERVER`（保留 `NACOS_ADDR` 兼容期），登记后批量替换 |
+| **C-04** | ~~Nacos 版本/端口不一致：本机 3.2.4（控制台 8849）vs compose 镜像 2.3.2（控制台 8848）~~ | **已解（2026-10-26）** | **✅ 已整改**：以本机实装 **2.4.0** 为准，compose `NACOS_IMAGE` 统一 `nacos/nacos-server:v2.4.0`，健康检查 `/nacos/actuator/health`；本机监听 8848/9848（无 8849 独立控制台） |
+| **C-05** | ~~注册中心环境变量名分裂：网关 `NACOS_ADDR` vs 其余 `NACOS_SERVER`~~ | **已解（2026-10-26）** | **✅ 已整改**：`whale-gateway`/`whale-auth` 改为 `${NACOS_SERVER:${NACOS_ADDR:127.0.0.1:8848}}`，统一首选 `NACOS_SERVER` 且保留 `NACOS_ADDR` 回退；`scripts/dev/whale-start-all.ps1` 同步传 `NACOS_SERVER` |
 | **C-06** | ~~8 个业务服务库在规范 §八 已登记库名，但 `application.yml` **均未配数据源**、库亦未建~~ | **已解（部分）** | **✅ 已整改**：auth/audit/job/workflow/form/file/pay/alert 共 8 个服务均已配数据源并建库（原 `whale-i18n` 服务及 `bluewhale_i18n` 库已于 Wave 5.50 删除，国际化改由 SDK 在各服务库内自建 `sys_i18n_message`）；**剩余** `erp/mes/pdm/oa` 四个业务应用尚未配数据源、未建库（随 Phase 4 落地） |
-| **C-07** | Prometheus/Grafana/Sentinel 仅在文档中「规划」，compose 未定义、网关未接 Sentinel | P3 | 待监控需求明确后补 compose 服务与端口登记 |
+| **C-07** | ~~Prometheus/Grafana/Sentinel 仅在文档中「规划」，compose 未定义、网关未接 Sentinel~~ | **部分已解（2026-10-26）** | **✅ Prometheus/Grafana/Alertmanager 已落地**：compose 新增 `bw-prometheus`(9090)/`bw-grafana`(3000)/`bw-alertmanager`(9093)，配置 `infrastructure/prometheus/prometheus-docker.yml`、`alertmanager-docker.yml`、Grafana provisioning 数据源，规则复用 `deploy/monitoring/prometheus-rules.yml`；实机 healthy，宿主机 gateway/auth/workflow/contract 抓取 up。**剩余** Sentinel Dashboard(8858) 未引入 |
 
-> 说明：C-04 中 Nacos 版本以**本机实装为准**（历史记录存在 2.4.0 / 3.2.4 两种口径），整改前须先 `nacos/bin/startup.cmd -v` 或读 `conf/application.properties` 核实。
+> 说明：C-04 已按本机实装 2.4.0 与 compose 对齐；历史记录中的 3.2.4/2.3.2 口径作废。
 
 ---
 

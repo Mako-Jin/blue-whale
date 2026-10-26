@@ -20,7 +20,7 @@
 
 ### 权限（`bluewhale_auth`）
 
-- 新增幂等迁移 `migration-5.59-mes.sql`：权限点 207–210（`sys:mes:work-order:list/add/edit/delete`）+ 菜单 26（工单管理 `/mes`）。
+- 新增幂等迁移 `migration-5.59-mes.sql`：权限点 207–210（`sys:mes:workorder:list/add/edit/delete`）+ 菜单 26（工单管理 `/mes`）。
 - 编号约定：203–206 归 ERP；207–210 归 MES；PDM 从 211 起编；菜单 25 归 ERP，MES 用 26。
 
 ### 前端（`frontend/platform-apps/whale-mes`）

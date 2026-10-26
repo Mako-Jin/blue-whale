@@ -1,0 +1,23 @@
+# BlueWhale Alertmanager 路由（Docker Compose 版，REQ-ARCH-007）
+#
+# 与 deploy/monitoring/alertmanager.yml 同构，差异仅在 webhook 地址：
+# Alertmanager 在容器内，需经 host.docker.internal 访问宿主机上的 whale-alert(9103)。
+# 令牌通过 Authorization: Bearer 传递，需与后端 ALERT_WEBHOOK_TOKEN 一致；
+# 生产必须替换 credentials 与 ALERT_WEBHOOK_TOKEN。
+route:
+  receiver: whale-alert
+  group_by: ['alertname', 'job', 'application']
+  group_wait: 10s
+  group_interval: 30s
+  repeat_interval: 4h
+
+receivers:
+  - name: whale-alert
+    webhook_configs:
+      - url: http://host.docker.internal:9103/alert/internal/prometheus
+        send_resolved: true
+        max_alerts: 0
+        http_config:
+          authorization:
+            type: Bearer
+            credentials: bluewhale-alert-token
