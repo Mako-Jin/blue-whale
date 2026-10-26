@@ -7,6 +7,7 @@ import {
   App,
   Button,
   Card,
+  DatePicker,
   Descriptions,
   Drawer,
   Dropdown,
@@ -23,6 +24,7 @@ import {
   type MenuProps,
   type TableColumnsType,
 } from 'antd';
+import dayjs, { type Dayjs } from 'dayjs';
 import { useSearchParams } from 'react-router-dom';
 import {
   formApi,
@@ -169,6 +171,15 @@ function formatFilterValue(filter: DataFilter): string {
     return filter.value.map((item) => formatValue(item)).join(separator);
   }
   return formatValue(filter.value);
+}
+
+/** 日期字符串转 dayjs（空串/非法格式返回 undefined，避免 DatePicker 报错） */
+function toDayjs(value: string | number | undefined): Dayjs | undefined {
+  if (typeof value !== 'string' || value.trim() === '') {
+    return undefined;
+  }
+  const parsed = dayjs(value);
+  return parsed.isValid() ? parsed : undefined;
 }
 
 /**
@@ -584,7 +595,7 @@ export default function FormDataList() {
     );
   };
 
-  // between 条件值控件：数值用两个数字框，日期/文本用两个输入框
+  // between 条件值控件：数值用两个数字框，日期/时间用两个 DatePicker
   const renderBetweenControl = () => {
     if (selectedField?.dataType === 'number') {
       return (
@@ -606,25 +617,27 @@ export default function FormDataList() {
         </Space.Compact>
       );
     }
-    const placeholder =
-      selectedField?.dataType === 'datetime' ? 'yyyy-MM-dd HH:mm:ss' : 'yyyy-MM-dd';
+    const isDateTime = selectedField?.dataType === 'datetime';
+    const format = isDateTime ? 'YYYY-MM-DD HH:mm:ss' : 'YYYY-MM-DD';
     return (
       <Space.Compact>
-        <Input
+        <DatePicker
           id="filter-between-from"
-          allowClear
-          placeholder={`起始 ${placeholder}`}
-          style={{ width: 190 }}
-          value={typeof draftValues[0] === 'string' ? draftValues[0] : undefined}
-          onChange={(event) => updateDraftValueAt(0, event.target.value)}
+          showTime={isDateTime}
+          format={format}
+          placeholder={isDateTime ? '起始时间' : '起始日期'}
+          style={{ width: 200 }}
+          value={toDayjs(draftValues[0])}
+          onChange={(value) => updateDraftValueAt(0, value ? value.format(format) : '')}
         />
-        <Input
+        <DatePicker
           id="filter-between-to"
-          allowClear
-          placeholder={`结束 ${placeholder}`}
-          style={{ width: 190 }}
-          value={typeof draftValues[1] === 'string' ? draftValues[1] : undefined}
-          onChange={(event) => updateDraftValueAt(1, event.target.value)}
+          showTime={isDateTime}
+          format={format}
+          placeholder={isDateTime ? '结束时间' : '结束日期'}
+          style={{ width: 200 }}
+          value={toDayjs(draftValues[1])}
+          onChange={(value) => updateDraftValueAt(1, value ? value.format(format) : '')}
         />
       </Space.Compact>
     );

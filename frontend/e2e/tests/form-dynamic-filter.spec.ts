@@ -81,7 +81,7 @@ async function search(page: Page): Promise<void> {
   await page.getByRole('button', { name: /查\s*询/ }).click();
 }
 
-test('动态字段筛选：between 数值区间 / in 选项集合 / in 文本标签', async ({ page, request }) => {
+test('动态字段筛选：between 数值/日期区间 / in 选项与文本', async ({ page, request }) => {
   token = await login(request);
 
   // 1) 建表定义（number/select/text/date）并发布
@@ -267,7 +267,22 @@ test('动态字段筛选：between 数值区间 / in 选项集合 / in 文本标
   await search(page);
   await expect(page.getByText('共 2 条')).toBeVisible();
 
-  // 8) API 对账：同一 filters 经网关命中数与 UI 一致
+  // 8) between（日期选择器）：到期日 2026-03-01..2026-12-31 → 3 条
+  await removeTag(page, '备注 属于');
+  await chooseField(page, '到期日');
+  await chooseOp(page, '介于');
+  // 日期区间必须渲染 DatePicker（.ant-picker）而非文本输入
+  await expect(page.locator('.ant-picker')).toHaveCount(2);
+  await page.locator('#filter-between-from').fill('2026-03-01');
+  await page.locator('#filter-between-from').press('Enter');
+  await page.locator('#filter-between-to').fill('2026-12-31');
+  await page.locator('#filter-between-to').press('Enter');
+  await page.getByRole('button', { name: '添加条件' }).click();
+  await expect(page.locator('.ant-tag').filter({ hasText: '到期日 介于 2026-03-01 ~ 2026-12-31' })).toBeVisible();
+  await search(page);
+  await expect(page.getByText('共 3 条')).toBeVisible();
+
+  // 9) API 对账：同一 filters 经网关命中数与 UI 一致
   const apiResponse = await request.get(
     `${API_BASE_URL}/form/data/page?current=1&size=10&definitionCode=${encodeURIComponent(
       formCode,
@@ -278,4 +293,20 @@ test('动态字段筛选：between 数值区间 / in 选项集合 / in 文本标
   const envelope = (await apiResponse.json()) as { code: number; data: { total: number | string } };
   expect(envelope.code).toBe(0);
   expect(Number(envelope.data.total)).toBe(2);
+
+  const dateResponse = await request.get(
+    `${API_BASE_URL}/form/data/page?current=1&size=10&definitionCode=${encodeURIComponent(
+      formCode,
+    )}&filters=${encodeURIComponent(
+      JSON.stringify([{ field: 'due_date', op: 'between', value: ['2026-03-01', '2026-12-31'] }]),
+    )}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  expect(dateResponse.ok()).toBeTruthy();
+  const dateEnvelope = (await dateResponse.json()) as {
+    code: number;
+    data: { total: number | string };
+  };
+  expect(dateEnvelope.code).toBe(0);
+  expect(Number(dateEnvelope.data.total)).toBe(3);
 });
