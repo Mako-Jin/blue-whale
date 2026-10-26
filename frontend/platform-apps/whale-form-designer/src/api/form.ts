@@ -154,6 +154,27 @@ export interface FormDataSubmitParams {
 /** 导出格式：csv（text/csv）/ xlsx（Excel） */
 export type ExportFormat = 'csv' | 'xlsx';
 
+/** 动态字段过滤操作符（与后端 FormDataFilter.op 白名单一致） */
+export type FilterOp =
+  | 'eq'
+  | 'ne'
+  | 'gt'
+  | 'gte'
+  | 'lt'
+  | 'lte'
+  | 'like'
+  | 'in'
+  | 'between'
+  | 'isNull'
+  | 'notNull';
+
+/** 动态字段过滤条件（序列化为 filters JSON 数组后随分页/导出请求传递） */
+export interface DataFilter {
+  field: string;
+  op: FilterOp;
+  value?: unknown;
+}
+
 /** 表定义 API（服务内前缀 /form/table-definition） */
 export const tableDefinitionApi = {
   page: (query?: PageParams) =>

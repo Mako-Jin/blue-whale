@@ -47,6 +47,10 @@ public final class FormDataType {
     private static final Set<String> ALLOWED =
             Set.of(TEXT, TEXTAREA, NUMBER, DATE, DATETIME, SELECT, BOOL, ATTACHMENT, SUBTABLE);
 
+    /** 支持条件检索的存储类型（附件/子表为 JSON 文本，不支持比较过滤） */
+    private static final Set<String> FILTERABLE =
+            Set.of(TEXT, TEXTAREA, NUMBER, DATE, DATETIME, SELECT, BOOL);
+
     /** 文本字段默认长度 */
     public static final int DEFAULT_TEXT_LENGTH = 255;
 
@@ -89,6 +93,16 @@ public final class FormDataType {
      */
     public static boolean isAllowed(String dataType) {
         return dataType != null && ALLOWED.contains(dataType);
+    }
+
+    /**
+     * 判断存储类型是否支持动态字段条件检索
+     *
+     * @param dataType 存储类型
+     * @return 支持条件检索返回 {@code true}
+     */
+    public static boolean isFilterable(String dataType) {
+        return dataType != null && FILTERABLE.contains(dataType);
     }
 
     /**

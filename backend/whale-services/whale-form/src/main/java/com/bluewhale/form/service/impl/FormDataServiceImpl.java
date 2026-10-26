@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.form.dto.FormDataFilter;
 import com.bluewhale.form.dto.FormDataQueryRequest;
 import com.bluewhale.form.dto.FormDataSubmitRequest;
 import com.bluewhale.form.dto.FormDataUpdateRequest;
@@ -41,9 +42,11 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * 表单数据服务实现（主从分离：主表记录 + 版本化物理表结构化字段）。
@@ -71,6 +74,18 @@ public class FormDataServiceImpl implements FormDataService {
 
     /** 导出单次最大条数 */
     private static final long EXPORT_MAX_ROWS = 5000L;
+
+    /** 动态字段条件最大个数 */
+    private static final int MAX_FILTERS = 10;
+
+    /** 动态字段条件 JSON 文本最大长度 */
+    private static final int MAX_FILTER_JSON_LENGTH = 4096;
+
+    /** 动态字段检索单次最多回捞的记录数（多版本物理表合并时按此上限截断） */
+    private static final int MAX_FILTER_FETCH = 5000;
+
+    /** 过滤字段名字符白名单（与物理表列名规则一致） */
+    private static final Pattern FILTER_FIELD_PATTERN = Pattern.compile("^[a-z][a-z0-9_]{0,63}$");
 
     /** 导出文件名时间戳格式 */
     private static final DateTimeFormatter FILE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
@@ -175,6 +190,19 @@ public class FormDataServiceImpl implements FormDataService {
 
     @Override
     public PageResult<FormDataVO> page(FormDataQueryRequest request, Long tenantId) {
+        List<FormDataFilter> filters = parseFilters(request.getFilters());
+        long size = Math.min(Math.max(request.getSize(), 1L), MAX_PAGE_SIZE);
+        long current = Math.max(request.getCurrent(), 1L);
+        if (!filters.isEmpty()) {
+            if (!StringUtils.hasText(request.getDefinitionCode())) {
+                throw paramError("动态字段条件检索需先指定表单编码");
+            }
+            FormDefinition definition = requireDefinitionByCode(request.getDefinitionCode());
+            FilteredRows matched = selectByFilters(definition, request, filters, tenantId,
+                    (current - 1) * size, size);
+            List<FormDataVO> filtered = matched.rows().stream().map(entity -> toVo(entity, null)).toList();
+            return PageResult.of(filtered, matched.total(), current, size);
+        }
         LambdaQueryWrapper<FormData> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(FormData::getTenantId, tenantId);
         wrapper.eq(StringUtils.hasText(request.getDefinitionCode()), FormData::getDefinitionCode,
@@ -182,8 +210,7 @@ public class FormDataServiceImpl implements FormDataService {
         wrapper.eq(StringUtils.hasText(request.getBizKey()), FormData::getBizKey, request.getBizKey());
         wrapper.eq(StringUtils.hasText(request.getSubmitter()), FormData::getSubmitter, request.getSubmitter());
         wrapper.orderByDesc(FormData::getCreateTime);
-        long size = Math.min(Math.max(request.getSize(), 1L), MAX_PAGE_SIZE);
-        Page<FormData> page = formDataMapper.selectPage(new Page<>(request.getCurrent(), size), wrapper);
+        Page<FormData> page = formDataMapper.selectPage(new Page<>(current, size), wrapper);
         List<FormDataVO> records = page.getRecords().stream().map(entity -> toVo(entity, null)).toList();
         return PageResult.of(records, page.getTotal(), page.getCurrent(), page.getSize());
     }
@@ -205,8 +232,12 @@ public class FormDataServiceImpl implements FormDataService {
         FormDefinition definition = requireDefinitionByCode(request.getDefinitionCode());
         List<FormField> fields = FormSchemaParser.parse(definition.getSchemaJson());
         List<String> headers = exportHeaders(fields);
+        List<FormDataFilter> filters = parseFilters(request.getFilters());
+        List<FormData> exportData = filters.isEmpty()
+                ? listExportData(request, tenantId)
+                : selectByFilters(definition, request, filters, tenantId, 0L, EXPORT_MAX_ROWS).rows();
         List<List<String>> rows = new ArrayList<>();
-        for (FormData entity : listExportData(request, tenantId)) {
+        for (FormData entity : exportData) {
             rows.add(exportRow(entity, fields));
         }
         String extension = FormDataExportSupport.extension(format);
@@ -297,6 +328,205 @@ public class FormDataServiceImpl implements FormDataService {
         wrapper.orderByDesc(FormData::getCreateTime);
         Page<FormData> page = formDataMapper.selectPage(new Page<>(1L, EXPORT_MAX_ROWS), wrapper);
         return page.getRecords();
+    }
+
+    /**
+     * 按动态字段条件检索（跨该表单已发布的各版本物理表合并，按创建时间倒序回捞当页）
+     *
+     * <p>各版本物理表独立查询：仅当该版本的 schema 快照包含全部过滤字段时才参与；命中总数累加，
+     * 当页 ID 按各表 {@code offset + limit} 截断后合并排序取窗口，再回主表按 ID 装载实体。</p>
+     *
+     * @param definition 表单定义（多版本取最大版本，用于定位表定义）
+     * @param request 查询条件（业务键/提交人同步下推到物理表）
+     * @param filters 动态字段过滤条件
+     * @param tenantId 租户ID
+     * @param offset 偏移量
+     * @param limit 条数
+     * @return 当页实体与命中总数
+     */
+    private FilteredRows selectByFilters(FormDefinition definition, FormDataQueryRequest request,
+                                         List<FormDataFilter> filters, Long tenantId, long offset, long limit) {
+        assertFilterFieldsDefined(definition, filters);
+        List<FormTableRegistry> tables = listFilterTables(definition);
+        if (tables.isEmpty()) {
+            throw paramError("表单未发布，暂不支持动态字段检索");
+        }
+        if (offset >= MAX_FILTER_FETCH) {
+            throw paramError("动态字段检索仅支持前 " + MAX_FILTER_FETCH + " 条记录分页");
+        }
+        int fetchLimit = (int) Math.min(offset + limit, MAX_FILTER_FETCH);
+        Set<Long> ids = new LinkedHashSet<>();
+        long total = 0L;
+        boolean usable = false;
+        for (FormTableRegistry registry : tables) {
+            List<FormField> fields = fieldsOf(registry, definition);
+            if (fields == null || !containsAllFields(fields, filters)) {
+                continue;
+            }
+            usable = true;
+            total += formDataEngine.countByFilters(registry.getPhysicalTable(), tenantId, fields, filters,
+                    request.getBizKey(), request.getSubmitter());
+            ids.addAll(formDataEngine.selectIdsByFilters(registry.getPhysicalTable(), tenantId, fields, filters,
+                    request.getBizKey(), request.getSubmitter(), fetchLimit));
+        }
+        if (!usable) {
+            throw paramError("过滤字段在当前已发布版本中不可用");
+        }
+        List<FormData> ordered = loadOrdered(ids);
+        int from = (int) Math.min(offset, ordered.size());
+        int to = (int) Math.min(offset + limit, ordered.size());
+        return new FilteredRows(new ArrayList<>(ordered.subList(from, to)), total);
+    }
+
+    /**
+     * 按 ID 集合装载主表实体并按创建时间倒序排序（物理表已按租户过滤，此处仅补齐主表字段）
+     *
+     * @param ids 物理表命中的记录ID（按各表创建时间倒序）
+     * @return 排序后的实体列表
+     */
+    private List<FormData> loadOrdered(Set<Long> ids) {
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, FormData> byId = new LinkedHashMap<>();
+        for (FormData entity : formDataMapper.selectBatchIds(ids)) {
+            byId.put(entity.getId(), entity);
+        }
+        List<FormData> ordered = new ArrayList<>(ids.size());
+        for (Long id : ids) {
+            FormData entity = byId.get(id);
+            if (entity != null) {
+                ordered.add(entity);
+            }
+        }
+        ordered.sort(Comparator.comparing(FormData::getCreateTime, Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(FormData::getId, Comparator.nullsLast(Comparator.naturalOrder()))
+                .reversed());
+        return ordered;
+    }
+
+    /**
+     * 查询该表单定义关联的生效物理表（元数据模型按表定义、旧模型按表单编码）
+     *
+     * @param definition 表单定义
+     * @return 物理表登记列表
+     */
+    private List<FormTableRegistry> listFilterTables(FormDefinition definition) {
+        LambdaQueryWrapper<FormTableRegistry> wrapper = new LambdaQueryWrapper<>();
+        if (definition.getTableDefinitionId() == null) {
+            wrapper.eq(FormTableRegistry::getDefinitionCode, definition.getCode());
+        } else {
+            wrapper.eq(FormTableRegistry::getTableDefinitionId, definition.getTableDefinitionId());
+        }
+        wrapper.eq(FormTableRegistry::getStatus, STATUS_NORMAL);
+        return formTableRegistryMapper.selectList(wrapper);
+    }
+
+    /**
+     * 取物理表对应版本的字段定义：优先使用登记内的 schema 快照；元数据模型回落当前表单定义 schema
+     *
+     * @param registry 物理表登记
+     * @param definition 表单定义
+     * @return 字段列表；无法确定该版本结构时返回 {@code null}（该版本不参与过滤）
+     */
+    private static List<FormField> fieldsOf(FormTableRegistry registry, FormDefinition definition) {
+        if (StringUtils.hasText(registry.getSchemaJson())) {
+            return FormSchemaParser.parse(registry.getSchemaJson());
+        }
+        if (registry.getTableDefinitionId() != null
+                && registry.getTableDefinitionId().equals(definition.getTableDefinitionId())) {
+            return FormSchemaParser.parse(definition.getSchemaJson());
+        }
+        return null;
+    }
+
+    /**
+     * 判断字段定义是否覆盖全部过滤字段（缺字段的版本无法满足条件，直接跳过）
+     *
+     * @param fields 该版本字段定义
+     * @param filters 过滤条件
+     * @return 全部覆盖返回 {@code true}
+     */
+    private static boolean containsAllFields(List<FormField> fields, List<FormDataFilter> filters) {
+        Set<String> keys = new HashSet<>();
+        for (FormField field : fields) {
+            keys.add(field.getKey());
+        }
+        for (FormDataFilter filter : filters) {
+            if (!keys.contains(filter.getField())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 校验过滤字段存在于当前表单结构定义且类型支持条件检索
+     *
+     * @param definition 表单定义
+     * @param filters 过滤条件
+     * @throws BizException 字段不存在或类型不支持时抛出 {@code PARAM_ERROR}
+     */
+    private static void assertFilterFieldsDefined(FormDefinition definition, List<FormDataFilter> filters) {
+        Map<String, FormField> fieldMap = new LinkedHashMap<>();
+        for (FormField field : FormSchemaParser.parse(definition.getSchemaJson())) {
+            fieldMap.put(field.getKey(), field);
+        }
+        for (FormDataFilter filter : filters) {
+            FormField field = fieldMap.get(filter.getField());
+            if (field == null) {
+                throw paramError("过滤字段不在当前表单结构定义中：" + filter.getField());
+            }
+            if (!FormDataType.isFilterable(field.getType())) {
+                String label = StringUtils.hasText(field.getLabel()) ? field.getLabel() : field.getKey();
+                throw paramError("字段 " + label + " 不支持条件检索");
+            }
+        }
+    }
+
+    /**
+     * 解析 {@code filters} JSON 数组文本（空文本视为无条件）
+     *
+     * @param raw JSON 数组文本
+     * @return 过滤条件列表
+     * @throws BizException JSON 非法、条件过多或字段名非法时抛出 {@code PARAM_ERROR}
+     */
+    private static List<FormDataFilter> parseFilters(String raw) {
+        if (!StringUtils.hasText(raw)) {
+            return List.of();
+        }
+        if (raw.length() > MAX_FILTER_JSON_LENGTH) {
+            throw paramError("过滤条件 JSON 不能超过 " + MAX_FILTER_JSON_LENGTH + " 字符");
+        }
+        List<FormDataFilter> filters;
+        try {
+            filters = MAPPER.readValue(raw, new TypeReference<List<FormDataFilter>>() {
+            });
+        } catch (Exception e) {
+            throw paramError("filters 不是合法的过滤条件 JSON 数组");
+        }
+        if (filters == null || filters.isEmpty()) {
+            return List.of();
+        }
+        if (filters.size() > MAX_FILTERS) {
+            throw paramError("过滤条件最多 " + MAX_FILTERS + " 个");
+        }
+        for (FormDataFilter filter : filters) {
+            if (filter == null || !StringUtils.hasText(filter.getField())
+                    || !FILTER_FIELD_PATTERN.matcher(filter.getField()).matches()) {
+                throw paramError("过滤条件的 field 非法");
+            }
+        }
+        return filters;
+    }
+
+    /**
+     * 动态字段检索结果：当页实体 + 命中总数
+     *
+     * @param rows 当页实体
+     * @param total 命中总数
+     */
+    private record FilteredRows(List<FormData> rows, long total) {
     }
 
     /**

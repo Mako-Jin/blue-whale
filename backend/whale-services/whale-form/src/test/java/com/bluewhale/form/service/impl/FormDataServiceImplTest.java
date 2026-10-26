@@ -430,4 +430,98 @@ class FormDataServiceImplTest {
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
     }
+
+    /**
+     * 构造含动态过滤字段的表单结构定义。
+     *
+     * @return schema JSON
+     */
+    private static String filterSchema() {
+        return "{\"fields\":[{\"key\":\"amount\",\"label\":\"金额\",\"type\":\"number\"},"
+                + "{\"key\":\"name\",\"label\":\"姓名\",\"type\":\"text\"}]}";
+    }
+
+    /**
+     * 构造带创建时间的数据实体桩对象。
+     *
+     * @param id 主键
+     * @param minute 创建时间分钟（用于排序断言）
+     * @return 数据实体
+     */
+    private static FormData data(Long id, int minute) {
+        FormData entity = new FormData();
+        entity.setId(id);
+        entity.setTenantId(TENANT);
+        entity.setDefinitionCode(CODE);
+        entity.setCreateTime(java.time.LocalDateTime.of(2026, 10, 26, 10, minute));
+        return entity;
+    }
+
+    @Test
+    @DisplayName("page：动态字段条件检索按物理表命中回捞并按创建时间倒序")
+    void shouldPageWithDynamicFilters() {
+        FormDefinition definition = definition(10L);
+        definition.setSchemaJson(filterSchema());
+        when(formDefinitionMapper.selectList(ArgumentMatchers.<Wrapper<FormDefinition>>any()))
+                .thenReturn(List.of(definition));
+        when(formTableRegistryMapper.selectList(ArgumentMatchers.<Wrapper<FormTableRegistry>>any()))
+                .thenReturn(List.of(registryWithSchema(filterSchema())));
+        when(formDataEngine.countByFilters(eq(TABLE), eq(TENANT), anyList(), anyList(),
+                ArgumentMatchers.<String>any(), ArgumentMatchers.<String>any())).thenReturn(2L);
+        when(formDataEngine.selectIdsByFilters(eq(TABLE), eq(TENANT), anyList(), anyList(),
+                ArgumentMatchers.<String>any(), ArgumentMatchers.<String>any(), eq(10)))
+                .thenReturn(List.of(2L, 1L));
+        when(formDataMapper.selectBatchIds(any())).thenReturn(List.of(data(1L, 1), data(2L, 2)));
+        FormDataQueryRequest request = new FormDataQueryRequest();
+        request.setDefinitionCode(CODE);
+        request.setFilters("[{\"field\":\"amount\",\"op\":\"gte\",\"value\":100}]");
+        request.setCurrent(1);
+        request.setSize(10);
+
+        PageResult<FormDataVO> result = formDataService.page(request, TENANT);
+
+        assertEquals(2L, result.getTotal());
+        assertEquals(List.of(2L, 1L), result.getRecords().stream().map(FormDataVO::getId).toList());
+    }
+
+    @Test
+    @DisplayName("page：过滤字段不在表单结构定义中抛参数错误")
+    void shouldThrowWhenFilterFieldMissing() {
+        FormDefinition definition = definition(10L);
+        definition.setSchemaJson(filterSchema());
+        when(formDefinitionMapper.selectList(ArgumentMatchers.<Wrapper<FormDefinition>>any()))
+                .thenReturn(List.of(definition));
+        FormDataQueryRequest request = new FormDataQueryRequest();
+        request.setDefinitionCode(CODE);
+        request.setFilters("[{\"field\":\"hack\",\"op\":\"eq\",\"value\":1}]");
+
+        BizException ex = assertThrows(BizException.class, () -> formDataService.page(request, TENANT));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        assertTrue(ex.getMessage().contains("过滤字段不在当前表单结构定义中"));
+        verify(formDataEngine, never()).countByFilters(any(), any(), anyList(), anyList(), any(), any());
+    }
+
+    @Test
+    @DisplayName("page：动态条件未指定表单编码抛参数错误")
+    void shouldThrowWhenFiltersWithoutDefinitionCode() {
+        FormDataQueryRequest request = new FormDataQueryRequest();
+        request.setFilters("[{\"field\":\"amount\",\"op\":\"eq\",\"value\":1}]");
+
+        BizException ex = assertThrows(BizException.class, () -> formDataService.page(request, TENANT));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+    }
+
+    @Test
+    @DisplayName("page：filters 非法 JSON 抛参数错误")
+    void shouldThrowWhenFiltersInvalidJson() {
+        FormDataQueryRequest request = new FormDataQueryRequest();
+        request.setDefinitionCode(CODE);
+        request.setFilters("not-json");
+
+        BizException ex = assertThrows(BizException.class, () -> formDataService.page(request, TENANT));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+    }
 }

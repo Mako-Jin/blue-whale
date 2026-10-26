@@ -1,5 +1,6 @@
 package com.bluewhale.form.support;
 
+import com.bluewhale.form.dto.FormDataFilter;
 import com.bluewhale.form.entity.FormData;
 
 import java.util.List;
@@ -69,6 +70,35 @@ public interface FormDataEngine {
      * @return 字段值映射（key 为字段 key）；无匹配行时返回空映射
      */
     Map<String, Object> selectFields(String table, Long id, Long tenantId, List<FormField> fields);
+
+    /**
+     * 按动态字段条件统计物理表匹配行数（按租户、逻辑删除、业务键与提交人过滤）
+     *
+     * @param table 物理表名
+     * @param tenantId 租户ID
+     * @param fields 该版本的字段定义（列名白名单与类型依据）
+     * @param filters 动态字段过滤条件（字段须在 {@code fields} 内）
+     * @param bizKey 业务键（可空）
+     * @param submitter 提交人（可空）
+     * @return 匹配行数
+     */
+    long countByFilters(String table, Long tenantId, List<FormField> fields,
+                        List<FormDataFilter> filters, String bizKey, String submitter);
+
+    /**
+     * 按动态字段条件查询物理表匹配记录ID（按创建时间倒序，最多 {@code limit} 条）
+     *
+     * @param table 物理表名
+     * @param tenantId 租户ID
+     * @param fields 该版本的字段定义（列名白名单与类型依据）
+     * @param filters 动态字段过滤条件（字段须在 {@code fields} 内）
+     * @param bizKey 业务键（可空）
+     * @param submitter 提交人（可空）
+     * @param limit 最大返回条数
+     * @return 记录ID列表（创建时间倒序）
+     */
+    List<Long> selectIdsByFilters(String table, Long tenantId, List<FormField> fields,
+                                  List<FormDataFilter> filters, String bizKey, String submitter, int limit);
 
     /**
      * 逻辑删除物理表中的一条数据（按租户过滤）
