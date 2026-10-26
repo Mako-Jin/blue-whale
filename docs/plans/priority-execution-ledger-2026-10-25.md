@@ -27,7 +27,7 @@
 | 13 | P2 | `api_log` 建表纳入各服务 init.sql（5.55 遗留） | **已完成**（2026-10-26） | 无 | 标准 DDL（含 tenant_id）补入 11 个服务 init.sql；存量 9 库在线补建 + 11 库复核；实机验证 whale-pm 请求落 `bluewhale_pm.api_log`；详见 [检查报告](../reviews/2026-10-26-p2-api-log-init-sql.md) |
 | 14 | P2 | 发布前用最新配置重新打包网关 jar | **已完成**（2026-10-26） | 无 | 从已提交 main 重打包（含 2c6a663 修复 D），84 用例全绿；重启 8080 健康 UP；经网关冒烟 3/3（登录 / `/auth/me` 权限 142 / `lb://whale-pm`）；详见 [检查报告](../reviews/2026-10-26-p2-gateway-repackage.md) |
 | 15 | P3 | P3-9a ERP 物料业务闭环（后端填充 + 前端联调） | **已完成**（2026-10-26） | 无 | `whale-erp` 补数据源/mybatis-plus/prometheus 与 `erp_item` DDL；5 接口接权限点 203–206 + 审计；前端 `api/erp.ts` 去 mock 接网关；构建成功、9001 UP、网关 CRUD 4/4、前端 tsc+build 通过；详见 [检查报告](../reviews/2026-10-26-p3-erp-item.md) |
-| 16 | P3 | P3-9b MES 工单业务闭环 | 待执行 | 无 | 与 ERP 同范式：`mes_work_order` DDL、5 接口、权限点 207–210、前端 `api/mes.ts` 去 mock |
+| 16 | P3 | P3-9b MES 工单业务闭环 | **已完成**（2026-10-26） | 无 | `whale-mes` 补数据源/mybatis-plus/prometheus 与 `mes_work_order` DDL；5 接口接权限点 207–210 + 审计；前端 `api/mes.ts` 去 mock 接网关；构建成功、9002 UP、网关 CRUD 5/5、前端 tsc+build 通过；详见 [检查报告](../reviews/2026-10-26-p3-mes-work-order.md) |
 | 17 | P3 | P3-9c PDM 产品业务闭环 | 待执行 | 无 | 与 ERP 同范式：`pdm_product` DDL、5 接口、权限点 211–214、前端 `api/pdm.ts` 去 mock |
 
 ---
@@ -67,3 +67,4 @@
 | 2026-10-26 | 序号 13（P2-7） | `api_log` 标准 DDL 补入 11 个服务 init.sql（workflow/pay/job/im/form/file/archive/agent/alert/pm/oa）；存量 9 库在线补建；实机验证 bluewhale_pm.api_log 落库（tenant_id=1）；详见 [检查报告](../reviews/2026-10-26-p2-api-log-init-sql.md) |
 | 2026-10-26 | 序号 14（P2-8） | 网关从已提交 main 重打包（含 2c6a663），84 用例全绿；重启 8080 后健康 UP，经网关冒烟 3/3（登录 / `/auth/me` 142 权限 / `lb://whale-pm` 路由）；详见 [检查报告](../reviews/2026-10-26-p2-gateway-repackage.md) |
 | 2026-10-26 | 序号 15（P3-9a） | ERP 物料闭环：`erp_item` 库表 + 5 接口（权限 203–206）+ 前端去 mock；构建成功、9001 UP、网关 CRUD 4/4、tsc+build 通过；详见 [检查报告](../reviews/2026-10-26-p3-erp-item.md) |
+| 2026-10-26 | 序号 16（P3-9b） | MES 生产工单闭环：`mes_work_order` 库表 + 5 接口（权限 207–210、菜单 26）+ 前端去 mock；构建成功、9002 UP、网关 CRUD 5/5、`api_log` 落 5 行、tsc+build 通过；详见 [检查报告](../reviews/2026-10-26-p3-mes-work-order.md) |
