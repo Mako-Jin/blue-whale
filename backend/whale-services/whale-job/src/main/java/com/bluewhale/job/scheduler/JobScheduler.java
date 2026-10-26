@@ -60,6 +60,9 @@ import java.util.concurrent.TimeUnit;
  * 仅在上游任务全部分片成功且其所有上游在同一 {@code runId} 下均成功后，以 {@code CHAIN}
  * 触发类型提交下游执行，链深度上限 32。无依赖任务的 cron / 重试 / 分片 / misfire / 锁行为保持不变。</p>
  *
+ * <p>多实例一致性：任务定义变更、启停与依赖调整后经 {@link JobScheduleBroadcaster} 广播失效消息，
+ * 其余实例收到后按同一语义重新注册或取消本地调度；广播不可用时保持单实例语义。</p>
+ *
  * @author BlueWhale
  */
 @Slf4j
@@ -138,6 +141,8 @@ public class JobScheduler {
 
     private final JobAlertNotifier jobAlertNotifier;
 
+    private final JobScheduleBroadcaster jobScheduleBroadcaster;
+
     /** jobId 到已注册调度的映射 */
     private final Map<Long, ScheduledFuture<?>> scheduledFutures = new ConcurrentHashMap<>();
 
@@ -145,7 +150,7 @@ public class JobScheduler {
     private ThreadPoolTaskScheduler taskScheduler;
 
     /**
-     * 初始化调度线程池
+     * 初始化调度线程池，并注册多实例失效广播的本地消费者
      */
     @PostConstruct
     public void init() {
@@ -156,6 +161,7 @@ public class JobScheduler {
         scheduler.setAwaitTerminationSeconds(AWAIT_TERMINATION_SECONDS);
         scheduler.initialize();
         this.taskScheduler = scheduler;
+        jobScheduleBroadcaster.registerConsumer(this::applyBroadcast);
     }
 
     /**
@@ -180,12 +186,22 @@ public class JobScheduler {
     }
 
     /**
-     * 重新调度指定任务：先取消旧调度，再按最新定义（若为运行中）重新注册
+     * 重新调度指定任务：先取消旧调度，再按最新定义（若为运行中）重新注册，并广播至其他实例
      *
      * @param jobId 任务ID
      */
     public void reschedule(Long jobId) {
-        cancel(jobId);
+        rescheduleLocal(jobId);
+        jobScheduleBroadcaster.broadcastReschedule(jobId);
+    }
+
+    /**
+     * 重新调度指定任务（仅本实例）
+     *
+     * @param jobId 任务ID
+     */
+    private void rescheduleLocal(Long jobId) {
+        cancelLocal(jobId);
         JobInfo job = jobInfoMapper.selectById(jobId);
         if (job != null && Integer.valueOf(STATUS_RUNNING).equals(job.getStatus())) {
             register(job);
@@ -193,15 +209,39 @@ public class JobScheduler {
     }
 
     /**
-     * 取消指定任务的调度
+     * 取消指定任务的调度，并广播至其他实例
      *
      * @param jobId 任务ID
      */
     public void cancel(Long jobId) {
+        cancelLocal(jobId);
+        jobScheduleBroadcaster.broadcastCancel(jobId);
+    }
+
+    /**
+     * 取消指定任务的调度（仅本实例）
+     *
+     * @param jobId 任务ID
+     */
+    private void cancelLocal(Long jobId) {
         ScheduledFuture<?> future = scheduledFutures.remove(jobId);
         if (future != null) {
             future.cancel(false);
             log.info("定时任务已取消: jobId={}", jobId);
+        }
+    }
+
+    /**
+     * 应用其他实例广播的调度变更
+     *
+     * @param jobId 任务ID
+     * @param reschedule 是否重新注册
+     */
+    void applyBroadcast(Long jobId, boolean reschedule) {
+        if (reschedule) {
+            rescheduleLocal(jobId);
+        } else {
+            cancelLocal(jobId);
         }
     }
 

@@ -71,8 +71,10 @@ class JobSchedulerChainTest {
     private final ObjectProvider<RedissonClient> redissonClientProvider =
             (ObjectProvider<RedissonClient>) mock(ObjectProvider.class);
 
+    private final JobScheduleBroadcaster jobScheduleBroadcaster = new JobScheduleBroadcaster(redissonClientProvider);
+
     private final JobScheduler scheduler = new JobScheduler(jobInfoMapper, jobLogMapper, jobDependencyMapper,
-            jobHandlerRegistry, executionGuard, redissonClientProvider, jobAlertNotifier);
+            jobHandlerRegistry, executionGuard, redissonClientProvider, jobAlertNotifier, jobScheduleBroadcaster);
 
     /**
      * 注册实体元信息缓存：Lambda 条件构造器会立即按实体解析列名，纯单测无 MyBatis 环境需手动初始化 TableInfo。

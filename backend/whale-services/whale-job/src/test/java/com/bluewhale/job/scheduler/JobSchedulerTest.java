@@ -62,8 +62,10 @@ class JobSchedulerTest {
     private final ObjectProvider<RedissonClient> redissonClientProvider =
             (ObjectProvider<RedissonClient>) mock(ObjectProvider.class);
 
+    private final JobScheduleBroadcaster jobScheduleBroadcaster = new JobScheduleBroadcaster(redissonClientProvider);
+
     private final JobScheduler scheduler = new JobScheduler(jobInfoMapper, jobLogMapper, jobDependencyMapper,
-            jobHandlerRegistry, executionGuard, redissonClientProvider, jobAlertNotifier);
+            jobHandlerRegistry, executionGuard, redissonClientProvider, jobAlertNotifier, jobScheduleBroadcaster);
 
     @AfterEach
     void tearDown() {

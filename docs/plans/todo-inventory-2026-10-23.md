@@ -12,7 +12,7 @@
 |---|---|---|---|---|
 | 1 | whale-gateway | 8080 | 可用 | ① 为 `/erp/**`、`/mes/**`、`/pdm/**`、`/oa/**`、`/config/**` 补路由（现 11 条，缺 5 条）② 熔断半开探测仅单测覆盖，运行态未单独取证（残余风险，非功能缺口）③ T-CI-7：镜像构建扩至全服务 |
 | 2 | whale-auth | 8081 | 可用 | ① `replaceUserAttrs` 非空批量写路径缺单测（需真实 Mapper 代理）② 端口仍硬编码 8081，未走 `${SERVER_PORT}`（service-catalog 偏差 C-02）③ 前端按钮级权限渲染需在 admin 逐页复验 |
-| 3 | whale-job | 8082 | 可用 | 调度「多实例失效广播」未覆盖（`next-steps` §五 残余）；归档导出已通，Wave 5.49 起可落对象存储 |
+| 3 | whale-job | 8082 | 可用 | 调度「多实例失效广播」已于 2026-10-26 落地（Redisson RTopic，双实例实机验证）；`whale-auth` 缓存侧广播仍为独立残余；归档导出已通，Wave 5.49 起可落对象存储 |
 | 4 | whale-workflow | 8083 | 可用 | backlog 6 项全部结案；dnd-kit 真实指针拖拽已于 2026-10-26 人工复核通过（前端侧） |
 | 5 | whale-form | 8084 | 可用 | ① 字段级索引自动优化未做（Wave 5.27 起遗留）② 表单 ↔ 工作流联动需端到端验收（发起入口已接 `formId`，缺跨模块回归用例） |
 | 6 | whale-file | 8085 | 可用 | 无（Wave 5.49：存储插件化，`local`/`minio` 插件可切换，MinIO 自动建桶已解锁 job/audit 归档；见 [devlog §十九](../devlog/2026-10-23.md)） |
