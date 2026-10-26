@@ -80,6 +80,13 @@ whale:
         initial-delay-ms: ${CONTRACT_ESIGN_RECONCILE_INITIAL_DELAY_MS:30000}
         stale-seconds: ${CONTRACT_ESIGN_RECONCILE_STALE_SECONDS:120}
         batch-size: ${CONTRACT_ESIGN_RECONCILE_BATCH_SIZE:50}
+    # 合同归档快照推送：单据终态生效后归档时，推不可变快照到 whale-archive 内网接口
+    archive:
+      enabled: ${CONTRACT_ARCHIVE_ENABLED:true}
+      base-url: ${CONTRACT_ARCHIVE_URL:http://127.0.0.1:8093}
+      connect-timeout-millis: ${CONTRACT_ARCHIVE_CONNECT_TIMEOUT:1000}
+      read-timeout-millis: ${CONTRACT_ARCHIVE_READ_TIMEOUT:5000}
+      security-level: ${CONTRACT_ARCHIVE_SECURITY_LEVEL:2}
 
 mybatis-plus:
   configuration:

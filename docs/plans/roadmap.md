@@ -148,6 +148,7 @@
 - [x] **Wave 5.61 M2 电子签章**（2026-10-26）：`ct_seal` / `ct_seal_grant` / `ct_sign_task` / `ct_sign_record` + `audit_log` + 用章授权校验（403 审计）+ PDFBox 视觉盖章（含骑缝 2 页）+ BouncyCastle PKCS#7 签名与验签 + 链式哈希证据链 + 拒签/作废 + 权限 223–231 + 菜单 29/30 + 前端印章管理与签署中心；冒烟 27/27、前端 `tsc`/`build`/`lint` 通过 → [检查报告](../reviews/2026-10-26-p3-wave5.61-contract-m2.md)
 - [x] **Wave 5.61 M3 第三方签章**（2026-10-26）：`EsignProvider` 适配层（local/e签宝/法大大/上上签）+ `ct_esign_callback` 幂等表 + HMAC 验签与 ±300s 时间窗 + 三方证据落库/链式哈希 + `/workflow/internal/task/{id}/complete`（`SYSTEM:ESIGN_CALLBACK` 留痕）+ 签署发起对接 provider + 生效接口（权限 232）+ 菜单 31 证据中心 + 网关回调白名单 + 前端证据中心页；回调重放 10 次仅推进一次、坏签名/超窗 403 落审计、链篡改可检出、provider 切换仅改配置、签署后生效归档闭环；冒烟 00–27 全通过、前端 build/lint 通过 → Wave 5.61 三阶段全部完成 → [检查报告](../reviews/2026-10-26-p3-wave5.61-contract-m3.md)
 - [x] **Wave 5.61 M3.5 回调乱序补偿**（2026-10-26）：`EsignCallbackSigner` 统一验签/补偿签名口径 + `SignTaskReconcileJob` 定时轮询超时 `SIGNING` 非 local 任务，终态时以 `RECONCILE-<taskId>-<action>` 自签内部回调复用既有幂等/证据/流程链路；配置五项支持环境变量覆盖；单测 4/4、实机三类任务筛选与不误推进验证通过 → [检查报告](../reviews/2026-10-26-p3-esign-callback-reconcile.md)
+- [x] **Wave 5.61 M3.6 归档快照衔接**（2026-10-26）：archive 新增 `POST /archive/internal/items`（复用 `ArchiveItemStore` + 同步台账，快照上传 + SHA-256 + 「待整理」条目），contract 归档推送合同快照并回填 `archive_item_id`；M3 冒烟 00–27 全通过、条目/文件/台账/幂等/回读摘要校验齐备 → [检查报告](../reviews/2026-10-26-p3-contract-archive-snapshot.md)
 
 ## Phase 5：部署与 CI/CD
 

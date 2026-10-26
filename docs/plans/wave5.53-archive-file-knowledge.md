@@ -146,6 +146,7 @@
 | file | GET | `/file/internal/{id}/content` | 文件内容流（知识抽取用） |
 | file | POST | `/file/internal/{id}/lock` / `/unlock` | 归档锁定/解锁（`status=2`） |
 | archive | GET | `/archive/internal/refs?fileId=` | 文件是否被档案引用（删除前置校验）；**M2 决策：以 `/file/internal/{id}/lock`（`status=2`）拦截删除，本接口暂不启用** |
+| archive | POST | `/archive/internal/items` | **业务系统快照入档（2026-10-26 新增）**：接收合同等业务终态快照，上传快照文件并落「待整理」条目；`(source_type, source_id)` 幂等，仅 `CONTRACT` 白名单 |
 
 ### 5.4 归档主流程
 

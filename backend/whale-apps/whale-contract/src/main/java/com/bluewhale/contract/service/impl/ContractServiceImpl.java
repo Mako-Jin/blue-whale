@@ -5,8 +5,10 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.contract.client.ArchiveInternalClient;
 import com.bluewhale.contract.client.ContractApprovalClient;
 import com.bluewhale.contract.config.ContractApprovalProperties;
+import com.bluewhale.contract.config.ContractArchiveProperties;
 import com.bluewhale.contract.domain.ContractStatus;
 import com.bluewhale.contract.dto.ContractPartyRequest;
 import com.bluewhale.contract.dto.ContractQueryRequest;
@@ -112,6 +114,10 @@ public class ContractServiceImpl implements ContractService {
     private final ContractApprovalClient approvalClient;
 
     private final ContractApprovalProperties approvalProperties;
+
+    private final ArchiveInternalClient archiveClient;
+
+    private final ContractArchiveProperties archiveProperties;
 
     @Override
     public PageResult<ContractVO> page(ContractQueryRequest request) {
@@ -280,6 +286,13 @@ public class ContractServiceImpl implements ContractService {
         CtContract contract = requireContract(id);
         requireStatus(contract, "归档", ContractStatus.EFFECTIVE);
         contract.setStatus(ContractStatus.ARCHIVED.name());
+        if (archiveProperties.isEnabled()) {
+            List<CtContractParty> parties = partyMapper.selectList(new LambdaQueryWrapper<CtContractParty>()
+                    .eq(CtContractParty::getContractId, id));
+            Long archiveItemId = archiveClient.ingest(contract, parties);
+            contract.setArchiveItemId(archiveItemId);
+            log.info("合同快照已入档: id={}, archiveItemId={}", id, archiveItemId);
+        }
         contractMapper.updateById(contract);
         log.info("合同已归档: id={}", id);
         return toVo(contract);

@@ -294,7 +294,7 @@ public interface EsignProvider {
 - [x] 交付：`EsignProvider` 三实现 + 回调接口 + `ct_esign_callback` + 证据链 + `/workflow/internal/task/{id}/complete` + 归档衔接 + 菜单 31。
 - [x] 验收：① 回调重放 10 次仅推进一次；② 验签非法/超时窗口一律拒绝并落审计；③ 证据链中断可被 `verify` 检出；④ 签署完成后归档可见（若启用归档）；⑤ provider 切换只改配置不改代码。
 - 落地记录：provider 适配层 [`esign/provider`](../../backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/esign/provider)、回调 [`EsignCallbackServiceImpl`](../../backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/service/impl/EsignCallbackServiceImpl.java)、workflow 内部接口 [`WorkflowInternalTaskController`](../../backend/whale-services/whale-workflow/src/main/java/com/bluewhale/workflow/controller/WorkflowInternalTaskController.java)、迁移 `migration-5.63-contract-esign-callback.sql` / `migration-5.63-workflow-task-operator.sql` / `migration-5.63-contract-esign-m3.sql`、前端证据中心 `EvidenceCenter.tsx`、冒烟 [bw-contract-m3-smoke.ps1](../../scripts/smoke/bw-contract-m3-smoke.ps1)；验收报告见 [2026-10-26-p3-wave5.61-contract-m3.md](../reviews/2026-10-26-p3-wave5.61-contract-m3.md)。
-- M3 简化（后续迭代）：三方通道为 HMAC 骨架（未调真实平台 API，未接实名意愿认证与持牌 CA/TSA）；`whale-archive` 内部快照接口未新增，归档仍为合同侧状态流转。
+- M3 简化（后续迭代）：三方通道为 HMAC 骨架（未调真实平台 API，未接实名意愿认证与持牌 CA/TSA）。
 
 ### M3.5 回调乱序补偿（2026-10-26）—— **已完成**
 
@@ -302,6 +302,14 @@ public interface EsignProvider {
 - [x] 验收：① `package` 通过且 Checkstyle 0；② 单测 4/4（终态映射 / 非终态不推进 / 拒签带原因 / 缺密钥跳过）；③ 实机三类任务（过期三方 / LOCAL / 未超时）仅过期三方被轮询，骨架渠道恒 `SIGNING` 时任务不被误推进；④ 幂等键 `RECONCILE-<taskId>-<action>`，同任务重复补偿不重复推进。
 - 落地记录：补丁位于 [`esign/reconcile`](../../backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/esign/reconcile) 与 [`EsignCallbackSigner`](../../backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/esign/provider/EsignCallbackSigner.java)；验收报告见 [2026-10-26-p3-esign-callback-reconcile.md](../reviews/2026-10-26-p3-esign-callback-reconcile.md)。
 - 遗留：三方 `queryTask` 仍为骨架实现（恒 `SIGNING`），真实终态推进待平台 API 接入后启用。
+
+### M3.6 归档快照衔接（2026-10-26）—— **已完成**
+
+- [x] 交付：archive 新增 `POST /archive/internal/items`（复用 `ArchiveItemStore` + `archive_source_record` 台账，上传快照到 `whale-archive` 桶并计算 SHA-256，条目落「待整理」）；contract 归档时推送合同快照（核心字段 + 相对方清单 + 原件引用）并回填 `ct_contract.archive_item_id`，配置 `whale.contract.archive.*`（`CONTRACT_ARCHIVE_URL` 等可覆盖）。
+- [x] 验收：① `package` 通过且 Checkstyle 0，contract 单测 7/7；② M3 冒烟 00–27 全通过（含 `25.effective`/`26.archive`）；③ 实机 `archive_item`（`source_type=CONTRACT`、`item_status=0`、`snapshot_hash` 可回读复算一致）+ `archive_file`（`SNAPSHOT` + `ORIGINAL`）+ `archive_source_record(sync_status=1)` 齐备；④ 同 `(sourceType, sourceId)` 重复推送返回既有条目 `created=false`；⑤ `/archive/item/page` 可见该合同档案。
+- 落地记录：[`ArchiveIngestService`](../../backend/whale-services/whale-archive/src/main/java/com/bluewhale/archive/service/ArchiveIngestService.java)、[`ArchiveInternalClient`](../../backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/client/ArchiveInternalClient.java)；验收报告见 [2026-10-26-p3-contract-archive-snapshot.md](../reviews/2026-10-26-p3-contract-archive-snapshot.md)。
+- 遗留：条目停在「待整理」需档案人员确认归档分配档号；原件未做文件锁定；归档失败为同步可重试语义，无异步补偿队列。
+
 
 
 ---

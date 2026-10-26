@@ -42,6 +42,9 @@ public final class ArchiveConstants {
     /** 来源类型：工作流实例 */
     public static final String SOURCE_WORKFLOW = "WORKFLOW";
 
+    /** 来源类型：合同（业务系统主动推送快照） */
+    public static final String SOURCE_CONTRACT = "CONTRACT";
+
     /** 文件角色：原件 */
     public static final String FILE_ROLE_ORIGINAL = "ORIGINAL";
 
