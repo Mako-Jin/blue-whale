@@ -25,6 +25,7 @@
 | 11 | P2 | PM 审批开启态联调（5.55 遗留） | **已完成**（2026-10-26） | 无 | 补建 `bluewhale_pm` 库；创建流程定义 2114553480332849153；whale-pm 开启态发起审批→动态记录→workflow 实例对账→审批完结 8/8 通过；固化 `bw-pm-approval-smoke.ps1`；详见 [检查报告](../reviews/2026-10-26-p2-pm-approval-enabled.md) |
 | 12 | P2 | PM 权限点 172–202 真实业务角色补授（5.55 遗留） | **已完成**（2026-10-26） | 无 | `migration-5.57-pm-role-grant.sql` 建 pm_manager(31 全量)/pm_member(16 子集) 并授权 + 补 workflow `instance:start`(44)；pm_mgr/pm_mem 网关级 12 项正负向验证全过；详见 [检查报告](../reviews/2026-10-26-p2-pm-role-grant.md) |
 | 13 | P2 | `api_log` 建表纳入各服务 init.sql（5.55 遗留） | **已完成**（2026-10-26） | 无 | 标准 DDL（含 tenant_id）补入 11 个服务 init.sql；存量 9 库在线补建 + 11 库复核；实机验证 whale-pm 请求落 `bluewhale_pm.api_log`；详见 [检查报告](../reviews/2026-10-26-p2-api-log-init-sql.md) |
+| 14 | P2 | 发布前用最新配置重新打包网关 jar | **已完成**（2026-10-26） | 无 | 从已提交 main 重打包（含 2c6a663 修复 D），84 用例全绿；重启 8080 健康 UP；经网关冒烟 3/3（登录 / `/auth/me` 权限 142 / `lb://whale-pm`）；详见 [检查报告](../reviews/2026-10-26-p2-gateway-repackage.md) |
 
 ---
 
@@ -61,3 +62,4 @@
 | 2026-10-26 | 序号 11（P2-5） | PM 审批开启态联调闭环：补建 `bluewhale_pm` 库（12 表）、流程定义 2114553480332849153、PM 开启态全链路 8/8 通过（发起→动态→实例对账→审批完结）；新增回归脚本 `bw-pm-approval-smoke.ps1`；详见 [检查报告](../reviews/2026-10-26-p2-pm-approval-enabled.md) |
 | 2026-10-26 | 序号 12（P2-6） | PM 权限 172–202 落真实业务角色：`migration-5.57-pm-role-grant.sql`（pm_manager 31 全量 / pm_member 16 子集 + workflow `instance:start` 44）；pm_mgr/pm_mem 经网关 12 项正负向验证全过（含 403 边界与发起审批闭环）；详见 [检查报告](../reviews/2026-10-26-p2-pm-role-grant.md) |
 | 2026-10-26 | 序号 13（P2-7） | `api_log` 标准 DDL 补入 11 个服务 init.sql（workflow/pay/job/im/form/file/archive/agent/alert/pm/oa）；存量 9 库在线补建；实机验证 bluewhale_pm.api_log 落库（tenant_id=1）；详见 [检查报告](../reviews/2026-10-26-p2-api-log-init-sql.md) |
+| 2026-10-26 | 序号 14（P2-8） | 网关从已提交 main 重打包（含 2c6a663），84 用例全绿；重启 8080 后健康 UP，经网关冒烟 3/3（登录 / `/auth/me` 142 权限 / `lb://whale-pm` 路由）；详见 [检查报告](../reviews/2026-10-26-p2-gateway-repackage.md) |
