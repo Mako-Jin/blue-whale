@@ -393,17 +393,36 @@ public class ContractServiceImpl implements ContractService {
         String categoryCode = CATEGORY_CODES.getOrDefault(category, "QT");
         String prefix = "HT-" + categoryCode + "-"
                 + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy")) + "-";
-        long count = contractMapper.selectCount(new LambdaQueryWrapper<CtContract>()
-                .likeRight(CtContract::getCode, prefix));
-        for (long seq = count + 1; seq < count + 1000; seq++) {
+        long seq = parseSeq(contractMapper.selectMaxCodeByPrefix(prefix)) + 1;
+        for (int i = 0; i < 1000; i++, seq++) {
             String code = prefix + String.format("%0" + CODE_SEQ_WIDTH + "d", seq);
-            long existing = contractMapper.selectCount(new LambdaQueryWrapper<CtContract>()
-                    .eq(CtContract::getCode, code));
-            if (existing == 0) {
+            if (contractMapper.countByCodeIncludingDeleted(code) == 0) {
                 return code;
             }
         }
         throw new BizException(ErrorCode.SYSTEM_ERROR, "合同编号生成失败，请稍后重试");
+    }
+
+    /**
+     * 解析编号末段的流水号。
+     *
+     * @param code 合同编号
+     * @return 流水号，编号为空或格式非法返回 0
+     */
+    private static long parseSeq(String code) {
+        if (!StringUtils.hasText(code)) {
+            return 0L;
+        }
+        int dash = code.lastIndexOf('-');
+        if (dash < 0 || dash == code.length() - 1) {
+            return 0L;
+        }
+        try {
+            return Long.parseLong(code.substring(dash + 1));
+        } catch (NumberFormatException ex) {
+            log.warn("合同编号流水段非法，忽略: {}", code);
+            return 0L;
+        }
     }
 
     /**

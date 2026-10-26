@@ -42,6 +42,16 @@ whale:
       workflow-url: ${CONTRACT_APPROVAL_WORKFLOW_URL:http://127.0.0.1:8083}
       connect-timeout-millis: 1000
       read-timeout-millis: 3000
+    # Wave 5.61 M2：whale-file 内网通道（下载正文 / 上传签章件，接口不带权限码）
+    file:
+      base-url: ${CONTRACT_FILE_URL:http://127.0.0.1:8085}
+      connect-timeout-millis: 1000
+      read-timeout-millis: 5000
+    # Wave 5.61 M2：本地签章（P12 未配置时仅视觉盖章 + 哈希，algorithm=NONE）
+    esign:
+      p12-path: ${CONTRACT_ESIGN_P12_PATH:}
+      p12-password: ${CONTRACT_ESIGN_P12_PASSWORD:}
+      tsa-url: ${CONTRACT_ESIGN_TSA_URL:}
 
 mybatis-plus:
   configuration:

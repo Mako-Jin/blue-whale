@@ -88,3 +88,53 @@ export function formatDate(value?: string | null): string {
 export function hasPermission(code: string): boolean {
   return getPermissions().includes(code);
 }
+
+/** 印章类型选项 */
+export const SEAL_TYPE_OPTIONS = [
+  { value: 'COMPANY', label: '公司公章' },
+  { value: 'CONTRACT', label: '合同专用章' },
+  { value: 'LEGAL', label: '法定代表人章' },
+  { value: 'FINANCE', label: '财务专用章' },
+];
+
+/** 印章状态选项 */
+export const SEAL_STATUS_OPTIONS = [
+  { value: 'ENABLED', label: '启用' },
+  { value: 'DISABLED', label: '停用' },
+];
+
+/** 签署任务状态选项 */
+export const SIGN_TASK_STATUS_OPTIONS = [
+  { value: 'PENDING', label: '待签署' },
+  { value: 'SIGNING', label: '签署中' },
+  { value: 'SIGNED', label: '已签署' },
+  { value: 'REFUSED', label: '已拒签' },
+  { value: 'EXPIRED', label: '已失效' },
+];
+
+/** 印章类型文案 */
+export function sealTypeLabel(type?: string | null): string {
+  return SEAL_TYPE_OPTIONS.find((option) => option.value === type)?.label ?? type ?? '-';
+}
+
+/** 签署任务状态文案 */
+export function signTaskStatusLabel(status?: string | null): string {
+  return SIGN_TASK_STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status ?? '-';
+}
+
+/** 签署任务状态标签颜色 */
+export function signTaskStatusColor(status?: string | null): string {
+  switch (status) {
+    case 'PENDING':
+    case 'SIGNING':
+      return 'processing';
+    case 'SIGNED':
+      return 'green';
+    case 'REFUSED':
+      return 'red';
+    case 'EXPIRED':
+      return 'default';
+    default:
+      return 'default';
+  }
+}

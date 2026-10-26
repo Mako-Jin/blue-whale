@@ -26,11 +26,20 @@ import {
   type ContractVersion,
 } from '../api/contract';
 import {
+  signApi,
+  type Evidence,
+  type SignRecord,
+  type SignTask,
+  type VerifyResult,
+} from '../api/esign';
+import {
   categoryLabel,
   formatDate,
   formatTime,
   hasPermission,
   partyTypeLabel,
+  signTaskStatusColor,
+  signTaskStatusLabel,
   statusColor,
   statusLabel,
 } from '../utils';
@@ -49,6 +58,10 @@ export default function ContractDetail() {
   const [loading, setLoading] = useState(false);
   const [versionForm] = Form.useForm<{ changeNote?: string }>();
   const [versionModalOpen, setVersionModalOpen] = useState(false);
+  const [signTasks, setSignTasks] = useState<SignTask[]>([]);
+  const [evidence, setEvidence] = useState<Evidence | null>(null);
+  const [verifyResult, setVerifyResult] = useState<VerifyResult | null>(null);
+  const [verifyOpen, setVerifyOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) {
@@ -58,6 +71,11 @@ export default function ContractDetail() {
     try {
       const detail = await contractApi.detail(id);
       setContract(detail);
+      try {
+        setSignTasks(await signApi.tasks(id));
+      } catch {
+        setSignTasks([]);
+      }
     } catch (error) {
       message.error((error as Error).message);
     } finally {
@@ -95,6 +113,56 @@ export default function ContractDetail() {
       await load();
     } catch (error) {
       message.error((error as Error).message);
+    }
+  };
+
+  const handleStartSign = async () => {
+    if (!id) {
+      return;
+    }
+    try {
+      await signApi.start(id, { provider: 'LOCAL' });
+      message.success('已发起签署，签署任务已生成');
+      await load();
+    } catch (error) {
+      message.error((error as Error).message);
+    }
+  };
+
+  const handleVerify = async () => {
+    if (!id) {
+      return;
+    }
+    try {
+      setVerifyResult(await signApi.verify(id));
+      setVerifyOpen(true);
+    } catch (error) {
+      message.error((error as Error).message);
+    }
+  };
+
+  const handleVoid = async () => {
+    if (!id) {
+      return;
+    }
+    try {
+      await signApi.void(id);
+      message.success('合同已作废');
+      await load();
+    } catch (error) {
+      message.error((error as Error).message);
+    }
+  };
+
+  const handleLoadEvidence = async () => {
+    if (!id) {
+      return;
+    }
+    try {
+      setEvidence(await signApi.evidence(id));
+    } catch (error) {
+      message.error((error as Error).message);
+      setEvidence(null);
     }
   };
 
@@ -150,6 +218,45 @@ export default function ContractDetail() {
     { title: '更新时间', dataIndex: 'updateTime', width: 160, render: (value) => formatTime(value) },
   ];
 
+  const signTaskColumns: ColumnsType<SignTask> = [
+    { title: '顺序', dataIndex: 'seqNo', width: 70, align: 'center', render: (value) => value ?? '-' },
+    { title: '签署方', dataIndex: 'signerParty', width: 90, render: (value) => partyTypeLabel(value) },
+    { title: '签署人', dataIndex: 'signerName', width: 110, render: (value) => value || '-' },
+    { title: '渠道', dataIndex: 'provider', width: 90, render: (value) => value || '-' },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      width: 100,
+      render: (value: string) => <Tag color={signTaskStatusColor(value)}>{signTaskStatusLabel(value)}</Tag>,
+    },
+    { title: '签署时间', dataIndex: 'signedAt', width: 160, render: (value) => formatTime(value) },
+    { title: '签章件文件ID', dataIndex: 'signedFileId', width: 180, render: (value) => value || '-' },
+    { title: '拒签原因', dataIndex: 'refuseReason', render: (value) => value || '-' },
+  ];
+
+  const recordColumns: ColumnsType<SignRecord> = [
+    { title: '证据编号', dataIndex: 'evidenceNo', width: 200, render: (value) => value || '-' },
+    { title: '签署人ID', dataIndex: 'signerUserId', width: 130, render: (value) => value || '-' },
+    { title: '印章ID', dataIndex: 'sealId', width: 160, render: (value) => value || '-' },
+    { title: '算法', dataIndex: 'algorithm', width: 120, render: (value) => value || '-' },
+    { title: '签署时间', dataIndex: 'signedAt', width: 160, render: (value) => formatTime(value) },
+    {
+      title: '签章件 SHA-256',
+      dataIndex: 'signedSha256',
+      width: 220,
+      render: (value: string | null) =>
+        value ? <Typography.Text copyable style={{ fontFamily: 'monospace' }}>{value.slice(0, 16)}…</Typography.Text> : '-',
+    },
+    {
+      title: '链式哈希',
+      dataIndex: 'chainHash',
+      width: 180,
+      render: (value: string | null) =>
+        value ? <Typography.Text copyable style={{ fontFamily: 'monospace' }}>{value.slice(0, 16)}…</Typography.Text> : '-',
+    },
+    { title: '客户端IP', dataIndex: 'clientIp', width: 130, render: (value) => value || '-' },
+  ];
+
   if (!contract) {
     return (
       <div style={{ padding: 16 }}>
@@ -198,6 +305,25 @@ export default function ContractDetail() {
             <Button size="small" onClick={() => setVersionModalOpen(true)}>
               发起修订
             </Button>
+          ) : null}
+          {['APPROVED', 'SIGNING'].includes(contract.status) && hasPermission('sys:contract:sign:start') ? (
+            <Button size="small" type="primary" onClick={() => void handleStartSign()}>
+              发起签署
+            </Button>
+          ) : null}
+          {signTasks.some((task) => task.status === 'SIGNED')
+            && hasPermission('sys:contract:evidence:read') ? (
+            <Button size="small" onClick={() => void handleVerify()}>
+              验签
+            </Button>
+          ) : null}
+          {['SIGNING', 'SIGNED', 'EFFECTIVE'].includes(contract.status)
+            && hasPermission('sys:contract:sign:void') ? (
+            <Popconfirm title="作废该合同？（签署证据保留）" onConfirm={() => void handleVoid()}>
+              <Button size="small" danger>
+                作废
+              </Button>
+            </Popconfirm>
           ) : null}
         </Space>
 
@@ -278,7 +404,53 @@ export default function ContractDetail() {
                 />
               ),
             },
+            {
+              key: 'sign',
+              label: `签署任务（${signTasks.length}）`,
+              children: (
+                <Table
+                  rowKey="id"
+                  size="small"
+                  columns={signTaskColumns}
+                  dataSource={signTasks}
+                  pagination={false}
+                />
+              ),
+            },
+            {
+              key: 'evidence',
+              label: '证据链',
+              children: (
+                <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                  <Space wrap>
+                    <Button size="small" onClick={() => void handleLoadEvidence()}>
+                      刷新证据链
+                    </Button>
+                    {evidence?.chainValid != null ? (
+                      <Tag color={evidence.chainValid ? 'green' : 'red'}>
+                        {evidence.chainValid ? '链式哈希连续' : '链式哈希断裂'}
+                      </Tag>
+                    ) : null}
+                    <Typography.Text type="secondary">
+                      签署证据只读留痕：哈希、证据编号与链式哈希均不可修改。
+                    </Typography.Text>
+                  </Space>
+                  <Table
+                    rowKey="id"
+                    size="small"
+                    columns={recordColumns}
+                    dataSource={evidence?.records ?? []}
+                    pagination={false}
+                  />
+                </Space>
+              ),
+            },
           ]}
+          onChange={(key) => {
+            if (key === 'evidence') {
+              void handleLoadEvidence();
+            }
+          }}
         />
       </Space>
 
@@ -294,6 +466,47 @@ export default function ContractDetail() {
             <Input.TextArea rows={3} maxLength={255} placeholder="本次修订的原因与内容" />
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title="验签结果"
+        open={verifyOpen}
+        footer={null}
+        width={640}
+        onCancel={() => setVerifyOpen(false)}
+      >
+        {verifyResult ? (
+          <Space direction="vertical" size={12} style={{ width: '100%' }}>
+            <Space wrap>
+              <Tag color={verifyResult.hashMatch ? 'green' : 'red'}>
+                文件哈希 {verifyResult.hashMatch ? '一致' : '不一致'}
+              </Tag>
+              <Tag color={verifyResult.chainValid ? 'green' : 'red'}>
+                链式哈希 {verifyResult.chainValid ? '连续' : '断裂'}
+              </Tag>
+              <Tag color={verifyResult.signatureValid ? 'green' : 'red'}>
+                签名 {verifyResult.signatureValid ? '有效' : '无效'}
+              </Tag>
+              <Tag>算法：{verifyResult.algorithm || 'NONE'}</Tag>
+            </Space>
+            <Descriptions size="small" column={1} bordered>
+              <Descriptions.Item label="签章件文件ID">{verifyResult.signedFileId || '-'}</Descriptions.Item>
+              <Descriptions.Item label="记录 SHA-256">
+                <Typography.Text copyable style={{ wordBreak: 'break-all' }}>
+                  {verifyResult.expectedSha256 || '-'}
+                </Typography.Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="实际 SHA-256">
+                <Typography.Text copyable style={{ wordBreak: 'break-all' }}>
+                  {verifyResult.actualSha256 || '-'}
+                </Typography.Text>
+              </Descriptions.Item>
+            </Descriptions>
+            {(verifyResult.details ?? []).length > 0 ? (
+              <Typography.Text type="secondary">{(verifyResult.details ?? []).join('；')}</Typography.Text>
+            ) : null}
+          </Space>
+        ) : null}
       </Modal>
     </div>
   );

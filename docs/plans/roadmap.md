@@ -145,7 +145,7 @@
 - [x] ~~ops 运维平台：服务监控面板、审计日志查询、告警列表（对接 Prometheus）~~（Wave 5.33 ⑥：`frontend/ops` 独立 SPA〔端口 8104 + 代理 `/auth|/monitor|/alert|/audit` → 网关 8080，token 前缀 `whale_ops_`〕三页已接 `/monitor/service/list`、`/audit/log/page`、`/alert/rule/page` + `/alert/record/page`（双 Tab）；浏览器实机冒烟通过〔Monitor 6 服务 / Audit 14 条 / Alert 3 条规则〕；2026-10-25：ops Monitor 页补 Prometheus/Grafana 外链，Alertmanager→whale-alert 入站与邮件/Webhook 通知打通〔REQ-ARCH-007〕，详见 [检查报告](../reviews/2026-10-25-p2-alert-notify-prometheus.md)）
 
 - [x] **Wave 5.61 合同管理 M1**（`whale-contract` 9006 / `/contract/**` / `bluewhale_contract` / 前端 8109）：4 表 + 11 接口 + 状态机 + 工作流提交与审批结果同步 + 权限 215–222 + 菜单 28 + 网关路由；构建成功、9006 UP、经网关冒烟 18/18、浏览器列表/详情正常 → [设计稿](wave5.61-contract-esign.md) / [检查报告](../reviews/2026-10-26-p3-wave5.61-contract-m1.md)
-- [ ] **Wave 5.61 M2 电子签章**：`ct_seal` / `ct_seal_grant` / `ct_sign_task` / `ct_sign_record` + 用章授权校验 + PDFBox 视觉盖章（含骑缝）+ PKCS#7 数字签名与验签 + 证据链
+- [x] **Wave 5.61 M2 电子签章**（2026-10-26）：`ct_seal` / `ct_seal_grant` / `ct_sign_task` / `ct_sign_record` + `audit_log` + 用章授权校验（403 审计）+ PDFBox 视觉盖章（含骑缝 2 页）+ BouncyCastle PKCS#7 签名与验签 + 链式哈希证据链 + 拒签/作废 + 权限 223–231 + 菜单 29/30 + 前端印章管理与签署中心；冒烟 26/26、前端 `tsc`/`build`/`lint` 通过 → [检查报告](../reviews/2026-10-26-p3-wave5.61-contract-m2.md)
 - [ ] **Wave 5.61 M3 第三方签章**：`ct_esign_callback` + `EsignProvider` 适配（e签宝/法大大/上上签）+ 回调验签与幂等 + 新增 `/workflow/internal/task/{id}/complete` 推进流程
 
 ## Phase 5：部署与 CI/CD
