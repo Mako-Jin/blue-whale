@@ -49,7 +49,7 @@
 | 11 | whale-pdm | 8106 | 空壳 | 同上，待 `/pdm/**` |
 | 12 | whale-games-core（共享包） | — | 空壳 | `engine.ts` 主循环（requestAnimationFrame）与资源清理仍为 TODO，无游戏 UI 应用 |
 | 13 | whale-common-tools（共享包） | — | 遗留占位 | `request.ts` 仍是占位（实际请求统一走 `@bluewhale/http`），建议删除或标注废弃 |
-| 14 | whale-common-three（共享包） | — | 空壳 | `scene.ts` three.js 场景封装未实现 |
+| 14 | whale-common-three（共享包） | — | 可用（包内能力完备） | `scene.ts` 场景管理器（init/resize/loop/dispose）与 GLTF/贴图加载器已于 2026-10-26 落地；无消费方，渲染态待首个 3D 页面验收（[报告](../reviews/2026-10-26-p3-three-scene.md)） |
 
 ---
 

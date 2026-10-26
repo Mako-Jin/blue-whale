@@ -37,6 +37,7 @@
 | 23 | P3 | 工作流设计器拖拽人工复核（Wave 5.32 V4/C4，E6） | **已完成**（2026-10-26） | `whale-form-designer`（8002）同源实现本轮未单独复核，保留原标注 | 8003 真实浏览器复核三项：调色板拖入画布生成节点（`wf-node-n2`）、右侧属性面板联动改名、画布内移动；控制台 4 条 error 均为 antd 弃用提示；临时节点未保存未发布；详见 [检查报告](../reviews/2026-10-26-p3-e6-designer-drag-manual.md) |
 | 24 | P3 | whale-job 多实例调度失效广播 | **已完成**（2026-10-26） | auth 缓存侧广播为独立残余；Redis 断连漏收依赖下次变更重对齐 | 新增 `JobScheduleBroadcaster`（Redisson RTopic `job:schedule:invalidate`，`实例|动作|任务ID`，回声过滤、不可用降级）；`JobScheduler` 拆本地/广播；新增单测 5 个，whale-job 77 用例 0 失败；A(8082)/B(8098) 双实例实机 CANCEL→取消、RESCHEDULE→重注册，A 无回声；本地 job 库补 `job_dependency`/`job_alert` 与 `tenant_id`；详见 [检查报告](../reviews/2026-10-26-p5-job-schedule-broadcast.md) |
 | 25 | P3 | whale-form 字段级索引自动优化（Wave 5.27 遗留） | **已完成**（2026-10-26） | 动态字段条件检索（查询侧）未做；存量表需重新发布才补齐索引 | 建表自动生成 `idx_f_<列>`（number/date/datetime/select + text≤191，单表上限 16）；发布到存量表幂等对齐（补缺 + 回收）；单测 103 全绿、Checkstyle 0；实机建表生成 `idx_f_amount`/`idx_f_code`，改列后 `idx_f_code` 回收、`idx_f_stage` 补建；详见 [检查报告](../reviews/2026-10-26-p5-form-field-index-auto.md) |
+| 26 | P3 | whale-common-three 场景封装（空壳收口） | **已完成**（2026-10-26） | 包无消费方，浏览器渲染态未验收；控制器/后处理未封装 | `WhaleSceneManager`（init/resize/loop/onFrame/dispose）+ GLTF/贴图加载器 Promise 化与懒单例；`tsc` 0 错误、构建 ESM/CJS/DTS 成功、`lint` 0 warning、Node 导入冒烟通过；详见 [检查报告](../reviews/2026-10-26-p3-three-scene.md) |
 
 ---
 
@@ -88,3 +89,4 @@
 | 2026-10-26 | 序号 23 | 拖拽人工复核：8003 设计器真实指针流复核「调色板拖入画布→节点生成→属性面板联动→画布内移动」三项全部通过，Wave 5.32 `V4/C4` 遗留关闭；临时节点未保存未发布；8002 表单设计器同源实现留待其轮次复核；详见 [检查报告](../reviews/2026-10-26-p3-e6-designer-drag-manual.md) |
 | 2026-10-26 | 序号 24 | 调度广播：新增 `JobScheduleBroadcaster`（Redisson RTopic，`RESCHEDULE`/`CANCEL`，实例回声过滤，Redisson 缺失降级）；`JobScheduler` 改为「本地生效 + 广播」；单测 77/77；双实例实机验证 A 启停任务 1 后 B 分别取消/重注册，A 无自身回声；本地 `bluewhale_job` 补 2 表与 `tenant_id`；详见 [检查报告](../reviews/2026-10-26-p5-job-schedule-broadcast.md) |
 | 2026-10-26 | 序号 25 | 字段级索引自动优化：`FormTableDdlGenerator` 建表内联 `idx_f_` 索引（类型白名单 + text≤191 + 单表 16 上限）；`FormDataEngine#describeIndexes` + `FormPublishServiceImpl#syncIndexes` 对存量表补缺/回收；whale-form 103 用例全绿、Checkstyle 0；实机建表/改列重发布（ADD+DROP INDEX）验证通过；详见 [检查报告](../reviews/2026-10-26-p5-form-field-index-auto.md) |
+| 2026-10-26 | 序号 26 | 场景封装：`WhaleSceneManager`（Scene/Camera/Renderer 初始化、ResizeObserver 自适应、rAF 循环、帧回调、递归资源释放）+ `loader.ts`（GLTF/贴图 Promise 化、懒单例、SSR 安全）；`tsc`/build/lint 全绿，Node 导入冒烟通过；无消费方，渲染态待接入；详见 [检查报告](../reviews/2026-10-26-p3-three-scene.md) |
