@@ -15,8 +15,9 @@ import java.util.concurrent.TimeUnit;
  * 基于 Redis 的用户级访问撤销存储实现。
  *
  * <p>键结构由 {@link UserAccessRevocationKeys} 统一构造，值为撤销时刻的 Unix 秒；
- * TTL 取 accessToken 有效期 + 缓冲，覆盖撤销前签发的全部存量令牌。撤销后重新启用
- * 账号不会清除撤销时刻：旧令牌保持失效，重新登录签发的新令牌（iat 更晚）正常放行。</p>
+ * TTL 取 accessToken 与 refreshToken 有效期中的较大者再加缓冲：撤销前签发的 accessToken
+ * 由网关/令牌过滤器拒绝，撤销前签发的 refreshToken 在 refresh 接口被拒绝，两者都需覆盖。
+ * 撤销后重新启用账号不会清除撤销时刻：旧令牌保持失效，重新登录签发的新令牌（iat 更晚）正常放行。</p>
  *
  * <p>降级策略与成员撤销一致：Redis 不可用时写入仅告警（权限缓存已失效、权限码为空），
  * 查询按未撤销放行，并输出 ERROR 级 {@code SECURITY_DEGRADATION} 告警。</p>
@@ -34,7 +35,7 @@ public class RedisUserAccessRevocationStore implements UserAccessRevocationStore
     /** 最小写入 TTL（秒），避免出现 TTL<=0 导致键永不过期 */
     private static final long MIN_TTL_SECONDS = 1L;
 
-    /** 在 accessToken 有效期之上追加的缓冲秒数，覆盖时钟偏差与边界令牌 */
+    /** 在令牌有效期之上追加的缓冲秒数，覆盖时钟偏差与边界令牌 */
     private static final long TTL_BUFFER_SECONDS = 60L;
 
     /** 降级告警场景标识：写入撤销时间 */
@@ -52,8 +53,9 @@ public class RedisUserAccessRevocationStore implements UserAccessRevocationStore
             return;
         }
         long revokedAtSeconds = System.currentTimeMillis() / MILLIS_PER_SECOND;
-        long ttlSeconds = Math.max(tokenProvider.getAccessExpireSeconds() + TTL_BUFFER_SECONDS,
-                MIN_TTL_SECONDS);
+        long longestTokenSeconds = Math.max(tokenProvider.getAccessExpireSeconds(),
+                tokenProvider.getRefreshExpireSeconds());
+        long ttlSeconds = Math.max(longestTokenSeconds + TTL_BUFFER_SECONDS, MIN_TTL_SECONDS);
         try {
             redisTemplate.opsForValue().set(UserAccessRevocationKeys.revocationKey(userId),
                     String.valueOf(revokedAtSeconds), ttlSeconds, TimeUnit.SECONDS);

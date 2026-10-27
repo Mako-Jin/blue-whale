@@ -18,6 +18,7 @@ import com.bluewhale.auth.security.LoginUser;
 import com.bluewhale.auth.security.PermissionInterceptor;
 import com.bluewhale.auth.security.RefreshTokenRotationStore;
 import com.bluewhale.auth.security.TokenBlacklist;
+import com.bluewhale.auth.security.UserAccessRevocationStore;
 import com.bluewhale.auth.security.UserDetailsServiceImpl;
 import com.bluewhale.auth.vo.AuthMeResponse;
 import com.bluewhale.auth.vo.LoginResponse;
@@ -77,6 +78,7 @@ public class AuthService {
     private final RefreshRotationProperties refreshRotationProperties;
     private final TenantAppService tenantAppService;
     private final TenantMembershipAppService tenantMembershipAppService;
+    private final UserAccessRevocationStore userAccessRevocationStore;
 
     /**
      * 登录：AuthenticationManager 走 UserDetailsService + BCryptPasswordEncoder 校验
@@ -120,6 +122,8 @@ public class AuthService {
      * family 吊销校验 → 登出黑名单校验 → 以 {@code SET NX} 原子抢占「已消费」标记；
      * 抢占失败即判定复用，整族吊销并告警后返回 401；抢占成功则旧 refreshToken 写入登出黑名单、
      * 以同 familyId 签发新一对令牌。关闭时（默认）行为与既有实现一致。</p>
+     * <p>用户级撤销（REQ-SEC-014）：停用、删除、改密后写入的撤销时刻同样作用于 refreshToken，
+     * 撤销前签发的 refreshToken 不能再换发新令牌，避免绕过 accessToken 撤销继续访问。</p>
      *
      * @param request 刷新请求（含 refreshToken）
      * @return 登录响应（含新 accessToken 与 refreshToken）
@@ -142,6 +146,7 @@ public class AuthService {
             throw new BizException(401, REVOKED_REFRESH_TOKEN_MESSAGE);
         }
         UserDetails userDetails = loadEnabledUser(userId, tenantId);
+        requireRefreshNotRevoked(userId, tenantId, claims);
         consumeRotatingToken(refreshToken, claims, familyId);
         return buildLoginResponse((LoginUser) userDetails, familyId);
     }
@@ -331,6 +336,26 @@ public class AuthService {
             throw new BizException(401, "账号已停用");
         }
         return userDetails;
+    }
+
+    /**
+     * 校验 refreshToken 是否在用户级撤销（停用/删除/改密）之前签发
+     *
+     * <p>accessToken 已在网关与 auth 过滤器完成撤销校验，但 refresh 接口不携带 accessToken，
+     * 若不在此处校验，撤销前窃取的 refreshToken 可换发出撤销时刻之后签发的新令牌，绕过撤销。</p>
+     *
+     * @param userId 令牌用户 ID
+     * @param tenantId 令牌租户 ID
+     * @param claims refreshToken 载荷
+     * @throws BizException 令牌签发时间不晚于撤销时刻时抛出 401
+     */
+    private void requireRefreshNotRevoked(Long userId, Long tenantId, Claims claims) {
+        if (!userAccessRevocationStore.isRevoked(userId, claims.getIssuedAt())) {
+            return;
+        }
+        log.warn("refreshToken 在用户级撤销前签发，拒绝换发新令牌: userId={}, tenantId={}",
+                userId, tenantId);
+        throw new BizException(401, REVOKED_REFRESH_TOKEN_MESSAGE);
     }
 
     /**

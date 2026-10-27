@@ -14,6 +14,7 @@ import com.bluewhale.auth.security.LoginUser;
 import com.bluewhale.auth.security.PermissionInterceptor;
 import com.bluewhale.auth.security.RefreshTokenRotationStore;
 import com.bluewhale.auth.security.TokenBlacklist;
+import com.bluewhale.auth.security.UserAccessRevocationStore;
 import com.bluewhale.auth.security.UserDetailsServiceImpl;
 import com.bluewhale.auth.vo.AuthMeResponse;
 import com.bluewhale.auth.vo.LoginResponse;
@@ -34,11 +35,13 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import java.util.Date;
 import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
@@ -107,6 +110,9 @@ class AuthServiceTest {
 
     @Mock
     private TenantMembershipAppService tenantMembershipAppService;
+
+    @Mock
+    private UserAccessRevocationStore userAccessRevocationStore;
 
     @InjectMocks
     private AuthService authService;
@@ -198,6 +204,49 @@ class AuthServiceTest {
         assertEquals("new-access", response.getAccessToken());
         assertEquals("new-refresh", response.getRefreshToken());
         verifyNoInteractions(refreshRotationStore);
+    }
+
+    @Test
+    @DisplayName("refresh：refreshToken 在用户级撤销前签发时返回 401，不换发新令牌")
+    void refreshShouldRejectRefreshTokenIssuedBeforeUserRevocation() {
+        Claims claims = refreshClaims();
+        Date issuedAt = new Date(1_800_000_000_000L);
+        when(claims.getIssuedAt()).thenReturn(issuedAt);
+        when(tokenProvider.parse(REFRESH_TOKEN)).thenReturn(claims);
+        when(tokenBlacklist.contains(REFRESH_TOKEN)).thenReturn(false);
+        when(userDetailsService.loadUserById(USER_ID, TENANT_ID))
+                .thenReturn(new LoginUser(TENANT_ID, USER_ID, USERNAME, "pwd", "Alice", List.of("admin"), true));
+        when(userAccessRevocationStore.isRevoked(USER_ID, issuedAt)).thenReturn(true);
+
+        BizException ex = assertThrows(BizException.class, () -> authService.refresh(refreshRequest()));
+
+        assertEquals(UNAUTHORIZED_CODE, ex.getCode());
+        verify(tokenProvider, never()).generateAccessToken(anyLong(), anyLong(), anyString(), any());
+        verify(refreshRotationStore, never()).markUsed(anyString(), anyLong());
+    }
+
+    @Test
+    @DisplayName("refresh：用户级撤销后签发的 refreshToken 正常换发新令牌")
+    void refreshShouldIssueTokensWhenRefreshTokenIssuedAfterUserRevocation() {
+        Claims claims = refreshClaims();
+        Date issuedAt = new Date(1_800_000_000_000L);
+        lenient().when(claims.getSubject()).thenReturn(USERNAME);
+        when(claims.getIssuedAt()).thenReturn(issuedAt);
+        when(tokenProvider.parse(REFRESH_TOKEN)).thenReturn(claims);
+        when(tokenBlacklist.contains(REFRESH_TOKEN)).thenReturn(false);
+        when(userDetailsService.loadUserById(USER_ID, TENANT_ID))
+                .thenReturn(new LoginUser(TENANT_ID, USER_ID, USERNAME, "pwd", "Alice", List.of("admin"), true));
+        when(userAccessRevocationStore.isRevoked(USER_ID, issuedAt)).thenReturn(false);
+        when(tokenProvider.generateAccessToken(TENANT_ID, USER_ID, USERNAME, List.of("admin")))
+                .thenReturn("new-access");
+        when(tokenProvider.generateRefreshToken(TENANT_ID, USER_ID, USERNAME, null)).thenReturn("new-refresh");
+        when(tokenProvider.getAccessExpireSeconds()).thenReturn(ACCESS_EXPIRE_SECONDS);
+
+        LoginResponse response = authService.refresh(refreshRequest());
+
+        assertEquals("new-access", response.getAccessToken());
+        assertEquals("new-refresh", response.getRefreshToken());
+        verify(userAccessRevocationStore).isRevoked(USER_ID, issuedAt);
     }
 
     @Test

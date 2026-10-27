@@ -40,6 +40,7 @@ class RedisUserAccessRevocationStoreTest {
 
     private static final long USER_ID = 1251323419503984640L;
     private static final long ACCESS_TTL_SECONDS = 7200L;
+    private static final long REFRESH_TTL_SECONDS = 604800L;
     private static final long ISSUED_AT_SECONDS = 1_800_000_000L;
 
     @Mock
@@ -60,9 +61,10 @@ class RedisUserAccessRevocationStoreTest {
     }
 
     @Test
-    @DisplayName("revoke：写入当前 Unix 秒与覆盖 accessToken 有效期的 TTL，键不带租户段")
+    @DisplayName("revoke：写入当前 Unix 秒与覆盖 access/refresh 最长有效期的 TTL，键不带租户段")
     void revokeShouldWriteEpochSecondWithTokenTtl() {
         when(tokenProvider.getAccessExpireSeconds()).thenReturn(ACCESS_TTL_SECONDS);
+        when(tokenProvider.getRefreshExpireSeconds()).thenReturn(REFRESH_TTL_SECONDS);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         long before = System.currentTimeMillis() / 1000L;
 
@@ -71,7 +73,7 @@ class RedisUserAccessRevocationStoreTest {
         long after = System.currentTimeMillis() / 1000L;
         ArgumentCaptor<String> valueCaptor = ArgumentCaptor.forClass(String.class);
         verify(valueOperations).set(eq(UserAccessRevocationKeys.revocationKey(USER_ID)),
-                valueCaptor.capture(), eq(ACCESS_TTL_SECONDS + 60L), eq(TimeUnit.SECONDS));
+                valueCaptor.capture(), eq(REFRESH_TTL_SECONDS + 60L), eq(TimeUnit.SECONDS));
         long revokedAt = Long.parseLong(valueCaptor.getValue());
         assertTrue(revokedAt >= before && revokedAt <= after, "撤销时间应为当前 Unix 秒");
     }
