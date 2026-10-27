@@ -4,11 +4,11 @@ import com.bluewhale.contract.config.ContractEsignProperties;
 import org.springframework.stereotype.Component;
 
 /**
- * e签宝渠道（骨架）。
+ * e签宝渠道。
  *
- * <p>接入真实开放平台时：按 {@code providers.esignbao} 的 base-url/app-id/app-secret 调用
- * 创建/查询/下载接口，并将回调验签替换为 e签宝 RSA/SM2 方案；当前骨架提供任务号生成、
- * 签署链接模板与统一 HMAC 回调验签。</p>
+ * <p>按 {@code providers.esignbao} 的 base-url/app-id/app-secret、create/query/download
+ * 路径调用开放平台 HTTP 接口；回调默认使用统一 HMAC 验签，若切换到 e签宝 RSA/SM2
+ * 方案可覆盖 {@code verifyCallback}。</p>
  *
  * @author BlueWhale
  */

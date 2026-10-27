@@ -1,23 +1,20 @@
 package com.bluewhale.contract.esign.provider;
 
-import com.bluewhale.common.core.exception.BizException;
-import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.contract.config.ContractEsignProperties;
 import org.springframework.util.StringUtils;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.util.Locale;
 import java.util.Map;
-import java.util.UUID;
 
 /**
- * 三方电子签渠道骨架实现：统一 HMAC-SHA256 回调验签。
+ * 三方电子签渠道公共实现：统一开放平台 HTTP 调用与 HMAC-SHA256 回调验签。
  *
- * <p>验签规则：{@code Base64(HMAC-SHA256(secret, timestamp + "\n" + nonce + "\n" + rawBody))}，
- * 请求头 {@code X-Esign-Timestamp / X-Esign-Nonce / X-Esign-Signature}；时间戳支持秒或毫秒，
- * 超出 {@code callback-window-seconds} 窗口一律拒绝。真实平台接入（e签宝 RSA/SM2、
- * 法大大事件签名等）在骨架基础上替换 {@link #verifyCallback} 与 HTTP 调用即可。</p>
+ * <p>创建、查询、下载统一委托 {@link EsignOpenApiClient}，不再生成假任务号或返回固定
+ * {@code SIGNING}。回调验签规则：{@code Base64(HMAC-SHA256(secret, timestamp + "\n"
+ * + nonce + "\n" + rawBody))}，请求头 {@code X-Esign-Timestamp / X-Esign-Nonce /
+ * X-Esign-Signature}；时间戳支持秒或毫秒，超出 {@code callback-window-seconds}
+ * 窗口一律拒绝。真实平台若使用 RSA/SM2 验签，可覆盖 {@link #verifyCallback}。</p>
  *
  * @author BlueWhale
  */
@@ -41,8 +38,11 @@ public abstract class AbstractHmacEsignProvider implements EsignProvider {
     /** 签章配置 */
     protected final ContractEsignProperties properties;
 
+    /** 开放平台 HTTP 客户端 */
+    private final EsignOpenApiClient openApiClient;
+
     /**
-     * 构造渠道骨架。
+     * 构造渠道实现。
      *
      * @param providerName 渠道名称（小写）
      * @param properties   签章配置
@@ -50,6 +50,9 @@ public abstract class AbstractHmacEsignProvider implements EsignProvider {
     protected AbstractHmacEsignProvider(String providerName, ContractEsignProperties properties) {
         this.providerName = providerName;
         this.properties = properties;
+        Map<String, ContractEsignProperties.ProviderConfig> providers = properties.getProviders();
+        this.openApiClient = new EsignOpenApiClient(providerName,
+                providers == null ? null : providers.get(providerName));
     }
 
     @Override
@@ -58,34 +61,36 @@ public abstract class AbstractHmacEsignProvider implements EsignProvider {
     }
 
     /**
-     * 骨架创建任务：未接入真实开放平台时生成三方任务号，签署链接按配置模板生成。
+     * 调用三方开放平台创建签署任务。
      *
      * @param command 签署任务上下文
      * @return 三方任务号与签署链接
      */
     @Override
     public EsignTaskResult createTask(EsignTaskCommand command) {
-        String providerTaskId = providerName.toUpperCase(Locale.ROOT) + "-"
-                + UUID.randomUUID().toString().replace("-", "");
-        ContractEsignProperties.ProviderConfig config = providerConfig();
-        String signUrl = null;
-        if (config != null && StringUtils.hasText(config.getSignUrlTemplate())) {
-            signUrl = config.getSignUrlTemplate()
-                    .replace("{providerTaskId}", providerTaskId)
-                    .replace("{signTaskId}", String.valueOf(command.signTaskId()));
-        }
-        return new EsignTaskResult(providerTaskId, signUrl);
+        return openApiClient.createTask(command);
     }
 
+    /**
+     * 调用三方开放平台查询签署任务状态。
+     *
+     * @param providerTaskId 三方任务号
+     * @return 三方任务状态
+     */
     @Override
     public EsignTaskStatus queryTask(String providerTaskId) {
-        return new EsignTaskStatus("SIGNING", null);
+        return openApiClient.queryTask(providerTaskId);
     }
 
+    /**
+     * 调用三方开放平台下载签章件。
+     *
+     * @param providerTaskId 三方任务号
+     * @return 签章件字节
+     */
     @Override
     public byte[] downloadSignedFile(String providerTaskId) {
-        throw new BizException(ErrorCode.PARAM_ERROR,
-                "三方签章件下载未接入，请在回调中携带 signedFileId 或 signedSha256");
+        return openApiClient.downloadSignedFile(providerTaskId);
     }
 
     @Override
@@ -115,16 +120,6 @@ public abstract class AbstractHmacEsignProvider implements EsignProvider {
         String expected = hmacBase64(secret, content);
         return MessageDigest.isEqual(expected.getBytes(StandardCharsets.UTF_8),
                 signature.trim().getBytes(StandardCharsets.UTF_8));
-    }
-
-    /**
-     * 获取当前渠道接入参数。
-     *
-     * @return 渠道配置；未配置返回 {@code null}
-     */
-    protected ContractEsignProperties.ProviderConfig providerConfig() {
-        Map<String, ContractEsignProperties.ProviderConfig> providers = properties.getProviders();
-        return providers == null ? null : providers.get(providerName);
     }
 
     /**

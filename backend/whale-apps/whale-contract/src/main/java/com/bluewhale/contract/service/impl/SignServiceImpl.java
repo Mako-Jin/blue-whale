@@ -148,6 +148,9 @@ public class SignServiceImpl implements SignService {
         EsignProvider esignProvider = request == null || !StringUtils.hasText(request.getProvider())
                 ? providerRegistry.defaultProvider() : providerRegistry.require(request.getProvider());
         String provider = esignProvider.name().toUpperCase(Locale.ROOT);
+        boolean thirdParty = !PROVIDER_LOCAL.equalsIgnoreCase(esignProvider.name());
+        byte[] contractFile = null;
+        String contractFileName = null;
         int created = 0;
         for (SignTaskCreateRequest spec : specs) {
             if (alreadyCovered(existing, spec)) {
@@ -164,10 +167,15 @@ public class SignServiceImpl implements SignService {
             task.setProvider(provider);
             task.setStatus(TASK_PENDING);
             signTaskMapper.insert(task);
-            if (!PROVIDER_LOCAL.equalsIgnoreCase(esignProvider.name())) {
+            if (thirdParty) {
+                if (contractFile == null) {
+                    contractFile = loadBasePdf(contract, versionId);
+                    int versionNo = contract.getCurrentVersion() == null ? 1 : contract.getCurrentVersion();
+                    contractFileName = "contract-" + contract.getCode() + "-v" + versionNo + "-unsigned.pdf";
+                }
                 EsignTaskResult esignTask = esignProvider.createTask(new EsignTaskCommand(task.getId(),
                         contract.getId(), contract.getCode(), contract.getTitle(),
-                        task.getSignerName(), task.getSignerParty()));
+                        task.getSignerName(), task.getSignerParty(), contractFile, contractFileName));
                 task.setProviderTaskId(esignTask.providerTaskId());
                 task.setSignUrl(esignTask.signUrl());
                 task.setStatus(TASK_SIGNING);

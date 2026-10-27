@@ -49,6 +49,8 @@ whale:
       read-timeout-millis: 5000
     # Wave 5.61 M2/M3：签章与第三方电子签渠道
     # provider 默认 local；切换 esignbao/fadada/ssq 只改此处或 CONTRACT_ESIGN_PROVIDER，无需改代码
+    # 三方默认按 BlueWhale 电子签开放平台协议 v1 调用；供应商直连/适配网关按真实文档覆盖
+    # create/query/download 路径与请求签名实现
     esign:
       p12-path: ${CONTRACT_ESIGN_P12_PATH:}
       p12-password: ${CONTRACT_ESIGN_P12_PASSWORD:}
@@ -62,16 +64,34 @@ whale:
           base-url: ${CONTRACT_ESIGN_ESIGNBAO_BASE_URL:}
           app-id: ${CONTRACT_ESIGN_ESIGNBAO_APP_ID:}
           app-secret: ${CONTRACT_ESIGN_ESIGNBAO_APP_SECRET:}
+          create-path: /v1/sign-tasks
+          query-path: /v1/sign-tasks/{providerTaskId}
+          download-path: /v1/sign-tasks/{providerTaskId}/file
+          notify-url: ${CONTRACT_ESIGN_ESIGNBAO_NOTIFY_URL:}
+          connect-timeout-millis: ${CONTRACT_ESIGN_ESIGNBAO_CONNECT_TIMEOUT:3000}
+          read-timeout-millis: ${CONTRACT_ESIGN_ESIGNBAO_READ_TIMEOUT:10000}
           sign-url-template: ${CONTRACT_ESIGN_ESIGNBAO_SIGN_URL:}
         fadada:
           base-url: ${CONTRACT_ESIGN_FADADA_BASE_URL:}
           app-id: ${CONTRACT_ESIGN_FADADA_APP_ID:}
           app-secret: ${CONTRACT_ESIGN_FADADA_APP_SECRET:}
+          create-path: /v1/sign-tasks
+          query-path: /v1/sign-tasks/{providerTaskId}
+          download-path: /v1/sign-tasks/{providerTaskId}/file
+          notify-url: ${CONTRACT_ESIGN_FADADA_NOTIFY_URL:}
+          connect-timeout-millis: ${CONTRACT_ESIGN_FADADA_CONNECT_TIMEOUT:3000}
+          read-timeout-millis: ${CONTRACT_ESIGN_FADADA_READ_TIMEOUT:10000}
           sign-url-template: ${CONTRACT_ESIGN_FADADA_SIGN_URL:}
         ssq:
           base-url: ${CONTRACT_ESIGN_SSQ_BASE_URL:}
           app-id: ${CONTRACT_ESIGN_SSQ_APP_ID:}
           app-secret: ${CONTRACT_ESIGN_SSQ_APP_SECRET:}
+          create-path: /v1/sign-tasks
+          query-path: /v1/sign-tasks/{providerTaskId}
+          download-path: /v1/sign-tasks/{providerTaskId}/file
+          notify-url: ${CONTRACT_ESIGN_SSQ_NOTIFY_URL:}
+          connect-timeout-millis: ${CONTRACT_ESIGN_SSQ_CONNECT_TIMEOUT:3000}
+          read-timeout-millis: ${CONTRACT_ESIGN_SSQ_READ_TIMEOUT:10000}
           sign-url-template: ${CONTRACT_ESIGN_SSQ_SIGN_URL:}
       # 回调补偿：对停留超时的非 local SIGNING 任务轮询三方状态，发现终态时走内部签名回调
       reconcile:

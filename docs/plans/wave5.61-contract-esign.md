@@ -294,14 +294,14 @@ public interface EsignProvider {
 - [x] 交付：`EsignProvider` 三实现 + 回调接口 + `ct_esign_callback` + 证据链 + `/workflow/internal/task/{id}/complete` + 归档衔接 + 菜单 31。
 - [x] 验收：① 回调重放 10 次仅推进一次；② 验签非法/超时窗口一律拒绝并落审计；③ 证据链中断可被 `verify` 检出；④ 签署完成后归档可见（若启用归档）；⑤ provider 切换只改配置不改代码。
 - 落地记录：provider 适配层 [`esign/provider`](../../backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/esign/provider)、回调 [`EsignCallbackServiceImpl`](../../backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/service/impl/EsignCallbackServiceImpl.java)、workflow 内部接口 [`WorkflowInternalTaskController`](../../backend/whale-services/whale-workflow/src/main/java/com/bluewhale/workflow/controller/WorkflowInternalTaskController.java)、迁移 `migration-5.63-contract-esign-callback.sql` / `migration-5.63-workflow-task-operator.sql` / `migration-5.63-contract-esign-m3.sql`、前端证据中心 `EvidenceCenter.tsx`、冒烟 [bw-contract-m3-smoke.ps1](../../scripts/smoke/bw-contract-m3-smoke.ps1)；验收报告见 [2026-10-26-p3-wave5.61-contract-m3.md](../reviews/2026-10-26-p3-wave5.61-contract-m3.md)。
-- M3 简化（后续迭代）：三方通道为 HMAC 骨架（未调真实平台 API，未接实名意愿认证与持牌 CA/TSA）。
+- M3 简化（后续迭代）：2026-10-27 已补三方开放平台 HTTP 接入（创建/查询/下载 + 请求签名 + 合同快照上传），替换原 HMAC 骨架；仍待接实名意愿认证与持牌 CA/TSA，供应商直连协议差异需按真实 API 文档配置路径/签名或经适配网关。
 
 ### M3.5 回调乱序补偿（2026-10-26）—— **已完成**
 
 - [x] 交付：`EsignCallbackSigner`（统一验签/补偿签名口径）+ `SignTaskReconcileJob`（超时 `SIGNING` 非 local 任务定时 `queryTask`，终态时自签内部回调交既有 `EsignCallbackService`）+ `whale.contract.esign.reconcile.{enabled,interval-ms,initial-delay-ms,stale-seconds,batch-size}` 配置（环境变量 `CONTRACT_ESIGN_RECONCILE_*` 可覆盖）。
-- [x] 验收：① `package` 通过且 Checkstyle 0；② 单测 4/4（终态映射 / 非终态不推进 / 拒签带原因 / 缺密钥跳过）；③ 实机三类任务（过期三方 / LOCAL / 未超时）仅过期三方被轮询，骨架渠道恒 `SIGNING` 时任务不被误推进；④ 幂等键 `RECONCILE-<taskId>-<action>`，同任务重复补偿不重复推进。
+- [x] 验收：① `package` 通过且 Checkstyle 0；② 单测 4/4（终态映射 / 非终态不推进 / 拒签带原因 / 缺密钥跳过）；③ 实机三类任务（过期三方 / LOCAL / 未超时）仅过期三方被轮询（当时骨架渠道恒 `SIGNING`，任务不被误推进）；④ 幂等键 `RECONCILE-<taskId>-<action>`，同任务重复补偿不重复推进。
 - 落地记录：补丁位于 [`esign/reconcile`](../../backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/esign/reconcile) 与 [`EsignCallbackSigner`](../../backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/esign/provider/EsignCallbackSigner.java)；验收报告见 [2026-10-26-p3-esign-callback-reconcile.md](../reviews/2026-10-26-p3-esign-callback-reconcile.md)。
-- 遗留：三方 `queryTask` 仍为骨架实现（恒 `SIGNING`），真实终态推进待平台 API 接入后启用。
+- 已补（2026-10-27）：三方 `queryTask` 改为调用开放平台并解析真实状态；真实供应商账号联调仍待凭证与 API 文档；本地/CI 通过 Mock HTTP 单测覆盖创建/查询/下载/错误响应。
 
 ### M3.6 归档快照衔接（2026-10-26）—— **已完成**
 

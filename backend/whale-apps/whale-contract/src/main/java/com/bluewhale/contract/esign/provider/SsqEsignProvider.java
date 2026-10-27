@@ -4,10 +4,11 @@ import com.bluewhale.contract.config.ContractEsignProperties;
 import org.springframework.stereotype.Component;
 
 /**
- * 上上签渠道（骨架）。
+ * 上上签渠道。
  *
- * <p>接入真实开放平台时按 {@code providers.ssq} 配置调用创建/查询/下载接口，
- * 回调验签替换为上上签签名方案；当前骨架提供任务号生成、签署链接模板与统一 HMAC 回调验签。</p>
+ * <p>按 {@code providers.ssq} 的 base-url/app-id/app-secret、create/query/download
+ * 路径调用开放平台 HTTP 接口；回调默认使用统一 HMAC 验签，若切换到上上签签名
+ * 方案可覆盖 {@code verifyCallback}。</p>
  *
  * @author BlueWhale
  */

@@ -47,7 +47,7 @@ M1 已交付合同主流程（9006、`/contract/**`、4 表、权限 215–222�
   - `EsignProvider`：`name()`、`createTask`、`queryTask`、`downloadSignedFile`、`verifyCallback`。
   - `EsignTaskCommand` / `EsignTaskResult(providerTaskId, signUrl)` / `EsignTaskStatus`（record）。
   - `AbstractHmacEsignProvider`：验签 `Base64(HMAC-SHA256(secret, timestamp + "\n" + nonce + "\n" + rawBody))`，请求头 `X-Esign-Timestamp/Nonce/Signature`，时间窗 ±`callbackWindowSeconds`（默认 300），常量时间比较；secret 为空一律拒绝。
-  - `LocalEsignProvider`、`EsignbaoEsignProvider`、`FadadaEsignProvider`、`SsqEsignProvider`：三方为骨架实现（配置 `base-url` 时预留 HTTP 调用位置，未配置时生成 `PROVIDER-{uuid}` 任务号并按 `sign-url-template` 生成签署链接；`downloadSignedFile` 未接入时抛不支持，由回调 payload 兜底）。
+  - `LocalEsignProvider`、`EsignbaoEsignProvider`、`FadadaEsignProvider`、`SsqEsignProvider`：三方通过 `EsignOpenApiClient` 调开放平台 HTTP 接口（创建/查询/下载 + HMAC 请求签名 + 合同快照上传），不再生成假任务号或固定返回 SIGNING；接口路径、回调地址、超时均可配置。
   - `EsignProviderRegistry`：注入全部实现，按名称解析，默认取配置 `whale.contract.esign.provider`。
 - 扩展 `ContractEsignProperties`：`provider`（默认 `local`）、`callbackWindowSeconds`、`providers`（`baseUrl/appId/appSecret/callbackSecret/signUrlTemplate`）。
 - `application.yml` 增加 `whale.contract.esign.provider/callback-window-seconds/providers.*`，全部支持环境变量覆盖。

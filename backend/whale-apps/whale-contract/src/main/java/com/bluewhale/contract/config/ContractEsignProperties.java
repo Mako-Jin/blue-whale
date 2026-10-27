@@ -24,6 +24,13 @@ import java.util.Map;
 @ConfigurationProperties(prefix = "whale.contract.esign")
 public class ContractEsignProperties {
 
+    /**
+     * 默认回调 HMAC 密钥（仅限开发环境）。
+     * <p>非 dev 环境若未通过环境变量 {@code CONTRACT_ESIGN_CALLBACK_SECRET} 覆盖，将被
+     * {@link ContractEsignStartupChecker} 判定为不安全的配置并拒绝启动（REQ-SEC-010）。</p>
+     */
+    public static final String DEFAULT_CALLBACK_SECRET = "bluewhale-esign-dev-callback-secret";
+
     /** PKCS#12 证书路径（为空则不启用数字签名） */
     private String p12Path;
 
@@ -40,7 +47,7 @@ public class ContractEsignProperties {
     private int callbackWindowSeconds = 300;
 
     /** 回调 HMAC 密钥（生产必须通过 CONTRACT_ESIGN_CALLBACK_SECRET 覆盖） */
-    private String callbackSecret = "bluewhale-esign-dev-callback-secret";
+    private String callbackSecret = DEFAULT_CALLBACK_SECRET;
 
     /** 三方渠道接入参数，按渠道名索引 */
     private Map<String, ProviderConfig> providers = new LinkedHashMap<>();
@@ -77,12 +84,15 @@ public class ContractEsignProperties {
 
     /**
      * 三方渠道接入参数。
+     *
+     * <p>接口路径用于适配供应商开放平台或其适配网关；默认值为 BlueWhale 电子签开放平台协议 v1，
+     * 实际接入时按渠道文档覆盖。</p>
      */
     @Getter
     @Setter
     public static class ProviderConfig {
 
-        /** 开放平台地址（预留，接入真实接口时使用） */
+        /** 开放平台/适配网关地址 */
         private String baseUrl;
 
         /** 应用ID */
@@ -91,7 +101,25 @@ public class ContractEsignProperties {
         /** 应用密钥 */
         private String appSecret;
 
-        /** 签署链接模板，支持 {providerTaskId} / {signTaskId} 占位 */
+        /** 创建签署任务路径 */
+        private String createPath = "/v1/sign-tasks";
+
+        /** 查询签署任务路径，必须包含 {providerTaskId} 占位 */
+        private String queryPath = "/v1/sign-tasks/{providerTaskId}";
+
+        /** 下载签章件路径，必须包含 {providerTaskId} 占位 */
+        private String downloadPath = "/v1/sign-tasks/{providerTaskId}/file";
+
+        /** 三方回调本服务的外部地址（为空则不下发） */
+        private String notifyUrl;
+
+        /** 连接超时（毫秒） */
+        private int connectTimeoutMillis = 3000;
+
+        /** 读取超时（毫秒） */
+        private int readTimeoutMillis = 10000;
+
+        /** 签署链接兜底模板，支持 {providerTaskId} / {signTaskId} 占位 */
         private String signUrlTemplate;
     }
 }
