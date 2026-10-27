@@ -65,4 +65,28 @@ export const http = {
   del: <T>(url: string) => request<T>(url, { method: 'DELETE' }),
 };
 
+/** 下载二进制响应（图片等非 Result 信封接口），失败时尽力解析错误信息。 */
+export async function requestBlob(url: string): Promise<Blob> {
+  const token = getToken();
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    credentials: 'same-origin',
+  });
+  if (!response.ok) {
+    let message = `请求失败（HTTP ${response.status}）`;
+    try {
+      const text = await response.text();
+      const body = JSON.parse(text) as { message?: string };
+      if (body.message) {
+        message = body.message;
+      }
+    } catch {
+      // 非 JSON 错误体时保留默认提示
+    }
+    throw new Error(message);
+  }
+  return response.blob();
+}
+
 export type { PageResult, Result } from '@bluewhale/http';

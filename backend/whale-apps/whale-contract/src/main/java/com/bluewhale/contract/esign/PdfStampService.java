@@ -13,6 +13,7 @@ import org.apache.pdfbox.util.Matrix;
 import org.springframework.stereotype.Component;
 
 import javax.imageio.ImageIO;
+import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
@@ -61,6 +62,18 @@ public class PdfStampService {
     /** 内置印章图片尺寸（像素） */
     private static final int BUILTIN_SEAL_SIZE = 400;
 
+    /** 印章预览最长边（像素），避免预览图被直接用于高清复用 */
+    private static final int PREVIEW_MAX_EDGE = 240;
+
+    /** 预览水印透明度 */
+    private static final float PREVIEW_WATERMARK_ALPHA = 0.22F;
+
+    /** 预览水印文案 */
+    private static final String PREVIEW_WATERMARK_TEXT = "PREVIEW";
+
+    /** 预览水印字号 */
+    private static final int PREVIEW_WATERMARK_FONT_SIZE = 18;
+
     private final FileClient fileClient;
 
     /**
@@ -108,6 +121,76 @@ public class PdfStampService {
             }
         }
         return builtInSeal();
+    }
+
+    /**
+     * 生成印章预览图：最长边缩至 {@value #PREVIEW_MAX_EDGE} 像素，并铺半透明水印。
+     *
+     * <p>预览图仅用于页面展示，分辨率不足以还原原章；原图导出仍由独立权限与审计控制。</p>
+     *
+     * @param imageFileId 印章图片文件ID（为空时使用内置印章）
+     * @return PNG 字节
+     */
+    public byte[] previewImage(Long imageFileId) {
+        byte[] source = loadSealImage(imageFileId);
+        try {
+            BufferedImage original = ImageIO.read(new ByteArrayInputStream(source));
+            if (original == null) {
+                throw new IllegalStateException("印章图片无法解析");
+            }
+            BufferedImage scaled = scaleToMaxEdge(original);
+            Graphics2D graphics = scaled.createGraphics();
+            try {
+                graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
+                        RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+                graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER,
+                        PREVIEW_WATERMARK_ALPHA));
+                graphics.setColor(new Color(0x33, 0x33, 0x33));
+                graphics.setFont(new Font(Font.SANS_SERIF, Font.BOLD, PREVIEW_WATERMARK_FONT_SIZE));
+                graphics.rotate(-Math.PI / 6, scaled.getWidth() / 2.0, scaled.getHeight() / 2.0);
+                int step = PREVIEW_WATERMARK_FONT_SIZE * 6;
+                for (int x = -scaled.getWidth(); x < scaled.getWidth() * 2; x += step) {
+                    for (int y = 0; y < scaled.getHeight() * 2; y += step) {
+                        graphics.drawString(PREVIEW_WATERMARK_TEXT, x, y);
+                    }
+                }
+            } finally {
+                graphics.dispose();
+            }
+            try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+                ImageIO.write(scaled, "png", output);
+                return output.toByteArray();
+            }
+        } catch (IllegalStateException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new IllegalStateException("生成印章预览失败: " + ex.getMessage(), ex);
+        }
+    }
+
+    /**
+     * 等比缩放，最长边不超过预览上限，保持透明通道。
+     *
+     * @param original 原图
+     * @return 缩放后的 ARGB 图
+     */
+    private BufferedImage scaleToMaxEdge(BufferedImage original) {
+        int width = original.getWidth();
+        int height = original.getHeight();
+        double ratio = Math.min(1.0, (double) PREVIEW_MAX_EDGE / Math.max(width, height));
+        int targetWidth = Math.max(1, (int) Math.round(width * ratio));
+        int targetHeight = Math.max(1, (int) Math.round(height * ratio));
+        BufferedImage scaled = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = scaled.createGraphics();
+        try {
+            graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+                    RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            graphics.drawImage(original, 0, 0, targetWidth, targetHeight, null);
+        } finally {
+            graphics.dispose();
+        }
+        return scaled;
     }
 
     /**

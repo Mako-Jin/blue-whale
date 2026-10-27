@@ -290,6 +290,17 @@ public class EsignCallbackServiceImpl implements EsignCallbackService {
         record.setAlgorithm(provider.name().toUpperCase(Locale.ROOT) + "-REMOTE");
         record.setEvidenceNo(evidenceNo);
         record.setChainHash(chainHash);
+        record.setRealNameStatus(StringUtils.hasText(payload.getRealNameStatus())
+                ? payload.getRealNameStatus().trim() : "UNVERIFIED");
+        record.setRealNameMethod(payload.getRealNameMethod());
+        record.setRealNameEvidenceNo(payload.getRealNameEvidenceNo());
+        record.setWillingnessMethod(payload.getWillingnessMethod());
+        record.setWillingnessEvidenceNo(payload.getWillingnessEvidenceNo());
+        LocalDateTime willingnessAt = parseSignedAt(payload.getWillingnessAt());
+        if (willingnessAt == null && StringUtils.hasText(payload.getWillingnessEvidenceNo())) {
+            willingnessAt = signedAt;
+        }
+        record.setWillingnessAt(willingnessAt);
         signRecordMapper.insert(record);
 
         task.setStatus(TASK_SIGNED);

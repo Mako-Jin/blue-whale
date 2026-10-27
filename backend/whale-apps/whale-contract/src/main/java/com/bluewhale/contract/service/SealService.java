@@ -70,6 +70,32 @@ public interface SealService {
     List<SealGrantVO> grants(Long sealId);
 
     /**
+     * 生成印章预览图（低分辨率 + 半透明水印）。
+     *
+     * @param id 印章ID
+     * @return PNG 字节
+     */
+    byte[] previewImage(Long id);
+
+    /**
+     * 导出印章原图（受 {@code sys:contract:seal:download} 权限与审计保护）。
+     *
+     * @param id 印章ID
+     * @return 原图字节、MIME 类型与下载文件名
+     */
+    SealImage downloadImage(Long id);
+
+    /**
+     * 印章原图。
+     *
+     * @param bytes       图片字节
+     * @param contentType MIME 类型
+     * @param filename    下载文件名
+     */
+    record SealImage(byte[] bytes, String contentType, String filename) {
+    }
+
+    /**
      * 上传印章图片（转存 whale-file）。
      *
      * @param filename    原始文件名

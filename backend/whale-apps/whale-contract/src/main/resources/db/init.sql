@@ -233,6 +233,13 @@ CREATE TABLE ct_sign_record (
     evidence_no     VARCHAR(64)  NOT NULL            COMMENT '证据编号（租户内唯一）',
     chain_hash      VARCHAR(64)  NOT NULL            COMMENT '链式哈希 sha256(prev || contractId || versionId || signerId || signedAt || original || signed || evidenceNo)',
     client_ip       VARCHAR(64)  DEFAULT NULL        COMMENT '签署客户端IP',
+    real_name_status VARCHAR(16) NOT NULL DEFAULT 'UNVERIFIED'
+                                                     COMMENT '实名认证状态：VERIFIED/UNVERIFIED/PENDING',
+    real_name_method VARCHAR(32) DEFAULT NULL        COMMENT '实名认证方式：LOGIN_SESSION/ID_CARD_OCR/FACE/VIDEO/SMS',
+    real_name_evidence_no VARCHAR(64) DEFAULT NULL   COMMENT '实名认证证据编号',
+    willingness_method VARCHAR(32) DEFAULT NULL      COMMENT '意愿认证方式：SIGN_CONFIRM/SMS/FACE/VIDEO',
+    willingness_evidence_no VARCHAR(64) DEFAULT NULL COMMENT '意愿认证证据编号',
+    willingness_at  DATETIME     DEFAULT NULL        COMMENT '意愿确认时间',
     create_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted         TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',

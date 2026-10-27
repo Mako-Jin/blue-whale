@@ -109,6 +109,76 @@ class ContractEsignStartupCheckerTest {
     }
 
     /**
+     * 配置了不可读的 PKCS#12 时即使 dev 环境也必须拒绝启动，避免运行期签署失败。
+     */
+    @Test
+    void rejectsUnreadableP12EvenInDev() {
+        environment.setActiveProfiles("dev");
+        properties.setP12Path("target/not-exists-bluewhale.p12");
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+                () -> checker.afterPropertiesSet());
+
+        assertTrue(exception.getMessage().contains("PKCS#12 证书文件不存在或不可读"));
+    }
+
+    /**
+     * tsa-required=true 但未配置 tsa-url 时必须拒绝启动，避免静默降级为无时间戳。
+     */
+    @Test
+    void rejectsRequiredTsaWithoutUrl() {
+        environment.setActiveProfiles("dev");
+        properties.setTsaRequired(true);
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+                () -> checker.afterPropertiesSet());
+
+        assertTrue(exception.getMessage().contains("tsa-required"));
+    }
+
+    /**
+     * TSA 地址协议非法时必须拒绝启动（只接受 http/https）。
+     */
+    @Test
+    void rejectsInvalidTsaUrl() {
+        environment.setActiveProfiles("dev");
+        properties.setTsaUrl("ftp://tsa.example.com/tsa");
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+                () -> checker.afterPropertiesSet());
+
+        assertTrue(exception.getMessage().contains("时间戳服务地址非法"));
+    }
+
+    /**
+     * 配置 CRL 但未配置 CA 信任根时无法校验吊销状态，必须拒绝启动。
+     */
+    @Test
+    void rejectsCrlWithoutCaTrustAnchor() {
+        environment.setActiveProfiles("dev");
+        properties.setCaCrlPath("target/not-exists-bluewhale.crl");
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+                () -> checker.afterPropertiesSet());
+
+        assertTrue(exception.getMessage().contains("ca-crl-path"));
+    }
+
+    /**
+     * 配置的 CA 证书文件不存在时必须拒绝启动。
+     */
+    @Test
+    void rejectsUnreadableCaCertificate() {
+        environment.setActiveProfiles("dev");
+        properties.setCaCertPath("target/not-exists-bluewhale-ca.pem");
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+                () -> checker.afterPropertiesSet());
+
+        assertTrue(exception.getMessage().contains("CA 证书文件读取失败"));
+    }
+
+    /**
      * 为渠道补充可用的开放平台接入参数。
      *
      * @param provider 渠道名

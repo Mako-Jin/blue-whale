@@ -55,6 +55,16 @@ whale:
       p12-path: ${CONTRACT_ESIGN_P12_PATH:}
       p12-password: ${CONTRACT_ESIGN_P12_PASSWORD:}
       tsa-url: ${CONTRACT_ESIGN_TSA_URL:}
+      # RFC 3161 时间戳：配置 tsa-url 后签署会写入时间戳，TSA 失败直接签署失败（不降级）
+      # 生产合规建议 CONTRACT_ESIGN_TSA_REQUIRED=true：此时无 tsa-url 拒绝启动、验签缺时间戳判不通过
+      tsa-username: ${CONTRACT_ESIGN_TSA_USERNAME:}
+      tsa-password: ${CONTRACT_ESIGN_TSA_PASSWORD:}
+      tsa-required: ${CONTRACT_ESIGN_TSA_REQUIRED:false}
+      tsa-timeout-millis: ${CONTRACT_ESIGN_TSA_TIMEOUT:5000}
+      # 持牌 CA 信任根：PEM 证书链；配置后 P12/CMS 证书必须链到信任根，并随 CMS 下发完整证书链
+      ca-cert-path: ${CONTRACT_ESIGN_CA_CERT_PATH:}
+      # 可选 CRL（PEM 或 DER）：配置后签署/验签检查签名证书是否被吊销
+      ca-crl-path: ${CONTRACT_ESIGN_CA_CRL_PATH:}
       provider: ${CONTRACT_ESIGN_PROVIDER:local}
       callback-window-seconds: ${CONTRACT_ESIGN_CALLBACK_WINDOW_SECONDS:300}
       # 回调 HMAC 密钥：默认值仅本地联调，生产必须通过环境变量覆盖

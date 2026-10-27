@@ -53,4 +53,22 @@ public class SignRecordVO implements Serializable {
 
     /** 签署客户端IP */
     private String clientIp;
+
+    /** 实名认证状态 */
+    private String realNameStatus;
+
+    /** 实名认证方式 */
+    private String realNameMethod;
+
+    /** 实名认证证据编号 */
+    private String realNameEvidenceNo;
+
+    /** 意愿认证方式 */
+    private String willingnessMethod;
+
+    /** 意愿认证证据编号 */
+    private String willingnessEvidenceNo;
+
+    /** 意愿确认时间 */
+    private LocalDateTime willingnessAt;
 }

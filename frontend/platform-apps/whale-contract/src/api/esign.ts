@@ -1,6 +1,6 @@
 // Whale Contract 电子签章接口：印章 / 用章授权 / 签署任务 / 证据链 / 验签
 
-import { http, type PageResult } from './client';
+import { http, requestBlob, type PageResult } from './client';
 
 /** 印章 */
 export interface Seal {
@@ -69,6 +69,12 @@ export interface SignRecord {
   evidenceNo?: string | null;
   chainHash?: string | null;
   clientIp?: string | null;
+  realNameStatus?: string | null;
+  realNameMethod?: string | null;
+  realNameEvidenceNo?: string | null;
+  willingnessMethod?: string | null;
+  willingnessEvidenceNo?: string | null;
+  willingnessAt?: string | null;
 }
 
 /** 证据链 */
@@ -149,6 +155,7 @@ export interface SignExecuteInput {
   height?: number;
   rotation?: number;
   crossPage?: boolean;
+  confirmWillingness: boolean;
 }
 
 /** 印章与授权接口 */
@@ -160,6 +167,8 @@ export const sealApi = {
   remove: (id: string) => http.del<void>(`/contract/seal/${id}`),
   grant: (id: string, input: SealGrantInput) => http.post<SealGrant>(`/contract/seal/${id}/grant`, input),
   grants: (id: string) => http.get<SealGrant[]>(`/contract/seal/${id}/grants`),
+  preview: (id: string) => requestBlob(`/contract/seal/${id}/preview`),
+  download: (id: string) => requestBlob(`/contract/seal/${id}/download`),
 };
 
 /** 签署与证据链接口 */

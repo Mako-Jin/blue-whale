@@ -15,6 +15,10 @@ import com.bluewhale.contract.vo.SealVO;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -132,6 +136,51 @@ public class ContractSealController {
     @RequirePermission("sys:contract:seal:list")
     public Result<List<SealGrantVO>> grants(@PathVariable Long id) {
         return Result.ok(sealService.grants(id));
+    }
+
+    /**
+     * 印章预览（低分辨率 + 半透明水印）。
+     *
+     * <p>预览接口沿用 {@code sys:contract:seal:list}；响应禁用缓存，避免浏览器把带水印的
+     * 预览图当作原章复用。</p>
+     *
+     * @param id 印章ID
+     * @return PNG 图片
+     */
+    @GetMapping(value = "/{id}/preview", produces = MediaType.IMAGE_PNG_VALUE)
+    @RequirePermission("sys:contract:seal:list")
+    public ResponseEntity<byte[]> preview(@PathVariable Long id) {
+        byte[] image = sealService.previewImage(id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.IMAGE_PNG)
+                .cacheControl(CacheControl.noStore())
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"seal-preview.png\"")
+                .header("X-Content-Type-Options", "nosniff")
+                .body(image);
+    }
+
+    /**
+     * 导出印章原图。
+     *
+     * <p>与预览接口分离授权：需要 {@code sys:contract:seal:download}，且每次导出写审计日志；
+     * 响应强制以附件下载，避免浏览器直接以内联方式复用原章。</p>
+     *
+     * @param id 印章ID
+     * @return 原图文件
+     */
+    @GetMapping("/{id}/download")
+    @RequirePermission("sys:contract:seal:download")
+    @AuditLog(operation = "下载印章原图", type = OperateType.EXPORT,
+            targetType = TARGET_TYPE, targetId = "#id")
+    public ResponseEntity<byte[]> download(@PathVariable Long id) {
+        SealService.SealImage image = sealService.downloadImage(id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(image.contentType()))
+                .cacheControl(CacheControl.noStore())
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + image.filename() + "\"")
+                .header("X-Content-Type-Options", "nosniff")
+                .body(image.bytes());
     }
 
     /**

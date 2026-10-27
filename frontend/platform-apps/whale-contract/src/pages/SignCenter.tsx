@@ -5,6 +5,7 @@ import {
   Alert,
   App,
   Button,
+  Checkbox,
   Descriptions,
   Form,
   Input,
@@ -37,6 +38,7 @@ interface SignFormValues {
   height?: number;
   rotation?: number;
   crossPage?: boolean;
+  confirmWillingness?: boolean;
 }
 
 export default function SignCenter() {
@@ -79,7 +81,8 @@ export default function SignCenter() {
   const openSign = (record: SignTask) => {
     setSignTarget(record);
     form.resetFields();
-    form.setFieldsValue({ page: 1, x: 20, y: 20, width: 120, height: 120, rotation: 0, crossPage: false });
+    form.setFieldsValue({ page: 1, x: 20, y: 20, width: 120, height: 120, rotation: 0, crossPage: false,
+      confirmWillingness: false });
     setSignOpen(true);
     void loadSeals();
   };
@@ -98,6 +101,7 @@ export default function SignCenter() {
       height: values.height,
       rotation: values.rotation,
       crossPage: values.crossPage,
+      confirmWillingness: values.confirmWillingness === true,
     };
     try {
       const result = await signApi.sign(signTarget.id, payload);
@@ -264,6 +268,19 @@ export default function SignCenter() {
               <InputNumber min={1} style={{ width: 140 }} />
             </Form.Item>
           </Space>
+          <Form.Item
+            name="confirmWillingness"
+            valuePropName="checked"
+            rules={[{
+              validator: (_, value) => (value === true
+                ? Promise.resolve()
+                : Promise.reject(new Error('请确认签署意愿'))),
+            }]}
+          >
+            <Checkbox>
+              我已阅读合同内容，确认本次签署系本人真实意愿（系统将记录意愿确认时间与证据编号）
+            </Checkbox>
+          </Form.Item>
         </Form>
       </Modal>
 

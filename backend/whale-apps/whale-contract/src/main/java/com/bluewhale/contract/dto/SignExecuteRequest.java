@@ -1,5 +1,6 @@
 package com.bluewhale.contract.dto;
 
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
@@ -39,4 +40,12 @@ public class SignExecuteRequest implements Serializable {
 
     /** 是否骑缝章：按页数均分印章图并加盖到每页切边 */
     private Boolean crossPage;
+
+    /**
+     * 签署意愿确认（必填 true）。
+     * <p>本地签署以此作为意愿认证证据：未勾选直接拒绝，避免「无意愿证据的静默签署」。</p>
+     */
+    @NotNull(message = "请确认签署意愿")
+    @AssertTrue(message = "请确认签署意愿")
+    private Boolean confirmWillingness;
 }

@@ -96,6 +96,15 @@ public class SignServiceImpl implements SignService {
     /** 任务状态：已失效 */
     private static final String TASK_EXPIRED = "EXPIRED";
 
+    /** 实名状态：未实名（仅账号登录会话，未接第三方实名） */
+    private static final String REAL_NAME_UNVERIFIED = "UNVERIFIED";
+
+    /** 实名方式：登录会话 */
+    private static final String METHOD_LOGIN_SESSION = "LOGIN_SESSION";
+
+    /** 意愿方式：签署页勾选确认 */
+    private static final String METHOD_SIGN_CONFIRM = "SIGN_CONFIRM";
+
     /** 印章/授权状态：启用 */
     private static final String STATUS_ENABLED = "ENABLED";
 
@@ -246,6 +255,9 @@ public class SignServiceImpl implements SignService {
                 return idempotent;
             }
         }
+        if (!Boolean.TRUE.equals(request.getConfirmWillingness())) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "请确认签署意愿后再提交");
+        }
         if (TASK_REFUSED.equals(task.getStatus()) || TASK_EXPIRED.equals(task.getStatus())) {
             throw new BizException(ErrorCode.PARAM_ERROR, "签署任务状态不可签署: " + task.getStatus());
         }
@@ -278,6 +290,12 @@ public class SignServiceImpl implements SignService {
             record.setEvidenceNo(artifact.evidenceNo());
             record.setChainHash(artifact.chainHash());
             record.setClientIp(clientIp);
+            record.setRealNameStatus(REAL_NAME_UNVERIFIED);
+            record.setRealNameMethod(METHOD_LOGIN_SESSION);
+            record.setRealNameEvidenceNo("RN-" + taskId);
+            record.setWillingnessMethod(METHOD_SIGN_CONFIRM);
+            record.setWillingnessEvidenceNo("WL-" + taskId);
+            record.setWillingnessAt(artifact.signedAt());
             signRecordMapper.insert(record);
 
             task.setStatus(TASK_SIGNED);
@@ -775,6 +793,12 @@ public class SignServiceImpl implements SignService {
         vo.setEvidenceNo(record.getEvidenceNo());
         vo.setChainHash(record.getChainHash());
         vo.setClientIp(record.getClientIp());
+        vo.setRealNameStatus(record.getRealNameStatus());
+        vo.setRealNameMethod(record.getRealNameMethod());
+        vo.setRealNameEvidenceNo(record.getRealNameEvidenceNo());
+        vo.setWillingnessMethod(record.getWillingnessMethod());
+        vo.setWillingnessEvidenceNo(record.getWillingnessEvidenceNo());
+        vo.setWillingnessAt(record.getWillingnessAt());
         return vo;
     }
 

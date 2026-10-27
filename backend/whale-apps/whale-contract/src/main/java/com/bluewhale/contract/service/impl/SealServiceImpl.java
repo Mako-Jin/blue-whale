@@ -11,6 +11,7 @@ import com.bluewhale.contract.dto.SealSaveRequest;
 import com.bluewhale.contract.entity.CtSeal;
 import com.bluewhale.contract.entity.CtSealGrant;
 import com.bluewhale.contract.esign.FileClient;
+import com.bluewhale.contract.esign.PdfStampService;
 import com.bluewhale.contract.mapper.CtSealGrantMapper;
 import com.bluewhale.contract.mapper.CtSealMapper;
 import com.bluewhale.contract.service.SealService;
@@ -52,6 +53,8 @@ public class SealServiceImpl implements SealService {
     private final CtSealGrantMapper grantMapper;
 
     private final FileClient fileClient;
+
+    private final PdfStampService pdfStampService;
 
     @Override
     public PageResult<SealVO> page(long current, long size, String keyword, String status) {
@@ -128,6 +131,54 @@ public class SealServiceImpl implements SealService {
                         .eq(CtSealGrant::getSealId, sealId)
                         .orderByDesc(CtSealGrant::getCreateTime))
                 .stream().map(SealServiceImpl::toGrantVo).toList();
+    }
+
+    @Override
+    public byte[] previewImage(Long id) {
+        CtSeal seal = requireSeal(id);
+        return pdfStampService.previewImage(seal.getImageFileId());
+    }
+
+    @Override
+    public SealImage downloadImage(Long id) {
+        CtSeal seal = requireSeal(id);
+        if (seal.getImageFileId() == null) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "印章未上传图片，无法导出原图: " + id);
+        }
+        byte[] bytes;
+        try {
+            bytes = fileClient.download(seal.getImageFileId());
+        } catch (Exception ex) {
+            throw new BizException(ErrorCode.NOT_FOUND, "印章原图读取失败: " + ex.getMessage());
+        }
+        if (bytes == null || bytes.length == 0) {
+            throw new BizException(ErrorCode.NOT_FOUND, "印章原图为空: " + id);
+        }
+        String contentType = detectImageContentType(bytes);
+        String extension = "image/png".equals(contentType) ? ".png"
+                : "image/jpeg".equals(contentType) ? ".jpg" : ".bin";
+        return new SealImage(bytes, contentType, "seal-" + id + extension);
+    }
+
+    /**
+     * 按文件头识别图片 MIME 类型。
+     *
+     * @param bytes 图片字节
+     * @return MIME 类型；无法识别时返回 {@code application/octet-stream}
+     */
+    private String detectImageContentType(byte[] bytes) {
+        if (bytes.length >= 8 && (bytes[0] & 0xFF) == 0x89 && bytes[1] == 'P' && bytes[2] == 'N'
+                && bytes[3] == 'G') {
+            return "image/png";
+        }
+        if (bytes.length >= 3 && (bytes[0] & 0xFF) == 0xFF && (bytes[1] & 0xFF) == 0xD8
+                && (bytes[2] & 0xFF) == 0xFF) {
+            return "image/jpeg";
+        }
+        if (bytes.length >= 6 && bytes[0] == 'G' && bytes[1] == 'I' && bytes[2] == 'F') {
+            return "image/gif";
+        }
+        return "application/octet-stream";
     }
 
     @Override

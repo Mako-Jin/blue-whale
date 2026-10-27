@@ -47,4 +47,22 @@ public class EsignCallbackPayload implements Serializable {
 
     /** 拒签原因（REFUSE 时必填） */
     private String refuseReason;
+
+    /** 实名认证状态：VERIFIED/UNVERIFIED/PENDING（可选，缺省 UNVERIFIED） */
+    private String realNameStatus;
+
+    /** 实名认证方式：ID_CARD_OCR/FACE/VIDEO/SMS 等（可选） */
+    private String realNameMethod;
+
+    /** 实名认证证据编号（可选） */
+    private String realNameEvidenceNo;
+
+    /** 意愿认证方式：SMS/FACE/VIDEO/SIGN_CONFIRM 等（可选） */
+    private String willingnessMethod;
+
+    /** 意愿认证证据编号（可选） */
+    private String willingnessEvidenceNo;
+
+    /** 意愿确认时间（ISO-8601，可选；缺省取签署时间） */
+    private String willingnessAt;
 }

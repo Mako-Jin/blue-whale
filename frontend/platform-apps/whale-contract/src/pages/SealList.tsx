@@ -72,6 +72,8 @@ export default function SealList() {
   const [grantOpen, setGrantOpen] = useState(false);
   const [grantListOpen, setGrantListOpen] = useState(false);
   const [grants, setGrants] = useState<SealGrant[]>([]);
+  const [previewTarget, setPreviewTarget] = useState<Seal | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -89,6 +91,46 @@ export default function SealList() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => () => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+  }, [previewUrl]);
+
+  const openPreview = async (record: Seal) => {
+    try {
+      const blob = await sealApi.preview(record.id);
+      setPreviewTarget(record);
+      setPreviewUrl(URL.createObjectURL(blob));
+    } catch (error) {
+      message.error((error as Error).message);
+    }
+  };
+
+  const closePreview = () => {
+    setPreviewTarget(null);
+    setPreviewUrl(null);
+  };
+
+  const downloadOriginal = async (record: Seal) => {
+    try {
+      const blob = await sealApi.download(record.id);
+      const extension = blob.type === 'image/jpeg' ? 'jpg'
+        : blob.type === 'image/gif' ? 'gif' : 'png';
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `seal-${record.id}.${extension}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      message.success('印章原图已开始下载，本次操作已写入审计日志');
+    } catch (error) {
+      message.error((error as Error).message);
+    }
+  };
 
   const openCreate = () => {
     setEditing(null);
@@ -219,6 +261,16 @@ export default function SealList() {
       width: 280,
       render: (_, record) => (
         <Space size={0} wrap>
+          {hasPermission('sys:contract:seal:list') ? (
+            <Button type="link" size="small" onClick={() => void openPreview(record)}>
+              预览
+            </Button>
+          ) : null}
+          {hasPermission('sys:contract:seal:download') ? (
+            <Button type="link" size="small" onClick={() => void downloadOriginal(record)}>
+              下载原图
+            </Button>
+          ) : null}
           {hasPermission('sys:contract:seal:edit') ? (
             <Button type="link" size="small" onClick={() => openEdit(record)}>
               编辑
@@ -452,6 +504,28 @@ export default function SealList() {
             仅授权范围内的签署人可在金额/类别限制内使用该印章；未授权用章返回 403 并写入审计日志。
           </Typography.Text>
           <Table rowKey="id" size="small" columns={grantColumns} dataSource={grants} pagination={false} />
+        </Space>
+      </Modal>
+
+      <Modal
+        title={`印章预览${previewTarget ? ` · ${previewTarget.name}` : ''}`}
+        open={previewTarget !== null}
+        width={360}
+        footer={null}
+        onCancel={closePreview}
+        destroyOnClose
+      >
+        <Space direction="vertical" size={8} style={{ width: '100%', alignItems: 'center' }}>
+          {previewUrl ? (
+            <img
+              src={previewUrl}
+              alt="印章预览"
+              style={{ maxWidth: '100%', maxHeight: 240, objectFit: 'contain' }}
+            />
+          ) : null}
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            预览图为低分辨率并带半透明水印，仅用于识别；原图导出需单独授权并留审计。
+          </Typography.Text>
         </Space>
       </Modal>
     </div>

@@ -74,9 +74,10 @@
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcpkix-jdk18on</artifactId>
-            <version>1.77</version>
+            <version>1.78</version>
         </dependency>
-        <!-- 显式覆盖传递依赖：本机离线仓库 1.77 仅缓存 pom，1.78 有可用 jar -->
+        <!-- 与 bcpkix 同版本：1.77 的 bcpkix 引用 org.bouncycastle.asn1.edec.EdECObjectIdentifiers，
+             该包在 bcprov 1.78 已迁移到 internal.asn1，混用会在首次 CMS 签名时抛 NoClassDefFoundError -->
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk18on</artifactId>

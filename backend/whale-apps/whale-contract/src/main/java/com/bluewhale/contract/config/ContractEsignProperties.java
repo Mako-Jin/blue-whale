@@ -37,8 +37,30 @@ public class ContractEsignProperties {
     /** PKCS#12 密码 */
     private String p12Password;
 
-    /** 时间戳服务地址（预留，M3 启用） */
+    /** RFC 3161 时间戳服务地址（为空则不请求时间戳） */
     private String tsaUrl;
+
+    /** TSA Basic 认证用户名（可选） */
+    private String tsaUsername;
+
+    /** TSA Basic 认证口令（可选） */
+    private String tsaPassword;
+
+    /** TSA 请求超时（毫秒） */
+    private int tsaTimeoutMillis = 5000;
+
+    /**
+     * 是否强制要求 RFC 3161 时间戳。
+     * <p>开启后：未配置 {@code tsa-url} 拒绝启动；签署时 TSA 不可用直接失败，
+     * 验签缺少时间戳判定为不通过（不允许静默降级）。</p>
+     */
+    private boolean tsaRequired = false;
+
+    /** CA 证书链 PEM 文件（配置后校验 P12 证书链并把证书链写入 CMS） */
+    private String caCertPath;
+
+    /** CRL 文件（PEM 或 DER，配置后校验签名证书是否被吊销） */
+    private String caCrlPath;
 
     /** 默认签署渠道：local / esignbao / fadada / ssq */
     private String provider = "local";
@@ -62,6 +84,24 @@ public class ContractEsignProperties {
      */
     public boolean isDigitalSignatureEnabled() {
         return p12Path != null && !p12Path.isBlank();
+    }
+
+    /**
+     * 是否启用 RFC 3161 时间戳。
+     *
+     * @return 配置了 {@code tsa-url} 时返回 {@code true}
+     */
+    public boolean isTimestampEnabled() {
+        return tsaUrl != null && !tsaUrl.isBlank();
+    }
+
+    /**
+     * 是否启用 CA 证书链校验与下发。
+     *
+     * @return 配置了 {@code ca-cert-path} 时返回 {@code true}
+     */
+    public boolean isChainValidationEnabled() {
+        return caCertPath != null && !caCertPath.isBlank();
     }
 
     /**
