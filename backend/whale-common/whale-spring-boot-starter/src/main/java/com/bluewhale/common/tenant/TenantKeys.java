@@ -45,6 +45,33 @@ public final class TenantKeys {
     }
 
     /**
+     * 构造指定租户的缓存 Key（不依赖当前租户上下文）。
+     *
+     * <p>用于跨租户失效场景（如权限点变更影响多个租户的用户）：调用方按受影响用户实际所属租户
+     * 逐个构造 Key。{@code tenantId} 为空时回落未知租户段 {@code 0}。</p>
+     *
+     * @param tenantId 租户 ID
+     * @param name 缓存名称，如 {@code auth:user:perm}
+     * @param id 缓存标识，如用户 ID
+     * @return 形如 {@code whale:{tenantId}:cache:{name}:{id}} 的 Key
+     */
+    public static String cacheKey(Long tenantId, String name, String id) {
+        return key(tenantId, "cache" + SEPARATOR + name + SEPARATOR + id);
+    }
+
+    /**
+     * 构造指定租户的租户级 Key（不依赖当前租户上下文）
+     *
+     * @param tenantId 租户 ID；为空时回落未知租户段 {@code 0}
+     * @param suffix 租户段之后的完整后缀
+     * @return 形如 {@code whale:{tenantId}:{suffix}} 的 Key
+     */
+    public static String key(Long tenantId, String suffix) {
+        long segment = tenantId == null ? TenantContext.UNKNOWN_TENANT_ID : tenantId;
+        return PREFIX + SEPARATOR + segment + SEPARATOR + suffix;
+    }
+
+    /**
      * 构造租户级锁 Key 前缀段
      *
      * @param prefix 锁前缀，如 {@code lock}

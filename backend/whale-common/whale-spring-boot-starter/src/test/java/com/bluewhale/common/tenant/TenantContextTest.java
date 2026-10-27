@@ -74,6 +74,18 @@ class TenantContextTest {
     }
 
     @Test
+    @DisplayName("TenantKeys：显式租户构造 Key 不依赖上下文，空租户回落 0")
+    void shouldBuildExplicitTenantCacheKey() {
+        TenantContext.set(7L);
+
+        assertEquals("whale:9:cache:auth:user:perm:12",
+                TenantKeys.cacheKey(9L, "auth:user:perm", "12"));
+        assertEquals("whale:0:cache:auth:user:perm:12",
+                TenantKeys.cacheKey((Long) null, "auth:user:perm", "12"));
+        assertEquals("whale:9:lock:auth:role", TenantKeys.key(9L, "lock:auth:role"));
+    }
+
+    @Test
     @DisplayName("TaskDecorator：异步线程继承提交线程租户并在结束后清理")
     void shouldPropagateTenantToAsyncThread() throws Exception {
         TenantContext.set(3L);

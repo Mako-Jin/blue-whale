@@ -157,6 +157,18 @@ class RoleAppServiceTest {
         assertEquals(9, vo.getSortNo());
         assertEquals(Role.STATUS_DISABLED, vo.getStatus());
         verify(roleRepository).save(stored);
+        verify(eventPublisher).publish(new RoleDomainEvent(ROLE_ID, ChangeType.STATUS_CHANGED));
+    }
+
+    @Test
+    @DisplayName("update：状态未变化时发布 UPDATED 事件，不触发角色级缓存失效")
+    void shouldPublishUpdatedWhenStatusUnchanged() {
+        Role stored = role("旧名");
+        when(roleRepository.findById(ROLE_ID)).thenReturn(Optional.of(stored));
+
+        roleAppService.update(ROLE_ID, new UpdateRoleCommand("新名", "新描述", 9, Role.STATUS_ENABLED));
+
+        assertEquals("新名", stored.getRoleName());
         verify(eventPublisher).publish(new RoleDomainEvent(ROLE_ID, ChangeType.UPDATED));
     }
 

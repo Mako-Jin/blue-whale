@@ -49,14 +49,18 @@ public class AuthCacheEvictionListener {
     }
 
     /**
-     * 处理角色事件：删除与权限变更时失效该角色下用户的缓存
+     * 处理角色事件：删除、权限变更与启停时失效该角色下用户的缓存
+     *
+     * <p>角色停用后其权限码不再生效，必须立即失效对应用户缓存，不能等待 TTL 过期。</p>
      *
      * @param event 角色领域事件
      */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onRoleEvent(RoleDomainEvent event) {
         ChangeType changeType = event.changeType();
-        if (changeType == ChangeType.DELETED || changeType == ChangeType.PERMISSIONS_ASSIGNED) {
+        if (changeType == ChangeType.DELETED
+                || changeType == ChangeType.PERMISSIONS_ASSIGNED
+                || changeType == ChangeType.STATUS_CHANGED) {
             permissionCache.evictByRole(event.aggregateId());
         }
     }

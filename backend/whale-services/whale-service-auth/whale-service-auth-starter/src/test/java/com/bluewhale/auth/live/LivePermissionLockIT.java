@@ -9,6 +9,7 @@ import com.bluewhale.auth.domain.permission.repository.PermissionRepository;
 import com.bluewhale.auth.domain.role.aggregate.Role;
 import com.bluewhale.auth.domain.role.repository.RoleRepository;
 import com.bluewhale.auth.infrastructure.cache.AuthPermissionCacheInvalidator;
+import com.bluewhale.auth.mapper.SysRoleMapper;
 import com.bluewhale.auth.mapper.SysRolePermissionMapper;
 import com.bluewhale.auth.mapper.SysUserRoleMapper;
 import com.bluewhale.auth.security.PermissionCache;
@@ -167,7 +168,7 @@ class LivePermissionLockIT {
 
         PermissionCache cache = new PermissionCache(template, new PermissionCacheProperties(), mutex,
                 mock(AuthPermissionCacheInvalidator.class),
-                mock(SysUserRoleMapper.class), mock(SysRolePermissionMapper.class));
+                mock(SysUserRoleMapper.class), mock(SysRolePermissionMapper.class), mock(SysRoleMapper.class));
 
         // 清理可能残留的缓存键，保证从「未命中」开始
         template.evict(PermissionCache.PERMISSION_CACHE_NAME, String.valueOf(USER_ID));

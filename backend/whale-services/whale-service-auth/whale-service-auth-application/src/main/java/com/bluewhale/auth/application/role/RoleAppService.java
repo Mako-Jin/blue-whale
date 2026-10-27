@@ -114,6 +114,8 @@ public class RoleAppService {
      */
     public RoleVO update(Long id, UpdateRoleCommand command) {
         Role role = requireRole(id);
+        // 停用/启用会改变该角色下用户的权限码集合，需与普通改名区分事件类型以触发缓存失效
+        boolean statusChanged = command.status() != null && command.status() != role.getStatus();
         role.rename(command.roleName());
         role.changeDescription(command.description());
         if (command.sortNo() != null) {
@@ -123,7 +125,8 @@ public class RoleAppService {
             role.changeStatus(command.status());
         }
         roleRepository.save(role);
-        domainEventPublisher.publish(new RoleDomainEvent(id, ChangeType.UPDATED));
+        domainEventPublisher.publish(new RoleDomainEvent(id,
+                statusChanged ? ChangeType.STATUS_CHANGED : ChangeType.UPDATED));
         return RoleVO.from(role);
     }
 

@@ -81,6 +81,14 @@ class AuthCacheEvictionListenerTest {
     }
 
     @Test
+    @DisplayName("角色 STATUS_CHANGED：停用/启用后失效该角色下用户缓存")
+    void shouldEvictByRoleOnStatusChanged() {
+        listener.onRoleEvent(new RoleDomainEvent(AGGREGATE_ID, ChangeType.STATUS_CHANGED));
+
+        verify(permissionCache).evictByRole(AGGREGATE_ID);
+    }
+
+    @Test
     @DisplayName("角色 UPDATED：不触发缓存失效")
     void shouldNotEvictByRoleOnUpdated() {
         listener.onRoleEvent(new RoleDomainEvent(AGGREGATE_ID, ChangeType.UPDATED));

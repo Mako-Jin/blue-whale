@@ -96,6 +96,34 @@ class AuthPermissionCacheInvalidatorTest {
     }
 
     @Test
+    @DisplayName("跨租户失效：按用户所属租户构造 Key，不受当前 TenantContext 影响")
+    void shouldDeleteKeysAcrossTenants() {
+        when(cacheTemplate.tryEvictKeys(anyCollection())).thenReturn(true);
+
+        invalidator.invalidateUsersByTenant(List.of(
+                new AuthPermissionCacheInvalidator.UserKey(11L, 1L),
+                new AuthPermissionCacheInvalidator.UserKey(12L, 2L),
+                new AuthPermissionCacheInvalidator.UserKey(12L, 2L),
+                new AuthPermissionCacheInvalidator.UserKey(null, 3L)));
+
+        ArgumentCaptor<Collection<String>> captor = ArgumentCaptor.forClass(Collection.class);
+        verify(cacheTemplate).tryEvictKeys(captor.capture());
+        assertKeys(captor, Set.of(
+                "whale:11:cache:auth:user:perm:1",
+                "whale:12:cache:auth:user:perm:2"));
+    }
+
+    @Test
+    @DisplayName("跨租户失效：空集合或坐标非法时不触发删除")
+    void shouldSkipCrossTenantEvictWhenNoValidKeys() {
+        invalidator.invalidateUsersByTenant(null);
+        invalidator.invalidateUsersByTenant(List.of());
+        invalidator.invalidateUsersByTenant(List.of(new AuthPermissionCacheInvalidator.UserKey(1L, null)));
+
+        verify(cacheTemplate, never()).tryEvictKeys(anyCollection());
+    }
+
+    @Test
     @DisplayName("删除异常：登记待重对齐，Redis 恢复后由 flushPending 清除")
     void shouldRetryPendingKeysAfterRedisRecovery() {
         when(cacheTemplate.tryEvictKeys(anyCollection())).thenReturn(false);

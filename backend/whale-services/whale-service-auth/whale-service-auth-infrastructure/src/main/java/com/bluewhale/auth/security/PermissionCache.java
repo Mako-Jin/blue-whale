@@ -2,9 +2,11 @@ package com.bluewhale.auth.security;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.auth.config.PermissionCacheProperties;
+import com.bluewhale.auth.entity.RoleTenantRef;
 import com.bluewhale.auth.entity.SysRolePermission;
 import com.bluewhale.auth.entity.SysUserRole;
 import com.bluewhale.auth.infrastructure.cache.AuthPermissionCacheInvalidator;
+import com.bluewhale.auth.mapper.SysRoleMapper;
 import com.bluewhale.auth.mapper.SysRolePermissionMapper;
 import com.bluewhale.auth.mapper.SysUserRoleMapper;
 import com.bluewhale.common.cache.CacheConsistencyTemplate;
@@ -18,8 +20,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 /**
  * 权限判定缓存（Cache-Aside，REQ-DIST-003 场景接入）。
@@ -52,6 +56,7 @@ public class PermissionCache {
     private final AuthPermissionCacheInvalidator cacheInvalidator;
     private final SysUserRoleMapper userRoleMapper;
     private final SysRolePermissionMapper rolePermissionMapper;
+    private final SysRoleMapper roleMapper;
 
     /**
      * 读取用户权限码集合（Cache-Aside）
@@ -143,7 +148,11 @@ public class PermissionCache {
     }
 
     /**
-     * 失效持有指定权限点的全部用户的权限缓存（权限点更新 / 删除后调用）
+     * 失效持有指定权限点的全部用户的权限缓存（权限点更新 / 删除后调用）。
+     *
+     * <p>权限点为平台共享数据，一次变更可能影响多个租户的角色与用户。此处按「权限 → 角色 → 用户」
+     * 反查后，再用角色所属租户构造完整的跨租户 Key（{@code TenantKeys#cacheKey(Long, String, String)}），
+     * 避免仅按当前租户（通常为平台租户）删除而遗漏其他租户的缓存。</p>
      *
      * @param permissionId 权限点 ID
      */
@@ -157,10 +166,22 @@ public class PermissionCache {
         if (roleIds.isEmpty()) {
             return;
         }
-        List<Long> userIds = userRoleMapper.selectList(new LambdaQueryWrapper<SysUserRole>()
+        Map<Long, Long> tenantByRoleId = roleMapper.selectTenantRefsByIds(roleIds).stream()
+                .collect(Collectors.toMap(RoleTenantRef::getRoleId, RoleTenantRef::getTenantId,
+                        (existing, ignored) -> existing));
+        Set<AuthPermissionCacheInvalidator.UserKey> userKeys = new LinkedHashSet<>();
+        userRoleMapper.selectList(new LambdaQueryWrapper<SysUserRole>()
                         .in(SysUserRole::getRoleId, roleIds))
-                .stream().map(SysUserRole::getUserId).distinct().toList();
-        evictUsers(userIds);
+                .forEach(relation -> {
+                    Long tenantId = tenantByRoleId.get(relation.getRoleId());
+                    if (tenantId != null && relation.getUserId() != null) {
+                        userKeys.add(new AuthPermissionCacheInvalidator.UserKey(tenantId, relation.getUserId()));
+                    }
+                });
+        if (userKeys.isEmpty()) {
+            return;
+        }
+        afterCommit(() -> cacheInvalidator.invalidateUsersByTenant(userKeys));
     }
 
     /**

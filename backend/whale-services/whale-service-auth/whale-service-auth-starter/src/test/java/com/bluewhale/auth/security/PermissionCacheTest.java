@@ -3,9 +3,11 @@ package com.bluewhale.auth.security;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.bluewhale.auth.config.PermissionCacheProperties;
+import com.bluewhale.auth.entity.RoleTenantRef;
 import com.bluewhale.auth.entity.SysRolePermission;
 import com.bluewhale.auth.entity.SysUserRole;
 import com.bluewhale.auth.infrastructure.cache.AuthPermissionCacheInvalidator;
+import com.bluewhale.auth.mapper.SysRoleMapper;
 import com.bluewhale.auth.mapper.SysRolePermissionMapper;
 import com.bluewhale.auth.mapper.SysUserRoleMapper;
 import com.bluewhale.common.cache.CacheConsistencyTemplate;
@@ -72,6 +74,9 @@ class PermissionCacheTest {
     @Mock
     private SysRolePermissionMapper rolePermissionMapper;
 
+    @Mock
+    private SysRoleMapper roleMapper;
+
     private PermissionCache permissionCache;
 
     /**
@@ -87,7 +92,7 @@ class PermissionCacheTest {
     @BeforeEach
     void setUp() {
         permissionCache = new PermissionCache(cacheTemplate, properties, mutex, cacheInvalidator,
-                userRoleMapper, rolePermissionMapper);
+                userRoleMapper, rolePermissionMapper, roleMapper);
     }
 
     /**
@@ -117,6 +122,13 @@ class PermissionCacheTest {
         relation.setRoleId(roleId);
         relation.setPermissionId(permissionId);
         return relation;
+    }
+
+    private static RoleTenantRef roleTenantRef(Long roleId, Long tenantId) {
+        RoleTenantRef ref = new RoleTenantRef();
+        ref.setRoleId(roleId);
+        ref.setTenantId(tenantId);
+        return ref;
     }
 
     @Test
@@ -333,7 +345,7 @@ class PermissionCacheTest {
     void shouldSkipEvictByPermissionWhenNull() {
         permissionCache.evictByPermission(null);
 
-        verifyNoInteractions(rolePermissionMapper, userRoleMapper, cacheInvalidator);
+        verifyNoInteractions(rolePermissionMapper, userRoleMapper, roleMapper, cacheInvalidator);
     }
 
     @Test
@@ -344,18 +356,33 @@ class PermissionCacheTest {
         permissionCache.evictByPermission(PERM_ID);
 
         verify(userRoleMapper, never()).selectList(any());
-        verifyNoInteractions(cacheInvalidator);
+        verifyNoInteractions(roleMapper, cacheInvalidator);
     }
 
     @Test
-    @DisplayName("evictByPermission：权限→角色→用户两级反查后失效")
+    @DisplayName("evictByPermission：权限→角色→用户两级反查后按角色所属租户跨租户失效")
     void shouldEvictUsersByPermission() {
         when(rolePermissionMapper.selectList(any())).thenReturn(List.of(rolePermission(ROLE_ID, PERM_ID)));
+        when(roleMapper.selectTenantRefsByIds(List.of(ROLE_ID))).thenReturn(List.of(roleTenantRef(ROLE_ID, 9L)));
         when(userRoleMapper.selectList(any())).thenReturn(List.of(userRole(USER_ID, ROLE_ID)));
 
         permissionCache.evictByPermission(PERM_ID);
 
-        verify(cacheInvalidator).invalidateUsers(Set.of(USER_ID));
+        verify(cacheInvalidator).invalidateUsersByTenant(
+                Set.of(new AuthPermissionCacheInvalidator.UserKey(9L, USER_ID)));
+        verify(cacheInvalidator, never()).invalidateUsers(any());
+    }
+
+    @Test
+    @DisplayName("evictByPermission：角色租户无法定位时不触发失效")
+    void shouldSkipEvictByPermissionWhenRoleTenantMissing() {
+        when(rolePermissionMapper.selectList(any())).thenReturn(List.of(rolePermission(ROLE_ID, PERM_ID)));
+        when(roleMapper.selectTenantRefsByIds(List.of(ROLE_ID))).thenReturn(List.of());
+        when(userRoleMapper.selectList(any())).thenReturn(List.of(userRole(USER_ID, ROLE_ID)));
+
+        permissionCache.evictByPermission(PERM_ID);
+
+        verifyNoInteractions(cacheInvalidator);
     }
 
     @Test

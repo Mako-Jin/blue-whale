@@ -74,6 +74,18 @@ public class AuthPermissionCacheInvalidator {
     /** 待重对齐的完整缓存 Key（Redis 删除失败时登记） */
     private final Set<String> pendingKeys = ConcurrentHashMap.newKeySet();
 
+    /**
+     * 用户缓存 Key 坐标（租户 + 用户）。
+     *
+     * <p>权限点为平台共享数据，一次权限点变更会命中多个租户的角色与用户，需按用户实际所属租户
+     * 逐个构造完整 Key；仅凭 {@code TenantContext} 无法跨租户定位。</p>
+     *
+     * @param tenantId 用户所属租户 ID
+     * @param userId 用户 ID
+     */
+    public record UserKey(Long tenantId, Long userId) {
+    }
+
     /** 本实例标识，用于过滤广播回声 */
     private final String instanceId = UUID.randomUUID().toString().replace("-", "");
 
@@ -133,6 +145,33 @@ public class AuthPermissionCacheInvalidator {
         Set<String> keys = new LinkedHashSet<>(distinctUserIds.size());
         for (Long userId : distinctUserIds) {
             keys.add(TenantKeys.cacheKey(PermissionCache.PERMISSION_CACHE_NAME, String.valueOf(userId)));
+        }
+        evictLocally(keys);
+        publish(keys);
+    }
+
+    /**
+     * 跨租户失效权限缓存（权限点更新/删除时，受影响用户可能分布在不同租户）。
+     *
+     * <p>与 {@link #invalidateUsers(Collection)} 的差异：Key 的租户段取用户实际所属租户，
+     * 不依赖当前 {@code TenantContext}；其余删除、广播与断连重对齐语义一致。</p>
+     *
+     * @param userKeys 受影响用户的租户 + 用户坐标；为空或全部非法时不执行
+     */
+    public void invalidateUsersByTenant(Collection<UserKey> userKeys) {
+        if (userKeys == null || userKeys.isEmpty()) {
+            return;
+        }
+        Set<String> keys = new LinkedHashSet<>(userKeys.size());
+        for (UserKey userKey : userKeys) {
+            if (userKey == null || userKey.userId() == null || userKey.tenantId() == null) {
+                continue;
+            }
+            keys.add(TenantKeys.cacheKey(userKey.tenantId(), PermissionCache.PERMISSION_CACHE_NAME,
+                    String.valueOf(userKey.userId())));
+        }
+        if (keys.isEmpty()) {
+            return;
         }
         evictLocally(keys);
         publish(keys);
