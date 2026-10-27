@@ -2,7 +2,9 @@ package com.bluewhale.archive.controller;
 
 import com.bluewhale.archive.dto.ArchiveIngestRequest;
 import com.bluewhale.archive.mapper.ArchiveFileMapper;
+import com.bluewhale.archive.service.ArchiveFileLockReconcileService;
 import com.bluewhale.archive.service.ArchiveIngestService;
+import com.bluewhale.archive.vo.ArchiveFileLockReconcileVO;
 import com.bluewhale.archive.vo.ArchiveFileSecurityVO;
 import com.bluewhale.archive.vo.ArchiveIngestResultVO;
 import com.bluewhale.common.core.result.Result;
@@ -13,6 +15,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -35,6 +38,8 @@ public class ArchiveInternalController {
 
     private final ArchiveIngestService ingestService;
 
+    private final ArchiveFileLockReconcileService fileLockReconcileService;
+
     /**
      * 查询文件所属档案条目的密级。
      *
@@ -55,5 +60,22 @@ public class ArchiveInternalController {
     @PostMapping("/items")
     public Result<ArchiveIngestResultVO> ingest(@Valid @RequestBody ArchiveIngestRequest request) {
         return Result.ok(ingestService.ingest(request));
+    }
+
+    /**
+     * 补扫当前租户已归档条目的文件锁定（修复历史上线前未锁定的快照/原件）。
+     *
+     * <p>复用游标分页：首次不传 {@code afterId}，后续传上次结果的 {@code nextAfterId}，
+     * 直到 {@code hasMore=false}。</p>
+     *
+     * @param limit 单批条目数
+     * @param afterId 游标
+     * @return 补扫结果
+     */
+    @PostMapping("/items/lock-reconcile")
+    public Result<ArchiveFileLockReconcileVO> reconcileFileLocks(
+            @RequestParam(defaultValue = "200") int limit,
+            @RequestParam(required = false) Long afterId) {
+        return Result.ok(fileLockReconcileService.reconcile(limit, afterId));
     }
 }

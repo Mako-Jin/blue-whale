@@ -102,6 +102,12 @@ public final class ArchiveConstants {
     /** 快照 MIME 类型 */
     public static final String SNAPSHOT_CONTENT_TYPE = "application/json";
 
+    /** 文件状态：归档锁定（与 whale-file file_info.status 对齐） */
+    public static final int FILE_STATUS_LOCKED = 2;
+
+    /** 文件锁定补扫单批上限 */
+    public static final int MAX_LOCK_RECONCILE_LIMIT = 500;
+
     /** 工具类不允许实例化 */
     private ArchiveConstants() {
     }
