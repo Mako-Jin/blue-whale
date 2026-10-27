@@ -47,6 +47,17 @@ whale:
       secret: ${JWT_SECRET:bluewhale-jwt-secret-2026-please-change-in-production}
       expire-minutes: 120
       refresh-expire-minutes: 1440
+    # P1-3 权限缓存跨实例失效：本地删除全部租户 Key + Redisson RTopic 广播；
+    # Redis 断连时删除失败的 userId 进入待处理集合，由定时任务在恢复后重对齐。
+    permission-cache:
+      enabled: ${PERMISSION_CACHE_ENABLED:true}
+      ttl: ${PERMISSION_CACHE_TTL:5m}
+      broadcast-enabled: ${PERMISSION_CACHE_BROADCAST_ENABLED:true}
+      reconcile-enabled: ${PERMISSION_CACHE_RECONCILE_ENABLED:true}
+      reconcile-interval-ms: ${PERMISSION_CACHE_RECONCILE_INTERVAL_MS:30000}
+      reconcile-initial-delay-ms: ${PERMISSION_CACHE_RECONCILE_INITIAL_DELAY_MS:10000}
+      reconcile-batch-size: ${PERMISSION_CACHE_RECONCILE_BATCH_SIZE:500}
+      pending-limit: ${PERMISSION_CACHE_PENDING_LIMIT:10000}
   # P1-3 审计跨库汇聚：auth 为试点服务，审计记录优先转发 whale-audit:9101，
   # 转发失败自动回退本地 bluewhale_auth.audit_log，不丢记录。
   audit:

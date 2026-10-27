@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.auth.config.PermissionCacheProperties;
 import com.bluewhale.auth.entity.SysRolePermission;
 import com.bluewhale.auth.entity.SysUserRole;
+import com.bluewhale.auth.infrastructure.cache.AuthPermissionCacheInvalidator;
 import com.bluewhale.auth.mapper.SysRolePermissionMapper;
 import com.bluewhale.auth.mapper.SysUserRoleMapper;
 import com.bluewhale.common.cache.CacheConsistencyTemplate;
@@ -27,7 +28,8 @@ import java.util.function.Supplier;
  * 不阻断主流程。</p>
  * <p>写路径：{@link #evictUser(Long)} / {@link #evictUsers(Collection)} / {@link #evictByRole(Long)} /
  * {@link #evictByPermission(Long)} 统一在事务提交后失效受影响用户的缓存，避免「事务未提交即删缓存」
- * 的脏缓存窗口。</p>
+ * 的脏缓存窗口；删除动作委托 {@link AuthPermissionCacheInvalidator}，同时完成跨实例广播与
+ * Redis 断连后的待失效重对齐。</p>
  * <p>本类不注入 {@code RoleAppService}：读路径的 DB 查询由调用方以 {@link Supplier} 传入，
  * 失效路径的受影响用户反查直接走 Mapper，避免 {@code RoleAppService → PermissionCache →
  * RoleAppService} 循环依赖，也不复制权限码查询逻辑。</p>
@@ -47,6 +49,7 @@ public class PermissionCache {
     private final CacheConsistencyTemplate cacheTemplate;
     private final PermissionCacheProperties properties;
     private final PermissionCacheMutex mutex;
+    private final AuthPermissionCacheInvalidator cacheInvalidator;
     private final SysUserRoleMapper userRoleMapper;
     private final SysRolePermissionMapper rolePermissionMapper;
 
@@ -99,14 +102,20 @@ public class PermissionCache {
     /**
      * 失效单个用户的权限缓存（事务提交后执行）
      *
-     * @param userId 用户 ID
+     * @param userId 用户 ID；为 {@code null} 时不执行
      */
     public void evictUser(Long userId) {
-        afterCommit(() -> cacheTemplate.evict(PERMISSION_CACHE_NAME, String.valueOf(userId)));
+        if (userId == null) {
+            return;
+        }
+        evictUsers(Set.of(userId));
     }
 
     /**
      * 批量失效用户权限缓存（去重，事务提交后执行）
+     *
+     * <p>委托 {@link AuthPermissionCacheInvalidator}：删除全部租户的权限缓存 Key，
+     * 并经 Redisson RTopic 广播给其余实例；删除失败的用户进入断连重对齐待处理集合。</p>
      *
      * @param userIds 用户 ID 集合；为空时不执行
      */
@@ -115,11 +124,7 @@ public class PermissionCache {
             return;
         }
         Set<Long> distinctUserIds = new LinkedHashSet<>(userIds);
-        afterCommit(() -> {
-            for (Long userId : distinctUserIds) {
-                cacheTemplate.evict(PERMISSION_CACHE_NAME, String.valueOf(userId));
-            }
-        });
+        afterCommit(() -> cacheInvalidator.invalidateUsers(distinctUserIds));
     }
 
     /**

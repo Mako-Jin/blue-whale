@@ -23,4 +23,22 @@ public class PermissionCacheProperties {
 
     /** 权限码缓存正常值 TTL，默认 5 分钟 */
     private Duration ttl = Duration.ofMinutes(5);
+
+    /** 是否启用跨实例失效广播（Redisson RTopic），默认启用；关闭后仅依赖共享 Redis 删除 */
+    private boolean broadcastEnabled = true;
+
+    /** 是否启用 Redis 断连后的待失效重对齐任务，默认启用 */
+    private boolean reconcileEnabled = true;
+
+    /** 重对齐执行间隔（毫秒），默认 30 秒 */
+    private long reconcileIntervalMs = 30_000L;
+
+    /** 重对齐首次延迟（毫秒），默认 10 秒 */
+    private long reconcileInitialDelayMs = 10_000L;
+
+    /** 单次重对齐最多处理的待失效用户数，默认 500 */
+    private int reconcileBatchSize = 500;
+
+    /** 待失效用户上限，防止 Redis 长时间不可用导致内存膨胀，默认 10000 */
+    private int pendingLimit = 10_000;
 }

@@ -58,13 +58,16 @@
 >
 > **Wave 5.8 执行结果（2026-10-18 更新）**：✅ AUTH-20（缓存一致性工具接入权限判定场景：`PermissionInterceptor` 读路径改 Cache-Aside，角色/用户/权限点共 7 处变更点接入失效）。
 > 以「**120 单测全绿（Wave 5.7 基线 99 → 120）+ Checkstyle 全 reactor 0 违规 + JaCoCo 行 0.6755 → 0.7184 / 分支 0.6718 → 0.7238（`clean verify` 口径）**」完成验证，`-Pcoverage-gate` 通过。
-> **残余**：~~防击穿（同 Key 并发一次回源）→ AUTH-19~~ ✅ Wave 5.9；多实例失效广播 / Canal 演进；`SysRoleServiceImpl#update` 有意不失效；经网关端到端实测、控制器层单测。
+> **残余**：~~防击穿（同 Key 并发一次回源）→ AUTH-19~~ ✅ Wave 5.9；~~多实例失效广播~~ ✅ 2026-10-27（Redisson RTopic + 断连重对齐）/ Canal 演进；`SysRoleServiceImpl#update` 有意不失效；经网关端到端实测、控制器层单测。
 > 详见 [devlog §28](../devlog/2026-10-18.md) 与 [检查报告](../reviews/2026-10-18-wave5.8-auth-permission-cache.md)。
 >
 > **Wave 5.9 执行结果（2026-10-18 更新）**：✅ ~~AUTH-19~~（`@DistributedLock` 场景接入：① 角色权限变更互斥 `lock:auth:role:{roleId}`；② 缓存防击穿 `lock:cache:auth:user:perm:{userId}`）。
 > 以「**126 单测全绿（Wave 5.8 基线 120 → 126）+ Checkstyle 全 reactor 0 违规 + JaCoCo 行 0.7184 → 0.7227 / 分支 0.7238 → 0.7257（`clean verify` 口径）+ 实时 IT `LivePermissionLockIT` 2/0/0（真实 Redis）**」完成验证。
-> **残余**：注册锁（`@Idempotent` 已等价覆盖）、定时任务/库存锁、T-LOCK-5 降级开关、多实例失效广播、经网关并发实测。
+> **残余**：注册锁（`@Idempotent` 已等价覆盖）、定时任务/库存锁、T-LOCK-5 降级开关、~~多实例失效广播~~ ✅ 2026-10-27、经网关并发实测。
 > 详见 [devlog §29](../devlog/2026-10-18.md) 与 [检查报告](../reviews/2026-10-18-wave5.9-auth-distributed-lock.md)。
+>
+> **P1 #3 执行结果（2026-10-27 更新）**：✅ Auth 权限缓存跨实例失效——新增 `AuthPermissionCacheInvalidator`：按当前租户计算完整 `whale:{tenantId}:cache:auth:user:perm:{userId}` Key，经 `CacheConsistencyTemplate.tryEvictKeys` 批量删除后，用 Redisson RTopic `auth:permission-cache:invalidate` 广播（`v1|KEYS|实例|key,...`，回声过滤、非法 Key 过滤、Redisson 不可用降级）；新增 `AuthPermissionCacheReconcileJob`（默认 30s）对删除失败时登记的完整 Key 做断连重对齐，异步重试不依赖租户上下文；`PermissionCache` 失效路径统一委托失效器；`@EnableScheduling` 与 `whale.auth.permission-cache.*` 配置可环境变量覆盖。
+> 以「**auth starter 346 单测全绿（新增 11 个用例）+ Checkstyle 0 违规**」完成验证；真实 Redis 双实例广播与断连恢复实测待联调环境。
 
 > **Wave 5.17 执行结果（2026-10-19 更新）**：✅ ~~T5.21/T5.23 admin 前端对接（第一段：登录/登出 + 黑名单端到端）~~——`frontend/admin` 由占位 SPA 升级为真实登录：新增 `api/auth.ts`（login/fetchMe/logout，统一响应体 `{code,message,data}` 解析、Bearer 注入、401 清态）、`router/guards.tsx`、`pages/Login.tsx`、`pages/Home.tsx`；修改 `App.tsx`（路由入口）/`main.tsx`（antd App 上下文）/`index.css`（登录页样式）/`vite.config.ts`（端口 8080→8001 + 代理 `auth|user|dept|role|menu|permission|audit` → 网关 8080）。
 > 同步修复 starter 缺陷（P1）：`CacheAutoConfiguration` 补 `@AutoConfigureAfter`（Boot 4 中 `com.bluewhale.*` 字母序先于 Boot Redis 自动配置，`@ConditionalOnBean(StringRedisTemplate)` 提前判定为 false；Wave 5.8 AUTH-20 将 `PermissionCache` 接入 `CacheConsistencyTemplate` 后首次真实启动即暴露）。

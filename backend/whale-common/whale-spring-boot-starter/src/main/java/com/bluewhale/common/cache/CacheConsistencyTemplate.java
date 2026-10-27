@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.time.Duration;
+import java.util.Collection;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
@@ -101,6 +102,58 @@ public class CacheConsistencyTemplate {
      */
     public void evict(String name, String id) {
         deleteQuietly(buildKey(name, id));
+    }
+
+    /**
+     * 立即删除缓存 Key，并返回删除是否成功（供需要感知删除结果的调用方使用）。
+     *
+     * <p>与 {@link #evict(String, String)} 的差异：Redis 异常时返回 {@code false} 而非静默忽略，
+     * 调用方可据此登记待重试任务（如权限缓存跨实例失效的断连重对齐）。</p>
+     *
+     * @param name 缓存名称（业务域）
+     * @param id 缓存标识
+     * @return {@code true} 表示删除指令已成功执行（Key 不存在亦视为成功）；Redis 异常返回 {@code false}
+     */
+    public boolean tryEvict(String name, String id) {
+        return tryEvictKey(buildKey(name, id));
+    }
+
+    /**
+     * 按完整 Key 立即删除，并返回删除是否成功（不依赖当前租户上下文）。
+     *
+     * @param key 完整 Redis Key
+     * @return {@code true} 删除指令已成功执行；Redis 异常返回 {@code false}
+     */
+    public boolean tryEvictKey(String key) {
+        try {
+            redisTemplate.delete(key);
+            return true;
+        } catch (Exception ex) {
+            log.warn("Redis 删除失败（待调用方重试）: key={}, error={}", key, ex.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 批量删除完整 Key，并返回删除是否成功（不依赖当前租户上下文）。
+     *
+     * <p>用于跨实例失效与断连重对齐：待重试的 Key 在异步线程上重放时无法依赖
+     * {@code TenantContext}，因此以完整 Key 为最小单位。</p>
+     *
+     * @param keys 完整 Redis Key 集合；为空时直接返回成功
+     * @return {@code true} 删除指令已成功执行；Redis 异常返回 {@code false}
+     */
+    public boolean tryEvictKeys(Collection<String> keys) {
+        if (keys == null || keys.isEmpty()) {
+            return true;
+        }
+        try {
+            redisTemplate.delete(keys);
+            return true;
+        } catch (Exception ex) {
+            log.warn("Redis 批量删除失败（待调用方重试）: size={}, error={}", keys.size(), ex.getMessage());
+            return false;
+        }
     }
 
     /**

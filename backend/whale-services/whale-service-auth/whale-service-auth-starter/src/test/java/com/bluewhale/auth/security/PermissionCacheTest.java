@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.bluewhale.auth.config.PermissionCacheProperties;
 import com.bluewhale.auth.entity.SysRolePermission;
 import com.bluewhale.auth.entity.SysUserRole;
+import com.bluewhale.auth.infrastructure.cache.AuthPermissionCacheInvalidator;
 import com.bluewhale.auth.mapper.SysRolePermissionMapper;
 import com.bluewhale.auth.mapper.SysUserRoleMapper;
 import com.bluewhale.common.cache.CacheConsistencyTemplate;
@@ -32,7 +33,6 @@ import java.util.function.Supplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -64,6 +64,9 @@ class PermissionCacheTest {
     private PermissionCacheMutex mutex;
 
     @Mock
+    private AuthPermissionCacheInvalidator cacheInvalidator;
+
+    @Mock
     private SysUserRoleMapper userRoleMapper;
 
     @Mock
@@ -83,7 +86,8 @@ class PermissionCacheTest {
 
     @BeforeEach
     void setUp() {
-        permissionCache = new PermissionCache(cacheTemplate, properties, mutex, userRoleMapper, rolePermissionMapper);
+        permissionCache = new PermissionCache(cacheTemplate, properties, mutex, cacheInvalidator,
+                userRoleMapper, rolePermissionMapper);
     }
 
     /**
@@ -268,7 +272,7 @@ class PermissionCacheTest {
     void shouldEvictUserImmediatelyWhenNoSynchronization() {
         permissionCache.evictUser(USER_ID);
 
-        verify(cacheTemplate).evict(PermissionCache.PERMISSION_CACHE_NAME, String.valueOf(USER_ID));
+        verify(cacheInvalidator).invalidateUsers(Set.of(USER_ID));
     }
 
     @Test
@@ -276,7 +280,7 @@ class PermissionCacheTest {
     void shouldSkipEvictWhenUserIdsNull() {
         permissionCache.evictUsers(null);
 
-        verifyNoInteractions(cacheTemplate);
+        verifyNoInteractions(cacheInvalidator);
     }
 
     @Test
@@ -284,17 +288,15 @@ class PermissionCacheTest {
     void shouldSkipEvictWhenUserIdsEmpty() {
         permissionCache.evictUsers(List.of());
 
-        verifyNoInteractions(cacheTemplate);
+        verifyNoInteractions(cacheInvalidator);
     }
 
     @Test
-    @DisplayName("evictUsers：去重后逐个失效")
+    @DisplayName("evictUsers：去重后批量失效")
     void shouldEvictEachDistinctUser() {
         permissionCache.evictUsers(List.of(1L, 1L, 2L));
 
-        verify(cacheTemplate).evict(PermissionCache.PERMISSION_CACHE_NAME, "1");
-        verify(cacheTemplate).evict(PermissionCache.PERMISSION_CACHE_NAME, "2");
-        verify(cacheTemplate, times(2)).evict(anyString(), anyString());
+        verify(cacheInvalidator).invalidateUsers(Set.of(1L, 2L));
     }
 
     @Test
@@ -302,20 +304,18 @@ class PermissionCacheTest {
     void shouldSkipEvictByRoleWhenNull() {
         permissionCache.evictByRole(null);
 
-        verifyNoInteractions(userRoleMapper, cacheTemplate);
+        verifyNoInteractions(userRoleMapper, cacheInvalidator);
     }
 
     @Test
-    @DisplayName("evictByRole：按角色反查用户并去重逐个失效")
+    @DisplayName("evictByRole：按角色反查用户并去重批量失效")
     void shouldEvictUsersByRole() {
         when(userRoleMapper.selectList(any())).thenReturn(List.of(
                 userRole(1L, ROLE_ID), userRole(1L, ROLE_ID), userRole(2L, ROLE_ID)));
 
         permissionCache.evictByRole(ROLE_ID);
 
-        verify(cacheTemplate).evict(PermissionCache.PERMISSION_CACHE_NAME, "1");
-        verify(cacheTemplate).evict(PermissionCache.PERMISSION_CACHE_NAME, "2");
-        verify(cacheTemplate, times(2)).evict(anyString(), anyString());
+        verify(cacheInvalidator).invalidateUsers(Set.of(1L, 2L));
     }
 
     @Test
@@ -325,7 +325,7 @@ class PermissionCacheTest {
 
         permissionCache.evictByRole(ROLE_ID);
 
-        verifyNoInteractions(cacheTemplate);
+        verifyNoInteractions(cacheInvalidator);
     }
 
     @Test
@@ -333,7 +333,7 @@ class PermissionCacheTest {
     void shouldSkipEvictByPermissionWhenNull() {
         permissionCache.evictByPermission(null);
 
-        verifyNoInteractions(rolePermissionMapper, userRoleMapper, cacheTemplate);
+        verifyNoInteractions(rolePermissionMapper, userRoleMapper, cacheInvalidator);
     }
 
     @Test
@@ -344,7 +344,7 @@ class PermissionCacheTest {
         permissionCache.evictByPermission(PERM_ID);
 
         verify(userRoleMapper, never()).selectList(any());
-        verifyNoInteractions(cacheTemplate);
+        verifyNoInteractions(cacheInvalidator);
     }
 
     @Test
@@ -355,7 +355,7 @@ class PermissionCacheTest {
 
         permissionCache.evictByPermission(PERM_ID);
 
-        verify(cacheTemplate).evict(PermissionCache.PERMISSION_CACHE_NAME, String.valueOf(USER_ID));
+        verify(cacheInvalidator).invalidateUsers(Set.of(USER_ID));
     }
 
     @Test
@@ -364,10 +364,10 @@ class PermissionCacheTest {
         TransactionSynchronizationManager.initSynchronization();
 
         permissionCache.evictUser(USER_ID);
-        verifyNoInteractions(cacheTemplate);
+        verifyNoInteractions(cacheInvalidator);
 
         TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
 
-        verify(cacheTemplate).evict(PermissionCache.PERMISSION_CACHE_NAME, String.valueOf(USER_ID));
+        verify(cacheInvalidator).invalidateUsers(Set.of(USER_ID));
     }
 }
