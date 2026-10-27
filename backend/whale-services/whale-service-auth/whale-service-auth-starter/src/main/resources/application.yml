@@ -47,8 +47,8 @@ whale:
       secret: ${JWT_SECRET:bluewhale-jwt-secret-2026-please-change-in-production}
       expire-minutes: 120
       refresh-expire-minutes: 1440
-    # P1-3 权限缓存跨实例失效：本地删除全部租户 Key + Redisson RTopic 广播；
-    # Redis 断连时删除失败的 userId 进入待处理集合，由定时任务在恢复后重对齐。
+    # P1-3 权限缓存跨实例失效：本地批量删除当前租户完整 Key + Redisson RTopic 广播；
+    # Redis 断连时删除失败的 Key 进入待处理集合，由定时任务在恢复后重对齐。
     permission-cache:
       enabled: ${PERMISSION_CACHE_ENABLED:true}
       ttl: ${PERMISSION_CACHE_TTL:5m}

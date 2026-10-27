@@ -36,9 +36,9 @@ public class PermissionCacheProperties {
     /** 重对齐首次延迟（毫秒），默认 10 秒 */
     private long reconcileInitialDelayMs = 10_000L;
 
-    /** 单次重对齐最多处理的待失效用户数，默认 500 */
+    /** 单次重对齐最多处理的待失效 Key 数，默认 500 */
     private int reconcileBatchSize = 500;
 
-    /** 待失效用户上限，防止 Redis 长时间不可用导致内存膨胀，默认 10000 */
+    /** 待失效 Key 上限，防止 Redis 长时间不可用导致内存膨胀，默认 10000 */
     private int pendingLimit = 10_000;
 }

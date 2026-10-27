@@ -114,8 +114,8 @@ public class PermissionCache {
     /**
      * 批量失效用户权限缓存（去重，事务提交后执行）
      *
-     * <p>委托 {@link AuthPermissionCacheInvalidator}：删除全部租户的权限缓存 Key，
-     * 并经 Redisson RTopic 广播给其余实例；删除失败的用户进入断连重对齐待处理集合。</p>
+     * <p>委托 {@link AuthPermissionCacheInvalidator}：按当前租户计算完整 Key 并批量删除，
+     * 再经 Redisson RTopic 广播给其余实例；删除失败时以完整 Key 进入断连重对齐待处理集合。</p>
      *
      * @param userIds 用户 ID 集合；为空时不执行
      */
