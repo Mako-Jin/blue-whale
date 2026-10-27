@@ -49,6 +49,14 @@ whale:
       retry-batch-size: ${WHALE_ARCHIVE_SYNC_RETRY_BATCH:50}
       # 定时同步遍历的租户：留空则由租户目录（whale-service-auth）动态查询可用租户
       tenant-ids: ${WHALE_ARCHIVE_SYNC_TENANT_IDS:}
+    # F-01 历史归档文件锁定自动补扫（逐租户按游标分批）
+    lock-reconcile:
+      enabled: ${WHALE_ARCHIVE_LOCK_RECONCILE_ENABLED:false}
+      cron: ${WHALE_ARCHIVE_LOCK_RECONCILE_CRON:0 30 3 * * *}
+      batch-size: ${WHALE_ARCHIVE_LOCK_RECONCILE_BATCH_SIZE:200}
+      max-batches: ${WHALE_ARCHIVE_LOCK_RECONCILE_MAX_BATCHES:10}
+      # 留空则复用 sync.tenant-ids，再回退租户目录
+      tenant-ids: ${WHALE_ARCHIVE_LOCK_RECONCILE_TENANT_IDS:}
     # 内网服务直连地址（不经网关；生产按部署拓扑覆盖）
     integration:
       workflow-url: ${WHALE_ARCHIVE_WORKFLOW_URL:http://127.0.0.1:8083}

@@ -23,6 +23,9 @@ public class ArchiveProperties {
     /** 工作流增量同步配置（M2 启用） */
     private Sync sync = new Sync();
 
+    /** 历史归档文件补锁配置（F-01 自动补扫） */
+    private LockReconcile lockReconcile = new LockReconcile();
+
     /** 内网服务地址与超时配置 */
     private Integration integration = new Integration();
 
@@ -69,6 +72,37 @@ public class ArchiveProperties {
          *
          * <p>为空时从租户目录（whale-service-auth 内网接口）动态查询「启用且未过期」的租户；
          * 目录不可用时回退默认租户 1，保证调度不中断。</p>
+         */
+        private List<Long> tenantIds = List.of();
+    }
+
+    /**
+     * 历史归档文件锁定自动补扫配置（F-01）。
+     *
+     * <p>上线前已归档的条目原件可能未锁定，本调度按租户、按条目游标分批补锁；
+     * 默认关闭，部署时通过 {@code whale.archive.lock-reconcile.enabled=true} 开启。</p>
+     *
+     * @author BlueWhale
+     */
+    @Data
+    public static class LockReconcile {
+
+        /** 是否启用定时补扫 */
+        private boolean enabled = false;
+
+        /** 补扫调度表达式，默认每日 03:30 */
+        private String cron = "0 30 3 * * *";
+
+        /** 单批条目数（1..500） */
+        private int batchSize = 200;
+
+        /** 单租户单轮最大批次数，避免历史数据过多导致单轮长时间占用 */
+        private int maxBatches = 10;
+
+        /**
+         * 显式指定定时补扫遍历的租户ID列表。
+         *
+         * <p>为空时复用 {@link Sync#getTenantIds()} 的租户目录解析逻辑。</p>
          */
         private List<Long> tenantIds = List.of();
     }
