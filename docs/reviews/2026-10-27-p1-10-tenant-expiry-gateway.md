@@ -64,7 +64,7 @@ mvn -B -pl backend/whale-services/whale-gateway -am ^
 
 ## 5. 边界
 
-- **续期与缓存写入的时序**：`renew` 在事务内保存后立即写缓存，若事务随后回滚，缓存会短暂领先于数据库（最长到一个访问周期）。当前租户管理为单库本地事务、回滚概率低；后续如需严格一致可改为 `AFTER_COMMIT` 事件同步；
+- **续期与缓存写入的时序**：`renew` 在事务内保存后立即写缓存，若事务随后回滚，缓存会短暂领先于数据库（最长到一个访问周期）。当前租户管理为单库本地事务、回滚概率低；**P1 #12 已收口**（`TenantStatusCache#sync` 事务内注册 `afterCommit`，见 [检查报告](2026-10-27-p1-12-tenant-cache-after-commit.md)）；
 - **网关缓存依赖 Redis 可用性**：Redis 不可用时按可用放行，与登出黑名单、成员/用户撤销的取舍一致，并输出安全降级告警；
 - **时区**：到期秒数按 auth 服务所在 JVM 默认时区换算（`expireTime` 为 `LocalDateTime`），auth 与网关需部署在同一时区约定下；跨时区部署需改为显式 UTC 存储；
 - **精确到秒**：到期判定为 `expireAt <= nowSeconds`，即到期时刻所在秒内已判定过期，粒度与 JWT `iat` 一致；

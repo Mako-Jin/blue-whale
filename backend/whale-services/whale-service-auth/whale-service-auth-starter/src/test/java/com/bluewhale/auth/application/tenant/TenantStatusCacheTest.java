@@ -3,6 +3,7 @@ package com.bluewhale.auth.application.tenant;
 import com.bluewhale.auth.domain.tenant.aggregate.Tenant;
 import com.bluewhale.auth.domain.tenant.repository.TenantRepository;
 import com.bluewhale.security.token.TenantStatusKeys;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,6 +13,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -52,6 +55,14 @@ class TenantStatusCacheTest {
     private static Tenant tenant(int status, LocalDateTime expireTime) {
         return Tenant.reconstitute(TENANT_ID, "acme", "ACME", "TENANT", status, expireTime,
                 null, null, null);
+    }
+
+    @AfterEach
+    void clearTransactionSynchronization() {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+        TransactionSynchronizationManager.setActualTransactionActive(false);
     }
 
     @Test
@@ -99,6 +110,24 @@ class TenantStatusCacheTest {
         cache.sync(tenant(Tenant.STATUS_ENABLED, null));
 
         verifyNoInteractions(redisTemplate);
+    }
+
+    @Test
+    @DisplayName("sync：事务内延迟到提交后写入，提交前不触碰缓存")
+    void shouldDeferWriteUntilTransactionCommit() {
+        when(redisTemplateProvider.getIfAvailable()).thenReturn(redisTemplate);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        TransactionSynchronizationManager.initSynchronization();
+        TransactionSynchronizationManager.setActualTransactionActive(true);
+
+        cache.sync(tenant(Tenant.STATUS_DISABLED, null));
+
+        verifyNoInteractions(valueOperations);
+        TransactionSynchronizationManager.getSynchronizations()
+                .forEach(TransactionSynchronization::afterCommit);
+
+        verify(valueOperations).set(TenantStatusKeys.statusKey(TENANT_ID), TenantStatusKeys.DISABLED);
+        verify(redisTemplate).delete(TenantStatusKeys.expireKey(TENANT_ID));
     }
 
     @Test

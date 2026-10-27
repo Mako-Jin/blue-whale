@@ -10,6 +10,8 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.ZoneId;
 
@@ -21,6 +23,9 @@ import java.time.ZoneId;
  * 即时拒绝停用或已到期租户的存量 accessToken；应用启动时按数据库现状全量预热一次。</p>
  *
  * <p>Redis 不可用时只记录告警，不影响租户管理主流程（网关侧按可用降级放行）。</p>
+ *
+ * <p>事务内调用时写入延迟到提交之后（afterCommit）：租户启停/续期/开通的事务若回滚，
+ * 缓存不会领先于数据库，避免误停或误放行；无事务上下文（如启动预热）时立即写入。</p>
  *
  * @author BlueWhale
  */
@@ -34,7 +39,7 @@ public class TenantStatusCache implements ApplicationRunner {
     private final ObjectProvider<StringRedisTemplate> redisTemplateProvider;
 
     /**
-     * 同步单个租户状态到缓存
+     * 同步单个租户状态到缓存（事务内延迟到提交后执行）
      *
      * @param tenant 租户聚合
      */
@@ -46,30 +51,53 @@ public class TenantStatusCache implements ApplicationRunner {
         if (redisTemplate == null) {
             return;
         }
-        String value = tenant.isEnabled() ? TenantStatusKeys.ENABLED : TenantStatusKeys.DISABLED;
-        try {
-            redisTemplate.opsForValue().set(TenantStatusKeys.statusKey(tenant.getId()), value);
-            syncExpireTime(redisTemplate, tenant);
-        } catch (Exception e) {
-            log.warn("租户状态缓存写入失败: tenantId={}, reason={}", tenant.getId(), e.getMessage());
+        Long tenantId = tenant.getId();
+        String status = tenant.isEnabled() ? TenantStatusKeys.ENABLED : TenantStatusKeys.DISABLED;
+        String expireAt = toExpireAtSeconds(tenant);
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    write(redisTemplate, tenantId, status, expireAt);
+                }
+            });
+            return;
         }
+        write(redisTemplate, tenantId, status, expireAt);
     }
 
     /**
-     * 同步到期时间：长期有效（{@code expireTime=null}）时删除键，否则写入 Unix 秒
+     * 把到期时间换算为 Unix 秒文本
+     *
+     * @param tenant 租户聚合
+     * @return 到期秒数；长期有效返回 {@code null}
+     */
+    private static String toExpireAtSeconds(Tenant tenant) {
+        if (tenant.getExpireTime() == null) {
+            return null;
+        }
+        return String.valueOf(tenant.getExpireTime().atZone(ZoneId.systemDefault()).toEpochSecond());
+    }
+
+    /**
+     * 写入状态键与到期键：长期有效（到期时间为空）时删除到期键
      *
      * @param redisTemplate 字符串 Redis 模板
-     * @param tenant 租户聚合
+     * @param tenantId 租户 ID
+     * @param status 状态值
+     * @param expireAt 到期 Unix 秒文本，{@code null} 表示长期有效
      */
-    private void syncExpireTime(StringRedisTemplate redisTemplate, Tenant tenant) {
-        String expireKey = TenantStatusKeys.expireKey(tenant.getId());
-        if (tenant.getExpireTime() == null) {
-            redisTemplate.delete(expireKey);
-            return;
+    private void write(StringRedisTemplate redisTemplate, Long tenantId, String status, String expireAt) {
+        try {
+            redisTemplate.opsForValue().set(TenantStatusKeys.statusKey(tenantId), status);
+            if (expireAt == null) {
+                redisTemplate.delete(TenantStatusKeys.expireKey(tenantId));
+                return;
+            }
+            redisTemplate.opsForValue().set(TenantStatusKeys.expireKey(tenantId), expireAt);
+        } catch (Exception e) {
+            log.warn("租户状态缓存写入失败: tenantId={}, reason={}", tenantId, e.getMessage());
         }
-        long expireAtSeconds = tenant.getExpireTime()
-                .atZone(ZoneId.systemDefault()).toEpochSecond();
-        redisTemplate.opsForValue().set(expireKey, String.valueOf(expireAtSeconds));
     }
 
     /**
