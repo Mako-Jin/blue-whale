@@ -89,8 +89,8 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
         String path = request.getURI().getPath();
 
         if (isWhiteListed(path)) {
-            // 白名单同样清除外部伪造的租户头，避免绕过认证后污染下游租户上下文
-            return chain.filter(exchange.mutate().request(withoutTenantHeader(request)).build());
+            // 白名单不携带可信身份：清除客户端伪造的身份/租户头，避免审计归属与下游租户上下文被污染
+            return chain.filter(exchange.mutate().request(withoutIdentityHeaders(request)).build());
         }
 
         String authorization = request.getHeaders().getFirst(AUTHORIZATION_HEADER);
@@ -221,14 +221,23 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 清除入站租户头（仅用于免认证白名单路径）
+     * 清除入站身份与租户头（仅用于免认证白名单路径）
+     *
+     * <p>白名单路径（登录、刷新、审计埋点采集、签名回调、IM 握手等）不经过 JWT 验签，
+     * 客户端可自带任意 {@code X-User-Id}/{@code X-Username}/{@code X-User-Roles}/{@code X-Tenant-Id}。
+     * 若不清除，下游按网关注入头获取当前用户的接口（如审计埋点归属）会被伪造身份污染。</p>
      *
      * @param request 原始请求
-     * @return 清除 {@code X-Tenant-Id} 后的新请求
+     * @return 清除身份/租户头后的新请求
      */
-    private static ServerHttpRequest withoutTenantHeader(ServerHttpRequest request) {
+    private static ServerHttpRequest withoutIdentityHeaders(ServerHttpRequest request) {
         return request.mutate()
-                .headers(headers -> headers.remove(TENANT_ID_HEADER))
+                .headers(headers -> {
+                    headers.remove(USER_ID_HEADER);
+                    headers.remove(USERNAME_HEADER);
+                    headers.remove(USER_ROLES_HEADER);
+                    headers.remove(TENANT_ID_HEADER);
+                })
                 .build();
     }
 

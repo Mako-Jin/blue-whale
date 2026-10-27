@@ -103,16 +103,30 @@ public class PermissionHeaderGlobalFilter implements GlobalFilter, Ordered {
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         if (!properties.isEnabled()) {
-            return chain.filter(exchange);
+            // 关闭注入时仍需移除外部伪造的权限码头，避免下游误信客户端声明的权限
+            return chain.filter(withoutCodesHeader(exchange));
         }
         ServerHttpRequest request = exchange.getRequest();
         String userId = request.getHeaders().getFirst(USER_ID_HEADER);
         if (userId == null || userId.isBlank()) {
-            // 未认证请求：本过滤器不注入权限码头，交由下游鉴权/白名单处理
-            return chain.filter(exchange);
+            // 未认证请求（白名单）：同样移除伪造的权限码头，交由下游鉴权/白名单处理
+            return chain.filter(withoutCodesHeader(exchange));
         }
         return resolveCodes(request, userId)
                 .flatMap(codes -> chain.filter(inject(exchange, codes)));
+    }
+
+    /**
+     * 移除入站权限码头（用于不注入权限码的请求）
+     *
+     * @param exchange 当前请求上下文
+     * @return 移除权限码头后的新请求上下文
+     */
+    private ServerWebExchange withoutCodesHeader(ServerWebExchange exchange) {
+        String headerName = properties.getCodesHeader();
+        return exchange.mutate()
+                .request(request -> request.headers(headers -> headers.remove(headerName)))
+                .build();
     }
 
     /**

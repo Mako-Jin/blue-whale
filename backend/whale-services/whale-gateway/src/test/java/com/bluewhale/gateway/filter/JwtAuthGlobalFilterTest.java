@@ -196,8 +196,8 @@ class JwtAuthGlobalFilterTest {
     }
 
     @Test
-    @DisplayName("filter：白名单路径清除客户端传入的 X-Tenant-Id")
-    void shouldStripForgedTenantHeaderForWhiteListPath() {
+    @DisplayName("filter：白名单路径清除客户端伪造的身份与租户头")
+    void shouldStripForgedIdentityHeadersForWhiteListPath() {
         WhaleGatewayProperties properties = new WhaleGatewayProperties();
         properties.getJwt().setSecret(SECRET);
         properties.setWhiteList(java.util.List.of("/auth/login"));
@@ -206,6 +206,9 @@ class JwtAuthGlobalFilterTest {
         MockServerWebExchange exchange = MockServerWebExchange.from(MockServerHttpRequest
                 .post("http://localhost/auth/login")
                 .header("X-Tenant-Id", "999")
+                .header("X-User-Id", "888")
+                .header("X-Username", "forged")
+                .header("X-User-Roles", "admin")
                 .build());
         GatewayFilterChain chain = mock(GatewayFilterChain.class);
         when(chain.filter(any())).thenReturn(Mono.empty());
@@ -214,7 +217,11 @@ class JwtAuthGlobalFilterTest {
 
         ArgumentCaptor<ServerWebExchange> captor = ArgumentCaptor.forClass(ServerWebExchange.class);
         verify(chain).filter(captor.capture());
-        assertEquals(null, captor.getValue().getRequest().getHeaders().getFirst("X-Tenant-Id"));
+        HttpHeaders headers = captor.getValue().getRequest().getHeaders();
+        assertEquals(null, headers.getFirst("X-Tenant-Id"));
+        assertEquals(null, headers.getFirst("X-User-Id"));
+        assertEquals(null, headers.getFirst("X-Username"));
+        assertEquals(null, headers.getFirst("X-User-Roles"));
     }
 
     @Test

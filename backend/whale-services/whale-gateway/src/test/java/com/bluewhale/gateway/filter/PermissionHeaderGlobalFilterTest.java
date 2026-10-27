@@ -70,10 +70,13 @@ class PermissionHeaderGlobalFilterTest {
     }
 
     @Test
-    @DisplayName("开关关闭：直接放行不访问 Redis 也不注入")
-    void shouldPassThroughWhenDisabled() {
+    @DisplayName("开关关闭：移除客户端伪造的权限码头后放行，不访问 Redis")
+    void shouldStripForgedCodesAndPassThroughWhenDisabled() {
         properties.setEnabled(false);
-        MockServerWebExchange exchange = exchangeWithUser();
+        MockServerWebExchange exchange = MockServerWebExchange.from(MockServerHttpRequest.get(REQUEST_URL)
+                .header(USER_ID_HEADER, USER_ID)
+                .header(CODES_HEADER, "forged-by-client")
+                .build());
         when(chain.filter(any())).thenReturn(Mono.empty());
 
         filter.filter(exchange, chain).block();
@@ -83,9 +86,11 @@ class PermissionHeaderGlobalFilterTest {
     }
 
     @Test
-    @DisplayName("缺 X-User-Id：直接放行不注入")
-    void shouldPassThroughWhenUserIdMissing() {
-        MockServerWebExchange exchange = MockServerWebExchange.from(MockServerHttpRequest.get(REQUEST_URL).build());
+    @DisplayName("缺 X-User-Id（白名单）：移除伪造权限码头后放行，不访问 Redis")
+    void shouldStripForgedCodesAndPassThroughWhenUserIdMissing() {
+        MockServerWebExchange exchange = MockServerWebExchange.from(MockServerHttpRequest.get(REQUEST_URL)
+                .header(CODES_HEADER, "forged-by-client")
+                .build());
         when(chain.filter(any())).thenReturn(Mono.empty());
 
         filter.filter(exchange, chain).block();
