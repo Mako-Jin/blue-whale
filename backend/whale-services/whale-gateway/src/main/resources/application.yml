@@ -161,6 +161,11 @@ whale:
       # Wave 5.61 M3 第三方电子签章回调：三方平台匿名回调，安全依赖渠道 HMAC/RSA 验签
       # + 时间戳窗口 + provider_event_id 幂等；仅放行该前缀，其余 /contract/** 仍须 JWT。
       - /contract/sign/callback/**
+    # P1-13 路由治理端点鉴权：/actuator/routeGovernance 不受 JWT 保护（actuator 端点不经过网关路由链），
+    # 且含写操作（回滚路由），必须携带 X-Governance-Token；令牌未配置时一律 403（fail-closed），
+    # 生产通过环境变量 WHALE_GATEWAY_GOVERNANCE_TOKEN 显式启用。health/info/prometheus 仍匿名可用。
+    governance:
+      token: ${WHALE_GATEWAY_GOVERNANCE_TOKEN:}
     # AUTH-06 权限码头注入：JwtAuthGlobalFilter 注入 X-User-Id 后，PermissionHeaderGlobalFilter(order=-50)
     # 读 Redis 权限码缓存（命中即注入）；未命中/哨兵/异常回落 lb://whale-service-auth/auth/me，两级均失败注入空串并告警
     permission-header:

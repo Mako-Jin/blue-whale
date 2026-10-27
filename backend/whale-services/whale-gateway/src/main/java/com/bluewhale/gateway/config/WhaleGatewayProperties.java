@@ -26,6 +26,9 @@ public class WhaleGatewayProperties {
     /** 不需要认证的白名单路径（支持 Ant 通配符） */
     private List<String> whiteList = new ArrayList<>();
 
+    /** 路由治理端点鉴权配置（P1-13） */
+    private Governance governance = new Governance();
+
     /**
      * JWT 相关配置
      *
@@ -59,5 +62,22 @@ public class WhaleGatewayProperties {
          * {@code WHALE_GATEWAY_CORS_ALLOWED_ORIGINS} 覆盖为具体域名白名单。</p>
          */
         private List<String> allowedOrigins = new ArrayList<>(List.of("http://localhost:*", "http://127.0.0.1:*"));
+    }
+
+    /**
+     * 路由治理端点鉴权配置。
+     *
+     * <p>{@code /actuator/routeGovernance} 不受 JWT 过滤器保护（actuator 端点不经过路由链），
+     * 且包含写操作（回滚路由），必须通过 {@code X-Governance-Token} 与本文配置的令牌比对；
+     * 令牌为空时一律拒绝（fail-closed），通过环境变量
+     * {@code WHALE_GATEWAY_GOVERNANCE_TOKEN} 显式启用。</p>
+     *
+     * @author BlueWhale
+     */
+    @Data
+    public static class Governance {
+
+        /** 治理端点访问令牌，空表示禁用该端点（默认 fail-closed） */
+        private String token = "";
     }
 }
