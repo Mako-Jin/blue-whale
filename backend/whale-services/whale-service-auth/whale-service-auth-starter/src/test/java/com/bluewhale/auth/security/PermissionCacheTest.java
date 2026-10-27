@@ -2,6 +2,7 @@ package com.bluewhale.auth.security;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.bluewhale.auth.application.auth.port.UserAccessRevocationPort;
 import com.bluewhale.auth.config.PermissionCacheProperties;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.UserDomainEvent;
@@ -83,7 +84,7 @@ class PermissionCacheTest {
     private TenantMembershipRevocationStore revocationStore;
 
     @Mock
-    private UserAccessRevocationStore userAccessRevocationStore;
+    private UserAccessRevocationPort userAccessRevocationStore;
 
     private PermissionCache permissionCache;
 

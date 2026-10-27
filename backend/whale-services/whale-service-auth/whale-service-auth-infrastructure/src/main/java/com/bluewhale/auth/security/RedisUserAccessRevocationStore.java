@@ -1,5 +1,6 @@
 package com.bluewhale.auth.security;
 
+import com.bluewhale.auth.application.auth.port.UserAccessRevocationPort;
 import com.bluewhale.auth.jwt.JwtTokenProvider;
 import com.bluewhale.security.degradation.SecurityDegradationAlerter;
 import com.bluewhale.security.degradation.SecurityDegradationPolicy;
@@ -29,7 +30,7 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class RedisUserAccessRevocationStore implements UserAccessRevocationStore {
+public class RedisUserAccessRevocationStore implements UserAccessRevocationPort {
 
     /** 最小写入 TTL（秒），避免出现 TTL<=0 导致键永不过期 */
     private static final long MIN_TTL_SECONDS = 1L;

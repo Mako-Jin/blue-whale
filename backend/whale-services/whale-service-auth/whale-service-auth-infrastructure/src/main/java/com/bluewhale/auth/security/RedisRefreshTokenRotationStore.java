@@ -1,5 +1,6 @@
 package com.bluewhale.auth.security;
 
+import com.bluewhale.auth.application.auth.port.RefreshTokenRotationStore;
 import com.bluewhale.security.degradation.SecurityDegradationAlerter;
 import com.bluewhale.security.token.TokenBlacklistKeys;
 import lombok.RequiredArgsConstructor;

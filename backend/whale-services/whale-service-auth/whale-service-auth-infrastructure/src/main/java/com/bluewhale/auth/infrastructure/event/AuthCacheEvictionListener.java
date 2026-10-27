@@ -1,12 +1,12 @@
 package com.bluewhale.auth.infrastructure.event;
 
+import com.bluewhale.auth.application.auth.port.UserAccessRevocationPort;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.PermissionDomainEvent;
 import com.bluewhale.auth.domain.event.RoleDomainEvent;
 import com.bluewhale.auth.domain.event.UserDomainEvent;
 import com.bluewhale.auth.security.PermissionCache;
 import com.bluewhale.auth.security.TenantMembershipRevocationStore;
-import com.bluewhale.auth.security.UserAccessRevocationStore;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
@@ -37,7 +37,7 @@ public class AuthCacheEvictionListener {
     private final TenantMembershipRevocationStore membershipRevocationStore;
 
     /** 用户级访问撤销存储（跨租户维度） */
-    private final UserAccessRevocationStore userAccessRevocationStore;
+    private final UserAccessRevocationPort userAccessRevocationStore;
 
     /**
      * 构造器注入
@@ -48,7 +48,7 @@ public class AuthCacheEvictionListener {
      */
     public AuthCacheEvictionListener(PermissionCache permissionCache,
                                      TenantMembershipRevocationStore membershipRevocationStore,
-                                     UserAccessRevocationStore userAccessRevocationStore) {
+                                     UserAccessRevocationPort userAccessRevocationStore) {
         this.permissionCache = permissionCache;
         this.membershipRevocationStore = membershipRevocationStore;
         this.userAccessRevocationStore = userAccessRevocationStore;

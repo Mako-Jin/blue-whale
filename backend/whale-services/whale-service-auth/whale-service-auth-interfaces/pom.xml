@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- 接口层：REST 控制器、请求 DTO、登录/刷新/切换编排服务（AuthService） -->
+<!-- 接口层：REST 控制器、请求 DTO -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -25,12 +25,6 @@
         <dependency>
             <groupId>com.bluewhale</groupId>
             <artifactId>whale-service-auth-application</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <!-- AuthService 直接复用仓储实现、JWT 与安全组件 -->
-        <dependency>
-            <groupId>com.bluewhale</groupId>
-            <artifactId>whale-service-auth-infrastructure</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

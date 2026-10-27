@@ -1,12 +1,12 @@
 package com.bluewhale.auth.infrastructure.event;
 
+import com.bluewhale.auth.application.auth.port.UserAccessRevocationPort;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.PermissionDomainEvent;
 import com.bluewhale.auth.domain.event.RoleDomainEvent;
 import com.bluewhale.auth.domain.event.UserDomainEvent;
 import com.bluewhale.auth.security.PermissionCache;
 import com.bluewhale.auth.security.TenantMembershipRevocationStore;
-import com.bluewhale.auth.security.UserAccessRevocationStore;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,7 +35,7 @@ class AuthCacheEvictionListenerTest {
     private TenantMembershipRevocationStore revocationStore;
 
     @Mock
-    private UserAccessRevocationStore userAccessRevocationStore;
+    private UserAccessRevocationPort userAccessRevocationStore;
 
     @InjectMocks
     private AuthCacheEvictionListener listener;

@@ -1,62 +1,48 @@
-package com.bluewhale.auth.service;
+package com.bluewhale.auth.application.auth;
 
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.bluewhale.auth.application.auth.port.CredentialAuthenticator;
+import com.bluewhale.auth.application.auth.port.CurrentUserProvider;
+import com.bluewhale.auth.application.auth.port.RefreshTokenRotationStore;
+import com.bluewhale.auth.application.auth.port.TokenBlacklist;
+import com.bluewhale.auth.application.auth.port.TokenIssuer;
+import com.bluewhale.auth.application.auth.port.UserAccessRevocationPort;
+import com.bluewhale.auth.application.auth.port.UserSessionQuery;
 import com.bluewhale.auth.application.menu.MenuAppService;
 import com.bluewhale.auth.application.permission.PermissionAppService;
 import com.bluewhale.auth.application.role.RoleAppService;
 import com.bluewhale.auth.application.tenant.TenantAppService;
 import com.bluewhale.auth.application.tenant.TenantMembershipAppService;
-import com.bluewhale.auth.config.RefreshRotationProperties;
-import com.bluewhale.auth.dto.LoginRequest;
-import com.bluewhale.auth.dto.SwitchTenantRequest;
-import com.bluewhale.auth.entity.SysUser;
-import com.bluewhale.auth.jwt.JwtTokenProvider;
-import com.bluewhale.auth.mapper.SysUserMapper;
-import com.bluewhale.auth.security.LoginTenantContext;
-import com.bluewhale.auth.security.LoginUser;
-import com.bluewhale.auth.security.PermissionInterceptor;
-import com.bluewhale.auth.security.RefreshTokenRotationStore;
-import com.bluewhale.auth.security.TokenBlacklist;
-import com.bluewhale.auth.security.UserAccessRevocationStore;
-import com.bluewhale.auth.security.UserDetailsServiceImpl;
+import com.bluewhale.auth.domain.user.repository.UserRepository;
 import com.bluewhale.auth.vo.AuthMeResponse;
 import com.bluewhale.auth.vo.AuthTokenIssue;
 import com.bluewhale.auth.vo.LoginResponse;
 import com.bluewhale.auth.vo.MenuVO;
 import com.bluewhale.auth.vo.MyTenantVO;
 import com.bluewhale.common.core.exception.BizException;
-import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.security.degradation.SecurityDegradationAlerter;
-import com.bluewhale.security.token.TokenTimeSupport;
-import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.DisabledException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
 /**
- * 认证服务：登录（BCrypt 校验）、刷新 Token、登出
+ * 会话应用服务：登录、刷新 Token、切换租户、登出与当前用户信息。
+ *
+ * <p>本类只依赖应用层端口与领域仓储，不感知 Spring Security / JWT / MyBatis 等具体实现；
+ * 所有出站能力由 infrastructure 适配器注入。</p>
  *
  * @author BlueWhale
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class AuthService {
+public class SessionAppService {
 
     /** refreshToken 无效 / 过期 / 命中黑名单时的统一对外文案，避免泄露具体失败原因 */
     private static final String INVALID_REFRESH_TOKEN_MESSAGE = "refreshToken 无效或已过期";
@@ -66,53 +52,42 @@ public class AuthService {
     private static final String REUSE_REFRESH_TOKEN_MESSAGE = "refreshToken 复用检测命中，请重新登录";
     /** 复用检测的安全降级告警场景标识（AUTH-39 §2.6：以告警通道替代 @AuditLog） */
     private static final String SCENE_REFRESH_REUSE = "auth:refresh:reuse";
+    /** Bearer 前缀 */
+    private static final String BEARER_PREFIX = "Bearer ";
 
-    private final AuthenticationManager authenticationManager;
-    private final JwtTokenProvider tokenProvider;
-    private final UserDetailsServiceImpl userDetailsService;
-    private final SysUserMapper userMapper;
+    private final CredentialAuthenticator credentialAuthenticator;
+    private final TokenIssuer tokenIssuer;
     private final TokenBlacklist tokenBlacklist;
+    private final RefreshTokenRotationStore refreshRotationStore;
+    private final RefreshRotationProperties refreshRotationProperties;
+    private final UserAccessRevocationPort userAccessRevocationPort;
+    private final CurrentUserProvider currentUserProvider;
+    private final UserSessionQuery userSessionQuery;
+    private final UserRepository userRepository;
     private final RoleAppService roleAppService;
     private final MenuAppService menuAppService;
     private final PermissionAppService permissionAppService;
-    private final RefreshTokenRotationStore refreshRotationStore;
-    private final RefreshRotationProperties refreshRotationProperties;
     private final TenantAppService tenantAppService;
     private final TenantMembershipAppService tenantMembershipAppService;
-    private final UserAccessRevocationStore userAccessRevocationStore;
 
     /**
-     * 登录：AuthenticationManager 走 UserDetailsService + BCryptPasswordEncoder 校验
+     * 登录：按（租户, 用户名, 密码）完成凭据校验并签发一对令牌。
      *
-     * @param request 登录请求（用户名与明文密码）
+     * @param tenantCode 租户编码（可空，按现有规则解析默认租户）
+     * @param username 用户名
+     * @param rawPassword 明文密码
      * @return 令牌签发结果（响应体含 accessToken；refreshToken 仅由接口层写入 HttpOnly Cookie）
      */
-    public AuthTokenIssue login(LoginRequest request) {
-        Long tenantId = tenantAppService.resolveEnabledTenantId(request.getTenantCode());
-        Authentication authentication;
-        // UserDetailsService 只接收用户名，需在认证前绑定租户，确保按（租户, 用户名）定位账号
-        LoginTenantContext.set(tenantId);
-        try {
-            authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword()));
-        } catch (BadCredentialsException e) {
-            throw new BizException(401, "用户名或密码错误");
-        } catch (DisabledException e) {
-            throw new BizException(401, "账号已停用");
-        } catch (AuthenticationException e) {
-            log.warn("认证失败: tenantId={}, username={}, reason={}",
-                    tenantId, request.getUsername(), e.getMessage());
-            throw new BizException(401, "认证失败");
-        } finally {
-            LoginTenantContext.clear();
-        }
-        LoginUser loginUser = (LoginUser) authentication.getPrincipal();
-        // 记录最后登录时间
-        userMapper.update(null, new LambdaUpdateWrapper<SysUser>()
-                .eq(SysUser::getId, loginUser.getUserId())
-                .set(SysUser::getLastLoginTime, LocalDateTime.now()));
+    public AuthTokenIssue login(String tenantCode, String username, String rawPassword) {
+        Long tenantId = tenantAppService.resolveEnabledTenantId(tenantCode);
+        AuthenticatedUser user = credentialAuthenticator.authenticate(tenantId, username, rawPassword);
+        // 记录最后登录时间（聚合行为）
+        userRepository.findByIdAcrossTenants(user.userId()).ifPresent(entity -> {
+            entity.recordLogin(LocalDateTime.now());
+            userRepository.save(entity);
+        });
         // 每次登录生成独立 familyId（AUTH-39）：该次会话后续所有轮换令牌共用，复用检测时整族吊销
-        return buildAuthTokenIssue(loginUser, UUID.randomUUID().toString());
+        return buildAuthTokenIssue(user, UUID.randomUUID().toString());
     }
 
     /**
@@ -130,25 +105,24 @@ public class AuthService {
      * @return 令牌签发结果（响应体含新 accessToken；新 refreshToken 仅写 Cookie）
      */
     public AuthTokenIssue refresh(String refreshToken) {
-        Claims claims = tokenProvider.parse(refreshToken);
-        if (claims == null || !JwtTokenProvider.TOKEN_TYPE_REFRESH.equals(
-                claims.get(JwtTokenProvider.CLAIM_TOKEN_TYPE, String.class))) {
+        TokenPayload payload = tokenIssuer.parse(refreshToken);
+        if (payload == null || !TokenPayload.TYPE_REFRESH.equals(payload.tokenType())) {
             throw new BizException(401, INVALID_REFRESH_TOKEN_MESSAGE);
         }
-        String familyId = resolveRotatingFamilyId(claims);
-        Long tenantId = resolveTokenTenantId(claims);
-        Long userId = resolveTokenUserId(claims);
+        String familyId = resolveRotatingFamilyId(payload);
+        Long tenantId = resolveTokenTenantId(payload);
+        Long userId = resolveTokenUserId(payload);
         tenantAppService.ensureEnabled(tenantId);
         // 一人多租户：关系撤销后 refresh 立即失效，避免旧令牌继续换取目标租户令牌
         tenantMembershipAppService.requireEnabledMembership(userId, tenantId);
         if (tokenBlacklist.contains(refreshToken)) {
-            log.debug("refreshToken 命中登出黑名单，拒绝换发新令牌: username={}", claims.getSubject());
+            log.debug("refreshToken 命中登出黑名单，拒绝换发新令牌: username={}", payload.subject());
             throw new BizException(401, REVOKED_REFRESH_TOKEN_MESSAGE);
         }
-        UserDetails userDetails = loadEnabledUser(userId, tenantId);
-        requireRefreshNotRevoked(userId, tenantId, claims);
-        consumeRotatingToken(refreshToken, claims, familyId);
-        return buildAuthTokenIssue((LoginUser) userDetails, familyId);
+        AuthenticatedUser user = loadEnabledUser(userId, tenantId);
+        requireRefreshNotRevoked(userId, tenantId, payload);
+        consumeRotatingToken(refreshToken, payload, familyId);
+        return buildAuthTokenIssue(user, familyId);
     }
 
     /**
@@ -157,8 +131,8 @@ public class AuthService {
      * @return 启用且当前可用的租户列表，当前令牌租户标记 {@code current=true}
      */
     public List<MyTenantVO> listTenants() {
-        LoginUser loginUser = currentLoginUser();
-        return tenantMembershipAppService.listMyTenants(loginUser.getUserId(), loginUser.getTenantId());
+        AuthenticatedUser current = currentUserProvider.current();
+        return tenantMembershipAppService.listMyTenants(current.userId(), current.tenantId());
     }
 
     /**
@@ -168,26 +142,21 @@ public class AuthService {
      * 吊销整个 family），避免新旧租户令牌并存；新令牌使用全新 familyId。</p>
      *
      * @param authorization 请求头原始值，形如 {@code Bearer <token>}（可空）
-     * @param request 切换请求（目标租户）
+     * @param targetTenantId 目标租户 ID
      * @param currentRefreshToken Cookie 中解析出的当前 refreshToken（可空，携带时一并失效）
      * @return 新租户下的令牌签发结果（新 refreshToken 仅由接口层写 Cookie）
      */
-    public AuthTokenIssue switchTenant(String authorization, SwitchTenantRequest request, String currentRefreshToken) {
-        LoginUser current = currentLoginUser();
-        Long targetTenantId = request.getTenantId();
-        tenantMembershipAppService.requireSwitchable(current.getUserId(), targetTenantId);
-        LoginUser switched;
-        try {
-            switched = userDetailsService.loadUserById(current.getUserId(), targetTenantId);
-        } catch (UsernameNotFoundException e) {
-            throw new BizException(401, "账号不存在或已停用");
-        }
-        if (!switched.isEnabled()) {
+    public AuthTokenIssue switchTenant(String authorization, Long targetTenantId, String currentRefreshToken) {
+        AuthenticatedUser current = currentUserProvider.current();
+        tenantMembershipAppService.requireSwitchable(current.userId(), targetTenantId);
+        AuthenticatedUser switched = userSessionQuery.loadUserById(current.userId(), targetTenantId)
+                .orElseThrow(() -> new BizException(401, "账号不存在或已停用"));
+        if (!switched.enabled()) {
             throw new BizException(401, "账号已停用");
         }
         invalidateSwitchTokens(authorization, currentRefreshToken);
         log.info("用户切换租户: userId={}, fromTenantId={}, toTenantId={}",
-                current.getUserId(), current.getTenantId(), targetTenantId);
+                current.userId(), current.tenantId(), targetTenantId);
         return buildAuthTokenIssue(switched, UUID.randomUUID().toString());
     }
 
@@ -221,20 +190,20 @@ public class AuthService {
      * @return 当前登录用户的角色、权限码与可见菜单树
      */
     public AuthMeResponse me() {
-        LoginUser loginUser = currentLoginUser();
-        List<String> roles = loginUser.getRoles();
-        boolean superAdmin = roles.contains(PermissionInterceptor.SUPER_ADMIN);
+        AuthenticatedUser current = currentUserProvider.current();
+        List<String> roles = current.roles();
+        boolean superAdmin = roles.contains(AuthRoleCodes.SUPER_ADMIN);
         List<String> permissions = superAdmin
                 ? permissionAppService.listAllCodes()
-                : roleAppService.listPermissionCodesByUserId(loginUser.getUserId());
+                : roleAppService.listPermissionCodesByUserId(current.userId());
         List<MenuVO> menus = superAdmin
                 ? menuAppService.treeByPermissionCodes(null)
                 : menuAppService.treeByPermissionCodes(Set.copyOf(permissions));
         AuthMeResponse response = new AuthMeResponse();
-        response.setTenantId(loginUser.getTenantId());
-        response.setUserId(loginUser.getUserId());
-        response.setUsername(loginUser.getUsername());
-        response.setNickname(loginUser.getNickname());
+        response.setTenantId(current.tenantId());
+        response.setUserId(current.userId());
+        response.setUsername(current.username());
+        response.setNickname(current.nickname());
         response.setRoles(roles);
         response.setPermissions(permissions);
         response.setMenus(menus);
@@ -248,33 +217,33 @@ public class AuthService {
      * @return token 原文；头缺失、前缀不符或 token 段为空时返回 {@code null}
      */
     private static String resolveBearerToken(String authorization) {
-        if (!StringUtils.hasText(authorization) || !authorization.startsWith(JwtTokenProvider.BEARER_PREFIX)) {
+        if (!StringUtils.hasText(authorization) || !authorization.startsWith(BEARER_PREFIX)) {
             return null;
         }
-        String token = authorization.substring(JwtTokenProvider.BEARER_PREFIX.length()).trim();
+        String token = authorization.substring(BEARER_PREFIX.length()).trim();
         return token.isEmpty() ? null : token;
     }
 
     /**
      * 解析并校验轮换 family 标识（AUTH-39）。
      * <p>轮换开启时：{@code familyId} 缺失（旧令牌，需重登）或该 family 已被吊销一律 401；
-     * 轮换关闭时：原样返回 claim 值（可能为 {@code null}），不参与校验，保持既有行为。</p>
+     * 轮换关闭时：原样返回载荷值（可能为 {@code null}），不参与校验，保持既有行为。</p>
      *
-     * @param claims refreshToken 载荷
+     * @param payload refreshToken 载荷
      * @return family 标识；关闭态且令牌未携带时返回 {@code null}
      */
-    private String resolveRotatingFamilyId(Claims claims) {
-        String familyId = claims.get(JwtTokenProvider.CLAIM_FAMILY_ID, String.class);
+    private String resolveRotatingFamilyId(TokenPayload payload) {
+        String familyId = payload.familyId();
         if (!refreshRotationProperties.isEnabled()) {
             return familyId;
         }
         if (!StringUtils.hasText(familyId)) {
-            log.warn("refreshToken 缺少 familyId（旧令牌），拒绝换发: username={}", claims.getSubject());
+            log.warn("refreshToken 缺少 familyId（旧令牌），拒绝换发: username={}", payload.subject());
             throw new BizException(401, INVALID_REFRESH_TOKEN_MESSAGE);
         }
         if (refreshRotationStore.isFamilyRevoked(familyId)) {
             log.warn("refreshToken 所属 family 已吊销，拒绝换发: familyId={}, username={}",
-                    familyId, claims.getSubject());
+                    familyId, payload.subject());
             throw new BizException(401, REVOKED_REFRESH_TOKEN_MESSAGE);
         }
         return familyId;
@@ -283,39 +252,29 @@ public class AuthService {
     /**
      * 从 refreshToken 载荷解析租户 ID（Wave 5.54：令牌必须绑定租户）
      *
-     * @param claims refreshToken 载荷
+     * @param payload refreshToken 载荷
      * @return 租户 ID
-     * @throws BizException claim 缺失或非法时抛出 401
+     * @throws BizException claim 缺失时抛出 401
      */
-    private static Long resolveTokenTenantId(Claims claims) {
-        Object raw = claims.get(JwtTokenProvider.CLAIM_TENANT_ID);
-        if (raw == null) {
+    private static Long resolveTokenTenantId(TokenPayload payload) {
+        if (payload.tenantId() == null) {
             throw new BizException(401, INVALID_REFRESH_TOKEN_MESSAGE);
         }
-        try {
-            return Long.valueOf(String.valueOf(raw));
-        } catch (NumberFormatException e) {
-            throw new BizException(401, INVALID_REFRESH_TOKEN_MESSAGE);
-        }
+        return payload.tenantId();
     }
 
     /**
      * 从令牌载荷解析用户 ID（Wave 5.54 Phase 5.1：一人多租户按 userId 定位账号）
      *
-     * @param claims 令牌载荷
+     * @param payload 令牌载荷
      * @return 用户 ID
-     * @throws BizException claim 缺失或非法时抛出 401
+     * @throws BizException claim 缺失时抛出 401
      */
-    private static Long resolveTokenUserId(Claims claims) {
-        Object raw = claims.get(JwtTokenProvider.CLAIM_USER_ID);
-        if (raw == null) {
+    private static Long resolveTokenUserId(TokenPayload payload) {
+        if (payload.userId() == null) {
             throw new BizException(401, INVALID_REFRESH_TOKEN_MESSAGE);
         }
-        try {
-            return Long.valueOf(String.valueOf(raw));
-        } catch (NumberFormatException e) {
-            throw new BizException(401, INVALID_REFRESH_TOKEN_MESSAGE);
-        }
+        return payload.userId();
     }
 
     /**
@@ -323,20 +282,16 @@ public class AuthService {
      *
      * @param userId 全局用户 ID
      * @param tenantId 令牌租户 ID
-     * @return 用户详情
+     * @return 用户快照
      * @throws BizException 用户不存在或已停用时抛出 401
      */
-    private UserDetails loadEnabledUser(Long userId, Long tenantId) {
-        UserDetails userDetails;
-        try {
-            userDetails = userDetailsService.loadUserById(userId, tenantId);
-        } catch (UsernameNotFoundException e) {
-            throw new BizException(401, INVALID_REFRESH_TOKEN_MESSAGE);
-        }
-        if (!userDetails.isEnabled()) {
+    private AuthenticatedUser loadEnabledUser(Long userId, Long tenantId) {
+        AuthenticatedUser user = userSessionQuery.loadUserById(userId, tenantId)
+                .orElseThrow(() -> new BizException(401, INVALID_REFRESH_TOKEN_MESSAGE));
+        if (!user.enabled()) {
             throw new BizException(401, "账号已停用");
         }
-        return userDetails;
+        return user;
     }
 
     /**
@@ -347,12 +302,11 @@ public class AuthService {
      *
      * @param userId 令牌用户 ID
      * @param tenantId 令牌租户 ID
-     * @param claims refreshToken 载荷
+     * @param payload refreshToken 载荷
      * @throws BizException 令牌签发时间不晚于撤销时刻时抛出 401
      */
-    private void requireRefreshNotRevoked(Long userId, Long tenantId, Claims claims) {
-        if (!userAccessRevocationStore.isRevoked(userId,
-                new java.util.Date(TokenTimeSupport.issuedAtMillis(claims)))) {
+    private void requireRefreshNotRevoked(Long userId, Long tenantId, TokenPayload payload) {
+        if (!userAccessRevocationPort.isRevoked(userId, new Date(payload.issuedAtMillis()))) {
             return;
         }
         log.warn("refreshToken 在用户级撤销前签发，拒绝换发新令牌: userId={}, tenantId={}",
@@ -379,25 +333,11 @@ public class AuthService {
         if (!refreshRotationProperties.isEnabled()) {
             return;
         }
-        Claims claims = tokenProvider.parse(refreshToken);
-        String familyId = claims == null ? null : claims.get(JwtTokenProvider.CLAIM_FAMILY_ID, String.class);
+        TokenPayload payload = tokenIssuer.parse(refreshToken);
+        String familyId = payload == null ? null : payload.familyId();
         if (StringUtils.hasText(familyId)) {
-            refreshRotationStore.revokeFamily(familyId, tokenProvider.getRefreshExpireSeconds());
+            refreshRotationStore.revokeFamily(familyId, tokenIssuer.refreshExpireSeconds());
         }
-    }
-
-    /**
-     * 从 SecurityContext 取当前登录用户（不接受客户端传入身份）
-     *
-     * @return 当前登录用户
-     * @throws BizException 未认证时抛出 401
-     */
-    private static LoginUser currentLoginUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !(authentication.getPrincipal() instanceof LoginUser loginUser)) {
-            throw new BizException(ErrorCode.UNAUTHORIZED);
-        }
-        return loginUser;
     }
 
     /**
@@ -406,19 +346,19 @@ public class AuthService {
      * 写入登出黑名单，使其在剩余有效期内不可再用（REQ-SEC-004）。</p>
      *
      * @param refreshToken 待消费的 refreshToken 原文
-     * @param claims refreshToken 载荷（提供 jti 与用户名）
+     * @param payload refreshToken 载荷（提供 jti 与用户名）
      * @param familyId 令牌 family 标识
      * @throws BizException 复用检测命中时抛出 401
      */
-    private void consumeRotatingToken(String refreshToken, Claims claims, String familyId) {
+    private void consumeRotatingToken(String refreshToken, TokenPayload payload, String familyId) {
         if (!refreshRotationProperties.isEnabled()) {
             return;
         }
-        long remainingSeconds = tokenProvider.getRemainingValiditySeconds(refreshToken);
-        if (!refreshRotationStore.markUsed(claims.getId(), remainingSeconds)) {
-            refreshRotationStore.revokeFamily(familyId, tokenProvider.getRefreshExpireSeconds());
+        long remainingSeconds = tokenIssuer.remainingValiditySeconds(refreshToken);
+        if (!refreshRotationStore.markUsed(payload.jti(), remainingSeconds)) {
+            refreshRotationStore.revokeFamily(familyId, tokenIssuer.refreshExpireSeconds());
             log.error("refreshToken 复用检测命中，已吊销整个 family: familyId={}, username={}",
-                    familyId, claims.getSubject());
+                    familyId, payload.subject());
             SecurityDegradationAlerter.alarm(SCENE_REFRESH_REUSE,
                     "refreshToken 复用检测命中，已吊销该 family 全部 refreshToken", null);
             throw new BizException(401, REUSE_REFRESH_TOKEN_MESSAGE);
@@ -429,25 +369,24 @@ public class AuthService {
     /**
      * 为用户签发 accessToken 与 refreshToken 并组装令牌签发结果（V-03：refreshToken 仅写 Cookie）
      *
-     * @param loginUser 登录用户
+     * @param user 登录用户
      * @param familyId 令牌 family 标识（登录时新生成，轮换时沿用）；为 {@code null} 时 refreshToken 不含该 claim
      * @return 令牌签发结果（响应体载荷不含 refreshToken）
      */
-    private AuthTokenIssue buildAuthTokenIssue(LoginUser loginUser, String familyId) {
+    private AuthTokenIssue buildAuthTokenIssue(AuthenticatedUser user, String familyId) {
         LoginResponse response = new LoginResponse();
-        List<String> roles = loginUser.getRoles();
-        String refreshToken = tokenProvider.generateRefreshToken(
-                loginUser.getTenantId(), loginUser.getUserId(), loginUser.getUsername(), familyId);
-        response.setAccessToken(tokenProvider.generateAccessToken(
-                loginUser.getTenantId(), loginUser.getUserId(), loginUser.getUsername(), roles));
+        List<String> roles = user.roles();
+        String refreshToken = tokenIssuer.issueRefreshToken(
+                user.tenantId(), user.userId(), user.username(), familyId);
+        response.setAccessToken(tokenIssuer.issueAccessToken(user.tenantId(), user.userId(), user.username(), roles));
         response.setTokenType("Bearer");
-        response.setExpiresIn(tokenProvider.getAccessExpireSeconds());
-        response.setTenantId(loginUser.getTenantId());
-        response.setUsername(loginUser.getUsername());
-        response.setNickname(loginUser.getNickname());
+        response.setExpiresIn(tokenIssuer.accessExpireSeconds());
+        response.setTenantId(user.tenantId());
+        response.setUsername(user.username());
+        response.setNickname(user.nickname());
         response.setRoles(roles);
         // T-03：出厂默认口令轮换后强制首登改密，登录/刷新/切换响应统一透出该标记
-        response.setMustChangePassword(loginUser.isMustChangePassword());
+        response.setMustChangePassword(user.mustChangePassword());
         return new AuthTokenIssue(response, refreshToken);
     }
 }

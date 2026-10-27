@@ -1,9 +1,9 @@
 package com.bluewhale.auth.controller;
 
+import com.bluewhale.auth.application.auth.SessionAppService;
 import com.bluewhale.auth.dto.LoginRequest;
 import com.bluewhale.auth.dto.SwitchTenantRequest;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
-import com.bluewhale.auth.service.AuthService;
 import com.bluewhale.auth.vo.AuthMeResponse;
 import com.bluewhale.auth.vo.AuthTokenIssue;
 import com.bluewhale.auth.vo.LoginResponse;
@@ -36,7 +36,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AuthController {
 
-    private final AuthService authService;
+    private final SessionAppService sessionAppService;
 
     private final AuthCookieManager cookieManager;
 
@@ -53,7 +53,8 @@ public class AuthController {
     @PostMapping("/login")
     @AuditLog(operation = "用户登录", type = OperateType.LOGIN, targetType = "sys_user", recordParams = false)
     public Result<LoginResponse> login(@Valid @RequestBody LoginRequest request, HttpServletResponse response) {
-        AuthTokenIssue issue = authService.login(request);
+        AuthTokenIssue issue = sessionAppService.login(
+                request.getTenantCode(), request.getUsername(), request.getPassword());
         cookieManager.writeAuthCookies(response, issue.getRefreshToken());
         return Result.ok(issue.getResponse());
     }
@@ -70,7 +71,7 @@ public class AuthController {
     @PostMapping("/refresh")
     public Result<LoginResponse> refresh(HttpServletRequest request, HttpServletResponse response) {
         cookieManager.verifyCsrf(request);
-        AuthTokenIssue issue = authService.refresh(cookieManager.requireRefreshToken(request));
+        AuthTokenIssue issue = sessionAppService.refresh(cookieManager.requireRefreshToken(request));
         cookieManager.writeAuthCookies(response, issue.getRefreshToken());
         return Result.ok(issue.getResponse());
     }
@@ -84,7 +85,7 @@ public class AuthController {
     @GetMapping("/me")
     @RequirePermission
     public Result<AuthMeResponse> me() {
-        return Result.ok(authService.me());
+        return Result.ok(sessionAppService.me());
     }
 
     /**
@@ -95,7 +96,7 @@ public class AuthController {
     @GetMapping("/tenants")
     @RequirePermission
     public Result<List<MyTenantVO>> listTenants() {
-        return Result.ok(authService.listTenants());
+        return Result.ok(sessionAppService.listTenants());
     }
 
     /**
@@ -116,8 +117,8 @@ public class AuthController {
             @Valid @RequestBody SwitchTenantRequest request,
             HttpServletRequest servletRequest,
             HttpServletResponse response) {
-        AuthTokenIssue issue = authService.switchTenant(
-                authorization, request, cookieManager.resolveRefreshToken(servletRequest));
+        AuthTokenIssue issue = sessionAppService.switchTenant(
+                authorization, request.getTenantId(), cookieManager.resolveRefreshToken(servletRequest));
         cookieManager.writeAuthCookies(response, issue.getRefreshToken());
         return Result.ok(issue.getResponse());
     }
@@ -138,7 +139,7 @@ public class AuthController {
             HttpServletRequest request,
             HttpServletResponse response) {
         cookieManager.verifyCsrf(request);
-        authService.logout(authorization, cookieManager.requireRefreshToken(request));
+        sessionAppService.logout(authorization, cookieManager.requireRefreshToken(request));
         cookieManager.clearAuthCookies(response);
         return Result.ok();
     }

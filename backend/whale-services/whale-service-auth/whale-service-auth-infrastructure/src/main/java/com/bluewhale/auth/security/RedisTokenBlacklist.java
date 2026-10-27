@@ -1,5 +1,6 @@
 package com.bluewhale.auth.security;
 
+import com.bluewhale.auth.application.auth.port.TokenBlacklist;
 import com.bluewhale.auth.jwt.JwtTokenProvider;
 import com.bluewhale.security.degradation.SecurityDegradationAlerter;
 import com.bluewhale.security.degradation.SecurityDegradationPolicy;

@@ -17,6 +17,7 @@
     <description>BlueWhale 基础组件聚合模块</description>
 
     <modules>
+        <module>whale-common-core</module>
         <module>whale-tools</module>
         <module>whale-security</module>
         <module>whale-spring-boot-starter</module>

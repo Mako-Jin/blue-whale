@@ -16,6 +16,12 @@
     <description>BlueWhale 自动配置 Starter - 统一异常处理、统一响应体、日志等</description>
 
     <dependencies>
+        <!-- 最小公共核心：通用异常与错误码（领域层等无框架依赖模块直接使用） -->
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-common-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>

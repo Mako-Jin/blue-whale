@@ -36,7 +36,7 @@ import java.util.stream.Collectors;
 public class PermissionInterceptor implements HandlerInterceptor {
 
     /** 内置超级管理员角色 code，拥有全部权限 */
-    public static final String SUPER_ADMIN = "super_admin";
+    public static final String SUPER_ADMIN = com.bluewhale.auth.application.auth.AuthRoleCodes.SUPER_ADMIN;
 
     private final PermissionCache permissionCache;
     private final RoleRepository roleRepository;

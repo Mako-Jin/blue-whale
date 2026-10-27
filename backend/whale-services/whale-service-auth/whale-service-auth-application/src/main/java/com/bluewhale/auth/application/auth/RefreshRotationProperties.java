@@ -1,4 +1,4 @@
-package com.bluewhale.auth.config;
+package com.bluewhale.auth.application.auth;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;

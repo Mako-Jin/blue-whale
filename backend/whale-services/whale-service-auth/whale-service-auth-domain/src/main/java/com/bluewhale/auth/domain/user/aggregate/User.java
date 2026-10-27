@@ -308,6 +308,16 @@ public class User {
     }
 
     /**
+     * 行为：记录最近登录时间
+     *
+     * @param loginTime 登录时刻
+     */
+    public void recordLogin(LocalDateTime loginTime) {
+        this.lastLoginTime = loginTime;
+        this.updateTime = LocalDateTime.now();
+    }
+
+    /**
      * 获取用户 ID
      *
      * @return 用户 ID（新建且未落库时为 {@code null}）

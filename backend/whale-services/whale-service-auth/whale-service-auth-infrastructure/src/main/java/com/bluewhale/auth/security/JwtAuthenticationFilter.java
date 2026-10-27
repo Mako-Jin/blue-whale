@@ -1,5 +1,7 @@
 package com.bluewhale.auth.security;
 
+import com.bluewhale.auth.application.auth.port.TokenBlacklist;
+import com.bluewhale.auth.application.auth.port.UserAccessRevocationPort;
 import com.bluewhale.auth.jwt.JwtTokenProvider;
 import com.bluewhale.security.token.TokenTimeSupport;
 import io.jsonwebtoken.Claims;
@@ -39,7 +41,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final UserDetailsServiceImpl userDetailsService;
     private final TokenBlacklist tokenBlacklist;
     private final TenantMembershipRevocationStore membershipRevocationStore;
-    private final UserAccessRevocationStore userAccessRevocationStore;
+    private final UserAccessRevocationPort userAccessRevocationStore;
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,

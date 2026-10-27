@@ -1,5 +1,7 @@
 package com.bluewhale.auth.security;
 
+import com.bluewhale.auth.application.auth.port.TokenBlacklist;
+import com.bluewhale.auth.application.auth.port.UserAccessRevocationPort;
 import com.bluewhale.auth.jwt.JwtTokenProvider;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
@@ -47,7 +49,7 @@ class JwtAuthenticationFilterTest {
     private TenantMembershipRevocationStore membershipRevocationStore;
 
     @Mock
-    private UserAccessRevocationStore userAccessRevocationStore;
+    private UserAccessRevocationPort userAccessRevocationStore;
 
     @Mock
     private HttpServletRequest request;

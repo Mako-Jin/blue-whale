@@ -1,11 +1,10 @@
 package com.bluewhale.auth.controller;
 
+import com.bluewhale.auth.application.auth.SessionAppService;
 import com.bluewhale.auth.config.AuthCookieProperties;
 import com.bluewhale.auth.config.JwtProperties;
 import com.bluewhale.auth.dto.LoginRequest;
-import com.bluewhale.auth.dto.SwitchTenantRequest;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
-import com.bluewhale.auth.service.AuthService;
 import com.bluewhale.auth.vo.AuthMeResponse;
 import com.bluewhale.auth.vo.AuthTokenIssue;
 import com.bluewhale.auth.vo.LoginResponse;
@@ -32,6 +31,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -66,9 +66,9 @@ class AuthControllerTest {
     private static final int FORBIDDEN_CODE = 403;
     private static final int UNAUTHORIZED_CODE = 401;
 
-    private final AuthService authService = mock(AuthService.class);
+    private final SessionAppService sessionAppService = mock(SessionAppService.class);
 
-    private final AuthController controller = new AuthController(authService,
+    private final AuthController controller = new AuthController(sessionAppService,
             new AuthCookieManager(new AuthCookieProperties(), new JwtProperties()));
 
     private MockMvc mockMvc;
@@ -169,7 +169,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("POST /auth/login：返回 code=0，refreshToken 只进 Cookie、响应体不可见")
     void loginShouldSetCookiesAndHideRefreshToken() throws Exception {
-        when(authService.login(any(LoginRequest.class))).thenReturn(issue(OLD_REFRESH_TOKEN));
+        when(sessionAppService.login(isNull(), eq("alice"), eq("secret1"))).thenReturn(issue(OLD_REFRESH_TOKEN));
 
         MvcResult result = mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -185,13 +185,13 @@ class AuthControllerTest {
                 .andReturn();
 
         assertAuthCookies(result, OLD_REFRESH_TOKEN);
-        verify(authService).login(any(LoginRequest.class));
+        verify(sessionAppService).login(null, "alice", "secret1");
     }
 
     @Test
     @DisplayName("POST /auth/refresh：凭 Cookie + CSRF 双提交换发，轮换下发新 Cookie")
     void refreshShouldRotateFromCookie() throws Exception {
-        when(authService.refresh(OLD_REFRESH_TOKEN)).thenReturn(issue(NEW_REFRESH_TOKEN));
+        when(sessionAppService.refresh(OLD_REFRESH_TOKEN)).thenReturn(issue(NEW_REFRESH_TOKEN));
 
         MvcResult result = mockMvc.perform(post("/auth/refresh")
                         .cookie(new Cookie(AuthCookieManager.REFRESH_COOKIE_NAME, OLD_REFRESH_TOKEN),
@@ -204,7 +204,7 @@ class AuthControllerTest {
                 .andReturn();
 
         assertAuthCookies(result, NEW_REFRESH_TOKEN);
-        verify(authService).refresh(OLD_REFRESH_TOKEN);
+        verify(sessionAppService).refresh(OLD_REFRESH_TOKEN);
     }
 
     @Test
@@ -216,7 +216,7 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(FORBIDDEN_CODE));
 
-        verify(authService, never()).refresh(any());
+        verify(sessionAppService, never()).refresh(any());
     }
 
     @Test
@@ -229,7 +229,7 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(FORBIDDEN_CODE));
 
-        verify(authService, never()).refresh(any());
+        verify(sessionAppService, never()).refresh(any());
     }
 
     @Test
@@ -241,7 +241,7 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(UNAUTHORIZED_CODE));
 
-        verify(authService, never()).refresh(any());
+        verify(sessionAppService, never()).refresh(any());
     }
 
     @Test
@@ -256,7 +256,7 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()))
                 .andReturn();
 
-        verify(authService).logout(BEARER_ACCESS, OLD_REFRESH_TOKEN);
+        verify(sessionAppService).logout(BEARER_ACCESS, OLD_REFRESH_TOKEN);
         assertCookiesCleared(result);
     }
 
@@ -270,13 +270,13 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(FORBIDDEN_CODE));
 
-        verify(authService, never()).logout(any(), any());
+        verify(sessionAppService, never()).logout(any(), any());
     }
 
     @Test
     @DisplayName("POST /auth/tenant/switch：旧 refreshToken 取自 Cookie，成功后轮换下发新 Cookie")
     void switchTenantShouldRotateCookies() throws Exception {
-        when(authService.switchTenant(eq(BEARER_ACCESS), any(SwitchTenantRequest.class), eq(OLD_REFRESH_TOKEN)))
+        when(sessionAppService.switchTenant(eq(BEARER_ACCESS), eq(2L), eq(OLD_REFRESH_TOKEN)))
                 .thenReturn(issue(NEW_REFRESH_TOKEN));
 
         MvcResult result = mockMvc.perform(post("/auth/tenant/switch")
@@ -303,7 +303,7 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.code").value(PARAM_ERROR_CODE))
                 .andExpect(jsonPath("$.message").value("用户名不能为空"));
 
-        verify(authService, never()).login(any());
+        verify(sessionAppService, never()).login(any(), any(), any());
     }
 
     @Test
@@ -315,13 +315,13 @@ class AuthControllerTest {
         assertThat(annotation.value()).isEmpty();
         assertThat(annotation.requireLogin()).isTrue();
 
-        when(authService.me()).thenReturn(authMeResponse());
+        when(sessionAppService.me()).thenReturn(authMeResponse());
         mockMvc.perform(get("/auth/me"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()))
                 .andExpect(jsonPath("$.data.userId").value(USER_ID))
                 .andExpect(jsonPath("$.data.menus[0].name").value("系统管理"));
-        verify(authService).me();
+        verify(sessionAppService).me();
     }
 
     @Test
