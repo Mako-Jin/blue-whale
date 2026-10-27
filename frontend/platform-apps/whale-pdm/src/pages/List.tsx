@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Button, Space, Table, Tag } from 'antd';
 import type { TableProps } from 'antd';
 import { listPdmProducts, type PdmProduct } from '../api/pdm';
+import { hasPermission } from '../utils/permission';
 
 /** 状态文案映射 */
 const STATUS_LABEL: Record<PdmProduct['status'], string> = {
@@ -55,18 +56,22 @@ export default function List({ refreshKey, onCreate, onEdit }: ListProps) {
       key: 'action',
       width: 120,
       render: (_, record) => (
-        <Button type="link" onClick={() => onEdit(record)}>
-          编辑
-        </Button>
+        hasPermission('sys:pdm:product:edit') ? (
+          <Button type="link" onClick={() => onEdit(record)}>
+            编辑
+          </Button>
+        ) : null
       ),
     },
   ];
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-      <Button type="primary" onClick={onCreate}>
-        新增
-      </Button>
+      {hasPermission('sys:pdm:product:add') ? (
+        <Button type="primary" onClick={onCreate}>
+          新增
+        </Button>
+      ) : null}
       <Table<PdmProduct> rowKey="id" loading={loading} columns={columns} dataSource={data} />
     </Space>
   );

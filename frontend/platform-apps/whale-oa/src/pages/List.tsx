@@ -9,6 +9,7 @@ import {
   type OaLeave,
   type OaLeaveStatus,
 } from '../api/oa';
+import { hasPermission } from '../utils/permission';
 
 /** 状态文案 */
 const STATUS_LABEL: Record<OaLeaveStatus, string> = {
@@ -132,36 +133,44 @@ export default function List({ refreshKey, onCreate, onEdit }: ListProps) {
         const pending = record.status === 'PENDING';
         return (
           <Space size={4}>
-            <Button type="link" size="small" disabled={!pending} onClick={() => onEdit(record)}>
-              编辑
-            </Button>
-            <Popconfirm
-              title="确认通过该申请？"
-              disabled={!pending}
-              onConfirm={() => void changeStatus(record, 'APPROVED')}
-            >
-              <Button type="link" size="small" disabled={!pending}>
-                通过
+            {hasPermission('sys:oa:leave:edit') ? (
+              <Button type="link" size="small" disabled={!pending} onClick={() => onEdit(record)}>
+                编辑
               </Button>
-            </Popconfirm>
-            <Popconfirm
-              title="确认驳回该申请？"
-              disabled={!pending}
-              onConfirm={() => void changeStatus(record, 'REJECTED')}
-            >
-              <Button type="link" size="small" danger disabled={!pending}>
-                驳回
-              </Button>
-            </Popconfirm>
-            <Popconfirm
-              title="确认删除该申请？"
-              disabled={!pending}
-              onConfirm={() => void remove(record)}
-            >
-              <Button type="link" size="small" danger disabled={!pending}>
-                删除
-              </Button>
-            </Popconfirm>
+            ) : null}
+            {hasPermission('sys:oa:leave:edit') ? (
+              <Popconfirm
+                title="确认通过该申请？"
+                disabled={!pending}
+                onConfirm={() => void changeStatus(record, 'APPROVED')}
+              >
+                <Button type="link" size="small" disabled={!pending}>
+                  通过
+                </Button>
+              </Popconfirm>
+            ) : null}
+            {hasPermission('sys:oa:leave:edit') ? (
+              <Popconfirm
+                title="确认驳回该申请？"
+                disabled={!pending}
+                onConfirm={() => void changeStatus(record, 'REJECTED')}
+              >
+                <Button type="link" size="small" danger disabled={!pending}>
+                  驳回
+                </Button>
+              </Popconfirm>
+            ) : null}
+            {hasPermission('sys:oa:leave:delete') ? (
+              <Popconfirm
+                title="确认删除该申请？"
+                disabled={!pending}
+                onConfirm={() => void remove(record)}
+              >
+                <Button type="link" size="small" danger disabled={!pending}>
+                  删除
+                </Button>
+              </Popconfirm>
+            ) : null}
           </Space>
         );
       },
@@ -187,9 +196,11 @@ export default function List({ refreshKey, onCreate, onEdit }: ListProps) {
             setQuery((prev) => ({ ...prev, current: 1, status: (value as OaLeaveStatus) ?? '' }))
           }
         />
-        <Button type="primary" onClick={onCreate}>
-          新增申请
-        </Button>
+        {hasPermission('sys:oa:leave:add') ? (
+          <Button type="primary" onClick={onCreate}>
+            新增申请
+          </Button>
+        ) : null}
         <Button onClick={() => void load()}>刷新</Button>
       </Space>
       <Table<OaLeave>
