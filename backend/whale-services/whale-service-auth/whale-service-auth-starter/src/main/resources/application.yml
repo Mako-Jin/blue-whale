@@ -58,6 +58,10 @@ whale:
       reconcile-initial-delay-ms: ${PERMISSION_CACHE_RECONCILE_INITIAL_DELAY_MS:10000}
       reconcile-batch-size: ${PERMISSION_CACHE_RECONCILE_BATCH_SIZE:500}
       pending-limit: ${PERMISSION_CACHE_PENDING_LIMIT:10000}
+      # 待重对齐 Key 本地持久化：进程重启后自动读回，避免断连期间漏失效的 Key 永久丢失；
+      # 容器部署建议把 pending-file 挂到持久卷（多实例共用一个文件时重复 Key 自动去重）
+      pending-persistence-enabled: ${PERMISSION_CACHE_PENDING_PERSISTENCE:true}
+      pending-file: ${PERMISSION_CACHE_PENDING_FILE:${java.io.tmpdir}/bluewhale-auth-permission-pending.keys}
   # P1-3 审计跨库汇聚：auth 为试点服务，审计记录优先转发 whale-audit:9101，
   # 转发失败自动回退本地 bluewhale_auth.audit_log，不丢记录。
   audit:

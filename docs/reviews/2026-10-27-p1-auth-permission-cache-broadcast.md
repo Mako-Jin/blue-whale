@@ -45,7 +45,9 @@ mvn -pl backend/whale-services/whale-service-auth/whale-service-auth-starter -am
 
 ## 5. 边界
 
-- 真实 Redis 双实例广播与断连恢复的实机联调未执行（需 2 个 auth 实例 + 可控断网）；
+- ~~真实 Redis 双实例广播与断连恢复的实机联调未执行（需 2 个 auth 实例 + 可控断网）~~；
+  → 2026-10-27 已在双实例 + 停机/重启场景实机取证，见
+  [T4 检查报告](2026-10-27-p1-auth-permission-cache-real-machine.md)；
 - 待处理集合为进程内状态，进程重启会丢失；最坏回退为 TTL（默认 5 分钟）；
 - 仅清理当前租户的 Key（失效事件发生在该租户请求内）；跨租户批量清理不在本项范围；
   → 2026-10-27 后续已补齐权限点变更的跨租户失效与角色启停失效，见

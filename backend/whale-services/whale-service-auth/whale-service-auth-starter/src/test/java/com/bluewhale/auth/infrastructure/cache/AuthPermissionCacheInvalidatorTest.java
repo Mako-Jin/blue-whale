@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -16,6 +17,8 @@ import org.redisson.api.RedissonClient;
 import org.redisson.api.listener.MessageListener;
 import org.springframework.beans.factory.ObjectProvider;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -27,6 +30,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -60,10 +64,15 @@ class AuthPermissionCacheInvalidatorTest {
 
     private AuthPermissionCacheInvalidator invalidator;
 
+    /** 重启恢复测试用临时目录 */
+    @TempDir
+    Path tempDir;
+
     @BeforeEach
     void setUp() {
         TenantContext.set(TENANT_ID);
         properties = new PermissionCacheProperties();
+        properties.setPendingPersistenceEnabled(false);
         invalidator = new AuthPermissionCacheInvalidator(redissonProvider, cacheTemplate, properties);
     }
 
@@ -207,6 +216,36 @@ class AuthPermissionCacheInvalidatorTest {
         invalidator.invalidateUsers(List.of(8L, 9L));
 
         assertEquals(1, invalidator.pendingCount());
+    }
+
+    @Test
+    @DisplayName("重启恢复：待重对齐 Key 落盘并在重启后自动读回，清理成功后文件为空")
+    void shouldRestorePendingKeysAfterRestart() throws Exception {
+        Path pendingFile = tempDir.resolve("pending.keys");
+        PermissionCacheProperties shared = new PermissionCacheProperties();
+        shared.setBroadcastEnabled(false);
+        shared.setPendingFile(pendingFile.toString());
+
+        CacheConsistencyTemplate unavailable = mock(CacheConsistencyTemplate.class);
+        when(unavailable.tryEvictKeys(anyCollection())).thenReturn(false);
+        AuthPermissionCacheInvalidator beforeRestart =
+                new AuthPermissionCacheInvalidator(redissonProvider, unavailable, shared);
+        beforeRestart.subscribe();
+        beforeRestart.invalidateUsers(List.of(21L));
+
+        assertEquals(1, beforeRestart.pendingCount());
+        assertTrue(Files.readString(pendingFile).contains(KEY_PREFIX + "21"));
+
+        CacheConsistencyTemplate recovered = mock(CacheConsistencyTemplate.class);
+        when(recovered.tryEvictKeys(anyCollection())).thenReturn(true);
+        AuthPermissionCacheInvalidator afterRestart =
+                new AuthPermissionCacheInvalidator(redissonProvider, recovered, shared);
+        afterRestart.subscribe();
+
+        assertEquals(1, afterRestart.pendingCount());
+        assertEquals(1, afterRestart.flushPending());
+        assertEquals(0, afterRestart.pendingCount());
+        assertTrue(Files.readString(pendingFile).isBlank());
     }
 
     @Test

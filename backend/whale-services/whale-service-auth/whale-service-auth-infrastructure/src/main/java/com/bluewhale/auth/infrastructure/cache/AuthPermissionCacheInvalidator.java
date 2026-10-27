@@ -14,6 +14,11 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
@@ -74,6 +79,9 @@ public class AuthPermissionCacheInvalidator {
     /** 待重对齐的完整缓存 Key（Redis 删除失败时登记） */
     private final Set<String> pendingKeys = ConcurrentHashMap.newKeySet();
 
+    /** 待重对齐文件读写锁，避免多线程写入交错 */
+    private final Object pendingFileLock = new Object();
+
     /**
      * 用户缓存 Key 坐标（租户 + 用户）。
      *
@@ -96,6 +104,7 @@ public class AuthPermissionCacheInvalidator {
      */
     @PostConstruct
     void subscribe() {
+        loadPendingKeys();
         if (!properties.isBroadcastEnabled()) {
             log.info("权限缓存跨实例失效广播已关闭，仅依赖共享 Redis 删除与断连重对齐");
             return;
@@ -190,6 +199,7 @@ public class AuthPermissionCacheInvalidator {
         List<String> batch = pendingKeys.stream().limit(batchSize).toList();
         if (cacheTemplate.tryEvictKeys(batch)) {
             pendingKeys.removeAll(batch);
+            persistPendingKeys();
             return batch.size();
         }
         log.warn("权限缓存重对齐失败，保留待处理: 本次={}, 剩余={}", batch.size(), pendingKeys.size());
@@ -249,12 +259,84 @@ public class AuthPermissionCacheInvalidator {
      */
     private void markPending(Set<String> keys) {
         int limit = Math.max(1, properties.getPendingLimit());
+        boolean changed = false;
         for (String key : keys) {
             if (!pendingKeys.contains(key) && pendingKeys.size() >= limit) {
                 log.warn("权限缓存重对齐待处理已达上限 {}，丢弃 key={}", limit, key);
                 continue;
             }
-            pendingKeys.add(key);
+            changed = pendingKeys.add(key) || changed;
+        }
+        if (changed) {
+            persistPendingKeys();
+        }
+    }
+
+    /**
+     * 从本地文件恢复待重对齐 Key（进程重启后继续由定时任务清理）。
+     *
+     * <p>仅接受 {@code whale:} 前缀的 Key；文件不存在、不可读或内容非法时降级为仅内存登记。</p>
+     */
+    private void loadPendingKeys() {
+        if (!properties.isPendingPersistenceEnabled() || !StringUtils.hasText(properties.getPendingFile())) {
+            return;
+        }
+        Path path = Path.of(properties.getPendingFile());
+        if (!Files.isRegularFile(path)) {
+            return;
+        }
+        try {
+            List<String> lines = Files.readAllLines(path, StandardCharsets.UTF_8);
+            int limit = Math.max(1, properties.getPendingLimit());
+            int loaded = 0;
+            for (String line : lines) {
+                String key = line == null ? "" : line.trim();
+                if (!key.startsWith(KEY_PREFIX) || pendingKeys.contains(key)) {
+                    continue;
+                }
+                if (pendingKeys.size() >= limit) {
+                    log.warn("待重对齐文件恢复达到上限 {}，忽略剩余 Key", limit);
+                    break;
+                }
+                pendingKeys.add(key);
+                loaded++;
+            }
+            if (loaded > 0) {
+                log.info("已从本地文件恢复待重对齐权限缓存 Key: {}", loaded);
+            }
+        } catch (Exception ex) {
+            log.warn("待重对齐 Key 文件读取失败，仅使用内存集合: {}", ex.getMessage());
+        }
+    }
+
+    /**
+     * 把当前待重对齐 Key 原子写入本地文件（失败仅告警，不影响主流程）。
+     */
+    private void persistPendingKeys() {
+        if (!properties.isPendingPersistenceEnabled() || !StringUtils.hasText(properties.getPendingFile())) {
+            return;
+        }
+        synchronized (pendingFileLock) {
+            Path path = Path.of(properties.getPendingFile());
+            Path temp = null;
+            try {
+                if (path.getParent() != null) {
+                    Files.createDirectories(path.getParent());
+                }
+                temp = path.resolveSibling(path.getFileName() + ".tmp");
+                String content = String.join("\n", pendingKeys);
+                Files.writeString(temp, content, StandardCharsets.UTF_8);
+                Files.move(temp, path, StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException ex) {
+                log.warn("待重对齐 Key 文件写入失败: {}", ex.getMessage());
+                if (temp != null) {
+                    try {
+                        Files.deleteIfExists(temp);
+                    } catch (IOException ignored) {
+                        log.debug("临时文件清理失败: {}", ignored.getMessage());
+                    }
+                }
+            }
         }
     }
 

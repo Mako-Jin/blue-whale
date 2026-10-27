@@ -4,6 +4,7 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
+import java.io.File;
 import java.time.Duration;
 
 /**
@@ -41,4 +42,17 @@ public class PermissionCacheProperties {
 
     /** 待失效 Key 上限，防止 Redis 长时间不可用导致内存膨胀，默认 10000 */
     private int pendingLimit = 10_000;
+
+    /**
+     * 是否把待失效 Key 持久化到本地文件，默认启用。
+     * <p>解决进程重启后内存中的待重对齐集合丢失：重启后自动读回并在下一次重对齐写入 Redis。</p>
+     */
+    private boolean pendingPersistenceEnabled = true;
+
+    /**
+     * 待失效 Key 本地持久化文件。
+     * <p>默认位于 JVM 临时目录；容器部署建议挂载到持久卷，多实例共享同一文件时重复 Key 会被去重。</p>
+     */
+    private String pendingFile = System.getProperty("java.io.tmpdir") + File.separator
+            + "bluewhale-auth-permission-pending.keys";
 }
