@@ -4,14 +4,17 @@ import com.bluewhale.alert.config.AlertNotifyProperties;
 import com.bluewhale.alert.entity.AlertRecord;
 import com.bluewhale.alert.entity.AlertRule;
 import com.bluewhale.alert.service.AlertNotifyService;
+import com.bluewhale.common.tenant.TenantContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.web.util.HtmlUtils;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -22,6 +25,7 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 告警通知服务实现：邮件与 Webhook 两种通道。
@@ -92,11 +96,12 @@ public class AlertNotifyServiceImpl implements AlertNotifyService {
             return;
         }
         try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(email.getFrom());
-            message.setTo(recipients.toArray(String[]::new));
-            message.setSubject(buildSubject(rule));
-            message.setText(buildText(rule, record));
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, false, StandardCharsets.UTF_8.name());
+            helper.setFrom(email.getFrom());
+            helper.setTo(recipients.toArray(String[]::new));
+            helper.setSubject(buildSubject(rule));
+            helper.setText(buildHtml(rule, record), true);
             mailSender.send(message);
             log.info("告警邮件已发送: ruleCode={}, to={}", rule.getRuleCode(), recipients);
         } catch (Exception e) {
@@ -154,19 +159,44 @@ public class AlertNotifyServiceImpl implements AlertNotifyService {
     }
 
     /**
-     * 构造邮件正文。
+     * 构造 HTML 邮件正文（F-03）：所有动态字段做 HTML 转义，避免告警内容注入。
      *
      * @param rule   告警规则
      * @param record 告警记录
-     * @return 邮件正文
+     * @return HTML 正文
      */
-    private static String buildText(AlertRule rule, AlertRecord record) {
-        return "规则编码: " + rule.getRuleCode()
-                + "\n规则名称: " + rule.getRuleName()
-                + "\n告警级别: " + record.getAlertLevel()
-                + "\n监控目标: " + (rule.getTarget() == null ? "-" : rule.getTarget())
-                + "\n告警内容: " + record.getContent()
-                + "\n触发时间: " + record.getTriggerTime();
+    private static String buildHtml(AlertRule rule, AlertRecord record) {
+        Long tenantId = TenantContext.get();
+        String level = HtmlUtils.htmlEscape(Objects.toString(record.getAlertLevel(), "-"));
+        return "<html><body style=\"font-family:Arial,Helvetica,sans-serif;color:#1f2329\">"
+                + "<h3 style=\"margin:0 0 12px\">[BlueWhale] 告警通知</h3>"
+                + "<table cellpadding=\"6\" cellspacing=\"0\" style=\"border-collapse:collapse;font-size:14px\">"
+                + row("规则编码", rule.getRuleCode())
+                + row("规则名称", rule.getRuleName())
+                + row("告警级别", level)
+                + row("监控目标", rule.getTarget())
+                + row("告警内容", record.getContent())
+                + row("租户ID", tenantId == null ? "-" : tenantId.toString())
+                + row("状态", record.getStatus())
+                + row("触发时间", record.getTriggerTime() == null ? "-" : record.getTriggerTime().toString())
+                + "</table>"
+                + "<p style=\"color:#8f959e;font-size:12px;margin-top:16px\">"
+                + "本邮件由 BlueWhale 告警平台自动发送，请勿直接回复。</p>"
+                + "</body></html>";
+    }
+
+    /**
+     * 构造 HTML 表格行
+     *
+     * @param label 字段名
+     * @param value 字段值（自动转义）
+     * @return 表格行 HTML
+     */
+    private static String row(String label, String value) {
+        return "<tr><td style=\"border:1px solid #dee0e3;background:#f7f8fa;"
+                + "white-space:nowrap\">" + HtmlUtils.htmlEscape(label)
+                + "</td><td style=\"border:1px solid #dee0e3\">"
+                + HtmlUtils.htmlEscape(Objects.toString(value, "-")) + "</td></tr>";
     }
 
     /**
@@ -185,6 +215,7 @@ public class AlertNotifyServiceImpl implements AlertNotifyService {
         payload.put("level", record.getAlertLevel());
         payload.put("status", record.getStatus());
         payload.put("content", record.getContent());
+        payload.put("tenantId", TenantContext.get());
         payload.put("triggerTime",
                 record.getTriggerTime() == null ? null : record.getTriggerTime().toString());
         return payload;

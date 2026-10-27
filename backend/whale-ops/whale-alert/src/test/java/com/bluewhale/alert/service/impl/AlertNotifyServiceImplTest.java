@@ -3,13 +3,15 @@ package com.bluewhale.alert.service.impl;
 import com.bluewhale.alert.config.AlertNotifyProperties;
 import com.bluewhale.alert.entity.AlertRecord;
 import com.bluewhale.alert.entity.AlertRule;
+import com.bluewhale.common.tenant.TenantContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
+import jakarta.mail.Session;
+import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 
 import java.io.IOException;
@@ -17,6 +19,7 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -44,22 +47,53 @@ class AlertNotifyServiceImplTest {
             new AlertNotifyServiceImpl(properties, mailSenderProvider, objectMapper);
 
     @Test
-    @DisplayName("EMAIL：启用且配置完整时发送邮件")
-    void shouldSendEmail() {
+    @DisplayName("EMAIL：启用且配置完整时发送 HTML 邮件并包含租户与转义内容")
+    void shouldSendEmail() throws Exception {
         properties.getEmail().setEnabled(true);
         properties.getEmail().setFrom("alert@bluewhale.local");
         properties.getEmail().setTo(List.of("ops@bluewhale.local"));
         JavaMailSender mailSender = mock(JavaMailSender.class);
+        MimeMessage mimeMessage = new MimeMessage(Session.getInstance(new Properties()));
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
         when(mailSenderProvider.getIfAvailable()).thenReturn(mailSender);
+        TenantContext.set(7L);
 
-        notifyService.notify(rule("EMAIL"), record());
+        try {
+            notifyService.notify(rule("EMAIL"), record());
+        } finally {
+            TenantContext.clear();
+        }
 
-        ArgumentCaptor<SimpleMailMessage> captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
+        ArgumentCaptor<MimeMessage> captor = ArgumentCaptor.forClass(MimeMessage.class);
         verify(mailSender).send(captor.capture());
-        SimpleMailMessage message = captor.getValue();
+        MimeMessage message = captor.getValue();
         assertEquals("[BlueWhale][WARN] CPU 使用率过高", message.getSubject());
-        assertTrue(message.getText().contains("cpu_high"));
-        assertTrue(message.getText().contains("CPU 使用率 92%"));
+        String html = (String) message.getContent();
+        assertTrue(html.contains("cpu_high"));
+        assertTrue(html.contains("CPU 使用率 92%"));
+        assertTrue(html.contains("租户ID"));
+        assertTrue(html.contains(">7<"));
+    }
+
+    @Test
+    @DisplayName("EMAIL：告警内容中的 HTML 被转义")
+    void shouldEscapeHtmlInEmail() throws Exception {
+        properties.getEmail().setEnabled(true);
+        properties.getEmail().setFrom("alert@bluewhale.local");
+        properties.getEmail().setTo(List.of("ops@bluewhale.local"));
+        JavaMailSender mailSender = mock(JavaMailSender.class);
+        MimeMessage mimeMessage = new MimeMessage(Session.getInstance(new Properties()));
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
+        when(mailSenderProvider.getIfAvailable()).thenReturn(mailSender);
+        AlertRecord record = record();
+        record.setContent("<script>alert(1)</script>");
+
+        notifyService.notify(rule("EMAIL"), record);
+
+        ArgumentCaptor<MimeMessage> captor = ArgumentCaptor.forClass(MimeMessage.class);
+        verify(mailSender).send(captor.capture());
+        String html = (String) captor.getValue().getContent();
+        assertTrue(html.contains("&lt;script&gt;"));
     }
 
     @Test

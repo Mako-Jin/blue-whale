@@ -50,6 +50,7 @@ CREATE TABLE alert_record (
     alert_level  VARCHAR(16)  DEFAULT NULL        COMMENT '告警级别：INFO / WARN / ERROR / CRITICAL',
     content      VARCHAR(512) DEFAULT NULL        COMMENT '告警内容描述',
     status       VARCHAR(16)  DEFAULT NULL        COMMENT '记录状态：FIRING 触发中 / RECOVERED 已恢复',
+    fingerprint  VARCHAR(64)  DEFAULT NULL        COMMENT '告警指纹（Alertmanager fingerprint 或标签 SHA-256），用于窗口内去重',
     trigger_time DATETIME     DEFAULT NULL        COMMENT '触发时间',
     recover_time DATETIME     DEFAULT NULL        COMMENT '恢复时间（未恢复为 NULL）',
     create_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -58,7 +59,8 @@ CREATE TABLE alert_record (
     PRIMARY KEY (id),
     KEY idx_tenant_id (tenant_id),
     KEY idx_rule_code (rule_code),
-    KEY idx_status (status)
+    KEY idx_status (status),
+    KEY idx_fingerprint (tenant_id, fingerprint, trigger_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='告警记录表';
 
 -- ---------------------------------------------------------------------

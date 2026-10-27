@@ -2,6 +2,7 @@ package com.bluewhale.alert.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bluewhale.alert.config.AlertNotifyProperties;
 import com.bluewhale.alert.dto.AlertRecordQueryRequest;
 import com.bluewhale.alert.dto.PrometheusWebhookPayload;
 import com.bluewhale.alert.entity.AlertRecord;
@@ -12,6 +13,7 @@ import com.bluewhale.alert.service.AlertNotifyService;
 import com.bluewhale.alert.service.AlertRecordService;
 import com.bluewhale.alert.vo.AlertRecordVO;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.common.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -19,12 +21,19 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.util.Comparator;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * 告警记录服务实现
@@ -52,6 +61,15 @@ public class AlertRecordServiceImpl implements AlertRecordService {
     /** 告警标签：级别 */
     private static final String LABEL_SEVERITY = "severity";
 
+    /** 告警标签：租户ID（首选） */
+    private static final String LABEL_TENANT_ID = "tenant_id";
+
+    /** 告警标签：租户ID（兼容 Prometheus 规则常用写法） */
+    private static final String LABEL_TENANT = "tenant";
+
+    /** 指纹最大长度（与 alert_record.fingerprint 列一致） */
+    private static final int MAX_FINGERPRINT_LENGTH = 64;
+
     /** 告警注解：摘要 */
     private static final String ANNOTATION_SUMMARY = "summary";
 
@@ -72,6 +90,8 @@ public class AlertRecordServiceImpl implements AlertRecordService {
     private final AlertRuleMapper alertRuleMapper;
 
     private final AlertNotifyService alertNotifyService;
+
+    private final AlertNotifyProperties notifyProperties;
 
     @Override
     public PageResult<AlertRecordVO> page(AlertRecordQueryRequest request) {
@@ -94,6 +114,7 @@ public class AlertRecordServiceImpl implements AlertRecordService {
             return 0;
         }
         int inserted = 0;
+        Long previousTenant = TenantContext.get();
         for (PrometheusWebhookPayload.PrometheusAlert alert : payload.getAlerts()) {
             if (alert == null || alert.getLabels() == null) {
                 continue;
@@ -103,25 +124,121 @@ public class AlertRecordServiceImpl implements AlertRecordService {
                 log.warn("Alertmanager 告警缺少 alertname 标签，跳过");
                 continue;
             }
-            AlertRule rule = findRule(ruleCode);
-            AlertRecord record = toRecord(alert, rule);
-            alertRecordMapper.insert(record);
-            inserted++;
-            if (STATUS_FIRING.equals(record.getStatus()) && rule != null
-                    && rule.getStatus() != null && rule.getStatus() == RULE_ENABLED) {
-                alertNotifyService.notify(rule, record);
+            TenantContext.set(resolveTenantId(alert, previousTenant));
+            try {
+                AlertRule rule = findRule(ruleCode);
+                AlertRecord record = toRecord(alert, rule);
+                if (isDuplicate(record)) {
+                    log.info("窗口内重复告警已去重: ruleCode={}, fingerprint={}, status={}",
+                            ruleCode, record.getFingerprint(), record.getStatus());
+                    continue;
+                }
+                alertRecordMapper.insert(record);
+                inserted++;
+                if (STATUS_FIRING.equals(record.getStatus()) && rule != null
+                        && rule.getStatus() != null && rule.getStatus() == RULE_ENABLED) {
+                    alertNotifyService.notify(rule, record);
+                }
+            } finally {
+                TenantContext.set(previousTenant);
             }
         }
         return inserted;
     }
 
     /**
+     * 解析告警归属租户：优先 {@code tenant_id}/{@code tenant} 标签，其次当前上下文，最后默认租户。
+     *
+     * @param alert          单条告警
+     * @param currentTenant 当前线程租户（可为 {@code null}）
+     * @return 租户ID
+     */
+    private static Long resolveTenantId(PrometheusWebhookPayload.PrometheusAlert alert, Long currentTenant) {
+        Long fromLabel = parsePositive(alert.getLabels().get(LABEL_TENANT_ID));
+        if (fromLabel == null) {
+            fromLabel = parsePositive(alert.getLabels().get(LABEL_TENANT));
+        }
+        if (fromLabel != null) {
+            return fromLabel;
+        }
+        return currentTenant == null ? TenantContext.DEFAULT_TENANT_ID : currentTenant;
+    }
+
+    /**
+     * 解析正整数标签值
+     *
+     * @param raw 原始文本
+     * @return 正整数；非法时返回 {@code null}
+     */
+    private static Long parsePositive(String raw) {
+        if (!StringUtils.hasText(raw)) {
+            return null;
+        }
+        try {
+            long value = Long.parseLong(raw.trim());
+            return value > 0L ? value : null;
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /**
+     * 判断 firing 告警是否落在去重窗口内。
+     *
+     * <p>仅对 {@code FIRING} 且开启去重时生效；{@code RECOVERED} 始终落库，保证恢复可追踪。</p>
+     *
+     * @param record 待落库记录
+     * @return 重复返回 {@code true}
+     */
+    private boolean isDuplicate(AlertRecord record) {
+        AlertNotifyProperties.Dedup dedup = notifyProperties.getDedup();
+        if (!STATUS_FIRING.equals(record.getStatus()) || !dedup.isEnabled()
+                || !StringUtils.hasText(record.getFingerprint())) {
+            return false;
+        }
+        LocalDateTime threshold = LocalDateTime.now().minusSeconds(Math.max(dedup.getWindowSeconds(), 1));
+        LambdaQueryWrapper<AlertRecord> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(AlertRecord::getFingerprint, record.getFingerprint())
+                .eq(AlertRecord::getStatus, STATUS_FIRING)
+                .ge(AlertRecord::getTriggerTime, threshold);
+        Long count = alertRecordMapper.selectCount(wrapper);
+        return count != null && count > 0L;
+    }
+
+    /**
      * 按规则编码查询未被逻辑删除的规则。
+     *
+     * <p>规则在告警归属租户内优先匹配；业务租户通常没有自己的规则，
+     * 此时回落到平台租户（{@link TenantContext#DEFAULT_TENANT_ID}）的共享规则，
+     * 避免带 {@code tenant_id} 标签的告警因查不到规则而静默不通知。</p>
      *
      * @param ruleCode 规则编码
      * @return 规则实体；不存在时为 {@code null}
      */
     private AlertRule findRule(String ruleCode) {
+        AlertRule rule = selectRule(ruleCode);
+        Long tenantId = TenantContext.get();
+        if (rule == null && tenantId != null && tenantId != TenantContext.DEFAULT_TENANT_ID) {
+            TenantContext.set(TenantContext.DEFAULT_TENANT_ID);
+            try {
+                rule = selectRule(ruleCode);
+            } finally {
+                TenantContext.set(tenantId);
+            }
+            if (rule != null) {
+                log.debug("告警规则回落到平台租户: ruleCode={}, tenantId={}", ruleCode, tenantId);
+            }
+        }
+        return rule;
+    }
+
+    /**
+     * 在当前租户上下文中按规则编码查询规则。
+     *
+     * @param ruleCode 规则编码
+     * @return 规则实体；不存在时为 {@code null}
+     */
+    private AlertRule selectRule(String ruleCode) {
         LambdaQueryWrapper<AlertRule> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(AlertRule::getRuleCode, ruleCode);
         return alertRuleMapper.selectOne(wrapper);
@@ -143,11 +260,50 @@ public class AlertRecordServiceImpl implements AlertRecordService {
         record.setAlertLevel(resolveLevel(alert, rule));
         record.setContent(buildContent(alert));
         record.setStatus(resolved ? STATUS_RECOVERED : STATUS_FIRING);
+        record.setFingerprint(resolveFingerprint(alert));
         record.setTriggerTime(parseTime(alert.getStartsAt(), now));
         if (resolved) {
             record.setRecoverTime(parseTime(alert.getEndsAt(), now));
         }
         return record;
+    }
+
+    /**
+     * 解析告警指纹：优先 Alertmanager 下发的 {@code fingerprint}，否则按标签排序后计算 SHA-256。
+     *
+     * @param alert 单条告警
+     * @return 最长 64 字符的指纹
+     */
+    private static String resolveFingerprint(PrometheusWebhookPayload.PrometheusAlert alert) {
+        String fingerprint = alert.getFingerprint();
+        if (StringUtils.hasText(fingerprint)) {
+            return truncateFingerprint(fingerprint.trim());
+        }
+        String canonical = alert.getLabels().entrySet().stream()
+                .filter(entry -> entry.getKey() != null)
+                .sorted(Map.Entry.comparingByKey(Comparator.naturalOrder()))
+                .map(entry -> entry.getKey() + "=" + Objects.toString(entry.getValue(), ""))
+                .collect(Collectors.joining("|"));
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(canonical.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException e) {
+            log.warn("告警指纹计算失败（SHA-256 不可用），退回标签文本: reason={}", e.getMessage());
+            return truncateFingerprint(canonical);
+        }
+    }
+
+    /**
+     * 截断指纹到列宽
+     *
+     * @param value 原始指纹
+     * @return 最长 {@value #MAX_FINGERPRINT_LENGTH} 字符
+     */
+    private static String truncateFingerprint(String value) {
+        return value.length() > MAX_FINGERPRINT_LENGTH
+                ? value.substring(0, MAX_FINGERPRINT_LENGTH)
+                : value;
     }
 
     /**

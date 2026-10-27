@@ -39,6 +39,10 @@ whale:
     notify:
       # Alertmanager 入站校验令牌；生产环境必须通过 ALERT_WEBHOOK_TOKEN 覆盖
       webhook-token: ${ALERT_WEBHOOK_TOKEN:bluewhale-alert-token}
+      # F-03 同一 fingerprint 在窗口内重复触发时只落库/通知一次
+      dedup:
+        enabled: ${ALERT_DEDUP_ENABLED:true}
+        window-seconds: ${ALERT_DEDUP_WINDOW_SECONDS:300}
       email:
         enabled: ${ALERT_EMAIL_ENABLED:false}
         from: ${ALERT_EMAIL_FROM:}

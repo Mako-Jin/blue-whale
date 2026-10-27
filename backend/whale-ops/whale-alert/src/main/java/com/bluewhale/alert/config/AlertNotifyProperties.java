@@ -30,6 +30,24 @@ public class AlertNotifyProperties {
     /** Prometheus Alertmanager 入站校验令牌（为空时拒绝所有入站告警） */
     private String webhookToken;
 
+    /** 入站告警去重配置（F-03） */
+    private Dedup dedup = new Dedup();
+
+    /**
+     * 入站告警去重配置：同一 fingerprint 在窗口内重复触发时只落库/通知一次。
+     *
+     * @author BlueWhale
+     */
+    @Data
+    public static class Dedup {
+
+        /** 是否启用去重 */
+        private boolean enabled = true;
+
+        /** 去重窗口（秒），窗口内同 fingerprint 的 firing 告警不再重复落库与通知 */
+        private int windowSeconds = 300;
+    }
+
     /**
      * 邮件通道配置。
      *

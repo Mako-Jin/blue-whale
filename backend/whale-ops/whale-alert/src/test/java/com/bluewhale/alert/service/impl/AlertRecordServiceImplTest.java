@@ -1,7 +1,9 @@
 package com.bluewhale.alert.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bluewhale.alert.config.AlertNotifyProperties;
 import com.bluewhale.alert.dto.AlertRecordQueryRequest;
 import com.bluewhale.alert.dto.PrometheusWebhookPayload;
 import com.bluewhale.alert.entity.AlertRecord;
@@ -21,6 +23,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -40,8 +43,10 @@ class AlertRecordServiceImplTest {
 
     private final AlertNotifyService alertNotifyService = mock(AlertNotifyService.class);
 
+    private final AlertNotifyProperties notifyProperties = new AlertNotifyProperties();
+
     private final AlertRecordServiceImpl alertRecordService =
-            new AlertRecordServiceImpl(alertRecordMapper, alertRuleMapper, alertNotifyService);
+            new AlertRecordServiceImpl(alertRecordMapper, alertRuleMapper, alertNotifyService, notifyProperties);
 
     @Test
     @DisplayName("page：按条件调用分页查询并映射结果")
@@ -125,6 +130,55 @@ class AlertRecordServiceImplTest {
         assertEquals("WARN", saved.getAlertLevel());
         assertNotNull(saved.getRecoverTime());
         verify(alertNotifyService, never()).notify(any(), any());
+    }
+
+    @Test
+    @DisplayName("ingest：窗口内同 fingerprint 的 firing 告警去重，不落库不通知")
+    void shouldSkipDuplicateFiringInWindow() {
+        AlertRule rule = enabledRule("cpu_high", "EMAIL");
+        when(alertRuleMapper.selectOne(any())).thenReturn(rule);
+        when(alertRecordMapper.selectCount(ArgumentMatchers.<Wrapper<AlertRecord>>any())).thenReturn(1L);
+
+        int inserted = alertRecordService.ingest(payload(alert("firing", "cpu_high", "critical")));
+
+        assertEquals(0, inserted);
+        verify(alertRecordMapper, never()).insert(ArgumentMatchers.<AlertRecord>any());
+        verify(alertNotifyService, never()).notify(any(), any());
+    }
+
+    @Test
+    @DisplayName("ingest：告警标签 tenant_id 决定落库与通知的租户上下文")
+    void shouldUseTenantLabelAsContext() {
+        AlertRule rule = enabledRule("cpu_high", "EMAIL");
+        when(alertRuleMapper.selectOne(any())).thenReturn(rule);
+        java.util.concurrent.atomic.AtomicLong notifiedTenant = new java.util.concurrent.atomic.AtomicLong();
+        org.mockito.Mockito.doAnswer(invocation -> {
+            notifiedTenant.set(com.bluewhale.common.tenant.TenantContext.get());
+            return null;
+        }).when(alertNotifyService).notify(any(), any());
+        PrometheusWebhookPayload.PrometheusAlert alert = alert("firing", "cpu_high", "critical");
+        alert.setLabels(Map.of("alertname", "cpu_high", "severity", "critical", "tenant_id", "7"));
+
+        int inserted = alertRecordService.ingest(payload(alert));
+
+        assertEquals(1, inserted);
+        assertEquals(7L, notifiedTenant.get());
+    }
+
+    @Test
+    @DisplayName("ingest：租户内无规则时回落到平台租户规则并保持通知")
+    void shouldFallbackToPlatformRuleForTenantAlert() {
+        AlertRule rule = enabledRule("cpu_high", "EMAIL");
+        when(alertRuleMapper.selectOne(any())).thenReturn(null, rule);
+        PrometheusWebhookPayload.PrometheusAlert alert = alert("firing", "cpu_high", "critical");
+        alert.setLabels(Map.of("alertname", "cpu_high", "severity", "critical", "tenant_id", "7"));
+
+        int inserted = alertRecordService.ingest(payload(alert));
+
+        assertEquals(1, inserted);
+        verify(alertRuleMapper, org.mockito.Mockito.times(2)).selectOne(any());
+        verify(alertNotifyService).notify(org.mockito.ArgumentMatchers.eq(rule), any());
+        assertNull(com.bluewhale.common.tenant.TenantContext.get());
     }
 
     @Test
