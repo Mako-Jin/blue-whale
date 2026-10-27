@@ -39,13 +39,14 @@ class AuthDomainEventTest {
     @Test
     @DisplayName("ChangeType：枚举值齐全且顺序稳定")
     void shouldContainAllChangeTypes() {
-        assertEquals(8, ChangeType.values().length);
+        assertEquals(9, ChangeType.values().length);
         assertEquals(ChangeType.CREATED, ChangeType.valueOf("CREATED"));
         assertEquals(ChangeType.UPDATED, ChangeType.valueOf("UPDATED"));
         assertEquals(ChangeType.DELETED, ChangeType.valueOf("DELETED"));
         assertEquals(ChangeType.STATUS_CHANGED, ChangeType.valueOf("STATUS_CHANGED"));
         assertEquals(ChangeType.PASSWORD_CHANGED, ChangeType.valueOf("PASSWORD_CHANGED"));
         assertEquals(ChangeType.ROLES_ASSIGNED, ChangeType.valueOf("ROLES_ASSIGNED"));
+        assertEquals(ChangeType.TENANT_UNBOUND, ChangeType.valueOf("TENANT_UNBOUND"));
         assertEquals(ChangeType.PERMISSIONS_ASSIGNED, ChangeType.valueOf("PERMISSIONS_ASSIGNED"));
         assertEquals(ChangeType.ATTRS_REPLACED, ChangeType.valueOf("ATTRS_REPLACED"));
     }

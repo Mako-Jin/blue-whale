@@ -119,6 +119,15 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
+    public void removeRolesInTenant(Long userId, Long tenantId) {
+        if (userId == null || tenantId == null) {
+            return;
+        }
+        // 只清理目标租户的角色关联，避免误删该用户在其他租户的角色
+        userRoleMapper.deleteByUserAndRoleTenant(userId, tenantId);
+    }
+
+    @Override
     public UserPage page(long current, long size, String keyword) {
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysUser::getTenantId, TenantContext.requireId());

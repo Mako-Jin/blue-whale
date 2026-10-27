@@ -20,7 +20,9 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -40,6 +42,9 @@ class JwtAuthenticationFilterTest {
 
     @Mock
     private TokenBlacklist tokenBlacklist;
+
+    @Mock
+    private TenantMembershipRevocationStore membershipRevocationStore;
 
     @Mock
     private HttpServletRequest request;
@@ -121,6 +126,21 @@ class JwtAuthenticationFilterTest {
         filter.doFilterInternal(request, response, filterChain);
 
         assertNull(SecurityContextHolder.getContext().getAuthentication());
+    }
+
+    @Test
+    @DisplayName("token 签发于租户成员解绑之前：不写入认证")
+    void shouldRejectRevokedMembershipToken() throws Exception {
+        givenBearer("v.v.v");
+        when(tokenProvider.parse("v.v.v")).thenReturn(claims);
+        givenAccessClaims("tester");
+        when(tokenBlacklist.contains("v.v.v")).thenReturn(false);
+        when(membershipRevocationStore.isRevoked(1L, 1L, null)).thenReturn(true);
+
+        filter.doFilterInternal(request, response, filterChain);
+
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+        verify(userDetailsService, never()).loadUserById(any(), any());
     }
 
     @Test

@@ -172,6 +172,10 @@ public class TenantMembershipAppService {
     /**
      * 平台租户解除用户与租户的关系（软停用；首页关系禁止删除）。
      *
+     * <p>解绑同时清理该用户在本租户的角色关联，并发布 {@code TENANT_UNBOUND} 事件：
+     * 事务提交后失效权限缓存并写入成员撤销时间戳，使已签发的本租户 accessToken
+     * 在网关与 auth 服务两侧立即失效；重新绑定后需重新分配角色并重新登录。</p>
+     *
      * @param userId 用户 ID
      * @param tenantId 目标租户 ID
      * @throws BizException 首页关系、关系不存在或用户不存在时抛出
@@ -188,7 +192,8 @@ public class TenantMembershipAppService {
             throw new BizException(404, "租户关系不存在");
         }
         userTenantRepository.disable(userId, tenantId);
-        domainEventPublisher.publish(new UserDomainEvent(userId, ChangeType.ROLES_ASSIGNED, tenantId));
+        userRepository.removeRolesInTenant(userId, tenantId);
+        domainEventPublisher.publish(new UserDomainEvent(userId, ChangeType.TENANT_UNBOUND, tenantId));
     }
 
     /**

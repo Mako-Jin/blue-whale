@@ -51,7 +51,7 @@ mvn -B -pl backend/whale-services/whale-service-auth/whale-service-auth-starter 
 
 ## 5. 边界
 
-- **活跃令牌撤销**：本次只修缓存失效。平台解绑后，用户已签发的目标租户访问令牌在过期前仍可能被下游接受（切换/刷新会校验关系并 401）；若要即时吊销，需要令牌黑名单或按 `(userId,tenantId)` 的版本号机制；
-- **角色关联保留**：解绑只停用 `sys_user_tenant` 关系，不删除 `sys_user_role`；重新绑定后原角色仍生效，是否符合产品预期需另立需求确认；
+- **活跃令牌撤销**：平台解绑后已签发的目标租户 accessToken 即时失效，已由 [P1 #8](2026-10-27-p1-8-tenant-unbind-token-revocation.md) 补齐（按 `(tenantId,userId,iat)` 撤销键，网关与 auth 双侧校验）；
+- **角色关联清理**：解绑时删除目标租户角色关联，重新绑定后需重新分配角色，同样由 [P1 #8](2026-10-27-p1-8-tenant-unbind-token-revocation.md) 落地；
 - **多实例真机验证**：Redis 双实例广播/断连恢复仍需联调环境（与 P1 #3 边界一致）；
 - 缓存失效仍为「精确到受影响用户」，不做全量 pattern 清理。

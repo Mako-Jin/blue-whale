@@ -44,6 +44,8 @@ public sealed interface AuthDomainEvent
         PASSWORD_CHANGED,
         /** 角色分配变更 */
         ROLES_ASSIGNED,
+        /** 租户成员关系解除 */
+        TENANT_UNBOUND,
         /** 权限分配变更 */
         PERMISSIONS_ASSIGNED,
         /** ABAC 属性全量覆盖 */

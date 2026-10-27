@@ -36,6 +36,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -196,6 +197,23 @@ class UserRepositoryImplTest {
 
         verify(userMapper).delete(ArgumentMatchers.<Wrapper<SysUser>>any());
         verify(userRoleMapper).delete(ArgumentMatchers.<Wrapper<SysUserRole>>any());
+    }
+
+    @Test
+    @DisplayName("removeRolesInTenant：只按目标租户角色清理关联行")
+    void shouldRemoveRolesInTenant() {
+        repository.removeRolesInTenant(USER_ID, 2L);
+
+        verify(userRoleMapper).deleteByUserAndRoleTenant(USER_ID, 2L);
+    }
+
+    @Test
+    @DisplayName("removeRolesInTenant：参数缺失时跳过删除")
+    void shouldSkipRemoveRolesInTenantWhenArgumentsMissing() {
+        repository.removeRolesInTenant(null, 2L);
+        repository.removeRolesInTenant(USER_ID, null);
+
+        verifyNoInteractions(userRoleMapper);
     }
 
     @Test

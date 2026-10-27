@@ -215,7 +215,7 @@ class TenantMembershipAppServiceTest {
     }
 
     @Test
-    @DisplayName("unbindTenant：软停用关系并发布目标租户缓存失效事件")
+    @DisplayName("unbindTenant：软停用关系、清理本租户角色并发布解绑事件")
     void unbindTenantShouldPublishTenantEvent() {
         User user = user(USER_ID, "alice");
         when(userRepository.findByIdAcrossTenants(USER_ID)).thenReturn(Optional.of(user));
@@ -224,8 +224,9 @@ class TenantMembershipAppServiceTest {
         service.unbindTenant(USER_ID, 2L);
 
         verify(userTenantRepository).disable(USER_ID, 2L);
+        verify(userRepository).removeRolesInTenant(USER_ID, 2L);
         verify(domainEventPublisher).publish(new UserDomainEvent(USER_ID,
-                ChangeType.ROLES_ASSIGNED, 2L));
+                ChangeType.TENANT_UNBOUND, 2L));
     }
 
     @Test
@@ -238,6 +239,7 @@ class TenantMembershipAppServiceTest {
 
         assertEquals(400, ex.getCode());
         verify(userTenantRepository, never()).disable(any(), any());
+        verify(userRepository, never()).removeRolesInTenant(any(), any());
     }
 
     @Test

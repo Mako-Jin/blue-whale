@@ -84,6 +84,17 @@ public interface UserRepository {
     List<Long> listRoleIds(Long userId);
 
     /**
+     * 物理删除用户与指定租户角色的关联行（成员解绑时清理租户内角色）。
+     *
+     * <p>只删除 {@code sys_role.tenant_id=指定租户} 的角色关联，不影响该用户在其他租户的
+     * 角色；调用方需自行保证租户 ID 可信。</p>
+     *
+     * @param userId 用户 ID
+     * @param tenantId 目标租户 ID
+     */
+    void removeRolesInTenant(Long userId, Long tenantId);
+
+    /**
      * 分页查询用户（{@code keyword} 模糊匹配用户名/昵称/手机号，按创建时间降序）
      *
      * @param current 当前页码

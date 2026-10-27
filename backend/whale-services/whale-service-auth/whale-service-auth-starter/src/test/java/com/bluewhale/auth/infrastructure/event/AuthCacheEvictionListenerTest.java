@@ -5,6 +5,7 @@ import com.bluewhale.auth.domain.event.PermissionDomainEvent;
 import com.bluewhale.auth.domain.event.RoleDomainEvent;
 import com.bluewhale.auth.domain.event.UserDomainEvent;
 import com.bluewhale.auth.security.PermissionCache;
+import com.bluewhale.auth.security.TenantMembershipRevocationStore;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,6 +29,9 @@ class AuthCacheEvictionListenerTest {
 
     @Mock
     private PermissionCache permissionCache;
+
+    @Mock
+    private TenantMembershipRevocationStore revocationStore;
 
     @InjectMocks
     private AuthCacheEvictionListener listener;
@@ -63,6 +67,32 @@ class AuthCacheEvictionListenerTest {
 
         verify(permissionCache).evictUserInTenant(9L, AGGREGATE_ID);
         verify(permissionCache, never()).evictUser(anyLong());
+    }
+
+    @Test
+    @DisplayName("成员解绑：失效目标租户缓存并写入存量令牌撤销时间")
+    void shouldEvictAndRevokeWhenTenantUnbound() {
+        listener.onUserEvent(new UserDomainEvent(AGGREGATE_ID, ChangeType.TENANT_UNBOUND, 9L));
+
+        verify(permissionCache).evictUserInTenant(9L, AGGREGATE_ID);
+        verify(revocationStore).revoke(9L, AGGREGATE_ID);
+    }
+
+    @Test
+    @DisplayName("成员解绑缺少租户：仅按当前上下文失效缓存，不写撤销时间")
+    void shouldSkipRevocationWhenTenantUnboundWithoutTenant() {
+        listener.onUserEvent(new UserDomainEvent(AGGREGATE_ID, ChangeType.TENANT_UNBOUND));
+
+        verify(permissionCache).evictUser(AGGREGATE_ID);
+        verify(revocationStore, never()).revoke(anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("角色分配：只失效缓存，不写成员撤销时间")
+    void shouldNotRevokeOnRolesAssigned() {
+        listener.onUserEvent(new UserDomainEvent(AGGREGATE_ID, ChangeType.ROLES_ASSIGNED, 9L));
+
+        verify(revocationStore, never()).revoke(anyLong(), anyLong());
     }
 
     @Test

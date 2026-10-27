@@ -2,6 +2,7 @@ package com.bluewhale.gateway.filter;
 
 import com.bluewhale.gateway.common.GatewayResponse;
 import com.bluewhale.gateway.config.WhaleGatewayProperties;
+import com.bluewhale.gateway.security.MembershipRevocationChecker;
 import com.bluewhale.gateway.security.TenantStatusChecker;
 import com.bluewhale.gateway.security.TokenBlacklistChecker;
 import io.jsonwebtoken.Claims;
@@ -30,7 +31,7 @@ import java.nio.charset.StandardCharsets;
  * 约定与 whale-service-auth 签发侧一字不差：HS256；claims：sub=username、userId、roles（逗号分隔）、tokenType。
  * 认证通过后向下游注入 X-User-Id、X-Username、X-User-Roles（先清除外部伪造的同名入站头）。
  * <p>校验顺序：签名/过期 → 令牌类型必须为 access（拒绝以 refreshToken 冒充访问令牌）→
- * 查询分布式登出黑名单（REQ-SEC-003）→ 注入身份头放行。</p>
+ * 查询分布式登出黑名单（REQ-SEC-003）→ 租户停用校验 → 租户成员撤销校验 → 注入身份头放行。</p>
  *
  * @author BlueWhale
  */
@@ -56,18 +57,23 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
 
     private final TenantStatusChecker tenantStatusChecker;
 
+    private final MembershipRevocationChecker membershipRevocationChecker;
+
     /**
-     * 构造过滤器，注入网关配置与令牌黑名单校验器
+     * 构造过滤器，注入网关配置、令牌黑名单、租户状态与成员撤销校验器
      *
-     * @param properties            网关配置属性
-     * @param tokenBlacklistChecker 令牌黑名单校验器
-     * @param tenantStatusChecker   租户状态校验器（停用租户存量令牌拒绝）
+     * @param properties                  网关配置属性
+     * @param tokenBlacklistChecker       令牌黑名单校验器
+     * @param tenantStatusChecker         租户状态校验器（停用租户存量令牌拒绝）
+     * @param membershipRevocationChecker 租户成员撤销校验器（解绑后存量令牌拒绝）
      */
     public JwtAuthGlobalFilter(WhaleGatewayProperties properties, TokenBlacklistChecker tokenBlacklistChecker,
-                               TenantStatusChecker tenantStatusChecker) {
+                               TenantStatusChecker tenantStatusChecker,
+                               MembershipRevocationChecker membershipRevocationChecker) {
         this.properties = properties;
         this.tokenBlacklistChecker = tokenBlacklistChecker;
         this.tenantStatusChecker = tenantStatusChecker;
+        this.membershipRevocationChecker = membershipRevocationChecker;
     }
 
     @Override
@@ -117,9 +123,20 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
                                         log.warn("租户已停用，拒绝存量令牌访问: path={}, tenantId={}", path, tenantId);
                                         return unauthorized(exchange);
                                     }
-                                    ServerHttpRequest mutatedRequest =
-                                            withIdentityHeaders(request, claims, tenantId);
-                                    return chain.filter(exchange.mutate().request(mutatedRequest).build());
+                                    String userId = stringify(claims.get(CLAIM_USER_ID));
+                                    return membershipRevocationChecker
+                                            .isRevoked(tenantId, userId, claims.getIssuedAt())
+                                            .flatMap(revoked -> {
+                                                if (Boolean.TRUE.equals(revoked)) {
+                                                    log.warn("租户成员关系已解除，拒绝存量令牌访问: path={}, "
+                                                            + "tenantId={}, userId={}", path, tenantId, userId);
+                                                    return unauthorized(exchange);
+                                                }
+                                                ServerHttpRequest mutatedRequest =
+                                                        withIdentityHeaders(request, claims, tenantId);
+                                                return chain.filter(
+                                                        exchange.mutate().request(mutatedRequest).build());
+                                            });
                                 });
                     });
         } catch (JwtException | IllegalArgumentException e) {

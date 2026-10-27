@@ -79,6 +79,9 @@ class PermissionCacheTest {
     @Mock
     private SysRoleMapper roleMapper;
 
+    @Mock
+    private TenantMembershipRevocationStore revocationStore;
+
     private PermissionCache permissionCache;
 
     /**
@@ -411,7 +414,7 @@ class PermissionCacheTest {
     void shouldEvictImmediatelyWhenListenerRunsAfterCommit() {
         TransactionSynchronizationManager.initSynchronization();
         try {
-            new AuthCacheEvictionListener(permissionCache)
+            new AuthCacheEvictionListener(permissionCache, revocationStore)
                     .onUserEvent(new UserDomainEvent(USER_ID, ChangeType.STATUS_CHANGED));
 
             verify(cacheInvalidator).invalidateUsers(Set.of(USER_ID));
