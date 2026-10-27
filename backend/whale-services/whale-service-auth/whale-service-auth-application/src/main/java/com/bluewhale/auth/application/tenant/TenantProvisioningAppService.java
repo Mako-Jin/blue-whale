@@ -31,13 +31,15 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 租户开通应用服务（Wave 5.54 Phase 1）。
  *
  * <p><b>编排步骤</b>：创建租户 → 初始化部门根 → 复制平台菜单模板 → 创建默认角色 {@code tenant_admin}
- * 并授予除平台专属码外的全部权限 → 创建初始管理员并绑定默认角色。</p>
+ * 并授予除平台专属码外的全部权限 → 按平台业务角色模板下发业务角色 → 创建初始管理员并绑定默认角色。</p>
  *
  * <p><b>幂等与一致性</b>：① 分布式锁按租户编码串行，避免并发重复开通；
  * ② 全流程单事务，任一步失败整体回滚，重试从零开始，不会留下半初始化租户；
@@ -52,6 +54,22 @@ public class TenantProvisioningAppService {
 
     /** 新租户默认管理员角色编码 */
     public static final String DEFAULT_TENANT_ADMIN_ROLE = "tenant_admin";
+
+    /**
+     * 业务角色模板编码：模板由 {@code migration-5.65-business-role-grant.sql} 在平台租户维护，
+     * 新租户开通时按模板当前的角色名称/描述/排序与权限集下发同名角色。
+     *
+     * <p>模板缺失（未执行 5.65）时仅告警跳过，不阻断租户开通；平台租户 {@code tenant_admin}
+     * 仍持有全部启用业务权限，不会出现业务接口 403。</p>
+     */
+    public static final List<String> BUSINESS_ROLE_TEMPLATE_CODES = List.of(
+            "archive_manager", "archive_member",
+            "oa_manager", "oa_member",
+            "erp_manager", "erp_member",
+            "mes_manager", "mes_member",
+            "pdm_manager", "pdm_member",
+            "contract_manager", "contract_member", "contract_signatory");
+
     /**
      * 平台侧专属权限码：不下发给业务租户。
      *
@@ -103,15 +121,20 @@ public class TenantProvisioningAppService {
         copyMenusFromPlatform(tenantId);
 
         // 3. 默认角色：租户管理员，授予除平台租户管理外的全部启用权限
-        List<Long> permissionIds = permissionRepository.findEnabledAll().stream()
+        List<Permission> tenantGrantablePermissions = permissionRepository.findEnabledAll().stream()
                 .filter(permission -> !PLATFORM_ONLY_PERM_CODES.contains(permission.getPermCode().value()))
+                .toList();
+        List<Long> permissionIds = tenantGrantablePermissions.stream()
                 .map(Permission::getId)
                 .toList();
         Role adminRole = roleRepository.save(Role.create(tenantId, RoleCode.of(DEFAULT_TENANT_ADMIN_ROLE),
                 "租户管理员", "租户开通时自动创建，管理本租户用户、角色、菜单与部门", 0, Role.STATUS_ENABLED));
         roleRepository.replacePermissions(adminRole.getId(), permissionIds);
 
-        // 4. 初始管理员：归属根部门并绑定默认角色
+        // 4. 业务角色：按平台租户模板下发同名角色并复制模板当前权限集
+        copyBusinessRolesFromPlatform(tenantId, tenantGrantablePermissions);
+
+        // 5. 初始管理员：归属根部门并绑定默认角色
         User admin = userRepository.save(User.create(tenantId, adminUsername,
                 EncryptedPassword.of(passwordEncoder.encode(command.rawPassword())), command.adminNickname(),
                 null, null, null, rootDept.getId(), User.STATUS_ENABLED));
@@ -120,9 +143,49 @@ public class TenantProvisioningAppService {
         tenantMembershipAppService.ensureHomeMembership(admin.getId(), tenantId);
         tenantStatusCache.sync(tenant);
 
-        log.info("租户开通完成: tenantId={}, tenantCode={}, adminUserId={}, menuCount={}",
+        log.info("租户开通完成: tenantId={}, tenantCode={}, adminUserId={}, permissionCount={}",
                 tenantId, tenantCode, admin.getId(), permissionIds.size());
         return TenantVO.from(tenant);
+    }
+
+    /**
+     * 按平台租户业务角色模板向新租户下发业务角色。
+     *
+     * <p><b>模板来源</b>：平台租户（{@link Tenant#PLATFORM_TENANT_ID}）下由
+     * {@code migration-5.65-business-role-grant.sql} 维护的同名角色；角色名称、描述、排序与状态原样复制，
+     * 权限集取模板当前的 {@code sys_role_permission}，再与本次下发给业务租户的启用权限集合取交集。</p>
+     *
+     * <p><b>缺失处理</b>：模板未部署（未执行 5.65）时逐项告警并跳过，不阻断租户开通；
+     * 新租户的 {@code tenant_admin} 仍持有全部启用业务权限。</p>
+     *
+     * @param targetTenantId 新租户 ID
+     * @param grantablePermissions 可下发给业务租户的启用权限（已剔除平台专属码）
+     */
+    private void copyBusinessRolesFromPlatform(Long targetTenantId, List<Permission> grantablePermissions) {
+        Set<Long> grantablePermissionIds = grantablePermissions.stream()
+                .map(Permission::getId)
+                .collect(Collectors.toSet());
+        int copied = 0;
+        int missing = 0;
+        for (String roleCode : BUSINESS_ROLE_TEMPLATE_CODES) {
+            Optional<Role> template = roleRepository.findByTenantIdAndCode(Tenant.PLATFORM_TENANT_ID, roleCode);
+            if (template.isEmpty()) {
+                missing++;
+                log.warn("业务角色模板缺失，跳过下发: tenantId={}, roleCode={}", targetTenantId, roleCode);
+                continue;
+            }
+            Role source = template.get();
+            Role role = roleRepository.save(Role.create(targetTenantId, RoleCode.of(roleCode),
+                    source.getRoleName(), source.getDescription(), source.getSortNo(), source.getStatus()));
+            List<Long> templatePermissionIds = roleRepository.listPermissionIds(source.getId());
+            List<Long> permissionIds = templatePermissionIds.stream()
+                    .filter(grantablePermissionIds::contains)
+                    .toList();
+            roleRepository.replacePermissions(role.getId(), permissionIds);
+            copied++;
+        }
+        log.info("业务角色模板下发完成: tenantId={}, copied={}, missing={}, total={}",
+                targetTenantId, copied, missing, BUSINESS_ROLE_TEMPLATE_CODES.size());
     }
 
     /**

@@ -7,8 +7,8 @@
 -- 变更内容 : 权限点 207–210（生产工单 共 4 个）+ 菜单 26。
 -- 编号约定 : 172–202 为 PM 占用；203–206 为 ERP 占用；207–210 为 MES 占用；
 --            PDM 从 211 起编。菜单 18–24 为 PM、25 为 ERP，MES 菜单用 26。
--- 授权说明 : 遵循既有约定，本脚本不写 sys_role_permission；super_admin 隐式覆盖，
---            业务角色请在「角色管理」勾选 207–210。
+-- 授权说明 : 遵循既有约定，本脚本不写 sys_role_permission；migration-5.65 已固化
+--            mes_manager / mes_member 及既有租户管理员，无需再手工勾选 207–210。
 -- 前置条件 : bluewhale_mes 库已执行 backend/whale-apps/whale-mes/src/main/resources/db/init.sql。
 -- =====================================================================
 

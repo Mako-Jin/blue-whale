@@ -7,8 +7,8 @@
 -- 变更内容 : 权限点 211–214（产品 共 4 个）+ 菜单 27。
 -- 编号约定 : 203–206 为 ERP；207–210 为 MES；211–214 为 PDM 占用；
 --            菜单 25 为 ERP、26 为 MES，PDM 菜单用 27。
--- 授权说明 : 遵循既有约定，本脚本不写 sys_role_permission；super_admin 隐式覆盖，
---            业务角色请在「角色管理」勾选 211–214。
+-- 授权说明 : 遵循既有约定，本脚本不写 sys_role_permission；migration-5.65 已固化
+--            pdm_manager / pdm_member 及既有租户管理员，无需再手工勾选 211–214。
 -- 前置条件 : bluewhale_pdm 库已执行 backend/whale-apps/whale-pdm/src/main/resources/db/init.sql。
 -- =====================================================================
 

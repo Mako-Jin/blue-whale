@@ -5,8 +5,8 @@
 -- 执行方式 : mysql -u<user> -p bluewhale_auth < migration-5.46-oa-leave.sql
 -- 幂等说明 : INSERT IGNORE，可重复执行，不修改/删除任何既有数据。
 -- 变更内容 : 新增 OA 请假权限点 168–171（对应 OaLeaveController 的 6 个端点）。
--- 授权说明 : 遵循既有约定，本脚本不写 sys_role_permission；上线后请在
---            「角色管理」为租户管理员 / 业务角色勾选 168–171。
+-- 授权说明 : 遵循既有约定，本脚本不写 sys_role_permission；migration-5.65 已固化
+--            oa_manager / oa_member 及既有租户管理员，无需再手工勾选 168–171。
 -- 前置条件 : bluewhale_oa 库已执行 backend/whale-apps/whale-oa/src/main/resources/db/init.sql。
 -- =====================================================================
 

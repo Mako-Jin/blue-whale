@@ -7,8 +7,8 @@
 -- 变更内容 : 权限点 203–206（物料 共 4 个）+ 菜单 25。
 -- 编号约定 : 172–202 为 PM 占用；203–206 为 ERP 占用；MES/PDM 从 207 起编；
 --            菜单 18–24 为 PM 占用，ERP 菜单用 25。
--- 授权说明 : 遵循既有约定，本脚本不写 sys_role_permission；super_admin 隐式覆盖，
---            业务角色请在「角色管理」勾选 203–206。
+-- 授权说明 : 遵循既有约定，本脚本不写 sys_role_permission；migration-5.65 已固化
+--            erp_manager / erp_member 及既有租户管理员，无需再手工勾选 203–206。
 -- 前置条件 : bluewhale_erp 库已执行 backend/whale-apps/whale-erp/src/main/resources/db/init.sql。
 -- =====================================================================
 

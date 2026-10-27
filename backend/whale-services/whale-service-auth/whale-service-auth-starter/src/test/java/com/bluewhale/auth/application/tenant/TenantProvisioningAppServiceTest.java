@@ -6,6 +6,7 @@ import com.bluewhale.auth.domain.dept.repository.DeptRepository;
 import com.bluewhale.auth.domain.menu.aggregate.Menu;
 import com.bluewhale.auth.domain.menu.repository.MenuRepository;
 import com.bluewhale.auth.domain.model.vo.PermCode;
+import com.bluewhale.auth.domain.model.vo.RoleCode;
 import com.bluewhale.auth.domain.permission.aggregate.Permission;
 import com.bluewhale.auth.domain.permission.repository.PermissionRepository;
 import com.bluewhale.auth.domain.role.aggregate.Role;
@@ -156,6 +157,64 @@ class TenantProvisioningAppServiceTest {
 
         assertEquals("acme", result.getTenantCode());
         assertEquals(Long.valueOf(NEW_TENANT_ID), result.getId());
+    }
+
+    @Test
+    @DisplayName("开通：按平台业务角色模板下发同名角色并复制模板权限集（剔除平台专属与停用权限）")
+    void shouldCopyBusinessRoleTemplates() {
+        AtomicLong roleIdSequence = new AtomicLong(300L);
+        when(tenantAppService.requirePlatformTenant()).thenReturn(platformTenant());
+        when(tenantRepository.findByCode("acme")).thenReturn(Optional.empty());
+        when(tenantRepository.save(any(Tenant.class))).thenAnswer(invocation -> {
+            Tenant draft = invocation.getArgument(0);
+            return Tenant.reconstitute(NEW_TENANT_ID, draft.getTenantCode(), draft.getTenantName(), "TENANT",
+                    draft.getStatus(), draft.getExpireTime(), draft.getQuotaJson(),
+                    draft.getCreateTime(), draft.getUpdateTime());
+        });
+        when(deptRepository.save(any(Dept.class))).thenAnswer(invocation -> {
+            Dept draft = invocation.getArgument(0);
+            return Dept.reconstitute(ROOT_DEPT_ID, draft.getTenantId(), draft.getParentId(), draft.getDeptName(),
+                    draft.getSort(), draft.getLeader(), draft.getCreateTime(), draft.getUpdateTime());
+        });
+        when(permissionRepository.findEnabledAll()).thenReturn(List.of(
+                permission(140L, "sys:archive:category:list"),
+                permission(44L, "sys:workflow:instance:start"),
+                permission(165L, "sys:tenant:list")));
+        when(roleRepository.save(any(Role.class))).thenAnswer(invocation -> {
+            Role draft = invocation.getArgument(0);
+            return Role.reconstitute(roleIdSequence.incrementAndGet(), draft.getTenantId(), draft.getRoleCode(),
+                    draft.getRoleName(), draft.getDescription(), draft.getSortNo(), draft.getStatus(),
+                    draft.getCreateTime(), draft.getUpdateTime());
+        });
+        // 仅 archive_manager 模板存在，其余 12 个编码按缺失跳过
+        when(roleRepository.findByTenantIdAndCode(Tenant.PLATFORM_TENANT_ID, "archive_manager"))
+                .thenReturn(Optional.of(Role.reconstitute(9_000L, Tenant.PLATFORM_TENANT_ID,
+                        RoleCode.of("archive_manager"), "档案管理员", "档案全量", 140, Role.STATUS_ENABLED, NOW, NOW)));
+        // 模板授权含可下发 140、平台专属 165 与不存在的 999
+        when(roleRepository.listPermissionIds(9_000L)).thenReturn(List.of(140L, 165L, 999L));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+            User draft = invocation.getArgument(0);
+            return User.reconstitute(ADMIN_ID, draft.getTenantId(), draft.getUsername(), draft.getPassword(),
+                    draft.getNickname(), draft.getPhone(), draft.getEmail(), draft.getDeptId(), draft.getStatus(),
+                    draft.getCreateTime(), draft.getUpdateTime());
+        });
+        when(passwordEncoder.encode("initPwd")).thenReturn(CIPHER);
+
+        service.provision(new CreateTenantCommand("acme", "ACME", null, null, "admin", "initPwd", "管理员"));
+
+        ArgumentCaptor<Role> roleCaptor = ArgumentCaptor.forClass(Role.class);
+        verify(roleRepository, times(2)).save(roleCaptor.capture());
+        List<Role> saved = roleCaptor.getAllValues();
+        assertEquals("tenant_admin", saved.get(0).getRoleCode().value());
+        Role copied = saved.get(1);
+        assertEquals("archive_manager", copied.getRoleCode().value());
+        assertEquals("档案管理员", copied.getRoleName());
+        assertEquals("档案全量", copied.getDescription());
+        assertEquals(140, copied.getSortNo());
+        assertEquals(Long.valueOf(NEW_TENANT_ID), copied.getTenantId());
+        // 管理员：140 + 44（165 为平台专属被剔除）；模板角色：仅 140（165 平台专属、999 非启用权限被剔除）
+        verify(roleRepository).replacePermissions(301L, List.of(140L, 44L));
+        verify(roleRepository).replacePermissions(302L, List.of(140L));
     }
 
     @Test

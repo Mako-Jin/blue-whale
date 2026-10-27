@@ -7,8 +7,9 @@
 -- 变更内容 : 权限点 215–222（合同主流程 8 个）+ 菜单 28。
 -- 编号约定 : 203–206 ERP / 207–210 MES / 211–214 PDM 已占用；
 --            菜单 25/26/27 已占用，合同菜单用 28。
--- 授权说明 : 遵循既有约定，本脚本不写 sys_role_permission；super_admin 隐式覆盖，
---            业务角色请在「角色管理」勾选 215–222。
+-- 授权说明 : 遵循既有约定，本脚本不写 sys_role_permission；migration-5.65 已固化
+--            contract_manager / contract_member / contract_signatory 及既有租户管理员，
+--            无需再手工勾选 215–222。
 -- 前置条件 : bluewhale_contract 库已执行 backend/whale-apps/whale-contract/src/main/resources/db/init.sql。
 -- =====================================================================
 

@@ -5,7 +5,8 @@
 -- 执行方式 : mysql -u<user> -p bluewhale_auth < migration-5.63-contract-esign-m3.sql
 -- 幂等说明 : INSERT IGNORE，可重复执行，不修改/删除任何既有数据。
 -- 变更内容 : 权限点 232（合同生效）+ 菜单 31（证据中心，复用 230 查询权限）。
--- 授权说明 : 遵循既有约定，本脚本不写 sys_role_permission；super_admin 隐式覆盖。
+-- 授权说明 : 遵循既有约定，本脚本不写 sys_role_permission；migration-5.65 已将 232
+--            授予 contract_manager / contract_member 及既有租户管理员。
 -- =====================================================================
 
 INSERT IGNORE INTO sys_permission
