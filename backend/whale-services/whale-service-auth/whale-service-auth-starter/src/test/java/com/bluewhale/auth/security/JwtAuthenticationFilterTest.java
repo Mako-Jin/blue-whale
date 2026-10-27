@@ -47,6 +47,9 @@ class JwtAuthenticationFilterTest {
     private TenantMembershipRevocationStore membershipRevocationStore;
 
     @Mock
+    private UserAccessRevocationStore userAccessRevocationStore;
+
+    @Mock
     private HttpServletRequest request;
 
     @Mock
@@ -136,6 +139,21 @@ class JwtAuthenticationFilterTest {
         givenAccessClaims("tester");
         when(tokenBlacklist.contains("v.v.v")).thenReturn(false);
         when(membershipRevocationStore.isRevoked(1L, 1L, null)).thenReturn(true);
+
+        filter.doFilterInternal(request, response, filterChain);
+
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+        verify(userDetailsService, never()).loadUserById(any(), any());
+    }
+
+    @Test
+    @DisplayName("用户已停用/删除/改密：撤销前签发的令牌不写入认证")
+    void shouldRejectUserAccessRevokedToken() throws Exception {
+        givenBearer("v.v.v");
+        when(tokenProvider.parse("v.v.v")).thenReturn(claims);
+        givenAccessClaims("tester");
+        when(tokenBlacklist.contains("v.v.v")).thenReturn(false);
+        when(userAccessRevocationStore.isRevoked(1L, null)).thenReturn(true);
 
         filter.doFilterInternal(request, response, filterChain);
 

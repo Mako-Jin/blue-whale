@@ -6,6 +6,7 @@ import com.bluewhale.auth.domain.event.RoleDomainEvent;
 import com.bluewhale.auth.domain.event.UserDomainEvent;
 import com.bluewhale.auth.security.PermissionCache;
 import com.bluewhale.auth.security.TenantMembershipRevocationStore;
+import com.bluewhale.auth.security.UserAccessRevocationStore;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,23 +34,46 @@ class AuthCacheEvictionListenerTest {
     @Mock
     private TenantMembershipRevocationStore revocationStore;
 
+    @Mock
+    private UserAccessRevocationStore userAccessRevocationStore;
+
     @InjectMocks
     private AuthCacheEvictionListener listener;
 
     @Test
-    @DisplayName("用户 STATUS_CHANGED：失效该用户缓存")
+    @DisplayName("用户 STATUS_CHANGED：只失效该用户缓存，不撤销用户级令牌")
     void shouldEvictUserOnStatusChanged() {
         listener.onUserEvent(new UserDomainEvent(AGGREGATE_ID, ChangeType.STATUS_CHANGED));
 
         verify(permissionCache).evictUser(AGGREGATE_ID);
+        verify(userAccessRevocationStore, never()).revoke(anyLong());
     }
 
     @Test
-    @DisplayName("用户 DELETED：失效该用户缓存")
+    @DisplayName("用户 DELETED：失效缓存并写入用户级撤销时间")
     void shouldEvictUserOnDeleted() {
         listener.onUserEvent(new UserDomainEvent(AGGREGATE_ID, ChangeType.DELETED));
 
         verify(permissionCache).evictUser(AGGREGATE_ID);
+        verify(userAccessRevocationStore).revoke(AGGREGATE_ID);
+    }
+
+    @Test
+    @DisplayName("用户停用：失效缓存并写入用户级撤销时间")
+    void shouldEvictAndRevokeWhenUserDisabled() {
+        listener.onUserEvent(new UserDomainEvent(AGGREGATE_ID, ChangeType.USER_DISABLED));
+
+        verify(permissionCache).evictUser(AGGREGATE_ID);
+        verify(userAccessRevocationStore).revoke(AGGREGATE_ID);
+    }
+
+    @Test
+    @DisplayName("用户改密：撤销存量令牌，但不失效权限缓存")
+    void shouldRevokeWithoutEvictWhenPasswordChanged() {
+        listener.onUserEvent(new UserDomainEvent(AGGREGATE_ID, ChangeType.PASSWORD_CHANGED));
+
+        verify(userAccessRevocationStore).revoke(AGGREGATE_ID);
+        verify(permissionCache, never()).evictUser(anyLong());
     }
 
     @Test
@@ -96,11 +120,12 @@ class AuthCacheEvictionListenerTest {
     }
 
     @Test
-    @DisplayName("用户 UPDATED：不触发缓存失效")
+    @DisplayName("用户 UPDATED：不触发缓存失效与用户级撤销")
     void shouldNotEvictUserOnUpdated() {
         listener.onUserEvent(new UserDomainEvent(AGGREGATE_ID, ChangeType.UPDATED));
 
         verify(permissionCache, never()).evictUser(anyLong());
+        verify(userAccessRevocationStore, never()).revoke(anyLong());
     }
 
     @Test

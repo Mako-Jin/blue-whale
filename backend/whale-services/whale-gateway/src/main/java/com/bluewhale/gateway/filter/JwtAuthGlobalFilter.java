@@ -5,6 +5,7 @@ import com.bluewhale.gateway.config.WhaleGatewayProperties;
 import com.bluewhale.gateway.security.MembershipRevocationChecker;
 import com.bluewhale.gateway.security.TenantStatusChecker;
 import com.bluewhale.gateway.security.TokenBlacklistChecker;
+import com.bluewhale.gateway.security.UserAccessRevocationChecker;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -31,7 +32,8 @@ import java.nio.charset.StandardCharsets;
  * 约定与 whale-service-auth 签发侧一字不差：HS256；claims：sub=username、userId、roles（逗号分隔）、tokenType。
  * 认证通过后向下游注入 X-User-Id、X-Username、X-User-Roles（先清除外部伪造的同名入站头）。
  * <p>校验顺序：签名/过期 → 令牌类型必须为 access（拒绝以 refreshToken 冒充访问令牌）→
- * 查询分布式登出黑名单（REQ-SEC-003）→ 租户停用校验 → 租户成员撤销校验 → 注入身份头放行。</p>
+ * 查询分布式登出黑名单（REQ-SEC-003）→ 租户停用校验 → 租户成员撤销校验 →
+ * 用户级撤销校验 → 注入身份头放行。</p>
  *
  * @author BlueWhale
  */
@@ -59,21 +61,26 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
 
     private final MembershipRevocationChecker membershipRevocationChecker;
 
+    private final UserAccessRevocationChecker userAccessRevocationChecker;
+
     /**
-     * 构造过滤器，注入网关配置、令牌黑名单、租户状态与成员撤销校验器
+     * 构造过滤器，注入网关配置、令牌黑名单、租户状态与撤销校验器
      *
      * @param properties                  网关配置属性
      * @param tokenBlacklistChecker       令牌黑名单校验器
      * @param tenantStatusChecker         租户状态校验器（停用租户存量令牌拒绝）
      * @param membershipRevocationChecker 租户成员撤销校验器（解绑后存量令牌拒绝）
+     * @param userAccessRevocationChecker 用户级撤销校验器（停用/删除/改密后存量令牌拒绝）
      */
     public JwtAuthGlobalFilter(WhaleGatewayProperties properties, TokenBlacklistChecker tokenBlacklistChecker,
                                TenantStatusChecker tenantStatusChecker,
-                               MembershipRevocationChecker membershipRevocationChecker) {
+                               MembershipRevocationChecker membershipRevocationChecker,
+                               UserAccessRevocationChecker userAccessRevocationChecker) {
         this.properties = properties;
         this.tokenBlacklistChecker = tokenBlacklistChecker;
         this.tenantStatusChecker = tenantStatusChecker;
         this.membershipRevocationChecker = membershipRevocationChecker;
+        this.userAccessRevocationChecker = userAccessRevocationChecker;
     }
 
     @Override
@@ -111,6 +118,12 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
                 log.warn("accessToken 缺少 tenantId claim: path={}", path);
                 return unauthorized(exchange);
             }
+            // 令牌必须绑定用户：缺失 userId 无法校验用户级撤销，也无法向下游注入可靠身份
+            String userId = stringify(claims.get(CLAIM_USER_ID));
+            if (userId.isBlank()) {
+                log.warn("accessToken 缺少 userId claim: path={}", path);
+                return unauthorized(exchange);
+            }
             return tokenBlacklistChecker.isBlacklisted(token)
                     .flatMap(blacklisted -> {
                         if (Boolean.TRUE.equals(blacklisted)) {
@@ -123,26 +136,50 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
                                         log.warn("租户已停用，拒绝存量令牌访问: path={}, tenantId={}", path, tenantId);
                                         return unauthorized(exchange);
                                     }
-                                    String userId = stringify(claims.get(CLAIM_USER_ID));
-                                    return membershipRevocationChecker
-                                            .isRevoked(tenantId, userId, claims.getIssuedAt())
-                                            .flatMap(revoked -> {
-                                                if (Boolean.TRUE.equals(revoked)) {
-                                                    log.warn("租户成员关系已解除，拒绝存量令牌访问: path={}, "
-                                                            + "tenantId={}, userId={}", path, tenantId, userId);
-                                                    return unauthorized(exchange);
-                                                }
-                                                ServerHttpRequest mutatedRequest =
-                                                        withIdentityHeaders(request, claims, tenantId);
-                                                return chain.filter(
-                                                        exchange.mutate().request(mutatedRequest).build());
-                                            });
+                                    return verifyRevocationsAndForward(
+                                            exchange, request, claims, tenantId, userId, path, chain);
                                 });
                     });
         } catch (JwtException | IllegalArgumentException e) {
             log.warn("JWT 校验失败: path={}, reason={}", path, e.getMessage());
             return unauthorized(exchange);
         }
+    }
+
+    /**
+     * 校验租户成员撤销与用户级撤销，通过后注入身份头并转发下游。
+     *
+     * @param exchange 当前交换对象
+     * @param request 原始请求
+     * @param claims 已验签的 JWT 载荷
+     * @param tenantId 令牌租户 ID
+     * @param userId 令牌用户 ID
+     * @param path 请求路径（仅用于日志）
+     * @param chain 下游过滤器链
+     * @return 完成信号
+     */
+    private Mono<Void> verifyRevocationsAndForward(ServerWebExchange exchange, ServerHttpRequest request,
+                                                   Claims claims, String tenantId, String userId,
+                                                   String path, GatewayFilterChain chain) {
+        return membershipRevocationChecker.isRevoked(tenantId, userId, claims.getIssuedAt())
+                .flatMap(membershipRevoked -> {
+                    if (Boolean.TRUE.equals(membershipRevoked)) {
+                        log.warn("租户成员关系已解除，拒绝存量令牌访问: path={}, tenantId={}, userId={}",
+                                path, tenantId, userId);
+                        return unauthorized(exchange);
+                    }
+                    return userAccessRevocationChecker.isRevoked(userId, claims.getIssuedAt())
+                            .flatMap(userRevoked -> {
+                                if (Boolean.TRUE.equals(userRevoked)) {
+                                    log.warn("用户已停用/删除/改密，拒绝存量令牌访问: path={}, userId={}",
+                                            path, userId);
+                                    return unauthorized(exchange);
+                                }
+                                ServerHttpRequest mutatedRequest =
+                                        withIdentityHeaders(request, claims, tenantId);
+                                return chain.filter(exchange.mutate().request(mutatedRequest).build());
+                            });
+                });
     }
 
     /**

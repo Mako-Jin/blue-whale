@@ -136,17 +136,46 @@ public class UserAppService {
      */
     public UserVO update(Long id, UpdateUserCommand command) {
         User user = requireUser(id);
-        if (command.rawPassword() != null && !command.rawPassword().isBlank()) {
+        int previousStatus = user.getStatus();
+        boolean passwordChanged = command.rawPassword() != null && !command.rawPassword().isBlank();
+        if (passwordChanged) {
             user.changePassword(EncryptedPassword.of(passwordEncoder.encode(command.rawPassword())));
         }
         user.changeProfile(command.nickname(), command.phone(), command.email(), command.avatar(),
                 command.deptId());
+        boolean statusChanged = command.status() != null && command.status() != previousStatus;
         if (command.status() != null) {
             user.changeStatus(command.status());
         }
         userRepository.save(user);
-        domainEventPublisher.publish(new UserDomainEvent(id, ChangeType.UPDATED));
+        domainEventPublisher.publish(new UserDomainEvent(id,
+                resolveAccessChangeType(passwordChanged, statusChanged, user.getStatus())));
         return UserVO.from(user);
+    }
+
+    /**
+     * 解析用户更新后需发布的事件类型。
+     *
+     * <p>停用优先（需同时失效权限缓存与撤销存量令牌）；其次改密（撤销全部存量令牌）；
+     * 再次启停（失效缓存）；仅资料变更时沿用 {@code UPDATED}，不触发缓存/令牌动作。</p>
+     *
+     * @param passwordChanged 本次是否修改口令
+     * @param statusChanged 本次状态是否变化
+     * @param currentStatus 变更后的状态
+     * @return 事件变更类型
+     */
+    private ChangeType resolveAccessChangeType(boolean passwordChanged, boolean statusChanged,
+                                               int currentStatus) {
+        if (statusChanged && currentStatus == STATUS_DISABLED) {
+            return ChangeType.USER_DISABLED;
+        }
+        if (passwordChanged) {
+            return ChangeType.PASSWORD_CHANGED;
+        }
+        if (statusChanged) {
+            return ChangeType.STATUS_CHANGED;
+        }
+        return ChangeType.UPDATED;
     }
 
     /**
@@ -176,8 +205,9 @@ public class UserAppService {
         }
         user.changeStatus(status);
         userRepository.save(user);
-        // 用户启停后不再沿用旧判定，发布事件由监听器失效其权限缓存
-        domainEventPublisher.publish(new UserDomainEvent(id, ChangeType.STATUS_CHANGED));
+        // 停用发布专用事件：失效缓存并撤销全部存量令牌；启用仅失效缓存
+        domainEventPublisher.publish(new UserDomainEvent(id,
+                status == STATUS_DISABLED ? ChangeType.USER_DISABLED : ChangeType.STATUS_CHANGED));
     }
 
     /**

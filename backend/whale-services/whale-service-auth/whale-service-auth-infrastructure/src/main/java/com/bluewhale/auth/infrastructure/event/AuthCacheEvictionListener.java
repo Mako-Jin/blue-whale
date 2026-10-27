@@ -6,6 +6,7 @@ import com.bluewhale.auth.domain.event.RoleDomainEvent;
 import com.bluewhale.auth.domain.event.UserDomainEvent;
 import com.bluewhale.auth.security.PermissionCache;
 import com.bluewhale.auth.security.TenantMembershipRevocationStore;
+import com.bluewhale.auth.security.UserAccessRevocationStore;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
@@ -19,7 +20,9 @@ import org.springframework.transaction.event.TransactionalEventListener;
  * 菜单、部门与 ABAC 属性事件不触发缓存失效。</p>
  *
  * <p>成员解绑事件（{@code TENANT_UNBOUND}）在此一并写入租户成员撤销时间戳，
- * 使本租户存量 accessToken 在网关与 auth 服务两侧即时失效。</p>
+ * 使本租户存量 accessToken 在网关与 auth 服务两侧即时失效；用户停用、删除与改密
+ * （{@code USER_DISABLED}/{@code DELETED}/{@code PASSWORD_CHANGED}）写入用户级撤销
+ * 时间戳，使该用户在所有租户的存量令牌同时失效。</p>
  *
  * @author BlueWhale
  */
@@ -30,19 +33,25 @@ public class AuthCacheEvictionListener {
     /** 权限判定缓存 */
     private final PermissionCache permissionCache;
 
-    /** 租户成员关系撤销存储 */
-    private final TenantMembershipRevocationStore revocationStore;
+    /** 租户成员关系撤销存储（按租户维度） */
+    private final TenantMembershipRevocationStore membershipRevocationStore;
+
+    /** 用户级访问撤销存储（跨租户维度） */
+    private final UserAccessRevocationStore userAccessRevocationStore;
 
     /**
      * 构造器注入
      *
      * @param permissionCache 权限判定缓存
-     * @param revocationStore 租户成员关系撤销存储
+     * @param membershipRevocationStore 租户成员关系撤销存储
+     * @param userAccessRevocationStore 用户级访问撤销存储
      */
     public AuthCacheEvictionListener(PermissionCache permissionCache,
-                                     TenantMembershipRevocationStore revocationStore) {
+                                     TenantMembershipRevocationStore membershipRevocationStore,
+                                     UserAccessRevocationStore userAccessRevocationStore) {
         this.permissionCache = permissionCache;
-        this.revocationStore = revocationStore;
+        this.membershipRevocationStore = membershipRevocationStore;
+        this.userAccessRevocationStore = userAccessRevocationStore;
     }
 
     /**
@@ -50,7 +59,7 @@ public class AuthCacheEvictionListener {
      *
      * <p>事件携带租户 ID 时（成员绑定/解绑等跨租户操作），按显式租户构造 Key；
      * 否则沿用当前租户上下文。监听器本身已在事务提交后执行，失效动作不再二次延迟。
-     * 成员解绑额外写入撤销时间戳，拒绝解绑前签发的存量令牌。</p>
+     * 成员解绑额外写入租户级撤销时间戳；用户停用、删除、改密写入用户级撤销时间戳。</p>
      *
      * @param event 用户领域事件
      */
@@ -60,7 +69,8 @@ public class AuthCacheEvictionListener {
         if (changeType == ChangeType.STATUS_CHANGED
                 || changeType == ChangeType.DELETED
                 || changeType == ChangeType.ROLES_ASSIGNED
-                || changeType == ChangeType.TENANT_UNBOUND) {
+                || changeType == ChangeType.TENANT_UNBOUND
+                || changeType == ChangeType.USER_DISABLED) {
             if (event.tenantId() != null) {
                 permissionCache.evictUserInTenant(event.tenantId(), event.aggregateId());
             } else {
@@ -72,7 +82,12 @@ public class AuthCacheEvictionListener {
                 log.warn("成员解绑事件缺少租户标识，跳过存量令牌撤销: userId={}", event.aggregateId());
                 return;
             }
-            revocationStore.revoke(event.tenantId(), event.aggregateId());
+            membershipRevocationStore.revoke(event.tenantId(), event.aggregateId());
+        }
+        if (changeType == ChangeType.USER_DISABLED
+                || changeType == ChangeType.DELETED
+                || changeType == ChangeType.PASSWORD_CHANGED) {
+            userAccessRevocationStore.revoke(event.aggregateId());
         }
     }
 

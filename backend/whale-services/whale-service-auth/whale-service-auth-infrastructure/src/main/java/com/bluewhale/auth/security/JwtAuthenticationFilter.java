@@ -37,6 +37,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final UserDetailsServiceImpl userDetailsService;
     private final TokenBlacklist tokenBlacklist;
     private final TenantMembershipRevocationStore membershipRevocationStore;
+    private final UserAccessRevocationStore userAccessRevocationStore;
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
@@ -54,7 +55,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      * 校验 token 并写入 SecurityContext。
      * <p>以下情况一律保持未认证状态（由 EntryPoint 返回 401），不在此处直接写响应：
      * token 无效/过期、非 accessToken、命中登出黑名单、租户成员关系已解绑且令牌签发于解绑前、
-     * 用户不存在或已停用。</p>
+     * 用户已停用/删除/改密且令牌签发于撤销前、用户不存在或已停用。</p>
      *
      * @param token   已剥离 Bearer 前缀的 token 原文
      * @param request 当前请求，用于填充认证详情
@@ -79,6 +80,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // 一人多租户：成员解绑后即时拒绝解绑前签发的本租户令牌，无需等待过期
         if (membershipRevocationStore.isRevoked(tenantId, userId, claims.getIssuedAt())) {
             log.debug("token 签发于租户成员解绑之前，按未认证处理: tenantId={}, userId={}", tenantId, userId);
+            return;
+        }
+        // 用户停用/删除/改密：跨租户撤销全部存量令牌
+        if (userAccessRevocationStore.isRevoked(userId, claims.getIssuedAt())) {
+            log.debug("token 签发于用户级撤销之前，按未认证处理: userId={}", userId);
             return;
         }
         try {

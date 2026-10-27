@@ -166,7 +166,7 @@ class UserAppServiceTest {
     }
 
     @Test
-    @DisplayName("update：口令非空时重新加密，资料字段全量覆盖")
+    @DisplayName("update：停用优先发布 USER_DISABLED，口令非空时重新加密")
     void shouldReencodePasswordAndApplyProfileOnUpdate() {
         User stored = user("旧昵称");
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(stored));
@@ -182,7 +182,46 @@ class UserAppServiceTest {
         assertEquals(User.STATUS_DISABLED, vo.getStatus());
         assertEquals(NEW_CIPHER, stored.getPassword().value());
         verify(userRepository).save(stored);
+        verify(eventPublisher).publish(new UserDomainEvent(USER_ID, ChangeType.USER_DISABLED));
+    }
+
+    @Test
+    @DisplayName("update：仅资料变更发布 UPDATED，不触发缓存/令牌动作")
+    void shouldPublishUpdatedWhenOnlyProfileChanged() {
+        User stored = user("旧昵称");
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(stored));
+
+        userAppService.update(USER_ID, new UpdateUserCommand(null, "新昵称",
+                "13900000000", "n@b.com", "new-avatar.png", 4L, User.STATUS_ENABLED));
+
         verify(eventPublisher).publish(new UserDomainEvent(USER_ID, ChangeType.UPDATED));
+    }
+
+    @Test
+    @DisplayName("update：仅改密发布 PASSWORD_CHANGED，撤销存量令牌")
+    void shouldPublishPasswordChangedWhenOnlyPasswordChanged() {
+        User stored = user("Alice");
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(stored));
+        when(passwordEncoder.encode("newpwd123")).thenReturn(NEW_CIPHER);
+
+        userAppService.update(USER_ID, new UpdateUserCommand("newpwd123", "Alice",
+                "13800000000", "a@b.com", "avatar.png", 3L, null));
+
+        verify(eventPublisher).publish(new UserDomainEvent(USER_ID, ChangeType.PASSWORD_CHANGED));
+    }
+
+    @Test
+    @DisplayName("update：启用状态变化发布 STATUS_CHANGED，失效权限缓存")
+    void shouldPublishStatusChangedWhenEnabling() {
+        User stored = User.reconstitute(USER_ID, 1L, Username.of("alice_01"),
+                EncryptedPassword.of(CIPHER), "Alice", "13800000000", "a@b.com", "avatar.png", 3L,
+                User.STATUS_DISABLED, LocalDateTime.of(2026, 1, 1, 8, 0, 0), CREATED, UPDATED);
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(stored));
+
+        userAppService.update(USER_ID, new UpdateUserCommand(null, "Alice",
+                "13800000000", "a@b.com", "avatar.png", 3L, User.STATUS_ENABLED));
+
+        verify(eventPublisher).publish(new UserDomainEvent(USER_ID, ChangeType.STATUS_CHANGED));
     }
 
     @Test
@@ -214,7 +253,7 @@ class UserAppServiceTest {
     }
 
     @Test
-    @DisplayName("changeStatus：合法状态落库并发布 STATUS_CHANGED 事件")
+    @DisplayName("changeStatus：停用落库并发布 USER_DISABLED 事件")
     void shouldChangeStatusAndPublishEvent() {
         User stored = user("Alice");
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(stored));
@@ -223,6 +262,20 @@ class UserAppServiceTest {
 
         assertEquals(User.STATUS_DISABLED, stored.getStatus());
         verify(userRepository).save(stored);
+        verify(eventPublisher).publish(new UserDomainEvent(USER_ID, ChangeType.USER_DISABLED));
+    }
+
+    @Test
+    @DisplayName("changeStatus：启用落库并发布 STATUS_CHANGED 事件")
+    void shouldPublishStatusChangedWhenEnablingStatus() {
+        User stored = User.reconstitute(USER_ID, 1L, Username.of("alice_01"),
+                EncryptedPassword.of(CIPHER), "Alice", "13800000000", "a@b.com", "avatar.png", 3L,
+                User.STATUS_DISABLED, LocalDateTime.of(2026, 1, 1, 8, 0, 0), CREATED, UPDATED);
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(stored));
+
+        userAppService.changeStatus(USER_ID, new ChangeUserStatusCommand(User.STATUS_ENABLED));
+
+        assertEquals(User.STATUS_ENABLED, stored.getStatus());
         verify(eventPublisher).publish(new UserDomainEvent(USER_ID, ChangeType.STATUS_CHANGED));
     }
 

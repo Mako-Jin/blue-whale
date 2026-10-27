@@ -82,6 +82,9 @@ class PermissionCacheTest {
     @Mock
     private TenantMembershipRevocationStore revocationStore;
 
+    @Mock
+    private UserAccessRevocationStore userAccessRevocationStore;
+
     private PermissionCache permissionCache;
 
     /**
@@ -414,7 +417,7 @@ class PermissionCacheTest {
     void shouldEvictImmediatelyWhenListenerRunsAfterCommit() {
         TransactionSynchronizationManager.initSynchronization();
         try {
-            new AuthCacheEvictionListener(permissionCache, revocationStore)
+            new AuthCacheEvictionListener(permissionCache, revocationStore, userAccessRevocationStore)
                     .onUserEvent(new UserDomainEvent(USER_ID, ChangeType.STATUS_CHANGED));
 
             verify(cacheInvalidator).invalidateUsers(Set.of(USER_ID));

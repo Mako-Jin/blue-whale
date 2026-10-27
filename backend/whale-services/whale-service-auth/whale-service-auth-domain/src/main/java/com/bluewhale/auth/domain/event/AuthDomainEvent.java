@@ -46,6 +46,8 @@ public sealed interface AuthDomainEvent
         ROLES_ASSIGNED,
         /** 租户成员关系解除 */
         TENANT_UNBOUND,
+        /** 用户停用（撤销该用户全部存量令牌） */
+        USER_DISABLED,
         /** 权限分配变更 */
         PERMISSIONS_ASSIGNED,
         /** ABAC 属性全量覆盖 */
