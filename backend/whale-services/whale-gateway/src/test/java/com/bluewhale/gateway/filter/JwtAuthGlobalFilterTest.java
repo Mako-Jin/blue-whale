@@ -116,13 +116,13 @@ class JwtAuthGlobalFilterTest {
     }
 
     @Test
-    @DisplayName("filter：租户已停用时返回 401，且不转发下游")
+    @DisplayName("filter：租户不可用（停用/到期）时返回 401，且不转发下游")
     void shouldReturnUnauthorizedWhenTenantDisabled() {
         String accessToken = token("access");
         MockServerWebExchange exchange = exchangeWithBearer(accessToken);
         GatewayFilterChain chain = mock(GatewayFilterChain.class);
         when(tokenBlacklistChecker.isBlacklisted(accessToken)).thenReturn(Mono.just(Boolean.FALSE));
-        when(tenantStatusChecker.isDisabled(String.valueOf(TENANT_ID))).thenReturn(Mono.just(Boolean.TRUE));
+        when(tenantStatusChecker.isUnavailable(String.valueOf(TENANT_ID))).thenReturn(Mono.just(Boolean.TRUE));
 
         filter.filter(exchange, chain).block();
 
@@ -137,7 +137,7 @@ class JwtAuthGlobalFilterTest {
         MockServerWebExchange exchange = exchangeWithBearer(accessToken);
         GatewayFilterChain chain = mock(GatewayFilterChain.class);
         when(tokenBlacklistChecker.isBlacklisted(accessToken)).thenReturn(Mono.just(Boolean.FALSE));
-        when(tenantStatusChecker.isDisabled(anyString())).thenReturn(Mono.just(Boolean.FALSE));
+        when(tenantStatusChecker.isUnavailable(anyString())).thenReturn(Mono.just(Boolean.FALSE));
         when(chain.filter(any())).thenReturn(Mono.empty());
 
         filter.filter(exchange, chain).block();
@@ -161,7 +161,7 @@ class JwtAuthGlobalFilterTest {
                 .build());
         GatewayFilterChain chain = mock(GatewayFilterChain.class);
         when(tokenBlacklistChecker.isBlacklisted(accessToken)).thenReturn(Mono.just(Boolean.FALSE));
-        when(tenantStatusChecker.isDisabled(anyString())).thenReturn(Mono.just(Boolean.FALSE));
+        when(tenantStatusChecker.isUnavailable(anyString())).thenReturn(Mono.just(Boolean.FALSE));
         when(chain.filter(any())).thenReturn(Mono.empty());
 
         filter.filter(exchange, chain).block();
@@ -224,7 +224,7 @@ class JwtAuthGlobalFilterTest {
         MockServerWebExchange exchange = exchangeWithBearer(accessToken);
         GatewayFilterChain chain = mock(GatewayFilterChain.class);
         when(tokenBlacklistChecker.isBlacklisted(accessToken)).thenReturn(Mono.just(Boolean.FALSE));
-        when(tenantStatusChecker.isDisabled(String.valueOf(TENANT_ID))).thenReturn(Mono.just(Boolean.FALSE));
+        when(tenantStatusChecker.isUnavailable(String.valueOf(TENANT_ID))).thenReturn(Mono.just(Boolean.FALSE));
         when(membershipRevocationChecker.isRevoked(eq(String.valueOf(TENANT_ID)),
                 eq(String.valueOf(USER_ID)), any())).thenReturn(Mono.just(Boolean.TRUE));
 
@@ -241,7 +241,7 @@ class JwtAuthGlobalFilterTest {
         MockServerWebExchange exchange = exchangeWithBearer(accessToken);
         GatewayFilterChain chain = mock(GatewayFilterChain.class);
         when(tokenBlacklistChecker.isBlacklisted(accessToken)).thenReturn(Mono.just(Boolean.FALSE));
-        when(tenantStatusChecker.isDisabled(String.valueOf(TENANT_ID))).thenReturn(Mono.just(Boolean.FALSE));
+        when(tenantStatusChecker.isUnavailable(String.valueOf(TENANT_ID))).thenReturn(Mono.just(Boolean.FALSE));
         when(userAccessRevocationChecker.isRevoked(eq(String.valueOf(USER_ID)), any()))
                 .thenReturn(Mono.just(Boolean.TRUE));
 

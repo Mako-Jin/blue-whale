@@ -130,10 +130,11 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
                             log.warn("令牌命中登出黑名单: path={}", path);
                             return unauthorized(exchange);
                         }
-                        return tenantStatusChecker.isDisabled(tenantId)
-                                .flatMap(disabled -> {
-                                    if (Boolean.TRUE.equals(disabled)) {
-                                        log.warn("租户已停用，拒绝存量令牌访问: path={}, tenantId={}", path, tenantId);
+                        return tenantStatusChecker.isUnavailable(tenantId)
+                                .flatMap(unavailable -> {
+                                    if (Boolean.TRUE.equals(unavailable)) {
+                                        log.warn("租户已停用或已到期，拒绝存量令牌访问: path={}, tenantId={}",
+                                                path, tenantId);
                                         return unauthorized(exchange);
                                     }
                                     return verifyRevocationsAndForward(

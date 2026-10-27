@@ -22,6 +22,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -164,5 +165,37 @@ class TenantAppServiceTest {
 
         assertEquals(400, ex.getCode());
         assertTrue(ex.getMessage().contains("续期时间必须晚于当前时间"));
+    }
+
+    @Test
+    @DisplayName("续期：保存后同步到期时间缓存，供网关即时判定")
+    void shouldSyncStatusCacheWhenRenewed() {
+        Tenant platform = Tenant.reconstitute(1L, "default", "默认租户", "PLATFORM", 1,
+                null, null, null, null);
+        Tenant target = Tenant.reconstitute(TENANT_ID, "acme", "ACME", "TENANT", 1,
+                LocalDateTime.now().plusDays(10), null, null, null);
+        when(tenantRepository.findById(1L)).thenReturn(Optional.of(platform));
+        when(tenantRepository.findById(TENANT_ID)).thenReturn(Optional.of(target));
+        when(tenantRepository.save(target)).thenReturn(target);
+
+        service.renew(TENANT_ID, new RenewTenantCommand(LocalDateTime.now().plusYears(1)));
+
+        verify(tenantStatusCache).sync(target);
+    }
+
+    @Test
+    @DisplayName("启停：状态落库后同步状态缓存")
+    void shouldSyncStatusCacheWhenStatusChanged() {
+        Tenant platform = Tenant.reconstitute(1L, "default", "默认租户", "PLATFORM", 1,
+                null, null, null, null);
+        Tenant target = Tenant.reconstitute(TENANT_ID, "acme", "ACME", "TENANT", 1,
+                null, null, null, null);
+        when(tenantRepository.findById(1L)).thenReturn(Optional.of(platform));
+        when(tenantRepository.findById(TENANT_ID)).thenReturn(Optional.of(target));
+        when(tenantRepository.save(target)).thenReturn(target);
+
+        service.changeStatus(TENANT_ID, new ChangeTenantStatusCommand(Tenant.STATUS_DISABLED));
+
+        verify(tenantStatusCache).sync(target);
     }
 }

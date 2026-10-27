@@ -173,7 +173,10 @@ public class TenantAppService {
         requirePlatformTenant();
         Tenant tenant = requireTenant(id);
         tenant.renew(command.expireTime());
-        return TenantVO.from(tenantRepository.save(tenant));
+        Tenant saved = tenantRepository.save(tenant);
+        // 网关按缓存中的到期秒数拒绝过期租户，续期后必须同步，否则仍按旧时间判定
+        tenantStatusCache.sync(saved);
+        return TenantVO.from(saved);
     }
 
     /**
