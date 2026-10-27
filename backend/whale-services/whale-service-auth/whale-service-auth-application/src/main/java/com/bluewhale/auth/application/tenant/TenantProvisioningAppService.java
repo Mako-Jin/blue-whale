@@ -56,10 +56,11 @@ public class TenantProvisioningAppService {
     public static final String DEFAULT_TENANT_ADMIN_ROLE = "tenant_admin";
 
     /**
-     * 业务角色模板编码：模板由 {@code migration-5.65-business-role-grant.sql} 在平台租户维护，
+     * 业务角色模板编码：模板由 {@code migration-5.65-business-role-grant.sql} 与
+     * {@code migration-5.66-pm-role-template.sql} 在平台租户维护，
      * 新租户开通时按模板当前的角色名称/描述/排序与权限集下发同名角色。
      *
-     * <p>模板缺失（未执行 5.65）时仅告警跳过，不阻断租户开通；平台租户 {@code tenant_admin}
+     * <p>模板缺失（未执行 5.65/5.66）时仅告警跳过，不阻断租户开通；平台租户 {@code tenant_admin}
      * 仍持有全部启用业务权限，不会出现业务接口 403。</p>
      */
     public static final List<String> BUSINESS_ROLE_TEMPLATE_CODES = List.of(
@@ -68,6 +69,7 @@ public class TenantProvisioningAppService {
             "erp_manager", "erp_member",
             "mes_manager", "mes_member",
             "pdm_manager", "pdm_member",
+            "pm_manager", "pm_member",
             "contract_manager", "contract_member", "contract_signatory");
 
     /**
@@ -152,10 +154,11 @@ public class TenantProvisioningAppService {
      * 按平台租户业务角色模板向新租户下发业务角色。
      *
      * <p><b>模板来源</b>：平台租户（{@link Tenant#PLATFORM_TENANT_ID}）下由
-     * {@code migration-5.65-business-role-grant.sql} 维护的同名角色；角色名称、描述、排序与状态原样复制，
+     * {@code migration-5.65-business-role-grant.sql} 与
+     * {@code migration-5.66-pm-role-template.sql} 维护的同名角色；角色名称、描述、排序与状态原样复制，
      * 权限集取模板当前的 {@code sys_role_permission}，再与本次下发给业务租户的启用权限集合取交集。</p>
      *
-     * <p><b>缺失处理</b>：模板未部署（未执行 5.65）时逐项告警并跳过，不阻断租户开通；
+     * <p><b>缺失处理</b>：模板未部署（未执行 5.65/5.66）时逐项告警并跳过，不阻断租户开通；
      * 新租户的 {@code tenant_admin} 仍持有全部启用业务权限。</p>
      *
      * @param targetTenantId 新租户 ID

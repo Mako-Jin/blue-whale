@@ -1,6 +1,6 @@
-# Wave 5.65 业务权限角色授予校验（只读）
+# Wave 5.65/5.66 业务权限角色授予校验（只读）
 # 前置：执行 backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/
-#       migration-5.46/5.53/5.54/5.58~5.65 后运行；本脚本不写库。
+#       migration-5.46/5.53/5.54/5.55/5.57/5.58~5.66 后运行；本脚本不写库。
 # 用法：$env:MYSQL_PASSWORD='***'; powershell -File scripts/smoke/bw-auth-business-role-grant-smoke.ps1
 # 退出码：0 全部通过；1 存在缺失/数量不符；未设置 MYSQL_PASSWORD 时跳过并返回 0。
 
@@ -41,17 +41,19 @@ $script:failed = $false
 $roleCodes = @(
     'archive_manager', 'archive_member', 'oa_manager', 'oa_member',
     'erp_manager', 'erp_member', 'mes_manager', 'mes_member',
-    'pdm_manager', 'pdm_member', 'contract_manager', 'contract_member', 'contract_signatory'
+    'pdm_manager', 'pdm_member', 'pm_manager', 'pm_member',
+    'contract_manager', 'contract_member', 'contract_signatory'
 )
 $roleCodeSql = ($roleCodes | ForEach-Object { "'$_'" }) -join ','
 
-# 1) 权限点齐全（46 项业务权限：档案 12 + OA 4 + ERP/MES/PDM/合同/印章 30）
+# 1) 权限点齐全（77 项业务权限：档案 12 + OA 4 + ERP/MES/PDM/合同/印章 30 + PM 31）
 $seedCount = [int](Invoke-Query @"
 SELECT COUNT(*) FROM sys_permission
 WHERE deleted = 0 AND status = 1
-  AND (id BETWEEN 140 AND 151 OR id BETWEEN 168 AND 171 OR id BETWEEN 203 AND 232);
+  AND (id BETWEEN 140 AND 151 OR id BETWEEN 168 AND 171 OR id BETWEEN 172 AND 202
+       OR id BETWEEN 203 AND 232);
 "@)
-Assert '1.permissionSeeds=46' ($seedCount -eq 46) "(actual=$seedCount，若不足请先执行 5.46/5.53/5.58~5.64)"
+Assert '1.permissionSeeds=77' ($seedCount -eq 77) "(actual=$seedCount，若不足请先执行 5.46/5.53/5.55/5.58~5.64)"
 
 # 2) 目标租户范围：平台租户（角色模板）+ 全部业务租户（角色按租户复制）
 $tenantRows = Invoke-Query @"
@@ -62,7 +64,7 @@ ORDER BY id;
 $tenantCodes = @($tenantRows | ForEach-Object { ($_ -split "`t")[0] })
 Assert '2.targetTenantsNotEmpty' ($tenantCodes.Count -gt 0) "(tenants=$($tenantCodes -join ','))"
 
-# 3) 每个目标租户的 13 个业务角色授权数量
+# 3) 每个目标租户的 15 个业务角色授权数量
 $expected = [ordered]@{
     archive_manager     = 12
     archive_member      = 4
@@ -74,6 +76,8 @@ $expected = [ordered]@{
     mes_member          = 3
     pdm_manager         = 4
     pdm_member          = 3
+    pm_manager          = 32
+    pm_member           = 17
     contract_manager    = 19
     contract_member     = 9
     contract_signatory  = 3
@@ -111,7 +115,8 @@ FROM sys_permission p
 LEFT JOIN sys_role_permission rp ON rp.permission_id = p.id AND rp.deleted = 0
 LEFT JOIN sys_role r ON r.id = rp.role_id AND r.deleted = 0 AND r.status = 1
 WHERE p.deleted = 0 AND p.status = 1
-  AND (p.id BETWEEN 140 AND 151 OR p.id BETWEEN 168 AND 171 OR p.id BETWEEN 203 AND 232)
+  AND (p.id BETWEEN 140 AND 151 OR p.id BETWEEN 168 AND 171
+       OR p.id BETWEEN 172 AND 202 OR p.id BETWEEN 203 AND 232)
   AND r.id IS NULL
 ORDER BY p.id;
 "@
@@ -134,6 +139,26 @@ foreach ($row in $adminRows) {
     Assert "5.tenantAdmin[$tenant]=46" ($count -ge 46) "(actual=$count)"
 }
 if ($adminRows.Count -eq 0) {
+    Write-Host 'INFO: 未发现 tenant_admin 角色（平台租户可忽略）'
+}
+
+# 6) tenant_admin 覆盖 PM 31 项 + 本租户成员管理 165/166 + workflow 44
+$adminPmRows = Invoke-Query @"
+SELECT r.tenant_id, COUNT(DISTINCT rp.permission_id)
+FROM sys_role r
+JOIN sys_role_permission rp ON rp.role_id = r.id AND rp.deleted = 0
+JOIN sys_permission p ON p.id = rp.permission_id AND p.deleted = 0 AND p.status = 1
+WHERE r.role_code = 'tenant_admin' AND r.deleted = 0 AND r.status = 1
+  AND (p.id BETWEEN 172 AND 202 OR p.id IN (165, 166, 44))
+GROUP BY r.tenant_id;
+"@
+foreach ($row in $adminPmRows) {
+    $parts = $row -split "`t"
+    $tenant = $parts[0]
+    $count = [int]$parts[1]
+    Assert "6.tenantAdminPm[$tenant]=34" ($count -ge 34) "(actual=$count)"
+}
+if ($adminPmRows.Count -eq 0) {
     Write-Host 'INFO: 未发现 tenant_admin 角色（平台租户可忽略）'
 }
 
