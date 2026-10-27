@@ -6,6 +6,7 @@ import com.bluewhale.auth.domain.event.UserDomainEvent;
 import com.bluewhale.auth.domain.role.aggregate.Role;
 import com.bluewhale.auth.domain.role.repository.RoleRepository;
 import com.bluewhale.auth.domain.tenant.aggregate.Tenant;
+import com.bluewhale.auth.domain.tenant.aggregate.TenantExpiryClock;
 import com.bluewhale.auth.domain.tenant.repository.TenantRepository;
 import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
@@ -68,7 +69,7 @@ public class TenantMembershipAppService {
      * @return 租户列表（标记当前项）
      */
     public List<MyTenantVO> listMyTenants(Long userId, Long currentTenantId) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = TenantExpiryClock.now();
         return userTenantRepository.listEnabledTenantIds(userId).stream()
                 .map(tenantRepository::findById)
                 .flatMap(Optional::stream)
@@ -103,7 +104,7 @@ public class TenantMembershipAppService {
         }
         Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new BizException(403, "租户不存在或已停用"));
-        if (!tenant.isAvailableAt(LocalDateTime.now())) {
+        if (!tenant.isAvailableAt(TenantExpiryClock.now())) {
             throw new BizException(403, "目标租户已停用或已过期");
         }
     }
@@ -162,7 +163,7 @@ public class TenantMembershipAppService {
                 .orElseThrow(() -> new BizException(404, "用户不存在"));
         Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new BizException(404, "租户不存在"));
-        if (!tenant.isAvailableAt(LocalDateTime.now())) {
+        if (!tenant.isAvailableAt(TenantExpiryClock.now())) {
             throw new BizException(400, "目标租户已停用或已过期");
         }
         userTenantRepository.ensureEnabled(userId, tenantId);

@@ -1,6 +1,7 @@
 package com.bluewhale.auth.application.tenant;
 
 import com.bluewhale.auth.domain.tenant.aggregate.Tenant;
+import com.bluewhale.auth.domain.tenant.aggregate.TenantExpiryClock;
 import com.bluewhale.auth.domain.tenant.repository.TenantRepository;
 import com.bluewhale.security.token.TenantStatusKeys;
 import lombok.RequiredArgsConstructor;
@@ -12,8 +13,6 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
-
-import java.time.ZoneId;
 
 /**
  * 租户状态缓存写入器（Wave 5.54 Phase 2）。
@@ -76,7 +75,7 @@ public class TenantStatusCache implements ApplicationRunner {
         if (tenant.getExpireTime() == null) {
             return null;
         }
-        return String.valueOf(tenant.getExpireTime().atZone(ZoneId.systemDefault()).toEpochSecond());
+        return String.valueOf(tenant.getExpireTime().toEpochSecond(TenantExpiryClock.ZONE));
     }
 
     /**

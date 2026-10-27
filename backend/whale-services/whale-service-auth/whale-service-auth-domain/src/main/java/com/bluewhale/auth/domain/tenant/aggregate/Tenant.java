@@ -148,7 +148,7 @@ public class Tenant {
      * @param expireTime 新到期时间，必须晚于当前时间
      */
     public void renew(LocalDateTime expireTime) {
-        if (expireTime == null || !expireTime.isAfter(LocalDateTime.now())) {
+        if (expireTime == null || !expireTime.isAfter(TenantExpiryClock.now())) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "续期时间必须晚于当前时间");
         }
         this.expireTime = expireTime;

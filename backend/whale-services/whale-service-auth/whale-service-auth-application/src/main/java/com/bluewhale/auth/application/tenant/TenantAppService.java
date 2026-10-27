@@ -5,6 +5,7 @@ import com.bluewhale.auth.application.tenant.command.RenewTenantCommand;
 import com.bluewhale.auth.application.tenant.command.UpdateTenantCommand;
 import com.bluewhale.auth.application.tenant.query.TenantPageQuery;
 import com.bluewhale.auth.domain.tenant.aggregate.Tenant;
+import com.bluewhale.auth.domain.tenant.aggregate.TenantExpiryClock;
 import com.bluewhale.auth.domain.tenant.repository.TenantRepository;
 import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.auth.vo.TenantVO;
@@ -70,7 +71,7 @@ public class TenantAppService {
      * @return 可用租户 ID（升序）
      */
     public List<Long> listEnabledTenantIds() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = TenantExpiryClock.now();
         return tenantRepository.findAll().stream()
                 .filter(tenant -> tenant.isAvailableAt(now))
                 .map(Tenant::getId)
@@ -201,7 +202,7 @@ public class TenantAppService {
      * @return 租户 ID
      */
     private Long requireAvailable(Tenant tenant) {
-        if (!tenant.isAvailableAt(LocalDateTime.now())) {
+        if (!tenant.isAvailableAt(TenantExpiryClock.now())) {
             throw new BizException(ErrorCode.UNAUTHORIZED.getCode(), "租户已停用或已过期");
         }
         return tenant.getId();

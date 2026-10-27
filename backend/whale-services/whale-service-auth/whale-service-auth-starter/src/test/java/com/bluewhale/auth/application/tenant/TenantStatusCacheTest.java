@@ -17,7 +17,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -66,9 +66,9 @@ class TenantStatusCacheTest {
     }
 
     @Test
-    @DisplayName("sync：启用且带到期时间时写入状态与到期 Unix 秒")
+    @DisplayName("sync：启用且带到期时间时按 UTC 写入状态与到期 Unix 秒")
     void shouldSyncStatusAndExpireTime() {
-        LocalDateTime expireTime = LocalDateTime.now().plusDays(30);
+        LocalDateTime expireTime = LocalDateTime.of(2027, 1, 1, 0, 0);
         when(redisTemplateProvider.getIfAvailable()).thenReturn(redisTemplate);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 
@@ -76,7 +76,7 @@ class TenantStatusCacheTest {
 
         verify(valueOperations).set(TenantStatusKeys.statusKey(TENANT_ID), TenantStatusKeys.ENABLED);
         verify(valueOperations).set(TenantStatusKeys.expireKey(TENANT_ID),
-                String.valueOf(expireTime.atZone(ZoneId.systemDefault()).toEpochSecond()));
+                String.valueOf(expireTime.toEpochSecond(ZoneOffset.UTC)));
     }
 
     @Test
