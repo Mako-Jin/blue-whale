@@ -22,7 +22,7 @@ public class LogBatchRequest implements Serializable {
     /** 链路追踪ID（网关 {@code X-Trace-Id} 注入，前端透传） */
     private String traceId;
 
-    /** 上报用户ID（不可信，仅作网关 {@code X-User-Id} 缺失时的兜底） */
+    /** 上报用户ID（浏览器可伪造，仅保留字段兼容旧版 SDK；服务端以 {@code X-User-Id} 头为准并忽略此值） */
     private Long userId;
 
     /** 前端客户端标识（一次会话唯一） */

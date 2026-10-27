@@ -29,6 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -41,7 +42,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * <p>用 Mockito mock 服务层（不拉起全上下文）验证：批量上限与空集抛 {@code PARAM_ERROR}、
  * 合法批量调用 {@code saveBatch} 并返回成功、{@code X-User-Id} 头回填 {@code user_id}、
- * 上报接口无鉴权上下文亦可放行（{@code permitAll}）。</p>
+ * 缺少网关身份头时忽略请求体 {@code userId} 并以匿名落库、上报接口无鉴权上下文亦可放行（{@code permitAll}）。</p>
  *
  * @author BlueWhale
  */
@@ -99,14 +100,15 @@ class LogIngestControllerTest {
     }
 
     @Test
-    @DisplayName("合法批量：调用 saveBatch 且返回成功（上报体 userId 兜底）")
-    void shouldSubmitValidBatchWithFallbackUserId() {
+    @DisplayName("合法批量：调用 saveBatch 且返回成功（忽略上报体 userId）")
+    void shouldIgnoreBodyUserIdWithoutGatewayHeader() {
         LogBatchRequest request = batchOf(2);
 
         Result<Void> result = controller.frontendBatch(request, new MockHttpServletRequest());
 
         assertThat(result.getCode()).isEqualTo(ErrorCode.SUCCESS.getCode());
-        verify(frontendLogService).saveBatch(request, UNTRUSTED_USER_ID);
+        verify(frontendLogService).saveBatch(request, null);
+        verify(frontendLogService, never()).saveBatch(any(), eq(UNTRUSTED_USER_ID));
     }
 
     @Test
@@ -120,6 +122,7 @@ class LogIngestControllerTest {
 
         verify(frontendLogService).saveBatch(request, Long.valueOf(GATEWAY_USER_ID));
         verify(frontendLogService, never()).saveBatch(any(), eq(UNTRUSTED_USER_ID));
+        verify(frontendLogService, never()).saveBatch(any(), isNull());
     }
 
     @Test
@@ -132,7 +135,7 @@ class LogIngestControllerTest {
     }
 
     @Test
-    @DisplayName("HTTP 上报：无鉴权亦返回 200")
+    @DisplayName("HTTP 上报：无鉴权亦返回 200，且不采用请求体 userId")
     void shouldReportBatchOverHttpWithoutAuthentication() throws Exception {
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
         LogBatchRequest request = batchOf(1);
@@ -143,7 +146,7 @@ class LogIngestControllerTest {
                         .content(body))
                 .andExpect(status().isOk());
 
-        verify(frontendLogService).saveBatch(any(), eq(UNTRUSTED_USER_ID));
+        verify(frontendLogService).saveBatch(any(), isNull());
     }
 
     @Test

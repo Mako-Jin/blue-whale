@@ -71,7 +71,7 @@ public class LogIngestController {
     @PostMapping("/frontend/batch")
     public Result<Void> frontendBatch(@RequestBody LogBatchRequest request, HttpServletRequest httpRequest) {
         validateItems(request);
-        frontendLogService.saveBatch(request, resolveUserId(httpRequest, request.getUserId()));
+        frontendLogService.saveBatch(request, resolveUserId(httpRequest));
         return Result.ok();
     }
 
@@ -85,7 +85,7 @@ public class LogIngestController {
     @PostMapping("/behavior/batch")
     public Result<Void> behaviorBatch(@RequestBody LogBatchRequest request, HttpServletRequest httpRequest) {
         validateItems(request);
-        behaviorLogService.saveBatch(request, resolveUserId(httpRequest, request.getUserId()));
+        behaviorLogService.saveBatch(request, resolveUserId(httpRequest));
         return Result.ok();
     }
 
@@ -139,21 +139,23 @@ public class LogIngestController {
     }
 
     /**
-     * 解析生效用户ID：以网关 {@code X-User-Id} 为准，头缺失或不可解析时才回落请求体 {@code userId}
+     * 解析生效用户ID：只信任网关 {@code X-User-Id} 头。
+     *
+     * <p>上报体中的 {@code userId} 来自浏览器、可被任意伪造，仅作兼容字段保留，服务端一律忽略：
+     * 头缺失或不可解析时落库为 {@code null}（匿名上报），绝不把请求体声明当作归属。</p>
      *
      * @param request 当前请求
-     * @param fallbackUserId 请求体上报的用户ID（不可信，仅兜底）
-     * @return 生效用户ID；两处均无有效值时返回 {@code null}
+     * @return 网关注入的用户ID；头缺失或不可解析时返回 {@code null}
      */
-    private static Long resolveUserId(HttpServletRequest request, Long fallbackUserId) {
+    private static Long resolveUserId(HttpServletRequest request) {
         String headerUserId = WebHeaders.userId(request);
         if (headerUserId == null) {
-            return fallbackUserId;
+            return null;
         }
         try {
             return Long.valueOf(headerUserId);
         } catch (NumberFormatException e) {
-            return fallbackUserId;
+            return null;
         }
     }
 }
