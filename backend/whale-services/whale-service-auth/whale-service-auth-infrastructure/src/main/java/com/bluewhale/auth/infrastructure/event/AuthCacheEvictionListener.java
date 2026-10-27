@@ -34,7 +34,10 @@ public class AuthCacheEvictionListener {
     }
 
     /**
-     * 处理用户事件：启停、删除与角色变更时失效该用户缓存
+     * 处理用户事件：启停、删除与角色变更时失效该用户缓存。
+     *
+     * <p>事件携带租户 ID 时（成员绑定/解绑等跨租户操作），按显式租户构造 Key；
+     * 否则沿用当前租户上下文。监听器本身已在事务提交后执行，失效动作不再二次延迟。</p>
      *
      * @param event 用户领域事件
      */
@@ -44,7 +47,11 @@ public class AuthCacheEvictionListener {
         if (changeType == ChangeType.STATUS_CHANGED
                 || changeType == ChangeType.DELETED
                 || changeType == ChangeType.ROLES_ASSIGNED) {
-            permissionCache.evictUser(event.aggregateId());
+            if (event.tenantId() != null) {
+                permissionCache.evictUserInTenant(event.tenantId(), event.aggregateId());
+            } else {
+                permissionCache.evictUser(event.aggregateId());
+            }
         }
     }
 

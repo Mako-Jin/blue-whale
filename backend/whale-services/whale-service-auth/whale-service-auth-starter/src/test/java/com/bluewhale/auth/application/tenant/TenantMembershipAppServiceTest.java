@@ -141,6 +141,22 @@ class TenantMembershipAppServiceTest {
     }
 
     @Test
+    @DisplayName("assignMemberRoles：覆盖角色并发布目标租户缓存失效事件")
+    void assignMemberRolesShouldPublishTenantEvent() {
+        TenantContext.set(5L);
+        User user = user(USER_ID, "alice");
+        when(userTenantRepository.existsEnabled(USER_ID, 5L)).thenReturn(true);
+        when(userRepository.findByIdAcrossTenants(USER_ID)).thenReturn(Optional.of(user));
+        when(roleRepository.countByIds(List.of(10L))).thenReturn(1L);
+
+        service.assignMemberRoles(USER_ID, List.of(10L));
+
+        verify(userRepository).replaceRoles(USER_ID, List.of(10L));
+        verify(domainEventPublisher).publish(new UserDomainEvent(USER_ID,
+                ChangeType.ROLES_ASSIGNED, 5L));
+    }
+
+    @Test
     @DisplayName("assignMemberRoles：非本租户成员返回 404，不写角色关联")
     void assignMemberRolesShouldRejectNonMember() {
         TenantContext.set(5L);
@@ -194,7 +210,22 @@ class TenantMembershipAppServiceTest {
         service.bindTenant(USER_ID, 2L);
 
         verify(userTenantRepository).ensureEnabled(USER_ID, 2L);
-        verify(domainEventPublisher).publish(new UserDomainEvent(USER_ID, ChangeType.ROLES_ASSIGNED));
+        verify(domainEventPublisher).publish(new UserDomainEvent(USER_ID,
+                ChangeType.ROLES_ASSIGNED, 2L));
+    }
+
+    @Test
+    @DisplayName("unbindTenant：软停用关系并发布目标租户缓存失效事件")
+    void unbindTenantShouldPublishTenantEvent() {
+        User user = user(USER_ID, "alice");
+        when(userRepository.findByIdAcrossTenants(USER_ID)).thenReturn(Optional.of(user));
+        when(userTenantRepository.exists(USER_ID, 2L)).thenReturn(true);
+
+        service.unbindTenant(USER_ID, 2L);
+
+        verify(userTenantRepository).disable(USER_ID, 2L);
+        verify(domainEventPublisher).publish(new UserDomainEvent(USER_ID,
+                ChangeType.ROLES_ASSIGNED, 2L));
     }
 
     @Test

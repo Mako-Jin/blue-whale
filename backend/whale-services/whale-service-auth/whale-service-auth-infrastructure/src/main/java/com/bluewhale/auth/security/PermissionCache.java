@@ -13,8 +13,6 @@ import com.bluewhale.common.cache.CacheConsistencyTemplate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -31,8 +29,11 @@ import java.util.stream.Collectors;
  * （空集合写空串，读回空串即空集合）；Redis 异常由 {@link CacheConsistencyTemplate} 内部降级直查，
  * 不阻断主流程。</p>
  * <p>写路径：{@link #evictUser(Long)} / {@link #evictUsers(Collection)} / {@link #evictByRole(Long)} /
- * {@link #evictByPermission(Long)} 统一在事务提交后失效受影响用户的缓存，避免「事务未提交即删缓存」
- * 的脏缓存窗口；删除动作委托 {@link AuthPermissionCacheInvalidator}，同时完成跨实例广播与
+ * {@link #evictByPermission(Long)} 由 {@code AuthCacheEvictionListener} 在
+ * {@code @TransactionalEventListener(AFTER_COMMIT)} 中调用，方法内部<b>不再二次延迟</b>：
+ * 监听器触发时事务已经提交，若再次注册事务同步回调，新回调不会被本轮 afterCommit 执行，
+ * 会导致缓存实际未失效。若未来需要在事务内直接调用，应改为发布领域事件。</p>
+ * <p>删除动作委托 {@link AuthPermissionCacheInvalidator}，同时完成跨实例广播与
  * Redis 断连后的待失效重对齐。</p>
  * <p>本类不注入 {@code RoleAppService}：读路径的 DB 查询由调用方以 {@link Supplier} 传入，
  * 失效路径的受影响用户反查直接走 Mapper，避免 {@code RoleAppService → PermissionCache →
@@ -105,7 +106,7 @@ public class PermissionCache {
     }
 
     /**
-     * 失效单个用户的权限缓存（事务提交后执行）
+     * 失效单个用户的权限缓存（由 AFTER_COMMIT 监听器调用）
      *
      * @param userId 用户 ID；为 {@code null} 时不执行
      */
@@ -117,7 +118,24 @@ public class PermissionCache {
     }
 
     /**
-     * 批量失效用户权限缓存（去重，事务提交后执行）
+     * 失效指定租户内用户的权限缓存（由 AFTER_COMMIT 监听器调用）。
+     *
+     * <p>成员绑定/解绑在平台租户上下文执行，目标租户与当前租户不同；必须由调用方显式传入
+     * 受影响租户，不能依赖 {@code TenantContext}。</p>
+     *
+     * @param tenantId 受影响租户 ID；为 {@code null} 时不执行
+     * @param userId 用户 ID；为 {@code null} 时不执行
+     */
+    public void evictUserInTenant(Long tenantId, Long userId) {
+        if (tenantId == null || userId == null) {
+            return;
+        }
+        cacheInvalidator.invalidateUsersByTenant(Set.of(
+                new AuthPermissionCacheInvalidator.UserKey(tenantId, userId)));
+    }
+
+    /**
+     * 批量失效用户权限缓存（去重，由 AFTER_COMMIT 监听器调用）
      *
      * <p>委托 {@link AuthPermissionCacheInvalidator}：按当前租户计算完整 Key 并批量删除，
      * 再经 Redisson RTopic 广播给其余实例；删除失败时以完整 Key 进入断连重对齐待处理集合。</p>
@@ -129,7 +147,7 @@ public class PermissionCache {
             return;
         }
         Set<Long> distinctUserIds = new LinkedHashSet<>(userIds);
-        afterCommit(() -> cacheInvalidator.invalidateUsers(distinctUserIds));
+        cacheInvalidator.invalidateUsers(distinctUserIds);
     }
 
     /**
@@ -181,7 +199,7 @@ public class PermissionCache {
         if (userKeys.isEmpty()) {
             return;
         }
-        afterCommit(() -> cacheInvalidator.invalidateUsersByTenant(userKeys));
+        cacheInvalidator.invalidateUsersByTenant(userKeys);
     }
 
     /**
@@ -192,23 +210,5 @@ public class PermissionCache {
      */
     private Set<String> toSet(List<String> codes) {
         return codes == null || codes.isEmpty() ? Set.of() : new LinkedHashSet<>(codes);
-    }
-
-    /**
-     * 事务同步激活时注册 {@code afterCommit} 回调，否则立即执行
-     *
-     * @param action 待执行的失效动作
-     */
-    private void afterCommit(Runnable action) {
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    action.run();
-                }
-            });
-        } else {
-            action.run();
-        }
     }
 }

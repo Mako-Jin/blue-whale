@@ -145,7 +145,7 @@ public class TenantMembershipAppService {
             throw new BizException(400, "存在无效的角色ID");
         }
         userRepository.replaceRoles(userId, targets);
-        domainEventPublisher.publish(new UserDomainEvent(userId, ChangeType.ROLES_ASSIGNED));
+        domainEventPublisher.publish(new UserDomainEvent(userId, ChangeType.ROLES_ASSIGNED, tenantId));
     }
 
     /**
@@ -166,7 +166,7 @@ public class TenantMembershipAppService {
             throw new BizException(400, "目标租户已停用或已过期");
         }
         userTenantRepository.ensureEnabled(userId, tenantId);
-        domainEventPublisher.publish(new UserDomainEvent(userId, ChangeType.ROLES_ASSIGNED));
+        domainEventPublisher.publish(new UserDomainEvent(userId, ChangeType.ROLES_ASSIGNED, tenantId));
     }
 
     /**
@@ -188,7 +188,7 @@ public class TenantMembershipAppService {
             throw new BizException(404, "租户关系不存在");
         }
         userTenantRepository.disable(userId, tenantId);
-        domainEventPublisher.publish(new UserDomainEvent(userId, ChangeType.ROLES_ASSIGNED));
+        domainEventPublisher.publish(new UserDomainEvent(userId, ChangeType.ROLES_ASSIGNED, tenantId));
     }
 
     /**

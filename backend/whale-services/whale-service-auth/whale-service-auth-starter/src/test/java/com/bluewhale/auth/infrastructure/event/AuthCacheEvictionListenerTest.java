@@ -57,6 +57,15 @@ class AuthCacheEvictionListenerTest {
     }
 
     @Test
+    @DisplayName("用户事件携带租户：按显式租户失效缓存")
+    void shouldEvictUserInTenantWhenTenantSpecified() {
+        listener.onUserEvent(new UserDomainEvent(AGGREGATE_ID, ChangeType.ROLES_ASSIGNED, 9L));
+
+        verify(permissionCache).evictUserInTenant(9L, AGGREGATE_ID);
+        verify(permissionCache, never()).evictUser(anyLong());
+    }
+
+    @Test
     @DisplayName("用户 UPDATED：不触发缓存失效")
     void shouldNotEvictUserOnUpdated() {
         listener.onUserEvent(new UserDomainEvent(AGGREGATE_ID, ChangeType.UPDATED));

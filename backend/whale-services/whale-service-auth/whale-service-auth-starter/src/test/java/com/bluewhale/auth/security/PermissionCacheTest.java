@@ -3,10 +3,13 @@ package com.bluewhale.auth.security;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.bluewhale.auth.config.PermissionCacheProperties;
+import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
+import com.bluewhale.auth.domain.event.UserDomainEvent;
 import com.bluewhale.auth.entity.RoleTenantRef;
 import com.bluewhale.auth.entity.SysRolePermission;
 import com.bluewhale.auth.entity.SysUserRole;
 import com.bluewhale.auth.infrastructure.cache.AuthPermissionCacheInvalidator;
+import com.bluewhale.auth.infrastructure.event.AuthCacheEvictionListener;
 import com.bluewhale.auth.mapper.SysRoleMapper;
 import com.bluewhale.auth.mapper.SysRolePermissionMapper;
 import com.bluewhale.auth.mapper.SysUserRoleMapper;
@@ -22,7 +25,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Duration;
@@ -386,15 +388,35 @@ class PermissionCacheTest {
     }
 
     @Test
-    @DisplayName("afterCommit：事务同步激活时注册回调，提交后才失效")
-    void shouldDeferEvictUntilAfterCommitWhenSynchronizationActive() {
-        TransactionSynchronizationManager.initSynchronization();
+    @DisplayName("evictUserInTenant：按显式租户失效，不依赖当前上下文")
+    void shouldEvictUserInTenant() {
+        permissionCache.evictUserInTenant(9L, USER_ID);
 
-        permissionCache.evictUser(USER_ID);
+        verify(cacheInvalidator).invalidateUsersByTenant(
+                Set.of(new AuthPermissionCacheInvalidator.UserKey(9L, USER_ID)));
+        verify(cacheInvalidator, never()).invalidateUsers(any());
+    }
+
+    @Test
+    @DisplayName("evictUserInTenant：租户或用户为空时不触发失效")
+    void shouldSkipEvictUserInTenantWhenInvalid() {
+        permissionCache.evictUserInTenant(null, USER_ID);
+        permissionCache.evictUserInTenant(9L, null);
+
         verifyNoInteractions(cacheInvalidator);
+    }
 
-        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+    @Test
+    @DisplayName("AFTER_COMMIT 监听器在事务同步仍激活时立即失效，不二次延迟")
+    void shouldEvictImmediatelyWhenListenerRunsAfterCommit() {
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            new AuthCacheEvictionListener(permissionCache)
+                    .onUserEvent(new UserDomainEvent(USER_ID, ChangeType.STATUS_CHANGED));
 
-        verify(cacheInvalidator).invalidateUsers(Set.of(USER_ID));
+            verify(cacheInvalidator).invalidateUsers(Set.of(USER_ID));
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
     }
 }

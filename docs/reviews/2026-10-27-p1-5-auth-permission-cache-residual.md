@@ -64,5 +64,7 @@ mvn -pl backend/whale-services/whale-service-auth/whale-service-auth-starter -am
 - **多实例真机验证**：本轮为单元测试；Redis 双实例广播/断连恢复仍需联调环境（与 P1 #3 边界一致）。
 - **成员关系绑定的跨租户失效**：`TenantMembershipAppService#bindTenant/unbindTenant` 在平台上下文发布
   `UserDomainEvent(ROLES_ASSIGNED)`，监听器按平台租户失效 Key；目标租户缓存未失效。影响面：平台解绑后
-  用户已打开的租户会话可能在 TTL 内继续持有旧权限。该项未在本轮修改，记录为后续残余。
+  用户已打开的租户会话可能在 TTL 内继续持有旧权限。
+  → 2026-10-27 已补齐：事件携带目标租户、监听器按 `(tenantId,userId)` 失效，并修复 AFTER_COMMIT
+  二次延迟问题，见 [P1 #7 检查报告](2026-10-27-p1-7-auth-cache-after-commit-membership.md)。
 - 权限点变更属平台低频操作，本轮采用「精确到受影响用户」的失效；未采用全量 pattern 清理。
