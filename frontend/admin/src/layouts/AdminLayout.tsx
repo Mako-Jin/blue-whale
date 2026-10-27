@@ -11,7 +11,7 @@ import { collectMenuKeys, getSidebarItems, type SidebarItem } from '../router/dy
 
 const { Header, Sider, Content } = Layout;
 
-// 静态回退导航（无 menus 时保持既有行为，不回退）
+// 静态回退导航（无 menus 时使用；仍需按权限裁剪，避免「菜单可见但接口 403」）
 const NAV_ITEMS: SidebarItem[] = [
   { key: '/', label: '仪表盘' },
   { key: '/users', label: '用户管理' },
@@ -20,6 +20,25 @@ const NAV_ITEMS: SidebarItem[] = [
   { key: '/tenants', label: '租户管理' },
   { key: '/components', label: '组件示例' },
 ];
+
+/** 静态回退导航的权限码（键为路由 key；未列出的入口登录即可见） */
+const STATIC_NAV_PERMISSIONS: Record<string, string> = {
+  '/users': 'sys:user:list',
+  '/roles': 'sys:role:list',
+  '/menus': 'sys:menu:list',
+  '/tenants': 'sys:tenant:list',
+};
+
+/** 按权限裁剪静态回退导航 */
+function filterStaticNav(items: SidebarItem[], permissions: readonly string[]): SidebarItem[] {
+  const granted = new Set(permissions);
+  return items.filter((item) => {
+    if (!item) return false;
+    const key = 'key' in item && item.key != null ? String(item.key) : '';
+    const required = STATIC_NAV_PERMISSIONS[key];
+    return !required || granted.has(required);
+  });
+}
 
 /**
  * 动态菜单未包含租户管理时补一个入口。
@@ -52,10 +71,13 @@ export default function AdminLayout() {
   const { message } = App.useApp();
   const user = useCurrentUser();
 
-  const canManageTenants = (user?.permissions ?? []).includes('sys:tenant:list');
+  const permissions = user?.permissions ?? [];
+  const canManageTenants = permissions.includes('sys:tenant:list');
   const dynamicItems = getSidebarItems(user?.menus);
+  // 动态菜单由 /auth/me 按权限生成；回退静态导航时同样按权限码裁剪
+  const fallbackItems = filterStaticNav(NAV_ITEMS, permissions);
   const navItems =
-    dynamicItems.length > 0 ? withTenantNav(dynamicItems, canManageTenants) : NAV_ITEMS;
+    dynamicItems.length > 0 ? withTenantNav(dynamicItems, canManageTenants) : fallbackItems;
   const selectedKey = findSelectedKey(collectMenuKeys(navItems), location.pathname);
   const tenantLabel = user?.tenantCode || user?.tenantId;
 

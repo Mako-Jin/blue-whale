@@ -10,20 +10,20 @@ import { clearAuth, getCurrentUser } from '../api/token';
 const { Header, Sider, Content } = Layout;
 
 const NAV_ITEMS = [
-  { key: '/monitor', label: '服务监控' },
-  { key: '/audit', label: '审计日志' },
-  { key: '/alert', label: '告警中心' },
+  { key: '/monitor', label: '服务监控', permission: 'sys:monitor:list' },
+  { key: '/audit', label: '审计日志', permission: 'sys:audit:log:list' },
+  { key: '/alert', label: '告警中心', permission: 'sys:alert:record:list' },
 ];
 
-/** 路径与导航 key 的最长前缀匹配，未命中回退首个导航项 */
-function findSelectedKey(pathname: string): string {
+/** 路径与导航 key 的最长前缀匹配 */
+function findSelectedKey(pathname: string, items: typeof NAV_ITEMS): string {
   let matched = '';
-  NAV_ITEMS.forEach(({ key }) => {
+  items.forEach(({ key }) => {
     if (pathname.startsWith(key) && key.length > matched.length) {
       matched = key;
     }
   });
-  return matched || NAV_ITEMS[0].key;
+  return matched;
 }
 
 export default function BasicLayout() {
@@ -48,6 +48,13 @@ export default function BasicLayout() {
     navigate('/login', { replace: true });
   };
 
+  // 只渲染当前用户有权限的导航，避免「菜单可见但接口 403」
+  const permissions = user?.permissions ?? [];
+  const navItems = NAV_ITEMS.filter(
+    (item) => !item.permission || permissions.includes(item.permission),
+  );
+  const selectedKey = findSelectedKey(location.pathname, navItems);
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider theme="dark" width={208}>
@@ -55,8 +62,8 @@ export default function BasicLayout() {
         <Menu
           theme="dark"
           mode="inline"
-          selectedKeys={[findSelectedKey(location.pathname)]}
-          items={NAV_ITEMS}
+          selectedKeys={selectedKey ? [selectedKey] : []}
+          items={navItems}
           onClick={({ key }) => navigate(key)}
         />
       </Sider>

@@ -9,11 +9,11 @@ import { countServices } from '../api/monitor';
 import { listConversations, pageAlertRecords } from '../api/notice';
 import { countRunningInstances, pageMyTaskPage } from '../api/workflow';
 
-/** 门户入口：跳转到基座下已注册的兄弟子应用（/erp /oa /mes） */
+/** 门户入口：跳转到基座下已注册的兄弟子应用（/erp /oa /mes），按权限裁剪 */
 const PORTALS = [
-  { key: 'erp', title: 'ERP 企业资源计划', desc: '物料 / 采购 / 库存', path: '/erp' },
-  { key: 'oa', title: 'OA 协同办公', desc: '流程 / 审批 / 公文', path: '/oa' },
-  { key: 'mes', title: 'MES 生产制造', desc: '工单 / 设备 / 质量', path: '/mes' },
+  { key: 'erp', title: 'ERP 企业资源计划', desc: '物料 / 采购 / 库存', path: '/erp', permission: 'sys:erp:item:list' },
+  { key: 'oa', title: 'OA 协同办公', desc: '流程 / 审批 / 公文', path: '/oa', permission: 'sys:oa:leave:list' },
+  { key: 'mes', title: 'MES 生产制造', desc: '工单 / 设备 / 质量', path: '/mes', permission: 'sys:mes:workorder:list' },
 ];
 
 /** 统计值：数字或不可用占位 */
@@ -103,7 +103,7 @@ export default function Dashboard() {
       </Row>
 
       <Row gutter={16} style={{ marginTop: 16 }}>
-        {PORTALS.map((portal) => (
+        {PORTALS.filter((portal) => hasPermission(portal.permission)).map((portal) => (
           <Col span={8} key={portal.key}>
             <Card
               hoverable

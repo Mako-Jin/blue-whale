@@ -23,7 +23,7 @@ import type { MenuProps } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { logout, useCurrentUser } from '../api/auth';
 import { useImUnread } from '../hooks/useImUnread';
-import { getBreadcrumbItems, getRouteTitle, menuConfig } from '../router/menu';
+import { getBreadcrumbItems, getRouteTitle, filterMenuByPermissions, menuConfig } from '../router/menu';
 import { ThemeSwitcher } from '@bluewhale/whale-common-theme';
 
 const { Header, Sider, Content } = Layout;
@@ -95,7 +95,10 @@ export default function MainLayout() {
     navigate('/login', { replace: true });
   };
 
-  const siderMenuItems: MenuProps['items'] = menuConfig.map((item) => ({
+  const siderMenuItems: MenuProps['items'] = filterMenuByPermissions(
+    menuConfig,
+    user?.permissions ?? [],
+  ).map((item) => ({
     key: item.key,
     icon: MENU_ICONS[item.key],
     label:

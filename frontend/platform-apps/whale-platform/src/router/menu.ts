@@ -4,6 +4,8 @@
 export interface MenuNode {
   key: string;
   label: string;
+  /** 菜单可见所需权限码；缺省表示登录即可见（工作台/门户等无数据权限的入口） */
+  permission?: string;
   children?: MenuNode[];
 }
 
@@ -13,20 +15,49 @@ export const menuConfig: MenuNode[] = [
     key: '/system',
     label: '系统管理',
     children: [
-      { key: '/system/users', label: '用户管理' },
-      { key: '/system/roles', label: '角色管理' },
-      { key: '/system/menus', label: '菜单管理' },
+      { key: '/system/users', label: '用户管理', permission: 'sys:user:list' },
+      { key: '/system/roles', label: '角色管理', permission: 'sys:role:list' },
+      { key: '/system/menus', label: '菜单管理', permission: 'sys:menu:list' },
     ],
   },
   { key: '/portal', label: '门户应用' },
-  { key: '/erp', label: 'ERP 应用' },
-  { key: '/oa', label: 'OA 应用' },
-  { key: '/mes', label: 'MES 应用' },
-  { key: '/pdm', label: 'PDM 应用' },
-  { key: '/im', label: '消息' },
-  { key: '/pm', label: '项目管理' },
-  { key: '/contract', label: '合同管理' },
+  { key: '/erp', label: 'ERP 应用', permission: 'sys:erp:item:list' },
+  { key: '/oa', label: 'OA 应用', permission: 'sys:oa:leave:list' },
+  { key: '/mes', label: 'MES 应用', permission: 'sys:mes:workorder:list' },
+  { key: '/pdm', label: 'PDM 应用', permission: 'sys:pdm:product:list' },
+  { key: '/im', label: '消息', permission: 'sys:im:chat' },
+  { key: '/pm', label: '项目管理', permission: 'sys:pm:project:list' },
+  { key: '/contract', label: '合同管理', permission: 'sys:contract:list' },
 ];
+
+/**
+ * 按当前用户权限裁剪菜单：无权限的叶子节点隐藏；目录在子节点全部隐藏时一并隐藏。
+ *
+ * <p>未声明 {@code permission} 的节点始终可见（工作台/门户为无数据权限的入口）。
+ * 静态菜单与后端 {@code /auth/me} 的权限集合同源，避免「菜单可见但接口 403」。</p>
+ *
+ * @param nodes 原始菜单树
+ * @param permissions 当前用户权限码集合
+ * @returns 过滤后的菜单树（保持原顺序）
+ */
+export function filterMenuByPermissions(
+  nodes: MenuNode[],
+  permissions: readonly string[],
+): MenuNode[] {
+  const granted = new Set(permissions);
+  const visible: MenuNode[] = [];
+  for (const node of nodes) {
+    if (node.permission && !granted.has(node.permission)) continue;
+    if (node.children?.length) {
+      const children = filterMenuByPermissions(node.children, permissions);
+      if (children.length === 0) continue;
+      visible.push({ ...node, children });
+    } else {
+      visible.push(node);
+    }
+  }
+  return visible;
+}
 
 const routeTitles = new Map<string, string>();
 
