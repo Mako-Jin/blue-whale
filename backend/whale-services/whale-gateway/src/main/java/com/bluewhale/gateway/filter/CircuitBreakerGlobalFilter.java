@@ -176,7 +176,22 @@ public class CircuitBreakerGlobalFilter implements GlobalFilter, Ordered {
         return breakers.computeIfAbsent(routeId, id -> {
             CircuitBreaker breaker = registry.circuitBreaker(id, buildConfig());
             registerStateGauge(id, breaker);
+            registerStateListener(id, breaker);
             return breaker;
+        });
+    }
+
+    /**
+     * 注册熔断状态迁移日志（S-07）：CLOSED/OPEN/HALF_OPEN 迁移与半开探测结果可在运行态日志中取证
+     *
+     * @param routeId 路由 id
+     * @param breaker resilience4j 熔断器
+     */
+    private void registerStateListener(String routeId, CircuitBreaker breaker) {
+        breaker.getEventPublisher().onStateTransition(event -> {
+            CircuitBreaker.StateTransition transition = event.getStateTransition();
+            log.info("网关熔断状态迁移: route={}, {} -> {}", routeId,
+                    transition.getFromState(), transition.getToState());
         });
     }
 
