@@ -41,6 +41,11 @@ spring:
         file-extension: yaml
 
 whale:
+  # S-02 Redis 降级口径：false=可用性优先（Redis 不可读时放行并告警），
+  # true=安全优先（按已撤销/已命中黑名单拒绝请求）；需与网关保持一致。
+  security:
+    degradation:
+      fail-closed: ${SECURITY_DEGRADATION_FAIL_CLOSED:false}
   auth:
     jwt:
       # HS256 签名密钥，与 whale-gateway 保持完全一致；生产环境务必覆盖

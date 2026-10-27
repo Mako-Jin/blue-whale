@@ -1,6 +1,7 @@
 package com.bluewhale.gateway.security;
 
 import com.bluewhale.security.degradation.SecurityDegradationAlerter;
+import com.bluewhale.security.degradation.SecurityDegradationPolicy;
 import com.bluewhale.security.token.TokenBlacklistKeys;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
@@ -45,9 +46,9 @@ public class TokenBlacklistChecker {
         return redisTemplate.hasKey(TokenBlacklistKeys.blacklistKey(token))
                 .defaultIfEmpty(Boolean.FALSE)
                 .onErrorResume(e -> {
-                    log.warn("网关查询令牌黑名单失败（Redis 不可用），按未命中放行: {}", e.getMessage());
-                    SecurityDegradationAlerter.alarm(SCENE_CHECK, "网关查询令牌黑名单失败（Redis 不可用），按未命中放行", e);
-                    return Mono.just(Boolean.FALSE);
+                    log.warn("网关查询令牌黑名单失败（Redis 不可用），按策略处理: {}", e.getMessage());
+                    SecurityDegradationAlerter.alarm(SCENE_CHECK, "网关查询令牌黑名单失败（Redis 不可用），按策略处理", e);
+                    return Mono.just(SecurityDegradationPolicy.failClosed());
                 });
     }
 }

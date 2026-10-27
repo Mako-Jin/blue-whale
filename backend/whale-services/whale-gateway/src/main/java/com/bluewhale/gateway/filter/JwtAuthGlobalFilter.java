@@ -6,6 +6,7 @@ import com.bluewhale.gateway.security.MembershipRevocationChecker;
 import com.bluewhale.gateway.security.TenantStatusChecker;
 import com.bluewhale.gateway.security.TokenBlacklistChecker;
 import com.bluewhale.gateway.security.UserAccessRevocationChecker;
+import com.bluewhale.security.token.TokenTimeSupport;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -26,6 +27,7 @@ import reactor.core.publisher.Mono;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.util.Date;
 
 /**
  * JWT 全局认证过滤器。
@@ -162,14 +164,15 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
     private Mono<Void> verifyRevocationsAndForward(ServerWebExchange exchange, ServerHttpRequest request,
                                                    Claims claims, String tenantId, String userId,
                                                    String path, GatewayFilterChain chain) {
-        return membershipRevocationChecker.isRevoked(tenantId, userId, claims.getIssuedAt())
+        Date issuedAt = new Date(TokenTimeSupport.issuedAtMillis(claims));
+        return membershipRevocationChecker.isRevoked(tenantId, userId, issuedAt)
                 .flatMap(membershipRevoked -> {
                     if (Boolean.TRUE.equals(membershipRevoked)) {
                         log.warn("租户成员关系已解除，拒绝存量令牌访问: path={}, tenantId={}, userId={}",
                                 path, tenantId, userId);
                         return unauthorized(exchange);
                     }
-                    return userAccessRevocationChecker.isRevoked(userId, claims.getIssuedAt())
+                    return userAccessRevocationChecker.isRevoked(userId, issuedAt)
                             .flatMap(userRevoked -> {
                                 if (Boolean.TRUE.equals(userRevoked)) {
                                     log.warn("用户已停用/删除/改密，拒绝存量令牌访问: path={}, userId={}",

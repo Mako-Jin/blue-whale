@@ -2,6 +2,7 @@ package com.bluewhale.auth.security;
 
 import com.bluewhale.auth.jwt.JwtTokenProvider;
 import com.bluewhale.security.degradation.SecurityDegradationAlerter;
+import com.bluewhale.security.degradation.SecurityDegradationPolicy;
 import com.bluewhale.security.token.UserAccessRevocationKeys;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -61,21 +62,21 @@ class RedisUserAccessRevocationStoreTest {
     }
 
     @Test
-    @DisplayName("revoke：写入当前 Unix 秒与覆盖 access/refresh 最长有效期的 TTL，键不带租户段")
-    void revokeShouldWriteEpochSecondWithTokenTtl() {
+    @DisplayName("revoke：写入当前毫秒时间戳与覆盖 access/refresh 最长有效期的 TTL，键不带租户段")
+    void revokeShouldWriteEpochMilliWithTokenTtl() {
         when(tokenProvider.getAccessExpireSeconds()).thenReturn(ACCESS_TTL_SECONDS);
         when(tokenProvider.getRefreshExpireSeconds()).thenReturn(REFRESH_TTL_SECONDS);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        long before = System.currentTimeMillis() / 1000L;
+        long before = System.currentTimeMillis();
 
         store.revoke(USER_ID);
 
-        long after = System.currentTimeMillis() / 1000L;
+        long after = System.currentTimeMillis();
         ArgumentCaptor<String> valueCaptor = ArgumentCaptor.forClass(String.class);
         verify(valueOperations).set(eq(UserAccessRevocationKeys.revocationKey(USER_ID)),
                 valueCaptor.capture(), eq(REFRESH_TTL_SECONDS + 60L), eq(TimeUnit.SECONDS));
         long revokedAt = Long.parseLong(valueCaptor.getValue());
-        assertTrue(revokedAt >= before && revokedAt <= after, "撤销时间应为当前 Unix 秒");
+        assertTrue(revokedAt >= before && revokedAt <= after, "撤销时间应为当前毫秒时间戳");
     }
 
     @Test
@@ -99,8 +100,8 @@ class RedisUserAccessRevocationStoreTest {
     }
 
     @Test
-    @DisplayName("isRevoked：令牌签发时间不晚于撤销时间时返回 true")
-    void isRevokedShouldReturnTrueWhenIssuedBeforeRevocation() {
+    @DisplayName("isRevoked：旧格式撤销键（Unix 秒）令牌签发时间不晚于撤销时间时返回 true")
+    void isRevokedShouldReturnTrueForLegacySecondValue() {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(UserAccessRevocationKeys.revocationKey(USER_ID)))
                 .thenReturn(String.valueOf(ISSUED_AT_SECONDS));
@@ -109,12 +110,39 @@ class RedisUserAccessRevocationStoreTest {
     }
 
     @Test
+    @DisplayName("isRevoked：毫秒级撤销时间早于令牌签发时间时返回 false（同秒重新登录可放行）")
+    void isRevokedShouldReturnFalseWhenNewTokenIssuedAfterMillisecondRevocation() {
+        long revokedAtMillis = ISSUED_AT_SECONDS * 1000L + 100L;
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(UserAccessRevocationKeys.revocationKey(USER_ID)))
+                .thenReturn(String.valueOf(revokedAtMillis));
+
+        assertFalse(store.isRevoked(USER_ID, new Date(revokedAtMillis + 1L)));
+    }
+
+    @Test
     @DisplayName("isRevoked：重新启用后签发的新令牌返回 false")
     void isRevokedShouldReturnFalseWhenIssuedAfterRevocation() {
+        long revokedAtMillis = ISSUED_AT_SECONDS * 1000L;
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get(anyString())).thenReturn(String.valueOf(ISSUED_AT_SECONDS));
+        when(valueOperations.get(anyString())).thenReturn(String.valueOf(revokedAtMillis));
 
-        assertFalse(store.isRevoked(USER_ID, new Date((ISSUED_AT_SECONDS + 1L) * 1000L)));
+        assertFalse(store.isRevoked(USER_ID, new Date(revokedAtMillis + 1000L)));
+    }
+
+    @Test
+    @DisplayName("isRevoked：安全优先模式下 Redis 不可用按已撤销拒绝")
+    void isRevokedShouldFailClosedWhenPolicyEnabled() {
+        SecurityDegradationPolicy.configure(true);
+        try {
+            when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+            when(valueOperations.get(anyString())).thenThrow(new RuntimeException("connection refused"));
+
+            assertTrue(store.isRevoked(USER_ID, new Date(ISSUED_AT_SECONDS * 1000L)));
+            assertEquals(1L, SecurityDegradationAlerter.alarmCount());
+        } finally {
+            SecurityDegradationPolicy.reset();
+        }
     }
 
     @Test

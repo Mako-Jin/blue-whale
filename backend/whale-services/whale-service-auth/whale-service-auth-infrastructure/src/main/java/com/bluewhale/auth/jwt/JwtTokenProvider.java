@@ -1,6 +1,7 @@
 package com.bluewhale.auth.jwt;
 
 import com.bluewhale.auth.config.JwtProperties;
+import com.bluewhale.security.token.TokenTimeSupport;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.Jwts;
@@ -90,6 +91,7 @@ public class JwtTokenProvider {
                 .claim(CLAIM_TENANT_ID, tenantId)
                 .claim(CLAIM_ROLES, String.join(",", roles))
                 .claim(CLAIM_TOKEN_TYPE, TOKEN_TYPE_ACCESS)
+                .claim(TokenTimeSupport.CLAIM_ISSUED_AT_MILLIS, now.getTime())
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(secretKey, Jwts.SIG.HS256)
@@ -113,7 +115,8 @@ public class JwtTokenProvider {
                 .subject(username)
                 .claim(CLAIM_USER_ID, userId)
                 .claim(CLAIM_TENANT_ID, tenantId)
-                .claim(CLAIM_TOKEN_TYPE, TOKEN_TYPE_REFRESH);
+                .claim(CLAIM_TOKEN_TYPE, TOKEN_TYPE_REFRESH)
+                .claim(TokenTimeSupport.CLAIM_ISSUED_AT_MILLIS, now.getTime());
         if (familyId != null && !familyId.isBlank()) {
             builder.claim(CLAIM_FAMILY_ID, familyId);
         }

@@ -61,20 +61,20 @@ class RedisTenantMembershipRevocationStoreTest {
     }
 
     @Test
-    @DisplayName("revoke：写入当前 Unix 秒，TTL 覆盖 accessToken 有效期并加缓冲")
-    void revokeShouldWriteEpochSecondWithTokenTtl() {
+    @DisplayName("revoke：写入当前毫秒时间戳，TTL 覆盖 accessToken 有效期并加缓冲")
+    void revokeShouldWriteEpochMilliWithTokenTtl() {
         when(tokenProvider.getAccessExpireSeconds()).thenReturn(ACCESS_TTL_SECONDS);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        long before = System.currentTimeMillis() / 1000L;
+        long before = System.currentTimeMillis();
 
         store.revoke(TENANT_ID, USER_ID);
 
-        long after = System.currentTimeMillis() / 1000L;
+        long after = System.currentTimeMillis();
         ArgumentCaptor<String> valueCaptor = ArgumentCaptor.forClass(String.class);
         verify(valueOperations).set(eq(TenantMembershipRevocationKeys.revocationKey(TENANT_ID, USER_ID)),
                 valueCaptor.capture(), eq(ACCESS_TTL_SECONDS + 60L), eq(TimeUnit.SECONDS));
         long revokedAt = Long.parseLong(valueCaptor.getValue());
-        assertTrue(revokedAt >= before && revokedAt <= after, "撤销时间应为当前 Unix 秒");
+        assertTrue(revokedAt >= before && revokedAt <= after, "撤销时间应为当前毫秒时间戳");
     }
 
     @Test
@@ -99,8 +99,8 @@ class RedisTenantMembershipRevocationStoreTest {
     }
 
     @Test
-    @DisplayName("isRevoked：令牌签发时间不晚于撤销时间时返回 true")
-    void isRevokedShouldReturnTrueWhenIssuedBeforeRevocation() {
+    @DisplayName("isRevoked：旧格式撤销键（Unix 秒）令牌签发时间不晚于撤销时间时返回 true")
+    void isRevokedShouldReturnTrueForLegacySecondValue() {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(TenantMembershipRevocationKeys.revocationKey(TENANT_ID, USER_ID)))
                 .thenReturn(String.valueOf(ISSUED_AT_SECONDS));
@@ -109,12 +109,23 @@ class RedisTenantMembershipRevocationStoreTest {
     }
 
     @Test
+    @DisplayName("isRevoked：毫秒级撤销时间早于令牌签发时间时返回 false（解绑同秒重新登录可放行）")
+    void isRevokedShouldReturnFalseWhenNewTokenIssuedAfterMillisecondRevocation() {
+        long revokedAtMillis = ISSUED_AT_SECONDS * 1000L + 100L;
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(anyString())).thenReturn(String.valueOf(revokedAtMillis));
+
+        assertFalse(store.isRevoked(TENANT_ID, USER_ID, new Date(revokedAtMillis + 1L)));
+    }
+
+    @Test
     @DisplayName("isRevoked：重新绑定后签发的新令牌返回 false")
     void isRevokedShouldReturnFalseWhenIssuedAfterRevocation() {
+        long revokedAtMillis = ISSUED_AT_SECONDS * 1000L;
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get(anyString())).thenReturn(String.valueOf(ISSUED_AT_SECONDS));
+        when(valueOperations.get(anyString())).thenReturn(String.valueOf(revokedAtMillis));
 
-        assertFalse(store.isRevoked(TENANT_ID, USER_ID, new Date((ISSUED_AT_SECONDS + 1L) * 1000L)));
+        assertFalse(store.isRevoked(TENANT_ID, USER_ID, new Date(revokedAtMillis + 1000L)));
     }
 
     @Test

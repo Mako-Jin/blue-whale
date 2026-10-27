@@ -1,6 +1,7 @@
 package com.bluewhale.auth.security;
 
 import com.bluewhale.auth.jwt.JwtTokenProvider;
+import com.bluewhale.security.token.TokenTimeSupport;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -20,6 +21,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Date;
 
 /**
  * JWT 认证过滤器：解析 Bearer token → 构造 UsernamePasswordAuthenticationToken → SecurityContext。
@@ -77,13 +79,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             log.debug("accessToken 缺少租户或用户 claim，按未认证处理: username={}", claims.getSubject());
             return;
         }
+        Date issuedAt = new Date(TokenTimeSupport.issuedAtMillis(claims));
         // 一人多租户：成员解绑后即时拒绝解绑前签发的本租户令牌，无需等待过期
-        if (membershipRevocationStore.isRevoked(tenantId, userId, claims.getIssuedAt())) {
+        if (membershipRevocationStore.isRevoked(tenantId, userId, issuedAt)) {
             log.debug("token 签发于租户成员解绑之前，按未认证处理: tenantId={}, userId={}", tenantId, userId);
             return;
         }
         // 用户停用/删除/改密：跨租户撤销全部存量令牌
-        if (userAccessRevocationStore.isRevoked(userId, claims.getIssuedAt())) {
+        if (userAccessRevocationStore.isRevoked(userId, issuedAt)) {
             log.debug("token 签发于用户级撤销之前，按未认证处理: userId={}", userId);
             return;
         }

@@ -133,6 +133,11 @@ spring:
                 - Path=/config/**
 
 whale:
+  # S-02 Redis 降级口径：false=可用性优先（Redis 不可读时放行并告警），
+  # true=安全优先（按已撤销/已停用/已命中黑名单拒绝请求）。
+  security:
+    degradation:
+      fail-closed: ${SECURITY_DEGRADATION_FAIL_CLOSED:false}
   gateway:
     jwt:
       # HS256 签名密钥，必须与 whale-service-auth 保持一致

@@ -1,7 +1,9 @@
 package com.bluewhale.gateway.security;
 
 import com.bluewhale.security.degradation.SecurityDegradationAlerter;
+import com.bluewhale.security.degradation.SecurityDegradationPolicy;
 import com.bluewhale.security.token.TenantMembershipRevocationKeys;
+import com.bluewhale.security.token.TokenTimeSupport;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -26,9 +28,6 @@ import java.util.Date;
 @Component
 public class MembershipRevocationChecker {
 
-    /** 毫秒换算秒的进制 */
-    private static final long MILLIS_PER_SECOND = 1000L;
-
     /** 降级告警场景标识：网关校验成员撤销 */
     private static final String SCENE_CHECK = "gateway:membership-revocation:check";
 
@@ -48,7 +47,7 @@ public class MembershipRevocationChecker {
      *
      * @param tenantId 令牌租户 ID 文本（来自 JWT claim）
      * @param userId 令牌用户 ID 文本（来自 JWT claim）
-     * @param issuedAt 令牌签发时间（JWT {@code iat}），缺失时按未撤销处理
+     * @param issuedAt 令牌签发时间（毫秒级 {@code iatMs} 优先，缺失时回退 {@code iat}）
      * @return 已撤销返回 {@code true}；缓存缺失或 Redis 不可用时返回 {@code false}（降级放行）
      */
     public Mono<Boolean> isRevoked(String tenantId, String userId, Date issuedAt) {
@@ -57,17 +56,17 @@ public class MembershipRevocationChecker {
         if (parsedTenantId == null || parsedUserId == null || issuedAt == null) {
             return Mono.just(Boolean.FALSE);
         }
-        long issuedAtSeconds = issuedAt.getTime() / MILLIS_PER_SECOND;
+        long issuedAtMillis = issuedAt.getTime();
         return redisTemplate.opsForValue()
                 .get(TenantMembershipRevocationKeys.revocationKey(parsedTenantId, parsedUserId))
-                .map(revokedAt -> Long.parseLong(revokedAt) >= issuedAtSeconds)
+                .map(revokedAt -> TokenTimeSupport.isRevoked(issuedAtMillis, revokedAt))
                 .defaultIfEmpty(Boolean.FALSE)
                 .onErrorResume(e -> {
-                    log.warn("网关查询租户成员撤销时间失败（Redis 不可用或值非法），按未撤销放行: "
+                    log.warn("网关查询租户成员撤销时间失败（Redis 不可用或值非法），按策略处理: "
                             + "tenantId={}, userId={}, reason={}", tenantId, userId, e.getMessage());
                     SecurityDegradationAlerter.alarm(SCENE_CHECK,
-                            "网关查询租户成员撤销时间失败（Redis 不可用或值非法），按未撤销放行", e);
-                    return Mono.just(Boolean.FALSE);
+                            "网关查询租户成员撤销时间失败（Redis 不可用或值非法），按策略处理", e);
+                    return Mono.just(SecurityDegradationPolicy.failClosed());
                 });
     }
 

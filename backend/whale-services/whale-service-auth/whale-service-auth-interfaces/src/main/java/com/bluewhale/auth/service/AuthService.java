@@ -27,6 +27,7 @@ import com.bluewhale.auth.vo.MyTenantVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.security.degradation.SecurityDegradationAlerter;
+import com.bluewhale.security.token.TokenTimeSupport;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -350,7 +351,8 @@ public class AuthService {
      * @throws BizException 令牌签发时间不晚于撤销时刻时抛出 401
      */
     private void requireRefreshNotRevoked(Long userId, Long tenantId, Claims claims) {
-        if (!userAccessRevocationStore.isRevoked(userId, claims.getIssuedAt())) {
+        if (!userAccessRevocationStore.isRevoked(userId,
+                new java.util.Date(TokenTimeSupport.issuedAtMillis(claims)))) {
             return;
         }
         log.warn("refreshToken 在用户级撤销前签发，拒绝换发新令牌: userId={}, tenantId={}",

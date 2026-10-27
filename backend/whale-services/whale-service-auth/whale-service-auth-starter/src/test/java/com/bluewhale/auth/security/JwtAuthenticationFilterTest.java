@@ -138,7 +138,7 @@ class JwtAuthenticationFilterTest {
         when(tokenProvider.parse("v.v.v")).thenReturn(claims);
         givenAccessClaims("tester");
         when(tokenBlacklist.contains("v.v.v")).thenReturn(false);
-        when(membershipRevocationStore.isRevoked(1L, 1L, null)).thenReturn(true);
+        when(membershipRevocationStore.isRevoked(1L, 1L, new java.util.Date(0L))).thenReturn(true);
 
         filter.doFilterInternal(request, response, filterChain);
 
@@ -153,7 +153,7 @@ class JwtAuthenticationFilterTest {
         when(tokenProvider.parse("v.v.v")).thenReturn(claims);
         givenAccessClaims("tester");
         when(tokenBlacklist.contains("v.v.v")).thenReturn(false);
-        when(userAccessRevocationStore.isRevoked(1L, null)).thenReturn(true);
+        when(userAccessRevocationStore.isRevoked(1L, new java.util.Date(0L))).thenReturn(true);
 
         filter.doFilterInternal(request, response, filterChain);
 

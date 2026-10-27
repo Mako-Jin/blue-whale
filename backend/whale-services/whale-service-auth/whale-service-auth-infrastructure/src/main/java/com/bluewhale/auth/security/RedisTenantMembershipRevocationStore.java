@@ -2,7 +2,9 @@ package com.bluewhale.auth.security;
 
 import com.bluewhale.auth.jwt.JwtTokenProvider;
 import com.bluewhale.security.degradation.SecurityDegradationAlerter;
+import com.bluewhale.security.degradation.SecurityDegradationPolicy;
 import com.bluewhale.security.token.TenantMembershipRevocationKeys;
+import com.bluewhale.security.token.TokenTimeSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -29,9 +31,6 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class RedisTenantMembershipRevocationStore implements TenantMembershipRevocationStore {
 
-    /** 毫秒换算秒的进制 */
-    private static final long MILLIS_PER_SECOND = 1000L;
-
     /** 最小写入 TTL（秒），避免出现 TTL<=0 导致键永不过期 */
     private static final long MIN_TTL_SECONDS = 1L;
 
@@ -52,13 +51,13 @@ public class RedisTenantMembershipRevocationStore implements TenantMembershipRev
         if (tenantId == null || userId == null) {
             return;
         }
-        long revokedAtSeconds = System.currentTimeMillis() / MILLIS_PER_SECOND;
+        long revokedAtMillis = System.currentTimeMillis();
         long ttlSeconds = Math.max(tokenProvider.getAccessExpireSeconds() + TTL_BUFFER_SECONDS,
                 MIN_TTL_SECONDS);
         try {
             redisTemplate.opsForValue().set(
                     TenantMembershipRevocationKeys.revocationKey(tenantId, userId),
-                    String.valueOf(revokedAtSeconds), ttlSeconds, TimeUnit.SECONDS);
+                    String.valueOf(revokedAtMillis), ttlSeconds, TimeUnit.SECONDS);
         } catch (RuntimeException e) {
             log.warn("写入租户成员撤销时间失败（Redis 不可用），存量令牌无法即时失效: "
                     + "tenantId={}, userId={}, reason={}", tenantId, userId, e.getMessage());
@@ -78,13 +77,13 @@ public class RedisTenantMembershipRevocationStore implements TenantMembershipRev
             if (revokedAt == null) {
                 return false;
             }
-            return issuedAt.getTime() / MILLIS_PER_SECOND <= Long.parseLong(revokedAt);
+            return TokenTimeSupport.isRevoked(issuedAt.getTime(), revokedAt);
         } catch (RuntimeException e) {
-            log.warn("查询租户成员撤销时间失败（Redis 不可用或值非法），按未撤销处理: "
+            log.warn("查询租户成员撤销时间失败（Redis 不可用或值非法），按策略处理: "
                     + "tenantId={}, userId={}, reason={}", tenantId, userId, e.getMessage());
             SecurityDegradationAlerter.alarm(SCENE_CHECK,
-                    "查询租户成员撤销时间失败（Redis 不可用或值非法），按未撤销处理", e);
-            return false;
+                    "查询租户成员撤销时间失败（Redis 不可用或值非法），按策略处理", e);
+            return SecurityDegradationPolicy.failClosed();
         }
     }
 }

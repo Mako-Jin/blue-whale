@@ -2,6 +2,7 @@ package com.bluewhale.auth.security;
 
 import com.bluewhale.auth.jwt.JwtTokenProvider;
 import com.bluewhale.security.degradation.SecurityDegradationAlerter;
+import com.bluewhale.security.degradation.SecurityDegradationPolicy;
 import com.bluewhale.security.token.TokenBlacklistKeys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -63,9 +64,9 @@ public class RedisTokenBlacklist implements TokenBlacklist {
         try {
             return Boolean.TRUE.equals(redisTemplate.hasKey(TokenBlacklistKeys.blacklistKey(token)));
         } catch (RuntimeException e) {
-            log.warn("令牌黑名单查询失败（Redis 不可用），按未命中处理: {}", e.getMessage());
-            SecurityDegradationAlerter.alarm(SCENE_CONTAINS, "令牌黑名单查询失败（Redis 不可用），按未命中处理", e);
-            return false;
+            log.warn("令牌黑名单查询失败（Redis 不可用），按策略处理: {}", e.getMessage());
+            SecurityDegradationAlerter.alarm(SCENE_CONTAINS, "令牌黑名单查询失败（Redis 不可用），按策略处理", e);
+            return SecurityDegradationPolicy.failClosed();
         }
     }
 }

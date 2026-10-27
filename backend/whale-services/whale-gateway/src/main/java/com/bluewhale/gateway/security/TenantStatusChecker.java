@@ -1,6 +1,7 @@
 package com.bluewhale.gateway.security;
 
 import com.bluewhale.security.degradation.SecurityDegradationAlerter;
+import com.bluewhale.security.degradation.SecurityDegradationPolicy;
 import com.bluewhale.security.token.TenantStatusKeys;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
@@ -68,11 +69,11 @@ public class TenantStatusChecker {
                 .map(values -> isDisabled(values) || isExpired(values, nowSeconds))
                 .defaultIfEmpty(Boolean.FALSE)
                 .onErrorResume(e -> {
-                    log.warn("网关查询租户状态失败（Redis 不可用），按可用放行: tenantId={}, reason={}",
+                    log.warn("网关查询租户状态失败（Redis 不可用），按策略处理: tenantId={}, reason={}",
                             tenantId, e.getMessage());
                     SecurityDegradationAlerter.alarm(SCENE_CHECK,
-                            "网关查询租户状态失败（Redis 不可用），按可用放行", e);
-                    return Mono.just(Boolean.FALSE);
+                            "网关查询租户状态失败（Redis 不可用），按策略处理", e);
+                    return Mono.just(SecurityDegradationPolicy.failClosed());
                 });
     }
 

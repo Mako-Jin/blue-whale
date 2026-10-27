@@ -71,6 +71,18 @@ class MembershipRevocationCheckerTest {
     }
 
     @Test
+    @DisplayName("isRevoked：解绑后同一秒签发的新令牌（毫秒级 iatMs）返回 false")
+    void shouldReturnFalseWhenTokenIssuedAfterMillisecondRevocation() {
+        long revokedAtMillis = ISSUED_AT_SECONDS * 1000L + 100L;
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(anyString()))
+                .thenReturn(Mono.just(String.valueOf(revokedAtMillis)));
+
+        assertFalse(checker.isRevoked(String.valueOf(TENANT_ID), String.valueOf(USER_ID),
+                new Date(revokedAtMillis + 1L)).block());
+    }
+
+    @Test
     @DisplayName("isRevoked：撤销时间早于签发时间（重新绑定后新令牌）返回 false")
     void shouldReturnFalseWhenTokenIssuedAfterRevocation() {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
