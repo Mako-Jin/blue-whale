@@ -55,6 +55,11 @@ whale:
       connect-timeout-millis: ${WHALE_JOB_ALERT_CONNECT_TIMEOUT_MILLIS:2000}
       read-timeout-millis: ${WHALE_JOB_ALERT_READ_TIMEOUT_MILLIS:3000}
       max-error-length: ${WHALE_JOB_ALERT_MAX_ERROR_LENGTH:500}
+    # F-02 多实例广播断连后的本地调度全量重对齐
+    schedule-reconcile:
+      enabled: ${WHALE_JOB_SCHEDULE_RECONCILE_ENABLED:true}
+      interval-ms: ${WHALE_JOB_SCHEDULE_RECONCILE_INTERVAL_MS:300000}
+      initial-delay-ms: ${WHALE_JOB_SCHEDULE_RECONCILE_INITIAL_DELAY_MS:60000}
 
 management:
   endpoints:

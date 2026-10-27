@@ -342,4 +342,20 @@ class JobSchedulerTest {
         scheduler.cancel(1L);
         scheduler.cancel(2L);
     }
+
+    @Test
+    @DisplayName("reconcileWithDatabase：取消已停用任务，补注册数据库中新运行的任务")
+    void shouldReconcileLocalSchedulingWithDatabase() {
+        scheduler.init();
+        JobInfo job = job(1L, "SMART");
+        when(jobInfoMapper.selectList(any())).thenReturn(List.of(job));
+
+        scheduler.reconcileWithDatabase();
+        assertTrue(scheduler.scheduledJobIds().contains(1L));
+
+        when(jobInfoMapper.selectList(any())).thenReturn(List.of());
+        scheduler.reconcileWithDatabase();
+
+        assertFalse(scheduler.scheduledJobIds().contains(1L));
+    }
 }

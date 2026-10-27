@@ -27,8 +27,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
@@ -146,6 +148,9 @@ public class JobScheduler {
     /** jobId 到已注册调度的映射 */
     private final Map<Long, ScheduledFuture<?>> scheduledFutures = new ConcurrentHashMap<>();
 
+    /** jobId 到本地已注册调度签名（cron）的映射，用于断连重对齐时判断是否需要重注册 */
+    private final Map<Long, String> scheduledSignatures = new ConcurrentHashMap<>();
+
     /** 调度线程池 */
     private ThreadPoolTaskScheduler taskScheduler;
 
@@ -225,6 +230,7 @@ public class JobScheduler {
      */
     private void cancelLocal(Long jobId) {
         ScheduledFuture<?> future = scheduledFutures.remove(jobId);
+        scheduledSignatures.remove(jobId);
         if (future != null) {
             future.cancel(false);
             log.info("定时任务已取消: jobId={}", jobId);
@@ -243,6 +249,71 @@ public class JobScheduler {
         } else {
             cancelLocal(jobId);
         }
+    }
+
+    /**
+     * 与数据库全量重对齐本地调度（F-02）。
+     *
+     * <p>Redis Pub/Sub 断连或消息丢失时，其他实例的变更不会到达本实例。本方法按数据库中的
+     * 运行中任务列表：取消已停用/已删除任务的本地调度；对 cron 已变化或缺少依赖关系变化的任务
+     * 重新注册。由 {@link JobScheduleReconcileJob} 周期执行，异常只记录不抛出。</p>
+     */
+    public void reconcileWithDatabase() {
+        List<JobInfo> runningJobs = jobInfoMapper.selectList(
+                new LambdaQueryWrapper<JobInfo>().eq(JobInfo::getStatus, STATUS_RUNNING));
+        Set<Long> runningIds = new HashSet<>();
+        for (JobInfo job : runningJobs) {
+            if (job.getId() != null) {
+                runningIds.add(job.getId());
+            }
+        }
+        int canceled = 0;
+        for (Long scheduledId : List.copyOf(scheduledFutures.keySet())) {
+            if (!runningIds.contains(scheduledId)) {
+                cancelLocal(scheduledId);
+                canceled++;
+            }
+        }
+        int rescheduled = 0;
+        for (JobInfo job : runningJobs) {
+            Long jobId = job.getId();
+            if (jobId == null) {
+                continue;
+            }
+            if (hasUpstreamDependency(jobId)) {
+                if (scheduledFutures.containsKey(jobId)) {
+                    cancelLocal(jobId);
+                    canceled++;
+                }
+                continue;
+            }
+            if (!signature(job).equals(scheduledSignatures.get(jobId))) {
+                cancelLocal(jobId);
+                register(job);
+                rescheduled++;
+            }
+        }
+        log.info("定时任务调度的数据库重对齐完成: running={}, canceled={}, rescheduled={}",
+                runningJobs.size(), canceled, rescheduled);
+    }
+
+    /**
+     * 本地已注册调度的任务ID集合（供满足性测试与运维诊断使用）
+     *
+     * @return 任务ID集合快照
+     */
+    Set<Long> scheduledJobIds() {
+        return Set.copyOf(scheduledFutures.keySet());
+    }
+
+    /**
+     * 调度签名：仅包含影响调度注册的 cron 表达式
+     *
+     * @param job 任务定义
+     * @return 调度签名
+     */
+    private static String signature(JobInfo job) {
+        return job.getCronExpression() == null ? "" : job.getCronExpression();
     }
 
     /**
@@ -276,6 +347,7 @@ public class JobScheduler {
             return;
         }
         String cron = job.getCronExpression();
+        scheduledSignatures.put(job.getId(), signature(job));
         if (!StringUtils.hasText(cron) || !CronExpression.isValidExpression(cron)) {
             log.warn("任务 cron 表达式非法，跳过注册: jobId={}, cron={}", job.getId(), cron);
             return;
