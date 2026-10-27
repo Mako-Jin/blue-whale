@@ -39,6 +39,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -200,6 +201,38 @@ class ArchiveItemServiceTest {
     }
 
     @Test
+    @DisplayName("确认归档：锁定条目下全部文件（原件不可删除）")
+    void confirmLocksItemFiles() {
+        ArchiveItem item = pendingItem();
+        ArchiveItem archived = pendingItem();
+        archived.setItemStatus(ArchiveConstants.ITEM_STATUS_ARCHIVED);
+        archived.setArchiveNo("BW-GL-2026-000001");
+        when(itemMapper.selectById(ITEM_ID)).thenReturn(item, archived);
+        when(categoryMapper.selectById(CATEGORY_ID)).thenReturn(enabledCategory());
+        when(numberService.next("GL", YEAR)).thenReturn("BW-GL-2026-000001");
+        when(itemMapper.update(any(), any())).thenReturn(1);
+        when(fileMapper.selectList(any())).thenReturn(List.of(fileRef()));
+
+        itemService.confirm(ITEM_ID, 7L);
+
+        verify(fileClient).lock(FILE_ID);
+    }
+
+    @Test
+    @DisplayName("确认归档：文件锁定失败时抛出异常，事务回滚等待重试")
+    void confirmFailsWhenLockFails() {
+        ArchiveItem item = pendingItem();
+        when(itemMapper.selectById(ITEM_ID)).thenReturn(item);
+        when(categoryMapper.selectById(CATEGORY_ID)).thenReturn(enabledCategory());
+        when(numberService.next("GL", YEAR)).thenReturn("BW-GL-2026-000001");
+        when(itemMapper.update(any(), any())).thenReturn(1);
+        when(fileMapper.selectList(any())).thenReturn(List.of(fileRef()));
+        doThrow(new IllegalStateException("文件服务不可用")).when(fileClient).lock(FILE_ID);
+
+        assertThrows(IllegalStateException.class, () -> itemService.confirm(ITEM_ID, 7L));
+    }
+
+    @Test
     @DisplayName("确认归档：已归档条目重复确认幂等且不再取号")
     void confirmExistingArchivedIsIdempotent() {
         ArchiveItem item = pendingItem();
@@ -256,6 +289,20 @@ class ArchiveItemServiceTest {
         assertEquals(7L, stats.getBySecurity().get(String.valueOf(ArchiveConstants.SECURITY_INTERNAL)));
         assertEquals(8L, stats.getByCategory().get(String.valueOf(CATEGORY_ID)));
         assertNotNull(stats.getByYear());
+    }
+
+    /**
+     * 构造条目下的文件引用。
+     *
+     * @return 文件引用
+     */
+    private static ArchiveFile fileRef() {
+        ArchiveFile file = new ArchiveFile();
+        file.setId(FILE_REF_ID);
+        file.setItemId(ITEM_ID);
+        file.setFileId(FILE_ID);
+        file.setFileRole(ArchiveConstants.FILE_ROLE_ORIGINAL);
+        return file;
     }
 
     /**

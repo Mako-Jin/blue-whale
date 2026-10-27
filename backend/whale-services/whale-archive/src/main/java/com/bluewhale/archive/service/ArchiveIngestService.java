@@ -7,6 +7,7 @@ import com.bluewhale.archive.dto.ArchiveIngestRequest;
 import com.bluewhale.archive.entity.ArchiveFile;
 import com.bluewhale.archive.entity.ArchiveItem;
 import com.bluewhale.archive.entity.ArchiveSourceRecord;
+import com.bluewhale.archive.mapper.ArchiveFileMapper;
 import com.bluewhale.archive.mapper.ArchiveItemMapper;
 import com.bluewhale.archive.support.ArchiveConstants;
 import com.bluewhale.archive.support.ArchiveSnapshotBuilder;
@@ -59,6 +60,8 @@ public class ArchiveIngestService {
 
     private final ArchiveItemMapper itemMapper;
 
+    private final ArchiveFileMapper fileMapper;
+
     private final ArchiveItemStore itemStore;
 
     private final FileArchiveClient fileClient;
@@ -78,6 +81,7 @@ public class ArchiveIngestService {
         String sourceId = request.getSourceId().trim();
         ArchiveItem existing = findBySource(sourceType, sourceId);
         if (existing != null) {
+            lockExisting(existing);
             log.info("业务快照重复推送，幂等返回: sourceType={}, sourceId={}, itemId={}",
                     sourceType, sourceId, existing.getId());
             return toResult(existing, false);
@@ -88,6 +92,7 @@ public class ArchiveIngestService {
         Long snapshotFileId = fileClient.upload(snapshot, fileName, archiveProperties.getBucket());
         ArchiveItem item = buildItem(request, sourceType, sourceId, snapshotFileId, snapshotHash);
         List<ArchiveFile> refs = buildFileRefs(request, snapshotFileId, fileName, snapshot.length);
+        lockFiles(refs);
         try {
             itemStore.persist(item, refs, buildRecord(sourceType, sourceId));
         } catch (DuplicateKeyException ex) {
@@ -227,6 +232,37 @@ public class ArchiveIngestService {
             refs.add(originalRef);
         }
         return refs;
+    }
+
+    /**
+     * 锁定新增入档的快照与原件引用（归档不可变）。
+     *
+     * <p>与工作流同步口径一致：先锁定文件再落库，锁定失败则不产生档案条目，
+     * 由业务侧重试；文件服务的锁定接口幂等，重试不会重复变更。</p>
+     *
+     * @param refs 文件引用
+     */
+    private void lockFiles(List<ArchiveFile> refs) {
+        for (ArchiveFile ref : refs) {
+            if (ref.getFileId() != null) {
+                fileClient.lock(ref.getFileId());
+            }
+        }
+    }
+
+    /**
+     * 重复推送时补锁既有条目的文件，用于修复历史未锁定条目。
+     *
+     * @param item 既有档案条目
+     */
+    private void lockExisting(ArchiveItem item) {
+        List<ArchiveFile> refs = fileMapper.selectList(new LambdaQueryWrapper<ArchiveFile>()
+                .eq(ArchiveFile::getItemId, item.getId()));
+        if (refs.isEmpty() && item.getSnapshotFileId() != null) {
+            fileClient.lock(item.getSnapshotFileId());
+            return;
+        }
+        lockFiles(refs);
     }
 
     /**

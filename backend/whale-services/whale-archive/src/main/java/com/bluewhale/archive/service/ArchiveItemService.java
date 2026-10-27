@@ -209,6 +209,7 @@ public class ArchiveItemService {
             }
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "条目状态已变更，请刷新后重试");
         }
+        lockFiles(id);
         ArchiveItem latest = requireItem(id);
         return toVo(latest, category.getName());
     }
@@ -403,6 +404,24 @@ public class ArchiveItemService {
         } catch (RuntimeException e) {
             log.warn("读取来源实例状态失败: sourceId={}, error={}", item.getSourceId(), e.getMessage());
             return null;
+        }
+    }
+
+    /**
+     * 锁定条目下全部文件（归档不可变）。
+     *
+     * <p>入档时已锁定新增文件；此处兜底覆盖历史条目与待整理条目，保证「确认归档」
+     * 后引用文件不可删除。锁定失败抛出异常并回滚条目状态，允许重试。</p>
+     *
+     * @param itemId 条目ID
+     */
+    private void lockFiles(Long itemId) {
+        List<ArchiveFile> files = fileMapper.selectList(new LambdaQueryWrapper<ArchiveFile>()
+                .eq(ArchiveFile::getItemId, itemId));
+        for (ArchiveFile file : files) {
+            if (file.getFileId() != null) {
+                fileClient.lock(file.getFileId());
+            }
         }
     }
 
