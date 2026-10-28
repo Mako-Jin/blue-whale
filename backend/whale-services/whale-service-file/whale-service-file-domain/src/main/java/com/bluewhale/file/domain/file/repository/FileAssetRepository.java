@@ -23,6 +23,18 @@ public interface FileAssetRepository {
     FileAsset save(FileAsset asset);
 
     /**
+     * 在个人配额内原子保存文件资产：配额校验与写入在同一临界区完成，避免并发上传穿透配额。
+     *
+     * <p>不限配额（{@code quotaBytes <= 0}）或无上传用户时退化为普通保存。</p>
+     *
+     * @param asset 文件资产聚合根
+     * @param quotaBytes 单用户配额字节数；{@code <=0} 表示不限
+     * @return 回填主键后的文件资产聚合根
+     * @throws com.bluewhale.common.core.exception.BizException 超出配额时抛出 {@code PARAM_ERROR}
+     */
+    FileAsset saveWithQuotaCheck(FileAsset asset, long quotaBytes);
+
+    /**
      * 按主键查询未逻辑删除的文件资产
      *
      * @param id 文件ID

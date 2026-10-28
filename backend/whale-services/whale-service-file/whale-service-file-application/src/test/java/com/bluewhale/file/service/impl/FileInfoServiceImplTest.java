@@ -10,7 +10,11 @@ import com.bluewhale.file.domain.file.repository.FileAssetPage;
 import com.bluewhale.file.domain.file.repository.FileAssetQuery;
 import com.bluewhale.file.domain.file.repository.FileAssetRepository;
 import com.bluewhale.file.domain.model.vo.FileStatus;
+import com.bluewhale.file.domain.storage.ChunkUploadMetadata;
+import com.bluewhale.file.domain.storage.ChunkUploadSessionId;
+import com.bluewhale.file.domain.storage.ChunkUploadStore;
 import com.bluewhale.file.domain.storage.FileStorage;
+import com.bluewhale.file.domain.storage.MergedChunkUpload;
 import com.bluewhale.file.dto.ChunkUploadCompleteRequest;
 import com.bluewhale.file.dto.ChunkUploadInitRequest;
 import com.bluewhale.file.dto.FileQueryRequest;
@@ -25,22 +29,23 @@ import com.bluewhale.file.vo.FileUploadVO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 import org.springframework.util.DigestUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -74,26 +79,26 @@ class FileInfoServiceImplTest {
     /** 分片测试用的分片大小：10 字节 */
     private static final long TEST_CHUNK_SIZE = 10L;
 
-    @TempDir
-    Path tempDir;
-
     private final FileAssetRepository fileAssetRepository = mock(FileAssetRepository.class);
 
     private final FileStorage fileStorage = mock(FileStorage.class);
 
     private final FileProperties fileProperties = new FileProperties();
 
+    private final ChunkUploadStore chunkUploadStore = new InMemoryChunkUploadStore();
+
     private final FileInfoServiceImpl fileInfoService =
-            new FileInfoServiceImpl(fileAssetRepository, fileStorage, fileProperties);
+            new FileInfoServiceImpl(fileAssetRepository, fileStorage, chunkUploadStore, fileProperties);
 
     /**
-     * 以临时目录作为存储根目录，设置较小分片大小，并让仓储保存回填入参聚合。
+     * 设置较小分片大小，并让仓储保存回填入参聚合。
      */
     @BeforeEach
     void setUp() {
-        fileProperties.getStorage().setRoot(tempDir.toString());
         fileProperties.setChunkSizeBytes(TEST_CHUNK_SIZE);
         when(fileAssetRepository.save(any(FileAsset.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(fileAssetRepository.saveWithQuotaCheck(any(FileAsset.class), anyLong()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
@@ -208,7 +213,7 @@ class FileInfoServiceImplTest {
             assertTrue(vo.getFileName().endsWith(".pdf"));
             verify(fileStorage).store(eq("bluewhale"), eq(vo.getObjectKey()), any(InputStream.class));
             ArgumentCaptor<FileAsset> captor = ArgumentCaptor.forClass(FileAsset.class);
-            verify(fileAssetRepository).save(captor.capture());
+            verify(fileAssetRepository).saveWithQuotaCheck(captor.capture(), eq(fileProperties.getQuotaBytes()));
             FileAsset saved = captor.getValue();
             assertEquals(UPLOADER_ID, saved.getUploaderId());
             assertEquals(FileStatus.NORMAL, saved.getStatus());
@@ -229,7 +234,7 @@ class FileInfoServiceImplTest {
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         verify(fileStorage, never()).store(any(), any(), any());
-        verify(fileAssetRepository, never()).save(any(FileAsset.class));
+        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAsset.class), anyLong());
     }
 
     @Test
@@ -359,11 +364,10 @@ class FileInfoServiceImplTest {
         assertEquals(DigestUtils.md5DigestAsHex(expected), vo.getMd5());
         assertTrue(vo.getObjectKey().endsWith(".bin"));
         ArgumentCaptor<FileAsset> captor = ArgumentCaptor.forClass(FileAsset.class);
-        verify(fileAssetRepository).save(captor.capture());
+        verify(fileAssetRepository).saveWithQuotaCheck(captor.capture(), eq(fileProperties.getQuotaBytes()));
         assertEquals(12L, captor.getValue().getFileSize());
         assertEquals(UPLOADER_ID, captor.getValue().getUploaderId());
-        assertFalse(Files.exists(tempDir.resolve("tmp").resolve(initVo.getUploadId())),
-                "合并成功后应清理临时目录");
+        assertFalse(sessionExists(initVo.getUploadId()), "合并成功后应清理暂存会话");
     }
 
     @Test
@@ -398,9 +402,8 @@ class FileInfoServiceImplTest {
         assertTrue(ex.getMessage().contains("缺少分片索引"));
         assertTrue(ex.getMessage().contains("1"));
         verify(fileStorage, never()).store(any(), any(), any());
-        verify(fileAssetRepository, never()).save(any(FileAsset.class));
-        assertTrue(Files.exists(tempDir.resolve("tmp").resolve(initVo.getUploadId())),
-                "失败时保留分片供续传");
+        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAsset.class), anyLong());
+        assertTrue(sessionExists(initVo.getUploadId()), "失败时保留分片供续传");
     }
 
     @Test
@@ -423,7 +426,7 @@ class FileInfoServiceImplTest {
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertTrue(ex.getMessage().contains("超出上限"));
         verify(fileStorage, never()).store(any(), any(), any());
-        verify(fileAssetRepository, never()).save(any(FileAsset.class));
+        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAsset.class), anyLong());
     }
 
     @Test
@@ -463,7 +466,7 @@ class FileInfoServiceImplTest {
         assertEquals("application/pdf", vo.getFile().getContentType());
         assertEquals(Long.valueOf(123L), vo.getFile().getFileSize());
         ArgumentCaptor<FileAsset> captor = ArgumentCaptor.forClass(FileAsset.class);
-        verify(fileAssetRepository).save(captor.capture());
+        verify(fileAssetRepository).saveWithQuotaCheck(captor.capture(), eq(fileProperties.getQuotaBytes()));
         assertEquals("2026/10/19/stored.pdf", captor.getValue().getObjectKey());
         assertEquals("d41d8cd98f00b204e9800998ecf8427e", captor.getValue().getMd5());
         assertEquals(UPLOADER_ID, captor.getValue().getUploaderId());
@@ -480,7 +483,7 @@ class FileInfoServiceImplTest {
                 rapidRequest("copy.pdf", "d41d8cd98f00b204e9800998ecf8427e", 123L, "application/pdf"), UPLOADER_ID);
 
         assertFalse(vo.isHit());
-        verify(fileAssetRepository, never()).save(any(FileAsset.class));
+        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAsset.class), anyLong());
         verify(fileAssetRepository, never()).sumNormalSizeByUploader(anyLong());
         verify(fileStorage, never()).store(any(), any(), any());
     }
@@ -498,7 +501,7 @@ class FileInfoServiceImplTest {
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertTrue(ex.getMessage().contains("超出个人存储配额"));
-        verify(fileAssetRepository, never()).save(any(FileAsset.class));
+        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAsset.class), anyLong());
     }
 
     @Test
@@ -679,5 +682,146 @@ class FileInfoServiceImplTest {
         assertEquals(1, vo.getDeleted());
         assertEquals(Integer.valueOf(1), vo.getStatus());
         assertEquals(LocalDateTime.of(2026, 10, 24, 10, 0), vo.getUpdateTime());
+    }
+
+    @Test
+    @DisplayName("upload：仓储原子配额校验失败时补偿删除已写入对象，避免孤儿文件")
+    void shouldCompensateStoredObjectWhenPersistRejected() throws IOException {
+        fileProperties.setQuotaBytes(1000L);
+        when(fileAssetRepository.saveWithQuotaCheck(any(FileAsset.class), anyLong()))
+                .thenThrow(new BizException(ErrorCode.PARAM_ERROR.getCode(), "超出个人存储配额"));
+        MultipartFile file = multipartFile("race-lost".getBytes(StandardCharsets.UTF_8), "race.txt");
+
+        BizException ex = assertThrows(BizException.class, () -> fileInfoService.upload(file, null, UPLOADER_ID));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        ArgumentCaptor<String> objectKey = ArgumentCaptor.forClass(String.class);
+        verify(fileStorage).store(eq("bluewhale"), objectKey.capture(), any(InputStream.class));
+        verify(fileStorage).delete("bluewhale", objectKey.getValue());
+    }
+
+    @Test
+    @DisplayName("upload：补偿删除失败不掩盖原始配额异常")
+    void shouldKeepOriginalErrorWhenCompensationFails() throws IOException {
+        fileProperties.setQuotaBytes(1000L);
+        when(fileAssetRepository.saveWithQuotaCheck(any(FileAsset.class), anyLong()))
+                .thenThrow(new BizException(ErrorCode.PARAM_ERROR.getCode(), "超出个人存储配额"));
+        doAnswer(invocation -> {
+            throw new BizException(ErrorCode.SYSTEM_ERROR);
+        }).when(fileStorage).delete(anyString(), anyString());
+        MultipartFile file = multipartFile("race-lost".getBytes(StandardCharsets.UTF_8), "race.txt");
+
+        BizException ex = assertThrows(BizException.class, () -> fileInfoService.upload(file, null, UPLOADER_ID));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+    }
+
+    @Test
+    @DisplayName("分片上传：uploadId 非法或会话不存在时抛参数错误")
+    void shouldRejectUnknownChunkSession() {
+        BizException illegal = assertThrows(BizException.class,
+                () -> fileInfoService.chunkUploadStatus("../../etc/passwd"));
+        assertEquals(PARAM_ERROR_CODE, illegal.getCode());
+
+        BizException missing = assertThrows(BizException.class,
+                () -> fileInfoService.chunkUploadStatus(ChunkUploadSessionId.random().value()));
+        assertEquals(PARAM_ERROR_CODE, missing.getCode());
+        assertTrue(missing.getMessage().contains("上传会话不存在或已失效"));
+    }
+
+    /**
+     * 判断分片暂存会话是否仍存在
+     *
+     * @param uploadId 上传会话 ID
+     * @return 会话存在时返回 {@code true}
+     */
+    private boolean sessionExists(String uploadId) {
+        return chunkUploadStore.exists(ChunkUploadSessionId.of(uploadId));
+    }
+
+    /**
+     * 应用层测试替身：内存分片暂存，避免单测依赖基础设施实现（保持分层依赖方向）。
+     */
+    private static final class InMemoryChunkUploadStore implements ChunkUploadStore {
+
+        /** 会话 ID → 暂存内容 */
+        private final Map<String, Session> sessions = new HashMap<>();
+
+        @Override
+        public void initialize(ChunkUploadSessionId sessionId, ChunkUploadMetadata metadata) {
+            Session session = sessions.computeIfAbsent(sessionId.value(), key -> new Session());
+            session.contentType = metadata.contentType();
+        }
+
+        @Override
+        public boolean exists(ChunkUploadSessionId sessionId) {
+            return sessions.containsKey(sessionId.value());
+        }
+
+        @Override
+        public void storePart(ChunkUploadSessionId sessionId, int index, InputStream content, long size) {
+            Session session = require(sessionId);
+            try {
+                session.parts.put(index, content.readAllBytes());
+            } catch (IOException e) {
+                throw new BizException(ErrorCode.SYSTEM_ERROR);
+            }
+        }
+
+        @Override
+        public List<Integer> uploadedPartIndexes(ChunkUploadSessionId sessionId) {
+            Session session = sessions.get(sessionId.value());
+            if (session == null) {
+                return List.of();
+            }
+            return List.copyOf(session.parts.keySet());
+        }
+
+        @Override
+        public MergedChunkUpload merge(ChunkUploadSessionId sessionId, int partCount) {
+            Session session = require(sessionId);
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            for (int i = 0; i < partCount; i++) {
+                byte[] part = session.parts.get(i);
+                if (part == null) {
+                    throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "缺少分片索引: " + i);
+                }
+                out.writeBytes(part);
+            }
+            byte[] merged = out.toByteArray();
+            return new MergedChunkUpload(new ByteArrayInputStream(merged), merged.length,
+                    session.contentType, DigestUtils.md5DigestAsHex(merged));
+        }
+
+        @Override
+        public void discard(ChunkUploadSessionId sessionId) {
+            sessions.remove(sessionId.value());
+        }
+
+        /**
+         * 获取会话暂存内容，不存在时抛出参数错误
+         *
+         * @param sessionId 会话标识
+         * @return 会话暂存内容
+         */
+        private Session require(ChunkUploadSessionId sessionId) {
+            Session session = sessions.get(sessionId.value());
+            if (session == null) {
+                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "上传会话不存在或已失效");
+            }
+            return session;
+        }
+    }
+
+    /**
+     * 单个上传会话的暂存内容。
+     */
+    private static final class Session {
+
+        /** 分片索引 → 分片内容（按索引升序） */
+        private final Map<Integer, byte[]> parts = new TreeMap<>();
+
+        /** 会话登记的 MIME 类型 */
+        private String contentType;
     }
 }

@@ -13,6 +13,8 @@ import com.bluewhale.file.mapper.FileInfoMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -23,7 +25,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -83,6 +88,115 @@ class FileAssetRepositoryImplTest {
 
         verify(fileInfoMapper, times(1)).updateById(any(FileInfo.class));
         verify(fileInfoMapper, times(1)).insert(ArgumentMatchers.any(FileInfo.class));
+    }
+
+    @Test
+    @DisplayName("saveWithQuotaCheck：无上传用户或不限配额时退化为普通保存")
+    void shouldSaveWithoutQuotaGuard() {
+        FileAsset noUploader = FileAsset.register("bluewhale", "tenants/1/2026/10/24/a.pdf",
+                "报告.pdf", 12L, "application/pdf", "md5", null);
+        FileAsset unlimited = FileAsset.register("bluewhale", "tenants/1/2026/10/24/b.pdf",
+                "报告.pdf", 12L, "application/pdf", "md5", 9L);
+
+        repository.saveWithQuotaCheck(noUploader, 1000L);
+        repository.saveWithQuotaCheck(unlimited, 0L);
+
+        verify(fileInfoMapper, times(2)).insert(any(FileInfo.class));
+        verify(fileInfoMapper, never()).acquireNamedLock(anyString(), anyInt());
+    }
+
+    @Test
+    @DisplayName("saveWithQuotaCheck：锁内统计用量后放行，无事务上下文时立即释放锁")
+    void shouldSaveWithinQuotaGuard() {
+        FileAsset asset = quotaAsset(100L);
+        when(fileInfoMapper.acquireNamedLock("whale:file:quota:9", 5)).thenReturn(1);
+        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any()))
+                .thenReturn(List.<Object>of(100L));
+
+        FileAsset saved = repository.saveWithQuotaCheck(asset, 1000L);
+
+        assertEquals("a.pdf", saved.getFileName());
+        verify(fileInfoMapper).insert(any(FileInfo.class));
+        verify(fileInfoMapper).releaseNamedLock("whale:file:quota:9");
+    }
+
+    @Test
+    @DisplayName("saveWithQuotaCheck：超出配额时不落库并释放锁")
+    void shouldRejectExceedingQuota() {
+        when(fileInfoMapper.acquireNamedLock("whale:file:quota:9", 5)).thenReturn(1);
+        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any()))
+                .thenReturn(List.<Object>of(950L));
+
+        BizException ex = assertThrows(BizException.class,
+                () -> repository.saveWithQuotaCheck(quotaAsset(100L), 1000L));
+
+        assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
+        verify(fileInfoMapper, never()).insert(any(FileInfo.class));
+        verify(fileInfoMapper).releaseNamedLock("whale:file:quota:9");
+    }
+
+    @Test
+    @DisplayName("saveWithQuotaCheck：获取命名锁超时或异常时抛系统错误，不查用量")
+    void shouldFailWhenQuotaLockUnavailable() {
+        when(fileInfoMapper.acquireNamedLock("whale:file:quota:9", 5)).thenReturn(0).thenReturn(null);
+
+        BizException timeout = assertThrows(BizException.class,
+                () -> repository.saveWithQuotaCheck(quotaAsset(100L), 1000L));
+        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), timeout.getCode());
+
+        BizException failed = assertThrows(BizException.class,
+                () -> repository.saveWithQuotaCheck(quotaAsset(100L), 1000L));
+        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), failed.getCode());
+
+        verify(fileInfoMapper, never()).selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any());
+        verify(fileInfoMapper, never()).insert(any(FileInfo.class));
+        verify(fileInfoMapper, never()).releaseNamedLock(anyString());
+    }
+
+    @Test
+    @DisplayName("saveWithQuotaCheck：事务同步激活时延迟到事务完成后释放锁")
+    void shouldReleaseQuotaLockAfterTransactionCompletion() {
+        when(fileInfoMapper.acquireNamedLock("whale:file:quota:9", 5)).thenReturn(1);
+        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any()))
+                .thenReturn(List.<Object>of(0L));
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            repository.saveWithQuotaCheck(quotaAsset(100L), 1000L);
+            verify(fileInfoMapper, never()).releaseNamedLock(anyString());
+
+            TransactionSynchronizationManager.getSynchronizations()
+                    .forEach(synchronization -> synchronization.afterCompletion(
+                            TransactionSynchronization.STATUS_COMMITTED));
+            verify(fileInfoMapper).releaseNamedLock("whale:file:quota:9");
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+    }
+
+    @Test
+    @DisplayName("saveWithQuotaCheck：释放锁失败仅告警，不影响保存结果")
+    void shouldIgnoreReleaseFailure() {
+        when(fileInfoMapper.acquireNamedLock("whale:file:quota:9", 5)).thenReturn(1);
+        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any()))
+                .thenReturn(List.<Object>of(0L));
+        when(fileInfoMapper.releaseNamedLock("whale:file:quota:9"))
+                .thenThrow(new IllegalStateException("connection closed"));
+
+        FileAsset saved = repository.saveWithQuotaCheck(quotaAsset(100L), 1000L);
+
+        assertEquals("a.pdf", saved.getFileName());
+        verify(fileInfoMapper).insert(any(FileInfo.class));
+    }
+
+    /**
+     * 构造配额校验用文件资产聚合（上传用户 9，大小可控）
+     *
+     * @param size 文件字节数
+     * @return 文件资产聚合根
+     */
+    private static FileAsset quotaAsset(long size) {
+        return FileAsset.register("bluewhale", "tenants/1/2026/10/24/a.pdf",
+                "报告.pdf", size, "application/pdf", "md5", 9L);
     }
 
     @Test

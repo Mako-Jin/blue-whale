@@ -23,12 +23,15 @@
         <module>whale-service-file-starter</module>
         <module>whale-service-file-interfaces</module>
         <module>whale-service-file-plugins</module>
+        <module>whale-service-file-architecture-test</module>
         <module>whale-service-file-web</module>
     </modules>
 
     <properties>
         <!-- 存储插件版本 -->
         <minio.version>8.5.12</minio.version>
+        <!-- 架构守护测试：校验分层依赖方向 -->
+        <archunit.version>1.4.1</archunit.version>
     </properties>
 
     <dependencyManagement>

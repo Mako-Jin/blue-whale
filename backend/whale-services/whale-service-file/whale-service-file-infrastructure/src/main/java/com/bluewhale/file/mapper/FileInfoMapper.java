@@ -59,4 +59,26 @@ public interface FileInfoMapper extends BaseMapper<FileInfo> {
     @Select("SELECT id, file_name, original_name, bucket, object_key, file_size, content_type, md5, "
             + "status, uploader_id, create_time, update_time, deleted FROM file_info WHERE id = #{id}")
     FileInfo selectByIdIncludingDeleted(@Param("id") Long id);
+
+    /**
+     * 获取 MySQL 命名锁（行级配额临界区锚点）。
+     *
+     * <p>命名锁与会话（连接）绑定，须与配额校验、写入处于同一事务连接；释放统一在事务完成回调中执行。</p>
+     *
+     * @param lockName 锁名称
+     * @param timeoutSeconds 获取锁的最长等待秒数
+     * @return 1 获取成功；0 超时；{@code null} 表示出错
+     */
+    @Select("SELECT GET_LOCK(#{lockName}, #{timeoutSeconds})")
+    Integer acquireNamedLock(@Param("lockName") String lockName,
+                             @Param("timeoutSeconds") int timeoutSeconds);
+
+    /**
+     * 释放 MySQL 命名锁。
+     *
+     * @param lockName 锁名称
+     * @return 1 释放成功；0 当前会话未持有；{@code null} 锁不存在
+     */
+    @Select("SELECT RELEASE_LOCK(#{lockName})")
+    Integer releaseNamedLock(@Param("lockName") String lockName);
 }

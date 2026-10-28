@@ -14,7 +14,12 @@ import com.bluewhale.file.entity.FileInfo;
 import com.bluewhale.file.infrastructure.persistence.assembler.FileInfoPersistenceAssembler;
 import com.bluewhale.file.mapper.FileInfoMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
@@ -27,12 +32,19 @@ import java.util.Optional;
  *
  * @author BlueWhale
  */
+@Slf4j
 @Repository
 @RequiredArgsConstructor
 public class FileAssetRepositoryImpl implements FileAssetRepository {
 
     /** 秒传去重查询的取条数上限：仅需第一条可复用记录 */
     private static final String LIMIT_ONE = "LIMIT 1";
+
+    /** 配额命名锁前缀：按上传用户维度串行化「统计已用量 + 写入」 */
+    private static final String QUOTA_LOCK_PREFIX = "whale:file:quota:";
+
+    /** 配额命名锁等待上限（秒）：超时快速失败，避免请求长时间挂起 */
+    private static final int QUOTA_LOCK_TIMEOUT_SECONDS = 5;
 
     private final FileInfoMapper fileInfoMapper;
 
@@ -45,6 +57,41 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
             fileInfoMapper.updateById(po);
         }
         return FileInfoPersistenceAssembler.toDomain(po);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class, propagation = Propagation.REQUIRES_NEW)
+    public FileAsset saveWithQuotaCheck(FileAsset asset, long quotaBytes) {
+        Long uploaderId = asset.getUploaderId();
+        if (uploaderId == null || quotaBytes <= 0) {
+            return save(asset);
+        }
+        String lockName = QUOTA_LOCK_PREFIX + uploaderId;
+        Integer acquired = fileInfoMapper.acquireNamedLock(lockName, QUOTA_LOCK_TIMEOUT_SECONDS);
+        if (acquired == null || acquired != 1) {
+            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "获取文件配额锁超时，请稍后重试");
+        }
+        boolean synchronizationActive = TransactionSynchronizationManager.isSynchronizationActive();
+        if (synchronizationActive) {
+            // 命名锁绑定当前连接：必须等事务提交/回滚后再释放，避免并发事务在提交前读到旧用量
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCompletion(int status) {
+                    releaseQuotaLockQuietly(lockName);
+                }
+            });
+        }
+        try {
+            long used = sumNormalSizeByUploader(uploaderId);
+            if (used + asset.getFileSize() > quotaBytes) {
+                throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "超出个人存储配额");
+            }
+            return save(asset);
+        } finally {
+            if (!synchronizationActive) {
+                releaseQuotaLockQuietly(lockName);
+            }
+        }
     }
 
     @Override
@@ -114,6 +161,19 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
         List<FileInfo> rows = fileInfoMapper.selectChanges(since, offset, size);
         List<FileAsset> records = rows.stream().map(FileInfoPersistenceAssembler::toDomain).toList();
         return new FileAssetPage(records, fileInfoMapper.countChanges(since), pageCurrent, size);
+    }
+
+    /**
+     * 尽力释放配额命名锁：释放失败仅告警，不影响已提交的业务结果
+     *
+     * @param lockName 锁名称
+     */
+    private void releaseQuotaLockQuietly(String lockName) {
+        try {
+            fileInfoMapper.releaseNamedLock(lockName);
+        } catch (RuntimeException e) {
+            log.warn("释放文件配额锁失败: lock={}", lockName, e);
+        }
     }
 
     /**

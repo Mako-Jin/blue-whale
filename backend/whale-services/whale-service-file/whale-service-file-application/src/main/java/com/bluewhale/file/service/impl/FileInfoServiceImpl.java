@@ -9,7 +9,11 @@ import com.bluewhale.file.domain.file.aggregate.FileAsset;
 import com.bluewhale.file.domain.file.repository.FileAssetPage;
 import com.bluewhale.file.domain.file.repository.FileAssetQuery;
 import com.bluewhale.file.domain.file.repository.FileAssetRepository;
+import com.bluewhale.file.domain.storage.ChunkUploadMetadata;
+import com.bluewhale.file.domain.storage.ChunkUploadSessionId;
+import com.bluewhale.file.domain.storage.ChunkUploadStore;
 import com.bluewhale.file.domain.storage.FileStorage;
+import com.bluewhale.file.domain.storage.MergedChunkUpload;
 import com.bluewhale.file.dto.ChunkUploadCompleteRequest;
 import com.bluewhale.file.dto.ChunkUploadInitRequest;
 import com.bluewhale.file.dto.FileQueryRequest;
@@ -23,6 +27,7 @@ import com.bluewhale.file.vo.FileQuotaVO;
 import com.bluewhale.file.vo.FileRapidUploadVO;
 import com.bluewhale.file.vo.FileUploadVO;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
@@ -34,28 +39,20 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import java.util.Properties;
 import java.util.UUID;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 /**
  * 文件信息服务实现
  *
  * @author BlueWhale
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class FileInfoServiceImpl implements FileInfoService {
@@ -81,35 +78,15 @@ public class FileInfoServiceImpl implements FileInfoService {
     /** 分片大小未配置或非法时的兜底值：5MB */
     private static final long DEFAULT_CHUNK_SIZE = 5242880L;
 
-    /** 分片临时目录名（位于存储根目录下） */
-    private static final String TMP_DIR_NAME = "tmp";
-
-    /** 分片文件名前缀，分片文件名为 {@code part-<index>} */
-    private static final String PART_FILE_PREFIX = "part-";
-
-    /** 合并后临时文件名 */
-    private static final String MERGED_FILE_NAME = "merged.bin";
-
-    /** 上传会话元数据文件名 */
-    private static final String META_FILE_NAME = "meta.properties";
-
-    /** 元数据键：原始文件名 */
-    private static final String META_KEY_FILE_NAME = "fileName";
-
-    /** 元数据键：MIME 类型 */
-    private static final String META_KEY_CONTENT_TYPE = "contentType";
-
-    /** 元数据键：文件总字节数 */
-    private static final String META_KEY_SIZE = "size";
-
     private final FileAssetRepository fileAssetRepository;
 
     private final FileStorage fileStorage;
 
+    private final ChunkUploadStore chunkUploadStore;
+
     private final FileProperties fileProperties;
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public FileUploadVO upload(MultipartFile file, String bucket, Long uploaderId) {
         validateFile(file);
         if (file.getSize() > fileProperties.getMaxSizeBytes()) {
@@ -122,7 +99,6 @@ public class FileInfoServiceImpl implements FileInfoService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public FileRapidUploadVO rapidUpload(FileRapidUploadRequest request, Long uploaderId) {
         validateDeclaredSize(request.getSize());
         String md5 = request.getMd5().toLowerCase(Locale.ROOT);
@@ -135,7 +111,7 @@ public class FileInfoServiceImpl implements FileInfoService {
         validateQuota(request.getSize(), uploaderId);
         FileAsset asset = FileAsset.reuse(existing, resolveOriginalName(request.getFileName()),
                 request.getContentType(), uploaderId);
-        FileAsset saved = fileAssetRepository.save(asset);
+        FileAsset saved = persistAsset(asset);
         vo.setHit(true);
         vo.setFile(toUploadVo(saved));
         return vo;
@@ -239,21 +215,16 @@ public class FileInfoServiceImpl implements FileInfoService {
     public ChunkUploadInitVO initChunkUpload(ChunkUploadInitRequest request) {
         long size = request.getSize();
         validateDeclaredSize(size);
-        String uploadId = StringUtils.hasText(request.getUploadId())
-                ? normalizeUploadId(request.getUploadId())
-                : UUID.randomUUID().toString();
-        Path dir = chunkDir(uploadId);
-        try {
-            // 同一 uploadId 重复 init 时保留已有分片，实现断点续传
-            Files.createDirectories(dir);
-            writeMeta(dir, request);
-        } catch (IOException e) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR);
-        }
+        ChunkUploadSessionId sessionId = StringUtils.hasText(request.getUploadId())
+                ? ChunkUploadSessionId.of(request.getUploadId())
+                : ChunkUploadSessionId.random();
+        // 同一会话重复 init 时保留既有分片，实现断点续传
+        chunkUploadStore.initialize(sessionId,
+                new ChunkUploadMetadata(request.getFileName(), request.getContentType(), size));
         ChunkUploadInitVO vo = new ChunkUploadInitVO();
-        vo.setUploadId(uploadId);
+        vo.setUploadId(sessionId.value());
         vo.setChunkSize(resolveChunkSize());
-        vo.setUploadedIndexes(listUploadedIndexes(dir));
+        vo.setUploadedIndexes(chunkUploadStore.uploadedPartIndexes(sessionId));
         return vo;
     }
 
@@ -262,33 +233,31 @@ public class FileInfoServiceImpl implements FileInfoService {
         if (file == null || file.isEmpty() || index < 0) {
             throw new BizException(ErrorCode.PARAM_ERROR);
         }
-        Path dir = requireChunkDir(uploadId);
+        ChunkUploadSessionId sessionId = requireSession(uploadId);
         if (file.getSize() > resolveChunkSize()) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "分片大小超出上限");
         }
-        Path target = dir.resolve(PART_FILE_PREFIX + index);
         try (InputStream in = file.getInputStream()) {
-            Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+            chunkUploadStore.storePart(sessionId, index, in, file.getSize());
         } catch (IOException e) {
             throw new BizException(ErrorCode.SYSTEM_ERROR);
         }
-        return listUploadedIndexes(dir);
+        return chunkUploadStore.uploadedPartIndexes(sessionId);
     }
 
     @Override
     public List<Integer> chunkUploadStatus(String uploadId) {
-        return listUploadedIndexes(requireChunkDir(uploadId));
+        return chunkUploadStore.uploadedPartIndexes(requireSession(uploadId));
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public FileUploadVO completeChunkUpload(ChunkUploadCompleteRequest request, Long uploaderId) {
         long size = request.getSize();
         validateDeclaredSize(size);
         validateQuota(size, uploaderId);
-        Path dir = requireChunkDir(request.getUploadId());
+        ChunkUploadSessionId sessionId = requireSession(request.getUploadId());
         int expectedCount = expectedChunkCount(size);
-        List<Integer> uploaded = listUploadedIndexes(dir);
+        List<Integer> uploaded = chunkUploadStore.uploadedPartIndexes(sessionId);
         List<Integer> missing = IntStream.range(0, expectedCount)
                 .filter(i -> !uploaded.contains(i))
                 .boxed()
@@ -299,21 +268,14 @@ public class FileInfoServiceImpl implements FileInfoService {
         if (uploaded.size() != expectedCount) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "分片数量与文件大小不匹配");
         }
-        Path merged = dir.resolve(MERGED_FILE_NAME);
-        try {
-            mergeParts(dir, expectedCount, merged);
-            if (Files.size(merged) != size) {
+        try (MergedChunkUpload merged = chunkUploadStore.merge(sessionId, expectedCount)) {
+            if (merged.size() != size) {
                 throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "分片总大小与声明大小不一致");
             }
-            String md5 = md5Of(merged);
-            String contentType = readMetaContentType(dir);
-            FileUploadVO vo;
-            try (InputStream in = Files.newInputStream(merged)) {
-                vo = persistFile(in, request.getFileName(), contentType, size, md5,
-                        request.getBucket(), uploaderId);
-            }
-            // 仅在合并落存储成功后清理临时目录；失败时保留分片供客户端续传/重试
-            deleteQuietly(dir);
+            FileUploadVO vo = persistFile(merged.content(), request.getFileName(), merged.contentType(),
+                    size, merged.md5(), request.getBucket(), uploaderId);
+            // 仅在合并落存储成功后清理暂存数据；失败时保留分片供客户端续传/重试
+            chunkUploadStore.discard(sessionId);
             return vo;
         } catch (IOException e) {
             throw new BizException(ErrorCode.SYSTEM_ERROR);
@@ -343,8 +305,39 @@ public class FileInfoServiceImpl implements FileInfoService {
                 ? bucket : fileProperties.getBucket().getDefault();
         String objectKey = buildObjectKey(name);
         fileStorage.store(resolvedBucket, objectKey, in);
-        FileAsset asset = FileAsset.register(resolvedBucket, objectKey, name, fileSize, contentType, md5, uploaderId);
-        return toUploadVo(fileAssetRepository.save(asset));
+        try {
+            FileAsset asset = FileAsset.register(resolvedBucket, objectKey, name, fileSize, contentType, md5, uploaderId);
+            return toUploadVo(persistAsset(asset));
+        } catch (RuntimeException e) {
+            // 落库失败（含配额超限）：补偿删除已写入的物理对象，避免产生孤儿文件
+            deleteStoredQuietly(resolvedBucket, objectKey);
+            throw e;
+        }
+    }
+
+    /**
+     * 在个人配额内原子登记文件元数据（配额统计与写入处于同一临界区，避免并发穿透）
+     *
+     * @param asset 待登记的文件资产聚合根
+     * @return 回填主键后的文件资产聚合根
+     * @throws BizException 超出配额时抛出 {@code PARAM_ERROR}
+     */
+    private FileAsset persistAsset(FileAsset asset) {
+        return fileAssetRepository.saveWithQuotaCheck(asset, fileProperties.getQuotaBytes());
+    }
+
+    /**
+     * 尽力删除已写入存储的物理对象：补偿失败仅告警，不掩盖原始业务异常
+     *
+     * @param bucket 对象存储桶名称
+     * @param objectKey 对象存储键
+     */
+    private void deleteStoredQuietly(String bucket, String objectKey) {
+        try {
+            fileStorage.delete(bucket, objectKey);
+        } catch (RuntimeException e) {
+            log.warn("回滚已写入的文件对象失败，可能残留孤儿文件: bucket={}, objectKey={}", bucket, objectKey, e);
+        }
     }
 
     /**
@@ -401,7 +394,10 @@ public class FileInfoServiceImpl implements FileInfoService {
     }
 
     /**
-     * 校验个人存储配额：不限配额或无用户态时直接放行，否则拒绝超出配额的写入
+     * 乐观预检个人存储配额：不限配额或无用户态时直接放行，否则提前拒绝明显超配额的写入。
+     *
+     * <p>并发安全由仓储端口 {@code saveWithQuotaCheck} 的临界区保证，本方法仅用于快速失败、
+     * 避免无谓的存储写入。</p>
      *
      * @param incomingSize 本次拟写入的字节数
      * @param uploaderId 上传用户 ID；无登录态时为 {@code null}
@@ -440,177 +436,18 @@ public class FileInfoServiceImpl implements FileInfoService {
     }
 
     /**
-     * 规范化并校验 uploadId（UUID），防止路径穿越
+     * 解析并校验上传会话标识，会话不存在时抛出参数错误
      *
      * @param uploadId 调用方传入的 uploadId
-     * @return 标准格式的 UUID 字符串
-     * @throws BizException uploadId 非法时抛出 {@code PARAM_ERROR}
+     * @return 已校验的分片上传会话标识
+     * @throws BizException uploadId 非法或会话不存在时抛出 {@code PARAM_ERROR}
      */
-    private static String normalizeUploadId(String uploadId) {
-        try {
-            return UUID.fromString(uploadId).toString();
-        } catch (IllegalArgumentException e) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "uploadId 非法");
-        }
-    }
-
-    /**
-     * 解析上传会话的临时目录 {@code ${root}/tmp/${uploadId}} 并做越界防护
-     *
-     * @param uploadId 上传会话 ID
-     * @return 归一化后的临时目录路径
-     */
-    private Path chunkDir(String uploadId) {
-        Path root = Paths.get(fileProperties.getStorage().getRoot()).normalize();
-        Path dir = root.resolve(TMP_DIR_NAME).resolve(uploadId).normalize();
-        if (!dir.startsWith(root)) {
-            throw new BizException(ErrorCode.PARAM_ERROR);
-        }
-        return dir;
-    }
-
-    /**
-     * 获取已存在的上传会话临时目录，不存在时抛出参数错误
-     *
-     * @param uploadId 上传会话 ID
-     * @return 临时目录路径
-     * @throws BizException 会话不存在或已失效时抛出 {@code PARAM_ERROR}
-     */
-    private Path requireChunkDir(String uploadId) {
-        Path dir = chunkDir(normalizeUploadId(uploadId));
-        if (!Files.isDirectory(dir)) {
+    private ChunkUploadSessionId requireSession(String uploadId) {
+        ChunkUploadSessionId sessionId = ChunkUploadSessionId.of(uploadId);
+        if (!chunkUploadStore.exists(sessionId)) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "上传会话不存在或已失效");
         }
-        return dir;
-    }
-
-    /**
-     * 写入上传会话元数据（文件名、MIME 类型、总大小）
-     *
-     * @param dir 临时目录
-     * @param request 初始化请求
-     * @throws IOException 写文件失败时抛出
-     */
-    private static void writeMeta(Path dir, ChunkUploadInitRequest request) throws IOException {
-        Properties meta = new Properties();
-        meta.setProperty(META_KEY_FILE_NAME, request.getFileName());
-        meta.setProperty(META_KEY_CONTENT_TYPE, request.getContentType() == null ? "" : request.getContentType());
-        meta.setProperty(META_KEY_SIZE, String.valueOf(request.getSize()));
-        try (OutputStream out = Files.newOutputStream(dir.resolve(META_FILE_NAME))) {
-            meta.store(out, "chunk upload metadata");
-        }
-    }
-
-    /**
-     * 读取上传会话元数据中的 MIME 类型
-     *
-     * @param dir 临时目录
-     * @return MIME 类型；元数据缺失或为空时返回 {@code null}
-     */
-    private static String readMetaContentType(Path dir) {
-        Path metaFile = dir.resolve(META_FILE_NAME);
-        if (!Files.exists(metaFile)) {
-            return null;
-        }
-        Properties meta = new Properties();
-        try (InputStream in = Files.newInputStream(metaFile)) {
-            meta.load(in);
-        } catch (IOException e) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR);
-        }
-        String contentType = meta.getProperty(META_KEY_CONTENT_TYPE);
-        return StringUtils.hasText(contentType) ? contentType : null;
-    }
-
-    /**
-     * 列出临时目录中已上传的分片索引（升序，忽略元数据等非分片文件）
-     *
-     * @param dir 临时目录
-     * @return 已上传分片索引；目录不存在时返回空列表
-     */
-    private static List<Integer> listUploadedIndexes(Path dir) {
-        if (!Files.isDirectory(dir)) {
-            return List.of();
-        }
-        try (Stream<Path> paths = Files.list(dir)) {
-            List<Integer> indexes = new ArrayList<>();
-            paths.map(path -> path.getFileName().toString())
-                    .filter(name -> name.startsWith(PART_FILE_PREFIX))
-                    .map(name -> name.substring(PART_FILE_PREFIX.length()))
-                    .filter(FileInfoServiceImpl::isNumeric)
-                    .forEach(name -> indexes.add(Integer.valueOf(name)));
-            indexes.sort(Comparator.naturalOrder());
-            return indexes;
-        } catch (IOException e) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR);
-        }
-    }
-
-    /**
-     * 判断字符串是否全部由数字组成
-     *
-     * @param text 待校验字符串
-     * @return 全部为数字时返回 {@code true}
-     */
-    private static boolean isNumeric(String text) {
-        if (text.isEmpty()) {
-            return false;
-        }
-        for (int i = 0; i < text.length(); i++) {
-            if (!Character.isDigit(text.charAt(i))) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
-     * 按索引顺序将分片合并到目标文件
-     *
-     * @param dir 临时目录
-     * @param count 分片数量
-     * @param merged 合并后的文件路径
-     * @throws IOException 读写失败时抛出
-     */
-    private static void mergeParts(Path dir, int count, Path merged) throws IOException {
-        try (OutputStream out = Files.newOutputStream(merged)) {
-            for (int i = 0; i < count; i++) {
-                Files.copy(dir.resolve(PART_FILE_PREFIX + i), out);
-            }
-        }
-    }
-
-    /**
-     * 计算文件 MD5 摘要
-     *
-     * @param path 文件路径
-     * @return 十六进制小写 MD5
-     * @throws BizException 读取失败时抛出 {@code SYSTEM_ERROR}
-     */
-    private static String md5Of(Path path) {
-        try (InputStream in = Files.newInputStream(path)) {
-            return DigestUtils.md5DigestAsHex(in);
-        } catch (IOException e) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR);
-        }
-    }
-
-    /**
-     * 尽力删除临时目录（含合并文件），失败不抛出，避免影响已完成的上传结果
-     *
-     * @param dir 临时目录
-     */
-    private static void deleteQuietly(Path dir) {
-        if (!Files.exists(dir)) {
-            return;
-        }
-        try (Stream<Path> paths = Files.walk(dir)) {
-            for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
-                Files.deleteIfExists(path);
-            }
-        } catch (IOException e) {
-            // 清理失败不影响已完成的上传，仅残留临时目录
-        }
+        return sessionId;
     }
 
     /**
