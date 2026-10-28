@@ -7,8 +7,8 @@
 .workbuddy
 .workflow
 
-# 文档与本地工具，不参与镜像构建
-docs
+# 文档与本地工具：docs 中的 *.md 会被 whale-agent 镜像裁剪为运行时事实/检索素材
+# （deploy/backend/sample/Dockerfile 的 fact-assets 阶段），因此不再整体排除
 tools
 scripts
 

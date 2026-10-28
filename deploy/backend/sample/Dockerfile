@@ -10,6 +10,32 @@
 ARG MAVEN_IMAGE=maven:3.9-eclipse-temurin-21
 ARG JRE_IMAGE=eclipse-temurin:21-jre-alpine
 
+# ---- Stage 0: 运行时素材（仅 NEED_FACT_ASSETS=true 的模块，如 whale-agent） ----
+# whale-agent 的 FactCollector / RepositoryScanner 在运行时按“仓库根布局”读取
+# backend/**/*.java|*.sql|pom.xml|*.yml|*.properties、frontend/**/package.json 与前端源码、docs/**/*.md。
+# 运行时镜像默认只含 app.jar，会导致结构化事实与文本检索通道为空（V-16）。
+# 这里在构建期把所需文件裁剪成一份只读素材包，默认构建为空目录、不增加体积。
+FROM alpine:3.20 AS fact-assets
+
+ARG NEED_FACT_ASSETS=false
+
+COPY backend /src/backend
+COPY frontend /src/frontend
+COPY docs /src/docs
+
+RUN set -eu; \
+    if [ "${NEED_FACT_ASSETS}" != "true" ]; then mkdir -p /repo; exit 0; fi; \
+    cp -a /src/backend /repo/backend; \
+    cp -a /src/frontend /repo/frontend; \
+    cp -a /src/docs /repo/docs; \
+    find /repo/backend -type f ! \( -name '*.java' -o -name '*.sql' -o -name 'pom.xml' \
+        -o -name '*.yml' -o -name '*.yaml' -o -name '*.properties' \) -delete; \
+    find /repo/frontend -type f ! \( -name 'package.json' -o -name '*.ts' -o -name '*.tsx' \
+        -o -name '*.js' -o -name '*.jsx' -o -name '*.vue' \) -delete; \
+    find /repo/docs -type f ! -name '*.md' -delete; \
+    find /repo -mindepth 1 -type d -empty -delete; \
+    echo "fact assets files: $(find /repo -type f | wc -l)"
+
 # ---- Stage 1: Maven Build ----
 FROM ${MAVEN_IMAGE} AS builder
 
@@ -55,8 +81,12 @@ LABEL org.opencontainers.image.title="bluewhale-service"
 LABEL org.opencontainers.image.description="蓝鲸后端业务服务（通用模板）"
 LABEL org.opencontainers.image.vendor="BlueWhale"
 
+# WHALE_AGENT_REPO_ROOT / WHALE_AGENT_INDEX_DIR 仅 whale-agent 使用，其余服务忽略；
+# 素材包为空目录时 agent 的采集器只会得到空结果，不会因路径缺失而报错。
 ENV TZ=Asia/Shanghai \
-    JAVA_OPTS="-XX:MaxRAMPercentage=75.0 -XX:+UseContainerSupport"
+    JAVA_OPTS="-XX:MaxRAMPercentage=75.0 -XX:+UseContainerSupport" \
+    WHALE_AGENT_REPO_ROOT=/opt/whale-repo \
+    WHALE_AGENT_INDEX_DIR=/app/data/agent-index
 
 RUN apk add --no-cache tzdata \
     && cp /usr/share/zoneinfo/$TZ /etc/localtime \
@@ -66,8 +96,11 @@ RUN apk add --no-cache tzdata \
 
 WORKDIR /app
 
+# 运行时事实/检索素材（NEED_FACT_ASSETS=false 时为空目录，仅几字节）
+COPY --from=fact-assets /repo /opt/whale-repo
 COPY --from=builder /out/app.jar app.jar
-RUN chown -R whale:whale /app
+RUN mkdir -p /app/data/agent-index \
+    && chown -R whale:whale /app
 
 USER whale
 

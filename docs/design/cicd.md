@@ -29,6 +29,7 @@
 - 后端矩阵 21 项（`whale-gateway`、auth starter、job、workflow、form、file、pay、agent、im、archive、message、erp、mes、pdm、oa、pm、**contract**、audit、monitor、alert、config），统一 `deploy/backend/sample/Dockerfile` + `MODULE_PATH`/`SERVICE_PORT`；
 - 前端矩阵 14 项（`whale-web`=admin、`whale-platform` 基座、portal、ops、agent、contract、erp、oa、mes、pdm、pm、im、form-designer、workflow-designer），统一 `deploy/frontend/Dockerfile` + `APP_NAME`/`APP_DIR`/`APP_BASE`；
 - 后端镜像构建使用 `mvn -Dmaven.test.skip=true`（跳过测试编译与执行）+ wagon 重试 5 次 + 整体 3 次重试：镜像环境无 `.git`/`docs`/MySQL，单测由 `backend-ci` 负责；父 pom 曾硬编码 `<skipTests>false</skipTests>` 使命令行 `-DskipTests` 失效，已移除（2026-10-28）。
+- `whale-agent` 额外传 `NEED_FACT_ASSETS=true`：`fact-assets` 阶段把 `backend/**/*.{java,sql,yml,yaml,properties,pom.xml}`、`frontend/**/{package.json,*.ts,tsx,js,jsx,vue}`、`docs/**/*.md` 裁剪为 `/opt/whale-repo` 只读素材包，并设置 `WHALE_AGENT_REPO_ROOT=/opt/whale-repo`、`WHALE_AGENT_INDEX_DIR=/app/data/agent-index`；其余服务为空目录，不增加体积。因该阶段需要 `docs`，`.dockerignore` 已不再整体排除 `docs`（V-16）。
 - `APP_BASE`（默认 `/`）必须与各应用 `vite.config.ts` 的 `base` 一致：子应用为 `/portal`、`/contract`、`/erp`、`/oa`、`/mes`、`/pdm`、`/pm`、`/im`，其余（admin、基座、ops、agent、两个设计器）为 `/`。镜像内产物落到 `/usr/share/nginx/html${APP_BASE}`，并按 base 选用 `deploy/frontend/nginx/root.conf` 或 `subapp.conf.template`（前缀内 SPA 回退、前缀外 404、`/base` 301 到 `/base/`）。
 
 ### 1.2 现状补充事实

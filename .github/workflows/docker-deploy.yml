@@ -51,7 +51,7 @@ jobs:
           - { service: whale-form, module: whale-services/whale-form, port: 8084 }
           - { service: whale-file, module: whale-services/whale-file, port: 8085 }
           - { service: whale-pay, module: whale-services/whale-pay, port: 8086 }
-          - { service: whale-agent, module: whale-services/whale-agent, port: 8090 }
+          - { service: whale-agent, module: whale-services/whale-agent, port: 8090, assets: true }
           - { service: whale-im, module: whale-services/whale-im, port: 8091 }
           - { service: whale-archive, module: whale-services/whale-archive, port: 8093 }
           - { service: whale-message, module: whale-services/whale-message, port: 8094 }
@@ -100,6 +100,7 @@ jobs:
           build-args: |
             MODULE_PATH=${{ matrix.module }}
             SERVICE_PORT=${{ matrix.port }}
+            NEED_FACT_ASSETS=${{ matrix.assets }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.service }}
