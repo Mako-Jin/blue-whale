@@ -60,3 +60,17 @@ iptables -A INPUT -p tcp --dport 8081:9100 -j DROP
 - 从办公网 `curl https://<域名>/api/...` 正常经网关鉴权；
 - 直连业务端口伪造 `X-User-Id: 1` 不得返回成功；
 - 变更后更新部署手册与本清单版本。
+
+## 5. 自动化验收
+
+在部署外部视角执行：
+
+```powershell
+pwsh -NoProfile -File scripts/smoke/bw-network-boundary-check.ps1 `
+  -PublicHost app.example.com `
+  -GatewayBaseUrl https://api.example.com/api
+```
+
+脚本会逐端口检查默认业务端口不可达，并走网关验证“无令牌 + 伪造身份头”被拒绝。
+`-PublicHost` 禁止使用 `localhost`/回环地址；自签证书环境可临时加 `-SkipCertificateCheck`，
+生产验收不要开启。
