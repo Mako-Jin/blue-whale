@@ -20,13 +20,14 @@
 |---|---|---|---|---|
 | `backend-ci.yml` | `push` main（paths: `backend/**`、`pom.xml`、本文件）；`pull_request` → main（同 paths） | Checkout → Setup JDK 21（temurin + maven cache）→ Maven Wrapper 初始化（`mvn -N wrapper:wrapper -Dmaven=3.9.9`）→ `./mvnw -B -ntp test` → `./mvnw -B -ntp clean package -DskipTests` → Upload JAR | `backend-jars`（`**/target/*.jar`，保留 7 天，仅 push main） | `backend-ci-${{ github.ref }}`，`cancel-in-progress: true` |
 | `frontend-ci.yml` | `push` main（paths: `frontend/**`、`pnpm-workspace.yaml`、`package.json`、本文件）；`pull_request` → main（同 paths） | Checkout → Setup Node 24（pnpm cache）→ corepack 启用 pnpm → `pnpm install --frozen-lockfile` → `pnpm -r lint` → `pnpm turbo run build` → Upload dist | `frontend-dist`（`**/dist/`，保留 7 天，仅 push main） | `frontend-ci-${{ github.ref }}`，`cancel-in-progress: true` |
-| `docker-deploy.yml` | `push` main（paths: `backend/**`、`frontend/**`、`deploy/**`、本文件；2026-10-28 新增，docs 等无关提交不触发）；`push` tag `v*.*.*`；`workflow_dispatch`（可选 `image_tag` 输入，默认短 SHA） | Checkout → 登录 GHCR（`GITHUB_TOKEN`）→ `docker/metadata-action` 生成 tag → `setup-buildx-action` → 构建推送 `whale-gateway` / `whale-web` | 镜像推送至 GHCR；`cache-from/to: type=gha` | `docker-deploy-${{ github.ref }}`，`cancel-in-progress: false` |
+| `docker-deploy.yml` | `push` main（paths: `backend/**`、`frontend/**`、`deploy/**`、本文件；2026-10-28 新增，docs 等无关提交不触发）；`push` tag `v*.*.*`；`workflow_dispatch`（可选 `image_tag` 输入，默认短 SHA） | Checkout → 登录 GHCR（`GITHUB_TOKEN`）→ `docker/metadata-action` 生成 tag → `setup-buildx-action` → 矩阵构建推送 21 个后端服务 + 14 个前端应用 | 镜像推送至 GHCR；`cache-from/to: type=gha`（按 service/image 分 scope） | `docker-deploy-${{ github.ref }}`，`cancel-in-progress: false` |
 
 `docker-deploy.yml` 关键变量：
 
-- `REGISTRY=ghcr.io`，`BACKEND_IMAGE=ghcr.io/${{ github.repository }}/whale-gateway`，`FRONTEND_IMAGE=ghcr.io/${{ github.repository }}/whale-web`；
+- `REGISTRY=ghcr.io`，后端镜像 `ghcr.io/${{ github.repository }}/${{ matrix.service }}`，前端镜像 `ghcr.io/${{ github.repository }}/${{ matrix.image }}`（admin 沿用历史名 `whale-web`）；
 - 镜像 tag 规则：`type=ref,event=tag`（即 `v1.2.3`）+ `type=sha,prefix=sha-` + `latest`（仅默认分支，`enable={{is_default_branch}}`）+ 手动触发的 `image_tag`（仅在输入非空时生效，`enable=${{ inputs.image_tag != '' }}`）；
-- 构建上下文：`./deploy/backend/whale-gateway/Dockerfile`（多阶段 Maven + JRE 21 alpine）与 `./deploy/frontend/Dockerfile`（Node 24 + Nginx）。
+- 后端矩阵 21 项（`whale-gateway`、auth starter、job、workflow、form、file、pay、agent、im、archive、message、erp、mes、pdm、oa、pm、**contract**、audit、monitor、alert、config），统一 `deploy/backend/sample/Dockerfile` + `MODULE_PATH`/`SERVICE_PORT`；
+- 前端矩阵 14 项（`whale-web`=admin、`whale-platform` 基座、portal、ops、agent、contract、erp、oa、mes、pdm、pm、im、form-designer、workflow-designer），统一 `deploy/frontend/Dockerfile` + `APP_NAME`/`APP_DIR`。
 
 ### 1.2 现状补充事实
 
@@ -57,7 +58,7 @@
 | ③ 构建 | `mvn -B clean package` | `turbo run build` | 失败阻断 | ✅ |
 | ④ 单测 | `mvn test` + JaCoCo 报告 | Vitest（待建） | 覆盖率阈值 | ⚠️ 有测试无覆盖率 |
 | ⑤ 制品 | `**/target/*.jar` 上传 | `**/dist/` 上传 | 保留 7 天 | ✅ |
-| ⑥ 镜像 | GHCR `whale-gateway` 等 | GHCR `whale-web` | tag 触发 | ✅ |
+| ⑥ 镜像 | GHCR 21 个后端服务镜像 | GHCR 14 个前端应用镜像（admin 沿用 `whale-web`） | main push / tag / 手动触发 | ✅ |
 | ⑦ 部署 | dev/staging/prod 环境部署 | 同 | 人工审批（prod） | ❌ 待建 |
 | ⑧ 通知 | IM/邮件（失败必达） | 同 | — | ❌ 待建 |
 
@@ -124,11 +125,11 @@
 | 项 | 现状 | 规范化建议 |
 |---|---|---|
 | Registry | `ghcr.io` | 保持不变（GitHub 场景）/ `registry.gitee.com`（Gitee 场景） |
-| 镜像名 | `ghcr.io/{owner}/{repo}/whale-gateway`、`.../whale-web` | 统一 `whale-{service}`（`whale-auth` / `whale-job` / ...），与端口约定对齐 |
+| 镜像名 | `ghcr.io/{owner}/{repo}/whale-gateway`、`.../whale-web` | 统一 `whale-{service}`（`whale-auth` / `whale-job` / ...），与端口约定对齐；2026-10-28 起后端 21 项 + 前端 14 项全部纳入，admin 保留 `whale-web` 兼容名 |
 | Tag | `v1.2.3`（ref tag）、`sha-{short}` | 主分支追加 `latest`；生产仅用语义化版本 tag |
 | 标签（Label） | `org.opencontainers.image.*` 已在 Dockerfile | 保持一致，补 `revision` = commit SHA |
 | 多架构 | 未启用 | 按需 `linux/amd64,linux/arm64` |
-| 覆盖服务 | 仅 gateway + web | 后续扩至 auth/job/... 全服务（模板见 `deploy/backend/sample/Dockerfile`） |
+| 覆盖服务 | 后端 21 项 + 前端 14 项（2026-10-28 补齐 contract 与全部前端应用） | 后续仅需按新增服务追加矩阵项（模板 `deploy/backend/sample/Dockerfile`、`deploy/frontend/Dockerfile`） |
 
 ---
 

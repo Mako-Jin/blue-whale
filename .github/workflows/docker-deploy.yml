@@ -60,6 +60,7 @@ jobs:
           - { service: whale-pdm, module: whale-apps/whale-pdm, port: 9003 }
           - { service: whale-oa, module: whale-apps/whale-oa, port: 9004 }
           - { service: whale-pm, module: whale-apps/whale-pm, port: 9005 }
+          - { service: whale-contract, module: whale-apps/whale-contract, port: 9006 }
           - { service: whale-audit, module: whale-ops/whale-audit, port: 9101 }
           - { service: whale-monitor, module: whale-ops/whale-monitor, port: 9102 }
           - { service: whale-alert, module: whale-ops/whale-alert, port: 9103 }
@@ -105,11 +106,31 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
   frontend:
-    name: Frontend · whale-web
+    name: Frontend · ${{ matrix.image }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        # image：GHCR 镜像名；app：package.json 的 name（turbo --filter）；dir：frontend/ 下的应用目录
+        # admin 沿用历史镜像名 whale-web，避免破坏既有部署引用
+        include:
+          - { image: whale-web, app: whale-admin, dir: admin }
+          - { image: whale-platform, app: '@bluewhale/whale-platform', dir: platform-apps/whale-platform }
+          - { image: whale-portal, app: whale-portal, dir: platform-apps/whale-portal }
+          - { image: whale-ops, app: whale-ops, dir: ops }
+          - { image: whale-agent, app: whale-agent, dir: platform-apps/whale-agent }
+          - { image: whale-contract, app: whale-contract, dir: platform-apps/whale-contract }
+          - { image: whale-erp, app: whale-erp, dir: platform-apps/whale-erp }
+          - { image: whale-oa, app: whale-oa, dir: platform-apps/whale-oa }
+          - { image: whale-mes, app: whale-mes, dir: platform-apps/whale-mes }
+          - { image: whale-pdm, app: whale-pdm, dir: platform-apps/whale-pdm }
+          - { image: whale-pm, app: whale-pm, dir: platform-apps/whale-pm }
+          - { image: whale-im, app: whale-im, dir: platform-apps/whale-im }
+          - { image: whale-form-designer, app: whale-form-designer, dir: platform-apps/whale-form-designer }
+          - { image: whale-workflow-designer, app: whale-workflow-designer, dir: platform-apps/whale-workflow-designer }
 
     steps:
       - name: Checkout
@@ -126,7 +147,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository }}/whale-web
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.image }}
           tags: |
             type=ref,event=tag
             type=sha,prefix=sha-
@@ -136,13 +157,16 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build & Push whale-web
+      - name: Build & Push ${{ matrix.image }}
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./deploy/frontend/Dockerfile
           push: true
+          build-args: |
+            APP_NAME=${{ matrix.app }}
+            APP_DIR=${{ matrix.dir }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
