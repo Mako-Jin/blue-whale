@@ -121,7 +121,7 @@
 | `whale.auth.permission-cache.ttl` | 权限码缓存正常值 TTL，默认 5 分钟（叠加 `±10%` 抖动） | `PermissionCacheProperties` |
 | `whale.cache.key-prefix` / `null-sentinel` / `ttl-jitter-percent` / `null-ttl` | 缓存键前缀 `whale:cache`／空哨兵 `__NULL__`／TTL 抖动 `10`%／空值 TTL `60s` | `CacheProperties` |
 | `whale.audit.sensitive.keys` | 审计脱敏附加敏感键名（与内置规则并集，忽略大小写、去 `_`/`-`，AUTH-11） | `SensitiveKeysProperties`、`docs/design/audit-log.md` §7 |
-| `whale.audit.sink` | 审计落库方式 `local`（本地异步直写）/ `mq`（阶段二预留，未实现时 fail-fast 提示并回落 local） | `LogSinkProperties`、`docs/design/audit-log.md` §6 |
+| `whale.audit.sink` | 审计落库方式 `local`（本地异步直写）/ `mq`（已废弃，自动回落 local 并告警；MQ 汇聚用 `whale.audit.mq.publish-enabled`，HTTP 转发用 `whale.audit.forward.enabled`） | `LogSinkProperties`、`docs/design/audit-log.md` §6 |
 | `whale.audit.retention.days` | 审计保留期（天），默认 90，到期整批删除（归档任务 AUTH-09 阻塞于 whale-job） | `docs/design/audit-log.md` §10 |
 | `whale.auth.ddd.{context}.enabled` | DDD 新旧实现并行开关，默认 `false`（规划；随 AUTH-16 落地） | `docs/design/ddd-whale-auth.md` §7 |
 | `NACOS_ADDR` / `NACOS_NAMESPACE` / `REDIS_HOST` / `REDIS_PORT` / `MYSQL_USER` / `MYSQL_PASSWORD` / `SPRING_PROFILES_ACTIVE` | 基础设施通用环境变量（Nacos `127.0.0.1:8848`/`public`；Redis `6379`；MySQL `root/root`；profile `dev`） | `application.yml`、`naming-conventions.md` §五 |

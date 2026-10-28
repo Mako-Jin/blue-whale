@@ -200,7 +200,9 @@ public @interface AuditLog {
 2. **阶段二（演进）**：当审计量与跨服务取证需求上升，切换为「`@AuditLog` → RabbitMQ → whale-audit 消费落 `bluewhale_audit`」。理由：集中存储、支持重试与死信，符合"审计是运维域能力"的定位。`spring-boot-starter-amqp` 已在 `whale-parent` 统一管理（当前无模块实际引入），落地时按需加入 whale-audit 与各业务服务。
 3. **方案C 不采用**：审计需要强结构化查询与精确字段（who/what/result），日志平台以全文检索为主，字段精度与合规取证能力弱。
 
-> 说明：方案A/B 需通过配置开关（`whale.audit.sink=local\|mq`）切换，保证降级路径可回退。
+> 说明：方案A 使用 `whale.audit.sink=local`；方案B 的 MQ 汇聚使用 `whale.audit.mq.publish-enabled`，
+> HTTP 转发使用 `whale.audit.forward.enabled`。
+> 历史开关 `whale.audit.sink=mq` 已废弃，配置后自动回落 `local` 并告警。
 
 ### 6.1 RabbitMQ vs Kafka 再评估（2026-10-23）
 

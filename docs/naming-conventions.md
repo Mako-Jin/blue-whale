@@ -118,7 +118,7 @@ Maven 模块目录名 == artifactId == spring.application.name == Nacos 服务�
 | DDD 层名（目标，REQ-ARCH-001 迁移后） | `interfaces` / `application` / `domain` / `infrastructure` | `com.bluewhale.auth.domain` |
 | 公共能力 | `com.bluewhale.common.<能力>` | `common.audit.aop`、`common.lock.annotation`、`common.core.result` |
 | 平台公共组件独立包 | `com.bluewhale.tools` / `com.bluewhale.security` | `com.bluewhale.tools.utils` |
-| Starter 装配类 | `com.bluewhale.starter.autoconfigure` | `WhaleAutoConfiguration` |
+| Starter 装配类 | 能力模块 `config` 包 | `TenantContextAutoConfiguration`、`WhaleLogAutoConfiguration` |
 | **SDK 模块包** | `com.bluewhale.<域>.sdk`（**以 `.sdk` 结尾**，与主服务包区分） | `com.bluewhale.auth.sdk`、`com.bluewhale.i18n.sdk`（目标，见偏差 N-04） |
 
 类名后缀词表：`*Controller`、`*Service`、`*ServiceImpl`、`*Mapper`、`*Request`、`*Response`、`*VO`、`*Entity/PO`、`*Properties`、`*Filter`、`*Interceptor`、`*Handler`、`*Aspect`、`*AutoConfiguration`、`*Application`。

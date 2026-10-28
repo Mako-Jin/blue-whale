@@ -44,11 +44,11 @@
 | 通道② 后端出站三方调用日志 | 已闭环 | `common/log/interceptor/OutboundLogInterceptor.java` · 表 `outbound_log` · 查询 `GET /audit/log/outbound/page` |
 | 通道③ 前端开发者日志 | 已闭环（后端接收 + 前端 SDK） | `POST /audit/log/frontend/batch`（permitAll）· 表 `frontend_log` · 查询 `GET /audit/log/frontend/page` · `frontend/shared-packages/whale-log-sdk`（Wave 5.14） |
 | 通道④ 前端用户行为埋点 | 已闭环（后端接收 + 前端 SDK） | `POST /audit/log/behavior/batch`（permitAll）· 表 `behavior_log` · 查询 `GET /audit/log/behavior/page` · `whale-log-sdk`（Wave 5.14） |
-| 多通道 sink 切换（`whale.audit.sink=local\|mq`） | 部分（`local` 已落地；`mq` 仅预留，未就绪回落 local） | `common/log/properties/LogSinkProperties.java` · `common/log/sink/LogSink.java` |
+| 多通道 sink 切换（`whale.audit.sink=local\|mq`） | 部分（`local` 已落地；`mq` 已废弃并回落 local，MQ 汇聚改用 `whale.audit.mq.publish-enabled`，HTTP 转发用 `whale.audit.forward.enabled`） | `common/log/properties/LogSinkProperties.java` · `common/log/sink/LogSink.java` |
 | 保留期清理（4 张日志表，默认关闭） | 部分（调度器与清理器已落地，默认 `enabled=false` 不启用；**不清理 `audit_log`**） | `whale-audit` `retention/{LogRetentionScheduler,LogRetentionCleaner}.java` · `config/RetentionProperties.java` |
 | 审计导出（`POST /audit/log/export` + EXPORT 元审计） | 已闭环（Wave 5.21 / AUTH-08） | `whale-audit` `AuditLogController#export` + `support/AuditCsvWriter` + `support/AuditArchiveClient` · `config/AuditExportProperties.java` · `@AuditLog(type=EXPORT, targetType="audit_log", recordResult=false)` |
 | 审计保留与归档（热/温/冷，`audit_log`） | 已闭环（Wave 5.21 / AUTH-09；归档不删数据） | `whale-audit` `retention/AuditLogArchiver.java` · `config/RetentionProperties#archiveEnabled`（默认 `false`）· 归档导出至 whale-file；**`audit_log` append-only，绝不删除/更新** |
-| 阶段二 MQ 汇聚 | **阻塞**（AUTH-10，依赖 RabbitMQ） | `docs/design/audit-log.md` §6 方案B |
+| 阶段二 MQ 汇聚 | 已闭环（AUTH-10，2026-10-23；`whale.audit.forward` HTTP 转发为第二级） | `docs/design/audit-log.md` §6.2 |
 
 ---
 
@@ -88,7 +88,7 @@
 
 | 配置键 | 含义 / 默认值 | 来源 |
 |---|---|---|
-| `whale.audit.sink` | 落库 sink：`local`（本地异步直写，默认）/ `mq`（阶段二预留，未就绪自动回落 local 并告警） | `common/log/properties/LogSinkProperties.java` · `docs/design/audit-log.md` §6 |
+| `whale.audit.sink` | 落库 sink：`local`（本地异步直写，默认）/ `mq`（已废弃，自动回落 local 并告警；MQ 汇聚用 `whale.audit.mq.publish-enabled`，HTTP 转发用 `whale.audit.forward.enabled`） | `common/log/properties/LogSinkProperties.java` · `docs/design/audit-log.md` §6 |
 | `whale.audit.retention.enabled` | 日志保留期清理开关，默认 `false`（不装配调度器、不清理；**仅清 4 张日志表，不动 `audit_log`**） | `whale-audit/application.yml`（`${WHALE_AUDIT_RETENTION_ENABLED:false}`）· `config/RetentionProperties.java` |
 | `whale.audit.retention.days` | 保留期天数，默认 `30` | `whale-audit/application.yml`（`${WHALE_AUDIT_RETENTION_DAYS:30}`） |
 | `whale.audit.retention.cron` | 清理任务 cron，默认 `0 0 3 * * ?` | `whale-audit/application.yml`（`${WHALE_AUDIT_RETENTION_CRON:0 0 3 * * ?}`） |

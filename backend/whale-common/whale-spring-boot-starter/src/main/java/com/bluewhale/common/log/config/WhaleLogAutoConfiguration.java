@@ -83,7 +83,9 @@ public class WhaleLogAutoConfiguration {
     }
 
     /**
-     * 日志落库 sink：{@code whale.audit.sink=mq} 未实现时 fail-fast 提示并回落 local（仅告警，不抛）
+     * 日志落库 sink：仅实现 {@code local}；历史取值 {@code mq} 已废弃，
+     * 配置后仅告警并回落 local；MQ 汇聚使用 {@code whale.audit.mq.publish-enabled}，
+     * HTTP 转发使用 {@code whale.audit.forward.enabled}
      *
      * @param whaleLogExecutor 日志落库线程池
      * @param properties 日志 sink 配置
@@ -93,7 +95,7 @@ public class WhaleLogAutoConfiguration {
     @ConditionalOnMissingBean
     public LogSink logSink(@Qualifier("whaleLogExecutor") Executor whaleLogExecutor, LogSinkProperties properties) {
         if (LogSinkProperties.SINK_MQ.equals(properties.getSink())) {
-            log.warn("whale.audit.sink=mq 尚未实现，已回落 local（fail-fast 提示，不阻断启动）");
+            log.warn("whale.audit.sink=mq 已废弃并回落 local；MQ 汇聚请启用 whale.audit.mq.publish-enabled");
         }
         return new LocalLogSink(whaleLogExecutor);
     }
