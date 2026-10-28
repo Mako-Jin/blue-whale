@@ -43,41 +43,32 @@ LABEL org.opencontainers.image.title="bluewhale-web"
 LABEL org.opencontainers.image.description="蓝鲸前端 SPA"
 LABEL org.opencontainers.image.vendor="BlueWhale"
 
-ENV TZ=Asia/Shanghai
+# 站点挂载前缀：主应用为 /，qiankun 子应用取其 vite base（如 /contract、/erp）。
+# 必须与构建产物中的绝对资源路径一致，否则子应用 assets 会 404。
+ARG APP_BASE=/
+
+ENV TZ=Asia/Shanghai \
+    APP_BASE=${APP_BASE} \
+    WEB_ROOT=/usr/share/nginx/html
 
 RUN apk add --no-cache tzdata \
     && cp /usr/share/zoneinfo/$TZ /etc/localtime \
     && echo $TZ > /etc/timezone
 
-COPY --from=builder /out /usr/share/nginx/html
-
-# 精简版 nginx 配置：仅做 SPA 回退与静态缓存；
-# 生产环境由 infrastructure/docker/nginx/conf.d（HTTPS + 反代）覆盖
-COPY <<'EOF' /etc/nginx/conf.d/default.conf
-server {
-    listen       80;
-    server_name  _;
-
-    root   /usr/share/nginx/html;
-    index  index.html;
-
-    location = /healthz {
-        access_log off;
-        add_header Content-Type text/plain;
-        return 200 'ok';
-    }
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    location ~* \.(?:js|css|map|woff|woff2|ttf|eot|otf|jpg|jpeg|png|gif|ico|svg|webp)$ {
-        expires 30d;
-        access_log off;
-        add_header Cache-Control "public";
-    }
-}
-EOF
+# 产物落到 base 对应子目录：/ → 站点根；/contract → /usr/share/nginx/html/contract
+# 同时移除 nginx 镜像自带欢迎页，避免子应用镜像在 / 返回默认页
+# 按 APP_BASE 选择站点根配置或前缀配置（前缀配置中的 __APP_BASE__ 由 sed 替换）
+COPY --from=builder /out /opt/app-dist
+COPY deploy/frontend/nginx/root.conf /tmp/nginx-root.conf
+COPY deploy/frontend/nginx/subapp.conf.template /tmp/nginx-subapp.conf.template
+RUN set -eu; \
+    rm -f "${WEB_ROOT}/index.html" "${WEB_ROOT}/50x.html"; \
+    mkdir -p "${WEB_ROOT}${APP_BASE}"; \
+    cp -a /opt/app-dist/. "${WEB_ROOT}${APP_BASE}/"; \
+    rm -rf /opt/app-dist; \
+    if [ "${APP_BASE}" = "/" ]; then conf=/tmp/nginx-root.conf; else conf=/tmp/nginx-subapp.conf.template; fi; \
+    sed -e "s|__APP_BASE__|${APP_BASE}|g" "${conf}" > /etc/nginx/conf.d/default.conf; \
+    rm -f /tmp/nginx-root.conf /tmp/nginx-subapp.conf.template
 
 EXPOSE 80
 

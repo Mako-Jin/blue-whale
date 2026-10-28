@@ -1,0 +1,39 @@
+# ============================================================
+# 子应用托管（__APP_BASE__ 前缀，如 /contract、/erp）
+# 构建产物按 vite base 落在 /usr/share/nginx/html__APP_BASE__/
+# __APP_BASE__ 由 deploy/frontend/Dockerfile 的 APP_BASE 构建参数替换
+# ============================================================
+server {
+    listen       80;
+    server_name  _;
+
+    root   /usr/share/nginx/html;
+    index  index.html;
+
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 'ok';
+    }
+
+    # base 缺少尾部斜杠时补斜杠，避免相对资源解析错位
+    location = __APP_BASE__ {
+        return 301 __APP_BASE__/$is_args$args;
+    }
+
+    # base 前缀内的 SPA 路由回退（静态资源由其下的实际文件命中）
+    location __APP_BASE__/ {
+        try_files $uri $uri/ __APP_BASE__/index.html;
+    }
+
+    # 前缀之外不提供服务：子应用镜像不承担站点根职责
+    location / {
+        return 404;
+    }
+
+    location ~* \.(?:js|css|map|woff|woff2|ttf|eot|otf|jpg|jpeg|png|gif|ico|svg|webp)$ {
+        expires 30d;
+        access_log off;
+        add_header Cache-Control "public";
+    }
+}

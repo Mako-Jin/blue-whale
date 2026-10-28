@@ -115,22 +115,23 @@ jobs:
       fail-fast: false
       matrix:
         # image：GHCR 镜像名；app：package.json 的 name（turbo --filter）；dir：frontend/ 下的应用目录
+        # base：vite base 前缀（无 base 配置的应用为 /），必须与构建产物中的资源绝对路径一致
         # admin 沿用历史镜像名 whale-web，避免破坏既有部署引用
         include:
-          - { image: whale-web, app: whale-admin, dir: admin }
-          - { image: whale-platform, app: '@bluewhale/whale-platform', dir: platform-apps/whale-platform }
-          - { image: whale-portal, app: whale-portal, dir: platform-apps/whale-portal }
-          - { image: whale-ops, app: whale-ops, dir: ops }
-          - { image: whale-agent, app: whale-agent, dir: platform-apps/whale-agent }
-          - { image: whale-contract, app: whale-contract, dir: platform-apps/whale-contract }
-          - { image: whale-erp, app: whale-erp, dir: platform-apps/whale-erp }
-          - { image: whale-oa, app: whale-oa, dir: platform-apps/whale-oa }
-          - { image: whale-mes, app: whale-mes, dir: platform-apps/whale-mes }
-          - { image: whale-pdm, app: whale-pdm, dir: platform-apps/whale-pdm }
-          - { image: whale-pm, app: whale-pm, dir: platform-apps/whale-pm }
-          - { image: whale-im, app: whale-im, dir: platform-apps/whale-im }
-          - { image: whale-form-designer, app: whale-form-designer, dir: platform-apps/whale-form-designer }
-          - { image: whale-workflow-designer, app: whale-workflow-designer, dir: platform-apps/whale-workflow-designer }
+          - { image: whale-web, app: whale-admin, dir: admin, base: / }
+          - { image: whale-platform, app: '@bluewhale/whale-platform', dir: platform-apps/whale-platform, base: / }
+          - { image: whale-portal, app: whale-portal, dir: platform-apps/whale-portal, base: /portal }
+          - { image: whale-ops, app: whale-ops, dir: ops, base: / }
+          - { image: whale-agent, app: whale-agent, dir: platform-apps/whale-agent, base: / }
+          - { image: whale-contract, app: whale-contract, dir: platform-apps/whale-contract, base: /contract }
+          - { image: whale-erp, app: whale-erp, dir: platform-apps/whale-erp, base: /erp }
+          - { image: whale-oa, app: whale-oa, dir: platform-apps/whale-oa, base: /oa }
+          - { image: whale-mes, app: whale-mes, dir: platform-apps/whale-mes, base: /mes }
+          - { image: whale-pdm, app: whale-pdm, dir: platform-apps/whale-pdm, base: /pdm }
+          - { image: whale-pm, app: whale-pm, dir: platform-apps/whale-pm, base: /pm }
+          - { image: whale-im, app: whale-im, dir: platform-apps/whale-im, base: /im }
+          - { image: whale-form-designer, app: whale-form-designer, dir: platform-apps/whale-form-designer, base: / }
+          - { image: whale-workflow-designer, app: whale-workflow-designer, dir: platform-apps/whale-workflow-designer, base: / }
 
     steps:
       - name: Checkout
@@ -166,6 +167,7 @@ jobs:
           build-args: |
             APP_NAME=${{ matrix.app }}
             APP_DIR=${{ matrix.dir }}
+            APP_BASE=${{ matrix.base }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.image }}
