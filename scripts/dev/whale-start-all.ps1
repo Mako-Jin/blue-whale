@@ -1,3 +1,8 @@
+param(
+    # E2E 前强制重建本脚本启动的模块及其依赖，避免旧 jar 造成路由/接口漂移
+    [switch]$Rebuild
+)
+
 # JDK 21：优先 WHALE_JAVA_HOME，缺省回退本机安装路径
 $javaHome = if ($env:WHALE_JAVA_HOME) { $env:WHALE_JAVA_HOME } else { 'D:\tools\installer\jdk\java21' }
 if (-not (Test-Path "$javaHome\bin\java.exe")) { throw "未找到 JDK：$javaHome（请设置 WHALE_JAVA_HOME）" }
@@ -23,10 +28,26 @@ function Start-Svc($name, $jar, $port, $extra) {
   Write-Host "$name pid=$($p.Id) port=$port"
 }
 
-Start-Svc 'gateway' "$base\whale-services\whale-gateway\target\whale-gateway.jar" 8080 @{ NACOS_SERVER = '127.0.0.1:8848' }
-Start-Svc 'auth'    "$base\whale-services\whale-service-auth\whale-service-auth-starter\target\whale-service-auth.jar"       8081 $null
-Start-Svc 'alert'   "$base\whale-ops\whale-alert\target\whale-alert.jar"          9103 $null
-Start-Svc 'audit'   "$base\whale-ops\whale-audit\target\whale-audit.jar"          9101 $null
-Start-Svc 'monitor' "$base\whale-ops\whale-monitor\target\whale-monitor.jar"      9102 $null
-Start-Svc 'pay'     "$base\whale-services\whale-pay\target\whale-pay.jar"         8086 $null
+$services = @(
+    @{ Name = 'gateway'; Jar = "$base\whale-services\whale-gateway\target\whale-gateway.jar"; Module = 'whale-services/whale-gateway'; Port = 8080; Extra = @{ NACOS_SERVER = '127.0.0.1:8848' } }
+    @{ Name = 'auth';    Jar = "$base\whale-services\whale-service-auth\whale-service-auth-starter\target\whale-service-auth.jar"; Module = 'whale-services/whale-service-auth/whale-service-auth-starter'; Port = 8081; Extra = $null }
+    @{ Name = 'alert';   Jar = "$base\whale-ops\whale-alert\target\whale-alert.jar"; Module = 'whale-ops/whale-alert'; Port = 9103; Extra = $null }
+    @{ Name = 'audit';   Jar = "$base\whale-ops\whale-audit\target\whale-audit.jar"; Module = 'whale-ops/whale-audit'; Port = 9101; Extra = $null }
+    @{ Name = 'monitor'; Jar = "$base\whale-ops\whale-monitor\target\whale-monitor.jar"; Module = 'whale-ops/whale-monitor'; Port = 9102; Extra = $null }
+    @{ Name = 'pay';     Jar = "$base\whale-services\whale-pay\target\whale-pay.jar"; Module = 'whale-services/whale-pay'; Port = 8086; Extra = $null }
+)
+
+if ($Rebuild) {
+    Write-Host 'Rebuilding E2E target modules and dependencies...'
+    $moduleList = ($services | ForEach-Object { $_.Module }) -join ','
+    & mvn.cmd -f "$base\pom.xml" -pl $moduleList -am -DskipTests package
+    if ($LASTEXITCODE -ne 0) { throw "Maven rebuild failed (exit=$LASTEXITCODE)" }
+}
+
+foreach ($service in $services) {
+    if (-not (Test-Path -LiteralPath $service.Jar)) {
+        throw "Missing jar: $($service.Jar). Run with -Rebuild or build the module first."
+    }
+    Start-Svc $service.Name $service.Jar $service.Port $service.Extra
+}
 Write-Host 'all launched'
