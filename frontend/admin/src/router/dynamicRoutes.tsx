@@ -16,6 +16,8 @@ import DeptList from '../pages/dept/DeptList';
 import FileList from '../pages/file/FileList';
 import JobList from '../pages/job/JobList';
 import MenuList from '../pages/menu/MenuList';
+import TemplateList from '../pages/message/TemplateList';
+import OrderList from '../pages/pay/OrderList';
 import PermissionList from '../pages/permission/PermissionList';
 import RoleList from '../pages/role/RoleList';
 import TenantList from '../pages/tenant/TenantList';
@@ -37,6 +39,8 @@ const COMPONENT_MAP: Record<
   | 'permission'
   | 'job'
   | 'file'
+  | 'message/template'
+  | 'pay/order'
   | 'archive/category'
   | 'archive/rule'
   | 'archive/item'
@@ -54,6 +58,8 @@ const COMPONENT_MAP: Record<
   permission: PermissionList,
   job: JobList,
   file: FileList,
+  'message/template': TemplateList,
+  'pay/order': OrderList,
   'archive/category': ArchiveCategoryList,
   'archive/rule': ArchiveRuleList,
   'archive/item': ArchiveItemList,
