@@ -75,6 +75,7 @@ export default function Canvas({ fields, selectedUid, onSelect, onRemove }: Canv
   return (
     <div
       ref={setNodeRef}
+      data-testid="form-designer-canvas"
       style={{
         minHeight: 420,
         padding: 12,

@@ -1,4 +1,9 @@
-# 全服务 / 全前端 待办盘点（2026-10-23）
+# 全服务 / 全前端 待办盘点（2026-10-23，已归档）
+
+> **⛔ 已归档 / 冻结（2026-10-27）**
+> 本文是 2026-10-23 时点快照，多项已在 2026-10-24 至 10-27 闭环；**不再维护，也不得作为当前待办依据**。
+> 当前待办入口：[pending-issues-2026-10-27.md](../pending-issues-2026-10-27.md)。
+> 后续变更只记入 devlog / pending-issues / 执行台账，不回填本文。
 
 > 口径：以**当前代码与文档事实**为准，只列「尚未完成或未验收」的项；已完成项不重复列出。
 > 数据来源：`docs/plans/roadmap.md`（未勾选项）、`docs/plans/whale-{auth,gateway,workflow}-backlog.md`、`docs/service-catalog.md`、`docs/plans/next-steps.md`、`docs/plans/2026-10-22-platform-remediation.md`，以及源码 `TODO / 占位 / mock` 标记实测（2026-10-23）。

@@ -51,6 +51,15 @@ whale:
         enabled: ${ALERT_WEBHOOK_ENABLED:false}
         url: ${ALERT_WEBHOOK_URL:}
         timeout-millis: ${ALERT_WEBHOOK_TIMEOUT:3000}
+      # F-03b：统一 HTTP 短信网关；供应商签名算法由网关完成
+      sms:
+        enabled: ${ALERT_SMS_ENABLED:false}
+        url: ${ALERT_SMS_URL:}
+        token: ${ALERT_SMS_TOKEN:}
+        to: ${ALERT_SMS_TO:}
+        template-code: ${ALERT_SMS_TEMPLATE_CODE:BLUEWHALE_ALERT}
+        sign-name: ${ALERT_SMS_SIGN_NAME:}
+        timeout-millis: ${ALERT_SMS_TIMEOUT:3000}
 
 # 邮件通道依赖 Spring Mail 自动装配：设置 SPRING_MAIL_HOST / SPRING_MAIL_USERNAME /
 # SPRING_MAIL_PASSWORD 后 JavaMailSender 才会创建；未配置时邮件通知自动跳过。

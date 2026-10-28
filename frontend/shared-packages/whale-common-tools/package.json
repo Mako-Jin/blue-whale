@@ -15,7 +15,6 @@
     "lint": "eslint src --max-warnings 0"
   },
   "dependencies": {
-    "dayjs": "^1.11.13",
     "lodash-es": "^4.17.21"
   },
   "devDependencies": {

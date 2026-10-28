@@ -71,7 +71,7 @@ Start-Process .\tools\monitoring\grafana-13.2.4\bin\grafana.exe `
   -ArgumentList 'server',"--homepath=D:/BlueWhale/BlueWhale/tools/monitoring/grafana-13.2.4","--config=$base/grafana.ini"
 ```
 
-- Prometheus：`http://127.0.0.1:9090`，抓取目标见 `tools/monitoring/prometheus.local.yml`（8080–8090 / 9001–9004 / 9101–9103 / 9201 / 8848）。
+- Prometheus：`http://127.0.0.1:9090`，抓取目标见 `tools/monitoring/prometheus.local.yml`（8080–8090 / 9001–9004 / 9101–9103 / 8848；`whale-config` 已冻结，9201 不再抓取）。
 - Grafana：`http://127.0.0.1:3000`，数据源 `Prometheus` 由 `grafana-provisioning` 自动注入，默认 `admin/admin`，仅监听回环地址。
 - 后端服务未启动时目标显示 `down` 属正常，启动后查询 `up` 即可确认。
 
@@ -105,8 +105,8 @@ curl http://127.0.0.1:9090/api/v1/alerts
 
 链路：`Prometheus 规则命中 → Alertmanager → whale-alert /alert/internal/prometheus → alert_record → 通知渠道`。
 
-- **Prometheus 抓取**：`deploy/monitoring/prometheus.yml` 覆盖全部服务
-  （8080–8086 / 8090 / 8091 / 8093 / 9001–9004 / 9101–9103 / 9201 / 8848），
+- **Prometheus 抓取**：`deploy/monitoring/prometheus.yml` 覆盖全部在役服务
+  （8080–8086 / 8090 / 8091 / 8093 / 8094 / 9001–9004 / 9101–9103 / 8848；`whale-config` 冻结后不再抓取 9201），
   `job` 名均以 `whale-` 开头以匹配规则；Docker 部署时把 `127.0.0.1` 换成 `host.docker.internal`。
 - **Alertmanager**：`deploy/monitoring/alertmanager.yml` 路由到
   `http://127.0.0.1:9103/alert/internal/prometheus`，`send_resolved: true`，

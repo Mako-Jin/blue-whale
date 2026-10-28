@@ -185,10 +185,11 @@ Maven 模块目录名 == artifactId == spring.application.name == Nacos 服务�
 | services | whale-form | whale-form | `bluewhale_form`（规划） | `com.bluewhale.form` | 8084 |
 | services | whale-file | whale-file | `bluewhale_file`（规划） | `com.bluewhale.file` | 8085 |
 | services | whale-pay | whale-pay | `bluewhale_pay`（规划） | `com.bluewhale.pay` | 8086 |
+| services | whale-message | whale-message | `bluewhale_message` ✔ | `com.bluewhale.message` | 8094 |
 | services | ~~whale-i18n~~（已删除，Wave 5.50 下沉 SDK） | — | 各服务库内自建 `sys_i18n_message` | — | — |
-| registry | whale-config | whale-config | 无 | `com.bluewhale.config` | 9201 |
+| registry | ~~whale-config~~（**冻结**，F-05 结案：不部署/不路由） | — | 无 | `com.bluewhale.config` | 9201 |
 | ops | whale-audit | whale-audit | `bluewhale_audit` ✔ | `com.bluewhale.audit` | 9101 |
-| ops | whale-monitor | whale-monitor | `bluewhale_monitor`（规划） | `com.bluewhale.monitor` | 9102 |
+| ops | whale-monitor | whale-monitor | 无（只读聚合 Nacos 实例，不落库） | `com.bluewhale.monitor` | 9102 |
 | ops | whale-alert | whale-alert | `bluewhale_alert`（规划） | `com.bluewhale.alert` | 9103 |
 | apps | whale-erp | whale-erp | `bluewhale_erp`（规划） | `com.bluewhale.erp` | 9001 |
 | apps | whale-mes | whale-mes | `bluewhale_mes`（规划） | `com.bluewhale.mes` | 9002 |

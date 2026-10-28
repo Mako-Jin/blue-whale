@@ -1,0 +1,75 @@
+server:
+  port: ${SERVER_PORT:8094}
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: whale-message
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/bluewhale_message?useUnicode=true&characterEncoding=utf8&connectionCollation=utf8mb4_general_ci&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USER:root}
+    # 安全默认值：不提供 root 默认口令；未设置 MYSQL_PASSWORD 时由部署侧显式配置
+    password: ${MYSQL_PASSWORD:}
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+      config:
+        server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+        file-extension: yaml
+
+logging:
+  level:
+    com.bluewhale: debug
+
+# 启用 starter 的 RequirePermissionInterceptor（默认 false，须显式开启），
+# 按网关注入的 X-Permission-Codes 判定 sys:message:* 权限。
+whale:
+  permission:
+    header:
+      enabled: true
+  message:
+    # 无真实供应商阶段的默认口径：外部通道不发起网络请求，只记录 MOCKED/SKIPPED。
+    # 生产接入真实渠道时显式设置 WHALE_MESSAGE_MOCK=false。
+    mock: ${WHALE_MESSAGE_MOCK:true}
+    email:
+      enabled: ${WHALE_MESSAGE_EMAIL_ENABLED:false}
+      # 发件人；未配置时 EMAIL 渠道记为 SKIPPED
+      from: ${WHALE_MESSAGE_EMAIL_FROM:}
+    sms:
+      enabled: ${WHALE_MESSAGE_SMS_ENABLED:false}
+      # 部署侧统一 HTTP 网关，平台不持有短信供应商 AccessKey
+      url: ${WHALE_MESSAGE_SMS_URL:}
+      token: ${WHALE_MESSAGE_SMS_TOKEN:}
+      template-code: ${WHALE_MESSAGE_SMS_TEMPLATE_CODE:BLUEWHALE_MESSAGE}
+      sign-name: ${WHALE_MESSAGE_SMS_SIGN_NAME:蓝鲸}
+      timeout-millis: ${WHALE_MESSAGE_SMS_TIMEOUT_MILLIS:3000}
+    im:
+      enabled: ${WHALE_MESSAGE_IM_ENABLED:false}
+      # whale-im 内网地址；未配置时 IM 渠道记为 SKIPPED
+      base-url: ${WHALE_MESSAGE_IM_BASE_URL:}
+      timeout-millis: ${WHALE_MESSAGE_IM_TIMEOUT_MILLIS:3000}
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}

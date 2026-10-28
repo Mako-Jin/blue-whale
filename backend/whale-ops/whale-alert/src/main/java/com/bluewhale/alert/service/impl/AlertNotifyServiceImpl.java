@@ -28,10 +28,11 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * 告警通知服务实现：邮件与 Webhook 两种通道。
+ * 告警通知服务实现：邮件、Webhook 与短信三种通道。
  *
- * <p>通道取值来自告警规则 {@code channel}：{@code EMAIL} / {@code WEBHOOK} / {@code NONE}
- * （{@code SMS} 暂未接入，记录告警日志后跳过）。任一通道失败均只记日志，不抛出异常。</p>
+ * <p>通道取值来自告警规则 {@code channel}：{@code EMAIL} / {@code SMS} / {@code WEBHOOK} /
+ * {@code NONE}。短信经部署侧 HTTP 网关发送，平台不绑定具体供应商。任一通道失败均只记日志，
+ * 不抛出异常。</p>
  *
  * @author BlueWhale
  */
@@ -46,8 +47,14 @@ public class AlertNotifyServiceImpl implements AlertNotifyService {
     /** Webhook 通道 */
     private static final String CHANNEL_WEBHOOK = "WEBHOOK";
 
+    /** 短信通道 */
+    private static final String CHANNEL_SMS = "SMS";
+
     /** 不通知 */
     private static final String CHANNEL_NONE = "NONE";
+
+    /** 单条短信内容上限（字符），超长截断避免被网关拒绝或拆成多条计费 */
+    private static final int MAX_SMS_CONTENT_LENGTH = 480;
 
     private final AlertNotifyProperties properties;
 
@@ -65,6 +72,8 @@ public class AlertNotifyServiceImpl implements AlertNotifyService {
             sendEmail(rule, record);
         } else if (CHANNEL_WEBHOOK.equals(channel)) {
             sendWebhook(rule, record);
+        } else if (CHANNEL_SMS.equals(channel)) {
+            sendSms(rule, record);
         } else if (!CHANNEL_NONE.equals(channel)) {
             log.warn("告警通道暂未实现，跳过通知: channel={}, ruleCode={}", channel, rule.getRuleCode());
         }
@@ -146,6 +155,143 @@ public class AlertNotifyServiceImpl implements AlertNotifyService {
         } catch (Exception e) {
             log.error("告警 Webhook 发送失败: ruleCode={}, reason={}", rule.getRuleCode(), e.getMessage(), e);
         }
+    }
+
+    /**
+     * 发送短信通知（F-03b：统一 HTTP 网关协议）。
+     *
+     * <p>网关协议为 JSON POST：{@code phones/templateCode/signName/content} 加告警元数据；
+     * 配置 {@code token} 时携带 {@code Authorization: Bearer}。供应商专有签名应由网关完成，
+     * 平台不持有短信供应商 AccessKey。失败只记日志，不影响告警落库。</p>
+     *
+     * @param rule   告警规则
+     * @param record 告警记录
+     */
+    private void sendSms(AlertRule rule, AlertRecord record) {
+        AlertNotifyProperties.Sms sms = properties.getSms();
+        if (!sms.isEnabled()) {
+            log.debug("短信通道未启用，跳过通知: ruleCode={}", rule.getRuleCode());
+            return;
+        }
+        List<String> recipients = sms.getTo() == null ? List.of() : sms.getTo().stream()
+                .filter(StringUtils::hasText)
+                .map(String::trim)
+                .toList();
+        if (recipients.isEmpty() || !StringUtils.hasText(sms.getUrl())) {
+            log.warn("短信通道缺少网关地址或接收手机号，跳过通知: ruleCode={}", rule.getRuleCode());
+            return;
+        }
+        int timeout = sms.getTimeoutMillis() <= 0 ? 3000 : sms.getTimeoutMillis();
+        try {
+            String body = objectMapper.writeValueAsString(
+                    buildSmsPayload(sms, rule, record, recipients));
+            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(sms.getUrl().trim()))
+                    .timeout(Duration.ofMillis(timeout))
+                    .header("Content-Type", "application/json; charset=UTF-8")
+                    .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8));
+            if (StringUtils.hasText(sms.getToken())) {
+                builder.header("Authorization", "Bearer " + sms.getToken().trim());
+            }
+            HttpResponse<String> response = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofMillis(timeout))
+                    .build()
+                    .send(builder.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                log.info("告警短信已提交网关: ruleCode={}, to={}",
+                        rule.getRuleCode(), maskPhones(recipients));
+            } else {
+                log.error("告警短信网关返回非 2xx: ruleCode={}, status={}, body={}",
+                        rule.getRuleCode(), response.statusCode(), truncate(response.body(), 256));
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.error("告警短信发送被中断: ruleCode={}", rule.getRuleCode(), e);
+        } catch (Exception e) {
+            log.error("告警短信发送失败: ruleCode={}, reason={}", rule.getRuleCode(), e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 构造短信网关载荷。
+     *
+     * @param sms        短信通道配置
+     * @param rule       告警规则
+     * @param record     告警记录
+     * @param recipients 接收手机号
+     * @return 网关 JSON 载荷
+     */
+    private static Map<String, Object> buildSmsPayload(AlertNotifyProperties.Sms sms, AlertRule rule,
+                                                       AlertRecord record, List<String> recipients) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("phones", recipients);
+        payload.put("templateCode", sms.getTemplateCode());
+        payload.put("signName", sms.getSignName());
+        payload.put("content", buildSmsContent(rule, record));
+        payload.put("ruleCode", rule.getRuleCode());
+        payload.put("ruleName", rule.getRuleName());
+        payload.put("level", record.getAlertLevel());
+        payload.put("target", rule.getTarget());
+        payload.put("status", record.getStatus());
+        payload.put("tenantId", TenantContext.get());
+        payload.put("triggerTime",
+                record.getTriggerTime() == null ? null : record.getTriggerTime().toString());
+        return payload;
+    }
+
+    /**
+     * 构造短信正文并截断到单条上限。
+     *
+     * @param rule   告警规则
+     * @param record 告警记录
+     * @return 短信正文
+     */
+    private static String buildSmsContent(AlertRule rule, AlertRecord record) {
+        String content = "[BlueWhale][" + Objects.toString(record.getAlertLevel(), "-") + "] "
+                + Objects.toString(rule.getRuleName(), rule.getRuleCode()) + ": "
+                + Objects.toString(record.getContent(), "-")
+                + " (target=" + Objects.toString(rule.getTarget(), "-")
+                + ", status=" + Objects.toString(record.getStatus(), "-") + ")";
+        if (content.length() <= MAX_SMS_CONTENT_LENGTH) {
+            return content;
+        }
+        return content.substring(0, MAX_SMS_CONTENT_LENGTH - 3) + "...";
+    }
+
+    /**
+     * 手机号脱敏，避免日志泄露完整号码。
+     *
+     * @param phones 手机号列表
+     * @return 脱敏后的手机号列表
+     */
+    private static List<String> maskPhones(List<String> phones) {
+        return phones.stream().map(AlertNotifyServiceImpl::maskPhone).toList();
+    }
+
+    /**
+     * 单个手机号脱敏。
+     *
+     * @param phone 手机号
+     * @return 脱敏值
+     */
+    private static String maskPhone(String phone) {
+        if (phone.length() < 7) {
+            return "***";
+        }
+        return phone.substring(0, 3) + "****" + phone.substring(phone.length() - 4);
+    }
+
+    /**
+     * 截断响应体，避免异常响应写满日志。
+     *
+     * @param value 原值
+     * @param max   最大长度
+     * @return 截断后的值
+     */
+    private static String truncate(String value, int max) {
+        if (value == null || value.length() <= max) {
+            return value;
+        }
+        return value.substring(0, max) + "...";
     }
 
     /**

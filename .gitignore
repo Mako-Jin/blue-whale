@@ -54,6 +54,9 @@ docker-compose.override.yml
 .env
 .env.local
 .env.*.local
+# P0 外部凭据文件只允许存在于部署机，模板 .env.external.example 入库
+.env.external
+.env.external.local
 *.pem
 *.key
 *.crt

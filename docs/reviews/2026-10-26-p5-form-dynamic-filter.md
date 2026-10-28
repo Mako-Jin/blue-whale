@@ -1,7 +1,7 @@
 # 检查报告：whale-form 动态字段条件检索（查询侧）
 
 > 日期：2026-10-26 ｜ 服务：`whale-form`（8084）｜ 前端：`whale-form-designer`（8002）｜ 结论：**PASS（单测 + 构建 + 经网关实机验证）**
-> 关联：[字段级索引自动优化报告](2026-10-26-p5-form-field-index-auto.md) 第四章遗留项、[todo-inventory 2026-10-23](../plans/todo-inventory-2026-10-23.md) 第 5 项、优先级执行台账序号 27
+> 关联：[字段级索引自动优化报告](2026-10-26-p5-form-field-index-auto.md) 第四章遗留项、[todo-inventory 2026-10-23](../plans/archive/todo-inventory-2026-10-23.md) 第 5 项、优先级执行台账序号 27
 
 ---
 

@@ -1,7 +1,7 @@
 # 检查报告：whale-job 多实例调度失效广播
 
 > 日期：2026-10-26 ｜ 服务：`whale-job`（8082）｜ 结论：**PASS（双实例实机验证通过）**
-> 关联：[todo-inventory 2026-10-23](../plans/todo-inventory-2026-10-23.md) 第 3 项残余、`next-steps` §五「多实例失效广播」
+> 关联：[todo-inventory 2026-10-23](../plans/archive/todo-inventory-2026-10-23.md) 第 3 项残余、`next-steps` §五「多实例失效广播」
 
 ---
 

@@ -1,7 +1,7 @@
 # 检查报告：whale-form 字段级索引自动优化
 
 > 日期：2026-10-26 ｜ 服务：`whale-form`（8084）｜ 结论：**PASS（单测 + 建表/存量对齐双路径实机验证）**
-> 关联：[todo-inventory 2026-10-23](../plans/todo-inventory-2026-10-23.md) 第 5 项残余（Wave 5.27 起遗留）、优先级执行台账序号 25
+> 关联：[todo-inventory 2026-10-23](../plans/archive/todo-inventory-2026-10-23.md) 第 5 项残余（Wave 5.27 起遗留）、优先级执行台账序号 25
 
 ---
 

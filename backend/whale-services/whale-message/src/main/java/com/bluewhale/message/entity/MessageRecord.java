@@ -1,0 +1,46 @@
+package com.bluewhale.message.entity;
+
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.bluewhale.common.entity.BaseEntity;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+
+/**
+ * 逻辑消息实体，对应表 {@code msg_record}。
+ *
+ * @author BlueWhale
+ */
+@Data
+@EqualsAndHashCode(callSuper = true)
+@TableName("msg_record")
+public class MessageRecord extends BaseEntity {
+
+    private static final long serialVersionUID = 1L;
+
+    /** 业务类型，如 PM_TASK / CONTRACT_EXPIRE */
+    private String bizType;
+
+    /** 业务标识 */
+    private String bizId;
+
+    /** 模板编码（未使用模板时为空） */
+    private String templateCode;
+
+    /** 幂等键（租户内唯一） */
+    private String idempotencyKey;
+
+    /** 消息标题 */
+    private String title;
+
+    /** 消息正文 */
+    private String content;
+
+    /** 模板变量 JSON */
+    private String payloadJson;
+
+    /** 渠道列表（大写逗号分隔） */
+    private String channels;
+
+    /** 消息状态：PENDING / SENT / PARTIAL / FAILED / MOCKED / SKIPPED */
+    private String status;
+}

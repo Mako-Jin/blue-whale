@@ -56,6 +56,13 @@ export interface FormDataRecord {
   definitionCode: string;
 }
 
+/** 表单数据详情（列表接口不返回 fields，详情接口返回结构化字段值） */
+export interface FormDataDetail extends FormDataRecord {
+  bizKey?: string | null;
+  fields?: Record<string, unknown> | null;
+  dataJson?: string | null;
+}
+
 /** 读取信封；HTTP 非 2xx 或 code !== 0 时抛出带后端 message 的错误 */
 async function readEnvelope<T>(response: APIResponse, label: string): Promise<T> {
   const body = (await response.json()) as Envelope<T>;
@@ -174,6 +181,28 @@ export async function createFormDefinition(
   return readEnvelope<FormDefinitionRecord>(response, '创建表单视图');
 }
 
+/** 表单定义详情（含已保存的字段配置，用于设计器拖拽后核验） */
+export interface FormDefinitionDetail extends FormDefinitionRecord {
+  tableDefinitionId?: string | null;
+  fields?: Array<{
+    id?: string;
+    columnMetaId?: string | null;
+    fieldLabel?: string;
+    widgetType?: string;
+  }> | null;
+}
+
+export async function formDefinitionDetail(
+  ctx: APIRequestContext,
+  token: string,
+  id: string,
+): Promise<FormDefinitionDetail> {
+  const response = await ctx.get(`${API_BASE_URL}/form/definition/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return readEnvelope<FormDefinitionDetail>(response, '查询表单定义详情');
+}
+
 /** 按表单编码查询数据分页 */
 export async function pageFormData(
   ctx: APIRequestContext,
@@ -189,6 +218,18 @@ export async function pageFormData(
   return readEnvelope<PageResult<FormDataRecord>>(response, '查询表单数据');
 }
 
+/** 表单数据详情（结构化 fields 用于跨模块核验） */
+export async function formDataDetail(
+  ctx: APIRequestContext,
+  token: string,
+  id: string,
+): Promise<FormDataDetail> {
+  const response = await ctx.get(`${API_BASE_URL}/form/data/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return readEnvelope<FormDataDetail>(response, '查询表单数据详情');
+}
+
 /** 尽力删除（清理阶段不因失败中断） */
 export async function deleteResource(
   ctx: APIRequestContext,
@@ -202,6 +243,120 @@ export async function deleteResource(
   } catch {
     // 清理失败不影响用例结论
   }
+}
+
+export interface RoleRecord {
+  id: number;
+  roleCode: string;
+  roleName: string;
+}
+
+export async function createRole(
+  ctx: APIRequestContext,
+  token: string,
+  payload: Record<string, unknown>,
+): Promise<RoleRecord> {
+  const response = await ctx.post(`${API_BASE_URL}/role`, {
+    headers: { Authorization: `Bearer ${token}` },
+    data: payload,
+  });
+  return readEnvelope<RoleRecord>(response, '创建角色');
+}
+
+export async function pageRoleRecords(
+  ctx: APIRequestContext,
+  token: string,
+  keyword: string,
+): Promise<PageResult<RoleRecord>> {
+  const response = await ctx.get(
+    `${API_BASE_URL}/role/page?current=1&size=20&keyword=${encodeURIComponent(keyword)}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  return readEnvelope<PageResult<RoleRecord>>(response, '查询角色');
+}
+
+export async function rolePermissionIds(
+  ctx: APIRequestContext,
+  token: string,
+  roleId: number,
+): Promise<number[]> {
+  const response = await ctx.get(`${API_BASE_URL}/role/${roleId}/permissions`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return readEnvelope<number[]>(response, '查询角色权限');
+}
+
+export interface PermissionRecord {
+  id: number;
+  permCode: string;
+  permName: string;
+}
+
+export async function pagePermissionRecords(
+  ctx: APIRequestContext,
+  token: string,
+): Promise<PageResult<PermissionRecord>> {
+  const response = await ctx.get(`${API_BASE_URL}/permission/page?current=1&size=200`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return readEnvelope<PageResult<PermissionRecord>>(response, '查询权限');
+}
+
+export interface MenuRecord {
+  id: number;
+  parentId: number;
+  name: string;
+  children?: MenuRecord[];
+}
+
+export async function createMenu(
+  ctx: APIRequestContext,
+  token: string,
+  payload: Record<string, unknown>,
+): Promise<void> {
+  const response = await ctx.post(`${API_BASE_URL}/menu`, {
+    headers: { Authorization: `Bearer ${token}` },
+    data: payload,
+  });
+  await readEnvelope<unknown>(response, '创建菜单');
+}
+
+export async function treeMenuRecords(
+  ctx: APIRequestContext,
+  token: string,
+): Promise<MenuRecord[]> {
+  const response = await ctx.get(`${API_BASE_URL}/menu/tree`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return readEnvelope<MenuRecord[]>(response, '查询菜单树');
+}
+
+export interface UserRecord {
+  id: number;
+  username: string;
+}
+
+export async function createUser(
+  ctx: APIRequestContext,
+  token: string,
+  payload: Record<string, unknown>,
+): Promise<UserRecord> {
+  const response = await ctx.post(`${API_BASE_URL}/user`, {
+    headers: { Authorization: `Bearer ${token}` },
+    data: payload,
+  });
+  return readEnvelope<UserRecord>(response, '创建用户');
+}
+
+export async function userRoleIds(
+  ctx: APIRequestContext,
+  token: string,
+  userId: number,
+): Promise<number[]> {
+  const response = await ctx.get(`${API_BASE_URL}/user/${userId}/roles`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return readEnvelope<number[]>(response, '查询用户角色');
 }
 
 /** 工作流定义（仅取断言所需字段） */
@@ -228,6 +383,8 @@ export interface WorkflowInstanceRecord {
   definitionCode: string;
   title: string;
   status: number;
+  /** 业务键（表单发起场景为表单数据 ID） */
+  businessKey?: string | null;
   currentNodeKey?: string | null;
   /** 仅详情接口填充 */
   tasks?: WorkflowTaskRecord[];

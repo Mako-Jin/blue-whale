@@ -107,7 +107,7 @@ whale-i18n-sdk（jar）
 - [infrastructure/docker/mysql/init/01-init-databases.sql](../../../infrastructure/docker/mysql/init/01-init-databases.sql#L44-L47) 移除 `bluewhale_i18n` 建库。
 - [whale-auth init.sql](../../../backend/whale-services/whale-auth/src/main/resources/db/init.sql#L466-L473) 保留 `sys:i18n:*` 权限码（本地管理接口复用），路径更新为 `/auth/i18n/message/**`；注释改为「服务内置国际化文案管理」。
 - 前端：移除 `/i18n-demo` 菜单与占位路由（`menu.ts`、`routes.tsx`、`MainLayout.tsx` 若有引用一并移除）。
-- 文档：更新 `docs/service-catalog.md`、`docs/architecture.md`、`docs/plans/roadmap.md`、`docs/plans/todo-inventory-2026-10-23.md`；历史 devlog / `docs/whale-auth/originals` 不改。
+- 文档：更新 `docs/service-catalog.md`、`docs/architecture.md`、`docs/plans/roadmap.md`、`docs/plans/archive/todo-inventory-2026-10-23.md`；历史 devlog / `docs/whale-auth/originals` 不改。
 
 ### 5.6 试点接入（auth + file）
 

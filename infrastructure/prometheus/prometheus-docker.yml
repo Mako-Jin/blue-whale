@@ -60,6 +60,10 @@ scrape_configs:
     metrics_path: /actuator/prometheus
     static_configs:
       - targets: ['host.docker.internal:8093']
+  - job_name: whale-message
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['host.docker.internal:8094']
   - job_name: whale-erp
     metrics_path: /actuator/prometheus
     static_configs:
@@ -92,10 +96,7 @@ scrape_configs:
     metrics_path: /actuator/prometheus
     static_configs:
       - targets: ['host.docker.internal:9103']
-  - job_name: whale-config
-    metrics_path: /actuator/prometheus
-    static_configs:
-      - targets: ['host.docker.internal:9201']
+  # whale-config 冻结（F-05）：不再部署，无抓取目标
   # Nacos 2.x 自带 Prometheus 指标端点
   - job_name: nacos
     metrics_path: /nacos/metrics

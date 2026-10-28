@@ -2,7 +2,7 @@
 
 > 用途：**全平台端口 ↔ 服务 ↔ 组件**的唯一权威清单。看端口即知对应哪个服务，看服务即知其分组、库、对外前缀与职责。
 > 关联需求：REQ-ARCH-005（新增）、REQ-ARCH-004（命名规范，[naming-conventions.md](naming-conventions.md) §八）
-> 最后更新：2026-10-25（**Wave 5.55 M1**：新增 `whale-pm` 9005、前端 `whale-pm` 8108、网关 `/pm/**`、库 `bluewhale_pm`，规划见 [wave5.55](plans/wave5.55-project-management.md)）｜ 2026-10-24（**Wave 5.53 M1**：新增 `whale-archive` 8093、网关 `/archive/**` 路由、库 `bluewhale_archive`）｜ 同日前序：**Wave 5.52 M0** 新增 `whale-im` 8091、`whale-ai` 8092（Python，仅内网）、前端 `whale-im` 8107、网关 `/im/**` 与 `/im/ws` 路由、库 `bluewhale_im`｜ 维护：BlueWhale
+> 最后更新：2026-10-28（**Wave 5.69–5.70**：ERP 新增供应商主数据；`whale-message` M1 增模板管理/失败重试/站内信收件箱；**F-05 结案** `whale-config` 冻结且移除 `/config/**` 路由）｜ 2026-10-28（**Wave 5.68 M0**：新增 `whale-message` 8094、网关 `/message/**` 路由、库 `bluewhale_message`；统一消息服务设计见 [ADR](plans/2026-10-28-crm-srm-and-message-service-decisions.md)）｜ 2026-10-25（**Wave 5.55 M1**：新增 `whale-pm` 9005、前端 `whale-pm` 8108、网关 `/pm/**`、库 `bluewhale_pm`，规划见 [wave5.55](plans/wave5.55-project-management.md)）｜ 维护：BlueWhale
 
 ---
 
@@ -17,7 +17,7 @@
 
 ---
 
-## 一、后端服务清单（21 个：Java 20 + Python 1）
+## 一、后端服务清单（22 个：Java 21 + Python 1；其中 `whale-config` 冻结）
 
 | # | 服务名（Spring / Nacos） | 所属分组 | 模块目录 | 端口 | 对外一级前缀 | 网关路由 | 数据库（`bluewhale_<域>`） | 启动类 | 职责 | 本机状态 |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -28,31 +28,33 @@
 | 5 | `whale-form` | whale-services | `whale-services/whale-form` | **8084** | `/form/**` | ✅ `lb://whale-form` | **`bluewhale_form`**（已建库） | `WhaleFormApplication` | 动态表单 | 可启动 |
 | 6 | `whale-file` | whale-services | `whale-services/whale-file` | **8085** | `/file/**` | ✅ `lb://whale-file` | **`bluewhale_file`**（已建库） | `WhaleFileApplication` | 文件上传下载、附件管理 | 可启动 |
 | 7 | `whale-pay` | whale-services | `whale-services/whale-pay` | **8086** | `/pay/**` | ✅ `lb://whale-pay` | **`bluewhale_pay`**（已建库） | `WhalePayApplication` | 支付与结算 | 可启动 |
-| 8 | `whale-erp` | whale-apps | `whale-apps/whale-erp` | **9001** | `/erp/**` | ✅ 已配路由（2026-10-25） | `bluewhale_erp`（**规划，未建库**） | `WhaleErpApplication` | ERP 业务应用 | 可启动 |
-| 9 | `whale-mes` | whale-apps | `whale-apps/whale-mes` | **9002** | `/mes/**` | ✅ 已配路由（2026-10-25） | `bluewhale_mes`（**规划，未建库**） | `WhaleMesApplication` | MES 制造执行 | 可启动 |
-| 10 | `whale-pdm` | whale-apps | `whale-apps/whale-pdm` | **9003** | `/pdm/**` | ✅ 已配路由（2026-10-25） | `bluewhale_pdm`（**规划，未建库**） | `WhalePdmApplication` | PDM 产品数据管理 | 可启动 |
-| 11 | `whale-oa` | whale-apps | `whale-apps/whale-oa` | **9004** | `/oa/**` | ✅ 已配路由（2026-10-25） | `bluewhale_oa`（**规划，未建库**） | `WhaleOaApplication` | OA 协同办公 | 可启动 |
+| 8 | `whale-erp` | whale-apps | `whale-apps/whale-erp` | **9001** | `/erp/**` | ✅ 已配路由（2026-10-25） | **`bluewhale_erp`**（3 表，已建） | `WhaleErpApplication` | ERP 业务应用：物料主数据 + 供应商主数据（供应商准入/资质/绩效归 SRM，不属 CRM） | 可启动 |
+| 9 | `whale-mes` | whale-apps | `whale-apps/whale-mes` | **9002** | `/mes/**` | ✅ 已配路由（2026-10-25） | **`bluewhale_mes`**（2 表，已建） | `WhaleMesApplication` | MES 制造执行 | 可启动 |
+| 10 | `whale-pdm` | whale-apps | `whale-apps/whale-pdm` | **9003** | `/pdm/**` | ✅ 已配路由（2026-10-25） | **`bluewhale_pdm`**（2 表，已建） | `WhalePdmApplication` | PDM 产品数据管理 | 可启动 |
+| 11 | `whale-oa` | whale-apps | `whale-apps/whale-oa` | **9004** | `/oa/**` | ✅ 已配路由（2026-10-25） | **`bluewhale_oa`**（2 表，已建） | `WhaleOaApplication` | OA 协同办公 | 可启动 |
 | 12 | `whale-audit` | whale-ops | `whale-ops/whale-audit` | **9101** | `/audit/**` | ✅ `lb://whale-audit` | **`bluewhale_audit`**（`audit_log`，已建） | `WhaleAuditApplication` | 审计日志落库与查询 | **已运行**（已在 Nacos 注册） |
-| 13 | `whale-monitor` | whale-ops | `whale-ops/whale-monitor` | **9102** | `/monitor/**` | ✅ `lb://whale-monitor` | ——（采集为主） | `WhaleMonitorApplication` | 监控指标采集 | 可启动 |
+| 13 | `whale-monitor` | whale-ops | `whale-ops/whale-monitor` | **9102** | `/monitor/**` | ✅ `lb://whale-monitor` | ——（只读聚合） | `WhaleMonitorApplication` | 服务实例只读聚合（Nacos 实例列表/健康）；指标采集与存储由外部 Prometheus 承担，不落库、不告警 | 可启动 |
 | 14 | `whale-alert` | whale-ops | `whale-ops/whale-alert` | **9103** | `/alert/**` | ✅ `lb://whale-alert` | **`bluewhale_alert`**（已建库） | `WhaleAlertApplication` | 告警通知 | 可启动 |
-| 15 | `whale-config` | whale-registry | `whale-registry/whale-config` | **9201** | `/config/**` | ✅ 已配路由（2026-10-25） | ——（配置来自 Nacos） | `WhaleConfigApplication` | 配置中心管理面 | 可启动 |
+| 15 | `whale-config` | whale-registry | `whale-registry/whale-config` | **9201** | ~~`/config/**`~~ | ❌ 已移除（F-05） | ——（配置来自 Nacos） | `WhaleConfigApplication` | 配置中心管理面：**冻结**，空壳无接口，配置统一由 Nacos 承担；代码保留备查，不构建镜像/不路由 | **冻结**（F-05 结案） |
 | 16 | `whale-agent` | whale-services | `whale-services/whale-agent` | **8090** | `/agent/**` | ✅ `lb://whale-agent` | **`bluewhale_agent`**（6 表，已建） | `WhaleAgentApplication` | 平台与项目知识 Agent（Lucene 检索 + 事实层 + 问答编排） | **已运行**（已在 Nacos 注册，Wave 5.47） |
 | 17 | `whale-im` | whale-services | `whale-services/whale-im` | **8091** | `/im/**`、`/im/ws` | ✅ `lb://whale-im` / `lb:ws://whale-im` | **`bluewhale_im`**（5 表，**规划**） | `WhaleImApplication` | 自研 WebIM：会话/消息/已读/在线/机器人会话；WS ticket 鉴权 | **规划**（Wave 5.52） |
 | 18 | `whale-archive` | whale-services | `whale-services/whale-archive` | **8093** | `/archive/**` | ✅ `lb://whale-archive` | **`bluewhale_archive`**（6 表，脚本已就绪） | `WhaleArchiveApplication` | 档案服务：门类/规则/条目/档号/快照/检索；只读拉取工作流已通过实例与表单附件 | **可启动**（Wave 5.53 M1 底座完成，未起服） |
 | 19 | `whale-ai`（Python / FastAPI） | ——（`ai/` 独立树，**不进 Maven reactor**） | `ai/whale-ai` | **8092** | 无（**仅内网**，不注册网关、不注册 Nacos） | ❌ 不配（由 `whale-agent` 内网调用） | 无（记忆存 Redis `whale:ai:memory:*`） | `main:app`（uvicorn） | LangChain/LangGraph 编排、工具循环、确认态；**不持业务库凭据** | **骨架已落地**（Wave 5.52 T10；pytest 待 Python 3.11/3.12 环境） |
 | 20 | `whale-pm` | whale-apps | `whale-apps/whale-pm` | **9005** | `/pm/**` | ✅ 已配路由（2026-10-25） | **`bluewhale_pm`**（4 表 DDL 就绪，**待建库**） | `WhalePmApplication` | 项目管理（对标 Jira/禅道）：项目空间/成员/状态流转（M1）、工作项（M2）、迭代看板（M3）、报表（M4）、站内通知 + 工作流审批（M5，默认关闭） | **可启动**（Wave 5.55 M1–M5 完成；未起服） |
 | 21 | `whale-contract` | whale-apps | `whale-apps/whale-contract` | **9006** | `/contract/**` | ✅ `lb://whale-contract`（2026-10-26） | **`bluewhale_contract`**（4 表 + `api_log`） | `WhaleContractApplication` | 合同管理：起草/相对方/版本/审批/终止/归档（M1）；印章/PDF 盖章/数字签名/三方签章（M2–M3） | **可启动**（Wave 5.61 M1 完成） |
+| 22 | `whale-message` | whale-services | `whale-services/whale-message` | **8094** | `/message/**` | ✅ `lb://whale-message`（2026-10-28） | **`bluewhale_message`**（3 表，脚本已就绪） | `WhaleMessageApplication` | 统一消息服务：模板渲染/渠道路由/幂等/投递记录（M0）；模板管理、失败重试、站内信收件箱（M1）；INAPP/EMAIL/SMS/IM 适配器，无供应商时默认 mock | **可启动**（Wave 5.68 M0 + 5.70 M1；未起服） |
 
 > 「对外一级前缀」= 服务自持的前缀，网关**只转发、不剥离**（REQ-ARCH-003）。
 > 网关 `discovery.locator.enabled=true` 已开启服务发现路由：`lb://whale-<域>` → `http://<服务实例>`。
 
 ---
 
-## 二、网关路由映射（`whale-gateway`，现配 21 条；Wave 5.61 新增 `/contract/**`）
+## 二、网关路由映射（`whale-gateway`，现配 21 条；Wave 5.69 移除 `/config/**`）
 
 | 路由 id | 断言前缀 | 目标 URI | 对应服务 | 状态 |
 |---|---|---|---|---|
 | `whale-service-auth` | `Path=/auth/**,/user/**,/dept/**,/role/**,/menu/**,/permission/**` | `lb://whale-service-auth` | whale-service-auth | ✅ 已配（Wave 5.2/AUTH-38 补齐管理前缀） |
+| `whale-service-auth-tenant` | `Path=/tenant/**` | `lb://whale-service-auth` | whale-service-auth | ✅ 已配（Wave 5.54；内网 `/tenant/internal/**` 由 internal-deny 403） |
 | `whale-job` | `Path=/job/**` | `lb://whale-job` | whale-job | ✅ 已配 |
 | `whale-workflow` | `Path=/workflow/**` | `lb://whale-workflow` | whale-workflow | ✅ 已配 |
 | `whale-form` | `Path=/form/**` | `lb://whale-form` | whale-form | ✅ 已配 |
@@ -69,9 +71,9 @@
 | whale-mes | `Path=/mes/**` | `lb://whale-mes` | whale-mes | ✅ 已配（2026-10-25） |
 | whale-pdm | `Path=/pdm/**` | `lb://whale-pdm` | whale-pdm | ✅ 已配（2026-10-25） |
 | whale-oa | `Path=/oa/**` | `lb://whale-oa` | whale-oa | ✅ 已配（2026-10-25） |
-| whale-config | `Path=/config/**` | `lb://whale-config` | whale-config | ✅ 已配（2026-10-25） |
-| `whale-pm` | `Path=/pm/**` | `lb://whale-pm` | whale-pm | ✅ 已配（Wave 5.55 M1；**不配 `StripPrefix`**，内网 `/pm/internal/**` 由 internal-deny 403） |
+| whale-pm | `Path=/pm/**` | `lb://whale-pm` | whale-pm | ✅ 已配（Wave 5.55 M1；**不配 `StripPrefix`**，内网 `/pm/internal/**` 由 internal-deny 403） |
 | `whale-contract` | `Path=/contract/**` | `lb://whale-contract` | whale-contract | ✅ 已配（Wave 5.61 M1；**不配 `StripPrefix`**，内网 `/contract/internal/**` 由 internal-deny 403） |
+| `whale-message` | `Path=/message/**` | `lb://whale-message` | whale-message | ✅ 已配（Wave 5.68 M0；**不配 `StripPrefix`**，内网 `/message/internal/**` 由 internal-deny 403） |
 
 **网关免鉴权白名单**：`/auth/login`、`/auth/refresh`、`/actuator/**`、`/v3/api-docs/**`、`/doc.html`、`/webjars/**`、`/favicon.ico`、`/audit/log/frontend/batch`、`/audit/log/behavior/batch`（后两条为前端/行为日志上报，Wave 5.19 起仅放行 batch 写入端点）。
 
@@ -96,7 +98,8 @@
 | 13 | whale-pm | `frontend/platform-apps/whale-pm` | `whale-pm` | qiankun **子应用**（项目管理） | **8108** | `/pm` | 微应用名 `whale-pm`（Wave 5.55；M4 交付页面） |
 | 14 | whale-contract | `frontend/platform-apps/whale-contract` | `whale-contract` | qiankun **子应用**（合同管理：列表 + 详情/版本/流程） | **8109** | `/contract` | 微应用名 `whale-contract`（Wave 5.61 M1） |
 
-共享包（不占端口）：`frontend/shared-packages/whale-common-tools`、`whale-common-theme`、`whale-common-three`、`whale-log-sdk`、`frontend/elemental/whale-ui`、`frontend/games/whale-games-core`（NPM scope `@bluewhale/`）。
+共享包（不占端口）：`frontend/shared-packages/whale-common-tools`、`whale-common-theme`、`whale-log-sdk`、`frontend/elemental/whale-ui`（NPM scope `@bluewhale/`）。
+冻结共享包（无消费方，不删除代码、不升级依赖）：`frontend/shared-packages/whale-common-three`（F-09）、`frontend/games/whale-games-core`（F-07）。
 
 ---
 
@@ -104,7 +107,7 @@
 
 | # | 组件 | 用途 | 端口 | 版本 | 部署方式 | 本机状态 |
 |---|---|---|---|---|---|---|
-| 1 | **MySQL** | 业务库 + Nacos 外置存储 | **3306**（TCP） | 8.0.45（本机 `D:\mysql8`）／镜像 8.4（compose） | 本机原生；compose `bw-mysql` | **已运行**。库：`bluewhale_auth`、`bluewhale_audit`、`bluewhale_nacos`、`bluewhale_agent`、**`bluewhale_im`（规划，Wave 5.52）**（另有外部遗留 `yc-sts-db-auth` / `yc-sts-db-flow`，登记不改名） |
+| 1 | **MySQL** | 业务库 + Nacos 外置存储 | **3306**（TCP） | 8.0.45（本机 `D:\mysql8`）／镜像 8.4（compose） | 本机原生；compose `bw-mysql` | **已运行**。库：`bluewhale_auth`、`bluewhale_audit`、`bluewhale_nacos`、`bluewhale_agent`、**`bluewhale_im`（规划，Wave 5.52）**、**`bluewhale_message`（M0，脚本已就绪）**（另有外部遗留 `yc-sts-db-auth` / `yc-sts-db-flow`，登记不改名） |
 | 2 | **Redis** | 令牌黑名单、i18n 缓存、分布式锁 | **6379**（TCP） | 5.0.14.1（本机 `tools/`）／镜像 7-alpine（compose） | 本机原生；compose `bw-redis` | **已运行** |
 | 3 | **Nacos** | 服务注册发现 + 配置中心 | **8848**（HTTP OpenAPI + 主服务）<br>**8849**（控制台，仅 3.x 独立控制台）<br>**9848**（gRPC 客户端→服务端）<br>**9849**（gRPC 服务端→服务端，集群） | 2.4.0（本机 `tools/nacos`）／镜像 2.4.0（compose） | 本机原生（standalone + MySQL 外置存储）；compose `bw-nacos` | **已运行**（PID 实测监听 8848/9848；已注册 `whale-gateway` / `whale-service-auth` / `whale-audit`） |
 | 4 | **RabbitMQ** | 审计日志汇聚、异步消息（规划） | **5672**（AMQP）<br>**15672**（Management 控制台） | 4-management-alpine | compose `bw-rabbitmq` | ⚠ **未启动**（compose 服务已定义，本机未拉起） |
@@ -144,6 +147,7 @@
 | **8091** | `whale-im` | 后端 | WebIM（规划） |
 | **8092** | `whale-ai` | 后端（Python） | LangChain 智能体（仅内网，规划） |
 | **8093** | `whale-archive` | 后端 | 档案服务（Wave 5.53 M1，可启动） |
+| **8094** | `whale-message` | 后端 | 统一消息服务（Wave 5.68 M0 + 5.70 M1，可启动） |
 | **8101** | `whale-portal` | 前端（子应用） | base `/portal` |
 | **8102** | `whale-erp` | 前端（子应用） | base `/erp` |
 | **8103** | `whale-oa` | 前端（子应用） | base `/oa` |
@@ -165,9 +169,9 @@
 | **9090** | Prometheus | 基础设施 | 指标采集（compose `bw-prometheus`） |
 | **9093** | Alertmanager | 基础设施 | 告警路由（compose `bw-alertmanager`） |
 | **9101** | `whale-audit` | 后端 | 审计日志 |
-| **9102** | `whale-monitor` | 后端 | 监控采集 |
+| **9102** | `whale-monitor` | 后端 | 服务实例只读聚合（不采集/不存储） |
 | **9103** | `whale-alert` | 后端 | 告警 |
-| **9201** | `whale-config` | 后端 | 配置中心管理面 |
+| **9201** | `whale-config` | 后端 | 配置中心管理面（**冻结**，不部署/不路由） |
 | **9848** | Nacos | 基础设施 | gRPC 客户端→服务端 |
 | **9849** | Nacos | 基础设施 | gRPC 服务端→服务端（集群） |
 | **15672** | RabbitMQ | 基础设施 | Management 控制台（未运行） |
@@ -197,7 +201,7 @@
 | **3306 / 6379 / 5672 / 15672** | MySQL / Redis / RabbitMQ | 3306、6379 已运行；5672/15672 未运行 |
 | **8000–8099** | **前端 dev server**：基座 `8000`、admin `8001`、form-designer `8002`、workflow-designer `8003`、agent `8004` | 已落地（C-01 已解） |
 | **8080** | **网关（唯一后端入口）** | 已运行 |
-| **8081–8099** | **核心服务** | auth 8081、job 8082、workflow 8083、form 8084、file 8085、pay 8086、**agent 8090、im 8091、ai 8092（Python）、archive 8093**（8087 已随 `whale-i18n` 服务删除释放，Wave 5.50） |
+| **8081–8099** | **核心服务** | auth 8081、job 8082、workflow 8083、form 8084、file 8085、pay 8086、**agent 8090、im 8091、ai 8092（Python）、archive 8093、message 8094**（8087 已随 `whale-i18n` 服务删除释放，Wave 5.50） |
 | **8101–8199** | **qiankun 子应用 + 运维端** | portal 8101、erp 8102、oa 8103、ops 8104、mes 8105、pdm 8106、**im 8107、pm 8108、contract 8109** |
 | **8848 / 8849 / 9848 / 9849** | **Nacos** | 已运行 |
 | **9001–9099** | **业务应用** | erp 9001、mes 9002、pdm 9003、oa 9004、**pm 9005、contract 9006** |
@@ -217,7 +221,11 @@
 | `PROMETHEUS_RETENTION` | 指标保留期 | `15d` | compose `bw-prometheus` |
 | `GRAFANA_ADMIN_PASSWORD` | Grafana 管理员口令 | `admin`（仅供本机） | compose `bw-grafana` |
 | `REDIS_HOST` / `REDIS_PORT` | Redis | `127.0.0.1` / `6379` | whale-gateway、whale-service-auth、**whale-im**（seq/ticket/presence） |
-| `MYSQL_USER` / `MYSQL_PASSWORD` | 库账号 | 见各 yml | whale-service-auth、whale-audit、**whale-im** |
+| `MYSQL_USER` / `MYSQL_PASSWORD` | 库账号 | 见各 yml | whale-service-auth、whale-audit、**whale-im**、**whale-message** |
+| `WHALE_MESSAGE_MOCK` | 消息外部通道 mock 开关 | `true` | whale-message（生产接入真实渠道时置 `false`） |
+| `WHALE_MESSAGE_EMAIL_ENABLED` / `WHALE_MESSAGE_EMAIL_FROM` | 邮件渠道 | `false` / 空 | whale-message |
+| `WHALE_MESSAGE_SMS_ENABLED` / `WHALE_MESSAGE_SMS_URL` | 短信渠道（部署侧网关） | `false` / 空 | whale-message |
+| `WHALE_MESSAGE_IM_ENABLED` / `WHALE_MESSAGE_IM_BASE_URL` | IM 渠道（内网 whale-im） | `false` / 空 | whale-message |
 | `WHALE_AI_BASE_URL` | Python 智能体内网地址 | `http://127.0.0.1:8092` | whale-agent（Wave 5.52） |
 | `WHALE_AGENT_QA_ENGINE` | 问答引擎开关 | `legacy` | whale-agent（`legacy`/`langchain`） |
 | `JWT_SECRET` | 认证签名密钥 | 开发占位（非 dev 拒绝启动） | whale-service-auth |
@@ -237,7 +245,7 @@
 | **C-03** | ~~`whale-gateway` **缺 5 条路由**：`/erp/**`、`/mes/**`、`/pdm/**`、`/oa/**`、`/config/**`~~ | **已解（2026-10-25）** | **✅ 已整改**：5 条路由已写入 `whale-gateway/src/main/resources/application.yml`，统一 `lb://`（自持一级前缀，不含 `StripPrefix`）；基座同步挂载 `/mes/*`、`/pdm/*` 并补菜单/图标；路由冒烟需服务与 Nacos 就绪后执行 |
 | **C-04** | ~~Nacos 版本/端口不一致：本机 3.2.4（控制台 8849）vs compose 镜像 2.3.2（控制台 8848）~~ | **已解（2026-10-26）** | **✅ 已整改**：以本机实装 **2.4.0** 为准，compose `NACOS_IMAGE` 统一 `nacos/nacos-server:v2.4.0`，健康检查 `/nacos/actuator/health`；本机监听 8848/9848（无 8849 独立控制台） |
 | **C-05** | ~~注册中心环境变量名分裂：网关 `NACOS_ADDR` vs 其余 `NACOS_SERVER`~~ | **已解（2026-10-26）** | **✅ 已整改**：`whale-gateway`/`whale-auth` 改为 `${NACOS_SERVER:${NACOS_ADDR:127.0.0.1:8848}}`，统一首选 `NACOS_SERVER` 且保留 `NACOS_ADDR` 回退；`scripts/dev/whale-start-all.ps1` 同步传 `NACOS_SERVER` |
-| **C-06** | ~~8 个业务服务库在规范 §八 已登记库名，但 `application.yml` **均未配数据源**、库亦未建~~ | **已解（部分）** | **✅ 已整改**：auth/audit/job/workflow/form/file/pay/alert 共 8 个服务均已配数据源并建库（原 `whale-i18n` 服务及 `bluewhale_i18n` 库已于 Wave 5.50 删除，国际化改由 SDK 在各服务库内自建 `sys_i18n_message`）；**剩余** `erp/mes/pdm/oa` 四个业务应用尚未配数据源、未建库（随 Phase 4 落地） |
+| **C-06** | ~~8 个业务服务库在规范 §八 已登记库名，但 `application.yml` **均未配数据源**、库亦未建~~ | **已解（2026-10-27）** | **✅ 已整改**：auth/audit/job/workflow/form/file/pay/alert 共 8 个服务均已配数据源并建库（原 `whale-i18n` 服务及 `bluewhale_i18n` 库已于 Wave 5.50 删除，国际化改由 SDK 在各服务库内自建 `sys_i18n_message`）；`erp/mes/pdm/oa` 四个业务应用也已分别接入 `bluewhale_erp` / `bluewhale_mes` / `bluewhale_pdm` / `bluewhale_oa` 独立数据源，compose 初始化脚本创建 4 库，各应用 `db/init.sql` 各建 2 张表。**C-06 全部闭环** |
 | **C-07** | ~~Prometheus/Grafana/Sentinel 仅在文档中「规划」，compose 未定义、网关未接 Sentinel~~ | **已解（2026-10-26）** | **✅ Prometheus/Grafana/Alertmanager 已落地**：compose 新增 `bw-prometheus`(9090)/`bw-grafana`(3000)/`bw-alertmanager`(9093)，配置 `infrastructure/prometheus/prometheus-docker.yml`、`alertmanager-docker.yml`、Grafana provisioning 数据源，规则复用 `deploy/monitoring/prometheus-rules.yml`；实机 healthy，宿主机 gateway/auth/workflow/contract 抓取 up。**Sentinel 结案不引入**（见 [GW-01 评估](reviews/2026-10-21-wave5.35-sentinel-evaluation.md)）：限流由网关 `RateLimitGlobalFilter`（Redis 固定窗口，`whale.gateway.rate-limit.*`，429）承担，熔断由 `CircuitBreakerGlobalFilter`（resilience4j，`whale.gateway.circuit-breaker.*`，503）承担；重开条件为具备制品库/Dashboard 或出现热点参数、集群流控等现有方案不覆盖的诉求。**实机验证（2026-10-26）**：`/audit/log/behavior/batch` 特化规则 30/s，并发 60 次得 30 个 429 + 30 个 503；全局规则 200/s，并发 400 次得 18 个 429；`whale.gateway.rate-limit` 计数键正常落 Redis，无降级告警 |
 
 > 说明：C-04 已按本机实装 2.4.0 与 compose 对齐；历史记录中的 3.2.4/2.3.2 口径作废。

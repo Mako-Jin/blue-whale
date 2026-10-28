@@ -46,6 +46,7 @@ jobs:
           - { service: whale-agent, module: whale-services/whale-agent, port: 8090 }
           - { service: whale-im, module: whale-services/whale-im, port: 8091 }
           - { service: whale-archive, module: whale-services/whale-archive, port: 8093 }
+          - { service: whale-message, module: whale-services/whale-message, port: 8094 }
           - { service: whale-erp, module: whale-apps/whale-erp, port: 9001 }
           - { service: whale-mes, module: whale-apps/whale-mes, port: 9002 }
           - { service: whale-pdm, module: whale-apps/whale-pdm, port: 9003 }
@@ -54,7 +55,7 @@ jobs:
           - { service: whale-audit, module: whale-ops/whale-audit, port: 9101 }
           - { service: whale-monitor, module: whale-ops/whale-monitor, port: 9102 }
           - { service: whale-alert, module: whale-ops/whale-alert, port: 9103 }
-          - { service: whale-config, module: whale-registry/whale-config, port: 9201 }
+          # whale-config 冻结（F-05）：不构建/不推送镜像，配置由 Nacos 直接承担
 
     steps:
       - name: Checkout

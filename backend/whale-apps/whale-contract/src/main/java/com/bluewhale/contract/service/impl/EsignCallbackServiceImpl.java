@@ -236,19 +236,7 @@ public class EsignCallbackServiceImpl implements EsignCallbackService {
         CtSignTask task = locateTask(provider, payload);
         CtContract contract = requireContract(task.getContractId());
         if (ACTION_REFUSE.equals(action)) {
-            if (TASK_SIGNED.equals(task.getStatus())) {
-                throw new BizException(ErrorCode.PARAM_ERROR, "签署任务已完成，不能再拒签");
-            }
-            String reason = StringUtils.hasText(payload.getRefuseReason())
-                    ? payload.getRefuseReason() : "三方拒签";
-            task.setStatus(TASK_REFUSED);
-            task.setRefuseReason(reason);
-            if (StringUtils.hasText(payload.getProviderTaskId())) {
-                task.setProviderTaskId(payload.getProviderTaskId());
-            }
-            signTaskMapper.updateById(task);
-            advanceWorkflow(task, WORKFLOW_REJECT, "三方拒签: " + reason, payload.getProviderEventId());
-            log.info("三方拒签回调处理完成: taskId={}, provider={}", task.getId(), provider.name());
+            handleRefusal(task, payload, provider);
             return;
         }
         if (TASK_SIGNED.equals(task.getStatus())) {
@@ -321,6 +309,29 @@ public class EsignCallbackServiceImpl implements EsignCallbackService {
         advanceWorkflow(task, WORKFLOW_APPROVE, "三方签署完成: " + evidenceNo, payload.getProviderEventId());
         log.info("三方签署回调处理完成: taskId={}, contractId={}, evidenceNo={}, provider={}",
                 task.getId(), contract.getId(), evidenceNo, provider.name());
+    }
+
+    /**
+     * 处理三方拒签回调：更新任务状态并推进工作流。
+     *
+     * @param task    签署任务
+     * @param payload 回调载荷
+     * @param provider 签章渠道
+     */
+    private void handleRefusal(CtSignTask task, EsignCallbackPayload payload, EsignProvider provider) {
+        if (TASK_SIGNED.equals(task.getStatus())) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "签署任务已完成，不能再拒签");
+        }
+        String reason = StringUtils.hasText(payload.getRefuseReason())
+                ? payload.getRefuseReason() : "三方拒签";
+        task.setStatus(TASK_REFUSED);
+        task.setRefuseReason(reason);
+        if (StringUtils.hasText(payload.getProviderTaskId())) {
+            task.setProviderTaskId(payload.getProviderTaskId());
+        }
+        signTaskMapper.updateById(task);
+        advanceWorkflow(task, WORKFLOW_REJECT, "三方拒签: " + reason, payload.getProviderEventId());
+        log.info("三方拒签回调处理完成: taskId={}, provider={}", task.getId(), provider.name());
     }
 
     /**

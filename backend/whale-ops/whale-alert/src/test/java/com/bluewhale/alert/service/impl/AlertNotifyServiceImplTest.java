@@ -4,6 +4,7 @@ import com.bluewhale.alert.config.AlertNotifyProperties;
 import com.bluewhale.alert.entity.AlertRecord;
 import com.bluewhale.alert.entity.AlertRule;
 import com.bluewhale.common.tenant.TenantContext;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
 import jakarta.mail.Session;
@@ -23,6 +24,7 @@ import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -31,7 +33,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
- * {@link AlertNotifyServiceImpl} 邮件 / Webhook / 跳过路径单元测试。
+ * {@link AlertNotifyServiceImpl} 邮件 / Webhook / 短信 / 跳过路径单元测试。
  *
  * @author BlueWhale
  */
@@ -125,6 +127,121 @@ class AlertNotifyServiceImplTest {
 
             assertTrue(body.get().contains("\"ruleCode\":\"cpu_high\""));
             assertTrue(body.get().contains("\"status\":\"FIRING\""));
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    @DisplayName("SMS：启用时 POST 统一网关载荷并携带 Bearer Token")
+    void shouldSendSms() throws IOException {
+        AtomicReference<String> body = new AtomicReference<>();
+        AtomicReference<String> authorization = new AtomicReference<>();
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/sms", exchange -> {
+            body.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            authorization.set(exchange.getRequestHeaders().getFirst("Authorization"));
+            exchange.sendResponseHeaders(200, 0);
+            exchange.close();
+        });
+        server.start();
+        try {
+            properties.getSms().setEnabled(true);
+            properties.getSms().setUrl("http://127.0.0.1:" + server.getAddress().getPort() + "/sms");
+            properties.getSms().setToken("sms-gateway-token");
+            properties.getSms().setTo(List.of("13800000000"));
+            properties.getSms().setTemplateCode("BLUEWHALE_ALERT");
+            properties.getSms().setSignName("蓝鲸");
+            TenantContext.set(7L);
+
+            try {
+                notifyService.notify(rule("SMS"), record());
+            } finally {
+                TenantContext.clear();
+            }
+
+            assertEquals("Bearer sms-gateway-token", authorization.get());
+            assertTrue(body.get().contains("\"phones\":[\"13800000000\"]"));
+            assertTrue(body.get().contains("\"templateCode\":\"BLUEWHALE_ALERT\""));
+            assertTrue(body.get().contains("\"signName\":\"蓝鲸\""));
+            assertTrue(body.get().contains("CPU 使用率过高"));
+            assertTrue(body.get().contains("\"tenantId\":7"));
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    @DisplayName("SMS：超长内容截断到 480 字符")
+    void shouldTruncateSmsContent() throws IOException {
+        AtomicReference<String> body = new AtomicReference<>();
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/sms", exchange -> {
+            body.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            exchange.sendResponseHeaders(200, 0);
+            exchange.close();
+        });
+        server.start();
+        try {
+            properties.getSms().setEnabled(true);
+            properties.getSms().setUrl("http://127.0.0.1:" + server.getAddress().getPort() + "/sms");
+            properties.getSms().setTo(List.of("13800000000"));
+            AlertRecord longRecord = record();
+            longRecord.setContent("x".repeat(600));
+
+            notifyService.notify(rule("SMS"), longRecord);
+
+            JsonNode content = objectMapper.readTree(body.get()).get("content");
+            assertTrue(content.asText().length() <= 480);
+            assertTrue(content.asText().endsWith("..."));
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    @DisplayName("SMS：通道未启用时不发起网关请求")
+    void shouldSkipSmsWhenDisabled() throws IOException {
+        AtomicReference<String> body = new AtomicReference<>();
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/sms", exchange -> {
+            body.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            exchange.sendResponseHeaders(200, 0);
+            exchange.close();
+        });
+        server.start();
+        try {
+            properties.getSms().setEnabled(false);
+            properties.getSms().setUrl("http://127.0.0.1:" + server.getAddress().getPort() + "/sms");
+            properties.getSms().setTo(List.of("13800000000"));
+
+            notifyService.notify(rule("SMS"), record());
+
+            assertNull(body.get());
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    @DisplayName("SMS：缺少接收手机号时不发起网关请求")
+    void shouldSkipSmsWithoutRecipients() throws IOException {
+        AtomicReference<String> body = new AtomicReference<>();
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/sms", exchange -> {
+            body.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            exchange.sendResponseHeaders(200, 0);
+            exchange.close();
+        });
+        server.start();
+        try {
+            properties.getSms().setEnabled(true);
+            properties.getSms().setUrl("http://127.0.0.1:" + server.getAddress().getPort() + "/sms");
+            properties.getSms().setTo(List.of());
+
+            notifyService.notify(rule("SMS"), record());
+
+            assertNull(body.get());
         } finally {
             server.stop(0);
         }

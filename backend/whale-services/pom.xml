@@ -27,5 +27,6 @@
         <module>whale-agent</module>
         <module>whale-im</module>
         <module>whale-archive</module>
+        <module>whale-message</module>
     </modules>
 </project>

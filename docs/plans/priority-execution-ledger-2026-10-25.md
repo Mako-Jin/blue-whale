@@ -1,7 +1,7 @@
 # 优先级执行台账（2026-10-25）
 
 > 用途：把「当前工作空间全部待办」按优先级固化为可执行队列，逐项记录状态、依赖与验收口径，作为后续每轮执行的唯一入口。
-> 口径来源：[todo-inventory-2026-10-23.md](todo-inventory-2026-10-23.md)、[next-steps.md](next-steps.md)、[roadmap.md](roadmap.md)、各服务 backlog，以及 2026-10-25 各波次收尾记录。
+> 口径来源：[todo-inventory-2026-10-23.md](archive/todo-inventory-2026-10-23.md)、[next-steps.md](next-steps.md)、[roadmap.md](roadmap.md)、各服务 backlog，以及 2026-10-25 各波次收尾记录。
 > 变更控制：任何一项进入编码前必须已在 [需求登记册](../requirements/register.md) 有 REQ 编号（REQ-DOC-002）。本轮新增 REQ-ARCH-006（多租户隔离）、REQ-FUNC-016（一人多租户切换）。
 > 状态取值：`待启动` / `进行中` / `待验证` / `已完成` / `已阻塞`。完成即划线（REQ-DOC-003）。
 
@@ -137,3 +137,21 @@
 | 2026-10-27 | 待办 T14 / F-02 | job 广播断连重对齐：`JobScheduler.reconcileWithDatabase` 按数据库全量取消/重注册本地调度，新增 `JobScheduleReconcileJob`（默认 5 分钟）；新增重对齐用例 |
 | 2026-10-27 | 待办 T15 / F-03 | 告警通道：`alert_record` 新增 `fingerprint` + 索引（5.68 幂等迁移），同指纹窗口去重；按标签 `tenant_id/tenant` 归属租户（租户插件默认启用）；业务租户无自有规则时回落平台租户共享规则；邮件改 HTML 并转义，Webhook 带 `tenantId`；SMS 拆 F-03b；新增去重/租户/规则回落/HTML/转义用例 |
 | 2026-10-27 | 回归 | 受影响 6 模块测试 0 失败：whale-security 41、auth starter 408（7 skipped）、gateway 115、archive 53、job 78、alert 24；Checkstyle 通过；详见 [检查报告](../reviews/2026-10-27-t7-t15-hardening.md) |
+| 2026-10-27 | P0 外部接入启动 / F-03b | 告警新增 `SMS` 统一 HTTP 网关通道（Bearer、480 字符截断、手机号脱敏）；新增 `bw-external-integration-preflight.ps1`、`.env.external.example` 与 [外部接入作业单](../ops/external-integration-onboarding.md)；whale-alert 28 用例 0 失败；真实 CA/TSA、三方沙箱、实名协议、短信/SMTP 凭据仍未到位，不关闭 S-04d-2/S-04e-2/V-11/F-03b/V-06；详见 [检查报告](../reviews/2026-10-27-p0-external-integration-bootstrap.md) |
+| 2026-10-27 | F-08 | 删除 `whale-common-tools` 无消费方的 `request.ts`/`date.ts`，移除 `dayjs` 依赖、导出与 tsup external，更新 lockfile；build 与 lint 通过，F-08 关闭 |
+| 2026-10-27 | D-05 | 同步 `service-catalog.md`：erp/mes/pdm/oa 四行改为「2 表，已建」，C-06 全闭环；依据四应用 `application.yml`、compose 初始化 SQL 与各应用 `db/init.sql` |
+| 2026-10-27 | D-06 | 同步 `wave5.61-contract-esign.md` M3.6：删除「原件未做文件锁定」，补先锁后落库/重复补锁/确认兜底锁/历史补扫接口与默认关闭调度；保留待整理与无异步补偿队列两项真实遗留 |
+| 2026-10-27 | D-04 | 将过期 `todo-inventory-2026-10-23.md` 移入 `docs/plans/archive/` 并标注冻结；同步更新 devlog、台账、Wave 5.50/5.51 与 4 份历史报告引用，当前待办入口仍为 pending-issues |
+| 2026-10-27 | D-03 | 补 [P1 #1/#2 检查报告](../reviews/2026-10-27-p1-contract-esign-startup-and-openapi.md)：启动护栏 fail-fast、开放平台创建/查询/下载与 HMAC 签名；顺带提取 `handleRefusal` 修复 2 条 Checkstyle；47 用例 0 失败、Checkstyle 0，真实供应商沙箱仍未验证 |
+| 2026-10-28 | 验证 V-01 | 表单↔工作流跨模块 E2E：新增 `form-workflow-loop.spec.ts`，API 造表/表单/流程，UI 完成填报→发起→审批，API 核验 `businessKey` 指向表单数据且字段值一致；与 V-02/V-03 合跑 3 passed/51.5s；详见 [检查报告](../reviews/2026-10-28-local-verification-batch.md) |
+| 2026-10-28 | 验证 V-02 | form-designer 真实鼠标拖拽：新增 `form-designer-drag.spec.ts`，`dragTo` 调色板→画布并保存，API 核验 `columnMetaId/fieldLabel/widgetType`；截图人工复核通过；此前「PointerEvent 不可复现」仅指 `dispatchEvent`；详见 [检查报告](../reviews/2026-10-28-local-verification-batch.md) |
+| 2026-10-28 | 验证 V-03 | admin UI 复验：新增 `admin-role-menu-ui.spec.ts`，覆盖角色权限分配、用户角色分配、角色删除、菜单删除，UI 动作 + API 终态核验全部通过；详见 [检查报告](../reviews/2026-10-28-local-verification-batch.md) |
+| 2026-10-28 | 验证 V-04 | Agent 服务目录重建性能回归：`FactCollectorTest` 新增 5s 预算用例，自动定位仓库根并读取 `docs/service-catalog.md` 与网关配置，实跑 0.057s；详见 [检查报告](../reviews/2026-10-28-local-verification-batch.md) |
+| 2026-10-28 | 验证 V-14 | 熔断半开运行态取证：新增 `bw-gateway-circuit-breaker-smoke.ps1`，以 `whale-audit` 无实例制造真实故障，20 次 503 触发 `CLOSED→OPEN`，短路 503，11s 后 `OPEN→HALF_OPEN→OPEN`，`RESULT: PASS`；详见 [检查报告](../reviews/2026-10-28-local-verification-batch.md) |
+| 2026-10-28 | 范围决策 | 外部接入改为 mock/deferred：S-04d-2 持牌 CA/TSA、S-04e-2 实名意愿、F-03b 告警短信、V-06 告警全链路、V-11 合同供应商沙箱均不再等待真实供应商，保留 loopback/契约测试与本地模拟；V-07 Gitee Go 标记 won't do，CI 完全依赖 GitHub Actions；详见 [架构决策](../plans/2026-10-28-crm-srm-and-message-service-decisions.md) |
+| 2026-10-28 | 架构决策 | 供应商管理不归 CRM：CRM 承载客户/联系人/商机/销售漏斗，供应商准入/资质/绩效/风险归 SRM 或 ERP 供应商主数据；本期不新增 `whale-crm`，确需独立域时另立 `whale-srm`；详见 [架构决策](../plans/2026-10-28-crm-srm-and-message-service-decisions.md) |
+| 2026-10-28 | F-12 / Wave 5.68 M0 | 新增统一消息服务 `whale-message`（8094、库 `bluewhale_message`、网关 `/message/**`）：模板渲染、INAPP/EMAIL/SMS/IM 渠道适配、`(tenant_id,idempotency_key)` 幂等、逐渠道投递记录、mock 默认开关；`msg_template/msg_record/msg_delivery` 3 表 + 内置模板；`migration-5.68-message-permission.sql` 新增 `sys:message:record:list`；9 个单测通过；服务清单/CI matrix/网关内网屏蔽同步 |
+| 2026-10-28 | F-13 / Wave 5.69 | ERP 供应商主数据落地（不建 CRM）：`erp_supplier` + 租户内编码唯一 + 分类/评级/状态 + 逻辑删除 + 审计；权限 235–238、菜单 32；前端供应商列表/表单与权限按钮；后端 4 单测、`pnpm --filter whale-erp lint/build` 通过；详见 [检查报告](../reviews/2026-10-28-wave5.69-erp-supplier.md) |
+| 2026-10-28 | F-14 / Wave 5.70 | 消息服务 M1：模板 CRUD（权限 239–242）、失败重试（243，mock 拒绝）、站内信收件箱（`/message/inapp/**`、`read_flag`）；`migration-5.70-message-m1.sql` + `migration-5.70-message-inapp.sql`；20 个单测通过；详见 [检查报告](../reviews/2026-10-28-wave5.70-message-m1.md) |
+| 2026-10-28 | F-05/F-06/F-07/F-09/F-11 | 阻塞项结案：`whale-config` 冻结并删除 `/config/**` 路由/镜像 matrix/Prometheus 抓取；`whale-monitor` 边界定稿；`whale-games-core`/`whale-common-three` 冻结；RabbitMQ 容器路径含 management 插件且 `docker compose config` exit 0；详见 [冻结清单](../design/frozen-optional-modules.md)、[监控边界](../design/whale-monitor-boundary.md) |
+| 2026-10-28 | 验证 V-09 部分 | `docker compose -f docker-compose.yml -f docker-compose.prod.yml config` exit 0（仅环境变量告警）；实际启动仍待宿主机 Let's Encrypt 证书，保持外部条件阻塞 |

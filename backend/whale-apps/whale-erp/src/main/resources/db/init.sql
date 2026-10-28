@@ -32,7 +32,54 @@ CREATE TABLE erp_item (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='物料表';
 
 -- ---------------------------------------------------------------------
--- 2. 种子数据（便于接口冒烟与前端联调）
+-- 3. 供应商主数据表
+--    供应商准入/资质/绩效等 SRM 流程不在本表；本表只承接 ERP 所需主数据。
+--    code 业务唯一：(tenant_id, code) 唯一约束。
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS erp_supplier;
+CREATE TABLE erp_supplier (
+    id            BIGINT        NOT NULL            COMMENT '主键ID（雪花算法）',
+    tenant_id     BIGINT        NOT NULL DEFAULT 1  COMMENT '租户ID（行级隔离）',
+    code          VARCHAR(64)   NOT NULL            COMMENT '供应商编码（租户内唯一）',
+    name          VARCHAR(128)  NOT NULL            COMMENT '供应商名称',
+    short_name    VARCHAR(64)   DEFAULT NULL        COMMENT '供应商简称',
+    category      VARCHAR(32)   NOT NULL DEFAULT 'MATERIAL'
+                                                   COMMENT '分类：MATERIAL 物料 / SERVICE 服务 / OUTSOURCE 外协 / LOGISTICS 物流 / OTHER 其他',
+    contact_name  VARCHAR(64)   DEFAULT NULL        COMMENT '联系人',
+    contact_phone VARCHAR(32)   DEFAULT NULL        COMMENT '联系电话',
+    contact_email VARCHAR(128)  DEFAULT NULL        COMMENT '联系邮箱',
+    tax_no        VARCHAR(64)   DEFAULT NULL        COMMENT '纳税人识别号',
+    bank_name     VARCHAR(128)  DEFAULT NULL        COMMENT '开户银行',
+    bank_account  VARCHAR(64)   DEFAULT NULL        COMMENT '银行账号',
+    address       VARCHAR(255)  DEFAULT NULL        COMMENT '地址',
+    status        VARCHAR(16)   NOT NULL DEFAULT 'ENABLED'
+                                                   COMMENT '状态：ENABLED 启用 / DISABLED 禁用',
+    rating        VARCHAR(8)    DEFAULT NULL        COMMENT '供应商评级：A / B / C / D',
+    remark        VARCHAR(255)  DEFAULT NULL        COMMENT '备注',
+    create_time   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted       TINYINT       NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_tenant_supplier_code (tenant_id, code),
+    KEY idx_supplier_name (name),
+    KEY idx_supplier_category (category),
+    KEY idx_supplier_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='供应商主数据表';
+
+-- 供应商种子数据（便于接口冒烟与前端联调）
+INSERT INTO erp_supplier
+    (id, tenant_id, code, name, short_name, category, contact_name, contact_phone, contact_email,
+     tax_no, bank_name, bank_account, address, status, rating, remark)
+VALUES
+    (11, 1, 'SUP-001', '示例供应商 A', '供应商A', 'MATERIAL', '张三', '13800000001',
+     'supplier-a@example.com', '91310000XXXXXXXX1A', '示例银行上海分行', '6222000000000001',
+     '上海市浦东新区示例路 1 号', 'ENABLED', 'A', '内置种子'),
+    (12, 1, 'SUP-002', '示例服务商 B', '服务商B', 'SERVICE', '李四', '13800000002',
+     'supplier-b@example.com', '91310000XXXXXXXX2B', '示例银行北京分行', '6222000000000002',
+     '北京市朝阳区示例路 2 号', 'ENABLED', 'B', '内置种子');
+
+-- ---------------------------------------------------------------------
+-- 4. 种子数据（便于接口冒烟与前端联调）
 -- ---------------------------------------------------------------------
 INSERT INTO erp_item (id, tenant_id, code, name, status, remark)
 VALUES

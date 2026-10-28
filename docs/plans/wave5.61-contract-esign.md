@@ -308,7 +308,8 @@ public interface EsignProvider {
 - [x] 交付：archive 新增 `POST /archive/internal/items`（复用 `ArchiveItemStore` + `archive_source_record` 台账，上传快照到 `whale-archive` 桶并计算 SHA-256，条目落「待整理」）；contract 归档时推送合同快照（核心字段 + 相对方清单 + 原件引用）并回填 `ct_contract.archive_item_id`，配置 `whale.contract.archive.*`（`CONTRACT_ARCHIVE_URL` 等可覆盖）。
 - [x] 验收：① `package` 通过且 Checkstyle 0，contract 单测 7/7；② M3 冒烟 00–27 全通过（含 `25.effective`/`26.archive`）；③ 实机 `archive_item`（`source_type=CONTRACT`、`item_status=0`、`snapshot_hash` 可回读复算一致）+ `archive_file`（`SNAPSHOT` + `ORIGINAL`）+ `archive_source_record(sync_status=1)` 齐备；④ 同 `(sourceType, sourceId)` 重复推送返回既有条目 `created=false`；⑤ `/archive/item/page` 可见该合同档案。
 - 落地记录：[`ArchiveIngestService`](../../backend/whale-services/whale-archive/src/main/java/com/bluewhale/archive/service/ArchiveIngestService.java)、[`ArchiveInternalClient`](../../backend/whale-apps/whale-contract/src/main/java/com/bluewhale/contract/client/ArchiveInternalClient.java)；验收报告见 [2026-10-26-p3-contract-archive-snapshot.md](../reviews/2026-10-26-p3-contract-archive-snapshot.md)。
-- 遗留：条目停在「待整理」需档案人员确认归档分配档号；原件未做文件锁定；归档失败为同步可重试语义，无异步补偿队列。
+- 遗留：条目停在「待整理」需档案人员确认归档分配档号；归档失败为同步可重试语义，无异步补偿队列。
+- 已补（2026-10-27）：原件/快照入档锁定已实现——`ArchiveIngestService` 新入档先锁定快照与原件再落库，重复推送补锁既有条目，`ArchiveItemService#confirm` 确认归档时兜底锁定全部文件；新增内网 `POST /archive/internal/items/lock-reconcile` 供运维按租户游标补扫历史条目，并提供默认关闭的 `ArchiveFileLockReconcileScheduler`（`whale.archive.lock-reconcile.enabled=true` 时按 cron 逐租户补扫，单轮有批次上限）。边界：历史已归档条目默认不自动补锁，需运维手工触发或显式开启调度；文件服务不可用时按 fail-closed 处理。详见 [P1 合同归档原件锁定检查报告](../reviews/2026-10-27-p1-contract-archive-original-lock.md)。
 
 
 

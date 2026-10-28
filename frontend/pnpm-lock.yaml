@@ -894,9 +894,6 @@ importers:
 
   shared-packages/whale-common-tools:
     dependencies:
-      dayjs:
-        specifier: ^1.11.13
-        version: 1.11.23
       lodash-es:
         specifier: ^4.17.21
         version: 4.18.1

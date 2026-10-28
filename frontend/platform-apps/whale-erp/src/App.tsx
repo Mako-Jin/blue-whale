@@ -1,42 +1,72 @@
-// ERP 子应用根组件：Layout + 菜单，列表页承载数据，表单由 Modal 承载
+// ERP 子应用根组件：Layout + 菜单，物料/供应商列表页，表单由 Modal 承载
 import { useState } from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { Layout, Menu } from 'antd';
 import type { MenuProps } from 'antd';
 import List from './pages/List';
 import FormModal from './pages/Form';
-import { type ErpItem } from './api/erp';
+import SupplierList from './pages/SupplierList';
+import SupplierFormModal from './pages/SupplierForm';
+import { type ErpItem, type ErpSupplier } from './api/erp';
 
 const { Header, Content, Sider } = Layout;
 
-/** 菜单项：列表管理 / 新增（打开表单弹窗） */
+/** 菜单项：物料 / 供应商两组，新增项直接打开对应表单弹窗 */
 const menuItems: MenuProps['items'] = [
-  { key: 'list', label: '列表管理' },
-  { key: 'create', label: '新增' },
+  { key: 'item-list', label: '物料管理' },
+  { key: 'item-create', label: '新增物料' },
+  { key: 'supplier-list', label: '供应商管理' },
+  { key: 'supplier-create', label: '新增供应商' },
 ];
 
+type PageKind = 'item' | 'supplier';
+
+/** 根据宿主菜单路径决定初始页：/erp/supplier 直接打开供应商列表 */
+function initialPage(): PageKind {
+  return window.location.pathname.includes('/erp/supplier') ? 'supplier' : 'item';
+}
+
 export default function App() {
-  const [selectedKey, setSelectedKey] = useState('list');
-  const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<ErpItem | null>(null);
+  const [page, setPage] = useState<PageKind>(initialPage);
+  const [selectedKey, setSelectedKey] = useState(`${initialPage()}-list`);
+  const [itemFormOpen, setItemFormOpen] = useState(false);
+  const [supplierFormOpen, setSupplierFormOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<ErpItem | null>(null);
+  const [editingSupplier, setEditingSupplier] = useState<ErpSupplier | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const handleMenuClick: MenuProps['onClick'] = ({ key }) => {
     setSelectedKey(key);
-    if (key === 'create') {
-      setEditing(null);
-      setFormOpen(true);
+    if (key === 'item-create') {
+      setPage('item');
+      setEditingItem(null);
+      setItemFormOpen(true);
+      return;
     }
+    if (key === 'supplier-create') {
+      setPage('supplier');
+      setEditingSupplier(null);
+      setSupplierFormOpen(true);
+      return;
+    }
+    setPage(key.startsWith('supplier') ? 'supplier' : 'item');
   };
 
-  const handleEdit = (item: ErpItem) => {
-    setEditing(item);
-    setFormOpen(true);
+  const handleEditItem = (item: ErpItem) => {
+    setEditingItem(item);
+    setItemFormOpen(true);
+  };
+
+  const handleEditSupplier = (supplier: ErpSupplier) => {
+    setEditingSupplier(supplier);
+    setSupplierFormOpen(true);
   };
 
   const handleSaved = () => {
-    setFormOpen(false);
-    setEditing(null);
+    setItemFormOpen(false);
+    setSupplierFormOpen(false);
+    setEditingItem(null);
+    setEditingSupplier(null);
     setRefreshKey((key) => key + 1);
   };
 
@@ -56,14 +86,38 @@ export default function App() {
             />
           </Sider>
           <Content style={{ padding: 16 }}>
-            <List refreshKey={refreshKey} onCreate={() => setFormOpen(true)} onEdit={handleEdit} />
+            {page === 'supplier' ? (
+              <SupplierList
+                refreshKey={refreshKey}
+                onCreate={() => {
+                  setEditingSupplier(null);
+                  setSupplierFormOpen(true);
+                }}
+                onEdit={handleEditSupplier}
+              />
+            ) : (
+              <List
+                refreshKey={refreshKey}
+                onCreate={() => {
+                  setEditingItem(null);
+                  setItemFormOpen(true);
+                }}
+                onEdit={handleEditItem}
+              />
+            )}
           </Content>
         </Layout>
       </Layout>
       <FormModal
-        open={formOpen}
-        initial={editing}
-        onCancel={() => setFormOpen(false)}
+        open={itemFormOpen}
+        initial={editingItem}
+        onCancel={() => setItemFormOpen(false)}
+        onSaved={handleSaved}
+      />
+      <SupplierFormModal
+        open={supplierFormOpen}
+        initial={editingSupplier}
+        onCancel={() => setSupplierFormOpen(false)}
         onSaved={handleSaved}
       />
     </BrowserRouter>

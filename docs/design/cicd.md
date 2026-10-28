@@ -146,9 +146,11 @@
 | B. GitHub Actions（保留） | GitHub push/tag/PR | 保持现有 3 条 workflow，需代码同步到 GitHub 并开通 Actions | 复用现有流水线 | GitHub 网络不稳定（历史上推送超时） |
 | C. 双写（A+B） | 两侧 | Gitee Go 为日常 CI 主链路；GitHub 作镜像仓库同步后跑 Actions | 双保险 | 维护两套配置，成本最高 |
 
-### 6.3 推荐（2026-10-22 更新：实际落地方案 B）
+### 6.3 推荐（2026-10-22 更新：实际落地方案 B；2026-10-28 冻结）
 
 **实际落地：方案 B（GitHub Actions）**。Gitee Go 为预付费增值服务，本仓库未开通，无法免费触发；已在 GitHub 新建私有镜像仓 `Mako-Jin/blue-whale-platform`（remote `ci`）承接 CI，Gitee `origin` 继续作为主托管与推送目标。
+
+> **2026-10-28 决策（V-07）**：Gitee Go 流水线**不做（won't do）**，不再以“实机触发”为待办；CI/CD 完全依赖 GitHub Actions。`.workflow/` 仅作历史留存，不再维护，也不迁移 Gitee Go 配置。
 
 日常推送需双 remote：
 
@@ -159,7 +161,7 @@ git push ci main       # GitHub 镜像仓，触发 Backend CI / Frontend CI / Co
 
 实测（2026-10-22）：push 触发正常；故意引入未使用变量 + 缺 Javadoc 后三条流水线全部变红，revert 后恢复全绿。GitHub 直连偶发超时，push 失败时重试即可。
 
-`.workflow/` 保留为 Gitee Go 开通后的备用配置，下表作为届时迁移参考：
+`.workflow/` 仅作历史留存，Gitee Go **不做**；下表仅保留为历史参考，不再执行迁移：
 
 | 阶段 | Gitee Go 配置 |
 |---|---|
@@ -207,7 +209,7 @@ git push ci main       # GitHub 镜像仓，触发 Backend CI / Frontend CI / Co
 
 | 风险 | 影响 | 缓解 |
 |---|---|---|
-| origin 在 Gitee，Actions 不触发 | 现有 3 条 workflow 实际未运行 | 新增 Gitee Go（§6.3），Actions 保留备份 |
+| origin 在 Gitee，Actions 不触发 | 现有 3 条 workflow 实际未运行 | **已决（2026-10-28）**：不做 Gitee Go，完全依赖 GitHub Actions；push 到 `ci` remote 触发，失败重试 |
 | 本机未安装 Docker | 镜像构建/部署段不可实跑 | 先落地构建/测试/制品，镜像段待容器就绪 |
 | Checkstyle 首轮全量红灯 | 阻塞合并 | 先 warning 观察，修正后切 error |
 | 覆盖率基线极低 | 阈值过高压制开发 | 40% 起步渐进上调 |
@@ -222,7 +224,7 @@ git push ci main       # GitHub 镜像仓，触发 Backend CI / Frontend CI / Co
 | T-CI-2 | JaCoCo 引入 + 覆盖率门禁（§3.3） | 无 | M | 未达阈值构建失败 |
 | T-CI-3 | SpotBugs 引入（INFO 观察） | T-CI-1 | S | 产出报告 |
 | T-CI-4 | 前端 CI 补 `format:check` + `tsc --noEmit` | 无 | S | 门禁生效 |
-| T-CI-5 | 新增 Gitee Go 流水线（构建/测试/制品） | 无 | M | Gitee push 可触发 |
+| T-CI-5 | ~~新增 Gitee Go 流水线（构建/测试/制品）~~ **已冻结（won't do，2026-10-28）** | 无 | — | 不做；CI 完全依赖 GitHub Actions |
 | T-CI-6 | 通知环节（失败必达 IM/邮件） | T-CI-5 | S | 失败收到通知 |
 | T-CI-7 | 镜像构建扩至全服务（模板 `deploy/backend/sample`） | T-CI-5 | M | 容器就绪后验证 |
 | T-CI-8 | dev/staging 自动部署 + prod 人工审批 | T-CI-7 | L | 环境矩阵落地 |

@@ -2,7 +2,7 @@
 
 > 关联需求：REQ-FUNC-010（门户/基座）、REQ-ARCH-001（权限中心）、REQ-SEC-002（JWT）、REQ-DOC-001（四类信息留档）
 > 制定日期：2026-10-24 ｜ 状态：已完成（2026-10-24）
-> 上游依据：[todo-inventory-2026-10-23.md](todo-inventory-2026-10-23.md)（Top 1 / Top 5）、[wave5.46-phase4-business-apps.md](wave5.46-phase4-business-apps.md) 轨 G1/G2、[whale-auth-backlog.md](whale-auth-backlog.md)
+> 上游依据：[todo-inventory-2026-10-23.md](archive/todo-inventory-2026-10-23.md)（Top 1 / Top 5）、[wave5.46-phase4-business-apps.md](wave5.46-phase4-business-apps.md) 轨 G1/G2、[whale-auth-backlog.md](whale-auth-backlog.md)
 > 执行原则：先落文档 → 编码 → 单测 → 构建/检查 → 检查报告 → 提交推送
 
 ---

@@ -51,6 +51,11 @@ CREATE DATABASE IF NOT EXISTS bluewhale_alert
   DEFAULT CHARACTER SET utf8mb4
   DEFAULT COLLATE utf8mb4_unicode_ci;
 
+-- ---- 统一消息 ----
+CREATE DATABASE IF NOT EXISTS bluewhale_message
+  DEFAULT CHARACTER SET utf8mb4
+  DEFAULT COLLATE utf8mb4_unicode_ci;
+
 -- ---- AGENT ----
 CREATE DATABASE IF NOT EXISTS bluewhale_agent
   DEFAULT CHARACTER SET utf8mb4

@@ -11,7 +11,9 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * 结构化事实采集器测试：服务清单、网关路由、DDL、依赖版本。
@@ -171,6 +173,40 @@ class FactCollectorTest {
         FactRecord inherited = find(facts, "DEPENDENCY", "com.bluewhale:whale-inherited-starter");
         assertNotNull(inherited);
         assertEquals("2.0.0-SNAPSHOT", inherited.value().get("version"));
+    }
+
+    /**
+     * V-04 性能回归：服务目录与网关路由重建必须稳定在 5 秒内。
+     *
+     * <p>直接读取本仓 {@code docs/service-catalog.md} 与网关配置，防止后续新增大量
+     * 服务/路由后采集器退化。</p>
+     */
+    @Test
+    @DisplayName("服务目录重建 <5s 且事实非空")
+    void shouldRebuildServiceCatalogWithinFiveSeconds() {
+        Path root = findRepoRoot();
+        long start = System.nanoTime();
+        List<FactRecord> facts = new ServiceCatalogFactCollector().collect(root);
+        long elapsedMs = (System.nanoTime() - start) / 1_000_000;
+
+        assertFalse(facts.isEmpty(), "服务目录事实不应为空");
+        assertTrue(elapsedMs < 5000, "服务目录重建耗时 " + elapsedMs + "ms，超过 5s 预算");
+    }
+
+    /**
+     * 向上查找仓库根（以 {@code docs/service-catalog.md} 为标志）。
+     *
+     * @return 仓库根
+     */
+    private static Path findRepoRoot() {
+        Path current = Path.of("").toAbsolutePath().normalize();
+        while (current != null) {
+            if (Files.isRegularFile(current.resolve("docs/service-catalog.md"))) {
+                return current;
+            }
+            current = current.getParent();
+        }
+        throw new IllegalStateException("未找到仓库根：docs/service-catalog.md");
     }
 
     /**

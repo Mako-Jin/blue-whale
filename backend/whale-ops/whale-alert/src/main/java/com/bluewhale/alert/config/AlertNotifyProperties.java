@@ -27,6 +27,9 @@ public class AlertNotifyProperties {
     /** Webhook 通道配置 */
     private Webhook webhook = new Webhook();
 
+    /** 短信通道配置（F-03b：经统一 HTTP 短信网关发送） */
+    private Sms sms = new Sms();
+
     /** Prometheus Alertmanager 入站校验令牌（为空时拒绝所有入站告警） */
     private String webhookToken;
 
@@ -79,6 +82,40 @@ public class AlertNotifyProperties {
 
         /** 目标地址（HTTP/HTTPS） */
         private String url;
+
+        /** 连接与请求超时（毫秒） */
+        private int timeoutMillis = 3000;
+    }
+
+    /**
+     * 短信通道配置。
+     *
+     * <p>不绑定具体供应商：由部署侧提供统一 HTTP 网关，平台按固定 JSON 协议提交手机号、
+     * 模板编码、签名与告警内容。供应商专有签名算法应在网关内完成，平台不保存短信供应商密钥
+     * 之外的协议细节。</p>
+     *
+     * @author BlueWhale
+     */
+    @Data
+    public static class Sms {
+
+        /** 是否启用短信通道 */
+        private boolean enabled;
+
+        /** 短信网关地址（HTTP/HTTPS） */
+        private String url;
+
+        /** 网关 Bearer Token；生产环境必须配置，为空时仅允许本地联调 */
+        private String token;
+
+        /** 接收手机号列表（支持逗号分隔配置） */
+        private List<String> to = new ArrayList<>();
+
+        /** 供应商模板编码 */
+        private String templateCode = "BLUEWHALE_ALERT";
+
+        /** 供应商短信签名 */
+        private String signName;
 
         /** 连接与请求超时（毫秒） */
         private int timeoutMillis = 3000;

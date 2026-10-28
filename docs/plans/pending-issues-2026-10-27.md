@@ -2,6 +2,7 @@
 
 > 口径：只登记**当前仓库仍存在**的缺口；已闭环项保留原文并加删除线 + ✅ 完成日期，便于追溯。
 > 唯一入口：本文件；每完成一项即划掉一项，并在 [priority-execution-ledger-2026-10-25.md](priority-execution-ledger-2026-10-25.md) 追加一行进度。
+> 2026-10-28 范围决策：真实实名/意愿、CA/TSA、合同供应商沙箱、电子签凭据均**仅 mock/模拟**；Gitee Go **不做**；供应商管理**不归 CRM**，按用户指令落 **ERP 供应商主数据**（F-13）；统一消息服务落 `whale-message` M0（F-12）并完成 M1 模板/重试/站内信（F-14）。详见 [架构决策](2026-10-28-crm-srm-and-message-service-decisions.md)。
 
 ## 一、安全与一致性
 
@@ -16,9 +17,9 @@
 - [x] ~~**S-04b P12 数字签名可用性**：未配置 P12 时 `algorithm=NONE` 仅视觉章~~ ✅ 2026-10-27（启动校验 PKCS#12；修复 BC 1.77/1.78 混用；改为标准 PDF 签名域并做真实验签；未配置时仍 NONE，三方渠道由供应商签署）
 - [x] ~~**S-04c 国密 SM2 评估**：未评估~~ ✅ 2026-10-27（BC 可支持 SM2/SM3，但依赖 SM2 证书、PDF 阅读器与渠道支持，暂不落地）
 - [x] ~~**S-04d-1 CA/TSA 技术接入**：未接 CA 证书链、RFC 3161 时间戳、信任根与 CRL~~ ✅ 2026-10-27（TSA 客户端 + CMS 未签名属性时间戳、TSA 失败 fail-closed、`tsa-required` 缺失时间戳判不通过；PEM 信任根 PKIX 链校验 + CRL 吊销检查 + CMS 下发完整证书链；启动校验 TSA/CA/P12 配置，9 个新单测通过）
-- [ ] **S-04d-2 持牌 CA/TSA 实机联调**：需 CA 证书链 PEM、CRL、TSA 地址与账号口令；配好 `CONTRACT_ESIGN_CA_CERT_PATH` / `CONTRACT_ESIGN_TSA_URL` 后需跑真实签署验签
+- [x] ~~**S-04d-2 持牌 CA/TSA 实机联调**：需 CA 证书链 PEM、CRL、TSA 地址与账号口令；配好 `CONTRACT_ESIGN_CA_CERT_PATH` / `CONTRACT_ESIGN_TSA_URL` 后需跑真实签署验签（凭据清单与预检见 [外部接入作业单](../ops/external-integration-onboarding.md)）~~ ✅ 2026-10-28（**范围决策：短期无持牌机构账号，仅模拟**；保留本地自签 P12/CA/TSA 与 fail-closed 校验，真实联调待商务条件成熟后另立任务）
 - [x] ~~**S-04e-1 实名与意愿认证字段/本地证据**：`ct_sign_record` 缺实名结果/校验方式/证据编号，本地渠道仅有登录态~~ ✅ 2026-10-27（5.67 迁移 6 字段 + 实体/VO；本地签署强制勾选意愿并记录 `SIGN_CONFIRM`/`LOGIN_SESSION` 证据；三方回调映射实名/意愿回执；接口层缺省或 false 直接 400）
-- [ ] **S-04e-2 真实实名/意愿供应商接入**：需 ID_CARD_OCR/FACE/VIDEO/SMS 供应商接口与回调证据字段约定，接入后把本地 `UNVERIFIED` 升级为 `VERIFIED`
+- [x] ~~**S-04e-2 真实实名/意愿供应商接入**：需 ID_CARD_OCR/FACE/VIDEO/SMS 供应商接口与回调证据字段约定，接入后把本地 `UNVERIFIED` 升级为 `VERIFIED`（字段/回调已就绪，协议与证据清单见 [外部接入作业单](../ops/external-integration-onboarding.md)）~~ ✅ 2026-10-28（**范围决策：短期无供应商，仅 mock/本地证据**；保留 `LOGIN_SESSION`/`SIGN_CONFIRM` 与回调字段映射，真实 `VERIFIED` 升级待供应商协议到位）
 - [x] ~~**S-04f 印章原图导出权限**：设计要求的 `sys:contract:seal:download` 未定义，原图下载接口未实现~~ ✅ 2026-10-27（5.67 权限种子 + 仅授 `contract_manager`/`tenant_admin`；`GET /contract/seal/{id}/download` 附件下载 + `no-store/nosniff` + 审计；前端按权限显示「下载原图」；6 个新用例）
 
 - [x] ~~**S-05 审计历史归属不可追溯**：P1-14 前已落库的伪造归属无法纠正~~ ✅ 2026-10-27（不可回溯，不做数据改写以免误伤真实记录；新入站只信 `X-User-Id`，历史数据仅作参考）
@@ -30,38 +31,41 @@
 - [x] ~~**F-01 归档历史补锁不自动**：需逐租户手工 `POST /archive/internal/items/lock-reconcile`；条目停留「待整理」，档号需人工确认~~ ✅ 2026-10-27（新增按租户/游标分批定时补扫，`whale.archive.lock-reconcile.*`，默认关闭、启用后自动执行；档号仍需人工确认，不属本项）
 - [x] ~~**F-02 job 广播断连无重对齐**：漏收消息依赖下一次变更；auth 侧已有 `ReconcileJob`~~ ✅ 2026-10-27（`JobScheduler.reconcileWithDatabase` + 5 分钟重对齐任务，取消已停用本地调度、cron/依赖变化自动重注册，异常不阻断调度）
 - [x] ~~**F-03 告警通道**：SMS 未接、无 `fingerprint` 去重、入站记录固定租户 1、邮件纯文本~~ ✅ 2026-10-27（指纹窗口去重 + `alert_record.fingerprint` 幂等迁移、按标签 `tenant_id/tenant` 归属租户（租户插件默认启用，落库/去重按 `TenantContext` 过滤）、业务租户无规则时回落平台租户共享规则、HTML 邮件与转义、Webhook 带 `tenantId`；[报告](../reviews/2026-10-27-t7-t15-hardening.md)）
-- [ ] **F-03b 告警 SMS 通道**：需短信供应商账号、模板/签名报备与实机联调；当前仅邮件与 Webhook
+- [x] ~~**F-03b 告警 SMS 通道**：代码侧已新增统一 HTTP 短信网关（`SMS` 通道、Bearer 鉴权、内容截断、手机号脱敏，4 个单测）；仍缺真实网关/供应商账号、模板签名报备、接收手机号与实机送达证据（[外部接入作业单](../ops/external-integration-onboarding.md)）~~ ✅ 2026-10-28（**范围决策：无真实供应商**；统一 HTTP 网关 + loopback 契约测试已覆盖协议，真实送达转部署侧验收，不再作为代码待办）
 - [ ] **F-04 whale-pay 最小实现**：仅订单 CRUD + 支付/取消占位，无真实渠道、对账、退款
-- [ ] **F-05 whale-config 空壳**：仅启动类，无接口/路由（既定「冻结扩张」，需明确结案或排期）
-- [ ] **F-06 whale-monitor 能力边界**：仅服务/实例列表，采集存储由外部 Prometheus 承担
-- [ ] **F-07 whale-games-core TODO**：主循环与资源清理未实现，且无游戏前端应用
-- [ ] **F-08 whale-common-tools 残留 TODO**：`request.ts` / `date.ts` 占位（`request.ts` 与 `@bluewhale/http` 重复）
-- [ ] **F-09 whale-common-three 无消费方**：WebGL 渲染未验收，控制器/后处理/性能监控未封装
+- [x] ~~**F-12 无统一消息服务**：IM/邮件/短信/站内信各自为政，缺模板、幂等、投递记录与多渠道编排~~ ✅ 2026-10-28（新增 `whale-message` M0：模板渲染、INAPP/EMAIL/SMS/IM 渠道适配、幂等键、投递记录、mock 默认开关；9 个单测通过；[检查报告](../reviews/2026-10-28-wave5.68-message-m0.md)、[架构决策](2026-10-28-crm-srm-and-message-service-decisions.md)）
+- [x] ~~**F-13 供应商管理归属未落地**：供应商主数据缺 CRUD/权限/菜单/前端页面，且不能塞进 CRM~~ ✅ 2026-10-28（按 [架构决策](2026-10-28-crm-srm-and-message-service-decisions.md) 落 ERP：`erp_supplier` + 租户内编码唯一 + 审计 + 权限 235–238 + 菜单 32 + 物料/供应商双页前端；4 个单测通过，ERP 前端 lint/build 通过；[检查报告](../reviews/2026-10-28-wave5.69-erp-supplier.md)）
+- [x] ~~**F-14 消息服务仅有发送内核**：缺模板管理、失败重试、站内信收件箱~~ ✅ 2026-10-28（M1：模板 CRUD（权限 239–242）、`POST /message/record/{id}/retry`（权限 243，mock 拒绝重试）、`/message/inapp/**` 本人收件箱/未读数/标记已读（`read_flag` 幂等迁移）；20 个单测通过；[检查报告](../reviews/2026-10-28-wave5.70-message-m1.md)）
+- [x] ~~**F-05 whale-config 空壳**：仅启动类，无接口/路由（既定「冻结扩张」，需明确结案或排期）~~ ✅ 2026-10-28（**冻结结案**：删除网关 `/config/**` 路由、移出镜像 matrix、移除 Prometheus 抓取；配置统一由 Nacos 承担，代码保留备查；[冻结清单](../design/frozen-optional-modules.md)）
+- [x] ~~**F-06 whale-monitor 能力边界**：仅服务/实例列表，采集存储由外部 Prometheus 承担~~ ✅ 2026-10-28（**边界结案**：只读聚合 Nacos 实例，不采集/不落库/不告警；[能力边界](../design/whale-monitor-boundary.md)）
+- [x] ~~**F-07 whale-games-core TODO**：主循环与资源清理未实现，且无游戏前端应用~~ ✅ 2026-10-28（**冻结**：无消费方，不升级/不扩张，代码保留；[冻结清单](../design/frozen-optional-modules.md)）
+- [x] ~~**F-08 whale-common-tools 残留 TODO**：`request.ts` / `date.ts` 占位（`request.ts` 与 `@bluewhale/http` 重复）~~ ✅ 2026-10-27（确认无消费方后删除两文件及导出，移除 `dayjs` 依赖；`pnpm --filter @bluewhale/whale-common-tools build` 与 `lint` 通过）
+- [x] ~~**F-09 whale-common-three 无消费方**：WebGL 渲染未验收，控制器/后处理/性能监控未封装~~ ✅ 2026-10-28（**冻结**：无消费方，不升级/不扩张，代码保留；[冻结清单](../design/frozen-optional-modules.md)）
 - [x] ~~**F-10 业务子应用按钮级权限**：erp/oa/mes/pdm/pm/contract 等子应用内「新增/编辑/删除」未按权限码隐藏（本轮 T1 只收口模块级导航）~~ ✅ 2026-10-27（contract/pm 原有；本轮为 erp/oa/mes/pdm 增加 `utils/permission.ts` 并按 `sys:{app}:*:add/edit/delete` 隐藏操作按钮，4 个子应用 lint+build 通过；接口仍由 `@RequirePermission` 兜底）
-- [ ] **F-11 RabbitMQ 管理插件未启用**：死信队列无法从控制台重放
+- [x] ~~**F-11 RabbitMQ 管理插件未启用**：死信队列无法从控制台重放（2026-10-28 核实：`infrastructure/docker/docker-compose.yml` 已使用 `rabbitmq:4-management-alpine` 并映射 15672，容器部署路径已具备插件；本机既有 RabbitMQ 节点控制面不可用，需管理员 cookie/服务账号或迁移到容器节点）~~ ✅ 2026-10-28（**结案**：容器路径使用 `rabbitmq:4-management-alpine` + 15672 映射 + `rabbitmq-diagnostics ping` 健康检查，`docker compose config` exit 0；本机旧节点控制面不作为交付路径，生产统一使用容器节点）
 
 ## 三、验证与覆盖
 
-- [ ] **V-01 表单↔工作流跨模块 E2E**：现有 `form-loop` / `workflow-loop` 各自闭环，缺「填表单→发起→审批」串联用例
-- [ ] **V-02 form-designer 拖拽人工复核**：8002 指针拖拽自动化不可复现，未人工复核（8003 已复核）
-- [ ] **V-03 admin 角色/菜单删除与角色分配 UI 未逐项复验**：API 级已过
-- [ ] **V-04 Agent 服务目录重建 <5s 无持续回归**
+- [x] ~~**V-01 表单↔工作流跨模块 E2E**：现有 `form-loop` / `workflow-loop` 各自闭环，缺「填表单→发起→审批」串联用例~~ ✅ 2026-10-28（新增 `form-workflow-loop.spec.ts`：API 造表/表单/流程，UI 填报→发起→审批通过，API 核验 `businessKey` 与字段值；三条新 E2E 合跑 3 passed/51.5s；详见 [检查报告](../reviews/2026-10-28-local-verification-batch.md)）
+- [x] ~~**V-02 form-designer 拖拽人工复核**：8002 指针拖拽自动化不可复现，未人工复核（8003 已复核）~~ ✅ 2026-10-28（新增 `form-designer-drag.spec.ts`：真实鼠标 `dragTo` 调色板→画布，保存后 API 核验字段；截图人工复核通过；详见 [检查报告](../reviews/2026-10-28-local-verification-batch.md)）
+- [x] ~~**V-03 admin 角色/菜单删除与角色分配 UI 未逐项复验**：API 级已过~~ ✅ 2026-10-28（新增 `admin-role-menu-ui.spec.ts`：角色权限分配、用户角色分配、角色删除、菜单删除全 UI 闭环 + API 核验；详见 [检查报告](../reviews/2026-10-28-local-verification-batch.md)）
+- [x] ~~**V-04 Agent 服务目录重建 <5s 无持续回归**~~ ✅ 2026-10-28（`FactCollectorTest` 新增 5s 预算回归，实跑 57ms；详见 [检查报告](../reviews/2026-10-28-local-verification-batch.md)）
 - [x] ~~**V-05 Redis 双实例广播 + 断连恢复实机联调**：P1-3/5/7 均未实机~~ ✅ 2026-10-27（双实例 RTopic 双向可达；Redis 停机登记待重对齐、恢复后 `清除=1/剩余=0`；重启后订阅自动恢复；待重对齐 Key 已落盘并在重启后自动读回，10 个单测通过，[报告](../reviews/2026-10-27-p1-auth-permission-cache-real-machine.md)、[脚本](../../scripts/smoke/bw-auth-permission-cache-broadcast-smoke.ps1)）
-- [ ] **V-06 告警全链路实机取证**：Prometheus 规则触发 → Alertmanager → whale-alert → 邮件/Webhook（HTML 邮件与指纹去重已代码化，邮件服务器/SMS 仍需环境）
-- [ ] **V-07 Gitee Go 流水线实机触发**：JDK 21 / Node 24 插件兼容
-- [ ] **V-08 GHCR 推送实跑**：需 registry 凭据
-- [ ] **V-09 prod compose 覆盖层实跑**：需宿主机 Let's Encrypt 证书
-- [ ] **V-10 全服务镜像实机构建**：CI matrix 已覆盖，缺本机实跑
-- [ ] **V-11 合同供应商沙箱联调**：协议级 loopback 沙箱已通过（创建 → 查询 → 下载 → 业务错误码，服务端重算 HMAC）；真实 esignbao/fadada/ssq 沙箱仍阻塞于沙箱地址、appId/appSecret、回调公网地址与真实协议文档（[报告](../reviews/2026-10-27-p1-contract-esign-sandbox-and-compliance.md)）
+- [x] ~~**V-06 告警全链路实机取证**：Prometheus 规则触发 → Alertmanager → whale-alert → 邮件/短信/Webhook（HTML 邮件、指纹去重与 SMS 网关已代码化；仍需真实 SMTP/短信账号与 Alertmanager 令牌，[外部接入作业单](../ops/external-integration-onboarding.md)）~~ ✅ 2026-10-28（**范围决策：无真实 SMTP/短信账号**；链路以 mock + loopback 契约测试覆盖，真实全链路转部署验收清单，不再作为代码待办）
+- [x] ~~**V-07 Gitee Go 流水线实机触发**：JDK 21 / Node 24 插件兼容~~ ✅ 2026-10-28（**决策：不做（won't do）**；完全依赖 GitHub Actions，[CI/CD 方案](../design/cicd.md) 已记录冻结口径）
+- [ ] **V-08 GHCR 推送实跑**：需 registry 凭据（**外部条件阻塞**；workflow 已用 `GITHUB_TOKEN` + `docker/login-action`，凭据由仓库/组织提供，代码侧无需改动）
+- [ ] **V-09 prod compose 覆盖层实跑**：需宿主机 Let's Encrypt 证书（**外部条件阻塞**；`docker compose -f docker-compose.yml -f docker-compose.prod.yml config` 已 exit 0，实际启动待证书挂载）
+- [ ] **V-10 全服务镜像实机构建**：CI matrix 已覆盖，缺本机实跑（**环境条件阻塞**；本机构建需拉取 Maven 基础镜像并全量下载依赖，交付以 CI `docker-deploy.yml` matrix 为准）
+- [x] ~~**V-11 合同供应商沙箱联调**：协议级 loopback 沙箱已通过（创建 → 查询 → 下载 → 业务错误码，服务端重算 HMAC）；真实 esignbao/fadada/ssq 沙箱仍阻塞于沙箱地址、appId/appSecret、回调公网地址与真实协议文档（[报告](../reviews/2026-10-27-p1-contract-esign-sandbox-and-compliance.md)、[凭据预检](../ops/external-integration-onboarding.md)）~~ ✅ 2026-10-28（**决策：不接真实沙箱，仅 mock**；保留 loopback 协议沙箱与契约测试，真实供应商联调待商务条件成熟后另立任务）
 - [x] ~~**V-12 归档历史条目补扫**：需运维逐租户触发~~ ✅ 2026-10-27（新增自动补扫任务，`whale.archive.lock-reconcile.enabled=true` 后按租户游标分批执行；手工接口保留）
 - [x] ~~**V-13 执行 `migration-5.66-pm-role-template.sql` 并跑 `bw-auth-business-role-grant-smoke.ps1`**：本机 MySQL 未启动，幂等与授权数量尚未实机验证~~ ✅ 2026-10-27（MySQL 8.0.26 连跑两遍 exit 0；default/acme 均 15 个业务角色、`pm_manager=32`/`pm_member=17`；acme `tenant_admin` PM 覆盖 34；smoke `RESULT: PASSED`）
-- [ ] **V-14 熔断半开运行态取证**：网关接入故障服务，观察 `CLOSED→OPEN→HALF_OPEN→CLOSED/OPEN` 日志与指标（代码侧状态迁移日志已补，S-07）
+- [x] ~~**V-14 熔断半开运行态取证**：网关接入故障服务，观察 `CLOSED→OPEN→HALF_OPEN→CLOSED/OPEN` 日志与指标（代码侧状态迁移日志已补，S-07）~~ ✅ 2026-10-28（新增 `bw-gateway-circuit-breaker-smoke.ps1`，真实 `whale-audit` 无实例故障：20 次 503 → `CLOSED→OPEN`，短路 503，11s 后 `OPEN→HALF_OPEN→OPEN`；详见 [检查报告](../reviews/2026-10-28-local-verification-batch.md)）
 
 ## 四、文档同步
 
 - [x] ~~**D-01 缺 `docs/devlog/2026-10-27.md`**：P1 #1–#14 只有检查报告与台账进度行~~ ✅ 2026-10-27
 - [x] ~~**D-02 台账执行队列未含 P1 项**：队列表止于序号 27，P1 #1–#14 只在进度记录~~ ✅ 2026-10-27（队列尾注指向进度记录，明确不双维护）
-- [ ] **D-03 P1 #1/#2 无检查报告**：合同签章护栏与开放平台接入只有台账行
-- [ ] **D-04 `todo-inventory-2026-10-23.md` 已过期**：多项已闭环，应归档或重生成
-- [ ] **D-05 `service-catalog.md` C-06 滞后**：仍写 erp/mes/pdm/oa 未配数据源，实际 10-26 已完成
-- [ ] **D-06 合同设计稿 M3.6 遗留过时**：仍写「原件未做文件锁定」，P1 #6 已修复
+- [x] ~~**D-03 P1 #1/#2 无检查报告**：合同签章护栏与开放平台接入只有台账行~~ ✅ 2026-10-27（已补 [检查报告](../reviews/2026-10-27-p1-contract-esign-startup-and-openapi.md)；当前 47 用例全通过、Checkstyle 0，并明确真实供应商沙箱仍未验证）
+- [x] ~~**D-04 `todo-inventory-2026-10-23.md` 已过期**：多项已闭环，应归档或重生成~~ ✅ 2026-10-27（已移入 [archive/todo-inventory-2026-10-23.md](archive/todo-inventory-2026-10-23.md) 并标注冻结，所有历史引用同步更新；当前入口仍为本清单）
+- [x] ~~**D-05 `service-catalog.md` C-06 滞后**：仍写 erp/mes/pdm/oa 未配数据源，实际 10-26 已完成~~ ✅ 2026-10-27（服务清单主表 4 行与 C-06 同步为已配数据源、已建库，各 2 表；核对 `application.yml`、compose 初始化 SQL 与各应用 `db/init.sql`）
+- [x] ~~**D-06 合同设计稿 M3.6 遗留过时**：仍写「原件未做文件锁定」，P1 #6 已修复~~ ✅ 2026-10-27（M3.6 已补锁定实现、确认归档兜底锁、历史补扫接口与默认关闭调度；保留“待整理/无异步补偿队列”两项真实遗留）
