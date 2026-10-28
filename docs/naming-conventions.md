@@ -183,7 +183,7 @@ Maven 模块目录名 == artifactId == spring.application.name == Nacos 服务�
 | services | whale-job | whale-job | `bluewhale_job`（规划） | `com.bluewhale.job` | 8082 |
 | services | whale-workflow | whale-workflow | `bluewhale_workflow`（规划） | `com.bluewhale.workflow` | 8083 |
 | services | whale-form | whale-form | `bluewhale_form`（规划） | `com.bluewhale.form` | 8084 |
-| services | whale-file | whale-file | `bluewhale_file`（规划） | `com.bluewhale.file` | 8085 |
+| services | whale-service-file | whale-file | `bluewhale_file`（规划） | `com.bluewhale.file` | 8085 |
 | services | whale-pay | whale-pay | `bluewhale_pay`（规划） | `com.bluewhale.pay` | 8086 |
 | services | whale-message | whale-message | `bluewhale_message` ✔ | `com.bluewhale.message` | 8094 |
 | services | ~~whale-i18n~~（已删除，Wave 5.50 下沉 SDK） | — | 各服务库内自建 `sys_i18n_message` | — | — |

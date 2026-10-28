@@ -26,7 +26,7 @@
 | 3 | `whale-job` | whale-services | `whale-services/whale-job` | **8082** | `/job/**` | ✅ `lb://whale-job` | **`bluewhale_job`**（已建库） | `WhaleJobApplication` | 定时任务调度 | 可启动 |
 | 4 | `whale-workflow` | whale-services | `whale-services/whale-workflow` | **8083** | `/workflow/**` | ✅ `lb://whale-workflow` | **`bluewhale_workflow`**（已建库） | `WhaleWorkflowApplication` | 工作流引擎（审批流） | 可启动 |
 | 5 | `whale-form` | whale-services | `whale-services/whale-form` | **8084** | `/form/**` | ✅ `lb://whale-form` | **`bluewhale_form`**（已建库） | `WhaleFormApplication` | 动态表单 | 可启动 |
-| 6 | `whale-file` | whale-services | `whale-services/whale-file` | **8085** | `/file/**` | ✅ `lb://whale-file` | **`bluewhale_file`**（已建库） | `WhaleFileApplication` | 文件上传下载、附件管理 | 可启动 |
+| 6 | `whale-file` | whale-services | `whale-services/whale-service-file`（启动模块 `whale-service-file-web`） | **8085** | `/file/**` | ✅ `lb://whale-file` | **`bluewhale_file`**（已建库） | `WhaleFileApplication` | 文件上传下载、附件管理 | 可启动 |
 | 7 | `whale-pay` | whale-services | `whale-services/whale-pay` | **8086** | `/pay/**` | ✅ `lb://whale-pay` | **`bluewhale_pay`**（4 表：`pay_order`/`pay_transaction`/`audit_log`/`api_log`） | `WhalePayApplication` | 支付与结算：支付单、mock 渠道支付/退款、渠道流水与对账 | 可启动（2026-10-28 本地起服验证通过） |
 | 8 | `whale-erp` | whale-apps | `whale-apps/whale-erp` | **9001** | `/erp/**` | ✅ 已配路由（2026-10-25） | **`bluewhale_erp`**（4 表：`erp_item`/`erp_supplier`/`audit_log`/`api_log`） | `WhaleErpApplication` | ERP 业务应用：物料主数据 + 供应商主数据（供应商准入/资质/绩效归 SRM，不属 CRM） | 可启动 |
 | 9 | `whale-mes` | whale-apps | `whale-apps/whale-mes` | **9002** | `/mes/**` | ✅ 已配路由（2026-10-25） | **`bluewhale_mes`**（2 表，已建） | `WhaleMesApplication` | MES 制造执行 | 可启动 |
