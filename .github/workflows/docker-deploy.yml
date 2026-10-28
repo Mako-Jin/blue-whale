@@ -1,6 +1,8 @@
 # ============================================================
 # Docker 镜像构建与推送（T-CI-7：镜像扩面至全部后端服务 + 前端）
-# 触发: tag push / workflow_dispatch
+# 触发: push main（paths 过滤，避免 docs 等无关提交触发 21 个镜像 job）
+#        push tag v*.*.*（发布版本，tag 推送不评估 paths 过滤）
+#        workflow_dispatch（可指定 image_tag）
 # 后端统一使用参数化模板 deploy/backend/sample/Dockerfile，
 # 按矩阵注入 MODULE_PATH / SERVICE_PORT；前端走 deploy/frontend/Dockerfile。
 # ============================================================
@@ -9,6 +11,12 @@ name: Docker Build & Deploy
 
 on:
   push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'deploy/**'
+      - '.github/workflows/docker-deploy.yml'
     tags:
       - 'v*.*.*'
   workflow_dispatch:
@@ -76,6 +84,8 @@ jobs:
           tags: |
             type=ref,event=tag
             type=sha,prefix=sha-
+            type=raw,value=${{ inputs.image_tag }},enable=${{ inputs.image_tag != '' }}
+            type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -120,6 +130,8 @@ jobs:
           tags: |
             type=ref,event=tag
             type=sha,prefix=sha-
+            type=raw,value=${{ inputs.image_tag }},enable=${{ inputs.image_tag != '' }}
+            type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

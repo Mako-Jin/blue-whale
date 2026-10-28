@@ -20,12 +20,12 @@
 |---|---|---|---|---|
 | `backend-ci.yml` | `push` main（paths: `backend/**`、`pom.xml`、本文件）；`pull_request` → main（同 paths） | Checkout → Setup JDK 21（temurin + maven cache）→ Maven Wrapper 初始化（`mvn -N wrapper:wrapper -Dmaven=3.9.9`）→ `./mvnw -B -ntp test` → `./mvnw -B -ntp clean package -DskipTests` → Upload JAR | `backend-jars`（`**/target/*.jar`，保留 7 天，仅 push main） | `backend-ci-${{ github.ref }}`，`cancel-in-progress: true` |
 | `frontend-ci.yml` | `push` main（paths: `frontend/**`、`pnpm-workspace.yaml`、`package.json`、本文件）；`pull_request` → main（同 paths） | Checkout → Setup Node 24（pnpm cache）→ corepack 启用 pnpm → `pnpm install --frozen-lockfile` → `pnpm -r lint` → `pnpm turbo run build` → Upload dist | `frontend-dist`（`**/dist/`，保留 7 天，仅 push main） | `frontend-ci-${{ github.ref }}`，`cancel-in-progress: true` |
-| `docker-deploy.yml` | `push` tag `v*.*.*`；`workflow_dispatch`（可选 `image_tag` 输入，默认短 SHA） | Checkout → 登录 GHCR（`GITHUB_TOKEN`）→ `docker/metadata-action` 生成 tag → `setup-buildx-action` → 构建推送 `whale-gateway` / `whale-web` | 镜像推送至 GHCR；`cache-from/to: type=gha` | `docker-deploy-${{ github.ref }}`，`cancel-in-progress: false` |
+| `docker-deploy.yml` | `push` main（paths: `backend/**`、`frontend/**`、`deploy/**`、本文件；2026-10-28 新增，docs 等无关提交不触发）；`push` tag `v*.*.*`；`workflow_dispatch`（可选 `image_tag` 输入，默认短 SHA） | Checkout → 登录 GHCR（`GITHUB_TOKEN`）→ `docker/metadata-action` 生成 tag → `setup-buildx-action` → 构建推送 `whale-gateway` / `whale-web` | 镜像推送至 GHCR；`cache-from/to: type=gha` | `docker-deploy-${{ github.ref }}`，`cancel-in-progress: false` |
 
 `docker-deploy.yml` 关键变量：
 
 - `REGISTRY=ghcr.io`，`BACKEND_IMAGE=ghcr.io/${{ github.repository }}/whale-gateway`，`FRONTEND_IMAGE=ghcr.io/${{ github.repository }}/whale-web`；
-- 镜像 tag 规则：`type=ref,event=tag`（即 `v1.2.3`）+ `type=sha,prefix=sha-`；
+- 镜像 tag 规则：`type=ref,event=tag`（即 `v1.2.3`）+ `type=sha,prefix=sha-` + `latest`（仅默认分支，`enable={{is_default_branch}}`）+ 手动触发的 `image_tag`（仅在输入非空时生效，`enable=${{ inputs.image_tag != '' }}`）；
 - 构建上下文：`./deploy/backend/whale-gateway/Dockerfile`（多阶段 Maven + JRE 21 alpine）与 `./deploy/frontend/Dockerfile`（Node 24 + Nginx）。
 
 ### 1.2 现状补充事实
@@ -102,7 +102,7 @@
 |---|---|---|---|---|---|---|---|
 | `feature/*` push | ✅ | ✅ | ✅ 编译 | ✅ | ❌ | ❌ | ❌ |
 | PR → `main` | ✅ | ✅ 阻断 | ✅ | ✅ + 覆盖率门禁 | ❌ | ❌ | ❌ 仅预览 |
-| `main` push | ✅ | ✅ | ✅ | ✅ | ✅ 归档 | ⚠️ `latest`（可选） | ✅ dev 自动 |
+| `main` push | ✅ | ✅ | ✅ | ✅ | ✅ 归档 | ✅ `latest` + `sha-xxx`（paths 命中时，2026-10-28 起） | ✅ dev 自动 |
 | tag `v*.*.*` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ 打版本 tag | ✅ staging/prod（人工审批） |
 | 手动 `workflow_dispatch` | ✅ | ✅ | ✅ | 可选 | 可选 | ✅（可选 `image_tag`） | 指定环境 |
 
