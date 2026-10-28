@@ -364,9 +364,8 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>3.5.2</version>
-                    <configuration>
-                        <skipTests>false</skipTests>
-                    </configuration>
+                    <!-- 不硬编码 skipTests：字面量 false 会覆盖命令行 -DskipTests，
+                         导致镜像构建等场景仍执行单测（默认即 false，无需声明） -->
                 </plugin>
             </plugins>
         </pluginManagement>

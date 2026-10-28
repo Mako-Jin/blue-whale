@@ -22,9 +22,29 @@ COPY .mvn .mvn
 COPY config/checkstyle config/checkstyle
 COPY backend backend
 
-RUN mvn -B -ntp -f backend/pom.xml -pl "${MODULE_PATH}" -am package -DskipTests \
-    && mkdir -p /out \
-    && cp "backend/${MODULE_PATH}"/target/*.jar /out/app.jar
+# 镜像构建不执行单测：单测由 backend-ci 单独负责，镜像环境缺 .git/docs/MySQL 等，
+# 跑测试会引入环境性失败。使用 maven.test.skip（同时跳过测试编译），
+# 因为父 pom 一旦在 pluginManagement 里硬编码 skipTests，-DskipTests 会失效。
+# 依赖下载对中央仓瞬时失败（429/断流）做整体重试，避免多 job 并发拉包时随机失败。
+RUN set -eu; \
+    ok=0; \
+    for i in 1 2 3; do \
+        if mvn -B -ntp \
+            -Dmaven.test.skip=true \
+            -Dmaven.wagon.http.retryHandler.count=5 \
+            -Dmaven.wagon.httpconnectionManager.ttlSeconds=120 \
+            -f backend/pom.xml -pl "${MODULE_PATH}" -am package; then \
+            ok=1; break; \
+        fi; \
+        echo "--- mvn attempt ${i} failed, retrying in 20s ---"; \
+        sleep 20; \
+    done; \
+    [ "${ok}" = "1" ]; \
+    mkdir -p /out; \
+    jar=$(find "backend/${MODULE_PATH}/target" -maxdepth 1 -type f -name '*.jar' ! -name '*.original' | head -n 1); \
+    test -n "${jar}"; \
+    cp "${jar}" /out/app.jar; \
+    ls -l /out/app.jar
 
 # ---- Stage 2: Runtime ----
 FROM ${JRE_IMAGE} AS runner

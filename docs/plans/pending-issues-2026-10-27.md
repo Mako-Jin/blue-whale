@@ -62,6 +62,8 @@
 - [x] ~~**V-13 执行 `migration-5.66-pm-role-template.sql` 并跑 `bw-auth-business-role-grant-smoke.ps1`**：本机 MySQL 未启动，幂等与授权数量尚未实机验证~~ ✅ 2026-10-27（MySQL 8.0.26 连跑两遍 exit 0；default/acme 均 15 个业务角色、`pm_manager=32`/`pm_member=17`；acme `tenant_admin` PM 覆盖 34；smoke `RESULT: PASSED`）
 - [x] ~~**V-14 熔断半开运行态取证**：网关接入故障服务，观察 `CLOSED→OPEN→HALF_OPEN→CLOSED/OPEN` 日志与指标（代码侧状态迁移日志已补，S-07）~~ ✅ 2026-10-28（新增 `bw-gateway-circuit-breaker-smoke.ps1`，真实 `whale-audit` 无实例故障：20 次 503 → `CLOSED→OPEN`，短路 503，11s 后 `OPEN→HALF_OPEN→OPEN`；详见 [检查报告](../reviews/2026-10-28-local-verification-batch.md)）
 - [x] ~~**V-15 镜像矩阵覆盖缺口（新发现，2026-10-28）**：矩阵缺 `whale-contract`、前端仅 admin~~ ✅ 2026-10-28 已补齐：后端 21 项（新增 `whale-contract` 9006）、前端 14 项（`whale-web`=admin、`whale-platform` 基座、portal、ops、agent、contract、erp、oa、mes、pdm、pm、im、form-designer、workflow-designer），`js-yaml` 解析 + 逐项 `pom.xml`/`package.json` 包名比对 0 问题（[devlog §18](../devlog/2026-10-28.md)）。**子应用 base 已修（§19）**：新增 `APP_BASE` 构建参数，产物落到 `/usr/share/nginx/html${APP_BASE}`，前缀内 SPA 回退/前缀外 404/`/base` → `/base/` 301，矩阵 `base` 与 8 个应用 `vite base` 逐项一致（镜像级 `nginx -t` 与容器冒烟因本机 Docker 守护进程未启动，未实跑）。**仍遗留（部署侧）**：`infrastructure/docker/nginx/conf.d/micro-frontend.conf` 只有 `/sub-app/auth`、`/sub-app/workflow` 两个示例，需按实际 `/portal /contract /erp /oa /mes /pdm /pm /im` 增加 `location` 前缀反代（新镜像支持保留前缀直传，无需 rewrite），随 V-09 一并处理
+- [ ] **V-16 whale-agent 镜像缺运行时事实采集素材（新发现，2026-10-28）**：`FactCollector` 运行时需要仓库内容（`docs/service-catalog.md`、DDL、网关配置等）才能重建结构化事实，但 `deploy/backend/sample/Dockerfile` 只把 `app.jar` 打进运行时镜像，且 `.dockerignore` 排除了 `docs`/`.git`。结果：镜像可构建（单测已跳过），但容器内 agent 的结构化事实通道为空。待决策：把所需资产加入镜像（体积换功能）或改为构建期生成事实包/外部挂载注入
+
 
 
 ## 四、文档同步

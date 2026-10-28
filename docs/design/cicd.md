@@ -28,6 +28,7 @@
 - 镜像 tag 规则：`type=ref,event=tag`（即 `v1.2.3`）+ `type=sha,prefix=sha-` + `latest`（仅默认分支，`enable={{is_default_branch}}`）+ 手动触发的 `image_tag`（仅在输入非空时生效，`enable=${{ inputs.image_tag != '' }}`）；
 - 后端矩阵 21 项（`whale-gateway`、auth starter、job、workflow、form、file、pay、agent、im、archive、message、erp、mes、pdm、oa、pm、**contract**、audit、monitor、alert、config），统一 `deploy/backend/sample/Dockerfile` + `MODULE_PATH`/`SERVICE_PORT`；
 - 前端矩阵 14 项（`whale-web`=admin、`whale-platform` 基座、portal、ops、agent、contract、erp、oa、mes、pdm、pm、im、form-designer、workflow-designer），统一 `deploy/frontend/Dockerfile` + `APP_NAME`/`APP_DIR`/`APP_BASE`；
+- 后端镜像构建使用 `mvn -Dmaven.test.skip=true`（跳过测试编译与执行）+ wagon 重试 5 次 + 整体 3 次重试：镜像环境无 `.git`/`docs`/MySQL，单测由 `backend-ci` 负责；父 pom 曾硬编码 `<skipTests>false</skipTests>` 使命令行 `-DskipTests` 失效，已移除（2026-10-28）。
 - `APP_BASE`（默认 `/`）必须与各应用 `vite.config.ts` 的 `base` 一致：子应用为 `/portal`、`/contract`、`/erp`、`/oa`、`/mes`、`/pdm`、`/pm`、`/im`，其余（admin、基座、ops、agent、两个设计器）为 `/`。镜像内产物落到 `/usr/share/nginx/html${APP_BASE}`，并按 base 选用 `deploy/frontend/nginx/root.conf` 或 `subapp.conf.template`（前缀内 SPA 回退、前缀外 404、`/base` 301 到 `/base/`）。
 
 ### 1.2 现状补充事实
