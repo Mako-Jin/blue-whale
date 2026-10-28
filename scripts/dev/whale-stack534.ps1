@@ -55,7 +55,7 @@ Start-Svc 'gateway' "$base\whale-services\whale-gateway\target\whale-gateway.jar
 Remove-Item Env:\NACOS_ADDR
 Start-Svc 'auth' "$base\whale-services\whale-service-auth\whale-service-auth-starter\target\whale-service-auth.jar" 8081
 Start-Svc 'job'  "$base\whale-services\whale-job\target\whale-job.jar"  8082
-Start-Svc 'file' "$base\whale-services\whale-file\target\whale-file.jar" 8085
+Start-Svc 'file' "$base\whale-services\whale-service-file\whale-service-file-web\target\whale-file.jar" 8085
 
 Wait-Port 8080 'gateway' 90 | Out-Null
 Write-Host 'stack534 ready; holding terminal open'

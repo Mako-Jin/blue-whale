@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.bluewhale</groupId>
+        <artifactId>whale-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../../whale-parent/pom.xml</relativePath>
+    </parent>
+
+    <artifactId>whale-service-file</artifactId>
+    <packaging>pom</packaging>
+    <name>Whale Service File</name>
+    <description>文件服务：分层模块 + 可插拔存储插件（local / minio）</description>
+
+    <modules>
+        <module>whale-service-file-core</module>
+        <module>whale-service-file-infrastructure</module>
+        <module>whale-service-file-application</module>
+        <module>whale-service-file-starter</module>
+        <module>whale-service-file-interfaces</module>
+        <module>whale-service-file-plugins</module>
+        <module>whale-service-file-web</module>
+    </modules>
+
+    <properties>
+        <!-- 存储插件版本 -->
+        <minio.version>8.5.12</minio.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!--
+              MinIO 经 okhttp 传递引入 kotlin-stdlib-jdk8；Spring Boot BOM 经 kotlin-bom 默认将其管理为本地离线仓库
+              不可用的版本，此处直接锁定为本地可用版本，保证 mvn -o 离线构建可解析。
+            -->
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-stdlib-jdk8</artifactId>
+                <version>1.9.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-stdlib-jdk7</artifactId>
+                <version>1.9.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-stdlib</artifactId>
+                <version>1.9.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-stdlib-common</artifactId>
+                <version>1.9.0</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+</project>

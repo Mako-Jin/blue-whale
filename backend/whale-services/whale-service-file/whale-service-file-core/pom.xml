@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.bluewhale</groupId>
+        <artifactId>whale-service-file</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>whale-service-file-core</artifactId>
+    <packaging>jar</packaging>
+    <name>Whale Service File Core</name>
+    <description>文件服务核心抽象层 - 存储端口与存储插件 SPI</description>
+
+    <dependencies>
+        <!-- BizException / ErrorCode 等统一异常契约 -->
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-spring-boot-starter</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+    </dependencies>
+</project>
