@@ -1,18 +1,20 @@
 package com.bluewhale.file.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.Wrapper;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.file.config.FileProperties;
+import com.bluewhale.file.domain.file.aggregate.FileAsset;
+import com.bluewhale.file.domain.file.repository.FileAssetPage;
+import com.bluewhale.file.domain.file.repository.FileAssetQuery;
+import com.bluewhale.file.domain.file.repository.FileAssetRepository;
+import com.bluewhale.file.domain.model.vo.FileStatus;
+import com.bluewhale.file.domain.storage.FileStorage;
 import com.bluewhale.file.dto.ChunkUploadCompleteRequest;
 import com.bluewhale.file.dto.ChunkUploadInitRequest;
 import com.bluewhale.file.dto.FileQueryRequest;
 import com.bluewhale.file.dto.FileRapidUploadRequest;
-import com.bluewhale.file.entity.FileInfo;
-import com.bluewhale.file.mapper.FileInfoMapper;
-import com.bluewhale.file.storage.FileStorage;
 import com.bluewhale.file.vo.ChunkUploadInitVO;
 import com.bluewhale.file.vo.FileChangeVO;
 import com.bluewhale.file.vo.FileInfoVO;
@@ -25,7 +27,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
-import org.mockito.ArgumentMatchers;
 import org.springframework.util.DigestUtils;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -39,6 +40,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -48,11 +50,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -73,22 +77,24 @@ class FileInfoServiceImplTest {
     @TempDir
     Path tempDir;
 
-    private final FileInfoMapper fileInfoMapper = mock(FileInfoMapper.class);
+    private final FileAssetRepository fileAssetRepository = mock(FileAssetRepository.class);
 
     private final FileStorage fileStorage = mock(FileStorage.class);
 
     private final FileProperties fileProperties = new FileProperties();
 
     private final FileInfoServiceImpl fileInfoService =
-            new FileInfoServiceImpl(fileInfoMapper, fileStorage, fileProperties);
+            new FileInfoServiceImpl(fileAssetRepository, fileStorage, fileProperties);
 
     /**
-     * 以临时目录作为存储根目录，并设置较小的分片大小便于构造多分片场景。
+     * 以临时目录作为存储根目录，设置较小分片大小，并让仓储保存回填入参聚合。
      */
     @BeforeEach
     void setUp() {
         fileProperties.getStorage().setRoot(tempDir.toString());
         fileProperties.setChunkSizeBytes(TEST_CHUNK_SIZE);
+        when(fileAssetRepository.save(any(FileAsset.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     /**
@@ -158,23 +164,29 @@ class FileInfoServiceImplTest {
     }
 
     /**
-     * 构造命中的既有文件记录。
+     * 构造命中的既有文件聚合（秒传复用来源）。
      *
      * @param size 文件字节数
-     * @return 文件实体
+     * @return 文件资产聚合根
      */
-    private static FileInfo existingFile(long size) {
-        FileInfo existing = new FileInfo();
-        existing.setId(11L);
-        existing.setFileName("stored.pdf");
-        existing.setOriginalName("origin.pdf");
-        existing.setBucket("bluewhale");
-        existing.setObjectKey("2026/10/19/stored.pdf");
-        existing.setFileSize(size);
-        existing.setContentType("application/pdf");
-        existing.setMd5("d41d8cd98f00b204e9800998ecf8427e");
-        existing.setStatus(1);
-        return existing;
+    private static FileAsset existingFile(long size) {
+        return FileAsset.reconstitute(11L, "stored.pdf", "origin.pdf", "bluewhale",
+                "2026/10/19/stored.pdf", size, "application/pdf",
+                "d41d8cd98f00b204e9800998ecf8427e", FileStatus.NORMAL, null, false,
+                LocalDateTime.of(2026, 10, 19, 10, 0), LocalDateTime.of(2026, 10, 19, 10, 0));
+    }
+
+    /**
+     * 构造指定状态的文件聚合。
+     *
+     * @param id 主键
+     * @param status 文件状态
+     * @return 文件资产聚合根
+     */
+    private static FileAsset fileWithStatus(long id, FileStatus status) {
+        return FileAsset.reconstitute(id, null, "locked.pdf", "bluewhale", "2026/10/24/locked.pdf",
+                12L, "application/pdf", null, status, null, false,
+                LocalDateTime.of(2026, 10, 24, 9, 0), LocalDateTime.of(2026, 10, 24, 9, 0));
     }
 
     @Test
@@ -182,25 +194,29 @@ class FileInfoServiceImplTest {
     void shouldUploadAndPersistMetadata() throws IOException {
         byte[] content = "report-body".getBytes(StandardCharsets.UTF_8);
         MultipartFile file = multipartFile(content, "report.pdf");
-        com.bluewhale.common.tenant.TenantContext.set(1L);
+        TenantContext.set(1L);
+        try {
+            FileUploadVO vo = fileInfoService.upload(file, null, UPLOADER_ID);
 
-        FileUploadVO vo = fileInfoService.upload(file, null, UPLOADER_ID);
-
-        assertEquals("report.pdf", vo.getOriginalName());
-        assertEquals("bluewhale", vo.getBucket());
-        assertEquals((long) content.length, vo.getFileSize());
-        assertEquals(DigestUtils.md5DigestAsHex(content), vo.getMd5());
-        assertTrue(vo.getObjectKey().startsWith("tenants/1/"
-                + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd")) + "/"));
-        assertTrue(vo.getObjectKey().endsWith(".pdf"));
-        assertTrue(vo.getFileName().endsWith(".pdf"));
-        verify(fileStorage).store(eq("bluewhale"), eq(vo.getObjectKey()), any(InputStream.class));
-        ArgumentCaptor<FileInfo> captor = ArgumentCaptor.forClass(FileInfo.class);
-        verify(fileInfoMapper).insert(captor.capture());
-        assertEquals(UPLOADER_ID, captor.getValue().getUploaderId());
-        assertEquals(1, captor.getValue().getStatus().intValue());
-        assertEquals("bluewhale", captor.getValue().getBucket());
-        com.bluewhale.common.tenant.TenantContext.clear();
+            assertEquals("report.pdf", vo.getOriginalName());
+            assertEquals("bluewhale", vo.getBucket());
+            assertEquals((long) content.length, vo.getFileSize());
+            assertEquals(DigestUtils.md5DigestAsHex(content), vo.getMd5());
+            assertTrue(vo.getObjectKey().startsWith("tenants/1/"
+                    + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd")) + "/"));
+            assertTrue(vo.getObjectKey().endsWith(".pdf"));
+            assertTrue(vo.getFileName().endsWith(".pdf"));
+            verify(fileStorage).store(eq("bluewhale"), eq(vo.getObjectKey()), any(InputStream.class));
+            ArgumentCaptor<FileAsset> captor = ArgumentCaptor.forClass(FileAsset.class);
+            verify(fileAssetRepository).save(captor.capture());
+            FileAsset saved = captor.getValue();
+            assertEquals(UPLOADER_ID, saved.getUploaderId());
+            assertEquals(FileStatus.NORMAL, saved.getStatus());
+            assertEquals("bluewhale", saved.getBucket());
+            assertTrue(saved.getFileName().endsWith(".pdf"));
+        } finally {
+            TenantContext.clear();
+        }
     }
 
     @Test
@@ -213,13 +229,13 @@ class FileInfoServiceImplTest {
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         verify(fileStorage, never()).store(any(), any(), any());
-        verify(fileInfoMapper, never()).insert(any(FileInfo.class));
+        verify(fileAssetRepository, never()).save(any(FileAsset.class));
     }
 
     @Test
     @DisplayName("loadResource：文件不存在抛 NOT_FOUND")
     void shouldThrowWhenDownloadMissing() {
-        when(fileInfoMapper.selectById(99L)).thenReturn(null);
+        when(fileAssetRepository.findById(99L)).thenReturn(Optional.empty());
 
         BizException ex = assertThrows(BizException.class, () -> fileInfoService.loadResource(99L));
 
@@ -228,18 +244,29 @@ class FileInfoServiceImplTest {
     }
 
     @Test
-    @DisplayName("page：按条件调用分页查询并映射结果")
+    @DisplayName("getDetail：跨租户按不存在处理，避免泄露文件是否存在")
+    void shouldHideCrossTenantFile() {
+        when(fileAssetRepository.findById(5L)).thenReturn(Optional.of(FileAsset.reconstitute(5L, "a.txt",
+                "a.txt", "bluewhale", "tenants/2/2026/10/24/a.txt", 3L, "text/plain", null,
+                FileStatus.NORMAL, null, false, LocalDateTime.now(), LocalDateTime.now())));
+        TenantContext.set(1L);
+        try {
+            BizException ex = assertThrows(BizException.class, () -> fileInfoService.getDetail(5L));
+
+            assertEquals(NOT_FOUND_CODE, ex.getCode());
+        } finally {
+            TenantContext.clear();
+        }
+    }
+
+    @Test
+    @DisplayName("page：按条件调用仓储分页并映射结果")
     void shouldPageWithConditions() {
-        FileInfo entity = new FileInfo();
-        entity.setId(1L);
-        entity.setOriginalName("报告.pdf");
-        entity.setBucket("bluewhale");
-        entity.setObjectKey("2026/10/19/a.pdf");
-        Page<FileInfo> page = new Page<>(1L, 10L);
-        page.setRecords(List.of(entity));
-        page.setTotal(1L);
-        when(fileInfoMapper.selectPage(ArgumentMatchers.<Page<FileInfo>>any(),
-                ArgumentMatchers.<Wrapper<FileInfo>>any())).thenReturn(page);
+        FileAsset asset = FileAsset.reconstitute(1L, "a.pdf", "报告.pdf", "bluewhale",
+                "2026/10/19/a.pdf", 10L, "application/pdf", null, FileStatus.NORMAL, null, false,
+                LocalDateTime.of(2026, 10, 19, 10, 0), LocalDateTime.of(2026, 10, 19, 10, 0));
+        when(fileAssetRepository.page(any(FileAssetQuery.class)))
+                .thenReturn(new FileAssetPage(List.of(asset), 1L, 1L, 10L));
 
         FileQueryRequest request = new FileQueryRequest();
         request.setOriginalName("报告");
@@ -250,52 +277,44 @@ class FileInfoServiceImplTest {
         assertEquals(1, result.getRecords().size());
         assertEquals("报告.pdf", result.getRecords().get(0).getOriginalName());
         assertNotNull(result.getRecords().get(0).getObjectKey());
-        verify(fileInfoMapper).selectPage(ArgumentMatchers.<Page<FileInfo>>any(),
-                ArgumentMatchers.<Wrapper<FileInfo>>any());
+        ArgumentCaptor<FileAssetQuery> captor = ArgumentCaptor.forClass(FileAssetQuery.class);
+        verify(fileAssetRepository).page(captor.capture());
+        assertEquals("报告", captor.getValue().originalName());
+        assertEquals("bluewhale", captor.getValue().bucket());
+        assertEquals(10L, captor.getValue().size());
     }
 
     @Test
     @DisplayName("presignedUrl：默认 600 秒并回传存储生成的 URL")
     void shouldPresignWithDefaultExpiry() {
-        FileInfo entity = new FileInfo();
-        entity.setId(5L);
-        entity.setBucket("bluewhale");
-        entity.setObjectKey("2026/10/19/a.txt");
-        when(fileInfoMapper.selectById(5L)).thenReturn(entity);
-        when(fileStorage.presignedDownloadUrl("bluewhale", "2026/10/19/a.txt", 600))
-                .thenReturn("http://127.0.0.1:9000/bluewhale/2026/10/19/a.txt?sign=x");
+        FileAsset asset = fileWithStatus(5L, FileStatus.NORMAL);
+        when(fileAssetRepository.findById(5L)).thenReturn(Optional.of(asset));
+        when(fileStorage.presignedDownloadUrl("bluewhale", "2026/10/24/locked.pdf", 600))
+                .thenReturn("http://127.0.0.1:9000/bluewhale/2026/10/24/locked.pdf?sign=x");
 
         FilePresignedVO vo = fileInfoService.presignedUrl(5L, null);
 
-        assertEquals("http://127.0.0.1:9000/bluewhale/2026/10/19/a.txt?sign=x", vo.getUrl());
+        assertEquals("http://127.0.0.1:9000/bluewhale/2026/10/24/locked.pdf?sign=x", vo.getUrl());
         assertEquals(Integer.valueOf(600), vo.getExpiresSeconds());
     }
 
     @Test
     @DisplayName("presignedUrl：有效期超过 3600 秒时截断为 3600")
     void shouldClampPresignExpiry() {
-        FileInfo entity = new FileInfo();
-        entity.setId(5L);
-        entity.setBucket("bluewhale");
-        entity.setObjectKey("2026/10/19/a.txt");
-        when(fileInfoMapper.selectById(5L)).thenReturn(entity);
-        when(fileStorage.presignedDownloadUrl("bluewhale", "2026/10/19/a.txt", 3600))
+        when(fileAssetRepository.findById(5L)).thenReturn(Optional.of(fileWithStatus(5L, FileStatus.NORMAL)));
+        when(fileStorage.presignedDownloadUrl("bluewhale", "2026/10/24/locked.pdf", 3600))
                 .thenReturn("http://x");
 
         FilePresignedVO vo = fileInfoService.presignedUrl(5L, 9999);
 
         assertEquals(Integer.valueOf(3600), vo.getExpiresSeconds());
-        verify(fileStorage).presignedDownloadUrl("bluewhale", "2026/10/19/a.txt", 3600);
+        verify(fileStorage).presignedDownloadUrl("bluewhale", "2026/10/24/locked.pdf", 3600);
     }
 
     @Test
     @DisplayName("presignedUrl：local 存储不支持预签名，透传参数错误")
     void shouldRejectPresignWhenStorageUnsupported() {
-        FileInfo entity = new FileInfo();
-        entity.setId(5L);
-        entity.setBucket("bluewhale");
-        entity.setObjectKey("2026/10/19/a.txt");
-        when(fileInfoMapper.selectById(5L)).thenReturn(entity);
+        when(fileAssetRepository.findById(5L)).thenReturn(Optional.of(fileWithStatus(5L, FileStatus.NORMAL)));
         when(fileStorage.presignedDownloadUrl(anyString(), anyString(), anyInt()))
                 .thenThrow(new BizException(ErrorCode.PARAM_ERROR.getCode(), "当前存储插件不支持预签名下载"));
 
@@ -339,9 +358,9 @@ class FileInfoServiceImplTest {
         assertEquals("video/mp4", vo.getContentType());
         assertEquals(DigestUtils.md5DigestAsHex(expected), vo.getMd5());
         assertTrue(vo.getObjectKey().endsWith(".bin"));
-        ArgumentCaptor<FileInfo> captor = ArgumentCaptor.forClass(FileInfo.class);
-        verify(fileInfoMapper).insert(captor.capture());
-        assertEquals(Long.valueOf(12L), captor.getValue().getFileSize());
+        ArgumentCaptor<FileAsset> captor = ArgumentCaptor.forClass(FileAsset.class);
+        verify(fileAssetRepository).save(captor.capture());
+        assertEquals(12L, captor.getValue().getFileSize());
         assertEquals(UPLOADER_ID, captor.getValue().getUploaderId());
         assertFalse(Files.exists(tempDir.resolve("tmp").resolve(initVo.getUploadId())),
                 "合并成功后应清理临时目录");
@@ -379,7 +398,7 @@ class FileInfoServiceImplTest {
         assertTrue(ex.getMessage().contains("缺少分片索引"));
         assertTrue(ex.getMessage().contains("1"));
         verify(fileStorage, never()).store(any(), any(), any());
-        verify(fileInfoMapper, never()).insert(any(FileInfo.class));
+        verify(fileAssetRepository, never()).save(any(FileAsset.class));
         assertTrue(Files.exists(tempDir.resolve("tmp").resolve(initVo.getUploadId())),
                 "失败时保留分片供续传");
     }
@@ -404,7 +423,7 @@ class FileInfoServiceImplTest {
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertTrue(ex.getMessage().contains("超出上限"));
         verify(fileStorage, never()).store(any(), any(), any());
-        verify(fileInfoMapper, never()).insert(any(FileInfo.class));
+        verify(fileAssetRepository, never()).save(any(FileAsset.class));
     }
 
     @Test
@@ -430,7 +449,8 @@ class FileInfoServiceImplTest {
     @Test
     @DisplayName("rapidUpload：命中已有对象时复用 bucket/objectKey 仅登记新元数据，不写存储")
     void shouldRapidUploadHitWithoutStoring() {
-        when(fileInfoMapper.selectOne(ArgumentMatchers.<Wrapper<FileInfo>>any())).thenReturn(existingFile(123L));
+        when(fileAssetRepository.findReusableByDigest("d41d8cd98f00b204e9800998ecf8427e", 123L))
+                .thenReturn(Optional.of(existingFile(123L)));
 
         FileRapidUploadVO vo = fileInfoService.rapidUpload(
                 rapidRequest("copy.pdf", "D41D8CD98F00B204E9800998ECF8427E", 123L, null), UPLOADER_ID);
@@ -442,8 +462,8 @@ class FileInfoServiceImplTest {
         assertEquals("copy.pdf", vo.getFile().getOriginalName());
         assertEquals("application/pdf", vo.getFile().getContentType());
         assertEquals(Long.valueOf(123L), vo.getFile().getFileSize());
-        ArgumentCaptor<FileInfo> captor = ArgumentCaptor.forClass(FileInfo.class);
-        verify(fileInfoMapper).insert(captor.capture());
+        ArgumentCaptor<FileAsset> captor = ArgumentCaptor.forClass(FileAsset.class);
+        verify(fileAssetRepository).save(captor.capture());
         assertEquals("2026/10/19/stored.pdf", captor.getValue().getObjectKey());
         assertEquals("d41d8cd98f00b204e9800998ecf8427e", captor.getValue().getMd5());
         assertEquals(UPLOADER_ID, captor.getValue().getUploaderId());
@@ -453,14 +473,15 @@ class FileInfoServiceImplTest {
     @Test
     @DisplayName("rapidUpload：未命中时返回 hit=false 且不落库、不占配额")
     void shouldRapidUploadMissWithoutPersisting() {
-        when(fileInfoMapper.selectOne(ArgumentMatchers.<Wrapper<FileInfo>>any())).thenReturn(null);
+        when(fileAssetRepository.findReusableByDigest("d41d8cd98f00b204e9800998ecf8427e", 123L))
+                .thenReturn(Optional.empty());
 
         FileRapidUploadVO vo = fileInfoService.rapidUpload(
                 rapidRequest("copy.pdf", "d41d8cd98f00b204e9800998ecf8427e", 123L, "application/pdf"), UPLOADER_ID);
 
         assertFalse(vo.isHit());
-        verify(fileInfoMapper, never()).insert(any(FileInfo.class));
-        verify(fileInfoMapper, never()).selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any());
+        verify(fileAssetRepository, never()).save(any(FileAsset.class));
+        verify(fileAssetRepository, never()).sumNormalSizeByUploader(anyLong());
         verify(fileStorage, never()).store(any(), any(), any());
     }
 
@@ -468,22 +489,23 @@ class FileInfoServiceImplTest {
     @DisplayName("rapidUpload：命中但配额不足时抛参数错误且不落库")
     void shouldRejectRapidUploadWhenQuotaExceeded() {
         fileProperties.setQuotaBytes(1000L);
-        when(fileInfoMapper.selectOne(ArgumentMatchers.<Wrapper<FileInfo>>any())).thenReturn(existingFile(500L));
-        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any())).thenReturn(List.of(800L));
+        when(fileAssetRepository.findReusableByDigest("d41d8cd98f00b204e9800998ecf8427e", 500L))
+                .thenReturn(Optional.of(existingFile(500L)));
+        when(fileAssetRepository.sumNormalSizeByUploader(UPLOADER_ID)).thenReturn(800L);
 
         BizException ex = assertThrows(BizException.class, () -> fileInfoService.rapidUpload(
                 rapidRequest("copy.pdf", "d41d8cd98f00b204e9800998ecf8427e", 500L, null), UPLOADER_ID));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertTrue(ex.getMessage().contains("超出个人存储配额"));
-        verify(fileInfoMapper, never()).insert(any(FileInfo.class));
+        verify(fileAssetRepository, never()).save(any(FileAsset.class));
     }
 
     @Test
     @DisplayName("upload：配额不足时抛参数错误且不写存储")
     void shouldRejectUploadWhenQuotaExceeded() throws IOException {
         fileProperties.setQuotaBytes(1000L);
-        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any())).thenReturn(List.of(990L));
+        when(fileAssetRepository.sumNormalSizeByUploader(UPLOADER_ID)).thenReturn(990L);
         MultipartFile file = multipartFile(new byte[20], "big.bin");
 
         BizException ex = assertThrows(BizException.class, () -> fileInfoService.upload(file, null, UPLOADER_ID));
@@ -502,13 +524,13 @@ class FileInfoServiceImplTest {
         FileUploadVO vo = fileInfoService.upload(file, null, UPLOADER_ID);
 
         assertEquals("a.txt", vo.getOriginalName());
-        verify(fileInfoMapper, never()).selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any());
+        verify(fileAssetRepository, never()).sumNormalSizeByUploader(anyLong());
     }
 
     @Test
     @DisplayName("quota：返回已用量与剩余量")
     void shouldReturnQuotaUsage() {
-        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any())).thenReturn(List.of(123L));
+        when(fileAssetRepository.sumNormalSizeByUploader(UPLOADER_ID)).thenReturn(123L);
 
         FileQuotaVO vo = fileInfoService.quota(UPLOADER_ID);
 
@@ -526,7 +548,7 @@ class FileInfoServiceImplTest {
         assertTrue(vo.isUnlimited());
         assertEquals(0L, vo.getUsedBytes());
         assertEquals(0L, vo.getRemainingBytes());
-        verify(fileInfoMapper, never()).selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any());
+        verify(fileAssetRepository, never()).sumNormalSizeByUploader(anyLong());
     }
 
     @Test
@@ -538,13 +560,13 @@ class FileInfoServiceImplTest {
 
         assertTrue(vo.isUnlimited());
         assertEquals(0L, vo.getQuotaBytes());
-        verify(fileInfoMapper, never()).selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any());
+        verify(fileAssetRepository, never()).sumNormalSizeByUploader(anyLong());
     }
 
     @Test
-    @DisplayName("quota：聚合结果为空时已用量返回 0")
+    @DisplayName("quota：无记录时已用量返回 0")
     void shouldReturnZeroUsageWhenNoRecords() {
-        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any())).thenReturn(List.of());
+        when(fileAssetRepository.sumNormalSizeByUploader(UPLOADER_ID)).thenReturn(0L);
 
         FileQuotaVO vo = fileInfoService.quota(UPLOADER_ID);
 
@@ -554,32 +576,10 @@ class FileInfoServiceImplTest {
     }
 
     @Test
-    @DisplayName("quota：聚合结果兼容字符串类型")
-    void shouldParseStringUsage() {
-        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any())).thenReturn(List.of("456"));
-
-        FileQuotaVO vo = fileInfoService.quota(UPLOADER_ID);
-
-        assertEquals(456L, vo.getUsedBytes());
-        assertEquals(fileProperties.getQuotaBytes() - 456L, vo.getRemainingBytes());
-    }
-
-    @Test
-    @DisplayName("quota：聚合查询异常时抛系统错误")
-    void shouldThrowSystemErrorWhenUsageQueryFails() {
-        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any()))
-                .thenThrow(new IllegalStateException("db down"));
-
-        BizException ex = assertThrows(BizException.class, () -> fileInfoService.quota(UPLOADER_ID));
-
-        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), ex.getCode());
-    }
-
-    @Test
     @DisplayName("upload：用量恰好达到配额上限时仍允许上传")
     void shouldAllowUploadAtQuotaBoundary() throws IOException {
         fileProperties.setQuotaBytes(1000L);
-        when(fileInfoMapper.selectObjs(ArgumentMatchers.<Wrapper<FileInfo>>any())).thenReturn(List.of(980L));
+        when(fileAssetRepository.sumNormalSizeByUploader(UPLOADER_ID)).thenReturn(980L);
         MultipartFile file = multipartFile(new byte[20], "edge.bin");
 
         FileUploadVO vo = fileInfoService.upload(file, null, UPLOADER_ID);
@@ -588,98 +588,96 @@ class FileInfoServiceImplTest {
         verify(fileStorage).store(eq("bluewhale"), anyString(), any(InputStream.class));
     }
 
-    /**
-     * 构造指定状态的文件实体。
-     *
-     * @param id 主键
-     * @param status 文件状态
-     * @return 文件实体
-     */
-    private static FileInfo fileWithStatus(long id, int status) {
-        FileInfo entity = new FileInfo();
-        entity.setId(id);
-        entity.setOriginalName("locked.pdf");
-        entity.setBucket("bluewhale");
-        entity.setObjectKey("2026/10/24/locked.pdf");
-        entity.setFileSize(12L);
-        entity.setStatus(status);
-        return entity;
-    }
-
     @Test
-    @DisplayName("lock：正常文件写入 status=2（归档锁定）")
+    @DisplayName("lock：正常文件写入归档锁定状态")
     void shouldLockFile() {
-        when(fileInfoMapper.selectById(7L)).thenReturn(fileWithStatus(7L, 1));
+        when(fileAssetRepository.findById(7L)).thenReturn(Optional.of(fileWithStatus(7L, FileStatus.NORMAL)));
 
         fileInfoService.lock(7L);
 
-        ArgumentCaptor<FileInfo> captor = ArgumentCaptor.forClass(FileInfo.class);
-        verify(fileInfoMapper).updateById(captor.capture());
+        ArgumentCaptor<FileAsset> captor = ArgumentCaptor.forClass(FileAsset.class);
+        verify(fileAssetRepository).save(captor.capture());
         assertEquals(7L, captor.getValue().getId());
-        assertEquals(Integer.valueOf(2), captor.getValue().getStatus());
+        assertEquals(FileStatus.LOCKED, captor.getValue().getStatus());
     }
 
     @Test
-    @DisplayName("lock：已锁定文件幂等，不重复更新")
+    @DisplayName("lock：已锁定文件幂等，不重复保存")
     void shouldIgnoreRelock() {
-        when(fileInfoMapper.selectById(7L)).thenReturn(fileWithStatus(7L, 2));
+        when(fileAssetRepository.findById(7L)).thenReturn(Optional.of(fileWithStatus(7L, FileStatus.LOCKED)));
 
         fileInfoService.lock(7L);
 
-        verify(fileInfoMapper, never()).updateById(any(FileInfo.class));
+        verify(fileAssetRepository, never()).save(any(FileAsset.class));
     }
 
     @Test
     @DisplayName("lock：禁用文件不可锁定")
     void shouldRejectLockDisabledFile() {
-        when(fileInfoMapper.selectById(7L)).thenReturn(fileWithStatus(7L, 0));
+        when(fileAssetRepository.findById(7L)).thenReturn(Optional.of(fileWithStatus(7L, FileStatus.DISABLED)));
 
         BizException ex = assertThrows(BizException.class, () -> fileInfoService.lock(7L));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertTrue(ex.getMessage().contains("已禁用"));
-        verify(fileInfoMapper, never()).updateById(any(FileInfo.class));
+        verify(fileAssetRepository, never()).save(any(FileAsset.class));
     }
 
     @Test
-    @DisplayName("unlock：锁定文件恢复 status=1；未锁定文件不产生更新")
+    @DisplayName("unlock：锁定文件恢复正常；未锁定文件不产生保存")
     void shouldUnlockOnlyLockedFile() {
-        when(fileInfoMapper.selectById(7L)).thenReturn(fileWithStatus(7L, 2));
+        when(fileAssetRepository.findById(7L)).thenReturn(Optional.of(fileWithStatus(7L, FileStatus.LOCKED)));
         fileInfoService.unlock(7L);
-        ArgumentCaptor<FileInfo> captor = ArgumentCaptor.forClass(FileInfo.class);
-        verify(fileInfoMapper).updateById(captor.capture());
-        assertEquals(Integer.valueOf(1), captor.getValue().getStatus());
+        ArgumentCaptor<FileAsset> captor = ArgumentCaptor.forClass(FileAsset.class);
+        verify(fileAssetRepository).save(captor.capture());
+        assertEquals(FileStatus.NORMAL, captor.getValue().getStatus());
 
-        when(fileInfoMapper.selectById(8L)).thenReturn(fileWithStatus(8L, 1));
+        when(fileAssetRepository.findById(8L)).thenReturn(Optional.of(fileWithStatus(8L, FileStatus.NORMAL)));
         fileInfoService.unlock(8L);
-        verify(fileInfoMapper, org.mockito.Mockito.times(1)).updateById(any(FileInfo.class));
+        verify(fileAssetRepository, times(1)).save(any(FileAsset.class));
     }
 
     @Test
     @DisplayName("delete：归档锁定文件禁止删除")
     void shouldRejectDeletingLockedFile() {
-        when(fileInfoMapper.selectById(7L)).thenReturn(fileWithStatus(7L, 2));
+        when(fileAssetRepository.findById(7L)).thenReturn(Optional.of(fileWithStatus(7L, FileStatus.LOCKED)));
 
         BizException ex = assertThrows(BizException.class, () -> fileInfoService.delete(7L));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertTrue(ex.getMessage().contains("禁止删除"));
-        verify(fileInfoMapper, never()).deleteById(any(Long.class));
+        verify(fileAssetRepository, never()).deleteById(anyLong());
     }
 
     @Test
     @DisplayName("changes：按更新时间游标分页并回传状态与更新时间")
     void shouldListChangesWithCursor() {
-        FileInfo entity = fileWithStatus(7L, 2);
-        entity.setUpdateTime(LocalDateTime.of(2026, 10, 24, 10, 0));
-        when(fileInfoMapper.selectChanges(ArgumentMatchers.any(), ArgumentMatchers.anyLong(),
-                ArgumentMatchers.anyLong())).thenReturn(List.of(entity));
-        when(fileInfoMapper.countChanges(ArgumentMatchers.any())).thenReturn(1L);
+        FileAsset asset = FileAsset.reconstitute(7L, "locked.pdf", "locked.pdf", "bluewhale",
+                "2026/10/24/locked.pdf", 12L, "application/pdf", null, FileStatus.LOCKED, null, false,
+                LocalDateTime.of(2026, 10, 24, 9, 0), LocalDateTime.of(2026, 10, 24, 10, 0));
+        when(fileAssetRepository.findChanges(any(), anyLong(), anyLong()))
+                .thenReturn(new FileAssetPage(List.of(asset), 1L, 1L, 200L));
 
         PageResult<FileChangeVO> result = fileInfoService.changes(LocalDateTime.of(2026, 10, 24, 9, 0), 1L, 500L);
 
         assertEquals(1L, result.getTotal());
         assertEquals(Integer.valueOf(2), result.getRecords().get(0).getStatus());
         assertEquals(LocalDateTime.of(2026, 10, 24, 10, 0), result.getRecords().get(0).getUpdateTime());
+        verify(fileAssetRepository).findChanges(any(), eq(1L), eq(200L));
+    }
+
+    @Test
+    @DisplayName("getChangeDetail：已逻辑删除文件仍可查询并返回 deleted=1")
+    void shouldReturnChangeDetailForDeletedFile() {
+        FileAsset deleted = FileAsset.reconstitute(7L, "locked.pdf", "locked.pdf", "bluewhale",
+                "2026/10/24/locked.pdf", 12L, "application/pdf", null, FileStatus.NORMAL, null, true,
+                LocalDateTime.of(2026, 10, 24, 9, 0), LocalDateTime.of(2026, 10, 24, 10, 0));
+        when(fileAssetRepository.findByIdIncludingDeleted(7L)).thenReturn(Optional.of(deleted));
+
+        FileChangeVO vo = fileInfoService.getChangeDetail(7L);
+
+        assertEquals(1, vo.getDeleted());
+        assertEquals(Integer.valueOf(1), vo.getStatus());
+        assertEquals(LocalDateTime.of(2026, 10, 24, 10, 0), vo.getUpdateTime());
     }
 }

@@ -14,7 +14,8 @@ import java.util.List;
  * {@code @MapperScan("com.bluewhale.**.mapper")} 统一扫描注册。</p>
  *
  * <p>变更流查询使用自定义 SQL：知识库采集需要感知逻辑删除（{@code deleted=1}）的文件，
- * 以便及时移除对应索引；MyBatis-Plus 的通用查询会自动过滤逻辑删除行，无法满足该语义。</p>
+ * 以便及时移除对应索引；MyBatis-Plus 的通用查询会自动过滤逻辑删除行，无法满足该语义。
+ * 变更详情同理，使用 {@link #selectByIdIncludingDeleted(Long)} 绕过逻辑删除过滤。</p>
  *
  * @author BlueWhale
  */
@@ -45,4 +46,17 @@ public interface FileInfoMapper extends BaseMapper<FileInfo> {
     @Select("<script>SELECT COUNT(*) FROM file_info "
             + "<where><if test='since != null'>update_time &gt; #{since}</if></where></script>")
     long countChanges(@Param("since") LocalDateTime since);
+
+    /**
+     * 按主键查询文件（含逻辑删除行）。
+     *
+     * <p>变更详情需要读取已逻辑删除的文件，供知识库判定是否移除索引；MyBatis-Plus 的
+     * {@code selectById} 会自动过滤逻辑删除行，故使用自定义 SQL。</p>
+     *
+     * @param id 文件ID
+     * @return 文件记录（含已逻辑删除行）；不存在时返回 {@code null}
+     */
+    @Select("SELECT id, file_name, original_name, bucket, object_key, file_size, content_type, md5, "
+            + "status, uploader_id, create_time, update_time, deleted FROM file_info WHERE id = #{id}")
+    FileInfo selectByIdIncludingDeleted(@Param("id") Long id);
 }

@@ -2,7 +2,7 @@ package com.bluewhale.file.storage.plugin.minio;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
-import com.bluewhale.file.storage.api.StoragePlugin;
+import com.bluewhale.file.domain.storage.StoragePlugin;
 import io.minio.BucketExistsArgs;
 import io.minio.GetObjectArgs;
 import io.minio.GetPresignedObjectUrlArgs;

@@ -19,7 +19,7 @@
     <dependencies>
         <dependency>
             <groupId>com.bluewhale</groupId>
-            <artifactId>whale-service-file-core</artifactId>
+            <artifactId>whale-service-file-domain</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

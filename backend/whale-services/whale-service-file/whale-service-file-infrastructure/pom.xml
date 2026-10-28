@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- 基础设施层：仓储实现、持久化装配器、存储插件注册表（存储端口适配） -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -14,19 +15,21 @@
     <artifactId>whale-service-file-infrastructure</artifactId>
     <packaging>jar</packaging>
     <name>Whale Service File Infrastructure</name>
-    <description>文件服务基础设施层 - 元数据持久化与存储插件注册表</description>
+    <description>文件服务基础设施层 - 仓储实现、持久化装配器与存储插件注册表</description>
 
     <dependencies>
         <dependency>
             <groupId>com.bluewhale</groupId>
-            <artifactId>whale-service-file-core</artifactId>
+            <artifactId>whale-service-file-domain</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- FileProperties：插件注册表读取活动插件类型 -->
         <dependency>
             <groupId>com.bluewhale</groupId>
             <artifactId>whale-service-file-starter</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- MyBatis-Plus / TenantContext / BizException 等基础能力 -->
         <dependency>
             <groupId>com.bluewhale</groupId>
             <artifactId>whale-spring-boot-starter</artifactId>

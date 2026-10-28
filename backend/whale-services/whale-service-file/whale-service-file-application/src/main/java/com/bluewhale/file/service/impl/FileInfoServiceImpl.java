@@ -1,21 +1,20 @@
 package com.bluewhale.file.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.file.config.FileProperties;
+import com.bluewhale.file.domain.file.aggregate.FileAsset;
+import com.bluewhale.file.domain.file.repository.FileAssetPage;
+import com.bluewhale.file.domain.file.repository.FileAssetQuery;
+import com.bluewhale.file.domain.file.repository.FileAssetRepository;
+import com.bluewhale.file.domain.storage.FileStorage;
 import com.bluewhale.file.dto.ChunkUploadCompleteRequest;
 import com.bluewhale.file.dto.ChunkUploadInitRequest;
 import com.bluewhale.file.dto.FileQueryRequest;
 import com.bluewhale.file.dto.FileRapidUploadRequest;
-import com.bluewhale.file.entity.FileInfo;
-import com.bluewhale.file.mapper.FileInfoMapper;
 import com.bluewhale.file.service.FileInfoService;
-import com.bluewhale.file.storage.FileStorage;
 import com.bluewhale.file.vo.ChunkUploadInitVO;
 import com.bluewhale.file.vo.FileChangeVO;
 import com.bluewhale.file.vo.FileInfoVO;
@@ -24,7 +23,6 @@ import com.bluewhale.file.vo.FileQuotaVO;
 import com.bluewhale.file.vo.FileRapidUploadVO;
 import com.bluewhale.file.vo.FileUploadVO;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.BeanUtils;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
@@ -61,12 +59,6 @@ import java.util.stream.Stream;
 @Service
 @RequiredArgsConstructor
 public class FileInfoServiceImpl implements FileInfoService {
-
-    /** 文件状态：正常 */
-    private static final int STATUS_NORMAL = 1;
-
-    /** 文件状态：归档锁定（不可删除，内容不可变更） */
-    private static final int STATUS_LOCKED = 2;
 
     /** 单页最大条数：防止深度分页拖垮数据库 */
     private static final long MAX_PAGE_SIZE = 200L;
@@ -110,7 +102,7 @@ public class FileInfoServiceImpl implements FileInfoService {
     /** 元数据键：文件总字节数 */
     private static final String META_KEY_SIZE = "size";
 
-    private final FileInfoMapper fileInfoMapper;
+    private final FileAssetRepository fileAssetRepository;
 
     private final FileStorage fileStorage;
 
@@ -134,33 +126,18 @@ public class FileInfoServiceImpl implements FileInfoService {
     public FileRapidUploadVO rapidUpload(FileRapidUploadRequest request, Long uploaderId) {
         validateDeclaredSize(request.getSize());
         String md5 = request.getMd5().toLowerCase(Locale.ROOT);
-        LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FileInfo::getMd5, md5)
-                .eq(FileInfo::getFileSize, request.getSize())
-                .eq(FileInfo::getStatus, STATUS_NORMAL)
-                .orderByAsc(FileInfo::getId)
-                .last("LIMIT 1");
-        FileInfo existing = fileInfoMapper.selectOne(wrapper);
         FileRapidUploadVO vo = new FileRapidUploadVO();
+        FileAsset existing = fileAssetRepository.findReusableByDigest(md5, request.getSize()).orElse(null);
         if (existing == null) {
             vo.setHit(false);
             return vo;
         }
         validateQuota(request.getSize(), uploaderId);
-        FileInfo entity = new FileInfo();
-        entity.setFileName(existing.getFileName());
-        entity.setOriginalName(resolveOriginalName(request.getFileName()));
-        entity.setBucket(existing.getBucket());
-        entity.setObjectKey(existing.getObjectKey());
-        entity.setFileSize(existing.getFileSize());
-        entity.setContentType(StringUtils.hasText(request.getContentType())
-                ? request.getContentType() : existing.getContentType());
-        entity.setMd5(existing.getMd5());
-        entity.setStatus(STATUS_NORMAL);
-        entity.setUploaderId(uploaderId);
-        fileInfoMapper.insert(entity);
+        FileAsset asset = FileAsset.reuse(existing, resolveOriginalName(request.getFileName()),
+                request.getContentType(), uploaderId);
+        FileAsset saved = fileAssetRepository.save(asset);
         vo.setHit(true);
-        vo.setFile(toUploadVo(entity));
+        vo.setFile(toUploadVo(saved));
         return vo;
     }
 
@@ -175,7 +152,7 @@ public class FileInfoServiceImpl implements FileInfoService {
             vo.setUnlimited(true);
             return vo;
         }
-        long used = sumUsedBytes(uploaderId);
+        long used = fileAssetRepository.sumNormalSizeByUploader(uploaderId);
         vo.setUsedBytes(used);
         vo.setRemainingBytes(Math.max(quota - used, 0L));
         vo.setUnlimited(false);
@@ -184,17 +161,12 @@ public class FileInfoServiceImpl implements FileInfoService {
 
     @Override
     public PageResult<FileInfoVO> page(FileQueryRequest request) {
-        LambdaQueryWrapper<FileInfo> wrapper = new LambdaQueryWrapper<>();
-        wrapper.like(StringUtils.hasText(request.getOriginalName()),
-                FileInfo::getOriginalName, request.getOriginalName());
-        wrapper.eq(StringUtils.hasText(request.getBucket()), FileInfo::getBucket, request.getBucket());
-        wrapper.ge(request.getCreateTimeStart() != null, FileInfo::getCreateTime, request.getCreateTimeStart());
-        wrapper.le(request.getCreateTimeEnd() != null, FileInfo::getCreateTime, request.getCreateTimeEnd());
-        wrapper.orderByDesc(FileInfo::getCreateTime);
         long size = Math.min(Math.max(request.getSize(), 1L), MAX_PAGE_SIZE);
-        Page<FileInfo> page = fileInfoMapper.selectPage(new Page<>(request.getCurrent(), size), wrapper);
-        List<FileInfoVO> records = page.getRecords().stream().map(FileInfoServiceImpl::toVo).toList();
-        return PageResult.of(records, page.getTotal(), page.getCurrent(), page.getSize());
+        FileAssetQuery query = new FileAssetQuery(request.getOriginalName(), request.getBucket(),
+                request.getCreateTimeStart(), request.getCreateTimeEnd(), request.getCurrent(), size);
+        FileAssetPage page = fileAssetRepository.page(query);
+        List<FileInfoVO> records = page.records().stream().map(FileInfoServiceImpl::toVo).toList();
+        return PageResult.of(records, page.total(), page.current(), page.size());
     }
 
     @Override
@@ -204,79 +176,61 @@ public class FileInfoServiceImpl implements FileInfoService {
 
     @Override
     public FileChangeVO getChangeDetail(Long id) {
-        return toChangeVo(requireFile(id));
+        FileAsset asset = fileAssetRepository.findByIdIncludingDeleted(id)
+                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
+        ensureTenantVisible(asset);
+        return toChangeVo(asset);
     }
 
     @Override
     public Resource loadResource(Long id) {
-        FileInfo entity = requireFile(id);
-        return new InputStreamResource(fileStorage.load(entity.getBucket(), entity.getObjectKey()));
+        FileAsset asset = requireFile(id);
+        return new InputStreamResource(fileStorage.load(asset.getBucket(), asset.getObjectKey()));
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
-        FileInfo entity = requireFile(id);
-        if (entity.getStatus() != null && entity.getStatus() == STATUS_LOCKED) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "文件已归档锁定，禁止删除");
-        }
-        fileInfoMapper.deleteById(id);
+        FileAsset asset = requireFile(id);
+        asset.assertDeletable();
+        fileAssetRepository.deleteById(id);
     }
 
     @Override
     public PageResult<FileChangeVO> changes(LocalDateTime since, long current, long size) {
         long pageCurrent = Math.max(current, 1L);
         long pageSize = Math.min(Math.max(size, 1L), MAX_PAGE_SIZE);
-        long offset = (pageCurrent - 1) * pageSize;
-        List<FileInfo> rows = fileInfoMapper.selectChanges(since, offset, pageSize);
-        List<FileChangeVO> records = rows.stream()
-                .map(FileInfoServiceImpl::toChangeVo)
-                .toList();
-        return PageResult.of(records, fileInfoMapper.countChanges(since), pageCurrent, pageSize);
+        FileAssetPage page = fileAssetRepository.findChanges(since, pageCurrent, pageSize);
+        List<FileChangeVO> records = page.records().stream().map(FileInfoServiceImpl::toChangeVo).toList();
+        return PageResult.of(records, page.total(), page.current(), page.size());
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void lock(Long id) {
-        FileInfo entity = requireFile(id);
-        if (entity.getStatus() != null && entity.getStatus() == STATUS_LOCKED) {
+        FileAsset asset = requireFile(id);
+        if (!asset.lock()) {
             return;
         }
-        if (entity.getStatus() != null && entity.getStatus() != STATUS_NORMAL) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "文件已禁用，不可锁定");
-        }
-        updateStatus(id, STATUS_LOCKED);
+        fileAssetRepository.save(asset);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void unlock(Long id) {
-        FileInfo entity = requireFile(id);
-        if (entity.getStatus() == null || entity.getStatus() != STATUS_LOCKED) {
+        FileAsset asset = requireFile(id);
+        if (!asset.unlock()) {
             return;
         }
-        updateStatus(id, STATUS_NORMAL);
-    }
-
-    /**
-     * 更新文件状态（仅写入 status 列）
-     *
-     * @param id 文件ID
-     * @param status 目标状态
-     */
-    private void updateStatus(Long id, int status) {
-        FileInfo update = new FileInfo();
-        update.setId(id);
-        update.setStatus(status);
-        fileInfoMapper.updateById(update);
+        fileAssetRepository.save(asset);
     }
 
     @Override
     public FilePresignedVO presignedUrl(Long id, Integer expiresSeconds) {
-        FileInfo entity = requireFile(id);
+        FileAsset asset = requireFile(id);
         int expires = resolveExpiresSeconds(expiresSeconds);
         FilePresignedVO vo = new FilePresignedVO();
-        vo.setUrl(fileStorage.presignedDownloadUrl(entity.getBucket(), entity.getObjectKey(), expires));
+        vo.setUrl(fileStorage.presignedDownloadUrl(asset.getBucket(), asset.getObjectKey(), expires));
         vo.setExpiresSeconds(expires);
         return vo;
     }
@@ -389,40 +343,33 @@ public class FileInfoServiceImpl implements FileInfoService {
                 ? bucket : fileProperties.getBucket().getDefault();
         String objectKey = buildObjectKey(name);
         fileStorage.store(resolvedBucket, objectKey, in);
-        FileInfo entity = new FileInfo();
-        entity.setFileName(objectKey.substring(objectKey.lastIndexOf('/') + 1));
-        entity.setOriginalName(name);
-        entity.setBucket(resolvedBucket);
-        entity.setObjectKey(objectKey);
-        entity.setFileSize(fileSize);
-        entity.setContentType(contentType);
-        entity.setMd5(md5);
-        entity.setStatus(STATUS_NORMAL);
-        entity.setUploaderId(uploaderId);
-        fileInfoMapper.insert(entity);
-        return toUploadVo(entity);
+        FileAsset asset = FileAsset.register(resolvedBucket, objectKey, name, fileSize, contentType, md5, uploaderId);
+        return toUploadVo(fileAssetRepository.save(asset));
     }
 
     /**
-     * 查询文件元数据，不存在则抛出 {@code NOT_FOUND}
+     * 查询文件资产，不存在或跨租户时抛出 {@code NOT_FOUND}
      *
      * @param id 文件ID
-     * @return 文件实体
+     * @return 文件资产聚合根
      */
-    private FileInfo requireFile(Long id) {
-        FileInfo entity = fileInfoMapper.selectById(id);
-        if (entity == null) {
+    private FileAsset requireFile(Long id) {
+        FileAsset asset = fileAssetRepository.findById(id)
+                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
+        ensureTenantVisible(asset);
+        return asset;
+    }
+
+    /**
+     * 校验文件资产对当前租户可见，跨租户按不存在处理以避免泄露文件是否存在
+     *
+     * @param asset 文件资产聚合根
+     * @throws BizException 跨租户访问时抛出 {@code NOT_FOUND}
+     */
+    private static void ensureTenantVisible(FileAsset asset) {
+        if (!asset.isVisibleToTenant(TenantContext.get())) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
-        Long tenantId = TenantContext.get();
-        if (tenantId != null) {
-            String tenantPrefix = TENANT_KEY_PREFIX + tenantId + "/";
-            if (entity.getObjectKey() == null || !entity.getObjectKey().startsWith(tenantPrefix)) {
-                // 跨租户按不存在处理，避免泄露文件是否存在
-                throw new BizException(ErrorCode.NOT_FOUND);
-            }
-        }
-        return entity;
     }
 
     /**
@@ -465,55 +412,10 @@ public class FileInfoServiceImpl implements FileInfoService {
         if (quota <= 0 || uploaderId == null) {
             return;
         }
-        long used = sumUsedBytes(uploaderId);
+        long used = fileAssetRepository.sumNormalSizeByUploader(uploaderId);
         if (used + incomingSize > quota) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "超出个人存储配额");
         }
-    }
-
-    /**
-     * 统计指定用户已用存储字节数（仅统计状态正常且未逻辑删除的文件）
-     *
-     * @param uploaderId 上传用户 ID
-     * @return 已用字节数；无记录时返回 0
-     * @throws BizException 查询失败时抛出 {@code SYSTEM_ERROR}
-     */
-    private long sumUsedBytes(Long uploaderId) {
-        QueryWrapper<FileInfo> wrapper = new QueryWrapper<>();
-        wrapper.select("COALESCE(SUM(file_size), 0) AS total")
-                .eq("uploader_id", uploaderId)
-                .eq("status", STATUS_NORMAL);
-        List<Object> values;
-        try {
-            values = fileInfoMapper.selectObjs(wrapper);
-        } catch (RuntimeException e) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR);
-        }
-        if (values == null || values.isEmpty() || values.get(0) == null) {
-            return 0L;
-        }
-        return toBytes(values.get(0));
-    }
-
-    /**
-     * 将聚合查询结果转换为字节数，兼容数值与字符串两种驱动返回类型
-     *
-     * @param value 聚合查询首列值
-     * @return 字节数
-     * @throws BizException 无法解析时抛出 {@code SYSTEM_ERROR}
-     */
-    private static long toBytes(Object value) {
-        if (value instanceof Number number) {
-            return number.longValue();
-        }
-        if (value instanceof CharSequence text) {
-            try {
-                return Long.parseLong(text.toString().trim());
-            } catch (NumberFormatException e) {
-                throw new BizException(ErrorCode.SYSTEM_ERROR);
-            }
-        }
-        throw new BizException(ErrorCode.SYSTEM_ERROR);
     }
 
     /**
@@ -763,38 +665,66 @@ public class FileInfoServiceImpl implements FileInfoService {
     }
 
     /**
-     * 文件实体转上传结果视图对象
+     * 文件资产转上传结果视图对象
      *
-     * @param entity 文件实体
+     * @param asset 文件资产聚合根
      * @return 上传结果视图对象
      */
-    private static FileUploadVO toUploadVo(FileInfo entity) {
+    private static FileUploadVO toUploadVo(FileAsset asset) {
         FileUploadVO vo = new FileUploadVO();
-        BeanUtils.copyProperties(entity, vo);
+        vo.setId(asset.getId());
+        vo.setFileName(asset.getFileName());
+        vo.setOriginalName(asset.getOriginalName());
+        vo.setBucket(asset.getBucket());
+        vo.setObjectKey(asset.getObjectKey());
+        vo.setFileSize(asset.getFileSize());
+        vo.setContentType(asset.getContentType());
+        vo.setMd5(asset.getMd5());
         return vo;
     }
 
     /**
-     * 文件实体转信息视图对象
+     * 文件资产转信息视图对象
      *
-     * @param entity 文件实体
+     * @param asset 文件资产聚合根
      * @return 文件信息视图对象
      */
-    private static FileInfoVO toVo(FileInfo entity) {
+    private static FileInfoVO toVo(FileAsset asset) {
         FileInfoVO vo = new FileInfoVO();
-        BeanUtils.copyProperties(entity, vo);
+        vo.setId(asset.getId());
+        vo.setFileName(asset.getFileName());
+        vo.setOriginalName(asset.getOriginalName());
+        vo.setBucket(asset.getBucket());
+        vo.setObjectKey(asset.getObjectKey());
+        vo.setFileSize(asset.getFileSize());
+        vo.setContentType(asset.getContentType());
+        vo.setMd5(asset.getMd5());
+        vo.setUploaderId(asset.getUploaderId());
+        vo.setCreateTime(asset.getCreateTime());
         return vo;
     }
 
     /**
-     * 文件实体转变更流视图对象
+     * 文件资产转变更流视图对象
      *
-     * @param entity 文件信息实体
+     * @param asset 文件资产聚合根
      * @return 文件变更视图对象
      */
-    private static FileChangeVO toChangeVo(FileInfo entity) {
+    private static FileChangeVO toChangeVo(FileAsset asset) {
         FileChangeVO vo = new FileChangeVO();
-        BeanUtils.copyProperties(entity, vo);
+        vo.setId(asset.getId());
+        vo.setFileName(asset.getFileName());
+        vo.setOriginalName(asset.getOriginalName());
+        vo.setBucket(asset.getBucket());
+        vo.setObjectKey(asset.getObjectKey());
+        vo.setFileSize(asset.getFileSize());
+        vo.setContentType(asset.getContentType());
+        vo.setMd5(asset.getMd5());
+        vo.setStatus(asset.getStatus().getCode());
+        vo.setUploaderId(asset.getUploaderId());
+        vo.setDeleted(asset.isDeleted() ? 1 : 0);
+        vo.setCreateTime(asset.getCreateTime());
+        vo.setUpdateTime(asset.getUpdateTime());
         return vo;
     }
 }

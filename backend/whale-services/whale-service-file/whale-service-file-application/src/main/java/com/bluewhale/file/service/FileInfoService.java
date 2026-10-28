@@ -72,6 +72,8 @@ public interface FileInfoService {
      * 文件变更视图详情（内网接口专用）：含状态、逻辑删除标记与更新时间，
      * 供 whale-agent 知识库单文件重建判定可采集性。
      *
+     * <p>与变更流语义一致：已逻辑删除的文件仍可查询，并以 {@code deleted=1} 标记。</p>
+     *
      * @param id 文件ID
      * @return 文件变更视图对象
      */
@@ -81,7 +83,8 @@ public interface FileInfoService {
      * 按更新时间游标分页查询文件变更流（内网接口专用）
      *
      * <p>排序固定为 {@code update_time ASC, id ASC}，调用方以返回记录的最大
-     * {@code updateTime} 作为下一轮游标；已逻辑删除的文件不在变更流中。</p>
+     * {@code updateTime} 作为下一轮游标；已逻辑删除的文件仍会出现在变更流中，
+     * 并以 {@code deleted=1} 标记，供下游移除索引。</p>
      *
      * @param since 游标下界（不含），可为 {@code null} 表示不限
      * @param current 页码（小于 1 时按 1 处理）

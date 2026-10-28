@@ -2,8 +2,7 @@ package com.bluewhale.file.controller;
 
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.common.core.result.Result;
-import com.bluewhale.file.storage.api.StoragePlugin;
-import com.bluewhale.file.storage.plugin.StoragePluginRegistry;
+import com.bluewhale.file.service.StoragePluginService;
 import com.bluewhale.file.vo.StoragePluginVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,7 +24,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class StoragePluginController {
 
-    private final StoragePluginRegistry storagePluginRegistry;
+    private final StoragePluginService storagePluginService;
 
     /**
      * 查询已装配的存储插件清单。
@@ -35,26 +34,6 @@ public class StoragePluginController {
     @GetMapping("/plugins")
     @RequirePermission("sys:file:list")
     public Result<List<StoragePluginVO>> plugins() {
-        String activeType = storagePluginRegistry.getActiveType();
-        List<StoragePluginVO> plugins = storagePluginRegistry.getPlugins().stream()
-                .map(plugin -> toVo(plugin, activeType))
-                .toList();
-        return Result.ok(plugins);
-    }
-
-    /**
-     * 插件实例转视图对象。
-     *
-     * @param plugin 插件实例
-     * @param activeType 当前活动插件类型
-     * @return 插件视图对象
-     */
-    private static StoragePluginVO toVo(StoragePlugin plugin, String activeType) {
-        StoragePluginVO vo = new StoragePluginVO();
-        vo.setType(plugin.getType());
-        vo.setDisplayName(plugin.getDisplayName());
-        vo.setPresignedSupported(plugin.supportsPresigned());
-        vo.setActive(plugin.getType().equals(activeType));
-        return vo;
+        return Result.ok(storagePluginService.plugins());
     }
 }

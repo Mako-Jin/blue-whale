@@ -24,11 +24,6 @@
         </dependency>
         <dependency>
             <groupId>com.bluewhale</groupId>
-            <artifactId>whale-service-file-infrastructure</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.bluewhale</groupId>
             <artifactId>whale-spring-boot-starter</artifactId>
             <version>${project.version}</version>
         </dependency>

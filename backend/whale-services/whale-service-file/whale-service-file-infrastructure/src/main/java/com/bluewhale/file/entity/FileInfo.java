@@ -41,7 +41,7 @@ public class FileInfo extends BaseEntity {
     /** 文件 MD5 摘要（十六进制小写，用于去重/完整性校验） */
     private String md5;
 
-    /** 状态：1 正常 / 0 禁用 */
+    /** 状态：0 禁用 / 1 正常 / 2 归档锁定 */
     private Integer status;
 
     /** 上传用户 ID（逻辑关联 sys_user.id） */

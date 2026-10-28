@@ -2,7 +2,7 @@ package com.bluewhale.file.storage.plugin.local;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
-import com.bluewhale.file.storage.api.StoragePlugin;
+import com.bluewhale.file.domain.storage.StoragePlugin;
 
 import java.io.IOException;
 import java.io.InputStream;

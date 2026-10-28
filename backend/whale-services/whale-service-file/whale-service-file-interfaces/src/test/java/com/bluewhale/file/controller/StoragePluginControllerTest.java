@@ -1,8 +1,8 @@
 package com.bluewhale.file.controller;
 
 import com.bluewhale.common.core.exception.ErrorCode;
-import com.bluewhale.file.storage.api.StoragePlugin;
-import com.bluewhale.file.storage.plugin.StoragePluginRegistry;
+import com.bluewhale.file.service.StoragePluginService;
+import com.bluewhale.file.vo.StoragePluginVO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,9 +24,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 class StoragePluginControllerTest {
 
-    private final StoragePluginRegistry storagePluginRegistry = mock(StoragePluginRegistry.class);
+    private final StoragePluginService storagePluginService = mock(StoragePluginService.class);
 
-    private final StoragePluginController controller = new StoragePluginController(storagePluginRegistry);
+    private final StoragePluginController controller = new StoragePluginController(storagePluginService);
 
     private MockMvc mockMvc;
 
@@ -39,27 +39,27 @@ class StoragePluginControllerTest {
     }
 
     /**
-     * 构造存储插件桩。
+     * 构造存储插件视图对象。
      *
      * @param type 插件类型
      * @param presigned 是否支持预签名
-     * @return 存储插件桩
+     * @param active 是否活动插件
+     * @return 插件视图对象
      */
-    private static StoragePlugin plugin(String type, boolean presigned) {
-        StoragePlugin plugin = mock(StoragePlugin.class);
-        when(plugin.getType()).thenReturn(type);
-        when(plugin.getDisplayName()).thenReturn(type + "-storage");
-        when(plugin.supportsPresigned()).thenReturn(presigned);
-        return plugin;
+    private static StoragePluginVO plugin(String type, boolean presigned, boolean active) {
+        StoragePluginVO vo = new StoragePluginVO();
+        vo.setType(type);
+        vo.setDisplayName(type + "-storage");
+        vo.setPresignedSupported(presigned);
+        vo.setActive(active);
+        return vo;
     }
 
     @Test
     @DisplayName("GET /file/storage/plugins：返回插件清单并标记活动插件")
     void pluginsShouldReturnActiveFlag() throws Exception {
-        StoragePlugin local = plugin("local", false);
-        StoragePlugin minio = plugin("minio", true);
-        when(storagePluginRegistry.getActiveType()).thenReturn("minio");
-        when(storagePluginRegistry.getPlugins()).thenReturn(List.of(local, minio));
+        when(storagePluginService.plugins()).thenReturn(List.of(
+                plugin("local", false, false), plugin("minio", true, true)));
 
         mockMvc.perform(get("/file/storage/plugins"))
                 .andExpect(status().isOk())

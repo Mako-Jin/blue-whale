@@ -17,7 +17,7 @@
     <description>文件服务：分层模块 + 可插拔存储插件（local / minio）</description>
 
     <modules>
-        <module>whale-service-file-core</module>
+        <module>whale-service-file-domain</module>
         <module>whale-service-file-infrastructure</module>
         <module>whale-service-file-application</module>
         <module>whale-service-file-starter</module>
