@@ -1,0 +1,40 @@
+# 部署契约静态检查（轻量工作流，不构建镜像）
+#
+# 覆盖仅改 Nginx / 生产 compose / CI 脚本时不会触发 docker-deploy 的场景，
+# 避免 V-09 子应用前缀或镜像命名空间在无人值守时回归。
+
+name: Deploy Contract Check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/ci/**'
+      - 'infrastructure/docker/nginx/**'
+      - 'infrastructure/docker/docker-compose.prod.yml'
+      - 'deploy/frontend/Dockerfile'
+      - '.github/workflows/docker-deploy.yml'
+      - '.github/workflows/deploy-contract-check.yml'
+  pull_request:
+    paths:
+      - 'scripts/ci/**'
+      - 'infrastructure/docker/nginx/**'
+      - 'infrastructure/docker/docker-compose.prod.yml'
+      - 'deploy/frontend/Dockerfile'
+      - '.github/workflows/docker-deploy.yml'
+      - '.github/workflows/deploy-contract-check.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Validate deploy contract
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate image namespace, nginx routes and prod overlay
+        shell: pwsh
+        run: ./scripts/ci/bw-deploy-contract-check.ps1

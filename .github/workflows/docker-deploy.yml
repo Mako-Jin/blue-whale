@@ -34,8 +34,22 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
+  preflight:
+    name: Deploy Contract Check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate image namespace, nginx routes and prod overlay
+        shell: pwsh
+        run: ./scripts/ci/bw-deploy-contract-check.ps1
+
   backend:
     name: Backend · ${{ matrix.service }}
+    needs: preflight
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -103,11 +117,12 @@ jobs:
             NEED_FACT_ASSETS=${{ matrix.assets }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ matrix.service }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          cache-from: type=gha,scope=be-${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=be-${{ matrix.service }}
 
   frontend:
     name: Frontend · ${{ matrix.image }}
+    needs: preflight
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -117,22 +132,24 @@ jobs:
       matrix:
         # image：GHCR 镜像名；app：package.json 的 name（turbo --filter）；dir：frontend/ 下的应用目录
         # base：vite base 前缀（无 base 配置的应用为 /），必须与构建产物中的资源绝对路径一致
-        # admin 沿用历史镜像名 whale-web，避免破坏既有部署引用
+        # namespace：root=沿用 ghcr.io/<repo>/<image>（保持 admin 等既有部署引用）；
+        #            frontend=ghcr.io/<repo>/frontend/<image>，仅用于与同名后端服务冲突的 8 个前端应用。
+        # 不冲突的前端保留原名，避免无谓的部署引用变更；冲突项由 preflight 校验强制命名空间。
         include:
-          - { image: whale-web, app: whale-admin, dir: admin, base: / }
-          - { image: whale-platform, app: '@bluewhale/whale-platform', dir: platform-apps/whale-platform, base: / }
-          - { image: whale-portal, app: whale-portal, dir: platform-apps/whale-portal, base: /portal }
-          - { image: whale-ops, app: whale-ops, dir: ops, base: / }
-          - { image: whale-agent, app: whale-agent, dir: platform-apps/whale-agent, base: / }
-          - { image: whale-contract, app: whale-contract, dir: platform-apps/whale-contract, base: /contract }
-          - { image: whale-erp, app: whale-erp, dir: platform-apps/whale-erp, base: /erp }
-          - { image: whale-oa, app: whale-oa, dir: platform-apps/whale-oa, base: /oa }
-          - { image: whale-mes, app: whale-mes, dir: platform-apps/whale-mes, base: /mes }
-          - { image: whale-pdm, app: whale-pdm, dir: platform-apps/whale-pdm, base: /pdm }
-          - { image: whale-pm, app: whale-pm, dir: platform-apps/whale-pm, base: /pm }
-          - { image: whale-im, app: whale-im, dir: platform-apps/whale-im, base: /im }
-          - { image: whale-form-designer, app: whale-form-designer, dir: platform-apps/whale-form-designer, base: / }
-          - { image: whale-workflow-designer, app: whale-workflow-designer, dir: platform-apps/whale-workflow-designer, base: / }
+          - { image: whale-web, app: whale-admin, dir: admin, base: /, namespace: root }
+          - { image: whale-platform, app: '@bluewhale/whale-platform', dir: platform-apps/whale-platform, base: /, namespace: root }
+          - { image: whale-portal, app: whale-portal, dir: platform-apps/whale-portal, base: /portal, namespace: root }
+          - { image: whale-ops, app: whale-ops, dir: ops, base: /, namespace: root }
+          - { image: whale-agent, app: whale-agent, dir: platform-apps/whale-agent, base: /, namespace: frontend }
+          - { image: whale-contract, app: whale-contract, dir: platform-apps/whale-contract, base: /contract, namespace: frontend }
+          - { image: whale-erp, app: whale-erp, dir: platform-apps/whale-erp, base: /erp, namespace: frontend }
+          - { image: whale-oa, app: whale-oa, dir: platform-apps/whale-oa, base: /oa, namespace: frontend }
+          - { image: whale-mes, app: whale-mes, dir: platform-apps/whale-mes, base: /mes, namespace: frontend }
+          - { image: whale-pdm, app: whale-pdm, dir: platform-apps/whale-pdm, base: /pdm, namespace: frontend }
+          - { image: whale-pm, app: whale-pm, dir: platform-apps/whale-pm, base: /pm, namespace: frontend }
+          - { image: whale-im, app: whale-im, dir: platform-apps/whale-im, base: /im, namespace: frontend }
+          - { image: whale-form-designer, app: whale-form-designer, dir: platform-apps/whale-form-designer, base: /, namespace: root }
+          - { image: whale-workflow-designer, app: whale-workflow-designer, dir: platform-apps/whale-workflow-designer, base: /, namespace: root }
 
     steps:
       - name: Checkout
@@ -149,7 +166,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.image }}
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.namespace == 'frontend' && 'frontend/' || '' }}${{ matrix.image }}
           tags: |
             type=ref,event=tag
             type=sha,prefix=sha-
@@ -171,5 +188,5 @@ jobs:
             APP_BASE=${{ matrix.base }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ matrix.image }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+          cache-from: type=gha,scope=fe-${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=fe-${{ matrix.image }}

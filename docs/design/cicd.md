@@ -3,8 +3,8 @@
 | 项 | 内容 |
 |---|---|
 | 需求编号 | REQ-CICD-001 |
-| 状态 | 设计已定稿 / 实现待启动 |
-| 最后更新 | 2026-10-17 |
+| 状态 | 设计已定稿 / CI、镜像矩阵与部署契约检查已落地；编排部署段待建 |
+| 最后更新 | 2026-10-28 |
 | 作者 | BlueWhale |
 | 落点 | `.github/workflows/`（现状）+ `deploy/`（Dockerfile）+ Gitee Go（新增） |
 
@@ -20,11 +20,15 @@
 |---|---|---|---|---|
 | `backend-ci.yml` | `push` main（paths: `backend/**`、`pom.xml`、本文件）；`pull_request` → main（同 paths） | Checkout → Setup JDK 21（temurin + maven cache）→ Maven Wrapper 初始化（`mvn -N wrapper:wrapper -Dmaven=3.9.9`）→ `./mvnw -B -ntp test` → `./mvnw -B -ntp clean package -DskipTests` → Upload JAR | `backend-jars`（`**/target/*.jar`，保留 7 天，仅 push main） | `backend-ci-${{ github.ref }}`，`cancel-in-progress: true` |
 | `frontend-ci.yml` | `push` main（paths: `frontend/**`、`pnpm-workspace.yaml`、`package.json`、本文件）；`pull_request` → main（同 paths） | Checkout → Setup Node 24（pnpm cache）→ corepack 启用 pnpm → `pnpm install --frozen-lockfile` → `pnpm -r lint` → `pnpm turbo run build` → Upload dist | `frontend-dist`（`**/dist/`，保留 7 天，仅 push main） | `frontend-ci-${{ github.ref }}`，`cancel-in-progress: true` |
-| `docker-deploy.yml` | `push` main（paths: `backend/**`、`frontend/**`、`deploy/**`、本文件；2026-10-28 新增，docs 等无关提交不触发）；`push` tag `v*.*.*`；`workflow_dispatch`（可选 `image_tag` 输入，默认短 SHA） | Checkout → 登录 GHCR（`GITHUB_TOKEN`）→ `docker/metadata-action` 生成 tag → `setup-buildx-action` → 矩阵构建推送 21 个后端服务 + 14 个前端应用 | 镜像推送至 GHCR；`cache-from/to: type=gha`（按 service/image 分 scope） | `docker-deploy-${{ github.ref }}`，`cancel-in-progress: false` |
+| `docker-deploy.yml` | `push` main（paths: `backend/**`、`frontend/**`、`deploy/**`、本文件；2026-10-28 新增，docs 等无关提交不触发）；`push` tag `v*.*.*`；`workflow_dispatch`（可选 `image_tag` 输入，默认短 SHA） | Checkout → **部署契约静态检查** → 登录 GHCR（`GITHUB_TOKEN`）→ `docker/metadata-action` 生成 tag → `setup-buildx-action` → 矩阵构建推送 21 个后端服务 + 14 个前端应用 | 镜像推送至 GHCR；`cache-from/to: type=gha`（后端 `be-*`、前端 `fe-*` 分 scope） | `docker-deploy-${{ github.ref }}`，`cancel-in-progress: false` |
+| `deploy-contract-check.yml` | `push` / `pull_request`：`scripts/ci/**`、`infrastructure/docker/nginx/**`、`docker-compose.prod.yml`、`deploy/frontend/Dockerfile`、两个部署 workflow 自身 | Checkout → PowerShell 部署契约静态检查（21+14 矩阵、前后端同名 namespace、8 base、Nginx 8 前缀、TLS/read-only） | 无镜像构建；失败阻断合并/后续部署 | 默认 GitHub Actions 并发 |
 
 `docker-deploy.yml` 关键变量：
 
-- `REGISTRY=ghcr.io`，后端镜像 `ghcr.io/${{ github.repository }}/${{ matrix.service }}`，前端镜像 `ghcr.io/${{ github.repository }}/${{ matrix.image }}`（admin 沿用历史名 `whale-web`）；
+- `REGISTRY=ghcr.io`，后端镜像 `ghcr.io/${{ github.repository }}/${{ matrix.service }}`；前端默认沿用 `ghcr.io/${{ github.repository }}/${{ matrix.image }}`，其中与后端同名的 8 个应用使用 `ghcr.io/${{ github.repository }}/frontend/${{ matrix.image }}`。
+  `whale-im`/`erp`/`oa`/`mes`/`pdm`/`pm`/`agent`/`contract` 与后端服务同名，若不隔离会写入同一个 GHCR package 并互相覆盖 `latest`/sha tag；`whale-web` 等不冲突应用保留原名，避免破坏既有部署引用。
+  构建缓存同步使用 `be-*` / `fe-*` scope，避免同名服务串用缓存层。部署契约由 `scripts/ci/bw-deploy-contract-check.ps1` 在构建前阻断；
+  前端容器需接入 `bw-net`，并使用网络别名 `whale-fe-<app>`（portal/contract/erp/oa/mes/pdm/pm/im），供生产 Nginx 按前缀反代；
 - 镜像 tag 规则：`type=ref,event=tag`（即 `v1.2.3`）+ `type=sha,prefix=sha-` + `latest`（仅默认分支，`enable={{is_default_branch}}`）+ 手动触发的 `image_tag`（仅在输入非空时生效，`enable=${{ inputs.image_tag != '' }}`）；
 - 后端矩阵 21 项（`whale-gateway`、auth starter、job、workflow、form、file、pay、agent、im、archive、message、erp、mes、pdm、oa、pm、**contract**、audit、monitor、alert、config），统一 `deploy/backend/sample/Dockerfile` + `MODULE_PATH`/`SERVICE_PORT`；
 - 前端矩阵 14 项（`whale-web`=admin、`whale-platform` 基座、portal、ops、agent、contract、erp、oa、mes、pdm、pm、im、form-designer、workflow-designer），统一 `deploy/frontend/Dockerfile` + `APP_NAME`/`APP_DIR`/`APP_BASE`；
@@ -61,7 +65,7 @@
 | ③ 构建 | `mvn -B clean package` | `turbo run build` | 失败阻断 | ✅ |
 | ④ 单测 | `mvn test` + JaCoCo 报告 | Vitest（待建） | 覆盖率阈值 | ⚠️ 有测试无覆盖率 |
 | ⑤ 制品 | `**/target/*.jar` 上传 | `**/dist/` 上传 | 保留 7 天 | ✅ |
-| ⑥ 镜像 | GHCR 21 个后端服务镜像 | GHCR 14 个前端应用镜像（admin 沿用 `whale-web`） | main push / tag / 手动触发 | ✅ |
+| ⑥ 镜像 | GHCR 21 个后端服务镜像 | GHCR 14 个前端应用镜像（`frontend/` 子命名空间） | main push / tag / 手动触发 | ✅ |
 | ⑦ 部署 | dev/staging/prod 环境部署 | 同 | 人工审批（prod） | ❌ 待建 |
 | ⑧ 通知 | IM/邮件（失败必达） | 同 | — | ❌ 待建 |
 
@@ -128,7 +132,7 @@
 | 项 | 现状 | 规范化建议 |
 |---|---|---|
 | Registry | `ghcr.io` | 保持不变（GitHub 场景）/ `registry.gitee.com`（Gitee 场景） |
-| 镜像名 | `ghcr.io/{owner}/{repo}/whale-gateway`、`.../whale-web` | 统一 `whale-{service}`（`whale-auth` / `whale-job` / ...），与端口约定对齐；2026-10-28 起后端 21 项 + 前端 14 项全部纳入，admin 保留 `whale-web` 兼容名 |
+| 镜像名 | `ghcr.io/{owner}/{repo}/whale-gateway`、`.../whale-web` | 后端统一 `whale-{service}`；前端默认 `whale-{app}`，与后端同名的 8 项使用 `frontend/whale-{app}` 隔离，admin 等既有名保持不变；2026-10-28 起后端 21 项 + 前端 14 项全部纳入 |
 | Tag | `v1.2.3`（ref tag）、`sha-{short}` | 主分支追加 `latest`；生产仅用语义化版本 tag |
 | 标签（Label） | `org.opencontainers.image.*` 已在 Dockerfile | 保持一致，补 `revision` = commit SHA |
 | 多架构 | 未启用 | 按需 `linux/amd64,linux/arm64` |
