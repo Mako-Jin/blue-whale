@@ -12,6 +12,7 @@ import ArchivePendingList from '../pages/archive/PendingList';
 import ArchiveRuleList from '../pages/archive/RuleList';
 import ArchiveSyncStatus from '../pages/archive/SyncStatus';
 import ComponentsDemo from '../pages/demo/ComponentsDemo';
+import ConfigItemList from '../pages/config/ItemList';
 import DeptList from '../pages/dept/DeptList';
 import FileList from '../pages/file/FileList';
 import JobList from '../pages/job/JobList';
@@ -41,6 +42,7 @@ const COMPONENT_MAP: Record<
   | 'file'
   | 'message/template'
   | 'pay/order'
+  | 'config/item'
   | 'archive/category'
   | 'archive/rule'
   | 'archive/item'
@@ -60,6 +62,7 @@ const COMPONENT_MAP: Record<
   file: FileList,
   'message/template': TemplateList,
   'pay/order': OrderList,
+  'config/item': ConfigItemList,
   'archive/category': ArchiveCategoryList,
   'archive/rule': ArchiveRuleList,
   'archive/item': ArchiveItemList,

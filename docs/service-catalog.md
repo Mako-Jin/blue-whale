@@ -17,7 +17,7 @@
 
 ---
 
-## 一、后端服务清单（22 个：Java 21 + Python 1；其中 `whale-config` 冻结）
+## 一、后端服务清单（22 个：Java 21 + Python 1）
 
 | # | 服务名（Spring / Nacos） | 所属分组 | 模块目录 | 端口 | 对外一级前缀 | 网关路由 | 数据库（`bluewhale_<域>`） | 启动类 | 职责 | 本机状态 |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -35,7 +35,7 @@
 | 12 | `whale-audit` | whale-ops | `whale-ops/whale-audit` | **9101** | `/audit/**` | ✅ `lb://whale-audit` | **`bluewhale_audit`**（`audit_log`，已建） | `WhaleAuditApplication` | 审计日志落库与查询 | **已运行**（已在 Nacos 注册） |
 | 13 | `whale-monitor` | whale-ops | `whale-ops/whale-monitor` | **9102** | `/monitor/**` | ✅ `lb://whale-monitor` | ——（只读聚合） | `WhaleMonitorApplication` | 服务实例只读聚合（Nacos 实例列表/健康）；指标采集与存储由外部 Prometheus 承担，不落库、不告警 | 可启动 |
 | 14 | `whale-alert` | whale-ops | `whale-ops/whale-alert` | **9103** | `/alert/**` | ✅ `lb://whale-alert` | **`bluewhale_alert`**（已建库） | `WhaleAlertApplication` | 告警通知 | 可启动 |
-| 15 | `whale-config` | whale-registry | `whale-registry/whale-config` | **9201** | ~~`/config/**`~~ | ❌ 已移除（F-05） | ——（配置来自 Nacos） | `WhaleConfigApplication` | 配置中心管理面：**冻结**，空壳无接口，配置统一由 Nacos 承担；代码保留备查，不构建镜像/不路由 | **冻结**（F-05 结案） |
+| 15 | `whale-config` | whale-registry | `whale-registry/whale-config` | **9201** | `/config/**` | ✅ `lb://whale-config`（Wave 5.73 F-05 解冻恢复） | **`bluewhale_config`**（4 表：`config_item`/`config_item_history`/`audit_log`/`api_log`） | `WhaleConfigApplication` | 业务配置管理：配置项 CRUD（租户内键唯一）、版本历史、一键回滚（回滚产生新版本）；与 Nacos 互补——Nacos 管服务装配配置，本服务管业务应用配置 | **已运行**（Wave 5.73 解冻，本地起服验证通过） |
 | 16 | `whale-agent` | whale-services | `whale-services/whale-agent` | **8090** | `/agent/**` | ✅ `lb://whale-agent` | **`bluewhale_agent`**（6 表，已建） | `WhaleAgentApplication` | 平台与项目知识 Agent（Lucene 检索 + 事实层 + 问答编排） | **已运行**（已在 Nacos 注册，Wave 5.47） |
 | 17 | `whale-im` | whale-services | `whale-services/whale-im` | **8091** | `/im/**`、`/im/ws` | ✅ `lb://whale-im` / `lb:ws://whale-im` | **`bluewhale_im`**（5 表，**规划**） | `WhaleImApplication` | 自研 WebIM：会话/消息/已读/在线/机器人会话；WS ticket 鉴权 | **规划**（Wave 5.52） |
 | 18 | `whale-archive` | whale-services | `whale-services/whale-archive` | **8093** | `/archive/**` | ✅ `lb://whale-archive` | **`bluewhale_archive`**（6 表，脚本已就绪） | `WhaleArchiveApplication` | 档案服务：门类/规则/条目/档号/快照/检索；只读拉取工作流已通过实例与表单附件 | **可启动**（Wave 5.53 M1 底座完成，未起服） |
@@ -171,7 +171,7 @@
 | **9101** | `whale-audit` | 后端 | 审计日志 |
 | **9102** | `whale-monitor` | 后端 | 服务实例只读聚合（不采集/不存储） |
 | **9103** | `whale-alert` | 后端 | 告警 |
-| **9201** | `whale-config` | 后端 | 配置中心管理面（**冻结**，不部署/不路由） |
+| **9201** | `whale-config` | 后端 | 业务配置管理（配置项/版本/回滚） |
 | **9848** | Nacos | 基础设施 | gRPC 客户端→服务端 |
 | **9849** | Nacos | 基础设施 | gRPC 服务端→服务端（集群） |
 | **15672** | RabbitMQ | 基础设施 | Management 控制台（未运行） |

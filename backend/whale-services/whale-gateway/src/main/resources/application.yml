@@ -133,8 +133,12 @@ spring:
               uri: lb://whale-contract
               predicates:
                 - Path=/contract/**
-            # F-05 结案（2026-10-28）：whale-config 为空壳管理面，无接口与前端消费方，
-            # 冻结扩张并停止对外路由；配置统一由 Nacos 直接承担，模块代码保留备查。
+            # Wave 5.73 F-05 解冻：whale-config 业务配置管理服务（配置项 CRUD / 版本历史 / 回滚），
+            # 自持 /config 一级前缀（不含 StripPrefix，REQ-ARCH-003）
+            - id: whale-config
+              uri: lb://whale-config
+              predicates:
+                - Path=/config/**
 
 whale:
   # S-02 Redis 降级口径：false=可用性优先（Redis 不可读时放行并告警），

@@ -31,16 +31,16 @@ export function FormModal<V extends object>({
 }: FormModalProps<V>) {
   const [submitting, setSubmitting] = useState(false);
 
+  // 打开时清理上一轮的字段状态（关闭时字段值因 preserve={false} 已随卸载清除，
+  // 这里兜底处理非卸载路径）；初始值回填交给 <Form initialValues>：
+  // Modal destroyOnClose 使 Form 每次打开都重新挂载，initialValues 随之重新生效，
+  // 且不受「字段挂载时机早/晚于 setFieldsValue」的时序影响（Wave 5.73 修复：
+  // 此前编辑回填依赖 effect 内 setFieldsValue，实际不生效，表现为文本字段空白）。
   useEffect(() => {
-    if (!open) {
-      return;
+    if (open) {
+      form.resetFields();
     }
-    form.resetFields();
-    if (initialValues) {
-      // antd 的 setFieldsValue 期望 RecursivePartial，这里显式取形参类型做一次收敛
-      form.setFieldsValue(initialValues as Parameters<FormInstance<V>['setFieldsValue']>[0]);
-    }
-  }, [open, form, initialValues]);
+  }, [open, form]);
 
   const handleOk = async () => {
     let values: V;
@@ -73,7 +73,7 @@ export function FormModal<V extends object>({
       onCancel={onCancel}
       destroyOnClose
     >
-      <Form form={form} layout="vertical" preserve={false}>
+      <Form form={form} layout="vertical" preserve={false} initialValues={initialValues}>
         {children}
       </Form>
     </Modal>

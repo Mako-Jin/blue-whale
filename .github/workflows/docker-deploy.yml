@@ -55,7 +55,7 @@ jobs:
           - { service: whale-audit, module: whale-ops/whale-audit, port: 9101 }
           - { service: whale-monitor, module: whale-ops/whale-monitor, port: 9102 }
           - { service: whale-alert, module: whale-ops/whale-alert, port: 9103 }
-          # whale-config 冻结（F-05）：不构建/不推送镜像，配置由 Nacos 直接承担
+          - { service: whale-config, module: whale-registry/whale-config, port: 9201 }
 
     steps:
       - name: Checkout

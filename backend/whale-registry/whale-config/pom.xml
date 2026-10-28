@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  whale-config - 配置中心
-  基于 Nacos（默认）或 Apollo
-  此模块提供统一的配置获取接口，底层可切换实现
+  whale-config - 业务配置管理服务
+  面向业务应用的配置项管理（CRUD / 版本历史 / 回滚 / 租户隔离），
+  与 Nacos（基础设施与装配配置）互补：Nacos 管服务自身配置，whale-config 管业务配置。
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -18,7 +18,7 @@
 
     <artifactId>whale-config</artifactId>
     <name>Whale Config</name>
-    <description>配置中心 - Nacos / Apollo 统一接口</description>
+    <description>业务配置管理服务 - 配置项 CRUD / 版本历史 / 回滚</description>
 
     <dependencies>
         <dependency>
@@ -33,6 +33,11 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
+        <!-- P1-3b：暴露 /actuator/prometheus 供 Prometheus 抓取 -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-bootstrap</artifactId>
@@ -44,6 +49,21 @@
         <dependency>
             <groupId>com.alibaba.cloud</groupId>
             <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <!-- Result / BizException / MyBatis-Plus 租户插件与自动填充 / 权限码头拦截：经本 starter 传递引入 -->
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-spring-boot-starter</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.bluewhale</groupId>
