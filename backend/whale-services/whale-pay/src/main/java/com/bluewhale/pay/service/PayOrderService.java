@@ -4,6 +4,10 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.pay.dto.PayOrderCreateRequest;
 import com.bluewhale.pay.dto.PayOrderQueryRequest;
 import com.bluewhale.pay.vo.PayOrderVO;
+import com.bluewhale.pay.vo.PayReconcileVO;
+import com.bluewhale.pay.vo.PayTransactionVO;
+
+import java.util.List;
 
 /**
  * 支付单服务
@@ -37,7 +41,7 @@ public interface PayOrderService {
     PayOrderVO create(PayOrderCreateRequest request);
 
     /**
-     * 支付：仅允许 CREATED → PAID，流转后回填支付时间
+     * 支付：仅允许 CREATED → PAID，流转后回填支付时间与渠道流水号
      *
      * @param id 支付单ID
      * @return 支付后的支付单视图对象
@@ -51,4 +55,28 @@ public interface PayOrderService {
      * @return 取消后的支付单视图对象
      */
     PayOrderVO cancel(Long id);
+
+    /**
+     * 退款：仅允许 PAID → REFUNDED，当前为全额退款
+     *
+     * @param id 支付单ID
+     * @return 退款后的支付单视图对象
+     */
+    PayOrderVO refund(Long id);
+
+    /**
+     * 对账：比对本地状态与渠道状态
+     *
+     * @param id 支付单ID
+     * @return 对账结果
+     */
+    PayReconcileVO reconcile(Long id);
+
+    /**
+     * 支付单的支付/退款流水（按创建时间倒序）
+     *
+     * @param id 支付单ID
+     * @return 流水列表
+     */
+    List<PayTransactionVO> listTransactions(Long id);
 }

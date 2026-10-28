@@ -18,7 +18,7 @@ public class PayOrderQueryRequest extends PageQuery {
     /** 关键字：支付单号 / 业务标识模糊匹配 */
     private String keyword;
 
-    /** 状态（精确匹配）：CREATED / PAID / CANCELLED */
+    /** 状态（精确匹配）：CREATED / PAID / CANCELLED / REFUNDED */
     private String status;
 
     /** 支付渠道（精确匹配） */

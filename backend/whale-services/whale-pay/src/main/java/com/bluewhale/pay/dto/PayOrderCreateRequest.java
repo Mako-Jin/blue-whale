@@ -1,5 +1,7 @@
 package com.bluewhale.pay.dto;
 
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -27,8 +29,10 @@ public class PayOrderCreateRequest implements Serializable {
     @Size(max = 128, message = "业务标识长度不能超过 128")
     private String businessKey;
 
-    /** 支付金额 */
+    /** 支付金额（必须大于 0，最多 2 位小数） */
     @NotNull(message = "支付金额不能为空")
+    @DecimalMin(value = "0.01", message = "支付金额必须大于 0")
+    @Digits(integer = 16, fraction = 2, message = "支付金额最多 16 位整数、2 位小数")
     private BigDecimal amount;
 
     /** 币种，默认 CNY */

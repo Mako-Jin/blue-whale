@@ -38,11 +38,20 @@ public class PayOrder extends BaseEntity {
     /** 支付渠道，如 ALIPAY / WECHAT / BALANCE */
     private String channel;
 
-    /** 状态：CREATED 待支付 / PAID 已支付 / CANCELLED 已取消 */
+    /** 状态：CREATED 待支付 / PAID 已支付 / CANCELLED 已取消 / REFUNDED 已退款 */
     private String status;
 
     /** 支付完成时间（未支付为 {@code null}） */
     private LocalDateTime payTime;
+
+    /** 渠道流水号（支付成功后回填；mock 模式为模拟流水号） */
+    private String channelTradeNo;
+
+    /** 已退款金额（未退款为 0） */
+    private BigDecimal refundAmount;
+
+    /** 退款完成时间（未退款为 {@code null}） */
+    private LocalDateTime refundTime;
 
     /** 备注 */
     private String remark;

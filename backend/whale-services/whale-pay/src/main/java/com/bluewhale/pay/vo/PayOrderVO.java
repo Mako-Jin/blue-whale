@@ -34,11 +34,20 @@ public class PayOrderVO implements Serializable {
     /** 支付渠道 */
     private String channel;
 
-    /** 状态：CREATED 待支付 / PAID 已支付 / CANCELLED 已取消 */
+    /** 状态：CREATED 待支付 / PAID 已支付 / CANCELLED 已取消 / REFUNDED 已退款 */
     private String status;
 
     /** 支付完成时间 */
     private LocalDateTime payTime;
+
+    /** 渠道流水号（mock 模式为模拟流水号） */
+    private String channelTradeNo;
+
+    /** 已退款金额 */
+    private BigDecimal refundAmount;
+
+    /** 退款完成时间 */
+    private LocalDateTime refundTime;
 
     /** 备注 */
     private String remark;

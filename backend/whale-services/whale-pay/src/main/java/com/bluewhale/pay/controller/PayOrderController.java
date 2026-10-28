@@ -9,6 +9,8 @@ import com.bluewhale.pay.dto.PayOrderCreateRequest;
 import com.bluewhale.pay.dto.PayOrderQueryRequest;
 import com.bluewhale.pay.service.PayOrderService;
 import com.bluewhale.pay.vo.PayOrderVO;
+import com.bluewhale.pay.vo.PayReconcileVO;
+import com.bluewhale.pay.vo.PayTransactionVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,6 +19,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * 支付单管理接口
@@ -100,5 +104,42 @@ public class PayOrderController {
     @AuditLog(operation = "取消支付单", type = OperateType.UPDATE, targetType = TARGET_TYPE, targetId = "#id")
     public Result<PayOrderVO> cancel(@PathVariable Long id) {
         return Result.ok(payOrderService.cancel(id));
+    }
+
+    /**
+     * 退款支付单（PAID → REFUNDED，当前为全额退款）
+     *
+     * @param id 支付单ID
+     * @return 退款后的支付单视图对象
+     */
+    @PostMapping("/{id}/refund")
+    @RequirePermission("sys:pay:refund")
+    @AuditLog(operation = "退款支付单", type = OperateType.UPDATE, targetType = TARGET_TYPE, targetId = "#id")
+    public Result<PayOrderVO> refund(@PathVariable Long id) {
+        return Result.ok(payOrderService.refund(id));
+    }
+
+    /**
+     * 支付单对账：比对本地状态与渠道状态
+     *
+     * @param id 支付单ID
+     * @return 对账结果
+     */
+    @GetMapping("/{id}/reconcile")
+    @RequirePermission("sys:pay:reconcile")
+    public Result<PayReconcileVO> reconcile(@PathVariable Long id) {
+        return Result.ok(payOrderService.reconcile(id));
+    }
+
+    /**
+     * 支付/退款流水列表
+     *
+     * @param id 支付单ID
+     * @return 流水列表
+     */
+    @GetMapping("/{id}/transactions")
+    @RequirePermission("sys:pay:list")
+    public Result<List<PayTransactionVO>> transactions(@PathVariable Long id) {
+        return Result.ok(payOrderService.listTransactions(id));
     }
 }

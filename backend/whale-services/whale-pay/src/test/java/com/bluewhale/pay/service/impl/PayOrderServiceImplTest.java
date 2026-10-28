@@ -4,11 +4,17 @@ import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.pay.channel.PayChannelGateway;
+import com.bluewhale.pay.config.PayChannelProperties;
 import com.bluewhale.pay.dto.PayOrderCreateRequest;
 import com.bluewhale.pay.dto.PayOrderQueryRequest;
 import com.bluewhale.pay.entity.PayOrder;
+import com.bluewhale.pay.entity.PayTransaction;
 import com.bluewhale.pay.mapper.PayOrderMapper;
+import com.bluewhale.pay.mapper.PayTransactionMapper;
 import com.bluewhale.pay.vo.PayOrderVO;
+import com.bluewhale.pay.vo.PayReconcileVO;
+import com.bluewhale.pay.vo.PayTransactionVO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -18,8 +24,10 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -27,7 +35,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * {@link PayOrderServiceImpl} 分页、详情、创建查重与状态流转单元测试。
+ * {@link PayOrderServiceImpl} 分页、创建校验、状态流转、退款、对账与流水单元测试。
  *
  * @author BlueWhale
  */
@@ -38,7 +46,12 @@ class PayOrderServiceImplTest {
 
     private final PayOrderMapper payOrderMapper = mock(PayOrderMapper.class);
 
-    private final PayOrderServiceImpl payOrderService = new PayOrderServiceImpl(payOrderMapper);
+    private final PayTransactionMapper payTransactionMapper = mock(PayTransactionMapper.class);
+
+    private final PayChannelGateway payChannelGateway = new PayChannelGateway(new PayChannelProperties());
+
+    private final PayOrderServiceImpl payOrderService =
+            new PayOrderServiceImpl(payOrderMapper, payTransactionMapper, payChannelGateway);
 
     /**
      * 构造支付单实体桩对象。
@@ -55,6 +68,8 @@ class PayOrderServiceImplTest {
         entity.setStatus(status);
         entity.setAmount(new BigDecimal("100.00"));
         entity.setCurrency("CNY");
+        entity.setChannel("MOCK");
+        entity.setRefundAmount(BigDecimal.ZERO);
         return entity;
     }
 
@@ -131,23 +146,68 @@ class PayOrderServiceImplTest {
         verify(payOrderMapper).insert(captor.capture());
         assertEquals("PAY20261020002", captor.getValue().getOrderNo());
         assertEquals("CREATED", captor.getValue().getStatus());
+        assertEquals(BigDecimal.ZERO, captor.getValue().getRefundAmount());
     }
 
     @Test
-    @DisplayName("pay：CREATED → PAID 并回填支付时间")
+    @DisplayName("create：金额必须大于 0")
+    void shouldRejectNonPositiveAmount() {
+        PayOrderCreateRequest request = createRequest("PAY20261020006");
+        request.setAmount(BigDecimal.ZERO);
+
+        BizException ex = assertThrows(BizException.class, () -> payOrderService.create(request));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        verify(payOrderMapper, never()).insert(any(PayOrder.class));
+    }
+
+    @Test
+    @DisplayName("create：金额最多 2 位小数")
+    void shouldRejectAmountScaleOverTwo() {
+        PayOrderCreateRequest request = createRequest("PAY20261020007");
+        request.setAmount(new BigDecimal("1.234"));
+
+        BizException ex = assertThrows(BizException.class, () -> payOrderService.create(request));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        verify(payOrderMapper, never()).insert(any(PayOrder.class));
+    }
+
+    @Test
+    @DisplayName("create：不支持的渠道拒绝创建")
+    void shouldRejectUnsupportedChannel() {
+        when(payOrderMapper.selectCount(ArgumentMatchers.<Wrapper<PayOrder>>any())).thenReturn(0L);
+        PayOrderCreateRequest request = createRequest("PAY20261020008");
+        request.setChannel("UNKNOWN");
+
+        BizException ex = assertThrows(BizException.class, () -> payOrderService.create(request));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        verify(payOrderMapper, never()).insert(any(PayOrder.class));
+    }
+
+    @Test
+    @DisplayName("pay：CREATED → PAID 并回填支付时间、渠道流水号与流水")
     void shouldPayFromCreated() {
         PayOrder existing = order(1L, "PAY20261020001", "CREATED");
         PayOrder paid = order(1L, "PAY20261020001", "PAID");
+        paid.setChannelTradeNo("MOCK-1");
         when(payOrderMapper.selectById(1L)).thenReturn(existing, paid);
         when(payOrderMapper.updateById(any(PayOrder.class))).thenReturn(1);
+        when(payTransactionMapper.insert(any(PayTransaction.class))).thenReturn(1);
 
         PayOrderVO vo = payOrderService.pay(1L);
 
         assertEquals("PAID", vo.getStatus());
-        ArgumentCaptor<PayOrder> captor = ArgumentCaptor.forClass(PayOrder.class);
-        verify(payOrderMapper).updateById(captor.capture());
-        assertEquals("PAID", captor.getValue().getStatus());
-        assertNotNull(captor.getValue().getPayTime());
+        ArgumentCaptor<PayOrder> orderCaptor = ArgumentCaptor.forClass(PayOrder.class);
+        verify(payOrderMapper).updateById(orderCaptor.capture());
+        assertEquals("PAID", orderCaptor.getValue().getStatus());
+        assertNotNull(orderCaptor.getValue().getPayTime());
+        assertNotNull(orderCaptor.getValue().getChannelTradeNo());
+        ArgumentCaptor<PayTransaction> txCaptor = ArgumentCaptor.forClass(PayTransaction.class);
+        verify(payTransactionMapper).insert(txCaptor.capture());
+        assertEquals("PAY", txCaptor.getValue().getType());
+        assertEquals("SUCCESS", txCaptor.getValue().getStatus());
     }
 
     @Test
@@ -159,6 +219,22 @@ class PayOrderServiceImplTest {
         BizException ex = assertThrows(BizException.class, () -> payOrderService.pay(2L));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        verify(payOrderMapper, never()).updateById(any(PayOrder.class));
+    }
+
+    @Test
+    @DisplayName("pay：mock 关闭时因无真实适配器拒绝支付")
+    void shouldRejectPayWhenMockDisabled() {
+        PayChannelProperties properties = new PayChannelProperties();
+        properties.setMock(false);
+        PayOrderServiceImpl service = new PayOrderServiceImpl(
+                payOrderMapper, payTransactionMapper, new PayChannelGateway(properties));
+        when(payOrderMapper.selectById(1L)).thenReturn(order(1L, "PAY20261020001", "CREATED"));
+
+        BizException ex = assertThrows(BizException.class, () -> service.pay(1L));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        assertTrue(ex.getMessage().contains("真实支付渠道尚未接入"));
         verify(payOrderMapper, never()).updateById(any(PayOrder.class));
     }
 
@@ -198,5 +274,78 @@ class PayOrderServiceImplTest {
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         verify(payOrderMapper, never()).updateById(any(PayOrder.class));
+    }
+
+    @Test
+    @DisplayName("refund：PAID → REFUNDED 并回填退款金额、退款时间与退款流水")
+    void shouldRefundFromPaid() {
+        PayOrder existing = order(5L, "PAY20261020009", "PAID");
+        existing.setChannelTradeNo("MOCK-9");
+        PayOrder refunded = order(5L, "PAY20261020009", "REFUNDED");
+        when(payOrderMapper.selectById(5L)).thenReturn(existing, refunded);
+        when(payOrderMapper.updateById(any(PayOrder.class))).thenReturn(1);
+        when(payTransactionMapper.insert(any(PayTransaction.class))).thenReturn(1);
+
+        PayOrderVO vo = payOrderService.refund(5L);
+
+        assertEquals("REFUNDED", vo.getStatus());
+        ArgumentCaptor<PayOrder> captor = ArgumentCaptor.forClass(PayOrder.class);
+        verify(payOrderMapper).updateById(captor.capture());
+        assertEquals("REFUNDED", captor.getValue().getStatus());
+        assertEquals(new BigDecimal("100.00"), captor.getValue().getRefundAmount());
+        assertNotNull(captor.getValue().getRefundTime());
+        ArgumentCaptor<PayTransaction> txCaptor = ArgumentCaptor.forClass(PayTransaction.class);
+        verify(payTransactionMapper).insert(txCaptor.capture());
+        assertEquals("REFUND", txCaptor.getValue().getType());
+    }
+
+    @Test
+    @DisplayName("refund：非 PAID 状态拒绝退款且不落库")
+    void shouldRejectRefundWhenNotPaid() {
+        when(payOrderMapper.selectById(6L)).thenReturn(order(6L, "PAY20261020010", "CREATED"));
+
+        BizException ex = assertThrows(BizException.class, () -> payOrderService.refund(6L));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        verify(payOrderMapper, never()).updateById(any(PayOrder.class));
+        verify(payTransactionMapper, never()).insert(any(PayTransaction.class));
+    }
+
+    @Test
+    @DisplayName("reconcile：mock 渠道状态镜像本地，结果一致")
+    void shouldReconcileConsistently() {
+        PayOrder existing = order(7L, "PAY20261020011", "PAID");
+        existing.setChannelTradeNo("MOCK-11");
+        when(payOrderMapper.selectById(7L)).thenReturn(existing);
+
+        PayReconcileVO vo = payOrderService.reconcile(7L);
+
+        assertEquals("PAID", vo.getLocalStatus());
+        assertEquals("PAID", vo.getChannelStatus());
+        assertTrue(vo.isConsistent());
+        assertEquals("MOCK-11", vo.getProviderTradeNo());
+        assertNotNull(vo.getCheckedAt());
+    }
+
+    @Test
+    @DisplayName("listTransactions：按支付单返回流水且状态映射正确")
+    void shouldListTransactions() {
+        PayTransaction transaction = new PayTransaction();
+        transaction.setId(900L);
+        transaction.setOrderId(8L);
+        transaction.setOrderNo("PAY20261020012");
+        transaction.setType("PAY");
+        transaction.setAmount(new BigDecimal("100.00"));
+        transaction.setStatus("SUCCESS");
+        when(payOrderMapper.selectById(8L)).thenReturn(order(8L, "PAY20261020012", "PAID"));
+        when(payTransactionMapper.selectList(ArgumentMatchers.<Wrapper<PayTransaction>>any()))
+                .thenReturn(List.of(transaction));
+
+        List<PayTransactionVO> list = payOrderService.listTransactions(8L);
+
+        assertEquals(1, list.size());
+        assertEquals("PAY", list.get(0).getType());
+        assertEquals("SUCCESS", list.get(0).getStatus());
+        assertFalse(list.isEmpty());
     }
 }

@@ -34,6 +34,11 @@ whale:
   permission:
     header:
       enabled: true
+  # F-04：默认 mock 渠道，支付/退款只生成模拟流水号，不发起真实资金请求。
+  # 关闭 mock 前必须先实现真实渠道适配器，否则支付/退款/对账会返回明确业务错误。
+  pay:
+    mock: ${WHALE_PAY_MOCK:true}
+    allowed-channels: ${WHALE_PAY_ALLOWED_CHANNELS:MOCK,BALANCE,ALIPAY,WECHAT,UNIONPAY}
 
 mybatis-plus:
   configuration:

@@ -571,7 +571,10 @@ VALUES
     (70, 0, 'sys:pay:list', '查询支付单', 'API', '/pay/order/**', 'GET', 70, 1),
     (71, 0, 'sys:pay:add', '创建支付单', 'API', '/pay/order', 'POST', 71, 1),
     (72, 0, 'sys:pay:pay', '支付单支付', 'API', '/pay/order/{id}/pay', 'POST', 72, 1),
-    (73, 0, 'sys:pay:cancel', '支付单取消', 'API', '/pay/order/{id}/cancel', 'POST', 73, 1);
+    (73, 0, 'sys:pay:cancel', '支付单取消', 'API', '/pay/order/{id}/cancel', 'POST', 73, 1),
+    -- Wave 5.71 支付闭环：退款与对账（创建于建库脚本，存量库由 migration-5.71-pay-flow.sql 补齐）
+    (244, 0, 'sys:pay:refund', '支付单退款', 'API', '/pay/order/{id}/refund', 'POST', 244, 1),
+    (245, 0, 'sys:pay:reconcile', '支付单对账', 'API', '/pay/order/{id}/reconcile', 'GET', 245, 1);
 
 -- Wave 5.35 权限点：工作流转办/委派/回退 + 表单数据修改
 -- Wave 5.36 权限点：工作流加签
