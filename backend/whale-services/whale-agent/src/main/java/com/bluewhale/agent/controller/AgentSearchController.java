@@ -8,6 +8,7 @@ import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.common.audit.annotation.AuditLog;
 import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.core.result.Result;
+import com.bluewhale.common.web.UserContext;
 import com.bluewhale.common.web.WebHeaders;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -50,7 +51,8 @@ public class AgentSearchController {
                                             @RequestParam(value = "kind", required = false) String kind,
                                             HttpServletRequest httpRequest) {
         KnowledgePermissionContext.set(
-                WebHeaders.splitCodes(WebHeaders.header(httpRequest, WebHeaders.PERMISSION_CODES)));
+                WebHeaders.splitCodes(WebHeaders.header(httpRequest, WebHeaders.PERMISSION_CODES)),
+                UserContext.findUserId(httpRequest));
         List<SearchHit> hits;
         try {
             hits = searchService.search(q, topK, AgentSearchService.parseKinds(kind));

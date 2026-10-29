@@ -4,6 +4,7 @@ import com.bluewhale.agent.config.AgentProperties;
 import com.bluewhale.agent.service.EmbeddingService;
 import com.bluewhale.agent.support.ingest.Chunk;
 import com.bluewhale.agent.support.knowledge.KnowledgeConstants;
+import com.bluewhale.agent.support.knowledge.KnowledgePermissionContext;
 import com.bluewhale.common.tenant.TenantContext;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -213,6 +214,23 @@ public class AgentIndexService implements DisposableBean {
     }
 
     /**
+     * 写入单个文件的全部知识块（带归属人，租户取当前上下文）。
+     *
+     * @param path 知识块路径（{@code file:<id>}）
+     * @param hash 文件内容哈希
+     * @param chunks 知识块列表
+     * @param fileId 文件服务文件ID（可为 {@code null}）
+     * @param permissionCode 所需权限码（可为 {@code null}）
+     * @param ownerId 归属人ID（上传者；{@code null} 表示租户内公共知识）
+     */
+    public void addFileChunksWithOwner(String path, String hash, List<Chunk> chunks, Long fileId,
+                                       String permissionCode, Long ownerId) {
+        Long tenant = TenantContext.get();
+        writeChunks(path, hash, chunks, fileId, null, permissionCode,
+                tenant == null ? TenantContext.DEFAULT_TENANT_ID : tenant, ownerId);
+    }
+
+    /**
      * 写入单个文件的全部知识块（显式指定租户）。
      *
      * @param path 知识块路径
@@ -224,7 +242,7 @@ public class AgentIndexService implements DisposableBean {
      */
     public void addFileChunks(String path, String hash, List<Chunk> chunks, Long fileId, String permissionCode,
                               long tenantId) {
-        writeChunks(path, hash, chunks, fileId, null, permissionCode, tenantId);
+        writeChunks(path, hash, chunks, fileId, null, permissionCode, tenantId, null);
     }
 
     /**
@@ -239,7 +257,7 @@ public class AgentIndexService implements DisposableBean {
      */
     public void addDocChunks(String path, String hash, List<Chunk> chunks, DocIndexMeta meta,
                              String permissionCode, long tenantId) {
-        writeChunks(path, hash, chunks, null, meta, permissionCode, tenantId);
+        writeChunks(path, hash, chunks, null, meta, permissionCode, tenantId, null);
     }
 
     /**
@@ -252,9 +270,10 @@ public class AgentIndexService implements DisposableBean {
      * @param docMeta        文档页面元数据（可空）
      * @param permissionCode 所需权限码（可空）
      * @param tenantId       租户ID
+     * @param ownerId        归属人ID（可空，仅文件知识写入）
      */
     private void writeChunks(String path, String hash, List<Chunk> chunks, Long fileId,
-                             DocIndexMeta docMeta, String permissionCode, long tenantId) {
+                             DocIndexMeta docMeta, String permissionCode, long tenantId, Long ownerId) {
         if (chunks == null || chunks.isEmpty()) {
             return;
         }
@@ -265,7 +284,7 @@ public class AgentIndexService implements DisposableBean {
             int seq = 0;
             for (int i = 0; i < chunks.size(); i++) {
                 writer.addDocument(toDocument(chunks.get(i), hash, seq++, vectors.get(i), signature,
-                        fileId, docMeta, permissionCode, tenantId));
+                        fileId, docMeta, permissionCode, tenantId, ownerId));
             }
         } catch (IOException e) {
             throw new UncheckedIOException("写入索引失败: " + path, e);
@@ -467,7 +486,8 @@ public class AgentIndexService implements DisposableBean {
         IndexSearcher searcher = acquireSearcher();
         try {
             Query filter = combineFilters(
-                    combineFilters(kindFilter(kinds), permissionFilter(permissionCodes)), tenantFilter());
+                    combineFilters(kindFilter(kinds), permissionFilter(permissionCodes)),
+                    combineFilters(tenantFilter(), ownerFilter()));
             Query query = filter == null
                     ? new KnnFloatVectorQuery(AgentIndexFields.VECTOR, vector, topK)
                     : new KnnFloatVectorQuery(AgentIndexFields.VECTOR, vector, topK, filter);
@@ -564,6 +584,7 @@ public class AgentIndexService implements DisposableBean {
             builder.add(visible, BooleanClause.Occur.FILTER);
         }
         builder.add(tenantFilter(), BooleanClause.Occur.FILTER);
+        builder.add(ownerFilter(), BooleanClause.Occur.FILTER);
         BooleanQuery.Builder outer = new BooleanQuery.Builder();
         outer.add(builder.build(), BooleanClause.Occur.MUST);
         if (isCodeIntent(question)) {
@@ -604,6 +625,39 @@ public class AgentIndexService implements DisposableBean {
         }
         visible.setMinimumNumberShouldMatch(1);
         return visible.build();
+    }
+
+    /**
+     * 构建归属人过滤：无归属人字段的知识块（代码/文档/档案/公共文件）恒可见，
+     * 带归属人的文件知识块仅归属人可见。
+     *
+     * <p>当前用户未知（内部调度、无身份的内部调用等）时按空用户处理，只放行公共知识，
+     * 防止个人文件被无身份链路读到。</p>
+     *
+     * @return 归属人过滤查询
+     */
+    private Query ownerFilter() {
+        BooleanQuery.Builder visible = new BooleanQuery.Builder()
+                .add(missingOwnerQuery(), BooleanClause.Occur.SHOULD);
+        Long owner = KnowledgePermissionContext.currentOwner();
+        if (owner != null) {
+            visible.add(new TermQuery(new Term(AgentIndexFields.OWNER_ID, String.valueOf(owner))),
+                    BooleanClause.Occur.SHOULD);
+        }
+        visible.setMinimumNumberShouldMatch(1);
+        return visible.build();
+    }
+
+    /**
+     * 匹配缺少归属人字段的知识块（公共知识：代码、文档、档案快照与公共文件）。
+     *
+     * @return 缺少归属人字段的查询
+     */
+    private Query missingOwnerQuery() {
+        return new BooleanQuery.Builder()
+                .add(new MatchAllDocsQuery(), BooleanClause.Occur.MUST)
+                .add(new FieldExistsQuery(AgentIndexFields.OWNER_ID), BooleanClause.Occur.MUST_NOT)
+                .build();
     }
 
     /**
@@ -776,10 +830,13 @@ public class AgentIndexService implements DisposableBean {
      * @param signature embedding 签名
      * @param fileId 文件服务文件ID（可为 {@code null}）
      * @param permissionCode 所需权限码（可为 {@code null}）
+     * @param tenantId 租户ID
+     * @param ownerId 归属人ID（可为 {@code null}）
      * @return Lucene 文档
      */
     private Document toDocument(Chunk chunk, String hash, int seq, float[] vector, String signature,
-                                Long fileId, DocIndexMeta docMeta, String permissionCode, long tenantId) {
+                                Long fileId, DocIndexMeta docMeta, String permissionCode, long tenantId,
+                                Long ownerId) {
         String content = nullToEmpty(chunk.getContent());
         String title = nullToEmpty(chunk.getTitle());
         Document document = new Document();
@@ -809,6 +866,11 @@ public class AgentIndexService implements DisposableBean {
         document.add(new StoredField(AgentIndexFields.EMBED_SIG, nullToEmpty(signature)));
         if (fileId != null) {
             document.add(new StringField(AgentIndexFields.FILE_ID, String.valueOf(fileId), Field.Store.YES));
+        }
+        if (ownerId != null) {
+            String ownerValue = String.valueOf(ownerId);
+            document.add(new StringField(AgentIndexFields.OWNER_ID, ownerValue, Field.Store.YES));
+            document.add(new SortedDocValuesField(AgentIndexFields.OWNER_ID, new BytesRef(ownerValue)));
         }
         if (docMeta != null) {
             addDocMeta(document, docMeta);

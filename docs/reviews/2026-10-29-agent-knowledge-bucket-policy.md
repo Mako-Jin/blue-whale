@@ -26,6 +26,7 @@
 | 接口 | `/agent/knowledge/files/{id}/reindex` 对白名单外文件返回 `false`，重复调用幂等 |
 | 文档 | `docs/design/doc-service.md`、`docs/plans/wave5.53-archive-file-knowledge.md`（D8a）、`docs/ops/agent-index-ops.md`、需求登记 |
 | 冒烟 | 新增 `scripts/smoke/bw-agent-knowledge-bucket-smoke.ps1`（13 项） |
+| 归属人隔离（方案 B） | 文件知识写入索引字段 `owner_id`（上传者）；BM25 与向量两条通道统一按「无归属人（公共知识）或归属人 == 当前用户」过滤；档案知识按密级权限码共享，不写归属人 |
 
 默认值取舍：`bluewhale` 是文件服务默认业务桶，`whale-archive` 是档案快照桶；`whale-doc` 继续由 `excluded-buckets` 排除。`whale-im`、`oa-*` 等桶默认不采集，需显式登记。
 
@@ -33,6 +34,12 @@
 
 - `mvn -pl whale-services/whale-agent -am test -Dtest=FileKnowledgeSyncServiceTest`
   → `Tests run: 16, Failures: 0, Errors: 0, Skipped: 0`（新增 4 项桶策略用例）。
+- 归属人隔离（方案 B）：
+  - `AgentIndexOwnerTest` 3 项——归属 7 与归属 8 的文件互不可见、无归属上下文仅见公共知识、向量通道同样按归属人过滤；
+  - `FileKnowledgeSyncServiceTest` 断言普通文件写入上传者 `7`、档案（含原件归档锁定）写入 `null`；
+  - 合并执行 `-Dtest=FileKnowledgeSyncServiceTest,AgentIndexOwnerTest,AgentIndexVectorTest,AgentSearchServiceTest`
+    → `Tests run: 31, Failures: 0, Errors: 0, Skipped: 0`。
+  - 上下文透传：`/agent/search` 取网关 `X-User-Id`，`/agent/chat` 取会话所属用户；内网 `/agent/tools` 不设归属人，按 fail-closed 仅见公共知识。
 - 冒烟脚本 13 项断言（需启动 gateway/auth/file/agent）：
   1. 登录、`/auth/me` 租户上下文；
   2. 上传至白名单外桶 `kb-private-*` → `reindex=false`；
@@ -44,10 +51,10 @@
 ## 四、风险与遗留
 
 1. **前缀匹配**：白名单按桶名前缀命中，登记 `oa` 会同时放行 `oa-private`。配置时应使用足够精确的前缀，或在后续改为精确匹配 + 正则。
-2. **默认桶仍为公开知识**：`bluewhale` 中的个人上传文件依旧对同租户可问答用户可见；彻底隔离需引入「可见范围/归属人」索引字段与查询期过滤（方案 B）。
+2. **默认桶归属人隔离（方案 B 已实施）**：`bluewhale` 中的个人上传文件写入 `owner_id`，仅上传者本人可检索；档案知识按密级权限码在同租户共享。历史索引缺少 `owner_id`，在回填前仍按公共知识可见，升级后须执行 `POST /agent/knowledge/rebuild`。
 3. **历史索引**：升级后需执行一次 `POST /agent/knowledge/rebuild`，否则白名单外桶的旧索引块仍存在，直至对应文件再次变更或重建。
 4. **无热更新**：白名单变更需重启 `whale-agent`。
 
 ## 五、结论
 
-通过。文件知识采集从「排除少数桶」收敛为「只采集显式白名单桶」，与文档侧「仅公开已发布页面」的安全口径一致；单元测试与冒烟断言覆盖核心分支，历史索引清理已列入上线步骤。
+通过。文件知识采集从「排除少数桶」收敛为「只采集显式白名单桶」，并叠加方案 B 的归属人隔离：白名单内个人文件仅上传者可见，档案按密级权限码共享。与文档侧「仅公开已发布页面」的安全口径一致；单元测试与冒烟断言覆盖核心分支，历史索引清理（白名单外桶 + `owner_id` 回填）已列入上线步骤。

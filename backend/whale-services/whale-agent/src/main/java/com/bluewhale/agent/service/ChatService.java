@@ -130,7 +130,7 @@ public class ChatService {
      */
     private void answer(AgentConversation conversation, String question, String scope,
                         boolean includeRuntime, String permissionCodes, SseEmitter emitter) {
-        KnowledgePermissionContext.set(WebHeaders.splitCodes(permissionCodes));
+        KnowledgePermissionContext.set(WebHeaders.splitCodes(permissionCodes), conversation.getUserId());
         long start = System.currentTimeMillis();
         try {
             QuestionIntent intent = intentRouter.route(question);

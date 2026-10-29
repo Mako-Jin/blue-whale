@@ -79,6 +79,9 @@ public final class AgentIndexFields {
     /** 租户ID（平台级知识为 0，业务知识为租户ID；检索时强制过滤） */
     public static final String TENANT = "tenant_id";
 
+    /** 归属人ID（文件知识的上传者；缺省表示租户内公共知识，检索时按当前用户过滤） */
+    public static final String OWNER_ID = "owner_id";
+
     /** 工具类不允许实例化 */
     private AgentIndexFields() {
     }

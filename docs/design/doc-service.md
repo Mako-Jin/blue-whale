@@ -649,6 +649,8 @@ void requireManage(Long spaceId, Long userId);
 
 **文件知识桶策略（W5.75 补丁）**：文件采集改为 **default-deny 白名单**，只有命中 `whale.agent.knowledge.included-buckets`（`WHALE_AGENT_KNOWLEDGE_INCLUDED_BUCKETS`，默认 `bluewhale,whale-archive`，前缀匹配）且不在 `excluded-buckets` 中的桶才会入库；未命中、桶名缺失或白名单置空一律置 `SKIPPED`（`lastError=文件桶未纳入知识库白名单`）。这样个人/部门桶（如 `oa-*`、`whale-im`）默认不会进入同租户全员可检索的公开知识池；新增知识库桶需显式配置。
 
+**归属人隔离（方案 B）**：白名单桶内的普通文件在索引时写入 `owner_id`（上传者），BM25 与向量检索统一附加「无归属人（公共知识）或归属人 == 当前用户」过滤（`/agent/search` 取网关 `X-User-Id`，`/agent/chat` 取会话所属用户）；档案知识按密级权限码共享，不写归属人；内网 `/agent/tools` 不设归属人，仅见公共知识。升级后需 `POST /agent/knowledge/rebuild` 回填历史索引的归属人字段。
+
 **DOC 知识源（M4 已落地）**
 
 1. `whale-doc` 提供 `/doc/internal/page/changes`（游标为 `update_time`，返回租户内全部页面，含 `spaceVisibility/spaceActive/deleted` 墓碑）与 `/doc/internal/page/{id}` 快照（仅 `PUBLISHED + PUBLIC + 空间启用 + page_type=PAGE`，并同样返回 `spaceVisibility/spaceActive`，供单页重建复用采集判定）。

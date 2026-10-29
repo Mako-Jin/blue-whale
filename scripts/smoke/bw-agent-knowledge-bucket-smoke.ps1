@@ -33,8 +33,9 @@ function Invoke-Api($method, $uri, $body = $null) {
     return Invoke-RestMethod @params
 }
 
-function Find-LedgerRow($keyword, $fileId) {
-    $ledger = Invoke-Api Get "$base/agent/knowledge/files/page?keyword=$keyword&current=1&size=20"
+function Find-LedgerRow($fileId) {
+    # 台账 keyword 仅匹配 originalName，而本脚本的关键字位于文件内容中，故按 fileId 全量扫描定位
+    $ledger = Invoke-Api Get "$base/agent/knowledge/files/page?current=1&size=200"
     return @($ledger.data.records | Where-Object { [long]$_.fileId -eq [long]$fileId })[0]
 }
 
@@ -79,7 +80,7 @@ $outsideFileId = $outsideUpload.data.id
 $outsideReindex = Invoke-Api Post "$base/agent/knowledge/files/$outsideFileId/reindex"
 Assert '4.reindexOutsideSkipped' ($outsideReindex.code -eq 0 -and $outsideReindex.data -eq $false) `
     "(code=$($outsideReindex.code), data=$($outsideReindex.data))"
-$outsideRow = Find-LedgerRow $outsideKeyword $outsideFileId
+$outsideRow = Find-LedgerRow $outsideFileId
 Assert '5.ledgerOutsideSkipped' ($null -ne $outsideRow -and $outsideRow.indexStatus -eq 'SKIPPED' `
         -and [int]$outsideRow.chunkCount -eq 0) `
     "(status=$($outsideRow.indexStatus), chunks=$($outsideRow.chunkCount))"
@@ -100,7 +101,7 @@ $insideFileId = $insideUpload.data.id
 $insideReindex = Invoke-Api Post "$base/agent/knowledge/files/$insideFileId/reindex"
 Assert '9.reindexInside' ($insideReindex.code -eq 0 -and $insideReindex.data -eq $true) `
     "(code=$($insideReindex.code), data=$($insideReindex.data))"
-$insideRow = Find-LedgerRow $insideKeyword $insideFileId
+$insideRow = Find-LedgerRow $insideFileId
 Assert '10.ledgerInsideIndexed' ($null -ne $insideRow -and $insideRow.indexStatus -eq 'INDEXED' `
         -and [int]$insideRow.chunkCount -gt 0) `
     "(status=$($insideRow.indexStatus), chunks=$($insideRow.chunkCount))"

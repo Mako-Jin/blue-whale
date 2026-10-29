@@ -447,7 +447,10 @@ public class FileKnowledgeSyncService {
             safeChunks.add(mask(chunk));
         }
         indexService.deletePaths(List.of(path));
-        indexService.addFileChunks(path, change.getMd5(), safeChunks, fileId, permissionCode);
+        // 归属人（上传者）写入索引：个人文件仅归属人可检索（方案 B）；
+        // 档案知识按密级权限码共享给有权限的用户，不写归属人
+        indexService.addFileChunksWithOwner(path, change.getMd5(), safeChunks, fileId, permissionCode,
+                archive ? null : change.getUploaderId());
         context.dirty = true;
         record.setIndexStatus(KnowledgeConstants.STATUS_INDEXED);
         record.setChunkCount(safeChunks.size());

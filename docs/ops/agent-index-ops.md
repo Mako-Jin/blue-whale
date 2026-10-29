@@ -129,9 +129,14 @@ curl.exe -s -H "X-User-Id: 1" -H "X-Permission-Codes: sys:agent:search" `
 2. 排除桶优先于白名单：即使已加入白名单，命中 `excluded-buckets` 仍不入库。
 3. 新增知识库桶需显式加入白名单（环境变量）并重启服务（无热更新），随后执行
    `POST /agent/knowledge/rebuild` 重建文件知识。
-4. 排查：`GET /agent/knowledge/files/page?status=SKIPPED` 查看原因；`GET /agent/search?q=<关键词>&kind=file`
-   确认白名单外内容不可见。
-5. 冒烟：`pwsh -File scripts/smoke/bw-agent-knowledge-bucket-smoke.ps1`（白名单外跳过、白名单内可检索、重复重建幂等）。
+4. **归属人隔离（方案 B）**：白名单桶内的普通文件写入索引字段 `owner_id`（上传者），检索时仅
+   「无归属人的公共知识」与「归属人等于当前用户」的知识块可见；档案知识（`whale-archive` 及原件归档锁定）
+   不写归属人，按密级权限码 `sys:archive:*` 在同租户共享。内网 `/agent/tools` 不带归属人，只能看到公共知识。
+5. 升级到含 `owner_id` 的版本后必须执行一次 `POST /agent/knowledge/rebuild`：历史索引块没有归属人字段，
+   在回填前仍按公共知识对同租户可见。
+6. 排查：`GET /agent/knowledge/files/page?status=SKIPPED` 查看原因；`GET /agent/search?q=<关键词>&kind=file`
+   确认白名单外内容不可见；换账号检索同一文件可验证归属人过滤。
+7. 冒烟：`pwsh -File scripts/smoke/bw-agent-knowledge-bucket-smoke.ps1`（白名单外跳过、白名单内可检索、重复重建幂等）。
 
 ---
 

@@ -94,7 +94,8 @@ class FileKnowledgeSyncServiceTest {
         syncService.runOnce();
 
         verify(documentParser, never()).parse(any(), anyString(), any());
-        verify(indexService, never()).addFileChunks(anyString(), anyString(), anyList(), any(), any());
+        verify(indexService, never()).addFileChunksWithOwner(anyString(), anyString(), anyList(), any(), any(),
+                any());
         assertEquals(KnowledgeConstants.STATUS_INDEXED, saved().getIndexStatus());
     }
 
@@ -111,7 +112,8 @@ class FileKnowledgeSyncServiceTest {
         syncService.runOnce();
 
         verify(indexService).deletePaths(List.of(PATH));
-        verify(indexService).addFileChunks(eq(PATH), eq("m2"), anyList(), eq(FILE_ID), isNull());
+        verify(indexService).addFileChunksWithOwner(eq(PATH), eq("m2"), anyList(), eq(FILE_ID), isNull(),
+                eq(7L));
         verify(indexService).commitAndRefresh();
         AgentKnowledgeFile latest = saved();
         assertEquals(KnowledgeConstants.STATUS_INDEXED, latest.getIndexStatus());
@@ -133,8 +135,8 @@ class FileKnowledgeSyncServiceTest {
 
         syncService.runOnce();
 
-        verify(indexService).addFileChunks(eq(PATH), eq("m3"), anyList(), eq(FILE_ID),
-                eq("sys:archive:secret:read"));
+        verify(indexService).addFileChunksWithOwner(eq(PATH), eq("m3"), anyList(), eq(FILE_ID),
+                eq("sys:archive:secret:read"), isNull());
         assertEquals(KnowledgeConstants.SOURCE_ARCHIVE, saved().getSource());
         assertEquals(KnowledgeConstants.STATUS_INDEXED, saved().getIndexStatus());
     }
@@ -152,7 +154,8 @@ class FileKnowledgeSyncServiceTest {
         syncService.runOnce();
 
         verify(indexService).deletePaths(List.of(PATH));
-        verify(indexService, never()).addFileChunks(anyString(), anyString(), anyList(), any(), any());
+        verify(indexService, never()).addFileChunksWithOwner(anyString(), anyString(), anyList(), any(), any(),
+                any());
         assertEquals(KnowledgeConstants.STATUS_SKIPPED, saved().getIndexStatus());
     }
 
@@ -171,8 +174,8 @@ class FileKnowledgeSyncServiceTest {
 
         syncService.runOnce();
 
-        verify(indexService).addFileChunks(eq(PATH), eq("m3"), anyList(), eq(FILE_ID),
-                eq("sys:archive:item:read"));
+        verify(indexService).addFileChunksWithOwner(eq(PATH), eq("m3"), anyList(), eq(FILE_ID),
+                eq("sys:archive:item:read"), isNull());
         assertEquals(KnowledgeConstants.SOURCE_ARCHIVE, saved().getSource());
     }
 
@@ -190,7 +193,8 @@ class FileKnowledgeSyncServiceTest {
 
         syncService.runOnce();
 
-        verify(indexService).addFileChunks(eq(PATH), eq("m1"), anyList(), eq(FILE_ID), isNull());
+        verify(indexService).addFileChunksWithOwner(eq(PATH), eq("m1"), anyList(), eq(FILE_ID), isNull(),
+                eq(7L));
         assertEquals(KnowledgeConstants.SOURCE_FILE, saved().getSource());
     }
 
@@ -284,7 +288,8 @@ class FileKnowledgeSyncServiceTest {
 
         verify(fileClient, never()).content(any());
         verify(documentParser, never()).parse(any(), anyString(), any());
-        verify(indexService, never()).addFileChunks(anyString(), anyString(), anyList(), any(), any());
+        verify(indexService, never()).addFileChunksWithOwner(anyString(), anyString(), anyList(), any(), any(),
+                any());
         verify(indexService).deletePaths(List.of(PATH));
         AgentKnowledgeFile latest = saved();
         assertEquals(KnowledgeConstants.STATUS_SKIPPED, latest.getIndexStatus());
@@ -301,7 +306,8 @@ class FileKnowledgeSyncServiceTest {
         syncService.runOnce();
 
         verify(fileClient, never()).content(any());
-        verify(indexService, never()).addFileChunks(anyString(), anyString(), anyList(), any(), any());
+        verify(indexService, never()).addFileChunksWithOwner(anyString(), anyString(), anyList(), any(), any(),
+                any());
         assertEquals("文件桶未纳入知识库白名单", saved().getLastError());
     }
 
@@ -318,7 +324,8 @@ class FileKnowledgeSyncServiceTest {
         syncService.runOnce();
 
         verify(fileClient, never()).content(any());
-        verify(indexService, never()).addFileChunks(anyString(), anyString(), anyList(), any(), any());
+        verify(indexService, never()).addFileChunksWithOwner(anyString(), anyString(), anyList(), any(), any(),
+                any());
         assertEquals("文件已删除、禁用或桶被排除", saved().getLastError());
     }
 
@@ -337,7 +344,8 @@ class FileKnowledgeSyncServiceTest {
 
         syncService.runOnce();
 
-        verify(indexService).addFileChunks(eq(PATH), eq("m2"), anyList(), eq(FILE_ID), isNull());
+        verify(indexService).addFileChunksWithOwner(eq(PATH), eq("m2"), anyList(), eq(FILE_ID), isNull(),
+                eq(7L));
         assertEquals(KnowledgeConstants.STATUS_INDEXED, saved().getIndexStatus());
     }
 
@@ -385,6 +393,7 @@ class FileKnowledgeSyncServiceTest {
         change.setMd5(md5);
         change.setStatus(1);
         change.setDeleted(0);
+        change.setUploaderId(7L);
         change.setUpdateTime(LocalDateTime.of(2026, 2, 1, 9, 0));
         return change;
     }
