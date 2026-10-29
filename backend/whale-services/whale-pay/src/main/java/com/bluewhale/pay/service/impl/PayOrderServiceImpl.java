@@ -13,6 +13,7 @@ import com.bluewhale.pay.dto.PayOrderCreateRequest;
 import com.bluewhale.pay.dto.PayOrderQueryRequest;
 import com.bluewhale.pay.entity.PayOrder;
 import com.bluewhale.pay.entity.PayTransaction;
+import com.bluewhale.pay.enums.PayOrderStatus;
 import com.bluewhale.pay.mapper.PayOrderMapper;
 import com.bluewhale.pay.mapper.PayTransactionMapper;
 import com.bluewhale.pay.service.PayOrderService;
@@ -51,17 +52,6 @@ public class PayOrderServiceImpl implements PayOrderService {
     /** 单页最大条数：防止深度分页拖垮数据库 */
     private static final long MAX_PAGE_SIZE = 200L;
 
-    /** 状态：待支付 */
-    private static final String STATUS_CREATED = "CREATED";
-
-    /** 状态：已支付 */
-    private static final String STATUS_PAID = "PAID";
-
-    /** 状态：已取消 */
-    private static final String STATUS_CANCELLED = "CANCELLED";
-
-    /** 状态：已退款 */
-    private static final String STATUS_REFUNDED = "REFUNDED";
 
     /** 流水类型：支付 */
     private static final String TYPE_PAY = "PAY";
@@ -121,7 +111,7 @@ public class PayOrderServiceImpl implements PayOrderService {
         if (!payChannelGateway.isSupported(entity.getChannel())) {
             throw new BizException(ErrorCode.PARAM_ERROR, "不支持的支付渠道: " + entity.getChannel());
         }
-        entity.setStatus(STATUS_CREATED);
+        entity.setStatus(PayOrderStatus.CREATED.code());
         entity.setRefundAmount(BigDecimal.ZERO);
         try {
             payOrderMapper.insert(entity);
@@ -135,10 +125,10 @@ public class PayOrderServiceImpl implements PayOrderService {
     @Transactional(rollbackFor = Exception.class)
     public PayOrderVO pay(Long id) {
         PayOrder existing = requireOrder(id);
-        ensureStatus(existing, STATUS_CREATED, "只有待支付的支付单可以支付");
+        ensureStatus(existing, PayOrderStatus.CREATED.code(), "只有待支付的支付单可以支付");
         // 条件更新抢占 CREATED → PAID：并发下只有一个事务能成功，防止重复扣款
-        claimTransition(id, STATUS_CREATED, STATUS_PAID, "只有待支付的支付单可以支付");
-        existing.setStatus(STATUS_PAID);
+        claimTransition(id, PayOrderStatus.CREATED.code(), PayOrderStatus.PAID.code(), "只有待支付的支付单可以支付");
+        existing.setStatus(PayOrderStatus.PAID.code());
         existing.setPayTime(LocalDateTime.now());
         PayChannelResult result = payChannelGateway.pay(existing);
         existing.setChannelTradeNo(result.providerTradeNo());
@@ -151,9 +141,9 @@ public class PayOrderServiceImpl implements PayOrderService {
     @Transactional(rollbackFor = Exception.class)
     public PayOrderVO cancel(Long id) {
         PayOrder existing = requireOrder(id);
-        ensureStatus(existing, STATUS_CREATED, "只有待支付的支付单可以取消");
-        claimTransition(id, STATUS_CREATED, STATUS_CANCELLED, "只有待支付的支付单可以取消");
-        existing.setStatus(STATUS_CANCELLED);
+        ensureStatus(existing, PayOrderStatus.CREATED.code(), "只有待支付的支付单可以取消");
+        claimTransition(id, PayOrderStatus.CREATED.code(), PayOrderStatus.CANCELLED.code(), "只有待支付的支付单可以取消");
+        existing.setStatus(PayOrderStatus.CANCELLED.code());
         payOrderMapper.updateById(existing);
         return toVo(payOrderMapper.selectById(id));
     }
@@ -162,10 +152,10 @@ public class PayOrderServiceImpl implements PayOrderService {
     @Transactional(rollbackFor = Exception.class)
     public PayOrderVO refund(Long id) {
         PayOrder existing = requireOrder(id);
-        ensureStatus(existing, STATUS_PAID, "只有已支付的支付单可以退款");
+        ensureStatus(existing, PayOrderStatus.PAID.code(), "只有已支付的支付单可以退款");
         // 条件更新抢占 PAID → REFUNDED：并发下只有一个事务能成功，防止重复退款
-        claimTransition(id, STATUS_PAID, STATUS_REFUNDED, "只有已支付的支付单可以退款");
-        existing.setStatus(STATUS_REFUNDED);
+        claimTransition(id, PayOrderStatus.PAID.code(), PayOrderStatus.REFUNDED.code(), "只有已支付的支付单可以退款");
+        existing.setStatus(PayOrderStatus.REFUNDED.code());
         existing.setRefundAmount(existing.getAmount());
         existing.setRefundTime(LocalDateTime.now());
         PayChannelResult result = payChannelGateway.refund(existing);

@@ -4,6 +4,7 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.pay.config.PayChannelProperties;
 import com.bluewhale.pay.entity.PayOrder;
+import com.bluewhale.pay.enums.PayOrderStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -27,11 +28,6 @@ public class PayChannelGateway {
     /** 模拟渠道流水号前缀 */
     private static final String MOCK_TRADE_PREFIX = "MOCK-";
 
-    /** 渠道状态：已支付 */
-    private static final String STATUS_PAID = "PAID";
-
-    /** 渠道状态：已退款 */
-    private static final String STATUS_REFUNDED = "REFUNDED";
 
     private final PayChannelProperties properties;
 
@@ -60,7 +56,7 @@ public class PayChannelGateway {
      */
     public PayChannelResult pay(PayOrder order) {
         ensureMock(order);
-        return new PayChannelResult(newMockTradeNo(), STATUS_PAID);
+        return new PayChannelResult(newMockTradeNo(), PayOrderStatus.PAID.code());
     }
 
     /**
@@ -73,7 +69,7 @@ public class PayChannelGateway {
         ensureMock(order);
         String providerTradeNo = StringUtils.hasText(order.getChannelTradeNo())
                 ? order.getChannelTradeNo() : newMockTradeNo();
-        return new PayChannelResult(providerTradeNo, STATUS_REFUNDED);
+        return new PayChannelResult(providerTradeNo, PayOrderStatus.REFUNDED.code());
     }
 
     /**
