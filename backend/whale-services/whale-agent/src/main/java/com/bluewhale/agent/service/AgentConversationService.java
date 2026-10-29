@@ -51,7 +51,7 @@ public class AgentConversationService {
 
     /** 检索范围可选值 */
     private static final Set<String> SCOPE_VALUES = Set.of(
-            "code", "doc", "sql", "config", "git", "runtime", "file", "archive");
+            "code", "doc", "sql", "config", "git", "runtime", "file", "archive", "doc_page");
 
     /** 角色：用户 */
     public static final String ROLE_USER = "user";

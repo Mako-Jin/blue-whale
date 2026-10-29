@@ -43,8 +43,9 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class ArchiveIngestService {
 
-    /** 允许推送的来源类型白名单（当前仅合同） */
-    private static final Set<String> ALLOWED_SOURCE_TYPES = Set.of(ArchiveConstants.SOURCE_CONTRACT);
+    /** 允许推送的来源类型白名单（合同 / 文档页面） */
+    private static final Set<String> ALLOWED_SOURCE_TYPES =
+            Set.of(ArchiveConstants.SOURCE_CONTRACT, ArchiveConstants.SOURCE_DOC_PAGE);
 
     /** 快照内容上限（1MB） */
     private static final int MAX_SNAPSHOT_BYTES = 1024 * 1024;

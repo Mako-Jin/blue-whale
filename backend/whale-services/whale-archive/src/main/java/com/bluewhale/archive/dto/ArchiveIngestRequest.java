@@ -23,7 +23,7 @@ public class ArchiveIngestRequest implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /** 来源类型：CONTRACT 合同（白名单校验） */
+    /** 来源类型：CONTRACT 合同 / DOC_PAGE 文档页面（白名单校验） */
     @NotBlank(message = "来源类型不能为空")
     @Size(max = 32, message = "来源类型不能超过 32 字")
     private String sourceType;

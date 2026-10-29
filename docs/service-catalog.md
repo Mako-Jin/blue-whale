@@ -2,7 +2,7 @@
 
 > 用途：**全平台端口 ↔ 服务 ↔ 组件**的唯一权威清单。看端口即知对应哪个服务，看服务即知其分组、库、对外前缀与职责。
 > 关联需求：REQ-ARCH-005（新增）、REQ-ARCH-004（命名规范，[naming-conventions.md](naming-conventions.md) §八）
-> 最后更新：2026-10-28（**Wave 5.69–5.70**：ERP 新增供应商主数据；`whale-message` M1 增模板管理/失败重试/站内信收件箱；**F-05 结案** `whale-config` 冻结且移除 `/config/**` 路由）｜ 2026-10-28（**Wave 5.68 M0**：新增 `whale-message` 8094、网关 `/message/**` 路由、库 `bluewhale_message`；统一消息服务设计见 [ADR](plans/2026-10-28-crm-srm-and-message-service-decisions.md)）｜ 2026-10-25（**Wave 5.55 M1**：新增 `whale-pm` 9005、前端 `whale-pm` 8108、网关 `/pm/**`、库 `bluewhale_pm`，规划见 [wave5.55](plans/wave5.55-project-management.md)）｜ 维护：BlueWhale
+> 最后更新：2026-10-29（**Wave 5.74 M0–M5 交付**：`whale-doc` 8095 / 前端 8110 / `/doc/**` / `bluewhale_doc` 全量业务与运维能力落地，见 [实施计划](plans/2026-10-29-wiki-doc-service.md)）｜ 2026-10-29（**Wave 5.74 M1 骨架**：新增 `whale-doc` 8095、前端 `whale-doc` 8110、网关 `/doc/**`、库 `bluewhale_doc`、权限/角色/菜单迁移）｜ 2026-10-28（**Wave 5.69–5.70**：ERP 新增供应商主数据；`whale-message` M1 增模板管理/失败重试/站内信收件箱；**F-05 结案** `whale-config` 冻结且移除 `/config/**` 路由）｜ 维护：BlueWhale
 
 ---
 
@@ -17,7 +17,7 @@
 
 ---
 
-## 一、后端服务清单（22 个：Java 21 + Python 1）
+## 一、后端服务清单（23 个：Java 22 + Python 1；含 1 个规划）
 
 | # | 服务名（Spring / Nacos） | 所属分组 | 模块目录 | 端口 | 对外一级前缀 | 网关路由 | 数据库（`bluewhale_<域>`） | 启动类 | 职责 | 本机状态 |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -43,13 +43,14 @@
 | 20 | `whale-pm` | whale-apps | `whale-apps/whale-pm` | **9005** | `/pm/**` | ✅ 已配路由（2026-10-25） | **`bluewhale_pm`**（4 表 DDL 就绪，**待建库**） | `WhalePmApplication` | 项目管理（对标 Jira/禅道）：项目空间/成员/状态流转（M1）、工作项（M2）、迭代看板（M3）、报表（M4）、站内通知 + 工作流审批（M5，默认关闭） | **可启动**（Wave 5.55 M1–M5 完成；未起服） |
 | 21 | `whale-contract` | whale-apps | `whale-apps/whale-contract` | **9006** | `/contract/**` | ✅ `lb://whale-contract`（2026-10-26） | **`bluewhale_contract`**（4 表 + `api_log`） | `WhaleContractApplication` | 合同管理：起草/相对方/版本/审批/终止/归档（M1）；印章/PDF 盖章/数字签名/三方签章（M2–M3） | **可启动**（Wave 5.61 M1 完成） |
 | 22 | `whale-message` | whale-services | `whale-services/whale-message` | **8094** | `/message/**` | ✅ `lb://whale-message`（2026-10-28） | **`bluewhale_message`**（5 表：`msg_template`/`msg_record`/`msg_delivery`/`audit_log`/`api_log`） | `WhaleMessageApplication` | 统一消息服务：模板渲染/渠道路由/幂等/投递记录（M0）；模板管理、失败重试、站内信收件箱（M1）；INAPP/EMAIL/SMS/IM 适配器，无供应商时默认 mock | **可启动**（Wave 5.68 M0 + 5.70 M1；2026-10-28 本地起服验证通过） |
+| 23 | `whale-doc` | whale-services | `whale-services/whale-doc` | **8095** | `/doc/**` | ✅ `lb://whale-doc`（2026-10-29，M2 增 `/doc/ws`） | **`bluewhale_doc`**（16 业务表：M1 7 + M2 7 + M3 2，另 `audit_log`/`api_log`） | `WhaleDocApplication` | 在线文档 / Wiki：空间与成员、页面树、TipTap 富文本、自动保存与 revision 冲突、版本/评论/附件、搜索、页面 ACL、标签/反链/动态/最近访问、ngram 检索、协作/回收站、模板/导入导出/审批/通知/分享/归档、Agent 知识索引；M5 指标/清理/备份/运维 | **M1–M5 已交付**（Wave 5.74；239 项 smoke + 备份恢复演练通过） |
 
 > 「对外一级前缀」= 服务自持的前缀，网关**只转发、不剥离**（REQ-ARCH-003）。
 > 网关 `discovery.locator.enabled=true` 已开启服务发现路由：`lb://whale-<域>` → `http://<服务实例>`。
 
 ---
 
-## 二、网关路由映射（`whale-gateway`，现配 21 条；Wave 5.69 移除 `/config/**`）
+## 二、网关路由映射（`whale-gateway`，现配 20 条；Wave 5.74 规划 2 条）
 
 | 路由 id | 断言前缀 | 目标 URI | 对应服务 | 状态 |
 |---|---|---|---|---|
@@ -74,12 +75,14 @@
 | whale-pm | `Path=/pm/**` | `lb://whale-pm` | whale-pm | ✅ 已配（Wave 5.55 M1；**不配 `StripPrefix`**，内网 `/pm/internal/**` 由 internal-deny 403） |
 | `whale-contract` | `Path=/contract/**` | `lb://whale-contract` | whale-contract | ✅ 已配（Wave 5.61 M1；**不配 `StripPrefix`**，内网 `/contract/internal/**` 由 internal-deny 403） |
 | `whale-message` | `Path=/message/**` | `lb://whale-message` | whale-message | ✅ 已配（Wave 5.68 M0；**不配 `StripPrefix`**，内网 `/message/internal/**` 由 internal-deny 403） |
+| `whale-doc` | `Path=/doc/**`（M2 排除 `/doc/ws`） | `lb://whale-doc` | whale-doc | ✅ 已配（Wave 5.74 M1；**不配 `StripPrefix`**，内网 `/doc/internal/**` 由 internal-deny 403） |
+| `whale-doc-ws` | `Path=/doc/ws` | `lb:ws://whale-doc` | whale-doc | ✅ 已配（Wave 5.74 M2；保留 `Upgrade`/`Connection`，60s 一次性 ticket 鉴权） |
 
-**网关免鉴权白名单**：`/auth/login`、`/auth/refresh`、`/actuator/**`、`/v3/api-docs/**`、`/doc.html`、`/webjars/**`、`/favicon.ico`、`/audit/log/frontend/batch`、`/audit/log/behavior/batch`（后两条为前端/行为日志上报，Wave 5.19 起仅放行 batch 写入端点）。
+**网关免鉴权白名单**：`/auth/login`、`/auth/refresh`、`/actuator/**`、`/v3/api-docs/**`、`/doc.html`、`/webjars/**`、`/favicon.ico`、`/audit/log/frontend/batch`、`/audit/log/behavior/batch`（后两条为前端/行为日志上报，Wave 5.19 起仅放行 batch 写入端点）、`/doc/ws`（WS 不携带 Authorization 头，改走 60s 一次性 ticket）。
 
 ---
 
-## 三、前端应用清单（14 个，开发态端口）
+## 三、前端应用清单（15 个，开发态端口；含 1 个规划）
 
 | # | 应用 | 目录 | 包名（NPM） | 角色 | 开发端口 | base 路径 | 备注 |
 |---|---|---|---|---|---|---|---|
@@ -97,6 +100,7 @@
 | 12 | whale-im | `frontend/platform-apps/whale-im` | `whale-im` | qiankun **子应用**（即时通讯 + 蓝鲸助手） | **8107** | `/im` | 微应用名 `whale-im`（Wave 5.52 规划）；`/im` 同时为 API 前缀，沿用 `Accept: text/html` 旁路 |
 | 13 | whale-pm | `frontend/platform-apps/whale-pm` | `whale-pm` | qiankun **子应用**（项目管理） | **8108** | `/pm` | 微应用名 `whale-pm`（Wave 5.55；M4 交付页面） |
 | 14 | whale-contract | `frontend/platform-apps/whale-contract` | `whale-contract` | qiankun **子应用**（合同管理：列表 + 详情/版本/流程） | **8109** | `/contract` | 微应用名 `whale-contract`（Wave 5.61 M1） |
+| 15 | whale-doc | `frontend/platform-apps/whale-doc` | `whale-doc` | qiankun **子应用**（在线文档/Wiki：空间、页面树、TipTap 协作编辑器、评论/版本/附件、回收站、模板、分享、AI 面板） | **8110** | `/doc` | 微应用名 `whale-doc`（Wave 5.74 M1–M5 已交付；lint/build 通过） |
 
 共享包（不占端口）：`frontend/shared-packages/whale-common-tools`、`whale-common-theme`、`whale-log-sdk`、`frontend/elemental/whale-ui`（NPM scope `@bluewhale/`）。
 冻结共享包（无消费方，不删除代码、不升级依赖）：`frontend/shared-packages/whale-common-three`（F-09）、`frontend/games/whale-games-core`（F-07）。
@@ -107,7 +111,7 @@
 
 | # | 组件 | 用途 | 端口 | 版本 | 部署方式 | 本机状态 |
 |---|---|---|---|---|---|---|
-| 1 | **MySQL** | 业务库 + Nacos 外置存储 | **3306**（TCP） | 8.0.45（本机 `D:\mysql8`）／镜像 8.4（compose） | 本机原生；compose `bw-mysql` | **已运行**。库：`bluewhale_auth`、`bluewhale_audit`、`bluewhale_nacos`、`bluewhale_agent`、**`bluewhale_im`（规划，Wave 5.52）**、**`bluewhale_message`（M0，脚本已就绪）**（另有外部遗留 `yc-sts-db-auth` / `yc-sts-db-flow`，登记不改名） |
+| 1 | **MySQL** | 业务库 + Nacos 外置存储 | **3306**（TCP） | 8.0.45（本机 `D:\mysql8`）／镜像 8.4（compose） | 本机原生；compose `bw-mysql` | **已运行**。库：`bluewhale_auth`、`bluewhale_audit`、`bluewhale_nacos`、`bluewhale_agent`、**`bluewhale_im`（规划，Wave 5.52）**、**`bluewhale_message`（M0，脚本已就绪）**、**`bluewhale_doc`（Wave 5.74，已建）**（另有外部遗留 `yc-sts-db-auth` / `yc-sts-db-flow`，登记不改名） |
 | 2 | **Redis** | 令牌黑名单、i18n 缓存、分布式锁 | **6379**（TCP） | 5.0.14.1（本机 `tools/`）／镜像 7-alpine（compose） | 本机原生；compose `bw-redis` | **已运行** |
 | 3 | **Nacos** | 服务注册发现 + 配置中心 | **8848**（HTTP OpenAPI + 主服务）<br>**8849**（控制台，仅 3.x 独立控制台）<br>**9848**（gRPC 客户端→服务端）<br>**9849**（gRPC 服务端→服务端，集群） | 2.4.0（本机 `tools/nacos`）／镜像 2.4.0（compose） | 本机原生（standalone + MySQL 外置存储）；compose `bw-nacos` | **已运行**（PID 实测监听 8848/9848；已注册 `whale-gateway` / `whale-service-auth` / `whale-audit`） |
 | 4 | **RabbitMQ** | 审计日志汇聚、异步消息（规划） | **5672**（AMQP）<br>**15672**（Management 控制台） | 4-management-alpine | compose `bw-rabbitmq` | ⚠ **未启动**（compose 服务已定义，本机未拉起） |
@@ -148,6 +152,7 @@
 | **8092** | `whale-ai` | 后端（Python） | LangChain 智能体（仅内网，规划） |
 | **8093** | `whale-archive` | 后端 | 档案服务（Wave 5.53 M1，可启动） |
 | **8094** | `whale-message` | 后端 | 统一消息服务（Wave 5.68 M0 + 5.70 M1，可启动） |
+| **8095** | `whale-doc` | 后端 | 在线文档/Wiki（Wave 5.74 M1 骨架，可启动） |
 | **8101** | `whale-portal` | 前端（子应用） | base `/portal` |
 | **8102** | `whale-erp` | 前端（子应用） | base `/erp` |
 | **8103** | `whale-oa` | 前端（子应用） | base `/oa` |
@@ -157,6 +162,7 @@
 | **8107** | `whale-im` | 前端（子应用） | base `/im`（规划） |
 | **8108** | `whale-pm` | 前端（子应用） | base `/pm`（Wave 5.55 M4） |
 | **8109** | `whale-contract` | 前端（子应用） | base `/contract`（Wave 5.61 M1） |
+| **8110** | `whale-doc` | 前端（子应用） | base `/doc`（Wave 5.74 M1 骨架，已接入基座菜单与 qiankun） |
 | **8848** | Nacos | 基础设施 | HTTP OpenAPI + 主服务（contextPath `/nacos`） |
 | **8849** | Nacos Console | 基础设施 | 控制台（仅 Nacos 3.x；本机 2.4.0 无独立控制台端口） |
 | **8858** | Sentinel Dashboard | 基础设施 | 规划（未引入） |
@@ -187,6 +193,11 @@
 | 任意后端服务 | `whale-service-auth` | `lb://whale-service-auth` 或 SDK `whale-auth-sdk` | 包 `com.bluewhale.auth.sdk` |
 | `whale-im` | `whale-service-auth` | `POST /user/internal/exists`（Nacos 直连，不经网关） | 群成员 / 单聊对方合法性校验（存在且启用）；网关已列入 `internal-deny`，外部访问 403 |
 | 任意后端服务 | `whale-file` | `lb://whale-file` | —— |
+| `whale-doc`（规划） | `whale-file` | `POST /file/internal/upload`、`GET /file/internal/{id}/content` | 附件/图片上传与代理读取；桶 `whale-doc`（Nacos 直连，不经网关） |
+| `whale-doc`（规划） | `whale-message` | `POST /message/internal/send` | M3 评论提及/审批通知；显式传 `tenantId`，幂等键由文档服务生成 |
+| `whale-doc`（规划） | `whale-workflow` | `/workflow/**` + 回调 | M3 发布审批；`businessKey=doc:{pageId}:v{revision}` |
+| `whale-doc`（规划） | `whale-archive` | `POST /archive/internal/items` | M3 发布页快照入档；`sourceType=DOC_PAGE` |
+| `whale-agent`（规划） | `whale-doc` | `GET /doc/internal/page/changes`、`GET /doc/internal/page/{id}` | M4 DOC 知识源增量采集；只读公开已发布页面 |
 | `whale-im` | `whale-agent` | `lb://whale-agent`（`POST /agent/chat`，SSE） | 机器人问答；透传 `X-User-Id` / `X-Permission-Codes`（Wave 5.52 规划） |
 | `whale-agent` | `whale-ai` | `http://<内网>:8092/v1/agent/*`（`WHALE_AI_BASE_URL`） | LangChain 编排；**不经网关、不注册 Nacos**（Wave 5.52 规划） |
 
@@ -201,8 +212,8 @@
 | **3306 / 6379 / 5672 / 15672** | MySQL / Redis / RabbitMQ | 3306、6379 已运行；5672/15672 未运行 |
 | **8000–8099** | **前端 dev server**：基座 `8000`、admin `8001`、form-designer `8002`、workflow-designer `8003`、agent `8004` | 已落地（C-01 已解） |
 | **8080** | **网关（唯一后端入口）** | 已运行 |
-| **8081–8099** | **核心服务** | auth 8081、job 8082、workflow 8083、form 8084、file 8085、pay 8086、**agent 8090、im 8091、ai 8092（Python）、archive 8093、message 8094**（8087 已随 `whale-i18n` 服务删除释放，Wave 5.50） |
-| **8101–8199** | **qiankun 子应用 + 运维端** | portal 8101、erp 8102、oa 8103、ops 8104、mes 8105、pdm 8106、**im 8107、pm 8108、contract 8109** |
+| **8081–8099** | **核心服务** | auth 8081、job 8082、workflow 8083、form 8084、file 8085、pay 8086、**agent 8090、im 8091、ai 8092（Python）、archive 8093、message 8094、doc 8095（M1 骨架）**（8087 已随 `whale-i18n` 服务删除释放，Wave 5.50） |
+| **8101–8199** | **qiankun 子应用 + 运维端** | portal 8101、erp 8102、oa 8103、ops 8104、mes 8105、pdm 8106、**im 8107、pm 8108、contract 8109、doc 8110** |
 | **8848 / 8849 / 9848 / 9849** | **Nacos** | 已运行 |
 | **9001–9099** | **业务应用** | erp 9001、mes 9002、pdm 9003、oa 9004、**pm 9005、contract 9006** |
 | **9101–9199** | **运维（ops）** | audit 9101、monitor 9102、alert 9103 |
@@ -228,6 +239,10 @@
 | `WHALE_MESSAGE_IM_ENABLED` / `WHALE_MESSAGE_IM_BASE_URL` | IM 渠道（内网 whale-im） | `false` / 空 | whale-message |
 | `WHALE_AI_BASE_URL` | Python 智能体内网地址 | `http://127.0.0.1:8092` | whale-agent（Wave 5.52） |
 | `WHALE_AGENT_QA_ENGINE` | 问答引擎开关 | `legacy` | whale-agent（`legacy`/`langchain`） |
+| `WHALE_DOC_COLLAB_ENABLED` | 文档实时协作开关（M2） | `false` | whale-doc；关闭时回退 revision 乐观锁 |
+| `WHALE_DOC_APPROVAL_ENABLED` | 文档发布审批开关（M3） | `false` | whale-doc；关闭时发布直接生效 |
+| `WHALE_DOC_CONTENT_MAX_BYTES` | 单页正文 JSON 上限 | `2097152`（2MB） | whale-doc |
+| `WHALE_DOC_ATTACHMENT_MAX_BYTES` | 单附件上限（透传文件服务） | `52428800`（50MB） | whale-doc |
 | `JWT_SECRET` | 认证签名密钥 | 开发占位（非 dev 拒绝启动） | whale-service-auth |
 | `WHALE_GATEWAY_JWT_SECRET` | 网关校验密钥 | 开发占位 | whale-gateway |
 | `SPRING_PROFILES_ACTIVE` | 环境 | `dev` | 全部服务 |

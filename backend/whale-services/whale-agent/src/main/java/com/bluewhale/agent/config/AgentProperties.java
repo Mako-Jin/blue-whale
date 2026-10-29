@@ -365,14 +365,37 @@ public class AgentProperties {
         /** 读取响应超时（毫秒） */
         private int readTimeoutMillis = 60000;
 
-        /** 不纳入知识库的桶（逗号分隔，匹配桶名前缀） */
-        private List<String> excludedBuckets = new ArrayList<>();
+        /**
+         * 不纳入知识库的桶（逗号分隔，匹配桶名前缀）。
+         *
+         * <p>默认排除 {@code whale-doc}：文档附件由页面附件权限控制，且正文已经通过
+         * 内网文档变更流进入知识库，避免同一内容被重复采集或越权暴露。</p>
+         */
+        private List<String> excludedBuckets = new ArrayList<>(List.of("whale-doc"));
 
         /** 显式指定定时同步的租户ID列表；为空时从租户目录查询可用租户 */
         private List<Long> syncTenantIds = new ArrayList<>();
 
         /** 认证服务基址（查询可用租户目录，服务间直连） */
         private String authUrl = "http://127.0.0.1:8081";
+
+        /** 是否采集 whale-doc 文档页面（M4 知识源，默认关闭） */
+        private boolean docEnabled = false;
+
+        /** 启动后是否立即执行一轮文档同步 */
+        private boolean docSyncOnStartup = false;
+
+        /** 文档增量同步周期（秒），0 表示仅手动触发 */
+        private int docSyncIntervalSeconds = 600;
+
+        /** 文档服务基址（服务间直连，不经网关） */
+        private String docUrl = "http://127.0.0.1:8095";
+
+        /** 文档知识块所需权限码（检索时按用户权限过滤） */
+        private String docPermissionCode = "sys:doc:page:read";
+
+        /** 单页面正文采集字符上限，默认 100 万 */
+        private int docMaxChars = 1_000_000;
     }
 
     /**

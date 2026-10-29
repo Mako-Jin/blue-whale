@@ -61,7 +61,8 @@ public class ChatService {
     private static final long EMITTER_TIMEOUT_MILLIS = 180_000L;
 
     /** 全文索引支持的范围类型 */
-    private static final Set<String> INDEX_KINDS = Set.of("code", "doc", "sql", "config", "file", "archive");
+    private static final Set<String> INDEX_KINDS = Set.of("code", "doc", "sql", "config", "file", "archive",
+            "doc_page");
 
     /** 事实片段最大字符数 */
     private static final int FACT_SNIPPET_LIMIT = 600;
@@ -227,7 +228,7 @@ public class ChatService {
         for (ToolEvidence item : evidence) {
             citations.add(new Citation("S" + seq++, item.kind(), item.path(), item.title(),
                     item.startLine(), item.endLine(), item.snippet(), item.factType(),
-                    item.factKey(), item.score(), item.fileId()));
+                    item.factKey(), item.score(), item.fileId(), item.url()));
         }
         return citationValidator.validate(citations);
     }
@@ -292,7 +293,7 @@ public class ChatService {
                 citations.add(new Citation("S" + seq++, "chunk", hit.getPath(), hit.getTitle(),
                         hit.getStartLine(), hit.getEndLine(),
                         truncate(hit.getContent(), maxChars), null, null, (double) hit.getScore(),
-                        hit.getFileId()));
+                        hit.getFileId(), hit.getUrl()));
             }
         }
         return citationValidator.validate(citations);

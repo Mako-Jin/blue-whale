@@ -186,7 +186,7 @@ class TenantProvisioningAppServiceTest {
                     draft.getRoleName(), draft.getDescription(), draft.getSortNo(), draft.getStatus(),
                     draft.getCreateTime(), draft.getUpdateTime());
         });
-        // 仅 archive_manager 模板存在，其余 14 个编码按缺失跳过
+        // 仅 archive_manager 模板存在，其余 16 个编码按缺失跳过
         when(roleRepository.findByTenantIdAndCode(Tenant.PLATFORM_TENANT_ID, "archive_manager"))
                 .thenReturn(Optional.of(Role.reconstitute(9_000L, Tenant.PLATFORM_TENANT_ID,
                         RoleCode.of("archive_manager"), "档案管理员", "档案全量", 140, Role.STATUS_ENABLED, NOW, NOW)));
@@ -222,6 +222,13 @@ class TenantProvisioningAppServiceTest {
     void shouldIncludePmRoleTemplates() {
         assertTrue(TenantProvisioningAppService.BUSINESS_ROLE_TEMPLATE_CODES
                 .containsAll(List.of("pm_manager", "pm_member")));
+    }
+
+    @Test
+    @DisplayName("业务角色模板包含文档角色，业务租户开通后可分配")
+    void shouldIncludeDocRoleTemplates() {
+        assertTrue(TenantProvisioningAppService.BUSINESS_ROLE_TEMPLATE_CODES
+                .containsAll(List.of("doc_manager", "doc_member")));
     }
 
     @Test

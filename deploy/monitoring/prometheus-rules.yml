@@ -54,6 +54,41 @@ groups:
           summary: '登录 P95 超过 1500ms'
           description: 'SLO-1 失守：whale-service-auth 登录接口 P95 为 {{ $value }}s，持续 5 分钟。'
 
+  - name: bluewhale-doc
+    rules:
+      - alert: DocSaveConflictSpike
+        expr: sum(rate(doc_page_save_conflict_total[5m])) > 1
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: '文档保存冲突持续偏高'
+          description: '近 5 分钟文档保存冲突速率超过 1 次/秒并持续 10 分钟，可能存在多人编辑同一页面或客户端未刷新 revision。'
+
+      - alert: DocSearchP95Slow
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (rate(doc_search_seconds_bucket{application="whale-doc"}[5m]))
+          ) > 1
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: '文档搜索 P95 超过 1000ms'
+          description: 'SLO-4 失守：whale-doc 搜索 P95 为 {{ $value }}s，持续 10 分钟，请检查 ngram 索引与空间规模。'
+
+      - alert: DocOrphanCleanupFailed
+        expr: increase(doc_orphan_attachment_failed_total[1h]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: '文档孤儿附件引用清理失败'
+          description: '近 1 小时 whale-doc 孤儿附件引用清理出现 {{ $value }} 次失败批次，请检查数据库连接与表锁。'
+
   - name: bluewhale-jvm
     rules:
       - alert: JvmHeapHigh

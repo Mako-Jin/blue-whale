@@ -3,6 +3,7 @@ package com.bluewhale.agent.support.index;
 import com.bluewhale.agent.config.AgentProperties;
 import com.bluewhale.agent.service.EmbeddingService;
 import com.bluewhale.agent.support.ingest.Chunk;
+import com.bluewhale.agent.support.knowledge.KnowledgeConstants;
 import com.bluewhale.common.tenant.TenantContext;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -223,6 +224,37 @@ public class AgentIndexService implements DisposableBean {
      */
     public void addFileChunks(String path, String hash, List<Chunk> chunks, Long fileId, String permissionCode,
                               long tenantId) {
+        writeChunks(path, hash, chunks, fileId, null, permissionCode, tenantId);
+    }
+
+    /**
+     * 写入文档页面知识块（whale-doc 知识源）。
+     *
+     * @param path           知识块路径（{@code docpage:<id>}）
+     * @param hash           正文哈希
+     * @param chunks         知识块列表
+     * @param meta           页面元数据（页面ID、空间ID、页面地址）
+     * @param permissionCode 所需权限码（文档读权限）
+     * @param tenantId       租户ID
+     */
+    public void addDocChunks(String path, String hash, List<Chunk> chunks, DocIndexMeta meta,
+                             String permissionCode, long tenantId) {
+        writeChunks(path, hash, chunks, null, meta, permissionCode, tenantId);
+    }
+
+    /**
+     * 写入知识块（文件/文档共用）。
+     *
+     * @param path           知识块路径
+     * @param hash           内容哈希
+     * @param chunks         知识块列表
+     * @param fileId         文件服务文件ID（可空）
+     * @param docMeta        文档页面元数据（可空）
+     * @param permissionCode 所需权限码（可空）
+     * @param tenantId       租户ID
+     */
+    private void writeChunks(String path, String hash, List<Chunk> chunks, Long fileId,
+                             DocIndexMeta docMeta, String permissionCode, long tenantId) {
         if (chunks == null || chunks.isEmpty()) {
             return;
         }
@@ -233,7 +265,7 @@ public class AgentIndexService implements DisposableBean {
             int seq = 0;
             for (int i = 0; i < chunks.size(); i++) {
                 writer.addDocument(toDocument(chunks.get(i), hash, seq++, vectors.get(i), signature,
-                        fileId, permissionCode, tenantId));
+                        fileId, docMeta, permissionCode, tenantId));
             }
         } catch (IOException e) {
             throw new UncheckedIOException("写入索引失败: " + path, e);
@@ -541,6 +573,8 @@ public class AgentIndexService implements DisposableBean {
         if (isDocIntent(question)) {
             outer.add(new BoostQuery(new TermQuery(new Term(AgentIndexFields.KIND, "doc")), 4.0f),
                     BooleanClause.Occur.SHOULD);
+            outer.add(new BoostQuery(new TermQuery(new Term(AgentIndexFields.KIND,
+                    KnowledgeConstants.KIND_DOC_PAGE)), 4.0f), BooleanClause.Occur.SHOULD);
         }
         return outer.build();
     }
@@ -745,7 +779,7 @@ public class AgentIndexService implements DisposableBean {
      * @return Lucene 文档
      */
     private Document toDocument(Chunk chunk, String hash, int seq, float[] vector, String signature,
-                                Long fileId, String permissionCode, long tenantId) {
+                                Long fileId, DocIndexMeta docMeta, String permissionCode, long tenantId) {
         String content = nullToEmpty(chunk.getContent());
         String title = nullToEmpty(chunk.getTitle());
         Document document = new Document();
@@ -776,6 +810,9 @@ public class AgentIndexService implements DisposableBean {
         if (fileId != null) {
             document.add(new StringField(AgentIndexFields.FILE_ID, String.valueOf(fileId), Field.Store.YES));
         }
+        if (docMeta != null) {
+            addDocMeta(document, docMeta);
+        }
         if (StringUtils.hasText(permissionCode)) {
             document.add(new StringField(AgentIndexFields.PERMISSION_RESTRICTED, "1", Field.Store.NO));
             document.add(new StringField(AgentIndexFields.PERMISSION_CODE, permissionCode, Field.Store.YES));
@@ -783,6 +820,26 @@ public class AgentIndexService implements DisposableBean {
                     new BytesRef(permissionCode)));
         }
         return document;
+    }
+
+    /**
+     * 写入文档页面元数据存储字段。
+     *
+     * @param document Lucene 文档
+     * @param meta     页面元数据
+     */
+    private void addDocMeta(Document document, DocIndexMeta meta) {
+        if (meta.pageId() != null) {
+            document.add(new StringField(AgentIndexFields.DOC_PAGE_ID, String.valueOf(meta.pageId()),
+                    Field.Store.YES));
+        }
+        if (meta.spaceId() != null) {
+            document.add(new StringField(AgentIndexFields.SPACE_ID, String.valueOf(meta.spaceId()),
+                    Field.Store.YES));
+        }
+        if (StringUtils.hasText(meta.url())) {
+            document.add(new StoredField(AgentIndexFields.URL, meta.url()));
+        }
     }
 
     /**
@@ -828,6 +885,7 @@ public class AgentIndexService implements DisposableBean {
                 .endLine(intValue(document.get(AgentIndexFields.END_LINE)))
                 .wave(nullToEmpty(document.get(AgentIndexFields.WAVE)))
                 .fileId(longValue(document.get(AgentIndexFields.FILE_ID)))
+                .url(document.get(AgentIndexFields.URL))
                 .score(score)
                 .build();
     }

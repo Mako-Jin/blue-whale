@@ -1,0 +1,109 @@
+server:
+  port: ${SERVER_PORT:8095}
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: whale-doc
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/bluewhale_doc?useUnicode=true&characterEncoding=utf8&connectionCollation=utf8mb4_general_ci&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USER:root}
+    # 安全默认值：不提供 root 默认口令；未设置 MYSQL_PASSWORD 时由部署侧显式配置
+    password: ${MYSQL_PASSWORD:}
+  data:
+    # M2 实时协作：WS ticket / 更新日志 / 跨实例广播；懒连接，Redis 不可用时协作降级
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+      config:
+        server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+        file-extension: yaml
+
+logging:
+  level:
+    com.bluewhale: debug
+
+# 启用 starter 的 RequirePermissionInterceptor（默认 false，须显式开启），
+# 按网关注入的 X-Permission-Codes 判定 sys:doc:* 权限。
+whale:
+  permission:
+    header:
+      enabled: true
+  doc:
+    content-max-bytes: ${WHALE_DOC_CONTENT_MAX_BYTES:2097152}
+    content-text-max-bytes: ${WHALE_DOC_CONTENT_TEXT_MAX_BYTES:1048576}
+    attachment-max-bytes: ${WHALE_DOC_ATTACHMENT_MAX_BYTES:52428800}
+    max-depth: ${WHALE_DOC_MAX_DEPTH:10}
+    collab-enabled: ${WHALE_DOC_COLLAB_ENABLED:false}
+    # M3 发布审批：默认关闭；开启时必须配置 approval-definition-id
+    approval-enabled: ${WHALE_DOC_APPROVAL_ENABLED:false}
+    approval-definition-id: ${WHALE_DOC_APPROVAL_DEFINITION_ID:}
+    approval-definition-code: ${WHALE_DOC_APPROVAL_DEFINITION_CODE:doc_publish}
+    approval-sync-minutes: ${WHALE_DOC_APPROVAL_SYNC_MINUTES:5}
+    # M3 消息通知：默认关闭，关闭时不产生任何外部调用
+    notify-enabled: ${WHALE_DOC_NOTIFY_ENABLED:false}
+    notify-channels: ${WHALE_DOC_NOTIFY_CHANNELS:INAPP}
+    # M3 归档快照：默认关闭
+    archive-enabled: ${WHALE_DOC_ARCHIVE_ENABLED:false}
+    archive-definition-code: ${WHALE_DOC_ARCHIVE_DEFINITION_CODE:DOC_PAGE}
+    archive-snapshot-max-bytes: ${WHALE_DOC_ARCHIVE_SNAPSHOT_MAX_BYTES:1048576}
+    # M3 登录内分享
+    share-default-expire-days: ${WHALE_DOC_SHARE_DEFAULT_EXPIRE_DAYS:7}
+    share-max-expire-days: ${WHALE_DOC_SHARE_MAX_EXPIRE_DAYS:365}
+    # M3 外部服务名（Nacos 服务发现）
+    message-service-name: ${WHALE_DOC_MESSAGE_SERVICE:whale-message}
+    workflow-service-name: ${WHALE_DOC_WORKFLOW_SERVICE:whale-workflow}
+    archive-service-name: ${WHALE_DOC_ARCHIVE_SERVICE:whale-archive}
+    auto-snapshot-minutes: ${WHALE_DOC_AUTO_SNAPSHOT_MINUTES:10}
+    auto-snapshot-revisions: ${WHALE_DOC_AUTO_SNAPSHOT_REVISIONS:20}
+    # M2 回收站
+    recycle-retention-days: ${WHALE_DOC_RECYCLE_RETENTION_DAYS:30}
+    recycle-cleanup-enabled: ${WHALE_DOC_RECYCLE_CLEANUP_ENABLED:true}
+    recycle-cleanup-cron: ${WHALE_DOC_RECYCLE_CLEANUP_CRON:0 30 3 * * *}
+    recycle-cleanup-batch-size: ${WHALE_DOC_RECYCLE_CLEANUP_BATCH_SIZE:200}
+    # M5 孤儿附件引用清理（页面物理删除后残留的引用行）
+    orphan-cleanup-enabled: ${WHALE_DOC_ORPHAN_CLEANUP_ENABLED:true}
+    orphan-cleanup-cron: ${WHALE_DOC_ORPHAN_CLEANUP_CRON:0 30 4 * * *}
+    orphan-attachment-retention-hours: ${WHALE_DOC_ORPHAN_ATTACHMENT_RETENTION_HOURS:24}
+    orphan-cleanup-batch-size: ${WHALE_DOC_ORPHAN_CLEANUP_BATCH_SIZE:500}
+    # M2 实时协作（Yjs WS 中继）
+    collab-ticket-ttl-seconds: ${WHALE_DOC_COLLAB_TICKET_TTL_SECONDS:60}
+    collab-update-keep: ${WHALE_DOC_COLLAB_UPDATE_KEEP:2000}
+    collab-update-ttl-seconds: ${WHALE_DOC_COLLAB_UPDATE_TTL_SECONDS:7200}
+    collab-active-ttl-seconds: ${WHALE_DOC_COLLAB_ACTIVE_TTL_SECONDS:180}
+    collab-leader-ttl-seconds: ${WHALE_DOC_COLLAB_LEADER_TTL_SECONDS:30}
+    collab-max-update-bytes: ${WHALE_DOC_COLLAB_MAX_UPDATE_BYTES:2097152}
+    collab-snapshot-seconds: ${WHALE_DOC_COLLAB_SNAPSHOT_SECONDS:12}
+    collab-allowed-origins: ${WHALE_DOC_COLLAB_ALLOWED_ORIGINS:*}
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    # M5 SLO：文档保存/详情/搜索 P95 依赖直方图桶
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true

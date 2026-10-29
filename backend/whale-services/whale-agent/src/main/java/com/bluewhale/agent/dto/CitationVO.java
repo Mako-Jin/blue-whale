@@ -55,6 +55,9 @@ public class CitationVO {
     /** 文件下载地址（有文件ID时生成，经文件服务权限校验） */
     private String downloadUrl;
 
+    /** 业务页面地址（文档知识块可直接跳转） */
+    private String url;
+
     /**
      * 由领域对象转换。
      *
@@ -75,6 +78,7 @@ public class CitationVO {
                 .score(citation.score())
                 .fileId(citation.fileId())
                 .downloadUrl(citation.fileId() == null ? null : "/file/" + citation.fileId() + "/download")
+                .url(citation.url())
                 .build();
     }
 }

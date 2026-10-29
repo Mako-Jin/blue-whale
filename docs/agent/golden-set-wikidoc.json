@@ -1,0 +1,23 @@
+{
+  "version": "1.0",
+  "wave": "5.75",
+  "description": "Wiki 文档知识源（whale-doc → whale-agent）黄金集。使用前需：1) 开启 whale.agent.knowledge.doc-enabled；2) 将 docs/design/doc-service.md 与 docs/plans/2026-10-29-wiki-doc-service.md 作为公开已发布页面导入文档服务；3) 执行 /agent/knowledge/doc/sync。pathsAny 使用 docpage: 前缀表示命中 Wiki 文档知识块。",
+  "thresholds": {
+    "overall": 0.8,
+    "citationValidRate": 1.0
+  },
+  "cases": [
+    { "id": "W01", "category": "wiki", "question": "Wiki 文档知识源如何采集页面？",
+      "expect": { "pathsAny": ["docpage:"], "keywords": ["变更流", "PUBLISHED"], "minCitations": 1 } },
+    { "id": "W02", "category": "wiki", "question": "文档知识库如何保证私有空间页面不被检索？",
+      "expect": { "pathsAny": ["docpage:"], "keywords": ["PRIVATE", "spaceVisibility"], "minCitations": 1 } },
+    { "id": "W03", "category": "wiki", "question": "文档页面归档或删除后索引如何处理？",
+      "expect": { "pathsAny": ["docpage:"], "keywords": ["下线", "SKIPPED"], "minCitations": 1 } },
+    { "id": "W04", "category": "wiki", "question": "文档知识块检索需要什么权限码？",
+      "expect": { "pathsAny": ["docpage:"], "keywords": ["sys:doc:page:read"], "minCitations": 1 } },
+    { "id": "W05", "category": "wiki", "question": "文档知识检索结果如何跳转到页面？",
+      "expect": { "pathsAny": ["docpage:"], "keywords": ["/doc/space/", "pageId"], "minCitations": 1 } },
+    { "id": "W06", "category": "wiki", "question": "文档知识库采集台账的表名和唯一键是什么？",
+      "expect": { "pathsAny": ["docpage:"], "keywords": ["agent_knowledge_doc", "page_id"], "minCitations": 1 } }
+  ]
+}

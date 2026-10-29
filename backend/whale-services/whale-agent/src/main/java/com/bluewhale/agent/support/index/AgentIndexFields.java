@@ -61,6 +61,15 @@ public final class AgentIndexFields {
     /** 文件服务文件ID（Wave 5.53 M4：业务文件知识块） */
     public static final String FILE_ID = "file_id";
 
+    /** 文档页面ID（whale-doc 知识块） */
+    public static final String DOC_PAGE_ID = "doc_page_id";
+
+    /** 文档空间ID（whale-doc 知识块） */
+    public static final String SPACE_ID = "space_id";
+
+    /** 业务页面地址（whale-doc 知识块，用于检索结果跳转） */
+    public static final String URL = "url";
+
     /** 知识块所需权限码（档案知识过滤；普通文件为空） */
     public static final String PERMISSION_CODE = "permission_code";
 

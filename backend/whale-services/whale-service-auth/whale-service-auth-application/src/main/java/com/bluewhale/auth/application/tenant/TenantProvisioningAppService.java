@@ -56,11 +56,11 @@ public class TenantProvisioningAppService {
     public static final String DEFAULT_TENANT_ADMIN_ROLE = "tenant_admin";
 
     /**
-     * 业务角色模板编码：模板由 {@code migration-5.65-business-role-grant.sql} 与
-     * {@code migration-5.66-pm-role-template.sql} 在平台租户维护，
-     * 新租户开通时按模板当前的角色名称/描述/排序与权限集下发同名角色。
+     * 业务角色模板编码：模板由 {@code migration-5.65-business-role-grant.sql}、
+     * {@code migration-5.66-pm-role-template.sql} 与 {@code migration-5.74-doc.sql}
+     * 在平台租户维护，新租户开通时按模板当前的角色名称/描述/排序与权限集下发同名角色。
      *
-     * <p>模板缺失（未执行 5.65/5.66）时仅告警跳过，不阻断租户开通；平台租户 {@code tenant_admin}
+     * <p>模板缺失（未执行对应迁移）时仅告警跳过，不阻断租户开通；平台租户 {@code tenant_admin}
      * 仍持有全部启用业务权限，不会出现业务接口 403。</p>
      */
     public static final List<String> BUSINESS_ROLE_TEMPLATE_CODES = List.of(
@@ -70,7 +70,8 @@ public class TenantProvisioningAppService {
             "mes_manager", "mes_member",
             "pdm_manager", "pdm_member",
             "pm_manager", "pm_member",
-            "contract_manager", "contract_member", "contract_signatory");
+            "contract_manager", "contract_member", "contract_signatory",
+            "doc_manager", "doc_member");
 
     /**
      * 平台侧专属权限码：不下发给业务租户。

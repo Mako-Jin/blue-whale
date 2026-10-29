@@ -63,6 +63,8 @@ public class KnowledgeIngestService {
 
     private final AgentKnowledgeFileService knowledgeFileService;
 
+    private final AgentKnowledgeDocService knowledgeDocService;
+
     private final AtomicBoolean building = new AtomicBoolean(false);
 
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(runnable -> {
@@ -141,6 +143,10 @@ public class KnowledgeIngestService {
             if (reset > 0) {
                 log.info("文件知识台账已重置待处理：{} 条，等待下一轮同步重建", reset);
             }
+            int docReset = knowledgeDocService.resetIndexedToPending();
+            if (docReset > 0) {
+                log.info("文档知识台账已重置待处理：{} 条，等待下一轮同步重建", docReset);
+            }
         } catch (RuntimeException e) {
             indexService.markBuildFailed();
             log.error("知识索引全量重建失败", e);
@@ -200,8 +206,10 @@ public class KnowledgeIngestService {
             List<String> removedPaths = new ArrayList<>();
             for (String path : existing.keySet()) {
                 // 文件知识块（file: 前缀）由 FileKnowledgeSyncService 独立管理生命周期，
-                // 不参与仓库扫描比对，严禁在此误删
-                if (path.startsWith(KnowledgeConstants.FILE_PATH_PREFIX)) {
+                // 文档知识块（docpage: 前缀）由 DocKnowledgeSyncService 独立管理生命周期，
+                // 均不参与仓库扫描比对，严禁在此误删
+                if (path.startsWith(KnowledgeConstants.FILE_PATH_PREFIX)
+                        || path.startsWith(KnowledgeConstants.DOC_PATH_PREFIX)) {
                     continue;
                 }
                 if (!currentPaths.contains(path)) {

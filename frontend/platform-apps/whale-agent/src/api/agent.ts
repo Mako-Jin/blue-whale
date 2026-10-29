@@ -4,7 +4,16 @@
 import { del, get, post, streamSse, type PageResult } from './client';
 
 /** 检索范围键（与后端 AgentConversationService.normalizeScope 白名单一致） */
-export type ScopeKey = 'code' | 'doc' | 'sql' | 'config' | 'git' | 'runtime' | 'file' | 'archive';
+export type ScopeKey =
+  | 'code'
+  | 'doc'
+  | 'sql'
+  | 'config'
+  | 'git'
+  | 'runtime'
+  | 'file'
+  | 'archive'
+  | 'doc_page';
 
 /** 范围开关展示配置（左栏） */
 export const SCOPE_OPTIONS: ReadonlyArray<{ key: ScopeKey; label: string }> = [
@@ -16,6 +25,7 @@ export const SCOPE_OPTIONS: ReadonlyArray<{ key: ScopeKey; label: string }> = [
   { key: 'runtime', label: '运行时' },
   { key: 'file', label: '业务文件' },
   { key: 'archive', label: '档案' },
+  { key: 'doc_page', label: 'Wiki 文档' },
 ];
 
 /** 引用（回答中的 [S1]…[Sn]） */
@@ -34,6 +44,8 @@ export interface Citation {
   fileId?: string;
   /** 文件下载地址（有文件ID时后端生成） */
   downloadUrl?: string;
+  /** 业务页面地址（文档知识块可直接跳转） */
+  url?: string;
 }
 
 /** 会话摘要 */

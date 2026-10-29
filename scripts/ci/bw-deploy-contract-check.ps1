@@ -79,8 +79,8 @@ if ($frontendSection) {
     }
 }
 
-Assert-Contract '后端镜像 21 项' ($backendServices.Count -eq 21) "count=$($backendServices.Count)"
-Assert-Contract '前端镜像 14 项' ($frontendImages.Count -eq 14) "count=$($frontendImages.Count)"
+Assert-Contract '后端镜像 22 项' ($backendServices.Count -eq 22) "count=$($backendServices.Count)"
+Assert-Contract '前端镜像 15 项' ($frontendImages.Count -eq 15) "count=$($frontendImages.Count)"
 Assert-Contract '前端按冲突项使用 frontend/ 命名空间' `
     ($workflow.Contains("matrix.namespace == 'frontend'") -and $workflow.Contains("'frontend/'"))
 Assert-Contract '后端 cache scope 使用 be- 前缀' `
@@ -93,6 +93,7 @@ Assert-Contract '旧前端 cache scope 已移除' `
 $expectedCollisions = @(
     'whale-agent'
     'whale-contract'
+    'whale-doc'
     'whale-erp'
     'whale-im'
     'whale-mes'
@@ -102,8 +103,8 @@ $expectedCollisions = @(
 ) | Sort-Object
 $actualCollisions = @($frontendImages | Where-Object { $backendServices -contains $_ } | Sort-Object)
 $collisionDiff = @(Compare-Object -ReferenceObject $actualCollisions -DifferenceObject $expectedCollisions)
-Assert-Contract '前端/后端同名项为预期 8 项' `
-    ($actualCollisions.Count -eq 8 -and $collisionDiff.Count -eq 0) `
+Assert-Contract '前端/后端同名项为预期 9 项' `
+    ($actualCollisions.Count -eq 9 -and $collisionDiff.Count -eq 0) `
     "actual=$($actualCollisions -join ',')"
 foreach ($image in $frontendImages) {
     $namespace = if ($frontendNamespaces.ContainsKey($image)) { $frontendNamespaces[$image] } else { '<missing>' }
@@ -121,6 +122,7 @@ $expectedBases = @{
     'whale-pdm'      = '/pdm'
     'whale-pm'       = '/pm'
     'whale-im'       = '/im'
+    'whale-doc'      = '/doc'
 }
 foreach ($app in $expectedBases.Keys | Sort-Object) {
     $actual = if ($frontendBases.ContainsKey($app)) { $frontendBases[$app] } else { '<missing>' }
@@ -135,8 +137,8 @@ if ($feAppMatch.Success) {
 }
 $expectedNginxApps = @($expectedBases.Values | ForEach-Object { $_.TrimStart('/') } | Sort-Object)
 $nginxDiff = @(Compare-Object -ReferenceObject $nginxApps -DifferenceObject $expectedNginxApps)
-Assert-Contract 'Nginx 覆盖 8 个 qiankun 子应用' `
-    ($nginxApps.Count -eq 8 -and $nginxDiff.Count -eq 0) `
+Assert-Contract 'Nginx 覆盖 9 个 qiankun 子应用' `
+    ($nginxApps.Count -eq 9 -and $nginxDiff.Count -eq 0) `
     "actual=$($nginxApps -join ',')"
 Assert-Contract 'Nginx 使用变量延迟解析前端上游' `
     ($nginx.Contains('proxy_pass $fe_upstream;') -and $nginx.Contains('whale-fe-$fe_app:80'))

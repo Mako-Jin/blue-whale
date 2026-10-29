@@ -45,6 +45,9 @@ public class SearchHit {
     /** 文件服务文件ID（普通知识块为 {@code null}） */
     private final Long fileId;
 
+    /** 业务页面地址（文档知识块为文档页面链接，其余为 {@code null}） */
+    private final String url;
+
     /**
      * 复制命中并替换分数（RRF 融合使用，原分数不再具备可比性）。
      *
@@ -63,6 +66,7 @@ public class SearchHit {
                 .endLine(endLine)
                 .wave(wave)
                 .fileId(fileId)
+                .url(url)
                 .score((float) newScore)
                 .build();
     }

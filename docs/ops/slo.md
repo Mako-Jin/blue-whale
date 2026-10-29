@@ -23,13 +23,28 @@ sum(rate(http_server_requests_seconds_count{uri="/form/data",method="POST",appli
 histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri=~"/workflow/task/.*",application="whale-workflow"}[5m])))
 ```
 
+## SLO-4 文档保存时延：P95 < 500ms
+
+```promql
+histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri="/doc/page/*",method="PUT",application="whale-doc"}[5m])))
+```
+
+## SLO-5 文档搜索时延：P95 < 1000ms
+
+```promql
+histogram_quantile(0.95, sum by (le) (rate(doc_search_seconds_bucket{application="whale-doc"}[5m])))
+```
+
+`doc_search_seconds` 为业务计时器，按 `mode="fulltext"` / `mode="like"` 区分 ngram 索引与短关键词回退；
+保存冲突另见 `doc_page_save_conflict_total`。
+
 ## 采集前提
 
 - 服务侧 `management.endpoints.web.exposure.include` 至少包含 `health,info,prometheus`。
 - `management.metrics.tags.application=${spring.application.name}`，便于按服务聚合。
 - Prometheus 抓取目标为各服务 `http://<host>:<port>/actuator/prometheus`。
-- P95 查询依赖直方图桶 `http_server_requests_seconds_bucket`。该桶默认不输出，SLO-1/SLO-3 的归属服务
-  **whale-auth / whale-workflow** 已开启 `management.metrics.distribution.percentiles-histogram.[http.server.requests]=true`；
+- P95 查询依赖直方图桶 `http_server_requests_seconds_bucket`。该桶默认不输出，SLO-1/SLO-3/SLO-4 的归属服务
+  **whale-auth / whale-workflow / whale-doc** 已开启 `management.metrics.distribution.percentiles-histogram.[http.server.requests]=true`；
   其余服务保持默认（不打桶，避免指标基数膨胀），如需新增时延 SLO 再按服务开启。
 
 ## 实测
@@ -71,13 +86,13 @@ Start-Process .\tools\monitoring\grafana-13.2.4\bin\grafana.exe `
   -ArgumentList 'server',"--homepath=D:/BlueWhale/BlueWhale/tools/monitoring/grafana-13.2.4","--config=$base/grafana.ini"
 ```
 
-- Prometheus：`http://127.0.0.1:9090`，抓取目标见 `tools/monitoring/prometheus.local.yml`（8080–8090 / 9001–9004 / 9101–9103 / 8848；`whale-config` 已冻结，9201 不再抓取）。
+- Prometheus：`http://127.0.0.1:9090`，抓取目标见 `tools/monitoring/prometheus.local.yml`（8080–8090 / 8093–8095 / 9001–9004 / 9101–9103 / 8848；`whale-config` 已冻结，9201 不再抓取）。
 - Grafana：`http://127.0.0.1:3000`，数据源 `Prometheus` 由 `grafana-provisioning` 自动注入，默认 `admin/admin`，仅监听回环地址。
 - 后端服务未启动时目标显示 `down` 属正常，启动后查询 `up` 即可确认。
 
 ## 告警规则（Prometheus，版本化）
 
-- 规则文件：`deploy/monitoring/prometheus-rules.yml`，共 5 条，按 `availability / http / jvm` 三组。
+- 规则文件：`deploy/monitoring/prometheus-rules.yml`，共 8 条，按 `availability / http / doc / jvm` 四组。
 - 抓取 + Alertmanager 配置：`deploy/monitoring/prometheus.yml`、`deploy/monitoring/alertmanager.yml`。
 - 本地由 `tools/monitoring/prometheus.local.yml` 的 `rule_files` 引用；也可直接用版本化的
   `deploy/monitoring/prometheus.yml` 启动（`prometheus --config.file=deploy/monitoring/prometheus.yml`）。
@@ -89,6 +104,9 @@ Start-Process .\tools\monitoring\grafana-13.2.4\bin\grafana.exe `
 | TargetFlapping | `changes(up{job=~"whale-.*"}[10m]) > 4` | 5m | warning |
 | Http5xxRateHigh | 5xx 占比 > 5%（按 application） | 5m | critical |
 | LoginP95Slow | 登录 P95 > 1.5s（SLO-1） | 5m | warning |
+| DocSaveConflictSpike | 文档保存冲突速率 > 1/s | 10m | warning |
+| DocSearchP95Slow | 文档搜索 P95 > 1s（SLO-5） | 10m | warning |
+| DocOrphanCleanupFailed | 孤儿附件引用清理失败批次 > 0 | 5m | warning |
 | JvmHeapHigh | 堆使用率 > 85%（按 application） | 5m | warning |
 
 - 校验与查看：
@@ -147,7 +165,7 @@ curl -X POST http://127.0.0.1:9103/alert/internal/prometheus `
 - 自动加载：`tools/monitoring/grafana-provisioning/dashboards/bluewhale.yml` 指向上述目录，30s 轮询，文件夹 `BlueWhale`。
 - 数据源：`Prometheus`，uid `prometheus`（`grafana-provisioning/datasources/prometheus.yml`）。
 - 访问：`http://127.0.0.1:3000/d/bluewhale-overview`（本地 admin/admin，仅回环监听）。
-- 面板（11 个）：存活抓取目标、登录 P95（SLO-1）、5xx 错误率、审计上报 QPS、HTTP QPS（按服务）、5xx 错误率（按服务）、P95/P99 时延、JVM 堆使用率、GC 暂停速率、抓取目标存活明细。
+- 面板（13 个 + 2 个文档专项）：存活抓取目标、登录 P95（SLO-1）、5xx 错误率、审计上报 QPS、HTTP QPS（按服务）、5xx 错误率（按服务）、P95/P99 时延、JVM 堆使用率、GC 暂停速率、抓取目标存活明细、文档保存冲突速率、文档搜索 P95（SLO-5）。
 
 ## 本地监控闭环验证（2026-10-23）
 

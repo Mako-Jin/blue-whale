@@ -15,17 +15,18 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Set;
 
 /**
- * WebSocket 握手 ticket 前置校验过滤器（T19）。
+ * WebSocket 握手 ticket 前置校验过滤器（T19 / M2）。
  *
  * <p>Spring Cloud Gateway 的 WebSocket 路由会先与客户端完成协议升级，再连接后端；
- * 若只依赖 whale-im 握手拦截，缺失 ticket 的客户端仍会短暂看到 101。</p>
+ * 若只依赖下游服务握手拦截，缺失 ticket 的客户端仍会短暂看到 101。</p>
  *
- * <p>本过滤器在协议升级之前检查 {@code /im/ws} 的 {@code ticket} 查询参数：
- * 缺失或空白直接返回 401，不进入 {@code WebsocketRoutingFilter}（其 order 为
+ * <p>本过滤器在协议升级之前检查 {@code /im/ws} 与 {@code /doc/ws} 的 {@code ticket}
+ * 查询参数：缺失或空白直接返回 401，不进入 {@code WebsocketRoutingFilter}（其 order 为
  * {@link Ordered#LOWEST_PRECEDENCE} 附近）。ticket 的存在性、有效期与一次性仍由
- * whale-im 服务端原子消费判定，网关不做任何消费动作。</p>
+ * 下游服务端原子消费判定，网关不做任何消费动作。</p>
  *
  * @author BlueWhale
  */
@@ -33,8 +34,8 @@ import java.nio.charset.StandardCharsets;
 @Component
 public class ImWsTicketGuardGlobalFilter implements GlobalFilter, Ordered {
 
-    /** WebSocket 握手路径（与 application.yml 中 whale-im-ws 路由一致） */
-    private static final String WS_PATH = "/im/ws";
+    /** 需要 ticket 的 WebSocket 握手路径（与 application.yml 中 WS 路由一致） */
+    private static final Set<String> WS_PATHS = Set.of("/im/ws", "/doc/ws");
 
     /** 一次性凭证查询参数名 */
     private static final String TICKET_PARAM = "ticket";
@@ -52,7 +53,7 @@ public class ImWsTicketGuardGlobalFilter implements GlobalFilter, Ordered {
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
-        if (!WS_PATH.equals(request.getURI().getPath())) {
+        if (!WS_PATHS.contains(request.getURI().getPath())) {
             return chain.filter(exchange);
         }
         String ticket = request.getQueryParams().getFirst(TICKET_PARAM);

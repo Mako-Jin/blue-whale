@@ -5,6 +5,7 @@ import {
   AppstoreOutlined,
   CloudOutlined,
   DeploymentUnitOutlined,
+  FileSearchOutlined,
   FileTextOutlined,
   HomeOutlined,
   LogoutOutlined,
@@ -50,6 +51,7 @@ const MENU_ICONS: Record<string, ReactNode> = {
   '/im': <MessageOutlined />,
   '/pm': <ProjectOutlined />,
   '/contract': <FileTextOutlined />,
+  '/doc': <FileSearchOutlined />,
 };
 
 export default function MainLayout() {

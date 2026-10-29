@@ -1,0 +1,303 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  background: #f5f6f8;
+}
+
+/* ---------- 空间工作台 ---------- */
+
+.doc-workspace {
+  height: calc(100vh - 104px);
+  min-height: 480px;
+}
+
+.doc-workspace-sider {
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.doc-workspace-sider .ant-layout-sider-children {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 16px;
+  overflow: hidden;
+}
+
+.doc-workspace-space {
+  flex: none;
+}
+
+.doc-workspace-back {
+  display: inline-block;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.doc-workspace-desc {
+  display: block;
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.doc-workspace-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+  flex: none;
+}
+
+.doc-workspace-tree {
+  flex: 1;
+  min-height: 0;
+  margin-top: 12px;
+  overflow: auto;
+}
+
+.doc-workspace-content {
+  margin-left: 16px;
+  overflow: auto;
+}
+
+.doc-tree-title {
+  display: inline-flex;
+  align-items: center;
+}
+
+.doc-tree-title-text {
+  display: inline-block;
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+/* ---------- 页面编辑器 ---------- */
+
+.doc-editor-breadcrumb {
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.doc-editor-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.doc-editor-title-row .ant-input {
+  flex: 1;
+  min-width: 220px;
+}
+
+.doc-editor-status {
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.doc-editor-toolbar {
+  padding: 4px 0;
+  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 8px;
+}
+
+.doc-editor-content {
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  padding: 12px 16px;
+  min-height: 420px;
+  background: #fff;
+  overflow: auto;
+}
+
+.doc-readonly {
+  background: #fafafa;
+}
+
+.doc-editor-content .ProseMirror {
+  min-height: 380px;
+  outline: none;
+  line-height: 1.75;
+  word-break: break-word;
+}
+
+.doc-editor-content .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+
+.doc-editor-content .ProseMirror h1,
+.doc-editor-content .ProseMirror h2,
+.doc-editor-content .ProseMirror h3 {
+  margin: 16px 0 8px;
+  font-weight: 600;
+}
+
+.doc-editor-content .ProseMirror ul,
+.doc-editor-content .ProseMirror ol {
+  padding-inline-start: 24px;
+}
+
+.doc-editor-content .ProseMirror blockquote {
+  margin: 8px 0;
+  padding-inline-start: 12px;
+  border-inline-start: 3px solid #d9d9d9;
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.doc-editor-content .ProseMirror pre {
+  margin: 8px 0;
+  padding: 12px;
+  border-radius: 6px;
+  background: #f6f8fa;
+  overflow: auto;
+}
+
+.doc-editor-content .ProseMirror img {
+  max-width: 100%;
+  height: auto;
+}
+
+.doc-editor-content .ProseMirror a {
+  color: #1677ff;
+  text-decoration: underline;
+}
+
+.doc-editor-folder-hint {
+  padding: 32px 0;
+}
+
+/* ---------- 实时协作（Yjs awareness 光标） ---------- */
+
+.collaboration-cursor__caret {
+  position: relative;
+  border-inline-start: 2px solid;
+  border-inline-end: 2px solid;
+  border-color: inherit;
+  margin-inline: -1px;
+  pointer-events: none;
+  word-break: normal;
+}
+
+.collaboration-cursor__label {
+  position: absolute;
+  top: -1.5em;
+  inset-inline-start: -1px;
+  padding: 1px 6px;
+  border-radius: 4px 4px 4px 0;
+  color: #fff;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: nowrap;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* ---------- 搜索与收藏列表 ---------- */
+
+.doc-search {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.doc-result-item {
+  padding-block: 12px;
+}
+
+/* ---------- 登录内分享只读页（M3） ---------- */
+
+.doc-shared-content .ProseMirror {
+  outline: none;
+  min-height: 200px;
+}
+
+.doc-shared-content .ProseMirror img {
+  max-width: 100%;
+}
+
+/* ---------- 文档 AI 助手（M4） ---------- */
+
+.doc-ai-answer {
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--ant-color-fill-quaternary);
+}
+
+.doc-ai-citations {
+  margin: 8px 0 0;
+  padding-inline-start: 18px;
+}
+
+.doc-ai-citations li {
+  margin-bottom: 10px;
+}
+
+/* ---------- 移动端基础适配（M5） ---------- */
+
+@media (max-width: 768px) {
+  .doc-workspace {
+    flex-direction: column;
+    height: auto;
+    min-height: calc(100vh - 120px);
+  }
+
+  .doc-workspace-sider {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: none !important;
+  }
+
+  .doc-workspace-sider .ant-layout-sider-children {
+    height: auto;
+    max-height: 46vh;
+  }
+
+  .doc-workspace-tree {
+    max-height: 30vh;
+  }
+
+  .doc-workspace-content {
+    width: 100%;
+    margin-left: 0;
+    margin-top: 12px;
+  }
+
+  .doc-workspace-content .ant-card-body {
+    padding: 12px !important;
+  }
+
+  .doc-editor-title-row .ant-input {
+    min-width: 100%;
+  }
+
+  .doc-editor-content {
+    min-height: 320px;
+    padding: 8px 10px;
+  }
+
+  .doc-editor-content .ProseMirror {
+    min-height: 260px;
+  }
+
+  .doc-search {
+    padding: 0 4px;
+  }
+}

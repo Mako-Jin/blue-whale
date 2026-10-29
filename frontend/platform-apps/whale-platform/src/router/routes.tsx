@@ -51,6 +51,8 @@ export const routes = [
       { path: 'pm/*', element: <SubAppContainer /> },
       // 合同管理（whale-contract 子应用，Wave 5.61 M1）
       { path: 'contract/*', element: <SubAppContainer /> },
+      // 文档中心（whale-doc 子应用，Wave 5.74 M1 骨架）
+      { path: 'doc/*', element: <SubAppContainer /> },
     ],
   },
 ];

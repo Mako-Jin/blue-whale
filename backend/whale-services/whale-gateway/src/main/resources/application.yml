@@ -104,6 +104,18 @@ spring:
               uri: lb://whale-message
               predicates:
                 - Path=/message/**
+            # Wave 5.74 在线文档 / Wiki：自持 /doc 一级前缀（不含 StripPrefix，REQ-ARCH-003）；
+            # M2 实时协作 WS 升级路由 order=-1 先于 REST 路由匹配（同前缀 /doc/ws）；
+            # 内网 /doc/internal/** 由 internal-deny 统一 403
+            - id: whale-doc-ws
+              uri: lb:ws://whale-doc
+              order: -1
+              predicates:
+                - Path=/doc/ws
+            - id: whale-doc
+              uri: lb://whale-doc
+              predicates:
+                - Path=/doc/**
             # Wave 5.54 P2 偏差 C-03 收口：业务应用补路由（自持一级前缀，不含 StripPrefix）
             - id: whale-erp
               uri: lb://whale-erp
@@ -171,6 +183,8 @@ whale:
       # Wave 5.52 WebIM WebSocket 升级：浏览器 WS 无法携带 Authorization 头，
       # 鉴权改由 60s 一次性 ticket（POST /im/ws-ticket 已走标准 JWT）；URL 中严禁出现 JWT。
       - /im/ws
+      # Wave 5.74 M2 文档实时协作 WS 升级：同上，ticket 由 POST /doc/ws-ticket 签发
+      - /doc/ws
       # Wave 5.61 M3 第三方电子签章回调：三方平台匿名回调，安全依赖渠道 HMAC/RSA 验签
       # + 时间戳窗口 + provider_event_id 幂等；仅放行该前缀，其余 /contract/** 仍须 JWT。
       - /contract/sign/callback/**
@@ -216,6 +230,7 @@ whale:
         - whale-audit
         - whale-archive
         - whale-message
+        - whale-doc
     # T6 内网接口屏蔽（由 InternalApiDenyGlobalFilter 执行）：命中 patterns 的外部请求直接返回 403
     internal-deny:
       enabled: ${WHALE_GATEWAY_INTERNAL_DENY_ENABLED:true}
@@ -241,6 +256,8 @@ whale:
         - /contract/internal/**
         # Wave 5.68 统一消息内网发送：仅业务服务经内网直连 whale-message
         - /message/internal/**
+        # Wave 5.74 文档内网通道：知识源/文件引用等仅服务间内网直连 whale-doc
+        - /doc/internal/**
 
 management:
   endpoints:

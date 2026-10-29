@@ -144,7 +144,7 @@
     {
       "type": "timeseries",
       "title": "HTTP P95 时延（仅开启直方图的服务）",
-      "description": "whale-service-auth / whale-workflow 已开启 http.server.requests 直方图，其余服务需在配置中开启后才有曲线",
+      "description": "whale-service-auth / whale-workflow / whale-doc 已开启 http.server.requests 直方图，其余服务需在配置中开启后才有曲线",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
       "targets": [
@@ -210,6 +210,52 @@
         }
       ],
       "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 10 } } },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+    },
+    {
+      "type": "row",
+      "title": "文档服务（Wave 5.74）",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 42 }
+    },
+    {
+      "type": "timeseries",
+      "title": "文档保存冲突速率",
+      "description": "doc_page_save_conflict_total：baseRevision 过期的保存请求；持续偏高提示多人编辑或客户端未刷新 revision",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 43 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(doc_page_save_conflict_total[5m]))",
+          "legendFormat": "conflicts/s"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 10 } } },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+    },
+    {
+      "type": "timeseries",
+      "title": "文档搜索 P95（SLO-5 < 1s）",
+      "description": "doc_search_seconds：按 mode=fulltext / like 区分 ngram 索引与短关键词回退",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 43 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, sum by (le, mode) (rate(doc_search_seconds_bucket{application=\"whale-doc\"}[5m])))",
+          "legendFormat": "{{mode}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 0.5 }, { "color": "red", "value": 1 }] },
+          "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 10 }
+        }
+      },
       "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
     },
     {

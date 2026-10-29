@@ -28,6 +28,9 @@ public final class KnowledgeConstants {
     /** 来源：档案快照 */
     public static final String SOURCE_ARCHIVE = "ARCHIVE";
 
+    /** 来源：whale-doc 文档页面 */
+    public static final String SOURCE_DOC = "DOC";
+
     /** 启用 */
     public static final int ENABLED_YES = 1;
 
@@ -39,6 +42,18 @@ public final class KnowledgeConstants {
 
     /** 文件知识块索引路径前缀（由 FileKnowledgeSyncService 独立管理生命周期） */
     public static final String FILE_PATH_PREFIX = "file:";
+
+    /** 文档知识块索引路径前缀（由 DocKnowledgeSyncService 独立管理生命周期） */
+    public static final String DOC_PATH_PREFIX = "docpage:";
+
+    /** 知识类型：文档页面（Lucene kind 字段） */
+    public static final String KIND_DOC_PAGE = "doc_page";
+
+    /** 文档可收集条件：已发布 */
+    public static final String DOC_STATUS_PUBLISHED = "PUBLISHED";
+
+    /** 文档可收集条件：公开空间 */
+    public static final String DOC_SPACE_PUBLIC = "PUBLIC";
 
     /** 工具类不允许实例化 */
     private KnowledgeConstants() {

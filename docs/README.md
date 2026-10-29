@@ -15,15 +15,18 @@ docs/
 ├── ops/                 # 运维手册
 │   ├── agent-index-ops.md   # 知识索引重建/状态/排障
 │   ├── agent-mcp.md         # 知识 Agent MCP / IDE 接入
+│   ├── doc-service-ops.md   # 在线文档/Wiki 部署/配置/备份/清理/排障
 │   └── slo.md               # SLO 与 PromQL
 ├── design/              # 架构与专项设计（定稿后方可进入编码）
 │   ├── audit-log.md         # 审计日志方案
 │   ├── distributed.md       # 分布式 ID / 锁 / 事务 / 幂等
 │   ├── ddd-whale-auth.md    # 权限服务 DDD 架构
+│   ├── doc-service.md       # 在线文档/Wiki 服务设计（M1–M5 已交付）
 │   └── cicd.md              # CI/CD 流水线
 ├── plans/               # 阶段性规划
 │   ├── roadmap.md           # Phase 1-5 路线图
 │   ├── task-breakdown.md    # 波次任务拆分
+│   ├── 2026-10-29-wiki-doc-service.md  # 在线文档/Wiki 实施计划（M0–M5 已交付）
 │   └── next-steps.md        # 下一步建议与任务清单
 ├── devlog/              # 开发日志（需求/完成/待做/已修正 四类信息）
 │   └── YYYY-MM-DD.md

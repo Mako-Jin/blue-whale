@@ -116,6 +116,7 @@ public class KnowledgeToolRegistry {
                 String snippet = truncate(text(item.get("snippet")), EVIDENCE_SNIPPET_LIMIT);
                 Double score = doubleValue(item.get("score"));
                 Long fileId = longValue(item.get("fileId"));
+                String url = text(item.get("url"));
                 ObjectNode node = array.addObject();
                 node.put("path", path);
                 node.put("startLine", startLine);
@@ -123,7 +124,7 @@ public class KnowledgeToolRegistry {
                 node.put("title", title);
                 node.put("snippet", snippet);
                 evidence.add(new ToolEvidence("chunk", path, title, startLine, endLine, snippet,
-                        null, null, score, fileId));
+                        null, null, score, fileId, url));
             }
         }
         text.put("count", evidence.size());

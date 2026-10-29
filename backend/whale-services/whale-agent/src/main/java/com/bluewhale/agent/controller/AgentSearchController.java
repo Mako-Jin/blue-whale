@@ -69,6 +69,7 @@ public class AgentSearchController {
                     .startLine(hit.getStartLine())
                     .endLine(hit.getEndLine())
                     .wave(hit.getWave())
+                    .url(hit.getUrl())
                     .score(hit.getScore())
                     .build());
         }

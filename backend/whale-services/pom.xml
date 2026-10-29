@@ -28,5 +28,6 @@
         <module>whale-im</module>
         <module>whale-archive</module>
         <module>whale-message</module>
+        <module>whale-doc</module>
     </modules>
 </project>

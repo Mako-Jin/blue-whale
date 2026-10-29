@@ -45,6 +45,9 @@ public final class ArchiveConstants {
     /** 来源类型：合同（业务系统主动推送快照） */
     public static final String SOURCE_CONTRACT = "CONTRACT";
 
+    /** 来源类型：文档页面（M3 在线文档归档快照） */
+    public static final String SOURCE_DOC_PAGE = "DOC_PAGE";
+
     /** 文件角色：原件 */
     public static final String FILE_ROLE_ORIGINAL = "ORIGINAL";
 

@@ -39,6 +39,9 @@ public class SearchHitVO {
     /** Wave 标记 */
     private String wave;
 
+    /** 业务页面地址（文档知识块可跳转） */
+    private String url;
+
     /** BM25 分数 */
     private Float score;
 }
