@@ -1,7 +1,8 @@
 package com.bluewhale.auth.domain.tenant.aggregate;
 
-import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.domain.exception.DomainException;
+import com.bluewhale.common.domain.model.Entity;
 
 import java.time.LocalDateTime;
 import java.util.regex.Pattern;
@@ -15,7 +16,7 @@ import java.util.regex.Pattern;
  *
  * @author BlueWhale
  */
-public class Tenant {
+public class Tenant implements Entity<Long> {
 
     /** 租户类型：平台运营租户（仅该类租户可管理租户清单） */
     public static final String TYPE_PLATFORM = "PLATFORM";
@@ -58,18 +59,18 @@ public class Tenant {
                    LocalDateTime expireTime, String quotaJson, LocalDateTime createTime,
                    LocalDateTime updateTime) {
         if (tenantCode == null || !CODE_PATTERN.matcher(tenantCode).matches()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
+            throw new DomainException(ErrorCode.PARAM_ERROR,
                     "租户编码非法，仅支持 2–64 位字母、数字、下划线或中划线");
         }
         if (tenantName == null || tenantName.isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "租户名称不能为空");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "租户名称不能为空");
         }
         if (!TYPE_PLATFORM.equals(tenantType) && !TYPE_TENANT.equals(tenantType)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
+            throw new DomainException(ErrorCode.PARAM_ERROR,
                     "租户类型非法，仅支持 PLATFORM（平台）/ TENANT（业务租户）");
         }
         if (status != STATUS_ENABLED && status != STATUS_DISABLED) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "状态值非法，仅支持 1（启用）/ 0（停用）");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "状态值非法，仅支持 1（启用）/ 0（停用）");
         }
         this.id = id;
         this.tenantCode = tenantCode;
@@ -126,7 +127,7 @@ public class Tenant {
      */
     public void rename(String tenantName) {
         if (tenantName == null || tenantName.isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "租户名称不能为空");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "租户名称不能为空");
         }
         this.tenantName = tenantName;
         this.updateTime = LocalDateTime.now();
@@ -149,7 +150,7 @@ public class Tenant {
      */
     public void renew(LocalDateTime expireTime) {
         if (expireTime == null || !expireTime.isAfter(TenantExpiryClock.now())) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "续期时间必须晚于当前时间");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "续期时间必须晚于当前时间");
         }
         this.expireTime = expireTime;
         this.updateTime = LocalDateTime.now();

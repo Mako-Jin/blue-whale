@@ -148,6 +148,7 @@ public class FileAssetRepositoryImpl implements FileAssetRepository {
         wrapper.eq(StringUtils.hasText(query.bucket()), FileInfo::getBucket, query.bucket());
         wrapper.ge(query.createTimeStart() != null, FileInfo::getCreateTime, query.createTimeStart());
         wrapper.le(query.createTimeEnd() != null, FileInfo::getCreateTime, query.createTimeEnd());
+        wrapper.eq(query.uploaderId() != null, FileInfo::getUploaderId, query.uploaderId());
         wrapper.orderByDesc(FileInfo::getCreateTime);
         Page<FileInfo> page = fileInfoMapper.selectPage(new Page<>(query.current(), query.size()), wrapper);
         List<FileAsset> records = page.getRecords().stream().map(FileInfoPersistenceAssembler::toDomain).toList();

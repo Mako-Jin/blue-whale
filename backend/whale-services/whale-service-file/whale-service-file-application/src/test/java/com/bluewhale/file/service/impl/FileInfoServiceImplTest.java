@@ -19,6 +19,7 @@ import com.bluewhale.file.dto.ChunkUploadCompleteRequest;
 import com.bluewhale.file.dto.ChunkUploadInitRequest;
 import com.bluewhale.file.dto.FileQueryRequest;
 import com.bluewhale.file.dto.FileRapidUploadRequest;
+import com.bluewhale.file.service.model.UploadContent;
 import com.bluewhale.file.vo.ChunkUploadInitVO;
 import com.bluewhale.file.vo.FileChangeVO;
 import com.bluewhale.file.vo.FileInfoVO;
@@ -31,7 +32,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.util.DigestUtils;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -51,6 +51,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -103,36 +104,24 @@ class FileInfoServiceImplTest {
     }
 
     /**
-     * 构造上传文件桩对象：内容、大小、原始名与 MIME 类型。
+     * 构造上传内容：内容、原始文件名与 MIME 类型。
      *
      * @param content 文件内容
      * @param originalName 原始文件名
-     * @return MultipartFile 桩对象
-     * @throws IOException 桩设定期不抛出，仅为对齐 {@code getBytes} 声明
+     * @return 应用层上传内容
      */
-    private static MultipartFile multipartFile(byte[] content, String originalName) throws IOException {
-        MultipartFile file = mock(MultipartFile.class);
-        when(file.isEmpty()).thenReturn(false);
-        when(file.getSize()).thenReturn((long) content.length);
-        when(file.getBytes()).thenReturn(content);
-        when(file.getOriginalFilename()).thenReturn(originalName);
-        when(file.getContentType()).thenReturn("application/pdf");
-        return file;
+    private static UploadContent uploadContent(byte[] content, String originalName) {
+        return new UploadContent(originalName, "application/pdf", content);
     }
 
     /**
-     * 构造分片上传桩对象：仅提供流式读取能力。
+     * 构造分片上传内容：仅承载分片字节。
      *
      * @param content 分片内容
-     * @return MultipartFile 桩对象
-     * @throws IOException 桩设定期不抛出，仅为对齐 {@code getInputStream} 声明
+     * @return 应用层上传内容
      */
-    private static MultipartFile chunkPart(byte[] content) throws IOException {
-        MultipartFile file = mock(MultipartFile.class);
-        when(file.isEmpty()).thenReturn(content.length == 0);
-        when(file.getSize()).thenReturn((long) content.length);
-        when(file.getInputStream()).thenReturn(new ByteArrayInputStream(content));
-        return file;
+    private static UploadContent chunkPart(byte[] content) {
+        return new UploadContent(null, null, content);
     }
 
     /**
@@ -198,7 +187,7 @@ class FileInfoServiceImplTest {
     @DisplayName("upload：写入存储并登记元数据（默认桶 + MD5 + 日期目录对象键）")
     void shouldUploadAndPersistMetadata() throws IOException {
         byte[] content = "report-body".getBytes(StandardCharsets.UTF_8);
-        MultipartFile file = multipartFile(content, "report.pdf");
+        UploadContent file = uploadContent(content, "report.pdf");
         TenantContext.set(1L);
         try {
             FileUploadVO vo = fileInfoService.upload(file, null, UPLOADER_ID);
@@ -228,7 +217,7 @@ class FileInfoServiceImplTest {
     @DisplayName("upload：超过最大字节数抛参数错误且不落库、不写存储")
     void shouldRejectOversizeUpload() throws IOException {
         fileProperties.setMaxSizeBytes(10L);
-        MultipartFile file = multipartFile(new byte[100], "big.bin");
+        UploadContent file = uploadContent(new byte[100], "big.bin");
 
         BizException ex = assertThrows(BizException.class, () -> fileInfoService.upload(file, null, null));
 
@@ -238,11 +227,12 @@ class FileInfoServiceImplTest {
     }
 
     @Test
-    @DisplayName("loadResource：文件不存在抛 NOT_FOUND")
+    @DisplayName("openContent：文件不存在抛 NOT_FOUND")
     void shouldThrowWhenDownloadMissing() {
         when(fileAssetRepository.findById(99L)).thenReturn(Optional.empty());
 
-        BizException ex = assertThrows(BizException.class, () -> fileInfoService.loadResource(99L));
+        BizException ex = assertThrows(BizException.class,
+                () -> fileInfoService.openContent(99L, UPLOADER_ID, false));
 
         assertEquals(NOT_FOUND_CODE, ex.getCode());
         verify(fileStorage, never()).load(any(), any());
@@ -256,12 +246,46 @@ class FileInfoServiceImplTest {
                 FileStatus.NORMAL, null, false, LocalDateTime.now(), LocalDateTime.now())));
         TenantContext.set(1L);
         try {
-            BizException ex = assertThrows(BizException.class, () -> fileInfoService.getDetail(5L));
+            BizException ex = assertThrows(BizException.class,
+                    () -> fileInfoService.getDetail(5L, UPLOADER_ID, false));
 
             assertEquals(NOT_FOUND_CODE, ex.getCode());
         } finally {
             TenantContext.clear();
         }
+    }
+
+    @Test
+    @DisplayName("getDetail：他人文件按不存在处理，持有管理权限可访问")
+    void shouldHideOtherUploaderFileUnlessManage() {
+        FileAsset others = FileAsset.reconstitute(5L, "a.txt", "a.txt", "bluewhale",
+                "tenants/1/2026/10/24/a.txt", 3L, "text/plain", null, FileStatus.NORMAL, 8L, false,
+                LocalDateTime.now(), LocalDateTime.now());
+        when(fileAssetRepository.findById(5L)).thenReturn(Optional.of(others));
+        TenantContext.set(1L);
+        try {
+            BizException ex = assertThrows(BizException.class,
+                    () -> fileInfoService.getDetail(5L, UPLOADER_ID, false));
+            assertEquals(NOT_FOUND_CODE, ex.getCode());
+
+            FileInfoVO managed = fileInfoService.getDetail(5L, UPLOADER_ID, true);
+            assertEquals(Long.valueOf(8L), managed.getUploaderId());
+        } finally {
+            TenantContext.clear();
+        }
+    }
+
+    @Test
+    @DisplayName("page：持有管理权限时不按上传者过滤，可查看全租户文件")
+    void shouldPageAllTenantsFilesWhenManage() {
+        when(fileAssetRepository.page(any(FileAssetQuery.class)))
+                .thenReturn(new FileAssetPage(List.of(), 0L, 1L, 10L));
+
+        fileInfoService.page(new FileQueryRequest(), UPLOADER_ID, true);
+
+        ArgumentCaptor<FileAssetQuery> captor = ArgumentCaptor.forClass(FileAssetQuery.class);
+        verify(fileAssetRepository).page(captor.capture());
+        assertNull(captor.getValue().uploaderId());
     }
 
     @Test
@@ -276,7 +300,7 @@ class FileInfoServiceImplTest {
         FileQueryRequest request = new FileQueryRequest();
         request.setOriginalName("报告");
         request.setBucket("bluewhale");
-        PageResult<FileInfoVO> result = fileInfoService.page(request);
+        PageResult<FileInfoVO> result = fileInfoService.page(request, UPLOADER_ID, false);
 
         assertEquals(1L, result.getTotal());
         assertEquals(1, result.getRecords().size());
@@ -286,6 +310,7 @@ class FileInfoServiceImplTest {
         verify(fileAssetRepository).page(captor.capture());
         assertEquals("报告", captor.getValue().originalName());
         assertEquals("bluewhale", captor.getValue().bucket());
+        assertEquals(Long.valueOf(UPLOADER_ID), captor.getValue().uploaderId());
         assertEquals(10L, captor.getValue().size());
     }
 
@@ -297,7 +322,7 @@ class FileInfoServiceImplTest {
         when(fileStorage.presignedDownloadUrl("bluewhale", "2026/10/24/locked.pdf", 600))
                 .thenReturn("http://127.0.0.1:9000/bluewhale/2026/10/24/locked.pdf?sign=x");
 
-        FilePresignedVO vo = fileInfoService.presignedUrl(5L, null);
+        FilePresignedVO vo = fileInfoService.presignedUrl(5L, null, UPLOADER_ID, false);
 
         assertEquals("http://127.0.0.1:9000/bluewhale/2026/10/24/locked.pdf?sign=x", vo.getUrl());
         assertEquals(Integer.valueOf(600), vo.getExpiresSeconds());
@@ -310,7 +335,7 @@ class FileInfoServiceImplTest {
         when(fileStorage.presignedDownloadUrl("bluewhale", "2026/10/24/locked.pdf", 3600))
                 .thenReturn("http://x");
 
-        FilePresignedVO vo = fileInfoService.presignedUrl(5L, 9999);
+        FilePresignedVO vo = fileInfoService.presignedUrl(5L, 9999, UPLOADER_ID, false);
 
         assertEquals(Integer.valueOf(3600), vo.getExpiresSeconds());
         verify(fileStorage).presignedDownloadUrl("bluewhale", "2026/10/24/locked.pdf", 3600);
@@ -323,7 +348,8 @@ class FileInfoServiceImplTest {
         when(fileStorage.presignedDownloadUrl(anyString(), anyString(), anyInt()))
                 .thenThrow(new BizException(ErrorCode.PARAM_ERROR.getCode(), "当前存储插件不支持预签名下载"));
 
-        BizException ex = assertThrows(BizException.class, () -> fileInfoService.presignedUrl(5L, 600));
+        BizException ex = assertThrows(BizException.class,
+                () -> fileInfoService.presignedUrl(5L, 600, UPLOADER_ID, false));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertTrue(ex.getMessage().contains("当前存储插件不支持预签名下载"));
@@ -509,7 +535,7 @@ class FileInfoServiceImplTest {
     void shouldRejectUploadWhenQuotaExceeded() throws IOException {
         fileProperties.setQuotaBytes(1000L);
         when(fileAssetRepository.sumNormalSizeByUploader(UPLOADER_ID)).thenReturn(990L);
-        MultipartFile file = multipartFile(new byte[20], "big.bin");
+        UploadContent file = uploadContent(new byte[20], "big.bin");
 
         BizException ex = assertThrows(BizException.class, () -> fileInfoService.upload(file, null, UPLOADER_ID));
 
@@ -522,7 +548,7 @@ class FileInfoServiceImplTest {
     @DisplayName("upload：配额为 0 表示不限，上传成功且不查询用量")
     void shouldUploadWhenQuotaUnlimited() throws IOException {
         fileProperties.setQuotaBytes(0L);
-        MultipartFile file = multipartFile("unlimited".getBytes(StandardCharsets.UTF_8), "a.txt");
+        UploadContent file = uploadContent("unlimited".getBytes(StandardCharsets.UTF_8), "a.txt");
 
         FileUploadVO vo = fileInfoService.upload(file, null, UPLOADER_ID);
 
@@ -583,7 +609,7 @@ class FileInfoServiceImplTest {
     void shouldAllowUploadAtQuotaBoundary() throws IOException {
         fileProperties.setQuotaBytes(1000L);
         when(fileAssetRepository.sumNormalSizeByUploader(UPLOADER_ID)).thenReturn(980L);
-        MultipartFile file = multipartFile(new byte[20], "edge.bin");
+        UploadContent file = uploadContent(new byte[20], "edge.bin");
 
         FileUploadVO vo = fileInfoService.upload(file, null, UPLOADER_ID);
 
@@ -645,7 +671,8 @@ class FileInfoServiceImplTest {
     void shouldRejectDeletingLockedFile() {
         when(fileAssetRepository.findById(7L)).thenReturn(Optional.of(fileWithStatus(7L, FileStatus.LOCKED)));
 
-        BizException ex = assertThrows(BizException.class, () -> fileInfoService.delete(7L));
+        BizException ex = assertThrows(BizException.class,
+                () -> fileInfoService.delete(7L, UPLOADER_ID, false));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
         assertTrue(ex.getMessage().contains("禁止删除"));
@@ -690,7 +717,7 @@ class FileInfoServiceImplTest {
         fileProperties.setQuotaBytes(1000L);
         when(fileAssetRepository.saveWithQuotaCheck(any(FileAsset.class), anyLong()))
                 .thenThrow(new BizException(ErrorCode.PARAM_ERROR.getCode(), "超出个人存储配额"));
-        MultipartFile file = multipartFile("race-lost".getBytes(StandardCharsets.UTF_8), "race.txt");
+        UploadContent file = uploadContent("race-lost".getBytes(StandardCharsets.UTF_8), "race.txt");
 
         BizException ex = assertThrows(BizException.class, () -> fileInfoService.upload(file, null, UPLOADER_ID));
 
@@ -709,7 +736,7 @@ class FileInfoServiceImplTest {
         doAnswer(invocation -> {
             throw new BizException(ErrorCode.SYSTEM_ERROR);
         }).when(fileStorage).delete(anyString(), anyString());
-        MultipartFile file = multipartFile("race-lost".getBytes(StandardCharsets.UTF_8), "race.txt");
+        UploadContent file = uploadContent("race-lost".getBytes(StandardCharsets.UTF_8), "race.txt");
 
         BizException ex = assertThrows(BizException.class, () -> fileInfoService.upload(file, null, UPLOADER_ID));
 

@@ -8,6 +8,7 @@ import com.bluewhale.auth.application.user.command.ChangeUserStatusCommand;
 import com.bluewhale.auth.application.user.command.CreateUserCommand;
 import com.bluewhale.auth.application.user.command.UpdateUserCommand;
 import com.bluewhale.auth.application.user.query.UserPageQuery;
+import com.bluewhale.auth.application.user.port.PasswordHasher;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.UserDomainEvent;
 import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
@@ -28,7 +29,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -67,7 +67,7 @@ class UserAppServiceTest {
     private RoleRepository roleRepository;
 
     @Mock
-    private PasswordEncoder passwordEncoder;
+    private PasswordHasher passwordHasher;
 
     @Mock
     private DomainEventPublisher eventPublisher;
@@ -142,14 +142,14 @@ class UserAppServiceTest {
         assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
         assertEquals("用户名已存在", ex.getMessage());
         verify(userRepository, never()).save(any(User.class));
-        verify(passwordEncoder, never()).encode(any());
+        verify(passwordHasher, never()).encode(any());
     }
 
     @Test
     @DisplayName("create：用户名可用时加密口令并落库，默认启用")
     void shouldCreateUserWhenUsernameAvailable() {
         when(userRepository.existsByUsername(1L, "alice_01")).thenReturn(false);
-        when(passwordEncoder.encode("pwd123")).thenReturn(NEW_CIPHER);
+        when(passwordHasher.encode("pwd123")).thenReturn(NEW_CIPHER);
         when(userRepository.save(any(User.class))).thenReturn(User.reconstitute(USER_ID, 1L,
                 Username.of("alice_01"), EncryptedPassword.of(NEW_CIPHER), "Alice", "138", "a@b.com",
                 "avatar.png", 3L, User.STATUS_ENABLED, null, CREATED, UPDATED));
@@ -172,7 +172,7 @@ class UserAppServiceTest {
     void shouldReencodePasswordAndApplyProfileOnUpdate() {
         User stored = user("旧昵称");
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(stored));
-        when(passwordEncoder.encode("newpwd123")).thenReturn(NEW_CIPHER);
+        when(passwordHasher.encode("newpwd123")).thenReturn(NEW_CIPHER);
 
         UserVO vo = userAppService.update(USER_ID, new UpdateUserCommand("newpwd123", "新昵称",
                 "13900000000", "n@b.com", "new-avatar.png", 4L, User.STATUS_DISABLED));
@@ -204,7 +204,7 @@ class UserAppServiceTest {
     void shouldPublishPasswordChangedWhenOnlyPasswordChanged() {
         User stored = user("Alice");
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(stored));
-        when(passwordEncoder.encode("newpwd123")).thenReturn(NEW_CIPHER);
+        when(passwordHasher.encode("newpwd123")).thenReturn(NEW_CIPHER);
 
         userAppService.update(USER_ID, new UpdateUserCommand("newpwd123", "Alice",
                 "13800000000", "a@b.com", "avatar.png", 3L, null));
@@ -231,7 +231,7 @@ class UserAppServiceTest {
     void shouldChangePasswordWithEncodedCipher() {
         User stored = user("Alice");
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(stored));
-        when(passwordEncoder.encode("resetpwd")).thenReturn(NEW_CIPHER);
+        when(passwordHasher.encode("resetpwd")).thenReturn(NEW_CIPHER);
 
         userAppService.changePassword(USER_ID, new ChangeUserPasswordCommand("resetpwd"));
 

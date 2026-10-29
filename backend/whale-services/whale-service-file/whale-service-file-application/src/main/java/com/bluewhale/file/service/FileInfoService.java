@@ -5,6 +5,7 @@ import com.bluewhale.file.dto.ChunkUploadCompleteRequest;
 import com.bluewhale.file.dto.ChunkUploadInitRequest;
 import com.bluewhale.file.dto.FileQueryRequest;
 import com.bluewhale.file.dto.FileRapidUploadRequest;
+import com.bluewhale.file.service.model.UploadContent;
 import com.bluewhale.file.vo.ChunkUploadInitVO;
 import com.bluewhale.file.vo.FileChangeVO;
 import com.bluewhale.file.vo.FileInfoVO;
@@ -12,9 +13,8 @@ import com.bluewhale.file.vo.FilePresignedVO;
 import com.bluewhale.file.vo.FileQuotaVO;
 import com.bluewhale.file.vo.FileRapidUploadVO;
 import com.bluewhale.file.vo.FileUploadVO;
-import org.springframework.core.io.Resource;
-import org.springframework.web.multipart.MultipartFile;
 
+import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -28,12 +28,12 @@ public interface FileInfoService {
     /**
      * 上传文件：写入存储并登记元数据
      *
-     * @param file 上传的文件（必填）
+     * @param content 上传内容（必填）
      * @param bucket 目标桶名称；为空时取配置的默认桶
      * @param uploaderId 上传用户 ID；无登录态时可为 {@code null}
      * @return 上传结果视图对象
      */
-    FileUploadVO upload(MultipartFile file, String bucket, Long uploaderId);
+    FileUploadVO upload(UploadContent content, String bucket, Long uploaderId);
 
     /**
      * 秒传（哈希去重）：按 MD5 + 大小匹配已有物理对象，命中时仅登记新元数据、不复制物理对象
@@ -55,18 +55,24 @@ public interface FileInfoService {
     /**
      * 分页查询文件元数据
      *
+     * <p>默认仅返回调用者本人上传的文件；持有文件管理权限时可查看全租户文件。</p>
+     *
      * @param request 查询条件
+     * @param requesterId 调用者用户 ID
+     * @param canManage 是否持有文件管理权限（可查看全租户文件）
      * @return 文件分页结果
      */
-    PageResult<FileInfoVO> page(FileQueryRequest request);
+    PageResult<FileInfoVO> page(FileQueryRequest request, Long requesterId, boolean canManage);
 
     /**
      * 文件元数据详情
      *
      * @param id 文件ID
+     * @param requesterId 调用者用户 ID
+     * @param canManage 是否持有文件管理权限
      * @return 文件视图对象
      */
-    FileInfoVO getDetail(Long id);
+    FileInfoVO getDetail(Long id, Long requesterId, boolean canManage);
 
     /**
      * 文件变更视图详情（内网接口专用）：含状态、逻辑删除标记与更新时间，
@@ -112,28 +118,34 @@ public interface FileInfoService {
     void unlock(Long id);
 
     /**
-     * 读取文件内容为流式资源
+     * 读取文件内容为输入流（由调用方负责关闭）
      *
      * @param id 文件ID
-     * @return 文件内容资源
+     * @param requesterId 调用者用户 ID
+     * @param canManage 是否持有文件管理权限
+     * @return 文件内容输入流
      */
-    Resource loadResource(Long id);
+    InputStream openContent(Long id, Long requesterId, boolean canManage);
 
     /**
      * 删除文件元数据（逻辑删除，物理对象保留）
      *
      * @param id 文件ID
+     * @param requesterId 调用者用户 ID
+     * @param canManage 是否持有文件管理权限
      */
-    void delete(Long id);
+    void delete(Long id, Long requesterId, boolean canManage);
 
     /**
      * 生成预签名下载 URL（仅支持预签名能力的对象存储插件可用）
      *
      * @param id 文件ID
      * @param expiresSeconds 有效期（秒）；为空或非正数时取默认 600，超过 3600 截断为 3600
+     * @param requesterId 调用者用户 ID
+     * @param canManage 是否持有文件管理权限
      * @return 预签名 URL 视图对象
      */
-    FilePresignedVO presignedUrl(Long id, Integer expiresSeconds);
+    FilePresignedVO presignedUrl(Long id, Integer expiresSeconds, Long requesterId, boolean canManage);
 
     /**
      * 初始化分片上传会话
@@ -148,10 +160,10 @@ public interface FileInfoService {
      *
      * @param uploadId 上传会话 ID
      * @param index 分片索引（从 0 开始）
-     * @param file 分片内容
+     * @param part 分片内容
      * @return 已上传分片索引（升序）
      */
-    List<Integer> uploadChunkPart(String uploadId, int index, MultipartFile file);
+    List<Integer> uploadChunkPart(String uploadId, int index, UploadContent part);
 
     /**
      * 查询分片上传会话的已上传分片索引

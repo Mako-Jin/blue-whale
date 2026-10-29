@@ -4,6 +4,7 @@ import com.bluewhale.auth.application.tenant.command.ChangeTenantStatusCommand;
 import com.bluewhale.auth.application.tenant.command.RenewTenantCommand;
 import com.bluewhale.auth.application.tenant.command.UpdateTenantCommand;
 import com.bluewhale.auth.application.tenant.query.TenantPageQuery;
+import com.bluewhale.auth.application.tenant.port.TenantStatusSyncPort;
 import com.bluewhale.auth.domain.tenant.aggregate.Tenant;
 import com.bluewhale.auth.domain.tenant.aggregate.TenantExpiryClock;
 import com.bluewhale.auth.domain.tenant.repository.TenantRepository;
@@ -37,7 +38,7 @@ public class TenantAppService {
     public static final String DEFAULT_TENANT_CODE = "default";
 
     private final TenantRepository tenantRepository;
-    private final TenantStatusCache tenantStatusCache;
+    private final TenantStatusSyncPort tenantStatusSync;
 
     /**
      * 登录租户解析：按租户编码定位「启用且未过期」的租户；编码为空回落默认租户
@@ -157,7 +158,7 @@ public class TenantAppService {
             tenant.disable();
         }
         Tenant saved = tenantRepository.save(tenant);
-        tenantStatusCache.sync(saved);
+        tenantStatusSync.sync(saved);
         log.info("租户状态变更: tenantId={}, status={}", id, status);
         return TenantVO.from(saved);
     }
@@ -176,7 +177,7 @@ public class TenantAppService {
         tenant.renew(command.expireTime());
         Tenant saved = tenantRepository.save(tenant);
         // 网关按缓存中的到期秒数拒绝过期租户，续期后必须同步，否则仍按旧时间判定
-        tenantStatusCache.sync(saved);
+        tenantStatusSync.sync(saved);
         return TenantVO.from(saved);
     }
 

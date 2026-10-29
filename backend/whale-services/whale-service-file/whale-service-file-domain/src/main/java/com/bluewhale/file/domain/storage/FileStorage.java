@@ -1,7 +1,7 @@
 package com.bluewhale.file.domain.storage;
 
-import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.domain.exception.DomainException;
 
 import java.io.InputStream;
 
@@ -51,9 +51,9 @@ public interface FileStorage {
      * @param objectKey 桶内对象键
      * @param expiresSeconds 有效期（秒）
      * @return 预签名下载 URL
-     * @throws BizException 当前存储插件不支持预签名时抛出参数错误
+     * @throws DomainException 当前存储插件不支持预签名时抛出参数错误
      */
     default String presignedDownloadUrl(String bucket, String objectKey, int expiresSeconds) {
-        throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "当前存储插件不支持预签名下载");
+        throw new DomainException(ErrorCode.PARAM_ERROR, "当前存储插件不支持预签名下载");
     }
 }

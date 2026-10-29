@@ -1,14 +1,17 @@
 package com.bluewhale.file.controller;
 
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
+import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
-import com.bluewhale.common.web.WebHeaders;
+import com.bluewhale.common.web.UserContext;
 import com.bluewhale.file.dto.ChunkUploadCompleteRequest;
 import com.bluewhale.file.dto.ChunkUploadInitRequest;
 import com.bluewhale.file.dto.FileQueryRequest;
 import com.bluewhale.file.dto.FileRapidUploadRequest;
 import com.bluewhale.file.service.FileInfoService;
+import com.bluewhale.file.service.model.UploadContent;
 import com.bluewhale.file.vo.ChunkUploadInitVO;
 import com.bluewhale.file.vo.FileInfoVO;
 import com.bluewhale.file.vo.FilePresignedVO;
@@ -18,6 +21,7 @@ import com.bluewhale.file.vo.FileUploadVO;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -35,6 +39,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Locale;
@@ -63,6 +68,9 @@ public class FileController {
     /** 禁止嗅探的响应头取值 */
     private static final String NOSNIFF_VALUE = "nosniff";
 
+    /** 文件管理权限码：持有者可查看/下载/删除全租户文件 */
+    private static final String PERM_FILE_MANAGE = "sys:file:manage";
+
     private final FileInfoService fileInfoService;
 
     /**
@@ -79,7 +87,7 @@ public class FileController {
                                        @RequestParam(value = "bucket", required = false) String bucket,
                                        HttpServletRequest httpRequest) {
         Long uploaderId = resolveUploaderId(httpRequest);
-        return Result.ok(fileInfoService.upload(file, bucket, uploaderId));
+        return Result.ok(fileInfoService.upload(toUploadContent(file), bucket, uploaderId));
     }
 
     /**
@@ -99,20 +107,23 @@ public class FileController {
                                                @RequestParam(value = "bucket", required = false) String bucket,
                                                HttpServletRequest httpRequest) {
         Long uploaderId = resolveUploaderId(httpRequest);
-        return Result.ok(fileInfoService.upload(file, bucket, uploaderId));
+        return Result.ok(fileInfoService.upload(toUploadContent(file), bucket, uploaderId));
     }
 
     /**
      * 流式下载文件内容。
      *
      * @param id 文件ID
+     * @param httpRequest 当前请求（用于判定调用者归属与文件管理权限）
      * @return 文件内容流式响应（{@code Content-Disposition: attachment}）
      */
     @GetMapping("/{id}/download")
     @RequirePermission("sys:file:download")
-    public ResponseEntity<Resource> download(@PathVariable Long id) {
-        FileInfoVO info = fileInfoService.getDetail(id);
-        Resource resource = fileInfoService.loadResource(id);
+    public ResponseEntity<Resource> download(@PathVariable Long id, HttpServletRequest httpRequest) {
+        Long requesterId = UserContext.requireUserId(httpRequest);
+        boolean canManage = canManage(httpRequest);
+        FileInfoVO info = fileInfoService.getDetail(id, requesterId, canManage);
+        Resource resource = new InputStreamResource(fileInfoService.openContent(id, requesterId, canManage));
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, buildContentDisposition(info.getOriginalName(), false))
                 // 审计修复：与 preview 对齐补 nosniff，防止浏览器对响应做 MIME 嗅探
@@ -126,13 +137,16 @@ public class FileController {
      * 在线预览文件内容：安全类型以 {@code inline} 呈现，其余类型回落 {@code attachment} 下载。
      *
      * @param id 文件ID
+     * @param httpRequest 当前请求（用于判定调用者归属与文件管理权限）
      * @return 文件内容流式响应
      */
     @GetMapping("/{id}/preview")
     @RequirePermission("sys:file:download")
-    public ResponseEntity<Resource> preview(@PathVariable Long id) {
-        FileInfoVO info = fileInfoService.getDetail(id);
-        Resource resource = fileInfoService.loadResource(id);
+    public ResponseEntity<Resource> preview(@PathVariable Long id, HttpServletRequest httpRequest) {
+        Long requesterId = UserContext.requireUserId(httpRequest);
+        boolean canManage = canManage(httpRequest);
+        FileInfoVO info = fileInfoService.getDetail(id, requesterId, canManage);
+        Resource resource = new InputStreamResource(fileInfoService.openContent(id, requesterId, canManage));
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION,
                         buildContentDisposition(info.getOriginalName(), isPreviewable(info.getContentType())))
@@ -147,14 +161,17 @@ public class FileController {
      *
      * @param id 文件ID
      * @param expiresSeconds 有效期（秒），默认 600、上限 3600
+     * @param httpRequest 当前请求（用于判定调用者归属与文件管理权限）
      * @return 预签名 URL 与生效有效期
      */
     @GetMapping("/{id}/presigned")
     @RequirePermission("sys:file:download")
     public Result<FilePresignedVO> presigned(@PathVariable Long id,
                                              @RequestParam(value = "expiresSeconds", required = false)
-                                             Integer expiresSeconds) {
-        return Result.ok(fileInfoService.presignedUrl(id, expiresSeconds));
+                                             Integer expiresSeconds,
+                                             HttpServletRequest httpRequest) {
+        Long requesterId = UserContext.requireUserId(httpRequest);
+        return Result.ok(fileInfoService.presignedUrl(id, expiresSeconds, requesterId, canManage(httpRequest)));
     }
 
     /**
@@ -182,7 +199,7 @@ public class FileController {
     public Result<List<Integer>> uploadChunkPart(@RequestParam("file") MultipartFile file,
                                                  @RequestParam("uploadId") String uploadId,
                                                  @RequestParam("index") int index) {
-        return Result.ok(fileInfoService.uploadChunkPart(uploadId, index, file));
+        return Result.ok(fileInfoService.uploadChunkPart(uploadId, index, toUploadContent(file)));
     }
 
     /**
@@ -240,43 +257,65 @@ public class FileController {
     /**
      * 分页查询文件元数据。
      *
+     * <p>默认仅返回调用者本人上传的文件；持有 {@code sys:file:manage} 时可查看全租户文件。</p>
+     *
      * @param request 查询条件：originalName 模糊、bucket 等值、createTime 起止
+     * @param httpRequest 当前请求（用于判定调用者归属与文件管理权限）
      * @return 文件分页结果
      */
     @GetMapping("/page")
     @RequirePermission("sys:file:list")
-    public Result<PageResult<FileInfoVO>> page(FileQueryRequest request) {
-        return Result.ok(fileInfoService.page(request));
+    public Result<PageResult<FileInfoVO>> page(FileQueryRequest request, HttpServletRequest httpRequest) {
+        Long requesterId = UserContext.requireUserId(httpRequest);
+        return Result.ok(fileInfoService.page(request, requesterId, canManage(httpRequest)));
     }
 
     /**
      * 删除文件元数据（逻辑删除，物理对象保留）。
      *
      * @param id 文件ID
+     * @param httpRequest 当前请求（用于判定调用者归属与文件管理权限）
      * @return 空结果
      */
     @DeleteMapping("/{id}")
     @RequirePermission("sys:file:delete")
-    public Result<Void> delete(@PathVariable Long id) {
-        fileInfoService.delete(id);
+    public Result<Void> delete(@PathVariable Long id, HttpServletRequest httpRequest) {
+        fileInfoService.delete(id, UserContext.requireUserId(httpRequest), canManage(httpRequest));
         return Result.ok();
     }
 
     /**
-     * 解析上传用户 ID：以网关 {@code X-User-Id} 为准，缺失或不可解析时返回 {@code null}
+     * 判定当前请求是否持有文件管理权限（{@code sys:file:manage}，超管天然具备）
+     *
+     * @param request 当前请求
+     * @return 持有管理权限时返回 {@code true}
+     */
+    private static boolean canManage(HttpServletRequest request) {
+        return UserContext.hasPermission(request, PERM_FILE_MANAGE);
+    }
+
+    /**
+     * 解析上传用户 ID：以请求上下文（或网关 {@code X-User-Id}）为准，缺失或不可解析时返回 {@code null}
      *
      * @param request 当前请求
      * @return 上传用户ID；无有效值时返回 {@code null}
      */
     private static Long resolveUploaderId(HttpServletRequest request) {
-        String userId = WebHeaders.userId(request);
-        if (userId == null) {
-            return null;
-        }
+        return UserContext.findUserId(request);
+    }
+
+    /**
+     * 将 Web 上传对象适配为应用层中立上传内容（Web 类型仅停留在接口层）
+     *
+     * @param file 上传的文件
+     * @return 上传内容
+     * @throws BizException 读取内容失败时抛出 {@code SYSTEM_ERROR}
+     */
+    private static UploadContent toUploadContent(MultipartFile file) {
         try {
-            return Long.valueOf(userId);
-        } catch (NumberFormatException e) {
-            return null;
+            return new UploadContent(file.getOriginalFilename(), file.getContentType(), file.getBytes());
+        } catch (IOException e) {
+            throw new BizException(ErrorCode.SYSTEM_ERROR);
         }
     }
 

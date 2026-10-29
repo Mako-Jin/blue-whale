@@ -1,5 +1,6 @@
-package com.bluewhale.auth.application.tenant;
+package com.bluewhale.auth.infrastructure.tenant;
 
+import com.bluewhale.auth.application.tenant.port.TenantStatusSyncPort;
 import com.bluewhale.auth.domain.tenant.aggregate.Tenant;
 import com.bluewhale.auth.domain.tenant.aggregate.TenantExpiryClock;
 import com.bluewhale.auth.domain.tenant.repository.TenantRepository;
@@ -15,9 +16,10 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
- * 租户状态缓存写入器（Wave 5.54 Phase 2）。
+ * 租户状态缓存适配器（Wave 5.54 Phase 2）。
  *
- * <p>租户开通、启停、续期时写入 {@code whale:{tenantId}:cache:auth:tenant:status} 与
+ * <p>实现应用层 {@link TenantStatusSyncPort}：租户开通、启停、续期时写入
+ * {@code whale:{tenantId}:cache:auth:tenant:status} 与
  * {@code whale:{tenantId}:cache:auth:tenant:expire}（Unix 秒，缺失表示长期有效），供网关
  * 即时拒绝停用或已到期租户的存量 accessToken；应用启动时按数据库现状全量预热一次。</p>
  *
@@ -31,7 +33,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class TenantStatusCache implements ApplicationRunner {
+public class TenantStatusCache implements TenantStatusSyncPort, ApplicationRunner {
 
     private final TenantRepository tenantRepository;
 
@@ -42,6 +44,7 @@ public class TenantStatusCache implements ApplicationRunner {
      *
      * @param tenant 租户聚合
      */
+    @Override
     public void sync(Tenant tenant) {
         if (tenant == null || tenant.getId() == null) {
             return;

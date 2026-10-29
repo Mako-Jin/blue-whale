@@ -38,16 +38,6 @@
             <artifactId>whale-security</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <!-- 口令编码器（PasswordEncoder） -->
-        <dependency>
-            <groupId>org.springframework.security</groupId>
-            <artifactId>spring-security-crypto</artifactId>
-        </dependency>
-        <!-- TenantStatusCache 使用 StringRedisTemplate -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-redis</artifactId>
-        </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>

@@ -2,9 +2,9 @@ package com.bluewhale.message.controller;
 
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
+import com.bluewhale.common.web.UserContext;
 import com.bluewhale.message.dto.InAppMessageQueryRequest;
 import com.bluewhale.message.service.MessageInAppService;
-import com.bluewhale.message.support.web.UserContext;
 import com.bluewhale.message.vo.InAppMessageVO;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;

@@ -6,6 +6,7 @@ import com.bluewhale.file.service.FileInfoService;
 import com.bluewhale.file.vo.FileChangeVO;
 import com.bluewhale.file.vo.FileInfoVO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ContentDisposition;
@@ -78,13 +79,15 @@ public class FileInternalController {
     /**
      * 读取文件内容（知识抽取用流式响应）。
      *
+     * <p>内网服务间调用，按系统级访问（不做归属校验），保持内网通道原有可见范围。</p>
+     *
      * @param id 文件ID
      * @return 文件内容流式响应
      */
     @GetMapping("/{id}/content")
     public ResponseEntity<Resource> content(@PathVariable Long id) {
-        FileInfoVO info = fileInfoService.getDetail(id);
-        Resource resource = fileInfoService.loadResource(id);
+        FileInfoVO info = fileInfoService.getDetail(id, null, true);
+        Resource resource = new InputStreamResource(fileInfoService.openContent(id, null, true));
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION,
                         ContentDisposition.attachment()

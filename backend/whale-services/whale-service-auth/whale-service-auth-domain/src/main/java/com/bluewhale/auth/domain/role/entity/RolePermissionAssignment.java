@@ -1,7 +1,8 @@
 package com.bluewhale.auth.domain.role.entity;
 
-import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.domain.exception.DomainException;
+import com.bluewhale.common.domain.model.Entity;
 
 /**
  * 角色-权限分配实体（对应 {@code sys_role_permission}，REQ-ARCH-001 / T-DDD-5）：作为 Role 聚合的内部实体，
@@ -12,7 +13,7 @@ import com.bluewhale.common.core.exception.ErrorCode;
  * @param permissionId 权限点 ID
  * @author BlueWhale
  */
-public record RolePermissionAssignment(Long id, Long roleId, Long permissionId) {
+public record RolePermissionAssignment(Long id, Long roleId, Long permissionId) implements Entity<Long> {
 
     /**
      * 紧凑构造器：校验角色 ID 与权限点 ID 非空
@@ -23,7 +24,7 @@ public record RolePermissionAssignment(Long id, Long roleId, Long permissionId) 
      */
     public RolePermissionAssignment {
         if (roleId == null || permissionId == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "角色-权限分配的角色与权限 ID 不能为空");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "角色-权限分配的角色与权限 ID 不能为空");
         }
     }
 
@@ -36,5 +37,14 @@ public record RolePermissionAssignment(Long id, Long roleId, Long permissionId) 
      */
     public static RolePermissionAssignment of(Long roleId, Long permissionId) {
         return new RolePermissionAssignment(null, roleId, permissionId);
+    }
+
+    /**
+     * 获取关联记录主键
+     *
+     * @return 关联记录 ID；新建且未落库时为 {@code null}
+     */
+    public Long getId() {
+        return id;
     }
 }

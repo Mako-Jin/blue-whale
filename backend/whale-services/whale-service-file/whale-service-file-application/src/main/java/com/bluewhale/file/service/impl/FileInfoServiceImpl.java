@@ -19,6 +19,7 @@ import com.bluewhale.file.dto.ChunkUploadInitRequest;
 import com.bluewhale.file.dto.FileQueryRequest;
 import com.bluewhale.file.dto.FileRapidUploadRequest;
 import com.bluewhale.file.service.FileInfoService;
+import com.bluewhale.file.service.model.UploadContent;
 import com.bluewhale.file.vo.ChunkUploadInitVO;
 import com.bluewhale.file.vo.FileChangeVO;
 import com.bluewhale.file.vo.FileInfoVO;
@@ -28,13 +29,10 @@ import com.bluewhale.file.vo.FileRapidUploadVO;
 import com.bluewhale.file.vo.FileUploadVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.InputStreamResource;
-import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.DigestUtils;
 import org.springframework.util.StringUtils;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -44,6 +42,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.IntStream;
 
@@ -87,14 +86,16 @@ public class FileInfoServiceImpl implements FileInfoService {
     private final FileProperties fileProperties;
 
     @Override
-    public FileUploadVO upload(MultipartFile file, String bucket, Long uploaderId) {
-        validateFile(file);
-        if (file.getSize() > fileProperties.getMaxSizeBytes()) {
+    public FileUploadVO upload(UploadContent content, String bucket, Long uploaderId) {
+        if (content == null || content.isEmpty()) {
             throw new BizException(ErrorCode.PARAM_ERROR);
         }
-        validateQuota(file.getSize(), uploaderId);
-        byte[] bytes = readBytes(file);
-        return persistFile(new ByteArrayInputStream(bytes), file.getOriginalFilename(), file.getContentType(),
+        if (content.size() > fileProperties.getMaxSizeBytes()) {
+            throw new BizException(ErrorCode.PARAM_ERROR);
+        }
+        validateQuota(content.size(), uploaderId);
+        byte[] bytes = content.content();
+        return persistFile(new ByteArrayInputStream(bytes), content.originalName(), content.contentType(),
                 bytes.length, DigestUtils.md5DigestAsHex(bytes), bucket, uploaderId);
     }
 
@@ -136,18 +137,21 @@ public class FileInfoServiceImpl implements FileInfoService {
     }
 
     @Override
-    public PageResult<FileInfoVO> page(FileQueryRequest request) {
+    public PageResult<FileInfoVO> page(FileQueryRequest request, Long requesterId, boolean canManage) {
         long size = Math.min(Math.max(request.getSize(), 1L), MAX_PAGE_SIZE);
+        // 无管理权限时仅可见本人上传的文件；服务间上传（uploaderId 为空）保持租户可见
+        Long uploaderFilter = canManage ? null : requesterId;
         FileAssetQuery query = new FileAssetQuery(request.getOriginalName(), request.getBucket(),
-                request.getCreateTimeStart(), request.getCreateTimeEnd(), request.getCurrent(), size);
+                request.getCreateTimeStart(), request.getCreateTimeEnd(), uploaderFilter,
+                request.getCurrent(), size);
         FileAssetPage page = fileAssetRepository.page(query);
         List<FileInfoVO> records = page.records().stream().map(FileInfoServiceImpl::toVo).toList();
         return PageResult.of(records, page.total(), page.current(), page.size());
     }
 
     @Override
-    public FileInfoVO getDetail(Long id) {
-        return toVo(requireFile(id));
+    public FileInfoVO getDetail(Long id, Long requesterId, boolean canManage) {
+        return toVo(requireAccessibleFile(id, requesterId, canManage));
     }
 
     @Override
@@ -159,15 +163,15 @@ public class FileInfoServiceImpl implements FileInfoService {
     }
 
     @Override
-    public Resource loadResource(Long id) {
-        FileAsset asset = requireFile(id);
-        return new InputStreamResource(fileStorage.load(asset.getBucket(), asset.getObjectKey()));
+    public InputStream openContent(Long id, Long requesterId, boolean canManage) {
+        FileAsset asset = requireAccessibleFile(id, requesterId, canManage);
+        return fileStorage.load(asset.getBucket(), asset.getObjectKey());
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void delete(Long id) {
-        FileAsset asset = requireFile(id);
+    public void delete(Long id, Long requesterId, boolean canManage) {
+        FileAsset asset = requireAccessibleFile(id, requesterId, canManage);
         asset.assertDeletable();
         fileAssetRepository.deleteById(id);
     }
@@ -202,8 +206,8 @@ public class FileInfoServiceImpl implements FileInfoService {
     }
 
     @Override
-    public FilePresignedVO presignedUrl(Long id, Integer expiresSeconds) {
-        FileAsset asset = requireFile(id);
+    public FilePresignedVO presignedUrl(Long id, Integer expiresSeconds, Long requesterId, boolean canManage) {
+        FileAsset asset = requireAccessibleFile(id, requesterId, canManage);
         int expires = resolveExpiresSeconds(expiresSeconds);
         FilePresignedVO vo = new FilePresignedVO();
         vo.setUrl(fileStorage.presignedDownloadUrl(asset.getBucket(), asset.getObjectKey(), expires));
@@ -229,19 +233,15 @@ public class FileInfoServiceImpl implements FileInfoService {
     }
 
     @Override
-    public List<Integer> uploadChunkPart(String uploadId, int index, MultipartFile file) {
-        if (file == null || file.isEmpty() || index < 0) {
+    public List<Integer> uploadChunkPart(String uploadId, int index, UploadContent part) {
+        if (part == null || part.isEmpty() || index < 0) {
             throw new BizException(ErrorCode.PARAM_ERROR);
         }
         ChunkUploadSessionId sessionId = requireSession(uploadId);
-        if (file.getSize() > resolveChunkSize()) {
+        if (part.size() > resolveChunkSize()) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "分片大小超出上限");
         }
-        try (InputStream in = file.getInputStream()) {
-            chunkUploadStore.storePart(sessionId, index, in, file.getSize());
-        } catch (IOException e) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR);
-        }
+        chunkUploadStore.storePart(sessionId, index, new ByteArrayInputStream(part.content()), part.size());
         return chunkUploadStore.uploadedPartIndexes(sessionId);
     }
 
@@ -354,6 +354,39 @@ public class FileInfoServiceImpl implements FileInfoService {
     }
 
     /**
+     * 查询文件资产并校验调用者可见性：不存在、跨租户或跨用户越权均按 {@code NOT_FOUND} 处理，
+     * 避免泄露文件是否存在。
+     *
+     * @param id 文件ID
+     * @param requesterId 调用者用户 ID
+     * @param canManage 是否持有文件管理权限
+     * @return 文件资产聚合根
+     * @throws BizException 不可见时抛出 {@code NOT_FOUND}
+     */
+    private FileAsset requireAccessibleFile(Long id, Long requesterId, boolean canManage) {
+        FileAsset asset = requireFile(id);
+        ensureAccessible(asset, requesterId, canManage);
+        return asset;
+    }
+
+    /**
+     * 校验文件归属：管理权限可访问全租户文件；上传者本人可访问；服务间上传（上传者为空）
+     * 维持租户内可见。
+     *
+     * @param asset 文件资产聚合根
+     * @param requesterId 调用者用户 ID
+     * @param canManage 是否持有文件管理权限
+     * @throws BizException 越权访问时抛出 {@code NOT_FOUND}
+     */
+    private static void ensureAccessible(FileAsset asset, Long requesterId, boolean canManage) {
+        if (canManage || asset.getUploaderId() == null
+                || Objects.equals(asset.getUploaderId(), requesterId)) {
+            return;
+        }
+        throw new BizException(ErrorCode.NOT_FOUND);
+    }
+
+    /**
      * 校验文件资产对当前租户可见，跨租户按不存在处理以避免泄露文件是否存在
      *
      * @param asset 文件资产聚合根
@@ -448,33 +481,6 @@ public class FileInfoServiceImpl implements FileInfoService {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "上传会话不存在或已失效");
         }
         return sessionId;
-    }
-
-    /**
-     * 校验上传文件非空
-     *
-     * @param file 上传的文件
-     * @throws BizException 文件为空时抛出 {@code PARAM_ERROR}
-     */
-    private static void validateFile(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR);
-        }
-    }
-
-    /**
-     * 读取上传文件内容为字节数组
-     *
-     * @param file 上传的文件
-     * @return 文件内容字节数组
-     * @throws BizException 读取失败时抛出 {@code SYSTEM_ERROR}
-     */
-    private static byte[] readBytes(MultipartFile file) {
-        try {
-            return file.getBytes();
-        } catch (IOException e) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR);
-        }
     }
 
     /**

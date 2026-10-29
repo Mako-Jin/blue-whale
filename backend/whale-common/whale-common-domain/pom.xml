@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 通用领域基座：DDD 内核抽象（实体/聚合/值对象/标识/领域事件/仓储端口），不依赖 Spring/持久化/Web -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.bluewhale</groupId>
+        <artifactId>whale-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../whale-parent/pom.xml</relativePath>
+    </parent>
+
+    <artifactId>whale-common-domain</artifactId>
+    <name>Whale Common Domain</name>
+    <description>BlueWhale 通用领域基座 - DDD 内核</description>
+
+    <dependencies>
+        <!-- 领域不变量违规统一以 DomainException（继承 BizException）抛出 -->
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-common-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+    </dependencies>
+</project>

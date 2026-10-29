@@ -1,5 +1,7 @@
 package com.bluewhale.file.domain.model.vo;
 
+import com.bluewhale.common.domain.valueobject.ValueObject;
+
 /**
  * 文件状态值对象：与 {@code file_info.status} 列取值一一对应。
  *
@@ -7,7 +9,7 @@ package com.bluewhale.file.domain.model.vo;
  *
  * @author BlueWhale
  */
-public enum FileStatus {
+public enum FileStatus implements ValueObject {
 
     /** 禁用：不可锁定、不可正常使用 */
     DISABLED(0, "禁用"),

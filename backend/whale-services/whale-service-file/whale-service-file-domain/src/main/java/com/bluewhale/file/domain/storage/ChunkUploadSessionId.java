@@ -1,7 +1,8 @@
 package com.bluewhale.file.domain.storage;
 
-import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.domain.exception.DomainException;
+import com.bluewhale.common.domain.valueobject.ValueObject;
 
 import java.util.Locale;
 import java.util.UUID;
@@ -13,7 +14,7 @@ import java.util.regex.Pattern;
  * @param value 会话标识（标准 UUID 字符串，统一小写）
  * @author BlueWhale
  */
-public record ChunkUploadSessionId(String value) {
+public record ChunkUploadSessionId(String value) implements ValueObject {
 
     /** 标准 UUID 文本格式：8-4-4-4-12 位十六进制 */
     private static final Pattern UUID_PATTERN = Pattern.compile(
@@ -23,11 +24,11 @@ public record ChunkUploadSessionId(String value) {
      * 紧凑构造器：校验会话标识为标准 UUID 并归一化为小写
      *
      * @param value 会话标识
-     * @throws BizException 非标准 UUID 时抛出 {@code PARAM_ERROR}
+     * @throws DomainException 非标准 UUID 时抛出 {@code PARAM_ERROR}
      */
     public ChunkUploadSessionId {
         if (value == null || !UUID_PATTERN.matcher(value).matches()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "uploadId 非法");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "uploadId 非法");
         }
         value = value.toLowerCase(Locale.ROOT);
     }
@@ -37,7 +38,7 @@ public record ChunkUploadSessionId(String value) {
      *
      * @param raw 调用方传入的 uploadId
      * @return 分片上传会话标识
-     * @throws BizException 非标准 UUID 时抛出 {@code PARAM_ERROR}
+     * @throws DomainException 非标准 UUID 时抛出 {@code PARAM_ERROR}
      */
     public static ChunkUploadSessionId of(String raw) {
         return new ChunkUploadSessionId(raw);

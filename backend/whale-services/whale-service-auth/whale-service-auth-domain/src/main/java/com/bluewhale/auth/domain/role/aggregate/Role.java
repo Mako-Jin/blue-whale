@@ -1,8 +1,9 @@
 package com.bluewhale.auth.domain.role.aggregate;
 
 import com.bluewhale.auth.domain.model.vo.RoleCode;
-import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.domain.exception.DomainException;
+import com.bluewhale.common.domain.model.Entity;
 
 import java.time.LocalDateTime;
 
@@ -16,7 +17,7 @@ import java.time.LocalDateTime;
  *
  * @author BlueWhale
  */
-public class Role {
+public class Role implements Entity<Long> {
 
     /** 状态：启用 */
     public static final int STATUS_ENABLED = 1;
@@ -49,16 +50,16 @@ public class Role {
     private Role(Long id, Long tenantId, RoleCode roleCode, String roleName, String description, int sortNo,
                  int status, LocalDateTime createTime, LocalDateTime updateTime) {
         if (tenantId == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "角色所属租户不能为空");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "角色所属租户不能为空");
         }
         if (roleCode == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "角色编码不能为空");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "角色编码不能为空");
         }
         if (roleName == null || roleName.isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "角色名称不能为空");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "角色名称不能为空");
         }
         if (status != STATUS_ENABLED && status != STATUS_DISABLED) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "状态值非法，仅支持 1（启用）/ 0（停用）");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "状态值非法，仅支持 1（启用）/ 0（停用）");
         }
         this.id = id;
         this.tenantId = tenantId;
@@ -117,7 +118,7 @@ public class Role {
      */
     public void rename(String roleName) {
         if (roleName == null || roleName.isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "角色名称不能为空");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "角色名称不能为空");
         }
         this.roleName = roleName;
         this.updateTime = LocalDateTime.now();
@@ -150,7 +151,7 @@ public class Role {
      */
     public void changeStatus(int status) {
         if (status != STATUS_ENABLED && status != STATUS_DISABLED) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "状态值非法，仅支持 1（启用）/ 0（停用）");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "状态值非法，仅支持 1（启用）/ 0（停用）");
         }
         this.status = status;
         this.updateTime = LocalDateTime.now();

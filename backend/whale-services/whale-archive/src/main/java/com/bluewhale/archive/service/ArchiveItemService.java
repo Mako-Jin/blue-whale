@@ -96,10 +96,14 @@ public class ArchiveItemService {
     /**
      * 分页查询档案条目。
      *
+     * <p>无 {@code sys:archive:secret:read} 权限码时强制追加 {@code security_level < 3}，
+     * 秘密级条目对未授权用户不可见（与 agent 知识检索的密级口径一致）。</p>
+     *
      * @param request 查询条件
+     * @param secretReadable 当前用户是否具备秘密级读取权限
      * @return 条目分页结果（含门类名称）
      */
-    public PageResult<ArchiveItemVO> page(ArchiveItemQueryRequest request) {
+    public PageResult<ArchiveItemVO> page(ArchiveItemQueryRequest request, boolean secretReadable) {
         LambdaQueryWrapper<ArchiveItem> wrapper = new LambdaQueryWrapper<>();
         String keyword = StringUtils.hasText(request.getKeyword()) ? request.getKeyword().trim() : null;
         if (keyword != null) {
@@ -112,6 +116,7 @@ public class ArchiveItemService {
         wrapper.eq(request.getYear() != null, ArchiveItem::getYear, request.getYear());
         wrapper.eq(request.getSecurityLevel() != null, ArchiveItem::getSecurityLevel, request.getSecurityLevel());
         wrapper.eq(request.getItemStatus() != null, ArchiveItem::getItemStatus, request.getItemStatus());
+        wrapper.lt(!secretReadable, ArchiveItem::getSecurityLevel, ArchiveConstants.SECURITY_SECRET);
         wrapper.orderByDesc(ArchiveItem::getCreateTime).orderByDesc(ArchiveItem::getId);
         long current = Math.max(request.getCurrent(), 1L);
         long size = Math.min(Math.max(request.getSize(), 1L), MAX_PAGE_SIZE);
@@ -126,11 +131,16 @@ public class ArchiveItemService {
     /**
      * 查询条目详情（含文件引用与来源实例当前状态）。
      *
+     * <p>秘密级条目在无 {@code sys:archive:secret:read} 权限码时按不存在处理，
+     * 避免泄露条目是否存在。</p>
+     *
      * @param id 条目ID
+     * @param secretReadable 当前用户是否具备秘密级读取权限
      * @return 条目详情
      */
-    public ArchiveItemDetailVO detail(Long id) {
+    public ArchiveItemDetailVO detail(Long id, boolean secretReadable) {
         ArchiveItem item = requireItem(id);
+        ensureSecurityVisible(item, secretReadable);
         ArchiveItemDetailVO vo = new ArchiveItemDetailVO();
         vo.setItem(toVo(item, categoryName(item.getCategoryId())));
         vo.setFiles(filesOf(id));
@@ -241,12 +251,16 @@ public class ArchiveItemService {
     /**
      * 下载条目下的文件：先校验文件确属该条目，再经文件服务内网代理读取。
      *
+     * <p>秘密级条目在无 {@code sys:archive:secret:read} 权限码时按不存在处理。</p>
+     *
      * @param id 条目ID
      * @param fileId 文件引用ID
+     * @param secretReadable 当前用户是否具备秘密级读取权限
      * @return 下载载荷（文件名、MIME 与字节内容）
      */
-    public ArchiveDownloadVO download(Long id, Long fileId) {
-        requireItem(id);
+    public ArchiveDownloadVO download(Long id, Long fileId, boolean secretReadable) {
+        ArchiveItem item = requireItem(id);
+        ensureSecurityVisible(item, secretReadable);
         ArchiveFile file = fileMapper.selectById(fileId);
         if (file == null || !Objects.equals(file.getItemId(), id)) {
             throw new BizException(ErrorCode.NOT_FOUND.getCode(), "档案文件不存在");
@@ -262,17 +276,20 @@ public class ArchiveItemService {
     /**
      * 统计条目总数、各状态数量与年度/密级/门类分布。
      *
+     * <p>统计口径与列表一致：无 {@code sys:archive:secret:read} 权限码时排除秘密级条目。</p>
+     *
+     * @param secretReadable 当前用户是否具备秘密级读取权限
      * @return 统计视图
      */
-    public ArchiveStatsVO stats() {
+    public ArchiveStatsVO stats(boolean secretReadable) {
         ArchiveStatsVO vo = new ArchiveStatsVO();
-        vo.setTotal(itemMapper.selectCount(null));
-        vo.setPending(countByStatus(ArchiveConstants.ITEM_STATUS_PENDING));
-        vo.setArchived(countByStatus(ArchiveConstants.ITEM_STATUS_ARCHIVED));
-        vo.setDestroyed(countByStatus(ArchiveConstants.ITEM_STATUS_DESTROYED));
-        vo.setByYear(groupCount("year"));
-        vo.setBySecurity(groupCount("security_level"));
-        vo.setByCategory(groupCount("category_id"));
+        vo.setTotal(itemMapper.selectCount(securityScopedWrapper(secretReadable)));
+        vo.setPending(countByStatus(ArchiveConstants.ITEM_STATUS_PENDING, secretReadable));
+        vo.setArchived(countByStatus(ArchiveConstants.ITEM_STATUS_ARCHIVED, secretReadable));
+        vo.setDestroyed(countByStatus(ArchiveConstants.ITEM_STATUS_DESTROYED, secretReadable));
+        vo.setByYear(groupCount("year", secretReadable));
+        vo.setBySecurity(groupCount("security_level", secretReadable));
+        vo.setByCategory(groupCount("category_id", secretReadable));
         return vo;
     }
 
@@ -352,10 +369,11 @@ public class ArchiveItemService {
      * 按状态统计条目数量。
      *
      * @param itemStatus 条目状态
+     * @param secretReadable 当前用户是否具备秘密级读取权限
      * @return 数量
      */
-    private Long countByStatus(int itemStatus) {
-        return itemMapper.selectCount(new LambdaQueryWrapper<ArchiveItem>()
+    private Long countByStatus(int itemStatus, boolean secretReadable) {
+        return itemMapper.selectCount(securityScopedWrapper(secretReadable)
                 .eq(ArchiveItem::getItemStatus, itemStatus));
     }
 
@@ -363,19 +381,50 @@ public class ArchiveItemService {
      * 按指定列分组统计数量。
      *
      * @param column 统计列（数据库列名）
+     * @param secretReadable 当前用户是否具备秘密级读取权限
      * @return 分组值 → 数量（保留插入顺序）
      */
-    private Map<String, Long> groupCount(String column) {
-        List<Map<String, Object>> rows = itemMapper.selectMaps(new QueryWrapper<ArchiveItem>()
+    private Map<String, Long> groupCount(String column, boolean secretReadable) {
+        QueryWrapper<ArchiveItem> wrapper = new QueryWrapper<ArchiveItem>()
                 .select(column + " AS " + ALIAS_KEY, "COUNT(*) AS " + ALIAS_COUNT)
                 .groupBy(column)
-                .orderByAsc(column));
+                .orderByAsc(column);
+        if (!secretReadable) {
+            wrapper.lt("security_level", ArchiveConstants.SECURITY_SECRET);
+        }
+        List<Map<String, Object>> rows = itemMapper.selectMaps(wrapper);
         Map<String, Long> result = new LinkedHashMap<>();
         for (Map<String, Object> row : rows) {
             String key = row.get(ALIAS_KEY) == null ? UNKNOWN_GROUP : String.valueOf(row.get(ALIAS_KEY));
             result.put(key, asLong(row.get(ALIAS_COUNT)));
         }
         return result;
+    }
+
+    /**
+     * 构造带密级可见范围的查询条件。
+     *
+     * @param secretReadable 当前用户是否具备秘密级读取权限
+     * @return 查询条件（无权限时追加 {@code security_level < 3}）
+     */
+    private static LambdaQueryWrapper<ArchiveItem> securityScopedWrapper(boolean secretReadable) {
+        LambdaQueryWrapper<ArchiveItem> wrapper = new LambdaQueryWrapper<>();
+        wrapper.lt(!secretReadable, ArchiveItem::getSecurityLevel, ArchiveConstants.SECURITY_SECRET);
+        return wrapper;
+    }
+
+    /**
+     * 校验条目密级对当前用户可见：秘密级且无权限码时按不存在处理，避免泄露条目是否存在。
+     *
+     * @param item 条目实体
+     * @param secretReadable 当前用户是否具备秘密级读取权限
+     * @throws BizException 不可见时抛出 {@code NOT_FOUND}
+     */
+    private static void ensureSecurityVisible(ArchiveItem item, boolean secretReadable) {
+        if (!secretReadable && item.getSecurityLevel() != null
+                && item.getSecurityLevel() >= ArchiveConstants.SECURITY_SECRET) {
+            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "档案条目不存在");
+        }
     }
 
     /**

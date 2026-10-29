@@ -11,13 +11,13 @@ import com.bluewhale.file.vo.FileUploadVO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
+import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 
 import static org.hamcrest.Matchers.containsString;
@@ -82,11 +82,12 @@ class FileControllerTest {
     @Test
     @DisplayName("GET /file/{id}/preview：PDF 以 inline 呈现并带 nosniff")
     void previewPdfShouldBeInline() throws Exception {
-        when(fileInfoService.getDetail(FILE_ID)).thenReturn(fileInfo("application/pdf"));
-        when(fileInfoService.loadResource(FILE_ID))
-                .thenReturn(new ByteArrayResource("hello".getBytes(StandardCharsets.UTF_8)));
+        when(fileInfoService.getDetail(FILE_ID, UPLOADER_ID, false)).thenReturn(fileInfo("application/pdf"));
+        when(fileInfoService.openContent(FILE_ID, UPLOADER_ID, false))
+                .thenReturn(new ByteArrayInputStream("hello".getBytes(StandardCharsets.UTF_8)));
 
-        mockMvc.perform(get("/file/{id}/preview", FILE_ID))
+        mockMvc.perform(get("/file/{id}/preview", FILE_ID)
+                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID)))
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, containsString("inline")))
                 .andExpect(header().string("X-Content-Type-Options", "nosniff"))
@@ -96,11 +97,12 @@ class FileControllerTest {
     @Test
     @DisplayName("GET /file/{id}/preview：非安全类型回落 attachment")
     void previewUnsafeTypeShouldFallbackToAttachment() throws Exception {
-        when(fileInfoService.getDetail(FILE_ID)).thenReturn(fileInfo("application/zip"));
-        when(fileInfoService.loadResource(FILE_ID))
-                .thenReturn(new ByteArrayResource("hello".getBytes(StandardCharsets.UTF_8)));
+        when(fileInfoService.getDetail(FILE_ID, UPLOADER_ID, false)).thenReturn(fileInfo("application/zip"));
+        when(fileInfoService.openContent(FILE_ID, UPLOADER_ID, false))
+                .thenReturn(new ByteArrayInputStream("hello".getBytes(StandardCharsets.UTF_8)));
 
-        mockMvc.perform(get("/file/{id}/preview", FILE_ID))
+        mockMvc.perform(get("/file/{id}/preview", FILE_ID)
+                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID)))
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, containsString("attachment")))
                 .andExpect(header().string("X-Content-Type-Options", "nosniff"));
@@ -159,11 +161,12 @@ class FileControllerTest {
     @Test
     @DisplayName("GET /file/{id}/preview：MIME 类型大小写不敏感，text/plain 仍 inline")
     void previewShouldMatchContentTypeCaseInsensitively() throws Exception {
-        when(fileInfoService.getDetail(FILE_ID)).thenReturn(fileInfo("TEXT/PLAIN"));
-        when(fileInfoService.loadResource(FILE_ID))
-                .thenReturn(new ByteArrayResource("hello".getBytes(StandardCharsets.UTF_8)));
+        when(fileInfoService.getDetail(FILE_ID, UPLOADER_ID, false)).thenReturn(fileInfo("TEXT/PLAIN"));
+        when(fileInfoService.openContent(FILE_ID, UPLOADER_ID, false))
+                .thenReturn(new ByteArrayInputStream("hello".getBytes(StandardCharsets.UTF_8)));
 
-        mockMvc.perform(get("/file/{id}/preview", FILE_ID))
+        mockMvc.perform(get("/file/{id}/preview", FILE_ID)
+                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID)))
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, containsString("inline")));
     }
@@ -171,11 +174,12 @@ class FileControllerTest {
     @Test
     @DisplayName("GET /file/{id}/preview：MIME 类型缺失时回落 attachment 与 octet-stream")
     void previewShouldFallbackWhenContentTypeMissing() throws Exception {
-        when(fileInfoService.getDetail(FILE_ID)).thenReturn(fileInfo(""));
-        when(fileInfoService.loadResource(FILE_ID))
-                .thenReturn(new ByteArrayResource("hello".getBytes(StandardCharsets.UTF_8)));
+        when(fileInfoService.getDetail(FILE_ID, UPLOADER_ID, false)).thenReturn(fileInfo(""));
+        when(fileInfoService.openContent(FILE_ID, UPLOADER_ID, false))
+                .thenReturn(new ByteArrayInputStream("hello".getBytes(StandardCharsets.UTF_8)));
 
-        mockMvc.perform(get("/file/{id}/preview", FILE_ID))
+        mockMvc.perform(get("/file/{id}/preview", FILE_ID)
+                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID)))
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, containsString("attachment")))
                 .andExpect(header().string(HttpHeaders.CONTENT_TYPE, containsString("application/octet-stream")));
@@ -186,11 +190,12 @@ class FileControllerTest {
     void previewShouldUseFallbackFilename() throws Exception {
         FileInfoVO info = fileInfo("application/pdf");
         info.setOriginalName(null);
-        when(fileInfoService.getDetail(FILE_ID)).thenReturn(info);
-        when(fileInfoService.loadResource(FILE_ID))
-                .thenReturn(new ByteArrayResource("hello".getBytes(StandardCharsets.UTF_8)));
+        when(fileInfoService.getDetail(FILE_ID, UPLOADER_ID, false)).thenReturn(info);
+        when(fileInfoService.openContent(FILE_ID, UPLOADER_ID, false))
+                .thenReturn(new ByteArrayInputStream("hello".getBytes(StandardCharsets.UTF_8)));
 
-        mockMvc.perform(get("/file/{id}/preview", FILE_ID))
+        mockMvc.perform(get("/file/{id}/preview", FILE_ID)
+                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID)))
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, containsString("download")));
     }

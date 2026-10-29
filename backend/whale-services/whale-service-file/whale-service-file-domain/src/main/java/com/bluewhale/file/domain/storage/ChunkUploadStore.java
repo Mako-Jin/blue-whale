@@ -53,7 +53,7 @@ public interface ChunkUploadStore {
      * @param sessionId 会话标识
      * @param partCount 期望的分片数量
      * @return 合并结果（内容流由调用方关闭）
-     * @throws com.bluewhale.common.core.exception.BizException 会话不存在或分片缺失时抛出 {@code PARAM_ERROR}
+     * @throws com.bluewhale.common.domain.exception.DomainException 会话不存在或分片缺失时抛出 {@code PARAM_ERROR}
      */
     MergedChunkUpload merge(ChunkUploadSessionId sessionId, int partCount);
 

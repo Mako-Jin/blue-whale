@@ -1,5 +1,7 @@
 package com.bluewhale.auth.domain.event;
 
+import com.bluewhale.common.domain.event.DomainEvent;
+
 /**
  * 认证权限域领域事件（AUTH-17 / T-DDD-11）。
  *
@@ -8,7 +10,7 @@ package com.bluewhale.auth.domain.event;
  *
  * @author BlueWhale
  */
-public sealed interface AuthDomainEvent
+public sealed interface AuthDomainEvent extends DomainEvent
         permits UserDomainEvent, RoleDomainEvent, PermissionDomainEvent, MenuDomainEvent,
         DeptDomainEvent, UserPermissionDomainEvent {
 

@@ -1,7 +1,8 @@
 package com.bluewhale.auth.domain.model.vo;
 
-import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.domain.exception.DomainException;
+import com.bluewhale.common.domain.valueobject.ValueObject;
 
 import java.util.regex.Pattern;
 
@@ -11,7 +12,7 @@ import java.util.regex.Pattern;
  * @param value 角色编码字面值（如 {@code super_admin}）
  * @author BlueWhale
  */
-public record RoleCode(String value) {
+public record RoleCode(String value) implements ValueObject {
 
     private static final Pattern PATTERN = Pattern.compile("^[a-z][a-z0-9_]{1,63}$");
 
@@ -22,7 +23,7 @@ public record RoleCode(String value) {
      */
     public RoleCode {
         if (value == null || !PATTERN.matcher(value).matches()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
+            throw new DomainException(ErrorCode.PARAM_ERROR,
                     "角色编码须为 2-64 位，小写字母开头，仅含小写字母、数字与下划线");
         }
     }

@@ -1,6 +1,8 @@
 package com.bluewhale.auth.application.tenant;
 
 import com.bluewhale.auth.application.tenant.command.CreateTenantCommand;
+import com.bluewhale.auth.application.tenant.port.TenantStatusSyncPort;
+import com.bluewhale.auth.application.user.port.PasswordHasher;
 import com.bluewhale.auth.domain.dept.aggregate.Dept;
 import com.bluewhale.auth.domain.dept.repository.DeptRepository;
 import com.bluewhale.auth.domain.menu.aggregate.Menu;
@@ -24,7 +26,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -79,10 +80,10 @@ class TenantProvisioningAppServiceTest {
     private PermissionRepository permissionRepository;
 
     @Mock
-    private PasswordEncoder passwordEncoder;
+    private PasswordHasher passwordHasher;
 
     @Mock
-    private TenantStatusCache tenantStatusCache;
+    private TenantStatusSyncPort tenantStatusSync;
 
     @Mock
     private TenantMembershipAppService tenantMembershipAppService;
@@ -131,7 +132,7 @@ class TenantProvisioningAppServiceTest {
                     draft.getNickname(), draft.getPhone(), draft.getEmail(), draft.getDeptId(), draft.getStatus(),
                     draft.getCreateTime(), draft.getUpdateTime());
         });
-        when(passwordEncoder.encode("initPwd")).thenReturn(CIPHER);
+        when(passwordHasher.encode("initPwd")).thenReturn(CIPHER);
 
         TenantVO result = service.provision(new CreateTenantCommand("acme", "ACME",
                 LocalDateTime.now().plusDays(30), "{\"maxUser\":10}", "admin", "initPwd", "管理员"));
@@ -198,7 +199,7 @@ class TenantProvisioningAppServiceTest {
                     draft.getNickname(), draft.getPhone(), draft.getEmail(), draft.getDeptId(), draft.getStatus(),
                     draft.getCreateTime(), draft.getUpdateTime());
         });
-        when(passwordEncoder.encode("initPwd")).thenReturn(CIPHER);
+        when(passwordHasher.encode("initPwd")).thenReturn(CIPHER);
 
         service.provision(new CreateTenantCommand("acme", "ACME", null, null, "admin", "initPwd", "管理员"));
 
@@ -272,7 +273,7 @@ class TenantProvisioningAppServiceTest {
                     draft.getNickname(), draft.getPhone(), draft.getEmail(), draft.getDeptId(), draft.getStatus(),
                     draft.getCreateTime(), draft.getUpdateTime());
         });
-        when(passwordEncoder.encode("initPwd")).thenReturn(CIPHER);
+        when(passwordHasher.encode("initPwd")).thenReturn(CIPHER);
 
         service.provision(new CreateTenantCommand("acme", "ACME", null, null, "admin", "initPwd", "管理员"));
 
@@ -300,7 +301,7 @@ class TenantProvisioningAppServiceTest {
         assertTrue(ex.getMessage().contains("租户编码已存在"));
         verify(tenantRepository, never()).save(any(Tenant.class));
         verifyNoInteractions(deptRepository, menuRepository, roleRepository, userRepository,
-                permissionRepository, passwordEncoder);
+                permissionRepository, passwordHasher);
     }
 
     @Test
@@ -314,7 +315,7 @@ class TenantProvisioningAppServiceTest {
 
         assertEquals(403, ex.getCode());
         verifyNoInteractions(tenantRepository, deptRepository, menuRepository, roleRepository, userRepository,
-                permissionRepository, passwordEncoder);
+                permissionRepository, passwordHasher);
     }
 
     private static Tenant platformTenant() {

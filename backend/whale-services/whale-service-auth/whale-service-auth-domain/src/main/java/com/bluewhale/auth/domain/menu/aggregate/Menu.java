@@ -1,7 +1,8 @@
 package com.bluewhale.auth.domain.menu.aggregate;
 
-import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.domain.exception.DomainException;
+import com.bluewhale.common.domain.model.Entity;
 
 import java.time.LocalDateTime;
 
@@ -16,7 +17,7 @@ import java.time.LocalDateTime;
  *
  * @author BlueWhale
  */
-public class Menu {
+public class Menu implements Entity<Long> {
 
     /** 菜单类型：目录 */
     public static final String MENU_TYPE_DIR = "DIR";
@@ -70,22 +71,22 @@ public class Menu {
                  int sort, String menuType, String permissionCode, int visible, int status,
                  LocalDateTime createTime, LocalDateTime updateTime) {
         if (tenantId == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "菜单所属租户不能为空");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "菜单所属租户不能为空");
         }
         if (parentId == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "父菜单 ID 不能为空（0 表示顶级）");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "父菜单 ID 不能为空（0 表示顶级）");
         }
         if (name == null || name.isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "菜单名称不能为空");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "菜单名称不能为空");
         }
         if (!MENU_TYPE_DIR.equals(menuType) && !MENU_TYPE_MENU.equals(menuType)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "菜单类型非法，仅支持 DIR（目录）/ MENU（菜单）");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "菜单类型非法，仅支持 DIR（目录）/ MENU（菜单）");
         }
         if (visible != VISIBLE_SHOWN && visible != VISIBLE_HIDDEN) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "可见性非法，仅支持 1（显示）/ 0（隐藏）");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "可见性非法，仅支持 1（显示）/ 0（隐藏）");
         }
         if (status != STATUS_ENABLED && status != STATUS_DISABLED) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "状态值非法，仅支持 1（启用）/ 0（停用）");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "状态值非法，仅支持 1（启用）/ 0（停用）");
         }
         this.id = id;
         this.tenantId = tenantId;
@@ -165,7 +166,7 @@ public class Menu {
      */
     public void moveTo(Long parentId) {
         if (parentId == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "父菜单 ID 不能为空（0 表示顶级）");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "父菜单 ID 不能为空（0 表示顶级）");
         }
         this.parentId = parentId;
         this.updateTime = LocalDateTime.now();
@@ -178,7 +179,7 @@ public class Menu {
      */
     public void rename(String name) {
         if (name == null || name.isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "菜单名称不能为空");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "菜单名称不能为空");
         }
         this.name = name;
         this.updateTime = LocalDateTime.now();
@@ -215,7 +216,7 @@ public class Menu {
      */
     public void changeMenuType(String menuType) {
         if (!MENU_TYPE_DIR.equals(menuType) && !MENU_TYPE_MENU.equals(menuType)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "菜单类型非法，仅支持 DIR（目录）/ MENU（菜单）");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "菜单类型非法，仅支持 DIR（目录）/ MENU（菜单）");
         }
         this.menuType = menuType;
         this.updateTime = LocalDateTime.now();
@@ -238,7 +239,7 @@ public class Menu {
      */
     public void changeVisible(int visible) {
         if (visible != VISIBLE_SHOWN && visible != VISIBLE_HIDDEN) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "可见性非法，仅支持 1（显示）/ 0（隐藏）");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "可见性非法，仅支持 1（显示）/ 0（隐藏）");
         }
         this.visible = visible;
         this.updateTime = LocalDateTime.now();
@@ -251,7 +252,7 @@ public class Menu {
      */
     public void changeStatus(int status) {
         if (status != STATUS_ENABLED && status != STATUS_DISABLED) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "状态值非法，仅支持 1（启用）/ 0（停用）");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "状态值非法，仅支持 1（启用）/ 0（停用）");
         }
         this.status = status;
         this.updateTime = LocalDateTime.now();

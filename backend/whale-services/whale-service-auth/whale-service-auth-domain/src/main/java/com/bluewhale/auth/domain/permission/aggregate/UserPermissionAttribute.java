@@ -1,7 +1,8 @@
 package com.bluewhale.auth.domain.permission.aggregate;
 
-import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.domain.exception.DomainException;
+import com.bluewhale.common.domain.model.Entity;
 
 /**
  * 用户 ABAC 属性小聚合（对应 {@code sys_user_permission}，REQ-ARCH-001 / T-DDD-9）。
@@ -14,7 +15,7 @@ import com.bluewhale.common.core.exception.ErrorCode;
  *
  * @author BlueWhale
  */
-public class UserPermissionAttribute {
+public class UserPermissionAttribute implements Entity<Long> {
 
     private final Long id;
     private final Long userId;
@@ -33,13 +34,13 @@ public class UserPermissionAttribute {
      */
     private UserPermissionAttribute(Long id, Long userId, Long permissionId, String attrKey, String attrValue) {
         if (userId == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "用户 ID 不能为空");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "用户 ID 不能为空");
         }
         if (permissionId == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "权限点 ID 不能为空");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "权限点 ID 不能为空");
         }
         if (attrKey == null || attrKey.isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "属性键不能为空");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "属性键不能为空");
         }
         this.id = id;
         this.userId = userId;

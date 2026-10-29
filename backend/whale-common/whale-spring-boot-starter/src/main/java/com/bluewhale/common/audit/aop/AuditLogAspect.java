@@ -225,7 +225,7 @@ public class AuditLogAspect {
         record.setTraceId(resolveTraceId(request));
         record.setTenantId(resolveTenantId(request));
         record.setUserId(resolveUserId(request));
-        record.setUsername(headerOrNull(request, USERNAME_HEADER));
+        record.setUsername(resolveUsername(request));
         record.setModule(resolveModule(auditLog));
         record.setOperation(auditLog.operation());
         record.setOperateType(auditLog.type().name());
@@ -254,10 +254,19 @@ public class AuditLogAspect {
         return environment.getProperty("spring.application.name");
     }
 
-    /** traceId：请求头优先，缺失则按网关同规格生成 32 位无横线 UUID */
+    /** traceId：请求上下文优先，其次请求头，均缺失时按网关同规格生成 32 位无横线 UUID */
     private static String resolveTraceId(HttpServletRequest request) {
-        String traceId = headerOrNull(request, TRACE_ID_HEADER);
+        String traceId = com.bluewhale.common.context.RequestContextHolder.getTraceId();
+        if (traceId == null) {
+            traceId = headerOrNull(request, TRACE_ID_HEADER);
+        }
         return traceId != null ? traceId : UUID.randomUUID().toString().replace("-", "");
+    }
+
+    /** 用户名：请求上下文优先，其次网关注入头 */
+    private static String resolveUsername(HttpServletRequest request) {
+        String username = com.bluewhale.common.context.RequestContextHolder.getUsername();
+        return username != null ? username : headerOrNull(request, USERNAME_HEADER);
     }
 
     /**
@@ -267,6 +276,10 @@ public class AuditLogAspect {
      * @return 租户 ID；缺失或非法时返回 {@link #UNKNOWN_TENANT_ID}
      */
     private static Long resolveTenantId(HttpServletRequest request) {
+        Long contextTenantId = com.bluewhale.common.context.RequestContextHolder.getTenantId();
+        if (contextTenantId != null) {
+            return contextTenantId;
+        }
         String tenantId = headerOrNull(request, TENANT_ID_HEADER);
         if (tenantId == null) {
             return UNKNOWN_TENANT_ID;
@@ -279,8 +292,12 @@ public class AuditLogAspect {
         }
     }
 
-    /** 用户ID：取网关注入头，非数字视为未提供 */
+    /** 用户ID：请求上下文优先，其次网关注入头，非数字视为未提供 */
     private static Long resolveUserId(HttpServletRequest request) {
+        Long contextUserId = com.bluewhale.common.context.RequestContextHolder.getUserId();
+        if (contextUserId != null) {
+            return contextUserId;
+        }
         String userId = headerOrNull(request, USER_ID_HEADER);
         if (userId == null) {
             return null;

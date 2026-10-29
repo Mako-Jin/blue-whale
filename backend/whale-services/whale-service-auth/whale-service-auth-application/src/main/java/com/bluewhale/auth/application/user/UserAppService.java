@@ -8,6 +8,7 @@ import com.bluewhale.auth.application.user.command.ChangeUserStatusCommand;
 import com.bluewhale.auth.application.user.command.CreateUserCommand;
 import com.bluewhale.auth.application.user.command.UpdateUserCommand;
 import com.bluewhale.auth.application.user.query.UserPageQuery;
+import com.bluewhale.auth.application.user.port.PasswordHasher;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.UserDomainEvent;
 import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
@@ -20,7 +21,6 @@ import com.bluewhale.auth.vo.UserVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -53,8 +53,8 @@ public class UserAppService {
     /** Role 聚合仓储（仅用于校验待分配角色是否全部有效） */
     private final RoleRepository roleRepository;
 
-    /** 口令加密器（明文口令落库前统一加密） */
-    private final PasswordEncoder passwordEncoder;
+    /** 口令加密端口（明文口令落库前统一加密） */
+    private final PasswordHasher passwordHasher;
 
     /** 领域事件发布端口（缓存失效等副作用由基础设施层监听） */
     private final DomainEventPublisher domainEventPublisher;
@@ -67,16 +67,16 @@ public class UserAppService {
      *
      * @param userRepository 用户聚合仓储
      * @param roleRepository 角色聚合仓储
-     * @param passwordEncoder 口令加密器
+     * @param passwordHasher 口令加密端口
      * @param domainEventPublisher 领域事件发布端口
      * @param tenantMembershipAppService 用户-租户关系服务
      */
     public UserAppService(UserRepository userRepository, RoleRepository roleRepository,
-                          PasswordEncoder passwordEncoder, DomainEventPublisher domainEventPublisher,
+                          PasswordHasher passwordHasher, DomainEventPublisher domainEventPublisher,
                           TenantMembershipAppService tenantMembershipAppService) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
-        this.passwordEncoder = passwordEncoder;
+        this.passwordHasher = passwordHasher;
         this.domainEventPublisher = domainEventPublisher;
         this.tenantMembershipAppService = tenantMembershipAppService;
     }
@@ -116,7 +116,7 @@ public class UserAppService {
         if (userRepository.existsByUsername(tenantId, username.value())) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "用户名已存在");
         }
-        EncryptedPassword password = EncryptedPassword.of(passwordEncoder.encode(command.rawPassword()));
+        EncryptedPassword password = EncryptedPassword.of(passwordHasher.encode(command.rawPassword()));
         User user = User.create(tenantId, username, password, command.nickname(), command.phone(),
                 command.email(), command.avatar(), command.deptId(), command.status());
         // 保存并回填数据库生成的主键与时间戳
@@ -139,7 +139,7 @@ public class UserAppService {
         int previousStatus = user.getStatus();
         boolean passwordChanged = command.rawPassword() != null && !command.rawPassword().isBlank();
         if (passwordChanged) {
-            user.changePassword(EncryptedPassword.of(passwordEncoder.encode(command.rawPassword())));
+            user.changePassword(EncryptedPassword.of(passwordHasher.encode(command.rawPassword())));
             // T-03：改密成功后清除强制首登改密标记
             user.clearMustChangePassword();
         }
@@ -188,7 +188,7 @@ public class UserAppService {
      */
     public void changePassword(Long id, ChangeUserPasswordCommand command) {
         User user = requireUser(id);
-        user.changePassword(EncryptedPassword.of(passwordEncoder.encode(command.rawPassword())));
+        user.changePassword(EncryptedPassword.of(passwordHasher.encode(command.rawPassword())));
         // T-03：改密成功后清除强制首登改密标记
         user.clearMustChangePassword();
         userRepository.save(user);

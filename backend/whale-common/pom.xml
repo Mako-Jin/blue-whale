@@ -18,6 +18,7 @@
 
     <modules>
         <module>whale-common-core</module>
+        <module>whale-common-domain</module>
         <module>whale-tools</module>
         <module>whale-security</module>
         <module>whale-spring-boot-starter</module>

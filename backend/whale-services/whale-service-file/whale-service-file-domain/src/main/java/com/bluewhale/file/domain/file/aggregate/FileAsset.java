@@ -1,7 +1,8 @@
 package com.bluewhale.file.domain.file.aggregate;
 
-import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.domain.exception.DomainException;
+import com.bluewhale.common.domain.model.Entity;
 import com.bluewhale.file.domain.model.vo.FileStatus;
 
 import java.time.LocalDateTime;
@@ -17,7 +18,7 @@ import java.time.LocalDateTime;
  *
  * @author BlueWhale
  */
-public class FileAsset {
+public class FileAsset implements Entity<Long> {
 
     /** 对象键租户目录前缀：存储层按 {@code tenants/{tenantId}/...} 隔离 */
     private static final String TENANT_KEY_PREFIX = "tenants/";
@@ -88,10 +89,10 @@ public class FileAsset {
                       long fileSize, String contentType, String md5, FileStatus status, Long uploaderId,
                       boolean deleted, LocalDateTime createTime, LocalDateTime updateTime) {
         if (bucket == null || bucket.isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "对象存储桶名称不能为空");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "对象存储桶名称不能为空");
         }
         if (objectKey == null || objectKey.isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "对象键不能为空");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "对象键不能为空");
         }
         this.id = id;
         this.fileName = fileName == null || fileName.isBlank() ? tailOf(objectKey) : fileName;
@@ -119,15 +120,15 @@ public class FileAsset {
      * @param md5 MD5 摘要（十六进制小写）
      * @param uploaderId 上传用户 ID，可为 {@code null}
      * @return 新建的文件资产聚合根
-     * @throws BizException 原始文件名为空或文件大小非正数时抛出 {@code PARAM_ERROR}
+     * @throws DomainException 原始文件名为空或文件大小非正数时抛出 {@code PARAM_ERROR}
      */
     public static FileAsset register(String bucket, String objectKey, String originalName, long fileSize,
                                      String contentType, String md5, Long uploaderId) {
         if (originalName == null || originalName.isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "原始文件名不能为空");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "原始文件名不能为空");
         }
         if (fileSize <= 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "文件大小必须大于 0");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "文件大小必须大于 0");
         }
         LocalDateTime now = LocalDateTime.now();
         return new FileAsset(null, null, originalName, bucket, objectKey, fileSize, contentType, md5,
@@ -142,11 +143,11 @@ public class FileAsset {
      * @param contentType 本次请求的 MIME 类型；为空时沿用 {@code source} 的类型
      * @param uploaderId 上传用户 ID，可为 {@code null}
      * @return 新建的文件资产聚合根
-     * @throws BizException 源文件资产为空时抛出 {@code SYSTEM_ERROR}
+     * @throws DomainException 源文件资产为空时抛出 {@code SYSTEM_ERROR}
      */
     public static FileAsset reuse(FileAsset source, String originalName, String contentType, Long uploaderId) {
         if (source == null) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "复用的文件对象不能为空");
+            throw new DomainException(ErrorCode.SYSTEM_ERROR, "复用的文件对象不能为空");
         }
         String resolvedContentType = contentType == null || contentType.isBlank()
                 ? source.contentType : contentType;
@@ -187,14 +188,14 @@ public class FileAsset {
      * <p>幂等：已锁定返回 {@code false} 且不改变状态；禁用文件不可锁定。</p>
      *
      * @return 状态是否发生变化（需要持久化）
-     * @throws BizException 文件已禁用时抛出 {@code PARAM_ERROR}
+     * @throws DomainException 文件已禁用时抛出 {@code PARAM_ERROR}
      */
     public boolean lock() {
         if (status == FileStatus.LOCKED) {
             return false;
         }
         if (status != FileStatus.NORMAL) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "文件已禁用，不可锁定");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "文件已禁用，不可锁定");
         }
         this.status = FileStatus.LOCKED;
         touch();
@@ -220,11 +221,11 @@ public class FileAsset {
     /**
      * 行为：删除前校验聚合可删除性
      *
-     * @throws BizException 文件已归档锁定时抛出 {@code PARAM_ERROR}
+     * @throws DomainException 文件已归档锁定时抛出 {@code PARAM_ERROR}
      */
     public void assertDeletable() {
         if (status == FileStatus.LOCKED) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "文件已归档锁定，禁止删除");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "文件已归档锁定，禁止删除");
         }
     }
 

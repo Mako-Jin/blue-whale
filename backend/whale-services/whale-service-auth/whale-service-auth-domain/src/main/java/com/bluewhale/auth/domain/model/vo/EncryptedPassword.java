@@ -1,7 +1,8 @@
 package com.bluewhale.auth.domain.model.vo;
 
-import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.domain.exception.DomainException;
+import com.bluewhale.common.domain.valueobject.ValueObject;
 
 /**
  * 口令密文值对象：仅承载已加密的口令，禁止承载明文。
@@ -11,7 +12,7 @@ import com.bluewhale.common.core.exception.ErrorCode;
  * @param value 加密后的口令（如 BCrypt 密文）
  * @author BlueWhale
  */
-public record EncryptedPassword(String value) {
+public record EncryptedPassword(String value) implements ValueObject {
 
     /**
      * 紧凑构造器：校验口令密文非空，空值直接抛出参数异常
@@ -20,7 +21,7 @@ public record EncryptedPassword(String value) {
      */
     public EncryptedPassword {
         if (value == null || value.isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "口令密文不能为空");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "口令密文不能为空");
         }
     }
 

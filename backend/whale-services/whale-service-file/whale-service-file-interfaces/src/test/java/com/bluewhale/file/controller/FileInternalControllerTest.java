@@ -8,11 +8,11 @@ import com.bluewhale.file.vo.FileInfoVO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -119,9 +119,9 @@ class FileInternalControllerTest {
     @Test
     @DisplayName("GET /file/internal/{id}/content：附件下载并带 nosniff")
     void contentShouldBeAttachment() throws Exception {
-        when(fileInfoService.getDetail(FILE_ID)).thenReturn(fileInfo("sample.pdf", "application/pdf"));
-        when(fileInfoService.loadResource(FILE_ID))
-                .thenReturn(new ByteArrayResource("hello".getBytes(StandardCharsets.UTF_8)));
+        when(fileInfoService.getDetail(FILE_ID, null, true)).thenReturn(fileInfo("sample.pdf", "application/pdf"));
+        when(fileInfoService.openContent(FILE_ID, null, true))
+                .thenReturn(new ByteArrayInputStream("hello".getBytes(StandardCharsets.UTF_8)));
 
         mockMvc.perform(get("/file/internal/{id}/content", FILE_ID))
                 .andExpect(status().isOk())
@@ -135,9 +135,9 @@ class FileInternalControllerTest {
     @Test
     @DisplayName("GET /file/internal/{id}/content：文件名与 MIME 类型缺失时回落")
     void contentShouldFallbackFilenameAndMediaType() throws Exception {
-        when(fileInfoService.getDetail(FILE_ID)).thenReturn(fileInfo(null, "not-a-media-type"));
-        when(fileInfoService.loadResource(FILE_ID))
-                .thenReturn(new ByteArrayResource("hello".getBytes(StandardCharsets.UTF_8)));
+        when(fileInfoService.getDetail(FILE_ID, null, true)).thenReturn(fileInfo(null, "not-a-media-type"));
+        when(fileInfoService.openContent(FILE_ID, null, true))
+                .thenReturn(new ByteArrayInputStream("hello".getBytes(StandardCharsets.UTF_8)));
 
         mockMvc.perform(get("/file/internal/{id}/content", FILE_ID))
                 .andExpect(status().isOk())

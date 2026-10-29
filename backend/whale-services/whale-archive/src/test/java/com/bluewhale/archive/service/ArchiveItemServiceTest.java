@@ -1,6 +1,8 @@
 package com.bluewhale.archive.service;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.archive.client.FileArchiveClient;
 import com.bluewhale.archive.client.WorkflowArchiveClient;
@@ -17,6 +19,7 @@ import com.bluewhale.archive.vo.ArchiveItemVO;
 import com.bluewhale.archive.vo.ArchiveStatsVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.result.PageResult;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,14 +36,17 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -52,6 +58,14 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class ArchiveItemServiceTest {
+
+    /**
+     * 单元测试无 MyBatis 上下文：手动初始化表信息，使 Lambda 条件可生成 SQL 片段用于断言。
+     */
+    static {
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""),
+                ArchiveItem.class);
+    }
 
     /** 条目ID */
     private static final long ITEM_ID = 100L;
@@ -139,7 +153,7 @@ class ArchiveItemServiceTest {
         when(itemMapper.selectPage(any(), any())).thenReturn(page);
         when(categoryMapper.selectBatchIds(any())).thenReturn(List.of(enabledCategory()));
 
-        PageResult<ArchiveItemVO> result = itemService.page(request);
+        PageResult<ArchiveItemVO> result = itemService.page(request, false);
 
         ArgumentCaptor<Page<ArchiveItem>> captor = ArgumentCaptor.forClass(Page.class);
         verify(itemMapper).selectPage(captor.capture(), nullable(Wrapper.class));
@@ -265,8 +279,49 @@ class ArchiveItemServiceTest {
         file.setItemId(999L);
         when(fileMapper.selectById(FILE_REF_ID)).thenReturn(file);
 
-        assertThrows(BizException.class, () -> itemService.download(ITEM_ID, FILE_REF_ID));
+        assertThrows(BizException.class, () -> itemService.download(ITEM_ID, FILE_REF_ID, false));
         verify(fileClient, never()).content(anyLong());
+    }
+
+    @Test
+    @DisplayName("详情：秘密级条目无秘密级权限时按不存在处理，有权限时可见")
+    void detailShouldHideSecretItemWithoutPermission() {
+        ArchiveItem item = pendingItem();
+        item.setSecurityLevel(ArchiveConstants.SECURITY_SECRET);
+        when(itemMapper.selectById(ITEM_ID)).thenReturn(item);
+
+        BizException ex = assertThrows(BizException.class, () -> itemService.detail(ITEM_ID, false));
+        assertEquals(404, ex.getCode());
+
+        assertNotNull(itemService.detail(ITEM_ID, true).getItem());
+    }
+
+    @Test
+    @DisplayName("下载：秘密级条目无秘密级权限时不调用文件服务")
+    void downloadShouldBlockSecretItemWithoutPermission() {
+        ArchiveItem item = pendingItem();
+        item.setSecurityLevel(ArchiveConstants.SECURITY_SECRET);
+        when(itemMapper.selectById(ITEM_ID)).thenReturn(item);
+        when(fileMapper.selectById(FILE_REF_ID)).thenReturn(fileRef());
+
+        assertThrows(BizException.class, () -> itemService.download(ITEM_ID, FILE_REF_ID, false));
+        verify(fileClient, never()).content(anyLong());
+    }
+
+    @Test
+    @DisplayName("分页：无秘密级权限时 SQL 追加 security_level 过滤，有权限时不追加")
+    void pageShouldScopeSecretItemsByPermission() {
+        ArchiveItemQueryRequest request = new ArchiveItemQueryRequest();
+        when(itemMapper.selectPage(any(), any())).thenReturn(new Page<>(1, 10));
+
+        ArgumentCaptor<Wrapper<ArchiveItem>> captor = ArgumentCaptor.forClass(Wrapper.class);
+        itemService.page(request, false);
+        verify(itemMapper).selectPage(any(), captor.capture());
+        assertTrue(captor.getValue().getSqlSegment().contains("security_level <"));
+
+        itemService.page(request, true);
+        verify(itemMapper, times(2)).selectPage(any(), captor.capture());
+        assertFalse(captor.getValue().getSqlSegment().contains("security_level <"));
     }
 
     @Test
@@ -278,7 +333,7 @@ class ArchiveItemServiceTest {
                 .thenReturn(List.of(row(ArchiveConstants.SECURITY_INTERNAL, 7L)))
                 .thenReturn(List.of(row(CATEGORY_ID, 8L)));
 
-        ArchiveStatsVO stats = itemService.stats();
+        ArchiveStatsVO stats = itemService.stats(false);
 
         assertEquals(10L, stats.getTotal());
         assertEquals(3L, stats.getPending());

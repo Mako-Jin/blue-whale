@@ -1,6 +1,8 @@
 package com.bluewhale.auth.application.tenant;
 
 import com.bluewhale.auth.application.tenant.command.CreateTenantCommand;
+import com.bluewhale.auth.application.tenant.port.TenantStatusSyncPort;
+import com.bluewhale.auth.application.user.port.PasswordHasher;
 import com.bluewhale.auth.domain.dept.aggregate.Dept;
 import com.bluewhale.auth.domain.dept.repository.DeptRepository;
 import com.bluewhale.auth.domain.menu.aggregate.Menu;
@@ -22,7 +24,6 @@ import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.lock.annotation.DistributedLock;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -90,8 +91,8 @@ public class TenantProvisioningAppService {
     private final RoleRepository roleRepository;
     private final UserRepository userRepository;
     private final PermissionRepository permissionRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final TenantStatusCache tenantStatusCache;
+    private final PasswordHasher passwordHasher;
+    private final TenantStatusSyncPort tenantStatusSync;
     private final TenantMembershipAppService tenantMembershipAppService;
 
     /**
@@ -139,12 +140,12 @@ public class TenantProvisioningAppService {
 
         // 5. 初始管理员：归属根部门并绑定默认角色
         User admin = userRepository.save(User.create(tenantId, adminUsername,
-                EncryptedPassword.of(passwordEncoder.encode(command.rawPassword())), command.adminNickname(),
+                EncryptedPassword.of(passwordHasher.encode(command.rawPassword())), command.adminNickname(),
                 null, null, null, rootDept.getId(), User.STATUS_ENABLED));
         userRepository.replaceRoles(admin.getId(), List.of(adminRole.getId()));
         // 一人多租户：初始管理员的首页租户即新开通租户
         tenantMembershipAppService.ensureHomeMembership(admin.getId(), tenantId);
-        tenantStatusCache.sync(tenant);
+        tenantStatusSync.sync(tenant);
 
         log.info("租户开通完成: tenantId={}, tenantCode={}, adminUserId={}, permissionCount={}",
                 tenantId, tenantCode, admin.getId(), permissionIds.size());

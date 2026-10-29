@@ -481,6 +481,14 @@ VALUES
     (34, 0, 'sys:file:list', '文件列表', 'API', '/file/page', 'GET', 34, 1),
     (35, 0, 'sys:file:delete', '文件删除', 'API', '/file/{id}', 'DELETE', 35, 1);
 
+-- 文件管理权限点（密级/归属隔离补齐）：持有者可查看、下载、删除全租户文件；
+-- 无此码时列表与详情/下载/预签名/删除均仅限本人上传的文件（服务间上传的文件维持租户可见）。
+INSERT INTO sys_permission
+    (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+VALUES
+    (280, 0, 'sys:file:manage', '管理全租户文件', 'API',
+     '/file/page,/file/{id}/download,/file/{id}/preview,/file/{id}/presigned,/file/{id}', 'GET,DELETE', 280, 1);
+
 -- 表单服务权限点：与 whale-form 接口 @RequirePermission("sys:form:*") 一一对应
 INSERT INTO sys_permission
     (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)

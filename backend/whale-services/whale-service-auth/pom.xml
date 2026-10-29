@@ -27,5 +27,11 @@
         <module>whale-service-auth-infrastructure</module>
         <module>whale-service-auth-interfaces</module>
         <module>whale-service-auth-starter</module>
+        <module>whale-service-auth-architecture-test</module>
     </modules>
+
+    <properties>
+        <!-- 架构守护测试：校验分层依赖方向 -->
+        <archunit.version>1.4.1</archunit.version>
+    </properties>
 </project>

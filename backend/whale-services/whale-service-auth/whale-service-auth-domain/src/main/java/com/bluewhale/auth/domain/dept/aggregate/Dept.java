@@ -1,7 +1,8 @@
 package com.bluewhale.auth.domain.dept.aggregate;
 
-import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.domain.exception.DomainException;
+import com.bluewhale.common.domain.model.Entity;
 
 import java.time.LocalDateTime;
 
@@ -14,7 +15,7 @@ import java.time.LocalDateTime;
  *
  * @author BlueWhale
  */
-public class Dept {
+public class Dept implements Entity<Long> {
 
     /** 顶级部门的父 ID */
     public static final long ROOT_PARENT_ID = 0L;
@@ -43,13 +44,13 @@ public class Dept {
     private Dept(Long id, Long tenantId, Long parentId, String deptName, int sort, String leader,
                  LocalDateTime createTime, LocalDateTime updateTime) {
         if (tenantId == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "部门所属租户不能为空");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "部门所属租户不能为空");
         }
         if (parentId == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "父部门 ID 不能为空（0 表示顶级）");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "父部门 ID 不能为空（0 表示顶级）");
         }
         if (deptName == null || deptName.isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "部门名称不能为空");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "部门名称不能为空");
         }
         this.id = id;
         this.tenantId = tenantId;
@@ -103,7 +104,7 @@ public class Dept {
      */
     public void moveTo(Long parentId) {
         if (parentId == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "父部门 ID 不能为空（0 表示顶级）");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "父部门 ID 不能为空（0 表示顶级）");
         }
         this.parentId = parentId;
         this.updateTime = LocalDateTime.now();
@@ -116,7 +117,7 @@ public class Dept {
      */
     public void rename(String deptName) {
         if (deptName == null || deptName.isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "部门名称不能为空");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "部门名称不能为空");
         }
         this.deptName = deptName;
         this.updateTime = LocalDateTime.now();

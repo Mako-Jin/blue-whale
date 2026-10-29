@@ -21,7 +21,13 @@
         <!-- BizException / ErrorCode 等统一异常契约 -->
         <dependency>
             <groupId>com.bluewhale</groupId>
-            <artifactId>whale-spring-boot-starter</artifactId>
+            <artifactId>whale-common-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- 通用领域基座：Entity / ValueObject / DomainEvent / DomainException -->
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-common-domain</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

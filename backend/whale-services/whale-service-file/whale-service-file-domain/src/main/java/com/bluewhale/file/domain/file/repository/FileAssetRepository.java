@@ -30,7 +30,7 @@ public interface FileAssetRepository {
      * @param asset 文件资产聚合根
      * @param quotaBytes 单用户配额字节数；{@code <=0} 表示不限
      * @return 回填主键后的文件资产聚合根
-     * @throws com.bluewhale.common.core.exception.BizException 超出配额时抛出 {@code PARAM_ERROR}
+     * @throws com.bluewhale.common.domain.exception.DomainException 超出配额时抛出 {@code PARAM_ERROR}
      */
     FileAsset saveWithQuotaCheck(FileAsset asset, long quotaBytes);
 

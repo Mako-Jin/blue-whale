@@ -21,6 +21,9 @@ public final class ArchiveConstants {
     /** 密级上限：秘密 */
     public static final int SECURITY_SECRET = 3;
 
+    /** 秘密级档案读取权限码（与 agent 知识检索口径一致） */
+    public static final String PERM_SECRET_READ = "sys:archive:secret:read";
+
     /** 档案条目状态：待整理 */
     public static final int ITEM_STATUS_PENDING = 0;
 

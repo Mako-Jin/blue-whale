@@ -3,6 +3,7 @@ package com.bluewhale.auth.application.tenant;
 import com.bluewhale.auth.application.tenant.command.ChangeTenantStatusCommand;
 import com.bluewhale.auth.application.tenant.command.RenewTenantCommand;
 import com.bluewhale.auth.application.tenant.query.TenantPageQuery;
+import com.bluewhale.auth.application.tenant.port.TenantStatusSyncPort;
 import com.bluewhale.auth.domain.tenant.aggregate.Tenant;
 import com.bluewhale.auth.domain.tenant.repository.TenantRepository;
 import com.bluewhale.common.tenant.TenantContext;
@@ -39,7 +40,7 @@ class TenantAppServiceTest {
     private TenantRepository tenantRepository;
 
     @Mock
-    private TenantStatusCache tenantStatusCache;
+    private TenantStatusSyncPort tenantStatusSync;
 
     @InjectMocks
     private TenantAppService service;
@@ -180,7 +181,7 @@ class TenantAppServiceTest {
 
         service.renew(TENANT_ID, new RenewTenantCommand(LocalDateTime.now().plusYears(1)));
 
-        verify(tenantStatusCache).sync(target);
+        verify(tenantStatusSync).sync(target);
     }
 
     @Test
@@ -196,6 +197,6 @@ class TenantAppServiceTest {
 
         service.changeStatus(TENANT_ID, new ChangeTenantStatusCommand(Tenant.STATUS_DISABLED));
 
-        verify(tenantStatusCache).sync(target);
+        verify(tenantStatusSync).sync(target);
     }
 }

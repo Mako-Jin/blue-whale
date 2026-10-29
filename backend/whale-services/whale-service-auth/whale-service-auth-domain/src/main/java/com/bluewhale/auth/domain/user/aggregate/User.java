@@ -2,8 +2,9 @@ package com.bluewhale.auth.domain.user.aggregate;
 
 import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
 import com.bluewhale.auth.domain.model.vo.Username;
-import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.domain.exception.DomainException;
+import com.bluewhale.common.domain.model.Entity;
 
 import java.time.LocalDateTime;
 import java.util.regex.Pattern;
@@ -20,7 +21,7 @@ import java.util.regex.Pattern;
  *
  * @author BlueWhale
  */
-public class User {
+public class User implements Entity<Long> {
 
     /** 状态：启用 */
     public static final int STATUS_ENABLED = 1;
@@ -68,16 +69,16 @@ public class User {
                  String phone, String email, String avatar, Long deptId, int status, boolean mustChangePassword,
                  LocalDateTime lastLoginTime, LocalDateTime createTime, LocalDateTime updateTime) {
         if (tenantId == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "用户所属租户不能为空");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "用户所属租户不能为空");
         }
         if (username == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "用户名不能为空");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "用户名不能为空");
         }
         if (password == null || !BCRYPT_PATTERN.matcher(password.value()).matches()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "口令必须为 BCrypt 密文");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "口令必须为 BCrypt 密文");
         }
         if (status != STATUS_ENABLED && status != STATUS_DISABLED) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "状态值非法，仅支持 1（启用）/ 0（停用）");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "状态值非法，仅支持 1（启用）/ 0（停用）");
         }
         this.id = id;
         this.tenantId = tenantId;
@@ -263,7 +264,7 @@ public class User {
      */
     public void changePassword(EncryptedPassword password) {
         if (password == null || !BCRYPT_PATTERN.matcher(password.value()).matches()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "口令必须为 BCrypt 密文");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "口令必须为 BCrypt 密文");
         }
         this.password = password;
         this.updateTime = LocalDateTime.now();
@@ -301,7 +302,7 @@ public class User {
      */
     public void changeStatus(int status) {
         if (status != STATUS_ENABLED && status != STATUS_DISABLED) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "状态值非法，仅支持 1（启用）/ 0（停用）");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "状态值非法，仅支持 1（启用）/ 0（停用）");
         }
         this.status = status;
         this.updateTime = LocalDateTime.now();

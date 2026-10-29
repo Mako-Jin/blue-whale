@@ -3,7 +3,7 @@ package com.bluewhale.archive.controller;
 import com.bluewhale.archive.dto.ArchiveItemEditRequest;
 import com.bluewhale.archive.dto.ArchiveItemQueryRequest;
 import com.bluewhale.archive.service.ArchiveItemService;
-import com.bluewhale.archive.support.UserContext;
+import com.bluewhale.archive.support.ArchiveConstants;
 import com.bluewhale.archive.vo.ArchiveDownloadVO;
 import com.bluewhale.archive.vo.ArchiveItemDetailVO;
 import com.bluewhale.archive.vo.ArchiveItemVO;
@@ -13,6 +13,7 @@ import com.bluewhale.common.audit.annotation.AuditLog;
 import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
+import com.bluewhale.common.web.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -61,25 +62,30 @@ public class ArchiveItemController {
     /**
      * 分页查询档案条目。
      *
+     * <p>密级可见范围按当前用户权限码裁剪：无 {@code sys:archive:secret:read} 时仅返回公开/内部级。</p>
+     *
      * @param request 查询条件
+     * @param httpRequest 当前请求（用于读取权限码）
      * @return 条目分页结果
      */
     @GetMapping("/item/page")
     @RequirePermission("sys:archive:item:list")
-    public Result<PageResult<ArchiveItemVO>> page(ArchiveItemQueryRequest request) {
-        return Result.ok(itemService.page(request));
+    public Result<PageResult<ArchiveItemVO>> page(ArchiveItemQueryRequest request,
+                                                  HttpServletRequest httpRequest) {
+        return Result.ok(itemService.page(request, canReadSecret(httpRequest)));
     }
 
     /**
      * 查询条目详情。
      *
      * @param id 条目ID
+     * @param httpRequest 当前请求（用于读取权限码）
      * @return 条目详情
      */
     @GetMapping("/item/{id}")
     @RequirePermission("sys:archive:item:read")
-    public Result<ArchiveItemDetailVO> detail(@PathVariable Long id) {
-        return Result.ok(itemService.detail(id));
+    public Result<ArchiveItemDetailVO> detail(@PathVariable Long id, HttpServletRequest httpRequest) {
+        return Result.ok(itemService.detail(id, canReadSecret(httpRequest)));
     }
 
     /**
@@ -133,14 +139,16 @@ public class ArchiveItemController {
      *
      * @param id 条目ID
      * @param fileId 文件引用ID
+     * @param httpRequest 当前请求（用于读取权限码）
      * @return 文件字节流
      */
     @GetMapping("/item/{id}/files/{fileId}/download")
     @RequirePermission("sys:archive:item:download")
     @AuditLog(operation = "下载档案文件", type = OperateType.EXPORT,
             targetType = TARGET_TYPE, targetId = "#id")
-    public ResponseEntity<byte[]> download(@PathVariable Long id, @PathVariable Long fileId) {
-        ArchiveDownloadVO payload = itemService.download(id, fileId);
+    public ResponseEntity<byte[]> download(@PathVariable Long id, @PathVariable Long fileId,
+                                           HttpServletRequest httpRequest) {
+        ArchiveDownloadVO payload = itemService.download(id, fileId, canReadSecret(httpRequest));
         return ResponseEntity.ok()
                 .contentType(resolveMediaType(payload.getContentType()))
                 .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition(payload.getFileName()))
@@ -151,12 +159,23 @@ public class ArchiveItemController {
     /**
      * 档案统计：总量、状态分布与年度/密级/门类分布。
      *
+     * @param httpRequest 当前请求（用于读取权限码）
      * @return 统计视图
      */
     @GetMapping("/stats")
     @RequirePermission("sys:archive:item:list")
-    public Result<ArchiveStatsVO> stats() {
-        return Result.ok(itemService.stats());
+    public Result<ArchiveStatsVO> stats(HttpServletRequest httpRequest) {
+        return Result.ok(itemService.stats(canReadSecret(httpRequest)));
+    }
+
+    /**
+     * 判断当前用户是否具备秘密级档案读取权限。
+     *
+     * @param request 当前请求
+     * @return 具备 {@code sys:archive:secret:read} 时返回 {@code true}
+     */
+    private static boolean canReadSecret(HttpServletRequest request) {
+        return UserContext.hasPermission(request, ArchiveConstants.PERM_SECRET_READ);
     }
 
     /**

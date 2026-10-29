@@ -22,6 +22,12 @@
             <artifactId>whale-common-core</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- 通用领域基座：实体/聚合、值对象、领域事件与领域异常 -->
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-common-domain</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>

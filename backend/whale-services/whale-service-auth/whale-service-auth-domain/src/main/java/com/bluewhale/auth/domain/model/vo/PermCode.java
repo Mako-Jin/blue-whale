@@ -1,7 +1,8 @@
 package com.bluewhale.auth.domain.model.vo;
 
-import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.domain.exception.DomainException;
+import com.bluewhale.common.domain.valueobject.ValueObject;
 
 import java.util.regex.Pattern;
 
@@ -11,7 +12,7 @@ import java.util.regex.Pattern;
  * @param value 权限码字面值
  * @author BlueWhale
  */
-public record PermCode(String value) {
+public record PermCode(String value) implements ValueObject {
 
     private static final Pattern PATTERN = Pattern.compile("^[a-z][a-z0-9]*(?::[a-z0-9]+)+$");
 
@@ -22,7 +23,7 @@ public record PermCode(String value) {
      */
     public PermCode {
         if (value == null || !PATTERN.matcher(value).matches()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
+            throw new DomainException(ErrorCode.PARAM_ERROR,
                     "权限码须为冒号分隔的小写段落且至少两段，如 sys:user:list");
         }
     }

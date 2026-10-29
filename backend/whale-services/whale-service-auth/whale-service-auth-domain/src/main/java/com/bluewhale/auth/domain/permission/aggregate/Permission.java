@@ -1,8 +1,9 @@
 package com.bluewhale.auth.domain.permission.aggregate;
 
 import com.bluewhale.auth.domain.model.vo.PermCode;
-import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.domain.exception.DomainException;
+import com.bluewhale.common.domain.model.Entity;
 
 import java.time.LocalDateTime;
 import java.util.Set;
@@ -18,7 +19,7 @@ import java.util.Set;
  *
  * @author BlueWhale
  */
-public class Permission {
+public class Permission implements Entity<Long> {
 
     /** 状态：启用 */
     public static final int STATUS_ENABLED = 1;
@@ -61,20 +62,20 @@ public class Permission {
                        String path, String method, int sortNo, int status,
                        LocalDateTime createTime, LocalDateTime updateTime) {
         if (parentId == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "父权限点 ID 不能为空（0 表示顶级）");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "父权限点 ID 不能为空（0 表示顶级）");
         }
         if (permCode == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "权限码不能为空");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "权限码不能为空");
         }
         if (permName == null || permName.isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "权限名称不能为空");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "权限名称不能为空");
         }
         if (permType == null || !PERM_TYPES.contains(permType)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
+            throw new DomainException(ErrorCode.PARAM_ERROR,
                     "权限类型非法，仅支持 SYSTEM / MENU / API / BUTTON / DATA / ATTR");
         }
         if (status != STATUS_ENABLED && status != STATUS_DISABLED) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "状态值非法，仅支持 1（启用）/ 0（停用）");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "状态值非法，仅支持 1（启用）/ 0（停用）");
         }
         this.id = id;
         this.parentId = parentId;
@@ -140,7 +141,7 @@ public class Permission {
      */
     public void moveTo(Long parentId) {
         if (parentId == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "父权限点 ID 不能为空（0 表示顶级）");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "父权限点 ID 不能为空（0 表示顶级）");
         }
         this.parentId = parentId;
         this.updateTime = LocalDateTime.now();
@@ -153,7 +154,7 @@ public class Permission {
      */
     public void changeCode(PermCode permCode) {
         if (permCode == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "权限码不能为空");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "权限码不能为空");
         }
         this.permCode = permCode;
         this.updateTime = LocalDateTime.now();
@@ -166,7 +167,7 @@ public class Permission {
      */
     public void rename(String permName) {
         if (permName == null || permName.isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "权限名称不能为空");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "权限名称不能为空");
         }
         this.permName = permName;
         this.updateTime = LocalDateTime.now();
@@ -179,7 +180,7 @@ public class Permission {
      */
     public void changeType(String permType) {
         if (permType == null || !PERM_TYPES.contains(permType)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
+            throw new DomainException(ErrorCode.PARAM_ERROR,
                     "权限类型非法，仅支持 SYSTEM / MENU / API / BUTTON / DATA / ATTR");
         }
         this.permType = permType;
@@ -215,7 +216,7 @@ public class Permission {
      */
     public void changeStatus(int status) {
         if (status != STATUS_ENABLED && status != STATUS_DISABLED) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "状态值非法，仅支持 1（启用）/ 0（停用）");
+            throw new DomainException(ErrorCode.PARAM_ERROR, "状态值非法，仅支持 1（启用）/ 0（停用）");
         }
         this.status = status;
         this.updateTime = LocalDateTime.now();

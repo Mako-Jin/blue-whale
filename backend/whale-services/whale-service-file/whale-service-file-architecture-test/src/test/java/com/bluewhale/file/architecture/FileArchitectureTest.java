@@ -53,7 +53,11 @@ class FileArchitectureTest {
                     "com.bluewhale.file.controller..",
                     "com.bluewhale.file.storage.plugin..",
                     "com.baomidou..",
-                    "org.apache.ibatis..");
+                    "org.apache.ibatis..",
+                    "org.springframework.web..",
+                    "org.springframework.core.io..",
+                    "org.springframework.data.redis..",
+                    "org.springframework.security..");
 
     @ArchTest
     static final ArchRule application_must_not_handle_file_system_details = noClasses()
