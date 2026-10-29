@@ -94,7 +94,9 @@ whale:
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    # 审计修复：StdOutImpl 绕过日志框架把 SQL（含参数）直打 stdout，生产存在性能与敏感信息问题；
+    # 改走 SLF4J，dev 由 com.bluewhale=debug 输出 SQL，生产 INFO 级别自然关闭
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
   global-config:
     db-config:
       logic-delete-field: deleted
