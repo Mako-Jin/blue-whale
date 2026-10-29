@@ -115,6 +115,8 @@ public class FileController {
         Resource resource = fileInfoService.loadResource(id);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, buildContentDisposition(info.getOriginalName(), false))
+                // 审计修复：与 preview 对齐补 nosniff，防止浏览器对响应做 MIME 嗅探
+                .header(NOSNIFF_HEADER, NOSNIFF_VALUE)
                 .contentType(resolveMediaType(info.getContentType()))
                 .contentLength(info.getFileSize() == null ? 0L : info.getFileSize())
                 .body(resource);

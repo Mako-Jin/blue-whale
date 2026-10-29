@@ -131,8 +131,12 @@ public class LocalChunkUploadStore implements ChunkUploadStore {
                     Files.copy(part, out);
                 }
             }
-            return new MergedChunkUpload(Files.newInputStream(merged), Files.size(merged),
-                    readMetaContentType(dir), md5Of(merged));
+            // 流打开后不可再调用可失败逻辑：先取元数据/摘要/大小（失败时无流需要回收），
+            // Files.newInputStream 必须是最后一个可失败调用，否则会泄漏未关闭的流
+            String contentType = readMetaContentType(dir);
+            String md5 = md5Of(merged);
+            long size = Files.size(merged);
+            return new MergedChunkUpload(Files.newInputStream(merged), size, contentType, md5);
         } catch (IOException e) {
             throw new BizException(ErrorCode.SYSTEM_ERROR);
         }
