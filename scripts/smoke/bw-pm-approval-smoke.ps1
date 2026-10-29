@@ -5,13 +5,12 @@
 # 说明：脚本自行创建专用流程定义，因此 whale-pm 需先以「任一已存在 definitionId」开启审批；
 #   若要严格对齐，可用脚本输出的 definitionId 重启 PM 后复跑（首轮即全通过则无需）。
 
+
+# 公共工具（审计 P2：Assert/Check/Show 已收口到 lib/common.ps1）
+$script:SmokeAssertThrow = $true
+. "$PSScriptRoot/lib/common.ps1"
 $ErrorActionPreference = 'Stop'
 $base = 'http://127.0.0.1:8080'
-
-function Assert($label, $cond) {
-    if (-not $cond) { throw "ASSERT FAIL: $label" }
-    Write-Host "OK   $label"
-}
 
 $login = Invoke-RestMethod -Method Post -Uri "$base/auth/login" -ContentType 'application/json' -Body '{"username":"admin","password":"123456"}'
 $h = @{ Authorization = "Bearer $($login.data.accessToken)" }

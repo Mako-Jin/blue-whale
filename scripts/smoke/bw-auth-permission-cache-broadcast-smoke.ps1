@@ -35,6 +35,10 @@ param(
     [long]$RoleId = 1,
     [int]$TimeoutSeconds = 90
 )
+# 公共工具（审计 P2：Assert/Check/Show 已收口到 lib/common.ps1）
+$script:SmokeAssertThrow = $false
+. "$PSScriptRoot/lib/common.ps1"
+
 
 $ErrorActionPreference = 'Stop'
 
@@ -76,15 +80,6 @@ $errB = Join-Path $logDir 'b.err.log'
 $script:failed = $false
 $processes = @()
 $redisRestarted = $false
-
-function Assert($label, $cond, $detail = '') {
-    if (-not $cond) {
-        Write-Host "FAIL $label $detail"
-        $script:failed = $true
-        return
-    }
-    Write-Host "OK   $label $detail"
-}
 
 function Invoke-Redis([string[]]$arguments) {
     $output = & $RedisCli -a $RedisPassword @arguments 2>$null

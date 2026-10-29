@@ -1,3 +1,7 @@
+
+# 公共工具（审计 P2：Assert/Check/Show 已收口到 lib/common.ps1）
+$script:SmokeAssertThrow = $false
+. "$PSScriptRoot/lib/common.ps1"
 $ErrorActionPreference = 'Stop'
 $script:token = $null
 $gateway = 'http://127.0.0.1:8080'
@@ -20,13 +24,6 @@ function Api([string]$method, [string]$path, $body) {
         if ($_.ErrorDetails.Message) { Write-Host $_.ErrorDetails.Message }
         throw
     }
-}
-
-function Check([string]$name, $result, [int]$expectCode = 0) {
-    if ($result.code -ne $expectCode) {
-        throw "$name 失败: code=$($result.code) message=$($result.message)"
-    }
-    Write-Host "OK   $name"
 }
 
 # ---------- 1. 登录 ----------

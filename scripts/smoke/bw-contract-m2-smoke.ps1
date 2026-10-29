@@ -6,16 +6,15 @@
 #       whale-contract 已执行 migration-5.62-contract-esign.sql（含印章种子 1 + admin 授权）。
 # 用法：powershell -File scripts/smoke/bw-contract-m2-smoke.ps1
 
+
+# 公共工具（审计 P2：Assert/Check/Show 已收口到 lib/common.ps1）
+$script:SmokeAssertThrow = $true
+. "$PSScriptRoot/lib/common.ps1"
 $ErrorActionPreference = 'Stop'
 $base = 'http://127.0.0.1:8080'
 $fileBase = 'http://127.0.0.1:8085'
 $mysqlBin = if ($env:MYSQL_BIN) { $env:MYSQL_BIN } else { 'D:\tools\installer\mysql\bin\mysql.exe' }
 $mysqlPassword = if ($env:MYSQL_PASSWORD) { $env:MYSQL_PASSWORD } else { '515322' }
-
-function Assert($label, $cond) {
-    if (-not $cond) { throw "ASSERT FAIL: $label" }
-    Write-Host "OK   $label"
-}
 
 function Invoke-Sql($sql) {
     $env:MYSQL_PWD = $mysqlPassword

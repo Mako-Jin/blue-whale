@@ -9,6 +9,10 @@
 # 用法（PowerShell 7）：pwsh -NoProfile -File scripts/smoke/bw-contract-m3-smoke.ps1
 # 说明：数据库断言依赖用户级环境变量 MYSQL_PASSWORD；缺失时跳过并提示，不影响 HTTP 断言。
 
+
+# 公共工具（审计 P2：Assert/Check/Show 已收口到 lib/common.ps1）
+$script:SmokeAssertThrow = $true
+. "$PSScriptRoot/lib/common.ps1"
 $ErrorActionPreference = 'Stop'
 $base = 'http://127.0.0.1:8080'
 $fileBase = 'http://127.0.0.1:8085'
@@ -17,11 +21,6 @@ $mysqlPassword = $env:MYSQL_PASSWORD
 $dbAvailable = [bool]$mysqlPassword
 $callbackSecret = if ($env:CONTRACT_ESIGN_CALLBACK_SECRET) { $env:CONTRACT_ESIGN_CALLBACK_SECRET } else { 'bluewhale-esign-dev-callback-secret' }
 $definitionId = if ($env:CONTRACT_APPROVAL_DEFINITION_ID) { [long]$env:CONTRACT_APPROVAL_DEFINITION_ID } else { 2114579272542597122 }
-
-function Assert($label, $cond) {
-    if (-not $cond) { throw "ASSERT FAIL: $label" }
-    Write-Host "OK   $label"
-}
 
 function Invoke-Sql($sql) {
     if (-not $dbAvailable) {

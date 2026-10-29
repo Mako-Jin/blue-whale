@@ -1,3 +1,7 @@
+
+# 公共工具（审计 P2：Assert/Check/Show 已收口到 lib/common.ps1）
+$script:SmokeAssertThrow = $true
+. "$PSScriptRoot/lib/common.ps1"
 $ErrorActionPreference = 'Stop'
 $script:token = $null
 $gateway = 'http://127.0.0.1:8080'
@@ -10,20 +14,6 @@ function Api([string]$method, [string]$path, $body) {
             -ContentType 'application/json;charset=utf-8' -Body $bytes
     }
     return Invoke-RestMethod -Method $method -Uri ($gateway + $path) -Headers $headers
-}
-
-function Check([string]$name, $result, [int]$expectCode = 0) {
-    if ($result.code -ne $expectCode) {
-        throw "$name failed: code=$($result.code) message=$($result.message)"
-    }
-    Write-Host "OK   $name"
-}
-
-function Assert([string]$name, [bool]$condition) {
-    if (-not $condition) {
-        throw "$name assertion failed"
-    }
-    Write-Host "OK   $name"
 }
 
 function Get-Bpmn([string]$id) {

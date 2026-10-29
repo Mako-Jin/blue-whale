@@ -4,13 +4,12 @@
 #       whale-contract 以 CONTRACT_APPROVAL_DEFINITION_ID=<已存在流程定义> 启动。
 # 用法：powershell -File scripts/smoke/bw-contract-m1-smoke.ps1
 
+
+# 公共工具（审计 P2：Assert/Check/Show 已收口到 lib/common.ps1）
+$script:SmokeAssertThrow = $true
+. "$PSScriptRoot/lib/common.ps1"
 $ErrorActionPreference = 'Stop'
 $base = 'http://127.0.0.1:8080'
-
-function Assert($label, $cond) {
-    if (-not $cond) { throw "ASSERT FAIL: $label" }
-    Write-Host "OK   $label"
-}
 
 $login = Invoke-RestMethod -Method Post -Uri "$base/auth/login" -ContentType 'application/json' -Body '{"username":"admin","password":"123456"}'
 $h = @{ Authorization = "Bearer $($login.data.accessToken)" }

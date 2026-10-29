@@ -10,6 +10,10 @@ param(
     [string]$MysqlHost = '127.0.0.1',
     [int]$MysqlPort = 3306
 )
+# 公共工具（审计 P2：Assert/Check/Show 已收口到 lib/common.ps1）
+$script:SmokeAssertThrow = $false
+. "$PSScriptRoot/lib/common.ps1"
+
 
 $ErrorActionPreference = 'Stop'
 
@@ -26,15 +30,6 @@ function Invoke-Query([string]$sql) {
         throw "MySQL 查询失败: $rows"
     }
     return @($rows | Where-Object { $_ -ne '' })
-}
-
-function Assert($label, $cond, $detail = '') {
-    if (-not $cond) {
-        Write-Host "FAIL $label $detail"
-        $script:failed = $true
-        return
-    }
-    Write-Host "OK   $label $detail"
 }
 
 $script:failed = $false

@@ -1,10 +1,9 @@
+
+# 公共工具（审计 P2：Assert/Check/Show 已收口到 lib/common.ps1）
+$script:SmokeAssertThrow = $false
+. "$PSScriptRoot/lib/common.ps1"
 $ErrorActionPreference = 'Continue'
 $gw = 'http://127.0.0.1:8080'
-function Show($label, $obj) {
-  Write-Host "== $label =="
-  if ($obj -eq $null) { Write-Host '(null)'; return }
-  ($obj | ConvertTo-Json -Depth 8 -Compress)
-}
 function Call($label, $method, $uri, $headers, $body) {
   try {
     if ($body) {

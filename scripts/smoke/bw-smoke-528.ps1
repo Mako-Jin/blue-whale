@@ -1,3 +1,7 @@
+
+# 公共工具（审计 P2：Assert/Check/Show 已收口到 lib/common.ps1）
+$script:SmokeAssertThrow = $false
+. "$PSScriptRoot/lib/common.ps1"
 $ErrorActionPreference = 'Stop'
 $base = 'http://127.0.0.1:8080'
 $script:token = $null
@@ -21,11 +25,6 @@ function Call($method, $path, $obj, $tnt = '1') {
         if (-not $msg) { $msg = $_.Exception.Message }
         return @{ status = $code; body = $msg }
     }
-}
-
-function Show($title, $res) {
-    $script:out += "== $title => HTTP $($res.status)"
-    $script:out += ($res.body | ConvertTo-Json -Depth 10 -Compress)
 }
 
 # ---------- 0. login ----------

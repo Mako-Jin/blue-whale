@@ -12,19 +12,14 @@
 # 退出码：0 全部通过；1 断言失败；未设置 MYSQL_PASSWORD 时跳过孤儿清理数据库断言。
 # ============================================================
 
+
+# 公共工具（审计 P2：Assert/Check/Show 已收口到 lib/common.ps1）
+$script:SmokeAssertThrow = $false
+. "$PSScriptRoot/lib/common.ps1"
 $ErrorActionPreference = 'Stop'
 $base = 'http://127.0.0.1:8080'
 $docService = 'http://127.0.0.1:8095'
 $failures = 0
-
-function Assert($label, $cond, $detail = '') {
-    if (-not $cond) {
-        $script:failures++
-        Write-Host "FAIL $label $detail"
-        return
-    }
-    Write-Host "OK   $label $detail"
-}
 
 function Json($value) {
     return ($value | ConvertTo-Json -Depth 30 -Compress)

@@ -1,11 +1,9 @@
+
+# 公共工具（审计 P2：Assert/Check/Show 已收口到 lib/common.ps1）
+$script:SmokeAssertThrow = $false
+. "$PSScriptRoot/lib/common.ps1"
 $ErrorActionPreference = 'Stop'
 $base = 'http://127.0.0.1:8080'
-
-function Show($label, $obj) {
-    Write-Host "== $label =="
-    Write-Host ($obj | ConvertTo-Json -Depth 8 -Compress)
-    Write-Host ""
-}
 
 $login = Invoke-RestMethod -Method Post -Uri "$base/auth/login" -ContentType 'application/json; charset=utf-8' -Body '{"username":"admin","password":"123456"}'
 $token = $login.data.accessToken

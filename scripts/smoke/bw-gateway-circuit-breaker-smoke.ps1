@@ -23,18 +23,13 @@ param(
     [int]$FailureCalls = 20,
     [int]$OpenWaitSeconds = 11
 )
+# 公共工具（审计 P2：Assert/Check/Show 已收口到 lib/common.ps1）
+$script:SmokeAssertThrow = $false
+. "$PSScriptRoot/lib/common.ps1"
+
 
 $ErrorActionPreference = 'Stop'
 $script:failed = $false
-
-function Assert($label, $cond, $detail = '') {
-    if (-not $cond) {
-        Write-Host "FAIL $label $detail"
-        $script:failed = $true
-        return
-    }
-    Write-Host "OK   $label $detail"
-}
 
 if (-not (Test-Path $GatewayLog)) {
     Write-Host "MISSING: 网关日志不存在：$GatewayLog"
