@@ -61,6 +61,11 @@ jobs:
       - name: pnpm Build (turbo)
         run: pnpm turbo run build
 
+      # 单元测试（P0-3 修复）：vitest 用例进 CI 门禁；
+      # e2e（Playwright）依赖后端就绪，暂维持本地 `pnpm e2e` 手动触发
+      - name: pnpm Test (turbo)
+        run: pnpm turbo run test
+
       - name: Upload Build Artifacts
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4

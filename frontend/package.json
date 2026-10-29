@@ -10,7 +10,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md,yaml,yml}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md,yaml,yml}\"",
-    "e2e": "pnpm --filter @bluewhale/e2e test",
+    "e2e": "pnpm --filter @bluewhale/e2e e2e",
     "clean": "turbo run clean"
   },
   "devDependencies": {

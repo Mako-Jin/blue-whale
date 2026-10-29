@@ -47,9 +47,14 @@ jobs:
         shell: pwsh
         run: ./scripts/ci/bw-deploy-contract-check.ps1
 
+  # 镜像构建前置门禁（P1 修复）：后端测试（含覆盖率门禁）不通过则不构建、不推送镜像
+  backend-tests:
+    name: Backend Tests (gate)
+    uses: ./.github/workflows/backend-test.yml
+
   backend:
     name: Backend · ${{ matrix.service }}
-    needs: preflight
+    needs: [preflight, backend-tests]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -123,7 +128,7 @@ jobs:
 
   frontend:
     name: Frontend · ${{ matrix.image }}
-    needs: preflight
+    needs: [preflight, backend-tests]
     runs-on: ubuntu-latest
     permissions:
       contents: read

@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "playwright test",
+    "e2e": "playwright test",
     "test:ui": "playwright test --ui",
     "report": "playwright show-report",
     "lint": "eslint tests playwright.config.ts --max-warnings 0"
