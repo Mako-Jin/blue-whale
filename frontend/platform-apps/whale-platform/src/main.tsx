@@ -1,4 +1,5 @@
 import React from 'react';
+import { ErrorBoundary } from '@bluewhale/whale-ui';
 import ReactDOM from 'react-dom/client';
 import { App as AntdApp } from 'antd';
 import { initAuditLogging } from '@bluewhale/whale-log-sdk';
@@ -13,7 +14,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ThemeProvider>
       <AntdApp>
-        <Root />
+        <ErrorBoundary>
+          <Root />
+        </ErrorBoundary>
       </AntdApp>
     </ThemeProvider>
   </React.StrictMode>,

@@ -1,4 +1,5 @@
 import React from 'react';
+import { ErrorBoundary } from '@bluewhale/whale-ui';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { App as AntdApp } from 'antd';
@@ -15,7 +16,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <ThemeProvider>
       <AntdApp>
         <BrowserRouter>
-          <App />
+          <ErrorBoundary>
+            <App />
+          </ErrorBoundary>
         </BrowserRouter>
       </AntdApp>
     </ThemeProvider>

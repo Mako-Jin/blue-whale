@@ -40,6 +40,10 @@ export type { PermissionUtils, PermissionProviderProps } from './permission/cont
 export { AuthButton } from './permission/AuthButton';
 export type { AuthButtonProps } from './permission/AuthButton';
 
+// 全局错误边界（P0-2）：所有应用入口 App 外层必须包裹，防止渲染异常白屏
+export { ErrorBoundary } from './error-boundary/ErrorBoundary';
+export type { ErrorBoundaryProps } from './error-boundary/ErrorBoundary';
+
 // 主题变量注入（Wave 5.33 item ②）：复用 whale-common-theme 的 --bw-* 令牌体系
 export { buildThemeVars, applyThemeVars } from './theme';
 export { tokens, antdThemeConfig, getAntdTheme } from './theme';

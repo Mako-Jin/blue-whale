@@ -1,13 +1,7 @@
 // qiankun 基座入口 - 注册微应用并监听路由变化
 
 import { AppEvents, createLogger, eventBus } from '@bluewhale/whale-common-tools';
-import {
-  registerMicroApps,
-  start,
-  addGlobalUncaughtErrorHandler,
-  initGlobalState,
-  type MicroAppStateActions,
-} from 'qiankun';
+import { registerMicroApps, start, addGlobalUncaughtErrorHandler } from 'qiankun';
 import { apps } from './apps';
 
 const logger = createLogger('whale-platform › qiankun');
@@ -33,8 +27,6 @@ function notifySubAppError(message: string): void {
   subAppErrorListeners.forEach((listener) => listener(failed.name));
 }
 
-let actions: MicroAppStateActions;
-
 export function initQiankun(): void {
   registerMicroApps(apps);
 
@@ -47,15 +39,12 @@ export function initQiankun(): void {
     }
   });
 
-  actions = initGlobalState({ token: 'bluewhale-platform-token' });
+  // 注：qiankun initGlobalState 已移除——全仓无任何子应用消费 globalState，
+  // 登录态统一经 apps.ts 的 props 注入（getToken/getUserId/getPermissions）。
 
   start({
     sandbox: { experimentalStyleIsolation: true },
     singular: true,
     prefetch: 'all',
   });
-}
-
-export function getQiankunActions(): MicroAppStateActions {
-  return actions;
 }

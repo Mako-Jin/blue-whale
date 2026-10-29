@@ -1,4 +1,5 @@
 import React from 'react';
+import { ErrorBoundary } from '@bluewhale/whale-ui';
 import ReactDOM from 'react-dom/client';
 import { ThemeProvider } from '@bluewhale/whale-common-theme';
 import { initAuditLogging } from '@bluewhale/whale-log-sdk';
@@ -18,7 +19,9 @@ function render(props?: { container?: HTMLElement }) {
   root.render(
     <React.StrictMode>
       <ThemeProvider>
-        <App />
+        <ErrorBoundary>
+          <App />
+        </ErrorBoundary>
       </ThemeProvider>
     </React.StrictMode>,
   );

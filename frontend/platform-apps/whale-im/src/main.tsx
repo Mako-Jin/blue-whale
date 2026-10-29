@@ -1,4 +1,5 @@
 import React from 'react';
+import { ErrorBoundary } from '@bluewhale/whale-ui';
 import ReactDOM from 'react-dom/client';
 import { App as AntdApp } from 'antd';
 import { ThemeProvider } from '@bluewhale/whale-common-theme';
@@ -22,7 +23,9 @@ function render(props?: HostProps) {
     <React.StrictMode>
       <ThemeProvider>
         <AntdApp>
-          <App />
+          <ErrorBoundary>
+            <App />
+          </ErrorBoundary>
         </AntdApp>
       </ThemeProvider>
     </React.StrictMode>,
