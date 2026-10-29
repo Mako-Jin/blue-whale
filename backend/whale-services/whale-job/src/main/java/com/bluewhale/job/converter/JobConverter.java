@@ -19,6 +19,7 @@ import org.mapstruct.factory.Mappers;
  * <p>替代 {@code BeanUtils.copyProperties} 反射拷贝（审计 P2）：编译期校验字段
  * 对齐。实体继承 BaseEntity 的审计字段不在请求体中，声明 ignore；下次触发时间由
  * 调度器装配。</p>
+ * @author BlueWhale
  */
 @Mapper
 public interface JobConverter {

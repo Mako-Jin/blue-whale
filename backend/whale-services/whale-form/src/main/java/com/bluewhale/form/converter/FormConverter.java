@@ -23,6 +23,7 @@ import org.mapstruct.factory.Mappers;
  *
  * <p>替代 {@code BeanUtils.copyProperties} 反射拷贝（审计 P2）：编译期校验字段
  * 对齐。派生字段（fields/options/columns 等）由调用方装配，在此声明 ignore。</p>
+ * @author BlueWhale
  */
 @Mapper
 public interface FormConverter {

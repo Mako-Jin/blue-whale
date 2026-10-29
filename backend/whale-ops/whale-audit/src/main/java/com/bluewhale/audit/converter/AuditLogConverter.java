@@ -19,6 +19,7 @@ import org.mapstruct.factory.Mappers;
  * <p>替代 {@code BeanUtils.copyProperties} 反射拷贝（审计 P2）：编译期校验字段
  * 对齐。五类日志的同名拷贝语义与原反射一致（Record 侧的 tenantId 不进 VO，
  * 与原行为相同）。</p>
+ * @author BlueWhale
  */
 @Mapper
 public interface AuditLogConverter {

@@ -8,6 +8,7 @@ package com.bluewhale.pay.enums;
  *
  * <p>流转方向单向：{@code CREATED → PAID}、{@code CREATED → CANCELLED}、
  * {@code PAID → REFUNDED}。</p>
+ * @author BlueWhale
  */
 public enum PayOrderStatus {
 
@@ -25,6 +26,11 @@ public enum PayOrderStatus {
 
     private final String code;
 
+    /**
+     * 状态码构造
+     *
+     * @param code 状态码（与库中存储值一致）
+     */
     PayOrderStatus(String code) {
         this.code = code;
     }

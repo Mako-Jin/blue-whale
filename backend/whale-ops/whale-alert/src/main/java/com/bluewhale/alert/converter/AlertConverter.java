@@ -15,6 +15,7 @@ import org.mapstruct.factory.Mappers;
  *
  * <p>替代 {@code BeanUtils.copyProperties} 反射拷贝（审计 P2）：编译期校验字段
  * 对齐。</p>
+ * @author BlueWhale
  */
 @Mapper
 public interface AlertConverter {

@@ -20,6 +20,7 @@ import org.mapstruct.factory.Mappers;
  * <p>替代 {@code BeanUtils.copyProperties} 反射拷贝（审计 P2）：编译期校验字段
  * 对齐；派生字段（tasks/finishedAt/definitionJson）由调用方显式设置，在此声明
  * ignore 以保持映射输出干净。</p>
+ * @author BlueWhale
  */
 @Mapper
 public interface WorkflowConverter {

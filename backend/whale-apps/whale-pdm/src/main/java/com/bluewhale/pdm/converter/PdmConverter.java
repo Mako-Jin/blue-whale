@@ -12,6 +12,7 @@ import org.mapstruct.factory.Mappers;
  * PDM 模块实体与 VO/DTO 的映射器。
  *
  * <p>替代 {@code BeanUtils.copyProperties} 反射拷贝（审计 P2）：编译期校验字段对齐。</p>
+ * @author BlueWhale
  */
 @Mapper
 public interface PdmConverter {

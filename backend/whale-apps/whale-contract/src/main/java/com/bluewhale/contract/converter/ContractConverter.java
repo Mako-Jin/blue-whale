@@ -16,6 +16,7 @@ import org.mapstruct.factory.Mappers;
  * <p>替代 {@code BeanUtils.copyProperties} 反射拷贝（审计 P2）：编译期校验字段对齐。
  * VO 的 id 类字段为 String（对前端规避 Long 精度丢失），由调用方用
  * {@code Objects.toString} 显式转换，故在映射器中声明 ignore。</p>
+ * @author BlueWhale
  */
 @Mapper
 public interface ContractConverter {

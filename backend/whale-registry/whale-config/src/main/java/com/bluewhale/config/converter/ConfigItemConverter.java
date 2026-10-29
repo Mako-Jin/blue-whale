@@ -11,6 +11,7 @@ import org.mapstruct.factory.Mappers;
  * 配置中心实体与 VO 的映射器。
  *
  * <p>替代 {@code BeanUtils.copyProperties} 反射拷贝（审计 P2）：编译期校验字段对齐。</p>
+ * @author BlueWhale
  */
 @Mapper
 public interface ConfigItemConverter {

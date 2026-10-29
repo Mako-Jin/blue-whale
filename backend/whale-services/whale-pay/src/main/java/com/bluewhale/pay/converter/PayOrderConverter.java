@@ -14,6 +14,7 @@ import org.mapstruct.factory.Mappers;
  * <p>替代 {@code BeanUtils.copyProperties} 反射拷贝（审计 P2）：编译期校验字段
  * 对齐，改名/删字段时编译报错而非静默丢数据；映射结果与原反射语义一致
  * （同名字段拷贝，其余字段由调用方显式设置）。</p>
+ * @author BlueWhale
  */
 @Mapper
 public interface PayOrderConverter {
