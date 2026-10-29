@@ -1,6 +1,7 @@
 package com.bluewhale.pay.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -35,6 +36,9 @@ import java.util.Objects;
  *
  * <p>创建前校验金额与渠道、按 {@code order_no} 查重（并发撞唯一索引时同样转为参数错误）；
  * 状态流转单向：{@code CREATED → PAID / CANCELLED}、{@code PAID → REFUNDED}。
+ * 状态流转通过「条件更新抢占」（{@code update ... where status = 期望状态}）保证并发安全：
+ * 同一支付单的并发支付/取消/退款只有一个事务能赢得抢占，其余直接失败，
+ * 从而杜绝重复扣款、重复退款与重复流水；渠道调用失败时整个事务（含抢占）回滚。
  * 支付与退款成功后追加 {@code pay_transaction} 流水，并回填渠道流水号与退款信息；
  * 对账把本地状态与渠道状态比对后返回一致性结果。</p>
  *
@@ -133,9 +137,11 @@ public class PayOrderServiceImpl implements PayOrderService {
     public PayOrderVO pay(Long id) {
         PayOrder existing = requireOrder(id);
         ensureStatus(existing, STATUS_CREATED, "只有待支付的支付单可以支付");
-        PayChannelResult result = payChannelGateway.pay(existing);
+        // 条件更新抢占 CREATED → PAID：并发下只有一个事务能成功，防止重复扣款
+        claimTransition(id, STATUS_CREATED, STATUS_PAID, "只有待支付的支付单可以支付");
         existing.setStatus(STATUS_PAID);
         existing.setPayTime(LocalDateTime.now());
+        PayChannelResult result = payChannelGateway.pay(existing);
         existing.setChannelTradeNo(result.providerTradeNo());
         payOrderMapper.updateById(existing);
         recordTransaction(existing, TYPE_PAY, result);
@@ -147,6 +153,7 @@ public class PayOrderServiceImpl implements PayOrderService {
     public PayOrderVO cancel(Long id) {
         PayOrder existing = requireOrder(id);
         ensureStatus(existing, STATUS_CREATED, "只有待支付的支付单可以取消");
+        claimTransition(id, STATUS_CREATED, STATUS_CANCELLED, "只有待支付的支付单可以取消");
         existing.setStatus(STATUS_CANCELLED);
         payOrderMapper.updateById(existing);
         return toVo(payOrderMapper.selectById(id));
@@ -157,10 +164,12 @@ public class PayOrderServiceImpl implements PayOrderService {
     public PayOrderVO refund(Long id) {
         PayOrder existing = requireOrder(id);
         ensureStatus(existing, STATUS_PAID, "只有已支付的支付单可以退款");
-        PayChannelResult result = payChannelGateway.refund(existing);
+        // 条件更新抢占 PAID → REFUNDED：并发下只有一个事务能成功，防止重复退款
+        claimTransition(id, STATUS_PAID, STATUS_REFUNDED, "只有已支付的支付单可以退款");
         existing.setStatus(STATUS_REFUNDED);
         existing.setRefundAmount(existing.getAmount());
         existing.setRefundTime(LocalDateTime.now());
+        PayChannelResult result = payChannelGateway.refund(existing);
         payOrderMapper.updateById(existing);
         recordTransaction(existing, TYPE_REFUND, result);
         return toVo(payOrderMapper.selectById(id));
@@ -234,6 +243,27 @@ public class PayOrderServiceImpl implements PayOrderService {
      */
     private static void ensureStatus(PayOrder order, String expected, String message) {
         if (!expected.equals(order.getStatus())) {
+            throw new BizException(ErrorCode.PARAM_ERROR, message);
+        }
+    }
+
+    /**
+     * 条件更新抢占状态流转：{@code update ... where id = ? and status = from}。
+     * 依赖数据库行级锁保证并发下只有一个事务命中（影响行数为 1），
+     * 未命中说明状态已被并发事务改变，直接抛 {@code PARAM_ERROR}；
+     * 调用方处于事务内，后续渠道调用失败时抢占一并回滚。
+     *
+     * @param id      支付单ID
+     * @param from    期望的当前状态
+     * @param to      目标状态
+     * @param message 抢占失败时的错误提示
+     */
+    private void claimTransition(Long id, String from, String to, String message) {
+        LambdaUpdateWrapper<PayOrder> claim = new LambdaUpdateWrapper<>();
+        claim.eq(PayOrder::getId, id)
+                .eq(PayOrder::getStatus, from)
+                .set(PayOrder::getStatus, to);
+        if (payOrderMapper.update(null, claim) == 0) {
             throw new BizException(ErrorCode.PARAM_ERROR, message);
         }
     }

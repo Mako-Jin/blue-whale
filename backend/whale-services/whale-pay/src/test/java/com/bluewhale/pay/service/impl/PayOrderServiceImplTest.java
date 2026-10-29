@@ -1,6 +1,8 @@
 package com.bluewhale.pay.service.impl;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.result.PageResult;
@@ -15,6 +17,8 @@ import com.bluewhale.pay.mapper.PayTransactionMapper;
 import com.bluewhale.pay.vo.PayOrderVO;
 import com.bluewhale.pay.vo.PayReconcileVO;
 import com.bluewhale.pay.vo.PayTransactionVO;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -29,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -43,6 +48,16 @@ class PayOrderServiceImplTest {
 
     private static final int PARAM_ERROR_CODE = 400;
     private static final int NOT_FOUND_CODE = 404;
+
+    /**
+     * 初始化 MyBatis-Plus 实体元数据缓存：条件更新（LambdaUpdateWrapper）依赖
+     * PayOrder 的 TableInfo，纯单测环境无 MP 启动流程，需手动注册。
+     */
+    @BeforeAll
+    static void initTableInfo() {
+        TableInfoHelper.initTableInfo(
+                new MapperBuilderAssistant(new MybatisConfiguration(), ""), PayOrder.class);
+    }
 
     private final PayOrderMapper payOrderMapper = mock(PayOrderMapper.class);
 
@@ -193,6 +208,7 @@ class PayOrderServiceImplTest {
         PayOrder paid = order(1L, "PAY20261020001", "PAID");
         paid.setChannelTradeNo("MOCK-1");
         when(payOrderMapper.selectById(1L)).thenReturn(existing, paid);
+        when(payOrderMapper.update(isNull(), ArgumentMatchers.<Wrapper<PayOrder>>any())).thenReturn(1);
         when(payOrderMapper.updateById(any(PayOrder.class))).thenReturn(1);
         when(payTransactionMapper.insert(any(PayTransaction.class))).thenReturn(1);
 
@@ -223,6 +239,20 @@ class PayOrderServiceImplTest {
     }
 
     @Test
+    @DisplayName("pay：并发抢占失败（条件更新 0 行）拒绝支付且不落流水")
+    void shouldRejectPayWhenClaimLost() {
+        when(payOrderMapper.selectById(1L)).thenReturn(order(1L, "PAY20261020001", "CREATED"));
+        // 条件更新未命中：状态已被并发事务改变
+        when(payOrderMapper.update(isNull(), ArgumentMatchers.<Wrapper<PayOrder>>any())).thenReturn(0);
+
+        BizException ex = assertThrows(BizException.class, () -> payOrderService.pay(1L));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        verify(payOrderMapper, never()).updateById(any(PayOrder.class));
+        verify(payTransactionMapper, never()).insert(any(PayTransaction.class));
+    }
+
+    @Test
     @DisplayName("pay：mock 关闭时因无真实适配器拒绝支付")
     void shouldRejectPayWhenMockDisabled() {
         PayChannelProperties properties = new PayChannelProperties();
@@ -230,6 +260,7 @@ class PayOrderServiceImplTest {
         PayOrderServiceImpl service = new PayOrderServiceImpl(
                 payOrderMapper, payTransactionMapper, new PayChannelGateway(properties));
         when(payOrderMapper.selectById(1L)).thenReturn(order(1L, "PAY20261020001", "CREATED"));
+        when(payOrderMapper.update(isNull(), ArgumentMatchers.<Wrapper<PayOrder>>any())).thenReturn(1);
 
         BizException ex = assertThrows(BizException.class, () -> service.pay(1L));
 
@@ -254,6 +285,7 @@ class PayOrderServiceImplTest {
         PayOrder existing = order(3L, "PAY20261020004", "CREATED");
         PayOrder cancelled = order(3L, "PAY20261020004", "CANCELLED");
         when(payOrderMapper.selectById(3L)).thenReturn(existing, cancelled);
+        when(payOrderMapper.update(isNull(), ArgumentMatchers.<Wrapper<PayOrder>>any())).thenReturn(1);
         when(payOrderMapper.updateById(any(PayOrder.class))).thenReturn(1);
 
         PayOrderVO vo = payOrderService.cancel(3L);
@@ -283,6 +315,7 @@ class PayOrderServiceImplTest {
         existing.setChannelTradeNo("MOCK-9");
         PayOrder refunded = order(5L, "PAY20261020009", "REFUNDED");
         when(payOrderMapper.selectById(5L)).thenReturn(existing, refunded);
+        when(payOrderMapper.update(isNull(), ArgumentMatchers.<Wrapper<PayOrder>>any())).thenReturn(1);
         when(payOrderMapper.updateById(any(PayOrder.class))).thenReturn(1);
         when(payTransactionMapper.insert(any(PayTransaction.class))).thenReturn(1);
 
@@ -303,6 +336,20 @@ class PayOrderServiceImplTest {
     @DisplayName("refund：非 PAID 状态拒绝退款且不落库")
     void shouldRejectRefundWhenNotPaid() {
         when(payOrderMapper.selectById(6L)).thenReturn(order(6L, "PAY20261020010", "CREATED"));
+
+        BizException ex = assertThrows(BizException.class, () -> payOrderService.refund(6L));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        verify(payOrderMapper, never()).updateById(any(PayOrder.class));
+        verify(payTransactionMapper, never()).insert(any(PayTransaction.class));
+    }
+
+    @Test
+    @DisplayName("refund：并发抢占失败（条件更新 0 行）拒绝退款且不落流水")
+    void shouldRejectRefundWhenClaimLost() {
+        when(payOrderMapper.selectById(6L)).thenReturn(order(6L, "PAY20261020010", "PAID"));
+        // 条件更新未命中：状态已被并发事务改变
+        when(payOrderMapper.update(isNull(), ArgumentMatchers.<Wrapper<PayOrder>>any())).thenReturn(0);
 
         BizException ex = assertThrows(BizException.class, () -> payOrderService.refund(6L));
 
