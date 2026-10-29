@@ -58,8 +58,8 @@ BlueWhale/
 ### 1. 基础设施
 
 ```bash
-# 复制环境变量模板并填写
-cp .env.example infrastructure/docker/.env
+# 复制环境变量模板并填写（模板在 infrastructure/docker 下，勿用根目录指路文件）
+cp infrastructure/docker/.env.example infrastructure/docker/.env
 
 # 启动 MySQL / Redis / Nacos / RabbitMQ
 cd infrastructure/docker
@@ -70,13 +70,13 @@ docker compose up -d
 
 ```bash
 cd backend
-mvn clean install -DskipTests
+./mvnw clean install -DskipTests
 
 # 启动 API 网关
-mvn -pl whale-services/whale-gateway spring-boot:run
+./mvnw -pl whale-services/whale-gateway spring-boot:run
 
 # 启动权限中心
-mvn -pl whale-services/whale-service-auth/whale-service-auth-starter spring-boot:run
+./mvnw -pl whale-services/whale-service-auth/whale-service-auth-starter spring-boot:run
 ```
 
 ### 3. 前端

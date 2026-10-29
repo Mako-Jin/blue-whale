@@ -64,30 +64,36 @@ docker-compose.override.yml
 *.jks
 
 # ===== Build Output =====
-build/
-out/
-coverage/
+# 根锚定：无前导 / 会静默忽略任意层级同名目录（曾吞掉 src/*/data/、src/**/out/ 等合法源码目录）
+/build/
+/out/
+/coverage/
 *.lcov
 
 # ===== Local Runtime Data =====
 # whale-agent 本地 Lucene 索引（可重建，不入库；含 data/agent-index/）
-data/
+# 根锚定：只忽略仓库根的 data/，不影响各模块 src/main/resources/data/ 等合法目录
+/data/
 # Tomcat / 容器临时工作目录（根目录，不入库）
 /work/
 # 本地代理工具状态（不入库）
 /.workbuddy/
+# 临时日志目录（根目录）
+/.tmp/
+# 根目录截图产物
+/.screenshots/
 # Derby 运行日志（*.log 已覆盖，显式登记避免规则调整后遗漏）
 derby.log
 # 本机 Redis 持久化文件（运行时生成，不入库）
 dump.rdb
 
 # ===== Logs =====
-logs/
+/logs/
 *.log
 
 # ===== Temp =====
-tmp/
-temp/
+/tmp/
+/temp/
 *.tmp
 *.swp
 *.swo

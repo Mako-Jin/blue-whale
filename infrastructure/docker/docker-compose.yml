@@ -32,7 +32,7 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       TZ: Asia/Shanghai
     ports:
-      - "${MYSQL_HOST_PORT:-3306}:3306"
+      - "127.0.0.1:${MYSQL_HOST_PORT:-3306}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./mysql/init:/docker-entrypoint-initdb.d:ro
@@ -61,7 +61,7 @@ services:
       TZ: Asia/Shanghai
       REDIS_PASSWORD: ${REDIS_PASSWORD}
     ports:
-      - "${REDIS_HOST_PORT:-6379}:6379"
+      - "127.0.0.1:${REDIS_HOST_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
       - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
@@ -95,8 +95,8 @@ services:
       JVM_XMX: 1024m
       JVM_XMN: 256m
     ports:
-      - "${NACOS_HOST_PORT:-8848}:8848"
-      - "${NACOS_GRPC_HOST_PORT:-9848}:9848"
+      - "127.0.0.1:${NACOS_HOST_PORT:-8848}:8848"
+      - "127.0.0.1:${NACOS_GRPC_HOST_PORT:-9848}:9848"
     volumes:
       - nacos_data:/home/nacos/data
     healthcheck:
@@ -118,12 +118,13 @@ services:
     container_name: bw-rabbitmq
     restart: unless-stopped
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-guest}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+      # 弱口令回退已移除（安全加固）：未在 .env 配置时直接启动失败，而非以 guest/guest 上线
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:?请在 .env 中配置 RABBITMQ_USERNAME}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?请在 .env 中配置 RABBITMQ_PASSWORD}
       TZ: Asia/Shanghai
     ports:
-      - "${RABBITMQ_HOST_PORT:-5672}:5672"
-      - "${RABBITMQ_MGMT_HOST_PORT:-15672}:15672"
+      - "127.0.0.1:${RABBITMQ_HOST_PORT:-5672}:5672"
+      - "127.0.0.1:${RABBITMQ_MGMT_HOST_PORT:-15672}:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
@@ -149,7 +150,7 @@ services:
       - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-15d}
       - --web.enable-lifecycle
     ports:
-      - "${PROMETHEUS_HOST_PORT:-9090}:9090"
+      - "127.0.0.1:${PROMETHEUS_HOST_PORT:-9090}:9090"
     volumes:
       - ../prometheus/prometheus-docker.yml:/etc/prometheus/prometheus.yml:ro
       - ../../deploy/monitoring/prometheus-rules.yml:/etc/prometheus/prometheus-rules.yml:ro
@@ -176,7 +177,7 @@ services:
       - --config.file=/etc/alertmanager/alertmanager.yml
       - --storage.path=/alertmanager
     ports:
-      - "${ALERTMANAGER_HOST_PORT:-9093}:9093"
+      - "127.0.0.1:${ALERTMANAGER_HOST_PORT:-9093}:9093"
     volumes:
       - ../prometheus/alertmanager-docker.yml:/etc/alertmanager/alertmanager.yml:ro
       - alertmanager_data:/alertmanager
@@ -199,12 +200,13 @@ services:
     container_name: bw-grafana
     restart: unless-stopped
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      # 弱口令回退已移除（安全加固）：未在 .env 配置时直接启动失败，而非以 admin/admin 上线
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?请在 .env 中配置 GRAFANA_ADMIN_PASSWORD}
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_ANALYTICS_REPORTING_ENABLED: "false"
       TZ: Asia/Shanghai
     ports:
-      - "${GRAFANA_HOST_PORT:-3000}:3000"
+      - "127.0.0.1:${GRAFANA_HOST_PORT:-3000}:3000"
     volumes:
       - grafana_data:/var/lib/grafana
       - ../prometheus/grafana/provisioning:/etc/grafana/provisioning:ro
