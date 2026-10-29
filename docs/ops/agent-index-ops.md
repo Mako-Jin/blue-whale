@@ -83,6 +83,7 @@ curl.exe -s -H "X-User-Id: 1" -H "X-Permission-Codes: sys:agent:search" `
 | 状态 `EMPTY` | 索引目录为空或首次启动未完成 | 手动触发重建；检查 `index-dir` 权限 |
 | 状态 `FAILED` | 查看服务日志 `AgentIndexService` / `KnowledgeIngestService` | 修复后重建；必要时删除索引目录再启动 |
 | 检索结果为空 | `q` 过于宽泛或索引未就绪 | 补充服务名/表名/接口路径等关键词；先重建 |
+| 业务文件检索不到 | 文件桶未命中知识库白名单 | 核对 `WHALE_AGENT_KNOWLEDGE_INCLUDED_BUCKETS`；台账 `lastError=文件桶未纳入知识库白名单` 即为此因，见 §六 |
 | 问答返回「知识库中未找到」 | 同上，或 scope 限制了类型 | 放开检索范围（`scope` 为空=全部） |
 | 问答显示「模型未接入」 | 未配置 `whale.agent.llm.api-key` | 属预期降级（返回检索摘要），配置 Key 后恢复模型生成 |
 | 问答没有调用工具 | 模型未配置，或 `agentic-enabled=false` | 自主编排仅在模型可用时启用；确认 Key 与 `whale.agent.qa.agentic-enabled` |
@@ -109,7 +110,32 @@ curl.exe -s -H "X-User-Id: 1" -H "X-Permission-Codes: sys:agent:search" `
 
 ---
 
-## 六、评测
+## 六、文件知识库桶白名单
+
+文件知识采集采用 **default-deny 白名单**：只有命中 `whale.agent.knowledge.included-buckets`
+（`WHALE_AGENT_KNOWLEDGE_INCLUDED_BUCKETS`，逗号分隔、桶名前缀匹配）且不在
+`excluded-buckets`（`WHALE_AGENT_KNOWLEDGE_EXCLUDED_BUCKETS`）中的桶才会入库。
+
+| 项 | 默认值 | 配置项 |
+|---|---|---|
+| 入库桶白名单 | `bluewhale,whale-archive` | `whale.agent.knowledge.included-buckets` / `WHALE_AGENT_KNOWLEDGE_INCLUDED_BUCKETS` |
+| 排除桶（优先） | `whale-doc` | `whale.agent.knowledge.excluded-buckets` / `WHALE_AGENT_KNOWLEDGE_EXCLUDED_BUCKETS` |
+| 单文件上限 / 抽取上限 | 20 MB / 100 万字符 | `whale.agent.knowledge.max-file-size` / `max-chars` |
+
+规则与处置：
+
+1. 白名单为空、桶名为空或未命中时，一律 **不采集**（fail-closed）；对应台账置 `SKIPPED`，
+   `lastError=文件桶未纳入知识库白名单`，并删除既有索引块。
+2. 排除桶优先于白名单：即使已加入白名单，命中 `excluded-buckets` 仍不入库。
+3. 新增知识库桶需显式加入白名单（环境变量）并重启服务（无热更新），随后执行
+   `POST /agent/knowledge/rebuild` 重建文件知识。
+4. 排查：`GET /agent/knowledge/files/page?status=SKIPPED` 查看原因；`GET /agent/search?q=<关键词>&kind=file`
+   确认白名单外内容不可见。
+5. 冒烟：`pwsh -File scripts/smoke/bw-agent-knowledge-bucket-smoke.ps1`（白名单外跳过、白名单内可检索、重复重建幂等）。
+
+---
+
+## 七、评测
 
 ```powershell
 pwsh -File scripts/agent-eval.ps1

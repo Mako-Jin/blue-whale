@@ -121,6 +121,8 @@ whale:
       auth-url: ${WHALE_AGENT_AUTH_URL:http://127.0.0.1:8081}
       connect-timeout-millis: ${WHALE_AGENT_KNOWLEDGE_CONNECT_TIMEOUT_MILLIS:5000}
       read-timeout-millis: ${WHALE_AGENT_KNOWLEDGE_READ_TIMEOUT_MILLIS:60000}
+      # 文件知识入库桶白名单（前缀匹配，default-deny）：未命中的桶一律不采集
+      included-buckets: ${WHALE_AGENT_KNOWLEDGE_INCLUDED_BUCKETS:bluewhale,whale-archive}
       # 文档附件权限由页面控制，正文经文档变更流采集，默认排除 whale-doc 桶
       excluded-buckets: ${WHALE_AGENT_KNOWLEDGE_EXCLUDED_BUCKETS:whale-doc}
       # Wiki 文档知识源（M4）：默认关闭，开启后按文档变更流增量采集公开已发布页面

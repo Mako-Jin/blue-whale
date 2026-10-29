@@ -113,7 +113,7 @@
 | B1-6 | 评论 | 评论/回复、块锚点、解决/删除、作者/管理员权限 |
 | B1-7 | 搜索与收藏 | M1 `LIKE` 标题/纯文本 + 可见性过滤 + 片段；收藏/取消收藏；最近访问（M1 可前端本地） |
 | B1-8 | 权限、审计与内网接口 | auth 迁移 `migration-5.74-doc.sql`（权限 251–270、`doc_manager/doc_member` 角色、`tenant_admin` 授权、菜单 36–37、批量授予说明）；`@AuditLog`；`/doc/internal/page/changes` 雏形（M4 完整） |
-| B1-9 | 网关与配置 | `/doc/**` 路由、`/doc/internal/**` internal-deny、限流/熔断接入、Prometheus 抓取；**`whale-agent` 的 `WHALE_AGENT_KNOWLEDGE_EXCLUDED_BUCKETS` 加入 `whale-doc`，防止私有附件被文件知识同步误索引** |
+| B1-9 | 网关与配置 | `/doc/**` 路由、`/doc/internal/**` internal-deny、限流/熔断接入、Prometheus 抓取；**`whale-agent` 文件知识改为桶白名单 default-deny（`WHALE_AGENT_KNOWLEDGE_INCLUDED_BUCKETS` 默认 `bluewhale,whale-archive`），并保留 `whale-doc` 在 `WHALE_AGENT_KNOWLEDGE_EXCLUDED_BUCKETS`，防止私有附件被文件知识同步误索引** |
 
 #### 前端
 

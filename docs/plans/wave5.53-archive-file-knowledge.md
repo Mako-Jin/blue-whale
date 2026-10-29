@@ -37,6 +37,7 @@
 | D6 | 知识库归属 | **扩展现有 `whale-agent`**（Lucene + BM25 + 向量 + 引用体系），不新建知识服务 | 复用 8090 的索引、切分、脱敏、问答与引用校验能力，避免第二套 RAG |
 | D7 | 知识库范围 | 允许 MIME：`pdf`、`docx`、`xlsx`、`pptx`、`txt`、`md`、`html`、`csv`；单文件 ≤ 20MB、抽取 ≤ 100 万字符；可配置 | 覆盖业务文档；扫描件/图片需 OCR，一期排除并记录 `SKIPPED` |
 | D8 | 知识权限 | 普通文件知识沿用 `sys:agent:chat`；档案快照知识额外要求 `sys:archive:item:read` + 密级过滤；索引块新增 `permission_code` 字段 | 档案可能涉密，不能进入全体可检索池 |
+| D8a | 文件入库范围（W5.75 补丁） | **桶白名单 default-deny**：只有 `whale.agent.knowledge.included-buckets`（默认 `bluewhale,whale-archive`）命中的桶才采集；`excluded-buckets` 优先排除 | 原实现仅排除 `whale-doc`，其余业务/附件桶默认进入租户级公开知识池，个人或部门文件可能被全员检索 |
 | D9 | 前端落点 | 档案管理进 `whale-admin`（8001）；知识库管理进 `whale-agent` 工作台（8004）；**不新建前端应用** | 控制交付面积，避免新增端口与应用 |
 | D10 | 数据同步 | `whale-file` / `whale-workflow` / `whale-form` 新增 `/internal/**` 只读接口，网关统一 403 屏蔽 | 与现有 `/file/internal/upload` 模式一致；服务间 Nacos 直连，不经网关 |
 
@@ -46,7 +47,7 @@
 |---|---|---|
 | 是否自动归档 | 规则命中自动归档，否则进「待整理」人工确认 | 影响 `archive_item.status` 流转与前端页面 |
 | 档案密级体系 | 1 公开 / 2 内部 / 3 秘密 | 影响权限过滤与知识库可见性 |
-| 知识库是否纳入 IM 附件/头像 | 仅纳入业务桶，`whale-im` 桶可配置排除 | 影响噪声与索引量 |
+| 知识库是否纳入 IM 附件/头像 | **已定案（W5.75）**：桶白名单 default-deny，`whale-im` 等桶默认不采集，需显式加入 `included-buckets` | 影响噪声与索引量；改判需调整白名单配置 |
 | 是否生成 HTML 快照 | 一期 JSON 快照 + 可选 HTML | 影响 Tika/模板依赖 |
 
 ---

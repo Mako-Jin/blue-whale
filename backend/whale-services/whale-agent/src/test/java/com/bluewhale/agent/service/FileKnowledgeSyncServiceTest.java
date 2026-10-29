@@ -105,7 +105,7 @@ class FileKnowledgeSyncServiceTest {
         when(fileClient.changes(any(), anyLong(), anyLong())).thenReturn(List.of(change("m2")));
         when(fileClient.content(FILE_ID)).thenReturn(new byte[]{1, 2, 3});
         when(documentParser.parse(any(), eq("制度.docx"), any())).thenReturn("正文");
-        when(fileChunker.chunk(PATH, "whale-file", "制度.docx", "正文", FileChunker.KIND_FILE))
+        when(fileChunker.chunk(PATH, "bluewhale", "制度.docx", "正文", FileChunker.KIND_FILE))
                 .thenReturn(List.of(chunk()));
 
         syncService.runOnce();
@@ -166,7 +166,7 @@ class FileKnowledgeSyncServiceTest {
         when(fileClient.content(FILE_ID)).thenReturn(new byte[]{'x'});
         when(documentParser.parse(any(), eq("制度.docx"), any())).thenReturn("正文");
         when(archiveSecurityClient.securityLevel(FILE_ID)).thenReturn(2);
-        when(fileChunker.chunk(PATH, "whale-file", "制度.docx", "正文", FileChunker.KIND_ARCHIVE))
+        when(fileChunker.chunk(PATH, "bluewhale", "制度.docx", "正文", FileChunker.KIND_ARCHIVE))
                 .thenReturn(List.of(chunk()));
 
         syncService.runOnce();
@@ -185,7 +185,7 @@ class FileKnowledgeSyncServiceTest {
         when(fileClient.changes(any(), anyLong(), anyLong())).thenReturn(List.of(change("m1")));
         when(fileClient.content(FILE_ID)).thenReturn(new byte[]{'x'});
         when(documentParser.parse(any(), eq("制度.docx"), any())).thenReturn("正文");
-        when(fileChunker.chunk(PATH, "whale-file", "制度.docx", "正文", FileChunker.KIND_FILE))
+        when(fileChunker.chunk(PATH, "bluewhale", "制度.docx", "正文", FileChunker.KIND_FILE))
                 .thenReturn(List.of(chunk()));
 
         syncService.runOnce();
@@ -273,6 +273,75 @@ class FileKnowledgeSyncServiceTest {
     }
 
     @Test
+    @DisplayName("白名单外的桶不采集且不下发解析")
+    void shouldSkipBucketOutsideWhitelist() {
+        when(fileService.find(FILE_ID)).thenReturn(indexed("m1"));
+        RemoteFileChange outside = change("m2");
+        outside.setBucket("oa-private");
+        when(fileClient.changes(any(), anyLong(), anyLong())).thenReturn(List.of(outside));
+
+        syncService.runOnce();
+
+        verify(fileClient, never()).content(any());
+        verify(documentParser, never()).parse(any(), anyString(), any());
+        verify(indexService, never()).addFileChunks(anyString(), anyString(), anyList(), any(), any());
+        verify(indexService).deletePaths(List.of(PATH));
+        AgentKnowledgeFile latest = saved();
+        assertEquals(KnowledgeConstants.STATUS_SKIPPED, latest.getIndexStatus());
+        assertEquals("文件桶未纳入知识库白名单", latest.getLastError());
+    }
+
+    @Test
+    @DisplayName("白名单为空时 default-deny 不采集任何桶")
+    void shouldSkipEverythingWhenWhitelistEmpty() {
+        properties.getKnowledge().setIncludedBuckets(List.of());
+        when(fileService.find(FILE_ID)).thenReturn(indexed("m1"));
+        when(fileClient.changes(any(), anyLong(), anyLong())).thenReturn(List.of(change("m2")));
+
+        syncService.runOnce();
+
+        verify(fileClient, never()).content(any());
+        verify(indexService, never()).addFileChunks(anyString(), anyString(), anyList(), any(), any());
+        assertEquals("文件桶未纳入知识库白名单", saved().getLastError());
+    }
+
+    @Test
+    @DisplayName("排除列表优先于白名单")
+    void shouldLetExcludedOverrideIncluded() {
+        properties.getKnowledge().setIncludedBuckets(List.of("whale-doc"));
+        properties.getKnowledge().setExcludedBuckets(List.of("whale-doc"));
+        when(fileService.find(FILE_ID)).thenReturn(indexed("m1"));
+        RemoteFileChange docBucket = change("m2");
+        docBucket.setBucket("whale-doc");
+        when(fileClient.changes(any(), anyLong(), anyLong())).thenReturn(List.of(docBucket));
+
+        syncService.runOnce();
+
+        verify(fileClient, never()).content(any());
+        verify(indexService, never()).addFileChunks(anyString(), anyString(), anyList(), any(), any());
+        assertEquals("文件已删除、禁用或桶被排除", saved().getLastError());
+    }
+
+    @Test
+    @DisplayName("白名单按前缀匹配且可通过配置扩展")
+    void shouldSupportWhitelistPrefixOverride() {
+        properties.getKnowledge().setIncludedBuckets(List.of("oa-"));
+        when(fileService.find(FILE_ID)).thenReturn(indexed("m1"));
+        RemoteFileChange oa = change("m2");
+        oa.setBucket("oa-public");
+        when(fileClient.changes(any(), anyLong(), anyLong())).thenReturn(List.of(oa));
+        when(fileClient.content(FILE_ID)).thenReturn(new byte[]{'x'});
+        when(documentParser.parse(any(), eq("制度.docx"), any())).thenReturn("正文");
+        when(fileChunker.chunk(PATH, "oa-public", "制度.docx", "正文", FileChunker.KIND_FILE))
+                .thenReturn(List.of(chunk()));
+
+        syncService.runOnce();
+
+        verify(indexService).addFileChunks(eq(PATH), eq("m2"), anyList(), eq(FILE_ID), isNull());
+        assertEquals(KnowledgeConstants.STATUS_INDEXED, saved().getIndexStatus());
+    }
+
+    @Test
     @DisplayName("退避秒数按 2 的幂增长")
     void shouldComputeBackoff() {
         assertEquals(60L, FileKnowledgeSyncService.retryDelaySeconds(1, 60));
@@ -310,7 +379,7 @@ class FileKnowledgeSyncServiceTest {
         RemoteFileChange change = new RemoteFileChange();
         change.setId(FILE_ID);
         change.setOriginalName("制度.docx");
-        change.setBucket("whale-file");
+        change.setBucket("bluewhale");
         change.setContentType("text/plain");
         change.setFileSize(3L);
         change.setMd5(md5);

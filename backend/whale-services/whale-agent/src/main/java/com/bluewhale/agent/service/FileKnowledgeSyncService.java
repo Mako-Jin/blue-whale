@@ -41,6 +41,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * 升序分页；{@code md5} 未变不重建；删除/停用/不支持/损坏置 {@code SKIPPED} 并移除索引；
  * 可重试失败按指数退避最多尝试 {@code max-attempts} 次。</p>
  *
+ * <p>桶策略为 default-deny：只有命中 {@code included-buckets} 白名单且不在
+ * {@code excluded-buckets} 中的桶才会入库，避免个人/部门桶内容进入同租户全员可检索池。</p>
+ *
  * @author BlueWhale
  */
 @Slf4j
@@ -357,6 +360,11 @@ public class FileKnowledgeSyncService {
         boolean sameContent = unchanged(existing, change);
         AgentKnowledgeFile record = existing == null ? new AgentKnowledgeFile() : existing;
         applyMeta(record, change);
+        if (!included(change.getBucket())) {
+            removeIndex(fileId, context);
+            markSkipped(record, "文件桶未纳入知识库白名单");
+            return OUTCOME_SKIPPED;
+        }
         if (excluded(change.getBucket()) || !change.collectable()) {
             removeIndex(fileId, context);
             markSkipped(record, "文件已删除、禁用或桶被排除");
@@ -588,6 +596,31 @@ public class FileKnowledgeSyncService {
                 .endLine(chunk.getEndLine())
                 .wave(chunk.getWave())
                 .build();
+    }
+
+    /**
+     * 判断桶是否在知识库白名单内（default-deny）。
+     *
+     * <p>白名单按桶名前缀匹配；未配置、配置为空或桶名缺失时均返回 {@code false}，
+     * 避免未知桶被静默纳入全员可检索池。</p>
+     *
+     * @param bucket 桶名
+     * @return 在白名单内返回 {@code true}
+     */
+    private boolean included(String bucket) {
+        if (!StringUtils.hasText(bucket)) {
+            return false;
+        }
+        List<String> included = properties.getKnowledge().getIncludedBuckets();
+        if (included == null || included.isEmpty()) {
+            return false;
+        }
+        for (String pattern : included) {
+            if (StringUtils.hasText(pattern) && bucket.startsWith(pattern.trim())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
