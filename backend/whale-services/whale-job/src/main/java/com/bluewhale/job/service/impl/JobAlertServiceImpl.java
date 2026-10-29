@@ -3,13 +3,13 @@ package com.bluewhale.job.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.job.converter.JobConverter;
 import com.bluewhale.job.dto.JobAlertQueryRequest;
 import com.bluewhale.job.entity.JobAlert;
 import com.bluewhale.job.mapper.JobAlertMapper;
 import com.bluewhale.job.service.JobAlertService;
 import com.bluewhale.job.vo.JobAlertVO;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -48,8 +48,6 @@ public class JobAlertServiceImpl implements JobAlertService {
      * @return 告警视图对象
      */
     private static JobAlertVO toVo(JobAlert jobAlert) {
-        JobAlertVO vo = new JobAlertVO();
-        BeanUtils.copyProperties(jobAlert, vo);
-        return vo;
+        return JobConverter.INSTANCE.toAlertVo(jobAlert);
     }
 }

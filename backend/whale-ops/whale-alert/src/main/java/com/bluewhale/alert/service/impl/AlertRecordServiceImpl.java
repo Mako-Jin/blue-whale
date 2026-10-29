@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.alert.config.AlertNotifyProperties;
 import com.bluewhale.alert.dto.AlertRecordQueryRequest;
 import com.bluewhale.alert.dto.PrometheusWebhookPayload;
+import com.bluewhale.alert.converter.AlertConverter;
 import com.bluewhale.alert.entity.AlertRecord;
 import com.bluewhale.alert.entity.AlertRule;
 import com.bluewhale.alert.mapper.AlertRecordMapper;
@@ -16,7 +17,6 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -386,8 +386,7 @@ public class AlertRecordServiceImpl implements AlertRecordService {
      * @return 记录视图对象
      */
     private static AlertRecordVO toVo(AlertRecord record) {
-        AlertRecordVO vo = new AlertRecordVO();
-        BeanUtils.copyProperties(record, vo);
+        AlertRecordVO vo = AlertConverter.INSTANCE.toRecordVo(record);
         return vo;
     }
 }

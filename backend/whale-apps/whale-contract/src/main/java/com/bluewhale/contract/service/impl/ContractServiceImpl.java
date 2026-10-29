@@ -2,6 +2,7 @@ package com.bluewhale.contract.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bluewhale.contract.converter.ContractConverter;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
@@ -30,7 +31,6 @@ import com.bluewhale.contract.vo.ContractVO;
 import com.bluewhale.contract.vo.ContractVersionVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -625,8 +625,7 @@ public class ContractServiceImpl implements ContractService {
      * @return 视图对象
      */
     private static ContractPartyVO toPartyVo(CtContractParty party) {
-        ContractPartyVO vo = new ContractPartyVO();
-        BeanUtils.copyProperties(party, vo);
+        ContractPartyVO vo = ContractConverter.INSTANCE.toPartyVo(party);
         vo.setId(Objects.toString(party.getId(), null));
         vo.setContractId(Objects.toString(party.getContractId(), null));
         vo.setSignerUserId(Objects.toString(party.getSignerUserId(), null));
@@ -640,8 +639,7 @@ public class ContractServiceImpl implements ContractService {
      * @return 视图对象
      */
     private static ContractVersionVO toVersionVo(CtContractVersion version) {
-        ContractVersionVO vo = new ContractVersionVO();
-        BeanUtils.copyProperties(version, vo);
+        ContractVersionVO vo = ContractConverter.INSTANCE.toVersionVo(version);
         vo.setId(Objects.toString(version.getId(), null));
         vo.setContractId(Objects.toString(version.getContractId(), null));
         vo.setFileId(Objects.toString(version.getFileId(), null));
@@ -655,8 +653,7 @@ public class ContractServiceImpl implements ContractService {
      * @return 视图对象
      */
     private static ContractFlowVO toFlowVo(CtContractFlow flow) {
-        ContractFlowVO vo = new ContractFlowVO();
-        BeanUtils.copyProperties(flow, vo);
+        ContractFlowVO vo = ContractConverter.INSTANCE.toFlowVo(flow);
         vo.setId(Objects.toString(flow.getId(), null));
         vo.setContractId(Objects.toString(flow.getContractId(), null));
         vo.setVersionId(Objects.toString(flow.getVersionId(), null));

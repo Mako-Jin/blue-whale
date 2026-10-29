@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.message.converter.MessageConverter;
 import com.bluewhale.message.dto.MessageRecordQueryRequest;
 import com.bluewhale.message.entity.MessageDelivery;
 import com.bluewhale.message.entity.MessageRecord;
@@ -14,7 +15,6 @@ import com.bluewhale.message.service.MessageRecordService;
 import com.bluewhale.message.vo.MessageDeliveryVO;
 import com.bluewhale.message.vo.MessageRecordVO;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -73,8 +73,7 @@ public class MessageRecordServiceImpl implements MessageRecordService {
      * @return 视图
      */
     private static MessageRecordVO toVo(MessageRecord record) {
-        MessageRecordVO vo = new MessageRecordVO();
-        BeanUtils.copyProperties(record, vo);
+        MessageRecordVO vo = MessageConverter.INSTANCE.toRecordVo(record);
         return vo;
     }
 
@@ -85,8 +84,7 @@ public class MessageRecordServiceImpl implements MessageRecordService {
      * @return 视图
      */
     private static MessageDeliveryVO toDeliveryVo(MessageDelivery delivery) {
-        MessageDeliveryVO vo = new MessageDeliveryVO();
-        BeanUtils.copyProperties(delivery, vo);
+        MessageDeliveryVO vo = MessageConverter.INSTANCE.toDeliveryVo(delivery);
         return vo;
     }
 }

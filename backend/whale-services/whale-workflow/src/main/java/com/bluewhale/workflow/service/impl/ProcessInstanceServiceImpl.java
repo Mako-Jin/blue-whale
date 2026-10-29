@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.workflow.converter.WorkflowConverter;
 import com.bluewhale.workflow.dto.ProcessInstanceQueryRequest;
 import com.bluewhale.workflow.dto.ProcessInstanceStartRequest;
 import com.bluewhale.workflow.entity.ProcessDefinition;
@@ -26,7 +27,6 @@ import com.bluewhale.workflow.support.machine.TransitionResult;
 import com.bluewhale.workflow.vo.ProcessInstanceVO;
 import com.bluewhale.workflow.vo.ProcessTaskVO;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -249,9 +249,7 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
      * @return 流程实例视图对象
      */
     private static ProcessInstanceVO toVo(ProcessInstance entity) {
-        ProcessInstanceVO vo = new ProcessInstanceVO();
-        BeanUtils.copyProperties(entity, vo);
-        return vo;
+        return WorkflowConverter.INSTANCE.toInstanceVo(entity);
     }
 
     /**
@@ -261,8 +259,6 @@ public class ProcessInstanceServiceImpl implements ProcessInstanceService {
      * @return 待办任务视图对象
      */
     private static ProcessTaskVO toTaskVo(ProcessTask entity) {
-        ProcessTaskVO vo = new ProcessTaskVO();
-        BeanUtils.copyProperties(entity, vo);
-        return vo;
+        return WorkflowConverter.INSTANCE.toTaskVo(entity);
     }
 }

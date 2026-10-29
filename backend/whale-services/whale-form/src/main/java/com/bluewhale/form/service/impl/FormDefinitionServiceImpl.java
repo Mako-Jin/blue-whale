@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.form.converter.FormConverter;
 import com.bluewhale.form.dto.FormDefinitionCopyRequest;
 import com.bluewhale.form.dto.FormDefinitionSaveRequest;
 import com.bluewhale.form.dto.FormFieldConfigDTO;
@@ -34,7 +35,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -319,8 +319,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
         Map<Long, List<FormFieldOption>> optionMap = loadOptions(sources);
         List<FormFieldConfig> result = new ArrayList<>();
         for (FormFieldConfig source : sources) {
-            FormFieldConfig config = new FormFieldConfig();
-            BeanUtils.copyProperties(source, config);
+            FormFieldConfig config = FormConverter.INSTANCE.toNewConfig(source);
             config.setId(null);
             config.setFormId(targetFormId);
             config.setCreateTime(null);
@@ -606,8 +605,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @return 字段配置视图对象
      */
     private static FormFieldConfigVO toFieldVo(FormFieldConfig config, List<FormFieldOption> options) {
-        FormFieldConfigVO vo = new FormFieldConfigVO();
-        BeanUtils.copyProperties(config, vo);
+        FormFieldConfigVO vo = FormConverter.INSTANCE.toFieldConfigVo(config);
         if (options != null) {
             vo.setOptions(options.stream().map(FormDefinitionServiceImpl::toOptionVo).toList());
         }
@@ -621,9 +619,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @return 选项视图对象
      */
     private static FormFieldOptionVO toOptionVo(FormFieldOption option) {
-        FormFieldOptionVO vo = new FormFieldOptionVO();
-        BeanUtils.copyProperties(option, vo);
-        return vo;
+        return FormConverter.INSTANCE.toOptionVo(option);
     }
 
     /**
@@ -634,8 +630,7 @@ public class FormDefinitionServiceImpl implements FormDefinitionService {
      * @return 表单定义视图对象
      */
     private static FormDefinitionVO toVo(FormDefinition entity, List<FormFieldConfigVO> fields) {
-        FormDefinitionVO vo = new FormDefinitionVO();
-        BeanUtils.copyProperties(entity, vo);
+        FormDefinitionVO vo = FormConverter.INSTANCE.toDefinitionVo(entity);
         if (fields != null) {
             vo.setFields(fields);
         }

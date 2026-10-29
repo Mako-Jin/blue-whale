@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.form.converter.FormConverter;
 import com.bluewhale.form.dto.FormColumnMetaDTO;
 import com.bluewhale.form.dto.FormQueryRequest;
 import com.bluewhale.form.dto.FormTableDefinitionSaveRequest;
@@ -23,7 +24,6 @@ import com.bluewhale.form.support.FormTableDdlGenerator;
 import com.bluewhale.form.vo.FormColumnMetaVO;
 import com.bluewhale.form.vo.FormTableDefinitionVO;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -326,8 +326,7 @@ public class FormTableDefinitionServiceImpl implements FormTableDefinitionServic
      * @return 表定义视图对象
      */
     private static FormTableDefinitionVO toVo(FormTableDefinition entity, List<FormColumnMeta> columns) {
-        FormTableDefinitionVO vo = new FormTableDefinitionVO();
-        BeanUtils.copyProperties(entity, vo);
+        FormTableDefinitionVO vo = FormConverter.INSTANCE.toTableDefinitionVo(entity);
         if (columns != null) {
             vo.setColumns(columns.stream().map(FormTableDefinitionServiceImpl::toColumnVo).toList());
         }
@@ -341,9 +340,7 @@ public class FormTableDefinitionServiceImpl implements FormTableDefinitionServic
      * @return 列视图对象
      */
     private static FormColumnMetaVO toColumnVo(FormColumnMeta entity) {
-        FormColumnMetaVO vo = new FormColumnMetaVO();
-        BeanUtils.copyProperties(entity, vo);
-        return vo;
+        return FormConverter.INSTANCE.toColumnMetaVo(entity);
     }
 
     /**

@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.workflow.converter.WorkflowConverter;
 import com.bluewhale.workflow.dto.DefinitionMigrationRequest;
 import com.bluewhale.workflow.dto.ProcessDefinitionSaveRequest;
 import com.bluewhale.workflow.dto.ProcessQueryRequest;
@@ -24,7 +25,6 @@ import com.bluewhale.workflow.vo.DefinitionMigrationVO;
 import com.bluewhale.workflow.vo.ProcessDefinitionVO;
 import com.bluewhale.workflow.vo.ProcessDefinitionVersionVO;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -458,9 +458,7 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
      * @return 流程定义视图对象
      */
     private static ProcessDefinitionVO toVo(ProcessDefinition entity) {
-        ProcessDefinitionVO vo = new ProcessDefinitionVO();
-        BeanUtils.copyProperties(entity, vo);
-        return vo;
+        return WorkflowConverter.INSTANCE.toDefinitionVo(entity);
     }
 
     /**
@@ -470,8 +468,6 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
      * @return 版本快照视图对象
      */
     private static ProcessDefinitionVersionVO toVersionVo(ProcessDefinitionVersion entity) {
-        ProcessDefinitionVersionVO vo = new ProcessDefinitionVersionVO();
-        BeanUtils.copyProperties(entity, vo);
-        return vo;
+        return WorkflowConverter.INSTANCE.toDefinitionVersionVo(entity);
     }
 }

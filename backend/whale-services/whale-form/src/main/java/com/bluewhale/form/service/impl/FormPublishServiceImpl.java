@@ -3,6 +3,7 @@ package com.bluewhale.form.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.form.converter.FormConverter;
 import com.bluewhale.form.entity.FormColumnMeta;
 import com.bluewhale.form.entity.FormDefinition;
 import com.bluewhale.form.entity.FormTableDefinition;
@@ -19,7 +20,6 @@ import com.bluewhale.form.support.FormSchemaParser;
 import com.bluewhale.form.support.FormTableDdlGenerator;
 import com.bluewhale.form.vo.FormTableRegistryVO;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -337,8 +337,6 @@ public class FormPublishServiceImpl implements FormPublishService {
      * @return 登记视图对象
      */
     private static FormTableRegistryVO toVo(FormTableRegistry entity) {
-        FormTableRegistryVO vo = new FormTableRegistryVO();
-        BeanUtils.copyProperties(entity, vo);
-        return vo;
+        return FormConverter.INSTANCE.toRegistryVo(entity);
     }
 }

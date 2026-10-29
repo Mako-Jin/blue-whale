@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.alert.dto.AlertRuleQueryRequest;
 import com.bluewhale.alert.dto.AlertRuleSaveRequest;
+import com.bluewhale.alert.converter.AlertConverter;
 import com.bluewhale.alert.entity.AlertRule;
 import com.bluewhale.alert.mapper.AlertRuleMapper;
 import com.bluewhale.alert.service.AlertRuleService;
@@ -12,7 +13,6 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -68,8 +68,7 @@ public class AlertRuleServiceImpl implements AlertRuleService {
     @Transactional(rollbackFor = Exception.class)
     public AlertRuleVO create(AlertRuleSaveRequest request) {
         ensureUnique(request.getRuleCode(), null);
-        AlertRule entity = new AlertRule();
-        BeanUtils.copyProperties(request, entity);
+        AlertRule entity = AlertConverter.INSTANCE.toEntity(request);
         alertRuleMapper.insert(entity);
         return toVo(alertRuleMapper.selectById(entity.getId()));
     }
@@ -79,7 +78,7 @@ public class AlertRuleServiceImpl implements AlertRuleService {
     public AlertRuleVO update(Long id, AlertRuleSaveRequest request) {
         AlertRule existing = requireRule(id);
         ensureUnique(request.getRuleCode(), id);
-        BeanUtils.copyProperties(request, existing);
+        AlertConverter.INSTANCE.updateEntity(request, existing);
         existing.setId(id);
         alertRuleMapper.updateById(existing);
         return toVo(alertRuleMapper.selectById(id));
@@ -141,8 +140,7 @@ public class AlertRuleServiceImpl implements AlertRuleService {
      * @return 规则视图对象
      */
     private static AlertRuleVO toVo(AlertRule rule) {
-        AlertRuleVO vo = new AlertRuleVO();
-        BeanUtils.copyProperties(rule, vo);
+        AlertRuleVO vo = AlertConverter.INSTANCE.toRuleVo(rule);
         return vo;
     }
 }

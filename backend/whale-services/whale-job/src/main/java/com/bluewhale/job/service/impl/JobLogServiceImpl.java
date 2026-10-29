@@ -3,13 +3,13 @@ package com.bluewhale.job.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.job.converter.JobConverter;
 import com.bluewhale.job.dto.JobLogQueryRequest;
 import com.bluewhale.job.entity.JobLog;
 import com.bluewhale.job.mapper.JobLogMapper;
 import com.bluewhale.job.service.JobLogService;
 import com.bluewhale.job.vo.JobLogVO;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -47,8 +47,6 @@ public class JobLogServiceImpl implements JobLogService {
      * @return 执行日志视图对象
      */
     private static JobLogVO toVo(JobLog jobLog) {
-        JobLogVO vo = new JobLogVO();
-        BeanUtils.copyProperties(jobLog, vo);
-        return vo;
+        return JobConverter.INSTANCE.toLogVo(jobLog);
     }
 }

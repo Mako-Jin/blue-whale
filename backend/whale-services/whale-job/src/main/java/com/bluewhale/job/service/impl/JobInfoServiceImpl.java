@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.job.converter.JobConverter;
 import com.bluewhale.job.dto.JobInfoCreateRequest;
 import com.bluewhale.job.dto.JobInfoQueryRequest;
 import com.bluewhale.job.dto.JobInfoUpdateRequest;
@@ -15,7 +16,6 @@ import com.bluewhale.job.scheduler.JobScheduler;
 import com.bluewhale.job.service.JobInfoService;
 import com.bluewhale.job.vo.JobInfoVO;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.BeanUtils;
 import org.springframework.scheduling.support.CronExpression;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -83,8 +83,7 @@ public class JobInfoServiceImpl implements JobInfoService {
     public JobInfoVO create(JobInfoCreateRequest request) {
         validateCron(request.getCronExpression());
         validateHandler(request.getHandlerBean());
-        JobInfo job = new JobInfo();
-        BeanUtils.copyProperties(request, job);
+        JobInfo job = JobConverter.INSTANCE.toEntity(request);
         job.setJobGroup(StringUtils.hasText(request.getJobGroup()) ? request.getJobGroup() : DEFAULT_JOB_GROUP);
         job.setMisfirePolicy(StringUtils.hasText(request.getMisfirePolicy())
                 ? request.getMisfirePolicy() : DEFAULT_MISFIRE_POLICY);
@@ -107,7 +106,7 @@ public class JobInfoServiceImpl implements JobInfoService {
         Integer maxRetry = job.getMaxRetry();
         Integer retryIntervalSeconds = job.getRetryIntervalSeconds();
         Integer shardTotal = job.getShardTotal();
-        BeanUtils.copyProperties(request, job);
+        JobConverter.INSTANCE.updateEntity(request, job);
         if (!StringUtils.hasText(request.getJobGroup())) {
             job.setJobGroup(DEFAULT_JOB_GROUP);
         }
@@ -203,8 +202,7 @@ public class JobInfoServiceImpl implements JobInfoService {
      * @return 任务视图对象
      */
     private static JobInfoVO toVo(JobInfo job) {
-        JobInfoVO vo = new JobInfoVO();
-        BeanUtils.copyProperties(job, vo);
+        JobInfoVO vo = JobConverter.INSTANCE.toInfoVo(job);
         vo.setNextFireTime(resolveNextFireTime(job));
         return vo;
     }

@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.message.converter.MessageConverter;
 import com.bluewhale.message.dto.MessageTemplateQueryRequest;
 import com.bluewhale.message.dto.MessageTemplateSaveRequest;
 import com.bluewhale.message.entity.MessageTemplate;
@@ -13,7 +14,6 @@ import com.bluewhale.message.service.MessageTemplateService;
 import com.bluewhale.message.vo.MessageTemplateVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -68,8 +68,7 @@ public class MessageTemplateServiceImpl implements MessageTemplateService {
     public MessageTemplateVO create(MessageTemplateSaveRequest request) {
         String code = normalizeCode(request.getTemplateCode());
         assertCodeUnique(code, null);
-        MessageTemplate template = new MessageTemplate();
-        BeanUtils.copyProperties(request, template);
+        MessageTemplate template = MessageConverter.INSTANCE.toEntity(request);
         template.setTemplateCode(code);
         template.setStatus(request.getStatus() == null ? STATUS_ENABLED : request.getStatus());
         templateMapper.insert(template);
@@ -83,7 +82,7 @@ public class MessageTemplateServiceImpl implements MessageTemplateService {
         MessageTemplate template = requireTemplate(id);
         String code = normalizeCode(request.getTemplateCode());
         assertCodeUnique(code, id);
-        BeanUtils.copyProperties(request, template);
+        MessageConverter.INSTANCE.updateEntity(request, template);
         template.setTemplateCode(code);
         templateMapper.updateById(template);
         log.info("消息模板已更新: id={}, code={}", id, template.getTemplateCode());
@@ -142,8 +141,6 @@ public class MessageTemplateServiceImpl implements MessageTemplateService {
      * @return 视图对象
      */
     private static MessageTemplateVO toVo(MessageTemplate template) {
-        MessageTemplateVO vo = new MessageTemplateVO();
-        BeanUtils.copyProperties(template, vo);
-        return vo;
+        return MessageConverter.INSTANCE.toTemplateVo(template);
     }
 }

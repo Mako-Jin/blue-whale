@@ -2,6 +2,7 @@ package com.bluewhale.oa.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bluewhale.oa.converter.OaConverter;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
@@ -13,7 +14,6 @@ import com.bluewhale.oa.service.OaLeaveService;
 import com.bluewhale.oa.vo.OaLeaveVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -65,8 +65,7 @@ public class OaLeaveServiceImpl implements OaLeaveService {
     public OaLeaveVO create(OaLeaveSaveRequest request) {
         validateDateRange(request);
         assertCodeUnique(request.getCode(), null);
-        OaLeave leave = new OaLeave();
-        BeanUtils.copyProperties(request, leave);
+        OaLeave leave = OaConverter.INSTANCE.toEntity(request);
         leave.setStatus(STATUS_PENDING);
         oaLeaveMapper.insert(leave);
         log.info("请假申请已创建: id={}, code={}", leave.getId(), leave.getCode());
@@ -79,7 +78,7 @@ public class OaLeaveServiceImpl implements OaLeaveService {
         OaLeave leave = requireEditable(id);
         validateDateRange(request);
         assertCodeUnique(request.getCode(), id);
-        BeanUtils.copyProperties(request, leave);
+        OaConverter.INSTANCE.updateEntity(request, leave);
         oaLeaveMapper.updateById(leave);
         log.info("请假申请已更新: id={}, code={}", id, leave.getCode());
         return toVo(leave);
@@ -168,8 +167,6 @@ public class OaLeaveServiceImpl implements OaLeaveService {
      * @return 视图对象
      */
     private static OaLeaveVO toVo(OaLeave leave) {
-        OaLeaveVO vo = new OaLeaveVO();
-        BeanUtils.copyProperties(leave, vo);
-        return vo;
+        return OaConverter.INSTANCE.toLeaveVo(leave);
     }
 }

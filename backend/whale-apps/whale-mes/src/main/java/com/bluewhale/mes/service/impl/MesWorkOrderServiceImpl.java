@@ -2,6 +2,7 @@ package com.bluewhale.mes.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bluewhale.mes.converter.MesConverter;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
@@ -13,7 +14,6 @@ import com.bluewhale.mes.service.MesWorkOrderService;
 import com.bluewhale.mes.vo.MesWorkOrderVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -59,8 +59,7 @@ public class MesWorkOrderServiceImpl implements MesWorkOrderService {
     @Transactional(rollbackFor = Exception.class)
     public MesWorkOrderVO create(MesWorkOrderSaveRequest request) {
         assertCodeUnique(request.getCode(), null);
-        MesWorkOrder workOrder = new MesWorkOrder();
-        BeanUtils.copyProperties(request, workOrder);
+        MesWorkOrder workOrder = MesConverter.INSTANCE.toEntity(request);
         mesWorkOrderMapper.insert(workOrder);
         log.info("工单已创建: id={}, code={}", workOrder.getId(), workOrder.getCode());
         return toVo(workOrder);
@@ -71,7 +70,7 @@ public class MesWorkOrderServiceImpl implements MesWorkOrderService {
     public MesWorkOrderVO update(Long id, MesWorkOrderSaveRequest request) {
         MesWorkOrder workOrder = requireWorkOrder(id);
         assertCodeUnique(request.getCode(), id);
-        BeanUtils.copyProperties(request, workOrder);
+        MesConverter.INSTANCE.updateEntity(request, workOrder);
         mesWorkOrderMapper.updateById(workOrder);
         log.info("工单已更新: id={}, code={}", id, workOrder.getCode());
         return toVo(workOrder);
@@ -123,8 +122,6 @@ public class MesWorkOrderServiceImpl implements MesWorkOrderService {
      * @return 视图对象
      */
     private static MesWorkOrderVO toVo(MesWorkOrder workOrder) {
-        MesWorkOrderVO vo = new MesWorkOrderVO();
-        BeanUtils.copyProperties(workOrder, vo);
-        return vo;
+        return MesConverter.INSTANCE.toWorkOrderVo(workOrder);
     }
 }

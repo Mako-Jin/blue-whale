@@ -2,6 +2,7 @@ package com.bluewhale.i18n.admin.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bluewhale.i18n.admin.converter.I18nMessageConverter;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
@@ -13,7 +14,6 @@ import com.bluewhale.i18n.admin.vo.I18nMessageVO;
 import com.bluewhale.i18n.entity.SysI18nMessage;
 import com.bluewhale.i18n.mapper.SysI18nMessageMapper;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.BeanUtils;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -62,8 +62,7 @@ public class I18nLocalMessageServiceImpl implements I18nLocalMessageService {
     @Transactional(rollbackFor = Exception.class)
     public I18nMessageVO create(I18nMessageSaveRequest request) {
         ensureUnique(request.getMessageKey(), request.getLocale(), null);
-        SysI18nMessage entity = new SysI18nMessage();
-        BeanUtils.copyProperties(request, entity);
+        SysI18nMessage entity = I18nMessageConverter.INSTANCE.toEntity(request);
         i18nMessageMapper.insert(entity);
         cacheEvictHelper.evict(request.getMessageKey(), request.getLocale());
         return toVo(i18nMessageMapper.selectById(entity.getId()));
@@ -76,7 +75,7 @@ public class I18nLocalMessageServiceImpl implements I18nLocalMessageService {
         String oldKey = existing.getMessageKey();
         String oldLocale = existing.getLocale();
         ensureUnique(request.getMessageKey(), request.getLocale(), id);
-        BeanUtils.copyProperties(request, existing);
+        I18nMessageConverter.INSTANCE.updateEntity(request, existing);
         existing.setId(id);
         i18nMessageMapper.updateById(existing);
         if (!Objects.equals(oldKey, request.getMessageKey()) || !Objects.equals(oldLocale, request.getLocale())) {
@@ -134,8 +133,7 @@ public class I18nLocalMessageServiceImpl implements I18nLocalMessageService {
      * @return 消息视图对象
      */
     private static I18nMessageVO toVo(SysI18nMessage message) {
-        I18nMessageVO vo = new I18nMessageVO();
-        BeanUtils.copyProperties(message, vo);
+        I18nMessageVO vo = I18nMessageConverter.INSTANCE.toVo(message);
         return vo;
     }
 }

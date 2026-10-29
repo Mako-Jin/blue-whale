@@ -2,6 +2,7 @@ package com.bluewhale.pdm.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bluewhale.pdm.converter.PdmConverter;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
@@ -13,7 +14,6 @@ import com.bluewhale.pdm.service.PdmProductService;
 import com.bluewhale.pdm.vo.PdmProductVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -59,8 +59,7 @@ public class PdmProductServiceImpl implements PdmProductService {
     @Transactional(rollbackFor = Exception.class)
     public PdmProductVO create(PdmProductSaveRequest request) {
         assertCodeUnique(request.getCode(), null);
-        PdmProduct product = new PdmProduct();
-        BeanUtils.copyProperties(request, product);
+        PdmProduct product = PdmConverter.INSTANCE.toEntity(request);
         pdmProductMapper.insert(product);
         log.info("产品已创建: id={}, code={}", product.getId(), product.getCode());
         return toVo(product);
@@ -71,7 +70,7 @@ public class PdmProductServiceImpl implements PdmProductService {
     public PdmProductVO update(Long id, PdmProductSaveRequest request) {
         PdmProduct product = requireProduct(id);
         assertCodeUnique(request.getCode(), id);
-        BeanUtils.copyProperties(request, product);
+        PdmConverter.INSTANCE.updateEntity(request, product);
         pdmProductMapper.updateById(product);
         log.info("产品已更新: id={}, code={}", id, product.getCode());
         return toVo(product);
@@ -123,8 +122,6 @@ public class PdmProductServiceImpl implements PdmProductService {
      * @return 视图对象
      */
     private static PdmProductVO toVo(PdmProduct product) {
-        PdmProductVO vo = new PdmProductVO();
-        BeanUtils.copyProperties(product, vo);
-        return vo;
+        return PdmConverter.INSTANCE.toProductVo(product);
     }
 }

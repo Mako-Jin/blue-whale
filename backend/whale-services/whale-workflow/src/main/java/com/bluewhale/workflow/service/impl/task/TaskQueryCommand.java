@@ -3,12 +3,12 @@ package com.bluewhale.workflow.service.impl.task;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.workflow.converter.WorkflowConverter;
 import com.bluewhale.workflow.dto.ProcessTaskQueryRequest;
 import com.bluewhale.workflow.entity.ProcessTask;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
 import com.bluewhale.workflow.vo.ProcessTaskVO;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -49,8 +49,6 @@ public class TaskQueryCommand {
      * @return 待办任务视图对象
      */
     private static ProcessTaskVO toVo(ProcessTask entity) {
-        ProcessTaskVO vo = new ProcessTaskVO();
-        BeanUtils.copyProperties(entity, vo);
-        return vo;
+        return WorkflowConverter.INSTANCE.toTaskVo(entity);
     }
 }

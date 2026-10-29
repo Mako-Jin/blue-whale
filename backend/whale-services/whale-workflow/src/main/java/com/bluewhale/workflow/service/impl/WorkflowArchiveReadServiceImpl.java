@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.workflow.converter.WorkflowConverter;
 import com.bluewhale.workflow.entity.ProcessDefinition;
 import com.bluewhale.workflow.entity.ProcessDefinitionVersion;
 import com.bluewhale.workflow.entity.ProcessInstance;
@@ -18,7 +19,6 @@ import com.bluewhale.workflow.vo.ApprovedInstanceVO;
 import com.bluewhale.workflow.vo.ArchiveInstanceDetailVO;
 import com.bluewhale.workflow.vo.ProcessTaskVO;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -77,8 +77,7 @@ public class WorkflowArchiveReadServiceImpl implements WorkflowArchiveReadServic
         if (instance == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
-        ArchiveInstanceDetailVO vo = new ArchiveInstanceDetailVO();
-        BeanUtils.copyProperties(instance, vo);
+        ArchiveInstanceDetailVO vo = WorkflowConverter.INSTANCE.toArchiveDetailVo(instance);
         vo.setFinishedAt(instance.getUpdateTime());
         vo.setDefinitionJson(resolveDefinitionJson(instance));
         vo.setTasks(listTasks(id));
@@ -163,8 +162,7 @@ public class WorkflowArchiveReadServiceImpl implements WorkflowArchiveReadServic
      * @return 已通过实例摘要视图对象
      */
     private static ApprovedInstanceVO toApprovedVo(ProcessInstance entity) {
-        ApprovedInstanceVO vo = new ApprovedInstanceVO();
-        BeanUtils.copyProperties(entity, vo);
+        ApprovedInstanceVO vo = WorkflowConverter.INSTANCE.toApprovedVo(entity);
         vo.setFinishedAt(entity.getUpdateTime());
         return vo;
     }
@@ -176,8 +174,6 @@ public class WorkflowArchiveReadServiceImpl implements WorkflowArchiveReadServic
      * @return 待办任务视图对象
      */
     private static ProcessTaskVO toTaskVo(ProcessTask entity) {
-        ProcessTaskVO vo = new ProcessTaskVO();
-        BeanUtils.copyProperties(entity, vo);
-        return vo;
+        return WorkflowConverter.INSTANCE.toTaskVo(entity);
     }
 }

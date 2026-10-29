@@ -2,6 +2,7 @@ package com.bluewhale.erp.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bluewhale.erp.converter.ErpConverter;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
@@ -13,7 +14,6 @@ import com.bluewhale.erp.service.ErpItemService;
 import com.bluewhale.erp.vo.ErpItemVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -59,8 +59,7 @@ public class ErpItemServiceImpl implements ErpItemService {
     @Transactional(rollbackFor = Exception.class)
     public ErpItemVO create(ErpItemSaveRequest request) {
         assertCodeUnique(request.getCode(), null);
-        ErpItem item = new ErpItem();
-        BeanUtils.copyProperties(request, item);
+        ErpItem item = ErpConverter.INSTANCE.toItemEntity(request);
         erpItemMapper.insert(item);
         log.info("物料已创建: id={}, code={}", item.getId(), item.getCode());
         return toVo(item);
@@ -71,7 +70,7 @@ public class ErpItemServiceImpl implements ErpItemService {
     public ErpItemVO update(Long id, ErpItemSaveRequest request) {
         ErpItem item = requireItem(id);
         assertCodeUnique(request.getCode(), id);
-        BeanUtils.copyProperties(request, item);
+        ErpConverter.INSTANCE.updateItemEntity(request, item);
         erpItemMapper.updateById(item);
         log.info("物料已更新: id={}, code={}", id, item.getCode());
         return toVo(item);
@@ -123,8 +122,6 @@ public class ErpItemServiceImpl implements ErpItemService {
      * @return 视图对象
      */
     private static ErpItemVO toVo(ErpItem item) {
-        ErpItemVO vo = new ErpItemVO();
-        BeanUtils.copyProperties(item, vo);
-        return vo;
+        return ErpConverter.INSTANCE.toItemVo(item);
     }
 }

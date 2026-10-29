@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.form.converter.FormConverter;
 import com.bluewhale.form.dto.FormDataFilter;
 import com.bluewhale.form.dto.FormDataQueryRequest;
 import com.bluewhale.form.dto.FormDataSubmitRequest;
@@ -29,7 +30,6 @@ import com.bluewhale.form.vo.FormDataVO;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -926,8 +926,7 @@ public class FormDataServiceImpl implements FormDataService {
      * @return 表单数据视图对象
      */
     private static FormDataVO toVo(FormData entity, Map<String, Object> fields) {
-        FormDataVO vo = new FormDataVO();
-        BeanUtils.copyProperties(entity, vo);
+        FormDataVO vo = FormConverter.INSTANCE.toDataVo(entity);
         vo.setFields(fields);
         return vo;
     }

@@ -2,6 +2,7 @@ package com.bluewhale.config.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bluewhale.config.converter.ConfigItemConverter;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
@@ -18,7 +19,6 @@ import com.bluewhale.config.service.ConfigItemService;
 import com.bluewhale.config.vo.ConfigItemHistoryVO;
 import com.bluewhale.config.vo.ConfigItemVO;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.BeanUtils;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -347,8 +347,7 @@ public class ConfigItemServiceImpl implements ConfigItemService {
      * @return 配置项视图对象
      */
     private static ConfigItemVO toVo(ConfigItem item) {
-        ConfigItemVO vo = new ConfigItemVO();
-        BeanUtils.copyProperties(item, vo);
+        ConfigItemVO vo = ConfigItemConverter.INSTANCE.toVo(item);
         return vo;
     }
 
@@ -359,8 +358,7 @@ public class ConfigItemServiceImpl implements ConfigItemService {
      * @return 历史视图对象
      */
     private static ConfigItemHistoryVO toHistoryVo(ConfigItemHistory history) {
-        ConfigItemHistoryVO vo = new ConfigItemHistoryVO();
-        BeanUtils.copyProperties(history, vo);
+        ConfigItemHistoryVO vo = ConfigItemConverter.INSTANCE.toHistoryVo(history);
         return vo;
     }
 }

@@ -2,6 +2,7 @@ package com.bluewhale.erp.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bluewhale.erp.converter.ErpConverter;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
@@ -13,7 +14,6 @@ import com.bluewhale.erp.service.ErpSupplierService;
 import com.bluewhale.erp.vo.ErpSupplierVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -61,8 +61,7 @@ public class ErpSupplierServiceImpl implements ErpSupplierService {
     @Transactional(rollbackFor = Exception.class)
     public ErpSupplierVO create(ErpSupplierSaveRequest request) {
         assertCodeUnique(request.getCode(), null);
-        ErpSupplier supplier = new ErpSupplier();
-        BeanUtils.copyProperties(request, supplier);
+        ErpSupplier supplier = ErpConverter.INSTANCE.toSupplierEntity(request);
         erpSupplierMapper.insert(supplier);
         log.info("供应商已创建: id={}, code={}", supplier.getId(), supplier.getCode());
         return toVo(supplier);
@@ -73,7 +72,7 @@ public class ErpSupplierServiceImpl implements ErpSupplierService {
     public ErpSupplierVO update(Long id, ErpSupplierSaveRequest request) {
         ErpSupplier supplier = requireSupplier(id);
         assertCodeUnique(request.getCode(), id);
-        BeanUtils.copyProperties(request, supplier);
+        ErpConverter.INSTANCE.updateSupplierEntity(request, supplier);
         erpSupplierMapper.updateById(supplier);
         log.info("供应商已更新: id={}, code={}", id, supplier.getCode());
         return toVo(supplier);
@@ -125,8 +124,6 @@ public class ErpSupplierServiceImpl implements ErpSupplierService {
      * @return 视图对象
      */
     private static ErpSupplierVO toVo(ErpSupplier supplier) {
-        ErpSupplierVO vo = new ErpSupplierVO();
-        BeanUtils.copyProperties(supplier, vo);
-        return vo;
+        return ErpConverter.INSTANCE.toSupplierVo(supplier);
     }
 }
