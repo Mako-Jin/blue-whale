@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.audit.config.AuditExportProperties;
+import com.bluewhale.audit.converter.AuditLogConverter;
 import com.bluewhale.audit.dto.AuditLogQueryRequest;
 import com.bluewhale.audit.service.AuditLogService;
 import com.bluewhale.audit.support.AuditArchiveClient;
@@ -17,7 +18,6 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -177,8 +177,6 @@ public class AuditLogServiceImpl implements AuditLogService {
      * @return 审计日志视图对象
      */
     private static AuditLogVO toVo(AuditLogRecord record) {
-        AuditLogVO vo = new AuditLogVO();
-        BeanUtils.copyProperties(record, vo);
-        return vo;
+        return AuditLogConverter.INSTANCE.toAuditLogVo(record);
     }
 }

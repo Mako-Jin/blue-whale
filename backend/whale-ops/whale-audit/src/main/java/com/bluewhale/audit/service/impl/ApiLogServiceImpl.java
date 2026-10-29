@@ -3,6 +3,7 @@ package com.bluewhale.audit.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bluewhale.audit.converter.AuditLogConverter;
 import com.bluewhale.audit.dto.ApiLogQueryRequest;
 import com.bluewhale.audit.service.ApiLogService;
 import com.bluewhale.audit.vo.ApiLogVO;
@@ -10,7 +11,6 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.log.entity.ApiLogRecord;
 import com.bluewhale.common.log.mapper.ApiLogMapper;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -82,8 +82,6 @@ public class ApiLogServiceImpl implements ApiLogService {
      * @return 接口日志视图对象
      */
     private static ApiLogVO toVo(ApiLogRecord record) {
-        ApiLogVO vo = new ApiLogVO();
-        BeanUtils.copyProperties(record, vo);
-        return vo;
+        return AuditLogConverter.INSTANCE.toApiLogVo(record);
     }
 }

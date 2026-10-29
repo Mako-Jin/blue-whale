@@ -3,6 +3,7 @@ package com.bluewhale.audit.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bluewhale.audit.converter.AuditLogConverter;
 import com.bluewhale.audit.dto.FrontendLogQueryRequest;
 import com.bluewhale.audit.dto.LogBatchRequest;
 import com.bluewhale.audit.dto.LogItem;
@@ -15,7 +16,6 @@ import com.bluewhale.common.log.mapper.FrontendLogMapper;
 import com.bluewhale.common.log.sink.LogPersistSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -160,8 +160,6 @@ public class FrontendLogServiceImpl implements FrontendLogService {
      * @return 前端日志视图对象
      */
     private static FrontendLogVO toVo(FrontendLogRecord record) {
-        FrontendLogVO vo = new FrontendLogVO();
-        BeanUtils.copyProperties(record, vo);
-        return vo;
+        return AuditLogConverter.INSTANCE.toFrontendLogVo(record);
     }
 }

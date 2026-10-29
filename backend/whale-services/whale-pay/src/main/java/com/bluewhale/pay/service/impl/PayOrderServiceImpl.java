@@ -8,6 +8,7 @@ import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.pay.channel.PayChannelGateway;
 import com.bluewhale.pay.channel.PayChannelResult;
+import com.bluewhale.pay.converter.PayOrderConverter;
 import com.bluewhale.pay.dto.PayOrderCreateRequest;
 import com.bluewhale.pay.dto.PayOrderQueryRequest;
 import com.bluewhale.pay.entity.PayOrder;
@@ -19,7 +20,6 @@ import com.bluewhale.pay.vo.PayOrderVO;
 import com.bluewhale.pay.vo.PayReconcileVO;
 import com.bluewhale.pay.vo.PayTransactionVO;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.BeanUtils;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -114,8 +114,7 @@ public class PayOrderServiceImpl implements PayOrderService {
         validateAmount(request.getAmount());
         String orderNo = request.getOrderNo().trim();
         ensureUnique(orderNo);
-        PayOrder entity = new PayOrder();
-        BeanUtils.copyProperties(request, entity);
+        PayOrder entity = PayOrderConverter.INSTANCE.toEntity(request);
         entity.setOrderNo(orderNo);
         entity.setCurrency(normalize(request.getCurrency(), DEFAULT_CURRENCY));
         entity.setChannel(normalize(request.getChannel(), DEFAULT_CHANNEL));
@@ -314,9 +313,7 @@ public class PayOrderServiceImpl implements PayOrderService {
      * @return 支付单视图对象
      */
     private static PayOrderVO toVo(PayOrder order) {
-        PayOrderVO vo = new PayOrderVO();
-        BeanUtils.copyProperties(order, vo);
-        return vo;
+        return PayOrderConverter.INSTANCE.toOrderVo(order);
     }
 
     /**
@@ -326,8 +323,6 @@ public class PayOrderServiceImpl implements PayOrderService {
      * @return 流水视图对象
      */
     private static PayTransactionVO toTransactionVo(PayTransaction transaction) {
-        PayTransactionVO vo = new PayTransactionVO();
-        BeanUtils.copyProperties(transaction, vo);
-        return vo;
+        return PayOrderConverter.INSTANCE.toTransactionVo(transaction);
     }
 }
