@@ -9,8 +9,10 @@ import {
   type ServiceSummaryVO,
 } from '../api/monitor';
 
-const PROMETHEUS_URL = import.meta.env.VITE_PROMETHEUS_URL ?? 'http://127.0.0.1:9090';
-const GRAFANA_URL = import.meta.env.VITE_GRAFANA_URL ?? 'http://127.0.0.1:3000';
+// 审计修复：不再内置 127.0.0.1 兜底——未配置时不渲染跳转入口，
+// 避免把监控拓扑硬编码进构建产物暴露给最终用户
+const PROMETHEUS_URL = import.meta.env.VITE_PROMETHEUS_URL?.trim() || '';
+const GRAFANA_URL = import.meta.env.VITE_GRAFANA_URL?.trim() || '';
 
 const serviceColumns: TableProps<ServiceSummaryVO>['columns'] = [
   { title: '服务名', dataIndex: 'serviceName' },
@@ -100,12 +102,16 @@ export default function Monitor() {
         title="服务概览"
         extra={
           <Space>
-            <Button type="link" href={PROMETHEUS_URL} target="_blank" rel="noreferrer">
-              Prometheus
-            </Button>
-            <Button type="link" href={GRAFANA_URL} target="_blank" rel="noreferrer">
-              Grafana
-            </Button>
+            {PROMETHEUS_URL && (
+              <Button type="link" href={PROMETHEUS_URL} target="_blank" rel="noreferrer">
+                Prometheus
+              </Button>
+            )}
+            {GRAFANA_URL && (
+              <Button type="link" href={GRAFANA_URL} target="_blank" rel="noreferrer">
+                Grafana
+              </Button>
+            )}
             <Button onClick={handleRefresh}>刷新</Button>
           </Space>
         }

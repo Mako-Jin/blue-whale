@@ -65,6 +65,8 @@ export function useImData() {
   const messagesRef = useRef<MessageVO[]>([]);
   const conversationsRef = useRef<ConversationVO[]>([]);
   const runByMessageIdRef = useRef<Record<string, string>>({});
+  /** 兜底定时器登记表：卸载时统一清理，避免卸载后仍触发 setStreaming（审计修复） */
+  const fallbackTimersRef = useRef<Set<number>>(new Set());
 
   useEffect(() => {
     activeIdRef.current = activeId;
@@ -81,6 +83,15 @@ export function useImData() {
   useEffect(() => {
     runByMessageIdRef.current = runByMessageId;
   }, [runByMessageId]);
+
+  // 卸载时清理所有未触发的兜底定时器
+  useEffect(() => {
+    const timers = fallbackTimersRef.current;
+    return () => {
+      timers.forEach((id) => window.clearTimeout(id));
+      timers.clear();
+    };
+  }, []);
 
   /** 会话列表加载（按最后活跃时间倒序） */
   const loadConversations = useCallback(async () => {
@@ -427,9 +438,11 @@ export function useImData() {
           if (messageId) {
             setRunByMessageId((prev) => ({ ...prev, [messageId]: runId }));
             // 兜底：message.new 未到达时，3s 后移除占位并补拉
-            window.setTimeout(() => {
+            const timer = window.setTimeout(() => {
+              fallbackTimersRef.current.delete(timer);
               setStreaming((prev) => prev.filter((item) => !(item.runId === runId && item.done)));
             }, STREAM_REPLACE_FALLBACK_MS);
+            fallbackTimersRef.current.add(timer);
           }
           break;
         }
