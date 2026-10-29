@@ -3,6 +3,8 @@ param(
     [switch]$Rebuild
 )
 
+$ErrorActionPreference = 'Stop'  # 审计修复：与 ops 脚本对齐，命令失败立即中止
+
 # JDK 21：优先 WHALE_JAVA_HOME，缺省回退本机安装路径
 $javaHome = if ($env:WHALE_JAVA_HOME) { $env:WHALE_JAVA_HOME } else { 'D:\tools\installer\jdk\java21' }
 if (-not (Test-Path "$javaHome\bin\java.exe")) { throw "未找到 JDK：$javaHome（请设置 WHALE_JAVA_HOME）" }

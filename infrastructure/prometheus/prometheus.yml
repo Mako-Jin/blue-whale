@@ -1,5 +1,6 @@
 # ============================================================
-# 蓝鲸系统 - Prometheus 抓取配置
+# 蓝鲸系统 - Prometheus 抓取配置（裸机/宿主机运行版）
+# Docker 版见 prometheus-docker.yml（compose 挂载使用）
 # 目标: Spring Boot Actuator /actuator/prometheus
 # ============================================================
 
@@ -10,17 +11,23 @@ global:
     cluster: bluewhale
     environment: dev
 
+# 审计修复：启用告警通道与规则加载（原配置全部注释导致告警规则永不生效）。
+# alertmanager / 规则文件按宿主机运行布局解析：
+#   - Alertmanager 本机 9093（docker 版由 compose 网络内部解析 alertmanager:9093）
+#   - 规则文件复用 deploy/monitoring/prometheus-rules.yml（相对本文件两上级）
 alerting:
-  # alertmanagers:
-  #   - static_configs:
-  #       - targets:
-  #           - alertmanager:9093
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - 127.0.0.1:9093
 
 rule_files:
-  # - "alert_rules/*.yml"
+  - ../../deploy/monitoring/prometheus-rules.yml
 
 scrape_configs:
   # ---- Nacos ----
+  # 注：Nacos 版本双轨（compose v2.4.0 / 本地 tools 3.2.4）指标路径可能不同，
+  # 统一收敛前保持 2.x actuator 路径（devlog 2026-10-19 已列待办）
   - job_name: 'nacos'
     metrics_path: '/nacos/actuator/prometheus'
     static_configs:

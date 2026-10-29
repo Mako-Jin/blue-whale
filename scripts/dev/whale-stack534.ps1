@@ -1,4 +1,5 @@
 # JDK 21：优先 WHALE_JAVA_HOME，缺省回退本机安装路径；Nacos 2.4 需 JDK 17，单独用 WHALE_NACOS_JAVA_HOME
+$ErrorActionPreference = 'Stop'  # 审计修复：与 ops 脚本对齐，命令失败立即中止
 $javaHome = if ($env:WHALE_JAVA_HOME) { $env:WHALE_JAVA_HOME } else { 'D:\tools\installer\jdk\java21' }
 $nacosJavaHome = if ($env:WHALE_NACOS_JAVA_HOME) { $env:WHALE_NACOS_JAVA_HOME } else { 'D:\tools\installer\jdk\java17' }
 foreach ($home in @($javaHome, $nacosJavaHome)) {
