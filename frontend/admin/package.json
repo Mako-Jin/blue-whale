@@ -12,6 +12,7 @@
     "openapi:types": "openapi-typescript http://127.0.0.1:8081/v3/api-docs -o src/api/generated/auth-schema.d.ts"
   },
   "dependencies": {
+    "@bluewhale/whale-auth": "workspace:*",
     "@bluewhale/http": "workspace:*",
     "@bluewhale/whale-common-theme": "workspace:*",
     "@bluewhale/whale-common-tools": "workspace:*",

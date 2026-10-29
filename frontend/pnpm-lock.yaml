@@ -41,6 +41,9 @@ importers:
       '@bluewhale/http':
         specifier: workspace:*
         version: link:../shared-packages/http
+      '@bluewhale/whale-auth':
+        specifier: workspace:*
+        version: link:../shared-packages/whale-auth
       '@bluewhale/whale-common-theme':
         specifier: workspace:*
         version: link:../shared-packages/whale-common-theme
@@ -152,6 +155,9 @@ importers:
       '@bluewhale/http':
         specifier: workspace:*
         version: link:../shared-packages/http
+      '@bluewhale/whale-auth':
+        specifier: workspace:*
+        version: link:../shared-packages/whale-auth
       '@bluewhale/whale-common-theme':
         specifier: workspace:*
         version: link:../shared-packages/whale-common-theme
@@ -201,6 +207,9 @@ importers:
       '@bluewhale/http':
         specifier: workspace:*
         version: link:../../shared-packages/http
+      '@bluewhale/whale-auth':
+        specifier: workspace:*
+        version: link:../../shared-packages/whale-auth
       '@bluewhale/whale-common-theme':
         specifier: workspace:*
         version: link:../../shared-packages/whale-common-theme
@@ -253,6 +262,9 @@ importers:
       '@bluewhale/http':
         specifier: workspace:*
         version: link:../../shared-packages/http
+      '@bluewhale/whale-auth':
+        specifier: workspace:*
+        version: link:../../shared-packages/whale-auth
       '@bluewhale/whale-common-theme':
         specifier: workspace:*
         version: link:../../shared-packages/whale-common-theme
@@ -308,6 +320,9 @@ importers:
       '@bluewhale/http':
         specifier: workspace:*
         version: link:../../shared-packages/http
+      '@bluewhale/whale-auth':
+        specifier: workspace:*
+        version: link:../../shared-packages/whale-auth
       '@bluewhale/whale-common-theme':
         specifier: workspace:*
         version: link:../../shared-packages/whale-common-theme
@@ -396,6 +411,9 @@ importers:
       '@bluewhale/http':
         specifier: workspace:*
         version: link:../../shared-packages/http
+      '@bluewhale/whale-auth':
+        specifier: workspace:*
+        version: link:../../shared-packages/whale-auth
       '@bluewhale/whale-common-theme':
         specifier: workspace:*
         version: link:../../shared-packages/whale-common-theme
@@ -448,6 +466,9 @@ importers:
       '@bluewhale/http':
         specifier: workspace:*
         version: link:../../shared-packages/http
+      '@bluewhale/whale-auth':
+        specifier: workspace:*
+        version: link:../../shared-packages/whale-auth
       '@bluewhale/whale-common-theme':
         specifier: workspace:*
         version: link:../../shared-packages/whale-common-theme
@@ -512,6 +533,9 @@ importers:
       '@bluewhale/http':
         specifier: workspace:*
         version: link:../../shared-packages/http
+      '@bluewhale/whale-auth':
+        specifier: workspace:*
+        version: link:../../shared-packages/whale-auth
       '@bluewhale/whale-common-theme':
         specifier: workspace:*
         version: link:../../shared-packages/whale-common-theme
@@ -561,6 +585,9 @@ importers:
       '@bluewhale/http':
         specifier: workspace:*
         version: link:../../shared-packages/http
+      '@bluewhale/whale-auth':
+        specifier: workspace:*
+        version: link:../../shared-packages/whale-auth
       '@bluewhale/whale-common-theme':
         specifier: workspace:*
         version: link:../../shared-packages/whale-common-theme
@@ -613,6 +640,9 @@ importers:
       '@bluewhale/http':
         specifier: workspace:*
         version: link:../../shared-packages/http
+      '@bluewhale/whale-auth':
+        specifier: workspace:*
+        version: link:../../shared-packages/whale-auth
       '@bluewhale/whale-common-theme':
         specifier: workspace:*
         version: link:../../shared-packages/whale-common-theme
@@ -668,6 +698,9 @@ importers:
       '@bluewhale/http':
         specifier: workspace:*
         version: link:../../shared-packages/http
+      '@bluewhale/whale-auth':
+        specifier: workspace:*
+        version: link:../../shared-packages/whale-auth
       '@bluewhale/whale-common-theme':
         specifier: workspace:*
         version: link:../../shared-packages/whale-common-theme
@@ -723,6 +756,9 @@ importers:
       '@bluewhale/http':
         specifier: workspace:*
         version: link:../../shared-packages/http
+      '@bluewhale/whale-auth':
+        specifier: workspace:*
+        version: link:../../shared-packages/whale-auth
       '@bluewhale/whale-common-theme':
         specifier: workspace:*
         version: link:../../shared-packages/whale-common-theme
@@ -775,6 +811,9 @@ importers:
       '@bluewhale/http':
         specifier: workspace:*
         version: link:../../shared-packages/http
+      '@bluewhale/whale-auth':
+        specifier: workspace:*
+        version: link:../../shared-packages/whale-auth
       '@bluewhale/whale-common-theme':
         specifier: workspace:*
         version: link:../../shared-packages/whale-common-theme
@@ -830,6 +869,9 @@ importers:
       '@bluewhale/http':
         specifier: workspace:*
         version: link:../../shared-packages/http
+      '@bluewhale/whale-auth':
+        specifier: workspace:*
+        version: link:../../shared-packages/whale-auth
       '@bluewhale/whale-common-theme':
         specifier: workspace:*
         version: link:../../shared-packages/whale-common-theme
@@ -882,6 +924,9 @@ importers:
       '@bluewhale/http':
         specifier: workspace:*
         version: link:../../shared-packages/http
+      '@bluewhale/whale-auth':
+        specifier: workspace:*
+        version: link:../../shared-packages/whale-auth
       '@bluewhale/whale-common-theme':
         specifier: workspace:*
         version: link:../../shared-packages/whale-common-theme
@@ -944,6 +989,25 @@ importers:
         specifier: workspace:*
         version: link:../whale-common-tools
     devDependencies:
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.1.3
+      tsup:
+        specifier: ^8.3.4
+        version: 8.5.1(postcss@8.5.30)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+
+  shared-packages/whale-auth:
+    dependencies:
+      react:
+        specifier: ^19.0.0
+        version: 19.3.1
+    devDependencies:
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.3.0
       rimraf:
         specifier: ^6.0.1
         version: 6.1.3

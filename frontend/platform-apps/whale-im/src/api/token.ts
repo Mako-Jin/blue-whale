@@ -3,10 +3,9 @@
 // 基座键：whale_platform_access_token / whale_platform_user
 // 子应用自有键：whale_im_access_token / whale_im_user（独立调试时可选落盘，不作为主路径）
 
+import { PLATFORM_ACCESS_TOKEN_KEY, PLATFORM_USER_KEY } from '@bluewhale/whale-auth';
 import { getHostProps } from '../platform/host';
 
-const PLATFORM_TOKEN_KEY = 'whale_platform_access_token';
-const PLATFORM_USER_KEY = 'whale_platform_user';
 const IM_TOKEN_KEY = 'whale_im_access_token';
 const IM_USER_KEY = 'whale_im_user';
 
@@ -23,7 +22,7 @@ export function getToken(): string | null {
   if (fromHost) {
     return fromHost;
   }
-  return localStorage.getItem(PLATFORM_TOKEN_KEY) ?? localStorage.getItem(IM_TOKEN_KEY);
+  return localStorage.getItem(PLATFORM_ACCESS_TOKEN_KEY) ?? localStorage.getItem(IM_TOKEN_KEY);
 }
 
 /** 解析缓存的用户信息（先基座键，再子应用自有键） */

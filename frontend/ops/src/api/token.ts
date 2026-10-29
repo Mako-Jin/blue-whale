@@ -1,7 +1,8 @@
 // 运维平台登录态读写入口（localStorage，key 前缀 whale_ops_）
+// 存储逻辑统一由 @bluewhale/whale-auth 提供（审计 P1：消灭多份拷贝）；
+// ops 无 refresh 流程，仅 access token + 用户缓存。
 
-const ACCESS_TOKEN_KEY = 'whale_ops_token';
-const USER_KEY = 'whale_ops_user';
+import { createAuthStorage } from '@bluewhale/whale-auth';
 
 /** GET /auth/me 返回的当前用户信息 */
 export interface OpsUserInfo {
@@ -22,45 +23,28 @@ export interface LoginResponse {
   roles?: string[];
 }
 
-export function getToken(): string | null {
-  return localStorage.getItem(ACCESS_TOKEN_KEY);
-}
+const storage = createAuthStorage<OpsUserInfo>({
+  accessTokenKey: 'whale_ops_token',
+  userKey: 'whale_ops_user',
+});
 
-export function saveToken(token: string): void {
-  localStorage.setItem(ACCESS_TOKEN_KEY, token);
-}
+export const getToken = storage.getToken;
+export const getCurrentUser = storage.getCurrentUser;
+export const saveCurrentUser = storage.saveCurrentUser;
+export const clearAuth = storage.clearAuth;
 
-export function getCurrentUser(): OpsUserInfo | null {
-  const raw = localStorage.getItem(USER_KEY);
-  if (!raw) {
-    return null;
-  }
-  try {
-    return JSON.parse(raw) as OpsUserInfo;
-  } catch {
-    return null;
-  }
-}
-
-export function saveCurrentUser(user: OpsUserInfo): void {
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
-}
+/** 登录成功后落盘令牌（独立登录页用，无刷新流程） */
+export const saveToken = storage.setToken;
 
 /** 登录成功后落盘令牌与用户基础信息 */
 export function saveLogin(data: LoginResponse): void {
-  saveToken(data.accessToken);
+  storage.setToken(data.accessToken);
   const current = getCurrentUser();
-  saveCurrentUser({
+  storage.saveCurrentUser({
     userId: current?.userId,
     username: data.username ?? current?.username ?? '',
     nickname: data.nickname ?? current?.nickname,
     roles: data.roles ?? current?.roles ?? [],
     permissions: current?.permissions ?? [],
   });
-}
-
-/** 清除令牌与用户缓存（登出 / 401 失效） */
-export function clearAuth(): void {
-  localStorage.removeItem(ACCESS_TOKEN_KEY);
-  localStorage.removeItem(USER_KEY);
 }

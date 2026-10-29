@@ -4,7 +4,9 @@
 // 前端仅做「按钮不渲染」的体验收敛，接口仍由网关/服务端 @RequirePermission 兜底 403。
 
 /** 基座用户缓存 key（对齐 whale-platform/src/api/token.ts） */
-const USER_STORAGE_KEY = 'whale_platform_user';
+import { PLATFORM_USER_KEY } from '@bluewhale/whale-auth';
+
+const USER_STORAGE_KEY = PLATFORM_USER_KEY;
 
 /** 基座缓存用户的最小结构 */
 interface CachedUser {

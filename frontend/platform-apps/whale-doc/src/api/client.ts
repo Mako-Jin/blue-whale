@@ -6,10 +6,12 @@
 import { ApiError, createHttpClient, type HttpOptions } from '@bluewhale/http';
 
 /** 基座 token 存储 key（对齐 whale-platform/src/api/token.ts） */
-const TOKEN_STORAGE_KEY = 'whale_platform_access_token';
+import { PLATFORM_ACCESS_TOKEN_KEY, PLATFORM_USER_KEY } from '@bluewhale/whale-auth';
+
+const TOKEN_STORAGE_KEY = PLATFORM_ACCESS_TOKEN_KEY;
 
 /** 基座用户缓存 key */
-const USER_STORAGE_KEY = 'whale_platform_user';
+const USER_STORAGE_KEY = PLATFORM_USER_KEY;
 
 /** 基座缓存的当前用户 */
 export interface DocUser {

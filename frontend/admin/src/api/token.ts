@@ -1,107 +1,25 @@
 // 登录态与用户缓存的唯一读写入口（localStorage）
+// 存储与订阅逻辑统一由 @bluewhale/whale-auth 提供，此处仅保留 admin 特有的
+// key 前缀（whale_admin_）与登录字段合并语义（审计 P1：消灭七份拷贝）。
 
-import { useEffect, useState } from 'react';
+import { createAuthStorage } from '@bluewhale/whale-auth';
+import type { AuthMeResponse, LoginResponse, MenuNode, UserInfo } from '@bluewhale/whale-auth';
 
-const ACCESS_TOKEN_KEY = 'whale_admin_access_token';
-const REFRESH_TOKEN_KEY = 'whale_admin_refresh_token';
-const USER_KEY = 'whale_admin_user';
+export type { AuthMeResponse, LoginResponse, MenuNode, UserInfo };
 
-/** 后端 MenuVO：GET /auth/me 返回的可见菜单树节点 */
-export interface MenuNode {
-  id: number;
-  parentId?: number;
-  name: string;
-  path?: string;
-  component?: string;
-  icon?: string;
-  sort?: number;
-  menuType?: string;
-  permissionCode?: string;
-  visible?: number;
-  status?: number;
-  children?: MenuNode[];
-}
+const storage = createAuthStorage<UserInfo>({
+  accessTokenKey: 'whale_admin_access_token',
+  refreshTokenKey: 'whale_admin_refresh_token',
+  userKey: 'whale_admin_user',
+});
 
-export interface UserInfo {
-  userId?: number | string;
-  /** 所属租户 ID（由登录响应与 /auth/me 回写，供顶栏展示与请求头注入） */
-  tenantId?: number | string;
-  /** 登录时填写的租户编码（仅展示用，服务端以 JWT 为准） */
-  tenantCode?: string;
-  username: string;
-  nickname: string;
-  roles: string[];
-  permissions?: string[];
-  menus?: MenuNode[];
-}
-
-export interface LoginResponse {
-  accessToken: string;
-  refreshToken: string;
-  tokenType: string;
-  expiresIn: number;
-  tenantId?: number | string;
-  username: string;
-  nickname: string;
-  roles: string[];
-}
-
-export interface AuthMeResponse {
-  tenantId?: number | string;
-  userId: number | string;
-  username: string;
-  nickname: string;
-  roles: string[];
-  permissions: string[];
-  menus: MenuNode[];
-}
-
-export function getToken(): string | null {
-  return localStorage.getItem(ACCESS_TOKEN_KEY);
-}
-
-export function getRefreshToken(): string | null {
-  return localStorage.getItem(REFRESH_TOKEN_KEY);
-}
-
-export function getCurrentUser(): UserInfo | null {
-  const raw = localStorage.getItem(USER_KEY);
-  if (!raw) {
-    return null;
-  }
-  try {
-    return JSON.parse(raw) as UserInfo;
-  } catch {
-    return null;
-  }
-}
-
-/** 用户态变更订阅（供 React 侧响应菜单/权限刷新，避免首屏后拿不到 /auth/me 结果） */
-type UserListener = () => void;
-const userListeners = new Set<UserListener>();
-
-export function subscribeCurrentUser(listener: UserListener): () => void {
-  userListeners.add(listener);
-  return () => {
-    userListeners.delete(listener);
-  };
-}
-
-function emitUserChange(): void {
-  userListeners.forEach((listener) => listener());
-}
-
-/** React 侧读取当前用户并可响应持久化变更的 hook */
-export function useCurrentUser(): UserInfo | null {
-  const [user, setUser] = useState<UserInfo | null>(() => getCurrentUser());
-  useEffect(() => subscribeCurrentUser(() => setUser(getCurrentUser())), []);
-  return user;
-}
-
-export function saveCurrentUser(user: UserInfo): void {
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
-  emitUserChange();
-}
+export const getToken = storage.getToken;
+export const getRefreshToken = storage.getRefreshToken;
+export const getCurrentUser = storage.getCurrentUser;
+export const subscribeCurrentUser = storage.subscribeCurrentUser;
+export const useCurrentUser = storage.useCurrentUser;
+export const saveCurrentUser = storage.saveCurrentUser;
+export const clearAuth = storage.clearAuth;
 
 /**
  * 登录/刷新成功后落盘令牌与用户基础信息。
@@ -111,8 +29,10 @@ export function saveCurrentUser(user: UserInfo): void {
  * @param tenantCode 登录表单填写的租户编码（仅人工登录时传入，续期保持既有值）
  */
 export function saveLogin(data: LoginResponse, tenantCode?: string): void {
-  localStorage.setItem(ACCESS_TOKEN_KEY, data.accessToken);
-  localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
+  localStorage.setItem(storage.accessTokenKey, data.accessToken);
+  if (storage.refreshTokenKey) {
+    localStorage.setItem(storage.refreshTokenKey, data.refreshToken);
+  }
   const current = getCurrentUser();
   saveCurrentUser({
     ...(current ?? { username: data.username, nickname: data.nickname, roles: [] }),
@@ -122,11 +42,4 @@ export function saveLogin(data: LoginResponse, tenantCode?: string): void {
     nickname: data.nickname || current?.nickname || '',
     roles: data.roles?.length ? data.roles : (current?.roles ?? []),
   });
-}
-
-export function clearAuth(): void {
-  localStorage.removeItem(ACCESS_TOKEN_KEY);
-  localStorage.removeItem(REFRESH_TOKEN_KEY);
-  localStorage.removeItem(USER_KEY);
-  emitUserChange();
 }
