@@ -2,6 +2,8 @@
 //
 // 运行：pnpm --filter @bluewhale/http build && node scripts/smoke.mjs
 
+/* global document */
+
 import assert from 'node:assert/strict';
 import { createHttpClient } from '../dist/index.mjs';
 
@@ -15,6 +17,9 @@ globalThis.fetch = async (url, init = {}) => {
   calls.push(record);
   return handler(record);
 };
+
+// Node 环境无 document：提供最小 stub 供 CSRF Cookie 读取（用例 2 覆盖）
+globalThis.document = { cookie: '' };
 
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -44,7 +49,7 @@ function assertTraceId(record) {
   assertTraceId(calls[0]);
 }
 
-// 2. 两个并发 401 只触发一次 refresh，且都重放成功
+// 2. 两个并发 401 只触发一次 refresh（Cookie 静默续期），且都重放成功
 {
   let refreshCount = 0;
   let currentToken = 'expired-token';
@@ -52,7 +57,6 @@ function assertTraceId(record) {
   const client = createHttpClient({
     baseUrl: '/api',
     getToken: () => currentToken,
-    getRefreshToken: () => 'refresh-old',
     saveLogin: (data) => {
       savedLogin = data;
       currentToken = data.accessToken;
@@ -62,6 +66,8 @@ function assertTraceId(record) {
     },
   });
   calls.length = 0;
+  // 模拟服务端下发的非 HttpOnly CSRF Cookie（HttpOnly 刷新 Cookie 浏览器自动携带，前端不可读）
+  document.cookie = 'whale_csrf=csrf-token-1';
   handler = async ({ url, init }) => {
     if (url === '/api/auth/refresh') {
       refreshCount += 1;
@@ -70,7 +76,7 @@ function assertTraceId(record) {
       return jsonResponse({
         code: 0,
         message: 'ok',
-        data: { accessToken: 'new-token', refreshToken: 'refresh-new' },
+        data: { accessToken: 'new-token' },
       });
     }
     const auth = headerOf(init, 'Authorization');
@@ -87,6 +93,9 @@ function assertTraceId(record) {
   assert.equal(currentToken, 'new-token');
   const refreshCall = calls.find((item) => item.url === '/api/auth/refresh');
   assertTraceId(refreshCall);
+  assert.equal(headerOf(refreshCall.init, 'X-CSRF-Token'), 'csrf-token-1', '刷新应回传 CSRF 头');
+  assert.equal(refreshCall.init.credentials, 'include', '刷新应携带 Cookie');
+  assert.equal(refreshCall.init.body, undefined, '刷新不应携带 refreshToken 请求体');
 }
 
 // 3. 业务码非 0 抛 ApiError

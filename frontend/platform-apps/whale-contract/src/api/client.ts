@@ -5,12 +5,9 @@
 
 import { createHttpClient, type HttpOptions } from '@bluewhale/http';
 
-/** 基座 token 存储 key（对齐 whale-platform/src/api/token.ts） */
-import { PLATFORM_ACCESS_TOKEN_KEY, PLATFORM_USER_KEY } from '@bluewhale/whale-auth';
-
-const TOKEN_STORAGE_KEY = PLATFORM_ACCESS_TOKEN_KEY;
-
 /** 基座用户缓存 key */
+import { PLATFORM_USER_KEY } from '@bluewhale/whale-auth';
+
 const USER_STORAGE_KEY = PLATFORM_USER_KEY;
 
 /** 基座缓存的当前用户 */
@@ -21,9 +18,17 @@ export interface ContractUser {
   permissions?: string[];
 }
 
+/** 基座注入的登录态读取器（qiankun props；独立运行时为 null） */
+let hostGetToken: (() => string | null) | null = null;
+
+/** 在 qiankun mount 前保存基座注入的登录态读取器（unmount 后清空） */
+export function setPlatformHostProps(props?: { getToken?: () => string | null } | null): void {
+  hostGetToken = props?.getToken ?? null;
+}
+
 /** 读取当前登录 token（未登录时为 null） */
 export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_STORAGE_KEY);
+  return hostGetToken?.() ?? null;
 }
 
 /** 读取基座缓存的当前用户（无缓存或解析失败时为 null） */
@@ -73,7 +78,7 @@ export async function requestBlob(url: string): Promise<Blob> {
   const response = await fetch(url, {
     method: 'GET',
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    credentials: 'same-origin',
+    credentials: 'include',
   });
   if (!response.ok) {
     let message = `请求失败（HTTP ${response.status}）`;

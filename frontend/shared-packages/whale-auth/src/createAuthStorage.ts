@@ -1,9 +1,9 @@
 /**
- * 按应用前缀创建登录态存储（localStorage 唯一读写入口）。
+ * 按应用前缀创建登录态存储（accessToken 内存态 + 用户信息 localStorage）。
  *
- * admin / platform / agent / form-designer / workflow-designer / ops 此前各自
- * 复制整份 token.ts（约 70-130 行，审计 P1），仅 key 前缀与个别字段不同；
- * 现抽为工厂：类型、订阅、React hook、读写与清理逻辑单份维护。
+ * V-03（中危）：accessToken 此前明文落盘 localStorage，现改为模块级内存变量，
+ * 刷新走 HttpOnly Cookie（whale_refresh_token）静默续期（见 refresh.ts）；
+ * 用户信息等非敏感数据继续 localStorage，刷新页面后无需重新拉取权限。
  *
  * 各应用保留自己的 `saveLogin`（登录字段合并语义 app 特有），基于本工厂的
  * 原语实现。
@@ -20,35 +20,34 @@ export interface AuthUserLike {
 }
 
 export interface CreateAuthStorageOptions {
-  /** access token 的 localStorage key（如 whale_admin_access_token） */
+  /** 内存 accessToken 的隔离 key（如 whale_admin_access_token；不再落盘 localStorage） */
   accessTokenKey: string;
-  /** refresh token 的 localStorage key；不传则 getRefreshToken 恒为 null */
-  refreshTokenKey?: string;
   /** 用户缓存的 localStorage key（如 whale_admin_user） */
   userKey: string;
 }
 
 export interface AuthStorage<U extends AuthUserLike = UserInfo> {
-  /** access token 的 key（调试或跨模块读取用） */
+  /** accessToken 的内存隔离 key（调试或跨模块读取用） */
   readonly accessTokenKey: string;
-  /** refresh token 的 key（未配置时为 null） */
-  readonly refreshTokenKey: string | null;
   /** 用户缓存的 key */
   readonly userKey: string;
+  /** 读取内存 accessToken（未登录/刷新页面后为 null，直到静默续期成功） */
   getToken(): string | null;
-  getRefreshToken(): string | null;
-  /** 直接写入 token（ops 等无刷新流程的登录用） */
+  /** 直接写入内存 accessToken（登录/静默续期用） */
   setToken(token: string): void;
   getCurrentUser(): U | null;
   saveCurrentUser(user: U): void;
   subscribeCurrentUser(listener: () => void): () => void;
   /** React 侧读取当前用户并可响应持久化变更的 hook */
   useCurrentUser(): U | null;
-  /** 清除令牌与用户缓存（登出 / 401 失效） */
+  /** 清除内存令牌与用户缓存（登出 / 401 失效） */
   clearAuth(): void;
 }
 
 type Listener = () => void;
+
+/** 内存 accessToken 仓库：按应用 key 隔离，页面刷新即清空（刷新 Cookie 兜底续期） */
+const memoryTokens = new Map<string, string>();
 
 /**
  * 创建某应用的登录态存储实例。
@@ -58,7 +57,7 @@ type Listener = () => void;
 export function createAuthStorage<U extends AuthUserLike = UserInfo>(
   options: CreateAuthStorageOptions,
 ): AuthStorage<U> {
-  const { accessTokenKey, refreshTokenKey, userKey } = options;
+  const { accessTokenKey, userKey } = options;
   const listeners = new Set<Listener>();
 
   function emitUserChange(): void {
@@ -66,15 +65,11 @@ export function createAuthStorage<U extends AuthUserLike = UserInfo>(
   }
 
   function getToken(): string | null {
-    return localStorage.getItem(accessTokenKey);
-  }
-
-  function getRefreshToken(): string | null {
-    return refreshTokenKey ? localStorage.getItem(refreshTokenKey) : null;
+    return memoryTokens.get(accessTokenKey) ?? null;
   }
 
   function setToken(token: string): void {
-    localStorage.setItem(accessTokenKey, token);
+    memoryTokens.set(accessTokenKey, token);
   }
 
   function getCurrentUser(): U | null {
@@ -103,10 +98,7 @@ export function createAuthStorage<U extends AuthUserLike = UserInfo>(
   }
 
   function clearAuth(): void {
-    localStorage.removeItem(accessTokenKey);
-    if (refreshTokenKey) {
-      localStorage.removeItem(refreshTokenKey);
-    }
+    memoryTokens.delete(accessTokenKey);
     localStorage.removeItem(userKey);
     emitUserChange();
   }
@@ -119,10 +111,8 @@ export function createAuthStorage<U extends AuthUserLike = UserInfo>(
 
   return {
     accessTokenKey,
-    refreshTokenKey: refreshTokenKey ?? null,
     userKey,
     getToken,
-    getRefreshToken,
     setToken,
     getCurrentUser,
     saveCurrentUser,

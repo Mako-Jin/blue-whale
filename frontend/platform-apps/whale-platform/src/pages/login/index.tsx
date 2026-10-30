@@ -1,10 +1,19 @@
 // 登录页 - 对接 whale-service-auth 真实接口（POST /auth/login，经网关转发）
+// 首登强制改密：mustChangePassword=true 时弹出不可关闭对话框（T-03）
 
 import { useState } from 'react';
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { App, Button, Card, Form, Input } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { fetchMe, login } from '../../api/auth';
+import { MustChangePasswordDialog } from '@bluewhale/whale-auth';
+import {
+  clearAuth,
+  fetchMe,
+  getCurrentUser,
+  getToken,
+  login,
+  type LoginResponse,
+} from '../../api/auth';
 
 interface LoginFormValues {
   tenantCode?: string;
@@ -16,11 +25,18 @@ export default function LoginPage() {
   const { message } = App.useApp();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  /** 待强制改密的登录响应（非 null 时渲染不可关闭对话框） */
+  const [pendingChange, setPendingChange] = useState<LoginResponse | null>(null);
 
   const handleFinish = async (values: LoginFormValues) => {
     setLoading(true);
     try {
-      await login(values.username, values.password, values.tenantCode);
+      const data = await login(values.username, values.password, values.tenantCode);
+      if (data.mustChangePassword) {
+        // 首登/密码被重置：不进入系统，先完成强制改密（成功后回登录页用新口令重登）
+        setPendingChange(data);
+        return;
+      }
       try {
         // 拉取权限码与菜单，供子应用共享；失败不阻断登录，进入页面后仍可按需重取
         await fetchMe();
@@ -73,6 +89,19 @@ export default function LoginPage() {
           </Form.Item>
         </Form>
       </Card>
+      {pendingChange ? (
+        <MustChangePasswordDialog
+          userId={pendingChange.userId ?? getCurrentUser()?.userId}
+          baseUrl={import.meta.env.VITE_API_BASE_URL ?? ''}
+          getToken={getToken}
+          onSuccess={() => {
+            // 清登录态（内存令牌 + 用户缓存），提示用新口令重新登录
+            clearAuth();
+            setPendingChange(null);
+            message.success('密码修改成功，请使用新密码重新登录');
+          }}
+        />
+      ) : null}
     </div>
   );
 }

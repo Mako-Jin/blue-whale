@@ -80,20 +80,23 @@ async function ensureAcmeMembership(request: APIRequestContext): Promise<string>
   return acmeId;
 }
 
-/** 经切换器选择目标租户并等待切换接口与整页重载完成 */
+/** 经切换器选择目标租户并等待切换接口与整页重载完成；返回切换响应中的新 accessToken */
 async function switchTenantViaUi(
   page: import('@playwright/test').Page,
   optionText: string,
-): Promise<void> {
+): Promise<string | undefined> {
   const switched = page.waitForResponse(
     (response) => response.url().includes('/auth/tenant/switch') && response.ok(),
   );
   await page.locator('.admin-tenant-switcher').click();
   await page.locator('.ant-select-dropdown .ant-select-item-option', { hasText: optionText }).click();
-  await switched;
+  const response = await switched;
+  // V-03：accessToken 为内存态（不再落 localStorage），从切换接口响应体取新令牌
+  const body = (await response.json()) as Envelope<{ accessToken?: string }>;
   // 切换成功后前端 window.location.replace('/') 整页重载，重建权限与租户上下文
   await page.waitForEvent('load');
   await expect(page.locator('.admin-tenant-switcher')).toBeVisible();
+  return body.data?.accessToken;
 }
 
 test('一人多租户：切换器切换到 acme 并切回默认租户', async ({ page, request }) => {
@@ -112,11 +115,10 @@ test('一人多租户：切换器切换到 acme 并切回默认租户', async ({
   await expect(switcher.locator('.ant-select-selection-item')).toHaveText(/默认租户/);
 
   // 3) 切换到 acme
-  await switchTenantViaUi(page, ACME_NAME);
+  const acmeToken = await switchTenantViaUi(page, ACME_NAME);
   await expect(switcher.locator('.ant-select-selection-item')).toHaveText(new RegExp(ACME_NAME));
 
-  // 4) 新令牌租户上下文 = acme（/auth/me 以重载后 localStorage 中的新令牌查询）
-  const acmeToken = await page.evaluate(() => localStorage.getItem('whale_admin_access_token'));
+  // 4) 新令牌租户上下文 = acme（以切换响应返回的 accessToken 查询 /auth/me）
   expect(acmeToken).toBeTruthy();
   const meInAcme = await unwrap<{ tenantId: number | string; menus: unknown[] }>(
     await request.get(`${API_BASE_URL}/auth/me`, {
@@ -127,9 +129,8 @@ test('一人多租户：切换器切换到 acme 并切回默认租户', async ({
   expect(String(meInAcme.tenantId)).toBe(acmeId);
 
   // 5) 切回默认租户，保证用例可重复执行
-  await switchTenantViaUi(page, '默认租户');
+  const defaultToken = await switchTenantViaUi(page, '默认租户');
   await expect(switcher.locator('.ant-select-selection-item')).toHaveText(/默认租户/);
-  const defaultToken = await page.evaluate(() => localStorage.getItem('whale_admin_access_token'));
   const meInDefault = await unwrap<{ tenantId: number | string }>(
     await request.get(`${API_BASE_URL}/auth/me`, {
       headers: { Authorization: `Bearer ${defaultToken}` },

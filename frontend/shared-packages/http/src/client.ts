@@ -54,7 +54,6 @@ export type SseEventHandler = (event: string, data: unknown) => void;
 /** 刷新接口返回的登录数据；各应用可传入更完整的 LoginResponse 作为泛型参数 */
 export interface LoginData {
   accessToken: string;
-  refreshToken?: string;
   tokenType?: string;
   expiresIn?: number;
   username?: string;
@@ -67,15 +66,16 @@ export interface HttpClientConfig<TLogin extends LoginData = LoginData> {
   baseUrl?: string;
   /** 读取 accessToken；未提供时不注入 Authorization（如 erp 等无鉴权应用） */
   getToken?: () => string | null;
-  /** 读取 refreshToken；与 saveLogin 同时提供才启用自动续期 */
-  getRefreshToken?: () => string | null;
+  /**
+   * 刷新成功后落盘新令牌（写内存 accessToken 与用户缓存）；
+   * 提供即启用 Cookie 静默续期（刷新令牌在 HttpOnly Cookie，浏览器自动携带）。
+   */
+  saveLogin?: (data: TLogin) => void;
   /**
    * 读取当前租户 ID；提供后所有请求注入 X-Tenant-Id。
    * 仅用于展示与兼容：服务端以 JWT 的 tenantId claim 为准，网关会清除入站值并重新注入。
    */
   getTenantId?: () => string | number | null | undefined;
-  /** 刷新成功后落盘新令牌 */
-  saveLogin?: (data: TLogin) => void;
   /** 401 且无法续期时清理本地登录态 */
   clearAuth?: () => void;
   /** 401 且无法续期时的额外动作（如跳转登录页） */
@@ -85,8 +85,34 @@ export interface HttpClientConfig<TLogin extends LoginData = LoginData> {
 /** 不做自动续期的路径：登录/刷新自身的 401 直接透传，避免递归续期 */
 const NO_REFRESH_PATHS = new Set(['/auth/login', '/auth/refresh']);
 
+/** 服务端下发的 CSRF Cookie 名（非 HttpOnly，登录/刷新成功后可读） */
+const CSRF_COOKIE_NAME = 'whale_csrf';
+
 /** 解析不到 Content-Disposition 时的兜底文件名 */
 const FALLBACK_FILENAME = 'download';
+
+/** 读取 CSRF Cookie 值（未下发时返回 null） */
+function readCsrfToken(): string | null {
+  for (const cookie of document.cookie.split(';')) {
+    const trimmed = cookie.trim();
+    const eq = trimmed.indexOf('=');
+    if (eq > 0 && trimmed.slice(0, eq) === CSRF_COOKIE_NAME) {
+      return decodeURIComponent(trimmed.slice(eq + 1));
+    }
+  }
+  return null;
+}
+
+/** 非 GET 请求回传 CSRF 令牌（服务端校验 /auth/refresh、/auth/logout 等写操作） */
+function applyCsrfHeader(headers: Headers, method: string): void {
+  if (method === 'GET') {
+    return;
+  }
+  const csrf = readCsrfToken();
+  if (csrf) {
+    headers.set('X-CSRF-Token', csrf);
+  }
+}
 
 function buildQuery(query?: Record<string, unknown>): string {
   if (!query) {
@@ -192,15 +218,17 @@ function dispatchFrame(frame: string, onEvent: SseEventHandler): void {
 /**
  * 创建应用级 HTTP 客户端。
  *
- * <p>未同时提供 getRefreshToken 与 saveLogin 时不启用自动续期（ops/portal/erp 保持原行为）；
- * 每个请求（含刷新、下载、SSE）都会自动携带 32 位十六进制 X-Trace-Id。</p>
+ * <p>未提供 saveLogin 时不启用自动续期（ops/portal/erp 保持原行为）；
+ * 所有请求（含刷新、下载、SSE）统一 credentials: 'include' 携带刷新 Cookie，
+ * 非 GET 请求自动回传 X-CSRF-Token（读 whale_csrf Cookie），
+ * 并自动携带 32 位十六进制 X-Trace-Id。</p>
  */
 export function createHttpClient<TLogin extends LoginData = LoginData>(
   config: HttpClientConfig<TLogin> = {},
 ) {
   const baseUrl = config.baseUrl ?? '';
-  // 只有同时提供读取 refreshToken 与落盘回调，才启用自动续期
-  const canRefresh = Boolean(config.getRefreshToken && config.saveLogin);
+  // 提供落盘回调即启用 Cookie 静默续期（刷新令牌在 HttpOnly Cookie）
+  const canRefresh = Boolean(config.saveLogin);
 
   /** 单飞刷新中的 Promise：并发 401 合并为同一次刷新请求 */
   let refreshPromise: Promise<boolean> | null = null;
@@ -227,27 +255,25 @@ export function createHttpClient<TLogin extends LoginData = LoginData>(
   }
 
   /**
-   * 刷新会话（一次一换）：POST /auth/refresh 换取新令牌，并整体替换本地双 token。
-   * 刷新成功后发放新 refreshToken，旧 refreshToken 在服务端随之失效。
+   * 刷新会话（Cookie 静默续期）：POST /auth/refresh，
+   * 刷新令牌在 HttpOnly Cookie（whale_refresh_token）中由浏览器自动携带，
+   * 并回传 X-CSRF-Token 请求头；成功后服务端会滚动下发新的 Cookie。
    *
    * @returns 新的登录响应
-   * @throws ApiError 无 refreshToken 或刷新失败时抛出 401
+   * @throws ApiError 刷新失败（含 Cookie 缺失/失效的 401/403）时抛出
    */
   async function refreshSession(): Promise<TLogin> {
-    const refreshToken = config.getRefreshToken?.();
-    if (!refreshToken) {
-      throw new ApiError(401, '无可用 refreshToken，请重新登录');
-    }
     const headers = newHeaders();
     headers.set('Content-Type', 'application/json');
+    applyCsrfHeader(headers, 'POST');
     const response = await fetch(`${baseUrl}/auth/refresh`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ refreshToken }),
+      credentials: 'include',
     });
     const payload = parseResult<TLogin>(await response.text());
     if (response.status !== 200 || !payload || payload.code !== 0 || !payload.data?.accessToken) {
-      throw new ApiError(payload?.code ?? 401, payload?.message ?? '登录已失效，请重新登录');
+      throw new ApiError(payload?.code ?? response.status, payload?.message ?? '登录已失效，请重新登录');
     }
     config.saveLogin?.(payload.data);
     // 审计：令牌自动续期成功留痕（只记录触发原因，不落任何令牌值）
@@ -299,11 +325,13 @@ export function createHttpClient<TLogin extends LoginData = LoginData>(
         headers.set('Authorization', `Bearer ${token}`);
       }
     }
+    applyCsrfHeader(headers, method);
 
     const response = await fetch(`${baseUrl}${path}${buildQuery(query)}`, {
       method,
       headers,
       body: serializeBody(body),
+      credentials: 'include',
       signal,
     });
 
@@ -354,6 +382,7 @@ export function createHttpClient<TLogin extends LoginData = LoginData>(
     const response = await fetch(`${baseUrl}${path}${buildQuery(query)}`, {
       method: 'GET',
       headers,
+      credentials: 'include',
     });
 
     // 401：令牌缺失/过期/已登出 → 先续期并重放一次，仍失败则清态抛出
@@ -404,11 +433,13 @@ export function createHttpClient<TLogin extends LoginData = LoginData>(
     if (token) {
       headers.set('Authorization', `Bearer ${token}`);
     }
+    applyCsrfHeader(headers, 'POST');
 
     const response = await fetch(`${baseUrl}${path}`, {
       method: 'POST',
       headers,
       body: JSON.stringify(body),
+      credentials: 'include',
       signal,
     });
 

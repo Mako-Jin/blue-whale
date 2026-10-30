@@ -1,12 +1,9 @@
-// 登录态解析：优先使用基座注入的读取器，其次同源 localStorage（生产同源部署时可用）
-//
-// 基座键：whale_platform_access_token / whale_platform_user
-// 子应用自有键：whale_im_access_token / whale_im_user（独立调试时可选落盘，不作为主路径）
+// 登录态解析：使用基座注入的读取器（V-03：基座 accessToken 为内存态，
+// 经 qiankun props 共享，不再有 token 的 localStorage 回退）
 
-import { PLATFORM_ACCESS_TOKEN_KEY, PLATFORM_USER_KEY } from '@bluewhale/whale-auth';
+import { PLATFORM_USER_KEY } from '@bluewhale/whale-auth';
 import { getHostProps } from '../platform/host';
 
-const IM_TOKEN_KEY = 'whale_im_access_token';
 const IM_USER_KEY = 'whale_im_user';
 
 interface CachedUser {
@@ -18,11 +15,7 @@ interface CachedUser {
 
 /** 读取当前登录令牌；无登录态返回 null */
 export function getToken(): string | null {
-  const fromHost = getHostProps()?.getToken?.() ?? null;
-  if (fromHost) {
-    return fromHost;
-  }
-  return localStorage.getItem(PLATFORM_ACCESS_TOKEN_KEY) ?? localStorage.getItem(IM_TOKEN_KEY);
+  return getHostProps()?.getToken?.() ?? null;
 }
 
 /** 解析缓存的用户信息（先基座键，再子应用自有键） */

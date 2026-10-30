@@ -21,7 +21,7 @@ export interface MenuNode {
   children?: MenuNode[];
 }
 
-/** 当前登录用户（localStorage 持久化结构） */
+/** 当前登录用户（localStorage 持久化结构，仅非敏感信息） */
 export interface UserInfo {
   userId?: number | string;
   /** 所属租户 ID（由登录响应与 /auth/me 回写，供顶栏展示与请求头注入） */
@@ -35,16 +35,23 @@ export interface UserInfo {
   menus?: MenuNode[];
 }
 
-/** 登录/刷新接口响应 */
+/**
+ * 登录/刷新接口响应。
+ *
+ * V-03：refreshToken 改为 HttpOnly Cookie（whale_refresh_token）下发，
+ * 响应体不再包含 refreshToken；CSRF 令牌经非 HttpOnly Cookie whale_csrf 下发。
+ */
 export interface LoginResponse {
   accessToken: string;
-  refreshToken: string;
-  tokenType: string;
-  expiresIn: number;
+  tokenType?: string;
+  expiresIn?: number;
+  userId?: number | string;
   tenantId?: number | string;
   username: string;
   nickname: string;
   roles: string[];
+  /** 首次登录/管理员重置密码后强制改密标记（T-03） */
+  mustChangePassword?: boolean;
 }
 
 /** GET /auth/me 响应 */

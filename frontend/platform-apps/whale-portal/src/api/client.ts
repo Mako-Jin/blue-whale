@@ -3,19 +3,17 @@
 // 后端统一返回 `Result` 信封：{ code: number; message: string; data: T }
 //   - HTTP 状态恒 200，业务码在 body.code；
 //   - code === 0 表示成功（取 body.data），否则 throw ApiError。
-// token 从 localStorage 读取（key 与基座 whale-platform 保持一致），
-// 拼到 `Authorization: Bearer <token>` 头。
+// token 从基座注入的读取器获取（V-03：基座 accessToken 为内存态，经 qiankun
+// props 共享，不再有 token 的 localStorage），拼到 `Authorization: Bearer <token>` 头。
 // 前端统一使用相对路径请求（如 `/workflow/task/page`），
 // 由 dev server / 生产 Nginx 经网关 8080 代理到对应后端服务。
 
 import { createHttpClient, type HttpOptions } from '@bluewhale/http';
 
-/** 基座 token 存储 key（对齐 frontend/platform-apps/whale-platform/src/api/token.ts） */
-import { PLATFORM_ACCESS_TOKEN_KEY, PLATFORM_USER_KEY } from '@bluewhale/whale-auth';
-
-const TOKEN_STORAGE_KEY = PLATFORM_ACCESS_TOKEN_KEY;
-
 /** 基座用户缓存 key（对齐 whale-platform/src/api/token.ts，只读） */
+import { PLATFORM_USER_KEY } from '@bluewhale/whale-auth';
+
+/** 基座用户缓存 key（仅取权限判定所需字段） */
 const USER_STORAGE_KEY = PLATFORM_USER_KEY;
 
 /** 基座缓存的当前用户（仅取权限判定所需字段） */
@@ -27,9 +25,17 @@ export interface PortalUser {
   permissions?: string[];
 }
 
+/** 基座注入的登录态读取器（qiankun props；独立运行时为 null） */
+let hostGetToken: (() => string | null) | null = null;
+
+/** 在 qiankun mount 前保存基座注入的登录态读取器（unmount 后清空） */
+export function setPlatformHostProps(props?: { getToken?: () => string | null } | null): void {
+  hostGetToken = props?.getToken ?? null;
+}
+
 /** 读取当前登录 token（未登录时为 null） */
 export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_STORAGE_KEY);
+  return hostGetToken?.() ?? null;
 }
 
 /** 读取基座缓存的当前用户（无缓存或解析失败时为 null） */

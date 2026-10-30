@@ -5,6 +5,7 @@ import { App as AntdApp } from 'antd';
 import { ThemeProvider } from '@bluewhale/whale-common-theme';
 import { initAuditLogging } from '@bluewhale/whale-log-sdk';
 import App from './App';
+import { setPlatformHostProps } from './api/client';
 import './index.css';
 import { applyPublicPath } from './public-path';
 
@@ -43,11 +44,14 @@ if (!(window as unknown as { __POWERED_BY_QIANKUN__?: boolean }).__POWERED_BY_QI
 // qiankun 生命周期
 export async function bootstrap() {}
 
-export async function mount(props: { container?: HTMLElement }) {
+export async function mount(props: { container?: HTMLElement; getToken?: () => string | null }) {
+  // V-03：基座 accessToken 为内存态，经 props 注入读取器（独立运行时为 null）
+  setPlatformHostProps(props);
   render(props);
 }
 
 export async function unmount() {
   root?.unmount();
   root = null;
+  setPlatformHostProps(null);
 }

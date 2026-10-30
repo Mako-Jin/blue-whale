@@ -8,7 +8,6 @@ import { get, post } from './client';
 import {
   clearAuth,
   getCurrentUser,
-  getRefreshToken,
   saveCurrentUser,
   saveLogin,
   type AuthMeResponse,
@@ -16,8 +15,8 @@ import {
 } from './token';
 
 export type { AuthMeResponse, LoginResponse, UserInfo } from './token';
-export { clearAuth, getCurrentUser, getRefreshToken, getToken } from './token';
-// AUTH-39 一次一换：显式刷新入口（401 自动续期链路由 http 客户端内置，见 http.ts#refreshSession）
+export { bootstrapAuth, clearAuth, getCurrentUser, getToken } from './token';
+// Cookie 静默续期：显式刷新入口（401 自动续期链路由 http 客户端内置，见 http.ts#refreshSession）
 export { refreshSession as refresh } from './client';
 
 // 登录：POST /auth/login（网关白名单，免 JWT）
@@ -79,17 +78,16 @@ export async function listMyTenants(): Promise<MyTenantVO[]> {
 export async function switchTenant(tenantId: number | string, tenantCode: string): Promise<LoginResponse> {
   const data = await post<LoginResponse>('/auth/tenant/switch', {
     tenantId,
-    refreshToken: getRefreshToken(),
   });
   saveLogin(data, tenantCode);
   return data;
 }
 
-// 登出：POST /auth/logout（需 accessToken）——后端将 accessToken 与 refreshToken 写入 Redis 黑名单
+// 登出：POST /auth/logout（需 accessToken；CSRF 头由 http 客户端自动回传，服务端清刷新 Cookie）
 export async function logout(): Promise<void> {
   const user = getCurrentUser();
   try {
-    await post<void>('/auth/logout', { refreshToken: getRefreshToken() });
+    await post<void>('/auth/logout');
   } catch {
     // 登出接口异常（离线/网络故障）不阻断本地登出，保证用户始终能退出
   } finally {

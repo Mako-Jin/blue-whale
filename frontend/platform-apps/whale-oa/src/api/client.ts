@@ -1,17 +1,15 @@
 // OA 子应用请求层：基于 @bluewhale/http，保留原 request(url, init) 语义
 //
 // 后端统一返回 `Result` 信封：{ code, message, data }，code === 0 表示成功。
-// token 与当前用户从基座缓存读取（qiankun 与基座同源），请求自动带 Authorization。
+// token 从基座注入的读取器获取（V-03：基座 accessToken 为内存态，经 qiankun
+// props 共享，不再有 token 的 localStorage），请求自动带 Authorization。
 // 前端统一使用相对路径（如 `/oa/leave/page`），由基座 / Nginx 经网关 8080 代理。
 
 import { createHttpClient, type HttpOptions } from '@bluewhale/http';
 
-/** 基座 token 存储 key（对齐 whale-platform/src/api/token.ts） */
-import { PLATFORM_ACCESS_TOKEN_KEY, PLATFORM_USER_KEY } from '@bluewhale/whale-auth';
-
-const TOKEN_STORAGE_KEY = PLATFORM_ACCESS_TOKEN_KEY;
-
 /** 基座用户缓存 key */
+import { PLATFORM_USER_KEY } from '@bluewhale/whale-auth';
+
 const USER_STORAGE_KEY = PLATFORM_USER_KEY;
 
 /** 基座缓存的当前用户（仅取表单默认值所需字段） */
@@ -21,9 +19,17 @@ export interface OaUser {
   nickname?: string;
 }
 
+/** 基座注入的登录态读取器（qiankun props；独立运行时为 null） */
+let hostGetToken: (() => string | null) | null = null;
+
+/** 在 qiankun mount 前保存基座注入的登录态读取器（unmount 后清空） */
+export function setPlatformHostProps(props?: { getToken?: () => string | null } | null): void {
+  hostGetToken = props?.getToken ?? null;
+}
+
 /** 读取当前登录 token（未登录时为 null） */
 export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_STORAGE_KEY);
+  return hostGetToken?.() ?? null;
 }
 
 /** 读取基座缓存的当前用户（无缓存或解析失败时为 null） */

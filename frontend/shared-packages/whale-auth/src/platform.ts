@@ -1,30 +1,15 @@
 /**
- * 基座（whale-platform）登录态 storage key 常量与只读器。
+ * 基座（whale-platform）登录态 storage key 常量与用户缓存只读器。
  *
  * 子应用（contract/doc/erp/mes/oa/pdm/pm/portal 等）此前各自硬编码这些字符串
  * （审计 P1），key 改名时需逐文件排查；现统一从这里导入。
+ *
+ * V-03：accessToken 改为基座内存态，子应用经 qiankun props 的 getToken 读取
+ * （见 whale-im/src/platform/host.ts 模式），不再有 token 的 localStorage key。
  */
-
-/** 基座 access token 的 localStorage key */
-export const PLATFORM_ACCESS_TOKEN_KEY = 'whale_platform_access_token';
-
-/** 基座 refresh token 的 localStorage key */
-export const PLATFORM_REFRESH_TOKEN_KEY = 'whale_platform_refresh_token';
 
 /** 基座用户缓存的 localStorage key */
 export const PLATFORM_USER_KEY = 'whale_platform_user';
-
-/** 基座键集合（便于一次解构） */
-export const PLATFORM_AUTH_KEYS = {
-  accessToken: PLATFORM_ACCESS_TOKEN_KEY,
-  refreshToken: PLATFORM_REFRESH_TOKEN_KEY,
-  user: PLATFORM_USER_KEY,
-} as const;
-
-/** 读取基座缓存 token（子应用请求头注入用；未登录返回 null） */
-export function getPlatformToken(): string | null {
-  return localStorage.getItem(PLATFORM_ACCESS_TOKEN_KEY);
-}
 
 /**
  * 读取基座缓存的当前用户（只读；无缓存或解析失败返回 null）。
