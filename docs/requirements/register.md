@@ -132,7 +132,7 @@
 
 | 编号 | 需求描述 | 状态 | 来源 |
 |---|---|---|---|
-| REQ-FUNC-001 | 基础设施就绪：Docker Compose 中间件（MySQL/Redis/Nacos/RabbitMQ/Nginx） | **本机原生进程方式已就绪（Wave 5.1f）**：MySQL 3306 / Redis 6379 / **Nacos 3.2.4（8848 服务 + 8849 控制台，MySQL 外置存储）** 均运行中；RabbitMQ / Nginx 未落地（Docker 仍缺） | [roadmap.md](../plans/roadmap.md) Phase 1 |
+| REQ-FUNC-001 | 基础设施就绪：Docker Compose 中间件（MySQL/Redis/Nacos/RabbitMQ/Nginx） | 本机原生进程方式已就绪：MySQL 3306 / Redis 6379 运行中；Nacos 版本沿革：Wave 5.1f 时期 3.2.4 → 2026-10-19 起 2.4.0（`D:\tools\installer\nacos`）→ **2026-10-30 拍板统一 3.x（v3.2.4）**，compose 镜像与环境模板已同步，本机原生 2.4.0 → 3.2.4 实机升级列维护窗口待做；RabbitMQ / Nginx 未落地（Docker 仍缺） | [roadmap.md](../plans/roadmap.md) Phase 1 |
 | REQ-FUNC-002 | whale-auth 权限中心（RBAC + ABAC 六层级） | 已完成（API 齐备 + 31 处权限注解 + 菜单接口；admin 前端已对接，Wave 5.17/5.18） | roadmap Phase 2.1 |
 | REQ-FUNC-003 | whale-gateway 网关（动态路由 + JWT 鉴权 + TraceId） | 已完成（限流 + resilience4j 熔断 + 动态路由治理 + 内网屏蔽闭环；Sentinel 经评估**不引入**，Wave 5.35） | roadmap Phase 2.2 |
 | REQ-FUNC-004 | whale-common 公共组件（Result / 异常 / 分页 / 自动填充） | 已完成 | roadmap Phase 2.3 |

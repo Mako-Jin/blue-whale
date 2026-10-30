@@ -89,7 +89,7 @@ if ($javaMajor -eq 21) {
 $checks = @(
     @{ Name = 'MySQL'; Port = 3306; Hint = '请启动 MySQL 服务 (services.msc), 或 docker run -d --name mysql -p 3306:3306 -e MYSQL_ROOT_PASSWORD=root mysql:8' },
     @{ Name = 'Redis'; Port = 6379; Hint = '请启动 Redis 服务, 或 docker run -d --name redis -p 6379:6379 redis:7' },
-    @{ Name = 'Nacos'; Port = 8848; Hint = '请启动 Nacos (startup.cmd -m standalone), 或 docker run -d --name nacos -p 8848:8848 nacos/nacos-server:v2.3.2'; Http = $true }
+    @{ Name = 'Nacos'; Port = 8848; Hint = '请启动 Nacos (startup.cmd -m standalone), 或 docker run -d --name nacos -p 8848:8848 nacos/nacos-server:v3.2.4'; Http = $true }
 )
 
 foreach ($c in $checks) {

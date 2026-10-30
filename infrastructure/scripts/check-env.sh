@@ -82,7 +82,7 @@ for name in $failed; do
   case "$name" in
     MySQL) hint "MySQL: 请启动 MySQL 服务, 或 docker run -d --name mysql -p 3306:3306 -e MYSQL_ROOT_PASSWORD=root mysql:8" ;;
     Redis) hint "Redis: 请启动 Redis 服务, 或 docker run -d --name redis -p 6379:6379 redis:7" ;;
-    Nacos) hint "Nacos: 请启动 Nacos (startup.sh -m standalone), 或 docker run -d --name nacos -p 8848:8848 nacos/nacos-server:v2.3.2" ;;
+    Nacos) hint "Nacos: 请启动 Nacos (startup.sh -m standalone), 或 docker run -d --name nacos -p 8848:8848 nacos/nacos-server:v3.2.4" ;;
   esac
 done
 echo ""
