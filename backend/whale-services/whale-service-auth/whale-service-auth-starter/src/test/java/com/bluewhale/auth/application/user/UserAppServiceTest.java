@@ -247,7 +247,7 @@ class UserAppServiceTest {
                 "Alice", "13800000000", "a@b.com", "avatar.png", 3L, User.STATUS_ENABLED, 1,
                 LocalDateTime.of(2026, 1, 1, 8, 0, 0), CREATED, UPDATED);
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(stored));
-        when(passwordEncoder.encode("resetpwd")).thenReturn(NEW_CIPHER);
+        when(passwordHasher.encode("resetpwd")).thenReturn(NEW_CIPHER);
         assertTrue(stored.isMustChangePassword());
 
         userAppService.changePassword(USER_ID, new ChangeUserPasswordCommand("resetpwd"));
@@ -263,7 +263,7 @@ class UserAppServiceTest {
                 "Alice", "13800000000", "a@b.com", "avatar.png", 3L, User.STATUS_ENABLED, 1,
                 LocalDateTime.of(2026, 1, 1, 8, 0, 0), CREATED, UPDATED);
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(stored));
-        when(passwordEncoder.encode("newpwd123")).thenReturn(NEW_CIPHER);
+        when(passwordHasher.encode("newpwd123")).thenReturn(NEW_CIPHER);
 
         userAppService.update(USER_ID, new UpdateUserCommand("newpwd123", "Alice",
                 "13800000000", "a@b.com", "avatar.png", 3L, null));

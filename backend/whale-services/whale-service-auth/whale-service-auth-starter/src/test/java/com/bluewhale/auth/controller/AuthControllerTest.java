@@ -1,8 +1,6 @@
 package com.bluewhale.auth.controller;
 
 import com.bluewhale.auth.application.auth.SessionAppService;
-import com.bluewhale.auth.config.AuthCookieProperties;
-import com.bluewhale.auth.config.JwtProperties;
 import com.bluewhale.auth.dto.LoginRequest;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.auth.vo.AuthMeResponse;
@@ -69,7 +67,7 @@ class AuthControllerTest {
     private final SessionAppService sessionAppService = mock(SessionAppService.class);
 
     private final AuthController controller = new AuthController(sessionAppService,
-            new AuthCookieManager(new AuthCookieProperties(), new JwtProperties()));
+            new AuthCookieManager(false, 1440L));
 
     private MockMvc mockMvc;
 

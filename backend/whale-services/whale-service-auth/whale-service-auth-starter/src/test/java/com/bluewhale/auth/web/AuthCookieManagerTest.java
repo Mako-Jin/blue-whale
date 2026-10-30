@@ -1,7 +1,5 @@
 package com.bluewhale.auth.web;
 
-import com.bluewhale.auth.config.AuthCookieProperties;
-import com.bluewhale.auth.config.JwtProperties;
 import com.bluewhale.common.core.exception.BizException;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,7 +29,8 @@ class AuthCookieManagerTest {
     private static final int UNAUTHORIZED_CODE = 401;
     private static final int FORBIDDEN_CODE = 403;
 
-    private AuthCookieProperties cookieProperties;
+    /** refreshToken 有效期（分钟），与 dev 默认配置一致 */
+    private static final long REFRESH_EXPIRE_MINUTES = 1440L;
 
     private AuthCookieManager cookieManager;
 
@@ -42,8 +41,7 @@ class AuthCookieManagerTest {
      */
     @BeforeEach
     void setUp() {
-        cookieProperties = new AuthCookieProperties();
-        cookieManager = new AuthCookieManager(cookieProperties, new JwtProperties());
+        cookieManager = new AuthCookieManager(false, REFRESH_EXPIRE_MINUTES);
         response = new MockHttpServletResponse();
     }
 
@@ -82,7 +80,7 @@ class AuthCookieManagerTest {
     @Test
     @DisplayName("writeAuthCookies：secure=true 时两枚 Cookie 均追加 Secure 标记")
     void writeAuthCookiesShouldAppendSecureWhenEnabled() {
-        cookieProperties.setSecure(true);
+        cookieManager = new AuthCookieManager(true, REFRESH_EXPIRE_MINUTES);
         cookieManager.writeAuthCookies(response, REFRESH_TOKEN);
 
         List<String> cookies = response.getHeaders("Set-Cookie");

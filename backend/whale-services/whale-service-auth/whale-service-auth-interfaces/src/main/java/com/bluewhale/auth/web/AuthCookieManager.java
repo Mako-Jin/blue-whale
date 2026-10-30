@@ -1,12 +1,11 @@
 package com.bluewhale.auth.web;
 
-import com.bluewhale.auth.config.AuthCookieProperties;
-import com.bluewhale.auth.config.JwtProperties;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
@@ -57,19 +56,24 @@ public class AuthCookieManager {
     /** CSRF token 随机源（SecureRandom 线程安全） */
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
-    private final AuthCookieProperties cookieProperties;
+    /** 是否为认证 Cookie 附加 Secure 标记（HTTPS 站点开启，配置项 whale.auth.cookie.secure） */
+    private final boolean secure;
 
-    private final JwtProperties jwtProperties;
+    /** refreshToken 有效期（分钟），用于对齐 Cookie MaxAge（配置项 whale.auth.jwt.refresh-expire-minutes） */
+    private final long refreshExpireMinutes;
 
     /**
      * 构造认证 Cookie 管理器
      *
-     * @param cookieProperties 认证 Cookie 配置（Secure 开关）
-     * @param jwtProperties JWT 配置（取 refreshToken 有效期对齐 Cookie MaxAge）
+     * <p>仅接收原始配置值，避免接口层反向依赖基础设施层的配置类（分层架构约束）。</p>
+     *
+     * @param secure 是否为认证 Cookie 附加 Secure 标记
+     * @param refreshExpireMinutes refreshToken 有效期（分钟）
      */
-    public AuthCookieManager(AuthCookieProperties cookieProperties, JwtProperties jwtProperties) {
-        this.cookieProperties = cookieProperties;
-        this.jwtProperties = jwtProperties;
+    public AuthCookieManager(@Value("${whale.auth.cookie.secure:false}") boolean secure,
+                             @Value("${whale.auth.jwt.refresh-expire-minutes:1440}") long refreshExpireMinutes) {
+        this.secure = secure;
+        this.refreshExpireMinutes = refreshExpireMinutes;
     }
 
     /**
@@ -79,20 +83,20 @@ public class AuthCookieManager {
      * @param refreshToken 新签发的 refreshToken（仅写入 Cookie，响应体不可见）
      */
     public void writeAuthCookies(HttpServletResponse response, String refreshToken) {
-        long maxAgeSeconds = jwtProperties.getRefreshExpireMinutes() * 60;
+        long maxAgeSeconds = refreshExpireMinutes * 60;
         ResponseCookie refreshCookie = ResponseCookie.from(REFRESH_COOKIE_NAME, refreshToken)
                 .httpOnly(true)
                 .path(COOKIE_PATH)
                 .sameSite(SAME_SITE_STRICT)
                 .maxAge(maxAgeSeconds)
-                .secure(cookieProperties.isSecure())
+                .secure(secure)
                 .build();
         ResponseCookie csrfCookie = ResponseCookie.from(CSRF_COOKIE_NAME, newCsrfToken())
                 .httpOnly(false)
                 .path(COOKIE_PATH)
                 .sameSite(SAME_SITE_STRICT)
                 .maxAge(maxAgeSeconds)
-                .secure(cookieProperties.isSecure())
+                .secure(secure)
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
         response.addHeader(HttpHeaders.SET_COOKIE, csrfCookie.toString());
@@ -192,7 +196,7 @@ public class AuthCookieManager {
                 .path(COOKIE_PATH)
                 .sameSite(SAME_SITE_STRICT)
                 .maxAge(MAX_AGE_EXPIRED)
-                .secure(cookieProperties.isSecure())
+                .secure(secure)
                 .build();
     }
 }
