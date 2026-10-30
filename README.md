@@ -45,13 +45,16 @@ BlueWhale/
 │   ├── admin/              # 后台管理 SPA
 │   ├── ops/                # 运维 SPA
 │   └── games/              # 小游戏
-├── infrastructure/         # Docker / Nginx / Redis / Prometheus
+├── infrastructure/         # Docker / Nginx / Redis / Prometheus / Grafana
+├── ai/                     # whale-ai（Python / FastAPI，LangChain 编排，仅内网 8092）
 ├── deploy/                 # Dockerfile 部署模板
 ├── .github/workflows/      # CI/CD Pipeline
-├── scripts/                # 运维脚本
+├── scripts/                # 运维脚本（dev / smoke / ops / ci）
 ├── docs/                   # 文档
 └── pom.xml                 # 根聚合 POM
 ```
+
+> 本地运行时与工具目录（`logs/`、`data/`、`tools/`、`work/`、`target/` 等）不入库，见 [.gitignore](.gitignore)。
 
 ## 快速开始
 

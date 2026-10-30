@@ -41,19 +41,56 @@
 
 ## 后端模块划分
 
-| 分类 | 模块 | 说明 |
+### Maven reactor 结构（7 个聚合模块，52 个 Maven 模块）
+
+| 分类 | 聚合模块 | 说明 |
 |---|---|---|
-| **parent** | whale-parent | 统一依赖版本（Spring Boot 4 / Cloud / Alibaba） |
-| **common** | whale-tools | 通用工具包 |
-| | whale-security | 加密算法、JWT |
-| | whale-spring-boot-starter | 自动配置 Starter |
-| **sdk** | whale-i18n-sdk | 国际化（数据库 > 属性文件 > 默认值）；随服务启动自动建 `sys_i18n_message`，各服务自持 `i18n/<模块>/messages*.properties`，本地管理接口按服务开关 |
-| | whale-auth-sdk | 认证鉴权 SDK |
-| **services** | whale-service-auth | 权限中心（RBAC + ABAC 六层级） |
-| | whale-gateway | API 网关 |
-| | whale-job / workflow / form / file / pay | 基础服务 |
-| **apps** | whale-erp / mes / pdm / oa | 业务应用 |
-| **ops** | whale-audit / monitor / alert | 运维监控 |
+| **parent** | whale-parent | 统一依赖版本（Spring Boot / Cloud / Alibaba，版本号以 `pom.xml` 为准） |
+| **common** | whale-common | `whale-tools`（通用工具）、`whale-security`（加密/JWT）、`whale-spring-boot-starter`（自动配置：Result/异常/审计切面/i18n/内网令牌等） |
+| **sdk** | whale-sdk | `whale-i18n-sdk`（国际化，随服务启动自建 `sys_i18n_message`）、`whale-auth-sdk`（认证鉴权 SDK） |
+| **services** | whale-services | 网关 + 核心服务：gateway / service-auth / job / workflow / form / service-file / pay / agent / im / archive / message / doc |
+| **apps** | whale-apps | 业务应用：erp / mes / pdm / oa / pm / contract |
+| **ops** | whale-ops | 运维监控：audit / monitor / alert |
+| **registry** | whale-registry | 业务配置：config（与 Nacos 互补，管业务应用配置） |
+
+> `ai/whale-ai`（Python / FastAPI，8092）为独立树，**不进 Maven reactor**，仅被 `whale-agent` 内网调用。
+
+### 服务全景（23 个：Java 22 + Python 1）
+
+> 端口、库、网关路由与本机状态的**唯一权威清单**是 [service-catalog.md](service-catalog.md)；下表为架构视角摘要，两表由维护流程保持同步。
+
+| 服务 | 端口 | 对外前缀 | 数据库（`bluewhale_<域>`） | 限界上下文与职责 |
+|---|---|---|---|---|
+| whale-gateway | 8080 | ——（唯一入口） | ——（Redis 存黑名单） | **接入网关**：路由转发、JWT 鉴权、令牌黑名单、限流 429（Redis 固定窗口）、熔断 503（resilience4j）、TraceId、内网路径屏蔽（internal-deny + 令牌头剥离） |
+| whale-service-auth | 8081 | `/auth` `/user` `/dept` `/role` `/menu` `/permission` `/tenant` | bluewhale_auth | **身份与权限**：登录/刷新/注销（令牌轮换与撤销）、RBAC+ABAC、用户/部门/角色/菜单/权限/租户、权限缓存广播与重对齐 |
+| whale-job | 8082 | `/job` | bluewhale_job | **任务调度**：定时任务注册/调度/重对齐 |
+| whale-workflow | 8083 | `/workflow` | bluewhale_workflow | **工作流**：BPMN 流程定义/发起/审批/待办，业务回调 |
+| whale-form | 8084 | `/form` | bluewhale_form | **动态表单**：表单模型/填报/动态表引擎/设计器元数据 |
+| whale-file（whale-service-file） | 8085 | `/file` | bluewhale_file | **文件**：上传下载、附件、桶白名单（知识入库 default-deny） |
+| whale-pay | 8086 | `/pay` | bluewhale_pay | **支付**：支付单、mock 渠道支付/退款、流水与对账 |
+| whale-agent | 8090 | `/agent` | bluewhale_agent | **知识 Agent**：事实层采集、Lucene 检索、问答编排；对外调 `whale-ai` |
+| whale-ai（Python） | 8092 | ——（仅内网） | ——（记忆存 Redis） | **LLM 编排**：LangChain/LangGraph 工具循环与确认态；不注册 Nacos/网关，不持业务库凭据 |
+| whale-im | 8091 | `/im`（含 `/im/ws`） | bluewhale_im | **即时通讯**：会话/消息/已读/在线/机器人；WS ticket 鉴权 |
+| whale-archive | 8093 | `/archive` | bluewhale_archive | **档案**：门类/规则/条目/档号/快照/检索、补扫 |
+| whale-message | 8094 | `/message` | bluewhale_message | **统一消息**：模板渲染、INAPP/EMAIL/SMS/IM 渠道路由、幂等与投递记录、失败重试、站内信收件箱 |
+| whale-doc | 8095 | `/doc`（含 `/doc/ws`） | bluewhale_doc | **在线文档/Wiki**：空间与页面树、TipTap 协作、版本/评论/附件/搜索/ACL/模板/审批/分享/归档、Agent 知识索引 |
+| whale-erp | 9001 | `/erp` | bluewhale_erp | **ERP 业务应用**：物料主数据 + 供应商主数据（供应商准入/资质/绩效归 SRM，不属 CRM） |
+| whale-mes | 9002 | `/mes` | bluewhale_mes | **MES 制造执行** |
+| whale-pdm | 9003 | `/pdm` | bluewhale_pdm | **PDM 产品数据管理** |
+| whale-oa | 9004 | `/oa` | bluewhale_oa | **OA 协同办公** |
+| whale-pm | 9005 | `/pm` | bluewhale_pm | **项目管理**：项目空间/成员/状态流转、工作项、迭代看板、报表、站内通知 + 工作流审批（默认关闭） |
+| whale-contract | 9006 | `/contract` | bluewhale_contract | **合同管理**：起草/相对方/版本/审批/终止/归档；印章/PDF 盖章/数字签名（CA/TSA/P12 fail-closed）/三方签章（mock） |
+| whale-audit | 9101 | `/audit` | bluewhale_audit | **审计**：审计日志汇聚落库与查询（HTTP 转发 + RabbitMQ 可选 + 本地回退） |
+| whale-monitor | 9102 | `/monitor` | ——（只读聚合） | **监控聚合**：Nacos 实例只读列表/健康；采集存储归外部 Prometheus |
+| whale-alert | 9103 | `/alert` | bluewhale_alert | **告警**：Alertmanager webhook 接入、指纹去重、EMAIL/SMS/WEBHOOK 通道 |
+| whale-config | 9201 | `/config` | bluewhale_config | **业务配置**：配置项 CRUD（租户内键唯一）、版本历史、一键回滚；与 Nacos 互补 |
+
+### 限界上下文要点
+
+- **身份权限（auth）** 是全平台唯一身份源：其余服务经网关注入的 `X-User-Id` / `X-Permission-Codes` 判权，服务间内网调用统一附加 `X-Internal-Token`（网关入口剥离外部同名头，纵深防御见 [devlog 2026-10-30](devlog/2026-10-30.md)）。
+- **一服务一库**（`bluewhale_<域>`），跨域不直连对方库；跨服务集成走「内网 REST（`/**/internal/**`）+ Nacos 服务发现」，消息类旁路可经 RabbitMQ（审计汇聚可选）。
+- **审计横切**：各服务 `audit_log`/`api_log` 本地落库，`whale-audit` 提供汇聚与查询；前端行为日志经网关白名单批量上报。
+- **可观测性横切**：各服务暴露 `/actuator/prometheus`（`application` 标签 = 服务名），Prometheus 以 `whale-*` job 抓取，Alertmanager 路由至 `whale-alert`；Grafana 看板经 provisioning 自动加载（[部署指南](devops.md)）。
 
 ## 网关路由与前缀约定
 
@@ -116,6 +153,6 @@
 
 ## 部署架构
 
-开发环境使用 Docker Compose 一键拉起；生产环境使用 Kubernetes 编排。
+开发环境使用 Docker Compose 一键拉起中间件与监控栈；生产环境使用生产覆盖层（Nginx TLS + 前端容器）编排。
 
-详细部署步骤参见 `docs/devops.md`。
+详细部署步骤参见 [devops.md](devops.md)；端口/服务/组件的权威清单见 [service-catalog.md](service-catalog.md)。

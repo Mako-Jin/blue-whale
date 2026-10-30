@@ -16,29 +16,34 @@ docs/
 │   ├── agent-index-ops.md   # 知识索引重建/状态/排障
 │   ├── agent-mcp.md         # 知识 Agent MCP / IDE 接入
 │   ├── doc-service-ops.md   # 在线文档/Wiki 部署/配置/备份/清理/排障
+│   ├── external-integration-onboarding.md  # 外部集成凭据预检作业单
 │   └── slo.md               # SLO 与 PromQL
 ├── design/              # 架构与专项设计（定稿后方可进入编码）
+│   ├── adr/                 # 架构决策记录
 │   ├── audit-log.md         # 审计日志方案
 │   ├── distributed.md       # 分布式 ID / 锁 / 事务 / 幂等
 │   ├── ddd-whale-auth.md    # 权限服务 DDD 架构
 │   ├── doc-service.md       # 在线文档/Wiki 服务设计（M1–M5 已交付）
+│   ├── frozen-optional-modules.md  # 冻结模块清单
+│   ├── multi-database.md    # 多数据库（国产化）演进设计
+│   ├── network-boundary.md  # 网络边界与上线必检
+│   ├── whale-monitor-boundary.md   # whale-monitor 能力边界
 │   └── cicd.md              # CI/CD 流水线
-├── plans/               # 阶段性规划
-│   ├── roadmap.md           # Phase 1-5 路线图
-│   ├── task-breakdown.md    # 波次任务拆分
-│   ├── 2026-10-29-wiki-doc-service.md  # 在线文档/Wiki 实施计划（M0–M5 已交付）
-│   └── next-steps.md        # 下一步建议与任务清单
+├── plans/               # 阶段性规划与波次台账（roadmap / task-breakdown / pending-issues / wave5.*）
+├── specs/               # 历史 spec 归档（wave5.1b–5.52 等）
+├── whale-auth/          # 权限服务蓝图归档（originals / final）
+├── whale-audit/         # 审计服务蓝图归档（originals / final）
 ├── devlog/              # 开发日志（需求/完成/待做/已修正 四类信息）
 │   └── YYYY-MM-DD.md
-├── architecture.md      # 架构设计文档
+├── architecture.md      # 架构设计文档（含 23 服务全景与限界上下文）
 ├── naming-conventions.md # 命名规范（库 / 表 / 服务 / 模块 / 包 / 配置 / Redis / 前端）
 ├── service-catalog.md   # 服务与端口清单（端口 ↔ 服务 ↔ 组件 ↔ 库 ↔ 对外前缀，含第三方组件端口）
-├── backend.md           # 后端开发指南（待建）
-├── frontend.md          # 前端开发指南（待建）
-├── devops.md            # 运维部署指南（待建）
-├── api.md               # API 文档规范（待建）
-├── database.md          # 数据库设计（待建）
-└── ai.md                # AI Agent 使用说明（待建）
+├── backend.md           # 后端开发指南（模块结构 / DDD 分层 / 构建测试 / 配置基线）
+├── frontend.md          # 前端开发指南（Monorepo / 应用族 / 共享包 / 约定）
+├── devops.md            # 运维部署指南（compose / 监控栈 / 生产前置条件 / 运维手册索引）
+├── api.md               # API 文档规范（Result 体 / 路径前缀 / 鉴权与内网头 / springdoc）
+├── database.md          # 数据库设计规范（命名 / 惯例 / 连接池基线 / 国产化演进）
+└── ai.md                # AI Agent 使用说明（whale-agent / whale-ai / 知识索引 / 评测 / 接入）
 ```
 
 ## 文档约定

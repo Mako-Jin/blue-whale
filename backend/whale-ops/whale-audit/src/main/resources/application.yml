@@ -14,6 +14,17 @@ spring:
     username: ${MYSQL_USER:root}
     # P1-2 安全默认值：不再提供 root 默认口令；未设置 MYSQL_PASSWORD 时由启动守卫给出明确报错
     password: ${MYSQL_PASSWORD:}
+    # T-13 连接池基线：显式池名/上限/超时/泄漏检测；容量按实例数换算（默认 5 × 20 服务 ≈ 100 连接）
+    hikari:
+      pool-name: ${spring.application.name}-hikari
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:5}
+      minimum-idle: ${DB_POOL_MIN_IDLE:2}
+      connection-timeout: ${DB_POOL_CONNECTION_TIMEOUT_MS:30000}
+      validation-timeout: ${DB_POOL_VALIDATION_TIMEOUT_MS:5000}
+      idle-timeout: ${DB_POOL_IDLE_TIMEOUT_MS:600000}
+      max-lifetime: ${DB_POOL_MAX_LIFETIME_MS:1800000}
+      keepalive-time: ${DB_POOL_KEEPALIVE_MS:120000}
+      leak-detection-threshold: ${DB_POOL_LEAK_DETECTION_MS:60000}
   # AUTH-10 审计 MQ 汇聚（消费端）：RabbitMQ 连接与监听重试策略。
   # 默认 guest/guest 仅适用于本机开发；生产须以环境变量覆盖。
   rabbitmq:
