@@ -63,6 +63,11 @@ whale:
       secret: ${JWT_SECRET:bluewhale-jwt-secret-2026-please-change-in-production}
       expire-minutes: 120
       refresh-expire-minutes: 1440
+    # V-03 认证 Cookie：refresh 令牌（whale_refresh_token，HttpOnly）与 CSRF（whale_csrf，前端可读）
+    # 走 Cookie 下发，响应体不再返回 refreshToken。secure 为 Cookie Secure 标记开关：
+    # HTTPS 站点必须开启（生产经 WHALE_AUTH_COOKIE_SECURE=true），dev 走 HTTP 联调默认关闭。
+    cookie:
+      secure: ${WHALE_AUTH_COOKIE_SECURE:false}
     # P1-3 权限缓存跨实例失效：本地批量删除当前租户完整 Key + Redisson RTopic 广播；
     # Redis 断连时删除失败的 Key 进入待处理集合，由定时任务在恢复后重对齐。
     permission-cache:

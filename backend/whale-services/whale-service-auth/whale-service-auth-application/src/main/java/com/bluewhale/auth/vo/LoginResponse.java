@@ -6,7 +6,7 @@ import java.io.Serializable;
 import java.util.List;
 
 /**
- * 登录 / 刷新 Token 响应
+ * 登录 / 刷新 Token 响应（V-03：refreshToken 已迁移 HttpOnly Cookie，不再进入响应体）
  *
  * @author BlueWhale
  */
@@ -16,7 +16,6 @@ public class LoginResponse implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private String accessToken;
-    private String refreshToken;
     /** 固定 Bearer，请求头使用：Authorization: Bearer {@code accessToken} */
     private String tokenType;
     /** accessToken 有效期（秒） */

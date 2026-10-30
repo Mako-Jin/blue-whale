@@ -8,7 +8,6 @@ import com.bluewhale.auth.application.tenant.TenantAppService;
 import com.bluewhale.auth.application.tenant.TenantMembershipAppService;
 import com.bluewhale.auth.config.RefreshRotationProperties;
 import com.bluewhale.auth.dto.LoginRequest;
-import com.bluewhale.auth.dto.RefreshRequest;
 import com.bluewhale.auth.dto.SwitchTenantRequest;
 import com.bluewhale.auth.entity.SysUser;
 import com.bluewhale.auth.jwt.JwtTokenProvider;
@@ -21,6 +20,7 @@ import com.bluewhale.auth.security.TokenBlacklist;
 import com.bluewhale.auth.security.UserAccessRevocationStore;
 import com.bluewhale.auth.security.UserDetailsServiceImpl;
 import com.bluewhale.auth.vo.AuthMeResponse;
+import com.bluewhale.auth.vo.AuthTokenIssue;
 import com.bluewhale.auth.vo.LoginResponse;
 import com.bluewhale.auth.vo.MenuVO;
 import com.bluewhale.auth.vo.MyTenantVO;
@@ -85,9 +85,9 @@ public class AuthService {
      * 登录：AuthenticationManager 走 UserDetailsService + BCryptPasswordEncoder 校验
      *
      * @param request 登录请求（用户名与明文密码）
-     * @return 登录响应（含 accessToken 与 refreshToken）
+     * @return 令牌签发结果（响应体含 accessToken；refreshToken 仅由接口层写入 HttpOnly Cookie）
      */
-    public LoginResponse login(LoginRequest request) {
+    public AuthTokenIssue login(LoginRequest request) {
         Long tenantId = tenantAppService.resolveEnabledTenantId(request.getTenantCode());
         Authentication authentication;
         // UserDetailsService 只接收用户名，需在认证前绑定租户，确保按（租户, 用户名）定位账号
@@ -112,11 +112,11 @@ public class AuthService {
                 .eq(SysUser::getId, loginUser.getUserId())
                 .set(SysUser::getLastLoginTime, LocalDateTime.now()));
         // 每次登录生成独立 familyId（AUTH-39）：该次会话后续所有轮换令牌共用，复用检测时整族吊销
-        return buildLoginResponse(loginUser, UUID.randomUUID().toString());
+        return buildAuthTokenIssue(loginUser, UUID.randomUUID().toString());
     }
 
     /**
-     * 刷新：refreshToken 换发新的 accessToken + refreshToken。
+     * 刷新：refreshToken 换发新的 accessToken + refreshToken（V-03：令牌由 Cookie 携带）。
      * <p>先做签名/过期与令牌类型校验，再查分布式黑名单：命中（已在登出时失效）直接 401，
      * 阻断「登出后仍可用 refreshToken 换发新 token」的提权路径（REQ-SEC-004）。</p>
      * <p>AUTH-39 一次性轮换（{@code whale.auth.refresh.rotation.enabled=true} 时生效）：
@@ -126,11 +126,10 @@ public class AuthService {
      * <p>用户级撤销（REQ-SEC-014）：停用、删除、改密后写入的撤销时刻同样作用于 refreshToken，
      * 撤销前签发的 refreshToken 不能再换发新令牌，避免绕过 accessToken 撤销继续访问。</p>
      *
-     * @param request 刷新请求（含 refreshToken）
-     * @return 登录响应（含新 accessToken 与 refreshToken）
+     * @param refreshToken Cookie 中解析出的 refreshToken 原文
+     * @return 令牌签发结果（响应体含新 accessToken；新 refreshToken 仅写 Cookie）
      */
-    public LoginResponse refresh(RefreshRequest request) {
-        String refreshToken = request.getRefreshToken();
+    public AuthTokenIssue refresh(String refreshToken) {
         Claims claims = tokenProvider.parse(refreshToken);
         if (claims == null || !JwtTokenProvider.TOKEN_TYPE_REFRESH.equals(
                 claims.get(JwtTokenProvider.CLAIM_TOKEN_TYPE, String.class))) {
@@ -149,7 +148,7 @@ public class AuthService {
         UserDetails userDetails = loadEnabledUser(userId, tenantId);
         requireRefreshNotRevoked(userId, tenantId, claims);
         consumeRotatingToken(refreshToken, claims, familyId);
-        return buildLoginResponse((LoginUser) userDetails, familyId);
+        return buildAuthTokenIssue((LoginUser) userDetails, familyId);
     }
 
     /**
@@ -165,14 +164,15 @@ public class AuthService {
     /**
      * 切换租户：同一 {@code userId} / {@code sub} 只更换令牌中的租户上下文与角色。
      *
-     * <p>切换成功后将当前 accessToken 与提交的 refreshToken 写入黑名单（开启轮换时
+     * <p>切换成功后将当前 accessToken 与 Cookie 携带的 refreshToken 写入黑名单（开启轮换时
      * 吊销整个 family），避免新旧租户令牌并存；新令牌使用全新 familyId。</p>
      *
      * @param authorization 请求头原始值，形如 {@code Bearer <token>}（可空）
-     * @param request 切换请求（目标租户 + 可选当前 refreshToken）
-     * @return 新租户下的登录响应（同登录出参）
+     * @param request 切换请求（目标租户）
+     * @param currentRefreshToken Cookie 中解析出的当前 refreshToken（可空，携带时一并失效）
+     * @return 新租户下的令牌签发结果（新 refreshToken 仅由接口层写 Cookie）
      */
-    public LoginResponse switchTenant(String authorization, SwitchTenantRequest request) {
+    public AuthTokenIssue switchTenant(String authorization, SwitchTenantRequest request, String currentRefreshToken) {
         LoginUser current = currentLoginUser();
         Long targetTenantId = request.getTenantId();
         tenantMembershipAppService.requireSwitchable(current.getUserId(), targetTenantId);
@@ -185,10 +185,10 @@ public class AuthService {
         if (!switched.isEnabled()) {
             throw new BizException(401, "账号已停用");
         }
-        invalidateSwitchTokens(authorization, request.getRefreshToken());
+        invalidateSwitchTokens(authorization, currentRefreshToken);
         log.info("用户切换租户: userId={}, fromTenantId={}, toTenantId={}",
                 current.getUserId(), current.getTenantId(), targetTenantId);
-        return buildLoginResponse(switched, UUID.randomUUID().toString());
+        return buildAuthTokenIssue(switched, UUID.randomUUID().toString());
     }
 
     /**
@@ -197,7 +197,7 @@ public class AuthService {
      * Redis 不可用时降级为客户端丢弃 token，不阻断登出流程。</p>
      *
      * @param authorization 请求头原始值，形如 {@code Bearer <token>}；缺失或格式不符时静默跳过
-     * @param refreshToken  请求体携带的 refreshToken（可空）；为空时仅失效 accessToken
+     * @param refreshToken Cookie 携带的 refreshToken（可空）；为空时仅失效 accessToken
      */
     public void logout(String authorization, String refreshToken) {
         String accessToken = resolveBearerToken(authorization);
@@ -427,19 +427,19 @@ public class AuthService {
     }
 
     /**
-     * 为用户签发 accessToken 与 refreshToken 并组装登录响应
+     * 为用户签发 accessToken 与 refreshToken 并组装令牌签发结果（V-03：refreshToken 仅写 Cookie）
      *
      * @param loginUser 登录用户
      * @param familyId 令牌 family 标识（登录时新生成，轮换时沿用）；为 {@code null} 时 refreshToken 不含该 claim
-     * @return 登录响应（含令牌、有效期与用户基础信息）
+     * @return 令牌签发结果（响应体载荷不含 refreshToken）
      */
-    private LoginResponse buildLoginResponse(LoginUser loginUser, String familyId) {
+    private AuthTokenIssue buildAuthTokenIssue(LoginUser loginUser, String familyId) {
         LoginResponse response = new LoginResponse();
         List<String> roles = loginUser.getRoles();
+        String refreshToken = tokenProvider.generateRefreshToken(
+                loginUser.getTenantId(), loginUser.getUserId(), loginUser.getUsername(), familyId);
         response.setAccessToken(tokenProvider.generateAccessToken(
                 loginUser.getTenantId(), loginUser.getUserId(), loginUser.getUsername(), roles));
-        response.setRefreshToken(tokenProvider.generateRefreshToken(
-                loginUser.getTenantId(), loginUser.getUserId(), loginUser.getUsername(), familyId));
         response.setTokenType("Bearer");
         response.setExpiresIn(tokenProvider.getAccessExpireSeconds());
         response.setTenantId(loginUser.getTenantId());
@@ -448,6 +448,6 @@ public class AuthService {
         response.setRoles(roles);
         // T-03：出厂默认口令轮换后强制首登改密，登录/刷新/切换响应统一透出该标记
         response.setMustChangePassword(loginUser.isMustChangePassword());
-        return response;
+        return new AuthTokenIssue(response, refreshToken);
     }
 }

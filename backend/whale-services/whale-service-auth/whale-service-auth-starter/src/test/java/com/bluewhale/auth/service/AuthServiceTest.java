@@ -6,7 +6,6 @@ import com.bluewhale.auth.application.role.RoleAppService;
 import com.bluewhale.auth.application.tenant.TenantAppService;
 import com.bluewhale.auth.application.tenant.TenantMembershipAppService;
 import com.bluewhale.auth.config.RefreshRotationProperties;
-import com.bluewhale.auth.dto.RefreshRequest;
 import com.bluewhale.auth.dto.SwitchTenantRequest;
 import com.bluewhale.auth.jwt.JwtTokenProvider;
 import com.bluewhale.auth.mapper.SysUserMapper;
@@ -17,7 +16,7 @@ import com.bluewhale.auth.security.TokenBlacklist;
 import com.bluewhale.auth.security.UserAccessRevocationStore;
 import com.bluewhale.auth.security.UserDetailsServiceImpl;
 import com.bluewhale.auth.vo.AuthMeResponse;
-import com.bluewhale.auth.vo.LoginResponse;
+import com.bluewhale.auth.vo.AuthTokenIssue;
 import com.bluewhale.auth.vo.MenuVO;
 import com.bluewhale.auth.vo.MyTenantVO;
 import com.bluewhale.common.core.exception.BizException;
@@ -133,12 +132,6 @@ class AuthServiceTest {
                 new UsernamePasswordAuthenticationToken(loginUser, null, loginUser.getAuthorities()));
     }
 
-    private static RefreshRequest refreshRequest() {
-        RefreshRequest request = new RefreshRequest();
-        request.setRefreshToken(REFRESH_TOKEN);
-        return request;
-    }
-
     /** 构造已完成签名校验的 refreshToken 载荷 */
     private Claims refreshClaims() {
         Claims claims = mock(Claims.class);
@@ -153,7 +146,6 @@ class AuthServiceTest {
     private static SwitchTenantRequest switchRequest(long tenantId) {
         SwitchTenantRequest request = new SwitchTenantRequest();
         request.setTenantId(tenantId);
-        request.setRefreshToken(REFRESH_TOKEN);
         return request;
     }
 
@@ -164,7 +156,7 @@ class AuthServiceTest {
         when(tokenProvider.parse(REFRESH_TOKEN)).thenReturn(claims);
         when(tokenBlacklist.contains(REFRESH_TOKEN)).thenReturn(true);
 
-        BizException ex = assertThrows(BizException.class, () -> authService.refresh(refreshRequest()));
+        BizException ex = assertThrows(BizException.class, () -> authService.refresh(REFRESH_TOKEN));
 
         assertEquals(UNAUTHORIZED_CODE, ex.getCode());
         verifyNoInteractions(userDetailsService);
@@ -178,7 +170,7 @@ class AuthServiceTest {
                 .thenReturn(JwtTokenProvider.TOKEN_TYPE_ACCESS);
         when(tokenProvider.parse(REFRESH_TOKEN)).thenReturn(claims);
 
-        BizException ex = assertThrows(BizException.class, () -> authService.refresh(refreshRequest()));
+        BizException ex = assertThrows(BizException.class, () -> authService.refresh(REFRESH_TOKEN));
 
         assertEquals(UNAUTHORIZED_CODE, ex.getCode());
         verifyNoInteractions(tokenBlacklist);
@@ -199,10 +191,10 @@ class AuthServiceTest {
         when(tokenProvider.generateRefreshToken(TENANT_ID, USER_ID, USERNAME, null)).thenReturn("new-refresh");
         when(tokenProvider.getAccessExpireSeconds()).thenReturn(ACCESS_EXPIRE_SECONDS);
 
-        LoginResponse response = authService.refresh(refreshRequest());
+        AuthTokenIssue issue = authService.refresh(REFRESH_TOKEN);
 
-        assertEquals("new-access", response.getAccessToken());
-        assertEquals("new-refresh", response.getRefreshToken());
+        assertEquals("new-access", issue.getResponse().getAccessToken());
+        assertEquals("new-refresh", issue.getRefreshToken());
         verifyNoInteractions(refreshRotationStore);
     }
 
@@ -218,7 +210,7 @@ class AuthServiceTest {
                 .thenReturn(new LoginUser(TENANT_ID, USER_ID, USERNAME, "pwd", "Alice", List.of("admin"), true));
         when(userAccessRevocationStore.isRevoked(USER_ID, issuedAt)).thenReturn(true);
 
-        BizException ex = assertThrows(BizException.class, () -> authService.refresh(refreshRequest()));
+        BizException ex = assertThrows(BizException.class, () -> authService.refresh(REFRESH_TOKEN));
 
         assertEquals(UNAUTHORIZED_CODE, ex.getCode());
         verify(tokenProvider, never()).generateAccessToken(anyLong(), anyLong(), anyString(), any());
@@ -242,10 +234,10 @@ class AuthServiceTest {
         when(tokenProvider.generateRefreshToken(TENANT_ID, USER_ID, USERNAME, null)).thenReturn("new-refresh");
         when(tokenProvider.getAccessExpireSeconds()).thenReturn(ACCESS_EXPIRE_SECONDS);
 
-        LoginResponse response = authService.refresh(refreshRequest());
+        AuthTokenIssue issue = authService.refresh(REFRESH_TOKEN);
 
-        assertEquals("new-access", response.getAccessToken());
-        assertEquals("new-refresh", response.getRefreshToken());
+        assertEquals("new-access", issue.getResponse().getAccessToken());
+        assertEquals("new-refresh", issue.getRefreshToken());
         verify(userAccessRevocationStore).isRevoked(USER_ID, issuedAt);
     }
 
@@ -269,10 +261,10 @@ class AuthServiceTest {
         when(tokenProvider.generateRefreshToken(TENANT_ID, USER_ID, USERNAME, FAMILY_ID)).thenReturn("new-refresh");
         when(tokenProvider.getAccessExpireSeconds()).thenReturn(ACCESS_EXPIRE_SECONDS);
 
-        LoginResponse response = authService.refresh(refreshRequest());
+        AuthTokenIssue issue = authService.refresh(REFRESH_TOKEN);
 
-        assertEquals("new-access", response.getAccessToken());
-        assertEquals("new-refresh", response.getRefreshToken());
+        assertEquals("new-access", issue.getResponse().getAccessToken());
+        assertEquals("new-refresh", issue.getRefreshToken());
         verify(tokenBlacklist).add(REFRESH_TOKEN);
         verify(refreshRotationStore, never()).revokeFamily(anyString(), anyLong());
     }
@@ -294,7 +286,7 @@ class AuthServiceTest {
         when(refreshRotationStore.markUsed(JTI, REMAINING_SECONDS)).thenReturn(false);
         when(tokenProvider.getRefreshExpireSeconds()).thenReturn(REFRESH_EXPIRE_SECONDS);
 
-        BizException ex = assertThrows(BizException.class, () -> authService.refresh(refreshRequest()));
+        BizException ex = assertThrows(BizException.class, () -> authService.refresh(REFRESH_TOKEN));
 
         assertEquals(UNAUTHORIZED_CODE, ex.getCode());
         verify(refreshRotationStore).revokeFamily(FAMILY_ID, REFRESH_EXPIRE_SECONDS);
@@ -308,7 +300,7 @@ class AuthServiceTest {
         when(tokenProvider.parse(REFRESH_TOKEN)).thenReturn(claims);
         when(refreshRotationProperties.isEnabled()).thenReturn(true);
 
-        BizException ex = assertThrows(BizException.class, () -> authService.refresh(refreshRequest()));
+        BizException ex = assertThrows(BizException.class, () -> authService.refresh(REFRESH_TOKEN));
 
         assertEquals(UNAUTHORIZED_CODE, ex.getCode());
         verifyNoInteractions(refreshRotationStore, tokenBlacklist);
@@ -323,7 +315,7 @@ class AuthServiceTest {
         when(refreshRotationProperties.isEnabled()).thenReturn(true);
         when(refreshRotationStore.isFamilyRevoked(FAMILY_ID)).thenReturn(true);
 
-        BizException ex = assertThrows(BizException.class, () -> authService.refresh(refreshRequest()));
+        BizException ex = assertThrows(BizException.class, () -> authService.refresh(REFRESH_TOKEN));
 
         assertEquals(UNAUTHORIZED_CODE, ex.getCode());
         verify(tokenBlacklist, never()).add(anyString());
@@ -404,7 +396,7 @@ class AuthServiceTest {
         lenient().when(claims.get(JwtTokenProvider.CLAIM_TENANT_ID)).thenReturn(TENANT_ID);
         when(tokenProvider.parse(REFRESH_TOKEN)).thenReturn(claims);
 
-        BizException ex = assertThrows(BizException.class, () -> authService.refresh(refreshRequest()));
+        BizException ex = assertThrows(BizException.class, () -> authService.refresh(REFRESH_TOKEN));
 
         assertEquals(UNAUTHORIZED_CODE, ex.getCode());
         verifyNoInteractions(userDetailsService, tokenBlacklist);
@@ -441,11 +433,11 @@ class AuthServiceTest {
                 anyString())).thenReturn("new-refresh");
         when(tokenProvider.getAccessExpireSeconds()).thenReturn(ACCESS_EXPIRE_SECONDS);
 
-        LoginResponse response = authService.switchTenant(BEARER_ACCESS, switchRequest(targetTenantId));
+        AuthTokenIssue issue = authService.switchTenant(BEARER_ACCESS, switchRequest(targetTenantId), REFRESH_TOKEN);
 
-        assertEquals(targetTenantId, response.getTenantId());
-        assertEquals("new-access", response.getAccessToken());
-        assertEquals("new-refresh", response.getRefreshToken());
+        assertEquals(targetTenantId, issue.getResponse().getTenantId());
+        assertEquals("new-access", issue.getResponse().getAccessToken());
+        assertEquals("new-refresh", issue.getRefreshToken());
         verify(tenantMembershipAppService).requireSwitchable(USER_ID, targetTenantId);
         verify(tokenBlacklist).add(ACCESS_TOKEN);
         verify(tokenBlacklist).add(REFRESH_TOKEN);
@@ -460,7 +452,7 @@ class AuthServiceTest {
                 .when(tenantMembershipAppService).requireSwitchable(USER_ID, targetTenantId);
 
         BizException ex = assertThrows(BizException.class,
-                () -> authService.switchTenant(BEARER_ACCESS, switchRequest(targetTenantId)));
+                () -> authService.switchTenant(BEARER_ACCESS, switchRequest(targetTenantId), REFRESH_TOKEN));
 
         assertEquals(403, ex.getCode());
         verifyNoInteractions(userDetailsService, tokenBlacklist);
@@ -474,7 +466,7 @@ class AuthServiceTest {
                 .thenReturn(JwtTokenProvider.TOKEN_TYPE_REFRESH);
         when(tokenProvider.parse(REFRESH_TOKEN)).thenReturn(claims);
 
-        BizException ex = assertThrows(BizException.class, () -> authService.refresh(refreshRequest()));
+        BizException ex = assertThrows(BizException.class, () -> authService.refresh(REFRESH_TOKEN));
 
         assertEquals(UNAUTHORIZED_CODE, ex.getCode());
         verifyNoInteractions(userDetailsService, tokenBlacklist);
