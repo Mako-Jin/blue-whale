@@ -45,6 +45,8 @@ export function initQiankun(): void {
   start({
     sandbox: { experimentalStyleIsolation: true },
     singular: true,
-    prefetch: 'all',
+    // 按需加载：默认首页为基座工作台，不渲染任何子应用；
+    // 全量预取会在首屏并发拉取 9 个子应用 entry（T-10），改为首次激活时才加载。
+    prefetch: false,
   });
 }

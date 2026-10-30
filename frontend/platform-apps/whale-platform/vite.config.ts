@@ -67,5 +67,21 @@ export default defineConfig({
   build: {
     target: 'esnext',
     sourcemap: false,
+    rollupOptions: {
+      output: {
+        // vendor 拆分（T-10）：react/antd 系依赖单独成 chunk，
+        // 业务迭代时 vendor hash 不变可命中浏览器缓存，且与业务代码并行加载
+        manualChunks(id: string) {
+          if (!id.includes('node_modules')) return undefined;
+          if (/[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|@remix-run|scheduler)[\\/]/.test(id)) {
+            return 'vendor-react';
+          }
+          if (/[\\/]node_modules[\\/](antd|@ant-design|@rc-component|rc-|dayjs)/.test(id)) {
+            return 'vendor-antd';
+          }
+          return undefined;
+        },
+      },
+    },
   },
 });
