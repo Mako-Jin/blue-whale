@@ -113,7 +113,7 @@
 |---|---|---|---|---|---|---|
 | 1 | **MySQL** | 业务库 + Nacos 外置存储 | **3306**（TCP） | 8.0.45（本机 `D:\mysql8`）／镜像 8.4（compose） | 本机原生；compose `bw-mysql` | **已运行**。库：`bluewhale_auth`、`bluewhale_audit`、`bluewhale_nacos`、`bluewhale_agent`、**`bluewhale_im`（规划，Wave 5.52）**、**`bluewhale_message`（M0，脚本已就绪）**、**`bluewhale_doc`（Wave 5.74，已建）**（另有外部遗留 `yc-sts-db-auth` / `yc-sts-db-flow`，登记不改名） |
 | 2 | **Redis** | 令牌黑名单、i18n 缓存、分布式锁 | **6379**（TCP） | 5.0.14.1（本机 `tools/`）／镜像 7-alpine（compose） | 本机原生；compose `bw-redis` | **已运行** |
-| 3 | **Nacos** | 服务注册发现 + 配置中心 | **8848**（HTTP OpenAPI + 主服务）<br>**8849**（控制台，仅 3.x 独立控制台）<br>**9848**（gRPC 客户端→服务端）<br>**9849**（gRPC 服务端→服务端，集群） | 2.4.0（本机 `tools/nacos`）／镜像 2.4.0（compose） | 本机原生（standalone + MySQL 外置存储）；compose `bw-nacos` | **已运行**（PID 实测监听 8848/9848；已注册 `whale-gateway` / `whale-service-auth` / `whale-audit`） |
+| 3 | **Nacos** | 服务注册发现 + 配置中心 | **8848**（HTTP OpenAPI + 主服务）<br>**8849**（控制台，仅 3.x 独立控制台）<br>**9848**（gRPC 客户端→服务端）<br>**9849**（gRPC 服务端→服务端，集群） | 3.2.4（本机 `tools/nacos`）／镜像 3.2.4（compose） | 本机原生（standalone + MySQL 外置存储）；compose `bw-nacos` | **已运行**（3.2.4 实机启动验证：8848/8849 监听、`started successfully ... with external storage`；已注册 `whale-gateway` / `whale-service-auth` / `whale-audit`） |
 | 4 | **RabbitMQ** | 审计日志汇聚、异步消息（规划） | **5672**（AMQP）<br>**15672**（Management 控制台） | 4-management-alpine | compose `bw-rabbitmq` | ⚠ **未启动**（compose 服务已定义，本机未拉起） |
 | 5 | **Nginx** | 反向代理 + 前端静态资源 + TLS | **80**（HTTP）<br>**443**（HTTPS） | 自建镜像（`infrastructure/docker/nginx`） | compose `bw-nginx` | ⚠ **未启动**（compose 服务已定义，本机未拉起） |
 | 6 | **Prometheus** | 指标采集 | **9090**（默认，`PROMETHEUS_HOST_PORT` 可覆盖） | v2.54.1（compose `PROMETHEUS_IMAGE`） | compose `bw-prometheus`（挂载 `infrastructure/prometheus/prometheus-docker.yml` + `deploy/monitoring/prometheus-rules.yml`） | **已运行**（healthcheck healthy；抓取宿主机 gateway/auth/workflow/contract 均为 up） |
@@ -121,7 +121,7 @@
 | 8 | **Alertmanager** | 告警路由（webhook → `whale-alert`） | **9093**（默认，`ALERTMANAGER_HOST_PORT` 可覆盖） | v0.27.0（compose `ALERTMANAGER_IMAGE`） | compose `bw-alertmanager`（挂载 `infrastructure/prometheus/alertmanager-docker.yml`） | **已运行**（`amtool check-config` SUCCESS，`/-/ready` 200） |
 | 9 | **Sentinel Dashboard** | 流控/熔断控制台（REQ-ARCH 限流方案） | **8858**（默认） | —— | **未引入**（`whale-gateway` 未接 Sentinel） | 规划 |
 
-> Nacos 版本以本机实装 2.4.0 为准，compose 镜像已统一 v2.4.0（原 3.2.4/2.3.2 口径不一致的偏差 C-04 已闭合）；健康检查使用 `/nacos/actuator/health`。
+> Nacos 版本以本机实装 **3.2.4**（`tools/nacos` 解压体，JAR MANIFEST `Implementation-Version: 3.2.4`）为准，compose 镜像已统一 v3.2.4（T-16 口径变更，2026-10-30 实机启动验证通过）；健康检查使用 `/nacos/actuator/health`，控制台为独立端口 8849。
 
 ---
 
@@ -258,12 +258,12 @@
 | **C-01** | ~~前端 dev 端口与后端冲突：`frontend/admin` 8080 = 网关 8080、`frontend/ops` 8081 = `whale-auth` 8081~~ | **已解** | **✅ 已整改**：admin → **8001**、ops → **8104**，与后端端口区段无冲突 |
 | **C-02** | ~~`whale-auth` 端口硬编码 `server.port: 8081`~~ | **已解（2026-10-26）** | **✅ 已整改**：改为 `${SERVER_PORT:8081}`，服务端口全部可外置覆盖 |
 | **C-03** | ~~`whale-gateway` **缺 5 条路由**：`/erp/**`、`/mes/**`、`/pdm/**`、`/oa/**`、`/config/**`~~ | **已解（2026-10-25）** | **✅ 已整改**：5 条路由已写入 `whale-gateway/src/main/resources/application.yml`，统一 `lb://`（自持一级前缀，不含 `StripPrefix`）；基座同步挂载 `/mes/*`、`/pdm/*` 并补菜单/图标；路由冒烟需服务与 Nacos 就绪后执行 |
-| **C-04** | ~~Nacos 版本/端口不一致：本机 3.2.4（控制台 8849）vs compose 镜像 2.3.2（控制台 8848）~~ | **已解（2026-10-26）** | **✅ 已整改**：以本机实装 **2.4.0** 为准，compose `NACOS_IMAGE` 统一 `nacos/nacos-server:v2.4.0`，健康检查 `/nacos/actuator/health`；本机监听 8848/9848（无 8849 独立控制台）。**口径变更（2026-10-30，T-16 拍板）**：统一升级 Nacos **3.x（v3.2.4**，Wave 5.1f/5.1g 时期验证过的 3.x 版本）——compose `NACOS_IMAGE` 默认值、`.env.example`、check-env 提示已同步；3.x 控制台独立 8080 端口；本机原生 2.4.0 → 3.2.4 实机升级列维护窗口待做（停服 → 迁表 → 改 conf → 重启，Wave 5.1g 有先例流程），升级后需复测服务注册与 `lb://` 链路（服务侧 nacos-client 对 3.x server 的兼容性） |
+| **C-04** | ~~Nacos 版本/端口不一致：本机 3.2.4（控制台 8849）vs compose 镜像 2.3.2（控制台 8848）~~ | **已解（2026-10-26；2026-10-30 升级闭环）** | **✅ 已整改**：以本机实装 **2.4.0** 为准，compose `NACOS_IMAGE` 统一 `nacos/nacos-server:v2.4.0`，健康检查 `/nacos/actuator/health`；本机监听 8848/9848（无 8849 独立控制台）。**口径变更（2026-10-30，T-16 拍板）**：统一升级 Nacos **3.x（v3.2.4**，Wave 5.1f/5.1g 时期验证过的 3.x 版本）——compose `NACOS_IMAGE` 默认值、`.env.example`、check-env 提示已同步。**本机实机升级已完成（2026-10-30）**：`tools/nacos` 即为 3.2.4 解压体（MANIFEST `Implementation-Version: 3.2.4`、`Build-Jdk-Spec 17`、Spring Boot 3.5.14，含 `plugins/` 的 default-auth/oidc/datasource 插件），`scripts/dev/whale-stack*.ps1` 写死的 `D:\tools\installer\nacos` 已改为工作区 `tools/nacos`；standalone + 外置 MySQL（`bluewhale_nacos`）实测启动，8848 主服务与 8849 控制台监听、日志 `Nacos started successfully in stand alone mode with external storage`。仅剩 B-01：`docker compose config` 与容器内健康检查验证 |
 | **C-05** | ~~注册中心环境变量名分裂：网关 `NACOS_ADDR` vs 其余 `NACOS_SERVER`~~ | **已解（2026-10-26）** | **✅ 已整改**：`whale-gateway`/`whale-auth` 改为 `${NACOS_SERVER:${NACOS_ADDR:127.0.0.1:8848}}`，统一首选 `NACOS_SERVER` 且保留 `NACOS_ADDR` 回退；`scripts/dev/whale-start-all.ps1` 同步传 `NACOS_SERVER` |
 | **C-06** | ~~8 个业务服务库在规范 §八 已登记库名，但 `application.yml` **均未配数据源**、库亦未建~~ | **已解（2026-10-27）** | **✅ 已整改**：auth/audit/job/workflow/form/file/pay/alert 共 8 个服务均已配数据源并建库（原 `whale-i18n` 服务及 `bluewhale_i18n` 库已于 Wave 5.50 删除，国际化改由 SDK 在各服务库内自建 `sys_i18n_message`）；`erp/mes/pdm/oa` 四个业务应用也已分别接入 `bluewhale_erp` / `bluewhale_mes` / `bluewhale_pdm` / `bluewhale_oa` 独立数据源，compose 初始化脚本创建 4 库，各应用 `db/init.sql` 各建 2 张表。**C-06 全部闭环** |
 | **C-07** | ~~Prometheus/Grafana/Sentinel 仅在文档中「规划」，compose 未定义、网关未接 Sentinel~~ | **已解（2026-10-26）** | **✅ Prometheus/Grafana/Alertmanager 已落地**：compose 新增 `bw-prometheus`(9090)/`bw-grafana`(3000)/`bw-alertmanager`(9093)，配置 `infrastructure/prometheus/prometheus-docker.yml`、`alertmanager-docker.yml`、Grafana provisioning 数据源，规则复用 `deploy/monitoring/prometheus-rules.yml`；实机 healthy，宿主机 gateway/auth/workflow/contract 抓取 up。**Sentinel 结案不引入**（见 [GW-01 评估](reviews/2026-10-21-wave5.35-sentinel-evaluation.md)）：限流由网关 `RateLimitGlobalFilter`（Redis 固定窗口，`whale.gateway.rate-limit.*`，429）承担，熔断由 `CircuitBreakerGlobalFilter`（resilience4j，`whale.gateway.circuit-breaker.*`，503）承担；重开条件为具备制品库/Dashboard 或出现热点参数、集群流控等现有方案不覆盖的诉求。**实机验证（2026-10-26）**：`/audit/log/behavior/batch` 特化规则 30/s，并发 60 次得 30 个 429 + 30 个 503；全局规则 200/s，并发 400 次得 18 个 429；`whale.gateway.rate-limit` 计数键正常落 Redis，无降级告警 |
 
-> 说明：C-04 已按本机实装 2.4.0 与 compose 对齐；历史记录中的 3.2.4/2.3.2 口径作废。
+> 说明：C-04 口径现为 Nacos **3.2.4**（本机 `tools/nacos` 与 compose 一致）；历史记录中的 2.4.0/2.3.2 口径作废。
 
 ---
 
