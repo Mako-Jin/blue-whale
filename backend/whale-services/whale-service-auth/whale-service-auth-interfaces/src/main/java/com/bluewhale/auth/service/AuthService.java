@@ -446,6 +446,8 @@ public class AuthService {
         response.setUsername(loginUser.getUsername());
         response.setNickname(loginUser.getNickname());
         response.setRoles(roles);
+        // T-03：出厂默认口令轮换后强制首登改密，登录/刷新/切换响应统一透出该标记
+        response.setMustChangePassword(loginUser.isMustChangePassword());
         return response;
     }
 }

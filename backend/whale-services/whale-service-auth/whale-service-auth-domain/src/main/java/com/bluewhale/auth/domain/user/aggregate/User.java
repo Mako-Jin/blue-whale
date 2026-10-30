@@ -34,6 +34,8 @@ public class User {
     private final Long tenantId;
     private final Username username;
     private EncryptedPassword password;
+    /** 是否强制首登改密（1=是 / 0=否，T-03：出厂默认口令轮换后置位，改密成功后清除） */
+    private boolean mustChangePassword;
     private String nickname;
     private String phone;
     private String email;
@@ -57,13 +59,14 @@ public class User {
      * @param avatar 头像地址
      * @param deptId 所属部门 ID
      * @param status 状态（1 启用 / 0 停用）
+     * @param mustChangePassword 是否强制首登改密
      * @param lastLoginTime 最近登录时间
      * @param createTime 创建时间
      * @param updateTime 更新时间
      */
     private User(Long id, Long tenantId, Username username, EncryptedPassword password, String nickname,
-                 String phone, String email, String avatar, Long deptId, int status, LocalDateTime lastLoginTime,
-                 LocalDateTime createTime, LocalDateTime updateTime) {
+                 String phone, String email, String avatar, Long deptId, int status, boolean mustChangePassword,
+                 LocalDateTime lastLoginTime, LocalDateTime createTime, LocalDateTime updateTime) {
         if (tenantId == null) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "用户所属租户不能为空");
         }
@@ -86,6 +89,7 @@ public class User {
         this.avatar = avatar;
         this.deptId = deptId;
         this.status = status;
+        this.mustChangePassword = mustChangePassword;
         this.lastLoginTime = lastLoginTime;
         this.createTime = createTime;
         this.updateTime = updateTime;
@@ -110,7 +114,7 @@ public class User {
         LocalDateTime now = LocalDateTime.now();
         int resolved = status == null ? STATUS_ENABLED : status;
         return new User(null, tenantId, username, password, nickname, phone, email, avatar, deptId, resolved,
-                null, now, now);
+                false, null, now, now);
     }
 
     /**
@@ -153,9 +157,37 @@ public class User {
                                     String nickname, String phone, String email, String avatar, Long deptId,
                                     Integer status, LocalDateTime lastLoginTime, LocalDateTime createTime,
                                     LocalDateTime updateTime) {
+        return reconstitute(id, tenantId, username, password, nickname, phone, email, avatar, deptId, status,
+                null, lastLoginTime, createTime, updateTime);
+    }
+
+    /**
+     * 重建方法（全量重载）：由持久化数据还原用户聚合根，含强制首登改密标记（T-03）
+     *
+     * @param id 用户 ID
+     * @param tenantId 所属租户 ID
+     * @param username 用户名值对象
+     * @param password 口令密文值对象（必须为 BCrypt 密文）
+     * @param nickname 昵称
+     * @param phone 手机号
+     * @param email 邮箱
+     * @param avatar 头像地址
+     * @param deptId 所属部门 ID
+     * @param status 状态（1 启用 / 0 停用），为空时按停用处理
+     * @param mustChangePassword 是否强制首登改密（1=是 / 0=否 / null 按否处理）
+     * @param lastLoginTime 最近登录时间
+     * @param createTime 创建时间
+     * @param updateTime 更新时间
+     * @return 还原的用户聚合根
+     */
+    public static User reconstitute(Long id, Long tenantId, Username username, EncryptedPassword password,
+                                    String nickname, String phone, String email, String avatar, Long deptId,
+                                    Integer status, Integer mustChangePassword, LocalDateTime lastLoginTime,
+                                    LocalDateTime createTime, LocalDateTime updateTime) {
         int resolved = status == null ? STATUS_DISABLED : status;
+        boolean mustChange = mustChangePassword != null && mustChangePassword == 1;
         return new User(id, tenantId, username, password, nickname, phone, email, avatar, deptId, resolved,
-                lastLoginTime, createTime, updateTime);
+                mustChange, lastLoginTime, createTime, updateTime);
     }
 
     /**
@@ -235,6 +267,31 @@ public class User {
         }
         this.password = password;
         this.updateTime = LocalDateTime.now();
+    }
+
+    /**
+     * 行为：置强制首登改密标记（T-03：出厂默认口令被轮换后调用，用户下次登录需先改密）
+     */
+    public void markMustChangePassword() {
+        this.mustChangePassword = true;
+        this.updateTime = LocalDateTime.now();
+    }
+
+    /**
+     * 行为：清除强制首登改密标记（改密成功后调用）
+     */
+    public void clearMustChangePassword() {
+        this.mustChangePassword = false;
+        this.updateTime = LocalDateTime.now();
+    }
+
+    /**
+     * 判定当前用户是否被强制首登改密
+     *
+     * @return 强制改密返回 true
+     */
+    public boolean isMustChangePassword() {
+        return mustChangePassword;
     }
 
     /**

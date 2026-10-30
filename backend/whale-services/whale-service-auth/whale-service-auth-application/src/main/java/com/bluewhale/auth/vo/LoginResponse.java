@@ -27,4 +27,6 @@ public class LoginResponse implements Serializable {
     private String nickname;
     /** 角色 code 列表 */
     private List<String> roles;
+    /** 是否强制首登改密（T-03：true 时前端应引导用户先修改口令） */
+    private boolean mustChangePassword;
 }

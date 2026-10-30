@@ -44,6 +44,7 @@ public final class UserPersistenceAssembler {
                 po.getAvatar(),
                 po.getDeptId(),
                 status,
+                po.getMustChangePassword(),
                 po.getLastLoginTime(),
                 po.getCreateTime(),
                 po.getUpdateTime());
@@ -61,6 +62,7 @@ public final class UserPersistenceAssembler {
         po.setTenantId(user.getTenantId());
         po.setUsername(user.getUsername().value());
         po.setPassword(user.getPassword().value());
+        po.setMustChangePassword(user.isMustChangePassword() ? 1 : 0);
         po.setNickname(user.getNickname());
         po.setPhone(user.getPhone());
         po.setEmail(user.getEmail());

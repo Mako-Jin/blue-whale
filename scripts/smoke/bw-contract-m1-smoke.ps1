@@ -11,7 +11,8 @@ $script:SmokeAssertThrow = $true
 $ErrorActionPreference = 'Stop'
 $base = 'http://127.0.0.1:8080'
 
-$login = Invoke-RestMethod -Method Post -Uri "$base/auth/login" -ContentType 'application/json' -Body '{"username":"admin","password":"123456"}'
+$cred = Get-SmokeAdminCredential
+$login = Invoke-RestMethod -Method Post -Uri "$base/auth/login" -ContentType 'application/json' -Body $cred.JsonBody
 $h = @{ Authorization = "Bearer $($login.data.accessToken)" }
 Assert '0.login' ($login.code -eq 0 -and $null -ne $login.data.accessToken)
 

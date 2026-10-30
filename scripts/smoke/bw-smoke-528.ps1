@@ -28,7 +28,8 @@ function Call($method, $path, $obj, $tnt = '1') {
 }
 
 # ---------- 0. login ----------
-$login = Invoke-RestMethod -Method Post -Uri "$base/auth/login" -ContentType 'application/json' -Body '{"username":"admin","password":"123456"}' -TimeoutSec 20
+$cred = Get-SmokeAdminCredential
+$login = Invoke-RestMethod -Method Post -Uri "$base/auth/login" -ContentType 'application/json' -Body $cred.JsonBody -TimeoutSec 20
 $script:token = $login.data.accessToken
 $script:out += "== login => HTTP 200 tokenLen=$($script:token.Length)"
 

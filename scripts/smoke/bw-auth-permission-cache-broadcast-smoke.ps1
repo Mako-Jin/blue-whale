@@ -7,7 +7,7 @@
 #   4) Redis 重启后订阅自动恢复，反向（B → A）广播仍然可达。
 #
 # 前置：
-#   - 本机 MySQL 已启动且 bluewhale_auth 已执行 init/迁移（admin/123456、平台租户 1、角色 1 可用）；
+#   - 本机 MySQL 已启动且 bluewhale_auth 已执行 init/迁移（admin 凭据经 SMOKE_PASSWORD 提供、平台租户 1、角色 1 可用）；
 #   - 本机 Redis 已启动且已配置密码；
 #   - 已构建 whale-service-auth.jar。
 #
@@ -91,7 +91,8 @@ function Invoke-Redis([string[]]$arguments) {
 
 function Login([int]$port) {
     $uri = "http://127.0.0.1:$port/auth/login"
-    $body = '{"username":"admin","password":"123456"}'
+    $cred = Get-SmokeAdminCredential
+    $body = $cred.JsonBody
     $response = Invoke-RestMethod -Method Post -Uri $uri -ContentType 'application/json; charset=utf-8' -Body $body
     if ($response.code -ne 0 -or -not $response.data.accessToken) {
         throw "登录失败: port=$port code=$($response.code) message=$($response.message)"

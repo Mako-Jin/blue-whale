@@ -34,6 +34,7 @@ class UserPersistenceAssemblerTest {
         po.setTenantId(1L);
         po.setUsername("bob_02");
         po.setPassword(CIPHER);
+        po.setMustChangePassword(1);
         po.setNickname("Bob");
         po.setPhone("13900000000");
         po.setEmail("b@c.com");
@@ -49,7 +50,7 @@ class UserPersistenceAssemblerTest {
 
     private static User fullDomain() {
         return User.reconstitute(5L, 1L, Username.of("bob_02"), EncryptedPassword.of(CIPHER), "Bob",
-                "13900000000", "b@c.com", 4L, User.STATUS_ENABLED, CREATED, UPDATED);
+                "13900000000", "b@c.com", null, 4L, User.STATUS_ENABLED, 1, null, CREATED, UPDATED);
     }
 
     @Test
@@ -66,6 +67,7 @@ class UserPersistenceAssemblerTest {
         assertEquals(4L, user.getDeptId());
         assertEquals(User.STATUS_ENABLED, user.getStatus());
         assertTrue(user.isEnabled());
+        assertTrue(user.isMustChangePassword());
         assertEquals(CREATED, user.getCreateTime());
         assertEquals(UPDATED, user.getUpdateTime());
     }
@@ -83,6 +85,7 @@ class UserPersistenceAssemblerTest {
         assertEquals("b@c.com", po.getEmail());
         assertEquals(4L, po.getDeptId());
         assertEquals(User.STATUS_ENABLED, po.getStatus());
+        assertEquals(1, po.getMustChangePassword());
         assertEquals(CREATED, po.getCreateTime());
         assertEquals(UPDATED, po.getUpdateTime());
         // avatar / lastLoginTime / deleted 不属本步 User 聚合关键项，转换不携带

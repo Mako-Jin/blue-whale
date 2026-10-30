@@ -3,7 +3,7 @@
 # 前置：
 #   - 网关 8080 已启动，whale-audit 路由参与熔断（默认 apply-to-routes 包含 whale-audit）；
 #   - whale-audit 服务未注册/不可用，用于制造真实下游失败；
-#   - admin/123456 可登录；
+#   - admin 凭据经 SMOKE_PASSWORD 环境变量提供且可登录；
 #   - 网关日志已落盘，默认 logs/gateway.e2e.out.log。
 #
 # 覆盖：
@@ -37,7 +37,8 @@ if (-not (Test-Path $GatewayLog)) {
 }
 
 function Login {
-    $body = '{"username":"admin","password":"123456"}'
+    $cred = Get-SmokeAdminCredential
+    $body = $cred.JsonBody
     $response = Invoke-RestMethod -Method Post -Uri "$BaseUrl/auth/login" -ContentType 'application/json; charset=utf-8' -Body $body
     if ($response.code -ne 0 -or -not $response.data.accessToken) {
         throw "登录失败：$($response.message)"

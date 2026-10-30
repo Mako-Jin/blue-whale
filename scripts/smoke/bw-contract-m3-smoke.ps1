@@ -106,8 +106,9 @@ function New-SignedFile($name) {
     return @{ fileId = "$($uploaded.data.id)"; sha256 = $sha }
 }
 
+$cred = Get-SmokeAdminCredential
 $login = Invoke-RestMethod -Method Post -Uri "$base/auth/login" -ContentType 'application/json' `
-    -Body '{"username":"admin","password":"123456"}'
+    -Body $cred.JsonBody
 Assert '00.login' ($login.code -eq 0 -and $null -ne $login.data.accessToken)
 $h = @{ Authorization = "Bearer $($login.data.accessToken)" }
 

@@ -105,6 +105,33 @@ class UserTest {
     }
 
     @Test
+    @DisplayName("强制改密标记：mark 置位、clear 清除，新建用户默认为否（T-03）")
+    void shouldToggleMustChangePassword() {
+        User user = User.create(1L, username(), CIPHER, "Alice", null, null, null, 1);
+        assertFalse(user.isMustChangePassword());
+
+        user.markMustChangePassword();
+        assertTrue(user.isMustChangePassword());
+
+        user.clearMustChangePassword();
+        assertFalse(user.isMustChangePassword());
+    }
+
+    @Test
+    @DisplayName("reconstitute：must_change_password=1 还原为强制改密，null 按 0 处理（T-03）")
+    void shouldReconstituteMustChangePassword() {
+        User forced = User.reconstitute(9L, 1L, username(), CIPHER, "Alice", "138", "a@b.com", null, 3L,
+                User.STATUS_ENABLED, 1, null, LocalDateTime.of(2026, 1, 1, 0, 0),
+                LocalDateTime.of(2026, 1, 2, 0, 0));
+        User unforced = User.reconstitute(9L, 1L, username(), CIPHER, "Alice", "138", "a@b.com", null, 3L,
+                User.STATUS_ENABLED, null, null, LocalDateTime.of(2026, 1, 1, 0, 0),
+                LocalDateTime.of(2026, 1, 2, 0, 0));
+
+        assertTrue(forced.isMustChangePassword());
+        assertFalse(unforced.isMustChangePassword());
+    }
+
+    @Test
     @DisplayName("口令以值对象承载且 toString 为掩码，不外泄密文")
     void shouldMaskPassword() {
         User user = User.create(1L, username(), CIPHER, "Alice", null, null, null, 1);

@@ -83,6 +83,7 @@ class AuthControllerTest {
         response.setUsername("alice");
         response.setNickname("Alice");
         response.setRoles(List.of("admin"));
+        response.setMustChangePassword(true);
         return response;
     }
 
@@ -119,7 +120,8 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.data.refreshToken").value(REFRESH_TOKEN))
                 .andExpect(jsonPath("$.data.tokenType").value("Bearer"))
                 .andExpect(jsonPath("$.data.expiresIn").value(EXPIRES_IN))
-                .andExpect(jsonPath("$.data.roles[0]").value("admin"));
+                .andExpect(jsonPath("$.data.roles[0]").value("admin"))
+                .andExpect(jsonPath("$.data.mustChangePassword").value(true));
 
         verify(authService).login(any(LoginRequest.class));
     }

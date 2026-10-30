@@ -40,6 +40,7 @@ CREATE TABLE sys_user (
     tenant_id       BIGINT        NOT NULL DEFAULT 1      COMMENT '所属租户ID（逻辑关联 sys_tenant.id）',
     username        VARCHAR(64)   NOT NULL                COMMENT '登录账号（租户内唯一）',
     password        VARCHAR(100)  NOT NULL                COMMENT '登录密码（BCrypt 密文）',
+    must_change_password TINYINT  NOT NULL DEFAULT 0      COMMENT '是否强制首登改密（1=是）',
     nickname        VARCHAR(64)   DEFAULT NULL            COMMENT '用户昵称',
     phone           VARCHAR(20)   DEFAULT NULL            COMMENT '手机号',
     email           VARCHAR(128)  DEFAULT NULL            COMMENT '电子邮箱',
@@ -376,13 +377,14 @@ VALUES
     (1, 'default', '默认租户', 'PLATFORM', 1);
 
 -- 内置超级管理员用户（id=1）
--- password 为 BCrypt 密文（由项目内 BCryptPasswordEncoder 生成），明文为 123456。
--- 该密文经 BCryptPasswordEncoder.matches("123456", 密文) 实测校验通过，可用于首次登录。
--- 首次部署后请立即修改默认密码。
+-- password 为 BCrypt 密文（由项目内 BCryptPasswordEncoder 生成），对应出厂默认明文 123456。
+-- 安全口径（T-03）：该密文仅为「出厂默认标记」，auth 服务启动时 AdminPasswordInitializer
+-- 检测到默认密文会自动轮换为随机口令（或 WHALE_AUTH_ADMIN_INIT_PASSWORD 指定值），
+-- 置 must_change_password=1 并把初始口令仅打印一次到启动日志；请用该口令首次登录后立即改密。
 INSERT INTO sys_user
-    (id, tenant_id, username, password, nickname, phone, email, avatar, dept_id, status, last_login_time)
+    (id, tenant_id, username, password, must_change_password, nickname, phone, email, avatar, dept_id, status, last_login_time)
 VALUES
-    (1, 1, 'admin', '$2a$10$rzq21So0/Oj02kDlvSr2K.lWaqOwb6TzkgwhuGRKIRGnlJV.F/l8m', '超级管理员', NULL, NULL, NULL, NULL, 1, NULL);
+    (1, 1, 'admin', '$2a$10$rzq21So0/Oj02kDlvSr2K.lWaqOwb6TzkgwhuGRKIRGnlJV.F/l8m', 0, '超级管理员', NULL, NULL, NULL, NULL, 1, NULL);
 
 -- 内置超级管理员角色（role_code = super_admin）
 INSERT INTO sys_role

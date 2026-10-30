@@ -6,7 +6,7 @@
 # 前置：
 #   1) gateway(8080)/auth(8081)/whale-doc(8095)/whale-file(8085) 就绪；MySQL 与 Redis 可用；
 #   2) bluewhale_doc 已执行 init.sql 与 M2b/M3/M5 迁移；
-#   3) 需要 sys:doc:* 权限的管理员账号（默认 admin/123456）。
+#   3) 需要 sys:doc:* 权限的管理员账号（凭据经 SMOKE_PASSWORD 环境变量提供）。
 #
 # 用法：pwsh -File scripts/smoke/bw-doc-m5-smoke.ps1
 # 退出码：0 全部通过；1 断言失败；未设置 MYSQL_PASSWORD 时跳过孤儿清理数据库断言。
@@ -35,8 +35,9 @@ function Invoke-Api($method, $uri, $body = $null, $headers = $null) {
 }
 
 # 1) 登录与空间 / 页面准备
+$cred = Get-SmokeAdminCredential
 $login = Invoke-RestMethod -Method Post -Uri "$base/auth/login" -ContentType 'application/json' `
-    -Body '{"username":"admin","password":"123456"}'
+    -Body $cred.JsonBody
 Assert '1.login' ($login.code -eq 0 -and $null -ne $login.data.accessToken) "(code=$($login.code))"
 $script:h = @{ Authorization = "Bearer $($login.data.accessToken)" }
 $token = $login.data.accessToken

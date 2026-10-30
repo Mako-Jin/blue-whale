@@ -35,7 +35,9 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.never;
@@ -236,6 +238,39 @@ class UserAppServiceTest {
         assertEquals(NEW_CIPHER, stored.getPassword().value());
         verify(userRepository).save(stored);
         verify(eventPublisher).publish(new UserDomainEvent(USER_ID, ChangeType.PASSWORD_CHANGED));
+    }
+
+    @Test
+    @DisplayName("changePassword：改密成功后清除强制首登改密标记（T-03）")
+    void shouldClearMustChangePasswordOnChangePassword() {
+        User stored = User.reconstitute(USER_ID, 1L, Username.of("alice_01"), EncryptedPassword.of(CIPHER),
+                "Alice", "13800000000", "a@b.com", "avatar.png", 3L, User.STATUS_ENABLED, 1,
+                LocalDateTime.of(2026, 1, 1, 8, 0, 0), CREATED, UPDATED);
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(stored));
+        when(passwordEncoder.encode("resetpwd")).thenReturn(NEW_CIPHER);
+        assertTrue(stored.isMustChangePassword());
+
+        userAppService.changePassword(USER_ID, new ChangeUserPasswordCommand("resetpwd"));
+
+        assertFalse(stored.isMustChangePassword());
+        verify(userRepository).save(stored);
+    }
+
+    @Test
+    @DisplayName("update：重置口令成功后同样清除强制首登改密标记（T-03）")
+    void shouldClearMustChangePasswordOnUpdatePassword() {
+        User stored = User.reconstitute(USER_ID, 1L, Username.of("alice_01"), EncryptedPassword.of(CIPHER),
+                "Alice", "13800000000", "a@b.com", "avatar.png", 3L, User.STATUS_ENABLED, 1,
+                LocalDateTime.of(2026, 1, 1, 8, 0, 0), CREATED, UPDATED);
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(stored));
+        when(passwordEncoder.encode("newpwd123")).thenReturn(NEW_CIPHER);
+
+        userAppService.update(USER_ID, new UpdateUserCommand("newpwd123", "Alice",
+                "13800000000", "a@b.com", "avatar.png", 3L, null));
+
+        assertFalse(stored.isMustChangePassword());
+        assertEquals(NEW_CIPHER, stored.getPassword().value());
+        verify(userRepository).save(stored);
     }
 
     @Test

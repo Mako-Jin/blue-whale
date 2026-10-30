@@ -56,8 +56,9 @@ function New-ApprovedContract($title, $parties) {
     return $cid
 }
 
+$cred = Get-SmokeAdminCredential
 $login = Invoke-RestMethod -Method Post -Uri "$base/auth/login" -ContentType 'application/json' `
-    -Body '{"username":"admin","password":"123456"}'
+    -Body $cred.JsonBody
 Assert '0.login' ($login.code -eq 0 -and $null -ne $login.data.accessToken)
 $h = @{ Authorization = "Bearer $($login.data.accessToken)" }
 

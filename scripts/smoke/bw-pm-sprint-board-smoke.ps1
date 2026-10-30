@@ -23,7 +23,8 @@ function ExpectReject($label, [scriptblock]$action) {
     }
 }
 
-$login = Invoke-RestMethod -Method Post -Uri "$base/auth/login" -ContentType 'application/json; charset=utf-8' -Body '{"username":"admin","password":"123456"}'
+$cred = Get-SmokeAdminCredential
+$login = Invoke-RestMethod -Method Post -Uri "$base/auth/login" -ContentType 'application/json; charset=utf-8' -Body $cred.JsonBody
 $token = $login.data.accessToken
 if (-not $token) { throw "login failed" }
 Write-Host "login ok, token length=$($token.Length)"

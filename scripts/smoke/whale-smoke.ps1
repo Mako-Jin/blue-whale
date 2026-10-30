@@ -28,7 +28,8 @@ function Call($label, $method, $uri, $headers, $body) {
 }
 
 # P0 登录
-$login = Call 'P0 LOGIN' 'POST' "$gw/auth/login" $null '{"username":"admin","password":"123456"}'
+$cred = Get-SmokeAdminCredential
+$login = Call 'P0 LOGIN' 'POST' "$gw/auth/login" $null $cred.JsonBody
 $token = $login.data.accessToken
 Write-Host "P0 hasToken=$([bool]$token)"
 $h = @{ Authorization = "Bearer $token" }

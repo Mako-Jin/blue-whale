@@ -15,6 +15,30 @@ if (-not (Get-Variable -Name SmokeAssertThrow -Scope Script -ErrorAction Silentl
 
 <#
 .SYNOPSIS
+获取冒烟脚本的管理员登录凭据（T-03：仓库不再硬编码默认口令）。
+.DESCRIPTION
+用户名默认取 SMOKE_USERNAME（缺省 admin）；口令必须来自环境变量 SMOKE_PASSWORD，
+缺失即抛出明确提示。口令来源：auth 服务启动日志的 admin 初始随机口令（轮换器
+AdminPasswordInitializer 打印一次），或首启前设置 WHALE_AUTH_ADMIN_INIT_PASSWORD。
+.OUTPUTS
+Hashtable：@{ Username; Password; JsonBody }，JsonBody 为登录请求 JSON 体。
+#>
+function Get-SmokeAdminCredential {
+    $username = if ($env:SMOKE_USERNAME) { $env:SMOKE_USERNAME } else { 'admin' }
+    if (-not $env:SMOKE_PASSWORD) {
+        throw '仓库不再硬编码默认口令：请设置 SMOKE_PASSWORD（admin 初始随机口令见 auth 服务启动日志，或首启前设 WHALE_AUTH_ADMIN_INIT_PASSWORD）'
+    }
+    # JSON 转义：口令由操作者提供，避免反斜杠与引号破坏请求体
+    $escapedPassword = $env:SMOKE_PASSWORD.Replace('\', '\\').Replace('"', '\"')
+    return @{
+        Username = $username
+        Password = $env:SMOKE_PASSWORD
+        JsonBody = '{"username":"' + $username + '","password":"' + $escapedPassword + '"}'
+    }
+}
+
+<#
+.SYNOPSIS
 断言：条件不成立时记录失败并输出 FAIL。
 .DESCRIPTION
 累积模式下不中断脚本（供末尾统一汇总）；$script:SmokeAssertThrow 为 $true 时立即抛出。

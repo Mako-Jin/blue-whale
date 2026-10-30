@@ -140,6 +140,8 @@ public class UserAppService {
         boolean passwordChanged = command.rawPassword() != null && !command.rawPassword().isBlank();
         if (passwordChanged) {
             user.changePassword(EncryptedPassword.of(passwordEncoder.encode(command.rawPassword())));
+            // T-03：改密成功后清除强制首登改密标记
+            user.clearMustChangePassword();
         }
         user.changeProfile(command.nickname(), command.phone(), command.email(), command.avatar(),
                 command.deptId());
@@ -187,6 +189,8 @@ public class UserAppService {
     public void changePassword(Long id, ChangeUserPasswordCommand command) {
         User user = requireUser(id);
         user.changePassword(EncryptedPassword.of(passwordEncoder.encode(command.rawPassword())));
+        // T-03：改密成功后清除强制首登改密标记
+        user.clearMustChangePassword();
         userRepository.save(user);
         domainEventPublisher.publish(new UserDomainEvent(id, ChangeType.PASSWORD_CHANGED));
     }

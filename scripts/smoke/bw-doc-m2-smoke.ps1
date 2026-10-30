@@ -75,8 +75,9 @@ function Receive-Until($socket, $type, $timeoutMs = 6000) {
 }
 
 # 1) 登录与协作开关
+$cred = Get-SmokeAdminCredential
 $login = Invoke-RestMethod -Method Post -Uri "$base/auth/login" -ContentType 'application/json' `
-    -Body '{"username":"admin","password":"123456"}'
+    -Body $cred.JsonBody
 Assert '1.login' ($login.code -eq 0 -and $null -ne $login.data.accessToken) "(code=$($login.code))"
 $script:h = @{ Authorization = "Bearer $($login.data.accessToken)" }
 

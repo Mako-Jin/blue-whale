@@ -27,8 +27,9 @@ function Api([string]$method, [string]$path, $body) {
 }
 
 # ---------- 1. 登录 ----------
+$cred = Get-SmokeAdminCredential
 $login = Invoke-RestMethod -Method Post -Uri "$gateway/auth/login" -ContentType 'application/json;charset=utf-8' `
-    -Body ([System.Text.Encoding]::UTF8.GetBytes('{"username":"admin","password":"123456"}'))
+    -Body ([System.Text.Encoding]::UTF8.GetBytes($cred.JsonBody))
 $script:token = $login.data.accessToken
 $stamp = Get-Date -Format 'HHmmss'
 $code = 'smoke_ver_538_' + $stamp

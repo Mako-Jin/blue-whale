@@ -23,8 +23,9 @@ function Get-Bpmn([string]$id) {
 }
 
 # ---------- 1. login ----------
+$cred = Get-SmokeAdminCredential
 $login = Invoke-RestMethod -Method Post -Uri "$gateway/auth/login" -ContentType 'application/json;charset=utf-8' `
-    -Body ([System.Text.Encoding]::UTF8.GetBytes('{"username":"admin","password":"123456"}'))
+    -Body ([System.Text.Encoding]::UTF8.GetBytes($cred.JsonBody))
 $script:token = $login.data.accessToken
 $stamp = Get-Date -Format 'HHmmss'
 Write-Host "OK   login"

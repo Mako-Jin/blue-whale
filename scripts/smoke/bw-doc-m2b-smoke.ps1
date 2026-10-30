@@ -32,8 +32,9 @@ function Invoke-Api($method, $uri, $body = $null, $headers = $null) {
 }
 
 # 1) 管理员登录与租户
+$cred = Get-SmokeAdminCredential
 $login = Invoke-RestMethod -Method Post -Uri "$base/auth/login" -ContentType 'application/json' `
-    -Body '{"username":"admin","password":"123456"}'
+    -Body $cred.JsonBody
 Assert '1.login' ($login.code -eq 0 -and $null -ne $login.data.accessToken) "(code=$($login.code))"
 $script:h = @{ Authorization = "Bearer $($login.data.accessToken)" }
 
@@ -44,10 +45,15 @@ $adminId = [long]$meta.data.userId
 $internalHeaders = @{ 'X-Tenant-Id' = "$tenantId"; 'X-User-Id' = "$adminId"; 'X-Username' = 'admin' }
 
 # 2) 创建协作用户并授予 doc_member，用于 ACL 可见性验证
+# T-03：测试用户初始口令不再硬编码，必须经环境变量提供
+if (-not $env:SMOKE_TESTUSER_PASSWORD) {
+    throw '仓库不再硬编码默认口令：请设置 SMOKE_TESTUSER_PASSWORD（冒烟测试用户的初始口令）'
+}
+$testUserPassword = $env:SMOKE_TESTUSER_PASSWORD
 $stamp = [DateTime]::Now.ToString('yyyyMMddHHmmss')
 $username = "m2b_$stamp"
 $userCreate = Invoke-Api Post "$base/user" @{
-    username = $username; password = '123456'; nickname = 'M2B User'; status = 1
+    username = $username; password = $testUserPassword; nickname = 'M2B User'; status = 1
 }
 Assert '3.userCreate' ($userCreate.code -eq 0 -and $userCreate.data.id) "(code=$($userCreate.code), msg=$($userCreate.message))"
 $readerId = [long]$userCreate.data.id
@@ -58,7 +64,7 @@ $assignRole = Invoke-Api Post "$base/user/$readerId/roles" @{ roleIds = @(25102)
 Assert '5.userAssignDocMember' ($assignRole.code -eq 0) "(code=$($assignRole.code), msg=$($assignRole.message))"
 
 $readerLogin = Invoke-RestMethod -Method Post -Uri "$base/auth/login" -ContentType 'application/json' `
-    -Body (Json @{ username = $username; password = '123456' })
+    -Body (Json @{ username = $username; password = $testUserPassword })
 Assert '6.readerLogin' ($readerLogin.code -eq 0 -and $readerLogin.data.accessToken) "(code=$($readerLogin.code))"
 $readerHeaders = @{ Authorization = "Bearer $($readerLogin.data.accessToken)" }
 
