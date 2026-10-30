@@ -51,6 +51,44 @@ jobs:
       - name: Review dependencies
         uses: actions/dependency-review-action@v4
 
+  frontend-audit:
+    name: Dependency Audit (pnpm · official registry)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      # 本机镜像（registry.npmmirror.com）不支持 audit 端点（B-06），CI 固定切官方 registry。
+      # 结果仅留档：漏洞处置需逐条评估（多数为 vitest/vite/esbuild 等开发期依赖），
+      # 因此不阻断流水线，避免已知开发期告警长期红号。
+      - name: pnpm audit (json)
+        continue-on-error: true
+        run: pnpm audit --registry=https://registry.npmjs.org --json > pnpm-audit.json
+
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pnpm-audit
+          path: frontend/pnpm-audit.json
+          retention-days: 30
+
   codeql:
     name: CodeQL · ${{ matrix.language }}
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
