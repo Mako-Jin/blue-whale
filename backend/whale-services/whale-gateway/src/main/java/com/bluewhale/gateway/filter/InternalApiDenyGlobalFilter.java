@@ -88,10 +88,48 @@ public class InternalApiDenyGlobalFilter implements GlobalFilter, Ordered {
     /**
      * 判断请求路径是否命中内网接口屏蔽模式
      *
+     * <p>除原始路径外，同时校验「剥离一级服务名前缀」后的路径（V-01/T-01）：开启
+     * {@code discovery.locator} 后，{@code /whale-file/file/internal/**} 这类
+     * 服务名前缀形态经路由 {@code RewritePath} 还原为 {@code /file/internal/**} 直达下游，
+     * 仅匹配原始路径会被绕过。</p>
+     *
      * @param path 请求路径
-     * @return 命中任一模式返回 {@code true}
+     * @return 原始路径或剥离服务名前缀后的路径命中任一模式时返回 {@code true}
      */
     private boolean isDenied(String path) {
+        if (matchesAnyPattern(path)) {
+            return true;
+        }
+        String stripped = stripServicePrefix(path);
+        return stripped != null && matchesAnyPattern(stripped);
+    }
+
+    /**
+     * 剥离一级路径段（服务名前缀）：{@code /whale-file/file/internal/1} → {@code /file/internal/1}
+     *
+     * <p>仅当路径至少包含两个段时剥离；无前缀可剥时返回 {@code null}。</p>
+     *
+     * @param path 请求路径
+     * @return 剥离一级前缀后的路径；无前缀可剥返回 {@code null}
+     */
+    private String stripServicePrefix(String path) {
+        if (path == null) {
+            return null;
+        }
+        int first = path.indexOf('/', 1);
+        if (first < 0) {
+            return null;
+        }
+        return path.substring(first);
+    }
+
+    /**
+     * 路径是否命中任一屏蔽模式
+     *
+     * @param path 请求路径
+     * @return 命中返回 {@code true}
+     */
+    private boolean matchesAnyPattern(String path) {
         List<String> patterns = properties.getPatterns();
         if (patterns == null || patterns.isEmpty()) {
             return false;

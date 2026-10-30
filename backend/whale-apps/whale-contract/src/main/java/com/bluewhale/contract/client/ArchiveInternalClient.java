@@ -2,6 +2,7 @@ package com.bluewhale.contract.client;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.internaltoken.InternalTokenSupport;
 import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.common.web.WebHeaders;
 import com.bluewhale.contract.config.ContractArchiveProperties;
@@ -75,7 +76,7 @@ public class ArchiveInternalClient {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(properties.getConnectTimeoutMillis());
         factory.setReadTimeout(properties.getReadTimeoutMillis());
-        this.restClient = RestClient.builder()
+        this.restClient = InternalTokenSupport.builder()
                 .baseUrl(properties.getBaseUrl())
                 .requestFactory(factory)
                 .build();

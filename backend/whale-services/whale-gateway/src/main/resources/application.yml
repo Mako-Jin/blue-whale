@@ -32,6 +32,9 @@ spring:
             locator:
               enabled: true
               lower-case-service-id: true
+          default-filters:
+            # V-02：剥离外部请求自带的内网令牌头，防止伪造直通下游服务侧校验
+            - RemoveRequestHeader=X-Internal-Token
           routes:
             # whale-service-auth 自持全部一级前缀（REQ-ARCH-003）：认证 + 用户/部门/角色/菜单/权限管理（AUTH-38）
             - id: whale-service-auth

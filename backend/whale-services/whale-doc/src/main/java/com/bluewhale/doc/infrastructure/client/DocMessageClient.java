@@ -2,6 +2,7 @@ package com.bluewhale.doc.infrastructure.client;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.internaltoken.InternalTokenSupport;
 import com.bluewhale.common.web.WebHeaders;
 import com.bluewhale.doc.config.DocProperties;
 import lombok.RequiredArgsConstructor;
@@ -9,7 +10,6 @@ import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.cloud.client.discovery.DiscoveryClient;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -58,7 +58,7 @@ public class DocMessageClient {
         body.put("content", content);
         body.put("channels", channels);
         body.put("recipients", userIds.stream().map(id -> Map.of("userId", id)).toList());
-        Map<?, ?> response = RestClient.create()
+        Map<?, ?> response = InternalTokenSupport.restClient()
                 .post()
                 .uri(baseUrl() + "/message/internal/send")
                 .header(WebHeaders.TENANT_ID, String.valueOf(tenantId))

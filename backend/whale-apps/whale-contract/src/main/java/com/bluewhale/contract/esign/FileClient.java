@@ -2,6 +2,7 @@ package com.bluewhale.contract.esign;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.internaltoken.InternalTokenSupport;
 import com.bluewhale.contract.config.ContractFileProperties;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.ByteArrayResource;
@@ -54,7 +55,7 @@ public class FileClient {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(properties.getConnectTimeoutMillis());
         factory.setReadTimeout(properties.getReadTimeoutMillis());
-        this.restClient = RestClient.builder()
+        this.restClient = InternalTokenSupport.builder()
                 .baseUrl(properties.getBaseUrl())
                 .requestFactory(factory)
                 .build();

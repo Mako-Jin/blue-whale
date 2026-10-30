@@ -1,5 +1,6 @@
 package com.bluewhale.im.support;
 
+import com.bluewhale.common.internaltoken.InternalTokenSupport;
 import com.bluewhale.common.tenant.TenantContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -89,7 +90,7 @@ public class UserDirectoryClient {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(Duration.ofSeconds(timeoutSeconds));
         factory.setReadTimeout(Duration.ofSeconds(timeoutSeconds));
-        this.restClient = RestClient.builder().requestFactory(factory).build();
+        this.restClient = InternalTokenSupport.builder().requestFactory(factory).build();
     }
 
     /**

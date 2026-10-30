@@ -2,6 +2,7 @@ package com.bluewhale.common.audit.support;
 
 import com.bluewhale.common.audit.entity.AuditLogRecord;
 import com.bluewhale.common.audit.properties.AuditLogForwardProperties;
+import com.bluewhale.common.internaltoken.InternalTokenSupport;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -47,7 +48,7 @@ public class AuditLogForwarder {
         HttpClient httpClient = HttpClient.newBuilder().connectTimeout(timeout).build();
         JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
         requestFactory.setReadTimeout(timeout);
-        this.restClient = RestClient.builder()
+        this.restClient = InternalTokenSupport.builder()
                 .baseUrl(properties.getUrl())
                 .requestFactory(requestFactory)
                 .build();

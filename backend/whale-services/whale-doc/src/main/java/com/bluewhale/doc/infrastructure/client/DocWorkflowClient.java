@@ -2,6 +2,7 @@ package com.bluewhale.doc.infrastructure.client;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.internaltoken.InternalTokenSupport;
 import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.common.web.WebHeaders;
 import com.bluewhale.doc.config.DocProperties;
@@ -55,7 +56,7 @@ public class DocWorkflowClient {
         body.put("title", title);
         body.put("businessKey", businessKey);
         body.put("variables", variables);
-        RestClient.RequestBodySpec spec = RestClient.create()
+        RestClient.RequestBodySpec spec = InternalTokenSupport.restClient()
                 .post()
                 .uri(baseUrl() + "/workflow/instance")
                 .contentType(MediaType.APPLICATION_JSON);
@@ -73,7 +74,7 @@ public class DocWorkflowClient {
      * @return 状态；0 运行中 / 1 通过 / 2 驳回 / 3 撤销；不可读返回 {@code null}
      */
     public Integer fetchStatus(Long instanceId) {
-        Map<String, Object> response = RestClient.create()
+        Map<String, Object> response = InternalTokenSupport.restClient()
                 .get()
                 .uri(baseUrl() + "/workflow/internal/instance/{id}/detail", instanceId)
                 .retrieve()

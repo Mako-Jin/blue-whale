@@ -157,4 +157,63 @@ class InternalApiDenyGlobalFilterTest {
         verify(chain).filter(any());
         assertNull(exchange.getResponse().getStatusCode());
     }
+
+    @Test
+    @DisplayName("V-01 filter：discovery.locator 服务名前缀形态 /whale-file/file/internal/** 同样拒绝")
+    void shouldDenyServiceNamePrefixedInternalPath() {
+        MockServerWebExchange exchange = buildExchange("http://localhost/whale-file/file/internal/upload");
+
+        filter.filter(exchange, chain).block();
+
+        assertEquals(HttpStatus.FORBIDDEN, exchange.getResponse().getStatusCode());
+        verifyNoInteractions(chain);
+    }
+
+    @Test
+    @DisplayName("V-01 filter：服务名前缀形态多模式命中（/whale-service-auth/user/internal/**）")
+    void shouldDenyServiceNamePrefixedPathForAnyPattern() {
+        properties.setPatterns(new ArrayList<>(List.of("/user/internal/**")));
+        MockServerWebExchange exchange = buildExchange("http://localhost/whale-service-auth/user/internal/exists");
+
+        filter.filter(exchange, chain).block();
+
+        assertEquals(HttpStatus.FORBIDDEN, exchange.getResponse().getStatusCode());
+        verifyNoInteractions(chain);
+    }
+
+    @Test
+    @DisplayName("V-01 filter：服务名前缀下的公开路径仍放行")
+    void shouldAllowServiceNamePrefixedPublicPath() {
+        MockServerWebExchange exchange = buildExchange("http://localhost/whale-file/file/public/1");
+        when(chain.filter(any())).thenReturn(Mono.empty());
+
+        filter.filter(exchange, chain).block();
+
+        verify(chain).filter(any());
+        assertNull(exchange.getResponse().getStatusCode());
+    }
+
+    @Test
+    @DisplayName("V-01 filter：服务名前缀下前缀相近但段不匹配的路径仍放行")
+    void shouldAllowServiceNamePrefixedPathThatOnlySharesPrefixText() {
+        MockServerWebExchange exchange = buildExchange("http://localhost/whale-file/file/internals/1");
+        when(chain.filter(any())).thenReturn(Mono.empty());
+
+        filter.filter(exchange, chain).block();
+
+        verify(chain).filter(any());
+        assertNull(exchange.getResponse().getStatusCode());
+    }
+
+    @Test
+    @DisplayName("V-01 filter：审计摄入端点（无 internal 段）的服务名前缀形态同样拒绝")
+    void shouldDenyServiceNamePrefixedAuditIngestPath() {
+        properties.setPatterns(new ArrayList<>(List.of("/audit/log/ingest/**")));
+        MockServerWebExchange exchange = buildExchange("http://localhost/whale-audit/audit/log/ingest");
+
+        filter.filter(exchange, chain).block();
+
+        assertEquals(HttpStatus.FORBIDDEN, exchange.getResponse().getStatusCode());
+        verifyNoInteractions(chain);
+    }
 }

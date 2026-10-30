@@ -2,6 +2,7 @@ package com.bluewhale.doc.infrastructure.client;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.internaltoken.InternalTokenSupport;
 import com.bluewhale.common.web.WebHeaders;
 import com.bluewhale.doc.config.DocProperties;
 import lombok.RequiredArgsConstructor;
@@ -9,7 +10,6 @@ import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.cloud.client.discovery.DiscoveryClient;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
 
 import java.util.List;
 import java.util.Map;
@@ -41,7 +41,7 @@ public class DocArchiveClient {
      * @return 入档结果
      */
     public IngestOutcome ingest(Long tenantId, Map<String, Object> payload) {
-        Map<?, ?> response = RestClient.create()
+        Map<?, ?> response = InternalTokenSupport.restClient()
                 .post()
                 .uri(baseUrl() + "/archive/internal/items")
                 .header(WebHeaders.TENANT_ID, String.valueOf(tenantId))

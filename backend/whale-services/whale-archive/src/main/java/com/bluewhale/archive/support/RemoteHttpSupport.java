@@ -3,6 +3,7 @@ package com.bluewhale.archive.support;
 import com.bluewhale.archive.config.ArchiveProperties;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.internaltoken.InternalTokenSupport;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
@@ -44,7 +45,7 @@ public final class RemoteHttpSupport {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(integration.getConnectTimeoutMillis());
         factory.setReadTimeout(integration.getReadTimeoutMillis());
-        return RestClient.builder().baseUrl(baseUrl).requestFactory(factory).build();
+        return InternalTokenSupport.builder().baseUrl(baseUrl).requestFactory(factory).build();
     }
 
     /**

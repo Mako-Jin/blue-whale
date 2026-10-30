@@ -1,5 +1,6 @@
 package com.bluewhale.message.channel.impl;
 
+import com.bluewhale.common.internaltoken.InternalTokenProperties;
 import com.bluewhale.message.channel.ChannelMessage;
 import com.bluewhale.message.channel.ChannelResult;
 import com.bluewhale.message.channel.MessageChannelSender;
@@ -37,6 +38,8 @@ public class ImChannelSender implements MessageChannelSender {
 
     private final ObjectMapper objectMapper;
 
+    private final InternalTokenProperties internalTokenProperties;
+
     @Override
     public MessageChannel channel() {
         return MessageChannel.IM;
@@ -61,11 +64,17 @@ public class ImChannelSender implements MessageChannelSender {
         try {
             String url = trimTrailingSlash(im.getBaseUrl()) + "/im/internal/notify";
             String body = objectMapper.writeValueAsString(buildPayload(message));
-            HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+            HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(URI.create(url))
                     .timeout(Duration.ofMillis(timeout))
                     .header("Content-Type", "application/json; charset=UTF-8")
-                    .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
-                    .build();
+                    .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8));
+            if (internalTokenProperties.isEnabled()) {
+                String token = internalTokenProperties.resolveToken();
+                if (!token.isBlank()) {
+                    requestBuilder.header(internalTokenProperties.getHeader(), token);
+                }
+            }
+            HttpRequest request = requestBuilder.build();
             HttpResponse<String> response = HttpClient.newBuilder()
                     .connectTimeout(Duration.ofMillis(timeout))
                     .build()

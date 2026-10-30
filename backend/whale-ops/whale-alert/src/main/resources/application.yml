@@ -64,6 +64,12 @@ whale:
 # 邮件通道依赖 Spring Mail 自动装配：设置 SPRING_MAIL_HOST / SPRING_MAIL_USERNAME /
 # SPRING_MAIL_PASSWORD 后 JavaMailSender 才会创建；未配置时邮件通知自动跳过。
 
+# V-02：Alertmanager 入站 webhook 自带告警令牌校验（AlertWebhookTokenGuard），豁免内网令牌
+bluewhale:
+  internal-token:
+    exclude-patterns:
+      - /alert/internal/prometheus/**
+
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true

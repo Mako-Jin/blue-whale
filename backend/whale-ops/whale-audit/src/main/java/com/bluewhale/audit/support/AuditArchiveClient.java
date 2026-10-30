@@ -3,6 +3,7 @@ package com.bluewhale.audit.support;
 import com.bluewhale.audit.config.AuditExportProperties;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.internaltoken.InternalTokenSupport;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.MediaType;
@@ -60,7 +61,7 @@ public class AuditArchiveClient {
      * @param properties 导出/归档配置（提供 whale-file 基址）
      */
     public AuditArchiveClient(AuditExportProperties properties) {
-        this.restClient = RestClient.builder().baseUrl(properties.getFileServiceUrl()).build();
+        this.restClient = InternalTokenSupport.builder().baseUrl(properties.getFileServiceUrl()).build();
     }
 
     /**

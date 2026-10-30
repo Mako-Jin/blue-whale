@@ -2,6 +2,7 @@ package com.bluewhale.job.scheduler.archive;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.result.Result;
+import com.bluewhale.common.internaltoken.InternalTokenSupport;
 import com.bluewhale.job.config.JobProperties;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.ByteArrayResource;
@@ -54,7 +55,7 @@ public class JobArchiveClient {
      */
     public JobArchiveClient(JobProperties jobProperties, RestClient.Builder restClientBuilder) {
         this.jobProperties = jobProperties;
-        this.restClient = restClientBuilder.build();
+        this.restClient = restClientBuilder.requestInterceptor(InternalTokenSupport.interceptor()).build();
     }
 
     /**

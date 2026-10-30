@@ -1,6 +1,7 @@
 package com.bluewhale.agent.support.knowledge;
 
 import com.bluewhale.agent.config.AgentProperties;
+import com.bluewhale.common.internaltoken.InternalTokenSupport;
 import com.bluewhale.common.tenant.TenantContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
@@ -68,7 +69,7 @@ public class FileKnowledgeClient {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(knowledge.getConnectTimeoutMillis());
         factory.setReadTimeout(knowledge.getReadTimeoutMillis());
-        this.restClient = RestClient.builder()
+        this.restClient = InternalTokenSupport.builder()
                 .baseUrl(knowledge.getFileUrl())
                 .requestFactory(factory)
                 .build();

@@ -2,6 +2,7 @@ package com.bluewhale.doc.infrastructure.client;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.internaltoken.InternalTokenSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.client.ServiceInstance;
@@ -11,7 +12,6 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.RestClient;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -58,7 +58,7 @@ public class DocFileClient {
             throw new BizException(ErrorCode.SYSTEM_ERROR, "读取上传文件失败");
         }
         body.add("bucket", bucket);
-        Map<?, ?> response = RestClient.create()
+        Map<?, ?> response = InternalTokenSupport.restClient()
                 .post()
                 .uri(baseUrl() + "/file/internal/upload")
                 .header("X-User-Id", String.valueOf(userId))
@@ -96,7 +96,7 @@ public class DocFileClient {
             }
         });
         body.add("bucket", bucket);
-        Map<?, ?> response = RestClient.create()
+        Map<?, ?> response = InternalTokenSupport.restClient()
                 .post()
                 .uri(baseUrl() + "/file/internal/upload")
                 .header("X-User-Id", String.valueOf(userId))
@@ -120,7 +120,7 @@ public class DocFileClient {
      * @return 文件字节
      */
     public byte[] content(Long fileId) {
-        byte[] bytes = RestClient.create()
+        byte[] bytes = InternalTokenSupport.restClient()
                 .get()
                 .uri(baseUrl() + "/file/internal/{id}/content", fileId)
                 .retrieve()
