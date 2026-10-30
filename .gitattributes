@@ -1,0 +1,56 @@
+# T-22 仓库级换行与二进制规则：跨平台协作时行尾由 Git 统一裁决
+# 默认：所有文本文件入库 LF，检出行尾按平台（Windows 为 CRLF）
+* text=auto eol=lf
+
+# Windows 专属脚本必须 CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Shell 与类 Unix 脚本必须 LF
+*.sh text eol=lf
+mvnw text eol=lf
+mvnw.cmd text eol=crlf
+
+# Web/配置文本统一 LF（显式声明，防止 auto 误判）
+*.java text
+*.ts text
+*.tsx text
+*.js text
+*.jsx text
+*.json text
+*.yml text
+*.yaml text
+*.xml text
+*.html text
+*.css text
+*.scss text
+*.sql text
+*.md text
+*.properties text
+*.csv text
+
+# 二进制文件不做任何转换
+*.jar binary
+*.class binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.otf binary
+*.zip binary
+*.gz binary
+*.tar binary
+*.pdf binary
+*.xlsx binary
+*.xlsm binary
+*.docx binary
+*.pptx binary
+*.p12 binary
+*.jks binary
+*.rdb binary

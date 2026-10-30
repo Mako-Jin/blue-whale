@@ -104,4 +104,4 @@ pnpm run dev              # 同时启动所有应用
 
 ## License
 
-TBD
+[Apache-2.0](LICENSE)

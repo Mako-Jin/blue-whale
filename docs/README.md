@@ -48,6 +48,7 @@ docs/
 
 ## 文档约定
 
+0. **IDE 协作文档源（T-23 决策：保留入库）**：`.trae/`（`documents/` 波次方案、`specs/` spec/checklist/tasks）登记为历史文档源，与 `docs/plans/`、`docs/specs/` 互补，不做 IDE 私有清理
 1. **文档先行（REQ-DOC-002）**：任何需求须先在 `requirements/register.md` 登记 REQ 编号与验收标准；架构类需求须先产出 `design/` 设计文档并定稿，方可进入编码
 2. **规划先行**：每个阶段的实施计划写入 `docs/plans/`，完成一项在 roadmap 中勾选
 3. **完成必记录（REQ-DOC-001）**：每完成一个任务，在 `docs/devlog/` 当日日期文件中追加记录，条目须同时覆盖**需求项 / 完成项 / 待做项 / 已修正问题项**
