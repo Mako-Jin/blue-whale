@@ -18,6 +18,13 @@ public class PermissionCacheMutex {
 
     /**
      * 在分布式锁保护下执行回源加载（透传，不改变加载语义）
+     * <p><b>为何显式 {@code failFast = false}（全仓唯一允许的放行点）</b>：本方法只是
+     * 「缓存重建互斥」，抢不到锁说明另一实例正在重建同一用户的权限缓存；此时代码继续
+     * 执行 loader——loader 内部会再读一次缓存，读不到才回源，最坏后果是并发多查一次库，
+     * 不存在状态被并发写坏的可能。因此放行是刻意的降级语义，而非遗漏：
+     * 若改为 {@code failFast = true}，高并发下会退化为大量 1s 抢锁失败的业务异常。</p>
+     * <p>约束：除本处外不得再出现 {@code failFast = false}（{@code AuthArchitectureTest}
+     * 已加守护规则），确有非幂等副作用的方法必须保持注解默认的快速失败。</p>
      *
      * @param userId 用户 ID，作为锁 Key 的业务标识
      * @param loader 回源加载器（通常内部再做一次缓存复查，命中则直接返回）

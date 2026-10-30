@@ -20,19 +20,6 @@ $base = 'http://127.0.0.1:8080'
 $fileService = 'http://127.0.0.1:8085'
 $failures = 0
 
-function Json($value) {
-    return ($value | ConvertTo-Json -Depth 30 -Compress)
-}
-
-function Invoke-Api($method, $uri, $body = $null) {
-    $params = @{ Method = $method; Uri = $uri; Headers = $script:h }
-    if ($null -ne $body) {
-        $params.ContentType = 'application/json'
-        $params.Body = Json $body
-    }
-    return Invoke-RestMethod @params
-}
-
 function Find-LedgerRow($fileId) {
     # 台账 keyword 仅匹配 originalName，而本脚本的关键字位于文件内容中，故按 fileId 全量扫描定位
     $ledger = Invoke-Api Get "$base/agent/knowledge/files/page?current=1&size=200"

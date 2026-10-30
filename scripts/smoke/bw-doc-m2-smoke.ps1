@@ -24,15 +24,6 @@ function Json($value) {
     return ($value | ConvertTo-Json -Depth 30 -Compress)
 }
 
-function Invoke-Api($method, $uri, $body = $null) {
-    $params = @{ Method = $method; Uri = $uri; Headers = $script:h }
-    if ($null -ne $body) {
-        $params.ContentType = 'application/json'
-        $params.Body = Json $body
-    }
-    return Invoke-RestMethod @params
-}
-
 function New-CollabSocket($ticket, $clientId) {
     $socket = [System.Net.WebSockets.ClientWebSocket]::new()
     $uri = [Uri]"$docWs`?ticket=$([Uri]::EscapeDataString($ticket))&clientId=$clientId"

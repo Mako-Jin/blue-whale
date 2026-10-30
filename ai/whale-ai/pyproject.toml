@@ -29,3 +29,14 @@ packages = ["whale_ai"]
 pythonpath = ["."]
 testpaths = ["tests"]
 addopts = "-q"
+
+# 静态检查（T-17）：仅启用「一定错误」类规则（E9 语法错误 / F63 格式化语法 /
+# F7 不可能执行的语句 / F82 未定义名），不引入风格与导入类规则，避免历史代码噪音；
+# mypy 类型门禁另立批次。
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = [".venv"]
+
+[tool.ruff.lint]
+select = ["E9", "F63", "F7", "F82"]

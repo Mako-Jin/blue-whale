@@ -129,3 +129,38 @@ function Exit-Smoke {
     Write-Host "SMOKE PASSED"
     exit 0
 }
+
+<#
+.SYNOPSIS
+调用网关 API（收口各脚本各自的本地 Invoke-Api 实现）。
+.DESCRIPTION
+- Headers 为空时用 $script:h（脚本登录后写入的 @{ Authorization = "Bearer <token>" }）。
+- Body 非空时序列化为 JSON 作为请求体，ContentType 统一为 'application/json'。
+- 序列化深度取 30：兼容 doc 页面 contentJson 等深层嵌套请求体（历史脚本用 20/30 两派，
+  统一到较深的 30 不改变任何请求内容）。
+.PARAMETER Method
+HTTP 方法，默认 GET；与既有调用 `Invoke-Api Get/Put/Post/Delete <uri> <body>` 的位置参数一致。
+.PARAMETER Headers
+显式请求头（如 m2b/m5 以普通用户身份访问时传入的 $readerHeaders）；为空则回落到 $script:h。
+#>
+function Invoke-Api {
+    param(
+        [string]$Method = 'GET',
+        [string]$Uri,
+        [object]$Body = $null,
+        [hashtable]$Headers = $null
+    )
+
+    if (-not $Headers) {
+        $Headers = $script:h
+    }
+    $params = @{ Method = $Method; Uri = $Uri }
+    if ($Headers) {
+        $params.Headers = $Headers
+    }
+    if ($null -ne $Body) {
+        $params.ContentType = 'application/json'
+        $params.Body = ($Body | ConvertTo-Json -Depth 30 -Compress)
+    }
+    return Invoke-RestMethod @params
+}

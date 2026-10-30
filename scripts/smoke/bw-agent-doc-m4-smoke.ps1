@@ -23,19 +23,6 @@ $base = 'http://127.0.0.1:8080'
 $docService = 'http://127.0.0.1:8095'
 $failures = 0
 
-function Json($value) {
-    return ($value | ConvertTo-Json -Depth 30 -Compress)
-}
-
-function Invoke-Api($method, $uri, $body = $null) {
-    $params = @{ Method = $method; Uri = $uri; Headers = $script:h }
-    if ($null -ne $body) {
-        $params.ContentType = 'application/json'
-        $params.Body = Json $body
-    }
-    return Invoke-RestMethod @params
-}
-
 function Sync-Docs() {
     return Invoke-Api Post "$base/agent/knowledge/doc/sync"
 }

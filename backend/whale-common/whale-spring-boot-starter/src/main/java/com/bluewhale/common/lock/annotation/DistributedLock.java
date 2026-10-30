@@ -37,6 +37,12 @@ public @interface DistributedLock {
     /** 持有锁时长（秒），-1 表示启用 Redisson 看门狗自动续期 */
     long leaseTime() default 30;
 
-    /** 获取失败策略：true 抛 {@code BizException}，false 记录告警后放行 */
+    /**
+     * 获取失败策略：true 抛 {@code BizException}，false 记录告警后放行。
+     * <p>默认必须保持 true。{@code false} 仅允许用于「幂等且可退化」的场景（典型如
+     * 权限缓存重建互斥：抢锁失败即视为已有并发重建，直接执行原逻辑即可），并且调用点
+     * 必须注释说明放行理由；目前全仓仅 {@code PermissionCacheMutex} 一处，已由
+     * 架构测试守护，新增放行点须同步评审。</p>
+     */
     boolean failFast() default true;
 }

@@ -18,15 +18,6 @@ function Json($value) {
     return ($value | ConvertTo-Json -Depth 20 -Compress)
 }
 
-function Invoke-Api($method, $uri, $body = $null) {
-    $params = @{ Method = $method; Uri = $uri; Headers = $script:h }
-    if ($null -ne $body) {
-        $params.ContentType = 'application/json'
-        $params.Body = Json $body
-    }
-    return Invoke-RestMethod @params
-}
-
 # 1) 登录与基础连通性
 $cred = Get-SmokeAdminCredential
 $login = Invoke-RestMethod -Method Post -Uri "$base/auth/login" -ContentType 'application/json' `

@@ -1,10 +1,19 @@
 package com.bluewhale.auth.architecture;
 
+import com.bluewhale.auth.security.PermissionCacheMutex;
+import com.bluewhale.common.lock.annotation.DistributedLock;
+import com.tngtech.archunit.core.domain.JavaAnnotation;
+import com.tngtech.archunit.core.domain.JavaClass;
+import com.tngtech.archunit.core.domain.JavaMethod;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
+import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ArchRule;
+import com.tngtech.archunit.lang.ConditionEvents;
+import com.tngtech.archunit.lang.SimpleConditionEvent;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 /**
@@ -57,4 +66,32 @@ class AuthArchitectureTest {
                     "com.bluewhale.auth.domain..",
                     "com.baomidou..",
                     "org.apache.ibatis..");
+
+    /**
+     * 分布式锁放行语义守护（T-14）：{@code @DistributedLock} 的 {@code failFast} 默认必须为 true，
+     * 显式声明 {@code failFast = false} 只允许出现在「幂等可退化」的 {@link PermissionCacheMutex}
+     * （权限缓存重建互斥）。新增任何放行点都会让本规则失败，须先评审并同步更新白名单。
+     */
+    @ArchTest
+    static final ArchRule distributed_lock_fail_fast_false_only_on_cache_mutex = classes()
+            .that().resideInAPackage("com.bluewhale.auth..")
+            .should(new ArchCondition<JavaClass>("除 PermissionCacheMutex 外不得显式关闭 failFast") {
+                @Override
+                public void check(JavaClass javaClass, ConditionEvents events) {
+                    if (javaClass.getName().equals(PermissionCacheMutex.class.getName())) {
+                        return;
+                    }
+                    for (JavaMethod method : javaClass.getMethods()) {
+                        for (JavaAnnotation<JavaMethod> annotation : method.getAnnotations()) {
+                            if (!annotation.getRawType().getName().equals(DistributedLock.class.getName())) {
+                                continue;
+                            }
+                            annotation.tryGetExplicitlyDeclaredProperty("failFast")
+                                    .filter(Boolean.FALSE::equals)
+                                    .ifPresent(value -> events.add(SimpleConditionEvent.violated(method,
+                                            method.getFullName() + " 显式设置 failFast=false，仅 PermissionCacheMutex 允许")));
+                        }
+                    }
+                }
+            });
 }

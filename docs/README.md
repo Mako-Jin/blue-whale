@@ -58,6 +58,11 @@ docs/
 7. **完成即划线**：`plans/` 下的待办台账（backlog / next-steps）与蓝图（roadmap / task-breakdown）中，**已完成的任务一律加删除线**（`~~…~~`），并**保留** `[x]` / `✅` 状态标记与完成结论；任务编号（如 `AUTH-35` / `T5.2`）在表格中直接划线，使「已完成」与「待做」一眼可辨
 8. **门禁**：未登记 REQ、设计未定稿、无检查报告、构建未通过 —— 四者任一不满足，变更不得提交
 
+## 历史文档登记（T-26）
+
+- **重复内容**：`docs/**/*.md` 存在 49 组哈希重复（共 108 份），来自同一波次方案的 `plans/`、`reviews/` 与 `.trae/` 多份拷贝。经 roadmap 确认（2026-10-22 平台评审 P0-4）**originals 与历史副本保留现状、不清理**；检索以「最新日期 + 现行事实文档」为准。
+- **编号冲突**：`wave5.35` 同时用于两个独立主题——Sentinel 评估（`reviews/2026-10-21-wave5.35-sentinel-evaluation.md`）与工作流网关（`plans/wave5.35-workflow-gateway.md`、`reviews/2026-10-21-wave5.35-workflow-gateway.md`）；`wave5.61` 的 design/plan/review 属同一波次（合同电子签署）的不同文档类型，非冲突。引用时须带主题后缀（如 `wave5.35-sentinel-evaluation`）。
+
 ## 快速开始
 
 - 项目总览：[README.md](../README.md)
