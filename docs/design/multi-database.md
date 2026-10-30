@@ -1,6 +1,6 @@
 # 数据库可切换适配设计（REQ-ARCH-002）
 
-> 日期：2026-10-25 ｜ 状态：**设计定稿，未实施**（当前及近期仍统一使用 MySQL 8）｜ 关联：[需求登记册](../requirements/register.md) REQ-ARCH-002、[架构说明](../architecture.md)、[分布式设计](distributed.md)
+> 日期：2026-10-25 ｜ 状态：**T1+T2+T3 已实施（2026-10-30）**，T4–T6 后置（待国产库需求/环境明确）；当前统一使用 MySQL 8 ｜ 关联：[需求登记册](../requirements/register.md) REQ-ARCH-002、[架构说明](../architecture.md)、[分布式设计](distributed.md)
 > 目标：按客户要求切换数据库，覆盖国产化选型（达梦 DM、人大金仓 KingBase、openGauss、OceanBase）；切换不改业务代码、不改 SQL 语义。
 
 ---
