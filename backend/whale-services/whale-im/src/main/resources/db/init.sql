@@ -26,13 +26,13 @@ CREATE TABLE IF NOT EXISTS im_conversation (
     last_message_id BIGINT       DEFAULT NULL           COMMENT '最后一条消息ID（逻辑关联 im_message.id）',
     last_active_at  DATETIME     DEFAULT NULL           COMMENT '最后活跃时间（会话列表排序依据）',
     create_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted         TINYINT      NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_tenant_pair_key (tenant_id, pair_key),
     KEY idx_owner_id (owner_id),
     KEY idx_last_active_at (last_active_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='IM 会话表';
+) COMMENT='IM 会话表';
 
 -- ---------------------------------------------------------------------
 -- 会话成员表：成员身份 + 已读游标合一（避免额外已读表）
@@ -48,13 +48,13 @@ CREATE TABLE IF NOT EXISTS im_conversation_member (
     mute_until    DATETIME    DEFAULT NULL           COMMENT '禁言截止时间（NULL 表示未禁言）',
     join_time     DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '加入时间',
     create_time   DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time   DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time   DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted       TINYINT     NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_conversation_user (conversation_id, user_id),
     KEY idx_tenant_id (tenant_id),
     KEY idx_user_id (user_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='IM 会话成员与已读游标表';
+) COMMENT='IM 会话成员与已读游标表';
 
 -- ---------------------------------------------------------------------
 -- 消息表：client_msg_id 唯一索引保证客户端重发幂等
@@ -72,14 +72,14 @@ CREATE TABLE IF NOT EXISTS im_message (
     reply_to        BIGINT       DEFAULT NULL           COMMENT '被回复消息ID（逻辑关联 im_message.id）',
     status          TINYINT      NOT NULL DEFAULT 1     COMMENT '状态：1 正常 / 0 已撤回',
     create_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted         TINYINT      NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_conversation_client (conversation_id, client_msg_id),
     UNIQUE KEY uk_conversation_seq (conversation_id, seq),
     KEY idx_tenant_id (tenant_id),
     KEY idx_create_time (create_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='IM 消息表';
+) COMMENT='IM 消息表';
 
 -- ---------------------------------------------------------------------
 -- 机器人绑定表：会话 ↔ 机器人 ↔ 智能体场景
@@ -93,12 +93,12 @@ CREATE TABLE IF NOT EXISTS im_agent_binding (
     agent_conversation_id VARCHAR(128) DEFAULT NULL           COMMENT '智能体会话ID（透传 whale-agent / whale-ai 的会话标识）',
     enabled               TINYINT      NOT NULL DEFAULT 1     COMMENT '是否启用：1 启用 / 0 停用',
     create_time           DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time           DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time           DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted               TINYINT      NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_conversation_bot (conversation_id, bot_user_id),
     KEY idx_tenant_id (tenant_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='IM 会话与智能体绑定表';
+) COMMENT='IM 会话与智能体绑定表';
 
 -- ---------------------------------------------------------------------
 -- 智能体运行表：一次提问的请求/响应消息与工具轨迹、确认态
@@ -116,13 +116,13 @@ CREATE TABLE IF NOT EXISTS im_agent_run (
     started_at          DATETIME    DEFAULT NULL           COMMENT '开始时间',
     finished_at         DATETIME    DEFAULT NULL           COMMENT '结束时间',
     create_time         DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time         DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time         DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted             TINYINT     NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_tenant_id (tenant_id),
     KEY idx_conversation_id (conversation_id),
     KEY idx_status (status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='IM 智能体运行记录表';
+) COMMENT='IM 智能体运行记录表';
 
 -- ---------------------------------------------------------------------
 -- 操作审计日志表（T16：确认操作审计落库）
@@ -160,7 +160,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
     KEY idx_biz_status (biz_status),
     KEY idx_tenant_time (tenant_id, create_time),
     KEY idx_create_time (create_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='操作审计日志表';
+) COMMENT='操作审计日志表';
 
 -- ---------------------------------------------------------------------
 -- 后端接口日志表（whale-spring-boot-starter ApiLogFilter 采集，结构与 bluewhale_auth.api_log 一致）
@@ -191,4 +191,4 @@ CREATE TABLE api_log (
     KEY idx_user_id (user_id),
     KEY idx_tenant_create (tenant_id, create_time),
     KEY idx_biz_status (biz_status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='后端接口日志表';
+) COMMENT='后端接口日志表';

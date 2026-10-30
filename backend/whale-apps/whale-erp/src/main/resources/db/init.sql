@@ -24,12 +24,12 @@ CREATE TABLE erp_item (
                                                  COMMENT '状态：ENABLED 启用 / DISABLED 禁用',
     remark      VARCHAR(255) DEFAULT NULL        COMMENT '备注',
     create_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted     TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_tenant_code (tenant_id, code),
     KEY idx_status (status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='物料表';
+) COMMENT='物料表';
 
 -- ---------------------------------------------------------------------
 -- 3. 供应商主数据表
@@ -57,14 +57,14 @@ CREATE TABLE erp_supplier (
     rating        VARCHAR(8)    DEFAULT NULL        COMMENT '供应商评级：A / B / C / D',
     remark        VARCHAR(255)  DEFAULT NULL        COMMENT '备注',
     create_time   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted       TINYINT       NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_tenant_supplier_code (tenant_id, code),
     KEY idx_supplier_name (name),
     KEY idx_supplier_category (category),
     KEY idx_supplier_status (status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='供应商主数据表';
+) COMMENT='供应商主数据表';
 
 -- 供应商种子数据（便于接口冒烟与前端联调）
 INSERT INTO erp_supplier
@@ -120,7 +120,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
     KEY idx_biz_status (biz_status),
     KEY idx_tenant_time (tenant_id, create_time),
     KEY idx_create_time (create_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='操作审计日志表';
+) COMMENT='操作审计日志表';
 
 -- ---------------------------------------------------------------------
 -- 后端接口日志表（whale-spring-boot-starter ApiLogFilter 采集，结构与 bluewhale_auth.api_log 一致）
@@ -151,4 +151,4 @@ CREATE TABLE api_log (
     KEY idx_user_id (user_id),
     KEY idx_tenant_create (tenant_id, create_time),
     KEY idx_biz_status (biz_status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='后端接口日志表';
+) COMMENT='后端接口日志表';

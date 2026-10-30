@@ -3,7 +3,7 @@
 -- =====================================================================
 -- 适用库   : bluewhale_auth
 -- 执行方式 : mysql -u<user> -p bluewhale_auth < migration-5.60-pdm.sql
--- 幂等说明 : INSERT IGNORE，可重复执行，不修改/删除任何既有数据。
+-- 幂等说明 : NOT EXISTS 幂等插入，可重复执行，不修改/删除任何既有数据。
 -- 变更内容 : 权限点 211–214（产品 共 4 个）+ 菜单 27。
 -- 编号约定 : 203–206 为 ERP；207–210 为 MES；211–214 为 PDM 占用；
 --            菜单 25 为 ERP、26 为 MES，PDM 菜单用 27。
@@ -12,15 +12,24 @@
 -- 前置条件 : bluewhale_pdm 库已执行 backend/whale-apps/whale-pdm/src/main/resources/db/init.sql。
 -- =====================================================================
 
-INSERT IGNORE INTO sys_permission
-    (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-VALUES
-    (211, 0, 'sys:pdm:product:list', '查询产品', 'API', '/pdm/product/page,/pdm/product/{id}', 'GET', 211, 1),
-    (212, 0, 'sys:pdm:product:add', '新增产品', 'API', '/pdm/product', 'POST', 212, 1),
-    (213, 0, 'sys:pdm:product:edit', '编辑产品', 'API', '/pdm/product/{id}', 'PUT', 213, 1),
-    (214, 0, 'sys:pdm:product:delete', '删除产品', 'API', '/pdm/product/{id}', 'DELETE', 214, 1);
+INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+SELECT 211, 0, 'sys:pdm:product:list', '查询产品', 'API', '/pdm/product/page,/pdm/product/{id}', 'GET', 211, 1
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 211 OR perm_code = 'sys:pdm:product:list');
+INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+SELECT 212, 0, 'sys:pdm:product:add', '新增产品', 'API', '/pdm/product', 'POST', 212, 1
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 212 OR perm_code = 'sys:pdm:product:add');
+INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+SELECT 213, 0, 'sys:pdm:product:edit', '编辑产品', 'API', '/pdm/product/{id}', 'PUT', 213, 1
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 213 OR perm_code = 'sys:pdm:product:edit');
+INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+SELECT 214, 0, 'sys:pdm:product:delete', '删除产品', 'API', '/pdm/product/{id}', 'DELETE', 214, 1
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 214 OR perm_code = 'sys:pdm:product:delete');
 
-INSERT IGNORE INTO sys_menu
-    (id, tenant_id, parent_id, name, path, component, icon, sort, menu_type, permission_code, visible, status)
-VALUES
-    (27, 1, 0, '产品管理', '/pdm', 'pdm/index', 'appstore', 27, 'MENU', 'sys:pdm:product:list', 1, 1);
+INSERT INTO sys_menu (id, tenant_id, parent_id, name, path, component, icon, sort, menu_type, permission_code, visible, status)
+SELECT 27, 1, 0, '产品管理', '/pdm', 'pdm/index', 'appstore', 27, 'MENU', 'sys:pdm:product:list', 1, 1
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE id = 27);

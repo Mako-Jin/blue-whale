@@ -52,7 +52,7 @@ CREATE TABLE audit_log (
     KEY idx_biz_status (biz_status),
     KEY idx_tenant_time (tenant_id, create_time),
     KEY idx_create_time (create_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='操作审计日志表';
+) COMMENT='操作审计日志表';
 
 -- ---------------------------------------------------------------------
 -- 审计日志归档水位表（AUTH-09，Wave 5.48）
@@ -65,9 +65,9 @@ CREATE TABLE audit_archive_watermark (
     id               BIGINT   NOT NULL               COMMENT '固定单行主键，恒为 1',
     last_create_time DATETIME DEFAULT NULL           COMMENT '已归档批次的最后一条 audit_log.create_time',
     last_id          BIGINT   DEFAULT NULL           COMMENT '已归档批次的最后一条 audit_log.id（同一 create_time 内去重）',
-    update_time      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '水位更新时间',
+    update_time      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '水位更新时间',
     PRIMARY KEY (id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='审计日志归档水位表';
+) COMMENT='审计日志归档水位表';
 
 -- ---------------------------------------------------------------------
 -- 多通道观测日志表（REQ-SEC-006，Wave 5.10）
@@ -103,7 +103,7 @@ CREATE TABLE api_log (
     KEY idx_user_id (user_id),
     KEY idx_tenant_create (tenant_id, create_time),
     KEY idx_biz_status (biz_status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='后端接口日志表';
+) COMMENT='后端接口日志表';
 
 -- 后端出站三方调用日志表（OutboundLogInterceptor 采集）
 DROP TABLE IF EXISTS outbound_log;
@@ -130,7 +130,7 @@ CREATE TABLE outbound_log (
     KEY idx_target_host (target_host),
     KEY idx_tenant_create (tenant_id, create_time),
     KEY idx_biz_status (biz_status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='后端出站三方调用日志表';
+) COMMENT='后端出站三方调用日志表';
 
 -- 前端开发者日志表（POST /audit/log/frontend/batch 落库）
 DROP TABLE IF EXISTS frontend_log;
@@ -152,7 +152,7 @@ CREATE TABLE frontend_log (
     KEY idx_client_id (client_id),
     KEY idx_tenant_create (tenant_id, create_time),
     KEY idx_log_level (log_level)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='前端开发者日志表';
+) COMMENT='前端开发者日志表';
 
 -- 前端用户行为埋点日志表（POST /audit/log/behavior/batch 落库）
 DROP TABLE IF EXISTS behavior_log;
@@ -174,7 +174,7 @@ CREATE TABLE behavior_log (
     KEY idx_client_id (client_id),
     KEY idx_tenant_create (tenant_id, create_time),
     KEY idx_event_type (event_type)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='前端用户行为埋点日志表';
+) COMMENT='前端用户行为埋点日志表';
 
 -- ---------------------------------------------------------------------
 -- 审计 MQ 消息去重表（AUTH-10，RabbitMQ 汇聚幂等）
@@ -188,4 +188,4 @@ CREATE TABLE audit_mq_message (
     create_time DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '首次消费时间',
     PRIMARY KEY (message_id),
     KEY idx_create_time (create_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='审计 MQ 消息去重表';
+) COMMENT='审计 MQ 消息去重表';

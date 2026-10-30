@@ -31,12 +31,12 @@ CREATE TABLE job_info (
     status          TINYINT       NOT NULL DEFAULT 0     COMMENT '任务状态：1 运行中 / 0 已停止',
     remark          VARCHAR(255)  DEFAULT NULL           COMMENT '备注',
     create_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted         TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_tenant_id (tenant_id),
     KEY idx_handler_bean (handler_bean)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='定时任务信息表';
+) COMMENT='定时任务信息表';
 
 -- ---------------------------------------------------------------------
 -- 2. 定时任务执行日志表
@@ -58,14 +58,14 @@ CREATE TABLE job_log (
     error_msg    TEXT          NULL                   COMMENT '失败原因（异常信息摘要）',
     result       TEXT          NULL                   COMMENT '执行结果（返回数据摘要）',
     create_time  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间（与 start_time 同步写入）',
-    update_time  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间（结束时回写 end_time/status 等字段）',
+    update_time  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间（结束时回写 end_time/status 等字段）',
     deleted      TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_tenant_id (tenant_id),
     KEY idx_job_id (job_id),
     KEY idx_run_id (run_id),
     KEY idx_start_time (start_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='定时任务执行日志表';
+) COMMENT='定时任务执行日志表';
 
 -- ---------------------------------------------------------------------
 -- 3. 定时任务依赖关系表（DAG 上游/下游边）
@@ -77,13 +77,13 @@ CREATE TABLE job_dependency (
     job_id          BIGINT        NOT NULL               COMMENT '下游任务ID（逻辑关联 job_info.id）',
     upstream_job_id BIGINT        NOT NULL               COMMENT '上游任务ID（逻辑关联 job_info.id）',
     create_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted         TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_job_upstream (job_id, upstream_job_id),
     KEY idx_tenant_id (tenant_id),
     KEY idx_upstream_job (upstream_job_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='定时任务依赖关系表';
+) COMMENT='定时任务依赖关系表';
 
 -- ---------------------------------------------------------------------
 -- 4. 定时任务失败告警表
@@ -102,13 +102,13 @@ CREATE TABLE job_alert (
     message     VARCHAR(512)  DEFAULT NULL           COMMENT '告警摘要',
     error_msg   TEXT          NULL                   COMMENT '失败原因（异常信息摘要）',
     create_time DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted     TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_tenant_id (tenant_id),
     KEY idx_job_id (job_id),
     KEY idx_create_time (create_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='定时任务失败告警表';
+) COMMENT='定时任务失败告警表';
 
 -- ---------------------------------------------------------------------
 -- 5. 内置任务种子数据
@@ -157,4 +157,4 @@ CREATE TABLE api_log (
     KEY idx_user_id (user_id),
     KEY idx_tenant_create (tenant_id, create_time),
     KEY idx_biz_status (biz_status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='后端接口日志表';
+) COMMENT='后端接口日志表';

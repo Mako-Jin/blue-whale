@@ -32,11 +32,11 @@ CREATE TABLE alert_rule (
     status           TINYINT       NOT NULL DEFAULT 1      COMMENT '状态：1 启用 / 0 停用',
     remark           VARCHAR(255)  DEFAULT NULL            COMMENT '备注',
     create_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted          TINYINT       NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_tenant_rule_code (tenant_id, rule_code)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='告警规则表';
+) COMMENT='告警规则表';
 
 -- ---------------------------------------------------------------------
 -- 2. 告警记录表
@@ -54,14 +54,14 @@ CREATE TABLE alert_record (
     trigger_time DATETIME     DEFAULT NULL        COMMENT '触发时间',
     recover_time DATETIME     DEFAULT NULL        COMMENT '恢复时间（未恢复为 NULL）',
     create_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted      TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_tenant_id (tenant_id),
     KEY idx_rule_code (rule_code),
     KEY idx_status (status),
     KEY idx_fingerprint (tenant_id, fingerprint, trigger_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='告警记录表';
+) COMMENT='告警记录表';
 
 -- ---------------------------------------------------------------------
 -- 种子规则（便于接口冒烟与前端联调）
@@ -103,4 +103,4 @@ CREATE TABLE api_log (
     KEY idx_user_id (user_id),
     KEY idx_tenant_create (tenant_id, create_time),
     KEY idx_biz_status (biz_status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='后端接口日志表';
+) COMMENT='后端接口日志表';

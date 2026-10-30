@@ -37,13 +37,13 @@ CREATE TABLE ct_contract (
     biz_id            VARCHAR(64)   DEFAULT NULL        COMMENT '弱关联业务ID',
     remark            VARCHAR(255)  DEFAULT NULL        COMMENT '备注',
     create_time       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted           TINYINT       NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_tenant_code (tenant_id, code),
     KEY idx_tenant_status_expire (tenant_id, status, expire_date),
     KEY idx_biz (biz_type, biz_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='合同主表';
+) COMMENT='合同主表';
 
 -- ---------------------------------------------------------------------
 -- 2. 合同相对方表（一份合同多方：甲方/乙方/其他）
@@ -61,11 +61,11 @@ CREATE TABLE ct_contract_party (
     signer_user_id BIGINT       DEFAULT NULL        COMMENT '签署人用户ID（外部相对方留空）',
     signer_name    VARCHAR(64)  DEFAULT NULL        COMMENT '签署人姓名',
     create_time    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted        TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_contract (contract_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='合同相对方表';
+) COMMENT='合同相对方表';
 
 -- ---------------------------------------------------------------------
 -- 3. 合同版本表（修订生成新版本，旧版本置 SUPERSEDED）
@@ -82,11 +82,11 @@ CREATE TABLE ct_contract_version (
     status      VARCHAR(16)  NOT NULL DEFAULT 'DRAFT'
                                                   COMMENT '版本状态：DRAFT 草稿 / SUPERSEDED 被替代 / EFFECTIVE 生效',
     create_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted     TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_tenant_contract_version (tenant_id, contract_id, version_no)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='合同版本表';
+) COMMENT='合同版本表';
 
 -- ---------------------------------------------------------------------
 -- 4. 合同流程关联表（审批 / 签署阶段与工作流实例映射）
@@ -104,12 +104,12 @@ CREATE TABLE ct_contract_flow (
     status              VARCHAR(16)  NOT NULL DEFAULT 'RUNNING'
                                                          COMMENT '状态：RUNNING/APPROVED/REJECTED/CANCELLED',
     create_time         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted             TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_contract (contract_id),
     KEY idx_instance (process_instance_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='合同流程关联表';
+) COMMENT='合同流程关联表';
 
 -- ---------------------------------------------------------------------
 -- 5. 种子数据（便于接口冒烟与前端联调）
@@ -153,11 +153,11 @@ CREATE TABLE ct_seal (
     status        VARCHAR(16)  NOT NULL DEFAULT 'ENABLED'
                                                    COMMENT '状态：ENABLED 启用 / DISABLED 停用',
     create_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted       TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_tenant_status (tenant_id, status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='印章表';
+) COMMENT='印章表';
 
 -- ---------------------------------------------------------------------
 -- 5.2 用章授权表（按人 + 合同类别 + 金额上限 + 有效期授权）
@@ -176,12 +176,12 @@ CREATE TABLE ct_seal_grant (
                                                         COMMENT '状态：ENABLED 有效 / DISABLED 停用',
     granted_by        BIGINT        DEFAULT NULL        COMMENT '授权操作人用户ID',
     create_time       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted           TINYINT       NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_seal_grantee (seal_id, grantee_user_id),
     KEY idx_grantee (tenant_id, grantee_user_id, status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='用章授权表';
+) COMMENT='用章授权表';
 
 -- ---------------------------------------------------------------------
 -- 5.3 签署任务表（本地签署；provider 预留三方平台）
@@ -205,13 +205,13 @@ CREATE TABLE ct_sign_task (
     signed_file_id   BIGINT       DEFAULT NULL        COMMENT '签章件文件ID',
     refuse_reason    VARCHAR(255) DEFAULT NULL        COMMENT '拒签原因',
     create_time      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted          TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_tenant_contract_seq (tenant_id, contract_id, seq_no),
     KEY idx_contract (contract_id, seq_no),
     KEY idx_provider_task (provider, provider_task_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='签署任务表';
+) COMMENT='签署任务表';
 
 -- ---------------------------------------------------------------------
 -- 5.4 签署记录表（证据链：文件哈希 + 证书序列号 + 链式哈希）
@@ -241,13 +241,13 @@ CREATE TABLE ct_sign_record (
     willingness_evidence_no VARCHAR(64) DEFAULT NULL COMMENT '意愿认证证据编号',
     willingness_at  DATETIME     DEFAULT NULL        COMMENT '意愿确认时间',
     create_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted         TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_tenant_task (tenant_id, sign_task_id),
     UNIQUE KEY uk_tenant_evidence (tenant_id, evidence_no),
     KEY idx_contract_signed (contract_id, signed_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='签署记录表';
+) COMMENT='签署记录表';
 
 -- ---------------------------------------------------------------------
 -- 5.5 M2 种子数据：合同专用章 + admin 全类别授权（便于联调与冒烟）
@@ -288,7 +288,7 @@ CREATE TABLE api_log (
     KEY idx_user_id (user_id),
     KEY idx_tenant_create (tenant_id, create_time),
     KEY idx_biz_status (biz_status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='后端接口日志表';
+) COMMENT='后端接口日志表';
 
 -- ---------------------------------------------------------------------
 -- 7. 操作审计日志表（whale-spring-boot-starter AuditLogAspect 采集，append-only）
@@ -323,4 +323,4 @@ CREATE TABLE audit_log (
     KEY idx_user_id (user_id),
     KEY idx_tenant_create (tenant_id, create_time),
     KEY idx_biz_status (biz_status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='操作审计日志表';
+) COMMENT='操作审计日志表';

@@ -9,7 +9,7 @@
 -- 变更内容 :
 --   1. 新增 sys_user_tenant：记录「同一 userId 可进入哪些租户」；
 --   2. 回填首页关系：每个 sys_user 必有一行 (user_id=self, tenant_id=self.tenant)；
---   3. Phase 5.3：新增租户成员权限点 165–167 与「租户成员」菜单（INSERT IGNORE 幂等）。
+--   3. Phase 5.3：新增租户成员权限点 165–167 与「租户成员」菜单（NOT EXISTS 幂等插入）。
 -- 授权说明 : 遵循既有约定，本脚本不写 sys_role_permission；新开通租户由
 --            TenantProvisioningAppService 自动授予 165/166，存量租户由角色分配界面补授。
 -- 说明     : 该表为跨租户关系表，不参与 MyBatis 行级租户过滤（见 whale.tenant.sql.ignore-tables），
@@ -25,11 +25,11 @@ CREATE TABLE IF NOT EXISTS sys_user_tenant (
     tenant_id   BIGINT   NOT NULL            COMMENT '可进入的租户ID（逻辑关联 sys_tenant.id）',
     status      TINYINT  NOT NULL DEFAULT 1  COMMENT '状态：1 启用 / 0 停用',
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (id),
     UNIQUE KEY uk_user_tenant (user_id, tenant_id),
     KEY idx_tenant_id (tenant_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='用户可进入的租户关系表（一人多租户）';
+) COMMENT='用户可进入的租户关系表（一人多租户）';
 
 -- ---------------------------------------------------------------------
 -- 2. 回填首页关系（仅对尚无任何关系的用户执行）
@@ -46,20 +46,23 @@ WHERE NOT EXISTS (
 -- ---------------------------------------------------------------------
 -- 3. Phase 5.3：租户成员权限点（165–167）与菜单
 -- ---------------------------------------------------------------------
-INSERT IGNORE INTO sys_permission
-    (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-VALUES
-    (165, 0, 'sys:tenant:member:list', '查询租户成员', 'API', '/tenant/members', 'GET', 165, 1),
-    (166, 0, 'sys:tenant:member:assign', '分配租户成员角色', 'API',
-     '/tenant/members/{userId}/roles', 'PUT', 166, 1),
-    (167, 0, 'sys:user:tenant', '绑定用户租户', 'API',
-     '/user/{id}/tenants,/user/{id}/tenants/{tenantId}', 'POST,DELETE', 167, 1);
+INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+SELECT 165, 0, 'sys:tenant:member:list', '查询租户成员', 'API', '/tenant/members', 'GET', 165, 1
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 165 OR perm_code = 'sys:tenant:member:list');
+INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+SELECT 166, 0, 'sys:tenant:member:assign', '分配租户成员角色', 'API', '/tenant/members/{userId}/roles', 'PUT', 166, 1
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 166 OR perm_code = 'sys:tenant:member:assign');
+INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+SELECT 167, 0, 'sys:user:tenant', '绑定用户租户', 'API', '/user/{id}/tenants,/user/{id}/tenants/{tenantId}', 'POST,DELETE', 167, 1
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 167 OR perm_code = 'sys:user:tenant');
 
-INSERT IGNORE INTO sys_menu
-    (id, tenant_id, parent_id, name, path, component, icon, sort, menu_type, permission_code, visible, status)
-VALUES
-    (17, 1, 1, '租户成员', '/system/tenant-member', 'tenant/member/index', 'team', 8, 'MENU',
-     'sys:tenant:member:list', 1, 1);
+INSERT INTO sys_menu (id, tenant_id, parent_id, name, path, component, icon, sort, menu_type, permission_code, visible, status)
+SELECT 17, 1, 1, '租户成员', '/system/tenant-member', 'tenant/member/index', 'team', 8, 'MENU', 'sys:tenant:member:list', 1, 1
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE id = 17);
 
 -- =====================================================================
 -- 完成。校验建议：

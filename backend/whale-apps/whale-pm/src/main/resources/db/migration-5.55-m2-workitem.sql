@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS pm_work_item (
     version            INT          NOT NULL DEFAULT 0  COMMENT '版本号（乐观锁）',
     client_request_id  VARCHAR(64)  DEFAULT NULL        COMMENT '客户端请求ID（创建幂等键）',
     create_time        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted            TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_pm_item_no (tenant_id, project_id, item_no),
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS pm_work_item (
     KEY idx_pm_item_assignee (tenant_id, project_id, assignee_id),
     KEY idx_pm_item_parent (tenant_id, project_id, parent_id),
     KEY idx_pm_item_sprint (tenant_id, project_id, sprint_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='工作项表';
+) COMMENT='工作项表';
 
 CREATE TABLE IF NOT EXISTS pm_work_item_link (
     id          BIGINT      NOT NULL            COMMENT '主键ID（雪花算法）',
@@ -52,12 +52,12 @@ CREATE TABLE IF NOT EXISTS pm_work_item_link (
     target_id   BIGINT      NOT NULL            COMMENT '目标工作项ID',
     link_type   VARCHAR(24) NOT NULL            COMMENT '关联类型：BLOCKS / BLOCKED_BY / RELATES / DUPLICATES / DUPLICATED_BY',
     create_time DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted     TINYINT     NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_pm_link_edge (tenant_id, source_id, target_id, link_type),
     KEY idx_pm_link_project (tenant_id, project_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='工作项关联表';
+) COMMENT='工作项关联表';
 
 CREATE TABLE IF NOT EXISTS pm_comment (
     id           BIGINT   NOT NULL            COMMENT '主键ID（雪花算法）',
@@ -68,11 +68,11 @@ CREATE TABLE IF NOT EXISTS pm_comment (
     content      TEXT     NOT NULL            COMMENT '评论内容',
     parent_id    BIGINT   DEFAULT NULL        COMMENT '父评论ID（回复）',
     create_time  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted      TINYINT  NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_pm_comment_item (tenant_id, work_item_id, create_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='工作项评论表';
+) COMMENT='工作项评论表';
 
 CREATE TABLE IF NOT EXISTS pm_attachment (
     id           BIGINT       NOT NULL            COMMENT '主键ID（雪花算法）',
@@ -83,12 +83,12 @@ CREATE TABLE IF NOT EXISTS pm_attachment (
     file_name    VARCHAR(255) NOT NULL            COMMENT '文件名（展示用）',
     uploader_id  BIGINT       NOT NULL            COMMENT '上传人用户ID',
     create_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted      TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_pm_attachment_file (tenant_id, work_item_id, file_id),
     KEY idx_pm_attachment_item (tenant_id, work_item_id, create_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='工作项附件表';
+) COMMENT='工作项附件表';
 
 CREATE TABLE IF NOT EXISTS pm_activity (
     id           BIGINT       NOT NULL            COMMENT '主键ID（雪花算法）',
@@ -102,9 +102,9 @@ CREATE TABLE IF NOT EXISTS pm_activity (
     new_value    VARCHAR(512) DEFAULT NULL        COMMENT '新值',
     trace_id     VARCHAR(64)  DEFAULT NULL        COMMENT '链路追踪ID',
     create_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted      TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_pm_activity_item (tenant_id, work_item_id, create_time),
     KEY idx_pm_activity_project (tenant_id, project_id, create_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='工作项动态表';
+) COMMENT='工作项动态表';

@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS agent_knowledge_doc (
     enabled            TINYINT       NOT NULL DEFAULT 1     COMMENT '是否启用：1 启用 / 0 停用',
     source_update_time DATETIME      DEFAULT NULL           COMMENT '页面更新时间（增量游标）',
     create_time        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted            TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_page_id (page_id),
@@ -35,4 +35,4 @@ CREATE TABLE IF NOT EXISTS agent_knowledge_doc (
     KEY idx_doc_index_status (index_status),
     KEY idx_doc_source_update (source_update_time, id),
     KEY idx_doc_retry (index_status, next_retry_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='文档知识库采集表';
+) COMMENT='文档知识库采集表';

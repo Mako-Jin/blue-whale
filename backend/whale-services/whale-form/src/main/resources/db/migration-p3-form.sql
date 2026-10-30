@@ -15,4 +15,4 @@ CREATE TABLE IF NOT EXISTS form_definition_version (
   create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (id),
   KEY idx_definition_version (definition_id, version)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='表单定义版本快照表';
+) COMMENT='表单定义版本快照表';

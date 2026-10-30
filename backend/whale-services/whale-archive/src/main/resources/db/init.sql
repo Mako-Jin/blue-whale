@@ -27,12 +27,12 @@ CREATE TABLE IF NOT EXISTS archive_category (
     sort            INT          NOT NULL DEFAULT 0     COMMENT '排序号（同级升序）',
     status          TINYINT      NOT NULL DEFAULT 1     COMMENT '状态：1 启用 / 0 停用',
     create_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted         TINYINT      NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_tenant_code (tenant_id, code),
     KEY idx_parent_id (parent_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='档案门类表';
+) COMMENT='档案门类表';
 
 -- ---------------------------------------------------------------------
 -- 归档规则表：工作流定义编码 → 归档门类映射
@@ -47,12 +47,12 @@ CREATE TABLE IF NOT EXISTS archive_rule (
     auto_archive    TINYINT      NOT NULL DEFAULT 0     COMMENT '是否自动归档：1 命中即归档 / 0 进待整理',
     enabled         TINYINT      NOT NULL DEFAULT 1     COMMENT '是否启用：1 启用 / 0 停用',
     create_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted         TINYINT      NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_tenant_definition_code (tenant_id, definition_code),
     KEY idx_category_id (category_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='归档规则表';
+) COMMENT='归档规则表';
 
 -- ---------------------------------------------------------------------
 -- 档案条目表：一个已审批实例对应一条档案
@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS archive_item (
     archived_by      BIGINT        DEFAULT NULL           COMMENT '确认归档人ID（逻辑关联 sys_user.id）',
     archived_at      DATETIME      DEFAULT NULL           COMMENT '确认归档时间',
     create_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted          TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_tenant_archive_no (tenant_id, archive_no),
@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS archive_item (
     KEY idx_category_year (category_id, year),
     KEY idx_item_status (item_status),
     KEY idx_finished_at (finished_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='档案条目表';
+) COMMENT='档案条目表';
 
 -- ---------------------------------------------------------------------
 -- 档案文件引用表：原件 / 附件 / 快照，文件实体在 whale-file
@@ -108,13 +108,13 @@ CREATE TABLE IF NOT EXISTS archive_file (
     md5           VARCHAR(32)  DEFAULT NULL           COMMENT '文件 MD5（冗余校验）',
     sort          INT          NOT NULL DEFAULT 0     COMMENT '排序号',
     create_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted       TINYINT      NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_item_file_role (item_id, file_id, file_role),
     KEY idx_tenant_id (tenant_id),
     KEY idx_file_id (file_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='档案文件引用表';
+) COMMENT='档案文件引用表';
 
 -- ---------------------------------------------------------------------
 -- 同步台账表：保证同一来源实例只归档一次，并记录失败重试
@@ -129,12 +129,12 @@ CREATE TABLE IF NOT EXISTS archive_source_record (
     last_error   VARCHAR(1000) DEFAULT NULL           COMMENT '最近一次失败原因（已脱敏）',
     last_sync_at DATETIME      DEFAULT NULL           COMMENT '最近一次同步时间',
     create_time  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted      TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_tenant_source (tenant_id, source_type, source_id),
     KEY idx_sync_status (sync_status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='档案同步台账表';
+) COMMENT='档案同步台账表';
 
 -- ---------------------------------------------------------------------
 -- 档号流水表：按「门类编码 + 年度」原子自增
@@ -146,11 +146,11 @@ CREATE TABLE IF NOT EXISTS archive_sequence (
     year          INT         NOT NULL               COMMENT '归档年度',
     current_value BIGINT      NOT NULL DEFAULT 0     COMMENT '当前已分配流水号',
     create_time   DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time   DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time   DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted       TINYINT     NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_tenant_category_year (tenant_id, category_code, year)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='档号流水表';
+) COMMENT='档号流水表';
 
 -- ---------------------------------------------------------------------
 -- 同步游标表：记录工作流增量拉取的办结时间水位（服务重启后继续，不重扫全量）
@@ -163,11 +163,11 @@ CREATE TABLE IF NOT EXISTS archive_sync_state (
     last_run_at DATETIME     DEFAULT NULL           COMMENT '最近一次同步开始时间',
     last_result VARCHAR(1000) DEFAULT NULL          COMMENT '最近一次同步结果摘要',
     create_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted     TINYINT      NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_tenant_name (tenant_id, name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='档案同步游标表';
+) COMMENT='档案同步游标表';
 
 -- ---------------------------------------------------------------------
 -- 操作审计日志表（与 whale-audit 同构，append-only）
@@ -203,7 +203,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
     KEY idx_biz_status (biz_status),
     KEY idx_tenant_time (tenant_id, create_time),
     KEY idx_create_time (create_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='操作审计日志表';
+) COMMENT='操作审计日志表';
 
 -- ---------------------------------------------------------------------
 -- 后端接口日志表（whale-spring-boot-starter ApiLogFilter 采集，结构与 bluewhale_auth.api_log 一致）
@@ -234,4 +234,4 @@ CREATE TABLE api_log (
     KEY idx_user_id (user_id),
     KEY idx_tenant_create (tenant_id, create_time),
     KEY idx_biz_status (biz_status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='后端接口日志表';
+) COMMENT='后端接口日志表';

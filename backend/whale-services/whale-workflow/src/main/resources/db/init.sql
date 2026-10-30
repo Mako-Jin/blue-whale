@@ -26,11 +26,11 @@ CREATE TABLE process_definition (
     status           TINYINT       NOT NULL DEFAULT 1     COMMENT '状态：1 正常 / 0 禁用',
     remark           VARCHAR(255)  DEFAULT NULL           COMMENT '备注',
     create_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted          TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_tenant_code (tenant_id, code)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='流程定义表';
+) COMMENT='流程定义表';
 
 -- ---------------------------------------------------------------------
 -- 流程定义版本快照表
@@ -44,12 +44,12 @@ CREATE TABLE process_definition_version (
     definition_json  MEDIUMTEXT    NULL                   COMMENT '该版本的流程定义JSON快照',
     publish_status   TINYINT       NOT NULL DEFAULT 0     COMMENT '发布状态：0 草稿 / 1 已发布',
     create_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted          TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_tenant_id (tenant_id),
     KEY idx_definition_version (definition_id, version)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='流程定义版本快照表';
+) COMMENT='流程定义版本快照表';
 
 -- ---------------------------------------------------------------------
 -- 流程实例表
@@ -70,13 +70,13 @@ CREATE TABLE process_instance (
     variables_json      TEXT          DEFAULT NULL           COMMENT '流程变量快照（JSON，供条件选路重放）',
     initiator           VARCHAR(64)   DEFAULT NULL           COMMENT '发起人账号',
     create_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted             TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_tenant_id (tenant_id),
     KEY idx_definition_id (definition_id),
     KEY idx_status (status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='流程实例表';
+) COMMENT='流程实例表';
 
 -- ---------------------------------------------------------------------
 -- 待办任务表
@@ -100,14 +100,14 @@ CREATE TABLE process_task (
     owner_id     VARCHAR(64)   DEFAULT NULL           COMMENT '任务归属人（转办后仍记录原审批人）',
     delegate_from VARCHAR(64)  DEFAULT NULL           COMMENT '委派来源人（委派任务记录原审批人）',
     create_time  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted      TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_tenant_id (tenant_id),
     KEY idx_instance_id (instance_id),
     KEY idx_assignee (assignee),
     KEY idx_status (status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='待办任务表';
+) COMMENT='待办任务表';
 
 -- ---------------------------------------------------------------------
 -- 后端接口日志表（whale-spring-boot-starter ApiLogFilter 采集，结构与 bluewhale_auth.api_log 一致）
@@ -138,4 +138,4 @@ CREATE TABLE api_log (
     KEY idx_user_id (user_id),
     KEY idx_tenant_create (tenant_id, create_time),
     KEY idx_biz_status (biz_status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='后端接口日志表';
+) COMMENT='后端接口日志表';

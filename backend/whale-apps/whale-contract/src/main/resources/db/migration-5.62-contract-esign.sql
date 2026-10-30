@@ -4,7 +4,7 @@
 -- 适用库   : bluewhale_contract
 -- 执行方式 : mysql -u<user> -p bluewhale_contract < migration-5.62-contract-esign.sql
 -- 说明     : 仅新增 4 张签署相关表 + 操作审计日志表，不修改/删除 M1 既有数据；
---            CREATE TABLE IF NOT EXISTS + INSERT IGNORE，可重复执行。
+--            CREATE TABLE IF NOT EXISTS + NOT EXISTS 幂等插入，可重复执行。
 -- =====================================================================
 
 CREATE TABLE IF NOT EXISTS ct_seal (
@@ -20,11 +20,11 @@ CREATE TABLE IF NOT EXISTS ct_seal (
     status        VARCHAR(16)  NOT NULL DEFAULT 'ENABLED'
                                                    COMMENT '状态：ENABLED 启用 / DISABLED 停用',
     create_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted       TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_tenant_status (tenant_id, status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='印章表';
+) COMMENT='印章表';
 
 CREATE TABLE IF NOT EXISTS ct_seal_grant (
     id                BIGINT        NOT NULL            COMMENT '主键ID（雪花算法）',
@@ -39,12 +39,12 @@ CREATE TABLE IF NOT EXISTS ct_seal_grant (
                                                         COMMENT '状态：ENABLED 有效 / DISABLED 停用',
     granted_by        BIGINT        DEFAULT NULL        COMMENT '授权操作人用户ID',
     create_time       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted           TINYINT       NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_seal_grantee (seal_id, grantee_user_id),
     KEY idx_grantee (tenant_id, grantee_user_id, status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='用章授权表';
+) COMMENT='用章授权表';
 
 CREATE TABLE IF NOT EXISTS ct_sign_task (
     id               BIGINT       NOT NULL            COMMENT '主键ID（雪花算法）',
@@ -64,13 +64,13 @@ CREATE TABLE IF NOT EXISTS ct_sign_task (
     signed_file_id   BIGINT       DEFAULT NULL        COMMENT '签章件文件ID',
     refuse_reason    VARCHAR(255) DEFAULT NULL        COMMENT '拒签原因',
     create_time      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted          TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_tenant_contract_seq (tenant_id, contract_id, seq_no),
     KEY idx_contract (contract_id, seq_no),
     KEY idx_provider_task (provider, provider_task_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='签署任务表';
+) COMMENT='签署任务表';
 
 CREATE TABLE IF NOT EXISTS ct_sign_record (
     id              BIGINT       NOT NULL            COMMENT '主键ID（雪花算法）',
@@ -89,13 +89,13 @@ CREATE TABLE IF NOT EXISTS ct_sign_record (
     chain_hash      VARCHAR(64)  NOT NULL            COMMENT '链式哈希',
     client_ip       VARCHAR(64)  DEFAULT NULL        COMMENT '签署客户端IP',
     create_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted         TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_tenant_task (tenant_id, sign_task_id),
     UNIQUE KEY uk_tenant_evidence (tenant_id, evidence_no),
     KEY idx_contract_signed (contract_id, signed_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='签署记录表';
+) COMMENT='签署记录表';
 
 CREATE TABLE IF NOT EXISTS audit_log (
     id             BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
@@ -126,11 +126,14 @@ CREATE TABLE IF NOT EXISTS audit_log (
     KEY idx_user_id (user_id),
     KEY idx_tenant_create (tenant_id, create_time),
     KEY idx_biz_status (biz_status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='操作审计日志表';
+) COMMENT='操作审计日志表';
 
-INSERT IGNORE INTO ct_seal (id, tenant_id, name, seal_type, image_file_id, keeper_user_id, valid_from, valid_to, status)
-VALUES (1, 1, '公司合同专用章', 'CONTRACT', NULL, 1, '2026-01-01', '2030-12-31', 'ENABLED');
+INSERT INTO ct_seal (id, tenant_id, name, seal_type, image_file_id, keeper_user_id, valid_from, valid_to, status)
+SELECT 1, 1, '公司合同专用章', 'CONTRACT', NULL, 1, '2026-01-01', '2030-12-31', 'ENABLED'
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM ct_seal WHERE id = 1);
 
-INSERT IGNORE INTO ct_seal_grant (id, tenant_id, seal_id, grantee_user_id, contract_category, max_amount,
-                                  valid_from, valid_to, status, granted_by)
-VALUES (1, 1, 1, 1, NULL, 1000000.00, '2026-01-01', '2030-12-31', 'ENABLED', 1);
+INSERT INTO ct_seal_grant (id, tenant_id, seal_id, grantee_user_id, contract_category, max_amount, valid_from, valid_to, status, granted_by)
+SELECT 1, 1, 1, 1, NULL, 1000000.00, '2026-01-01', '2030-12-31', 'ENABLED', 1
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM ct_seal_grant WHERE id = 1);

@@ -22,12 +22,12 @@ CREATE TABLE agent_fact (
     source_path     VARCHAR(512)  DEFAULT NULL           COMMENT '来源路径（仓库相对路径或 git 引用）',
     captured_at     DATETIME      DEFAULT NULL           COMMENT '采集时间',
     create_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted         TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_fact_type_key (fact_type, fact_key),
     KEY idx_source_path (source_path)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='知识Agent结构化事实表';
+) COMMENT='知识Agent结构化事实表';
 
 -- ---------------------------------------------------------------------
 -- 会话表
@@ -40,11 +40,11 @@ CREATE TABLE agent_conversation (
     title           VARCHAR(128)  DEFAULT NULL           COMMENT '会话标题（默认取首个问题前50字）',
     scope           VARCHAR(128)  DEFAULT NULL           COMMENT '检索范围（逗号分隔 code,doc,sql,git,runtime；空=全部）',
     create_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted         TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_tenant_user (tenant_id, user_id, update_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='知识Agent会话表';
+) COMMENT='知识Agent会话表';
 
 -- ---------------------------------------------------------------------
 -- 消息表
@@ -59,12 +59,12 @@ CREATE TABLE agent_message (
     citations_json  MEDIUMTEXT    NULL                   COMMENT '引用块JSON数组（仅 assistant 消息）',
     tokens          INT           NOT NULL DEFAULT 0     COMMENT 'token 统计（prompt + completion）',
     create_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted         TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_tenant_id (tenant_id),
     KEY idx_conversation_id (conversation_id, id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='知识Agent消息表';
+) COMMENT='知识Agent消息表';
 
 -- ---------------------------------------------------------------------
 -- 回答评价表
@@ -78,12 +78,12 @@ CREATE TABLE agent_feedback (
     rating          TINYINT       NOT NULL               COMMENT '评价：1 有用 / -1 无用',
     comment         VARCHAR(512)  DEFAULT NULL           COMMENT '评价备注',
     create_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted         TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_tenant_id (tenant_id),
     KEY idx_message_id (message_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='知识Agent回答评价表';
+) COMMENT='知识Agent回答评价表';
 
 -- ---------------------------------------------------------------------
 -- 平台写操作确认表（T15：L2 写操作一次性确认令牌）
@@ -111,14 +111,14 @@ CREATE TABLE agent_operation (
     elapsed_ms      INT           DEFAULT NULL           COMMENT '执行耗时（毫秒）',
     error_msg       VARCHAR(512)  DEFAULT NULL           COMMENT '失败原因',
     create_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted         TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_confirmation_id (confirmation_id),
     KEY idx_tenant_id (tenant_id),
     KEY idx_user_status (user_id, status),
     KEY idx_operation (operation)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='知识Agent平台写操作确认表';
+) COMMENT='知识Agent平台写操作确认表';
 
 -- ---------------------------------------------------------------------
 -- 索引元数据表（单行，保留最新一次构建记录）
@@ -134,10 +134,10 @@ CREATE TABLE agent_index_meta (
     dimension       INT           NOT NULL DEFAULT 0     COMMENT '向量维度（未启用向量为0）',
     build_millis    BIGINT        DEFAULT NULL           COMMENT '最近一次构建耗时（毫秒）',
     create_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted         TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='知识Agent索引元数据表';
+) COMMENT='知识Agent索引元数据表';
 
 -- ---------------------------------------------------------------------
 -- 操作审计日志表（REQ-SEC-006 / Wave 5.47 轨 E：查询元审计）
@@ -176,7 +176,7 @@ CREATE TABLE audit_log (
     KEY idx_biz_status (biz_status),
     KEY idx_tenant_time (tenant_id, create_time),
     KEY idx_create_time (create_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='操作审计日志表';
+) COMMENT='操作审计日志表';
 
 -- ---------------------------------------------------------------------
 -- 文件知识库采集表（Wave 5.53 M4）
@@ -205,7 +205,7 @@ CREATE TABLE agent_knowledge_file (
     enabled            TINYINT       NOT NULL DEFAULT 1     COMMENT '是否启用：1 启用 / 0 停用',
     source_update_time DATETIME      DEFAULT NULL           COMMENT '文件更新时间（增量游标）',
     create_time        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted            TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_file_id (file_id),
@@ -213,7 +213,7 @@ CREATE TABLE agent_knowledge_file (
     KEY idx_index_status (index_status),
     KEY idx_source_update (source_update_time, id),
     KEY idx_retry (index_status, next_retry_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='文件知识库采集表';
+) COMMENT='文件知识库采集表';
 
 -- ---------------------------------------------------------------------
 -- 文档知识库采集表（Wiki 文档 M4）
@@ -241,7 +241,7 @@ CREATE TABLE agent_knowledge_doc (
     enabled            TINYINT       NOT NULL DEFAULT 1     COMMENT '是否启用：1 启用 / 0 停用',
     source_update_time DATETIME      DEFAULT NULL           COMMENT '页面更新时间（增量游标）',
     create_time        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted            TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_page_id (page_id),
@@ -249,7 +249,7 @@ CREATE TABLE agent_knowledge_doc (
     KEY idx_doc_index_status (index_status),
     KEY idx_doc_source_update (source_update_time, id),
     KEY idx_doc_retry (index_status, next_retry_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='文档知识库采集表';
+) COMMENT='文档知识库采集表';
 
 -- ---------------------------------------------------------------------
 -- 后端接口日志表（whale-spring-boot-starter ApiLogFilter 采集，结构与 bluewhale_auth.api_log 一致）
@@ -280,4 +280,4 @@ CREATE TABLE api_log (
     KEY idx_user_id (user_id),
     KEY idx_tenant_create (tenant_id, create_time),
     KEY idx_biz_status (biz_status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='后端接口日志表';
+) COMMENT='后端接口日志表';

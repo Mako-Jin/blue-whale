@@ -27,12 +27,12 @@ CREATE TABLE IF NOT EXISTS config_item (
     version     INT          NOT NULL DEFAULT 1  COMMENT '当前版本号（创建为 1，每次值变更 +1）',
     status      TINYINT      NOT NULL DEFAULT 1  COMMENT '状态：1 启用 / 0 停用（停用项消费方应回落默认值）',
     create_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted     TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_tenant_config_key (tenant_id, config_key),
     KEY idx_status (status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='业务配置项表';
+) COMMENT='业务配置项表';
 
 -- ---------------------------------------------------------------------
 -- 配置变更历史表
@@ -51,12 +51,12 @@ CREATE TABLE IF NOT EXISTS config_item_history (
     operator_id BIGINT       DEFAULT NULL        COMMENT '操作人ID（网关 X-User-Id 注入，内部操作为 NULL）',
     operator    VARCHAR(64)  DEFAULT NULL        COMMENT '操作人用户名（冗余存储）',
     create_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted     TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_tenant_item (tenant_id, item_id),
     KEY idx_config_key (config_key)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='配置变更历史表';
+) COMMENT='配置变更历史表';
 
 -- ---------------------------------------------------------------------
 -- 操作审计日志表（whale-spring-boot-starter @AuditLog 切面采集，结构与 bluewhale_auth.audit_log 一致）
@@ -92,7 +92,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
     KEY idx_biz_status (biz_status),
     KEY idx_tenant_time (tenant_id, create_time),
     KEY idx_create_time (create_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='操作审计日志表';
+) COMMENT='操作审计日志表';
 
 -- ---------------------------------------------------------------------
 -- 后端接口日志表（whale-spring-boot-starter ApiLogFilter 采集，结构与 bluewhale_auth.api_log 一致）
@@ -122,4 +122,4 @@ CREATE TABLE IF NOT EXISTS api_log (
     KEY idx_user_id (user_id),
     KEY idx_tenant_create (tenant_id, create_time),
     KEY idx_biz_status (biz_status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='后端接口日志表';
+) COMMENT='后端接口日志表';

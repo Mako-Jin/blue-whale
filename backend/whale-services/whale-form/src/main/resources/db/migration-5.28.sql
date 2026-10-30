@@ -21,11 +21,11 @@ CREATE TABLE IF NOT EXISTS form_table_definition (
     remark       VARCHAR(255)  DEFAULT NULL           COMMENT '备注',
     status       TINYINT       NOT NULL DEFAULT 1     COMMENT '状态：1 正常 / 0 禁用',
     create_time  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted      TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_table_code (table_code)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='表定义表（表定义层）';
+) COMMENT='表定义表（表定义层）';
 
 CREATE TABLE IF NOT EXISTS form_column_meta (
     id                  BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
@@ -44,11 +44,11 @@ CREATE TABLE IF NOT EXISTS form_column_meta (
     sort_no             INT           NOT NULL DEFAULT 0     COMMENT '排序号',
     status              TINYINT       NOT NULL DEFAULT 1     COMMENT '状态：1 正常 / 0 禁用',
     create_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted             TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_table_definition_id (table_definition_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='列元数据表（表定义层 · 动态列详情）';
+) COMMENT='列元数据表（表定义层 · 动态列详情）';
 
 -- ---------------------------------------------------------------------
 -- 2. 表单视图层：字段配置表 + 选项层：字段选项表
@@ -69,12 +69,12 @@ CREATE TABLE IF NOT EXISTS form_field_config (
     remark         VARCHAR(255)  DEFAULT NULL           COMMENT '备注',
     status         TINYINT       NOT NULL DEFAULT 1     COMMENT '状态：1 正常 / 0 禁用',
     create_time    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted        TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_form_id (form_id),
     KEY idx_column_meta_id (column_meta_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='表单字段配置表（表单视图层 · 字段属性详情）';
+) COMMENT='表单字段配置表（表单视图层 · 字段属性详情）';
 
 CREATE TABLE IF NOT EXISTS form_field_option (
     id              BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
@@ -84,11 +84,11 @@ CREATE TABLE IF NOT EXISTS form_field_option (
     sort_no         INT           NOT NULL DEFAULT 0     COMMENT '排序号',
     status          TINYINT       NOT NULL DEFAULT 1     COMMENT '状态：1 正常 / 0 禁用',
     create_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted         TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_field_config_id (field_config_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='字段选项表（选项层）';
+) COMMENT='字段选项表（选项层）';
 
 -- ---------------------------------------------------------------------
 -- 3. 存量表兼容列（历史行保留原值）

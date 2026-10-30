@@ -13,4 +13,4 @@ CREATE TABLE IF NOT EXISTS audit_mq_message (
     create_time DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '首次消费时间',
     PRIMARY KEY (message_id),
     KEY idx_create_time (create_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='审计 MQ 消息去重表';
+) COMMENT='审计 MQ 消息去重表';

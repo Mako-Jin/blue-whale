@@ -3,37 +3,37 @@
 -- =====================================================================
 -- 适用库   : bluewhale_auth
 -- 执行方式 : mysql -u<user> -p bluewhale_auth < migration-5.70-message-m1.sql
--- 幂等说明 : 权限与授权均为 INSERT IGNORE，可重复执行；不修改/删除既有数据。
+-- 幂等说明 : 权限与授权均为 NOT EXISTS 幂等插入，可重复执行；不修改/删除既有数据。
 -- 权限编号 : 234 已被 M0 sys:message:record:list 占用，本脚本从 239 起分配。
 -- 授权口径 : tenant_admin 获得模板管理与重试权限；super_admin 由系统内置全量权限覆盖。
 -- 站内信   : /message/inapp/** 是登录用户自助能力，只依赖网关 X-User-Id，不分配权限码。
 -- =====================================================================
 
-INSERT IGNORE INTO sys_permission
-    (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-VALUES
-    (239, 0, 'sys:message:template:list',   '查询消息模板', 'API',
-     '/message/template/page,/message/template/{id}', 'GET',    239, 1),
-    (240, 0, 'sys:message:template:add',    '新增消息模板', 'API',
-     '/message/template',                              'POST',   240, 1),
-    (241, 0, 'sys:message:template:edit',   '编辑消息模板', 'API',
-     '/message/template/{id}',                         'PUT',    241, 1),
-    (242, 0, 'sys:message:template:delete', '删除消息模板', 'API',
-     '/message/template/{id}',                         'DELETE', 242, 1),
-    (243, 0, 'sys:message:record:retry',    '重试消息投递', 'API',
-     '/message/record/{id}/retry',                     'POST',   243, 1);
+INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+SELECT 239, 0, 'sys:message:template:list', '查询消息模板', 'API', '/message/template/page,/message/template/{id}', 'GET', 239, 1
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 239 OR perm_code = 'sys:message:template:list');
+INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+SELECT 240, 0, 'sys:message:template:add', '新增消息模板', 'API', '/message/template', 'POST', 240, 1
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 240 OR perm_code = 'sys:message:template:add');
+INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+SELECT 241, 0, 'sys:message:template:edit', '编辑消息模板', 'API', '/message/template/{id}', 'PUT', 241, 1
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 241 OR perm_code = 'sys:message:template:edit');
+INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+SELECT 242, 0, 'sys:message:template:delete', '删除消息模板', 'API', '/message/template/{id}', 'DELETE', 242, 1
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 242 OR perm_code = 'sys:message:template:delete');
+INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+SELECT 243, 0, 'sys:message:record:retry', '重试消息投递', 'API', '/message/record/{id}/retry', 'POST', 243, 1
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 243 OR perm_code = 'sys:message:record:retry');
 
-INSERT IGNORE INTO sys_role_permission (id, role_id, permission_id)
-SELECT CAST(CONV(SUBSTR(MD5(CONCAT(r.id, ':', p.id)), 1, 15), 16, 10) AS UNSIGNED),
-       r.id, p.id
-FROM sys_role r
-JOIN sys_permission p
-    ON p.id IN (239, 240, 241, 242, 243)
-   AND p.deleted = 0
-   AND p.status = 1
-WHERE r.deleted = 0
-  AND r.status = 1
-  AND r.role_code IN ('tenant_admin');
+INSERT INTO sys_role_permission (id, role_id, permission_id)
+SELECT src.id, src.role_id, src.permission_id
+FROM (SELECT CAST(CONV(SUBSTR(MD5(CONCAT(r.id, ':', p.id)), 1, 15), 16, 10) AS UNSIGNED) AS id, r.id AS role_id, p.id AS permission_id FROM sys_role r JOIN sys_permission p ON p.id IN (239, 240, 241, 242, 243) AND p.deleted = 0 AND p.status = 1 WHERE r.deleted = 0 AND r.status = 1 AND r.role_code IN ('tenant_admin')) src
+WHERE NOT EXISTS (SELECT 1 FROM sys_role_permission tgt WHERE tgt.id = src.id OR (tgt.role_id = src.role_id AND tgt.permission_id = src.permission_id));
 
 -- =====================================================================
 -- 完成。校验建议：

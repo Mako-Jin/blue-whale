@@ -25,12 +25,12 @@ CREATE TABLE IF NOT EXISTS doc_template (
     sort_no          INT           NOT NULL DEFAULT 0      COMMENT '排序',
     author_id        BIGINT        DEFAULT NULL            COMMENT '创建人ID',
     create_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted          TINYINT       NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_doc_template_space (tenant_id, space_id, status, deleted, sort_no),
     KEY idx_doc_template_name (tenant_id, name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='文档模板表';
+) COMMENT='文档模板表';
 
 -- ---------------------------------------------------------------------
 -- 2. doc_page_share 登录内分享表
@@ -46,12 +46,12 @@ CREATE TABLE IF NOT EXISTS doc_page_share (
     status           TINYINT       NOT NULL DEFAULT 1      COMMENT '状态：1 有效 / 0 已撤销',
     created_by       BIGINT        NOT NULL                COMMENT '创建人ID',
     create_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted          TINYINT       NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_doc_share_token (tenant_id, share_token),
     KEY idx_doc_share_page (tenant_id, page_id, status, deleted)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='文档页面分享表';
+) COMMENT='文档页面分享表';
 
 -- ---------------------------------------------------------------------
 -- 3. doc_page 发布审批与归档追溯字段

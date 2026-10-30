@@ -47,7 +47,7 @@ CREATE PROCEDURE drop_index_if_exists(IN p_table VARCHAR(64), IN p_index VARCHAR
 BEGIN
     IF (SELECT COUNT(*) FROM information_schema.statistics
         WHERE table_schema = DATABASE() AND table_name = p_table AND index_name = p_index) > 0 THEN
-        SET @ddl = CONCAT('ALTER TABLE `', p_table, '` DROP INDEX `', p_index, '`');
+        SET @ddl = CONCAT('ALTER TABLE ', p_table, ' DROP INDEX ', p_index, '');
         PREPARE stmt FROM @ddl;
         EXECUTE stmt;
         DEALLOCATE PREPARE stmt;
@@ -94,16 +94,28 @@ CALL add_index_if_missing('sys_role', 'uk_tenant_role_code',
     'ALTER TABLE sys_role ADD UNIQUE KEY uk_tenant_role_code (tenant_id, role_code)');
 
 -- ---------------------------------------------------------------------
--- 4. 平台侧租户管理权限点（全局权限表，INSERT IGNORE 幂等）
+-- 4. 平台侧租户管理权限点（全局权限表，NOT EXISTS 幂等插入）
 -- ---------------------------------------------------------------------
-INSERT IGNORE INTO sys_permission
-    (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-VALUES
-    (160, 0, 'sys:tenant:list', '查询租户', 'API', '/tenant/page,/tenant/{id}', 'GET', 160, 1),
-    (161, 0, 'sys:tenant:add', '开通租户', 'API', '/tenant', 'POST', 161, 1),
-    (162, 0, 'sys:tenant:edit', '编辑租户', 'API', '/tenant/{id}', 'PUT', 162, 1),
-    (163, 0, 'sys:tenant:status', '启停租户', 'API', '/tenant/{id}/status', 'PUT', 163, 1),
-    (164, 0, 'sys:tenant:renew', '租户续期', 'API', '/tenant/{id}/renew', 'PUT', 164, 1);
+INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+SELECT 160, 0, 'sys:tenant:list', '查询租户', 'API', '/tenant/page,/tenant/{id}', 'GET', 160, 1
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 160 OR perm_code = 'sys:tenant:list');
+INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+SELECT 161, 0, 'sys:tenant:add', '开通租户', 'API', '/tenant', 'POST', 161, 1
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 161 OR perm_code = 'sys:tenant:add');
+INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+SELECT 162, 0, 'sys:tenant:edit', '编辑租户', 'API', '/tenant/{id}', 'PUT', 162, 1
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 162 OR perm_code = 'sys:tenant:edit');
+INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+SELECT 163, 0, 'sys:tenant:status', '启停租户', 'API', '/tenant/{id}/status', 'PUT', 163, 1
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 163 OR perm_code = 'sys:tenant:status');
+INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+SELECT 164, 0, 'sys:tenant:renew', '租户续期', 'API', '/tenant/{id}/renew', 'PUT', 164, 1
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 164 OR perm_code = 'sys:tenant:renew');
 
 -- ---------------------------------------------------------------------
 -- 5. 清理幂等工具存储过程

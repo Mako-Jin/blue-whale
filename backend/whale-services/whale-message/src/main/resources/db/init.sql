@@ -7,7 +7,7 @@
 -- 存储引擎   : InnoDB
 -- 公共字段   : id BIGINT（雪花算法生成）、create_time、update_time、
 --              deleted TINYINT（逻辑删除：0 未删除 / 1 已删除）
--- 幂等约定   : CREATE TABLE IF NOT EXISTS；模板种子使用 INSERT IGNORE，可重复执行
+-- 幂等约定   : CREATE TABLE IF NOT EXISTS；模板种子使用 NOT EXISTS 幂等插入，可重复执行
 -- 租户隔离   : tenant_id 由 starter 的 TenantLineInnerInterceptor 自动追加/填充
 -- =====================================================================
 
@@ -24,12 +24,12 @@ CREATE TABLE IF NOT EXISTS msg_template (
     status           TINYINT       NOT NULL DEFAULT 1      COMMENT '状态：1 启用 / 0 停用',
     remark           VARCHAR(255)  DEFAULT NULL            COMMENT '备注',
     create_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted          TINYINT       NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_tenant_template_code (tenant_id, template_code),
     KEY idx_tenant_status (tenant_id, status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='消息模板表';
+) COMMENT='消息模板表';
 
 -- ---------------------------------------------------------------------
 -- 2. 逻辑消息记录
@@ -47,13 +47,13 @@ CREATE TABLE IF NOT EXISTS msg_record (
     channels         VARCHAR(128)  DEFAULT NULL            COMMENT '渠道列表（大写逗号分隔，如 INAPP,IM）',
     status           VARCHAR(16)   NOT NULL DEFAULT 'PENDING' COMMENT '消息状态：PENDING / SENT / PARTIAL / FAILED / MOCKED / SKIPPED',
     create_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted          TINYINT       NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_tenant_idempotency (tenant_id, idempotency_key),
     KEY idx_tenant_biz (tenant_id, biz_type, biz_id),
     KEY idx_tenant_create_time (tenant_id, create_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='逻辑消息记录表';
+) COMMENT='逻辑消息记录表';
 
 -- ---------------------------------------------------------------------
 -- 3. 单渠道投递记录
@@ -71,22 +71,21 @@ CREATE TABLE IF NOT EXISTS msg_delivery (
     sent_at            DATETIME     DEFAULT NULL            COMMENT '投递时间',
     read_flag          TINYINT      NOT NULL DEFAULT 0      COMMENT '站内信已读标记：0 未读 / 1 已读（非 INAPP 渠道恒为 0）',
     create_time        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted            TINYINT      NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_tenant_message (tenant_id, message_id),
     KEY idx_tenant_status (tenant_id, status),
     KEY idx_create_time (create_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='消息投递记录表';
+) COMMENT='消息投递记录表';
 
 -- ---------------------------------------------------------------------
 -- 4. 内置模板（平台租户共享）
 -- ---------------------------------------------------------------------
-INSERT IGNORE INTO msg_template
-    (id, tenant_id, template_code, template_name, title_template, content_template, status, remark)
-VALUES
-    (900000000000000001, 1, 'SYSTEM_NOTICE', '系统通知', '系统通知', '${content}', 1,
-     '内置示例模板：标题固定，正文取请求 content 或 payload.content');
+INSERT INTO msg_template (id, tenant_id, template_code, template_name, title_template, content_template, status, remark)
+SELECT 900000000000000001, 1, 'SYSTEM_NOTICE', '系统通知', '系统通知', '${content}', 1, '内置示例模板：标题固定，正文取请求 content 或 payload.content'
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM msg_template WHERE id = 900000000000000001 OR (tenant_id = 1 AND template_code = 'SYSTEM_NOTICE'));
 
 -- ---------------------------------------------------------------------
 -- 5. 操作审计日志表（whale-spring-boot-starter @AuditLog 切面采集，
@@ -123,7 +122,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
     KEY idx_biz_status (biz_status),
     KEY idx_tenant_time (tenant_id, create_time),
     KEY idx_create_time (create_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='操作审计日志表';
+) COMMENT='操作审计日志表';
 
 -- ---------------------------------------------------------------------
 -- 6. 后端接口日志表（whale-spring-boot-starter ApiLogFilter 采集，
@@ -154,4 +153,4 @@ CREATE TABLE IF NOT EXISTS api_log (
     KEY idx_user_id (user_id),
     KEY idx_tenant_create (tenant_id, create_time),
     KEY idx_biz_status (biz_status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='后端接口日志表';
+) COMMENT='后端接口日志表';

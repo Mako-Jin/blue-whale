@@ -12,9 +12,9 @@ CREATE TABLE IF NOT EXISTS sys_i18n_message (
     module          VARCHAR(64)  DEFAULT NULL        COMMENT '所属业务模块，便于分组管理与筛选',
     remark          VARCHAR(255) DEFAULT NULL        COMMENT '备注',
     create_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted         TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_key_locale (message_key, locale),
     KEY idx_locale (locale)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='国际化消息表';
+) COMMENT='国际化消息表';

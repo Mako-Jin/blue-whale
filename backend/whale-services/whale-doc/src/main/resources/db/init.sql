@@ -28,13 +28,13 @@ CREATE TABLE IF NOT EXISTS doc_space (
     status           TINYINT       NOT NULL DEFAULT 1      COMMENT '状态：1 正常 / 0 归档',
     sort_no          INT           NOT NULL DEFAULT 0      COMMENT '我的空间排序',
     create_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted          TINYINT       NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_doc_space_key (tenant_id, space_key),
     KEY idx_doc_space_owner (tenant_id, owner_id, deleted),
     KEY idx_doc_space_visibility (tenant_id, visibility, status, deleted)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='文档空间表';
+) COMMENT='文档空间表';
 
 -- ---------------------------------------------------------------------
 -- 2. 空间成员
@@ -48,12 +48,12 @@ CREATE TABLE IF NOT EXISTS doc_space_member (
     user_id          BIGINT        NOT NULL                COMMENT '成员用户ID',
     member_role      VARCHAR(16)   NOT NULL                COMMENT '空间角色：OWNER / ADMIN / EDITOR / READER',
     create_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted          TINYINT       NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_doc_space_member (tenant_id, space_id, user_id),
     KEY idx_doc_member_user (tenant_id, user_id, deleted)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='文档空间成员表';
+) COMMENT='文档空间成员表';
 
 -- ---------------------------------------------------------------------
 -- 3. 文档页面
@@ -80,7 +80,7 @@ CREATE TABLE IF NOT EXISTS doc_page (
     published_at        DATETIME      DEFAULT NULL            COMMENT '最近发布时间',
     archived_at         DATETIME      DEFAULT NULL            COMMENT '归档时间',
     create_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted             TINYINT       NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除（回收站）',
     deleted_at          DATETIME      DEFAULT NULL            COMMENT '移入回收站时间（M2）',
     deleted_by          BIGINT        DEFAULT NULL            COMMENT '移入回收站操作人ID（M2）',
@@ -100,7 +100,7 @@ CREATE TABLE IF NOT EXISTS doc_page (
     KEY idx_doc_page_recycle (tenant_id, space_id, deleted, deleted_at),
     KEY idx_doc_page_approval (tenant_id, status, approval_instance_id),
     FULLTEXT KEY ft_doc_page_text (title, content_text) WITH PARSER ngram
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='文档页面表';
+) COMMENT='文档页面表';
 
 -- ---------------------------------------------------------------------
 -- 3.1 文档模板（M3）
@@ -119,12 +119,12 @@ CREATE TABLE IF NOT EXISTS doc_template (
     sort_no          INT           NOT NULL DEFAULT 0      COMMENT '排序',
     author_id        BIGINT        DEFAULT NULL            COMMENT '创建人ID',
     create_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted          TINYINT       NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_doc_template_space (tenant_id, space_id, status, deleted, sort_no),
     KEY idx_doc_template_name (tenant_id, name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='文档模板表';
+) COMMENT='文档模板表';
 
 -- ---------------------------------------------------------------------
 -- 3.2 页面登录内分享（M3）
@@ -139,12 +139,12 @@ CREATE TABLE IF NOT EXISTS doc_page_share (
     status           TINYINT       NOT NULL DEFAULT 1      COMMENT '状态：1 有效 / 0 已撤销',
     created_by       BIGINT        NOT NULL                COMMENT '创建人ID',
     create_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted          TINYINT       NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_doc_share_token (tenant_id, share_token),
     KEY idx_doc_share_page (tenant_id, page_id, status, deleted)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='文档页面分享表';
+) COMMENT='文档页面分享表';
 
 -- ---------------------------------------------------------------------
 -- 4. 页面版本快照（append-only：不设 update_time / deleted）
@@ -165,7 +165,7 @@ CREATE TABLE IF NOT EXISTS doc_page_version (
     PRIMARY KEY (id),
     UNIQUE KEY uk_doc_version (tenant_id, page_id, revision_no),
     KEY idx_doc_version_time (tenant_id, page_id, create_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='文档页面版本表';
+) COMMENT='文档页面版本表';
 
 -- ---------------------------------------------------------------------
 -- 5. 页面附件引用（文件实体在 whale-file，本表只登记引用关系）
@@ -181,12 +181,12 @@ CREATE TABLE IF NOT EXISTS doc_page_attachment (
     usage_type       VARCHAR(16)   NOT NULL DEFAULT 'ATTACHMENT' COMMENT '用途：ATTACHMENT / INLINE',
     sort_no          INT           NOT NULL DEFAULT 0      COMMENT '排序',
     create_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted          TINYINT       NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_doc_attachment (tenant_id, page_id, file_id),
     KEY idx_doc_attachment_file (tenant_id, file_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='文档页面附件引用表';
+) COMMENT='文档页面附件引用表';
 
 -- ---------------------------------------------------------------------
 -- 6. 页面评论
@@ -204,12 +204,12 @@ CREATE TABLE IF NOT EXISTS doc_comment (
     resolved_by      BIGINT        DEFAULT NULL            COMMENT '解决人ID',
     resolved_at      DATETIME      DEFAULT NULL            COMMENT '解决时间',
     create_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted          TINYINT       NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_doc_comment_page (tenant_id, page_id, resolved, create_time),
     KEY idx_doc_comment_parent (tenant_id, page_id, parent_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='文档页面评论表';
+) COMMENT='文档页面评论表';
 
 -- ---------------------------------------------------------------------
 -- 7. 页面收藏（取消收藏置 deleted=1，重新收藏复用行）
@@ -220,12 +220,12 @@ CREATE TABLE IF NOT EXISTS doc_page_star (
     user_id          BIGINT        NOT NULL                COMMENT '收藏用户ID',
     page_id          BIGINT        NOT NULL                COMMENT '页面ID（逻辑关联 doc_page.id）',
     create_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted          TINYINT       NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_doc_star (tenant_id, user_id, page_id),
     KEY idx_doc_star_user (tenant_id, user_id, create_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='文档页面收藏表';
+) COMMENT='文档页面收藏表';
 
 -- ---------------------------------------------------------------------
 -- 7.1 页面级权限（M2-4）
@@ -239,12 +239,12 @@ CREATE TABLE IF NOT EXISTS doc_page_acl (
     user_id          BIGINT        NOT NULL                COMMENT '被授权用户ID',
     acl_role         VARCHAR(8)    NOT NULL DEFAULT 'READ' COMMENT '页面角色：READ / EDIT',
     create_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted          TINYINT       NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_doc_page_acl (tenant_id, page_id, user_id),
     KEY idx_doc_page_acl_user (tenant_id, user_id, deleted)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='文档页面级权限表';
+) COMMENT='文档页面级权限表';
 
 -- ---------------------------------------------------------------------
 -- 7.2 空间标签与页面标签（M2-5）
@@ -256,12 +256,12 @@ CREATE TABLE IF NOT EXISTS doc_tag (
     name             VARCHAR(64)   NOT NULL                COMMENT '标签名称（空间内唯一）',
     color            VARCHAR(16)   DEFAULT NULL            COMMENT '标签颜色（十六进制）',
     create_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted          TINYINT       NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_doc_tag_name (tenant_id, space_id, name),
     KEY idx_doc_tag_space (tenant_id, space_id, deleted, name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='文档标签表';
+) COMMENT='文档标签表';
 
 CREATE TABLE IF NOT EXISTS doc_page_tag (
     id               BIGINT        NOT NULL                COMMENT '主键ID（雪花算法）',
@@ -269,12 +269,12 @@ CREATE TABLE IF NOT EXISTS doc_page_tag (
     page_id          BIGINT        NOT NULL                COMMENT '页面ID（逻辑关联 doc_page.id）',
     tag_id           BIGINT        NOT NULL                COMMENT '标签ID（逻辑关联 doc_tag.id）',
     create_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted          TINYINT       NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_doc_page_tag (tenant_id, page_id, tag_id),
     KEY idx_doc_page_tag_tag (tenant_id, tag_id, deleted)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='文档页面标签关联表';
+) COMMENT='文档页面标签关联表';
 
 -- ---------------------------------------------------------------------
 -- 7.3 页面引用关系（M2-5 反向链接）
@@ -287,12 +287,12 @@ CREATE TABLE IF NOT EXISTS doc_page_link (
     target_page_id   BIGINT        NOT NULL                COMMENT '被引用页面ID',
     link_text        VARCHAR(200)  DEFAULT NULL            COMMENT '链接文本/锚点摘要',
     create_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted          TINYINT       NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_doc_link_target (tenant_id, target_page_id, deleted),
     KEY idx_doc_link_source (tenant_id, source_page_id, deleted)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='文档页面引用表';
+) COMMENT='文档页面引用表';
 
 -- ---------------------------------------------------------------------
 -- 7.4 页面动态（M2-5，append-only：不设 update_time / deleted）
@@ -308,7 +308,7 @@ CREATE TABLE IF NOT EXISTS doc_page_activity (
     PRIMARY KEY (id),
     KEY idx_doc_activity_page (tenant_id, page_id, create_time),
     KEY idx_doc_activity_time (tenant_id, create_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='文档页面动态表';
+) COMMENT='文档页面动态表';
 
 -- ---------------------------------------------------------------------
 -- 7.5 最近访问（M2-5，服务端按用户记录，重新访问复用行）
@@ -320,12 +320,12 @@ CREATE TABLE IF NOT EXISTS doc_page_recent (
     page_id          BIGINT        NOT NULL                COMMENT '页面ID（逻辑关联 doc_page.id）',
     visited_at       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '最近访问时间',
     create_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted          TINYINT       NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_doc_recent (tenant_id, user_id, page_id),
     KEY idx_doc_recent_user (tenant_id, user_id, visited_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='文档最近访问表';
+) COMMENT='文档最近访问表';
 
 -- ---------------------------------------------------------------------
 -- 7.6 评论已读状态（M2-7，按用户/页面记录最后已读时间）
@@ -338,12 +338,12 @@ CREATE TABLE IF NOT EXISTS doc_comment_read (
     last_read_comment_id  BIGINT      NOT NULL DEFAULT 0      COMMENT '最后已读评论ID',
     last_read_at          DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '最后已读时间',
     create_time           DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time           DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time           DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted               TINYINT     NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_doc_comment_read (tenant_id, page_id, user_id),
     KEY idx_doc_comment_read_user (tenant_id, user_id, last_read_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='文档评论已读状态表';
+) COMMENT='文档评论已读状态表';
 
 -- ---------------------------------------------------------------------
 -- 8. 操作审计日志表（whale-spring-boot-starter @AuditLog 切面采集，
@@ -380,7 +380,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
     KEY idx_biz_status (biz_status),
     KEY idx_tenant_time (tenant_id, create_time),
     KEY idx_create_time (create_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='操作审计日志表';
+) COMMENT='操作审计日志表';
 
 -- ---------------------------------------------------------------------
 -- 9. 后端接口日志表（whale-spring-boot-starter ApiLogFilter 采集，
@@ -411,4 +411,4 @@ CREATE TABLE IF NOT EXISTS api_log (
     KEY idx_user_id (user_id),
     KEY idx_tenant_create (tenant_id, create_time),
     KEY idx_biz_status (biz_status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='后端接口日志表';
+) COMMENT='后端接口日志表';

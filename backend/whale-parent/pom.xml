@@ -38,6 +38,11 @@
         <!-- 持久层 -->
         <mybatis-plus.version>3.5.17</mybatis-plus.version>
         <mysql.version>8.3.0</mysql.version>
+        <!-- 国产数据库驱动版本（REQ-ARCH-002 多数据库适配，经 db-* profile 注入，版本已在 Maven Central 核实） -->
+        <dm-jdbc.version>8.1.3.140</dm-jdbc.version>
+        <kingbase8.version>8.6.0</kingbase8.version>
+        <opengauss-jdbc.version>5.1.0-og</opengauss-jdbc.version>
+        <ojdbc11.version>23.9.0.25.07</ojdbc11.version>
 
         <!-- 缓存 -->
         <redisson.version>4.8.0</redisson.version>
@@ -178,6 +183,28 @@
                 <groupId>com.mysql</groupId>
                 <artifactId>mysql-connector-j</artifactId>
                 <version>${mysql.version}</version>
+            </dependency>
+            <!-- 国产数据库驱动版本管理（REQ-ARCH-002）：实际注入由 db-* profiles 控制，默认构建仅含 MySQL 驱动 -->
+            <dependency>
+                <groupId>com.dameng</groupId>
+                <artifactId>DmJdbcDriver18</artifactId>
+                <version>${dm-jdbc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>cn.com.kingbase</groupId>
+                <artifactId>kingbase8</artifactId>
+                <version>${kingbase8.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.opengauss</groupId>
+                <artifactId>opengauss-jdbc</artifactId>
+                <version>${opengauss-jdbc.version}</version>
+            </dependency>
+            <!-- OceanBase Oracle 模式驱动；OceanBase MySQL 模式复用上方 mysql-connector-j -->
+            <dependency>
+                <groupId>com.oracle.database.jdbc</groupId>
+                <artifactId>ojdbc11</artifactId>
+                <version>${ojdbc11.version}</version>
             </dependency>
 
             <!-- 缓存 -->
@@ -466,6 +493,51 @@
                     </plugin>
                 </plugins>
             </build>
+        </profile>
+
+        <!--
+          数据库驱动切换 profiles（REQ-ARCH-002 多数据库适配）：
+          默认（不激活任何 db-* profile）构建仅包含 MySQL 驱动，行为与历史版本一致；
+          以 -Pdb-dm 等激活后，驱动经父 POM profile dependencies 继承注入全部子模块，
+          配合各服务 whale.db.type=dm/kingbase/opengauss/oceanbase 切换运行时方言。
+          各 profile 互斥，请勿同时激活多个。
+        -->
+        <profile>
+            <id>db-dm</id>
+            <dependencies>
+                <dependency>
+                    <groupId>com.dameng</groupId>
+                    <artifactId>DmJdbcDriver18</artifactId>
+                </dependency>
+            </dependencies>
+        </profile>
+        <profile>
+            <id>db-kingbase</id>
+            <dependencies>
+                <dependency>
+                    <groupId>cn.com.kingbase</groupId>
+                    <artifactId>kingbase8</artifactId>
+                </dependency>
+            </dependencies>
+        </profile>
+        <profile>
+            <id>db-opengauss</id>
+            <dependencies>
+                <dependency>
+                    <groupId>org.opengauss</groupId>
+                    <artifactId>opengauss-jdbc</artifactId>
+                </dependency>
+            </dependencies>
+        </profile>
+        <profile>
+            <id>db-oceanbase</id>
+            <!-- OceanBase Oracle 模式驱动；OceanBase MySQL 模式复用各服务既有 mysql-connector-j，无需额外驱动 -->
+            <dependencies>
+                <dependency>
+                    <groupId>com.oracle.database.jdbc</groupId>
+                    <artifactId>ojdbc11</artifactId>
+                </dependency>
+            </dependencies>
         </profile>
     </profiles>
 </project>

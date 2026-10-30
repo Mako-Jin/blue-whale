@@ -29,12 +29,12 @@ CREATE TABLE form_definition (
     status              TINYINT       NOT NULL DEFAULT 1     COMMENT '状态：1 正常 / 0 禁用',
     remark              VARCHAR(255)  DEFAULT NULL           COMMENT '备注',
     create_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted             TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_tenant_code (tenant_id, code),
     KEY idx_table_definition_id (table_definition_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='表单定义表（表单视图层）';
+) COMMENT='表单定义表（表单视图层）';
 
 -- ---------------------------------------------------------------------
 -- 表单数据表
@@ -55,7 +55,7 @@ CREATE TABLE form_data (
     submitter           VARCHAR(64)   DEFAULT NULL           COMMENT '提交人账号',
     status              TINYINT       NOT NULL DEFAULT 1     COMMENT '状态：1 有效 / 0 作废',
     create_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted             TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_definition_id (definition_id),
@@ -63,7 +63,7 @@ CREATE TABLE form_data (
     KEY idx_tenant_id (tenant_id),
     KEY idx_table_code_version (table_code, table_version),
     KEY idx_form_definition_id (form_definition_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='表单数据表（主记录；结构化字段落各版本物理表 form_data_{code}_v{version}）';
+) COMMENT='表单数据表（主记录；结构化字段落各版本物理表 form_data_{code}_v{version}）';
 
 -- ---------------------------------------------------------------------
 -- 表单物理表登记表（表定义 ↔ 物理表映射 + 发布时 schema 快照）
@@ -83,7 +83,7 @@ CREATE TABLE form_table_registry (
     schema_json         MEDIUMTEXT    NULL                   COMMENT '发布时的表单结构定义快照（JSON）',
     status              TINYINT       NOT NULL DEFAULT 1     COMMENT '状态：1 生效 / 0 废弃',
     create_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted             TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_tenant_id (tenant_id),
@@ -91,7 +91,7 @@ CREATE TABLE form_table_registry (
     KEY idx_tenant_table_code_version (tenant_id, table_code, table_version),
     KEY idx_definition_id (definition_id),
     KEY idx_table_definition_id (table_definition_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='表单物理表登记表';
+) COMMENT='表单物理表登记表';
 
 -- ---------------------------------------------------------------------
 -- 表定义表（表定义层）
@@ -106,11 +106,11 @@ CREATE TABLE form_table_definition (
     remark       VARCHAR(255)  DEFAULT NULL           COMMENT '备注',
     status       TINYINT       NOT NULL DEFAULT 1     COMMENT '状态：1 正常 / 0 禁用',
     create_time  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted      TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_tenant_table_code (tenant_id, table_code)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='表定义表（表定义层）';
+) COMMENT='表定义表（表定义层）';
 
 -- ---------------------------------------------------------------------
 -- 列元数据表（表定义层 · 动态列详情）
@@ -134,12 +134,12 @@ CREATE TABLE form_column_meta (
     sort_no             INT           NOT NULL DEFAULT 0     COMMENT '排序号',
     status              TINYINT       NOT NULL DEFAULT 1     COMMENT '状态：1 正常 / 0 禁用',
     create_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted             TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_tenant_id (tenant_id),
     KEY idx_table_definition_id (table_definition_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='列元数据表（表定义层 · 动态列详情）';
+) COMMENT='列元数据表（表定义层 · 动态列详情）';
 
 -- ---------------------------------------------------------------------
 -- 表单字段配置表（表单视图层 · 字段属性详情）
@@ -163,13 +163,13 @@ CREATE TABLE form_field_config (
     remark         VARCHAR(255)  DEFAULT NULL           COMMENT '备注',
     status         TINYINT       NOT NULL DEFAULT 1     COMMENT '状态：1 正常 / 0 禁用',
     create_time    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted        TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_tenant_id (tenant_id),
     KEY idx_form_id (form_id),
     KEY idx_column_meta_id (column_meta_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='表单字段配置表（表单视图层 · 字段属性详情）';
+) COMMENT='表单字段配置表（表单视图层 · 字段属性详情）';
 
 -- ---------------------------------------------------------------------
 -- 字段选项表（选项层）
@@ -184,12 +184,12 @@ CREATE TABLE form_field_option (
     sort_no         INT           NOT NULL DEFAULT 0     COMMENT '排序号',
     status          TINYINT       NOT NULL DEFAULT 1     COMMENT '状态：1 正常 / 0 禁用',
     create_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted         TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_tenant_id (tenant_id),
     KEY idx_field_config_id (field_config_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='字段选项表（选项层）';
+) COMMENT='字段选项表（选项层）';
 
 -- ---------------------------------------------------------------------
 -- 表单定义版本快照表（版本回滚）
@@ -205,7 +205,7 @@ CREATE TABLE form_definition_version (
   PRIMARY KEY (id),
   KEY idx_tenant_id (tenant_id),
   KEY idx_definition_version (definition_id, version)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='表单定义版本快照表';
+) COMMENT='表单定义版本快照表';
 
 -- ---------------------------------------------------------------------
 -- 后端接口日志表（whale-spring-boot-starter ApiLogFilter 采集，结构与 bluewhale_auth.api_log 一致）
@@ -236,4 +236,4 @@ CREATE TABLE api_log (
     KEY idx_user_id (user_id),
     KEY idx_tenant_create (tenant_id, create_time),
     KEY idx_biz_status (biz_status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='后端接口日志表';
+) COMMENT='后端接口日志表';

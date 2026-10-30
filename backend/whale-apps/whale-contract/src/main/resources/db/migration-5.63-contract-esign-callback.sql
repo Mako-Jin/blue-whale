@@ -21,13 +21,13 @@ CREATE TABLE IF NOT EXISTS ct_esign_callback (
     retry_count       INT          NOT NULL DEFAULT 0  COMMENT '处理失败重试次数',
     error_msg         VARCHAR(512) DEFAULT NULL        COMMENT '失败原因',
     create_time       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted           TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_tenant_provider_event (tenant_id, provider, provider_event_id),
     KEY idx_contract (contract_id),
     KEY idx_sign_task (sign_task_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='电子签章回调幂等表';
+) COMMENT='电子签章回调幂等表';
 
 -- ct_sign_task.workflow_task_id：三方回调完成后需推进的工作流任务
 SET @has_workflow_task := (

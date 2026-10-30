@@ -16,16 +16,16 @@ CREATE TABLE IF NOT EXISTS sys_tenant (
     tenant_name VARCHAR(128)  NOT NULL                COMMENT '租户名称',
     status      TINYINT       NOT NULL DEFAULT 1      COMMENT '状态：1 启用 / 0 停用',
     create_time DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted     TINYINT       NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_tenant_code (tenant_code)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='租户表';
+) COMMENT='租户表';
 
-INSERT IGNORE INTO sys_tenant
-    (id, tenant_code, tenant_name, status)
-VALUES
-    (1, 'default', '默认租户', 1);
+INSERT INTO sys_tenant (id, tenant_code, tenant_name, status)
+SELECT 1, 'default', '默认租户', 1
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM sys_tenant WHERE id = 1 OR tenant_code = 'default');
 
 -- 1. sys_user 增加 tenant_id（仅当不存在时执行）
 SET @tenant_column_exists := (

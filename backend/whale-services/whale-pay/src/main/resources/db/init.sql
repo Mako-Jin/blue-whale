@@ -32,13 +32,13 @@ CREATE TABLE IF NOT EXISTS pay_order (
     refund_time   DATETIME       DEFAULT NULL        COMMENT '退款完成时间（未退款为 NULL）',
     remark        VARCHAR(255)   DEFAULT NULL        COMMENT '备注',
     create_time   DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time   DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time   DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted       TINYINT        NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_tenant_order_no (tenant_id, order_no),
     KEY idx_business_key (business_key),
     KEY idx_status (status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='支付单表';
+) COMMENT='支付单表';
 
 -- ---------------------------------------------------------------------
 -- 支付/退款流水表
@@ -57,12 +57,12 @@ CREATE TABLE IF NOT EXISTS pay_transaction (
     status            VARCHAR(16)   NOT NULL            COMMENT '流水状态：SUCCESS 成功 / FAILED 失败',
     error_message     VARCHAR(512)  DEFAULT NULL        COMMENT '失败原因（成功为 NULL）',
     create_time       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted           TINYINT       NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_tenant_order (tenant_id, order_id),
     KEY idx_provider_trade_no (provider_trade_no)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='支付退款流水表';
+) COMMENT='支付退款流水表';
 
 -- ---------------------------------------------------------------------
 -- 操作审计日志表（whale-spring-boot-starter @AuditLog 切面采集，结构与 bluewhale_auth.audit_log 一致）
@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
     KEY idx_biz_status (biz_status),
     KEY idx_tenant_time (tenant_id, create_time),
     KEY idx_create_time (create_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='操作审计日志表';
+) COMMENT='操作审计日志表';
 
 -- ---------------------------------------------------------------------
 -- 后端接口日志表（whale-spring-boot-starter ApiLogFilter 采集，结构与 bluewhale_auth.api_log 一致）
@@ -128,4 +128,4 @@ CREATE TABLE IF NOT EXISTS api_log (
     KEY idx_user_id (user_id),
     KEY idx_tenant_create (tenant_id, create_time),
     KEY idx_biz_status (biz_status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='后端接口日志表';
+) COMMENT='后端接口日志表';

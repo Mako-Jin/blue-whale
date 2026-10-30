@@ -46,24 +46,24 @@ DELIMITER ;
 -- 1. 日志表增加 tenant_id 与租户时间索引
 -- ---------------------------------------------------------------------
 CALL add_column_if_missing('api_log', 'tenant_id',
-    'ALTER TABLE `api_log` ADD COLUMN `tenant_id` BIGINT DEFAULT NULL COMMENT ''租户ID（网关可信注入）'' AFTER `username`');
+    'ALTER TABLE api_log ADD COLUMN tenant_id BIGINT DEFAULT NULL COMMENT ''租户ID（网关可信注入）'' AFTER username');
 CALL add_index_if_missing('api_log', 'idx_tenant_create',
-    'ALTER TABLE `api_log` ADD INDEX `idx_tenant_create` (`tenant_id`, `create_time`)');
+    'ALTER TABLE api_log ADD INDEX idx_tenant_create (tenant_id, create_time)');
 
 CALL add_column_if_missing('outbound_log', 'tenant_id',
-    'ALTER TABLE `outbound_log` ADD COLUMN `tenant_id` BIGINT DEFAULT NULL COMMENT ''租户ID（请求上下文）'' AFTER `username`');
+    'ALTER TABLE outbound_log ADD COLUMN tenant_id BIGINT DEFAULT NULL COMMENT ''租户ID（请求上下文）'' AFTER username');
 CALL add_index_if_missing('outbound_log', 'idx_tenant_create',
-    'ALTER TABLE `outbound_log` ADD INDEX `idx_tenant_create` (`tenant_id`, `create_time`)');
+    'ALTER TABLE outbound_log ADD INDEX idx_tenant_create (tenant_id, create_time)');
 
 CALL add_column_if_missing('frontend_log', 'tenant_id',
-    'ALTER TABLE `frontend_log` ADD COLUMN `tenant_id` BIGINT DEFAULT NULL COMMENT ''租户ID（网关可信注入）'' AFTER `user_id`');
+    'ALTER TABLE frontend_log ADD COLUMN tenant_id BIGINT DEFAULT NULL COMMENT ''租户ID（网关可信注入）'' AFTER user_id');
 CALL add_index_if_missing('frontend_log', 'idx_tenant_create',
-    'ALTER TABLE `frontend_log` ADD INDEX `idx_tenant_create` (`tenant_id`, `create_time`)');
+    'ALTER TABLE frontend_log ADD INDEX idx_tenant_create (tenant_id, create_time)');
 
 CALL add_column_if_missing('behavior_log', 'tenant_id',
-    'ALTER TABLE `behavior_log` ADD COLUMN `tenant_id` BIGINT DEFAULT NULL COMMENT ''租户ID（网关可信注入）'' AFTER `user_id`');
+    'ALTER TABLE behavior_log ADD COLUMN tenant_id BIGINT DEFAULT NULL COMMENT ''租户ID（网关可信注入）'' AFTER user_id');
 CALL add_index_if_missing('behavior_log', 'idx_tenant_create',
-    'ALTER TABLE `behavior_log` ADD INDEX `idx_tenant_create` (`tenant_id`, `create_time`)');
+    'ALTER TABLE behavior_log ADD INDEX idx_tenant_create (tenant_id, create_time)');
 
 -- ---------------------------------------------------------------------
 -- 2. 清理幂等工具

@@ -30,13 +30,13 @@ CREATE TABLE pm_project (
     status       VARCHAR(16)  NOT NULL DEFAULT 'ACTIVE'
                                                   COMMENT '项目状态：ACTIVE 进行中 / ARCHIVED 已归档',
     create_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted      TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_pm_project_key (tenant_id, project_key),
     KEY idx_pm_project_status (tenant_id, status),
     KEY idx_pm_project_lead (tenant_id, lead_user_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='项目空间表';
+) COMMENT='项目空间表';
 
 -- ---------------------------------------------------------------------
 -- 2. 项目成员表（项目角色：ADMIN / MEMBER / VIEWER）
@@ -51,12 +51,12 @@ CREATE TABLE pm_project_member (
                                                  COMMENT '项目角色：ADMIN 管理员 / MEMBER 成员 / VIEWER 只读',
     joined_time  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '加入时间',
     create_time  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted      TINYINT     NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_pm_project_member (tenant_id, project_id, user_id),
     KEY idx_pm_member_user (tenant_id, user_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='项目成员表';
+) COMMENT='项目成员表';
 
 -- ---------------------------------------------------------------------
 -- 3. 工作项状态表（每个项目独立一套；新建项目时由服务端复制默认模板）
@@ -72,12 +72,12 @@ CREATE TABLE pm_status (
     sort_no    INT         NOT NULL DEFAULT 0  COMMENT '排序号（越小越靠前）',
     is_default TINYINT     NOT NULL DEFAULT 0  COMMENT '是否默认状态：1 是 / 0 否',
     create_time DATETIME   NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time DATETIME   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time DATETIME   NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted    TINYINT     NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_pm_status_code (tenant_id, project_id, code),
     KEY idx_pm_status_project (tenant_id, project_id, sort_no)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='工作项状态表';
+) COMMENT='工作项状态表';
 
 -- ---------------------------------------------------------------------
 -- 4. 状态流转配置表（允许的状态迁移边）
@@ -93,12 +93,12 @@ CREATE TABLE pm_transition (
     require_comment    TINYINT      NOT NULL DEFAULT 0  COMMENT '是否要求填写评论：1 是 / 0 否',
     require_permission VARCHAR(128) DEFAULT NULL        COMMENT '附加权限编码（可选），如 sys:pm:item:transition',
     create_time        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted            TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_pm_transition_edge (tenant_id, project_id, from_status_id, to_status_id),
     KEY idx_pm_transition_project (tenant_id, project_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='状态流转配置表';
+) COMMENT='状态流转配置表';
 
 -- ---------------------------------------------------------------------
 -- 5. 种子数据（仅默认租户，便于接口冒烟与前端联调）
@@ -152,7 +152,7 @@ CREATE TABLE pm_work_item (
     version            INT          NOT NULL DEFAULT 0  COMMENT '版本号（乐观锁）',
     client_request_id  VARCHAR(64)  DEFAULT NULL        COMMENT '客户端请求ID（创建幂等键）',
     create_time        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted            TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_pm_item_no (tenant_id, project_id, item_no),
@@ -163,7 +163,7 @@ CREATE TABLE pm_work_item (
     KEY idx_pm_item_assignee (tenant_id, project_id, assignee_id),
     KEY idx_pm_item_parent (tenant_id, project_id, parent_id),
     KEY idx_pm_item_sprint (tenant_id, project_id, sprint_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='工作项表';
+) COMMENT='工作项表';
 
 -- ---------------------------------------------------------------------
 -- 7. 工作项关联表
@@ -177,12 +177,12 @@ CREATE TABLE pm_work_item_link (
     target_id   BIGINT      NOT NULL            COMMENT '目标工作项ID',
     link_type   VARCHAR(24) NOT NULL            COMMENT '关联类型：BLOCKS / BLOCKED_BY / RELATES / DUPLICATES / DUPLICATED_BY',
     create_time DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted     TINYINT     NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_pm_link_edge (tenant_id, source_id, target_id, link_type),
     KEY idx_pm_link_project (tenant_id, project_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='工作项关联表';
+) COMMENT='工作项关联表';
 
 -- ---------------------------------------------------------------------
 -- 8. 工作项评论表
@@ -197,11 +197,11 @@ CREATE TABLE pm_comment (
     content      TEXT         NOT NULL            COMMENT '评论内容',
     parent_id    BIGINT       DEFAULT NULL        COMMENT '父评论ID（回复）',
     create_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted      TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_pm_comment_item (tenant_id, work_item_id, create_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='工作项评论表';
+) COMMENT='工作项评论表';
 
 -- ---------------------------------------------------------------------
 -- 9. 工作项附件表（只存 whale-file 的 file_id 引用）
@@ -216,12 +216,12 @@ CREATE TABLE pm_attachment (
     file_name    VARCHAR(255) NOT NULL            COMMENT '文件名（展示用）',
     uploader_id  BIGINT       NOT NULL            COMMENT '上传人用户ID',
     create_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted      TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_pm_attachment_file (tenant_id, work_item_id, file_id),
     KEY idx_pm_attachment_item (tenant_id, work_item_id, create_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='工作项附件表';
+) COMMENT='工作项附件表';
 
 -- ---------------------------------------------------------------------
 -- 10. 工作项动态表（append-only，不提供修改/删除端点）
@@ -239,12 +239,12 @@ CREATE TABLE pm_activity (
     new_value    VARCHAR(512) DEFAULT NULL        COMMENT '新值',
     trace_id     VARCHAR(64)  DEFAULT NULL        COMMENT '链路追踪ID',
     create_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted      TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_pm_activity_item (tenant_id, work_item_id, create_time),
     KEY idx_pm_activity_project (tenant_id, project_id, create_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='工作项动态表';
+) COMMENT='工作项动态表';
 
 -- ---------------------------------------------------------------------
 -- 11. 工作项种子数据（仅默认租户）
@@ -276,12 +276,12 @@ CREATE TABLE pm_sprint (
     end_date     DATE         DEFAULT NULL        COMMENT '结束日期',
     status       VARCHAR(16)  NOT NULL DEFAULT 'FUTURE' COMMENT '状态：FUTURE 未启动 / ACTIVE 进行中 / CLOSED 已关闭',
     create_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted      TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_pm_sprint_name (tenant_id, project_id, name),
     KEY idx_pm_sprint_project (tenant_id, project_id, status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='项目迭代表';
+) COMMENT='项目迭代表';
 
 -- ---------------------------------------------------------------------
 -- 13. 看板表
@@ -294,12 +294,12 @@ CREATE TABLE pm_board (
     name         VARCHAR(64)  NOT NULL            COMMENT '看板名称',
     board_type   VARCHAR(16)  NOT NULL DEFAULT 'SCRUM' COMMENT '看板类型：SCRUM 敏捷 / KANBAN 看板',
     create_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted      TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_pm_board_name (tenant_id, project_id, name),
     KEY idx_pm_board_project (tenant_id, project_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='项目看板表';
+) COMMENT='项目看板表';
 
 -- ---------------------------------------------------------------------
 -- 14. 看板列表
@@ -314,12 +314,12 @@ CREATE TABLE pm_board_column (
     sort_no      INT          NOT NULL DEFAULT 0  COMMENT '排序号（升序）',
     wip_limit    INT          NOT NULL DEFAULT 0  COMMENT 'WIP 上限（0 表示不限）',
     create_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted      TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_pm_board_column_status (tenant_id, board_id, status_id),
     KEY idx_pm_board_column_sort (tenant_id, board_id, sort_no)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='看板列表';
+) COMMENT='看板列表';
 
 -- ---------------------------------------------------------------------
 -- 15. 迭代与看板种子数据（仅默认租户）
@@ -367,4 +367,4 @@ CREATE TABLE api_log (
     KEY idx_user_id (user_id),
     KEY idx_tenant_create (tenant_id, create_time),
     KEY idx_biz_status (biz_status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='后端接口日志表';
+) COMMENT='后端接口日志表';

@@ -25,11 +25,11 @@ CREATE TABLE sys_tenant (
     expire_time DATETIME      DEFAULT NULL            COMMENT '到期时间，NULL 表示长期有效',
     quota_json  VARCHAR(1024) DEFAULT NULL            COMMENT '配额 JSON，如 {"maxUsers":50,"maxStorageMb":1024}',
     create_time DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted     TINYINT       NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_tenant_code (tenant_code)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='租户表';
+) COMMENT='租户表';
 
 -- ---------------------------------------------------------------------
 -- 1. 系统用户表
@@ -49,12 +49,12 @@ CREATE TABLE sys_user (
     status          TINYINT       NOT NULL DEFAULT 1      COMMENT '状态：1 启用 / 0 停用',
     last_login_time DATETIME      DEFAULT NULL            COMMENT '最后登录时间',
     create_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted         TINYINT       NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_tenant_username (tenant_id, username),
     KEY idx_tenant_id (tenant_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='系统用户表';
+) COMMENT='系统用户表';
 
 -- ---------------------------------------------------------------------
 -- 2. 系统角色表
@@ -69,12 +69,12 @@ CREATE TABLE sys_role (
     sort_no     INT           NOT NULL DEFAULT 0     COMMENT '显示顺序（越小越靠前）',
     status      TINYINT       NOT NULL DEFAULT 1     COMMENT '状态：1 启用 / 0 停用',
     create_time DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted     TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_tenant_role_code (tenant_id, role_code),
     KEY idx_tenant_id (tenant_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='系统角色表';
+) COMMENT='系统角色表';
 
 -- ---------------------------------------------------------------------
 -- 3. 系统权限表（权限点：接口 / 按钮 / 数据 / 属性等）
@@ -93,12 +93,12 @@ CREATE TABLE sys_permission (
     sort_no     INT           NOT NULL DEFAULT 0     COMMENT '显示顺序（越小越靠前）',
     status      TINYINT       NOT NULL DEFAULT 1     COMMENT '状态：1 启用 / 0 停用',
     create_time DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted     TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_perm_code (perm_code),
     KEY idx_parent_id (parent_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='系统权限表';
+) COMMENT='系统权限表';
 
 -- ---------------------------------------------------------------------
 -- 4. 系统菜单表（前端导航：目录 / 菜单）
@@ -118,12 +118,12 @@ CREATE TABLE sys_menu (
     visible         TINYINT       NOT NULL DEFAULT 1    COMMENT '是否可见：1 显示 / 0 隐藏',
     status          TINYINT       NOT NULL DEFAULT 1    COMMENT '状态：1 启用 / 0 停用',
     create_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted         TINYINT       NOT NULL DEFAULT 0    COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_tenant_id (tenant_id),
     KEY idx_parent_id (parent_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='系统菜单表';
+) COMMENT='系统菜单表';
 
 -- ---------------------------------------------------------------------
 -- 5. 系统部门表
@@ -137,12 +137,12 @@ CREATE TABLE sys_dept (
     sort        INT          NOT NULL DEFAULT 0     COMMENT '显示顺序（越小越靠前）',
     leader      VARCHAR(64)  DEFAULT NULL           COMMENT '负责人姓名',
     create_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted     TINYINT      NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     KEY idx_tenant_id (tenant_id),
     KEY idx_parent_id (parent_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='系统部门表';
+) COMMENT='系统部门表';
 
 -- ---------------------------------------------------------------------
 -- 6. 用户-角色关联表
@@ -153,12 +153,12 @@ CREATE TABLE sys_user_role (
     user_id     BIGINT   NOT NULL            COMMENT '用户ID（逻辑关联 sys_user.id）',
     role_id     BIGINT   NOT NULL            COMMENT '角色ID（逻辑关联 sys_role.id）',
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted     TINYINT  NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_user_role (user_id, role_id),
     KEY idx_role_id (role_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='用户-角色关联表';
+) COMMENT='用户-角色关联表';
 
 -- ---------------------------------------------------------------------
 -- 6.1 用户可进入租户关系表（Wave 5.54 Phase 5.1：一人多租户）
@@ -172,11 +172,11 @@ CREATE TABLE sys_user_tenant (
     tenant_id   BIGINT   NOT NULL            COMMENT '可进入的租户ID（逻辑关联 sys_tenant.id）',
     status      TINYINT  NOT NULL DEFAULT 1  COMMENT '状态：1 启用 / 0 停用',
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (id),
     UNIQUE KEY uk_user_tenant (user_id, tenant_id),
     KEY idx_tenant_id (tenant_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='用户可进入的租户关系表（一人多租户）';
+) COMMENT='用户可进入的租户关系表（一人多租户）';
 
 -- ---------------------------------------------------------------------
 -- 7. 角色-权限关联表
@@ -187,12 +187,12 @@ CREATE TABLE sys_role_permission (
     role_id       BIGINT   NOT NULL            COMMENT '角色ID（逻辑关联 sys_role.id）',
     permission_id BIGINT   NOT NULL            COMMENT '权限ID（逻辑关联 sys_permission.id）',
     create_time   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted       TINYINT  NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_role_permission (role_id, permission_id),
     KEY idx_permission_id (permission_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='角色-权限关联表';
+) COMMENT='角色-权限关联表';
 
 -- ---------------------------------------------------------------------
 -- 8. 用户-权限属性表（ABAC 数据级属性控制）
@@ -207,12 +207,12 @@ CREATE TABLE sys_user_permission (
     attr_key      VARCHAR(64)   NOT NULL            COMMENT '属性键，如 deptId、dataScope',
     attr_value    VARCHAR(255)  NOT NULL            COMMENT '属性值，如 100、SELF_DEPT',
     create_time   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    update_time   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted       TINYINT       NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_user_perm_attr (user_id, permission_id, attr_key),
     KEY idx_permission_id (permission_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='用户-权限属性表（ABAC数据级属性控制）';
+) COMMENT='用户-权限属性表（ABAC数据级属性控制）';
 
 -- ---------------------------------------------------------------------
 -- 9. 操作审计日志表
@@ -255,7 +255,7 @@ CREATE TABLE audit_log (
     KEY idx_biz_status (biz_status),
     KEY idx_tenant_time (tenant_id, create_time),
     KEY idx_create_time (create_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='操作审计日志表';
+) COMMENT='操作审计日志表';
 
 -- ---------------------------------------------------------------------
 -- 10. 多通道观测日志表（REQ-SEC-006，Wave 5.10）
@@ -293,7 +293,7 @@ CREATE TABLE api_log (
     KEY idx_user_id (user_id),
     KEY idx_tenant_create (tenant_id, create_time),
     KEY idx_biz_status (biz_status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='后端接口日志表';
+) COMMENT='后端接口日志表';
 
 -- 后端出站三方调用日志表（OutboundLogInterceptor 采集）
 DROP TABLE IF EXISTS outbound_log;
@@ -320,7 +320,7 @@ CREATE TABLE outbound_log (
     KEY idx_target_host (target_host),
     KEY idx_tenant_create (tenant_id, create_time),
     KEY idx_biz_status (biz_status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='后端出站三方调用日志表';
+) COMMENT='后端出站三方调用日志表';
 
 -- 前端开发者日志表（POST /audit/log/frontend/batch 落库）
 DROP TABLE IF EXISTS frontend_log;
@@ -342,7 +342,7 @@ CREATE TABLE frontend_log (
     KEY idx_client_id (client_id),
     KEY idx_tenant_create (tenant_id, create_time),
     KEY idx_log_level (log_level)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='前端开发者日志表';
+) COMMENT='前端开发者日志表';
 
 -- 前端用户行为埋点日志表（POST /audit/log/behavior/batch 落库）
 DROP TABLE IF EXISTS behavior_log;
@@ -364,7 +364,7 @@ CREATE TABLE behavior_log (
     KEY idx_client_id (client_id),
     KEY idx_tenant_create (tenant_id, create_time),
     KEY idx_event_type (event_type)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='前端用户行为埋点日志表';
+) COMMENT='前端用户行为埋点日志表';
 
 -- =====================================================================
 -- 内置种子数据
