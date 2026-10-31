@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import {
   AppstoreOutlined,
   CloudOutlined,
+  CustomerServiceOutlined,
   DeploymentUnitOutlined,
   FileSearchOutlined,
   FileTextOutlined,
@@ -52,6 +53,7 @@ const MENU_ICONS: Record<string, ReactNode> = {
   '/pm': <ProjectOutlined />,
   '/contract': <FileTextOutlined />,
   '/doc': <FileSearchOutlined />,
+  '/music': <CustomerServiceOutlined />,
 };
 
 export default function MainLayout() {

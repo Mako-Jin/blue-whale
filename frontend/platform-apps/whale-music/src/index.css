@@ -1,0 +1,59 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  background: #f5f6f8;
+}
+
+/* ---------- 曲库列表 ---------- */
+
+.music-song-title {
+  display: flex;
+  flex-direction: column;
+}
+
+.music-song-subtitle {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.music-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* ---------- 上传页 ---------- */
+
+.music-upload-card {
+  max-width: 880px;
+  margin: 0 auto;
+}
+
+.music-upload-tip {
+  margin-bottom: 16px;
+}
+
+/* ---------- 详情页 ---------- */
+
+.music-detail {
+  max-width: 880px;
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .music-upload-card,
+  .music-detail {
+    max-width: 100%;
+  }
+}

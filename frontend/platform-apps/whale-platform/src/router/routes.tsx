@@ -53,6 +53,8 @@ export const routes = [
       { path: 'contract/*', element: <SubAppContainer /> },
       // 文档中心（whale-doc 子应用，Wave 5.74 M1 骨架）
       { path: 'doc/*', element: <SubAppContainer /> },
+      // 音乐中心（whale-music 子应用，Wave 5.75 M1）
+      { path: 'music/*', element: <SubAppContainer /> },
     ],
   },
 ];

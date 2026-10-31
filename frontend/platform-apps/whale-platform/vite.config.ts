@@ -30,6 +30,7 @@ const GATEWAY_PREFIXES = [
   '/job',
   '/pay',
   '/config',
+  '/music',
 ];
 
 interface ProxyRequest {

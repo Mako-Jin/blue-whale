@@ -21,6 +21,8 @@ import TemplateList from '../pages/message/TemplateList';
 import OrderList from '../pages/pay/OrderList';
 import PermissionList from '../pages/permission/PermissionList';
 import RoleList from '../pages/role/RoleList';
+import CatalogPage from '../pages/music/CatalogPage';
+import SongList from '../pages/music/SongList';
 import TenantList from '../pages/tenant/TenantList';
 import TenantMemberList from '../pages/tenant/TenantMemberList';
 import UserList from '../pages/user/UserList';
@@ -47,7 +49,9 @@ const COMPONENT_MAP: Record<
   | 'archive/rule'
   | 'archive/item'
   | 'archive/pending'
-  | 'archive/sync',
+  | 'archive/sync'
+  | 'music/songs'
+  | 'music/catalog',
   ComponentType
 > = {
   user: UserList,
@@ -68,6 +72,8 @@ const COMPONENT_MAP: Record<
   'archive/item': ArchiveItemList,
   'archive/pending': ArchivePendingList,
   'archive/sync': ArchiveSyncStatus,
+  'music/songs': SongList,
+  'music/catalog': CatalogPage,
 };
 
 type ComponentKey = keyof typeof COMPONENT_MAP;

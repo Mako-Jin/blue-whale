@@ -29,6 +29,7 @@ export const menuConfig: MenuNode[] = [
   { key: '/pm', label: '项目管理', permission: 'sys:pm:project:list' },
   { key: '/contract', label: '合同管理', permission: 'sys:contract:list' },
   { key: '/doc', label: '文档中心', permission: 'sys:doc:space:list' },
+  { key: '/music', label: '音乐中心', permission: 'sys:music:browse' },
 ];
 
 /**

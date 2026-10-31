@@ -108,3 +108,15 @@ body,
   color: var(--bw-text-secondary);
   font-size: 13px;
 }
+
+/* ---------- 音乐运营 ---------- */
+
+.music-song-title {
+  display: flex;
+  flex-direction: column;
+}
+
+.music-song-subtitle {
+  font-size: 12px;
+  color: var(--bw-text-secondary);
+}
