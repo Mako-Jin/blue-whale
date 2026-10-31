@@ -1,9 +1,9 @@
 package com.bluewhale.archive.controller;
 
 import com.bluewhale.archive.dto.ArchiveIngestRequest;
-import com.bluewhale.archive.mapper.ArchiveFileMapper;
 import com.bluewhale.archive.service.ArchiveFileLockReconcileService;
 import com.bluewhale.archive.service.ArchiveIngestService;
+import com.bluewhale.archive.service.ArchiveItemService;
 import com.bluewhale.archive.vo.ArchiveFileLockReconcileVO;
 import com.bluewhale.archive.vo.ArchiveFileSecurityVO;
 import com.bluewhale.archive.vo.ArchiveIngestResultVO;
@@ -34,7 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class ArchiveInternalController {
 
-    private final ArchiveFileMapper archiveFileMapper;
+    private final ArchiveItemService itemService;
 
     private final ArchiveIngestService ingestService;
 
@@ -48,7 +48,7 @@ public class ArchiveInternalController {
      */
     @GetMapping("/files/{fileId}/security")
     public Result<ArchiveFileSecurityVO> security(@PathVariable Long fileId) {
-        return Result.ok(archiveFileMapper.selectSecurityByFileId(fileId));
+        return Result.ok(itemService.security(fileId));
     }
 
     /**

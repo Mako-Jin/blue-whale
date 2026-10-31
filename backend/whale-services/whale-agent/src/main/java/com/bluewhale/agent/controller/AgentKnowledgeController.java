@@ -4,8 +4,6 @@ import com.bluewhale.agent.dto.AgentKnowledgeDocVO;
 import com.bluewhale.agent.dto.AgentKnowledgeFileVO;
 import com.bluewhale.agent.dto.AgentKnowledgeStatsVO;
 import com.bluewhale.agent.dto.KnowledgeSyncResultVO;
-import com.bluewhale.agent.entity.AgentKnowledgeDoc;
-import com.bluewhale.agent.entity.AgentKnowledgeFile;
 import com.bluewhale.agent.service.AgentKnowledgeDocService;
 import com.bluewhale.agent.service.AgentKnowledgeFileService;
 import com.bluewhale.agent.service.DocKnowledgeSyncService;
@@ -24,8 +22,6 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
 
 /**
  * 知识库管理接口（文件知识 Wave 5.53 M4 + 文档知识 Wiki M4）。
@@ -71,11 +67,8 @@ public class AgentKnowledgeController {
                                                          @RequestParam(required = false) String source,
                                                          @RequestParam(defaultValue = "1") long current,
                                                          @RequestParam(defaultValue = "20") long size) {
-        PageResult<AgentKnowledgeFile> page = fileService.page(keyword, status, source, current, size);
-        List<AgentKnowledgeFileVO> records = page.getRecords().stream()
-                .map(AgentKnowledgeFileVO::of)
-                .toList();
-        return Result.ok(PageResult.of(records, page.getTotal(), page.getCurrent(), page.getSize()));
+        PageResult<AgentKnowledgeFileVO> page = fileService.pageVo(keyword, status, source, current, size);
+        return Result.ok(page);
     }
 
     /**
@@ -164,11 +157,7 @@ public class AgentKnowledgeController {
                                                            @RequestParam(required = false) String status,
                                                            @RequestParam(defaultValue = "1") long current,
                                                            @RequestParam(defaultValue = "20") long size) {
-        PageResult<AgentKnowledgeDoc> page = docService.page(keyword, status, current, size);
-        List<AgentKnowledgeDocVO> records = page.getRecords().stream()
-                .map(AgentKnowledgeDocVO::of)
-                .toList();
-        return Result.ok(PageResult.of(records, page.getTotal(), page.getCurrent(), page.getSize()));
+        return Result.ok(docService.pageVo(keyword, status, current, size));
     }
 
     /**

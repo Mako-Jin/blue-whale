@@ -14,21 +14,27 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  * 依赖方向固化如下：{@code controller → service → mapper → entity}，反向依赖一律禁止。
  * 规则只扫描生产类（{@link ImportOption.DoNotIncludeTests}），避免测试替身触发误报。</p>
  *
- * <p><b>已知越层依赖（暂不纳入门禁）</b>：{@code ArchiveInternalController} 直接注入
- * {@code ArchiveFileMapper} 查询文件密级，controller 越过 service 依赖 mapper，
- * 按 T-18 约定不改业务代码，故此处仅约束 controller 不得依赖 entity。</p>
+ * <p><b>越层治理进展</b>：{@code ArchiveInternalController} 曾直接注入 {@code ArchiveFileMapper}
+ * 查询文件密级，现已下沉到 {@code ArchiveItemService#security}，controller→mapper 门禁随之开启。</p>
  *
  * @author BlueWhale
  */
 @AnalyzeClasses(packages = "com.bluewhale.archive", importOptions = ImportOption.DoNotIncludeTests.class)
 class ArchiveArchitectureTest {
 
-    /** 控制器不得直接依赖实体（controller→mapper 已存在真实依赖，暂不门禁） */
+    /** 控制器不得直接依赖实体（controller→mapper 已于 2026-10-31 下沉后开启门禁） */
     @ArchTest
     static final ArchRule controller_must_not_depend_on_entity = noClasses()
             .that().resideInAPackage("com.bluewhale.archive.controller..")
             .should().dependOnClassesThat().resideInAnyPackage(
                     "com.bluewhale.archive.entity..");
+
+    /** 控制器不得直接依赖 Mapper（一律经 service 层访问持久化） */
+    @ArchTest
+    static final ArchRule controller_must_not_depend_on_mapper = noClasses()
+            .that().resideInAPackage("com.bluewhale.archive.controller..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.bluewhale.archive.mapper..");
 
     /** Mapper 只依赖实体与框架，不得反向依赖控制器或业务服务 */
     @ArchTest

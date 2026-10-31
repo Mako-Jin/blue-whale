@@ -9,12 +9,10 @@ import com.bluewhale.im.dto.CreateConversationRequest;
 import com.bluewhale.im.dto.ReadRequest;
 import com.bluewhale.im.dto.SendMessageRequest;
 import com.bluewhale.im.dto.TransferOwnerRequest;
-import com.bluewhale.im.entity.ImConversation;
-import com.bluewhale.im.entity.ImMessage;
-import com.bluewhale.im.service.ImAgentChatService;
 import com.bluewhale.im.service.ImBotService;
 import com.bluewhale.im.service.ImConversationService;
 import com.bluewhale.im.service.ImMemberService;
+import com.bluewhale.im.service.ImMessageSendService;
 import com.bluewhale.im.service.ImMessageService;
 import com.bluewhale.im.support.web.UserContext;
 import com.bluewhale.im.vo.ConversationVO;
@@ -53,11 +51,11 @@ public class ImConversationController {
 
     private final ImMessageService messageService;
 
+    private final ImMessageSendService messageSendService;
+
     private final ImMemberService memberService;
 
     private final ImBotService botService;
-
-    private final ImAgentChatService agentChatService;
 
     /**
      * 我的会话列表。
@@ -80,8 +78,7 @@ public class ImConversationController {
     @PostMapping
     public Result<ConversationVO> create(@Valid @RequestBody CreateConversationRequest request,
                                          HttpServletRequest httpRequest) {
-        ImConversation conversation = conversationService.create(UserContext.requireUserId(httpRequest), request);
-        return Result.ok(ImConversationService.toVo(conversation, 0L, null));
+        return Result.ok(conversationService.createVo(UserContext.requireUserId(httpRequest), request));
     }
 
     /**
@@ -116,9 +113,8 @@ public class ImConversationController {
     public Result<MessageVO> send(@PathVariable Long id,
                                   @Valid @RequestBody SendMessageRequest request,
                                   HttpServletRequest httpRequest) {
-        ImMessage message = messageService.send(id, UserContext.requireUserId(httpRequest), request);
-        agentChatService.onUserMessage(message, WebHeaders.header(httpRequest, WebHeaders.PERMISSION_CODES));
-        return Result.ok(ImMessageService.toVo(message));
+        return Result.ok(messageSendService.send(id, UserContext.requireUserId(httpRequest), request,
+                WebHeaders.header(httpRequest, WebHeaders.PERMISSION_CODES)));
     }
 
     /**

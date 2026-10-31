@@ -1,5 +1,6 @@
 package com.bluewhale.agent.service;
 
+import com.bluewhale.agent.dto.IndexMetaVO;
 import com.bluewhale.agent.entity.AgentIndexMeta;
 import com.bluewhale.agent.mapper.AgentIndexMetaMapper;
 import com.bluewhale.agent.support.index.IndexStats;
@@ -36,6 +37,24 @@ public class AgentIndexMetaService {
             log.warn("读取索引元数据失败，回落进程内统计: {}", e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * 读取元数据快照（数据库不可用时返回 {@code null}）。
+     *
+     * <p>供状态接口装配使用，避免 controller 直接依赖 {@link AgentIndexMeta} 实体（T-18）。</p>
+     *
+     * @return 索引元数据快照
+     */
+    public IndexMetaVO snapshot() {
+        AgentIndexMeta meta = get();
+        if (meta == null) {
+            return null;
+        }
+        return IndexMetaVO.builder()
+                .indexVersion(meta.getIndexVersion())
+                .lastBuildAt(meta.getLastBuildAt())
+                .build();
     }
 
     /**

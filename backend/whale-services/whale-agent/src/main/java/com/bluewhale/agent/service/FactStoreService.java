@@ -2,6 +2,7 @@ package com.bluewhale.agent.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.agent.config.AgentProperties;
+import com.bluewhale.agent.dto.FactVO;
 import com.bluewhale.agent.entity.AgentFact;
 import com.bluewhale.agent.mapper.AgentFactMapper;
 import com.bluewhale.agent.support.facts.FactCollector;
@@ -141,6 +142,33 @@ public class FactStoreService {
         wrapper.orderByAsc(AgentFact::getFactType).orderByAsc(AgentFact::getFactKey);
         wrapper.last("LIMIT " + normalizeLimit(limit));
         return factMapper.selectList(wrapper);
+    }
+
+    /**
+     * 按类型与键查询事实并装配为视图对象。
+     *
+     * <p>响应装配下沉到服务层，避免 controller 直接依赖 {@link AgentFact} 实体（T-18 分层约束）。</p>
+     *
+     * @param factType       事实类型（可空，空表示不限）
+     * @param factKey        事实键（可空，空表示不限）
+     * @param limit          返回条数（可空）
+     * @param includeRuntime 是否包含运行时事实
+     * @return 事实视图对象列表
+     */
+    public List<FactVO> queryVo(String factType, String factKey, Integer limit, boolean includeRuntime) {
+        List<AgentFact> facts = query(factType, factKey, limit, includeRuntime);
+        List<FactVO> result = new ArrayList<>(facts.size());
+        for (AgentFact fact : facts) {
+            result.add(FactVO.builder()
+                    .id(String.valueOf(fact.getId()))
+                    .factType(fact.getFactType())
+                    .factKey(fact.getFactKey())
+                    .value(parseValue(fact.getValueJson()))
+                    .sourcePath(fact.getSourcePath())
+                    .capturedAt(formatTime(fact.getCapturedAt()))
+                    .build());
+        }
+        return result;
     }
 
     /**

@@ -265,6 +265,17 @@ public class ImConversationService {
     }
 
     /**
+     * 创建会话并直接装配视图对象（避免 controller 依赖实体，T-18）。
+     *
+     * @param userId  当前用户ID
+     * @param request 创建请求
+     * @return 会话视图
+     */
+    public ConversationVO createVo(Long userId, CreateConversationRequest request) {
+        return toVo(create(userId, request), 0L, null);
+    }
+
+    /**
      * 会话实体转视图对象（创建返回与列表复用）。
      *
      * @param conversation 会话实体

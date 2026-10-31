@@ -15,6 +15,7 @@ import com.bluewhale.archive.mapper.ArchiveCategoryMapper;
 import com.bluewhale.archive.mapper.ArchiveFileMapper;
 import com.bluewhale.archive.mapper.ArchiveItemMapper;
 import com.bluewhale.archive.support.ArchiveConstants;
+import com.bluewhale.archive.vo.ArchiveFileSecurityVO;
 import com.bluewhale.archive.vo.ArchiveItemVO;
 import com.bluewhale.archive.vo.ArchiveStatsVO;
 import com.bluewhale.common.core.exception.BizException;
@@ -344,6 +345,18 @@ class ArchiveItemServiceTest {
         assertEquals(7L, stats.getBySecurity().get(String.valueOf(ArchiveConstants.SECURITY_INTERNAL)));
         assertEquals(8L, stats.getByCategory().get(String.valueOf(CATEGORY_ID)));
         assertNotNull(stats.getByYear());
+    }
+
+    @Test
+    @DisplayName("文件密级：委托文件 Mapper 查询（T-18 下沉）")
+    void shouldQueryFileSecurity() {
+        ArchiveFileSecurityVO expected = new ArchiveFileSecurityVO();
+        expected.setFileId(FILE_ID);
+        expected.setSecurityLevel(ArchiveConstants.SECURITY_SECRET);
+        when(fileMapper.selectSecurityByFileId(FILE_ID)).thenReturn(expected);
+
+        assertEquals(expected, itemService.security(FILE_ID));
+        verify(fileMapper).selectSecurityByFileId(FILE_ID);
     }
 
     /**

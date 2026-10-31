@@ -1,8 +1,8 @@
 package com.bluewhale.agent.controller;
 
 import com.bluewhale.agent.config.AgentProperties;
+import com.bluewhale.agent.dto.IndexMetaVO;
 import com.bluewhale.agent.dto.IndexStatusVO;
-import com.bluewhale.agent.entity.AgentIndexMeta;
 import com.bluewhale.agent.service.AgentIndexMetaService;
 import com.bluewhale.agent.service.EmbeddingService;
 import com.bluewhale.agent.service.KnowledgeIngestService;
@@ -44,7 +44,7 @@ public class AgentIndexController {
     @GetMapping("/status")
     public Result<IndexStatusVO> status() {
         IndexStats stats = ingestService.stats();
-        AgentIndexMeta meta = metaService.get();
+        IndexMetaVO meta = metaService.snapshot();
         return Result.ok(IndexStatusVO.builder()
                 .status(stats.getStatus())
                 .indexVersion(meta == null ? null : meta.getIndexVersion())

@@ -2,12 +2,10 @@ package com.bluewhale.im.controller;
 
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.common.web.WebHeaders;
-import com.bluewhale.im.entity.ImConversation;
-import com.bluewhale.im.entity.ImMessage;
-import com.bluewhale.im.service.ImAgentChatService;
 import com.bluewhale.im.service.ImBotService;
 import com.bluewhale.im.service.ImConversationService;
 import com.bluewhale.im.service.ImMemberService;
+import com.bluewhale.im.service.ImMessageSendService;
 import com.bluewhale.im.service.ImMessageService;
 import com.bluewhale.im.vo.ConversationVO;
 import com.bluewhale.im.vo.MemberVO;
@@ -57,10 +55,11 @@ class ImConversationControllerTest {
 
     private final ImBotService botService = mock(ImBotService.class);
 
-    private final ImAgentChatService agentChatService = mock(ImAgentChatService.class);
+    private final ImMessageSendService messageSendService = mock(ImMessageSendService.class);
 
     private final ImConversationController controller =
-            new ImConversationController(conversationService, messageService, memberService, botService, agentChatService);
+            new ImConversationController(conversationService, messageService, messageSendService,
+                    memberService, botService);
 
     private MockMvc mockMvc;
 
@@ -111,12 +110,11 @@ class ImConversationControllerTest {
     @Test
     @DisplayName("POST /im/conversations：合法单聊返回会话ID")
     void createShouldReturnConversation() throws Exception {
-        ImConversation conversation = new ImConversation();
-        conversation.setId(CONVERSATION_ID);
-        conversation.setType("SINGLE");
-        conversation.setOwnerId(USER_ID);
-        conversation.setLastSeq(0L);
-        when(conversationService.create(anyLong(), any())).thenReturn(conversation);
+        ConversationVO vo = ConversationVO.builder()
+                .id(String.valueOf(CONVERSATION_ID))
+                .type("SINGLE")
+                .build();
+        when(conversationService.createVo(anyLong(), any())).thenReturn(vo);
 
         mockMvc.perform(post("/im/conversations")
                         .header(WebHeaders.USER_ID, String.valueOf(USER_ID))
@@ -144,17 +142,13 @@ class ImConversationControllerTest {
     @Test
     @DisplayName("POST /im/conversations/{id}/messages：返回落库消息")
     void sendShouldReturnMessage() throws Exception {
-        ImMessage message = new ImMessage();
-        message.setId(1L);
-        message.setConversationId(CONVERSATION_ID);
-        message.setSeq(5L);
-        message.setSenderId(USER_ID);
-        message.setSenderType("USER");
-        message.setContentType("TEXT");
-        message.setContent("hi");
-        message.setClientMsgId("c-1");
-        message.setStatus(1);
-        when(messageService.send(anyLong(), anyLong(), any())).thenReturn(message);
+        MessageVO vo = MessageVO.builder()
+                .id("1")
+                .seq(5L)
+                .clientMsgId("c-1")
+                .content("hi")
+                .build();
+        when(messageSendService.send(anyLong(), anyLong(), any(), any())).thenReturn(vo);
 
         mockMvc.perform(post("/im/conversations/{id}/messages", CONVERSATION_ID)
                         .header(WebHeaders.USER_ID, String.valueOf(USER_ID))
@@ -164,7 +158,7 @@ class ImConversationControllerTest {
                 .andExpect(jsonPath("$.data.seq").value(5))
                 .andExpect(jsonPath("$.data.clientMsgId").value("c-1"));
 
-        verify(agentChatService).onUserMessage(any(), any());
+        verify(messageSendService).send(anyLong(), anyLong(), any(), any());
     }
 
     @Test

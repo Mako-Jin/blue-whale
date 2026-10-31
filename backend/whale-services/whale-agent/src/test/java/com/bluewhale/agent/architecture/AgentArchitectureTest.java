@@ -14,22 +14,30 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  * 依赖方向固化如下：{@code controller → service → mapper → entity}，反向依赖一律禁止。
  * 规则只扫描生产类（{@link ImportOption.DoNotIncludeTests}），避免测试替身触发误报。</p>
  *
- * <p><b>已知越层依赖（暂不纳入门禁）</b>：{@code AgentKnowledgeController / AgentFactController /
- * AgentIndexController} 直接引用 {@code AgentKnowledgeDoc / AgentKnowledgeFile / AgentFact /
- * AgentIndexMeta} 实体进行响应装配，controller 依赖 entity，按 T-18 约定不改业务代码，
- * 故此处仅约束 controller 不得依赖 mapper。</p>
+ * <p><b>越层治理进展（2026-10-31）</b>：{@code AgentFactController} 响应装配下沉到
+ * {@code FactStoreService#queryVo}，{@code AgentIndexController} 改用
+ * {@code AgentIndexMetaService#snapshot}，{@code AgentKnowledgeController} 分页映射
+ * 下沉到 {@code AgentKnowledgeFileService#pageVo / AgentKnowledgeDocService#pageVo}；
+ * 至此 controller 不再依赖任何实体，controller→entity 门禁全量开启。</p>
  *
  * @author BlueWhale
  */
 @AnalyzeClasses(packages = "com.bluewhale.agent", importOptions = ImportOption.DoNotIncludeTests.class)
 class AgentArchitectureTest {
 
-    /** 控制器不得直接依赖 Mapper（controller→entity 已存在真实依赖，暂不门禁） */
+    /** 控制器不得直接依赖 Mapper（持久化访问一律经 service 层） */
     @ArchTest
     static final ArchRule controller_must_not_depend_on_mapper = noClasses()
             .that().resideInAPackage("com.bluewhale.agent.controller..")
             .should().dependOnClassesThat().resideInAnyPackage(
                     "com.bluewhale.agent.mapper..");
+
+    /** 控制器不得直接依赖实体（响应装配已全部下沉到 service 层，T-18） */
+    @ArchTest
+    static final ArchRule controller_must_not_depend_on_entity = noClasses()
+            .that().resideInAPackage("com.bluewhale.agent.controller..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.bluewhale.agent.entity..");
 
     /** Mapper 只依赖实体与框架，不得反向依赖控制器或业务服务 */
     @ArchTest

@@ -18,6 +18,7 @@ import com.bluewhale.archive.remote.RemoteInstanceDetail;
 import com.bluewhale.archive.support.ArchiveConstants;
 import com.bluewhale.archive.support.CategoryPathResolver;
 import com.bluewhale.archive.vo.ArchiveDownloadVO;
+import com.bluewhale.archive.vo.ArchiveFileSecurityVO;
 import com.bluewhale.archive.vo.ArchiveFileVO;
 import com.bluewhale.archive.vo.ArchiveItemDetailVO;
 import com.bluewhale.archive.vo.ArchiveItemVO;
@@ -146,6 +147,18 @@ public class ArchiveItemService {
         vo.setFiles(filesOf(id));
         vo.setSourceStatus(sourceStatus(item));
         return vo;
+    }
+
+    /**
+     * 查询文件所属档案条目的密级（whale-agent 知识采集使用）。
+     *
+     * <p>密级查询下沉到服务层，controller 不再直接依赖 {@code ArchiveFileMapper}（T-18）。</p>
+     *
+     * @param fileId 文件ID
+     * @return 密级视图；未归档返回 {@code null}
+     */
+    public ArchiveFileSecurityVO security(Long fileId) {
+        return fileMapper.selectSecurityByFileId(fileId);
     }
 
     /**

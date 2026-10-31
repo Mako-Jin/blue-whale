@@ -1,7 +1,6 @@
 package com.bluewhale.agent.controller;
 
 import com.bluewhale.agent.dto.FactVO;
-import com.bluewhale.agent.entity.AgentFact;
 import com.bluewhale.agent.service.FactStoreService;
 import com.bluewhale.agent.support.web.UserContext;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
@@ -18,7 +17,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -64,18 +62,6 @@ public class AgentFactController {
                 && type.trim().toUpperCase().startsWith(RUNTIME_TYPE_PREFIX)) {
             throw new BizException(ErrorCode.FORBIDDEN);
         }
-        List<AgentFact> facts = factStoreService.query(type, key, limit, runtimeAllowed);
-        List<FactVO> result = new ArrayList<>(facts.size());
-        for (AgentFact fact : facts) {
-            result.add(FactVO.builder()
-                    .id(String.valueOf(fact.getId()))
-                    .factType(fact.getFactType())
-                    .factKey(fact.getFactKey())
-                    .value(factStoreService.parseValue(fact.getValueJson()))
-                    .sourcePath(fact.getSourcePath())
-                    .capturedAt(FactStoreService.formatTime(fact.getCapturedAt()))
-                    .build());
-        }
-        return Result.ok(result);
+        return Result.ok(factStoreService.queryVo(type, key, limit, runtimeAllowed));
     }
 }

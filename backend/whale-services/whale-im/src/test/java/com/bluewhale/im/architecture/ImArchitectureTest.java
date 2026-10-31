@@ -14,21 +14,29 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  * 依赖方向固化如下：{@code controller → service → mapper → entity}，反向依赖一律禁止。
  * 规则只扫描生产类（{@link ImportOption.DoNotIncludeTests}），避免测试替身触发误报。</p>
  *
- * <p><b>已知越层依赖（暂不纳入门禁）</b>：{@code ImConversationController} 直接引用
- * {@code ImConversation / ImMessage} 实体进行响应装配，controller 依赖 entity，
- * 按 T-18 约定不改业务代码，故此处仅约束 controller 不得依赖 mapper。</p>
+ * <p><b>越层治理进展</b>：{@code ImConversationController} 的创建响应装配已下沉到
+ * {@code ImConversationService#createVo}；发送链路的「落库 + 机器人钩子 + 响应装配」
+ * 已收敛到 {@code ImMessageSendService#send}，controller 不再依赖 {@code ImMessage} 实体，
+ * controller→entity 门禁全量开启。</p>
  *
  * @author BlueWhale
  */
 @AnalyzeClasses(packages = "com.bluewhale.im", importOptions = ImportOption.DoNotIncludeTests.class)
 class ImArchitectureTest {
 
-    /** 控制器不得直接依赖 Mapper（controller→entity 已存在真实依赖，暂不门禁） */
+    /** 控制器不得直接依赖 Mapper（持久化访问一律经 service 层） */
     @ArchTest
     static final ArchRule controller_must_not_depend_on_mapper = noClasses()
             .that().resideInAPackage("com.bluewhale.im.controller..")
             .should().dependOnClassesThat().resideInAnyPackage(
                     "com.bluewhale.im.mapper..");
+
+    /** 控制器不得直接依赖实体（发送/创建装配均已下沉到 service 层，T-18） */
+    @ArchTest
+    static final ArchRule controller_must_not_depend_on_entity = noClasses()
+            .that().resideInAPackage("com.bluewhale.im.controller..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.bluewhale.im.entity..");
 
     /** Mapper 只依赖实体与框架，不得反向依赖控制器或业务服务 */
     @ArchTest

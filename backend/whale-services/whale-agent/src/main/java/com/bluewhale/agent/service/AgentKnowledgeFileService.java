@@ -2,6 +2,7 @@ package com.bluewhale.agent.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bluewhale.agent.dto.AgentKnowledgeFileVO;
 import com.bluewhale.agent.entity.AgentKnowledgeFile;
 import com.bluewhale.agent.mapper.AgentKnowledgeFileMapper;
 import com.bluewhale.agent.support.knowledge.KnowledgeConstants;
@@ -113,6 +114,25 @@ public class AgentKnowledgeFileService {
         wrapper.orderByDesc(AgentKnowledgeFile::getUpdateTime).orderByDesc(AgentKnowledgeFile::getId);
         Page<AgentKnowledgeFile> page = mapper.selectPage(new Page<>(pageCurrent, pageSize), wrapper);
         return PageResult.of(page.getRecords(), page.getTotal(), page.getCurrent(), page.getSize());
+    }
+
+    /**
+     * 分页查询台账并装配视图对象（避免 controller 依赖实体，T-18）。
+     *
+     * @param keyword 文件名关键词（可空）
+     * @param status 状态过滤（可空）
+     * @param source 来源过滤（可空）
+     * @param current 页码
+     * @param size 每页条数
+     * @return 视图分页结果
+     */
+    public PageResult<AgentKnowledgeFileVO> pageVo(String keyword, String status, String source,
+                                                   long current, long size) {
+        PageResult<AgentKnowledgeFile> page = page(keyword, status, source, current, size);
+        List<AgentKnowledgeFileVO> records = page.getRecords().stream()
+                .map(AgentKnowledgeFileVO::of)
+                .toList();
+        return PageResult.of(records, page.getTotal(), page.getCurrent(), page.getSize());
     }
 
     /**
