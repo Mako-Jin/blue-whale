@@ -1,7 +1,7 @@
 # Wave 5.75 · 音乐平台（whale-music）实施计划
 
 > 目标：在 BlueWhale 平台内新增音乐平台能力，覆盖「曲库 → 播放 → 歌单 → 发现 → 互动 → 运营」主线，并与既有认证、租户、网关、文件、消息、审计能力打通。
-> 状态：**规划待评审**（2026-10-31）｜ 关联需求：REQ-FUNC-029 / REQ-FUNC-030 / REQ-ARCH-013 / REQ-SEC-019
+> 状态：**规划已确认，M0 进行中**（2026-10-31；用户确认：所有人可上传、签署版权无争议协议、公开 / 自听）｜ 关联需求：REQ-FUNC-029 / REQ-FUNC-030 / REQ-ARCH-013 / REQ-SEC-019
 > 上游依据：[roadmap.md](roadmap.md)、[service-catalog.md](../service-catalog.md)、[naming-conventions.md](../naming-conventions.md)、[architecture.md](../architecture.md)、[backend.md](../backend.md)、[wave5.74 文档服务实施计划](2026-10-29-wiki-doc-service.md)
 
 ---
@@ -43,9 +43,9 @@
 
 ## 二、定位、范围与边界
 
-### 2.1 默认定位（待用户确认）
+### 2.1 定位（已确认 2026-10-31）
 
-**平台内音乐应用**：面向已登录的租户用户，曲库由管理员 / 运营维护，用户可以播放、建歌单、收藏、评论；不开放匿名注册，不接入第三方商业曲库，不做公网分发。
+**平台内音乐应用**：面向已登录的租户用户；**所有登录用户均可上传歌曲**，上传前必须签署《版权无争议协议》，并可选择「公开」或「自听」；用户还可以播放、建歌单、收藏、评论；不开放匿名注册，不接入第三方商业曲库，不做公网分发。
 
 > 若目标是「面向公众的音乐平台」，需额外确认：公网注册、版权授权、内容审核团队、CDN 与带宽预算、支付与会员体系。本计划的 M0–M5 结构可复用，但 M5 会显著扩大。
 
@@ -54,7 +54,7 @@
 | 能力 | 网易云 / QQ 音乐 | whale-music 首版方案 | 波次 |
 |---|---|---|---|
 | 曲库 | 歌曲 / 专辑 / 歌手 / 分类 | `mu_song` / `mu_album` / `mu_artist` / `mu_tag` | M1 |
-| 内容运营 | 上架 / 下架 / 审核 | 状态机 `DRAFT → PUBLISHED → OFFLINE`，版权状态独立 | M1 |
+| 内容运营 | 上架 / 下架 / 审核 | 所有人可上传（先签版权协议），可选公开 / 自听；`DRAFT → PUBLISHED → OFFLINE` + 版权下架 | M1 |
 | 播放 | 流式播放 / 拖动 / 进度 | 短时播放票据 + Range 流式（206） | M2 |
 | 我的音乐 | 收藏 / 最近播放 | `mu_song_like` / `mu_play_history` | M2 |
 | 歌单 | 用户歌单 / 官方歌单 | `mu_playlist` + `mu_playlist_song`，公开 / 私有 | M3 |
@@ -68,7 +68,7 @@
 
 ### 2.3 In Scope（首版 M1–M5）
 
-1. 歌手、专辑、歌曲、标签的曲库管理；音频与封面上传到 `whale-file`。
+1. 歌手、专辑、歌曲、标签的曲库管理；**所有登录用户可上传歌曲**（签署版权无争议协议，可选公开 / 自听），音频与封面上传到 `whale-file`；管理员可运营与下架。
 2. 歌曲发布 / 下架 / 版权下架状态机；列表、详情、搜索、标签筛选。
 3. 播放票据、Range 流式播放、最近播放与进度、收藏 / 点赞。
 4. 用户歌单与官方歌单、歌单排序与容量约束、首页聚合、热门榜、新歌榜。
@@ -109,7 +109,8 @@
 |---|---|---|
 | `Artist` | 艺名、头像、地区、简介、状态 | 艺名租户内唯一；下架艺人不得新增可发布歌曲 |
 | `Album` | 标题、封面、歌手、发行日期、类型、状态 | 封面必填；发行日期不得晚于当前日期 + 1 年（防误填）；仅 `PUBLISHED` 可被用户检索 |
-| `Song` | 标题、副标题、音频资产、封面、时长、歌词、语言、标签、发布状态、版权状态 | 发布必须同时满足：音频资产存在、歌手存在且启用、`copyright_status=AUTHORIZED`、`duration_ms>0`；`TAKEDOWN` 立即强制 `OFFLINE` 并拒绝播放 |
+| `Song` | 标题、副标题、上传者、可见性（PUBLIC / PRIVATE）、音频资产、封面、时长、歌词、语言、标签、发布状态、版权状态 | 上传必须已签署版权无争议协议；发布必须满足：音频资产存在、歌手存在且启用、版权状态有效、`duration_ms>0`；`PRIVATE` 仅上传者可见可播；`TAKEDOWN` 立即强制 `OFFLINE` 并拒绝播放；公开作品允许运营复核与下架 |
+| `CopyrightAgreement` | 用户、协议版本、签署时间、客户端信息 | 同一用户同一版本只记一次；未签署当前版本不能创建歌曲 |
 | `Playlist` | 标题、封面、所有者、类型（USER/OFFICIAL）、可见性、歌曲项 | 私有歌单仅所有者可见；单歌单最多 500 首；同一歌曲不可重复加入；官方歌单仅运营可建 |
 | `SongComment` | 歌曲、用户、父评论、正文、状态、点赞数 | 正文 ≤ 500 字、纯文本；状态 `PENDING / VISIBLE / HIDDEN`；仅 `VISIBLE` 对外展示 |
 | `PlayHistory` | 用户、歌曲、进度、来源、播放时间 | 仅记录已发布歌曲；按用户保留 90 天，超期清理 |
@@ -118,8 +119,8 @@
 
 | 类型 | 内容 |
 |---|---|
-| 命令 | `CreateArtist`、`PublishAlbum`、`PublishSong`、`OfflineSong`、`TakedownSong`、`CreatePlaylist`、`AddSongToPlaylist`、`ReorderPlaylist`、`LikeSong`、`ReportPlayback`、`SubmitComment`、`ModerateComment` |
-| 领域事件 | `SongPublished`、`SongOfflined`、`SongTakenDown`、`PlaylistChanged`、`CommentSubmitted`、`CommentModerated` |
+| 命令 | `CreateArtist`、`PublishAlbum`、`UploadSong`、`PublishSong`、`OfflineSong`、`TakedownSong`、`SignCopyrightAgreement`、`CreatePlaylist`、`AddSongToPlaylist`、`ReorderPlaylist`、`LikeSong`、`ReportPlayback`、`SubmitComment`、`ModerateComment` |
+| 领域事件 | `SongUploaded`、`SongPublished`、`SongOfflined`、`SongTakenDown`、`PlaylistChanged`、`CommentSubmitted`、`CommentModerated` |
 | 规则 R1 | 歌曲发布前置校验（资产 / 歌手 / 版权 / 时长）全部通过，否则 `DomainException` |
 | 规则 R2 | 版权下架优先于发布状态：`TAKEDOWN` 后任何播放票据签发失败，已签发票据在缓存失效后不可续用 |
 | 规则 R3 | 歌单可见性：`PRIVATE` 仅所有者；`PUBLIC` 租户内可见；官方歌单只读 |
@@ -127,6 +128,8 @@
 | 规则 R5 | 播放计数异步聚合：Redis 计数 + 定时回刷，避免 `UPDATE mu_song SET play_count` 行锁热点 |
 | 规则 R6 | 评论先审后发或先发后审由配置决定（默认先发后审 + 审核队列），隐藏后立即不可见 |
 | 规则 R7 | 所有读接口先按 `tenant_id` 过滤，再按可见性过滤；跨租户 ID 一律 404，不暴露存在性 |
+| 规则 R8 | 上传前置：上传者已签署当前版本《版权无争议协议》，未签署直接 `DomainException` |
+| 规则 R9 | 可见性：`PRIVATE` 歌曲仅上传者本人可查 / 可播；`PUBLIC` 租户内可见；运营可对公开作品下架 |
 
 ### 3.4 值对象与领域事件落地约定
 
@@ -145,6 +148,8 @@
 | 播放票据 | 短期有效的播放授权凭证，绑定租户 + 用户 + 歌曲 |
 | 官方歌单 | 运营维护、用户只读的歌单 |
 | 审核队列 | 待审核评论集合，运营可批量通过 / 隐藏 |
+| 自听 | 歌曲 `visibility=PRIVATE`，仅上传者本人可见可播 |
+| 版权无争议协议 | 上传者声明拥有版权或已获授权、无第三方权利争议的协议 |
 
 ---
 
@@ -188,7 +193,8 @@ interfaces  → application  → domain
 |---|---|---|
 | `mu_artist` | 歌手 | `name`（租户内唯一）、`avatar_file_id`、`region`、`bio`、`status`；`uk(tenant_id,name,deleted)` |
 | `mu_album` | 专辑 | `artist_id`、`title`、`cover_file_id`、`release_date`、`album_type`、`publish_status`；`idx(tenant_id,publish_status)`、`idx(artist_id)` |
-| `mu_song` | 歌曲 | `album_id`、`artist_id`、`title`、`subtitle`、`audio_file_id`、`cover_file_id`、`duration_ms`、`lyric_file_id`、`lyric_text`、`language`、`publish_status`、`copyright_status`、`play_count`、`like_count`、`comment_count`、`sort_weight`；`idx(tenant_id,publish_status)`、`idx(album_id)`、`idx(artist_id)` |
+| `mu_song` | 歌曲 | `uploader_id`、`visibility`（PUBLIC / PRIVATE）、`album_id`、`artist_id`、`title`、`subtitle`、`audio_file_id`、`cover_file_id`、`duration_ms`、`lyric_file_id`、`lyric_text`、`language`、`publish_status`、`copyright_status`、`play_count`、`like_count`、`comment_count`、`sort_weight`；`idx(tenant_id,publish_status,visibility)`、`idx(uploader_id)`、`idx(album_id)`、`idx(artist_id)` |
+| `mu_copyright_agreement` | 版权协议签署 | `user_id`、`agreement_version`、`accepted_at`、`client_ip`、`user_agent`；`uk(tenant_id,user_id,agreement_version)` |
 | `mu_tag` | 标签 | `name`、`type`（GENRE / LANGUAGE / MOOD）、`sort`；`uk(tenant_id,name,type,deleted)` |
 | `mu_song_tag` | 歌曲标签关系 | 复合主键 `(song_id,tag_id)`；`idx(tag_id)` |
 | `mu_playlist` | 歌单 | `owner_id`（官方歌单为空）、`title`、`cover_file_id`、`description`、`playlist_type`、`visibility`、`song_count`、`play_count`、`status`；`idx(tenant_id,visibility)`、`idx(owner_id)` |
@@ -228,7 +234,11 @@ interfaces  → application  → domain
 | GET | `/music/song/{id}`、`/music/album/{id}`、`/music/artist/{id}` | 公开详情 |
 | GET | `/music/song/page` | 用户侧筛选分页（标签 / 歌手 / 专辑 / 排序） |
 | GET | `/music/chart/hot`、`/music/chart/new` | 热门榜 / 新歌榜 |
-| POST | `/music/play/ticket` | 签发播放票据（校验发布状态、版权、租户） |
+| GET | `/music/copyright/agreement/current` | 当前版权协议版本与正文 |
+| POST | `/music/copyright/agreement/accept` | 签署版权无争议协议（版本 + 勾选） |
+| POST / PUT / DELETE | `/music/user/song`、`/music/user/song/{id}` | 用户上传 / 编辑 / 删除自己的作品（创建时选 PUBLIC / PRIVATE） |
+| GET | `/music/my/songs` | 我的作品（含自听作品） |
+| POST | `/music/play/ticket` | 签发播放票据（校验发布状态、版权、可见性、租户） |
 | GET | `/music/stream/{songId}?ticket=...` | Range 流式播放（200 / 206 / 416） |
 | POST | `/music/play/progress` | 上报播放进度与历史 |
 | GET | `/music/play/history` | 最近播放 |
@@ -256,6 +266,7 @@ interfaces  → application  → domain
 | `sys:music:playlist:own` | 289 | 用户自建歌单 |
 | `sys:music:comment:create` | 290 | 发表评论 |
 | `sys:music:like` | 291 | 收藏 / 点赞 |
+| `sys:music:song:upload` | 292 | 上传 / 管理自己的作品 |
 
 | 菜单 ID | 名称 | 落点 |
 |---|---|---|
@@ -264,7 +275,8 @@ interfaces  → application  → domain
 | 40 | 歌手与专辑 | admin 歌手 / 专辑管理 |
 | 41 | 歌单运营 | admin 官方歌单管理 |
 | 42 | 评论审核 | admin 评论审核 |
-| 43–45 | 预留 | 播放统计 / 标签管理 / 版权下架 |
+| 43 | 上传音乐 | 用户上传入口（协议弹窗 + 公开 / 自听） |
+| 44–45 | 预留 | 播放统计 / 标签管理 |
 
 ### 4.6 网关与内网安全
 
@@ -321,7 +333,9 @@ interfaces  → application  → domain
 | 歌手详情 | 歌手信息 + 代表歌曲 + 专辑 |
 | 专辑详情 | 封面、发行信息、曲目列表 |
 | 歌单详情 | 歌单信息、歌曲列表、播放全部 |
-| 我的音乐 | 我的收藏、最近播放、我的歌单 |
+| 我的音乐 | 我的收藏、最近播放、我的歌单、我的作品 |
+| 上传音乐 | 选音频 / 封面、填写元数据、签署版权协议、选择公开 / 自听 |
+| 我的作品 | 本人上传的公开与自听作品，可编辑 / 删除 |
 | `PlayerBar` | 全局播放器：播放 / 暂停、进度拖动、上一首 / 下一首、音量、播放队列、歌词抽屉 |
 | `SongList` / `PlaylistPicker` | 复用列表与「加入歌单」弹层 |
 
@@ -334,6 +348,7 @@ interfaces  → application  → domain
 - `pages/music/SongList`、`ArtistList`、`AlbumList`、`PlaylistManage`、`CommentAudit`。
 - 上传音频 / 封面复用 admin 既有文件上传能力，提交时只传 `fileId`。
 - 所有操作按钮受对应权限码控制；下架 / 版权下架二次确认并留审计。
+- 用户上传页复用同一套上传组件，创建时强制勾选版权协议并选择公开 / 自听。
 
 ### 4.10 可观测性
 
@@ -356,7 +371,7 @@ interfaces  → application  → domain
 | M0-2 | 新建 `whale-music` 模块（POM、启动类、`application.yml`、hikari 基线） | 可启动、Nacos 注册、`/actuator/health` UP |
 | M0-3 | `bluewhale_music` 建库 + `mu_*` 表 DDL + 幂等迁移脚本 | 11 张表建成，租户列与索引齐全 |
 | M0-4 | DDD 四层骨架 + `architecture-test` ArchUnit | 分层规则用例通过，领域层无 Spring 依赖 |
-| M0-5 | 网关 `/music/**` 路由、`internal-deny`、权限点 271–291 与菜单 38–42 种子 | 经网关健康检查 `code=0`，无权限 403 |
+| M0-5 | 网关 `/music/**` 路由、`internal-deny`、权限点 271–292 与菜单 38–43 种子 | 经网关健康检查 `code=0`，无权限 403 |
 | M0-6 | 服务登记：service-catalog / naming-conventions / 构建与镜像矩阵 | 文档与代码一致 |
 
 ### M1 曲库内容管理
@@ -369,6 +384,9 @@ interfaces  → application  → domain
 | M1-4 | 运营分页与详情、标签筛选 | 权限码保护，写操作 `@AuditLog` |
 | M1-5 | admin 曲库 / 歌手 / 专辑页 | 新增→发布→列表可见→下架不可见闭环 |
 | M1-6 | 单测 + ArchUnit + Checkstyle | 模块用例全绿、0 违规 |
+| M1-7 | 用户上传与协议签署：协议版本 / 签署记录 / 未签署拦截 | 未签署不能上传；签署记录不可篡改、可按版本追溯 |
+| M1-8 | 用户作品管理：公开 / 自听、我的作品、编辑 / 删除 | 自听作品仅本人可见可播；公开作品租户内可见 |
+| M1-9 | 前端上传页 / 协议弹窗 / 我的作品 | 签署→上传→选择公开 / 自听→列表可见闭环 |
 
 ### M2 播放与音频流（前置：G1 Range 补齐）
 
@@ -407,9 +425,9 @@ interfaces  → application  → domain
 
 | ID | 任务 | 验收 |
 |---|---|---|
-| M5-1 | 越权矩阵：跨租户 / 私有歌单 / 评论 / 附件 IDOR | 全部 404 / 403，不泄露存在性 |
+| M5-1 | 越权矩阵：跨租户 / 私有歌单 / 自听作品 / 评论 / 附件 IDOR | 全部 404 / 403，不泄露存在性 |
 | M5-2 | 上传白名单：音频 `audio/mpeg`、`audio/aac`、`audio/flac`；封面图片；大小上限 | 非法类型 / 超限 400 |
-| M5-3 | 版权合规：上传必填授权来源、下架与申诉留痕、审计可追溯 | 无授权素材不可发布 |
+| M5-3 | 版权合规：签署协议版本可追溯、上传来源必填、下架与申诉留痕、审计可追溯 | 未签署协议不可上传；无授权素材可下架 |
 | M5-4 | 限流与防刷：播放票据、流式、评论、点赞 | 超阈值 429，异常用户可封禁 |
 | M5-5 | 指标 / 日志 / Grafana / SLO | 抓取 UP、面板可读、无敏感正文 |
 | M5-6 | 性能与容量：50 并发流式稳定、首页 P95、详情 P95 | 达到 4.10 SLO 建议值 |
@@ -454,13 +472,14 @@ interfaces  → application  → domain
 | # | 决策 / 风险 | 影响 | 建议默认 |
 |---|---|---|---|
 | Q1 | 平台定位：企业内部音乐库 / 面向公众 / 演示 | 决定注册、版权、审核、CDN、支付范围 | **企业内部音乐库**（登录用户，管理员维护曲库） |
-| Q2 | 内容来源与版权 | 无授权曲库不得上线 | 仅接受自有 / 授权 / 免版权素材，上传必填授权来源 |
-| Q3 | 是否允许用户上传 / 创作者入口 | 审核与存储成本上升 | 首版**仅管理员上传**，创作者入口后置 |
+| Q2 | 内容来源与版权 | 无授权曲库不得上线 | **已确认**：仅自有 / 授权 / 免版权素材；上传必须签署《版权无争议协议》并记录版本 |
+| Q3 | 是否允许用户上传 / 创作者入口 | 审核与存储成本上升 | **已确认（2026-10-31）**：所有登录用户可上传；签协议；可选公开 / 自听；运营可复核下架 |
 | Q4 | 是否做会员 / 付费 | 需接 `whale-pay` 与订单体系 | 首版**不做**，保留扩展点 |
 | Q5 | 音频格式与转码 | 浏览器兼容性与存储成本 | 首版 MP3/AAC，**不做转码**；FLAC 仅登记 |
 | Q6 | 存储与分发 | 公网播放需 CDN | 本机 local；生产 MinIO；CDN 后置 |
 | Q7 | 推荐能力 | 影响首页与榜单设计 | 首版规则推荐（热度 / 新歌 / 标签），不做模型 |
 | Q8 | 评论审核策略 | 影响审核工作量 | 默认先发后审 + 审核队列，可配置为先审后发 |
+| Q9 | 用户上传的公开作品是否先审后发 | 影响可见时效与审核成本 | **已确认**：不设上传前置审核，公开即见，运营事后复核并可下架 |
 | R1 | `whale-file` Range 改造范围 | 影响文件服务既有契约 | 只增强内部内容接口，保持下载 / 预览行为不变 |
 | R2 | 播放计数热点 | 影响 `mu_song` 写性能 | Redis 计数 + 定时回刷，榜单允许最终一致 |
 | R3 | 大文件与带宽 | 影响本机存储与网络 | 单文件上限 100MB；生产独立桶 `whale-music` |
