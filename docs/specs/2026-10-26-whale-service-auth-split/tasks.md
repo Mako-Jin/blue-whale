@@ -1,5 +1,11 @@
 # tasks：whale-auth → whale-service-auth 拆分
 
+> **状态说明（2026-10-31 复核）**：本清单是拆分执行期的过程记录，**勾选未逐项回填**；
+> 拆分结果已落地——`whale-service-auth` 下 5 个子模块（application / domain / infrastructure /
+> interfaces / starter）与 architecture-test 均存在，后续「认证用例下沉」由
+> [2026-10-27-auth-layer-decoupling](../2026-10-27-auth-layer-decoupling/spec.md) 完成（T1–T6 全勾选）。
+> **代码事实以仓库结构与构建结果为准，请勿按本文未勾选项重复施工。**
+
 > 执行顺序严格自上而下；阶段 2 前必须完成阶段 1 编译验证。
 
 ## 阶段 1：重构（消除包依赖环）

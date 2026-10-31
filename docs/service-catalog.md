@@ -217,8 +217,8 @@
 | **3306 / 6379 / 5672 / 15672** | MySQL / Redis / RabbitMQ | 3306、6379 已运行；5672/15672 未运行 |
 | **8000–8099** | **前端 dev server**：基座 `8000`、admin `8001`、form-designer `8002`、workflow-designer `8003`、agent `8004` | 已落地（C-01 已解） |
 | **8080** | **网关（唯一后端入口）** | 已运行 |
-| **8081–8099** | **核心服务** | auth 8081、job 8082、workflow 8083、form 8084、file 8085、pay 8086、**agent 8090、im 8091、ai 8092（Python）、archive 8093、message 8094、doc 8095（M1 骨架）、music 8096（M1 后端已落地）**（8087 已随 `whale-i18n` 服务删除释放，Wave 5.50） |
-| **8101–8199** | **qiankun 子应用 + 运维端** | portal 8101、erp 8102、oa 8103、ops 8104、mes 8105、pdm 8106、**im 8107、pm 8108、contract 8109、doc 8110、music 8111（M1 页面已落地）** |
+| **8081–8099** | **核心服务** | auth 8081、job 8082、workflow 8083、form 8084、file 8085、pay 8086、**agent 8090、im 8091、ai 8092（Python）、archive 8093、message 8094、doc 8095（M1 骨架）、music 8096（M0–M5 已落地）**（8087 已随 `whale-i18n` 服务删除释放，Wave 5.50） |
+| **8101–8199** | **qiankun 子应用 + 运维端** | portal 8101、erp 8102、oa 8103、ops 8104、mes 8105、pdm 8106、**im 8107、pm 8108、contract 8109、doc 8110、music 8111（M0–M5 已落地）** |
 | **8848 / 8849 / 9848 / 9849** | **Nacos** | 已运行 |
 | **9001–9099** | **业务应用** | erp 9001、mes 9002、pdm 9003、oa 9004、**pm 9005、contract 9006** |
 | **9101–9199** | **运维（ops）** | audit 9101、monitor 9102、alert 9103 |

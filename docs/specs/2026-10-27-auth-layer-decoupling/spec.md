@@ -1,6 +1,6 @@
 # 认证用例下沉应用层 + 领域层依赖最小化
 
-- 状态：待批准（Spec Mode，批准后执行）
+- 状态：已实施（2026-10-31 复核：`tasks.md` T1–T6 全部完成；`whale-service-auth` 5 个子模块与 ArchUnit 规则均已落地，本文为设计归档）
 - 日期：2026-10-27
 - 关联：REQ-ARCH-001、ADR-AUTH-004、[whale-service-auth 拆分 spec](../2026-10-26-whale-service-auth-split/spec.md)
 - 影响模块：`backend/whale-common`（新增 `whale-common-core`）、`backend/whale-services/whale-service-auth`（5 个模块）

@@ -475,19 +475,19 @@ $env:GATEWAY_BASE='http://127.0.0.1:8080'
 
 ## 十一、上线检查清单
 
-- [ ] `bluewhale_music` 建库 + `init.sql`（或存量库 `migration-5.75-m5.sql`、`migration-5.75-m5-appeal.sql`）执行，§4.2 校验 SQL 通过（14 表 / 申诉 3 列 / `idx_mu_history_played`）。
-- [ ] auth `migration-5.75-music.sql` + `migration-5.75-m5-appeal.sql` 执行：权限 281–304（24 项）、角色 25103/25104、菜单 45 与授权（25103 含 304，25104 不含）。
-- [ ] 网关 `whale-music` 路由、`/music/internal/**` 403、四类限流规则生效，并用 §7.1 脚本实测 429。
-- [ ] `whale-file` 内网内容接口可用（音流两跳链路），内网令牌头已配置。
-- [ ] 前端 `/music` 子应用可加载；`/music/meta` 下发的白名单与上限和前端一致；「我的作品」可见申诉入口，管理端「版权申诉」菜单可打开。
-- [ ] `mvn -o -pl whale-services/whale-music -am test` 全绿（117/117）；Checkstyle 0；ArchUnit 5/5。
-- [ ] `scripts/smoke/bw-music-m2/m3/m4/m5-smoke.ps1` 全 `SMOKE-ALL-PASS`（m5 含申诉闭环）。
-- [ ] `scripts/smoke/bw-music-m5-load.ps1` 全绿（首页 / 详情 / 50 并发流式）。
-- [ ] Prometheus 抓取 `whale-music` UP，Grafana `bluewhale-music` 面板有数据，SLO-6/7/8 可查。
-- [ ] `logging.level.com.bluewhale` 生产置 `info`（`LOGGING_LEVEL_COM_BLUEWHALE=info` 或 `--logging.level.com.bluewhale=info`，见 §6.4）；确认日志无正文。
-- [ ] Docker 部署契约 preflight 通过（`bw-deploy-contract-check.ps1`，PS 5.1 / 7 均可）：后端 23 / 前端 16 / 同名冲突 10 / nginx 10 前缀。
-- [ ] 备份策略与恢复演练（`scripts/ops/music-backup-restore.ps1` → `RESULT: PASSED`，§5.1）。
-- [ ] 浏览器人工回归：登录 → 首页 → 搜索 → 播放（含拖动）→ 收藏 → 建歌单 → 评论 → 审核 → 申诉 → 下架（本机账号与登录态已验证，见 M5 报告 §4.9；联调口令禁止用于生产）。
+- [x] `bluewhale_music` 建库 + `init.sql`（或存量库 `migration-5.75-m5.sql`、`migration-5.75-m5-appeal.sql`）执行，§4.2 校验 SQL 通过（14 表 / 申诉 3 列 / `idx_mu_history_played`）。
+- [x] auth `migration-5.75-music.sql` + `migration-5.75-m5-appeal.sql` 执行：权限 281–304（24 项）、角色 25103/25104、菜单 45 与授权（25103 含 304，25104 不含）。
+- [x] 网关 `whale-music` 路由、`/music/internal/**` 403、四类限流规则生效，并用 §7.1 脚本实测 429。
+- [x] `whale-file` 内网内容接口可用（音流两跳链路），内网令牌头已配置。
+- [ ] 前端 `/music` 子应用可加载；`/music/meta` 下发的白名单与上限和前端一致；「我的作品」可见申诉入口，管理端「版权申诉」菜单可打开。（**部分验证**：`tsc`/`build`/`lint` 与 `/music/meta` 接口已通过；浏览器逐页点检受 B-09 阻塞）
+- [x] `mvn -o -pl whale-services/whale-music -am test` 全绿（117/117）；Checkstyle 0；ArchUnit 5/5。
+- [x] `scripts/smoke/bw-music-m2/m3/m4/m5-smoke.ps1` 全 `SMOKE-ALL-PASS`（m5 含申诉闭环）。
+- [x] `scripts/smoke/bw-music-m5-load.ps1` 全绿（首页 / 详情 / 50 并发流式）。
+- [x] Prometheus 抓取 `whale-music` UP，Grafana `bluewhale-music` 面板有数据，SLO-6/7/8 可查。
+- [x] `logging.level.com.bluewhale` 生产置 `info`（`LOGGING_LEVEL_COM_BLUEWHALE=info` 或 `--logging.level.com.bluewhale=info`，见 §6.4）；确认日志无正文。
+- [ ] Docker 部署契约 preflight 通过（`bw-deploy-contract-check.ps1`，PS 5.1 / 7 均可）：后端 23 / 前端 16 / 同名冲突 10 / nginx 10 前缀。（**部分验证**：本机以等价静态核对通过；脚本含 GitHub Actions 表达式，PS 5.1 无法解析，CI 由 pwsh 执行）
+- [x] 备份策略与恢复演练（`scripts/ops/music-backup-restore.ps1` → `RESULT: PASSED`，§5.1）。
+- [ ] 浏览器人工回归：登录 → 首页 → 搜索 → 播放（含拖动）→ 收藏 → 建歌单 → 评论 → 审核 → 申诉 → 下架（本机账号与登录态已验证，见 M5 报告 §4.9；联调口令禁止用于生产）。（**阻塞**：缺浏览器工具 B-09）
 
 ---
 

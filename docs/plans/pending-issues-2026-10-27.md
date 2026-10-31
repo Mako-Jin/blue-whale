@@ -76,3 +76,19 @@
 - [x] ~~**D-04 `todo-inventory-2026-10-23.md` 已过期**：多项已闭环，应归档或重生成~~ ✅ 2026-10-27（已移入 [archive/todo-inventory-2026-10-23.md](archive/todo-inventory-2026-10-23.md) 并标注冻结，所有历史引用同步更新；当前入口仍为本清单）
 - [x] ~~**D-05 `service-catalog.md` C-06 滞后**：仍写 erp/mes/pdm/oa 未配数据源，实际 10-26 已完成~~ ✅ 2026-10-27（服务清单主表 4 行与 C-06 同步为已配数据源、已建库，各 2 表；核对 `application.yml`、compose 初始化 SQL 与各应用 `db/init.sql`）
 - [x] ~~**D-06 合同设计稿 M3.6 遗留过时**：仍写「原件未做文件锁定」，P1 #6 已修复~~ ✅ 2026-10-27（M3.6 已补锁定实现、确认归档兜底锁、历史补扫接口与默认关闭调度；保留“待整理/无异步补偿队列”两项真实遗留）
+
+## 五、2026-10-31 盘点新增项
+
+> 编号说明：本节 `N-xx` 为 2026-10-31 盘点新增编号；此前各节 `V-xx` 为既有验证序列，不重号。
+> 盘点与修复记录：[2026-10-31-security-quickfix-and-doc-sync](reviews/2026-10-31-security-quickfix-and-doc-sync.md)。
+
+- [x] ~~**N-01 脚本硬编码本机 MySQL 口令 `515322`**：`scripts/dev/run-music.ps1` 默认值、`scripts/smoke/bw-contract-m2-smoke.ps1` fallback~~ ✅ 2026-10-31（移除默认值，未设置 `MYSQL_PASSWORD` 即失败并提示环境变量注入）
+- [x] ~~**N-02 `scripts/agent-eval.ps1` 默认口令 `123456`**（参数默认值与用法示例）~~ ✅ 2026-10-31（默认改为空 + `-Password` / `WHALE_EVAL_PASSWORD` 二选一，缺失即失败）
+- [x] ~~**N-03 非 dev 环境 Cookie Secure 未开启**：`whale.auth.cookie.secure` 默认 false，漏配则 refresh/CSRF Cookie 走 HTTP 明文~~ ✅ 2026-10-31（`SecretPlaceholderChecker` 增加非 dev fail-fast；单测 4/4 通过）
+- [x] ~~**N-04 知识桶白名单隐式前缀匹配**：`bluewhale` 会顺带放行 `bluewhale-private`~~ ✅ 2026-10-31（改为精确匹配，仅显式 `*` 通配；新增「不隐式前缀」与「`oa-*` 通配」用例）
+- [x] ~~**N-05 供应链扫描缺口**：只有 gitleaks/CodeQL/pnpm audit，无镜像与 Maven 依赖扫描~~ ✅ 2026-10-31（`security-scan.yml` 新增 `trivy-fs`（SARIF 入 Security 面板）与 `backend-dependency-check`（周/手动）；首批留档，基线清理后改阻断）
+- [x] ~~**N-06 文档状态失真**：`architecture.md` / `service-catalog.md` / `roadmap.md` / `music-service-ops.md` 仍写音乐 M1 或 M3–M5 待做；auth 拆分与解耦 spec 未回填~~ ✅ 2026-10-31（音乐按 M0–M5 可上线口径同步；上线清单按证据勾选并标注 B-09/B-10 阻塞项；拆分 tasks 加状态说明、解耦 spec 状态改「已实施」）
+- [ ] **N-07 仓库卫生**：`skills/` 下 5 个未跟踪 zip；`.trae` 16 文件为 2026-10-22 既定保留（非缺陷，已关闭该项）。进展：`skills/*.zip` 已加入 `.gitignore`（2026-10-31），物理文件清理仍待用户确认
+- [ ] **N-08 环境阻塞（沿用盘点编号）**：B-01 Docker 全链路、B-09 浏览器 E2E、B-10 通知链路（`whale-message` 未起服）仍开放，需环境具备后复验
+- [ ] **N-09 质量门禁大项**：进展 2026-10-31——T-17 已完成（mypy 2.4.1 全量 0 错误，CI 转阻断并固定版本）；T-18 已完成 `whale-agent`（事实/索引/知识）、`whale-archive`（文件密级）、`whale-im`（创建/发送）越层收敛，三个服务均开启 controller→mapper/entity ArchUnit 门禁；仍开放：前端页面级单测覆盖率（T-07）、E2E 入 CI（T-08）、其余服务越层专项
+- [x] ~~**N-10 前端依赖审计门禁**：`frontend-audit` 仍 `continue-on-error`~~ ✅ 2026-10-31（新增 `pnpm audit --prod --audit-level=critical` 阻断步骤，dev 依赖告警仍留档）
