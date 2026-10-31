@@ -3,7 +3,8 @@
 # =====================================================================
 # 用法：
 #   pwsh -File scripts/agent-eval.ps1
-#   pwsh -File scripts/agent-eval.ps1 -BaseUrl http://localhost:8080 -Username admin -Password 123456
+#   pwsh -File scripts/agent-eval.ps1 -BaseUrl http://localhost:8080 -Username admin -Password <口令>
+#   pwsh -File scripts/agent-eval.ps1  # 也可通过环境变量 WHALE_EVAL_PASSWORD 传入口令
 #
 # 流程：登录 → 逐题 POST /agent/chat（SSE）→ 解析 meta/delta/done → 按黄金集断言
 #       → 计算总体/结构化/引用有效率 → 写 docs/reviews/ 下的 Markdown 报告。
@@ -14,7 +15,7 @@
 param(
     [string]$BaseUrl = 'http://localhost:8080',
     [string]$Username = 'admin',
-    [string]$Password = '123456',
+    [string]$Password = '',
     [string]$GoldenSet = 'docs/agent/golden-set.json',
     [string]$OutFile = 'docs/reviews/2026-10-22-wave5.47-agent-eval.md',
     [int]$TimeoutSec = 120
@@ -22,6 +23,12 @@ param(
 
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
+# 安全：脚本不再内置默认口令，允许通过环境变量 WHALE_EVAL_PASSWORD 传入
+if (-not $Password) { $Password = $env:WHALE_EVAL_PASSWORD }
+if (-not $Password) {
+    throw '未提供评测账号口令：请通过 -Password 或环境变量 WHALE_EVAL_PASSWORD 指定（脚本不再内置默认口令）'
+}
 
 # 仓库根目录（scripts 的上级）
 $RepoRoot = Split-Path -Parent $PSScriptRoot

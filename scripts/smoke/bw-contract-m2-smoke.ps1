@@ -14,7 +14,8 @@ $ErrorActionPreference = 'Stop'
 $base = 'http://127.0.0.1:8080'
 $fileBase = 'http://127.0.0.1:8085'
 $mysqlBin = if ($env:MYSQL_BIN) { $env:MYSQL_BIN } else { 'D:\tools\installer\mysql\bin\mysql.exe' }
-$mysqlPassword = if ($env:MYSQL_PASSWORD) { $env:MYSQL_PASSWORD } else { '515322' }
+if (-not $env:MYSQL_PASSWORD) { throw '未设置 MYSQL_PASSWORD：本脚本的审计/篡改数据库断言必需该口令（不再内置默认值）' }
+$mysqlPassword = $env:MYSQL_PASSWORD
 
 function Invoke-Sql($sql) {
     $env:MYSQL_PWD = $mysqlPassword

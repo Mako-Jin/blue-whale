@@ -20,7 +20,7 @@ $ErrorActionPreference = 'Stop'
 $jar = if ($env:MUSIC_JAR) { $env:MUSIC_JAR } else { 'f:\blue-whale\backend\whale-services\whale-music\target\whale-music.jar' }
 if (-not (Test-Path -LiteralPath $jar)) { throw "jar not found: $jar" }
 
-if (-not $env:MYSQL_PASSWORD) { $env:MYSQL_PASSWORD = '515322' }
+if (-not $env:MYSQL_PASSWORD) { throw 'MYSQL_PASSWORD not set: run with $env:MYSQL_PASSWORD=<your local password> (no built-in default since 2026-10-31)' }
 if (-not $env:WHALE_MUSIC_UPLOAD_MAX_BYTES) { $env:WHALE_MUSIC_UPLOAD_MAX_BYTES = '8192' }
 if (-not $env:LOGGING_LEVEL_COM_BLUEWHALE) { $env:LOGGING_LEVEL_COM_BLUEWHALE = 'info' }
 if (-not $env:MUSIC_HEAP) { $env:MUSIC_HEAP = '512m' }

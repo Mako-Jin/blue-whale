@@ -13,7 +13,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
 /**
- * {@link SecretPlaceholderChecker} 单元测试（AUTH-23，REQ-SEC-005）：dev 放行与非 dev 拒绝。
+ * {@link SecretPlaceholderChecker} 单元测试（AUTH-23，REQ-SEC-005 / N-03）：dev 放行与非 dev 拒绝
+ * （JWT 占位密钥 + Cookie Secure 未开启）。
  *
  * @author BlueWhale
  */
@@ -24,17 +25,20 @@ class SecretPlaceholderCheckerTest {
     private JwtProperties jwtProperties;
 
     @Mock
+    private AuthCookieProperties authCookieProperties;
+
+    @Mock
     private Environment environment;
 
     private SecretPlaceholderChecker checker;
 
     @BeforeEach
     void setUp() {
-        checker = new SecretPlaceholderChecker(jwtProperties, environment);
+        checker = new SecretPlaceholderChecker(jwtProperties, authCookieProperties, environment);
     }
 
     @Test
-    @DisplayName("dev profile：允许占位密钥，不抛异常")
+    @DisplayName("dev profile：允许占位密钥与 Secure 关闭，不抛异常")
     void shouldAllowPlaceholderInDev() {
         when(environment.getActiveProfiles()).thenReturn(new String[]{"dev"});
 
@@ -55,7 +59,18 @@ class SecretPlaceholderCheckerTest {
     void shouldAllowCustomSecretOutsideDev() {
         when(environment.getActiveProfiles()).thenReturn(new String[]{"prod"});
         when(jwtProperties.getSecret()).thenReturn("a-strong-random-secret-value-min-32-bytes");
+        when(authCookieProperties.isSecure()).thenReturn(true);
 
         assertDoesNotThrow(() -> checker.afterPropertiesSet());
+    }
+
+    @Test
+    @DisplayName("非 dev + 自定义密钥但 Cookie Secure 关闭：拒绝启动")
+    void shouldRejectInsecureCookieOutsideDev() {
+        when(environment.getActiveProfiles()).thenReturn(new String[]{"prod"});
+        when(jwtProperties.getSecret()).thenReturn("a-strong-random-secret-value-min-32-bytes");
+        when(authCookieProperties.isSecure()).thenReturn(false);
+
+        assertThrows(IllegalStateException.class, () -> checker.afterPropertiesSet());
     }
 }
