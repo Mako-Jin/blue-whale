@@ -17,6 +17,7 @@ docs/
 │   ├── agent-mcp.md         # 知识 Agent MCP / IDE 接入
 │   ├── doc-service-ops.md   # 在线文档/Wiki 部署/配置/备份/清理/排障
 │   ├── external-integration-onboarding.md  # 外部集成凭据预检作业单
+│   ├── music-service-ops.md  # 音乐平台部署/配置/迁移/备份/清理/排障
 │   └── slo.md               # SLO 与 PromQL
 ├── design/              # 架构与专项设计（定稿后方可进入编码）
 │   ├── adr/                 # 架构决策记录

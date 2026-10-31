@@ -46,6 +46,7 @@ cd frontend && pnpm install && pnpm run dev
 |---|---|
 | SLO 与 PromQL | [ops/slo.md](ops/slo.md) |
 | 文档服务运维（备份/清理/排障） | [ops/doc-service-ops.md](ops/doc-service-ops.md) |
+| 音乐平台运维（部署/迁移/备份/清理/排障） | [ops/music-service-ops.md](ops/music-service-ops.md) |
 | 知识索引重建/排障 | [ops/agent-index-ops.md](ops/agent-index-ops.md) |
 | Agent MCP / IDE 接入 | [ops/agent-mcp.md](ops/agent-mcp.md) |
 | 外部集成凭据预检 | [ops/external-integration-onboarding.md](ops/external-integration-onboarding.md) |
