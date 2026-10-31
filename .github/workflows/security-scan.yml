@@ -3,6 +3,8 @@
 # - gitleaks：secrets 泄漏扫描（全量历史，push main / PR）
 # - dependency-review：PR 引入的依赖漏洞/许可审查
 # - CodeQL：Java + JS/TS 代码审计（每周一 03:00 UTC + workflow_dispatch）
+# - trivy-fs：镜像/依赖/配置漏洞与密钥扫描（V-07，SARIF 入 Security 面板）
+# - backend-dependency-check：Maven 依赖传递漏洞（OWASP，周/手动）
 # ============================================================
 
 name: Security Scan
@@ -75,8 +77,8 @@ jobs:
           node-version: '24'
 
       # 本机镜像（registry.npmmirror.com）不支持 audit 端点（B-06），CI 固定切官方 registry。
-      # 结果仅留档：漏洞处置需逐条评估（多数为 vitest/vite/esbuild 等开发期依赖），
-      # 因此不阻断流水线，避免已知开发期告警长期红号。
+      # 首批仍仅留档（N-10）：critical 集中在 vitest/vite/esbuild 等开发期依赖，
+      # 需先完成基线清理再改为阻断；阻断口径见 docs/plans/pending-issues-2026-10-27.md。
       - name: pnpm audit (json)
         continue-on-error: true
         run: pnpm audit --registry=https://registry.npmjs.org --json > pnpm-audit.json
@@ -87,6 +89,91 @@ jobs:
         with:
           name: pnpm-audit
           path: frontend/pnpm-audit.json
+          retention-days: 30
+
+      # N-10：运行期依赖 critical 阻断。`--prod` 排除 vitest/vite/esbuild 等开发期依赖，
+      # 当前运行期基线 0 critical / 0 high，因此可安全启用；开发期告警继续留档在上一作业。
+      - name: Block critical runtime vulnerabilities
+        run: pnpm audit --prod --audit-level=critical --registry=https://registry.npmjs.org
+
+  trivy-fs:
+    name: Vulnerability & Secret Scan (Trivy · fs)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # V-07：补齐此前缺失的镜像/依赖/配置扫描能力。
+      # 首批以 SARIF 上报 + 工件留档为主（exit-code=0），避免存量 CRITICAL
+      # （开发期依赖）长期红号；基线清理后再将 exit-code 改为 1 作为门禁。
+      - name: Trivy filesystem scan (SARIF)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          exit-code: '0'
+          ignore-unfixed: true
+
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+
+      - name: Upload Trivy report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-fs-sarif
+          path: trivy-results.sarif
+          retention-days: 30
+
+  backend-dependency-check:
+    name: Maven Dependency Check (OWASP · weekly)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      # V-07：Maven 依赖传递漏洞。首批不阻断（存量基线未知），周期留档；
+      # 配置 NVD_API_KEY 可显著加速 NVD 数据同步（未配置时仍可运行但较慢）。
+      - name: OWASP dependency-check
+        continue-on-error: true
+        run: >
+          mvn -B -DskipTests
+          org.owasp:dependency-check-maven:check
+          -Daggregate=true
+          -DfailBuildOnCVSS=11
+          -DnvdApiKey=${{ secrets.NVD_API_KEY }}
+          -Dformat=HTML,JSON
+
+      - name: Upload dependency-check report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-dependency-check
+          path: |
+            backend/target/dependency-check-report.html
+            backend/target/dependency-check-report.json
           retention-days: 30
 
   codeql:

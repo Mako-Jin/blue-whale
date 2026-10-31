@@ -102,3 +102,6 @@ dump.rdb
 
 # ===== Local Tools (本地下载的第三方软件/压缩包，不入库；仅匹配仓库根目录，避免误伤 com/bluewhale/tools 包) =====
 /tools/
+
+# ===== Local Skills (本地下载的 skill 压缩包，不入库；skill 源文件如需共享请另建目录) =====
+/skills/*.zip

@@ -123,6 +123,10 @@ jobs:
         run: uv run --python 3.12 pytest
 
       # 静态检查门禁（T-17）：ruff 仅启用语法/未定义名类规则（E4/E7/E9/F）；
-      # mypy 类型门禁暂缓（本机无 uv 环境、类型收敛未评估），豁免理由见 devlog 2026-10-30。
+      # mypy 已由基线验证转为阻断（本机 mypy 2.4.1 全量 0 错误），版本固定避免
+      # `uvx mypy` 漂移引入新的类型错误。
       - name: ruff
         run: uvx ruff check .
+
+      - name: mypy
+        run: uvx --from mypy==2.4.1 mypy whale_ai --ignore-missing-imports --no-error-summary
