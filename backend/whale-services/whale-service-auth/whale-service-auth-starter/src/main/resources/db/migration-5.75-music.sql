@@ -81,11 +81,11 @@ SELECT 294, 0, 'sys:music:song:publish', '发布/下架/版权下架歌曲', 'AP
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 294 OR perm_code = 'sys:music:song:publish');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 295, 0, 'sys:music:tag:manage', '管理音乐标签', 'API', '/music/tag,/music/tag/{id},/music/tag/list', 'GET,POST,PUT,DELETE', 295, 1
+SELECT 295, 0, 'sys:music:tag:manage', '管理音乐标签', 'API', '/music/tag,/music/tag/{id},/music/tag/list', 'ALL', 295, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 295 OR perm_code = 'sys:music:tag:manage');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 296, 0, 'sys:music:playlist:manage', '管理官方歌单', 'API', '/music/playlist/official,/music/playlist/official/{id}', 'GET,POST,PUT,DELETE', 296, 1
+SELECT 296, 0, 'sys:music:playlist:manage', '管理官方歌单', 'API', '/music/playlist/official,/music/playlist/official/{id}', 'ALL', 296, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 296 OR perm_code = 'sys:music:playlist:manage');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
@@ -113,7 +113,7 @@ SELECT 302, 0, 'sys:music:like', '收藏歌曲', 'API', '/music/song/{id}/like,/
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 302 OR perm_code = 'sys:music:like');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 303, 0, 'sys:music:upload', '上传与管理我的作品', 'API', '/music/upload,/music/my/songs,/music/user/song,/music/user/song/{id},/music/copyright/agreement/accept,/music/copyright/agreement/current', 'GET,POST,PUT,DELETE', 303, 1
+SELECT 303, 0, 'sys:music:upload', '上传与管理我的作品', 'API', '/music/upload,/music/my/songs,/music/user/song,/music/user/song/{id},/music/copyright/agreement/accept,/music/copyright/agreement/current', 'ALL', 303, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 303 OR perm_code = 'sys:music:upload');
 
