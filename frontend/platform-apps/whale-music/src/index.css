@@ -57,3 +57,100 @@ body {
     max-width: 100%;
   }
 }
+
+/* ---------- 全局播放条 ---------- */
+
+.music-player-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 24px;
+  background: #fff;
+  border-top: 1px solid #f0f0f0;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
+  z-index: 100;
+}
+
+.music-player-titles {
+  display: flex;
+  flex-direction: column;
+  min-width: 140px;
+  max-width: 220px;
+}
+
+.music-player-controls {
+  flex-shrink: 0;
+}
+
+.music-player-progress {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-width: 160px;
+}
+
+.music-player-time {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+  font-variant-numeric: tabular-nums;
+  width: 44px;
+  text-align: center;
+}
+
+.music-player-extra {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.music-player-volume {
+  width: 96px;
+}
+
+.music-queue {
+  width: 260px;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.music-queue-item {
+  cursor: pointer;
+  padding: 4px 8px !important;
+  border-radius: 4px;
+}
+
+.music-queue-item:hover {
+  background: #f5f6f8;
+}
+
+.music-queue-item.active {
+  background: #e6f4ff;
+}
+
+/* ---------- 歌词抽屉 ---------- */
+
+.music-lyric-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.music-lyric-line {
+  font-size: 14px;
+  line-height: 1.6;
+  color: rgba(0, 0, 0, 0.65);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.music-lyric-line.active {
+  color: #1677ff;
+  font-weight: 600;
+}

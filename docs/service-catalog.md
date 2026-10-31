@@ -2,7 +2,7 @@
 
 > 用途：**全平台端口 ↔ 服务 ↔ 组件**的唯一权威清单。看端口即知对应哪个服务，看服务即知其分组、库、对外前缀与职责。
 > 关联需求：REQ-ARCH-005（新增）、REQ-ARCH-004（命名规范，[naming-conventions.md](naming-conventions.md) §八）
-> 最后更新：2026-10-31（**Wave 5.75 M1 前端落地**：admin 曲库 / 歌手 / 专辑 / 标签页与 `whale-music` 子应用（公开曲库 / 上传 / 我的作品）已落盘并接入基座；权限号修正为 **281–303**，见 [M1 检查报告](reviews/2026-10-31-wave5.75-music-m1.md)）｜ 2026-10-31（**Wave 5.75 M0 骨架**：`whale-music` 8096 / `/music/**` / `bluewhale_music` 11 表 DDL、网关路由与权限/菜单种子（281–303 / 39–44）落地，见 [检查报告](reviews/2026-10-31-wave5.75-music-m0.md)）｜ 2026-10-31（**Wave 5.75 音乐平台规划**：新增 `whale-music` 8096 / 前端 8111 / `/music/**` / `bluewhale_music`，见 [实施计划](plans/wave5.75-music-platform.md)）｜ 2026-10-29（**Wave 5.74 M0–M5 交付**：`whale-doc` 8095 / 前端 8110 / `/doc/**` / `bluewhale_doc` 全量业务与运维能力落地，见 [实施计划](plans/2026-10-29-wiki-doc-service.md)）｜ 2026-10-29（**Wave 5.74 M1 骨架**：新增 `whale-doc` 8095、前端 `whale-doc` 8110、网关 `/doc/**`、库 `bluewhale_doc`、权限/角色/菜单迁移）｜ 2026-10-28（**Wave 5.69–5.70**：ERP 新增供应商主数据；`whale-message` M1 增模板管理/失败重试/站内信收件箱；**F-05 结案** `whale-config` 冻结且移除 `/config/**` 路由）｜ 维护：BlueWhale
+> 最后更新：2026-10-31（**Wave 5.75 M2 播放与音频流**：播放票据（Redis / TTL 120s / 三要素绑定）、`/music/stream/**` Range 流式（200 / 206 / 416）、进度 / 最近播放 / 收藏幂等、全局播放器（播放条 / 队列 / 歌词），冒烟 `SMOKE-ALL-PASS`，见 [M2 检查报告](reviews/2026-10-31-wave5.75-music-m2.md)）｜ 2026-10-31（**Wave 5.75 M1 前端落地**：admin 曲库 / 歌手 / 专辑 / 标签页与 `whale-music` 子应用（公开曲库 / 上传 / 我的作品）已落盘并接入基座；权限号修正为 **281–303**，见 [M1 检查报告](reviews/2026-10-31-wave5.75-music-m1.md)）｜ 2026-10-31（**Wave 5.75 M0 骨架**：`whale-music` 8096 / `/music/**` / `bluewhale_music` 11 表 DDL、网关路由与权限/菜单种子（281–303 / 39–44）落地，见 [检查报告](reviews/2026-10-31-wave5.75-music-m0.md)）｜ 2026-10-31（**Wave 5.75 音乐平台规划**：新增 `whale-music` 8096 / 前端 8111 / `/music/**` / `bluewhale_music`，见 [实施计划](plans/wave5.75-music-platform.md)）｜ 2026-10-29（**Wave 5.74 M0–M5 交付**：`whale-doc` 8095 / 前端 8110 / `/doc/**` / `bluewhale_doc` 全量业务与运维能力落地，见 [实施计划](plans/2026-10-29-wiki-doc-service.md)）｜ 2026-10-29（**Wave 5.74 M1 骨架**：新增 `whale-doc` 8095、前端 `whale-doc` 8110、网关 `/doc/**`、库 `bluewhale_doc`、权限/角色/菜单迁移）｜ 2026-10-28（**Wave 5.69–5.70**：ERP 新增供应商主数据；`whale-message` M1 增模板管理/失败重试/站内信收件箱；**F-05 结案** `whale-config` 冻结且移除 `/config/**` 路由）｜ 维护：BlueWhale
 
 ---
 
@@ -44,7 +44,7 @@
 | 21 | `whale-contract` | whale-apps | `whale-apps/whale-contract` | **9006** | `/contract/**` | ✅ `lb://whale-contract`（2026-10-26） | **`bluewhale_contract`**（4 表 + `api_log`） | `WhaleContractApplication` | 合同管理：起草/相对方/版本/审批/终止/归档（M1）；印章/PDF 盖章/数字签名/三方签章（M2–M3） | **可启动**（Wave 5.61 M1 完成） |
 | 22 | `whale-message` | whale-services | `whale-services/whale-message` | **8094** | `/message/**` | ✅ `lb://whale-message`（2026-10-28） | **`bluewhale_message`**（5 表：`msg_template`/`msg_record`/`msg_delivery`/`audit_log`/`api_log`） | `WhaleMessageApplication` | 统一消息服务：模板渲染/渠道路由/幂等/投递记录（M0）；模板管理、失败重试、站内信收件箱（M1）；INAPP/EMAIL/SMS/IM 适配器，无供应商时默认 mock | **可启动**（Wave 5.68 M0 + 5.70 M1；2026-10-28 本地起服验证通过） |
 | 23 | `whale-doc` | whale-services | `whale-services/whale-doc` | **8095** | `/doc/**` | ✅ `lb://whale-doc`（2026-10-29，M2 增 `/doc/ws`） | **`bluewhale_doc`**（16 业务表：M1 7 + M2 7 + M3 2，另 `audit_log`/`api_log`） | `WhaleDocApplication` | 在线文档 / Wiki：空间与成员、页面树、TipTap 富文本、自动保存与 revision 冲突、版本/评论/附件、搜索、页面 ACL、标签/反链/动态/最近访问、ngram 检索、协作/回收站、模板/导入导出/审批/通知/分享/归档、Agent 知识索引；M5 指标/清理/备份/运维 | **M1–M5 已交付**（Wave 5.74；239 项 smoke + 备份恢复演练通过） |
-| 24 | `whale-music` | whale-services | `whale-services/whale-music` | **8096** | `/music/**` | ✅ `lb://whale-music`（2026-10-31，M0 增 `/music/stream/**` 限流与 `/music/internal/**` 屏蔽） | **`bluewhale_music`**（11 张业务表 DDL 就绪，另 `audit_log`/`api_log`） | `WhaleMusicApplication` | 音乐平台：歌手/专辑/歌曲/标签曲库、播放票据与 Range 流式、歌单、首页/榜单/搜索、评论审核；所有登录用户可上传（签署版权无争议协议 + 公开/自听可见性） | **可启动**（Wave 5.75 M1；8096 起服与网关路由冒烟通过） |
+| 24 | `whale-music` | whale-services | `whale-services/whale-music` | **8096** | `/music/**` | ✅ `lb://whale-music`（2026-10-31，M0 增 `/music/stream/**` 限流与 `/music/internal/**` 屏蔽） | **`bluewhale_music`**（11 张业务表 + `audit_log` / `api_log`，已建库） | `WhaleMusicApplication` | 音乐平台：歌手/专辑/歌曲/标签曲库、**播放票据与 Range 流式（M2 已落地）**、播放进度 / 收藏、歌单、首页/榜单/搜索、评论审核；所有登录用户可上传（签署版权无争议协议 + 公开/自听可见性） | **可启动**（Wave 5.75 M0–M2；8096 起服、M2 冒烟 `SMOKE-ALL-PASS`） |
 
 > 「对外一级前缀」= 服务自持的前缀，网关**只转发、不剥离**（REQ-ARCH-003）。
 > 网关 `discovery.locator.enabled=true` 已开启服务发现路由：`lb://whale-<域>` → `http://<服务实例>`。
@@ -103,7 +103,7 @@
 | 13 | whale-pm | `frontend/platform-apps/whale-pm` | `whale-pm` | qiankun **子应用**（项目管理） | **8108** | `/pm` | 微应用名 `whale-pm`（Wave 5.55；M4 交付页面） |
 | 14 | whale-contract | `frontend/platform-apps/whale-contract` | `whale-contract` | qiankun **子应用**（合同管理：列表 + 详情/版本/流程） | **8109** | `/contract` | 微应用名 `whale-contract`（Wave 5.61 M1） |
 | 15 | whale-doc | `frontend/platform-apps/whale-doc` | `whale-doc` | qiankun **子应用**（在线文档/Wiki：空间、页面树、TipTap 协作编辑器、评论/版本/附件、回收站、模板、分享、AI 面板） | **8110** | `/doc` | 微应用名 `whale-doc`（Wave 5.74 M1–M5 已交付；lint/build 通过） |
-| 16 | whale-music | `frontend/platform-apps/whale-music` | `whale-music` | qiankun **子应用**（音乐平台：曲库、上传 / 我的作品，后续首页/歌手/专辑/歌单/播放器） | **8111** | `/music` | 微应用名 `whale-music`（Wave 5.75 M1；页面已接入基座，build + lint 通过） |
+| 16 | whale-music | `frontend/platform-apps/whale-music` | `whale-music` | qiankun **子应用**（音乐平台：曲库、上传 / 我的作品、**全局播放器（播放条 / 队列 / 歌词抽屉）**，后续歌手/专辑/歌单） | **8111** | `/music` | 微应用名 `whale-music`（Wave 5.75 M1–M2；页面已接入基座，build + lint 通过） |
 
 共享包（不占端口）：`frontend/shared-packages/whale-common-tools`、`whale-common-theme`、`whale-log-sdk`、`frontend/elemental/whale-ui`（NPM scope `@bluewhale/`）。
 冻结共享包（无消费方，不删除代码、不升级依赖）：`frontend/shared-packages/whale-common-three`（F-09）、`frontend/games/whale-games-core`（F-07）。
@@ -114,7 +114,7 @@
 
 | # | 组件 | 用途 | 端口 | 版本 | 部署方式 | 本机状态 |
 |---|---|---|---|---|---|---|
-| 1 | **MySQL** | 业务库 + Nacos 外置存储 | **3306**（TCP） | 8.0.45（本机 `D:\mysql8`）／镜像 8.4（compose） | 本机原生；compose `bw-mysql` | **已运行**。库：`bluewhale_auth`、`bluewhale_audit`、`bluewhale_nacos`、`bluewhale_agent`、**`bluewhale_im`（规划，Wave 5.52）**、**`bluewhale_message`（M0，脚本已就绪）**、**`bluewhale_doc`（Wave 5.74，已建）**、**`bluewhale_music`（Wave 5.75 M0，DDL 就绪待执行）**（另有外部遗留 `yc-sts-db-auth` / `yc-sts-db-flow`，登记不改名） |
+| 1 | **MySQL** | 业务库 + Nacos 外置存储 | **3306**（TCP） | 8.0.45（本机 `D:\mysql8`）／镜像 8.4（compose） | 本机原生；compose `bw-mysql` | **已运行**。库：`bluewhale_auth`、`bluewhale_audit`、`bluewhale_nacos`、`bluewhale_agent`、**`bluewhale_im`（规划，Wave 5.52）**、**`bluewhale_message`（M0，脚本已就绪）**、**`bluewhale_doc`（Wave 5.74，已建）**、**`bluewhale_music`（Wave 5.75 M0–M2，已建库 13 表）**（另有外部遗留 `yc-sts-db-auth` / `yc-sts-db-flow`，登记不改名） |
 | 2 | **Redis** | 令牌黑名单、i18n 缓存、分布式锁 | **6379**（TCP） | 5.0.14.1（本机 `tools/`）／镜像 7-alpine（compose） | 本机原生；compose `bw-redis` | **已运行** |
 | 3 | **Nacos** | 服务注册发现 + 配置中心 | **8848**（HTTP OpenAPI + 主服务）<br>**8849**（控制台，仅 3.x 独立控制台）<br>**9848**（gRPC 客户端→服务端）<br>**9849**（gRPC 服务端→服务端，集群） | 3.2.4（本机 `tools/nacos`）／镜像 3.2.4（compose） | 本机原生（standalone + MySQL 外置存储）；compose `bw-nacos` | **已运行**（3.2.4 实机启动验证：8848/8849 监听、`started successfully ... with external storage`；已注册 `whale-gateway` / `whale-service-auth` / `whale-audit`） |
 | 4 | **RabbitMQ** | 审计日志汇聚、异步消息（规划） | **5672**（AMQP）<br>**15672**（Management 控制台） | 4-management-alpine | compose `bw-rabbitmq` | ⚠ **未启动**（compose 服务已定义，本机未拉起） |
@@ -156,7 +156,7 @@
 | **8093** | `whale-archive` | 后端 | 档案服务（Wave 5.53 M1，可启动） |
 | **8094** | `whale-message` | 后端 | 统一消息服务（Wave 5.68 M0 + 5.70 M1，可启动） |
 | **8095** | `whale-doc` | 后端 | 在线文档/Wiki（Wave 5.74 M1 骨架，可启动） |
-| **8096** | `whale-music` | 后端 | 音乐平台（Wave 5.75 M1 后端已落地，可启动） |
+| **8096** | `whale-music` | 后端 | 音乐平台（Wave 5.75 M0–M2 已落地，可启动；播放与音频流冒烟通过） |
 | **8101** | `whale-portal` | 前端（子应用） | base `/portal` |
 | **8102** | `whale-erp` | 前端（子应用） | base `/erp` |
 | **8103** | `whale-oa` | 前端（子应用） | base `/oa` |
@@ -167,7 +167,7 @@
 | **8108** | `whale-pm` | 前端（子应用） | base `/pm`（Wave 5.55 M4） |
 | **8109** | `whale-contract` | 前端（子应用） | base `/contract`（Wave 5.61 M1） |
 | **8110** | `whale-doc` | 前端（子应用） | base `/doc`（Wave 5.74 M1 骨架，已接入基座菜单与 qiankun） |
-| **8111** | `whale-music` | 前端（子应用） | base `/music`（Wave 5.75 M1 页面已落地，已接入基座菜单与 qiankun） |
+| **8111** | `whale-music` | 前端（子应用） | base `/music`（Wave 5.75 M1–M2 页面与播放器已落地，已接入基座菜单与 qiankun） |
 | **8848** | Nacos | 基础设施 | HTTP OpenAPI + 主服务（contextPath `/nacos`） |
 | **8849** | Nacos Console | 基础设施 | 控制台（仅 Nacos 3.x；本机 2.4.0 无独立控制台端口） |
 | **8858** | Sentinel Dashboard | 基础设施 | 规划（未引入） |

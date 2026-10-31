@@ -1,11 +1,12 @@
-// 歌曲详情（用户侧公开视图）：曲目信息、标签与播放状态提示
-// M1 仅展示元数据；播放票据与流式播放由 M2 提供。
+// 歌曲详情（用户侧公开视图）：曲目信息、标签与播放 / 收藏入口
+// 播放走 /music/stream 票据代理（M2），文件 ID 不暴露给前端。
 
-import { Alert, App, Button, Card, Descriptions, Result, Space, Spin, Typography } from 'antd';
+import { App, Button, Card, Descriptions, Result, Space, Spin, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   getPublicSong,
+  likeSong,
   pageAlbums,
   pageArtists,
   type AlbumView,
@@ -13,11 +14,13 @@ import {
   type PublicSongView,
 } from '../api/music';
 import { formatDuration, renderTags, renderVisibility } from '../utils/musicDisplay';
+import { usePlayer } from '../player/PlayerContext';
 
 export default function SongDetailPage() {
   const { message } = App.useApp();
   const navigate = useNavigate();
   const params = useParams<{ id: string }>();
+  const player = usePlayer();
 
   const [song, setSong] = useState<PublicSongView | null>(null);
   const [loading, setLoading] = useState(true);
@@ -86,15 +89,29 @@ export default function SongDetailPage() {
               {song.subtitle && <Typography.Text type="secondary">{song.subtitle}</Typography.Text>}
             </Space>
           }
-          extra={<Button onClick={() => navigate('/library')}>返回曲库</Button>}
+          extra={
+            <Space>
+              <Button
+                type="primary"
+                disabled={!song.playable}
+                onClick={() => player.play(song)}
+              >
+                播放
+              </Button>
+              <Button
+                onClick={() => {
+                  likeSong(song.id)
+                    .then(() => message.success('已加入我的收藏'))
+                    .catch((error) => message.error(
+                      error instanceof Error ? error.message : '收藏失败'));
+                }}
+              >
+                收藏
+              </Button>
+              <Button onClick={() => navigate('/library')}>返回曲库</Button>
+            </Space>
+          }
         >
-          <Alert
-            type="info"
-            showIcon
-            style={{ marginBottom: 16 }}
-            message="播放能力将在 M2 上线"
-            description="M1 完成曲库与作品管理；流式播放与播放进度由后续波次提供。"
-          />
           <Descriptions
             size="small"
             column={2}

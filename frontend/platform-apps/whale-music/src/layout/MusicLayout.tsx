@@ -1,7 +1,8 @@
-// 音乐子应用整体布局：顶部导航（曲库 / 上传作品 / 我的作品）
+// 音乐子应用整体布局：顶部导航（曲库 / 上传作品 / 我的作品）+ 底部全局播放条
 
 import { Layout, Menu, Typography } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import PlayerBar from '../player/PlayerBar';
 
 const { Header, Content } = Layout;
 
@@ -51,9 +52,10 @@ export default function MusicLayout() {
           style={{ flex: 1, minWidth: 0, borderBottom: 'none' }}
         />
       </Header>
-      <Content style={{ padding: 24 }}>
+      <Content style={{ padding: 24, paddingBottom: 96 }}>
         <Outlet />
       </Content>
+      <PlayerBar />
     </Layout>
   );
 }

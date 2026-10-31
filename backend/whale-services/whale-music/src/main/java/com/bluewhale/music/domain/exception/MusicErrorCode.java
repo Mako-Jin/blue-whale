@@ -38,8 +38,14 @@ public final class MusicErrorCode {
     /** 协议版本与服务端当前版本不一致 */
     public static final int AGREEMENT_VERSION_MISMATCH = 40008;
 
+    /** 播放进度参数非法 */
+    public static final int PLAY_PROGRESS_INVALID = 40009;
+
     /** 不能操作他人作品 */
     public static final int SONG_NOT_OWNED = 40301;
+
+    /** 播放票据无效、已过期或与当前用户/歌曲不匹配 */
+    public static final int PLAY_TICKET_INVALID = 40302;
 
     /** 歌手不存在 */
     public static final int ARTIST_NOT_FOUND = 40401;
@@ -66,7 +72,9 @@ public final class MusicErrorCode {
             Map.entry(AGREEMENT_REQUIRED, "请先签署当前版本的版权无争议协议"),
             Map.entry(SONG_TITLE_INVALID, "歌曲标题为空或超过 120 个字符"),
             Map.entry(AGREEMENT_VERSION_MISMATCH, "协议版本已更新，请刷新后重新签署"),
+            Map.entry(PLAY_PROGRESS_INVALID, "播放进度参数非法"),
             Map.entry(SONG_NOT_OWNED, "无权操作他人的作品"),
+            Map.entry(PLAY_TICKET_INVALID, "播放凭证无效或已过期，请重新发起播放"),
             Map.entry(ARTIST_NOT_FOUND, "歌手不存在"),
             Map.entry(ALBUM_NOT_FOUND, "专辑不存在"),
             Map.entry(SONG_NOT_FOUND, "歌曲不存在或无权访问"),

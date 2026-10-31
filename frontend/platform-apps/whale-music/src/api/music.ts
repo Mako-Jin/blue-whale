@@ -352,3 +352,67 @@ export function updateTag(id: number, input: TagSaveInput): Promise<TagView> {
 export function deleteTag(id: number): Promise<void> {
   return http.del<void>(`/music/tag/${id}`);
 }
+
+/** 播放票据视图（含票据、播放元数据与歌词，不含文件 ID） */
+export interface PlayTicketView {
+  ticket: string;
+  expiresIn: number;
+  songId: number;
+  title: string;
+  artistId?: number;
+  coverFileId?: number;
+  durationMs?: number;
+  lyricText?: string;
+  streamUrl: string;
+}
+
+/** 播放进度上报入参 */
+export interface PlayProgressInput {
+  songId: number;
+  progressMs: number;
+  source?: string;
+  device?: string;
+}
+
+/** 最近播放条目 */
+export interface PlayHistoryView {
+  songId: number;
+  title?: string;
+  artistId?: number;
+  coverFileId?: number;
+  durationMs?: number;
+  progressMs?: number;
+  source?: string;
+  playedAt?: string;
+  playable?: boolean;
+}
+
+/** 申请播放票据（绑定当前用户与歌曲，有效期默认 120 秒） */
+export function requestPlayTicket(songId: number): Promise<PlayTicketView> {
+  return http.post<PlayTicketView>('/music/play/ticket', { songId });
+}
+
+/** 上报播放进度（同一歌曲重复上报幂等） */
+export function reportPlayProgress(input: PlayProgressInput): Promise<void> {
+  return http.post<void>('/music/play/progress', input);
+}
+
+/** 最近播放分页 */
+export function pagePlayHistory(params: PageQuery): Promise<PageResult<PlayHistoryView>> {
+  return http.get<PageResult<PlayHistoryView>>('/music/play/history', { ...params });
+}
+
+/** 收藏歌曲（幂等） */
+export function likeSong(id: number): Promise<void> {
+  return http.post<void>(`/music/song/${id}/like`);
+}
+
+/** 取消收藏（幂等） */
+export function unlikeSong(id: number): Promise<void> {
+  return http.del<void>(`/music/song/${id}/like`);
+}
+
+/** 我的收藏分页 */
+export function pageMyLikes(params: PageQuery): Promise<PageResult<PublicSongView>> {
+  return http.get<PageResult<PublicSongView>>('/music/my/likes', { ...params });
+}

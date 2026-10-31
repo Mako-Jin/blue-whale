@@ -211,6 +211,7 @@ CREATE TABLE IF NOT EXISTS mu_play_history (
     played_at        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '最近播放时间',
     create_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     PRIMARY KEY (id),
+    UNIQUE KEY uk_mu_history_user_song (tenant_id, user_id, song_id),
     KEY idx_mu_history_user (tenant_id, user_id, played_at),
     KEY idx_mu_history_song (tenant_id, song_id)
 ) COMMENT='音乐播放历史表';

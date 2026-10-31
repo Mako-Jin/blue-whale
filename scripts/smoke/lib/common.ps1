@@ -1,4 +1,4 @@
-# 冒烟脚本公共工具（审计 P2）
+﻿# 冒烟脚本公共工具（审计 P2）
 #
 # 背景：scripts/smoke 下 32 个脚本各自复制 Assert / Check / Show / Invoke-Api 等
 # 辅助函数（Assert 多达 18 份、Invoke-Api 7 份），修一处要改十几份。

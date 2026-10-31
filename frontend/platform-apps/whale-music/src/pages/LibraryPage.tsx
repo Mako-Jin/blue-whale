@@ -14,6 +14,7 @@ import {
   type TagView,
 } from '../api/music';
 import { formatDuration, renderTags } from '../utils/musicDisplay';
+import { usePlayer } from '../player/PlayerContext';
 
 const SORT_OPTIONS = [
   { value: 'NEW', label: '最新上架' },
@@ -24,6 +25,7 @@ export default function LibraryPage() {
   const { message } = App.useApp();
   const navigate = useNavigate();
   const tableRef = useRef<ProTableRef>(null);
+  const player = usePlayer();
 
   const [keyword, setKeyword] = useState<string | undefined>(undefined);
   const [tagId, setTagId] = useState<number | undefined>(undefined);
@@ -86,9 +88,10 @@ export default function LibraryPage() {
     {
       title: '操作',
       key: 'action',
-      width: 90,
+      width: 140,
       render: (_, row) => (
-        <Space size={4}>
+        <Space size={8}>
+          <a onClick={() => player.play(row)}>播放</a>
           <a onClick={() => navigate(`/song/${row.id}`)}>详情</a>
         </Space>
       ),

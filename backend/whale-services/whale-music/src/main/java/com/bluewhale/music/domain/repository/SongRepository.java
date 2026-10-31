@@ -24,6 +24,22 @@ public interface SongRepository {
     Optional<Song> findById(Long id);
 
     /**
+     * 按主键批量查询歌曲。
+     *
+     * @param ids 歌曲 ID 集合
+     * @return 歌曲列表；集合为空返回空列表
+     */
+    List<Song> findByIds(Collection<Long> ids);
+
+    /**
+     * 原子调整收藏数（+1 / -1，结果不小于 0）。
+     *
+     * @param songId 歌曲 ID
+     * @param delta 增量
+     */
+    void addLikeCount(Long songId, long delta);
+
+    /**
      * 新增歌曲。
      *
      * @param song 歌曲

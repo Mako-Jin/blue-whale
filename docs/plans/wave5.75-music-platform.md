@@ -1,7 +1,7 @@
 # Wave 5.75 · 音乐平台（whale-music）实施计划
 
 > 目标：在 BlueWhale 平台内新增音乐平台能力，覆盖「曲库 → 播放 → 歌单 → 发现 → 互动 → 运营」主线，并与既有认证、租户、网关、文件、消息、审计能力打通。
-> 状态：**规划已确认；M0 完成，M1 后端 + 前端完成（单测 / Checkstyle / ArchUnit 全绿，三应用 build + lint 通过，建库与权限迁移已实机验证，8096 起服与网关路由冒烟通过），G1（`whale-file` HTTP Range）已完成，M2 待开始**（2026-10-31；用户确认：所有人可上传、签署版权无争议协议、公开 / 自听）｜ 关联需求：REQ-FUNC-029 / REQ-FUNC-030 / REQ-ARCH-013 / REQ-SEC-019
+> 状态：**规划已确认；M0 完成，M1 后端 + 前端完成（单测 / Checkstyle / ArchUnit 全绿，三应用 build + lint 通过，建库与权限迁移已实机验证，8096 起服与网关路由冒烟通过），G1（`whale-file` HTTP Range）已完成，M2 完成（播放票据 + Range 流式 + 进度 / 收藏 + 全局播放器前端；后端 34/34 单测、前端 build + lint 通过，冒烟脚本 `SMOKE-ALL-PASS`），M3 待开始**（2026-10-31；用户确认：所有人可上传、签署版权无争议协议、公开 / 自听）｜ 关联需求：REQ-FUNC-029 / REQ-FUNC-030 / REQ-ARCH-013 / REQ-SEC-019
 > 上游依据：[roadmap.md](roadmap.md)、[service-catalog.md](../service-catalog.md)、[naming-conventions.md](../naming-conventions.md)、[architecture.md](../architecture.md)、[backend.md](../backend.md)、[wave5.74 文档服务实施计划](2026-10-29-wiki-doc-service.md)
 
 ---
@@ -395,6 +395,8 @@ interfaces  → application  → domain
 | M1-9 | 前端上传页 / 协议弹窗 / 我的作品 | 签署→上传→选择公开 / 自听→列表可见闭环 |
 
 ### M2 播放与音频流（前置：G1 Range 补齐）
+
+> ✅ **已完成（2026-10-31）**：票据（Redis / TTL 120s / 三要素绑定，每次流式复核可播态）、`/music/stream/{songId}` 透传 Range（200 / 206 / 416，不暴露 `file_id`）、进度与收藏幂等、90 天清理任务、全局播放器（播放条 / 队列 / 歌词抽屉）、网关 `/music/stream/**` 限流配置；冒烟 `bw-music-m2-smoke.ps1` 输出 `SMOKE-ALL-PASS`。详见 [M2 检查报告](reviews/2026-10-31-wave5.75-music-m2.md)。
 
 | ID | 任务 | 验收 |
 |---|---|---|

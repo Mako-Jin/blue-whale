@@ -46,6 +46,19 @@ public class SongRepositoryImpl implements SongRepository {
     }
 
     @Override
+    public List<Song> findByIds(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return songMapper.selectBatchIds(ids).stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public void addLikeCount(Long songId, long delta) {
+        songMapper.addLikeCount(songId, delta);
+    }
+
+    @Override
     public void insert(Song song) {
         SongEntity entity = new SongEntity();
         fill(entity, song);
