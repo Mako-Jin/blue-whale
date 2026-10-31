@@ -9,110 +9,113 @@
 --            并选择公开（PUBLIC）或自听（PRIVATE）。公开作品不设上传前置审核，
 --            运营事后复核并可下架。数据可见性由服务侧二次校验
 --            （自听作品仅上传者可见；跨租户一律 404）。
--- 权限编号 : 已用到 279（doc M2b/M3），本脚本使用 280–302。
+-- 权限编号 : 279 为 doc 标签管理；280 已被 sys:file:manage（init.sql / 5.76）占用，
+--            本脚本顺延使用 281–303（23 项）。
 -- 菜单编号 : 已用到 38（文档模板），本脚本使用 39–44。
 -- 角色编号 : 平台角色 25103 music_admin / 25104 music_member；
 --            业务租户复制角色与授权 ID 采用「业务键 MD5 前 15 位」，重复执行稳定。
--- 授权口径 : music_admin / tenant_admin 获得 280–302（23 项）；
---            music_member 获得用户侧 298–302（浏览/自建歌单/评论/收藏/上传）。
+-- 授权口径 : music_admin / tenant_admin 获得 281–303（23 项）；
+--            music_member 获得用户侧 299–303（浏览/自建歌单/评论/收藏/上传），
+--            并在 5.1 追加 32 sys:file:upload、281 artist:list、285 album:list
+--            （上传表单选择歌手 / 专辑与音频封面落文件服务所需）。
 --            为满足「所有人可上传」，本脚本还将 music_member 幂等授予所有启用用户。
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
--- 1. 平台权限点（280–302）
+-- 1. 平台权限点（281–303）
 -- ---------------------------------------------------------------------
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 280, 0, 'sys:music:artist:list', '查询歌手', 'API', '/music/artist/page,/music/artist/{id}', 'GET', 280, 1
+SELECT 281, 0, 'sys:music:artist:list', '查询歌手', 'API', '/music/artist/page,/music/artist/{id}', 'GET', 281, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 280 OR perm_code = 'sys:music:artist:list');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 281 OR perm_code = 'sys:music:artist:list');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 281, 0, 'sys:music:artist:add', '新增歌手', 'API', '/music/artist', 'POST', 281, 1
+SELECT 282, 0, 'sys:music:artist:add', '新增歌手', 'API', '/music/artist', 'POST', 282, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 281 OR perm_code = 'sys:music:artist:add');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 282 OR perm_code = 'sys:music:artist:add');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 282, 0, 'sys:music:artist:edit', '编辑歌手', 'API', '/music/artist/{id}', 'PUT', 282, 1
+SELECT 283, 0, 'sys:music:artist:edit', '编辑歌手', 'API', '/music/artist/{id}', 'PUT', 283, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 282 OR perm_code = 'sys:music:artist:edit');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 283 OR perm_code = 'sys:music:artist:edit');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 283, 0, 'sys:music:artist:delete', '删除歌手', 'API', '/music/artist/{id}', 'DELETE', 283, 1
+SELECT 284, 0, 'sys:music:artist:delete', '删除歌手', 'API', '/music/artist/{id}', 'DELETE', 284, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 283 OR perm_code = 'sys:music:artist:delete');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 284 OR perm_code = 'sys:music:artist:delete');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 284, 0, 'sys:music:album:list', '查询专辑', 'API', '/music/album/page,/music/album/{id}', 'GET', 284, 1
+SELECT 285, 0, 'sys:music:album:list', '查询专辑', 'API', '/music/album/page,/music/album/{id}', 'GET', 285, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 284 OR perm_code = 'sys:music:album:list');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 285 OR perm_code = 'sys:music:album:list');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 285, 0, 'sys:music:album:add', '新增专辑', 'API', '/music/album', 'POST', 285, 1
+SELECT 286, 0, 'sys:music:album:add', '新增专辑', 'API', '/music/album', 'POST', 286, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 285 OR perm_code = 'sys:music:album:add');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 286 OR perm_code = 'sys:music:album:add');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 286, 0, 'sys:music:album:edit', '编辑专辑', 'API', '/music/album/{id}', 'PUT', 286, 1
+SELECT 287, 0, 'sys:music:album:edit', '编辑专辑', 'API', '/music/album/{id}', 'PUT', 287, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 286 OR perm_code = 'sys:music:album:edit');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 287 OR perm_code = 'sys:music:album:edit');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 287, 0, 'sys:music:album:delete', '删除专辑', 'API', '/music/album/{id}', 'DELETE', 287, 1
+SELECT 288, 0, 'sys:music:album:delete', '删除专辑', 'API', '/music/album/{id}', 'DELETE', 288, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 287 OR perm_code = 'sys:music:album:delete');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 288 OR perm_code = 'sys:music:album:delete');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 288, 0, 'sys:music:album:publish', '上架/下架专辑', 'API', '/music/album/{id}/publish,/music/album/{id}/offline', 'POST', 288, 1
+SELECT 289, 0, 'sys:music:album:publish', '上架/下架专辑', 'API', '/music/album/{id}/publish,/music/album/{id}/offline', 'POST', 289, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 288 OR perm_code = 'sys:music:album:publish');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 289 OR perm_code = 'sys:music:album:publish');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 289, 0, 'sys:music:song:list', '查询歌曲', 'API', '/music/song/page,/music/song/{id}', 'GET', 289, 1
+SELECT 290, 0, 'sys:music:song:list', '查询歌曲', 'API', '/music/song/page,/music/song/{id}', 'GET', 290, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 289 OR perm_code = 'sys:music:song:list');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 290 OR perm_code = 'sys:music:song:list');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 290, 0, 'sys:music:song:add', '新增歌曲', 'API', '/music/song', 'POST', 290, 1
+SELECT 291, 0, 'sys:music:song:add', '新增歌曲', 'API', '/music/song', 'POST', 291, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 290 OR perm_code = 'sys:music:song:add');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 291 OR perm_code = 'sys:music:song:add');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 291, 0, 'sys:music:song:edit', '编辑歌曲', 'API', '/music/song/{id}', 'PUT', 291, 1
+SELECT 292, 0, 'sys:music:song:edit', '编辑歌曲', 'API', '/music/song/{id}', 'PUT', 292, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 291 OR perm_code = 'sys:music:song:edit');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 292 OR perm_code = 'sys:music:song:edit');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 292, 0, 'sys:music:song:delete', '删除歌曲', 'API', '/music/song/{id}', 'DELETE', 292, 1
+SELECT 293, 0, 'sys:music:song:delete', '删除歌曲', 'API', '/music/song/{id}', 'DELETE', 293, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 292 OR perm_code = 'sys:music:song:delete');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 293 OR perm_code = 'sys:music:song:delete');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 293, 0, 'sys:music:song:publish', '发布/下架/版权下架歌曲', 'API', '/music/song/{id}/publish,/music/song/{id}/offline,/music/song/{id}/takedown', 'POST', 293, 1
+SELECT 294, 0, 'sys:music:song:publish', '发布/下架/版权下架歌曲', 'API', '/music/song/{id}/publish,/music/song/{id}/offline,/music/song/{id}/takedown', 'POST', 294, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 293 OR perm_code = 'sys:music:song:publish');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 294 OR perm_code = 'sys:music:song:publish');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 294, 0, 'sys:music:tag:manage', '管理音乐标签', 'API', '/music/tag,/music/tag/{id},/music/tag/list', 'GET,POST,PUT,DELETE', 294, 1
+SELECT 295, 0, 'sys:music:tag:manage', '管理音乐标签', 'API', '/music/tag,/music/tag/{id},/music/tag/list', 'GET,POST,PUT,DELETE', 295, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 294 OR perm_code = 'sys:music:tag:manage');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 295 OR perm_code = 'sys:music:tag:manage');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 295, 0, 'sys:music:playlist:manage', '管理官方歌单', 'API', '/music/playlist/official,/music/playlist/official/{id}', 'GET,POST,PUT,DELETE', 295, 1
+SELECT 296, 0, 'sys:music:playlist:manage', '管理官方歌单', 'API', '/music/playlist/official,/music/playlist/official/{id}', 'GET,POST,PUT,DELETE', 296, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 295 OR perm_code = 'sys:music:playlist:manage');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 296 OR perm_code = 'sys:music:playlist:manage');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 296, 0, 'sys:music:comment:audit', '审核歌曲评论', 'API', '/music/comment/page,/music/comment/{id}/approve,/music/comment/{id}/hide', 'GET,POST', 296, 1
+SELECT 297, 0, 'sys:music:comment:audit', '审核歌曲评论', 'API', '/music/comment/page,/music/comment/{id}/approve,/music/comment/{id}/hide', 'GET,POST', 297, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 296 OR perm_code = 'sys:music:comment:audit');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 297 OR perm_code = 'sys:music:comment:audit');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 297, 0, 'sys:music:stat:view', '查看音乐统计', 'API', '/music/stat/overview', 'GET', 297, 1
+SELECT 298, 0, 'sys:music:stat:view', '查看音乐统计', 'API', '/music/stat/overview', 'GET', 298, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 297 OR perm_code = 'sys:music:stat:view');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 298 OR perm_code = 'sys:music:stat:view');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 298, 0, 'sys:music:browse', '浏览音乐内容', 'API', '/music/meta,/music/home,/music/search,/music/chart/hot,/music/chart/new,/music/song/page,/music/album/page,/music/artist/page,/music/playlist/page,/music/playlist/{id}', 'GET', 298, 1
+SELECT 299, 0, 'sys:music:browse', '浏览音乐内容', 'API', '/music/meta,/music/home,/music/search,/music/chart/hot,/music/chart/new,/music/song/page,/music/album/page,/music/artist/page,/music/playlist/page,/music/playlist/{id}', 'GET', 299, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 298 OR perm_code = 'sys:music:browse');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 299 OR perm_code = 'sys:music:browse');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 299, 0, 'sys:music:playlist:own', '管理我的歌单', 'API', '/music/playlist,/music/playlist/{id},/music/playlist/{id}/song,/music/playlist/{id}/song/{songId},/music/playlist/{id}/sort', 'POST,PUT,DELETE', 299, 1
+SELECT 300, 0, 'sys:music:playlist:own', '管理我的歌单', 'API', '/music/playlist,/music/playlist/{id},/music/playlist/{id}/song,/music/playlist/{id}/song/{songId},/music/playlist/{id}/sort', 'POST,PUT,DELETE', 300, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 299 OR perm_code = 'sys:music:playlist:own');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 300 OR perm_code = 'sys:music:playlist:own');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 300, 0, 'sys:music:comment:create', '发表歌曲评论', 'API', '/music/song/{id}/comment,/music/song/{id}/comment/page', 'GET,POST', 300, 1
+SELECT 301, 0, 'sys:music:comment:create', '发表歌曲评论', 'API', '/music/song/{id}/comment,/music/song/{id}/comment/page', 'GET,POST', 301, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 300 OR perm_code = 'sys:music:comment:create');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 301 OR perm_code = 'sys:music:comment:create');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 301, 0, 'sys:music:like', '收藏歌曲', 'API', '/music/song/{id}/like,/music/my/likes', 'GET,POST,DELETE', 301, 1
+SELECT 302, 0, 'sys:music:like', '收藏歌曲', 'API', '/music/song/{id}/like,/music/my/likes', 'GET,POST,DELETE', 302, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 301 OR perm_code = 'sys:music:like');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 302 OR perm_code = 'sys:music:like');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 302, 0, 'sys:music:upload', '上传与管理我的作品', 'API', '/music/upload,/music/my/songs,/music/user/song,/music/user/song/{id},/music/copyright/agreement/accept,/music/copyright/agreement/current', 'GET,POST,PUT,DELETE', 302, 1
+SELECT 303, 0, 'sys:music:upload', '上传与管理我的作品', 'API', '/music/upload,/music/my/songs,/music/user/song,/music/user/song/{id},/music/copyright/agreement/accept,/music/copyright/agreement/current', 'GET,POST,PUT,DELETE', 303, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 302 OR perm_code = 'sys:music:upload');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 303 OR perm_code = 'sys:music:upload');
 
 -- ---------------------------------------------------------------------
 -- 2. 平台租户业务角色模板（25103 / 25104）
@@ -136,16 +139,16 @@ WHERE NOT EXISTS (SELECT 1 FROM sys_role tgt WHERE tgt.id = src.id OR (tgt.tenan
 
 -- ---------------------------------------------------------------------
 -- 4. 授权（按角色编码匹配，覆盖平台与全部业务租户）
---    music_admin / tenant_admin：280–302（23 项）
---    music_member：298–302（5 项用户侧能力）
+--    music_admin / tenant_admin：281–303（23 项）
+--    music_member：299–303（5 项用户侧能力）
 -- ---------------------------------------------------------------------
 INSERT INTO sys_role_permission (id, role_id, permission_id)
 SELECT src.id, src.role_id, src.permission_id
-FROM (SELECT CAST(CONV(SUBSTR(MD5(CONCAT(r.id, ':', p.id)), 1, 15), 16, 10) AS UNSIGNED) AS id, r.id AS role_id, p.id AS permission_id FROM sys_role r JOIN sys_permission p ON p.id BETWEEN 280 AND 302 AND p.deleted = 0 AND p.status = 1 WHERE r.deleted = 0 AND r.status = 1 AND r.role_code IN ('music_admin', 'tenant_admin')) src
+FROM (SELECT CAST(CONV(SUBSTR(MD5(CONCAT(r.id, ':', p.id)), 1, 15), 16, 10) AS UNSIGNED) AS id, r.id AS role_id, p.id AS permission_id FROM sys_role r JOIN sys_permission p ON p.id BETWEEN 281 AND 303 AND p.deleted = 0 AND p.status = 1 WHERE r.deleted = 0 AND r.status = 1 AND r.role_code IN ('music_admin', 'tenant_admin')) src
 WHERE NOT EXISTS (SELECT 1 FROM sys_role_permission tgt WHERE tgt.id = src.id OR (tgt.role_id = src.role_id AND tgt.permission_id = src.permission_id));
 INSERT INTO sys_role_permission (id, role_id, permission_id)
 SELECT src.id, src.role_id, src.permission_id
-FROM (SELECT CAST(CONV(SUBSTR(MD5(CONCAT(r.id, ':', p.id)), 1, 15), 16, 10) AS UNSIGNED) AS id, r.id AS role_id, p.id AS permission_id FROM sys_role r JOIN sys_permission p ON p.id BETWEEN 298 AND 302 AND p.deleted = 0 AND p.status = 1 WHERE r.deleted = 0 AND r.status = 1 AND r.role_code = 'music_member') src
+FROM (SELECT CAST(CONV(SUBSTR(MD5(CONCAT(r.id, ':', p.id)), 1, 15), 16, 10) AS UNSIGNED) AS id, r.id AS role_id, p.id AS permission_id FROM sys_role r JOIN sys_permission p ON p.id BETWEEN 299 AND 303 AND p.deleted = 0 AND p.status = 1 WHERE r.deleted = 0 AND r.status = 1 AND r.role_code = 'music_member') src
 WHERE NOT EXISTS (SELECT 1 FROM sys_role_permission tgt WHERE tgt.id = src.id OR (tgt.role_id = src.role_id AND tgt.permission_id = src.permission_id));
 
 -- ---------------------------------------------------------------------
@@ -156,6 +159,18 @@ INSERT INTO sys_user_role (id, user_id, role_id)
 SELECT src.id, src.user_id, src.role_id
 FROM (SELECT CAST(CONV(SUBSTR(MD5(CONCAT(u.id, ':', r.id)), 1, 15), 16, 10) AS UNSIGNED) AS id, u.id AS user_id, r.id AS role_id FROM sys_user u JOIN sys_role r ON r.tenant_id = u.tenant_id AND r.role_code = 'music_member' AND r.deleted = 0 AND r.status = 1 WHERE u.deleted = 0 AND u.status = 1) src
 WHERE NOT EXISTS (SELECT 1 FROM sys_user_role tgt WHERE tgt.id = src.id OR (tgt.user_id = src.user_id AND tgt.role_id = src.role_id));
+
+-- ---------------------------------------------------------------------
+-- 5.1 上传能力依赖（M1 前端落地补充，幂等）
+--     music_member 需要：文件上传（音频 / 封面上传到 whale-file）、
+--     歌手与专辑只读分页（上传表单选择歌手 / 专辑）。
+--     权限点：32 sys:file:upload、281 sys:music:artist:list、285 sys:music:album:list
+--     仅新增「读 / 上传」能力，不含歌手 / 专辑写权限。
+-- ---------------------------------------------------------------------
+INSERT INTO sys_role_permission (id, role_id, permission_id)
+SELECT src.id, src.role_id, src.permission_id
+FROM (SELECT CAST(CONV(SUBSTR(MD5(CONCAT(r.id, ':', p.id)), 1, 15), 16, 10) AS UNSIGNED) AS id, r.id AS role_id, p.id AS permission_id FROM sys_role r JOIN sys_permission p ON p.id IN (32, 281, 285) AND p.deleted = 0 AND p.status = 1 WHERE r.deleted = 0 AND r.status = 1 AND r.role_code = 'music_member') src
+WHERE NOT EXISTS (SELECT 1 FROM sys_role_permission tgt WHERE tgt.id = src.id OR (tgt.role_id = src.role_id AND tgt.permission_id = src.permission_id));
 
 -- ---------------------------------------------------------------------
 -- 6. 菜单：音乐中心（39）与运营子菜单（40–44）
@@ -188,11 +203,11 @@ WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE id = 44);
 
 -- =====================================================================
 -- 完成。校验建议：
---   SELECT id, perm_code, path, method FROM sys_permission WHERE id BETWEEN 280 AND 302;
+--   SELECT id, perm_code, path, method FROM sys_permission WHERE id BETWEEN 281 AND 303;
 --   SELECT tenant_id, role_code FROM sys_role WHERE role_code IN ('music_admin','music_member') ORDER BY tenant_id;
 --   SELECT r.tenant_id, r.role_code, COUNT(*) AS granted
 --   FROM sys_role r JOIN sys_role_permission rp ON rp.role_id = r.id
---   WHERE rp.permission_id BETWEEN 280 AND 302 AND r.deleted = 0 AND r.status = 1
+--   WHERE rp.permission_id BETWEEN 281 AND 303 AND r.deleted = 0 AND r.status = 1
 --   GROUP BY r.tenant_id, r.role_code;
 --   -- 期望：music_admin / tenant_admin 各 23 项；music_member 各 5 项
 --   SELECT COUNT(*) FROM sys_user_role ur JOIN sys_role r ON r.id = ur.role_id
