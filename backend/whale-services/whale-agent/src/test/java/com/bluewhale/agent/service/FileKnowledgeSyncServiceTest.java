@@ -330,9 +330,24 @@ class FileKnowledgeSyncServiceTest {
     }
 
     @Test
-    @DisplayName("白名单按前缀匹配且可通过配置扩展")
-    void shouldSupportWhitelistPrefixOverride() {
-        properties.getKnowledge().setIncludedBuckets(List.of("oa-"));
+    @DisplayName("白名单默认精确匹配：bluewhale 不隐式放行 bluewhale-private")
+    void shouldNotMatchImplicitPrefix() {
+        properties.getKnowledge().setIncludedBuckets(List.of("bluewhale"));
+        when(fileService.find(FILE_ID)).thenReturn(indexed("m1"));
+        RemoteFileChange privateBucket = change("m2");
+        privateBucket.setBucket("bluewhale-private");
+        when(fileClient.changes(any(), anyLong(), anyLong())).thenReturn(List.of(privateBucket));
+
+        syncService.runOnce();
+
+        verify(fileClient, never()).content(any());
+        assertEquals("文件桶未纳入知识库白名单", saved().getLastError());
+    }
+
+    @Test
+    @DisplayName("白名单支持显式通配符扩展（oa-*）")
+    void shouldSupportWhitelistWildcardOverride() {
+        properties.getKnowledge().setIncludedBuckets(List.of("oa-*"));
         when(fileService.find(FILE_ID)).thenReturn(indexed("m1"));
         RemoteFileChange oa = change("m2");
         oa.setBucket("oa-public");

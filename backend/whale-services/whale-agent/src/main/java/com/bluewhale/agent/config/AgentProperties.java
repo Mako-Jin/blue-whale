@@ -2,6 +2,7 @@ package com.bluewhale.agent.config;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -24,6 +25,7 @@ import java.util.Map;
  */
 @Data
 @Component
+@RefreshScope
 @ConfigurationProperties(prefix = "whale.agent")
 public class AgentProperties {
 
@@ -366,16 +368,17 @@ public class AgentProperties {
         private int readTimeoutMillis = 60000;
 
         /**
-         * 纳入知识库的桶白名单（逗号分隔，匹配桶名前缀，default-deny）。
+         * 纳入知识库的桶白名单（逗号分隔，默认精确匹配，default-deny）。
          *
          * <p>只有命中白名单的桶才会进入文件知识库；未命中、白名单为空或桶名缺失时
          * 一律不采集，避免个人/部门桶内容进入同租户全员可检索的公开知识池。默认只放行
-         * 业务文件默认桶 {@code bluewhale} 与档案桶 {@code whale-archive}。</p>
+         * 业务文件默认桶 {@code bluewhale} 与档案桶 {@code whale-archive}。需要放行一类桶时
+         * 请显式使用通配符（如 {@code oa-*}），不再做隐式前缀匹配（V-06）。</p>
          */
         private List<String> includedBuckets = new ArrayList<>(List.of("bluewhale", "whale-archive"));
 
         /**
-         * 不纳入知识库的桶（逗号分隔，匹配桶名前缀），优先级高于白名单。
+         * 不纳入知识库的桶（逗号分隔，默认精确匹配，可用 {@code *} 通配），优先级高于白名单。
          *
          * <p>默认排除 {@code whale-doc}：文档附件由页面附件权限控制，且正文已经通过
          * 内网文档变更流进入知识库，避免同一内容被重复采集或越权暴露。</p>

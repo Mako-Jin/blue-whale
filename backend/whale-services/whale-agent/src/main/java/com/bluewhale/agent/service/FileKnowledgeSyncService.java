@@ -33,6 +33,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Pattern;
 
 /**
  * 文件知识库同步服务：变更拉取 → 解析 → 脱敏 → 切块 → 写入 Lucene → 台账落库。
@@ -42,7 +43,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * 可重试失败按指数退避最多尝试 {@code max-attempts} 次。</p>
  *
  * <p>桶策略为 default-deny：只有命中 {@code included-buckets} 白名单且不在
- * {@code excluded-buckets} 中的桶才会入库，避免个人/部门桶内容进入同租户全员可检索池。</p>
+ * {@code excluded-buckets} 中的桶才会入库（默认精确匹配，显式 {@code *} 才通配），
+ * 避免个人/部门桶内容进入同租户全员可检索池。</p>
  *
  * @author BlueWhale
  */
@@ -604,8 +606,10 @@ public class FileKnowledgeSyncService {
     /**
      * 判断桶是否在知识库白名单内（default-deny）。
      *
-     * <p>白名单按桶名前缀匹配；未配置、配置为空或桶名缺失时均返回 {@code false}，
-     * 避免未知桶被静默纳入全员可检索池。</p>
+     * <p>白名单默认**精确匹配**桶名，仅当模式显式包含 {@code *} 时才按通配符匹配
+     * （如 {@code oa-*}）。刻意不再做隐式前缀匹配，避免配置 {@code bluewhale} 时
+     * 顺带放行 {@code bluewhale-private} 等非预期桶（V-06）。未配置、配置为空或
+     * 桶名缺失时均返回 {@code false}。</p>
      *
      * @param bucket 桶名
      * @return 在白名单内返回 {@code true}
@@ -619,7 +623,7 @@ public class FileKnowledgeSyncService {
             return false;
         }
         for (String pattern : included) {
-            if (StringUtils.hasText(pattern) && bucket.startsWith(pattern.trim())) {
+            if (matchesBucketPattern(pattern, bucket)) {
                 return true;
             }
         }
@@ -627,7 +631,7 @@ public class FileKnowledgeSyncService {
     }
 
     /**
-     * 判断桶是否被排除。
+     * 判断桶是否被排除（与白名单同语义：精确匹配，或显式 {@code *} 通配）。
      *
      * @param bucket 桶名
      * @return 排除返回 {@code true}
@@ -637,11 +641,37 @@ public class FileKnowledgeSyncService {
             return false;
         }
         for (String excluded : properties.getKnowledge().getExcludedBuckets()) {
-            if (StringUtils.hasText(excluded) && bucket.startsWith(excluded.trim())) {
+            if (matchesBucketPattern(excluded, bucket)) {
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * 桶名模式匹配：默认精确匹配，模式中显式包含 {@code *} 时按通配符全串匹配。
+     *
+     * @param pattern 配置的桶名模式
+     * @param bucket  实际桶名
+     * @return 匹配返回 {@code true}
+     */
+    private boolean matchesBucketPattern(String pattern, String bucket) {
+        if (!StringUtils.hasText(pattern) || !StringUtils.hasText(bucket)) {
+            return false;
+        }
+        String trimmed = pattern.trim();
+        if (!trimmed.contains("*")) {
+            return bucket.equals(trimmed);
+        }
+        StringBuilder regex = new StringBuilder();
+        String[] parts = trimmed.split("\\*", -1);
+        for (int i = 0; i < parts.length; i++) {
+            if (i > 0) {
+                regex.append(".*");
+            }
+            regex.append(Pattern.quote(parts[i]));
+        }
+        return bucket.matches(regex.toString());
     }
 
     /**
