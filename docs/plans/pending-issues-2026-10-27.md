@@ -81,6 +81,7 @@
 
 > 编号说明：本节 `N-xx` 为 2026-10-31 盘点新增编号；此前各节 `V-xx` 为既有验证序列，不重号。
 > 盘点与修复记录：[2026-10-31-security-quickfix-and-doc-sync](reviews/2026-10-31-security-quickfix-and-doc-sync.md)。
+> **收尾台账（唯一口径）**：[2026-10-31-pending-issues-closure](reviews/2026-10-31-pending-issues-closure.md)——N-01~N-10 的当前状态、剩余动作与解锁条件以此为准。
 
 - [x] ~~**N-01 脚本硬编码本机 MySQL 口令 `515322`**：`scripts/dev/run-music.ps1` 默认值、`scripts/smoke/bw-contract-m2-smoke.ps1` fallback~~ ✅ 2026-10-31（移除默认值，未设置 `MYSQL_PASSWORD` 即失败并提示环境变量注入）
 - [x] ~~**N-02 `scripts/agent-eval.ps1` 默认口令 `123456`**（参数默认值与用法示例）~~ ✅ 2026-10-31（默认改为空 + `-Password` / `WHALE_EVAL_PASSWORD` 二选一，缺失即失败）
@@ -88,7 +89,7 @@
 - [x] ~~**N-04 知识桶白名单隐式前缀匹配**：`bluewhale` 会顺带放行 `bluewhale-private`~~ ✅ 2026-10-31（改为精确匹配，仅显式 `*` 通配；新增「不隐式前缀」与「`oa-*` 通配」用例）
 - [x] ~~**N-05 供应链扫描缺口**：只有 gitleaks/CodeQL/pnpm audit，无镜像与 Maven 依赖扫描~~ ✅ 2026-10-31（`security-scan.yml` 新增 `trivy-fs`（SARIF 入 Security 面板）与 `backend-dependency-check`（周/手动）；首批留档，基线清理后改阻断）
 - [x] ~~**N-06 文档状态失真**：`architecture.md` / `service-catalog.md` / `roadmap.md` / `music-service-ops.md` 仍写音乐 M1 或 M3–M5 待做；auth 拆分与解耦 spec 未回填~~ ✅ 2026-10-31（音乐按 M0–M5 可上线口径同步；上线清单按证据勾选并标注 B-09/B-10 阻塞项；拆分 tasks 加状态说明、解耦 spec 状态改「已实施」）
-- [ ] **N-07 仓库卫生**：`skills/` 下 5 个未跟踪 zip；`.trae` 16 文件为 2026-10-22 既定保留（非缺陷，已关闭该项）。进展：`skills/*.zip` 已加入 `.gitignore`（2026-10-31），物理文件清理仍待用户确认
-- [ ] **N-08 环境阻塞（沿用盘点编号）**：B-01 Docker 全链路、B-09 浏览器 E2E、B-10 通知链路（`whale-message` 未起服）仍开放，需环境具备后复验
-- [ ] **N-09 质量门禁大项**：进展 2026-10-31——T-17 已完成（mypy 2.4.1 全量 0 错误，CI 转阻断并固定版本）；T-18 已完成 `whale-agent`（事实/索引/知识）、`whale-archive`（文件密级）、`whale-im`（创建/发送）越层收敛，三个服务均开启 controller→mapper/entity ArchUnit 门禁；仍开放：前端页面级单测覆盖率（T-07）、E2E 入 CI（T-08）、其余服务越层专项
+- [ ] **N-07 仓库卫生**：`skills/` 下 5 个未跟踪 zip；`.trae` 16 文件为 2026-10-22 既定保留（非缺陷，已关闭该项）。进展：`skills/*.zip` 已加入 `.gitignore`（2026-10-31，`git status` 已验证干净）；**5 个 zip 仍物理存在**，删除待用户确认（[收尾记录](reviews/2026-10-31-pending-issues-closure.md) §3.3）
+- [ ] **N-08 环境阻塞（沿用盘点编号）**：B-01 Docker 全链路、B-09 浏览器 E2E、B-10 通知链路（`whale-message` 未起服）仍开放，需环境具备后复验。2026-10-31 复验：Docker 守护进程**已可用**（`29.9.2`，`compose config -q` exit=0，仍缺 `.env` 且 3306/6379/8848 与宿主冲突）；`ms-playwright` **无浏览器二进制**（仅 `.links`/`__dirlock`）且 CI 无 e2e job；8094 **未监听**（[收尾记录](reviews/2026-10-31-pending-issues-closure.md) §3.1）
+- [ ] **N-09 质量门禁大项**：进展 2026-10-31——T-17 已完成（mypy 2.4.1 全量 0 错误，CI 转阻断并固定版本）；T-18 已完成 `whale-agent`（事实/索引/知识）、`whale-archive`（文件密级）、`whale-im`（创建/发送）越层收敛，三个服务均开启 controller→mapper/entity ArchUnit 门禁；仍开放：前端页面级单测覆盖率（T-07，首批 `whale-ui` 34 例已补）、E2E 入 CI（T-08）、其余服务越层专项（[收尾记录](reviews/2026-10-31-pending-issues-closure.md) §3.2）
 - [x] ~~**N-10 前端依赖审计门禁**：`frontend-audit` 仍 `continue-on-error`~~ ✅ 2026-10-31（新增 `pnpm audit --prod --audit-level=critical` 阻断步骤，dev 依赖告警仍留档）
