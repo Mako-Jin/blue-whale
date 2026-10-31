@@ -59,6 +59,11 @@ public class SongRepositoryImpl implements SongRepository {
     }
 
     @Override
+    public void addPlayCount(Long songId, long delta) {
+        songMapper.addPlayCount(songId, delta);
+    }
+
+    @Override
     public void insert(Song song) {
         SongEntity entity = new SongEntity();
         fill(entity, song);
@@ -90,7 +95,9 @@ public class SongRepositoryImpl implements SongRepository {
         }
         LambdaQueryWrapper<SongEntity> wrapper = filter(query, tagSongIds);
         if (SORT_HOT.equals(query.getSortBy())) {
-            wrapper.orderByDesc(SongEntity::getPlayCount).orderByDesc(SongEntity::getId);
+            wrapper.orderByDesc(SongEntity::getPlayCount)
+                    .orderByDesc(SongEntity::getLikeCount)
+                    .orderByDesc(SongEntity::getId);
         } else {
             wrapper.orderByDesc(SongEntity::getPublishedAt).orderByDesc(SongEntity::getId);
         }

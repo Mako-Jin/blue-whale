@@ -416,3 +416,155 @@ export function unlikeSong(id: number): Promise<void> {
 export function pageMyLikes(params: PageQuery): Promise<PageResult<PublicSongView>> {
   return http.get<PageResult<PublicSongView>>('/music/my/likes', { ...params });
 }
+
+/** 歌单可见性 */
+export type PlaylistVisibility = 'PUBLIC' | 'PRIVATE';
+
+/** 歌单类型：用户歌单 / 官方歌单 */
+export type PlaylistType = 'USER' | 'OFFICIAL';
+
+/** 歌单内歌曲（用户侧歌曲视图 + 歌单内排序号） */
+export interface PlaylistSongView extends PublicSongView {
+  sortNo?: number;
+}
+
+/** 歌单视图（详情响应填充 songs，分页列表不填充） */
+export interface PlaylistView {
+  id: number;
+  /** 所有者用户 ID，官方歌单为 0 */
+  ownerId?: number;
+  title: string;
+  coverFileId?: number;
+  description?: string;
+  playlistType?: PlaylistType;
+  visibility?: PlaylistVisibility;
+  songCount?: number;
+  playCount?: number;
+  createTime?: string;
+  updateTime?: string;
+  songs?: PlaylistSongView[];
+}
+
+/** 歌单保存入参（用户歌单与官方歌单共用） */
+export interface PlaylistSaveInput {
+  title: string;
+  description?: string;
+  visibility?: PlaylistVisibility;
+  coverFileId?: number;
+}
+
+/** 歌单分页查询参数 */
+export interface PlaylistQuery extends PageQuery {
+  keyword?: string;
+  /** 是否只看自己的歌单 */
+  mine?: boolean;
+}
+
+/** 搜索类型 */
+export type SearchType = 'ALL' | 'SONG' | 'ARTIST' | 'ALBUM' | 'PLAYLIST';
+
+/** 站内搜索结果 */
+export interface SearchResultView {
+  keyword: string;
+  type: SearchType;
+  total: number;
+  songTotal: number;
+  artistTotal: number;
+  albumTotal: number;
+  playlistTotal: number;
+  songs?: PublicSongView[];
+  artists?: ArtistView[];
+  albums?: AlbumView[];
+  playlists?: PlaylistView[];
+}
+
+/** 首页聚合视图 */
+export interface HomeView {
+  hotSongs?: PublicSongView[];
+  newSongs?: PublicSongView[];
+  officialPlaylists?: PlaylistView[];
+  tags?: TagView[];
+}
+
+/** 创建用户歌单（所有者固定为当前用户） */
+export function createPlaylist(input: PlaylistSaveInput): Promise<PlaylistView> {
+  return http.post<PlaylistView>('/music/playlist', input);
+}
+
+/** 修改自己的歌单 */
+export function updatePlaylist(id: number, input: PlaylistSaveInput): Promise<PlaylistView> {
+  return http.put<PlaylistView>(`/music/playlist/${id}`, input);
+}
+
+/** 删除自己的歌单 */
+export function deletePlaylist(id: number): Promise<void> {
+  return http.del<void>(`/music/playlist/${id}`);
+}
+
+/** 歌单分页：公开歌单（含官方）与本人私有歌单 */
+export function pagePlaylists(params: PlaylistQuery): Promise<PageResult<PlaylistView>> {
+  return http.get<PageResult<PlaylistView>>('/music/playlist/page', { ...params });
+}
+
+/** 歌单详情（含歌曲与排序号） */
+export function getPlaylist(id: number): Promise<PlaylistView> {
+  return http.get<PlaylistView>(`/music/playlist/${id}`);
+}
+
+/** 向歌单加歌（重复加入幂等） */
+export function addPlaylistSong(id: number, songId: number): Promise<PlaylistView> {
+  return http.post<PlaylistView>(`/music/playlist/${id}/song`, { songId });
+}
+
+/** 从歌单移除歌曲（幂等） */
+export function removePlaylistSong(id: number, songId: number): Promise<void> {
+  return http.del<void>(`/music/playlist/${id}/song/${songId}`);
+}
+
+/** 重排歌单内歌曲（songIds 为歌单内全部歌曲的有序列表） */
+export function reorderPlaylist(id: number, songIds: number[]): Promise<PlaylistView> {
+  return http.put<PlaylistView>(`/music/playlist/${id}/sort`, { songIds });
+}
+
+/** 创建官方歌单 */
+export function createOfficialPlaylist(input: PlaylistSaveInput): Promise<PlaylistView> {
+  return http.post<PlaylistView>('/music/playlist/official', input);
+}
+
+/** 修改官方歌单 */
+export function updateOfficialPlaylist(
+  id: number,
+  input: PlaylistSaveInput,
+): Promise<PlaylistView> {
+  return http.put<PlaylistView>(`/music/playlist/official/${id}`, input);
+}
+
+/** 删除官方歌单 */
+export function deleteOfficialPlaylist(id: number): Promise<void> {
+  return http.del<void>(`/music/playlist/official/${id}`);
+}
+
+/** 官方歌单分页 */
+export function pageOfficialPlaylists(params: PlaylistQuery): Promise<PageResult<PlaylistView>> {
+  return http.get<PageResult<PlaylistView>>('/music/playlist/official/page', { ...params });
+}
+
+/** 首页聚合：热门歌曲、新歌、官方歌单与热门标签 */
+export function getHome(): Promise<HomeView> {
+  return http.get<HomeView>('/music/home');
+}
+
+/** 热门榜分页 */
+export function getHotChart(params: PageQuery): Promise<PageResult<PublicSongView>> {
+  return http.get<PageResult<PublicSongView>>('/music/chart/hot', { ...params });
+}
+
+/** 新歌榜分页 */
+export function getNewChart(params: PageQuery): Promise<PageResult<PublicSongView>> {
+  return http.get<PageResult<PublicSongView>>('/music/chart/new', { ...params });
+}
+
+/** 站内搜索（关键词为空时后端返回稳定空结果） */
+export function searchMusic(params: { keyword: string; type?: SearchType }): Promise<SearchResultView> {
+  return http.get<SearchResultView>('/music/search', { ...params });
+}

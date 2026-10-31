@@ -262,3 +262,122 @@ export function updateTag(id: number, input: TagSaveInput): Promise<TagView> {
 export function deleteTag(id: number): Promise<void> {
   return del<void>(`/music/tag/${id}`);
 }
+
+/** 歌单可见性 */
+export type PlaylistVisibility = 'PUBLIC' | 'PRIVATE';
+
+/** 歌单类型 */
+export type PlaylistType = 'USER' | 'OFFICIAL';
+
+/** 用户侧歌曲视图（歌单曲目接口返回，不含文件 ID） */
+export interface PublicSongView {
+  id: number;
+  visibility?: SongVisibility;
+  uploaderId?: number;
+  albumId?: number;
+  artistId?: number;
+  title: string;
+  subtitle?: string;
+  durationMs?: number;
+  language?: string;
+  coverFileId?: number;
+  playCount?: number;
+  likeCount?: number;
+  commentCount?: number;
+  publishedAt?: string;
+  playable?: boolean;
+  tags?: TagView[];
+}
+
+/** 歌单内歌曲（含歌单内排序号） */
+export interface PlaylistSongView extends PublicSongView {
+  sortNo?: number;
+}
+
+/** 歌单视图（详情响应填充 songs） */
+export interface PlaylistView {
+  id: number;
+  ownerId?: number;
+  title: string;
+  coverFileId?: number;
+  description?: string;
+  playlistType?: PlaylistType;
+  visibility?: PlaylistVisibility;
+  songCount?: number;
+  playCount?: number;
+  createTime?: string;
+  updateTime?: string;
+  songs?: PlaylistSongView[];
+}
+
+/** 歌单保存入参 */
+export interface PlaylistSaveInput {
+  title: string;
+  description?: string;
+  visibility?: PlaylistVisibility;
+  coverFileId?: number;
+}
+
+/** 歌单分页查询参数 */
+export interface PlaylistQuery extends PageQuery {
+  keyword?: string;
+  mine?: boolean;
+}
+
+/** 官方歌单分页 */
+export function pageOfficialPlaylists(params: PlaylistQuery): Promise<PageResult<PlaylistView>> {
+  return get<PageResult<PlaylistView>>('/music/playlist/official/page', { ...params });
+}
+
+/** 创建官方歌单 */
+export function createOfficialPlaylist(input: PlaylistSaveInput): Promise<PlaylistView> {
+  return post<PlaylistView>('/music/playlist/official', input);
+}
+
+/** 修改官方歌单 */
+export function updateOfficialPlaylist(
+  id: number,
+  input: PlaylistSaveInput,
+): Promise<PlaylistView> {
+  return put<PlaylistView>(`/music/playlist/official/${id}`, input);
+}
+
+/** 删除官方歌单 */
+export function deleteOfficialPlaylist(id: number): Promise<void> {
+  return del<void>(`/music/playlist/official/${id}`);
+}
+
+/** 歌单详情（含歌曲与排序号） */
+export function getPlaylist(id: number): Promise<PlaylistView> {
+  return get<PlaylistView>(`/music/playlist/${id}`);
+}
+
+/** 向歌单加歌（重复加入幂等） */
+export function addPlaylistSong(id: number, songId: number): Promise<PlaylistView> {
+  return post<PlaylistView>(`/music/playlist/${id}/song`, { songId });
+}
+
+/** 从歌单移除歌曲（幂等） */
+export function removePlaylistSong(id: number, songId: number): Promise<void> {
+  return del<void>(`/music/playlist/${id}/song/${songId}`);
+}
+
+/** 重排歌单内歌曲 */
+export function reorderPlaylist(id: number, songIds: number[]): Promise<PlaylistView> {
+  return put<PlaylistView>(`/music/playlist/${id}/sort`, { songIds });
+}
+
+/** 官方歌单加歌（运营） */
+export function addOfficialPlaylistSong(id: number, songId: number): Promise<PlaylistView> {
+  return post<PlaylistView>(`/music/playlist/official/${id}/song`, { songId });
+}
+
+/** 官方歌单移除歌曲（运营，幂等） */
+export function removeOfficialPlaylistSong(id: number, songId: number): Promise<void> {
+  return del<void>(`/music/playlist/official/${id}/song/${songId}`);
+}
+
+/** 官方歌单重排（运营） */
+export function reorderOfficialPlaylist(id: number, songIds: number[]): Promise<PlaylistView> {
+  return put<PlaylistView>(`/music/playlist/official/${id}/sort`, { songIds });
+}

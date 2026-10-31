@@ -1,6 +1,7 @@
 package com.bluewhale.music.application.service.impl;
 
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.music.application.command.SongQueryCommand;
 import com.bluewhale.music.application.command.SongSaveCommand;
 import com.bluewhale.music.application.service.SongAppService;
@@ -15,6 +16,7 @@ import com.bluewhale.music.domain.model.SongQuery;
 import com.bluewhale.music.domain.model.SongVisibility;
 import com.bluewhale.music.domain.model.Tag;
 import com.bluewhale.music.domain.repository.ArtistRepository;
+import com.bluewhale.music.domain.repository.HomeCacheRepository;
 import com.bluewhale.music.domain.repository.SongRepository;
 import com.bluewhale.music.domain.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
@@ -60,6 +62,8 @@ public class SongAppServiceImpl implements SongAppService {
 
     private final TagRepository tagRepository;
 
+    private final HomeCacheRepository homeCacheRepository;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public SongView create(SongSaveCommand command, Long operatorId) {
@@ -88,6 +92,7 @@ public class SongAppServiceImpl implements SongAppService {
         fill(song, command);
         songRepository.update(song);
         songRepository.replaceTags(id, command.getTagIds());
+        evictHomeCache();
         return toView(song);
     }
 
@@ -96,6 +101,7 @@ public class SongAppServiceImpl implements SongAppService {
     public void delete(Long id) {
         requireSong(id);
         songRepository.delete(id);
+        evictHomeCache();
     }
 
     @Override
@@ -124,6 +130,7 @@ public class SongAppServiceImpl implements SongAppService {
         Song song = requireSong(id);
         song.publish();
         songRepository.update(song);
+        evictHomeCache();
         return toView(song);
     }
 
@@ -133,6 +140,7 @@ public class SongAppServiceImpl implements SongAppService {
         Song song = requireSong(id);
         song.offline();
         songRepository.update(song);
+        evictHomeCache();
         return toView(song);
     }
 
@@ -142,7 +150,18 @@ public class SongAppServiceImpl implements SongAppService {
         Song song = requireSong(id);
         song.takedown(reason);
         songRepository.update(song);
+        evictHomeCache();
         return toView(song);
+    }
+
+    /**
+     * 失效当前租户的首页缓存（歌曲发布 / 下架 / 版权下架 / 删除后调用）。
+     */
+    private void evictHomeCache() {
+        Long tenantId = TenantContext.get();
+        if (tenantId != null) {
+            homeCacheRepository.evict(tenantId);
+        }
     }
 
     /**

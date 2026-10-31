@@ -21,4 +21,14 @@ public interface SongMapper extends BaseMapper<SongEntity> {
      */
     @Update("UPDATE mu_song SET like_count = GREATEST(like_count + #{delta}, 0) WHERE id = #{songId}")
     int addLikeCount(@Param("songId") Long songId, @Param("delta") long delta);
+
+    /**
+     * 原子累加播放次数（Redis 增量定时回刷）。
+     *
+     * @param songId 歌曲 ID
+     * @param delta 增量
+     * @return 影响行数
+     */
+    @Update("UPDATE mu_song SET play_count = play_count + #{delta} WHERE id = #{songId}")
+    int addPlayCount(@Param("songId") Long songId, @Param("delta") long delta);
 }

@@ -14,6 +14,7 @@ import com.bluewhale.music.domain.model.PlayHistory;
 import com.bluewhale.music.domain.model.PlayTicket;
 import com.bluewhale.music.domain.model.Song;
 import com.bluewhale.music.domain.repository.AudioContentRepository;
+import com.bluewhale.music.domain.repository.PlayCountRepository;
 import com.bluewhale.music.domain.repository.PlayHistoryRepository;
 import com.bluewhale.music.domain.repository.PlayTicketRepository;
 import com.bluewhale.music.domain.repository.SongLikeRepository;
@@ -65,6 +66,8 @@ public class PlayAppServiceImpl implements PlayAppService {
 
     private final AudioContentRepository audioContentRepository;
 
+    private final PlayCountRepository playCountRepository;
+
     private final MusicProperties musicProperties;
 
     @Override
@@ -112,6 +115,8 @@ public class PlayAppServiceImpl implements PlayAppService {
         view.setContentType(stream.contentType());
         view.setEtag(stream.etag());
         view.setBody(stream.body());
+        // 真正开流时才累计播放次数；Redis 累加，定时任务回刷 mu_song.play_count
+        playCountRepository.increment(songId);
         return view;
     }
 

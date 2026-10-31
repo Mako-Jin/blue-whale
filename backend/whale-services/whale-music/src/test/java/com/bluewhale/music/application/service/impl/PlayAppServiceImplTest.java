@@ -14,6 +14,7 @@ import com.bluewhale.music.domain.model.PublishState;
 import com.bluewhale.music.domain.model.Song;
 import com.bluewhale.music.domain.model.SongVisibility;
 import com.bluewhale.music.domain.repository.AudioContentRepository;
+import com.bluewhale.music.domain.repository.PlayCountRepository;
 import com.bluewhale.music.domain.repository.PlayHistoryRepository;
 import com.bluewhale.music.domain.repository.PlayTicketRepository;
 import com.bluewhale.music.domain.repository.SongLikeRepository;
@@ -69,6 +70,9 @@ class PlayAppServiceImplTest {
 
     @Mock
     private AudioContentRepository audioContentRepository;
+
+    @Mock
+    private PlayCountRepository playCountRepository;
 
     @Mock
     private MusicProperties musicProperties;

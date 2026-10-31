@@ -1,7 +1,7 @@
 # Wave 5.75 · 音乐平台（whale-music）实施计划
 
 > 目标：在 BlueWhale 平台内新增音乐平台能力，覆盖「曲库 → 播放 → 歌单 → 发现 → 互动 → 运营」主线，并与既有认证、租户、网关、文件、消息、审计能力打通。
-> 状态：**规划已确认；M0 完成，M1 后端 + 前端完成（单测 / Checkstyle / ArchUnit 全绿，三应用 build + lint 通过，建库与权限迁移已实机验证，8096 起服与网关路由冒烟通过），G1（`whale-file` HTTP Range）已完成，M2 完成（播放票据 + Range 流式 + 进度 / 收藏 + 全局播放器前端；后端 34/34 单测、前端 build + lint 通过，冒烟脚本 `SMOKE-ALL-PASS`），M3 待开始**（2026-10-31；用户确认：所有人可上传、签署版权无争议协议、公开 / 自听）｜ 关联需求：REQ-FUNC-029 / REQ-FUNC-030 / REQ-ARCH-013 / REQ-SEC-019
+> 状态：**规划已确认；M0 完成，M1 后端 + 前端完成（单测 / Checkstyle / ArchUnit 全绿，三应用 build + lint 通过，建库与权限迁移已实机验证，8096 起服与网关路由冒烟通过），G1（`whale-file` HTTP Range）已完成，M2 完成（播放票据 + Range 流式 + 进度 / 收藏 + 全局播放器前端；后端 34/34 单测、前端 build + lint 通过，冒烟脚本 `SMOKE-ALL-PASS`），M3 完成（歌单与发现 + 播放计数回刷 + 前端发现 / 歌单 / 搜索页 + admin 官方歌单运营；后端 53/53 单测、前端 build + lint 通过，冒烟脚本 `SMOKE-ALL-PASS`），M4 待开始**（2026-10-31）｜ 关联需求：REQ-FUNC-029 / REQ-FUNC-030 / REQ-ARCH-013 / REQ-SEC-019
 > 上游依据：[roadmap.md](roadmap.md)、[service-catalog.md](../service-catalog.md)、[naming-conventions.md](../naming-conventions.md)、[architecture.md](../architecture.md)、[backend.md](../backend.md)、[wave5.74 文档服务实施计划](2026-10-29-wiki-doc-service.md)
 
 ---
@@ -409,6 +409,8 @@ interfaces  → application  → domain
 | M2-7 | 冒烟脚本：票据 → Range → 206 → 416 → 下架拒绝 | `SMOKE-ALL-PASS` |
 
 ### M3 歌单与发现
+
+> ✅ **已完成（2026-10-31）**：用户 / 官方歌单（500 首上限、私有可见性、加歌幂等、重排一致性校验）、首页聚合（Redis 缓存 60s + 抖动）、热门 / 新歌榜、站内搜索（歌曲 / 歌手 / 专辑 / 歌单，空结果稳定）、播放计数 Redis INCR + 5 分钟定时回刷；前端发现页 / 搜索页 / 歌单列表与详情页、admin 官方歌单运营页；冒烟 `bw-music-m3-smoke.ps1` 输出 `SMOKE-ALL-PASS`。详见 [M3 检查报告](reviews/2026-10-31-wave5.75-music-m3.md)。
 
 | ID | 任务 | 验收 |
 |---|---|---|

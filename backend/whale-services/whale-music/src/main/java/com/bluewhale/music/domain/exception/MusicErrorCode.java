@@ -41,11 +41,29 @@ public final class MusicErrorCode {
     /** 播放进度参数非法 */
     public static final int PLAY_PROGRESS_INVALID = 40009;
 
+    /** 歌单标题为空或超长 */
+    public static final int PLAYLIST_TITLE_INVALID = 40010;
+
+    /** 歌单歌曲数量已达上限 */
+    public static final int PLAYLIST_SONG_LIMIT = 40011;
+
+    /** 歌单歌曲 ID 非法或重排顺序与歌单内容不一致 */
+    public static final int PLAYLIST_SONG_ORDER_INVALID = 40012;
+
+    /** 加入歌单的歌曲 ID 非法 */
+    public static final int PLAYLIST_SONG_INVALID = 40013;
+
     /** 不能操作他人作品 */
     public static final int SONG_NOT_OWNED = 40301;
 
     /** 播放票据无效、已过期或与当前用户/歌曲不匹配 */
     public static final int PLAY_TICKET_INVALID = 40302;
+
+    /** 不能操作他人歌单 */
+    public static final int PLAYLIST_NOT_OWNED = 40303;
+
+    /** 官方歌单用户侧只读 */
+    public static final int PLAYLIST_OFFICIAL_READONLY = 40304;
 
     /** 歌手不存在 */
     public static final int ARTIST_NOT_FOUND = 40401;
@@ -58,6 +76,9 @@ public final class MusicErrorCode {
 
     /** 标签不存在 */
     public static final int TAG_NOT_FOUND = 40404;
+
+    /** 歌单不存在或不可见 */
+    public static final int PLAYLIST_NOT_FOUND = 40405;
 
     /** 歌曲当前状态不允许该操作 */
     public static final int SONG_STATE_CONFLICT = 40901;
@@ -73,12 +94,19 @@ public final class MusicErrorCode {
             Map.entry(SONG_TITLE_INVALID, "歌曲标题为空或超过 120 个字符"),
             Map.entry(AGREEMENT_VERSION_MISMATCH, "协议版本已更新，请刷新后重新签署"),
             Map.entry(PLAY_PROGRESS_INVALID, "播放进度参数非法"),
+            Map.entry(PLAYLIST_TITLE_INVALID, "歌单标题为空或超过 120 个字符"),
+            Map.entry(PLAYLIST_SONG_LIMIT, "歌单歌曲数量已达上限"),
+            Map.entry(PLAYLIST_SONG_ORDER_INVALID, "歌单歌曲顺序非法或与歌单内容不一致"),
+            Map.entry(PLAYLIST_SONG_INVALID, "加入歌单的歌曲 ID 非法"),
             Map.entry(SONG_NOT_OWNED, "无权操作他人的作品"),
             Map.entry(PLAY_TICKET_INVALID, "播放凭证无效或已过期，请重新发起播放"),
+            Map.entry(PLAYLIST_NOT_OWNED, "无权操作他人的歌单"),
+            Map.entry(PLAYLIST_OFFICIAL_READONLY, "官方歌单仅运营可维护，用户侧只读"),
             Map.entry(ARTIST_NOT_FOUND, "歌手不存在"),
             Map.entry(ALBUM_NOT_FOUND, "专辑不存在"),
             Map.entry(SONG_NOT_FOUND, "歌曲不存在或无权访问"),
             Map.entry(TAG_NOT_FOUND, "标签不存在"),
+            Map.entry(PLAYLIST_NOT_FOUND, "歌单不存在或无权访问"),
             Map.entry(SONG_STATE_CONFLICT, "歌曲当前状态不允许该操作"));
 
     /**

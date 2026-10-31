@@ -40,6 +40,14 @@ public interface SongRepository {
     void addLikeCount(Long songId, long delta);
 
     /**
+     * 原子累加播放次数（Redis 增量定时回刷）。
+     *
+     * @param songId 歌曲 ID
+     * @param delta 增量
+     */
+    void addPlayCount(Long songId, long delta);
+
+    /**
      * 新增歌曲。
      *
      * @param song 歌曲

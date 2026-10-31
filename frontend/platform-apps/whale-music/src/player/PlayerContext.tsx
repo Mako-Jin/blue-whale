@@ -35,6 +35,8 @@ interface PlayerContextValue {
   lyricText: string | null;
   /** 播放指定曲目；传入队列时以队列播放（默认单曲队列） */
   play: (track: PlayableTrack, queue?: PlayableTrack[]) => void;
+  /** 追加曲目到播放队列（队列为空时直接开始播放） */
+  enqueue: (track: PlayableTrack) => void;
   /** 播放 / 暂停 */
   toggle: () => void;
   /** 下一首 */
@@ -192,6 +194,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const enqueue = useCallback((track: PlayableTrack) => {
+    setQueue((list) => {
+      if (!list.length) {
+        return [track];
+      }
+      if (list.some((item) => item.id === track.id)) {
+        return list;
+      }
+      return [...list, track];
+    });
+    setIndex((value) => (value < 0 ? 0 : value));
+  }, []);
+
   const toggle = useCallback(() => {
     const audio = audioRef.current;
     if (!audio || !audio.src) {
@@ -241,7 +256,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   return (
     <PlayerContext.Provider
       value={{ queue, current, playing, currentTime, duration, volume, lyricText, play,
-        toggle, next, prev, seek, setVolume }}
+        enqueue, toggle, next, prev, seek, setVolume }}
     >
       {children}
     </PlayerContext.Provider>

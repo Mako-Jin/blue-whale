@@ -159,8 +159,9 @@ function Invoke-Api {
         $params.Headers = $Headers
     }
     if ($null -ne $Body) {
-        $params.ContentType = 'application/json'
-        $params.Body = ($Body | ConvertTo-Json -Depth 30 -Compress)
+        $json = $Body | ConvertTo-Json -Depth 30 -Compress
+        $params.ContentType = 'application/json;charset=utf-8'
+        $params.Body = [System.Text.Encoding]::UTF8.GetBytes($json)
     }
     return Invoke-RestMethod @params
 }

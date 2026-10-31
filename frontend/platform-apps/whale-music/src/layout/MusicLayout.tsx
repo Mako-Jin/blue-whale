@@ -1,4 +1,4 @@
-// 音乐子应用整体布局：顶部导航（曲库 / 上传作品 / 我的作品）+ 底部全局播放条
+// 音乐子应用整体布局：顶部导航（发现 / 曲库 / 歌单 / 搜索 / 上传作品 / 我的作品）+ 底部全局播放条
 
 import { Layout, Menu, Typography } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
@@ -8,18 +8,30 @@ const { Header, Content } = Layout;
 
 /** 导航项 */
 const NAV_ITEMS = [
+  { key: '/discover', label: '发现' },
   { key: '/library', label: '曲库' },
+  { key: '/playlist', label: '歌单' },
+  { key: '/search', label: '搜索' },
   { key: '/upload', label: '上传作品' },
   { key: '/mine', label: '我的作品' },
 ];
 
-/** 当前路由对应的导航项（歌曲详情归入曲库） */
+/** 当前路由对应的导航项（歌曲详情归入曲库，歌单详情归入歌单） */
 function resolveActiveKey(pathname: string): string {
   if (pathname.startsWith('/upload')) {
     return '/upload';
   }
   if (pathname.startsWith('/mine')) {
     return '/mine';
+  }
+  if (pathname.startsWith('/playlist')) {
+    return '/playlist';
+  }
+  if (pathname.startsWith('/search')) {
+    return '/search';
+  }
+  if (pathname.startsWith('/discover')) {
+    return '/discover';
   }
   return '/library';
 }
