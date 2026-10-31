@@ -102,6 +102,23 @@ public class MinioStoragePlugin implements StoragePlugin {
     }
 
     @Override
+    public InputStream load(String bucket, String objectKey, long offset, long length) {
+        try {
+            GetObjectArgs args = GetObjectArgs.builder()
+                    .bucket(resolveBucket(bucket))
+                    .object(objectKey)
+                    .offset(offset)
+                    .length(length)
+                    .build();
+            return minioClient.getObject(args);
+        } catch (ErrorResponseException e) {
+            throw new BizException(ErrorCode.NOT_FOUND);
+        } catch (Exception e) {
+            throw new BizException(ErrorCode.SYSTEM_ERROR);
+        }
+    }
+
+    @Override
     public void delete(String bucket, String objectKey) {
         try {
             RemoveObjectArgs args = RemoveObjectArgs.builder()

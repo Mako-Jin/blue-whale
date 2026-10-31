@@ -1,5 +1,9 @@
 package com.bluewhale.file.domain.storage;
 
+import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.domain.exception.DomainException;
+
+import java.io.IOException;
 import java.io.InputStream;
 
 /**
@@ -51,6 +55,43 @@ public interface StoragePlugin {
      * @return 内容输入流，由调用方负责关闭
      */
     InputStream load(String bucket, String objectKey);
+
+    /**
+     * 读取文件内容的指定字节区间（语义对齐 HTTP Range）。
+     *
+     * <p>默认实现先跳过 {@code offset} 字节，再以 {@code length} 截断；对象存储插件可覆盖为
+     * 原生分段读取，避免从头跳过带来的额外 IO。</p>
+     *
+     * @param bucket 桶名称
+     * @param objectKey 桶内对象键
+     * @param offset 起始偏移（字节，从 0 开始）
+     * @param length 读取长度（字节），必须为正数
+     * @return 仅包含请求区间的内容输入流，由调用方负责关闭
+     * @throws DomainException 读取失败或区间越过对象末尾时抛出 {@code SYSTEM_ERROR}
+     */
+    default InputStream load(String bucket, String objectKey, long offset, long length) {
+        InputStream in = load(bucket, objectKey);
+        try {
+            in.skipNBytes(offset);
+            return new LimitedInputStream(in, length);
+        } catch (IOException e) {
+            closeQuietly(in);
+            throw new DomainException(ErrorCode.SYSTEM_ERROR);
+        }
+    }
+
+    /**
+     * 静默关闭输入流，用于区间读取失败时的资源回收。
+     *
+     * @param in 待关闭的输入流
+     */
+    private static void closeQuietly(InputStream in) {
+        try {
+            in.close();
+        } catch (IOException ignored) {
+            // 关闭失败不影响抛出的原始异常
+        }
+    }
 
     /**
      * 删除文件内容。

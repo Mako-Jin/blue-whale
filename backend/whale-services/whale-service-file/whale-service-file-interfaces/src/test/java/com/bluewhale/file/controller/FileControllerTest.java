@@ -22,6 +22,8 @@ import java.nio.charset.StandardCharsets;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -198,6 +200,92 @@ class FileControllerTest {
                         .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID)))
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, containsString("download")));
+    }
+
+    @Test
+    @DisplayName("GET /file/{id}/download：无 Range 返回 200 全量并声明 Accept-Ranges 与 ETag")
+    void downloadWithoutRangeShouldReturnFullContent() throws Exception {
+        FileInfoVO info = fileInfo("audio/mpeg");
+        info.setMd5(MD5);
+        when(fileInfoService.getDetail(FILE_ID, UPLOADER_ID, false)).thenReturn(info);
+        when(fileInfoService.openContent(FILE_ID, UPLOADER_ID, false))
+                .thenReturn(new ByteArrayInputStream("hello".getBytes(StandardCharsets.UTF_8)));
+
+        mockMvc.perform(get("/file/{id}/download", FILE_ID)
+                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID)))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.ACCEPT_RANGES, "bytes"))
+                .andExpect(header().string(HttpHeaders.ETAG, "\"" + MD5 + "\""))
+                .andExpect(header().longValue(HttpHeaders.CONTENT_LENGTH, 5L))
+                .andExpect(header().doesNotExist(HttpHeaders.CONTENT_RANGE));
+    }
+
+    @Test
+    @DisplayName("GET /file/{id}/preview：Range 命中返回 206 与 Content-Range")
+    void previewWithRangeShouldReturnPartialContent() throws Exception {
+        when(fileInfoService.getDetail(FILE_ID, UPLOADER_ID, false)).thenReturn(fileInfo("audio/mpeg"));
+        when(fileInfoService.openContent(FILE_ID, UPLOADER_ID, false, 1L, 2L))
+                .thenReturn(new ByteArrayInputStream("el".getBytes(StandardCharsets.UTF_8)));
+
+        mockMvc.perform(get("/file/{id}/preview", FILE_ID)
+                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID))
+                        .header(HttpHeaders.RANGE, "bytes=1-2"))
+                .andExpect(status().isPartialContent())
+                .andExpect(header().string(HttpHeaders.ACCEPT_RANGES, "bytes"))
+                .andExpect(header().string(HttpHeaders.CONTENT_RANGE, "bytes 1-2/5"))
+                .andExpect(header().longValue(HttpHeaders.CONTENT_LENGTH, 2L));
+
+        verify(fileInfoService).openContent(FILE_ID, UPLOADER_ID, false, 1L, 2L);
+    }
+
+    @Test
+    @DisplayName("GET /file/{id}/preview：后缀 Range 取末尾字节")
+    void previewWithSuffixRangeShouldReturnTail() throws Exception {
+        when(fileInfoService.getDetail(FILE_ID, UPLOADER_ID, false)).thenReturn(fileInfo("audio/mpeg"));
+        when(fileInfoService.openContent(FILE_ID, UPLOADER_ID, false, 3L, 2L))
+                .thenReturn(new ByteArrayInputStream("lo".getBytes(StandardCharsets.UTF_8)));
+
+        mockMvc.perform(get("/file/{id}/preview", FILE_ID)
+                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID))
+                        .header(HttpHeaders.RANGE, "bytes=-2"))
+                .andExpect(status().isPartialContent())
+                .andExpect(header().string(HttpHeaders.CONTENT_RANGE, "bytes 3-4/5"));
+
+        verify(fileInfoService).openContent(FILE_ID, UPLOADER_ID, false, 3L, 2L);
+    }
+
+    @Test
+    @DisplayName("GET /file/{id}/preview：Range 越界返回 416 且不读取内容")
+    void previewWithOutOfRangeShouldReturn416() throws Exception {
+        when(fileInfoService.getDetail(FILE_ID, UPLOADER_ID, false)).thenReturn(fileInfo("audio/mpeg"));
+
+        mockMvc.perform(get("/file/{id}/preview", FILE_ID)
+                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID))
+                        .header(HttpHeaders.RANGE, "bytes=5-9"))
+                .andExpect(status().isRequestedRangeNotSatisfiable())
+                .andExpect(header().string(HttpHeaders.ACCEPT_RANGES, "bytes"))
+                .andExpect(header().string(HttpHeaders.CONTENT_RANGE, "bytes */5"));
+
+        verify(fileInfoService, never()).openContent(FILE_ID, UPLOADER_ID, false);
+        verify(fileInfoService, never()).openContent(anyLong(), anyLong(), anyBoolean(), anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("GET /file/{id}/preview：If-Range 与当前 ETag 不一致时回落 200 全量")
+    void previewWithStaleIfRangeShouldReturnFullContent() throws Exception {
+        FileInfoVO info = fileInfo("audio/mpeg");
+        info.setMd5(MD5);
+        when(fileInfoService.getDetail(FILE_ID, UPLOADER_ID, false)).thenReturn(info);
+        when(fileInfoService.openContent(FILE_ID, UPLOADER_ID, false))
+                .thenReturn(new ByteArrayInputStream("hello".getBytes(StandardCharsets.UTF_8)));
+
+        mockMvc.perform(get("/file/{id}/preview", FILE_ID)
+                        .header(WebHeaders.USER_ID, String.valueOf(UPLOADER_ID))
+                        .header(HttpHeaders.RANGE, "bytes=1-2")
+                        .header(HttpHeaders.IF_RANGE, "\"stale-etag\""))
+                .andExpect(status().isOk())
+                .andExpect(header().longValue(HttpHeaders.CONTENT_LENGTH, 5L))
+                .andExpect(header().doesNotExist(HttpHeaders.CONTENT_RANGE));
     }
 
     @Test

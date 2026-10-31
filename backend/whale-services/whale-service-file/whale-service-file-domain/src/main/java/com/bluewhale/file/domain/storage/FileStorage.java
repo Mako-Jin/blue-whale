@@ -34,6 +34,21 @@ public interface FileStorage {
     InputStream load(String bucket, String objectKey);
 
     /**
+     * 读取文件内容的指定字节区间（语义对齐 HTTP Range）。
+     *
+     * <p>由当前活动插件实现：对象存储可原生分段读取，本地介质按偏移跳过并截断长度，
+     * 保证响应体不超过声明长度。</p>
+     *
+     * @param bucket 桶名称
+     * @param objectKey 桶内对象键
+     * @param offset 起始偏移（字节，从 0 开始）
+     * @param length 读取长度（字节），必须为正数
+     * @return 仅包含请求区间的内容输入流，由调用方负责关闭
+     * @throws DomainException 读取失败或区间越过对象末尾时抛出 {@code SYSTEM_ERROR}
+     */
+    InputStream load(String bucket, String objectKey, long offset, long length);
+
+    /**
      * 删除文件内容。
      *
      * @param bucket 桶名称

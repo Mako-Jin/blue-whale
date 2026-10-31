@@ -169,6 +169,12 @@ public class FileInfoServiceImpl implements FileInfoService {
     }
 
     @Override
+    public InputStream openContent(Long id, Long requesterId, boolean canManage, long offset, long length) {
+        FileAsset asset = requireAccessibleFile(id, requesterId, canManage);
+        return fileStorage.load(asset.getBucket(), asset.getObjectKey(), offset, length);
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id, Long requesterId, boolean canManage) {
         FileAsset asset = requireAccessibleFile(id, requesterId, canManage);

@@ -128,6 +128,18 @@ public interface FileInfoService {
     InputStream openContent(Long id, Long requesterId, boolean canManage);
 
     /**
+     * 按字节区间读取文件内容（语义对齐 HTTP Range，闭区间）
+     *
+     * @param id 文件ID
+     * @param requesterId 调用者用户 ID
+     * @param canManage 是否持有文件管理权限
+     * @param offset 起始偏移（字节，从 0 开始）
+     * @param length 读取长度（字节）
+     * @return 仅包含请求区间的内容输入流，由调用方负责关闭
+     */
+    InputStream openContent(Long id, Long requesterId, boolean canManage, long offset, long length);
+
+    /**
      * 删除文件元数据（逻辑删除，物理对象保留）
      *
      * @param id 文件ID

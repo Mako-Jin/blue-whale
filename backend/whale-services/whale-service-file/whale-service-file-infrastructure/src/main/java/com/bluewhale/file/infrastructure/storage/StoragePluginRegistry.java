@@ -80,6 +80,11 @@ public class StoragePluginRegistry implements FileStorage, StoragePluginCatalog 
     }
 
     @Override
+    public InputStream load(String bucket, String objectKey, long offset, long length) {
+        return active.load(bucket, objectKey, offset, length);
+    }
+
+    @Override
     public void delete(String bucket, String objectKey) {
         active.delete(bucket, objectKey);
     }

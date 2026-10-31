@@ -12,6 +12,7 @@ import com.bluewhale.file.dto.FileQueryRequest;
 import com.bluewhale.file.dto.FileRapidUploadRequest;
 import com.bluewhale.file.service.FileInfoService;
 import com.bluewhale.file.service.model.UploadContent;
+import com.bluewhale.file.support.FileContentResponses;
 import com.bluewhale.file.vo.ChunkUploadInitVO;
 import com.bluewhale.file.vo.FileInfoVO;
 import com.bluewhale.file.vo.FilePresignedVO;
@@ -21,28 +22,22 @@ import com.bluewhale.file.vo.FileUploadVO;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
-import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.InvalidMediaTypeException;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Locale;
 
 /**
  * 文件服务接口。
@@ -58,15 +53,6 @@ import java.util.Locale;
 @RequestMapping("/file")
 @RequiredArgsConstructor
 public class FileController {
-
-    /** 下载文件名缺失时的占位名 */
-    private static final String FALLBACK_FILENAME = "download";
-
-    /** 禁止浏览器嗅探响应内容类型的安全响应头 */
-    private static final String NOSNIFF_HEADER = "X-Content-Type-Options";
-
-    /** 禁止嗅探的响应头取值 */
-    private static final String NOSNIFF_VALUE = "nosniff";
 
     /** 文件管理权限码：持有者可查看/下载/删除全租户文件 */
     private static final String PERM_FILE_MANAGE = "sys:file:manage";
@@ -111,49 +97,46 @@ public class FileController {
     }
 
     /**
-     * 流式下载文件内容。
+     * 流式下载文件内容（支持 HTTP Range 分段，浏览器可拖动音频进度）。
      *
      * @param id 文件ID
+     * @param range 请求的 {@code Range} 头，可为 {@code null}
+     * @param ifRange 请求的 {@code If-Range} 头，可为 {@code null}
      * @param httpRequest 当前请求（用于判定调用者归属与文件管理权限）
      * @return 文件内容流式响应（{@code Content-Disposition: attachment}）
      */
     @GetMapping("/{id}/download")
     @RequirePermission("sys:file:download")
-    public ResponseEntity<Resource> download(@PathVariable Long id, HttpServletRequest httpRequest) {
+    public ResponseEntity<Resource> download(@PathVariable Long id,
+                                             @RequestHeader(value = HttpHeaders.RANGE, required = false) String range,
+                                             @RequestHeader(value = HttpHeaders.IF_RANGE, required = false) String ifRange,
+                                             HttpServletRequest httpRequest) {
         Long requesterId = UserContext.requireUserId(httpRequest);
         boolean canManage = canManage(httpRequest);
         FileInfoVO info = fileInfoService.getDetail(id, requesterId, canManage);
-        Resource resource = new InputStreamResource(fileInfoService.openContent(id, requesterId, canManage));
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, buildContentDisposition(info.getOriginalName(), false))
-                // 审计修复：与 preview 对齐补 nosniff，防止浏览器对响应做 MIME 嗅探
-                .header(NOSNIFF_HEADER, NOSNIFF_VALUE)
-                .contentType(resolveMediaType(info.getContentType()))
-                .contentLength(info.getFileSize() == null ? 0L : info.getFileSize())
-                .body(resource);
+        return FileContentResponses.build(fileInfoService, info, requesterId, canManage, false, range, ifRange);
     }
 
     /**
      * 在线预览文件内容：安全类型以 {@code inline} 呈现，其余类型回落 {@code attachment} 下载。
      *
      * @param id 文件ID
+     * @param range 请求的 {@code Range} 头，可为 {@code null}
+     * @param ifRange 请求的 {@code If-Range} 头，可为 {@code null}
      * @param httpRequest 当前请求（用于判定调用者归属与文件管理权限）
      * @return 文件内容流式响应
      */
     @GetMapping("/{id}/preview")
     @RequirePermission("sys:file:download")
-    public ResponseEntity<Resource> preview(@PathVariable Long id, HttpServletRequest httpRequest) {
+    public ResponseEntity<Resource> preview(@PathVariable Long id,
+                                            @RequestHeader(value = HttpHeaders.RANGE, required = false) String range,
+                                            @RequestHeader(value = HttpHeaders.IF_RANGE, required = false) String ifRange,
+                                            HttpServletRequest httpRequest) {
         Long requesterId = UserContext.requireUserId(httpRequest);
         boolean canManage = canManage(httpRequest);
         FileInfoVO info = fileInfoService.getDetail(id, requesterId, canManage);
-        Resource resource = new InputStreamResource(fileInfoService.openContent(id, requesterId, canManage));
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION,
-                        buildContentDisposition(info.getOriginalName(), isPreviewable(info.getContentType())))
-                .header(NOSNIFF_HEADER, NOSNIFF_VALUE)
-                .contentType(resolveMediaType(info.getContentType()))
-                .contentLength(info.getFileSize() == null ? 0L : info.getFileSize())
-                .body(resource);
+        return FileContentResponses.build(fileInfoService, info, requesterId, canManage,
+                FileContentResponses.isPreviewable(info.getContentType()), range, ifRange);
     }
 
     /**
@@ -316,55 +299,6 @@ public class FileController {
             return new UploadContent(file.getOriginalFilename(), file.getContentType(), file.getBytes());
         } catch (IOException e) {
             throw new BizException(ErrorCode.SYSTEM_ERROR);
-        }
-    }
-
-    /**
-     * 构建响应头中的 {@code Content-Disposition}（RFC 5987，UTF-8 文件名）
-     *
-     * @param originalName 原始文件名
-     * @param inline 是否以 {@code inline} 方式呈现（预览）；否则 {@code attachment} 下载
-     * @return Content-Disposition 头值
-     */
-    private static String buildContentDisposition(String originalName, boolean inline) {
-        String name = StringUtils.hasText(originalName) ? originalName : FALLBACK_FILENAME;
-        ContentDisposition.Builder disposition = inline
-                ? ContentDisposition.inline() : ContentDisposition.attachment();
-        return disposition.filename(name, StandardCharsets.UTF_8).build().toString();
-    }
-
-    /**
-     * 判断 MIME 类型是否可在线预览：图片、音视频、文本与 PDF 为安全类型（不区分大小写）
-     *
-     * @param contentType 存储的 MIME 类型
-     * @return 可安全内联预览时返回 {@code true}
-     */
-    private static boolean isPreviewable(String contentType) {
-        if (!StringUtils.hasText(contentType)) {
-            return false;
-        }
-        String type = contentType.trim().toLowerCase(Locale.ROOT);
-        return type.startsWith("image/")
-                || type.startsWith("video/")
-                || type.startsWith("audio/")
-                || type.startsWith("text/")
-                || type.equals("application/pdf");
-    }
-
-    /**
-     * 解析响应媒体类型，非法或缺失时回落 {@code application/octet-stream}
-     *
-     * @param contentType 存储的 MIME 类型
-     * @return 响应媒体类型
-     */
-    private static MediaType resolveMediaType(String contentType) {
-        if (!StringUtils.hasText(contentType)) {
-            return MediaType.APPLICATION_OCTET_STREAM;
-        }
-        try {
-            return MediaType.parseMediaType(contentType);
-        } catch (InvalidMediaTypeException e) {
-            return MediaType.APPLICATION_OCTET_STREAM;
         }
     }
 }

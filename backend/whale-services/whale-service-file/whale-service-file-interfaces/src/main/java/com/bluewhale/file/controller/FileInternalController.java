@@ -3,25 +3,22 @@ package com.bluewhale.file.controller;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.file.service.FileInfoService;
+import com.bluewhale.file.support.FileContentResponses;
 import com.bluewhale.file.vo.FileChangeVO;
 import com.bluewhale.file.vo.FileInfoVO;
 import lombok.RequiredArgsConstructor;
-import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.InvalidMediaTypeException;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 
 /**
@@ -36,15 +33,6 @@ import java.time.LocalDateTime;
 @RequestMapping("/file/internal")
 @RequiredArgsConstructor
 public class FileInternalController {
-
-    /** 文件名缺失时的占位名 */
-    private static final String FALLBACK_FILENAME = "download";
-
-    /** 禁止浏览器嗅探响应内容类型的安全响应头 */
-    private static final String NOSNIFF_HEADER = "X-Content-Type-Options";
-
-    /** 禁止嗅探的响应头取值 */
-    private static final String NOSNIFF_VALUE = "nosniff";
 
     private final FileInfoService fileInfoService;
 
@@ -77,27 +65,22 @@ public class FileInternalController {
     }
 
     /**
-     * 读取文件内容（知识抽取用流式响应）。
+     * 读取文件内容（知识抽取用流式响应，支持 HTTP Range 分段）。
      *
-     * <p>内网服务间调用，按系统级访问（不做归属校验），保持内网通道原有可见范围。</p>
+     * <p>内网服务间调用，按系统级访问（不做归属校验），保持内网通道原有可见范围；
+     * 音频播放等服务可通过 {@code Range} 头按区间拉取，返回 206 与 {@code Content-Range}。</p>
      *
      * @param id 文件ID
+     * @param range 请求的 {@code Range} 头，可为 {@code null}
+     * @param ifRange 请求的 {@code If-Range} 头，可为 {@code null}
      * @return 文件内容流式响应
      */
     @GetMapping("/{id}/content")
-    public ResponseEntity<Resource> content(@PathVariable Long id) {
+    public ResponseEntity<Resource> content(@PathVariable Long id,
+                                            @RequestHeader(value = HttpHeaders.RANGE, required = false) String range,
+                                            @RequestHeader(value = HttpHeaders.IF_RANGE, required = false) String ifRange) {
         FileInfoVO info = fileInfoService.getDetail(id, null, true);
-        Resource resource = new InputStreamResource(fileInfoService.openContent(id, null, true));
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION,
-                        ContentDisposition.attachment()
-                                .filename(resolveFilename(info.getOriginalName()), StandardCharsets.UTF_8)
-                                .build()
-                                .toString())
-                .header(NOSNIFF_HEADER, NOSNIFF_VALUE)
-                .contentType(resolveMediaType(info.getContentType()))
-                .contentLength(info.getFileSize() == null ? 0L : info.getFileSize())
-                .body(resource);
+        return FileContentResponses.build(fileInfoService, info, null, true, false, range, ifRange);
     }
 
     /**
@@ -122,32 +105,5 @@ public class FileInternalController {
     public Result<Void> unlock(@PathVariable Long id) {
         fileInfoService.unlock(id);
         return Result.ok();
-    }
-
-    /**
-     * 解析下载文件名：原名缺失时回落占位名。
-     *
-     * @param originalName 原始文件名
-     * @return 生效的文件名
-     */
-    private static String resolveFilename(String originalName) {
-        return originalName == null || originalName.isBlank() ? FALLBACK_FILENAME : originalName;
-    }
-
-    /**
-     * 解析 MIME 类型：非法或缺失时回落二进制流类型。
-     *
-     * @param contentType 记录的 MIME 类型
-     * @return 生效的媒体类型
-     */
-    private static MediaType resolveMediaType(String contentType) {
-        if (contentType == null || contentType.isBlank()) {
-            return MediaType.APPLICATION_OCTET_STREAM;
-        }
-        try {
-            return MediaType.parseMediaType(contentType);
-        } catch (InvalidMediaTypeException e) {
-            return MediaType.APPLICATION_OCTET_STREAM;
-        }
     }
 }

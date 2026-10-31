@@ -300,7 +300,7 @@ class FileAssetRepositoryImplTest {
         LocalDateTime end = LocalDateTime.of(2026, 10, 31, 0, 0);
 
         FileAssetPage result = repository.page(
-                new FileAssetQuery("报告", "bluewhale", start, end, 1L, 10L));
+                new FileAssetQuery("报告", "bluewhale", start, end, null, 1L, 10L));
 
         assertEquals(1L, result.total());
         assertEquals(1L, result.current());
@@ -315,7 +315,7 @@ class FileAssetRepositoryImplTest {
         when(fileInfoMapper.selectPage(ArgumentMatchers.<Page<FileInfo>>any(),
                 ArgumentMatchers.<Wrapper<FileInfo>>any())).thenReturn(page);
 
-        FileAssetPage result = repository.page(new FileAssetQuery(null, null, null, null, 1L, 10L));
+        FileAssetPage result = repository.page(new FileAssetQuery(null, null, null, null, null, 1L, 10L));
 
         assertTrue(result.records().isEmpty());
         assertEquals(0L, result.total());

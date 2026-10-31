@@ -146,6 +146,23 @@ class FileInternalControllerTest {
     }
 
     @Test
+    @DisplayName("GET /file/internal/{id}/content：Range 命中返回 206 与 Content-Range")
+    void contentWithRangeShouldReturnPartialContent() throws Exception {
+        when(fileInfoService.getDetail(FILE_ID, null, true)).thenReturn(fileInfo("sample.mp3", "audio/mpeg"));
+        when(fileInfoService.openContent(FILE_ID, null, true, 1L, 2L))
+                .thenReturn(new ByteArrayInputStream("el".getBytes(StandardCharsets.UTF_8)));
+
+        mockMvc.perform(get("/file/internal/{id}/content", FILE_ID)
+                        .header(HttpHeaders.RANGE, "bytes=1-2"))
+                .andExpect(status().isPartialContent())
+                .andExpect(header().string(HttpHeaders.ACCEPT_RANGES, "bytes"))
+                .andExpect(header().string(HttpHeaders.CONTENT_RANGE, "bytes 1-2/5"))
+                .andExpect(header().longValue(HttpHeaders.CONTENT_LENGTH, 2L));
+
+        verify(fileInfoService).openContent(FILE_ID, null, true, 1L, 2L);
+    }
+
+    @Test
     @DisplayName("POST /file/internal/{id}/lock：调用归档锁定")
     void lockShouldDelegate() throws Exception {
         mockMvc.perform(post("/file/internal/{id}/lock", FILE_ID))

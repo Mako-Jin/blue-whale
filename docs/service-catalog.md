@@ -26,7 +26,7 @@
 | 3 | `whale-job` | whale-services | `whale-services/whale-job` | **8082** | `/job/**` | ✅ `lb://whale-job` | **`bluewhale_job`**（已建库） | `WhaleJobApplication` | 定时任务调度 | 可启动 |
 | 4 | `whale-workflow` | whale-services | `whale-services/whale-workflow` | **8083** | `/workflow/**` | ✅ `lb://whale-workflow` | **`bluewhale_workflow`**（已建库） | `WhaleWorkflowApplication` | 工作流引擎（审批流） | 可启动 |
 | 5 | `whale-form` | whale-services | `whale-services/whale-form` | **8084** | `/form/**` | ✅ `lb://whale-form` | **`bluewhale_form`**（已建库） | `WhaleFormApplication` | 动态表单 | 可启动 |
-| 6 | `whale-file` | whale-services | `whale-services/whale-service-file`（启动模块 `whale-service-file-web`） | **8085** | `/file/**` | ✅ `lb://whale-file` | **`bluewhale_file`**（已建库） | `WhaleFileApplication` | 文件上传下载、附件管理 | 可启动 |
+| 6 | `whale-file` | whale-services | `whale-services/whale-service-file`（启动模块 `whale-service-file-web`） | **8085** | `/file/**` | ✅ `lb://whale-file` | **`bluewhale_file`**（已建库） | `WhaleFileApplication` | 文件上传下载、附件管理；下载 / 预览 / 内网内容接口支持 HTTP Range（206 / 416 + `Content-Range` + `ETag`） | 可启动 |
 | 7 | `whale-pay` | whale-services | `whale-services/whale-pay` | **8086** | `/pay/**` | ✅ `lb://whale-pay` | **`bluewhale_pay`**（4 表：`pay_order`/`pay_transaction`/`audit_log`/`api_log`） | `WhalePayApplication` | 支付与结算：支付单、mock 渠道支付/退款、渠道流水与对账 | 可启动（2026-10-28 本地起服验证通过） |
 | 8 | `whale-erp` | whale-apps | `whale-apps/whale-erp` | **9001** | `/erp/**` | ✅ 已配路由（2026-10-25） | **`bluewhale_erp`**（4 表：`erp_item`/`erp_supplier`/`audit_log`/`api_log`） | `WhaleErpApplication` | ERP 业务应用：物料主数据 + 供应商主数据（供应商准入/资质/绩效归 SRM，不属 CRM） | 可启动 |
 | 9 | `whale-mes` | whale-apps | `whale-apps/whale-mes` | **9002** | `/mes/**` | ✅ 已配路由（2026-10-25） | **`bluewhale_mes`**（2 表，已建） | `WhaleMesApplication` | MES 制造执行 | 可启动 |
@@ -44,7 +44,7 @@
 | 21 | `whale-contract` | whale-apps | `whale-apps/whale-contract` | **9006** | `/contract/**` | ✅ `lb://whale-contract`（2026-10-26） | **`bluewhale_contract`**（4 表 + `api_log`） | `WhaleContractApplication` | 合同管理：起草/相对方/版本/审批/终止/归档（M1）；印章/PDF 盖章/数字签名/三方签章（M2–M3） | **可启动**（Wave 5.61 M1 完成） |
 | 22 | `whale-message` | whale-services | `whale-services/whale-message` | **8094** | `/message/**` | ✅ `lb://whale-message`（2026-10-28） | **`bluewhale_message`**（5 表：`msg_template`/`msg_record`/`msg_delivery`/`audit_log`/`api_log`） | `WhaleMessageApplication` | 统一消息服务：模板渲染/渠道路由/幂等/投递记录（M0）；模板管理、失败重试、站内信收件箱（M1）；INAPP/EMAIL/SMS/IM 适配器，无供应商时默认 mock | **可启动**（Wave 5.68 M0 + 5.70 M1；2026-10-28 本地起服验证通过） |
 | 23 | `whale-doc` | whale-services | `whale-services/whale-doc` | **8095** | `/doc/**` | ✅ `lb://whale-doc`（2026-10-29，M2 增 `/doc/ws`） | **`bluewhale_doc`**（16 业务表：M1 7 + M2 7 + M3 2，另 `audit_log`/`api_log`） | `WhaleDocApplication` | 在线文档 / Wiki：空间与成员、页面树、TipTap 富文本、自动保存与 revision 冲突、版本/评论/附件、搜索、页面 ACL、标签/反链/动态/最近访问、ngram 检索、协作/回收站、模板/导入导出/审批/通知/分享/归档、Agent 知识索引；M5 指标/清理/备份/运维 | **M1–M5 已交付**（Wave 5.74；239 项 smoke + 备份恢复演练通过） |
-| 24 | `whale-music` | whale-services | `whale-services/whale-music` | **8096** | `/music/**` | ✅ `lb://whale-music`（2026-10-31，M0 增 `/music/stream/**` 限流与 `/music/internal/**` 屏蔽） | **`bluewhale_music`**（11 张业务表 DDL 就绪，另 `audit_log`/`api_log`） | `WhaleMusicApplication` | 音乐平台：歌手/专辑/歌曲/标签曲库、播放票据与 Range 流式、歌单、首页/榜单/搜索、评论审核；所有登录用户可上传（签署版权无争议协议 + 公开/自听可见性） | **可启动**（Wave 5.75 M0 骨架；未起服） |
+| 24 | `whale-music` | whale-services | `whale-services/whale-music` | **8096** | `/music/**` | ✅ `lb://whale-music`（2026-10-31，M0 增 `/music/stream/**` 限流与 `/music/internal/**` 屏蔽） | **`bluewhale_music`**（11 张业务表 DDL 就绪，另 `audit_log`/`api_log`） | `WhaleMusicApplication` | 音乐平台：歌手/专辑/歌曲/标签曲库、播放票据与 Range 流式、歌单、首页/榜单/搜索、评论审核；所有登录用户可上传（签署版权无争议协议 + 公开/自听可见性） | **可启动**（Wave 5.75 M1；8096 起服与网关路由冒烟通过） |
 
 > 「对外一级前缀」= 服务自持的前缀，网关**只转发、不剥离**（REQ-ARCH-003）。
 > 网关 `discovery.locator.enabled=true` 已开启服务发现路由：`lb://whale-<域>` → `http://<服务实例>`。
@@ -103,7 +103,7 @@
 | 13 | whale-pm | `frontend/platform-apps/whale-pm` | `whale-pm` | qiankun **子应用**（项目管理） | **8108** | `/pm` | 微应用名 `whale-pm`（Wave 5.55；M4 交付页面） |
 | 14 | whale-contract | `frontend/platform-apps/whale-contract` | `whale-contract` | qiankun **子应用**（合同管理：列表 + 详情/版本/流程） | **8109** | `/contract` | 微应用名 `whale-contract`（Wave 5.61 M1） |
 | 15 | whale-doc | `frontend/platform-apps/whale-doc` | `whale-doc` | qiankun **子应用**（在线文档/Wiki：空间、页面树、TipTap 协作编辑器、评论/版本/附件、回收站、模板、分享、AI 面板） | **8110** | `/doc` | 微应用名 `whale-doc`（Wave 5.74 M1–M5 已交付；lint/build 通过） |
-| 16 | whale-music | `frontend/platform-apps/whale-music` | `whale-music` | qiankun **子应用**（音乐平台：曲库、上传 / 我的作品，后续首页/歌手/专辑/歌单/播放器） | **8111** | `/music` | 微应用名 `whale-music`（Wave 5.75；M1 页面已落盘并接入基座，构建未验证） |
+| 16 | whale-music | `frontend/platform-apps/whale-music` | `whale-music` | qiankun **子应用**（音乐平台：曲库、上传 / 我的作品，后续首页/歌手/专辑/歌单/播放器） | **8111** | `/music` | 微应用名 `whale-music`（Wave 5.75 M1；页面已接入基座，build + lint 通过） |
 
 共享包（不占端口）：`frontend/shared-packages/whale-common-tools`、`whale-common-theme`、`whale-log-sdk`、`frontend/elemental/whale-ui`（NPM scope `@bluewhale/`）。
 冻结共享包（无消费方，不删除代码、不升级依赖）：`frontend/shared-packages/whale-common-three`（F-09）、`frontend/games/whale-games-core`（F-07）。

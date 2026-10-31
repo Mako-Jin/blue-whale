@@ -63,6 +63,17 @@ class LocalStoragePluginTest {
     }
 
     @Test
+    @DisplayName("load(offset,length)：仅返回请求区间字节")
+    void shouldLoadRange() throws IOException {
+        byte[] content = "hello whale".getBytes(StandardCharsets.UTF_8);
+        plugin.store("bluewhale", "range.txt", new ByteArrayInputStream(content));
+
+        try (InputStream in = plugin.load("bluewhale", "range.txt", 6, 5)) {
+            assertArrayEquals("whale".getBytes(StandardCharsets.UTF_8), in.readAllBytes());
+        }
+    }
+
+    @Test
     @DisplayName("load：文件不存在抛 NOT_FOUND")
     void shouldThrowWhenLoadMissing() {
         BizException ex = assertThrows(BizException.class, () -> plugin.load("bluewhale", "missing.txt"));

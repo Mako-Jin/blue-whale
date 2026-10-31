@@ -1,7 +1,7 @@
 # Wave 5.75 · 音乐平台（whale-music）实施计划
 
 > 目标：在 BlueWhale 平台内新增音乐平台能力，覆盖「曲库 → 播放 → 歌单 → 发现 → 互动 → 运营」主线，并与既有认证、租户、网关、文件、消息、审计能力打通。
-> 状态：**规划已确认；M0 完成，M1 后端 + 前端完成（单测 / Checkstyle / ArchUnit 全绿，三应用 build + lint 通过，建库与权限迁移已实机验证，8096 起服与网关路由冒烟通过），M2 待开始**（2026-10-31；用户确认：所有人可上传、签署版权无争议协议、公开 / 自听）｜ 关联需求：REQ-FUNC-029 / REQ-FUNC-030 / REQ-ARCH-013 / REQ-SEC-019
+> 状态：**规划已确认；M0 完成，M1 后端 + 前端完成（单测 / Checkstyle / ArchUnit 全绿，三应用 build + lint 通过，建库与权限迁移已实机验证，8096 起服与网关路由冒烟通过），G1（`whale-file` HTTP Range）已完成，M2 待开始**（2026-10-31；用户确认：所有人可上传、签署版权无争议协议、公开 / 自听）｜ 关联需求：REQ-FUNC-029 / REQ-FUNC-030 / REQ-ARCH-013 / REQ-SEC-019
 > 上游依据：[roadmap.md](roadmap.md)、[service-catalog.md](../service-catalog.md)、[naming-conventions.md](../naming-conventions.md)、[architecture.md](../architecture.md)、[backend.md](../backend.md)、[wave5.74 文档服务实施计划](2026-10-29-wiki-doc-service.md)
 
 ---
@@ -16,7 +16,7 @@
 | 前端 | 新建 `frontend/platform-apps/whale-music`（qiankun 子应用，base `/music`，dev 端口 **8111**）；运营页面并入 `frontend/admin` |
 | 分层 | DDD 四层：`interfaces / application / domain / infrastructure` + `architecture-test`（与 auth / file 同口径） |
 | 复用的平台能力 | auth（登录 / RBAC / 租户）、gateway（JWT / 路由 / 限流 / `internal-deny`）、file（音频与封面字节）、message（可选通知）、audit（写操作与审核留痕）、job（可选计数回刷） |
-| 关键依赖缺口 | **`whale-file` 当前下载接口不支持 HTTP Range**（`InputStreamResource` + 全量流），音频拖动/续播与断点断流不可用 → M2 前必须先补 Range 能力 |
+| 关键依赖缺口 | ~~**`whale-file` 当前下载接口不支持 HTTP Range**~~ → **G1 已完成（2026-10-31）**：下载 / 预览 / 内网内容接口支持 206 / 416 + `Content-Range` + `ETag` + `If-Range`，音频拖动/续播可用 |
 | 明确不做 | 公网匿名注册、第三方版权曲库接入、直播 / MV / KTV、离线 DRM、付费会员（首版不接 pay）、AI 推荐模型、音频转码（首版只接受浏览器可播格式） |
 | 交付节奏 | M0 设计与骨架 → M1 曲库管理 → M2 播放与音频流 → M3 歌单与发现 → M4 互动与前端闭环 → M5 安全与上线硬化 |
 
@@ -37,7 +37,7 @@
 | 编号与端口 | 权限点已用至 **280**（279 doc 标签、280 `sys:file:manage`）；菜单已用至 **38**；后端 8095 之后空闲；前端 8110 之后空闲 | 音乐权限点从 **281** 起，使用 281–303；菜单从 **39** 起，使用 39–44；端口 **8096 / 8111** |
 | 质量门禁 | Checkstyle `error`、JaCoCo、ArchUnit、CI 镜像矩阵 | 新服务同步纳入构建、检查清单、镜像矩阵与冒烟脚本 |
 
-**G1（阻塞项）**：`FileController#download` / `#preview` 使用 `InputStreamResource` 且无 `Accept-Ranges` / `Content-Range` / `ETag`，无法满足浏览器音频 seek。M2 必须先完成 `whale-file` 的内部内容接口 Range 支持，再实现 `/music/stream/**`。
+**G1（阻塞项，已完成 2026-10-31）**：`FileController#download` / `#preview` / `FileInternalController#content` 已统一支持单段 Range（200 全量 / 206 分段 / 416 越界 + `Accept-Ranges` / `Content-Range` / 强 `ETag` / `If-Range`），M2 可直接实现 `/music/stream/**` 分段转发。
 
 ---
 
