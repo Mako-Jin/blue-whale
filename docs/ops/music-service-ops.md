@@ -487,7 +487,7 @@ $env:GATEWAY_BASE='http://127.0.0.1:8080'
 - [ ] `logging.level.com.bluewhale` 生产置 `info`（`LOGGING_LEVEL_COM_BLUEWHALE=info` 或 `--logging.level.com.bluewhale=info`，见 §6.4）；确认日志无正文。
 - [ ] Docker 部署契约 preflight 通过（`bw-deploy-contract-check.ps1`，PS 5.1 / 7 均可）：后端 23 / 前端 16 / 同名冲突 10 / nginx 10 前缀。
 - [ ] 备份策略与恢复演练（`scripts/ops/music-backup-restore.ps1` → `RESULT: PASSED`，§5.1）。
-- [ ] 浏览器人工回归：登录 → 首页 → 搜索 → 播放（含拖动）→ 收藏 → 建歌单 → 评论 → 审核 → 申诉 → 下架（依赖测试账号）。
+- [ ] 浏览器人工回归：登录 → 首页 → 搜索 → 播放（含拖动）→ 收藏 → 建歌单 → 评论 → 审核 → 申诉 → 下架（本机账号与登录态已验证，见 M5 报告 §4.9；联调口令禁止用于生产）。
 
 ---
 
