@@ -187,7 +187,7 @@ Maven 模块目录名 == artifactId == spring.application.name == Nacos 服务�
 | services | whale-pay | whale-pay | `bluewhale_pay`（规划） | `com.bluewhale.pay` | 8086 |
 | services | whale-message | whale-message | `bluewhale_message` ✔ | `com.bluewhale.message` | 8094 |
 | services | **whale-doc**（Wave 5.74 M1 骨架） | `whale-doc` | `bluewhale_doc` | `com.bluewhale.doc` | 8095 |
-| services | **whale-music**（Wave 5.75 M0 骨架） | `whale-music` | `bluewhale_music`（DDL 就绪，待执行） | `com.bluewhale.music` | 8096 |
+| services | **whale-music**（Wave 5.75 M1 已落地） | `whale-music` | `bluewhale_music`（DDL 就绪，待执行） | `com.bluewhale.music` | 8096 |
 | services | ~~whale-i18n~~（已删除，Wave 5.50 下沉 SDK） | — | 各服务库内自建 `sys_i18n_message` | — | — |
 | registry | ~~whale-config~~（**冻结**，F-05 结案：不部署/不路由） | — | 无 | `com.bluewhale.config` | 9201 |
 | ops | whale-audit | whale-audit | `bluewhale_audit` ✔ | `com.bluewhale.audit` | 9101 |
