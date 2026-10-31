@@ -375,7 +375,7 @@ interfaces  → application  → domain
 |---|---|---|
 | M0-1 | 需求登记 REQ-FUNC-029/030、REQ-ARCH-013、REQ-SEC-019；计划评审 | 登记册与计划链接可追溯 |
 | M0-2 | 新建 `whale-music` 模块（POM、启动类、`application.yml`、hikari 基线） | 可启动、Nacos 注册、`/actuator/health` UP |
-| M0-3 | `bluewhale_music` 建库 + `mu_*` 表 DDL + 幂等迁移脚本 | 11 张表建成，租户列与索引齐全 |
+| M0-3 | `bluewhale_music` 建库 + `mu_*` 表 DDL + 幂等迁移脚本 | 11 张表建成（M0 基线；M5 增至 14 张，含 `mu_song_appeal`），租户列与索引齐全 |
 | M0-4 | DDD 四层骨架 + `architecture-test` ArchUnit | 分层规则用例通过，领域层无 Spring 依赖 |
 | M0-5 | 网关 `/music/**` 路由、`internal-deny`、权限点 281–303 与菜单 39–44 种子 | 经网关健康检查 `code=0`，无权限 403 |
 | M0-6 | 服务登记：service-catalog / naming-conventions / 构建与镜像矩阵 | 文档与代码一致 |
