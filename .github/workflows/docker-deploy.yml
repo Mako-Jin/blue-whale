@@ -156,6 +156,7 @@ jobs:
           - { image: whale-pm, app: whale-pm, dir: platform-apps/whale-pm, base: /pm, namespace: frontend }
           - { image: whale-im, app: whale-im, dir: platform-apps/whale-im, base: /im, namespace: frontend }
           - { image: whale-doc, app: whale-doc, dir: platform-apps/whale-doc, base: /doc, namespace: frontend }
+          - { image: whale-music, app: whale-music, dir: platform-apps/whale-music, base: /music, namespace: frontend }
           - { image: whale-form-designer, app: whale-form-designer, dir: platform-apps/whale-form-designer, base: /, namespace: root }
           - { image: whale-workflow-designer, app: whale-workflow-designer, dir: platform-apps/whale-workflow-designer, base: /, namespace: root }
 

@@ -5,6 +5,7 @@ import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.music.application.command.SongQueryCommand;
 import com.bluewhale.music.application.command.SongSaveCommand;
 import com.bluewhale.music.application.service.SongAppService;
+import com.bluewhale.music.application.service.SongAssetValidator;
 import com.bluewhale.music.application.view.SongView;
 import com.bluewhale.music.application.view.TagView;
 import com.bluewhale.music.domain.exception.MusicErrorCode;
@@ -64,10 +65,13 @@ public class SongAppServiceImpl implements SongAppService {
 
     private final HomeCacheRepository homeCacheRepository;
 
+    private final SongAssetValidator songAssetValidator;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public SongView create(SongSaveCommand command, Long operatorId) {
         requireEnabledArtist(command.getArtistId());
+        assertAssets(command);
         Song song = new Song();
         song.setUploaderId(operatorId);
         song.setPublishState(PublishState.DRAFT);
@@ -89,6 +93,7 @@ public class SongAppServiceImpl implements SongAppService {
             throw MusicErrorCode.exception(MusicErrorCode.SONG_STATE_CONFLICT);
         }
         requireEnabledArtist(command.getArtistId());
+        assertAssets(command);
         fill(song, command);
         songRepository.update(song);
         songRepository.replaceTags(id, command.getTagIds());
@@ -189,6 +194,17 @@ public class SongAppServiceImpl implements SongAppService {
     }
 
     /**
+     * 校验上传的音频与封面资产（类型白名单、大小上限、文件可用性）。
+     *
+     * @param command 保存命令
+     */
+    private void assertAssets(SongSaveCommand command) {
+        Long tenantId = TenantContext.get();
+        songAssetValidator.assertAudio(command.getAudioFileId(), tenantId);
+        songAssetValidator.assertCover(command.getCoverFileId(), tenantId);
+    }
+
+    /**
      * 将保存命令写入歌曲（不含状态与计数）。
      *
      * @param song 歌曲
@@ -207,6 +223,7 @@ public class SongAppServiceImpl implements SongAppService {
         song.setLanguage(command.getLanguage());
         song.setVisibility(command.getVisibility() == null ? SongVisibility.PUBLIC : command.getVisibility());
         song.setSortWeight(command.getSortWeight() == null ? DEFAULT_SORT_WEIGHT : command.getSortWeight());
+        song.applySource(command.getSource());
     }
 
     /**

@@ -80,6 +80,7 @@ CREATE TABLE IF NOT EXISTS mu_song (
     language          VARCHAR(16)   DEFAULT NULL            COMMENT '语言：ZH / EN / JA / OTHER',
     publish_status    VARCHAR(16)   NOT NULL DEFAULT 'DRAFT' COMMENT '发布状态：DRAFT / PUBLISHED / OFFLINE',
     copyright_status  VARCHAR(16)   NOT NULL DEFAULT 'DECLARED' COMMENT '版权状态：DECLARED 已声明 / VALID 复核通过 / TAKEDOWN 版权下架',
+    copyright_source  VARCHAR(16)   DEFAULT NULL            COMMENT '作品来源：ORIGINAL 原创 / AUTHORIZED 已授权 / ROYALTY_FREE 无版权争议素材（M5-3 上传必填）',
     play_count        BIGINT        NOT NULL DEFAULT 0      COMMENT '播放次数（Redis 聚合后回刷，最终一致）',
     like_count        BIGINT        NOT NULL DEFAULT 0      COMMENT '收藏数',
     comment_count     BIGINT        NOT NULL DEFAULT 0      COMMENT '评论数（仅统计可见评论）',

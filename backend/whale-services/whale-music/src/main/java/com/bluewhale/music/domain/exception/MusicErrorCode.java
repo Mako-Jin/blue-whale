@@ -59,6 +59,24 @@ public final class MusicErrorCode {
     /** 回复的目标评论不存在或不可见 */
     public static final int COMMENT_PARENT_INVALID = 40015;
 
+    /** 音频文件类型不在上传白名单内 */
+    public static final int AUDIO_FORMAT_NOT_ALLOWED = 40016;
+
+    /** 封面图片类型不在上传白名单内 */
+    public static final int COVER_FORMAT_NOT_ALLOWED = 40017;
+
+    /** 上传文件超过大小上限 */
+    public static final int UPLOAD_FILE_TOO_LARGE = 40018;
+
+    /** 上传文件不存在、已删除或不可用 */
+    public static final int UPLOAD_FILE_INVALID = 40019;
+
+    /** 上传未声明作品来源（版权合规必填） */
+    public static final int COPYRIGHT_SOURCE_REQUIRED = 40020;
+
+    /** 上传来源取值非法 */
+    public static final int COPYRIGHT_SOURCE_INVALID = 40021;
+
     /** 不能操作他人作品 */
     public static final int SONG_NOT_OWNED = 40301;
 
@@ -109,6 +127,12 @@ public final class MusicErrorCode {
             Map.entry(PLAYLIST_SONG_INVALID, "加入歌单的歌曲 ID 非法"),
             Map.entry(COMMENT_CONTENT_INVALID, "评论正文为空或超过 500 个字符"),
             Map.entry(COMMENT_PARENT_INVALID, "回复的评论不存在或不可见"),
+            Map.entry(AUDIO_FORMAT_NOT_ALLOWED, "仅支持 MP3 / AAC / FLAC 音频文件"),
+            Map.entry(COVER_FORMAT_NOT_ALLOWED, "封面仅支持 JPEG / PNG / WebP 图片"),
+            Map.entry(UPLOAD_FILE_TOO_LARGE, "上传文件超过大小上限"),
+            Map.entry(UPLOAD_FILE_INVALID, "上传文件不存在或不可用，请重新上传"),
+            Map.entry(COPYRIGHT_SOURCE_REQUIRED, "请先声明作品来源（原创 / 已授权 / 无版权争议素材）"),
+            Map.entry(COPYRIGHT_SOURCE_INVALID, "作品来源取值非法"),
             Map.entry(SONG_NOT_OWNED, "无权操作他人的作品"),
             Map.entry(PLAY_TICKET_INVALID, "播放凭证无效或已过期，请重新发起播放"),
             Map.entry(PLAYLIST_NOT_OWNED, "无权操作他人的歌单"),

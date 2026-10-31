@@ -1,5 +1,6 @@
 package com.bluewhale.music.infrastructure.persistence.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.bluewhale.common.entity.BaseEntity;
 import lombok.Data;
@@ -60,6 +61,10 @@ public class SongEntity extends BaseEntity {
 
     /** 版权状态 */
     private String copyrightStatus;
+
+    /** 作品上传来源（ORIGINAL / AUTHORIZED / ROYALTY_FREE），对应列 {@code copyright_source} */
+    @TableField("copyright_source")
+    private String source;
 
     /** 播放次数 */
     private Long playCount;

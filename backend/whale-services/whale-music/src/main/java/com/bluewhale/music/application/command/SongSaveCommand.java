@@ -56,6 +56,9 @@ public class SongSaveCommand {
     /** 可见性：PUBLIC 公开 / PRIVATE 仅自听；缺省 PUBLIC */
     private SongVisibility visibility;
 
+    /** 作品来源：ORIGINAL / AUTHORIZED / ROYALTY_FREE；用户上传必填（M5-3） */
+    private String source;
+
     /** 排序权重 */
     private Integer sortWeight;
 

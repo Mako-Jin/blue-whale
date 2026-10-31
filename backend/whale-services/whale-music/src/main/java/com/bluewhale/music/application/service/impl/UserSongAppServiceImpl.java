@@ -10,6 +10,7 @@ import com.bluewhale.music.application.view.PublicSongView;
 import com.bluewhale.music.application.view.SongView;
 import com.bluewhale.music.application.view.TagView;
 import com.bluewhale.music.domain.exception.MusicErrorCode;
+import com.bluewhale.music.domain.model.CopyrightSource;
 import com.bluewhale.music.domain.model.PublishState;
 import com.bluewhale.music.domain.model.Song;
 import com.bluewhale.music.domain.model.SongQuery;
@@ -60,6 +61,7 @@ public class UserSongAppServiceImpl implements UserSongAppService {
     @Transactional(rollbackFor = Exception.class)
     public PublicSongView upload(SongSaveCommand command, Long userId) {
         agreementAppService.assertAccepted(userId);
+        requireSource(command.getSource());
         SongView created = songAppService.create(command, userId);
         SongView published = songAppService.publish(created.getId());
         return toPublicView(published);
@@ -109,7 +111,19 @@ public class UserSongAppServiceImpl implements UserSongAppService {
     }
 
     /**
+     * 校验作品来源：用户上传必须声明原创 / 已授权 / 无版权争议素材。
+     *
+     * @param source 来源文本
+     */
+    private void requireSource(String source) {
+        CopyrightSource.parse(source);
+    }
+
+    /**
      * 查询并校验歌曲归属，非本人作品直接拒绝。
+     *
+     * <p>他人不可见的（自听 / 已下架）作品先按不存在处理，避免泄露存在性；
+     * 他人公开作品再返回「不能操作他人作品」。</p>
      *
      * @param id 歌曲 ID
      * @param userId 操作用户 ID
@@ -117,6 +131,7 @@ public class UserSongAppServiceImpl implements UserSongAppService {
      */
     private Song requireOwned(Long id, Long userId) {
         Song song = songRepository.findById(id)
+                .filter(item -> item.visibleTo(userId, false) || userId.equals(item.getUploaderId()))
                 .orElseThrow(() -> MusicErrorCode.exception(MusicErrorCode.SONG_NOT_FOUND));
         song.assertOwnedBy(userId);
         return song;

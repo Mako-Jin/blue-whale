@@ -341,14 +341,15 @@ public class PlaylistAppServiceImpl implements PlaylistAppService {
     }
 
     /**
-     * 加载可编辑的用户歌单：官方歌单用户侧只读，且必须为所有者本人。
+     * 加载可编辑的用户歌单：私有歌单非所有者先按不存在处理（避免泄露存在性），
+     * 官方歌单用户侧只读，公开歌单非所有者按无权限拒绝。
      *
      * @param id 歌单 ID
      * @param userId 操作用户 ID
      * @return 歌单
      */
     private Playlist requireUserPlaylist(Long id, Long userId) {
-        Playlist playlist = require(id);
+        Playlist playlist = requireVisible(id, userId);
         if (playlist.getPlaylistType() != PlaylistType.USER) {
             throw MusicErrorCode.exception(MusicErrorCode.PLAYLIST_OFFICIAL_READONLY);
         }
@@ -359,13 +360,15 @@ public class PlaylistAppServiceImpl implements PlaylistAppService {
     /**
      * 加载可维护曲目的歌单：运营可维护官方歌单，用户歌单仍须所有者本人。
      *
+     * <p>用户视角先按可见性过滤，私有歌单非所有者按不存在处理（避免泄露存在性）。</p>
+     *
      * @param id 歌单 ID
      * @param userId 操作用户 ID
      * @param operator 是否为曲库运营人员
      * @return 歌单
      */
     private Playlist requireEditablePlaylist(Long id, Long userId, boolean operator) {
-        Playlist playlist = require(id);
+        Playlist playlist = operator ? require(id) : requireVisible(id, userId);
         if (playlist.getPlaylistType() == PlaylistType.OFFICIAL) {
             if (!operator) {
                 throw MusicErrorCode.exception(MusicErrorCode.PLAYLIST_OFFICIAL_READONLY);

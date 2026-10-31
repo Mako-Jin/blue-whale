@@ -62,6 +62,9 @@ public class Song {
     /** 版权状态 */
     private CopyrightState copyrightState;
 
+    /** 作品上传来源（版权合规留痕，M5-3） */
+    private CopyrightSource source;
+
     /** 播放次数 */
     private Long playCount;
 
@@ -168,5 +171,17 @@ public class Song {
         if (userId == null || !userId.equals(uploaderId)) {
             throw MusicErrorCode.exception(MusicErrorCode.SONG_NOT_OWNED);
         }
+    }
+
+    /**
+     * 声明作品上传来源，空值保留原值（更新场景）。
+     *
+     * @param value 来源文本（ORIGINAL / AUTHORIZED / ROYALTY_FREE）
+     */
+    public void applySource(String value) {
+        if (value == null || value.isBlank()) {
+            return;
+        }
+        source = CopyrightSource.parse(value);
     }
 }

@@ -231,6 +231,14 @@ whale:
         - path-pattern: /music/song/*/comment
           limit: ${WHALE_GATEWAY_RATE_LIMIT_MUSIC_COMMENT:20}
           window-seconds: ${WHALE_GATEWAY_RATE_LIMIT_MUSIC_COMMENT_WINDOW_SECONDS:60}
+        # Wave 5.75 M5-4 播放票据签发：防止刷票与歌曲探测（正常播放一次播放仅签发一次）
+        - path-pattern: /music/play/ticket
+          limit: ${WHALE_GATEWAY_RATE_LIMIT_MUSIC_TICKET:60}
+          window-seconds: ${WHALE_GATEWAY_RATE_LIMIT_MUSIC_TICKET_WINDOW_SECONDS:60}
+        # Wave 5.75 M5-4 收藏 / 取消收藏：写操作防刷（幂等但会触发计数回写）
+        - path-pattern: /music/song/*/like
+          limit: ${WHALE_GATEWAY_RATE_LIMIT_MUSIC_LIKE:30}
+          window-seconds: ${WHALE_GATEWAY_RATE_LIMIT_MUSIC_LIKE_WINDOW_SECONDS:60}
     # T4 熔断降级（轻量实现，由 CircuitBreakerGlobalFilter 执行）：
     # timeout-millis 为单次下游调用超时；failure-rate-threshold 为触发阈值（百分比）；
     # sliding-window-size 为失败率统计窗口；wait-duration-in-open-state-millis 为打开后等待时长；

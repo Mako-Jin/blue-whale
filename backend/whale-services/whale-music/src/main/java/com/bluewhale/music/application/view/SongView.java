@@ -1,6 +1,7 @@
 package com.bluewhale.music.application.view;
 
 import com.bluewhale.music.domain.model.CopyrightState;
+import com.bluewhale.music.domain.model.CopyrightSource;
 import com.bluewhale.music.domain.model.PublishState;
 import com.bluewhale.music.domain.model.SongVisibility;
 import lombok.Data;
@@ -62,6 +63,9 @@ public class SongView {
 
     /** 版权状态 */
     private CopyrightState copyrightState;
+
+    /** 作品上传来源（版权合规留痕） */
+    private CopyrightSource source;
 
     /** 播放次数 */
     private Long playCount;

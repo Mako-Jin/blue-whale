@@ -30,13 +30,15 @@ $h = @{
 $http = New-Object System.Net.Http.HttpClient
 $http.Timeout = [TimeSpan]::FromMinutes(5)
 $testAudioBytes = 4096
-$audioPath = Join-Path $env:TEMP ('bw-music-m2-' + $stamp + '.wav')
+$audioPath = Join-Path $env:TEMP ('bw-music-m2-' + $stamp + '.mp3')
 
 <#
 .SYNOPSIS
-生成指定长度的合法 PCM WAV（单声道 8kHz 8bit 静音），用于 Range 分段断言。
+生成指定长度的静音音频字节，用于 Range 分段断言。
+说明：Wave 5.75 M5-2 起音乐服务按 MIME 白名单校验（audio/mpeg / audio/aac / audio/flac），
+     脚本以 .mp3 + audio/mpeg 上传，文件内容本身仅用于二进制约分段校验。
 #>
-function New-SmokeWav {
+function New-SmokeAudio {
     param([string]$Path, [int]$Length)
 
     [byte[]]$wav = New-Object byte[] $Length
@@ -129,7 +131,7 @@ function Invoke-MusicApi {
     return Invoke-Api -Method $Method -Uri ($musicBase + $Path) -Body $Body -Headers $h
 }
 
-New-SmokeWav -Path $audioPath -Length $testAudioBytes
+New-SmokeAudio -Path $audioPath -Length $testAudioBytes
 Write-Host "== M2 播放与音频流冒烟 用户=$userId 租户=$tenantId =="
 
 # 0) 两个服务就绪
@@ -144,7 +146,7 @@ foreach ($pair in @(@{ n = 'music'; u = "$musicBase/actuator/health" },
 }
 
 # 1) 上传测试音频（M2 流式内容的真实来源）
-$upload = Send-Upload -Uri "$fileBase/file/upload" -Path $audioPath -ContentType 'audio/wav'
+$upload = Send-Upload -Uri "$fileBase/file/upload" -Path $audioPath -ContentType 'audio/mpeg'
 Check '1.upload' $upload
 $fileId = [long]$upload.data.id
 Assert '1.uploadSize' ([long]$upload.data.fileSize -eq $testAudioBytes) "size=$($upload.data.fileSize)"

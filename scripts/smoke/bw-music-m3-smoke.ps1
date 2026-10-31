@@ -36,13 +36,15 @@ $readerHeaders = @{
 $http = New-Object System.Net.Http.HttpClient
 $http.Timeout = [TimeSpan]::FromMinutes(5)
 $testAudioBytes = 4096
-$audioPath = Join-Path $env:TEMP ('bw-music-m3-' + $stamp + '.wav')
+$audioPath = Join-Path $env:TEMP ('bw-music-m3-' + $stamp + '.mp3')
 
 <#
 .SYNOPSIS
-生成指定长度的合法 PCM WAV（单声道 8kHz 8bit 静音）。
+生成指定长度的静音音频字节。
+说明：Wave 5.75 M5-2 起音乐服务按 MIME 白名单校验（audio/mpeg / audio/aac / audio/flac），
+     脚本以 .mp3 + audio/mpeg 上传。
 #>
-function New-SmokeWav {
+function New-SmokeAudio {
     param([string]$Path, [int]$Length)
 
     [byte[]]$wav = New-Object byte[] $Length
@@ -126,7 +128,7 @@ function Send-Probe {
     return [pscustomobject]@{ Status = [int]$response.StatusCode; BodyText = $body }
 }
 
-New-SmokeWav -Path $audioPath -Length $testAudioBytes
+New-SmokeAudio -Path $audioPath -Length $testAudioBytes
 Write-Host "== M3 歌单与发现冒烟 用户=$userId 租户=$tenantId =="
 
 # 0) 两个服务就绪
@@ -141,7 +143,7 @@ foreach ($pair in @(@{ n = 'music'; u = "$musicBase/actuator/health" },
 }
 
 # 1) 上传测试音频
-$upload = Send-Upload -Uri "$fileBase/file/upload" -Path $audioPath -ContentType 'audio/wav'
+$upload = Send-Upload -Uri "$fileBase/file/upload" -Path $audioPath -ContentType 'audio/mpeg'
 Check '1.upload' $upload
 $fileId = [long]$upload.data.id
 

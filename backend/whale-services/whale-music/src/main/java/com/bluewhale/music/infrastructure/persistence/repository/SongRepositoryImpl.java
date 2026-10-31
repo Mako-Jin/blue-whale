@@ -3,6 +3,7 @@ package com.bluewhale.music.infrastructure.persistence.repository;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.music.domain.model.CopyrightState;
+import com.bluewhale.music.domain.model.CopyrightSource;
 import com.bluewhale.music.domain.model.PublishState;
 import com.bluewhale.music.domain.model.Song;
 import com.bluewhale.music.domain.model.SongQuery;
@@ -215,6 +216,7 @@ public class SongRepositoryImpl implements SongRepository {
         song.setLanguage(entity.getLanguage());
         song.setPublishState(parsePublishState(entity.getPublishStatus()));
         song.setCopyrightState(parseCopyrightState(entity.getCopyrightStatus()));
+        song.setSource(parseSource(entity.getSource()));
         song.setPlayCount(entity.getPlayCount());
         song.setLikeCount(entity.getLikeCount());
         song.setCommentCount(entity.getCommentCount());
@@ -247,6 +249,7 @@ public class SongRepositoryImpl implements SongRepository {
         entity.setLanguage(song.getLanguage());
         entity.setPublishStatus(parseName(song.getPublishState(), PublishState.DRAFT.name()));
         entity.setCopyrightStatus(parseName(song.getCopyrightState(), CopyrightState.DECLARED.name()));
+        entity.setSource(nameOf(song.getSource()));
         entity.setPlayCount(song.getPlayCount());
         entity.setLikeCount(song.getLikeCount());
         entity.setCommentCount(song.getCommentCount());
@@ -319,5 +322,20 @@ public class SongRepositoryImpl implements SongRepository {
             }
         }
         return CopyrightState.DECLARED;
+    }
+
+    /**
+     * 解析作品上传来源。
+     *
+     * @param value 存储值
+     * @return 上传来源；缺失或历史数据返回 {@code null}
+     */
+    private CopyrightSource parseSource(String value) {
+        for (CopyrightSource item : CopyrightSource.values()) {
+            if (item.name().equals(value)) {
+                return item;
+            }
+        }
+        return null;
     }
 }

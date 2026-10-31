@@ -38,13 +38,38 @@ histogram_quantile(0.95, sum by (le) (rate(doc_search_seconds_bucket{application
 `doc_search_seconds` 为业务计时器，按 `mode="fulltext"` / `mode="like"` 区分 ngram 索引与短关键词回退；
 保存冲突另见 `doc_page_save_conflict_total`。
 
+## SLO-6 音乐首页时延：P95 < 300ms
+
+```promql
+histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri="/music/home",application="whale-music"}[5m])))
+```
+
+## SLO-7 歌曲详情时延：P95 < 200ms
+
+```promql
+histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri="/music/public/song/{id}",application="whale-music"}[5m])))
+```
+
+## SLO-8 流式首字节时延：P95 < 300ms
+
+```promql
+histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri="/music/stream/{songId}",application="whale-music"}[5m])))
+```
+
+- 播放链路口径：`POST /music/play/ticket` 签发绑定 `租户 + 用户 + 歌曲` 的票据（TTL 120s，可配置），
+  `GET /music/stream/{songId}?ticket=...` 每次开流都复核可见性与版权状态，再以 `InputStreamResource`
+  代理 whale-file `/file/internal/{id}/content`，因此该端点耗时即「校验 + 开流 + 首字节」；
+  上游内容接口的耗时计入本端点直方图，`whale-file` 侧同名 URI（`uri="/file/internal/{id}/content"`）可用于拆分两跳。
+- 容量口径：SLO-8 的 50 并发验收见 `scripts/smoke/bw-music-m5-load.ps1`；
+  该脚本直连 8096（不经网关），并发探针用共享 HttpClient + 异步栅栏 + 每请求独立计时。
+
 ## 采集前提
 
 - 服务侧 `management.endpoints.web.exposure.include` 至少包含 `health,info,prometheus`。
 - `management.metrics.tags.application=${spring.application.name}`，便于按服务聚合。
 - Prometheus 抓取目标为各服务 `http://<host>:<port>/actuator/prometheus`。
-- P95 查询依赖直方图桶 `http_server_requests_seconds_bucket`。该桶默认不输出，SLO-1/SLO-3/SLO-4 的归属服务
-  **whale-auth / whale-workflow / whale-doc** 已开启 `management.metrics.distribution.percentiles-histogram.[http.server.requests]=true`；
+- P95 查询依赖直方图桶 `http_server_requests_seconds_bucket`。该桶默认不输出，已开启直方图的服务为
+  **whale-auth / whale-workflow / whale-doc / whale-music**（`management.metrics.distribution.percentiles-histogram.[http.server.requests]=true`）；
   其余服务保持默认（不打桶，避免指标基数膨胀），如需新增时延 SLO 再按服务开启。
 
 ## 实测
@@ -73,6 +98,20 @@ http_server_requests_seconds_bucket{application="whale-auth",method="POST",statu
 ```
 
 故 SLO-1 / SLO-3 的 `histogram_quantile` 查询可直接使用。
+
+whale-music 开启直方图后（2026-10-31 实测），`http_server_requests_seconds_bucket{application="whale-music"}`
+已按 `uri="/music/home"`、`uri="/music/public/song/{id}"`、`uri="/music/stream/{songId}"` 输出，可直接用于 SLO-6/7/8。
+
+本机口径参考（8 核，单机同时承载 6 个 JVM + MySQL + Redis + Nacos，`scripts/smoke/bw-music-m5-load.ps1`）：
+
+| 指标 | 实测 | 阈值 |
+| --- | --- | --- |
+| 首页 `/music/home` 顺序 P95 | 4.8–8.6ms | < 300ms |
+| 详情 `/music/public/song/{id}` 顺序 P95 | 5.3–8.8ms | < 200ms |
+| 流式 `/music/stream/{songId}` 50 并发首字节 P95（多轮中位） | 216–303ms | < 300ms |
+
+单机压测时客户端与 6 个 JVM 抢同一批 CPU，客户端观测值里含大量本机排队；
+生产验收以 Prometheus 直方图（SLO-6/7/8）与 Grafana「音乐平台监控」面板为准。
 
 ## 本地运行 Prometheus + Grafana（非 Docker）
 
@@ -161,7 +200,9 @@ curl -X POST http://127.0.0.1:9103/alert/internal/prometheus `
 
 ## Grafana 仪表盘（版本化）
 
-- 仪表盘 JSON：`deploy/monitoring/grafana/dashboards/bluewhale-overview.json`（uid `bluewhale-overview`，标题「BlueWhale 平台监控总览」）。
+- 仪表盘 JSON：`deploy/monitoring/grafana/dashboards/bluewhale-overview.json`（uid `bluewhale-overview`，标题「BlueWhale 平台监控总览」）；
+  音乐平台专项 `bluewhale-music.json`（uid `bluewhale-music`，标题「音乐平台监控（Wave 5.75）」）。
+  Docker 侧同源副本位于 `infrastructure/prometheus/grafana/dashboards/`（数据源 uid 为 `bluewhale-prometheus`）。
 - 自动加载：`tools/monitoring/grafana-provisioning/dashboards/bluewhale.yml` 指向上述目录，30s 轮询，文件夹 `BlueWhale`。
 - 数据源：`Prometheus`，uid `prometheus`（`grafana-provisioning/datasources/prometheus.yml`）。
 - 访问：`http://127.0.0.1:3000/d/bluewhale-overview`（本地 admin/admin，仅回环监听）。

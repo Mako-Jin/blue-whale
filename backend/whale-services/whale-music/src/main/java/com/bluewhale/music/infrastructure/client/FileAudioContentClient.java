@@ -37,8 +37,15 @@ import java.util.List;
 @RequiredArgsConstructor
 public class FileAudioContentClient implements AudioContentRepository {
 
-    /** 进程内共享 HTTP 客户端（流式响应，无整体超时） */
+    /**
+     * 进程内共享 HTTP 客户端（流式响应，无整体超时）。
+     *
+     * <p>显式固定 HTTP/1.1：whale-file 内容接口由 Tomcat HTTP/1.1 连接器提供，
+     * JDK 客户端默认 HTTP/2 会为每条新建连接先发 h2c {@code Upgrade} 探测，
+     * 多付一次往返；高并发开流时这部分排队会直接体现在首字节时延上。</p>
+     */
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
+            .version(HttpClient.Version.HTTP_1_1)
             .connectTimeout(Duration.ofSeconds(5))
             .build();
 

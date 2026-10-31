@@ -65,6 +65,17 @@ class UserSongAppServiceImplTest {
     }
 
     /**
+     * 已签协议但未声明作品来源时上传被拒绝（M5-3）。
+     */
+    @Test
+    void shouldRejectUploadWithoutSource() {
+        BizException exception = assertThrows(BizException.class,
+                () -> userSongAppService.upload(saveCommand(), 1L));
+        assertEquals(MusicErrorCode.COPYRIGHT_SOURCE_REQUIRED, exception.getCode());
+        verify(songAppService, never()).create(any(), anyLong());
+    }
+
+    /**
      * 不能编辑他人作品。
      */
     @Test
@@ -88,6 +99,34 @@ class UserSongAppServiceImplTest {
         BizException exception = assertThrows(BizException.class,
                 () -> userSongAppService.publicDetail(5L, 2L));
         assertEquals(MusicErrorCode.SONG_NOT_FOUND, exception.getCode());
+    }
+
+    /**
+     * 编辑他人自听作品时按不存在处理，不泄露作品存在性（M5-1）。
+     */
+    @Test
+    void shouldHidePrivateSongOnUpdateByOthers() {
+        Song song = songOf(1L);
+        song.setVisibility(SongVisibility.PRIVATE);
+        when(songRepository.findById(9L)).thenReturn(Optional.of(song));
+        BizException exception = assertThrows(BizException.class,
+                () -> userSongAppService.update(9L, saveCommand(), 2L));
+        assertEquals(MusicErrorCode.SONG_NOT_FOUND, exception.getCode());
+        verify(songAppService, never()).update(anyLong(), any());
+    }
+
+    /**
+     * 删除他人自听作品同样按不存在处理（M5-1）。
+     */
+    @Test
+    void shouldHidePrivateSongOnDeleteByOthers() {
+        Song song = songOf(1L);
+        song.setVisibility(SongVisibility.PRIVATE);
+        when(songRepository.findById(9L)).thenReturn(Optional.of(song));
+        BizException exception = assertThrows(BizException.class,
+                () -> userSongAppService.delete(9L, 2L));
+        assertEquals(MusicErrorCode.SONG_NOT_FOUND, exception.getCode());
+        verify(songAppService, never()).delete(9L);
     }
 
     /**

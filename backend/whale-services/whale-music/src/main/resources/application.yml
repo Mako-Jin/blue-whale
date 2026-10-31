@@ -81,5 +81,9 @@ management:
       exposure:
         include: health,info,prometheus
   metrics:
+    # M5-5：输出 http.server.requests 直方图桶，供首页 / 详情 / 流式 P95（SLO-6/7/8）查询
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
     tags:
       application: ${spring.application.name}

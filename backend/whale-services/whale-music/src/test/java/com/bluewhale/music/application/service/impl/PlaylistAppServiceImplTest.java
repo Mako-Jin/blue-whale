@@ -171,6 +171,38 @@ class PlaylistAppServiceImplTest {
     }
 
     /**
+     * 修改他人私有歌单按不存在处理，不泄露歌单存在性（M5-1）。
+     */
+    @Test
+    void shouldHidePrivatePlaylistOnMutationByOthers() {
+        Playlist playlist = userPlaylist();
+        playlist.setVisibility(PlaylistVisibility.PRIVATE);
+        when(playlistRepository.findById(PLAYLIST_ID)).thenReturn(Optional.of(playlist));
+
+        BizException exception = assertThrows(BizException.class,
+                () -> playlistAppService.update(PLAYLIST_ID, saveCommand(), OTHER_USER));
+
+        assertEquals(MusicErrorCode.PLAYLIST_NOT_FOUND, exception.getCode());
+        verify(playlistRepository, never()).update(any(Playlist.class));
+    }
+
+    /**
+     * 向他人私有歌单加歌按不存在处理（M5-1）。
+     */
+    @Test
+    void shouldHidePrivatePlaylistOnAddSongByOthers() {
+        Playlist playlist = userPlaylist();
+        playlist.setVisibility(PlaylistVisibility.PRIVATE);
+        when(playlistRepository.findById(PLAYLIST_ID)).thenReturn(Optional.of(playlist));
+
+        BizException exception = assertThrows(BizException.class,
+                () -> playlistAppService.addSong(PLAYLIST_ID, addSongCommand(), OTHER_USER));
+
+        assertEquals(MusicErrorCode.PLAYLIST_NOT_FOUND, exception.getCode());
+        verify(playlistRepository, never()).insertSong(any(PlaylistSong.class));
+    }
+
+    /**
      * 官方歌单用户侧只读，任何用户侧写操作被拒绝。
      */
     @Test
