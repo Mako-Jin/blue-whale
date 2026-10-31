@@ -320,7 +320,7 @@ interfaces  → application  → domain
 |---|---|---|
 | `whale:music:play:ticket:{ticket}` | 播放票据 | 120s，值为 `tenantId|userId|songId` |
 | `whale:music:play:count:{tenantId}:{songId}` | 播放计数 | 定时回刷，5 分钟一批 |
-| `whale:music:chart:hot:{tenantId}:{yyyyMMdd}` | 热门榜 ZSET | 按日滚动，保留 7 天 |
+| `mu_play_history.played_at`（索引 `idx_mu_history_played`） | 热门榜近 7 天滚动窗口 | 查询 `played_at >= now()-7d` 聚合，窗口无数据回落累计 `play_count`；**不写 ZSET** |
 | `whale:music:cache:home:{tenantId}` | 首页聚合 | 60s + 抖动；发布 / 下架事件主动失效 |
 | `whale:music:cache:song:{tenantId}:{songId}` | 歌曲详情 | 300s；发布状态变更主动失效 |
 | `whale:music:lock:playlist:{id}` | 歌单排序 / 加歌互斥 | Redisson 分布式锁 |
@@ -351,7 +351,7 @@ interfaces  → application  → domain
 
 **`frontend/admin` 运营页**
 
-- `pages/music/SongList`、`ArtistList`、`AlbumList`、`PlaylistManage`、`CommentAudit`。
+- `pages/music/SongList`、`ArtistList`、`AlbumList`、`PlaylistManage`、`CommentAudit`、`AppealAudit`（版权申诉复核，菜单 45 / `music/appeals`）。
 - 上传音频 / 封面复用 admin 既有文件上传能力，提交时只传 `fileId`。
 - 所有操作按钮受对应权限码控制；下架 / 版权下架二次确认并留审计。
 - 用户上传页复用同一套上传组件，创建时强制勾选版权协议并选择公开 / 自听。
@@ -431,18 +431,18 @@ interfaces  → application  → domain
 | M4-2 | 评论审核（通过 / 隐藏）与审核队列 | 隐藏后立即不可见，操作留审计 |
 | M4-3 | 我的音乐（收藏 / 最近播放 / 我的歌单） | 三者分页与空态完整 |
 | M4-4 | 可选通知：评论回复 / 审核结果走 `whale-message` | 失败仅告警，不回滚主事务 |
-| M4-5 | 浏览器 E2E：登录 → 首页 → 搜索 → 播放 → 收藏 → 建歌单 → 评论 → 审核 | 全链路 PASS |
+| M4-5 | 浏览器 E2E：登录 → 首页 → 搜索 → 播放 → 收藏 → 建歌单 → 评论 → 审核 | 全链路 PASS（**阻塞**：本机无测试账号与浏览器工具） |
 
 ### M5 安全与上线硬化
 
-> ✅ **已完成（2026-10-31）**：越权矩阵统一「不泄露存在性」（私有歌单 40405、自听作品 40403、跨租户 404、公开视图不含 `file_id`）、上传白名单（`UploadPolicy` 40016/40017/40018/40019）、版权合规（协议版本签署留痕、`copyright_source` 必填 40020/40021、下架原因 40005 + `TAKEDOWN` + 审计）、限流防刷（网关票据 / 点赞新增，合计四条路径）、直方图 + Grafana 面板 + SLO-6/7/8、50 并发流式首字节 P95 182–221ms 与顺序首页 / 详情 P95 < 10ms 实测达标、播放历史 90 天与播放计数 5 分钟回刷、运维手册与 CI 镜像矩阵（后端 23 / 前端 16 / 同名冲突 10 / Nginx 10 前缀）。M5 待做：申诉接口、网关 429 实机验证、浏览器 E2E、近 7 天榜单口径。详见 [M5 检查报告](reviews/2026-10-31-wave5.75-music-m5.md) 与 [运维手册](../ops/music-service-ops.md)。
+> ✅ **已完成（2026-10-31，含收口轮）**：越权矩阵统一「不泄露存在性」（私有歌单 40405、自听作品 40403、跨租户 404、公开视图不含 `file_id`）、上传白名单（`UploadPolicy` 40016/40017/40018/40019）、版权合规（协议版本签署留痕、`copyright_source` 必填 40020/40021、下架原因 40005 + `TAKEDOWN` + 审计、**申诉接口 40022/40407/40902/40903 + 权限 304 + 菜单 45**）、限流防刷（网关四条路径，**8080 实机第 limit+1 次 429 已验证**）、直方图 + Grafana 面板 + SLO-6/7/8、50 并发流式首字节 P95 182–221ms 与顺序首页 / 详情 P95 < 10ms 实测达标、播放历史 90 天与播放计数 5 分钟回刷、**热榜近 7 天滚动窗口**、**`music-backup-restore.ps1` 演练 PASSED**、运维手册与 CI 镜像矩阵（后端 23 / 前端 16 / 同名冲突 10 / Nginx 10 前缀，**脚本已兼容 PS 5.1**）。唯一阻塞项：浏览器 E2E（缺测试账号）。详见 [M5 检查报告](reviews/2026-10-31-wave5.75-music-m5.md) 与 [运维手册](../ops/music-service-ops.md)。
 
 | ID | 任务 | 验收 |
 |---|---|---|
 | M5-1 | 越权矩阵：跨租户 / 私有歌单 / 自听作品 / 评论 / 附件 IDOR | 全部 404 / 403，不泄露存在性 |
 | M5-2 | 上传白名单：音频 `audio/mpeg`、`audio/aac`、`audio/flac`；封面图片；大小上限 | 非法类型 / 超限 400 |
-| M5-3 | 版权合规：签署协议版本可追溯、上传来源必填、下架与申诉留痕、审计可追溯 | 未签署协议不可上传；无授权素材可下架 |
-| M5-4 | 限流与防刷：播放票据、流式、评论、点赞 | 超阈值 429，异常用户可封禁 |
+| M5-3 | 版权合规：签署协议版本可追溯、上传来源必填、下架与申诉留痕、审计可追溯 | 未签署协议不可上传；无授权素材可下架；上传者可申诉、运营可复核 |
+| M5-4 | 限流与防刷：播放票据、流式、评论、点赞 | 超阈值 429（8080 实机已验证），异常用户可封禁 |
 | M5-5 | 指标 / 日志 / Grafana / SLO | 抓取 UP、面板可读、无敏感正文 |
 | M5-6 | 性能与容量：50 并发流式稳定、首页 P95、详情 P95 | 达到 4.10 SLO 建议值 |
 | M5-7 | 清理任务：播放历史 90 天、榜单 7 天、审计保留期 | 定时任务幂等、可回滚 |

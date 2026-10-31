@@ -21,8 +21,9 @@
 | 内网前缀 | `/music/internal/**`（网关 `internal-deny` 统一 403） |
 | 前端 | `frontend/platform-apps/whale-music`，qiankun base `/music`，本地 dev 端口 8111 |
 | Redis | `whale:music:*` |
-| 权限码 | `sys:music:*`（281–303，23 项） |
-| 角色 | `music_admin`（25103）、`music_member`（25104） |
+| 权限码 | `sys:music:*`（281–304，24 项）；申诉复核 `sys:music:appeal:audit`(304) |
+| 角色 | `music_admin`（25103，含 304）、`music_member`（25104，不含 304 以防自审自批） |
+| 菜单 | 45「版权申诉」（parent 39，path `/music/appeals`，component `music/appeals`） |
 | 上游依赖 | `whale-file`（音频字节与文件元信息）、`whale-message`（可选通知，旁路） |
 | 镜像 | 后端 `ghcr.io/<repo>/whale-music`；前端 `ghcr.io/<repo>/frontend/whale-music` |
 
@@ -89,7 +90,8 @@ docker build -f deploy/frontend/Dockerfile \
 > `ghcr.io/<repo>/frontend/whale-music`，后端推送到 `ghcr.io/<repo>/whale-music`，
 > 缓存 scope 分别为 `fe-whale-music` / `be-whale-music`。
 > 部署契约由 `scripts/ci/bw-deploy-contract-check.ps1` 在 `docker-deploy.yml` 的
-> preflight job 中强制校验（需 PowerShell 7）。
+> preflight job 中强制校验。脚本自收口轮起兼容 PowerShell 5.1 与 7：`${{ }}` 改为
+> `$usd = [char]36` 拼接，文件以 **UTF-8 with BOM** 保存（无 BOM 的中文在 5.1 下按 ANSI 解码会解析失败）。
 
 ### 2.4 前端构建
 
@@ -159,7 +161,7 @@ curl -H "Authorization: Bearer <token>" http://127.0.0.1:8080/music/home
 | `NACOS_SERVER` | 127.0.0.1:8848 | 注册与配置中心 |
 | `management.endpoints.web.exposure.include` | health,info,prometheus | 仅暴露三项，不含 env/beans |
 | `management.metrics.distribution.percentiles-histogram.http.server.requests` | true | **SLO-6/7/8 依赖该直方图桶**，不可关闭 |
-| `logging.level.com.bluewhale` | debug | **生产建议改为 `info`**：debug 会打印请求参数，既放大部分日志正文也增加 IO 开销 |
+| `logging.level.com.bluewhale` | debug | **生产必须改为 `info`**：debug 会打印请求参数，既放大部分日志正文也增加 IO 开销。落地方式见 §6.4 |
 
 ---
 
@@ -167,23 +169,27 @@ curl -H "Authorization: Bearer <token>" http://127.0.0.1:8080/music/home
 
 ### 4.1 表清单
 
-`backend/whale-services/whale-music/src/main/resources/db/init.sql` 建 13 张表：
+`backend/whale-services/whale-music/src/main/resources/db/init.sql` 建 14 张表：
 
 | 分组 | 表 |
 |---|---|
 | 曲库 | `mu_artist`、`mu_album`、`mu_song`、`mu_tag`、`mu_song_tag` |
-| 版权 | `mu_copyright_agreement` |
+| 版权 | `mu_copyright_agreement`、`mu_song_appeal` |
 | 歌单 | `mu_playlist`、`mu_playlist_song` |
 | 互动 | `mu_song_like`、`mu_play_history`、`mu_song_comment` |
 | 审计 | `audit_log`、`api_log` |
 
+`mu_play_history` 的 `idx_mu_history_played(played_at)` 支撑「近 7 天热榜」聚合，不可删除。
+
 ### 4.2 迁移执行顺序
 
 1. 建库：`CREATE DATABASE IF NOT EXISTS bluewhale_music CHARACTER SET utf8mb4;`
-2. `whale-music`：新库执行 `db/init.sql`；存量库执行 `db/migration-5.75-m5.sql`
-   （幂等加列 `mu_song.copyright_source`，上传来源必填的落库字段）。
+2. `whale-music`：新库执行 `db/init.sql`；存量库依次执行
+   `db/migration-5.75-m5.sql`（幂等加列 `mu_song.copyright_source`）与
+   `db/migration-5.75-m5-appeal.sql`（建 `mu_song_appeal` + `idx_mu_history_played`，幂等）。
 3. `whale-service-auth`：`db/migration-5.75-music.sql`（权限 281–303、角色
-   `music_admin`/`music_member`、菜单与授权；幂等 `WHERE NOT EXISTS`）。
+   `music_admin`/`music_member`、菜单与授权；幂等 `WHERE NOT EXISTS`），再执行
+   `db/migration-5.75-m5-appeal.sql`（权限 304、`music_admin` 授权、菜单 45；幂等）。
 4. 校验：
 
 ```sql
@@ -191,36 +197,66 @@ SELECT COUNT(*) FROM information_schema.tables
  WHERE table_schema='bluewhale_music' AND table_name IN
  ('mu_artist','mu_album','mu_song','mu_copyright_agreement','mu_tag','mu_song_tag',
   'mu_playlist','mu_playlist_song','mu_song_like','mu_play_history','mu_song_comment',
-  'audit_log','api_log');                       -- 期望 13
+  'mu_song_appeal','audit_log','api_log');            -- 期望 14
 
 SELECT COUNT(*) FROM information_schema.columns
  WHERE table_schema='bluewhale_music' AND table_name='mu_song' AND column_name='copyright_source';
 
-SELECT COUNT(*) FROM sys_permission WHERE id BETWEEN 281 AND 303 AND deleted = 0;  -- 期望 23
+SELECT COUNT(*) FROM information_schema.columns
+ WHERE table_schema='bluewhale_music' AND table_name='mu_song_appeal'
+   AND column_name IN ('status','review_opinion','reviewer_id');   -- 期望 3
+
+SELECT COUNT(DISTINCT index_name) FROM information_schema.statistics
+ WHERE table_schema='bluewhale_music' AND table_name='mu_play_history'
+   AND index_name='idx_mu_history_played';             -- 期望 1
+
+SELECT COUNT(*) FROM sys_permission WHERE id BETWEEN 281 AND 304 AND deleted = 0;  -- 期望 24
 ```
+
+> 申诉状态机：`PENDING → APPROVED | REJECTED`；复核通过仅把 `copyright_status` 恢复为
+> `VALID` 并清除 `takedown_reason`，`publish_status` 保持 `OFFLINE`，**必须由运营重新上架
+> 才会复播**。
 
 ---
 
 ## 五、备份与恢复
 
-### 5.1 备份
+### 5.1 备份与恢复演练脚本
 
 ```powershell
+# 备份 + 导入独立校验库 + 断言核心表 / 索引 / 申诉列 / 行数一致性
 $env:MYSQL_PASSWORD='***'
+.\scripts\ops\music-backup-restore.ps1
+```
+
+参数（均有默认值）：
+
+| 参数 | 默认 | 说明 |
+|---|---|---|
+| `-Database` | `bluewhale_music` | 源库 |
+| `-VerifyDatabase` | `bluewhale_music_restore_check` | 校验库（默认演练结束删除） |
+| `-BackupDir` | `logs/backup` | 备份文件目录 |
+| `-MysqlBin` | `D:\mysql8\bin`（可用 `MYSQL_BIN_DIR` 覆盖） | `mysqldump` / `mysql` 所在目录 |
+| `-KeepRestoreDatabase` | 关 | 保留校验库供人工核对 |
+
+断言项：核心表 **14** 张齐全；`idx_mu_history_played` 存在；`mu_song_appeal` 含
+`status / review_opinion / reviewer_id` 三列；`mu_song` 等核心表源库与校验库行数一致。
+成功输出 `RESULT: PASSED`。
+
+手工等价命令：
+
+```powershell
 mysqldump --single-transaction --no-tablespaces --set-gtid-purged=OFF `
   -uroot -p"$env:MYSQL_PASSWORD" bluewhale_music `
   > logs/backup/bluewhale_music-$(Get-Date -Format 'yyyyMMdd-HHmmss').sql
 ```
 
-> 本里程碑未提供音乐专用一键演练脚本（`scripts/ops/` 现有 `doc-backup-restore.ps1` 仅覆盖
-> `bluewhale_doc`）；如需等价能力，可复用其「导入独立校验库 → 断言核心表 / 行数」做法。
-> 该项已记入 M5 待做项。
-
 ### 5.2 生产恢复步骤
 
 1. 停 `whale-music` 实例（网关摘流或直接停进程），避免恢复期间写入。
 2. 新建 `bluewhale_music_new` 导入备份，执行 §4.2 校验 SQL。
-3. 校验 13 表齐全、`mu_song.copyright_source` 列存在、auth 侧权限 23 项存在后切换库名。
+3. 校验 14 表齐全、`mu_song.copyright_source` 列存在、`mu_song_appeal` 三列存在、
+   auth 侧权限 24 项存在后切换库名。
 4. 启动服务并检查 `/actuator/health`、`/music/meta`、首页与详情。
 5. Redis 数据全部可重建，**无需恢复**：
    - `whale:music:play:ticket:*`（120s）、`whale:music:play:count:*`（待回刷增量）、
@@ -240,8 +276,7 @@ mysqldump --single-transaction --no-tablespaces --set-gtid-purged=OFF `
 | `jvm_memory_used_bytes` / `jvm_gc_*` | Gauge / Counter | 堆与 GC |
 | `up{job="whale-music"}` | Gauge | 抓取存活 |
 
-> 本服务**没有自定义业务指标**（播放计数在 Redis，榜单为实时查询），排障以 HTTP 直方图、
-> Hikari、JVM + 业务日志为主。
+> 本服务**没有自定义业务指标**（播放计数在 Redis，热榜为 `mu_play_history` 近 7 天实时聚合），排障以 HTTP 直方图、Hikari、JVM + 业务日志为主。
 
 Prometheus：`deploy/monitoring/prometheus.yml` 的 `whale-music` job（`127.0.0.1:8096`，
 `metrics_path=/actuator/prometheus`）。
@@ -278,7 +313,18 @@ Hikari（active/idle/pending/max）、JVM 堆使用率。
 
 ### 6.4 日志
 
-- `logging.level.com.bluewhale=debug` 仅用于本地排障；生产 `info`。
+- **生产日志级别落地方式**（三选一，作用等价）：
+  1. 环境变量：`LOGGING_LEVEL_COM_BLUEWHALE=info`（Spring Boot relaxed binding 映射为
+     `logging.level.com.bluewhale`，容器 / systemd / Windows 服务均可用）。
+  2. 命令行属性：`--logging.level.com.bluewhale=info`（WMI、`Start-Process` 等无法透传
+     环境变量的场景使用）。
+  3. （可选改造）将 `application.yml` 改为
+     `logging.level.com.bluewhale: ${LOGGING_LEVEL_COM_BLUEWHALE:info}`，让默认值即生产值。
+     当前仓库默认仍为 `debug`（本地排障便利），生产部署须用 1 或 2 显式覆盖。
+- 验证：启动参数中确认生效（日志启动 banner 或 `--debug`），再用一次请求确认输出中无
+  `DEBUG` 行；本机脚本 `scripts/dev/run-music.ps1` 默认即 `info`
+  （`/actuator/loggers` 未暴露，仅开放 health/info/prometheus）。
+- `debug` 仅用于本地排障（打印请求参数，既放大日志正文也增加 IO 开销）。
 - **日志不含正文**：评论内容、歌词正文、协议全文均不入日志；审计上报只带资源 ID / 标题 / 状态。
 - 媒体流不打印字节内容；仅记录歌曲 ID、Range 区间、状态码。
 
@@ -292,8 +338,9 @@ Hikari（active/idle/pending/max）、JVM 堆使用率。
 | 上传白名单 | `UploadPolicy` 校验 MIME ∈ `audio-formats` / `cover-formats`，不可用文件 40019，超上限 40018 | 非法类型 / 超限 400 |
 | 文件 IDOR | 详情/公开视图不返回 `audioFileId` / `lyricFileId`；取文件元信息必须同租户 | `1.noAudioFileId` 断言 |
 | 版权合规 | 上传必须签署当前协议版本（`mu_copyright_agreement` 记版本与签署时间）；`copyright_source` 必填（ORIGINAL / LICENSED / PUBLIC_DOMAIN 等）；`TAKEDOWN` 需原因并强制 `OFFLINE` + 审计留痕 | 未签署不可上传、无原因 40005、下架后票据失效 |
+| 版权申诉 | 上传者对 `TAKEDOWN` 作品提交理由（`POST /music/song/{id}/appeal`，`sys:music:upload`）；运营复核（`sys:music:appeal:audit`）通过 → 版权 `VALID` + 清空 `takedown_reason` + 保持 `OFFLINE`（需重新上架复播）；驳回保持 `TAKEDOWN` | `bw-music-m5-smoke.ps1` §6.1/§6.2 断言 |
 | 播放票据 | 绑定 `tenantId|userId|songId`，TTL 120s，**每次流式请求复核可播态**；缺票 / 换用户 / 换歌曲 / 下架全部拒绝 | 5./6. 断言 |
-| 限流防刷 | 网关四类路径阈值（§一）；超阈值 429 + `Result` 体 | 需网关 + JWT 环境实测（见待做） |
+| 限流防刷 | 网关四类路径阈值（§一）；超阈值 429 + `Result` 体 | `bw-gateway-rate-limit-smoke.ps1` 实机验证（§7.1） |
 | 异常用户封禁 | 复用 auth `PUT /user/{id}/status`（`sys:user:status`）：停用即撤销存量令牌，音乐侧所有接口立即 401/403 | 复用既有能力 |
 | 内网通道 | `/music/internal/**` 网关 403；`whale-file` 内容接口需内网令牌头 | `4.internalDeny` |
 | 审计 | 曲库写操作、协议签署、下架、评论审核均 `@AuditLog` 留痕（不含正文） | audit_log / whale-audit |
@@ -302,7 +349,26 @@ Hikari（active/idle/pending/max）、JVM 堆使用率。
 
 - `whale.music.comment-notify-enabled`、`comment-pre-audit` 按运营策略固定，不随请求可变。
 - 单文件上限与前端提示保持一致（`/music/meta` 已下发），避免「前端放行、后端 40018」。
-- 协议版本升级（如 `V2`）时旧签署不自动继承，需重新签署；下架与申诉留档走运营工单（申诉接口未实现，见待做）。
+- 协议版本升级（如 `V2`）时旧签署不自动继承，需重新签署；下架与申诉记录长期保留
+  （`mu_song_appeal` + `@AuditLog`），复核意见一并落库。
+
+### 7.1 429 限流验证方法
+
+```powershell
+# 直连网关 8080，无需 JWT（限流过滤器 ORDER = HIGHEST_PRECEDENCE + 10，先于 JWT）
+$env:GATEWAY_BASE='http://127.0.0.1:8080'
+.\scripts\smoke\bw-gateway-rate-limit-smoke.ps1
+```
+
+要点：
+
+- `clientId` 取 `X-Forwarded-For` 首段，脚本每轮随机网段（`10.a.b.101..105`）隔离计数，
+  避免与真实客户端 / 上一次运行的窗口串扰。
+- 每条规则发起 `limit + 1` 次请求，断言「阈值内无 429、第 `limit+1` 次 429」。
+- 窗口为 Redis 固定窗口（60s），脚本在窗口剩余 < 25s 时等待下一窗口，整批未命中则换窗口重试一次。
+- 429 body 必须是 `{"code":429,"message":"请求过于频繁，请稍后重试","data":null}` 且
+  `Content-Type: application/json`（前端据此提示，而非吞成 500）。
+- 隔离规则：四条规则的 clientIp 互不相同，验证 pathPattern 不会串键。
 
 ---
 
@@ -325,8 +391,9 @@ Hikari（active/idle/pending/max）、JVM 堆使用率。
 | 播放历史清理 | `0 0 3 * * ?` | 删除 `createTime < now - retentionDays`（默认 90 天） | 是（可重复执行） |
 
 > 两个任务都在无租户上下文的后台线程执行，租户插件对空上下文不加条件，因此一次覆盖全部租户。
-> 「榜单 7 天」：当前热榜 / 新歌榜为**实时查询已发布公开歌曲 + 60s 缓存**，Redis 无按日滚动
-> ZSET；如需「近 7 天榜」需新增 `mu_play_history` 聚合或补 ZSET 实现（记入待做）。
+> 「榜单 7 天」：`GET /music/chart/hot` 按 `mu_play_history.played_at >= now()-7d` 聚合播放次数
+> （JOIN `mu_song` 过滤 `deleted=0 / PUBLISHED / PUBLIC / 非 TAKEDOWN`），窗口内无数据时回落
+> 累计 `play_count` 榜；新歌榜仍按 `published_at` 倒序 + 60s 缓存。**无 ZSET，不产生额外 Redis 键**。
 
 ### 8.3 Redis Key
 
@@ -350,7 +417,10 @@ Hikari（active/idle/pending/max）、JVM 堆使用率。
 | 首页 P95 抖动 | 缓存被发布事件频繁失效；核对发布 / 下架操作频率 |
 | 详情 404 | 私有作品非本人、未发布、已删除、跨租户（均为 404，不区分原因） |
 | 评论 40014 / 40015 | 正文空或 > 500 字；父评论不存在 / 不同歌曲 / 已隐藏 |
-| 限流 429 | 命中网关四类阈值；按业务量调整 `WHALE_GATEWAY_RATE_LIMIT_MUSIC_*` |
+| 申诉 40022 / 40902 / 40903 | 理由为空或 > 500 字；同一作品已有 `PENDING` 申诉；作品不处于 `TAKEDOWN` |
+| 申诉 40403 / 40301 | 非上传者：作品对当前用户不可见（跨租户 / 私有 / 下架）→ 40403；可见但非本人 → 40301 |
+| 申诉通过后仍不能播放 | 预期行为：申诉通过只恢复版权为 `VALID`，作品仍 `OFFLINE`，需运营在曲库重新上架 |
+| 限流 429 | 命中网关四类阈值；按业务量调整 `WHALE_GATEWAY_RATE_LIMIT_MUSIC_*`；用 §7.1 脚本复验 |
 
 ---
 
@@ -395,6 +465,7 @@ Hikari（active/idle/pending/max）、JVM 堆使用率。
 | 评论 `mu_song_comment` | 长期 | 逻辑删除；隐藏为状态流转，不物理删除（审核可追溯） |
 | 协议签署 `mu_copyright_agreement` | 长期 | 版本 + 签署时间可追溯，不随用户/歌曲删除 |
 | 下架记录 | 长期 | `copyright_state=TAKEDOWN` + `takedown_reason` + `@AuditLog` |
+| 申诉记录 `mu_song_appeal` | 长期 | 理由 / 状态 / 复核人 / 复核意见 / 复核时间；复核通过后 `takedown_reason` 清空，但申诉行保留可追溯 |
 | 播放票据 / 计数 / 首页缓存 | 120s / 5min / 60s | Redis，可重建 |
 | `audit_log` / `api_log` | 由 `whale-audit` 统一策略 | 本服务不单独清理 |
 
@@ -404,19 +475,19 @@ Hikari（active/idle/pending/max）、JVM 堆使用率。
 
 ## 十一、上线检查清单
 
-- [ ] `bluewhale_music` 建库 + `init.sql`（或存量库 `migration-5.75-m5.sql`）执行，§4.2 校验 SQL 通过。
-- [ ] auth `migration-5.75-music.sql` 执行：权限 281–303、角色 25103/25104、菜单与授权。
-- [ ] 网关 `whale-music` 路由、`/music/internal/**` 403、四类限流规则生效。
+- [ ] `bluewhale_music` 建库 + `init.sql`（或存量库 `migration-5.75-m5.sql`、`migration-5.75-m5-appeal.sql`）执行，§4.2 校验 SQL 通过（14 表 / 申诉 3 列 / `idx_mu_history_played`）。
+- [ ] auth `migration-5.75-music.sql` + `migration-5.75-m5-appeal.sql` 执行：权限 281–304（24 项）、角色 25103/25104、菜单 45 与授权（25103 含 304，25104 不含）。
+- [ ] 网关 `whale-music` 路由、`/music/internal/**` 403、四类限流规则生效，并用 §7.1 脚本实测 429。
 - [ ] `whale-file` 内网内容接口可用（音流两跳链路），内网令牌头已配置。
-- [ ] 前端 `/music` 子应用可加载；`/music/meta` 下发的白名单与上限和前端一致。
-- [ ] `mvn -o -pl whale-services/whale-music -am test` 全绿（95/95）；Checkstyle 0；ArchUnit 5/5。
-- [ ] `scripts/smoke/bw-music-m2/m3/m4/m5-smoke.ps1` 全 `SMOKE-ALL-PASS`。
+- [ ] 前端 `/music` 子应用可加载；`/music/meta` 下发的白名单与上限和前端一致；「我的作品」可见申诉入口，管理端「版权申诉」菜单可打开。
+- [ ] `mvn -o -pl whale-services/whale-music -am test` 全绿（117/117）；Checkstyle 0；ArchUnit 5/5。
+- [ ] `scripts/smoke/bw-music-m2/m3/m4/m5-smoke.ps1` 全 `SMOKE-ALL-PASS`（m5 含申诉闭环）。
 - [ ] `scripts/smoke/bw-music-m5-load.ps1` 全绿（首页 / 详情 / 50 并发流式）。
 - [ ] Prometheus 抓取 `whale-music` UP，Grafana `bluewhale-music` 面板有数据，SLO-6/7/8 可查。
-- [ ] `logging.level.com.bluewhale` 生产置 `info`；确认日志无正文。
-- [ ] Docker 部署契约 preflight 通过（`bw-deploy-contract-check.ps1`，需 pwsh 7）：后端 23 / 前端 16 / 同名冲突 10 / nginx 10 前缀。
-- [ ] 备份策略与恢复演练（§5）。
-- [ ] 浏览器人工回归：登录 → 首页 → 搜索 → 播放（含拖动）→ 收藏 → 建歌单 → 评论 → 审核（依赖测试账号）。
+- [ ] `logging.level.com.bluewhale` 生产置 `info`（`LOGGING_LEVEL_COM_BLUEWHALE=info` 或 `--logging.level.com.bluewhale=info`，见 §6.4）；确认日志无正文。
+- [ ] Docker 部署契约 preflight 通过（`bw-deploy-contract-check.ps1`，PS 5.1 / 7 均可）：后端 23 / 前端 16 / 同名冲突 10 / nginx 10 前缀。
+- [ ] 备份策略与恢复演练（`scripts/ops/music-backup-restore.ps1` → `RESULT: PASSED`，§5.1）。
+- [ ] 浏览器人工回归：登录 → 首页 → 搜索 → 播放（含拖动）→ 收藏 → 建歌单 → 评论 → 审核 → 申诉 → 下架（依赖测试账号）。
 
 ---
 
@@ -424,8 +495,9 @@ Hikari（active/idle/pending/max）、JVM 堆使用率。
 
 1. **功能降级优先**：`WHALE_MUSIC_COMMENT_PRE_AUDIT=false`、`WHALE_MUSIC_COMMENT_NOTIFY_ENABLED=false`
    等开关可即时降级，无需回滚数据库。
-2. **应用回滚**：回退到上一镜像 / 上一 jar；`mu_song.copyright_source` 为 M5 新增列，
-   旧版本不读取，保持兼容（**不要**在回滚时删列）。
+2. **应用回滚**：回退到上一镜像 / 上一 jar；`mu_song.copyright_source`、`mu_song_appeal` 表
+   与 `idx_mu_history_played` 均为 M5 新增，旧版本不读取，保持兼容（**不要**在回滚时删列 / 删表）。
+   注意：回滚后热榜会退回旧口径（累计 `play_count`），申诉接口不可用（前端入口会 404）。
 3. **限流回滚**：调高 `WHALE_GATEWAY_RATE_LIMIT_MUSIC_*` 或临时下线对应 `path-rules` 条目（需网关重启）。
 4. **数据回滚**：仅在确认无新版本写入后按 §5.2 恢复；Redis 无需回滚（可重建）。
 5. **协议版本回滚**：把 `agreement-version` 改回旧版本即可恢复旧签署可用性；已记版本留痕不删。
