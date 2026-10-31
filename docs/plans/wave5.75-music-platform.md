@@ -1,7 +1,7 @@
 # Wave 5.75 · 音乐平台（whale-music）实施计划
 
 > 目标：在 BlueWhale 平台内新增音乐平台能力，覆盖「曲库 → 播放 → 歌单 → 发现 → 互动 → 运营」主线，并与既有认证、租户、网关、文件、消息、审计能力打通。
-> 状态：**规划已确认；M0 完成，M1 后端与前端已落地（前端构建 / 建库冒烟待验证），M2 待开始**（2026-10-31；用户确认：所有人可上传、签署版权无争议协议、公开 / 自听）｜ 关联需求：REQ-FUNC-029 / REQ-FUNC-030 / REQ-ARCH-013 / REQ-SEC-019
+> 状态：**规划已确认；M0 完成，M1 后端 + 前端完成（单测 / Checkstyle / ArchUnit 全绿，三应用 build + lint 通过，建库与权限迁移已实机验证），M2 待开始**（2026-10-31；用户确认：所有人可上传、签署版权无争议协议、公开 / 自听）｜ 关联需求：REQ-FUNC-029 / REQ-FUNC-030 / REQ-ARCH-013 / REQ-SEC-019
 > 上游依据：[roadmap.md](roadmap.md)、[service-catalog.md](../service-catalog.md)、[naming-conventions.md](../naming-conventions.md)、[architecture.md](../architecture.md)、[backend.md](../backend.md)、[wave5.74 文档服务实施计划](2026-10-29-wiki-doc-service.md)
 
 ---
