@@ -22,6 +22,7 @@ import OrderList from '../pages/pay/OrderList';
 import PermissionList from '../pages/permission/PermissionList';
 import RoleList from '../pages/role/RoleList';
 import CatalogPage from '../pages/music/CatalogPage';
+import AppealAudit from '../pages/music/AppealAudit';
 import CommentAudit from '../pages/music/CommentAudit';
 import PlaylistList from '../pages/music/PlaylistList';
 import SongList from '../pages/music/SongList';
@@ -55,7 +56,8 @@ const COMPONENT_MAP: Record<
   | 'music/songs'
   | 'music/catalog'
   | 'music/playlists'
-  | 'music/comments',
+  | 'music/comments'
+  | 'music/appeals',
   ComponentType
 > = {
   user: UserList,
@@ -80,6 +82,7 @@ const COMPONENT_MAP: Record<
   'music/catalog': CatalogPage,
   'music/playlists': PlaylistList,
   'music/comments': CommentAudit,
+  'music/appeals': AppealAudit,
 };
 
 type ComponentKey = keyof typeof COMPONENT_MAP;

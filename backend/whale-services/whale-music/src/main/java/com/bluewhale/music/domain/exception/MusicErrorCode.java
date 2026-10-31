@@ -77,6 +77,9 @@ public final class MusicErrorCode {
     /** 上传来源取值非法 */
     public static final int COPYRIGHT_SOURCE_INVALID = 40021;
 
+    /** 申诉理由为空或超长（复审意见同理） */
+    public static final int APPEAL_REASON_INVALID = 40022;
+
     /** 不能操作他人作品 */
     public static final int SONG_NOT_OWNED = 40301;
 
@@ -107,8 +110,17 @@ public final class MusicErrorCode {
     /** 评论不存在 */
     public static final int COMMENT_NOT_FOUND = 40406;
 
+    /** 申诉不存在 */
+    public static final int APPEAL_NOT_FOUND = 40407;
+
     /** 歌曲当前状态不允许该操作 */
     public static final int SONG_STATE_CONFLICT = 40901;
+
+    /** 申诉已复核，不可重复流转 */
+    public static final int APPEAL_STATE_CONFLICT = 40902;
+
+    /** 歌曲不在版权下架状态，不允许申诉或恢复 */
+    public static final int APPEAL_NOT_ALLOWED = 40903;
 
     /** 错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
@@ -133,6 +145,7 @@ public final class MusicErrorCode {
             Map.entry(UPLOAD_FILE_INVALID, "上传文件不存在或不可用，请重新上传"),
             Map.entry(COPYRIGHT_SOURCE_REQUIRED, "请先声明作品来源（原创 / 已授权 / 无版权争议素材）"),
             Map.entry(COPYRIGHT_SOURCE_INVALID, "作品来源取值非法"),
+            Map.entry(APPEAL_REASON_INVALID, "申诉理由为空或超过 500 个字符"),
             Map.entry(SONG_NOT_OWNED, "无权操作他人的作品"),
             Map.entry(PLAY_TICKET_INVALID, "播放凭证无效或已过期，请重新发起播放"),
             Map.entry(PLAYLIST_NOT_OWNED, "无权操作他人的歌单"),
@@ -143,7 +156,10 @@ public final class MusicErrorCode {
             Map.entry(TAG_NOT_FOUND, "标签不存在"),
             Map.entry(PLAYLIST_NOT_FOUND, "歌单不存在或无权访问"),
             Map.entry(COMMENT_NOT_FOUND, "评论不存在"),
-            Map.entry(SONG_STATE_CONFLICT, "歌曲当前状态不允许该操作"));
+            Map.entry(APPEAL_NOT_FOUND, "申诉记录不存在"),
+            Map.entry(SONG_STATE_CONFLICT, "歌曲当前状态不允许该操作"),
+            Map.entry(APPEAL_STATE_CONFLICT, "申诉已复核，不可重复处理"),
+            Map.entry(APPEAL_NOT_ALLOWED, "作品不在版权下架状态，不支持申诉或恢复"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。

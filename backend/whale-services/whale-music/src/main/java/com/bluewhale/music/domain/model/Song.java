@@ -135,6 +135,22 @@ public class Song {
     }
 
     /**
+     * 申诉通过后恢复版权：仅版权下架状态可恢复。
+     *
+     * <p>恢复后版权状态置为 {@link CopyrightState#VALID}，发布状态保留为
+     * {@link PublishState#OFFLINE}，需运营显式重新上架后才可播放，
+     * 避免申诉通过即自动复播带来的二次风险。</p>
+     */
+    public void restoreCopyright() {
+        if (copyrightState != CopyrightState.TAKEDOWN) {
+            throw MusicErrorCode.exception(MusicErrorCode.APPEAL_NOT_ALLOWED);
+        }
+        copyrightState = CopyrightState.VALID;
+        publishState = PublishState.OFFLINE;
+        takedownReason = null;
+    }
+
+    /**
      * 判断歌曲当前是否可播放。
      *
      * @return 已上架且版权未下架返回 {@code true}

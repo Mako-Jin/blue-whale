@@ -1,6 +1,19 @@
 // 我的作品：公开 / 自听筛选、编辑与删除（含自听作品，列表返回运营视图便于回填）
+// 版权下架作品由上传者本人在此处提交申诉（POST /music/song/{id}/appeal）
 
-import { App, Button, Form, Input, Popconfirm, Select, Space, Tag, type TableProps } from 'antd';
+import {
+  App,
+  Button,
+  Form,
+  Input,
+  Modal,
+  Popconfirm,
+  Select,
+  Space,
+  Tag,
+  Tooltip,
+  type TableProps,
+} from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -15,6 +28,7 @@ import {
   pageAlbums,
   pageArtists,
   pageMySongs,
+  submitAppeal,
   updateMySong,
   type AlbumView,
   type ArtistView,
@@ -23,7 +37,7 @@ import {
   type SongVisibility,
   type TagView,
 } from '../api/music';
-import { formatDuration, renderPublishState, renderTags, renderVisibility } from '../utils/musicDisplay';
+import { formatDuration, renderCopyrightState, renderPublishState, renderTags, renderVisibility } from '../utils/musicDisplay';
 
 const LANGUAGE_OPTIONS = [
   { value: 'ZH', label: '中文' },
@@ -63,6 +77,10 @@ export default function MySongsPage() {
 
   const [editing, setEditing] = useState<SongView | null>(null);
   const [editOpen, setEditOpen] = useState(false);
+
+  const [appealTarget, setAppealTarget] = useState<SongView | null>(null);
+  const [appealReason, setAppealReason] = useState('');
+  const [appealSubmitting, setAppealSubmitting] = useState(false);
 
   useEffect(() => {
     pageArtists({ current: 1, size: 200 })
@@ -125,6 +143,34 @@ export default function MySongsPage() {
     }
   };
 
+  const openAppeal = (row: SongView) => {
+    setAppealTarget(row);
+    setAppealReason('');
+  };
+
+  const handleAppealSubmit = async () => {
+    if (!appealTarget) {
+      return;
+    }
+    const reason = appealReason.trim();
+    if (!reason) {
+      message.warning('请填写申诉理由');
+      return;
+    }
+    setAppealSubmitting(true);
+    try {
+      await submitAppeal(appealTarget.id, reason);
+      message.success('申诉已提交，等待运营复核（复核通过后需运营重新上架方可播放）');
+      setAppealTarget(null);
+      setAppealReason('');
+      tableRef.current?.reload();
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '申诉提交失败');
+    } finally {
+      setAppealSubmitting(false);
+    }
+  };
+
   const columns: TableProps<SongView>['columns'] = [
     {
       title: '歌曲',
@@ -155,6 +201,19 @@ export default function MySongsPage() {
       render: (value: SongView['publishState']) => renderPublishState(value),
     },
     {
+      title: '版权',
+      dataIndex: 'copyrightState',
+      width: 110,
+      render: (value: SongView['copyrightState'], row) =>
+        row.takedownReason ? (
+          <Tooltip title={`下架原因：${row.takedownReason}`}>
+            {renderCopyrightState(value)}
+          </Tooltip>
+        ) : (
+          renderCopyrightState(value)
+        ),
+    },
+    {
       title: '时长',
       dataIndex: 'durationMs',
       width: 90,
@@ -174,11 +233,16 @@ export default function MySongsPage() {
     {
       title: '操作',
       key: 'action',
-      width: 160,
+      width: 200,
       render: (_, row) => (
         <Space size={4}>
           {row.publishState === 'PUBLISHED' && row.visibility === 'PUBLIC' && (
             <a onClick={() => navigate(`/song/${row.id}`)}>查看详情</a>
+          )}
+          {row.copyrightState === 'TAKEDOWN' && (
+            <Button type="link" size="small" onClick={() => openAppeal(row)}>
+              申诉
+            </Button>
           )}
           <Button type="link" size="small" onClick={() => openEdit(row)}>
             编辑
@@ -314,6 +378,32 @@ export default function MySongsPage() {
           <Tag color="orange">自听作品切换为公开后，其他用户方可检索与播放</Tag>
         )}
       </FormModal>
+
+      <Modal
+        open={appealTarget !== null}
+        title={appealTarget ? `版权申诉：${appealTarget.title}` : '版权申诉'}
+        okText="提交申诉"
+        cancelText="取消"
+        confirmLoading={appealSubmitting}
+        onOk={() => void handleAppealSubmit()}
+        onCancel={() => setAppealTarget(null)}
+        destroyOnHidden
+      >
+        <Space direction="vertical" size={8} style={{ width: '100%' }}>
+          {appealTarget?.takedownReason && (
+            <Tag color="red">下架原因：{appealTarget.takedownReason}</Tag>
+          )}
+          <Input.TextArea
+            value={appealReason}
+            onChange={(event) => setAppealReason(event.target.value)}
+            rows={5}
+            maxLength={500}
+            showCount
+            placeholder="请说明版权归属或授权情况，便于运营复核（1~500 字）"
+          />
+          <Tag color="gold">复核通过仅恢复版权为有效，作品仍保持下架，需运营重新上架后方可播放</Tag>
+        </Space>
+      </Modal>
     </>
   );
 }

@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -111,6 +112,35 @@ class SongTest {
         Song song = readySong();
         BizException exception = assertThrows(BizException.class, () -> song.assertOwnedBy(999L));
         assertEquals(MusicErrorCode.SONG_NOT_OWNED, exception.getCode());
+    }
+
+    /**
+     * 申诉通过恢复版权：版权置为 VALID、保持 OFFLINE 并清空下架原因，需显式重新上架才可播放。
+     */
+    @Test
+    void shouldRestoreCopyrightAndKeepOffline() {
+        Song song = readySong();
+        song.publish();
+        song.takedown("版权争议");
+        song.restoreCopyright();
+        assertEquals(CopyrightState.VALID, song.getCopyrightState());
+        assertEquals(PublishState.OFFLINE, song.getPublishState());
+        assertNull(song.getTakedownReason());
+        assertFalse(song.playable());
+
+        song.publish();
+        assertEquals(PublishState.PUBLISHED, song.getPublishState());
+        assertTrue(song.playable());
+    }
+
+    /**
+     * 非版权下架状态不允许恢复版权。
+     */
+    @Test
+    void shouldRejectRestoreWhenNotTakedown() {
+        Song song = readySong();
+        BizException exception = assertThrows(BizException.class, song::restoreCopyright);
+        assertEquals(MusicErrorCode.APPEAL_NOT_ALLOWED, exception.getCode());
     }
 
     /**

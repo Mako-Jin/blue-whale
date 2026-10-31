@@ -18,12 +18,14 @@ import com.bluewhale.music.domain.model.PlaylistQuery;
 import com.bluewhale.music.domain.model.PlaylistType;
 import com.bluewhale.music.domain.model.PublishState;
 import com.bluewhale.music.domain.model.Song;
+import com.bluewhale.music.domain.model.SongPlayRank;
 import com.bluewhale.music.domain.model.SongQuery;
 import com.bluewhale.music.domain.model.SongVisibility;
 import com.bluewhale.music.domain.model.Tag;
 import com.bluewhale.music.domain.repository.AlbumRepository;
 import com.bluewhale.music.domain.repository.ArtistRepository;
 import com.bluewhale.music.domain.repository.HomeCacheRepository;
+import com.bluewhale.music.domain.repository.PlayHistoryRepository;
 import com.bluewhale.music.domain.repository.PlaylistRepository;
 import com.bluewhale.music.domain.repository.SongRepository;
 import com.bluewhale.music.domain.repository.TagRepository;
@@ -34,10 +36,15 @@ import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * 发现与榜单应用服务实现。
@@ -101,6 +108,9 @@ public class DiscoverAppServiceImpl implements DiscoverAppService {
     /** 启用状态 */
     private static final Integer STATUS_ENABLED = 1;
 
+    /** 热门榜统计窗口（天）：按近 7 天播放记录聚合，避免历史累计长期霸榜 */
+    private static final int HOT_WINDOW_DAYS = 7;
+
     private final SongRepository songRepository;
 
     private final ArtistRepository artistRepository;
@@ -112,6 +122,8 @@ public class DiscoverAppServiceImpl implements DiscoverAppService {
     private final TagRepository tagRepository;
 
     private final HomeCacheRepository homeCacheRepository;
+
+    private final PlayHistoryRepository playHistoryRepository;
 
     private final ObjectMapper objectMapper;
 
@@ -133,7 +145,16 @@ public class DiscoverAppServiceImpl implements DiscoverAppService {
 
     @Override
     public PageResult<PublicSongView> hotChart(long current, long size) {
-        return chart(SORT_HOT, current, size);
+        long pageNo = Math.max(current, 1L);
+        long pageSize = clampSize(size);
+        LocalDateTime since = LocalDateTime.now().minusDays(HOT_WINDOW_DAYS);
+        long total = playHistoryRepository.countRankedSince(since);
+        if (total <= 0L) {
+            // 窗口内无播放记录时回落累计播放榜，保证新环境榜单仍有内容
+            return chart(SORT_HOT, pageNo, pageSize);
+        }
+        List<SongPlayRank> ranks = playHistoryRepository.rankSince(since, (pageNo - 1) * pageSize, pageSize);
+        return PageResult.of(toRankedSongs(ranks), total, pageNo, pageSize);
     }
 
     @Override
@@ -340,6 +361,26 @@ public class DiscoverAppServiceImpl implements DiscoverAppService {
      */
     private List<PublicSongView> toPublicSongs(List<Song> songs) {
         return songs.stream().map(this::toPublicSongView).toList();
+    }
+
+    /**
+     * 按排行顺序装配用户侧歌曲视图：聚合结果按歌曲 ID 批量回表后保持榜单顺序。
+     *
+     * @param ranks 近 N 天播放排行
+     * @return 用户侧歌曲视图列表
+     */
+    private List<PublicSongView> toRankedSongs(List<SongPlayRank> ranks) {
+        if (ranks == null || ranks.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, Song> songMap = songRepository.findByIds(
+                        ranks.stream().map(SongPlayRank::getSongId).distinct().toList()).stream()
+                .collect(Collectors.toMap(Song::getId, Function.identity()));
+        return ranks.stream()
+                .map(rank -> songMap.get(rank.getSongId()))
+                .filter(Objects::nonNull)
+                .map(this::toPublicSongView)
+                .toList();
     }
 
     /**

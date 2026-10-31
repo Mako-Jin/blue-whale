@@ -258,6 +258,36 @@ export function deleteMySong(id: number): Promise<void> {
   return http.del<void>(`/music/user/song/${id}`);
 }
 
+/** 申诉状态：待复核 / 已通过 / 已驳回 */
+export type AppealStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+/** 版权下架申诉视图（用户侧提交后返回） */
+export interface AppealView {
+  id: number;
+  songId: number;
+  songTitle?: string;
+  applicantId: number;
+  reason: string;
+  status: AppealStatus;
+  reviewOpinion?: string;
+  reviewerId?: number;
+  reviewedAt?: string;
+  createTime?: string;
+}
+
+/**
+ * 提交版权下架申诉（仅作品上传者本人、且作品处于版权下架状态可提交）。
+ *
+ * <p>同一作品存在待复核申诉时返回 40902；复核通过仅恢复版权为有效，
+ * 作品仍保持下架，需运营重新上架后才可播放。</p>
+ *
+ * @param songId 歌曲 ID
+ * @param reason 申诉理由（1~500 字）
+ */
+export function submitAppeal(songId: number, reason: string): Promise<AppealView> {
+  return http.post<AppealView>(`/music/song/${songId}/appeal`, { reason });
+}
+
 /** 运营歌曲分页（含草稿与自听） */
 export function pageSongs(params: SongQuery): Promise<PageResult<SongView>> {
   return http.get<PageResult<SongView>>('/music/song/page', { ...params });

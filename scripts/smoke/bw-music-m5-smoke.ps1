@@ -1,7 +1,8 @@
 ﻿# Wave 5.75 M5 安全与上线硬化冒烟：
 #   上传白名单（音频 / 封面 / 大小 / 文件可用性）→ 版权来源必填与取值校验 →
 #   协议签署前置 → 越权矩阵（跨租户 / 自听作品 / 私有歌单 / 评论 / 附件）→
-#   播放票据绑定（缺票 / 换用户 / 换歌曲）→ 版权下架与留痕 → 清理。
+#   播放票据绑定（缺票 / 换用户 / 换歌曲）→ 版权下架与留痕 →
+#   版权申诉闭环（提交 / 重复提交 / 越权 / 通过恢复 / 驳回）→ 清理。
 # 前置：whale-music(8096)、whale-file(8085)、MySQL、Redis、Nacos 就绪。
 # 说明：本机无登录口令，脚本与两个服务同网段直连，使用与网关注入一致的身份头
 #       （X-User-Id / X-Tenant-Id / X-Permission-Codes），不经过网关鉴权链路。
@@ -30,7 +31,8 @@ $h = @{
     'X-Permission-Codes' = 'sys:file:upload,sys:file:delete,sys:music:artist:add,' +
     'sys:music:artist:delete,sys:music:song:add,sys:music:song:edit,sys:music:song:publish,' +
     'sys:music:song:delete,sys:music:song:list,sys:music:browse,sys:music:upload,' +
-    'sys:music:comment:create,sys:music:comment:audit,sys:music:playlist:own,sys:music:like'
+    'sys:music:comment:create,sys:music:comment:audit,sys:music:playlist:own,sys:music:like,' +
+    'sys:music:appeal:audit'
 }
 # 创作者（用户 3）：上传 + 浏览 + 歌单 + 评论
 $creatorHeaders = @{
@@ -435,6 +437,76 @@ Assert-Code '6.takedownTicketDenied' $afterTakedownTicket 40403
 $expiredTicketStream = Invoke-MusicApi -Method 'Get' `
     -Path "/music/stream/$adminSongId`?ticket=$($adminTicket.data.ticket)" -Headers $h
 Assert-Code '6.takedownStreamDenied' $expiredTicketStream 40403
+
+# 6.1) 版权申诉（M5-3）：本人提交 → 重复提交拒绝 → 非本人不泄露 → 运营分页 → 通过 → 版权恢复且保持下架
+$appealReason = "M5 appeal: original work, please restore $stamp"
+$appeal = Invoke-MusicApi -Method 'Post' -Path "/music/song/$adminSongId/appeal" -Headers $h `
+    -Body @{ reason = $appealReason }
+Check '6.1.appealSubmit' $appeal
+$appealId = [long]$appeal.data.id
+Assert '6.1.appealPending' ($appeal.data.status -eq 'PENDING' -and $appeal.data.applicantId -eq [long]$userId) `
+    "status=$($appeal.data.status) applicant=[$($appeal.data.applicantId)] expect=[$userId]"
+$dupAppeal = Invoke-MusicApi -Method 'Post' -Path "/music/song/$adminSongId/appeal" -Headers $h `
+    -Body @{ reason = $appealReason }
+Assert-Code '6.1.appealDuplicate' $dupAppeal 40902
+# 非上传者提交：下架作品对他人不可见，按不存在处理（不泄露存在性）
+$otherAppeal = Invoke-MusicApi -Method 'Post' -Path "/music/song/$adminSongId/appeal" -Headers $readerHeaders `
+    -Body @{ reason = 'other user appeal' }
+Assert-Code '6.1.appealNotOwner' $otherAppeal 40403
+# 上传者对未下架作品提交：状态不允许（40903）
+$notAllowedAppeal = Invoke-MusicApi -Method 'Post' -Path "/music/song/$creatorSongId/appeal" -Headers $creatorHeaders `
+    -Body @{ reason = 'song is not taken down' }
+Assert-Code '6.1.appealNotAllowed' $notAllowedAppeal 40903
+# 理由为空：40022
+$blankAppeal = Invoke-MusicApi -Method 'Post' -Path "/music/song/$adminSongId/appeal" -Headers $h `
+    -Body @{ reason = '   ' }
+Assert-Code '6.1.appealReasonRequired' $blankAppeal 40022
+
+$appealPage = Invoke-MusicApi -Method 'Get' -Path "/music/appeal/page?status=PENDING&songId=$adminSongId&current=1&size=10"
+Check '6.1.appealPagePending' $appealPage
+Assert '6.1.appealPageContains' (@($appealPage.data.records | Where-Object { [long]$_.id -eq $appealId }).Count -ge 1) `
+    "total=$($appealPage.data.total) records=$(@($appealPage.data.records).Count)"
+
+$approve = Invoke-MusicApi -Method 'Post' -Path "/music/appeal/$appealId/approve" -Headers $h `
+    -Body @{ opinion = 'approved: original work' }
+Check '6.1.appealApprove' $approve
+Assert '6.1.appealApproved' ($approve.data.status -eq 'APPROVED' -and $null -ne $approve.data.reviewedAt -and
+    $approve.data.reviewerId -eq [long]$userId) `
+    "status=$($approve.data.status) reviewer=$($approve.data.reviewerId) reviewedAt=$($approve.data.reviewedAt)"
+$restored = Invoke-MusicApi -Method 'Get' -Path "/music/song/$adminSongId"
+Check '6.1.restoredDetail' $restored
+Assert '6.1.restoredCopyright' ($restored.data.copyrightState -eq 'VALID' -and
+    $restored.data.publishState -eq 'OFFLINE' -and $null -eq $restored.data.takedownReason -and
+    $restored.data.playable -eq $false) `
+    "copyright=$($restored.data.copyrightState) publish=$($restored.data.publishState) playable=$($restored.data.playable)"
+$restoredPublic = Invoke-MusicApi -Method 'Get' -Path "/music/public/song/$adminSongId" -Headers $readerHeaders
+Assert-Code '6.1.restoredStillOffline' $restoredPublic 40403
+$secondApprove = Invoke-MusicApi -Method 'Post' -Path "/music/appeal/$appealId/approve" -Headers $h `
+    -Body @{ opinion = '再次复核' }
+Assert-Code '6.1.appealReviewedOnce' $secondApprove 40902
+$republish = Invoke-MusicApi -Method 'Post' -Path "/music/song/$adminSongId/publish"
+Check '6.1.republish' $republish
+Assert '6.1.republishPlayable' ($republish.data.publishState -eq 'PUBLISHED' -and $republish.data.playable -eq $true) `
+    "publish=$($republish.data.publishState) playable=$($republish.data.playable)"
+
+# 6.2) 申诉驳回：歌曲保持版权下架且不可播
+$takedownAgain = Invoke-MusicApi -Method 'Post' -Path "/music/song/$adminSongId/takedown" `
+    -Body @{ reason = "M5 reject path $stamp" }
+Check '6.2.takedownAgain' $takedownAgain
+$rejectAppeal = Invoke-MusicApi -Method 'Post' -Path "/music/song/$adminSongId/appeal" -Headers $h `
+    -Body @{ reason = 'second appeal for reject path' }
+Check '6.2.appealSubmit' $rejectAppeal
+$rejectId = [long]$rejectAppeal.data.id
+$reject = Invoke-MusicApi -Method 'Post' -Path "/music/appeal/$rejectId/reject" -Headers $h `
+    -Body @{ opinion = 'rejected: insufficient proof' }
+Check '6.2.appealReject' $reject
+Assert '6.2.appealRejected' ($reject.data.status -eq 'REJECTED' -and $null -ne $reject.data.reviewedAt) `
+    "status=$($reject.data.status)"
+$afterReject = Invoke-MusicApi -Method 'Get' -Path "/music/song/$adminSongId"
+Check '6.2.afterRejectDetail' $afterReject
+Assert '6.2.afterRejectState' ($afterReject.data.copyrightState -eq 'TAKEDOWN' -and
+    $afterReject.data.publishState -eq 'OFFLINE' -and $afterReject.data.playable -eq $false) `
+    "copyright=$($afterReject.data.copyrightState) publish=$($afterReject.data.publishState)"
 
 # 7) 清理：歌单 / 歌曲 / 歌手 / 文件
 $delPlaylist = Invoke-MusicApi -Method 'Delete' -Path "/music/playlist/$playlistId" -Headers $creatorHeaders

@@ -1,6 +1,7 @@
 package com.bluewhale.music.domain.repository;
 
 import com.bluewhale.music.domain.model.PlayHistory;
+import com.bluewhale.music.domain.model.SongPlayRank;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -44,4 +45,22 @@ public interface PlayHistoryRepository {
      * @return 删除行数
      */
     int purgeBefore(LocalDateTime before);
+
+    /**
+     * 近 N 天播放热度排行（仅统计当前上架且公开、版权未下架的歌曲）。
+     *
+     * @param since 窗口起点（含）
+     * @param offset 偏移量
+     * @param limit 条数
+     * @return 排行项（按窗口内播放次数倒序）
+     */
+    List<SongPlayRank> rankSince(LocalDateTime since, long offset, long limit);
+
+    /**
+     * 统计近 N 天有播放记录的上架公开歌曲数（排行总数）。
+     *
+     * @param since 窗口起点（含）
+     * @return 歌曲数（按歌曲去重）
+     */
+    long countRankedSince(LocalDateTime since);
 }

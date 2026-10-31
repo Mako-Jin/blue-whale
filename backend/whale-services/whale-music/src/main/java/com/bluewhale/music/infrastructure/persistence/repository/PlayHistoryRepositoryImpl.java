@@ -3,6 +3,7 @@ package com.bluewhale.music.infrastructure.persistence.repository;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.music.domain.model.PlayHistory;
+import com.bluewhale.music.domain.model.SongPlayRank;
 import com.bluewhale.music.domain.repository.PlayHistoryRepository;
 import com.bluewhale.music.infrastructure.persistence.entity.PlayHistoryEntity;
 import com.bluewhale.music.infrastructure.persistence.mapper.PlayHistoryMapper;
@@ -71,6 +72,16 @@ public class PlayHistoryRepositoryImpl implements PlayHistoryRepository {
     public int purgeBefore(LocalDateTime before) {
         return playHistoryMapper.delete(new LambdaQueryWrapper<PlayHistoryEntity>()
                 .lt(PlayHistoryEntity::getPlayedAt, before));
+    }
+
+    @Override
+    public List<SongPlayRank> rankSince(LocalDateTime since, long offset, long limit) {
+        return playHistoryMapper.selectRankSince(since, offset, Math.max(limit, 1L));
+    }
+
+    @Override
+    public long countRankedSince(LocalDateTime since) {
+        return playHistoryMapper.countRankedSince(since);
     }
 
     /**

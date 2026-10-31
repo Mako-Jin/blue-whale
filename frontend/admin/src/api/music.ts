@@ -419,3 +419,41 @@ export function removeOfficialPlaylistSong(id: number, songId: number): Promise<
 export function reorderOfficialPlaylist(id: number, songIds: number[]): Promise<PlaylistView> {
   return put<PlaylistView>(`/music/playlist/official/${id}/sort`, { songIds });
 }
+
+/** 版权申诉状态：待复核 / 已通过 / 已驳回 */
+export type AppealStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+/** 版权下架申诉视图（运营复核侧） */
+export interface AppealView {
+  id: number;
+  songId: number;
+  songTitle?: string;
+  applicantId: number;
+  reason: string;
+  status: AppealStatus;
+  reviewOpinion?: string;
+  reviewerId?: number;
+  reviewedAt?: string;
+  createTime?: string;
+}
+
+/** 申诉复核分页查询参数 */
+export interface AppealQuery extends PageQuery {
+  songId?: number;
+  status?: AppealStatus;
+}
+
+/** 申诉复核分页（权限码 sys:music:appeal:audit） */
+export function pageAppeals(params: AppealQuery): Promise<PageResult<AppealView>> {
+  return get<PageResult<AppealView>>('/music/appeal/page', { ...params });
+}
+
+/** 通过申诉：版权恢复为有效并保持下架，需运营随后显式重新上架 */
+export function approveAppeal(id: number, opinion?: string): Promise<AppealView> {
+  return post<AppealView>(`/music/appeal/${id}/approve`, { opinion });
+}
+
+/** 驳回申诉：歌曲保持版权下架 */
+export function rejectAppeal(id: number, opinion?: string): Promise<AppealView> {
+  return post<AppealView>(`/music/appeal/${id}/reject`, { opinion });
+}

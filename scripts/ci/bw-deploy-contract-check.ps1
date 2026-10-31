@@ -1,17 +1,28 @@
-# 部署契约静态检查（V-08 / V-09）
+﻿# 部署契约静态检查（V-08 / V-09）
 #
 # 目的：在不依赖 Docker 守护进程的情况下，提前拦住三类部署回归：
 #   1) 前端镜像与同名后端服务共用 GHCR package / cache scope；
 #   2) 生产 Nginx 缺少 qiankun 子应用前缀，或仍保留旧 /sub-app 示例；
 #   3) 生产 compose 覆盖层缺少 TLS 证书挂载或 read-only 加固。
 #
-# 用法（PowerShell 7 / GitHub Actions pwsh）：
+# 用法（PowerShell 5.1 / PowerShell 7 / GitHub Actions pwsh 均可）：
+#   powershell -NoProfile -File scripts/ci/bw-deploy-contract-check.ps1
 #   pwsh -NoProfile -File scripts/ci/bw-deploy-contract-check.ps1
+#
+# 兼容说明：脚本需要匹配工作流中的 GitHub Actions 表达式字面量 "${{ matrix.xxx }}"，
+#   但 PowerShell 5.1 无法解析单引号外的 "${{ ... }}"（会当成变量引用报语法错误），
+#   因此统一用 [char]36 拼接美元符号，避免字面量出现在脚本源码里。
 #
 # 退出码：0 通过；1 失败；2 文件缺失。
 
 $ErrorActionPreference = 'Stop'
 $script:failed = $false
+
+# GitHub Actions 表达式字面量片段（PS 5.1 友好拼接）
+$usd = [string][char]36
+$exprBeScope = $usd + '{{ matrix.service }}'
+$exprFeScope = $usd + '{{ matrix.image }}'
+$exprLegacyScope = 'scope=' + $exprFeScope
 
 function Assert-Contract {
     param(
@@ -84,11 +95,11 @@ Assert-Contract '前端镜像 16 项' ($frontendImages.Count -eq 16) "count=$($f
 Assert-Contract '前端按冲突项使用 frontend/ 命名空间' `
     ($workflow.Contains("matrix.namespace == 'frontend'") -and $workflow.Contains("'frontend/'"))
 Assert-Contract '后端 cache scope 使用 be- 前缀' `
-    ($workflow.Contains('scope=be-${{ matrix.service }}'))
+    ($workflow.Contains('scope=be-' + $exprBeScope))
 Assert-Contract '前端 cache scope 使用 fe- 前缀' `
-    ($workflow.Contains('scope=fe-${{ matrix.image }}'))
+    ($workflow.Contains('scope=fe-' + $exprFeScope))
 Assert-Contract '旧前端 cache scope 已移除' `
-    (-not $workflow.Contains('scope=${{ matrix.image }}'))
+    (-not $workflow.Contains($exprLegacyScope))
 
 $expectedCollisions = @(
     'whale-agent'

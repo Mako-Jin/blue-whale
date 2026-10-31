@@ -214,7 +214,8 @@ CREATE TABLE IF NOT EXISTS mu_play_history (
     PRIMARY KEY (id),
     UNIQUE KEY uk_mu_history_user_song (tenant_id, user_id, song_id),
     KEY idx_mu_history_user (tenant_id, user_id, played_at),
-    KEY idx_mu_history_song (tenant_id, song_id)
+    KEY idx_mu_history_song (tenant_id, song_id),
+    KEY idx_mu_history_played (tenant_id, played_at, song_id)
 ) COMMENT='音乐播放历史表';
 
 -- ---------------------------------------------------------------------
@@ -240,7 +241,31 @@ CREATE TABLE IF NOT EXISTS mu_song_comment (
 ) COMMENT='音乐歌曲评论表';
 
 -- ---------------------------------------------------------------------
--- 12. 操作审计日志表（whale-spring-boot-starter @AuditLog 切面采集，
+-- 12. 版权下架申诉
+--     仅上传者本人可对自己处于版权下架的作品提交；同一作品同时只允许一条
+--     待复核申诉。复核通过仅恢复版权为有效并保持下架，需运营重新上架。
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS mu_song_appeal (
+    id               BIGINT        NOT NULL                COMMENT '主键ID（雪花算法）',
+    tenant_id        BIGINT        NOT NULL DEFAULT 1      COMMENT '租户ID（行级隔离）',
+    song_id          BIGINT        NOT NULL                COMMENT '歌曲ID',
+    applicant_id     BIGINT        NOT NULL                COMMENT '申诉人用户ID（作品上传者）',
+    reason           VARCHAR(500)  NOT NULL                COMMENT '申诉理由（纯文本，≤500 字）',
+    status           VARCHAR(16)   NOT NULL DEFAULT 'PENDING' COMMENT '状态：PENDING / APPROVED / REJECTED',
+    review_opinion   VARCHAR(500)  DEFAULT NULL            COMMENT '审核意见',
+    reviewer_id      BIGINT        DEFAULT NULL            COMMENT '复核人用户ID',
+    reviewed_at      DATETIME      DEFAULT NULL            COMMENT '复核时间',
+    create_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted          TINYINT       NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',
+    PRIMARY KEY (id),
+    KEY idx_mu_appeal_song (tenant_id, song_id, status),
+    KEY idx_mu_appeal_audit (tenant_id, status, create_time),
+    KEY idx_mu_appeal_applicant (tenant_id, applicant_id, create_time)
+) COMMENT='音乐版权下架申诉表';
+
+-- ---------------------------------------------------------------------
+-- 13. 操作审计日志表（whale-spring-boot-starter @AuditLog 切面采集，
 --     结构与 bluewhale_auth.audit_log 一致）
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS audit_log (
@@ -277,7 +302,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
 ) COMMENT='操作审计日志表';
 
 -- ---------------------------------------------------------------------
--- 13. 后端接口日志表（whale-spring-boot-starter ApiLogFilter 采集，
+-- 14. 后端接口日志表（whale-spring-boot-starter ApiLogFilter 采集，
 --     结构与 bluewhale_auth.api_log 一致）
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS api_log (

@@ -1,6 +1,7 @@
 package com.bluewhale.music.infrastructure.persistence.repository;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.music.domain.model.CopyrightState;
 import com.bluewhale.music.domain.model.CopyrightSource;
@@ -84,7 +85,11 @@ public class SongRepositoryImpl implements SongRepository {
         SongEntity entity = new SongEntity();
         entity.setId(song.getId());
         fill(entity, song);
-        songMapper.updateById(entity);
+        // takedown_reason 为可空字段：updateById 会忽略 null 字段，版权申诉恢复时需要显式清空，
+        // 因此改用「实体非空字段 + 显式 SET takedown_reason」的组合更新。
+        songMapper.update(entity, new LambdaUpdateWrapper<SongEntity>()
+                .eq(SongEntity::getId, song.getId())
+                .set(SongEntity::getTakedownReason, song.getTakedownReason()));
     }
 
     @Override

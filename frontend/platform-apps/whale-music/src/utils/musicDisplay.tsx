@@ -1,7 +1,7 @@
 // 音乐展示辅助：时长格式化与状态 / 可见性 / 标签渲染（曲库、我的作品、详情共用）
 
 import { Space, Tag } from 'antd';
-import type { PublishState, SongVisibility, TagView } from '../api/music';
+import type { CopyrightState, PublishState, SongVisibility, TagView } from '../api/music';
 
 /** 毫秒时长 → mm:ss */
 export function formatDuration(durationMs?: number): string {
@@ -33,6 +33,20 @@ export function renderPublishState(publishState?: PublishState) {
     return '-';
   }
   const item = map[publishState];
+  return <Tag color={item.color}>{item.label}</Tag>;
+}
+
+/** 版权状态标签：已声明 / 有效 / 版权下架 */
+export function renderCopyrightState(copyrightState?: CopyrightState) {
+  const map: Record<CopyrightState, { color: string; label: string }> = {
+    DECLARED: { color: 'gold', label: '已声明' },
+    VALID: { color: 'success', label: '有效' },
+    TAKEDOWN: { color: 'error', label: '版权下架' },
+  };
+  if (!copyrightState) {
+    return '-';
+  }
+  const item = map[copyrightState];
   return <Tag color={item.color}>{item.label}</Tag>;
 }
 
