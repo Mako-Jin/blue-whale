@@ -15,6 +15,7 @@ import {
 } from '../api/music';
 import { formatDuration, renderTags, renderVisibility } from '../utils/musicDisplay';
 import { usePlayer } from '../player/PlayerContext';
+import CommentSection from '../components/CommentSection';
 
 export default function SongDetailPage() {
   const { message } = App.useApp();
@@ -135,6 +136,7 @@ export default function SongDetailPage() {
             ]}
           />
         </Card>
+        <CommentSection songId={song.id} />
       </Space>
     </div>
   );

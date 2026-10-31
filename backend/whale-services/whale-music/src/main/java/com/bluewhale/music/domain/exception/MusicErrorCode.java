@@ -53,6 +53,12 @@ public final class MusicErrorCode {
     /** 加入歌单的歌曲 ID 非法 */
     public static final int PLAYLIST_SONG_INVALID = 40013;
 
+    /** 评论正文为空或超长 */
+    public static final int COMMENT_CONTENT_INVALID = 40014;
+
+    /** 回复的目标评论不存在或不可见 */
+    public static final int COMMENT_PARENT_INVALID = 40015;
+
     /** 不能操作他人作品 */
     public static final int SONG_NOT_OWNED = 40301;
 
@@ -80,6 +86,9 @@ public final class MusicErrorCode {
     /** 歌单不存在或不可见 */
     public static final int PLAYLIST_NOT_FOUND = 40405;
 
+    /** 评论不存在 */
+    public static final int COMMENT_NOT_FOUND = 40406;
+
     /** 歌曲当前状态不允许该操作 */
     public static final int SONG_STATE_CONFLICT = 40901;
 
@@ -98,6 +107,8 @@ public final class MusicErrorCode {
             Map.entry(PLAYLIST_SONG_LIMIT, "歌单歌曲数量已达上限"),
             Map.entry(PLAYLIST_SONG_ORDER_INVALID, "歌单歌曲顺序非法或与歌单内容不一致"),
             Map.entry(PLAYLIST_SONG_INVALID, "加入歌单的歌曲 ID 非法"),
+            Map.entry(COMMENT_CONTENT_INVALID, "评论正文为空或超过 500 个字符"),
+            Map.entry(COMMENT_PARENT_INVALID, "回复的评论不存在或不可见"),
             Map.entry(SONG_NOT_OWNED, "无权操作他人的作品"),
             Map.entry(PLAY_TICKET_INVALID, "播放凭证无效或已过期，请重新发起播放"),
             Map.entry(PLAYLIST_NOT_OWNED, "无权操作他人的歌单"),
@@ -107,6 +118,7 @@ public final class MusicErrorCode {
             Map.entry(SONG_NOT_FOUND, "歌曲不存在或无权访问"),
             Map.entry(TAG_NOT_FOUND, "标签不存在"),
             Map.entry(PLAYLIST_NOT_FOUND, "歌单不存在或无权访问"),
+            Map.entry(COMMENT_NOT_FOUND, "评论不存在"),
             Map.entry(SONG_STATE_CONFLICT, "歌曲当前状态不允许该操作"));
 
     /**

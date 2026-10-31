@@ -31,4 +31,14 @@ public interface SongMapper extends BaseMapper<SongEntity> {
      */
     @Update("UPDATE mu_song SET play_count = play_count + #{delta} WHERE id = #{songId}")
     int addPlayCount(@Param("songId") Long songId, @Param("delta") long delta);
+
+    /**
+     * 原子调整评论数，结果不小于 0（仅统计可见评论）。
+     *
+     * @param songId 歌曲 ID
+     * @param delta 增量（+1 / -1）
+     * @return 影响行数
+     */
+    @Update("UPDATE mu_song SET comment_count = GREATEST(comment_count + #{delta}, 0) WHERE id = #{songId}")
+    int addCommentCount(@Param("songId") Long songId, @Param("delta") long delta);
 }

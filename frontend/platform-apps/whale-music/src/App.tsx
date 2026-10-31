@@ -10,6 +10,7 @@ import SearchPage from './pages/SearchPage';
 import SongDetailPage from './pages/SongDetailPage';
 import UploadPage from './pages/UploadPage';
 import MySongsPage from './pages/MySongsPage';
+import MyMusicPage from './pages/MyMusicPage';
 import { PlayerProvider } from './player/PlayerContext';
 
 export default function App() {
@@ -27,6 +28,7 @@ export default function App() {
             <Route path="song/:id" element={<SongDetailPage />} />
             <Route path="upload" element={<UploadPage />} />
             <Route path="mine" element={<MySongsPage />} />
+            <Route path="my-music" element={<MyMusicPage />} />
             <Route path="*" element={<Navigate to="/discover" replace />} />
           </Route>
         </Routes>

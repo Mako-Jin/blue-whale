@@ -329,6 +329,44 @@ export function pageOfficialPlaylists(params: PlaylistQuery): Promise<PageResult
   return get<PageResult<PlaylistView>>('/music/playlist/official/page', { ...params });
 }
 
+/** 评论状态：待审核 / 可见 / 已隐藏 */
+export type CommentStatus = 'PENDING' | 'VISIBLE' | 'HIDDEN';
+
+/** 歌曲评论视图（审核侧） */
+export interface CommentView {
+  id: number;
+  songId: number;
+  songTitle?: string;
+  userId: number;
+  parentId: number;
+  content: string;
+  status?: CommentStatus;
+  likeCount?: number;
+  createTime?: string;
+}
+
+/** 评论审核分页查询参数 */
+export interface CommentAuditQuery extends PageQuery {
+  songId?: number;
+  status?: CommentStatus;
+  keyword?: string;
+}
+
+/** 评论审核分页 */
+export function pageCommentAudit(params: CommentAuditQuery): Promise<PageResult<CommentView>> {
+  return get<PageResult<CommentView>>('/music/comment/page', { ...params });
+}
+
+/** 审核通过（PENDING / HIDDEN → VISIBLE，幂等） */
+export function approveComment(id: number): Promise<CommentView> {
+  return post<CommentView>(`/music/comment/${id}/approve`);
+}
+
+/** 隐藏评论（→ HIDDEN，幂等，立即对用户不可见） */
+export function hideComment(id: number): Promise<CommentView> {
+  return post<CommentView>(`/music/comment/${id}/hide`);
+}
+
 /** 创建官方歌单 */
 export function createOfficialPlaylist(input: PlaylistSaveInput): Promise<PlaylistView> {
   return post<PlaylistView>('/music/playlist/official', input);

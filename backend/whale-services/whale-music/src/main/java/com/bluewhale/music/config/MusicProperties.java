@@ -42,6 +42,12 @@ public class MusicProperties {
     /** 评论是否先审后发；默认 false 表示先发后审 + 审核队列 */
     private boolean commentPreAudit = false;
 
+    /** 是否启用评论回复 / 审核结果站内通知（旁路能力，失败仅告警） */
+    private boolean commentNotifyEnabled = true;
+
+    /** 消息服务（Nacos 服务名） */
+    private String messageServiceName = "whale-message";
+
     /** 单个歌单最多歌曲数 */
     private int playlistMaxSongs = 500;
 

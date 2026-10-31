@@ -216,3 +216,21 @@ body {
   gap: 8px;
 }
 
+.music-comment {
+  width: 100%;
+}
+
+.music-comment-replies {
+  margin-left: 24px;
+  margin-top: 8px;
+  padding-left: 12px;
+  border-left: 2px solid #f0f0f0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.music-comment-reply {
+  width: 100%;
+}
+

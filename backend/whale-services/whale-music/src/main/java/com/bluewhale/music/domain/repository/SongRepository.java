@@ -48,6 +48,14 @@ public interface SongRepository {
     void addPlayCount(Long songId, long delta);
 
     /**
+     * 原子调整评论数（+1 / -1，结果不小于 0；仅统计可见评论）。
+     *
+     * @param songId 歌曲 ID
+     * @param delta 增量
+     */
+    void addCommentCount(Long songId, long delta);
+
+    /**
      * 新增歌曲。
      *
      * @param song 歌曲

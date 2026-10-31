@@ -568,3 +568,30 @@ export function getNewChart(params: PageQuery): Promise<PageResult<PublicSongVie
 export function searchMusic(params: { keyword: string; type?: SearchType }): Promise<SearchResultView> {
   return http.get<SearchResultView>('/music/search', { ...params });
 }
+
+/** 评论状态：待审核 / 可见 / 已隐藏 */
+export type CommentStatus = 'PENDING' | 'VISIBLE' | 'HIDDEN';
+
+/** 歌曲评论视图（用户侧列表仅包含可见评论） */
+export interface CommentView {
+  id: number;
+  songId: number;
+  songTitle?: string;
+  userId: number;
+  parentId: number;
+  content: string;
+  status?: CommentStatus;
+  likeCount?: number;
+  createTime?: string;
+  replies?: CommentView[];
+}
+
+/** 发表评论或回复（parentId 为 0 或不传表示顶级评论） */
+export function submitComment(songId: number, content: string, parentId?: number): Promise<CommentView> {
+  return http.post<CommentView>(`/music/song/${songId}/comment`, { content, parentId: parentId ?? 0 });
+}
+
+/** 歌曲评论分页（顶级评论倒序并携带可见回复） */
+export function pageComments(songId: number, params: PageQuery): Promise<PageResult<CommentView>> {
+  return http.get<PageResult<CommentView>>(`/music/song/${songId}/comment/page`, { ...params });
+}

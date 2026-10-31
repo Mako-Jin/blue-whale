@@ -64,6 +64,11 @@ public class SongRepositoryImpl implements SongRepository {
     }
 
     @Override
+    public void addCommentCount(Long songId, long delta) {
+        songMapper.addCommentCount(songId, delta);
+    }
+
+    @Override
     public void insert(Song song) {
         SongEntity entity = new SongEntity();
         fill(entity, song);

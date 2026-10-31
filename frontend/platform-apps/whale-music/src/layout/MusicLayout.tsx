@@ -14,12 +14,16 @@ const NAV_ITEMS = [
   { key: '/search', label: '搜索' },
   { key: '/upload', label: '上传作品' },
   { key: '/mine', label: '我的作品' },
+  { key: '/my-music', label: '我的音乐' },
 ];
 
 /** 当前路由对应的导航项（歌曲详情归入曲库，歌单详情归入歌单） */
 function resolveActiveKey(pathname: string): string {
   if (pathname.startsWith('/upload')) {
     return '/upload';
+  }
+  if (pathname.startsWith('/my-music')) {
+    return '/my-music';
   }
   if (pathname.startsWith('/mine')) {
     return '/mine';
