@@ -75,6 +75,7 @@ jobs:
           - { service: whale-archive, module: whale-services/whale-archive, port: 8093 }
           - { service: whale-message, module: whale-services/whale-message, port: 8094 }
           - { service: whale-doc, module: whale-services/whale-doc, port: 8095 }
+          - { service: whale-music, module: whale-services/whale-music, port: 8096 }
           - { service: whale-erp, module: whale-apps/whale-erp, port: 9001 }
           - { service: whale-mes, module: whale-apps/whale-mes, port: 9002 }
           - { service: whale-pdm, module: whale-apps/whale-pdm, port: 9003 }

@@ -70,6 +70,11 @@ scrape_configs:
     metrics_path: /actuator/prometheus
     static_configs:
       - targets: ['127.0.0.1:8095']
+  # Wave 5.75 音乐平台（M0 骨架）
+  - job_name: whale-music
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['127.0.0.1:8096']
   - job_name: whale-erp
     metrics_path: /actuator/prometheus
     static_configs:

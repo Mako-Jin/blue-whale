@@ -34,7 +34,7 @@
 | 消息 | `whale-message` 可发送站内信 / 邮件 / IM | M4 评论回复、审核结果通知可选接入，失败不回滚主事务 |
 | Agent | `whale-agent` 已有知识索引与检索 | 音乐推荐 / 语义检索不在首版范围，仅预留 |
 | 前端 | qiankun 基座 + 13 个子应用 + `@bluewhale/whale-ui` / http / theme / log-sdk | 直接按现有模板新建子应用；播放器为应用内全局组件 |
-| 编号与端口 | 权限点已用至 **270**（doc 251–270）；菜单已用至 **37**；后端 8095 之后空闲；前端 8110 之后空闲 | 音乐权限点从 **271** 起，预留 271–300；菜单从 **38** 起，预留 38–45；端口 **8096 / 8111** |
+| 编号与端口 | 权限点已用至 **279**（doc 251–279）；菜单已用至 **38**；后端 8095 之后空闲；前端 8110 之后空闲 | 音乐权限点从 **280** 起，使用 280–302；菜单从 **39** 起，使用 39–44；端口 **8096 / 8111** |
 | 质量门禁 | Checkstyle `error`、JaCoCo、ArchUnit、CI 镜像矩阵 | 新服务同步纳入构建、检查清单、镜像矩阵与冒烟脚本 |
 
 **G1（阻塞项）**：`FileController#download` / `#preview` 使用 `InputStreamResource` 且无 `Accept-Ranges` / `Content-Range` / `ETag`，无法满足浏览器音频 seek。M2 必须先完成 `whale-file` 的内部内容接口 Range 支持，再实现 `/music/stream/**`。
@@ -178,12 +178,14 @@ interfaces  → application  → domain
               infrastructure ────┘（实现 domain 端口）
 ```
 
-- `whale-music-interfaces`：REST 控制器、DTO / VO、参数校验、权限注解。
-- `whale-music-application`：用例编排、事务边界、领域事件发布、缓存 / 计数适配。
-- `whale-music-domain`：聚合、值对象、领域服务、端口接口；仅依赖 `whale-common-domain`。
-- `whale-music-infrastructure`：MyBatis-Plus、仓储实现、`whale-file` 客户端、Redis 适配。
-- `whale-music-architecture-test`：ArchUnit 固化依赖方向与包名。
-- 应用层 POM 不携带 Redis / 安全组件等基础设施依赖。
+- 实施口径（2026-10-31 M0 落地）：单模块 `whale-music` + 四层分包
+  （`interfaces / application / domain / infrastructure`，与 `whale-doc` 同口径），
+  避免为骨架引入 5 个子模块与聚合 POM；后续若需独立复用可按层拆分。
+- `interfaces`：REST 控制器、DTO / VO、参数校验、权限注解。
+- `application`：用例编排、事务边界、领域事件发布、缓存 / 计数适配。
+- `domain`：聚合、值对象、领域服务、端口接口；仅依赖 JDK，不依赖 Spring / MyBatis / Redis。
+- `infrastructure`：MyBatis-Plus、仓储实现、`whale-file` 客户端、Redis 适配。
+- `architecture-test`：`MusicArchitectureTest`（ArchUnit）固化依赖方向与包名。
 
 ### 4.3 数据模型（`bluewhale_music`）
 
@@ -251,32 +253,36 @@ interfaces  → application  → domain
 
 > 内部接口（如后续 Agent 检索需要）统一落 `/music/internal/**`，由网关 `internal-deny` 对外 403。
 
-### 4.5 权限点 / 菜单种子（预留 271–300 / 38–45）
+### 4.5 权限点 / 菜单种子（280–302 / 39–44）
+
+> 权限编号顺延：doc 已使用至 279，音乐从 280 起。
 
 | 权限码 | ID | 用途 |
 |---|---|---|
-| `sys:music:artist:add/edit/delete` | 271–273 | 歌手维护 |
-| `sys:music:album:add/edit/delete/publish` | 274–277 | 专辑维护与上架 |
-| `sys:music:song:add/edit/delete/publish` | 278–281 | 歌曲维护与上下架 |
-| `sys:music:tag:add/edit/delete` | 282–284 | 标签维护 |
-| `sys:music:playlist:manage` | 285 | 官方歌单运营 |
-| `sys:music:comment:audit` | 286 | 评论审核 |
-| `sys:music:stat:view` | 287 | 播放概览 |
-| `sys:music:browse` | 288 | 用户侧浏览 / 搜索 / 详情 |
-| `sys:music:playlist:own` | 289 | 用户自建歌单 |
-| `sys:music:comment:create` | 290 | 发表评论 |
-| `sys:music:like` | 291 | 收藏 / 点赞 |
-| `sys:music:song:upload` | 292 | 上传 / 管理自己的作品 |
+| `sys:music:artist:list/add/edit/delete` | 280–283 | 歌手查询与维护 |
+| `sys:music:album:list/add/edit/delete/publish` | 284–288 | 专辑维护与上下架 |
+| `sys:music:song:list/add/edit/delete/publish` | 289–293 | 歌曲维护与发布 / 下架 / 版权下架 |
+| `sys:music:tag:manage` | 294 | 标签维护 |
+| `sys:music:playlist:manage` | 295 | 官方歌单运营 |
+| `sys:music:comment:audit` | 296 | 评论审核 |
+| `sys:music:stat:view` | 297 | 播放概览 |
+| `sys:music:browse` | 298 | 用户侧浏览 / 搜索 / 详情 |
+| `sys:music:playlist:own` | 299 | 用户自建歌单 |
+| `sys:music:comment:create` | 300 | 发表评论 |
+| `sys:music:like` | 301 | 收藏 / 点赞 |
+| `sys:music:upload` | 302 | 上传 / 管理自己的作品（含协议签署） |
 
 | 菜单 ID | 名称 | 落点 |
 |---|---|---|
-| 38 | 音乐平台 | qiankun 子应用入口 `/music` |
-| 39 | 音乐曲库 | admin 歌曲管理 |
-| 40 | 歌手与专辑 | admin 歌手 / 专辑管理 |
-| 41 | 歌单运营 | admin 官方歌单管理 |
-| 42 | 评论审核 | admin 评论审核 |
-| 43 | 上传音乐 | 用户上传入口（协议弹窗 + 公开 / 自听） |
-| 44–45 | 预留 | 播放统计 / 标签管理 |
+| 39 | 音乐中心（DIR） | qiankun 子应用入口 `/music` |
+| 40 | 音乐曲库 | admin 歌曲管理 |
+| 41 | 歌手与专辑 | admin 歌手 / 专辑管理 |
+| 42 | 歌单与标签 | admin 官方歌单 / 标签管理 |
+| 43 | 评论审核 | admin 评论审核 |
+| 44 | 播放统计 | admin 播放概览 |
+
+> 角色：`music_admin`（25103，全部 280–302）、`music_member`（25104，用户侧 298–302）。
+> 「所有人可上传」：迁移脚本将 `music_member` 幂等授予全部启用用户，`tenant_admin` 亦获得全部权限。
 
 ### 4.6 网关与内网安全
 
@@ -371,7 +377,7 @@ interfaces  → application  → domain
 | M0-2 | 新建 `whale-music` 模块（POM、启动类、`application.yml`、hikari 基线） | 可启动、Nacos 注册、`/actuator/health` UP |
 | M0-3 | `bluewhale_music` 建库 + `mu_*` 表 DDL + 幂等迁移脚本 | 11 张表建成，租户列与索引齐全 |
 | M0-4 | DDD 四层骨架 + `architecture-test` ArchUnit | 分层规则用例通过，领域层无 Spring 依赖 |
-| M0-5 | 网关 `/music/**` 路由、`internal-deny`、权限点 271–292 与菜单 38–43 种子 | 经网关健康检查 `code=0`，无权限 403 |
+| M0-5 | 网关 `/music/**` 路由、`internal-deny`、权限点 280–302 与菜单 39–44 种子 | 经网关健康检查 `code=0`，无权限 403 |
 | M0-6 | 服务登记：service-catalog / naming-conventions / 构建与镜像矩阵 | 文档与代码一致 |
 
 ### M1 曲库内容管理

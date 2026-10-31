@@ -86,4 +86,9 @@ CREATE DATABASE IF NOT EXISTS bluewhale_oa
   DEFAULT CHARACTER SET utf8mb4
   DEFAULT COLLATE utf8mb4_unicode_ci;
 
+-- ---- 音乐平台（Wave 5.75） ----
+CREATE DATABASE IF NOT EXISTS bluewhale_music
+  DEFAULT CHARACTER SET utf8mb4
+  DEFAULT COLLATE utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;

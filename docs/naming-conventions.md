@@ -92,7 +92,7 @@ Maven 模块目录名 == artifactId == spring.application.name == Nacos 服务�
 | 区段 | 用途 | 现状占用 |
 |---|---|---|
 | `8080` | API 网关（唯一入口） | whale-gateway |
-| `8081–8099` | 核心服务 | auth 8081、job 8082、workflow 8083、form 8084、file 8085、pay 8086（8087 随 `whale-i18n` 删除释放，Wave 5.50）、agent 8090、im 8091、ai 8092（Python，仅内网）、archive 8093、message 8094、**doc 8095（Wave 5.74 M1 骨架）**、**music 8096（规划，Wave 5.75）** |
+| `8081–8099` | 核心服务 | auth 8081、job 8082、workflow 8083、form 8084、file 8085、pay 8086（8087 随 `whale-i18n` 删除释放，Wave 5.50）、agent 8090、im 8091、ai 8092（Python，仅内网）、archive 8093、message 8094、**doc 8095（Wave 5.74 M1 骨架）**、**music 8096（Wave 5.75 M0 骨架）** |
 | `9001–9099` | 业务应用 | erp 9001、mes 9002、pdm 9003、oa 9004、pm 9005 |
 | `9101–9199` | 运维服务 | audit 9101、monitor 9102、alert 9103 |
 | `9201–9299` | 注册/配置类辅助服务 | config 9201 |
@@ -187,7 +187,7 @@ Maven 模块目录名 == artifactId == spring.application.name == Nacos 服务�
 | services | whale-pay | whale-pay | `bluewhale_pay`（规划） | `com.bluewhale.pay` | 8086 |
 | services | whale-message | whale-message | `bluewhale_message` ✔ | `com.bluewhale.message` | 8094 |
 | services | **whale-doc**（Wave 5.74 M1 骨架） | `whale-doc` | `bluewhale_doc` | `com.bluewhale.doc` | 8095 |
-| services | **whale-music**（Wave 5.75 规划） | `whale-music` | `bluewhale_music`（规划） | `com.bluewhale.music` | 8096 |
+| services | **whale-music**（Wave 5.75 M0 骨架） | `whale-music` | `bluewhale_music`（DDL 就绪，待执行） | `com.bluewhale.music` | 8096 |
 | services | ~~whale-i18n~~（已删除，Wave 5.50 下沉 SDK） | — | 各服务库内自建 `sys_i18n_message` | — | — |
 | registry | ~~whale-config~~（**冻结**，F-05 结案：不部署/不路由） | — | 无 | `com.bluewhale.config` | 9201 |
 | ops | whale-audit | whale-audit | `bluewhale_audit` ✔ | `com.bluewhale.audit` | 9101 |

@@ -55,7 +55,7 @@
 
 > `ai/whale-ai`（Python / FastAPI，8092）为独立树，**不进 Maven reactor**，仅被 `whale-agent` 内网调用。
 
-### 服务全景（23 个：Java 22 + Python 1）
+### 服务全景（24 个：Java 23 + Python 1）
 
 > 端口、库、网关路由与本机状态的**唯一权威清单**是 [service-catalog.md](service-catalog.md)；下表为架构视角摘要，两表由维护流程保持同步。
 
@@ -74,6 +74,7 @@
 | whale-archive | 8093 | `/archive` | bluewhale_archive | **档案**：门类/规则/条目/档号/快照/检索、补扫 |
 | whale-message | 8094 | `/message` | bluewhale_message | **统一消息**：模板渲染、INAPP/EMAIL/SMS/IM 渠道路由、幂等与投递记录、失败重试、站内信收件箱 |
 | whale-doc | 8095 | `/doc`（含 `/doc/ws`） | bluewhale_doc | **在线文档/Wiki**：空间与页面树、TipTap 协作、版本/评论/附件/搜索/ACL/模板/审批/分享/归档、Agent 知识索引 |
+| whale-music | 8096 | `/music` | bluewhale_music | **音乐平台**（M0 骨架）：歌手/专辑/歌曲/标签曲库、播放票据与 Range 流式、歌单、发现、评论审核；所有用户可上传并签署版权无争议协议、公开/自听可见性 |
 | whale-erp | 9001 | `/erp` | bluewhale_erp | **ERP 业务应用**：物料主数据 + 供应商主数据（供应商准入/资质/绩效归 SRM，不属 CRM） |
 | whale-mes | 9002 | `/mes` | bluewhale_mes | **MES 制造执行** |
 | whale-pdm | 9003 | `/pdm` | bluewhale_pdm | **PDM 产品数据管理** |

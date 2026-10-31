@@ -79,7 +79,7 @@ if ($frontendSection) {
     }
 }
 
-Assert-Contract '后端镜像 22 项' ($backendServices.Count -eq 22) "count=$($backendServices.Count)"
+Assert-Contract '后端镜像 23 项' ($backendServices.Count -eq 23) "count=$($backendServices.Count)"
 Assert-Contract '前端镜像 15 项' ($frontendImages.Count -eq 15) "count=$($frontendImages.Count)"
 Assert-Contract '前端按冲突项使用 frontend/ 命名空间' `
     ($workflow.Contains("matrix.namespace == 'frontend'") -and $workflow.Contains("'frontend/'"))
