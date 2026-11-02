@@ -1,0 +1,204 @@
+# ============================================================
+# 蓝鲸 E2E 回归（T-08）：Playwright 全链路实跑
+# 中间件复用 infrastructure/docker compose（mysql/redis/nacos），
+# 后端起 gateway/auth/workflow/form 4 服务，webServer 拉起 3 个前端应用。
+# 触发: push main / PR main（前后端/编排变更）+ 手动
+# ============================================================
+
+name: E2E (Playwright)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - 'backend/**'
+      - 'infrastructure/docker/**'
+      - '.github/workflows/frontend-e2e.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - 'backend/**'
+      - 'infrastructure/docker/**'
+      - '.github/workflows/frontend-e2e.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: frontend-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+# CI 专用固定口令（仅 runner 内临时中间件，非敏感；不入库不外发）
+env:
+  CI_MYSQL_ROOT_PASSWORD: ci_root_pwd_e2e
+  CI_MYSQL_USER: whale_user
+  CI_MYSQL_PASSWORD: ci_user_pwd_e2e
+  CI_REDIS_PASSWORD: ci_redis_pwd_e2e
+  CI_ADMIN_INIT_PASSWORD: E2eAdmin#CIPass2026
+
+jobs:
+  e2e:
+    name: compose 中间件 + 4 后端服务 + Playwright
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ---------- 中间件栈（复用已验证的 compose 编排） ----------
+      - name: Write compose .env
+        working-directory: infrastructure/docker
+        run: |
+          cat > .env <<'EOF'
+          MYSQL_HOST_PORT=3306
+          REDIS_HOST_PORT=6379
+          NACOS_HOST_PORT=8848
+          NACOS_GRPC_HOST_PORT=9848
+          MYSQL_ROOT_PASSWORD=${{ env.CI_MYSQL_ROOT_PASSWORD }}
+          MYSQL_USER=${{ env.CI_MYSQL_USER }}
+          MYSQL_PASSWORD=${{ env.CI_MYSQL_PASSWORD }}
+          REDIS_PASSWORD=${{ env.CI_REDIS_PASSWORD }}
+          NACOS_AUTH_IDENTITY_KEY=serverIdentity
+          NACOS_AUTH_IDENTITY_VALUE=ci-identity
+          NACOS_AUTH_TOKEN=Y2ktZW9lLXRva2EtYmFzZTY0LTMyLWJ5dGVzLWZvci1uYWNvcy1qd3QtMDEyMzQ1Njc4OQ==
+          NACOS_USERNAME=nacos
+          NACOS_PASSWORD=nacos
+          RABBITMQ_USERNAME=ci_mq
+          RABBITMQ_PASSWORD=ci_mq_pwd
+          GRAFANA_ADMIN_PASSWORD=ci_grafana_pwd
+          SW_PROFILES_ACTIVE=dev
+          TZ=Asia/Shanghai
+          EOF
+
+      - name: Start middleware (mysql/redis/nacos)
+        working-directory: infrastructure/docker
+        run: docker compose up -d --wait mysql redis nacos
+
+      # Nacos v3 全新实例需先初始化内置管理员（auth_admin_request=true 引导流程）
+      - name: Init Nacos v3 admin
+        run: |
+          docker exec bw-nacos curl -s -X POST 'http://127.0.0.1:8080/v3/auth/user/admin' \
+            --data-raw 'username=nacos' --data-raw 'password=nacos' || true
+          docker exec bw-nacos curl -s -X POST 'http://127.0.0.1:8848/nacos/v1/auth/login' \
+            --data-raw 'username=nacos&password=nacos'
+
+      # compose init 只建库不建表：灌 E2E 涉及的 auth/workflow/form 三库表结构 + auth 增量迁移
+      - name: Init schemas
+        run: |
+          M="docker exec -i bw-mysql mysql -uroot -p${{ env.CI_MYSQL_ROOT_PASSWORD }} --default-character-set=utf8mb4"
+          $M bluewhale_auth < backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/init.sql
+          $M bluewhale_auth < backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-2026-10-30-admin-random-password.sql
+          $M bluewhale_workflow < backend/whale-services/whale-workflow/src/main/resources/db/init.sql
+          $M bluewhale_form < backend/whale-services/whale-form/src/main/resources/db/init.sql
+          $M -e "SHOW TABLES FROM bluewhale_auth; SELECT COUNT(*) AS auth_tables FROM information_schema.tables WHERE table_schema='bluewhale_auth';"
+
+      # ---------- 后端 4 服务 ----------
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Maven Wrapper Executable
+        run: chmod +x mvnw
+
+      - name: Build backend jars
+        run: >
+          ./mvnw -B -ntp -T 1C -DskipTests package
+          -pl whale-services/whale-gateway,whale-services/whale-service-auth/whale-service-auth-starter,whale-services/whale-workflow,whale-services/whale-form
+          -am
+
+      - name: Start backend services
+        run: |
+          mkdir -p logs
+          start_svc() {
+            local name="$1" jar="$2" port="$3"
+            MYSQL_USER="${{ env.CI_MYSQL_USER }}" \
+            MYSQL_PASSWORD="${{ env.CI_MYSQL_PASSWORD }}" \
+            SPRING_DATA_REDIS_PASSWORD="${{ env.CI_REDIS_PASSWORD }}" \
+            SPRING_CLOUD_NACOS_USERNAME=nacos \
+            SPRING_CLOUD_NACOS_PASSWORD=nacos \
+            WHALE_AUTH_ADMIN_INIT_PASSWORD="${{ env.CI_ADMIN_INIT_PASSWORD }}" \
+            nohup java -jar "$jar" > "logs/$name.out.log" 2>&1 &
+            echo "started $name (expect :$port)"
+          }
+          start_svc gateway  backend/whale-services/whale-gateway/target/whale-gateway.jar 8080
+          start_svc auth     backend/whale-services/whale-service-auth/whale-service-auth-starter/target/whale-service-auth.jar 8081
+          start_svc workflow backend/whale-services/whale-workflow/target/whale-workflow.jar 8083
+          start_svc form     backend/whale-services/whale-form/target/whale-form.jar 8084
+
+      - name: Wait for backend ports
+        run: |
+          for port in 8080 8081 8083 8084; do
+            ok=0
+            for i in $(seq 1 60); do
+              if (echo > /dev/tcp/127.0.0.1/$port) 2>/dev/null; then ok=1; echo "port $port up after ${i}x2s"; break; fi
+              sleep 2
+            done
+            if [ "$ok" != "1" ]; then
+              echo "::error::backend port $port not ready"; tail -n 80 logs/*.out.log; exit 1
+            fi
+          done
+          # 网关登录链路冒烟（种子 admin 由 WHALE_AUTH_ADMIN_INIT_PASSWORD 轮换为 CI 口令）
+          for i in $(seq 1 30); do
+            code=$(curl -s -o login.json -w '%{http_code}' -X POST http://127.0.0.1:8080/auth/login \
+              -H 'Content-Type: application/json' \
+              -d '{"username":"admin","password":"${{ env.CI_ADMIN_INIT_PASSWORD }}","tenantCode":"default"}') && break
+            sleep 2
+          done
+          grep -q '"accessToken"' login.json || { echo '::error::login smoke failed'; cat login.json; exit 1; }
+          echo "login smoke ok"
+
+      # ---------- 前端 E2E ----------
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: pnpm Install
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Playwright Install Chromium
+        working-directory: frontend/e2e
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run Playwright E2E
+        working-directory: frontend/e2e
+        env:
+          E2E_ADMIN_PASSWORD: ${{ env.CI_ADMIN_INIT_PASSWORD }}
+        run: pnpm exec playwright test --reporter=list,html
+
+      - name: Upload Playwright Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/e2e/playwright-report/
+          retention-days: 7
+
+      - name: Upload Test Results (traces/screenshots on failure)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: frontend/e2e/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload backend logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-logs
+          path: logs/
+          retention-days: 7
