@@ -107,7 +107,7 @@ jobs:
 
       - name: Build backend jars
         run: >
-          ./mvnw -B -ntp -T 1C -DskipTests package
+          ./mvnw -B -ntp -T 1C -DskipTests package -f backend/pom.xml
           -pl whale-services/whale-gateway,whale-services/whale-service-auth/whale-service-auth-starter,whale-services/whale-workflow,whale-services/whale-form
           -am
 

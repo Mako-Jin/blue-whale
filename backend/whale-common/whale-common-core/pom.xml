@@ -9,7 +9,7 @@
         <groupId>com.bluewhale</groupId>
         <artifactId>whale-parent</artifactId>
         <version>1.0.0-SNAPSHOT</version>
-        <relativePath>../whale-parent/pom.xml</relativePath>
+        <relativePath>../../whale-parent/pom.xml</relativePath>
     </parent>
 
     <artifactId>whale-common-core</artifactId>
