@@ -101,8 +101,8 @@ services:
       - nacos_data:/home/nacos/data
     healthcheck:
       # Nacos 3.x：服务面 8848 / gRPC 9848 不变，控制台独立 8080（compose 不映射，实机部署时使用）；
-      # actuator health 端点，容器内加载验证待 B-01 恢复
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8848/nacos/actuator/health || exit 1"]
+      # v3 服务端口不暴露 actuator（/nacos/actuator/health 404），改为探测任意 HTTP 响应即视为存活
+      test: ["CMD-SHELL", "curl -s -o /dev/null http://127.0.0.1:8848/nacos || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 12

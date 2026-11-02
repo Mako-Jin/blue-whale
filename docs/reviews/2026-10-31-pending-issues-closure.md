@@ -9,7 +9,7 @@
 | 类别 | 数量 | 编号 |
 |---|---|---|
 | 已修复并提交 | 8 | N-01、N-02、N-03、N-04、N-05、N-06、N-07（2026-11-02 复验闭环）、N-10 |
-| 环境/决策阻塞 | 2 | N-08（B-01 / B-09 / B-10）、N-09（T-07 / T-08 / 其余服务越层） |
+| 环境/决策阻塞 | 1 | N-09（T-07 / T-08 / 其余服务越层）——N-08 三项阻塞（B-01 / B-09 / B-10）已于 2026-11-02 全部闭环 |
 
 **代码与文档层面的问题已全部修复并入库**；剩余 3 项均**不由代码改动可解**（需用户确认删文件、需浏览器与环境、需更大范围专项），因此本轮进入收尾，不再继续扩大改动面。
 
@@ -34,7 +34,7 @@
 
 | 子项 | 当前探测（2026-10-31 复验） | 解锁条件 / 验收口径 |
 |---|---|---|
-| B-01 Docker 全链路 | Docker 守护进程**已可用**（`docker version` → `29.9.2`）；`docker compose config -q`（临时 env）exit=0；**但** compose 需 `.env`，且宿主已占用 3306 / 6379 / 8848（本机 MySQL、Redis、Nacos 服务） | 提供 `.env`（或改用覆盖端口 / 独立网络），执行 `docker compose up` 并跑 `bw-*-smoke.ps1` 全绿；届时产出实机报告 |
+| B-01 Docker 全链路 | ~~守护进程未运行~~ **已解锁（2026-11-02）**：Docker Desktop 29.9.2 启动；`infrastructure/docker/.env`（端口避让 + 凭据 + daocloud 镜像站，不入仓）→ `docker compose up` **8/8 容器 healthy**（Nacos v3 healthcheck 遗留 TODO 一并修复）；容器 MySQL 17 业务库初始化 / Redis / Nacos v3 管理员初始化+登录 / RabbitMQ API / Nginx TLS 逐项验证；**smoke 5/5 全绿**含 auth 缓存广播「Redis 重启后恢复 PASSED」（[devlog 2026-11-02](../devlog/2026-11-02.md)） | ~~compose up + smoke 全绿~~ 已达成；容器化后端应用镜像编排（`docker-compose.prod.yml`）按实机部署节奏另行推进 |
 | B-09 浏览器 E2E | ~~无 Chromium 二进制~~ **已解锁（2026-11-02）**：Chromium 就位 + 宿主中间件起服 + gateway/auth/workflow/form 重建起服；修复 2 个后端真实 Bug（`LoginResponse.userId`、CSRF Cookie Path）与 2 个测试缺陷后 **Playwright E2E 8/8 全部通过**（[devlog 2026-11-02](../devlog/2026-11-02.md)）；`.github/workflows` 仍无 e2e job | ~~逐页 E2E 回归~~ 首轮实机回归已全绿；后续扩页按需推进；E2E 入 CI 与 T-08 合并推进 |
 | B-10 通知链路 | ~~8094 未监听~~ **已解锁（2026-11-02）**：`whale-message` 8094 重建起服、`/actuator/health` UP、Nacos 注册 healthy；内网 `/message/internal/send` 实测 INAPP 落 `msg_record`+`msg_delivery`（SENT）、幂等键重发 `duplicate=true`、EMAIL 未启用记 MOCKED「失败仅告警」（[devlog 2026-11-02](../devlog/2026-11-02.md)） | ~~起服 + 通知开关验证~~ 通知链路实机验证已通过；音乐评论通知开关（`comment-notify-enabled`）保持默认关闭，接入真实场景时按需开启 |
 
