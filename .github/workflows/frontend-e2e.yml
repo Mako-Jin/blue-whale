@@ -76,13 +76,23 @@ jobs:
         working-directory: infrastructure/docker
         run: docker compose up -d --wait mysql redis nacos
 
-      # Nacos v3 全新实例需先初始化内置管理员（auth_admin_request=true 引导流程）
+      # Nacos v3 全新实例需先初始化内置管理员（auth_admin_request=true 引导流程）。
+      # healthy 判定早于 auth 插件就绪，首跑 run#9 曾偶发 "User not found!" 被静默吞掉，
+      # 导致 4 个后端服务 Nacos 登录全部失败——故以 code:0 为准重试，并用 v1 登录兜底校验。
       - name: Init Nacos v3 admin
         run: |
-          docker exec bw-nacos curl -s -X POST 'http://127.0.0.1:8080/v3/auth/user/admin' \
-            --data-raw 'username=nacos' --data-raw 'password=nacos' || true
-          docker exec bw-nacos curl -s -X POST 'http://127.0.0.1:8848/nacos/v1/auth/login' \
-            --data-raw 'username=nacos&password=nacos'
+          ok=0
+          for i in $(seq 1 30); do
+            resp=$(docker exec bw-nacos curl -s -X POST 'http://127.0.0.1:8080/v3/auth/user/admin' \
+              --data-raw 'username=nacos' --data-raw 'password=nacos' || true)
+            echo "admin init attempt $i: $resp"
+            if echo "$resp" | grep -q '"code":0'; then ok=1; break; fi
+            sleep 2
+          done
+          if [ "$ok" != "1" ]; then echo '::error::nacos v3 admin init failed'; exit 1; fi
+          login_resp=$(docker exec bw-nacos curl -s -X POST 'http://127.0.0.1:8848/nacos/v1/auth/login' \
+            --data-raw 'username=nacos&password=nacos')
+          echo "$login_resp" | grep -q accessToken || { echo "::error::nacos v1 login failed: $login_resp"; exit 1; }
 
       # compose init 只建库不建表：灌 E2E 涉及的 auth/workflow/form 三库表结构 + auth 增量迁移
       - name: Init schemas
