@@ -14,7 +14,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: false,
-    // antd 全量渲染在 jsdom 下单用例可达数秒，默认 5s 过紧
-    testTimeout: 15000,
+    // antd 全量渲染在 jsdom 下单用例可达数秒，全量并发时 CPU 争抢更甚，30s 兜底
+    testTimeout: 30000,
   },
 });
