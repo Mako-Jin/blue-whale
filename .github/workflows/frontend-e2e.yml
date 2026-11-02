@@ -143,14 +143,17 @@ jobs:
             fi
           done
           # 网关登录链路冒烟（种子 admin 由 WHALE_AUTH_ADMIN_INIT_PASSWORD 轮换为 CI 口令）
+          # 端口开放早于 ApplicationRunner 完成口令轮换，首轮登录可能命中旧密文返回 401；
+          # 故以 accessToken 出现为准重试，不能按 HTTP 状态码提前 break。
+          ok=0
           for i in $(seq 1 30); do
-            code=$(curl -s -o login.json -w '%{http_code}' -X POST http://127.0.0.1:8080/auth/login \
+            curl -s -o login.json -X POST http://127.0.0.1:8080/auth/login \
               -H 'Content-Type: application/json' \
-              -d '{"username":"admin","password":"${{ env.CI_ADMIN_INIT_PASSWORD }}","tenantCode":"default"}') && break
+              -d '{"username":"admin","password":"${{ env.CI_ADMIN_INIT_PASSWORD }}","tenantCode":"default"}' || true
+            if grep -q '"accessToken"' login.json; then ok=1; echo "login smoke ok after ${i} attempts"; break; fi
             sleep 2
           done
-          grep -q '"accessToken"' login.json || { echo '::error::login smoke failed'; cat login.json; exit 1; }
-          echo "login smoke ok"
+          if [ "$ok" != "1" ]; then echo '::error::login smoke failed'; cat login.json; exit 1; fi
 
       # ---------- 前端 E2E ----------
       - name: Setup pnpm
