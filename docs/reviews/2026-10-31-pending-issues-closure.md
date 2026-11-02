@@ -45,6 +45,7 @@
 | T-07 前端页面级单测与覆盖率 | ✅ 已落地三批（2026-11-02）：首批 music 5 页 25 例；第二批 admin TemplateList 5 / OrderList 6 / ItemList 5 + whale-portal Inbox 4；第三批 whale-erp SupplierList 5 / SupplierForm 3 / 物料 List 4 / Form 3（页面级累计 55 例），`turbo run test` 门禁已有；剩余页面待逐步扩量 | 已覆盖 music 全部 5 页 + 消息/支付/配置/站内信 + erp 供应商与物料页；覆盖率阈值在剩余页面扩量后设置 |
 | T-08 E2E 入 CI | ✅ 已闭环（2026-11-02）：`frontend-e2e.yml` 入库 + **GitHub Actions 首跑验证通过（run#14，8/8 用例，2.3m）**；排障链见 [devlog](../devlog/2026-11-02.md) | 后续作为 main/PR 阻断门禁运行 |
 | 其余服务越层专项（T-18 余量） | ✅ 已闭环（2026-11-02）：agent / archive / im 原有门禁之外，对 contract / erp / mes / oa / pdm / pm / alert / audit / monitor / config 共 10 个服务全量扫描，五个维度（controller→entity、controller→mapper、dto/vo→entity、mapper→service、entity→外层）越层命中均为 0，直接补 10 个 ArchUnit 门禁（3–5 例/服务，347 例全绿）；`whale-gateway` 无 controller 与持久化层，本口径不适用 | 全部纳入 `mvn test` 门禁，后续新增接口自动兜底 |
+| 后端覆盖率门禁（N-11，2026-11-02 新增） | ✅ 已闭环：`backend-test.yml` 的 `-Pcoverage-gate verify`（行 ≥ 0.40 / 分支 ≥ 0.30）此前 4 模块不达标；新增 10 个测试类 149 例后本地全部通过——music 0.549/0.552（196 例）、contract 0.429/0.310（100 例）、mes/pdm 0.840/0.786（各 16 例） | CI 观察 Backend Test 转绿；零测试模块（common-core/common-domain/auth-sdk）因缺 exec 被 JaCoCo skip 的盲区已在 [devlog](../devlog/2026-11-02.md) 留档，未登记为待办 |
 
 ### 3.3 N-07 仓库卫生（已闭环，2026-11-02）
 
