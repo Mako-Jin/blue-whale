@@ -42,8 +42,8 @@
 
 | 子项 | 现状 | 建议 |
 |---|---|---|
-| T-07 前端页面级单测与覆盖率 | 仅共享包（`whale-ui` 34 例等）有单测，页面级（admin / 子应用）缺覆盖率门禁 | 先为 music 5 页（SongList / CommentAudit / AppealAudit / MySongs / 播放器）补组件测试，再逐步扩展并设覆盖率阈值 |
-| T-08 E2E 入 CI | 无 e2e workflow；本地 E2E 用例存在但依赖浏览器二进制 | 与 B-09 合并：Playwright 可用后新增 `frontend-e2e.yml`（cache 浏览器 + 起服编排） |
+| T-07 前端页面级单测与覆盖率 | ✅ 首批落地（2026-11-02）：whale-ui 34 例 + music 页面级 25 例（admin SongList 5 / CommentAudit 5 / AppealAudit 4；whale-music MySongsPage 5 / 播放器 6），`turbo run test` 门禁已有；其余页面（admin 其它模块 / 子应用）待逐步扩量 | 已达成「先为 music 5 页补组件测试」口径；其余页面逐步扩展，覆盖率阈值在扩量后设置 |
+| T-08 E2E 入 CI | ✅ 工作流入库（2026-11-02）：`frontend-e2e.yml`（compose 中间件 + Nacos v3 初始化 + 三库灌表 + 4 服务起服 + Playwright 8 用例 + artifact） | 待 GitHub Actions 首跑验证后闭环 |
 | 其余服务越层专项（T-18 余量） | agent / archive / im 已开启 controller→entity/mapper ArchUnit 门禁；其余服务未逐项排查 | 按「controller 不依赖 entity/mapper」规则逐个服务加 ArchUnit 规则，先扫后补 |
 
 ### 3.3 N-07 仓库卫生（已闭环，2026-11-02）
