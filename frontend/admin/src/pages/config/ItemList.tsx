@@ -343,14 +343,24 @@ export default function ItemList() {
                 name: 'valueType',
                 label: '值类型',
                 element: (
-                  <Select allowClear options={TYPE_OPTIONS} placeholder="全部" style={{ width: 160 }} />
+                  <Select
+                    allowClear
+                    options={TYPE_OPTIONS}
+                    placeholder="全部"
+                    style={{ width: 160 }}
+                  />
                 ),
               },
               {
                 name: 'status',
                 label: '状态',
                 element: (
-                  <Select allowClear options={STATUS_OPTIONS} placeholder="全部" style={{ width: 120 }} />
+                  <Select
+                    allowClear
+                    options={STATUS_OPTIONS}
+                    placeholder="全部"
+                    style={{ width: 120 }}
+                  />
                 ),
               },
             ]}
@@ -394,11 +404,7 @@ export default function ItemList() {
             disabled={Boolean(editing)}
           />
         </Form.Item>
-        <Form.Item
-          name="configValue"
-          label="配置值"
-          extra="按值类型校验字面量；JSON 存原文"
-        >
+        <Form.Item name="configValue" label="配置值" extra="按值类型校验字面量；JSON 存原文">
           <Input.TextArea rows={3} placeholder="配置值" />
         </Form.Item>
         <Form.Item
@@ -439,7 +445,8 @@ export default function ItemList() {
               pagination={false}
             />
             <div style={{ marginTop: 12, color: '#999' }}>
-              当前版本：v{historyRecord.version}，值：{historyRecord.configValue ?? '∅'}（回滚产生新版本，不覆盖历史）
+              当前版本：v{historyRecord.version}，值：{historyRecord.configValue ?? '∅'}
+              （回滚产生新版本，不覆盖历史）
             </div>
           </>
         )}

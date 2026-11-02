@@ -5,15 +5,7 @@ import { del, get, post, streamSse, type PageResult } from './client';
 
 /** 检索范围键（与后端 AgentConversationService.normalizeScope 白名单一致） */
 export type ScopeKey =
-  | 'code'
-  | 'doc'
-  | 'sql'
-  | 'config'
-  | 'git'
-  | 'runtime'
-  | 'file'
-  | 'archive'
-  | 'doc_page';
+  'code' | 'doc' | 'sql' | 'config' | 'git' | 'runtime' | 'file' | 'archive' | 'doc_page';
 
 /** 范围开关展示配置（左栏） */
 export const SCOPE_OPTIONS: ReadonlyArray<{ key: ScopeKey; label: string }> = [

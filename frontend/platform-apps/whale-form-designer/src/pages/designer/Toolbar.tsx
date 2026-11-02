@@ -88,11 +88,7 @@ export default function Toolbar({
             <Button disabled={!canUndo} title="撤销（Ctrl+Z）" onClick={onUndo}>
               撤销
             </Button>
-            <Button
-              disabled={!canRedo}
-              title="重做（Ctrl+Y / Ctrl+Shift+Z）"
-              onClick={onRedo}
-            >
+            <Button disabled={!canRedo} title="重做（Ctrl+Y / Ctrl+Shift+Z）" onClick={onRedo}>
               重做
             </Button>
             <Button type="primary" loading={saving} onClick={onSave}>

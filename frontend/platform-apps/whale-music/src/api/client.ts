@@ -94,7 +94,10 @@ export async function upload<T>(url: string, data: FormData): Promise<T> {
     payload = null;
   }
   if (!response.ok) {
-    throw new ApiError(payload?.code ?? response.status, payload?.message ?? `请求失败（HTTP ${response.status}）`);
+    throw new ApiError(
+      payload?.code ?? response.status,
+      payload?.message ?? `请求失败（HTTP ${response.status}）`,
+    );
   }
   if (payload && typeof payload.code === 'number' && payload.code !== 0) {
     throw new ApiError(payload.code, payload.message ?? '请求失败');

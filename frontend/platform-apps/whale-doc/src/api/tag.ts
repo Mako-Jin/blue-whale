@@ -14,8 +14,7 @@ export const tagApi = {
   list: (spaceId: number) => http.get<DocTag[]>(`/doc/space/${spaceId}/tag`),
   create: (spaceId: number, payload: DocTagPayload) =>
     http.post<DocTag>(`/doc/space/${spaceId}/tag`, payload),
-  update: (tagId: number, payload: DocTagPayload) =>
-    http.put<DocTag>(`/doc/tag/${tagId}`, payload),
+  update: (tagId: number, payload: DocTagPayload) => http.put<DocTag>(`/doc/tag/${tagId}`, payload),
   remove: (tagId: number) => http.del<void>(`/doc/tag/${tagId}`),
   pageTags: (pageId: number) => http.get<DocTag[]>(`/doc/page/${pageId}/tag`),
   updatePageTags: (pageId: number, tagIds: number[]) =>

@@ -282,7 +282,13 @@ export default function OrderList() {
       dataIndex: 'type',
       width: 90,
       render: (value: string | undefined) =>
-        value === 'PAY' ? <Tag color="blue">支付</Tag> : value === 'REFUND' ? <Tag color="purple">退款</Tag> : (value ?? '-'),
+        value === 'PAY' ? (
+          <Tag color="blue">支付</Tag>
+        ) : value === 'REFUND' ? (
+          <Tag color="purple">退款</Tag>
+        ) : (
+          (value ?? '-')
+        ),
     },
     {
       title: '渠道',
@@ -334,14 +340,24 @@ export default function OrderList() {
                 name: 'status',
                 label: '状态',
                 element: (
-                  <Select allowClear options={STATUS_OPTIONS} placeholder="全部" style={{ width: 140 }} />
+                  <Select
+                    allowClear
+                    options={STATUS_OPTIONS}
+                    placeholder="全部"
+                    style={{ width: 140 }}
+                  />
                 ),
               },
               {
                 name: 'channel',
                 label: '渠道',
                 element: (
-                  <Select allowClear options={CHANNEL_OPTIONS} placeholder="全部" style={{ width: 140 }} />
+                  <Select
+                    allowClear
+                    options={CHANNEL_OPTIONS}
+                    placeholder="全部"
+                    style={{ width: 140 }}
+                  />
                 ),
               },
             ]}
@@ -390,11 +406,7 @@ export default function OrderList() {
         >
           <InputNumber min={0.01} precision={2} style={{ width: '100%' }} />
         </Form.Item>
-        <Form.Item
-          name="currency"
-          label="币种"
-          rules={[{ required: true, message: '请输入币种' }]}
-        >
+        <Form.Item name="currency" label="币种" rules={[{ required: true, message: '请输入币种' }]}>
           <Input placeholder="默认 CNY" />
         </Form.Item>
         <Form.Item name="channel" label="支付渠道">

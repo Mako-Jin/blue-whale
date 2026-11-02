@@ -24,11 +24,13 @@ export interface SpaceSavePayload {
 
 /** 空间与成员接口 */
 export const spaceApi = {
-  page: (query: SpaceQuery) => http.get<PageResult<DocSpace>>('/doc/space/page', query as Record<string, unknown>),
+  page: (query: SpaceQuery) =>
+    http.get<PageResult<DocSpace>>('/doc/space/page', query as Record<string, unknown>),
   my: () => http.get<DocSpace[]>('/doc/space/my'),
   detail: (id: number) => http.get<DocSpace>(`/doc/space/${id}`),
   create: (payload: SpaceSavePayload) => http.post<DocSpace>('/doc/space', payload),
-  update: (id: number, payload: SpaceSavePayload) => http.put<DocSpace>(`/doc/space/${id}`, payload),
+  update: (id: number, payload: SpaceSavePayload) =>
+    http.put<DocSpace>(`/doc/space/${id}`, payload),
   archive: (id: number) => http.del<void>(`/doc/space/${id}`),
   members: (id: number) => http.get<DocMember[]>(`/doc/space/${id}/member`),
   addMembers: (id: number, userIds: number[], role: DocMemberRole) =>

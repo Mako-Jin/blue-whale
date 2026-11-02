@@ -18,7 +18,11 @@ export { bootstrapAuth, clearAuth, getCurrentUser, getToken } from './token';
 export { refreshSession as refresh } from './client';
 
 // 登录：POST /auth/login（网关白名单，免 JWT）
-export async function login(username: string, password: string, tenantCode?: string): Promise<LoginResponse> {
+export async function login(
+  username: string,
+  password: string,
+  tenantCode?: string,
+): Promise<LoginResponse> {
   const data = await post<LoginResponse>('/auth/login', {
     tenantCode: tenantCode?.trim() || undefined,
     username,

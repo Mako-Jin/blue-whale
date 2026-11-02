@@ -43,7 +43,14 @@ function CitationRow({ citation }: { citation: CitationItem }) {
         </Text>
       </Space>
       {citation.path && (
-        <Button size="small" type="text" icon={<CopyOutlined />} onClick={() => { void copy(); }} />
+        <Button
+          size="small"
+          type="text"
+          icon={<CopyOutlined />}
+          onClick={() => {
+            void copy();
+          }}
+        />
       )}
     </Space>
   );
@@ -84,9 +91,7 @@ function TraceBody({
           detail.tools.map((tool, index) => (
             <div key={`tool-${index}`} style={{ marginTop: 6 }}>
               <Space size={6} wrap>
-                <Tag color={tool.success === false ? 'red' : 'green'}>
-                  {tool.name ?? 'tool'}
-                </Tag>
+                <Tag color={tool.success === false ? 'red' : 'green'}>{tool.name ?? 'tool'}</Tag>
                 <Text type="secondary" style={{ fontSize: 12 }}>
                   第 {tool.step ?? index + 1} 步
                 </Text>

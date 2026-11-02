@@ -165,7 +165,8 @@ export const sealApi = {
   create: (input: SealSaveInput) => http.post<Seal>('/contract/seal', input),
   update: (id: string, input: SealSaveInput) => http.put<Seal>(`/contract/seal/${id}`, input),
   remove: (id: string) => http.del<void>(`/contract/seal/${id}`),
-  grant: (id: string, input: SealGrantInput) => http.post<SealGrant>(`/contract/seal/${id}/grant`, input),
+  grant: (id: string, input: SealGrantInput) =>
+    http.post<SealGrant>(`/contract/seal/${id}/grant`, input),
   grants: (id: string) => http.get<SealGrant[]>(`/contract/seal/${id}/grants`),
   preview: (id: string) => requestBlob(`/contract/seal/${id}/preview`),
   download: (id: string) => requestBlob(`/contract/seal/${id}/download`),
@@ -173,7 +174,8 @@ export const sealApi = {
 
 /** 签署与证据链接口 */
 export const signApi = {
-  start: (id: string, input?: SignStartInput) => http.post<SignTask[]>(`/contract/${id}/sign/start`, input ?? {}),
+  start: (id: string, input?: SignStartInput) =>
+    http.post<SignTask[]>(`/contract/${id}/sign/start`, input ?? {}),
   tasks: (id: string) => http.get<SignTask[]>(`/contract/${id}/sign/tasks`),
   pending: () => http.get<SignTask[]>('/contract/sign/pending'),
   sign: (taskId: string, input: SignExecuteInput) =>

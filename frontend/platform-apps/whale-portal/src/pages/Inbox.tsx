@@ -2,11 +2,7 @@
 // 接口异常降级为空态，不阻塞页面；标记已读后广播事件供导航角标刷新。
 import { useCallback, useEffect, useState } from 'react';
 import { Button, Card, Empty, List, Pagination, Radio, Space, Tag } from 'antd';
-import {
-  markInAppRead,
-  pageInAppMessages,
-  type InAppMessage,
-} from '../api/inapp';
+import { markInAppRead, pageInAppMessages, type InAppMessage } from '../api/inapp';
 
 /** 标记已读后广播：App.tsx 监听以刷新导航未读角标 */
 export const INAPP_READ_EVENT = 'whale-inapp-read';
@@ -21,27 +17,24 @@ export default function Inbox() {
   const [loading, setLoading] = useState(true);
   const [markingId, setMarkingId] = useState<string | null>(null);
 
-  const load = useCallback(
-    (page: number, filter: 'unread' | 'all') => {
-      setLoading(true);
-      pageInAppMessages({
-        current: page,
-        size: PAGE_SIZE,
-        readFlag: filter === 'unread' ? 0 : undefined,
+  const load = useCallback((page: number, filter: 'unread' | 'all') => {
+    setLoading(true);
+    pageInAppMessages({
+      current: page,
+      size: PAGE_SIZE,
+      readFlag: filter === 'unread' ? 0 : undefined,
+    })
+      .then((result) => {
+        setMessages(result.records);
+        setTotal(result.total);
+        setCurrent(result.current);
       })
-        .then((result) => {
-          setMessages(result.records);
-          setTotal(result.total);
-          setCurrent(result.current);
-        })
-        .catch(() => {
-          setMessages([]);
-          setTotal(0);
-        })
-        .finally(() => setLoading(false));
-    },
-    [],
-  );
+      .catch(() => {
+        setMessages([]);
+        setTotal(0);
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   useEffect(() => {
     load(1, readFilter);
@@ -80,7 +73,9 @@ export default function Inbox() {
       <List
         loading={loading}
         dataSource={messages}
-        locale={{ emptyText: <Empty description={readFilter === 'unread' ? '暂无未读消息' : '暂无消息'} /> }}
+        locale={{
+          emptyText: <Empty description={readFilter === 'unread' ? '暂无未读消息' : '暂无消息'} />,
+        }}
         renderItem={(item) => (
           <List.Item
             actions={
@@ -110,7 +105,9 @@ export default function Inbox() {
               description={
                 <Space direction="vertical" size={2}>
                   {item.content ? <span>{item.content}</span> : null}
-                  <span style={{ color: 'rgba(0,0,0,0.45)' }}>{item.sentAt ?? item.createTime ?? '-'}</span>
+                  <span style={{ color: 'rgba(0,0,0,0.45)' }}>
+                    {item.sentAt ?? item.createTime ?? '-'}
+                  </span>
                 </Space>
               }
             />

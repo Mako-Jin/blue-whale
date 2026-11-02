@@ -2,15 +2,7 @@
 // 规则由后端编译进 GET /form/definition/{id} 的 schema.fields[].linkage。
 
 /** 联动条件操作符 */
-export type LinkageOperator =
-  | 'eq'
-  | 'ne'
-  | 'in'
-  | 'notIn'
-  | 'gt'
-  | 'lt'
-  | 'empty'
-  | 'notEmpty';
+export type LinkageOperator = 'eq' | 'ne' | 'in' | 'notIn' | 'gt' | 'lt' | 'empty' | 'notEmpty';
 
 /** 联动动作 */
 export type LinkageAction = 'show' | 'hide' | 'require' | 'disable';

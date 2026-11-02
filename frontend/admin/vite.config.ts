@@ -18,10 +18,11 @@ export default defineConfig({
       // 否则这些请求会落到 vite 自身返回 404。
       // Wave 5.73 修复：/pay、/message、/archive、/config 为 5.7x 新增服务前缀，
       // 此前未纳入白名单，导致新服务页面在开发环境所有请求 404（页面表现为空列表）。
-      '^/(auth|user|dept|role|menu|permission|audit|job|file|tenant|pay|message|archive|config|music)(/|$)': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-      },
+      '^/(auth|user|dept|role|menu|permission|audit|job|file|tenant|pay|message|archive|config|music)(/|$)':
+        {
+          target: 'http://localhost:8080',
+          changeOrigin: true,
+        },
     },
   },
   build: {

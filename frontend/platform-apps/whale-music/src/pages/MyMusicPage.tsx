@@ -51,7 +51,9 @@ export default function MyMusicPage() {
           setHistory(result.records);
           setHistoryTotal(result.total);
         })
-        .catch((error) => message.error(error instanceof Error ? error.message : '最近播放加载失败'))
+        .catch((error) =>
+          message.error(error instanceof Error ? error.message : '最近播放加载失败'),
+        )
         .finally(() => setLoading(false));
     },
     [message],
@@ -82,7 +84,12 @@ export default function MyMusicPage() {
       loading={loading}
       dataSource={likes}
       locale={{ emptyText: <Empty description="还没有收藏歌曲，去曲库逛逛吧" /> }}
-      pagination={{ total: likesTotal, pageSize: PAGE_SIZE, onChange: loadLikes, hideOnSinglePage: true }}
+      pagination={{
+        total: likesTotal,
+        pageSize: PAGE_SIZE,
+        onChange: loadLikes,
+        hideOnSinglePage: true,
+      }}
       renderItem={(song) => (
         <List.Item
           actions={[
@@ -113,7 +120,12 @@ export default function MyMusicPage() {
       loading={loading}
       dataSource={history}
       locale={{ emptyText: <Empty description="暂无播放记录" /> }}
-      pagination={{ total: historyTotal, pageSize: PAGE_SIZE, onChange: loadHistory, hideOnSinglePage: true }}
+      pagination={{
+        total: historyTotal,
+        pageSize: PAGE_SIZE,
+        onChange: loadHistory,
+        hideOnSinglePage: true,
+      }}
       renderItem={(item) => (
         <List.Item
           actions={[

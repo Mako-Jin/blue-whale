@@ -19,7 +19,11 @@ export function resolveDefaultLevel(): LogLevelThreshold {
   const configured = env.VITE_LOG_LEVEL ?? env.LOG_LEVEL;
 
   if (configured === 'silent') return 'silent';
-  if (configured && (LOG_LEVELS as readonly string[]).includes(configured) && isLogLevel(configured)) {
+  if (
+    configured &&
+    (LOG_LEVELS as readonly string[]).includes(configured) &&
+    isLogLevel(configured)
+  ) {
     return configured;
   }
 

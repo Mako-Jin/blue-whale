@@ -106,7 +106,9 @@ export function useImData() {
 
   /** 将会话未读清零（本地即时反馈） */
   const clearUnread = useCallback((id: string) => {
-    setConversations((prev) => prev.map((item) => (item.id === id ? { ...item, unread: 0 } : item)));
+    setConversations((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, unread: 0 } : item)),
+    );
   }, []);
 
   /** 打开会话：拉取最近一页消息、成员列表并上报已读 */
@@ -162,7 +164,11 @@ export function useImData() {
 
   /** 发送消息（clientMsgId 幂等）；成功后立即上屏 */
   const sendMessage = useCallback(
-    async (contentType: MessageContentType, content: string, replyTo?: number): Promise<boolean> => {
+    async (
+      contentType: MessageContentType,
+      content: string,
+      replyTo?: number,
+    ): Promise<boolean> => {
       const id = activeIdRef.current;
       if (!id) {
         return false;
@@ -301,7 +307,9 @@ export function useImData() {
     async (payload: { type: 'SINGLE' | 'GROUP'; title?: string; memberIds: number[] }) => {
       try {
         const created = await imApi.createConversation(payload);
-        setConversations((prev) => sortConversations([...prev.filter((c) => c.id !== created.id), created]));
+        setConversations((prev) =>
+          sortConversations([...prev.filter((c) => c.id !== created.id), created]),
+        );
         await openConversation(created.id);
         return true;
       } catch (error) {
@@ -400,7 +408,9 @@ export function useImData() {
             degraded: Boolean(frame.degraded),
             done: false,
           };
-          setStreaming((prev) => (prev.some((item) => item.runId === runId) ? prev : [...prev, entry]));
+          setStreaming((prev) =>
+            prev.some((item) => item.runId === runId) ? prev : [...prev, entry],
+          );
           break;
         }
         case 'agent.delta': {
@@ -416,7 +426,10 @@ export function useImData() {
         }
         case 'agent.done': {
           const runId = String(frame.runId ?? '');
-          const messageId = frame.messageId === null || frame.messageId === undefined ? undefined : String(frame.messageId);
+          const messageId =
+            frame.messageId === null || frame.messageId === undefined
+              ? undefined
+              : String(frame.messageId);
           if (!runId) {
             return;
           }

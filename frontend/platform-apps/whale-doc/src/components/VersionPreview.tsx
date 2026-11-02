@@ -17,12 +17,7 @@ interface VersionPreviewProps {
 export default function VersionPreview({ content }: VersionPreviewProps) {
   const parsed = parseDocJson(content) as JSONContent | null;
   const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Underline,
-      Link.configure({ openOnClick: false }),
-      Image,
-    ],
+    extensions: [StarterKit, Underline, Link.configure({ openOnClick: false }), Image],
     content: parsed ?? { type: 'doc', content: [{ type: 'paragraph' }] },
     editable: false,
   });

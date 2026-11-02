@@ -20,7 +20,12 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
-import { contractApi, type Contract, type ContractParty, type ContractSaveInput } from '../api/contract';
+import {
+  contractApi,
+  type Contract,
+  type ContractParty,
+  type ContractSaveInput,
+} from '../api/contract';
 import {
   CATEGORY_OPTIONS,
   STATUS_OPTIONS,
@@ -126,7 +131,10 @@ export default function ContractList() {
     }
   };
 
-  const runAction = async (record: Contract, action: 'submit' | 'withdraw' | 'terminate' | 'archive') => {
+  const runAction = async (
+    record: Contract,
+    action: 'submit' | 'withdraw' | 'terminate' | 'archive',
+  ) => {
     try {
       await contractApi[action](record.id);
       message.success('操作成功');
@@ -218,14 +226,17 @@ export default function ContractList() {
             </Button>
           ) : null}
           {record.status === 'APPROVING' && hasPermission('sys:contract:withdraw') ? (
-            <Popconfirm title="撤回该合同的审批？" onConfirm={() => void runAction(record, 'withdraw')}>
+            <Popconfirm
+              title="撤回该合同的审批？"
+              onConfirm={() => void runAction(record, 'withdraw')}
+            >
               <Button type="link" size="small">
                 撤回
               </Button>
             </Popconfirm>
           ) : null}
-          {['APPROVED', 'SIGNING', 'SIGNED', 'EFFECTIVE'].includes(record.status)
-            && hasPermission('sys:contract:terminate') ? (
+          {['APPROVED', 'SIGNING', 'SIGNED', 'EFFECTIVE'].includes(record.status) &&
+          hasPermission('sys:contract:terminate') ? (
             <Popconfirm title="终止该合同？" onConfirm={() => void runAction(record, 'terminate')}>
               <Button type="link" size="small" danger>
                 终止
@@ -330,11 +341,19 @@ export default function ContractList() {
         destroyOnClose
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="title" label="合同标题" rules={[{ required: true, message: '请输入合同标题' }]}>
+          <Form.Item
+            name="title"
+            label="合同标题"
+            rules={[{ required: true, message: '请输入合同标题' }]}
+          >
             <Input maxLength={255} />
           </Form.Item>
           <Space size={12} style={{ width: '100%' }}>
-            <Form.Item name="category" label="合同类别" rules={[{ required: true, message: '请选择类别' }]}>
+            <Form.Item
+              name="category"
+              label="合同类别"
+              rules={[{ required: true, message: '请选择类别' }]}
+            >
               <Select options={CATEGORY_OPTIONS} style={{ width: 160 }} />
             </Form.Item>
             <Form.Item name="amount" label="合同金额">
@@ -393,7 +412,15 @@ export default function ContractList() {
                       name={[field.name, 'partyType']}
                       rules={[{ required: true, message: '类型必填' }]}
                     >
-                      <Select options={[{ value: 'A', label: '甲方' }, { value: 'B', label: '乙方' }, { value: 'OTHER', label: '其他' }]} placeholder="类型" style={{ width: 90 }} />
+                      <Select
+                        options={[
+                          { value: 'A', label: '甲方' },
+                          { value: 'B', label: '乙方' },
+                          { value: 'OTHER', label: '其他' },
+                        ]}
+                        placeholder="类型"
+                        style={{ width: 90 }}
+                      />
                     </Form.Item>
                     <Form.Item
                       name={[field.name, 'name']}

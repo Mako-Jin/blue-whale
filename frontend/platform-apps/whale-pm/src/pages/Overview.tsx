@@ -3,7 +3,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { App, Card, Col, Descriptions, List, Row, Statistic, Tag, Typography } from 'antd';
 import { itemApi, sprintApi, type Activity, type Sprint, type WorkItem } from '../api/pm';
-import { formatDate, formatTime, sprintStatusColor, sprintStatusLabel, statusColor, typeLabel } from '../utils';
+import {
+  formatDate,
+  formatTime,
+  sprintStatusColor,
+  sprintStatusLabel,
+  statusColor,
+  typeLabel,
+} from '../utils';
 import { useWorkspace } from '../workspace-context';
 
 export default function Overview() {
@@ -89,14 +96,18 @@ export default function Overview() {
                 {formatTime(activity.createTime)}
               </Typography.Text>
               <Tag color={statusColor('TODO')}>{activity.action}</Tag>
-              {activity.field ? `${activity.field}: ${activity.oldValue ?? '-'} → ${activity.newValue ?? '-'}` : activity.newValue}
+              {activity.field
+                ? `${activity.field}: ${activity.oldValue ?? '-'} → ${activity.newValue ?? '-'}`
+                : activity.newValue}
             </List.Item>
           )}
         />
         <Typography.Text type="secondary">
           共 {items.length} 个工作项，类型分布：{' '}
           {Array.from(new Set(items.map((item) => item.type)))
-            .map((type) => `${typeLabel(type)} ${items.filter((item) => item.type === type).length}`)
+            .map(
+              (type) => `${typeLabel(type)} ${items.filter((item) => item.type === type).length}`,
+            )
             .join(' / ') || '-'}
         </Typography.Text>
       </Card>

@@ -89,13 +89,7 @@ export default function DocAiDrawer({ open, onClose, pageTitle }: DocAiDrawerPro
   };
 
   return (
-    <Drawer
-      width={460}
-      title="AI 文档助手"
-      open={open}
-      onClose={onClose}
-      destroyOnHidden={false}
-    >
+    <Drawer width={460} title="AI 文档助手" open={open} onClose={onClose} destroyOnHidden={false}>
       <Space direction="vertical" size={12} style={{ width: '100%' }}>
         <Alert
           type="info"

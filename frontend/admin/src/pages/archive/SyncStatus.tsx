@@ -4,7 +4,12 @@
 import { Alert, App, Button, Card, Descriptions, Space, Statistic, Tag } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import { AuthButton } from '@bluewhale/whale-ui';
-import { runSync, syncStatus, type ArchiveSyncResultVO, type ArchiveSyncStatusVO } from '../../api/archive';
+import {
+  runSync,
+  syncStatus,
+  type ArchiveSyncResultVO,
+  type ArchiveSyncStatusVO,
+} from '../../api/archive';
 import { formatDateTime } from './helpers';
 
 export default function ArchiveSyncStatus() {
@@ -67,7 +72,9 @@ export default function ArchiveSyncStatus() {
         <Descriptions column={2} bordered size="small">
           <Descriptions.Item label="定时同步">
             {status ? (
-              <Tag color={status.enabled ? 'green' : 'default'}>{status.enabled ? '已开启' : '已关闭'}</Tag>
+              <Tag color={status.enabled ? 'green' : 'default'}>
+                {status.enabled ? '已开启' : '已关闭'}
+              </Tag>
             ) : (
               '-'
             )}
@@ -86,7 +93,11 @@ export default function ArchiveSyncStatus() {
         <Space size={32} style={{ marginTop: 16 }}>
           <Statistic title="已归档条目" value={status?.archivedCount ?? 0} />
           <Statistic title="待整理条目" value={status?.pendingCount ?? 0} />
-          <Statistic title="失败待重试" value={status?.failedCount ?? 0} valueStyle={{ color: '#cf1322' }} />
+          <Statistic
+            title="失败待重试"
+            value={status?.failedCount ?? 0}
+            valueStyle={{ color: '#cf1322' }}
+          />
         </Space>
       </Card>
       {result && (

@@ -71,7 +71,11 @@ export default function BoardPage() {
   const createBoard = async () => {
     const values = await boardForm.validateFields();
     try {
-      await boardApi.create({ projectId: Number(projectId), name: values.name, boardType: values.boardType });
+      await boardApi.create({
+        projectId: Number(projectId),
+        name: values.name,
+        boardType: values.boardType,
+      });
       message.success('看板已创建');
       setBoardModalOpen(false);
       await loadBoards();
@@ -168,7 +172,15 @@ export default function BoardPage() {
       {!view ? (
         <Empty description="暂无看板，请先创建" />
       ) : (
-        <div style={{ display: 'flex', gap: 12, overflowX: 'auto', alignItems: 'flex-start', opacity: loading ? 0.6 : 1 }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: 12,
+            overflowX: 'auto',
+            alignItems: 'flex-start',
+            opacity: loading ? 0.6 : 1,
+          }}
+        >
           {view.columns.map((column) => (
             <Card
               key={column.id}
@@ -178,7 +190,9 @@ export default function BoardPage() {
                 <Space size={6}>
                   <span>{column.name}</span>
                   <Tag color={column.overloaded ? 'red' : 'default'}>{column.itemCount}</Tag>
-                  {column.wipLimit > 0 && <Typography.Text type="secondary">WIP {column.wipLimit}</Typography.Text>}
+                  {column.wipLimit > 0 && (
+                    <Typography.Text type="secondary">WIP {column.wipLimit}</Typography.Text>
+                  )}
                   {hasPermission('sys:pm:board:manage') && (
                     <Popconfirm title="删除该列？" onConfirm={() => void removeColumn(column.id)}>
                       <Button type="link" size="small" danger>
@@ -200,36 +214,40 @@ export default function BoardPage() {
                 }}
               >
                 <Space direction="vertical" style={{ width: '100%' }} size={8}>
-                {column.items.length === 0 && <Typography.Text type="secondary">暂无工作项</Typography.Text>}
-                {column.items.map((item) => (
-                  <div
-                    key={item.id}
-                    draggable
-                    onDragStart={() => setDragged(item)}
-                    onDragEnd={() => setDragged(null)}
-                  >
-                  <Card size="small" bodyStyle={{ padding: 10, cursor: 'grab' }}>
-                    <Space direction="vertical" size={4} style={{ width: '100%' }}>
-                      <Space size={6}>
-                        <Tag>{typeLabel(item.type)}</Tag>
-                        <Tag color={priorityColor(item.priority)}>{priorityLabel(item.priority)}</Tag>
-                        <Link to={`/project/${projectId}/item/${item.id}`}>{item.key}</Link>
-                      </Space>
-                      <Typography.Text ellipsis>{item.title}</Typography.Text>
-                      <Select
-                        size="small"
-                        placeholder="移动到"
-                        value={undefined}
-                        style={{ width: '100%' }}
-                        options={view.columns
-                          .filter((target) => target.id !== column.id)
-                          .map((target) => ({ value: target.statusId, label: target.name }))}
-                        onChange={(value: string) => value && void moveItem(item, value)}
-                      />
-                    </Space>
-                  </Card>
-                  </div>
-                ))}
+                  {column.items.length === 0 && (
+                    <Typography.Text type="secondary">暂无工作项</Typography.Text>
+                  )}
+                  {column.items.map((item) => (
+                    <div
+                      key={item.id}
+                      draggable
+                      onDragStart={() => setDragged(item)}
+                      onDragEnd={() => setDragged(null)}
+                    >
+                      <Card size="small" bodyStyle={{ padding: 10, cursor: 'grab' }}>
+                        <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                          <Space size={6}>
+                            <Tag>{typeLabel(item.type)}</Tag>
+                            <Tag color={priorityColor(item.priority)}>
+                              {priorityLabel(item.priority)}
+                            </Tag>
+                            <Link to={`/project/${projectId}/item/${item.id}`}>{item.key}</Link>
+                          </Space>
+                          <Typography.Text ellipsis>{item.title}</Typography.Text>
+                          <Select
+                            size="small"
+                            placeholder="移动到"
+                            value={undefined}
+                            style={{ width: '100%' }}
+                            options={view.columns
+                              .filter((target) => target.id !== column.id)
+                              .map((target) => ({ value: target.statusId, label: target.name }))}
+                            onChange={(value: string) => value && void moveItem(item, value)}
+                          />
+                        </Space>
+                      </Card>
+                    </div>
+                  ))}
                 </Space>
               </div>
             </Card>
@@ -246,7 +264,11 @@ export default function BoardPage() {
         cancelText="取消"
       >
         <Form form={boardForm} layout="vertical">
-          <Form.Item name="name" label="看板名称" rules={[{ required: true, message: '请输入看板名称' }]}>
+          <Form.Item
+            name="name"
+            label="看板名称"
+            rules={[{ required: true, message: '请输入看板名称' }]}
+          >
             <Input maxLength={64} />
           </Form.Item>
           <Form.Item name="boardType" label="类型">
@@ -269,10 +291,20 @@ export default function BoardPage() {
         cancelText="取消"
       >
         <Form form={columnForm} layout="vertical">
-          <Form.Item name="statusId" label="映射状态" rules={[{ required: true, message: '请选择状态' }]}>
-            <Select options={statuses.map((status) => ({ value: status.id, label: status.name }))} />
+          <Form.Item
+            name="statusId"
+            label="映射状态"
+            rules={[{ required: true, message: '请选择状态' }]}
+          >
+            <Select
+              options={statuses.map((status) => ({ value: status.id, label: status.name }))}
+            />
           </Form.Item>
-          <Form.Item name="name" label="列名称" rules={[{ required: true, message: '请输入列名称' }]}>
+          <Form.Item
+            name="name"
+            label="列名称"
+            rules={[{ required: true, message: '请输入列名称' }]}
+          >
             <Input maxLength={64} />
           </Form.Item>
           <Form.Item name="wipLimit" label="WIP 上限（0 表示不限）">

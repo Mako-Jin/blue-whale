@@ -273,7 +273,10 @@ export default function PlaylistDetailPage() {
               >
                 下移
               </Button>
-              <Popconfirm title="确认将该歌曲移出歌单？" onConfirm={() => void handleRemove(row.id)}>
+              <Popconfirm
+                title="确认将该歌曲移出歌单？"
+                onConfirm={() => void handleRemove(row.id)}
+              >
                 <Button type="link" size="small" danger>
                   移出
                 </Button>
@@ -432,7 +435,9 @@ export default function PlaylistDetailPage() {
           loading={pickerLoading}
           columns={pickerColumns}
           dataSource={pickerSongs}
-          locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无歌曲" /> }}
+          locale={{
+            emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无歌曲" />,
+          }}
           pagination={{
             current: pickerPage,
             pageSize: PICKER_PAGE_SIZE,

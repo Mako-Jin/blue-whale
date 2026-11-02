@@ -61,11 +61,7 @@ export default function FilterPanel({ filters }: FilterPanelProps) {
     return (
       <Space wrap>
         {draftValues.map((value, index) => (
-          <Tag
-            key={`${String(value)}-${index}`}
-            closable
-            onClose={() => removeDraftValueAt(index)}
-          >
+          <Tag key={`${String(value)}-${index}`} closable onClose={() => removeDraftValueAt(index)}>
             {String(value)}
           </Tag>
         ))}

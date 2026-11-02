@@ -273,7 +273,10 @@ export function createHttpClient<TLogin extends LoginData = LoginData>(
     });
     const payload = parseResult<TLogin>(await response.text());
     if (response.status !== 200 || !payload || payload.code !== 0 || !payload.data?.accessToken) {
-      throw new ApiError(payload?.code ?? response.status, payload?.message ?? '登录已失效，请重新登录');
+      throw new ApiError(
+        payload?.code ?? response.status,
+        payload?.message ?? '登录已失效，请重新登录',
+      );
     }
     config.saveLogin?.(payload.data);
     // 审计：令牌自动续期成功留痕（只记录触发原因，不落任何令牌值）

@@ -78,7 +78,9 @@ export default function FavoritesPage() {
       <Spin spinning={loading}>
         <List
           dataSource={items}
-          locale={{ emptyText: <Empty description="还没有收藏页面，在编辑器右上角点击星标即可收藏" /> }}
+          locale={{
+            emptyText: <Empty description="还没有收藏页面，在编辑器右上角点击星标即可收藏" />,
+          }}
           renderItem={(item) => (
             <List.Item
               className="doc-result-item"
@@ -99,7 +101,8 @@ export default function FavoritesPage() {
                 }
                 description={
                   <Text type="secondary">
-                    收藏于 {formatTime(item.starredAt)} · 页面更新于 {formatTime(item.updateTime)} · /{item.slug}
+                    收藏于 {formatTime(item.starredAt)} · 页面更新于 {formatTime(item.updateTime)} ·
+                    /{item.slug}
                   </Text>
                 }
               />

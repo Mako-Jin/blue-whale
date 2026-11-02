@@ -28,7 +28,10 @@ interface Envelope<T> {
   data: T;
 }
 
-async function unwrap<T>(response: { ok(): boolean; json(): Promise<unknown> }, label: string): Promise<T> {
+async function unwrap<T>(
+  response: { ok(): boolean; json(): Promise<unknown> },
+  label: string,
+): Promise<T> {
   const body = (await response.json()) as Envelope<T>;
   if (!response.ok() || body.code !== 0) {
     throw new Error(`${label}失败：code=${body.code} message=${body.message}`);
@@ -98,7 +101,9 @@ async function switchTenantViaUi(
     response.url().includes('/auth/tenant/switch'),
   );
   await page.locator('.admin-tenant-switcher').click();
-  await page.locator('.ant-select-dropdown .ant-select-item-option', { hasText: optionText }).click();
+  await page
+    .locator('.ant-select-dropdown .ant-select-item-option', { hasText: optionText })
+    .click();
   await switched;
   // 切换成功后前端 window.location.replace('/') 整页重载，重建权限与租户上下文
   await page.waitForEvent('load');

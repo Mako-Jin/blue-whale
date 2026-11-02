@@ -108,7 +108,8 @@ export default function TemplatesPage() {
   const canCreatePage = hasPermission('sys:doc:page:add');
 
   const spaceOptions = useMemo(
-    () => spaces.map((space) => ({ value: space.id, label: `${space.icon || '📄'} ${space.name}` })),
+    () =>
+      spaces.map((space) => ({ value: space.id, label: `${space.icon || '📄'} ${space.name}` })),
     [spaces],
   );
 
@@ -284,7 +285,9 @@ export default function TemplatesPage() {
             width: 180,
             render: (value: number) =>
               value ? (
-                <Tag color="blue">{spaces.find((item) => item.id === value)?.name ?? `空间 ${value}`}</Tag>
+                <Tag color="blue">
+                  {spaces.find((item) => item.id === value)?.name ?? `空间 ${value}`}
+                </Tag>
               ) : (
                 <Tag>租户级</Tag>
               ),
@@ -307,7 +310,11 @@ export default function TemplatesPage() {
             render: (_, record) => (
               <Space size={4}>
                 {canCreatePage && (
-                  <Button type="link" icon={<FileAddOutlined />} onClick={() => void openApply(record)}>
+                  <Button
+                    type="link"
+                    icon={<FileAddOutlined />}
+                    onClick={() => void openApply(record)}
+                  >
                     使用
                   </Button>
                 )}
@@ -317,7 +324,11 @@ export default function TemplatesPage() {
                   </Button>
                 )}
                 {canManage && (
-                  <Popconfirm title="删除该模板？" okText="删除" onConfirm={() => void remove(record)}>
+                  <Popconfirm
+                    title="删除该模板？"
+                    okText="删除"
+                    onConfirm={() => void remove(record)}
+                  >
                     <Button type="link" danger icon={<DeleteOutlined />}>
                       删除
                     </Button>
@@ -340,14 +351,15 @@ export default function TemplatesPage() {
       >
         <Form form={form} layout="vertical" preserve={false}>
           <Form.Item name="spaceId" label="归属空间" initialValue={0}>
-            <Select
-              options={[{ value: 0, label: '租户级（所有空间可用）' }, ...spaceOptions]}
-            />
+            <Select options={[{ value: 0, label: '租户级（所有空间可用）' }, ...spaceOptions]} />
           </Form.Item>
           <Form.Item
             name="name"
             label="模板名称"
-            rules={[{ required: true, message: '请输入模板名称' }, { max: 100, message: '最多 100 字' }]}
+            rules={[
+              { required: true, message: '请输入模板名称' },
+              { max: 100, message: '最多 100 字' },
+            ]}
           >
             <Input placeholder="例如 需求评审记录" />
           </Form.Item>
@@ -372,7 +384,11 @@ export default function TemplatesPage() {
         destroyOnHidden
       >
         <Form form={applyForm} layout="vertical" preserve={false}>
-          <Form.Item name="spaceId" label="目标空间" rules={[{ required: true, message: '请选择目标空间' }]}>
+          <Form.Item
+            name="spaceId"
+            label="目标空间"
+            rules={[{ required: true, message: '请选择目标空间' }]}
+          >
             <Select
               options={spaceOptions}
               placeholder="选择空间"

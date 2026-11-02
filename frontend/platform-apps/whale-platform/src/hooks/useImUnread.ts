@@ -207,7 +207,7 @@ export function useImUnread(enabled: boolean): number {
         clearHeartbeat();
         scheduleReconnect();
       };
-    };
+    }
 
     // 页面回到前台时校准一次：后台标签页可能错过推送
     const onFocus = () => {

@@ -19,7 +19,13 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import { sealApi, type Seal, type SealGrant, type SealGrantInput, type SealSaveInput } from '../api/esign';
+import {
+  sealApi,
+  type Seal,
+  type SealGrant,
+  type SealGrantInput,
+  type SealSaveInput,
+} from '../api/esign';
 import {
   CATEGORY_OPTIONS,
   SEAL_STATUS_OPTIONS,
@@ -92,11 +98,14 @@ export default function SealList() {
     void load();
   }, [load]);
 
-  useEffect(() => () => {
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-    }
-  }, [previewUrl]);
+  useEffect(
+    () => () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    },
+    [previewUrl],
+  );
 
   const openPreview = async (record: Seal) => {
     try {
@@ -116,8 +125,8 @@ export default function SealList() {
   const downloadOriginal = async (record: Seal) => {
     try {
       const blob = await sealApi.download(record.id);
-      const extension = blob.type === 'image/jpeg' ? 'jpg'
-        : blob.type === 'image/gif' ? 'gif' : 'png';
+      const extension =
+        blob.type === 'image/jpeg' ? 'jpg' : blob.type === 'image/gif' ? 'gif' : 'png';
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -254,7 +263,12 @@ export default function SealList() {
         </Tag>
       ),
     },
-    { title: '创建时间', dataIndex: 'createTime', width: 160, render: (value) => formatTime(value) },
+    {
+      title: '创建时间',
+      dataIndex: 'createTime',
+      width: 160,
+      render: (value) => formatTime(value),
+    },
     {
       title: '操作',
       key: 'actions',
@@ -305,7 +319,9 @@ export default function SealList() {
       dataIndex: 'contractCategory',
       width: 120,
       render: (value: string | null) =>
-        value ? CATEGORY_OPTIONS.find((option) => option.value === value)?.label ?? value : '全部',
+        value
+          ? (CATEGORY_OPTIONS.find((option) => option.value === value)?.label ?? value)
+          : '全部',
     },
     {
       title: '金额上限',
@@ -331,7 +347,12 @@ export default function SealList() {
       ),
     },
     { title: '授权人ID', dataIndex: 'grantedBy', width: 110, render: (value) => value || '-' },
-    { title: '授权时间', dataIndex: 'createTime', width: 160, render: (value) => formatTime(value) },
+    {
+      title: '授权时间',
+      dataIndex: 'createTime',
+      width: 160,
+      render: (value) => formatTime(value),
+    },
   ];
 
   return (
@@ -404,7 +425,11 @@ export default function SealList() {
         destroyOnClose
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="name" label="印章名称" rules={[{ required: true, message: '请输入印章名称' }]}>
+          <Form.Item
+            name="name"
+            label="印章名称"
+            rules={[{ required: true, message: '请输入印章名称' }]}
+          >
             <Input maxLength={128} />
           </Form.Item>
           <Space size={12} style={{ width: '100%' }}>
@@ -492,7 +517,9 @@ export default function SealList() {
           {grantTarget ? (
             <Descriptions size="small" column={3} bordered>
               <Descriptions.Item label="印章">{grantTarget.name}</Descriptions.Item>
-              <Descriptions.Item label="类型">{sealTypeLabel(grantTarget.sealType)}</Descriptions.Item>
+              <Descriptions.Item label="类型">
+                {sealTypeLabel(grantTarget.sealType)}
+              </Descriptions.Item>
               <Descriptions.Item label="状态">
                 <Tag color={grantTarget.status === 'ENABLED' ? 'green' : 'default'}>
                   {grantTarget.status === 'ENABLED' ? '启用' : '停用'}
@@ -503,7 +530,13 @@ export default function SealList() {
           <Typography.Text type="secondary">
             仅授权范围内的签署人可在金额/类别限制内使用该印章；未授权用章返回 403 并写入审计日志。
           </Typography.Text>
-          <Table rowKey="id" size="small" columns={grantColumns} dataSource={grants} pagination={false} />
+          <Table
+            rowKey="id"
+            size="small"
+            columns={grantColumns}
+            dataSource={grants}
+            pagination={false}
+          />
         </Space>
       </Modal>
 

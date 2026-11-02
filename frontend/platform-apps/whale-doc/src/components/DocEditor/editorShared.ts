@@ -13,7 +13,16 @@ export const EMPTY_DOC: JSONContent = { type: 'doc', content: [{ type: 'paragrap
 export const SNAPSHOT_ACK_TIMEOUT_MS = 8000;
 
 /** 协作光标颜色（与后端 DocPresencePalette 一致） */
-const COLLAB_COLORS = ['#2563eb', '#7c3aed', '#db2777', '#ea580c', '#16a34a', '#0891b2', '#ca8a04', '#dc2626'];
+const COLLAB_COLORS = [
+  '#2563eb',
+  '#7c3aed',
+  '#db2777',
+  '#ea580c',
+  '#16a34a',
+  '#0891b2',
+  '#ca8a04',
+  '#dc2626',
+];
 
 /** 按用户ID选择稳定的协作颜色 */
 export function collabColor(seed: number | string | undefined): string {

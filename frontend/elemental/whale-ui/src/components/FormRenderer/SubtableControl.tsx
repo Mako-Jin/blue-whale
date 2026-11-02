@@ -128,9 +128,7 @@ export function SubtableControl({
 
   if (children.length === 0) {
     return (
-      <Typography.Text type="secondary">
-        子表未配置子字段，请在设计器属性面板中添加
-      </Typography.Text>
+      <Typography.Text type="secondary">子表未配置子字段，请在设计器属性面板中添加</Typography.Text>
     );
   }
 
@@ -147,9 +145,7 @@ export function SubtableControl({
     ),
     dataIndex: child.key,
     render: (_value: unknown, row: SubtableRow, index: number) =>
-      renderSubCell(child, row[child.key], disabled, (cell) =>
-        updateCell(index, child.key, cell),
-      ),
+      renderSubCell(child, row[child.key], disabled, (cell) => updateCell(index, child.key, cell)),
   }));
   columns.push({
     title: '操作',

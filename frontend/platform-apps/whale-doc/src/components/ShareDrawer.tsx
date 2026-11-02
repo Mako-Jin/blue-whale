@@ -109,7 +109,12 @@ export default function ShareDrawer({ pageId, open, onClose }: ShareDrawerProps)
             onChange={setExpireDays}
             style={{ width: 140 }}
           />
-          <Button type="primary" icon={<LinkOutlined />} loading={creating} onClick={() => void create()}>
+          <Button
+            type="primary"
+            icon={<LinkOutlined />}
+            loading={creating}
+            onClick={() => void create()}
+          >
             创建链接
           </Button>
         </Space>
@@ -150,8 +155,15 @@ export default function ShareDrawer({ pageId, open, onClose }: ShareDrawerProps)
                     <List.Item.Meta
                       title={
                         <Space size={6}>
-                          <Tag color={invalid ? 'default' : 'green'}>{invalid ? '已失效' : '有效'}</Tag>
-                          <Text copyable={{ text: shareUrl(share.sharePath), tooltips: ['复制', '已复制'] }}>
+                          <Tag color={invalid ? 'default' : 'green'}>
+                            {invalid ? '已失效' : '有效'}
+                          </Tag>
+                          <Text
+                            copyable={{
+                              text: shareUrl(share.sharePath),
+                              tooltips: ['复制', '已复制'],
+                            }}
+                          >
                             {share.sharePath}
                           </Text>
                         </Space>
@@ -169,7 +181,11 @@ export default function ShareDrawer({ pageId, open, onClose }: ShareDrawerProps)
             />
           )}
         </Spin>
-        <Input.TextArea value="登录内可读：未登录用户打开链接会先跳转登录。" disabled autoSize={{ minRows: 1 }} />
+        <Input.TextArea
+          value="登录内可读：未登录用户打开链接会先跳转登录。"
+          disabled
+          autoSize={{ minRows: 1 }}
+        />
       </Space>
     </Drawer>
   );

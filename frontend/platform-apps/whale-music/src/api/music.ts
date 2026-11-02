@@ -595,7 +595,10 @@ export function getNewChart(params: PageQuery): Promise<PageResult<PublicSongVie
 }
 
 /** 站内搜索（关键词为空时后端返回稳定空结果） */
-export function searchMusic(params: { keyword: string; type?: SearchType }): Promise<SearchResultView> {
+export function searchMusic(params: {
+  keyword: string;
+  type?: SearchType;
+}): Promise<SearchResultView> {
   return http.get<SearchResultView>('/music/search', { ...params });
 }
 
@@ -617,8 +620,15 @@ export interface CommentView {
 }
 
 /** 发表评论或回复（parentId 为 0 或不传表示顶级评论） */
-export function submitComment(songId: number, content: string, parentId?: number): Promise<CommentView> {
-  return http.post<CommentView>(`/music/song/${songId}/comment`, { content, parentId: parentId ?? 0 });
+export function submitComment(
+  songId: number,
+  content: string,
+  parentId?: number,
+): Promise<CommentView> {
+  return http.post<CommentView>(`/music/song/${songId}/comment`, {
+    content,
+    parentId: parentId ?? 0,
+  });
 }
 
 /** 歌曲评论分页（顶级评论倒序并携带可见回复） */

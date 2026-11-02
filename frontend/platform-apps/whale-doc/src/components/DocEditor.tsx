@@ -155,7 +155,10 @@ export default function DocEditor({ pageId, onTreeChange, onDeleted }: DocEditor
   }, [reload]);
 
   useEffect(() => {
-    docApi.meta().then((meta) => setApprovalEnabled(meta.approvalEnabled)).catch(() => undefined);
+    docApi
+      .meta()
+      .then((meta) => setApprovalEnabled(meta.approvalEnabled))
+      .catch(() => undefined);
   }, []);
 
   // 编辑器就绪或重新载入后写入正文并设置编辑态（协作期间由 collabEditor 承载正文）
@@ -352,7 +355,9 @@ export default function DocEditor({ pageId, onTreeChange, onDeleted }: DocEditor
       {isFolder ? (
         <div className="doc-editor-folder-hint">
           <Title level={5}>目录节点</Title>
-          <Text type="secondary">目录用于组织页面层级，仅维护标题与排序；正文请在子页面中编写。</Text>
+          <Text type="secondary">
+            目录用于组织页面层级，仅维护标题与排序；正文请在子页面中编写。
+          </Text>
         </div>
       ) : (
         <>

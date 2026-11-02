@@ -1,17 +1,7 @@
 // 消息模板管理页 - 列表（分页 / 新增 / 编辑 / 启停 / 删除）
 // 操作按钮均按权限码渲染（AuthButton / usePermission），无权限自动隐藏
 
-import {
-  App,
-  Button,
-  Form,
-  Input,
-  Popconfirm,
-  Select,
-  Space,
-  Switch,
-  type TableProps,
-} from 'antd';
+import { App, Button, Form, Input, Popconfirm, Select, Space, Switch, type TableProps } from 'antd';
 import { useRef, useState } from 'react';
 import {
   AuthButton,
@@ -216,7 +206,12 @@ export default function TemplateList() {
                 name: 'status',
                 label: '状态',
                 element: (
-                  <Select allowClear options={STATUS_OPTIONS} placeholder="全部" style={{ width: 140 }} />
+                  <Select
+                    allowClear
+                    options={STATUS_OPTIONS}
+                    placeholder="全部"
+                    style={{ width: 140 }}
+                  />
                 ),
               },
             ]}

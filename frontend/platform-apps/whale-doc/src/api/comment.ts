@@ -14,7 +14,10 @@ export interface CommentCreatePayload {
 /** 评论接口 */
 export const commentApi = {
   list: (pageId: number, resolved?: boolean) =>
-    http.get<DocComment[]>(`/doc/page/${pageId}/comment`, resolved === undefined ? {} : { resolved }),
+    http.get<DocComment[]>(
+      `/doc/page/${pageId}/comment`,
+      resolved === undefined ? {} : { resolved },
+    ),
   create: (pageId: number, payload: CommentCreatePayload) =>
     http.post<DocComment>(`/doc/page/${pageId}/comment`, payload),
   resolve: (commentId: number, resolved: boolean) =>

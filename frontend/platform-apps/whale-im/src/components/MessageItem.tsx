@@ -209,7 +209,9 @@ function BotFeedback({
         type="text"
         aria-label="回答无帮助"
         disabled={busy}
-        icon={value === 'down' ? <DislikeFilled style={{ color: '#ff4d4f' }} /> : <DislikeOutlined />}
+        icon={
+          value === 'down' ? <DislikeFilled style={{ color: '#ff4d4f' }} /> : <DislikeOutlined />
+        }
         onClick={() => {
           void toggle('down');
         }}

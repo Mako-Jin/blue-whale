@@ -295,7 +295,9 @@ export default function FormDataList() {
             </Space>
           </Form.Item>
         </Form>
-        {query.definitionCode && dynamicFields.length > 0 ? <FilterPanel filters={dynamicFilter} /> : null}
+        {query.definitionCode && dynamicFields.length > 0 ? (
+          <FilterPanel filters={dynamicFilter} />
+        ) : null}
       </Card>
 
       <Table<FormDataItem>

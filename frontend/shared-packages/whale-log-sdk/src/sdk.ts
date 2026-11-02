@@ -331,10 +331,9 @@ export function initLogSdk(config: LogSdkConfig = {}): LogSdk {
   const buildRequest = (items: LogItem[]): LogBatchRequest => ({
     traceId,
     // 优先当前登录态；登出等「产生后登录态已被清空」的场景回落到条目产生时的用户快照
-    userId: resolveUserId() ?? items.reduce<number | null>(
-      (found, item) => found ?? itemUserIds.get(item) ?? null,
-      null,
-    ),
+    userId:
+      resolveUserId() ??
+      items.reduce<number | null>((found, item) => found ?? itemUserIds.get(item) ?? null, null),
     clientId,
     pageUrl: currentPageUrl(resolved.privacy),
     items,

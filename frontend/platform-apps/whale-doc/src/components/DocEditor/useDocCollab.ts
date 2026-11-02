@@ -134,38 +134,51 @@ export function useDocCollab({
         treeChangeRef.current();
       }
     },
-    [changeSeqRef, dirtyRef, pageRef, revisionRef, setChangeVersion, setDirty, setPage, setSavedAt, treeChangeRef],
+    [
+      changeSeqRef,
+      dirtyRef,
+      pageRef,
+      revisionRef,
+      setChangeVersion,
+      setDirty,
+      setPage,
+      setSavedAt,
+      treeChangeRef,
+    ],
   );
 
   /** 销毁协作编辑器与 provider（可选保留当前正文供 M1 编辑器续用） */
-  const detachCollab = useCallback((captureContent: boolean): boolean => {
-    const active = collabEditorRef.current;
-    collabEditorRef.current = null;
-    let captured = false;
-    if (active && !active.isDestroyed) {
-      if (captureContent) {
-        try {
-          contentRef.current = active.getJSON();
-          captured = true;
-        } catch {
-          // 编辑器异常时保留上一份本地正文
+  const detachCollab = useCallback(
+    (captureContent: boolean): boolean => {
+      const active = collabEditorRef.current;
+      collabEditorRef.current = null;
+      let captured = false;
+      if (active && !active.isDestroyed) {
+        if (captureContent) {
+          try {
+            contentRef.current = active.getJSON();
+            captured = true;
+          } catch {
+            // 编辑器异常时保留上一份本地正文
+          }
         }
+        active.destroy();
       }
-      active.destroy();
-    }
-    setCollabEditor(null);
-    const provider = providerRef.current;
-    providerRef.current = null;
-    provider?.destroy();
-    pendingSnapshotSeqRef.current = null;
-    ackResolverRef.current?.(false);
-    ackResolverRef.current = null;
-    collabActiveRef.current = false;
-    setCollabActive(false);
-    setCollabLeader(false);
-    setCollabUsers([]);
-    return captured;
-  }, [contentRef]);
+      setCollabEditor(null);
+      const provider = providerRef.current;
+      providerRef.current = null;
+      provider?.destroy();
+      pendingSnapshotSeqRef.current = null;
+      ackResolverRef.current?.(false);
+      ackResolverRef.current = null;
+      collabActiveRef.current = false;
+      setCollabActive(false);
+      setCollabLeader(false);
+      setCollabUsers([]);
+      return captured;
+    },
+    [contentRef],
+  );
 
   /** WS 故障后回退 M1 REST 自动保存，保留协作期间已产生但未落库的正文 */
   const fallbackFromCollab = useCallback(
@@ -234,61 +247,82 @@ export function useDocCollab({
       } catch {
         return;
       }
-      if (!enabled || collabDisabledRef.current || providerRef.current || pageRef.current?.id !== current.id) {
+      if (
+        !enabled ||
+        collabDisabledRef.current ||
+        providerRef.current ||
+        pageRef.current?.id !== current.id
+      ) {
         return;
       }
       const user = getCurrentUser();
       const name = user?.nickname || user?.username || '访客';
-      const provider = new DocCollabProvider(current.id, { name, color: collabColor(user?.userId) }, {
-        onStatus: (status) => setCollabStatus(status),
-        onReady: (payload) => {
-          if (providerRef.current !== provider) {
-            return;
-          }
-          revisionRef.current = payload.revision;
-          setCollabSnapshotSeconds(payload.snapshotSeconds);
-          setCollabLeader(payload.leader);
-          setCollabUsers(payload.users);
-          collabActiveRef.current = true;
-          setCollabActive(true);
-          // 标题通过共享 Y.Text 同步，优先采用协作会话中的最新标题
-          const sharedTitle = provider.getTitle();
-          if (sharedTitle) {
-            titleRef.current = sharedTitle;
-            setTitle(sharedTitle);
-          }
-          // 重连沿用已挂载的编辑器，仅首次 ready 创建协作编辑器
-          if (!payload.isReconnect) {
-            mountCollabEditor(current, provider, payload);
-          }
-          dirtyRef.current = false;
-          setDirty(false);
-          // 更新日志可能包含尚未落库的增量，leader 需要在下个周期补一次快照
-          if (payload.updates.length > 0) {
+      const provider = new DocCollabProvider(
+        current.id,
+        { name, color: collabColor(user?.userId) },
+        {
+          onStatus: (status) => setCollabStatus(status),
+          onReady: (payload) => {
+            if (providerRef.current !== provider) {
+              return;
+            }
+            revisionRef.current = payload.revision;
+            setCollabSnapshotSeconds(payload.snapshotSeconds);
+            setCollabLeader(payload.leader);
+            setCollabUsers(payload.users);
+            collabActiveRef.current = true;
+            setCollabActive(true);
+            // 标题通过共享 Y.Text 同步，优先采用协作会话中的最新标题
+            const sharedTitle = provider.getTitle();
+            if (sharedTitle) {
+              titleRef.current = sharedTitle;
+              setTitle(sharedTitle);
+            }
+            // 重连沿用已挂载的编辑器，仅首次 ready 创建协作编辑器
+            if (!payload.isReconnect) {
+              mountCollabEditor(current, provider, payload);
+            }
+            dirtyRef.current = false;
+            setDirty(false);
+            // 更新日志可能包含尚未落库的增量，leader 需要在下个周期补一次快照
+            if (payload.updates.length > 0) {
+              markChange();
+            }
+          },
+          onPresence: (users) => setCollabUsers(users),
+          onLeader: (leader) => setCollabLeader(leader),
+          onTitle: (value) => {
+            titleRef.current = value;
+            setTitle(value);
             markChange();
-          }
+          },
+          onSnapshotAck: (revision, savedAt, skipped) => {
+            const seq = pendingSnapshotSeqRef.current;
+            pendingSnapshotSeqRef.current = null;
+            applyCollabSnapshot(revision, savedAt, seq, skipped);
+            ackResolverRef.current?.(true);
+          },
+          // 其他协作者的更新也需要让 leader 在周期快照中落库
+          onRemoteUpdate: () => markChange(),
+          onError: (text) => fallbackFromCollab(text),
         },
-        onPresence: (users) => setCollabUsers(users),
-        onLeader: (leader) => setCollabLeader(leader),
-        onTitle: (value) => {
-          titleRef.current = value;
-          setTitle(value);
-          markChange();
-        },
-        onSnapshotAck: (revision, savedAt, skipped) => {
-          const seq = pendingSnapshotSeqRef.current;
-          pendingSnapshotSeqRef.current = null;
-          applyCollabSnapshot(revision, savedAt, seq, skipped);
-          ackResolverRef.current?.(true);
-        },
-        // 其他协作者的更新也需要让 leader 在周期快照中落库
-        onRemoteUpdate: () => markChange(),
-        onError: (text) => fallbackFromCollab(text),
-      });
+      );
       providerRef.current = provider;
       await provider.connect();
     },
-    [editor, mountCollabEditor, fallbackFromCollab, applyCollabSnapshot, markChange, dirtyRef, pageRef, revisionRef, setDirty, setTitle, titleRef],
+    [
+      editor,
+      mountCollabEditor,
+      fallbackFromCollab,
+      applyCollabSnapshot,
+      markChange,
+      dirtyRef,
+      pageRef,
+      revisionRef,
+      setDirty,
+      setTitle,
+      titleRef,
+    ],
   );
 
   /** 协作模式下的保存路径：leader 提交快照并等待确认 */

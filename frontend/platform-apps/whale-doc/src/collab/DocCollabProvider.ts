@@ -101,7 +101,9 @@ function encodeBase64(bytes: Uint8Array): string {
 
 /** 生成客户端ID */
 function newClientId(): string {
-  return crypto.randomUUID ? crypto.randomUUID() : `doc-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return crypto.randomUUID
+    ? crypto.randomUUID()
+    : `doc-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 /** 文档协作 provider：Y.Doc + Awareness + WebSocket JSON 帧 */
@@ -315,7 +317,9 @@ export class DocCollabProvider {
         this.handleSnapshotAck(frame);
         break;
       case 'error':
-        this.callbacks.onError?.(typeof frame.message === 'string' ? frame.message : '协作服务返回错误');
+        this.callbacks.onError?.(
+          typeof frame.message === 'string' ? frame.message : '协作服务返回错误',
+        );
         break;
       case 'pong':
         break;
@@ -327,12 +331,16 @@ export class DocCollabProvider {
   /** 处理 ready：应用更新日志、广播状态、重连时回传本地全量状态 */
   private handleReady(frame: Record<string, unknown>): void {
     const wasSynced = this.synced;
-    const updates = Array.isArray(frame.updates) ? frame.updates.filter((item): item is string => typeof item === 'string') : [];
+    const updates = Array.isArray(frame.updates)
+      ? frame.updates.filter((item): item is string => typeof item === 'string')
+      : [];
     updates.forEach((update) => this.applyRemoteUpdate(update));
     this.synced = true;
     this.revision = typeof frame.revision === 'number' ? frame.revision : 0;
     this.snapshotInterval =
-      typeof frame.snapshotSeconds === 'number' && frame.snapshotSeconds > 0 ? frame.snapshotSeconds : 12;
+      typeof frame.snapshotSeconds === 'number' && frame.snapshotSeconds > 0
+        ? frame.snapshotSeconds
+        : 12;
     this.leader = Boolean(frame.leader);
     if (wasSynced) {
       // 重连：把本端离线期间的 Yjs 状态合并回共享文档（Yjs 更新幂等，不会覆盖他人删除）
@@ -425,7 +433,10 @@ export class DocCollabProvider {
     if (clients.length === 0) {
       return;
     }
-    this.send({ type: 'awareness', update: encodeBase64(encodeAwarenessUpdate(this.awareness, clients)) });
+    this.send({
+      type: 'awareness',
+      update: encodeBase64(encodeAwarenessUpdate(this.awareness, clients)),
+    });
   };
 
   /** 心跳：刷新 presence、续期 leader、补位、断线检测 */

@@ -34,7 +34,10 @@ export default function CommentTab({ page, onRead }: { page: DocPage; onRead: ()
   useEffect(() => {
     void load();
     // 打开评论页签视为已读，清除角标（M2-7）
-    commentApi.markRead(page.id).then(() => onRead()).catch(() => undefined);
+    commentApi
+      .markRead(page.id)
+      .then(() => onRead())
+      .catch(() => undefined);
   }, [load, page.id, onRead]);
 
   /** 便捷插入 @ 用户ID（后端从正文解析提及） */
@@ -68,8 +71,8 @@ export default function CommentTab({ page, onRead }: { page: DocPage; onRead: ()
   };
 
   const canModify = (comment: DocComment) =>
-    String(comment.authorId) === String(currentUserId ?? '')
-    || (page.canManage && hasPermission('sys:doc:comment:manage'));
+    String(comment.authorId) === String(currentUserId ?? '') ||
+    (page.canManage && hasPermission('sys:doc:comment:manage'));
   const canComment = page.canComment && hasPermission('sys:doc:comment:add');
 
   const toggleResolve = async (comment: DocComment, resolved: boolean) => {
@@ -106,12 +109,22 @@ export default function CommentTab({ page, onRead }: { page: DocPage; onRead: ()
         ),
         ...(canModify(comment)
           ? [
-              <Button key="resolve" type="link" size="small"
-                onClick={() => void toggleResolve(comment, !comment.resolved)}>
+              <Button
+                key="resolve"
+                type="link"
+                size="small"
+                onClick={() => void toggleResolve(comment, !comment.resolved)}
+              >
                 {comment.resolved ? '重新打开' : '标记解决'}
               </Button>,
-              <Button key="delete" type="link" size="small" danger icon={<DeleteOutlined />}
-                onClick={() => remove(comment)} />,
+              <Button
+                key="delete"
+                type="link"
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                onClick={() => remove(comment)}
+              />,
             ]
           : []),
       ].filter(Boolean)}
@@ -169,8 +182,13 @@ export default function CommentTab({ page, onRead }: { page: DocPage; onRead: ()
         <Button type="text" disabled={!canComment} onClick={insertMention}>
           @提及
         </Button>
-        <Button type="primary" icon={<SendOutlined />} loading={submitting} disabled={!canComment}
-          onClick={() => void submit()}>
+        <Button
+          type="primary"
+          icon={<SendOutlined />}
+          loading={submitting}
+          disabled={!canComment}
+          onClick={() => void submit()}
+        >
           发送
         </Button>
       </Space.Compact>

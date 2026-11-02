@@ -120,11 +120,7 @@ export function renderMarkdown(text: string): ReactNode {
 
     // 段落：连续非空、非块级语法行合并
     const paragraph: string[] = [];
-    while (
-      cursor < lines.length &&
-      lines[cursor].trim() !== '' &&
-      !isBlockStart(lines[cursor])
-    ) {
+    while (cursor < lines.length && lines[cursor].trim() !== '' && !isBlockStart(lines[cursor])) {
       paragraph.push(lines[cursor]);
       cursor += 1;
     }

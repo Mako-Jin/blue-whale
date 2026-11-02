@@ -69,7 +69,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const loadedTrackRef = useRef<number | null>(null);
   const currentRef = useRef<PlayableTrack | null>(null);
 
-  const current = index >= 0 ? queue[index] ?? null : null;
+  const current = index >= 0 ? (queue[index] ?? null) : null;
 
   useEffect(() => {
     currentRef.current = current;
@@ -89,7 +89,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     audio.preload = 'metadata';
     audioRef.current = audio;
     const onTimeUpdate = () => setCurrentTime(audio.currentTime);
-    const onLoadedMetadata = () => setDuration(Number.isFinite(audio.duration) ? audio.duration : 0);
+    const onLoadedMetadata = () =>
+      setDuration(Number.isFinite(audio.duration) ? audio.duration : 0);
     const onPlay = () => setPlaying(true);
     const onPause = () => setPlaying(false);
     audio.addEventListener('timeupdate', onTimeUpdate);
@@ -182,7 +183,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const play = useCallback((track: PlayableTrack, list?: PlayableTrack[]) => {
     const nextQueue = list && list.length ? list : [track];
-    const nextIndex = Math.max(nextQueue.findIndex((item) => item.id === track.id), 0);
+    const nextIndex = Math.max(
+      nextQueue.findIndex((item) => item.id === track.id),
+      0,
+    );
     setQueue(nextQueue);
     setIndex(nextIndex);
     const audio = audioRef.current;
@@ -255,8 +259,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   return (
     <PlayerContext.Provider
-      value={{ queue, current, playing, currentTime, duration, volume, lyricText, play,
-        enqueue, toggle, next, prev, seek, setVolume }}
+      value={{
+        queue,
+        current,
+        playing,
+        currentTime,
+        duration,
+        volume,
+        lyricText,
+        play,
+        enqueue,
+        toggle,
+        next,
+        prev,
+        seek,
+        setVolume,
+      }}
     >
       {children}
     </PlayerContext.Provider>

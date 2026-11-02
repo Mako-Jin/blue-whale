@@ -53,7 +53,9 @@ export default function Composer({ disabled, sending, onSend }: ComposerProps) {
       if (!ok) {
         message.warning('附件已上传，但消息发送失败，请重试');
       } else {
-        message.success(`已发送${contentType === 'IMAGE' ? '图片' : '文件'}：${uploaded.originalName}（${formatSize(uploaded.fileSize)}）`);
+        message.success(
+          `已发送${contentType === 'IMAGE' ? '图片' : '文件'}：${uploaded.originalName}（${formatSize(uploaded.fileSize)}）`,
+        );
       }
     } catch (error) {
       logger.warn('附件发送失败', error);

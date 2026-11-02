@@ -3,10 +3,7 @@
 // key 前缀（whale_fd_）与登录字段合并语义（审计 P1：消灭多份拷贝）。
 // V-03：accessToken 不再落盘 localStorage，静默续期走 HttpOnly 刷新 Cookie。
 
-import {
-  bootstrapAuth as bootstrapAuthShared,
-  createAuthStorage,
-} from '@bluewhale/whale-auth';
+import { bootstrapAuth as bootstrapAuthShared, createAuthStorage } from '@bluewhale/whale-auth';
 import type { AuthMeResponse, LoginResponse, MenuNode, UserInfo } from '@bluewhale/whale-auth';
 
 export type { AuthMeResponse, LoginResponse, MenuNode, UserInfo };

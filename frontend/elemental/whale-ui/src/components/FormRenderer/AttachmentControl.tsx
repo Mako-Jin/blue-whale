@@ -66,7 +66,9 @@ export function AttachmentControl({
       const uploaded: WhaleUploadedFile[] = [];
       for (const file of allowed) {
         // 顺序上传，保持用户选择顺序
-        uploaded.push(runtime.uploadFile ? await runtime.uploadFile(file) : await defaultUpload(file, runtime));
+        uploaded.push(
+          runtime.uploadFile ? await runtime.uploadFile(file) : await defaultUpload(file, runtime),
+        );
       }
       setMeta((previous) => {
         const next = { ...previous };
@@ -108,7 +110,12 @@ export function AttachmentControl({
               {meta[id]?.size ? (
                 <Typography.Text type="secondary">{formatSize(meta[id]?.size)}</Typography.Text>
               ) : null}
-              <Button size="small" type="link" disabled={disabled} onClick={() => void handleDownload(id)}>
+              <Button
+                size="small"
+                type="link"
+                disabled={disabled}
+                onClick={() => void handleDownload(id)}
+              >
                 下载
               </Button>
               <Button

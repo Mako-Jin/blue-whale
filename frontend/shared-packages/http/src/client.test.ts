@@ -18,7 +18,10 @@ let cookieJar = '';
 /**
  * 读取第 n 次 fetch 调用的 URL 与请求头（Headers 实例）。
  */
-function callAt(fetchMock: ReturnType<typeof vi.fn>, index: number): { url: string; headers: Headers } {
+function callAt(
+  fetchMock: ReturnType<typeof vi.fn>,
+  index: number,
+): { url: string; headers: Headers } {
   const [url, init] = (fetchMock.mock.calls as unknown as FetchCall[])[index];
   return { url, headers: init.headers as Headers };
 }
@@ -39,7 +42,9 @@ describe('createHttpClient', () => {
   });
 
   it('GET 注入 Bearer/Trace-Id、忽略空查询参数、不带 CSRF', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ code: 0, message: 'ok', data: { id: 7 } }));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ code: 0, message: 'ok', data: { id: 7 } }));
     vi.stubGlobal('fetch', fetchMock);
     const client = createHttpClient({ baseUrl: 'http://api', getToken: () => 'token-abc' });
 
@@ -59,7 +64,9 @@ describe('createHttpClient', () => {
   });
 
   it('非 GET 请求回传 CSRF 头并 JSON 序列化请求体', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ code: 0, message: 'ok', data: null }));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ code: 0, message: 'ok', data: null }));
     vi.stubGlobal('fetch', fetchMock);
     const client = createHttpClient({ baseUrl: '', getToken: () => 'tk' });
 
@@ -73,7 +80,9 @@ describe('createHttpClient', () => {
 
   it('CSRF Cookie 缺失时不注入该请求头', async () => {
     cookieJar = '';
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ code: 0, message: 'ok', data: null }));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ code: 0, message: 'ok', data: null }));
     vi.stubGlobal('fetch', fetchMock);
     const client = createHttpClient({});
 
@@ -83,22 +92,34 @@ describe('createHttpClient', () => {
   });
 
   it('业务码非 0 时抛 ApiError（即使 HTTP 200）', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ code: 400, message: '参数错误', data: null }));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ code: 400, message: '参数错误', data: null }));
     vi.stubGlobal('fetch', fetchMock);
     const client = createHttpClient({});
 
-    await expect(client.get('/doc/meta')).rejects.toMatchObject({ name: 'ApiError', code: 400, message: '参数错误' });
+    await expect(client.get('/doc/meta')).rejects.toMatchObject({
+      name: 'ApiError',
+      code: 400,
+      message: '参数错误',
+    });
   });
 
   it('401 时单飞续期并重放一次原请求', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse({ code: 401, message: '过期', data: null }, 401))
-      .mockResolvedValueOnce(jsonResponse({ code: 0, message: 'ok', data: { accessToken: 'new-token' } }))
+      .mockResolvedValueOnce(
+        jsonResponse({ code: 0, message: 'ok', data: { accessToken: 'new-token' } }),
+      )
       .mockResolvedValueOnce(jsonResponse({ code: 0, message: 'ok', data: { ok: true } }));
     vi.stubGlobal('fetch', fetchMock);
     const saveLogin = vi.fn();
-    const client = createHttpClient({ baseUrl: 'http://api', getToken: () => 'old-token', saveLogin });
+    const client = createHttpClient({
+      baseUrl: 'http://api',
+      getToken: () => 'old-token',
+      saveLogin,
+    });
 
     const data = await client.get<{ ok: boolean }>('/doc/meta');
 
@@ -124,7 +145,11 @@ describe('createHttpClient', () => {
       return jsonResponse({ code: 401, message: '过期', data: null }, 401);
     });
     vi.stubGlobal('fetch', fetchMock);
-    const client = createHttpClient({ baseUrl: 'http://api', getToken: () => 'old-token', saveLogin: vi.fn() });
+    const client = createHttpClient({
+      baseUrl: 'http://api',
+      getToken: () => 'old-token',
+      saveLogin: vi.fn(),
+    });
 
     // 两个请求各自 401 后共享同一次刷新；刷新后重放仍 401 → 各自抛出
     const pending = Promise.allSettled([client.get('/doc/a'), client.get('/doc/b')]);
@@ -140,11 +165,18 @@ describe('createHttpClient', () => {
   });
 
   it('登录路径 401 不触发续期，直接清态并抛出', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ code: 401, message: '账号或口令错误', data: null }, 401));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ code: 401, message: '账号或口令错误', data: null }, 401));
     vi.stubGlobal('fetch', fetchMock);
     const clearAuth = vi.fn();
     const onUnauthorized = vi.fn();
-    const client = createHttpClient({ baseUrl: 'http://api', saveLogin: vi.fn(), clearAuth, onUnauthorized });
+    const client = createHttpClient({
+      baseUrl: 'http://api',
+      saveLogin: vi.fn(),
+      clearAuth,
+      onUnauthorized,
+    });
 
     await expect(client.post('/auth/login', { username: 'u' })).rejects.toMatchObject({
       name: 'ApiError',
@@ -156,7 +188,9 @@ describe('createHttpClient', () => {
   });
 
   it('未配置 saveLogin 时 401 直接抛出 ApiError', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ code: 401, message: '登录已失效', data: null }, 401));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ code: 401, message: '登录已失效', data: null }, 401));
     vi.stubGlobal('fetch', fetchMock);
     const client = createHttpClient({ baseUrl: 'http://api' });
 
@@ -185,18 +219,24 @@ describe('createHttpClient', () => {
     const encoder = new TextEncoder();
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
-        controller.enqueue(encoder.encode('event: meta\ndata: {"a":1}\n\nevent: delta\ndata: 纯文本\n\n'));
+        controller.enqueue(
+          encoder.encode('event: meta\ndata: {"a":1}\n\nevent: delta\ndata: 纯文本\n\n'),
+        );
         controller.close();
       },
     });
     const fetchMock = vi
       .fn()
-      .mockResolvedValue(new Response(stream, { status: 200, headers: { 'Content-Type': 'text/event-stream' } }));
+      .mockResolvedValue(
+        new Response(stream, { status: 200, headers: { 'Content-Type': 'text/event-stream' } }),
+      );
     vi.stubGlobal('fetch', fetchMock);
     const client = createHttpClient({ baseUrl: 'http://api', getToken: () => 'tk' });
     const events: Array<[string, unknown]> = [];
 
-    await client.streamSse('/agent/chat/stream', { q: 'hi' }, (event, data) => events.push([event, data]));
+    await client.streamSse('/agent/chat/stream', { q: 'hi' }, (event, data) =>
+      events.push([event, data]),
+    );
 
     expect(events).toEqual([
       ['meta', { a: 1 }],

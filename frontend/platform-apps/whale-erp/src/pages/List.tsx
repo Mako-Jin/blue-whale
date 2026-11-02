@@ -55,13 +55,12 @@ export default function List({ refreshKey, onCreate, onEdit }: ListProps) {
       title: '操作',
       key: 'action',
       width: 120,
-      render: (_, record) => (
+      render: (_, record) =>
         hasPermission('sys:erp:item:edit') ? (
           <Button type="link" onClick={() => onEdit(record)}>
             编辑
           </Button>
-        ) : null
-      ),
+        ) : null,
     },
   ];
 

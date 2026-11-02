@@ -68,7 +68,9 @@ export default function SearchPage() {
     <List<PublicSongView>
       size="small"
       dataSource={songs}
-      locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="无歌曲结果" /> }}
+      locale={{
+        emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="无歌曲结果" />,
+      }}
       renderItem={(song) => (
         <List.Item
           className="music-board-item"
@@ -103,9 +105,13 @@ export default function SearchPage() {
     <List<ArtistView>
       size="small"
       dataSource={artists}
-      locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="无歌手结果" /> }}
+      locale={{
+        emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="无歌手结果" />,
+      }}
       renderItem={(artist) => (
-        <List.Item extra={<Typography.Text type="secondary">{artist.region ?? '-'}</Typography.Text>}>
+        <List.Item
+          extra={<Typography.Text type="secondary">{artist.region ?? '-'}</Typography.Text>}
+        >
           <Typography.Text>{artist.name}</Typography.Text>
         </List.Item>
       )}
@@ -116,7 +122,9 @@ export default function SearchPage() {
     <List<AlbumView>
       size="small"
       dataSource={albums}
-      locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="无专辑结果" /> }}
+      locale={{
+        emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="无专辑结果" />,
+      }}
       renderItem={(album) => (
         <List.Item
           extra={<Typography.Text type="secondary">{album.releaseDate ?? '-'}</Typography.Text>}
@@ -131,7 +139,9 @@ export default function SearchPage() {
     <List<PlaylistView>
       size="small"
       dataSource={playlists}
-      locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="无歌单结果" /> }}
+      locale={{
+        emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="无歌单结果" />,
+      }}
       renderItem={(playlist) => (
         <List.Item
           className="music-board-item"

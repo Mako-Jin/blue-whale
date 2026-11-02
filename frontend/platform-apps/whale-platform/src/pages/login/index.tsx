@@ -69,11 +69,7 @@ export default function LoginPage() {
             <Input placeholder="租户编码（默认 default）" autoComplete="organization" />
           </Form.Item>
           <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>
-            <Input
-              prefix={<UserOutlined />}
-              placeholder="请输入用户名"
-              autoComplete="username"
-            />
+            <Input prefix={<UserOutlined />} placeholder="请输入用户名" autoComplete="username" />
           </Form.Item>
           <Form.Item name="password" rules={[{ required: true, message: '请输入密码' }]}>
             <Input.Password

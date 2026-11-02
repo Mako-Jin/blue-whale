@@ -21,7 +21,11 @@ export { refreshSession as refresh } from './client';
 
 // 登录：POST /auth/login（网关白名单，免 JWT）
 // tenantCode 为租户编码，留空由后端回落到默认租户 default（Wave 5.54 Phase 0）
-export async function login(username: string, password: string, tenantCode?: string): Promise<LoginResponse> {
+export async function login(
+  username: string,
+  password: string,
+  tenantCode?: string,
+): Promise<LoginResponse> {
   const data = await post<LoginResponse>('/auth/login', {
     tenantCode: tenantCode?.trim() || undefined,
     username,
@@ -75,7 +79,10 @@ export async function listMyTenants(): Promise<MyTenantVO[]> {
 
 // 切换租户：POST /auth/tenant/switch（Wave 5.54 Phase 5.2）
 // 成功即落盘新令牌与目标租户编码；失败不改变本地登录态，由调用方提示
-export async function switchTenant(tenantId: number | string, tenantCode: string): Promise<LoginResponse> {
+export async function switchTenant(
+  tenantId: number | string,
+  tenantCode: string,
+): Promise<LoginResponse> {
   const data = await post<LoginResponse>('/auth/tenant/switch', {
     tenantId,
   });

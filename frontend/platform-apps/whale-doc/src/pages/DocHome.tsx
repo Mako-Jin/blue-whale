@@ -120,7 +120,9 @@ export default function DocHome() {
           <Space direction="vertical" size={8}>
             <Typography.Text>· 文档空间列表与新建空间（B1-2 / F1-3）</Typography.Text>
             <Typography.Text>· 空间工作台与页面树（B1-3 / F1-4）</Typography.Text>
-            <Typography.Text>· TipTap 编辑器、自动保存与版本冲突提示（B1-4 / F1-5 / F1-6）</Typography.Text>
+            <Typography.Text>
+              · TipTap 编辑器、自动保存与版本冲突提示（B1-4 / F1-5 / F1-6）
+            </Typography.Text>
             <Typography.Text>· 评论、附件、搜索与收藏（B1-5 ~ B1-7 / F1-8）</Typography.Text>
           </Space>
           <div style={{ marginTop: 16 }}>
@@ -129,7 +131,9 @@ export default function DocHome() {
                 新建空间
               </Button>
               <Typography.Text type="secondary">
-                {hasPermission('sys:doc:space:add') ? '空间创建接口将在 M1 下一阶段接入' : '当前账号无创建空间权限'}
+                {hasPermission('sys:doc:space:add')
+                  ? '空间创建接口将在 M1 下一阶段接入'
+                  : '当前账号无创建空间权限'}
               </Typography.Text>
             </Space>
           </div>

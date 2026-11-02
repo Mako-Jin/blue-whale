@@ -43,5 +43,7 @@ export async function listPdmProducts(): Promise<PdmProduct[]> {
 /** 保存产品/图纸（无 id 走新增，有 id 走编辑） */
 export function savePdmProduct(input: PdmProductInput): Promise<PdmProduct> {
   const { id, ...body } = input;
-  return id ? http.put<PdmProduct>(`/pdm/product/${id}`, body) : http.post<PdmProduct>('/pdm/product', body);
+  return id
+    ? http.put<PdmProduct>(`/pdm/product/${id}`, body)
+    : http.post<PdmProduct>('/pdm/product', body);
 }

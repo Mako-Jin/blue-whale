@@ -15,7 +15,9 @@ import {
 } from './values';
 
 /** 构造最小字段配置 */
-function field(partial: Partial<WhaleFormFieldConfig> & { fieldLabel: string }): WhaleFormFieldConfig {
+function field(
+  partial: Partial<WhaleFormFieldConfig> & { fieldLabel: string },
+): WhaleFormFieldConfig {
   return partial;
 }
 
@@ -112,7 +114,11 @@ describe('toInternalValues', () => {
   const switchField = field({ fieldLabel: '开关', columnCode: 'enabled', widgetType: 'switch' });
   const dateField = field({ fieldLabel: '日期', columnCode: 'day', widgetType: 'date' });
   const checkboxField = field({ fieldLabel: '标签', columnCode: 'tags', widgetType: 'checkbox' });
-  const attachmentField = field({ fieldLabel: '附件', columnCode: 'files', widgetType: 'attachment' });
+  const attachmentField = field({
+    fieldLabel: '附件',
+    columnCode: 'files',
+    widgetType: 'attachment',
+  });
   const layoutField = field({ fieldLabel: '标题', columnCode: 'title', widgetType: 'title' });
 
   it('switch 的 1 / "1" / true 统一转 boolean', () => {

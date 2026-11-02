@@ -55,7 +55,11 @@ describe('createAuthStorage', () => {
 
     auth.saveCurrentUser({ username: 'admin', nickname: '管理员', roles: ['ADMIN'] });
 
-    expect(auth.getCurrentUser()).toEqual({ username: 'admin', nickname: '管理员', roles: ['ADMIN'] });
+    expect(auth.getCurrentUser()).toEqual({
+      username: 'admin',
+      nickname: '管理员',
+      roles: ['ADMIN'],
+    });
     expect(storage.get('k2_user')).toContain('admin');
   });
 

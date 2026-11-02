@@ -1,11 +1,7 @@
 // 供应商表单：新增/编辑两态，提交到 ERP 供应商主数据接口
 import { useEffect } from 'react';
 import { Form, Input, Modal, Select, message } from 'antd';
-import {
-  saveErpSupplier,
-  type ErpSupplier,
-  type ErpSupplierInput,
-} from '../api/erp';
+import { saveErpSupplier, type ErpSupplier, type ErpSupplierInput } from '../api/erp';
 
 interface SupplierFormModalProps {
   /** 弹窗可见性 */
@@ -69,16 +65,28 @@ export default function SupplierFormModal({
         layout="vertical"
         initialValues={{ category: 'MATERIAL', status: 'ENABLED' }}
       >
-        <Form.Item name="code" label="供应商编码" rules={[{ required: true, message: '请输入供应商编码' }]}>
+        <Form.Item
+          name="code"
+          label="供应商编码"
+          rules={[{ required: true, message: '请输入供应商编码' }]}
+        >
           <Input placeholder="如 SUP-001" maxLength={64} />
         </Form.Item>
-        <Form.Item name="name" label="供应商名称" rules={[{ required: true, message: '请输入供应商名称' }]}>
+        <Form.Item
+          name="name"
+          label="供应商名称"
+          rules={[{ required: true, message: '请输入供应商名称' }]}
+        >
           <Input placeholder="请输入供应商名称" maxLength={128} />
         </Form.Item>
         <Form.Item name="shortName" label="供应商简称">
           <Input placeholder="选填" maxLength={64} />
         </Form.Item>
-        <Form.Item name="category" label="供应商分类" rules={[{ required: true, message: '请选择分类' }]}>
+        <Form.Item
+          name="category"
+          label="供应商分类"
+          rules={[{ required: true, message: '请选择分类' }]}
+        >
           <Select options={CATEGORY_OPTIONS} />
         </Form.Item>
         <Form.Item name="contactName" label="联系人">

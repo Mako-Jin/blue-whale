@@ -54,11 +54,7 @@ export interface ThemeInput {
 
 /** 时间戳格式，也可直接传入自定义格式化函数。 */
 export type TimestampFormat =
-  | 'HH:mm:ss'
-  | 'HH:mm:ss.SSS'
-  | 'YYYY-MM-DD HH:mm:ss'
-  | 'YYYY-MM-DD HH:mm:ss.SSS'
-  | 'ISO';
+  'HH:mm:ss' | 'HH:mm:ss.SSS' | 'YYYY-MM-DD HH:mm:ss' | 'YYYY-MM-DD HH:mm:ss.SSS' | 'ISO';
 
 /**
  * 着色渲染模式。

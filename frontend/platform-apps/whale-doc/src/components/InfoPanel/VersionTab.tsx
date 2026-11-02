@@ -1,7 +1,19 @@
 // 版本历史页签：快照列表、预览、手动保存与恢复
 
 import { useCallback, useEffect, useState } from 'react';
-import { App, Button, Empty, Input, List, Modal, Pagination, Space, Spin, Tag, Typography } from 'antd';
+import {
+  App,
+  Button,
+  Empty,
+  Input,
+  List,
+  Modal,
+  Pagination,
+  Space,
+  Spin,
+  Tag,
+  Typography,
+} from 'antd';
 import { HistoryOutlined } from '@ant-design/icons';
 import { hasPermission } from '../../api/client';
 import { versionApi } from '../../api/version';
@@ -97,7 +109,11 @@ export default function VersionTab({
   return (
     <div>
       <Space style={{ marginBottom: 12 }}>
-        <Button icon={<HistoryOutlined />} onClick={() => setManualOpen(true)} disabled={!page.canEdit}>
+        <Button
+          icon={<HistoryOutlined />}
+          onClick={() => setManualOpen(true)}
+          disabled={!page.canEdit}
+        >
           保存当前版本
         </Button>
         <Text type="secondary">共 {total} 个快照</Text>
@@ -109,7 +125,12 @@ export default function VersionTab({
           renderItem={(version) => (
             <List.Item
               actions={[
-                <Button key="preview" type="link" size="small" onClick={() => void openPreview(version)}>
+                <Button
+                  key="preview"
+                  type="link"
+                  size="small"
+                  onClick={() => void openPreview(version)}
+                >
                   预览
                 </Button>,
                 <Button
@@ -145,8 +166,14 @@ export default function VersionTab({
       </Spin>
       {total > 10 && (
         <div style={{ textAlign: 'right', marginTop: 12 }}>
-          <Pagination current={current} pageSize={10} total={total} showSizeChanger={false}
-            onChange={setCurrent} size="small" />
+          <Pagination
+            current={current}
+            pageSize={10}
+            total={total}
+            showSizeChanger={false}
+            onChange={setCurrent}
+            size="small"
+          />
         </div>
       )}
 

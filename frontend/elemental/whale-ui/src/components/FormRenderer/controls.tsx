@@ -29,7 +29,11 @@ export function renderLayout(field: WhaleFormFieldConfig) {
 }
 
 /** 渲染数据字段控件（disabled 已由调用方合并「整体禁用 + editable=0」） */
-export function renderControl(field: WhaleFormFieldConfig, disabled: boolean, runtime: FileRuntime) {
+export function renderControl(
+  field: WhaleFormFieldConfig,
+  disabled: boolean,
+  runtime: FileRuntime,
+) {
   switch (field.widgetType) {
     case 'textarea':
       return <Input.TextArea placeholder={field.placeholder} disabled={disabled} />;

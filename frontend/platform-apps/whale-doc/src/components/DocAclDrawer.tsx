@@ -36,7 +36,13 @@ interface DocAclDrawerProps {
   onUpdated: () => void;
 }
 
-export default function DocAclDrawer({ pageId, pageTitle, open, onClose, onUpdated }: DocAclDrawerProps) {
+export default function DocAclDrawer({
+  pageId,
+  pageTitle,
+  open,
+  onClose,
+  onUpdated,
+}: DocAclDrawerProps) {
   const { message } = App.useApp();
   const [restricted, setRestricted] = useState(false);
   const [rows, setRows] = useState<AclRow[]>([]);

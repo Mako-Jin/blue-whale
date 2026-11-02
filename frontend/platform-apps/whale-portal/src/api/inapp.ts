@@ -38,10 +38,13 @@ export async function pageInAppMessages(params: {
   search.set('current', String(params.current));
   search.set('size', String(params.size));
   if (params.readFlag !== undefined) search.set('readFlag', String(params.readFlag));
-  const page = await http.get<PageResult<InAppMessage>>(
-    `/message/inapp/page?${search.toString()}`,
-  );
-  return { records: page?.records ?? [], total: page?.total ?? 0, current: page?.current ?? params.current, size: page?.size ?? params.size };
+  const page = await http.get<PageResult<InAppMessage>>(`/message/inapp/page?${search.toString()}`);
+  return {
+    records: page?.records ?? [],
+    total: page?.total ?? 0,
+    current: page?.current ?? params.current,
+    size: page?.size ?? params.size,
+  };
 }
 
 /** 查询本人未读站内信数量 */

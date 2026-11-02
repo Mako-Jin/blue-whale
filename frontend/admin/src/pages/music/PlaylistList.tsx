@@ -19,13 +19,7 @@ import {
   type TableProps,
 } from 'antd';
 import { useEffect, useRef, useState } from 'react';
-import {
-  AuthButton,
-  FormModal,
-  ProTable,
-  SearchForm,
-  type ProTableRef,
-} from '@bluewhale/whale-ui';
+import { AuthButton, FormModal, ProTable, SearchForm, type ProTableRef } from '@bluewhale/whale-ui';
 import { uploadFile } from '../../api/file';
 import {
   addOfficialPlaylistSong,
@@ -584,7 +578,9 @@ export default function PlaylistList() {
           loading={pickerLoading}
           columns={pickerColumns}
           dataSource={pickerSongs}
-          locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无歌曲" /> }}
+          locale={{
+            emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无歌曲" />,
+          }}
           pagination={{
             current: pickerPage,
             pageSize: PICKER_PAGE_SIZE,

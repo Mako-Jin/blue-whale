@@ -43,5 +43,7 @@ export async function listMesWorkOrders(): Promise<MesWorkOrder[]> {
 /** 保存生产工单（无 id 走新增，有 id 走编辑） */
 export function saveMesWorkOrder(input: MesWorkOrderInput): Promise<MesWorkOrder> {
   const { id, ...body } = input;
-  return id ? http.put<MesWorkOrder>(`/mes/work-order/${id}`, body) : http.post<MesWorkOrder>('/mes/work-order', body);
+  return id
+    ? http.put<MesWorkOrder>(`/mes/work-order/${id}`, body)
+    : http.post<MesWorkOrder>('/mes/work-order', body);
 }

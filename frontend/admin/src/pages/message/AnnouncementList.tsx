@@ -2,17 +2,7 @@
 // 公告面向当前租户全体用户：发布不枚举接收人，用户收件箱读取时惰性展开
 // 操作按钮均按权限码渲染（AuthButton / usePermission），无权限自动隐藏
 
-import {
-  App,
-  Button,
-  Form,
-  Input,
-  Popconfirm,
-  Select,
-  Space,
-  Tag,
-  type TableProps,
-} from 'antd';
+import { App, Button, Form, Input, Popconfirm, Select, Space, Tag, type TableProps } from 'antd';
 import { useRef, useState } from 'react';
 import {
   AuthButton,

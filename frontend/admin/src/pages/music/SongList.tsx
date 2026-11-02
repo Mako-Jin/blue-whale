@@ -368,11 +368,17 @@ export default function SongList() {
         columns={columns}
         request={pageSongs}
         params={{ keyword, artistId, publishState, visibility, sortBy }}
-        onError={(error) => message.error(error instanceof Error ? error.message : '歌曲列表加载失败')}
+        onError={(error) =>
+          message.error(error instanceof Error ? error.message : '歌曲列表加载失败')
+        }
         search={
           <SearchForm
             items={[
-              { name: 'keyword', label: '关键词', element: <Input allowClear placeholder="标题 / 副标题" /> },
+              {
+                name: 'keyword',
+                label: '关键词',
+                element: <Input allowClear placeholder="标题 / 副标题" />,
+              },
               {
                 name: 'artistId',
                 label: '歌手',
@@ -391,20 +397,32 @@ export default function SongList() {
                 name: 'publishState',
                 label: '状态',
                 element: (
-                  <Select allowClear placeholder="全部" style={{ width: 120 }} options={PUBLISH_STATE_OPTIONS} />
+                  <Select
+                    allowClear
+                    placeholder="全部"
+                    style={{ width: 120 }}
+                    options={PUBLISH_STATE_OPTIONS}
+                  />
                 ),
               },
               {
                 name: 'visibility',
                 label: '可见性',
                 element: (
-                  <Select allowClear placeholder="全部" style={{ width: 120 }} options={VISIBILITY_OPTIONS} />
+                  <Select
+                    allowClear
+                    placeholder="全部"
+                    style={{ width: 120 }}
+                    options={VISIBILITY_OPTIONS}
+                  />
                 ),
               },
               {
                 name: 'sortBy',
                 label: '排序',
-                element: <Select style={{ width: 130 }} options={SORT_OPTIONS} defaultValue="NEW" />,
+                element: (
+                  <Select style={{ width: 130 }} options={SORT_OPTIONS} defaultValue="NEW" />
+                ),
               },
             ]}
             onSearch={(values) => {
@@ -459,12 +477,18 @@ export default function SongList() {
                 return false;
               }}
             >
-              <Button loading={uploadingAudio}>{audioFileId ? '重新上传音频' : '选择音频文件'}</Button>
+              <Button loading={uploadingAudio}>
+                {audioFileId ? '重新上传音频' : '选择音频文件'}
+              </Button>
             </Upload>
             {audioName && <span>{audioName}</span>}
           </Space>
         </Form.Item>
-        <Form.Item name="title" label="歌曲标题" rules={[{ required: true, message: '请输入歌曲标题' }]}>
+        <Form.Item
+          name="title"
+          label="歌曲标题"
+          rules={[{ required: true, message: '请输入歌曲标题' }]}
+        >
           <Input maxLength={120} showCount />
         </Form.Item>
         <Form.Item name="subtitle" label="副标题">

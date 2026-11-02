@@ -158,7 +158,9 @@ export function useDocPageActions({
     try {
       const collab = collabEditorRef.current;
       const contentJson =
-        collab && !collab.isDestroyed ? (collab.getJSON() as DocJson) : (contentRef.current as DocJson);
+        collab && !collab.isDestroyed
+          ? (collab.getJSON() as DocJson)
+          : (contentRef.current as DocJson);
       await templateApi.create({
         spaceId: page.spaceId,
         name: name.trim(),

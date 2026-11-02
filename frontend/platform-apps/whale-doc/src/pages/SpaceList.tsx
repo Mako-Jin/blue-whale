@@ -163,7 +163,10 @@ export default function SpaceList() {
 
       <Spin spinning={loading}>
         {spaces.length === 0 ? (
-          <Empty description={scope === 'mine' ? '还没有加入任何空间' : '暂无可见空间'} style={{ padding: 48 }} />
+          <Empty
+            description={scope === 'mine' ? '还没有加入任何空间' : '暂无可见空间'}
+            style={{ padding: 48 }}
+          />
         ) : (
           <Row gutter={[16, 16]}>
             {spaces.map((space) => {
@@ -179,26 +182,28 @@ export default function SpaceList() {
                   <Card
                     hoverable
                     styles={{ body: { minHeight: 150 } }}
-                    actions={items.length > 0
-                      ? [
-                          <Dropdown
-                            key="more"
-                            menu={{
-                              items,
-                              onClick: ({ key, domEvent }) => {
-                                domEvent.stopPropagation();
-                                if (key === 'edit') {
-                                  openEdit(space);
-                                } else {
-                                  archive(space);
-                                }
-                              },
-                            }}
-                          >
-                            <Button type="text" icon={<EllipsisOutlined />} />
-                          </Dropdown>,
-                        ]
-                      : undefined}
+                    actions={
+                      items.length > 0
+                        ? [
+                            <Dropdown
+                              key="more"
+                              menu={{
+                                items,
+                                onClick: ({ key, domEvent }) => {
+                                  domEvent.stopPropagation();
+                                  if (key === 'edit') {
+                                    openEdit(space);
+                                  } else {
+                                    archive(space);
+                                  }
+                                },
+                              }}
+                            >
+                              <Button type="text" icon={<EllipsisOutlined />} />
+                            </Dropdown>,
+                          ]
+                        : undefined
+                    }
                   >
                     <Card.Meta
                       title={
@@ -216,7 +221,9 @@ export default function SpaceList() {
                             <Tag color={space.visibility === 'PUBLIC' ? 'blue' : 'default'}>
                               {VISIBILITY_LABEL[space.visibility]}
                             </Tag>
-                            {space.memberRole && <Tag color="green">{ROLE_LABEL[space.memberRole]}</Tag>}
+                            {space.memberRole && (
+                              <Tag color="green">{ROLE_LABEL[space.memberRole]}</Tag>
+                            )}
                             {typeof space.memberCount === 'number' && (
                               <Text type="secondary">{space.memberCount} 人</Text>
                             )}
@@ -259,7 +266,10 @@ export default function SpaceList() {
           <Form.Item
             name="name"
             label="空间名称"
-            rules={[{ required: true, message: '请输入空间名称' }, { max: 100, message: '最多 100 字' }]}
+            rules={[
+              { required: true, message: '请输入空间名称' },
+              { max: 100, message: '最多 100 字' },
+            ]}
           >
             <Input placeholder="例如 产品文档" />
           </Form.Item>

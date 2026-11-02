@@ -35,7 +35,9 @@ export function readAudioDuration(file: File): Promise<number | undefined> {
     const audio = new Audio();
     audio.preload = 'metadata';
     audio.onloadedmetadata = () => {
-      const duration = Number.isFinite(audio.duration) ? Math.round(audio.duration * 1000) : undefined;
+      const duration = Number.isFinite(audio.duration)
+        ? Math.round(audio.duration * 1000)
+        : undefined;
       URL.revokeObjectURL(url);
       resolve(duration);
     };

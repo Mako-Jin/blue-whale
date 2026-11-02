@@ -1,7 +1,19 @@
 // 空间成员管理：查看成员、批量添加、调整角色、移除
 
 import { useCallback, useEffect, useState } from 'react';
-import { App, Button, Form, Input, List, Modal, Popconfirm, Select, Space, Tag, Typography } from 'antd';
+import {
+  App,
+  Button,
+  Form,
+  Input,
+  List,
+  Modal,
+  Popconfirm,
+  Select,
+  Space,
+  Tag,
+  Typography,
+} from 'antd';
 import { spaceApi } from '../api/space';
 import type { DocMember, DocMemberRole, DocSpace } from '../api/types';
 
@@ -114,7 +126,13 @@ export default function MemberPanel({ space, open, onClose }: MemberPanelProps) 
   };
 
   return (
-    <Modal title={`成员管理 · ${space?.name ?? ''}`} open={open} onCancel={onClose} footer={null} width={640}>
+    <Modal
+      title={`成员管理 · ${space?.name ?? ''}`}
+      open={open}
+      onCancel={onClose}
+      footer={null}
+      width={640}
+    >
       {canManage && (
         <Form form={form} layout="inline" style={{ marginBottom: 16, rowGap: 8 }}>
           <Form.Item
@@ -146,9 +164,11 @@ export default function MemberPanel({ space, open, onClose }: MemberPanelProps) 
                       size="small"
                       value={member.memberRole}
                       style={{ width: 100 }}
-                      options={isOwner
-                        ? [...ROLE_OPTIONS, { value: 'OWNER', label: ROLE_LABEL.OWNER }]
-                        : ROLE_OPTIONS}
+                      options={
+                        isOwner
+                          ? [...ROLE_OPTIONS, { value: 'OWNER', label: ROLE_LABEL.OWNER }]
+                          : ROLE_OPTIONS
+                      }
                       onChange={(role) => void changeRole(member, role as DocMemberRole)}
                     />,
                     <Popconfirm

@@ -82,7 +82,10 @@ export default function ArchiveRuleList() {
       });
   }, [message]);
 
-  const categoryOptions = useMemo<CategoryOption[]>(() => flattenCategories(categories), [categories]);
+  const categoryOptions = useMemo<CategoryOption[]>(
+    () => flattenCategories(categories),
+    [categories],
+  );
 
   const openCreate = () => {
     setEditing(null);

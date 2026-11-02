@@ -170,7 +170,9 @@ export default function CommentSection({ songId }: CommentSectionProps) {
           <>
             <List
               dataSource={comments}
-              renderItem={(comment) => <List.Item key={comment.id}>{renderComment(comment, false)}</List.Item>}
+              renderItem={(comment) => (
+                <List.Item key={comment.id}>{renderComment(comment, false)}</List.Item>
+              )}
             />
             {total > PAGE_SIZE && (
               <Pagination

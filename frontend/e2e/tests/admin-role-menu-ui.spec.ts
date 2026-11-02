@@ -147,7 +147,10 @@ test('角色权限分配→用户角色分配→角色/菜单删除', async ({ p
   const deleteRoleRow = page.locator('tbody tr').filter({ hasText: roleCode });
   await expect(deleteRoleRow).toHaveCount(1);
   await deleteRoleRow.getByRole('button', { name: /删\s*除/ }).click();
-  await page.locator('.ant-popconfirm').getByRole('button', { name: /OK|确\s*定/ }).click();
+  await page
+    .locator('.ant-popconfirm')
+    .getByRole('button', { name: /OK|确\s*定/ })
+    .click();
   await expect(page.locator('.ant-message').getByText('角色已删除').first()).toBeVisible();
   const rolesAfterDelete = await pageRoleRecords(request, token, roleCode);
   expect(rolesAfterDelete.records.some((item) => item.id === roleId)).toBe(false);
@@ -158,7 +161,10 @@ test('角色权限分配→用户角色分配→角色/菜单删除', async ({ p
   const menuRow = page.locator('tbody tr').filter({ hasText: menuName });
   await expect(menuRow).toHaveCount(1);
   await menuRow.getByRole('button', { name: /删\s*除/ }).click();
-  await page.locator('.ant-popconfirm').getByRole('button', { name: /OK|确\s*定/ }).click();
+  await page
+    .locator('.ant-popconfirm')
+    .getByRole('button', { name: /OK|确\s*定/ })
+    .click();
   await expect(page.locator('.ant-message').getByText('菜单已删除').first()).toBeVisible();
   const menusAfterDelete = flattenMenus(await treeMenuRecords(request, token));
   expect(menusAfterDelete.some((item) => item.id === menuId)).toBe(false);

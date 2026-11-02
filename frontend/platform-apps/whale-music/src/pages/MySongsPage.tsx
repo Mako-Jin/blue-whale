@@ -16,12 +16,7 @@ import {
 } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  FormModal,
-  ProTable,
-  SearchForm,
-  type ProTableRef,
-} from '@bluewhale/whale-ui';
+import { FormModal, ProTable, SearchForm, type ProTableRef } from '@bluewhale/whale-ui';
 import {
   deleteMySong,
   listTags,
@@ -37,7 +32,13 @@ import {
   type SongVisibility,
   type TagView,
 } from '../api/music';
-import { formatDuration, renderCopyrightState, renderPublishState, renderTags, renderVisibility } from '../utils/musicDisplay';
+import {
+  formatDuration,
+  renderCopyrightState,
+  renderPublishState,
+  renderTags,
+  renderVisibility,
+} from '../utils/musicDisplay';
 
 const LANGUAGE_OPTIONS = [
   { value: 'ZH', label: '中文' },
@@ -206,9 +207,7 @@ export default function MySongsPage() {
       width: 110,
       render: (value: SongView['copyrightState'], row) =>
         row.takedownReason ? (
-          <Tooltip title={`下架原因：${row.takedownReason}`}>
-            {renderCopyrightState(value)}
-          </Tooltip>
+          <Tooltip title={`下架原因：${row.takedownReason}`}>{renderCopyrightState(value)}</Tooltip>
         ) : (
           renderCopyrightState(value)
         ),
@@ -332,7 +331,11 @@ export default function MySongsPage() {
         onOk={handleSave}
         onCancel={() => setEditOpen(false)}
       >
-        <Form.Item name="title" label="歌曲标题" rules={[{ required: true, message: '请输入歌曲标题' }]}>
+        <Form.Item
+          name="title"
+          label="歌曲标题"
+          rules={[{ required: true, message: '请输入歌曲标题' }]}
+        >
           <Input maxLength={120} showCount />
         </Form.Item>
         <Form.Item name="subtitle" label="副标题">

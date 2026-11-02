@@ -208,14 +208,15 @@ export function createAuditTracker(options: AuditTrackerOptions): AuditTracker {
   };
 
   return {
-    track(eventName: string, payload?: unknown, trackOptions?: AuditTrackOptions): AuditEvent | null {
+    track(
+      eventName: string,
+      payload?: unknown,
+      trackOptions?: AuditTrackOptions,
+    ): AuditEvent | null {
       try {
         const name = typeof eventName === 'string' ? eventName.trim() : '';
         if (!name || name.length > maxEventNameLength) {
-          reportError(
-            new Error(`事件名不合法，已丢弃：${String(eventName)}`),
-            'validate',
-          );
+          reportError(new Error(`事件名不合法，已丢弃：${String(eventName)}`), 'validate');
           return null;
         }
 

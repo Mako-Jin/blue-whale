@@ -197,7 +197,8 @@ export default function RecycleBin({ spaceId, open, onClose, onChanged }: Recycl
                   description={
                     <Space size={12} wrap>
                       <Text type="secondary">
-                        原位置：{item.parentTitle ?? (item.parentId === 0 ? '根目录' : '父页面已删除')}
+                        原位置：
+                        {item.parentTitle ?? (item.parentId === 0 ? '根目录' : '父页面已删除')}
                       </Text>
                       <Text type="secondary">删除时间：{formatTime(item.deletedAt)}</Text>
                     </Space>

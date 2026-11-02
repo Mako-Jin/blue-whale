@@ -95,7 +95,11 @@ function PlayerProbe() {
 function renderPlayerBar() {
   function Trigger() {
     const player = usePlayer();
-    return <button onClick={() => player.play(trackB, [trackA, trackB, { id: 3, title: '夜曲' }])}>play-b</button>;
+    return (
+      <button onClick={() => player.play(trackB, [trackA, trackB, { id: 3, title: '夜曲' }])}>
+        play-b
+      </button>
+    );
   }
   return render(
     <App>
@@ -167,7 +171,11 @@ describe('PlayerBar 播放条', () => {
 
 describe('PlayerContext 播放队列', () => {
   it('next 越过队尾不越界并暂停，prev 回退曲目', async () => {
-    render(<App><PlayerProbe /></App>);
+    render(
+      <App>
+        <PlayerProbe />
+      </App>,
+    );
     fireEvent.click(screen.getByText('play-b'));
     expect(await screen.findByTestId('current')).toHaveTextContent('七里香');
 
@@ -185,7 +193,11 @@ describe('PlayerContext 播放队列', () => {
   });
 
   it('enqueue 去重：空队列直接开播，重复追加不扩容', async () => {
-    render(<App><PlayerProbe /></App>);
+    render(
+      <App>
+        <PlayerProbe />
+      </App>,
+    );
     fireEvent.click(screen.getByText('enqueue-a'));
 
     expect(await screen.findByTestId('current')).toHaveTextContent('晴天');

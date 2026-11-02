@@ -43,9 +43,7 @@ function grantPermissions(permissions: string[]) {
 function renderList(refreshKey = 0) {
   const onCreate = vi.fn();
   const onEdit = vi.fn();
-  const view = render(
-    <SupplierList refreshKey={refreshKey} onCreate={onCreate} onEdit={onEdit} />,
-  );
+  const view = render(<SupplierList refreshKey={refreshKey} onCreate={onCreate} onEdit={onEdit} />);
   return { ...view, onCreate, onEdit };
 }
 
@@ -83,11 +81,7 @@ describe('SupplierList', () => {
   });
 
   it('有权限：新增按钮触发 onCreate，编辑按钮携带行数据触发 onEdit', async () => {
-    grantPermissions([
-      'sys:erp:supplier:add',
-      'sys:erp:supplier:edit',
-      'sys:erp:supplier:delete',
-    ]);
+    grantPermissions(['sys:erp:supplier:add', 'sys:erp:supplier:edit', 'sys:erp:supplier:delete']);
     const { onCreate, onEdit } = renderList();
 
     fireEvent.click(await screen.findByRole('button', { name: '新增供应商' }));

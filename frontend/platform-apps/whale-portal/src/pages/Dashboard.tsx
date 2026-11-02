@@ -11,9 +11,27 @@ import { countRunningInstances, pageMyTaskPage } from '../api/workflow';
 
 /** 门户入口：跳转到基座下已注册的兄弟子应用（/erp /oa /mes），按权限裁剪 */
 const PORTALS = [
-  { key: 'erp', title: 'ERP 企业资源计划', desc: '物料 / 采购 / 库存', path: '/erp', permission: 'sys:erp:item:list' },
-  { key: 'oa', title: 'OA 协同办公', desc: '流程 / 审批 / 公文', path: '/oa', permission: 'sys:oa:leave:list' },
-  { key: 'mes', title: 'MES 生产制造', desc: '工单 / 设备 / 质量', path: '/mes', permission: 'sys:mes:workorder:list' },
+  {
+    key: 'erp',
+    title: 'ERP 企业资源计划',
+    desc: '物料 / 采购 / 库存',
+    path: '/erp',
+    permission: 'sys:erp:item:list',
+  },
+  {
+    key: 'oa',
+    title: 'OA 协同办公',
+    desc: '流程 / 审批 / 公文',
+    path: '/oa',
+    permission: 'sys:oa:leave:list',
+  },
+  {
+    key: 'mes',
+    title: 'MES 生产制造',
+    desc: '工单 / 设备 / 质量',
+    path: '/mes',
+    permission: 'sys:mes:workorder:list',
+  },
 ];
 
 /** 统计值：数字或不可用占位 */
@@ -69,7 +87,11 @@ export default function Dashboard() {
 
     // 系统服务数：Nacos 注册服务摘要
     if (hasPermission('sys:monitor:list')) {
-      tasks.push(countServices().then(setServiceTotal).catch(() => setServiceTotal(UNAVAILABLE)));
+      tasks.push(
+        countServices()
+          .then(setServiceTotal)
+          .catch(() => setServiceTotal(UNAVAILABLE)),
+      );
     } else {
       setServiceTotal(UNAVAILABLE);
     }

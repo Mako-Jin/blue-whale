@@ -4,10 +4,7 @@
 // V-03：accessToken 不再落盘 localStorage，静默续期走 HttpOnly 刷新 Cookie；
 // 子应用经 qiankun props 的 getToken 读取基座内存令牌。
 
-import {
-  bootstrapAuth as bootstrapAuthShared,
-  createAuthStorage,
-} from '@bluewhale/whale-auth';
+import { bootstrapAuth as bootstrapAuthShared, createAuthStorage } from '@bluewhale/whale-auth';
 import type { AuthMeResponse, LoginResponse, MenuNode, UserInfo } from '@bluewhale/whale-auth';
 
 export type { AuthMeResponse, LoginResponse, MenuNode, UserInfo };

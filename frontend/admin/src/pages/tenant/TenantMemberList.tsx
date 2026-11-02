@@ -40,7 +40,8 @@ export default function TenantMemberList() {
   const { has } = usePermission();
   const tableRef = useRef<ProTableRef>(null);
   const rawTenantId = getCurrentUser()?.tenantId;
-  const currentTenantId = typeof rawTenantId === 'number' ? rawTenantId : Number(rawTenantId) || undefined;
+  const currentTenantId =
+    typeof rawTenantId === 'number' ? rawTenantId : Number(rawTenantId) || undefined;
 
   const [keyword, setKeyword] = useState<string | undefined>(undefined);
 
@@ -63,9 +64,9 @@ export default function TenantMemberList() {
       const records = kw
         ? list.filter(
             (item) =>
-              item.username.toLowerCase().includes(kw)
-              || (item.nickname ?? '').toLowerCase().includes(kw)
-              || (item.phone ?? '').includes(kw),
+              item.username.toLowerCase().includes(kw) ||
+              (item.nickname ?? '').toLowerCase().includes(kw) ||
+              (item.phone ?? '').includes(kw),
           )
         : list;
       return { records, total: records.length, current: params.current, size: params.size };

@@ -53,7 +53,10 @@ export interface CategoryOption {
 export function flattenCategories(nodes: ArchiveCategoryVO[], depth = 0): CategoryOption[] {
   return nodes.flatMap((node) => {
     const prefix = depth > 0 ? `${'　'.repeat(depth)}` : '';
-    const current: CategoryOption = { label: `${prefix}${node.name}（${node.code}）`, value: node.id };
+    const current: CategoryOption = {
+      label: `${prefix}${node.name}（${node.code}）`,
+      value: node.id,
+    };
     const children = node.children?.length ? flattenCategories(node.children, depth + 1) : [];
     return [current, ...children];
   });

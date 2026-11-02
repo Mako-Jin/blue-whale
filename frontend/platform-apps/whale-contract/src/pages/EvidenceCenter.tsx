@@ -1,19 +1,15 @@
 // 证据中心：按合同查看签署证据链与验签结果
 
 import { useState } from 'react';
-import {
-  Alert,
-  App,
-  Button,
-  Descriptions,
-  Input,
-  Space,
-  Table,
-  Tag,
-  Typography,
-} from 'antd';
+import { Alert, App, Button, Descriptions, Input, Space, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { signApi, type Evidence, type SignRecord, type SignTask, type VerifyResult } from '../api/esign';
+import {
+  signApi,
+  type Evidence,
+  type SignRecord,
+  type SignTask,
+  type VerifyResult,
+} from '../api/esign';
 import { formatTime, signTaskStatusColor, signTaskStatusLabel } from '../utils';
 
 export default function EvidenceCenter() {
@@ -60,7 +56,9 @@ export default function EvidenceCenter() {
       title: '链式哈希',
       dataIndex: 'chainHash',
       render: (value: string | null) => (
-        <Typography.Text copyable style={{ wordBreak: 'break-all' }}>{value || '-'}</Typography.Text>
+        <Typography.Text copyable style={{ wordBreak: 'break-all' }}>
+          {value || '-'}
+        </Typography.Text>
       ),
     },
   ];
@@ -74,7 +72,9 @@ export default function EvidenceCenter() {
       title: '状态',
       dataIndex: 'status',
       width: 100,
-      render: (value: string) => <Tag color={signTaskStatusColor(value)}>{signTaskStatusLabel(value)}</Tag>,
+      render: (value: string) => (
+        <Tag color={signTaskStatusColor(value)}>{signTaskStatusLabel(value)}</Tag>
+      ),
     },
     { title: '签署时间', dataIndex: 'signedAt', width: 170, render: (value) => formatTime(value) },
   ];
@@ -106,7 +106,9 @@ export default function EvidenceCenter() {
         />
         {verify ? (
           <Alert
-            type={verify.hashMatch && verify.chainValid && verify.signatureValid ? 'success' : 'error'}
+            type={
+              verify.hashMatch && verify.chainValid && verify.signatureValid ? 'success' : 'error'
+            }
             showIcon
             message={`验签结果：哈希一致 ${verify.hashMatch ? '是' : '否'} / 链连续 ${verify.chainValid ? '是' : '否'} / 签名有效 ${verify.signatureValid ? '是' : '否'}`}
             description={verify.details?.join('；')}
@@ -118,7 +120,9 @@ export default function EvidenceCenter() {
             <Descriptions.Item label="合同编号">{evidence.contractCode || '-'}</Descriptions.Item>
             <Descriptions.Item label="合同状态">{evidence.contractStatus || '-'}</Descriptions.Item>
             <Descriptions.Item label="链连续性">
-              <Tag color={evidence.chainValid ? 'success' : 'error'}>{evidence.chainValid ? '连续' : '中断'}</Tag>
+              <Tag color={evidence.chainValid ? 'success' : 'error'}>
+                {evidence.chainValid ? '连续' : '中断'}
+              </Tag>
             </Descriptions.Item>
             <Descriptions.Item label="签署记录数">{evidence.records.length}</Descriptions.Item>
             <Descriptions.Item label="签署任务数">{evidence.tasks.length}</Descriptions.Item>
@@ -127,11 +131,21 @@ export default function EvidenceCenter() {
         <Typography.Title level={5} style={{ margin: 0 }}>
           签署证据
         </Typography.Title>
-        <Table rowKey="id" columns={recordColumns} dataSource={evidence?.records ?? []} pagination={false} />
+        <Table
+          rowKey="id"
+          columns={recordColumns}
+          dataSource={evidence?.records ?? []}
+          pagination={false}
+        />
         <Typography.Title level={5} style={{ margin: 0 }}>
           签署任务
         </Typography.Title>
-        <Table rowKey="id" columns={taskColumns} dataSource={evidence?.tasks ?? []} pagination={false} />
+        <Table
+          rowKey="id"
+          columns={taskColumns}
+          dataSource={evidence?.tasks ?? []}
+          pagination={false}
+        />
       </Space>
     </div>
   );

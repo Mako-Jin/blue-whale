@@ -111,7 +111,12 @@ export default function AppealAudit() {
       render: (value: string) => value ?? '-',
     },
     { title: '申诉时间', dataIndex: 'createTime', width: 170 },
-    { title: '复核时间', dataIndex: 'reviewedAt', width: 170, render: (value: string) => value ?? '-' },
+    {
+      title: '复核时间',
+      dataIndex: 'reviewedAt',
+      width: 170,
+      render: (value: string) => value ?? '-',
+    },
     {
       title: '操作',
       key: 'actions',

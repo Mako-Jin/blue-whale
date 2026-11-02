@@ -214,13 +214,17 @@ export default function EditorHeader({
           <Text type="secondary">
             r{page.revision} · {saveText}
           </Text>
-          {collabActive && <Tag color={collabStatus === 'reconnecting' ? 'gold' : 'blue'}>{collabLabel}</Tag>}
+          {collabActive && (
+            <Tag color={collabStatus === 'reconnecting' ? 'gold' : 'blue'}>{collabLabel}</Tag>
+          )}
           {readOnly && <Tag>只读</Tag>}
           {collabActive && collabUsers.length > 0 && (
             <Avatar.Group size={24} max={{ count: 4 }}>
               {collabUsers.map((user) => (
                 <Tooltip key={user.clientId} title={user.name}>
-                  <Avatar style={{ backgroundColor: user.color, fontSize: 12 }}>{avatarText(user.name)}</Avatar>
+                  <Avatar style={{ backgroundColor: user.color, fontSize: 12 }}>
+                    {avatarText(user.name)}
+                  </Avatar>
                 </Tooltip>
               ))}
             </Avatar.Group>

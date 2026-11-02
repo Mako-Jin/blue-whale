@@ -174,7 +174,10 @@ export function createCategory(data: ArchiveCategorySaveRequest): Promise<Archiv
 }
 
 /** 修改门类 */
-export function updateCategory(id: string, data: ArchiveCategorySaveRequest): Promise<ArchiveCategoryVO> {
+export function updateCategory(
+  id: string,
+  data: ArchiveCategorySaveRequest,
+): Promise<ArchiveCategoryVO> {
   return put<ArchiveCategoryVO>(`/archive/category/${id}`, data);
 }
 

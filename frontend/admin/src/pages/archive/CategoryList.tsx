@@ -224,10 +224,18 @@ export default function ArchiveCategoryList() {
         destroyOnClose
       >
         <Form form={form} layout="vertical" preserve={false}>
-          <Form.Item name="code" label="门类编码" rules={[{ required: true, message: '请输入门类编码' }]}>
+          <Form.Item
+            name="code"
+            label="门类编码"
+            rules={[{ required: true, message: '请输入门类编码' }]}
+          >
             <Input placeholder="如 GL，仅字母/数字/下划线" disabled={Boolean(editing)} />
           </Form.Item>
-          <Form.Item name="name" label="门类名称" rules={[{ required: true, message: '请输入门类名称' }]}>
+          <Form.Item
+            name="name"
+            label="门类名称"
+            rules={[{ required: true, message: '请输入门类名称' }]}
+          >
             <Input placeholder="如 管理类" />
           </Form.Item>
           <Form.Item name="parentId" label="上级门类">

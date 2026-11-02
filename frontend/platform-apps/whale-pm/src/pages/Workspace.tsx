@@ -56,7 +56,8 @@ export default function Workspace() {
     }
   }, [projectId]);
 
-  const activeKey = NAV_ITEMS.find((item) => location.pathname.endsWith(`/${item.key}`))?.key ?? 'overview';
+  const activeKey =
+    NAV_ITEMS.find((item) => location.pathname.endsWith(`/${item.key}`))?.key ?? 'overview';
 
   if (loading && !project) {
     return (
@@ -69,7 +70,9 @@ export default function Workspace() {
   return (
     <WorkspaceContext.Provider value={{ project: project as Project, statuses, reloadProject }}>
       <Layout style={{ minHeight: '100%', background: '#fff' }}>
-        <Header style={{ background: '#fff', borderBottom: '1px solid #f0f0f0', paddingInline: 24 }}>
+        <Header
+          style={{ background: '#fff', borderBottom: '1px solid #f0f0f0', paddingInline: 24 }}
+        >
           <Space size={12} wrap>
             <Link to="/">← 项目列表</Link>
             <Typography.Title level={5} style={{ margin: 0 }}>

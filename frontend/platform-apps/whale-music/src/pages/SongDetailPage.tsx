@@ -92,19 +92,16 @@ export default function SongDetailPage() {
           }
           extra={
             <Space>
-              <Button
-                type="primary"
-                disabled={!song.playable}
-                onClick={() => player.play(song)}
-              >
+              <Button type="primary" disabled={!song.playable} onClick={() => player.play(song)}>
                 播放
               </Button>
               <Button
                 onClick={() => {
                   likeSong(song.id)
                     .then(() => message.success('已加入我的收藏'))
-                    .catch((error) => message.error(
-                      error instanceof Error ? error.message : '收藏失败'));
+                    .catch((error) =>
+                      message.error(error instanceof Error ? error.message : '收藏失败'),
+                    );
                 }}
               >
                 收藏

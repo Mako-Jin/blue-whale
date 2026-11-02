@@ -198,39 +198,98 @@ export default function ContractDetail() {
       ),
     },
     { title: '变更说明', dataIndex: 'changeNote', render: (value) => value || '-' },
-    { title: '创建时间', dataIndex: 'createTime', width: 160, render: (value) => formatTime(value) },
+    {
+      title: '创建时间',
+      dataIndex: 'createTime',
+      width: 160,
+      render: (value) => formatTime(value),
+    },
   ];
 
   const flowColumns: ColumnsType<ContractFlow> = [
-    { title: '阶段', dataIndex: 'stage', width: 100, render: (value: string) => (value === 'SIGN' ? '签署' : '审批') },
-    { title: '流程实例ID', dataIndex: 'processInstanceId', width: 200, render: (value) => value || '-' },
+    {
+      title: '阶段',
+      dataIndex: 'stage',
+      width: 100,
+      render: (value: string) => (value === 'SIGN' ? '签署' : '审批'),
+    },
+    {
+      title: '流程实例ID',
+      dataIndex: 'processInstanceId',
+      width: 200,
+      render: (value) => value || '-',
+    },
     {
       title: '状态',
       dataIndex: 'status',
       width: 100,
       render: (value: string) => (
-        <Tag color={value === 'APPROVED' ? 'green' : value === 'REJECTED' ? 'red' : value === 'RUNNING' ? 'processing' : 'default'}>
-          {value === 'RUNNING' ? '运行中' : value === 'APPROVED' ? '已通过' : value === 'REJECTED' ? '已驳回' : '已撤销'}
+        <Tag
+          color={
+            value === 'APPROVED'
+              ? 'green'
+              : value === 'REJECTED'
+                ? 'red'
+                : value === 'RUNNING'
+                  ? 'processing'
+                  : 'default'
+          }
+        >
+          {value === 'RUNNING'
+            ? '运行中'
+            : value === 'APPROVED'
+              ? '已通过'
+              : value === 'REJECTED'
+                ? '已驳回'
+                : '已撤销'}
         </Tag>
       ),
     },
-    { title: '创建时间', dataIndex: 'createTime', width: 160, render: (value) => formatTime(value) },
-    { title: '更新时间', dataIndex: 'updateTime', width: 160, render: (value) => formatTime(value) },
+    {
+      title: '创建时间',
+      dataIndex: 'createTime',
+      width: 160,
+      render: (value) => formatTime(value),
+    },
+    {
+      title: '更新时间',
+      dataIndex: 'updateTime',
+      width: 160,
+      render: (value) => formatTime(value),
+    },
   ];
 
   const signTaskColumns: ColumnsType<SignTask> = [
-    { title: '顺序', dataIndex: 'seqNo', width: 70, align: 'center', render: (value) => value ?? '-' },
-    { title: '签署方', dataIndex: 'signerParty', width: 90, render: (value) => partyTypeLabel(value) },
+    {
+      title: '顺序',
+      dataIndex: 'seqNo',
+      width: 70,
+      align: 'center',
+      render: (value) => value ?? '-',
+    },
+    {
+      title: '签署方',
+      dataIndex: 'signerParty',
+      width: 90,
+      render: (value) => partyTypeLabel(value),
+    },
     { title: '签署人', dataIndex: 'signerName', width: 110, render: (value) => value || '-' },
     { title: '渠道', dataIndex: 'provider', width: 90, render: (value) => value || '-' },
     {
       title: '状态',
       dataIndex: 'status',
       width: 100,
-      render: (value: string) => <Tag color={signTaskStatusColor(value)}>{signTaskStatusLabel(value)}</Tag>,
+      render: (value: string) => (
+        <Tag color={signTaskStatusColor(value)}>{signTaskStatusLabel(value)}</Tag>
+      ),
     },
     { title: '签署时间', dataIndex: 'signedAt', width: 160, render: (value) => formatTime(value) },
-    { title: '签章件文件ID', dataIndex: 'signedFileId', width: 180, render: (value) => value || '-' },
+    {
+      title: '签章件文件ID',
+      dataIndex: 'signedFileId',
+      width: 180,
+      render: (value) => value || '-',
+    },
     { title: '拒签原因', dataIndex: 'refuseReason', render: (value) => value || '-' },
   ];
 
@@ -245,14 +304,26 @@ export default function ContractDetail() {
       dataIndex: 'signedSha256',
       width: 220,
       render: (value: string | null) =>
-        value ? <Typography.Text copyable style={{ fontFamily: 'monospace' }}>{value.slice(0, 16)}…</Typography.Text> : '-',
+        value ? (
+          <Typography.Text copyable style={{ fontFamily: 'monospace' }}>
+            {value.slice(0, 16)}…
+          </Typography.Text>
+        ) : (
+          '-'
+        ),
     },
     {
       title: '链式哈希',
       dataIndex: 'chainHash',
       width: 180,
       render: (value: string | null) =>
-        value ? <Typography.Text copyable style={{ fontFamily: 'monospace' }}>{value.slice(0, 16)}…</Typography.Text> : '-',
+        value ? (
+          <Typography.Text copyable style={{ fontFamily: 'monospace' }}>
+            {value.slice(0, 16)}…
+          </Typography.Text>
+        ) : (
+          '-'
+        ),
     },
     { title: '客户端IP', dataIndex: 'clientIp', width: 130, render: (value) => value || '-' },
   ];
@@ -288,8 +359,8 @@ export default function ContractDetail() {
               <Button size="small">撤回</Button>
             </Popconfirm>
           ) : null}
-          {['APPROVED', 'SIGNING', 'SIGNED', 'EFFECTIVE'].includes(contract.status)
-            && hasPermission('sys:contract:terminate') ? (
+          {['APPROVED', 'SIGNING', 'SIGNED', 'EFFECTIVE'].includes(contract.status) &&
+          hasPermission('sys:contract:terminate') ? (
             <Popconfirm title="终止该合同？" onConfirm={() => void runAction('terminate')}>
               <Button size="small" danger>
                 终止
@@ -306,19 +377,20 @@ export default function ContractDetail() {
               发起修订
             </Button>
           ) : null}
-          {['APPROVED', 'SIGNING'].includes(contract.status) && hasPermission('sys:contract:sign:start') ? (
+          {['APPROVED', 'SIGNING'].includes(contract.status) &&
+          hasPermission('sys:contract:sign:start') ? (
             <Button size="small" type="primary" onClick={() => void handleStartSign()}>
               发起签署
             </Button>
           ) : null}
-          {signTasks.some((task) => task.status === 'SIGNED')
-            && hasPermission('sys:contract:evidence:read') ? (
+          {signTasks.some((task) => task.status === 'SIGNED') &&
+          hasPermission('sys:contract:evidence:read') ? (
             <Button size="small" onClick={() => void handleVerify()}>
               验签
             </Button>
           ) : null}
-          {['SIGNING', 'SIGNED', 'EFFECTIVE'].includes(contract.status)
-            && hasPermission('sys:contract:sign:void') ? (
+          {['SIGNING', 'SIGNED', 'EFFECTIVE'].includes(contract.status) &&
+          hasPermission('sys:contract:sign:void') ? (
             <Popconfirm title="作废该合同？（签署证据保留）" onConfirm={() => void handleVoid()}>
               <Button size="small" danger>
                 作废
@@ -340,12 +412,18 @@ export default function ContractDetail() {
           <Descriptions.Item label="合同类别">{categoryLabel(contract.category)}</Descriptions.Item>
           <Descriptions.Item label="当前版本">v{contract.currentVersion}</Descriptions.Item>
           <Descriptions.Item label="合同金额">
-            {contract.amount == null ? '-' : `${contract.currency ?? 'CNY'} ${contract.amount.toLocaleString()}`}
+            {contract.amount == null
+              ? '-'
+              : `${contract.currency ?? 'CNY'} ${contract.amount.toLocaleString()}`}
           </Descriptions.Item>
-          <Descriptions.Item label="生效日期">{formatDate(contract.effectiveDate)}</Descriptions.Item>
+          <Descriptions.Item label="生效日期">
+            {formatDate(contract.effectiveDate)}
+          </Descriptions.Item>
           <Descriptions.Item label="到期日期">
             {formatDate(contract.expireDate)}
-            {contract.daysToExpire != null && contract.daysToExpire >= 0 && contract.daysToExpire <= 30 ? (
+            {contract.daysToExpire != null &&
+            contract.daysToExpire >= 0 &&
+            contract.daysToExpire <= 30 ? (
               <Tag color="orange" style={{ marginLeft: 8 }}>
                 剩余 {contract.daysToExpire} 天
               </Tag>
@@ -490,7 +568,9 @@ export default function ContractDetail() {
               <Tag>算法：{verifyResult.algorithm || 'NONE'}</Tag>
             </Space>
             <Descriptions size="small" column={1} bordered>
-              <Descriptions.Item label="签章件文件ID">{verifyResult.signedFileId || '-'}</Descriptions.Item>
+              <Descriptions.Item label="签章件文件ID">
+                {verifyResult.signedFileId || '-'}
+              </Descriptions.Item>
               <Descriptions.Item label="记录 SHA-256">
                 <Typography.Text copyable style={{ wordBreak: 'break-all' }}>
                   {verifyResult.expectedSha256 || '-'}
@@ -503,7 +583,9 @@ export default function ContractDetail() {
               </Descriptions.Item>
             </Descriptions>
             {(verifyResult.details ?? []).length > 0 ? (
-              <Typography.Text type="secondary">{(verifyResult.details ?? []).join('；')}</Typography.Text>
+              <Typography.Text type="secondary">
+                {(verifyResult.details ?? []).join('；')}
+              </Typography.Text>
             ) : null}
           </Space>
         ) : null}

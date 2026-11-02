@@ -66,9 +66,7 @@ export default function RoleList() {
         allowClear
         placeholder="搜索角色编码 / 名称"
         style={{ maxWidth: 360 }}
-        onSearch={(value) =>
-          setQuery((prev) => ({ ...prev, current: 1, keyword: value.trim() }))
-        }
+        onSearch={(value) => setQuery((prev) => ({ ...prev, current: 1, keyword: value.trim() }))}
       />
       <Table<RoleVO>
         rowKey="id"

@@ -15,13 +15,7 @@ interface PreviewDrawerProps {
 
 export default function PreviewDrawer({ open, onClose, fields }: PreviewDrawerProps) {
   return (
-    <Drawer
-      open={open}
-      width={720}
-      title="表单预览"
-      onClose={onClose}
-      destroyOnClose
-    >
+    <Drawer open={open} width={720} title="表单预览" onClose={onClose} destroyOnClose>
       <FormRenderer
         fields={fields}
         authToken={getToken() ?? undefined}

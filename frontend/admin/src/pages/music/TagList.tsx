@@ -176,7 +176,11 @@ export default function TagList() {
         onOk={handleSave}
         onCancel={() => setModalOpen(false)}
       >
-        <Form.Item name="name" label="标签名称" rules={[{ required: true, message: '请输入标签名称' }]}>
+        <Form.Item
+          name="name"
+          label="标签名称"
+          rules={[{ required: true, message: '请输入标签名称' }]}
+        >
           <Input maxLength={64} showCount />
         </Form.Item>
         <Form.Item name="tagType" label="类型">

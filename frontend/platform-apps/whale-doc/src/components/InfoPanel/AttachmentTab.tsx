@@ -3,7 +3,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { App, Button, Empty, List, Space, Spin, Typography, Upload } from 'antd';
 import type { UploadProps } from 'antd';
-import { DeleteOutlined, DownloadOutlined, PaperClipOutlined, UploadOutlined } from '@ant-design/icons';
+import {
+  DeleteOutlined,
+  DownloadOutlined,
+  PaperClipOutlined,
+  UploadOutlined,
+} from '@ant-design/icons';
 import { attachmentApi } from '../../api/attachment';
 import { hasPermission } from '../../api/client';
 import type { DocAttachment, DocPage } from '../../api/types';
@@ -113,13 +118,24 @@ export default function AttachmentTab({ page }: { page: DocPage }) {
           renderItem={(attachment) => (
             <List.Item
               actions={[
-                <Button key="download" type="link" size="small" icon={<DownloadOutlined />}
-                  onClick={() => void download(attachment)}>
+                <Button
+                  key="download"
+                  type="link"
+                  size="small"
+                  icon={<DownloadOutlined />}
+                  onClick={() => void download(attachment)}
+                >
                   下载
                 </Button>,
-                <Button key="remove" type="link" size="small" danger icon={<DeleteOutlined />}
+                <Button
+                  key="remove"
+                  type="link"
+                  size="small"
+                  danger
+                  icon={<DeleteOutlined />}
                   disabled={!page.canEdit || !hasPermission('sys:doc:attachment:manage')}
-                  onClick={() => remove(attachment)}>
+                  onClick={() => remove(attachment)}
+                >
                   移除
                 </Button>,
               ]}

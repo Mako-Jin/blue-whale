@@ -125,9 +125,10 @@ export function MustChangePasswordDialog({
         credentials: 'include',
         body: JSON.stringify({ password }),
       });
-      const payload = (await response.json().catch(() => null)) as
-        | { code?: number; message?: string }
-        | null;
+      const payload = (await response.json().catch(() => null)) as {
+        code?: number;
+        message?: string;
+      } | null;
       if (!response.ok || !payload || payload.code !== 0) {
         setError(payload?.message ?? `密码修改失败（HTTP ${response.status}）`);
         return;

@@ -50,7 +50,10 @@ export function validateCanvas(fields: DesignerField[]): string | null {
 }
 
 /** 调色板载荷 → 画布字段（回填关联列信息，便于预览与属性面板只读展示） */
-export function buildField(payload: PalettePayload, columnsById: Map<Id, ColumnMeta>): DesignerField {
+export function buildField(
+  payload: PalettePayload,
+  columnsById: Map<Id, ColumnMeta>,
+): DesignerField {
   const column = payload.columnMetaId != null ? columnsById.get(payload.columnMetaId) : undefined;
   const isComposite = payload.widgetType === 'attachment' || payload.widgetType === 'subtable';
   return {
@@ -63,9 +66,8 @@ export function buildField(payload: PalettePayload, columnsById: Map<Id, ColumnM
     editable: 1,
     colSpan: 24,
     status: 1,
-    placeholder: column && !isComposite
-      ? `请输入${column.columnName || column.columnCode}`
-      : undefined,
+    placeholder:
+      column && !isComposite ? `请输入${column.columnName || column.columnCode}` : undefined,
     options:
       payload.widgetType === 'select' ||
       payload.widgetType === 'radio' ||

@@ -68,11 +68,7 @@ async function chooseOp(page: Page, label: string): Promise<void> {
 
 /** 点击指定条件 Tag 的关闭按钮移除条件 */
 async function removeTag(page: Page, text: string): Promise<void> {
-  await page
-    .locator('.ant-tag')
-    .filter({ hasText: text })
-    .locator('.ant-tag-close-icon')
-    .click();
+  await page.locator('.ant-tag').filter({ hasText: text }).locator('.ant-tag-close-icon').click();
 }
 
 /** 执行查询（antd 两字按钮会插入空格，用正则匹配） */
@@ -230,8 +226,20 @@ test('动态字段筛选：between 数值/日期/日期时间区间 / in 选项�
   // 3) 预置 5 条数据：stage=hold 的一条用于证明 in 条件确实生效
   const rows = [
     { amount: 50, stage: 'new', due_date: '2026-01-10', due_at: '2026-01-10 08:00:00' },
-    { amount: 100, stage: 'new', memo: 'beta', due_date: '2026-03-01', due_at: '2026-03-01 09:30:00' },
-    { amount: 150, stage: 'done', memo: 'alpha', due_date: '2026-06-01', due_at: '2026-06-01 10:00:00' },
+    {
+      amount: 100,
+      stage: 'new',
+      memo: 'beta',
+      due_date: '2026-03-01',
+      due_at: '2026-03-01 09:30:00',
+    },
+    {
+      amount: 150,
+      stage: 'done',
+      memo: 'alpha',
+      due_date: '2026-06-01',
+      due_at: '2026-06-01 10:00:00',
+    },
     {
       amount: 200,
       stage: 'done',
@@ -239,7 +247,13 @@ test('动态字段筛选：between 数值/日期/日期时间区间 / in 选项�
       due_date: '2026-12-01',
       due_at: '2026-12-01 11:15:00',
     },
-    { amount: 300, stage: 'hold', memo: 'omega', due_date: '2027-01-01', due_at: '2027-01-01 12:00:00' },
+    {
+      amount: 300,
+      stage: 'hold',
+      memo: 'omega',
+      due_date: '2027-01-01',
+      due_at: '2027-01-01 12:00:00',
+    },
   ];
   for (const row of rows) {
     const record = await submitFormData(request, token, formId, JSON.stringify(row));
@@ -302,13 +316,17 @@ test('动态字段筛选：between 数值/日期/日期时间区间 / in 选项�
   // 日期区间必须渲染 DatePicker（.ant-picker）而非文本输入
   await expect(page.locator('.ant-picker')).toHaveCount(2);
   await page.locator('#filter-between-from').click();
-  await expect(page.locator('.ant-picker-dropdown:visible').getByText('今天', { exact: true })).toBeVisible();
+  await expect(
+    page.locator('.ant-picker-dropdown:visible').getByText('今天', { exact: true }),
+  ).toBeVisible();
   await page.locator('#filter-between-from').fill('2026-03-01');
   await page.locator('#filter-between-from').press('Enter');
   await page.locator('#filter-between-to').fill('2026-12-31');
   await page.locator('#filter-between-to').press('Enter');
   await page.getByRole('button', { name: '添加条件' }).click();
-  await expect(page.locator('.ant-tag').filter({ hasText: '到期日 介于 2026-03-01 ~ 2026-12-31' })).toBeVisible();
+  await expect(
+    page.locator('.ant-tag').filter({ hasText: '到期日 介于 2026-03-01 ~ 2026-12-31' }),
+  ).toBeVisible();
   await search(page);
   await expect(page.getByText('共 3 条')).toBeVisible();
 
@@ -320,7 +338,9 @@ test('动态字段筛选：between 数值/日期/日期时间区间 / in 选项�
   await page.locator('#filter-value-date').fill('2026-06-01');
   await page.locator('#filter-value-date').press('Enter');
   await page.getByRole('button', { name: '添加条件' }).click();
-  await expect(page.locator('.ant-tag').filter({ hasText: '到期日 大于 2026-06-01' })).toBeVisible();
+  await expect(
+    page.locator('.ant-tag').filter({ hasText: '到期日 大于 2026-06-01' }),
+  ).toBeVisible();
   await search(page);
   await expect(page.getByText('共 2 条')).toBeVisible();
 
@@ -331,7 +351,9 @@ test('动态字段筛选：between 数值/日期/日期时间区间 / in 选项�
   await expect(page.locator('.ant-picker')).toHaveCount(2);
   await page.locator('#filter-between-from').click();
   await expect(page.locator('.ant-picker-time-panel').first()).toBeVisible();
-  await expect(page.locator('.ant-picker-dropdown:visible').getByText('此刻', { exact: true })).toBeVisible();
+  await expect(
+    page.locator('.ant-picker-dropdown:visible').getByText('此刻', { exact: true }),
+  ).toBeVisible();
   await page.locator('#filter-between-from').fill('2026-03-01 00:00:00');
   await page.locator('#filter-between-from').press('Enter');
   await page.locator('#filter-between-to').fill('2026-12-01 23:59:59');

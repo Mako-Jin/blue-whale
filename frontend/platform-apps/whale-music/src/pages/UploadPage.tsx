@@ -258,7 +258,8 @@ export default function UploadPage() {
         {meta && (
           <Typography.Paragraph type="secondary">
             当前协议版本 {meta.agreementVersion}；允许格式 {meta.audioFormats?.join(' / ') ?? '-'}；
-            单文件上限 {meta.uploadMaxBytes ? `${Math.round(meta.uploadMaxBytes / 1024 / 1024)} MB` : '-'}
+            单文件上限{' '}
+            {meta.uploadMaxBytes ? `${Math.round(meta.uploadMaxBytes / 1024 / 1024)} MB` : '-'}
           </Typography.Paragraph>
         )}
 
@@ -383,7 +384,11 @@ export default function UploadPage() {
 
       <Modal
         open={agreementOpen}
-        title={agreement ? `${agreement.agreementTitle}（${agreement.agreementVersion}）` : '版权无争议协议'}
+        title={
+          agreement
+            ? `${agreement.agreementTitle}（${agreement.agreementVersion}）`
+            : '版权无争议协议'
+        }
         okText="同意并签署"
         cancelText="暂不签署"
         confirmLoading={accepting}

@@ -97,9 +97,7 @@ describe('evaluateLinkage', () => {
       { field: 'type', operator: 'eq', value: 'A' },
       { field: 'status', operator: 'eq', value: '1' },
     ];
-    expect(
-      evaluateLinkage({ action: 'show', conditions }, { type: 'A', status: '0' }),
-    ).toBe(false);
+    expect(evaluateLinkage({ action: 'show', conditions }, { type: 'A', status: '0' })).toBe(false);
     expect(
       evaluateLinkage({ action: 'show', logic: 'and', conditions }, { type: 'A', status: '1' }),
     ).toBe(true);
@@ -130,8 +128,12 @@ describe('isFieldVisible', () => {
   });
 
   it('require / disable 不影响可见性', () => {
-    expect(isFieldVisible({ key: 'amount', linkage: ruleOf('require', 'eq', 'A') }, { type: 'A' })).toBe(true);
-    expect(isFieldVisible({ key: 'amount', linkage: ruleOf('disable', 'eq', 'A') }, { type: 'A' })).toBe(true);
+    expect(
+      isFieldVisible({ key: 'amount', linkage: ruleOf('require', 'eq', 'A') }, { type: 'A' }),
+    ).toBe(true);
+    expect(
+      isFieldVisible({ key: 'amount', linkage: ruleOf('disable', 'eq', 'A') }, { type: 'A' }),
+    ).toBe(true);
   });
 });
 
@@ -144,7 +146,9 @@ describe('isFieldDisabled', () => {
 
   it('无规则或其他 action 不禁用', () => {
     expect(isFieldDisabled({ key: 'amount' }, { type: 'A' })).toBe(false);
-    expect(isFieldDisabled({ key: 'amount', linkage: ruleOf('show', 'eq', 'A') }, { type: 'A' })).toBe(false);
+    expect(
+      isFieldDisabled({ key: 'amount', linkage: ruleOf('show', 'eq', 'A') }, { type: 'A' }),
+    ).toBe(false);
   });
 });
 

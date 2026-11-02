@@ -67,16 +67,23 @@ export default function ItemDetail() {
     }
     setLoading(true);
     try {
-      const [detail, statusList, transitionList, activityList, commentList, attachmentList, linkList] =
-        await Promise.all([
-          itemApi.detail(itemId),
-          workflowApi.statuses(projectId),
-          workflowApi.transitions(projectId),
-          itemApi.activities(itemId),
-          itemApi.comments(itemId),
-          itemApi.attachments(itemId),
-          itemApi.links(itemId),
-        ]);
+      const [
+        detail,
+        statusList,
+        transitionList,
+        activityList,
+        commentList,
+        attachmentList,
+        linkList,
+      ] = await Promise.all([
+        itemApi.detail(itemId),
+        workflowApi.statuses(projectId),
+        workflowApi.transitions(projectId),
+        itemApi.activities(itemId),
+        itemApi.comments(itemId),
+        itemApi.attachments(itemId),
+        itemApi.links(itemId),
+      ]);
       setItem(detail);
       setStatuses(statusList);
       setTransitions(transitionList);
@@ -143,7 +150,10 @@ export default function ItemDetail() {
     }
     const values = await attachmentForm.validateFields();
     try {
-      await itemApi.addAttachment(item.id, { fileId: Number(values.fileId), fileName: values.fileName });
+      await itemApi.addAttachment(item.id, {
+        fileId: Number(values.fileId),
+        fileName: values.fileName,
+      });
       message.success('附件已登记');
       setAttachmentModalOpen(false);
       await load();
@@ -196,7 +206,9 @@ export default function ItemDetail() {
     }
     const allowed = transitions.filter((transition) => transition.fromStatusId === item.statusId);
     const source = allowed.length
-      ? statuses.filter((status) => allowed.some((transition) => transition.toStatusId === status.id))
+      ? statuses.filter((status) =>
+          allowed.some((transition) => transition.toStatusId === status.id),
+        )
       : statuses.filter((status) => status.id !== item.statusId);
     return source.map((status) => ({ value: status.id, label: status.name }));
   };
@@ -204,7 +216,12 @@ export default function ItemDetail() {
   const attachmentColumns: ColumnsType<Attachment> = [
     { title: '文件名', dataIndex: 'fileName' },
     { title: '文件ID', dataIndex: 'fileId', width: 140 },
-    { title: '上传人', dataIndex: 'uploaderId', width: 120, render: (value?: string) => value ?? '-' },
+    {
+      title: '上传人',
+      dataIndex: 'uploaderId',
+      width: 120,
+      render: (value?: string) => value ?? '-',
+    },
     { title: '时间', dataIndex: 'createTime', width: 170, render: formatTime },
     {
       title: '操作',
@@ -221,7 +238,12 @@ export default function ItemDetail() {
 
   const linkColumns: ColumnsType<WorkItemLink> = [
     { title: '类型', dataIndex: 'linkType', width: 140 },
-    { title: '目标编号', dataIndex: 'targetKey', width: 140, render: (value?: string) => value ?? '-' },
+    {
+      title: '目标编号',
+      dataIndex: 'targetKey',
+      width: 140,
+      render: (value?: string) => value ?? '-',
+    },
     { title: '目标标题', dataIndex: 'targetTitle', render: (value?: string) => value ?? '-' },
     {
       title: '操作',
@@ -407,7 +429,13 @@ export default function ItemDetail() {
                     新增关联
                   </Button>
                 )}
-                <Table rowKey="id" size="small" columns={linkColumns} dataSource={links} pagination={false} />
+                <Table
+                  rowKey="id"
+                  size="small"
+                  columns={linkColumns}
+                  dataSource={links}
+                  pagination={false}
+                />
               </div>
             ),
           },
@@ -423,7 +451,11 @@ export default function ItemDetail() {
         cancelText="取消"
       >
         <Form form={transitionForm} layout="vertical">
-          <Form.Item name="targetStatusId" label="目标状态" rules={[{ required: true, message: '请选择目标状态' }]}>
+          <Form.Item
+            name="targetStatusId"
+            label="目标状态"
+            rules={[{ required: true, message: '请选择目标状态' }]}
+          >
             <Select options={targetOptions()} />
           </Form.Item>
           <Form.Item name="comment" label="备注">
@@ -441,10 +473,18 @@ export default function ItemDetail() {
         cancelText="取消"
       >
         <Form form={attachmentForm} layout="vertical">
-          <Form.Item name="fileId" label="文件ID" rules={[{ required: true, message: '请输入文件ID' }]}>
+          <Form.Item
+            name="fileId"
+            label="文件ID"
+            rules={[{ required: true, message: '请输入文件ID' }]}
+          >
             <Input placeholder="文件服务中的数字文件ID" />
           </Form.Item>
-          <Form.Item name="fileName" label="文件名" rules={[{ required: true, message: '请输入文件名' }]}>
+          <Form.Item
+            name="fileName"
+            label="文件名"
+            rules={[{ required: true, message: '请输入文件名' }]}
+          >
             <Input />
           </Form.Item>
         </Form>
@@ -459,7 +499,11 @@ export default function ItemDetail() {
         cancelText="取消"
       >
         <Form form={linkForm} layout="vertical">
-          <Form.Item name="targetItemId" label="目标工作项ID" rules={[{ required: true, message: '请输入目标工作项ID' }]}>
+          <Form.Item
+            name="targetItemId"
+            label="目标工作项ID"
+            rules={[{ required: true, message: '请输入目标工作项ID' }]}
+          >
             <Input placeholder="同项目的数字工作项ID" />
           </Form.Item>
           <Form.Item name="linkType" label="关联类型" rules={[{ required: true }]}>

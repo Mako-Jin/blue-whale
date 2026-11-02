@@ -132,7 +132,10 @@ export default function ArchiveItemList({
       });
   }, [loadStats, message]);
 
-  const categoryOptions = useMemo<CategoryOption[]>(() => flattenCategories(categories), [categories]);
+  const categoryOptions = useMemo<CategoryOption[]>(
+    () => flattenCategories(categories),
+    [categories],
+  );
 
   const refresh = () => {
     tableRef.current?.reload();
@@ -288,7 +291,10 @@ export default function ArchiveItemList({
             </>
           )}
           {row.itemStatus === 1 && has('sys:archive:item:destroy') && (
-            <Popconfirm title="确认销毁登记？操作不可撤销" onConfirm={() => void handleDestroy(row)}>
+            <Popconfirm
+              title="确认销毁登记？操作不可撤销"
+              onConfirm={() => void handleDestroy(row)}
+            >
               <Button type="link" size="small" danger>
                 销毁
               </Button>
@@ -411,9 +417,7 @@ export default function ArchiveItemList({
             onReset={() => setQuery({})}
           />
         }
-        toolbar={
-          <Button onClick={refresh}>刷新</Button>
-        }
+        toolbar={<Button onClick={refresh}>刷新</Button>}
       />
       <Drawer
         title="档案详情"
@@ -425,14 +429,18 @@ export default function ArchiveItemList({
         {detail && (
           <>
             <Descriptions column={2} size="small" bordered>
-              <Descriptions.Item label="档号">{detail.item.archiveNo ?? '（待分配）'}</Descriptions.Item>
-              <Descriptions.Item label="标题">{detail.item.title ?? '-'}</Descriptions.Item>
-              <Descriptions.Item label="门类">
-                {detail.item.categoryName ?? '-'}
+              <Descriptions.Item label="档号">
+                {detail.item.archiveNo ?? '（待分配）'}
               </Descriptions.Item>
-              <Descriptions.Item label="门类路径">{detail.item.categoryPath ?? '-'}</Descriptions.Item>
+              <Descriptions.Item label="标题">{detail.item.title ?? '-'}</Descriptions.Item>
+              <Descriptions.Item label="门类">{detail.item.categoryName ?? '-'}</Descriptions.Item>
+              <Descriptions.Item label="门类路径">
+                {detail.item.categoryPath ?? '-'}
+              </Descriptions.Item>
               <Descriptions.Item label="年度">{detail.item.year ?? '-'}</Descriptions.Item>
-              <Descriptions.Item label="密级">{securityLabel(detail.item.securityLevel)}</Descriptions.Item>
+              <Descriptions.Item label="密级">
+                {securityLabel(detail.item.securityLevel)}
+              </Descriptions.Item>
               <Descriptions.Item label="保管期限">
                 {detail.item.retentionYears ? `${detail.item.retentionYears} 年` : '长期'}
               </Descriptions.Item>
@@ -442,7 +450,9 @@ export default function ArchiveItemList({
               <Descriptions.Item label="来源定义">
                 {detail.item.definitionCode ?? '-'}
               </Descriptions.Item>
-              <Descriptions.Item label="业务单号">{detail.item.businessKey ?? '-'}</Descriptions.Item>
+              <Descriptions.Item label="业务单号">
+                {detail.item.businessKey ?? '-'}
+              </Descriptions.Item>
               <Descriptions.Item label="发起人">{detail.item.initiator ?? '-'}</Descriptions.Item>
               <Descriptions.Item label="来源状态">
                 {detail.sourceStatus === undefined || detail.sourceStatus === null
@@ -486,7 +496,11 @@ export default function ArchiveItemList({
         destroyOnClose
       >
         <Form form={form} layout="vertical" preserve={false}>
-          <Form.Item name="categoryId" label="归档门类" rules={[{ required: true, message: '请选择门类' }]}>
+          <Form.Item
+            name="categoryId"
+            label="归档门类"
+            rules={[{ required: true, message: '请选择门类' }]}
+          >
             <Select options={categoryOptions} showSearch optionFilterProp="label" />
           </Form.Item>
           <Form.Item name="title" label="档案标题">

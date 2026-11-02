@@ -252,16 +252,27 @@ export default function AlbumList() {
         columns={columns}
         request={pageAlbums}
         params={{ keyword, publishState }}
-        onError={(error) => message.error(error instanceof Error ? error.message : '专辑列表加载失败')}
+        onError={(error) =>
+          message.error(error instanceof Error ? error.message : '专辑列表加载失败')
+        }
         search={
           <SearchForm
             items={[
-              { name: 'keyword', label: '标题', element: <Input allowClear placeholder="专辑标题" /> },
+              {
+                name: 'keyword',
+                label: '标题',
+                element: <Input allowClear placeholder="专辑标题" />,
+              },
               {
                 name: 'publishState',
                 label: '状态',
                 element: (
-                  <Select allowClear placeholder="全部" style={{ width: 120 }} options={PUBLISH_STATE_OPTIONS} />
+                  <Select
+                    allowClear
+                    placeholder="全部"
+                    style={{ width: 120 }}
+                    options={PUBLISH_STATE_OPTIONS}
+                  />
                 ),
               },
             ]}
@@ -306,7 +317,11 @@ export default function AlbumList() {
             options={artists.map((artist) => ({ value: artist.id, label: artist.name }))}
           />
         </Form.Item>
-        <Form.Item name="title" label="专辑标题" rules={[{ required: true, message: '请输入专辑标题' }]}>
+        <Form.Item
+          name="title"
+          label="专辑标题"
+          rules={[{ required: true, message: '请输入专辑标题' }]}
+        >
           <Input maxLength={200} showCount />
         </Form.Item>
         <Form.Item label="封面（必填）" required>

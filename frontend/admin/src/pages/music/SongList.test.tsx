@@ -2,7 +2,14 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SongList from './SongList';
-import { pageAlbums, pageArtists, listTags, pageSongs, takedownSong, type SongView } from '../../api/music';
+import {
+  pageAlbums,
+  pageArtists,
+  listTags,
+  pageSongs,
+  takedownSong,
+  type SongView,
+} from '../../api/music';
 import { MUSIC_PERMS, pageResult, renderPage } from '../../test/test-utils';
 
 vi.mock('../../api/music', () => ({
@@ -32,9 +39,7 @@ const draftSong: SongView = {
 
 function mockApis(songs: SongView[]) {
   vi.mocked(pageSongs).mockResolvedValue(pageResult(songs));
-  vi.mocked(pageArtists).mockResolvedValue(
-    pageResult([{ id: 1, name: '周杰伦' }]),
-  );
+  vi.mocked(pageArtists).mockResolvedValue(pageResult([{ id: 1, name: '周杰伦' }]));
   vi.mocked(pageAlbums).mockResolvedValue(pageResult([]));
   vi.mocked(listTags).mockResolvedValue([]);
 }

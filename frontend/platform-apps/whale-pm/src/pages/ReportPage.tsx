@@ -32,15 +32,21 @@ function BurndownChart({ points }: { points: BurndownPoint[] }) {
   const step = points.length > 1 ? (width - pad * 2) / (points.length - 1) : 0;
   const x = (index: number) => pad + index * step;
   const y = (value: number) => height - pad - (value / maxValue) * (height - pad * 2);
-  const remaining = points.map((point, index) => `${x(index)},${y(Number(point.remainingPoints))}`).join(' ');
-  const ideal = points.map((point, index) => `${x(index)},${y(Number(point.idealPoints))}`).join(' ');
+  const remaining = points
+    .map((point, index) => `${x(index)},${y(Number(point.remainingPoints))}`)
+    .join(' ');
+  const ideal = points
+    .map((point, index) => `${x(index)},${y(Number(point.idealPoints))}`)
+    .join(' ');
   return (
     <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', maxWidth: width }}>
       <line x1={pad} y1={height - pad} x2={width - pad} y2={height - pad} stroke="#d9d9d9" />
       <line x1={pad} y1={pad} x2={pad} y2={height - pad} stroke="#d9d9d9" />
       <polyline points={ideal} fill="none" stroke="#91caff" strokeDasharray="6 4" strokeWidth={2} />
       <polyline points={remaining} fill="none" stroke="#1677ff" strokeWidth={2} />
-      <text x={pad} y={20} fill="#1677ff">剩余故事点：{points[points.length - 1].remainingPoints}</text>
+      <text x={pad} y={20} fill="#1677ff">
+        剩余故事点：{points[points.length - 1].remainingPoints}
+      </text>
     </svg>
   );
 }
@@ -102,7 +108,11 @@ export default function ReportPage() {
 
   const velocityColumns: ColumnsType<VelocitySprint> = [
     { title: '迭代', dataIndex: 'sprintName' },
-    { title: '区间', key: 'range', render: (_, record) => `${formatDate(record.startDate)} ~ ${formatDate(record.endDate)}` },
+    {
+      title: '区间',
+      key: 'range',
+      render: (_, record) => `${formatDate(record.startDate)} ~ ${formatDate(record.endDate)}`,
+    },
     { title: '承诺故事点', dataIndex: 'committedPoints', width: 140 },
     { title: '完成故事点', dataIndex: 'completedPoints', width: 140 },
     {
@@ -147,7 +157,9 @@ export default function ReportPage() {
     ? flow.dates.map((date, index) => ({
         key: date,
         date,
-        values: Object.fromEntries(flow.series.map((series) => [series.category, series.values[index]])),
+        values: Object.fromEntries(
+          flow.series.map((series) => [series.category, series.values[index]]),
+        ),
       }))
     : [];
 
@@ -173,8 +185,16 @@ export default function ReportPage() {
                 <Space style={{ marginBottom: 8 }}>
                   <Typography.Text strong>{burndown?.sprintName ?? '无进行中迭代'}</Typography.Text>
                   <Tag>承诺 {burndown?.totalPoints ?? 0}</Tag>
-                  {burndown?.startDate && <Typography.Text type="secondary">{formatDate(burndown.startDate)}</Typography.Text>}
-                  {burndown?.endDate && <Typography.Text type="secondary">~ {formatDate(burndown.endDate)}</Typography.Text>}
+                  {burndown?.startDate && (
+                    <Typography.Text type="secondary">
+                      {formatDate(burndown.startDate)}
+                    </Typography.Text>
+                  )}
+                  {burndown?.endDate && (
+                    <Typography.Text type="secondary">
+                      ~ {formatDate(burndown.endDate)}
+                    </Typography.Text>
+                  )}
                 </Space>
                 <BurndownChart points={burndown?.points ?? []} />
               </div>
@@ -199,7 +219,10 @@ export default function ReportPage() {
             children: (
               <div>
                 <Space style={{ marginBottom: 12 }}>
-                  <DatePicker.RangePicker value={range} onChange={(value) => setRange(value as [Dayjs, Dayjs] | null)} />
+                  <DatePicker.RangePicker
+                    value={range}
+                    onChange={(value) => setRange(value as [Dayjs, Dayjs] | null)}
+                  />
                 </Space>
                 <Table
                   rowKey="key"

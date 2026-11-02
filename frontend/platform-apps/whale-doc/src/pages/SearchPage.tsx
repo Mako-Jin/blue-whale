@@ -1,7 +1,19 @@
 // 文档搜索：按关键字检索公开空间与我参与空间中的已发布页面
 
 import { useCallback, useEffect, useState } from 'react';
-import { App, Card, Empty, Input, List, Pagination, Select, Space, Spin, Tag, Typography } from 'antd';
+import {
+  App,
+  Card,
+  Empty,
+  Input,
+  List,
+  Pagination,
+  Select,
+  Space,
+  Spin,
+  Tag,
+  Typography,
+} from 'antd';
 import { FileTextOutlined, SearchOutlined } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import { searchApi } from '../api/search';
@@ -46,7 +58,8 @@ export default function SearchPage() {
   const [tagId, setTagId] = useState<number | undefined>();
 
   useEffect(() => {
-    spaceApi.page({ current: 1, size: 200 })
+    spaceApi
+      .page({ current: 1, size: 200 })
       .then((result) => setSpaces(result.records))
       .catch(() => undefined);
   }, []);
@@ -58,7 +71,10 @@ export default function SearchPage() {
       setTags([]);
       return;
     }
-    tagApi.list(spaceId).then(setTags).catch(() => setTags([]));
+    tagApi
+      .list(spaceId)
+      .then(setTags)
+      .catch(() => setTags([]));
   }, [spaceId]);
 
   const run = useCallback(
@@ -142,8 +158,8 @@ export default function SearchPage() {
             />
           </Space>
           <Text type="secondary">
-            仅检索已发布页面：公开空间对所有人生效，成员空间仅对空间成员生效；
-            受限页面仅对 ACL 授权用户可见，标签筛选需先选择空间。
+            仅检索已发布页面：公开空间对所有人生效，成员空间仅对空间成员生效； 受限页面仅对 ACL
+            授权用户可见，标签筛选需先选择空间。
           </Text>
         </Space>
       </Card>

@@ -1,7 +1,19 @@
 // 信息面板基础页签：页面详情 / 标签 / 反向链接 / 动态
 
 import { useCallback, useEffect, useState } from 'react';
-import { App, Button, Descriptions, Empty, List, Pagination, Select, Space, Spin, Tag, Typography } from 'antd';
+import {
+  App,
+  Button,
+  Descriptions,
+  Empty,
+  List,
+  Pagination,
+  Select,
+  Space,
+  Spin,
+  Tag,
+  Typography,
+} from 'antd';
 import { Link } from 'react-router-dom';
 import { hasPermission } from '../../api/client';
 import { insightApi } from '../../api/insight';
@@ -44,7 +56,11 @@ export function DetailTab({ page }: { page: DocPage }) {
       <Descriptions.Item label="标题">{page.title}</Descriptions.Item>
       <Descriptions.Item label="状态">
         <Space size={4}>
-          <Tag color={page.status === 'PUBLISHED' ? 'green' : page.status === 'DRAFT' ? 'gold' : 'default'}>
+          <Tag
+            color={
+              page.status === 'PUBLISHED' ? 'green' : page.status === 'DRAFT' ? 'gold' : 'default'
+            }
+          >
             {STATUS_LABEL[page.status]}
           </Tag>
           {page.restricted && <Tag color="red">页面级权限</Tag>}
@@ -148,7 +164,12 @@ export function TagTab({ page }: { page: DocPage }) {
               }))}
               onChange={(value) => setSelected(value)}
             />
-            <Button type="primary" loading={saving} disabled={tags.length === 0} onClick={() => void save()}>
+            <Button
+              type="primary"
+              loading={saving}
+              disabled={tags.length === 0}
+              onClick={() => void save()}
+            >
               保存
             </Button>
           </Space.Compact>
@@ -189,11 +210,7 @@ export function BacklinkTab({ page }: { page: DocPage }) {
         renderItem={(item) => (
           <List.Item>
             <List.Item.Meta
-              title={
-                <Link to={`/space/${item.spaceId}?pageId=${item.pageId}`}>
-                  {item.title}
-                </Link>
-              }
+              title={<Link to={`/space/${item.spaceId}?pageId=${item.pageId}`}>{item.title}</Link>}
               description={
                 <Space direction="vertical" size={2}>
                   {item.linkText && <Text type="secondary">「{item.linkText}」</Text>}
@@ -253,8 +270,14 @@ export function ActivityTab({ page }: { page: DocPage }) {
       </Spin>
       {total > 20 && (
         <div style={{ textAlign: 'right', marginTop: 12 }}>
-          <Pagination current={current} pageSize={20} total={total} showSizeChanger={false}
-            onChange={setCurrent} size="small" />
+          <Pagination
+            current={current}
+            pageSize={20}
+            total={total}
+            showSizeChanger={false}
+            onChange={setCurrent}
+            size="small"
+          />
         </div>
       )}
     </div>

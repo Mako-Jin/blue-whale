@@ -122,7 +122,10 @@ export default function Workspace() {
   }, [selectedId]);
 
   const canContribute = useMemo(
-    () => Boolean(space?.memberRole && space.memberRole !== 'READER' && hasPermission('sys:doc:page:add')),
+    () =>
+      Boolean(
+        space?.memberRole && space.memberRole !== 'READER' && hasPermission('sys:doc:page:add'),
+      ),
     [space?.memberRole],
   );
   const canManageMember = useMemo(
@@ -133,8 +136,8 @@ export default function Workspace() {
     () =>
       Boolean(
         space?.memberRole &&
-          (space.memberRole === 'OWNER' || space.memberRole === 'ADMIN') &&
-          hasPermission('sys:doc:page:delete'),
+        (space.memberRole === 'OWNER' || space.memberRole === 'ADMIN') &&
+        hasPermission('sys:doc:page:delete'),
       ),
     [space?.memberRole],
   );
@@ -291,10 +294,16 @@ export default function Workspace() {
             <Tag color={space.visibility === 'PUBLIC' ? 'blue' : 'default'}>
               {VISIBILITY_LABEL[space.visibility] ?? space.visibility}
             </Tag>
-            {space.memberRole && <Tag color="green">{ROLE_LABEL[space.memberRole] ?? space.memberRole}</Tag>}
+            {space.memberRole && (
+              <Tag color="green">{ROLE_LABEL[space.memberRole] ?? space.memberRole}</Tag>
+            )}
           </Space>
           {space.description && (
-            <Text type="secondary" className="doc-workspace-desc" ellipsis={{ tooltip: space.description }}>
+            <Text
+              type="secondary"
+              className="doc-workspace-desc"
+              ellipsis={{ tooltip: space.description }}
+            >
               {space.description}
             </Text>
           )}
@@ -411,7 +420,10 @@ export default function Workspace() {
               { max: 200, message: '最多 200 字' },
             ]}
           >
-            <Input placeholder={createType === 'FOLDER' ? '例如 产品需求' : '例如 需求说明'} autoFocus />
+            <Input
+              placeholder={createType === 'FOLDER' ? '例如 产品需求' : '例如 需求说明'}
+              autoFocus
+            />
           </Form.Item>
           <Form.Item name="parentId" label="父节点" initialValue={0}>
             <TreeSelect

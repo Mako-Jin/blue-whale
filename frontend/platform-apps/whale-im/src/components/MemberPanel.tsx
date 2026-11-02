@@ -128,7 +128,13 @@ export default function MemberPanel({
               value={userInput}
               onChange={(event) => setUserInput(event.target.value)}
             />
-            <Button size="small" type="primary" onClick={() => { void handleAdd(); }}>
+            <Button
+              size="small"
+              type="primary"
+              onClick={() => {
+                void handleAdd();
+              }}
+            >
               确定
             </Button>
           </Space.Compact>
@@ -153,7 +159,13 @@ export default function MemberPanel({
                             void onRemoveMember(member.userId);
                           }}
                         >
-                          <Button size="small" type="text" danger icon={<DeleteOutlined />} aria-label="移除成员" />
+                          <Button
+                            size="small"
+                            type="text"
+                            danger
+                            icon={<DeleteOutlined />}
+                            aria-label="移除成员"
+                          />
                         </Popconfirm>,
                       ]
                     : undefined
@@ -165,9 +177,19 @@ export default function MemberPanel({
                     icon={member.memberType === 'BOT' ? <RobotOutlined /> : <UserOutlined />}
                   />
                   <div>
-                    <Text>{member.userId === currentUserId ? `我（${member.userId}）` : member.userId}</Text>
+                    <Text>
+                      {member.userId === currentUserId ? `我（${member.userId}）` : member.userId}
+                    </Text>
                     <div>
-                      <Tag color={member.role === 'OWNER' ? 'gold' : member.role === 'ADMIN' ? 'blue' : 'default'}>
+                      <Tag
+                        color={
+                          member.role === 'OWNER'
+                            ? 'gold'
+                            : member.role === 'ADMIN'
+                              ? 'blue'
+                              : 'default'
+                        }
+                      >
                         {ROLE_LABEL[member.role] ?? member.role}
                       </Tag>
                       {member.memberType === 'BOT' && <Tag color="purple">机器人</Tag>}

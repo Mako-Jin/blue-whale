@@ -45,7 +45,8 @@ export const pageApi = {
   bySlug: (spaceId: number, slug: string) =>
     http.get<DocPage>('/doc/page/by-slug', { spaceId, slug }),
   create: (payload: PageCreatePayload) => http.post<DocPage>('/doc/page', payload),
-  save: (id: number, payload: PageSavePayload) => http.put<DocPageSaveResult>(`/doc/page/${id}`, payload),
+  save: (id: number, payload: PageSavePayload) =>
+    http.put<DocPageSaveResult>(`/doc/page/${id}`, payload),
   updateTitle: (id: number, payload: PageSavePayload) =>
     http.put<DocPageSaveResult>(`/doc/page/${id}/title`, payload),
   remove: (id: number) => http.del<void>(`/doc/page/${id}`),

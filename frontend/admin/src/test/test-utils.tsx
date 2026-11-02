@@ -13,11 +13,7 @@ interface PageResult<T> {
 }
 
 /** 渲染页面组件：包 App（message 上下文）+ PermissionProvider（按钮级权限） */
-export function renderPage(
-  ui: ReactElement,
-  permissions: string[] = [],
-  options?: RenderOptions,
-) {
+export function renderPage(ui: ReactElement, permissions: string[] = [], options?: RenderOptions) {
   return render(
     <App>
       <PermissionProvider permissions={permissions}>{ui}</PermissionProvider>

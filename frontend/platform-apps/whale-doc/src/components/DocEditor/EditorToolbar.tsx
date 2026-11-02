@@ -43,48 +43,135 @@ export default function EditorToolbar({ editor }: { editor: Editor | null }) {
   return (
     <Space wrap size={2} className="doc-editor-toolbar">
       <Tooltip title="撤销">
-        <Button size="small" type="text" icon={<UndoOutlined />} disabled={!editor.can().undo()}
-          aria-label="撤销" onClick={() => editor.chain().focus().undo().run()} />
+        <Button
+          size="small"
+          type="text"
+          icon={<UndoOutlined />}
+          disabled={!editor.can().undo()}
+          aria-label="撤销"
+          onClick={() => editor.chain().focus().undo().run()}
+        />
       </Tooltip>
       <Tooltip title="重做">
-        <Button size="small" type="text" icon={<RedoOutlined />} disabled={!editor.can().redo()}
-          aria-label="重做" onClick={() => editor.chain().focus().redo().run()} />
+        <Button
+          size="small"
+          type="text"
+          icon={<RedoOutlined />}
+          disabled={!editor.can().redo()}
+          aria-label="重做"
+          onClick={() => editor.chain().focus().redo().run()}
+        />
       </Tooltip>
       <Divider type="vertical" />
-      <Button size="small" type={editor.isActive('heading', { level: 1 }) ? 'primary' : 'text'}
-        onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>H1</Button>
-      <Button size="small" type={editor.isActive('heading', { level: 2 }) ? 'primary' : 'text'}
-        onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>H2</Button>
-      <Button size="small" type={editor.isActive('heading', { level: 3 }) ? 'primary' : 'text'}
-        onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>H3</Button>
+      <Button
+        size="small"
+        type={editor.isActive('heading', { level: 1 }) ? 'primary' : 'text'}
+        onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+      >
+        H1
+      </Button>
+      <Button
+        size="small"
+        type={editor.isActive('heading', { level: 2 }) ? 'primary' : 'text'}
+        onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+      >
+        H2
+      </Button>
+      <Button
+        size="small"
+        type={editor.isActive('heading', { level: 3 }) ? 'primary' : 'text'}
+        onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+      >
+        H3
+      </Button>
       <Divider type="vertical" />
-      <Button size="small" type={editor.isActive('bold') ? 'primary' : 'text'} icon={<BoldOutlined />}
-        aria-label="加粗" onClick={() => editor.chain().focus().toggleBold().run()} />
-      <Button size="small" type={editor.isActive('italic') ? 'primary' : 'text'} icon={<ItalicOutlined />}
-        aria-label="斜体" onClick={() => editor.chain().focus().toggleItalic().run()} />
-      <Button size="small" type={editor.isActive('underline') ? 'primary' : 'text'} icon={<UnderlineOutlined />}
-        aria-label="下划线" onClick={() => editor.chain().focus().toggleUnderline().run()} />
-      <Button size="small" type={editor.isActive('strike') ? 'primary' : 'text'} icon={<StrikethroughOutlined />}
-        aria-label="删除线" onClick={() => editor.chain().focus().toggleStrike().run()} />
+      <Button
+        size="small"
+        type={editor.isActive('bold') ? 'primary' : 'text'}
+        icon={<BoldOutlined />}
+        aria-label="加粗"
+        onClick={() => editor.chain().focus().toggleBold().run()}
+      />
+      <Button
+        size="small"
+        type={editor.isActive('italic') ? 'primary' : 'text'}
+        icon={<ItalicOutlined />}
+        aria-label="斜体"
+        onClick={() => editor.chain().focus().toggleItalic().run()}
+      />
+      <Button
+        size="small"
+        type={editor.isActive('underline') ? 'primary' : 'text'}
+        icon={<UnderlineOutlined />}
+        aria-label="下划线"
+        onClick={() => editor.chain().focus().toggleUnderline().run()}
+      />
+      <Button
+        size="small"
+        type={editor.isActive('strike') ? 'primary' : 'text'}
+        icon={<StrikethroughOutlined />}
+        aria-label="删除线"
+        onClick={() => editor.chain().focus().toggleStrike().run()}
+      />
       <Divider type="vertical" />
-      <Button size="small" type={editor.isActive('bulletList') ? 'primary' : 'text'}
-        icon={<UnorderedListOutlined />} aria-label="无序列表"
-        onClick={() => editor.chain().focus().toggleBulletList().run()} />
-      <Button size="small" type={editor.isActive('orderedList') ? 'primary' : 'text'}
-        icon={<OrderedListOutlined />} aria-label="有序列表"
-        onClick={() => editor.chain().focus().toggleOrderedList().run()} />
-      <Button size="small" type={editor.isActive('blockquote') ? 'primary' : 'text'}
-        onClick={() => editor.chain().focus().toggleBlockquote().run()}>引用</Button>
-      <Button size="small" type={editor.isActive('codeBlock') ? 'primary' : 'text'} icon={<CodeOutlined />}
-        aria-label="代码块" onClick={() => editor.chain().focus().toggleCodeBlock().run()} />
+      <Button
+        size="small"
+        type={editor.isActive('bulletList') ? 'primary' : 'text'}
+        icon={<UnorderedListOutlined />}
+        aria-label="无序列表"
+        onClick={() => editor.chain().focus().toggleBulletList().run()}
+      />
+      <Button
+        size="small"
+        type={editor.isActive('orderedList') ? 'primary' : 'text'}
+        icon={<OrderedListOutlined />}
+        aria-label="有序列表"
+        onClick={() => editor.chain().focus().toggleOrderedList().run()}
+      />
+      <Button
+        size="small"
+        type={editor.isActive('blockquote') ? 'primary' : 'text'}
+        onClick={() => editor.chain().focus().toggleBlockquote().run()}
+      >
+        引用
+      </Button>
+      <Button
+        size="small"
+        type={editor.isActive('codeBlock') ? 'primary' : 'text'}
+        icon={<CodeOutlined />}
+        aria-label="代码块"
+        onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+      />
       <Divider type="vertical" />
-      <Button size="small" type={editor.isActive('link') ? 'primary' : 'text'} icon={<LinkOutlined />}
-        aria-label="链接" onClick={setLink} />
-      <Button size="small" type="text" icon={<PictureOutlined />} aria-label="插入图片" onClick={setImage} />
-      <Button size="small" type="text" icon={<UnorderedListOutlined />} aria-label="分隔线"
-        onClick={() => editor.chain().focus().setHorizontalRule().run()} />
-      <Button size="small" type="text" icon={<DeleteOutlined />} danger aria-label="清除格式"
-        onClick={() => editor.chain().focus().clearNodes().run()} />
+      <Button
+        size="small"
+        type={editor.isActive('link') ? 'primary' : 'text'}
+        icon={<LinkOutlined />}
+        aria-label="链接"
+        onClick={setLink}
+      />
+      <Button
+        size="small"
+        type="text"
+        icon={<PictureOutlined />}
+        aria-label="插入图片"
+        onClick={setImage}
+      />
+      <Button
+        size="small"
+        type="text"
+        icon={<UnorderedListOutlined />}
+        aria-label="分隔线"
+        onClick={() => editor.chain().focus().setHorizontalRule().run()}
+      />
+      <Button
+        size="small"
+        type="text"
+        icon={<DeleteOutlined />}
+        danger
+        aria-label="清除格式"
+        onClick={() => editor.chain().focus().clearNodes().run()}
+      />
     </Space>
   );
 }

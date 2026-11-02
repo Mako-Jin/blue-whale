@@ -56,7 +56,8 @@ export default function NewConversationModal({
 
   const memberIds = parseMemberIds(members);
   const invalid =
-    memberIds.length === 0 || (type === 'SINGLE' && memberIds.length !== 1) ||
+    memberIds.length === 0 ||
+    (type === 'SINGLE' && memberIds.length !== 1) ||
     (type === 'GROUP' && !title.trim());
 
   return (

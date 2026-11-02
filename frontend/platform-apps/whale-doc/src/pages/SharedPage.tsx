@@ -35,7 +35,9 @@ export default function SharedPage() {
       try {
         const loaded = await shareApi.resolve(token);
         setPage(loaded);
-        editor.commands.setContent(parseDocJson(loaded.contentJson) ?? { type: 'doc', content: [] });
+        editor.commands.setContent(
+          parseDocJson(loaded.contentJson) ?? { type: 'doc', content: [] },
+        );
       } catch (err) {
         setError((err as Error).message);
       } finally {

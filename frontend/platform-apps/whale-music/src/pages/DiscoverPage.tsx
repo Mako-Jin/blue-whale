@@ -1,25 +1,9 @@
 // 发现首页：热门歌曲 / 新歌 / 官方歌单 / 热门标签（点击歌曲直接走全局播放器）
 
-import {
-  App,
-  Card,
-  Col,
-  Empty,
-  List,
-  Row,
-  Skeleton,
-  Space,
-  Tag,
-  Typography,
-} from 'antd';
+import { App, Card, Col, Empty, List, Row, Skeleton, Space, Tag, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  getHome,
-  type HomeView,
-  type PlaylistView,
-  type PublicSongView,
-} from '../api/music';
+import { getHome, type HomeView, type PlaylistView, type PublicSongView } from '../api/music';
 import { formatDuration } from '../utils/musicDisplay';
 import { usePlayer } from '../player/PlayerContext';
 
@@ -51,7 +35,9 @@ function SongBoard({
               className="music-board-item"
               onClick={() => onPlay(song)}
               extra={
-                <Typography.Text type="secondary">{formatDuration(song.durationMs)}</Typography.Text>
+                <Typography.Text type="secondary">
+                  {formatDuration(song.durationMs)}
+                </Typography.Text>
               }
             >
               <div className="music-board-row">

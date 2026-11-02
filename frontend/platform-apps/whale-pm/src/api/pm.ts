@@ -270,8 +270,10 @@ export const projectApi = {
   page: (query: ProjectQuery) => http.get<PageResult<Project>>('/pm/project/page', { ...query }),
   detail: (id: string) => http.get<Project>(`/pm/project/${id}`),
   create: (body: Record<string, unknown>) => http.post<Project>('/pm/project', body),
-  update: (id: string, body: Record<string, unknown>) => http.put<Project>(`/pm/project/${id}`, body),
-  changeStatus: (id: string, status: string) => http.put<Project>(`/pm/project/${id}/status`, { status }),
+  update: (id: string, body: Record<string, unknown>) =>
+    http.put<Project>(`/pm/project/${id}`, body),
+  changeStatus: (id: string, status: string) =>
+    http.put<Project>(`/pm/project/${id}/status`, { status }),
   remove: (id: string) => http.del<void>(`/pm/project/${id}`),
 };
 
@@ -300,17 +302,20 @@ export const workflowApi = {
 
 /** 工作项 */
 export const itemApi = {
-  page: (query: WorkItemQuery) => http.get<PageResult<WorkItem>>('/pm/work-item/page', { ...query }),
+  page: (query: WorkItemQuery) =>
+    http.get<PageResult<WorkItem>>('/pm/work-item/page', { ...query }),
   detail: (id: string) => http.get<WorkItem>(`/pm/work-item/${id}`),
   create: (body: Record<string, unknown>) => http.post<WorkItem>('/pm/work-item', body),
-  update: (id: string, body: Record<string, unknown>) => http.put<WorkItem>(`/pm/work-item/${id}`, body),
+  update: (id: string, body: Record<string, unknown>) =>
+    http.put<WorkItem>(`/pm/work-item/${id}`, body),
   remove: (id: string) => http.del<void>(`/pm/work-item/${id}`),
   transition: (id: string, body: { targetStatusId: string; comment?: string }) =>
     http.put<WorkItem>(`/pm/work-item/${id}/transition`, body),
   rank: (id: string, body: { beforeItemId?: string; afterItemId?: string }) =>
     http.put<WorkItem>(`/pm/work-item/${id}/rank`, body),
   activities: (id: string) => http.get<Activity[]>(`/pm/work-item/${id}/activity`),
-  projectActivities: (projectId: string) => http.get<Activity[]>(`/pm/project/${projectId}/activity`),
+  projectActivities: (projectId: string) =>
+    http.get<Activity[]>(`/pm/project/${projectId}/activity`),
   comments: (id: string) => http.get<Comment[]>(`/pm/work-item/${id}/comment`),
   addComment: (id: string, body: { content: string; parentId?: string }) =>
     http.post<Comment>(`/pm/work-item/${id}/comment`, body),
@@ -355,7 +360,8 @@ export const boardApi = {
     http.post<Board>(`/pm/board/${id}/column`, body),
   updateColumn: (id: string, columnId: string, body: Record<string, unknown>) =>
     http.put<Board>(`/pm/board/${id}/column/${columnId}`, body),
-  removeColumn: (id: string, columnId: string) => http.del<void>(`/pm/board/${id}/column/${columnId}`),
+  removeColumn: (id: string, columnId: string) =>
+    http.del<void>(`/pm/board/${id}/column/${columnId}`),
   drag: (id: string, body: { workItemId: number; targetStatusId: number; comment?: string }) =>
     http.put<BoardView>(`/pm/board/${id}/drag`, body),
 };
@@ -366,7 +372,9 @@ export const reportApi = {
     http.get<Burndown>('/pm/report/burndown', { projectId, sprintId }),
   velocity: (projectId: string, limit?: number) =>
     http.get<Velocity>('/pm/report/velocity', { projectId, limit }),
-  cumulativeFlow: (projectId: string, params?: { sprintId?: string; startDate?: string; endDate?: string }) =>
-    http.get<CumulativeFlow>('/pm/report/cumulative-flow', { projectId, ...params }),
+  cumulativeFlow: (
+    projectId: string,
+    params?: { sprintId?: string; startDate?: string; endDate?: string },
+  ) => http.get<CumulativeFlow>('/pm/report/cumulative-flow', { projectId, ...params }),
   workload: (projectId: string) => http.get<Workload>('/pm/report/workload', { projectId }),
 };

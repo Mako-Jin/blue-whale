@@ -22,9 +22,15 @@ function ConversationAvatar({ conversation }: { conversation: ConversationVO }) 
     return <Avatar icon={<RobotOutlined />} style={{ backgroundColor: '#722ed1', flex: 'none' }} />;
   }
   if (conversation.type === 'GROUP') {
-    return <Avatar icon={<WechatOutlined />} style={{ backgroundColor: '#1677ff', flex: 'none' }} />;
+    return (
+      <Avatar icon={<WechatOutlined />} style={{ backgroundColor: '#1677ff', flex: 'none' }} />
+    );
   }
-  return <Avatar style={{ backgroundColor: '#13c2c2', flex: 'none' }}>{conversation.title?.slice(0, 1) ?? '?'}</Avatar>;
+  return (
+    <Avatar style={{ backgroundColor: '#13c2c2', flex: 'none' }}>
+      {conversation.title?.slice(0, 1) ?? '?'}
+    </Avatar>
+  );
 }
 
 export default function ConversationList({
@@ -61,7 +67,11 @@ export default function ConversationList({
       </div>
       <div className="im-conversations-list">
         {filtered.length === 0 ? (
-          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无会话" style={{ marginTop: 32 }} />
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description="暂无会话"
+            style={{ marginTop: 32 }}
+          />
         ) : (
           filtered.map((conversation) => (
             <div

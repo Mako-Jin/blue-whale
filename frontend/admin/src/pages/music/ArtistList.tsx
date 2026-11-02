@@ -146,11 +146,17 @@ export default function ArtistList() {
         columns={columns}
         request={pageArtists}
         params={{ keyword }}
-        onError={(error) => message.error(error instanceof Error ? error.message : '歌手列表加载失败')}
+        onError={(error) =>
+          message.error(error instanceof Error ? error.message : '歌手列表加载失败')
+        }
         search={
           <SearchForm
             items={[
-              { name: 'keyword', label: '艺名', element: <Input allowClear placeholder="艺名关键词" /> },
+              {
+                name: 'keyword',
+                label: '艺名',
+                element: <Input allowClear placeholder="艺名关键词" />,
+              },
             ]}
             onSearch={(values) => setKeyword((values.keyword as string) || undefined)}
             onReset={() => setKeyword(undefined)}

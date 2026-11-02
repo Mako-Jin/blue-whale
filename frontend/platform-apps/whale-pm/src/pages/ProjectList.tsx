@@ -76,7 +76,10 @@ export default function ProjectList() {
   const handleSubmit = async () => {
     const values = await form.validateFields();
     try {
-      const payload = { ...values, leadUserId: values.leadUserId ? Number(values.leadUserId) : undefined };
+      const payload = {
+        ...values,
+        leadUserId: values.leadUserId ? Number(values.leadUserId) : undefined,
+      };
       if (editing) {
         await projectApi.update(editing.id, payload);
       } else {
@@ -93,7 +96,10 @@ export default function ProjectList() {
 
   const toggleArchive = async (record: Project) => {
     try {
-      await projectApi.changeStatus(record.id, record.status === 'ARCHIVED' ? 'ACTIVE' : 'ARCHIVED');
+      await projectApi.changeStatus(
+        record.id,
+        record.status === 'ARCHIVED' ? 'ACTIVE' : 'ARCHIVED',
+      );
       message.success(record.status === 'ARCHIVED' ? '项目已恢复' : '项目已归档');
       await load();
     } catch (error) {
@@ -117,7 +123,9 @@ export default function ProjectList() {
       dataIndex: 'key',
       width: 100,
       render: (value: string, record) => (
-        <Typography.Link onClick={() => navigate(`/project/${record.id}/overview`)}>{value}</Typography.Link>
+        <Typography.Link onClick={() => navigate(`/project/${record.id}/overview`)}>
+          {value}
+        </Typography.Link>
       ),
     },
     { title: '项目名称', dataIndex: 'name' },
@@ -130,7 +138,12 @@ export default function ProjectList() {
         <Tag color={value === 'ARCHIVED' ? 'default' : 'green'}>{projectStatusLabel(value)}</Tag>
       ),
     },
-    { title: '负责人', dataIndex: 'leadUserId', width: 100, render: (value?: string) => value ?? '-' },
+    {
+      title: '负责人',
+      dataIndex: 'leadUserId',
+      width: 100,
+      render: (value?: string) => value ?? '-',
+    },
     { title: '创建时间', dataIndex: 'createTime', width: 170, render: formatTime },
     {
       title: '操作',
@@ -138,7 +151,11 @@ export default function ProjectList() {
       width: 260,
       render: (_, record) => (
         <Space size={8}>
-          <Button type="link" size="small" onClick={() => navigate(`/project/${record.id}/overview`)}>
+          <Button
+            type="link"
+            size="small"
+            onClick={() => navigate(`/project/${record.id}/overview`)}
+          >
             进入
           </Button>
           {hasPermission('sys:pm:project:edit') && (
@@ -152,7 +169,11 @@ export default function ProjectList() {
             </Button>
           )}
           {hasPermission('sys:pm:project:delete') && (
-            <Popconfirm title="确认删除项目？" description="成员、状态与流转配置将一并删除" onConfirm={() => void handleDelete(record)}>
+            <Popconfirm
+              title="确认删除项目？"
+              description="成员、状态与流转配置将一并删除"
+              onConfirm={() => void handleDelete(record)}
+            >
               <Button type="link" size="small" danger>
                 删除
               </Button>
@@ -223,10 +244,18 @@ export default function ProjectList() {
         cancelText="取消"
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="key" label="项目键" rules={[{ required: true, message: '请输入项目键' }]}>
+          <Form.Item
+            name="key"
+            label="项目键"
+            rules={[{ required: true, message: '请输入项目键' }]}
+          >
             <Input placeholder="2–10 位大写字母开头，如 BW" disabled={Boolean(editing)} />
           </Form.Item>
-          <Form.Item name="name" label="项目名称" rules={[{ required: true, message: '请输入项目名称' }]}>
+          <Form.Item
+            name="name"
+            label="项目名称"
+            rules={[{ required: true, message: '请输入项目名称' }]}
+          >
             <Input placeholder="项目名称" />
           </Form.Item>
           <Form.Item name="projectType" label="项目类型" rules={[{ required: true }]}>

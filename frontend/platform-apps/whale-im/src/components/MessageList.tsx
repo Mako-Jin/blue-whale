@@ -25,7 +25,11 @@ interface MessageListProps {
 }
 
 /** 发送者显示名：机器人/系统固定，其余按用户ID兜底 */
-function senderName(message: MessageVO, conversation: ConversationVO, currentUserId: string | null): string {
+function senderName(
+  message: MessageVO,
+  conversation: ConversationVO,
+  currentUserId: string | null,
+): string {
   if (message.senderType === 'BOT') {
     return conversation.type === 'BOT' ? conversation.title || '蓝鲸助手' : '蓝鲸助手';
   }
@@ -106,7 +110,7 @@ export default function MessageList({
           const previous = messages[index - 1];
           const day = formatDay(message.createTime);
           const showDay = !previous || formatDay(previous.createTime) !== day;
-          const replied = message.replyTo ? messageById.get(message.replyTo) ?? null : null;
+          const replied = message.replyTo ? (messageById.get(message.replyTo) ?? null) : null;
           return (
             <div key={message.id}>
               {showDay && <div className="im-day-divider">{day}</div>}
@@ -126,7 +130,11 @@ export default function MessageList({
       )}
       {streaming.map((entry) => (
         <div key={`stream-${entry.runId}`} className="im-message is-bot">
-          <Avatar size="small" icon={<RobotOutlined />} style={{ backgroundColor: '#722ed1', flex: 'none' }} />
+          <Avatar
+            size="small"
+            icon={<RobotOutlined />}
+            style={{ backgroundColor: '#722ed1', flex: 'none' }}
+          />
           <div className="im-message-body">
             <div className="im-message-meta">
               <span>蓝鲸助手</span>

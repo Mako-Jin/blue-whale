@@ -2,12 +2,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import AppealAudit from './AppealAudit';
-import {
-  approveAppeal,
-  pageAppeals,
-  rejectAppeal,
-  type AppealView,
-} from '../../api/music';
+import { approveAppeal, pageAppeals, rejectAppeal, type AppealView } from '../../api/music';
 import { MUSIC_PERMS, pageResult, renderPage } from '../../test/test-utils';
 
 vi.mock('../../api/music', () => ({

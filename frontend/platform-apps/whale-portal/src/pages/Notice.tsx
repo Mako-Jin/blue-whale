@@ -93,9 +93,7 @@ export default function Notice() {
             <List.Item extra={<Badge count={item.unread ?? 0} size="small" />}>
               <List.Item.Meta
                 title={item.title ?? item.id}
-                description={
-                  item.lastMessage?.content ?? item.lastActiveAt ?? '暂无消息'
-                }
+                description={item.lastMessage?.content ?? item.lastActiveAt ?? '暂无消息'}
               />
             </List.Item>
           )}

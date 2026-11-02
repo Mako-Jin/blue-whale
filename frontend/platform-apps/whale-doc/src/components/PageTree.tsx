@@ -71,7 +71,13 @@ interface PageTreeProps {
   onRefresh: () => void;
 }
 
-export default function PageTree({ pages, selectedId, canEdit, onSelect, onRefresh }: PageTreeProps) {
+export default function PageTree({
+  pages,
+  selectedId,
+  canEdit,
+  onSelect,
+  onRefresh,
+}: PageTreeProps) {
   const { message } = App.useApp();
 
   const handleDrop: TreeProps['onDrop'] = async (info) => {
@@ -81,7 +87,7 @@ export default function PageTree({ pages, selectedId, canEdit, onSelect, onRefre
     const dragId = Number(info.dragNode.key);
     const targetId = Number(info.node.key);
     const target = findNode(pages, targetId);
-    const parentId = info.dropPosition === 0 ? targetId : target?.parentId ?? 0;
+    const parentId = info.dropPosition === 0 ? targetId : (target?.parentId ?? 0);
     if (dragId === parentId) {
       return;
     }

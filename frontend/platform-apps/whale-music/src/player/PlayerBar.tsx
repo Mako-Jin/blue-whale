@@ -37,7 +37,9 @@ export default function PlayerBar() {
         locale={{ emptyText: '播放队列为空' }}
         renderItem={(item) => (
           <List.Item
-            className={item.id === player.current?.id ? 'music-queue-item active' : 'music-queue-item'}
+            className={
+              item.id === player.current?.id ? 'music-queue-item active' : 'music-queue-item'
+            }
             onClick={() => player.play(item, player.queue)}
           >
             <Typography.Text ellipsis>{item.title}</Typography.Text>
@@ -108,8 +110,14 @@ export default function PlayerBar() {
           </Button>
         </div>
       </div>
-      <Drawer title="歌词" placement="right" width={360} open={lyricOpen}
-        onClose={() => setLyricOpen(false)} destroyOnClose>
+      <Drawer
+        title="歌词"
+        placement="right"
+        width={360}
+        open={lyricOpen}
+        onClose={() => setLyricOpen(false)}
+        destroyOnClose
+      >
         {lines.length === 0 ? (
           <Empty description="暂无歌词" />
         ) : (

@@ -1,17 +1,7 @@
 // 租户管理页（Wave 5.54 Phase 4）- 仅平台租户可见
 // 分页查询 / 开通 / 编辑名称与配额 / 启停 / 续期；按钮按 sys:tenant:* 权限码渲染
 
-import {
-  App,
-  DatePicker,
-  Form,
-  Input,
-  Select,
-  Space,
-  Switch,
-  Tag,
-  type TableProps,
-} from 'antd';
+import { App, DatePicker, Form, Input, Select, Space, Switch, Tag, type TableProps } from 'antd';
 import { useRef, useState } from 'react';
 import {
   AuthButton,
@@ -338,7 +328,12 @@ export default function TenantList() {
           <Input placeholder="可空" />
         </Form.Item>
         <Form.Item name="expireTime" label="到期时间">
-          <DatePicker showTime format={DATE_FORMAT} style={{ width: '100%' }} placeholder="留空表示长期有效" />
+          <DatePicker
+            showTime
+            format={DATE_FORMAT}
+            style={{ width: '100%' }}
+            placeholder="留空表示长期有效"
+          />
         </Form.Item>
         <Form.Item name="quotaJson" label="配额 JSON">
           <Input.TextArea rows={3} placeholder='如 {"maxUsers":50,"maxStorageMb":1024}' />

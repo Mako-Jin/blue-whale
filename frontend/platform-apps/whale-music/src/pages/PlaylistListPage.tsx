@@ -41,11 +41,7 @@ const VISIBILITY_OPTIONS = [
 
 /** 歌单类型标签 */
 function renderPlaylistType(playlist: PlaylistView) {
-  return playlist.playlistType === 'OFFICIAL' ? (
-    <Tag color="blue">官方</Tag>
-  ) : (
-    <Tag>用户</Tag>
-  );
+  return playlist.playlistType === 'OFFICIAL' ? <Tag color="blue">官方</Tag> : <Tag>用户</Tag>;
 }
 
 export default function PlaylistListPage() {

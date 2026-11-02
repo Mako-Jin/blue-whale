@@ -18,7 +18,15 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { Link, useParams } from 'react-router-dom';
-import { itemApi, sprintApi, workflowApi, type Sprint, type Status, type Transition, type WorkItem } from '../api/pm';
+import {
+  itemApi,
+  sprintApi,
+  workflowApi,
+  type Sprint,
+  type Status,
+  type Transition,
+  type WorkItem,
+} from '../api/pm';
 import {
   PRIORITY_OPTIONS,
   TYPE_OPTIONS,
@@ -170,13 +178,22 @@ export default function Backlog() {
   const targetOptions = (item: WorkItem) => {
     const allowed = transitions.filter((transition) => transition.fromStatusId === item.statusId);
     const source: Status[] = allowed.length
-      ? statuses.filter((status) => allowed.some((transition) => transition.toStatusId === status.id))
+      ? statuses.filter((status) =>
+          allowed.some((transition) => transition.toStatusId === status.id),
+        )
       : statuses.filter((status) => status.id !== item.statusId);
     return source.map((status) => ({ value: status.id, label: status.name }));
   };
 
   const columns: ColumnsType<WorkItem> = [
-    { title: '编号', dataIndex: 'key', width: 130, render: (value: string, record) => <Link to={`/project/${projectId}/item/${record.id}`}>{value}</Link> },
+    {
+      title: '编号',
+      dataIndex: 'key',
+      width: 130,
+      render: (value: string, record) => (
+        <Link to={`/project/${projectId}/item/${record.id}`}>{value}</Link>
+      ),
+    },
     {
       title: '类型',
       dataIndex: 'type',
@@ -187,13 +204,17 @@ export default function Backlog() {
       title: '标题',
       dataIndex: 'title',
       ellipsis: true,
-      render: (value: string, record) => <Link to={`/project/${projectId}/item/${record.id}`}>{value}</Link>,
+      render: (value: string, record) => (
+        <Link to={`/project/${projectId}/item/${record.id}`}>{value}</Link>
+      ),
     },
     {
       title: '状态',
       dataIndex: 'statusName',
       width: 110,
-      render: (value: string, record) => <Tag color={statusColor(record.statusCategory)}>{value}</Tag>,
+      render: (value: string, record) => (
+        <Tag color={statusColor(record.statusCategory)}>{value}</Tag>
+      ),
     },
     {
       title: '优先级',
@@ -201,8 +222,18 @@ export default function Backlog() {
       width: 90,
       render: (value: string) => <Tag color={priorityColor(value)}>{priorityLabel(value)}</Tag>,
     },
-    { title: '负责人', dataIndex: 'assigneeId', width: 100, render: (value?: string) => value ?? '-' },
-    { title: '故事点', dataIndex: 'storyPoints', width: 90, render: (value?: number) => value ?? '-' },
+    {
+      title: '负责人',
+      dataIndex: 'assigneeId',
+      width: 100,
+      render: (value?: string) => value ?? '-',
+    },
+    {
+      title: '故事点',
+      dataIndex: 'storyPoints',
+      width: 90,
+      render: (value?: number) => value ?? '-',
+    },
     { title: '截止日期', dataIndex: 'dueDate', width: 120, render: formatDate },
     {
       title: '操作',
@@ -309,7 +340,9 @@ export default function Backlog() {
           </Form.Item>
           <Space size={16} style={{ display: 'flex' }}>
             <Form.Item name="statusId" label="状态" style={{ flex: 1 }}>
-              <Select options={statuses.map((status) => ({ value: status.id, label: status.name }))} />
+              <Select
+                options={statuses.map((status) => ({ value: status.id, label: status.name }))}
+              />
             </Form.Item>
             <Form.Item name="priority" label="优先级" style={{ flex: 1 }}>
               <Select options={PRIORITY_OPTIONS} />
@@ -348,7 +381,11 @@ export default function Backlog() {
         cancelText="取消"
       >
         <Form form={transitionForm} layout="vertical">
-          <Form.Item name="targetStatusId" label="目标状态" rules={[{ required: true, message: '请选择目标状态' }]}>
+          <Form.Item
+            name="targetStatusId"
+            label="目标状态"
+            rules={[{ required: true, message: '请选择目标状态' }]}
+          >
             <Select options={transitionItem ? targetOptions(transitionItem) : []} />
           </Form.Item>
           <Form.Item name="comment" label="备注">

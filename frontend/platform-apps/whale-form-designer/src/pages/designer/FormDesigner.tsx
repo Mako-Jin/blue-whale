@@ -29,11 +29,7 @@ import Toolbar from './Toolbar';
 import { buildField, toSaveField, validateCanvas } from './designerUtils';
 import { useDesignerData } from './useDesignerData';
 import { useFieldHistory } from './useFieldHistory';
-import {
-  CANVAS_DROPPABLE_ID,
-  type DesignerField,
-  type PalettePayload,
-} from './types';
+import { CANVAS_DROPPABLE_ID, type DesignerField, type PalettePayload } from './types';
 
 export default function FormDesigner() {
   const { message, modal } = App.useApp();
@@ -336,11 +332,7 @@ export default function FormDesigner() {
         </DndContext>
       </Space>
 
-      <PreviewDrawer
-        open={previewOpen}
-        onClose={() => setPreviewOpen(false)}
-        fields={fields}
-      />
+      <PreviewDrawer open={previewOpen} onClose={() => setPreviewOpen(false)} fields={fields} />
     </Spin>
   );
 }

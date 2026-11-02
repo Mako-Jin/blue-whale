@@ -84,7 +84,11 @@ async function doRefresh(options?: RefreshAuthOptions): Promise<LoginResponse | 
     if (!response.ok) {
       return null;
     }
-    const payload = (await response.json()) as { code?: number; message?: string; data?: LoginResponse };
+    const payload = (await response.json()) as {
+      code?: number;
+      message?: string;
+      data?: LoginResponse;
+    };
     if (!payload || payload.code !== 0 || !payload.data?.accessToken) {
       return null;
     }

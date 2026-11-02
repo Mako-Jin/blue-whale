@@ -66,9 +66,7 @@ export default function UserList() {
         allowClear
         placeholder="搜索用户名 / 昵称 / 手机号"
         style={{ maxWidth: 360 }}
-        onSearch={(value) =>
-          setQuery((prev) => ({ ...prev, current: 1, keyword: value.trim() }))
-        }
+        onSearch={(value) => setQuery((prev) => ({ ...prev, current: 1, keyword: value.trim() }))}
       />
       <Table<UserVO>
         rowKey="id"

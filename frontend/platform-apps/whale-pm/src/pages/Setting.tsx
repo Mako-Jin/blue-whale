@@ -62,7 +62,10 @@ export default function Setting() {
   const addMember = async () => {
     const values = await memberForm.validateFields();
     try {
-      await memberApi.add(project.id, { userId: Number(values.userId), projectRole: values.projectRole });
+      await memberApi.add(project.id, {
+        userId: Number(values.userId),
+        projectRole: values.projectRole,
+      });
       message.success('成员已添加');
       setMemberModalOpen(false);
       await load();
@@ -193,7 +196,8 @@ export default function Setting() {
       key: 'action',
       width: 100,
       render: (_, record) =>
-        hasPermission('sys:pm:status:delete') && !record.isDefault && (
+        hasPermission('sys:pm:status:delete') &&
+        !record.isDefault && (
           <Popconfirm title="删除该状态？" onConfirm={() => void removeStatus(record)}>
             <Button type="link" size="small" danger>
               删除
@@ -207,8 +211,18 @@ export default function Setting() {
 
   const transitionColumns: ColumnsType<Transition> = [
     { title: '动作', dataIndex: 'name', width: 140 },
-    { title: '源状态', dataIndex: 'fromStatusId', width: 140, render: (value: string) => statusName(value) },
-    { title: '目标状态', dataIndex: 'toStatusId', width: 140, render: (value: string) => statusName(value) },
+    {
+      title: '源状态',
+      dataIndex: 'fromStatusId',
+      width: 140,
+      render: (value: string) => statusName(value),
+    },
+    {
+      title: '目标状态',
+      dataIndex: 'toStatusId',
+      width: 140,
+      render: (value: string) => statusName(value),
+    },
     {
       title: '操作',
       key: 'action',
@@ -246,7 +260,13 @@ export default function Setting() {
                     添加成员
                   </Button>
                 )}
-                <Table rowKey="id" size="small" columns={memberColumns} dataSource={members} pagination={false} />
+                <Table
+                  rowKey="id"
+                  size="small"
+                  columns={memberColumns}
+                  dataSource={members}
+                  pagination={false}
+                />
               </div>
             ),
           },
@@ -268,7 +288,13 @@ export default function Setting() {
                     新增状态
                   </Button>
                 )}
-                <Table rowKey="id" size="small" columns={statusColumns} dataSource={statuses} pagination={false} />
+                <Table
+                  rowKey="id"
+                  size="small"
+                  columns={statusColumns}
+                  dataSource={statuses}
+                  pagination={false}
+                />
               </div>
             ),
           },
@@ -311,7 +337,11 @@ export default function Setting() {
         cancelText="取消"
       >
         <Form form={memberForm} layout="vertical">
-          <Form.Item name="userId" label="用户ID" rules={[{ required: true, message: '请输入用户ID' }]}>
+          <Form.Item
+            name="userId"
+            label="用户ID"
+            rules={[{ required: true, message: '请输入用户ID' }]}
+          >
             <Input placeholder="数字用户ID" />
           </Form.Item>
           <Form.Item name="projectRole" label="项目角色" rules={[{ required: true }]}>
@@ -329,10 +359,18 @@ export default function Setting() {
         cancelText="取消"
       >
         <Form form={statusForm} layout="vertical">
-          <Form.Item name="code" label="状态编码" rules={[{ required: true, message: '请输入状态编码' }]}>
+          <Form.Item
+            name="code"
+            label="状态编码"
+            rules={[{ required: true, message: '请输入状态编码' }]}
+          >
             <Input placeholder="如 REVIEW" />
           </Form.Item>
-          <Form.Item name="name" label="状态名称" rules={[{ required: true, message: '请输入状态名称' }]}>
+          <Form.Item
+            name="name"
+            label="状态名称"
+            rules={[{ required: true, message: '请输入状态名称' }]}
+          >
             <Input />
           </Form.Item>
           <Form.Item name="category" label="分类" rules={[{ required: true }]}>
@@ -357,12 +395,20 @@ export default function Setting() {
       >
         <Form form={transitionForm} layout="vertical">
           <Form.Item name="fromStatusId" label="源状态" rules={[{ required: true }]}>
-            <Select options={statuses.map((status) => ({ value: status.id, label: status.name }))} />
+            <Select
+              options={statuses.map((status) => ({ value: status.id, label: status.name }))}
+            />
           </Form.Item>
           <Form.Item name="toStatusId" label="目标状态" rules={[{ required: true }]}>
-            <Select options={statuses.map((status) => ({ value: status.id, label: status.name }))} />
+            <Select
+              options={statuses.map((status) => ({ value: status.id, label: status.name }))}
+            />
           </Form.Item>
-          <Form.Item name="name" label="动作名称" rules={[{ required: true, message: '请输入动作名称' }]}>
+          <Form.Item
+            name="name"
+            label="动作名称"
+            rules={[{ required: true, message: '请输入动作名称' }]}
+          >
             <Input placeholder="如 评审通过" />
           </Form.Item>
         </Form>

@@ -81,8 +81,16 @@ export default function SignCenter() {
   const openSign = (record: SignTask) => {
     setSignTarget(record);
     form.resetFields();
-    form.setFieldsValue({ page: 1, x: 20, y: 20, width: 120, height: 120, rotation: 0, crossPage: false,
-      confirmWillingness: false });
+    form.setFieldsValue({
+      page: 1,
+      x: 20,
+      y: 20,
+      width: 120,
+      height: 120,
+      rotation: 0,
+      crossPage: false,
+      confirmWillingness: false,
+    });
     setSignOpen(true);
     void loadSeals();
   };
@@ -153,7 +161,12 @@ export default function SignCenter() {
 
   const columns: ColumnsType<SignTask> = [
     { title: '合同编号', dataIndex: 'contractCode', width: 180, render: (value) => value || '-' },
-    { title: '合同标题', dataIndex: 'contractTitle', ellipsis: true, render: (value) => value || '-' },
+    {
+      title: '合同标题',
+      dataIndex: 'contractTitle',
+      ellipsis: true,
+      render: (value) => value || '-',
+    },
     {
       title: '类别',
       dataIndex: 'contractCategory',
@@ -169,14 +182,26 @@ export default function SignCenter() {
     },
     { title: '签署方', dataIndex: 'signerParty', width: 90, render: (value) => value || '-' },
     { title: '签署人', dataIndex: 'signerName', width: 110, render: (value) => value || '-' },
-    { title: '渠道', dataIndex: 'provider', width: 100, render: (value: string | null) => value || '-' },
+    {
+      title: '渠道',
+      dataIndex: 'provider',
+      width: 100,
+      render: (value: string | null) => value || '-',
+    },
     {
       title: '状态',
       dataIndex: 'status',
       width: 100,
-      render: (value: string) => <Tag color={signTaskStatusColor(value)}>{signTaskStatusLabel(value)}</Tag>,
+      render: (value: string) => (
+        <Tag color={signTaskStatusColor(value)}>{signTaskStatusLabel(value)}</Tag>
+      ),
     },
-    { title: '任务创建时间', dataIndex: 'createTime', width: 160, render: (value) => formatTime(value) },
+    {
+      title: '任务创建时间',
+      dataIndex: 'createTime',
+      width: 160,
+      render: (value) => formatTime(value),
+    },
     {
       title: '操作',
       key: 'actions',
@@ -237,13 +262,21 @@ export default function SignCenter() {
         destroyOnClose
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="sealId" label="使用印章" rules={[{ required: true, message: '请选择印章' }]}>
+          <Form.Item
+            name="sealId"
+            label="使用印章"
+            rules={[{ required: true, message: '请选择印章' }]}
+          >
             <Select
               placeholder="仅展示启用印章"
               options={seals.map((seal) => ({ value: Number(seal.id), label: seal.name }))}
             />
           </Form.Item>
-          <Form.Item name="crossPage" label="骑缝章（按页均分加盖，忽略页码与坐标）" valuePropName="checked">
+          <Form.Item
+            name="crossPage"
+            label="骑缝章（按页均分加盖，忽略页码与坐标）"
+            valuePropName="checked"
+          >
             <Switch />
           </Form.Item>
           <Space size={12} style={{ width: '100%' }} wrap>
@@ -271,11 +304,12 @@ export default function SignCenter() {
           <Form.Item
             name="confirmWillingness"
             valuePropName="checked"
-            rules={[{
-              validator: (_, value) => (value === true
-                ? Promise.resolve()
-                : Promise.reject(new Error('请确认签署意愿'))),
-            }]}
+            rules={[
+              {
+                validator: (_, value) =>
+                  value === true ? Promise.resolve() : Promise.reject(new Error('请确认签署意愿')),
+              },
+            ]}
           >
             <Checkbox>
               我已阅读合同内容，确认本次签署系本人真实意愿（系统将记录意愿确认时间与证据编号）
@@ -292,7 +326,11 @@ export default function SignCenter() {
         destroyOnClose
       >
         <Form form={refuseForm} layout="vertical">
-          <Form.Item name="reason" label="拒签原因" rules={[{ required: true, message: '请填写拒签原因' }]}>
+          <Form.Item
+            name="reason"
+            label="拒签原因"
+            rules={[{ required: true, message: '请填写拒签原因' }]}
+          >
             <Input.TextArea rows={3} maxLength={255} />
           </Form.Item>
         </Form>

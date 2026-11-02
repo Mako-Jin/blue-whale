@@ -301,16 +301,17 @@ export class UnifiedEventBus {
   }
 
   private sortHandlers(handlers: PrioritizedHandler[]): PrioritizedHandler[] {
-    return handlers.sort(
-      (a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority],
-    );
+    return handlers.sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]);
   }
 
   /** 同步派发 DOM CustomEvent，便于非本包代码通过原生事件监听。 */
   private dispatchDomEvent(type: string, data: unknown, meta: EventMeta): void {
     const target = globalThis as {
       dispatchEvent?: (event: unknown) => boolean;
-      CustomEvent?: new (type: string, init: { detail: unknown; bubbles: boolean; composed: boolean }) => unknown;
+      CustomEvent?: new (
+        type: string,
+        init: { detail: unknown; bubbles: boolean; composed: boolean },
+      ) => unknown;
     };
     if (typeof target.dispatchEvent !== 'function' || !target.CustomEvent) return;
 

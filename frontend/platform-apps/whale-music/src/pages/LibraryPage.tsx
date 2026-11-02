@@ -130,9 +130,7 @@ export default function LibraryPage() {
             {
               name: 'sortBy',
               label: '排序',
-              element: (
-                <Select style={{ width: 140 }} options={SORT_OPTIONS} defaultValue="NEW" />
-              ),
+              element: <Select style={{ width: 140 }} options={SORT_OPTIONS} defaultValue="NEW" />,
             },
           ]}
           onSearch={(values) => {

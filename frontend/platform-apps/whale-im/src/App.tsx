@@ -58,7 +58,15 @@ export default function App() {
           <Space size={8}>
             <RobotOutlined style={{ color: '#722ed1' }} />
             <Text strong>消息中心</Text>
-            <Badge status={socketState === 'open' ? 'success' : socketState === 'connecting' ? 'processing' : 'error'} />
+            <Badge
+              status={
+                socketState === 'open'
+                  ? 'success'
+                  : socketState === 'connecting'
+                    ? 'processing'
+                    : 'error'
+              }
+            />
             <Tag color={socket.color}>{socket.text}</Tag>
           </Space>
           <Text type="secondary" style={{ fontSize: 12 }}>
@@ -84,7 +92,11 @@ export default function App() {
               <div className="im-chat-header">
                 <Space size={8}>
                   <Text strong>{active.title || '未命名会话'}</Text>
-                  <Tag color={active.type === 'BOT' ? 'purple' : active.type === 'GROUP' ? 'blue' : 'cyan'}>
+                  <Tag
+                    color={
+                      active.type === 'BOT' ? 'purple' : active.type === 'GROUP' ? 'blue' : 'cyan'
+                    }
+                  >
                     {TYPE_LABEL[active.type] ?? active.type}
                   </Tag>
                 </Space>
@@ -118,7 +130,9 @@ export default function App() {
             <div className="im-empty">
               <Space direction="vertical" align="center">
                 <RobotOutlined style={{ fontSize: 36, color: '#bfbfbf' }} />
-                <Text type="secondary">选择左侧会话开始聊天，或点击机器人图标向「蓝鲸助手」提问</Text>
+                <Text type="secondary">
+                  选择左侧会话开始聊天，或点击机器人图标向「蓝鲸助手」提问
+                </Text>
               </Space>
             </div>
           )}
