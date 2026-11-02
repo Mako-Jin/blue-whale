@@ -24,7 +24,8 @@ COPY frontend /src/frontend
 COPY docs /src/docs
 
 RUN set -eu; \
-    if [ "${NEED_FACT_ASSETS}" != "true" ]; then mkdir -p /repo; exit 0; fi; \
+    mkdir -p /repo; \
+    if [ "${NEED_FACT_ASSETS}" != "true" ]; then exit 0; fi; \
     cp -a /src/backend /repo/backend; \
     cp -a /src/frontend /repo/frontend; \
     cp -a /src/docs /repo/docs; \
