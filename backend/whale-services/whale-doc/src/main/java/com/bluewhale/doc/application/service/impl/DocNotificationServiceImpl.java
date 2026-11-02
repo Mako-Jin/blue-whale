@@ -78,7 +78,14 @@ public class DocNotificationServiceImpl implements DocNotificationService {
         if (!docProperties.isNotifyEnabled()) {
             return;
         }
-        List<Long> recipients = recipients(List.of(page.getAuthorId(), page.getLastEditorId()), null);
+        List<Long> candidates = new ArrayList<>();
+        if (page.getAuthorId() != null) {
+            candidates.add(page.getAuthorId());
+        }
+        if (page.getLastEditorId() != null) {
+            candidates.add(page.getLastEditorId());
+        }
+        List<Long> recipients = recipients(candidates, null);
         String title = approved ? "文档发布审批已通过" : "文档发布审批已驳回";
         for (Long userId : recipients) {
             publish(new DocNotifyEvent(tenantId, BIZ_APPROVAL, String.valueOf(page.getId()),
