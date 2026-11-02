@@ -35,7 +35,7 @@
 | 子项 | 当前探测（2026-10-31 复验） | 解锁条件 / 验收口径 |
 |---|---|---|
 | B-01 Docker 全链路 | Docker 守护进程**已可用**（`docker version` → `29.9.2`）；`docker compose config -q`（临时 env）exit=0；**但** compose 需 `.env`，且宿主已占用 3306 / 6379 / 8848（本机 MySQL、Redis、Nacos 服务） | 提供 `.env`（或改用覆盖端口 / 独立网络），执行 `docker compose up` 并跑 `bw-*-smoke.ps1` 全绿；届时产出实机报告 |
-| B-09 浏览器 E2E | `%LOCALAPPDATA%\ms-playwright` **仅有 `.links` / `__dirlock`**，无 Chromium 二进制；`.github/workflows` 无 e2e job；本机管理员账号与登录态已具备（M5 报告 §4.9） | `pnpm exec playwright install chromium` 成功 → 按「登录 → 首页 → 搜索 → 播放 → 收藏 → 建歌单 → 评论 → 审核 → 申诉 → 下架」逐页回归；或提供浏览器工具环境 |
+| B-09 浏览器 E2E | ~~无 Chromium 二进制~~ **已解锁（2026-11-02）**：Chromium 就位 + 宿主中间件起服 + gateway/auth/workflow/form 重建起服；修复 2 个后端真实 Bug（`LoginResponse.userId`、CSRF Cookie Path）与 2 个测试缺陷后 **Playwright E2E 8/8 全部通过**（[devlog 2026-11-02](../devlog/2026-11-02.md)）；`.github/workflows` 仍无 e2e job | ~~逐页 E2E 回归~~ 首轮实机回归已全绿；后续扩页按需推进；E2E 入 CI 与 T-08 合并推进 |
 | B-10 通知链路 | 8094 **未监听**（`whale-message` 未起服）；音乐 `comment-notify-enabled` 默认关闭 | 起服 `whale-message` 8094 + Nacos 注册 → 开启通知开关，验证站内信落 `message_record` 且失败仅告警 |
 
 ### 3.2 N-09 质量门禁余量

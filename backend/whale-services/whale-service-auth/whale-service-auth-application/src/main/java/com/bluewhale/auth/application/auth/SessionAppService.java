@@ -381,6 +381,7 @@ public class SessionAppService {
         response.setAccessToken(tokenIssuer.issueAccessToken(user.tenantId(), user.userId(), user.username(), roles));
         response.setTokenType("Bearer");
         response.setExpiresIn(tokenIssuer.accessExpireSeconds());
+        response.setUserId(user.userId());
         response.setTenantId(user.tenantId());
         response.setUsername(user.username());
         response.setNickname(user.nickname());

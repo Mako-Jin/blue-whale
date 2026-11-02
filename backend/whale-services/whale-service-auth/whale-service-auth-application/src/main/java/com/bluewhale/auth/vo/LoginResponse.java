@@ -20,6 +20,8 @@ public class LoginResponse implements Serializable {
     private String tokenType;
     /** accessToken 有效期（秒） */
     private long expiresIn;
+    /** 用户 ID（T-03 前端强制改密弹窗依赖该字段提交 PUT /user/{id}/password） */
+    private Long userId;
     /** 所属租户 ID（Wave 5.54：令牌已绑定租户） */
     private Long tenantId;
     private String username;

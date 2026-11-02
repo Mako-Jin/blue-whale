@@ -62,14 +62,14 @@ class AuthCookieManagerTest {
     }
 
     @Test
-    @DisplayName("writeAuthCookies：CSRF Cookie 前端可读（非 HttpOnly），值为 32 字节随机 hex")
+    @DisplayName("writeAuthCookies：CSRF Cookie 前端可读（非 HttpOnly、Path=/ 整站可读），值为 32 字节随机 hex")
     void writeAuthCookiesShouldSetReadableCsrfCookie() {
         cookieManager.writeAuthCookies(response, REFRESH_TOKEN);
 
         List<String> cookies = response.getHeaders("Set-Cookie");
         assertThat(cookies).anySatisfy(cookie -> {
             assertThat(cookie).matches(AuthCookieManager.CSRF_COOKIE_NAME + "=[0-9a-f]{64};.*");
-            assertThat(cookie).contains("Path=/auth")
+            assertThat(cookie).contains("Path=/")
                     .contains("SameSite=Strict")
                     .contains("Max-Age=" + COOKIE_MAX_AGE_SECONDS)
                     .doesNotContain("HttpOnly")

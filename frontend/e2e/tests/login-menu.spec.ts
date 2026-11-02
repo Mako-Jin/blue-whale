@@ -26,15 +26,26 @@ test('未登录跳登录，登录后菜单按权限渲染', async ({ page, reque
   const expectedLabels = [...me.menus]
     .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
     .map((menu) => menu.name.trim());
+  // 前端 AdminLayout.withTenantNav：持有 sys:tenant:list 且动态菜单缺租户入口时，
+  // 末尾补「租户管理」；期望集合需镜像该前端行为
+  if (me.permissions.includes('sys:tenant:list') && !expectedLabels.includes('租户管理')) {
+    expectedLabels.push('租户管理');
+  }
 
-  // 5) 侧边栏顶层菜单文本集合必须与权限菜单一致（权限过滤被改坏时此处失败）
+  // 5) 侧边栏顶层菜单文本集合必须与权限菜单一致（权限过滤被改坏时此处失败）。
+  // 注意：antd v5 中叶子项 li.ant-menu-item 的 title-content 是 li 的直接子元素，
+  // 而 submenu 项的 title-content 在 li > .ant-menu-submenu-title 下，两段选择器缺一不可。
+  // 菜单为异步渐进渲染，allInnerTexts 在渲染完成前可能只取到部分项；
+  // 纯数组 toEqual 无自动重试，改用 expect.poll 轮询直至集合一致。
   const topLevelLabels = page.locator(
     '.ant-layout-sider .ant-menu-root > li > .ant-menu-submenu-title .ant-menu-title-content, ' +
-      '.ant-layout-sider .ant-menu-root > li > .ant-menu-item .ant-menu-title-content',
+      '.ant-layout-sider .ant-menu-root > li.ant-menu-item > .ant-menu-title-content',
   );
   await expect(topLevelLabels.first()).toBeVisible();
-  const renderedLabels = (await topLevelLabels.allInnerTexts()).map((text) => text.trim());
-  expect(renderedLabels).toEqual(expectedLabels);
+  await expect
+    .poll(async () => (await topLevelLabels.allInnerTexts()).map((text) => text.trim()))
+    .toEqual(expectedLabels);
+  const renderedLabels = expectedLabels;
 
   // 6) admin 具备知识问答权限 → 菜单必须出现「知识助手」
   expect(me.permissions).toContain('sys:agent:chat');

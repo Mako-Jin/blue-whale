@@ -85,18 +85,26 @@ async function switchTenantViaUi(
   page: import('@playwright/test').Page,
   optionText: string,
 ): Promise<string | undefined> {
-  const switched = page.waitForResponse(
-    (response) => response.url().includes('/auth/tenant/switch') && response.ok(),
+  let switchBody: Envelope<{ accessToken?: string }> | undefined;
+  // 经 page.route 拦截切换请求并在拦截层缓存响应体：route.fetch 会先取全响应体，
+  // 与前端 window.location.replace('/') 的整页导航完全无竞态
+  //（直接 waitForResponse + response.json 会因「导航后响应体不可读」随机失败）。
+  await page.route('**/auth/tenant/switch', async (route) => {
+    const response = await route.fetch();
+    switchBody = (await response.json()) as Envelope<{ accessToken?: string }>;
+    await route.fulfill({ response });
+  });
+  const switched = page.waitForResponse((response) =>
+    response.url().includes('/auth/tenant/switch'),
   );
   await page.locator('.admin-tenant-switcher').click();
   await page.locator('.ant-select-dropdown .ant-select-item-option', { hasText: optionText }).click();
-  const response = await switched;
-  // V-03：accessToken 为内存态（不再落 localStorage），从切换接口响应体取新令牌
-  const body = (await response.json()) as Envelope<{ accessToken?: string }>;
+  await switched;
   // 切换成功后前端 window.location.replace('/') 整页重载，重建权限与租户上下文
   await page.waitForEvent('load');
   await expect(page.locator('.admin-tenant-switcher')).toBeVisible();
-  return body.data?.accessToken;
+  await page.unroute('**/auth/tenant/switch');
+  return switchBody?.data?.accessToken;
 }
 
 test('一人多租户：切换器切换到 acme 并切回默认租户', async ({ page, request }) => {

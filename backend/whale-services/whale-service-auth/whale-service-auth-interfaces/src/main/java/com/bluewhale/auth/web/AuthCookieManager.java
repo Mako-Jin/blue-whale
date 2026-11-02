@@ -41,6 +41,9 @@ public class AuthCookieManager {
     /** 认证 Cookie 作用路径：仅认证端点携带，避免随业务请求外发 */
     private static final String COOKIE_PATH = "/auth";
 
+    /** CSRF Cookie 作用路径：整站可读（前端在任意业务页面都需读取后回传 X-CSRF-Token） */
+    private static final String CSRF_COOKIE_PATH = "/";
+
     /** SameSite 属性取值 */
     private static final String SAME_SITE_STRICT = "Strict";
 
@@ -93,7 +96,7 @@ public class AuthCookieManager {
                 .build();
         ResponseCookie csrfCookie = ResponseCookie.from(CSRF_COOKIE_NAME, newCsrfToken())
                 .httpOnly(false)
-                .path(COOKIE_PATH)
+                .path(CSRF_COOKIE_PATH)
                 .sameSite(SAME_SITE_STRICT)
                 .maxAge(maxAgeSeconds)
                 .secure(secure)
@@ -108,8 +111,8 @@ public class AuthCookieManager {
      * @param response 当前 HTTP 响应
      */
     public void clearAuthCookies(HttpServletResponse response) {
-        response.addHeader(HttpHeaders.SET_COOKIE, expiredCookie(REFRESH_COOKIE_NAME, true).toString());
-        response.addHeader(HttpHeaders.SET_COOKIE, expiredCookie(CSRF_COOKIE_NAME, false).toString());
+        response.addHeader(HttpHeaders.SET_COOKIE, expiredCookie(REFRESH_COOKIE_NAME, COOKIE_PATH, true).toString());
+        response.addHeader(HttpHeaders.SET_COOKIE, expiredCookie(CSRF_COOKIE_NAME, CSRF_COOKIE_PATH, false).toString());
     }
 
     /**
@@ -187,13 +190,14 @@ public class AuthCookieManager {
      * 构造立即过期的清除 Cookie（MaxAge=0，属性与下发时保持一致以精确覆盖）
      *
      * @param name Cookie 名
+     * @param path 下发时使用的 Path（必须一致才能精确覆盖删除）
      * @param httpOnly 是否 HttpOnly
      * @return 清除用 Cookie
      */
-    private ResponseCookie expiredCookie(String name, boolean httpOnly) {
+    private ResponseCookie expiredCookie(String name, String path, boolean httpOnly) {
         return ResponseCookie.from(name, "")
                 .httpOnly(httpOnly)
-                .path(COOKIE_PATH)
+                .path(path)
                 .sameSite(SAME_SITE_STRICT)
                 .maxAge(MAX_AGE_EXPIRED)
                 .secure(secure)
