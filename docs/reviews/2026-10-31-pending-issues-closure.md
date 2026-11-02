@@ -42,7 +42,7 @@
 
 | 子项 | 现状 | 建议 |
 |---|---|---|
-| T-07 前端页面级单测与覆盖率 | ✅ 已落地两批（2026-11-02）：首批 music 5 页 25 例；第二批 admin TemplateList 5 / OrderList 6 / ItemList 5 + whale-portal Inbox 4（页面级累计 40 例），`turbo run test` 门禁已有；剩余页面（erp 供应商等子应用）待逐步扩量 | 已覆盖 music 全部 5 页 + 消息/支付/配置/站内信核心页；覆盖率阈值在剩余页面扩量后设置 |
+| T-07 前端页面级单测与覆盖率 | ✅ 已落地三批（2026-11-02）：首批 music 5 页 25 例；第二批 admin TemplateList 5 / OrderList 6 / ItemList 5 + whale-portal Inbox 4；第三批 whale-erp SupplierList 5 / SupplierForm 3 / 物料 List 4 / Form 3（页面级累计 55 例），`turbo run test` 门禁已有；剩余页面待逐步扩量 | 已覆盖 music 全部 5 页 + 消息/支付/配置/站内信 + erp 供应商与物料页；覆盖率阈值在剩余页面扩量后设置 |
 | T-08 E2E 入 CI | ✅ 工作流入库（2026-11-02）：`frontend-e2e.yml`（compose 中间件 + Nacos v3 初始化 + 三库灌表 + 4 服务起服 + Playwright 8 用例 + artifact） | 待 GitHub Actions 首跑验证后闭环 |
 | 其余服务越层专项（T-18 余量） | agent / archive / im 已开启 controller→entity/mapper ArchUnit 门禁；其余服务未逐项排查 | 按「controller 不依赖 entity/mapper」规则逐个服务加 ArchUnit 规则，先扫后补 |
 

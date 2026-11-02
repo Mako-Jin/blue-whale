@@ -28,7 +28,9 @@ export default function FormModal({ open, initial, onCancel, onSaved }: FormModa
   }, [open, initial, form]);
 
   const handleOk = async () => {
-    const values = await form.validateFields();
+    // 校验不通过：字段错误已由 Form 就地展示，返回 null 直接结束，避免拒绝沿 Modal onOk 冒泡
+    const values = await form.validateFields().catch(() => null);
+    if (!values) return;
     await saveErpItem({ ...values, id: initial?.id });
     message.success('保存成功');
     form.resetFields();
