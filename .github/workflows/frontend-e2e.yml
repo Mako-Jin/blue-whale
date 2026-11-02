@@ -124,6 +124,9 @@ jobs:
       - name: Start backend services
         run: |
           mkdir -p logs
+          # CI 冷启动首调 /auth/me 需全量加载权限/菜单（run#11 实测 4.5s），
+          # 超过网关熔断默认 3s 会误降级 503，CI 环境放宽到 10s（仅作用于 runner 内进程）
+          export WHALE_GATEWAY_CIRCUIT_BREAKER_TIMEOUT_MILLIS=10000
           start_svc() {
             local name="$1" jar="$2" port="$3"
             MYSQL_USER="${{ env.CI_MYSQL_USER }}" \
