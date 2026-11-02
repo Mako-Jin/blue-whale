@@ -335,6 +335,9 @@ importers:
 
   platform-apps/whale-doc:
     dependencies:
+      '@ant-design/icons':
+        specifier: ^5.6.1
+        version: 5.6.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@bluewhale/http':
         specifier: workspace:*
         version: link:../../shared-packages/http

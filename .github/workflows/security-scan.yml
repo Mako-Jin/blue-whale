@@ -123,6 +123,9 @@ jobs:
 
       - name: Upload Trivy SARIF
         if: always()
+        # 私有仓未开通 Code Security 时上传会报 Resource not accessible by integration；
+        # SARIF 工件仍由下一步留档，扫描本身不因上传权限变红
+        continue-on-error: true
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-results.sarif
