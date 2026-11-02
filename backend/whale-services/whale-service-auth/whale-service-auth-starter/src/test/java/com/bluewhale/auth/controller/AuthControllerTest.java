@@ -139,7 +139,7 @@ class AuthControllerTest {
         });
         assertThat(cookies).anySatisfy(cookie -> {
             assertThat(cookie).matches(AuthCookieManager.CSRF_COOKIE_NAME + "=[0-9a-f]{64};.*");
-            assertThat(cookie).contains("Path=/auth")
+            assertThat(cookie).contains("Path=/;")
                     .contains("SameSite=Strict")
                     .contains("Max-Age=" + COOKIE_MAX_AGE_SECONDS)
                     .doesNotContain("HttpOnly")
@@ -160,7 +160,7 @@ class AuthControllerTest {
         });
         assertThat(cookies).anySatisfy(cookie -> {
             assertThat(cookie).startsWith(AuthCookieManager.CSRF_COOKIE_NAME + "=");
-            assertThat(cookie).contains("Max-Age=0").contains("Path=/auth").doesNotContain("HttpOnly");
+            assertThat(cookie).contains("Max-Age=0").contains("Path=/;").doesNotContain("HttpOnly");
         });
     }
 

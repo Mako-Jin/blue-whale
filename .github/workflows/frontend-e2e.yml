@@ -169,6 +169,12 @@ jobs:
         working-directory: frontend
         run: pnpm install --frozen-lockfile
 
+      # E2E 仅 install 不产出 workspace 包 dist，vite dev 依赖预扫描会因
+      # @bluewhale/* 入口缺失而失败；此处先构建全部包与应用
+      - name: Build workspace packages
+        working-directory: frontend
+        run: pnpm turbo run build
+
       - name: Playwright Install Chromium
         working-directory: frontend/e2e
         run: pnpm exec playwright install --with-deps chromium

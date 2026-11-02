@@ -110,8 +110,8 @@ jobs:
       # 首批以 SARIF 上报 + 工件留档为主（exit-code=0），避免存量 CRITICAL
       # （开发期依赖）长期红号；基线清理后再将 exit-code 改为 1 作为门禁。
       - name: Trivy filesystem scan (SARIF)
-        # 上游 tag 已迁移为 v 前缀（裸 0.28.0 不存在，Set up job 解析失败）；钉 SHA = v0.28.0
-        uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # v0.28.0
+        # 上游 v0.28.0 内部引用已下线的 setup-trivy@v0.2.1，Set up job 解析失败；升级至 v0.36.0
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
         with:
           scan-type: fs
           scan-ref: .
