@@ -3,6 +3,7 @@
 # 中间件复用 infrastructure/docker compose（mysql/redis/nacos），
 # 后端起 gateway/auth/workflow/form 4 服务，webServer 拉起 3 个前端应用。
 # 触发: push main / PR main（前后端/编排变更）+ 手动
+# 首跑引导：本文件首次入库的 push 不触发自身，追加注释行后推送触发（2026-11-02）
 # ============================================================
 
 name: E2E (Playwright)
