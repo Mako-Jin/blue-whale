@@ -2,7 +2,15 @@
 
 import { request } from '@playwright/test';
 import { API_BASE_URL } from '../../playwright.config';
-import { fetchMe, login, pageTableDefinitionsByCode, pageWorkflowDefinitions } from './api';
+import {
+  ADMIN_PASSWORD,
+  changePassword,
+  fetchMe,
+  login,
+  loginFull,
+  pageTableDefinitionsByCode,
+  pageWorkflowDefinitions,
+} from './api';
 
 const BACKEND_HINT = [
   '请先启动：MySQL(3306)、Redis(6379)、Nacos(8848)、whale-gateway(8080)、whale-service-auth(8081)、whale-form(8084)、whale-workflow(8083)',
@@ -14,7 +22,16 @@ export default async function globalSetup(): Promise<void> {
   try {
     let token: string;
     try {
-      token = await login(ctx);
+      // CI 全新库每轮由 AdminPasswordInitializer 轮换 admin 口令并置 must_change_password=1，
+      // form/workflow designer 登录页遇该标记不跳转（弹强制改密框），导致相关用例集体超时；
+      // 引导：命中标记时用同口令走一次 API 改密清除标记，再重登取干净 token。
+      const session = await loginFull(ctx);
+      if (session.mustChangePassword && session.userId != null) {
+        await changePassword(ctx, session.accessToken, session.userId, ADMIN_PASSWORD);
+        token = await login(ctx);
+      } else {
+        token = session.accessToken;
+      }
     } catch (error) {
       throw new Error(
         `E2E 前置失败：网关或 whale-service-auth 不可用。\n${BACKEND_HINT}\n原因：${(error as Error).message}`,

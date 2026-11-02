@@ -74,17 +74,47 @@ async function readEnvelope<T>(response: APIResponse, label: string): Promise<T>
   return body.data;
 }
 
+/** 登录响应（含首登改密标记与用户 ID，用于 CI 引导） */
+export interface LoginSession {
+  accessToken: string;
+  mustChangePassword?: boolean;
+  userId?: string | number;
+}
+
+/** 登录并返回完整响应 */
+export async function loginFull(
+  ctx: APIRequestContext,
+  username: string = ADMIN_USERNAME,
+  password: string = ADMIN_PASSWORD,
+): Promise<LoginSession> {
+  const response = await ctx.post(`${API_BASE_URL}/auth/login`, {
+    data: { username, password },
+  });
+  return readEnvelope<LoginSession>(response, '登录');
+}
+
 /** 登录并返回 accessToken */
 export async function login(
   ctx: APIRequestContext,
   username: string = ADMIN_USERNAME,
   password: string = ADMIN_PASSWORD,
 ): Promise<string> {
-  const response = await ctx.post(`${API_BASE_URL}/auth/login`, {
-    data: { username, password },
-  });
-  const data = await readEnvelope<{ accessToken: string }>(response, '登录');
+  const data = await loginFull(ctx, username, password);
   return data.accessToken;
+}
+
+/** 修改用户密码（PUT /user/{id}/password；CI 引导用：清除首登强制改密标记） */
+export async function changePassword(
+  ctx: APIRequestContext,
+  token: string,
+  userId: string | number,
+  password: string,
+): Promise<void> {
+  const response = await ctx.put(`${API_BASE_URL}/user/${userId}/password`, {
+    headers: { Authorization: `Bearer ${token}` },
+    data: { password },
+  });
+  await readEnvelope<void>(response, '修改密码');
 }
 
 /** GET /auth/me（角色/权限码/菜单） */
