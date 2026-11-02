@@ -9,6 +9,7 @@ import com.bluewhale.message.entity.MessageDelivery;
 import com.bluewhale.message.entity.MessageRecord;
 import com.bluewhale.message.mapper.MessageDeliveryMapper;
 import com.bluewhale.message.mapper.MessageRecordMapper;
+import com.bluewhale.message.support.AnnouncementExpander;
 import com.bluewhale.message.vo.InAppMessageVO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,7 +36,10 @@ class MessageInAppServiceImplTest {
 
     private final MessageRecordMapper recordMapper = mock(MessageRecordMapper.class);
 
-    private final MessageInAppServiceImpl service = new MessageInAppServiceImpl(deliveryMapper, recordMapper);
+    private final AnnouncementExpander announcementExpander = mock(AnnouncementExpander.class);
+
+    private final MessageInAppServiceImpl service =
+            new MessageInAppServiceImpl(deliveryMapper, recordMapper, announcementExpander);
 
     @Test
     @DisplayName("收件箱分页合并消息标题与正文")
@@ -57,6 +61,7 @@ class MessageInAppServiceImplTest {
         assertEquals(1, result.getTotal());
         assertEquals("系统通知", result.getRecords().get(0).getTitle());
         assertEquals("您有一条待办", result.getRecords().get(0).getContent());
+        verify(announcementExpander).expand(7L);
     }
 
     @Test

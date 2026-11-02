@@ -304,6 +304,9 @@ public class MessageSendServiceImpl implements MessageSendService {
      */
     private List<MessageDelivery> dispatch(MessageRecord record, SendMessageRequest request) {
         Map<MessageChannel, MessageChannelSender> senderMap = senderMap();
+        // 接收人去重：同一 (userId, email, phone) 只投递一次，与投递唯一索引
+        // uk_message_channel_recipient 对齐，避免重复接收人撞键
+        List<MessageRecipient> recipients = dedupeRecipients(request.getRecipients());
         Set<MessageChannel> channels = new LinkedHashSet<>();
         for (String raw : request.getChannels()) {
             MessageChannel channel = MessageChannel.parse(raw);
@@ -316,7 +319,7 @@ public class MessageSendServiceImpl implements MessageSendService {
         List<MessageDelivery> deliveries = new ArrayList<>();
         for (MessageChannel channel : channels) {
             MessageChannelSender sender = senderMap.get(channel);
-            for (MessageRecipient recipient : request.getRecipients()) {
+            for (MessageRecipient recipient : recipients) {
                 ChannelResult result;
                 if (sender == null) {
                     result = ChannelResult.skipped("渠道未实现: " + channel.name());
@@ -327,6 +330,35 @@ public class MessageSendServiceImpl implements MessageSendService {
             }
         }
         return deliveries;
+    }
+
+    /**
+     * 接收人去重：按 (userId, email, phone) 组合键去重，保持原有顺序。
+     *
+     * @param recipients 原始接收人列表
+     * @return 去重后的接收人列表
+     */
+    private static List<MessageRecipient> dedupeRecipients(List<MessageRecipient> recipients) {
+        if (recipients == null || recipients.size() <= 1) {
+            return recipients;
+        }
+        Set<String> seen = new LinkedHashSet<>();
+        return recipients.stream()
+                .filter(recipient -> seen.add(recipientKey(recipient)))
+                .toList();
+    }
+
+    /**
+     * 构造接收人去重键。
+     *
+     * @param recipient 接收人
+     * @return 组合键
+     */
+    private static String recipientKey(MessageRecipient recipient) {
+        if (recipient == null) {
+            return "-";
+        }
+        return recipient.getUserId() + "|" + recipient.getEmail() + "|" + recipient.getPhone();
     }
 
     /**

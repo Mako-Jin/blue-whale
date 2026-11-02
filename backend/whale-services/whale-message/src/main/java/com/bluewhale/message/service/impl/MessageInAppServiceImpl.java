@@ -13,6 +13,7 @@ import com.bluewhale.message.enums.MessageChannel;
 import com.bluewhale.message.mapper.MessageDeliveryMapper;
 import com.bluewhale.message.mapper.MessageRecordMapper;
 import com.bluewhale.message.service.MessageInAppService;
+import com.bluewhale.message.support.AnnouncementExpander;
 import com.bluewhale.message.vo.InAppMessageVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,7 +26,8 @@ import java.util.stream.Collectors;
  * 站内信收件箱服务实现。
  *
  * <p>数据口径：{@code msg_delivery.channel=INAPP} 且 {@code recipient=当前用户ID}。
- * 已读状态记在投递记录上，因此同一消息发给多个用户时各用户互不影响。</p>
+ * 已读状态记在投递记录上，因此同一消息发给多个用户时各用户互不影响。
+ * 读取前先经 {@link AnnouncementExpander} 把已发布公告惰性展开为本人投递记录。</p>
  *
  * @author BlueWhale
  */
@@ -46,8 +48,11 @@ public class MessageInAppServiceImpl implements MessageInAppService {
 
     private final MessageRecordMapper recordMapper;
 
+    private final AnnouncementExpander announcementExpander;
+
     @Override
     public PageResult<InAppMessageVO> page(Long userId, InAppMessageQueryRequest request) {
+        announcementExpander.expand(userId);
         LambdaQueryWrapper<MessageDelivery> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(MessageDelivery::getChannel, MessageChannel.INAPP.name())
                 .eq(MessageDelivery::getRecipient, String.valueOf(userId))
@@ -74,6 +79,7 @@ public class MessageInAppServiceImpl implements MessageInAppService {
 
     @Override
     public long unreadCount(Long userId) {
+        announcementExpander.expand(userId);
         LambdaQueryWrapper<MessageDelivery> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(MessageDelivery::getChannel, MessageChannel.INAPP.name())
                 .eq(MessageDelivery::getRecipient, String.valueOf(userId))
@@ -83,6 +89,7 @@ public class MessageInAppServiceImpl implements MessageInAppService {
 
     @Override
     public void markRead(Long userId, Long messageId) {
+        announcementExpander.expand(userId);
         LambdaQueryWrapper<MessageDelivery> exists = new LambdaQueryWrapper<>();
         exists.eq(MessageDelivery::getMessageId, messageId)
                 .eq(MessageDelivery::getChannel, MessageChannel.INAPP.name())
