@@ -17,6 +17,7 @@ import DeptList from '../pages/dept/DeptList';
 import FileList from '../pages/file/FileList';
 import JobList from '../pages/job/JobList';
 import MenuList from '../pages/menu/MenuList';
+import AnnouncementList from '../pages/message/AnnouncementList';
 import TemplateList from '../pages/message/TemplateList';
 import OrderList from '../pages/pay/OrderList';
 import PermissionList from '../pages/permission/PermissionList';
@@ -46,6 +47,7 @@ const COMPONENT_MAP: Record<
   | 'job'
   | 'file'
   | 'message/template'
+  | 'message/announce'
   | 'pay/order'
   | 'config/item'
   | 'archive/category'
@@ -71,6 +73,7 @@ const COMPONENT_MAP: Record<
   job: JobList,
   file: FileList,
   'message/template': TemplateList,
+  'message/announce': AnnouncementList,
   'pay/order': OrderList,
   'config/item': ConfigItemList,
   'archive/category': ArchiveCategoryList,

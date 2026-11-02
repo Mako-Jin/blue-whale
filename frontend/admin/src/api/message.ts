@@ -65,3 +65,64 @@ export function updateMessageTemplate(
 export function deleteMessageTemplate(id: string): Promise<void> {
   return del<void>(`/message/template/${id}`);
 }
+
+// ---------------------------------------------------------------------------
+// 系统公告（全员广播）：发布时不枚举接收人，用户收件箱读取时惰性展开
+// 权限码：sys:message:announce:list/publish/revoke/delete（305–308）
+// ---------------------------------------------------------------------------
+
+/** 公告状态：已发布 / 已撤回 */
+export type AnnouncementStatus = 'PUBLISHED' | 'REVOKED';
+
+/** 系统公告（字段对齐后端 AnnouncementVO） */
+export interface AnnouncementVO {
+  /** 公告ID（后端 Long 序列化为字符串） */
+  id: string;
+  /** 关联的消息记录ID */
+  recordId?: string;
+  title?: string;
+  content?: string;
+  bizType?: string;
+  status?: AnnouncementStatus;
+  /** 发布人用户ID */
+  publisherId?: string;
+  publishTime?: string;
+  createTime?: string;
+}
+
+/** 发布公告入参 */
+export interface AnnouncementPublishInput {
+  title: string;
+  content: string;
+  /** 业务类型，缺省后端按 SYSTEM_ANNOUNCE 处理 */
+  bizType?: string;
+}
+
+/** 公告分页查询参数 */
+export interface AnnouncementPageParams {
+  status?: AnnouncementStatus;
+  current: number;
+  size: number;
+}
+
+/** 分页查询系统公告 */
+export function pageAnnouncements(
+  params: AnnouncementPageParams,
+): Promise<PageResult<AnnouncementVO>> {
+  return get<PageResult<AnnouncementVO>>('/message/announce/page', { ...params });
+}
+
+/** 发布系统公告 */
+export function publishAnnouncement(body: AnnouncementPublishInput): Promise<AnnouncementVO> {
+  return post<AnnouncementVO>('/message/announce', body);
+}
+
+/** 撤回公告：未展开用户不再可见，已展开的个人消息保留 */
+export function revokeAnnouncement(id: string): Promise<void> {
+  return put<void>(`/message/announce/${id}/revoke`);
+}
+
+/** 删除公告（逻辑删除） */
+export function deleteAnnouncement(id: string): Promise<void> {
+  return del<void>(`/message/announce/${id}`);
+}
