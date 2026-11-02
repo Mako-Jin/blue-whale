@@ -101,6 +101,7 @@ jobs:
           $M bluewhale_auth < backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/init.sql
           $M bluewhale_auth < backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-2026-10-30-admin-random-password.sql
           $M bluewhale_workflow < backend/whale-services/whale-workflow/src/main/resources/db/init.sql
+          $M bluewhale_workflow < backend/whale-services/whale-workflow/src/main/resources/db/migration-5.63-workflow-task-operator.sql
           $M bluewhale_form < backend/whale-services/whale-form/src/main/resources/db/init.sql
           $M -e "SHOW TABLES FROM bluewhale_auth; SELECT COUNT(*) AS auth_tables FROM information_schema.tables WHERE table_schema='bluewhale_auth';"
 
