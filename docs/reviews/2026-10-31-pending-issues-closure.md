@@ -8,8 +8,7 @@
 
 | 类别 | 数量 | 编号 |
 |---|---|---|
-| 已修复并提交 | 7 | N-01、N-02、N-03、N-04、N-05、N-06、N-10 |
-| 部分完成 | 1 | N-07（`.gitignore` 已生效，物理文件待确认） |
+| 已修复并提交 | 8 | N-01、N-02、N-03、N-04、N-05、N-06、N-07（2026-11-02 复验闭环）、N-10 |
 | 环境/决策阻塞 | 2 | N-08（B-01 / B-09 / B-10）、N-09（T-07 / T-08 / 其余服务越层） |
 
 **代码与文档层面的问题已全部修复并入库**；剩余 3 项均**不由代码改动可解**（需用户确认删文件、需浏览器与环境、需更大范围专项），因此本轮进入收尾，不再继续扩大改动面。
@@ -24,7 +23,7 @@
 | N-04 | 知识桶白名单隐式前缀匹配合放宽 | ✅ 2026-10-31 | `FileKnowledgeSyncService` 改精确匹配 + 显式 `*`；`AgentProperties` 加 `@RefreshScope`；`FileKnowledgeSyncServiceTest` 17/17 |
 | N-05 | 缺镜像 / Maven 依赖供应链扫描 | ✅ 2026-10-31 | `security-scan.yml` 新增 `trivy-fs`（SARIF）、`backend-dependency-check`（OWASP 周/手动） |
 | N-06 | 文档状态失真（音乐 M1/M3–M5、auth 拆分/解耦） | ✅ 2026-10-31 | `architecture.md` / `service-catalog.md` / `roadmap.md` / `music-service-ops.md` / auth `tasks.md` / 解耦 `spec.md` 已同步 |
-| N-07 | 仓库卫生：`skills/` 5 个未跟踪 zip | 🟡 部分 | `.gitignore:107` `/skills/*.zip` 已生效（`git status` 干净）；**5 个 zip 仍物理存在**（`skills/` 下 30KB / 23KB / 17KB / 33KB / 10KB），删除需用户确认 |
+| N-07 | 仓库卫生：`skills/` 5 个未跟踪 zip | ✅ 2026-11-02 | `.gitignore:107` `/skills/*.zip` 已生效；2026-11-02 复验 `Test-Path skills` = False，zip 随目录删除，无物理残留 |
 | N-08 | 环境阻塞（Docker 全链路 / 浏览器 E2E / 通知链路） | ⛔ 阻塞 | 见 §三.1 |
 | N-09 | 质量门禁大项（T-07 / T-08 / 其余越层） | 🟡 部分 | T-17（mypy 阻断）、T-18（agent / archive / im）已完成；T-07 / T-08 与其余服务专项仍开放，见 §三.2 |
 | N-10 | 前端依赖审计非阻断 | ✅ 2026-10-31 | `security-scan.yml:97` `pnpm audit --prod --audit-level=critical` 已为阻断步骤 |
@@ -47,10 +46,10 @@
 | T-08 E2E 入 CI | 无 e2e workflow；本地 E2E 用例存在但依赖浏览器二进制 | 与 B-09 合并：Playwright 可用后新增 `frontend-e2e.yml`（cache 浏览器 + 起服编排） |
 | 其余服务越层专项（T-18 余量） | agent / archive / im 已开启 controller→entity/mapper ArchUnit 门禁；其余服务未逐项排查 | 按「controller 不依赖 entity/mapper」规则逐个服务加 ArchUnit 规则，先扫后补 |
 
-### 3.3 N-07 仓库卫生
+### 3.3 N-07 仓库卫生（已闭环，2026-11-02）
 
 - `.gitignore` 已忽略 `/skills/*.zip`，不会再误入库；
-- 5 个 zip 是否物理删除，需用户确认（属本地下载的 skill 压缩包，不参与构建）；
+- 2026-11-02 复验 `skills/` 目录已不存在，5 个 zip 无物理残留；
 - `.trae` 16 个文件为 2026-10-22 既定保留，**不按缺陷处理**（本条已关闭）。
 
 ## 四、本轮复验证据
