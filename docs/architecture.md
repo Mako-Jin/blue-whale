@@ -55,7 +55,7 @@
 
 > `ai/whale-ai`（Python / FastAPI，8092）为独立树，**不进 Maven reactor**，仅被 `whale-agent` 内网调用。
 
-### 服务全景（24 个已落地：Java 23 + Python 1；另 2 个规划）
+### 服务全景（25 个已落地：Java 24 + Python 1；另 2 个规划）
 
 > 端口、库、网关路由与本机状态的**唯一权威清单**是 [service-catalog.md](service-catalog.md)；下表为架构视角摘要，两表由维护流程保持同步。
 
@@ -76,6 +76,7 @@
 | whale-doc | 8095 | `/doc`（含 `/doc/ws`） | bluewhale_doc | **在线文档/Wiki**：空间与页面树、TipTap 协作、版本/评论/附件/搜索/ACL/模板/审批/分享/归档、Agent 知识索引 |
 | whale-music | 8096 | `/music` | bluewhale_music | **音乐平台**（M0–M5 已落地，可上线）：歌手/专辑/歌曲/标签曲库、用户上传与版权协议、公开/自听可见性；播放票据与 Range 流式、歌单、发现、评论与审核、版权申诉、7 天榜；429 限流、指标与 Grafana 面板、备份演练已实测 |
 | whale-scene（**规划**） | 8097 | `/scene` | bluewhale_scene（规划） | **城池场景导航**：场景/区域/建筑/入口节点树、入口绑定、角色/部门/用户可见性、2D 优先导航与 3D 可选增强；低配/无 WebGL 降级 2D；不拥有业务数据（Wave 5.77，未编码） |
+| whale-video | 8098 | `/video` | bluewhale_video | **视频平台**（M0–M5 已落地）：短视频 / 视频 / 系列 / 电影三条内容线共享 `vd_content` 注册、播放票据与 Range 流式、点赞/收藏/评论、分类标签与观看历史底座；视频字节归 `whale-file`（按权限码大文件上传策略 G1），`/video/internal/**` 对外 403、`/video/stream/**` 独立限流且不进熔断 |
 | whale-erp | 9001 | `/erp` | bluewhale_erp | **ERP 业务应用**：物料主数据 + 供应商主数据（供应商准入/资质/绩效归 SRM，不属 CRM） |
 | whale-mes | 9002 | `/mes` | bluewhale_mes | **MES 制造执行** |
 | whale-pdm | 9003 | `/pdm` | bluewhale_pdm | **PDM 产品数据管理** |

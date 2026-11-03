@@ -12,6 +12,9 @@ import com.bluewhale.auth.application.permission.PermissionAppService;
 import com.bluewhale.auth.application.role.RoleAppService;
 import com.bluewhale.auth.application.tenant.TenantAppService;
 import com.bluewhale.auth.application.tenant.TenantMembershipAppService;
+import com.bluewhale.auth.application.user.password.PasswordPolicyService;
+import com.bluewhale.auth.application.user.password.TenantPasswordPolicyService;
+import com.bluewhale.auth.application.user.port.PasswordHasher;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
 import com.bluewhale.auth.vo.AuthMeResponse;
 import com.bluewhale.auth.vo.AuthTokenIssue;
@@ -35,6 +38,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
@@ -108,6 +112,15 @@ class SessionAppServiceTest {
     @Mock
     private CurrentUserProvider currentUserProvider;
 
+    @Mock
+    private PasswordPolicyService passwordPolicyService;
+
+    @Mock
+    private PasswordHasher passwordHasher;
+
+    @Mock
+    private TenantPasswordPolicyService tenantPasswordPolicyService;
+
     @InjectMocks
     private SessionAppService sessionAppService;
 
@@ -153,7 +166,7 @@ class SessionAppServiceTest {
         when(tokenBlacklist.contains(REFRESH_TOKEN)).thenReturn(false);
         when(userSessionQuery.loadUserById(USER_ID, TENANT_ID))
                 .thenReturn(Optional.of(new AuthenticatedUser(TENANT_ID, USER_ID, USERNAME, "Alice", List.of("admin"), true, false)));
-        when(tokenIssuer.issueAccessToken(TENANT_ID, USER_ID, USERNAME, List.of("admin")))
+        when(tokenIssuer.issueAccessToken(TENANT_ID, USER_ID, USERNAME, List.of("admin"), false))
                 .thenReturn("new-access");
         // 轮换默认关闭：familyId 原样透传（载荷未携带即 null）
         when(tokenIssuer.issueRefreshToken(TENANT_ID, USER_ID, USERNAME, null)).thenReturn("new-refresh");
@@ -181,7 +194,7 @@ class SessionAppServiceTest {
         BizException ex = assertThrows(BizException.class, () -> sessionAppService.refresh(REFRESH_TOKEN));
 
         assertEquals(UNAUTHORIZED_CODE, ex.getCode());
-        verify(tokenIssuer, never()).issueAccessToken(anyLong(), anyLong(), anyString(), any());
+        verify(tokenIssuer, never()).issueAccessToken(anyLong(), anyLong(), anyString(), any(), anyBoolean());
         verify(refreshRotationStore, never()).markUsed(anyString(), anyLong());
     }
 
@@ -196,7 +209,7 @@ class SessionAppServiceTest {
         when(userSessionQuery.loadUserById(USER_ID, TENANT_ID))
                 .thenReturn(Optional.of(new AuthenticatedUser(TENANT_ID, USER_ID, USERNAME, "Alice", List.of("admin"), true, false)));
         when(userAccessRevocationPort.isRevoked(USER_ID, issuedAt)).thenReturn(false);
-        when(tokenIssuer.issueAccessToken(TENANT_ID, USER_ID, USERNAME, List.of("admin")))
+        when(tokenIssuer.issueAccessToken(TENANT_ID, USER_ID, USERNAME, List.of("admin"), false))
                 .thenReturn("new-access");
         when(tokenIssuer.issueRefreshToken(TENANT_ID, USER_ID, USERNAME, null)).thenReturn("new-refresh");
         when(tokenIssuer.accessExpireSeconds()).thenReturn(ACCESS_EXPIRE_SECONDS);
@@ -220,7 +233,7 @@ class SessionAppServiceTest {
                 .thenReturn(Optional.of(new AuthenticatedUser(TENANT_ID, USER_ID, USERNAME, "Alice", List.of("admin"), true, false)));
         when(tokenIssuer.remainingValiditySeconds(REFRESH_TOKEN)).thenReturn(REMAINING_SECONDS);
         when(refreshRotationStore.markUsed(JTI, REMAINING_SECONDS)).thenReturn(true);
-        when(tokenIssuer.issueAccessToken(TENANT_ID, USER_ID, USERNAME, List.of("admin")))
+        when(tokenIssuer.issueAccessToken(TENANT_ID, USER_ID, USERNAME, List.of("admin"), false))
                 .thenReturn("new-access");
         when(tokenIssuer.issueRefreshToken(TENANT_ID, USER_ID, USERNAME, FAMILY_ID)).thenReturn("new-refresh");
         when(tokenIssuer.accessExpireSeconds()).thenReturn(ACCESS_EXPIRE_SECONDS);
@@ -384,7 +397,7 @@ class SessionAppServiceTest {
         long targetTenantId = 2L;
         when(userSessionQuery.loadUserById(USER_ID, targetTenantId)).thenReturn(
                 Optional.of(new AuthenticatedUser(targetTenantId, USER_ID, USERNAME, "Alice", List.of("tenant_admin"), true, false)));
-        when(tokenIssuer.issueAccessToken(targetTenantId, USER_ID, USERNAME, List.of("tenant_admin")))
+        when(tokenIssuer.issueAccessToken(targetTenantId, USER_ID, USERNAME, List.of("tenant_admin"), false))
                 .thenReturn("new-access");
         when(tokenIssuer.issueRefreshToken(
                 org.mockito.ArgumentMatchers.eq(targetTenantId),

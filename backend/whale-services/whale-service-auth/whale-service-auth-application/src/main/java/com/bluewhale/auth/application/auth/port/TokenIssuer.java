@@ -18,9 +18,24 @@ public interface TokenIssuer {
      * @param userId 用户 ID
      * @param username 用户名
      * @param roles 角色 code 列表
+     * @param pwdChangeRequired 是否需强制改密（REQ-SEC-023：携带 {@code pwdChangeRequired} claim）
      * @return accessToken 原文
      */
-    String issueAccessToken(Long tenantId, Long userId, String username, List<String> roles);
+    String issueAccessToken(Long tenantId, Long userId, String username, List<String> roles,
+                            boolean pwdChangeRequired);
+
+    /**
+     * 签发 accessToken（不带强制改密标记）
+     *
+     * @param tenantId 租户 ID
+     * @param userId 用户 ID
+     * @param username 用户名
+     * @param roles 角色 code 列表
+     * @return accessToken 原文
+     */
+    default String issueAccessToken(Long tenantId, Long userId, String username, List<String> roles) {
+        return issueAccessToken(tenantId, userId, username, roles, false);
+    }
 
     /**
      * 签发 refreshToken

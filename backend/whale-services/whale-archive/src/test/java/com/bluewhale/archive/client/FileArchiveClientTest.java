@@ -38,4 +38,14 @@ class FileArchiveClientTest {
         assertNull(FileArchiveClient.parseId("   "));
         assertNull(FileArchiveClient.parseId("abc"));
     }
+
+    @Test
+    @DisplayName("parseTotal：从 Content-Range 解析文件总字节数")
+    void shouldParseTotalFromContentRange() {
+        assertEquals(2048L, FileArchiveClient.parseTotal("bytes */2048"));
+        assertEquals(2048L, FileArchiveClient.parseTotal("bytes 0-1023/2048"));
+        assertEquals(0L, FileArchiveClient.parseTotal(null));
+        assertEquals(0L, FileArchiveClient.parseTotal(" "));
+        assertEquals(0L, FileArchiveClient.parseTotal("bytes 0-1023"));
+    }
 }

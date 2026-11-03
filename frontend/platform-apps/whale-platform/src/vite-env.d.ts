@@ -18,6 +18,7 @@ interface ImportMetaEnv {
   readonly VITE_SUBAPP_ENTRY_CONTRACT?: string;
   readonly VITE_SUBAPP_ENTRY_DOC?: string;
   readonly VITE_SUBAPP_ENTRY_MUSIC?: string;
+  readonly VITE_SUBAPP_ENTRY_VIDEO?: string;
   /** 旧子应用 host 兼容用的回退 token，生产应注入真实值 */
   readonly VITE_PLATFORM_TOKEN?: string;
 }

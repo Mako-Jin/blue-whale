@@ -126,6 +126,14 @@ spring:
               uri: lb://whale-music
               predicates:
                 - Path=/music/**
+            # Wave 5.77 视频平台：自持 /video 一级前缀（不含 StripPrefix，REQ-ARCH-003）；
+            # 内网 /video/internal/** 由 internal-deny 统一 403；
+            # /video/stream/** 使用独立限流，且不加入 circuit-breaker.apply-to-routes
+            # （长视频一次播放会跨多个 Range 请求，不能被 3s 超时误熔断）
+            - id: whale-video
+              uri: lb://whale-video
+              predicates:
+                - Path=/video/**
             # Wave 5.54 P2 偏差 C-03 收口：业务应用补路由（自持一级前缀，不含 StripPrefix）
             - id: whale-erp
               uri: lb://whale-erp
@@ -239,6 +247,29 @@ whale:
         - path-pattern: /music/song/*/like
           limit: ${WHALE_GATEWAY_RATE_LIMIT_MUSIC_LIKE:30}
           window-seconds: ${WHALE_GATEWAY_RATE_LIMIT_MUSIC_LIKE_WINDOW_SECONDS:60}
+        # Wave 5.77 视频流：一次播放会发起多次 Range 请求，按路径独立阈值防止直连刷流
+        - path-pattern: /video/stream/**
+          limit: ${WHALE_GATEWAY_RATE_LIMIT_VIDEO_STREAM:120}
+          window-seconds: ${WHALE_GATEWAY_RATE_LIMIT_VIDEO_STREAM_WINDOW_SECONDS:60}
+        # Wave 5.77 播放票据签发（单个 / 批量）：防止刷票与内容探测
+        - path-pattern: /video/play/ticket
+          limit: ${WHALE_GATEWAY_RATE_LIMIT_VIDEO_TICKET:60}
+          window-seconds: ${WHALE_GATEWAY_RATE_LIMIT_VIDEO_TICKET_WINDOW_SECONDS:60}
+        # Wave 5.77 评论发表：按用户写操作，单独收紧阈值
+        - path-pattern: /video/content/*/comment
+          limit: ${WHALE_GATEWAY_RATE_LIMIT_VIDEO_COMMENT:20}
+          window-seconds: ${WHALE_GATEWAY_RATE_LIMIT_VIDEO_COMMENT_WINDOW_SECONDS:60}
+        # Wave 5.77 点赞 / 收藏：写操作防刷（幂等但会触发计数回写）
+        - path-pattern: /video/content/*/like
+          limit: ${WHALE_GATEWAY_RATE_LIMIT_VIDEO_LIKE:30}
+          window-seconds: ${WHALE_GATEWAY_RATE_LIMIT_VIDEO_LIKE_WINDOW_SECONDS:60}
+        - path-pattern: /video/content/*/favorite
+          limit: ${WHALE_GATEWAY_RATE_LIMIT_VIDEO_LIKE:30}
+          window-seconds: ${WHALE_GATEWAY_RATE_LIMIT_VIDEO_LIKE_WINDOW_SECONDS:60}
+        # Wave 5.77 上传代理（若前端经网关调用文件上传）：收紧阈值
+        - path-pattern: /video/upload/**
+          limit: ${WHALE_GATEWAY_RATE_LIMIT_VIDEO_UPLOAD:20}
+          window-seconds: ${WHALE_GATEWAY_RATE_LIMIT_VIDEO_UPLOAD_WINDOW_SECONDS:60}
     # T4 熔断降级（轻量实现，由 CircuitBreakerGlobalFilter 执行）：
     # timeout-millis 为单次下游调用超时；failure-rate-threshold 为触发阈值（百分比）；
     # sliding-window-size 为失败率统计窗口；wait-duration-in-open-state-millis 为打开后等待时长；
@@ -287,6 +318,8 @@ whale:
         - /doc/internal/**
         # Wave 5.75 音乐内网通道：曲库/播放票据等仅服务间内网直连 whale-music
         - /music/internal/**
+        # Wave 5.77 视频内网通道：内容检索 / 消息回查等仅服务间内网直连 whale-video
+        - /video/internal/**
 
 management:
   endpoints:

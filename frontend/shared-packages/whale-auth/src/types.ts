@@ -50,8 +50,12 @@ export interface LoginResponse {
   username: string;
   nickname: string;
   roles: string[];
-  /** 首次登录/管理员重置密码后强制改密标记（T-03） */
+  /** 首次登录/管理员重置密码后强制改密标记（T-03 / REQ-SEC-023） */
   mustChangePassword?: boolean;
+  /** 口令已到期（REQ-SEC-023，登录时按所属租户口令策略判定） */
+  passwordExpired?: boolean;
+  /** 距口令到期剩余天数；-1 表示未启用有效期或改密时间缺失 */
+  passwordExpiresInDays?: number;
 }
 
 /** GET /auth/me 响应 */

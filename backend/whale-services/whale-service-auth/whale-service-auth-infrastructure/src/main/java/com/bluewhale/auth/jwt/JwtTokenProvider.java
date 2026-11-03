@@ -43,6 +43,12 @@ public class JwtTokenProvider {
     /** refreshToken 的 family 标识 claim（AUTH-39：一次登录生成，轮换时原样沿用，用于复用检测后整族吊销） */
     public static final String CLAIM_FAMILY_ID = "familyId";
 
+    /**
+     * 强制改密标记 claim（REQ-SEC-023）：为 true 时 auth 服务与网关仅放行改密/登出/刷新/当前用户等
+     * 白名单接口，其余请求返回 403，避免未改密用户继续访问业务功能。
+     */
+    public static final String CLAIM_PWD_CHANGE_REQUIRED = "pwdChangeRequired";
+
     /** Authorization 头凭据前缀，签发与校验两侧共用，避免各自定义 */
     public static final String BEARER_PREFIX = "Bearer ";
 
@@ -82,6 +88,21 @@ public class JwtTokenProvider {
      * @return 签名后的 accessToken 字符串
      */
     public String generateAccessToken(Long tenantId, Long userId, String username, List<String> roles) {
+        return generateAccessToken(tenantId, userId, username, roles, false);
+    }
+
+    /**
+     * 生成 accessToken，并按需携入强制改密标记（REQ-SEC-023）
+     *
+     * @param tenantId 租户 ID（网关据此注入 X-Tenant-Id）
+     * @param userId 用户 ID
+     * @param username 用户名（作为 sub）
+     * @param roles 角色 code 列表（逗号分隔写入 roles claim）
+     * @param pwdChangeRequired 是否强制改密
+     * @return 签名后的 accessToken 字符串
+     */
+    public String generateAccessToken(Long tenantId, Long userId, String username, List<String> roles,
+                                      boolean pwdChangeRequired) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + properties.getExpireMinutes() * 60_000);
         return Jwts.builder()
@@ -91,6 +112,7 @@ public class JwtTokenProvider {
                 .claim(CLAIM_TENANT_ID, tenantId)
                 .claim(CLAIM_ROLES, String.join(",", roles))
                 .claim(CLAIM_TOKEN_TYPE, TOKEN_TYPE_ACCESS)
+                .claim(CLAIM_PWD_CHANGE_REQUIRED, pwdChangeRequired)
                 .claim(TokenTimeSupport.CLAIM_ISSUED_AT_MILLIS, now.getTime())
                 .issuedAt(now)
                 .expiration(expiry)

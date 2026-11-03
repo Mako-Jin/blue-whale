@@ -41,6 +41,8 @@ CREATE TABLE sys_user (
     username        VARCHAR(64)   NOT NULL                COMMENT '登录账号（租户内唯一）',
     password        VARCHAR(100)  NOT NULL                COMMENT '登录密码（BCrypt 密文）',
     must_change_password TINYINT  NOT NULL DEFAULT 0      COMMENT '是否强制首登改密（1=是）',
+    password_updated_time DATETIME DEFAULT NULL           COMMENT '最近一次改密时间（口令年龄与到期判定）',
+    password_notice_time  DATETIME DEFAULT NULL           COMMENT '最近一次口令到期提醒时间',
     nickname        VARCHAR(64)   DEFAULT NULL            COMMENT '用户昵称',
     phone           VARCHAR(20)   DEFAULT NULL            COMMENT '手机号',
     email           VARCHAR(128)  DEFAULT NULL            COMMENT '电子邮箱',
@@ -55,6 +57,37 @@ CREATE TABLE sys_user (
     UNIQUE KEY uk_tenant_username (tenant_id, username),
     KEY idx_tenant_id (tenant_id)
 ) COMMENT='系统用户表';
+
+-- ---------------------------------------------------------------------
+-- 1.1 口令历史表（REQ-SEC-023：最近 N 次口令不可复用，仅保留 BCrypt 密文）
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS sys_password_history;
+CREATE TABLE sys_password_history (
+    id          BIGINT        NOT NULL                COMMENT '主键ID（雪花算法）',
+    tenant_id   BIGINT        NOT NULL                COMMENT '所属租户ID（逻辑关联 sys_tenant.id）',
+    user_id     BIGINT        NOT NULL                COMMENT '用户ID（逻辑关联 sys_user.id）',
+    password    VARCHAR(100)  NOT NULL                COMMENT '历史口令（BCrypt 密文）',
+    create_time DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '写入时间',
+    PRIMARY KEY (id),
+    KEY idx_history_user (tenant_id, user_id, create_time)
+) COMMENT='用户口令历史表';
+
+-- ---------------------------------------------------------------------
+-- 1.2 租户口令策略表（REQ-SEC-023：租户管理员可配置口令有效期与提醒天数）
+--     未配置的租户回退全局默认（whale.auth.password.max-age-days / warn-days）
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS sys_tenant_password_policy;
+CREATE TABLE sys_tenant_password_policy (
+    id           BIGINT   NOT NULL                COMMENT '主键ID（雪花算法）',
+    tenant_id    BIGINT   NOT NULL                COMMENT '租户ID（逻辑关联 sys_tenant.id）',
+    max_age_days INT      NOT NULL                COMMENT '口令有效期（天），范围 1–365',
+    warn_days    INT      NOT NULL DEFAULT 7      COMMENT '到期前提醒天数（0–有效期）',
+    deleted      TINYINT  NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',
+    create_time  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_tenant_pwd_policy (tenant_id)
+) COMMENT='租户口令策略配置表';
 
 -- ---------------------------------------------------------------------
 -- 2. 系统角色表
@@ -428,7 +461,10 @@ VALUES
     (16, 11, '待整理', '/archive/pending', 'archive/pending/index', 'inbox', 0, 'MENU', 'sys:archive:item:list', 1, 1),
     -- Wave 5.54 Phase 5.3：租户成员管理（business 租户开通时随菜单模板复制）
     (17, 1, '租户成员', '/system/tenant-member', 'tenant/member/index', 'team', 8, 'MENU',
-     'sys:tenant:member:list', 1, 1);
+     'sys:tenant:member:list', 1, 1),
+    -- REQ-SEC-023：租户口令策略配置（tenant_admin 可维护本租户口令有效期）
+    (36, 1, '口令策略', '/system/password-policy', 'system/password-policy/index', 'lock', 9, 'MENU',
+     'sys:tenant:pwdpolicy:list', 1, 1);
 
 -- 权限点：与各控制器 @RequirePermission 注解的 value 一一对应（AUTH-04）
 INSERT INTO sys_permission
@@ -663,4 +699,7 @@ VALUES
     (169, 0, 'sys:oa:leave:add', '新增请假申请', 'API', '/oa/leave', 'POST', 169, 1),
     (170, 0, 'sys:oa:leave:edit', '编辑/审批请假申请', 'API',
      '/oa/leave/{id},/oa/leave/{id}/status', 'PUT', 170, 1),
-    (171, 0, 'sys:oa:leave:delete', '删除请假申请', 'API', '/oa/leave/{id}', 'DELETE', 171, 1);
+    (171, 0, 'sys:oa:leave:delete', '删除请假申请', 'API', '/oa/leave/{id}', 'DELETE', 171, 1),
+    -- REQ-SEC-023：租户口令策略（172–173 下发给租户管理员，平台专属码清单不含这两项）
+    (172, 0, 'sys:tenant:pwdpolicy:list', '查询租户口令策略', 'API', '/tenant/password-policy', 'GET', 172, 1),
+    (173, 0, 'sys:tenant:pwdpolicy:edit', '配置租户口令策略', 'API', '/tenant/password-policy', 'PUT', 173, 1);

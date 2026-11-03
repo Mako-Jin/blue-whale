@@ -14,7 +14,7 @@
 | 租户插件 | `TenantLineInnerInterceptor` + `tenant_id` 已就绪，与方言无关 | 同上 `:47-55`、`:86-118` |
 | DDL 方言 | 全仓 SQL 中 `ENGINE=InnoDB` 31 处 / 10 文件；`ON UPDATE CURRENT_TIMESTAMP` 29 处 / 10 文件；`INSERT IGNORE`/`ON DUPLICATE KEY` 21 处 / 9 文件；普遍使用 `TINYINT`、`BIGINT`、`DATETIME`、`utf8mb4_general_ci`、反引号 | `backend/**/src/main/resources/db/*.sql`（含 `whale-auth`、`whale-form`、`whale-agent`、`whale-workflow`、`whale-audit`、`whale-alert`、`whale-pay`、`whale-i18n-sdk`） |
 | Mapper SQL | XML 中未检索到 `DATE_FORMAT`/`IFNULL`/`GROUP_CONCAT`/`FIND_IN_SET`/`JSON_EXTRACT`/`LIMIT n` 等 MySQL 专有函数；动态表名与分页由插件生成 | `backend/**/src/main/resources/**/*.xml` 全量检索无匹配 |
-| 初始化方式 | **未引入 Flyway/Liquibase**；DDL 靠手工/容器 init 脚本执行（全新建库用各服务 `db/init.sql`，存量库用 `db/migration-*.sql`） | `backend/whale-ops/whale-audit/src/main/resources/db/init.sql:14-17`、`infrastructure/docker/mysql/init/01-init-databases.sql` |
+| 初始化方式 | **22 个服务库已接入 Flyway（2026-11-01 阶段 4 铺开完成）**：auth + config/audit/alert/workflow/form/agent/doc/file + 12 个业务库（contract/erp/mes/oa/pdm/pm/archive/im/job/message/music/pay）+ video（自 M0 起即用 Flyway）。统一采用 `classpath:db/migration` + `baseline-on-migrate`，空库执行 V1 基线、存量库自动 baseline 到 v1 后仅执行增量；`db/init.sql` 保留为手工空库入口、历史 `migration-*.sql` 保留原位且不参与扫描；见[安全基线设计](security-baseline.md#五flyway-数据库版本化req-sec-022) | 各服务 `src/main/resources/db/migration/` 与 `db/README.md`、`infrastructure/docker/mysql/init/01-init-databases.sql` |
 | 多库现状 | 单实例多 schema：`bluewhale_auth/job/workflow/form/file/monitor/audit/pay/alert/agent/nacos/erp/mes/pdm/oa` 等，统一 `utf8mb4` + `utf8mb4_unicode_ci`（建库脚本） | `infrastructure/docker/mysql/init/01-init-databases.sql:2-82` |
 | 已有方言目录先例 | 国际化 SDK 已按数据库分目录：`db/i18n/mysql/sys_i18n_message.sql` | `backend/whale-sdk/whale-i18n-sdk/src/main/resources/db/i18n/mysql/` |
 | 动态数据源 | 评估稿提到的 `TenantDataSourceRouter` **不存在**；当前「一服务一库」，无多数据源路由 | 全仓检索无该类 |
@@ -37,6 +37,7 @@
 - **执行方式（推荐分两步）**：
   - 第一步（低风险）：保留手工/容器执行，增加「启动自检」——按 `whale.db.type` 校验必需表/列存在，缺失即失败并给出目标脚本路径。
   - 第二步（评估后）：引入 Flyway，按 vendor 分 `locations`（`classpath:db/migration/mysql`、`.../dm`）。注意：Flyway Community 对 DM/KingBase/openGauss 的原生支持有限，需企业版或自研扩展；在国产库需求明确前不强行引入。
+  - **2026-11-01 决策（已实施，阶段 4 铺开完成）**：Flyway 已在 **22 个服务库**接入运行时（auth 试点 + config/audit/alert/workflow/form/agent/doc/file + 12 个业务库 + video），统一 `classpath:db/migration` + `baseline-on-migrate`；各库 V1 基线完成空库/存量库实机验证（workflow、contract 另有 V2 增量收敛历史漂移）。历史脚本保留在 `db/` 根目录且不参与扫描（口径见各服务 `db/README.md`）。国产库仍按 vendor 目录另立任务，不纳入本期试点。口径与验证证据见[安全基线设计](security-baseline.md)。
 - **禁止**：同一脚本内混用多方言 DDL；禁止 `DROP`/`ALTER` 破坏性语句混入 `init.sql`。
 
 ### 2.3 去 MySQL 专有写法（映射表）

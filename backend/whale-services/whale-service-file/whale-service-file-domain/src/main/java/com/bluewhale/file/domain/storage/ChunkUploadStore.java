@@ -17,7 +17,7 @@ public interface ChunkUploadStore {
      * 初始化上传会话：同一会话重复初始化（续传）时保留已暂存分片
      *
      * @param sessionId 会话标识
-     * @param metadata 会话元数据（文件名、MIME 类型、总字节数）
+     * @param metadata 会话元数据（文件名、MIME 类型、总字节数与生效上传上限）
      */
     void initialize(ChunkUploadSessionId sessionId, ChunkUploadMetadata metadata);
 
@@ -28,6 +28,14 @@ public interface ChunkUploadStore {
      * @return 会话存在时返回 {@code true}
      */
     boolean exists(ChunkUploadSessionId sessionId);
+
+    /**
+     * 读取会话元数据（含初始化时登记的生效上传上限）
+     *
+     * @param sessionId 会话标识
+     * @return 会话元数据；会话或元数据不存在时返回 {@code null}
+     */
+    ChunkUploadMetadata metadata(ChunkUploadSessionId sessionId);
 
     /**
      * 暂存单个分片，同索引重复上传覆盖旧分片

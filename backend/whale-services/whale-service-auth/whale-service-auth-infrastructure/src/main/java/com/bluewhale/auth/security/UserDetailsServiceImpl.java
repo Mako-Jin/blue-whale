@@ -42,7 +42,8 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         try {
             List<String> roles = roleRepository.listRoleCodesByUserId(user.getId());
             return new LoginUser(tenantId, user.getId(), user.getUsername().value(), user.getPassword().value(),
-                    user.getNickname(), roles, user.isEnabled(), user.isMustChangePassword());
+                    user.getNickname(), roles, user.isEnabled(), user.isMustChangePassword(),
+                    user.getPasswordUpdatedTime());
         } finally {
             TenantContext.set(previous);
         }
@@ -71,7 +72,8 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         try {
             List<String> roles = roleRepository.listRoleCodesByUserId(userId);
             return new LoginUser(tenantId, user.getId(), user.getUsername().value(), user.getPassword().value(),
-                    user.getNickname(), roles, user.isEnabled(), user.isMustChangePassword());
+                    user.getNickname(), roles, user.isEnabled(), user.isMustChangePassword(),
+                    user.getPasswordUpdatedTime());
         } finally {
             TenantContext.set(previous);
         }

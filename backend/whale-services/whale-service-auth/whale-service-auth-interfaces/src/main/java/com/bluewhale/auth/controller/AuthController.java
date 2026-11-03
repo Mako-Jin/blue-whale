@@ -1,6 +1,9 @@
 package com.bluewhale.auth.controller;
 
 import com.bluewhale.auth.application.auth.SessionAppService;
+import com.bluewhale.auth.application.user.password.ChangeOwnPasswordCommand;
+import com.bluewhale.auth.application.user.password.PasswordAppService;
+import com.bluewhale.auth.dto.ChangeOwnPasswordRequest;
 import com.bluewhale.auth.dto.LoginRequest;
 import com.bluewhale.auth.dto.SwitchTenantRequest;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
@@ -19,6 +22,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -37,6 +41,8 @@ import java.util.List;
 public class AuthController {
 
     private final SessionAppService sessionAppService;
+
+    private final PasswordAppService passwordAppService;
 
     private final AuthCookieManager cookieManager;
 
@@ -86,6 +92,23 @@ public class AuthController {
     @RequirePermission
     public Result<AuthMeResponse> me() {
         return Result.ok(sessionAppService.me());
+    }
+
+    /**
+     * 自助改密：当前登录用户修改本人口令（REQ-SEC-023）。
+     *
+     * <p>{@code recordParams = false}：请求体含新旧明文口令，凭据绝不落库。
+     * 改密成功后该用户全部存量令牌被撤销，前端应清理登录态并重新登录。</p>
+     *
+     * @param request 自助改密请求（旧口令 + 新口令）
+     * @return 操作结果
+     */
+    @PutMapping("/password")
+    @AuditLog(operation = "修改本人密码", type = OperateType.UPDATE, targetType = "sys_user", recordParams = false)
+    public Result<Void> changePassword(@Valid @RequestBody ChangeOwnPasswordRequest request) {
+        passwordAppService.changeOwnPassword(
+                new ChangeOwnPasswordCommand(request.getOldPassword(), request.getNewPassword()));
+        return Result.ok();
     }
 
     /**

@@ -30,4 +30,8 @@ public class LoginResponse implements Serializable {
     private List<String> roles;
     /** 是否强制首登改密（T-03：true 时前端应引导用户先修改口令） */
     private boolean mustChangePassword;
+    /** 口令是否已到期（REQ-SEC-023：到期会在登录/刷新时强制改密） */
+    private boolean passwordExpired;
+    /** 距口令到期剩余天数；不启用有效期时返回 -1 */
+    private long passwordExpiresInDays = -1L;
 }

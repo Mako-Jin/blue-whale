@@ -6,6 +6,7 @@ import com.bluewhale.file.dto.ChunkUploadInitRequest;
 import com.bluewhale.file.dto.FileQueryRequest;
 import com.bluewhale.file.dto.FileRapidUploadRequest;
 import com.bluewhale.file.service.model.UploadContent;
+import com.bluewhale.file.service.model.UploadLimits;
 import com.bluewhale.file.vo.ChunkUploadInitVO;
 import com.bluewhale.file.vo.FileChangeVO;
 import com.bluewhale.file.vo.FileInfoVO;
@@ -36,6 +37,17 @@ public interface FileInfoService {
     FileUploadVO upload(UploadContent content, String bucket, Long uploaderId);
 
     /**
+     * 上传文件（按生效上限）：写入存储并登记元数据
+     *
+     * @param content 上传内容（必填）
+     * @param bucket 目标桶名称；为空时取配置的默认桶
+     * @param uploaderId 上传用户 ID；无登录态时可为 {@code null}
+     * @param limits 生效的上传上限与配额；为 {@code null} 时使用全局默认值
+     * @return 上传结果视图对象
+     */
+    FileUploadVO upload(UploadContent content, String bucket, Long uploaderId, UploadLimits limits);
+
+    /**
      * 秒传（哈希去重）：按 MD5 + 大小匹配已有物理对象，命中时仅登记新元数据、不复制物理对象
      *
      * @param request 秒传请求（文件名、MD5、大小、可选 MIME 类型）
@@ -45,12 +57,31 @@ public interface FileInfoService {
     FileRapidUploadVO rapidUpload(FileRapidUploadRequest request, Long uploaderId);
 
     /**
+     * 秒传（哈希去重，按生效上限）
+     *
+     * @param request 秒传请求（文件名、MD5、大小、可选 MIME 类型）
+     * @param uploaderId 上传用户 ID；无登录态时可为 {@code null}
+     * @param limits 生效的上传上限与配额；为 {@code null} 时使用全局默认值
+     * @return 秒传结果：命中时 {@code hit=true} 且携带新登记的文件元数据，未命中时 {@code hit=false}
+     */
+    FileRapidUploadVO rapidUpload(FileRapidUploadRequest request, Long uploaderId, UploadLimits limits);
+
+    /**
      * 查询个人存储配额与用量
      *
      * @param uploaderId 上传用户 ID；为 {@code null} 时返回不限配额
      * @return 配额视图对象
      */
     FileQuotaVO quota(Long uploaderId);
+
+    /**
+     * 查询个人存储配额与用量（按生效配额）
+     *
+     * @param uploaderId 上传用户 ID；为 {@code null} 时返回不限配额
+     * @param limits 生效的上传上限与配额；为 {@code null} 时使用全局默认值
+     * @return 配额视图对象
+     */
+    FileQuotaVO quota(Long uploaderId, UploadLimits limits);
 
     /**
      * 分页查询文件元数据
@@ -168,6 +199,16 @@ public interface FileInfoService {
     ChunkUploadInitVO initChunkUpload(ChunkUploadInitRequest request);
 
     /**
+     * 初始化分片上传会话（按生效上限），并把生效上限随会话元数据登记，
+     * 供 complete 阶段与当前上限取更严格者，防止两阶段绕过
+     *
+     * @param request 初始化请求（文件名、MIME 类型、总大小、桶、可选续传 uploadId）
+     * @param limits 生效的上传上限与配额；为 {@code null} 时使用全局默认值
+     * @return 上传会话信息（uploadId、分片大小、已上传分片索引）
+     */
+    ChunkUploadInitVO initChunkUpload(ChunkUploadInitRequest request, UploadLimits limits);
+
+    /**
      * 上传单个分片（同索引重复上传覆盖）
      *
      * @param uploadId 上传会话 ID
@@ -193,4 +234,15 @@ public interface FileInfoService {
      * @return 上传结果视图对象
      */
     FileUploadVO completeChunkUpload(ChunkUploadCompleteRequest request, Long uploaderId);
+
+    /**
+     * 完成分片上传（按生效上限）：校验分片完整性后合并落存储并登记元数据
+     *
+     * @param request 完成请求（uploadId、文件名、总大小、桶）
+     * @param uploaderId 上传用户 ID；无登录态时可为 {@code null}
+     * @param limits 完成请求当前生效的上传上限与配额；为 {@code null} 时使用全局默认值。
+     *               实际校验取「该值」与「init 阶段登记上限」中更严格者
+     * @return 上传结果视图对象
+     */
+    FileUploadVO completeChunkUpload(ChunkUploadCompleteRequest request, Long uploaderId, UploadLimits limits);
 }

@@ -31,6 +31,9 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
+    /** BCrypt 强度（REQ-SEC-020：默认 10 提升到 12；旧密文由登录成功后的 upgradeEncoding 自动升级） */
+    private static final int BCRYPT_STRENGTH = 12;
+
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final RestAuthenticationEntryPoint authenticationEntryPoint;
     private final RestAccessDeniedHandler accessDeniedHandler;
@@ -63,13 +66,13 @@ public class SecurityConfig {
     }
 
     /**
-     * 密码编码器：采用 BCrypt 算法
+     * 密码编码器：采用 BCrypt 算法，强度 12
      *
      * @return BCrypt 密码编码器
      */
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        return new BCryptPasswordEncoder(BCRYPT_STRENGTH);
     }
 
     /**

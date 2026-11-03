@@ -23,6 +23,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -169,6 +170,36 @@ class LocalChunkUploadStoreTest {
     @DisplayName("exists：未初始化会话返回 false")
     void shouldReportMissingSession() {
         assertFalse(store.exists(ChunkUploadSessionId.random()));
+    }
+
+    @Test
+    @DisplayName("metadata：回传文件名、MIME、大小与 init 登记的生效上传上限")
+    void shouldReturnRecordedMetadata() {
+        ChunkUploadSessionId sessionId = ChunkUploadSessionId.random();
+        store.initialize(sessionId, new ChunkUploadMetadata("video.bin", "video/mp4", 2147483648L,
+                2147483648L, 8589934592L));
+
+        ChunkUploadMetadata meta = store.metadata(sessionId);
+
+        assertEquals("video.bin", meta.fileName());
+        assertEquals("video/mp4", meta.contentType());
+        assertEquals(2147483648L, meta.size());
+        assertEquals(2147483648L, meta.maxSizeBytes());
+        assertEquals(8589934592L, meta.quotaBytes());
+        assertTrue(meta.hasRecordedLimits());
+    }
+
+    @Test
+    @DisplayName("metadata：未登记上限返回未记录哨兵值，会话缺失返回 null")
+    void shouldReturnNullMetadataWhenSessionMissing() {
+        ChunkUploadSessionId sessionId = ChunkUploadSessionId.random();
+        store.initialize(sessionId, metadata(12L));
+
+        ChunkUploadMetadata meta = store.metadata(sessionId);
+        assertEquals(ChunkUploadMetadata.LIMITS_NOT_RECORDED, meta.maxSizeBytes());
+        assertFalse(meta.hasRecordedLimits());
+
+        assertNull(store.metadata(ChunkUploadSessionId.random()));
     }
 
     @Test

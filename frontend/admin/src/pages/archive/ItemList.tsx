@@ -36,13 +36,17 @@ import {
   destroyItem,
   downloadItemFile,
   editItem,
+  fetchItemPreviewUrl,
+  isPreviewableFile,
   itemDetail,
   pageItems,
+  previewKindOf,
   type ArchiveCategoryVO,
   type ArchiveFileVO,
   type ArchiveItemDetailVO,
   type ArchiveItemEditRequest,
   type ArchiveItemVO,
+  type ArchivePreviewKind,
   type ArchiveStatsVO,
 } from '../../api/archive';
 import {
@@ -91,6 +95,9 @@ function formatSize(size?: number): string {
   return `${(size / 1024 / 1024).toFixed(1)} MB`;
 }
 
+/** 音视频在线预览的大小上限（超过建议下载后播放，避免浏览器整块载入内存） */
+const PREVIEW_SIZE_LIMIT = 200 * 1024 * 1024;
+
 export default function ArchiveItemList({
   defaultItemStatus,
 }: {
@@ -111,6 +118,18 @@ export default function ArchiveItemList({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<ArchiveItemVO | null>(null);
   const [saving, setSaving] = useState(false);
+  const [preview, setPreview] = useState<{
+    kind: ArchivePreviewKind;
+    fileName: string;
+    url: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!preview) {
+      return undefined;
+    }
+    return () => URL.revokeObjectURL(preview.url);
+  }, [preview]);
 
   const loadStats = useMemo(
     () => async () => {
@@ -224,6 +243,30 @@ export default function ArchiveItemList({
     }
   };
 
+  const handlePreview = async (file: ArchiveFileVO) => {
+    if (!detail) {
+      return;
+    }
+    const kind = previewKindOf(file);
+    if (!kind) {
+      message.warning('该文件类型不支持在线预览，请下载后查看');
+      return;
+    }
+    if ((kind === 'video' || kind === 'audio') && (file.fileSize ?? 0) > PREVIEW_SIZE_LIMIT) {
+      message.warning('文件超过 200MB，建议下载后播放');
+      return;
+    }
+    const hide = message.loading('预览加载中...', 0);
+    try {
+      const url = await fetchItemPreviewUrl(detail.item.id, file);
+      setPreview({ kind, fileName: file.originalName ?? '档案文件', url });
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '预览失败');
+    } finally {
+      hide();
+    }
+  };
+
   const columns: TableProps<ArchiveItemVO>['columns'] = [
     {
       title: '档号',
@@ -322,16 +365,28 @@ export default function ArchiveItemList({
     {
       title: '操作',
       key: 'action',
-      width: 100,
+      width: 150,
       render: (_, file) => (
-        <AuthButton
-          perm="sys:archive:item:download"
-          type="link"
-          size="small"
-          onClick={() => void handleDownload(file)}
-        >
-          下载
-        </AuthButton>
+        <Space size={4}>
+          {isPreviewableFile(file) && (
+            <AuthButton
+              perm="sys:archive:item:download"
+              type="link"
+              size="small"
+              onClick={() => void handlePreview(file)}
+            >
+              预览
+            </AuthButton>
+          )}
+          <AuthButton
+            perm="sys:archive:item:download"
+            type="link"
+            size="small"
+            onClick={() => void handleDownload(file)}
+          >
+            下载
+          </AuthButton>
+        </Space>
       ),
     },
   ];
@@ -519,6 +574,27 @@ export default function ArchiveItemList({
             <Input maxLength={512} />
           </Form.Item>
         </Form>
+      </Modal>
+      <Modal
+        title={`预览：${preview?.fileName ?? ''}`}
+        open={Boolean(preview)}
+        footer={null}
+        width={preview?.kind === 'video' ? 880 : 720}
+        destroyOnClose
+        onCancel={() => setPreview(null)}
+      >
+        {preview?.kind === 'image' && (
+          <img src={preview.url} alt={preview.fileName} style={{ width: '100%' }} />
+        )}
+        {preview?.kind === 'video' && <video src={preview.url} controls style={{ width: '100%' }} />}
+        {preview?.kind === 'audio' && <audio src={preview.url} controls style={{ width: '100%' }} />}
+        {preview && (preview.kind === 'pdf' || preview.kind === 'text') && (
+          <iframe
+            src={preview.url}
+            title={preview.fileName}
+            style={{ width: '100%', height: 520, border: 0 }}
+          />
+        )}
       </Modal>
     </>
   );

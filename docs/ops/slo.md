@@ -63,13 +63,45 @@ histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{u
 - 容量口径：SLO-8 的 50 并发验收见 `scripts/smoke/bw-music-m5-load.ps1`；
   该脚本直连 8096（不经网关），并发探针用共享 HttpClient + 异步栅栏 + 每请求独立计时。
 
+## SLO-9 视频首页时延：P95 < 300ms
+
+```promql
+histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri="/video/home",application="whale-video"}[5m])))
+```
+
+## SLO-10 内容详情时延：P95 < 250ms
+
+```promql
+histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri="/video/content/{id}",application="whale-video"}[5m])))
+```
+
+## SLO-11 视频流首字节时延：P95 < 400ms
+
+```promql
+histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri="/video/stream/{contentId}",application="whale-video"}[5m])))
+```
+
+- 播放链路口径：`POST /video/play/ticket` 签发绑定 `租户 + 用户 + 内容` 的票据（TTL 300s，
+  `refreshIn=240s` 提示客户端续票），`GET /video/stream/{contentId}?ticket=...` 每次开流都复核
+  票据三要素、可见性、发布状态与版权状态，再以 `InputStreamResource` 代理 whale-file 内容接口，
+  因此该端点耗时即「校验 + 开流 + 首字节」；上游 `whale-file` 同名 uri 可用于拆分两跳。
+- 分段口径：`/video/stream/**` 支持 200 / 206 / 416，响应固定 `Cache-Control: private, no-store`
+  与 `X-Content-Type-Options: nosniff`；长视频一次播放会跨多个 Range 请求，故网关对该路由
+  不加熔断（`circuit-breaker.apply-to-routes` 不含 `/video/stream/**`）。
+- 容量口径：SLO-11 的 50 并发验收见 `scripts/smoke/bw-video-m5-load.ps1`（造数 → 顺序 P95 →
+  50 并发首字节 P95 多轮取中位）；网关六条视频限流（stream 120 / ticket 60 / comment 20 /
+  like 30 / favorite 30 / upload 20，每 60s）单独见 `scripts/smoke/bw-video-gateway-rate-limit-smoke.ps1`。
+- 本机口径：`whale-video` 已开启 `management.metrics.distribution.percentiles-histogram.[http.server.requests]=true`，
+  `/video/meta`、`/video/home`、`/video/content/{id}`、`/video/stream/{contentId}` 均输出
+  `http_server_requests_seconds_bucket`，SLO-9/10/11 可直接 `histogram_quantile`。
+
 ## 采集前提
 
 - 服务侧 `management.endpoints.web.exposure.include` 至少包含 `health,info,prometheus`。
 - `management.metrics.tags.application=${spring.application.name}`，便于按服务聚合。
 - Prometheus 抓取目标为各服务 `http://<host>:<port>/actuator/prometheus`。
 - P95 查询依赖直方图桶 `http_server_requests_seconds_bucket`。该桶默认不输出，已开启直方图的服务为
-  **whale-auth / whale-workflow / whale-doc / whale-music**（`management.metrics.distribution.percentiles-histogram.[http.server.requests]=true`）；
+  **whale-auth / whale-workflow / whale-doc / whale-music / whale-video**（`management.metrics.distribution.percentiles-histogram.[http.server.requests]=true`）；
   其余服务保持默认（不打桶，避免指标基数膨胀），如需新增时延 SLO 再按服务开启。
 
 ## 实测
@@ -201,7 +233,8 @@ curl -X POST http://127.0.0.1:9103/alert/internal/prometheus `
 ## Grafana 仪表盘（版本化）
 
 - 仪表盘 JSON：`deploy/monitoring/grafana/dashboards/bluewhale-overview.json`（uid `bluewhale-overview`，标题「BlueWhale 平台监控总览」）；
-  音乐平台专项 `bluewhale-music.json`（uid `bluewhale-music`，标题「音乐平台监控（Wave 5.75）」）。
+  音乐平台专项 `bluewhale-music.json`（uid `bluewhale-music`，标题「音乐平台监控（Wave 5.75）」）；
+  视频平台专项 `bluewhale-video.json`（uid `bluewhale-video`，标题「视频平台监控（Wave 5.77）」）。
   Docker 侧同源副本位于 `infrastructure/prometheus/grafana/dashboards/`（数据源 uid 为 `bluewhale-prometheus`）。
 - 自动加载：`tools/monitoring/grafana-provisioning/dashboards/bluewhale.yml` 指向上述目录，30s 轮询，文件夹 `BlueWhale`。
 - 数据源：`Prometheus`，uid `prometheus`（`grafana-provisioning/datasources/prometheus.yml`）。

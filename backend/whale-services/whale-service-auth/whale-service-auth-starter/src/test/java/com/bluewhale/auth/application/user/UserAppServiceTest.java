@@ -3,12 +3,12 @@ package com.bluewhale.auth.application.user;
 import com.bluewhale.auth.application.event.DomainEventPublisher;
 import com.bluewhale.auth.application.tenant.TenantMembershipAppService;
 import com.bluewhale.auth.application.user.command.AssignUserRolesCommand;
-import com.bluewhale.auth.application.user.command.ChangeUserPasswordCommand;
 import com.bluewhale.auth.application.user.command.ChangeUserStatusCommand;
 import com.bluewhale.auth.application.user.command.CreateUserCommand;
 import com.bluewhale.auth.application.user.command.UpdateUserCommand;
+import com.bluewhale.auth.application.user.password.PasswordPolicyService;
+import com.bluewhale.auth.application.user.password.TemporaryPasswordGenerator;
 import com.bluewhale.auth.application.user.query.UserPageQuery;
-import com.bluewhale.auth.application.user.port.PasswordHasher;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.UserDomainEvent;
 import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
@@ -17,6 +17,7 @@ import com.bluewhale.auth.domain.role.repository.RoleRepository;
 import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
 import com.bluewhale.common.tenant.TenantContext;
+import com.bluewhale.auth.vo.ResetPasswordVO;
 import com.bluewhale.auth.vo.UserVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -57,6 +58,12 @@ class UserAppServiceTest {
     private static final long USER_ID = 2L;
     private static final String CIPHER = "$2a$10$abcdefghijklmnopqrstuv";
     private static final String NEW_CIPHER = "$2a$10$newencodedciphervalue";
+    /** 满足默认策略的明文口令（12 位以上、含大小写/数字/特殊字符、不含用户名） */
+    private static final String STRONG_PASSWORD = "Str0ng@Passw0rd";
+    /** 口令最小长度（默认策略值） */
+    private static final int MIN_LENGTH = 12;
+    /** 管理员重置口令时生成的一次性临时口令 */
+    private static final String TEMPORARY_PASSWORD = "Tmp#5Ghz9!Kl";
     private static final LocalDateTime CREATED = LocalDateTime.of(2026, 1, 1, 9, 0, 0);
     private static final LocalDateTime UPDATED = LocalDateTime.of(2026, 1, 2, 9, 0, 0);
 
@@ -67,7 +74,10 @@ class UserAppServiceTest {
     private RoleRepository roleRepository;
 
     @Mock
-    private PasswordHasher passwordHasher;
+    private PasswordPolicyService passwordPolicyService;
+
+    @Mock
+    private TemporaryPasswordGenerator temporaryPasswordGenerator;
 
     @Mock
     private DomainEventPublisher eventPublisher;
@@ -142,25 +152,27 @@ class UserAppServiceTest {
         assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
         assertEquals("用户名已存在", ex.getMessage());
         verify(userRepository, never()).save(any(User.class));
-        verify(passwordHasher, never()).encode(any());
+        verify(passwordPolicyService, never()).encode(any());
     }
 
     @Test
-    @DisplayName("create：用户名可用时加密口令并落库，默认启用")
+    @DisplayName("create：用户名可用时按策略加密口令并落库，默认启用")
     void shouldCreateUserWhenUsernameAvailable() {
         when(userRepository.existsByUsername(1L, "alice_01")).thenReturn(false);
-        when(passwordHasher.encode("pwd123")).thenReturn(NEW_CIPHER);
+        when(passwordPolicyService.encode(STRONG_PASSWORD)).thenReturn(NEW_CIPHER);
         when(userRepository.save(any(User.class))).thenReturn(User.reconstitute(USER_ID, 1L,
                 Username.of("alice_01"), EncryptedPassword.of(NEW_CIPHER), "Alice", "138", "a@b.com",
                 "avatar.png", 3L, User.STATUS_ENABLED, null, CREATED, UPDATED));
 
         UserVO vo = userAppService.create(
-                new CreateUserCommand("alice_01", "pwd123", "Alice", "138", "a@b.com", "avatar.png", 3L, null));
+                new CreateUserCommand("alice_01", STRONG_PASSWORD, "Alice", "138", "a@b.com", "avatar.png", 3L, null));
 
         assertEquals("alice_01", vo.getUsername());
         assertEquals("Alice", vo.getNickname());
         assertEquals("avatar.png", vo.getAvatar());
         assertEquals(User.STATUS_ENABLED, vo.getStatus());
+        verify(passwordPolicyService).validate(STRONG_PASSWORD, "alice_01");
+        verify(passwordPolicyService).recordHistory(1L, USER_ID, NEW_CIPHER);
         verify(userRepository).save(any(User.class));
         // 一人多租户：新建账号必须写入首页租户关系
         verify(tenantMembershipAppService).ensureHomeMembership(USER_ID, 1L);
@@ -168,13 +180,13 @@ class UserAppServiceTest {
     }
 
     @Test
-    @DisplayName("update：停用优先发布 USER_DISABLED，口令非空时重新加密")
+    @DisplayName("update：停用优先发布 USER_DISABLED，口令非空时按策略校验并重新加密")
     void shouldReencodePasswordAndApplyProfileOnUpdate() {
         User stored = user("旧昵称");
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(stored));
-        when(passwordHasher.encode("newpwd123")).thenReturn(NEW_CIPHER);
+        when(passwordPolicyService.encode(STRONG_PASSWORD)).thenReturn(NEW_CIPHER);
 
-        UserVO vo = userAppService.update(USER_ID, new UpdateUserCommand("newpwd123", "新昵称",
+        UserVO vo = userAppService.update(USER_ID, new UpdateUserCommand(STRONG_PASSWORD, "新昵称",
                 "13900000000", "n@b.com", "new-avatar.png", 4L, User.STATUS_DISABLED));
 
         assertEquals("新昵称", vo.getNickname());
@@ -183,6 +195,8 @@ class UserAppServiceTest {
         assertEquals(4L, vo.getDeptId());
         assertEquals(User.STATUS_DISABLED, vo.getStatus());
         assertEquals(NEW_CIPHER, stored.getPassword().value());
+        verify(passwordPolicyService).validate(STRONG_PASSWORD, "alice_01");
+        verify(passwordPolicyService).ensureNotReused(1L, USER_ID, CIPHER, STRONG_PASSWORD);
         verify(userRepository).save(stored);
         verify(eventPublisher).publish(new UserDomainEvent(USER_ID, ChangeType.USER_DISABLED));
     }
@@ -200,15 +214,17 @@ class UserAppServiceTest {
     }
 
     @Test
-    @DisplayName("update：仅改密发布 PASSWORD_CHANGED，撤销存量令牌")
+    @DisplayName("update：仅改密发布 PASSWORD_CHANGED，按策略校验并写入口令历史")
     void shouldPublishPasswordChangedWhenOnlyPasswordChanged() {
         User stored = user("Alice");
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(stored));
-        when(passwordHasher.encode("newpwd123")).thenReturn(NEW_CIPHER);
+        when(passwordPolicyService.encode(STRONG_PASSWORD)).thenReturn(NEW_CIPHER);
 
-        userAppService.update(USER_ID, new UpdateUserCommand("newpwd123", "Alice",
+        userAppService.update(USER_ID, new UpdateUserCommand(STRONG_PASSWORD, "Alice",
                 "13800000000", "a@b.com", "avatar.png", 3L, null));
 
+        verify(passwordPolicyService).validate(STRONG_PASSWORD, "alice_01");
+        verify(passwordPolicyService).recordHistory(1L, USER_ID, NEW_CIPHER);
         verify(eventPublisher).publish(new UserDomainEvent(USER_ID, ChangeType.PASSWORD_CHANGED));
     }
 
@@ -227,45 +243,56 @@ class UserAppServiceTest {
     }
 
     @Test
-    @DisplayName("changePassword：明文经 BCrypt 加密后以密文落库")
-    void shouldChangePasswordWithEncodedCipher() {
+    @DisplayName("resetPassword：生成一次性临时口令、置强制首登改密并撤销存量令牌（REQ-SEC-023）")
+    void shouldResetPasswordWithTemporaryPassword() {
         User stored = user("Alice");
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(stored));
-        when(passwordHasher.encode("resetpwd")).thenReturn(NEW_CIPHER);
+        when(passwordPolicyService.minLength()).thenReturn(MIN_LENGTH);
+        when(temporaryPasswordGenerator.generate(MIN_LENGTH)).thenReturn(TEMPORARY_PASSWORD);
+        when(passwordPolicyService.encode(TEMPORARY_PASSWORD)).thenReturn(NEW_CIPHER);
 
-        userAppService.changePassword(USER_ID, new ChangeUserPasswordCommand("resetpwd"));
+        ResetPasswordVO vo = userAppService.resetPassword(USER_ID);
 
+        assertEquals(Long.valueOf(USER_ID), vo.getUserId());
+        assertEquals("alice_01", vo.getUsername());
+        assertEquals(TEMPORARY_PASSWORD, vo.getTemporaryPassword());
+        assertTrue(vo.isMustChangePassword());
         assertEquals(NEW_CIPHER, stored.getPassword().value());
+        assertTrue(stored.isMustChangePassword());
         verify(userRepository).save(stored);
+        verify(passwordPolicyService).recordHistory(1L, USER_ID, NEW_CIPHER);
         verify(eventPublisher).publish(new UserDomainEvent(USER_ID, ChangeType.PASSWORD_CHANGED));
     }
 
     @Test
-    @DisplayName("changePassword：改密成功后清除强制首登改密标记（T-03）")
-    void shouldClearMustChangePasswordOnChangePassword() {
+    @DisplayName("update：策略要求首登改密时，管理员代改口令后置强制改密标记（REQ-SEC-023）")
+    void shouldMarkMustChangePasswordOnUpdatePasswordWhenPolicyEnabled() {
         User stored = User.reconstitute(USER_ID, 1L, Username.of("alice_01"), EncryptedPassword.of(CIPHER),
-                "Alice", "13800000000", "a@b.com", "avatar.png", 3L, User.STATUS_ENABLED, 1,
+                "Alice", "13800000000", "a@b.com", "avatar.png", 3L, User.STATUS_ENABLED, 0,
                 LocalDateTime.of(2026, 1, 1, 8, 0, 0), CREATED, UPDATED);
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(stored));
-        when(passwordHasher.encode("resetpwd")).thenReturn(NEW_CIPHER);
+        when(passwordPolicyService.encode(STRONG_PASSWORD)).thenReturn(NEW_CIPHER);
+        when(passwordPolicyService.isForceChangeOnCreate()).thenReturn(true);
+
+        userAppService.update(USER_ID, new UpdateUserCommand(STRONG_PASSWORD, "Alice",
+                "13800000000", "a@b.com", "avatar.png", 3L, null));
+
         assertTrue(stored.isMustChangePassword());
-
-        userAppService.changePassword(USER_ID, new ChangeUserPasswordCommand("resetpwd"));
-
-        assertFalse(stored.isMustChangePassword());
+        assertEquals(NEW_CIPHER, stored.getPassword().value());
         verify(userRepository).save(stored);
     }
 
     @Test
-    @DisplayName("update：重置口令成功后同样清除强制首登改密标记（T-03）")
-    void shouldClearMustChangePasswordOnUpdatePassword() {
+    @DisplayName("update：策略不要求首登改密时，管理员代改口令后清除强制改密标记")
+    void shouldClearMustChangePasswordOnUpdatePasswordWhenPolicyDisabled() {
         User stored = User.reconstitute(USER_ID, 1L, Username.of("alice_01"), EncryptedPassword.of(CIPHER),
                 "Alice", "13800000000", "a@b.com", "avatar.png", 3L, User.STATUS_ENABLED, 1,
                 LocalDateTime.of(2026, 1, 1, 8, 0, 0), CREATED, UPDATED);
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(stored));
-        when(passwordHasher.encode("newpwd123")).thenReturn(NEW_CIPHER);
+        when(passwordPolicyService.encode(STRONG_PASSWORD)).thenReturn(NEW_CIPHER);
+        when(passwordPolicyService.isForceChangeOnCreate()).thenReturn(false);
 
-        userAppService.update(USER_ID, new UpdateUserCommand("newpwd123", "Alice",
+        userAppService.update(USER_ID, new UpdateUserCommand(STRONG_PASSWORD, "Alice",
                 "13800000000", "a@b.com", "avatar.png", 3L, null));
 
         assertFalse(stored.isMustChangePassword());

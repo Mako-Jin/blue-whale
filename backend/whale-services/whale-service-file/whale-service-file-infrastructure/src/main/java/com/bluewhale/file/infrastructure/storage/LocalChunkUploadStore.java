@@ -58,6 +58,12 @@ public class LocalChunkUploadStore implements ChunkUploadStore {
     /** 元数据键：原始文件名 */
     private static final String META_KEY_FILE_NAME = "fileName";
 
+    /** 元数据键：初始化时生效的单文件上限（G1 大文件上传策略） */
+    private static final String META_KEY_MAX_SIZE_BYTES = "maxSizeBytes";
+
+    /** 元数据键：初始化时生效的个人配额（G1 大文件上传策略；{@code <=0} 表示不限） */
+    private static final String META_KEY_QUOTA_BYTES = "quotaBytes";
+
     /** 暂存根目录（归一化后的绝对路径） */
     private final Path root;
 
@@ -84,6 +90,23 @@ public class LocalChunkUploadStore implements ChunkUploadStore {
     @Override
     public boolean exists(ChunkUploadSessionId sessionId) {
         return Files.isDirectory(resolve(sessionId));
+    }
+
+    @Override
+    public ChunkUploadMetadata metadata(ChunkUploadSessionId sessionId) {
+        Path dir = resolve(sessionId);
+        if (!Files.isDirectory(dir)) {
+            return null;
+        }
+        Properties meta = readMeta(dir);
+        if (meta == null) {
+            return null;
+        }
+        return new ChunkUploadMetadata(meta.getProperty(META_KEY_FILE_NAME),
+                textOrNull(meta.getProperty(META_KEY_CONTENT_TYPE)),
+                parseLong(meta.getProperty(META_KEY_SIZE), 0L),
+                parseLong(meta.getProperty(META_KEY_MAX_SIZE_BYTES), ChunkUploadMetadata.LIMITS_NOT_RECORDED),
+                parseLong(meta.getProperty(META_KEY_QUOTA_BYTES), ChunkUploadMetadata.LIMITS_NOT_RECORDED));
     }
 
     @Override
@@ -188,7 +211,7 @@ public class LocalChunkUploadStore implements ChunkUploadStore {
     }
 
     /**
-     * 写入会话元数据（文件名、MIME 类型、总大小）
+     * 写入会话元数据（文件名、MIME 类型、总大小与生效上传上限）
      *
      * @param dir 会话目录
      * @param metadata 会话元数据
@@ -199,18 +222,23 @@ public class LocalChunkUploadStore implements ChunkUploadStore {
         meta.setProperty(META_KEY_FILE_NAME, metadata.fileName());
         meta.setProperty(META_KEY_CONTENT_TYPE, metadata.contentType() == null ? "" : metadata.contentType());
         meta.setProperty(META_KEY_SIZE, String.valueOf(metadata.size()));
+        if (metadata.hasRecordedLimits()) {
+            meta.setProperty(META_KEY_MAX_SIZE_BYTES, String.valueOf(metadata.maxSizeBytes()));
+            meta.setProperty(META_KEY_QUOTA_BYTES, String.valueOf(metadata.quotaBytes()));
+        }
         try (OutputStream out = Files.newOutputStream(dir.resolve(META_FILE_NAME))) {
             meta.store(out, "chunk upload metadata");
         }
     }
 
     /**
-     * 读取会话元数据中的 MIME 类型
+     * 读取会话元数据文件
      *
      * @param dir 会话目录
-     * @return MIME 类型；元数据缺失或为空时返回 {@code null}
+     * @return 元数据属性；文件缺失时返回 {@code null}
+     * @throws BizException 读取失败时抛出 {@code SYSTEM_ERROR}
      */
-    private static String readMetaContentType(Path dir) {
+    private static Properties readMeta(Path dir) {
         Path metaFile = dir.resolve(META_FILE_NAME);
         if (!Files.exists(metaFile)) {
             return null;
@@ -221,8 +249,46 @@ public class LocalChunkUploadStore implements ChunkUploadStore {
         } catch (IOException e) {
             throw new BizException(ErrorCode.SYSTEM_ERROR);
         }
-        String contentType = meta.getProperty(META_KEY_CONTENT_TYPE);
-        return StringUtils.hasText(contentType) ? contentType : null;
+        return meta;
+    }
+
+    /**
+     * 读取会话元数据中的 MIME 类型
+     *
+     * @param dir 会话目录
+     * @return MIME 类型；元数据缺失或为空时返回 {@code null}
+     */
+    private static String readMetaContentType(Path dir) {
+        Properties meta = readMeta(dir);
+        return meta == null ? null : textOrNull(meta.getProperty(META_KEY_CONTENT_TYPE));
+    }
+
+    /**
+     * 文本去空白：无有效内容时返回 {@code null}
+     *
+     * @param text 原始文本
+     * @return 去除首尾空白后的文本；无有效内容时返回 {@code null}
+     */
+    private static String textOrNull(String text) {
+        return StringUtils.hasText(text) ? text.trim() : null;
+    }
+
+    /**
+     * 解析长整型属性，缺失或非法时回落默认值
+     *
+     * @param text 属性文本
+     * @param defaultValue 默认值
+     * @return 解析结果
+     */
+    private static long parseLong(String text, long defaultValue) {
+        if (!StringUtils.hasText(text)) {
+            return defaultValue;
+        }
+        try {
+            return Long.parseLong(text.trim());
+        } catch (NumberFormatException e) {
+            return defaultValue;
+        }
     }
 
     /**

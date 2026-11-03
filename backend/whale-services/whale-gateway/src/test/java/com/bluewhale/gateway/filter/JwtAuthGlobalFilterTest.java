@@ -285,4 +285,58 @@ class JwtAuthGlobalFilterTest {
         assertEquals(HttpStatus.UNAUTHORIZED, exchange.getResponse().getStatusCode());
         verifyNoInteractions(chain);
     }
+
+    /**
+     * 构造携带强制改密标记的 accessToken
+     *
+     * @return 已签名的 JWT
+     */
+    private static String passwordChangeRequiredToken() {
+        SecretKey key = Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
+        Date now = new Date();
+        return Jwts.builder()
+                .subject(USERNAME)
+                .claim("userId", USER_ID)
+                .claim("tenantId", TENANT_ID)
+                .claim("roles", ROLES)
+                .claim("tokenType", "access")
+                .claim("pwdChangeRequired", true)
+                .issuedAt(now)
+                .expiration(new Date(now.getTime() + TOKEN_TTL_MILLIS))
+                .signWith(key, Jwts.SIG.HS256)
+                .compact();
+    }
+
+    @Test
+    @DisplayName("filter：强制改密令牌访问业务接口返回 403，且不查黑名单、不转发下游")
+    void shouldReturnForbiddenWhenPasswordChangeRequired() {
+        String accessToken = passwordChangeRequiredToken();
+        MockServerWebExchange exchange = exchangeWithBearer(accessToken);
+        GatewayFilterChain chain = mock(GatewayFilterChain.class);
+
+        filter.filter(exchange, chain).block();
+
+        assertEquals(HttpStatus.FORBIDDEN, exchange.getResponse().getStatusCode());
+        verifyNoInteractions(chain, tokenBlacklistChecker);
+    }
+
+    @Test
+    @DisplayName("filter：强制改密令牌仍可访问自助改密端点")
+    void shouldAllowPasswordChangeEndpointWhenPasswordChangeRequired() {
+        String accessToken = passwordChangeRequiredToken();
+        MockServerWebExchange exchange = MockServerWebExchange.from(MockServerHttpRequest
+                .put("http://localhost/auth/password")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                .build());
+        GatewayFilterChain chain = mock(GatewayFilterChain.class);
+        when(tokenBlacklistChecker.isBlacklisted(accessToken)).thenReturn(Mono.just(Boolean.FALSE));
+        when(tenantStatusChecker.isUnavailable(anyString())).thenReturn(Mono.just(Boolean.FALSE));
+        when(chain.filter(any())).thenReturn(Mono.empty());
+
+        filter.filter(exchange, chain).block();
+
+        ArgumentCaptor<ServerWebExchange> captor = ArgumentCaptor.forClass(ServerWebExchange.class);
+        verify(chain).filter(captor.capture());
+        assertEquals("/auth/password", captor.getValue().getRequest().getURI().getPath());
+    }
 }

@@ -22,8 +22,9 @@ public class JwtTokenIssuerAdapter implements TokenIssuer {
     private final JwtTokenProvider tokenProvider;
 
     @Override
-    public String issueAccessToken(Long tenantId, Long userId, String username, List<String> roles) {
-        return tokenProvider.generateAccessToken(tenantId, userId, username, roles);
+    public String issueAccessToken(Long tenantId, Long userId, String username, List<String> roles,
+                                   boolean pwdChangeRequired) {
+        return tokenProvider.generateAccessToken(tenantId, userId, username, roles, pwdChangeRequired);
     }
 
     @Override

@@ -8,13 +8,17 @@ import com.bluewhale.auth.application.tenant.command.CreateTenantCommand;
 import com.bluewhale.auth.application.tenant.command.RenewTenantCommand;
 import com.bluewhale.auth.application.tenant.command.UpdateTenantCommand;
 import com.bluewhale.auth.application.tenant.query.TenantPageQuery;
+import com.bluewhale.auth.application.user.password.TenantPasswordPolicyService;
+import com.bluewhale.auth.application.user.password.UpdateTenantPasswordPolicyCommand;
 import com.bluewhale.auth.dto.AssignRolesRequest;
 import com.bluewhale.auth.dto.TenantCreateRequest;
+import com.bluewhale.auth.dto.TenantPasswordPolicyRequest;
 import com.bluewhale.auth.dto.TenantRenewRequest;
 import com.bluewhale.auth.dto.TenantStatusRequest;
 import com.bluewhale.auth.dto.TenantUpdateRequest;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.auth.vo.TenantMemberVO;
+import com.bluewhale.auth.vo.TenantPasswordPolicyVO;
 import com.bluewhale.auth.vo.TenantVO;
 import com.bluewhale.common.audit.annotation.AuditLog;
 import com.bluewhale.common.audit.enums.OperateType;
@@ -51,6 +55,7 @@ public class TenantController {
     private final TenantAppService tenantAppService;
     private final TenantProvisioningAppService tenantProvisioningAppService;
     private final TenantMembershipAppService tenantMembershipAppService;
+    private final TenantPasswordPolicyService tenantPasswordPolicyService;
 
     /**
      * 内网查询可用租户 ID（启用且未过期），供档案/知识库等后台任务按租户执行
@@ -180,5 +185,32 @@ public class TenantController {
     @AuditLog(operation = "租户续期", type = OperateType.UPDATE, targetType = "sys_tenant", targetId = "#id")
     public Result<TenantVO> renew(@PathVariable Long id, @Valid @RequestBody TenantRenewRequest request) {
         return Result.ok(tenantAppService.renew(id, new RenewTenantCommand(request.getExpireTime())));
+    }
+
+    /**
+     * 查询本租户口令策略（REQ-SEC-023）：租户管理员与平台管理员均可查看生效值与全局默认值
+     *
+     * @return 当前租户生效口令策略
+     */
+    @GetMapping("/password-policy")
+    @RequirePermission("sys:tenant:pwdpolicy:list")
+    public Result<TenantPasswordPolicyVO> passwordPolicy() {
+        return Result.ok(tenantPasswordPolicyService.current());
+    }
+
+    /**
+     * 配置本租户口令策略（REQ-SEC-023）：口令有效期与到期提醒天数由租户管理员自助维护
+     *
+     * @param request 口令策略配置请求
+     * @return 更新后的生效口令策略
+     */
+    @PutMapping("/password-policy")
+    @RequirePermission("sys:tenant:pwdpolicy:edit")
+    @AuditLog(operation = "配置租户口令策略", type = OperateType.UPDATE,
+            targetType = "sys_tenant_password_policy")
+    public Result<TenantPasswordPolicyVO> updatePasswordPolicy(
+            @Valid @RequestBody TenantPasswordPolicyRequest request) {
+        return Result.ok(tenantPasswordPolicyService.update(new UpdateTenantPasswordPolicyCommand(
+                request.getMaxAgeDays(), request.getWarnDays())));
     }
 }

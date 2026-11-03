@@ -54,6 +54,11 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
     private static final String CLAIM_ROLES = "roles";
     private static final String CLAIM_TOKEN_TYPE = "tokenType";
     private static final String TOKEN_TYPE_ACCESS = "access";
+    /** 强制改密标记 claim（REQ-SEC-023，与 whale-service-auth 签发侧逐字一致） */
+    private static final String CLAIM_PWD_CHANGE_REQUIRED = "pwdChangeRequired";
+    /** 强制改密状态下仍可访问的路径（自助改密 / 登出 / 刷新 / 当前用户） */
+    private static final String[] PASSWORD_CHANGE_ALLOWED_PATTERNS = {
+            "/auth/password", "/auth/logout", "/auth/refresh", "/auth/me"};
 
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
     private final WhaleGatewayProperties properties;
@@ -126,6 +131,12 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
                 log.warn("accessToken 缺少 userId claim: path={}", path);
                 return unauthorized(exchange);
             }
+            // REQ-SEC-023：强制改密/口令到期时网关侧第一层拦截（auth 服务侧还有第二层拦截）
+            if (Boolean.parseBoolean(stringify(claims.get(CLAIM_PWD_CHANGE_REQUIRED)))
+                    && !isPasswordChangeAllowed(path)) {
+                log.warn("令牌携带强制改密标记，拒绝访问业务接口: path={}, userId={}", path, userId);
+                return forbidden(exchange);
+            }
             return tokenBlacklistChecker.isBlacklisted(token)
                     .flatMap(blacklisted -> {
                         if (Boolean.TRUE.equals(blacklisted)) {
@@ -195,6 +206,21 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
     private boolean isWhiteListed(String path) {
         return properties.getWhiteList().stream()
                 .anyMatch(pattern -> pathMatcher.match(pattern, path));
+    }
+
+    /**
+     * 判断请求路径在强制改密状态下是否仍放行
+     *
+     * @param path 请求路径
+     * @return 命中改密白名单返回 {@code true}
+     */
+    private boolean isPasswordChangeAllowed(String path) {
+        for (String pattern : PASSWORD_CHANGE_ALLOWED_PATTERNS) {
+            if (pathMatcher.match(pattern, path)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -269,6 +295,25 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
             response.getHeaders().set(TraceIdGlobalFilter.TRACE_ID_HEADER, traceId);
         }
         String body = GatewayResponse.of(401, "未认证").toJson();
+        DataBuffer buffer = response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8));
+        return response.writeWith(Mono.just(buffer));
+    }
+
+    /**
+     * 返回 403 强制改密 JSON 响应（REQ-SEC-023），前端据此弹出改密对话框
+     *
+     * @param exchange 当前请求上下文
+     * @return 写出响应完成的信号
+     */
+    private Mono<Void> forbidden(ServerWebExchange exchange) {
+        ServerHttpResponse response = exchange.getResponse();
+        response.setStatusCode(HttpStatus.FORBIDDEN);
+        response.getHeaders().setContentType(MediaType.parseMediaType("application/json;charset=UTF-8"));
+        String traceId = exchange.getRequest().getHeaders().getFirst(TraceIdGlobalFilter.TRACE_ID_HEADER);
+        if (traceId != null && !traceId.isBlank()) {
+            response.getHeaders().set(TraceIdGlobalFilter.TRACE_ID_HEADER, traceId);
+        }
+        String body = GatewayResponse.of(403, "首次登录或口令已到期，请先修改口令").toJson();
         DataBuffer buffer = response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8));
         return response.writeWith(Mono.just(buffer));
     }

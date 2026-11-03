@@ -14,14 +14,15 @@ import com.bluewhale.archive.entity.ArchiveItem;
 import com.bluewhale.archive.mapper.ArchiveCategoryMapper;
 import com.bluewhale.archive.mapper.ArchiveFileMapper;
 import com.bluewhale.archive.mapper.ArchiveItemMapper;
+import com.bluewhale.archive.remote.RemoteContentStream;
 import com.bluewhale.archive.remote.RemoteInstanceDetail;
 import com.bluewhale.archive.support.ArchiveConstants;
 import com.bluewhale.archive.support.CategoryPathResolver;
-import com.bluewhale.archive.vo.ArchiveDownloadVO;
 import com.bluewhale.archive.vo.ArchiveFileSecurityVO;
 import com.bluewhale.archive.vo.ArchiveFileVO;
 import com.bluewhale.archive.vo.ArchiveItemDetailVO;
 import com.bluewhale.archive.vo.ArchiveItemVO;
+import com.bluewhale.archive.vo.ArchivePreviewVO;
 import com.bluewhale.archive.vo.ArchiveStatsVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -43,7 +44,7 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * 档案条目服务：检索、整理、确认归档、销毁、代理下载与统计。
+ * 档案条目服务：检索、整理、确认归档、销毁、流式代理下载 / 预览与统计。
  *
  * <p>整理仅允许待整理条目；确认归档按「门类编码 + 年度」分配唯一档号，
  * 并以 {@code item_status} 条件更新防止并发重复取号；已归档条目不随源实例变更改写。</p>
@@ -262,28 +263,103 @@ public class ArchiveItemService {
     }
 
     /**
-     * 下载条目下的文件：先校验文件确属该条目，再经文件服务内网代理读取。
+     * 下载条目下的文件：先校验文件确属该条目，再以流式方式代理读取内容。
      *
-     * <p>秘密级条目在无 {@code sys:archive:secret:read} 权限码时按不存在处理。</p>
+     * <p>与在线预览共用同一读取路径（含 {@code Range} 透传，支持断点续传），
+     * 差异仅在 controller 输出的 {@code Content-Disposition}；
+     * 秘密级条目在无 {@code sys:archive:secret:read} 权限码时按不存在处理。</p>
      *
      * @param id 条目ID
      * @param fileId 文件引用ID
      * @param secretReadable 当前用户是否具备秘密级读取权限
-     * @return 下载载荷（文件名、MIME 与字节内容）
+     * @param range 请求的 {@code Range} 头
+     * @param ifRange 请求的 {@code If-Range} 头
+     * @return 内容载荷（文件名、MIME、下游状态与 Range 响应头、内容流）
      */
-    public ArchiveDownloadVO download(Long id, Long fileId, boolean secretReadable) {
+    public ArchivePreviewVO download(Long id, Long fileId, boolean secretReadable, String range, String ifRange) {
+        return loadContent(id, fileId, secretReadable, range, ifRange);
+    }
+
+    /**
+     * 在线预览条目下的文件：按条目 / 密级 / 归属三重校验后，以流式透传 Range 读取内容。
+     *
+     * <p>秘密级条目在无 {@code sys:archive:secret:read} 权限码时按不存在处理；
+     * 越界（416）时返回下游总字节数供响应头 {@code Content-Range: bytes *}{@code /total} 使用。</p>
+     *
+     * @param id 条目ID
+     * @param fileId 文件引用ID
+     * @param secretReadable 当前用户是否具备秘密级读取权限
+     * @param range 请求的 {@code Range} 头
+     * @param ifRange 请求的 {@code If-Range} 头
+     * @return 预览载荷（文件名、MIME、下游状态与 Range 响应头、内容流）
+     */
+    public ArchivePreviewVO preview(Long id, Long fileId, boolean secretReadable, String range, String ifRange) {
+        return loadContent(id, fileId, secretReadable, range, ifRange);
+    }
+
+    /**
+     * 读取条目文件内容：条目存在性 → 密级可见性 → 文件归属三重校验后打开内容流。
+     *
+     * @param id 条目ID
+     * @param fileId 文件引用ID
+     * @param secretReadable 当前用户是否具备秘密级读取权限
+     * @param range 请求的 {@code Range} 头
+     * @param ifRange 请求的 {@code If-Range} 头
+     * @return 内容载荷（文件名、MIME、下游状态与 Range 响应头、内容流）
+     */
+    private ArchivePreviewVO loadContent(Long id, Long fileId, boolean secretReadable,
+                                         String range, String ifRange) {
         ArchiveItem item = requireItem(id);
         ensureSecurityVisible(item, secretReadable);
+        ArchiveFile file = requireFileRef(id, fileId);
+        RemoteContentStream stream = fileClient.openContent(file.getFileId(), range, ifRange);
+        ArchivePreviewVO vo = new ArchivePreviewVO();
+        vo.setFileName(displayFileName(file));
+        vo.setContentType(StringUtils.hasText(stream.getContentType())
+                ? stream.getContentType() : displayContentType(file));
+        vo.setStatus(stream.getStatus());
+        vo.setContentLength(stream.getContentLength());
+        vo.setContentRange(stream.getContentRange());
+        vo.setContentRangeTotal(stream.getContentRangeTotal());
+        vo.setEtag(stream.getEtag());
+        vo.setBody(stream.getBody());
+        return vo;
+    }
+
+    /**
+     * 查询文件引用并校验其确实属于该条目。
+     *
+     * @param id 条目ID
+     * @param fileId 文件引用ID
+     * @return 文件引用实体
+     * @throws BizException 文件不存在或不属于该条目时抛出 {@code NOT_FOUND}
+     */
+    private ArchiveFile requireFileRef(Long id, Long fileId) {
         ArchiveFile file = fileMapper.selectById(fileId);
         if (file == null || !Objects.equals(file.getItemId(), id)) {
             throw new BizException(ErrorCode.NOT_FOUND.getCode(), "档案文件不存在");
         }
-        ArchiveDownloadVO vo = new ArchiveDownloadVO();
-        vo.setFileName(StringUtils.hasText(file.getOriginalName()) ? file.getOriginalName() : DEFAULT_FILE_NAME);
-        vo.setContentType(StringUtils.hasText(file.getContentType())
-                ? file.getContentType() : DEFAULT_CONTENT_TYPE);
-        vo.setContent(fileClient.content(file.getFileId()));
-        return vo;
+        return file;
+    }
+
+    /**
+     * 解析展示用文件名，缺失时回落兜底名。
+     *
+     * @param file 文件引用
+     * @return 展示文件名
+     */
+    private static String displayFileName(ArchiveFile file) {
+        return StringUtils.hasText(file.getOriginalName()) ? file.getOriginalName() : DEFAULT_FILE_NAME;
+    }
+
+    /**
+     * 解析展示用 MIME，缺失时回落二进制流。
+     *
+     * @param file 文件引用
+     * @return MIME 类型
+     */
+    private static String displayContentType(ArchiveFile file) {
+        return StringUtils.hasText(file.getContentType()) ? file.getContentType() : DEFAULT_CONTENT_TYPE;
     }
 
     /**

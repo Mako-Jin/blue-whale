@@ -3,7 +3,6 @@ package com.bluewhale.auth.controller;
 import com.bluewhale.auth.application.tenant.TenantMembershipAppService;
 import com.bluewhale.auth.application.user.UserAppService;
 import com.bluewhale.auth.application.user.command.AssignUserRolesCommand;
-import com.bluewhale.auth.application.user.command.ChangeUserPasswordCommand;
 import com.bluewhale.auth.application.user.command.ChangeUserStatusCommand;
 import com.bluewhale.auth.application.user.command.CreateUserCommand;
 import com.bluewhale.auth.application.user.command.UpdateUserCommand;
@@ -12,12 +11,12 @@ import com.bluewhale.auth.application.userpermission.UserPermissionAppService;
 import com.bluewhale.auth.application.userpermission.command.ReplaceUserAttrsCommand;
 import com.bluewhale.auth.dto.AssignRolesRequest;
 import com.bluewhale.auth.dto.BindUserTenantRequest;
-import com.bluewhale.auth.dto.ChangePasswordRequest;
 import com.bluewhale.auth.dto.UpdateAttrsRequest;
 import com.bluewhale.auth.dto.UserCreateRequest;
 import com.bluewhale.auth.dto.UserStatusRequest;
 import com.bluewhale.auth.dto.UserUpdateRequest;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
+import com.bluewhale.auth.vo.ResetPasswordVO;
 import com.bluewhale.auth.vo.UserAttrVO;
 import com.bluewhale.auth.vo.UserVO;
 import com.bluewhale.common.audit.annotation.AuditLog;
@@ -130,19 +129,20 @@ public class UserController {
     }
 
     /**
-     * 重置用户密码：凭据类操作，参数脱敏不落库（recordParams=false）
+     * 重置用户密码：系统生成一次性随机临时口令并返回（REQ-SEC-023）。
+     *
+     * <p>凭据类操作，响应中的临时口令仅展示一次；不接收也不记录管理员输入的明文口令
+     * （{@code recordParams = false}）。重置后目标用户下次登录被强制改密。</p>
      *
      * @param id 用户 ID
-     * @param request 密码重置请求（含新密码）
-     * @return 操作结果
+     * @return 一次性临时口令与目标用户信息
      */
     @PutMapping("/{id}/password")
     @RequirePermission("sys:user:resetpwd")
     @AuditLog(operation = "重置用户密码", type = OperateType.UPDATE, targetType = "sys_user",
             targetId = "#id", recordParams = false)
-    public Result<Void> changePassword(@PathVariable Long id, @Valid @RequestBody ChangePasswordRequest request) {
-        userAppService.changePassword(id, new ChangeUserPasswordCommand(request.getPassword()));
-        return Result.ok();
+    public Result<ResetPasswordVO> resetPassword(@PathVariable Long id) {
+        return Result.ok(userAppService.resetPassword(id));
     }
 
     /**

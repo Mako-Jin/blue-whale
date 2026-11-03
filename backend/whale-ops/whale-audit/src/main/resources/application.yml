@@ -25,6 +25,22 @@ spring:
       max-lifetime: ${DB_POOL_MAX_LIFETIME_MS:1800000}
       keepalive-time: ${DB_POOL_KEEPALIVE_MS:120000}
       leak-detection-threshold: ${DB_POOL_LEAK_DETECTION_MS:60000}
+  # REQ-SEC-022：Flyway 数据库版本化管理（阶段 4 铺开）。仅扫描 classpath:db/migration；
+  # db/init.sql 与历史 migration-*.sql 属于手工/追溯脚本，不在扫描路径内。
+  flyway:
+    enabled: ${WHALE_FLYWAY_ENABLED:true}
+    locations: classpath:db/migration
+    table: flyway_schema_history
+    # 存量库无历史表时自动写入 version=1 基线并跳过 V1，只执行之后的增量
+    baseline-on-migrate: ${WHALE_FLYWAY_BASELINE_ON_MIGRATE:true}
+    baseline-version: 1
+    validate-on-migrate: true
+    # 生产禁止通过 Flyway 清库
+    clean-disabled: true
+    # 脚本中可能含 ${} 类片段，关闭占位符替换
+    placeholder-replacement: false
+    # 容器启动时数据库可能尚未就绪
+    connect-retries: 10
   # AUTH-10 审计 MQ 汇聚（消费端）：RabbitMQ 连接与监听重试策略。
   # 默认 guest/guest 仅适用于本机开发；生产须以环境变量覆盖。
   rabbitmq:

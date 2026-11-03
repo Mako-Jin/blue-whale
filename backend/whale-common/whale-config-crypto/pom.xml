@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  whale-config-crypto - 配置密文解密（REQ-SEC-020）
+  只依赖 Spring Boot 核心与 Jasypt 加解密库，不引入 Web / MyBatis / Redis，
+  以便 Servlet 服务（依赖 whale-spring-boot-starter）与响应式网关（whale-gateway）共用。
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.bluewhale</groupId>
+        <artifactId>whale-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../../whale-parent/pom.xml</relativePath>
+    </parent>
+
+    <artifactId>whale-config-crypto</artifactId>
+    <name>Whale Config Crypto</name>
+    <description>配置敏感值加密：ENC(...) 解密、密钥校验与加密工具（REQ-SEC-020）</description>
+
+    <dependencies>
+        <!-- EnvironmentPostProcessor / ConfigurableEnvironment 所在模块 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot</artifactId>
+        </dependency>
+        <!-- Jasypt PBE 加解密（StandardPBEStringEncryptor / RandomIvGenerator） -->
+        <dependency>
+            <groupId>org.jasypt</groupId>
+            <artifactId>jasypt</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+
+        <!-- 单测：MockEnvironment / MockPropertySource + SpringApplication 启动验证 EPP 注册 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

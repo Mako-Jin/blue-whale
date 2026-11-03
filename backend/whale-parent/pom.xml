@@ -54,6 +54,8 @@
 
         <!-- 安全 -->
         <jjwt.version>0.12.5</jjwt.version>
+        <!-- REQ-SEC-020：Jasypt 核心加密库（仅使用其 PBE 加解密能力，EPP 由仓库自研以兼容 Boot 4） -->
+        <jasypt.version>1.9.3</jasypt.version>
 
         <!-- Excel -->
         <easyexcel.version>4.0.3</easyexcel.version>
@@ -266,6 +268,12 @@
                 <groupId>io.jsonwebtoken</groupId>
                 <artifactId>jjwt-jackson</artifactId>
                 <version>${jjwt.version}</version>
+            </dependency>
+            <!-- REQ-SEC-020：配置密文 ENC(...) 的 PBE 加解密实现 -->
+            <dependency>
+                <groupId>org.jasypt</groupId>
+                <artifactId>jasypt</artifactId>
+                <version>${jasypt.version}</version>
             </dependency>
 
             <!-- Excel -->

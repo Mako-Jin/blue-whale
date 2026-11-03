@@ -191,4 +191,52 @@ class UserTest {
         assertEquals("状态值非法，仅支持 1（启用）/ 0（停用）", ex.getMessage());
         assertEquals(User.STATUS_ENABLED, user.getStatus());
     }
+
+    @Test
+    @DisplayName("口令到期判定：达到有效期当天即视为到期，未达到则未到期（REQ-SEC-023）")
+    void shouldDetectPasswordExpiry() {
+        User user = User.reconstitute(9L, 1L, username(), CIPHER, "Alice", null, null, null, null,
+                User.STATUS_ENABLED, 0, LocalDateTime.of(2026, 1, 1, 0, 0), null,
+                LocalDateTime.of(2026, 1, 1, 0, 0), LocalDateTime.of(2026, 1, 1, 0, 0));
+
+        assertTrue(user.isPasswordExpired(LocalDateTime.of(2026, 4, 1, 0, 0), 90));
+        assertFalse(user.isPasswordExpired(LocalDateTime.of(2026, 3, 31, 0, 0), 90));
+        // maxAgeDays<=0 为应急关闭开关，不强制到期
+        assertFalse(user.isPasswordExpired(LocalDateTime.of(2027, 1, 1, 0, 0), 0));
+    }
+
+    @Test
+    @DisplayName("口令剩余天数：未到期返回正数、已到期返回负数、策略未启用返回 -1")
+    void shouldCalculatePasswordExpiresInDays() {
+        User user = User.reconstitute(9L, 1L, username(), CIPHER, "Alice", null, null, null, null,
+                User.STATUS_ENABLED, 0, LocalDateTime.of(2026, 1, 1, 0, 0), null,
+                LocalDateTime.of(2026, 1, 1, 0, 0), LocalDateTime.of(2026, 1, 1, 0, 0));
+
+        assertEquals(31L, user.passwordExpiresInDays(LocalDateTime.of(2026, 3, 1, 0, 0), 90));
+        assertTrue(user.passwordExpiresInDays(LocalDateTime.of(2026, 5, 1, 0, 0), 90) < 0);
+        assertEquals(-1L, user.passwordExpiresInDays(LocalDateTime.of(2026, 3, 1, 0, 0), 0));
+    }
+
+    @Test
+    @DisplayName("reconstitute：改密时间缺失时回退为创建时间，避免存量账号被误判过期")
+    void shouldFallbackPasswordUpdatedTimeToCreateTime() {
+        LocalDateTime created = LocalDateTime.of(2026, 1, 1, 0, 0);
+
+        User user = User.reconstitute(9L, 1L, username(), CIPHER, "Alice", null, null, null, null,
+                User.STATUS_ENABLED, 0, null, null, created, created);
+
+        assertEquals(created, user.getPasswordUpdatedTime());
+    }
+
+    @Test
+    @DisplayName("行为：changePassword 携带改密时间后口令年龄从该时刻起算")
+    void shouldRecordPasswordUpdatedTimeOnChange() {
+        LocalDateTime changedAt = LocalDateTime.of(2026, 6, 1, 0, 0);
+        User user = User.create(1L, username(), CIPHER, "Alice", null, null, null, 1);
+
+        user.changePassword(EncryptedPassword.of("$2a$10$newencodedciphervalue"), changedAt);
+
+        assertEquals(changedAt, user.getPasswordUpdatedTime());
+        assertFalse(user.isPasswordExpired(LocalDateTime.of(2026, 7, 1, 0, 0), 90));
+    }
 }

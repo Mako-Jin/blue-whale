@@ -14,9 +14,11 @@ import com.bluewhale.archive.entity.ArchiveItem;
 import com.bluewhale.archive.mapper.ArchiveCategoryMapper;
 import com.bluewhale.archive.mapper.ArchiveFileMapper;
 import com.bluewhale.archive.mapper.ArchiveItemMapper;
+import com.bluewhale.archive.remote.RemoteContentStream;
 import com.bluewhale.archive.support.ArchiveConstants;
 import com.bluewhale.archive.vo.ArchiveFileSecurityVO;
 import com.bluewhale.archive.vo.ArchiveItemVO;
+import com.bluewhale.archive.vo.ArchivePreviewVO;
 import com.bluewhale.archive.vo.ArchiveStatsVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.result.PageResult;
@@ -31,6 +33,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
+import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -39,6 +42,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -280,8 +284,9 @@ class ArchiveItemServiceTest {
         file.setItemId(999L);
         when(fileMapper.selectById(FILE_REF_ID)).thenReturn(file);
 
-        assertThrows(BizException.class, () -> itemService.download(ITEM_ID, FILE_REF_ID, false));
-        verify(fileClient, never()).content(anyLong());
+        assertThrows(BizException.class,
+                () -> itemService.download(ITEM_ID, FILE_REF_ID, false, null, null));
+        verify(fileClient, never()).openContent(anyLong(), nullable(String.class), nullable(String.class));
     }
 
     @Test
@@ -298,15 +303,96 @@ class ArchiveItemServiceTest {
     }
 
     @Test
-    @DisplayName("下载：秘密级条目无秘密级权限时不调用文件服务")
+    @DisplayName("下载：秘密级条目无秘密级权限时不读取内容流")
     void downloadShouldBlockSecretItemWithoutPermission() {
         ArchiveItem item = pendingItem();
         item.setSecurityLevel(ArchiveConstants.SECURITY_SECRET);
         when(itemMapper.selectById(ITEM_ID)).thenReturn(item);
         when(fileMapper.selectById(FILE_REF_ID)).thenReturn(fileRef());
 
-        assertThrows(BizException.class, () -> itemService.download(ITEM_ID, FILE_REF_ID, false));
-        verify(fileClient, never()).content(anyLong());
+        assertThrows(BizException.class,
+                () -> itemService.download(ITEM_ID, FILE_REF_ID, false, null, null));
+        verify(fileClient, never()).openContent(anyLong(), nullable(String.class), nullable(String.class));
+    }
+
+    @Test
+    @DisplayName("下载：走流式路径并复用下游 MIME、长度与 Range 响应头")
+    void downloadShouldStreamContent() {
+        when(itemMapper.selectById(ITEM_ID)).thenReturn(pendingItem());
+        when(fileMapper.selectById(FILE_REF_ID)).thenReturn(fileRef());
+        when(fileClient.openContent(FILE_ID, "bytes=0-1023", null)).thenReturn(partialStream());
+
+        ArchivePreviewVO vo = itemService.download(ITEM_ID, FILE_REF_ID, false, "bytes=0-1023", null);
+
+        assertEquals(206, vo.getStatus());
+        assertEquals("video/mp4", vo.getContentType());
+        assertEquals(1024L, vo.getContentLength());
+        assertEquals("bytes 0-1023/2048", vo.getContentRange());
+        assertEquals("W/\"etag-1\"", vo.getEtag());
+        assertNotNull(vo.getBody());
+        verify(fileClient).openContent(FILE_ID, "bytes=0-1023", null);
+    }
+
+    @Test
+    @DisplayName("预览：文件不属于该条目时拒绝且不读取内容流")
+    void previewRejectsForeignFile() {
+        when(itemMapper.selectById(ITEM_ID)).thenReturn(pendingItem());
+        ArchiveFile file = new ArchiveFile();
+        file.setId(FILE_REF_ID);
+        file.setItemId(999L);
+        when(fileMapper.selectById(FILE_REF_ID)).thenReturn(file);
+
+        assertThrows(BizException.class,
+                () -> itemService.preview(ITEM_ID, FILE_REF_ID, false, null, null));
+        verify(fileClient, never()).openContent(anyLong(), nullable(String.class), nullable(String.class));
+    }
+
+    @Test
+    @DisplayName("预览：秘密级条目无秘密级权限时不读取内容流")
+    void previewShouldBlockSecretItemWithoutPermission() {
+        ArchiveItem item = pendingItem();
+        item.setSecurityLevel(ArchiveConstants.SECURITY_SECRET);
+        when(itemMapper.selectById(ITEM_ID)).thenReturn(item);
+        when(fileMapper.selectById(FILE_REF_ID)).thenReturn(fileRef());
+
+        assertThrows(BizException.class,
+                () -> itemService.preview(ITEM_ID, FILE_REF_ID, false, null, null));
+        verify(fileClient, never()).openContent(anyLong(), nullable(String.class), nullable(String.class));
+    }
+
+    @Test
+    @DisplayName("预览：透传 Range / If-Range 并复用下游 MIME 与 206 响应头")
+    void previewShouldPassThroughRangeHeaders() {
+        when(itemMapper.selectById(ITEM_ID)).thenReturn(pendingItem());
+        when(fileMapper.selectById(FILE_REF_ID)).thenReturn(fileRef());
+        when(fileClient.openContent(FILE_ID, "bytes=0-1023", "W/\"etag-1\""))
+                .thenReturn(partialStream());
+
+        ArchivePreviewVO vo = itemService.preview(ITEM_ID, FILE_REF_ID, false,
+                "bytes=0-1023", "W/\"etag-1\"");
+
+        assertEquals(206, vo.getStatus());
+        assertEquals("video/mp4", vo.getContentType());
+        assertEquals(1024L, vo.getContentLength());
+        assertEquals("bytes 0-1023/2048", vo.getContentRange());
+        assertEquals(2048L, vo.getContentRangeTotal());
+        assertEquals("W/\"etag-1\"", vo.getEtag());
+        assertEquals("archive-file", vo.getFileName());
+    }
+
+    @Test
+    @DisplayName("预览：下游 416 时返回总字节数且内容流为空")
+    void previewShouldCarryRangeTotalOnRefused() {
+        when(itemMapper.selectById(ITEM_ID)).thenReturn(pendingItem());
+        when(fileMapper.selectById(FILE_REF_ID)).thenReturn(fileRef());
+        when(fileClient.openContent(FILE_ID, "bytes=2048-", null))
+                .thenReturn(refusedStream());
+
+        ArchivePreviewVO vo = itemService.preview(ITEM_ID, FILE_REF_ID, false, "bytes=2048-", null);
+
+        assertEquals(416, vo.getStatus());
+        assertEquals(2048L, vo.getContentRangeTotal());
+        assertNull(vo.getBody());
     }
 
     @Test
@@ -371,6 +457,36 @@ class ArchiveItemServiceTest {
         file.setFileId(FILE_ID);
         file.setFileRole(ArchiveConstants.FILE_ROLE_ORIGINAL);
         return file;
+    }
+
+    /**
+     * 构造 206 分段内容流。
+     *
+     * @return 分段响应
+     */
+    private static RemoteContentStream partialStream() {
+        RemoteContentStream stream = new RemoteContentStream();
+        stream.setStatus(206);
+        stream.setContentType("video/mp4");
+        stream.setContentLength(1024L);
+        stream.setContentRange("bytes 0-1023/2048");
+        stream.setContentRangeTotal(2048L);
+        stream.setEtag("W/\"etag-1\"");
+        stream.setBody(InputStream.nullInputStream());
+        return stream;
+    }
+
+    /**
+     * 构造 416 越界响应。
+     *
+     * @return 越界响应
+     */
+    private static RemoteContentStream refusedStream() {
+        RemoteContentStream stream = new RemoteContentStream();
+        stream.setStatus(416);
+        stream.setContentRange("bytes */2048");
+        stream.setContentRangeTotal(2048L);
+        return stream;
     }
 
     /**

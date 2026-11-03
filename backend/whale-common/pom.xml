@@ -21,6 +21,8 @@
         <module>whale-common-domain</module>
         <module>whale-tools</module>
         <module>whale-security</module>
+        <!-- REQ-SEC-020：配置密文解密（Servlet 服务与响应式网关共用，不引入 Web 依赖） -->
+        <module>whale-config-crypto</module>
         <module>whale-spring-boot-starter</module>
     </modules>
 </project>

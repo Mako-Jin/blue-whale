@@ -25,6 +25,6 @@ final class SessionUserMapper {
     static AuthenticatedUser toAuthenticatedUser(LoginUser loginUser) {
         return new AuthenticatedUser(loginUser.getTenantId(), loginUser.getUserId(), loginUser.getUsername(),
                 loginUser.getNickname(), loginUser.getRoles(), loginUser.isEnabled(),
-                loginUser.isMustChangePassword());
+                loginUser.isMustChangePassword(), loginUser.getPasswordUpdatedTime());
     }
 }

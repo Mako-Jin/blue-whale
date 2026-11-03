@@ -79,6 +79,15 @@
             <artifactId>mysql-connector-j</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <!-- REQ-SEC-022：Flyway 数据库版本化管理（阶段 4 铺开），脚本位于 classpath:db/migration -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-flyway</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-mysql</artifactId>
+        </dependency>
         <!-- Result / BizException / MyBatis-Plus 自动填充 / 权限码头拦截：经本 starter 传递引入 -->
         <dependency>
             <groupId>com.bluewhale</groupId>

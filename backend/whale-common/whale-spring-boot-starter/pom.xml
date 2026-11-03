@@ -22,6 +22,12 @@
             <artifactId>whale-common-core</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- REQ-SEC-020：配置 ENC(...) 密文解密（EnvironmentPostProcessor 经 spring.factories 装载） -->
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-config-crypto</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>

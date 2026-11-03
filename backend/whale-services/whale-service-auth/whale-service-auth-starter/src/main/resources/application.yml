@@ -30,6 +30,22 @@ spring:
       max-lifetime: ${DB_POOL_MAX_LIFETIME_MS:1800000}
       keepalive-time: ${DB_POOL_KEEPALIVE_MS:120000}
       leak-detection-threshold: ${DB_POOL_LEAK_DETECTION_MS:60000}
+  # REQ-SEC-022：Flyway 数据库版本化管理（试点服务）。仅扫描 classpath:db/migration；
+  # db/init.sql 与历史 migration-*.sql 属于手工/追溯脚本，不在扫描路径内。
+  flyway:
+    enabled: ${WHALE_FLYWAY_ENABLED:true}
+    locations: classpath:db/migration
+    table: flyway_schema_history
+    # 存量库无历史表时自动写入 version=1 基线并跳过 V1，只执行 V2 及之后的增量
+    baseline-on-migrate: ${WHALE_FLYWAY_BASELINE_ON_MIGRATE:true}
+    baseline-version: 1
+    validate-on-migrate: true
+    # 生产禁止通过 Flyway 清库
+    clean-disabled: true
+    # 权限 path 中可能含 ${} 类片段，关闭占位符替换
+    placeholder-replacement: false
+    # 容器启动时数据库可能尚未就绪
+    connect-retries: 10
   data:
     redis:
       host: ${REDIS_HOST:127.0.0.1}
@@ -68,6 +84,20 @@ whale:
     # HTTPS 站点必须开启（生产经 WHALE_AUTH_COOKIE_SECURE=true），dev 走 HTTP 联调默认关闭。
     cookie:
       secure: ${WHALE_AUTH_COOKIE_SECURE:false}
+    # REQ-SEC-021 / REQ-SEC-023 口令策略：90 天到期、提前 7 天提醒、最近 5 次不可复用、
+    # 最小 12 位且必须含大小写字母/数字/特殊字符；新建与管理员重置后强制首登改密。
+    password:
+      max-age-days: ${WHALE_AUTH_PASSWORD_MAX_AGE_DAYS:90}
+      warn-days: ${WHALE_AUTH_PASSWORD_WARN_DAYS:7}
+      history-size: ${WHALE_AUTH_PASSWORD_HISTORY_SIZE:5}
+      min-length: ${WHALE_AUTH_PASSWORD_MIN_LENGTH:12}
+      max-length: 64
+      require-upper: true
+      require-lower: true
+      require-digit: true
+      require-special: true
+      force-change-on-create: ${WHALE_AUTH_PASSWORD_FORCE_CHANGE:true}
+      notice-cron: ${WHALE_AUTH_PASSWORD_NOTICE_CRON:0 0 2 * * ?}
     # P1-3 权限缓存跨实例失效：本地批量删除当前租户完整 Key + Redisson RTopic 广播；
     # Redis 断连时删除失败的 Key 进入待处理集合，由定时任务在恢复后重对齐。
     permission-cache:

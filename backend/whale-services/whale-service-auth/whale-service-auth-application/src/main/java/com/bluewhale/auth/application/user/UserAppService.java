@@ -3,12 +3,12 @@ package com.bluewhale.auth.application.user;
 import com.bluewhale.auth.application.event.DomainEventPublisher;
 import com.bluewhale.auth.application.tenant.TenantMembershipAppService;
 import com.bluewhale.auth.application.user.command.AssignUserRolesCommand;
-import com.bluewhale.auth.application.user.command.ChangeUserPasswordCommand;
 import com.bluewhale.auth.application.user.command.ChangeUserStatusCommand;
 import com.bluewhale.auth.application.user.command.CreateUserCommand;
 import com.bluewhale.auth.application.user.command.UpdateUserCommand;
+import com.bluewhale.auth.application.user.password.PasswordPolicyService;
+import com.bluewhale.auth.application.user.password.TemporaryPasswordGenerator;
 import com.bluewhale.auth.application.user.query.UserPageQuery;
-import com.bluewhale.auth.application.user.port.PasswordHasher;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.UserDomainEvent;
 import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
@@ -17,6 +17,7 @@ import com.bluewhale.auth.domain.role.repository.RoleRepository;
 import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
 import com.bluewhale.common.tenant.TenantContext;
+import com.bluewhale.auth.vo.ResetPasswordVO;
 import com.bluewhale.auth.vo.UserVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -53,10 +54,13 @@ public class UserAppService {
     /** Role 聚合仓储（仅用于校验待分配角色是否全部有效） */
     private final RoleRepository roleRepository;
 
-    /** 口令加密端口（明文口令落库前统一加密） */
-    private final PasswordHasher passwordHasher;
+    /** 口令策略服务（强度校验、历史复用校验、加密与历史记录，REQ-SEC-021/023） */
+    private final PasswordPolicyService passwordPolicyService;
 
-    /** 领域事件发布端口（缓存失效等副作用由基础设施层监听） */
+    /** 临时口令生成器（管理员重置口令时生成一次性随机口令，REQ-SEC-023） */
+    private final TemporaryPasswordGenerator temporaryPasswordGenerator;
+
+    /** 领域事件发布端口（缓存失效、令牌撤销等副作用由基础设施层监听） */
     private final DomainEventPublisher domainEventPublisher;
 
     /** 用户-租户关系服务（一人多租户：新建账号写首页关系） */
@@ -67,16 +71,20 @@ public class UserAppService {
      *
      * @param userRepository 用户聚合仓储
      * @param roleRepository 角色聚合仓储
-     * @param passwordHasher 口令加密端口
+     * @param passwordPolicyService 口令策略服务
+     * @param temporaryPasswordGenerator 临时口令生成器
      * @param domainEventPublisher 领域事件发布端口
      * @param tenantMembershipAppService 用户-租户关系服务
      */
     public UserAppService(UserRepository userRepository, RoleRepository roleRepository,
-                          PasswordHasher passwordHasher, DomainEventPublisher domainEventPublisher,
+                          PasswordPolicyService passwordPolicyService,
+                          TemporaryPasswordGenerator temporaryPasswordGenerator,
+                          DomainEventPublisher domainEventPublisher,
                           TenantMembershipAppService tenantMembershipAppService) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
-        this.passwordHasher = passwordHasher;
+        this.passwordPolicyService = passwordPolicyService;
+        this.temporaryPasswordGenerator = temporaryPasswordGenerator;
         this.domainEventPublisher = domainEventPublisher;
         this.tenantMembershipAppService = tenantMembershipAppService;
     }
@@ -104,11 +112,15 @@ public class UserAppService {
     }
 
     /**
-     * 创建用户：用户名值对象前置校验 → 用户名唯一性校验 → BCrypt 加密 → 保存
+     * 创建用户：用户名值对象前置校验 → 唯一性校验 → 口令策略校验 → BCrypt 加密 → 保存
+     *
+     * <p>按策略默认值，管理员创建账号后目标用户首次登录即被强制改密（REQ-SEC-023）；
+     * 初始口令密文同时写入口令历史，避免用户把初始口令改回去。</p>
      *
      * @param command 创建用户命令
      * @return 新建用户视图对象
      */
+    @Transactional(rollbackFor = Exception.class)
     public UserVO create(CreateUserCommand command) {
         Long tenantId = TenantContext.requireId();
         // 值对象前置校验用户名不变量
@@ -116,32 +128,47 @@ public class UserAppService {
         if (userRepository.existsByUsername(tenantId, username.value())) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "用户名已存在");
         }
-        EncryptedPassword password = EncryptedPassword.of(passwordHasher.encode(command.rawPassword()));
+        passwordPolicyService.validate(command.rawPassword(), username.value());
+        EncryptedPassword password = EncryptedPassword.of(passwordPolicyService.encode(command.rawPassword()));
         User user = User.create(tenantId, username, password, command.nickname(), command.phone(),
                 command.email(), command.avatar(), command.deptId(), command.status());
+        if (passwordPolicyService.isForceChangeOnCreate()) {
+            user.markMustChangePassword();
+        }
         // 保存并回填数据库生成的主键与时间戳
         User persisted = userRepository.save(user);
         // 一人多租户：新账号必须拥有首页租户关系，否则切换器与刷新校验都会判为无关系
         tenantMembershipAppService.ensureHomeMembership(persisted.getId(), tenantId);
+        passwordPolicyService.recordHistory(tenantId, persisted.getId(), persisted.getPassword().value());
         domainEventPublisher.publish(new UserDomainEvent(persisted.getId(), ChangeType.CREATED));
         return UserVO.from(persisted);
     }
 
     /**
-     * 更新用户：口令非空时重置，其余资料字段全量覆盖，状态非空时变更
+     * 更新用户：口令非空时按策略重置，其余资料字段全量覆盖，状态非空时变更
+     *
+     * <p>管理员代改口令后按策略置强制首登改密标记（{@code whale.auth.password.force-change-on-create}），
+     * 使目标用户需在下次登录后自行设置新口令；新密文写入口令历史并发布改密事件撤销存量令牌。</p>
      *
      * @param id 用户 ID
      * @param command 更新用户命令
      * @return 更新后的用户视图对象
      */
+    @Transactional(rollbackFor = Exception.class)
     public UserVO update(Long id, UpdateUserCommand command) {
         User user = requireUser(id);
         int previousStatus = user.getStatus();
         boolean passwordChanged = command.rawPassword() != null && !command.rawPassword().isBlank();
         if (passwordChanged) {
-            user.changePassword(EncryptedPassword.of(passwordHasher.encode(command.rawPassword())));
-            // T-03：改密成功后清除强制首登改密标记
-            user.clearMustChangePassword();
+            passwordPolicyService.validate(command.rawPassword(), user.getUsername().value());
+            passwordPolicyService.ensureNotReused(user.getTenantId(), id,
+                    user.getPassword().value(), command.rawPassword());
+            user.changePassword(EncryptedPassword.of(passwordPolicyService.encode(command.rawPassword())));
+            if (passwordPolicyService.isForceChangeOnCreate()) {
+                user.markMustChangePassword();
+            } else {
+                user.clearMustChangePassword();
+            }
         }
         user.changeProfile(command.nickname(), command.phone(), command.email(), command.avatar(),
                 command.deptId());
@@ -150,6 +177,9 @@ public class UserAppService {
             user.changeStatus(command.status());
         }
         userRepository.save(user);
+        if (passwordChanged) {
+            passwordPolicyService.recordHistory(user.getTenantId(), id, user.getPassword().value());
+        }
         domainEventPublisher.publish(new UserDomainEvent(id,
                 resolveAccessChangeType(passwordChanged, statusChanged, user.getStatus())));
         return UserVO.from(user);
@@ -181,18 +211,24 @@ public class UserAppService {
     }
 
     /**
-     * 重置用户口令：明文经 BCrypt 加密后以密文值对象承载
+     * 管理员重置口令：系统生成一次性随机临时口令（REQ-SEC-023）
+     *
+     * <p>临时口令仅在本次响应中返回，服务端只保存 BCrypt 密文；重置后置强制首登改密标记，
+     * 目标用户下次登录必须先自行修改口令。事件发布后基础设施层会撤销该用户全部存量令牌。</p>
      *
      * @param id 用户 ID
-     * @param command 重置口令命令
+     * @return 重置结果（含一次性临时口令）
      */
-    public void changePassword(Long id, ChangeUserPasswordCommand command) {
+    @Transactional(rollbackFor = Exception.class)
+    public ResetPasswordVO resetPassword(Long id) {
         User user = requireUser(id);
-        user.changePassword(EncryptedPassword.of(passwordHasher.encode(command.rawPassword())));
-        // T-03：改密成功后清除强制首登改密标记
-        user.clearMustChangePassword();
+        String temporaryPassword = temporaryPasswordGenerator.generate(passwordPolicyService.minLength());
+        user.changePassword(EncryptedPassword.of(passwordPolicyService.encode(temporaryPassword)));
+        user.markMustChangePassword();
         userRepository.save(user);
+        passwordPolicyService.recordHistory(user.getTenantId(), id, user.getPassword().value());
         domainEventPublisher.publish(new UserDomainEvent(id, ChangeType.PASSWORD_CHANGED));
+        return new ResetPasswordVO(id, user.getUsername().value(), temporaryPassword);
     }
 
     /**

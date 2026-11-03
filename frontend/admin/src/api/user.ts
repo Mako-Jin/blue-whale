@@ -63,8 +63,18 @@ export function deleteUser(id: number): Promise<void> {
   return del<void>(`/user/${id}`);
 }
 
-export function resetUserPassword(id: number, password: string): Promise<void> {
-  return put<void>(`/user/${id}/password`, { password });
+/** 管理员重置口令响应：一次性临时口令仅在本次响应展示（REQ-SEC-023） */
+export interface ResetPasswordVO {
+  userId: number;
+  username: string;
+  /** 系统生成的一次性临时口令（明文仅返回这一次，落库仅密文） */
+  temporaryPassword: string;
+  /** 目标账号下次登录必须改密 */
+  mustChangePassword: boolean;
+}
+
+export function resetUserPassword(id: number): Promise<ResetPasswordVO> {
+  return put<ResetPasswordVO>(`/user/${id}/password`);
 }
 
 export function changeUserStatus(id: number, status: number): Promise<void> {

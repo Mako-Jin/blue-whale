@@ -252,6 +252,80 @@ function authHeaders(): HeadersInit {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+/** 可内联预览的 MIME 前缀（与后端 ArchiveFileResponses 保持一致） */
+const INLINE_PREFIXES = ['image/', 'video/', 'audio/', 'text/'];
+
+/** 可内联预览的完整 MIME */
+const INLINE_TYPES = ['application/pdf', 'application/json', 'application/xml', 'application/xhtml+xml'];
+
+/** 在线预览类型 */
+export type ArchivePreviewKind = 'image' | 'video' | 'audio' | 'pdf' | 'text';
+
+/** 解析档案文件的 MIME 基础类型（去掉 charset 等参数） */
+function baseContentType(file: ArchiveFileVO): string {
+  const raw = file.contentType?.trim().toLowerCase() ?? '';
+  return raw.split(';')[0]?.trim() ?? '';
+}
+
+/**
+ * 判断档案文件是否支持在线预览：图片 / 音视频 / 文本 / PDF 等允许内联渲染。
+ *
+ * @param file 档案文件引用
+ * @returns 支持预览时返回 true
+ */
+export function isPreviewableFile(file: ArchiveFileVO): boolean {
+  const base = baseContentType(file);
+  if (!base) {
+    return false;
+  }
+  return INLINE_TYPES.includes(base) || INLINE_PREFIXES.some((prefix) => base.startsWith(prefix));
+}
+
+/**
+ * 解析预览渲染方式，不支持时返回 null。
+ *
+ * @param file 档案文件引用
+ * @returns 预览类型
+ */
+export function previewKindOf(file: ArchiveFileVO): ArchivePreviewKind | null {
+  const base = baseContentType(file);
+  if (base.startsWith('image/')) {
+    return 'image';
+  }
+  if (base.startsWith('video/')) {
+    return 'video';
+  }
+  if (base.startsWith('audio/')) {
+    return 'audio';
+  }
+  if (base === 'application/pdf') {
+    return 'pdf';
+  }
+  if (base.startsWith('text/') || base === 'application/json' || base === 'application/xml') {
+    return 'text';
+  }
+  return null;
+}
+
+/**
+ * 取档案文件预览内容并生成对象 URL（调用方需在关闭预览时 revoke）。
+ *
+ * @param itemId 条目ID
+ * @param file 档案文件引用
+ * @returns 可直接用于 img / video / audio / iframe 的对象 URL
+ */
+export async function fetchItemPreviewUrl(itemId: string, file: ArchiveFileVO): Promise<string> {
+  const response = await fetch(`/archive/item/${itemId}/files/${file.id}/preview`, {
+    method: 'GET',
+    headers: authHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error(`预览失败（HTTP ${response.status}）`);
+  }
+  const blob = await response.blob();
+  return URL.createObjectURL(blob);
+}
+
 /** 下载档案文件：取 blob 后用临时 <a download> 触发保存 */
 export async function downloadItemFile(itemId: string, file: ArchiveFileVO): Promise<void> {
   const response = await fetch(`/archive/item/${itemId}/files/${file.id}/download`, {

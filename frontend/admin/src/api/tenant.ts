@@ -96,6 +96,32 @@ export function assignTenantMemberRoles(userId: number, roleIds: number[]): Prom
   return put<void>(`/tenant/members/${userId}/roles`, { roleIds });
 }
 
+/** 租户口令策略视图（REQ-SEC-023）：生效值 + 全局默认值 */
+export interface TenantPasswordPolicyVO {
+  tenantId: number;
+  /** 生效的口令有效期（天） */
+  maxAgeDays: number;
+  /** 生效的到期前提醒天数 */
+  warnDays: number;
+  /** false 表示沿用全局默认（未自定义） */
+  customized: boolean;
+  defaultMaxAgeDays: number;
+  defaultWarnDays: number;
+}
+
+/** 查询本租户生效口令策略（GET /tenant/password-policy，租户管理员/平台管理员） */
+export function getTenantPasswordPolicy(): Promise<TenantPasswordPolicyVO> {
+  return get<TenantPasswordPolicyVO>('/tenant/password-policy');
+}
+
+/** 保存本租户口令策略（PUT /tenant/password-policy，有效期 1–365 天，提醒天数 0–有效期） */
+export function updateTenantPasswordPolicy(payload: {
+  maxAgeDays: number;
+  warnDays: number;
+}): Promise<TenantPasswordPolicyVO> {
+  return put<TenantPasswordPolicyVO>('/tenant/password-policy', payload);
+}
+
 /** 平台租户：为用户绑定可进入的租户 */
 export function bindUserTenant(userId: number, tenantId: number): Promise<void> {
   return post<void>(`/user/${userId}/tenants`, { tenantId });

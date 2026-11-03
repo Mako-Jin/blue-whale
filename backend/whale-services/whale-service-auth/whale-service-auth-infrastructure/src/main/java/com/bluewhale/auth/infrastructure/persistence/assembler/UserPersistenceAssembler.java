@@ -45,6 +45,7 @@ public final class UserPersistenceAssembler {
                 po.getDeptId(),
                 status,
                 po.getMustChangePassword(),
+                po.getPasswordUpdatedTime(),
                 po.getLastLoginTime(),
                 po.getCreateTime(),
                 po.getUpdateTime());
@@ -63,6 +64,8 @@ public final class UserPersistenceAssembler {
         po.setUsername(user.getUsername().value());
         po.setPassword(user.getPassword().value());
         po.setMustChangePassword(user.isMustChangePassword() ? 1 : 0);
+        // 最近改密时间随聚合写回；到期提醒时间由提醒任务独立维护，此处不写（避免覆盖）
+        po.setPasswordUpdatedTime(user.getPasswordUpdatedTime());
         po.setNickname(user.getNickname());
         po.setPhone(user.getPhone());
         po.setEmail(user.getEmail());

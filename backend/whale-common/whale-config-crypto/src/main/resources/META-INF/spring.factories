@@ -1,0 +1,3 @@
+# REQ-SEC-020：配置密文 ENC(...) 解密（Boot 4 通过 spring.factories 装载 EnvironmentPostProcessor）
+# 键为 Boot 4 新接口 org.springframework.boot.EnvironmentPostProcessor（旧 org.springframework.boot.env 已废弃）
+org.springframework.boot.EnvironmentPostProcessor=com.bluewhale.common.security.crypto.ConfigEncryptionEnvironmentPostProcessor

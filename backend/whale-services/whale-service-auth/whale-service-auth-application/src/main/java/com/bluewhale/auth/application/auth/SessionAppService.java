@@ -12,6 +12,11 @@ import com.bluewhale.auth.application.permission.PermissionAppService;
 import com.bluewhale.auth.application.role.RoleAppService;
 import com.bluewhale.auth.application.tenant.TenantAppService;
 import com.bluewhale.auth.application.tenant.TenantMembershipAppService;
+import com.bluewhale.auth.application.user.password.PasswordPolicyService;
+import com.bluewhale.auth.application.user.password.TenantPasswordPolicyService;
+import com.bluewhale.auth.application.user.port.PasswordHasher;
+import com.bluewhale.auth.domain.model.vo.EncryptedPassword;
+import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
 import com.bluewhale.auth.vo.AuthMeResponse;
 import com.bluewhale.auth.vo.AuthTokenIssue;
@@ -25,6 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
@@ -69,6 +75,9 @@ public class SessionAppService {
     private final PermissionAppService permissionAppService;
     private final TenantAppService tenantAppService;
     private final TenantMembershipAppService tenantMembershipAppService;
+    private final PasswordPolicyService passwordPolicyService;
+    private final PasswordHasher passwordHasher;
+    private final TenantPasswordPolicyService tenantPasswordPolicyService;
 
     /**
      * 登录：按（租户, 用户名, 密码）完成凭据校验并签发一对令牌。
@@ -81,9 +90,10 @@ public class SessionAppService {
     public AuthTokenIssue login(String tenantCode, String username, String rawPassword) {
         Long tenantId = tenantAppService.resolveEnabledTenantId(tenantCode);
         AuthenticatedUser user = credentialAuthenticator.authenticate(tenantId, username, rawPassword);
-        // 记录最后登录时间（聚合行为）
+        // 记录最后登录时间（聚合行为），并在口令密文强度落后时自动升级（REQ-SEC-021）
         userRepository.findByIdAcrossTenants(user.userId()).ifPresent(entity -> {
             entity.recordLogin(LocalDateTime.now());
+            upgradePasswordIfNeeded(entity, rawPassword);
             userRepository.save(entity);
         });
         // 每次登录生成独立 familyId（AUTH-39）：该次会话后续所有轮换令牌共用，复用检测时整族吊销
@@ -367,18 +377,47 @@ public class SessionAppService {
     }
 
     /**
+     * 口令密文强度落后时以本次登录的明文口令重新编码并记录历史（REQ-SEC-021）。
+     *
+     * <p>仅在 {@link PasswordHasher#upgradeEncoding(String)} 判定需要升级时触发，
+     * 典型场景是历史 BCrypt strength=10 密文在强度提升到 12 后首次登录。改密不改变
+     * 强制改密标记，但会顺延口令年龄（以本次升级时刻作为新的改密时间）。</p>
+     *
+     * @param user 登录用户聚合
+     * @param rawPassword 本次登录使用的明文口令
+     */
+    private void upgradePasswordIfNeeded(User user, String rawPassword) {
+        if (!passwordHasher.upgradeEncoding(user.getPassword().value())) {
+            return;
+        }
+        user.changePassword(EncryptedPassword.of(passwordHasher.encode(rawPassword)));
+        passwordPolicyService.recordHistory(user.getTenantId(), user.getId(), user.getPassword().value());
+        log.info("登录口令密文强度升级完成: userId={}", user.getId());
+    }
+
+    /**
      * 为用户签发 accessToken 与 refreshToken 并组装令牌签发结果（V-03：refreshToken 仅写 Cookie）
+     *
+     * <p>REQ-SEC-023：强制首登改密标记与口令到期均折算为 {@code mustChangePassword=true}，
+     * 同时写入 accessToken 的 {@code pwdChangeRequired} claim，供 auth 服务与网关双层拦截。</p>
      *
      * @param user 登录用户
      * @param familyId 令牌 family 标识（登录时新生成，轮换时沿用）；为 {@code null} 时 refreshToken 不含该 claim
      * @return 令牌签发结果（响应体载荷不含 refreshToken）
      */
     private AuthTokenIssue buildAuthTokenIssue(AuthenticatedUser user, String familyId) {
+        // REQ-SEC-023：有效期按用户所属租户的生效策略计算，未配置时回退全局默认
+        int maxAgeDays = tenantPasswordPolicyService.maxAgeDays(user.tenantId());
+        LocalDateTime now = LocalDateTime.now();
+        boolean passwordExpired = isPasswordExpired(user.passwordUpdatedTime(), now, maxAgeDays);
+        long expiresInDays = passwordExpiresInDays(user.passwordUpdatedTime(), now, maxAgeDays);
+        boolean mustChange = user.mustChangePassword() || passwordExpired;
         LoginResponse response = new LoginResponse();
         List<String> roles = user.roles();
         String refreshToken = tokenIssuer.issueRefreshToken(
                 user.tenantId(), user.userId(), user.username(), familyId);
-        response.setAccessToken(tokenIssuer.issueAccessToken(user.tenantId(), user.userId(), user.username(), roles));
+        response.setAccessToken(tokenIssuer.issueAccessToken(
+                user.tenantId(), user.userId(), user.username(), roles, mustChange));
         response.setTokenType("Bearer");
         response.setExpiresIn(tokenIssuer.accessExpireSeconds());
         response.setUserId(user.userId());
@@ -386,8 +425,41 @@ public class SessionAppService {
         response.setUsername(user.username());
         response.setNickname(user.nickname());
         response.setRoles(roles);
-        // T-03：出厂默认口令轮换后强制首登改密，登录/刷新/切换响应统一透出该标记
-        response.setMustChangePassword(user.mustChangePassword());
+        // T-03 / REQ-SEC-023：强制首登改密或口令到期，登录/刷新/切换响应统一透出该标记
+        response.setMustChangePassword(mustChange);
+        response.setPasswordExpired(passwordExpired);
+        response.setPasswordExpiresInDays(expiresInDays);
         return new AuthTokenIssue(response, refreshToken);
+    }
+
+    /**
+     * 判定口令是否已到期
+     *
+     * @param passwordUpdatedTime 最近改密时间（可空）
+     * @param now 判定时刻
+     * @param maxAgeDays 口令有效期（天）；小于等于 0 表示不强制到期
+     * @return 已到期返回 true；改密时间缺失或未启用有效期返回 false
+     */
+    private static boolean isPasswordExpired(LocalDateTime passwordUpdatedTime, LocalDateTime now, int maxAgeDays) {
+        if (maxAgeDays <= 0 || passwordUpdatedTime == null) {
+            return false;
+        }
+        LocalDateTime expireAt = passwordUpdatedTime.plusDays(maxAgeDays);
+        return !expireAt.isAfter(now);
+    }
+
+    /**
+     * 计算距口令到期剩余天数
+     *
+     * @param passwordUpdatedTime 最近改密时间（可空）
+     * @param now 判定时刻
+     * @param maxAgeDays 口令有效期（天）
+     * @return 剩余天数（已到期为负数）；不适用返回 -1
+     */
+    private static long passwordExpiresInDays(LocalDateTime passwordUpdatedTime, LocalDateTime now, int maxAgeDays) {
+        if (maxAgeDays <= 0 || passwordUpdatedTime == null) {
+            return -1L;
+        }
+        return Duration.between(now, passwordUpdatedTime.plusDays(maxAgeDays)).toDays();
     }
 }

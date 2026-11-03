@@ -25,6 +25,17 @@ spring:
       max-lifetime: ${DB_POOL_MAX_LIFETIME_MS:1800000}
       keepalive-time: ${DB_POOL_KEEPALIVE_MS:120000}
       leak-detection-threshold: ${DB_POOL_LEAK_DETECTION_MS:60000}
+  # REQ-SEC-022：Flyway 数据库版本化（阶段 4 铺开），脚本位于 classpath:db/migration
+  flyway:
+    enabled: ${WHALE_FLYWAY_ENABLED:true}
+    locations: classpath:db/migration
+    table: flyway_schema_history
+    baseline-on-migrate: ${WHALE_FLYWAY_BASELINE_ON_MIGRATE:true}
+    baseline-version: 1
+    validate-on-migrate: true
+    clean-disabled: true
+    placeholder-replacement: false
+    connect-retries: 10
   cloud:
     nacos:
       discovery:

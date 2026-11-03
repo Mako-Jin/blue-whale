@@ -2,6 +2,7 @@
 // 操作按钮均按权限码渲染（AuthButton / usePermission），无权限自动隐藏
 
 import {
+  Alert,
   App,
   Button,
   Checkbox,
@@ -13,6 +14,7 @@ import {
   Space,
   Switch,
   Tag,
+  Typography,
   type TableProps,
 } from 'antd';
 import { useEffect, useRef, useState } from 'react';
@@ -35,6 +37,7 @@ import {
   pageUsers,
   resetUserPassword,
   updateUser,
+  type ResetPasswordVO,
   type UserVO,
 } from '../../api/user';
 
@@ -79,10 +82,11 @@ export default function UserList() {
   const [editRecord, setEditRecord] = useState<UserVO | null>(null);
   const [editorForm] = Form.useForm<UserFormValues>();
 
-  // 重置密码
+  // 重置密码：确认后由后端生成一次性临时口令，仅在结果弹窗展示一次
   const [resetOpen, setResetOpen] = useState(false);
   const [resetRecord, setResetRecord] = useState<UserVO | null>(null);
-  const [resetForm] = Form.useForm<{ password: string }>();
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetResult, setResetResult] = useState<ResetPasswordVO | null>(null);
 
   // 分配角色
   const [assignOpen, setAssignOpen] = useState(false);
@@ -157,17 +161,20 @@ export default function UserList() {
     }
   };
 
-  const handleResetPassword = async (values: { password: string }) => {
+  const handleResetPassword = async () => {
     if (!resetRecord) {
       return;
     }
+    setResetLoading(true);
     try {
-      await resetUserPassword(resetRecord.id, values.password);
-      message.success('密码已重置');
+      const result = await resetUserPassword(resetRecord.id);
       setResetOpen(false);
+      setResetResult(result);
+      tableRef.current?.reload();
     } catch (error) {
       showError(error, '重置密码失败');
-      throw error;
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -349,14 +356,14 @@ export default function UserList() {
           label={editRecord ? '密码（留空则不修改）' : '密码'}
           rules={
             editRecord
-              ? [{ min: 6, message: '密码至少 6 位' }]
+              ? [{ min: 12, message: '密码至少 12 位' }]
               : [
                   { required: true, message: '请输入密码' },
-                  { min: 6, message: '密码至少 6 位' },
+                  { min: 12, message: '密码至少 12 位' },
                 ]
           }
         >
-          <Input.Password placeholder={editRecord ? '留空表示不修改' : '至少 6 位'} />
+          <Input.Password placeholder={editRecord ? '留空表示不修改' : '至少 12 位，含大小写字母、数字和特殊字符'} />
         </Form.Item>
         <Form.Item name="nickname" label="昵称">
           <Input />
@@ -375,24 +382,43 @@ export default function UserList() {
         </Form.Item>
       </FormModal>
 
-      <FormModal<{ password: string }>
+      <Modal
         open={resetOpen}
         title={`重置密码：${resetRecord?.username ?? ''}`}
-        form={resetForm}
-        onOk={handleResetPassword}
+        okText="确认重置"
+        confirmLoading={resetLoading}
+        onOk={() => void handleResetPassword()}
         onCancel={() => setResetOpen(false)}
       >
-        <Form.Item
-          name="password"
-          label="新密码"
-          rules={[
-            { required: true, message: '请输入新密码' },
-            { min: 6, message: '密码至少 6 位' },
-          ]}
-        >
-          <Input.Password placeholder="至少 6 位" />
-        </Form.Item>
-      </FormModal>
+        <p style={{ margin: 0 }}>
+          系统将生成一次性临时口令，仅在本次操作结果中展示一次；该账号下次登录时必须修改口令。
+        </p>
+      </Modal>
+
+      <Modal
+        open={resetResult !== null}
+        title="一次性临时口令（仅展示一次）"
+        footer={
+          <Button type="primary" onClick={() => setResetResult(null)}>
+            我已保存
+          </Button>
+        }
+        onCancel={() => setResetResult(null)}
+      >
+        <Alert
+          type="warning"
+          showIcon
+          message="请立即通过安全渠道告知用户，关闭本窗口后将无法再次查看该口令。"
+        />
+        <div style={{ marginTop: 16 }}>
+          账号：<Typography.Text strong>{resetResult?.username}</Typography.Text>
+        </div>
+        <div style={{ marginTop: 8 }}>
+          <Typography.Text copyable={{ text: resetResult?.temporaryPassword ?? '' }} code>
+            {resetResult?.temporaryPassword}
+          </Typography.Text>
+        </div>
+      </Modal>
 
       <Modal
         open={assignOpen}

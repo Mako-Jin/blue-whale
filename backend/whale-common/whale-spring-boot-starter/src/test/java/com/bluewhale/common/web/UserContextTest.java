@@ -8,6 +8,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 
+import java.util.Set;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -94,6 +96,21 @@ class UserContextTest {
         request.addHeader(WebHeaders.PERMISSION_CODES, "sys:file:list");
         assertFalse(UserContext.hasPermission(request, "sys:file:manage"));
         assertFalse(UserContext.hasPermission(request, " "));
+    }
+
+    @Test
+    @DisplayName("permissionCodes：返回去空白后的权限码集合，缺失时回落角色头")
+    void shouldResolvePermissionCodes() {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader(WebHeaders.PERMISSION_CODES, "sys:video:upload, sys:file:upload");
+
+        assertEquals(Set.of("sys:video:upload", "sys:file:upload"), UserContext.permissionCodes(request));
+
+        MockHttpServletRequest roleOnly = new MockHttpServletRequest();
+        roleOnly.addHeader(WebHeaders.USER_ROLES, "super_admin");
+        assertEquals(Set.of("super_admin"), UserContext.permissionCodes(roleOnly));
+
+        assertTrue(UserContext.permissionCodes(new MockHttpServletRequest()).isEmpty());
     }
 
     @Test

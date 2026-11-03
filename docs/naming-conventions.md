@@ -42,7 +42,7 @@
 | 对象 | 规则 | 示例 |
 |---|---|---|
 | 表名 | 小写 snake_case、**单数**、带域前缀 | `sys_user`、`audit_log`、`api_log`、`outbound_log`、`frontend_log`、`behavior_log`、`erp_order` |
-| 前缀语义 | `sys_` 平台内建 RBAC；`audit_` 审计事件；`*_log` 多通道观测日志（Wave 5.10）；`<业务域>_` 业务应用 | —— |
+| 前缀语义 | `sys_` 平台内建 RBAC；`audit_` 审计事件；`*_log` 多通道观测日志（Wave 5.10）；`<业务域>_` 业务应用（如 `mu_` 音乐、`vd_` 视频） | —— |
 | 关联表 | `<主表>_<从表>`（均取单数） | `sys_user_role`、`sys_role_permission` |
 | 列名 | 小写 snake_case；布尔 `is_xxx`；时间 `xxx_time`；数量 `xxx_count`；外键 `<实体>_id` | `is_default`、`create_time`、`tenant_id` |
 | 必备列 | `id`（雪花，`BIGINT`）、`create_time`、`update_time`、`deleted`（逻辑删除） | 见 checklist E13 |
@@ -92,7 +92,7 @@ Maven 模块目录名 == artifactId == spring.application.name == Nacos 服务�
 | 区段 | 用途 | 现状占用 |
 |---|---|---|
 | `8080` | API 网关（唯一入口） | whale-gateway |
-| `8081–8099` | 核心服务 | auth 8081、job 8082、workflow 8083、form 8084、file 8085、pay 8086（8087 随 `whale-i18n` 删除释放，Wave 5.50）、agent 8090、im 8091、ai 8092（Python，仅内网）、archive 8093、message 8094、**doc 8095（Wave 5.74 M1 骨架）**、**music 8096（Wave 5.75 M0 骨架）** |
+| `8081–8099` | 核心服务 | auth 8081、job 8082、workflow 8083、form 8084、file 8085、pay 8086（8087 随 `whale-i18n` 删除释放，Wave 5.50）、agent 8090、im 8091、ai 8092（Python，仅内网）、archive 8093、message 8094、**doc 8095（Wave 5.74 M1 骨架）**、**music 8096（Wave 5.75 M0 骨架）**、**scene 8097（Wave 5.77 规划）、video 8098（Wave 5.77 M0–M5 已落地）** |
 | `9001–9099` | 业务应用 | erp 9001、mes 9002、pdm 9003、oa 9004、pm 9005 |
 | `9101–9199` | 运维服务 | audit 9101、monitor 9102、alert 9103 |
 | `9201–9299` | 注册/配置类辅助服务 | config 9201 |
@@ -189,6 +189,7 @@ Maven 模块目录名 == artifactId == spring.application.name == Nacos 服务�
 | services | **whale-doc**（Wave 5.74 M1 骨架） | `whale-doc` | `bluewhale_doc` | `com.bluewhale.doc` | 8095 |
 | services | **whale-music**（Wave 5.75 M1 已落地） | `whale-music` | `bluewhale_music`（DDL 就绪，待执行） | `com.bluewhale.music` | 8096 |
 | services | **whale-scene**（Wave 5.77 规划） | `whale-scene` | `bluewhale_scene`（规划） | `com.bluewhale.scene` | 8097 |
+| services | **whale-video**（Wave 5.77 M0–M5 已落地） | `whale-video` | `bluewhale_video`（Flyway `V1`–`V4` 就绪，待建库） | `com.bluewhale.video` | 8098 |
 | services | ~~whale-i18n~~（已删除，Wave 5.50 下沉 SDK） | — | 各服务库内自建 `sys_i18n_message` | — | — |
 | registry | ~~whale-config~~（**冻结**，F-05 结案：不部署/不路由） | — | 无 | `com.bluewhale.config` | 9201 |
 | ops | whale-audit | whale-audit | `bluewhale_audit` ✔ | `com.bluewhale.audit` | 9101 |

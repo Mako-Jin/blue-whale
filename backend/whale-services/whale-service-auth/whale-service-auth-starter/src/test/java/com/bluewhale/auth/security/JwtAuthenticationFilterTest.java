@@ -17,7 +17,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import tools.jackson.databind.ObjectMapper;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -62,6 +65,9 @@ class JwtAuthenticationFilterTest {
 
     @Mock
     private Claims claims;
+
+    @Mock
+    private ObjectMapper objectMapper;
 
     @InjectMocks
     private JwtAuthenticationFilter filter;
@@ -220,5 +226,41 @@ class JwtAuthenticationFilterTest {
         filter.doFilterInternal(request, response, filterChain);
 
         assertNull(SecurityContextHolder.getContext().getAuthentication());
+    }
+
+    @Test
+    @DisplayName("REQ-SEC-023：令牌携带强制改密标记时，非白名单路径直接返回 403 且不继续链路")
+    void shouldRejectProtectedPathWhenPasswordChangeRequired() throws Exception {
+        givenBearer("p.p.p");
+        when(tokenProvider.parse("p.p.p")).thenReturn(claims);
+        givenAccessClaims("tester");
+        when(claims.get(JwtTokenProvider.CLAIM_PWD_CHANGE_REQUIRED)).thenReturn(true);
+        when(request.getRequestURI()).thenReturn("/user/page");
+        when(response.getWriter()).thenReturn(new PrintWriter(new StringWriter()));
+        when(objectMapper.writeValueAsString(any())).thenReturn("{\"code\":403}");
+
+        filter.doFilterInternal(request, response, filterChain);
+
+        verify(response).setStatus(403);
+        verify(filterChain, never()).doFilter(any(), any());
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+        verify(userDetailsService, never()).loadUserById(any(), any());
+    }
+
+    @Test
+    @DisplayName("REQ-SEC-023：强制改密状态下改密白名单路径正常认证并继续链路")
+    void shouldAllowPasswordChangePathWhenPasswordChangeRequired() throws Exception {
+        givenBearer("p.p.p");
+        when(tokenProvider.parse("p.p.p")).thenReturn(claims);
+        givenAccessClaims("tester");
+        when(claims.get(JwtTokenProvider.CLAIM_PWD_CHANGE_REQUIRED)).thenReturn(true);
+        when(request.getRequestURI()).thenReturn("/auth/password");
+        when(userDetailsService.loadUserById(1L, 1L))
+                .thenReturn(new LoginUser(1L, 1L, "tester", "pwd", "T", List.of("super_admin"), true));
+
+        filter.doFilterInternal(request, response, filterChain);
+
+        assertNotNull(SecurityContextHolder.getContext().getAuthentication());
+        verify(filterChain).doFilter(request, response);
     }
 }

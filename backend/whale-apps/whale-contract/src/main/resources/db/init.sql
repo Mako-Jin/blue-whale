@@ -199,6 +199,8 @@ CREATE TABLE ct_sign_task (
     provider         VARCHAR(16)  NOT NULL DEFAULT 'LOCAL'
                                                       COMMENT '签署渠道：LOCAL 本地 / ESIGNBAO / FADADA / SSQ',
     provider_task_id VARCHAR(128) DEFAULT NULL        COMMENT '三方平台任务ID（M3 启用）',
+    workflow_task_id BIGINT       DEFAULT NULL        COMMENT '关联工作流任务ID（三方回调后由内部完成接口推进）',
+    sign_url         VARCHAR(512) DEFAULT NULL        COMMENT '三方签署链接',
     status           VARCHAR(16)  NOT NULL DEFAULT 'PENDING'
                                                       COMMENT '状态：PENDING 待签 / SIGNING 签署中 / SIGNED 已签 / REFUSED 已拒签 / EXPIRED 已失效',
     signed_at        DATETIME     DEFAULT NULL        COMMENT '签署完成时间',
@@ -324,3 +326,26 @@ CREATE TABLE audit_log (
     KEY idx_tenant_create (tenant_id, create_time),
     KEY idx_biz_status (biz_status)
 ) COMMENT='操作审计日志表';
+-- ---------------------------------------------------------------------
+-- 电子签章回调幂等表（Wave 5.61 M3，阶段 4 折叠进基线）
+-- ---------------------------------------------------------------------
+CREATE TABLE ct_esign_callback (
+    id                BIGINT       NOT NULL            COMMENT '主键ID（雪花算法）',
+    tenant_id         BIGINT       NOT NULL DEFAULT 1  COMMENT '租户ID（行级隔离）',
+    provider          VARCHAR(16)  NOT NULL            COMMENT '签署渠道：LOCAL/ESIGNBAO/FADADA/SSQ',
+    provider_event_id VARCHAR(128) NOT NULL            COMMENT '三方事件ID（幂等键）',
+    contract_id       BIGINT       DEFAULT NULL        COMMENT '合同ID',
+    sign_task_id      BIGINT       DEFAULT NULL        COMMENT '签署任务ID',
+    payload_hash      VARCHAR(64)  NOT NULL            COMMENT '回调原文 SHA-256',
+    payload           TEXT         NULL                COMMENT '回调原文（JSON）',
+    status            VARCHAR(16)  NOT NULL DEFAULT 'RECEIVED' COMMENT '状态：RECEIVED 已接收 / PROCESSED 已处理 / FAILED 处理失败',
+    retry_count       INT          NOT NULL DEFAULT 0  COMMENT '处理失败重试次数',
+    error_msg         VARCHAR(512) DEFAULT NULL        COMMENT '失败原因',
+    create_time       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted           TINYINT      NOT NULL DEFAULT 0  COMMENT '逻辑删除：0 未删除 / 1 已删除',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_tenant_provider_event (tenant_id, provider, provider_event_id),
+    KEY idx_contract (contract_id),
+    KEY idx_sign_task (sign_task_id)
+) COMMENT='电子签章回调幂等表';

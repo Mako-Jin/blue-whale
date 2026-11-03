@@ -1,4 +1,4 @@
-# BlueWhale Prometheus 抓取配置（Docker Compose 版，REQ-ARCH-007）
+﻿# BlueWhale Prometheus 抓取配置（Docker Compose 版，REQ-ARCH-007）
 #
 # 与 deploy/monitoring/prometheus.yml 保持同一 job 命名（job 名必须以 whale- 开头，
 # 以匹配 prometheus-rules.yml 的 up{job=~"whale-.*|nacos"} 等表达式），差异仅在网络地址：
@@ -69,6 +69,11 @@ scrape_configs:
     metrics_path: /actuator/prometheus
     static_configs:
       - targets: ['host.docker.internal:8096']
+  # Wave 5.77 视频平台（M0 骨架）
+  - job_name: whale-video
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['host.docker.internal:8098']
   - job_name: whale-erp
     metrics_path: /actuator/prometheus
     static_configs:

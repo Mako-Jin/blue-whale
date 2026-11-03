@@ -84,11 +84,25 @@ public final class UserContext {
         if (code == null || code.isBlank()) {
             return false;
         }
+        Set<String> codes = permissionCodes(request);
+        return codes.contains(RequirePermissionInterceptor.SUPER_ADMIN) || codes.contains(code);
+    }
+
+    /**
+     * 读取当前请求的权限码集合（含角色头回落口径）
+     *
+     * <p>取值口径与 {@link #hasPermission} 一致：优先权限码头 {@code X-Permission-Codes}，
+     * 缺失时回落角色头 {@code X-User-Roles}。用于需要按整组权限码做策略选择（如文件服务
+     * 按权限码选择大文件上传上限）的场景，避免各服务重复实现拆分逻辑。</p>
+     *
+     * @param request 当前请求，可为 {@code null}
+     * @return 权限码集合；请求为空或无头值时返回空集合
+     */
+    public static Set<String> permissionCodes(HttpServletRequest request) {
         String raw = WebHeaders.header(request, WebHeaders.PERMISSION_CODES);
         if (raw == null) {
             raw = WebHeaders.header(request, WebHeaders.USER_ROLES);
         }
-        Set<String> codes = WebHeaders.splitCodes(raw);
-        return codes.contains(RequirePermissionInterceptor.SUPER_ADMIN) || codes.contains(code);
+        return WebHeaders.splitCodes(raw);
     }
 }

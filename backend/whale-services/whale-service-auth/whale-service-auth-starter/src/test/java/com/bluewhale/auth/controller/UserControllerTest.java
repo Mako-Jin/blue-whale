@@ -3,7 +3,6 @@ package com.bluewhale.auth.controller;
 import com.bluewhale.auth.application.tenant.TenantMembershipAppService;
 import com.bluewhale.auth.application.user.UserAppService;
 import com.bluewhale.auth.application.user.command.AssignUserRolesCommand;
-import com.bluewhale.auth.application.user.command.ChangeUserPasswordCommand;
 import com.bluewhale.auth.application.user.command.ChangeUserStatusCommand;
 import com.bluewhale.auth.application.user.command.CreateUserCommand;
 import com.bluewhale.auth.application.user.command.UpdateUserCommand;
@@ -11,12 +10,12 @@ import com.bluewhale.auth.application.user.query.UserPageQuery;
 import com.bluewhale.auth.application.userpermission.UserPermissionAppService;
 import com.bluewhale.auth.application.userpermission.command.ReplaceUserAttrsCommand;
 import com.bluewhale.auth.dto.AssignRolesRequest;
-import com.bluewhale.auth.dto.ChangePasswordRequest;
 import com.bluewhale.auth.dto.UpdateAttrsRequest;
 import com.bluewhale.auth.dto.UserCreateRequest;
 import com.bluewhale.auth.dto.UserStatusRequest;
 import com.bluewhale.auth.dto.UserUpdateRequest;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
+import com.bluewhale.auth.vo.ResetPasswordVO;
 import com.bluewhale.auth.vo.UserAttrVO;
 import com.bluewhale.auth.vo.UserVO;
 import com.bluewhale.common.audit.annotation.AuditLog;
@@ -208,15 +207,19 @@ class UserControllerTest {
     }
 
     @Test
-    @DisplayName("PUT /user/{id}/password：重置密码成功并返回 code=0")
-    void changePasswordShouldReturnSuccess() throws Exception {
-        mockMvc.perform(put("/user/{id}/password", USER_ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"password\":\"secret1\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
+    @DisplayName("PUT /user/{id}/password：重置口令返回一次性临时口令（REQ-SEC-023）")
+    void resetPasswordShouldReturnTemporaryPassword() throws Exception {
+        when(userAppService.resetPassword(USER_ID))
+                .thenReturn(new ResetPasswordVO(USER_ID, "alice", "Tmp#5Ghz9!Kl"));
 
-        verify(userAppService).changePassword(eq(USER_ID), any(ChangeUserPasswordCommand.class));
+        mockMvc.perform(put("/user/{id}/password", USER_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()))
+                .andExpect(jsonPath("$.data.userId").value(USER_ID))
+                .andExpect(jsonPath("$.data.temporaryPassword").value("Tmp#5Ghz9!Kl"))
+                .andExpect(jsonPath("$.data.mustChangePassword").value(true));
+
+        verify(userAppService).resetPassword(USER_ID);
     }
 
     @Test
@@ -303,7 +306,7 @@ class UserControllerTest {
         assertPermission("create", "sys:user:add", UserCreateRequest.class);
         assertPermission("update", "sys:user:edit", Long.class, UserUpdateRequest.class);
         assertPermission("delete", "sys:user:delete", Long.class);
-        assertPermission("changePassword", "sys:user:resetpwd", Long.class, ChangePasswordRequest.class);
+        assertPermission("resetPassword", "sys:user:resetpwd", Long.class);
         assertPermission("changeStatus", "sys:user:status", Long.class, UserStatusRequest.class);
         assertPermission("assignRoles", "sys:user:assign", Long.class, AssignRolesRequest.class);
         assertPermission("roleIds", "sys:user:list", Long.class);
@@ -313,7 +316,7 @@ class UserControllerTest {
         assertAuditLog("create", UserCreateRequest.class);
         assertAuditLog("update", Long.class, UserUpdateRequest.class);
         assertAuditLog("delete", Long.class);
-        assertAuditLog("changePassword", Long.class, ChangePasswordRequest.class);
+        assertAuditLog("resetPassword", Long.class);
         assertAuditLog("changeStatus", Long.class, UserStatusRequest.class);
         assertAuditLog("assignRoles", Long.class, AssignRolesRequest.class);
         assertAuditLog("updateAttrs", Long.class, UpdateAttrsRequest.class);
@@ -323,9 +326,9 @@ class UserControllerTest {
         assertThat(idempotent).as("create 缺少 @Idempotent").isNotNull();
         assertThat(idempotent.biz()).isEqualTo("auth:user:create");
 
-        AuditLog changePassword = UserController.class
-                .getMethod("changePassword", Long.class, ChangePasswordRequest.class).getAnnotation(AuditLog.class);
-        assertThat(changePassword).as("changePassword 需关闭请求参数记录").isNotNull();
-        assertThat(changePassword.recordParams()).isFalse();
+        AuditLog resetPassword = UserController.class
+                .getMethod("resetPassword", Long.class).getAnnotation(AuditLog.class);
+        assertThat(resetPassword).as("resetPassword 需关闭请求参数记录").isNotNull();
+        assertThat(resetPassword.recordParams()).isFalse();
     }
 }

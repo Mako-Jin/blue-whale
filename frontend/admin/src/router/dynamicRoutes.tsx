@@ -23,6 +23,7 @@ import OrderList from '../pages/pay/OrderList';
 import PermissionList from '../pages/permission/PermissionList';
 import RoleList from '../pages/role/RoleList';
 import CatalogPage from '../pages/music/CatalogPage';
+import PasswordPolicy from '../pages/system/password-policy';
 import AppealAudit from '../pages/music/AppealAudit';
 import CommentAudit from '../pages/music/CommentAudit';
 import PlaylistList from '../pages/music/PlaylistList';
@@ -30,6 +31,11 @@ import SongList from '../pages/music/SongList';
 import TenantList from '../pages/tenant/TenantList';
 import TenantMemberList from '../pages/tenant/TenantMemberList';
 import UserList from '../pages/user/UserList';
+import VideoCatalogPage from '../pages/video/CatalogPage';
+import VideoCommentAudit from '../pages/video/CommentAudit';
+import VideoContentList from '../pages/video/ContentList';
+import VideoMovieList from '../pages/video/MovieList';
+import VideoStatPage from '../pages/video/StatPage';
 
 /** 侧边导航项类型（与 antd Menu items 对齐） */
 export type SidebarItem = NonNullable<MenuProps['items']>[number];
@@ -59,7 +65,13 @@ const COMPONENT_MAP: Record<
   | 'music/catalog'
   | 'music/playlists'
   | 'music/comments'
-  | 'music/appeals',
+  | 'music/appeals'
+  | 'video/content-list'
+  | 'video/movie-list'
+  | 'video/catalog'
+  | 'video/comment-audit'
+  | 'video/stat'
+  | 'password-policy',
   ComponentType
 > = {
   user: UserList,
@@ -86,6 +98,12 @@ const COMPONENT_MAP: Record<
   'music/playlists': PlaylistList,
   'music/comments': CommentAudit,
   'music/appeals': AppealAudit,
+  'video/content-list': VideoContentList,
+  'video/movie-list': VideoMovieList,
+  'video/catalog': VideoCatalogPage,
+  'video/comment-audit': VideoCommentAudit,
+  'video/stat': VideoStatPage,
+  'password-policy': PasswordPolicy,
 };
 
 type ComponentKey = keyof typeof COMPONENT_MAP;

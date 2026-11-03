@@ -30,5 +30,6 @@
         <module>whale-message</module>
         <module>whale-doc</module>
         <module>whale-music</module>
+        <module>whale-video</module>
     </modules>
 </project>

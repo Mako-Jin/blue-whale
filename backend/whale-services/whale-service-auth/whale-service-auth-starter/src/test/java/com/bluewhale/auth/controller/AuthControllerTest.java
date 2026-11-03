@@ -1,6 +1,9 @@
 package com.bluewhale.auth.controller;
 
 import com.bluewhale.auth.application.auth.SessionAppService;
+import com.bluewhale.auth.application.user.password.ChangeOwnPasswordCommand;
+import com.bluewhale.auth.application.user.password.PasswordAppService;
+import com.bluewhale.auth.dto.ChangeOwnPasswordRequest;
 import com.bluewhale.auth.dto.LoginRequest;
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.auth.vo.AuthMeResponse;
@@ -36,6 +39,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -66,7 +70,9 @@ class AuthControllerTest {
 
     private final SessionAppService sessionAppService = mock(SessionAppService.class);
 
-    private final AuthController controller = new AuthController(sessionAppService,
+    private final PasswordAppService passwordAppService = mock(PasswordAppService.class);
+
+    private final AuthController controller = new AuthController(sessionAppService, passwordAppService,
             new AuthCookieManager(false, 1440L));
 
     private MockMvc mockMvc;
@@ -336,5 +342,24 @@ class AuthControllerTest {
                 .getAnnotation(AuditLog.class);
         assertThat(logout).as("/auth/logout 缺少 @AuditLog").isNotNull();
         assertThat(logout.recordParams()).isFalse();
+    }
+
+    @Test
+    @DisplayName("PUT /auth/password：自助改密委托应用服务，且审计不记录口令")
+    void changePasswordShouldDelegateAndNotRecordParams() throws Exception {
+        mockMvc.perform(put("/auth/password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"oldPassword\":\"Old#Pass1\",\"newPassword\":\"New#Pass2026\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(ErrorCode.SUCCESS.getCode()));
+
+        verify(passwordAppService).changeOwnPassword(
+                new ChangeOwnPasswordCommand("Old#Pass1", "New#Pass2026"));
+
+        AuditLog auditLog = AuthController.class
+                .getMethod("changePassword", ChangeOwnPasswordRequest.class)
+                .getAnnotation(AuditLog.class);
+        assertThat(auditLog).as("/auth/password 缺少 @AuditLog").isNotNull();
+        assertThat(auditLog.recordParams()).isFalse();
     }
 }

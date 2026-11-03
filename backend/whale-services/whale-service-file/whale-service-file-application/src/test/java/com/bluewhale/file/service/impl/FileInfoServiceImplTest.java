@@ -20,6 +20,7 @@ import com.bluewhale.file.dto.ChunkUploadInitRequest;
 import com.bluewhale.file.dto.FileQueryRequest;
 import com.bluewhale.file.dto.FileRapidUploadRequest;
 import com.bluewhale.file.service.model.UploadContent;
+import com.bluewhale.file.service.model.UploadLimits;
 import com.bluewhale.file.vo.ChunkUploadInitVO;
 import com.bluewhale.file.vo.FileChangeVO;
 import com.bluewhale.file.vo.FileInfoVO;
@@ -557,6 +558,79 @@ class FileInfoServiceImplTest {
     }
 
     @Test
+    @DisplayName("upload：按权限码策略放开的 2GB / 8GB 上限可上传超过全局默认上限的文件")
+    void shouldUploadWithPolicyLimits() throws IOException {
+        fileProperties.setMaxSizeBytes(10L);
+        fileProperties.setQuotaBytes(10L);
+        UploadContent file = uploadContent(new byte[100], "movie.mp4");
+
+        FileUploadVO vo = fileInfoService.upload(file, null, UPLOADER_ID,
+                new UploadLimits(2147483648L, 8589934592L));
+
+        assertEquals(100L, vo.getFileSize());
+        ArgumentCaptor<FileAsset> captor = ArgumentCaptor.forClass(FileAsset.class);
+        verify(fileAssetRepository).saveWithQuotaCheck(captor.capture(), eq(8589934592L));
+        assertEquals("movie.mp4", captor.getValue().getOriginalName());
+    }
+
+    @Test
+    @DisplayName("quota：按生效策略返回 8GB 配额与剩余量")
+    void shouldReturnPolicyQuota() {
+        when(fileAssetRepository.sumNormalSizeByUploader(UPLOADER_ID)).thenReturn(123L);
+
+        FileQuotaVO vo = fileInfoService.quota(UPLOADER_ID, new UploadLimits(2147483648L, 8589934592L));
+
+        assertEquals(8589934592L, vo.getQuotaBytes());
+        assertEquals(123L, vo.getUsedBytes());
+        assertEquals(8589934592L - 123L, vo.getRemainingBytes());
+        assertFalse(vo.isUnlimited());
+    }
+
+    @Test
+    @DisplayName("分片上传：持有视频策略可初始化 2GB 声明，未命中策略仍按默认 50MB 拒绝")
+    void shouldApplyPolicyOnChunkInit() {
+        ChunkUploadInitVO video = fileInfoService.initChunkUpload(
+                initRequest("movie.mp4", 2147483648L), new UploadLimits(2147483648L, 8589934592L));
+
+        assertNotNull(video.getUploadId());
+        ChunkUploadMetadata recorded = chunkUploadStore.metadata(ChunkUploadSessionId.of(video.getUploadId()));
+        assertEquals(2147483648L, recorded.maxSizeBytes());
+        assertEquals(8589934592L, recorded.quotaBytes());
+        assertTrue(recorded.hasRecordedLimits());
+
+        BizException ex = assertThrows(BizException.class,
+                () -> fileInfoService.initChunkUpload(initRequest("movie.mp4", 2147483648L)));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        assertTrue(ex.getMessage().contains("超出上限"));
+    }
+
+    @Test
+    @DisplayName("分片上传：init 登记上限后，complete 即使持有更大权限也不能放大上限")
+    void shouldNotWidenLimitsBetweenInitAndComplete() throws IOException {
+        // init 在较小上限（100 字节）下登记会话，随后客户端上传 12 个分片
+        ChunkUploadInitVO initVo = fileInfoService.initChunkUpload(initRequest("video.bin", 40L),
+                new UploadLimits(100L, 1000L));
+        byte[] part = new byte[10];
+        for (int i = 0; i < 12; i++) {
+            fileInfoService.uploadChunkPart(initVo.getUploadId(), i, chunkPart(part));
+        }
+
+        // complete 以更大权限声明 120 字节：仍按 init 登记的 100 字节上限拒绝
+        ChunkUploadCompleteRequest complete = new ChunkUploadCompleteRequest();
+        complete.setUploadId(initVo.getUploadId());
+        complete.setFileName("video.bin");
+        complete.setSize(120L);
+        BizException ex = assertThrows(BizException.class, () -> fileInfoService.completeChunkUpload(
+                complete, UPLOADER_ID, new UploadLimits(2147483648L, 8589934592L)));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        assertTrue(ex.getMessage().contains("超出上限"));
+        verify(fileStorage, never()).store(any(), any(), any());
+        verify(fileAssetRepository, never()).saveWithQuotaCheck(any(FileAsset.class), anyLong());
+    }
+
+    @Test
     @DisplayName("quota：返回已用量与剩余量")
     void shouldReturnQuotaUsage() {
         when(fileAssetRepository.sumNormalSizeByUploader(UPLOADER_ID)).thenReturn(123L);
@@ -778,11 +852,18 @@ class FileInfoServiceImplTest {
         public void initialize(ChunkUploadSessionId sessionId, ChunkUploadMetadata metadata) {
             Session session = sessions.computeIfAbsent(sessionId.value(), key -> new Session());
             session.contentType = metadata.contentType();
+            session.metadata = metadata;
         }
 
         @Override
         public boolean exists(ChunkUploadSessionId sessionId) {
             return sessions.containsKey(sessionId.value());
+        }
+
+        @Override
+        public ChunkUploadMetadata metadata(ChunkUploadSessionId sessionId) {
+            Session session = sessions.get(sessionId.value());
+            return session == null ? null : session.metadata;
         }
 
         @Override
@@ -850,5 +931,8 @@ class FileInfoServiceImplTest {
 
         /** 会话登记的 MIME 类型 */
         private String contentType;
+
+        /** 会话登记的元数据（含初始化时生效的上传上限） */
+        private ChunkUploadMetadata metadata;
     }
 }

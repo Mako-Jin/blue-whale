@@ -20,6 +20,7 @@ import com.bluewhale.file.dto.FileQueryRequest;
 import com.bluewhale.file.dto.FileRapidUploadRequest;
 import com.bluewhale.file.service.FileInfoService;
 import com.bluewhale.file.service.model.UploadContent;
+import com.bluewhale.file.service.model.UploadLimits;
 import com.bluewhale.file.vo.ChunkUploadInitVO;
 import com.bluewhale.file.vo.FileChangeVO;
 import com.bluewhale.file.vo.FileInfoVO;
@@ -87,21 +88,33 @@ public class FileInfoServiceImpl implements FileInfoService {
 
     @Override
     public FileUploadVO upload(UploadContent content, String bucket, Long uploaderId) {
+        return upload(content, bucket, uploaderId, null);
+    }
+
+    @Override
+    public FileUploadVO upload(UploadContent content, String bucket, Long uploaderId, UploadLimits limits) {
         if (content == null || content.isEmpty()) {
             throw new BizException(ErrorCode.PARAM_ERROR);
         }
-        if (content.size() > fileProperties.getMaxSizeBytes()) {
+        UploadLimits effective = effectiveLimits(limits);
+        if (content.size() > effective.maxSizeBytes()) {
             throw new BizException(ErrorCode.PARAM_ERROR);
         }
-        validateQuota(content.size(), uploaderId);
+        validateQuota(content.size(), uploaderId, effective.quotaBytes());
         byte[] bytes = content.content();
         return persistFile(new ByteArrayInputStream(bytes), content.originalName(), content.contentType(),
-                bytes.length, DigestUtils.md5DigestAsHex(bytes), bucket, uploaderId);
+                bytes.length, DigestUtils.md5DigestAsHex(bytes), bucket, uploaderId, effective);
     }
 
     @Override
     public FileRapidUploadVO rapidUpload(FileRapidUploadRequest request, Long uploaderId) {
-        validateDeclaredSize(request.getSize());
+        return rapidUpload(request, uploaderId, null);
+    }
+
+    @Override
+    public FileRapidUploadVO rapidUpload(FileRapidUploadRequest request, Long uploaderId, UploadLimits limits) {
+        UploadLimits effective = effectiveLimits(limits);
+        validateDeclaredSize(request.getSize(), effective);
         String md5 = request.getMd5().toLowerCase(Locale.ROOT);
         FileRapidUploadVO vo = new FileRapidUploadVO();
         FileAsset existing = fileAssetRepository.findReusableByDigest(md5, request.getSize()).orElse(null);
@@ -109,10 +122,10 @@ public class FileInfoServiceImpl implements FileInfoService {
             vo.setHit(false);
             return vo;
         }
-        validateQuota(request.getSize(), uploaderId);
+        validateQuota(request.getSize(), uploaderId, effective.quotaBytes());
         FileAsset asset = FileAsset.reuse(existing, resolveOriginalName(request.getFileName()),
                 request.getContentType(), uploaderId);
-        FileAsset saved = persistAsset(asset);
+        FileAsset saved = persistAsset(asset, effective);
         vo.setHit(true);
         vo.setFile(toUploadVo(saved));
         return vo;
@@ -120,8 +133,13 @@ public class FileInfoServiceImpl implements FileInfoService {
 
     @Override
     public FileQuotaVO quota(Long uploaderId) {
+        return quota(uploaderId, null);
+    }
+
+    @Override
+    public FileQuotaVO quota(Long uploaderId, UploadLimits limits) {
         FileQuotaVO vo = new FileQuotaVO();
-        long quota = fileProperties.getQuotaBytes();
+        long quota = effectiveLimits(limits).quotaBytes();
         vo.setQuotaBytes(quota);
         if (uploaderId == null || quota <= 0) {
             vo.setUsedBytes(0L);
@@ -223,14 +241,22 @@ public class FileInfoServiceImpl implements FileInfoService {
 
     @Override
     public ChunkUploadInitVO initChunkUpload(ChunkUploadInitRequest request) {
+        return initChunkUpload(request, null);
+    }
+
+    @Override
+    public ChunkUploadInitVO initChunkUpload(ChunkUploadInitRequest request, UploadLimits limits) {
         long size = request.getSize();
-        validateDeclaredSize(size);
+        UploadLimits effective = effectiveLimits(limits);
+        validateDeclaredSize(size, effective);
         ChunkUploadSessionId sessionId = StringUtils.hasText(request.getUploadId())
                 ? ChunkUploadSessionId.of(request.getUploadId())
                 : ChunkUploadSessionId.random();
-        // 同一会话重复 init 时保留既有分片，实现断点续传
+        // 同一会话重复 init 时保留既有分片，实现断点续传；生效上限随会话登记，
+        // 供 complete 阶段与当前上限取更严格者，防止两阶段绕过
         chunkUploadStore.initialize(sessionId,
-                new ChunkUploadMetadata(request.getFileName(), request.getContentType(), size));
+                new ChunkUploadMetadata(request.getFileName(), request.getContentType(), size,
+                        effective.maxSizeBytes(), effective.quotaBytes()));
         ChunkUploadInitVO vo = new ChunkUploadInitVO();
         vo.setUploadId(sessionId.value());
         vo.setChunkSize(resolveChunkSize());
@@ -258,10 +284,19 @@ public class FileInfoServiceImpl implements FileInfoService {
 
     @Override
     public FileUploadVO completeChunkUpload(ChunkUploadCompleteRequest request, Long uploaderId) {
+        return completeChunkUpload(request, uploaderId, null);
+    }
+
+    @Override
+    public FileUploadVO completeChunkUpload(ChunkUploadCompleteRequest request, Long uploaderId,
+                                            UploadLimits limits) {
         long size = request.getSize();
-        validateDeclaredSize(size);
-        validateQuota(size, uploaderId);
         ChunkUploadSessionId sessionId = requireSession(request.getUploadId());
+        // complete 阶段同时校验「init 登记的生效上限」与「当前请求的上限」，任一阶段权限被回收都失败
+        UploadLimits effective = UploadLimits.tighten(effectiveLimits(limits),
+                recordedLimits(chunkUploadStore.metadata(sessionId)));
+        validateDeclaredSize(size, effective);
+        validateQuota(size, uploaderId, effective.quotaBytes());
         int expectedCount = expectedChunkCount(size);
         List<Integer> uploaded = chunkUploadStore.uploadedPartIndexes(sessionId);
         List<Integer> missing = IntStream.range(0, expectedCount)
@@ -279,7 +314,7 @@ public class FileInfoServiceImpl implements FileInfoService {
                 throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "分片总大小与声明大小不一致");
             }
             FileUploadVO vo = persistFile(merged.content(), request.getFileName(), merged.contentType(),
-                    size, merged.md5(), request.getBucket(), uploaderId);
+                    size, merged.md5(), request.getBucket(), uploaderId, effective);
             // 仅在合并落存储成功后清理暂存数据；失败时保留分片供客户端续传/重试
             chunkUploadStore.discard(sessionId);
             return vo;
@@ -298,12 +333,14 @@ public class FileInfoServiceImpl implements FileInfoService {
      * @param md5 内容 MD5 摘要（十六进制小写）
      * @param bucket 目标桶名称；为空时取配置的默认桶
      * @param uploaderId 上传用户 ID；无登录态时可为 {@code null}
+     * @param limits 生效的上传上限与配额
      * @return 上传结果视图对象
      * @throws BizException 大小超限时抛出 {@code PARAM_ERROR}
      */
     private FileUploadVO persistFile(InputStream in, String originalName, String contentType,
-                                     long fileSize, String md5, String bucket, Long uploaderId) {
-        if (fileSize > fileProperties.getMaxSizeBytes()) {
+                                     long fileSize, String md5, String bucket, Long uploaderId,
+                                     UploadLimits limits) {
+        if (fileSize > limits.maxSizeBytes()) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "文件大小超出上限");
         }
         String name = resolveOriginalName(originalName);
@@ -313,7 +350,7 @@ public class FileInfoServiceImpl implements FileInfoService {
         fileStorage.store(resolvedBucket, objectKey, in);
         try {
             FileAsset asset = FileAsset.register(resolvedBucket, objectKey, name, fileSize, contentType, md5, uploaderId);
-            return toUploadVo(persistAsset(asset));
+            return toUploadVo(persistAsset(asset, limits));
         } catch (RuntimeException e) {
             // 落库失败（含配额超限）：补偿删除已写入的物理对象，避免产生孤儿文件
             deleteStoredQuietly(resolvedBucket, objectKey);
@@ -325,11 +362,12 @@ public class FileInfoServiceImpl implements FileInfoService {
      * 在个人配额内原子登记文件元数据（配额统计与写入处于同一临界区，避免并发穿透）
      *
      * @param asset 待登记的文件资产聚合根
+     * @param limits 生效的上传上限与配额
      * @return 回填主键后的文件资产聚合根
      * @throws BizException 超出配额时抛出 {@code PARAM_ERROR}
      */
-    private FileAsset persistAsset(FileAsset asset) {
-        return fileAssetRepository.saveWithQuotaCheck(asset, fileProperties.getQuotaBytes());
+    private FileAsset persistAsset(FileAsset asset, UploadLimits limits) {
+        return fileAssetRepository.saveWithQuotaCheck(asset, limits.quotaBytes());
     }
 
     /**
@@ -418,16 +456,42 @@ public class FileInfoServiceImpl implements FileInfoService {
     }
 
     /**
-     * 校验声明的文件大小：必须大于 0 且不超过配置上限
+     * 解析生效上传上限：调用方未传入（服务间调用等）时回落全局默认值
+     *
+     * @param limits 调用方按权限码解析出的上限，可为 {@code null}
+     * @return 生效上传上限，非 {@code null}
+     */
+    private UploadLimits effectiveLimits(UploadLimits limits) {
+        return limits == null
+                ? new UploadLimits(fileProperties.getMaxSizeBytes(), fileProperties.getQuotaBytes())
+                : limits;
+    }
+
+    /**
+     * 把分片会话中登记的生效上限转换为上传上限
+     *
+     * @param metadata 会话元数据，可为 {@code null}（会话刚创建或未登记上限）
+     * @return 会话上限；未登记时返回 {@code null}（表示不额外收紧）
+     */
+    private static UploadLimits recordedLimits(ChunkUploadMetadata metadata) {
+        if (metadata == null || !metadata.hasRecordedLimits()) {
+            return null;
+        }
+        return new UploadLimits(metadata.maxSizeBytes(), metadata.quotaBytes());
+    }
+
+    /**
+     * 校验声明的文件大小：必须大于 0 且不超过生效上限
      *
      * @param size 声明的文件字节数
+     * @param limits 生效的上传上限
      * @throws BizException 大小非法时抛出 {@code PARAM_ERROR}
      */
-    private void validateDeclaredSize(Long size) {
+    private static void validateDeclaredSize(Long size, UploadLimits limits) {
         if (size == null || size <= 0) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "文件大小必须大于 0");
         }
-        if (size > fileProperties.getMaxSizeBytes()) {
+        if (size > limits.maxSizeBytes()) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "文件大小超出上限");
         }
     }
@@ -440,10 +504,10 @@ public class FileInfoServiceImpl implements FileInfoService {
      *
      * @param incomingSize 本次拟写入的字节数
      * @param uploaderId 上传用户 ID；无登录态时为 {@code null}
+     * @param quota 生效的个人配额；{@code <=0} 表示不限
      * @throws BizException 超出个人存储配额时抛出 {@code PARAM_ERROR}
      */
-    private void validateQuota(long incomingSize, Long uploaderId) {
-        long quota = fileProperties.getQuotaBytes();
+    private void validateQuota(long incomingSize, Long uploaderId, long quota) {
         if (quota <= 0 || uploaderId == null) {
             return;
         }

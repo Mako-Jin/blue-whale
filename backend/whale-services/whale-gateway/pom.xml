@@ -58,6 +58,12 @@
             <artifactId>whale-security</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- REQ-SEC-020：配置 ENC(...) 密文解密（仅依赖 spring-boot + jasypt，不引入 Servlet 栈） -->
+        <dependency>
+            <groupId>com.bluewhale</groupId>
+            <artifactId>whale-config-crypto</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <!-- JWT（jjwt 0.12.x API，与 whale-auth 签发侧约定一致；版本由 whale-parent 统一管理，AUTH-02） -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>

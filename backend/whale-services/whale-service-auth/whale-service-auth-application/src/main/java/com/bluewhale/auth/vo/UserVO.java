@@ -24,6 +24,10 @@ public class UserVO implements Serializable {
     private String avatar;
     private Long deptId;
     private Integer status;
+    /** 是否强制首登改密（REQ-SEC-023） */
+    private Boolean mustChangePassword;
+    /** 最近一次改密时间（REQ-SEC-023：管理端据此判断口令年龄） */
+    private LocalDateTime passwordUpdatedTime;
     private LocalDateTime lastLoginTime;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
@@ -44,6 +48,8 @@ public class UserVO implements Serializable {
         vo.setAvatar(user.getAvatar());
         vo.setDeptId(user.getDeptId());
         vo.setStatus(user.getStatus());
+        vo.setMustChangePassword(user.isMustChangePassword());
+        vo.setPasswordUpdatedTime(user.getPasswordUpdatedTime());
         vo.setLastLoginTime(user.getLastLoginTime());
         vo.setCreateTime(user.getCreateTime());
         vo.setUpdateTime(user.getUpdateTime());

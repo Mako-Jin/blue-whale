@@ -25,6 +25,18 @@ spring:
       max-lifetime: ${DB_POOL_MAX_LIFETIME_MS:1800000}
       keepalive-time: ${DB_POOL_KEEPALIVE_MS:120000}
       leak-detection-threshold: ${DB_POOL_LEAK_DETECTION_MS:60000}
+  # REQ-SEC-022：Flyway 数据库版本化管理（阶段 4 铺开）。仅扫描 classpath:db/migration；
+  # db/init.sql 与历史 migration-*.sql 属于手工/追溯脚本，不在扫描路径内。
+  flyway:
+    enabled: ${WHALE_FLYWAY_ENABLED:true}
+    locations: classpath:db/migration
+    table: flyway_schema_history
+    baseline-on-migrate: ${WHALE_FLYWAY_BASELINE_ON_MIGRATE:true}
+    baseline-version: 1
+    validate-on-migrate: true
+    clean-disabled: true
+    placeholder-replacement: false
+    connect-retries: 10
   servlet:
     multipart:
       # 与 whale.file.max-size-bytes（默认 50MB）对齐，超限由服务层校验抛参数错误
@@ -77,10 +89,30 @@ whale:
     bucket:
       # 默认桶名：upload 未显式指定 bucket 时使用
       default: ${WHALE_FILE_BUCKET_DEFAULT:bluewhale}
-    # 单文件最大字节数，默认 50MB；超限抛 BizException(PARAM_ERROR)
+    # 单文件最大字节数（全局默认），默认 50MB；未命中上传策略规则的请求按此上限校验
     max-size-bytes: ${WHALE_FILE_MAX_SIZE_BYTES:52428800}
+    # 单用户存储配额（全局默认），默认 1GB（1073741824）；0 表示不限
+    quota-bytes: ${WHALE_FILE_QUOTA_BYTES:1073741824}
     # 分片上传分片大小，默认 5MB
     chunk-size-bytes: ${WHALE_FILE_CHUNK_SIZE_BYTES:5242880}
+    # G1 大文件上传策略：按网关注入的 X-Permission-Codes 选择生效的单文件上限与配额，
+    # 未命中任何规则时回落上面的 max-size-bytes / quota-bytes 默认值（普通业务仍 50MB / 1GB）。
+    # 同一请求命中多条规则时取 max-size-bytes 最大的一条；quota-bytes 缺省表示沿用配额默认值，
+    # 0 表示不限。大文件请走分片上传（/file/upload/chunk/*），multipart 单请求上限保持不变。
+    upload-policy:
+      enabled: ${WHALE_FILE_UPLOAD_POLICY_ENABLED:true}
+      rules:
+        # 视频：2GB / 8GB（AUTH 视频权限 305–322 中的上传权限）
+        - permission: sys:video:upload
+          max-size-bytes: ${WHALE_FILE_UPLOAD_POLICY_VIDEO_MAX_SIZE_BYTES:2147483648}
+          quota-bytes: ${WHALE_FILE_UPLOAD_POLICY_VIDEO_QUOTA_BYTES:8589934592}
+        # 电影 / 运营入库：4GB / 不限配额
+        - permission: sys:video:movie:manage
+          max-size-bytes: ${WHALE_FILE_UPLOAD_POLICY_MOVIE_MAX_SIZE_BYTES:4294967296}
+          quota-bytes: ${WHALE_FILE_UPLOAD_POLICY_MOVIE_QUOTA_BYTES:0}
+        # 音乐：100MB，配额沿用全局默认
+        - permission: sys:music:upload
+          max-size-bytes: ${WHALE_FILE_UPLOAD_POLICY_MUSIC_MAX_SIZE_BYTES:104857600}
 
 mybatis-plus:
   configuration:
