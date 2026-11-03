@@ -196,6 +196,20 @@
 - [x] 轨 E 验证与文档：新增 `ToolCallingAgentTest` 6 项 + `OpenAiClientToolTest` 3 项，模块 **38 项测试全绿**；配置项 `whale.agent.qa.agentic-enabled` / `max-tool-steps` 写入 [ops/agent-index-ops.md](../ops/agent-index-ops.md)；实机需模型 Key，暂不做无 Key 实跑
 - [x] 轨 F 实机验收（2026-10-23：本地 Ollama `qwen2.5:3b` 实机验收通过——多轮工具调用、SSE `tool` 事件、引用 S1..Sn 与事实来源；工具轨迹已在 `whale-agent` 工作台展示（`ToolTracePanel`，仅当轮可见））
 
+## Phase 8：城池场景与客户关系（规划，2026-11-03）
+
+> 执行计划：[2026-11-03-wave5.77-scene-and-crm.md](2026-11-03-wave5.77-scene-and-crm.md)
+> 结论：上传文档的模块地图中仅「城池场景导航」缺服务；CRM 缺位但受 REQ-ARCH-011 需求门禁约束。两服务已登记，**未编码**。
+
+- [ ] 8.1 文档治理与借鉴动作（DOC-01–DOC-10）
+- [ ] 8.2 `whale-scene` M0 设计定稿（ADR-002、设计稿、ER/API、权限 309–322、菜单 45–48）
+- [ ] 8.3 `whale-scene` M1 骨架（8097、`/scene/**`、`bluewhale_scene`、前端 8112）
+- [ ] 8.4 `whale-scene` M2 2D MVP（场景/节点/绑定/可见性/发布/3 个入口）
+- [ ] 8.5 `whale-scene` M3 3D 可选增强（需满足 F-09 解冻四条件）
+- [ ] 8.6 `whale-crm` 需求门禁评审（未通过前不编码）
+- [ ] 8.7 `whale-crm` M4 客户/联系人（9007、前端 8113）
+- [ ] 8.8 `whale-crm` M5 商机/漏斗/合同联动
+
 ---
 
 ## 里程碑顺序

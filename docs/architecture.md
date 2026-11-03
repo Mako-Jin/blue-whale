@@ -55,7 +55,7 @@
 
 > `ai/whale-ai`（Python / FastAPI，8092）为独立树，**不进 Maven reactor**，仅被 `whale-agent` 内网调用。
 
-### 服务全景（24 个：Java 23 + Python 1）
+### 服务全景（24 个已落地：Java 23 + Python 1；另 2 个规划）
 
 > 端口、库、网关路由与本机状态的**唯一权威清单**是 [service-catalog.md](service-catalog.md)；下表为架构视角摘要，两表由维护流程保持同步。
 
@@ -75,12 +75,14 @@
 | whale-message | 8094 | `/message` | bluewhale_message | **统一消息**：模板渲染、INAPP/EMAIL/SMS/IM 渠道路由、幂等与投递记录、失败重试、站内信收件箱 |
 | whale-doc | 8095 | `/doc`（含 `/doc/ws`） | bluewhale_doc | **在线文档/Wiki**：空间与页面树、TipTap 协作、版本/评论/附件/搜索/ACL/模板/审批/分享/归档、Agent 知识索引 |
 | whale-music | 8096 | `/music` | bluewhale_music | **音乐平台**（M0–M5 已落地，可上线）：歌手/专辑/歌曲/标签曲库、用户上传与版权协议、公开/自听可见性；播放票据与 Range 流式、歌单、发现、评论与审核、版权申诉、7 天榜；429 限流、指标与 Grafana 面板、备份演练已实测 |
+| whale-scene（**规划**） | 8097 | `/scene` | bluewhale_scene（规划） | **城池场景导航**：场景/区域/建筑/入口节点树、入口绑定、角色/部门/用户可见性、2D 优先导航与 3D 可选增强；低配/无 WebGL 降级 2D；不拥有业务数据（Wave 5.77，未编码） |
 | whale-erp | 9001 | `/erp` | bluewhale_erp | **ERP 业务应用**：物料主数据 + 供应商主数据（供应商准入/资质/绩效归 SRM，不属 CRM） |
 | whale-mes | 9002 | `/mes` | bluewhale_mes | **MES 制造执行** |
 | whale-pdm | 9003 | `/pdm` | bluewhale_pdm | **PDM 产品数据管理** |
 | whale-oa | 9004 | `/oa` | bluewhale_oa | **OA 协同办公** |
 | whale-pm | 9005 | `/pm` | bluewhale_pm | **项目管理**：项目空间/成员/状态流转、工作项、迭代看板、报表、站内通知 + 工作流审批（默认关闭） |
 | whale-contract | 9006 | `/contract` | bluewhale_contract | **合同管理**：起草/相对方/版本/审批/终止/归档；印章/PDF 盖章/数字签名（CA/TSA/P12 fail-closed）/三方签章（mock） |
+| whale-crm（**规划**） | 9007 | `/crm` | bluewhale_crm（规划） | **客户关系**：客户/联系人/商机/销售阶段/跟进/客户 360；供应商仍归 ERP/SRM，合同只引用 `crmCustomerId` 快照；需通过需求门禁（REQ-ARCH-011） |
 | whale-audit | 9101 | `/audit` | bluewhale_audit | **审计**：审计日志汇聚落库与查询（HTTP 转发 + RabbitMQ 可选 + 本地回退） |
 | whale-monitor | 9102 | `/monitor` | ——（只读聚合） | **监控聚合**：Nacos 实例只读列表/健康；采集存储归外部 Prometheus |
 | whale-alert | 9103 | `/alert` | bluewhale_alert | **告警**：Alertmanager webhook 接入、指纹去重、EMAIL/SMS/WEBHOOK 通道 |

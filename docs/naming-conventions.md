@@ -168,7 +168,7 @@ Maven 模块目录名 == artifactId == spring.application.name == Nacos 服务�
 ## 八、域词表与全量映射（速查表）
 
 > 「看名字就知道属于哪一部分」的落地依据：新增库/服务/包前先在此登记域词。
-> **端口 ↔ 服务 ↔ 组件 ↔ 库 ↔ 对外前缀**的详细清单（含第三方组件端口与偏差登记 C-01~C-07）见 [service-catalog.md](service-catalog.md)（REQ-ARCH-005）。
+> **端口 ↔ 服务 ↔ 组件 ↔ 库 ↔ 对外前缀**的详细清单（含第三方组件端口与偏差登记 C-01~C-08）见 [service-catalog.md](service-catalog.md)（REQ-ARCH-005）。
 
 | 分组 | 模块 / 服务 | Nacos 服务名 | 数据库 | Java 包根 | 端口 |
 |---|---|---|---|---|---|
@@ -188,6 +188,7 @@ Maven 模块目录名 == artifactId == spring.application.name == Nacos 服务�
 | services | whale-message | whale-message | `bluewhale_message` ✔ | `com.bluewhale.message` | 8094 |
 | services | **whale-doc**（Wave 5.74 M1 骨架） | `whale-doc` | `bluewhale_doc` | `com.bluewhale.doc` | 8095 |
 | services | **whale-music**（Wave 5.75 M1 已落地） | `whale-music` | `bluewhale_music`（DDL 就绪，待执行） | `com.bluewhale.music` | 8096 |
+| services | **whale-scene**（Wave 5.77 规划） | `whale-scene` | `bluewhale_scene`（规划） | `com.bluewhale.scene` | 8097 |
 | services | ~~whale-i18n~~（已删除，Wave 5.50 下沉 SDK） | — | 各服务库内自建 `sys_i18n_message` | — | — |
 | registry | ~~whale-config~~（**冻结**，F-05 结案：不部署/不路由） | — | 无 | `com.bluewhale.config` | 9201 |
 | ops | whale-audit | whale-audit | `bluewhale_audit` ✔ | `com.bluewhale.audit` | 9101 |
@@ -198,6 +199,7 @@ Maven 模块目录名 == artifactId == spring.application.name == Nacos 服务�
 | apps | whale-pdm | whale-pdm | `bluewhale_pdm`（规划） | `com.bluewhale.pdm` | 9003 |
 | apps | whale-oa | whale-oa | `bluewhale_oa`（规划） | `com.bluewhale.oa` | 9004 |
 | apps | whale-pm | whale-pm | `bluewhale_pm`（DDL 就绪，待建库） | `com.bluewhale.pm` | 9005 |
+| apps | **whale-crm**（需求门禁规划） | `whale-crm` | `bluewhale_crm`（规划） | `com.bluewhale.crm` | 9007 |
 | infra | Nacos 3.2.4 | — | **`bluewhale_nacos`**（本波次整改，原 `nacos`） | — | 8848 / 8849（9848 / 9849） |
 | infra | Redis / MySQL | — | 不建业务库 | — | 6379 / 3306 |
 
