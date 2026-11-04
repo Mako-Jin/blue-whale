@@ -70,17 +70,17 @@
 | 过程巡检 | IPQC 按频次巡检并记录 | ✅ M3（IPQC 任务 + 逐项录入 + 判定） | `quality`：巡检任务 + 检验结果 |
 | 不良品管理 | 记录、隔离、返工/返修/报废 | ✅ M3（FAILED 自动生成 NCR + 处置/返工闭环） | `quality`：`mes_qc_ncr` / `mes_qc_disposition` / `mes_qc_rework_order` |
 | SPC 统计 | 关键工序控制图，实时监控稳定性 | ✅ M3（Xbar-R 子组判定 + 命中留痕） | `quality`：`mes_qc_spc_sample` / `mes_qc_spc_rule` |
-| 质量追溯 | 正反向追溯：批次、人、设备、参数 | 🟡 M3（按批次/工单/工序定位；设备维度待 M4） | `quality` + `trace`：`mes_tr_trace_link` + 追溯查询接口 |
+| 质量追溯 | 正反向追溯：批次、人、设备、参数 | 🟡 M3（按批次/工单/工序定位；设备维度未纳入追溯链） | `quality` + `trace`：`mes_tr_trace_link` + 追溯查询接口 |
 
 ### 3.4 设备管理
 
 | 子模块 | 能力 | 现状 | 规划落点 |
 |---|---|---|---|
-| 设备台账 | 档案、参数、保养周期、维修历史 | ❌ | `equipment`：`mes_eq_equipment` |
-| 设备状态监控 | 运行/待机/故障，OEE 计算 | ❌ | `equipment`：`mes_eq_status_event` / `mes_eq_downtime` / `mes_eq_oee_snapshot` |
-| 保养计划 | 提醒、记录、验收 | ❌ | `equipment`：`mes_eq_maintenance_plan` / `mes_eq_maintenance_order` |
-| 维修管理 | 报修、派工、记录、停机统计 | ❌ | `equipment`：`mes_eq_repair_order` + 停机事件 |
-| 备件管理 | 关键备件库存、领用记录 | ❌ | `equipment`：`mes_eq_spare_part` / `mes_eq_spare_part_stock` / `mes_eq_spare_part_movement` |
+| 设备台账 | 档案、参数、保养周期、维修历史 | ✅ M4（编码生成/唯一、状态基线、启停、门禁） | `equipment`：`mes_eq_equipment` |
+| 设备状态监控 | 运行/待机/故障，OEE 计算 | ✅ M4（状态事件只追加、FAULT 自动开停机、OEE 按班次快照） | `equipment`：`mes_eq_status_event` / `mes_eq_downtime` / `mes_eq_oee_snapshot` |
+| 保养计划 | 提醒、记录、验收 | ✅ M4（计划到期 → 工单执行 → 验收回写周期） | `equipment`：`mes_eq_maintenance_plan` / `mes_eq_maintenance_order` |
+| 维修管理 | 报修、派工、记录、停机统计 | ✅ M4（报修 → 派工 → 维修 → 验证 → 关闭，回填停机时长） | `equipment`：`mes_eq_repair_order` + 停机事件 |
+| 备件管理 | 关键备件库存、领用记录 | ✅ M4（主档 + 分仓库存乐观锁 + 只追加流水） | `equipment`：`mes_eq_spare_part` / `mes_eq_spare_part_stock` / `mes_eq_spare_part_movement` |
 
 ### 3.5 物料与追溯
 
@@ -95,10 +95,10 @@
 
 | 子模块 | 能力 | 现状 | 规划落点 |
 |---|---|---|---|
-| 设备联网 | 对接 PLC、传感器、数控机床 | ❌ | `collect`：`mes_cl_device` / `mes_cl_collection_point`；首期网关推送，MES 不直连 PLC |
+| 设备联网 | 对接 PLC、传感器、数控机床 | ✅ M4（网关注册/心跳 + 采集点绑定设备与工序；MES 不直连 PLC） | `collect`：`mes_cl_device` / `mes_cl_collection_point` |
 | 人工报工终端 | 触摸屏/平板/扫码枪自助报工 | ❌ | `execution` + `masterdata`：工位/终端绑定 + 扫码报工 |
-| 数据看板 | 产量、节拍、不良率、OEE 大屏 | ❌ | `collect`：看板配置 + 只读聚合接口 |
-| 数据归档 | 采集数据存储、历史查询、趋势 | ❌ | `collect`：`mes_cl_metric_sample` + `mes_cl_archive_policy` |
+| 数据看板 | 产量、节拍、不良率、OEE 大屏 | ✅ M4（看板配置 + 按指标读取最新样本；推送通道留待后续） | `collect`：`mes_cl_board_config` + 只读聚合接口 |
+| 数据归档 | 采集数据存储、历史查询、趋势 | 🟡 M4（样本幂等入库 + 归档策略与候选计数；物理清理待分区方案） | `collect`：`mes_cl_metric_sample` + `mes_cl_archive_policy` |
 
 ### 3.7 人员与绩效
 
@@ -254,7 +254,7 @@
 
 > 表中为草案，实际 DDL 在对应里程碑定稿后随 Flyway 落地；**禁止修改 V1 基线**，已发布脚本不可再改。合计约 **65 张新增表 + 1 张存量表升级**，以里程碑实际为准。
 >
-> M0 已落地 15 张表（含 `mes_work_order` 升级）；M1 已落地 13 张表；M2 已落地 8 张 `mes_tr_*` 表；M3 已落地 10 张 `mes_qc_*` 表，空库累计 **46 张表**（不含 `flyway_schema_history`）。M1 的 `mes_dp_schedule_plan`、`mes_dp_schedule_slot` 仅建表，排程服务与排程页面顺延 M1-B。
+> M0 已落地 15 张表（含 `mes_work_order` 升级）；M1 已落地 13 张表；M2 已落地 8 张 `mes_tr_*` 表；M3 已落地 10 张 `mes_qc_*` 表；M4 已落地 15 张 `mes_eq_*` / `mes_cl_*` 表，空库累计 **61 张表**（不含 `flyway_schema_history`）。M1 的 `mes_dp_schedule_plan`、`mes_dp_schedule_slot` 仅建表，排程服务与排程页面顺延 M1-B；M4 归档策略只做候选计数，物理清理顺延。
 
 ### 6.3 关键索引与数据量假设
 
@@ -278,8 +278,8 @@
 | 生产执行 | `/mes/execution/task/{id}/start`、`/pause`、`/resume`、`/complete`、`/scrap`；`/report`、`/material-issue`、`/material-return`、`/wip`、`/exception` | 报工追加式；修正走冲销/补录，不直接改历史 |
 | 物料追溯 | `/mes/trace/barcode`、`/batch`、`/line-side/stock`、`/line-side/replenish`、`/scan/validate`、`/trace/forward`、`/trace/backward` | 条码生成/打印返回打印载荷；打印硬件由现场集成 |
 | 车间质量 | `/mes/quality/inspection-plan`、`/inspection/task`、`/inspection/first-article/gate`、`/ncr`、`/disposition`、`/rework`、`/spc`、`/board` | M3 实现口径：首件与 IPQC 共用检验任务端点（按 `taskType` 区分）；首件未通过阻断批量释放；NCR 处置数量强校验 |
-| 设备 | `/mes/equipment`、`/status`、`/maintenance`、`/repair`、`/spare-part`、`/oee` | 状态事件只追加；OEE 按班次/设备快照 |
-| 数据采集 | `/mes/collect/device`、`/point`、`/sample`、`/board`、`/archive` | 看板只读；样本入口支持网关批量上报 |
+| 设备 | `/mes/equipment`、`/gate`、`/status`、`/maintenance/plan`、`/maintenance/order`、`/repair`、`/spare-part`、`/oee` | 状态事件只追加；门禁 `gate` 输出可开工判定；OEE 按班次/设备快照 upsert |
+| 数据采集 | `/mes/collect/device`、`/point`、`/sample`、`/board`、`/archive`；内部 `/mes/internal/collect/{pointCode}` | 看板只读拉取；样本入参按 `(tenant, point, sampledAt, seq)` 幂等；归档执行只更新候选计数 |
 | 人员绩效 | `/mes/workforce/team-member`、`/shift-assignment`、`/handover`、`/work-hour`、`/performance` | 绩效只读汇总为主；月度锁定动作显式 |
 | 兼容入口 | `/mes/work-order/**` | 存量 5 端点保留路径与响应信封，M0 起映射到新工单模型；前端同步迁移到 `/mes/dispatch/work-order` |
 | 内网 | `/mes/internal/work-order`、`/mes/internal/collect/{pointCode}` | 仅服务间；网关 `internal-deny` 403；ERP 下发与网关采集 |
@@ -410,10 +410,10 @@ com.bluewhale.mes
 | D8 | 条码标准与标签：Code128/QR、批次码/序列号、标签模板与打印机 | 条码与硬件集成 | 默认 Code128 + QR 双码；关键件序列号；打印由现场标签系统 |
 | D9 | 质量抽样标准：AQL/GB2828 还是固定频次？ | 检验计划模型 | 默认可配置抽样方案；不内置 AQL 判定 |
 | D10 | SPC 图型与控制规则：Xbar-R / P / C，Nelson / Western Electric？ | SPC 复杂度 | 默认 Xbar-R + 8 条规则可配置；P/C 图后续 |
-| D11 | 设备接入方式：边缘网关推送、直连 OPC UA/Modbus/S7？采集频率？ | 设备模块工期与网络 | 默认网关推送 REST/MQTT；MES 只读；直连作为可选插件 |
-| D12 | OEE 口径：可用率/性能/质量的公式、计划停机与换型是否计入？ | OEE 结果可信度 | 默认按班次计算；计划停机单列；公式可配置 |
+| D11 | 设备接入方式：边缘网关推送、直连 OPC UA/Modbus/S7？采集频率？ | 设备模块工期与网络 | 默认网关推送 REST/MQTT；MES 只读；直连作为可选插件（M4 已按此落定：内部采集端点 + 心跳） |
+| D12 | OEE 口径：可用率/性能/质量的公式、计划停机与换型是否计入？ | OEE 结果可信度 | 默认按班次计算；计划停机单列；公式可配置（M4 已按此落定：默认公式 + `formulaConfig` 覆盖） |
 | D13 | 实际工时口径：首件开工到最后完工，是否扣除暂停/换型？标准工时来源？ | 绩效与成本 | 默认扣除暂停；标准工时取工艺路线快照；月度锁定 |
-| D14 | 数据保留与看板刷新：样本热存/归档年限、看板刷新频率？ | 存储与性能 | 默认样本热存 90 天、归档 1 年；看板 5–10s |
+| D14 | 数据保留与看板刷新：样本热存/归档年限、看板刷新频率？ | 存储与性能 | 默认样本热存 90 天、归档 1 年；看板 5–10s（M4 已按此落定：归档策略可配置、只做候选计数） |
 | D15 | 内网调用鉴权：共享 Token、HMAC 还是 mTLS？ | ERP/网关集成安全 | 默认内网 Token + HMAC + 网关 `internal-deny`；生产按网络边界升级 |
 | D16 | 现场断网是否要求离线报工？ | 终端架构与冲突处理 | 默认在线 + 幂等重试；离线队列作为后续增强 |
 
@@ -427,3 +427,4 @@ com.bluewhale.mes
 | 2026-11-04 | v0.2 | M0/M1 落地回填：工序任务与异常状态机改为实现口径（`PLANNED/DISPATCHED/IN_PROGRESS/PAUSED/COMPLETED/SCRAPPED`、`OPEN→ACKNOWLEDGED→RESOLVED→CLOSED`）；表清单标注 M1 已落地 13 表（空库 28 表）与排程表仅建表；接口路径补充 `/mes/dispatch/task/page`、`/split`、`/dispatch` |
 | 2026-11-04 | v0.3 | M2 落地回填：物料与追溯四条子模块标记已落地；新增批次/条码/谱系/补货状态口径与“线边库存无状态、由流水汇总”的约束；表清单标注 V5 已落地 8 表（空库累计 36 表）；条码唯一、谱系无环、消耗量 ≤ 投入量、线边余额 ≥ 0 为实现不变量
 | 2026-11-04 | v0.4 | M3 落地回填：车间质量五个子模块标记已落地（质量追溯设备维度记遗留）；检验任务状态改为 `PENDING → INSPECTED → PASSED/FAILED`，新增处置/返工/SPC 样本状态口径；表清单标注 V6 已落地 10 表（空库累计 46 表）；检验项未完成不可判定、FAILED 必生成 NCR、处置数量 = 不良数量、SPC 命中留痕为实现不变量 |
+| 2026-11-04 | v0.5 | M4 落地回填：设备管理五个子模块与数据采集的联网/看板标为已落地（人工报工终端、物理归档记遗留）；表清单标注 V7 已落地 15 表（空库累计 61 表）；确认 OEE 默认公式、状态事件只追加、库存 ≥ 0 与样本 `(tenant, point, sampledAt, seq)` 幂等为实现不变量；接口补充设备门禁与内部采集端点 |

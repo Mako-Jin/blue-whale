@@ -31,7 +31,9 @@ class MesArchitectureTest {
             "com.bluewhale.mes.dispatch.controller..",
             "com.bluewhale.mes.execution.controller..",
             "com.bluewhale.mes.trace.controller..",
-            "com.bluewhale.mes.quality.controller.."
+            "com.bluewhale.mes.quality.controller..",
+            "com.bluewhale.mes.equipment.controller..",
+            "com.bluewhale.mes.collect.controller.."
     };
 
     /** 业务服务所在包（存量顶层 + M0/M1 新增上下文） */
@@ -42,7 +44,9 @@ class MesArchitectureTest {
             "com.bluewhale.mes.dispatch.service..",
             "com.bluewhale.mes.execution.service..",
             "com.bluewhale.mes.trace.service..",
-            "com.bluewhale.mes.quality.service.."
+            "com.bluewhale.mes.quality.service..",
+            "com.bluewhale.mes.equipment.service..",
+            "com.bluewhale.mes.collect.service.."
     };
 
     /** Mapper 所在包（存量顶层 + M0/M1 新增上下文） */
@@ -53,7 +57,9 @@ class MesArchitectureTest {
             "com.bluewhale.mes.dispatch.mapper..",
             "com.bluewhale.mes.execution.mapper..",
             "com.bluewhale.mes.trace.mapper..",
-            "com.bluewhale.mes.quality.mapper.."
+            "com.bluewhale.mes.quality.mapper..",
+            "com.bluewhale.mes.equipment.mapper..",
+            "com.bluewhale.mes.collect.mapper.."
     };
 
     /** 实体所在包（存量顶层 + M0/M1 新增上下文） */
@@ -64,7 +70,9 @@ class MesArchitectureTest {
             "com.bluewhale.mes.dispatch.entity..",
             "com.bluewhale.mes.execution.entity..",
             "com.bluewhale.mes.trace.entity..",
-            "com.bluewhale.mes.quality.entity.."
+            "com.bluewhale.mes.quality.entity..",
+            "com.bluewhale.mes.equipment.entity..",
+            "com.bluewhale.mes.collect.entity.."
     };
 
     /** 出入参模型所在包（存量顶层 + M0/M1 新增上下文） */
@@ -80,7 +88,11 @@ class MesArchitectureTest {
             "com.bluewhale.mes.trace.dto..",
             "com.bluewhale.mes.trace.vo..",
             "com.bluewhale.mes.quality.dto..",
-            "com.bluewhale.mes.quality.vo.."
+            "com.bluewhale.mes.quality.vo..",
+            "com.bluewhale.mes.equipment.dto..",
+            "com.bluewhale.mes.equipment.vo..",
+            "com.bluewhale.mes.collect.dto..",
+            "com.bluewhale.mes.collect.vo.."
     };
 
     /** 控制器不得直接依赖实体（装配一律经 converter/service 层完成） */
@@ -116,6 +128,16 @@ class MesArchitectureTest {
             .should().dependOnClassesThat().resideInAnyPackage(CONTROLLER_PACKAGES)
             .orShould().dependOnClassesThat().resideInAnyPackage(SERVICE_PACKAGES)
             .orShould().dependOnClassesThat().resideInAnyPackage(MAPPER_PACKAGES);
+
+    /** 设备与采集上下文不得反向依赖存量顶层 controller/service/mapper/entity（上下文边界） */
+    @ArchTest
+    static final ArchRule equipment_collect_must_not_depend_on_legacy_layers = noClasses()
+            .that().resideInAnyPackage("com.bluewhale.mes.equipment..", "com.bluewhale.mes.collect..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.bluewhale.mes.controller..",
+                    "com.bluewhale.mes.service..",
+                    "com.bluewhale.mes.mapper..",
+                    "com.bluewhale.mes.entity..");
 
     /** 车间主数据上下文不得反向依赖存量顶层 controller/service（上下文边界） */
     @ArchTest

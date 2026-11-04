@@ -173,7 +173,7 @@ class MesFlywayMigrationScriptTest {
         for (Path script : migrationScripts()) {
             total += extractTables(script).size();
         }
-        assertEquals(46, total, "空库累计应为 46 张业务表（V1 2 + V2 12 + V3 1 + V4 13 + V5 8 + V6 10）");
+        assertEquals(61, total, "空库累计应为 61 张业务表（V1 2 + V2 12 + V3 1 + V4 13 + V5 8 + V6 10 + V7 15）");
     }
 
     /**
@@ -198,6 +198,36 @@ class MesFlywayMigrationScriptTest {
                 "mes_qc_spc_sample",
                 "mes_qc_spc_rule")) {
             assertTrue(qualityTables.contains(table), "V6 必须包含表：" + table);
+        }
+    }
+
+    /**
+     * V7 建表集合：设备与数据采集 15 张表齐备
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("M4 设备与数据采集表齐备")
+    void equipmentCollectTablesShouldBePresent() throws IOException {
+        Set<String> tables = extractTables(MIGRATION_DIR.resolve("V7__mes_equipment_collect.sql"));
+        assertEquals(15, tables.size(), "V7 应创建 15 张表");
+        for (String table : List.of(
+                "mes_eq_equipment",
+                "mes_eq_status_event",
+                "mes_eq_downtime",
+                "mes_eq_maintenance_plan",
+                "mes_eq_maintenance_order",
+                "mes_eq_repair_order",
+                "mes_eq_spare_part",
+                "mes_eq_spare_part_stock",
+                "mes_eq_spare_part_movement",
+                "mes_eq_oee_snapshot",
+                "mes_cl_device",
+                "mes_cl_collection_point",
+                "mes_cl_metric_sample",
+                "mes_cl_board_config",
+                "mes_cl_archive_policy")) {
+            assertTrue(tables.contains(table), "V7 必须包含表：" + table);
         }
     }
 

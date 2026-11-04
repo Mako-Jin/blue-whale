@@ -1,4 +1,4 @@
-// MES 子应用根组件：左侧菜单 + 路由，工作台包含工单 / 派工 / 执行 / 看板 / 主数据 / 追溯 / 质量
+// MES 子应用根组件：左侧菜单 + 路由，工作台包含工单 / 派工 / 执行 / 看板 / 主数据 / 追溯 / 质量 / 设备 / 采集
 import { useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { Layout, Menu } from 'antd';
@@ -10,12 +10,14 @@ import ExecutionPage from './pages/ExecutionPage';
 import BoardPage from './pages/BoardPage';
 import TracePage from './pages/TracePage';
 import QualityPage from './pages/QualityPage';
+import EquipmentPage from './pages/EquipmentPage';
+import CollectPage from './pages/CollectPage';
 import FormModal from './pages/Form';
 import type { MesWorkOrder } from './api/mes';
 
 const { Header, Content, Sider } = Layout;
 
-/** 菜单项：生产工单 / 调度派工 / 生产执行 / 生产看板 / 基础主数据 / 物料追溯 / 线边仓 / 车间质量 */
+/** 菜单项：生产工单 / 调度派工 / 生产执行 / 生产看板 / 基础主数据 / 物料追溯 / 线边仓 / 车间质量 / 设备 / 采集 */
 const menuItems: MenuProps['items'] = [
   { key: '/work-order', label: '生产工单' },
   { key: '/dispatch', label: '调度派工' },
@@ -32,6 +34,17 @@ const menuItems: MenuProps['items'] = [
   { key: '/quality/rework', label: '返工管理' },
   { key: '/quality/spc', label: 'SPC 控制' },
   { key: '/quality/board', label: '质量看板' },
+  { key: '/equipment/ledger', label: '设备台账' },
+  { key: '/equipment/status', label: '状态与停机' },
+  { key: '/equipment/maintenance', label: '保养管理' },
+  { key: '/equipment/repair', label: '维修管理' },
+  { key: '/equipment/spare', label: '备件管理' },
+  { key: '/equipment/oee', label: 'OEE 分析' },
+  { key: '/collect/device', label: '采集设备' },
+  { key: '/collect/point', label: '采集点' },
+  { key: '/collect/sample', label: '样本明细' },
+  { key: '/collect/board', label: '采集看板' },
+  { key: '/collect/archive', label: '归档策略' },
 ];
 
 /** 菜单路由前缀（用于定位当前菜单） */
@@ -51,6 +64,17 @@ const MENU_KEYS = [
   '/quality/rework',
   '/quality/spc',
   '/quality/board',
+  '/equipment/ledger',
+  '/equipment/status',
+  '/equipment/maintenance',
+  '/equipment/repair',
+  '/equipment/spare',
+  '/equipment/oee',
+  '/collect/device',
+  '/collect/point',
+  '/collect/sample',
+  '/collect/board',
+  '/collect/archive',
 ];
 
 /** 应用外壳：菜单、内容区与工单表单弹窗 */
@@ -127,6 +151,19 @@ function MesShell() {
             <Route path="/quality/rework" element={<QualityPage initialTab="rework" />} />
             <Route path="/quality/spc" element={<QualityPage initialTab="spc" />} />
             <Route path="/quality/board" element={<QualityPage initialTab="board" />} />
+            <Route path="/equipment" element={<EquipmentPage initialTab="ledger" />} />
+            <Route path="/equipment/ledger" element={<EquipmentPage initialTab="ledger" />} />
+            <Route path="/equipment/status" element={<EquipmentPage initialTab="status" />} />
+            <Route path="/equipment/maintenance" element={<EquipmentPage initialTab="maintenance" />} />
+            <Route path="/equipment/repair" element={<EquipmentPage initialTab="repair" />} />
+            <Route path="/equipment/spare" element={<EquipmentPage initialTab="spare" />} />
+            <Route path="/equipment/oee" element={<EquipmentPage initialTab="oee" />} />
+            <Route path="/collect" element={<CollectPage initialTab="device" />} />
+            <Route path="/collect/device" element={<CollectPage initialTab="device" />} />
+            <Route path="/collect/point" element={<CollectPage initialTab="point" />} />
+            <Route path="/collect/sample" element={<CollectPage initialTab="sample" />} />
+            <Route path="/collect/board" element={<CollectPage initialTab="board" />} />
+            <Route path="/collect/archive" element={<CollectPage initialTab="archive" />} />
             <Route path="*" element={<Navigate to="/work-order" replace />} />
           </Routes>
         </Content>

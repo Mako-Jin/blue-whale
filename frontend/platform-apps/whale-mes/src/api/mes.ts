@@ -1284,3 +1284,748 @@ export function fetchMesQualityBoard(params: { boardDate?: string; lineId?: stri
   return http.get<MesQualityBoard>(`/mes/quality/board${queryString ? `?${queryString}` : ''}`);
 }
 
+/** 设备状态 */
+export type MesEquipmentStatus = 'RUNNING' | 'IDLE' | 'FAULT' | 'MAINTENANCE' | 'OFFLINE';
+
+/** 设备台账 */
+export interface MesEquipment {
+  id: string;
+  /** 设备编码 */
+  equipmentCode: string;
+  /** 设备名称 */
+  equipmentName: string;
+  /** 设备类型 */
+  equipmentType?: string;
+  /** 所属车间 */
+  workshopId?: string;
+  workshopCode?: string;
+  /** 所属产线 */
+  lineId?: string;
+  lineCode?: string;
+  /** 所属工作中心 */
+  workCenterId?: string;
+  workCenterCode?: string;
+  /** 工位编码 */
+  stationCode?: string;
+  /** 型号 */
+  modelNo?: string;
+  /** 制造商 */
+  manufacturer?: string;
+  /** 采购日期 */
+  purchaseDate?: string;
+  /** 保养周期（天） */
+  maintenanceCycleDays?: number;
+  /** 状态基线 */
+  statusBaseline?: string;
+  /** 当前状态 */
+  status: MesEquipmentStatus;
+  /** 是否启用：0 否 / 1 是 */
+  enabled: number;
+  /** 备注 */
+  remark?: string;
+  /** 创建时间 */
+  createTime?: string;
+}
+
+/** 设备台账新增/编辑入参 */
+export type MesEquipmentInput = Omit<MesEquipment, 'id' | 'status' | 'enabled' | 'createTime'> & {
+  id?: string;
+  status?: MesEquipmentStatus;
+  enabled?: number;
+};
+
+/** 设备台账查询条件 */
+export interface MesEquipmentQuery {
+  equipmentCode?: string;
+  equipmentName?: string;
+  equipmentType?: string;
+  lineId?: string;
+  status?: MesEquipmentStatus;
+  enabled?: number;
+  current?: number;
+  size?: number;
+}
+
+/** 设备状态事件 */
+export interface MesEquipmentStatusEvent {
+  id: string;
+  equipmentId: string;
+  equipmentCode: string;
+  fromStatus?: string;
+  toStatus: string;
+  eventType?: string;
+  occurredAt?: string;
+  durationSeconds?: number;
+  operator?: string;
+  remark?: string;
+}
+
+/** 设备状态变更入参 */
+export interface MesEquipmentStatusChangeInput {
+  toStatus: MesEquipmentStatus;
+  eventType?: string;
+  occurredAt?: string;
+  operator?: string;
+  reasonCode?: string;
+  reasonName?: string;
+  sourceEventId?: string;
+  remark?: string;
+}
+
+/** 停机记录 */
+export interface MesEquipmentDowntime {
+  downtimeNo: string;
+  equipmentId: string;
+  equipmentCode: string;
+  reasonCode?: string;
+  reasonName?: string;
+  /** 是否计划停机：0 否 / 1 是 */
+  plannedFlag: number;
+  startAt?: string;
+  endAt?: string;
+  durationMinutes?: number | string;
+  remark?: string;
+}
+
+/** 设备开工门禁结果 */
+export interface MesEquipmentGate {
+  equipmentCode: string;
+  status?: string;
+  passed: boolean;
+  message?: string;
+}
+
+/** 保养计划 */
+export interface MesMaintenancePlan {
+  id: string;
+  planNo: string;
+  equipmentId: string;
+  equipmentCode: string;
+  maintenanceType?: string;
+  cycleDays?: number;
+  /** 保养项，分号分隔 */
+  checklist?: string;
+  lastDoneAt?: string;
+  nextDueAt?: string;
+  status: string;
+  remark?: string;
+  createTime?: string;
+}
+
+/** 保养计划新增/编辑入参 */
+export type MesMaintenancePlanInput = Omit<MesMaintenancePlan, 'id' | 'planNo' | 'equipmentCode' | 'lastDoneAt' | 'nextDueAt' | 'createTime'> & {
+  id?: string;
+  planNo?: string;
+};
+
+/** 保养/维修查询条件 */
+export interface MesMaintenanceQuery {
+  docNo?: string;
+  equipmentId?: string;
+  equipmentCode?: string;
+  status?: string;
+  current?: number;
+  size?: number;
+}
+
+/** 保养工单 */
+export interface MesMaintenanceOrder {
+  id: string;
+  orderNo: string;
+  planId?: string;
+  planNo?: string;
+  equipmentId: string;
+  equipmentCode: string;
+  maintenanceType?: string;
+  checklist?: string;
+  dueAt?: string;
+  status: string;
+  assignee?: string;
+  startedAt?: string;
+  completedAt?: string;
+  completedBy?: string;
+  acceptedBy?: string;
+  acceptedAt?: string;
+  conclusion?: string;
+  checklistResult?: string;
+  remark?: string;
+  createTime?: string;
+}
+
+/** 保养工单创建入参 */
+export interface MesMaintenanceOrderInput {
+  planId?: string;
+  dueAt?: string;
+  assignee?: string;
+  remark?: string;
+}
+
+/** 维修工单 */
+export interface MesRepairOrder {
+  id: string;
+  repairNo: string;
+  equipmentId: string;
+  equipmentCode: string;
+  faultDesc?: string;
+  severity?: string;
+  status: string;
+  reportedBy?: string;
+  reportedAt?: string;
+  assignee?: string;
+  assignedAt?: string;
+  startedAt?: string;
+  repairDesc?: string;
+  verifiedBy?: string;
+  verifiedAt?: string;
+  closedAt?: string;
+  verifyConclusion?: string;
+  downtimeMinutes?: number | string;
+  remark?: string;
+  createTime?: string;
+}
+
+/** 维修报修入参 */
+export interface MesRepairInput {
+  equipmentId: string;
+  faultDesc: string;
+  severity?: string;
+  reportedBy?: string;
+  reportedAt?: string;
+  remark?: string;
+}
+
+/** 维修动作入参 */
+export interface MesRepairActionInput {
+  assignee?: string;
+  repairDesc?: string;
+  verifiedBy?: string;
+  verifyConclusion?: string;
+  operator?: string;
+  remark?: string;
+}
+
+/** 维修查询条件 */
+export interface MesRepairQuery {
+  repairNo?: string;
+  equipmentId?: string;
+  equipmentCode?: string;
+  status?: string;
+  severity?: string;
+  current?: number;
+  size?: number;
+}
+
+/** 备件主档 */
+export interface MesSparePart {
+  id: string;
+  partCode: string;
+  partName: string;
+  spec?: string;
+  uom?: string;
+  safetyStock?: number | string;
+  status: string;
+  remark?: string;
+  createTime?: string;
+}
+
+/** 备件主档入参 */
+export type MesSparePartInput = Omit<MesSparePart, 'id' | 'createTime'> & { id?: string };
+
+/** 备件查询条件 */
+export interface MesSparePartQuery {
+  partCode?: string;
+  partName?: string;
+  warehouseCode?: string;
+  status?: string;
+  current?: number;
+  size?: number;
+}
+
+/** 备件库存 */
+export interface MesSparePartStock {
+  id: string;
+  partId: string;
+  partCode: string;
+  warehouseCode: string;
+  quantity: number | string;
+  updateTime?: string;
+}
+
+/** 备件流水 */
+export interface MesSparePartMovement {
+  movementNo: string;
+  partCode: string;
+  warehouseCode: string;
+  movementType: string;
+  quantity: number | string;
+  beforeQuantity?: number | string;
+  afterQuantity?: number | string;
+  refNo?: string;
+  operator?: string;
+  remark?: string;
+  createTime?: string;
+}
+
+/** 备件出入库入参 */
+export interface MesSparePartStockInput {
+  partCode: string;
+  warehouseCode?: string;
+  quantity: number;
+  refNo?: string;
+  operator?: string;
+  remark?: string;
+}
+
+/** OEE 快照 */
+export interface MesOeeSnapshot {
+  id: string;
+  snapshotNo: string;
+  equipmentId: string;
+  equipmentCode: string;
+  shiftDate: string;
+  shiftCode: string;
+  plannedMinutes?: number | string;
+  plannedDowntimeMinutes?: number | string;
+  runMinutes?: number | string;
+  downtimeMinutes?: number | string;
+  totalCount?: number | string;
+  goodCount?: number | string;
+  idealCycleSeconds?: number | string;
+  availability?: number | string;
+  performance?: number | string;
+  quality?: number | string;
+  oee?: number | string;
+  formulaConfig?: string;
+  computedAt?: string;
+}
+
+/** OEE 计算入参 */
+export interface MesOeeInput {
+  equipmentId: string;
+  shiftDate: string;
+  shiftCode: string;
+  plannedMinutes: number;
+  plannedDowntimeMinutes?: number;
+  runMinutes: number;
+  downtimeMinutes?: number;
+  totalCount: number;
+  goodCount: number;
+  idealCycleSeconds: number;
+  formulaConfig?: string;
+  remark?: string;
+}
+
+/** OEE 查询条件 */
+export interface MesOeeQuery {
+  equipmentId?: string;
+  equipmentCode?: string;
+  shiftDate?: string;
+  shiftCode?: string;
+  current?: number;
+  size?: number;
+}
+
+/** 分页查询设备台账 */
+export function pageMesEquipments(query: MesEquipmentQuery = {}): Promise<PageResult<MesEquipment>> {
+  return http.get<PageResult<MesEquipment>>(
+    `/mes/equipment/page?${toQueryString({ current: 1, size: 200, ...query })}`,
+  );
+}
+
+/** 保存设备台账 */
+export function saveMesEquipment(input: MesEquipmentInput): Promise<MesEquipment> {
+  return http.post<MesEquipment>('/mes/equipment', input);
+}
+
+/** 设备开工门禁 */
+export function fetchMesEquipmentGate(equipmentCode: string): Promise<MesEquipmentGate> {
+  return http.get<MesEquipmentGate>(`/mes/equipment/gate?${toQueryString({ equipmentCode })}`);
+}
+
+/** 变更设备状态 */
+export function changeMesEquipmentStatus(
+  id: string,
+  input: MesEquipmentStatusChangeInput,
+): Promise<MesEquipmentStatusEvent> {
+  return http.post<MesEquipmentStatusEvent>(`/mes/equipment/${id}/status`, input);
+}
+
+/** 分页查询设备状态事件 */
+export function pageMesEquipmentStatusEvents(
+  query: { equipmentId?: string; current?: number; size?: number } = {},
+): Promise<PageResult<MesEquipmentStatusEvent>> {
+  return http.get<PageResult<MesEquipmentStatusEvent>>(
+    `/mes/equipment/status-event/page?${toQueryString({ current: 1, size: 200, ...query })}`,
+  );
+}
+
+/** 分页查询停机记录 */
+export function pageMesEquipmentDowntimes(
+  query: { equipmentId?: string; current?: number; size?: number } = {},
+): Promise<PageResult<MesEquipmentDowntime>> {
+  return http.get<PageResult<MesEquipmentDowntime>>(
+    `/mes/equipment/downtime/page?${toQueryString({ current: 1, size: 200, ...query })}`,
+  );
+}
+
+/** 保存保养计划 */
+export function saveMesMaintenancePlan(input: MesMaintenancePlanInput): Promise<MesMaintenancePlan> {
+  return http.post<MesMaintenancePlan>('/mes/equipment/maintenance/plan', input);
+}
+
+/** 分页查询保养计划 */
+export function pageMesMaintenancePlans(
+  query: MesMaintenanceQuery = {},
+): Promise<PageResult<MesMaintenancePlan>> {
+  return http.get<PageResult<MesMaintenancePlan>>(
+    `/mes/equipment/maintenance/plan/page?${toQueryString({ current: 1, size: 200, ...query })}`,
+  );
+}
+
+/** 生成保养工单 */
+export function createMesMaintenanceOrder(input: MesMaintenanceOrderInput): Promise<MesMaintenanceOrder> {
+  return http.post<MesMaintenanceOrder>('/mes/equipment/maintenance/order', input);
+}
+
+/** 分页查询保养工单 */
+export function pageMesMaintenanceOrders(
+  query: MesMaintenanceQuery = {},
+): Promise<PageResult<MesMaintenanceOrder>> {
+  return http.get<PageResult<MesMaintenanceOrder>>(
+    `/mes/equipment/maintenance/order/page?${toQueryString({ current: 1, size: 200, ...query })}`,
+  );
+}
+
+/** 开始保养 */
+export function startMesMaintenanceOrder(id: string, assignee?: string): Promise<MesMaintenanceOrder> {
+  return http.post<MesMaintenanceOrder>(`/mes/equipment/maintenance/order/${id}/start`, { assignee });
+}
+
+/** 保养完工 */
+export function completeMesMaintenanceOrder(
+  id: string,
+  input: { completedBy?: string; checklistResults: string[]; remark?: string },
+): Promise<MesMaintenanceOrder> {
+  return http.post<MesMaintenanceOrder>(`/mes/equipment/maintenance/order/${id}/complete`, input);
+}
+
+/** 保养验收 */
+export function acceptMesMaintenanceOrder(
+  id: string,
+  input: { acceptedBy?: string; conclusion: string },
+): Promise<MesMaintenanceOrder> {
+  return http.post<MesMaintenanceOrder>(`/mes/equipment/maintenance/order/${id}/accept`, input);
+}
+
+/** 创建维修工单 */
+export function createMesRepair(input: MesRepairInput): Promise<MesRepairOrder> {
+  return http.post<MesRepairOrder>('/mes/equipment/repair', input);
+}
+
+/** 分页查询维修工单 */
+export function pageMesRepairs(query: MesRepairQuery = {}): Promise<PageResult<MesRepairOrder>> {
+  return http.get<PageResult<MesRepairOrder>>(
+    `/mes/equipment/repair/page?${toQueryString({ current: 1, size: 200, ...query })}`,
+  );
+}
+
+/** 维修派工 */
+export function assignMesRepair(id: string, input: MesRepairActionInput): Promise<MesRepairOrder> {
+  return http.post<MesRepairOrder>(`/mes/equipment/repair/${id}/assign`, input);
+}
+
+/** 开始维修 */
+export function startMesRepair(id: string, input: MesRepairActionInput): Promise<MesRepairOrder> {
+  return http.post<MesRepairOrder>(`/mes/equipment/repair/${id}/start`, input);
+}
+
+/** 维修验证 */
+export function verifyMesRepair(id: string, input: MesRepairActionInput): Promise<MesRepairOrder> {
+  return http.post<MesRepairOrder>(`/mes/equipment/repair/${id}/verify`, input);
+}
+
+/** 关闭维修 */
+export function closeMesRepair(id: string, input: MesRepairActionInput): Promise<MesRepairOrder> {
+  return http.post<MesRepairOrder>(`/mes/equipment/repair/${id}/close`, input);
+}
+
+/** 保存备件主档 */
+export function saveMesSparePart(input: MesSparePartInput): Promise<MesSparePart> {
+  return http.post<MesSparePart>('/mes/equipment/spare-part', input);
+}
+
+/** 分页查询备件主档 */
+export function pageMesSpareParts(query: MesSparePartQuery = {}): Promise<PageResult<MesSparePart>> {
+  return http.get<PageResult<MesSparePart>>(
+    `/mes/equipment/spare-part/page?${toQueryString({ current: 1, size: 200, ...query })}`,
+  );
+}
+
+/** 分页查询备件库存 */
+export function pageMesSparePartStocks(query: MesSparePartQuery = {}): Promise<PageResult<MesSparePartStock>> {
+  return http.get<PageResult<MesSparePartStock>>(
+    `/mes/equipment/spare-part/stock/page?${toQueryString({ current: 1, size: 200, ...query })}`,
+  );
+}
+
+/** 分页查询备件流水 */
+export function pageMesSparePartMovements(
+  query: MesSparePartQuery = {},
+): Promise<PageResult<MesSparePartMovement>> {
+  return http.get<PageResult<MesSparePartMovement>>(
+    `/mes/equipment/spare-part/movement/page?${toQueryString({ current: 1, size: 200, ...query })}`,
+  );
+}
+
+/** 备件入库 */
+export function stockInMesSparePart(input: MesSparePartStockInput): Promise<MesSparePartMovement> {
+  return http.post<MesSparePartMovement>('/mes/equipment/spare-part/stock/in', input);
+}
+
+/** 备件领用 */
+export function stockOutMesSparePart(input: MesSparePartStockInput): Promise<MesSparePartMovement> {
+  return http.post<MesSparePartMovement>('/mes/equipment/spare-part/stock/out', input);
+}
+
+/** 计算 OEE 快照 */
+export function computeMesOee(input: MesOeeInput): Promise<MesOeeSnapshot> {
+  return http.post<MesOeeSnapshot>('/mes/equipment/oee/snapshot', input);
+}
+
+/** 分页查询 OEE 快照 */
+export function pageMesOee(query: MesOeeQuery = {}): Promise<PageResult<MesOeeSnapshot>> {
+  return http.get<PageResult<MesOeeSnapshot>>(`/mes/equipment/oee/page?${toQueryString({ current: 1, size: 200, ...query })}`);
+}
+
+/** 采集设备 */
+export interface MesCollectDevice {
+  id: string;
+  deviceCode: string;
+  deviceName: string;
+  deviceType?: string;
+  protocol?: string;
+  ipAddress?: string;
+  lineId?: string;
+  lineCode?: string;
+  status: string;
+  lastHeartbeatAt?: string;
+  remark?: string;
+  createTime?: string;
+}
+
+/** 采集设备入参 */
+export type MesCollectDeviceInput = Omit<MesCollectDevice, 'id' | 'lastHeartbeatAt' | 'createTime'> & {
+  id?: string;
+};
+
+/** 采集设备查询条件 */
+export interface MesCollectDeviceQuery {
+  deviceCode?: string;
+  deviceName?: string;
+  deviceType?: string;
+  status?: string;
+  current?: number;
+  size?: number;
+}
+
+/** 采集点 */
+export interface MesCollectPoint {
+  id: string;
+  pointCode: string;
+  pointName: string;
+  deviceId?: string;
+  deviceCode?: string;
+  equipmentId?: string;
+  equipmentCode?: string;
+  operationCode?: string;
+  metricType?: string;
+  unit?: string;
+  collectIntervalSeconds?: number;
+  enabled?: number;
+  remark?: string;
+  createTime?: string;
+}
+
+/** 采集点入参 */
+export type MesCollectPointInput = Omit<MesCollectPoint, 'id' | 'createTime'> & { id?: string };
+
+/** 采集点查询条件 */
+export interface MesCollectPointQuery {
+  pointCode?: string;
+  pointName?: string;
+  equipmentId?: string;
+  deviceId?: string;
+  enabled?: number;
+  current?: number;
+  size?: number;
+}
+
+/** 采集样本 */
+export interface MesMetricSample {
+  id: string;
+  pointId: string;
+  pointCode: string;
+  equipmentId?: string;
+  equipmentCode?: string;
+  metricValue: number | string;
+  unit?: string;
+  sampledAt?: string;
+  seq?: number;
+  payload?: string;
+}
+
+/** 采集样本查询条件 */
+export interface MesMetricSampleQuery {
+  pointId?: string;
+  pointCode?: string;
+  equipmentCode?: string;
+  startTime?: string;
+  endTime?: string;
+  current?: number;
+  size?: number;
+}
+
+/** 采集看板配置 */
+export interface MesCollectBoard {
+  id: string;
+  boardCode: string;
+  boardName: string;
+  lineId?: string;
+  lineCode?: string;
+  refreshSeconds?: number;
+  metricCodes?: string;
+  layout?: string;
+  status: string;
+  remark?: string;
+  createTime?: string;
+}
+
+/** 采集看板入参 */
+export type MesCollectBoardInput = Omit<MesCollectBoard, 'id' | 'createTime'> & { id?: string };
+
+/** 采集看板查询条件 */
+export interface MesCollectBoardQuery {
+  boardCode?: string;
+  boardName?: string;
+  lineId?: string;
+  status?: string;
+  current?: number;
+  size?: number;
+}
+
+/** 看板实时数据 */
+export interface MesCollectBoardData {
+  board: MesCollectBoard;
+  latestSamples: MesMetricSample[];
+  generatedAt?: string;
+}
+
+/** 归档策略 */
+export interface MesArchivePolicy {
+  id: string;
+  policyCode: string;
+  tableName: string;
+  retentionDays?: number;
+  archiveBatchSize?: number;
+  cronExpr?: string;
+  status: string;
+  lastRunAt?: string;
+  lastCandidateCount?: number;
+  remark?: string;
+  createTime?: string;
+}
+
+/** 归档策略入参 */
+export type MesArchivePolicyInput = Omit<MesArchivePolicy, 'id' | 'lastRunAt' | 'lastCandidateCount' | 'createTime'> & {
+  id?: string;
+};
+
+/** 归档策略查询条件 */
+export interface MesArchivePolicyQuery {
+  policyCode?: string;
+  tableName?: string;
+  status?: string;
+  current?: number;
+  size?: number;
+}
+
+/** 分页查询采集设备 */
+export function pageMesCollectDevices(
+  query: MesCollectDeviceQuery = {},
+): Promise<PageResult<MesCollectDevice>> {
+  return http.get<PageResult<MesCollectDevice>>(
+    `/mes/collect/device/page?${toQueryString({ current: 1, size: 200, ...query })}`,
+  );
+}
+
+/** 保存采集设备 */
+export function saveMesCollectDevice(input: MesCollectDeviceInput): Promise<MesCollectDevice> {
+  return http.post<MesCollectDevice>('/mes/collect/device', input);
+}
+
+/** 采集设备心跳 */
+export function heartbeatMesCollectDevice(deviceCode: string): Promise<MesCollectDevice> {
+  return http.post<MesCollectDevice>(`/mes/collect/device/${deviceCode}/heartbeat`, {});
+}
+
+/** 分页查询采集点 */
+export function pageMesCollectPoints(
+  query: MesCollectPointQuery = {},
+): Promise<PageResult<MesCollectPoint>> {
+  return http.get<PageResult<MesCollectPoint>>(
+    `/mes/collect/point/page?${toQueryString({ current: 1, size: 200, ...query })}`,
+  );
+}
+
+/** 保存采集点 */
+export function saveMesCollectPoint(input: MesCollectPointInput): Promise<MesCollectPoint> {
+  return http.post<MesCollectPoint>('/mes/collect/point', input);
+}
+
+/** 分页查询采集样本 */
+export function pageMesMetricSamples(
+  query: MesMetricSampleQuery = {},
+): Promise<PageResult<MesMetricSample>> {
+  return http.get<PageResult<MesMetricSample>>(
+    `/mes/collect/sample/page?${toQueryString({ current: 1, size: 200, ...query })}`,
+  );
+}
+
+/** 分页查询采集看板 */
+export function pageMesCollectBoards(
+  query: MesCollectBoardQuery = {},
+): Promise<PageResult<MesCollectBoard>> {
+  return http.get<PageResult<MesCollectBoard>>(
+    `/mes/collect/board/page?${toQueryString({ current: 1, size: 200, ...query })}`,
+  );
+}
+
+/** 保存采集看板 */
+export function saveMesCollectBoard(input: MesCollectBoardInput): Promise<MesCollectBoard> {
+  return http.post<MesCollectBoard>('/mes/collect/board', input);
+}
+
+/** 查询看板实时数据 */
+export function fetchMesCollectBoardData(boardCode: string): Promise<MesCollectBoardData> {
+  return http.get<MesCollectBoardData>(`/mes/collect/board/${boardCode}/data`);
+}
+
+/** 分页查询归档策略 */
+export function pageMesArchivePolicies(
+  query: MesArchivePolicyQuery = {},
+): Promise<PageResult<MesArchivePolicy>> {
+  return http.get<PageResult<MesArchivePolicy>>(
+    `/mes/collect/archive/page?${toQueryString({ current: 1, size: 200, ...query })}`,
+  );
+}
+
+/** 保存归档策略 */
+export function saveMesArchivePolicy(input: MesArchivePolicyInput): Promise<MesArchivePolicy> {
+  return http.post<MesArchivePolicy>('/mes/collect/archive', input);
+}
+
+/** 执行归档 */
+export function runMesArchivePolicy(id: string): Promise<MesArchivePolicy> {
+  return http.post<MesArchivePolicy>(`/mes/collect/archive/${id}/run`, {});
+}
+
