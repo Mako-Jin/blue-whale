@@ -66,7 +66,7 @@
 | 线索管理 | △ `crm_lead` / `crm_lead_activity` 已建，采集/查重/活动/转化/无效已实现；自动分配与回收未做 | 分配规则、自动回收、线索评分（后续增强） | CRM `sales` |
 | 商机管理 | △ `crm_opportunity` 补概率/来源/竞争/阶段时间/乐观锁，阶段机与阶段历史已实现；停留时长统计未做 | 停留时长、竞争态势分析 | CRM `sales` |
 | 销售漏斗 | △ 实时聚合已实现（数量/金额/环比转化率，LOST 单列）；停留时长与多维钻取未做 | 线索→接触→方案→谈判→赢单全链路分析、停留时长、按人/团队/来源/行业钻取 | CRM `sales` + `analytics` |
-| 报价管理 | ❌ | 报价单头/行、版本、折扣、税率、有效期、审批、锁定、转订单、历史 | CRM `sales`；审批走 workflow |
+| 报价管理 | △ `crm_quote` / `crm_quote_line` / `crm_quote_approval` 已建，头/行/版本/折扣审批/锁定/改价新版本已实现；转订单未做 | 转订单、报价历史与到期提醒 | CRM `commerce`；审批走 workflow |
 | 销售预测 | ❌ | 管道/最佳/承诺三类；按阶段概率加权；月度/季度快照；手工调整留痕 | CRM `sales` |
 | 销售目标 | ❌ | 个人/部门/月/季目标；完成率；口径可配置；目标调整审计 | CRM `sales` |
 
@@ -127,8 +127,8 @@
 | 上下文 | 包 | 聚合 | 对外能力 |
 |---|---|---|---|
 | `customer` | `com.bluewhale.crm.customer` | Customer、Contact、Address、CustomerProfile、PoolRule | 客户主数据、分级、查重、公海、跟进、360 |
-| `sales` | `com.bluewhale.crm.sales` | Lead、Opportunity、Quote、SalesTarget、ForecastSnapshot | 线索、商机、漏斗、报价、预测、目标 |
-| `commerce` | `com.bluewhale.crm.commerce` | ContractRef、SalesOrder、CollectionPlan、InvoiceRequest | 合同台账、订单下发、回款计划、开票申请 |
+| `sales` | `com.bluewhale.crm.sales` | Lead、Opportunity、SalesTarget、ForecastSnapshot | 线索、商机、漏斗、预测、目标 |
+| `commerce` | `com.bluewhale.crm.commerce` | Quote、ContractRef、SalesOrder、CollectionPlan、InvoiceRequest | 报价、合同台账、订单下发、回款计划、开票申请 |
 | `service` | `com.bluewhale.crm.service` | Ticket、SlaPolicy、KnowledgeRef、SatisfactionSurvey、ReturnRequest | 工单、SLA、知识引用、满意度、退换货 |
 | `marketing` | `com.bluewhale.crm.marketing` | Campaign、NurtureTask、MarketingSend、Partner | 活动、培育、批量触达、渠道 |
 | `analytics` | `com.bluewhale.crm.analytics` | MetricSnapshot、ActionPlan、ActionItem | 看板、分析、规则建议、导出 |
@@ -178,7 +178,7 @@
 | `CustomerProfile` | 画像为结构化版本，修改留痕；决策链角色不能指向已删除联系人 |
 | `Lead` | 一个线索只能转化一次；转化必须幂等；无效线索需原因；已转化线索只读 |
 | `Opportunity` | 阶段只能按状态机推进；`WON` 必须有金额和客户；`LOST` 必须填原因；赢单后金额不可改，只能通过合同/订单更正 |
-| `Quote` | 版本只追加；已审批报价不可改，改价必须新版本；行金额 = 单价 × 数量，汇总 = 行合计 + 税 − 折扣 |
+| `Quote` | 版本只追加；已审批报价不可改，改价必须新版本；行金额 = 单价 × 数量 ×（1 − 行折扣率），汇总 = 行合计 + 税 − 整单折扣；折扣率按折前未税金额计算 |
 | `SalesTarget` | 同一人/部门同一周期唯一；目标调整留痕；完成口径固定为签约合同额（可配置） |
 | `ContractRef` | 只读投影；`contractId` 唯一；合同金额/状态/到期日以合同服务为准；不允许 CRM 手工改合同状态 |
 | `SalesOrder` | 金额 > 0；至少一行；审批后不可改；下发 ERP 幂等；已发货不可取消，只能走退货/关闭 |
@@ -220,9 +220,9 @@ CONTACT → PROPOSAL → NEGOTIATION → WON
 （V2 将历史 LEAD 迁移为 CONTACT；线索是独立聚合）
 
 报价 Quote：
-DRAFT → APPROVING → APPROVED → CONVERTED / EXPIRED
-  └──────┴────────► REJECTED / WITHDRAWN
-已审批报价不可改；改价生成新版本。
+DRAFT → PENDING_APPROVAL → APPROVED / REJECTED
+APPROVED 只读；APPROVED / REJECTED 可改价生成新版本（version+1，root/parent 指向首版）。
+转订单（CONVERTED）与到期（EXPIRED）随 M3 商务订单增量补齐。
 
 销售订单 SalesOrder：
 DRAFT → APPROVING → APPROVED → PUSHING → PUSHED → PARTIALLY_SHIPPED → SHIPPED → CLOSED
@@ -287,11 +287,11 @@ DRAFT → SCHEDULED → RUNNING → FINISHED → ARCHIVED
 |---|---|---|
 | M0 | `V2__crm_foundation.sql` | `crm_common_outbox`、`crm_int_sync_log`、`crm_external_ref`、`crm_idempotency`；`ALTER crm_customer` 补 `short_name/website/scale/tax_no/province/city/region/normalized_name/normalized_domain/normalized_tax_no/version/pool_status/pool_at/last_follow_up_at`；`ALTER crm_contact` 补 `wechat/decision_role/is_decision_maker/normalized_phone/normalized_email/version`；`ALTER crm_follow_up` 补 `result/next_action`；补索引 |
 | M1 | `V3__customer_profile.sql` | `crm_customer_address`、`crm_customer_profile`、`crm_customer_merge_log`、`crm_customer_pool_rule`、`crm_customer_owner_log`、`crm_customer_import_task` |
-| M2 | `V4__sales_process.sql` | **已落**：`crm_lead`、`crm_lead_activity`、`crm_opportunity_stage_history`，`crm_opportunity` 补 `probability/source/competitor/next_action_at/stage_entered_at/version`；**待落**：`crm_quote`、`crm_quote_line`、`crm_quote_approval`、`crm_sales_target`、`crm_forecast_snapshot`（转化结果直接写 `crm_lead.customer_id/opportunity_id`，不再单建 `crm_lead_convert_log`） |
-| M3 | `V5__commerce.sql` | `crm_contract_ref`、`crm_sales_order`、`crm_sales_order_line`、`crm_order_push_log`、`crm_collection_plan`、`crm_collection_installment`、`crm_collection_record`、`crm_invoice_request`、`crm_invoice_item`、`crm_ar_snapshot` |
-| M4 | `V6__service.sql` | `crm_ticket`、`crm_ticket_action`、`crm_ticket_sla`、`crm_service_calendar`、`crm_kb_ref`、`crm_satisfaction_survey`、`crm_satisfaction_response`、`crm_return_request`、`crm_return_item` |
-| M5 | `V7__marketing.sql` | `crm_campaign`、`crm_campaign_channel`、`crm_campaign_member`、`crm_campaign_cost`、`crm_nurture_task`、`crm_nurture_log`、`crm_marketing_send`、`crm_unsubscribe`、`crm_partner`、`crm_partner_authorization`、`crm_deal_registration`、`crm_partner_achievement` |
-| M6 | `V8__analytics.sql` | `crm_metric_snapshot`、`crm_action_plan`、`crm_action_item`、`crm_export_task`、`crm_dashboard_config` |
+| M2 | `V4__sales_process.sql` + `V5__quote.sql` | **已落**：`crm_lead`、`crm_lead_activity`、`crm_opportunity_stage_history`、`crm_quote`、`crm_quote_line`、`crm_quote_approval`，`crm_opportunity` 补 `probability/source/competitor/next_action_at/stage_entered_at/version`；**待落**：`crm_sales_target`、`crm_forecast_snapshot`（转化结果直接写 `crm_lead.customer_id/opportunity_id`，不再单建 `crm_lead_convert_log`） |
+| M3 | `V6__commerce.sql` | `crm_contract_ref`、`crm_sales_order`、`crm_sales_order_line`、`crm_order_push_log`、`crm_collection_plan`、`crm_collection_installment`、`crm_collection_record`、`crm_invoice_request`、`crm_invoice_item`、`crm_ar_snapshot` |
+| M4 | `V7__service.sql` | `crm_ticket`、`crm_ticket_action`、`crm_ticket_sla`、`crm_service_calendar`、`crm_kb_ref`、`crm_satisfaction_survey`、`crm_satisfaction_response`、`crm_return_request`、`crm_return_item` |
+| M5 | `V8__marketing.sql` | `crm_campaign`、`crm_campaign_channel`、`crm_campaign_member`、`crm_campaign_cost`、`crm_nurture_task`、`crm_nurture_log`、`crm_marketing_send`、`crm_unsubscribe`、`crm_partner`、`crm_partner_authorization`、`crm_deal_registration`、`crm_partner_achievement` |
+| M6 | `V9__analytics.sql` | `crm_metric_snapshot`、`crm_action_plan`、`crm_action_item`、`crm_export_task`、`crm_dashboard_config` |
 
 > 合同模板、合同到期提醒、ERP 销售订单来源字段、ERP 客户映射属于跨服务增强，分别在 `whale-contract` 与 ERP 的后续迁移中落地，不在 CRM 库建表。
 
@@ -357,9 +357,10 @@ DRAFT → SCHEDULED → RUNNING → FINISHED → ARCHIVED
 | GET/POST/PUT | `/crm/opportunity/**` | 商机 CRUD |
 | PUT | `/crm/opportunity/{id}/stage` | 推进阶段 |
 | GET | `/crm/opportunity/funnel` | 漏斗实时视图 |
-| GET/POST/PUT | `/crm/quote/**` | 报价单与版本 |
-| POST | `/crm/quote/{id}/submit` | 提交审批 |
-| POST | `/crm/quote/{id}/convert` | 转订单 |
+| GET/POST/PUT | `/crm/quote/**` | 报价分页 / 详情 / 新建 / 编辑（已实现） |
+| POST | `/crm/quote/{id}/submit` | 提交审批（已实现） |
+| POST | `/crm/quote/{id}/revise` | 改价新版本（已实现） |
+| POST | `/crm/quote/{id}/convert` | 转订单（M3） |
 | GET/PUT | `/crm/sales-target/**` | 销售目标 |
 | GET | `/crm/forecast/**` | 预测与快照 |
 
@@ -580,3 +581,4 @@ com.bluewhale.crm
 |---|---|
 | 2026-11-04 | 初稿：基于用户《CRM 功能模块全景》建立 6 上下文、29 子模块差距矩阵、V2–V8 迁移草案、权限 1800–1899 / 菜单 410–449 / 角色 25128–25132 预留、D1–D12 开放问题；规划零代码 |
 | 2026-11-04 | M2 核心落地：线索 / 线索活动 / 转化 / 商机阶段机 / 阶段历史 / 漏斗；V4 新增三表并补商机七列；权限 1840–1849；报价、预测、目标仍为规划 |
+| 2026-11-04 | M2 报价增量：`commerce` 上下文落地报价头/行/审批三表（V5），状态机 `DRAFT→PENDING_APPROVAL→APPROVED/REJECTED`，折扣审批对接 workflow，审批后锁定与改价新版本；权限 1850–1854；预测、目标与转订单仍为规划 |

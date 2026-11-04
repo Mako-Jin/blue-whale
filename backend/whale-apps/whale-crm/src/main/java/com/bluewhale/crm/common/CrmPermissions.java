@@ -103,6 +103,21 @@ public final class CrmPermissions {
     /** 商机阶段流转 */
     public static final String OPPORTUNITY_STAGE = "sys:crm:opportunity:stage";
 
+    /** 查询报价 */
+    public static final String QUOTE_LIST = "sys:crm:quote:list";
+
+    /** 新建报价 */
+    public static final String QUOTE_CREATE = "sys:crm:quote:create";
+
+    /** 编辑报价 */
+    public static final String QUOTE_UPDATE = "sys:crm:quote:update";
+
+    /** 提交报价审批 */
+    public static final String QUOTE_SUBMIT = "sys:crm:quote:submit";
+
+    /** 报价改价新版本 */
+    public static final String QUOTE_REVISE = "sys:crm:quote:revise";
+
     /**
      * 私有构造器：常量类，禁止实例化。
      */

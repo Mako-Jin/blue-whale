@@ -107,6 +107,24 @@ public final class CrmErrorCode {
     /** 商机必须归属客户 */
     public static final int OPPORTUNITY_CUSTOMER_REQUIRED = 41030;
 
+    /** 报价不存在或无权访问 */
+    public static final int QUOTE_NOT_FOUND = 41031;
+
+    /** 报价状态不允许该操作 */
+    public static final int QUOTE_STATE_CONFLICT = 41032;
+
+    /** 报价至少需要一行明细 */
+    public static final int QUOTE_LINE_REQUIRED = 41033;
+
+    /** 报价金额或折扣非法 */
+    public static final int QUOTE_AMOUNT_INVALID = 41034;
+
+    /** 报价审批不可用（未启用或缺少流程定义） */
+    public static final int QUOTE_APPROVAL_UNAVAILABLE = 41035;
+
+    /** 报价审批状态非法 */
+    public static final int QUOTE_APPROVAL_STATE_CONFLICT = 41036;
+
     /** 错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(GATE_CLOSED, "需求门禁未通过，CRM 业务接口尚未开放"),
@@ -139,7 +157,13 @@ public final class CrmErrorCode {
             Map.entry(OPPORTUNITY_STAGE_CONFLICT, "商机阶段流转非法，请按 CONTACT → PROPOSAL → NEGOTIATION → WON 顺序推进"),
             Map.entry(OPPORTUNITY_AMOUNT_REQUIRED, "赢单商机必须填写金额"),
             Map.entry(OPPORTUNITY_LOST_REASON_REQUIRED, "输单商机必须填写原因"),
-            Map.entry(OPPORTUNITY_CUSTOMER_REQUIRED, "商机必须归属客户"));
+            Map.entry(OPPORTUNITY_CUSTOMER_REQUIRED, "商机必须归属客户"),
+            Map.entry(QUOTE_NOT_FOUND, "报价不存在或无权访问"),
+            Map.entry(QUOTE_STATE_CONFLICT, "报价当前状态不允许该操作"),
+            Map.entry(QUOTE_LINE_REQUIRED, "报价至少需要一行明细"),
+            Map.entry(QUOTE_AMOUNT_INVALID, "报价金额或折扣非法，请检查数量、单价与折扣"),
+            Map.entry(QUOTE_APPROVAL_UNAVAILABLE, "报价审批未启用或缺少流程定义，请联系管理员"),
+            Map.entry(QUOTE_APPROVAL_STATE_CONFLICT, "报价审批状态非法"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。

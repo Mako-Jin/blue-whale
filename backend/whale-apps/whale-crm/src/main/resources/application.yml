@@ -63,6 +63,13 @@ whale:
     pool-recycle-enabled: ${WHALE_CRM_POOL_RECYCLE_ENABLED:false}
     pool-recycle-cron: ${WHALE_CRM_POOL_RECYCLE_CRON:0 0 2 * * ?}
     pool-recycle-batch-size: ${WHALE_CRM_POOL_RECYCLE_BATCH_SIZE:200}
+    # 报价折扣审批（whale-workflow）：关闭或缺少 definition-id 时提交审批失败关闭
+    quote-approval:
+      enabled: ${WHALE_CRM_QUOTE_APPROVAL_ENABLED:true}
+      definition-id: ${WHALE_CRM_QUOTE_DEFINITION_ID:}
+      workflow-url: ${WHALE_WORKFLOW_URL:http://127.0.0.1:8083}
+      connect-timeout-millis: ${WHALE_CRM_QUOTE_APPROVAL_CONNECT_TIMEOUT:1000}
+      read-timeout-millis: ${WHALE_CRM_QUOTE_APPROVAL_READ_TIMEOUT:3000}
 
 mybatis-plus:
   configuration:

@@ -118,6 +118,20 @@ class CrmFlywayMigrationScriptTest {
         assertTrue(content.contains("UNIQUE KEY uk_crm_lead_no"), "线索编号租户内唯一");
     }
 
+    @Test
+    @DisplayName("V5 报价：新增报价头 / 行 / 审批三表，且不写种子数据")
+    void quoteShouldContainQuoteTables() throws IOException {
+        Set<String> tables = extractTables(MIGRATION_DIR.resolve("V5__quote.sql"));
+        assertEquals(Set.of("crm_quote", "crm_quote_line", "crm_quote_approval"), tables);
+        String content = Files.readString(MIGRATION_DIR.resolve("V5__quote.sql"), StandardCharsets.UTF_8);
+        assertFalse(content.toUpperCase().contains("INSERT INTO CRM_"),
+                "报价增量不得写入报价 / 报价行种子数据");
+        assertTrue(content.contains("UNIQUE KEY uk_crm_quote_no_version"),
+                "同编号多版本必须按租户 + 编号 + 版本唯一");
+        assertTrue(content.contains("UNIQUE KEY uk_crm_quote_approval_instance"),
+                "审批实例在租户内唯一");
+    }
+
     /**
      * 列出迁移脚本。
      *
