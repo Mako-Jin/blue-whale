@@ -420,3 +420,358 @@ export function fetchMesWip(workOrderId?: string): Promise<MesWip[]> {
   const queryString = toQueryString({ workOrderId });
   return http.get<MesWip[]>(`/mes/execution/wip${queryString ? `?${queryString}` : ''}`);
 }
+
+/** 条码规则 */
+export interface MesBarcodeRule {
+  id: string;
+  ruleCode: string;
+  ruleName: string;
+  prefix: string;
+  codeType: 'CODE128' | 'QR';
+  serialLength: number;
+  status: 'ENABLED' | 'DISABLED';
+  remark?: string;
+}
+
+/** 条码规则保存入参 */
+export type MesBarcodeRuleInput = Omit<MesBarcodeRule, 'id'> & { id?: string };
+
+/** 物料条码 */
+export interface MesBarcode {
+  id: string;
+  barcodeValue: string;
+  codeType?: 'CODE128' | 'QR';
+  batchId: string;
+  batchNo: string;
+  itemCode: string;
+  objectType: string;
+  status: 'ACTIVE' | 'VOID';
+  printPayload?: string;
+  lastScanTime?: string;
+  scanCount?: number;
+  createTime?: string;
+}
+
+/** 条码查询条件 */
+export interface MesBarcodeQuery {
+  barcodeValue?: string;
+  batchNo?: string;
+  itemCode?: string;
+  status?: 'ACTIVE' | 'VOID';
+  current?: number;
+  size?: number;
+}
+
+/** 物料批次 */
+export interface MesBatch {
+  id: string;
+  batchNo: string;
+  itemCode: string;
+  itemName?: string;
+  batchType: 'RAW' | 'SEMI' | 'FINISHED';
+  sourceType: 'PURCHASE' | 'PRODUCTION' | 'RETURN';
+  workOrderId?: string;
+  workOrderCode?: string;
+  supplierCode?: string;
+  quantity?: number | string;
+  consumedQuantity?: number | string;
+  remainingQuantity?: number | string;
+  uom?: string;
+  productionDate?: string;
+  expiryDate?: string;
+  status: 'ACTIVE' | 'CLOSED';
+  remark?: string;
+  createTime?: string;
+}
+
+/** 批次建档入参 */
+export interface MesBatchInput {
+  batchNo?: string;
+  itemCode: string;
+  itemName?: string;
+  batchType?: 'RAW' | 'SEMI' | 'FINISHED';
+  sourceType?: 'PURCHASE' | 'PRODUCTION' | 'RETURN';
+  workOrderId?: string;
+  workOrderCode?: string;
+  supplierCode?: string;
+  quantity: number;
+  uom?: string;
+  productionDate?: string;
+  expiryDate?: string;
+  remark?: string;
+}
+
+/** 批次查询条件 */
+export interface MesBatchQuery {
+  batchNo?: string;
+  itemCode?: string;
+  batchType?: 'RAW' | 'SEMI' | 'FINISHED';
+  status?: 'ACTIVE' | 'CLOSED';
+  current?: number;
+  size?: number;
+}
+
+/** 追溯节点 */
+export interface MesTraceNode {
+  level: number;
+  batchId: string;
+  batchNo: string;
+  itemCode: string;
+  itemName?: string;
+  batchType?: string;
+  status?: string;
+  quantity?: number | string;
+  uom?: string;
+  relation: 'PARENT' | 'CHILD';
+}
+
+/** 扫码规则 */
+export interface MesScanRule {
+  id: string;
+  ruleCode: string;
+  ruleName: string;
+  stationCode?: string;
+  operationCode?: string;
+  expectedItemCode?: string;
+  action: 'BLOCK' | 'WARN';
+  status: 'ENABLED' | 'DISABLED';
+  remark?: string;
+}
+
+/** 扫码规则保存入参 */
+export type MesScanRuleInput = Omit<MesScanRule, 'id'> & { id?: string };
+
+/** 扫码校验结果 */
+export interface MesScanResult {
+  passed: boolean;
+  blocked: boolean;
+  duplicate: boolean;
+  message: string;
+  barcodeValue: string;
+  batchNo?: string;
+  itemCode?: string;
+  ruleCode?: string;
+}
+
+/** 线边库存 */
+export interface MesLineSideStock {
+  id: string;
+  lineId: string;
+  lineCode: string;
+  warehouseCode: string;
+  itemCode: string;
+  itemName?: string;
+  batchNo: string;
+  uom?: string;
+  quantity: number | string;
+  safetyQuantity: number | string;
+  belowSafety: boolean;
+  updateTime?: string;
+}
+
+/** 线边流水 */
+export interface MesLineSideMovement {
+  id: string;
+  movementNo: string;
+  lineId: string;
+  lineCode: string;
+  warehouseCode: string;
+  itemCode: string;
+  batchNo: string;
+  movementType: string;
+  direction: number;
+  quantity: number | string;
+  beforeQuantity: number | string;
+  afterQuantity: number | string;
+  operator?: string;
+  occurredAt?: string;
+}
+
+/** 线边出入库入参 */
+export interface MesLineSideOperationInput {
+  lineId: string;
+  lineCode: string;
+  warehouseCode: string;
+  itemCode: string;
+  itemName?: string;
+  batchNo?: string;
+  quantity: number;
+  uom?: string;
+  movementType?: 'INBOUND' | 'RETURN';
+  workOrderId?: string;
+  taskId?: string;
+  operator?: string;
+  remark?: string;
+}
+
+/** 叫料补货请求 */
+export interface MesReplenishment {
+  id: string;
+  requestNo: string;
+  lineId: string;
+  lineCode: string;
+  warehouseCode: string;
+  itemCode: string;
+  itemName?: string;
+  quantity: number | string;
+  uom?: string;
+  status: 'REQUESTED' | 'CONFIRMED' | 'CANCELLED';
+  reason?: string;
+  requestedBy?: string;
+  requestedAt?: string;
+  erpTransferNo?: string;
+  remark?: string;
+}
+
+/** 叫料补货入参 */
+export interface MesReplenishmentInput {
+  requestNo?: string;
+  lineId: string;
+  lineCode: string;
+  warehouseCode: string;
+  itemCode: string;
+  itemName?: string;
+  quantity: number;
+  uom?: string;
+  reason?: string;
+  requestedBy?: string;
+  remark?: string;
+}
+
+/** 分页查询条码规则 */
+export function pageMesBarcodeRules(
+  query: { ruleCode?: string; status?: string; current?: number; size?: number } = {},
+): Promise<PageResult<MesBarcodeRule>> {
+  const queryString = toQueryString({ current: 1, size: 100, ...query });
+  return http.get<PageResult<MesBarcodeRule>>(`/mes/trace/barcode/rule/page?${queryString}`);
+}
+
+/** 保存条码规则 */
+export function saveMesBarcodeRule(input: MesBarcodeRuleInput): Promise<MesBarcodeRule> {
+  return http.post<MesBarcodeRule>('/mes/trace/barcode/rule', input);
+}
+
+/** 分页查询条码 */
+export function pageMesBarcodes(query: MesBarcodeQuery = {}): Promise<PageResult<MesBarcode>> {
+  const queryString = toQueryString({ current: 1, size: 100, ...query });
+  return http.get<PageResult<MesBarcode>>(`/mes/trace/barcode/page?${queryString}`);
+}
+
+/** 批量生成条码 */
+export function generateMesBarcodes(input: {
+  ruleId: string;
+  batchId: string;
+  quantity: number;
+  remark?: string;
+}): Promise<MesBarcode[]> {
+  return http.post<MesBarcode[]>('/mes/trace/barcode/generate', input);
+}
+
+/** 作废条码 */
+export function voidMesBarcode(id: string): Promise<void> {
+  return http.post<void>(`/mes/trace/barcode/${id}/void`, {});
+}
+
+/** 分页查询批次 */
+export function pageMesBatches(query: MesBatchQuery = {}): Promise<PageResult<MesBatch>> {
+  const queryString = toQueryString({ current: 1, size: 100, ...query });
+  return http.get<PageResult<MesBatch>>(`/mes/trace/batch/page?${queryString}`);
+}
+
+/** 批次建档 */
+export function createMesBatch(input: MesBatchInput): Promise<MesBatch> {
+  return http.post<MesBatch>('/mes/trace/batch', input);
+}
+
+/** 封批 */
+export function closeMesBatch(id: string): Promise<MesBatch> {
+  return http.post<MesBatch>(`/mes/trace/batch/${id}/close`, {});
+}
+
+/** 建立批次谱系链接 */
+export function linkMesBatches(input: {
+  parentBatchNo: string;
+  childBatchNo: string;
+  quantity: number;
+  uom?: string;
+  workOrderId?: string;
+  remark?: string;
+}): Promise<string> {
+  return http.post<string>('/mes/trace/trace/link', input);
+}
+
+/** 追溯方向 */
+export type MesTraceDirection = 'forward' | 'backward';
+
+/** 正反向追溯 */
+export function fetchMesTrace(
+  direction: MesTraceDirection,
+  batchNo: string,
+  depth = 3,
+): Promise<MesTraceNode[]> {
+  const queryString = toQueryString({ batchNo, depth });
+  return http.get<MesTraceNode[]>(`/mes/trace/trace/${direction}?${queryString}`);
+}
+
+/** 扫码校验 */
+export function validateMesScan(input: {
+  barcodeValue: string;
+  stationCode?: string;
+  operationCode?: string;
+  scanNo?: string;
+  taskId?: string;
+}): Promise<MesScanResult> {
+  return http.post<MesScanResult>('/mes/trace/scan/validate', input);
+}
+
+/** 分页查询扫码规则 */
+export function pageMesScanRules(
+  query: { ruleCode?: string; stationCode?: string; status?: string; current?: number; size?: number } = {},
+): Promise<PageResult<MesScanRule>> {
+  const queryString = toQueryString({ current: 1, size: 100, ...query });
+  return http.get<PageResult<MesScanRule>>(`/mes/trace/scan/rule/page?${queryString}`);
+}
+
+/** 保存扫码规则 */
+export function saveMesScanRule(input: MesScanRuleInput): Promise<MesScanRule> {
+  return http.post<MesScanRule>('/mes/trace/scan/rule', input);
+}
+
+/** 分页查询线边库存 */
+export function pageMesLineSideStock(
+  query: { lineId?: string; warehouseCode?: string; itemCode?: string; batchNo?: string; current?: number; size?: number } = {},
+): Promise<PageResult<MesLineSideStock>> {
+  const queryString = toQueryString({ current: 1, size: 100, ...query });
+  return http.get<PageResult<MesLineSideStock>>(`/mes/trace/line-side/stock/page?${queryString}`);
+}
+
+/** 线边入库 / 退料退回 */
+export function inboundMesLineSide(input: MesLineSideOperationInput): Promise<string> {
+  return http.post<string>('/mes/trace/line-side/stock/inbound', input);
+}
+
+/** 线边领用 */
+export function issueMesLineSide(input: MesLineSideOperationInput): Promise<string> {
+  return http.post<string>('/mes/trace/line-side/stock/issue', input);
+}
+
+/** 分页查询线边流水 */
+export function pageMesLineSideMovements(
+  query: { lineId?: string; itemCode?: string; batchNo?: string; movementType?: string; current?: number; size?: number } = {},
+): Promise<PageResult<MesLineSideMovement>> {
+  const queryString = toQueryString({ current: 1, size: 100, ...query });
+  return http.get<PageResult<MesLineSideMovement>>(`/mes/trace/line-side/movement/page?${queryString}`);
+}
+
+/** 叫料补货请求 */
+export function requestMesReplenishment(input: MesReplenishmentInput): Promise<MesReplenishment> {
+  return http.post<MesReplenishment>('/mes/trace/line-side/replenish', input);
+}
+
+/** 分页查询补货请求 */
+export function pageMesReplenishments(
+  query: { lineId?: string; itemCode?: string; status?: string; current?: number; size?: number } = {},
+): Promise<PageResult<MesReplenishment>> {
+  const queryString = toQueryString({ current: 1, size: 100, ...query });
+  return http.get<PageResult<MesReplenishment>>(`/mes/trace/line-side/replenish/page?${queryString}`);
+}

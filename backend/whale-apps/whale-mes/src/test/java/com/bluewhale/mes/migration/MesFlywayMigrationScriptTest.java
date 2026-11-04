@@ -149,6 +149,34 @@ class MesFlywayMigrationScriptTest {
     }
 
     /**
+     * V5 建表集合：物料与追溯 8 张表齐备，空库累计 36 张业务表
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("M2 物料与追溯表齐备")
+    void traceTablesShouldBePresent() throws IOException {
+        Set<String> traceTables = extractTables(MIGRATION_DIR.resolve("V5__mes_trace.sql"));
+        assertEquals(8, traceTables.size(), "V5 应创建 8 张表");
+        for (String table : List.of(
+                "mes_tr_batch",
+                "mes_tr_barcode",
+                "mes_tr_barcode_rule",
+                "mes_tr_trace_link",
+                "mes_tr_line_side_stock",
+                "mes_tr_line_side_movement",
+                "mes_tr_scan_rule",
+                "mes_tr_replenishment")) {
+            assertTrue(traceTables.contains(table), "V5 必须包含表：" + table);
+        }
+        int total = 0;
+        for (Path script : migrationScripts()) {
+            total += extractTables(script).size();
+        }
+        assertEquals(36, total, "空库累计应为 36 张业务表（V1 2 + V2 12 + V3 1 + V4 13 + V5 8）");
+    }
+
+    /**
      * 列出迁移脚本并按文件名字典序返回
      *
      * @return 迁移脚本路径

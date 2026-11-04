@@ -86,10 +86,10 @@
 
 | 子模块 | 能力 | 现状 | 规划落点 |
 |---|---|---|---|
-| 条码/RFID | 条码打印、扫码识别、批次绑定 | ❌ | `trace`：`mes_tr_barcode` / `mes_tr_barcode_rule` |
-| 批次追溯 | 原材料→半成品→成品正反追溯 | ❌ | `trace`：`mes_tr_batch` / `mes_tr_trace_link` |
-| 物料防错 | 扫码校验，上错料报警 | ❌ | `trace`：`mes_tr_scan_rule` + 执行侧扫码校验 |
-| 线边仓管理 | 线边小仓、实时扣减、缺料叫料 | ❌ | `trace`：`mes_tr_line_side_stock` / `mes_tr_line_side_movement` / `mes_tr_replenishment` |
+| 条码/RFID | 条码打印、扫码识别、批次绑定 | ✅ M2（Code128/QR 规则生成 + 作废） | `trace`：`mes_tr_barcode` / `mes_tr_barcode_rule` |
+| 批次追溯 | 原材料→半成品→成品正反追溯 | ✅ M2（批次建档/封批 + 谱系建链 + 正反逐层追溯） | `trace`：`mes_tr_batch` / `mes_tr_trace_link` |
+| 物料防错 | 扫码校验，上错料报警 | ✅ M2（BLOCK 阻断 / WARN 告警 + 扫码幂等） | `trace`：`mes_tr_scan_rule` + 执行侧扫码校验 |
+| 线边仓管理 | 线边小仓、实时扣减、缺料叫料 | ✅ M2（线边出入库 + 流水 + 叫料幂等） | `trace`：`mes_tr_line_side_stock` / `mes_tr_line_side_movement` / `mes_tr_replenishment` |
 
 ### 3.6 数据采集
 
@@ -216,6 +216,10 @@
 | 保养工单 | `PLANNED → DUE → IN_PROGRESS → COMPLETED → ACCEPTED`；旁支 `OVERDUE` |
 | 维修工单 | `REPORTED → ASSIGNED → REPAIRING → VERIFIED → CLOSED` |
 | 线边库存 | 无状态字段；由追加流水汇总，余额 ≥ 0 |
+| 物料批次（M2） | `ACTIVE → CLOSED`；仅 `ACTIVE` 父批次可继续被消耗 |
+| 物料条码（M2） | `ACTIVE → VOID`；一码绑定一个批次，`VOID` 后扫码阻断 |
+| 谱系链接（M2） | `ACTIVE → REVERSED`；只追加建链，M2 仅开放 `ACTIVE` |
+| 补货请求（M2） | `REQUESTED → CONFIRMED / CANCELLED`；按 `request_no` 幂等 |
 
 ### 5.4 异常与错误码
 
@@ -247,7 +251,7 @@
 
 > 表中为草案，实际 DDL 在对应里程碑定稿后随 Flyway 落地；**禁止修改 V1 基线**，已发布脚本不可再改。合计约 **65 张新增表 + 1 张存量表升级**，以里程碑实际为准。
 >
-> M0 已落地 15 张表（含 `mes_work_order` 升级）；M1 已落地 13 张表，空库累计 **28 张表**（不含 `flyway_schema_history`）。M1 的 `mes_dp_schedule_plan`、`mes_dp_schedule_slot` 仅建表，排程服务与排程页面顺延 M1-B。
+> M0 已落地 15 张表（含 `mes_work_order` 升级）；M1 已落地 13 张表；M2 已落地 8 张 `mes_tr_*` 表，空库累计 **36 张表**（不含 `flyway_schema_history`）。M1 的 `mes_dp_schedule_plan`、`mes_dp_schedule_slot` 仅建表，排程服务与排程页面顺延 M1-B。
 
 ### 6.3 关键索引与数据量假设
 
@@ -418,3 +422,4 @@ com.bluewhale.mes
 |---|---|---|
 | 2026-11-04 | v0.1 | 首版：现状基线、七大模块差距矩阵、上下文与边界、聚合/状态机、表与接口规划、权限号段、非功能安全与 16 项开放问题 |
 | 2026-11-04 | v0.2 | M0/M1 落地回填：工序任务与异常状态机改为实现口径（`PLANNED/DISPATCHED/IN_PROGRESS/PAUSED/COMPLETED/SCRAPPED`、`OPEN→ACKNOWLEDGED→RESOLVED→CLOSED`）；表清单标注 M1 已落地 13 表（空库 28 表）与排程表仅建表；接口路径补充 `/mes/dispatch/task/page`、`/split`、`/dispatch` |
+| 2026-11-04 | v0.3 | M2 落地回填：物料与追溯四条子模块标记已落地；新增批次/条码/谱系/补货状态口径与“线边库存无状态、由流水汇总”的约束；表清单标注 V5 已落地 8 表（空库累计 36 表）；条码唯一、谱系无环、消耗量 ≤ 投入量、线边余额 ≥ 0 为实现不变量 |

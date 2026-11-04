@@ -29,7 +29,8 @@ class MesArchitectureTest {
             "com.bluewhale.mes.controller..",
             "com.bluewhale.mes.masterdata.controller..",
             "com.bluewhale.mes.dispatch.controller..",
-            "com.bluewhale.mes.execution.controller.."
+            "com.bluewhale.mes.execution.controller..",
+            "com.bluewhale.mes.trace.controller.."
     };
 
     /** 业务服务所在包（存量顶层 + M0/M1 新增上下文） */
@@ -38,7 +39,8 @@ class MesArchitectureTest {
             "com.bluewhale.mes.masterdata.service..",
             "com.bluewhale.mes.common.outbox.service..",
             "com.bluewhale.mes.dispatch.service..",
-            "com.bluewhale.mes.execution.service.."
+            "com.bluewhale.mes.execution.service..",
+            "com.bluewhale.mes.trace.service.."
     };
 
     /** Mapper 所在包（存量顶层 + M0/M1 新增上下文） */
@@ -47,7 +49,8 @@ class MesArchitectureTest {
             "com.bluewhale.mes.masterdata.mapper..",
             "com.bluewhale.mes.common.outbox.mapper..",
             "com.bluewhale.mes.dispatch.mapper..",
-            "com.bluewhale.mes.execution.mapper.."
+            "com.bluewhale.mes.execution.mapper..",
+            "com.bluewhale.mes.trace.mapper.."
     };
 
     /** 实体所在包（存量顶层 + M0/M1 新增上下文） */
@@ -56,7 +59,8 @@ class MesArchitectureTest {
             "com.bluewhale.mes.masterdata.entity..",
             "com.bluewhale.mes.common.outbox.entity..",
             "com.bluewhale.mes.dispatch.entity..",
-            "com.bluewhale.mes.execution.entity.."
+            "com.bluewhale.mes.execution.entity..",
+            "com.bluewhale.mes.trace.entity.."
     };
 
     /** 出入参模型所在包（存量顶层 + M0/M1 新增上下文） */
@@ -68,7 +72,9 @@ class MesArchitectureTest {
             "com.bluewhale.mes.dispatch.dto..",
             "com.bluewhale.mes.dispatch.vo..",
             "com.bluewhale.mes.execution.dto..",
-            "com.bluewhale.mes.execution.vo.."
+            "com.bluewhale.mes.execution.vo..",
+            "com.bluewhale.mes.trace.dto..",
+            "com.bluewhale.mes.trace.vo.."
     };
 
     /** 控制器不得直接依赖实体（装配一律经 converter/service 层完成） */
