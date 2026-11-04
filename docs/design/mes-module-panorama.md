@@ -207,9 +207,9 @@
 | 对象 | 状态 |
 |---|---|
 | 执行工单 | `RECEIVED → DISPATCHED → IN_PROGRESS → PAUSED → COMPLETED → CLOSED`；旁支 `CANCELLED`（仅完工前） |
-| 工序任务 | `PENDING → READY → IN_PROGRESS → PAUSED → COMPLETED → CLOSED`；旁支 `SCRAPPED` |
+| 工序任务 | `PLANNED → DISPATCHED → IN_PROGRESS ⇄ PAUSED → COMPLETED`；旁支 `SCRAPPED`（M1 实际口径，取代草案 `PENDING/READY/CLOSED`） |
 | 报工记录 | `SUBMITTED → CONFIRMED / REJECTED`；确认后只可追加冲销，不可改历史 |
-| 异常事件 | `OPEN → ACKNOWLEDGED → PROCESSING → RESOLVED → CLOSED`；旁支 `ESCALATED` |
+| 异常事件 | `OPEN → ACKNOWLEDGED → RESOLVED → CLOSED`（M1 最小集；`PROCESSING`/`ESCALATED` 留待 M2 起增强） |
 | 检验任务 | `PENDING → IN_PROGRESS → PASSED / FAILED → DISPOSED` |
 | 不良品 NCR | `OPEN → DISPOSITION → REWORK / REPAIR / SCRAP / CONCESSION → CLOSED` |
 | 设备状态 | `RUNNING / IDLE / FAULT / MAINTENANCE / OFFLINE`（事件流，不覆盖历史） |
@@ -246,6 +246,8 @@
 | M5 人员绩效与收口 | `V8__mes_workforce.sql` | `mes_wf_team_member`、`mes_wf_shift_assignment`、`mes_wf_handover`、`mes_wf_work_hour`、`mes_wf_performance_stat`、`mes_wf_skill_matrix` |
 
 > 表中为草案，实际 DDL 在对应里程碑定稿后随 Flyway 落地；**禁止修改 V1 基线**，已发布脚本不可再改。合计约 **65 张新增表 + 1 张存量表升级**，以里程碑实际为准。
+>
+> M0 已落地 15 张表（含 `mes_work_order` 升级）；M1 已落地 13 张表，空库累计 **28 张表**（不含 `flyway_schema_history`）。M1 的 `mes_dp_schedule_plan`、`mes_dp_schedule_slot` 仅建表，排程服务与排程页面顺延 M1-B。
 
 ### 6.3 关键索引与数据量假设
 
@@ -415,3 +417,4 @@ com.bluewhale.mes
 | 日期 | 版本 | 变更 |
 |---|---|---|
 | 2026-11-04 | v0.1 | 首版：现状基线、七大模块差距矩阵、上下文与边界、聚合/状态机、表与接口规划、权限号段、非功能安全与 16 项开放问题 |
+| 2026-11-04 | v0.2 | M0/M1 落地回填：工序任务与异常状态机改为实现口径（`PLANNED/DISPATCHED/IN_PROGRESS/PAUSED/COMPLETED/SCRAPPED`、`OPEN→ACKNOWLEDGED→RESOLVED→CLOSED`）；表清单标注 M1 已落地 13 表（空库 28 表）与排程表仅建表；接口路径补充 `/mes/dispatch/task/page`、`/split`、`/dispatch` |

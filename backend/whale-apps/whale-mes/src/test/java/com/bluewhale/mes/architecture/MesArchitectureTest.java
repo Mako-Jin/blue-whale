@@ -24,39 +24,51 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 @AnalyzeClasses(packages = "com.bluewhale.mes", importOptions = ImportOption.DoNotIncludeTests.class)
 class MesArchitectureTest {
 
-    /** 控制器所在包（存量顶层 + M0 新增上下文） */
+    /** 控制器所在包（存量顶层 + M0/M1 新增上下文） */
     private static final String[] CONTROLLER_PACKAGES = {
             "com.bluewhale.mes.controller..",
-            "com.bluewhale.mes.masterdata.controller.."
+            "com.bluewhale.mes.masterdata.controller..",
+            "com.bluewhale.mes.dispatch.controller..",
+            "com.bluewhale.mes.execution.controller.."
     };
 
-    /** 业务服务所在包（存量顶层 + M0 新增上下文） */
+    /** 业务服务所在包（存量顶层 + M0/M1 新增上下文） */
     private static final String[] SERVICE_PACKAGES = {
             "com.bluewhale.mes.service..",
             "com.bluewhale.mes.masterdata.service..",
-            "com.bluewhale.mes.common.outbox.service.."
+            "com.bluewhale.mes.common.outbox.service..",
+            "com.bluewhale.mes.dispatch.service..",
+            "com.bluewhale.mes.execution.service.."
     };
 
-    /** Mapper 所在包（存量顶层 + M0 新增上下文） */
+    /** Mapper 所在包（存量顶层 + M0/M1 新增上下文） */
     private static final String[] MAPPER_PACKAGES = {
             "com.bluewhale.mes.mapper..",
             "com.bluewhale.mes.masterdata.mapper..",
-            "com.bluewhale.mes.common.outbox.mapper.."
+            "com.bluewhale.mes.common.outbox.mapper..",
+            "com.bluewhale.mes.dispatch.mapper..",
+            "com.bluewhale.mes.execution.mapper.."
     };
 
-    /** 实体所在包（存量顶层 + M0 新增上下文） */
+    /** 实体所在包（存量顶层 + M0/M1 新增上下文） */
     private static final String[] ENTITY_PACKAGES = {
             "com.bluewhale.mes.entity..",
             "com.bluewhale.mes.masterdata.entity..",
-            "com.bluewhale.mes.common.outbox.entity.."
+            "com.bluewhale.mes.common.outbox.entity..",
+            "com.bluewhale.mes.dispatch.entity..",
+            "com.bluewhale.mes.execution.entity.."
     };
 
-    /** 出入参模型所在包（存量顶层 + M0 新增上下文） */
+    /** 出入参模型所在包（存量顶层 + M0/M1 新增上下文） */
     private static final String[] MODEL_PACKAGES = {
             "com.bluewhale.mes.dto..",
             "com.bluewhale.mes.vo..",
             "com.bluewhale.mes.masterdata.dto..",
-            "com.bluewhale.mes.masterdata.vo.."
+            "com.bluewhale.mes.masterdata.vo..",
+            "com.bluewhale.mes.dispatch.dto..",
+            "com.bluewhale.mes.dispatch.vo..",
+            "com.bluewhale.mes.execution.dto..",
+            "com.bluewhale.mes.execution.vo.."
     };
 
     /** 控制器不得直接依赖实体（装配一律经 converter/service 层完成） */

@@ -340,6 +340,8 @@ whale:
         - /crm/internal/**
         # Wave 5.80 图文档内网通道：文件引用/内部上传等仅服务间内网直连 whale-pdm
         - /pdm/internal/**
+        # Wave 5.79 MES 工单接收内网通道：仅 ERP 经内网直连 whale-mes
+        - /mes/internal/**
 
 management:
   endpoints:

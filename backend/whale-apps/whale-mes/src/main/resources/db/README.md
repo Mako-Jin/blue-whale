@@ -4,7 +4,7 @@
 
 | 路径 | 用途 | 执行方式 |
 |---|---|---|
-| `db/migration/` | **Flyway 版本化迁移**（`V1__baseline.sql` 2 张基线表；`V2__mes_foundation.sql` 工单升级 + 12 张表；`V3__mes_shift_calendar.sql` 车间工作日历） | 服务启动时由 Flyway 自动执行，记录于 `flyway_schema_history` |
+| `db/migration/` | **Flyway 版本化迁移**（`V1__baseline.sql` 2 张基线表；`V2__mes_foundation.sql` 工单升级 + 12 张表；`V3__mes_shift_calendar.sql` 车间工作日历；`V4__mes_dispatch_execution.sql` 调度/执行 13 张表） | 服务启动时由 Flyway 自动执行，记录于 `flyway_schema_history` |
 | `db/init.sql` | 全新建库的手工初始化脚本（与 `db/migration/V1` 同源，含 `DROP TABLE`） | 仅用于本地/一次性空库手工执行；**不要**在存量库重放 |
 | （无历史 migration-*.sql） | 历史 Wave 增量脚本 | 手工按序执行，仅供追溯，**不参与 Flyway 扫描** |
 
@@ -13,10 +13,11 @@ Flyway 只扫描 `classpath:db/migration`（见 `application.yml` 的 `spring.fl
 
 ## 存量库与空库的行为
 
-1. **空库**：Flyway 依次执行 `V1`→`V2`→`V3`。`V1` 建 `mes_work_order`、`api_log`（2 张表），
+1. **空库**：Flyway 依次执行 `V1`→`V2`→`V3`→`V4`。`V1` 建 `mes_work_order`、`api_log`（2 张表），
    `V2` 升级工单为执行工单并建 9 张 `mes_md_*` + 2 张工艺路线快照 + `mes_common_outbox`，
-   `V3` 建 `mes_md_shift_calendar`，最终共 **15 张表**；种子工单状态由 `ENABLED/DISABLED`
-   迁移为 `RECEIVED/CANCELLED`。
+   `V3` 建 `mes_md_shift_calendar`，`V4` 建 `mes_dp_*`（任务/派工/排程）与 `mes_ex_*`
+   （报工/不良/领退料/在制品/异常）共 13 张表，最终共 **28 张表**；种子工单状态由
+   `ENABLED/DISABLED` 迁移为 `RECEIVED/CANCELLED`。
 2. **存量库**（已有业务表但无 `flyway_schema_history`）：`baseline-on-migrate=true` +
    `baseline-version=1` 先写入 version=1 基线记录，**不重放 V1**，不触碰既有业务数据；
    后续增量从 V2 开始。

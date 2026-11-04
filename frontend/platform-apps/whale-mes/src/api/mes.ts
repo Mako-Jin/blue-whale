@@ -220,3 +220,203 @@ export function saveMesMasterData(
 export function deleteMesMasterData(kind: MasterDataKind, id: string): Promise<void> {
   return http.del<void>(`/mes/master-data/${kind}/${id}`);
 }
+
+/** 工序任务状态 */
+export type MesTaskStatus =
+  | 'PLANNED'
+  | 'DISPATCHED'
+  | 'IN_PROGRESS'
+  | 'PAUSED'
+  | 'COMPLETED'
+  | 'SCRAPPED';
+
+/** 工序任务 */
+export interface MesTask {
+  id: string;
+  /** 任务编号 */
+  taskNo: string;
+  /** 工单 ID */
+  workOrderId: string;
+  /** 工单编码 */
+  workOrderCode: string;
+  /** ERP 生产订单号 */
+  erpOrderNo?: string;
+  /** 工序顺序 */
+  seqNo: number;
+  /** 工序编码 */
+  operationCode: string;
+  /** 工序名称 */
+  operationName: string;
+  /** 工作中心 ID */
+  workCenterId?: string;
+  /** 工作中心编码 */
+  workCenterCode?: string;
+  /** 计划数量 */
+  plannedQuantity?: number | string;
+  /** 已派工数量 */
+  dispatchedQuantity?: number | string;
+  /** 累计报工数量 */
+  reportedQuantity?: number | string;
+  /** 累计合格数量 */
+  qualifiedQuantity?: number | string;
+  /** 累计不良数量 */
+  defectQuantity?: number | string;
+  /** 累计完工数量 */
+  completedQuantity?: number | string;
+  /** 累计报废数量 */
+  scrappedQuantity?: number | string;
+  /** 状态 */
+  status: MesTaskStatus;
+  /** 优先级 */
+  priority?: MesWorkOrderPriority;
+  /** 计划开工时间 */
+  plannedStart?: string;
+  /** 计划完工时间 */
+  plannedEnd?: string;
+  /** 备注 */
+  remark?: string;
+}
+
+/** 任务查询条件 */
+export interface MesTaskQuery {
+  taskNo?: string;
+  workOrderId?: string;
+  workOrderCode?: string;
+  operationCode?: string;
+  status?: MesTaskStatus;
+  priority?: MesWorkOrderPriority;
+  current?: number;
+  size?: number;
+}
+
+/** 派工入参 */
+export interface MesDispatchInput {
+  /** 任务 ID 列表 */
+  taskIds: string[];
+  /** 派工产线 ID */
+  lineId: string;
+  /** 派工班组 ID */
+  teamId?: string;
+  /** 备注 */
+  remark?: string;
+}
+
+/** 生产看板 */
+export interface MesBoard {
+  boardDate: string;
+  targetQuantity: number | string;
+  completedQuantity: number | string;
+  defectQuantity: number | string;
+  achievementRate: number | string;
+  exceptionCount: number;
+  activeTaskCount: number;
+  activeTasks: MesTask[];
+}
+
+/** 分页查询工序任务 */
+export function pageMesTasks(query: MesTaskQuery = {}): Promise<PageResult<MesTask>> {
+  const queryString = toQueryString({ current: 1, size: 200, ...query });
+  return http.get<PageResult<MesTask>>(`/mes/dispatch/task/page?${queryString}`);
+}
+
+/** 拆分工单为工序任务（不传明细时按工艺路线自动拆分） */
+export function splitMesWorkOrder(id: string): Promise<MesTask[]> {
+  return http.post<MesTask[]>(`/mes/dispatch/work-order/${id}/split`, {});
+}
+
+/** 批量派工 */
+export function dispatchMesTasks(input: MesDispatchInput): Promise<string> {
+  return http.post<string>('/mes/dispatch/dispatch', input);
+}
+
+/** 撤回派工单 */
+export function withdrawMesDispatch(dispatchOrderId: string): Promise<void> {
+  return http.post<void>(`/mes/dispatch/dispatch/${dispatchOrderId}/withdraw`, {});
+}
+
+/** 查询生产看板 */
+export function fetchMesBoard(params: { lineId?: string; teamId?: string } = {}): Promise<MesBoard> {
+  const queryString = toQueryString(params);
+  return http.get<MesBoard>(`/mes/dispatch/board${queryString ? `?${queryString}` : ''}`);
+}
+
+/** 任务执行动作：start / pause / resume / complete / scrap */
+export type MesTaskAction = 'start' | 'pause' | 'resume' | 'complete' | 'scrap';
+
+/** 执行任务动作 */
+export function runMesTaskAction(
+  id: string,
+  action: MesTaskAction,
+  body: { quantity?: number; remark?: string } = {},
+): Promise<MesTask> {
+  return http.post<MesTask>(`/mes/execution/task/${id}/${action}`, body);
+}
+
+/** 不良明细入参 */
+export interface MesReportDefectInput {
+  defectCode: string;
+  defectName?: string;
+  quantity: number;
+}
+
+/** 报工入参 */
+export interface MesReportInput {
+  taskId: string;
+  reportQuantity: number;
+  qualifiedQuantity: number;
+  defectQuantity: number;
+  reporter?: string;
+  remark?: string;
+  defects?: MesReportDefectInput[];
+}
+
+/** 报工记录 */
+export interface MesProductionReport {
+  id: string;
+  reportNo: string;
+  taskId: string;
+  taskNo: string;
+  workOrderId: string;
+  workOrderCode: string;
+  operationCode: string;
+  stationCode?: string;
+  reportQuantity: number | string;
+  qualifiedQuantity: number | string;
+  defectQuantity: number | string;
+  status: string;
+  reporter?: string;
+  reportedAt: string;
+  remark?: string;
+}
+
+/** 扫码报工 */
+export function reportMesProduction(input: MesReportInput): Promise<MesProductionReport> {
+  return http.post<MesProductionReport>('/mes/execution/report', input);
+}
+
+/** 分页查询报工记录 */
+export function pageMesReports(
+  query: { taskId?: string; workOrderId?: string; current?: number; size?: number } = {},
+): Promise<PageResult<MesProductionReport>> {
+  const queryString = toQueryString({ current: 1, size: 100, ...query });
+  return http.get<PageResult<MesProductionReport>>(`/mes/execution/report/page?${queryString}`);
+}
+
+/** 在制品快照 */
+export interface MesWip {
+  taskId: string;
+  taskNo: string;
+  workOrderId: string;
+  operationCode: string;
+  dispatchedQuantity?: number | string;
+  completedQuantity?: number | string;
+  scrappedQuantity?: number | string;
+  wipQuantity?: number | string;
+  snapshotTime?: string;
+}
+
+/** 查询在制品 */
+export function fetchMesWip(workOrderId?: string): Promise<MesWip[]> {
+  const queryString = toQueryString({ workOrderId });
+  return http.get<MesWip[]>(`/mes/execution/wip${queryString ? `?${queryString}` : ''}`);
+}

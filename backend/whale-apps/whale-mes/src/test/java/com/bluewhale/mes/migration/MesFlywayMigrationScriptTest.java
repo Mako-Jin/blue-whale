@@ -121,6 +121,34 @@ class MesFlywayMigrationScriptTest {
     }
 
     /**
+     * V4 建表集合：调度派工（5 张）与生产执行（8 张）齐备
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("M1 调度派工与生产执行表齐备")
+    void dispatchExecutionTablesShouldBePresent() throws IOException {
+        Set<String> dispatchTables = extractTables(MIGRATION_DIR.resolve("V4__mes_dispatch_execution.sql"));
+        assertEquals(13, dispatchTables.size(), "V4 应创建 13 张表");
+        for (String table : List.of(
+                "mes_dp_work_order_task",
+                "mes_dp_dispatch_order",
+                "mes_dp_dispatch_line",
+                "mes_dp_schedule_plan",
+                "mes_dp_schedule_slot",
+                "mes_ex_production_report",
+                "mes_ex_report_defect",
+                "mes_ex_material_issue",
+                "mes_ex_material_issue_line",
+                "mes_ex_material_return",
+                "mes_ex_wip_snapshot",
+                "mes_ex_exception",
+                "mes_ex_exception_action")) {
+            assertTrue(dispatchTables.contains(table), "V4 必须包含表：" + table);
+        }
+    }
+
+    /**
      * 列出迁移脚本并按文件名字典序返回
      *
      * @return 迁移脚本路径
