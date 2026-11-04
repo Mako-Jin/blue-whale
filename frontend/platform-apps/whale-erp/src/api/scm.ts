@@ -492,3 +492,151 @@ export function postSalesReturn(id: number): Promise<SalesReturnView> {
 export function cancelSalesReturn(id: number): Promise<SalesReturnView> {
   return http.post<SalesReturnView>(`/erp/scm/sales-return/${id}/cancel`);
 }
+
+/** 采购申请分录视图 */
+export interface RequisitionLineView {
+  lineNo: number;
+  itemCode: string;
+  itemName: string;
+  uom?: string;
+  quantity: number;
+  unitPrice: number;
+  amount: number;
+}
+
+/** 采购申请单 */
+export interface PurchaseRequisitionView {
+  id: number;
+  docNo: string;
+  supplierId: number;
+  supplierName: string;
+  docDate: string;
+  requiredDate?: string;
+  warehouseId: number;
+  status: string;
+  currency: string;
+  totalAmount: number;
+  convertedOrderNo?: string;
+  remark?: string;
+  lines: RequisitionLineView[];
+}
+
+/** 销售报价分录视图 */
+export interface QuotationLineView {
+  lineNo: number;
+  itemCode: string;
+  itemName: string;
+  uom?: string;
+  quantity: number;
+  unitPrice: number;
+  amount: number;
+}
+
+/** 销售报价单 */
+export interface SalesQuotationView {
+  id: number;
+  docNo: string;
+  customerId: number;
+  customerName: string;
+  docDate: string;
+  validUntil?: string;
+  warehouseId: number;
+  status: string;
+  currency: string;
+  totalAmount: number;
+  convertedOrderNo?: string;
+  remark?: string;
+  lines: QuotationLineView[];
+}
+
+/** 采购申请入参 */
+export interface PurchaseRequisitionInput {
+  supplierId: number;
+  docDate: string;
+  requiredDate?: string;
+  warehouseId: number;
+  currency?: string;
+  remark?: string;
+  lines: { itemCode: string; quantity: number; unitPrice: number; uom?: string }[];
+}
+
+/** 销售报价入参 */
+export interface SalesQuotationInput {
+  customerId: number;
+  docDate: string;
+  validUntil?: string;
+  warehouseId: number;
+  currency?: string;
+  remark?: string;
+  lines: { itemCode: string; quantity: number; unitPrice: number; uom?: string }[];
+}
+
+/** 采购申请单分页 */
+export function pagePurchaseRequisitions(
+  params: ScmQueryParams = {},
+): Promise<PageResult<PurchaseRequisitionView>> {
+  return http.get<PageResult<PurchaseRequisitionView>>(
+    `/erp/scm/purchase-requisition/page?${buildQuery(params)}`,
+  );
+}
+
+/** 采购申请单详情（含分录） */
+export function getPurchaseRequisition(id: number): Promise<PurchaseRequisitionView> {
+  return http.get<PurchaseRequisitionView>(`/erp/scm/purchase-requisition/${id}`);
+}
+
+/** 新增采购申请单 */
+export function createPurchaseRequisition(
+  input: PurchaseRequisitionInput,
+): Promise<PurchaseRequisitionView> {
+  return http.post<PurchaseRequisitionView>('/erp/scm/purchase-requisition', input);
+}
+
+/** 审核采购申请单 */
+export function approvePurchaseRequisition(id: number): Promise<PurchaseRequisitionView> {
+  return http.post<PurchaseRequisitionView>(`/erp/scm/purchase-requisition/${id}/approve`);
+}
+
+/** 采购申请转采购订单 */
+export function convertPurchaseRequisition(id: number): Promise<PurchaseRequisitionView> {
+  return http.post<PurchaseRequisitionView>(`/erp/scm/purchase-requisition/${id}/convert`);
+}
+
+/** 取消采购申请单 */
+export function cancelPurchaseRequisition(id: number): Promise<PurchaseRequisitionView> {
+  return http.post<PurchaseRequisitionView>(`/erp/scm/purchase-requisition/${id}/cancel`);
+}
+
+/** 销售报价单分页 */
+export function pageSalesQuotations(
+  params: ScmQueryParams = {},
+): Promise<PageResult<SalesQuotationView>> {
+  return http.get<PageResult<SalesQuotationView>>(
+    `/erp/scm/sales-quotation/page?${buildQuery(params)}`,
+  );
+}
+
+/** 销售报价单详情（含分录） */
+export function getSalesQuotation(id: number): Promise<SalesQuotationView> {
+  return http.get<SalesQuotationView>(`/erp/scm/sales-quotation/${id}`);
+}
+
+/** 新增销售报价单 */
+export function createSalesQuotation(input: SalesQuotationInput): Promise<SalesQuotationView> {
+  return http.post<SalesQuotationView>('/erp/scm/sales-quotation', input);
+}
+
+/** 客户接受销售报价 */
+export function acceptSalesQuotation(id: number): Promise<SalesQuotationView> {
+  return http.post<SalesQuotationView>(`/erp/scm/sales-quotation/${id}/accept`);
+}
+
+/** 销售报价转销售订单 */
+export function convertSalesQuotation(id: number): Promise<SalesQuotationView> {
+  return http.post<SalesQuotationView>(`/erp/scm/sales-quotation/${id}/convert`);
+}
+
+/** 取消销售报价单 */
+export function cancelSalesQuotation(id: number): Promise<SalesQuotationView> {
+  return http.post<SalesQuotationView>(`/erp/scm/sales-quotation/${id}/cancel`);
+}

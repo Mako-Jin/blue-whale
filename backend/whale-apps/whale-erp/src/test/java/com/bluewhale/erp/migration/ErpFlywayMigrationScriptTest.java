@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -276,7 +277,30 @@ class ErpFlywayMigrationScriptTest {
     }
 
     /**
-     * 列出迁移脚本并按文件名字典序返回
+     * V10 采购申请与销售报价表集合及单号/分录唯一键校验
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("V10 申请报价表集合与关键唯一键一致")
+    void requisitionQuotationMigrationShouldCreateExpectedTables() throws IOException {
+        Set<String> documentTables = extractTables(
+                MIGRATION_DIR.resolve("V10__scm_requisition_quotation.sql"));
+        assertEquals(Set.of(
+                "erp_scm_purchase_requisition", "erp_scm_purchase_requisition_line",
+                "erp_scm_sales_quotation", "erp_scm_sales_quotation_line"), documentTables,
+                "V10 应创建 4 张申请与报价表");
+        String content = Files.readString(MIGRATION_DIR.resolve("V10__scm_requisition_quotation.sql"),
+                StandardCharsets.UTF_8);
+        assertTrue(content.contains("uk_pa_doc_no"), "采购申请单号唯一键必须存在");
+        assertTrue(content.contains("uk_pa_line"), "采购申请分录按单+行号唯一");
+        assertTrue(content.contains("uk_sq_doc_no"), "销售报价单号唯一键必须存在");
+        assertTrue(content.contains("uk_sq_line"), "销售报价分录按单+行号唯一");
+        assertFalse(content.toUpperCase().contains("FOREIGN KEY"), "申请与报价表不得建立物理外键");
+    }
+
+    /**
+     * 列出迁移脚本并按版本号升序返回
      *
      * @return 迁移脚本路径
      * @throws IOException 读取目录失败
@@ -284,7 +308,7 @@ class ErpFlywayMigrationScriptTest {
     private static List<Path> migrationScripts() throws IOException {
         try (var stream = Files.list(MIGRATION_DIR)) {
             return stream.filter(path -> path.getFileName().toString().endsWith(".sql"))
-                    .sorted()
+                    .sorted(Comparator.comparingLong(ErpFlywayMigrationScriptTest::versionOf))
                     .collect(Collectors.toList());
         }
     }

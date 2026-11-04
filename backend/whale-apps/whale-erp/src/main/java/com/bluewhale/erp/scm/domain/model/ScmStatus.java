@@ -13,6 +13,12 @@ public final class ScmStatus {
     /** 已审核（可收货/可发货） */
     public static final String APPROVED = "APPROVED";
 
+    /** 客户已接受（销售报价） */
+    public static final String ACCEPTED = "ACCEPTED";
+
+    /** 已转单（申请/报价生成下游订单） */
+    public static final String CONVERTED = "CONVERTED";
+
     /** 部分收货 */
     public static final String PARTIALLY_RECEIVED = "PARTIALLY_RECEIVED";
 

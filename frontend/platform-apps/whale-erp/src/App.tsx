@@ -18,6 +18,8 @@ import TransferPage from './pages/TransferPage';
 import StocktakePage from './pages/StocktakePage';
 import PurchaseReturnPage from './pages/PurchaseReturnPage';
 import SalesReturnPage from './pages/SalesReturnPage';
+import PurchaseRequisitionPage from './pages/PurchaseRequisitionPage';
+import SalesQuotationPage from './pages/SalesQuotationPage';
 import ForecastPage from './pages/ForecastPage';
 import MpsPage from './pages/MpsPage';
 import ProductionPage from './pages/ProductionPage';
@@ -50,6 +52,8 @@ const menuItems: MenuProps['items'] = [
   { key: 'stocktake', label: '库存盘点' },
   { key: 'purchase-return', label: '采购退货' },
   { key: 'sales-return', label: '销售退货' },
+  { key: 'purchase-requisition', label: '采购申请' },
+  { key: 'sales-quotation', label: '销售报价' },
   { key: 'forecast', label: '需求预测' },
   { key: 'mps', label: '主生产计划' },
   { key: 'production', label: '生产订单' },
@@ -80,6 +84,8 @@ type PageKind =
   | 'stocktake'
   | 'purchase-return'
   | 'sales-return'
+  | 'purchase-requisition'
+  | 'sales-quotation'
   | 'forecast'
   | 'mps'
   | 'production'
@@ -104,6 +110,8 @@ function initialPage(): PageKind {
   if (path.includes('/erp/finance/report')) return 'report';
   if (path.includes('/erp/scm/purchase-return')) return 'purchase-return';
   if (path.includes('/erp/scm/sales-return')) return 'sales-return';
+  if (path.includes('/erp/scm/purchase-requisition')) return 'purchase-requisition';
+  if (path.includes('/erp/scm/sales-quotation')) return 'sales-quotation';
   if (path.includes('/erp/scm/purchase')) return 'purchase';
   if (path.includes('/erp/scm/sales')) return 'sales';
   if (path.includes('/erp/scm/stocktake')) return 'stocktake';
@@ -148,6 +156,8 @@ function pageOfKey(key: string): PageKind {
     || key === 'stocktake'
     || key === 'purchase-return'
     || key === 'sales-return'
+    || key === 'purchase-requisition'
+    || key === 'sales-quotation'
     || key === 'forecast'
     || key === 'mps'
     || key === 'production'
@@ -183,6 +193,8 @@ const PAGE_TITLE: Record<PageKind, string> = {
   stocktake: '库存盘点',
   'purchase-return': '采购退货',
   'sales-return': '销售退货',
+  'purchase-requisition': '采购申请',
+  'sales-quotation': '销售报价',
   forecast: '需求预测',
   mps: '主生产计划',
   production: '生产订单',
@@ -292,6 +304,8 @@ export default function App() {
             {page === 'stocktake' ? <StocktakePage /> : null}
             {page === 'purchase-return' ? <PurchaseReturnPage /> : null}
             {page === 'sales-return' ? <SalesReturnPage /> : null}
+            {page === 'purchase-requisition' ? <PurchaseRequisitionPage /> : null}
+            {page === 'sales-quotation' ? <SalesQuotationPage /> : null}
             {page === 'forecast' ? <ForecastPage /> : null}
             {page === 'mps' ? <MpsPage /> : null}
             {page === 'production' ? <ProductionPage /> : null}

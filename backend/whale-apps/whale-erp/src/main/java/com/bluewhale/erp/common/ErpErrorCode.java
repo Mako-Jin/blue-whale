@@ -287,6 +287,12 @@ public final class ErpErrorCode {
     /** 销售退货单不存在 */
     public static final int SALES_RETURN_NOT_FOUND = 40436;
 
+    /** 采购申请单不存在 */
+    public static final int PURCHASE_REQUISITION_NOT_FOUND = 40437;
+
+    /** 销售报价单不存在 */
+    public static final int SALES_QUOTATION_NOT_FOUND = 40438;
+
     /** 退货数量超过订单可退数量 */
     public static final int RETURN_QUANTITY_EXCEEDED = 40936;
 
@@ -389,6 +395,8 @@ public final class ErpErrorCode {
             Map.entry(RETURN_INVALID, "退货参数非法：源订单未收货/发货、仓库或行号不正确"),
             Map.entry(PURCHASE_RETURN_NOT_FOUND, "采购退货单不存在或无权访问"),
             Map.entry(SALES_RETURN_NOT_FOUND, "销售退货单不存在或无权访问"),
+            Map.entry(PURCHASE_REQUISITION_NOT_FOUND, "采购申请单不存在或无权访问"),
+            Map.entry(SALES_QUOTATION_NOT_FOUND, "销售报价单不存在或无权访问"),
             Map.entry(RETURN_QUANTITY_EXCEEDED, "退货数量超过订单可退数量"),
             Map.entry(RETURN_STATE_CONFLICT, "退货单当前状态不允许该操作"),
             Map.entry(RETURN_OFFSET_EXCEEDED, "退货冲减额超过往来未核销余额"));
