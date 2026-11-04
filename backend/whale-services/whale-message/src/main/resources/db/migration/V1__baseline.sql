@@ -91,6 +91,25 @@ CREATE TABLE IF NOT EXISTS msg_delivery (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='消息投递记录表';
 
 -- ---------------------------------------------------------------------
+-- 3.1 系统公告（标题/正文/业务类型在关联的 msg_record 上）
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS msg_announcement (
+    id             BIGINT       NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id      BIGINT       NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离）',
+    record_id      BIGINT       NOT NULL               COMMENT '消息ID（关联 msg_record.id，标题/正文/业务类型在此）',
+    status         VARCHAR(16)  NOT NULL DEFAULT 'PUBLISHED' COMMENT '公告状态：PUBLISHED 已发布 / REVOKED 已撤回',
+    publisher_id   BIGINT       DEFAULT NULL           COMMENT '发布人用户ID',
+    publish_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发布时间',
+    create_time    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted        TINYINT      NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_record_id (record_id),
+    KEY idx_tenant_status (tenant_id, status),
+    KEY idx_publish_time (publish_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='系统公告表';
+
+-- ---------------------------------------------------------------------
 -- 4. 内置模板（平台租户共享）
 -- ---------------------------------------------------------------------
 INSERT IGNORE INTO msg_template (id, tenant_id, template_code, template_name, title_template, content_template, status, remark)

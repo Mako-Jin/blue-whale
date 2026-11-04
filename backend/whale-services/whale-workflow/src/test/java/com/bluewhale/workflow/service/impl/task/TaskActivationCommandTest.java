@@ -1,12 +1,15 @@
 package com.bluewhale.workflow.service.impl.task;
 
+import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.workflow.entity.ProcessInstance;
 import com.bluewhale.workflow.entity.ProcessTask;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
 import com.bluewhale.workflow.service.ProcessCcService;
 import com.bluewhale.workflow.service.ProcessDelegateService;
 import com.bluewhale.workflow.support.ProcessModel;
+import com.bluewhale.workflow.support.ProcessModelNode;
 import com.bluewhale.workflow.support.ProcessModelParser;
+import com.bluewhale.workflow.support.ProcessNodeType;
 import com.bluewhale.workflow.support.machine.TransitionResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,9 +24,12 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -35,6 +41,9 @@ import static org.mockito.Mockito.when;
  */
 @ExtendWith(MockitoExtension.class)
 class TaskActivationCommandTest {
+
+    /** 参数错误码 */
+    private static final int PARAM_ERROR_CODE = 400;
 
     /** 含抄送节点与用户任务的流程定义 */
     private static final String MODEL_JSON = "{\"nodes\":["
@@ -99,6 +108,22 @@ class TaskActivationCommandTest {
         assertEquals("zhaoliu", captor.getValue().getAssignee());
         assertEquals("manager", captor.getValue().getDelegateFrom());
         verify(processDelegateService, times(1)).resolveActive(anyString(), anyString(), any());
+    }
+
+    @Test
+    @DisplayName("activate：节点无审批人时抛 PARAM_ERROR 且不建待办")
+    void shouldRejectNodeWithoutAssignee() {
+        ProcessModel model = model();
+        ProcessModelNode node = model.node("t1");
+        node.setAssignee(null);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> taskActivationCommand.activate(instance(null), model,
+                        TransitionResult.at(List.of(node))));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        assertTrue(ex.getMessage().contains("t1"));
+        verify(processTaskMapper, never()).insert(any(ProcessTask.class));
     }
 
     /**

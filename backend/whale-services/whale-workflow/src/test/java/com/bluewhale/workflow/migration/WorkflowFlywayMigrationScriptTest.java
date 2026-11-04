@@ -111,6 +111,32 @@ class WorkflowFlywayMigrationScriptTest {
     }
 
     /**
+     * V4 种子 OA_LEAVE 定义及版本快照，且脚本无破坏性语句
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("V4 种子 OA_LEAVE 定义与版本快照")
+    void v4ShouldSeedOaLeaveDefinition() throws IOException {
+        Path v4 = MIGRATION_DIR.resolve("V4__seed_oa_definitions.sql");
+        String script = Files.readString(v4, StandardCharsets.UTF_8);
+        assertTrue(script.contains("OA_LEAVE"), "V4 应种子 OA_LEAVE 流程定义");
+        assertTrue(script.contains("'OA 请假审批'"), "V4 应包含 OA_LEAVE 定义名称");
+        assertTrue(script.contains("stateMachine"), "V4 定义应为规范化 stateMachine 模型");
+        assertTrue(script.contains("process_definition_version"), "V4 应同步写入版本快照");
+        assertTrue(script.contains("publish_status"), "快照应写入发布状态，与定义服务 create 一致");
+        for (String line : Files.readAllLines(v4, StandardCharsets.UTF_8)) {
+            String statement = line.trim().toUpperCase();
+            if (statement.startsWith("--") || statement.isEmpty()) {
+                continue;
+            }
+            assertFalse(statement.startsWith("DROP "), "V4 含 DROP 语句：" + line);
+            assertFalse(statement.startsWith("TRUNCATE "), "V4 含 TRUNCATE 语句：" + line);
+            assertFalse(statement.startsWith("DELETE "), "V4 含 DELETE 语句：" + line);
+        }
+    }
+
+    /**
      * 列出迁移脚本并按文件名字典序返回
      *
      * @return 迁移脚本路径

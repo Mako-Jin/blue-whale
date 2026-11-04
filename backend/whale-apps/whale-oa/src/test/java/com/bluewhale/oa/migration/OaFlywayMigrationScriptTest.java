@@ -111,6 +111,33 @@ class OaFlywayMigrationScriptTest {
     }
 
     /**
+     * V3 种子请假审批配置与两条审批人规则，且脚本无破坏性语句
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("V3 种子请假审批配置与审批人规则")
+    void v3ShouldSeedLeaveConfigAndRouteRules() throws IOException {
+        Path v3 = MIGRATION_DIR.resolve("V3__oa_m0_seed.sql");
+        String script = Files.readString(v3, StandardCharsets.UTF_8);
+        assertTrue(script.contains("oa_approval_config"), "V3 应种子审批业务配置");
+        assertTrue(script.contains("'LEAVE'"), "V3 应种子 LEAVE 业务类型");
+        assertTrue(script.contains("'OA_LEAVE'"), "V3 应绑定 OA_LEAVE 流程定义");
+        assertTrue(script.contains("oa_approval_route_rule"), "V3 应种子审批人解析规则");
+        assertTrue(script.contains("DEPT_LEADER"), "V3 应种子部门负责人解析器");
+        assertTrue(script.contains("'oa_hr_admin'"), "V3 应种子 HR 角色解析器");
+        for (String line : Files.readAllLines(v3, StandardCharsets.UTF_8)) {
+            String statement = line.trim().toUpperCase();
+            if (statement.startsWith("--") || statement.isEmpty()) {
+                continue;
+            }
+            assertFalse(statement.startsWith("DROP "), "V3 含 DROP 语句：" + line);
+            assertFalse(statement.startsWith("TRUNCATE "), "V3 含 TRUNCATE 语句：" + line);
+            assertFalse(statement.startsWith("DELETE "), "V3 含 DELETE 语句：" + line);
+        }
+    }
+
+    /**
      * 列出迁移脚本并按文件名字典序返回
      *
      * @return 迁移脚本路径

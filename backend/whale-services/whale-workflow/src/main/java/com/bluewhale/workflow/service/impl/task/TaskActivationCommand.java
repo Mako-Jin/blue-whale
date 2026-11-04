@@ -1,5 +1,7 @@
 package com.bluewhale.workflow.service.impl.task;
 
+import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.workflow.entity.ProcessInstance;
 import com.bluewhale.workflow.entity.ProcessTask;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
@@ -81,13 +83,31 @@ public class TaskActivationCommand {
             }
             return;
         }
-        if (node.getType() == ProcessNodeType.COUNTER_SIGN && node.getAssignees() != null) {
-            for (String assignee : node.getAssignees()) {
+        if (node.getType() == ProcessNodeType.COUNTER_SIGN) {
+            List<String> assignees = node.getAssignees();
+            if (assignees == null || assignees.isEmpty()) {
+                throw missingAssignee(node);
+            }
+            for (String assignee : assignees) {
                 createTask(instance, nodeIndex, node, assignee);
             }
             return;
         }
-        createTask(instance, nodeIndex, node, node.getAssignee());
+        String assignee = node.getAssignee();
+        if (assignee == null || assignee.isBlank()) {
+            throw missingAssignee(node);
+        }
+        createTask(instance, nodeIndex, node, assignee);
+    }
+
+    /**
+     * 构造审批人缺失异常。
+     *
+     * @param node 缺少审批人的节点
+     * @return 参数错误异常（消息携带节点键）
+     */
+    private static BizException missingAssignee(ProcessModelNode node) {
+        return new BizException(ErrorCode.PARAM_ERROR.getCode(), "流程节点未配置审批人：" + node.getKey());
     }
 
     /**

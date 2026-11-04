@@ -83,11 +83,37 @@ class MessageFlywayMigrationScriptTest {
         Set<String> baselineTables = extractTables(MIGRATION_DIR.resolve("V1__baseline.sql"));
         assertFalse(initTables.isEmpty(), "init.sql 未解析到建表语句");
         assertEquals(initTables, baselineTables, "V1 基线与 init.sql 的建表集合不一致");
-        assertEquals(5, baselineTables.size(), "消息服务 基线应包含 5 张表");
-        for (String table : List.of("msg_template", "msg_record", "msg_delivery")) {
+        assertEquals(6, baselineTables.size(), "消息服务 基线应包含 6 张表");
+        for (String table : List.of("msg_template", "msg_record", "msg_delivery",
+                "msg_announcement")) {
             assertTrue(baselineTables.contains(table), "基线必须包含表：" + table);
         }
 
+    }
+
+    /**
+     * OA M0 通知模板种子包含 5 个模板编码，且脚本无破坏性语句
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("OA M0 通知模板种子齐全")
+    void oaM0NotifySeedShouldContainFiveTemplates() throws IOException {
+        Path seed = Path.of("src/main/resources/db/migration-5.86-oa-m0-notify.sql");
+        String script = Files.readString(seed, StandardCharsets.UTF_8);
+        for (String code : List.of("OA_APPROVAL_TODO", "OA_APPROVAL_RESULT", "OA_APPROVAL_CC",
+                "OA_APPROVAL_URGE", "OA_LEAVE_BALANCE")) {
+            assertTrue(script.contains(code), "5.86 种子缺少模板：" + code);
+        }
+        for (String line : Files.readAllLines(seed, StandardCharsets.UTF_8)) {
+            String statement = line.trim().toUpperCase();
+            if (statement.startsWith("--") || statement.isEmpty()) {
+                continue;
+            }
+            assertFalse(statement.startsWith("DROP "), "5.86 种子含 DROP 语句：" + line);
+            assertFalse(statement.startsWith("TRUNCATE "), "5.86 种子含 TRUNCATE 语句：" + line);
+            assertFalse(statement.startsWith("DELETE "), "5.86 种子含 DELETE 语句：" + line);
+        }
     }
 
     /**
