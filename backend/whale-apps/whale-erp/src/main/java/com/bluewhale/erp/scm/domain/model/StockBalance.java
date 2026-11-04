@@ -81,6 +81,32 @@ public class StockBalance {
     }
 
     /**
+     * 按指定单位成本出库（采购退货按原订单单价冲减）。
+     *
+     * @param quantity 出库数量
+     * @param unitCost 出库单位成本
+     * @return 出库成本金额
+     */
+    public BigDecimal outboundAt(BigDecimal quantity, BigDecimal unitCost) {
+        Quantities.requirePositive(quantity, "出库数量");
+        Amounts.nonNegative(unitCost, "出库单位成本");
+        BigDecimal currentQuantity = this.quantity == null ? BigDecimal.ZERO : this.quantity;
+        BigDecimal currentAmount = this.amount == null ? BigDecimal.ZERO : this.amount;
+        if (currentQuantity.compareTo(quantity) < 0) {
+            throw ErpErrorCode.exception(ErpErrorCode.NEGATIVE_STOCK,
+                    "库存不足：可用 " + currentQuantity.stripTrailingZeros().toPlainString());
+        }
+        BigDecimal cost = unitCost.multiply(quantity).setScale(Amounts.SCALE, RoundingMode.HALF_UP);
+        this.quantity = currentQuantity.subtract(quantity);
+        this.amount = currentAmount.subtract(cost);
+        if (this.quantity.signum() == 0) {
+            this.quantity = BigDecimal.ZERO;
+            this.amount = BigDecimal.ZERO;
+        }
+        return cost;
+    }
+
+    /**
      * 是否已无库存。
      *
      * @return 数量为零返回 true

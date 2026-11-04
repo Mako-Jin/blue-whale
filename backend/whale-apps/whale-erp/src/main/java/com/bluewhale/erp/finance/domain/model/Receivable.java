@@ -111,6 +111,25 @@ public class Receivable {
     }
 
     /**
+     * 退货冲减应收（仅冲减未核销部分，不生成负数单据）。
+     *
+     * @param offsetAmount 本次冲减金额
+     */
+    public void offsetReturn(BigDecimal offsetAmount) {
+        if (FinanceStatus.LEDGER_SETTLED.equals(status) || FinanceStatus.LEDGER_WRITTEN_OFF.equals(status)) {
+            throw ErpErrorCode.exception(ErpErrorCode.LEDGER_CLOSED);
+        }
+        Amounts.requirePositive(offsetAmount, "退货冲减金额");
+        BigDecimal remaining = remaining();
+        if (offsetAmount.compareTo(remaining) > 0) {
+            throw ErpErrorCode.exception(ErpErrorCode.RETURN_OFFSET_EXCEEDED,
+                    "冲减金额 " + offsetAmount + " 超过未结余额 " + remaining);
+        }
+        amount = amount.subtract(offsetAmount);
+        refreshStatus();
+    }
+
+    /**
      * 按未结余额刷新状态。
      */
     private void refreshStatus() {

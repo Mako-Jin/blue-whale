@@ -57,7 +57,8 @@
 | 子模块 | 能力 | 现状 | 落点 |
 |---|---|---|---|
 | 采购 | 申请、订单、比价、到货验收、退货、价格分析 | ❌ | `scm.purchase`：`erp_purchase_*`、`erp_goods_receipt*` |
-| 销售 | 报价、订单、发货、退货、价格、信用额度 | ❌ | `scm.sales`：`erp_sales_*`、`erp_shipment_notice`、`erp_credit_limit` |
+| 销售 | 报价、订单、发货、退货、价格、信用额度 | 🟡 | `scm.sales`：`erp_sales_*`、`erp_scm_sales_return*`；报价与信用预占待排期 |
+| 退货 | 采购退货（红字出库 + 应付冲减）、销售退货（红字入库 + 应收冲减） | 🟡 | `scm.purchase` / `scm.sales`：`erp_scm_purchase_return(_line)`、`erp_scm_sales_return(_line)`；按源订单行控制可退数量，过账生成反向库存流水与红字凭证 |
 | 库存 | 出入库/调拨、盘点、安全库存、呆滞、批次 | ❌ | `scm.inventory`：`erp_stock_movement`/`erp_stock_balance`/`erp_batch` |
 | 供应商管理 | 档案、评级、绩效、准入退出 | 🟡 | 档案+评级已在 `erp_supplier`；准入/绩效归 SRM，ERP 只读评级 |
 | 客户管理 | 档案、分级、信用、流失分析 | ❌ | 业务主数据 `erp_customer`（关系主数据归 CRM，见 D9）；流失分析归 CRM |
@@ -542,4 +543,4 @@ SPC/CPK、FMEA、供应商质量绩效、质量追溯、设备备件与派工、
 | 2026-11-04 | v0.5 | 回填 M3 第一阶段偏差：`V5__manufacturing.sql` 6 表、一单一产出、完工前必须领完、材料成本按计划量分摊、凭证延至完工一次性生成、权限 441–455 / 菜单 84–86、角色 `erp_mfg`；检查报告见 `docs/reviews/2026-11-03-wave5.78-erp-m3.md` |
 | 2026-11-04 | v0.6 | 回填 M4 第一阶段偏差：`V6__hr.sql` 9 表、组织 `parent_code` 逻辑引用、薪资期间唯一与审批后冻结、7 级累进个税与计提/发放四行凭证、权限 456–474 / 菜单 87–90、角色 `erp_hr`；检查报告见 `docs/reviews/2026-11-03-wave5.78-erp-m4.md` |
 | 2026-11-04 | v0.7 | 回填 M5 第一期偏差：`V7__qc.sql` 11 表、检验判定幂等生成 NCR、质量成本由处置派生、保养日期单一推进、OEE 同设备同日期 upsert 与三率封顶、校准 PASS 才顺延、过期量具拦截、权限 475–494 / 菜单 91–93、角色 `erp_qc`、三页合并页签；检查报告见 `docs/reviews/2026-11-03-wave5.78-erp-m5.md` |
-| 2026-11-04 | v0.8 | 回填 M6 偏差：`V8__bi.sql` 5 表 + 5 只读事实视图、驾驶舱快照 `STALE/ACTIVE` 单写入、维度 `CUSTOMER/ITEM/WAREHOUSE`、报表执行复用多维聚合与 CSV 导出、预警唯一键去重与超预算跳过、权限 495–506 / 菜单 94–97 / 角色 `erp_bi`；检查报告见 `docs/reviews/2026-11-03-wave5.78-erp-m6.md` |
+| 2026-11-04 | v0.9 | 回填 M2 剩余 B 第一期偏差：`V9__scm_returns.sql` 4 表（采购/销售退货头行）、可退数量按源订单行累计校验、采购退货按订单单价出库、销售退货按当前移动加权均价入库、往来方未核销台账从早到晚分摊、红字凭证、权限 507–514 / 菜单 98–99；检查报告见 `docs/reviews/2026-11-04-wave5.78-erp-m2-returns.md` |

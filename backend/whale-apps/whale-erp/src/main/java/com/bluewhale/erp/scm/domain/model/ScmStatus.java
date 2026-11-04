@@ -55,6 +55,12 @@ public final class ScmStatus {
     /** 来源：库存盘点 */
     public static final String SOURCE_STOCKTAKE = "STOCKTAKE";
 
+    /** 来源：采购退货 */
+    public static final String SOURCE_PURCHASE_RETURN = "PURCHASE_RETURN";
+
+    /** 来源：销售退货 */
+    public static final String SOURCE_SALES_RETURN = "SALES_RETURN";
+
     /**
      * 私有构造器：常量类，禁止实例化。
      */

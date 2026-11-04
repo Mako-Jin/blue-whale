@@ -79,6 +79,29 @@ class ReceivableTest {
     }
 
     @Test
+    @DisplayName("退货冲减按未核销余额扣减原金额")
+    void shouldOffsetReturn() {
+        Receivable receivable = receivable("1000.00", LocalDate.of(2026, 10, 31));
+
+        receivable.offsetReturn(new BigDecimal("400.00"));
+
+        assertEquals(new BigDecimal("600.00"), receivable.remaining());
+        assertEquals(FinanceStatus.LEDGER_OPEN, receivable.getStatus());
+    }
+
+    @Test
+    @DisplayName("退货冲减超过未核销余额时拒绝")
+    void shouldRejectOverOffset() {
+        Receivable receivable = receivable("1000.00", LocalDate.of(2026, 10, 31));
+        receivable.settle(new BigDecimal("800.00"));
+
+        BizException exception = assertThrows(BizException.class,
+                () -> receivable.offsetReturn(new BigDecimal("300.00")));
+
+        assertEquals(ErpErrorCode.RETURN_OFFSET_EXCEEDED, exception.getCode());
+    }
+
+    @Test
     @DisplayName("逾期天数按到期日计算")
     void shouldComputeOverdueDays() {
         Receivable receivable = receivable("1000.00", LocalDate.of(2026, 10, 31));

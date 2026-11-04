@@ -68,6 +68,31 @@ class StockBalanceTest {
         assertEquals(0, balance.getAmount().compareTo(BigDecimal.ZERO));
     }
 
+    @Test
+    @DisplayName("按指定单价出库时同步扣减金额")
+    void shouldOutboundAtGivenCost() {
+        StockBalance balance = balance();
+        balance.inbound(new BigDecimal("10"), new BigDecimal("2"));
+
+        BigDecimal cost = balance.outboundAt(new BigDecimal("4"), new BigDecimal("3"));
+
+        assertEquals(0, cost.compareTo(new BigDecimal("12")));
+        assertEquals(0, balance.getQuantity().compareTo(new BigDecimal("6")));
+        assertEquals(0, balance.getAmount().compareTo(new BigDecimal("8")));
+    }
+
+    @Test
+    @DisplayName("按指定单价出库库存不足时拒绝")
+    void shouldRejectOutboundAtWhenInsufficient() {
+        StockBalance balance = balance();
+        balance.inbound(new BigDecimal("3"), new BigDecimal("5"));
+
+        BizException exception = assertThrows(BizException.class,
+                () -> balance.outboundAt(new BigDecimal("4"), new BigDecimal("5")));
+
+        assertEquals(ErpErrorCode.NEGATIVE_STOCK, exception.getCode());
+    }
+
     /**
      * 构造空余额。
      *

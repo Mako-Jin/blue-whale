@@ -87,6 +87,39 @@ public class Payable {
     }
 
     /**
+     * 退货冲减应付（仅冲减未核销部分，不生成负数单据）。
+     *
+     * @param offsetAmount 本次冲减金额
+     */
+    public void offsetReturn(BigDecimal offsetAmount) {
+        if (FinanceStatus.LEDGER_SETTLED.equals(status)) {
+            throw ErpErrorCode.exception(ErpErrorCode.LEDGER_CLOSED);
+        }
+        Amounts.requirePositive(offsetAmount, "退货冲减金额");
+        BigDecimal remaining = remaining();
+        if (offsetAmount.compareTo(remaining) > 0) {
+            throw ErpErrorCode.exception(ErpErrorCode.RETURN_OFFSET_EXCEEDED,
+                    "冲减金额 " + offsetAmount + " 超过未结余额 " + remaining);
+        }
+        amount = amount.subtract(offsetAmount);
+        refreshStatus();
+    }
+
+    /**
+     * 按未结余额刷新状态。
+     */
+    private void refreshStatus() {
+        BigDecimal remaining = remaining();
+        if (remaining.signum() == 0) {
+            status = FinanceStatus.LEDGER_SETTLED;
+        } else if (settledAmount != null && settledAmount.signum() > 0) {
+            status = FinanceStatus.LEDGER_PARTIALLY_SETTLED;
+        } else {
+            status = FinanceStatus.LEDGER_OPEN;
+        }
+    }
+
+    /**
      * 逾期天数（以今天为基准）。
      *
      * @param today 今天

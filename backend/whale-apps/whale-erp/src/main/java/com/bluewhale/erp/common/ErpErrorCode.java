@@ -278,6 +278,24 @@ public final class ErpErrorCode {
     /** 预警规则编号已存在 */
     public static final int ALERT_RULE_NO_CONFLICT = 40935;
 
+    /** 退货参数非法（源订单未收货/发货、仓库或行号不正确） */
+    public static final int RETURN_INVALID = 40023;
+
+    /** 采购退货单不存在 */
+    public static final int PURCHASE_RETURN_NOT_FOUND = 40435;
+
+    /** 销售退货单不存在 */
+    public static final int SALES_RETURN_NOT_FOUND = 40436;
+
+    /** 退货数量超过订单可退数量 */
+    public static final int RETURN_QUANTITY_EXCEEDED = 40936;
+
+    /** 退货单状态不允许该操作 */
+    public static final int RETURN_STATE_CONFLICT = 40937;
+
+    /** 退货冲减额超过往来未核销余额 */
+    public static final int RETURN_OFFSET_EXCEEDED = 40938;
+
     /** 错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(AMOUNT_INVALID, "金额必须大于 0，且最多保留 2 位小数"),
@@ -367,7 +385,13 @@ public final class ErpErrorCode {
             Map.entry(ALERT_STATE_CONFLICT, "分析单据当前状态不允许该操作"),
             Map.entry(REPORT_NO_CONFLICT, "报表编号已存在"),
             Map.entry(SCHEDULE_NO_CONFLICT, "报表计划编号已存在"),
-            Map.entry(ALERT_RULE_NO_CONFLICT, "预警规则编号已存在"));
+            Map.entry(ALERT_RULE_NO_CONFLICT, "预警规则编号已存在"),
+            Map.entry(RETURN_INVALID, "退货参数非法：源订单未收货/发货、仓库或行号不正确"),
+            Map.entry(PURCHASE_RETURN_NOT_FOUND, "采购退货单不存在或无权访问"),
+            Map.entry(SALES_RETURN_NOT_FOUND, "销售退货单不存在或无权访问"),
+            Map.entry(RETURN_QUANTITY_EXCEEDED, "退货数量超过订单可退数量"),
+            Map.entry(RETURN_STATE_CONFLICT, "退货单当前状态不允许该操作"),
+            Map.entry(RETURN_OFFSET_EXCEEDED, "退货冲减额超过往来未核销余额"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。

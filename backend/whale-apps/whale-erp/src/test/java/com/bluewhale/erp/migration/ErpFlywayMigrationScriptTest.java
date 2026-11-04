@@ -255,6 +255,27 @@ class ErpFlywayMigrationScriptTest {
     }
 
     /**
+     * V9 退货表集合与单号/分录唯一键校验
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("V9 退货表集合与关键唯一键一致")
+    void returnsMigrationShouldCreateExpectedTables() throws IOException {
+        Set<String> returnTables = extractTables(MIGRATION_DIR.resolve("V9__scm_returns.sql"));
+        assertEquals(Set.of(
+                "erp_scm_purchase_return", "erp_scm_purchase_return_line",
+                "erp_scm_sales_return", "erp_scm_sales_return_line"), returnTables,
+                "V9 应创建 4 张退货表");
+        String content = Files.readString(MIGRATION_DIR.resolve("V9__scm_returns.sql"),
+                StandardCharsets.UTF_8);
+        assertTrue(content.contains("uk_pr_doc_no"), "采购退货单号唯一键必须存在");
+        assertTrue(content.contains("uk_sr_doc_no"), "销售退货单号唯一键必须存在");
+        assertTrue(content.contains("uk_pr_line"), "采购退货分录按单+行号唯一");
+        assertTrue(content.contains("uk_sr_line"), "销售退货分录按单+行号唯一");
+    }
+
+    /**
      * 列出迁移脚本并按文件名字典序返回
      *
      * @return 迁移脚本路径

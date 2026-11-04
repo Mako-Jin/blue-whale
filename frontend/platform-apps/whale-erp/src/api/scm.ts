@@ -369,3 +369,126 @@ export function postStocktake(id: number): Promise<StocktakeView> {
 export function cancelStocktake(id: number): Promise<StocktakeView> {
   return http.post<StocktakeView>(`/erp/scm/stocktake/${id}/cancel`);
 }
+
+/** 退货分录视图 */
+export interface ReturnLineView {
+  lineNo: number;
+  orderLineNo: number;
+  itemId: number;
+  itemCode: string;
+  itemName?: string;
+  uom?: string;
+  quantity: number;
+  unitPrice: number;
+  amount?: number;
+  unitCost?: number;
+  costAmount?: number;
+}
+
+/** 采购退货单 */
+export interface PurchaseReturnView {
+  id: number;
+  docNo: string;
+  purchaseOrderId: number;
+  supplierId: number;
+  supplierName?: string;
+  docDate: string;
+  warehouseId: number;
+  status: string;
+  currency?: string;
+  totalAmount: number;
+  remark?: string;
+  lines?: ReturnLineView[];
+}
+
+/** 销售退货单 */
+export interface SalesReturnView {
+  id: number;
+  docNo: string;
+  salesOrderId: number;
+  customerId: number;
+  customerName?: string;
+  docDate: string;
+  warehouseId: number;
+  status: string;
+  currency?: string;
+  totalAmount: number;
+  remark?: string;
+  lines?: ReturnLineView[];
+}
+
+/** 退货分录入参（按源订单行号与数量） */
+export interface ReturnLineInput {
+  orderLineNo: number;
+  quantity: number;
+}
+
+/** 采购退货入参 */
+export interface PurchaseReturnInput {
+  purchaseOrderId: number;
+  docDate: string;
+  remark?: string;
+  lines: ReturnLineInput[];
+}
+
+/** 销售退货入参 */
+export interface SalesReturnInput {
+  salesOrderId: number;
+  docDate: string;
+  remark?: string;
+  lines: ReturnLineInput[];
+}
+
+/** 采购退货单分页 */
+export function pagePurchaseReturns(
+  params: ScmQueryParams = {},
+): Promise<PageResult<PurchaseReturnView>> {
+  return http.get<PageResult<PurchaseReturnView>>(
+    `/erp/scm/purchase-return/page?${buildQuery(params)}`,
+  );
+}
+
+/** 采购退货单详情（含分录） */
+export function getPurchaseReturn(id: number): Promise<PurchaseReturnView> {
+  return http.get<PurchaseReturnView>(`/erp/scm/purchase-return/${id}`);
+}
+
+/** 新增采购退货单 */
+export function createPurchaseReturn(input: PurchaseReturnInput): Promise<PurchaseReturnView> {
+  return http.post<PurchaseReturnView>('/erp/scm/purchase-return', input);
+}
+
+/** 采购退货过账 */
+export function postPurchaseReturn(id: number): Promise<PurchaseReturnView> {
+  return http.post<PurchaseReturnView>(`/erp/scm/purchase-return/${id}/post`);
+}
+
+/** 取消采购退货单 */
+export function cancelPurchaseReturn(id: number): Promise<PurchaseReturnView> {
+  return http.post<PurchaseReturnView>(`/erp/scm/purchase-return/${id}/cancel`);
+}
+
+/** 销售退货单分页 */
+export function pageSalesReturns(params: ScmQueryParams = {}): Promise<PageResult<SalesReturnView>> {
+  return http.get<PageResult<SalesReturnView>>(`/erp/scm/sales-return/page?${buildQuery(params)}`);
+}
+
+/** 销售退货单详情（含分录） */
+export function getSalesReturn(id: number): Promise<SalesReturnView> {
+  return http.get<SalesReturnView>(`/erp/scm/sales-return/${id}`);
+}
+
+/** 新增销售退货单 */
+export function createSalesReturn(input: SalesReturnInput): Promise<SalesReturnView> {
+  return http.post<SalesReturnView>('/erp/scm/sales-return', input);
+}
+
+/** 销售退货过账 */
+export function postSalesReturn(id: number): Promise<SalesReturnView> {
+  return http.post<SalesReturnView>(`/erp/scm/sales-return/${id}/post`);
+}
+
+/** 取消销售退货单 */
+export function cancelSalesReturn(id: number): Promise<SalesReturnView> {
+  return http.post<SalesReturnView>(`/erp/scm/sales-return/${id}/cancel`);
+}

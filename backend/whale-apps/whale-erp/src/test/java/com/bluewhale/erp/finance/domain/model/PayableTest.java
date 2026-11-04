@@ -54,6 +54,40 @@ class PayableTest {
     }
 
     @Test
+    @DisplayName("退货冲减按未核销余额扣减原金额")
+    void shouldOffsetReturn() {
+        Payable payable = payable("800.00");
+
+        payable.offsetReturn(new BigDecimal("300.00"));
+
+        assertEquals(new BigDecimal("500.00"), payable.remaining());
+        assertEquals(FinanceStatus.LEDGER_OPEN, payable.getStatus());
+    }
+
+    @Test
+    @DisplayName("退货冲减超过未核销余额时拒绝")
+    void shouldRejectOverOffset() {
+        Payable payable = payable("800.00");
+        payable.settle(new BigDecimal("600.00"));
+
+        BizException exception = assertThrows(BizException.class,
+                () -> payable.offsetReturn(new BigDecimal("300.00")));
+
+        assertEquals(ErpErrorCode.RETURN_OFFSET_EXCEEDED, exception.getCode());
+    }
+
+    @Test
+    @DisplayName("退货冲减至零后状态为已结清")
+    void shouldSettleAfterOffset() {
+        Payable payable = payable("800.00");
+
+        payable.offsetReturn(new BigDecimal("800.00"));
+
+        assertEquals(FinanceStatus.LEDGER_SETTLED, payable.getStatus());
+        assertEquals(0, payable.remaining().compareTo(BigDecimal.ZERO));
+    }
+
+    @Test
     @DisplayName("逾期天数按到期日计算")
     void shouldComputeOverdueDays() {
         Payable payable = payable("800.00");

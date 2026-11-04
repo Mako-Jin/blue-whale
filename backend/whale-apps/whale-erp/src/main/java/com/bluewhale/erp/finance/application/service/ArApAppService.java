@@ -99,4 +99,20 @@ public interface ArApAppService {
      * @return 按供应商汇总的账龄
      */
     List<AgingView> payableAging();
+
+    /**
+     * 采购退货冲减应付：按供应商未核销台账从早到晚分摊。
+     *
+     * @param supplierId 供应商 ID
+     * @param amount 冲减金额
+     */
+    void offsetPayable(Long supplierId, BigDecimal amount);
+
+    /**
+     * 销售退货冲减应收：按客户未核销台账从早到晚分摊。
+     *
+     * @param customerId 客户 ID
+     * @param amount 冲减金额
+     */
+    void offsetReceivable(Long customerId, BigDecimal amount);
 }

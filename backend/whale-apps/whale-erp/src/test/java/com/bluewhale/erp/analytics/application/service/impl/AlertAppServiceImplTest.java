@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 
@@ -69,7 +70,8 @@ class AlertAppServiceImplTest {
         when(alertRepository.listEnabledRules()).thenReturn(List.of(rule));
         when(analyticsRepository.listStockFacts())
                 .thenReturn(List.of(stock("I001", 1L, new BigDecimal("3"))));
-        when(alertRepository.existsEvent(rule.getId(), "I001#1", "20261104")).thenReturn(true);
+        when(alertRepository.existsEvent(rule.getId(), "I001#1",
+                LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE))).thenReturn(true);
 
         AlertEvaluationView view = service.evaluate(null, "tester");
 

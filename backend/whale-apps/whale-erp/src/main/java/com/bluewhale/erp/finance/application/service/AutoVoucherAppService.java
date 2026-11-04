@@ -66,4 +66,20 @@ public interface AutoVoucherAppService {
      * @return 凭证 ID；金额为零或已记账时返回已有凭证 ID / null
      */
     Long postPayrollPayment(AutoVoucherCommand command);
+
+    /**
+     * 采购退货记账（红字）：借应付、贷存货。
+     *
+     * @param command 记账命令
+     * @return 凭证 ID；金额为零或已记账时返回已有凭证 ID / null
+     */
+    Long postPurchaseReturn(AutoVoucherCommand command);
+
+    /**
+     * 销售退货记账（红字）：借收入、贷应收；同时借存货、贷成本。
+     *
+     * @param command 记账命令，{@code costAmount} 为退货入库成本
+     * @return 凭证 ID；金额为零或已记账时返回已有凭证 ID / null
+     */
+    Long postSalesReturn(AutoVoucherCommand command);
 }

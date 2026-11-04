@@ -236,6 +236,57 @@ public class ArApAppServiceImpl implements ArApAppService {
                 .toList();
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void offsetPayable(Long supplierId, BigDecimal amount) {
+        Amounts.requirePositive(amount, "退货冲减金额");
+        List<Payable> candidates = payableRepository.listOutstanding().stream()
+                .filter(payable -> payable.getSupplierId() != null && payable.getSupplierId().equals(supplierId))
+                .filter(payable -> payable.remaining().signum() > 0)
+                .sorted(Comparator.comparing(Payable::getDocDate).thenComparing(Payable::getId))
+                .toList();
+        BigDecimal leftover = amount;
+        for (Payable payable : candidates) {
+            if (leftover.signum() == 0) {
+                break;
+            }
+            BigDecimal allocate = leftover.min(payable.remaining());
+            payable.offsetReturn(allocate);
+            payableRepository.update(payable);
+            leftover = leftover.subtract(allocate);
+        }
+        if (leftover.signum() > 0) {
+            throw ErpErrorCode.exception(ErpErrorCode.RETURN_OFFSET_EXCEEDED,
+                    "未核销余额不足：需冲减 " + amount + "，可用 " + amount.subtract(leftover));
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void offsetReceivable(Long customerId, BigDecimal amount) {
+        Amounts.requirePositive(amount, "退货冲减金额");
+        List<Receivable> candidates = receivableRepository.listOutstanding().stream()
+                .filter(receivable -> receivable.getCustomerId() != null
+                        && receivable.getCustomerId().equals(customerId))
+                .filter(receivable -> receivable.remaining().signum() > 0)
+                .sorted(Comparator.comparing(Receivable::getDocDate).thenComparing(Receivable::getId))
+                .toList();
+        BigDecimal leftover = amount;
+        for (Receivable receivable : candidates) {
+            if (leftover.signum() == 0) {
+                break;
+            }
+            BigDecimal allocate = leftover.min(receivable.remaining());
+            receivable.offsetReturn(allocate);
+            receivableRepository.update(receivable);
+            leftover = leftover.subtract(allocate);
+        }
+        if (leftover.signum() > 0) {
+            throw ErpErrorCode.exception(ErpErrorCode.RETURN_OFFSET_EXCEEDED,
+                    "未核销余额不足：需冲减 " + amount + "，可用 " + amount.subtract(leftover));
+        }
+    }
+
     /**
      * 校验到期日不早于单据日期。
      *

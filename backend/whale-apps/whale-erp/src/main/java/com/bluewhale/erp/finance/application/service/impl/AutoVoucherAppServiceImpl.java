@@ -129,6 +129,70 @@ public class AutoVoucherAppServiceImpl implements AutoVoucherAppService {
         return postPayroll(command, true);
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long postPurchaseReturn(AutoVoucherCommand command) {
+        return postReturn(command, false);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long postSalesReturn(AutoVoucherCommand command) {
+        return postReturn(command, true);
+    }
+
+    /**
+     * 生成并记账退货凭证（红字）。
+     *
+     * @param command 记账命令
+     * @param sales 是否销售退货（否则为采购退货）
+     * @return 凭证 ID；金额为零时返回 null
+     */
+    private Long postReturn(AutoVoucherCommand command, boolean sales) {
+        if (Amounts.isZero(command.getAmount())) {
+            return null;
+        }
+        Long existing = existingId(command);
+        if (existing != null) {
+            return existing;
+        }
+        Amounts.requirePositive(command.getAmount(), "退货记账金额");
+        AccountingPeriod period = requireOpenPeriod(command.getVoucherDate());
+        String currency = StringUtils.hasText(command.getCurrency()) ? command.getCurrency() : DEFAULT_CURRENCY;
+        Voucher voucher = new Voucher();
+        voucher.setVoucherDate(command.getVoucherDate());
+        voucher.setPeriodCode(period.getPeriodCode());
+        voucher.setVoucherType(FinanceStatus.TYPE_MANUAL);
+        voucher.setStatus(FinanceStatus.VOUCHER_DRAFT);
+        voucher.setCurrency(currency);
+        voucher.setExchangeRate(BigDecimal.ONE);
+        voucher.setSourceType(command.getSourceType());
+        voucher.setSourceId(command.getSourceId());
+        voucher.setRemark(command.getRemark());
+        List<VoucherLine> lines = new ArrayList<>();
+        if (sales) {
+            addLine(voucher, lines, accountProperties.getRevenue(), command.getAmount(), null, "销售退货冲减收入");
+            addLine(voucher, lines, accountProperties.getReceivable(), null, command.getAmount(),
+                    "销售退货冲减应收");
+            BigDecimal cost = command.getCostAmount() == null ? BigDecimal.ZERO : command.getCostAmount();
+            if (cost.signum() > 0) {
+                addLine(voucher, lines, accountProperties.getInventory(), cost, null, "销售退货入库");
+                addLine(voucher, lines, accountProperties.getCost(), null, cost, "销售退货入库");
+            }
+        } else {
+            addLine(voucher, lines, accountProperties.getPayable(), command.getAmount(), null, "采购退货冲减应付");
+            addLine(voucher, lines, accountProperties.getInventory(), null, command.getAmount(),
+                    "采购退货出库");
+        }
+        voucher.setLines(lines);
+        voucher.validateAndSum();
+        voucher.setVoucherNo(voucherRepository.nextVoucherNo(period.getPeriodCode()));
+        voucherRepository.insert(voucher);
+        voucher.post(command.getOperatorId(), LocalDateTime.now());
+        voucherRepository.update(voucher);
+        return voucher.getId();
+    }
+
     /**
      * 生成并记账薪资凭证。
      *

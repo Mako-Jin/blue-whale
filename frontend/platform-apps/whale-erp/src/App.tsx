@@ -16,6 +16,8 @@ import SalesOrderPage from './pages/SalesOrderPage';
 import StockPage from './pages/StockPage';
 import TransferPage from './pages/TransferPage';
 import StocktakePage from './pages/StocktakePage';
+import PurchaseReturnPage from './pages/PurchaseReturnPage';
+import SalesReturnPage from './pages/SalesReturnPage';
 import ForecastPage from './pages/ForecastPage';
 import MpsPage from './pages/MpsPage';
 import ProductionPage from './pages/ProductionPage';
@@ -46,6 +48,8 @@ const menuItems: MenuProps['items'] = [
   { key: 'stock', label: '库存台账' },
   { key: 'transfer', label: '库存调拨' },
   { key: 'stocktake', label: '库存盘点' },
+  { key: 'purchase-return', label: '采购退货' },
+  { key: 'sales-return', label: '销售退货' },
   { key: 'forecast', label: '需求预测' },
   { key: 'mps', label: '主生产计划' },
   { key: 'production', label: '生产订单' },
@@ -74,6 +78,8 @@ type PageKind =
   | 'stock'
   | 'transfer'
   | 'stocktake'
+  | 'purchase-return'
+  | 'sales-return'
   | 'forecast'
   | 'mps'
   | 'production'
@@ -96,6 +102,8 @@ function initialPage(): PageKind {
   if (path.includes('/erp/finance/voucher')) return 'voucher';
   if (path.includes('/erp/finance/arap')) return 'arap';
   if (path.includes('/erp/finance/report')) return 'report';
+  if (path.includes('/erp/scm/purchase-return')) return 'purchase-return';
+  if (path.includes('/erp/scm/sales-return')) return 'sales-return';
   if (path.includes('/erp/scm/purchase')) return 'purchase';
   if (path.includes('/erp/scm/sales')) return 'sales';
   if (path.includes('/erp/scm/stocktake')) return 'stocktake';
@@ -138,6 +146,8 @@ function pageOfKey(key: string): PageKind {
     || key === 'stock'
     || key === 'transfer'
     || key === 'stocktake'
+    || key === 'purchase-return'
+    || key === 'sales-return'
     || key === 'forecast'
     || key === 'mps'
     || key === 'production'
@@ -171,6 +181,8 @@ const PAGE_TITLE: Record<PageKind, string> = {
   stock: '库存台账',
   transfer: '库存调拨',
   stocktake: '库存盘点',
+  'purchase-return': '采购退货',
+  'sales-return': '销售退货',
   forecast: '需求预测',
   mps: '主生产计划',
   production: '生产订单',
@@ -278,6 +290,8 @@ export default function App() {
             {page === 'stock' ? <StockPage /> : null}
             {page === 'transfer' ? <TransferPage /> : null}
             {page === 'stocktake' ? <StocktakePage /> : null}
+            {page === 'purchase-return' ? <PurchaseReturnPage /> : null}
+            {page === 'sales-return' ? <SalesReturnPage /> : null}
             {page === 'forecast' ? <ForecastPage /> : null}
             {page === 'mps' ? <MpsPage /> : null}
             {page === 'production' ? <ProductionPage /> : null}
