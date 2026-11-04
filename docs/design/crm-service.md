@@ -6,6 +6,12 @@
 > 关联决策：[CRM/SRM 与消息服务边界决策](../plans/2026-10-28-crm-srm-and-message-service-decisions.md)、REQ-ARCH-011
 > 实现位置：`backend/whale-apps/whale-crm`（**前端未创建**）
 
+> **2026-11-04 范围变更（规划中，零代码）**：收到用户《CRM 功能模块全景》（6 大模块 29 个子模块），已产出
+> [CRM 全景设计稿](crm-module-panorama.md) 与 [Wave 5.83 计划](../plans/2026-11-04-wave5.83-crm-panorama.md)。
+> 本稿 §1「明确不做线索评分、营销自动化、客服工单」与全景的线索、营销、工单范围冲突，需由 D1 决策并更新 ADR-003；
+> **复核通过前门禁仍为未通过、`demand-gate-passed` 仍为 `false`、不写业务代码**。本稿 §3 仍是当前代码事实，§4–§9 是门禁骨架
+> 的原始承诺，后续以全景设计稿为准。
+
 ---
 
 ## 1. 门禁结论

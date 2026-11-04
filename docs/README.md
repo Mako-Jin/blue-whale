@@ -26,6 +26,9 @@ docs/
 │   ├── ddd-whale-auth.md    # 权限服务 DDD 架构
 │   ├── doc-service.md       # 在线文档/Wiki 服务设计（M1–M5 已交付）
 │   ├── frozen-optional-modules.md  # 冻结模块清单
+│   ├── mes-module-panorama.md      # MES 功能模块全景设计（M0–M5 规划稿）
+│   ├── pdm-module-panorama.md      # PDM 功能模块全景设计（M0–M5 规划稿）
+│   ├── crm-module-panorama.md      # CRM 功能模块全景设计（M0–M6 规划稿）
 │   ├── multi-database.md    # 多数据库（国产化）演进设计
 │   ├── network-boundary.md  # 网络边界与上线必检
 │   ├── whale-monitor-boundary.md   # whale-monitor 能力边界
