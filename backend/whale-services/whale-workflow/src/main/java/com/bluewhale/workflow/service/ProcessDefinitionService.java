@@ -1,6 +1,7 @@
 package com.bluewhale.workflow.service;
 
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.workflow.dto.DefinitionEnsureRequest;
 import com.bluewhale.workflow.dto.DefinitionMigrationRequest;
 import com.bluewhale.workflow.dto.ProcessDefinitionSaveRequest;
 import com.bluewhale.workflow.dto.ProcessQueryRequest;
@@ -24,6 +25,16 @@ public interface ProcessDefinitionService {
      * @return 流程定义视图对象
      */
     ProcessDefinitionVO create(ProcessDefinitionSaveRequest request);
+
+    /**
+     * 按流程编码幂等 ensure：已存在直接返回，不存在则校验并新建。
+     *
+     * <p>供种子 / 集成同步使用，重复执行不会重复建定义。</p>
+     *
+     * @param request ensure 请求
+     * @return 已存在或新建的流程定义
+     */
+    ProcessDefinitionVO ensure(DefinitionEnsureRequest request);
 
     /**
      * 更新流程定义

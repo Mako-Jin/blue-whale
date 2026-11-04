@@ -1,9 +1,13 @@
 package com.bluewhale.workflow.service;
 
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.workflow.dto.InternalProcessStartRequest;
 import com.bluewhale.workflow.dto.ProcessInstanceQueryRequest;
 import com.bluewhale.workflow.dto.ProcessInstanceStartRequest;
+import com.bluewhale.workflow.vo.InstanceStatusVO;
 import com.bluewhale.workflow.vo.ProcessInstanceVO;
+
+import java.util.List;
 
 /**
  * 流程实例服务
@@ -20,6 +24,22 @@ public interface ProcessInstanceService {
      * @return 流程实例视图对象
      */
     ProcessInstanceVO start(ProcessInstanceStartRequest request, String initiator);
+
+    /**
+     * 内网按流程编码发起实例（OA 审批中心使用）。
+     *
+     * @param request 发起请求：definitionCode / title 必填
+     * @return 流程实例视图对象
+     */
+    ProcessInstanceVO startByCode(InternalProcessStartRequest request);
+
+    /**
+     * 批量查询实例状态摘要（最多 100 个）。
+     *
+     * @param instanceIds 流程实例ID列表
+     * @return 状态摘要列表
+     */
+    List<InstanceStatusVO> batchStatus(List<Long> instanceIds);
 
     /**
      * 流程实例详情（含该实例任务列表）

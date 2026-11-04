@@ -33,6 +33,7 @@ public final class DeptPersistenceAssembler {
                 po.getDeptName(),
                 po.getSort(),
                 po.getLeader(),
+                po.getLeaderUserId(),
                 po.getCreateTime(),
                 po.getUpdateTime());
     }
@@ -51,6 +52,7 @@ public final class DeptPersistenceAssembler {
         po.setDeptName(dept.getDeptName());
         po.setSort(dept.getSort());
         po.setLeader(dept.getLeader());
+        po.setLeaderUserId(dept.getLeaderUserId());
         po.setCreateTime(dept.getCreateTime());
         po.setUpdateTime(dept.getUpdateTime());
         return po;

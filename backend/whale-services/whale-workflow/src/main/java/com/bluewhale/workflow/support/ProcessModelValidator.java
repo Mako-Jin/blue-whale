@@ -285,7 +285,28 @@ public final class ProcessModelValidator {
                 report.add(ValidationIssue.of(ValidationCode.USER_TASK_ASSIGNEE_REQUIRED, key));
             }
             checkCounterSign(report, item, nodeType, key);
+            checkCcTask(report, item, nodeType, key);
             checkUserTaskForm(report, item, nodeType, key);
+        }
+    }
+
+    /**
+     * 校验抄送节点：收件人（{@code assignees}）非空。
+     *
+     * @param report 校验报告
+     * @param item 节点 JSON
+     * @param nodeType 节点类型
+     * @param key 节点键（可为 {@code null}）
+     */
+    private static void checkCcTask(ValidationReport report, JsonNode item, ProcessNodeType nodeType, String key) {
+        if (nodeType != ProcessNodeType.CC_TASK) {
+            return;
+        }
+        JsonNode assignees = item.get("assignees");
+        boolean hasAssignees = assignees != null && ((assignees.isArray() && !assignees.isEmpty())
+                || (!assignees.isArray() && !assignees.asText().isBlank()));
+        if (!hasAssignees) {
+            report.add(ValidationIssue.of(ValidationCode.CC_TASK_RECIPIENTS_REQUIRED, key));
         }
     }
 

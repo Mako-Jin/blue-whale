@@ -91,6 +91,26 @@ class OaFlywayMigrationScriptTest {
     }
 
     /**
+     * 审批底座表集合：与 Wave 5.82 M0 设计稿一致
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("V2 审批底座表集合完整")
+    void approvalFoundationShouldMatchDesign() throws IOException {
+        Set<String> tables = extractTables(MIGRATION_DIR.resolve("V2__approval_foundation.sql"));
+        assertEquals(Set.of(
+                "oa_approval_config",
+                "oa_approval_instance",
+                "oa_approval_route_rule",
+                "oa_approval_route",
+                "oa_approval_effect",
+                "oa_file_ref",
+                "oa_sequence",
+                "oa_integration_outbox"), tables, "V2 建表集合与 M0 设计不一致");
+    }
+
+    /**
      * 列出迁移脚本并按文件名字典序返回
      *
      * @return 迁移脚本路径

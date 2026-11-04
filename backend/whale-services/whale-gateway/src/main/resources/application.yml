@@ -316,6 +316,8 @@ whale:
         - /audit/log/ingest/**
         # Wave 5.52 IM 群成员合法性校验：仅 whale-im 经内网直连 whale-service-auth 调用
         - /user/internal/**
+        # Wave 5.82 M0-5 OA 审批人解析：部门树/负责人员仅服务间内网直连 whale-service-auth
+        - /dept/internal/**
         # Wave 5.55 IM 站内通知通道：仅业务服务（如 whale-pm）经内网直连 whale-im 投递
         - /im/internal/**
         # Wave 5.54 租户目录：仅档案/知识库等后台任务经内网直连 whale-service-auth 查询可用租户

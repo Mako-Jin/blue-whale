@@ -2,18 +2,27 @@ package com.bluewhale.workflow.controller;
 
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
+import com.bluewhale.workflow.dto.InternalProcessStartRequest;
+import com.bluewhale.workflow.dto.ProcessInstanceQueryRequest;
+import com.bluewhale.workflow.service.ProcessInstanceService;
 import com.bluewhale.workflow.service.WorkflowArchiveReadService;
 import com.bluewhale.workflow.vo.ApprovedInstanceVO;
 import com.bluewhale.workflow.vo.ArchiveInstanceDetailVO;
+import com.bluewhale.workflow.vo.InstanceStatusVO;
+import com.bluewhale.workflow.vo.ProcessInstanceVO;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 流程实例归档内网接口（只读）。
@@ -29,6 +38,64 @@ import java.time.LocalDateTime;
 public class WorkflowInternalController {
 
     private final WorkflowArchiveReadService workflowArchiveReadService;
+
+    private final ProcessInstanceService processInstanceService;
+
+    /**
+     * 内网按流程编码发起实例。
+     *
+     * @param request 发起请求
+     * @return 流程实例视图对象
+     */
+    @PostMapping("/start")
+    public Result<ProcessInstanceVO> start(@Valid @RequestBody InternalProcessStartRequest request) {
+        return Result.ok(processInstanceService.startByCode(request));
+    }
+
+    /**
+     * 分页查询实例（支持「我发起」：{@code initiator} 精确匹配）。
+     *
+     * @param request 查询条件
+     * @return 实例分页结果
+     */
+    @GetMapping("/page")
+    public Result<PageResult<ProcessInstanceVO>> page(ProcessInstanceQueryRequest request) {
+        return Result.ok(processInstanceService.page(request));
+    }
+
+    /**
+     * 查询实例详情（含任务轨迹）。
+     *
+     * @param id 流程实例ID
+     * @return 实例详情
+     */
+    @GetMapping("/{id}")
+    public Result<ProcessInstanceVO> instanceDetail(@PathVariable Long id) {
+        return Result.ok(processInstanceService.getDetail(id));
+    }
+
+    /**
+     * 撤销运行中的实例。
+     *
+     * @param id 流程实例ID
+     * @return 空结果
+     */
+    @PostMapping("/{id}/cancel")
+    public Result<Void> cancel(@PathVariable Long id) {
+        processInstanceService.cancel(id);
+        return Result.ok();
+    }
+
+    /**
+     * 批量查询实例状态摘要（最多 100 个）。
+     *
+     * @param instanceIds 实例ID列表（逗号分隔或重复参数）
+     * @return 状态摘要列表
+     */
+    @GetMapping("/status")
+    public Result<List<InstanceStatusVO>> status(@RequestParam("instanceIds") List<Long> instanceIds) {
+        return Result.ok(processInstanceService.batchStatus(instanceIds));
+    }
 
     /**
      * 按办结时间游标分页查询已通过实例。

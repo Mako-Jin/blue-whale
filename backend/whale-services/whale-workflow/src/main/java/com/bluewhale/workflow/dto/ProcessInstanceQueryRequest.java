@@ -23,4 +23,7 @@ public class ProcessInstanceQueryRequest extends PageQuery {
 
     /** 流程定义编码（精确匹配） */
     private String definitionCode;
+
+    /** 发起人账号（精确匹配；用于「我发起」） */
+    private String initiator;
 }

@@ -1,15 +1,21 @@
 package com.bluewhale.workflow.converter;
 
+import com.bluewhale.workflow.entity.ProcessCc;
 import com.bluewhale.workflow.entity.ProcessDefinition;
 import com.bluewhale.workflow.entity.ProcessDefinitionVersion;
+import com.bluewhale.workflow.entity.ProcessDelegate;
 import com.bluewhale.workflow.entity.ProcessInstance;
 import com.bluewhale.workflow.entity.ProcessTask;
+import com.bluewhale.workflow.entity.ProcessUrge;
 import com.bluewhale.workflow.vo.ApprovedInstanceVO;
 import com.bluewhale.workflow.vo.ArchiveInstanceDetailVO;
+import com.bluewhale.workflow.vo.DelegateRuleVO;
+import com.bluewhale.workflow.vo.ProcessCcVO;
 import com.bluewhale.workflow.vo.ProcessDefinitionVO;
 import com.bluewhale.workflow.vo.ProcessDefinitionVersionVO;
 import com.bluewhale.workflow.vo.ProcessInstanceVO;
 import com.bluewhale.workflow.vo.ProcessTaskVO;
+import com.bluewhale.workflow.vo.ProcessUrgeVO;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.factory.Mappers;
@@ -80,4 +86,28 @@ public interface WorkflowConverter {
      */
     @Mapping(target = "finishedAt", ignore = true)
     ApprovedInstanceVO toApprovedVo(ProcessInstance entity);
+
+    /**
+     * 抄送实体转视图对象
+     *
+     * @param entity 抄送实体
+     * @return 抄送视图对象
+     */
+    ProcessCcVO toCcVo(ProcessCc entity);
+
+    /**
+     * 代理规则实体转视图对象
+     *
+     * @param entity 代理规则实体
+     * @return 代理规则视图对象
+     */
+    DelegateRuleVO toDelegateVo(ProcessDelegate entity);
+
+    /**
+     * 催办记录实体转视图对象
+     *
+     * @param entity 催办记录实体
+     * @return 催办记录视图对象
+     */
+    ProcessUrgeVO toUrgeVo(ProcessUrge entity);
 }

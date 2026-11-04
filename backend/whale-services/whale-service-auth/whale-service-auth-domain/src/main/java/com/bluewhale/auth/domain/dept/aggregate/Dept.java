@@ -26,6 +26,8 @@ public class Dept implements Entity<Long> {
     private String deptName;
     private int sort;
     private String leader;
+    /** 负责人用户 ID（逻辑关联 {@code sys_user.id}，允许为空） */
+    private Long leaderUserId;
     private final LocalDateTime createTime;
     private LocalDateTime updateTime;
 
@@ -38,11 +40,12 @@ public class Dept implements Entity<Long> {
      * @param deptName 部门名称
      * @param sort 排序号
      * @param leader 负责人
+     * @param leaderUserId 负责人用户 ID（允许为空）
      * @param createTime 创建时间
      * @param updateTime 更新时间
      */
     private Dept(Long id, Long tenantId, Long parentId, String deptName, int sort, String leader,
-                 LocalDateTime createTime, LocalDateTime updateTime) {
+                 Long leaderUserId, LocalDateTime createTime, LocalDateTime updateTime) {
         if (tenantId == null) {
             throw new DomainException(ErrorCode.PARAM_ERROR, "部门所属租户不能为空");
         }
@@ -58,6 +61,7 @@ public class Dept implements Entity<Long> {
         this.deptName = deptName;
         this.sort = sort;
         this.leader = leader;
+        this.leaderUserId = leaderUserId;
         this.createTime = createTime;
         this.updateTime = updateTime;
     }
@@ -73,9 +77,25 @@ public class Dept implements Entity<Long> {
      * @return 新建的部门聚合根
      */
     public static Dept create(Long tenantId, Long parentId, String deptName, Integer sort, String leader) {
+        return create(tenantId, parentId, deptName, sort, leader, null);
+    }
+
+    /**
+     * 工厂方法（含负责人用户 ID）：新建部门（无 ID），{@code parentId}/{@code sort} 为空时取默认（0 / 0）
+     *
+     * @param tenantId 所属租户 ID
+     * @param parentId 父部门 ID，为空时按 0（顶级）处理
+     * @param deptName 部门名称
+     * @param sort 排序号，为空时按 0 处理
+     * @param leader 负责人
+     * @param leaderUserId 负责人用户 ID（允许为空）
+     * @return 新建的部门聚合根
+     */
+    public static Dept create(Long tenantId, Long parentId, String deptName, Integer sort, String leader,
+                              Long leaderUserId) {
         LocalDateTime now = LocalDateTime.now();
         return new Dept(null, tenantId, parentId == null ? ROOT_PARENT_ID : parentId, deptName,
-                sort == null ? 0 : sort, leader, now, now);
+                sort == null ? 0 : sort, leader, leaderUserId, now, now);
     }
 
     /**
@@ -93,8 +113,28 @@ public class Dept implements Entity<Long> {
      */
     public static Dept reconstitute(Long id, Long tenantId, Long parentId, String deptName, Integer sort,
                                     String leader, LocalDateTime createTime, LocalDateTime updateTime) {
+        return reconstitute(id, tenantId, parentId, deptName, sort, leader, null, createTime, updateTime);
+    }
+
+    /**
+     * 重建方法（含负责人用户 ID）：由持久化数据还原部门聚合根
+     *
+     * @param id 部门 ID
+     * @param tenantId 所属租户 ID
+     * @param parentId 父部门 ID，为空时按 0（顶级）处理
+     * @param deptName 部门名称
+     * @param sort 排序号，为空时按 0 处理
+     * @param leader 负责人
+     * @param leaderUserId 负责人用户 ID（允许为空）
+     * @param createTime 创建时间
+     * @param updateTime 更新时间
+     * @return 还原的部门聚合根
+     */
+    public static Dept reconstitute(Long id, Long tenantId, Long parentId, String deptName, Integer sort,
+                                    String leader, Long leaderUserId, LocalDateTime createTime,
+                                    LocalDateTime updateTime) {
         return new Dept(id, tenantId, parentId == null ? ROOT_PARENT_ID : parentId, deptName,
-                sort == null ? 0 : sort, leader, createTime, updateTime);
+                sort == null ? 0 : sort, leader, leaderUserId, createTime, updateTime);
     }
 
     /**
@@ -144,7 +184,20 @@ public class Dept implements Entity<Long> {
     }
 
     /**
+     * 行为：修改负责人用户 ID（对应管理端维护 {@code leaderUserId} 赋值）
+     *
+     * @param leaderUserId 新负责人用户 ID（允许为空）
+     */
+    public void changeLeaderUser(Long leaderUserId) {
+        this.leaderUserId = leaderUserId;
+        this.updateTime = LocalDateTime.now();
+    }
+
+    /**
      * 行为：一次性应用更新接口的全部字段（空值默认与 {@link #create} 保持一致）
+     *
+     * <p><b>注意</b>：本重载不修改 {@code leaderUserId}，避免未携带该字段的旧调用方
+     * 无意清空已维护的负责人用户 ID。</p>
      *
      * @param parentId 父部门 ID，为空时按 0（顶级）处理
      * @param deptName 部门名称
@@ -152,10 +205,29 @@ public class Dept implements Entity<Long> {
      * @param leader 负责人
      */
     public void applyChanges(Long parentId, String deptName, Integer sort, String leader) {
+        applyChanges(parentId, deptName, sort, leader, null);
+    }
+
+    /**
+     * 行为：一次性应用更新接口的全部字段（含负责人用户 ID）
+     *
+     * <p>{@code leaderUserId} 为 {@code null} 时保持原值不变，不做清空；需要清空时调用方应显式链式调用
+     * {@link #changeLeaderUser(Long)}。</p>
+     *
+     * @param parentId 父部门 ID，为空时按 0（顶级）处理
+     * @param deptName 部门名称
+     * @param sort 排序号，为空时按 0 处理
+     * @param leader 负责人
+     * @param leaderUserId 负责人用户 ID（{@code null} 表示不修改）
+     */
+    public void applyChanges(Long parentId, String deptName, Integer sort, String leader, Long leaderUserId) {
         moveTo(parentId == null ? ROOT_PARENT_ID : parentId);
         rename(deptName);
         changeSort(sort == null ? 0 : sort);
         changeLeader(leader);
+        if (leaderUserId != null) {
+            changeLeaderUser(leaderUserId);
+        }
     }
 
     /**
@@ -210,6 +282,15 @@ public class Dept implements Entity<Long> {
      */
     public String getLeader() {
         return leader;
+    }
+
+    /**
+     * 获取负责人用户 ID
+     *
+     * @return 负责人用户 ID；未维护时为 {@code null}
+     */
+    public Long getLeaderUserId() {
+        return leaderUserId;
     }
 
     /**

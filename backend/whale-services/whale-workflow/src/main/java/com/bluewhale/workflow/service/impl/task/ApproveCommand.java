@@ -37,6 +37,8 @@ public class ApproveCommand {
 
     private final CounterSignCommand counterSignCommand;
 
+    private final TaskActivationCommand taskActivationCommand;
+
     /**
      * 同意任务并推进流程。
      *
@@ -122,7 +124,7 @@ public class ApproveCommand {
             instance.setCurrentNodeKey(result.getState());
             instance.setActiveNodeKeys(result.getNodes().size() > 1 ? joinKeys(result.getNodes()) : null);
             processInstanceMapper.updateById(instance);
-            taskCommandSupport.createTasks(instance.getId(), model, result.getNodes());
+            taskActivationCommand.activate(instance, model, result);
             return;
         }
         instance.setStatus(TaskConstants.INSTANCE_APPROVED);

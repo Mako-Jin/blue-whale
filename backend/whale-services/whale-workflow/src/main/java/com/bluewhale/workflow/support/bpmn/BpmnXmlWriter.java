@@ -347,6 +347,7 @@ public final class BpmnXmlWriter {
             case EXCLUSIVE_GATEWAY -> "exclusiveGateway";
             case PARALLEL_GATEWAY -> "parallelGateway";
             case USER_TASK, COUNTER_SIGN -> "userTask";
+            case CC_TASK -> "manualTask";
         };
     }
 

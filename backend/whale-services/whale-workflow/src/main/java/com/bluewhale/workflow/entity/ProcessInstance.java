@@ -52,4 +52,7 @@ public class ProcessInstance extends BaseEntity {
 
     /** 当前并行活动节点键集合（逗号分隔；单待办时为空，空即代表无并行分支） */
     private String activeNodeKeys;
+
+    /** 发起时审批人覆盖快照（nodeKey -> 账号列表 JSON；为空表示全部使用定义中的静态审批人） */
+    private String assigneeOverridesJson;
 }

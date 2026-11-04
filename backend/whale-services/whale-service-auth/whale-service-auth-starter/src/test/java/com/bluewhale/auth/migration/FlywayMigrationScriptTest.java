@@ -41,6 +41,10 @@ class FlywayMigrationScriptTest {
     /** 手工初始化脚本（与 V1 基线同源） */
     private static final Path INIT_SCRIPT = Path.of("src/main/resources/db/init.sql");
 
+    /** OA M0-5 Auth 增强手工迁移脚本 */
+    private static final Path OA_M0_AUTH_SCRIPT =
+            Path.of("src/main/resources/db/migration-5.85-oa-m0-auth.sql");
+
     /** Flyway 版本化脚本命名 */
     private static final Pattern VERSIONED_NAME = Pattern.compile("V(\\d+)__[A-Za-z0-9_]+.sql");
 
@@ -131,6 +135,30 @@ class FlywayMigrationScriptTest {
         assertTrue(policy.contains("sys_tenant_password_policy"), "V3 应包含租户口令策略表");
         assertTrue(policy.contains("sys:tenant:pwdpolicy:list"), "V3 应包含租户策略查询权限");
         assertTrue(policy.contains("sys:tenant:pwdpolicy:edit"), "V3 应包含租户策略配置权限");
+    }
+
+    /**
+     * OA M0-5 Auth 增强迁移校验：包含负责人用户 ID 列与索引，且不含破坏性语句
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("M0-5 Auth 增强迁移包含 leader_user_id 与 idx_tenant_leader 且无破坏性语句")
+    void oaM0AuthMigrationShouldContainLeaderUserId() throws IOException {
+        assertTrue(Files.exists(OA_M0_AUTH_SCRIPT), "缺少 OA M0-5 Auth 增强迁移脚本");
+        String content = read(OA_M0_AUTH_SCRIPT);
+        assertTrue(content.contains("leader_user_id"), "迁移应包含 leader_user_id 列");
+        assertTrue(content.contains("idx_tenant_leader"), "迁移应包含 idx_tenant_leader 索引");
+        assertTrue(content.contains("bluewhale_auth"), "迁移头部应标注适用库 bluewhale_auth");
+        for (String line : Files.readAllLines(OA_M0_AUTH_SCRIPT, StandardCharsets.UTF_8)) {
+            String statement = line.trim().toUpperCase();
+            if (statement.startsWith("--") || statement.isEmpty()) {
+                continue;
+            }
+            assertFalse(statement.startsWith("DROP "), "迁移不得含 DROP 语句：" + line);
+            assertFalse(statement.startsWith("TRUNCATE "), "迁移不得含 TRUNCATE 语句：" + line);
+            assertFalse(statement.startsWith("DELETE "), "迁移不得含 DELETE 语句：" + line);
+        }
     }
 
     /**

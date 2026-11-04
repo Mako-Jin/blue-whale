@@ -8,55 +8,80 @@ import com.tngtech.archunit.lang.ArchRule;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 /**
- * OA 应用分层依赖守护（T-18 剩余服务越层专项）。
+ * OA 应用 DDD-lite 分层与上下文边界守护。
  *
- * <p>本服务采用单模块分包结构（{@code controller / service / mapper / entity / converter /
- * dto / vo}），依赖方向固化如下：{@code controller → service → mapper → entity}，
- * 反向依赖一律禁止。规则只扫描生产类（{@link ImportOption.DoNotIncludeTests}），
- * 避免测试替身触发误报。</p>
- *
- * <p><b>扫描结论</b>：2026-11-02 全量扫描 1 个 controller、2 个 entity/mapper 文件，
- * 未发现越层依赖，四条规则直接开启门禁（后续新增请假/报销流转接口时自动兜底）。</p>
+ * <p>依赖方向：{@code interfaces → application → domain → infrastructure}。
+ * 规则只扫描生产类（{@link ImportOption.DoNotIncludeTests}），避免测试替身触发误报。</p>
  *
  * @author BlueWhale
  */
 @AnalyzeClasses(packages = "com.bluewhale.oa", importOptions = ImportOption.DoNotIncludeTests.class)
 class OaArchitectureTest {
 
-    /** 控制器不得直接依赖实体（装配一律经 converter/service 层完成） */
+    /** 接口层只依赖应用层与领域模型，不得直接依赖基础设施 */
     @ArchTest
-    static final ArchRule controller_must_not_depend_on_entity = noClasses()
-            .that().resideInAPackage("com.bluewhale.oa.controller..")
-            .should().dependOnClassesThat().resideInAPackage("com.bluewhale.oa.entity..");
+    static final ArchRule interfaces_must_not_depend_on_infrastructure = noClasses()
+            .that().resideInAPackage("com.bluewhale.oa..interfaces..")
+            .should().dependOnClassesThat().resideInAPackage("com.bluewhale.oa..infrastructure..");
 
-    /** 控制器不得直接依赖 Mapper（持久化访问一律经 service 层） */
+    /** 应用层只依赖领域模型与端口，不得直接依赖基础设施实现 */
     @ArchTest
-    static final ArchRule controller_must_not_depend_on_mapper = noClasses()
-            .that().resideInAPackage("com.bluewhale.oa.controller..")
-            .should().dependOnClassesThat().resideInAPackage("com.bluewhale.oa.mapper..");
+    static final ArchRule application_must_not_depend_on_infrastructure = noClasses()
+            .that().resideInAPackage("com.bluewhale.oa..application..")
+            .should().dependOnClassesThat().resideInAPackage("com.bluewhale.oa..infrastructure..");
 
-    /** 出入参模型不得直接暴露持久化实体或 Mapper */
+    /** 领域层不得依赖应用层、接口层或基础设施 */
     @ArchTest
-    static final ArchRule dto_and_vo_must_not_depend_on_persistence = noClasses()
-            .that().resideInAnyPackage("com.bluewhale.oa.dto..", "com.bluewhale.oa.vo..")
+    static final ArchRule domain_must_not_depend_on_outer_layers = noClasses()
+            .that().resideInAPackage("com.bluewhale.oa..domain..")
             .should().dependOnClassesThat().resideInAnyPackage(
-                    "com.bluewhale.oa.entity..",
-                    "com.bluewhale.oa.mapper..");
+                    "com.bluewhale.oa..application..",
+                    "com.bluewhale.oa..interfaces..",
+                    "com.bluewhale.oa..infrastructure..");
 
-    /** Mapper 只依赖实体与框架，不得反向依赖控制器或业务服务 */
+    /** 领域层为纯模型，不得依赖 Spring 或 MyBatis */
     @ArchTest
-    static final ArchRule mapper_must_not_depend_on_controller_or_service = noClasses()
-            .that().resideInAPackage("com.bluewhale.oa.mapper..")
+    static final ArchRule domain_must_be_framework_free = noClasses()
+            .that().resideInAPackage("com.bluewhale.oa..domain..")
             .should().dependOnClassesThat().resideInAnyPackage(
-                    "com.bluewhale.oa.controller..",
-                    "com.bluewhale.oa.service..");
+                    "org.springframework..",
+                    "com.baomidou..",
+                    "jakarta.persistence..");
 
-    /** 实体为纯持久化模型，不得依赖控制器、业务服务或 Mapper */
+    /** 基础设施层只实现领域端口，不得反向依赖接口层或应用层 */
     @ArchTest
-    static final ArchRule entity_must_not_depend_on_outer_layers = noClasses()
-            .that().resideInAPackage("com.bluewhale.oa.entity..")
+    static final ArchRule infrastructure_must_not_depend_on_outer_layers = noClasses()
+            .that().resideInAPackage("com.bluewhale.oa..infrastructure..")
             .should().dependOnClassesThat().resideInAnyPackage(
-                    "com.bluewhale.oa.controller..",
-                    "com.bluewhale.oa.service..",
-                    "com.bluewhale.oa.mapper..");
+                    "com.bluewhale.oa..interfaces..",
+                    "com.bluewhale.oa..application..");
+
+    /** 审批核心上下文不得依赖任何业务上下文（业务上下文单向依赖审批） */
+    @ArchTest
+    static final ArchRule approval_must_not_depend_on_business_contexts = noClasses()
+            .that().resideInAPackage("com.bluewhale.oa.approval..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.bluewhale.oa.hr..",
+                    "com.bluewhale.oa.attendance..",
+                    "com.bluewhale.oa.expense..",
+                    "com.bluewhale.oa.administrative..",
+                    "com.bluewhale.oa.collab..",
+                    "com.bluewhale.oa.document..",
+                    "com.bluewhale.oa.culture..",
+                    "com.bluewhale.oa.analytics..");
+
+    /** 共享内核不得依赖审批或业务上下文 */
+    @ArchTest
+    static final ArchRule common_must_not_depend_on_business_contexts = noClasses()
+            .that().resideInAPackage("com.bluewhale.oa.common..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.bluewhale.oa.approval..",
+                    "com.bluewhale.oa.hr..",
+                    "com.bluewhale.oa.attendance..",
+                    "com.bluewhale.oa.expense..",
+                    "com.bluewhale.oa.administrative..",
+                    "com.bluewhale.oa.collab..",
+                    "com.bluewhale.oa.document..",
+                    "com.bluewhale.oa.culture..",
+                    "com.bluewhale.oa.analytics..");
 }

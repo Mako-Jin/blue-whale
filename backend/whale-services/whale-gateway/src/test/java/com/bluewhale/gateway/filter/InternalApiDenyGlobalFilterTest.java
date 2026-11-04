@@ -206,6 +206,23 @@ class InternalApiDenyGlobalFilterTest {
     }
 
     @Test
+    @DisplayName("M0-5 filter：/dept/internal/** 部门树与负责人员路径经网关访问一律 403")
+    void shouldDenyDeptInternalPaths() {
+        properties.setPatterns(new ArrayList<>(List.of("/dept/internal/**")));
+        MockServerWebExchange treeExchange =
+                buildExchange("http://localhost/whale-service-auth/dept/internal/tree");
+        MockServerWebExchange leaderExchange =
+                buildExchange("http://localhost/whale-service-auth/dept/internal/1/leader");
+
+        filter.filter(treeExchange, chain).block();
+        filter.filter(leaderExchange, chain).block();
+
+        assertEquals(HttpStatus.FORBIDDEN, treeExchange.getResponse().getStatusCode());
+        assertEquals(HttpStatus.FORBIDDEN, leaderExchange.getResponse().getStatusCode());
+        verifyNoInteractions(chain);
+    }
+
+    @Test
     @DisplayName("V-01 filter：审计摄入端点（无 internal 段）的服务名前缀形态同样拒绝")
     void shouldDenyServiceNamePrefixedAuditIngestPath() {
         properties.setPatterns(new ArrayList<>(List.of("/audit/log/ingest/**")));

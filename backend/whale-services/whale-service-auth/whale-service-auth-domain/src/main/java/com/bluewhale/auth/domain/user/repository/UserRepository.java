@@ -105,6 +105,27 @@ public interface UserRepository {
     UserPage page(long current, long size, String keyword);
 
     /**
+     * 分页查询通讯录用户（仅启用且未删除用户；{@code deptId} 精确过滤，
+     * {@code keyword} 模糊匹配用户名/昵称/手机号，按用户 ID 升序稳定排序）
+     *
+     * @param current 当前页码
+     * @param size 每页条数
+     * @param deptId 部门 ID（可空，为空时不过滤）
+     * @param keyword 用户名/昵称/手机号模糊匹配关键字（可空）
+     * @return 用户分页结果
+     */
+    UserPage directoryPage(long current, long size, Long deptId, String keyword);
+
+    /**
+     * 按角色编码查询当前租户内的启用用户（角色不存在或已停用时返回空列表）
+     *
+     * @param roleCode 角色编码
+     * @param limit 返回条数上限
+     * @return 启用用户聚合列表，按用户 ID 升序
+     */
+    List<User> findByRoleCode(String roleCode, int limit);
+
+    /**
      * 批量查询「启用」状态的用户 ID（供服务间成员合法性校验使用）
      *
      * @param ids 待校验用户 ID 集合（调用方保证去重）

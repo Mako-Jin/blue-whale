@@ -14,6 +14,11 @@ import com.bluewhale.workflow.mapper.ProcessDefinitionMapper;
 import com.bluewhale.workflow.mapper.ProcessDefinitionVersionMapper;
 import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
+import com.bluewhale.workflow.service.ProcessCcService;
+import com.bluewhale.workflow.service.impl.task.TaskActivationCommand;
+import com.bluewhale.workflow.service.impl.task.TaskCommandSupport;
+import com.bluewhale.workflow.support.ProcessModel;
+import com.bluewhale.workflow.support.machine.TransitionResult;
 import com.bluewhale.workflow.vo.ProcessInstanceVO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -76,6 +81,15 @@ class ProcessInstanceServiceImplTest {
     @Mock
     private ProcessTaskMapper processTaskMapper;
 
+    @Mock
+    private TaskCommandSupport taskCommandSupport;
+
+    @Mock
+    private TaskActivationCommand taskActivationCommand;
+
+    @Mock
+    private ProcessCcService processCcService;
+
     @InjectMocks
     private ProcessInstanceServiceImpl processInstanceService;
 
@@ -125,13 +139,8 @@ class ProcessInstanceServiceImplTest {
         assertEquals(0, instanceCaptor.getValue().getStatus().intValue());
         assertEquals(0, instanceCaptor.getValue().getCurrentIndex().intValue());
         assertEquals("zhangsan", instanceCaptor.getValue().getInitiator());
-
-        ArgumentCaptor<ProcessTask> taskCaptor = ArgumentCaptor.forClass(ProcessTask.class);
-        verify(processTaskMapper).insert(taskCaptor.capture());
-        assertEquals(0, taskCaptor.getValue().getNodeIndex().intValue());
-        assertEquals("一级审批", taskCaptor.getValue().getNodeName());
-        assertEquals("admin", taskCaptor.getValue().getAssignee());
-        assertEquals(0, taskCaptor.getValue().getStatus().intValue());
+        verify(taskActivationCommand).activate(ArgumentMatchers.eq(instanceCaptor.getValue()),
+                ArgumentMatchers.<ProcessModel>any(), ArgumentMatchers.<TransitionResult>any());
 
         assertEquals(0, vo.getStatus().intValue());
         assertEquals(0, vo.getCurrentIndex().intValue());
@@ -148,7 +157,8 @@ class ProcessInstanceServiceImplTest {
 
         assertEquals(NOT_FOUND_CODE, ex.getCode());
         verify(processInstanceMapper, never()).insert(any(ProcessInstance.class));
-        verify(processTaskMapper, never()).insert(any(ProcessTask.class));
+        verify(taskActivationCommand, never()).activate(any(ProcessInstance.class),
+                any(ProcessModel.class), any(TransitionResult.class));
     }
 
     @Test
@@ -207,7 +217,7 @@ class ProcessInstanceServiceImplTest {
 
         verify(processInstanceMapper).updateById(instance);
         assertEquals(3, instance.getStatus().intValue());
-        verify(processTaskMapper).update(any(ProcessTask.class), ArgumentMatchers.<Wrapper<ProcessTask>>any());
+        verify(taskCommandSupport).cancelPendingTasks(5L);
     }
 
     @Test
@@ -260,11 +270,8 @@ class ProcessInstanceServiceImplTest {
         assertEquals(0, instanceCaptor.getValue().getStatus().intValue());
         assertEquals(1, instanceCaptor.getValue().getCurrentIndex().intValue());
         assertEquals("t1", instanceCaptor.getValue().getCurrentNodeKey());
-
-        ArgumentCaptor<ProcessTask> taskCaptor = ArgumentCaptor.forClass(ProcessTask.class);
-        verify(processTaskMapper).insert(taskCaptor.capture());
-        assertEquals(1, taskCaptor.getValue().getNodeIndex().intValue());
-        assertEquals("admin", taskCaptor.getValue().getAssignee());
+        verify(taskActivationCommand).activate(ArgumentMatchers.eq(instanceCaptor.getValue()),
+                ArgumentMatchers.<ProcessModel>any(), ArgumentMatchers.<TransitionResult>any());
         assertEquals("t1", vo.getCurrentNodeKey());
     }
 
@@ -295,6 +302,7 @@ class ProcessInstanceServiceImplTest {
 
         assertEquals(1, vo.getStatus().intValue());
         verify(processInstanceMapper).insert(any(ProcessInstance.class));
-        verify(processTaskMapper, never()).insert(any(ProcessTask.class));
+        verify(taskActivationCommand).activate(any(ProcessInstance.class),
+                any(ProcessModel.class), any(TransitionResult.class));
     }
 }

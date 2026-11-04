@@ -14,6 +14,8 @@ import com.bluewhale.workflow.mapper.ProcessDefinitionMapper;
 import com.bluewhale.workflow.mapper.ProcessDefinitionVersionMapper;
 import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
+import com.bluewhale.workflow.service.ProcessCcService;
+import com.bluewhale.workflow.service.ProcessDelegateService;
 import com.bluewhale.workflow.service.ProcessTaskService;
 import com.bluewhale.workflow.service.impl.task.AddSignCommand;
 import com.bluewhale.workflow.service.impl.task.ApproveCommand;
@@ -23,6 +25,7 @@ import com.bluewhale.workflow.service.impl.task.DelegateCommand;
 import com.bluewhale.workflow.service.impl.task.InstanceModelLoader;
 import com.bluewhale.workflow.service.impl.task.RejectCommand;
 import com.bluewhale.workflow.service.impl.task.RollbackCommand;
+import com.bluewhale.workflow.service.impl.task.TaskActivationCommand;
 import com.bluewhale.workflow.service.impl.task.TaskCommandSupport;
 import com.bluewhale.workflow.service.impl.task.TaskQueryCommand;
 import com.bluewhale.workflow.service.impl.task.TransferCommand;
@@ -101,6 +104,12 @@ class ProcessTaskServiceImplTest {
     @Mock
     private ProcessDefinitionVersionMapper processDefinitionVersionMapper;
 
+    @Mock
+    private ProcessDelegateService processDelegateService;
+
+    @Mock
+    private ProcessCcService processCcService;
+
     private ProcessTaskService processTaskService;
 
     /**
@@ -111,8 +120,10 @@ class ProcessTaskServiceImplTest {
         TaskCommandSupport support = new TaskCommandSupport(processTaskMapper, processInstanceMapper);
         InstanceModelLoader loader = new InstanceModelLoader(processDefinitionMapper, processDefinitionVersionMapper);
         CounterSignCommand counterSignCommand = new CounterSignCommand(processTaskMapper);
+        TaskActivationCommand activationCommand = new TaskActivationCommand(
+                processTaskMapper, processDelegateService, processCcService);
         ApproveCommand approveCommand = new ApproveCommand(processTaskMapper, processInstanceMapper, support,
-                loader, counterSignCommand);
+                loader, counterSignCommand, activationCommand);
         RejectCommand rejectCommand = new RejectCommand(processTaskMapper, processInstanceMapper, support);
         processTaskService = new ProcessTaskServiceImpl(
                 new TaskQueryCommand(processTaskMapper),
@@ -120,7 +131,7 @@ class ProcessTaskServiceImplTest {
                 rejectCommand,
                 new TransferCommand(processTaskMapper, support),
                 new DelegateCommand(processTaskMapper, support),
-                new RollbackCommand(processInstanceMapper, support, loader),
+                new RollbackCommand(processInstanceMapper, support, activationCommand, loader),
                 new AddSignCommand(processTaskMapper, support),
                 new CompleteCommand(processTaskMapper, approveCommand, rejectCommand));
     }

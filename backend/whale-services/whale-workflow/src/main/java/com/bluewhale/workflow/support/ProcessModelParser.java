@@ -253,6 +253,10 @@ public final class ProcessModelParser {
             throw new ProcessModelException(ValidationCode.COUNTER_SIGN_ASSIGNEES_REQUIRED,
                     "流程定义非法：" + ValidationCode.COUNTER_SIGN_ASSIGNEES_REQUIRED.name(), key);
         }
+        if (nodeType == ProcessNodeType.CC_TASK && node.getAssignees().isEmpty()) {
+            throw new ProcessModelException(ValidationCode.CC_TASK_RECIPIENTS_REQUIRED,
+                    "流程定义非法：" + ValidationCode.CC_TASK_RECIPIENTS_REQUIRED.name(), key);
+        }
         if (nodeType == ProcessNodeType.COUNTER_SIGN
                 && !ProcessModelValidator.isValidCounterSignPolicy(node.getCounterSignPolicy())) {
             throw new ProcessModelException(ValidationCode.COUNTER_SIGN_POLICY_INVALID,

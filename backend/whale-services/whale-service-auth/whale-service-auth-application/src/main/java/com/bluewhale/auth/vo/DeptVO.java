@@ -22,6 +22,8 @@ public class DeptVO implements Serializable {
     private String deptName;
     private Integer sort;
     private String leader;
+    /** 负责人用户 ID（逻辑关联 sys_user.id，允许为空） */
+    private Long leaderUserId;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
     private List<DeptVO> children;
@@ -39,6 +41,7 @@ public class DeptVO implements Serializable {
         vo.setDeptName(dept.getDeptName());
         vo.setSort(dept.getSort());
         vo.setLeader(dept.getLeader());
+        vo.setLeaderUserId(dept.getLeaderUserId());
         vo.setCreateTime(dept.getCreateTime());
         vo.setUpdateTime(dept.getUpdateTime());
         return vo;

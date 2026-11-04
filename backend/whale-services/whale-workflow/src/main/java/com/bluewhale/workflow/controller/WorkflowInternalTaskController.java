@@ -1,21 +1,35 @@
 package com.bluewhale.workflow.controller;
 
+import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
+import com.bluewhale.workflow.dto.ApprovalRequest;
+import com.bluewhale.workflow.dto.ProcessTaskQueryRequest;
+import com.bluewhale.workflow.dto.TaskAddSignRequest;
 import com.bluewhale.workflow.dto.TaskCompleteRequest;
+import com.bluewhale.workflow.dto.TaskRollbackRequest;
+import com.bluewhale.workflow.dto.TaskTransferRequest;
+import com.bluewhale.workflow.dto.UrgeRequest;
 import com.bluewhale.workflow.service.ProcessTaskService;
+import com.bluewhale.workflow.service.ProcessUrgeService;
+import com.bluewhale.workflow.vo.ProcessTaskVO;
+import com.bluewhale.workflow.vo.ProcessUrgeVO;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 流程任务内网完成接口（写）。
+ * 流程任务内网接口（读写）。
  *
- * <p>服务内路径前缀 {@code /workflow/internal/task}，供合同服务在第三方电子签章回调到达后
- * 推进签署节点（Wave 5.61 §5.3 方案 B）；网关 {@code internal-deny} 对 {@code /workflow/internal/**}
- * 统一返回 403，外部不可达，故不加权限码注解。任务已处理时按动作幂等返回。</p>
+ * <p>服务内路径前缀 {@code /workflow/internal/task}，供 OA 审批中心等内部服务调用；
+ * 网关 {@code internal-deny} 对 {@code /workflow/internal/**} 统一返回 403，外部不可达，
+ * 故不加权限码注解。</p>
  *
  * @author BlueWhale
  */
@@ -25,6 +39,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class WorkflowInternalTaskController {
 
     private final ProcessTaskService processTaskService;
+
+    private final ProcessUrgeService processUrgeService;
 
     /**
      * 内网完成任务（幂等）。
@@ -37,5 +53,139 @@ public class WorkflowInternalTaskController {
     public Result<Void> complete(@PathVariable Long id, @RequestBody TaskCompleteRequest request) {
         processTaskService.completeInternal(id, request);
         return Result.ok();
+    }
+
+    /**
+     * 分页查询任务（支持「待我审批」「我已审批」视角）。
+     *
+     * @param request 查询条件
+     * @return 任务分页结果
+     */
+    @GetMapping("/page")
+    public Result<PageResult<ProcessTaskVO>> page(ProcessTaskQueryRequest request) {
+        return Result.ok(processTaskService.page(request));
+    }
+
+    /**
+     * 同意任务。
+     *
+     * @param id 任务ID
+     * @param request 审批请求，可为空
+     * @return 空结果
+     */
+    @PostMapping("/{id}/approve")
+    public Result<Void> approve(@PathVariable Long id,
+                                @RequestBody(required = false) ApprovalRequest request) {
+        processTaskService.approve(id, request);
+        return Result.ok();
+    }
+
+    /**
+     * 驳回任务。
+     *
+     * @param id 任务ID
+     * @param request 审批请求，可为空
+     * @return 空结果
+     */
+    @PostMapping("/{id}/reject")
+    public Result<Void> reject(@PathVariable Long id,
+                               @RequestBody(required = false) ApprovalRequest request) {
+        processTaskService.reject(id, request == null ? null : request.getComment());
+        return Result.ok();
+    }
+
+    /**
+     * 转办任务。
+     *
+     * @param id 任务ID
+     * @param request 目标人请求
+     * @return 空结果
+     */
+    @PutMapping("/{id}/transfer")
+    public Result<Void> transfer(@PathVariable Long id, @Valid @RequestBody TaskTransferRequest request) {
+        processTaskService.transfer(id, request.getTargetUser());
+        return Result.ok();
+    }
+
+    /**
+     * 委派任务。
+     *
+     * @param id 任务ID
+     * @param request 目标人请求
+     * @return 空结果
+     */
+    @PutMapping("/{id}/delegate")
+    public Result<Void> delegate(@PathVariable Long id, @Valid @RequestBody TaskTransferRequest request) {
+        processTaskService.delegate(id, request.getTargetUser());
+        return Result.ok();
+    }
+
+    /**
+     * 完成委派。
+     *
+     * @param id 任务ID
+     * @param request 意见请求，可为空
+     * @return 空结果
+     */
+    @PutMapping("/{id}/resolve")
+    public Result<Void> resolve(@PathVariable Long id,
+                                @RequestBody(required = false) ApprovalRequest request) {
+        processTaskService.resolve(id, request == null ? null : request.getComment());
+        return Result.ok();
+    }
+
+    /**
+     * 回退到指定审批节点。
+     *
+     * @param id 任务ID
+     * @param request 回退请求
+     * @return 空结果
+     */
+    @PostMapping("/{id}/rollback")
+    public Result<Void> rollback(@PathVariable Long id, @Valid @RequestBody TaskRollbackRequest request) {
+        processTaskService.rollback(id, request.getTargetNodeKey());
+        return Result.ok();
+    }
+
+    /**
+     * 加签。
+     *
+     * @param id 任务ID
+     * @param request 加签请求
+     * @return 空结果
+     */
+    @PostMapping("/{id}/add-sign")
+    public Result<Void> addSign(@PathVariable Long id, @Valid @RequestBody TaskAddSignRequest request) {
+        processTaskService.addSign(id, request.getAssignees());
+        return Result.ok();
+    }
+
+    /**
+     * 催办流程实例（1 小时内同人仅允许一次）。
+     *
+     * @param instanceId 流程实例ID
+     * @param request 催办请求
+     * @return 空结果
+     */
+    @PostMapping("/{instanceId}/urge")
+    public Result<Void> urge(@PathVariable Long instanceId, @Valid @RequestBody UrgeRequest request) {
+        processUrgeService.urge(instanceId, request);
+        return Result.ok();
+    }
+
+    /**
+     * 分页查询催办记录。
+     *
+     * @param instanceId 流程实例ID
+     * @param current 页码
+     * @param size 每页条数
+     * @return 催办记录分页结果
+     */
+    @GetMapping("/urge/page")
+    public Result<PageResult<ProcessUrgeVO>> urgePage(
+            @RequestParam("instanceId") Long instanceId,
+            @RequestParam(value = "current", defaultValue = "1") long current,
+            @RequestParam(value = "size", defaultValue = "10") long size) {
+        return Result.ok(processUrgeService.page(instanceId, current, size));
     }
 }

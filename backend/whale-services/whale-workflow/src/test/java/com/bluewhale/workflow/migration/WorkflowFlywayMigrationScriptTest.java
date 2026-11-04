@@ -94,6 +94,23 @@ class WorkflowFlywayMigrationScriptTest {
     }
 
     /**
+     * V3 补齐抄送 / 代理 / 催办表与实例审批人覆盖列
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("V3 补齐抄送 / 代理 / 催办表与实例审批人覆盖列")
+    void v3ShouldAddCcDelegateAndUrge() throws IOException {
+        Path v3 = MIGRATION_DIR.resolve("V3__cc_delegate_urge.sql");
+        Set<String> tables = extractTables(v3);
+        assertEquals(Set.of("process_cc", "process_delegate", "process_urge"), tables,
+                "V3 应新增抄送 / 代理 / 催办 3 张表");
+        String script = Files.readString(v3, StandardCharsets.UTF_8);
+        assertTrue(script.contains("assignee_overrides_json"), "V3 应补齐实例审批人覆盖列");
+        assertTrue(script.contains("uk_cc"), "抄送表应有唯一键约束");
+    }
+
+    /**
      * 列出迁移脚本并按文件名字典序返回
      *
      * @return 迁移脚本路径

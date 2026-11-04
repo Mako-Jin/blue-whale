@@ -8,6 +8,7 @@ import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
 import com.bluewhale.workflow.support.ProcessModel;
 import com.bluewhale.workflow.support.ProcessModelNode;
 import com.bluewhale.workflow.support.ProcessModelParser;
+import com.bluewhale.workflow.support.machine.TransitionResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +27,8 @@ public class RollbackCommand {
     private final ProcessInstanceMapper processInstanceMapper;
 
     private final TaskCommandSupport taskCommandSupport;
+
+    private final TaskActivationCommand taskActivationCommand;
 
     private final InstanceModelLoader instanceModelLoader;
 
@@ -50,6 +53,6 @@ public class RollbackCommand {
         instance.setCurrentNodeKey(target.getKey());
         instance.setActiveNodeKeys(null);
         processInstanceMapper.updateById(instance);
-        taskCommandSupport.createTasks(instance.getId(), model, List.of(target));
+        taskActivationCommand.activate(instance, model, TransitionResult.at(List.of(target)));
     }
 }

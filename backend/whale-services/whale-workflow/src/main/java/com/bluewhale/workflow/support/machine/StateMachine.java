@@ -160,11 +160,12 @@ public class StateMachine {
      */
     public TransitionResult advance(String fromKey) {
         List<ProcessModelNode> active = new ArrayList<>();
-        String last = trace(fromKey, 0, active);
+        List<ProcessModelNode> ccNodes = new ArrayList<>();
+        String last = trace(fromKey, 0, active, ccNodes);
         if (active.isEmpty()) {
             return TransitionResult.terminated(last, model.node(last));
         }
-        return TransitionResult.at(active);
+        return TransitionResult.at(active, ccNodes);
     }
 
     /**
@@ -193,18 +194,25 @@ public class StateMachine {
     /**
      * 逐跳推进并收集审批节点；并行网关多出流时分枝推进。
      *
+     * <p>抄送节点（{@code CC_TASK}）为非阻塞节点：收集到抄送列表后继续沿出流推进，
+     * 不加入审批节点列表，因此不会产生待办。</p>
+     *
      * @param key 当前节点键
      * @param hops 已消耗透传跳数
      * @param active 审批节点收集器
+     * @param ccNodes 抄送节点收集器
      * @return 最后停留的节点键
      */
-    private String trace(String key, int hops, List<ProcessModelNode> active) {
+    private String trace(String key, int hops, List<ProcessModelNode> active, List<ProcessModelNode> ccNodes) {
         if (hops > MAX_GATEWAY_HOPS) {
             throw new BizException(ErrorCode.PARAM_ERROR.getCode(), HOPS_EXCEEDED_MESSAGE);
         }
         ProcessModelNode node = model.node(key);
         if (node == null) {
             return key;
+        }
+        if (node.getType() != null && node.getType().isCopy()) {
+            ccNodes.add(node);
         }
         if (node.getType() != null && node.getType().isApproval()) {
             active.add(node);
@@ -219,7 +227,7 @@ public class StateMachine {
         }
         if (node.getType() == ProcessNodeType.PARALLEL_GATEWAY && transitions.size() > 1) {
             for (Transition transition : transitions) {
-                trace(transition.to(), hops + 1, active);
+                trace(transition.to(), hops + 1, active, ccNodes);
             }
             return key;
         }
@@ -227,7 +235,7 @@ public class StateMachine {
         if (picked == null) {
             return key;
         }
-        return trace(picked.to(), hops + 1, active);
+        return trace(picked.to(), hops + 1, active, ccNodes);
     }
 
     /**

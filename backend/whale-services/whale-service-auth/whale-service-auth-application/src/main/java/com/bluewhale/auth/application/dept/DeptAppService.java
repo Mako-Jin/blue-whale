@@ -7,6 +7,7 @@ import com.bluewhale.auth.domain.dept.repository.DeptRepository;
 import com.bluewhale.auth.domain.event.AuthDomainEvent.ChangeType;
 import com.bluewhale.auth.domain.event.DeptDomainEvent;
 import com.bluewhale.common.tenant.TenantContext;
+import com.bluewhale.auth.vo.DeptLeaderVO;
 import com.bluewhale.auth.vo.DeptVO;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
@@ -73,7 +74,7 @@ public class DeptAppService {
      */
     public void create(SaveDeptCommand command) {
         Dept dept = Dept.create(TenantContext.requireId(), command.parentId(), command.deptName(),
-                command.sort(), command.leader());
+                command.sort(), command.leader(), command.leaderUserId());
         Dept persisted = deptRepository.save(dept);
         domainEventPublisher.publish(new DeptDomainEvent(persisted.getId(), ChangeType.CREATED));
     }
@@ -88,9 +89,26 @@ public class DeptAppService {
     public void update(Long id, SaveDeptCommand command) {
         Dept dept = deptRepository.findById(id)
                 .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
-        dept.applyChanges(command.parentId(), command.deptName(), command.sort(), command.leader());
+        dept.applyChanges(command.parentId(), command.deptName(), command.sort(), command.leader(),
+                command.leaderUserId());
         deptRepository.save(dept);
         domainEventPublisher.publish(new DeptDomainEvent(id, ChangeType.UPDATED));
+    }
+
+    /**
+     * 解析部门负责人（供 OA 审批中心内网直连解析「部门经理」）
+     *
+     * <p>{@code leaderUserId} 未维护时仍正常返回，仅将该字段置空，由调用方决定降级策略；
+     * 部门不存在或跨租户时抛 {@link ErrorCode#NOT_FOUND}，对应 HTTP 404。</p>
+     *
+     * @param deptId 部门 ID
+     * @return 部门负责人视图对象
+     * @throws BizException 部门不存在或跨租户时抛出 {@link ErrorCode#NOT_FOUND}
+     */
+    public DeptLeaderVO leader(Long deptId) {
+        Dept dept = deptRepository.findById(deptId)
+                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND));
+        return DeptLeaderVO.from(dept);
     }
 
     /**

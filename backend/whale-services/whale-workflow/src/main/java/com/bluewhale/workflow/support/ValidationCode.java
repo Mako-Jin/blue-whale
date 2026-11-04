@@ -110,6 +110,9 @@ public enum ValidationCode {
     /** 会签策略非法（须为 ALL / ANY / RATIO:n） */
     COUNTER_SIGN_POLICY_INVALID(ValidationLevel.ERROR, "会签策略不合法"),
 
+    /** 抄送节点缺少 assignees（收件人） */
+    CC_TASK_RECIPIENTS_REQUIRED(ValidationLevel.ERROR, "抄送节点缺少收件人 assignees"),
+
     /** 分组 key 缺失或不合法（字符集/长度） */
     GROUP_KEY_INVALID(ValidationLevel.ERROR, "分组 key 不合法"),
 

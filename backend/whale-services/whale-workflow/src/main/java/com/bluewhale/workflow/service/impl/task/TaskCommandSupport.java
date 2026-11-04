@@ -7,16 +7,11 @@ import com.bluewhale.workflow.entity.ProcessInstance;
 import com.bluewhale.workflow.entity.ProcessTask;
 import com.bluewhale.workflow.mapper.ProcessInstanceMapper;
 import com.bluewhale.workflow.mapper.ProcessTaskMapper;
-import com.bluewhale.workflow.support.ProcessModel;
-import com.bluewhale.workflow.support.ProcessModelNode;
-import com.bluewhale.workflow.support.ProcessNodeType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
-
 /**
- * 待办任务命令层共享支撑：任务/实例校验、待办取消与节点待办创建。
+ * 待办任务命令层共享支撑：任务/实例校验与待办取消。
  *
  * @author BlueWhale
  */
@@ -63,26 +58,6 @@ public class TaskCommandSupport {
     }
 
     /**
-     * 为推进抵达的审批节点创建待办任务（会签节点按 assignees 展开）。
-     *
-     * @param instanceId 流程实例ID
-     * @param model 流程模型
-     * @param nodes 审批节点列表
-     */
-    public void createTasks(Long instanceId, ProcessModel model, List<ProcessModelNode> nodes) {
-        for (ProcessModelNode node : nodes) {
-            int nodeIndex = model.indexOf(node.getKey());
-            if (node.getType() == ProcessNodeType.COUNTER_SIGN && node.getAssignees() != null) {
-                for (String assignee : node.getAssignees()) {
-                    createTask(instanceId, nodeIndex, node, assignee, node.getCounterSignPolicy());
-                }
-                continue;
-            }
-            createTask(instanceId, nodeIndex, node, node.getAssignee(), null);
-        }
-    }
-
-    /**
      * 将实例下所有待办任务置为「已取消」。
      *
      * @param instanceId 流程实例ID
@@ -94,32 +69,5 @@ public class TaskCommandSupport {
         wrapper.eq(ProcessTask::getInstanceId, instanceId);
         wrapper.eq(ProcessTask::getStatus, TaskConstants.TASK_PENDING);
         processTaskMapper.update(update, wrapper);
-    }
-
-    /**
-     * 创建单条待办任务。
-     *
-     * @param instanceId 流程实例ID
-     * @param nodeIndex 节点下标
-     * @param node 审批节点
-     * @param assignee 审批人
-     * @param signPolicy 会签策略（非会签传 {@code null}）
-     */
-    private void createTask(Long instanceId, int nodeIndex, ProcessModelNode node, String assignee, String signPolicy) {
-        ProcessTask task = new ProcessTask();
-        task.setInstanceId(instanceId);
-        task.setNodeIndex(nodeIndex);
-        task.setNodeName(node.getName());
-        task.setNodeKey(node.getKey());
-        task.setFormId(node.getFormId());
-        task.setFormCode(node.getFormCode());
-        task.setAssignee(assignee);
-        task.setStatus(TaskConstants.TASK_PENDING);
-        if (node.getType() == ProcessNodeType.COUNTER_SIGN) {
-            task.setSignType(ProcessNodeType.COUNTER_SIGN.name());
-            task.setSignPolicy(signPolicy == null || signPolicy.isBlank()
-                    ? TaskConstants.POLICY_ALL : signPolicy);
-        }
-        processTaskMapper.insert(task);
     }
 }

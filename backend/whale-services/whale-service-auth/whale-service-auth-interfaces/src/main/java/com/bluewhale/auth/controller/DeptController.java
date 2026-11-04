@@ -109,6 +109,6 @@ public class DeptController {
      */
     private SaveDeptCommand toCommand(DeptRequest request) {
         return new SaveDeptCommand(request.getParentId(), request.getDeptName(), request.getSort(),
-                request.getLeader());
+                request.getLeader(), request.getLeaderUserId());
     }
 }

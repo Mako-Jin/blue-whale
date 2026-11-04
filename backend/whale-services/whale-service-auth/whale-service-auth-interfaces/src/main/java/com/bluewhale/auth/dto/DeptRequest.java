@@ -21,4 +21,6 @@ public class DeptRequest {
 
     private Integer sort;
     private String leader;
+    /** 负责人用户 ID（逻辑关联 sys_user.id，允许为空） */
+    private Long leaderUserId;
 }

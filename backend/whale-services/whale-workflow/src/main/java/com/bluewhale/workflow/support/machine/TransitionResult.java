@@ -28,6 +28,9 @@ public class TransitionResult {
     /** 抵达的全部审批节点（终止时为空列表） */
     private final List<ProcessModelNode> nodes;
 
+    /** 本次推进途经的抄送节点（不产生待办，仅落抄送记录） */
+    private final List<ProcessModelNode> ccNodes;
+
     /**
      * 构造迁移结果。
      *
@@ -35,12 +38,15 @@ public class TransitionResult {
      * @param node 停留节点，可为 {@code null}
      * @param terminated 是否终止
      * @param nodes 抵达的全部审批节点，可为 {@code null}
+     * @param ccNodes 途经的抄送节点，可为 {@code null}
      */
-    public TransitionResult(String state, ProcessModelNode node, boolean terminated, List<ProcessModelNode> nodes) {
+    public TransitionResult(String state, ProcessModelNode node, boolean terminated,
+                            List<ProcessModelNode> nodes, List<ProcessModelNode> ccNodes) {
         this.state = state;
         this.node = node;
         this.terminated = terminated;
         this.nodes = nodes == null ? List.of() : List.copyOf(nodes);
+        this.ccNodes = ccNodes == null ? List.of() : List.copyOf(ccNodes);
     }
 
     /**
@@ -51,7 +57,8 @@ public class TransitionResult {
      * @return 迁移结果
      */
     public static TransitionResult at(String state, ProcessModelNode node) {
-        return new TransitionResult(state, node, false, node == null ? List.of() : List.of(node));
+        return new TransitionResult(state, node, false,
+                node == null ? List.of() : List.of(node), List.of());
     }
 
     /**
@@ -61,11 +68,22 @@ public class TransitionResult {
      * @return 迁移结果
      */
     public static TransitionResult at(List<ProcessModelNode> nodes) {
+        return at(nodes, List.of());
+    }
+
+    /**
+     * 构造「停在多个审批节点并途经抄送节点」的结果（并行 fork）。
+     *
+     * @param nodes 抵达的审批节点列表（非空）
+     * @param ccNodes 途经的抄送节点
+     * @return 迁移结果
+     */
+    public static TransitionResult at(List<ProcessModelNode> nodes, List<ProcessModelNode> ccNodes) {
         if (nodes == null || nodes.isEmpty()) {
             return terminated(null, null);
         }
         ProcessModelNode first = nodes.get(0);
-        return new TransitionResult(first.getKey(), first, false, nodes);
+        return new TransitionResult(first.getKey(), first, false, nodes, ccNodes);
     }
 
     /**
@@ -76,7 +94,7 @@ public class TransitionResult {
      * @return 迁移结果
      */
     public static TransitionResult terminated(String state, ProcessModelNode node) {
-        return new TransitionResult(state, node, true, List.of());
+        return new TransitionResult(state, node, true, List.of(), List.of());
     }
 
     /**

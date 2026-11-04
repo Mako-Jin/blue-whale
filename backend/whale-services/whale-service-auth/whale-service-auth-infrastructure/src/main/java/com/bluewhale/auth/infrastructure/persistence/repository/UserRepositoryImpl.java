@@ -5,9 +5,11 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.auth.domain.user.aggregate.User;
 import com.bluewhale.auth.domain.user.entity.UserRoleAssignment;
 import com.bluewhale.auth.domain.user.repository.UserRepository;
+import com.bluewhale.auth.entity.SysRole;
 import com.bluewhale.auth.entity.SysUser;
 import com.bluewhale.auth.entity.SysUserRole;
 import com.bluewhale.auth.infrastructure.persistence.assembler.UserPersistenceAssembler;
+import com.bluewhale.auth.mapper.SysRoleMapper;
 import com.bluewhale.auth.mapper.SysUserMapper;
 import com.bluewhale.auth.mapper.SysUserRoleMapper;
 import com.bluewhale.common.tenant.TenantContext;
@@ -32,8 +34,12 @@ public class UserRepositoryImpl implements UserRepository {
     /** 状态：启用 */
     private static final int STATUS_ENABLED = 1;
 
+    /** 逻辑删除：未删除 */
+    private static final int DELETED_NO = 0;
+
     private final SysUserMapper userMapper;
     private final SysUserRoleMapper userRoleMapper;
+    private final SysRoleMapper roleMapper;
 
     @Override
     public User save(User user) {
@@ -140,6 +146,57 @@ public class UserRepositoryImpl implements UserRepository {
         Page<SysUser> page = userMapper.selectPage(new Page<>(current, size), wrapper);
         List<User> records = page.getRecords().stream().map(UserPersistenceAssembler::toDomain).toList();
         return new UserPage(records, page.getTotal());
+    }
+
+    @Override
+    public UserPage directoryPage(long current, long size, Long deptId, String keyword) {
+        LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SysUser::getTenantId, TenantContext.requireId());
+        wrapper.eq(SysUser::getStatus, STATUS_ENABLED);
+        wrapper.eq(SysUser::getDeleted, DELETED_NO);
+        if (deptId != null) {
+            wrapper.eq(SysUser::getDeptId, deptId);
+        }
+        if (StringUtils.hasText(keyword)) {
+            wrapper.and(w -> w.like(SysUser::getUsername, keyword)
+                    .or().like(SysUser::getNickname, keyword)
+                    .or().like(SysUser::getPhone, keyword));
+        }
+        wrapper.orderByAsc(SysUser::getId);
+        Page<SysUser> page = userMapper.selectPage(new Page<>(current, size), wrapper);
+        List<User> records = page.getRecords().stream().map(UserPersistenceAssembler::toDomain).toList();
+        return new UserPage(records, page.getTotal());
+    }
+
+    @Override
+    public List<User> findByRoleCode(String roleCode, int limit) {
+        if (!StringUtils.hasText(roleCode)) {
+            return List.of();
+        }
+        Long tenantId = TenantContext.requireId();
+        SysRole role = roleMapper.selectOne(new LambdaQueryWrapper<SysRole>()
+                .eq(SysRole::getTenantId, tenantId)
+                .eq(SysRole::getRoleCode, roleCode)
+                .eq(SysRole::getStatus, STATUS_ENABLED)
+                .eq(SysRole::getDeleted, DELETED_NO)
+                .last("limit 1"));
+        if (role == null) {
+            return List.of();
+        }
+        List<Long> userIds = userRoleMapper.selectList(new LambdaQueryWrapper<SysUserRole>()
+                        .eq(SysUserRole::getRoleId, role.getId()))
+                .stream().map(SysUserRole::getUserId).distinct().toList();
+        if (userIds.isEmpty()) {
+            return List.of();
+        }
+        LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SysUser::getTenantId, tenantId);
+        wrapper.eq(SysUser::getStatus, STATUS_ENABLED);
+        wrapper.eq(SysUser::getDeleted, DELETED_NO);
+        wrapper.in(SysUser::getId, userIds);
+        wrapper.orderByAsc(SysUser::getId);
+        wrapper.last("limit " + limit);
+        return userMapper.selectList(wrapper).stream().map(UserPersistenceAssembler::toDomain).toList();
     }
 
     @Override

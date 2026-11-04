@@ -6,6 +6,7 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.workflow.converter.WorkflowConverter;
+import com.bluewhale.workflow.dto.DefinitionEnsureRequest;
 import com.bluewhale.workflow.dto.DefinitionMigrationRequest;
 import com.bluewhale.workflow.dto.ProcessDefinitionSaveRequest;
 import com.bluewhale.workflow.dto.ProcessQueryRequest;
@@ -21,6 +22,8 @@ import com.bluewhale.workflow.service.ProcessDefinitionService;
 import com.bluewhale.workflow.support.ProcessModel;
 import com.bluewhale.workflow.support.ProcessModelNode;
 import com.bluewhale.workflow.support.ProcessModelParser;
+import com.bluewhale.workflow.support.ProcessModelValidator;
+import com.bluewhale.workflow.support.ValidationReport;
 import com.bluewhale.workflow.vo.DefinitionMigrationVO;
 import com.bluewhale.workflow.vo.ProcessDefinitionVO;
 import com.bluewhale.workflow.vo.ProcessDefinitionVersionVO;
@@ -88,6 +91,26 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
         processDefinitionMapper.insert(entity);
         saveSnapshot(entity.getId(), entity.getVersion(), entity.getDefinitionJson(), PUBLISH_PUBLISHED);
         return toVo(entity);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ProcessDefinitionVO ensure(DefinitionEnsureRequest request) {
+        String code = request.getCode().trim();
+        ProcessDefinition existing = findDefinitionByCode(code);
+        if (existing != null) {
+            return toVo(existing);
+        }
+        ValidationReport report = ProcessModelValidator.validate(request.getDefinitionJson());
+        if (!report.isValid()) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "流程定义校验未通过：" + code);
+        }
+        ProcessDefinitionSaveRequest saveRequest = new ProcessDefinitionSaveRequest();
+        saveRequest.setCode(code);
+        saveRequest.setName(request.getName().trim());
+        saveRequest.setDefinitionJson(request.getDefinitionJson());
+        saveRequest.setRemark(request.getRemark());
+        return create(saveRequest);
     }
 
     @Override
@@ -407,6 +430,21 @@ public class ProcessDefinitionServiceImpl implements ProcessDefinitionService {
             task.setFormCode(node.getFormCode());
             processTaskMapper.updateById(task);
         }
+    }
+
+    /**
+     * 按流程编码查询定义（取最新一条）。
+     *
+     * @param code 流程编码
+     * @return 流程定义，不存在返回 {@code null}
+     */
+    private ProcessDefinition findDefinitionByCode(String code) {
+        LambdaQueryWrapper<ProcessDefinition> wrapper = new LambdaQueryWrapper<ProcessDefinition>()
+                .eq(ProcessDefinition::getCode, code)
+                .orderByDesc(ProcessDefinition::getId)
+                .last("LIMIT 1");
+        List<ProcessDefinition> definitions = processDefinitionMapper.selectList(wrapper);
+        return definitions.isEmpty() ? null : definitions.get(0);
     }
 
     /**
