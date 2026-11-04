@@ -37,4 +37,19 @@ public class ErpFinanceAccountProperties {
 
     /** 生产成本科目（默认 5001，生产领料/完工使用） */
     private String productionCost = "5001";
+
+    /** 管理费用科目（默认 6602，薪资计提使用） */
+    private String salaryExpense = "6602";
+
+    /** 应付职工薪酬科目（默认 2211） */
+    private String salaryPayable = "2211";
+
+    /** 银行存款科目（默认 1002，薪资发放使用） */
+    private String bankDeposit = "1002";
+
+    /** 应交税费科目（默认 2221，代扣个税使用） */
+    private String taxPayable = "2221";
+
+    /** 其他应付款科目（默认 2241，代扣社保/公积金使用） */
+    private String otherPayable = "2241";
 }

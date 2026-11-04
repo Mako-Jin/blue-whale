@@ -117,6 +117,82 @@ public class AutoVoucherAppServiceImpl implements AutoVoucherAppService {
         return postProduction(command, true);
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long postPayrollAccrual(AutoVoucherCommand command) {
+        return postPayroll(command, false);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long postPayrollPayment(AutoVoucherCommand command) {
+        return postPayroll(command, true);
+    }
+
+    /**
+     * 生成并记账薪资凭证。
+     *
+     * @param command 记账命令
+     * @param payment 是否发放（否则为计提）
+     * @return 凭证 ID；金额为零时返回 null
+     */
+    private Long postPayroll(AutoVoucherCommand command, boolean payment) {
+        if (Amounts.isZero(command.getAmount())) {
+            return null;
+        }
+        Long existing = existingId(command);
+        if (existing != null) {
+            return existing;
+        }
+        Amounts.requirePositive(command.getAmount(), "薪资记账金额");
+        AccountingPeriod period = requireOpenPeriod(command.getVoucherDate());
+        String currency = StringUtils.hasText(command.getCurrency()) ? command.getCurrency() : DEFAULT_CURRENCY;
+        Voucher voucher = new Voucher();
+        voucher.setVoucherDate(command.getVoucherDate());
+        voucher.setPeriodCode(period.getPeriodCode());
+        voucher.setVoucherType(FinanceStatus.TYPE_MANUAL);
+        voucher.setStatus(FinanceStatus.VOUCHER_DRAFT);
+        voucher.setCurrency(currency);
+        voucher.setExchangeRate(BigDecimal.ONE);
+        voucher.setSourceType(command.getSourceType());
+        voucher.setSourceId(command.getSourceId());
+        voucher.setRemark(command.getRemark());
+        List<VoucherLine> lines = new ArrayList<>();
+        if (payment) {
+            addLine(voucher, lines, accountProperties.getSalaryPayable(), command.getAmount(), null, "薪资发放");
+            addLine(voucher, lines, accountProperties.getBankDeposit(), null, command.getNetAmount(), "薪资发放");
+            addOptionalLine(voucher, lines, accountProperties.getTaxPayable(), command.getTaxAmount(), "代扣个税");
+            addOptionalLine(voucher, lines, accountProperties.getOtherPayable(), command.getWithholdingAmount(),
+                    "代扣社保公积金");
+        } else {
+            addLine(voucher, lines, accountProperties.getSalaryExpense(), command.getAmount(), null, "计提工资");
+            addLine(voucher, lines, accountProperties.getSalaryPayable(), null, command.getAmount(), "计提工资");
+        }
+        voucher.setLines(lines);
+        voucher.validateAndSum();
+        voucher.setVoucherNo(voucherRepository.nextVoucherNo(period.getPeriodCode()));
+        voucherRepository.insert(voucher);
+        voucher.post(command.getOperatorId(), LocalDateTime.now());
+        voucherRepository.update(voucher);
+        return voucher.getId();
+    }
+
+    /**
+     * 追加一条贷方分录；金额为空或为零时跳过。
+     *
+     * @param voucher 凭证
+     * @param lines 分录集合
+     * @param accountCode 科目编码
+     * @param amount 贷方金额
+     * @param summary 摘要
+     */
+    private void addOptionalLine(Voucher voucher, List<VoucherLine> lines, String accountCode,
+                                 BigDecimal amount, String summary) {
+        if (amount != null && amount.signum() > 0) {
+            addLine(voucher, lines, accountCode, null, amount, summary);
+        }
+    }
+
     /**
      * 生成并记账生产凭证。
      *

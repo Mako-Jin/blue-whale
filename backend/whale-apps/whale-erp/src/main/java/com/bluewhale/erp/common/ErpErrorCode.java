@@ -161,6 +161,42 @@ public final class ErpErrorCode {
     /** 完工数量超过计划数量 */
     public static final int PRODUCTION_COMPLETE_EXCEEDED = 40921;
 
+    /** 人力参数非法（组织、员工、考勤、薪资与绩效校验失败） */
+    public static final int HR_INVALID = 40017;
+
+    /** 组织不存在 */
+    public static final int ORG_NOT_FOUND = 40416;
+
+    /** 员工不存在 */
+    public static final int EMPLOYEE_NOT_FOUND = 40417;
+
+    /** 员工异动单不存在 */
+    public static final int EMPLOYMENT_CHANGE_NOT_FOUND = 40418;
+
+    /** 考勤记录不存在 */
+    public static final int ATTENDANCE_NOT_FOUND = 40419;
+
+    /** 薪资批次不存在 */
+    public static final int PAYROLL_NOT_FOUND = 40420;
+
+    /** 绩效周期不存在 */
+    public static final int PERFORMANCE_CYCLE_NOT_FOUND = 40421;
+
+    /** 绩效指标不存在 */
+    public static final int KPI_NOT_FOUND = 40422;
+
+    /** 人力单据状态不允许该操作 */
+    public static final int HR_STATE_CONFLICT = 40922;
+
+    /** 薪资期间已存在批次 */
+    public static final int PAYROLL_PERIOD_CONFLICT = 40923;
+
+    /** 员工编号已存在 */
+    public static final int EMPLOYEE_CODE_CONFLICT = 40924;
+
+    /** 组织编码已存在 */
+    public static final int ORG_CODE_CONFLICT = 40925;
+
     /** 错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(AMOUNT_INVALID, "金额必须大于 0，且最多保留 2 位小数"),
@@ -211,7 +247,19 @@ public final class ErpErrorCode {
             Map.entry(MFG_STATE_CONFLICT, "生产单据当前状态不允许该操作"),
             Map.entry(MATERIAL_ISSUE_EXCEEDED, "领料数量超过用料需求数量"),
             Map.entry(MATERIAL_NOT_ISSUED, "存在未领完的用料，禁止完工入库"),
-            Map.entry(PRODUCTION_COMPLETE_EXCEEDED, "完工数量超过计划生产数量"));
+            Map.entry(PRODUCTION_COMPLETE_EXCEEDED, "完工数量超过计划生产数量"),
+            Map.entry(HR_INVALID, "人力模块参数非法，请检查组织、员工、考勤或薪资数据"),
+            Map.entry(ORG_NOT_FOUND, "组织不存在或无权访问"),
+            Map.entry(EMPLOYEE_NOT_FOUND, "员工不存在或无权访问"),
+            Map.entry(EMPLOYMENT_CHANGE_NOT_FOUND, "员工异动单不存在或无权访问"),
+            Map.entry(ATTENDANCE_NOT_FOUND, "考勤记录不存在或无权访问"),
+            Map.entry(PAYROLL_NOT_FOUND, "薪资批次不存在或无权访问"),
+            Map.entry(PERFORMANCE_CYCLE_NOT_FOUND, "绩效周期不存在或无权访问"),
+            Map.entry(KPI_NOT_FOUND, "绩效指标不存在或无权访问"),
+            Map.entry(HR_STATE_CONFLICT, "人力单据当前状态不允许该操作"),
+            Map.entry(PAYROLL_PERIOD_CONFLICT, "该薪资期间已存在批次，请勿重复创建"),
+            Map.entry(EMPLOYEE_CODE_CONFLICT, "员工编号已存在"),
+            Map.entry(ORG_CODE_CONFLICT, "组织编码已存在"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。

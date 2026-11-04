@@ -77,6 +77,19 @@ erp:
       cost: ${ERP_ACCOUNT_COST:6401}
       stock-variance: ${ERP_ACCOUNT_STOCK_VARIANCE:1901}
       production-cost: ${ERP_ACCOUNT_PRODUCTION_COST:5001}
+      salary-expense: ${ERP_ACCOUNT_SALARY_EXPENSE:6602}
+      salary-payable: ${ERP_ACCOUNT_SALARY_PAYABLE:2211}
+      bank-deposit: ${ERP_ACCOUNT_BANK_DEPOSIT:1002}
+      tax-payable: ${ERP_ACCOUNT_TAX_PAYABLE:2221}
+      other-payable: ${ERP_ACCOUNT_OTHER_PAYABLE:2241}
+  hr:
+    payroll:
+      social-insurance-rate: ${ERP_HR_SOCIAL_INSURANCE_RATE:0.105}
+      housing-fund-rate: ${ERP_HR_HOUSING_FUND_RATE:0.07}
+      tax-threshold: ${ERP_HR_TAX_THRESHOLD:5000}
+      overtime-multiplier: ${ERP_HR_OVERTIME_MULTIPLIER:1.5}
+      monthly-work-days: ${ERP_HR_MONTHLY_WORK_DAYS:21.75}
+      daily-hours: ${ERP_HR_DAILY_HOURS:8}
 
 management:
   endpoints:

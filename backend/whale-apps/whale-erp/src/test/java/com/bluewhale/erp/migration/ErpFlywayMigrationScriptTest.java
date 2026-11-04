@@ -179,6 +179,30 @@ class ErpFlywayMigrationScriptTest {
     }
 
     /**
+     * V6 人力表集合、薪资期间唯一键与应付职工薪酬科目种子校验
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("V6 人力表集合与科目种子一致")
+    void hrMigrationShouldCreateExpectedTables() throws IOException {
+        Set<String> hrTables = extractTables(MIGRATION_DIR.resolve("V6__hr.sql"));
+        assertEquals(Set.of(
+                "erp_hr_org_unit", "erp_hr_employee", "erp_hr_employment_change",
+                "erp_hr_attendance_summary", "erp_hr_payroll_run", "erp_hr_payslip",
+                "erp_hr_performance_cycle", "erp_hr_kpi", "erp_hr_appraisal"), hrTables,
+                "V6 应创建 9 张人力表");
+        String content = Files.readString(MIGRATION_DIR.resolve("V6__hr.sql"), StandardCharsets.UTF_8);
+        assertTrue(content.contains("uk_hr_org_code"), "组织编码唯一键必须存在");
+        assertTrue(content.contains("uk_hr_employee_no"), "员工编号唯一键必须存在");
+        assertTrue(content.contains("uk_payroll_period"), "薪资期间唯一键必须存在");
+        assertTrue(content.contains("uk_payslip_employee"), "工资条按批次+员工唯一");
+        assertTrue(content.contains("uk_hr_appraisal"), "考核结果按周期+员工+指标唯一");
+        assertTrue(content.contains("INSERT IGNORE INTO erp_account"), "应付职工薪酬科目种子必须幂等");
+        assertTrue(content.contains("'2241'"), "其他应付款科目编码应为 2241");
+    }
+
+    /**
      * 列出迁移脚本并按文件名字典序返回
      *
      * @return 迁移脚本路径

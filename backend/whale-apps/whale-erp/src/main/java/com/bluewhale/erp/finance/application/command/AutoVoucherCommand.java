@@ -31,6 +31,15 @@ public class AutoVoucherCommand {
     /** 成本金额（发货结转成本，可为空） */
     private BigDecimal costAmount;
 
+    /** 实发金额（薪资发放，可为空） */
+    private BigDecimal netAmount;
+
+    /** 代扣个税（薪资发放，可为空） */
+    private BigDecimal taxAmount;
+
+    /** 代扣社保与公积金（薪资发放，可为空） */
+    private BigDecimal withholdingAmount;
+
     /** 操作人 ID */
     private Long operatorId;
 

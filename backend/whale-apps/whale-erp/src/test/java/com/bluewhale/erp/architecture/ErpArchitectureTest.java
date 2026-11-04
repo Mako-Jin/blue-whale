@@ -191,4 +191,45 @@ class ErpArchitectureTest {
                     "com.bluewhale.erp.finance..",
                     "com.bluewhale.erp.scm..")
             .should().dependOnClassesThat().resideInAPackage("com.bluewhale.erp.mfg..");
+
+    /** 人力接口层不得直接依赖持久化实现 */
+    @ArchTest
+    static final ArchRule hr_interfaces_must_not_depend_on_infrastructure = noClasses()
+            .that().resideInAPackage("com.bluewhale.erp.hr.interfaces..")
+            .should().dependOnClassesThat().resideInAPackage("com.bluewhale.erp.hr.infrastructure..");
+
+    /** 人力应用层不得直接依赖持久化实现与存量分包 */
+    @ArchTest
+    static final ArchRule hr_application_must_not_depend_on_infrastructure_or_legacy = noClasses()
+            .that().resideInAPackage("com.bluewhale.erp.hr.application..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.bluewhale.erp.hr.infrastructure..",
+                    "com.bluewhale.erp.mapper..",
+                    "com.bluewhale.erp.entity..",
+                    "com.bluewhale.erp.service..");
+
+    /** 人力领域层不得依赖应用层、接口层、基础设施层、其他上下文与框架 */
+    @ArchTest
+    static final ArchRule hr_domain_must_not_depend_on_outer_layers = noClasses()
+            .that().resideInAPackage("com.bluewhale.erp.hr.domain..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.bluewhale.erp.hr.application..",
+                    "com.bluewhale.erp.hr.interfaces..",
+                    "com.bluewhale.erp.hr.infrastructure..",
+                    "com.bluewhale.erp.finance..",
+                    "com.bluewhale.erp.masterdata..",
+                    "com.bluewhale.erp.scm..",
+                    "com.bluewhale.erp.mfg..",
+                    "org.springframework..",
+                    "com.baomidou..");
+
+    /** 其他上下文不得反向依赖人力上下文 */
+    @ArchTest
+    static final ArchRule masterdata_finance_scm_mfg_must_not_depend_on_hr = noClasses()
+            .that().resideInAnyPackage(
+                    "com.bluewhale.erp.masterdata..",
+                    "com.bluewhale.erp.finance..",
+                    "com.bluewhale.erp.scm..",
+                    "com.bluewhale.erp.mfg..")
+            .should().dependOnClassesThat().resideInAPackage("com.bluewhale.erp.hr..");
 }

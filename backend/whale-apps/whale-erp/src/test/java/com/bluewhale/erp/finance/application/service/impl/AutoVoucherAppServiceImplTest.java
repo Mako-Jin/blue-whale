@@ -266,6 +266,97 @@ class AutoVoucherAppServiceImplTest {
         verify(voucherRepository, never()).insert(any(Voucher.class));
     }
 
+    @Test
+    @DisplayName("薪资计提生成借管理费用贷应付职工薪酬凭证")
+    void shouldPostPayrollAccrualVoucher() {
+        stubOpenPeriod();
+        stubPayrollAccounts();
+        when(voucherRepository.nextVoucherNo("202611")).thenReturn("V-007");
+        doAnswer(invocation -> {
+            Voucher voucher = invocation.getArgument(0);
+            voucher.setId(16L);
+            return null;
+        }).when(voucherRepository).insert(any(Voucher.class));
+
+        Long voucherId = service.postPayrollAccrual(payrollCommand("PAYROLL_ACCRUAL"));
+
+        assertEquals(16L, voucherId);
+        ArgumentCaptor<Voucher> captor = ArgumentCaptor.forClass(Voucher.class);
+        verify(voucherRepository).insert(captor.capture());
+        Voucher voucher = captor.getValue();
+        assertEquals(2, voucher.getLines().size());
+        assertEquals(FinanceStatus.VOUCHER_POSTED, voucher.getStatus());
+        assertEquals(0, voucher.getTotalDebit().compareTo(new BigDecimal("11000")));
+        assertEquals(0, voucher.getTotalCredit().compareTo(new BigDecimal("11000")));
+        verify(voucherRepository).update(any(Voucher.class));
+    }
+
+    @Test
+    @DisplayName("薪资发放生成借应付职工薪酬贷存款税费其他应付款凭证")
+    void shouldPostPayrollPaymentVoucher() {
+        stubOpenPeriod();
+        stubPayrollAccounts();
+        when(voucherRepository.nextVoucherNo("202611")).thenReturn("V-008");
+        doAnswer(invocation -> {
+            Voucher voucher = invocation.getArgument(0);
+            voucher.setId(17L);
+            return null;
+        }).when(voucherRepository).insert(any(Voucher.class));
+
+        Long voucherId = service.postPayrollPayment(payrollCommand("PAYROLL_PAYMENT"));
+
+        assertEquals(17L, voucherId);
+        ArgumentCaptor<Voucher> captor = ArgumentCaptor.forClass(Voucher.class);
+        verify(voucherRepository).insert(captor.capture());
+        Voucher voucher = captor.getValue();
+        assertEquals(4, voucher.getLines().size());
+        assertEquals(0, voucher.getTotalDebit().compareTo(new BigDecimal("11000")));
+        assertEquals(0, voucher.getTotalCredit().compareTo(new BigDecimal("11000")));
+        verify(voucherRepository).update(any(Voucher.class));
+    }
+
+    @Test
+    @DisplayName("薪资发放金额为零时不生成凭证")
+    void shouldSkipZeroPayrollVoucher() {
+        AutoVoucherCommand command = payrollCommand("PAYROLL_ACCRUAL");
+        command.setAmount(BigDecimal.ZERO);
+
+        Long voucherId = service.postPayrollAccrual(command);
+
+        assertNull(voucherId);
+        verify(voucherRepository, never()).insert(any(Voucher.class));
+    }
+
+    /**
+     * 构造薪资记账命令。
+     *
+     * @param sourceType 来源类型
+     * @return 命令
+     */
+    private AutoVoucherCommand payrollCommand(String sourceType) {
+        AutoVoucherCommand command = new AutoVoucherCommand();
+        command.setSourceType(sourceType);
+        command.setSourceId("PR-202611-0001");
+        command.setVoucherDate(LocalDate.of(2026, 11, 30));
+        command.setAmount(new BigDecimal("11000"));
+        command.setNetAmount(new BigDecimal("9035"));
+        command.setTaxAmount(new BigDecimal("215"));
+        command.setWithholdingAmount(new BigDecimal("1750"));
+        command.setOperatorId(99L);
+        return command;
+    }
+
+    /**
+     * 打桩薪资记账涉及的科目。
+     */
+    private void stubPayrollAccounts() {
+        when(accountRepository.findByCode("6602")).thenReturn(Optional.of(account("6602", "管理费用")));
+        when(accountRepository.findByCode("2211")).thenReturn(Optional.of(account("2211", "应付职工薪酬")));
+        when(accountRepository.findByCode("1002")).thenReturn(Optional.of(account("1002", "银行存款")));
+        when(accountRepository.findByCode("2221")).thenReturn(Optional.of(account("2221", "应交税费")));
+        when(accountRepository.findByCode("2241")).thenReturn(Optional.of(account("2241", "其他应付款")));
+    }
+
     /**
      * 构造生产记账命令。
      *

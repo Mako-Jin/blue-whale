@@ -49,4 +49,21 @@ public interface AutoVoucherAppService {
      * @return 凭证 ID；金额为零或已记账时返回已有凭证 ID / null
      */
     Long postProductionReceipt(AutoVoucherCommand command);
+
+    /**
+     * 薪资计提记账：借管理费用、贷应付职工薪酬（金额为应发合计）。
+     *
+     * @param command 记账命令
+     * @return 凭证 ID；金额为零或已记账时返回已有凭证 ID / null
+     */
+    Long postPayrollAccrual(AutoVoucherCommand command);
+
+    /**
+     * 薪资发放记账：借应付职工薪酬（应发合计），贷银行存款（实发）、
+     * 应交税费（代扣个税）、其他应付款（代扣社保与公积金）。
+     *
+     * @param command 记账命令
+     * @return 凭证 ID；金额为零或已记账时返回已有凭证 ID / null
+     */
+    Long postPayrollPayment(AutoVoucherCommand command);
 }

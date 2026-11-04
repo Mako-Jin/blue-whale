@@ -19,6 +19,10 @@ import StocktakePage from './pages/StocktakePage';
 import ForecastPage from './pages/ForecastPage';
 import MpsPage from './pages/MpsPage';
 import ProductionPage from './pages/ProductionPage';
+import EmployeePage from './pages/EmployeePage';
+import AttendancePage from './pages/AttendancePage';
+import PayrollPage from './pages/PayrollPage';
+import PerformancePage from './pages/PerformancePage';
 import { type ErpItem, type ErpSupplier } from './api/erp';
 
 const { Header, Content, Sider } = Layout;
@@ -41,6 +45,10 @@ const menuItems: MenuProps['items'] = [
   { key: 'forecast', label: '需求预测' },
   { key: 'mps', label: '主生产计划' },
   { key: 'production', label: '生产订单' },
+  { key: 'hr-employee', label: '组织与员工' },
+  { key: 'hr-attendance', label: '考勤汇总' },
+  { key: 'hr-payroll', label: '薪资批次' },
+  { key: 'hr-performance', label: '绩效管理' },
 ];
 
 type PageKind =
@@ -57,7 +65,11 @@ type PageKind =
   | 'stocktake'
   | 'forecast'
   | 'mps'
-  | 'production';
+  | 'production'
+  | 'hr-employee'
+  | 'hr-attendance'
+  | 'hr-payroll'
+  | 'hr-performance';
 
 /** 按宿主菜单路径决定初始页 */
 function initialPage(): PageKind {
@@ -74,6 +86,10 @@ function initialPage(): PageKind {
   if (path.includes('/erp/mfg/forecast')) return 'forecast';
   if (path.includes('/erp/mfg/mps')) return 'mps';
   if (path.includes('/erp/mfg/production')) return 'production';
+  if (path.includes('/erp/hr/employee')) return 'hr-employee';
+  if (path.includes('/erp/hr/attendance')) return 'hr-attendance';
+  if (path.includes('/erp/hr/payroll')) return 'hr-payroll';
+  if (path.includes('/erp/hr/performance')) return 'hr-performance';
   if (path.includes('/erp/supplier')) return 'supplier';
   return 'item';
 }
@@ -100,6 +116,10 @@ function pageOfKey(key: string): PageKind {
     || key === 'forecast'
     || key === 'mps'
     || key === 'production'
+    || key === 'hr-employee'
+    || key === 'hr-attendance'
+    || key === 'hr-payroll'
+    || key === 'hr-performance'
   ) {
     return key;
   }
@@ -122,6 +142,10 @@ const PAGE_TITLE: Record<PageKind, string> = {
   forecast: '需求预测',
   mps: '主生产计划',
   production: '生产订单',
+  'hr-employee': '组织与员工',
+  'hr-attendance': '考勤汇总',
+  'hr-payroll': '薪资批次',
+  'hr-performance': '绩效管理',
 };
 
 export default function App() {
@@ -218,6 +242,10 @@ export default function App() {
             {page === 'forecast' ? <ForecastPage /> : null}
             {page === 'mps' ? <MpsPage /> : null}
             {page === 'production' ? <ProductionPage /> : null}
+            {page === 'hr-employee' ? <EmployeePage /> : null}
+            {page === 'hr-attendance' ? <AttendancePage /> : null}
+            {page === 'hr-payroll' ? <PayrollPage /> : null}
+            {page === 'hr-performance' ? <PerformancePage /> : null}
           </Content>
         </Layout>
       </Layout>
