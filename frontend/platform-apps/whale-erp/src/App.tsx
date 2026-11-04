@@ -23,6 +23,9 @@ import EmployeePage from './pages/EmployeePage';
 import AttendancePage from './pages/AttendancePage';
 import PayrollPage from './pages/PayrollPage';
 import PerformancePage from './pages/PerformancePage';
+import QcInspectionPage from './pages/QcInspectionPage';
+import QcEquipmentPage from './pages/QcEquipmentPage';
+import QcMetrologyPage from './pages/QcMetrologyPage';
 import { type ErpItem, type ErpSupplier } from './api/erp';
 
 const { Header, Content, Sider } = Layout;
@@ -49,6 +52,9 @@ const menuItems: MenuProps['items'] = [
   { key: 'hr-attendance', label: '考勤汇总' },
   { key: 'hr-payroll', label: '薪资批次' },
   { key: 'hr-performance', label: '绩效管理' },
+  { key: 'qc-inspection', label: '检验与不合格品' },
+  { key: 'qc-equipment', label: '设备与保养' },
+  { key: 'qc-metrology', label: '量具与校准' },
 ];
 
 type PageKind =
@@ -69,7 +75,10 @@ type PageKind =
   | 'hr-employee'
   | 'hr-attendance'
   | 'hr-payroll'
-  | 'hr-performance';
+  | 'hr-performance'
+  | 'qc-inspection'
+  | 'qc-equipment'
+  | 'qc-metrology';
 
 /** 按宿主菜单路径决定初始页 */
 function initialPage(): PageKind {
@@ -90,6 +99,9 @@ function initialPage(): PageKind {
   if (path.includes('/erp/hr/attendance')) return 'hr-attendance';
   if (path.includes('/erp/hr/payroll')) return 'hr-payroll';
   if (path.includes('/erp/hr/performance')) return 'hr-performance';
+  if (path.includes('/erp/qc/inspection')) return 'qc-inspection';
+  if (path.includes('/erp/qc/equipment')) return 'qc-equipment';
+  if (path.includes('/erp/qc/metrology')) return 'qc-metrology';
   if (path.includes('/erp/supplier')) return 'supplier';
   return 'item';
 }
@@ -120,6 +132,9 @@ function pageOfKey(key: string): PageKind {
     || key === 'hr-attendance'
     || key === 'hr-payroll'
     || key === 'hr-performance'
+    || key === 'qc-inspection'
+    || key === 'qc-equipment'
+    || key === 'qc-metrology'
   ) {
     return key;
   }
@@ -146,6 +161,9 @@ const PAGE_TITLE: Record<PageKind, string> = {
   'hr-attendance': '考勤汇总',
   'hr-payroll': '薪资批次',
   'hr-performance': '绩效管理',
+  'qc-inspection': '检验与不合格品',
+  'qc-equipment': '设备与保养',
+  'qc-metrology': '量具与校准',
 };
 
 export default function App() {
@@ -246,6 +264,9 @@ export default function App() {
             {page === 'hr-attendance' ? <AttendancePage /> : null}
             {page === 'hr-payroll' ? <PayrollPage /> : null}
             {page === 'hr-performance' ? <PerformancePage /> : null}
+            {page === 'qc-inspection' ? <QcInspectionPage /> : null}
+            {page === 'qc-equipment' ? <QcEquipmentPage /> : null}
+            {page === 'qc-metrology' ? <QcMetrologyPage /> : null}
           </Content>
         </Layout>
       </Layout>

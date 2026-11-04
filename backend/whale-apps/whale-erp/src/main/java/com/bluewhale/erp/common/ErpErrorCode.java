@@ -197,6 +197,57 @@ public final class ErpErrorCode {
     /** 组织编码已存在 */
     public static final int ORG_CODE_CONFLICT = 40925;
 
+    /** 质量与设备参数非法（检验、不合格品、设备、量具校验失败） */
+    public static final int QC_INVALID = 40018;
+
+    /** 检验项未全部录入结论，不可判定 */
+    public static final int INSPECTION_ITEM_INCOMPLETE = 40019;
+
+    /** 不合格品处置方式必填 */
+    public static final int NCR_DISPOSITION_REQUIRED = 40020;
+
+    /** OEE 参数非法（计划工时、产量或合格量校验失败） */
+    public static final int OEE_PARAM_INVALID = 40021;
+
+    /** 检验单不存在 */
+    public static final int INSPECTION_NOT_FOUND = 40423;
+
+    /** 不合格品单不存在 */
+    public static final int NCR_NOT_FOUND = 40424;
+
+    /** 设备不存在 */
+    public static final int EQUIPMENT_NOT_FOUND = 40425;
+
+    /** 保养计划不存在 */
+    public static final int MAINTENANCE_PLAN_NOT_FOUND = 40426;
+
+    /** 保养工单不存在 */
+    public static final int MAINTENANCE_ORDER_NOT_FOUND = 40427;
+
+    /** 量具不存在 */
+    public static final int TOOL_NOT_FOUND = 40428;
+
+    /** 校准计划不存在 */
+    public static final int CALIBRATION_PLAN_NOT_FOUND = 40429;
+
+    /** 质量单据状态不允许该操作 */
+    public static final int QC_STATE_CONFLICT = 40926;
+
+    /** 检验单号已存在 */
+    public static final int INSPECTION_ORDER_NO_CONFLICT = 40927;
+
+    /** 设备编码已存在 */
+    public static final int EQUIPMENT_CODE_CONFLICT = 40928;
+
+    /** 量具编号已存在 */
+    public static final int TOOL_CODE_CONFLICT = 40929;
+
+    /** 量具校准已过期，不可用于检验 */
+    public static final int TOOL_EXPIRED = 40930;
+
+    /** 该来源已存在不合格品单 */
+    public static final int NCR_ALREADY_EXISTS = 40931;
+
     /** 错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(AMOUNT_INVALID, "金额必须大于 0，且最多保留 2 位小数"),
@@ -259,7 +310,24 @@ public final class ErpErrorCode {
             Map.entry(HR_STATE_CONFLICT, "人力单据当前状态不允许该操作"),
             Map.entry(PAYROLL_PERIOD_CONFLICT, "该薪资期间已存在批次，请勿重复创建"),
             Map.entry(EMPLOYEE_CODE_CONFLICT, "员工编号已存在"),
-            Map.entry(ORG_CODE_CONFLICT, "组织编码已存在"));
+            Map.entry(ORG_CODE_CONFLICT, "组织编码已存在"),
+            Map.entry(QC_INVALID, "质量与设备参数非法，请检查检验、设备或量具数据"),
+            Map.entry(INSPECTION_ITEM_INCOMPLETE, "检验项未全部录入结论，不能判定整单"),
+            Map.entry(NCR_DISPOSITION_REQUIRED, "不合格品处置方式不能为空"),
+            Map.entry(OEE_PARAM_INVALID, "OEE 参数非法，请检查计划工时、产量与合格量"),
+            Map.entry(INSPECTION_NOT_FOUND, "检验单不存在或无权访问"),
+            Map.entry(NCR_NOT_FOUND, "不合格品单不存在或无权访问"),
+            Map.entry(EQUIPMENT_NOT_FOUND, "设备不存在或无权访问"),
+            Map.entry(MAINTENANCE_PLAN_NOT_FOUND, "保养计划不存在或无权访问"),
+            Map.entry(MAINTENANCE_ORDER_NOT_FOUND, "保养工单不存在或无权访问"),
+            Map.entry(TOOL_NOT_FOUND, "量具不存在或无权访问"),
+            Map.entry(CALIBRATION_PLAN_NOT_FOUND, "校准计划不存在或无权访问"),
+            Map.entry(QC_STATE_CONFLICT, "质量单据当前状态不允许该操作"),
+            Map.entry(INSPECTION_ORDER_NO_CONFLICT, "检验单号已存在"),
+            Map.entry(EQUIPMENT_CODE_CONFLICT, "设备编码已存在"),
+            Map.entry(TOOL_CODE_CONFLICT, "量具编号已存在"),
+            Map.entry(TOOL_EXPIRED, "量具校准已过期，不可用于本次检验"),
+            Map.entry(NCR_ALREADY_EXISTS, "该来源已存在不合格品单，请勿重复创建"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。

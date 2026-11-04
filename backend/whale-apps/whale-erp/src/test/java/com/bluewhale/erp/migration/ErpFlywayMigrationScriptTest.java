@@ -203,6 +203,30 @@ class ErpFlywayMigrationScriptTest {
     }
 
     /**
+     * V7 质量与设备表集合、OEE 幂等键与量具编号唯一键校验
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("V7 质量设备表集合与关键唯一键一致")
+    void qcMigrationShouldCreateExpectedTables() throws IOException {
+        Set<String> qcTables = extractTables(MIGRATION_DIR.resolve("V7__qc.sql"));
+        assertEquals(Set.of(
+                "erp_qc_inspection_order", "erp_qc_inspection_item", "erp_qc_ncr",
+                "erp_qc_quality_cost", "erp_qc_equipment", "erp_qc_maintenance_plan",
+                "erp_qc_maintenance_order", "erp_qc_oee_record", "erp_qc_measuring_tool",
+                "erp_qc_calibration_plan", "erp_qc_calibration_record"), qcTables,
+                "V7 应创建 11 张质量与设备表");
+        String content = Files.readString(MIGRATION_DIR.resolve("V7__qc.sql"), StandardCharsets.UTF_8);
+        assertTrue(content.contains("uk_qc_order_no"), "检验单号唯一键必须存在");
+        assertTrue(content.contains("uk_qc_item_line"), "检验项按检验单+行号唯一");
+        assertTrue(content.contains("uk_qc_ncr_no"), "不合格品单号唯一键必须存在");
+        assertTrue(content.contains("uk_qc_equipment_no"), "设备编码唯一键必须存在");
+        assertTrue(content.contains("uk_oee_equipment_date"), "OEE 按设备+日期唯一，保证回传幂等");
+        assertTrue(content.contains("uk_qc_tool_no"), "量具编号唯一键必须存在");
+    }
+
+    /**
      * 列出迁移脚本并按文件名字典序返回
      *
      * @return 迁移脚本路径

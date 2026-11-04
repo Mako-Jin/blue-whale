@@ -232,4 +232,47 @@ class ErpArchitectureTest {
                     "com.bluewhale.erp.scm..",
                     "com.bluewhale.erp.mfg..")
             .should().dependOnClassesThat().resideInAPackage("com.bluewhale.erp.hr..");
+
+    /** 质量与设备接口层不得直接依赖持久化实现 */
+    @ArchTest
+    static final ArchRule qc_interfaces_must_not_depend_on_infrastructure = noClasses()
+            .that().resideInAPackage("com.bluewhale.erp.qc.interfaces..")
+            .should().dependOnClassesThat().resideInAPackage("com.bluewhale.erp.qc.infrastructure..");
+
+    /** 质量与设备应用层不得直接依赖持久化实现与存量分包 */
+    @ArchTest
+    static final ArchRule qc_application_must_not_depend_on_infrastructure_or_legacy = noClasses()
+            .that().resideInAPackage("com.bluewhale.erp.qc.application..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.bluewhale.erp.qc.infrastructure..",
+                    "com.bluewhale.erp.mapper..",
+                    "com.bluewhale.erp.entity..",
+                    "com.bluewhale.erp.service..");
+
+    /** 质量与设备领域层不得依赖应用层、接口层、基础设施层、其他上下文与框架 */
+    @ArchTest
+    static final ArchRule qc_domain_must_not_depend_on_outer_layers = noClasses()
+            .that().resideInAPackage("com.bluewhale.erp.qc.domain..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.bluewhale.erp.qc.application..",
+                    "com.bluewhale.erp.qc.interfaces..",
+                    "com.bluewhale.erp.qc.infrastructure..",
+                    "com.bluewhale.erp.masterdata..",
+                    "com.bluewhale.erp.finance..",
+                    "com.bluewhale.erp.scm..",
+                    "com.bluewhale.erp.mfg..",
+                    "com.bluewhale.erp.hr..",
+                    "org.springframework..",
+                    "com.baomidou..");
+
+    /** 其他上下文不得反向依赖质量与设备上下文 */
+    @ArchTest
+    static final ArchRule masterdata_finance_scm_mfg_hr_must_not_depend_on_qc = noClasses()
+            .that().resideInAnyPackage(
+                    "com.bluewhale.erp.masterdata..",
+                    "com.bluewhale.erp.finance..",
+                    "com.bluewhale.erp.scm..",
+                    "com.bluewhale.erp.mfg..",
+                    "com.bluewhale.erp.hr..")
+            .should().dependOnClassesThat().resideInAPackage("com.bluewhale.erp.qc..");
 }
