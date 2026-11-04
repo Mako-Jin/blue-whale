@@ -66,6 +66,17 @@ mybatis-plus:
       logic-delete-value: 1
       logic-not-delete-value: 0
 
+# ERP 自动记账科目映射（D5 确认后改配置即可）
+erp:
+  finance:
+    account:
+      inventory: ${ERP_ACCOUNT_INVENTORY:1405}
+      payable: ${ERP_ACCOUNT_PAYABLE:2202}
+      receivable: ${ERP_ACCOUNT_RECEIVABLE:1122}
+      revenue: ${ERP_ACCOUNT_REVENUE:6001}
+      cost: ${ERP_ACCOUNT_COST:6401}
+      stock-variance: ${ERP_ACCOUNT_STOCK_VARIANCE:1901}
+
 management:
   endpoints:
     web:

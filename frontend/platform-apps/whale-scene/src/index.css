@@ -1,0 +1,92 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  background: #f5f6f8;
+}
+
+/* 2D 城池地图：纯 CSS 渲染，不依赖 WebGL / Canvas，低配设备与移动端可直接降级使用 */
+.scene-map {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  min-height: 360px;
+  border: 1px solid #e5e6eb;
+  border-radius: 8px;
+  background-color: #fbfcfe;
+  background-image:
+    linear-gradient(rgba(64, 128, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(64, 128, 255, 0.08) 1px, transparent 1px);
+  background-size: 10% 10%;
+  overflow: hidden;
+}
+
+.scene-map-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  max-width: 132px;
+  padding: 8px 10px;
+  border: 1px solid #c9d6ee;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(31, 56, 106, 0.08);
+  cursor: pointer;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.scene-map-node:hover,
+.scene-map-node:focus-visible {
+  border-color: #1677ff;
+  box-shadow: 0 4px 14px rgba(22, 119, 255, 0.24);
+  outline: none;
+}
+
+.scene-map-node-entrance {
+  border-color: #95de64;
+  background: #f6ffed;
+}
+
+.scene-map-node-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.scene-map-node-name {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 108px;
+}
+
+.scene-map-node-entry {
+  font-size: 11px;
+  color: #1677ff;
+  max-width: 108px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.scene-map-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #8c8c8c;
+}

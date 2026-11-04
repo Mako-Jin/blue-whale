@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # 文档一致性门禁（平台评审 P0-4）
 # 以 backend/whale-parent/pom.xml 为框架版本唯一事实源：
 #   1) 现行事实文档（README / architecture / service-catalog）不得残留过期版本标记；
@@ -10,7 +10,7 @@
 
 [CmdletBinding()]
 param(
-    [string]$RepoRoot = (Split-Path -Parent $PSScriptRoot)
+    [string]$RepoRoot = $(if ($PSScriptRoot) { Split-Path -Parent $PSScriptRoot } else { (Get-Location).Path })
 )
 
 $ErrorActionPreference = 'Stop'
@@ -21,7 +21,7 @@ if (-not (Test-Path -LiteralPath $pomPath)) {
     exit 1
 }
 
-[xml]$pom = Get-Content -LiteralPath $pomPath -Raw
+[xml]$pom = Get-Content -LiteralPath $pomPath -Raw -Encoding UTF8
 
 function Get-PomProperty([string]$name) {
     $node = $pom.SelectSingleNode("/*[local-name()='project']/*[local-name()='properties']/*[local-name()='$name']")
@@ -49,7 +49,7 @@ foreach ($relative in $truthDocs) {
         $errors.Add("$relative 不存在")
         continue
     }
-    $content = Get-Content -LiteralPath $path -Raw
+    $content = Get-Content -LiteralPath $path -Raw -Encoding UTF8
     foreach ($marker in $staleMarkers) {
         if ($content -match [regex]::Escape($marker)) {
             $errors.Add("$relative 含过期版本标记：$marker")
@@ -81,7 +81,7 @@ foreach ($relative in @('README.md', 'docs/architecture.md')) {
     if (-not (Test-Path -LiteralPath $path)) {
         continue
     }
-    $content = Get-Content -LiteralPath $path -Raw
+    $content = Get-Content -LiteralPath $path -Raw -Encoding UTF8
     foreach ($claim in $claims) {
         foreach ($match in [regex]::Matches($content, $claim.Pattern, 'IgnoreCase')) {
             $actual = $match.Groups[1].Value

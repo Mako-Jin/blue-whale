@@ -10,12 +10,11 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 /**
  * ERP 应用分层依赖守护（T-18 剩余服务越层专项）。
  *
- * <p>本服务采用单模块分包结构（{@code controller / service / mapper / entity / dto / vo}），
- * 依赖方向固化如下：{@code controller → service → mapper → entity}，反向依赖一律禁止。
+ * <p>存量单模块分包结构（{@code controller / service / mapper / entity / dto / vo}）沿用
+ * {@code controller → service → mapper → entity} 方向；Wave 5.78 新增的
+ * {@code masterdata / finance} 两个上下文采用 DDD 四层分包，依赖方向固化为
+ * {@code interfaces → application → domain}，{@code infrastructure} 实现 domain 端口。
  * 规则只扫描生产类（{@link ImportOption.DoNotIncludeTests}），避免测试替身触发误报。</p>
- *
- * <p><b>扫描结论</b>：2026-11-02 全量扫描 2 个 controller、4 个 entity/mapper 文件，
- * 未发现越层依赖，四条规则直接开启门禁。</p>
  *
  * @author BlueWhale
  */
@@ -58,4 +57,99 @@ class ErpArchitectureTest {
                     "com.bluewhale.erp.controller..",
                     "com.bluewhale.erp.service..",
                     "com.bluewhale.erp.mapper..");
+
+    /** 新分层接口层不得直接依赖持久化实现（装配一律经应用服务） */
+    @ArchTest
+    static final ArchRule interfaces_must_not_depend_on_infrastructure = noClasses()
+            .that().resideInAnyPackage(
+                    "com.bluewhale.erp.masterdata.interfaces..",
+                    "com.bluewhale.erp.finance.interfaces..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.bluewhale.erp.masterdata.infrastructure..",
+                    "com.bluewhale.erp.finance.infrastructure..");
+
+    /** 新分层应用层不得直接依赖持久化实现（只能经 domain 端口） */
+    @ArchTest
+    static final ArchRule application_must_not_depend_on_infrastructure = noClasses()
+            .that().resideInAnyPackage(
+                    "com.bluewhale.erp.masterdata.application..",
+                    "com.bluewhale.erp.finance.application..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.bluewhale.erp.masterdata.infrastructure..",
+                    "com.bluewhale.erp.finance.infrastructure..");
+
+    /** 领域层不得依赖应用层、接口层与基础设施层 */
+    @ArchTest
+    static final ArchRule domain_must_not_depend_on_outer_layers = noClasses()
+            .that().resideInAnyPackage(
+                    "com.bluewhale.erp.masterdata.domain..",
+                    "com.bluewhale.erp.finance.domain..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.bluewhale.erp.masterdata.application..",
+                    "com.bluewhale.erp.finance.application..",
+                    "com.bluewhale.erp.masterdata.interfaces..",
+                    "com.bluewhale.erp.finance.interfaces..",
+                    "com.bluewhale.erp.masterdata.infrastructure..",
+                    "com.bluewhale.erp.finance.infrastructure..");
+
+    /** 领域层不依赖 Spring / MyBatis，保持可独立单测 */
+    @ArchTest
+    static final ArchRule domain_must_not_depend_on_frameworks = noClasses()
+            .that().resideInAnyPackage(
+                    "com.bluewhale.erp.masterdata.domain..",
+                    "com.bluewhale.erp.finance.domain..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "org.springframework..",
+                    "com.baomidou..");
+
+    /** 主数据上下文不得反向依赖财务上下文 */
+    @ArchTest
+    static final ArchRule masterdata_must_not_depend_on_finance = noClasses()
+            .that().resideInAPackage("com.bluewhale.erp.masterdata..")
+            .should().dependOnClassesThat().resideInAPackage("com.bluewhale.erp.finance..");
+
+    /** 财务领域层与基础设施层不得依赖主数据基础设施（跨上下文只走 domain 端口） */
+    @ArchTest
+    static final ArchRule finance_must_not_depend_on_masterdata_infrastructure = noClasses()
+            .that().resideInAnyPackage(
+                    "com.bluewhale.erp.finance.domain..",
+                    "com.bluewhale.erp.finance.infrastructure..")
+            .should().dependOnClassesThat().resideInAPackage("com.bluewhale.erp.masterdata.infrastructure..");
+
+    /** 供应链接口层不得直接依赖持久化实现 */
+    @ArchTest
+    static final ArchRule scm_interfaces_must_not_depend_on_infrastructure = noClasses()
+            .that().resideInAPackage("com.bluewhale.erp.scm.interfaces..")
+            .should().dependOnClassesThat().resideInAPackage("com.bluewhale.erp.scm.infrastructure..");
+
+    /** 供应链应用层不得直接依赖持久化实现与存量分包 */
+    @ArchTest
+    static final ArchRule scm_application_must_not_depend_on_infrastructure_or_legacy = noClasses()
+            .that().resideInAPackage("com.bluewhale.erp.scm.application..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.bluewhale.erp.scm.infrastructure..",
+                    "com.bluewhale.erp.mapper..",
+                    "com.bluewhale.erp.entity..",
+                    "com.bluewhale.erp.service..");
+
+    /** 供应链领域层不得依赖应用层、接口层、基础设施层与框架 */
+    @ArchTest
+    static final ArchRule scm_domain_must_not_depend_on_outer_layers = noClasses()
+            .that().resideInAPackage("com.bluewhale.erp.scm.domain..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.bluewhale.erp.scm.application..",
+                    "com.bluewhale.erp.scm.interfaces..",
+                    "com.bluewhale.erp.scm.infrastructure..",
+                    "com.bluewhale.erp.finance..",
+                    "com.bluewhale.erp.masterdata..",
+                    "org.springframework..",
+                    "com.baomidou..");
+
+    /** 财务与主数据上下文不得反向依赖供应链上下文 */
+    @ArchTest
+    static final ArchRule finance_and_masterdata_must_not_depend_on_scm = noClasses()
+            .that().resideInAnyPackage(
+                    "com.bluewhale.erp.finance..",
+                    "com.bluewhale.erp.masterdata..")
+            .should().dependOnClassesThat().resideInAPackage("com.bluewhale.erp.scm..");
 }

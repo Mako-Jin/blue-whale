@@ -31,5 +31,6 @@
         <module>whale-doc</module>
         <module>whale-music</module>
         <module>whale-video</module>
+        <module>whale-scene</module>
     </modules>
 </project>

@@ -134,6 +134,13 @@ spring:
               uri: lb://whale-video
               predicates:
                 - Path=/video/**
+            # Wave 5.77 城池场景导航：自持 /scene 一级前缀（不含 StripPrefix，REQ-ARCH-003）；
+            # M1/M2 只提供 2D 导航与管理接口，3D 为前端可选增强层（M3）；
+            # 内网 /scene/internal/** 由 internal-deny 统一 403
+            - id: whale-scene
+              uri: lb://whale-scene
+              predicates:
+                - Path=/scene/**
             # Wave 5.54 P2 偏差 C-03 收口：业务应用补路由（自持一级前缀，不含 StripPrefix）
             - id: whale-erp
               uri: lb://whale-erp
@@ -163,6 +170,13 @@ spring:
               uri: lb://whale-contract
               predicates:
                 - Path=/contract/**
+            # Wave 5.77 客户关系（规划态模块骨架）：自持 /crm 一级前缀（不含 StripPrefix）；
+            # 需求门禁（ADR-003）通过前不开放业务 CRUD，仅暴露 /crm/meta；
+            # 内网 /crm/internal/** 由 internal-deny 统一 403
+            - id: whale-crm
+              uri: lb://whale-crm
+              predicates:
+                - Path=/crm/**
             # Wave 5.73 F-05 解冻：whale-config 业务配置管理服务（配置项 CRUD / 版本历史 / 回滚），
             # 自持 /config 一级前缀（不含 StripPrefix，REQ-ARCH-003）
             - id: whale-config
@@ -320,6 +334,10 @@ whale:
         - /music/internal/**
         # Wave 5.77 视频内网通道：内容检索 / 消息回查等仅服务间内网直连 whale-video
         - /video/internal/**
+        # Wave 5.77 场景内网通道：布局快照 / 入口解析仅服务间内网直连 whale-scene
+        - /scene/internal/**
+        # Wave 5.77 客户关系内网通道：门禁通过后仅服务间内网直连 whale-crm
+        - /crm/internal/**
 
 management:
   endpoints:

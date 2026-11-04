@@ -21,7 +21,23 @@ export const menuConfig: MenuNode[] = [
     ],
   },
   { key: '/portal', label: '门户应用' },
-  { key: '/erp', label: 'ERP 应用', permission: 'sys:erp:item:list' },
+  {
+    key: '/erp',
+    label: 'ERP 应用',
+    children: [
+      { key: '/erp/items', label: '物料管理', permission: 'sys:erp:item:list' },
+      { key: '/erp/suppliers', label: '供应商管理', permission: 'sys:erp:supplier:list' },
+      { key: '/erp/master-data', label: 'ERP 主数据', permission: 'sys:erp:account:list' },
+      { key: '/erp/finance/voucher', label: '会计凭证', permission: 'sys:erp:voucher:list' },
+      { key: '/erp/finance/arap', label: '应收应付', permission: 'sys:erp:receivable:list' },
+      { key: '/erp/finance/report', label: '财务报表', permission: 'sys:erp:report:view' },
+      { key: '/erp/scm/purchase', label: '采购订单', permission: 'sys:erp:purchase:list' },
+      { key: '/erp/scm/sales', label: '销售订单', permission: 'sys:erp:sales:list' },
+      { key: '/erp/scm/stock', label: '库存台账', permission: 'sys:erp:stock:list' },
+      { key: '/erp/scm/transfer', label: '库存调拨', permission: 'sys:erp:transfer:list' },
+      { key: '/erp/scm/stocktake', label: '库存盘点', permission: 'sys:erp:stocktake:list' },
+    ],
+  },
   { key: '/oa', label: 'OA 应用', permission: 'sys:oa:leave:list' },
   { key: '/mes', label: 'MES 应用', permission: 'sys:mes:workorder:list' },
   { key: '/pdm', label: 'PDM 应用', permission: 'sys:pdm:product:list' },
@@ -30,6 +46,16 @@ export const menuConfig: MenuNode[] = [
   { key: '/contract', label: '合同管理', permission: 'sys:contract:list' },
   { key: '/doc', label: '文档中心', permission: 'sys:doc:space:list' },
   { key: '/music', label: '音乐中心', permission: 'sys:music:browse' },
+  {
+    key: '/scene',
+    label: '城池导航',
+    children: [
+      { key: '/scene/navigation', label: '2D 导航' },
+      { key: '/scene/manage', label: '场景管理', permission: 'sys:scene:list' },
+      { key: '/scene/bindings', label: '入口绑定', permission: 'sys:scene:binding:manage' },
+      { key: '/scene/visibility', label: '可见性', permission: 'sys:scene:visibility:manage' },
+    ],
+  },
 ];
 
 /**

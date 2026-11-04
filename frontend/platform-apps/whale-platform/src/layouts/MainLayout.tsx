@@ -3,12 +3,15 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import {
   AppstoreOutlined,
+  BankOutlined,
   CloudOutlined,
   CustomerServiceOutlined,
   DeploymentUnitOutlined,
+  EyeOutlined,
   FileSearchOutlined,
   FileTextOutlined,
   HomeOutlined,
+  LinkOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -59,6 +62,11 @@ const MENU_ICONS: Record<string, ReactNode> = {
   '/contract': <FileTextOutlined />,
   '/doc': <FileSearchOutlined />,
   '/music': <CustomerServiceOutlined />,
+  '/scene': <BankOutlined />,
+  '/scene/navigation': <BankOutlined />,
+  '/scene/manage': <AppstoreOutlined />,
+  '/scene/bindings': <LinkOutlined />,
+  '/scene/visibility': <EyeOutlined />,
 };
 
 export default function MainLayout() {
@@ -139,7 +147,7 @@ export default function MainLayout() {
           mode="inline"
           items={siderMenuItems}
           selectedKeys={[activeKey]}
-          defaultOpenKeys={['/system']}
+          defaultOpenKeys={['/system', '/scene']}
           onClick={({ key }) => navigate(key)}
           style={{ borderRight: 0 }}
         />

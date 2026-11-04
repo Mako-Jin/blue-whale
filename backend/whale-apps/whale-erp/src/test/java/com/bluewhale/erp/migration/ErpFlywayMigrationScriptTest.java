@@ -91,6 +91,71 @@ class ErpFlywayMigrationScriptTest {
     }
 
     /**
+     * V2 主数据与财务核心表集合及幂等种子校验
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("V2 建表集合与幂等种子一致")
+    void financeCoreMigrationShouldCreateExpectedTables() throws IOException {
+        Set<String> financeTables = extractTables(MIGRATION_DIR.resolve("V2__masterdata_finance.sql"));
+        assertEquals(Set.of(
+                "erp_account", "erp_accounting_period", "erp_customer", "erp_warehouse",
+                "erp_uom", "erp_currency", "erp_tax_code",
+                "erp_fin_voucher", "erp_fin_voucher_line",
+                "erp_fin_receivable", "erp_fin_receivable_settlement",
+                "erp_fin_payable", "erp_fin_payable_settlement"), financeTables,
+                "V2 应创建 13 张主数据与财务核心表");
+        String content = Files.readString(MIGRATION_DIR.resolve("V2__masterdata_finance.sql"),
+                StandardCharsets.UTF_8);
+        assertTrue(content.contains("INSERT IGNORE INTO erp_account"), "科目种子必须幂等");
+        assertTrue(content.contains("INSERT IGNORE INTO erp_accounting_period"), "会计期间种子必须幂等");
+        assertTrue(content.contains("INSERT IGNORE INTO erp_customer"), "客户种子必须幂等");
+    }
+
+    /**
+     * V3 供应链核心表集合与自动记账幂等键校验
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("V3 建表集合与自动记账幂等键一致")
+    void scmMigrationShouldCreateExpectedTables() throws IOException {
+        Set<String> scmTables = extractTables(MIGRATION_DIR.resolve("V3__scm.sql"));
+        assertEquals(Set.of(
+                "erp_scm_purchase_order", "erp_scm_purchase_order_line",
+                "erp_scm_sales_order", "erp_scm_sales_order_line",
+                "erp_scm_stock_movement", "erp_scm_stock_balance"), scmTables,
+                "V3 应创建 6 张供应链表");
+        String content = Files.readString(MIGRATION_DIR.resolve("V3__scm.sql"), StandardCharsets.UTF_8);
+        assertTrue(content.contains("uk_voucher_source"), "凭证来源唯一键必须存在");
+        assertTrue(content.contains("uk_receivable_source"), "应收来源唯一键必须存在");
+        assertTrue(content.contains("uk_payable_source"), "应付来源唯一键必须存在");
+        assertTrue(content.contains("uk_stock_balance"), "库存余额按物料+仓库唯一");
+    }
+
+    /**
+     * V4 库存作业表集合与待处理财产损溢科目种子校验
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("V4 库存作业表集合与科目种子一致")
+    void stockOpsMigrationShouldCreateExpectedTables() throws IOException {
+        Set<String> stockOpsTables = extractTables(MIGRATION_DIR.resolve("V4__scm_stock_ops.sql"));
+        assertEquals(Set.of(
+                "erp_scm_transfer", "erp_scm_transfer_line",
+                "erp_scm_stocktake", "erp_scm_stocktake_line"), stockOpsTables,
+                "V4 应创建 4 张库存作业表");
+        String content = Files.readString(MIGRATION_DIR.resolve("V4__scm_stock_ops.sql"),
+                StandardCharsets.UTF_8);
+        assertTrue(content.contains("uk_transfer_doc_no"), "调拨单号唯一键必须存在");
+        assertTrue(content.contains("uk_stocktake_doc_no"), "盘点单号唯一键必须存在");
+        assertTrue(content.contains("INSERT IGNORE INTO erp_account"), "待处理财产损溢科目种子必须幂等");
+        assertTrue(content.contains("'1901'"), "盘盈盘亏科目编码应为 1901");
+    }
+
+    /**
      * 列出迁移脚本并按文件名字典序返回
      *
      * @return 迁移脚本路径

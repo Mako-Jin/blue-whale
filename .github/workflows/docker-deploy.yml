@@ -76,6 +76,7 @@ jobs:
           - { service: whale-message, module: whale-services/whale-message, port: 8094 }
           - { service: whale-doc, module: whale-services/whale-doc, port: 8095 }
           - { service: whale-music, module: whale-services/whale-music, port: 8096 }
+          - { service: whale-scene, module: whale-services/whale-scene, port: 8097 }
           - { service: whale-video, module: whale-services/whale-video, port: 8098 }
           - { service: whale-erp, module: whale-apps/whale-erp, port: 9001 }
           - { service: whale-mes, module: whale-apps/whale-mes, port: 9002 }
@@ -83,6 +84,7 @@ jobs:
           - { service: whale-oa, module: whale-apps/whale-oa, port: 9004 }
           - { service: whale-pm, module: whale-apps/whale-pm, port: 9005 }
           - { service: whale-contract, module: whale-apps/whale-contract, port: 9006 }
+          - { service: whale-crm, module: whale-apps/whale-crm, port: 9007 }
           - { service: whale-audit, module: whale-ops/whale-audit, port: 9101 }
           - { service: whale-monitor, module: whale-ops/whale-monitor, port: 9102 }
           - { service: whale-alert, module: whale-ops/whale-alert, port: 9103 }
@@ -141,7 +143,7 @@ jobs:
         # image：GHCR 镜像名；app：package.json 的 name（turbo --filter）；dir：frontend/ 下的应用目录
         # base：vite base 前缀（无 base 配置的应用为 /），必须与构建产物中的资源绝对路径一致
         # namespace：root=沿用 ghcr.io/<repo>/<image>（保持 admin 等既有部署引用）；
-        #            frontend=ghcr.io/<repo>/frontend/<image>，仅用于与同名后端服务冲突的 8 个前端应用。
+        #            frontend=ghcr.io/<repo>/frontend/<image>，仅用于与同名后端服务冲突的前端应用。
         # 不冲突的前端保留原名，避免无谓的部署引用变更；冲突项由 preflight 校验强制命名空间。
         include:
           - { image: whale-web, app: whale-admin, dir: admin, base: /, namespace: root }
@@ -158,6 +160,7 @@ jobs:
           - { image: whale-im, app: whale-im, dir: platform-apps/whale-im, base: /im, namespace: frontend }
           - { image: whale-doc, app: whale-doc, dir: platform-apps/whale-doc, base: /doc, namespace: frontend }
           - { image: whale-music, app: whale-music, dir: platform-apps/whale-music, base: /music, namespace: frontend }
+          - { image: whale-scene, app: whale-scene, dir: platform-apps/whale-scene, base: /scene, namespace: frontend }
           - { image: whale-video, app: whale-video, dir: platform-apps/whale-video, base: /video, namespace: frontend }
           - { image: whale-form-designer, app: whale-form-designer, dir: platform-apps/whale-form-designer, base: /, namespace: root }
           - { image: whale-workflow-designer, app: whale-workflow-designer, dir: platform-apps/whale-workflow-designer, base: /, namespace: root }

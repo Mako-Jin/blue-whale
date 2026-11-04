@@ -92,8 +92,8 @@ Maven 模块目录名 == artifactId == spring.application.name == Nacos 服务�
 | 区段 | 用途 | 现状占用 |
 |---|---|---|
 | `8080` | API 网关（唯一入口） | whale-gateway |
-| `8081–8099` | 核心服务 | auth 8081、job 8082、workflow 8083、form 8084、file 8085、pay 8086（8087 随 `whale-i18n` 删除释放，Wave 5.50）、agent 8090、im 8091、ai 8092（Python，仅内网）、archive 8093、message 8094、**doc 8095（Wave 5.74 M1 骨架）**、**music 8096（Wave 5.75 M0 骨架）**、**scene 8097（Wave 5.77 规划）、video 8098（Wave 5.77 M0–M5 已落地）** |
-| `9001–9099` | 业务应用 | erp 9001、mes 9002、pdm 9003、oa 9004、pm 9005 |
+| `8081–8099` | 核心服务 | auth 8081、job 8082、workflow 8083、form 8084、file 8085、pay 8086（8087 随 `whale-i18n` 删除释放，Wave 5.50）、agent 8090、im 8091、ai 8092（Python，仅内网）、archive 8093、message 8094、**doc 8095（Wave 5.74 M1 骨架）**、**music 8096（Wave 5.75 M0 骨架）**、**scene 8097（Wave 5.77 M1/M2 2D 已落地）**、**video 8098（Wave 5.77 M0–M5 已落地）** |
+| `9001–9099` | 业务应用 | erp 9001、mes 9002、pdm 9003、oa 9004、pm 9005、contract 9006、**crm 9007（Wave 5.77 门禁骨架）** |
 | `9101–9199` | 运维服务 | audit 9101、monitor 9102、alert 9103 |
 | `9201–9299` | 注册/配置类辅助服务 | config 9201 |
 | `8848/8849/9848/9849` | Nacos 基础设施（非本平台服务） | Nacos 3.2.4 |
@@ -188,7 +188,7 @@ Maven 模块目录名 == artifactId == spring.application.name == Nacos 服务�
 | services | whale-message | whale-message | `bluewhale_message` ✔ | `com.bluewhale.message` | 8094 |
 | services | **whale-doc**（Wave 5.74 M1 骨架） | `whale-doc` | `bluewhale_doc` | `com.bluewhale.doc` | 8095 |
 | services | **whale-music**（Wave 5.75 M1 已落地） | `whale-music` | `bluewhale_music`（DDL 就绪，待执行） | `com.bluewhale.music` | 8096 |
-| services | **whale-scene**（Wave 5.77 规划） | `whale-scene` | `bluewhale_scene`（规划） | `com.bluewhale.scene` | 8097 |
+| services | **whale-scene**（Wave 5.77 M1/M2 2D 已落地） | `whale-scene` | `bluewhale_scene` | `com.bluewhale.scene` | 8097 |
 | services | **whale-video**（Wave 5.77 M0–M5 已落地） | `whale-video` | `bluewhale_video`（Flyway `V1`–`V4` 就绪，待建库） | `com.bluewhale.video` | 8098 |
 | services | ~~whale-i18n~~（已删除，Wave 5.50 下沉 SDK） | — | 各服务库内自建 `sys_i18n_message` | — | — |
 | registry | ~~whale-config~~（**冻结**，F-05 结案：不部署/不路由） | — | 无 | `com.bluewhale.config` | 9201 |
@@ -200,7 +200,7 @@ Maven 模块目录名 == artifactId == spring.application.name == Nacos 服务�
 | apps | whale-pdm | whale-pdm | `bluewhale_pdm`（规划） | `com.bluewhale.pdm` | 9003 |
 | apps | whale-oa | whale-oa | `bluewhale_oa`（规划） | `com.bluewhale.oa` | 9004 |
 | apps | whale-pm | whale-pm | `bluewhale_pm`（DDL 就绪，待建库） | `com.bluewhale.pm` | 9005 |
-| apps | **whale-crm**（需求门禁规划） | `whale-crm` | `bluewhale_crm`（规划） | `com.bluewhale.crm` | 9007 |
+| apps | **whale-crm**（Wave 5.77 门禁骨架） | `whale-crm` | `bluewhale_crm` | `com.bluewhale.crm` | 9007 |
 | infra | Nacos 3.2.4 | — | **`bluewhale_nacos`**（本波次整改，原 `nacos`） | — | 8848 / 8849（9848 / 9849） |
 | infra | Redis / MySQL | — | 不建业务库 | — | 6379 / 3306 |
 

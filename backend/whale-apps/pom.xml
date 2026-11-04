@@ -23,5 +23,6 @@
         <module>whale-oa</module>
         <module>whale-pm</module>
         <module>whale-contract</module>
+        <module>whale-crm</module>
     </modules>
 </project>

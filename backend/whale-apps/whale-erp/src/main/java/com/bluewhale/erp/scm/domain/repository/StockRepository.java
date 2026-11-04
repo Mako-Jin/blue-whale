@@ -1,0 +1,71 @@
+package com.bluewhale.erp.scm.domain.repository;
+
+import com.bluewhale.erp.scm.domain.model.ScmQuery;
+import com.bluewhale.erp.scm.domain.model.StockBalance;
+import com.bluewhale.erp.scm.domain.model.StockMovement;
+
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * 库存仓储：余额按「物料 + 仓库」唯一，流水只追加。
+ *
+ * @author BlueWhale
+ */
+public interface StockRepository {
+
+    /**
+     * 分页查询库存余额。
+     *
+     * @param query 查询条件
+     * @return 余额列表
+     */
+    List<StockBalance> pageBalances(ScmQuery query);
+
+    /**
+     * 统计库存余额数量。
+     *
+     * @param query 查询条件
+     * @return 总条数
+     */
+    long countBalances(ScmQuery query);
+
+    /**
+     * 分页查询库存流水。
+     *
+     * @param query 查询条件
+     * @return 流水列表
+     */
+    List<StockMovement> pageMovements(ScmQuery query);
+
+    /**
+     * 统计库存流水数量。
+     *
+     * @param query 查询条件
+     * @return 总条数
+     */
+    long countMovements(ScmQuery query);
+
+    /**
+     * 查询指定物料在指定仓库的余额。
+     *
+     * @param itemId 物料主键
+     * @param warehouseId 仓库主键
+     * @return 余额
+     */
+    Optional<StockBalance> findBalance(Long itemId, Long warehouseId);
+
+    /**
+     * 新增库存流水。
+     *
+     * @param movement 流水
+     */
+    void insertMovement(StockMovement movement);
+
+    /**
+     * 新增或更新库存余额。
+     *
+     * @param balance 余额
+     */
+    void saveBalance(StockBalance balance);
+}

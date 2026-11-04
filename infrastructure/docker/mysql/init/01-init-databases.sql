@@ -91,4 +91,14 @@ CREATE DATABASE IF NOT EXISTS bluewhale_music
   DEFAULT CHARACTER SET utf8mb4
   DEFAULT COLLATE utf8mb4_unicode_ci;
 
+-- ---- 城池场景导航（Wave 5.77 M2，2D 优先） ----
+CREATE DATABASE IF NOT EXISTS bluewhale_scene
+  DEFAULT CHARACTER SET utf8mb4
+  DEFAULT COLLATE utf8mb4_unicode_ci;
+
+-- ---- 客户关系（Wave 5.77 门禁骨架，门禁通过前仅 /crm/meta） ----
+CREATE DATABASE IF NOT EXISTS bluewhale_crm
+  DEFAULT CHARACTER SET utf8mb4
+  DEFAULT COLLATE utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;
