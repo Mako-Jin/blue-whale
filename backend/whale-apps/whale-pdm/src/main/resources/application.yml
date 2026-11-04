@@ -45,6 +45,11 @@ spring:
         server-addr: ${NACOS_SERVER:127.0.0.1:8848}
         namespace: ${NACOS_NAMESPACE:public}
         file-extension: yaml
+  # 图文档上传：工程图纸/模型单文件默认上限 100MB（Spring 默认 1MB 不满足）
+  servlet:
+    multipart:
+      max-file-size: ${PDM_UPLOAD_MAX_FILE_SIZE:100MB}
+      max-request-size: ${PDM_UPLOAD_MAX_REQUEST_SIZE:120MB}
 
 logging:
   level:

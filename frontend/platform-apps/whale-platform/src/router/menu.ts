@@ -47,7 +47,14 @@ export const menuConfig: MenuNode[] = [
   },
   { key: '/oa', label: 'OA 应用', permission: 'sys:oa:leave:list' },
   { key: '/mes', label: 'MES 应用', permission: 'sys:mes:workorder:list' },
-  { key: '/pdm', label: 'PDM 应用', permission: 'sys:pdm:product:list' },
+  {
+    key: '/pdm',
+    label: 'PDM 应用',
+    children: [
+      { key: '/pdm/document', label: '图文档中心', permission: 'sys:pdm:doc:list' },
+      { key: '/pdm/product', label: '产品结构', permission: 'sys:pdm:product:list' },
+    ],
+  },
   { key: '/im', label: '消息', permission: 'sys:im:chat' },
   { key: '/pm', label: '项目管理', permission: 'sys:pm:project:list' },
   { key: '/contract', label: '合同管理', permission: 'sys:contract:list' },

@@ -232,7 +232,7 @@
 
 | 阶段 | 新增/变更表（草案） |
 |---|---|
-| M0 图文档 | `pdm_doc_folder`、`pdm_doc_document`、`pdm_doc_version`、`pdm_doc_acl`、`pdm_doc_link`；扩展现有 `pdm_product`（文档关联字段） |
+| M0 图文档 | **M0-A 已落地**：`pdm_doc_folder`、`pdm_doc_document`、`pdm_doc_version`；`pdm_doc_acl` 已建表但未启用（M0-B）；`pdm_doc_link` 顺延 M1A；扩展现有 `pdm_product`（文档关联字段）亦顺延 M1A |
 | M1 零件/BOM | `pdm_part_category`；`ALTER pdm_product`（part_type/material/spec/uom/erp_item_code 等）；`pdm_bom`、`pdm_bom_line`、`pdm_bom_release` |
 | M2 变更 | `pdm_chg_request`、`pdm_chg_order`、`pdm_chg_notice`、`pdm_chg_impact`、`pdm_chg_task`、`pdm_chg_trace` |
 | M3 工艺 | `pdm_prc_route`、`pdm_prc_step`、`pdm_prc_tooling`、`pdm_prc_sop`、`pdm_prc_publish` |
@@ -256,7 +256,7 @@
 
 | 分组 | 路径 | 说明 |
 |---|---|---|
-| 图文档 | `/pdm/document`、`/pdm/document/{id}/versions`、`/pdm/document/{id}/checkout`、`/checkin`、`/pdm/document/{id}/acl`、`/pdm/folder`、`/pdm/document/search` | 下载走授权票据/代理，不暴露 `fileId`；版本发布/作废为显式动作 |
+| 图文档 | `/pdm/document/page`、`/pdm/document/{id}`、`/pdm/document/{id}/versions`、`/pdm/document/{id}/checkout`、`/checkin`、`/pdm/document/{id}/versions/{versionId}/release`、`/rollback`、`/content`、`/pdm/folder/**`；M0-B 增 `/pdm/document/{id}/acl` | 下载走授权票据/代理，不暴露 `fileId`；版本发布/作废为显式动作 |
 | 零件/BOM | `/pdm/part`、`/pdm/part/{id}/where-used`、`/pdm/part/duplicates`、`/pdm/part/category`、`/pdm/bom`、`/pdm/bom/{id}/lines`、`/pdm/bom/{id}/release`、`/pdm/bom/diff`、`/pdm/bom/{id}/export` | BOM 对比/导出为查询型；发布为显式动作，不做通用 PUT 改状态 |
 | 变更 | `/pdm/change/ecr`、`/pdm/change/eco`、`/pdm/change/ecn`、`/pdm/change/trace` | 提交/审批回写/执行/生效为动作端点 |
 | 工艺 | `/pdm/process/route`、`/pdm/process/route/{id}/release`、`/pdm/process/publish` | 下发/重试/撤回为动作端点 |
@@ -317,8 +317,8 @@ com.bluewhale.pdm
 
 ### 8.5 前端
 
-- 复用现有 `frontend/platform-apps/whale-pdm`（8106、base `/pdm`），M0 从「单页 List+Form」重构为多路由：`/pdm/document`、`/pdm/part`、`/pdm/bom`、`/pdm/change`、`/pdm/process`、`/pdm/review`、`/pdm/sync`。
-- 不新增 qiankun 子应用；基座 `/pdm` 菜单与权限码同步更新（现在只挂 `sys:pdm:product:list`）。
+- 复用现有 `frontend/platform-apps/whale-pdm`（8106、base `/pdm`），M0 从「单页 List+Form」重构为多路由：`/pdm/document`、`/pdm/product`（已落地）；`/pdm/part`、`/pdm/bom`、`/pdm/change`、`/pdm/process`、`/pdm/review`、`/pdm/sync` 随里程碑追加。
+- 不新增 qiankun 子应用；基座 `/pdm` 菜单已拆为 `/pdm/document`（`sys:pdm:doc:list`，菜单 180）与 `/pdm/product`（`sys:pdm:product:list`，原菜单 27）。
 - 统一「树 + 列表 + 详情 + 动作条」模式；BOM 树/差异视图使用虚拟滚动；文档预览使用 iframe/PDF.js/模型查看器，**不引入**冻结的 `whale-common-three`（除非满足 F-09 解冻四条件）。
 
 ---
@@ -329,7 +329,7 @@ com.bluewhale.pdm
 
 | 模块 | 权限号段 | 菜单号段 | 说明 |
 |---|---|---|---|
-| 图文档 | 900–929 | 180–184 | 文件夹、文档、版本、检出/检入、ACL、下载、搜索 |
+| 图文档 | 900–929 | 180–184 | M0-A 已用 900–909 / 菜单 180；910–929 / 181–184 预留给 M0-B（ACL、预览、导出） |
 | 零件/BOM | 930–949 | 185–189 | 零件、分类、标准件、BOM、对比、导出、发布 |
 | 变更 | 950–969 | 190–194 | ECR/ECO/ECN、影响、追溯、生效 |
 | 工艺 | 970–979 | 195–197 | 路线、工序、工装、SOP、下发 |
@@ -339,7 +339,7 @@ com.bluewhale.pdm
 
 角色：存量 `pdm_manager`(21101) / `pdm_member`(21102) 继续覆盖 `/pdm/product/**`；新增 `pdm_doc_manager`（21103）、`pdm_engineer`（21104，零件/BOM）、`pdm_change_manager`（21105）、`pdm_process_engineer`（21106）。实施前核对 211xx 最大值（当前至 21102）及 ERP/MES 角色段（251xx / 207xx）。
 
-> 编号纪律：按里程碑逐段启用，**禁止跳段占用**；迁移脚本幂等；已发布脚本不得修改。
+> 编号纪律：按里程碑逐段启用，**禁止跳段占用**；迁移脚本幂等；已发布脚本不得修改。M0-A 实际使用权限 900–909、菜单 180、角色 21103，对应迁移 `migration-5.80-pdm-doc.sql`。
 
 ---
 

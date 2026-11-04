@@ -234,7 +234,8 @@
 > 设计稿：[../design/pdm-module-panorama.md](../design/pdm-module-panorama.md)
 > 结论：`whale-pdm` 现仅产品档案占位 CRUD；保持 **9003 / `/pdm/**` / `bluewhale_pdm` / 前端 8106** 单服务，按 Document/PartBom/Change/Process/Collab 五上下文 + Integration 适配层分包；首切片 **M0 图文档中心 + M1A 零件库/EBOM 发布契约**（解除 ERP MRP 的 BOM 快照阻塞），不拆微服务。
 
-- [ ] 10.1 M0 图文档中心 + 骨架重构 + 文件夹/版本/ACL/检索（权限 900–929 / 菜单 180–184）
+- [x] 10.1 M0-A 图文档中心：目录/文档/版本上传·检出检入·发布回滚·下载 + 多维检索 + 多路由前端（权限 900–909 / 菜单 180）
+- [ ] 10.1b M0-B 文档 ACL（文件夹继承/DENY 优先）+ 预览任务 + 导出（权限 910–929 / 菜单 181–184）
 - [ ] 10.2 M1A 零件主档/分类 + EBOM + BOM 发布快照契约（权限 930–949 / 菜单 185–189）
 - [ ] 10.3 M1B PBOM/MBOM 派生 + BOM 对比/导出 + 零件去重/供应商只读
 - [ ] 10.4 M2 版本规则 + ECR/ECO/ECN + 追溯 + 生效任务（权限 950–969 / 菜单 190–194）

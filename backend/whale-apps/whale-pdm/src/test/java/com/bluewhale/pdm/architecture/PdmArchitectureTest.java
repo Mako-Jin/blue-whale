@@ -26,37 +26,38 @@ class PdmArchitectureTest {
     /** 控制器不得直接依赖实体（装配一律经 converter/service 层完成） */
     @ArchTest
     static final ArchRule controller_must_not_depend_on_entity = noClasses()
-            .that().resideInAPackage("com.bluewhale.pdm.controller..")
-            .should().dependOnClassesThat().resideInAPackage("com.bluewhale.pdm.entity..");
+            .that().resideInAPackage("com.bluewhale.pdm..controller..")
+            .should().dependOnClassesThat().resideInAPackage("com.bluewhale.pdm..entity..");
 
     /** 控制器不得直接依赖 Mapper（持久化访问一律经 service 层） */
     @ArchTest
     static final ArchRule controller_must_not_depend_on_mapper = noClasses()
-            .that().resideInAPackage("com.bluewhale.pdm.controller..")
-            .should().dependOnClassesThat().resideInAPackage("com.bluewhale.pdm.mapper..");
+            .that().resideInAPackage("com.bluewhale.pdm..controller..")
+            .should().dependOnClassesThat().resideInAPackage("com.bluewhale.pdm..mapper..");
 
     /** 出入参模型不得直接暴露持久化实体或 Mapper */
     @ArchTest
     static final ArchRule dto_and_vo_must_not_depend_on_persistence = noClasses()
-            .that().resideInAnyPackage("com.bluewhale.pdm.dto..", "com.bluewhale.pdm.vo..")
+            .that().resideInAnyPackage("com.bluewhale.pdm..dto..", "com.bluewhale.pdm..vo..")
             .should().dependOnClassesThat().resideInAnyPackage(
-                    "com.bluewhale.pdm.entity..",
-                    "com.bluewhale.pdm.mapper..");
+                    "com.bluewhale.pdm..entity..",
+                    "com.bluewhale.pdm..mapper..");
 
     /** Mapper 只依赖实体与框架，不得反向依赖控制器或业务服务 */
     @ArchTest
     static final ArchRule mapper_must_not_depend_on_controller_or_service = noClasses()
-            .that().resideInAPackage("com.bluewhale.pdm.mapper..")
+            .that().resideInAPackage("com.bluewhale.pdm..mapper..")
             .should().dependOnClassesThat().resideInAnyPackage(
-                    "com.bluewhale.pdm.controller..",
-                    "com.bluewhale.pdm.service..");
+                    "com.bluewhale.pdm..controller..",
+                    "com.bluewhale.pdm..service..");
 
     /** 实体为纯持久化模型，不得依赖控制器、业务服务或 Mapper */
     @ArchTest
     static final ArchRule entity_must_not_depend_on_outer_layers = noClasses()
-            .that().resideInAPackage("com.bluewhale.pdm.entity..")
+            .that().resideInAPackage("com.bluewhale.pdm..entity..")
             .should().dependOnClassesThat().resideInAnyPackage(
-                    "com.bluewhale.pdm.controller..",
-                    "com.bluewhale.pdm.service..",
-                    "com.bluewhale.pdm.mapper..");
+                    "com.bluewhale.pdm..controller..",
+                    "com.bluewhale.pdm..service..",
+                    "com.bluewhale.pdm..mapper..");
 }
+

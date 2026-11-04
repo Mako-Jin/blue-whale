@@ -78,6 +78,23 @@ describe('createHttpClient', () => {
     expect((fetchMock.mock.calls as unknown as FetchCall[])[0][1].body).toBe('{"name":"M1"}');
   });
 
+  it('FormData 请求体原样透传且不覆盖 multipart Content-Type', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ code: 0, message: 'ok', data: null }));
+    vi.stubGlobal('fetch', fetchMock);
+    const client = createHttpClient({ baseUrl: '' });
+    const form = new FormData();
+    form.append('file', new Blob(['abc'], { type: 'text/plain' }), 'a.txt');
+
+    await client.post('/pdm/document/1/versions', form);
+
+    const init = (fetchMock.mock.calls as unknown as FetchCall[])[0][1];
+    expect(init.body).toBe(form);
+    expect((init.headers as Headers).get('Content-Type')).toBeNull();
+    expect((init.headers as Headers).get('X-CSRF-Token')).toBe('csrf-123');
+  });
+
   it('CSRF Cookie 缺失时不注入该请求头', async () => {
     cookieJar = '';
     const fetchMock = vi

@@ -10,21 +10,39 @@ const USER_STORAGE_KEY = PLATFORM_USER_KEY;
 
 /** 基座缓存用户的最小结构 */
 interface CachedUser {
+  userId?: number | string;
+  username?: string;
+  nickname?: string;
   permissions?: string[];
+}
+
+/** 读取当前用户缓存（无缓存或解析失败时返回 null） */
+export function getCurrentUser(): CachedUser | null {
+  const raw = localStorage.getItem(USER_STORAGE_KEY);
+  if (!raw) {
+    return null;
+  }
+  try {
+    return JSON.parse(raw) as CachedUser;
+  } catch {
+    return null;
+  }
+}
+
+/** 读取当前用户 ID（无法解析时返回 null） */
+export function getCurrentUserId(): number | null {
+  const userId = getCurrentUser()?.userId;
+  if (userId === undefined || userId === null) {
+    return null;
+  }
+  const parsed = Number(userId);
+  return Number.isNaN(parsed) ? null : parsed;
 }
 
 /** 读取当前用户权限码（无缓存或解析失败时返回空数组） */
 export function getPermissions(): string[] {
-  const raw = localStorage.getItem(USER_STORAGE_KEY);
-  if (!raw) {
-    return [];
-  }
-  try {
-    const user = JSON.parse(raw) as CachedUser;
-    return Array.isArray(user.permissions) ? user.permissions : [];
-  } catch {
-    return [];
-  }
+  const permissions = getCurrentUser()?.permissions;
+  return Array.isArray(permissions) ? permissions : [];
 }
 
 /** 判断是否持有指定权限码 */

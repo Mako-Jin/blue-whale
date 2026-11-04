@@ -142,14 +142,23 @@ function parseResult<T>(text: string): Result<T> | null {
 }
 
 /**
- * 请求体序列化：对象走 JSON；已是字符串的直接透传
+ * 请求体序列化：FormData 原样透传（浏览器自动生成 multipart 边界）；
+ * 对象走 JSON；已是字符串的直接透传
  * （门户/骨架应用的 request(url, init) 会传入已序列化的请求体，避免二次编码）。
  */
-function serializeBody(body: unknown): string | undefined {
+function serializeBody(body: unknown): BodyInit | undefined {
   if (body === undefined) {
     return undefined;
   }
+  if (typeof FormData !== 'undefined' && body instanceof FormData) {
+    return body;
+  }
   return typeof body === 'string' ? body : JSON.stringify(body);
+}
+
+/** 判断请求体是否为 FormData（不能 JSON 序列化、不能手写 Content-Type） */
+function isFormDataBody(body: unknown): boolean {
+  return typeof FormData !== 'undefined' && body instanceof FormData;
 }
 
 /**
@@ -319,7 +328,7 @@ export function createHttpClient<TLogin extends LoginData = LoginData>(
     if (extraHeaders) {
       new Headers(extraHeaders).forEach((value, key) => headers.set(key, value));
     }
-    if (body !== undefined) {
+    if (body !== undefined && !isFormDataBody(body) && !headers.has('Content-Type')) {
       headers.set('Content-Type', 'application/json');
     }
     if (auth) {

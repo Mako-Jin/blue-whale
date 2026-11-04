@@ -338,6 +338,8 @@ whale:
         - /scene/internal/**
         # Wave 5.77 客户关系内网通道：门禁通过后仅服务间内网直连 whale-crm
         - /crm/internal/**
+        # Wave 5.80 图文档内网通道：文件引用/内部上传等仅服务间内网直连 whale-pdm
+        - /pdm/internal/**
 
 management:
   endpoints:

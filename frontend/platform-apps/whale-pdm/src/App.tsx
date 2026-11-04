@@ -1,71 +1,58 @@
-// PDM 子应用根组件：Layout + 菜单，列表页承载数据，表单由 Modal 承载
-import { useState } from 'react';
-import { BrowserRouter } from 'react-router-dom';
+// PDM 子应用根组件：图文档中心（默认）/ 产品结构，受权限码控制菜单可见性
 import { Layout, Menu } from 'antd';
 import type { MenuProps } from 'antd';
-import List from './pages/List';
-import FormModal from './pages/Form';
-import { type PdmProduct } from './api/pdm';
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import DocumentCenter from './pages/document';
+import ProductCenter from './pages/ProductCenter';
+import { hasPermission } from './utils/permission';
 
 const { Header, Content, Sider } = Layout;
 
-/** 菜单项：列表管理 / 新增（打开表单弹窗） */
-const menuItems: MenuProps['items'] = [
-  { key: 'list', label: '列表管理' },
-  { key: 'create', label: '新增' },
+/** 全部菜单项：权限码为空表示登录即可见 */
+const MENU_ITEMS = [
+  { key: '/document', label: '图文档中心', permission: 'sys:pdm:doc:list' },
+  { key: '/product', label: '产品结构', permission: 'sys:pdm:product:list' },
 ];
 
-export default function App() {
-  const [selectedKey, setSelectedKey] = useState('list');
-  const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<PdmProduct | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
+/** 按权限过滤后的菜单 */
+const menuItems: MenuProps['items'] = MENU_ITEMS.filter(
+  (item) => !item.permission || hasPermission(item.permission),
+).map(({ key, label }) => ({ key, label }));
 
-  const handleMenuClick: MenuProps['onClick'] = ({ key }) => {
-    setSelectedKey(key);
-    if (key === 'create') {
-      setEditing(null);
-      setFormOpen(true);
-    }
-  };
-
-  const handleEdit = (item: PdmProduct) => {
-    setEditing(item);
-    setFormOpen(true);
-  };
-
-  const handleSaved = () => {
-    setFormOpen(false);
-    setEditing(null);
-    setRefreshKey((key) => key + 1);
-  };
+function PdmLayout() {
+  const location = useLocation();
+  const navigate = useNavigate();
 
   return (
-    <BrowserRouter basename="/pdm">
-      <Layout style={{ minHeight: '100%' }}>
-        <Header style={{ display: 'flex', alignItems: 'center', color: '#fff' }}>
-          <span style={{ fontSize: 16, fontWeight: 600 }}>Whale PDM - PDM 子应用</span>
-        </Header>
-        <Layout>
-          <Sider width={200} theme="light">
-            <Menu
-              mode="inline"
-              selectedKeys={[selectedKey]}
-              items={menuItems}
-              onClick={handleMenuClick}
-            />
-          </Sider>
-          <Content style={{ padding: 16 }}>
-            <List refreshKey={refreshKey} onCreate={() => setFormOpen(true)} onEdit={handleEdit} />
-          </Content>
-        </Layout>
+    <Layout style={{ minHeight: '100%' }}>
+      <Header style={{ display: 'flex', alignItems: 'center', color: '#fff' }}>
+        <span style={{ fontSize: 16, fontWeight: 600 }}>Whale PDM - 产品数据管理</span>
+      </Header>
+      <Layout>
+        <Sider width={200} theme="light">
+          <Menu
+            mode="inline"
+            selectedKeys={[location.pathname]}
+            items={menuItems}
+            onClick={({ key }) => navigate(key)}
+          />
+        </Sider>
+        <Content style={{ padding: 16 }}>
+          <Routes>
+            <Route path="/document" element={<DocumentCenter />} />
+            <Route path="/product" element={<ProductCenter />} />
+            <Route path="*" element={<Navigate to="/document" replace />} />
+          </Routes>
+        </Content>
       </Layout>
-      <FormModal
-        open={formOpen}
-        initial={editing}
-        onCancel={() => setFormOpen(false)}
-        onSaved={handleSaved}
-      />
+    </Layout>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter basename="/pdm">
+      <PdmLayout />
     </BrowserRouter>
   );
 }

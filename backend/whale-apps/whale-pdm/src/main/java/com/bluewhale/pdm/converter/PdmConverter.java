@@ -1,5 +1,13 @@
 package com.bluewhale.pdm.converter;
 
+import com.bluewhale.pdm.document.dto.PdmDocDocumentSaveRequest;
+import com.bluewhale.pdm.document.dto.PdmDocFolderSaveRequest;
+import com.bluewhale.pdm.document.entity.PdmDocDocument;
+import com.bluewhale.pdm.document.entity.PdmDocFolder;
+import com.bluewhale.pdm.document.entity.PdmDocVersion;
+import com.bluewhale.pdm.document.vo.PdmDocDocumentVO;
+import com.bluewhale.pdm.document.vo.PdmDocFolderVO;
+import com.bluewhale.pdm.document.vo.PdmDocVersionVO;
 import com.bluewhale.pdm.dto.PdmProductSaveRequest;
 import com.bluewhale.pdm.entity.PdmProduct;
 import com.bluewhale.pdm.vo.PdmProductVO;
@@ -51,4 +59,62 @@ public interface PdmConverter {
     @Mapping(target = "updateTime", ignore = true)
     @Mapping(target = "deleted", ignore = true)
     void updateEntity(PdmProductSaveRequest request, @MappingTarget PdmProduct entity);
+
+    /**
+     * 目录实体转视图
+     *
+     * @param entity 目录实体
+     * @return 目录视图
+     */
+    @Mapping(target = "children", ignore = true)
+    PdmDocFolderVO toFolderVo(PdmDocFolder entity);
+
+    /**
+     * 目录保存请求转实体
+     *
+     * @param request 保存请求
+     * @return 目录实体
+     */
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "path", ignore = true)
+    @Mapping(target = "createTime", ignore = true)
+    @Mapping(target = "updateTime", ignore = true)
+    @Mapping(target = "deleted", ignore = true)
+    PdmDocFolder toFolderEntity(PdmDocFolderSaveRequest request);
+
+    /**
+     * 文档实体转视图
+     *
+     * @param entity 文档实体
+     * @return 文档视图
+     */
+    PdmDocDocumentVO toDocumentVo(PdmDocDocument entity);
+
+    /**
+     * 文档保存请求转实体（版本、检出与状态字段由服务维护）
+     *
+     * @param request 保存请求
+     * @return 文档实体
+     */
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "status", ignore = true)
+    @Mapping(target = "ownerId", ignore = true)
+    @Mapping(target = "ownerName", ignore = true)
+    @Mapping(target = "latestVersionId", ignore = true)
+    @Mapping(target = "latestVersionNo", ignore = true)
+    @Mapping(target = "currentVersionId", ignore = true)
+    @Mapping(target = "checkedOutBy", ignore = true)
+    @Mapping(target = "checkedOutTime", ignore = true)
+    @Mapping(target = "createTime", ignore = true)
+    @Mapping(target = "updateTime", ignore = true)
+    @Mapping(target = "deleted", ignore = true)
+    PdmDocDocument toDocumentEntity(PdmDocDocumentSaveRequest request);
+
+    /**
+     * 版本实体转视图
+     *
+     * @param entity 版本实体
+     * @return 版本视图
+     */
+    PdmDocVersionVO toVersionVo(PdmDocVersion entity);
 }
