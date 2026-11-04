@@ -125,6 +125,24 @@ public final class CrmErrorCode {
     /** 报价审批状态非法 */
     public static final int QUOTE_APPROVAL_STATE_CONFLICT = 41036;
 
+    /** 预测快照不存在或无权访问 */
+    public static final int FORECAST_NOT_FOUND = 41037;
+
+    /** 预测周期非法（月为 yyyy-MM，季为 yyyy-Qn） */
+    public static final int FORECAST_PERIOD_INVALID = 41038;
+
+    /** 预测调整参数非法（字段不支持或金额为负） */
+    public static final int FORECAST_ADJUST_INVALID = 41039;
+
+    /** 销售目标不存在或无权访问 */
+    public static final int TARGET_NOT_FOUND = 41040;
+
+    /** 同一周期同一范围的目标已存在 */
+    public static final int TARGET_DUPLICATE = 41041;
+
+    /** 销售目标金额非法 */
+    public static final int TARGET_AMOUNT_INVALID = 41042;
+
     /** 错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(GATE_CLOSED, "需求门禁未通过，CRM 业务接口尚未开放"),
@@ -163,7 +181,13 @@ public final class CrmErrorCode {
             Map.entry(QUOTE_LINE_REQUIRED, "报价至少需要一行明细"),
             Map.entry(QUOTE_AMOUNT_INVALID, "报价金额或折扣非法，请检查数量、单价与折扣"),
             Map.entry(QUOTE_APPROVAL_UNAVAILABLE, "报价审批未启用或缺少流程定义，请联系管理员"),
-            Map.entry(QUOTE_APPROVAL_STATE_CONFLICT, "报价审批状态非法"));
+            Map.entry(QUOTE_APPROVAL_STATE_CONFLICT, "报价审批状态非法"),
+            Map.entry(FORECAST_NOT_FOUND, "预测快照不存在或无权访问"),
+            Map.entry(FORECAST_PERIOD_INVALID, "预测周期非法，月周期为 yyyy-MM，季周期为 yyyy-Qn"),
+            Map.entry(FORECAST_ADJUST_INVALID, "预测调整参数非法，请检查调整字段与金额"),
+            Map.entry(TARGET_NOT_FOUND, "销售目标不存在或无权访问"),
+            Map.entry(TARGET_DUPLICATE, "同一周期同一范围的销售目标已存在"),
+            Map.entry(TARGET_AMOUNT_INVALID, "销售目标金额不得为负数"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。

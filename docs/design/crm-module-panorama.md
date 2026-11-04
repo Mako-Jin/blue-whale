@@ -1,6 +1,6 @@
 # CRM 功能模块全景：领域模型与架构设计
 
-> 状态：**M0 底座 + M1 客户主数据 + M2 线索/商机/漏斗核心已实施（后端，2026-11-04）**；M3–M6 仍为规划
+> 状态：**M0 底座 + M1 客户主数据 + M2 线索/商机/漏斗/报价/预测/目标已实施（后端，2026-11-04/11-05）**；M3–M6 仍为规划
 > 实施结果与偏差：[Wave 5.83 计划 §12](../plans/2026-11-04-wave5.83-crm-panorama.md)
 > 输入：用户《CRM 功能模块全景》六大模块 29 个子模块，以及 CRM 与 ERP / OA / 合同 / 消息 / 知识库的边界说明
 > 关联计划：[Wave 5.83 CRM 全景实施计划](../plans/2026-11-04-wave5.83-crm-panorama.md)
@@ -287,11 +287,11 @@ DRAFT → SCHEDULED → RUNNING → FINISHED → ARCHIVED
 |---|---|---|
 | M0 | `V2__crm_foundation.sql` | `crm_common_outbox`、`crm_int_sync_log`、`crm_external_ref`、`crm_idempotency`；`ALTER crm_customer` 补 `short_name/website/scale/tax_no/province/city/region/normalized_name/normalized_domain/normalized_tax_no/version/pool_status/pool_at/last_follow_up_at`；`ALTER crm_contact` 补 `wechat/decision_role/is_decision_maker/normalized_phone/normalized_email/version`；`ALTER crm_follow_up` 补 `result/next_action`；补索引 |
 | M1 | `V3__customer_profile.sql` | `crm_customer_address`、`crm_customer_profile`、`crm_customer_merge_log`、`crm_customer_pool_rule`、`crm_customer_owner_log`、`crm_customer_import_task` |
-| M2 | `V4__sales_process.sql` + `V5__quote.sql` | **已落**：`crm_lead`、`crm_lead_activity`、`crm_opportunity_stage_history`、`crm_quote`、`crm_quote_line`、`crm_quote_approval`，`crm_opportunity` 补 `probability/source/competitor/next_action_at/stage_entered_at/version`；**待落**：`crm_sales_target`、`crm_forecast_snapshot`（转化结果直接写 `crm_lead.customer_id/opportunity_id`，不再单建 `crm_lead_convert_log`） |
-| M3 | `V6__commerce.sql` | `crm_contract_ref`、`crm_sales_order`、`crm_sales_order_line`、`crm_order_push_log`、`crm_collection_plan`、`crm_collection_installment`、`crm_collection_record`、`crm_invoice_request`、`crm_invoice_item`、`crm_ar_snapshot` |
-| M4 | `V7__service.sql` | `crm_ticket`、`crm_ticket_action`、`crm_ticket_sla`、`crm_service_calendar`、`crm_kb_ref`、`crm_satisfaction_survey`、`crm_satisfaction_response`、`crm_return_request`、`crm_return_item` |
-| M5 | `V8__marketing.sql` | `crm_campaign`、`crm_campaign_channel`、`crm_campaign_member`、`crm_campaign_cost`、`crm_nurture_task`、`crm_nurture_log`、`crm_marketing_send`、`crm_unsubscribe`、`crm_partner`、`crm_partner_authorization`、`crm_deal_registration`、`crm_partner_achievement` |
-| M6 | `V9__analytics.sql` | `crm_metric_snapshot`、`crm_action_plan`、`crm_action_item`、`crm_export_task`、`crm_dashboard_config` |
+| M2 | `V4__sales_process.sql` + `V5__quote.sql` + `V6__forecast_target.sql` | **已落**：`crm_lead`、`crm_lead_activity`、`crm_opportunity_stage_history`、`crm_quote`、`crm_quote_line`、`crm_quote_approval`、`crm_forecast_snapshot`、`crm_forecast_adjustment`、`crm_sales_target`、`crm_sales_target_adjustment`，`crm_opportunity` 补 `probability/source/competitor/next_action_at/stage_entered_at/version`（转化结果直接写 `crm_lead.customer_id/opportunity_id`，不再单建 `crm_lead_convert_log`） |
+| M3 | `V7__commerce.sql` | `crm_contract_ref`、`crm_sales_order`、`crm_sales_order_line`、`crm_order_push_log`、`crm_collection_plan`、`crm_collection_installment`、`crm_collection_record`、`crm_invoice_request`、`crm_invoice_item`、`crm_ar_snapshot` |
+| M4 | `V8__service.sql` | `crm_ticket`、`crm_ticket_action`、`crm_ticket_sla`、`crm_service_calendar`、`crm_kb_ref`、`crm_satisfaction_survey`、`crm_satisfaction_response`、`crm_return_request`、`crm_return_item` |
+| M5 | `V9__marketing.sql` | `crm_campaign`、`crm_campaign_channel`、`crm_campaign_member`、`crm_campaign_cost`、`crm_nurture_task`、`crm_nurture_log`、`crm_marketing_send`、`crm_unsubscribe`、`crm_partner`、`crm_partner_authorization`、`crm_deal_registration`、`crm_partner_achievement` |
+| M6 | `V10__analytics.sql` | `crm_metric_snapshot`、`crm_action_plan`、`crm_action_item`、`crm_export_task`、`crm_dashboard_config` |
 
 > 合同模板、合同到期提醒、ERP 销售订单来源字段、ERP 客户映射属于跨服务增强，分别在 `whale-contract` 与 ERP 的后续迁移中落地，不在 CRM 库建表。
 
@@ -581,4 +581,5 @@ com.bluewhale.crm
 |---|---|
 | 2026-11-04 | 初稿：基于用户《CRM 功能模块全景》建立 6 上下文、29 子模块差距矩阵、V2–V8 迁移草案、权限 1800–1899 / 菜单 410–449 / 角色 25128–25132 预留、D1–D12 开放问题；规划零代码 |
 | 2026-11-04 | M2 核心落地：线索 / 线索活动 / 转化 / 商机阶段机 / 阶段历史 / 漏斗；V4 新增三表并补商机七列；权限 1840–1849；报价、预测、目标仍为规划 |
-| 2026-11-04 | M2 报价增量：`commerce` 上下文落地报价头/行/审批三表（V5），状态机 `DRAFT→PENDING_APPROVAL→APPROVED/REJECTED`，折扣审批对接 workflow，审批后锁定与改价新版本；权限 1850–1854；预测、目标与转订单仍为规划 |
+| 2026-11-04 | M2 报价增量：`commerce` 上下文落地报价头/行/审批三表（V5），状态机 `DRAFT→PENDING_APPROVAL→APPROVED/REJECTED`，折扣审批对接 workflow，审批后锁定与改价新版本；权限 1850–1854；转订单仍为规划 |
+| 2026-11-05 | M2 预测 / 目标增量：`sales` 上下文落地预测快照 / 预测调整 / 销售目标 / 目标调整四表（V6），月季周期、个人 / 部门范围、手工调整留痕、完成率（暂按赢单商机金额）；权限 1855–1859；M3–M6 迁移顺延 V7–V10 |

@@ -83,6 +83,7 @@ public class OpportunityRepositoryImpl implements OpportunityRepository {
         wrapper.eq(query.getCustomerId() != null, SalesOpportunityEntity::getCustomerId, query.getCustomerId());
         wrapper.eq(!isBlank(query.getStage()), SalesOpportunityEntity::getStage, query.getStage());
         wrapper.eq(query.getOwnerId() != null, SalesOpportunityEntity::getOwnerId, query.getOwnerId());
+        wrapper.eq(query.getDeptId() != null, SalesOpportunityEntity::getDeptId, query.getDeptId());
         wrapper.ge(query.getExpectedCloseFrom() != null,
                 SalesOpportunityEntity::getExpectedCloseDate, query.getExpectedCloseFrom());
         wrapper.le(query.getExpectedCloseTo() != null,

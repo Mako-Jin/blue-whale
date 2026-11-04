@@ -1,0 +1,39 @@
+package com.bluewhale.crm.sales.domain.model;
+
+import lombok.Data;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+/**
+ * 销售目标调整记录。
+ *
+ * @author BlueWhale
+ */
+@Data
+public class SalesTargetAdjustment {
+
+    /** 主键 */
+    private Long id;
+
+    /** 销售目标 ID */
+    private Long targetId;
+
+    /** 调整前金额 */
+    private BigDecimal beforeAmount;
+
+    /** 调整后金额 */
+    private BigDecimal afterAmount;
+
+    /** 调整原因 */
+    private String reason;
+
+    /** 操作人 */
+    private Long operatorId;
+
+    /** 调整时间 */
+    private LocalDateTime adjustedAt;
+
+    /** 创建时间 */
+    private LocalDateTime createTime;
+}

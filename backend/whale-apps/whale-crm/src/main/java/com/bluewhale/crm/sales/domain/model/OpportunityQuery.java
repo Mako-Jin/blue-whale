@@ -27,6 +27,9 @@ public class OpportunityQuery extends PageQuery {
     /** 负责人（数据范围收口） */
     private Long ownerId;
 
+    /** 归属部门（部门预测 / 目标聚合使用） */
+    private Long deptId;
+
     /** 预计关闭日期起 */
     private LocalDate expectedCloseFrom;
 

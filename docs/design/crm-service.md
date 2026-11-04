@@ -1,6 +1,6 @@
 # 客户关系服务设计（whale-crm）
 
-> 状态：**M0 底座 + M1 客户主数据 + M2 线索/商机/漏斗/报价已落地（Wave 5.83，后端）**；预测/目标、前端 8113、导入导出与客户合并待后续增量
+> 状态：**M0 底座 + M1 客户主数据 + M2 线索/商机/漏斗/报价/预测/目标已落地（Wave 5.83，后端）**；前端 8113、导入导出与客户合并待后续增量
 > 关联需求：REQ-FUNC-080..086、REQ-ARCH-024、REQ-SEC-034
 > 关联规划：[CRM 功能模块全景](crm-module-panorama.md) / [Wave 5.83 计划](../plans/2026-11-04-wave5.83-crm-panorama.md)
 > 关联决策：[CRM/SRM 与消息服务边界决策](../plans/2026-10-28-crm-srm-and-message-service-decisions.md)、REQ-ARCH-011
@@ -19,9 +19,9 @@
 |---|---|
 | 需求门禁 D2 | **已通过（2026-11-04，D1 采纳全景口径）**：用户提供 6 大模块 29 子模块全景；客户主数据归属、验收口径与里程碑已在 [全景设计稿](crm-module-panorama.md) 与 [Wave 5.83 计划](../plans/2026-11-04-wave5.83-crm-panorama.md) 定稿 |
 | 本波范围 | M0 底座 + M1 客户主数据 + M2 线索/商机/漏斗核心 + 报价单（版本 / 折扣审批 / 锁定 / 改价新版本）；预测、目标与 M3–M6 按计划推进 |
-| 不做什么（本波） | 不做客户合并、CSV 导入导出、前端 8113、报价转订单、预测快照、销售目标；不登记菜单 413–426；不写业务种子数据 |
+| 不做什么（本波） | 不做客户合并、CSV 导入导出、前端 8113、报价转订单；不登记菜单 413–426；不写业务种子数据 |
 | 唯一开关 | `whale.crm.demand-gate-passed`（默认 `true`）；置 `false` 即回退到仅 `/crm/meta` 的维护态 |
-| 下一步 | M1 收尾（合并 / 导入导出 / 前端）→ M2 增量（预测 / 目标）→ M3 商务履约（报价转订单 / 订单 / 回款） |
+| 下一步 | M1 收尾（合并 / 导入导出 / 前端）→ M3 商务履约（报价转订单 / 订单 / 回款） |
 
 ### 1.1 进入条件（历史记录，均已满足或被 D1 取代）
 
@@ -54,12 +54,12 @@
 | 启动类 | `WhaleCrmApplication`（`@EnableScheduling`，供公海回收任务使用） |
 | 配置 | `CrmProperties`：门禁（默认 `true`）、客户编码前缀、跟进分页上限、合同引用开关、默认客户等级 `C`、公海回收开关/表达式/批大小 |
 | 元信息接口 | `GET /crm/meta`（权限 `sys:crm:browse`）→ 门禁状态、说明、里程碑、边界约束 |
-| DDL | `V1__baseline.sql` 四表 + 审计表；`V2__crm_foundation.sql` 补客户/联系人/跟进字段与归一化索引、集成四表；`V3__customer_profile.sql` 地址/画像/公海规则/负责人留痕；`V4__sales_process.sql` 线索/线索活动/商机阶段历史 + 商机补概率/来源/竞争/下次行动/阶段时间/乐观锁；`V5__quote.sql` 报价头/行/审批记录三表 |
-| 权限 | `migration-5.77-crm.sql`：337–354 保留；`migration-5.83-crm.sql`：1800 敏感明文 + 1810–1830 客户主数据；`migration-5.84-crm-sales.sql`：1840–1849 线索与商机；`migration-5.85-crm-quote.sql`：1850–1854 报价 |
+| DDL | `V1__baseline.sql` 四表 + 审计表；`V2__crm_foundation.sql` 补客户/联系人/跟进字段与归一化索引、集成四表；`V3__customer_profile.sql` 地址/画像/公海规则/负责人留痕；`V4__sales_process.sql` 线索/线索活动/商机阶段历史 + 商机补概率/来源/竞争/下次行动/阶段时间/乐观锁；`V5__quote.sql` 报价头/行/审批记录三表；`V6__forecast_target.sql` 预测快照/预测调整/销售目标/目标调整四表 |
+| 权限 | `migration-5.77-crm.sql`：337–354 保留；`migration-5.83-crm.sql`：1800 敏感明文 + 1810–1830 客户主数据；`migration-5.84-crm-sales.sql`：1840–1849 线索与商机；`migration-5.85-crm-quote.sql`：1850–1854 报价；`migration-5.86-crm-forecast-target.sql`：1855–1859 预测与目标 |
 | 角色 | 25108 `crm_admin`、25109 `crm_member` 保留；新增 25128 `crm_sales`、25129 `crm_sales_manager`、25130 `crm_service`、25131 `crm_marketing`、25132 `crm_analyst` |
 | 网关 | `lb://whale-crm`，不配 `StripPrefix`；`/crm/internal/**` 由 internal-deny 403 |
 | 前端 | **未创建**；8113 仍为规划态。菜单 413–426 已预留但**不登记**，避免空入口 |
-| 测试 | 137 项（架构 9、迁移 7、公共 16、客户 50、销售 25、报价 13、Controller 17 等）；Checkstyle 通过 |
+| 测试 | 155 项（架构 9、迁移 8、公共 10、客户 56、销售 25、报价 13、预测 9、目标 8、Controller 17）；Checkstyle 通过 |
 
 ### 3.1 分层与上下文
 
@@ -128,6 +128,13 @@ com.bluewhale.crm
 | `POST` | `/crm/quote/{id}/submit` | 提交审批（折扣档位写入 workflow 变量） | `sys:crm:quote:submit` |
 | `POST` | `/crm/quote/{id}/revise` | 改价新版本（仅 `APPROVED` / `REJECTED`） | `sys:crm:quote:revise` |
 | `POST` | `/crm/internal/quote/approval-callback` | 审批结果回调（幂等；内网 403） | 无权限码 |
+| `GET` | `/crm/forecast/page`, `/{id}`, `/{id}/adjustments` | 预测快照分页 / 详情 / 调整记录 | `sys:crm:forecast:list` |
+| `POST` | `/crm/forecast/generate` | 生成 / 重算预测快照（同周期同范围覆盖，幂等） | `sys:crm:forecast:manage` |
+| `PUT` | `/crm/forecast/{id}/adjust` | 手工调整管道 / 最佳 / 承诺金额并留痕 | `sys:crm:forecast:manage` |
+| `GET` | `/crm/sales-target/page`, `/{id}`, `/{id}/completion`, `/{id}/adjustments` | 目标分页 / 详情 / 完成率 / 调整记录 | `sys:crm:target:list` |
+| `POST` | `/crm/sales-target` | 新建个人 / 部门目标（同周期同范围唯一） | `sys:crm:target:manage` |
+| `PUT` | `/crm/sales-target/{id}` | 调整目标金额（变更须填原因并留痕） | `sys:crm:target:manage` |
+| `DELETE` | `/crm/sales-target/{id}` | 逻辑删除目标 | `sys:crm:target:delete` |
 
 ### 3.4 与计划的偏差（本波明确）
 
@@ -141,7 +148,7 @@ com.bluewhale.crm
 | M1-5 自动回收 | 定时回收默认开启 | 已实现任务，`whale.crm.pool-recycle-enabled` **默认 false** | 灰度先手动触发验证回收规则，再打开定时 |
 | M1-11 审计 | 全部写操作 `@AuditLog` | 18 个写接口已加注解（`crm_customer` / `crm_contact` / `crm_customer_address` / `crm_customer_profile` / 公海 / 跟进）；画像与联系人写接口 `recordParams=false`，避免备注、微信等自由文本落库 | 审计切面按字段名脱敏，自由文本无规则可依，直接关闭参数记录 |
 | M2 报价 | 报价头/行/版本、折扣审批、锁定、转订单 | **头/行/版本、折扣审批、审批后锁定、改价新版本已交付**；转订单未做 | 转订单依赖 M3 商务订单与 ERP 下发；权限 1850–1854 |
-| M2 预测 / 目标 | 管道/最佳/承诺预测、阶段概率加权、个人/部门目标 | **未实现**；漏斗仅做实时聚合 | 需先稳定阶段概率口径（D5）与指标定义（M6） |
+| M2 预测 / 目标 | 管道/最佳/承诺预测、阶段概率加权、个人/部门目标 | **已交付**：预测快照（管道/最佳/承诺/加权、月季、个人/部门、手工调整留痕）+ 目标（个人/部门、月季、调整留痕、完成率）；完成率暂按同期赢单商机金额近似 | 合同台账 M3 上线后切换为签约额口径；概率取商机当前 `probability` 字段，可复算 |
 | M2 线索分配规则 | 轮询 / 区域 / 行业自动分配 | 仅手工分配（`assign`，需全量数据范围） | 规则引擎后置；手工分配先满足主管派单 |
 | M2 阶段停留时长 | 漏斗展示每阶段平均停留 | 阶段历史已落 `changed_at`，未做停留统计 | 留待 M6 分析口径统一后计算，避免重复定义 |
 
@@ -217,11 +224,11 @@ APPROVED 只读；APPROVED / REJECTED 可 revise 生成新版本（version+1，r
 | `GET` | `/crm/opportunity/{id}`、`/{id}/history` | 商机详情 / 阶段历史（**已实现**） | `sys:crm:opportunity:list` |
 | `POST`/`PUT` | `/crm/opportunity`、`/crm/opportunity/{id}`、`/{id}/stage` | 新建 / 编辑 / 阶段流转（**已实现**） | `sys:crm:opportunity:create` / `...:update` / `...:stage` |
 | `GET`/`POST`/`PUT` | `/crm/quote/**`、`/crm/internal/quote/approval-callback` | 报价分页 / 详情 / 新建 / 编辑 / 提交 / 改价（**已实现**） | `sys:crm:quote:list/create/update/submit/revise` |
-| `GET`/`POST`/`PUT` | `/crm/forecast/**`、`/crm/sales-target/**` | 预测 / 目标（**M2 增量**） | 待分配 1855–1859 |
+| `GET`/`POST`/`PUT`/`DELETE` | `/crm/forecast/**`、`/crm/sales-target/**` | 预测 / 目标（**M2 增量已交付**） | 1855–1859 |
 
-> 完整请求/响应字段以 `customer.application.view` / `sales.application.view` / `commerce.application.view` 与 `interfaces.controller` 为准；权限码与 `CrmPermissions`、`migration-5.83-crm.sql` / `migration-5.84-crm-sales.sql` / `migration-5.85-crm-quote.sql` 三者一致。
+> 完整请求/响应字段以 `customer.application.view` / `sales.application.view` / `commerce.application.view` 与 `interfaces.controller` 为准；权限码与 `CrmPermissions`、`migration-5.83-crm.sql` / `migration-5.84-crm-sales.sql` / `migration-5.85-crm-quote.sql` / `migration-5.86-crm-forecast-target.sql` 一致。
 
-**权限编号 1800–1899**（已用 1800 敏感明文、1810–1830 客户主数据、1840–1849 线索/商机、1850–1854 报价；337–354 为历史登记，保留不动）；
+**权限编号 1800–1899**（已用 1800 敏感明文、1810–1830 客户主数据、1840–1849 线索/商机、1850–1854 报价、1855–1859 预测与目标；337–354 为历史登记，保留不动）；
 **菜单 410–449**（413–426 预留未登记，前端交付时追加）。
 不提前注册菜单，避免用户看到点击即 403 的空入口。
 

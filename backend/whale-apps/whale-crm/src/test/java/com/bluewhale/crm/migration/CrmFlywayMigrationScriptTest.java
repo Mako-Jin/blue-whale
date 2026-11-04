@@ -132,6 +132,21 @@ class CrmFlywayMigrationScriptTest {
                 "审批实例在租户内唯一");
     }
 
+    @Test
+    @DisplayName("V6 预测与目标：新增快照 / 预测调整 / 目标 / 目标调整四表，且不写种子数据")
+    void forecastTargetShouldContainTables() throws IOException {
+        Set<String> tables = extractTables(MIGRATION_DIR.resolve("V6__forecast_target.sql"));
+        assertEquals(Set.of("crm_forecast_snapshot", "crm_forecast_adjustment",
+                "crm_sales_target", "crm_sales_target_adjustment"), tables);
+        String content = Files.readString(MIGRATION_DIR.resolve("V6__forecast_target.sql"), StandardCharsets.UTF_8);
+        assertFalse(content.toUpperCase().contains("INSERT INTO CRM_"),
+                "预测与目标增量不得写入快照 / 目标种子数据");
+        assertTrue(content.contains("UNIQUE KEY uk_crm_forecast_period_scope"),
+                "同周期同范围的预测快照必须唯一");
+        assertTrue(content.contains("UNIQUE KEY uk_crm_sales_target_period_scope"),
+                "同周期同范围的销售目标必须唯一");
+    }
+
     /**
      * 列出迁移脚本。
      *

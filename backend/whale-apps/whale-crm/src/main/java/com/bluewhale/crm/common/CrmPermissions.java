@@ -118,6 +118,21 @@ public final class CrmPermissions {
     /** 报价改价新版本 */
     public static final String QUOTE_REVISE = "sys:crm:quote:revise";
 
+    /** 查询销售预测 */
+    public static final String FORECAST_LIST = "sys:crm:forecast:list";
+
+    /** 生成与调整销售预测 */
+    public static final String FORECAST_MANAGE = "sys:crm:forecast:manage";
+
+    /** 查询销售目标 */
+    public static final String TARGET_LIST = "sys:crm:target:list";
+
+    /** 新建与调整销售目标 */
+    public static final String TARGET_MANAGE = "sys:crm:target:manage";
+
+    /** 删除销售目标 */
+    public static final String TARGET_DELETE = "sys:crm:target:delete";
+
     /**
      * 私有构造器：常量类，禁止实例化。
      */
