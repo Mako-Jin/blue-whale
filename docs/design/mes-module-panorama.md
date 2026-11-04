@@ -66,11 +66,11 @@
 
 | 子模块 | 能力 | 现状 | 规划落点 |
 |---|---|---|---|
-| 首件检验 | 每班/每批次首件合格才批量生产 | ❌ | `quality`：`mes_qc_inspection_plan` / `mes_qc_inspection_task` |
-| 过程巡检 | IPQC 按频次巡检并记录 | ❌ | `quality`：巡检任务 + 检验结果 |
-| 不良品管理 | 记录、隔离、返工/返修/报废 | ❌ | `quality`：`mes_qc_ncr` / `mes_qc_disposition` / `mes_qc_rework_order` |
-| SPC 统计 | 关键工序控制图，实时监控稳定性 | ❌ | `quality`：`mes_qc_spc_sample` / `mes_qc_spc_rule` |
-| 质量追溯 | 正反向追溯：批次、人、设备、参数 | ❌ | `quality` + `trace`：`mes_tr_trace_link` + 追溯查询接口 |
+| 首件检验 | 每班/每批次首件合格才批量生产 | ✅ M3（首件任务 + 门禁取最近一次判定） | `quality`：`mes_qc_inspection_plan` / `mes_qc_inspection_task` |
+| 过程巡检 | IPQC 按频次巡检并记录 | ✅ M3（IPQC 任务 + 逐项录入 + 判定） | `quality`：巡检任务 + 检验结果 |
+| 不良品管理 | 记录、隔离、返工/返修/报废 | ✅ M3（FAILED 自动生成 NCR + 处置/返工闭环） | `quality`：`mes_qc_ncr` / `mes_qc_disposition` / `mes_qc_rework_order` |
+| SPC 统计 | 关键工序控制图，实时监控稳定性 | ✅ M3（Xbar-R 子组判定 + 命中留痕） | `quality`：`mes_qc_spc_sample` / `mes_qc_spc_rule` |
+| 质量追溯 | 正反向追溯：批次、人、设备、参数 | 🟡 M3（按批次/工单/工序定位；设备维度待 M4） | `quality` + `trace`：`mes_tr_trace_link` + 追溯查询接口 |
 
 ### 3.4 设备管理
 
@@ -210,8 +210,11 @@
 | 工序任务 | `PLANNED → DISPATCHED → IN_PROGRESS ⇄ PAUSED → COMPLETED`；旁支 `SCRAPPED`（M1 实际口径，取代草案 `PENDING/READY/CLOSED`） |
 | 报工记录 | `SUBMITTED → CONFIRMED / REJECTED`；确认后只可追加冲销，不可改历史 |
 | 异常事件 | `OPEN → ACKNOWLEDGED → RESOLVED → CLOSED`（M1 最小集；`PROCESSING`/`ESCALATED` 留待 M2 起增强） |
-| 检验任务 | `PENDING → IN_PROGRESS → PASSED / FAILED → DISPOSED` |
-| 不良品 NCR | `OPEN → DISPOSITION → REWORK / REPAIR / SCRAP / CONCESSION → CLOSED` |
+| 检验任务 | `PENDING → INSPECTED → PASSED / FAILED`；旁支 `CANCELLED`（M3 实际口径，取代草案 `IN_PROGRESS/DISPOSED`） |
+| 不良品 NCR | `OPEN → DISPOSITION → REWORK / REPAIR / SCRAP / CONCESSION → CLOSED`；关闭需结论，返工未完成不可关闭 |
+| 不合格品处置（M3） | `CONFIRMED → EXECUTED`；旁支 `CANCELLED`；一个 NCR 仅一条处置 |
+| 返工单（M3） | `CREATED → IN_PROGRESS → COMPLETED`；旁支 `CANCELLED` |
+| SPC 样本（M3） | 无状态字段；子组满额回填均值/极差，命中控制限写 `alert_flag = 1` + `alert_rule` |
 | 设备状态 | `RUNNING / IDLE / FAULT / MAINTENANCE / OFFLINE`（事件流，不覆盖历史） |
 | 保养工单 | `PLANNED → DUE → IN_PROGRESS → COMPLETED → ACCEPTED`；旁支 `OVERDUE` |
 | 维修工单 | `REPORTED → ASSIGNED → REPAIRING → VERIFIED → CLOSED` |
@@ -251,7 +254,7 @@
 
 > 表中为草案，实际 DDL 在对应里程碑定稿后随 Flyway 落地；**禁止修改 V1 基线**，已发布脚本不可再改。合计约 **65 张新增表 + 1 张存量表升级**，以里程碑实际为准。
 >
-> M0 已落地 15 张表（含 `mes_work_order` 升级）；M1 已落地 13 张表；M2 已落地 8 张 `mes_tr_*` 表，空库累计 **36 张表**（不含 `flyway_schema_history`）。M1 的 `mes_dp_schedule_plan`、`mes_dp_schedule_slot` 仅建表，排程服务与排程页面顺延 M1-B。
+> M0 已落地 15 张表（含 `mes_work_order` 升级）；M1 已落地 13 张表；M2 已落地 8 张 `mes_tr_*` 表；M3 已落地 10 张 `mes_qc_*` 表，空库累计 **46 张表**（不含 `flyway_schema_history`）。M1 的 `mes_dp_schedule_plan`、`mes_dp_schedule_slot` 仅建表，排程服务与排程页面顺延 M1-B。
 
 ### 6.3 关键索引与数据量假设
 
@@ -274,7 +277,7 @@
 | 调度派工 | `/mes/dispatch/work-order`、`/task`、`/dispatch`、`/schedule`、`/board` | 工单接收后拆任务、派工、插单、锁定与看板；动作端点显式 |
 | 生产执行 | `/mes/execution/task/{id}/start`、`/pause`、`/resume`、`/complete`、`/scrap`；`/report`、`/material-issue`、`/material-return`、`/wip`、`/exception` | 报工追加式；修正走冲销/补录，不直接改历史 |
 | 物料追溯 | `/mes/trace/barcode`、`/batch`、`/line-side/stock`、`/line-side/replenish`、`/scan/validate`、`/trace/forward`、`/trace/backward` | 条码生成/打印返回打印载荷；打印硬件由现场集成 |
-| 车间质量 | `/mes/quality/inspection-plan`、`/inspection/first-article`、`/inspection/ipqc`、`/ncr`、`/disposition`、`/rework`、`/spc` | 首件未通过阻断批量释放；NCR 处置数量强校验 |
+| 车间质量 | `/mes/quality/inspection-plan`、`/inspection/task`、`/inspection/first-article/gate`、`/ncr`、`/disposition`、`/rework`、`/spc`、`/board` | M3 实现口径：首件与 IPQC 共用检验任务端点（按 `taskType` 区分）；首件未通过阻断批量释放；NCR 处置数量强校验 |
 | 设备 | `/mes/equipment`、`/status`、`/maintenance`、`/repair`、`/spare-part`、`/oee` | 状态事件只追加；OEE 按班次/设备快照 |
 | 数据采集 | `/mes/collect/device`、`/point`、`/sample`、`/board`、`/archive` | 看板只读；样本入口支持网关批量上报 |
 | 人员绩效 | `/mes/workforce/team-member`、`/shift-assignment`、`/handover`、`/work-hour`、`/performance` | 绩效只读汇总为主；月度锁定动作显式 |
@@ -422,4 +425,5 @@ com.bluewhale.mes
 |---|---|---|
 | 2026-11-04 | v0.1 | 首版：现状基线、七大模块差距矩阵、上下文与边界、聚合/状态机、表与接口规划、权限号段、非功能安全与 16 项开放问题 |
 | 2026-11-04 | v0.2 | M0/M1 落地回填：工序任务与异常状态机改为实现口径（`PLANNED/DISPATCHED/IN_PROGRESS/PAUSED/COMPLETED/SCRAPPED`、`OPEN→ACKNOWLEDGED→RESOLVED→CLOSED`）；表清单标注 M1 已落地 13 表（空库 28 表）与排程表仅建表；接口路径补充 `/mes/dispatch/task/page`、`/split`、`/dispatch` |
-| 2026-11-04 | v0.3 | M2 落地回填：物料与追溯四条子模块标记已落地；新增批次/条码/谱系/补货状态口径与“线边库存无状态、由流水汇总”的约束；表清单标注 V5 已落地 8 表（空库累计 36 表）；条码唯一、谱系无环、消耗量 ≤ 投入量、线边余额 ≥ 0 为实现不变量 |
+| 2026-11-04 | v0.3 | M2 落地回填：物料与追溯四条子模块标记已落地；新增批次/条码/谱系/补货状态口径与“线边库存无状态、由流水汇总”的约束；表清单标注 V5 已落地 8 表（空库累计 36 表）；条码唯一、谱系无环、消耗量 ≤ 投入量、线边余额 ≥ 0 为实现不变量
+| 2026-11-04 | v0.4 | M3 落地回填：车间质量五个子模块标记已落地（质量追溯设备维度记遗留）；检验任务状态改为 `PENDING → INSPECTED → PASSED/FAILED`，新增处置/返工/SPC 样本状态口径；表清单标注 V6 已落地 10 表（空库累计 46 表）；检验项未完成不可判定、FAILED 必生成 NCR、处置数量 = 不良数量、SPC 命中留痕为实现不变量 |

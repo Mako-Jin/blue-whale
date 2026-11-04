@@ -775,3 +775,512 @@ export function pageMesReplenishments(
   const queryString = toQueryString({ current: 1, size: 100, ...query });
   return http.get<PageResult<MesReplenishment>>(`/mes/trace/line-side/replenish/page?${queryString}`);
 }
+
+/** 检验类型 */
+export type MesInspectionType = 'FIRST_ARTICLE' | 'IPQC';
+
+/** 检验任务状态 */
+export type MesInspectionTaskStatus = 'PENDING' | 'INSPECTED' | 'PASSED' | 'FAILED' | 'CANCELLED';
+
+/** 检验计划项 */
+export interface MesInspectionPlanItem {
+  id?: string;
+  planId?: string;
+  itemNo: number;
+  itemName: string;
+  inspectionMethod?: 'VISUAL' | 'MEASURE' | 'FUNCTION' | 'TEST';
+  standardText?: string;
+  minValue?: number | string;
+  maxValue?: number | string;
+  unit?: string;
+  criticalFlag?: number;
+  sortNo?: number;
+}
+
+/** 检验计划 */
+export interface MesInspectionPlan {
+  id: string;
+  planNo: string;
+  planName: string;
+  inspectionType: MesInspectionType;
+  itemCode?: string;
+  operationCode?: string;
+  lineId?: string;
+  lineCode?: string;
+  sampleSize: number;
+  frequencyMinutes: number;
+  autoNcr?: number;
+  status: 'ENABLED' | 'DISABLED';
+  remark?: string;
+  createTime?: string;
+  items?: MesInspectionPlanItem[];
+}
+
+/** 检验计划保存入参 */
+export interface MesInspectionPlanInput {
+  id?: string;
+  planNo?: string;
+  planName: string;
+  inspectionType: MesInspectionType;
+  itemCode?: string;
+  operationCode?: string;
+  lineId?: string;
+  lineCode?: string;
+  sampleSize: number;
+  frequencyMinutes: number;
+  autoNcr?: number;
+  status?: 'ENABLED' | 'DISABLED';
+  remark?: string;
+  items: MesInspectionPlanItem[];
+}
+
+/** 检验任务 */
+export interface MesInspectionTask {
+  id: string;
+  taskNo: string;
+  taskType: MesInspectionType;
+  planId?: string;
+  planNo?: string;
+  workOrderId?: string;
+  workOrderCode?: string;
+  execTaskId?: string;
+  execTaskNo?: string;
+  operationCode?: string;
+  lineId?: string;
+  lineCode?: string;
+  stationCode?: string;
+  batchNo?: string;
+  sampleSize: number;
+  inspectedQuantity: number;
+  status: MesInspectionTaskStatus;
+  inspector?: string;
+  judge?: string;
+  judgedAt?: string;
+  conclusion?: string;
+  ncrId?: string;
+  remark?: string;
+  createTime?: string;
+}
+
+/** 检验结果 */
+export interface MesInspectionResult {
+  id: string;
+  planItemId?: string;
+  itemNo: number;
+  itemName?: string;
+  sampleNo: number;
+  measuredValue?: string;
+  numericValue?: number | string;
+  result: 'OK' | 'NG';
+  inspector?: string;
+  remark?: string;
+}
+
+/** 检验不良 */
+export interface MesInspectionDefect {
+  id: string;
+  defectCode: string;
+  defectName?: string;
+  quantity: number | string;
+  severity?: string;
+  description?: string;
+}
+
+/** 检验任务详情 */
+export interface MesInspectionTaskDetail {
+  task: MesInspectionTask;
+  results: MesInspectionResult[];
+  defects: MesInspectionDefect[];
+  planItemCount: number;
+  completedItemCount: number;
+  judgeReady: boolean;
+}
+
+/** 检验任务创建入参 */
+export interface MesInspectionTaskInput {
+  taskType: MesInspectionType;
+  planId: string;
+  workOrderId?: string;
+  workOrderCode?: string;
+  execTaskId?: string;
+  execTaskNo?: string;
+  operationCode?: string;
+  lineId?: string;
+  lineCode?: string;
+  stationCode?: string;
+  batchNo?: string;
+  sampleSize?: number;
+  inspector?: string;
+  remark?: string;
+}
+
+/** 检验结果录入入参 */
+export interface MesInspectionResultInput {
+  planItemId: string;
+  itemNo: number;
+  itemName?: string;
+  sampleNo?: number;
+  measuredValue?: string;
+  numericValue?: number;
+  result: 'OK' | 'NG';
+  remark?: string;
+}
+
+/** 检验结果提交入参 */
+export interface MesInspectionSubmitInput {
+  inspector?: string;
+  remark?: string;
+  results: MesInspectionResultInput[];
+}
+
+/** 首件门禁结果 */
+export interface MesFirstArticleGate {
+  workOrderId?: string;
+  operationCode?: string;
+  passed: boolean;
+  taskNo?: string;
+  status?: string;
+  judgedAt?: string;
+  message: string;
+}
+
+/** 不合格品记录 NCR */
+export interface MesNcr {
+  id: string;
+  ncrNo: string;
+  sourceType: string;
+  inspectionTaskId?: string;
+  inspectionTaskNo?: string;
+  workOrderId?: string;
+  workOrderCode?: string;
+  execTaskId?: string;
+  execTaskNo?: string;
+  itemCode?: string;
+  itemName?: string;
+  batchNo?: string;
+  operationCode?: string;
+  defectCode?: string;
+  defectName?: string;
+  defectQuantity: number | string;
+  status: 'OPEN' | 'DISPOSITION' | 'REWORK' | 'REPAIR' | 'SCRAP' | 'CONCESSION' | 'CLOSED';
+  conclusion?: string;
+  closedBy?: string;
+  closedAt?: string;
+  remark?: string;
+  createTime?: string;
+}
+
+/** NCR 手工创建入参 */
+export interface MesNcrInput {
+  sourceType?: 'INSPECTION' | 'REPORT' | 'MANUAL';
+  workOrderId?: string;
+  workOrderCode?: string;
+  execTaskId?: string;
+  execTaskNo?: string;
+  itemCode?: string;
+  itemName?: string;
+  batchNo?: string;
+  operationCode?: string;
+  defectCode?: string;
+  defectName?: string;
+  defectQuantity: number;
+  remark?: string;
+}
+
+/** 不合格品处置 */
+export interface MesDisposition {
+  id: string;
+  dispositionNo: string;
+  ncrId: string;
+  ncrNo: string;
+  dispositionType: 'REWORK' | 'REPAIR' | 'SCRAP' | 'CONCESSION';
+  quantity: number | string;
+  reason?: string;
+  approvedBy?: string;
+  status: 'CONFIRMED' | 'EXECUTED' | 'CANCELLED';
+  executedAt?: string;
+  remark?: string;
+  createTime?: string;
+}
+
+/** 处置创建入参 */
+export interface MesDispositionInput {
+  ncrId: string;
+  dispositionType: 'REWORK' | 'REPAIR' | 'SCRAP' | 'CONCESSION';
+  quantity?: number;
+  reason?: string;
+  approvedBy?: string;
+  remark?: string;
+}
+
+/** 返工单 */
+export interface MesReworkOrder {
+  id: string;
+  reworkNo: string;
+  ncrId: string;
+  ncrNo: string;
+  dispositionId: string;
+  workOrderId?: string;
+  workOrderCode?: string;
+  execTaskId?: string;
+  execTaskNo?: string;
+  itemCode?: string;
+  itemName?: string;
+  batchNo?: string;
+  quantity: number | string;
+  status: 'CREATED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  reason?: string;
+  operator?: string;
+  startedAt?: string;
+  completedAt?: string;
+  remark?: string;
+  createTime?: string;
+}
+
+/** SPC 规则 */
+export interface MesSpcRule {
+  id: string;
+  ruleCode: string;
+  ruleName: string;
+  planItemId: string;
+  operationCode?: string;
+  chartType: string;
+  subgroupSize: number;
+  centerLine?: number | string;
+  ucl?: number | string;
+  lcl?: number | string;
+  rUcl?: number | string;
+  rLcl?: number | string;
+  alertAction: 'WARN' | 'BLOCK';
+  status: 'ENABLED' | 'DISABLED';
+  remark?: string;
+  createTime?: string;
+}
+
+/** SPC 规则保存入参 */
+export interface MesSpcRuleInput {
+  id?: string;
+  ruleCode?: string;
+  ruleName: string;
+  planItemId: string;
+  operationCode?: string;
+  chartType?: 'XBAR_R';
+  subgroupSize?: number;
+  centerLine?: number;
+  ucl?: number;
+  lcl?: number;
+  rUcl?: number;
+  rLcl?: number;
+  alertAction?: 'WARN' | 'BLOCK';
+  status?: 'ENABLED' | 'DISABLED';
+  remark?: string;
+}
+
+/** SPC 样本 */
+export interface MesSpcSample {
+  id: string;
+  sampleNo: string;
+  ruleId: string;
+  ruleCode?: string;
+  planItemId: string;
+  inspectionTaskId?: string;
+  operationCode?: string;
+  subgroupNo: number;
+  sampleSeq: number;
+  subgroupSize: number;
+  measuredValue: number | string;
+  subgroupXbar?: number | string;
+  subgroupRange?: number | string;
+  alertFlag: number;
+  alertRule?: string;
+  sampledAt?: string;
+}
+
+/** SPC 样本录入入参 */
+export interface MesSpcSampleInput {
+  ruleId: string;
+  planItemId: string;
+  inspectionTaskId?: string;
+  operationCode?: string;
+  subgroupNo: number;
+  sampleSeq?: number;
+  measuredValue: number;
+}
+
+/** SPC 控制图表点 */
+export interface MesSpcChartPoint {
+  subgroupNo: number;
+  sampleCount: number;
+  subgroupXbar?: number | string;
+  subgroupRange?: number | string;
+  alertFlag: number;
+  alertRule?: string;
+  sampledAt?: string;
+}
+
+/** 质量看板 */
+export interface MesQualityBoard {
+  boardDate: string;
+  inspectionTaskCount: number;
+  pendingTaskCount: number;
+  failedTaskCount: number;
+  firstArticlePassRate: number | string;
+  ncrOpenCount: number;
+  ncrClosedCount: number;
+  dispositionCount: number;
+  reworkOpenCount: number;
+  spcAlertCount: number;
+}
+
+/** 分页查询检验计划 */
+export function pageMesInspectionPlans(
+  query: { planNo?: string; planName?: string; inspectionType?: string; status?: string; current?: number; size?: number } = {},
+): Promise<PageResult<MesInspectionPlan>> {
+  const queryString = toQueryString({ current: 1, size: 100, ...query });
+  return http.get<PageResult<MesInspectionPlan>>(`/mes/quality/inspection-plan/page?${queryString}`);
+}
+
+/** 查询检验计划详情（含检验项） */
+export function getMesInspectionPlan(id: string): Promise<MesInspectionPlan> {
+  return http.get<MesInspectionPlan>(`/mes/quality/inspection-plan/${id}`);
+}
+
+/** 保存检验计划（含检验项） */
+export function saveMesInspectionPlan(input: MesInspectionPlanInput): Promise<MesInspectionPlan> {
+  return http.post<MesInspectionPlan>('/mes/quality/inspection-plan', input);
+}
+
+/** 创建首件 / IPQC 检验任务 */
+export function createMesInspectionTask(input: MesInspectionTaskInput): Promise<MesInspectionTask> {
+  return http.post<MesInspectionTask>('/mes/quality/inspection/task', input);
+}
+
+/** 分页查询检验任务 */
+export function pageMesInspectionTasks(
+  query: { taskNo?: string; taskType?: string; workOrderId?: string; workOrderCode?: string; operationCode?: string; status?: string; current?: number; size?: number } = {},
+): Promise<PageResult<MesInspectionTask>> {
+  const queryString = toQueryString({ current: 1, size: 100, ...query });
+  return http.get<PageResult<MesInspectionTask>>(`/mes/quality/inspection/task/page?${queryString}`);
+}
+
+/** 查询检验任务详情 */
+export function getMesInspectionTask(id: string): Promise<MesInspectionTaskDetail> {
+  return http.get<MesInspectionTaskDetail>(`/mes/quality/inspection/task/${id}`);
+}
+
+/** 录入检验结果 */
+export function submitMesInspectionResults(
+  id: string,
+  input: MesInspectionSubmitInput,
+): Promise<MesInspectionTaskDetail> {
+  return http.post<MesInspectionTaskDetail>(`/mes/quality/inspection/task/${id}/results`, input);
+}
+
+/** 判定检验任务 */
+export function judgeMesInspectionTask(
+  id: string,
+  input: { judge?: string; conclusion: string },
+): Promise<MesInspectionTask> {
+  return http.post<MesInspectionTask>(`/mes/quality/inspection/task/${id}/judge`, input);
+}
+
+/** 首件门禁查询 */
+export function fetchMesFirstArticleGate(params: { workOrderId?: string; operationCode?: string }): Promise<MesFirstArticleGate> {
+  const queryString = toQueryString(params);
+  return http.get<MesFirstArticleGate>(`/mes/quality/inspection/first-article/gate${queryString ? `?${queryString}` : ''}`);
+}
+
+/** 分页查询 NCR */
+export function pageMesNcrs(
+  query: { ncrNo?: string; workOrderId?: string; batchNo?: string; status?: string; current?: number; size?: number } = {},
+): Promise<PageResult<MesNcr>> {
+  const queryString = toQueryString({ current: 1, size: 100, ...query });
+  return http.get<PageResult<MesNcr>>(`/mes/quality/ncr/page?${queryString}`);
+}
+
+/** 手工创建 NCR */
+export function createMesNcr(input: MesNcrInput): Promise<MesNcr> {
+  return http.post<MesNcr>('/mes/quality/ncr', input);
+}
+
+/** 关闭 NCR */
+export function closeMesNcr(id: string, input: { conclusion: string; closedBy?: string }): Promise<MesNcr> {
+  return http.post<MesNcr>(`/mes/quality/ncr/${id}/close`, input);
+}
+
+/** 分页查询处置 */
+export function pageMesDispositions(
+  query: { dispositionNo?: string; ncrNo?: string; dispositionType?: string; status?: string; current?: number; size?: number } = {},
+): Promise<PageResult<MesDisposition>> {
+  const queryString = toQueryString({ current: 1, size: 100, ...query });
+  return http.get<PageResult<MesDisposition>>(`/mes/quality/disposition/page?${queryString}`);
+}
+
+/** 创建处置 */
+export function createMesDisposition(input: MesDispositionInput): Promise<MesDisposition> {
+  return http.post<MesDisposition>('/mes/quality/disposition', input);
+}
+
+/** 执行处置 */
+export function executeMesDisposition(id: string): Promise<MesDisposition> {
+  return http.post<MesDisposition>(`/mes/quality/disposition/${id}/execute`, {});
+}
+
+/** 分页查询返工单 */
+export function pageMesReworks(
+  query: { reworkNo?: string; ncrNo?: string; workOrderId?: string; status?: string; current?: number; size?: number } = {},
+): Promise<PageResult<MesReworkOrder>> {
+  const queryString = toQueryString({ current: 1, size: 100, ...query });
+  return http.get<PageResult<MesReworkOrder>>(`/mes/quality/rework/page?${queryString}`);
+}
+
+/** 返工开工 */
+export function startMesRework(id: string, input: { operator?: string; remark?: string } = {}): Promise<MesReworkOrder> {
+  return http.post<MesReworkOrder>(`/mes/quality/rework/${id}/start`, input);
+}
+
+/** 返工完工 */
+export function completeMesRework(id: string, input: { operator?: string; remark?: string } = {}): Promise<MesReworkOrder> {
+  return http.post<MesReworkOrder>(`/mes/quality/rework/${id}/complete`, input);
+}
+
+/** 分页查询 SPC 规则 */
+export function pageMesSpcRules(
+  query: { ruleCode?: string; planItemId?: string; status?: string; current?: number; size?: number } = {},
+): Promise<PageResult<MesSpcRule>> {
+  const queryString = toQueryString({ current: 1, size: 100, ...query });
+  return http.get<PageResult<MesSpcRule>>(`/mes/quality/spc/rule/page?${queryString}`);
+}
+
+/** 保存 SPC 规则 */
+export function saveMesSpcRule(input: MesSpcRuleInput): Promise<MesSpcRule> {
+  return http.post<MesSpcRule>('/mes/quality/spc/rule', input);
+}
+
+/** 录入 SPC 样本 */
+export function submitMesSpcSample(input: MesSpcSampleInput): Promise<MesSpcSample> {
+  return http.post<MesSpcSample>('/mes/quality/spc/sample', input);
+}
+
+/** 分页查询 SPC 样本 */
+export function pageMesSpcSamples(
+  query: { ruleId?: string; planItemId?: string; alertFlag?: number; current?: number; size?: number } = {},
+): Promise<PageResult<MesSpcSample>> {
+  const queryString = toQueryString({ current: 1, size: 100, ...query });
+  return http.get<PageResult<MesSpcSample>>(`/mes/quality/spc/sample/page?${queryString}`);
+}
+
+/** 查询 SPC 控制图表点 */
+export function fetchMesSpcChart(
+  params: { planItemId: string; ruleId?: string; limit?: number },
+): Promise<MesSpcChartPoint[]> {
+  const queryString = toQueryString(params);
+  return http.get<MesSpcChartPoint[]>(`/mes/quality/spc/chart?${queryString}`);
+}
+
+/** 查询质量看板 */
+export function fetchMesQualityBoard(params: { boardDate?: string; lineId?: string } = {}): Promise<MesQualityBoard> {
+  const queryString = toQueryString(params);
+  return http.get<MesQualityBoard>(`/mes/quality/board${queryString ? `?${queryString}` : ''}`);
+}
+

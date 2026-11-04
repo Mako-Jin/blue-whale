@@ -30,7 +30,8 @@ class MesArchitectureTest {
             "com.bluewhale.mes.masterdata.controller..",
             "com.bluewhale.mes.dispatch.controller..",
             "com.bluewhale.mes.execution.controller..",
-            "com.bluewhale.mes.trace.controller.."
+            "com.bluewhale.mes.trace.controller..",
+            "com.bluewhale.mes.quality.controller.."
     };
 
     /** 业务服务所在包（存量顶层 + M0/M1 新增上下文） */
@@ -40,7 +41,8 @@ class MesArchitectureTest {
             "com.bluewhale.mes.common.outbox.service..",
             "com.bluewhale.mes.dispatch.service..",
             "com.bluewhale.mes.execution.service..",
-            "com.bluewhale.mes.trace.service.."
+            "com.bluewhale.mes.trace.service..",
+            "com.bluewhale.mes.quality.service.."
     };
 
     /** Mapper 所在包（存量顶层 + M0/M1 新增上下文） */
@@ -50,7 +52,8 @@ class MesArchitectureTest {
             "com.bluewhale.mes.common.outbox.mapper..",
             "com.bluewhale.mes.dispatch.mapper..",
             "com.bluewhale.mes.execution.mapper..",
-            "com.bluewhale.mes.trace.mapper.."
+            "com.bluewhale.mes.trace.mapper..",
+            "com.bluewhale.mes.quality.mapper.."
     };
 
     /** 实体所在包（存量顶层 + M0/M1 新增上下文） */
@@ -60,7 +63,8 @@ class MesArchitectureTest {
             "com.bluewhale.mes.common.outbox.entity..",
             "com.bluewhale.mes.dispatch.entity..",
             "com.bluewhale.mes.execution.entity..",
-            "com.bluewhale.mes.trace.entity.."
+            "com.bluewhale.mes.trace.entity..",
+            "com.bluewhale.mes.quality.entity.."
     };
 
     /** 出入参模型所在包（存量顶层 + M0/M1 新增上下文） */
@@ -74,7 +78,9 @@ class MesArchitectureTest {
             "com.bluewhale.mes.execution.dto..",
             "com.bluewhale.mes.execution.vo..",
             "com.bluewhale.mes.trace.dto..",
-            "com.bluewhale.mes.trace.vo.."
+            "com.bluewhale.mes.trace.vo..",
+            "com.bluewhale.mes.quality.dto..",
+            "com.bluewhale.mes.quality.vo.."
     };
 
     /** 控制器不得直接依赖实体（装配一律经 converter/service 层完成） */

@@ -173,7 +173,32 @@ class MesFlywayMigrationScriptTest {
         for (Path script : migrationScripts()) {
             total += extractTables(script).size();
         }
-        assertEquals(36, total, "空库累计应为 36 张业务表（V1 2 + V2 12 + V3 1 + V4 13 + V5 8）");
+        assertEquals(46, total, "空库累计应为 46 张业务表（V1 2 + V2 12 + V3 1 + V4 13 + V5 8 + V6 10）");
+    }
+
+    /**
+     * V6 建表集合：车间质量 10 张表齐备
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("M3 车间质量表齐备")
+    void qualityTablesShouldBePresent() throws IOException {
+        Set<String> qualityTables = extractTables(MIGRATION_DIR.resolve("V6__mes_quality.sql"));
+        assertEquals(10, qualityTables.size(), "V6 应创建 10 张表");
+        for (String table : List.of(
+                "mes_qc_inspection_plan",
+                "mes_qc_inspection_plan_item",
+                "mes_qc_inspection_task",
+                "mes_qc_inspection_result",
+                "mes_qc_inspection_defect",
+                "mes_qc_ncr",
+                "mes_qc_disposition",
+                "mes_qc_rework_order",
+                "mes_qc_spc_sample",
+                "mes_qc_spc_rule")) {
+            assertTrue(qualityTables.contains(table), "V6 必须包含表：" + table);
+        }
     }
 
     /**
