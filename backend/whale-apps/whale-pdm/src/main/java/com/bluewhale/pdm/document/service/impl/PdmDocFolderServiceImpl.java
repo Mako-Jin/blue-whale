@@ -19,8 +19,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -146,16 +148,77 @@ public class PdmDocFolderServiceImpl implements PdmDocFolderService {
     @Override
     public List<Long> subtreeFolderIds(Long folderId) {
         PdmDocFolder folder = requireFolder(folderId);
+        return subtreeFolderIds(List.of(folder.getId()));
+    }
+
+    @Override
+    public List<Long> subtreeFolderIds(Collection<Long> folderIds) {
+        if (folderIds == null || folderIds.isEmpty()) {
+            return List.of();
+        }
         List<PdmDocFolder> all = folderMapper.selectList(new LambdaQueryWrapper<>());
-        List<Long> ids = new ArrayList<>();
-        ids.add(folder.getId());
-        String prefix = folder.getPath();
-        for (PdmDocFolder item : all) {
-            if (!item.getId().equals(folder.getId()) && item.getPath() != null && item.getPath().startsWith(prefix)) {
-                ids.add(item.getId());
+        Map<Long, PdmDocFolder> byId = new LinkedHashMap<>();
+        for (PdmDocFolder folder : all) {
+            byId.put(folder.getId(), folder);
+        }
+        LinkedHashSet<Long> ids = new LinkedHashSet<>();
+        for (Long folderId : folderIds) {
+            PdmDocFolder root = byId.get(folderId);
+            if (root == null) {
+                continue;
+            }
+            ids.add(root.getId());
+            String prefix = root.getPath();
+            if (prefix == null) {
+                continue;
+            }
+            for (PdmDocFolder item : all) {
+                if (item.getPath() != null && item.getPath().startsWith(prefix)) {
+                    ids.add(item.getId());
+                }
             }
         }
-        return ids;
+        return new ArrayList<>(ids);
+    }
+
+    @Override
+    public List<Long> ancestorFolderIds(Long folderId) {
+        PdmDocFolder folder = requireFolder(folderId);
+        LinkedHashSet<Long> ids = new LinkedHashSet<>();
+        parsePathIds(folder.getPath(), ids);
+        if (!ids.contains(folder.getId())) {
+            List<Long> chain = new ArrayList<>();
+            Long cursor = folder.getId();
+            while (cursor != null && ROOT_ID != cursor && !chain.contains(cursor)) {
+                chain.add(0, cursor);
+                PdmDocFolder current = folderMapper.selectById(cursor);
+                cursor = current == null ? null : current.getParentId();
+            }
+            ids.addAll(chain);
+        }
+        return new ArrayList<>(ids);
+    }
+
+    /**
+     * 解析目录路径中的 ID 链
+     *
+     * @param path 目录路径，形如 {@code /1/2/}
+     * @param ids  输出集合
+     */
+    private void parsePathIds(String path, LinkedHashSet<Long> ids) {
+        if (!StringUtils.hasText(path)) {
+            return;
+        }
+        for (String segment : path.split("/")) {
+            if (!StringUtils.hasText(segment)) {
+                continue;
+            }
+            try {
+                ids.add(Long.valueOf(segment.trim()));
+            } catch (NumberFormatException ignored) {
+                // 非ID路径段不参与 ACL 继承
+            }
+        }
     }
 
     /**

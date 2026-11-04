@@ -2,9 +2,11 @@ package com.bluewhale.pdm.converter;
 
 import com.bluewhale.pdm.document.dto.PdmDocDocumentSaveRequest;
 import com.bluewhale.pdm.document.dto.PdmDocFolderSaveRequest;
+import com.bluewhale.pdm.document.entity.PdmDocAcl;
 import com.bluewhale.pdm.document.entity.PdmDocDocument;
 import com.bluewhale.pdm.document.entity.PdmDocFolder;
 import com.bluewhale.pdm.document.entity.PdmDocVersion;
+import com.bluewhale.pdm.document.vo.PdmDocAclVO;
 import com.bluewhale.pdm.document.vo.PdmDocDocumentVO;
 import com.bluewhale.pdm.document.vo.PdmDocFolderVO;
 import com.bluewhale.pdm.document.vo.PdmDocVersionVO;
@@ -117,4 +119,12 @@ public interface PdmConverter {
      * @return 版本视图
      */
     PdmDocVersionVO toVersionVo(PdmDocVersion entity);
+
+    /**
+     * ACL 规则实体转视图
+     *
+     * @param entity ACL 规则实体
+     * @return ACL 规则视图
+     */
+    PdmDocAclVO toAclVo(PdmDocAcl entity);
 }

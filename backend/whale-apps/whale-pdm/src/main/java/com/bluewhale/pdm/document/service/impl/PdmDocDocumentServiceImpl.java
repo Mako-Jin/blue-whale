@@ -17,9 +17,12 @@ import com.bluewhale.pdm.document.mapper.PdmDocDocumentMapper;
 import com.bluewhale.pdm.document.mapper.PdmDocVersionMapper;
 import com.bluewhale.pdm.document.service.PdmDocDocumentService;
 import com.bluewhale.pdm.document.service.PdmDocFolderService;
+import com.bluewhale.pdm.document.support.PdmDocAclConstants;
+import com.bluewhale.pdm.document.support.PdmDocAclDecision;
 import com.bluewhale.pdm.document.support.PdmDocDownload;
 import com.bluewhale.pdm.document.support.PdmDocUploadFile;
 import com.bluewhale.pdm.document.support.PdmDocVersionNo;
+import com.bluewhale.pdm.document.support.PdmDocViewer;
 import com.bluewhale.pdm.document.vo.PdmDocDocumentVO;
 import com.bluewhale.pdm.document.vo.PdmDocVersionVO;
 import lombok.RequiredArgsConstructor;
@@ -89,8 +92,10 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
 
     private final PdmDocFileClient fileClient;
 
+    private final PdmDocAclResolver aclResolver;
+
     @Override
-    public PageResult<PdmDocDocumentVO> page(PdmDocDocumentQueryRequest request) {
+    public PageResult<PdmDocDocumentVO> page(PdmDocDocumentQueryRequest request, PdmDocViewer viewer) {
         long current = request.getCurrent() <= 0 ? 1 : request.getCurrent();
         long size = request.getSize() <= 0 ? DEFAULT_PAGE_SIZE : Math.min(request.getSize(), MAX_PAGE_SIZE);
         LambdaQueryWrapper<PdmDocDocument> wrapper = new LambdaQueryWrapper<>();
@@ -123,6 +128,14 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
         if (request.getEndDate() != null) {
             wrapper.lt(PdmDocDocument::getCreateTime, request.getEndDate().plusDays(1).atStartOfDay());
         }
+        List<Long> deniedFolders = aclResolver.deniedFolderIds(viewer);
+        if (!deniedFolders.isEmpty()) {
+            wrapper.notIn(PdmDocDocument::getFolderId, deniedFolders);
+        }
+        List<Long> deniedDocuments = aclResolver.deniedDocumentIds(viewer);
+        if (!deniedDocuments.isEmpty()) {
+            wrapper.notIn(PdmDocDocument::getId, deniedDocuments);
+        }
         wrapper.orderByDesc(PdmDocDocument::getUpdateTime).orderByDesc(PdmDocDocument::getId);
         Page<PdmDocDocument> page = new Page<>(current, size);
         Page<PdmDocDocument> result = documentMapper.selectPage(page, wrapper);
@@ -133,8 +146,10 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
     }
 
     @Override
-    public PdmDocDocumentVO detail(Long id) {
-        return PdmConverter.INSTANCE.toDocumentVo(requireDocument(id));
+    public PdmDocDocumentVO detail(Long id, PdmDocViewer viewer) {
+        PdmDocDocument document = requireDocument(id);
+        assertReadAccess(document, viewer, PdmDocAclConstants.ACTION_VIEW);
+        return PdmConverter.INSTANCE.toDocumentVo(document);
     }
 
     @Override
@@ -154,9 +169,10 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public PdmDocDocumentVO update(Long id, PdmDocDocumentSaveRequest request, Long userId, boolean canManage) {
+    public PdmDocDocumentVO update(Long id, PdmDocDocumentSaveRequest request, PdmDocViewer viewer,
+                                   boolean canManage) {
         PdmDocDocument document = requireDocument(id);
-        assertOwnerOrManager(document, userId, canManage);
+        assertWriteAccess(document, viewer, PdmDocAclConstants.ACTION_EDIT, canManage);
         folderService.get(request.getFolderId());
         if (StringUtils.hasText(request.getDocNo())) {
             assertDocNoUnique(request.getDocNo().trim(), id);
@@ -174,9 +190,9 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void delete(Long id, Long userId, boolean canManage) {
+    public void delete(Long id, PdmDocViewer viewer, boolean canManage) {
         PdmDocDocument document = requireDocument(id);
-        assertOwnerOrManager(document, userId, canManage);
+        assertWriteAccess(document, viewer, PdmDocAclConstants.ACTION_DELETE, canManage);
         long releasedCount = versionMapper.selectCount(new LambdaQueryWrapper<PdmDocVersion>()
                 .eq(PdmDocVersion::getDocumentId, id)
                 .eq(PdmDocVersion::getStatus, VERSION_RELEASED));
@@ -188,8 +204,9 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
     }
 
     @Override
-    public List<PdmDocVersionVO> versions(Long documentId) {
-        requireDocument(documentId);
+    public List<PdmDocVersionVO> versions(Long documentId, PdmDocViewer viewer) {
+        PdmDocDocument document = requireDocument(documentId);
+        assertReadAccess(document, viewer, PdmDocAclConstants.ACTION_VIEW);
         return versionMapper.selectList(new LambdaQueryWrapper<PdmDocVersion>()
                         .eq(PdmDocVersion::getDocumentId, documentId)
                         .orderByDesc(PdmDocVersion::getVersionSeq))
@@ -201,19 +218,22 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public PdmDocVersionVO uploadVersion(Long documentId, PdmDocUploadFile file, String changeNote,
-                                         Long userId, boolean canManage) {
+                                         PdmDocViewer viewer, boolean canManage) {
         PdmDocDocument document = requireDocument(documentId);
-        assertOwnerOrManager(document, userId, canManage);
-        assertNotCheckedOutByOther(document, userId);
-        PdmDocVersion version = createDraft(document, file, changeNote, userId, SOURCE_UPLOAD);
+        assertWriteAccess(document, viewer, PdmDocAclConstants.ACTION_EDIT, canManage);
+        assertNotCheckedOutByOther(document, viewer == null ? null : viewer.userId());
+        PdmDocVersion version = createDraft(document, file, changeNote,
+                viewer == null ? null : viewer.userId(), SOURCE_UPLOAD);
         documentMapper.updateById(document);
         return PdmConverter.INSTANCE.toVersionVo(version);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public PdmDocDocumentVO checkOut(Long documentId, Long userId) {
+    public PdmDocDocumentVO checkOut(Long documentId, PdmDocViewer viewer) {
         PdmDocDocument document = requireDocument(documentId);
+        assertWriteAccess(document, viewer, PdmDocAclConstants.ACTION_EDIT, false);
+        Long userId = viewer == null ? null : viewer.userId();
         if (document.getCheckedOutBy() != null) {
             if (document.getCheckedOutBy().equals(userId)) {
                 return PdmConverter.INSTANCE.toDocumentVo(document);
@@ -228,8 +248,11 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public PdmDocVersionVO checkIn(Long documentId, PdmDocUploadFile file, String changeNote, Long userId) {
+    public PdmDocVersionVO checkIn(Long documentId, PdmDocUploadFile file, String changeNote,
+                                   PdmDocViewer viewer) {
         PdmDocDocument document = requireDocument(documentId);
+        assertWriteAccess(document, viewer, PdmDocAclConstants.ACTION_EDIT, false);
+        Long userId = viewer == null ? null : viewer.userId();
         if (document.getCheckedOutBy() == null) {
             throw new BizException(ErrorCode.PARAM_ERROR, "文档未检出，不能检入");
         }
@@ -245,9 +268,9 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public PdmDocVersionVO release(Long documentId, Long versionId, Long userId, boolean canManage) {
+    public PdmDocVersionVO release(Long documentId, Long versionId, PdmDocViewer viewer, boolean canManage) {
         PdmDocDocument document = requireDocument(documentId);
-        assertOwnerOrManager(document, userId, canManage);
+        assertWriteAccess(document, viewer, PdmDocAclConstants.ACTION_EDIT, canManage);
         PdmDocVersion version = requireVersion(documentId, versionId);
         if (!VERSION_DRAFT.equals(version.getStatus())) {
             throw new BizException(ErrorCode.REPEAT_SUBMIT, "只有草稿版本可以发布");
@@ -259,7 +282,7 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
             version.setVersionSeq(target.seq());
         }
         version.setStatus(VERSION_RELEASED);
-        version.setReleasedBy(userId);
+        version.setReleasedBy(viewer == null ? null : viewer.userId());
         version.setReleasedAt(LocalDateTime.now());
         versionMapper.updateById(version);
         versionMapper.update(null, new LambdaUpdateWrapper<PdmDocVersion>()
@@ -277,10 +300,10 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public PdmDocVersionVO rollback(Long documentId, Long versionId, Long userId, boolean canManage) {
+    public PdmDocVersionVO rollback(Long documentId, Long versionId, PdmDocViewer viewer, boolean canManage) {
         PdmDocDocument document = requireDocument(documentId);
-        assertOwnerOrManager(document, userId, canManage);
-        assertNotCheckedOutByOther(document, userId);
+        assertWriteAccess(document, viewer, PdmDocAclConstants.ACTION_EDIT, canManage);
+        assertNotCheckedOutByOther(document, viewer == null ? null : viewer.userId());
         PdmDocVersion source = requireVersion(documentId, versionId);
         PdmDocVersion latest = latestVersion(documentId);
         PdmDocVersionNo next = latest == null
@@ -298,7 +321,7 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
         version.setChecksum(source.getChecksum());
         version.setChangeNote("回滚自 " + source.getVersionNo());
         version.setSource(SOURCE_ROLLBACK);
-        version.setCreatedBy(userId);
+        version.setCreatedBy(viewer == null ? null : viewer.userId());
         versionMapper.insert(version);
         document.setLatestVersionId(version.getId());
         document.setLatestVersionNo(version.getVersionNo());
@@ -307,8 +330,9 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
     }
 
     @Override
-    public PdmDocDownload download(Long documentId, Long versionId) {
-        requireDocument(documentId);
+    public PdmDocDownload download(Long documentId, Long versionId, PdmDocViewer viewer) {
+        PdmDocDocument document = requireDocument(documentId);
+        assertReadAccess(document, viewer, PdmDocAclConstants.ACTION_DOWNLOAD);
         PdmDocVersion version = requireVersion(documentId, versionId);
         if (version.getFileId() == null) {
             throw new BizException(ErrorCode.NOT_FOUND, "版本文件不存在");
@@ -451,6 +475,42 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
         if (versionMapper.selectCount(wrapper) > 0) {
             throw new BizException(ErrorCode.REPEAT_SUBMIT, "版本号已存在");
         }
+    }
+
+    /**
+     * 校验文档读取权限：只有显式 DENY 才拒绝
+     *
+     * @param document 文档
+     * @param viewer   访问者
+     * @param action   动作
+     */
+    private void assertReadAccess(PdmDocDocument document, PdmDocViewer viewer, String action) {
+        PdmDocAclDecision decision = aclResolver.decideDocument(document.getId(), document.getFolderId(),
+                viewer, action);
+        if (decision == PdmDocAclDecision.DENY) {
+            throw new BizException(ErrorCode.FORBIDDEN, "无权访问该文档");
+        }
+    }
+
+    /**
+     * 校验文档写入权限：DENY 优先，ALLOW 放行，否则回落属主/管理员
+     *
+     * @param document  文档
+     * @param viewer    访问者
+     * @param action    动作
+     * @param canManage 是否可管理他人文档
+     */
+    private void assertWriteAccess(PdmDocDocument document, PdmDocViewer viewer, String action,
+                                   boolean canManage) {
+        PdmDocAclDecision decision = aclResolver.decideDocument(document.getId(), document.getFolderId(),
+                viewer, action);
+        if (decision == PdmDocAclDecision.DENY) {
+            throw new BizException(ErrorCode.FORBIDDEN, "无权操作该文档");
+        }
+        if (decision == PdmDocAclDecision.ALLOW) {
+            return;
+        }
+        assertOwnerOrManager(document, viewer == null ? null : viewer.userId(), canManage);
     }
 
     /**

@@ -3,6 +3,7 @@ package com.bluewhale.pdm.document.service;
 import com.bluewhale.pdm.document.dto.PdmDocFolderSaveRequest;
 import com.bluewhale.pdm.document.vo.PdmDocFolderVO;
 
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -58,4 +59,20 @@ public interface PdmDocFolderService {
      * @return 目录 ID 集合
      */
     List<Long> subtreeFolderIds(Long folderId);
+
+    /**
+     * 批量查询目录及其全部子目录 ID
+     *
+     * @param folderIds 目录 ID 集合
+     * @return 目录 ID 集合；空入参返回空
+     */
+    List<Long> subtreeFolderIds(Collection<Long> folderIds);
+
+    /**
+     * 查询目录的祖先链（根目录到当前目录）
+     *
+     * @param folderId 目录 ID
+     * @return 目录 ID 链，包含当前目录自身
+     */
+    List<Long> ancestorFolderIds(Long folderId);
 }

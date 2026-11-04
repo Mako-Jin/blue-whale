@@ -103,6 +103,41 @@ export interface FolderInput {
   remark?: string;
 }
 
+/** ACL 资源类型 */
+export type AclResourceType = 'FOLDER' | 'DOCUMENT';
+
+/** ACL 主体类型 */
+export type AclSubjectType = 'USER' | 'ROLE' | 'ALL';
+
+/** ACL 动作 */
+export type AclAction = 'VIEW' | 'EDIT' | 'DOWNLOAD' | 'DELETE' | 'MANAGE';
+
+/** ACL 效果 */
+export type AclEffect = 'ALLOW' | 'DENY';
+
+/** 图文档 ACL 规则 */
+export interface PdmDocAcl {
+  id: number;
+  resourceType: AclResourceType;
+  resourceId: number;
+  subjectType: AclSubjectType;
+  subjectId: string;
+  action: AclAction;
+  effect: AclEffect;
+  createTime?: string;
+  updateTime?: string;
+}
+
+/** ACL 新增入参（唯一键重复时后端幂等返回既有规则） */
+export interface AclSavePayload {
+  resourceType: AclResourceType;
+  resourceId: number;
+  subjectType: AclSubjectType;
+  subjectId: string;
+  action: AclAction;
+  effect: AclEffect;
+}
+
 /** 查询目录树（首次访问时后端自动初始化默认目录） */
 export function listFolders(): Promise<DocFolder[]> {
   return http.get<DocFolder[]>('/pdm/folder/tree');
@@ -198,4 +233,22 @@ export function downloadVersion(
   versionId: number,
 ): Promise<{ blob: Blob; filename: string }> {
   return download(`/pdm/document/${id}/versions/${versionId}/content`);
+}
+
+/** 查询目录或文档的 ACL 规则 */
+export function listAcl(
+  resourceType: AclResourceType,
+  resourceId: number,
+): Promise<PdmDocAcl[]> {
+  return http.get<PdmDocAcl[]>('/pdm/acl', { resourceType, resourceId });
+}
+
+/** 新增 ACL 规则（唯一键重复时幂等返回既有规则） */
+export function saveAcl(payload: AclSavePayload): Promise<PdmDocAcl> {
+  return http.put<PdmDocAcl>('/pdm/acl', payload);
+}
+
+/** 删除 ACL 规则 */
+export function deleteAcl(id: number): Promise<void> {
+  return http.del<void>(`/pdm/acl/${id}`);
 }

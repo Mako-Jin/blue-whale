@@ -232,7 +232,7 @@
 
 | 阶段 | 新增/变更表（草案） |
 |---|---|
-| M0 图文档 | **M0-A 已落地**：`pdm_doc_folder`、`pdm_doc_document`、`pdm_doc_version`；`pdm_doc_acl` 已建表但未启用（M0-B）；`pdm_doc_link` 顺延 M1A；扩展现有 `pdm_product`（文档关联字段）亦顺延 M1A |
+| M0 图文档 | **M0-A/M0-B 已落地**：`pdm_doc_folder`、`pdm_doc_document`、`pdm_doc_version`；`pdm_doc_acl` 已启用（目录继承 + 显式 DENY 优先，`V3` 将 `subject_id` 扩为 `VARCHAR(64)` 以承载角色码）；`pdm_doc_link` 顺延 M1A；扩展现有 `pdm_product`（文档关联字段）亦顺延 M1A |
 | M1 零件/BOM | `pdm_part_category`；`ALTER pdm_product`（part_type/material/spec/uom/erp_item_code 等）；`pdm_bom`、`pdm_bom_line`、`pdm_bom_release` |
 | M2 变更 | `pdm_chg_request`、`pdm_chg_order`、`pdm_chg_notice`、`pdm_chg_impact`、`pdm_chg_task`、`pdm_chg_trace` |
 | M3 工艺 | `pdm_prc_route`、`pdm_prc_step`、`pdm_prc_tooling`、`pdm_prc_sop`、`pdm_prc_publish` |
@@ -240,12 +240,12 @@
 | M5 集成 | `pdm_int_sync_log`、`pdm_int_mapping`（零件↔ERP 物料、路线↔MES 等） |
 
 > 实际 DDL 在对应里程碑定稿后随 Flyway `V{n}__*.sql` 落地；禁止在 `V1__baseline.sql` 上直接追加（基线保持可重放）。
-> 迁移顺序建议：`V2__document_center.sql` → `V3__part_bom.sql` → `V4__change.sql` → `V5__process.sql` → `V6__collab.sql` → `V7__integration.sql`。
+> 迁移顺序建议：`V2__document_center.sql` → `V3__document_acl_subject.sql` → `V4__part_bom.sql` → `V5__change.sql` → `V6__process.sql` → `V7__collab.sql` → `V8__integration.sql`。
 
 ### 6.3 关键索引与数据量假设
 
 - 文档：`(tenant_id, doc_no)` 唯一；`(tenant_id, folder_id, doc_type, status)`；`(tenant_id, owner_id, update_time)`；版本 `(document_id, version_no)` 唯一。
-- 权限：`(tenant_id, document_id, subject_type, subject_id, action)` 唯一；文件夹 ACL 继承查询按 `folder_id`。
+- 权限：`(tenant_id, resource_type, resource_id, subject_type, subject_id, action, effect)` 唯一；目录 ACL 继承按目录 `path` 祖先链查询；`ALLOW` 与 `DENY` 可共存，解析时 `DENY` 优先。
 - 零件：`(tenant_id, part_no)` 唯一；`(tenant_id, part_type, category_code, status)`；去重键 `(tenant_id, normalized_name, material, spec)`。
 - BOM：`(tenant_id, product_part_id, view, version_no)` 唯一；行 `(bom_id, line_no)` 唯一 + `(bom_id, parent_line_no)`；树查询按 `bom_id`。
 - 量级假设（设计参考，不作验收）：零件 5 万、BOM 5 层/单产品 1 万节点、文档 20 万/年、版本 60 万/年、变更单 2 万/年。
@@ -256,7 +256,7 @@
 
 | 分组 | 路径 | 说明 |
 |---|---|---|
-| 图文档 | `/pdm/document/page`、`/pdm/document/{id}`、`/pdm/document/{id}/versions`、`/pdm/document/{id}/checkout`、`/checkin`、`/pdm/document/{id}/versions/{versionId}/release`、`/rollback`、`/content`、`/pdm/folder/**`；M0-B 增 `/pdm/document/{id}/acl` | 下载走授权票据/代理，不暴露 `fileId`；版本发布/作废为显式动作 |
+| 图文档 | `/pdm/document/page`、`/pdm/document/{id}`、`/pdm/document/{id}/versions`、`/pdm/document/{id}/checkout`、`/checkin`、`/pdm/document/{id}/versions/{versionId}/release`、`/rollback`、`/content`、`/pdm/folder/**`；M0-B 增 `/pdm/acl`（GET/PUT/DELETE，按 `resourceType` 区分 FOLDER/DOCUMENT） | 下载走授权票据/代理，不暴露 `fileId`；版本发布/作废为显式动作 |
 | 零件/BOM | `/pdm/part`、`/pdm/part/{id}/where-used`、`/pdm/part/duplicates`、`/pdm/part/category`、`/pdm/bom`、`/pdm/bom/{id}/lines`、`/pdm/bom/{id}/release`、`/pdm/bom/diff`、`/pdm/bom/{id}/export` | BOM 对比/导出为查询型；发布为显式动作，不做通用 PUT 改状态 |
 | 变更 | `/pdm/change/ecr`、`/pdm/change/eco`、`/pdm/change/ecn`、`/pdm/change/trace` | 提交/审批回写/执行/生效为动作端点 |
 | 工艺 | `/pdm/process/route`、`/pdm/process/route/{id}/release`、`/pdm/process/publish` | 下发/重试/撤回为动作端点 |
@@ -329,7 +329,7 @@ com.bluewhale.pdm
 
 | 模块 | 权限号段 | 菜单号段 | 说明 |
 |---|---|---|---|
-| 图文档 | 900–929 | 180–184 | M0-A 已用 900–909 / 菜单 180；910–929 / 181–184 预留给 M0-B（ACL、预览、导出） |
+| 图文档 | 900–929 | 180–184 | M0-A 已用 900–909 / 菜单 180；M0-B 已用 910–911（ACL 查询/维护，页内弹窗不新增菜单）；912–929 / 181–184 预留预览与导出 |
 | 零件/BOM | 930–949 | 185–189 | 零件、分类、标准件、BOM、对比、导出、发布 |
 | 变更 | 950–969 | 190–194 | ECR/ECO/ECN、影响、追溯、生效 |
 | 工艺 | 970–979 | 195–197 | 路线、工序、工装、SOP、下发 |
@@ -339,7 +339,7 @@ com.bluewhale.pdm
 
 角色：存量 `pdm_manager`(21101) / `pdm_member`(21102) 继续覆盖 `/pdm/product/**`；新增 `pdm_doc_manager`（21103）、`pdm_engineer`（21104，零件/BOM）、`pdm_change_manager`（21105）、`pdm_process_engineer`（21106）。实施前核对 211xx 最大值（当前至 21102）及 ERP/MES 角色段（251xx / 207xx）。
 
-> 编号纪律：按里程碑逐段启用，**禁止跳段占用**；迁移脚本幂等；已发布脚本不得修改。M0-A 实际使用权限 900–909、菜单 180、角色 21103，对应迁移 `migration-5.80-pdm-doc.sql`。
+> 编号纪律：按里程碑逐段启用，**禁止跳段占用**；迁移脚本幂等；已发布脚本不得修改。M0-A 实际使用权限 900–909、菜单 180、角色 21103，对应迁移 `migration-5.80-pdm-doc.sql`；M0-B 使用权限 910–911，对应迁移 `migration-5.80-pdm-acl.sql` 与 Flyway `V3__document_acl_subject.sql`。
 
 ---
 

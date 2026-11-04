@@ -1,6 +1,7 @@
 package com.bluewhale.pdm.document.service.impl;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
@@ -15,8 +16,11 @@ import com.bluewhale.pdm.document.entity.PdmDocVersion;
 import com.bluewhale.pdm.document.mapper.PdmDocDocumentMapper;
 import com.bluewhale.pdm.document.mapper.PdmDocVersionMapper;
 import com.bluewhale.pdm.document.service.PdmDocFolderService;
+import com.bluewhale.pdm.document.support.PdmDocAclConstants;
+import com.bluewhale.pdm.document.support.PdmDocAclDecision;
 import com.bluewhale.pdm.document.support.PdmDocDownload;
 import com.bluewhale.pdm.document.support.PdmDocUploadFile;
+import com.bluewhale.pdm.document.support.PdmDocViewer;
 import com.bluewhale.pdm.document.vo.PdmDocDocumentVO;
 import com.bluewhale.pdm.document.vo.PdmDocFolderVO;
 import com.bluewhale.pdm.document.vo.PdmDocVersionVO;
@@ -26,11 +30,13 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -41,6 +47,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -67,6 +74,9 @@ class PdmDocDocumentServiceImplTest {
 
     @Mock
     private PdmDocFileClient fileClient;
+
+    @Mock
+    private PdmDocAclResolver aclResolver;
 
     @InjectMocks
     private PdmDocDocumentServiceImpl documentService;
@@ -103,7 +113,7 @@ class PdmDocDocumentServiceImplTest {
         page.setRecords(List.of(document(3L, 7L)));
         when(documentMapper.selectPage(any(), any())).thenReturn(page);
 
-        PageResult<PdmDocDocumentVO> result = documentService.page(request);
+        PageResult<PdmDocDocumentVO> result = documentService.page(request, viewer(7L));
 
         assertEquals(1, result.getRecords().size());
         assertEquals(200L, result.getSize());
@@ -168,7 +178,7 @@ class PdmDocDocumentServiceImplTest {
 
         PdmDocVersionVO view = documentService.uploadVersion(1L,
                 new PdmDocUploadFile(new byte[]{1, 2}, "a.dwg", "application/octet-stream", 10L),
-                "初版", 7L, false);
+                "初版", viewer(7L), false);
 
         assertEquals("V0.1", view.getVersionNo());
         assertEquals("DRAFT", view.getStatus());
@@ -188,7 +198,7 @@ class PdmDocDocumentServiceImplTest {
         BizException exception = assertThrows(BizException.class,
                 () -> documentService.uploadVersion(1L,
                         new PdmDocUploadFile(new byte[]{1}, "a.dwg", "application/octet-stream", 1L),
-                        null, 7L, false));
+                        null, viewer(7L), false));
 
         assertEquals(ErrorCode.FORBIDDEN.getCode(), exception.getCode());
         verify(versionMapper, never()).insert(any(PdmDocVersion.class));
@@ -202,7 +212,7 @@ class PdmDocDocumentServiceImplTest {
     void checkOutShouldLockDocument() {
         when(documentMapper.selectById(1L)).thenReturn(document(1L, 7L));
 
-        PdmDocDocumentVO view = documentService.checkOut(1L, 7L);
+        PdmDocDocumentVO view = documentService.checkOut(1L, viewer(7L));
 
         assertEquals(7L, view.getCheckedOutBy());
         verify(documentMapper).updateById(any(PdmDocDocument.class));
@@ -216,7 +226,7 @@ class PdmDocDocumentServiceImplTest {
     void checkOutShouldRejectCheckedOutByOther() {
         when(documentMapper.selectById(1L)).thenReturn(checkedOutDocument(1L, 7L, 9L));
 
-        BizException exception = assertThrows(BizException.class, () -> documentService.checkOut(1L, 7L));
+        BizException exception = assertThrows(BizException.class, () -> documentService.checkOut(1L, viewer(7L)));
 
         assertEquals(ErrorCode.REPEAT_SUBMIT.getCode(), exception.getCode());
     }
@@ -232,7 +242,7 @@ class PdmDocDocumentServiceImplTest {
         BizException exception = assertThrows(BizException.class,
                 () -> documentService.checkIn(1L,
                         new PdmDocUploadFile(new byte[]{1}, "a.dwg", "application/octet-stream", 1L),
-                        null, 7L));
+                        null, viewer(7L)));
 
         assertEquals(ErrorCode.PARAM_ERROR.getCode(), exception.getCode());
     }
@@ -248,7 +258,7 @@ class PdmDocDocumentServiceImplTest {
         BizException exception = assertThrows(BizException.class,
                 () -> documentService.checkIn(1L,
                         new PdmDocUploadFile(new byte[]{1}, "a.dwg", "application/octet-stream", 1L),
-                        null, 7L));
+                        null, viewer(7L)));
 
         assertEquals(ErrorCode.FORBIDDEN.getCode(), exception.getCode());
     }
@@ -263,7 +273,7 @@ class PdmDocDocumentServiceImplTest {
         when(versionMapper.selectById(10L)).thenReturn(version(10L, 1L, "V0.1", "DRAFT"));
         when(versionMapper.selectCount(any())).thenReturn(0L);
 
-        PdmDocVersionVO view = documentService.release(1L, 10L, 7L, true);
+        PdmDocVersionVO view = documentService.release(1L, 10L, viewer(7L), true);
 
         assertEquals("V1.0", view.getVersionNo());
         assertEquals("RELEASED", view.getStatus());
@@ -282,7 +292,7 @@ class PdmDocDocumentServiceImplTest {
         when(versionMapper.selectById(10L)).thenReturn(version(10L, 1L, "V1.0", "RELEASED"));
 
         BizException exception = assertThrows(BizException.class,
-                () -> documentService.release(1L, 10L, 7L, true));
+                () -> documentService.release(1L, 10L, viewer(7L), true));
 
         assertEquals(ErrorCode.REPEAT_SUBMIT.getCode(), exception.getCode());
         verify(versionMapper, never()).updateById(any(PdmDocVersion.class));
@@ -298,7 +308,7 @@ class PdmDocDocumentServiceImplTest {
         when(versionMapper.selectCount(any())).thenReturn(1L);
 
         BizException exception = assertThrows(BizException.class,
-                () -> documentService.delete(1L, 7L, false));
+                () -> documentService.delete(1L, viewer(7L), false));
 
         assertEquals(ErrorCode.REPEAT_SUBMIT.getCode(), exception.getCode());
         verify(documentMapper, never()).deleteById(1L);
@@ -314,7 +324,7 @@ class PdmDocDocumentServiceImplTest {
         when(versionMapper.selectById(10L)).thenReturn(version(10L, 1L, "V1.0", "RELEASED"));
         when(fileClient.content(99L)).thenReturn(new byte[]{1, 2, 3});
 
-        PdmDocDownload download = documentService.download(1L, 10L);
+        PdmDocDownload download = documentService.download(1L, 10L, viewer(7L));
 
         assertArrayEquals(new byte[]{1, 2, 3}, download.content());
         assertEquals("a.dwg", download.fileName());
@@ -336,7 +346,7 @@ class PdmDocDocumentServiceImplTest {
             return 1;
         });
 
-        PdmDocVersionVO view = documentService.rollback(1L, 10L, 7L, false);
+        PdmDocVersionVO view = documentService.rollback(1L, 10L, viewer(7L), false);
 
         assertEquals("V1.1", view.getVersionNo());
         assertEquals("DRAFT", view.getStatus());
@@ -344,6 +354,115 @@ class PdmDocDocumentServiceImplTest {
         assertEquals("回滚自 V1.0", view.getChangeNote());
         assertEquals("a.dwg", view.getFileName());
         verify(versionMapper).insert(any(PdmDocVersion.class));
+    }
+
+    /**
+     * 分页按 ACL 排除 DENY 目录与文档。
+     */
+    @Test
+    @DisplayName("分页排除 DENY 目录与文档")
+    void pageShouldExcludeDeniedResources() {
+        PdmDocDocumentQueryRequest request = new PdmDocDocumentQueryRequest();
+        when(aclResolver.deniedFolderIds(any(PdmDocViewer.class))).thenReturn(List.of(2L, 3L));
+        when(aclResolver.deniedDocumentIds(any(PdmDocViewer.class))).thenReturn(List.of(9L));
+        Page<PdmDocDocument> page = new Page<>(1, 10);
+        page.setRecords(List.of(document(3L, 7L)));
+        when(documentMapper.selectPage(any(), any())).thenReturn(page);
+
+        documentService.page(request, viewer(7L));
+
+        ArgumentCaptor<Wrapper<PdmDocDocument>> captor = ArgumentCaptor.forClass(Wrapper.class);
+        verify(documentMapper).selectPage(any(), captor.capture());
+        assertTrue(captor.getValue().getSqlSegment().contains("NOT IN"));
+    }
+
+    /**
+     * 文档被显式 DENY VIEW 时详情不可读。
+     */
+    @Test
+    @DisplayName("DENY VIEW 拒绝文档详情")
+    void detailShouldRejectDeniedView() {
+        when(documentMapper.selectById(1L)).thenReturn(document(1L, 7L));
+        when(aclResolver.decideDocument(anyLong(), anyLong(), any(PdmDocViewer.class),
+                eq(PdmDocAclConstants.ACTION_VIEW))).thenReturn(PdmDocAclDecision.DENY);
+
+        BizException exception = assertThrows(BizException.class,
+                () -> documentService.detail(1L, viewer(7L)));
+
+        assertEquals(ErrorCode.FORBIDDEN.getCode(), exception.getCode());
+    }
+
+    /**
+     * 文档被显式 DENY DOWNLOAD 时下载被拒。
+     */
+    @Test
+    @DisplayName("DENY DOWNLOAD 拒绝下载")
+    void downloadShouldRejectDeniedDownload() {
+        when(documentMapper.selectById(1L)).thenReturn(document(1L, 7L));
+        when(aclResolver.decideDocument(anyLong(), anyLong(), any(PdmDocViewer.class),
+                eq(PdmDocAclConstants.ACTION_DOWNLOAD))).thenReturn(PdmDocAclDecision.DENY);
+
+        BizException exception = assertThrows(BizException.class,
+                () -> documentService.download(1L, 10L, viewer(7L)));
+
+        assertEquals(ErrorCode.FORBIDDEN.getCode(), exception.getCode());
+        verify(fileClient, never()).content(anyLong());
+    }
+
+    /**
+     * 属主被显式 DENY EDIT 时不能上传版本。
+     */
+    @Test
+    @DisplayName("DENY EDIT 拦截属主上传")
+    void uploadVersionShouldRejectOwnerWhenEditDenied() {
+        when(documentMapper.selectById(1L)).thenReturn(document(1L, 7L));
+        when(aclResolver.decideDocument(anyLong(), anyLong(), any(PdmDocViewer.class),
+                eq(PdmDocAclConstants.ACTION_EDIT))).thenReturn(PdmDocAclDecision.DENY);
+
+        BizException exception = assertThrows(BizException.class,
+                () -> documentService.uploadVersion(1L,
+                        new PdmDocUploadFile(new byte[]{1}, "a.dwg", "application/octet-stream", 1L),
+                        null, viewer(7L), false));
+
+        assertEquals(ErrorCode.FORBIDDEN.getCode(), exception.getCode());
+        verify(versionMapper, never()).insert(any(PdmDocVersion.class));
+    }
+
+    /**
+     * 非属主获得 ALLOW EDIT 后可上传版本。
+     */
+    @Test
+    @DisplayName("ALLOW EDIT 放行非属主上传")
+    void uploadVersionShouldAllowNonOwnerWhenEditAllowed() {
+        TenantContext.set(1L);
+        when(documentMapper.selectById(1L)).thenReturn(document(1L, 9L));
+        when(aclResolver.decideDocument(anyLong(), anyLong(), any(PdmDocViewer.class),
+                eq(PdmDocAclConstants.ACTION_EDIT))).thenReturn(PdmDocAclDecision.ALLOW);
+        when(versionMapper.selectList(any())).thenReturn(List.of());
+        when(fileClient.upload(any(), anyString(), anyString(), anyLong(), anyLong()))
+                .thenReturn(new PdmDocFileClient.UploadedFile(99L, "a.dwg", "application/octet-stream", 10L));
+        when(versionMapper.insert(any(PdmDocVersion.class))).thenAnswer(invocation -> {
+            PdmDocVersion version = invocation.getArgument(0);
+            version.setId(100L);
+            return 1;
+        });
+
+        PdmDocVersionVO view = documentService.uploadVersion(1L,
+                new PdmDocUploadFile(new byte[]{1}, "a.dwg", "application/octet-stream", 1L),
+                null, viewer(7L), false);
+
+        assertEquals("V0.1", view.getVersionNo());
+        verify(versionMapper).insert(any(PdmDocVersion.class));
+    }
+
+    /**
+     * 构造访问者。
+     *
+     * @param userId 用户 ID
+     * @return 访问者
+     */
+    private PdmDocViewer viewer(Long userId) {
+        return new PdmDocViewer(userId, Set.of("pdm_member"));
     }
 
     /**

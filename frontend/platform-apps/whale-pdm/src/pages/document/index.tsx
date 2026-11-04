@@ -21,6 +21,7 @@ import {
   deleteFolder,
   listFolders,
   pageDocuments,
+  type AclResourceType,
   type DocFolder,
   type DocStatus,
   type DocType,
@@ -28,6 +29,7 @@ import {
   type PdmDocument,
 } from '../../api/document';
 import { getCurrentUserId, hasPermission } from '../../utils/permission';
+import AclModal from './AclModal';
 import DocumentForm from './DocumentForm';
 import FolderModal from './FolderModal';
 import UploadModal from './UploadModal';
@@ -96,6 +98,10 @@ export default function DocumentCenter() {
   const [uploadTarget, setUploadTarget] = useState<PdmDocument | null>(null);
   const [versionOpen, setVersionOpen] = useState(false);
   const [versionTarget, setVersionTarget] = useState<PdmDocument | null>(null);
+  const [aclOpen, setAclOpen] = useState(false);
+  const [aclResourceType, setAclResourceType] = useState<AclResourceType>('DOCUMENT');
+  const [aclResourceId, setAclResourceId] = useState<number | undefined>();
+  const [aclTitle, setAclTitle] = useState('');
 
   const currentUserId = getCurrentUserId();
   const canManageFolder = hasPermission('sys:pdm:folder:manage');
@@ -201,6 +207,13 @@ export default function DocumentCenter() {
     setVersionOpen(true);
   };
 
+  const openAcl = (resourceType: AclResourceType, resourceId: number, title: string) => {
+    setAclResourceType(resourceType);
+    setAclResourceId(resourceId);
+    setAclTitle(title);
+    setAclOpen(true);
+  };
+
   const handleCreateFolder = () => {
     setEditingFolder(null);
     setFolderModalOpen(true);
@@ -300,12 +313,21 @@ export default function DocumentCenter() {
     {
       title: '操作',
       key: 'action',
-      width: 260,
+      width: 340,
       render: (_, record) => (
         <Space size={0} wrap>
           <Button type="link" size="small" onClick={() => openVersions(record)}>
             版本
           </Button>
+          {hasPermission('sys:pdm:doc:acl:list') ? (
+            <Button
+              type="link"
+              size="small"
+              onClick={() => openAcl('DOCUMENT', record.id, record.docNo)}
+            >
+              权限
+            </Button>
+          ) : null}
           {hasPermission('sys:pdm:doc:version') ? (
             <Button type="link" size="small" onClick={() => openUpload(record, 'upload')}>
               上传
@@ -350,25 +372,35 @@ export default function DocumentCenter() {
         size="small"
         title="目录"
         extra={
-          canManageFolder ? (
-            <Space size={4}>
-              <Button size="small" type="primary" onClick={handleCreateFolder}>
-                新建目录
-              </Button>
-              <Button size="small" onClick={handleEditFolder}>
-                重命名/移动
-              </Button>
-              <Popconfirm
-                title="删除目录"
-                description="仅空目录（无子目录、无文档）可删除，确认继续？"
-                onConfirm={() => void handleDeleteFolder()}
+          <Space size={4}>
+            {selectedFolderId !== ALL_FOLDER_KEY && hasPermission('sys:pdm:doc:acl:list') ? (
+              <Button
+                size="small"
+                onClick={() => openAcl('FOLDER', selectedFolderId, selectedFolderName)}
               >
-                <Button size="small" danger>
-                  删除目录
+                目录权限
+              </Button>
+            ) : null}
+            {canManageFolder ? (
+              <>
+                <Button size="small" type="primary" onClick={handleCreateFolder}>
+                  新建目录
                 </Button>
-              </Popconfirm>
-            </Space>
-          ) : null
+                <Button size="small" onClick={handleEditFolder}>
+                  重命名/移动
+                </Button>
+                <Popconfirm
+                  title="删除目录"
+                  description="仅空目录（无子目录、无文档）可删除，确认继续？"
+                  onConfirm={() => void handleDeleteFolder()}
+                >
+                  <Button size="small" danger>
+                    删除目录
+                  </Button>
+                </Popconfirm>
+              </>
+            ) : null}
+          </Space>
         }
       >
         {treeData.length > 0 ? (
@@ -485,6 +517,15 @@ export default function DocumentCenter() {
           setUploadOpen(false);
           refreshAll();
         }}
+      />
+
+      <AclModal
+        open={aclOpen}
+        resourceType={aclResourceType}
+        resourceId={aclResourceId}
+        title={aclTitle}
+        onClose={() => setAclOpen(false)}
+        onChanged={refreshAll}
       />
 
       <VersionDrawer

@@ -13,6 +13,7 @@ import com.bluewhale.pdm.document.service.PdmDocDocumentService;
 import com.bluewhale.pdm.document.support.PdmDocDownload;
 import com.bluewhale.pdm.document.support.PdmDocRequestContext;
 import com.bluewhale.pdm.document.support.PdmDocUploadFile;
+import com.bluewhale.pdm.document.support.PdmDocViewer;
 import com.bluewhale.pdm.document.vo.PdmDocDocumentVO;
 import com.bluewhale.pdm.document.vo.PdmDocVersionVO;
 import jakarta.servlet.http.HttpServletRequest;
@@ -61,32 +62,36 @@ public class PdmDocDocumentController {
      */
     @GetMapping("/page")
     @RequirePermission("sys:pdm:doc:list")
-    public Result<PageResult<PdmDocDocumentVO>> page(PdmDocDocumentQueryRequest request) {
-        return Result.ok(documentService.page(request));
+    public Result<PageResult<PdmDocDocumentVO>> page(PdmDocDocumentQueryRequest request,
+                                                     HttpServletRequest servletRequest) {
+        return Result.ok(documentService.page(request, PdmDocViewer.of(servletRequest)));
     }
 
     /**
      * 查询文档详情
      *
      * @param id 文档 ID
+     * @param servletRequest 当前请求
      * @return 文档视图
      */
     @GetMapping("/{id}")
     @RequirePermission("sys:pdm:doc:list")
-    public Result<PdmDocDocumentVO> detail(@PathVariable Long id) {
-        return Result.ok(documentService.detail(id));
+    public Result<PdmDocDocumentVO> detail(@PathVariable Long id, HttpServletRequest servletRequest) {
+        return Result.ok(documentService.detail(id, PdmDocViewer.of(servletRequest)));
     }
 
     /**
      * 查询文档版本
      *
      * @param id 文档 ID
+     * @param servletRequest 当前请求
      * @return 版本列表
      */
     @GetMapping("/{id}/versions")
     @RequirePermission("sys:pdm:doc:list")
-    public Result<List<PdmDocVersionVO>> versions(@PathVariable Long id) {
-        return Result.ok(documentService.versions(id));
+    public Result<List<PdmDocVersionVO>> versions(@PathVariable Long id,
+                                                  HttpServletRequest servletRequest) {
+        return Result.ok(documentService.versions(id, PdmDocViewer.of(servletRequest)));
     }
 
     /**
@@ -121,7 +126,7 @@ public class PdmDocDocumentController {
                                            @Valid @RequestBody PdmDocDocumentSaveRequest request,
                                            HttpServletRequest servletRequest) {
         return Result.ok(documentService.update(id, request,
-                PdmDocRequestContext.requireUserId(servletRequest),
+                PdmDocViewer.of(servletRequest),
                 PdmDocRequestContext.canManage(servletRequest)));
     }
 
@@ -137,7 +142,7 @@ public class PdmDocDocumentController {
     @AuditLog(module = "PDM 图文档", type = OperateType.DELETE, operation = "删除图文档")
     public Result<Void> delete(@PathVariable Long id, HttpServletRequest servletRequest) {
         documentService.delete(id,
-                PdmDocRequestContext.requireUserId(servletRequest),
+                PdmDocViewer.of(servletRequest),
                 PdmDocRequestContext.canManage(servletRequest));
         return Result.ok();
     }
@@ -159,7 +164,7 @@ public class PdmDocDocumentController {
                                                  @RequestParam(required = false) String changeNote,
                                                  HttpServletRequest servletRequest) {
         return Result.ok(documentService.uploadVersion(id, toUploadFile(file), changeNote,
-                PdmDocRequestContext.requireUserId(servletRequest),
+                PdmDocViewer.of(servletRequest),
                 PdmDocRequestContext.canManage(servletRequest)));
     }
 
@@ -174,7 +179,7 @@ public class PdmDocDocumentController {
     @RequirePermission("sys:pdm:doc:checkout")
     @AuditLog(module = "PDM 图文档", type = OperateType.OTHER, operation = "检出图文档")
     public Result<PdmDocDocumentVO> checkOut(@PathVariable Long id, HttpServletRequest servletRequest) {
-        return Result.ok(documentService.checkOut(id, PdmDocRequestContext.requireUserId(servletRequest)));
+        return Result.ok(documentService.checkOut(id, PdmDocViewer.of(servletRequest)));
     }
 
     /**
@@ -194,7 +199,7 @@ public class PdmDocDocumentController {
                                            @RequestParam(required = false) String changeNote,
                                            HttpServletRequest servletRequest) {
         return Result.ok(documentService.checkIn(id, toUploadFile(file), changeNote,
-                PdmDocRequestContext.requireUserId(servletRequest)));
+                PdmDocViewer.of(servletRequest)));
     }
 
     /**
@@ -212,7 +217,7 @@ public class PdmDocDocumentController {
                                            @PathVariable Long versionId,
                                            HttpServletRequest servletRequest) {
         return Result.ok(documentService.release(id, versionId,
-                PdmDocRequestContext.requireUserId(servletRequest),
+                PdmDocViewer.of(servletRequest),
                 PdmDocRequestContext.canManage(servletRequest)));
     }
 
@@ -231,7 +236,7 @@ public class PdmDocDocumentController {
                                             @PathVariable Long versionId,
                                             HttpServletRequest servletRequest) {
         return Result.ok(documentService.rollback(id, versionId,
-                PdmDocRequestContext.requireUserId(servletRequest),
+                PdmDocViewer.of(servletRequest),
                 PdmDocRequestContext.canManage(servletRequest)));
     }
 
@@ -245,8 +250,10 @@ public class PdmDocDocumentController {
     @GetMapping("/{id}/versions/{versionId}/content")
     @RequirePermission("sys:pdm:doc:download")
     @AuditLog(module = "PDM 图文档", type = OperateType.OTHER, operation = "下载图文档")
-    public ResponseEntity<byte[]> download(@PathVariable Long id, @PathVariable Long versionId) {
-        PdmDocDownload download = documentService.download(id, versionId);
+    public ResponseEntity<byte[]> download(@PathVariable Long id, @PathVariable Long versionId,
+                                           HttpServletRequest servletRequest) {
+        PdmDocDownload download = documentService.download(id, versionId,
+                PdmDocViewer.of(servletRequest));
         MediaType mediaType;
         try {
             mediaType = download.contentType() == null
