@@ -10,6 +10,12 @@ import com.bluewhale.pdm.dto.PdmProductQueryRequest;
 import com.bluewhale.pdm.dto.PdmProductSaveRequest;
 import com.bluewhale.pdm.entity.PdmProduct;
 import com.bluewhale.pdm.mapper.PdmProductMapper;
+import com.bluewhale.pdm.part.entity.PdmBom;
+import com.bluewhale.pdm.part.entity.PdmBomLine;
+import com.bluewhale.pdm.part.entity.PdmPartCategory;
+import com.bluewhale.pdm.part.mapper.PdmBomLineMapper;
+import com.bluewhale.pdm.part.mapper.PdmBomMapper;
+import com.bluewhale.pdm.part.mapper.PdmPartCategoryMapper;
 import com.bluewhale.pdm.vo.PdmProductVO;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
@@ -47,6 +53,15 @@ class PdmProductServiceImplTest {
     @Mock
     private PdmProductMapper pdmProductMapper;
 
+    @Mock
+    private PdmPartCategoryMapper categoryMapper;
+
+    @Mock
+    private PdmBomMapper bomMapper;
+
+    @Mock
+    private PdmBomLineMapper bomLineMapper;
+
     @InjectMocks
     private PdmProductServiceImpl pdmProductService;
 
@@ -55,7 +70,11 @@ class PdmProductServiceImplTest {
      */
     @BeforeAll
     static void initTableInfo() {
-        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), PdmProduct.class);
+        MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "");
+        TableInfoHelper.initTableInfo(assistant, PdmProduct.class);
+        TableInfoHelper.initTableInfo(assistant, PdmPartCategory.class);
+        TableInfoHelper.initTableInfo(assistant, PdmBom.class);
+        TableInfoHelper.initTableInfo(assistant, PdmBomLine.class);
     }
 
     /**
@@ -159,6 +178,41 @@ class PdmProductServiceImplTest {
         verify(pdmProductMapper).insert(captor.capture());
         assertEquals("减速器", captor.getValue().getName());
         assertEquals("图纸 V2", captor.getValue().getRemark());
+        assertEquals("PART", captor.getValue().getPartType());
+        assertEquals("PCS", captor.getValue().getUom());
+        assertEquals("UNIQUE", captor.getValue().getSourceType());
+    }
+
+    /**
+     * 新增时物料分类不存在被拒绝。
+     */
+    @Test
+    void createShouldRejectMissingCategory() {
+        when(pdmProductMapper.selectCount(any())).thenReturn(0L);
+        when(categoryMapper.selectCount(any())).thenReturn(0L);
+        PdmProductSaveRequest request = saveRequest("PD-10");
+        request.setCategoryCode("NOPE");
+
+        BizException exception = assertThrows(BizException.class,
+                () -> pdmProductService.create(request));
+
+        assertEquals(ErrorCode.PARAM_ERROR.getCode(), exception.getCode());
+        verify(pdmProductMapper, never()).insert(any(PdmProduct.class));
+    }
+
+    /**
+     * 删除时零件被 BOM 引用则拒绝。
+     */
+    @Test
+    void deleteShouldRejectWhenReferencedByBom() {
+        when(pdmProductMapper.selectById(3L)).thenReturn(product(3L));
+        when(bomLineMapper.selectCount(any())).thenReturn(1L);
+
+        BizException exception = assertThrows(BizException.class,
+                () -> pdmProductService.delete(3L));
+
+        assertEquals(ErrorCode.PARAM_ERROR.getCode(), exception.getCode());
+        verify(pdmProductMapper, never()).deleteById(3L);
     }
 
     /**

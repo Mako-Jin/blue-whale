@@ -24,6 +24,27 @@ public class PdmProductVO implements Serializable {
     /** 产品名称 */
     private String name;
 
+    /** 零件类型：PRODUCT/ASSEMBLY/PART/RAW_MATERIAL */
+    private String partType;
+
+    /** 材质 */
+    private String material;
+
+    /** 规格 */
+    private String spec;
+
+    /** 计量单位 */
+    private String uom;
+
+    /** 物料分类编码 */
+    private String categoryCode;
+
+    /** ERP 物料编码映射 */
+    private String erpItemCode;
+
+    /** 来源类型：STANDARD/COMMON/UNIQUE */
+    private String sourceType;
+
     /** 状态：ENABLED / DISABLED */
     private String status;
 

@@ -27,6 +27,36 @@ public class PdmProductSaveRequest implements Serializable {
     @Size(max = 128, message = "产品名称长度不能超过 128")
     private String name;
 
+    /** 零件类型：PRODUCT/ASSEMBLY/PART/RAW_MATERIAL */
+    @Pattern(regexp = "PRODUCT|ASSEMBLY|PART|RAW_MATERIAL",
+            message = "零件类型仅支持 PRODUCT / ASSEMBLY / PART / RAW_MATERIAL")
+    private String partType;
+
+    /** 材质 */
+    @Size(max = 64, message = "材质长度不能超过 64")
+    private String material;
+
+    /** 规格 */
+    @Size(max = 128, message = "规格长度不能超过 128")
+    private String spec;
+
+    /** 计量单位 */
+    @Size(max = 16, message = "计量单位长度不能超过 16")
+    private String uom;
+
+    /** 物料分类编码 */
+    @Size(max = 64, message = "物料分类编码长度不能超过 64")
+    private String categoryCode;
+
+    /** ERP 物料编码映射 */
+    @Size(max = 64, message = "ERP 物料编码长度不能超过 64")
+    private String erpItemCode;
+
+    /** 来源类型：STANDARD/COMMON/UNIQUE */
+    @Pattern(regexp = "STANDARD|COMMON|UNIQUE",
+            message = "来源类型仅支持 STANDARD / COMMON / UNIQUE")
+    private String sourceType;
+
     /** 状态：ENABLED / DISABLED */
     @NotBlank(message = "状态不能为空")
     @Pattern(regexp = "ENABLED|DISABLED", message = "状态仅支持 ENABLED / DISABLED")

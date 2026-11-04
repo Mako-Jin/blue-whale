@@ -12,6 +12,15 @@ import com.bluewhale.pdm.document.vo.PdmDocFolderVO;
 import com.bluewhale.pdm.document.vo.PdmDocVersionVO;
 import com.bluewhale.pdm.dto.PdmProductSaveRequest;
 import com.bluewhale.pdm.entity.PdmProduct;
+import com.bluewhale.pdm.part.dto.PdmPartCategorySaveRequest;
+import com.bluewhale.pdm.part.entity.PdmBom;
+import com.bluewhale.pdm.part.entity.PdmBomLine;
+import com.bluewhale.pdm.part.entity.PdmBomRelease;
+import com.bluewhale.pdm.part.entity.PdmPartCategory;
+import com.bluewhale.pdm.part.vo.PdmBomLineVO;
+import com.bluewhale.pdm.part.vo.PdmBomReleaseVO;
+import com.bluewhale.pdm.part.vo.PdmBomVO;
+import com.bluewhale.pdm.part.vo.PdmPartCategoryVO;
 import com.bluewhale.pdm.vo.PdmProductVO;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -127,4 +136,56 @@ public interface PdmConverter {
      * @return ACL 规则视图
      */
     PdmDocAclVO toAclVo(PdmDocAcl entity);
+
+    /**
+     * 物料分类实体转视图
+     *
+     * @param entity 分类实体
+     * @return 分类视图
+     */
+    @Mapping(target = "children", ignore = true)
+    PdmPartCategoryVO toPartCategoryVo(PdmPartCategory entity);
+
+    /**
+     * 物料分类保存请求转实体（路径由服务维护）
+     *
+     * @param request 保存请求
+     * @return 分类实体
+     */
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "path", ignore = true)
+    @Mapping(target = "createTime", ignore = true)
+    @Mapping(target = "updateTime", ignore = true)
+    @Mapping(target = "deleted", ignore = true)
+    PdmPartCategory toPartCategoryEntity(PdmPartCategorySaveRequest request);
+
+    /**
+     * BOM 头实体转视图（结构由服务组装）
+     *
+     * @param entity BOM 头实体
+     * @return BOM 视图
+     */
+    @Mapping(target = "productName", ignore = true)
+    @Mapping(target = "lines", ignore = true)
+    @Mapping(target = "tree", ignore = true)
+    PdmBomVO toBomVo(PdmBom entity);
+
+    /**
+     * BOM 行实体转视图（零件编码与名称由服务填充）
+     *
+     * @param entity BOM 行实体
+     * @return BOM 行视图
+     */
+    @Mapping(target = "parentPartNo", ignore = true)
+    @Mapping(target = "childPartNo", ignore = true)
+    @Mapping(target = "childPartName", ignore = true)
+    PdmBomLineVO toBomLineVo(PdmBomLine entity);
+
+    /**
+     * BOM 发布实体转视图
+     *
+     * @param entity 发布实体
+     * @return 发布视图
+     */
+    PdmBomReleaseVO toBomReleaseVo(PdmBomRelease entity);
 }

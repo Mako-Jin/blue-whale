@@ -1,9 +1,11 @@
-// PDM 子应用根组件：图文档中心（默认）/ 产品结构，受权限码控制菜单可见性
+// PDM 子应用根组件：图文档中心（默认）/ 产品结构 / 零件库 / BOM 结构，受权限码控制菜单可见性
 import { Layout, Menu } from 'antd';
 import type { MenuProps } from 'antd';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import DocumentCenter from './pages/document';
 import ProductCenter from './pages/ProductCenter';
+import PartLibrary from './pages/part';
+import BomLibrary from './pages/bom';
 import { hasPermission } from './utils/permission';
 
 const { Header, Content, Sider } = Layout;
@@ -12,6 +14,8 @@ const { Header, Content, Sider } = Layout;
 const MENU_ITEMS = [
   { key: '/document', label: '图文档中心', permission: 'sys:pdm:doc:list' },
   { key: '/product', label: '产品结构', permission: 'sys:pdm:product:list' },
+  { key: '/part', label: '零件库', permission: 'sys:pdm:part:list' },
+  { key: '/bom', label: 'BOM 结构', permission: 'sys:pdm:bom:list' },
 ];
 
 /** 按权限过滤后的菜单 */
@@ -41,6 +45,8 @@ function PdmLayout() {
           <Routes>
             <Route path="/document" element={<DocumentCenter />} />
             <Route path="/product" element={<ProductCenter />} />
+            <Route path="/part" element={<PartLibrary />} />
+            <Route path="/bom" element={<BomLibrary />} />
             <Route path="*" element={<Navigate to="/document" replace />} />
           </Routes>
         </Content>
