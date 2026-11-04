@@ -1,16 +1,15 @@
-# 客户关系服务设计（whale-crm，需求门禁骨架）
+# 客户关系服务设计（whale-crm）
 
-> 状态：**门禁骨架已落地（仅 `/crm/meta`）**；M4/M5 业务编码未启动
-> 关联需求：REQ-FUNC-035、REQ-ARCH-017、REQ-SEC-027
-> 关联规划：[Wave 5.77 场景与 CRM 规划](../plans/2026-11-03-wave5.77-scene-and-crm.md) §3.2 / §9.2
+> 状态：**M0 底座 + M1 客户主数据已落地（Wave 5.83，后端）**；前端 8113、导入导出与客户合并待后续增量
+> 关联需求：REQ-FUNC-080..086、REQ-ARCH-024、REQ-SEC-034
+> 关联规划：[CRM 功能模块全景](crm-module-panorama.md) / [Wave 5.83 计划](../plans/2026-11-04-wave5.83-crm-panorama.md)
 > 关联决策：[CRM/SRM 与消息服务边界决策](../plans/2026-10-28-crm-srm-and-message-service-decisions.md)、REQ-ARCH-011
 > 实现位置：`backend/whale-apps/whale-crm`（**前端未创建**）
 
-> **2026-11-04 范围变更（规划中，零代码）**：收到用户《CRM 功能模块全景》（6 大模块 29 个子模块），已产出
-> [CRM 全景设计稿](crm-module-panorama.md) 与 [Wave 5.83 计划](../plans/2026-11-04-wave5.83-crm-panorama.md)。
-> 本稿 §1「明确不做线索评分、营销自动化、客服工单」与全景的线索、营销、工单范围冲突，需由 D1 决策并更新 ADR-003；
-> **复核通过前门禁仍为未通过、`demand-gate-passed` 仍为 `false`、不写业务代码**。本稿 §3 仍是当前代码事实，§4–§9 是门禁骨架
-> 的原始承诺，后续以全景设计稿为准。
+> **2026-11-04 门禁与范围更新**：收到用户《CRM 功能模块全景》后，D1 采纳全景口径（六上下文全规划、M1/M2 优先），
+> `whale.crm.demand-gate-passed` 已改为默认 `true`；§1 的旧门禁结论与“不做线索/营销/工单”承诺已由
+> [CRM 全景设计稿](crm-module-panorama.md) 与 [Wave 5.83 计划](../plans/2026-11-04-wave5.83-crm-panorama.md) 取代。
+> 一键回退仍可用 `WHALE_CRM_DEMAND_GATE_PASSED=false` 恢复到仅 `/crm/meta` 的维护态。
 
 ---
 
@@ -18,25 +17,24 @@
 
 | 项 | 结论 |
 |---|---|
-| 需求门禁 D2 | **未通过**：暂无经确认的客户 / 联系人 / 商机 / 销售漏斗真实需求、使用者与验收 |
-| 本波范围 | 只落地**可构建、可启动的门禁骨架**：DDL、权限/角色登记、`GET /crm/meta` |
-| 不做什么 | 不做客户/联系人/商机/跟进 CRUD；不注册菜单 57–62；不建前端 8113；不写业务种子 |
-| 唯一开关 | `whale.crm.demand-gate-passed`（默认 `false`）；为 `true` 才允许进入 M4 |
-| 下一步 | 门禁四项条件同时满足 → 完成 ADR-003 定稿 → CRM-01 设计评审 → 才可进入 CRM-02 编码 |
+| 需求门禁 D2 | **已通过（2026-11-04，D1 采纳全景口径）**：用户提供 6 大模块 29 子模块全景；客户主数据归属、验收口径与里程碑已在 [全景设计稿](crm-module-panorama.md) 与 [Wave 5.83 计划](../plans/2026-11-04-wave5.83-crm-panorama.md) 定稿 |
+| 本波范围 | M0 底座 + M1 客户主数据（客户 / 联系人 / 地址 / 画像 / 分级 / 查重 / 公海 / 跟进 / 360）；M2–M6 按计划推进 |
+| 不做什么（本波） | 不做客户合并、CSV 导入导出、前端 8113；不登记菜单 413–420；不写业务种子数据 |
+| 唯一开关 | `whale.crm.demand-gate-passed`（默认 `true`）；置 `false` 即回退到仅 `/crm/meta` 的维护态 |
+| 下一步 | M1 收尾（合并 / 导入导出 / 前端）→ M2 线索与商机 |
 
-### 1.1 进入条件（必须同时满足）
+### 1.1 进入条件（历史记录，均已满足或被 D1 取代）
 
-1. 出现真实的客户 / 联系人 / 商机 / 销售漏斗需求，并明确使用者、流程与验收；
-2. 明确客户主数据归属：CRM 拥有客户，ERP 只拥有供应商，合同域「相对方」只保存
-   `crmCustomerId` 快照；
-3. 完成 Domain Modeling 复核与 ADR-003 定稿；
-4. 产品确认本期不做线索评分、营销自动化、客户服务工单。
+1. ~~出现真实的客户 / 联系人 / 商机 / 销售漏斗需求~~ → 已由用户《CRM 功能模块全景》满足；
+2. 客户主数据归属：CRM 拥有客户，ERP 只拥有供应商，合同域「相对方」只保存 `crmCustomerId` 快照（D2 待 M3 前正式回填 ADR-003）；
+3. Domain Modeling 复核与 ADR-003 定稿：域模型已在全景设计稿完成，ADR 回填待 M2/M3；
+4. ~~产品确认本期不做线索评分、营销自动化、客户服务工单~~ → 已由 D1 决策取消该限制，改为 M2–M6 交付。
 
 ---
 
 ## 2. 职责边界
 
-| 拥有（M4/M5 启用后） | 不拥有 |
+| 拥有（M1 起逐步启用） | 不拥有 |
 |---|---|
 | 客户、联系人、商机、销售阶段、跟进记录 | 供应商主数据（ERP / 未来 `whale-srm`） |
 | 客户 360 只读视图 | 合同正文、签署、印章（`whale-contract`） |
@@ -48,26 +46,76 @@
 
 ---
 
-## 3. 本波已落地内容
+## 3. 本波已落地内容（Wave 5.83 M0 + M1）
 
 | 项 | 内容 |
 |---|---|
 | 模块 | `backend/whale-apps/whale-crm`，端口 **9007**，前缀 `/crm/**`，库 `bluewhale_crm` |
-| 启动类 | `WhaleCrmApplication` |
-| 配置 | `CrmProperties`（门禁开关、客户编码前缀、跟进分页上限、合同引用开关） |
-| 唯一接口 | `GET /crm/meta`（权限 `sys:crm:browse`）→ 门禁状态、说明、里程碑、边界约束 |
-| DDL | `V1__baseline.sql`：`crm_customer` / `crm_contact` / `crm_opportunity` / `crm_follow_up` + `audit_log` / `api_log`；**无业务种子** |
-| 权限 | `migration-5.77-crm.sql`：337–354（18 项）**仅登记**，并明确**不注册菜单** |
-| 角色 | 25108 `crm_admin`、25109 `crm_member`（平台 + 业务租户复制） |
+| 启动类 | `WhaleCrmApplication`（`@EnableScheduling`，供公海回收任务使用） |
+| 配置 | `CrmProperties`：门禁（默认 `true`）、客户编码前缀、跟进分页上限、合同引用开关、默认客户等级 `C`、公海回收开关/表达式/批大小 |
+| 元信息接口 | `GET /crm/meta`（权限 `sys:crm:browse`）→ 门禁状态、说明、里程碑、边界约束 |
+| DDL | `V1__baseline.sql` 四表 + 审计表；`V2__crm_foundation.sql` 补客户/联系人/跟进字段与归一化索引、集成四表；`V3__customer_profile.sql` 地址/画像/公海规则/负责人留痕 |
+| 权限 | `migration-5.77-crm.sql`：337–354 保留；`migration-5.83-crm.sql`：1800 敏感明文 + 1810–1830 客户主数据 |
+| 角色 | 25108 `crm_admin`、25109 `crm_member` 保留；新增 25128 `crm_sales`、25129 `crm_sales_manager`、25130 `crm_service`、25131 `crm_marketing`、25132 `crm_analyst` |
 | 网关 | `lb://whale-crm`，不配 `StripPrefix`；`/crm/internal/**` 由 internal-deny 403 |
-| 前端 | **不创建**；服务目录中的 8113 保持规划态 |
-| 测试 | 8 项（Controller 3、Flyway 脚本 2、ArchUnit 3）；行覆盖 8/11 ≈ 72.7% |
+| 前端 | **未创建**；8113 仍为规划态。菜单 413–420 已预留但**不登记**，避免空入口 |
+| 测试 | 97 项（架构 9、迁移 5、公共组件 10、应用服务 50、Controller 13、元信息 4 等）；Checkstyle 通过 |
 
-> `/crm/meta` 不读写任何客户表，避免门禁前产生脏数据或给人“功能已上线”的错觉。
+### 3.1 分层与上下文
+
+```text
+com.bluewhale.crm
+├── common            # CrmActor / CrmMasking / CrmPermissions / CrmErrorCode（共享内核）
+├── config            # CrmProperties
+├── interfaces        # 仅 /crm/meta
+├── customer          # M1 客户主数据（domain / application / infrastructure / interfaces）
+├── integration       # M1 只需商机摘要端口适配器
+├── sales / commerce / service / marketing / analytics   # M2–M6 预留，ArchUnit 规则已生效
+└── WhaleCrmApplication
+```
+
+- 依赖方向：`interfaces → application → domain`，`infrastructure` 实现 `domain` 端口；业务上下文**不得**直接依赖 `integration`。
+- ArchUnit 规则：六上下文四层归属、领域层无 Spring/MyBatis、应用层不碰接口/持久化、接口层不碰持久化、客户上下文不反向依赖其他上下文、共享内核不依赖业务上下文。
+
+### 3.2 M1 已交付接口
+
+| 方法 | 路径 | 用途 | 权限码 |
+|---|---|---|---|
+| `GET` | `/crm/customer/page` | 客户分页（数据范围收口） | `sys:crm:customer:list` |
+| `GET` | `/crm/customer/duplicate-check` | 查重（硬冲突 / 软冲突候选） | `sys:crm:customer:duplicate` |
+| `GET` | `/crm/customer/{id}`, `/crm/customer/{id}/360` | 详情 / 客户 360 | `sys:crm:customer:list` |
+| `POST` | `/crm/customer` | 新建（编码 `CUS-{yyyy}-{6位}`） | `sys:crm:customer:create` |
+| `PUT` | `/crm/customer/{id}` | 编辑 | `sys:crm:customer:update` |
+| `PUT` | `/crm/customer/{id}/status`, `.../level` | 启停 / 分级（A/B/C/D） | `sys:crm:customer:status` / `...:level` |
+| `DELETE` | `/crm/customer/{id}` | 逻辑删除 | `sys:crm:customer:delete` |
+| `GET`/`PUT` | `/crm/customer/{id}/profile` | 画像查询 / 保存（版本递增） | `sys:crm:profile:view` / `...:save` |
+| `GET`/`POST`/`PUT`/`DELETE` | `/crm/customer/{id}/contact/**` | 联系人（主联系人唯一） | `sys:crm:contact:list` / `...:manage` |
+| `GET`/`POST`/`PUT`/`DELETE` | `/crm/customer/{id}/address/**` | 地址（默认收货/账单唯一） | `sys:crm:address:list` / `...:manage` |
+| `GET`/`POST` | `/crm/follow-up/page`, `/crm/follow-up` | 跟进查询 / 追加新增（回写最近跟进时间） | `sys:crm:follow-up:list` / `...:create` |
+| `GET` | `/crm/pool/page` | 公海分页 | `sys:crm:pool:view` |
+| `POST` | `/crm/pool/{id}/claim`, `.../release` | 领取（原子更新 + 每日上限）/ 释放 | `sys:crm:pool:claim` / `...:release` |
+| `POST` | `/crm/pool/{id}/assign` | 分配（全量数据范围） | `sys:crm:pool:assign` |
+| `POST` | `/crm/pool/recycle` | 手动回收 | `sys:crm:pool:recycle` |
+| `GET`/`PUT` | `/crm/pool/rule` | 公海规则查询 / 保存 | `sys:crm:pool:rule` |
+| `GET` | `/crm/pool/{id}/owner-logs` | 负责人变更留痕 | `sys:crm:pool:view` |
+
+### 3.3 与计划的偏差（本波明确）
+
+| 项 | 计划 | 本波实现 | 原因 |
+|---|---|---|---|
+| M0-5 数据范围 | auth 内网 `data-scope` 接口 + 部门树 | 角色判定：`tenant_admin/crm_admin/crm_sales_manager/crm_analyst` 全量，其余仅本人 | auth 内网数据范围接口尚未提供，先安全降级为本人范围 |
+| M0-6 集成底座 | 合同/ERP/工作流/消息/文件/文档 6 个客户端 + outbox 重试 | V2 已建 outbox / 同步日志 / 外部引用 / 幂等四表；仅商机摘要端口真实接读，其余在 360 中声明“不可用” | 按里程碑分阶段接入，避免未联调的空壳客户端 |
+| M1-4 客户合并 | 合并预览 + 引用重写 | **未实现**，仅硬/软查重与 `MERGED` 只读态 | 需联系人/商机/合同引用重写与审计，安排在后续增量 |
+| M1-9 导入导出 | CSV 预检 + 异步导出 | **未实现** | 需要异步任务与文件服务联通，安排在后续增量 |
+| M1-10 前端 | 8113 页面 | **未创建** | 后端先行；菜单 413–420 保留不登记 |
+| M1-5 自动回收 | 定时回收默认开启 | 已实现任务，`whale.crm.pool-recycle-enabled` **默认 false** | 灰度先手动触发验证回收规则，再打开定时 |
+| M1-11 审计 | 全部写操作 `@AuditLog` | 18 个写接口已加注解（`crm_customer` / `crm_contact` / `crm_customer_address` / `crm_customer_profile` / 公海 / 跟进）；画像与联系人写接口 `recordParams=false`，避免备注、微信等自由文本落库 | 审计切面按字段名脱敏，自由文本无规则可依，直接关闭参数记录 |
+
+> `/crm/meta` 不读写任何客户表；门禁关闭时业务接口统一返回 `41000`。
 
 ---
 
-## 4. 数据模型（M4/M5 启用时执行）
+## 4. 数据模型（M1 已按 V1–V3 落地；M2–M6 表见全景设计稿 §五）
 
 | 表 | 关键字段 | 说明 |
 |---|---|---|
@@ -89,30 +137,37 @@ LEAD → QUALIFIED → PROPOSAL → NEGOTIATION → WON
 
 ---
 
-## 5. API 规划（门禁通过后才实现）
+## 5. API 清单（M1 已实现；M2–M6 见计划 §4）
 
 | 方法 | 路径 | 用途 | 权限 |
 |---|---|---|---|
 | `GET` | `/crm/meta` | 门禁状态（**已实现**） | `sys:crm:browse` |
-| `GET` | `/crm/customer/page` | 客户分页 | `sys:crm:customer:list` |
-| `GET` | `/crm/customer/{id}` | 客户详情 + 360 摘要 | `sys:crm:customer:list` |
-| `POST` | `/crm/customer` | 新建客户 | `sys:crm:customer:add` |
-| `PUT` | `/crm/customer/{id}` | 编辑客户 | `sys:crm:customer:edit` |
-| `PUT` | `/crm/customer/{id}/status` | 停用/启用 | `sys:crm:customer:edit` |
-| `POST` | `/crm/customer/{id}/contact` | 新增联系人 | `sys:crm:contact:manage` |
-| `GET` | `/crm/opportunity/page` | 商机分页 | `sys:crm:opportunity:list` |
-| `GET` | `/crm/opportunity/funnel` | 销售漏斗 | `sys:crm:opportunity:list` |
-| `POST` | `/crm/opportunity` | 新建商机 | `sys:crm:opportunity:add` |
-| `PUT` | `/crm/opportunity/{id}/stage` | 推进阶段 | `sys:crm:opportunity:stage` |
-| `POST` | `/crm/follow-up` | 新增跟进 | `sys:crm:followup:add` |
-| `GET` | `/crm/follow-up/page` | 跟进分页 | `sys:crm:followup:list` |
+| `GET` | `/crm/customer/page` | 客户分页（**已实现**） | `sys:crm:customer:list` |
+| `GET` | `/crm/customer/{id}` | 客户详情（**已实现**） | `sys:crm:customer:list` |
+| `GET` | `/crm/customer/{id}/360` | 客户 360（**已实现**） | `sys:crm:customer:list` |
+| `GET` | `/crm/customer/duplicate-check` | 查重（**已实现**） | `sys:crm:customer:duplicate` |
+| `POST` | `/crm/customer` | 新建客户（**已实现**） | `sys:crm:customer:create` |
+| `PUT` | `/crm/customer/{id}` | 编辑客户（**已实现**） | `sys:crm:customer:update` |
+| `PUT` | `/crm/customer/{id}/status` | 停用 / 启用（**已实现**） | `sys:crm:customer:status` |
+| `PUT` | `/crm/customer/{id}/level` | 客户分级（**已实现**） | `sys:crm:customer:level` |
+| `DELETE` | `/crm/customer/{id}` | 逻辑删除（**已实现**） | `sys:crm:customer:delete` |
+| `GET`/`PUT` | `/crm/customer/{id}/profile` | 画像（**已实现**） | `sys:crm:profile:view` / `sys:crm:profile:save` |
+| `GET`/`POST`/`PUT`/`DELETE` | `/crm/customer/{id}/contact/**` | 联系人（**已实现**） | `sys:crm:contact:list` / `sys:crm:contact:manage` |
+| `GET`/`POST`/`PUT`/`DELETE` | `/crm/customer/{id}/address/**` | 地址（**已实现**） | `sys:crm:address:list` / `sys:crm:address:manage` |
+| `GET`/`POST` | `/crm/follow-up/page`、`/crm/follow-up` | 跟进（**已实现**） | `sys:crm:follow-up:list` / `sys:crm:follow-up:create` |
+| `GET`/`POST`/`PUT` | `/crm/pool/**` | 公海（**已实现**） | `sys:crm:pool:view/claim/release/assign/rule/recycle` |
+| `GET` | `/crm/opportunity/page`、`/crm/opportunity/funnel` | 商机分页 / 漏斗（**M2 规划**） | `sys:crm:opportunity:list` |
+| `POST`/`PUT` | `/crm/opportunity`、`/crm/opportunity/{id}/stage` | 新建 / 推进阶段（**M2 规划**） | `sys:crm:opportunity:create` / `sys:crm:opportunity:stage` |
 
-**权限编号 337–354**（18 项，已登记）；**菜单 57–62 预留**，M4 启用时再追加。
+> 完整请求/响应字段以 `customer.application.view` 与 `interfaces.controller` 为准；权限码与 `CrmPermissions`、`migration-5.83-crm.sql` 三者一致。
+
+**权限编号 1800–1899**（已用 1800 敏感明文、1810–1830 客户主数据；337–354 为历史登记，保留不动）；
+**菜单 410–449**（413–420 预留未登记，前端交付时追加）。
 不提前注册菜单，避免用户看到点击即 403 的空入口。
 
 ---
 
-## 6. 安全与数据权限（承诺，M4 验收）
+## 6. 安全与数据权限（M1 已落地，M2 起扩展）
 
 1. 跨租户访问一律 404，不泄露存在性；
 2. 客户可见范围按本人 / 本部门 / 授权范围收口（数据权限）；
@@ -123,7 +178,7 @@ LEAD → QUALIFIED → PROPOSAL → NEGOTIATION → WON
 
 ---
 
-## 7. 验收标准（门禁通过后生效）
+## 7. 验收标准（M1 已自检；M2 起按里程碑复核）
 
 1. `customer_code` 租户内唯一，重复新增 / 改码返回业务错误；
 2. 只能看到本人 / 本部门 / 授权范围客户，跨租户 404；
@@ -142,15 +197,15 @@ LEAD → QUALIFIED → PROPOSAL → NEGOTIATION → WON
 |---|---|---|
 | R5 | 需求未确认即编码 → 域模型漂移、返工 | 门禁四项条件 + ADR-003 + Domain Modeling 复核 |
 | R6 | 客户主数据与 ERP/合同重复 | CRM 唯一客户主数据；合同只存引用快照；供应商归 ERP/SRM |
-| R10 | 权限/菜单编号冲突 | 337–354 / 菜单 57–62 预留；迁移脚本幂等、只增不删 |
+| R10 | 权限/菜单编号冲突 | 权限 1800–1899（已用 1800、1810–1830）、菜单 410–449（413–420 预留）；迁移脚本幂等、只增不删 |
 
 ---
 
-## 9. 变更触发清单（门禁通过时必须同步）
+## 9. 变更触发清单（M2 起同步）
 
 1. `whale.crm.demand-gate-passed=true`（环境变量 `WHALE_CRM_DEMAND_GATE_PASSED`）；
 2. ADR-003 定稿与 Domain Modeling 复核记录；
-3. M4 追加菜单 57–62 迁移脚本（幂等）；
+3. 前端交付时追加菜单 413–420 迁移脚本（幂等）；
 4. 新建前端 `frontend/platform-apps/whale-crm`（8113、base `/crm`）并接入基座；
 5. CI 镜像矩阵与部署契约计数同步（后端已有 `whale-crm`；前端新增时再 +1）；
-6. 本设计稿状态改为“M4 已落地”，并补 `docs/reviews/` 检查报告与 devlog。
+6. 每个里程碑完成后更新本设计稿状态与 `docs/reviews/` 检查报告、`docs/devlog/` 记录（M1 已完成）。

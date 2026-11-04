@@ -5,18 +5,21 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
- * 客户关系应用启动类（Wave 5.77，规划态模块骨架）。
+ * 客户关系应用启动类（Wave 5.83，M0 底座 + M1 客户主数据）。
  *
- * <p><b>需求门禁（ADR-003）未通过前，本应用只提供 {@code /crm/meta} 门禁状态查询，
- * 不开放任何客户 / 联系人 / 商机 / 跟进业务接口。</b>数据库表结构与权限点先登记，
- * 便于门禁通过后直接进入 M4，避免二次评审与返工。</p>
+ * <p>需求门禁已通过（REQ-FUNC-080..086 / REQ-ARCH-024 / REQ-SEC-034），
+ * {@code whale.crm.demand-gate-passed=false} 可一键回退到仅 {@code /crm/meta} 的维护态。
+ * 六上下文（customer / sales / commerce / service / marketing / analytics）与
+ * integration / common 共用本模块化单体。</p>
  *
  * @author BlueWhale
  */
 @SpringBootApplication
 @EnableDiscoveryClient
+@EnableScheduling
 @EnableConfigurationProperties(CrmProperties.class)
 public class WhaleCrmApplication {
 

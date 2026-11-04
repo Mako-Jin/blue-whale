@@ -53,11 +53,16 @@ whale:
     header:
       enabled: true
   crm:
-    # 需求门禁（D2）未通过前必须保持 false：只暴露 /crm/meta，不开放业务 CRUD
-    demand-gate-passed: ${WHALE_CRM_DEMAND_GATE_PASSED:false}
+    # 需求门禁（D2）已通过（Wave 5.83）；置为 false 可一键回退到仅 /crm/meta 的维护态
+    demand-gate-passed: ${WHALE_CRM_DEMAND_GATE_PASSED:true}
     customer-code-prefix: ${WHALE_CRM_CUSTOMER_CODE_PREFIX:CUS}
     follow-up-page-limit: ${WHALE_CRM_FOLLOW_UP_PAGE_LIMIT:100}
     contract-reference-enabled: ${WHALE_CRM_CONTRACT_REFERENCE_ENABLED:false}
+    default-customer-level: ${WHALE_CRM_DEFAULT_CUSTOMER_LEVEL:C}
+    # 公海自动回收：默认关闭，由运维确认规则后开启
+    pool-recycle-enabled: ${WHALE_CRM_POOL_RECYCLE_ENABLED:false}
+    pool-recycle-cron: ${WHALE_CRM_POOL_RECYCLE_CRON:0 0 2 * * ?}
+    pool-recycle-batch-size: ${WHALE_CRM_POOL_RECYCLE_BATCH_SIZE:200}
 
 mybatis-plus:
   configuration:

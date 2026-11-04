@@ -14,8 +14,8 @@ import java.util.List;
 /**
  * 客户关系门禁状态接口。
  *
- * <p>门禁未通过时只返回规划状态与后续里程碑，不暴露任何业务数据；
- * 该接口也不读写客户表，避免在门禁前产生脏数据。</p>
+ * <p>门禁通过时返回已启用的里程碑；门禁关闭时只返回规划状态与后续里程碑，
+ * 不暴露任何业务数据；该接口不读写客户表。</p>
  *
  * @author BlueWhale
  */
@@ -37,9 +37,9 @@ public class CrmMetaController {
         CrmMetaView view = new CrmMetaView();
         view.setDemandGatePassed(crmProperties.isDemandGatePassed());
         view.setMessage(crmProperties.isDemandGatePassed()
-                ? "需求门禁已通过，可进入 M4 客户与联系人"
+                ? "需求门禁已通过：M0 底座与 M1 客户主数据接口已启用"
                 : "需求门禁未通过：仅保留规划与权限登记，业务接口未启用");
-        view.setMilestones(List.of("M4 客户与联系人", "M5 商机与合同联动"));
+        view.setMilestones(List.of("M0 底座", "M1 客户主数据", "M2 线索与商机"));
         view.setBoundaries(List.of(
                 "客户主数据归 CRM，供应商归 ERP/SRM，二者不合并",
                 "合同只保存 crmCustomerId 快照，不复制客户主数据",

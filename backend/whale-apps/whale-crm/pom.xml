@@ -13,7 +13,7 @@
 
     <artifactId>whale-crm</artifactId>
     <name>Whale CRM</name>
-    <description>客户关系应用（规划态模块骨架，需求门禁通过后进入 M4/M5，Wave 5.77）</description>
+    <description>客户关系应用（Wave 5.83：M0 底座 + M1 客户主数据，客户 / 销售 / 商务 / 服务 / 营销 / 分析六上下文）</description>
 
     <dependencies>
         <dependency>

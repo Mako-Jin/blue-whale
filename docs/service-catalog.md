@@ -84,7 +84,7 @@
 | `whale-music` | `Path=/music/**` | `lb://whale-music` | whale-music | ✅ 已配（Wave 5.75 M0；**不配 `StripPrefix`**，内网 `/music/internal/**` 由 internal-deny 403，M5 起四类路径限流：流式 120 / 评论 20 / 票据 60 / 点赞 30 每分钟） |
 | `whale-video` | `Path=/video/**` | `lb://whale-video` | whale-video | ✅ 已配（Wave 5.77 M0；**不配 `StripPrefix`**，内网 `/video/internal/**` 由 internal-deny 403；M5 起六类路径限流：流式 120 / 票据 60 / 评论 20 / 点赞 30 / 收藏 30 / 上传 20 每分钟，超阈值 429 + `code=429`；**不加入熔断名单**） |
 | `whale-scene` | `Path=/scene/**` | `lb://whale-scene` | whale-scene | ✅ 已配（Wave 5.77 M1/M2；**不配 `StripPrefix`**，内网 `/scene/internal/**` 由 internal-deny 403） |
-| `whale-crm` | `Path=/crm/**` | `lb://whale-crm` | whale-crm | ✅ 已配（门禁骨架；**不配 `StripPrefix`**，内网 `/crm/internal/**` 由 internal-deny 403） |
+| `whale-crm` | `Path=/crm/**` | `lb://whale-crm` | whale-crm | ✅ 已配（M0 底座 + M1 客户主数据已落地；**不配 `StripPrefix`**，内网 `/crm/internal/**` 由 internal-deny 403） |
 | `whale-config` | `Path=/config/**` | `lb://whale-config` | whale-config | ✅ 已配（Wave 5.73 F-05 解冻：配置项 CRUD / 版本历史 / 回滚；**不配 `StripPrefix`**） |
 
 **网关免鉴权白名单**：`/auth/login`、`/auth/refresh`、`/actuator/**`、`/v3/api-docs/**`、`/doc.html`、`/webjars/**`、`/favicon.ico`、`/audit/log/frontend/batch`、`/audit/log/behavior/batch`（后两条为前端/行为日志上报，Wave 5.19 起仅放行 batch 写入端点）、`/doc/ws`（WS 不携带 Authorization 头，改走 60s 一次性 ticket）。
@@ -113,7 +113,7 @@
 | 16 | whale-music | `frontend/platform-apps/whale-music` | `whale-music` | qiankun **子应用**（音乐平台：首页/发现、搜索、曲库、上传 / 我的作品（**版权申诉入口**）、**全局播放器（播放条 / 队列 / 歌词抽屉）**、歌单、评论区、我的音乐） | **8111** | `/music` | 微应用名 `whale-music`（Wave 5.75 M1–M5；页面已接入基座，build + lint 通过） |
 | 17 | whale-video | `frontend/platform-apps/whale-video` | `whale-video` | qiankun **子应用**（视频平台：首页/发现、短视频滑播、视频与系列、电影、我的视频、观看历史） | **8114** | `/video` | 微应用名 `whale-video`（Wave 5.77 M0–M5 已落地；页面接入基座，build + lint 通过） |
 | 18 | whale-scene | `frontend/platform-apps/whale-scene` | `whale-scene` | qiankun **子应用**（城池场景导航：2D 地图 / 键盘列表 / 场景管理 / 入口绑定 / 可见性；3D 为 M3 可选增强） | **8112** | `/scene` | 微应用名 `whale-scene`（Wave 5.77 M1/M2 已落地；build + lint 通过） |
-| 19 | whale-crm（**规划**） | `frontend/platform-apps/whale-crm`（**未创建**） | `whale-crm` | qiankun **子应用**（客户 / 联系人 / 商机 / 销售漏斗） | **8113** | `/crm` | 微应用名 `whale-crm`（需求门禁未通过，本波不建前端） |
+| 19 | whale-crm（**规划**） | `frontend/platform-apps/whale-crm`（**未创建**） | `whale-crm` | qiankun **子应用**（客户 / 联系人 / 商机 / 销售漏斗） | **8113** | `/crm` | 微应用名 `whale-crm`（后端 M0/M1 已落地；前端待后续增量，菜单 413–420 预留不登记） |
 
 共享包（不占端口）：`frontend/shared-packages/whale-common-tools`、`whale-common-theme`、`whale-log-sdk`、`frontend/elemental/whale-ui`（NPM scope `@bluewhale/`）。
 冻结共享包（无消费方，不删除代码、不升级依赖）：`frontend/shared-packages/whale-common-three`（F-09）、`frontend/games/whale-games-core`（F-07）。
@@ -181,7 +181,7 @@
 | **8110** | `whale-doc` | 前端（子应用） | base `/doc`（Wave 5.74 M1 骨架，已接入基座菜单与 qiankun） |
 | **8111** | `whale-music` | 前端（子应用） | base `/music`（Wave 5.75 M1–M5 页面、播放器与申诉入口已落地，已接入基座菜单与 qiankun） |
 | **8112** | `whale-scene` | 前端（子应用） | base `/scene`（Wave 5.77 M1/M2 已落地，已接入基座菜单与 qiankun） |
-| **8113** | `whale-crm` | 前端（子应用） | base `/crm`（需求门禁未通过，本波不建前端） |
+| 19 | whale-crm（**规划**） | `frontend/platform-apps/whale-crm`（**未创建**） | `whale-crm` | qiankun **子应用**（客户 / 联系人 / 商机 / 销售漏斗） | **8113** | `/crm` | 微应用名 `whale-crm`（后端 M0/M1 已落地；前端待后续增量，菜单 413–420 预留不登记） |
 | **8114** | `whale-video` | 前端（子应用） | base `/video`（Wave 5.77 M0–M5 页面已落地，已接入基座菜单与 qiankun） |
 | **8848** | Nacos | 基础设施 | HTTP OpenAPI + 主服务（contextPath `/nacos`） |
 | **8849** | Nacos Console | 基础设施 | 控制台（仅 Nacos 3.x；本机 2.4.0 无独立控制台端口） |
@@ -192,7 +192,7 @@
 | **9004** | `whale-oa` | 后端 | OA |
 | **9005** | `whale-pm` | 后端 | 项目管理（Wave 5.55 M1） |
 | **9006** | `whale-contract` | 后端 | 合同管理（Wave 5.61 M1） |
-| **9007** | `whale-crm` | 后端 | 客户关系（Wave 5.77 门禁骨架可启动，仅 `/crm/meta`） |
+| 27 | `whale-crm`（**门禁骨架**） | whale-apps | `whale-apps/whale-crm` | **9007** | `/crm/**` | ✅ `lb://whale-crm`（门禁骨架；**不配 `StripPrefix`**，`/crm/internal/**` 由 internal-deny 403） | **`bluewhale_crm`**（4 张业务表 DDL：`crm_customer` / `crm_contact` / `crm_opportunity` / `crm_follow_up`，无业务种子） | `WhaleCrmApplication` | 客户关系：客户/联系人/商机/销售阶段/跟进/客户 360；供应商仍归 ERP/SRM，合同相对方只引用 `crmCustomerId` 快照 | **门禁骨架可启动**（仅 `GET /crm/meta` 返回门禁状态与里程碑；门禁通过前不建业务 CRUD / 菜单 / 前端，见 ADR-003 规划） |
 | **9090** | Prometheus | 基础设施 | 指标采集（compose `bw-prometheus`） |
 | **9093** | Alertmanager | 基础设施 | 告警路由（compose `bw-alertmanager`） |
 | **9101** | `whale-audit` | 后端 | 审计日志 |
@@ -234,9 +234,9 @@
 | **8000–8099** | **前端 dev server**：基座 `8000`、admin `8001`、form-designer `8002`、workflow-designer `8003`、agent `8004` | 已落地（C-01 已解） |
 | **8080** | **网关（唯一后端入口）** | 已运行 |
 | **8081–8099** | **核心服务** | auth 8081、job 8082、workflow 8083、form 8084、file 8085、pay 8086、**agent 8090、im 8091、ai 8092（Python）、archive 8093、message 8094、doc 8095（M1 骨架）、music 8096（M0–M5 已落地）、scene 8097（M1/M2 2D 已落地）、video 8098（M0–M5 已落地）**（8087 已随 `whale-i18n` 服务删除释放，Wave 5.50） |
-| **8101–8199** | **qiankun 子应用 + 运维端** | portal 8101、erp 8102、oa 8103、ops 8104、mes 8105、pdm 8106、**im 8107、pm 8108、contract 8109、doc 8110、music 8111（M0–M5 已落地）、scene 8112（M1/M2 已落地）、crm 8113（规划）、video 8114（M0–M5 已落地）** |
+| **8101–8199** | **qiankun 子应用 + 运维端** | portal 8101、erp 8102、oa 8103、ops 8104、mes 8105、pdm 8106、**im 8107、pm 8108、contract 8109、doc 8110、music 8111（M0–M5 已落地）、scene 8112（M1/M2 已落地）、crm 8113（后端 M0/M1 已落地，前端规划）、video 8114（M0–M5 已落地）** |
 | **8848 / 8849 / 9848 / 9849** | **Nacos** | 已运行 |
-| **9001–9099** | **业务应用** | erp 9001、mes 9002、pdm 9003、oa 9004、**pm 9005、contract 9006、crm 9007（门禁骨架）** |
+| **9001–9099** | **业务应用** | erp 9001、mes 9002、pdm 9003、oa 9004、**pm 9005、contract 9006、crm 9007（M0/M1 已落地）** |
 | **9101–9199** | **运维（ops）** | audit 9101、monitor 9102、alert 9103 |
 | **9201–9299** | **注册与配置** | config 9201 |
 
@@ -290,10 +290,10 @@
 | **C-05** | ~~注册中心环境变量名分裂：网关 `NACOS_ADDR` vs 其余 `NACOS_SERVER`~~ | **已解（2026-10-26）** | **✅ 已整改**：`whale-gateway`/`whale-auth` 改为 `${NACOS_SERVER:${NACOS_ADDR:127.0.0.1:8848}}`，统一首选 `NACOS_SERVER` 且保留 `NACOS_ADDR` 回退；`scripts/dev/whale-start-all.ps1` 同步传 `NACOS_SERVER` |
 | **C-06** | ~~8 个业务服务库在规范 §八 已登记库名，但 `application.yml` **均未配数据源**、库亦未建~~ | **已解（2026-10-27）** | **✅ 已整改**：auth/audit/job/workflow/form/file/pay/alert 共 8 个服务均已配数据源并建库（原 `whale-i18n` 服务及 `bluewhale_i18n` 库已于 Wave 5.50 删除，国际化改由 SDK 在各服务库内自建 `sys_i18n_message`）；`erp/mes/pdm/oa` 四个业务应用也已分别接入 `bluewhale_erp` / `bluewhale_mes` / `bluewhale_pdm` / `bluewhale_oa` 独立数据源，compose 初始化脚本创建 4 库，各应用 `db/init.sql` 各建 2 张表。**C-06 全部闭环** |
 | **C-07** | ~~Prometheus/Grafana/Sentinel 仅在文档中「规划」，compose 未定义、网关未接 Sentinel~~ | **已解（2026-10-26）** | **✅ Prometheus/Grafana/Alertmanager 已落地**：compose 新增 `bw-prometheus`(9090)/`bw-grafana`(3000)/`bw-alertmanager`(9093)，配置 `infrastructure/prometheus/prometheus-docker.yml`、`alertmanager-docker.yml`、Grafana provisioning 数据源，规则复用 `deploy/monitoring/prometheus-rules.yml`；实机 healthy，宿主机 gateway/auth/workflow/contract 抓取 up。**Sentinel 结案不引入**（见 [GW-01 评估](reviews/2026-10-21-wave5.35-sentinel-evaluation.md)）：限流由网关 `RateLimitGlobalFilter`（Redis 固定窗口，`whale.gateway.rate-limit.*`，429）承担，熔断由 `CircuitBreakerGlobalFilter`（resilience4j，`whale.gateway.circuit-breaker.*`，503）承担；重开条件为具备制品库/Dashboard 或出现热点参数、集群流控等现有方案不覆盖的诉求。**实机验证（2026-10-26）**：`/audit/log/behavior/batch` 特化规则 30/s，并发 60 次得 30 个 429 + 30 个 503；全局规则 200/s，并发 400 次得 18 个 429；`whale.gateway.rate-limit` 计数键正常落 Redis，无降级告警 |
-| **C-08** | `whale-scene` / `whale-crm` 已登记但未编码 | **规划** | Wave 5.77；场景先做 M0–M2（2D 优先），CRM 需通过需求门禁后再进入 M4；详见 [Wave 5.77 计划](plans/2026-11-03-wave5.77-scene-and-crm.md) |
+| **C-08** | `whale-scene` M1/M2 已落地；`whale-crm` M0/M1 已落地 | **部分落地** | Wave 5.77 场景（2D 优先）与 Wave 5.83 CRM 首切片（M0 底座 + M1 客户主数据）均已交付；CRM M2–M6 见 [Wave 5.83 计划](plans/2026-11-04-wave5.83-crm-panorama.md) §12 |
 | **C-09** | `whale-mes` 仅生产工单占位 CRUD，七大模块其余能力缺失 | **规划** | Wave 5.79；M0 车间主数据 + M1 调度执行，M2 物料追溯、M3 质量、M4 设备采集、M5 人员绩效；权限 1100–1399 / 菜单 240–299 / 角色 20703–20707 预留；详见 [Wave 5.79 计划](plans/2026-11-04-wave5.79-mes-panorama.md) 与 [MES 设计稿](design/mes-module-panorama.md) |
 | **C-10** | `whale-pdm` 仅产品档案占位 CRUD，图文档/BOM/变更/工艺/集成能力缺失 | **规划** | Wave 5.80；M0 图文档、M1A 零件库/EBOM 发布、M1B 多视图/对比、M2 变更、M3 工艺、M4 协同预览、M5 集成；权限 900–1099 / 菜单 180–219 / 角色 21103–21106 预留；详见 [Wave 5.80 计划](plans/2026-11-04-wave5.80-pdm-panorama.md) 与 [PDM 设计稿](design/pdm-module-panorama.md) |
-| **C-11** | `whale-crm` 仅门禁骨架，客户/销售/商务/售后/营销/分析能力缺失 | **规划** | Wave 5.83；M0 底座 + M1 客户主数据，M2–M6 按计划推进；权限 1800–1899 / 菜单 410–449 / 角色 25128–25132 预留；详见 [Wave 5.83 计划](plans/2026-11-04-wave5.83-crm-panorama.md) 与 [CRM 设计稿](design/crm-module-panorama.md) |
+| **C-11** | `whale-crm` 已交付 M0 底座 + M1 客户主数据（客户 / 联系人 / 地址 / 画像 / 公海 / 跟进 / 360）；销售 / 商务 / 售后 / 营销 / 分析仍缺失 | **部分落地** | Wave 5.83；M0/M1 后端已落地（门禁默认开启），M2–M6 按计划推进；权限 1800–1899（已用 1800、1810–1830）/ 菜单 410–449（未登记）/ 角色 25128–25132 已登记；详见 [Wave 5.83 计划](plans/2026-11-04-wave5.83-crm-panorama.md) 与 [CRM 设计稿](design/crm-module-panorama.md) |
 | **C-12** | `whale-oa` 仅请假 CRUD（2 表、6 端点），审批中心/考勤/报销/协同/公文/文化/人员异动/报表缺失 | **规划** | Wave 5.82；M0 审批底座 + M1A 审批中心/请假闭环，M1B–M6 按计划推进；权限 1600–1799 / 菜单 360–409 / 角色 25123–25127 预留；详见 [Wave 5.82 计划](plans/2026-11-04-wave5.82-oa-panorama.md) |
 
 > 说明：C-04 口径现为 Nacos **3.2.4**（本机 `tools/nacos` 与 compose 一致）；历史记录中的 2.4.0/2.3.2 口径作废。

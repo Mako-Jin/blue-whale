@@ -1,11 +1,14 @@
-# CRM 功能模块全景：领域模型与架构设计（规划稿）
+# CRM 功能模块全景：领域模型与架构设计
 
-> 状态：**规划（2026-11-04，零代码）**；需求门禁仍未通过，业务编码不得启动
+> 状态：**首切片 M0 底座 + M1 客户主数据已实施（后端，2026-11-04）**；M2–M6 仍为规划
+> 实施结果与偏差：[Wave 5.83 计划 §12](../plans/2026-11-04-wave5.83-crm-panorama.md)
 > 输入：用户《CRM 功能模块全景》六大模块 29 个子模块，以及 CRM 与 ERP / OA / 合同 / 消息 / 知识库的边界说明
 > 关联计划：[Wave 5.83 CRM 全景实施计划](../plans/2026-11-04-wave5.83-crm-panorama.md)
 > 关联需求：REQ-FUNC-080..086、REQ-ARCH-024、REQ-SEC-034
-> 关联事实：[服务清单](../service-catalog.md) · [CRM 门禁设计稿](crm-service.md) · [ERP 全景设计稿](erp-module-panorama.md) · [MES 全景设计稿](mes-module-panorama.md) · [PDM 全景设计稿](pdm-module-panorama.md)
+> 关联事实：[服务清单](../service-catalog.md) · [CRM 服务设计稿](crm-service.md) · [ERP 全景设计稿](erp-module-panorama.md) · [MES 全景设计稿](mes-module-panorama.md) · [PDM 全景设计稿](pdm-module-panorama.md)
 > 基线：`whale-crm` 门禁骨架（9007 / `/crm/**` / `bluewhale_crm` / 前端 8113 未创建）
+>
+> 说明：§二“现状基线”保留 **2026-11-04 首切片实施前** 的实测快照，用于解释差距来源；当前代码事实以 [CRM 服务设计稿](crm-service.md) §3 为准。
 
 ---
 
@@ -15,8 +18,8 @@
 2. **保持模块化单体，不拆微服务**：继续 `whale-crm`（9007、`/crm/**`、`bluewhale_crm`、包 `com.bluewhale.crm`、前端 8113），内部按 `customer / sales / commerce / service / marketing / analytics` 六个业务上下文 + `integration / common` 技术分区组织。
 3. **首个切片 = M0 底座 + M1 客户主数据**：客户是全链路的外键和权限归属载体，没有客户分级、查重、公海、跟进和 360，后面的商机、合同、工单、营销都无法闭环。
 4. **不复制相邻域能力**：合同正文/模板/审批/签署/归档归 `whale-contract`；发货/库存/应收/信用/记账归 ERP；审批引擎归 `whale-workflow`；消息投递归 `whale-message`；附件字节归 `whale-file`；知识正文归 `whale-doc`；聊天归 `whale-im`。
-5. **全景与旧门禁冲突，必须先复核**：旧门禁第 4 条明确「本期不做线索评分、营销自动化、客服工单」，与本全景的线索、营销、工单直接冲突。本稿只做规划，是否扩展由 D1 决策；未确认前 `whale.crm.demand-gate-passed` 必须保持 `false`。
-6. **客户主数据归属仍未闭环**：ERP 已存在 `erp_customer` 业务主数据，ERP 设计稿 D9 尚未最终定稿。本稿推荐「CRM 是客户关系主数据上游，ERP 保留开票/信用/AR 业务扩展字段」，但必须由 D2 确认，否则会出现客户双头。
+5. **全景与旧门禁冲突，已由 D1 决策打开**：旧门禁第 4 条明确「本期不做线索评分、营销自动化、客服工单」，与本全景的线索、营销、工单直接冲突。按 D1 采用全景口径，`whale.crm.demand-gate-passed` 已默认为 `true`（`WHALE_CRM_DEMAND_GATE_PASSED=false` 可一键回退）；线索、营销、工单在 M2–M6 分批交付。
+6. **客户主数据归属仍未闭环**：ERP 已存在 `erp_customer` 业务主数据，ERP 设计稿 D9 尚未最终定稿。本稿推荐「CRM 是客户关系主数据上游，ERP 保留开票/信用/AR 业务扩展字段」；首切片已按该推荐落地（CRM 不向 ERP 复制客户主数据），契约仍需在 M3 前由 D2 定稿，否则会出现客户双头。
 7. **合同/订单/回款/发票必须切清**：CRM 管商务侧合同台账、销售订单、回款计划、开票申请与寄送；ERP 管履约订单、发货、库存、应收核销、信用与财务记账。销售订单通过内网契约幂等下发 ERP，不做分布式事务。
 8. **编号避让**：ERP 已占权限 355–599 / 菜单 63–119；PDM 规划占 900–1099 / 180–219；MES 规划占 1100–1399 / 240–299；OA 规划占 1600–1799 / 360–409 / 25123–25127。CRM 使用权限 **1800–1899**、菜单 **410–449**、角色 **25128–25132**，避免四方撞号。
 

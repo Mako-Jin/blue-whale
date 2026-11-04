@@ -63,6 +63,46 @@ class CrmFlywayMigrationScriptTest {
                 "门禁通过前不得写入客户 / 联系人 / 商机 / 跟进种子数据");
     }
 
+    @Test
+    @DisplayName("V2 底座：新增集成四表，且不写业务种子数据")
+    void foundationShouldContainIntegrationTables() throws IOException {
+        Set<String> tables = extractTables(MIGRATION_DIR.resolve("V2__crm_foundation.sql"));
+        assertEquals(Set.of("crm_common_outbox", "crm_int_sync_log", "crm_external_ref", "crm_idempotency"),
+                tables);
+        String content = Files.readString(MIGRATION_DIR.resolve("V2__crm_foundation.sql"), StandardCharsets.UTF_8);
+        assertFalse(content.toUpperCase().contains("INSERT INTO CRM_"),
+                "底座增量不得写入客户 / 联系人 / 商机种子数据");
+    }
+
+    @Test
+    @DisplayName("V2 通过 information_schema 守卫增列，不依赖 MySQL 不支持的 ADD COLUMN IF NOT EXISTS")
+    void foundationShouldGuardColumnAdds() throws IOException {
+        String content = Files.readString(MIGRATION_DIR.resolve("V2__crm_foundation.sql"), StandardCharsets.UTF_8);
+        String upper = content.toUpperCase();
+        assertTrue(upper.contains("INFORMATION_SCHEMA.COLUMNS"), "增列必须用 information_schema 存在性守卫");
+        assertTrue(upper.contains("PREPARE STMT FROM @DDL"), "守卫后应通过动态 SQL 执行增列");
+        boolean forbiddenSyntax = Files.readAllLines(MIGRATION_DIR.resolve("V2__crm_foundation.sql"), StandardCharsets.UTF_8)
+                .stream()
+                .map(line -> line.trim().toUpperCase())
+                .filter(line -> !line.startsWith("--"))
+                .anyMatch(line -> line.contains("ADD COLUMN IF NOT EXISTS"));
+        assertFalse(forbiddenSyntax, "MySQL 8.0 不支持 ADD COLUMN IF NOT EXISTS（注释除外）");
+        assertTrue(upper.contains("ADD COLUMN POOL_STATUS"), "公海状态列应由底座增量补齐");
+    }
+
+    @Test
+    @DisplayName("V3 画像：新增地址 / 画像 / 公海规则 / 负责人留痕四表")
+    void profileShouldContainCustomerTables() throws IOException {
+        Set<String> tables = extractTables(MIGRATION_DIR.resolve("V3__customer_profile.sql"));
+        assertEquals(Set.of("crm_customer_address", "crm_customer_profile",
+                "crm_customer_pool_rule", "crm_customer_owner_log"), tables);
+        String content = Files.readString(MIGRATION_DIR.resolve("V3__customer_profile.sql"), StandardCharsets.UTF_8);
+        assertFalse(content.toUpperCase().contains("INSERT INTO CRM_"),
+                "画像增量不得写入客户 / 联系人种子数据");
+        assertTrue(content.contains("UNIQUE KEY uk_crm_profile_customer"),
+                "客户画像每租户每客户唯一");
+    }
+
     /**
      * 列出迁移脚本。
      *
