@@ -93,10 +93,10 @@
 
 | 子模块 | 能力 | 现状 | 落点 |
 |---|---|---|---|
-| 驾驶舱 | 收入/成本/利润/订单实时看板 | ❌ | `analytics.cockpit`：`erp_cockpit_snapshot` |
-| 多维分析 | 部门/产品/客户/区域钻取 | ❌ | `analytics.cube`：事实视图 + 维度表（只读投影） |
-| 报表中心 | 自定义、定时推送、导出 | ❌ | `analytics.report`：`erp_report_def`/`erp_report_schedule`；推送调 `whale-message` |
-| 预警中心 | 库存/超期应收/超预算/质量异常，出计划 | ❌ | `analytics.alert`：`erp_alert_rule`/`erp_alert_event`；出计划落 `erp_mrp_result` 或 `erp_plan_suggestion` |
+| 驾驶舱 | 收入/成本/利润/订单实时看板 | 🟡 | `analytics.cockpit`：`erp_bi_cockpit_snapshot`（按期间 + 统计日快照，刷新置旧快照 `STALE`） |
+| 多维分析 | 部门/产品/客户/区域钻取 | 🟡 | `analytics.cube`：5 个只读事实视图 + 维度 `CUSTOMER/ITEM/WAREHOUSE` × 指标 `REVENUE/QUANTITY/ORDER_COUNT/COST` |
+| 报表中心 | 自定义、定时推送、导出 | 🟡 | `analytics.report`：`erp_bi_report_def`/`erp_bi_report_schedule`；同步 CSV 导出已落地，推送调 `whale-message` 未接 |
+| 预警中心 | 库存/超期应收/超预算/质量异常，出计划 | 🟡 | `analytics.alert`：`erp_bi_alert_rule`/`erp_bi_alert_event`；超预算因预算模块未落地暂跳过；出计划落 `erp_mrp_result` 或 `erp_plan_suggestion` 未做 |
 
 ---
 
@@ -368,6 +368,12 @@ com.bluewhale.erp
 > 顺延启用 **441–455**（预测 441–444、MPS 445–448、生产订单 449–455）与菜单 **84–86**
 > （需求预测 / 主生产计划 / 生产订单）；新增角色 **`erp_mfg`（25113）**，命名沿用 `erp_scm` 风格，未采用设计稿的 `erp_planner`；
 > 脚本见 `backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-5.78-erp-mfg.sql`。
+>
+> **实施进度（M6，2026-11-04）**：数据分析原 `550–569 / 101–105` 段因 HR 实际用至 474、QC 用至 494、菜单用至 93，
+> 顺延启用权限 **495–506**（驾驶舱 495–496、多维 497、报表 498–502、预警 503–506）与菜单 **94–97**
+> （经营驾驶舱 / 多维分析 / 报表中心 / 预警中心），507–514 保留；
+> 新增角色 **`erp_bi`（25116）**；`erp_finance` 得 495/497/498/500/501，`erp_member` 得 495/497/498/500/503；
+> 脚本见 `backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-5.78-erp-m6.sql`。
 
 ---
 
@@ -502,7 +508,30 @@ SPC/CPK、FMEA、供应商质量绩效、质量追溯、设备备件与派工、
 
 ---
 
-## 十六、变更记录
+## 十六、M6 数据分析与报表中心实施偏差（2026-11-04）
+
+第一阶段范围：经营驾驶舱（快照缓存/刷新/失效）、多维分析（维度 × 指标）、报表定义/定时计划/执行/CSV 导出、
+预警规则/评估/确认/关闭。
+外部 BI 引擎、报表定时推送、部门/区域维度、超预算预警、预警转计划建议不在本阶段。
+
+| 设计项 | 设计稿原方案 | 实际落地 | 原因 |
+|---|---|---|---|
+| 表清单 | `erp_cockpit_snapshot`、`erp_report_def`、`erp_report_schedule`、`erp_alert_rule`、`erp_alert_event` | `V8__bi.sql`：5 张统一 `erp_bi_*` 表，另建 **5 个只读事实视图** | 统一前缀收敛权限域与表空间；视图让 Analytics 不复制交易事实、不依赖其他上下文 Java 类型 |
+| 数据来源 | 事实视图 + 维度表（只读投影），跨上下文聚合 | 5 个视图直接投影 `erp_scm_sales_order(_line)`、`erp_scm_stock_movement`、`erp_scm_stock_balance`、`erp_fin_receivable`、`erp_qc_ncr` | 不建维度物理表，维度来自事实字段；避免 ETL 与双写不一致 |
+| 驾驶舱缓存 | 快照 + 缓存 60s | 快照按 `(period_code, stat_date)` 唯一；读取 `ACTIVE`，无则懒加载；刷新与懒加载前 `markPeriodStale`，旧快照置 `STALE` | 单写入入口避免同期间多条有效快照；进程内缓存不引入额外中间件 |
+| 多维维度 | 部门/产品/客户/区域钻取 | `CUSTOMER/ITEM/WAREHOUSE`；指标 `REVENUE/QUANTITY/ORDER_COUNT/COST`；`COST` 仅 `ITEM/WAREHOUSE` | 源数据无部门/区域属性，伪造维度会导致口径不可信 |
+| 报表执行 | 自定义报表引擎 + 定时推送 | 执行与导出均委托 `AnalyticsAppService.cube`；CSV 带 UTF-8 BOM 与引号转义；计划只记录 `last/nextRunTime` | 首期保证口径单一；调度器与 `whale-message` 推送随 M6 剩余补 |
+| 预警去重 | 同规则同对象同周期不重复 | DB 唯一键 `uk_bi_alert_event_scope (tenant_id, rule_id, object_key, period_code)` + 应用层 `existsEvent`；周期按 `DAY/WEEK/MONTH` 归一 | 并发下唯一键兜底，应用层避免异常日志噪音 |
+| 超预算预警 | 规则 + 预算执行额比对 | 规则可登记，但评估时跳过并返回 `skippedRules` 与中文 `note` | M2 财务扩展（预算）未落地，无预算数据源，拒绝伪造事件 |
+| 预警计划建议 | 生成 `erp_plan_suggestion` / `erp_mrp_result` | 事件携带 `suggestion` 文本模板，不生成计划单据 | MRP 未落地，计划建议缺少目标单据与执行闭环 |
+| 权限/菜单 | 550–569 / 101–105 | **495–506 / 94–97**，角色 `erp_bi`（25116） | HR 用至 474、QC 用至 494、菜单用至 93，按「禁止跳段」顺延占用 |
+| 边界约束 | 限界上下文隔离 | ArchUnit 新增 4 条：Analytics interfaces 不依赖 infrastructure、application 不依赖 infrastructure/legacy、domain 不依赖外层、其他上下文不得依赖 analytics | 固化「分析只消费，不反向依赖交易上下文」 |
+
+> 检查报告：[2026-11-03-wave5.78-erp-m6.md](../reviews/2026-11-03-wave5.78-erp-m6.md)。
+
+---
+
+## 十七、变更记录
 
 | 日期 | 版本 | 变更 |
 |---|---|---|
@@ -513,3 +542,4 @@ SPC/CPK、FMEA、供应商质量绩效、质量追溯、设备备件与派工、
 | 2026-11-04 | v0.5 | 回填 M3 第一阶段偏差：`V5__manufacturing.sql` 6 表、一单一产出、完工前必须领完、材料成本按计划量分摊、凭证延至完工一次性生成、权限 441–455 / 菜单 84–86、角色 `erp_mfg`；检查报告见 `docs/reviews/2026-11-03-wave5.78-erp-m3.md` |
 | 2026-11-04 | v0.6 | 回填 M4 第一阶段偏差：`V6__hr.sql` 9 表、组织 `parent_code` 逻辑引用、薪资期间唯一与审批后冻结、7 级累进个税与计提/发放四行凭证、权限 456–474 / 菜单 87–90、角色 `erp_hr`；检查报告见 `docs/reviews/2026-11-03-wave5.78-erp-m4.md` |
 | 2026-11-04 | v0.7 | 回填 M5 第一期偏差：`V7__qc.sql` 11 表、检验判定幂等生成 NCR、质量成本由处置派生、保养日期单一推进、OEE 同设备同日期 upsert 与三率封顶、校准 PASS 才顺延、过期量具拦截、权限 475–494 / 菜单 91–93、角色 `erp_qc`、三页合并页签；检查报告见 `docs/reviews/2026-11-03-wave5.78-erp-m5.md` |
+| 2026-11-04 | v0.8 | 回填 M6 偏差：`V8__bi.sql` 5 表 + 5 只读事实视图、驾驶舱快照 `STALE/ACTIVE` 单写入、维度 `CUSTOMER/ITEM/WAREHOUSE`、报表执行复用多维聚合与 CSV 导出、预警唯一键去重与超预算跳过、权限 495–506 / 菜单 94–97 / 角色 `erp_bi`；检查报告见 `docs/reviews/2026-11-03-wave5.78-erp-m6.md` |

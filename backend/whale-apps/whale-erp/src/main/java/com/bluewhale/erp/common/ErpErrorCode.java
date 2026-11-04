@@ -248,6 +248,36 @@ public final class ErpErrorCode {
     /** 该来源已存在不合格品单 */
     public static final int NCR_ALREADY_EXISTS = 40931;
 
+    /** 分析与报表参数非法（维度、指标、周期、阈值校验失败） */
+    public static final int ANALYTICS_INVALID = 40022;
+
+    /** 驾驶舱快照不存在 */
+    public static final int SNAPSHOT_NOT_FOUND = 40430;
+
+    /** 报表定义不存在 */
+    public static final int REPORT_NOT_FOUND = 40431;
+
+    /** 报表计划不存在 */
+    public static final int REPORT_SCHEDULE_NOT_FOUND = 40432;
+
+    /** 预警规则不存在 */
+    public static final int ALERT_RULE_NOT_FOUND = 40433;
+
+    /** 预警事件不存在 */
+    public static final int ALERT_EVENT_NOT_FOUND = 40434;
+
+    /** 分析单据状态不允许该操作 */
+    public static final int ALERT_STATE_CONFLICT = 40932;
+
+    /** 报表编号已存在 */
+    public static final int REPORT_NO_CONFLICT = 40933;
+
+    /** 报表计划编号已存在 */
+    public static final int SCHEDULE_NO_CONFLICT = 40934;
+
+    /** 预警规则编号已存在 */
+    public static final int ALERT_RULE_NO_CONFLICT = 40935;
+
     /** 错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(AMOUNT_INVALID, "金额必须大于 0，且最多保留 2 位小数"),
@@ -327,7 +357,17 @@ public final class ErpErrorCode {
             Map.entry(EQUIPMENT_CODE_CONFLICT, "设备编码已存在"),
             Map.entry(TOOL_CODE_CONFLICT, "量具编号已存在"),
             Map.entry(TOOL_EXPIRED, "量具校准已过期，不可用于本次检验"),
-            Map.entry(NCR_ALREADY_EXISTS, "该来源已存在不合格品单，请勿重复创建"));
+            Map.entry(NCR_ALREADY_EXISTS, "该来源已存在不合格品单，请勿重复创建"),
+            Map.entry(ANALYTICS_INVALID, "分析与报表参数非法，请检查维度、指标、周期或阈值"),
+            Map.entry(SNAPSHOT_NOT_FOUND, "驾驶舱快照不存在或无权访问"),
+            Map.entry(REPORT_NOT_FOUND, "报表定义不存在或无权访问"),
+            Map.entry(REPORT_SCHEDULE_NOT_FOUND, "报表计划不存在或无权访问"),
+            Map.entry(ALERT_RULE_NOT_FOUND, "预警规则不存在或无权访问"),
+            Map.entry(ALERT_EVENT_NOT_FOUND, "预警事件不存在或无权访问"),
+            Map.entry(ALERT_STATE_CONFLICT, "分析单据当前状态不允许该操作"),
+            Map.entry(REPORT_NO_CONFLICT, "报表编号已存在"),
+            Map.entry(SCHEDULE_NO_CONFLICT, "报表计划编号已存在"),
+            Map.entry(ALERT_RULE_NO_CONFLICT, "预警规则编号已存在"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。

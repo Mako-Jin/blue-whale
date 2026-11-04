@@ -275,4 +275,49 @@ class ErpArchitectureTest {
                     "com.bluewhale.erp.mfg..",
                     "com.bluewhale.erp.hr..")
             .should().dependOnClassesThat().resideInAPackage("com.bluewhale.erp.qc..");
+
+    /** 分析接口层不得直接依赖持久化实现 */
+    @ArchTest
+    static final ArchRule analytics_interfaces_must_not_depend_on_infrastructure = noClasses()
+            .that().resideInAPackage("com.bluewhale.erp.analytics.interfaces..")
+            .should().dependOnClassesThat().resideInAPackage("com.bluewhale.erp.analytics.infrastructure..");
+
+    /** 分析应用层不得直接依赖持久化实现与存量分包 */
+    @ArchTest
+    static final ArchRule analytics_application_must_not_depend_on_infrastructure_or_legacy = noClasses()
+            .that().resideInAPackage("com.bluewhale.erp.analytics.application..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.bluewhale.erp.analytics.infrastructure..",
+                    "com.bluewhale.erp.mapper..",
+                    "com.bluewhale.erp.entity..",
+                    "com.bluewhale.erp.service..");
+
+    /** 分析领域层不得依赖应用层、接口层、基础设施层、其他上下文与框架 */
+    @ArchTest
+    static final ArchRule analytics_domain_must_not_depend_on_outer_layers = noClasses()
+            .that().resideInAPackage("com.bluewhale.erp.analytics.domain..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.bluewhale.erp.analytics.application..",
+                    "com.bluewhale.erp.analytics.interfaces..",
+                    "com.bluewhale.erp.analytics.infrastructure..",
+                    "com.bluewhale.erp.masterdata..",
+                    "com.bluewhale.erp.finance..",
+                    "com.bluewhale.erp.scm..",
+                    "com.bluewhale.erp.mfg..",
+                    "com.bluewhale.erp.hr..",
+                    "com.bluewhale.erp.qc..",
+                    "org.springframework..",
+                    "com.baomidou..");
+
+    /** 其他上下文不得反向依赖分析上下文（分析只消费事实，不被业务依赖） */
+    @ArchTest
+    static final ArchRule other_contexts_must_not_depend_on_analytics = noClasses()
+            .that().resideInAnyPackage(
+                    "com.bluewhale.erp.masterdata..",
+                    "com.bluewhale.erp.finance..",
+                    "com.bluewhale.erp.scm..",
+                    "com.bluewhale.erp.mfg..",
+                    "com.bluewhale.erp.hr..",
+                    "com.bluewhale.erp.qc..")
+            .should().dependOnClassesThat().resideInAPackage("com.bluewhale.erp.analytics..");
 }

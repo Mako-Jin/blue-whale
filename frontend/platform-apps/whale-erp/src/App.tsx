@@ -26,6 +26,7 @@ import PerformancePage from './pages/PerformancePage';
 import QcInspectionPage from './pages/QcInspectionPage';
 import QcEquipmentPage from './pages/QcEquipmentPage';
 import QcMetrologyPage from './pages/QcMetrologyPage';
+import AnalyticsPage from './pages/AnalyticsPage';
 import { type ErpItem, type ErpSupplier } from './api/erp';
 
 const { Header, Content, Sider } = Layout;
@@ -55,6 +56,10 @@ const menuItems: MenuProps['items'] = [
   { key: 'qc-inspection', label: '检验与不合格品' },
   { key: 'qc-equipment', label: '设备与保养' },
   { key: 'qc-metrology', label: '量具与校准' },
+  { key: 'bi-cockpit', label: '经营驾驶舱' },
+  { key: 'bi-cube', label: '多维分析' },
+  { key: 'bi-report', label: '报表中心' },
+  { key: 'bi-alert', label: '预警中心' },
 ];
 
 type PageKind =
@@ -78,7 +83,11 @@ type PageKind =
   | 'hr-performance'
   | 'qc-inspection'
   | 'qc-equipment'
-  | 'qc-metrology';
+  | 'qc-metrology'
+  | 'bi-cockpit'
+  | 'bi-cube'
+  | 'bi-report'
+  | 'bi-alert';
 
 /** 按宿主菜单路径决定初始页 */
 function initialPage(): PageKind {
@@ -102,6 +111,10 @@ function initialPage(): PageKind {
   if (path.includes('/erp/qc/inspection')) return 'qc-inspection';
   if (path.includes('/erp/qc/equipment')) return 'qc-equipment';
   if (path.includes('/erp/qc/metrology')) return 'qc-metrology';
+  if (path.includes('/erp/bi/cockpit')) return 'bi-cockpit';
+  if (path.includes('/erp/bi/cube')) return 'bi-cube';
+  if (path.includes('/erp/bi/report')) return 'bi-report';
+  if (path.includes('/erp/bi/alert')) return 'bi-alert';
   if (path.includes('/erp/supplier')) return 'supplier';
   return 'item';
 }
@@ -135,6 +148,10 @@ function pageOfKey(key: string): PageKind {
     || key === 'qc-inspection'
     || key === 'qc-equipment'
     || key === 'qc-metrology'
+    || key === 'bi-cockpit'
+    || key === 'bi-cube'
+    || key === 'bi-report'
+    || key === 'bi-alert'
   ) {
     return key;
   }
@@ -164,6 +181,10 @@ const PAGE_TITLE: Record<PageKind, string> = {
   'qc-inspection': '检验与不合格品',
   'qc-equipment': '设备与保养',
   'qc-metrology': '量具与校准',
+  'bi-cockpit': '经营驾驶舱',
+  'bi-cube': '多维分析',
+  'bi-report': '报表中心',
+  'bi-alert': '预警中心',
 };
 
 export default function App() {
@@ -267,6 +288,10 @@ export default function App() {
             {page === 'qc-inspection' ? <QcInspectionPage /> : null}
             {page === 'qc-equipment' ? <QcEquipmentPage /> : null}
             {page === 'qc-metrology' ? <QcMetrologyPage /> : null}
+            {page === 'bi-cockpit' ? <AnalyticsPage initialTab="cockpit" /> : null}
+            {page === 'bi-cube' ? <AnalyticsPage initialTab="cube" /> : null}
+            {page === 'bi-report' ? <AnalyticsPage initialTab="report" /> : null}
+            {page === 'bi-alert' ? <AnalyticsPage initialTab="alert" /> : null}
           </Content>
         </Layout>
       </Layout>

@@ -227,6 +227,34 @@ class ErpFlywayMigrationScriptTest {
     }
 
     /**
+     * V8 分析与报表表集合、预警去重唯一键与只读事实视图校验
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("V8 分析报表表集合与预警去重唯一键一致")
+    void analyticsMigrationShouldCreateExpectedTables() throws IOException {
+        Set<String> analyticsTables = extractTables(MIGRATION_DIR.resolve("V8__bi.sql"));
+        assertEquals(Set.of(
+                "erp_bi_cockpit_snapshot", "erp_bi_report_def", "erp_bi_report_schedule",
+                "erp_bi_alert_rule", "erp_bi_alert_event"), analyticsTables,
+                "V8 应创建 5 张分析与报表表");
+        String content = Files.readString(MIGRATION_DIR.resolve("V8__bi.sql"), StandardCharsets.UTF_8);
+        assertTrue(content.contains("uk_bi_cockpit_period_date"), "驾驶舱快照按期间+统计日唯一");
+        assertTrue(content.contains("uk_bi_report_no"), "报表编号唯一键必须存在");
+        assertTrue(content.contains("uk_bi_schedule_no"), "报表计划编号唯一键必须存在");
+        assertTrue(content.contains("uk_bi_alert_rule_no"), "预警规则编号唯一键必须存在");
+        assertTrue(content.contains("uk_bi_alert_event_scope"),
+                "预警事件按规则+对象+周期唯一，保证不重复触发");
+        assertTrue(content.contains("CREATE OR REPLACE VIEW v_erp_bi_sales_fact"),
+                "销售事实只读视图必须存在");
+        assertTrue(content.contains("CREATE OR REPLACE VIEW v_erp_bi_stock_fact"),
+                "库存事实只读视图必须存在");
+        assertTrue(content.contains("CREATE OR REPLACE VIEW v_erp_bi_receivable_fact"),
+                "应收事实只读视图必须存在");
+    }
+
+    /**
      * 列出迁移脚本并按文件名字典序返回
      *
      * @return 迁移脚本路径
