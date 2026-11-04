@@ -156,6 +156,29 @@ class ErpFlywayMigrationScriptTest {
     }
 
     /**
+     * V5 生产计划表集合与生产成本科目种子校验
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("V5 生产计划表集合与科目种子一致")
+    void manufacturingMigrationShouldCreateExpectedTables() throws IOException {
+        Set<String> manufacturingTables = extractTables(MIGRATION_DIR.resolve("V5__manufacturing.sql"));
+        assertEquals(Set.of(
+                "erp_mfg_forecast", "erp_mfg_forecast_line",
+                "erp_mfg_mps", "erp_mfg_mps_line",
+                "erp_mfg_production_order", "erp_mfg_production_material"), manufacturingTables,
+                "V5 应创建 6 张生产计划表");
+        String content = Files.readString(MIGRATION_DIR.resolve("V5__manufacturing.sql"),
+                StandardCharsets.UTF_8);
+        assertTrue(content.contains("uk_forecast_batch"), "预测批次号唯一键必须存在");
+        assertTrue(content.contains("uk_mps_plan_no"), "主生产计划单号唯一键必须存在");
+        assertTrue(content.contains("uk_mo_order_no"), "生产订单号唯一键必须存在");
+        assertTrue(content.contains("INSERT IGNORE INTO erp_account"), "生产成本科目种子必须幂等");
+        assertTrue(content.contains("'5001'"), "生产成本科目编码应为 5001");
+    }
+
+    /**
      * 列出迁移脚本并按文件名字典序返回
      *
      * @return 迁移脚本路径

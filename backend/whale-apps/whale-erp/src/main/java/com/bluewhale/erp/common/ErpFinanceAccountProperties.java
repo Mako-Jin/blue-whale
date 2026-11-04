@@ -34,4 +34,7 @@ public class ErpFinanceAccountProperties {
 
     /** 待处理财产损溢科目（默认 1901，盘盈/盘亏使用） */
     private String stockVariance = "1901";
+
+    /** 生产成本科目（默认 5001，生产领料/完工使用） */
+    private String productionCost = "5001";
 }

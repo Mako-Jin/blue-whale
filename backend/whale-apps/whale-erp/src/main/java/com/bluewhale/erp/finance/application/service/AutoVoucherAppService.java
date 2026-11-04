@@ -33,4 +33,20 @@ public interface AutoVoucherAppService {
      * @return 凭证 ID；金额为零或已记账时返回已有凭证 ID / null
      */
     Long postStockVariance(AutoVoucherCommand command);
+
+    /**
+     * 生产领料记账：借生产成本、贷存货。
+     *
+     * @param command 记账命令
+     * @return 凭证 ID；金额为零或已记账时返回已有凭证 ID / null
+     */
+    Long postProductionIssue(AutoVoucherCommand command);
+
+    /**
+     * 生产完工入库记账：借存货、贷生产成本。
+     *
+     * @param command 记账命令
+     * @return 凭证 ID；金额为零或已记账时返回已有凭证 ID / null
+     */
+    Long postProductionReceipt(AutoVoucherCommand command);
 }

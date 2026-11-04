@@ -16,6 +16,9 @@ import SalesOrderPage from './pages/SalesOrderPage';
 import StockPage from './pages/StockPage';
 import TransferPage from './pages/TransferPage';
 import StocktakePage from './pages/StocktakePage';
+import ForecastPage from './pages/ForecastPage';
+import MpsPage from './pages/MpsPage';
+import ProductionPage from './pages/ProductionPage';
 import { type ErpItem, type ErpSupplier } from './api/erp';
 
 const { Header, Content, Sider } = Layout;
@@ -35,6 +38,9 @@ const menuItems: MenuProps['items'] = [
   { key: 'stock', label: '库存台账' },
   { key: 'transfer', label: '库存调拨' },
   { key: 'stocktake', label: '库存盘点' },
+  { key: 'forecast', label: '需求预测' },
+  { key: 'mps', label: '主生产计划' },
+  { key: 'production', label: '生产订单' },
 ];
 
 type PageKind =
@@ -48,7 +54,10 @@ type PageKind =
   | 'sales'
   | 'stock'
   | 'transfer'
-  | 'stocktake';
+  | 'stocktake'
+  | 'forecast'
+  | 'mps'
+  | 'production';
 
 /** 按宿主菜单路径决定初始页 */
 function initialPage(): PageKind {
@@ -62,6 +71,9 @@ function initialPage(): PageKind {
   if (path.includes('/erp/scm/stocktake')) return 'stocktake';
   if (path.includes('/erp/scm/transfer')) return 'transfer';
   if (path.includes('/erp/scm/stock')) return 'stock';
+  if (path.includes('/erp/mfg/forecast')) return 'forecast';
+  if (path.includes('/erp/mfg/mps')) return 'mps';
+  if (path.includes('/erp/mfg/production')) return 'production';
   if (path.includes('/erp/supplier')) return 'supplier';
   return 'item';
 }
@@ -85,6 +97,9 @@ function pageOfKey(key: string): PageKind {
     || key === 'stock'
     || key === 'transfer'
     || key === 'stocktake'
+    || key === 'forecast'
+    || key === 'mps'
+    || key === 'production'
   ) {
     return key;
   }
@@ -104,6 +119,9 @@ const PAGE_TITLE: Record<PageKind, string> = {
   stock: '库存台账',
   transfer: '库存调拨',
   stocktake: '库存盘点',
+  forecast: '需求预测',
+  mps: '主生产计划',
+  production: '生产订单',
 };
 
 export default function App() {
@@ -197,6 +215,9 @@ export default function App() {
             {page === 'stock' ? <StockPage /> : null}
             {page === 'transfer' ? <TransferPage /> : null}
             {page === 'stocktake' ? <StocktakePage /> : null}
+            {page === 'forecast' ? <ForecastPage /> : null}
+            {page === 'mps' ? <MpsPage /> : null}
+            {page === 'production' ? <ProductionPage /> : null}
           </Content>
         </Layout>
       </Layout>

@@ -105,6 +105,64 @@ public class AutoVoucherAppServiceImpl implements AutoVoucherAppService {
         return voucher.getId();
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long postProductionIssue(AutoVoucherCommand command) {
+        return postProduction(command, false);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long postProductionReceipt(AutoVoucherCommand command) {
+        return postProduction(command, true);
+    }
+
+    /**
+     * 生成并记账生产凭证。
+     *
+     * @param command 记账命令
+     * @param receipt 是否完工入库（否则为生产领料）
+     * @return 凭证 ID；金额为零时返回 null
+     */
+    private Long postProduction(AutoVoucherCommand command, boolean receipt) {
+        if (Amounts.isZero(command.getAmount())) {
+            return null;
+        }
+        Long existing = existingId(command);
+        if (existing != null) {
+            return existing;
+        }
+        Amounts.requirePositive(command.getAmount(), "生产记账金额");
+        AccountingPeriod period = requireOpenPeriod(command.getVoucherDate());
+        String currency = StringUtils.hasText(command.getCurrency()) ? command.getCurrency() : DEFAULT_CURRENCY;
+        Voucher voucher = new Voucher();
+        voucher.setVoucherDate(command.getVoucherDate());
+        voucher.setPeriodCode(period.getPeriodCode());
+        voucher.setVoucherType(FinanceStatus.TYPE_MANUAL);
+        voucher.setStatus(FinanceStatus.VOUCHER_DRAFT);
+        voucher.setCurrency(currency);
+        voucher.setExchangeRate(BigDecimal.ONE);
+        voucher.setSourceType(command.getSourceType());
+        voucher.setSourceId(command.getSourceId());
+        voucher.setRemark(command.getRemark());
+        List<VoucherLine> lines = new ArrayList<>();
+        if (receipt) {
+            addLine(voucher, lines, accountProperties.getInventory(), command.getAmount(), null, "生产完工入库");
+            addLine(voucher, lines, accountProperties.getProductionCost(), null, command.getAmount(),
+                    "生产完工入库");
+        } else {
+            addLine(voucher, lines, accountProperties.getProductionCost(), command.getAmount(), null, "生产领料");
+            addLine(voucher, lines, accountProperties.getInventory(), null, command.getAmount(), "生产领料");
+        }
+        voucher.setLines(lines);
+        voucher.validateAndSum();
+        voucher.setVoucherNo(voucherRepository.nextVoucherNo(period.getPeriodCode()));
+        voucherRepository.insert(voucher);
+        voucher.post(command.getOperatorId(), LocalDateTime.now());
+        voucherRepository.update(voucher);
+        return voucher.getId();
+    }
+
     /**
      * 生成并记账凭证。
      *

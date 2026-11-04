@@ -137,6 +137,30 @@ public final class ErpErrorCode {
     /** 盘点单状态不允许该操作 */
     public static final int STOCKTAKE_STATE_CONFLICT = 40917;
 
+    /** 需求预测不存在 */
+    public static final int FORECAST_NOT_FOUND = 40413;
+
+    /** 主生产计划不存在 */
+    public static final int MPS_NOT_FOUND = 40414;
+
+    /** 生产订单不存在 */
+    public static final int PRODUCTION_ORDER_NOT_FOUND = 40415;
+
+    /** 生产计划参数非法（仓库停用、日期倒挂等） */
+    public static final int MFG_INVALID = 40016;
+
+    /** 生产单据状态不允许该操作 */
+    public static final int MFG_STATE_CONFLICT = 40918;
+
+    /** 领料数量超过需求数量 */
+    public static final int MATERIAL_ISSUE_EXCEEDED = 40919;
+
+    /** 存在未领完的用料，禁止完工入库 */
+    public static final int MATERIAL_NOT_ISSUED = 40920;
+
+    /** 完工数量超过计划数量 */
+    public static final int PRODUCTION_COMPLETE_EXCEEDED = 40921;
+
     /** 错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(AMOUNT_INVALID, "金额必须大于 0，且最多保留 2 位小数"),
@@ -179,7 +203,15 @@ public final class ErpErrorCode {
             Map.entry(STOCKTAKE_NOT_FOUND, "盘点单不存在或无权访问"),
             Map.entry(TRANSFER_INVALID, "调拨仓库非法：调出与调入仓库必须不同且均可用"),
             Map.entry(TRANSFER_STATE_CONFLICT, "调拨单当前状态不允许该操作"),
-            Map.entry(STOCKTAKE_STATE_CONFLICT, "盘点单当前状态不允许该操作"));
+            Map.entry(STOCKTAKE_STATE_CONFLICT, "盘点单当前状态不允许该操作"),
+            Map.entry(FORECAST_NOT_FOUND, "需求预测不存在或无权访问"),
+            Map.entry(MPS_NOT_FOUND, "主生产计划不存在或无权访问"),
+            Map.entry(PRODUCTION_ORDER_NOT_FOUND, "生产订单不存在或无权访问"),
+            Map.entry(MFG_INVALID, "生产计划参数非法，请检查仓库、日期与物料"),
+            Map.entry(MFG_STATE_CONFLICT, "生产单据当前状态不允许该操作"),
+            Map.entry(MATERIAL_ISSUE_EXCEEDED, "领料数量超过用料需求数量"),
+            Map.entry(MATERIAL_NOT_ISSUED, "存在未领完的用料，禁止完工入库"),
+            Map.entry(PRODUCTION_COMPLETE_EXCEEDED, "完工数量超过计划生产数量"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。

@@ -9,16 +9,22 @@ export const SCM_STATUS_LABEL: Record<string, string> = {
   PARTIALLY_SHIPPED: '部分发货',
   SHIPPED: '已发货',
   POSTED: '已过账',
+  PUBLISHED: '已发布',
+  RELEASED: '已下达',
+  IN_PROGRESS: '生产中',
+  COMPLETED: '已完工',
   CLOSED: '已关闭',
   CANCELLED: '已取消',
 };
 
 /** 单据状态颜色 */
 export function scmStatusColor(status: string): string {
-  if (status === 'RECEIVED' || status === 'SHIPPED' || status === 'POSTED') return 'green';
-  if (status === 'PARTIALLY_RECEIVED' || status === 'PARTIALLY_SHIPPED') return 'orange';
+  if (status === 'RECEIVED' || status === 'SHIPPED' || status === 'POSTED'
+    || status === 'PUBLISHED' || status === 'COMPLETED') return 'green';
+  if (status === 'PARTIALLY_RECEIVED' || status === 'PARTIALLY_SHIPPED'
+    || status === 'IN_PROGRESS') return 'orange';
   if (status === 'CANCELLED') return 'red';
-  if (status === 'APPROVED') return 'blue';
+  if (status === 'APPROVED' || status === 'RELEASED') return 'blue';
   return 'default';
 }
 

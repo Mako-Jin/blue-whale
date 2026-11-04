@@ -209,6 +209,82 @@ class AutoVoucherAppServiceImplTest {
         verify(voucherRepository, never()).insert(any(Voucher.class));
     }
 
+    @Test
+    @DisplayName("生产领料生成借生产成本贷存货凭证")
+    void shouldPostProductionIssueVoucher() {
+        stubOpenPeriod();
+        stubAccounts();
+        when(voucherRepository.nextVoucherNo("202611")).thenReturn("V-005");
+        doAnswer(invocation -> {
+            Voucher voucher = invocation.getArgument(0);
+            voucher.setId(14L);
+            return null;
+        }).when(voucherRepository).insert(any(Voucher.class));
+
+        Long voucherId = service.postProductionIssue(productionCommand("PRODUCTION_ISSUE", "MO-001", "100"));
+
+        assertEquals(14L, voucherId);
+        ArgumentCaptor<Voucher> captor = ArgumentCaptor.forClass(Voucher.class);
+        verify(voucherRepository).insert(captor.capture());
+        Voucher voucher = captor.getValue();
+        assertEquals(2, voucher.getLines().size());
+        assertEquals(FinanceStatus.VOUCHER_POSTED, voucher.getStatus());
+        assertEquals(0, voucher.getTotalDebit().compareTo(new BigDecimal("100")));
+        assertEquals(0, voucher.getTotalCredit().compareTo(new BigDecimal("100")));
+        verify(voucherRepository).update(any(Voucher.class));
+    }
+
+    @Test
+    @DisplayName("生产完工入库生成借存货贷生产成本凭证")
+    void shouldPostProductionReceiptVoucher() {
+        stubOpenPeriod();
+        stubAccounts();
+        when(voucherRepository.nextVoucherNo("202611")).thenReturn("V-006");
+        doAnswer(invocation -> {
+            Voucher voucher = invocation.getArgument(0);
+            voucher.setId(15L);
+            return null;
+        }).when(voucherRepository).insert(any(Voucher.class));
+
+        Long voucherId = service.postProductionReceipt(productionCommand("PRODUCTION_RECEIPT", "MO-001-C10", "100"));
+
+        assertEquals(15L, voucherId);
+        ArgumentCaptor<Voucher> captor = ArgumentCaptor.forClass(Voucher.class);
+        verify(voucherRepository).insert(captor.capture());
+        Voucher voucher = captor.getValue();
+        assertEquals(2, voucher.getLines().size());
+        assertEquals(0, voucher.getTotalDebit().compareTo(new BigDecimal("100")));
+        assertEquals(0, voucher.getTotalCredit().compareTo(new BigDecimal("100")));
+    }
+
+    @Test
+    @DisplayName("生产记账金额为零时不生成凭证")
+    void shouldSkipZeroProductionVoucher() {
+        Long voucherId = service.postProductionIssue(productionCommand("PRODUCTION_ISSUE", "MO-001", "0"));
+
+        assertNull(voucherId);
+        verify(voucherRepository, never()).insert(any(Voucher.class));
+    }
+
+    /**
+     * 构造生产记账命令。
+     *
+     * @param sourceType 来源类型
+     * @param sourceId 来源单据号
+     * @param amount 金额
+     * @return 命令
+     */
+    private AutoVoucherCommand productionCommand(String sourceType, String sourceId, String amount) {
+        AutoVoucherCommand command = new AutoVoucherCommand();
+        command.setSourceType(sourceType);
+        command.setSourceId(sourceId);
+        command.setVoucherDate(LocalDate.of(2026, 11, 4));
+        command.setCurrency("CNY");
+        command.setAmount(new BigDecimal(amount));
+        command.setOperatorId(99L);
+        return command;
+    }
+
     /**
      * 构造库存差异记账命令。
      *
@@ -261,6 +337,7 @@ class AutoVoucherAppServiceImplTest {
         when(accountRepository.findByCode("6001")).thenReturn(Optional.of(account("6001", "主营业务收入")));
         when(accountRepository.findByCode("6401")).thenReturn(Optional.of(account("6401", "主营业务成本")));
         when(accountRepository.findByCode("1901")).thenReturn(Optional.of(account("1901", "待处理财产损溢")));
+        when(accountRepository.findByCode("5001")).thenReturn(Optional.of(account("5001", "生产成本")));
     }
 
     /**

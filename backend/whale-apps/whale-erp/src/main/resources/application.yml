@@ -76,6 +76,7 @@ erp:
       revenue: ${ERP_ACCOUNT_REVENUE:6001}
       cost: ${ERP_ACCOUNT_COST:6401}
       stock-variance: ${ERP_ACCOUNT_STOCK_VARIANCE:1901}
+      production-cost: ${ERP_ACCOUNT_PRODUCTION_COST:5001}
 
 management:
   endpoints:

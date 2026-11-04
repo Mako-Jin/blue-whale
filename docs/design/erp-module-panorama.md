@@ -66,11 +66,11 @@
 
 | 子模块 | 能力 | 现状 | 落点 |
 |---|---|---|---|
-| MPS | 销售订单/预测 → 月/周计划 | ❌ | `manufacturing.mps`：`erp_mps` |
+| MPS | 销售订单/预测 → 月/周计划 | 🟡 | `manufacturing.mps`：`erp_mfg_mps`/`erp_mfg_mps_line`（M3 第一阶段，2026-11-04） |
 | MRP | BOM 展开、物料/数量/时间 | ❌ | `manufacturing.mrp`：`erp_mrp_run`/`erp_mrp_result`；BOM 来自 PDM |
 | CRP | 产能负荷核算 | ❌ | `manufacturing.crp`：`erp_crp_run` |
-| 生产订单 | 工单下达、领料、完工、结案 | ❌ | `manufacturing.order`：`erp_production_order*`；下发 MES |
-| 预测 | 销售/需求预测、准确率 | ❌ | `manufacturing.forecast`：`erp_forecast` |
+| 生产订单 | 工单下达、领料、完工、结案 | 🟡 | `manufacturing.order`：`erp_mfg_production_order`/`erp_mfg_production_material`；MES 下发未接 |
+| 预测 | 销售/需求预测、准确率 | 🟡 | `manufacturing.forecast`：`erp_mfg_forecast`/`erp_mfg_forecast_line`；准确率回算未做 |
 
 ### 3.4 人力资源（轻量）
 
@@ -243,6 +243,13 @@
 > `erp_fin_receivable_settlement`、`erp_fin_payable`、`erp_fin_payable_settlement`。
 > `erp_exchange_rate` 未建（凭证分录保留 `currency + exchange_rate` 字段，汇率表随 M2 多币种结算补）；
 > `erp_fin_account_balance` 未建（余额由已记账分录实时汇总）；`erp_fin_bad_debt` 未建（坏账金额落在应收单 `bad_debt_amount`）。
+>
+> **实施偏差（M3 第一阶段，2026-11-04）**：`V5__manufacturing.sql` 实际建 **6 张表**：
+> `erp_mfg_forecast`、`erp_mfg_forecast_line`、`erp_mfg_mps`、`erp_mfg_mps_line`、
+> `erp_mfg_production_order`、`erp_mfg_production_material`。
+> `erp_mfg_mrp_run` / `erp_mfg_mrp_result` / `erp_mfg_crp_run` / `erp_mfg_bom_snapshot` 未建
+> （MRP/CRP 依赖 PDM BOM 与 MES 产能数据，留待 M3 剩余）。
+> 生产订单行并入 `erp_mfg_production_material`（用料行），输出行即订单头 `item_code`，不另建行表。
 
 ### 6.3 关键索引与数据量假设
 
@@ -260,7 +267,7 @@
 | 主数据 | `/erp/master-data/item`、`/supplier`、`/customer`、`/warehouse`、`/uom`、`/currency`、`/period`、`/account`、`/tax-code` | 存量 `/erp/item`、`/erp/supplier` **保留不破坏**，新页面走新前缀 |
 | 财务 | `/erp/finance/voucher`、`/ledger`、`/period`、`/receivable`、`/payable`、`/aging`、`/asset`、`/cost`、`/budget`、`/treasury`、`/report` | 记账/红冲/结账为显式动作端点，不用通用 PUT 改状态 |
 | 供应链 | `/erp/scm/purchase-requisition`、`/purchase-order`、`/goods-receipt`、`/purchase-return`、`/sales-quote`、`/sales-order`、`/shipment`、`/sales-return`、`/stock`、`/stock-take`、`/transfer` | 单据动作端点：`/submit`、`/approve`、`/receive`、`/ship`、`/close` |
-| 生产计划 | `/erp/mfg/forecast`、`/mps`、`/mrp-run`、`/crp-run`、`/production-order` | MRP/CRP 为异步任务：`POST /mrp-run` 返回 `runId`，`GET /mrp-run/{id}` 查进度 |
+| 生产计划 | `/erp/mfg/forecast`、`/mps`、`/mrp-run`、`/crp-run`、`/production-order` | MRP/CRP 为异步任务：`POST /mrp-run` 返回 `runId`，`GET /mrp-run/{id}` 查进度。**M3 第一阶段实际路径**：`/erp/mfg/forecast`、`/erp/mfg/mps`、`/erp/mfg/production`；MRP/CRP 端点未建 |
 | 人力 | `/erp/hr/employee`、`/attendance`、`/payroll`、`/payslip`、`/performance` | 工资条只读本人；HR 管理员按权限 |
 | 质量设备 | `/erp/qc/inspection`、`/ncr`、`/equipment`、`/maintenance`、`/oee`、`/calibration` | OEE 数据由 MES 推送 |
 | 分析 | `/erp/bi/cockpit`、`/cube`、`/report`、`/alert` | 只读为主 |
@@ -356,6 +363,11 @@ com.bluewhale.erp
 > 368–374 保留；菜单已启用 **63–66**（ERP 主数据 / 会计凭证 / 应收应付 / 财务报表）；
 > 新增角色 `erp_finance`（25110）与 `erp_masterdata`（25111），
 > 脚本见 `backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-5.78-erp-finance.sql`。
+>
+> **实施进度（M3 第一阶段，2026-11-04）**：生产计划原 `470–499 / 85–90` 段因供应链实际仅用到 440、菜单用到 83，
+> 顺延启用 **441–455**（预测 441–444、MPS 445–448、生产订单 449–455）与菜单 **84–86**
+> （需求预测 / 主生产计划 / 生产订单）；新增角色 **`erp_mfg`（25113）**，命名沿用 `erp_scm` 风格，未采用设计稿的 `erp_planner`；
+> 脚本见 `backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-5.78-erp-mfg.sql`。
 
 ---
 
@@ -421,7 +433,29 @@ com.bluewhale.erp
 
 ---
 
-## 十三、变更记录
+## 十三、M3 生产计划实施偏差（2026-11-04）
+
+第一阶段范围：需求预测 + 主生产计划 + 生产订单（含领料/完工库存联动与凭证）、权限/菜单、前端三页。
+MRP / CRP / 预测准确率回算 / MES 下发 / 标准成本不在本阶段。
+
+| 设计项 | 设计稿原方案 | 实际落地 | 原因 |
+|---|---|---|---|
+| 表清单 | `erp_mfg_forecast`、`erp_mfg_mps`、`erp_mfg_mrp_run`、`erp_mfg_mrp_result`、`erp_mfg_crp_run`、`erp_mfg_production_order`、`erp_mfg_production_order_line`、`erp_mfg_bom_snapshot` | `V5__manufacturing.sql`：预测头/行、MPS 头/行、生产订单头、生产用料行共 **6 表** | MRP/CRP 依赖 PDM BOM 与 MES 产能，先打通「预测 → 计划 → 工单 → 库存/凭证」闭环 |
+| 生产订单行 | 独立 `production_order_line`（产出/工序行） | 订单头单产出物料 + `erp_mfg_production_material` 用料行 | 首阶段按「一单一产出」简化，工序/联产品随 MES 集成再扩 |
+| 预测唯一键 | 版本 + 期间 + 物料唯一 | `batch_no` 唯一，行内 `(forecast_id, line_no)` 唯一；版本仅为批次属性 | 同期间可保留多版本做对比，唯一键落在批次号避免覆盖历史 |
+| 超领 | 「已领料 ≤ 定额；超领需审批」 | 超领直接拒绝（`MATERIAL_ISSUE_EXCEEDED`），无审批通道 | 审批流归 OA/Workflow（REQ 边界），ERP 只做硬约束 |
+| 完工前置 | 「报工/完工可随时登记」 | 必须全部用料领完才允许完工（`MATERIAL_NOT_ISSUED`）；完工数量 ≤ 计划量 | 使材料成本在完工前固定，领料凭证可按订单号幂等 |
+| 完工成本 | 标准成本 / 差异分摊（D5 待定） | 单位成本 = 累计领料成本 ÷ 计划数量（4 位 HALF_UP），最后一批结清余额；借贷「生产成本 5001 ↔ 存货 1405」 | D5 未定稿，先按实际材料成本转存货；人工/制造费用与差异留待成本模块 |
+| 凭证时点 | 领料即记 WIP、完工结转 | 领料时仅累加 `total_material_cost`；完工入库时**一次性**生成领料凭证（借 5001 / 贷 1405）与完工凭证（借 1405 / 贷 5001） | 避免零金额/半成品凭证；完工凭证按 `orderNo-C{累计完工量}` 幂等，支持分批完工 |
+| MPS 与工单联动 | MPS 下达自动生成生产订单 | 仅回写分录 `released_quantity`，不自动建单 | MRP 未落地，自动建单缺少 BOM 展开与批量规则 |
+| 权限/菜单 | 470–499 / 85–90 | **441–455 / 84–86**，角色 `erp_mfg`（25113） | 供应链实际用至 440/83，按「禁止跳段」顺延占用 |
+| 前端 | 生产计划三页 + 排程甘特 | 需求预测、主生产计划、生产订单三页（列表/新建/详情/状态动作）；无甘特 | 排程属 CRP/APS 范畴 |
+
+> 检查报告：[2026-11-03-wave5.78-erp-m3.md](../reviews/2026-11-03-wave5.78-erp-m3.md)。
+
+---
+
+## 十四、变更记录
 
 | 日期 | 版本 | 变更 |
 |---|---|---|
@@ -429,3 +463,4 @@ com.bluewhale.erp
 | 2026-11-04 | v0.2 | 回填 M0 + M1 实施偏差：13 张表、两个上下文、权限 355–367/375–387、菜单 63–66；检查报告见 `docs/reviews/2026-11-03-wave5.78-erp-m0-m1.md` |
 | 2026-11-04 | v0.3 | 回填 M2 第一阶段偏差：`V3__scm.sql` 6 表、无独立收货/发货单、移动加权平均、科目映射配置化、信用时点校验；检查报告见 `docs/reviews/2026-11-03-wave5.78-erp-m2.md` |
 | 2026-11-04 | v0.4 | 回填 M2 剩余 A 偏差：`V4__scm_stock_ops.sql` 4 表、调拨单步过账、盘点快照与净额凭证、状态机复用；检查报告见 `docs/reviews/2026-11-03-wave5.78-erp-m2-stock-ops.md` |
+| 2026-11-04 | v0.5 | 回填 M3 第一阶段偏差：`V5__manufacturing.sql` 6 表、一单一产出、完工前必须领完、材料成本按计划量分摊、凭证延至完工一次性生成、权限 441–455 / 菜单 84–86、角色 `erp_mfg`；检查报告见 `docs/reviews/2026-11-03-wave5.78-erp-m3.md` |
