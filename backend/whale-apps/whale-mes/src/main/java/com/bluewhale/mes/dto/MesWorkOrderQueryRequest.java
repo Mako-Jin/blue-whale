@@ -21,6 +21,15 @@ public class MesWorkOrderQueryRequest extends PageQuery {
     /** 工单名称（模糊匹配） */
     private String name;
 
-    /** 状态：ENABLED / DISABLED */
+    /** ERP 生产订单号（模糊匹配） */
+    private String erpOrderNo;
+
+    /** 物料编码（模糊匹配） */
+    private String itemCode;
+
+    /** 状态：RECEIVED/DISPATCHED/IN_PROGRESS/PAUSED/COMPLETED/CLOSED/CANCELLED */
     private String status;
+
+    /** 优先级：NORMAL / URGENT */
+    private String priority;
 }

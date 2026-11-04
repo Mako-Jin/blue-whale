@@ -3,6 +3,7 @@ package com.bluewhale.mes.vo;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -24,8 +25,38 @@ public class MesWorkOrderVO implements Serializable {
     /** 工单名称 */
     private String name;
 
-    /** 状态：ENABLED / DISABLED */
+    /** 状态：RECEIVED/DISPATCHED/IN_PROGRESS/PAUSED/COMPLETED/CLOSED/CANCELLED */
     private String status;
+
+    /** ERP 生产订单号 */
+    private String erpOrderNo;
+
+    /** 物料编码 */
+    private String itemCode;
+
+    /** 物料名称 */
+    private String itemName;
+
+    /** 计划数量 */
+    private BigDecimal plannedQuantity;
+
+    /** 计量单位 */
+    private String uom;
+
+    /** 工艺路线版本快照 */
+    private String routingVersion;
+
+    /** 优先级：NORMAL / URGENT */
+    private String priority;
+
+    /** 计划开工时间 */
+    private LocalDateTime plannedStart;
+
+    /** 计划完工时间 */
+    private LocalDateTime plannedEnd;
+
+    /** 乐观锁版本号 */
+    private Integer version;
 
     /** 备注 */
     private String remark;

@@ -3,6 +3,7 @@ package com.bluewhale.common.mybatis.config;
 import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
 import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.handler.TenantLineHandler;
+import com.baomidou.mybatisplus.extension.plugins.inner.OptimisticLockerInnerInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.TenantLineInnerInterceptor;
 import com.bluewhale.common.tenant.TenantContext;
@@ -37,10 +38,13 @@ public class MybatisPlusConfig {
     private static final String TENANT_COLUMN = "tenant_id";
 
     /**
-     * 分页与租户插件：租户插件须先于分页插件注册（官方推荐顺序）
+     * 分页、租户与乐观锁插件：租户插件须先于分页插件注册（官方推荐顺序）
      *
      * <p>分页方言由 {@code whale.db.type} 配置解析（REQ-ARCH-002 多数据库适配），
      * 未配置时默认 MYSQL，与历史版本行为一致。</p>
+     *
+     * <p>乐观锁插件只作用于标注 {@code @Version} 的实体（当前为 MES 生产工单），
+     * 未标注 {@code @Version} 的实体行为不变。</p>
      *
      * @param tenantSqlProperties 租户 SQL 隔离配置
      * @param databaseProperties 数据库类型配置
@@ -55,6 +59,7 @@ public class MybatisPlusConfig {
                     new ConfiguredTenantLineHandler(tenantSqlProperties.getIgnoreTables())));
         }
         interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbTypeParser.parse(databaseProperties.getType())));
+        interceptor.addInnerInterceptor(new OptimisticLockerInnerInterceptor());
         return interceptor;
     }
 

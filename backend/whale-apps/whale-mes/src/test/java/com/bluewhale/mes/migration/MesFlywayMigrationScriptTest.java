@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Flyway 迁移脚本基线校验（REQ-SEC-022，mes 库）。
  *
  * <p>校验项：版本命名/唯一递增、无 {@code DROP}/{@code TRUNCATE}/{@code DELETE}、
- * {@code V1} 建表集合与 {@code init.sql} 一致。
+ * {@code V1} 建表集合与 {@code init.sql} 一致、M0 主数据表齐备。
  *
  * @author BlueWhale
  */
@@ -88,6 +88,36 @@ class MesFlywayMigrationScriptTest {
             assertTrue(baselineTables.contains(table), "基线必须包含表：" + table);
         }
 
+    }
+
+    /**
+     * V2 / V3 建表集合：车间主数据、工艺路线快照、发件箱与工作日历齐备
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("M0 车间主数据与骨架表齐备")
+    void foundationTablesShouldBePresent() throws IOException {
+        Set<String> foundationTables = extractTables(MIGRATION_DIR.resolve("V2__mes_foundation.sql"));
+        assertEquals(12, foundationTables.size(), "V2 应创建 12 张表");
+        for (String table : List.of(
+                "mes_md_workshop",
+                "mes_md_line",
+                "mes_md_work_center",
+                "mes_md_station",
+                "mes_md_team",
+                "mes_md_shift",
+                "mes_md_operation",
+                "mes_md_defect_code",
+                "mes_md_reason_code",
+                "mes_md_routing_snapshot",
+                "mes_md_routing_operation",
+                "mes_common_outbox")) {
+            assertTrue(foundationTables.contains(table), "V2 必须包含表：" + table);
+        }
+
+        Set<String> calendarTables = extractTables(MIGRATION_DIR.resolve("V3__mes_shift_calendar.sql"));
+        assertEquals(Set.of("mes_md_shift_calendar"), calendarTables, "V3 应仅创建工作日历表");
     }
 
     /**

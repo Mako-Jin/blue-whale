@@ -38,6 +38,7 @@ public interface MesConverter {
     @Mapping(target = "createTime", ignore = true)
     @Mapping(target = "updateTime", ignore = true)
     @Mapping(target = "deleted", ignore = true)
+    @Mapping(target = "version", ignore = true)
     MesWorkOrder toEntity(MesWorkOrderSaveRequest request);
 
     /**
@@ -50,5 +51,6 @@ public interface MesConverter {
     @Mapping(target = "createTime", ignore = true)
     @Mapping(target = "updateTime", ignore = true)
     @Mapping(target = "deleted", ignore = true)
+    @Mapping(target = "version", ignore = true)
     void updateEntity(MesWorkOrderSaveRequest request, @MappingTarget MesWorkOrder entity);
 }
