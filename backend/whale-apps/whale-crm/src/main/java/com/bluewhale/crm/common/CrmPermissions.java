@@ -73,6 +73,36 @@ public final class CrmPermissions {
     /** 手动回收 */
     public static final String POOL_RECYCLE = "sys:crm:pool:recycle";
 
+    /** 查询线索与活动 */
+    public static final String LEAD_LIST = "sys:crm:lead:list";
+
+    /** 新建线索 */
+    public static final String LEAD_CREATE = "sys:crm:lead:create";
+
+    /** 编辑线索 */
+    public static final String LEAD_UPDATE = "sys:crm:lead:update";
+
+    /** 分配线索负责人 */
+    public static final String LEAD_ASSIGN = "sys:crm:lead:assign";
+
+    /** 标记线索无效 */
+    public static final String LEAD_INVALID = "sys:crm:lead:invalid";
+
+    /** 线索转化 */
+    public static final String LEAD_CONVERT = "sys:crm:lead:convert";
+
+    /** 查询商机、阶段历史与漏斗 */
+    public static final String OPPORTUNITY_LIST = "sys:crm:opportunity:list";
+
+    /** 新建商机 */
+    public static final String OPPORTUNITY_CREATE = "sys:crm:opportunity:create";
+
+    /** 编辑商机 */
+    public static final String OPPORTUNITY_UPDATE = "sys:crm:opportunity:update";
+
+    /** 商机阶段流转 */
+    public static final String OPPORTUNITY_STAGE = "sys:crm:opportunity:stage";
+
     /**
      * 私有构造器：常量类，禁止实例化。
      */

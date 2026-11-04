@@ -77,6 +77,36 @@ public final class CrmErrorCode {
     /** 分配客户时必须指定负责人 */
     public static final int CUSTOMER_OWNER_REQUIRED = 41020;
 
+    /** 线索不存在或无权访问 */
+    public static final int LEAD_NOT_FOUND = 41021;
+
+    /** 线索疑似重复（电话或邮箱相同），确认后可保存 */
+    public static final int LEAD_DUPLICATE = 41022;
+
+    /** 线索状态不允许该操作 */
+    public static final int LEAD_STATE_CONFLICT = 41023;
+
+    /** 标记线索无效必须填写原因 */
+    public static final int LEAD_INVALID_REASON_REQUIRED = 41024;
+
+    /** 线索已转化，不可重复转化 */
+    public static final int LEAD_ALREADY_CONVERTED = 41025;
+
+    /** 商机不存在或无权访问 */
+    public static final int OPPORTUNITY_NOT_FOUND = 41026;
+
+    /** 商机阶段流转非法 */
+    public static final int OPPORTUNITY_STAGE_CONFLICT = 41027;
+
+    /** 赢单商机必须填写金额 */
+    public static final int OPPORTUNITY_AMOUNT_REQUIRED = 41028;
+
+    /** 输单商机必须填写原因 */
+    public static final int OPPORTUNITY_LOST_REASON_REQUIRED = 41029;
+
+    /** 商机必须归属客户 */
+    public static final int OPPORTUNITY_CUSTOMER_REQUIRED = 41030;
+
     /** 错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(GATE_CLOSED, "需求门禁未通过，CRM 业务接口尚未开放"),
@@ -99,7 +129,17 @@ public final class CrmErrorCode {
             Map.entry(DATA_SCOPE_DENIED, "无权访问该客户"),
             Map.entry(ACTOR_REQUIRED, "缺少可信身份上下文，请通过网关访问"),
             Map.entry(PARAM_INVALID, "请求参数非法"),
-            Map.entry(CUSTOMER_OWNER_REQUIRED, "分配客户时必须指定负责人"));
+            Map.entry(CUSTOMER_OWNER_REQUIRED, "分配客户时必须指定负责人"),
+            Map.entry(LEAD_NOT_FOUND, "线索不存在或无权访问"),
+            Map.entry(LEAD_DUPLICATE, "存在疑似重复线索（电话或邮箱相同），请确认后再保存"),
+            Map.entry(LEAD_STATE_CONFLICT, "线索当前状态不允许该操作"),
+            Map.entry(LEAD_INVALID_REASON_REQUIRED, "标记线索无效时必须填写原因"),
+            Map.entry(LEAD_ALREADY_CONVERTED, "线索已转化，不可重复转化"),
+            Map.entry(OPPORTUNITY_NOT_FOUND, "商机不存在或无权访问"),
+            Map.entry(OPPORTUNITY_STAGE_CONFLICT, "商机阶段流转非法，请按 CONTACT → PROPOSAL → NEGOTIATION → WON 顺序推进"),
+            Map.entry(OPPORTUNITY_AMOUNT_REQUIRED, "赢单商机必须填写金额"),
+            Map.entry(OPPORTUNITY_LOST_REASON_REQUIRED, "输单商机必须填写原因"),
+            Map.entry(OPPORTUNITY_CUSTOMER_REQUIRED, "商机必须归属客户"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。

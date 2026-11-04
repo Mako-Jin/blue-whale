@@ -1,6 +1,6 @@
 # CRM 功能模块全景：领域模型与架构设计
 
-> 状态：**首切片 M0 底座 + M1 客户主数据已实施（后端，2026-11-04）**；M2–M6 仍为规划
+> 状态：**M0 底座 + M1 客户主数据 + M2 线索/商机/漏斗核心已实施（后端，2026-11-04）**；M3–M6 仍为规划
 > 实施结果与偏差：[Wave 5.83 计划 §12](../plans/2026-11-04-wave5.83-crm-panorama.md)
 > 输入：用户《CRM 功能模块全景》六大模块 29 个子模块，以及 CRM 与 ERP / OA / 合同 / 消息 / 知识库的边界说明
 > 关联计划：[Wave 5.83 CRM 全景实施计划](../plans/2026-11-04-wave5.83-crm-panorama.md)
@@ -63,9 +63,9 @@
 
 | 子模块 | 现状 | 目标能力 | 归属 |
 |---|---|---|---|
-| 线索管理 | ❌ | 展会/官网/广告/导入/手工来源；分配规则；查重；线索活动；转客户/商机；无效回收 | CRM `sales` |
-| 商机管理 | △ `crm_opportunity` 有阶段、金额、预计关闭、输单原因 | 阶段状态机、阶段历史、赢单/输单规则、停留时长、竞争态势 | CRM `sales` |
-| 销售漏斗 | ❌ | 线索→初步接触→方案报价→谈判→赢单；各阶段数量/金额/转化率/停留时长/流失原因 | CRM `sales` + `analytics` |
+| 线索管理 | △ `crm_lead` / `crm_lead_activity` 已建，采集/查重/活动/转化/无效已实现；自动分配与回收未做 | 分配规则、自动回收、线索评分（后续增强） | CRM `sales` |
+| 商机管理 | △ `crm_opportunity` 补概率/来源/竞争/阶段时间/乐观锁，阶段机与阶段历史已实现；停留时长统计未做 | 停留时长、竞争态势分析 | CRM `sales` |
+| 销售漏斗 | △ 实时聚合已实现（数量/金额/环比转化率，LOST 单列）；停留时长与多维钻取未做 | 线索→接触→方案→谈判→赢单全链路分析、停留时长、按人/团队/来源/行业钻取 | CRM `sales` + `analytics` |
 | 报价管理 | ❌ | 报价单头/行、版本、折扣、税率、有效期、审批、锁定、转订单、历史 | CRM `sales`；审批走 workflow |
 | 销售预测 | ❌ | 管道/最佳/承诺三类；按阶段概率加权；月度/季度快照；手工调整留痕 | CRM `sales` |
 | 销售目标 | ❌ | 个人/部门/月/季目标；完成率；口径可配置；目标调整审计 | CRM `sales` |
@@ -287,7 +287,7 @@ DRAFT → SCHEDULED → RUNNING → FINISHED → ARCHIVED
 |---|---|---|
 | M0 | `V2__crm_foundation.sql` | `crm_common_outbox`、`crm_int_sync_log`、`crm_external_ref`、`crm_idempotency`；`ALTER crm_customer` 补 `short_name/website/scale/tax_no/province/city/region/normalized_name/normalized_domain/normalized_tax_no/version/pool_status/pool_at/last_follow_up_at`；`ALTER crm_contact` 补 `wechat/decision_role/is_decision_maker/normalized_phone/normalized_email/version`；`ALTER crm_follow_up` 补 `result/next_action`；补索引 |
 | M1 | `V3__customer_profile.sql` | `crm_customer_address`、`crm_customer_profile`、`crm_customer_merge_log`、`crm_customer_pool_rule`、`crm_customer_owner_log`、`crm_customer_import_task` |
-| M2 | `V4__sales_process.sql` | `crm_lead`、`crm_lead_activity`、`crm_lead_convert_log`、`crm_opportunity_stage_history`、`crm_quote`、`crm_quote_line`、`crm_quote_approval`、`crm_sales_target`、`crm_forecast_snapshot` |
+| M2 | `V4__sales_process.sql` | **已落**：`crm_lead`、`crm_lead_activity`、`crm_opportunity_stage_history`，`crm_opportunity` 补 `probability/source/competitor/next_action_at/stage_entered_at/version`；**待落**：`crm_quote`、`crm_quote_line`、`crm_quote_approval`、`crm_sales_target`、`crm_forecast_snapshot`（转化结果直接写 `crm_lead.customer_id/opportunity_id`，不再单建 `crm_lead_convert_log`） |
 | M3 | `V5__commerce.sql` | `crm_contract_ref`、`crm_sales_order`、`crm_sales_order_line`、`crm_order_push_log`、`crm_collection_plan`、`crm_collection_installment`、`crm_collection_record`、`crm_invoice_request`、`crm_invoice_item`、`crm_ar_snapshot` |
 | M4 | `V6__service.sql` | `crm_ticket`、`crm_ticket_action`、`crm_ticket_sla`、`crm_service_calendar`、`crm_kb_ref`、`crm_satisfaction_survey`、`crm_satisfaction_response`、`crm_return_request`、`crm_return_item` |
 | M5 | `V7__marketing.sql` | `crm_campaign`、`crm_campaign_channel`、`crm_campaign_member`、`crm_campaign_cost`、`crm_nurture_task`、`crm_nurture_log`、`crm_marketing_send`、`crm_unsubscribe`、`crm_partner`、`crm_partner_authorization`、`crm_deal_registration`、`crm_partner_achievement` |
@@ -579,3 +579,4 @@ com.bluewhale.crm
 | 日期 | 变更 |
 |---|---|
 | 2026-11-04 | 初稿：基于用户《CRM 功能模块全景》建立 6 上下文、29 子模块差距矩阵、V2–V8 迁移草案、权限 1800–1899 / 菜单 410–449 / 角色 25128–25132 预留、D1–D12 开放问题；规划零代码 |
+| 2026-11-04 | M2 核心落地：线索 / 线索活动 / 转化 / 商机阶段机 / 阶段历史 / 漏斗；V4 新增三表并补商机七列；权限 1840–1849；报价、预测、目标仍为规划 |

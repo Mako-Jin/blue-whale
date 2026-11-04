@@ -103,6 +103,21 @@ class CrmFlywayMigrationScriptTest {
                 "客户画像每租户每客户唯一");
     }
 
+    @Test
+    @DisplayName("V4 销售过程：新增线索 / 线索活动 / 商机阶段历史三表，且不写种子数据")
+    void salesShouldContainSalesTables() throws IOException {
+        Set<String> tables = extractTables(MIGRATION_DIR.resolve("V4__sales_process.sql"));
+        assertEquals(Set.of("crm_lead", "crm_lead_activity", "crm_opportunity_stage_history"), tables);
+        String content = Files.readString(MIGRATION_DIR.resolve("V4__sales_process.sql"), StandardCharsets.UTF_8);
+        assertFalse(content.toUpperCase().contains("INSERT INTO CRM_"),
+                "销售过程增量不得写入线索 / 商机种子数据");
+        assertTrue(content.toUpperCase().contains("INFORMATION_SCHEMA.COLUMNS"),
+                "商机补列必须用 information_schema 存在性守卫");
+        assertTrue(content.toUpperCase().contains("ADD COLUMN PROBABILITY"),
+                "商机增量应补齐赢单概率列");
+        assertTrue(content.contains("UNIQUE KEY uk_crm_lead_no"), "线索编号租户内唯一");
+    }
+
     /**
      * 列出迁移脚本。
      *

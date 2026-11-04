@@ -1,6 +1,6 @@
 # 客户关系服务设计（whale-crm）
 
-> 状态：**M0 底座 + M1 客户主数据已落地（Wave 5.83，后端）**；前端 8113、导入导出与客户合并待后续增量
+> 状态：**M0 底座 + M1 客户主数据 + M2 线索与商机核心已落地（Wave 5.83，后端）**；报价/预测/目标、前端 8113、导入导出与客户合并待后续增量
 > 关联需求：REQ-FUNC-080..086、REQ-ARCH-024、REQ-SEC-034
 > 关联规划：[CRM 功能模块全景](crm-module-panorama.md) / [Wave 5.83 计划](../plans/2026-11-04-wave5.83-crm-panorama.md)
 > 关联决策：[CRM/SRM 与消息服务边界决策](../plans/2026-10-28-crm-srm-and-message-service-decisions.md)、REQ-ARCH-011
@@ -18,10 +18,10 @@
 | 项 | 结论 |
 |---|---|
 | 需求门禁 D2 | **已通过（2026-11-04，D1 采纳全景口径）**：用户提供 6 大模块 29 子模块全景；客户主数据归属、验收口径与里程碑已在 [全景设计稿](crm-module-panorama.md) 与 [Wave 5.83 计划](../plans/2026-11-04-wave5.83-crm-panorama.md) 定稿 |
-| 本波范围 | M0 底座 + M1 客户主数据（客户 / 联系人 / 地址 / 画像 / 分级 / 查重 / 公海 / 跟进 / 360）；M2–M6 按计划推进 |
-| 不做什么（本波） | 不做客户合并、CSV 导入导出、前端 8113；不登记菜单 413–420；不写业务种子数据 |
+| 本波范围 | M0 底座 + M1 客户主数据 + M2 线索/商机/漏斗核心；报价、预测、目标与 M3–M6 按计划推进 |
+| 不做什么（本波） | 不做客户合并、CSV 导入导出、前端 8113、报价审批、预测快照、销售目标；不登记菜单 413–426；不写业务种子数据 |
 | 唯一开关 | `whale.crm.demand-gate-passed`（默认 `true`）；置 `false` 即回退到仅 `/crm/meta` 的维护态 |
-| 下一步 | M1 收尾（合并 / 导入导出 / 前端）→ M2 线索与商机 |
+| 下一步 | M1 收尾（合并 / 导入导出 / 前端）→ M2 增量（报价 / 预测 / 目标）→ M3 商务履约 |
 
 ### 1.1 进入条件（历史记录，均已满足或被 D1 取代）
 
@@ -46,7 +46,7 @@
 
 ---
 
-## 3. 本波已落地内容（Wave 5.83 M0 + M1）
+## 3. 本波已落地内容（Wave 5.83 M0 + M1 + M2）
 
 | 项 | 内容 |
 |---|---|
@@ -54,12 +54,12 @@
 | 启动类 | `WhaleCrmApplication`（`@EnableScheduling`，供公海回收任务使用） |
 | 配置 | `CrmProperties`：门禁（默认 `true`）、客户编码前缀、跟进分页上限、合同引用开关、默认客户等级 `C`、公海回收开关/表达式/批大小 |
 | 元信息接口 | `GET /crm/meta`（权限 `sys:crm:browse`）→ 门禁状态、说明、里程碑、边界约束 |
-| DDL | `V1__baseline.sql` 四表 + 审计表；`V2__crm_foundation.sql` 补客户/联系人/跟进字段与归一化索引、集成四表；`V3__customer_profile.sql` 地址/画像/公海规则/负责人留痕 |
-| 权限 | `migration-5.77-crm.sql`：337–354 保留；`migration-5.83-crm.sql`：1800 敏感明文 + 1810–1830 客户主数据 |
+| DDL | `V1__baseline.sql` 四表 + 审计表；`V2__crm_foundation.sql` 补客户/联系人/跟进字段与归一化索引、集成四表；`V3__customer_profile.sql` 地址/画像/公海规则/负责人留痕；`V4__sales_process.sql` 线索/线索活动/商机阶段历史 + 商机补概率/来源/竞争/下次行动/阶段时间/乐观锁 |
+| 权限 | `migration-5.77-crm.sql`：337–354 保留；`migration-5.83-crm.sql`：1800 敏感明文 + 1810–1830 客户主数据；`migration-5.84-crm-sales.sql`：1840–1849 线索与商机 |
 | 角色 | 25108 `crm_admin`、25109 `crm_member` 保留；新增 25128 `crm_sales`、25129 `crm_sales_manager`、25130 `crm_service`、25131 `crm_marketing`、25132 `crm_analyst` |
 | 网关 | `lb://whale-crm`，不配 `StripPrefix`；`/crm/internal/**` 由 internal-deny 403 |
-| 前端 | **未创建**；8113 仍为规划态。菜单 413–420 已预留但**不登记**，避免空入口 |
-| 测试 | 97 项（架构 9、迁移 5、公共组件 10、应用服务 50、Controller 13、元信息 4 等）；Checkstyle 通过 |
+| 前端 | **未创建**；8113 仍为规划态。菜单 413–426 已预留但**不登记**，避免空入口 |
+| 测试 | 123 项（架构 9、迁移 6、公共 16、客户 50、销售 25、Controller 17 等）；Checkstyle 通过 |
 
 ### 3.1 分层与上下文
 
@@ -69,8 +69,9 @@ com.bluewhale.crm
 ├── config            # CrmProperties
 ├── interfaces        # 仅 /crm/meta
 ├── customer          # M1 客户主数据（domain / application / infrastructure / interfaces）
+├── sales             # M2 线索 + 商机 + 漏斗（domain / application / infrastructure / interfaces）
 ├── integration       # M1 只需商机摘要端口适配器
-├── sales / commerce / service / marketing / analytics   # M2–M6 预留，ArchUnit 规则已生效
+├── commerce / service / marketing / analytics   # M3–M6 预留，ArchUnit 规则已生效
 └── WhaleCrmApplication
 ```
 
@@ -99,7 +100,28 @@ com.bluewhale.crm
 | `GET`/`PUT` | `/crm/pool/rule` | 公海规则查询 / 保存 | `sys:crm:pool:rule` |
 | `GET` | `/crm/pool/{id}/owner-logs` | 负责人变更留痕 | `sys:crm:pool:view` |
 
-### 3.3 与计划的偏差（本波明确）
+### 3.3 M2 已交付接口（线索与商机）
+
+| 方法 | 路径 | 用途 | 权限码 |
+|---|---|---|---|
+| `GET` | `/crm/lead/page` | 线索分页（数据范围收口） | `sys:crm:lead:list` |
+| `GET` | `/crm/lead/duplicate-check` | 线索查重（名称 / 电话 / 邮箱归一化） | `sys:crm:lead:list` |
+| `GET` | `/crm/lead/{id}` | 线索详情（电话 / 邮箱脱敏） | `sys:crm:lead:list` |
+| `POST` | `/crm/lead` | 新建线索（编号 `LEAD-{yyyy}-{6位}`，重复需确认） | `sys:crm:lead:create` |
+| `PUT` | `/crm/lead/{id}` | 编辑线索（已转化为只读） | `sys:crm:lead:update` |
+| `PUT` | `/crm/lead/{id}/status` | 状态推进（`NEW→CONTACTED→QUALIFIED`） | `sys:crm:lead:update` |
+| `PUT` | `/crm/lead/{id}/assign` | 分配负责人（全量数据范围） | `sys:crm:lead:assign` |
+| `PUT` | `/crm/lead/{id}/invalid` | 标记无效（原因必填） | `sys:crm:lead:invalid` |
+| `POST` | `/crm/lead/{id}/convert` | 转客户 / 商机（一次且幂等） | `sys:crm:lead:convert` |
+| `GET`/`POST` | `/crm/lead/{id}/activity` | 线索活动分页 / 追加（NEW 自动转 CONTACTED） | `sys:crm:lead:list` / `sys:crm:lead:update` |
+| `GET` | `/crm/opportunity/page` | 商机分页（数据范围收口） | `sys:crm:opportunity:list` |
+| `GET` | `/crm/opportunity/funnel` | 销售漏斗（阶段数量 / 金额 / 环比转化率） | `sys:crm:opportunity:list` |
+| `GET` | `/crm/opportunity/{id}`, `/{id}/history` | 商机详情 / 阶段历史 | `sys:crm:opportunity:list` |
+| `POST` | `/crm/opportunity` | 新建商机（客户必填，初始 `CONTACT`） | `sys:crm:opportunity:create` |
+| `PUT` | `/crm/opportunity/{id}` | 编辑商机（已关闭拒绝） | `sys:crm:opportunity:update` |
+| `PUT` | `/crm/opportunity/{id}/stage` | 阶段流转（严格顺序；WON 需金额、LOST 需原因） | `sys:crm:opportunity:stage` |
+
+### 3.4 与计划的偏差（本波明确）
 
 | 项 | 计划 | 本波实现 | 原因 |
 |---|---|---|---|
@@ -110,34 +132,47 @@ com.bluewhale.crm
 | M1-10 前端 | 8113 页面 | **未创建** | 后端先行；菜单 413–420 保留不登记 |
 | M1-5 自动回收 | 定时回收默认开启 | 已实现任务，`whale.crm.pool-recycle-enabled` **默认 false** | 灰度先手动触发验证回收规则，再打开定时 |
 | M1-11 审计 | 全部写操作 `@AuditLog` | 18 个写接口已加注解（`crm_customer` / `crm_contact` / `crm_customer_address` / `crm_customer_profile` / 公海 / 跟进）；画像与联系人写接口 `recordParams=false`，避免备注、微信等自由文本落库 | 审计切面按字段名脱敏，自由文本无规则可依，直接关闭参数记录 |
+| M2 报价 | 报价头/行/版本、折扣审批、锁定、转订单 | **未实现**；1840–1849 未分配报价权限 | 审批依赖 `whale-workflow` 契约，安排在 M2 增量 |
+| M2 预测 / 目标 | 管道/最佳/承诺预测、阶段概率加权、个人/部门目标 | **未实现**；漏斗仅做实时聚合 | 需先稳定阶段概率口径（D5）与指标定义（M6） |
+| M2 线索分配规则 | 轮询 / 区域 / 行业自动分配 | 仅手工分配（`assign`，需全量数据范围） | 规则引擎后置；手工分配先满足主管派单 |
+| M2 阶段停留时长 | 漏斗展示每阶段平均停留 | 阶段历史已落 `changed_at`，未做停留统计 | 留待 M6 分析口径统一后计算，避免重复定义 |
 
 > `/crm/meta` 不读写任何客户表；门禁关闭时业务接口统一返回 `41000`。
 
 ---
 
-## 4. 数据模型（M1 已按 V1–V3 落地；M2–M6 表见全景设计稿 §五）
+## 4. 数据模型（M1 按 V1–V3、M2 按 V4 落地；M3–M6 表见全景设计稿 §六）
 
 | 表 | 关键字段 | 说明 |
 |---|---|---|
 | `crm_customer` | `customer_code` / `name` / `status` / `owner_id` / `dept_id` / `level` / `source` / `industry` / `address` / `tags` | 客户聚合根；`customer_code` 租户内唯一 |
 | `crm_contact` | `customer_id` / `name` / `phone` / `email` / `title` / `is_primary` / `status` | 每客户至多一个主联系人 |
-| `crm_opportunity` | `customer_id` / `name` / `amount` / `stage` / `expected_close_date` / `owner_id` / `lost_reason` | 商机阶段状态机 |
+| `crm_lead` | `lead_no` / `name` / `status` / `source` / `owner_id` / `dept_id` / `normalized_name` / `normalized_phone` / `normalized_email` / `customer_id` / `opportunity_id` | 线索聚合根；`lead_no` 租户内唯一；转化后只读 |
+| `crm_lead_activity` | `lead_id` / `channel` / `content` / `result` / `next_action_at` / `created_by` | 线索活动追加式 |
+| `crm_opportunity` | `customer_id` / `name` / `amount` / `stage` / `probability` / `source` / `competitor` / `next_action_at` / `stage_entered_at` / `expected_close_date` / `owner_id` / `lost_reason` / `version` | 商机阶段状态机；`version` 乐观锁 |
+| `crm_opportunity_stage_history` | `opportunity_id` / `from_stage` / `to_stage` / `amount` / `probability` / `lost_reason` / `operator_id` / `changed_at` | 阶段流转留痕 |
 | `crm_follow_up` | `customer_id` / `opportunity_id` / `channel` / `content` / `next_action_at` / `created_by` | 追加式（append-only） |
 
-阶段状态机（草案）：
+阶段状态机（已实现）：
 
 ```text
-LEAD → QUALIFIED → PROPOSAL → NEGOTIATION → WON
-  └──────────────┴───────────┴──────────────► LOST（必须填写 lost_reason）
+线索 Lead：
+NEW → CONTACTED → QUALIFIED → CONVERTED
+  └──────────────┴───────────┴──► INVALID（必须填原因）
+
+商机 Opportunity：
+CONTACT → PROPOSAL → NEGOTIATION → WON
+   └────────┴───────────┴────────► LOST（必须填写 lost_reason）
 ```
 
-- 非法跳转返回业务错误（400）；
-- `WON` 必须有金额与客户；
+- 非法跳转返回业务错误 `41023` / `41027`；
+- `WON` 必须金额 > 0（缺失返回 `41028`），`LOST` 必须填原因（缺失返回 `41029`）；
+- 线索 `CONVERTED` 与商机 `WON` / `LOST` 为终态，终态不可再编辑或流转；
 - 客户存在未关闭商机时禁止停用/删除。
 
 ---
 
-## 5. API 清单（M1 已实现；M2–M6 见计划 §4）
+## 5. API 清单（M1 / M2 已实现；M3–M6 见计划 §4）
 
 | 方法 | 路径 | 用途 | 权限 |
 |---|---|---|---|
@@ -156,13 +191,21 @@ LEAD → QUALIFIED → PROPOSAL → NEGOTIATION → WON
 | `GET`/`POST`/`PUT`/`DELETE` | `/crm/customer/{id}/address/**` | 地址（**已实现**） | `sys:crm:address:list` / `sys:crm:address:manage` |
 | `GET`/`POST` | `/crm/follow-up/page`、`/crm/follow-up` | 跟进（**已实现**） | `sys:crm:follow-up:list` / `sys:crm:follow-up:create` |
 | `GET`/`POST`/`PUT` | `/crm/pool/**` | 公海（**已实现**） | `sys:crm:pool:view/claim/release/assign/rule/recycle` |
-| `GET` | `/crm/opportunity/page`、`/crm/opportunity/funnel` | 商机分页 / 漏斗（**M2 规划**） | `sys:crm:opportunity:list` |
-| `POST`/`PUT` | `/crm/opportunity`、`/crm/opportunity/{id}/stage` | 新建 / 推进阶段（**M2 规划**） | `sys:crm:opportunity:create` / `sys:crm:opportunity:stage` |
+| `GET` | `/crm/lead/page`、`/{id}`、`/{id}/activity` | 线索分页 / 详情 / 活动（**已实现**） | `sys:crm:lead:list` |
+| `GET` | `/crm/lead/duplicate-check` | 线索查重（**已实现**） | `sys:crm:lead:list` |
+| `POST` | `/crm/lead` | 新建线索（**已实现**） | `sys:crm:lead:create` |
+| `PUT` | `/crm/lead/{id}`、`/{id}/status` | 编辑 / 状态推进（**已实现**） | `sys:crm:lead:update` |
+| `PUT` | `/crm/lead/{id}/assign`、`/{id}/invalid` | 分配 / 标记无效（**已实现**） | `sys:crm:lead:assign` / `sys:crm:lead:invalid` |
+| `POST` | `/crm/lead/{id}/convert`、`/{id}/activity` | 转化（幂等）/ 追加活动（**已实现**） | `sys:crm:lead:convert` / `sys:crm:lead:update` |
+| `GET` | `/crm/opportunity/page`、`/crm/opportunity/funnel` | 商机分页 / 漏斗（**已实现**） | `sys:crm:opportunity:list` |
+| `GET` | `/crm/opportunity/{id}`、`/{id}/history` | 商机详情 / 阶段历史（**已实现**） | `sys:crm:opportunity:list` |
+| `POST`/`PUT` | `/crm/opportunity`、`/crm/opportunity/{id}`、`/{id}/stage` | 新建 / 编辑 / 阶段流转（**已实现**） | `sys:crm:opportunity:create` / `...:update` / `...:stage` |
+| `GET`/`POST`/`PUT` | `/crm/quote/**`、`/crm/forecast/**`、`/crm/sales-target/**` | 报价 / 预测 / 目标（**M2 增量**） | 待分配 1845–1859 |
 
-> 完整请求/响应字段以 `customer.application.view` 与 `interfaces.controller` 为准；权限码与 `CrmPermissions`、`migration-5.83-crm.sql` 三者一致。
+> 完整请求/响应字段以 `customer.application.view` / `sales.application.view` 与 `interfaces.controller` 为准；权限码与 `CrmPermissions`、`migration-5.83-crm.sql` / `migration-5.84-crm-sales.sql` 三者一致。
 
-**权限编号 1800–1899**（已用 1800 敏感明文、1810–1830 客户主数据；337–354 为历史登记，保留不动）；
-**菜单 410–449**（413–420 预留未登记，前端交付时追加）。
+**权限编号 1800–1899**（已用 1800 敏感明文、1810–1830 客户主数据、1840–1849 线索/商机；337–354 为历史登记，保留不动）；
+**菜单 410–449**（413–426 预留未登记，前端交付时追加）。
 不提前注册菜单，避免用户看到点击即 403 的空入口。
 
 ---
