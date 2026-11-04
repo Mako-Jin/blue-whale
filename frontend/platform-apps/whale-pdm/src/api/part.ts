@@ -1,5 +1,5 @@
 // PDM 零件主档 / 物料分类 / BOM API 层：经网关 8080 代理到 whale-pdm（/pdm/**）
-import { http, type PageResult } from './client';
+import { download, http, type DownloadResult, type PageResult } from './client';
 
 /** 零件类型 */
 export type PartType = 'PRODUCT' | 'ASSEMBLY' | 'PART' | 'RAW_MATERIAL';
@@ -12,6 +12,9 @@ export type PartStatus = 'ENABLED' | 'DISABLED';
 
 /** BOM 状态 */
 export type BomStatus = 'DRAFT' | 'RELEASED' | 'OBSOLETE';
+
+/** BOM 视图 */
+export type BomView = 'EBOM' | 'PBOM' | 'MBOM';
 
 /** 零件主档 */
 export interface PdmPart {
@@ -82,7 +85,7 @@ export interface PartWhereUsed {
   bomId: string;
   bomNo: string;
   versionNo: string;
-  view: string;
+  view: BomView;
   productCode: string;
   status: BomStatus;
   parentPartNo?: string;
@@ -126,7 +129,7 @@ export interface PdmBom {
   productId: string;
   productCode: string;
   productName?: string;
-  view: string;
+  view: BomView;
   versionNo: string;
   status: BomStatus;
   remark?: string;
@@ -142,7 +145,7 @@ export interface BomQuery {
   size?: number;
   bomNo?: string;
   productCode?: string;
-  view?: string;
+  view?: BomView;
   status?: BomStatus;
 }
 
@@ -150,8 +153,40 @@ export interface BomQuery {
 export interface BomInput {
   productId: string;
   bomNo?: string;
-  view?: string;
+  view?: BomView;
   remark?: string;
+}
+
+/** BOM 派生视图入参 */
+export interface BomDeriveInput {
+  view: 'PBOM' | 'MBOM';
+  bomNo?: string;
+  remark?: string;
+}
+
+/** BOM 对比明细 */
+export interface BomDiffLine {
+  path: string;
+  changeType: 'ADDED' | 'REMOVED' | 'QTY_CHANGED' | 'LOSS_CHANGED' | 'UOM_CHANGED' | 'PART_CHANGED';
+  partNo?: string;
+  partName?: string;
+  field?: string;
+  baseValue?: string;
+  targetValue?: string;
+}
+
+/** BOM 对比结果 */
+export interface BomDiff {
+  baseBomNo: string;
+  baseVersionNo: string;
+  baseView: BomView;
+  targetBomNo: string;
+  targetVersionNo: string;
+  targetView: BomView;
+  added: number;
+  removed: number;
+  changed: number;
+  lines: BomDiffLine[];
 }
 
 /** BOM 行入参 */
@@ -171,7 +206,7 @@ export interface BomRelease {
   bomNo: string;
   versionNo: string;
   productCode: string;
-  view: string;
+  view: BomView;
   checksum: string;
   lineCount: number;
   releasedBy?: string;
@@ -266,4 +301,19 @@ export function releaseBom(id: string): Promise<BomRelease> {
 /** BOM 发布记录 */
 export function listBomReleases(bomNo: string): Promise<BomRelease[]> {
   return http.get<BomRelease[]>(`/pdm/bom/${bomNo}/releases`);
+}
+
+/** 从 EBOM 派生 PBOM/MBOM */
+export function deriveBom(id: string, input: BomDeriveInput): Promise<PdmBom> {
+  return http.post<PdmBom>(`/pdm/bom/${id}/derive`, input);
+}
+
+/** 对比两个 BOM（同一产品） */
+export function diffBoms(baseId: string, targetId: string): Promise<BomDiff> {
+  return http.get<BomDiff>('/pdm/bom/diff', { baseId, targetId });
+}
+
+/** 导出 BOM Excel */
+export function exportBom(id: string): Promise<DownloadResult> {
+  return download(`/pdm/bom/${id}/export`);
 }

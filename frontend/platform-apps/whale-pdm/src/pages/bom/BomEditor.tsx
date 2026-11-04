@@ -1,4 +1,4 @@
-// BOM 结构编辑器：树表展示、行增改删、发布确认、快照记录
+// BOM 结构编辑器：树表展示、行增改删、视图派生、版本对比、发布与导出
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Button,
@@ -19,15 +19,23 @@ import type { TableProps } from 'antd';
 import {
   addBomLine,
   deleteBomLine,
+  deriveBom,
+  diffBoms,
+  exportBom,
   getBom,
   listBomReleases,
+  listBoms,
   listParts,
   releaseBom,
   updateBomLine,
+  type BomDeriveInput,
+  type BomDiff,
+  type BomDiffLine,
   type BomLine,
   type BomRelease,
   type BomStatus,
   type BomTreeNode,
+  type BomView,
   type PdmBom,
   type PdmPart,
 } from '../../api/part';
@@ -42,6 +50,45 @@ const STATUS_CONFIG: Record<BomStatus, { label: string; color: string }> = {
 
 /** 可展开子件的父件类型 */
 const ASSEMBLY_TYPES = new Set(['PRODUCT', 'ASSEMBLY']);
+
+/** BOM 视图文案 */
+const VIEW_LABEL: Record<BomView, string> = {
+  EBOM: '设计 BOM',
+  PBOM: '工艺 BOM',
+  MBOM: '制造 BOM',
+};
+
+/** 对比变更文案与颜色 */
+const CHANGE_CONFIG: Record<string, { label: string; color: string }> = {
+  ADDED: { label: '新增', color: 'green' },
+  REMOVED: { label: '删除', color: 'red' },
+  QTY_CHANGED: { label: '用量变更', color: 'orange' },
+  LOSS_CHANGED: { label: '损耗变更', color: 'orange' },
+  UOM_CHANGED: { label: '单位变更', color: 'orange' },
+  PART_CHANGED: { label: '零件变更', color: 'purple' },
+};
+
+/** 派生表单值 */
+interface DeriveFormValues {
+  view: 'PBOM' | 'MBOM';
+  bomNo?: string;
+  remark?: string;
+}
+
+/**
+ * 触发浏览器保存 Blob。
+ *
+ * @param blob     文件内容
+ * @param filename 文件名
+ */
+function saveBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
 
 /** 树表行（children 为空时置空，避免叶子节点出现展开图标） */
 interface BomRow extends Omit<BomTreeNode, 'children'> {
@@ -97,8 +144,20 @@ export default function BomEditor({ open, bomId, onClose, onChanged }: BomEditor
   const [releases, setReleases] = useState<BomRelease[]>([]);
   const [releasesLoading, setReleasesLoading] = useState(false);
 
+  const [deriveOpen, setDeriveOpen] = useState(false);
+  const [deriving, setDeriving] = useState(false);
+  const [deriveForm] = Form.useForm<DeriveFormValues>();
+
+  const [diffOpen, setDiffOpen] = useState(false);
+  const [diffLoading, setDiffLoading] = useState(false);
+  const [diffResult, setDiffResult] = useState<BomDiff | null>(null);
+  const [diffOptions, setDiffOptions] = useState<PdmBom[]>([]);
+  const [targetBomId, setTargetBomId] = useState<string>('');
+
   const canEdit = hasPermission('sys:pdm:bom:edit');
+  const canAdd = hasPermission('sys:pdm:bom:add');
   const canRelease = hasPermission('sys:pdm:bom:release');
+  const canExport = hasPermission('sys:pdm:bom:export');
 
   const load = useCallback(async () => {
     if (!bomId) {
@@ -222,6 +281,58 @@ export default function BomEditor({ open, bomId, onClose, onChanged }: BomEditor
     }
   };
 
+  const handleDerive = async () => {
+    const values = await deriveForm.validateFields();
+    setDeriving(true);
+    try {
+      const derived = await deriveBom(bomId, values as BomDeriveInput);
+      setBom(derived);
+      setDeriveOpen(false);
+      message.success(`已派生 ${VIEW_LABEL[derived.view]} ${derived.versionNo}`);
+      onChanged();
+    } finally {
+      setDeriving(false);
+    }
+  };
+
+  const openDiff = async () => {
+    setDiffOpen(true);
+    setDiffResult(null);
+    setTargetBomId('');
+    if (!bom) {
+      return;
+    }
+    try {
+      const page = await listBoms({
+        current: 1,
+        size: 200,
+        productCode: bom.productCode,
+      });
+      setDiffOptions(page.records.filter((item) => item.id !== bom.id));
+    } catch {
+      setDiffOptions([]);
+    }
+  };
+
+  const handleDiff = async () => {
+    if (!bom || !targetBomId) {
+      message.warning('请选择对比目标');
+      return;
+    }
+    setDiffLoading(true);
+    try {
+      setDiffResult(await diffBoms(bom.id, targetBomId));
+    } finally {
+      setDiffLoading(false);
+    }
+  };
+
+  const handleExport = async () => {
+    const result = await exportBom(bomId);
+    saveBlob(result.blob, result.filename || `${bom?.bomNo ?? 'BOM'}.xlsx`);
+    message.success('导出成功');
+  };
+
   const columns: TableProps<BomRow>['columns'] = [
     { title: '路径', dataIndex: 'path', key: 'path', width: 80 },
     { title: '零件编码', dataIndex: 'partNo', key: 'partNo', width: 160 },
@@ -276,6 +387,18 @@ export default function BomEditor({ open, bomId, onClose, onChanged }: BomEditor
       onClose={onClose}
       extra={
         <Space>
+          {canExport ? <Button onClick={() => void handleExport()}>导出 Excel</Button> : null}
+          <Button onClick={() => void openDiff()}>对比</Button>
+          {canAdd && bom?.view === 'EBOM' ? (
+            <Button
+              onClick={() => {
+                deriveForm.resetFields();
+                setDeriveOpen(true);
+              }}
+            >
+              派生视图
+            </Button>
+          ) : null}
           <Button
             onClick={() => {
               setReleasesOpen(true);
@@ -298,6 +421,7 @@ export default function BomEditor({ open, bomId, onClose, onChanged }: BomEditor
             <Descriptions.Item label="BOM 编号">{bom.bomNo}</Descriptions.Item>
             <Descriptions.Item label="产品">{bom.productCode}</Descriptions.Item>
             <Descriptions.Item label="版本">{bom.versionNo}</Descriptions.Item>
+            <Descriptions.Item label="视图">{VIEW_LABEL[bom.view] ?? bom.view}</Descriptions.Item>
             <Descriptions.Item label="状态">
               <Tag color={STATUS_CONFIG[bom.status]?.color ?? 'default'}>
                 {STATUS_CONFIG[bom.status]?.label ?? bom.status}
@@ -362,6 +486,104 @@ export default function BomEditor({ open, bomId, onClose, onChanged }: BomEditor
             <Input.TextArea rows={2} placeholder="选填" />
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        open={deriveOpen}
+        title="派生 BOM 视图"
+        onOk={() => void handleDerive()}
+        confirmLoading={deriving}
+        onCancel={() => setDeriveOpen(false)}
+        destroyOnClose
+      >
+        <Form form={deriveForm} layout="vertical" initialValues={{ view: 'PBOM' }}>
+          <Form.Item
+            name="view"
+            label="目标视图"
+            rules={[{ required: true, message: '请选择目标视图' }]}
+          >
+            <Select
+              options={[
+                { value: 'PBOM', label: '工艺 BOM（PBOM）' },
+                { value: 'MBOM', label: '制造 BOM（MBOM）' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item name="bomNo" label="BOM 编号">
+            <Input placeholder="留空按源编号 + 视图生成" />
+          </Form.Item>
+          <Form.Item name="remark" label="备注">
+            <Input.TextArea rows={2} placeholder="选填" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        open={diffOpen}
+        title="BOM 对比"
+        width={900}
+        footer={null}
+        onCancel={() => setDiffOpen(false)}
+        destroyOnClose
+      >
+        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          <Space wrap>
+            <Select
+              style={{ minWidth: 340 }}
+              placeholder="选择同产品的对比目标"
+              value={targetBomId || undefined}
+              onChange={setTargetBomId}
+              options={diffOptions.map((item) => ({
+                value: item.id,
+                label: `${item.bomNo} · ${VIEW_LABEL[item.view]} · ${item.versionNo} · ${
+                  STATUS_CONFIG[item.status]?.label ?? item.status
+                }`,
+              }))}
+            />
+            <Button type="primary" loading={diffLoading} onClick={() => void handleDiff()}>
+              开始对比
+            </Button>
+          </Space>
+          {diffResult ? (
+            <>
+              <Descriptions size="small" column={4} bordered>
+                <Descriptions.Item label="基线">
+                  {`${diffResult.baseBomNo} · ${diffResult.baseVersionNo}`}
+                </Descriptions.Item>
+                <Descriptions.Item label="目标">
+                  {`${diffResult.targetBomNo} · ${diffResult.targetVersionNo}`}
+                </Descriptions.Item>
+                <Descriptions.Item label="新增 / 删除">
+                  {`${diffResult.added} / ${diffResult.removed}`}
+                </Descriptions.Item>
+                <Descriptions.Item label="变更">{diffResult.changed}</Descriptions.Item>
+              </Descriptions>
+              <Table<BomDiffLine>
+                size="small"
+                rowKey={(record) => `${record.path}-${record.changeType}-${record.field ?? ''}`}
+                dataSource={diffResult.lines}
+                pagination={false}
+                scroll={{ y: 320 }}
+                columns={[
+                  { title: '路径', dataIndex: 'path', width: 80 },
+                  {
+                    title: '变更',
+                    dataIndex: 'changeType',
+                    width: 100,
+                    render: (value: string) => {
+                      const config = CHANGE_CONFIG[value] ?? { label: value, color: 'default' };
+                      return <Tag color={config.color}>{config.label}</Tag>;
+                    },
+                  },
+                  { title: '零件', dataIndex: 'partNo', width: 160 },
+                  { title: '字段', dataIndex: 'field', width: 100 },
+                  { title: '基线值', dataIndex: 'baseValue', width: 120 },
+                  { title: '目标值', dataIndex: 'targetValue', width: 120 },
+                ]}
+              />
+            </>
+          ) : null}
+        </Space>
       </Modal>
 
       <Drawer

@@ -6,6 +6,7 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.pdm.entity.PdmProduct;
 import com.bluewhale.pdm.mapper.PdmProductMapper;
+import com.bluewhale.pdm.part.dto.PdmBomDeriveRequest;
 import com.bluewhale.pdm.part.dto.PdmBomLineSaveRequest;
 import com.bluewhale.pdm.part.dto.PdmBomSaveRequest;
 import com.bluewhale.pdm.part.entity.PdmBom;
@@ -16,6 +17,8 @@ import com.bluewhale.pdm.part.mapper.PdmBomMapper;
 import com.bluewhale.pdm.part.mapper.PdmBomReleaseMapper;
 import com.bluewhale.pdm.part.support.PdmBomSnapshotBuilder;
 import com.bluewhale.pdm.part.support.PdmBomStatus;
+import com.bluewhale.pdm.part.vo.PdmBomDiffVO;
+import com.bluewhale.pdm.part.vo.PdmBomExportRowVO;
 import com.bluewhale.pdm.part.vo.PdmBomReleaseVO;
 import com.bluewhale.pdm.part.vo.PdmBomSnapshotVO;
 import com.bluewhale.pdm.part.vo.PdmBomVO;
@@ -238,6 +241,140 @@ class PdmBomServiceImplTest {
     }
 
     /**
+     * 从 EBOM 派生 PBOM 时复制全部结构行。
+     */
+    @Test
+    void deriveShouldCopySourceLines() {
+        PdmBom source = bom(1L, "BOM-P-100", "V1.0", 100L, "RELEASED");
+        when(bomMapper.selectById(1L)).thenReturn(source);
+        when(bomMapper.selectList(any())).thenReturn(List.of());
+        when(bomMapper.insert(any(PdmBom.class))).thenAnswer(invocation -> {
+            PdmBom entity = invocation.getArgument(0);
+            entity.setId(2L);
+            return 1;
+        });
+        when(bomLineMapper.selectList(any())).thenReturn(List.of(line(1L, 100L, 200L, 1, "2")));
+        when(bomLineMapper.insert(any(PdmBomLine.class))).thenAnswer(invocation -> {
+            PdmBomLine entity = invocation.getArgument(0);
+            entity.setId(10L);
+            return 1;
+        });
+        when(productMapper.selectBatchIds(any())).thenReturn(List.of(
+                part(100L, "P-100", "成品", "PRODUCT"), part(200L, "A1", "部件", "ASSEMBLY")));
+
+        PdmBomVO view = bomService.derive(1L, deriveRequest("PBOM"));
+
+        assertEquals(2L, view.getId());
+        assertEquals("BOM-P-100-PBOM", view.getBomNo());
+        assertEquals("PBOM", view.getView());
+        assertEquals("V1.0", view.getVersionNo());
+        assertEquals(1, view.getLines().size());
+        ArgumentCaptor<PdmBom> captor = ArgumentCaptor.forClass(PdmBom.class);
+        verify(bomMapper).insert(captor.capture());
+        assertEquals(1L, captor.getValue().getSourceBomId());
+        assertEquals("V1.0", captor.getValue().getSourceVersionNo());
+    }
+
+    /**
+     * 已存在同来源同视图草稿时直接返回，不再复制。
+     */
+    @Test
+    void deriveShouldReturnExistingDraft() {
+        PdmBom source = bom(1L, "BOM-P-100", "V1.0", 100L, "RELEASED");
+        PdmBom existing = bom(3L, "BOM-P-100-PBOM", "V1.0", 100L, "DRAFT");
+        existing.setView("PBOM");
+        when(bomMapper.selectById(1L)).thenReturn(source);
+        when(bomMapper.selectById(3L)).thenReturn(existing);
+        when(bomMapper.selectList(any())).thenReturn(List.of(existing));
+        when(bomLineMapper.selectList(any())).thenReturn(List.of(line(1L, 100L, 200L, 1, "2")));
+        when(productMapper.selectBatchIds(any())).thenReturn(List.of(
+                part(100L, "P-100", "成品", "PRODUCT"), part(200L, "A1", "部件", "ASSEMBLY")));
+
+        PdmBomVO view = bomService.derive(1L, deriveRequest("PBOM"));
+
+        assertEquals(3L, view.getId());
+        verify(bomMapper, never()).insert(any(PdmBom.class));
+        verify(bomLineMapper, never()).insert(any(PdmBomLine.class));
+    }
+
+    /**
+     * 对比识别用量变更与新增行。
+     */
+    @Test
+    void diffShouldReportChangedAndAddedLines() {
+        PdmBom base = bom(1L, "BOM-P-100", "V1.0", 100L, "RELEASED");
+        PdmBom target = bom(2L, "BOM-P-100-PBOM", "V1.0", 100L, "DRAFT");
+        target.setView("PBOM");
+        when(bomMapper.selectById(1L)).thenReturn(base);
+        when(bomMapper.selectById(2L)).thenReturn(target);
+        when(bomLineMapper.selectCount(any())).thenReturn(1L, 2L);
+        when(bomLineMapper.selectList(any())).thenReturn(
+                List.of(line(1L, 100L, 200L, 1, "2")),
+                List.of(line(5L, 100L, 200L, 1, "3"), line(6L, 100L, 300L, 2, "1")));
+        when(productMapper.selectBatchIds(any())).thenReturn(
+                List.of(part(100L, "P-100", "成品", "PRODUCT"), part(200L, "A1", "部件", "ASSEMBLY")),
+                List.of(part(100L, "P-100", "成品", "PRODUCT"), part(200L, "A1", "部件", "ASSEMBLY"),
+                        part(300L, "S1", "标准件", "PART")));
+
+        PdmBomDiffVO result = bomService.diff(1L, 2L);
+
+        assertEquals(1, result.getAdded());
+        assertEquals(0, result.getRemoved());
+        assertEquals(1, result.getChanged());
+        assertTrue(result.getLines().stream().anyMatch(item -> "QTY_CHANGED".equals(item.getChangeType())
+                && "2".equals(item.getBaseValue()) && "3".equals(item.getTargetValue())));
+        assertTrue(result.getLines().stream().anyMatch(item -> "ADDED".equals(item.getChangeType())
+                && "2".equals(item.getPath()) && "S1".equals(item.getPartNo())));
+    }
+
+    /**
+     * 非同一产品的 BOM 拒绝对比。
+     */
+    @Test
+    void diffShouldRejectDifferentProducts() {
+        when(bomMapper.selectById(1L)).thenReturn(bom(1L, "B1", "V1.0", 100L, "DRAFT"));
+        when(bomMapper.selectById(2L)).thenReturn(bom(2L, "B2", "V1.0", 200L, "DRAFT"));
+
+        assertThrows(BizException.class, () -> bomService.diff(1L, 2L));
+        verify(bomLineMapper, never()).selectCount(any());
+    }
+
+    /**
+     * 行数超过上限时拒绝在线对比。
+     */
+    @Test
+    void diffShouldRejectOversizedBom() {
+        when(bomMapper.selectById(1L)).thenReturn(bom(1L, "B1", "V1.0", 100L, "DRAFT"));
+        when(bomMapper.selectById(2L)).thenReturn(bom(2L, "B2", "V1.0", 100L, "DRAFT"));
+        when(bomLineMapper.selectCount(any())).thenReturn(2001L);
+
+        BizException exception = assertThrows(BizException.class, () -> bomService.diff(1L, 2L));
+
+        assertEquals(ErrorCode.PARAM_ERROR.getCode(), exception.getCode());
+    }
+
+    /**
+     * 导出行按深度优先顺序并带材质规格。
+     */
+    @Test
+    void exportRowsShouldFollowTreeOrder() {
+        when(bomMapper.selectById(1L)).thenReturn(bom(1L, "B1", "V1.0", 100L, "RELEASED"));
+        when(bomLineMapper.selectList(any())).thenReturn(List.of(line(1L, 100L, 200L, 1, "2")));
+        when(productMapper.selectBatchIds(any())).thenReturn(List.of(
+                part(100L, "P-100", "成品", "PRODUCT"), part(200L, "A1", "部件", "ASSEMBLY")));
+
+        List<PdmBomExportRowVO> rows = bomService.exportRows(1L);
+
+        assertEquals(2, rows.size());
+        assertEquals("", rows.get(0).getPath());
+        assertEquals("P-100", rows.get(0).getPartNo());
+        assertEquals("1", rows.get(1).getPath());
+        assertEquals("A1", rows.get(1).getPartNo());
+        assertEquals("Q235", rows.get(1).getMaterial());
+        assertEquals("M8x20", rows.get(1).getSpec());
+    }
+
+    /**
      * 构造 BOM 头。
      *
      * @param id       主键
@@ -323,7 +460,21 @@ class PdmBomServiceImplTest {
         product.setPartType(partType);
         product.setStatus("ENABLED");
         product.setUom("PCS");
+        product.setMaterial("Q235");
+        product.setSpec("M8x20");
         return product;
+    }
+
+    /**
+     * 构造派生请求。
+     *
+     * @param view 目标视图
+     * @return 请求
+     */
+    private PdmBomDeriveRequest deriveRequest(String view) {
+        PdmBomDeriveRequest request = new PdmBomDeriveRequest();
+        request.setView(view);
+        return request;
     }
 
     /**

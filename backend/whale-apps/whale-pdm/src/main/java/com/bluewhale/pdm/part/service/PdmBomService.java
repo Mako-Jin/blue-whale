@@ -1,9 +1,12 @@
 package com.bluewhale.pdm.part.service;
 
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.pdm.part.dto.PdmBomDeriveRequest;
 import com.bluewhale.pdm.part.dto.PdmBomLineSaveRequest;
 import com.bluewhale.pdm.part.dto.PdmBomQueryRequest;
 import com.bluewhale.pdm.part.dto.PdmBomSaveRequest;
+import com.bluewhale.pdm.part.vo.PdmBomDiffVO;
+import com.bluewhale.pdm.part.vo.PdmBomExportRowVO;
 import com.bluewhale.pdm.part.vo.PdmBomReleaseVO;
 import com.bluewhale.pdm.part.vo.PdmBomSnapshotVO;
 import com.bluewhale.pdm.part.vo.PdmBomVO;
@@ -110,4 +113,30 @@ public interface PdmBomService {
      * @return 使用处列表
      */
     List<PdmPartWhereUsedVO> whereUsed(Long partId);
+
+    /**
+     * 从 EBOM 派生 PBOM/MBOM（幂等：已有草稿直接返回）
+     *
+     * @param sourceId 源 BOM ID
+     * @param request  派生请求
+     * @return 派生 BOM 视图
+     */
+    PdmBomVO derive(Long sourceId, PdmBomDeriveRequest request);
+
+    /**
+     * 对比两个 BOM（同一产品）
+     *
+     * @param baseId   基线 BOM ID
+     * @param targetId 目标 BOM ID
+     * @return 对比结果
+     */
+    PdmBomDiffVO diff(Long baseId, Long targetId);
+
+    /**
+     * 导出 BOM 行（深度优先，含材质/规格）
+     *
+     * @param id BOM ID
+     * @return 导出行
+     */
+    List<PdmBomExportRowVO> exportRows(Long id);
 }

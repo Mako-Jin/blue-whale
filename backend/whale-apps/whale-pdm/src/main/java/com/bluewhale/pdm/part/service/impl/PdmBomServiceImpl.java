@@ -8,6 +8,7 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.pdm.converter.PdmConverter;
 import com.bluewhale.pdm.entity.PdmProduct;
 import com.bluewhale.pdm.mapper.PdmProductMapper;
+import com.bluewhale.pdm.part.dto.PdmBomDeriveRequest;
 import com.bluewhale.pdm.part.dto.PdmBomLineSaveRequest;
 import com.bluewhale.pdm.part.dto.PdmBomQueryRequest;
 import com.bluewhale.pdm.part.dto.PdmBomSaveRequest;
@@ -21,7 +22,11 @@ import com.bluewhale.pdm.part.service.PdmBomService;
 import com.bluewhale.pdm.part.support.PdmBomSnapshotBuilder;
 import com.bluewhale.pdm.part.support.PdmBomStatus;
 import com.bluewhale.pdm.part.support.PdmBomVersionNo;
+import com.bluewhale.pdm.part.support.PdmBomViews;
 import com.bluewhale.pdm.part.support.PdmPartTypes;
+import com.bluewhale.pdm.part.vo.PdmBomDiffLineVO;
+import com.bluewhale.pdm.part.vo.PdmBomDiffVO;
+import com.bluewhale.pdm.part.vo.PdmBomExportRowVO;
 import com.bluewhale.pdm.part.vo.PdmBomLineVO;
 import com.bluewhale.pdm.part.vo.PdmBomReleaseVO;
 import com.bluewhale.pdm.part.vo.PdmBomSnapshotVO;
@@ -62,11 +67,8 @@ public class PdmBomServiceImpl implements PdmBomService {
     /** 单页最大条数 */
     private static final long MAX_PAGE_SIZE = 200L;
 
-    /** EBOM 视图 */
-    private static final String VIEW_EBOM = "EBOM";
-
-    /** 自动 BOM 编号前缀 */
-    private static final String BOM_NO_PREFIX = "BOM-";
+    /** 在线对比最大行数（超过转异步，M1B 暂不支持） */
+    private static final long MAX_DIFF_LINES = 2000L;
 
     /** 环检测固定前缀 */
     private static final String CYCLE_PREFIX = "BOM_CYCLE_DETECTED:";
@@ -111,11 +113,13 @@ public class PdmBomServiceImpl implements PdmBomService {
         if (!"ENABLED".equals(product.getStatus())) {
             throw new BizException(ErrorCode.PARAM_ERROR, "停用零件不能创建 BOM");
         }
-        String view = StringUtils.hasText(request.getView()) ? request.getView().trim() : VIEW_EBOM;
-        if (!VIEW_EBOM.equals(view)) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "M1A 仅支持 EBOM 视图");
+        String view = StringUtils.hasText(request.getView())
+                ? request.getView().trim()
+                : PdmBomViews.EBOM;
+        if (!PdmBomViews.isValid(view)) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "视图仅支持 EBOM/PBOM/MBOM");
         }
-        String bomNo = resolveBomNo(request.getBomNo(), product.getCode());
+        String bomNo = resolveBomNo(request.getBomNo(), product.getCode(), view);
         List<PdmBom> existing = bomMapper.selectList(new LambdaQueryWrapper<PdmBom>()
                 .eq(PdmBom::getBomNo, bomNo)
                 .orderByDesc(PdmBom::getVersionSeq));
@@ -341,6 +345,313 @@ public class PdmBomServiceImpl implements PdmBomService {
             result.add(item);
         }
         return result;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public PdmBomVO derive(Long sourceId, PdmBomDeriveRequest request) {
+        PdmBom source = requireBom(sourceId);
+        if (!PdmBomViews.EBOM.equals(source.getView())) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "仅 EBOM 可派生 PBOM/MBOM");
+        }
+        String targetView = request.getView() == null ? "" : request.getView().trim();
+        if (!PdmBomViews.isDerivable(targetView)) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "仅支持派生 PBOM 或 MBOM");
+        }
+        List<PdmBom> derived = bomMapper.selectList(new LambdaQueryWrapper<PdmBom>()
+                .eq(PdmBom::getSourceBomId, sourceId)
+                .eq(PdmBom::getView, targetView)
+                .orderByDesc(PdmBom::getVersionSeq));
+        if (!derived.isEmpty() && PdmBomStatus.DRAFT.equals(derived.get(0).getStatus())) {
+            return detail(derived.get(0).getId());
+        }
+        PdmBom template = derived.isEmpty() ? source : derived.get(0);
+        String bomNo = StringUtils.hasText(request.getBomNo())
+                ? request.getBomNo().trim()
+                : (derived.isEmpty() ? source.getBomNo() + "-" + targetView : template.getBomNo());
+        if (bomNo.length() > 64) {
+            bomNo = bomNo.substring(0, 64);
+        }
+        String versionNo = derived.isEmpty()
+                ? PdmBomVersionNo.INITIAL
+                : PdmBomVersionNo.nextMajor(template.getVersionNo());
+
+        PdmBom header = new PdmBom();
+        header.setBomNo(bomNo);
+        header.setProductId(source.getProductId());
+        header.setProductCode(source.getProductCode());
+        header.setView(targetView);
+        header.setVersionNo(versionNo);
+        header.setVersionSeq(PdmBomVersionNo.seqOf(versionNo));
+        header.setStatus(PdmBomStatus.DRAFT);
+        header.setSourceBomId(source.getId());
+        header.setSourceVersionNo(source.getVersionNo());
+        header.setRemark(StringUtils.hasText(request.getRemark())
+                ? request.getRemark().trim()
+                : source.getRemark());
+        bomMapper.insert(header);
+
+        List<PdmBomLine> sourceLines = linesOf(template.getId());
+        List<PdmBomLine> copies = new ArrayList<>();
+        for (PdmBomLine edge : sourceLines) {
+            PdmBomLine copy = new PdmBomLine();
+            copy.setBomId(header.getId());
+            copy.setParentPartId(edge.getParentPartId());
+            copy.setChildPartId(edge.getChildPartId());
+            copy.setLineNo(edge.getLineNo());
+            copy.setQty(edge.getQty());
+            copy.setUom(edge.getUom());
+            copy.setLossRate(edge.getLossRate());
+            copy.setRemark(edge.getRemark());
+            bomLineMapper.insert(copy);
+            copies.add(copy);
+        }
+        log.info("BOM 视图已派生: source={}, targetId={}, view={}, version={}",
+                sourceId, header.getId(), targetView, versionNo);
+        return assemble(header, copies);
+    }
+
+    @Override
+    public PdmBomDiffVO diff(Long baseId, Long targetId) {
+        PdmBom base = requireBom(baseId);
+        PdmBom target = requireBom(targetId);
+        if (!Objects.equals(base.getProductId(), target.getProductId())) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "仅同一产品的 BOM 可对比");
+        }
+        assertDiffSize(baseId);
+        assertDiffSize(targetId);
+        Map<String, PdmBomTreeNodeVO> baseNodes = flatten(assemble(base, linesOf(baseId)).getTree());
+        Map<String, PdmBomTreeNodeVO> targetNodes = flatten(assemble(target, linesOf(targetId)).getTree());
+
+        PdmBomDiffVO result = new PdmBomDiffVO();
+        result.setBaseBomNo(base.getBomNo());
+        result.setBaseVersionNo(base.getVersionNo());
+        result.setBaseView(base.getView());
+        result.setTargetBomNo(target.getBomNo());
+        result.setTargetVersionNo(target.getVersionNo());
+        result.setTargetView(target.getView());
+
+        Set<String> paths = new HashSet<>();
+        paths.addAll(baseNodes.keySet());
+        paths.addAll(targetNodes.keySet());
+        List<String> ordered = paths.stream().sorted(PdmBomServiceImpl::comparePath).toList();
+        for (String path : ordered) {
+            PdmBomTreeNodeVO baseNode = baseNodes.get(path);
+            PdmBomTreeNodeVO targetNode = targetNodes.get(path);
+            if (baseNode == null) {
+                result.getLines().add(change(path, "ADDED", targetNode, null, targetNode == null ? null : targetNode.getPartNo(), null));
+                result.setAdded(result.getAdded() + 1);
+                continue;
+            }
+            if (targetNode == null) {
+                result.getLines().add(change(path, "REMOVED", baseNode, baseNode.getPartNo(), null, null));
+                result.setRemoved(result.getRemoved() + 1);
+                continue;
+            }
+            if (!Objects.equals(baseNode.getPartId(), targetNode.getPartId())) {
+                result.getLines().add(change(path, "PART_CHANGED", targetNode,
+                        baseNode.getPartNo(), targetNode.getPartNo(), "partNo"));
+                result.setChanged(result.getChanged() + 1);
+                continue;
+            }
+            if (compareDecimal(baseNode.getQty(), targetNode.getQty())) {
+                result.getLines().add(change(path, "QTY_CHANGED", targetNode,
+                        decimalText(baseNode.getQty()), decimalText(targetNode.getQty()), "qty"));
+                result.setChanged(result.getChanged() + 1);
+            }
+            if (compareDecimal(baseNode.getLossRate(), targetNode.getLossRate())) {
+                result.getLines().add(change(path, "LOSS_CHANGED", targetNode,
+                        decimalText(baseNode.getLossRate()), decimalText(targetNode.getLossRate()), "lossRate"));
+                result.setChanged(result.getChanged() + 1);
+            }
+            if (!Objects.equals(baseNode.getUom(), targetNode.getUom())) {
+                result.getLines().add(change(path, "UOM_CHANGED", targetNode,
+                        baseNode.getUom(), targetNode.getUom(), "uom"));
+                result.setChanged(result.getChanged() + 1);
+            }
+        }
+        return result;
+    }
+
+    @Override
+    public List<PdmBomExportRowVO> exportRows(Long id) {
+        PdmBom bom = requireBom(id);
+        List<PdmBomLine> lines = linesOf(id);
+        Map<Long, PdmProduct> parts = partsOf(bom, lines);
+        List<PdmBomExportRowVO> rows = new ArrayList<>();
+        PdmProduct root = parts.get(bom.getProductId());
+        if (root == null) {
+            return rows;
+        }
+        rows.add(exportRow(root, "", null));
+        collectExportRows(rows, lines, parts, root.getId(), "");
+        return rows;
+    }
+
+    /**
+     * 递归收集导出行（深度优先，路径与树保持一致）。
+     *
+     * @param rows     导出行
+     * @param lines    BOM 行
+     * @param parts    零件映射
+     * @param parentId 父件ID
+     * @param parentPath 父路径
+     */
+    private void collectExportRows(List<PdmBomExportRowVO> rows, List<PdmBomLine> lines,
+                                   Map<Long, PdmProduct> parts, Long parentId, String parentPath) {
+        List<PdmBomLine> edges = lines.stream()
+                .filter(line -> Objects.equals(line.getParentPartId(), parentId))
+                .sorted(Comparator.comparing(PdmBomLine::getLineNo,
+                        Comparator.nullsLast(Integer::compareTo)))
+                .toList();
+        for (int index = 0; index < edges.size(); index++) {
+            PdmBomLine edge = edges.get(index);
+            PdmProduct child = parts.get(edge.getChildPartId());
+            if (child == null) {
+                continue;
+            }
+            String path = parentPath.isEmpty()
+                    ? String.valueOf(index + 1)
+                    : parentPath + "." + (index + 1);
+            rows.add(exportRow(child, path, edge));
+            collectExportRows(rows, lines, parts, child.getId(), path);
+        }
+    }
+
+    /**
+     * 构建导出行。
+     *
+     * @param part 零件
+     * @param path 路径
+     * @param line 入边（根为空）
+     * @return 导出行
+     */
+    private PdmBomExportRowVO exportRow(PdmProduct part, String path, PdmBomLine line) {
+        PdmBomExportRowVO row = new PdmBomExportRowVO();
+        row.setPath(path);
+        row.setPartNo(part.getCode());
+        row.setPartName(part.getName());
+        row.setPartType(part.getPartType());
+        row.setMaterial(part.getMaterial());
+        row.setSpec(part.getSpec());
+        if (line == null) {
+            row.setUom(part.getUom());
+            return row;
+        }
+        row.setLineNo(line.getLineNo());
+        row.setQty(line.getQty());
+        row.setLossRate(line.getLossRate());
+        row.setUom(line.getUom());
+        row.setRemark(line.getRemark());
+        return row;
+    }
+
+    /**
+     * 将树摊平为路径索引。
+     *
+     * @param nodes 树节点
+     * @return 路径 → 节点
+     */
+    private static Map<String, PdmBomTreeNodeVO> flatten(List<PdmBomTreeNodeVO> nodes) {
+        Map<String, PdmBomTreeNodeVO> map = new HashMap<>();
+        for (PdmBomTreeNodeVO node : nodes) {
+            map.put(node.getPath(), node);
+            if (node.getChildren() != null) {
+                map.putAll(flatten(node.getChildren()));
+            }
+        }
+        return map;
+    }
+
+    /**
+     * 构造对比明细。
+     *
+     * @param path       路径
+     * @param changeType 变更类型
+     * @param node       目标或基线节点
+     * @param baseValue  基线值
+     * @param targetValue 目标值
+     * @param field      变更字段
+     * @return 明细
+     */
+    private static PdmBomDiffLineVO change(String path, String changeType, PdmBomTreeNodeVO node,
+                                           String baseValue, String targetValue, String field) {
+        PdmBomDiffLineVO item = new PdmBomDiffLineVO();
+        item.setPath(path);
+        item.setChangeType(changeType);
+        item.setPartNo(node == null ? null : node.getPartNo());
+        item.setPartName(node == null ? null : node.getPartName());
+        item.setBaseValue(baseValue);
+        item.setTargetValue(targetValue);
+        item.setField(field);
+        return item;
+    }
+
+    /**
+     * 比较两个数值（null 视为不同，除非都为 null）。
+     *
+     * @param left  基线值
+     * @param right 目标值
+     * @return 是否不同
+     */
+    private static boolean compareDecimal(BigDecimal left, BigDecimal right) {
+        if (left == null && right == null) {
+            return false;
+        }
+        if (left == null || right == null) {
+            return true;
+        }
+        return left.compareTo(right) != 0;
+    }
+
+    /**
+     * 数值转文本。
+     *
+     * @param value 数值
+     * @return 文本
+     */
+    private static String decimalText(BigDecimal value) {
+        return value == null ? null : value.stripTrailingZeros().toPlainString();
+    }
+
+    /**
+     * 路径排序（按层级数字）。
+     *
+     * @param left  左路径
+     * @param right 右路径
+     * @return 比较结果
+     */
+    private static int comparePath(String left, String right) {
+        if (left.isEmpty()) {
+            return right.isEmpty() ? 0 : -1;
+        }
+        if (right.isEmpty()) {
+            return 1;
+        }
+        String[] leftParts = left.split("\\.");
+        String[] rightParts = right.split("\\.");
+        int length = Math.min(leftParts.length, rightParts.length);
+        for (int index = 0; index < length; index++) {
+            int compared = Integer.compare(Integer.parseInt(leftParts[index]),
+                    Integer.parseInt(rightParts[index]));
+            if (compared != 0) {
+                return compared;
+            }
+        }
+        return Integer.compare(leftParts.length, rightParts.length);
+    }
+
+    /**
+     * 校验在线对比行数上限。
+     *
+     * @param bomId BOM ID
+     */
+    private void assertDiffSize(Long bomId) {
+        long count = bomLineMapper.selectCount(new LambdaQueryWrapper<PdmBomLine>()
+                .eq(PdmBomLine::getBomId, bomId));
+        if (count > MAX_DIFF_LINES) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "BOM 行数超过 2000，暂不支持在线对比");
+        }
     }
 
     /**
@@ -665,10 +976,18 @@ public class PdmBomServiceImpl implements PdmBomService {
      *
      * @param bomNo       请求编号
      * @param productCode 产品编码
+     * @param view        视图
      * @return BOM 编号
      */
-    private String resolveBomNo(String bomNo, String productCode) {
-        String candidate = StringUtils.hasText(bomNo) ? bomNo.trim() : BOM_NO_PREFIX + productCode;
+    private String resolveBomNo(String bomNo, String productCode, String view) {
+        String candidate;
+        if (StringUtils.hasText(bomNo)) {
+            candidate = bomNo.trim();
+        } else if (PdmBomViews.EBOM.equals(view)) {
+            candidate = "BOM-" + productCode;
+        } else {
+            candidate = "BOM-" + productCode + "-" + view;
+        }
         if (candidate.length() > 64) {
             candidate = candidate.substring(0, 64);
         }

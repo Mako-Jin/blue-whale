@@ -8,7 +8,8 @@ import lombok.EqualsAndHashCode;
 /**
  * PDM BOM 头
  *
- * <p>一个 {@code bomNo} 下允许多个版本，每版本一行；{@code view} 当前仅 EBOM 启用。</p>
+ * <p>一个 {@code bomNo} 下允许多个版本，每版本一行；{@code view} 支持 EBOM/PBOM/MBOM，
+ * PBOM/MBOM 由 EBOM 派生并独立维护。</p>
  *
  * @author BlueWhale
  */
@@ -39,6 +40,12 @@ public class PdmBom extends BaseEntity {
 
     /** 状态：DRAFT/RELEASED/OBSOLETE */
     private String status;
+
+    /** 派生来源 BOM ID（原生视图为空） */
+    private Long sourceBomId;
+
+    /** 派生来源版本号（原生视图为空） */
+    private String sourceVersionNo;
 
     /** 备注 */
     private String remark;

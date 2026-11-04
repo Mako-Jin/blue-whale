@@ -1,6 +1,7 @@
 package com.bluewhale.pdm.part.dto;
 
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -24,7 +25,8 @@ public class PdmBomSaveRequest implements Serializable {
     @Size(max = 64, message = "BOM 编号长度不能超过 64")
     private String bomNo;
 
-    /** 视图，M1A 仅支持 EBOM */
+    /** 视图：EBOM/PBOM/MBOM，缺省 EBOM */
+    @Pattern(regexp = "EBOM|PBOM|MBOM", message = "视图仅支持 EBOM/PBOM/MBOM")
     private String view;
 
     /** 备注 */

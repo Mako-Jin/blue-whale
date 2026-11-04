@@ -5,14 +5,19 @@ import com.bluewhale.common.audit.annotation.AuditLog;
 import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
+import com.bluewhale.pdm.part.dto.PdmBomDeriveRequest;
 import com.bluewhale.pdm.part.dto.PdmBomLineSaveRequest;
 import com.bluewhale.pdm.part.dto.PdmBomQueryRequest;
 import com.bluewhale.pdm.part.dto.PdmBomSaveRequest;
 import com.bluewhale.pdm.part.service.PdmBomService;
+import com.bluewhale.pdm.part.support.PdmBomExcelSupport;
 import com.bluewhale.pdm.part.support.PdmBomRequestContext;
+import com.bluewhale.pdm.part.vo.PdmBomDiffVO;
+import com.bluewhale.pdm.part.vo.PdmBomExportRowVO;
 import com.bluewhale.pdm.part.vo.PdmBomReleaseVO;
 import com.bluewhale.pdm.part.vo.PdmBomVO;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -22,8 +27,12 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
@@ -75,6 +84,54 @@ public class PdmBomController {
     @RequirePermission("sys:pdm:bom:list")
     public Result<List<PdmBomReleaseVO>> releases(@PathVariable String bomNo) {
         return Result.ok(bomService.releases(bomNo));
+    }
+
+    /**
+     * 对比两个 BOM（同一产品）
+     *
+     * @param baseId   基线 BOM ID
+     * @param targetId 目标 BOM ID
+     * @return 对比结果
+     */
+    @GetMapping("/diff")
+    @RequirePermission("sys:pdm:bom:list")
+    public Result<PdmBomDiffVO> diff(@RequestParam Long baseId, @RequestParam Long targetId) {
+        return Result.ok(bomService.diff(baseId, targetId));
+    }
+
+    /**
+     * 从 EBOM 派生 PBOM/MBOM
+     *
+     * @param id      BOM ID
+     * @param request 派生请求
+     * @return 派生 BOM 详情
+     */
+    @PostMapping("/{id}/derive")
+    @RequirePermission("sys:pdm:bom:add")
+    @AuditLog(operation = "派生 BOM 视图", type = OperateType.CREATE, targetType = TARGET_TYPE, targetId = "#id")
+    public Result<PdmBomVO> derive(@PathVariable Long id,
+                                   @Valid @RequestBody PdmBomDeriveRequest request) {
+        return Result.ok(bomService.derive(id, request));
+    }
+
+    /**
+     * 导出 BOM Excel
+     *
+     * @param id       BOM ID
+     * @param response HTTP 响应
+     * @throws IOException 写出失败
+     */
+    @GetMapping("/{id}/export")
+    @RequirePermission("sys:pdm:bom:export")
+    public void export(@PathVariable Long id, HttpServletResponse response) throws IOException {
+        PdmBomVO bom = bomService.detail(id);
+        List<PdmBomExportRowVO> rows = bomService.exportRows(id);
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        String filename = URLEncoder.encode(bom.getBomNo() + ".xlsx", StandardCharsets.UTF_8)
+                .replace("+", "%20");
+        response.setHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
+        response.getOutputStream().write(PdmBomExcelSupport.toXlsx(bom.getBomNo(), rows));
+        response.flushBuffer();
     }
 
     /**

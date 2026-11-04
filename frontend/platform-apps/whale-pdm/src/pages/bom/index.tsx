@@ -9,6 +9,7 @@ import {
   listParts,
   type BomStatus,
   type BomQuery,
+  type BomView,
   type PdmBom,
   type PdmPart,
 } from '../../api/part';
@@ -24,6 +25,13 @@ const STATUS_CONFIG: Record<BomStatus, { label: string; color: string }> = {
 
 /** 可作为 BOM 产品的零件类型 */
 const PRODUCT_TYPES = new Set(['PRODUCT', 'ASSEMBLY']);
+
+/** BOM 视图文案 */
+const VIEW_OPTIONS: Array<{ value: BomView; label: string }> = [
+  { value: 'EBOM', label: '设计 BOM' },
+  { value: 'PBOM', label: '工艺 BOM' },
+  { value: 'MBOM', label: '制造 BOM' },
+];
 
 interface BomFormValues {
   productId: string;
@@ -88,7 +96,7 @@ export default function BomLibrary() {
     { title: 'BOM 编号', dataIndex: 'bomNo', key: 'bomNo', width: 160 },
     { title: '产品编码', dataIndex: 'productCode', key: 'productCode', width: 140 },
     { title: '产品名称', dataIndex: 'productName', key: 'productName' },
-    { title: '视图', dataIndex: 'view', key: 'view', width: 90 },
+    { title: '视图', dataIndex: 'view', key: 'view', width: 100, render: (value: BomView) => VIEW_OPTIONS.find((item) => item.value === value)?.label ?? value },
     { title: '版本', dataIndex: 'versionNo', key: 'versionNo', width: 90 },
     {
       title: '状态',
@@ -149,6 +157,13 @@ export default function BomLibrary() {
           placeholder="产品编码"
           style={{ width: 160 }}
           onChange={(event) => setFilters((prev) => ({ ...prev, productCode: event.target.value }))}
+        />
+        <Select
+          allowClear
+          placeholder="视图"
+          style={{ width: 130 }}
+          options={VIEW_OPTIONS}
+          onChange={(value) => setFilters((prev) => ({ ...prev, view: value as BomView }))}
         />
         <Select
           allowClear
