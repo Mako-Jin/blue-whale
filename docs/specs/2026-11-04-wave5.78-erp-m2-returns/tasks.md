@@ -65,5 +65,5 @@
 ## T10 文档与提交
 
 - [x] 计划 §12.4 / §9、设计 §3.2 / 变更记录、评审报告、devlog
-- [ ] service-catalog、register（共享文档，提交时按备份→checkout→仅写本期→提交→恢复）
-- [ ] 选择性提交（不含 MES/PDM/OA/CRM/Workflow 并行改动）
+- [x] service-catalog、register（共享文档，提交时按备份→checkout→仅写本期→提交→恢复）
+- [x] 选择性提交（不含 MES/PDM/OA/CRM/Workflow 并行改动）
