@@ -2,14 +2,15 @@ package com.bluewhale.pdm.part.support;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.pdm.support.PdmVersionNo;
 
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
  * BOM 版本号值对象工具。
  *
- * <p>格式固定为 {@code V<major>.<minor>}；新建版本递增主版本（V1.0 → V2.0）。</p>
+ * <p>格式固定为 {@code V<major>.<minor>}；新建版本递增主版本（V1.0 → V2.0）。
+ * 递增与排序规则委托 {@link PdmVersionNo}。</p>
  *
  * @author BlueWhale
  */
@@ -47,12 +48,10 @@ public final class PdmBomVersionNo {
      * @return 下一个主版本
      */
     public static String nextMajor(String current) {
-        Matcher matcher = PATTERN.matcher(current == null ? "" : current);
-        if (!matcher.matches()) {
+        if (current == null || !PATTERN.matcher(current).matches()) {
             return INITIAL;
         }
-        long major = Long.parseLong(matcher.group(1)) + 1;
-        return "V" + major + ".0";
+        return PdmVersionNo.parse(current).nextMajor().value();
     }
 
     /**
@@ -62,12 +61,7 @@ public final class PdmBomVersionNo {
      * @return 排序值
      */
     public static int seqOf(String versionNo) {
-        Matcher matcher = PATTERN.matcher(requireValid(versionNo));
-        if (!matcher.matches()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "BOM 版本号必须形如 V1.0");
-        }
-        int major = Integer.parseInt(matcher.group(1));
-        int minor = Integer.parseInt(matcher.group(2));
-        return major * 10000 + minor;
+        requireValid(versionNo);
+        return PdmVersionNo.parse(versionNo).seq();
     }
 }
