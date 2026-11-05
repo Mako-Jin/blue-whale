@@ -59,10 +59,10 @@
 - [x] **T4.1 计划与报告**
   - 更新 `docs/plans/2026-11-04-wave5.80-pdm-panorama.md` §7.1：M1B-2 完成，移除异步遗留。
   - 更新 `docs/reviews/2026-11-05-wave5.80-pdm-m1b.md`：追加 M1B-2 实现与验证结论。
-- [ ] **T4.2 提交**
+- [x] **T4.2 提交**
   - `git commit --only -- <spec.md §八 列出的路径>`；禁止 `git add -A`。
   - 提交信息：`feat(pdm): BOM 大规模异步对比任务`。
-- [ ] **T4.3 推送**
+- [x] **T4.3 推送**
   - 检查 `git remote -v` 与当前分支。
   - `git push origin HEAD`；回复中说明可能同时推送本地已有的并行提交。
 
