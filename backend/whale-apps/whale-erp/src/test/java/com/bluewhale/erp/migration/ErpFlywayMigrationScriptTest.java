@@ -316,6 +316,22 @@ class ErpFlywayMigrationScriptTest {
     }
 
     /**
+     * V12 安全库存表集合与唯一键校验
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("V12 安全库存表集合与唯一键一致")
+    void safetyStockMigrationShouldCreateExpectedTables() throws IOException {
+        Set<String> safetyStockTables = extractTables(MIGRATION_DIR.resolve("V12__scm_safety_stock.sql"));
+        assertEquals(Set.of("erp_scm_safety_stock"), safetyStockTables, "V12 应创建 1 张安全库存表");
+        String content = Files.readString(MIGRATION_DIR.resolve("V12__scm_safety_stock.sql"),
+                StandardCharsets.UTF_8);
+        assertTrue(content.contains("uk_safety_stock"), "安全库存按租户+仓库+物料唯一");
+        assertFalse(content.toUpperCase().contains("FOREIGN KEY"), "安全库存表不得建立物理外键");
+    }
+
+    /**
      * 列出迁移脚本并按版本号升序返回
      *
      * @return 迁移脚本路径

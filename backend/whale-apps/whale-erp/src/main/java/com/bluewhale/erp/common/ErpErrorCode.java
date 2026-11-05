@@ -308,6 +308,15 @@ public final class ErpErrorCode {
     /** 价目表同「类型 + 往来方 + 物料」已存在 */
     public static final int PRICE_LIST_CONFLICT = 40940;
 
+    /** 安全库存参数非法（数量为负或上限低于安全量） */
+    public static final int SAFETY_STOCK_INVALID = 40024;
+
+    /** 安全库存记录不存在 */
+    public static final int SAFETY_STOCK_NOT_FOUND = 40439;
+
+    /** 安全库存同「仓库 + 物料」配置已存在 */
+    public static final int SAFETY_STOCK_CONFLICT = 40941;
+
     /** 错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(AMOUNT_INVALID, "金额必须大于 0，且最多保留 2 位小数"),
@@ -407,7 +416,10 @@ public final class ErpErrorCode {
             Map.entry(RETURN_STATE_CONFLICT, "退货单当前状态不允许该操作"),
             Map.entry(RETURN_OFFSET_EXCEEDED, "退货冲减额超过往来未核销余额"),
             Map.entry(PRICE_LIST_NOT_FOUND, "价目表无匹配记录或不在有效期内"),
-            Map.entry(PRICE_LIST_CONFLICT, "价目表同「类型 + 往来方 + 物料」已存在"));
+            Map.entry(PRICE_LIST_CONFLICT, "价目表同「类型 + 往来方 + 物料」已存在"),
+            Map.entry(SAFETY_STOCK_INVALID, "安全库存参数非法：数量不能为负，且最高库存量不得低于安全库存量"),
+            Map.entry(SAFETY_STOCK_NOT_FOUND, "安全库存记录不存在或无权访问"),
+            Map.entry(SAFETY_STOCK_CONFLICT, "该仓库与物料已配置安全库存"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。

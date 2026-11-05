@@ -4,6 +4,7 @@ import com.bluewhale.erp.scm.domain.model.ScmQuery;
 import com.bluewhale.erp.scm.domain.model.StockBalance;
 import com.bluewhale.erp.scm.domain.model.StockMovement;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -29,6 +30,23 @@ public interface StockRepository {
      * @return 总条数
      */
     long countBalances(ScmQuery query);
+
+    /**
+     * 不分页查询库存余额（呆滞分析用）。
+     *
+     * @param query 查询条件
+     * @return 余额列表
+     */
+    List<StockBalance> listBalances(ScmQuery query);
+
+    /**
+     * 查询物料在指定仓库的最近出库时间。
+     *
+     * @param itemId 物料主键
+     * @param warehouseId 仓库主键
+     * @return 最近出库时间；从未出库返回空
+     */
+    Optional<LocalDateTime> lastOutboundAt(Long itemId, Long warehouseId);
 
     /**
      * 分页查询库存流水。

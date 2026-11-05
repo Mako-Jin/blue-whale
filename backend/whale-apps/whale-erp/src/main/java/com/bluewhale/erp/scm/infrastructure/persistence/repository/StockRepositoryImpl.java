@@ -3,6 +3,7 @@ package com.bluewhale.erp.scm.infrastructure.persistence.repository;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.erp.scm.domain.model.ScmQuery;
+import com.bluewhale.erp.scm.domain.model.ScmStatus;
 import com.bluewhale.erp.scm.domain.model.StockBalance;
 import com.bluewhale.erp.scm.domain.model.StockMovement;
 import com.bluewhale.erp.scm.domain.repository.StockRepository;
@@ -14,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -40,6 +42,23 @@ public class StockRepositoryImpl implements StockRepository {
     @Override
     public long countBalances(ScmQuery query) {
         return stockBalanceMapper.selectCount(balanceFilter(query));
+    }
+
+    @Override
+    public List<StockBalance> listBalances(ScmQuery query) {
+        return stockBalanceMapper.selectList(balanceFilter(query)).stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public Optional<LocalDateTime> lastOutboundAt(Long itemId, Long warehouseId) {
+        return stockMovementMapper.selectList(new LambdaQueryWrapper<StockMovementEntity>()
+                        .eq(StockMovementEntity::getItemId, itemId)
+                        .eq(StockMovementEntity::getWarehouseId, warehouseId)
+                        .eq(StockMovementEntity::getDirection, ScmStatus.OUT)
+                        .orderByDesc(StockMovementEntity::getOccurredAt)
+                        .last("limit 1")).stream()
+                .findFirst()
+                .map(StockMovementEntity::getOccurredAt);
     }
 
     @Override

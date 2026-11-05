@@ -60,7 +60,7 @@
 | 销售 | 报价、订单、发货、退货、价格、信用额度 | 🟡 | `scm.sales`：`erp_sales_*`、`erp_scm_sales_return*`、`erp_scm_sales_quotation(_line)`（报价 → 接受 → 转销售订单草稿）；信用额度在审核/发货校验 |
 | 价格管理 | 客户售价、供应商采购价、有效期、启停、单据取价 | 🟡 | `scm`：`erp_scm_price_list`（V11，2026-11-05）；按「价格类型 + 往来方 + 物料」唯一，订单/报价建单单价为空时按单据日期兜底取价；阶梯价与多供应商比价待排期 |
 | 退货 | 采购退货（红字出库 + 应付冲减）、销售退货（红字入库 + 应收冲减） | 🟡 | `scm.purchase` / `scm.sales`：`erp_scm_purchase_return(_line)`、`erp_scm_sales_return(_line)`；按源订单行控制可退数量，过账生成反向库存流水与红字凭证 |
-| 库存 | 出入库/调拨、盘点、安全库存、呆滞、批次 | ❌ | `scm.inventory`：`erp_stock_movement`/`erp_stock_balance`/`erp_batch` |
+| 库存 | 出入库/调拨、盘点、安全库存、呆滞、批次 | 🟡 | `scm.inventory`：`erp_scm_stock_movement`/`erp_scm_stock_balance`（出入库/调拨/盘点）、`erp_scm_safety_stock`（V12，2026-11-05，按仓库 + 物料维护安全量/最高量）；缺料预警按安全量与余额差额计算、呆滞分析按余额 > 0 且最近出库早于阈值（默认 90 天）判定，均为查询计算；批次追溯需 ALTER 既有流水/余额表，推迟单独迁移窗口 |
 | 供应商管理 | 档案、评级、绩效、准入退出 | 🟡 | 档案+评级已在 `erp_supplier`；准入/绩效归 SRM，ERP 只读评级 |
 | 客户管理 | 档案、分级、信用、流失分析 | ❌ | 业务主数据 `erp_customer`（关系主数据归 CRM，见 D9）；流失分析归 CRM |
 
@@ -176,6 +176,7 @@
 | SCM | `SalesOrder` | 已发货 ≤ 订单数量；信用占用 ≤ 可用额度（若启用）；价格不得低于底价（可配置） | 创建、审批、发货、退货、关闭 | `SalesOrderShipped` |
 | SCM | `StockMovement` | **只追加**，不可修改删除；批次/仓库/物料必填；负库存默认禁止 | 入库、出库、调拨、盘盈亏 | `StockMoved` |
 | SCM | `StockBalance` | 由移动流水汇总，不允许独立修改（只能由盘点调整生成流水） | 重建、快照 | — |
+| SCM | `SafetyStock` | 「租户 + 仓库 + 物料」唯一；安全量 ≥ 0；最高量为空表示不设上限，非空 ≥ 安全量 | 配置、调整、删除 | `SafetyStockChanged` |
 | SCM | `StockTake` | 盘点差异必须生成调整流水；已审核不可改 | 创建、录入、审核、调整 | `StockTakeAdjusted` |
 | MFG | `Forecast` | 版本+期间+物料唯一；预测准确率可回算 | 编制、发布、回算 | `ForecastPublished` |
 | MFG | `MpsPlan` | 计划量 ≥ 已下达量 | 生成、调整、下达 | `MpsReleased` |

@@ -41,6 +41,7 @@ export const menuConfig: MenuNode[] = [
       { key: '/erp/scm/purchase-requisition', label: '采购申请', permission: 'sys:erp:purchase-requisition:list' },
       { key: '/erp/scm/sales-quotation', label: '销售报价', permission: 'sys:erp:sales-quotation:list' },
       { key: '/erp/scm/price-list', label: '价格表', permission: 'sys:erp:price-list:list' },
+      { key: '/erp/scm/safety-stock', label: '安全库存', permission: 'sys:erp:safety-stock:list' },
       { key: '/erp/mfg/forecast', label: '需求预测', permission: 'sys:erp:forecast:list' },
       { key: '/erp/mfg/mps', label: '主生产计划', permission: 'sys:erp:mps:list' },
       { key: '/erp/mfg/production', label: '生产订单', permission: 'sys:erp:production:list' },

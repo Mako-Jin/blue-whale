@@ -744,3 +744,122 @@ export function resolvePriceList(params: PriceResolveQuery): Promise<PriceListVi
   if (params.date) search.set('date', params.date);
   return http.get<PriceListView>(`/erp/scm/price-list/resolve?${search.toString()}`);
 }
+
+/** 安全库存配置 */
+export interface SafetyStockView {
+  id: number;
+  warehouseId: number;
+  itemId: number;
+  itemCode: string;
+  itemName: string;
+  safetyQty: number;
+  maxQty?: number;
+  remark?: string;
+}
+
+/** 安全库存新增入参 */
+export interface SafetyStockInput {
+  warehouseId: number;
+  itemCode: string;
+  safetyQty: number;
+  maxQty?: number;
+  remark?: string;
+}
+
+/** 安全库存编辑入参（仓库与物料不可变更） */
+export interface SafetyStockUpdateInput {
+  safetyQty: number;
+  maxQty?: number;
+  remark?: string;
+}
+
+/** 缺料预警 */
+export interface ShortageView {
+  warehouseId: number;
+  itemId: number;
+  itemCode: string;
+  itemName: string;
+  onHandQty: number;
+  safetyQty: number;
+  shortageQty: number;
+}
+
+/** 呆滞库存 */
+export interface IdleStockView {
+  warehouseId: number;
+  itemId: number;
+  itemCode: string;
+  itemName: string;
+  quantity: number;
+  amount: number;
+  lastOutboundAt?: string;
+  idleDays?: number;
+}
+
+/** 安全库存查询参数 */
+export interface SafetyStockQuery {
+  current?: number;
+  size?: number;
+  keyword?: string;
+  warehouseId?: number;
+  itemId?: number;
+}
+
+/** 构造安全库存查询串 */
+function buildSafetyStockQuery(params: SafetyStockQuery): string {
+  const search = new URLSearchParams();
+  if (params.keyword) search.set('keyword', params.keyword);
+  if (params.warehouseId !== undefined) search.set('warehouseId', String(params.warehouseId));
+  if (params.itemId !== undefined) search.set('itemId', String(params.itemId));
+  search.set('current', String(params.current ?? 1));
+  search.set('size', String(params.size ?? 20));
+  return search.toString();
+}
+
+/** 安全库存分页 */
+export function pageSafetyStocks(
+  params: SafetyStockQuery = {},
+): Promise<PageResult<SafetyStockView>> {
+  return http.get<PageResult<SafetyStockView>>(
+    `/erp/scm/safety-stock/page?${buildSafetyStockQuery(params)}`,
+  );
+}
+
+/** 安全库存详情 */
+export function getSafetyStock(id: number): Promise<SafetyStockView> {
+  return http.get<SafetyStockView>(`/erp/scm/safety-stock/${id}`);
+}
+
+/** 新增安全库存 */
+export function createSafetyStock(input: SafetyStockInput): Promise<SafetyStockView> {
+  return http.post<SafetyStockView>('/erp/scm/safety-stock', input);
+}
+
+/** 更新安全库存 */
+export function updateSafetyStock(
+  id: number,
+  input: SafetyStockUpdateInput,
+): Promise<SafetyStockView> {
+  return http.put<SafetyStockView>(`/erp/scm/safety-stock/${id}`, input);
+}
+
+/** 删除安全库存 */
+export function deleteSafetyStock(id: number): Promise<void> {
+  return http.del<void>(`/erp/scm/safety-stock/${id}`);
+}
+
+/** 缺料预警分页 */
+export function pageShortages(params: SafetyStockQuery = {}): Promise<PageResult<ShortageView>> {
+  return http.get<PageResult<ShortageView>>(
+    `/erp/scm/safety-stock/shortage?${buildSafetyStockQuery(params)}`,
+  );
+}
+
+/** 呆滞分析分页（idleDays 默认 90） */
+export function pageIdleStocks(
+  params: SafetyStockQuery & { idleDays?: number } = {},
+): Promise<PageResult<IdleStockView>> {
+  const search = new URLSearchParams(buildSafetyStockQuery(params));
+  if (params.idleDays !== undefined) search.set('idleDays', String(params.idleDays));
+  return http.get<PageResult<IdleStockView>>(`/erp/scm/safety-stock/idle?${search.toString()}`);
+}

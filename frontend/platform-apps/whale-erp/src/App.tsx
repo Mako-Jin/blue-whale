@@ -21,6 +21,7 @@ import SalesReturnPage from './pages/SalesReturnPage';
 import PurchaseRequisitionPage from './pages/PurchaseRequisitionPage';
 import SalesQuotationPage from './pages/SalesQuotationPage';
 import PriceListPage from './pages/PriceListPage';
+import SafetyStockPage from './pages/SafetyStockPage';
 import ForecastPage from './pages/ForecastPage';
 import MpsPage from './pages/MpsPage';
 import ProductionPage from './pages/ProductionPage';
@@ -56,6 +57,7 @@ const menuItems: MenuProps['items'] = [
   { key: 'purchase-requisition', label: '采购申请' },
   { key: 'sales-quotation', label: '销售报价' },
   { key: 'price-list', label: '价格表' },
+  { key: 'safety-stock', label: '安全库存' },
   { key: 'forecast', label: '需求预测' },
   { key: 'mps', label: '主生产计划' },
   { key: 'production', label: '生产订单' },
@@ -89,6 +91,7 @@ type PageKind =
   | 'purchase-requisition'
   | 'sales-quotation'
   | 'price-list'
+  | 'safety-stock'
   | 'forecast'
   | 'mps'
   | 'production'
@@ -116,6 +119,7 @@ function initialPage(): PageKind {
   if (path.includes('/erp/scm/purchase-requisition')) return 'purchase-requisition';
   if (path.includes('/erp/scm/sales-quotation')) return 'sales-quotation';
   if (path.includes('/erp/scm/price-list')) return 'price-list';
+  if (path.includes('/erp/scm/safety-stock')) return 'safety-stock';
   if (path.includes('/erp/scm/purchase')) return 'purchase';
   if (path.includes('/erp/scm/sales')) return 'sales';
   if (path.includes('/erp/scm/stocktake')) return 'stocktake';
@@ -163,6 +167,7 @@ function pageOfKey(key: string): PageKind {
     || key === 'purchase-requisition'
     || key === 'sales-quotation'
     || key === 'price-list'
+    || key === 'safety-stock'
     || key === 'forecast'
     || key === 'mps'
     || key === 'production'
@@ -201,6 +206,7 @@ const PAGE_TITLE: Record<PageKind, string> = {
   'purchase-requisition': '采购申请',
   'sales-quotation': '销售报价',
   'price-list': '价格表',
+  'safety-stock': '安全库存',
   forecast: '需求预测',
   mps: '主生产计划',
   production: '生产订单',
@@ -313,6 +319,7 @@ export default function App() {
             {page === 'purchase-requisition' ? <PurchaseRequisitionPage /> : null}
             {page === 'sales-quotation' ? <SalesQuotationPage /> : null}
             {page === 'price-list' ? <PriceListPage /> : null}
+            {page === 'safety-stock' ? <SafetyStockPage /> : null}
             {page === 'forecast' ? <ForecastPage /> : null}
             {page === 'mps' ? <MpsPage /> : null}
             {page === 'production' ? <ProductionPage /> : null}
