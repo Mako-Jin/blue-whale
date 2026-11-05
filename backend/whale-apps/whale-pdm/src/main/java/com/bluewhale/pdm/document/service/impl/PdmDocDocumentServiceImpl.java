@@ -120,7 +120,9 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
             wrapper.and(query -> query.like(PdmDocDocument::getDocNo, keyword)
                     .or().like(PdmDocDocument::getTitle, keyword)
                     .or().like(PdmDocDocument::getPartNo, keyword)
-                    .or().like(PdmDocDocument::getTags, keyword));
+                    .or().like(PdmDocDocument::getTags, keyword)
+                    .or().like(PdmDocDocument::getDescription, keyword)
+                    .or().like(PdmDocDocument::getOwnerName, keyword));
         }
         if (request.getBeginDate() != null) {
             wrapper.ge(PdmDocDocument::getCreateTime, request.getBeginDate().atStartOfDay());

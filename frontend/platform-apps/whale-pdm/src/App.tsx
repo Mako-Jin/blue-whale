@@ -1,4 +1,4 @@
-// PDM 子应用根组件：图文档中心（默认）/ 产品结构 / 零件库 / BOM 结构 / 变更管理，受权限码控制菜单可见性
+// PDM 子应用根组件：图文档/产品结构/零件库/BOM/变更/工艺/协同，受权限码控制菜单可见性
 import { Layout, Menu } from 'antd';
 import type { MenuProps } from 'antd';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
@@ -11,6 +11,9 @@ import ChangeOrderCenter from './pages/change/order';
 import ChangeNoticeCenter from './pages/change/notice';
 import ChangeTraceCenter from './pages/change/trace';
 import ProcessRouteCenter from './pages/process';
+import DeliverableCenter from './pages/collab/deliverable';
+import ReviewCenter from './pages/collab/review';
+import PreviewCenter from './pages/collab/preview';
 import { hasPermission } from './utils/permission';
 
 const { Header, Content, Sider } = Layout;
@@ -26,6 +29,9 @@ const MENU_ITEMS = [
   { key: '/change/notice', label: '变更通知（ECN）', permission: 'sys:pdm:change:notice:list' },
   { key: '/change/trace', label: '变更追溯', permission: 'sys:pdm:change:trace:list' },
   { key: '/process/route', label: '工艺路线', permission: 'sys:pdm:process:list' },
+  { key: '/collab/deliverable', label: '项目交付物', permission: 'sys:pdm:collab:deliverable:list' },
+  { key: '/collab/review', label: '研发评审', permission: 'sys:pdm:collab:review:list' },
+  { key: '/collab/preview', label: '在线预览', permission: 'sys:pdm:collab:preview:list' },
 ];
 
 /** 按权限过滤后的菜单 */
@@ -62,6 +68,9 @@ function PdmLayout() {
             <Route path="/change/notice" element={<ChangeNoticeCenter />} />
             <Route path="/change/trace" element={<ChangeTraceCenter />} />
             <Route path="/process/route" element={<ProcessRouteCenter />} />
+            <Route path="/collab/deliverable" element={<DeliverableCenter />} />
+            <Route path="/collab/review" element={<ReviewCenter />} />
+            <Route path="/collab/preview" element={<PreviewCenter />} />
             <Route path="*" element={<Navigate to="/document" replace />} />
           </Routes>
         </Content>
