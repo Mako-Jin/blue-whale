@@ -7,7 +7,8 @@
 --            可重复执行；不修改/删除既有数据。
 -- 背景     : 短视频 / 视频由登录用户上传（上传前须签署《内容合法与版权无争议声明》），
 --            电影仅运营入库与发布；跨租户一律按不存在处理。
--- 权限编号 : 已用至 304（音乐申诉），本脚本顺延使用 305–322（18 项）。
+-- 权限编号 : 音乐申诉已用至 304；305–308 已被消息公告占用，
+--            本脚本 content:list/add/edit/delete 使用 79–82，其余延用 309–322。
 -- 菜单编号 : 已用至 45（音乐申诉），本脚本使用 46–52。
 -- 角色编号 : 平台角色 25105 video_admin / 25106 video_member；
 --            业务租户复制角色与授权 ID 采用「业务键 MD5 前 15 位」，重复执行稳定。
@@ -18,24 +19,24 @@
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
--- 1. 平台权限点（305–322）
+-- 1. 平台权限点（79–82 + 309–322）
 -- ---------------------------------------------------------------------
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 305, 0, 'sys:video:content:list', '查询视频内容', 'API', '/video/admin/content/page,/video/admin/movies/page,/video/admin/creator/page', 'GET', 305, 1
+SELECT 79, 0, 'sys:video:content:list', '查询视频内容', 'API', '/video/admin/content/page,/video/admin/movies/page,/video/admin/creator/page', 'GET', 305, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 305 OR perm_code = 'sys:video:content:list');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 79 OR perm_code = 'sys:video:content:list');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 306, 0, 'sys:video:content:add', '新增视频内容', 'API', '/video/admin/movies,/video/admin/series,/video/admin/collections', 'POST', 306, 1
+SELECT 80, 0, 'sys:video:content:add', '新增视频内容', 'API', '/video/admin/movies,/video/admin/series,/video/admin/collections', 'POST', 306, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 306 OR perm_code = 'sys:video:content:add');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 80 OR perm_code = 'sys:video:content:add');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 307, 0, 'sys:video:content:edit', '编辑视频内容', 'API', '/video/admin/movies/{id},/video/admin/series/{id},/video/admin/collections/{id},/video/admin/creator/{id}', 'PUT', 307, 1
+SELECT 81, 0, 'sys:video:content:edit', '编辑视频内容', 'API', '/video/admin/movies/{id},/video/admin/series/{id},/video/admin/collections/{id},/video/admin/creator/{id}', 'PUT', 307, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 307 OR perm_code = 'sys:video:content:edit');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 81 OR perm_code = 'sys:video:content:edit');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 308, 0, 'sys:video:content:delete', '删除视频内容', 'API', '/video/admin/movies/{id},/video/admin/series/{id},/video/admin/collections/{id}', 'DELETE', 308, 1
+SELECT 82, 0, 'sys:video:content:delete', '删除视频内容', 'API', '/video/admin/movies/{id},/video/admin/series/{id},/video/admin/collections/{id}', 'DELETE', 308, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 308 OR perm_code = 'sys:video:content:delete');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 82 OR perm_code = 'sys:video:content:delete');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
 SELECT 309, 0, 'sys:video:content:publish', '发布视频内容', 'API', '/video/admin/content/{id}/publish', 'POST', 309, 1
 FROM DUAL
@@ -115,16 +116,16 @@ WHERE NOT EXISTS (SELECT 1 FROM sys_role tgt WHERE tgt.id = src.id OR (tgt.tenan
 
 -- ---------------------------------------------------------------------
 -- 4. 授权（按角色编码匹配，覆盖平台与全部业务租户）
---    video_admin / tenant_admin：305–322（18 项）
---    video_member：314–318（5 项用户侧能力）
+--    video_admin / tenant_admin：全部 sys:video:*（18 项）
+--    video_member：browse/upload/like/favorite/comment:create（5 项用户侧能力）
 -- ---------------------------------------------------------------------
 INSERT INTO sys_role_permission (id, role_id, permission_id)
 SELECT src.id, src.role_id, src.permission_id
-FROM (SELECT CAST(CONV(SUBSTR(MD5(CONCAT(r.id, ':', p.id)), 1, 15), 16, 10) AS UNSIGNED) AS id, r.id AS role_id, p.id AS permission_id FROM sys_role r JOIN sys_permission p ON p.id BETWEEN 305 AND 322 AND p.deleted = 0 AND p.status = 1 WHERE r.deleted = 0 AND r.status = 1 AND r.role_code IN ('video_admin', 'tenant_admin')) src
+FROM (SELECT CAST(CONV(SUBSTR(MD5(CONCAT(r.id, ':', p.id)), 1, 15), 16, 10) AS UNSIGNED) AS id, r.id AS role_id, p.id AS permission_id FROM sys_role r JOIN sys_permission p ON p.perm_code LIKE 'sys:video:%' AND p.deleted = 0 AND p.status = 1 WHERE r.deleted = 0 AND r.status = 1 AND r.role_code IN ('video_admin', 'tenant_admin')) src
 WHERE NOT EXISTS (SELECT 1 FROM sys_role_permission tgt WHERE tgt.id = src.id OR (tgt.role_id = src.role_id AND tgt.permission_id = src.permission_id));
 INSERT INTO sys_role_permission (id, role_id, permission_id)
 SELECT src.id, src.role_id, src.permission_id
-FROM (SELECT CAST(CONV(SUBSTR(MD5(CONCAT(r.id, ':', p.id)), 1, 15), 16, 10) AS UNSIGNED) AS id, r.id AS role_id, p.id AS permission_id FROM sys_role r JOIN sys_permission p ON p.id BETWEEN 314 AND 318 AND p.deleted = 0 AND p.status = 1 WHERE r.deleted = 0 AND r.status = 1 AND r.role_code = 'video_member') src
+FROM (SELECT CAST(CONV(SUBSTR(MD5(CONCAT(r.id, ':', p.id)), 1, 15), 16, 10) AS UNSIGNED) AS id, r.id AS role_id, p.id AS permission_id FROM sys_role r JOIN sys_permission p ON p.perm_code IN ('sys:video:browse', 'sys:video:upload', 'sys:video:like', 'sys:video:favorite', 'sys:video:comment:create') AND p.deleted = 0 AND p.status = 1 WHERE r.deleted = 0 AND r.status = 1 AND r.role_code = 'video_member') src
 WHERE NOT EXISTS (SELECT 1 FROM sys_role_permission tgt WHERE tgt.id = src.id OR (tgt.role_id = src.role_id AND tgt.permission_id = src.permission_id));
 
 -- ---------------------------------------------------------------------
@@ -186,7 +187,7 @@ WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE id = 52);
 -- ---------------------------------------------------------------------
 UPDATE sys_permission
 SET path = '/video/admin/content/page,/video/admin/movies/page,/video/admin/collections/page,/video/admin/creator/page'
-WHERE id = 305 AND perm_code = 'sys:video:content:list';
+WHERE perm_code = 'sys:video:content:list';
 
 UPDATE sys_permission
 SET path = '/video/admin/content/{id}/publish,/video/admin/movies/{id}/publish'

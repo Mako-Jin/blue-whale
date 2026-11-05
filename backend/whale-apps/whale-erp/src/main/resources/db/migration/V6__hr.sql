@@ -227,6 +227,6 @@ CREATE TABLE IF NOT EXISTS erp_hr_appraisal (
 -- 10. 幂等种子：其他应付款（薪资代扣社保/公积金挂账）
 -- ---------------------------------------------------------------------
 INSERT IGNORE INTO erp_account
-    (id, tenant_id, code, name, account_type, direction, leaf, status, remark)
+    (id, tenant_id, code, name, account_type, direction, leaf_flag, status, remark)
 VALUES
     (7023, 1, '2241', '其他应付款', 'LIABILITY', 'CREDIT', 1, 'ENABLED', '内置科目（M4 薪资代扣挂账）');

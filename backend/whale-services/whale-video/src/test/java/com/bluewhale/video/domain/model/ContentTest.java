@@ -189,7 +189,8 @@ class ContentTest {
     @Test
     void shouldHideUnpublishedOrUnauthorizedContent() {
         Content draft = readyContent();
-        assertFalse(draft.visibleTo(draft.getUploaderId(), false));
+        assertTrue(draft.visibleTo(draft.getUploaderId(), false));
+        assertFalse(draft.visibleTo(999L, false));
 
         Content takedown = readyContent();
         takedown.publish(MAX_DURATION_MS);

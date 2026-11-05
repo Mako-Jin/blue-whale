@@ -217,6 +217,11 @@ whale:
       - /im/ws
       # Wave 5.74 M2 文档实时协作 WS 升级：同上，ticket 由 POST /doc/ws-ticket 签发
       - /doc/ws
+      # Wave 5.75 / 5.77 音视频流：<audio>/<video> 标签无法携带 Authorization 头，
+      # 鉴权改由 POST /music/play/ticket、POST /video/play/ticket 签发的一次性票据，
+      # 票据在 whale-music / whale-video 侧校验并消费，网关层不再要求 JWT。
+      - /music/stream/**
+      - /video/stream/**
       # Wave 5.61 M3 第三方电子签章回调：三方平台匿名回调，安全依赖渠道 HMAC/RSA 验签
       # + 时间戳窗口 + provider_event_id 幂等；仅放行该前缀，其余 /contract/** 仍须 JWT。
       - /contract/sign/callback/**

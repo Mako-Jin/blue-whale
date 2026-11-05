@@ -207,13 +207,17 @@ SELECT n.tenant_id   AS tenant_id,
        n.ncr_no      AS ncr_no,
        n.source_no   AS source_no,
        n.item_id     AS item_id,
-       n.item_code   AS item_code,
+       i.code        AS item_code,
        n.item_name   AS item_name,
        n.quantity    AS quantity,
        n.status      AS status,
        n.cost_amount AS cost_amount,
        n.create_time AS created_at
 FROM erp_qc_ncr n
+LEFT JOIN erp_item i
+       ON i.id = n.item_id
+      AND i.tenant_id = n.tenant_id
+      AND i.deleted = 0
 WHERE n.deleted = 0;
 
 -- =====================================================================

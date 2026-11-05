@@ -224,11 +224,17 @@ public class Content {
         if (operator) {
             return true;
         }
-        if (publishState != PublishState.PUBLISHED || !copyrightState.canPlay()
+        // 上传者始终可见自己的内容（含草稿 / 已下架 / 版权到期），
+        // 否则作者无法回填编辑、发布或删除自己的草稿。
+        if (viewerId != null && viewerId.equals(uploaderId)) {
+            return true;
+        }
+        if (publishState != PublishState.PUBLISHED
+                || (copyrightState != null && !copyrightState.canPlay())
                 || (copyrightExpireAt != null && copyrightExpireAt.isBefore(LocalDateTime.now()))) {
             return false;
         }
-        return visibility == ContentVisibility.PUBLIC || (viewerId != null && viewerId.equals(uploaderId));
+        return visibility == ContentVisibility.PUBLIC;
     }
 
     /**

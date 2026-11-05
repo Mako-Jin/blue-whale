@@ -23,8 +23,8 @@
 | 内网前缀 | `/video/internal/**`（网关 `internal-deny` 统一 403） |
 | 前端 | `frontend/platform-apps/whale-video`，qiankun base `/video`，本地 dev 端口 8114 |
 | Redis | `whale:video:*` |
-| 权限码 | `sys:video:*`（305–322，18 项） |
-| 角色 | `video_admin`（25105，305–322）、`video_member`（25106，314–318 + `sys:file:upload`(32)） |
+| 权限码 | `sys:video:*`（ID 79–82 + 309–322，共 18 项；`sort_no` 仍为 305–322） |
+| 角色 | `video_admin`（25105，按 `perm_code` 全量授权）、`video_member`（25106，314–318 + `sys:file:upload`(32)） |
 | 菜单 | 46「视频中心」+ 47–52（短视频 / 视频 / 电影 / 分类系列片单 / 评论审核 / 播放统计） |
 | 上游依赖 | `whale-file`（8085，视频字节与文件元信息）、`whale-message`（可选通知，暂未接入） |
 | 镜像 | 后端 `ghcr.io/<repo>/whale-video`；前端 `ghcr.io/<repo>/frontend/whale-video` |
@@ -33,6 +33,8 @@
 
 - `whale-video`：`lb://whale-video`，`Path=/video/**`，**不配 `StripPrefix`**。
 - 内网屏蔽：`/video/internal/**`（403）。
+- 匿名流白名单：网关 `whale.gateway.white-list` 含 `/video/stream/**`（与 `/music/stream/**` 同理），
+  `<video>` 标签无法携带 JWT，鉴权改由 `POST /video/play/ticket` 签发的一次性票据在服务侧校验。
 - **不加入** `circuit-breaker.apply-to-routes`：一次播放会跨多个 Range 请求，3s 超时熔断会截断长视频。
 - 限流（`rate-limit.path-rules`，超阈值 429 + `Result` 体）：
 
@@ -215,9 +217,12 @@ curl -H "Authorization: Bearer <token>" http://127.0.0.1:8080/video/home
 1. 建库：`CREATE DATABASE IF NOT EXISTS bluewhale_video CHARACTER SET utf8mb4;`
 2. 启动 `whale-video`，Flyway 自动执行 `V1` → `V4`（`validate-on-migrate=true`、
    `clean-disabled=true`、`baseline-version=1`）。存量空库首启即以 V1 为基线。
-3. `bluewhale_auth` 执行 `migration-5.77-video.sql`（幂等）：权限 305–322、角色
-   25105/25106、授权（admin/tenant_admin 18 项；video_member 5 项 + `sys:file:upload`）、
+3. `bluewhale_auth` 执行 `migration-5.77-video.sql`（幂等）：权限 ID 79–82 + 309–322（`sort_no`
+   仍为 305–322；305–308 已被消息公告占用）、角色 25105/25106、按 `perm_code` 授权
+   （admin/tenant_admin 全量；video_member 314–318 + `sys:file:upload`）、
    所有启用用户授予 `video_member`、菜单 46–52、M4 接口路径增量。
+   注意：`sys_permission.path` 需先扩宽到 `VARCHAR(2048)`（`migration-5.87-permission-path-width.sql`），
+   否则逗号分隔的多端点路径会因 `Data too long` 失败。
 4. 校验：
 
 ```sql
@@ -235,7 +240,8 @@ SELECT COUNT(*) FROM information_schema.columns
  WHERE table_schema='bluewhale_video' AND table_name='vd_content'
    AND column_name IN ('copyright_status','takedown_reason','takedown_at');         -- 期望 3
 
-SELECT COUNT(*) FROM sys_permission WHERE id BETWEEN 305 AND 322 AND deleted = 0;  -- 期望 18
+SELECT COUNT(*) FROM sys_permission
+ WHERE perm_code LIKE 'sys:video:%' AND deleted = 0;                                -- 期望 18
 SELECT COUNT(*) FROM sys_menu WHERE id BETWEEN 46 AND 52;                          -- 期望 7
 ```
 

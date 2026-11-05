@@ -121,7 +121,7 @@ CREATE TABLE sys_permission (
     perm_code   VARCHAR(128)  NOT NULL               COMMENT '权限编码（唯一），如 sys:user:list',
     perm_name   VARCHAR(64)   NOT NULL               COMMENT '权限名称，如 查询用户',
     perm_type   VARCHAR(16)   NOT NULL               COMMENT '权限类型：SYSTEM 系统 / MENU 菜单 / API 接口 / BUTTON 按钮 / DATA 数据 / ATTR 属性',
-    path        VARCHAR(255)  DEFAULT NULL           COMMENT '接口请求路径（URI），如 /api/v1/users/**',
+    path        VARCHAR(2048) DEFAULT NULL           COMMENT '接口请求路径（URI），支持逗号分隔多端点，如 /api/v1/users/**',
     method      VARCHAR(16)   DEFAULT NULL           COMMENT 'HTTP 方法：GET / POST / PUT / DELETE / ALL',
     sort_no     INT           NOT NULL DEFAULT 0     COMMENT '显示顺序（越小越靠前）',
     status      TINYINT       NOT NULL DEFAULT 1     COMMENT '状态：1 启用 / 0 停用',

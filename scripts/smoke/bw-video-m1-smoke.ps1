@@ -1,4 +1,4 @@
-﻿﻿# Wave 5.77 M1 共享媒体底座冒烟（强断言）
+﻿# Wave 5.77 M1 共享媒体底座冒烟（强断言）
 #   覆盖：服务就绪 / meta 契约 / 权限拒绝（基线）
 #         首页聚合、分类标签、上传声明、内容分页与搜索、
 #         详情 / 播放票据 / 评论 / 点赞收藏 / 观看历史、
@@ -25,12 +25,12 @@ Assert-VideoBaseline -Milestone 'm1' -IncludeFile
 # ---------------------------------------------------------------
 Write-Host ''
 Write-Host '== 3 首页聚合 =='
-$home = Assert-VideoOk '3.home' (Send-VideoProbe -Path '/video/home')
-Assert '3.homeSections' ($null -ne $home.shorts -and $null -ne $home.videos -and $null -ne $home.movies) `
-    "shorts=$(@($home.shorts).Count) videos=$(@($home.videos).Count) movies=$(@($home.movies).Count)"
-Assert '3.homeCategories' (@($home.categories).Count -ge 1) "count=$(@($home.categories).Count)"
-Assert '3.homeTags' (@($home.tags).Count -ge 1) "count=$(@($home.tags).Count)"
-Assert-VideoNoFileId '3.home' (@($home.shorts) + @($home.videos) + @($home.movies))
+$homeAgg = Assert-VideoOk '3.home' (Send-VideoProbe -Path '/video/home')
+Assert '3.homeSections' ($null -ne $homeAgg.shorts -and $null -ne $homeAgg.videos -and $null -ne $homeAgg.movies) `
+    "shorts=$(@($homeAgg.shorts).Count) videos=$(@($homeAgg.videos).Count) movies=$(@($homeAgg.movies).Count)"
+Assert '3.homeCategories' (@($homeAgg.categories).Count -ge 1) "count=$(@($homeAgg.categories).Count)"
+Assert '3.homeTags' (@($homeAgg.tags).Count -ge 1) "count=$(@($homeAgg.tags).Count)"
+Assert-VideoNoFileId '3.home' (@($homeAgg.shorts) + @($homeAgg.videos) + @($homeAgg.movies))
 
 # ---------------------------------------------------------------
 # 4 分类与标签

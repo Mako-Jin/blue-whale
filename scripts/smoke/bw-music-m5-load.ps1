@@ -1,4 +1,4 @@
-﻿﻿# Wave 5.75 M5-6 性能与容量冒烟（本机口径）：
+﻿# Wave 5.75 M5-6 性能与容量冒烟（本机口径）：
 #   首页 /music/home、详情 /music/public/song/{id} 的时延 P95；
 #   流式 /music/stream/{songId} 的 50 并发首字节（TTFB）P95。
 # 阈值（环境变量可覆盖，单位毫秒）：
