@@ -13,6 +13,7 @@ import QualityPage from './pages/QualityPage';
 import EquipmentPage from './pages/EquipmentPage';
 import CollectPage from './pages/CollectPage';
 import WorkforcePage from './pages/WorkforcePage';
+import DashboardPage from './pages/DashboardPage';
 import FormModal from './pages/Form';
 import type { MesWorkOrder } from './api/mes';
 
@@ -20,6 +21,7 @@ const { Header, Content, Sider } = Layout;
 
 /** 菜单项：生产工单 / 调度派工 / 生产执行 / 生产看板 / 基础主数据 / 物料追溯 / 线边仓 / 车间质量 / 设备 / 采集 */
 const menuItems: MenuProps['items'] = [
+  { key: '/dashboard', label: '综合看板' },
   { key: '/work-order', label: '生产工单' },
   { key: '/dispatch', label: '调度派工' },
   { key: '/execution', label: '生产执行' },
@@ -56,6 +58,7 @@ const menuItems: MenuProps['items'] = [
 
 /** 菜单路由前缀（用于定位当前菜单） */
 const MENU_KEYS = [
+  '/dashboard',
   '/work-order',
   '/dispatch',
   '/execution',
@@ -136,6 +139,7 @@ function MesShell() {
         </Sider>
         <Content style={{ padding: 16 }}>
           <Routes>
+            <Route path="/dashboard" element={<DashboardPage />} />
             <Route
               path="/work-order"
               element={

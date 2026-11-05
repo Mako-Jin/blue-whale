@@ -34,7 +34,8 @@ class MesArchitectureTest {
             "com.bluewhale.mes.quality.controller..",
             "com.bluewhale.mes.equipment.controller..",
             "com.bluewhale.mes.collect.controller..",
-            "com.bluewhale.mes.workforce.controller.."
+            "com.bluewhale.mes.workforce.controller..",
+            "com.bluewhale.mes.dashboard.controller.."
     };
 
     /** 业务服务所在包（存量顶层 + M0/M1 新增上下文） */
@@ -48,7 +49,8 @@ class MesArchitectureTest {
             "com.bluewhale.mes.quality.service..",
             "com.bluewhale.mes.equipment.service..",
             "com.bluewhale.mes.collect.service..",
-            "com.bluewhale.mes.workforce.service.."
+            "com.bluewhale.mes.workforce.service..",
+            "com.bluewhale.mes.dashboard.service.."
     };
 
     /** Mapper 所在包（存量顶层 + M0/M1 新增上下文） */
@@ -98,7 +100,9 @@ class MesArchitectureTest {
             "com.bluewhale.mes.collect.dto..",
             "com.bluewhale.mes.collect.vo..",
             "com.bluewhale.mes.workforce.dto..",
-            "com.bluewhale.mes.workforce.vo.."
+            "com.bluewhale.mes.workforce.vo..",
+            "com.bluewhale.mes.dashboard.dto..",
+            "com.bluewhale.mes.dashboard.vo.."
     };
 
     /** 控制器不得直接依赖实体（装配一律经 converter/service 层完成） */

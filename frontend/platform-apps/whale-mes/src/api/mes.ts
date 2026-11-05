@@ -1,5 +1,5 @@
 // MES 业务 API 层：经网关 8080 代理到 whale-mes（/mes/**）
-import { http } from './client';
+import { client, http } from './client';
 
 /** 工单生命周期状态 */
 export type MesWorkOrderStatus =
@@ -2525,4 +2525,93 @@ export function pageMesSkills(
 export function saveMesSkillMatrix(input: MesSkillMatrixInput): Promise<MesSkillMatrix> {
   return http.post<MesSkillMatrix>('/mes/workforce/skill', input);
 }
+
+/** 综合看板 - 设备域聚合 */
+export interface MesDashboardEquipment {
+  totalEquipmentCount: number;
+  enabledEquipmentCount: number;
+  statusCounts: Record<string, number>;
+  faultEquipmentCount: number;
+  todayDowntimeCount: number;
+  oeeSnapshotCount: number;
+  avgAvailability?: number | string;
+  avgPerformance?: number | string;
+  avgQuality?: number | string;
+  avgOee?: number | string;
+}
+
+/** 综合看板 - 人员域聚合 */
+export interface MesDashboardWorkforce {
+  todayReportCount: number;
+  todayWorkHourCount: number;
+  todayNetWorkSeconds: number;
+  activeShiftCount: number;
+  draftHandoverCount: number;
+  monthlyStatCount: number;
+  monthlyLockedCount: number;
+  monthlyProductionQuantity?: number | string;
+  monthlyAvgEfficiency?: number | string;
+  monthlyAvgPassRate?: number | string;
+}
+
+/** 综合看板四域聚合 */
+export interface MesDashboard {
+  boardDate: string;
+  lineId?: number;
+  teamId?: number;
+  generatedAt: string;
+  production: MesBoard;
+  quality: {
+    boardDate: string;
+    inspectionTaskCount: number;
+    pendingTaskCount: number;
+    failedTaskCount: number;
+    firstArticlePassRate?: number | string;
+    ncrOpenCount: number;
+    ncrClosedCount: number;
+    dispositionCount: number;
+    reworkOpenCount: number;
+    spcAlertCount: number;
+  };
+  equipment: MesDashboardEquipment;
+  workforce: MesDashboardWorkforce;
+}
+
+/** 综合看板查询条件 */
+export interface MesDashboardQuery {
+  lineId?: string | number;
+  teamId?: string | number;
+  boardDate?: string;
+}
+
+/** 获取综合看板快照 */
+export function fetchMesDashboard(params: MesDashboardQuery = {}): Promise<MesDashboard> {
+  return http.get<MesDashboard>(`/mes/dashboard?${toQueryString({ ...params })}`);
+}
+
+/** 订阅综合看板 SSE 推送：事件名 dashboard，data 为综合看板 JSON 快照 */
+export function subscribeMesDashboard(
+  params: MesDashboardQuery & { intervalSeconds?: number },
+  onEvent: (dashboard: MesDashboard) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  return client.streamSse('/mes/dashboard/stream', params, (event, data) => {
+    if (event === 'dashboard') {
+      onEvent(data as MesDashboard);
+    }
+  }, signal);
+}
+
+/** 导出综合看板 CSV（受 sys:mes:dashboard:export 权限控制） */
+export function exportMesDashboard(params: MesDashboardQuery = {}): Promise<void> {
+  return client.downloadBlob('/mes/dashboard/export', { ...params }).then(({ blob, filename }) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  });
+}
+
 
