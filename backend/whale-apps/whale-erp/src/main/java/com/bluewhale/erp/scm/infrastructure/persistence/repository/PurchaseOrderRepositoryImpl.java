@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.erp.scm.domain.model.PurchaseOrder;
 import com.bluewhale.erp.scm.domain.model.PurchaseOrderLine;
+import com.bluewhale.erp.scm.domain.model.PurchasePriceRecord;
 import com.bluewhale.erp.scm.domain.model.ScmQuery;
 import com.bluewhale.erp.scm.domain.repository.PurchaseOrderRepository;
 import com.bluewhale.erp.scm.infrastructure.persistence.entity.PurchaseOrderEntity;
@@ -16,8 +17,13 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * 采购订单仓储实现（MyBatis-Plus）。
@@ -62,6 +68,40 @@ public class PurchaseOrderRepositoryImpl implements PurchaseOrderRepository {
                         .orderByAsc(PurchaseOrderLineEntity::getLineNo))
                 .stream().map(this::toDomain).toList());
         return Optional.of(order);
+    }
+
+    @Override
+    public List<PurchasePriceRecord> listPurchasePrices(Long itemId, LocalDate fromDate) {
+        List<PurchaseOrderLineEntity> lines = purchaseOrderLineMapper.selectList(
+                new LambdaQueryWrapper<PurchaseOrderLineEntity>()
+                        .eq(PurchaseOrderLineEntity::getItemId, itemId)
+                        .orderByDesc(PurchaseOrderLineEntity::getId));
+        if (lines.isEmpty()) {
+            return List.of();
+        }
+        Set<Long> orderIds = lines.stream().map(PurchaseOrderLineEntity::getOrderId).collect(Collectors.toSet());
+        Map<Long, PurchaseOrderEntity> headers = purchaseOrderMapper.selectBatchIds(orderIds).stream()
+                .collect(Collectors.toMap(PurchaseOrderEntity::getId, Function.identity()));
+        List<PurchasePriceRecord> records = new ArrayList<>();
+        for (PurchaseOrderLineEntity line : lines) {
+            PurchaseOrderEntity header = headers.get(line.getOrderId());
+            if (header == null || (fromDate != null && header.getDocDate().isBefore(fromDate))) {
+                continue;
+            }
+            PurchasePriceRecord record = new PurchasePriceRecord();
+            record.setSupplierId(header.getSupplierId());
+            record.setSupplierName(header.getSupplierName());
+            record.setDocDate(header.getDocDate());
+            record.setStatus(header.getStatus());
+            record.setItemId(line.getItemId());
+            record.setItemCode(line.getItemCode());
+            record.setItemName(line.getItemName());
+            record.setUnitPrice(line.getUnitPrice());
+            record.setQuantity(line.getQuantity());
+            record.setCurrency(header.getCurrency());
+            records.add(record);
+        }
+        return records;
     }
 
     @Override

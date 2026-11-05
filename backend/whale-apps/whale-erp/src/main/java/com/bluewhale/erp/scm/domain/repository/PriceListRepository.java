@@ -39,6 +39,14 @@ public interface PriceListRepository {
     Optional<PriceList> findById(Long id);
 
     /**
+     * 不分页查询价目（比价用）。
+     *
+     * @param query 查询条件
+     * @return 价目列表
+     */
+    List<PriceList> list(PriceListQuery query);
+
+    /**
      * 按「价格类型 + 往来方 + 物料」查询唯一价目。
      *
      * @param priceType 价格类型

@@ -1,6 +1,7 @@
 package com.bluewhale.erp.scm.domain.repository;
 
 import com.bluewhale.erp.scm.domain.model.PurchaseOrder;
+import com.bluewhale.erp.scm.domain.model.PurchasePriceRecord;
 import com.bluewhale.erp.scm.domain.model.ScmQuery;
 
 import java.time.LocalDate;
@@ -37,6 +38,15 @@ public interface PurchaseOrderRepository {
      * @return 采购订单
      */
     Optional<PurchaseOrder> findById(Long id);
+
+    /**
+     * 查询物料的历史采购价格记录（分录 + 订单头快照）。
+     *
+     * @param itemId 物料主键
+     * @param fromDate 起始单据日期（空表示不限）
+     * @return 价格记录
+     */
+    List<PurchasePriceRecord> listPurchasePrices(Long itemId, LocalDate fromDate);
 
     /**
      * 生成下一个订单号。

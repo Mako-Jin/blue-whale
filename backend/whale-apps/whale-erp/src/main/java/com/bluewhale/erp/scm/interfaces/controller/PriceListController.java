@@ -8,8 +8,11 @@ import com.bluewhale.common.core.result.Result;
 import com.bluewhale.erp.interfaces.support.PageParams;
 import com.bluewhale.erp.scm.application.command.PriceListCreateCommand;
 import com.bluewhale.erp.scm.application.command.PriceListUpdateCommand;
+import com.bluewhale.erp.scm.application.service.PriceCompareAppService;
 import com.bluewhale.erp.scm.application.service.PriceListAppService;
 import com.bluewhale.erp.scm.application.view.PriceListView;
+import com.bluewhale.erp.scm.application.view.PriceTrendView;
+import com.bluewhale.erp.scm.application.view.SupplierPriceCompareView;
 import com.bluewhale.erp.scm.domain.model.PriceListQuery;
 import com.bluewhale.erp.scm.domain.model.PriceType;
 import jakarta.validation.Valid;
@@ -26,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.util.List;
 
 /**
  * 价目表接口：分页、详情、新建、更新、启停与取价。
@@ -38,6 +42,8 @@ import java.time.LocalDate;
 public class PriceListController {
 
     private final PriceListAppService priceListAppService;
+
+    private final PriceCompareAppService priceCompareAppService;
 
     /**
      * 价目表分页。
@@ -133,5 +139,35 @@ public class PriceListController {
     @AuditLog(operation = "价目启停", targetType = "erp_scm_price_list", type = OperateType.UPDATE)
     public Result<PriceListView> toggle(@PathVariable Long id) {
         return Result.ok(priceListAppService.toggle(id));
+    }
+
+    /**
+     * 供应商比价：当前有效采购价与最近成交价。
+     *
+     * @param itemId 物料主键
+     * @param date 取价日期（空表示今天）
+     * @return 比价列表
+     */
+    @GetMapping("/compare")
+    @RequirePermission("sys:erp:price-compare:compare")
+    public Result<List<SupplierPriceCompareView>> compare(
+            @RequestParam Long itemId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return Result.ok(priceCompareAppService.compare(itemId, date));
+    }
+
+    /**
+     * 物料采购价格趋势。
+     *
+     * @param itemId 物料主键
+     * @param months 统计月数（默认 6，范围 1–24）
+     * @return 趋势列表
+     */
+    @GetMapping("/trend")
+    @RequirePermission("sys:erp:price-compare:trend")
+    public Result<List<PriceTrendView>> trend(
+            @RequestParam Long itemId,
+            @RequestParam(required = false) Integer months) {
+        return Result.ok(priceCompareAppService.trend(itemId, months));
     }
 }

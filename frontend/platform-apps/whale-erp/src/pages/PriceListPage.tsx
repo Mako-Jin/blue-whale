@@ -18,12 +18,16 @@ import {
 import type { TableProps } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import {
+  compareSupplierPrices,
   createPriceList,
   pagePriceLists,
+  priceTrend,
   togglePriceList,
   updatePriceList,
   type PriceListView,
+  type PriceTrendView,
   type PriceType,
+  type SupplierPriceCompareView,
 } from '../api/scm';
 import { listErpItems, listErpSuppliers, type ErpItem } from '../api/erp';
 import { pageCustomers } from '../api/masterdata';
@@ -293,17 +297,212 @@ function PriceListTab({ priceType }: { priceType: PriceType }) {
   );
 }
 
+/** 供应商比价页签 */
+function PriceCompareTab() {
+  const [items, setItems] = useState<ErpItem[]>([]);
+  const [itemId, setItemId] = useState<number>();
+  const [date, setDate] = useState<Dayjs>(dayjs());
+  const [data, setData] = useState<SupplierPriceCompareView[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    void listErpItems().then(setItems);
+  }, []);
+
+  const load = async () => {
+    if (!itemId) {
+      message.warning('请选择物料');
+      return;
+    }
+    setLoading(true);
+    try {
+      setData(await compareSupplierPrices(itemId, date.format('YYYY-MM-DD')));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const columns: TableProps<SupplierPriceCompareView>['columns'] = [
+    {
+      title: '供应商',
+      key: 'supplier',
+      render: (_, record) => record.supplierName ?? record.supplierId,
+    },
+    {
+      title: '当前采购价',
+      dataIndex: 'price',
+      key: 'price',
+      width: 120,
+      render: (value: number | undefined) => (value === undefined ? '未配置' : money(value)),
+    },
+    {
+      title: '价目有效期',
+      key: 'validity',
+      render: (_, record) =>
+        record.validFrom || record.validTo
+          ? `${record.validFrom ?? '-'} ~ ${record.validTo ?? '-'}`
+          : '-',
+    },
+    {
+      title: '最近成交价',
+      dataIndex: 'lastPurchasePrice',
+      key: 'lastPurchasePrice',
+      width: 120,
+      render: (value: number | undefined) => (value === undefined ? '-' : money(value)),
+    },
+    {
+      title: '最近成交日',
+      dataIndex: 'lastPurchaseDate',
+      key: 'lastPurchaseDate',
+      width: 130,
+      render: (value: string | undefined) => value ?? '-',
+    },
+    {
+      title: '与最低价差额',
+      dataIndex: 'gap',
+      key: 'gap',
+      width: 120,
+      render: (value: number | undefined) => (value === undefined ? '-' : money(value)),
+    },
+    {
+      title: '标记',
+      key: 'lowest',
+      width: 90,
+      render: (_, record) => (record.lowest ? <Tag color="green">最低价</Tag> : null),
+    },
+  ];
+
+  return (
+    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Space wrap>
+        <Select
+          showSearch
+          optionFilterProp="label"
+          placeholder="选择物料"
+          style={{ width: 240 }}
+          value={itemId}
+          onChange={(value) => setItemId(value)}
+          options={items.map((item) => ({ value: item.id, label: `${item.code} ${item.name}` }))}
+        />
+        <DatePicker value={date} onChange={(value) => setDate(value ?? dayjs())} />
+        <Button type="primary" loading={loading} onClick={load}>
+          查询比价
+        </Button>
+        <Tag color="blue">当前价取价目表，成交价取有效采购订单</Tag>
+      </Space>
+      <Table<SupplierPriceCompareView>
+        rowKey="supplierId"
+        loading={loading}
+        columns={columns}
+        dataSource={data}
+      />
+    </Space>
+  );
+}
+
+/** 价格趋势页签 */
+function PriceTrendTab() {
+  const [items, setItems] = useState<ErpItem[]>([]);
+  const [itemId, setItemId] = useState<number>();
+  const [months, setMonths] = useState(6);
+  const [data, setData] = useState<PriceTrendView[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    void listErpItems().then(setItems);
+  }, []);
+
+  const load = async () => {
+    if (!itemId) {
+      message.warning('请选择物料');
+      return;
+    }
+    setLoading(true);
+    try {
+      setData(await priceTrend(itemId, months));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const columns: TableProps<PriceTrendView>['columns'] = [
+    { title: '月份', dataIndex: 'month', key: 'month', width: 110 },
+    {
+      title: '加权均价',
+      dataIndex: 'avgPrice',
+      key: 'avgPrice',
+      width: 120,
+      render: (value: number | undefined) => (value === undefined ? '-' : money(value)),
+    },
+    {
+      title: '最低价',
+      dataIndex: 'minPrice',
+      key: 'minPrice',
+      width: 120,
+      render: (value: number | undefined) => (value === undefined ? '-' : money(value)),
+    },
+    {
+      title: '最高价',
+      dataIndex: 'maxPrice',
+      key: 'maxPrice',
+      width: 120,
+      render: (value: number | undefined) => (value === undefined ? '-' : money(value)),
+    },
+    { title: '成交笔数', dataIndex: 'orderCount', key: 'orderCount', width: 100 },
+  ];
+
+  return (
+    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Space wrap>
+        <Select
+          showSearch
+          optionFilterProp="label"
+          placeholder="选择物料"
+          style={{ width: 240 }}
+          value={itemId}
+          onChange={(value) => setItemId(value)}
+          options={items.map((item) => ({ value: item.id, label: `${item.code} ${item.name}` }))}
+        />
+        <InputNumber
+          min={1}
+          max={24}
+          addonBefore="统计"
+          addonAfter="个月"
+          style={{ width: 160 }}
+          value={months}
+          onChange={(value) => setMonths(Number(value ?? 6))}
+        />
+        <Button type="primary" loading={loading} onClick={load}>
+          查询趋势
+        </Button>
+        <Tag color="blue">仅统计审核后的采购订单，按数量加权平均</Tag>
+      </Space>
+      <Table<PriceTrendView> rowKey="month" loading={loading} columns={columns} dataSource={data} />
+    </Space>
+  );
+}
+
 /** 价格表页 */
 export default function PriceListPage() {
-  const [tab, setTab] = useState<PriceType>('SALES');
+  const [tab, setTab] = useState('SALES');
 
   return (
     <Tabs
       activeKey={tab}
-      onChange={(key) => setTab(key as PriceType)}
+      onChange={setTab}
       items={[
         { key: 'SALES', label: '销售价', children: <PriceListTab priceType="SALES" /> },
         { key: 'PURCHASE', label: '采购价', children: <PriceListTab priceType="PURCHASE" /> },
+        {
+          key: 'COMPARE',
+          label: '供应商比价',
+          children: hasPermission('sys:erp:price-compare:compare') ? <PriceCompareTab /> : null,
+        },
+        {
+          key: 'TREND',
+          label: '价格趋势',
+          children: hasPermission('sys:erp:price-compare:trend') ? <PriceTrendTab /> : null,
+        },
       ]}
     />
   );

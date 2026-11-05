@@ -745,6 +745,46 @@ export function resolvePriceList(params: PriceResolveQuery): Promise<PriceListVi
   return http.get<PriceListView>(`/erp/scm/price-list/resolve?${search.toString()}`);
 }
 
+/** 供应商比价 */
+export interface SupplierPriceCompareView {
+  supplierId: number;
+  supplierName?: string;
+  price?: number;
+  currency?: string;
+  validFrom?: string;
+  validTo?: string;
+  lastPurchasePrice?: number;
+  lastPurchaseDate?: string;
+  lowest: boolean;
+  gap?: number;
+}
+
+/** 物料采购价格趋势 */
+export interface PriceTrendView {
+  month: string;
+  avgPrice?: number;
+  minPrice?: number;
+  maxPrice?: number;
+  orderCount: number;
+}
+
+/** 供应商采购比价（当前有效价 + 最近成交价） */
+export function compareSupplierPrices(
+  itemId: number,
+  date?: string,
+): Promise<SupplierPriceCompareView[]> {
+  const search = new URLSearchParams({ itemId: String(itemId) });
+  if (date) search.set('date', date);
+  return http.get<SupplierPriceCompareView[]>(`/erp/scm/price-list/compare?${search.toString()}`);
+}
+
+/** 物料采购价格趋势（按月汇总） */
+export function priceTrend(itemId: number, months = 6): Promise<PriceTrendView[]> {
+  return http.get<PriceTrendView[]>(
+    `/erp/scm/price-list/trend?itemId=${itemId}&months=${months}`,
+  );
+}
+
 /** 安全库存配置 */
 export interface SafetyStockView {
   id: number;

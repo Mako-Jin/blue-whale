@@ -44,6 +44,11 @@ public class PriceListRepositoryImpl implements PriceListRepository {
     }
 
     @Override
+    public List<PriceList> list(PriceListQuery query) {
+        return priceListMapper.selectList(filter(query)).stream().map(this::toDomain).toList();
+    }
+
+    @Override
     public Optional<PriceList> find(PriceType priceType, Long partnerId, Long itemId) {
         PriceListEntity entity = priceListMapper.selectOne(new LambdaQueryWrapper<PriceListEntity>()
                 .eq(PriceListEntity::getPriceType, priceType.name())
