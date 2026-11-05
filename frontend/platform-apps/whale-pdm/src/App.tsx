@@ -7,6 +7,7 @@ import ProductCenter from './pages/ProductCenter';
 import PartLibrary from './pages/part';
 import BomLibrary from './pages/bom';
 import ChangeCenter from './pages/change';
+import ChangeOrderCenter from './pages/change/order';
 import { hasPermission } from './utils/permission';
 
 const { Header, Content, Sider } = Layout;
@@ -18,6 +19,7 @@ const MENU_ITEMS = [
   { key: '/part', label: '零件库', permission: 'sys:pdm:part:list' },
   { key: '/bom', label: 'BOM 结构', permission: 'sys:pdm:bom:list' },
   { key: '/change', label: '变更管理', permission: 'sys:pdm:change:list' },
+  { key: '/change/order', label: '变更单（ECO）', permission: 'sys:pdm:change:order:list' },
 ];
 
 /** 按权限过滤后的菜单 */
@@ -50,6 +52,7 @@ function PdmLayout() {
             <Route path="/part" element={<PartLibrary />} />
             <Route path="/bom" element={<BomLibrary />} />
             <Route path="/change" element={<ChangeCenter />} />
+            <Route path="/change/order" element={<ChangeOrderCenter />} />
             <Route path="*" element={<Navigate to="/document" replace />} />
           </Routes>
         </Content>
