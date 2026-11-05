@@ -2,12 +2,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   Button,
+  Descriptions,
   Form,
   Input,
   InputNumber,
   Modal,
   Select,
   Space,
+  Spin,
   Table,
   Tabs,
   Tag,
@@ -33,6 +35,12 @@ import {
   type ErpWarehouseInput,
 } from '../api/masterdata';
 import { hasPermission } from '../utils/permission';
+import { getCreditUsage, type CreditUsageView } from '../api/scm';
+
+/** 金额展示（空值显示占位） */
+function amount(value?: number | null): string {
+  return value == null ? '-' : Number(value).toFixed(2);
+}
 
 /** 科目类型文案 */
 const ACCOUNT_TYPE_LABEL: Record<string, string> = {
@@ -316,6 +324,9 @@ function CustomerTab() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<ErpCustomer | null>(null);
   const [version, setVersion] = useState(0);
+  const [creditCustomer, setCreditCustomer] = useState<ErpCustomer | null>(null);
+  const [creditUsage, setCreditUsage] = useState<CreditUsageView | null>(null);
+  const [creditLoading, setCreditLoading] = useState(false);
   const [form] = Form.useForm<Omit<ErpCustomerInput, 'id'>>();
 
   const load = useCallback(async () => {
@@ -350,6 +361,17 @@ function CustomerTab() {
     setVersion((value) => value + 1);
   };
 
+  const openCredit = async (customer: ErpCustomer) => {
+    setCreditCustomer(customer);
+    setCreditUsage(null);
+    setCreditLoading(true);
+    try {
+      setCreditUsage(await getCreditUsage(customer.id));
+    } finally {
+      setCreditLoading(false);
+    }
+  };
+
   const columns: TableProps<ErpCustomer>['columns'] = [
     { title: '编码', dataIndex: 'code', key: 'code', width: 110 },
     { title: '名称', dataIndex: 'name', key: 'name' },
@@ -373,20 +395,28 @@ function CustomerTab() {
     {
       title: '操作',
       key: 'action',
-      width: 90,
-      render: (_, record) =>
-        hasPermission('sys:erp:customer:edit') ? (
-          <Button
-            type="link"
-            size="small"
-            onClick={() => {
-              setEditing(record);
-              setOpen(true);
-            }}
-          >
-            编辑
-          </Button>
-        ) : null,
+      width: 150,
+      render: (_, record) => (
+        <Space size="small">
+          {hasPermission('sys:erp:customer:edit') ? (
+            <Button
+              type="link"
+              size="small"
+              onClick={() => {
+                setEditing(record);
+                setOpen(true);
+              }}
+            >
+              编辑
+            </Button>
+          ) : null}
+          {hasPermission('sys:erp:credit-usage:view') ? (
+            <Button type="link" size="small" onClick={() => void openCredit(record)}>
+              信用
+            </Button>
+          ) : null}
+        </Space>
+      ),
     },
   ];
 
@@ -453,6 +483,43 @@ function CustomerTab() {
             <Input.TextArea rows={2} maxLength={255} />
           </Form.Item>
         </Form>
+      </Modal>
+      <Modal
+        open={Boolean(creditCustomer)}
+        title={`信用占用 - ${creditCustomer?.name ?? ''}`}
+        footer={null}
+        width={560}
+        onCancel={() => setCreditCustomer(null)}
+        destroyOnHidden
+      >
+        <Spin spinning={creditLoading}>
+          {creditUsage ? (
+            <>
+              {creditUsage.exceeded ? (
+                <Tag color="red" style={{ marginBottom: 12 }}>
+                  已超额
+                </Tag>
+              ) : null}
+              <Descriptions
+                bordered
+                size="small"
+                column={2}
+                items={[
+                  { key: 'customer', label: '客户', children: creditUsage.customerName },
+                  {
+                    key: 'limit',
+                    label: '信用额度',
+                    children: creditUsage.unlimited ? '不限' : amount(creditUsage.creditLimit),
+                  },
+                  { key: 'outstanding', label: '未结应收', children: amount(creditUsage.outstanding) },
+                  { key: 'reserved', label: '在途预占', children: amount(creditUsage.reserved) },
+                  { key: 'occupied', label: '已占用', children: amount(creditUsage.occupied) },
+                  { key: 'available', label: '可用额度', children: amount(creditUsage.available) },
+                ]}
+              />
+            </>
+          ) : null}
+        </Spin>
       </Modal>
     </Space>
   );
