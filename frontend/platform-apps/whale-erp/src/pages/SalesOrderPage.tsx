@@ -1,6 +1,7 @@
 // ERP 销售订单页：列表、新建（多分录）、审核、发货与取消
 import { useCallback, useEffect, useState } from 'react';
 import {
+  Alert,
   Button,
   DatePicker,
   Form,
@@ -20,9 +21,11 @@ import {
   approveSalesOrder,
   cancelSalesOrder,
   createSalesOrder,
+  getCreditUsage,
   getSalesOrder,
   pageSalesOrders,
   shipSalesOrder,
+  type CreditUsageView,
   type OrderLineView,
   type SalesOrderView,
 } from '../api/scm';
@@ -76,6 +79,7 @@ export default function SalesOrderPage() {
   const [customers, setCustomers] = useState<ErpCustomer[]>([]);
   const [warehouses, setWarehouses] = useState<ErpWarehouse[]>([]);
   const [items, setItems] = useState<ErpItem[]>([]);
+  const [creditUsage, setCreditUsage] = useState<CreditUsageView | null>(null);
   const [form] = Form.useForm<OrderFormValues>();
   const [shipForm] = Form.useForm<ShipFormValues>();
 
@@ -102,6 +106,7 @@ export default function SalesOrderPage() {
     setCustomers(customerPage.records);
     setWarehouses(warehousePage.records);
     setItems(itemList);
+    setCreditUsage(null);
     form.resetFields();
     form.setFieldsValue({
       docDate: dayjs(),
@@ -110,6 +115,12 @@ export default function SalesOrderPage() {
       lines: [{ itemCode: '', quantity: 1, unitPrice: undefined }],
     });
     setCreateOpen(true);
+  };
+
+  /** 选择客户后加载信用占用（应收 + 在途预占 + 可用额度） */
+  const loadCreditUsage = async (customerId: number) => {
+    if (!hasPermission('sys:erp:credit-usage:view')) return;
+    setCreditUsage(await getCreditUsage(customerId));
   };
 
   const handleCreate = async () => {
@@ -291,7 +302,13 @@ export default function SalesOrderPage() {
         onCancel={() => setCreateOpen(false)}
         destroyOnHidden
       >
-        <Form form={form} layout="vertical">
+        <Form
+          form={form}
+          layout="vertical"
+          onValuesChange={(changed: Partial<OrderFormValues>) => {
+            if (changed.customerId) void loadCreditUsage(Number(changed.customerId));
+          }}
+        >
           <Space size="large" wrap>
             <Form.Item name="customerId" label="客户" rules={[{ required: true, message: '请选择客户' }]}>
               <Select
@@ -325,6 +342,16 @@ export default function SalesOrderPage() {
               <Input style={{ width: 100 }} maxLength={8} />
             </Form.Item>
           </Space>
+          {creditUsage ? (
+            <Alert
+              style={{ marginBottom: 16 }}
+              type={creditUsage.exceeded ? 'warning' : 'info'}
+              showIcon
+              message={creditUsage.unlimited
+                ? `${creditUsage.customerName} 未设置信用额度（不限）`
+                : `${creditUsage.customerName} 信用额度 ${money(creditUsage.creditLimit)}，已占用 ${money(creditUsage.occupied)}（未结应收 ${money(creditUsage.outstanding)} + 在途预占 ${money(creditUsage.reserved)}），可用 ${money(creditUsage.available ?? 0)}`}
+            />
+          ) : null}
           <Form.List name="lines">
             {(fields, { add, remove }) => (
               <Space direction="vertical" size="small" style={{ width: '100%' }}>

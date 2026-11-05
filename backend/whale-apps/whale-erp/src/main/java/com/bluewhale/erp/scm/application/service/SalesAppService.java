@@ -3,6 +3,7 @@ package com.bluewhale.erp.scm.application.service;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.erp.scm.application.command.SalesOrderCreateCommand;
 import com.bluewhale.erp.scm.application.command.ShipCommand;
+import com.bluewhale.erp.scm.application.view.CreditUsageView;
 import com.bluewhale.erp.scm.application.view.SalesOrderView;
 import com.bluewhale.erp.scm.domain.model.ScmQuery;
 
@@ -62,4 +63,12 @@ public interface SalesAppService {
      * @return 订单视图
      */
     SalesOrderView cancel(Long id);
+
+    /**
+     * 查询客户信用占用：未结应收 + 在途预占与可用额度。
+     *
+     * @param customerId 客户主键
+     * @return 信用占用视图
+     */
+    CreditUsageView creditUsage(Long customerId);
 }

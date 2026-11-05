@@ -10,6 +10,7 @@ import com.bluewhale.erp.interfaces.support.PageParams;
 import com.bluewhale.erp.scm.application.command.SalesOrderCreateCommand;
 import com.bluewhale.erp.scm.application.command.ShipCommand;
 import com.bluewhale.erp.scm.application.service.SalesAppService;
+import com.bluewhale.erp.scm.application.view.CreditUsageView;
 import com.bluewhale.erp.scm.application.view.SalesOrderView;
 import com.bluewhale.erp.scm.domain.model.ScmQuery;
 import jakarta.servlet.http.HttpServletRequest;
@@ -57,6 +58,18 @@ public class SalesOrderController {
         query.setCurrent(PageParams.current(current, pageNum));
         query.setSize(PageParams.size(size, pageSize));
         return Result.ok(salesAppService.page(query));
+    }
+
+    /**
+     * 查询客户信用占用（未结应收 + 在途预占、可用额度）。
+     *
+     * @param customerId 客户主键
+     * @return 信用占用视图
+     */
+    @GetMapping("/credit-usage")
+    @RequirePermission("sys:erp:credit-usage:view")
+    public Result<CreditUsageView> creditUsage(@RequestParam Long customerId) {
+        return Result.ok(salesAppService.creditUsage(customerId));
     }
 
     /**

@@ -299,6 +299,24 @@ export function cancelSalesOrder(id: number): Promise<SalesOrderView> {
   return http.post<SalesOrderView>(`/erp/scm/sales-order/${id}/cancel`);
 }
 
+/** 客户信用占用视图 */
+export interface CreditUsageView {
+  customerId: number;
+  customerName: string;
+  creditLimit: number;
+  outstanding: number;
+  reserved: number;
+  occupied: number;
+  available?: number | null;
+  exceeded: boolean;
+  unlimited: boolean;
+}
+
+/** 查询客户信用占用（未结应收 + 在途预占、可用额度） */
+export function getCreditUsage(customerId: number): Promise<CreditUsageView> {
+  return http.get<CreditUsageView>(`/erp/scm/sales-order/credit-usage?customerId=${customerId}`);
+}
+
 /** 库存余额分页 */
 export function pageStockBalances(
   params: ScmQueryParams = {},

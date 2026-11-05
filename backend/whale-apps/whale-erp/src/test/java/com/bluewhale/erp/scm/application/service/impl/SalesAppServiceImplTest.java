@@ -12,6 +12,7 @@ import com.bluewhale.erp.masterdata.domain.repository.WarehouseRepository;
 import com.bluewhale.erp.scm.application.command.SalesOrderCreateCommand;
 import com.bluewhale.erp.scm.application.command.ShipCommand;
 import com.bluewhale.erp.scm.application.service.PriceListAppService;
+import com.bluewhale.erp.scm.application.view.CreditUsageView;
 import com.bluewhale.erp.scm.application.view.PriceListView;
 import com.bluewhale.erp.scm.application.view.SalesOrderView;
 import com.bluewhale.erp.scm.domain.model.PriceType;
@@ -32,7 +33,10 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -181,6 +185,40 @@ class SalesAppServiceImplTest {
 
         assertEquals(ScmStatus.SHIPPED, view.getStatus());
         verify(arApAppService).createReceivable(any());
+    }
+
+    @Test
+    @DisplayName("信用占用查询：可用额度为额度减去应收与在途预占")
+    void shouldReturnCreditUsage() {
+        when(customerRepository.findById(7201L)).thenReturn(Optional.of(customer("100")));
+        when(arApAppService.outstandingReceivable(7201L)).thenReturn(new BigDecimal("40"));
+        when(salesOrderRepository.reservedAmount(7201L)).thenReturn(new BigDecimal("50"));
+
+        CreditUsageView view = service.creditUsage(7201L);
+
+        assertEquals(7201L, view.getCustomerId());
+        assertEquals(new BigDecimal("100"), view.getCreditLimit());
+        assertEquals(new BigDecimal("40"), view.getOutstanding());
+        assertEquals(new BigDecimal("50"), view.getReserved());
+        assertEquals(new BigDecimal("90"), view.getOccupied());
+        assertEquals(new BigDecimal("10"), view.getAvailable());
+        assertFalse(view.getExceeded());
+        assertFalse(view.getUnlimited());
+    }
+
+    @Test
+    @DisplayName("信用占用查询：额度为 0 视为不限，可用额度为空")
+    void shouldReturnUnlimitedCreditUsage() {
+        when(customerRepository.findById(7201L)).thenReturn(Optional.of(customer("0")));
+        when(arApAppService.outstandingReceivable(7201L)).thenReturn(new BigDecimal("40"));
+        when(salesOrderRepository.reservedAmount(7201L)).thenReturn(BigDecimal.ZERO);
+
+        CreditUsageView view = service.creditUsage(7201L);
+
+        assertTrue(view.getUnlimited());
+        assertNull(view.getAvailable());
+        assertFalse(view.getExceeded());
+        assertEquals(new BigDecimal("40"), view.getOccupied());
     }
 
     @Test

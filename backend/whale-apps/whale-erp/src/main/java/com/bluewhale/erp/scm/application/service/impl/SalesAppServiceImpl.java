@@ -15,6 +15,7 @@ import com.bluewhale.erp.scm.application.command.SalesOrderCreateCommand;
 import com.bluewhale.erp.scm.application.command.ShipCommand;
 import com.bluewhale.erp.scm.application.service.PriceListAppService;
 import com.bluewhale.erp.scm.application.service.SalesAppService;
+import com.bluewhale.erp.scm.application.view.CreditUsageView;
 import com.bluewhale.erp.scm.application.view.PriceListView;
 import com.bluewhale.erp.scm.application.view.SalesOrderView;
 import com.bluewhale.erp.scm.domain.model.PriceType;
@@ -212,6 +213,28 @@ public class SalesAppServiceImpl implements SalesAppService {
         order.cancel();
         salesOrderRepository.update(order);
         return SalesOrderView.of(order);
+    }
+
+    @Override
+    public CreditUsageView creditUsage(Long customerId) {
+        Customer customer = requireCustomer(customerId);
+        BigDecimal limit = customer.getCreditLimit() == null ? BigDecimal.ZERO : customer.getCreditLimit();
+        BigDecimal outstanding = arApAppService.outstandingReceivable(customerId);
+        BigDecimal reserved = salesOrderRepository.reservedAmount(customerId);
+        BigDecimal occupied = outstanding.add(reserved);
+
+        CreditUsageView view = new CreditUsageView();
+        view.setCustomerId(customer.getId());
+        view.setCustomerName(customer.getName());
+        view.setCreditLimit(limit);
+        view.setOutstanding(outstanding);
+        view.setReserved(reserved);
+        view.setOccupied(occupied);
+        boolean unlimited = limit.signum() <= 0;
+        view.setUnlimited(unlimited);
+        view.setExceeded(!unlimited && occupied.compareTo(limit) > 0);
+        view.setAvailable(unlimited ? null : limit.subtract(occupied));
+        return view;
     }
 
     /**
