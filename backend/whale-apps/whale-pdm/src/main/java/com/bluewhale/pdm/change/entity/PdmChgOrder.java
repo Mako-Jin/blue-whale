@@ -66,4 +66,16 @@ public class PdmChgOrder extends BaseEntity {
 
     /** 关闭时间 */
     private LocalDateTime closeTime;
+
+    /** OA 审批实例ID */
+    private Long approvalInstanceId;
+
+    /** OA 审批状态：RUNNING/APPROVED/REJECTED/WITHDRAWN */
+    private String approvalStatus;
+
+    /** OA 状态同步时间 */
+    private LocalDateTime approvalSyncTime;
+
+    /** 审批来源：OA/MANUAL */
+    private String approvalSource;
 }

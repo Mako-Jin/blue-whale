@@ -9,6 +9,8 @@ import com.bluewhale.pdm.change.dto.PdmChgRequestSaveRequest;
 import com.bluewhale.pdm.change.entity.PdmChgRequest;
 import com.bluewhale.pdm.change.mapper.PdmChgRequestMapper;
 import com.bluewhale.pdm.change.support.PdmChgRequestStatus;
+import com.bluewhale.pdm.change.support.PdmChgTraceRecorder;
+import com.bluewhale.pdm.change.client.PdmChgWorkflowClient;
 import com.bluewhale.pdm.change.vo.PdmChgImpactObjectVO;
 import com.bluewhale.pdm.change.vo.PdmChgRequestVO;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
@@ -47,6 +49,12 @@ class PdmChgRequestServiceImplTest {
 
     @Mock
     private PdmChgRequestMapper chgRequestMapper;
+
+    @Mock
+    private PdmChgTraceRecorder traceRecorder;
+
+    @Mock
+    private PdmChgWorkflowClient workflowClient;
 
     @InjectMocks
     private PdmChgRequestServiceImpl chgRequestService;

@@ -5,6 +5,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.common.tenant.TenantContext;
+import com.bluewhale.pdm.change.client.PdmChgWorkflowClient;
 import com.bluewhale.pdm.change.dto.PdmChgOrderAssessRequest;
 import com.bluewhale.pdm.change.dto.PdmChgOrderQueryRequest;
 import com.bluewhale.pdm.change.dto.PdmChgOrderSaveRequest;
@@ -20,6 +22,11 @@ import com.bluewhale.pdm.change.support.PdmChgObjectType;
 import com.bluewhale.pdm.change.support.PdmChgOrderStatus;
 import com.bluewhale.pdm.change.support.PdmChgRequestStatus;
 import com.bluewhale.pdm.change.support.PdmChgTaskStatus;
+import com.bluewhale.pdm.change.support.PdmChgApprovalSource;
+import com.bluewhale.pdm.change.support.PdmChgApprovalStatus;
+import com.bluewhale.pdm.change.support.PdmChgBizType;
+import com.bluewhale.pdm.change.support.PdmChgTraceAction;
+import com.bluewhale.pdm.change.support.PdmChgTraceRecorder;
 import com.bluewhale.pdm.change.vo.PdmChgImpactObjectVO;
 import com.bluewhale.pdm.change.vo.PdmChgOrderVO;
 import com.bluewhale.pdm.change.vo.PdmChgTaskVO;
@@ -81,6 +88,10 @@ public class PdmChgOrderServiceImpl implements PdmChgOrderService {
 
     private final PdmChgRequestMapper chgRequestMapper;
 
+    private final PdmChgTraceRecorder traceRecorder;
+
+    private final PdmChgWorkflowClient workflowClient;
+
     @Override
     public PageResult<PdmChgOrderVO> page(PdmChgOrderQueryRequest request) {
         LambdaQueryWrapper<PdmChgOrder> wrapper = new LambdaQueryWrapper<>();
@@ -117,6 +128,8 @@ public class PdmChgOrderServiceImpl implements PdmChgOrderService {
         entity.setStatus(PdmChgOrderStatus.DRAFT);
         entity.setInitiatorId(userId);
         chgOrderMapper.insert(entity);
+        traceRecorder.recordImpact(PdmChgBizType.ECO, entity.getId(), entity.getEcoNo(),
+                PdmChgTraceAction.CREATE, userId, entity.getImpactJson(), "创建变更单");
         log.info("变更单已创建: id={}, ecoNo={}, ecrId={}", entity.getId(), entity.getEcoNo(), ecr.getId());
         return toVo(entity, List.of());
     }
@@ -151,6 +164,8 @@ public class PdmChgOrderServiceImpl implements PdmChgOrderService {
         entity.setExecutePlan(blankToNull(request.getExecutePlan()));
         entity.setStatus(PdmChgOrderStatus.ASSESSING);
         chgOrderMapper.updateById(entity);
+        traceRecorder.recordBiz(PdmChgBizType.ECO, entity.getId(), entity.getEcoNo(),
+                PdmChgTraceAction.ASSESS, null, request.getImpactAssessment().trim());
         return toVo(entity, tasksOf(id));
     }
 
@@ -199,7 +214,10 @@ public class PdmChgOrderServiceImpl implements PdmChgOrderService {
         }
         entity.setStatus(PdmChgOrderStatus.APPROVING);
         entity.setSubmitTime(LocalDateTime.now());
+        startApproval(entity);
         chgOrderMapper.updateById(entity);
+        traceRecorder.recordImpact(PdmChgBizType.ECO, entity.getId(), entity.getEcoNo(),
+                PdmChgTraceAction.SUBMIT, entity.getInitiatorId(), entity.getImpactJson(), "提交变更单审批");
         return toVo(entity, tasksOf(id));
     }
 
@@ -212,6 +230,8 @@ public class PdmChgOrderServiceImpl implements PdmChgOrderService {
         entity.setApproveTime(LocalDateTime.now());
         entity.setApproveComment(blankToNull(comment));
         chgOrderMapper.updateById(entity);
+        traceRecorder.recordImpact(PdmChgBizType.ECO, entity.getId(), entity.getEcoNo(),
+                PdmChgTraceAction.APPROVE, userId, entity.getImpactJson(), "变更单审批通过");
         return toVo(entity, tasksOf(id));
     }
 
@@ -227,6 +247,8 @@ public class PdmChgOrderServiceImpl implements PdmChgOrderService {
         entity.setApproveTime(LocalDateTime.now());
         entity.setApproveComment(comment.trim());
         chgOrderMapper.updateById(entity);
+        traceRecorder.recordImpact(PdmChgBizType.ECO, entity.getId(), entity.getEcoNo(),
+                PdmChgTraceAction.REJECT, userId, entity.getImpactJson(), comment.trim());
         return toVo(entity, tasksOf(id));
     }
 
@@ -240,6 +262,8 @@ public class PdmChgOrderServiceImpl implements PdmChgOrderService {
         entity.setStatus(PdmChgOrderStatus.EXECUTING);
         entity.setExecuteTime(LocalDateTime.now());
         chgOrderMapper.updateById(entity);
+        traceRecorder.recordBiz(PdmChgBizType.ECO, entity.getId(), entity.getEcoNo(),
+                PdmChgTraceAction.EXECUTE, null, "开始执行变更单");
         return toVo(entity, tasksOf(id));
     }
 
@@ -255,6 +279,10 @@ public class PdmChgOrderServiceImpl implements PdmChgOrderService {
         task.setResultVersionNo(PdmVersionNo.parse(resultVersionNo).value());
         task.setCompleteTime(LocalDateTime.now());
         chgTaskMapper.updateById(task);
+        traceRecorder.recordObject(PdmChgBizType.ECO, entity.getId(), entity.getEcoNo(),
+                task.getTargetType(), task.getTargetId(), task.getTargetCode(),
+                PdmChgTraceAction.TASK_COMPLETE, null, task.getResultVersionNo(), null,
+                "变更任务完成：" + task.getTaskName());
         return detail(id);
     }
 
@@ -271,6 +299,8 @@ public class PdmChgOrderServiceImpl implements PdmChgOrderService {
         entity.setStatus(PdmChgOrderStatus.COMPLETED);
         entity.setCompleteTime(LocalDateTime.now());
         chgOrderMapper.updateById(entity);
+        traceRecorder.recordBiz(PdmChgBizType.ECO, entity.getId(), entity.getEcoNo(),
+                PdmChgTraceAction.COMPLETE, null, "变更单执行完成");
         return toVo(entity, tasksOf(id));
     }
 
@@ -281,6 +311,8 @@ public class PdmChgOrderServiceImpl implements PdmChgOrderService {
                 PdmChgOrderStatus.APPROVING, PdmChgOrderStatus.APPROVED);
         entity.setStatus(PdmChgOrderStatus.CANCELLED);
         chgOrderMapper.updateById(entity);
+        traceRecorder.recordBiz(PdmChgBizType.ECO, entity.getId(), entity.getEcoNo(),
+                PdmChgTraceAction.CANCEL, null, "取消变更单");
         return toVo(entity, tasksOf(id));
     }
 
@@ -292,7 +324,33 @@ public class PdmChgOrderServiceImpl implements PdmChgOrderService {
         entity.setStatus(PdmChgOrderStatus.CLOSED);
         entity.setCloseTime(LocalDateTime.now());
         chgOrderMapper.updateById(entity);
+        traceRecorder.recordBiz(PdmChgBizType.ECO, entity.getId(), entity.getEcoNo(),
+                PdmChgTraceAction.CLOSE, null, "关闭变更单");
         return toVo(entity, tasksOf(id));
+    }
+
+    /**
+     * 尝试发起 OA 审批；不可用时降级人工审批，不阻断提交。
+     *
+     * @param entity 变更单
+     */
+    private void startApproval(PdmChgOrder entity) {
+        try {
+            Long instanceId = workflowClient.start(TenantContext.get(), PdmChgBizType.ECO, entity.getId(),
+                    entity.getEcoNo(), "变更单审批 " + entity.getEcoNo(), entity.getInitiatorId());
+            if (instanceId == null) {
+                entity.setApprovalSource(PdmChgApprovalSource.MANUAL);
+                return;
+            }
+            entity.setApprovalInstanceId(instanceId);
+            entity.setApprovalStatus(PdmChgApprovalStatus.RUNNING);
+            entity.setApprovalSyncTime(LocalDateTime.now());
+            entity.setApprovalSource(PdmChgApprovalSource.OA);
+        } catch (Exception ex) {
+            log.warn("变更单发起 OA 审批失败，降级人工审批: ecoNo={}, reason={}",
+                    entity.getEcoNo(), ex.getMessage());
+            entity.setApprovalSource(PdmChgApprovalSource.MANUAL);
+        }
     }
 
     /**
@@ -428,6 +486,10 @@ public class PdmChgOrderServiceImpl implements PdmChgOrderService {
         vo.setCompleteTime(entity.getCompleteTime());
         vo.setCloseTime(entity.getCloseTime());
         vo.setCreateTime(entity.getCreateTime());
+        vo.setApprovalInstanceId(entity.getApprovalInstanceId());
+        vo.setApprovalStatus(entity.getApprovalStatus());
+        vo.setApprovalSyncTime(entity.getApprovalSyncTime());
+        vo.setApprovalSource(entity.getApprovalSource());
         vo.setTasks(tasks.stream().map(PdmChgOrderServiceImpl::toTaskVo).toList());
         return vo;
     }

@@ -54,4 +54,16 @@ public class PdmChgRequestVO implements Serializable {
 
     /** 创建时间 */
     private LocalDateTime createTime;
+
+    /** OA 审批实例ID */
+    private Long approvalInstanceId;
+
+    /** OA 审批状态 */
+    private String approvalStatus;
+
+    /** OA 状态同步时间 */
+    private LocalDateTime approvalSyncTime;
+
+    /** 审批来源：OA/MANUAL */
+    private String approvalSource;
 }

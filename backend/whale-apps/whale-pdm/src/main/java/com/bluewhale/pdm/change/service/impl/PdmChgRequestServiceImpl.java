@@ -5,13 +5,20 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.common.tenant.TenantContext;
+import com.bluewhale.pdm.change.client.PdmChgWorkflowClient;
 import com.bluewhale.pdm.change.dto.PdmChgRequestQueryRequest;
 import com.bluewhale.pdm.change.dto.PdmChgRequestSaveRequest;
 import com.bluewhale.pdm.change.entity.PdmChgRequest;
 import com.bluewhale.pdm.change.mapper.PdmChgRequestMapper;
 import com.bluewhale.pdm.change.service.PdmChgRequestService;
+import com.bluewhale.pdm.change.support.PdmChgApprovalSource;
+import com.bluewhale.pdm.change.support.PdmChgApprovalStatus;
+import com.bluewhale.pdm.change.support.PdmChgBizType;
 import com.bluewhale.pdm.change.support.PdmChgObjectType;
 import com.bluewhale.pdm.change.support.PdmChgRequestStatus;
+import com.bluewhale.pdm.change.support.PdmChgTraceAction;
+import com.bluewhale.pdm.change.support.PdmChgTraceRecorder;
 import com.bluewhale.pdm.change.vo.PdmChgImpactObjectVO;
 import com.bluewhale.pdm.change.vo.PdmChgRequestVO;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -51,6 +58,10 @@ public class PdmChgRequestServiceImpl implements PdmChgRequestService {
 
     private final PdmChgRequestMapper chgRequestMapper;
 
+    private final PdmChgTraceRecorder traceRecorder;
+
+    private final PdmChgWorkflowClient workflowClient;
+
     @Override
     public PageResult<PdmChgRequestVO> page(PdmChgRequestQueryRequest request) {
         LambdaQueryWrapper<PdmChgRequest> wrapper = new LambdaQueryWrapper<>();
@@ -81,6 +92,8 @@ public class PdmChgRequestServiceImpl implements PdmChgRequestService {
         entity.setStatus(PdmChgRequestStatus.DRAFT);
         entity.setInitiatorId(userId);
         chgRequestMapper.insert(entity);
+        traceRecorder.recordImpact(PdmChgBizType.ECR, entity.getId(), entity.getChangeNo(),
+                PdmChgTraceAction.CREATE, userId, entity.getImpactJson(), "创建变更申请");
         log.info("变更申请已创建: id={}, changeNo={}", entity.getId(), entity.getChangeNo());
         return toVo(entity);
     }
@@ -93,6 +106,8 @@ public class PdmChgRequestServiceImpl implements PdmChgRequestService {
         entity.setChangeScope(request.getChangeScope());
         entity.setImpactJson(toImpactJson(request.getImpactObjects()));
         chgRequestMapper.updateById(entity);
+        traceRecorder.recordImpact(PdmChgBizType.ECR, entity.getId(), entity.getChangeNo(),
+                PdmChgTraceAction.UPDATE, null, entity.getImpactJson(), "修改变更申请");
         return toVo(entity);
     }
 
@@ -112,7 +127,10 @@ public class PdmChgRequestServiceImpl implements PdmChgRequestService {
         }
         entity.setStatus(PdmChgRequestStatus.SUBMITTED);
         entity.setSubmitTime(LocalDateTime.now());
+        startApproval(entity);
         chgRequestMapper.updateById(entity);
+        traceRecorder.recordImpact(PdmChgBizType.ECR, entity.getId(), entity.getChangeNo(),
+                PdmChgTraceAction.SUBMIT, entity.getInitiatorId(), entity.getImpactJson(), "提交变更申请");
         return toVo(entity);
     }
 
@@ -125,6 +143,8 @@ public class PdmChgRequestServiceImpl implements PdmChgRequestService {
         entity.setApproveTime(LocalDateTime.now());
         entity.setApproveComment(comment);
         chgRequestMapper.updateById(entity);
+        traceRecorder.recordImpact(PdmChgBizType.ECR, entity.getId(), entity.getChangeNo(),
+                PdmChgTraceAction.APPROVE, userId, entity.getImpactJson(), "变更申请审批通过");
         return toVo(entity);
     }
 
@@ -140,6 +160,8 @@ public class PdmChgRequestServiceImpl implements PdmChgRequestService {
         entity.setApproveTime(LocalDateTime.now());
         entity.setApproveComment(comment.trim());
         chgRequestMapper.updateById(entity);
+        traceRecorder.recordImpact(PdmChgBizType.ECR, entity.getId(), entity.getChangeNo(),
+                PdmChgTraceAction.REJECT, userId, entity.getImpactJson(), comment.trim());
         return toVo(entity);
     }
 
@@ -154,7 +176,33 @@ public class PdmChgRequestServiceImpl implements PdmChgRequestService {
         entity.setStatus(PdmChgRequestStatus.CLOSED);
         entity.setCloseTime(LocalDateTime.now());
         chgRequestMapper.updateById(entity);
+        traceRecorder.recordBiz(PdmChgBizType.ECR, entity.getId(), entity.getChangeNo(),
+                PdmChgTraceAction.CLOSE, null, "关闭变更申请");
         return toVo(entity);
+    }
+
+    /**
+     * 尝试发起 OA 审批；不可用时降级人工审批，不阻断提交。
+     *
+     * @param entity 变更申请
+     */
+    private void startApproval(PdmChgRequest entity) {
+        try {
+            Long instanceId = workflowClient.start(TenantContext.get(), PdmChgBizType.ECR, entity.getId(),
+                    entity.getChangeNo(), "变更申请审批 " + entity.getChangeNo(), entity.getInitiatorId());
+            if (instanceId == null) {
+                entity.setApprovalSource(PdmChgApprovalSource.MANUAL);
+                return;
+            }
+            entity.setApprovalInstanceId(instanceId);
+            entity.setApprovalStatus(PdmChgApprovalStatus.RUNNING);
+            entity.setApprovalSyncTime(LocalDateTime.now());
+            entity.setApprovalSource(PdmChgApprovalSource.OA);
+        } catch (Exception ex) {
+            log.warn("变更申请发起 OA 审批失败，降级人工审批: changeNo={}, reason={}",
+                    entity.getChangeNo(), ex.getMessage());
+            entity.setApprovalSource(PdmChgApprovalSource.MANUAL);
+        }
     }
 
     /**
@@ -266,6 +314,10 @@ public class PdmChgRequestServiceImpl implements PdmChgRequestService {
         vo.setApproveComment(entity.getApproveComment());
         vo.setCloseTime(entity.getCloseTime());
         vo.setCreateTime(entity.getCreateTime());
+        vo.setApprovalInstanceId(entity.getApprovalInstanceId());
+        vo.setApprovalStatus(entity.getApprovalStatus());
+        vo.setApprovalSyncTime(entity.getApprovalSyncTime());
+        vo.setApprovalSource(entity.getApprovalSource());
         return vo;
     }
 

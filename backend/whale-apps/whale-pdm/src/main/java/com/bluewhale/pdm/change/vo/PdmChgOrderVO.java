@@ -69,4 +69,16 @@ public class PdmChgOrderVO implements Serializable {
 
     /** 变更任务 */
     private List<PdmChgTaskVO> tasks;
+
+    /** OA 审批实例ID */
+    private Long approvalInstanceId;
+
+    /** OA 审批状态 */
+    private String approvalStatus;
+
+    /** OA 状态同步时间 */
+    private LocalDateTime approvalSyncTime;
+
+    /** 审批来源：OA/MANUAL */
+    private String approvalSource;
 }

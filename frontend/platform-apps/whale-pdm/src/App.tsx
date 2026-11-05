@@ -8,6 +8,8 @@ import PartLibrary from './pages/part';
 import BomLibrary from './pages/bom';
 import ChangeCenter from './pages/change';
 import ChangeOrderCenter from './pages/change/order';
+import ChangeNoticeCenter from './pages/change/notice';
+import ChangeTraceCenter from './pages/change/trace';
 import { hasPermission } from './utils/permission';
 
 const { Header, Content, Sider } = Layout;
@@ -20,6 +22,8 @@ const MENU_ITEMS = [
   { key: '/bom', label: 'BOM 结构', permission: 'sys:pdm:bom:list' },
   { key: '/change', label: '变更管理', permission: 'sys:pdm:change:list' },
   { key: '/change/order', label: '变更单（ECO）', permission: 'sys:pdm:change:order:list' },
+  { key: '/change/notice', label: '变更通知（ECN）', permission: 'sys:pdm:change:notice:list' },
+  { key: '/change/trace', label: '变更追溯', permission: 'sys:pdm:change:trace:list' },
 ];
 
 /** 按权限过滤后的菜单 */
@@ -53,6 +57,8 @@ function PdmLayout() {
             <Route path="/bom" element={<BomLibrary />} />
             <Route path="/change" element={<ChangeCenter />} />
             <Route path="/change/order" element={<ChangeOrderCenter />} />
+            <Route path="/change/notice" element={<ChangeNoticeCenter />} />
+            <Route path="/change/trace" element={<ChangeTraceCenter />} />
             <Route path="*" element={<Navigate to="/document" replace />} />
           </Routes>
         </Content>

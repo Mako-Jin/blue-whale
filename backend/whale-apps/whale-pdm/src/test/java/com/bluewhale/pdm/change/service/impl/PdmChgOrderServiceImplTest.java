@@ -17,6 +17,8 @@ import com.bluewhale.pdm.change.mapper.PdmChgTaskMapper;
 import com.bluewhale.pdm.change.support.PdmChgOrderStatus;
 import com.bluewhale.pdm.change.support.PdmChgRequestStatus;
 import com.bluewhale.pdm.change.support.PdmChgTaskStatus;
+import com.bluewhale.pdm.change.support.PdmChgTraceRecorder;
+import com.bluewhale.pdm.change.client.PdmChgWorkflowClient;
 import com.bluewhale.pdm.change.vo.PdmChgOrderVO;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
@@ -69,6 +71,12 @@ class PdmChgOrderServiceImplTest {
 
     @Mock
     private PdmChgRequestMapper chgRequestMapper;
+
+    @Mock
+    private PdmChgTraceRecorder traceRecorder;
+
+    @Mock
+    private PdmChgWorkflowClient workflowClient;
 
     @InjectMocks
     private PdmChgOrderServiceImpl chgOrderService;
