@@ -14,6 +14,7 @@ import com.bluewhale.oa.approval.domain.repository.ApprovalInstanceRepository;
 import com.bluewhale.oa.approval.domain.repository.ApprovalRouteRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.List;
 import java.util.Optional;
@@ -43,9 +44,11 @@ class ApprovalInstanceAppServiceImplTest {
 
     private final ApprovalConfigAppService approvalConfigAppService = mock(ApprovalConfigAppService.class);
 
+    private final ApplicationEventPublisher applicationEventPublisher = mock(ApplicationEventPublisher.class);
+
     private final ApprovalInstanceAppServiceImpl approvalInstanceAppService =
             new ApprovalInstanceAppServiceImpl(approvalInstanceRepository, approvalRouteRepository,
-                    approvalEffectRepository, approvalConfigAppService);
+                    approvalEffectRepository, approvalConfigAppService, applicationEventPublisher);
 
     @Test
     @DisplayName("register：落审批实例与审批人快照，标题按模板渲染")

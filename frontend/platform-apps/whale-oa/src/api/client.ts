@@ -12,6 +12,14 @@ import { PLATFORM_USER_KEY } from '@bluewhale/whale-auth';
 
 const USER_STORAGE_KEY = PLATFORM_USER_KEY;
 
+/** 后端分页结果信封（对齐 PageResult<T>） */
+export interface PageResult<T> {
+  records: T[];
+  total: number;
+  size: number;
+  current: number;
+}
+
 /** 基座缓存的当前用户（仅取表单默认值所需字段） */
 export interface OaUser {
   userId?: number | string;

@@ -3,6 +3,9 @@
 // 后端字段：id 为雪花 Long（JSON number）；DATE 序列化为 YYYY-MM-DD；状态为枚举字符串。
 
 import { http } from './client';
+import type { PageResult } from './client';
+
+export type { PageResult };
 
 /** 请假状态 */
 export type OaLeaveStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
@@ -10,14 +13,22 @@ export type OaLeaveStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
 /** 请假类型 */
 export type OaLeaveType = 'ANNUAL' | 'SICK' | 'PERSONAL';
 
+/** 请假时段 */
+export type OaLeavePeriod = 'AM' | 'PM';
+
 /** 请假申请（字段对齐 backend OaLeaveVO） */
 export interface OaLeave {
   id: number;
   code: string;
   applicant: string;
+  applicantId?: number;
   leaveType: OaLeaveType;
   startDate: string;
+  startPeriod?: OaLeavePeriod;
   endDate: string;
+  endPeriod?: OaLeavePeriod;
+  handoverUserId?: number;
+  approvalInstanceId?: number;
   days: number;
   reason?: string;
   status: OaLeaveStatus;
@@ -30,9 +41,13 @@ export interface OaLeave {
 export interface OaLeaveInput {
   code: string;
   applicant: string;
+  applicantId?: number;
   leaveType: OaLeaveType;
   startDate: string;
+  startPeriod?: OaLeavePeriod;
   endDate: string;
+  endPeriod?: OaLeavePeriod;
+  handoverUserId?: number;
   days: number;
   reason?: string;
   remark?: string;
@@ -46,14 +61,6 @@ export interface OaLeaveQuery {
   status?: OaLeaveStatus | '';
   applicant?: string;
   leaveType?: OaLeaveType | '';
-}
-
-/** 后端分页结果信封 */
-export interface PageResult<T> {
-  records: T[];
-  total: number;
-  size: number;
-  current: number;
 }
 
 /** 拼装查询串（跳过空值） */

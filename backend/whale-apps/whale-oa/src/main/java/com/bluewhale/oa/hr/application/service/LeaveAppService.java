@@ -9,6 +9,8 @@ import com.bluewhale.oa.hr.domain.model.LeaveQuery;
 /**
  * 请假申请应用服务。
  *
+ * <p>新增申请会按工作日历计算天数并冻结假期额度；状态迁移会幂等地扣减或释放额度。</p>
+ *
  * @author BlueWhale
  */
 public interface LeaveAppService {
@@ -53,6 +55,14 @@ public interface LeaveAppService {
      * @param command 状态命令
      */
     void updateStatus(Long id, LeaveStatusCommand command);
+
+    /**
+     * 同步审批结果（APPROVED / REJECTED / CANCELLED），幂等。
+     *
+     * @param leaveId 请假申请ID
+     * @param result 审批结果
+     */
+    void syncApprovalResult(Long leaveId, String result);
 
     /**
      * 删除请假申请（逻辑删除）。

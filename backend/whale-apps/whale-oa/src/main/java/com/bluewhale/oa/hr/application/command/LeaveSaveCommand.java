@@ -32,6 +32,9 @@ public class LeaveSaveCommand implements Serializable {
     @Size(max = 64, message = "申请人长度不能超过 64")
     private String applicant;
 
+    /** 申请人用户ID（用于额度冻结与档案校验，历史调用方可不传） */
+    private Long applicantId;
+
     /** 请假类型 */
     @NotBlank(message = "请假类型不能为空")
     @Pattern(regexp = "ANNUAL|SICK|PERSONAL", message = "请假类型仅支持 ANNUAL / SICK / PERSONAL")
@@ -41,9 +44,20 @@ public class LeaveSaveCommand implements Serializable {
     @NotNull(message = "开始日期不能为空")
     private LocalDate startDate;
 
+    /** 开始时段：AM 上午 / PM 下午 */
+    @Pattern(regexp = "AM|PM", message = "开始时段仅支持 AM / PM")
+    private String startPeriod;
+
     /** 结束日期 */
     @NotNull(message = "结束日期不能为空")
     private LocalDate endDate;
+
+    /** 结束时段：AM 上午 / PM 下午 */
+    @Pattern(regexp = "AM|PM", message = "结束时段仅支持 AM / PM")
+    private String endPeriod;
+
+    /** 工作交接人用户ID */
+    private Long handoverUserId;
 
     /** 请假天数 */
     @NotNull(message = "请假天数不能为空")

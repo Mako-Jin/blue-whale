@@ -114,6 +114,13 @@ export default function List({ refreshKey, onCreate, onEdit }: ListProps) {
       width: 200,
       render: (_value, record) => `${record.startDate} ~ ${record.endDate}`,
     },
+    {
+      title: '时段',
+      key: 'period',
+      width: 240,
+      render: (_value, record) =>
+        `${record.startDate} ${record.startPeriod ?? 'AM'} ~ ${record.endDate} ${record.endPeriod ?? 'PM'}`,
+    },
     { title: '天数', dataIndex: 'days', key: 'days', width: 80 },
     { title: '事由', dataIndex: 'reason', key: 'reason', ellipsis: true },
     {

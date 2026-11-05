@@ -4,6 +4,7 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.oa.approval.application.command.ApprovalInstanceRegisterCommand;
 import com.bluewhale.oa.approval.application.command.ApprovalResultCommand;
 import com.bluewhale.oa.approval.application.command.ApprovalRouteCommand;
+import com.bluewhale.oa.approval.application.event.ApprovalResultSyncedEvent;
 import com.bluewhale.oa.approval.application.service.ApprovalConfigAppService;
 import com.bluewhale.oa.approval.application.service.ApprovalInstanceAppService;
 import com.bluewhale.oa.approval.application.view.ApprovalConfigView;
@@ -20,6 +21,7 @@ import com.bluewhale.oa.approval.domain.repository.ApprovalInstanceRepository;
 import com.bluewhale.oa.approval.domain.repository.ApprovalRouteRepository;
 import com.bluewhale.oa.common.OaErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -58,6 +60,8 @@ public class ApprovalInstanceAppServiceImpl implements ApprovalInstanceAppServic
     private final ApprovalEffectRepository approvalEffectRepository;
 
     private final ApprovalConfigAppService approvalConfigAppService;
+
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Override
     public PageResult<ApprovalInstanceView> page(ApprovalInstanceQuery query) {
@@ -132,7 +136,27 @@ public class ApprovalInstanceAppServiceImpl implements ApprovalInstanceAppServic
         if (instance.markResult(target)) {
             approvalInstanceRepository.update(instance);
         }
+        publishResultSynced(instance, target);
         return toDetailView(instance);
+    }
+
+    /**
+     * 发布审批结果同步事件（仅终态且业务标识完整时）。
+     *
+     * @param instance 审批实例
+     * @param target 目标状态
+     */
+    private void publishResultSynced(ApprovalInstance instance, ApprovalStatus target) {
+        if (instance.getBusinessId() == null || !StringUtils.hasText(instance.getBusinessType())) {
+            return;
+        }
+        if (target != ApprovalStatus.APPROVED
+                && target != ApprovalStatus.REJECTED
+                && target != ApprovalStatus.CANCELLED) {
+            return;
+        }
+        applicationEventPublisher.publishEvent(new ApprovalResultSyncedEvent(
+                instance.getBusinessType(), instance.getBusinessId(), target.name()));
     }
 
     /**

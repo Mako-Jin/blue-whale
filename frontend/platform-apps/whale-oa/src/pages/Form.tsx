@@ -7,6 +7,7 @@ import {
   updateLeave,
   type OaLeave,
   type OaLeaveInput,
+  type OaLeavePeriod,
   type OaLeaveType,
 } from '../api/oa';
 import { getCurrentUser } from '../api/client';
@@ -18,12 +19,22 @@ const TYPE_OPTIONS: { value: OaLeaveType; label: string }[] = [
   { value: 'PERSONAL', label: '事假' },
 ];
 
+/** 时段选项 */
+const PERIOD_OPTIONS: { value: OaLeavePeriod; label: string }[] = [
+  { value: 'AM', label: 'AM 上午' },
+  { value: 'PM', label: 'PM 下午' },
+];
+
 /** 表单字段：日期用 RangePicker 承载，提交时拆成 startDate / endDate */
 interface FormValues {
   code: string;
   applicant: string;
+  applicantId?: number;
   leaveType: OaLeaveType;
   range: [Dayjs, Dayjs];
+  startPeriod: OaLeavePeriod;
+  endPeriod: OaLeavePeriod;
+  handoverUserId?: number;
   days: number;
   reason?: string;
   remark?: string;
@@ -53,8 +64,12 @@ export default function FormModal({ open, initial, onCancel, onSaved }: FormModa
       form.setFieldsValue({
         code: initial.code,
         applicant: initial.applicant,
+        applicantId: initial.applicantId,
         leaveType: initial.leaveType,
         range: [dayjs(initial.startDate), dayjs(initial.endDate)],
+        startPeriod: initial.startPeriod ?? 'AM',
+        endPeriod: initial.endPeriod ?? 'PM',
+        handoverUserId: initial.handoverUserId,
         days: initial.days,
         reason: initial.reason,
         remark: initial.remark,
@@ -64,6 +79,8 @@ export default function FormModal({ open, initial, onCancel, onSaved }: FormModa
       form.setFieldsValue({
         leaveType: 'ANNUAL',
         applicant: getCurrentUser()?.nickname ?? getCurrentUser()?.username ?? '',
+        startPeriod: 'AM',
+        endPeriod: 'PM',
       });
     }
   }, [open, initial, form]);
@@ -73,9 +90,13 @@ export default function FormModal({ open, initial, onCancel, onSaved }: FormModa
     const payload: OaLeaveInput = {
       code: values.code.trim(),
       applicant: values.applicant.trim(),
+      applicantId: values.applicantId ?? undefined,
       leaveType: values.leaveType,
       startDate: values.range[0].format('YYYY-MM-DD'),
+      startPeriod: values.startPeriod,
       endDate: values.range[1].format('YYYY-MM-DD'),
+      endPeriod: values.endPeriod,
+      handoverUserId: values.handoverUserId ?? undefined,
       days: values.days,
       reason: values.reason?.trim() || undefined,
       remark: values.remark?.trim() || undefined,
@@ -118,6 +139,13 @@ export default function FormModal({ open, initial, onCancel, onSaved }: FormModa
           <Input placeholder="请输入申请人" maxLength={64} />
         </Form.Item>
         <Form.Item
+          name="applicantId"
+          label="申请人用户ID"
+          extra="填用户ID后校验档案并冻结额度"
+        >
+          <InputNumber style={{ width: '100%' }} min={1} precision={0} placeholder="选填" />
+        </Form.Item>
+        <Form.Item
           name="leaveType"
           label="请假类型"
           rules={[{ required: true, message: '请选择请假类型' }]}
@@ -130,6 +158,23 @@ export default function FormModal({ open, initial, onCancel, onSaved }: FormModa
           rules={[{ required: true, message: '请选择请假区间' }]}
         >
           <DatePicker.RangePicker style={{ width: '100%' }} />
+        </Form.Item>
+        <Form.Item
+          name="startPeriod"
+          label="开始时段"
+          rules={[{ required: true, message: '请选择开始时段' }]}
+        >
+          <Select options={PERIOD_OPTIONS} />
+        </Form.Item>
+        <Form.Item
+          name="endPeriod"
+          label="结束时段"
+          rules={[{ required: true, message: '请选择结束时段' }]}
+        >
+          <Select options={PERIOD_OPTIONS} />
+        </Form.Item>
+        <Form.Item name="handoverUserId" label="工作交接人用户ID">
+          <InputNumber style={{ width: '100%' }} min={1} precision={0} placeholder="选填" />
         </Form.Item>
         <Form.Item
           name="days"

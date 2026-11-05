@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -61,6 +62,22 @@ public class LeaveRepositoryImpl implements LeaveRepository {
     }
 
     @Override
+    public List<Leave> listOverlapping(String applicant, String leaveType, LocalDate startDate,
+                                       LocalDate endDate, Long excludeId) {
+        LambdaQueryWrapper<LeaveEntity> wrapper = new LambdaQueryWrapper<LeaveEntity>()
+                .eq(LeaveEntity::getApplicant, applicant)
+                .eq(LeaveEntity::getLeaveType, leaveType)
+                .le(LeaveEntity::getStartDate, endDate)
+                .ge(LeaveEntity::getEndDate, startDate)
+                .notIn(LeaveEntity::getStatus,
+                        LeaveStatus.REJECTED.name(), LeaveStatus.CANCELLED.name());
+        if (excludeId != null) {
+            wrapper.ne(LeaveEntity::getId, excludeId);
+        }
+        return leaveMapper.selectList(wrapper).stream().map(this::toDomain).toList();
+    }
+
+    @Override
     public void insert(Leave leave) {
         LeaveEntity entity = new LeaveEntity();
         fill(entity, leave);
@@ -76,9 +93,15 @@ public class LeaveRepositoryImpl implements LeaveRepository {
                 .eq(LeaveEntity::getId, leave.getId())
                 .set(LeaveEntity::getCode, leave.getCode())
                 .set(LeaveEntity::getApplicant, leave.getApplicant())
+                .set(LeaveEntity::getApplicantId, leave.getApplicantId())
                 .set(LeaveEntity::getLeaveType, leave.getLeaveType())
+                .set(LeaveEntity::getLeaveTypeId, leave.getLeaveTypeId())
                 .set(LeaveEntity::getStartDate, leave.getStartDate())
+                .set(LeaveEntity::getStartPeriod, leave.getStartPeriod())
                 .set(LeaveEntity::getEndDate, leave.getEndDate())
+                .set(LeaveEntity::getEndPeriod, leave.getEndPeriod())
+                .set(LeaveEntity::getHandoverUserId, leave.getHandoverUserId())
+                .set(LeaveEntity::getApprovalInstanceId, leave.getApprovalInstanceId())
                 .set(LeaveEntity::getDays, leave.getDays())
                 .set(LeaveEntity::getReason, leave.getReason())
                 .set(LeaveEntity::getStatus, leave.getStatus() == null ? null : leave.getStatus().name())
@@ -116,9 +139,15 @@ public class LeaveRepositoryImpl implements LeaveRepository {
         leave.setId(entity.getId());
         leave.setCode(entity.getCode());
         leave.setApplicant(entity.getApplicant());
+        leave.setApplicantId(entity.getApplicantId());
         leave.setLeaveType(entity.getLeaveType());
+        leave.setLeaveTypeId(entity.getLeaveTypeId());
         leave.setStartDate(entity.getStartDate());
+        leave.setStartPeriod(entity.getStartPeriod());
         leave.setEndDate(entity.getEndDate());
+        leave.setEndPeriod(entity.getEndPeriod());
+        leave.setHandoverUserId(entity.getHandoverUserId());
+        leave.setApprovalInstanceId(entity.getApprovalInstanceId());
         leave.setDays(entity.getDays());
         leave.setReason(entity.getReason());
         leave.setStatus(entity.getStatus() == null ? LeaveStatus.PENDING : LeaveStatus.of(entity.getStatus()));
@@ -137,9 +166,15 @@ public class LeaveRepositoryImpl implements LeaveRepository {
     private void fill(LeaveEntity entity, Leave leave) {
         entity.setCode(leave.getCode());
         entity.setApplicant(leave.getApplicant());
+        entity.setApplicantId(leave.getApplicantId());
         entity.setLeaveType(leave.getLeaveType());
+        entity.setLeaveTypeId(leave.getLeaveTypeId());
         entity.setStartDate(leave.getStartDate());
+        entity.setStartPeriod(leave.getStartPeriod());
         entity.setEndDate(leave.getEndDate());
+        entity.setEndPeriod(leave.getEndPeriod());
+        entity.setHandoverUserId(leave.getHandoverUserId());
+        entity.setApprovalInstanceId(leave.getApprovalInstanceId());
         entity.setDays(leave.getDays());
         entity.setReason(leave.getReason());
         entity.setStatus(leave.getStatus() == null ? LeaveStatus.PENDING.name() : leave.getStatus().name());

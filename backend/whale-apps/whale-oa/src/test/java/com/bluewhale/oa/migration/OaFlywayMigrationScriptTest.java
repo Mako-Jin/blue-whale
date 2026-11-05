@@ -138,6 +138,36 @@ class OaFlywayMigrationScriptTest {
     }
 
     /**
+     * V4 新建请假闭环 5 张表，并为 oa_leave 幂等扩展 6 列
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("V4 请假闭环表集合与 oa_leave 扩展列完整")
+    void v4ShouldCreateLeaveTablesAndExtendLeave() throws IOException {
+        Path v4 = MIGRATION_DIR.resolve("V4__oa_m1a_leave.sql");
+        Set<String> tables = extractTables(v4);
+        assertEquals(Set.of(
+                "oa_employee_profile",
+                "oa_leave_type",
+                "oa_leave_balance",
+                "oa_leave_balance_log",
+                "oa_work_calendar"), tables, "V4 建表集合与 M1A 设计不一致");
+
+        String script = Files.readString(v4, StandardCharsets.UTF_8);
+        for (String column : List.of("applicant_id", "leave_type_id", "start_period",
+                "end_period", "handover_user_id", "approval_instance_id")) {
+            assertTrue(script.contains("COLUMN_NAME = '" + column + "'"),
+                    "V4 应通过 information_schema 守卫扩展列：" + column);
+            assertTrue(script.contains("ALTER TABLE oa_leave ADD COLUMN " + column),
+                    "V4 应包含 oa_leave 扩展列 DDL：" + column);
+        }
+        for (String code : List.of("'ANNUAL'", "'SICK'", "'PERSONAL'")) {
+            assertTrue(script.contains(code), "V4 应种子假期类型：" + code);
+        }
+    }
+
+    /**
      * 列出迁移脚本并按文件名字典序返回
      *
      * @return 迁移脚本路径
