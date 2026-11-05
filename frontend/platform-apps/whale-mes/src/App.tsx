@@ -12,6 +12,7 @@ import TracePage from './pages/TracePage';
 import QualityPage from './pages/QualityPage';
 import EquipmentPage from './pages/EquipmentPage';
 import CollectPage from './pages/CollectPage';
+import WorkforcePage from './pages/WorkforcePage';
 import FormModal from './pages/Form';
 import type { MesWorkOrder } from './api/mes';
 
@@ -45,6 +46,12 @@ const menuItems: MenuProps['items'] = [
   { key: '/collect/sample', label: '样本明细' },
   { key: '/collect/board', label: '采集看板' },
   { key: '/collect/archive', label: '归档策略' },
+  { key: '/workforce/team', label: '班组成员' },
+  { key: '/workforce/shift', label: '排班管理' },
+  { key: '/workforce/handover', label: '交接班' },
+  { key: '/workforce/work-hour', label: '工时管理' },
+  { key: '/workforce/performance', label: '绩效统计' },
+  { key: '/workforce/skill', label: '技能矩阵' },
 ];
 
 /** 菜单路由前缀（用于定位当前菜单） */
@@ -75,6 +82,12 @@ const MENU_KEYS = [
   '/collect/sample',
   '/collect/board',
   '/collect/archive',
+  '/workforce/team',
+  '/workforce/shift',
+  '/workforce/handover',
+  '/workforce/work-hour',
+  '/workforce/performance',
+  '/workforce/skill',
 ];
 
 /** 应用外壳：菜单、内容区与工单表单弹窗 */
@@ -164,6 +177,13 @@ function MesShell() {
             <Route path="/collect/sample" element={<CollectPage initialTab="sample" />} />
             <Route path="/collect/board" element={<CollectPage initialTab="board" />} />
             <Route path="/collect/archive" element={<CollectPage initialTab="archive" />} />
+            <Route path="/workforce" element={<WorkforcePage initialTab="team" />} />
+            <Route path="/workforce/team" element={<WorkforcePage initialTab="team" />} />
+            <Route path="/workforce/shift" element={<WorkforcePage initialTab="shift" />} />
+            <Route path="/workforce/handover" element={<WorkforcePage initialTab="handover" />} />
+            <Route path="/workforce/work-hour" element={<WorkforcePage initialTab="work-hour" />} />
+            <Route path="/workforce/performance" element={<WorkforcePage initialTab="performance" />} />
+            <Route path="/workforce/skill" element={<WorkforcePage initialTab="skill" />} />
             <Route path="*" element={<Navigate to="/work-order" replace />} />
           </Routes>
         </Content>

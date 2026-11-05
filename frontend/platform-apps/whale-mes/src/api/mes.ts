@@ -2029,3 +2029,500 @@ export function runMesArchivePolicy(id: string): Promise<MesArchivePolicy> {
   return http.post<MesArchivePolicy>(`/mes/collect/archive/${id}/run`, {});
 }
 
+// =====================================================================
+// 人员绩效（M5）：班组成员 / 排班分配 / 交接班 / 工时 / 绩效 / 技能矩阵
+// 接口统一挂载在 /mes/workforce，字段与后端 DTO/VO 保持一致。
+// =====================================================================
+
+/** 班组成员状态 */
+export type MesTeamMemberStatus = 'ENABLED' | 'DISABLED';
+
+/** 技能等级 */
+export type MesSkillLevel = 'JUNIOR' | 'MIDDLE' | 'SENIOR' | 'EXPERT';
+
+/** 班组成员 */
+export interface MesTeamMember {
+  id: number;
+  /** 班组 ID */
+  teamId: number;
+  /** 班组编码 */
+  teamCode?: string;
+  /** 员工 ID */
+  employeeId: number;
+  /** 员工姓名 */
+  employeeName: string;
+  /** 是否主操作员：0 否 / 1 是 */
+  primaryOperator?: number;
+  /** 技能等级 */
+  skillLevel?: string;
+  /** 入组日期 */
+  joinDate?: string;
+  /** 离组日期 */
+  leaveDate?: string;
+  /** 状态 */
+  status: string;
+  /** 备注 */
+  remark?: string;
+  /** 创建时间 */
+  createTime?: string;
+}
+
+/** 班组成员新增/编辑入参 */
+export interface MesTeamMemberInput {
+  id?: number;
+  teamId: number;
+  employeeId: number;
+  employeeName: string;
+  primaryOperator?: number;
+  skillLevel?: string;
+  joinDate?: string;
+  leaveDate?: string;
+  status?: string;
+  remark?: string;
+}
+
+/** 班组成员查询条件 */
+export interface MesTeamMemberQuery {
+  teamId?: number;
+  employeeId?: number;
+  employeeName?: string;
+  status?: string;
+  primaryOperator?: number;
+  current?: number;
+  size?: number;
+}
+
+/** 分页查询班组成员 */
+export function pageMesTeamMembers(
+  query: MesTeamMemberQuery = {},
+): Promise<PageResult<MesTeamMember>> {
+  return http.get<PageResult<MesTeamMember>>(
+    `/mes/workforce/team-member/page?${toQueryString({ current: 1, size: 10, ...query })}`,
+  );
+}
+
+/** 保存班组成员（无 id 新增，有 id 编辑） */
+export function saveMesTeamMember(input: MesTeamMemberInput): Promise<MesTeamMember> {
+  return http.post<MesTeamMember>('/mes/workforce/team-member', input);
+}
+
+/** 启停班组成员 */
+export function changeMesTeamMemberStatus(
+  id: number,
+  enabled: boolean,
+): Promise<MesTeamMember> {
+  return http.post<MesTeamMember>(`/mes/workforce/team-member/${id}/status`, { enabled });
+}
+
+/** 排班分配 */
+export interface MesShiftAssignment {
+  id: number;
+  /** 排班日期 */
+  shiftDate: string;
+  /** 班次编码 */
+  shiftCode: string;
+  /** 班组 ID */
+  teamId: number;
+  /** 班组编码 */
+  teamCode?: string;
+  /** 工位 ID */
+  stationId: number;
+  /** 工位编码 */
+  stationCode?: string;
+  /** 工作中心 ID */
+  workCenterId?: number;
+  /** 工作中心编码 */
+  workCenterCode?: string;
+  /** 员工 ID */
+  employeeId: number;
+  /** 员工姓名 */
+  employeeName: string;
+  /** 是否主操作：0 否 / 1 是 */
+  primaryOperator?: number;
+  /** 班次开始时间 */
+  startAt?: string;
+  /** 班次结束时间 */
+  endAt?: string;
+  /** 状态：ASSIGNED / CANCELLED */
+  status: string;
+  /** 备注 */
+  remark?: string;
+  /** 创建时间 */
+  createTime?: string;
+}
+
+/** 排班分配新增/编辑入参 */
+export interface MesShiftAssignmentInput {
+  id?: number;
+  shiftDate: string;
+  shiftCode: string;
+  teamId: number;
+  stationId: number;
+  workCenterId?: number;
+  employeeId: number;
+  employeeName: string;
+  primaryOperator?: number;
+  startAt?: string;
+  endAt?: string;
+  remark?: string;
+}
+
+/** 排班分配查询条件 */
+export interface MesShiftAssignmentQuery {
+  shiftDate?: string;
+  shiftCode?: string;
+  teamId?: number;
+  stationId?: number;
+  employeeId?: number;
+  status?: string;
+  current?: number;
+  size?: number;
+}
+
+/** 分页查询排班分配 */
+export function pageMesShiftAssignments(
+  query: MesShiftAssignmentQuery = {},
+): Promise<PageResult<MesShiftAssignment>> {
+  return http.get<PageResult<MesShiftAssignment>>(
+    `/mes/workforce/shift-assignment/page?${toQueryString({ current: 1, size: 10, ...query })}`,
+  );
+}
+
+/** 保存排班分配（无 id 新建，有 id 编辑） */
+export function saveMesShiftAssignment(
+  input: MesShiftAssignmentInput,
+): Promise<MesShiftAssignment> {
+  return http.post<MesShiftAssignment>('/mes/workforce/shift-assignment', input);
+}
+
+/** 取消排班分配 */
+export function cancelMesShiftAssignment(id: number): Promise<MesShiftAssignment> {
+  return http.post<MesShiftAssignment>(`/mes/workforce/shift-assignment/${id}/cancel`, {});
+}
+
+/** 交接班 */
+export interface MesHandover {
+  id: number;
+  /** 交接单号 */
+  handoverNo: string;
+  /** 班组 ID */
+  teamId: number;
+  /** 班组编码 */
+  teamCode?: string;
+  /** 交班班次编码 */
+  fromShiftCode: string;
+  /** 接班班次编码 */
+  toShiftCode: string;
+  /** 交接日期 */
+  handoverDate: string;
+  /** 交班人 ID */
+  fromEmployeeId?: number;
+  /** 交班人姓名 */
+  fromEmployeeName?: string;
+  /** 接班人 ID */
+  toEmployeeId?: number;
+  /** 接班人姓名 */
+  toEmployeeName?: string;
+  /** 交接内容 */
+  content: string;
+  /** 遗留问题 */
+  pendingIssues?: string;
+  /** 状态：DRAFT / CONFIRMED */
+  status: string;
+  /** 确认人 */
+  confirmedBy?: string;
+  /** 确认时间 */
+  confirmedAt?: string;
+  /** 备注 */
+  remark?: string;
+  /** 创建时间 */
+  createTime?: string;
+}
+
+/** 交接班新建入参 */
+export interface MesHandoverInput {
+  handoverNo?: string;
+  teamId: number;
+  fromShiftCode: string;
+  toShiftCode: string;
+  handoverDate: string;
+  fromEmployeeId?: number;
+  fromEmployeeName?: string;
+  toEmployeeId?: number;
+  toEmployeeName?: string;
+  content: string;
+  pendingIssues?: string;
+  remark?: string;
+}
+
+/** 交接班查询条件 */
+export interface MesHandoverQuery {
+  handoverNo?: string;
+  teamId?: number;
+  handoverDate?: string;
+  status?: string;
+  current?: number;
+  size?: number;
+}
+
+/** 分页查询交接班 */
+export function pageMesHandovers(
+  query: MesHandoverQuery = {},
+): Promise<PageResult<MesHandover>> {
+  return http.get<PageResult<MesHandover>>(
+    `/mes/workforce/handover/page?${toQueryString({ current: 1, size: 10, ...query })}`,
+  );
+}
+
+/** 新建交接班 */
+export function createMesHandover(input: MesHandoverInput): Promise<MesHandover> {
+  return http.post<MesHandover>('/mes/workforce/handover', input);
+}
+
+/** 确认交接班（DRAFT → CONFIRMED） */
+export function confirmMesHandover(id: number, confirmedBy: string): Promise<MesHandover> {
+  return http.post<MesHandover>(`/mes/workforce/handover/${id}/confirm`, { confirmedBy });
+}
+
+/** 工时记录 */
+export interface MesWorkHour {
+  id: number;
+  /** 员工 ID */
+  employeeId: number;
+  /** 员工姓名 */
+  employeeName: string;
+  /** 工作日期 */
+  workDate: string;
+  /** 任务 ID */
+  taskId: number;
+  /** 任务编号 */
+  taskNo?: string;
+  /** 工单 ID */
+  workOrderId?: number;
+  /** 工单编码 */
+  workOrderCode?: string;
+  /** 开始时间 */
+  startAt?: string;
+  /** 结束时间 */
+  endAt?: string;
+  /** 暂停秒数 */
+  pauseSeconds?: number;
+  /** 净工时秒数 */
+  netSeconds?: number;
+  /** 来源：REPORT / MANUAL */
+  source?: string;
+  /** 状态：VALID / VOID */
+  status: string;
+  /** 备注 */
+  remark?: string;
+  /** 创建时间 */
+  createTime?: string;
+}
+
+/** 工时登记入参 */
+export interface MesWorkHourInput {
+  employeeId: number;
+  employeeName: string;
+  workDate: string;
+  taskId: number;
+  startAt: string;
+  endAt: string;
+  pauseSeconds?: number;
+  source?: string;
+  remark?: string;
+}
+
+/** 工时查询条件 */
+export interface MesWorkHourQuery {
+  employeeId?: number;
+  workDate?: string;
+  taskId?: number;
+  source?: string;
+  status?: string;
+  current?: number;
+  size?: number;
+}
+
+/** 分页查询工时记录 */
+export function pageMesWorkHours(
+  query: MesWorkHourQuery = {},
+): Promise<PageResult<MesWorkHour>> {
+  return http.get<PageResult<MesWorkHour>>(
+    `/mes/workforce/work-hour/page?${toQueryString({ current: 1, size: 10, ...query })}`,
+  );
+}
+
+/** 登记工时 */
+export function registerMesWorkHour(input: MesWorkHourInput): Promise<MesWorkHour> {
+  return http.post<MesWorkHour>('/mes/workforce/work-hour', input);
+}
+
+/** 作废工时记录 */
+export function voidMesWorkHour(id: number): Promise<MesWorkHour> {
+  return http.post<MesWorkHour>(`/mes/workforce/work-hour/${id}/void`, {});
+}
+
+/** 绩效统计层级 */
+export type MesPerformanceLevel = 'DAILY' | 'MONTHLY';
+
+/** 绩效统计记录 */
+export interface MesPerformanceStat {
+  id: number;
+  /** 统计层级 */
+  statLevel: string;
+  /** 员工 ID */
+  employeeId: number;
+  /** 员工姓名 */
+  employeeName?: string;
+  /** 班组 ID */
+  teamId?: number;
+  /** 班组编码 */
+  teamCode?: string;
+  /** 统计日期 */
+  workDate?: string;
+  /** 期间编码：日 YYYYMMDD / 月 YYYYMM */
+  periodCode: string;
+  /** 产量 */
+  productionQuantity?: number | string;
+  /** 合格数量 */
+  qualifiedQuantity?: number | string;
+  /** 不良数量 */
+  defectQuantity?: number | string;
+  /** 净工时秒数 */
+  workSeconds?: number;
+  /** 标准工时秒数 */
+  standardSeconds?: number;
+  /** 效率 */
+  efficiency?: number | string;
+  /** 合格率 */
+  passRate?: number | string;
+  /** 月度锁定：0 否 / 1 是 */
+  locked?: number;
+  /** 锁定时间 */
+  lockedAt?: string;
+  /** 锁定人 */
+  lockedBy?: string;
+  /** 创建时间 */
+  createTime?: string;
+}
+
+/** 绩效统计查询条件 */
+export interface MesPerformanceQuery {
+  statLevel?: string;
+  employeeId?: number;
+  teamId?: number;
+  periodCode?: string;
+  workDate?: string;
+  locked?: number;
+  current?: number;
+  size?: number;
+}
+
+/** 绩效汇总入参 */
+export interface MesPerformanceAggregateInput {
+  statLevel?: string;
+  periodCode: string;
+  teamId?: number;
+}
+
+/** 月度绩效锁定入参 */
+export interface MesPerformanceLockInput {
+  periodCode: string;
+  lockedBy: string;
+  teamId?: number;
+}
+
+/** 月度绩效锁定结果 */
+export interface MesPerformanceLockResult {
+  periodCode: string;
+  lockedCount: number;
+  alreadyLockedCount: number;
+  lockedAt?: string;
+}
+
+/** 分页查询绩效统计 */
+export function pageMesPerformance(
+  query: MesPerformanceQuery = {},
+): Promise<PageResult<MesPerformanceStat>> {
+  return http.get<PageResult<MesPerformanceStat>>(
+    `/mes/workforce/performance/page?${toQueryString({ current: 1, size: 10, ...query })}`,
+  );
+}
+
+/** 按期间汇总绩效统计 */
+export function aggregateMesPerformance(
+  input: MesPerformanceAggregateInput,
+): Promise<MesPerformanceStat[]> {
+  return http.post<MesPerformanceStat[]>('/mes/workforce/performance/aggregate', input);
+}
+
+/** 锁定月度绩效 */
+export function lockMesPerformance(
+  input: MesPerformanceLockInput,
+): Promise<MesPerformanceLockResult> {
+  return http.post<MesPerformanceLockResult>('/mes/workforce/performance/lock', input);
+}
+
+/** 技能矩阵记录 */
+export interface MesSkillMatrix {
+  id: number;
+  /** 员工 ID */
+  employeeId: number;
+  /** 员工姓名 */
+  employeeName: string;
+  /** 技能编码 */
+  skillCode: string;
+  /** 技能名称 */
+  skillName: string;
+  /** 技能等级 */
+  skillLevel?: string;
+  /** 认证日期 */
+  certifiedAt?: string;
+  /** 失效日期 */
+  expiryAt?: string;
+  /** 状态：ENABLED / EXPIRED / DISABLED */
+  status: string;
+  /** 备注 */
+  remark?: string;
+  /** 创建时间 */
+  createTime?: string;
+}
+
+/** 技能矩阵新增/编辑入参 */
+export interface MesSkillMatrixInput {
+  id?: number;
+  employeeId: number;
+  employeeName: string;
+  skillCode: string;
+  skillName: string;
+  skillLevel?: string;
+  certifiedAt?: string;
+  expiryAt?: string;
+  status?: string;
+  remark?: string;
+}
+
+/** 技能矩阵查询条件 */
+export interface MesSkillMatrixQuery {
+  employeeId?: number;
+  skillCode?: string;
+  skillLevel?: string;
+  status?: string;
+  current?: number;
+  size?: number;
+}
+
+/** 分页查询技能矩阵 */
+export function pageMesSkills(
+  query: MesSkillMatrixQuery = {},
+): Promise<PageResult<MesSkillMatrix>> {
+  return http.get<PageResult<MesSkillMatrix>>(
+    `/mes/workforce/skill/page?${toQueryString({ current: 1, size: 10, ...query })}`,
+  );
+}
+
+/** 保存技能矩阵记录（无 id 新增，有 id 编辑） */
+export function saveMesSkillMatrix(input: MesSkillMatrixInput): Promise<MesSkillMatrix> {
+  return http.post<MesSkillMatrix>('/mes/workforce/skill', input);
+}
+

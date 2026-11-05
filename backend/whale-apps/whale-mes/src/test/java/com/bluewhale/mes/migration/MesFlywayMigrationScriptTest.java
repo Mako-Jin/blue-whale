@@ -173,7 +173,7 @@ class MesFlywayMigrationScriptTest {
         for (Path script : migrationScripts()) {
             total += extractTables(script).size();
         }
-        assertEquals(61, total, "空库累计应为 61 张业务表（V1 2 + V2 12 + V3 1 + V4 13 + V5 8 + V6 10 + V7 15）");
+        assertEquals(67, total, "空库累计应为 67 张业务表（V1 2 + V2 12 + V3 1 + V4 13 + V5 8 + V6 10 + V7 15 + V8 6）");
     }
 
     /**
@@ -228,6 +228,27 @@ class MesFlywayMigrationScriptTest {
                 "mes_cl_board_config",
                 "mes_cl_archive_policy")) {
             assertTrue(tables.contains(table), "V7 必须包含表：" + table);
+        }
+    }
+
+    /**
+     * V8 建表集合：人员绩效 6 张表齐备
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("M5 人员绩效表齐备")
+    void workforceTablesShouldBePresent() throws IOException {
+        Set<String> tables = extractTables(MIGRATION_DIR.resolve("V8__mes_workforce.sql"));
+        assertEquals(6, tables.size(), "V8 应创建 6 张表");
+        for (String table : List.of(
+                "mes_wf_team_member",
+                "mes_wf_shift_assignment",
+                "mes_wf_handover",
+                "mes_wf_work_hour",
+                "mes_wf_performance_stat",
+                "mes_wf_skill_matrix")) {
+            assertTrue(tables.contains(table), "V8 必须包含表：" + table);
         }
     }
 
