@@ -10,13 +10,17 @@ import com.bluewhale.pdm.part.dto.PdmBomDeriveRequest;
 import com.bluewhale.pdm.part.dto.PdmBomLineSaveRequest;
 import com.bluewhale.pdm.part.dto.PdmBomSaveRequest;
 import com.bluewhale.pdm.part.entity.PdmBom;
+import com.bluewhale.pdm.part.entity.PdmBomDiffTask;
 import com.bluewhale.pdm.part.entity.PdmBomLine;
 import com.bluewhale.pdm.part.entity.PdmBomRelease;
+import com.bluewhale.pdm.part.mapper.PdmBomDiffTaskMapper;
 import com.bluewhale.pdm.part.mapper.PdmBomLineMapper;
 import com.bluewhale.pdm.part.mapper.PdmBomMapper;
 import com.bluewhale.pdm.part.mapper.PdmBomReleaseMapper;
+import com.bluewhale.pdm.part.support.PdmBomDiffTaskStatus;
 import com.bluewhale.pdm.part.support.PdmBomSnapshotBuilder;
 import com.bluewhale.pdm.part.support.PdmBomStatus;
+import com.bluewhale.pdm.part.vo.PdmBomDiffTaskVO;
 import com.bluewhale.pdm.part.vo.PdmBomDiffVO;
 import com.bluewhale.pdm.part.vo.PdmBomExportRowVO;
 import com.bluewhale.pdm.part.vo.PdmBomReleaseVO;
@@ -35,13 +39,17 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -67,6 +75,12 @@ class PdmBomServiceImplTest {
     @Mock
     private PdmProductMapper productMapper;
 
+    @Mock
+    private PdmBomDiffTaskMapper bomDiffTaskMapper;
+
+    @Mock
+    private Executor pdmDiffExecutor;
+
     @InjectMocks
     private PdmBomServiceImpl bomService;
 
@@ -80,6 +94,7 @@ class PdmBomServiceImplTest {
         TableInfoHelper.initTableInfo(assistant, PdmBom.class);
         TableInfoHelper.initTableInfo(assistant, PdmBomLine.class);
         TableInfoHelper.initTableInfo(assistant, PdmBomRelease.class);
+        TableInfoHelper.initTableInfo(assistant, PdmBomDiffTask.class);
     }
 
     /**
@@ -372,6 +387,83 @@ class PdmBomServiceImplTest {
         assertEquals("A1", rows.get(1).getPartNo());
         assertEquals("Q235", rows.get(1).getMaterial());
         assertEquals("M8x20", rows.get(1).getSpec());
+    }
+
+    /**
+     * 异步对比任务执行成功后写入结果并可轮询。
+     */
+    @Test
+    void createDiffTaskShouldRunAndStoreSuccess() {
+        PdmBom base = bom(1L, "BOM-P-100", "V1.0", 100L, "RELEASED");
+        PdmBom target = bom(2L, "BOM-P-100-PBOM", "V1.0", 100L, "DRAFT");
+        target.setView("PBOM");
+        when(bomMapper.selectById(1L)).thenReturn(base);
+        when(bomMapper.selectById(2L)).thenReturn(target);
+        when(bomLineMapper.selectList(any())).thenReturn(
+                List.of(line(1L, 100L, 200L, 1, "2")),
+                List.of(line(5L, 100L, 200L, 1, "3"), line(6L, 100L, 300L, 2, "1")));
+        when(productMapper.selectBatchIds(any())).thenReturn(
+                List.of(part(100L, "P-100", "成品", "PRODUCT"), part(200L, "A1", "部件", "ASSEMBLY")),
+                List.of(part(100L, "P-100", "成品", "PRODUCT"), part(200L, "A1", "部件", "ASSEMBLY"),
+                        part(300L, "S1", "标准件", "PART")));
+        AtomicReference<PdmBomDiffTask> stored = new AtomicReference<>();
+        when(bomDiffTaskMapper.insert(any(PdmBomDiffTask.class))).thenAnswer(invocation -> {
+            PdmBomDiffTask entity = invocation.getArgument(0);
+            entity.setId(9L);
+            stored.set(entity);
+            return 1;
+        });
+        when(bomDiffTaskMapper.selectById(9L)).thenAnswer(invocation -> stored.get());
+        when(bomDiffTaskMapper.updateById(any(PdmBomDiffTask.class))).thenAnswer(invocation -> {
+            stored.set(invocation.getArgument(0));
+            return 1;
+        });
+        doAnswer(invocation -> {
+            ((Runnable) invocation.getArgument(0)).run();
+            return null;
+        }).when(pdmDiffExecutor).execute(any());
+
+        PdmBomDiffTaskVO view = bomService.createDiffTask(1L, 2L, 7L);
+
+        assertEquals(9L, view.getId());
+        assertEquals(PdmBomDiffTaskStatus.SUCCESS, view.getStatus());
+        assertNotNull(view.getDiff());
+        assertEquals(1, view.getDiff().getAdded());
+        assertEquals(1, view.getDiff().getChanged());
+        assertFalse(stored.get().getResultJson().isEmpty());
+        assertEquals(7L, stored.get().getCreatedBy());
+    }
+
+    /**
+     * 失败任务回显原因且不带结果。
+     */
+    @Test
+    void getDiffTaskShouldReturnFailure() {
+        PdmBomDiffTask task = new PdmBomDiffTask();
+        task.setId(9L);
+        task.setBaseBomId(1L);
+        task.setTargetBomId(2L);
+        task.setStatus(PdmBomDiffTaskStatus.FAILED);
+        task.setErrorMessage("对比失败: BOM 不存在");
+        when(bomDiffTaskMapper.selectById(9L)).thenReturn(task);
+
+        PdmBomDiffTaskVO view = bomService.getDiffTask(9L);
+
+        assertEquals(PdmBomDiffTaskStatus.FAILED, view.getStatus());
+        assertEquals("对比失败: BOM 不存在", view.getErrorMessage());
+        assertNull(view.getDiff());
+    }
+
+    /**
+     * 任务不存在时报参数错误。
+     */
+    @Test
+    void getDiffTaskShouldRejectMissing() {
+        when(bomDiffTaskMapper.selectById(9L)).thenReturn(null);
+
+        BizException exception = assertThrows(BizException.class, () -> bomService.getDiffTask(9L));
+
+        assertEquals(ErrorCode.PARAM_ERROR.getCode(), exception.getCode());
     }
 
     /**

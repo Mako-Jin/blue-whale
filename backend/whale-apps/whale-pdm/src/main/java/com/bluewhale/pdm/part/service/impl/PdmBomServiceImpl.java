@@ -13,18 +13,22 @@ import com.bluewhale.pdm.part.dto.PdmBomLineSaveRequest;
 import com.bluewhale.pdm.part.dto.PdmBomQueryRequest;
 import com.bluewhale.pdm.part.dto.PdmBomSaveRequest;
 import com.bluewhale.pdm.part.entity.PdmBom;
+import com.bluewhale.pdm.part.entity.PdmBomDiffTask;
 import com.bluewhale.pdm.part.entity.PdmBomLine;
 import com.bluewhale.pdm.part.entity.PdmBomRelease;
+import com.bluewhale.pdm.part.mapper.PdmBomDiffTaskMapper;
 import com.bluewhale.pdm.part.mapper.PdmBomLineMapper;
 import com.bluewhale.pdm.part.mapper.PdmBomMapper;
 import com.bluewhale.pdm.part.mapper.PdmBomReleaseMapper;
 import com.bluewhale.pdm.part.service.PdmBomService;
+import com.bluewhale.pdm.part.support.PdmBomDiffTaskStatus;
 import com.bluewhale.pdm.part.support.PdmBomSnapshotBuilder;
 import com.bluewhale.pdm.part.support.PdmBomStatus;
 import com.bluewhale.pdm.part.support.PdmBomVersionNo;
 import com.bluewhale.pdm.part.support.PdmBomViews;
 import com.bluewhale.pdm.part.support.PdmPartTypes;
 import com.bluewhale.pdm.part.vo.PdmBomDiffLineVO;
+import com.bluewhale.pdm.part.vo.PdmBomDiffTaskVO;
 import com.bluewhale.pdm.part.vo.PdmBomDiffVO;
 import com.bluewhale.pdm.part.vo.PdmBomExportRowVO;
 import com.bluewhale.pdm.part.vo.PdmBomLineVO;
@@ -33,6 +37,7 @@ import com.bluewhale.pdm.part.vo.PdmBomSnapshotVO;
 import com.bluewhale.pdm.part.vo.PdmBomTreeNodeVO;
 import com.bluewhale.pdm.part.vo.PdmBomVO;
 import com.bluewhale.pdm.part.vo.PdmPartWhereUsedVO;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -50,6 +55,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.Executor;
 
 /**
  * BOM 服务实现
@@ -67,8 +73,14 @@ public class PdmBomServiceImpl implements PdmBomService {
     /** 单页最大条数 */
     private static final long MAX_PAGE_SIZE = 200L;
 
-    /** 在线对比最大行数（超过转异步，M1B 暂不支持） */
+    /** 在线对比最大行数（超过走异步任务） */
     private static final long MAX_DIFF_LINES = 2000L;
+
+    /** 任务失败原因最大长度（与 error_message 列宽一致） */
+    private static final int MAX_ERROR_LENGTH = 500;
+
+    /** 对比任务结果序列化器（结果仅含字符串/数字） */
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     /** 环检测固定前缀 */
     private static final String CYCLE_PREFIX = "BOM_CYCLE_DETECTED:";
@@ -80,6 +92,10 @@ public class PdmBomServiceImpl implements PdmBomService {
     private final PdmBomReleaseMapper bomReleaseMapper;
 
     private final PdmProductMapper productMapper;
+
+    private final PdmBomDiffTaskMapper bomDiffTaskMapper;
+
+    private final Executor pdmDiffExecutor;
 
     @Override
     public PageResult<PdmBomVO> page(PdmBomQueryRequest request) {
@@ -420,8 +436,108 @@ public class PdmBomServiceImpl implements PdmBomService {
         }
         assertDiffSize(baseId);
         assertDiffSize(targetId);
-        Map<String, PdmBomTreeNodeVO> baseNodes = flatten(assemble(base, linesOf(baseId)).getTree());
-        Map<String, PdmBomTreeNodeVO> targetNodes = flatten(assemble(target, linesOf(targetId)).getTree());
+        return computeDiff(base, target);
+    }
+
+    @Override
+    public PdmBomDiffTaskVO createDiffTask(Long baseId, Long targetId, Long userId) {
+        PdmBom base = requireBom(baseId);
+        PdmBom target = requireBom(targetId);
+        if (!Objects.equals(base.getProductId(), target.getProductId())) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "仅同一产品的 BOM 可对比");
+        }
+        PdmBomDiffTask task = new PdmBomDiffTask();
+        task.setBaseBomId(baseId);
+        task.setTargetBomId(targetId);
+        task.setStatus(PdmBomDiffTaskStatus.PENDING);
+        task.setCreatedBy(userId);
+        bomDiffTaskMapper.insert(task);
+        try {
+            pdmDiffExecutor.execute(() -> executeDiffTask(task.getId()));
+        } catch (RuntimeException ex) {
+            log.warn("BOM 对比任务提交失败: taskId={}", task.getId(), ex);
+            markDiffTaskFailed(task.getId(), "对比任务提交失败: " + ex.getMessage());
+        }
+        return getDiffTask(task.getId());
+    }
+
+    @Override
+    public PdmBomDiffTaskVO getDiffTask(Long taskId) {
+        PdmBomDiffTask task = bomDiffTaskMapper.selectById(taskId);
+        if (task == null) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "对比任务不存在");
+        }
+        PdmBomDiffTaskVO vo = new PdmBomDiffTaskVO();
+        vo.setId(task.getId());
+        vo.setBaseBomId(task.getBaseBomId());
+        vo.setTargetBomId(task.getTargetBomId());
+        vo.setStatus(task.getStatus());
+        vo.setErrorMessage(task.getErrorMessage());
+        vo.setCreateTime(task.getCreateTime());
+        if (PdmBomDiffTaskStatus.SUCCESS.equals(task.getStatus())
+                && StringUtils.hasText(task.getResultJson())) {
+            try {
+                vo.setDiff(OBJECT_MAPPER.readValue(task.getResultJson(), PdmBomDiffVO.class));
+            } catch (Exception ex) {
+                log.warn("BOM 对比结果解析失败: taskId={}", taskId, ex);
+                throw new BizException(ErrorCode.PARAM_ERROR, "对比结果不可用");
+            }
+        }
+        return vo;
+    }
+
+    /**
+     * 执行异步对比任务。
+     *
+     * @param taskId 任务ID
+     */
+    private void executeDiffTask(Long taskId) {
+        PdmBomDiffTask task = bomDiffTaskMapper.selectById(taskId);
+        if (task == null) {
+            return;
+        }
+        task.setStatus(PdmBomDiffTaskStatus.RUNNING);
+        bomDiffTaskMapper.updateById(task);
+        try {
+            PdmBomDiffVO result = computeDiff(requireBom(task.getBaseBomId()),
+                    requireBom(task.getTargetBomId()));
+            task.setResultJson(OBJECT_MAPPER.writeValueAsString(result));
+            task.setStatus(PdmBomDiffTaskStatus.SUCCESS);
+            task.setErrorMessage(null);
+        } catch (Exception ex) {
+            log.warn("BOM 异步对比失败: taskId={}", taskId, ex);
+            task.setStatus(PdmBomDiffTaskStatus.FAILED);
+            task.setErrorMessage(truncate("对比失败: " + ex.getMessage()));
+        }
+        bomDiffTaskMapper.updateById(task);
+    }
+
+    /**
+     * 标记任务失败。
+     *
+     * @param taskId  任务ID
+     * @param message 失败原因
+     */
+    private void markDiffTaskFailed(Long taskId, String message) {
+        PdmBomDiffTask task = bomDiffTaskMapper.selectById(taskId);
+        if (task == null) {
+            return;
+        }
+        task.setStatus(PdmBomDiffTaskStatus.FAILED);
+        task.setErrorMessage(truncate(message));
+        bomDiffTaskMapper.updateById(task);
+    }
+
+    /**
+     * 计算两个 BOM 的差异（不校验行数，供同步与异步共用）。
+     *
+     * @param base   基线 BOM
+     * @param target 目标 BOM
+     * @return 对比结果
+     */
+    private PdmBomDiffVO computeDiff(PdmBom base, PdmBom target) {
+        Map<String, PdmBomTreeNodeVO> baseNodes = flatten(assemble(base, linesOf(base.getId())).getTree());
+        Map<String, PdmBomTreeNodeVO> targetNodes = flatten(assemble(target, linesOf(target.getId())).getTree());
 
         PdmBomDiffVO result = new PdmBomDiffVO();
         result.setBaseBomNo(base.getBomNo());
@@ -439,7 +555,8 @@ public class PdmBomServiceImpl implements PdmBomService {
             PdmBomTreeNodeVO baseNode = baseNodes.get(path);
             PdmBomTreeNodeVO targetNode = targetNodes.get(path);
             if (baseNode == null) {
-                result.getLines().add(change(path, "ADDED", targetNode, null, targetNode == null ? null : targetNode.getPartNo(), null));
+                result.getLines().add(change(path, "ADDED", targetNode, null,
+                        targetNode == null ? null : targetNode.getPartNo(), null));
                 result.setAdded(result.getAdded() + 1);
                 continue;
             }
@@ -471,6 +588,17 @@ public class PdmBomServiceImpl implements PdmBomService {
             }
         }
         return result;
+    }
+
+    /**
+     * 截断错误信息到列宽。
+     *
+     * @param message 错误信息
+     * @return 截断后文本
+     */
+    private static String truncate(String message) {
+        String text = message == null ? "" : message;
+        return text.length() <= MAX_ERROR_LENGTH ? text : text.substring(0, MAX_ERROR_LENGTH);
     }
 
     @Override

@@ -18,11 +18,13 @@ import {
 import type { TableProps } from 'antd';
 import {
   addBomLine,
+  createBomDiffTask,
   deleteBomLine,
   deriveBom,
   diffBoms,
   exportBom,
   getBom,
+  getBomDiffTask,
   listBomReleases,
   listBoms,
   listParts,
@@ -31,6 +33,7 @@ import {
   type BomDeriveInput,
   type BomDiff,
   type BomDiffLine,
+  type BomDiffTask,
   type BomLine,
   type BomRelease,
   type BomStatus,
@@ -67,6 +70,40 @@ const CHANGE_CONFIG: Record<string, { label: string; color: string }> = {
   UOM_CHANGED: { label: '单位变更', color: 'orange' },
   PART_CHANGED: { label: '零件变更', color: 'purple' },
 };
+
+/** 异步对比轮询间隔（毫秒） */
+const DIFF_POLL_INTERVAL = 2000;
+
+/** 异步对比最大轮询次数（约 60 秒） */
+const DIFF_POLL_MAX_ATTEMPTS = 30;
+
+/**
+ * 判断同步对比是否因行数超限失败。
+ *
+ * @param error 异常
+ * @returns 是否超限
+ */
+function isDiffTooLarge(error: unknown): boolean {
+  const text = error instanceof Error ? error.message : String(error);
+  return text.includes('2000') || text.includes('超过');
+}
+
+/**
+ * 轮询异步对比任务直至完成。
+ *
+ * @param taskId 任务ID
+ * @returns 完成态任务
+ */
+async function waitDiffTask(taskId: string): Promise<BomDiffTask> {
+  for (let attempt = 0; attempt < DIFF_POLL_MAX_ATTEMPTS; attempt++) {
+    const task = await getBomDiffTask(taskId);
+    if (task.status === 'SUCCESS' || task.status === 'FAILED') {
+      return task;
+    }
+    await new Promise((resolve) => setTimeout(resolve, DIFF_POLL_INTERVAL));
+  }
+  throw new Error('对比超时，请稍后重试');
+}
 
 /** 派生表单值 */
 interface DeriveFormValues {
@@ -321,7 +358,25 @@ export default function BomEditor({ open, bomId, onClose, onChanged }: BomEditor
     }
     setDiffLoading(true);
     try {
-      setDiffResult(await diffBoms(bom.id, targetBomId));
+      try {
+        setDiffResult(await diffBoms(bom.id, targetBomId));
+        return;
+      } catch (error) {
+        if (!isDiffTooLarge(error)) {
+          throw error;
+        }
+      }
+      message.info('BOM 行数较多，已转异步对比，请稍候');
+      const task = await createBomDiffTask(bom.id, targetBomId);
+      const finished = await waitDiffTask(task.id);
+      if (finished.status === 'SUCCESS' && finished.diff) {
+        setDiffResult(finished.diff);
+        message.success('对比完成');
+        return;
+      }
+      message.error(finished.errorMessage || '对比失败');
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '对比失败');
     } finally {
       setDiffLoading(false);
     }

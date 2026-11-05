@@ -12,6 +12,7 @@ import com.bluewhale.pdm.part.dto.PdmBomSaveRequest;
 import com.bluewhale.pdm.part.service.PdmBomService;
 import com.bluewhale.pdm.part.support.PdmBomExcelSupport;
 import com.bluewhale.pdm.part.support.PdmBomRequestContext;
+import com.bluewhale.pdm.part.vo.PdmBomDiffTaskVO;
 import com.bluewhale.pdm.part.vo.PdmBomDiffVO;
 import com.bluewhale.pdm.part.vo.PdmBomExportRowVO;
 import com.bluewhale.pdm.part.vo.PdmBomReleaseVO;
@@ -97,6 +98,35 @@ public class PdmBomController {
     @RequirePermission("sys:pdm:bom:list")
     public Result<PdmBomDiffVO> diff(@RequestParam Long baseId, @RequestParam Long targetId) {
         return Result.ok(bomService.diff(baseId, targetId));
+    }
+
+    /**
+     * 创建 BOM 异步对比任务（不限行数）
+     *
+     * @param baseId   基线 BOM ID
+     * @param targetId 目标 BOM ID
+     * @param request  当前请求
+     * @return 任务视图
+     */
+    @PostMapping("/diff/tasks")
+    @RequirePermission("sys:pdm:bom:list")
+    public Result<PdmBomDiffTaskVO> createDiffTask(@RequestParam Long baseId,
+                                                   @RequestParam Long targetId,
+                                                   HttpServletRequest request) {
+        return Result.ok(bomService.createDiffTask(baseId, targetId,
+                PdmBomRequestContext.requireUserId(request)));
+    }
+
+    /**
+     * 查询 BOM 异步对比任务
+     *
+     * @param id 任务ID
+     * @return 任务视图（成功时含对比结果）
+     */
+    @GetMapping("/diff/tasks/{id}")
+    @RequirePermission("sys:pdm:bom:list")
+    public Result<PdmBomDiffTaskVO> getDiffTask(@PathVariable Long id) {
+        return Result.ok(bomService.getDiffTask(id));
     }
 
     /**

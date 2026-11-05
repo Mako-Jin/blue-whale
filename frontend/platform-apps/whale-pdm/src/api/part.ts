@@ -189,6 +189,20 @@ export interface BomDiff {
   lines: BomDiffLine[];
 }
 
+/** BOM 异步对比任务状态 */
+export type BomDiffTaskStatus = 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED';
+
+/** BOM 异步对比任务 */
+export interface BomDiffTask {
+  id: string;
+  baseBomId: string;
+  targetBomId: string;
+  status: BomDiffTaskStatus;
+  errorMessage?: string;
+  diff?: BomDiff;
+  createTime?: string;
+}
+
 /** BOM 行入参 */
 export interface BomLineInput {
   parentPartId: string;
@@ -311,6 +325,17 @@ export function deriveBom(id: string, input: BomDeriveInput): Promise<PdmBom> {
 /** 对比两个 BOM（同一产品） */
 export function diffBoms(baseId: string, targetId: string): Promise<BomDiff> {
   return http.get<BomDiff>('/pdm/bom/diff', { baseId, targetId });
+}
+
+/** 创建 BOM 异步对比任务（不限行数） */
+export function createBomDiffTask(baseId: string, targetId: string): Promise<BomDiffTask> {
+  const query = `baseId=${encodeURIComponent(baseId)}&targetId=${encodeURIComponent(targetId)}`;
+  return http.post<BomDiffTask>(`/pdm/bom/diff/tasks?${query}`);
+}
+
+/** 查询 BOM 异步对比任务 */
+export function getBomDiffTask(id: string): Promise<BomDiffTask> {
+  return http.get<BomDiffTask>(`/pdm/bom/diff/tasks/${encodeURIComponent(id)}`);
 }
 
 /** 导出 BOM Excel */

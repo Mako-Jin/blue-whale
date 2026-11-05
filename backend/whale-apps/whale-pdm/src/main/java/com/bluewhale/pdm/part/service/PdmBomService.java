@@ -5,6 +5,7 @@ import com.bluewhale.pdm.part.dto.PdmBomDeriveRequest;
 import com.bluewhale.pdm.part.dto.PdmBomLineSaveRequest;
 import com.bluewhale.pdm.part.dto.PdmBomQueryRequest;
 import com.bluewhale.pdm.part.dto.PdmBomSaveRequest;
+import com.bluewhale.pdm.part.vo.PdmBomDiffTaskVO;
 import com.bluewhale.pdm.part.vo.PdmBomDiffVO;
 import com.bluewhale.pdm.part.vo.PdmBomExportRowVO;
 import com.bluewhale.pdm.part.vo.PdmBomReleaseVO;
@@ -131,6 +132,24 @@ public interface PdmBomService {
      * @return 对比结果
      */
     PdmBomDiffVO diff(Long baseId, Long targetId);
+
+    /**
+     * 创建异步对比任务（不限行数）
+     *
+     * @param baseId   基线 BOM ID
+     * @param targetId 目标 BOM ID
+     * @param userId   创建人
+     * @return 任务视图
+     */
+    PdmBomDiffTaskVO createDiffTask(Long baseId, Long targetId, Long userId);
+
+    /**
+     * 查询异步对比任务
+     *
+     * @param taskId 任务ID
+     * @return 任务视图（成功时含对比结果）
+     */
+    PdmBomDiffTaskVO getDiffTask(Long taskId);
 
     /**
      * 导出 BOM 行（深度优先，含材质/规格）
