@@ -139,4 +139,13 @@ public interface PdmDocDocumentService {
      * @return 下载内容
      */
     PdmDocDownload download(Long documentId, Long versionId, PdmDocViewer viewer);
+
+    /**
+     * 内网读取指定文档的已发布版本内容（供 MES 等内网系统读取 SOP）
+     *
+     * @param documentId 文档 ID
+     * @param versionNo  版本号
+     * @return 下载内容
+     */
+    PdmDocDownload contentOfReleasedVersion(Long documentId, String versionNo);
 }

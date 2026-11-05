@@ -91,7 +91,9 @@ class PdmFlywayMigrationScriptTest {
     }
 
     /**
-     * 列出迁移脚本并按文件名字典序返回
+     * 列出迁移脚本并按版本号数值升序返回
+     *
+     * <p>不能按文件名字典序排序：{@code V10__} 会排在 {@code V1__} 之前。</p>
      *
      * @return 迁移脚本路径
      * @throws IOException 读取目录失败
@@ -99,7 +101,7 @@ class PdmFlywayMigrationScriptTest {
     private static List<Path> migrationScripts() throws IOException {
         try (var stream = Files.list(MIGRATION_DIR)) {
             return stream.filter(path -> path.getFileName().toString().endsWith(".sql"))
-                    .sorted()
+                    .sorted(java.util.Comparator.comparingLong(PdmFlywayMigrationScriptTest::versionOf))
                     .collect(Collectors.toList());
         }
     }

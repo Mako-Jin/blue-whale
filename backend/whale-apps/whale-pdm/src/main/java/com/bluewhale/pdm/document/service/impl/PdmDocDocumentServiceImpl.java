@@ -341,6 +341,27 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
         return new PdmDocDownload(content, version.getFileName(), version.getContentType());
     }
 
+    @Override
+    public PdmDocDownload contentOfReleasedVersion(Long documentId, String versionNo) {
+        requireDocument(documentId);
+        List<PdmDocVersion> versions = versionMapper.selectList(new LambdaQueryWrapper<PdmDocVersion>()
+                .eq(PdmDocVersion::getDocumentId, documentId)
+                .eq(PdmDocVersion::getVersionNo, versionNo)
+                .last("LIMIT 1"));
+        if (versions.isEmpty()) {
+            throw new BizException(ErrorCode.NOT_FOUND, "文档版本不存在");
+        }
+        PdmDocVersion version = versions.get(0);
+        if (!VERSION_RELEASED.equals(version.getStatus())) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "仅已发布文档版本可内网读取");
+        }
+        if (version.getFileId() == null) {
+            throw new BizException(ErrorCode.NOT_FOUND, "版本文件不存在");
+        }
+        byte[] content = fileClient.content(version.getFileId());
+        return new PdmDocDownload(content, version.getFileName(), version.getContentType());
+    }
+
     /**
      * 创建草稿版本并回填文档最新版本字段（不落库文档，交由调用方统一更新）
      *

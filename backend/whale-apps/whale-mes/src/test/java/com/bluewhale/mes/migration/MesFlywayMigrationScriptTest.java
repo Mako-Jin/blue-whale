@@ -173,7 +173,7 @@ class MesFlywayMigrationScriptTest {
         for (Path script : migrationScripts()) {
             total += extractTables(script).size();
         }
-        assertEquals(67, total, "空库累计应为 67 张业务表（V1 2 + V2 12 + V3 1 + V4 13 + V5 8 + V6 10 + V7 15 + V8 6）");
+        assertEquals(68, total, "空库累计应为 68 张业务表（V1 2 + V2 12 + V3 1 + V4 13 + V5 8 + V6 10 + V7 15 + V8 6 + V9 1）");
     }
 
     /**
