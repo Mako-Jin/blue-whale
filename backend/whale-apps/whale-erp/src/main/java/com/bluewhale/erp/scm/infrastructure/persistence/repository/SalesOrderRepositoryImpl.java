@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.erp.scm.domain.model.SalesOrder;
 import com.bluewhale.erp.scm.domain.model.SalesOrderLine;
 import com.bluewhale.erp.scm.domain.model.ScmQuery;
+import com.bluewhale.erp.scm.domain.model.ScmStatus;
 import com.bluewhale.erp.scm.domain.repository.SalesOrderRepository;
 import com.bluewhale.erp.scm.infrastructure.persistence.entity.SalesOrderEntity;
 import com.bluewhale.erp.scm.infrastructure.persistence.entity.SalesOrderLineEntity;
@@ -14,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -103,6 +105,28 @@ public class SalesOrderRepositoryImpl implements SalesOrderRepository {
                 salesOrderLineMapper.updateById(lineEntity);
             }
         }
+    }
+
+    @Override
+    public BigDecimal reservedAmount(Long customerId) {
+        return salesOrderMapper.selectList(new LambdaQueryWrapper<SalesOrderEntity>()
+                        .eq(SalesOrderEntity::getCustomerId, customerId)
+                        .in(SalesOrderEntity::getStatus, ScmStatus.APPROVED, ScmStatus.PARTIALLY_SHIPPED))
+                .stream()
+                .map(this::unshippedAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /**
+     * 计算订单未发货金额。
+     *
+     * @param entity 订单头
+     * @return 订单总额减去已发货金额
+     */
+    private BigDecimal unshippedAmount(SalesOrderEntity entity) {
+        BigDecimal total = entity.getTotalAmount() == null ? BigDecimal.ZERO : entity.getTotalAmount();
+        BigDecimal shipped = entity.getShippedAmount() == null ? BigDecimal.ZERO : entity.getShippedAmount();
+        return total.subtract(shipped);
     }
 
     /**

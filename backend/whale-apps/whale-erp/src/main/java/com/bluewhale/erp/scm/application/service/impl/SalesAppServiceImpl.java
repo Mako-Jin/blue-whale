@@ -46,7 +46,7 @@ import java.util.UUID;
 /**
  * 销售应用服务实现。
  *
- * <p>发货闭环：信用额度校验 → 库存出库（移动加权成本）→ 应收台账 → 自动凭证。</p>
+ * <p>发货闭环：信用额度校验（未结应收 + 在途预占）→ 库存出库（移动加权成本）→ 应收台账 → 自动凭证。</p>
  *
  * @author BlueWhale
  */
@@ -180,7 +180,7 @@ public class SalesAppServiceImpl implements SalesAppService {
                     quantity, unitCost, cost, shipDate, operatorId));
             stockRepository.saveBalance(balance);
         }
-        checkCreditLimit(order, amount);
+        checkShipmentCreditLimit(order);
         salesOrderRepository.update(order);
         ReceivableCreateCommand receivableCommand = new ReceivableCreateCommand();
         receivableCommand.setCustomerId(order.getCustomerId());
@@ -215,7 +215,9 @@ public class SalesAppServiceImpl implements SalesAppService {
     }
 
     /**
-     * 审核前校验信用额度（按订单总额）。
+     * 审核前校验信用额度：未结应收 + 在途预占 + 本单金额。
+     *
+     * <p>在途预占为已审核或部分发货订单的未发货金额，草稿与已取消订单不占用额度。</p>
      *
      * @param order 销售订单
      */
@@ -226,28 +228,33 @@ public class SalesAppServiceImpl implements SalesAppService {
             return;
         }
         BigDecimal outstanding = arApAppService.outstandingReceivable(customer.getId());
-        if (outstanding.add(order.getTotalAmount()).compareTo(limit) > 0) {
+        BigDecimal reserved = salesOrderRepository.reservedAmount(customer.getId());
+        BigDecimal occupied = outstanding.add(reserved);
+        if (occupied.add(order.getTotalAmount()).compareTo(limit) > 0) {
             throw ErpErrorCode.exception(ErpErrorCode.CREDIT_LIMIT_EXCEEDED,
-                    "客户信用额度不足：额度 " + limit + "，已占用 " + outstanding);
+                    "客户信用额度不足：额度 " + limit + "，已占用 " + occupied + "（含在途预占 " + reserved + "）");
         }
     }
 
     /**
-     * 发货前校验信用额度（按本次发货金额）。
+     * 发货前校验信用额度：未结应收 + 在途预占（在途预占已包含本单未发货金额）。
+     *
+     * <p>发货后本次金额转为应收、预占同步减少，因此不再叠加本次发货金额，避免重复占用。</p>
      *
      * @param order 销售订单
-     * @param shipmentAmount 本次发货金额
      */
-    private void checkCreditLimit(SalesOrder order, BigDecimal shipmentAmount) {
+    private void checkShipmentCreditLimit(SalesOrder order) {
         Customer customer = requireCustomer(order.getCustomerId());
         BigDecimal limit = customer.getCreditLimit() == null ? BigDecimal.ZERO : customer.getCreditLimit();
         if (limit.signum() <= 0) {
             return;
         }
         BigDecimal outstanding = arApAppService.outstandingReceivable(customer.getId());
-        if (outstanding.add(shipmentAmount).compareTo(limit) > 0) {
+        BigDecimal reserved = salesOrderRepository.reservedAmount(customer.getId());
+        if (outstanding.add(reserved).compareTo(limit) > 0) {
             throw ErpErrorCode.exception(ErpErrorCode.CREDIT_LIMIT_EXCEEDED,
-                    "客户信用额度不足：额度 " + limit + "，已占用 " + outstanding);
+                    "客户信用额度不足：额度 " + limit + "，已占用 " + outstanding.add(reserved)
+                            + "（含在途预占 " + reserved + "）");
         }
     }
 

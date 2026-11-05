@@ -121,10 +121,66 @@ class SalesAppServiceImplTest {
         when(salesOrderRepository.findById(1L)).thenReturn(Optional.of(order));
         when(customerRepository.findById(7201L)).thenReturn(Optional.of(customer("100")));
         when(arApAppService.outstandingReceivable(7201L)).thenReturn(new BigDecimal("90"));
+        when(salesOrderRepository.reservedAmount(7201L)).thenReturn(BigDecimal.ZERO);
 
         BizException exception = assertThrows(BizException.class, () -> service.approve(1L));
 
         assertEquals(ErpErrorCode.CREDIT_LIMIT_EXCEEDED, exception.getCode());
+    }
+
+    @Test
+    @DisplayName("在途预占计入信用占用，审核仍超限拒绝")
+    void shouldRejectApproveWhenReservedExceeded() {
+        SalesOrder order = draftOrder();
+        when(salesOrderRepository.findById(1L)).thenReturn(Optional.of(order));
+        when(customerRepository.findById(7201L)).thenReturn(Optional.of(customer("100")));
+        when(arApAppService.outstandingReceivable(7201L)).thenReturn(new BigDecimal("60"));
+        when(salesOrderRepository.reservedAmount(7201L)).thenReturn(new BigDecimal("30"));
+
+        BizException exception = assertThrows(BizException.class, () -> service.approve(1L));
+
+        assertEquals(ErpErrorCode.CREDIT_LIMIT_EXCEEDED, exception.getCode());
+    }
+
+    @Test
+    @DisplayName("发货前未结应收与在途预占合计超限拒绝")
+    void shouldRejectShipWhenReservedExceeded() {
+        SalesOrder order = approvedOrder();
+        when(salesOrderRepository.findById(1L)).thenReturn(Optional.of(order));
+        when(customerRepository.findById(7201L)).thenReturn(Optional.of(customer("100")));
+        when(arApAppService.outstandingReceivable(7201L)).thenReturn(new BigDecimal("60"));
+        when(salesOrderRepository.reservedAmount(7201L)).thenReturn(new BigDecimal("50"));
+        StockBalance balance = new StockBalance();
+        balance.setItemId(3L);
+        balance.setWarehouseId(7301L);
+        balance.setQuantity(new BigDecimal("10"));
+        balance.setAmount(new BigDecimal("100"));
+        when(stockRepository.findBalance(3L, 7301L)).thenReturn(Optional.of(balance));
+
+        BizException exception = assertThrows(BizException.class, () -> service.ship(1L, shipCommand(), 99L));
+
+        assertEquals(ErpErrorCode.CREDIT_LIMIT_EXCEEDED, exception.getCode());
+    }
+
+    @Test
+    @DisplayName("发货前未结应收与在途预占合计未超限时放行")
+    void shouldShipWhenReservedWithinLimit() {
+        SalesOrder order = approvedOrder();
+        when(salesOrderRepository.findById(1L)).thenReturn(Optional.of(order));
+        when(customerRepository.findById(7201L)).thenReturn(Optional.of(customer("100")));
+        when(arApAppService.outstandingReceivable(7201L)).thenReturn(new BigDecimal("40"));
+        when(salesOrderRepository.reservedAmount(7201L)).thenReturn(new BigDecimal("50"));
+        StockBalance balance = new StockBalance();
+        balance.setItemId(3L);
+        balance.setWarehouseId(7301L);
+        balance.setQuantity(new BigDecimal("10"));
+        balance.setAmount(new BigDecimal("100"));
+        when(stockRepository.findBalance(3L, 7301L)).thenReturn(Optional.of(balance));
+
+        SalesOrderView view = service.ship(1L, shipCommand(), 99L);
+
+        assertEquals(ScmStatus.SHIPPED, view.getStatus());
+        verify(arApAppService).createReceivable(any());
     }
 
     @Test

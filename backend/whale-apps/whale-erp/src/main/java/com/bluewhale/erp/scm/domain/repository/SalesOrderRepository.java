@@ -3,6 +3,7 @@ package com.bluewhale.erp.scm.domain.repository;
 import com.bluewhale.erp.scm.domain.model.SalesOrder;
 import com.bluewhale.erp.scm.domain.model.ScmQuery;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -59,4 +60,14 @@ public interface SalesOrderRepository {
      * @param order 销售订单
      */
     void update(SalesOrder order);
+
+    /**
+     * 统计客户在途预占金额：已审核与部分发货订单的未发货金额合计。
+     *
+     * <p>已发货部分已结转为应收，不再计入预占；取消与草稿订单不计入。</p>
+     *
+     * @param customerId 客户主键
+     * @return 在途预占金额（无在途订单时为 0）
+     */
+    BigDecimal reservedAmount(Long customerId);
 }

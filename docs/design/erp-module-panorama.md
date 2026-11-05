@@ -57,7 +57,7 @@
 | 子模块 | 能力 | 现状 | 落点 |
 |---|---|---|---|
 | 采购 | 申请、订单、比价、到货验收、退货、价格分析 | 🟡 | `scm.purchase`：`erp_purchase_*`、`erp_goods_receipt*`、`erp_scm_purchase_requisition(_line)`（申请 → 审核 → 转采购订单草稿）；比价与价格趋势已落地（2026-11-05，纯查询计算，见「价格管理」行） |
-| 销售 | 报价、订单、发货、退货、价格、信用额度 | 🟡 | `scm.sales`：`erp_sales_*`、`erp_scm_sales_return*`、`erp_scm_sales_quotation(_line)`（报价 → 接受 → 转销售订单草稿）；信用额度在审核/发货校验 |
+| 销售 | 报价、订单、发货、退货、价格、信用额度 | 🟡 | `scm.sales`：`erp_sales_*`、`erp_scm_sales_return*`、`erp_scm_sales_quotation(_line)`（报价 → 接受 → 转销售订单草稿）；信用额度在审核/发货校验，占用 = 未结应收 + 在途预占（已审核/部分发货订单未发货金额，2026-11-05） |
 | 价格管理 | 客户售价、供应商采购价、有效期、启停、单据取价、供应商比价、价格趋势 | 🟡 | `scm`：`erp_scm_price_list`（V11，2026-11-05）；按「价格类型 + 往来方 + 物料」唯一，订单/报价建单单价为空时按单据日期兜底取价；供应商比价与价格趋势（2026-11-05，`/price-list/compare`、`/price-list/trend`）复用价目表与有效采购订单计算，不新增表；阶梯价待排期 |
 | 退货 | 采购退货（红字出库 + 应付冲减）、销售退货（红字入库 + 应收冲减） | 🟡 | `scm.purchase` / `scm.sales`：`erp_scm_purchase_return(_line)`、`erp_scm_sales_return(_line)`；按源订单行控制可退数量，过账生成反向库存流水与红字凭证 |
 | 库存 | 出入库/调拨、盘点、安全库存、呆滞、批次 | 🟡 | `scm.inventory`：`erp_scm_stock_movement`/`erp_scm_stock_balance`（出入库/调拨/盘点）、`erp_scm_safety_stock`（V12，2026-11-05，按仓库 + 物料维护安全量/最高量）；缺料预警按安全量与余额差额计算、呆滞分析按余额 > 0 且最近出库早于阈值（默认 90 天）判定，均为查询计算；批次追溯需 ALTER 既有流水/余额表，推迟单独迁移窗口 |
@@ -424,7 +424,7 @@ com.bluewhale.erp
 | 库存计价 | D6 待定（FIFO / 移动加权 / 标准成本） | **移动加权平均**，出清归零 | 不依赖批次层，先保证仓库级成本可算；D6 定稿后可切换 |
 | 自动记账 | 科目映射表 + 按业务类型/仓库配置 | `ErpFinanceAccountProperties`（`erp.finance.account.*`，默认 1405/2202/1122/6001/6401） | D5 未定稿，先配置化，避免硬编码 |
 | 幂等 | 业务事件 ID | `sourceType + sourceId`（`GOODS_RECEIPT`/`SHIPMENT`/`STOCK_ADJUST` + 单据号），三张表唯一索引 | 无需事件总线；MySQL 唯一索引兜底并发 |
-| 信用额度 | D8 控制点与占用时点待定 | 审核与发货两个时点比对「未结应收 + 本单金额」，额度 0 视为不限 | 无预占表，并发场景留待 D8 定稿 |
+| 信用额度 | D8 控制点与占用时点待定 | 审核与发货两个时点比对「未结应收 + 在途预占 + 本单金额」，在途预占按已审核/部分发货订单的未发货金额实时汇总，额度 0 视为不限 | 无预占表，高并发下仍可能超额；D8 定稿后可加预占表与行锁 |
 | 主数据访问 | 上下文映射：SCM 只读引用 MDM | `ItemCatalog` / `SupplierCatalog` 只读端口 + 快照 DTO | ArchUnit 固化 SCM 不直接依赖 `mapper`/`entity`/存量 `service` |
 | 包结构 | `scm.purchase` / `scm.sales` / `scm.inventory` 子包 | 单 `scm` 上下文内按四层分包（`domain` / `application` / `infrastructure` / `interfaces`） | 首阶段 6 表规模不需要再分子上下文，聚合仍按订单/库存分离 |
 
