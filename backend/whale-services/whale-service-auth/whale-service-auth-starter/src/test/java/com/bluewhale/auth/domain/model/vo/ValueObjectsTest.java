@@ -39,13 +39,16 @@ class ValueObjectsTest {
     }
 
     @Test
-    @DisplayName("PermCode：至少两段冒号分隔的小写段落")
+    @DisplayName("PermCode：至少两段冒号分隔的小写段落，允许连字符与下划线")
     void permCodeShouldValidateInvariant() {
         assertEquals("sys:user:list", PermCode.of("sys:user:list").value());
+        assertEquals("sys:mes:workforce:work-hour", PermCode.of("sys:mes:workforce:work-hour").value());
+        assertEquals("sys:erp:price-list:list", PermCode.of("sys:erp:price-list:list").value());
 
         assertThrows(BizException.class, () -> PermCode.of("sys"));
         assertThrows(BizException.class, () -> PermCode.of("sys:User:list"));
         assertThrows(BizException.class, () -> PermCode.of("sys:user:"));
+        assertThrows(BizException.class, () -> PermCode.of("sys:user: list"));
     }
 
     @Test

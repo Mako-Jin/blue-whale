@@ -469,13 +469,26 @@ public class MesWorkforceServiceImpl implements MesWorkforceService {
                 .eq(MesWorkHour::getStatus, WORK_HOUR_VALID)
                 .between(MesWorkHour::getWorkDate, start, end)
                 .orderByAsc(MesWorkHour::getEmployeeId));
+        Map<Long, Long> taskNetSeconds = new LinkedHashMap<>();
+        Map<Long, Set<Long>> taskEmployees = new LinkedHashMap<>();
+        for (MesWorkHour row : workHours) {
+            if (row.getTaskId() == null) {
+                continue;
+            }
+            taskNetSeconds.merge(row.getTaskId(), row.getNetSeconds() == null ? 0L : row.getNetSeconds(),
+                    Long::sum);
+            taskEmployees.computeIfAbsent(row.getTaskId(), key -> new LinkedHashSet<>()).add(row.getEmployeeId());
+        }
+        Map<Long, Integer> taskEmployeeCounts = new LinkedHashMap<>();
+        taskEmployees.forEach((taskId, employees) -> taskEmployeeCounts.put(taskId, employees.size()));
+        Map<Long, PerformanceTotals> taskTotals = loadTaskTotals(taskEmployees.keySet(), start, end);
         Map<Long, List<MesWorkHour>> grouped = workHours.stream()
                 .collect(Collectors.groupingBy(MesWorkHour::getEmployeeId, LinkedHashMap::new,
                         Collectors.toList()));
         List<MesPerformanceStatVO> result = new ArrayList<>();
         for (Map.Entry<Long, List<MesWorkHour>> entry : grouped.entrySet()) {
             MesPerformanceStat stat = buildPerformanceStat(entry.getKey(), entry.getValue(), level,
-                    request.getPeriodCode(), start, end);
+                    request.getPeriodCode(), start, taskNetSeconds, taskEmployeeCounts, taskTotals);
             if (request.getTeamId() != null && !request.getTeamId().equals(stat.getTeamId())) {
                 continue;
             }
@@ -802,11 +815,16 @@ public class MesWorkforceServiceImpl implements MesWorkforceService {
      * @param level 统计层级
      * @param periodCode 期间编码
      * @param start 起始日期
-     * @param end 截止日期
+     * @param taskNetSeconds 任务维度总净工时
+     * @param taskEmployeeCounts 任务参与员工数
+     * @param taskTotals 任务维度报工汇总
      * @return 绩效统计实体
      */
     private MesPerformanceStat buildPerformanceStat(Long employeeId, List<MesWorkHour> rows, String level,
-                                                    String periodCode, LocalDate start, LocalDate end) {
+                                                    String periodCode, LocalDate start,
+                                                    Map<Long, Long> taskNetSeconds,
+                                                    Map<Long, Integer> taskEmployeeCounts,
+                                                    Map<Long, PerformanceTotals> taskTotals) {
         MesPerformanceStat stat = new MesPerformanceStat();
         stat.setStatLevel(level);
         stat.setEmployeeId(employeeId);
@@ -814,14 +832,18 @@ public class MesWorkforceServiceImpl implements MesWorkforceService {
         stat.setWorkDate(start);
         stat.setPeriodCode(periodCode);
         long workSeconds = 0L;
-        Set<Long> taskIds = new LinkedHashSet<>();
+        Map<Long, Long> employeeTaskSeconds = new LinkedHashMap<>();
         for (MesWorkHour row : rows) {
             workSeconds += row.getNetSeconds() == null ? 0L : row.getNetSeconds();
-            taskIds.add(row.getTaskId());
+            if (row.getTaskId() != null) {
+                employeeTaskSeconds.merge(row.getTaskId(),
+                        row.getNetSeconds() == null ? 0L : row.getNetSeconds(), Long::sum);
+            }
         }
         stat.setWorkSeconds(workSeconds);
         fillTeam(stat, employeeId);
-        PerformanceTotals totals = sumReports(taskIds, start, end);
+        PerformanceTotals totals = allocateTotals(employeeTaskSeconds, taskNetSeconds, taskEmployeeCounts,
+                taskTotals);
         stat.setProductionQuantity(totals.production);
         stat.setQualifiedQuantity(totals.qualified);
         stat.setDefectQuantity(totals.defect);
@@ -851,35 +873,92 @@ public class MesWorkforceServiceImpl implements MesWorkforceService {
     }
 
     /**
-     * 汇总期间报工数量与标准工时
+     * 按任务汇总期间报工数量与标准工时
      *
      * @param taskIds 任务 ID 集合
      * @param start 起始日期
      * @param end 截止日期
-     * @return 汇总结果
+     * @return 任务维度汇总结果
      */
-    private PerformanceTotals sumReports(Collection<Long> taskIds, LocalDate start, LocalDate end) {
-        PerformanceTotals totals = new PerformanceTotals();
+    private Map<Long, PerformanceTotals> loadTaskTotals(Collection<Long> taskIds, LocalDate start, LocalDate end) {
+        Map<Long, PerformanceTotals> totalsByTask = new LinkedHashMap<>();
         if (taskIds.isEmpty()) {
-            return totals;
+            return totalsByTask;
         }
         List<MesProductionReport> reports = reportMapper.selectList(new LambdaQueryWrapper<MesProductionReport>()
                 .in(MesProductionReport::getTaskId, taskIds)
                 .eq(MesProductionReport::getStatus, REPORT_SUBMITTED)
                 .ge(MesProductionReport::getReportedAt, start.atStartOfDay())
                 .lt(MesProductionReport::getReportedAt, end.plusDays(1).atStartOfDay()));
-        Map<Long, BigDecimal> quantityByTask = new LinkedHashMap<>();
         for (MesProductionReport report : reports) {
-            BigDecimal quantity = report.getReportQuantity() == null ? BigDecimal.ZERO : report.getReportQuantity();
-            totals.production = totals.production.add(quantity);
+            if (report.getTaskId() == null) {
+                continue;
+            }
+            PerformanceTotals totals = totalsByTask.computeIfAbsent(report.getTaskId(),
+                    key -> new PerformanceTotals());
+            totals.production = totals.production.add(report.getReportQuantity() == null
+                    ? BigDecimal.ZERO : report.getReportQuantity());
             totals.qualified = totals.qualified.add(report.getQualifiedQuantity() == null
                     ? BigDecimal.ZERO : report.getQualifiedQuantity());
             totals.defect = totals.defect.add(report.getDefectQuantity() == null
                     ? BigDecimal.ZERO : report.getDefectQuantity());
-            quantityByTask.merge(report.getTaskId(), quantity, BigDecimal::add);
         }
-        totals.standardSeconds = sumStandardSeconds(quantityByTask);
+        return totalsByTask;
+    }
+
+    /**
+     * 按工时占比把任务报工分摊到员工（D13 多人报工口径）
+     *
+     * @param employeeTaskSeconds 员工任务维度净工时
+     * @param taskNetSeconds 任务维度总净工时
+     * @param taskEmployeeCounts 任务参与员工数
+     * @param taskTotals 任务维度报工汇总
+     * @return 员工维度汇总结果
+     */
+    private PerformanceTotals allocateTotals(Map<Long, Long> employeeTaskSeconds,
+                                             Map<Long, Long> taskNetSeconds,
+                                             Map<Long, Integer> taskEmployeeCounts,
+                                             Map<Long, PerformanceTotals> taskTotals) {
+        PerformanceTotals totals = new PerformanceTotals();
+        Map<Long, BigDecimal> allocatedByTask = new LinkedHashMap<>();
+        for (Map.Entry<Long, Long> entry : employeeTaskSeconds.entrySet()) {
+            PerformanceTotals taskTotal = taskTotals.get(entry.getKey());
+            if (taskTotal == null) {
+                continue;
+            }
+            BigDecimal rate = allocationRate(entry.getValue(), taskNetSeconds.get(entry.getKey()),
+                    taskEmployeeCounts.get(entry.getKey()));
+            BigDecimal production = taskTotal.production.multiply(rate).setScale(6, RoundingMode.HALF_UP);
+            totals.production = totals.production.add(production);
+            totals.qualified = totals.qualified.add(
+                    taskTotal.qualified.multiply(rate).setScale(6, RoundingMode.HALF_UP));
+            totals.defect = totals.defect.add(
+                    taskTotal.defect.multiply(rate).setScale(6, RoundingMode.HALF_UP));
+            if (production.signum() > 0) {
+                allocatedByTask.merge(entry.getKey(), production, BigDecimal::add);
+            }
+        }
+        totals.standardSeconds = sumStandardSeconds(allocatedByTask);
         return totals;
+    }
+
+    /**
+     * 计算员工在任务上的分摊比例
+     *
+     * <p>任务总净工时大于 0 时按工时占比分摊；全部为 0 时在参与员工间均分。</p>
+     *
+     * @param employeeSeconds 员工净工时
+     * @param taskSeconds 任务总净工时
+     * @param employeeCount 任务参与员工数
+     * @return 分摊比例（8 位小数）
+     */
+    private BigDecimal allocationRate(long employeeSeconds, Long taskSeconds, Integer employeeCount) {
+        if (taskSeconds != null && taskSeconds > 0) {
+            return BigDecimal.valueOf(employeeSeconds)
+                    .divide(BigDecimal.valueOf(taskSeconds), 8, RoundingMode.HALF_UP);
+        }
+        int count = employeeCount == null || employeeCount <= 0 ? 1 : employeeCount;
+        return BigDecimal.ONE.divide(BigDecimal.valueOf(count), 8, RoundingMode.HALF_UP);
     }
 
     /**

@@ -55,6 +55,10 @@ export const routes = [
       { path: 'doc/*', element: <SubAppContainer /> },
       // 音乐中心（whale-music 子应用，Wave 5.75 M1）
       { path: 'music/*', element: <SubAppContainer /> },
+      // 视频中心（whale-video 子应用，Wave 5.76）
+      { path: 'video/*', element: <SubAppContainer /> },
+      // 城池导航（whale-scene 子应用）
+      { path: 'scene/*', element: <SubAppContainer /> },
     ],
   },
 ];

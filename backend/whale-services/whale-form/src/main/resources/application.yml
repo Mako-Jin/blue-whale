@@ -1,4 +1,6 @@
 server:
+  # 网关注入的 X-Permission-Codes 随权限数量增长（超管可达 500+ 条），Tomcat 默认 8KB 头上限会导致 400
+  max-http-request-header-size: 64KB
   port: ${SERVER_PORT:8084}
   servlet:
     context-path: /

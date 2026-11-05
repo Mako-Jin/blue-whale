@@ -6,6 +6,7 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.mes.dispatch.entity.MesWorkOrderTask;
 import com.bluewhale.mes.dispatch.mapper.MesWorkOrderTaskMapper;
+import com.bluewhale.mes.execution.entity.MesProductionReport;
 import com.bluewhale.mes.execution.mapper.MesProductionReportMapper;
 import com.bluewhale.mes.masterdata.entity.MesStation;
 import com.bluewhale.mes.masterdata.entity.MesTeam;
@@ -30,6 +31,7 @@ import com.bluewhale.mes.workforce.mapper.MesShiftAssignmentMapper;
 import com.bluewhale.mes.workforce.mapper.MesSkillMatrixMapper;
 import com.bluewhale.mes.workforce.mapper.MesTeamMemberMapper;
 import com.bluewhale.mes.workforce.mapper.MesWorkHourMapper;
+import com.bluewhale.mes.workforce.vo.MesPerformanceStatVO;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -39,6 +41,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -181,6 +184,56 @@ class MesWorkforceServiceImplTest {
                 () -> workforceService.aggregatePerformance(request));
         assertEquals(ErrorCode.PARAM_ERROR.getCode(), exception.getCode());
         verify(workHourMapper, never()).selectList(any());
+    }
+
+    @Test
+    @DisplayName("同一任务多人报工按工时占比分摊产量（D13）")
+    void shouldAllocateOutputByWorkHourRatio() {
+        MesWorkHour first = workHourRow(41L, "张三", 6000L);
+        MesWorkHour second = workHourRow(42L, "李四", 4000L);
+        when(workHourMapper.selectList(any())).thenReturn(List.of(first, second));
+        MesProductionReport report = new MesProductionReport();
+        report.setTaskId(51L);
+        report.setReportQuantity(new BigDecimal("100"));
+        report.setQualifiedQuantity(new BigDecimal("95"));
+        report.setDefectQuantity(new BigDecimal("5"));
+        report.setStatus("SUBMITTED");
+        report.setReportedAt(LocalDateTime.of(2026, 11, 5, 17, 0));
+        when(reportMapper.selectList(any())).thenReturn(List.of(report));
+
+        MesPerformanceAggregateRequest request = new MesPerformanceAggregateRequest();
+        request.setStatLevel("DAILY");
+        request.setPeriodCode("20261105");
+        List<MesPerformanceStatVO> result = workforceService.aggregatePerformance(request);
+
+        assertEquals(2, result.size());
+        MesPerformanceStatVO firstStat = result.stream()
+                .filter(vo -> Long.valueOf(41L).equals(vo.getEmployeeId())).findFirst().orElseThrow();
+        MesPerformanceStatVO secondStat = result.stream()
+                .filter(vo -> Long.valueOf(42L).equals(vo.getEmployeeId())).findFirst().orElseThrow();
+        assertEquals(new BigDecimal("60.000000"), firstStat.getProductionQuantity());
+        assertEquals(new BigDecimal("57.000000"), firstStat.getQualifiedQuantity());
+        assertEquals(new BigDecimal("40.000000"), secondStat.getProductionQuantity());
+        assertEquals(new BigDecimal("38.000000"), secondStat.getQualifiedQuantity());
+    }
+
+    /**
+     * 构造一条有效工时记录
+     *
+     * @param employeeId 员工 ID
+     * @param employeeName 员工姓名
+     * @param netSeconds 净工时秒数
+     * @return 工时记录
+     */
+    private MesWorkHour workHourRow(Long employeeId, String employeeName, long netSeconds) {
+        MesWorkHour row = new MesWorkHour();
+        row.setEmployeeId(employeeId);
+        row.setEmployeeName(employeeName);
+        row.setTaskId(51L);
+        row.setWorkDate(LocalDate.of(2026, 11, 5));
+        row.setNetSeconds(netSeconds);
+        row.setStatus("VALID");
+        return row;
     }
 
     @Test
