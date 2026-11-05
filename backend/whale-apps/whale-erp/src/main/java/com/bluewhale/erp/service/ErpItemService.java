@@ -1,8 +1,10 @@
 package com.bluewhale.erp.service;
 
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.erp.dto.ErpInternalItemUpsertRequest;
 import com.bluewhale.erp.dto.ErpItemQueryRequest;
 import com.bluewhale.erp.dto.ErpItemSaveRequest;
+import com.bluewhale.erp.vo.ErpInternalItemSyncVO;
 import com.bluewhale.erp.vo.ErpItemVO;
 
 /**
@@ -51,4 +53,12 @@ public interface ErpItemService {
      * @param id 主键ID
      */
     void delete(Long id);
+
+    /**
+     * 按 PDM 零件编码幂等写入物料
+     *
+     * @param request 同步请求
+     * @return 同步结果
+     */
+    ErpInternalItemSyncVO upsertFromPdm(ErpInternalItemUpsertRequest request);
 }

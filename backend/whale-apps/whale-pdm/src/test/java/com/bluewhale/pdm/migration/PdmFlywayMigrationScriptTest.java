@@ -91,6 +91,20 @@ class PdmFlywayMigrationScriptTest {
     }
 
     /**
+     * M5 集成迁移：同步日志与对账结果两表
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("V12 集成迁移包含同步日志与对账表")
+    void integrationMigrationShouldCreateSyncTables() throws IOException {
+        Set<String> tables = extractTables(MIGRATION_DIR.resolve("V12__integration_sync.sql"));
+        assertEquals(2, tables.size(), "V12 应创建 2 张表");
+        assertTrue(tables.contains("pdm_int_sync_log"), "V12 必须包含表：pdm_int_sync_log");
+        assertTrue(tables.contains("pdm_int_reconcile"), "V12 必须包含表：pdm_int_reconcile");
+    }
+
+    /**
      * 列出迁移脚本并按版本号数值升序返回
      *
      * <p>不能按文件名字典序排序：{@code V10__} 会排在 {@code V1__} 之前。</p>

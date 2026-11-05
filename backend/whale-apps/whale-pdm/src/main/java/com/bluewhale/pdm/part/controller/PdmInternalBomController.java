@@ -1,6 +1,7 @@
 package com.bluewhale.pdm.part.controller;
 
 import com.bluewhale.common.core.result.Result;
+import com.bluewhale.pdm.integration.service.PdmIntSyncService;
 import com.bluewhale.pdm.part.service.PdmBomService;
 import com.bluewhale.pdm.part.vo.PdmBomSnapshotVO;
 import lombok.RequiredArgsConstructor;
@@ -12,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * PDM BOM 内网契约接口
  *
- * <p>供 ERP 按 {@code bomNo + versionNo} 幂等拉取已发布快照。
+ * <p>供 ERP 按 {@code bomNo + versionNo} 幂等拉取已发布快照，并记录拉取日志用于对账。
  * 网关已将 {@code /pdm/internal/**} 加入 internal-deny，外部访问 403；
  * 服务内由内网 token 过滤器校验，因此不叠加功能权限。</p>
  *
@@ -25,6 +26,8 @@ public class PdmInternalBomController {
 
     private final PdmBomService bomService;
 
+    private final PdmIntSyncService syncService;
+
     /**
      * 读取已发布 BOM 快照
      *
@@ -35,6 +38,8 @@ public class PdmInternalBomController {
     @GetMapping("/{bomNo}/versions/{versionNo}")
     public Result<PdmBomSnapshotVO> snapshot(@PathVariable String bomNo,
                                              @PathVariable String versionNo) {
-        return Result.ok(bomService.snapshot(bomNo, versionNo));
+        PdmBomSnapshotVO snapshot = bomService.snapshot(bomNo, versionNo);
+        syncService.recordBomPull(bomNo, versionNo, snapshot.getChecksum());
+        return Result.ok(snapshot);
     }
 }

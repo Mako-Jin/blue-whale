@@ -6,11 +6,13 @@ import com.bluewhale.erp.converter.ErpConverter;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.erp.dto.ErpInternalItemUpsertRequest;
 import com.bluewhale.erp.dto.ErpItemQueryRequest;
 import com.bluewhale.erp.dto.ErpItemSaveRequest;
 import com.bluewhale.erp.entity.ErpItem;
 import com.bluewhale.erp.mapper.ErpItemMapper;
 import com.bluewhale.erp.service.ErpItemService;
+import com.bluewhale.erp.vo.ErpInternalItemSyncVO;
 import com.bluewhale.erp.vo.ErpItemVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -82,6 +84,36 @@ public class ErpItemServiceImpl implements ErpItemService {
         requireItem(id);
         erpItemMapper.deleteById(id);
         log.info("物料已删除: id={}", id);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ErpInternalItemSyncVO upsertFromPdm(ErpInternalItemUpsertRequest request) {
+        LambdaQueryWrapper<ErpItem> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ErpItem::getCode, request.getPdmPartNo());
+        ErpItem existing = erpItemMapper.selectOne(wrapper);
+        boolean created = existing == null;
+        if (created) {
+            existing = new ErpItem();
+            existing.setCode(request.getPdmPartNo());
+            existing.setName(request.getName());
+            existing.setStatus(StringUtils.hasText(request.getStatus()) ? request.getStatus() : "ENABLED");
+            existing.setRemark(request.getRemark());
+            erpItemMapper.insert(existing);
+        } else {
+            existing.setName(request.getName());
+            if (StringUtils.hasText(request.getStatus())) {
+                existing.setStatus(request.getStatus());
+            }
+            existing.setRemark(request.getRemark());
+            erpItemMapper.updateById(existing);
+        }
+        log.info("PDM 物料已同步: code={}, created={}", existing.getCode(), created);
+        ErpInternalItemSyncVO vo = new ErpInternalItemSyncVO();
+        vo.setId(existing.getId());
+        vo.setCode(existing.getCode());
+        vo.setCreated(created);
+        return vo;
     }
 
     /**

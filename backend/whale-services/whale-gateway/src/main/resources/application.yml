@@ -349,6 +349,8 @@ whale:
         - /pdm/internal/**
         # Wave 5.79 MES 工单接收内网通道：仅 ERP 经内网直连 whale-mes
         - /mes/internal/**
+        # Wave 5.80 M5 ERP 物料同步内网通道：仅 PDM 经内网直连 whale-erp
+        - /erp/internal/**
 
 management:
   endpoints:

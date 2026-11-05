@@ -14,6 +14,8 @@ import ProcessRouteCenter from './pages/process';
 import DeliverableCenter from './pages/collab/deliverable';
 import ReviewCenter from './pages/collab/review';
 import PreviewCenter from './pages/collab/preview';
+import SyncCenter from './pages/integration/sync';
+import ReconcileCenter from './pages/integration/reconcile';
 import { hasPermission } from './utils/permission';
 
 const { Header, Content, Sider } = Layout;
@@ -32,6 +34,8 @@ const MENU_ITEMS = [
   { key: '/collab/deliverable', label: '项目交付物', permission: 'sys:pdm:collab:deliverable:list' },
   { key: '/collab/review', label: '研发评审', permission: 'sys:pdm:collab:review:list' },
   { key: '/collab/preview', label: '在线预览', permission: 'sys:pdm:collab:preview:list' },
+  { key: '/integration/sync', label: '同步记录', permission: 'sys:pdm:int:sync:list' },
+  { key: '/integration/reconcile', label: '集成对账', permission: 'sys:pdm:int:reconcile:list' },
 ];
 
 /** 按权限过滤后的菜单 */
@@ -71,6 +75,8 @@ function PdmLayout() {
             <Route path="/collab/deliverable" element={<DeliverableCenter />} />
             <Route path="/collab/review" element={<ReviewCenter />} />
             <Route path="/collab/preview" element={<PreviewCenter />} />
+            <Route path="/integration/sync" element={<SyncCenter />} />
+            <Route path="/integration/reconcile" element={<ReconcileCenter />} />
             <Route path="*" element={<Navigate to="/document" replace />} />
           </Routes>
         </Content>
