@@ -13,8 +13,11 @@ import com.bluewhale.erp.masterdata.domain.repository.CustomerRepository;
 import com.bluewhale.erp.masterdata.domain.repository.WarehouseRepository;
 import com.bluewhale.erp.scm.application.command.SalesOrderCreateCommand;
 import com.bluewhale.erp.scm.application.command.ShipCommand;
+import com.bluewhale.erp.scm.application.service.PriceListAppService;
 import com.bluewhale.erp.scm.application.service.SalesAppService;
+import com.bluewhale.erp.scm.application.view.PriceListView;
 import com.bluewhale.erp.scm.application.view.SalesOrderView;
+import com.bluewhale.erp.scm.domain.model.PriceType;
 import com.bluewhale.erp.scm.domain.model.SalesOrder;
 import com.bluewhale.erp.scm.domain.model.SalesOrderLine;
 import com.bluewhale.erp.scm.domain.model.ScmQuery;
@@ -80,6 +83,8 @@ public class SalesAppServiceImpl implements SalesAppService {
 
     private final AutoVoucherAppService autoVoucherAppService;
 
+    private final PriceListAppService priceListAppService;
+
     @Override
     public PageResult<SalesOrderView> page(ScmQuery query) {
         List<SalesOrderView> records = salesOrderRepository.page(query).stream()
@@ -124,7 +129,8 @@ public class SalesAppServiceImpl implements SalesAppService {
             line.setUom(lineCommand.getUom());
             line.setQuantity(lineCommand.getQuantity());
             line.setShippedQuantity(BigDecimal.ZERO);
-            line.setUnitPrice(lineCommand.getUnitPrice());
+            line.setUnitPrice(resolveUnitPrice(lineCommand.getUnitPrice(), customer.getId(),
+                    item.getId(), command.getDocDate()));
             lines.add(line);
         }
         order.setLines(lines);
@@ -243,6 +249,23 @@ public class SalesAppServiceImpl implements SalesAppService {
             throw ErpErrorCode.exception(ErpErrorCode.CREDIT_LIMIT_EXCEEDED,
                     "客户信用额度不足：额度 " + limit + "，已占用 " + outstanding);
         }
+    }
+
+    /**
+     * 单价为空时按客户售价兜底取价。
+     *
+     * @param unitPrice 显式单价
+     * @param customerId 客户主键
+     * @param itemId 物料主键
+     * @param docDate 单据日期
+     * @return 单价
+     */
+    private BigDecimal resolveUnitPrice(BigDecimal unitPrice, Long customerId, Long itemId, LocalDate docDate) {
+        if (unitPrice != null) {
+            return unitPrice;
+        }
+        PriceListView priceList = priceListAppService.resolve(PriceType.SALES, customerId, itemId, docDate);
+        return priceList.getPrice();
     }
 
     /**

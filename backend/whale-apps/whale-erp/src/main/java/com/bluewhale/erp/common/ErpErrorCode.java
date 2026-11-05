@@ -293,6 +293,9 @@ public final class ErpErrorCode {
     /** 销售报价单不存在 */
     public static final int SALES_QUOTATION_NOT_FOUND = 40438;
 
+    /** 价目表记录不存在或日期不匹配 */
+    public static final int PRICE_LIST_NOT_FOUND = 40440;
+
     /** 退货数量超过订单可退数量 */
     public static final int RETURN_QUANTITY_EXCEEDED = 40936;
 
@@ -301,6 +304,9 @@ public final class ErpErrorCode {
 
     /** 退货冲减额超过往来未核销余额 */
     public static final int RETURN_OFFSET_EXCEEDED = 40938;
+
+    /** 价目表同「类型 + 往来方 + 物料」已存在 */
+    public static final int PRICE_LIST_CONFLICT = 40940;
 
     /** 错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
@@ -399,7 +405,9 @@ public final class ErpErrorCode {
             Map.entry(SALES_QUOTATION_NOT_FOUND, "销售报价单不存在或无权访问"),
             Map.entry(RETURN_QUANTITY_EXCEEDED, "退货数量超过订单可退数量"),
             Map.entry(RETURN_STATE_CONFLICT, "退货单当前状态不允许该操作"),
-            Map.entry(RETURN_OFFSET_EXCEEDED, "退货冲减额超过往来未核销余额"));
+            Map.entry(RETURN_OFFSET_EXCEEDED, "退货冲减额超过往来未核销余额"),
+            Map.entry(PRICE_LIST_NOT_FOUND, "价目表无匹配记录或不在有效期内"),
+            Map.entry(PRICE_LIST_CONFLICT, "价目表同「类型 + 往来方 + 物料」已存在"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。

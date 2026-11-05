@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -61,8 +62,8 @@ public class SalesQuotationCreateCommand {
         @NotNull
         private BigDecimal quantity;
 
-        /** 报价单价 */
-        @NotNull
+        /** 报价单价（为空时按客户售价兜底取价） */
+        @Positive
         private BigDecimal unitPrice;
 
         /** 计量单位 */

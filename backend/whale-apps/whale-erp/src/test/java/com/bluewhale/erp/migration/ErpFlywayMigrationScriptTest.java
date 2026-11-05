@@ -300,6 +300,22 @@ class ErpFlywayMigrationScriptTest {
     }
 
     /**
+     * V11 价格表集合与租户内唯一键校验
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("V11 价格表集合与唯一键一致")
+    void priceListMigrationShouldCreateExpectedTables() throws IOException {
+        Set<String> priceListTables = extractTables(MIGRATION_DIR.resolve("V11__scm_price_list.sql"));
+        assertEquals(Set.of("erp_scm_price_list"), priceListTables, "V11 应创建 1 张价格表");
+        String content = Files.readString(MIGRATION_DIR.resolve("V11__scm_price_list.sql"),
+                StandardCharsets.UTF_8);
+        assertTrue(content.contains("uk_price_list"), "价格表按租户+类型+往来方+物料唯一");
+        assertFalse(content.toUpperCase().contains("FOREIGN KEY"), "价格表不得建立物理外键");
+    }
+
+    /**
      * 列出迁移脚本并按版本号升序返回
      *
      * @return 迁移脚本路径

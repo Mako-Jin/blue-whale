@@ -7,9 +7,12 @@ import com.bluewhale.erp.masterdata.domain.model.MasterDataStatus;
 import com.bluewhale.erp.masterdata.domain.repository.CustomerRepository;
 import com.bluewhale.erp.scm.application.command.SalesOrderCreateCommand;
 import com.bluewhale.erp.scm.application.command.SalesQuotationCreateCommand;
+import com.bluewhale.erp.scm.application.service.PriceListAppService;
 import com.bluewhale.erp.scm.application.service.SalesAppService;
+import com.bluewhale.erp.scm.application.view.PriceListView;
 import com.bluewhale.erp.scm.application.view.SalesOrderView;
 import com.bluewhale.erp.scm.application.view.SalesQuotationView;
+import com.bluewhale.erp.scm.domain.model.PriceType;
 import com.bluewhale.erp.scm.domain.model.SalesQuotation;
 import com.bluewhale.erp.scm.domain.model.SalesQuotationLine;
 import com.bluewhale.erp.scm.domain.model.ScmQuery;
@@ -30,6 +33,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -50,8 +54,10 @@ class SalesQuotationAppServiceImplTest {
 
     private final ItemCatalog itemCatalog = mock(ItemCatalog.class);
 
+    private final PriceListAppService priceListAppService = mock(PriceListAppService.class);
+
     private final SalesQuotationAppServiceImpl service = new SalesQuotationAppServiceImpl(
-            quotationRepository, salesAppService, customerRepository, itemCatalog);
+            quotationRepository, salesAppService, customerRepository, itemCatalog, priceListAppService);
 
     @Test
     @DisplayName("建单：生成草稿报价单并汇总金额")
@@ -69,6 +75,35 @@ class SalesQuotationAppServiceImplTest {
         assertEquals("物料A", view.getLines().get(0).getItemName());
         assertEquals(0, view.getTotalAmount().compareTo(new BigDecimal("50")));
         verify(quotationRepository).insert(any(SalesQuotation.class));
+    }
+
+    @Test
+    @DisplayName("建单：单价为空时按客户售价兜底取价")
+    void shouldResolveUnitPriceFromPriceList() {
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer()));
+        when(itemCatalog.findByCode("ERP-001")).thenReturn(Optional.of(item()));
+        when(quotationRepository.nextDocNo(LocalDate.of(2026, 11, 5))).thenReturn("SQ-20261105-0002");
+        when(priceListAppService.resolve(eq(PriceType.SALES), eq(1L), eq(3L), any()))
+                .thenReturn(priceView("12.5"));
+
+        SalesQuotationView view = service.create(commandWithoutPrice());
+
+        assertEquals(0, view.getLines().get(0).getUnitPrice().compareTo(new BigDecimal("12.5")));
+        assertEquals(0, view.getTotalAmount().compareTo(new BigDecimal("62.5")));
+        verify(quotationRepository).insert(any(SalesQuotation.class));
+    }
+
+    @Test
+    @DisplayName("建单：单价为空且价目缺失时拒绝")
+    void shouldRejectCreateWhenPriceMissing() {
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer()));
+        when(itemCatalog.findByCode("ERP-001")).thenReturn(Optional.of(item()));
+        when(priceListAppService.resolve(eq(PriceType.SALES), eq(1L), eq(3L), any()))
+                .thenThrow(ErpErrorCode.exception(ErpErrorCode.PRICE_LIST_NOT_FOUND));
+
+        BizException exception = assertThrows(BizException.class, () -> service.create(commandWithoutPrice()));
+
+        assertEquals(ErpErrorCode.PRICE_LIST_NOT_FOUND, exception.getCode());
     }
 
     @Test
@@ -179,6 +214,29 @@ class SalesQuotationAppServiceImplTest {
         line.setUom("个");
         command.setLines(List.of(line));
         return command;
+    }
+
+    /**
+     * 构造单价为空的创建命令。
+     *
+     * @return 命令
+     */
+    private SalesQuotationCreateCommand commandWithoutPrice() {
+        SalesQuotationCreateCommand command = command();
+        command.getLines().get(0).setUnitPrice(null);
+        return command;
+    }
+
+    /**
+     * 构造价目视图。
+     *
+     * @param price 单价
+     * @return 视图
+     */
+    private PriceListView priceView(String price) {
+        PriceListView view = new PriceListView();
+        view.setPrice(new BigDecimal(price));
+        return view;
     }
 
     /**

@@ -7,10 +7,13 @@ import com.bluewhale.erp.masterdata.domain.model.MasterDataStatus;
 import com.bluewhale.erp.masterdata.domain.repository.CustomerRepository;
 import com.bluewhale.erp.scm.application.command.SalesOrderCreateCommand;
 import com.bluewhale.erp.scm.application.command.SalesQuotationCreateCommand;
+import com.bluewhale.erp.scm.application.service.PriceListAppService;
 import com.bluewhale.erp.scm.application.service.SalesAppService;
 import com.bluewhale.erp.scm.application.service.SalesQuotationAppService;
+import com.bluewhale.erp.scm.application.view.PriceListView;
 import com.bluewhale.erp.scm.application.view.SalesOrderView;
 import com.bluewhale.erp.scm.application.view.SalesQuotationView;
+import com.bluewhale.erp.scm.domain.model.PriceType;
 import com.bluewhale.erp.scm.domain.model.SalesQuotation;
 import com.bluewhale.erp.scm.domain.model.SalesQuotationLine;
 import com.bluewhale.erp.scm.domain.model.ScmQuery;
@@ -23,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -49,6 +53,8 @@ public class SalesQuotationAppServiceImpl implements SalesQuotationAppService {
     private final CustomerRepository customerRepository;
 
     private final ItemCatalog itemCatalog;
+
+    private final PriceListAppService priceListAppService;
 
     @Override
     public PageResult<SalesQuotationView> page(ScmQuery query) {
@@ -88,7 +94,8 @@ public class SalesQuotationAppServiceImpl implements SalesQuotationAppService {
             line.setItemName(item.getName());
             line.setUom(lineCommand.getUom());
             line.setQuantity(lineCommand.getQuantity());
-            line.setUnitPrice(lineCommand.getUnitPrice());
+            line.setUnitPrice(resolveUnitPrice(lineCommand.getUnitPrice(), customer.getId(),
+                    item.getId(), command.getDocDate()));
             lines.add(line);
         }
         quotation.setLines(lines);
@@ -143,6 +150,23 @@ public class SalesQuotationAppServiceImpl implements SalesQuotationAppService {
         quotation.cancel();
         quotationRepository.update(quotation);
         return SalesQuotationView.of(quotation);
+    }
+
+    /**
+     * 单价为空时按客户售价兜底取价。
+     *
+     * @param unitPrice 显式单价
+     * @param customerId 客户主键
+     * @param itemId 物料主键
+     * @param docDate 单据日期
+     * @return 单价
+     */
+    private BigDecimal resolveUnitPrice(BigDecimal unitPrice, Long customerId, Long itemId, LocalDate docDate) {
+        if (unitPrice != null) {
+            return unitPrice;
+        }
+        PriceListView priceList = priceListAppService.resolve(PriceType.SALES, customerId, itemId, docDate);
+        return priceList.getPrice();
     }
 
     /**

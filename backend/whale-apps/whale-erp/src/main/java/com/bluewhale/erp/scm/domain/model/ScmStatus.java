@@ -40,6 +40,12 @@ public final class ScmStatus {
     /** 已过账（调拨、盘点执行完成） */
     public static final String POSTED = "POSTED";
 
+    /** 启用（价目表） */
+    public static final String ENABLED = "ENABLED";
+
+    /** 停用（价目表） */
+    public static final String DISABLED = "DISABLED";
+
     /** 入库 */
     public static final String IN = "IN";
 

@@ -11,8 +11,11 @@ import com.bluewhale.erp.masterdata.domain.model.MasterDataStatus;
 import com.bluewhale.erp.masterdata.domain.repository.WarehouseRepository;
 import com.bluewhale.erp.scm.application.command.PurchaseOrderCreateCommand;
 import com.bluewhale.erp.scm.application.command.ReceiveCommand;
+import com.bluewhale.erp.scm.application.service.PriceListAppService;
 import com.bluewhale.erp.scm.application.service.PurchaseAppService;
+import com.bluewhale.erp.scm.application.view.PriceListView;
 import com.bluewhale.erp.scm.application.view.PurchaseOrderView;
+import com.bluewhale.erp.scm.domain.model.PriceType;
 import com.bluewhale.erp.scm.domain.model.PurchaseOrder;
 import com.bluewhale.erp.scm.domain.model.PurchaseOrderLine;
 import com.bluewhale.erp.scm.domain.model.ScmQuery;
@@ -78,6 +81,8 @@ public class PurchaseAppServiceImpl implements PurchaseAppService {
 
     private final AutoVoucherAppService autoVoucherAppService;
 
+    private final PriceListAppService priceListAppService;
+
     @Override
     public PageResult<PurchaseOrderView> page(ScmQuery query) {
         List<PurchaseOrderView> records = purchaseOrderRepository.page(query).stream()
@@ -126,7 +131,8 @@ public class PurchaseAppServiceImpl implements PurchaseAppService {
             line.setUom(lineCommand.getUom());
             line.setQuantity(lineCommand.getQuantity());
             line.setReceivedQuantity(BigDecimal.ZERO);
-            line.setUnitPrice(lineCommand.getUnitPrice());
+            line.setUnitPrice(resolveUnitPrice(lineCommand.getUnitPrice(), supplier.getId(),
+                    item.getId(), command.getDocDate()));
             lines.add(line);
         }
         order.setLines(lines);
@@ -202,6 +208,23 @@ public class PurchaseAppServiceImpl implements PurchaseAppService {
         order.cancel();
         purchaseOrderRepository.update(order);
         return PurchaseOrderView.of(order);
+    }
+
+    /**
+     * 单价为空时按供应商采购价兜底取价。
+     *
+     * @param unitPrice 显式单价
+     * @param supplierId 供应商主键
+     * @param itemId 物料主键
+     * @param docDate 单据日期
+     * @return 单价
+     */
+    private BigDecimal resolveUnitPrice(BigDecimal unitPrice, Long supplierId, Long itemId, LocalDate docDate) {
+        if (unitPrice != null) {
+            return unitPrice;
+        }
+        PriceListView priceList = priceListAppService.resolve(PriceType.PURCHASE, supplierId, itemId, docDate);
+        return priceList.getPrice();
     }
 
     /**

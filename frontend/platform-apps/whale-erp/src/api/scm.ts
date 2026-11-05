@@ -640,3 +640,107 @@ export function convertSalesQuotation(id: number): Promise<SalesQuotationView> {
 export function cancelSalesQuotation(id: number): Promise<SalesQuotationView> {
   return http.post<SalesQuotationView>(`/erp/scm/sales-quotation/${id}/cancel`);
 }
+
+/** 价格类型：销售价 / 采购价 */
+export type PriceType = 'SALES' | 'PURCHASE';
+
+/** 价目记录 */
+export interface PriceListView {
+  id: number;
+  priceType: PriceType;
+  partnerId: number;
+  partnerName: string;
+  itemId: number;
+  itemCode: string;
+  itemName: string;
+  uom?: string;
+  price: number;
+  currency: string;
+  validFrom?: string;
+  validTo?: string;
+  status: string;
+  remark?: string;
+}
+
+/** 价目新增/编辑入参 */
+export interface PriceListInput {
+  priceType: PriceType;
+  partnerId: number;
+  itemId: number;
+  /** 物料编码：后端新建价目按编码校验并快照物料 */
+  itemCode?: string;
+  price: number;
+  currency?: string;
+  validFrom?: string;
+  validTo?: string;
+  remark?: string;
+}
+
+/** 价目分页查询参数 */
+export interface PriceListQuery {
+  priceType?: PriceType;
+  partnerId?: number;
+  itemId?: number;
+  keyword?: string;
+  status?: string;
+  pageNo?: number;
+  pageSize?: number;
+}
+
+/** 取价参数 */
+export interface PriceResolveQuery {
+  priceType: PriceType;
+  partnerId: number;
+  itemId: number;
+  date?: string;
+}
+
+/** 构造价目查询串（空值不下发，默认每页 20 条） */
+function buildPriceListQuery(params: PriceListQuery): string {
+  const search = new URLSearchParams();
+  if (params.priceType) search.set('priceType', params.priceType);
+  if (params.partnerId !== undefined) search.set('partnerId', String(params.partnerId));
+  if (params.itemId !== undefined) search.set('itemId', String(params.itemId));
+  if (params.keyword) search.set('keyword', params.keyword);
+  if (params.status) search.set('status', params.status);
+  search.set('current', String(params.pageNo ?? 1));
+  search.set('size', String(params.pageSize ?? 20));
+  return search.toString();
+}
+
+/** 价目表分页 */
+export function pagePriceLists(params: PriceListQuery = {}): Promise<PageResult<PriceListView>> {
+  return http.get<PageResult<PriceListView>>(
+    `/erp/scm/price-list/page?${buildPriceListQuery(params)}`,
+  );
+}
+
+/** 价目详情 */
+export function getPriceList(id: number): Promise<PriceListView> {
+  return http.get<PriceListView>(`/erp/scm/price-list/${id}`);
+}
+
+/** 新增价目 */
+export function createPriceList(input: PriceListInput): Promise<PriceListView> {
+  return http.post<PriceListView>('/erp/scm/price-list', input);
+}
+
+/** 编辑价目 */
+export function updatePriceList(id: number, input: PriceListInput): Promise<PriceListView> {
+  return http.put<PriceListView>(`/erp/scm/price-list/${id}`, input);
+}
+
+/** 启用/停用价目 */
+export function togglePriceList(id: number): Promise<PriceListView> {
+  return http.post<PriceListView>(`/erp/scm/price-list/${id}/toggle`);
+}
+
+/** 按类型 + 往来方 + 物料 + 日期取价 */
+export function resolvePriceList(params: PriceResolveQuery): Promise<PriceListView> {
+  const search = new URLSearchParams();
+  search.set('priceType', params.priceType);
+  search.set('partnerId', String(params.partnerId));
+  search.set('itemId', String(params.itemId));
+  if (params.date) search.set('date', params.date);
+  return http.get<PriceListView>(`/erp/scm/price-list/resolve?${search.toString()}`);
+}

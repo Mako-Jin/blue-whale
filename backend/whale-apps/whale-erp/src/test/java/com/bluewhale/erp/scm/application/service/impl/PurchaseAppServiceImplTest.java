@@ -9,7 +9,10 @@ import com.bluewhale.erp.masterdata.domain.model.Warehouse;
 import com.bluewhale.erp.masterdata.domain.repository.WarehouseRepository;
 import com.bluewhale.erp.scm.application.command.PurchaseOrderCreateCommand;
 import com.bluewhale.erp.scm.application.command.ReceiveCommand;
+import com.bluewhale.erp.scm.application.service.PriceListAppService;
+import com.bluewhale.erp.scm.application.view.PriceListView;
 import com.bluewhale.erp.scm.application.view.PurchaseOrderView;
+import com.bluewhale.erp.scm.domain.model.PriceType;
 import com.bluewhale.erp.scm.domain.model.PurchaseOrder;
 import com.bluewhale.erp.scm.domain.model.PurchaseOrderLine;
 import com.bluewhale.erp.scm.domain.model.ScmQuery;
@@ -32,6 +35,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -57,9 +61,11 @@ class PurchaseAppServiceImplTest {
 
     private final AutoVoucherAppService autoVoucherAppService = mock(AutoVoucherAppService.class);
 
+    private final PriceListAppService priceListAppService = mock(PriceListAppService.class);
+
     private final PurchaseAppServiceImpl service = new PurchaseAppServiceImpl(purchaseOrderRepository,
             supplierCatalog, itemCatalog, warehouseRepository, stockRepository, arApAppService,
-            autoVoucherAppService);
+            autoVoucherAppService, priceListAppService);
 
     @Test
     @DisplayName("新增采购订单：快照供应商与物料，状态为草稿")
@@ -77,6 +83,37 @@ class PurchaseAppServiceImplTest {
         assertEquals(new BigDecimal("20.00"), view.getTotalAmount());
         assertEquals("ERP-001", view.getLines().get(0).getItemCode());
         verify(purchaseOrderRepository).insert(any(PurchaseOrder.class));
+    }
+
+    @Test
+    @DisplayName("单价为空时按供应商采购价兜底取价")
+    void shouldResolveUnitPriceFromPriceList() {
+        when(supplierCatalog.findById(9001L)).thenReturn(Optional.of(supplier()));
+        when(itemCatalog.findByCode("ERP-001")).thenReturn(Optional.of(item()));
+        when(warehouseRepository.findById(7301L)).thenReturn(Optional.of(warehouse()));
+        when(purchaseOrderRepository.nextDocNo(LocalDate.of(2026, 11, 4))).thenReturn("PO-20261104-0001");
+        when(priceListAppService.resolve(eq(PriceType.PURCHASE), eq(9001L), eq(3L), any()))
+                .thenReturn(priceView("12.5"));
+
+        PurchaseOrderView view = service.create(commandWithoutPrice());
+
+        assertEquals(0, view.getLines().get(0).getUnitPrice().compareTo(new BigDecimal("12.5")));
+        assertEquals(0, view.getTotalAmount().compareTo(new BigDecimal("25")));
+        verify(purchaseOrderRepository).insert(any(PurchaseOrder.class));
+    }
+
+    @Test
+    @DisplayName("单价为空且价目缺失时拒绝建单")
+    void shouldRejectCreateWhenPriceMissing() {
+        when(supplierCatalog.findById(9001L)).thenReturn(Optional.of(supplier()));
+        when(itemCatalog.findByCode("ERP-001")).thenReturn(Optional.of(item()));
+        when(warehouseRepository.findById(7301L)).thenReturn(Optional.of(warehouse()));
+        when(priceListAppService.resolve(eq(PriceType.PURCHASE), eq(9001L), eq(3L), any()))
+                .thenThrow(ErpErrorCode.exception(ErpErrorCode.PRICE_LIST_NOT_FOUND));
+
+        BizException exception = assertThrows(BizException.class, () -> service.create(commandWithoutPrice()));
+
+        assertEquals(ErpErrorCode.PRICE_LIST_NOT_FOUND, exception.getCode());
     }
 
     @Test
@@ -156,6 +193,29 @@ class PurchaseAppServiceImplTest {
         line.setUnitPrice(new BigDecimal("10"));
         command.setLines(List.of(line));
         return command;
+    }
+
+    /**
+     * 构造单价为空的创建命令。
+     *
+     * @return 命令
+     */
+    private PurchaseOrderCreateCommand commandWithoutPrice() {
+        PurchaseOrderCreateCommand command = command();
+        command.getLines().get(0).setUnitPrice(null);
+        return command;
+    }
+
+    /**
+     * 构造价目视图。
+     *
+     * @param price 单价
+     * @return 视图
+     */
+    private PriceListView priceView(String price) {
+        PriceListView view = new PriceListView();
+        view.setPrice(new BigDecimal(price));
+        return view;
     }
 
     /**
