@@ -35,7 +35,7 @@
 - [x] **T4.2 检查报告 `docs/reviews/2026-11-05-wave5.80-pdm-m2.md`**。
 - [x] **T4.3 devlog / service-catalog / requirements register 同步**。
 - [x] **T4.4 后端测试全绿**：`mvn -pl backend/whale-apps/whale-pdm test`（110 tests / 0 failures）。
-- [ ] **T4.5 提交并推送**：`git commit --only -- <spec §六 路径>`；`git push origin HEAD`（执行中）。
+- [x] **T4.5 提交并推送**：`a42aadfd feat(pdm): Wave 5.80 M2-2 change request and approval flow`，已推送 `origin/main`。
 
 ---
 
