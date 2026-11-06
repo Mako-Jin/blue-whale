@@ -7,7 +7,11 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.pdm.dto.PdmProductQueryRequest;
 import com.bluewhale.pdm.dto.PdmProductSaveRequest;
+import com.bluewhale.pdm.part.dto.PdmPartMergeRequest;
 import com.bluewhale.pdm.part.service.PdmBomService;
+import com.bluewhale.pdm.part.service.PdmPartDedupService;
+import com.bluewhale.pdm.part.vo.PdmPartDedupGroupVO;
+import com.bluewhale.pdm.part.vo.PdmPartMergeResultVO;
 import com.bluewhale.pdm.part.vo.PdmPartWhereUsedVO;
 import com.bluewhale.pdm.service.PdmProductService;
 import com.bluewhale.pdm.vo.PdmProductVO;
@@ -44,6 +48,8 @@ public class PdmPartController {
 
     private final PdmBomService bomService;
 
+    private final PdmPartDedupService dedupService;
+
     /**
      * 分页查询零件
      *
@@ -78,6 +84,31 @@ public class PdmPartController {
     @RequirePermission("sys:pdm:part:list")
     public Result<List<PdmPartWhereUsedVO>> whereUsed(@PathVariable Long id) {
         return Result.ok(bomService.whereUsed(id));
+    }
+
+    /**
+     * 零件去重候选
+     *
+     * @return 归一化名称/材质/规格相同的候选组
+     */
+    @GetMapping("/dedup/candidates")
+    @RequirePermission("sys:pdm:part:dedup:list")
+    public Result<List<PdmPartDedupGroupVO>> dedupCandidates() {
+        return Result.ok(dedupService.listCandidates());
+    }
+
+    /**
+     * 人工合并零件（改写草稿 BOM 引用并停用源件）
+     *
+     * @param request 合并请求
+     * @return 合并结果
+     */
+    @PostMapping("/merge")
+    @RequirePermission("sys:pdm:part:merge")
+    @AuditLog(operation = "合并零件", type = OperateType.UPDATE, targetType = TARGET_TYPE,
+            targetId = "#request.sourceId")
+    public Result<PdmPartMergeResultVO> merge(@Valid @RequestBody PdmPartMergeRequest request) {
+        return Result.ok(dedupService.merge(request));
     }
 
     /**

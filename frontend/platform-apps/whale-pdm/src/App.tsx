@@ -5,6 +5,7 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from
 import DocumentCenter from './pages/document';
 import ProductCenter from './pages/ProductCenter';
 import PartLibrary from './pages/part';
+import PartDedup from './pages/part/dedup';
 import BomLibrary from './pages/bom';
 import ChangeCenter from './pages/change';
 import ChangeOrderCenter from './pages/change/order';
@@ -25,6 +26,7 @@ const MENU_ITEMS = [
   { key: '/document', label: '图文档中心', permission: 'sys:pdm:doc:list' },
   { key: '/product', label: '产品结构', permission: 'sys:pdm:product:list' },
   { key: '/part', label: '零件库', permission: 'sys:pdm:part:list' },
+  { key: '/part/dedup', label: '零件去重', permission: 'sys:pdm:part:dedup:list' },
   { key: '/bom', label: 'BOM 结构', permission: 'sys:pdm:bom:list' },
   { key: '/change', label: '变更管理', permission: 'sys:pdm:change:list' },
   { key: '/change/order', label: '变更单（ECO）', permission: 'sys:pdm:change:order:list' },
@@ -66,6 +68,7 @@ function PdmLayout() {
             <Route path="/document" element={<DocumentCenter />} />
             <Route path="/product" element={<ProductCenter />} />
             <Route path="/part" element={<PartLibrary />} />
+            <Route path="/part/dedup" element={<PartDedup />} />
             <Route path="/bom" element={<BomLibrary />} />
             <Route path="/change" element={<ChangeCenter />} />
             <Route path="/change/order" element={<ChangeOrderCenter />} />

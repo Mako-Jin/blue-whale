@@ -105,6 +105,19 @@ class PdmFlywayMigrationScriptTest {
     }
 
     /**
+     * M1B-4 合并迁移：源件 merged_to 字段与反查索引
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("V13 零件合并迁移包含 merged_to 与索引")
+    void partMergeMigrationShouldAddMergedToColumn() throws IOException {
+        String sql = Files.readString(MIGRATION_DIR.resolve("V13__part_merge.sql"), StandardCharsets.UTF_8);
+        assertTrue(sql.contains("merged_to"), "V13 必须新增 merged_to 列");
+        assertTrue(sql.contains("idx_product_merged_to"), "V13 必须新增合并目标索引");
+    }
+
+    /**
      * 列出迁移脚本并按版本号数值升序返回
      *
      * <p>不能按文件名字典序排序：{@code V10__} 会排在 {@code V1__} 之前。</p>

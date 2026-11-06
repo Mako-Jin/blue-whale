@@ -50,6 +50,9 @@ public class PdmProduct extends BaseEntity {
     /** 状态：ENABLED / DISABLED */
     private String status;
 
+    /** 合并目标零件ID（非空表示已被合并停用） */
+    private Long mergedTo;
+
     /** 备注 */
     private String remark;
 }

@@ -91,6 +91,47 @@ export interface PartWhereUsed {
   parentPartNo?: string;
 }
 
+/** 去重候选零件 */
+export interface PartDedupItem {
+  id: string;
+  code: string;
+  name: string;
+  partType: PartType;
+  material?: string;
+  spec?: string;
+  uom?: string;
+  sourceType: SourceType;
+  status: PartStatus;
+  erpItemCode?: string;
+  createTime?: string;
+}
+
+/** 去重候选组（归一化名称+材质+规格相同） */
+export interface PartDedupGroup {
+  dedupKey: string;
+  name: string;
+  material?: string;
+  spec?: string;
+  count: number;
+  parts: PartDedupItem[];
+}
+
+/** 零件合并入参 */
+export interface PartMergeInput {
+  sourceId: string;
+  targetId: string;
+  remark?: string;
+}
+
+/** 零件合并结果 */
+export interface PartMergeResult {
+  sourceId: string;
+  targetId: string;
+  rewrittenLines: number;
+  mergedLines: number;
+  skippedReleasedLines: number;
+}
+
 /** BOM 树节点 */
 export interface BomTreeNode {
   partId: string;
@@ -253,6 +294,16 @@ export function deletePart(id: string): Promise<void> {
 /** 零件使用处 */
 export function listWhereUsed(id: string): Promise<PartWhereUsed[]> {
   return http.get<PartWhereUsed[]>(`/pdm/part/${id}/where-used`);
+}
+
+/** 零件去重候选 */
+export function listDedupCandidates(): Promise<PartDedupGroup[]> {
+  return http.get<PartDedupGroup[]>('/pdm/part/dedup/candidates');
+}
+
+/** 人工合并零件（源件停用，草稿 BOM 引用改写） */
+export function mergeParts(input: PartMergeInput): Promise<PartMergeResult> {
+  return http.post<PartMergeResult>('/pdm/part/merge', input);
 }
 
 /** 物料分类树 */
