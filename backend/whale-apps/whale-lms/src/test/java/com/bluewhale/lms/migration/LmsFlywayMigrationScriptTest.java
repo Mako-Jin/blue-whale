@@ -177,6 +177,20 @@ class LmsFlywayMigrationScriptTest {
         assertTrue(tables.containsAll(expected), "缺少学分核心表：" + expected);
     }
 
+    @Test
+    @DisplayName("M5 覆盖员工快照与通知留痕两张表")
+    void integrationMigrationShouldCoverSnapshotAndNotifyTables() throws IOException {
+        Set<String> tables = new LinkedHashSet<>();
+        for (Path script : migrationScripts()) {
+            Matcher matcher = CREATE_TABLE.matcher(Files.readString(script, StandardCharsets.UTF_8));
+            while (matcher.find()) {
+                tables.add(matcher.group(1));
+            }
+        }
+        Set<String> expected = Stream.of("lr_member_snapshot", "lr_notify_log").collect(Collectors.toSet());
+        assertTrue(tables.containsAll(expected), "缺少集成核心表：" + expected);
+    }
+
     /**
      * 列出迁移脚本。
      *

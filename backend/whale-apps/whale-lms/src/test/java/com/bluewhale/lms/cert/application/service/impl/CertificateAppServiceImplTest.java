@@ -18,6 +18,7 @@ import com.bluewhale.lms.cert.domain.repository.CertificateRepository;
 import com.bluewhale.lms.common.LmsActor;
 import com.bluewhale.lms.common.LmsErrorCode;
 import com.bluewhale.lms.config.LmsProperties;
+import com.bluewhale.lms.integration.application.service.NotifyAppService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -68,6 +69,8 @@ class CertificateAppServiceImplTest {
 
     private CertificateIssueValidator issueValidator;
 
+    private NotifyAppService notifyAppService;
+
     private CertificateAppServiceImpl service;
 
     private LmsActor admin;
@@ -77,8 +80,9 @@ class CertificateAppServiceImplTest {
         certificateRepository = mock(CertificateRepository.class);
         certTemplateRepository = mock(CertTemplateRepository.class);
         issueValidator = mock(CertificateIssueValidator.class);
+        notifyAppService = mock(NotifyAppService.class);
         service = new CertificateAppServiceImpl(certificateRepository, certTemplateRepository,
-                issueValidator, new LmsProperties());
+                issueValidator, notifyAppService, new LmsProperties());
         admin = new LmsActor(OPERATOR_ID, "admin", Set.of("lms_admin"), Set.of());
         when(certificateRepository.save(any())).thenAnswer(invocation -> {
             Certificate saved = invocation.getArgument(0);

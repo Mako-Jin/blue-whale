@@ -14,6 +14,7 @@ import com.bluewhale.lms.course.domain.model.LearningProgress;
 import com.bluewhale.lms.course.domain.repository.CourseRepository;
 import com.bluewhale.lms.course.domain.repository.EnrollmentRepository;
 import com.bluewhale.lms.course.domain.repository.ProgressRepository;
+import com.bluewhale.lms.integration.application.service.NotifyAppService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +42,8 @@ public class LearningAppServiceImpl implements LearningAppService {
 
     private final ProgressRepository progressRepository;
 
+    private final NotifyAppService notifyAppService;
+
     private final LmsProperties properties;
 
     @Override
@@ -62,6 +65,10 @@ public class LearningAppServiceImpl implements LearningAppService {
             enrollmentRepository.save(created);
             return created;
         });
+        if (existing.isEmpty()) {
+            // 仅首次报名通知；重复报名（幂等返回既有记录）不再打扰
+            notifyAppService.notifyEnroll(courseId, course.getTitle(), userId);
+        }
         return withProgress(enrollment);
     }
 

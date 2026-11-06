@@ -10,7 +10,7 @@ import java.util.Map;
  * <p>段位约定：{@code 42xxx} 归 LMS；42000–42009 为门禁、身份与课程资源冲突
  * （跨租户一律按不存在处理），42010–42029 为培训计划（班级 / 场次 / 分配 / 签到），
  * 42030–42059 为题库 / 试卷 / 考试 / 判分，42060–42079 为证书与学分，
- * 42080 起留给后续上下文。</p>
+ * 42080–42089 为集成收口（员工快照 / 通知 / 催办），42090 起留给后续上下文。</p>
  *
  * @author BlueWhale
  */
@@ -193,6 +193,27 @@ public final class LmsErrorCode {
     /** 学分台账参数不合法（学员、学分、年度） */
     public static final int CREDIT_INVALID = 42075;
 
+    /** 员工快照不存在或无权访问 */
+    public static final int MEMBER_NOT_FOUND = 42080;
+
+    /** 员工目录同步失败（ERP 不可达或返回异常） */
+    public static final int MEMBER_SYNC_FAILED = 42081;
+
+    /** 员工快照参数不合法（员工编号、在职状态） */
+    public static final int MEMBER_INVALID = 42082;
+
+    /** 通知参数不合法（场景、接收人、幂等键） */
+    public static final int NOTIFY_INVALID = 42083;
+
+    /** 通知投递失败（消息服务不可达或返回失败） */
+    public static final int NOTIFY_FAILED = 42084;
+
+    /** 催办参数不合法（批次、阈值） */
+    public static final int URGE_INVALID = 42085;
+
+    /** 外部系统只读查询失败（OA 请假等） */
+    public static final int EXTERNAL_QUERY_FAILED = 42086;
+
     /** 错误码默认提示语表（List 级 switch 会顶到圈复杂度上限，统一走查表） */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(GATE_CLOSED, "需求门禁未通过，学习功能未开放"),
@@ -253,7 +274,14 @@ public final class LmsErrorCode {
             Map.entry(CREDIT_RULE_INVALID, "学分规则参数不合法"),
             Map.entry(CREDIT_RULE_DISABLED, "学分规则已停用"),
             Map.entry(CREDIT_RULE_MISSING, "未配置匹配的学分规则，无法记账"),
-            Map.entry(CREDIT_INVALID, "学分台账参数不合法"));
+            Map.entry(CREDIT_INVALID, "学分台账参数不合法"),
+            Map.entry(MEMBER_NOT_FOUND, "员工快照不存在或无权访问"),
+            Map.entry(MEMBER_SYNC_FAILED, "员工目录同步失败，请确认 ERP 可用后重试"),
+            Map.entry(MEMBER_INVALID, "员工快照参数不合法"),
+            Map.entry(NOTIFY_INVALID, "通知参数不合法"),
+            Map.entry(NOTIFY_FAILED, "通知投递失败"),
+            Map.entry(URGE_INVALID, "催办参数不合法"),
+            Map.entry(EXTERNAL_QUERY_FAILED, "外部系统查询失败，请稍后重试"));
 
     /**
      * 私有构造器：常量类，禁止实例化。

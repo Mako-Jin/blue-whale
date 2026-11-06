@@ -148,6 +148,15 @@ public final class LmsPermissions {
     /** 学分规则与台账维护 */
     public static final String CREDIT_MANAGE = "sys:lms:credit:manage";
 
+    /** 员工快照同步与查看 */
+    public static final String MEMBER_MANAGE = "sys:lms:member:manage";
+
+    /** 通知投递日志查看 */
+    public static final String NOTIFY_LIST = "sys:lms:notify:list";
+
+    /** 催办执行（手动触发与试跑） */
+    public static final String URGE_MANAGE = "sys:lms:urge:manage";
+
     /**
      * 私有构造器：常量类，禁止实例化。
      */

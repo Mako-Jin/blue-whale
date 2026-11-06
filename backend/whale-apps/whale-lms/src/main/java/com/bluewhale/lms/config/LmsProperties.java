@@ -61,4 +61,16 @@ public class LmsProperties {
 
     /** 证书编号取号冲突的最大重试次数 */
     private int certIssueRetry = 3;
+
+    /** 员工目录同步的单页条数（同时不得超过 ERP 内网契约上限 500） */
+    private int memberSyncPageSize = 100;
+
+    /** 员工快照与通知日志的单页上限 */
+    private int memberPageLimit = 100;
+
+    /** 通知日志单页上限 */
+    private int notifyPageLimit = 100;
+
+    /** 单轮催办的培训班数上限（避免一次跑太久拖住后续调度） */
+    private int urgeBatchSize = 200;
 }

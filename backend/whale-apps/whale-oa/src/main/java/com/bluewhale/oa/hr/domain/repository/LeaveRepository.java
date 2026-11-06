@@ -4,6 +4,7 @@ import com.bluewhale.oa.hr.domain.model.Leave;
 import com.bluewhale.oa.hr.domain.model.LeaveQuery;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -61,6 +62,20 @@ public interface LeaveRepository {
      */
     List<Leave> listOverlapping(String applicant, String leaveType, LocalDate startDate,
                                 LocalDate endDate, Long excludeId);
+
+    /**
+     * 按申请人批量查询已批准且与区间重叠的请假（内网只读契约用）。
+     *
+     * <p>只取 {@code APPROVED}：待审批的请假还没定，拿它做冲突提示会给出
+     * 「可能冲突」的噪声；已驳回/已撤销的也不占用时间。</p>
+     *
+     * @param applicantIds 申请人用户 ID 集合（空集直接返回空）
+     * @param from 区间起（含）
+     * @param to 区间止（含）
+     * @param limit 返回条数上限
+     * @return 请假列表
+     */
+    List<Leave> listApprovedOverlapping(Collection<Long> applicantIds, LocalDate from, LocalDate to, int limit);
 
     /**
      * 新增申请。

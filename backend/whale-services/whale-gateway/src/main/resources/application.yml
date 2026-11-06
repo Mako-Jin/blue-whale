@@ -360,6 +360,8 @@ whale:
         - /mes/internal/**
         # Wave 5.80 M5 ERP 物料同步内网通道：仅 PDM 经内网直连 whale-erp
         - /erp/internal/**
+        # Wave 5.87 M5 学习域请假冲突只读通道：仅 LMS 经内网直连 whale-oa
+        - /oa/internal/**
 
 management:
   endpoints:

@@ -4,6 +4,7 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.lms.common.LmsActor;
 import com.bluewhale.lms.common.LmsErrorCode;
 import com.bluewhale.lms.config.LmsProperties;
+import com.bluewhale.lms.integration.application.service.NotifyAppService;
 import com.bluewhale.lms.course.application.command.ProgressReportCommand;
 import com.bluewhale.lms.course.application.view.EnrollmentView;
 import com.bluewhale.lms.course.domain.model.Course;
@@ -45,6 +46,8 @@ class LearningAppServiceImplTest {
 
     private ProgressRepository progressRepository;
 
+    private NotifyAppService notifyAppService;
+
     private LmsProperties properties;
 
     private LearningAppServiceImpl service;
@@ -57,7 +60,9 @@ class LearningAppServiceImplTest {
         enrollmentRepository = mock(EnrollmentRepository.class);
         progressRepository = mock(ProgressRepository.class);
         properties = new LmsProperties();
-        service = new LearningAppServiceImpl(courseRepository, enrollmentRepository, progressRepository, properties);
+        notifyAppService = mock(NotifyAppService.class);
+        service = new LearningAppServiceImpl(courseRepository, enrollmentRepository, progressRepository,
+                notifyAppService, properties);
     }
 
     @Test

@@ -6,7 +6,8 @@
 // M3-2 范围：考试（时间窗/乱序）+ 作答 + 交卷判分 + 人工判分 + 成绩版本（REQ-FUNC-089）。
 // M4-1 范围：证书模板 + 发证 / 撤销 / 换发 + 我的证书（REQ-FUNC-090）。
 // M4-2 范围：学分规则 + 记账 + 台账 + 年度汇总（REQ-FUNC-090）。
-// 集成与看板（M5–M6）路由后续波次增量注册。
+// M5 范围：员工只读快照 / 通知投递日志 / 未完成必修催办与请假冲突（REQ-FUNC-090）。
+// 看板（M6）路由后续波次增量注册。
 
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import LmsLayout from './layout/LmsLayout';
@@ -18,6 +19,7 @@ import CreditPage from './pages/CreditPage';
 import ExamAttemptPage from './pages/ExamAttemptPage';
 import ExamListPage from './pages/ExamListPage';
 import GradePage from './pages/GradePage';
+import IntegrationPage from './pages/IntegrationPage';
 import MyCertificatePage from './pages/MyCertificatePage';
 import MyCreditPage from './pages/MyCreditPage';
 import MyExamPage from './pages/MyExamPage';
@@ -50,6 +52,7 @@ export default function App() {
           <Route path="my-cert" element={<MyCertificatePage />} />
           <Route path="credit" element={<CreditPage />} />
           <Route path="my-credit" element={<MyCreditPage />} />
+          <Route path="integration" element={<IntegrationPage />} />
           <Route path="my" element={<MyLearningPage />} />
           <Route path="*" element={<Navigate to="/course" replace />} />
         </Route>

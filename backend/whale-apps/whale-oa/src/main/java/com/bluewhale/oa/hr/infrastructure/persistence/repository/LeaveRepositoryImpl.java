@@ -14,6 +14,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -75,6 +76,22 @@ public class LeaveRepositoryImpl implements LeaveRepository {
             wrapper.ne(LeaveEntity::getId, excludeId);
         }
         return leaveMapper.selectList(wrapper).stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public List<Leave> listApprovedOverlapping(Collection<Long> applicantIds, LocalDate from,
+                                               LocalDate to, int limit) {
+        if (applicantIds == null || applicantIds.isEmpty() || from == null || to == null) {
+            return List.of();
+        }
+        return leaveMapper.selectList(new LambdaQueryWrapper<LeaveEntity>()
+                        .in(LeaveEntity::getApplicantId, applicantIds)
+                        .eq(LeaveEntity::getStatus, LeaveStatus.APPROVED.name())
+                        .le(LeaveEntity::getStartDate, to)
+                        .ge(LeaveEntity::getEndDate, from)
+                        .orderByAsc(LeaveEntity::getStartDate)
+                        .last("LIMIT " + Math.min(Math.max(limit, 1), MAX_PAGE_SIZE)))
+                .stream().map(this::toDomain).toList();
     }
 
     @Override

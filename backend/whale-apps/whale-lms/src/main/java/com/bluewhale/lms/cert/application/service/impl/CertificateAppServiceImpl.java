@@ -17,6 +17,7 @@ import com.bluewhale.lms.cert.domain.repository.CertificateRepository;
 import com.bluewhale.lms.common.LmsActor;
 import com.bluewhale.lms.common.LmsErrorCode;
 import com.bluewhale.lms.config.LmsProperties;
+import com.bluewhale.lms.integration.application.service.NotifyAppService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -58,6 +59,8 @@ public class CertificateAppServiceImpl implements CertificateAppService {
 
     private final CertificateIssueValidator issueValidator;
 
+    private final NotifyAppService notifyAppService;
+
     private final LmsProperties properties;
 
     @Override
@@ -97,7 +100,9 @@ public class CertificateAppServiceImpl implements CertificateAppService {
         }
         Certificate certificate = buildCertificate(template, userId, command.getUsername(), source,
                 sourceId, command.getSourceTitle(), Certificate.NO_RENEW_SOURCE, command.getRemark(), now);
-        return persistWithSeq(certificate, template);
+        Long issuedId = persistWithSeq(certificate, template);
+        notifyAppService.notifyCertIssue(issuedId, certificate.getCertNo(), template.getName(), userId);
+        return issuedId;
     }
 
     @Override
@@ -125,6 +130,7 @@ public class CertificateAppServiceImpl implements CertificateAppService {
         Long newId = persistWithSeq(renewed, template);
         old.markRenewed();
         certificateRepository.save(old);
+        notifyAppService.notifyCertIssue(newId, renewed.getCertNo(), template.getName(), old.getUserId());
         return newId;
     }
 
