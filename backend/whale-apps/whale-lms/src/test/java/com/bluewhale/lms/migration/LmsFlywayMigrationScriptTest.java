@@ -119,14 +119,28 @@ class LmsFlywayMigrationScriptTest {
         assertTrue(tables.containsAll(expected), "缺少培训核心表：" + expected);
     }
 
+    @Test
+    @DisplayName("M3-1 覆盖题库与试卷四张表")
+    void examMigrationShouldCoverQuestionBankTables() throws IOException {
+        Set<String> tables = new LinkedHashSet<>();
+        for (Path script : migrationScripts()) {
+            Matcher matcher = CREATE_TABLE.matcher(Files.readString(script, StandardCharsets.UTF_8));
+            while (matcher.find()) {
+                tables.add(matcher.group(1));
+            }
+        }
+        Set<String> expected = Stream.of("lr_question", "lr_question_option",
+                "lr_paper", "lr_paper_question").collect(Collectors.toSet());
+        assertTrue(tables.containsAll(expected), "缺少题库 / 试卷核心表：" + expected);
+    }
+
     /**
      * 列出迁移脚本。
      *
      * @return 脚本路径列表
      * @throws IOException 目录不可读
      */
-    private List<Path> migrationScripts() throws IOException {
-        try (Stream<Path> files = Files.list(MIGRATION_DIR)) {
+    private List<Path> migrationScripts() throws IOException {        try (Stream<Path> files = Files.list(MIGRATION_DIR)) {
             return files.filter(file -> file.getFileName().toString().endsWith(".sql")).sorted().toList();
         }
     }

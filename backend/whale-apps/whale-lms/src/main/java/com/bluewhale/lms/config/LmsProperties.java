@@ -37,4 +37,13 @@ public class LmsProperties {
 
     /** 单次必修分配的人数上限 */
     private int assignBatchLimit = 500;
+
+    /** 题库单页上限 */
+    private int questionPageLimit = 100;
+
+    /** 试卷单页上限 */
+    private int paperPageLimit = 100;
+
+    /** 单份试卷题目数上限 */
+    private int paperQuestionLimit = 200;
 }

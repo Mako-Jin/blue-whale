@@ -1,16 +1,18 @@
-// 学习子应用布局：顶部导航（课程管理 / 培训计划 / 我的学习）+ 内容区。
+// 学习子应用布局：顶部导航（课程管理 / 培训计划 / 题库 / 试卷 / 我的学习）+ 内容区。
 //
-// M1 提供课程域界面，M2 增培训计划；考试 / 证书导航项随后续波次增量注册。
+// M1 提供课程域界面，M2 增培训计划，M3-1 增题库与试卷；考试 / 证书导航项随后续波次增量注册。
 
 import { Layout, Menu, Typography } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 const { Header, Content } = Layout;
 
-/** 导航项（与基座菜单 /lms/course、/lms/training、/lms/my 对齐） */
+/** 导航项（与基座菜单 /lms/course、/lms/training、/lms/question、/lms/paper、/lms/my 对齐） */
 const NAV_ITEMS = [
   { key: '/course', label: '课程管理' },
   { key: '/training', label: '培训计划' },
+  { key: '/question', label: '题库' },
+  { key: '/paper', label: '试卷' },
   { key: '/my', label: '我的学习' },
 ];
 

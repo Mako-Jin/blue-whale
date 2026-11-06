@@ -9,7 +9,7 @@ import java.util.Map;
  *
  * <p>段位约定：{@code 42xxx} 归 LMS；42000–42009 为门禁、身份与课程资源冲突
  * （跨租户一律按不存在处理），42010–42029 为培训计划（班级 / 场次 / 分配 / 签到），
- * 42030 起为考试、证书与后续上下文。</p>
+ * 42030–42059 为题库 / 试卷 / 考试 / 判分，42060 起留给证书与后续上下文。</p>
  *
  * @author BlueWhale
  */
@@ -78,6 +78,36 @@ public final class LmsErrorCode {
     /** 分配人数超出计划人数 */
     public static final int TRAINING_CAPACITY_EXCEEDED = 42020;
 
+    /** 题目不存在或无权访问 */
+    public static final int QUESTION_NOT_FOUND = 42030;
+
+    /** 题目编码已存在 */
+    public static final int QUESTION_CODE_CONFLICT = 42031;
+
+    /** 题目内容不合法（题干 / 选项 / 答案 / 分值） */
+    public static final int QUESTION_INVALID = 42032;
+
+    /** 题目状态不允许该操作（停用不可编辑、已被试卷引用不可删） */
+    public static final int QUESTION_STATE_CONFLICT = 42033;
+
+    /** 试卷不存在或无权访问 */
+    public static final int PAPER_NOT_FOUND = 42034;
+
+    /** 试卷编码已存在 */
+    public static final int PAPER_CODE_CONFLICT = 42035;
+
+    /** 试卷状态不允许该操作（发布冻结 / 非草稿不可改题） */
+    public static final int PAPER_STATE_CONFLICT = 42036;
+
+    /** 试卷参数不合法（名称 / 时长 / 及格分） */
+    public static final int PAPER_INVALID = 42037;
+
+    /** 抽题规则不合法 */
+    public static final int PAPER_RULE_INVALID = 42038;
+
+    /** 抽题候选不足（不静默补齐，直接失败） */
+    public static final int PAPER_RULE_INSUFFICIENT = 42039;
+
     /** 错误码默认提示语表（List 级 switch 会顶到圈复杂度上限，统一走查表） */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(GATE_CLOSED, "需求门禁未通过，学习功能未开放"),
@@ -100,7 +130,17 @@ public final class LmsErrorCode {
             Map.entry(CHECKIN_WINDOW_CLOSED, "当前不在签到时间窗内"),
             Map.entry(CHECKIN_NOT_ASSIGNED, "未分配该培训班，不可签到"),
             Map.entry(CHECKIN_REMARK_REQUIRED, "补签必须记录操作人与备注"),
-            Map.entry(TRAINING_CAPACITY_EXCEEDED, "分配人数超出计划人数"));
+            Map.entry(TRAINING_CAPACITY_EXCEEDED, "分配人数超出计划人数"),
+            Map.entry(QUESTION_NOT_FOUND, "题目不存在或无权访问"),
+            Map.entry(QUESTION_CODE_CONFLICT, "题目编码已存在"),
+            Map.entry(QUESTION_INVALID, "题目内容不合法"),
+            Map.entry(QUESTION_STATE_CONFLICT, "题目状态不允许该操作"),
+            Map.entry(PAPER_NOT_FOUND, "试卷不存在或无权访问"),
+            Map.entry(PAPER_CODE_CONFLICT, "试卷编码已存在"),
+            Map.entry(PAPER_STATE_CONFLICT, "试卷状态不允许该操作"),
+            Map.entry(PAPER_INVALID, "试卷参数不合法"),
+            Map.entry(PAPER_RULE_INVALID, "抽题规则不合法"),
+            Map.entry(PAPER_RULE_INSUFFICIENT, "抽题候选不足，请放宽条件或减少题量"));
 
     /**
      * 私有构造器：常量类，禁止实例化。

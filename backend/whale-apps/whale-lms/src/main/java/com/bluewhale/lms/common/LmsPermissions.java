@@ -73,6 +73,33 @@ public final class LmsPermissions {
     /** 完成认定（签到 + 课程进度） */
     public static final String TRAINING_COMPLETION = "sys:lms:training:completion";
 
+    /** 题库列表 / 详情 */
+    public static final String QUESTION_LIST = "sys:lms:question:list";
+
+    /** 新建题目 */
+    public static final String QUESTION_CREATE = "sys:lms:question:create";
+
+    /** 编辑题目 / 启用停用 */
+    public static final String QUESTION_UPDATE = "sys:lms:question:update";
+
+    /** 删除题目 */
+    public static final String QUESTION_DELETE = "sys:lms:question:delete";
+
+    /** 试卷列表 / 详情 */
+    public static final String PAPER_LIST = "sys:lms:paper:list";
+
+    /** 新建试卷 */
+    public static final String PAPER_CREATE = "sys:lms:paper:create";
+
+    /** 编辑试卷 / 增删题目 / 规则抽题 */
+    public static final String PAPER_UPDATE = "sys:lms:paper:update";
+
+    /** 删除试卷 */
+    public static final String PAPER_DELETE = "sys:lms:paper:delete";
+
+    /** 试卷发布 / 归档 */
+    public static final String PAPER_PUBLISH = "sys:lms:paper:publish";
+
     /**
      * 私有构造器：常量类，禁止实例化。
      */
