@@ -61,6 +61,11 @@ CREATE DATABASE IF NOT EXISTS bluewhale_mail
   DEFAULT CHARACTER SET utf8mb4
   DEFAULT COLLATE utf8mb4_unicode_ci;
 
+-- ---- 地图服务（Wave 5.91 M0：业务打点/解析缓存/供应商配额） ----
+CREATE DATABASE IF NOT EXISTS bluewhale_map
+  DEFAULT CHARACTER SET utf8mb4
+  DEFAULT COLLATE utf8mb4_unicode_ci;
+
 -- ---- AGENT ----
 CREATE DATABASE IF NOT EXISTS bluewhale_agent
   DEFAULT CHARACTER SET utf8mb4

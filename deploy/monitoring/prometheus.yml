@@ -70,6 +70,11 @@ scrape_configs:
     metrics_path: /actuator/prometheus
     static_configs:
       - targets: ['127.0.0.1:8099']
+  # Wave 5.91 地图服务（M0）：地址解析/打点/配额
+  - job_name: whale-map
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['127.0.0.1:8100']
   # Wave 5.74 在线文档 / Wiki 服务（M5 上线硬化）
   - job_name: whale-doc
     metrics_path: /actuator/prometheus
