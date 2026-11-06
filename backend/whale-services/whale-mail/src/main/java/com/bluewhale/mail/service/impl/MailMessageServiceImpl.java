@@ -30,7 +30,6 @@ import com.bluewhale.mail.vo.MailMessageVO;
 import com.bluewhale.mail.vo.MailUnreadVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -137,20 +136,23 @@ public class MailMessageServiceImpl implements MailMessageService {
     public MailMessageVO detail(Long id, Long userId) {
         MailMessage message = requireMessage(id, userId);
         MailAccount account = accountService.requireOwned(message.getAccountId(), userId);
-        MailFolder folder = message.getFolderId() == null ? null : folderMapper.selectById(message.getFolderId());
-        if (needsBody(message) && folder != null) {
-            message = hydrateBody(message, account, folder);
+        // 展示位置与真实位置要分开取：规则归类或移入回收站之后，folderId 已经不是
+        // 邮件在服务器上的所在文件夹了；拿它去回源，会按「目标文件夹里同一 UID」取到另一封邮件。
+        MailFolder displayFolder = message.getFolderId() == null ? null : folderMapper.selectById(message.getFolderId());
+        MailFolder imapFolder = imapFolder(message);
+        if (needsBody(message) && imapFolder != null) {
+            message = hydrateBody(message, account, imapFolder);
         }
         // 附件与正文同样按需登记：首次打开详情才连 IMAP 取附件并写入文件服务，
         // 已有登记直接复用，重复打开不会产生额外下载与存储
-        List<MailAttachment> attachmentEntities = folder == null
+        List<MailAttachment> attachmentEntities = imapFolder == null
                 ? attachmentMapper.selectList(new LambdaQueryWrapper<MailAttachment>()
                         .eq(MailAttachment::getMessageId, message.getId()))
-                : attachmentService.ensureIngested(message, account, folder);
+                : attachmentService.ensureIngested(message, account, imapFolder);
         List<MailAttachmentVO> attachments = attachmentEntities.stream()
                 .map(MailMessageServiceImpl::toAttachmentVo)
                 .toList();
-        MailMessageVO vo = toVo(message, folder == null ? null : folder.getFolderCode(), attachments);
+        MailMessageVO vo = toVo(message, displayFolder == null ? null : displayFolder.getFolderCode(), attachments);
         // 退信通知在阅读区单独提示：DSN 正文是一段机器可读的 multipart/report，
         // 对用户几乎没有可读性，把关键信息（收件人/状态码/远端应答）结构化展示才有用
         vo.setBounces(deliveryReportService.listByNotify(message.getId()));
@@ -188,11 +190,9 @@ public class MailMessageServiceImpl implements MailMessageService {
         }
         Long originFolderId = message.getFolderId();
         message.setFolderId(trash.getId());
-        try {
-            messageMapper.updateById(message);
-        } catch (DuplicateKeyException e) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "回收站中已存在同一封邮件");
-        }
+        // 只改归类位置，不动 imapFolderId：邮件在服务器上仍在原文件夹，
+        // 正文与附件还得按原位置回源。唯一键跟着 imap_folder_id 走，因此这里不会撞键。
+        messageMapper.updateById(message);
         folderService.refreshCounters(originFolderId);
         folderService.refreshCounters(trash.getId());
         // 文件夹变了要重写索引，否则「在当前文件夹里搜」会把已经移走的邮件漏掉
@@ -386,6 +386,20 @@ public class MailMessageServiceImpl implements MailMessageService {
         }
         accountService.requireOwned(message.getAccountId(), userId);
         return message;
+    }
+
+    /**
+     * 取邮件实际所在的 IMAP 文件夹
+     *
+     * <p>老的同步记录可能没有 {@code imapFolderId}（迁移前写入），此时回落到 {@code folderId}：
+     * 那种记录从未被规则归类过，两者本来就相等。</p>
+     *
+     * @param message 邮件
+     * @return 文件夹实体；无法确定返回 {@code null}
+     */
+    private MailFolder imapFolder(MailMessage message) {
+        Long folderId = message.getImapFolderId() == null ? message.getFolderId() : message.getImapFolderId();
+        return folderId == null ? null : folderMapper.selectById(folderId);
     }
 
     /**

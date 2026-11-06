@@ -17,6 +17,7 @@ import {
   Space,
   Switch,
   Table,
+  Tabs,
   Tag,
   Typography,
   message as toast,
@@ -33,6 +34,7 @@ import {
   type MailAccount,
   type MailAccountSaveCommand,
 } from '../api/mail';
+import RulePanel from '../components/RulePanel';
 
 /** 账号表单值 */
 type AccountFormValues = MailAccountSaveCommand;
@@ -208,38 +210,49 @@ export default function AccountPage() {
 
   return (
     <div style={{ width: '100%', overflow: 'auto' }}>
-      <Card
-        title="邮箱账号"
-        extra={
-          <Button type="primary" onClick={() => openForm()}>
-            绑定账号
-          </Button>
-        }
-        style={{ borderRadius: 8 }}
-      >
-        <Alert
-          type="info"
-          showIcon
-          style={{ marginBottom: 16 }}
-          message="凭据只存「引用键」，不存密码"
-          description={
-            <span>
-              例如填 <Typography.Text code>mail.credential.zhangsan</Typography.Text>，
-              其值由部署侧注入到环境变量或配置中心。填错会导致同步与发信报「凭据解析失败」，
-              而不是静默用空密码连接。
-            </span>
-          }
-        />
-        <Table<MailAccount>
-          rowKey="id"
-          size="middle"
-          loading={loading}
-          columns={columns}
-          dataSource={rows}
-          pagination={false}
-          locale={{ emptyText: '还没有绑定邮箱账号' }}
-        />
-      </Card>
+      <Tabs
+        items={[
+          {
+            key: 'account',
+            label: '邮箱账号',
+            children: (
+              <Card
+                title="邮箱账号"
+                extra={
+                  <Button type="primary" onClick={() => openForm()}>
+                    绑定账号
+                  </Button>
+                }
+                style={{ borderRadius: 8 }}
+              >
+                <Alert
+                  type="info"
+                  showIcon
+                  style={{ marginBottom: 16 }}
+                  message="凭据只存「引用键」，不存密码"
+                  description={
+                    <span>
+                      例如填 <Typography.Text code>mail.credential.zhangsan</Typography.Text>，
+                      其值由部署侧注入到环境变量或配置中心。填错会导致同步与发信报「凭据解析失败」，
+                      而不是静默用空密码连接。
+                    </span>
+                  }
+                />
+                <Table<MailAccount>
+                  rowKey="id"
+                  size="middle"
+                  loading={loading}
+                  columns={columns}
+                  dataSource={rows}
+                  pagination={false}
+                  locale={{ emptyText: '还没有绑定邮箱账号' }}
+                />
+              </Card>
+            ),
+          },
+          { key: 'rule', label: '收信规则', children: <RulePanel /> },
+        ]}
+      />
 
       <Modal
         open={open}

@@ -51,6 +51,9 @@ public class MailProperties {
     /** 全文检索参数 */
     private Search search = new Search();
 
+    /** 收信规则参数 */
+    private Rule rule = new Rule();
+
     /** 文件服务集成参数 */
     private FileClient file = new FileClient();
 
@@ -118,6 +121,22 @@ public class MailProperties {
          * 这里只做配置声明，实际节奏由 {@code @Scheduled} 的同名占位符控制。</p>
          */
         private long commitIntervalMillis = 30_000L;
+    }
+
+    /**
+     * 收信规则参数。
+     *
+     * <p>规则在同步落库时逐封套用，正常收信链路没有额外 IO（规则每轮只查一次）。
+     * 回填历史才是一次性批量，所以上限单独设。</p>
+     */
+    @Data
+    public static class Rule {
+
+        /** 单次回填扫描的收件箱邮件上限（按收信时间倒序，超出的下次再跑） */
+        private int backfillLimit = 500;
+
+        /** 单账号规则条数上限：规则是逐封线性匹配，条数直接乘在同步耗时上 */
+        private int maxRulesPerAccount = 50;
     }
 
     /**

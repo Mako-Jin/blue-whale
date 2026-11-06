@@ -25,8 +25,11 @@ public class MailMessage extends BaseEntity {
     /** 所属邮箱账号ID */
     private Long accountId;
 
-    /** 所属文件夹ID */
+    /** 展示/归类所在文件夹ID（规则与移入回收站会改写它，不代表邮件在服务器上的真实位置） */
     private Long folderId;
+
+    /** 实际所在的 IMAP 文件夹ID（回源锚点：正文、附件、标记都只能按它取） */
+    private Long imapFolderId;
 
     /** IMAP UID（文件夹内唯一） */
     private Long uid;

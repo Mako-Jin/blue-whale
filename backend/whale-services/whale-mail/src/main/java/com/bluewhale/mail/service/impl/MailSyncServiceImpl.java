@@ -5,12 +5,14 @@ import com.bluewhale.mail.config.MailProperties;
 import com.bluewhale.mail.entity.MailAccount;
 import com.bluewhale.mail.entity.MailFolder;
 import com.bluewhale.mail.entity.MailMessage;
+import com.bluewhale.mail.entity.MailRule;
 import com.bluewhale.mail.mapper.MailAccountMapper;
 import com.bluewhale.mail.mapper.MailFolderMapper;
 import com.bluewhale.mail.mapper.MailMessageMapper;
 import com.bluewhale.mail.service.MailAccountService;
 import com.bluewhale.mail.service.MailDeliveryReportService;
 import com.bluewhale.mail.service.MailFolderService;
+import com.bluewhale.mail.service.MailRuleService;
 import com.bluewhale.mail.service.MailSearchService;
 import com.bluewhale.mail.service.MailSyncService;
 import com.bluewhale.mail.support.FetchedMail;
@@ -23,9 +25,11 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * 收信同步服务实现。
@@ -49,6 +53,12 @@ public class MailSyncServiceImpl implements MailSyncService {
     /** 系统文件夹类型 */
     private static final String FOLDER_TYPE_SYSTEM = "SYSTEM";
 
+    /** 收件箱编码（规则只作用于新到收件箱的邮件） */
+    private static final String FOLDER_INBOX = "INBOX";
+
+    /** 含附件的顶层 MIME 类型启发（真实结构打开详情时才解析） */
+    private static final String MIME_MIXED = "multipart/mixed";
+
     private final MailAccountMapper accountMapper;
 
     private final MailFolderMapper folderMapper;
@@ -64,6 +74,8 @@ public class MailSyncServiceImpl implements MailSyncService {
     private final MailSearchService searchService;
 
     private final MailDeliveryReportService deliveryReportService;
+
+    private final MailRuleService ruleService;
 
     private final MailProperties properties;
 
@@ -141,6 +153,8 @@ public class MailSyncServiceImpl implements MailSyncService {
                 .orderByAsc(MailFolder::getSortNo));
         int added = 0;
         int customBudget = properties.getSync().getMaxCustomFolders();
+        // 规则每轮只查一次：逐封查规则会让一轮几百封的同步变成几百次 SQL
+        List<MailRule> inboxRules = ruleService.loadEnabled(account.getId());
         for (MailFolder folder : folders) {
             boolean custom = !FOLDER_TYPE_SYSTEM.equals(folder.getFolderType());
             if (custom) {
@@ -159,7 +173,7 @@ public class MailSyncServiceImpl implements MailSyncService {
                         account.getId(), folder.getFolderCode(), e.getMessage());
                 continue;
             }
-            added += persist(account, folder, result);
+            added += persist(account, folder, result, inboxRules);
         }
         account.setLastSyncTime(LocalDateTime.now());
         accountMapper.updateById(account);
@@ -193,9 +207,10 @@ public class MailSyncServiceImpl implements MailSyncService {
      * @param account 账号
      * @param folder 文件夹
      * @param result 拉取结果
+     * @param inboxRules 启用中的收信规则（只有收件箱用得上）
      * @return 新增邮件数
      */
-    private int persist(MailAccount account, MailFolder folder, FetchResult result) {
+    private int persist(MailAccount account, MailFolder folder, FetchResult result, List<MailRule> inboxRules) {
         long uidValidity = result.uidValidity();
         if (uidValidity > 0 && folder.getUidValidity() != null && folder.getUidValidity() != uidValidity) {
             // UIDVALIDITY 变化意味着服务器侧 UID 空间已重建，旧位点不可信。
@@ -205,6 +220,8 @@ public class MailSyncServiceImpl implements MailSyncService {
             folder.setLastUid(0L);
         }
         long maxUid = folder.getLastUid() == null ? 0L : folder.getLastUid();
+        boolean applyRules = FOLDER_INBOX.equals(folder.getFolderCode()) && !inboxRules.isEmpty();
+        Set<Long> ruleTargets = new LinkedHashSet<>();
         int added = 0;
         for (FetchedMail mail : result.mails()) {
             maxUid = Math.max(maxUid, mail.uid());
@@ -218,6 +235,15 @@ public class MailSyncServiceImpl implements MailSyncService {
                 continue;
             }
             MailMessage entity = toEntity(account, folder, mail);
+            // 规则在建索引之前套用：先归类再写索引，索引里记的就是最终位置，
+            // 不会出现「索引说在收件箱、库里已经在归档夹」这种需要重建才能好的一致性问题
+            if (applyRules) {
+                MailRule hit = ruleService.match(inboxRules, entity);
+                if (hit != null) {
+                    ruleService.recordHit(hit);
+                    ruleTargets.add(entity.getFolderId());
+                }
+            }
             messageMapper.insert(entity);
             // 同步入口也是检索索引的写入口：Lucene 引擎下不写这里，新邮件就搜不到
             searchService.index(entity);
@@ -230,21 +256,30 @@ public class MailSyncServiceImpl implements MailSyncService {
         }
         folderMapper.updateById(folder);
         folderService.refreshCounters(folder.getId());
+        for (Long targetId : ruleTargets) {
+            if (!Objects.equals(targetId, folder.getId())) {
+                folderService.refreshCounters(targetId);
+            }
+        }
         return added;
     }
 
     /**
      * 按 UID 查已有索引
      *
+     * <p>锚点是 {@code imap_folder_id} 而不是展示用的 {@code folder_id}：
+     * 规则把邮件归到别的文件夹之后，展示位置变了，但它在服务器上仍躺在原文件夹的原 UID，
+     * 拿展示位置去查会查不到（进而每轮重复插入，撞唯一键）。</p>
+     *
      * @param accountId 账号ID
-     * @param folderId 文件夹ID
+     * @param imapFolderId 实际所在的 IMAP 文件夹ID
      * @param uid UID
      * @return 邮件；不存在返回 {@code null}
      */
-    private MailMessage findByUid(Long accountId, Long folderId, long uid) {
+    private MailMessage findByUid(Long accountId, Long imapFolderId, long uid) {
         List<MailMessage> found = messageMapper.selectList(new LambdaQueryWrapper<MailMessage>()
                 .eq(MailMessage::getAccountId, accountId)
-                .eq(MailMessage::getFolderId, folderId)
+                .eq(MailMessage::getImapFolderId, imapFolderId)
                 .eq(MailMessage::getUid, uid)
                 .last("LIMIT 1"));
         return found.isEmpty() ? null : found.get(0);
@@ -296,6 +331,7 @@ public class MailSyncServiceImpl implements MailSyncService {
         MailMessage message = new MailMessage();
         message.setAccountId(account.getId());
         message.setFolderId(folder.getId());
+        message.setImapFolderId(folder.getId());
         message.setUid(mail.uid());
         message.setUidValidity(folder.getUidValidity());
         message.setMessageId(mail.messageId());
@@ -307,12 +343,25 @@ public class MailSyncServiceImpl implements MailSyncService {
         message.setSentTime(mail.sentTime() == null ? LocalDateTime.now() : mail.sentTime());
         message.setReceivedTime(LocalDateTime.now());
         message.setSizeBytes(mail.sizeBytes());
-        message.setHasAttachment(0);
+        // 附件标记只能靠顶层 Content-Type 猜：multipart/mixed 是「带附件」的通用信号，
+        // multipart/alternative 是纯文本+HTML，multipart/related 是内联图片。
+        // 真正的结构在打开详情时才解析，那时可以用实际解析结果覆盖这个猜测。
+        message.setHasAttachment(looksLikeAttachment(mail.contentType()) ? 1 : 0);
         message.setSeen(mail.seen() ? 1 : 0);
         message.setFlagged(mail.flagged() ? 1 : 0);
         message.setAnswered(0);
         message.setForwarded(0);
         message.setPriority(3);
         return message;
+    }
+
+    /**
+     * 按顶层 Content-Type 判断是否可能带附件
+     *
+     * @param contentType 顶层 Content-Type
+     * @return 可能带附件返回 {@code true}
+     */
+    private boolean looksLikeAttachment(String contentType) {
+        return contentType != null && contentType.toLowerCase(Locale.ROOT).contains(MIME_MIXED);
     }
 }

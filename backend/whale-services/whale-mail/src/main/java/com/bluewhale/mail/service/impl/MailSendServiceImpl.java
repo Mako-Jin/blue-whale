@@ -334,6 +334,9 @@ public class MailSendServiceImpl implements MailSendService {
         MailMessage message = new MailMessage();
         message.setAccountId(account.getId());
         message.setFolderId(sent.getId());
+        // 本地副本没有 IMAP 真实位置，锚点同样指向「已发送」：
+        // 这个字段非空是硬约束，而负数 UID 已经保证回源逻辑不会真的去服务器找它
+        message.setImapFolderId(sent.getId());
         message.setUid(-IdWorker.getId());
         message.setMessageId(safeMessageId(mimeMessage));
         message.setSubject(request.getSubject() == null ? "（无主题）" : request.getSubject());

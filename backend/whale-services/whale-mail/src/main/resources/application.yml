@@ -85,6 +85,11 @@ whale:
       # lucene 引擎专用：多实例必须指向共享卷，否则各实例只看得到自己写入的部分
       index-dir: ${WHALE_MAIL_SEARCH_INDEX_DIR:./data/mail-index}
       commit-interval-millis: ${WHALE_MAIL_SEARCH_COMMIT_INTERVAL_MS:30000}
+    rule:
+      # 单次回填扫描的收件箱邮件上限（按收信时间倒序，未处理的下次再跑）
+      backfill-limit: ${WHALE_MAIL_RULE_BACKFILL_LIMIT:500}
+      # 单账号规则上限：规则是逐封线性匹配，条数直接乘在同步耗时上
+      max-rules-per-account: ${WHALE_MAIL_RULE_MAX_PER_ACCOUNT:50}
     file:
       # 附件字节归 whale-file，本服务只存 fileId；内网直连，不经网关
       base-url: ${WHALE_MAIL_FILE_BASE_URL:http://whale-file:8085}

@@ -354,3 +354,74 @@ export function removeDraft(id: number): Promise<void> {
 export function syncAccount(accountId: number): Promise<number> {
   return http.post<number>(`/mail/sync/${accountId}`);
 }
+
+// ---------------------------------------------------------------------------
+// 收信规则
+// ---------------------------------------------------------------------------
+
+/** 收信规则 */
+export interface MailRule {
+  id: number;
+  name: string;
+  sortNo: number;
+  enabled: boolean;
+  matchFrom?: string | null;
+  matchSubject?: string | null;
+  matchTo?: string | null;
+  onlyWithAttachment?: boolean;
+  actionFolderId?: number | null;
+  actionFolderName?: string | null;
+  actionMarkSeen?: boolean;
+  actionFlagged?: boolean;
+  hitCount: number;
+  lastHitTime?: string | null;
+}
+
+/** 规则保存命令 */
+export interface MailRuleSaveCommand {
+  id?: number;
+  accountId?: number;
+  name: string;
+  sortNo?: number;
+  enabled?: boolean;
+  matchFrom?: string;
+  matchSubject?: string;
+  matchTo?: string;
+  onlyWithAttachment?: boolean;
+  actionFolderId?: number | null;
+  actionMarkSeen?: boolean;
+  actionFlagged?: boolean;
+}
+
+/** 规则回填结果 */
+export interface MailRuleApplyResult {
+  scanned: number;
+  changed: number;
+  truncated: boolean;
+}
+
+/** 规则列表（按优先级升序，即执行顺序） */
+export function listRules(accountId?: number): Promise<MailRule[]> {
+  return http.get<MailRule[]>('/mail/rule/list', { accountId });
+}
+
+/** 新建或更新规则 */
+export function saveRule(body: MailRuleSaveCommand): Promise<MailRule> {
+  return http.post<MailRule>('/mail/rule/save', body);
+}
+
+/** 启用 / 停用规则 */
+export function setRuleEnabled(id: number, enabled: boolean): Promise<void> {
+  return http.post<void>(`/mail/rule/enabled?id=${id}&enabled=${enabled}`);
+}
+
+/** 删除规则 */
+export function removeRule(id: number): Promise<void> {
+  return http.post<void>(`/mail/rule/remove?id=${id}`);
+}
+
+/** 对收件箱存量邮件回填规则 */
+export function applyRules(accountId?: number): Promise<MailRuleApplyResult> {
+  const suffix = accountId ? `?accountId=${accountId}` : '';
+  return http.post<MailRuleApplyResult>(`/mail/rule/apply${suffix}`);
+}
