@@ -49,6 +49,8 @@ Desktop.ini
 
 # ===== Docker =====
 docker-compose.override.yml
+# 但部署模板目录下的 override 是待下发资产（资源限额/日志轮转），必须入库
+!deploy/mail/docker-compose.override.yml
 
 # ===== Secrets =====
 .env

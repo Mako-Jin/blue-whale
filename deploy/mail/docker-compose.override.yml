@@ -1,0 +1,110 @@
+# ============================================================
+# Mailcow 资源与日志覆盖（DMZ 邮件主机）
+#
+# 放置位置：与 mailcow 官方 docker-compose.yml 同目录，文件名必须是
+#           docker-compose.override.yml（Compose 会自动叠加，无需 -f 指定）
+#
+# 目的：
+#   1. 给每个容器设内存/CPU 上限。邮件组件（ClamAV、Rspamd）默认无上限，
+#      一个畸形附件就能把宿主机内存吃穿，进而拖死同机所有容器。
+#   2. 限制 json-file 日志大小。postfix 在队列积压时会刷出海量日志，
+#      不限制会在一周内写满磁盘——邮件主机磁盘写满等于全站退信。
+#
+# 校验：改完先跑 `docker compose config > /dev/null`，确认无解析错误再 up -d
+# ============================================================
+
+x-logging: &mail-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+services:
+  # 反垃圾与 DKIM 签名：内存敏感，规则集常驻
+  rspamd-mailcow:
+    logging: *mail-logging
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: "1.0"
+
+  # 杀毒：占内存最大。SKIP_CLAMD=y 时此段无副作用（服务不存在则被忽略）
+  clamd-mailcow:
+    logging: *mail-logging
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+          cpus: "1.5"
+
+  # 收信与出站中继：日志量最大
+  postfix-mailcow:
+    logging: *mail-logging
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+          cpus: "1.0"
+
+  # IMAP 服务：并发连接数直接吃内存，按 500 并发估算 768m
+  dovecot-mailcow:
+    logging: *mail-logging
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+          cpus: "1.0"
+
+  # Webmail（SOGo）
+  sogo-mailcow:
+    logging: *mail-logging
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+          cpus: "1.0"
+
+  # 反向代理与证书
+  nginx-mailcow:
+    logging: *mail-logging
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.5"
+
+  # 管理台后端
+  php-fpm-mailcow:
+    logging: *mail-logging
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "1.0"
+
+  # 元数据库：只存账号/别名/配额，不存邮件正文，256m 足够
+  mysql-mailcow:
+    logging: *mail-logging
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: "1.0"
+
+  redis-mailcow:
+    logging: *mail-logging
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.5"
+
+  # 邮件内容扫描（OLE 解析）
+  olefy-mailcow:
+    logging: *mail-logging
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.5"

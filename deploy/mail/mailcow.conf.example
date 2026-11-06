@@ -1,0 +1,84 @@
+# ============================================================
+# Mailcow 主配置模板（DMZ 邮件主机）
+#
+# 用法：
+#   git clone https://github.com/mailcow/mailcow-dockerized.git /opt/mailcow-dockerized
+#   cd /opt/mailcow-dockerized
+#   cp /path/to/blue-whale/deploy/mail/mailcow.conf.example ./mailcow.conf
+#   vi mailcow.conf        # 改 MAILCOW_HOSTNAME / MAILCOW_TZ / TZ 时区
+#   docker compose pull && docker compose up -d
+#
+# 注意：mailcow.conf 含数据库与 Redis 口令，生成后**不得入 Git**。
+#       本文件是模板，真实文件只存在于 DMZ 主机。
+# ============================================================
+
+# ---- 身份与位置 -------------------------------------------------
+# 邮件主机对外域名，必须与 DNS A 记录、证书 CN、PTR 反解三处完全一致
+MAILCOW_HOSTNAME=mail.example.com
+
+# 时区（日志、告警、退信时间都以此为准）
+MAILCOW_TZ=Asia/Shanghai
+TZ=Asia/Shanghai
+
+# Mailcow 版本分支（生产钉 master，不要用 nightly）
+MAILCOW_BRANCH=master
+
+# 自动生成，首次启动后不要改
+DBNAME=mailcow
+DBUSER=mailcow
+DBPASS=
+REDISPASS=
+# 数据库与 Redis 只在内网 Docker 网段暴露，不发布到宿主机
+# 若需本地排障：docker compose exec mysql-mailcow mysql -u${DBUSER} -p
+
+# ---- 端口发布 ---------------------------------------------------
+# 80/443 必须公网可达：80 供 Let's Encrypt HTTP-01 与 ACME 续期，443 供 SOGo / 管理台
+HTTP_PORT=80
+HTTPS_PORT=443
+# 留空表示监听 0.0.0.0；绑具体 IP 可只监听 DMZ 网卡
+HTTP_BIND=
+HTTPS_BIND=
+
+# 收信与提交：25 入站必开；465/587 供客户端与 whale-mail 提交
+SMTP_PORT=25
+SMTPS_PORT=465
+SUBMISSION_PORT=587
+IMAP_PORT=143
+IMAPS_PORT=993
+POP_PORT=110
+POPS_PORT=995
+SIEVE_PORT=4190
+# 143/110/4190 为明文端口：若只允许 TLS，把上面三个设为 127.0.0.1 让公网无法直连
+# IMAP_PORT=127.0.0.1
+# POP_PORT=127.0.0.1
+# SIEVE_PORT=127.0.0.1
+
+# ---- 证书 -------------------------------------------------------
+# 主机名解析未就绪时先设 y，避免启动即失败、反复触发 Let's Encrypt 速率限制
+SKIP_LETS_ENCRYPT=n
+# 若 80 端口被运营商/云厂商封禁，改为 DNS-01 或挂载外部证书（见 docs/ops/mail-service-ops.md §3.4）
+# 外部证书放置：data/assets/ssl/{cert.pem,key.pem}，并设 SKIP_LETS_ENCRYPT=y
+ADDITIONAL_SAN=
+
+# ---- 组件开关 ---------------------------------------------------
+# 杀毒（ClamAV 占 1.5–2G 内存）。4C8G 建议开启；2C4G 可先关，靠 Rspamd 规则兜底
+SKIP_CLAMD=n
+# 全文检索（SOGo 的 FTS）。关闭后 Webmail 搜索退化为头部字段匹配
+SKIP_FTS=y
+# SOGo Webmail：员工自助入口，建议开启（不接 qiankun，独立域名访问）
+SKIP_SOGO=n
+# IP 检查：自动探测公网 IP 是否与 DNS 一致。NAT 环境下会误报，可关
+SKIP_IP_CHECK=n
+# HTTP 验证：Let's Encrypt HTTP-01 需要它能访问到 80
+SKIP_HTTP_VERIFICATION=n
+
+# ---- 安全策略 ---------------------------------------------------
+# 禁止未认证中继（任何人借本机发信 = 立刻被拉黑）。不要改
+ACL_ANYONE=disallowed
+# 密码散列方案：BLF-CRYPT（bcrypt）兼容性最好
+MAILCOW_PASS_SCHEME=BLF-CRYPT
+# 是否允许 IPv6。云主机若未配 IPv6 路由，务必设 false，否则出站会走黑洞
+ENABLE_IPV6=false
+
+# Docker 内网段（与 bluewhale 主 compose 的网段错开，避免 IP 冲突）
+IPV4_NETWORK=172.22.1

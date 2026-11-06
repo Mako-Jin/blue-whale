@@ -1,0 +1,78 @@
+; ============================================================
+; 邮件域名 DNS 记录模板（示例 zone 片段）
+;
+; 用法：把 example.com 换成真实域名、203.0.113.10 换成邮件主机公网 IP，
+;       DKIM 的 p= 值从 Mailcow 管理台 Configuration → Options → DKIM 复制。
+;
+; 这些记录缺任何一条都会导致退信或进垃圾箱，逐条核对清单见
+; docs/ops/mail-service-ops.md §3。
+; ============================================================
+
+$TTL 600
+
+; ------------------------------------------------------------
+; 一、邮件主机地址
+; ------------------------------------------------------------
+mail.example.com.              IN  A      203.0.113.10
+; IPv6 先不要配。云主机若没有 IPv6 默认路由，对方优先走 AAAA 会连接超时，
+; 表现为「部分收件人收不到」，排查成本极高。
+
+; ------------------------------------------------------------
+; 二、MX
+; ------------------------------------------------------------
+example.com.                   IN  MX  10  mail.example.com.
+; 下面这条不是冗余。Postfix 与部分反垃圾会查「发件域自身」的 MX 是否可解析，
+; 缺失时评分里会记一条 no MX for sender domain。
+mail.example.com.              IN  MX  10  mail.example.com.
+
+; 若根域 MX 已被企业邮箱占用，不要改根域，改用子域承载员工邮箱：
+; mail.corp.example.com.       IN  MX  10  mail.corp.example.com.
+; 地址形如 zhangsan@mail.corp.example.com —— 难看但不会中断现有邮件。
+
+; ------------------------------------------------------------
+; 三、SPF（同一域名只能有一条 v=spf1 记录，多条直接判 permerror）
+; ------------------------------------------------------------
+; 场景 1：出站 25 直投
+example.com.                   IN  TXT    "v=spf1 mx -all"
+
+; 场景 2：出站走中继（25 被封），只授权中继，不要写自己的 IP
+; example.com.                 IN  TXT    "v=spf1 include:spf.mail.qq.com -all"
+
+; 场景 3：直投与中继并存
+; example.com.                 IN  TXT    "v=spf1 mx include:spf.mail.qq.com -all"
+
+; 邮件主机自身发信（退信通知、DMARC 报告）也要授权
+mail.example.com.              IN  TXT    "v=spf1 a -all"
+
+; ------------------------------------------------------------
+; 四、DKIM
+; 记录名 = {selector}._domainkey.{domain}，Mailcow 默认 selector 为 dkim
+; ------------------------------------------------------------
+dkim._domainkey.example.com.   IN  TXT    "v=DKIM1;k=rsa;p=REPLACE_WITH_PUBLIC_KEY;t=s"
+
+; 公开密钥超过 255 字符时，多数 DNS 服务商要求拆成多段字符串，否则保存失败：
+; dkim._domainkey.example.com. IN  TXT    ("v=DKIM1;k=rsa;" "p=MIIBIjANBgkqhkiG9w0B" "AQEFAAOCAQ8A...")
+
+; ------------------------------------------------------------
+; 五、DMARC
+; ------------------------------------------------------------
+_dmarc.example.com.            IN  TXT    "v=DMARC1; p=none; sp=none; rua=mailto:dmarc@example.com; ruf=mailto:dmarc@example.com; fo=1; adkim=r; aspf=r; pct=100"
+
+; p 的演进节奏（跳步会打回正常邮件）：
+;   none        → 观察 2 周，看 rua 报告里哪些来源在用你的域名
+;   quarantine  → pct=25 起，每周 +25
+;   reject      → 确认转发链路已全部通过 SPF/DKIM 后再上
+
+; ------------------------------------------------------------
+; 六、客户端自动发现（可选，但缺了每个用户都要手工填服务器）
+; ------------------------------------------------------------
+autodiscover.example.com.      IN  CNAME  mail.example.com.
+autoconfig.example.com.        IN  CNAME  mail.example.com.
+
+; ------------------------------------------------------------
+; 七、PTR 反向解析（不在本 zone 内，需云厂商侧设置）
+; ------------------------------------------------------------
+; 目标：203.0.113.10 → mail.example.com
+; 校验：Resolve-DnsName 10.113.0.203.in-addr.arpa -Type PTR
+; 正解与反解必须完全一致（包括大小写无关的域名完全相等），否则
+; Gmail / Outlook 会直接判定为「动态 IP 直发」，大概率退信。
