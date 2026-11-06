@@ -1,0 +1,199 @@
+# 地图服务运行手册（whale-map）
+
+> 适用版本：Wave 5.91 M0（2026-11-06）
+> 服务坐标：**8100** / `/map/**` / 库 **`bluewhale_map`**
+> 关联：[M0 计划](../plans/2026-11-06-wave5.91-map-service-m0.md)、[服务与端口清单](../service-catalog.md)
+
+---
+
+## 一、服务概览
+
+| 项 | 值 |
+|---|---|
+| 进程 | `WhaleMapApplication`（Spring Boot，JDK 21） |
+| 端口 | `SERVER_PORT`，默认 **8100** |
+| 库 | `bluewhale_map`（Flyway 自动建表，3 张） |
+| 对外前缀 | `/map/**`（网关只转发不 StripPrefix） |
+| 内网接口 | M0 无。后续如需内部批量打点，用 `/map/internal/**` 并加入网关 `internal-deny` |
+| 依赖 | 腾讯位置服务 WebService API、高德开放平台 Web 服务 API（均出站 443） |
+| 被动依赖 | 无数据库以外的中间件；不需要 Redis |
+
+**它不负责什么**：底图与瓦片、路线导航 GUI、轨迹存储、地理围栏判定（M1）。前端只从它这里拿坐标和地址。
+
+---
+
+## 二、配置项
+
+| 环境变量 | 默认 | 说明 |
+|---|---|---|
+| `WHALE_MAP_DEFAULT_PROVIDER` | `tencent` | 能力路由未指定时的供应商 |
+| `WHALE_MAP_DISPLAY_COORD` | `GCJ02` | 对外坐标系。**改了要同时清缓存**（缓存键含坐标系，但前端会突然换口径） |
+| `WHALE_MAP_STORAGE_COORD` | `WGS84` | 落库坐标系。**M0 起不要改**，已有数据不会跟着转 |
+| `WHALE_MAP_ROUTING_GEOCODE` | `tencent` | 地址解析首选供应商 |
+| `WHALE_MAP_ROUTING_REGEO` | `tencent` | 逆地理首选 |
+| `WHALE_MAP_ROUTING_POI` | `tencent` | POI 首选 |
+| `WHALE_MAP_ROUTING_ROUTE` | `amap` | 路径首选 |
+| `WHALE_MAP_FALLBACK` | `amap` | 降级顺序（逗号分隔） |
+| `TENCENT_MAP_KEY` | 空 | 腾讯 Key。空 = 该供应商视为未配置，自动跳过 |
+| `TENCENT_MAP_BASE_URL` | `https://apis.map.qq.com` | 腾讯基址 |
+| `WHALE_MAP_TENCENT_QUOTA` | `10000` | 腾讯日配额（0 = 不限） |
+| `AMAP_MAP_KEY` | 空 | 高德 Key |
+| `AMAP_MAP_BASE_URL` | `https://restapi.amap.com` | 高德基址 |
+| `WHALE_MAP_AMAP_QUOTA` | `10000` | 高德日配额 |
+| `WHALE_MAP_CONNECT_TIMEOUT_MS` | `2000` | 建连超时 |
+| `WHALE_MAP_READ_TIMEOUT_MS` | `5000` | 读超时 |
+| `WHALE_MAP_CACHE_ENABLED` | `true` | 解析缓存开关 |
+| `WHALE_MAP_CACHE_TTL_HOURS` | `2160` | 缓存 TTL（90 天） |
+| `WHALE_MAP_CACHE_MAX_TEXT_LENGTH` | `200` | 超过此长度的查询不缓存 |
+| `WHALE_MAP_NEARBY_MAX_RADIUS` | `5000` | 附近查询半径上限（米） |
+| `WHALE_MAP_NEARBY_MAX_ROWS` | `200` | 附近查询返回条数上限 |
+| `WHALE_MAP_DISTANCE_MAX_BATCH` | `200` | 单次批量距离点数上限 |
+
+### Key 放哪
+
+- **生产**：环境变量注入（容器 secret / K8s Secret），或 Nacos 加密配置（`ENC(...)`）。**禁止**写进 `application.yml` 明文、禁止进 Git。
+- **测试**：本地 `export TENCENT_MAP_KEY=...`，不要提交 `.env`。
+- Key 只在服务端出现。前端若需要底图 Key，用另一把带 **Referer 白名单** 的前端 Key，两把 Key 不共用。
+
+---
+
+## 三、启动与冒烟
+
+```bash
+# 1. 建库（容器首次启动会自动执行 infrastructure/docker/mysql/init/01-init-databases.sql）
+mysql -uroot -p -e "CREATE DATABASE IF NOT EXISTS bluewhale_map DEFAULT CHARSET utf8mb4;"
+
+# 2. 权限（幂等）
+mysql -uroot -p bluewhale_auth < backend/whale-services/whale-service-auth/whale-service-auth-starter/src/main/resources/db/migration-5.91-map-m0.sql
+
+# 3. 启动
+cd backend/whale-services/whale-map && ../../../../mvnw spring-boot:run
+
+# 4. 健康检查
+curl -s localhost:8100/actuator/health
+
+# 5. 供应商状态（经网关需带登录态；直连本服务调试可跳过网关）
+curl -s localhost:8100/map/provider/health
+```
+
+### 三条冒烟命令
+
+```bash
+# 地址解析（首次 cached=false，第二次 true）
+curl -s -X POST localhost:8100/map/geocode \
+  -H 'Content-Type: application/json' \
+  -d '{"address":"北京市东城区东长安街1号","city":"北京"}'
+
+# 打点（只给地址）
+curl -s -X PUT localhost:8100/map/location/CRM_CONTACT/1001 \
+  -H 'Content-Type: application/json' \
+  -d '{"address":"北京市东城区东长安街1号","remark":"总部"}'
+
+# 附近 500 米
+curl -s "localhost:8100/map/location/nearby?lng=116.404&lat=39.915&radiusMeters=500&limit=20"
+```
+
+> 直连 8100 意味着绕过网关，`X-Tenant-Id` 与 `X-User-Id` 都没有。租户上下文缺失时写库会 400（`TenantContext.requireId()` 失败关闭）。调试写接口请带 `-H 'X-Tenant-Id: 1' -H 'X-User-Id: 1'`。
+
+---
+
+## 四、切换供应商
+
+改 `WHALE_MAP_ROUTING_*` 或 `WHALE_MAP_DEFAULT_PROVIDER` 后**重启生效**（配置为启动期绑定）。
+
+切换步骤：
+
+1. 确认目标供应商 `configured=true`：`GET /map/provider/health` 里 `configured` 字段。
+2. 小流量验证：把 `WHALE_MAP_ROUTING_REGEO` 单独切过去，观察 1 小时。
+3. 全量切：再切 `GEOCODE` / `POI`。
+
+**注意缓存**：缓存按供应商分键，切换后旧供应商的缓存不会被新供应商命中，**首日配额消耗会上升**（每个地址都要重新解析一次）。这是设计使然——两家对同一地址的定位可能差一栋楼，混用会让「切了配置位置就变了」无法解释。
+
+---
+
+## 五、排查
+
+### 5.1 全部接口 500，报「没有可用的地图供应商」
+
+```bash
+curl -s localhost:8100/map/provider/health | jq
+```
+
+- 全部 `configured=false` → Key 没注入。检查环境变量名拼写（`TENCENT_MAP_KEY` / `AMAP_MAP_KEY`）。
+- 有 `configured=true` 但 `remaining=0` → 今日配额用尽。看下面 5.3。
+
+### 5.2 地址解析结果偏 300–500 米
+
+**大概率是坐标系口径错了**：
+
+- 检查响应里的 `coordType` 是否为 `GCJ02`。如果下游把它当 WGS84 用，会整整偏一段。
+- 检查是否有代码绕过 `CoordContext` 直接 new `GeoPoint` 并传错枚举。
+- 验证方法：同一地址分别走腾讯、高德，两点距离应 < 50 米。差 300+ 米说明有一次转换被跳过。
+
+### 5.3 配额异常
+
+```sql
+-- 今日各供应商用量
+SELECT provider, usage_date, used_count, limit_count
+FROM bluewhale_map.map_quota_usage
+WHERE usage_date = CURDATE();
+
+-- 缓存命中率（越低说明地址越分散或缓存被清过）
+SELECT provider, query_type, COUNT(*) AS rows_cnt, SUM(hit_count) AS hits
+FROM bluewhale_map.map_geocode_cache
+WHERE expire_time > NOW()
+GROUP BY provider, query_type;
+```
+
+临时提额：改 `WHALE_MAP_*_QUOTA` 并重启；或直接更新当日行的 `limit_count`（立即生效，无需重启）：
+
+```sql
+UPDATE bluewhale_map.map_quota_usage
+SET limit_count = 50000
+WHERE provider = 'tencent' AND usage_date = CURDATE();
+```
+
+### 5.4 附近查询查不到明明存在点
+
+1. 确认点的 `geohash` 与查询半径匹配：`SELECT biz_type, biz_id, geohash, lng, lat FROM map_location WHERE biz_id='1001'`。
+2. `geohash` 为空或长度异常 → 打点是用旧版本写的，重打一次即可。
+3. 半径 5000 米时前缀长度为 4–5，候选集会很大，`CANDIDATE_LIMIT=1000` 可能截断。这是有意的保护：市中心一个点配大半径，本质是「按距离扫全城」，应该收敛到具体业务类型。
+
+### 5.5 缓存表膨胀
+
+```sql
+-- 过期缓存（可安全物理删除）
+DELETE FROM bluewhale_map.map_geocode_cache WHERE expire_time < NOW() LIMIT 1000;
+```
+
+建议每月执行一次，或在运维平台挂定时任务。**不要**清空整表：清空会把配额压力立刻转移到供应商。
+
+---
+
+## 六、监控
+
+Prometheus job：`whale-map`（`127.0.0.1:8100/actuator/prometheus`）。
+
+建议告警：
+
+| 指标 | 阈值 | 含义 |
+|---|---|---|
+| `http_server_requests_seconds_count{status="5xx"}` | 5 分钟 > 10 | 供应商大面积失败或本服务异常 |
+| `http_server_requests_seconds_sum / _count{uri="/map/geocode"}` | > 2s | 供应商变慢（超时 5s，接近即需关注） |
+| `map_quota_usage.used_count` 当日值 | > 80% 上限 | 配额将尽，提前评估（业务指标，可用 SQL 导出为自定义指标） |
+
+日志关键词：
+
+- `配额已用尽，跳过` → 该供应商当天到顶，看是否有异常流量。
+- `未完成调用，尝试下一个` → 降级触发，看 `provider` 与错误码。
+- `写缓存失败` → 不影响主流程，但缓存命中率会下降，查 DB 连接。
+
+---
+
+## 七、合规与安全
+
+1. **供应商白名单**：腾讯、高德、百度、天地图。Mapbox / Leaflet+OSM / Google 一律不可用（数据出境与测绘资质问题）。
+2. **Key 不进前端、不进日志、不进响应**。`ProviderHttp` 已剥掉异常信息里的 URL（URL 带 Key）。
+3. **点位数据**：`map_location` 可能含客户地址、供应商地址，属商业敏感。导出需审批；批量导出走报表，不直接开 SQL 权限。
+4. **轨迹与打卡**（M1）不得对外发布；如需对外展示，只能出聚合结果（如「某区域覆盖率」），不出原始点。
+5. **行政区划码 `adcode`** 是跨系统对齐组织归属的稳定键，比省市名可靠（重名、改名都常见）。
