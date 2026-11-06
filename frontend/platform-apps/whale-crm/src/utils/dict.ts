@@ -74,3 +74,119 @@ export function formatDateTime(value?: string | null): string {
   }
   return value.replace('T', ' ').slice(0, 19);
 }
+
+/** 线索状态下拉选项 */
+export const LEAD_STATUS_OPTIONS = [
+  { value: 'NEW', label: '新线索' },
+  { value: 'CONTACTED', label: '已联系' },
+  { value: 'QUALIFIED', label: '已确认' },
+  { value: 'CONVERTED', label: '已转化' },
+  { value: 'INVALID', label: '无效' },
+];
+
+/** 线索状态文案 */
+export const LEAD_STATUS_LABEL: Record<string, string> = {
+  NEW: '新线索',
+  CONTACTED: '已联系',
+  QUALIFIED: '已确认',
+  CONVERTED: '已转化',
+  INVALID: '无效',
+};
+
+/** 线索状态标签色 */
+export const LEAD_STATUS_COLOR: Record<string, string> = {
+  NEW: 'blue',
+  CONTACTED: 'cyan',
+  QUALIFIED: 'green',
+  CONVERTED: 'purple',
+  INVALID: 'red',
+};
+
+/** 商机阶段下拉选项 */
+export const OPPORTUNITY_STAGE_OPTIONS = [
+  { value: 'CONTACT', label: '接洽' },
+  { value: 'PROPOSAL', label: '方案' },
+  { value: 'NEGOTIATION', label: '谈判' },
+  { value: 'WON', label: '赢单' },
+  { value: 'LOST', label: '输单' },
+];
+
+/** 商机阶段文案 */
+export const OPPORTUNITY_STAGE_LABEL: Record<string, string> = {
+  CONTACT: '接洽',
+  PROPOSAL: '方案',
+  NEGOTIATION: '谈判',
+  WON: '赢单',
+  LOST: '输单',
+};
+
+/** 商机阶段标签色 */
+export const OPPORTUNITY_STAGE_COLOR: Record<string, string> = {
+  CONTACT: 'blue',
+  PROPOSAL: 'cyan',
+  NEGOTIATION: 'orange',
+  WON: 'green',
+  LOST: 'red',
+};
+
+/** 报价状态下拉选项 */
+export const QUOTE_STATUS_OPTIONS = [
+  { value: 'DRAFT', label: '草稿' },
+  { value: 'PENDING_APPROVAL', label: '审批中' },
+  { value: 'APPROVED', label: '已通过' },
+  { value: 'REJECTED', label: '已驳回' },
+];
+
+/** 报价状态文案 */
+export const QUOTE_STATUS_LABEL: Record<string, string> = {
+  DRAFT: '草稿',
+  PENDING_APPROVAL: '审批中',
+  APPROVED: '已通过',
+  REJECTED: '已驳回',
+};
+
+/** 报价状态标签色 */
+export const QUOTE_STATUS_COLOR: Record<string, string> = {
+  DRAFT: 'default',
+  PENDING_APPROVAL: 'processing',
+  APPROVED: 'success',
+  REJECTED: 'error',
+};
+
+/** 预测 / 目标周期类型下拉选项 */
+export const FORECAST_PERIOD_TYPE_OPTIONS = [
+  { value: 'MONTH', label: '月度' },
+  { value: 'QUARTER', label: '季度' },
+];
+
+/** 预测 / 目标周期类型文案 */
+export const FORECAST_PERIOD_TYPE_LABEL: Record<string, string> = {
+  MONTH: '月度',
+  QUARTER: '季度',
+};
+
+/** 预测 / 目标统计范围下拉选项 */
+export const FORECAST_SCOPE_TYPE_OPTIONS = [
+  { value: 'USER', label: '按负责人' },
+  { value: 'DEPT', label: '按部门' },
+];
+
+/** 预测 / 目标统计范围文案 */
+export const FORECAST_SCOPE_TYPE_LABEL: Record<string, string> = {
+  USER: '按负责人',
+  DEPT: '按部门',
+};
+
+/** 预测调整字段下拉选项 */
+export const FORECAST_FIELD_OPTIONS = [
+  { value: 'PIPELINE', label: '管道金额' },
+  { value: 'BEST', label: '最佳金额' },
+  { value: 'COMMIT', label: '承诺金额' },
+];
+
+/** 预测调整字段文案 */
+export const FORECAST_FIELD_LABEL: Record<string, string> = {
+  PIPELINE: '管道金额',
+  BEST: '最佳金额',
+  COMMIT: '承诺金额',
+};
