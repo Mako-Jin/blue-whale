@@ -93,6 +93,62 @@ foreach ($relative in @('README.md', 'docs/architecture.md')) {
     }
 }
 
+# ============================================================
+# 状态对账检查（2026-11-06 新增，防「文档滞后于代码」复发）
+#   A) service-catalog 迁移覆盖对账：每个 whale-apps 服务的 Flyway 迁移中，
+#      凡含 CREATE TABLE 的版本号（V2..Vn）必须在 service-catalog 该服务行中出现；
+#      V1 可由「基线/存量/baseline」字样代指。漏记即报错（MES 曾漏记 V4–V8）。
+#   B) 门禁骨架声明对账：service-catalog 声明「门禁骨架」的服务，控制器数不得 > 3，
+#      否则视为状态失真（CRM 曾以「仅 /crm/meta」描述 11 个控制器的现实）。
+# ============================================================
+
+$catalogPath = Join-Path $RepoRoot 'docs/service-catalog.md'
+$appsDir = Join-Path $RepoRoot 'backend/whale-apps'
+
+if ((Test-Path -LiteralPath $catalogPath) -and (Test-Path -LiteralPath $appsDir)) {
+    $catalogLines = Get-Content -LiteralPath $catalogPath -Encoding UTF8
+
+    foreach ($svcDir in (Get-ChildItem -LiteralPath $appsDir -Directory)) {
+        $svcName = $svcDir.Name                          # 例：whale-mes
+        $migrationDir = Join-Path $svcDir.FullName 'src/main/resources/db/migration'
+
+        # 定位 service-catalog 中该服务的主表行（形如「| 9 | `whale-mes` | …」，
+        # 排除文件头部「最后更新」汇总长行与前端表行——那两处混有其他服务的 V 号，会造成误放行）。
+        # 注意：不能用 -like "*$needle*"——通配符模式会把反引号当转义符，含反引号的 needle 永远失配。
+        $needle = '`' + $svcName + '`'
+        $row = $catalogLines |
+            Where-Object { $_.Contains($needle) -and $_ -match '^\|\s*\d+\s*\|' } |
+            Select-Object -First 1
+        if (-not $row) { continue }
+
+        if (Test-Path -LiteralPath $migrationDir) {
+            # 检查 A：迁移版本覆盖
+            foreach ($sqlFile in (Get-ChildItem -LiteralPath $migrationDir -Filter 'V*.sql')) {
+                if ($sqlFile.BaseName -notmatch '^V(\d+)__') { continue }
+                $versionNo = $Matches[1]
+                $hasTable = (Select-String -LiteralPath $sqlFile.FullName -Pattern 'CREATE TABLE' -AllMatches) -ne $null
+                if (-not $hasTable) { continue }
+                if ($versionNo -eq '1' -and $row -match '基线|存量|baseline') { continue }
+                if ($row -notmatch ('V' + [regex]::Escape($versionNo) + '\b')) {
+                    $errors.Add("service-catalog.md $svcName 缺少迁移 V$versionNo 的记录（$($sqlFile.Name) 含建表）")
+                }
+            }
+        }
+
+        # 检查 B：门禁骨架声明不得与大量控制器并存
+        if ($row -match '门禁骨架') {
+            $controllerDir = Join-Path $svcDir.FullName 'src/main/java'
+            $controllerCount = 0
+            if (Test-Path -LiteralPath $controllerDir) {
+                $controllerCount = (Get-ChildItem -LiteralPath $controllerDir -Recurse -Filter '*Controller.java' -ErrorAction SilentlyContinue).Count
+            }
+            if ($controllerCount -gt 3) {
+                $errors.Add("service-catalog.md $svcName 仍声明「门禁骨架」，但该服务已有 $controllerCount 个控制器，状态失真")
+            }
+        }
+    }
+}
+
 if ($errors.Count -gt 0) {
     Write-Host "DOC-CONSISTENCY-FAIL（$($errors.Count) 项）" -ForegroundColor Red
     foreach ($item in $errors) {

@@ -44,8 +44,8 @@ public class ProcessCcServiceImpl implements ProcessCcService {
     /** 已读标记 */
     private static final int READ_FLAG_READ = 1;
 
-    /** 候选收件人上限 */
-    private static final int MAX_RECIPIENT_CANDIDATES = 10;
+    /** 候选收件人上限（用户 ID + 账号双口径下每人占两个名额，超限显式报错而非静默截断） */
+    private static final int MAX_RECIPIENT_CANDIDATES = 100;
 
     /** 抄送 Mapper */
     private final ProcessCcMapper processCcMapper;
@@ -132,7 +132,8 @@ public class ProcessCcServiceImpl implements ProcessCcService {
     }
 
     /**
-     * 规范化候选收件人：去空、trim、去重并限制上限。
+     * 规范化候选收件人：去空、trim、去重；超过上限时显式报错，绝不静默截断
+     * （静默截断会导致双口径候选漏人——用户 ID 与账号同时传入时同一人占两个名额）。
      *
      * @param values 原始候选值
      * @return 规范化后的候选列表；无有效值时返回空列表
@@ -141,12 +142,16 @@ public class ProcessCcServiceImpl implements ProcessCcService {
         if (values == null || values.isEmpty()) {
             return List.of();
         }
-        return values.stream()
+        List<String> normalized = values.stream()
                 .filter(ProcessCcServiceImpl::hasText)
                 .map(String::trim)
                 .distinct()
-                .limit(MAX_RECIPIENT_CANDIDATES)
                 .toList();
+        if (normalized.size() > MAX_RECIPIENT_CANDIDATES) {
+            throw new BizException(ErrorCode.PARAM_ERROR.getCode(),
+                    "候选收件人去重后 " + normalized.size() + " 个，超过上限 " + MAX_RECIPIENT_CANDIDATES);
+        }
+        return normalized;
     }
 
     /**

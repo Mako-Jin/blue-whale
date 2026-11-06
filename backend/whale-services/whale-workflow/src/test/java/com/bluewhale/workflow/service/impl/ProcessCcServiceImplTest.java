@@ -80,6 +80,50 @@ class ProcessCcServiceImplTest {
     }
 
     @Test
+    @DisplayName("page：候选超 10 个不再静默截断，全部进入 IN 查询")
+    void shouldKeepMoreThanTenCandidates() {
+        // 模拟 12 人双口径：每人占「账号 + 用户 ID」两个名额，旧实现上限 10 会静默丢 14 个候选
+        List<String> candidates = new java.util.ArrayList<>();
+        for (int i = 1; i <= 12; i++) {
+            candidates.add("user" + i);
+            candidates.add(String.valueOf(100 + i));
+        }
+        ProcessCcQueryRequest query = new ProcessCcQueryRequest();
+        query.setRecipientCandidates(candidates);
+        Page<ProcessCc> page = new Page<>(1, 10, false);
+        page.setRecords(List.of());
+        page.setTotal(0);
+        when(processCcMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class))).thenReturn(page);
+
+        processCcService.page(query);
+
+        ArgumentCaptor<LambdaQueryWrapper<ProcessCc>> captor = wrapperCaptor();
+        verify(processCcMapper).selectPage(any(Page.class), captor.capture());
+        // MyBatis-Plus 的 IN 片段惰性求值：先渲染 SQL 才会注册参数，再断言参数值
+        String sql = captor.getValue().getSqlSegment();
+        assertTrue(sql.contains("recipient IN"));
+        Collection<Object> values = captor.getValue().getParamNameValuePairs().values();
+        assertEquals(24, values.stream().filter(v -> v instanceof String).count());
+        assertTrue(values.contains("user12"));
+        assertTrue(values.contains("112"));
+    }
+
+    @Test
+    @DisplayName("page：候选去重后超上限 100 显式报错，不静默截断")
+    void shouldRejectCandidatesBeyondLimit() {
+        List<String> candidates = new java.util.ArrayList<>();
+        for (int i = 1; i <= 101; i++) {
+            candidates.add("user" + i);
+        }
+        ProcessCcQueryRequest query = new ProcessCcQueryRequest();
+        query.setRecipientCandidates(candidates);
+
+        BizException ex = assertThrows(BizException.class, () -> processCcService.page(query));
+        assertTrue(ex.getMessage().contains("超过上限 100"));
+        verify(processCcMapper, never()).selectPage(any(Page.class), any(LambdaQueryWrapper.class));
+    }
+
+    @Test
     @DisplayName("page：候选为空时回退单值收件人查询")
     void shouldFallbackToSingleRecipient() {
         ProcessCcQueryRequest query = new ProcessCcQueryRequest();
