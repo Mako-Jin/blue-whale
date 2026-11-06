@@ -1,18 +1,22 @@
-// 学习培训考试子应用根组件：课程 / 培训 / 题库 / 试卷 / 考试 / 判分 / 我的考试
+// 学习培训考试子应用根组件：课程 / 培训 / 题库 / 试卷 / 考试 / 判分 / 证书 / 我的
 //
 // M1 范围：课程 CRUD + 发布归档 + 章节课件 + 报名与进度（REQ-FUNC-087）。
 // M2 范围：培训班 / 场次 / 必修分配 / 面授签到 / 讲师课时（REQ-FUNC-088）。
 // M3-1 范围：题库（题目/选项）+ 试卷（手工加题 + 规则抽题）。
 // M3-2 范围：考试（时间窗/乱序）+ 作答 + 交卷判分 + 人工判分 + 成绩版本（REQ-FUNC-089）。
-// 证书学分（M4）/ 集成与看板（M5–M6）路由后续波次增量注册。
+// M4-1 范围：证书模板 + 发证 / 撤销 / 换发 + 我的证书（REQ-FUNC-090）。
+// 学分（M4-2）/ 集成与看板（M5–M6）路由后续波次增量注册。
 
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import LmsLayout from './layout/LmsLayout';
+import CertificateListPage from './pages/CertificateListPage';
+import CertTemplatePage from './pages/CertTemplatePage';
 import CourseDetailPage from './pages/CourseDetailPage';
 import CourseListPage from './pages/CourseListPage';
 import ExamAttemptPage from './pages/ExamAttemptPage';
 import ExamListPage from './pages/ExamListPage';
 import GradePage from './pages/GradePage';
+import MyCertificatePage from './pages/MyCertificatePage';
 import MyExamPage from './pages/MyExamPage';
 import MyLearningPage from './pages/MyLearningPage';
 import PaperDetailPage from './pages/PaperDetailPage';
@@ -38,6 +42,9 @@ export default function App() {
           <Route path="attempt/:attemptId" element={<ExamAttemptPage />} />
           <Route path="grade" element={<GradePage />} />
           <Route path="my-exam" element={<MyExamPage />} />
+          <Route path="cert" element={<CertTemplatePage />} />
+          <Route path="certificate" element={<CertificateListPage />} />
+          <Route path="my-cert" element={<MyCertificatePage />} />
           <Route path="my" element={<MyLearningPage />} />
           <Route path="*" element={<Navigate to="/course" replace />} />
         </Route>

@@ -149,6 +149,20 @@ class LmsFlywayMigrationScriptTest {
         assertTrue(tables.containsAll(expected), "缺少考试 / 判分核心表：" + expected);
     }
 
+    @Test
+    @DisplayName("M4-1 覆盖证书模板与证书两张表")
+    void certMigrationShouldCoverCertificateTables() throws IOException {
+        Set<String> tables = new LinkedHashSet<>();
+        for (Path script : migrationScripts()) {
+            Matcher matcher = CREATE_TABLE.matcher(Files.readString(script, StandardCharsets.UTF_8));
+            while (matcher.find()) {
+                tables.add(matcher.group(1));
+            }
+        }
+        Set<String> expected = Stream.of("lr_cert_template", "lr_certificate").collect(Collectors.toSet());
+        assertTrue(tables.containsAll(expected), "缺少证书核心表：" + expected);
+    }
+
     /**
      * 列出迁移脚本。
      *

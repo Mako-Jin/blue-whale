@@ -9,7 +9,8 @@ import java.util.Map;
  *
  * <p>段位约定：{@code 42xxx} 归 LMS；42000–42009 为门禁、身份与课程资源冲突
  * （跨租户一律按不存在处理），42010–42029 为培训计划（班级 / 场次 / 分配 / 签到），
- * 42030–42059 为题库 / 试卷 / 考试 / 判分，42060 起留给证书与后续上下文。</p>
+ * 42030–42059 为题库 / 试卷 / 考试 / 判分，42060–42079 为证书与学分，
+ * 42080 起留给后续上下文。</p>
  *
  * @author BlueWhale
  */
@@ -144,6 +145,33 @@ public final class LmsErrorCode {
     /** 考试 / 试卷参数不合法（时间窗、时长、次数） */
     public static final int EXAM_INVALID = 42051;
 
+    /** 证书模板不存在或无权访问 */
+    public static final int CERT_TEMPLATE_NOT_FOUND = 42060;
+
+    /** 证书模板编码已存在 */
+    public static final int CERT_TEMPLATE_CODE_CONFLICT = 42061;
+
+    /** 证书模板状态不允许该操作（已停用发证、被证书引用不可删） */
+    public static final int CERT_TEMPLATE_STATE_CONFLICT = 42062;
+
+    /** 证书模板参数不合法（名称、有效期、编号前缀） */
+    public static final int CERT_TEMPLATE_INVALID = 42063;
+
+    /** 证书不存在或无权访问 */
+    public static final int CERTIFICATE_NOT_FOUND = 42064;
+
+    /** 证书状态不允许该操作（重复发证、撤销态换发、已换发再撤销） */
+    public static final int CERTIFICATE_STATE_CONFLICT = 42065;
+
+    /** 发证来源不满足条件（未通过考试 / 未完成课程 / 缺少来源 ID） */
+    public static final int CERTIFICATE_SOURCE_INVALID = 42066;
+
+    /** 证书编号分配冲突（并发取号重试后仍失败） */
+    public static final int CERTIFICATE_NO_CONFLICT = 42067;
+
+    /** 证书参数不合法（持证人、有效期） */
+    public static final int CERTIFICATE_INVALID = 42068;
+
     /** 错误码默认提示语表（List 级 switch 会顶到圈复杂度上限，统一走查表） */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(GATE_CLOSED, "需求门禁未通过，学习功能未开放"),
@@ -188,7 +216,16 @@ public final class LmsErrorCode {
             Map.entry(ANSWER_INVALID, "答案不合法"),
             Map.entry(GRADE_NOT_PENDING, "该题无需判分或已判分"),
             Map.entry(GRADE_INVALID, "判分超出本题分值范围"),
-            Map.entry(EXAM_INVALID, "考试参数不合法"));
+            Map.entry(EXAM_INVALID, "考试参数不合法"),
+            Map.entry(CERT_TEMPLATE_NOT_FOUND, "证书模板不存在或无权访问"),
+            Map.entry(CERT_TEMPLATE_CODE_CONFLICT, "证书模板编码已存在"),
+            Map.entry(CERT_TEMPLATE_STATE_CONFLICT, "证书模板状态不允许该操作"),
+            Map.entry(CERT_TEMPLATE_INVALID, "证书模板参数不合法"),
+            Map.entry(CERTIFICATE_NOT_FOUND, "证书不存在或无权访问"),
+            Map.entry(CERTIFICATE_STATE_CONFLICT, "证书状态不允许该操作"),
+            Map.entry(CERTIFICATE_SOURCE_INVALID, "发证来源不满足发证条件"),
+            Map.entry(CERTIFICATE_NO_CONFLICT, "证书编号分配冲突，请重试"),
+            Map.entry(CERTIFICATE_INVALID, "证书参数不合法"));
 
     /**
      * 私有构造器：常量类，禁止实例化。

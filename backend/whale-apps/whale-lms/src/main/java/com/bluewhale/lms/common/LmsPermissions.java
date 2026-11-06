@@ -130,6 +130,24 @@ public final class LmsPermissions {
     /** 提交人工判分 */
     public static final String GRADE_SUBMIT = "sys:lms:grade:submit";
 
+    /** 证书模板与证书查询（管理端） */
+    public static final String CERT_LIST = "sys:lms:cert:list";
+
+    /** 证书模板维护（增删改 + 启停） */
+    public static final String CERT_TEMPLATE = "sys:lms:cert:template";
+
+    /** 发证 */
+    public static final String CERT_ISSUE = "sys:lms:cert:issue";
+
+    /** 证书处置（撤销与换发） */
+    public static final String CERT_REVOKE = "sys:lms:cert:revoke";
+
+    /** 我的证书（学员） */
+    public static final String CERT_MINE = "sys:lms:cert:mine";
+
+    /** 学分规则与台账维护 */
+    public static final String CREDIT_MANAGE = "sys:lms:credit:manage";
+
     /**
      * 私有构造器：常量类，禁止实例化。
      */

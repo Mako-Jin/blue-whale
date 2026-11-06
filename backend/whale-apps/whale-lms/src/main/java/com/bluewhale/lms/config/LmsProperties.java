@@ -55,4 +55,10 @@ public class LmsProperties {
 
     /** 单次提交判分的题目数上限 */
     private int gradeItemLimit = 200;
+
+    /** 证书模板 / 证书单页上限 */
+    private int certPageLimit = 100;
+
+    /** 证书编号取号冲突的最大重试次数 */
+    private int certIssueRetry = 3;
 }
