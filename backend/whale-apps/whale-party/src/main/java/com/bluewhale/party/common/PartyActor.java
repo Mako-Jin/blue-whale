@@ -155,6 +155,18 @@ public final class PartyActor {
     }
 
     /**
+     * 是否具备工会全量数据范围（工会管理员 / 租户管理员）。
+     *
+     * <p>资金类动作（福利发放、慰问登记发放、批次关闭）只认这两个角色：
+     * 党务管理员可以浏览工会园地，但不参与工会资金业务。</p>
+     *
+     * @return 全量工会范围返回 true
+     */
+    public boolean canManageUnion() {
+        return isUnionAdmin() || roles.contains("tenant_admin");
+    }
+
+    /**
      * 是否为工会管理员。
      *
      * @return 工会管理员返回 true

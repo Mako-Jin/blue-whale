@@ -2,7 +2,7 @@
 //
 // 导航项跟随已落地页面增量注册，不预先放空菜单——点进去 404 比看不到入口更糟。
 // M-P0 工作台；M-P1 党建台账四项（支部 / 党员 / 组织生活 / 党费）；
-// M-P2 党建内容与党建园地；后续波次追加工会（M-P3）、看板（M-P4）。
+// M-P2 党建内容与党建园地；M-P3 工会五项；后续波次追加看板（M-P4）。
 
 import { Layout, Menu, Typography } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
@@ -18,6 +18,11 @@ const NAV_ITEMS = [
   { key: '/fee', label: '党费台账' },
   { key: '/content', label: '党建内容' },
   { key: '/content/portal', label: '党建园地' },
+  { key: '/union/member', label: '工会会员' },
+  { key: '/union/relief', label: '慰问帮扶' },
+  { key: '/union/welfare', label: '节日福利' },
+  { key: '/union/activity', label: '工会活动' },
+  { key: '/union/proposal', label: '职代会提案' },
 ];
 
 /**

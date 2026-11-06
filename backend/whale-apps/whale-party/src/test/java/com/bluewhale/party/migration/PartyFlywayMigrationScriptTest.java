@@ -154,6 +154,38 @@ class PartyFlywayMigrationScriptTest {
     }
 
     @Test
+    @DisplayName("M-P3 覆盖工会七张表")
+    void unionMigrationShouldCoverUnionTables() throws IOException {
+        Set<String> tables = new LinkedHashSet<>();
+        for (Path script : migrationScripts()) {
+            Matcher matcher = CREATE_TABLE.matcher(Files.readString(script, StandardCharsets.UTF_8));
+            while (matcher.find()) {
+                tables.add(matcher.group(1));
+            }
+        }
+        Set<String> expected = Stream.of("pty_union_member", "pty_union_relief", "pty_union_welfare",
+                "pty_union_welfare_item", "pty_union_activity", "pty_union_signup", "pty_union_proposal")
+                .collect(Collectors.toSet());
+        assertTrue(tables.containsAll(expected), "缺少工会表：" + expected);
+    }
+
+    @Test
+    @DisplayName("会员编号与发放/报名/提案唯一键覆盖到位，且员工编号刻意不唯一")
+    void unionUniqueKeysShouldMatchBusinessRules() throws IOException {
+        String content = Files.readString(MIGRATION_DIR.resolve("V5__party_union.sql"), StandardCharsets.UTF_8);
+        assertTrue(content.contains("uk_pty_union_member_no (tenant_id, member_no)"),
+                "工会会员编号须租户内唯一");
+        assertTrue(content.contains("uk_pty_union_welfare_item (tenant_id, welfare_id, union_member_id)"),
+                "福利明细须按批次+会员唯一，重复发放才能幂等跳过");
+        assertTrue(content.contains("uk_pty_union_signup (tenant_id, activity_id, union_member_id)"),
+                "报名须按活动+会员唯一，取消后再报名不能新增行");
+        assertTrue(content.contains("uk_pty_union_proposal_no (tenant_id, proposal_no)"),
+                "提案编号须租户内唯一");
+        assertFalse(content.contains("UNIQUE KEY uk_pty_union_member_employee"),
+                "工会会员不得按员工编号建唯一键——退会后可再入会，唯一键会拒绝正常再入会");
+    }
+
+    @Test
     @DisplayName("编号流水表唯一键不含 deleted（逻辑删除会让取号分裂）")
     void sequenceUniqueKeyShouldNotIncludeDeleted() throws IOException {
         String content = Files.readString(MIGRATION_DIR.resolve("V2__platform.sql"), StandardCharsets.UTF_8);

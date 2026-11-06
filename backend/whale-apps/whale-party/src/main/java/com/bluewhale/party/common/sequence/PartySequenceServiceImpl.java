@@ -39,6 +39,36 @@ public class PartySequenceServiceImpl implements PartySequenceService {
     /** 党员编号键 */
     private static final String SEQ_KEY_MEMBER = "MEMBER";
 
+    /** 工会会员编号键 */
+    private static final String SEQ_KEY_UNION_MEMBER = "UNION_MEMBER";
+
+    /** 慰问帮扶编号键 */
+    private static final String SEQ_KEY_UNION_RELIEF = "UNION_RELIEF";
+
+    /** 节日福利批次编号键 */
+    private static final String SEQ_KEY_UNION_WELFARE = "UNION_WELFARE";
+
+    /** 工会活动编号键 */
+    private static final String SEQ_KEY_UNION_ACTIVITY = "UNION_ACTIVITY";
+
+    /** 职代会提案编号键 */
+    private static final String SEQ_KEY_UNION_PROPOSAL = "UNION_PROPOSAL";
+
+    /** 工会会员编号前缀 */
+    private static final String UNION_MEMBER_CODE_PREFIX = "UN";
+
+    /** 慰问帮扶编号前缀 */
+    private static final String UNION_RELIEF_CODE_PREFIX = "RF";
+
+    /** 节日福利批次编号前缀 */
+    private static final String UNION_WELFARE_CODE_PREFIX = "WF";
+
+    /** 工会活动编号前缀 */
+    private static final String UNION_ACTIVITY_CODE_PREFIX = "UA";
+
+    /** 职代会提案编号前缀 */
+    private static final String UNION_PROPOSAL_CODE_PREFIX = "UP";
+
     /** 流水号补零宽度 */
     private static final int SERIAL_WIDTH = 4;
 
@@ -78,6 +108,44 @@ public class PartySequenceServiceImpl implements PartySequenceService {
         int year = LocalDate.now().getYear();
         long serial = next(SEQ_KEY_MEMBER, String.valueOf(year));
         return MEMBER_CODE_PREFIX + year + pad(serial);
+    }
+
+    @Override
+    public String nextUnionMemberNo() {
+        return nextYearlyCode(SEQ_KEY_UNION_MEMBER, UNION_MEMBER_CODE_PREFIX);
+    }
+
+    @Override
+    public String nextUnionReliefNo() {
+        return nextYearlyCode(SEQ_KEY_UNION_RELIEF, UNION_RELIEF_CODE_PREFIX);
+    }
+
+    @Override
+    public String nextUnionWelfareNo() {
+        return nextYearlyCode(SEQ_KEY_UNION_WELFARE, UNION_WELFARE_CODE_PREFIX);
+    }
+
+    @Override
+    public String nextUnionActivityNo() {
+        return nextYearlyCode(SEQ_KEY_UNION_ACTIVITY, UNION_ACTIVITY_CODE_PREFIX);
+    }
+
+    @Override
+    public String nextUnionProposalNo() {
+        return nextYearlyCode(SEQ_KEY_UNION_PROPOSAL, UNION_PROPOSAL_CODE_PREFIX);
+    }
+
+    /**
+     * 按年取号并拼接前缀。
+     *
+     * @param seqKey 编号键
+     * @param prefix 编码前缀
+     * @return 前缀 + 年份 + 4 位流水
+     */
+    private String nextYearlyCode(String seqKey, String prefix) {
+        int year = LocalDate.now().getYear();
+        long serial = next(seqKey, String.valueOf(year));
+        return prefix + year + pad(serial);
     }
 
     /**

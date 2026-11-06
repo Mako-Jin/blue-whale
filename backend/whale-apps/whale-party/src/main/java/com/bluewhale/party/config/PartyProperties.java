@@ -3,6 +3,8 @@ package com.bluewhale.party.config;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.math.BigDecimal;
+
 /**
  * 党政工会应用运行参数（配置前缀 {@code whale.party}）。
  *
@@ -40,4 +42,13 @@ public class PartyProperties {
 
     /** 员工快照同步单页条数（对端 ERP 单页上限 500） */
     private int memberSyncPageSize = 100;
+
+    /** 同一会员同年同类型慰问的已批次数上限（M-P3） */
+    private int reliefCountLimit = 2;
+
+    /** 同一会员同年同类型慰问的已批金额上限（元，M-P3） */
+    private BigDecimal reliefAmountLimit = new BigDecimal("5000.00");
+
+    /** 慰问审批流程定义编码（workflow，M-P3） */
+    private String reliefDefinitionCode = "UNION_RELIEF";
 }

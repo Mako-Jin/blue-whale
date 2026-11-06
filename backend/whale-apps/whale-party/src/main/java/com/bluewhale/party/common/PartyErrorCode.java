@@ -98,6 +98,84 @@ public final class PartyErrorCode {
     /** 指定支部不存在或已停用 */
     public static final int CONTENT_BRANCH_INVALID = 43036;
 
+    /** 工会会员不存在或无权访问 */
+    public static final int UNION_MEMBER_NOT_FOUND = 43050;
+
+    /** 该员工已有在册会籍（退会后可再入会，但同时在册只能一份） */
+    public static final int UNION_MEMBER_DUPLICATED = 43051;
+
+    /** 工会会员字段非法（工号/姓名/日期/会费基数越界） */
+    public static final int UNION_MEMBER_INVALID = 43052;
+
+    /** 会籍状态不允许该操作（已退会只读） */
+    public static final int UNION_MEMBER_STATE_CONFLICT = 43053;
+
+    /** 慰问帮扶申请不存在或无权访问 */
+    public static final int UNION_RELIEF_NOT_FOUND = 43054;
+
+    /** 慰问帮扶字段非法（类型/金额/事由越界） */
+    public static final int UNION_RELIEF_INVALID = 43055;
+
+    /** 同人同年同类型慰问超出次数或金额上限 */
+    public static final int UNION_RELIEF_LIMIT_EXCEEDED = 43056;
+
+    /** 慰问帮扶状态不允许该操作 */
+    public static final int UNION_RELIEF_STATE_CONFLICT = 43057;
+
+    /** 审批服务不可达或未配置流程定义（申请保留为草稿） */
+    public static final int UNION_APPROVAL_UNAVAILABLE = 43058;
+
+    /** 审批状态同步失败 */
+    public static final int UNION_APPROVAL_SYNC_FAILED = 43059;
+
+    /** 节日福利批次不存在或无权访问 */
+    public static final int UNION_WELFARE_NOT_FOUND = 43060;
+
+    /** 节日福利字段非法（名称/年度/标准金额越界） */
+    public static final int UNION_WELFARE_INVALID = 43061;
+
+    /** 福利批次状态不允许该操作 */
+    public static final int UNION_WELFARE_STATE_CONFLICT = 43062;
+
+    /** 福利发放明细不存在 */
+    public static final int UNION_WELFARE_ITEM_NOT_FOUND = 43063;
+
+    /** 福利明细状态不允许该操作（已签收或批次已关闭） */
+    public static final int UNION_WELFARE_ITEM_STATE_CONFLICT = 43064;
+
+    /** 无权签收该福利明细（仅本人或工会管理员） */
+    public static final int UNION_WELFARE_ITEM_FORBIDDEN = 43065;
+
+    /** 工会活动不存在或无权访问 */
+    public static final int UNION_ACTIVITY_NOT_FOUND = 43070;
+
+    /** 工会活动字段非法（名称/时间/名额越界） */
+    public static final int UNION_ACTIVITY_INVALID = 43071;
+
+    /** 工会活动状态不允许该操作 */
+    public static final int UNION_ACTIVITY_STATE_CONFLICT = 43072;
+
+    /** 已报名该活动 */
+    public static final int UNION_SIGNUP_DUPLICATED = 43073;
+
+    /** 活动名额已满 */
+    public static final int UNION_SIGNUP_QUOTA_EXCEEDED = 43074;
+
+    /** 报名记录不存在 */
+    public static final int UNION_SIGNUP_NOT_FOUND = 43075;
+
+    /** 职代会提案不存在或无权访问 */
+    public static final int UNION_PROPOSAL_NOT_FOUND = 43076;
+
+    /** 提案字段非法（标题/内容越界） */
+    public static final int UNION_PROPOSAL_INVALID = 43077;
+
+    /** 提案状态不允许该流转（单向，不可跳步或回退） */
+    public static final int UNION_PROPOSAL_STATE_CONFLICT = 43078;
+
+    /** 无权操作该提案（评价仅提交人本人） */
+    public static final int UNION_PROPOSAL_FORBIDDEN = 43079;
+
     /** 业务错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(GATE_CLOSED, "需求门禁未通过，业务接口未开放"),
@@ -126,7 +204,33 @@ public final class PartyErrorCode {
             Map.entry(CONTENT_AUDIT_OPINION_REQUIRED, "退回内容必须填写审核意见"),
             Map.entry(CONTENT_FORBIDDEN, "无权查看或操作该党建内容"),
             Map.entry(CONTENT_VISIBILITY_INVALID, "可见范围不合法，指定支部时至少选择一个支部"),
-            Map.entry(CONTENT_BRANCH_INVALID, "指定支部不存在或已停用"));
+            Map.entry(CONTENT_BRANCH_INVALID, "指定支部不存在或已停用"),
+            Map.entry(UNION_MEMBER_NOT_FOUND, "工会会员不存在或无权访问"),
+            Map.entry(UNION_MEMBER_DUPLICATED, "该员工已有在册会籍，请先办理退会"),
+            Map.entry(UNION_MEMBER_INVALID, "工会会员信息不合法，请检查工号、姓名与日期"),
+            Map.entry(UNION_MEMBER_STATE_CONFLICT, "会籍当前状态不允许该操作"),
+            Map.entry(UNION_RELIEF_NOT_FOUND, "慰问帮扶申请不存在或无权访问"),
+            Map.entry(UNION_RELIEF_INVALID, "慰问帮扶申请不合法，请检查类型、金额与事由"),
+            Map.entry(UNION_RELIEF_LIMIT_EXCEEDED, "同人同年同类型慰问已超出次数或金额上限"),
+            Map.entry(UNION_RELIEF_STATE_CONFLICT, "慰问帮扶申请当前状态不允许该操作"),
+            Map.entry(UNION_APPROVAL_UNAVAILABLE, "审批服务不可用，申请已保存为草稿"),
+            Map.entry(UNION_APPROVAL_SYNC_FAILED, "审批状态同步失败，请稍后重试"),
+            Map.entry(UNION_WELFARE_NOT_FOUND, "节日福利批次不存在或无权访问"),
+            Map.entry(UNION_WELFARE_INVALID, "节日福利信息不合法，请检查名称、年度与标准金额"),
+            Map.entry(UNION_WELFARE_STATE_CONFLICT, "福利批次当前状态不允许该操作"),
+            Map.entry(UNION_WELFARE_ITEM_NOT_FOUND, "福利发放明细不存在"),
+            Map.entry(UNION_WELFARE_ITEM_STATE_CONFLICT, "福利明细当前状态不允许该操作"),
+            Map.entry(UNION_WELFARE_ITEM_FORBIDDEN, "只能签收本人的福利明细"),
+            Map.entry(UNION_ACTIVITY_NOT_FOUND, "工会活动不存在或无权访问"),
+            Map.entry(UNION_ACTIVITY_INVALID, "工会活动信息不合法，请检查名称、时间与名额"),
+            Map.entry(UNION_ACTIVITY_STATE_CONFLICT, "工会活动当前状态不允许该操作"),
+            Map.entry(UNION_SIGNUP_DUPLICATED, "已报名该活动，请勿重复报名"),
+            Map.entry(UNION_SIGNUP_QUOTA_EXCEEDED, "活动名额已满"),
+            Map.entry(UNION_SIGNUP_NOT_FOUND, "报名记录不存在"),
+            Map.entry(UNION_PROPOSAL_NOT_FOUND, "职代会提案不存在或无权访问"),
+            Map.entry(UNION_PROPOSAL_INVALID, "提案信息不合法，请检查标题与内容"),
+            Map.entry(UNION_PROPOSAL_STATE_CONFLICT, "提案状态不允许该流转"),
+            Map.entry(UNION_PROPOSAL_FORBIDDEN, "无权操作该提案"));
 
     /**
      * 私有构造器：常量类，禁止实例化。

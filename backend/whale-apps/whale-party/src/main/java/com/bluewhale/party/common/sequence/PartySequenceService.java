@@ -29,4 +29,39 @@ public interface PartySequenceService {
      * @return 党员编号
      */
     String nextMemberNo();
+
+    /**
+     * 取下一个工会会员编号（{@code UN} + 年份 + 4 位流水，按年重置）。
+     *
+     * @return 工会会员编号
+     */
+    String nextUnionMemberNo();
+
+    /**
+     * 取下一个慰问帮扶编号（{@code RF} + 年份 + 4 位流水，按年重置）。
+     *
+     * @return 慰问帮扶编号
+     */
+    String nextUnionReliefNo();
+
+    /**
+     * 取下一个节日福利批次编号（{@code WF} + 年份 + 4 位流水，按年重置）。
+     *
+     * @return 福利批次编号
+     */
+    String nextUnionWelfareNo();
+
+    /**
+     * 取下一个工会活动编号（{@code UA} + 年份 + 4 位流水，按年重置）。
+     *
+     * @return 工会活动编号
+     */
+    String nextUnionActivityNo();
+
+    /**
+     * 取下一个职代会提案编号（{@code UP} + 年份 + 4 位流水，按年重置）。
+     *
+     * @return 提案编号
+     */
+    String nextUnionProposalNo();
 }

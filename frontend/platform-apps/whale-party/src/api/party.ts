@@ -713,3 +713,699 @@ export function readContent(id: number): Promise<ContentView> {
 export function listContentReads(id: number): Promise<ContentReadView[]> {
   return http.get<ContentReadView[]>(`/party/content/${id}/reads`);
 }
+
+// ---------------------------------------------------------------------
+// M-P3 工会：会员 / 慰问帮扶 / 节日福利 / 工会活动 / 职代会提案
+// ---------------------------------------------------------------------
+
+/** 工会会员视图 */
+export interface UnionMemberView {
+  id: number;
+  memberNo: string;
+  employeeNo: string;
+  userId?: number | null;
+  memberName: string;
+  deptName?: string | null;
+  joinDate: string;
+  status: string;
+  withdrawDate?: string | null;
+  duesBase: number;
+  duesPaidTo?: string | null;
+  remark?: string | null;
+  createTime?: string | null;
+}
+
+/** 工会会员保存命令 */
+export interface UnionMemberSaveCommand {
+  employeeNo: string;
+  userId?: number | null;
+  memberName: string;
+  deptName?: string | null;
+  joinDate: string;
+  duesBase?: number | null;
+  duesPaidTo?: string | null;
+  remark?: string | null;
+}
+
+/** 工会会员查询条件 */
+export interface UnionMemberQuery {
+  keyword?: string;
+  status?: string;
+  current?: number;
+  size?: number;
+}
+
+/** 慰问帮扶视图 */
+export interface UnionReliefView {
+  id: number;
+  reliefNo: string;
+  unionMemberId: number;
+  applicantUserId?: number | null;
+  reliefType: string;
+  applyYear: number;
+  amount: number;
+  reason: string;
+  status: string;
+  approvalInstanceId?: number | null;
+  approvalStatus?: string | null;
+  approvalHint?: string | null;
+  submitTime?: string | null;
+  approvedAt?: string | null;
+  paidAt?: string | null;
+  remark?: string | null;
+}
+
+/** 慰问帮扶保存命令 */
+export interface UnionReliefSaveCommand {
+  unionMemberId: number;
+  reliefType: string;
+  amount: number;
+  reason: string;
+  remark?: string | null;
+}
+
+/** 慰问帮扶查询条件 */
+export interface UnionReliefQuery {
+  keyword?: string;
+  status?: string;
+  reliefType?: string;
+  year?: number;
+  current?: number;
+  size?: number;
+}
+
+/** 慰问提交结果（approvalStarted=false 表示审批不可达，已存为草稿） */
+export interface UnionReliefSubmitView {
+  id: number;
+  status: string;
+  approvalStarted: boolean;
+  approvalHint?: string | null;
+  approvalInstanceId?: number | null;
+}
+
+/** 节日福利批次视图 */
+export interface UnionWelfareView {
+  id: number;
+  welfareNo: string;
+  title: string;
+  welfareYear: number;
+  standardAmount: number;
+  status: string;
+  issuedAt?: string | null;
+  closedAt?: string | null;
+  remark?: string | null;
+  issueCount?: number | null;
+}
+
+/** 节日福利保存命令 */
+export interface UnionWelfareSaveCommand {
+  title: string;
+  welfareYear: number;
+  standardAmount: number;
+  remark?: string | null;
+}
+
+/** 节日福利发放命令（memberIds 缺省或为空表示全量在册会员） */
+export interface UnionWelfareIssueCommand {
+  memberIds?: number[] | null;
+}
+
+/** 节日福利明细视图 */
+export interface UnionWelfareItemView {
+  id: number;
+  welfareId: number;
+  unionMemberId: number;
+  employeeNo: string;
+  memberName: string;
+  amount: number;
+  signStatus: string;
+  signedAt?: string | null;
+  welfareTitle?: string | null;
+}
+
+/** 节日福利查询条件 */
+export interface UnionWelfareQuery {
+  keyword?: string;
+  year?: number;
+  status?: string;
+  current?: number;
+  size?: number;
+}
+
+/** 节日福利明细分页条件 */
+export interface UnionWelfareItemQuery {
+  signStatus?: string;
+  current?: number;
+  size?: number;
+}
+
+/** 工会活动视图 */
+export interface UnionActivityView {
+  id: number;
+  activityNo: string;
+  title: string;
+  activityType?: string | null;
+  startTime: string;
+  endTime: string;
+  location?: string | null;
+  quota: number;
+  status: string;
+  remark?: string | null;
+  signupCount?: number | null;
+}
+
+/** 工会活动保存命令 */
+export interface UnionActivitySaveCommand {
+  title: string;
+  activityType?: string | null;
+  startTime: string;
+  endTime: string;
+  location?: string | null;
+  quota?: number | null;
+  remark?: string | null;
+}
+
+/** 工会活动报名记录 */
+export interface UnionSignupView {
+  id: number;
+  activityId: number;
+  activityTitle?: string | null;
+  unionMemberId: number;
+  memberName?: string | null;
+  userId?: number | null;
+  status: string;
+  signupAt: string;
+  cancelledAt?: string | null;
+}
+
+/** 工会活动查询条件 */
+export interface UnionActivityQuery {
+  keyword?: string;
+  status?: string;
+  current?: number;
+  size?: number;
+}
+
+/** 工会活动园地查询条件 */
+export interface UnionActivityPortalQuery {
+  keyword?: string;
+  current?: number;
+  size?: number;
+}
+
+/** 工会活动报名记录分页条件 */
+export interface UnionActivitySignupQuery {
+  current?: number;
+  size?: number;
+}
+
+/** 职代会提案视图 */
+export interface UnionProposalView {
+  id: number;
+  proposalNo: string;
+  title: string;
+  content: string;
+  submitterUserId?: number | null;
+  submitterName?: string | null;
+  status: string;
+  handler?: string | null;
+  filedAt?: string | null;
+  handledAt?: string | null;
+  feedback?: string | null;
+  feedbackAt?: string | null;
+  rating?: number | null;
+  ratedAt?: string | null;
+  createTime?: string | null;
+}
+
+/** 职代会提案提交命令 */
+export interface UnionProposalSaveCommand {
+  title: string;
+  content: string;
+}
+
+/** 职代会提案查询条件 */
+export interface UnionProposalQuery {
+  keyword?: string;
+  status?: string;
+  current?: number;
+  size?: number;
+}
+
+/** 我的提案查询条件 */
+export interface UnionProposalPortalQuery {
+  current?: number;
+  size?: number;
+}
+
+/**
+ * 工会会员分页。
+ *
+ * @param query 查询条件
+ * @returns 分页结果
+ */
+export function pageUnionMembers(query: UnionMemberQuery): Promise<PageResult<UnionMemberView>> {
+  return http.get<PageResult<UnionMemberView>>('/party/union/member/page', { ...query });
+}
+
+/**
+ * 工会会员详情。
+ *
+ * @param id 会员 ID
+ * @returns 视图
+ */
+export function getUnionMember(id: number): Promise<UnionMemberView> {
+  return http.get<UnionMemberView>(`/party/union/member/${id}`);
+}
+
+/**
+ * 办理入会。
+ *
+ * @param command 保存命令
+ * @returns 会员视图
+ */
+export function createUnionMember(command: UnionMemberSaveCommand): Promise<UnionMemberView> {
+  return http.post<UnionMemberView>('/party/union/member', command);
+}
+
+/**
+ * 编辑会员档案（含会费基数与缴至月份）。
+ *
+ * @param id 会员 ID
+ * @param command 保存命令
+ * @returns 会员视图
+ */
+export function updateUnionMember(id: number, command: UnionMemberSaveCommand): Promise<UnionMemberView> {
+  return http.put<UnionMemberView>(`/party/union/member/${id}`, command);
+}
+
+/**
+ * 办理退会（终态，保留历史）。
+ *
+ * @param id 会员 ID
+ * @param withdrawDate 退会日期（缺省为今天）
+ * @returns 会员视图
+ */
+export function withdrawUnionMember(id: number, withdrawDate?: string): Promise<UnionMemberView> {
+  return http.post<UnionMemberView>(`/party/union/member/${id}/withdraw`, { withdrawDate });
+}
+
+/**
+ * 慰问帮扶分页。
+ *
+ * @param query 查询条件
+ * @returns 分页结果
+ */
+export function pageUnionReliefs(query: UnionReliefQuery): Promise<PageResult<UnionReliefView>> {
+  return http.get<PageResult<UnionReliefView>>('/party/union/relief/page', { ...query });
+}
+
+/**
+ * 慰问帮扶详情。
+ *
+ * @param id 申请 ID
+ * @returns 视图
+ */
+export function getUnionRelief(id: number): Promise<UnionReliefView> {
+  return http.get<UnionReliefView>(`/party/union/relief/${id}`);
+}
+
+/**
+ * 新建慰问申请。
+ *
+ * @param command 保存命令
+ * @returns 申请视图
+ */
+export function createUnionRelief(command: UnionReliefSaveCommand): Promise<UnionReliefView> {
+  return http.post<UnionReliefView>('/party/union/relief', command);
+}
+
+/**
+ * 编辑慰问申请（仅草稿）。
+ *
+ * @param id 申请 ID
+ * @param command 保存命令
+ * @returns 申请视图
+ */
+export function updateUnionRelief(id: number, command: UnionReliefSaveCommand): Promise<UnionReliefView> {
+  return http.put<UnionReliefView>(`/party/union/relief/${id}`, command);
+}
+
+/**
+ * 提交审批（审批不可达时保存为草稿并返回 approvalStarted=false）。
+ *
+ * @param id 申请 ID
+ * @returns 提交结果
+ */
+export function submitUnionRelief(id: number): Promise<UnionReliefSubmitView> {
+  return http.post<UnionReliefSubmitView>(`/party/union/relief/${id}/submit`);
+}
+
+/**
+ * 同步审批结果（仅 SUBMITTED）。
+ *
+ * @param id 申请 ID
+ * @returns 申请视图
+ */
+export function syncUnionRelief(id: number): Promise<UnionReliefView> {
+  return http.post<UnionReliefView>(`/party/union/relief/${id}/sync`);
+}
+
+/**
+ * 登记发放（仅 APPROVED）。
+ *
+ * @param id 申请 ID
+ * @returns 申请视图
+ */
+export function payUnionRelief(id: number): Promise<UnionReliefView> {
+  return http.post<UnionReliefView>(`/party/union/relief/${id}/pay`);
+}
+
+/**
+ * 节日福利批次分页。
+ *
+ * @param query 查询条件
+ * @returns 分页结果
+ */
+export function pageUnionWelfares(query: UnionWelfareQuery): Promise<PageResult<UnionWelfareView>> {
+  return http.get<PageResult<UnionWelfareView>>('/party/union/welfare/page', { ...query });
+}
+
+/**
+ * 节日福利批次详情。
+ *
+ * @param id 批次 ID
+ * @returns 视图
+ */
+export function getUnionWelfare(id: number): Promise<UnionWelfareView> {
+  return http.get<UnionWelfareView>(`/party/union/welfare/${id}`);
+}
+
+/**
+ * 新建福利批次。
+ *
+ * @param command 保存命令
+ * @returns 视图
+ */
+export function createUnionWelfare(command: UnionWelfareSaveCommand): Promise<UnionWelfareView> {
+  return http.post<UnionWelfareView>('/party/union/welfare', command);
+}
+
+/**
+ * 编辑福利批次（仅草稿）。
+ *
+ * @param id 批次 ID
+ * @param command 保存命令
+ * @returns 视图
+ */
+export function updateUnionWelfare(id: number, command: UnionWelfareSaveCommand): Promise<UnionWelfareView> {
+  return http.put<UnionWelfareView>(`/party/union/welfare/${id}`, command);
+}
+
+/**
+ * 发放福利（名单为空表示全量在册会员，重复生成幂等）。
+ *
+ * @param id 批次 ID
+ * @param command 发放名单
+ * @returns 视图（issueCount 可能为空）
+ */
+export function issueUnionWelfare(id: number, command: UnionWelfareIssueCommand): Promise<UnionWelfareView> {
+  return http.post<UnionWelfareView>(`/party/union/welfare/${id}/issue`, command);
+}
+
+/**
+ * 福利明细分页。
+ *
+ * @param id 批次 ID
+ * @param query 查询条件
+ * @returns 分页结果
+ */
+export function pageUnionWelfareItems(
+  id: number,
+  query: UnionWelfareItemQuery,
+): Promise<PageResult<UnionWelfareItemView>> {
+  return http.get<PageResult<UnionWelfareItemView>>(`/party/union/welfare/${id}/items`, { ...query });
+}
+
+/**
+ * 按人签收（幂等，仅已发放批次）。
+ *
+ * @param itemId 明细 ID
+ * @returns 明细视图
+ */
+export function signUnionWelfareItem(itemId: number): Promise<UnionWelfareItemView> {
+  return http.post<UnionWelfareItemView>(`/party/union/welfare/item/${itemId}/sign`);
+}
+
+/**
+ * 关闭福利批次（终态，关闭后不可签收）。
+ *
+ * @param id 批次 ID
+ * @returns 视图
+ */
+export function closeUnionWelfare(id: number): Promise<UnionWelfareView> {
+  return http.post<UnionWelfareView>(`/party/union/welfare/${id}/close`);
+}
+
+/**
+ * 我的福利分页（普通员工自助）。
+ *
+ * @param query 查询条件
+ * @returns 分页结果
+ */
+export function pageMyUnionWelfares(query: UnionWelfareItemQuery): Promise<PageResult<UnionWelfareItemView>> {
+  return http.get<PageResult<UnionWelfareItemView>>('/party/union/welfare/my', { ...query });
+}
+
+/**
+ * 工会活动管理分页。
+ *
+ * @param query 查询条件
+ * @returns 分页结果
+ */
+export function pageUnionActivities(query: UnionActivityQuery): Promise<PageResult<UnionActivityView>> {
+  return http.get<PageResult<UnionActivityView>>('/party/union/activity/page', { ...query });
+}
+
+/**
+ * 工会活动详情。
+ *
+ * @param id 活动 ID
+ * @returns 视图
+ */
+export function getUnionActivity(id: number): Promise<UnionActivityView> {
+  return http.get<UnionActivityView>(`/party/union/activity/${id}`);
+}
+
+/**
+ * 新建工会活动。
+ *
+ * @param command 保存命令
+ * @returns 视图
+ */
+export function createUnionActivity(command: UnionActivitySaveCommand): Promise<UnionActivityView> {
+  return http.post<UnionActivityView>('/party/union/activity', command);
+}
+
+/**
+ * 编辑工会活动（发布后时间地点冻结，由后端校验）。
+ *
+ * @param id 活动 ID
+ * @param command 保存命令
+ * @returns 视图
+ */
+export function updateUnionActivity(id: number, command: UnionActivitySaveCommand): Promise<UnionActivityView> {
+  return http.put<UnionActivityView>(`/party/union/activity/${id}`, command);
+}
+
+/**
+ * 发布活动。
+ *
+ * @param id 活动 ID
+ * @returns 视图
+ */
+export function publishUnionActivity(id: number): Promise<UnionActivityView> {
+  return http.post<UnionActivityView>(`/party/union/activity/${id}/publish`);
+}
+
+/**
+ * 关闭活动（终态）。
+ *
+ * @param id 活动 ID
+ * @returns 视图
+ */
+export function closeUnionActivity(id: number): Promise<UnionActivityView> {
+  return http.post<UnionActivityView>(`/party/union/activity/${id}/close`);
+}
+
+/**
+ * 取消活动（终态）。
+ *
+ * @param id 活动 ID
+ * @returns 视图
+ */
+export function cancelUnionActivity(id: number): Promise<UnionActivityView> {
+  return http.post<UnionActivityView>(`/party/union/activity/${id}/cancel`);
+}
+
+/**
+ * 活动报名名单分页（管理端）。
+ *
+ * @param id 活动 ID
+ * @param query 查询条件
+ * @returns 分页结果
+ */
+export function pageUnionActivitySignups(
+  id: number,
+  query: UnionActivitySignupQuery,
+): Promise<PageResult<UnionSignupView>> {
+  return http.get<PageResult<UnionSignupView>>(`/party/union/activity/${id}/signups`, { ...query });
+}
+
+/**
+ * 活动园地分页（员工可见，仅已发布）。
+ *
+ * @param query 查询条件
+ * @returns 分页结果
+ */
+export function pageUnionActivityPortal(
+  query: UnionActivityPortalQuery,
+): Promise<PageResult<UnionActivityView>> {
+  return http.get<PageResult<UnionActivityView>>('/party/union/activity/portal/page', { ...query });
+}
+
+/**
+ * 活动园地详情。
+ *
+ * @param id 活动 ID
+ * @returns 视图
+ */
+export function getUnionActivityPortal(id: number): Promise<UnionActivityView> {
+  return http.get<UnionActivityView>(`/party/union/activity/portal/${id}`);
+}
+
+/**
+ * 员工报名。
+ *
+ * @param id 活动 ID
+ * @returns 报名记录
+ */
+export function signupUnionActivity(id: number): Promise<UnionSignupView> {
+  return http.post<UnionSignupView>(`/party/union/activity/portal/${id}/signup`);
+}
+
+/**
+ * 员工取消报名。
+ *
+ * @param id 活动 ID
+ * @returns 报名记录
+ */
+export function cancelUnionActivitySignup(id: number): Promise<UnionSignupView> {
+  return http.post<UnionSignupView>(`/party/union/activity/portal/${id}/cancel`);
+}
+
+/**
+ * 我的报名分页。
+ *
+ * @param query 查询条件
+ * @returns 分页结果
+ */
+export function pageMyUnionActivities(query: UnionActivitySignupQuery): Promise<PageResult<UnionSignupView>> {
+  return http.get<PageResult<UnionSignupView>>('/party/union/activity/my', { ...query });
+}
+
+/**
+ * 职代会提案管理分页。
+ *
+ * @param query 查询条件
+ * @returns 分页结果
+ */
+export function pageUnionProposals(query: UnionProposalQuery): Promise<PageResult<UnionProposalView>> {
+  return http.get<PageResult<UnionProposalView>>('/party/union/proposal/page', { ...query });
+}
+
+/**
+ * 职代会提案详情。
+ *
+ * @param id 提案 ID
+ * @returns 视图
+ */
+export function getUnionProposal(id: number): Promise<UnionProposalView> {
+  return http.get<UnionProposalView>(`/party/union/proposal/${id}`);
+}
+
+/**
+ * 提交提案（员工自助）。
+ *
+ * @param command 提案内容
+ * @returns 视图
+ */
+export function createUnionProposal(command: UnionProposalSaveCommand): Promise<UnionProposalView> {
+  return http.post<UnionProposalView>('/party/union/proposal', command);
+}
+
+/**
+ * 立案。
+ *
+ * @param id 提案 ID
+ * @param handler 承办人（可选）
+ * @returns 视图
+ */
+export function fileUnionProposal(id: number, handler?: string): Promise<UnionProposalView> {
+  return http.post<UnionProposalView>(`/party/union/proposal/${id}/file`, { handler });
+}
+
+/**
+ * 办理（记录承办人）。
+ *
+ * @param id 提案 ID
+ * @param handler 承办人
+ * @returns 视图
+ */
+export function handleUnionProposal(id: number, handler: string): Promise<UnionProposalView> {
+  return http.post<UnionProposalView>(`/party/union/proposal/${id}/handle`, { handler });
+}
+
+/**
+ * 反馈办理结果。
+ *
+ * @param id 提案 ID
+ * @param feedback 反馈内容
+ * @returns 视图
+ */
+export function feedbackUnionProposal(id: number, feedback: string): Promise<UnionProposalView> {
+  return http.post<UnionProposalView>(`/party/union/proposal/${id}/feedback`, { feedback });
+}
+
+/**
+ * 评价（1–5 星，仅提交人本人且处于已反馈）。
+ *
+ * @param id 提案 ID
+ * @param rating 评分
+ * @returns 视图
+ */
+export function rateUnionProposal(id: number, rating: number): Promise<UnionProposalView> {
+  return http.post<UnionProposalView>(`/party/union/proposal/${id}/rate`, { rating });
+}
+
+/**
+ * 我的提案分页。
+ *
+ * @param query 查询条件
+ * @returns 分页结果
+ */
+export function pageUnionProposalPortal(
+  query: UnionProposalPortalQuery,
+): Promise<PageResult<UnionProposalView>> {
+  return http.get<PageResult<UnionProposalView>>('/party/union/proposal/portal/page', { ...query });
+}
+
+/**
+ * 我的提案详情。
+ *
+ * @param id 提案 ID
+ * @returns 视图
+ */
+export function getUnionProposalPortal(id: number): Promise<UnionProposalView> {
+  return http.get<UnionProposalView>(`/party/union/proposal/portal/${id}`);
+}
