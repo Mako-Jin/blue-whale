@@ -1,9 +1,10 @@
-// 党政工会接口封装（M-P0 门禁 + M-P1 党建台账）。
+// 党政工会接口封装（M-P0 门禁 + M-P1 党建台账 + M-P2 党建内容）。
 //
-// 权限码与 migration-5.88-party-m0/m1.sql 对齐：
+// 权限码与 migration-5.88-party-m0/m1/m2.sql 对齐：
 //   sys:party:browse（1950）、sys:party:branch:list/manage（1951/1952）、
 //   sys:party:member:list/manage（1954/1953）、sys:party:activity:list/manage（1955/1956）、
-//   sys:party:fee:list/manage（1957/1958）。
+//   sys:party:fee:list/manage（1957/1958）、
+//   sys:party:content:list/manage/audit（1959/1960/1961）。
 // 路径前缀 `/party` 由网关注入，网关不剥离一级前缀（REQ-ARCH-003）。
 
 import { http, type PageResult } from './client';
@@ -495,4 +496,220 @@ export function payFeeBill(
 export function waiveFeeBill(billId: number, reason?: string): Promise<FeeBillView> {
   const query = reason ? `?reason=${encodeURIComponent(reason)}` : '';
   return http.post<FeeBillView>(`/party/fee/bill/${billId}/waive${query}`);
+}
+
+// ---------------------------------------------------------------------
+// M-P2 党建内容（先审后发）
+// ---------------------------------------------------------------------
+
+/** 党建内容视图 */
+export interface ContentView {
+  id: number;
+  category: string;
+  title: string;
+  summary?: string | null;
+  coverFileId?: number | null;
+  body?: string | null;
+  attachmentFileIds?: number[] | null;
+  visibility: string;
+  visibilityLabel: string;
+  branchIds?: number[] | null;
+  branchNames?: string[] | null;
+  status: string;
+  statusLabel: string;
+  authorId: number;
+  authorName?: string | null;
+  submitTime?: string | null;
+  publishedAt?: string | null;
+  offlineAt?: string | null;
+  readCount: number;
+  remark?: string | null;
+  createTime?: string | null;
+  updateTime?: string | null;
+}
+
+/** 党建内容保存命令 */
+export interface ContentSaveCommand {
+  category: string;
+  title: string;
+  summary?: string | null;
+  coverFileId?: number | null;
+  body?: string | null;
+  attachmentFileIds?: number[] | null;
+  visibility?: string;
+  branchIds?: number[] | null;
+  remark?: string | null;
+}
+
+/** 党建内容管理查询条件 */
+export interface ContentQuery {
+  keyword?: string;
+  category?: string;
+  status?: string;
+  visibility?: string;
+  current?: number;
+  size?: number;
+}
+
+/** 党建园地查询条件 */
+export interface ContentPortalQuery {
+  keyword?: string;
+  category?: string;
+  current?: number;
+  size?: number;
+}
+
+/** 党建内容审核轨迹 */
+export interface ContentAuditView {
+  id: number;
+  contentId: number;
+  action: string;
+  actionLabel: string;
+  fromStatus?: string | null;
+  toStatus?: string | null;
+  opinion?: string | null;
+  operatorId: number;
+  operatorName?: string | null;
+  createTime?: string | null;
+}
+
+/** 党建内容阅读记录 */
+export interface ContentReadView {
+  id: number;
+  contentId: number;
+  userId: number;
+  userName?: string | null;
+  readAt?: string | null;
+}
+
+/**
+ * 党建内容管理分页（含未审稿，按权限与作者范围过滤）。
+ *
+ * @param query 查询条件
+ * @returns 分页结果
+ */
+export function pageContent(query: ContentQuery): Promise<PageResult<ContentView>> {
+  return http.get<PageResult<ContentView>>('/party/content/page', { ...query });
+}
+
+/**
+ * 党建内容管理详情。
+ *
+ * @param id 内容 ID
+ * @returns 视图
+ */
+export function getContent(id: number): Promise<ContentView> {
+  return http.get<ContentView>(`/party/content/${id}`);
+}
+
+/**
+ * 新建党建内容（草稿）。
+ *
+ * @param command 保存命令
+ * @returns 视图
+ */
+export function createContent(command: ContentSaveCommand): Promise<ContentView> {
+  return http.post<ContentView>('/party/content', command);
+}
+
+/**
+ * 编辑党建内容（已发布内容保存后自动退回待审）。
+ *
+ * @param id 内容 ID
+ * @param command 保存命令
+ * @returns 视图
+ */
+export function updateContent(id: number, command: ContentSaveCommand): Promise<ContentView> {
+  return http.put<ContentView>(`/party/content/${id}`, command);
+}
+
+/**
+ * 提交审核。
+ *
+ * @param id 内容 ID
+ * @returns 视图
+ */
+export function submitContent(id: number): Promise<ContentView> {
+  return http.post<ContentView>(`/party/content/${id}/submit`);
+}
+
+/**
+ * 审核通过。
+ *
+ * @param id 内容 ID
+ * @returns 视图
+ */
+export function approveContent(id: number): Promise<ContentView> {
+  return http.post<ContentView>(`/party/content/${id}/approve`);
+}
+
+/**
+ * 审核退回（意见必填）。
+ *
+ * @param id 内容 ID
+ * @param opinion 审核意见
+ * @returns 视图
+ */
+export function rejectContent(id: number, opinion: string): Promise<ContentView> {
+  return http.post<ContentView>(`/party/content/${id}/reject`, { opinion });
+}
+
+/**
+ * 下线（终态，保留阅读数）。
+ *
+ * @param id 内容 ID
+ * @returns 视图
+ */
+export function offlineContent(id: number): Promise<ContentView> {
+  return http.post<ContentView>(`/party/content/${id}/offline`);
+}
+
+/**
+ * 审核轨迹。
+ *
+ * @param id 内容 ID
+ * @returns 轨迹列表
+ */
+export function listContentAudits(id: number): Promise<ContentAuditView[]> {
+  return http.get<ContentAuditView[]>(`/party/content/${id}/audits`);
+}
+
+/**
+ * 党建园地阅读列表（仅已发布且当前用户可见）。
+ *
+ * @param query 查询条件
+ * @returns 分页结果
+ */
+export function pageContentPortal(query: ContentPortalQuery): Promise<PageResult<ContentView>> {
+  return http.get<PageResult<ContentView>>('/party/content/portal/page', { ...query });
+}
+
+/**
+ * 党建园地阅读详情。
+ *
+ * @param id 内容 ID
+ * @returns 视图
+ */
+export function getContentPortal(id: number): Promise<ContentView> {
+  return http.get<ContentView>(`/party/content/portal/${id}`);
+}
+
+/**
+ * 登记阅读（同一人同一内容只计一次）。
+ *
+ * @param id 内容 ID
+ * @returns 视图（含最新阅读人数）
+ */
+export function readContent(id: number): Promise<ContentView> {
+  return http.post<ContentView>(`/party/content/${id}/read`);
+}
+
+/**
+ * 阅读记录。
+ *
+ * @param id 内容 ID
+ * @returns 阅读记录列表
+ */
+export function listContentReads(id: number): Promise<ContentReadView[]> {
+  return http.get<ContentReadView[]>(`/party/content/${id}/reads`);
 }

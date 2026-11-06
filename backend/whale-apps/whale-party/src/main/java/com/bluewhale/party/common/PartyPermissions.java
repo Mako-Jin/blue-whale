@@ -10,7 +10,7 @@ package com.bluewhale.party.common;
  * 一眼可读，不换号段是为了不牵动已发布的权限迁移。</p>
  *
  * <p>M-P0 只登记 1950–1953 四项基线；M-P1 追加 1954–1958（党员查看、组织生活查看/维护、
- * 党费查看/维护）。</p>
+ * 党费查看/维护）；M-P2 追加 1959–1961（党建内容查看/维护/审核）。</p>
  *
  * @author BlueWhale
  */
@@ -42,6 +42,15 @@ public final class PartyPermissions {
 
     /** 党费维护：配置标准 / 生成账单 / 登记缴费（1958） */
     public static final String FEE_MANAGE = "sys:party:fee:manage";
+
+    /** 党建内容查看：管理列表 / 详情 / 审核轨迹 / 阅读记录（1959） */
+    public static final String CONTENT_LIST = "sys:party:content:list";
+
+    /** 党建内容维护：新建 / 编辑 / 提交审核（1960） */
+    public static final String CONTENT_MANAGE = "sys:party:content:manage";
+
+    /** 党建内容审核：通过 / 退回（意见必填）/ 下线（1961） */
+    public static final String CONTENT_AUDIT = "sys:party:content:audit";
 
     /**
      * 私有构造器：常量类，禁止实例化。

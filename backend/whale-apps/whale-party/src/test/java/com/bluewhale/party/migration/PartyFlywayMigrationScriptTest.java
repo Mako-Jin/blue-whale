@@ -131,6 +131,29 @@ class PartyFlywayMigrationScriptTest {
     }
 
     @Test
+    @DisplayName("M-P2 覆盖党建内容三张表")
+    void contentMigrationShouldCoverContentTables() throws IOException {
+        Set<String> tables = new LinkedHashSet<>();
+        for (Path script : migrationScripts()) {
+            Matcher matcher = CREATE_TABLE.matcher(Files.readString(script, StandardCharsets.UTF_8));
+            while (matcher.find()) {
+                tables.add(matcher.group(1));
+            }
+        }
+        Set<String> expected = Stream.of("pty_content", "pty_content_audit", "pty_content_read")
+                .collect(Collectors.toSet());
+        assertTrue(tables.containsAll(expected), "缺少党建内容表：" + expected);
+    }
+
+    @Test
+    @DisplayName("阅读记录按人+内容唯一，阅读数不会被刷新放大")
+    void contentReadUniqueKeyShouldGuardDuplicates() throws IOException {
+        String content = Files.readString(MIGRATION_DIR.resolve("V4__party_content.sql"), StandardCharsets.UTF_8);
+        assertTrue(content.contains("uk_pty_content_read (tenant_id, content_id, user_id)"),
+                "阅读记录须按租户+内容+用户唯一");
+    }
+
+    @Test
     @DisplayName("编号流水表唯一键不含 deleted（逻辑删除会让取号分裂）")
     void sequenceUniqueKeyShouldNotIncludeDeleted() throws IOException {
         String content = Files.readString(MIGRATION_DIR.resolve("V2__platform.sql"), StandardCharsets.UTF_8);

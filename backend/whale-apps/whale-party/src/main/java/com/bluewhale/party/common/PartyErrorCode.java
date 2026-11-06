@@ -77,6 +77,27 @@ public final class PartyErrorCode {
     /** 党员档案字段非法（编号/工号/姓名/日期/基数越界） */
     public static final int MEMBER_INVALID = 43019;
 
+    /** 党建内容不存在或无权访问 */
+    public static final int CONTENT_NOT_FOUND = 43030;
+
+    /** 党建内容状态不允许该操作（如待审不可改、已下线不可再流转） */
+    public static final int CONTENT_STATE_CONFLICT = 43031;
+
+    /** 党建内容字段非法（分类/标题/摘要/正文/附件越界） */
+    public static final int CONTENT_INVALID = 43032;
+
+    /** 审核退回必须填写意见 */
+    public static final int CONTENT_AUDIT_OPINION_REQUIRED = 43033;
+
+    /** 无权查看该党建内容（未审仅作者与审核人可见） */
+    public static final int CONTENT_FORBIDDEN = 43034;
+
+    /** 可见范围非法（指定支部未选支部或超出上限） */
+    public static final int CONTENT_VISIBILITY_INVALID = 43035;
+
+    /** 指定支部不存在或已停用 */
+    public static final int CONTENT_BRANCH_INVALID = 43036;
+
     /** 业务错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(GATE_CLOSED, "需求门禁未通过，业务接口未开放"),
@@ -98,7 +119,14 @@ public final class PartyErrorCode {
             Map.entry(FEE_RULE_OVERLAP, "党费标准的基数区间存在重叠"),
             Map.entry(BRANCH_STATE_CONFLICT, "支部当前状态不允许该操作，停用前请先转出党员与下级支部"),
             Map.entry(BRANCH_INVALID, "支部信息不合法，请检查编码、名称与备注"),
-            Map.entry(MEMBER_INVALID, "党员档案信息不合法，请检查编号、工号、姓名与日期"));
+            Map.entry(MEMBER_INVALID, "党员档案信息不合法，请检查编号、工号、姓名与日期"),
+            Map.entry(CONTENT_NOT_FOUND, "党建内容不存在或无权访问"),
+            Map.entry(CONTENT_STATE_CONFLICT, "党建内容当前状态不允许该操作"),
+            Map.entry(CONTENT_INVALID, "党建内容信息不合法，请检查分类、标题、正文与附件"),
+            Map.entry(CONTENT_AUDIT_OPINION_REQUIRED, "退回内容必须填写审核意见"),
+            Map.entry(CONTENT_FORBIDDEN, "无权查看或操作该党建内容"),
+            Map.entry(CONTENT_VISIBILITY_INVALID, "可见范围不合法，指定支部时至少选择一个支部"),
+            Map.entry(CONTENT_BRANCH_INVALID, "指定支部不存在或已停用"));
 
     /**
      * 私有构造器：常量类，禁止实例化。
