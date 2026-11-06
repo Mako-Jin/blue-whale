@@ -46,4 +46,13 @@ public class LmsProperties {
 
     /** 单份试卷题目数上限 */
     private int paperQuestionLimit = 200;
+
+    /** 考试单页上限 */
+    private int examPageLimit = 100;
+
+    /** 作答记录 / 成绩单页上限 */
+    private int attemptPageLimit = 100;
+
+    /** 单次提交判分的题目数上限 */
+    private int gradeItemLimit = 200;
 }

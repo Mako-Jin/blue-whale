@@ -1,20 +1,27 @@
-// 学习子应用布局：顶部导航（课程管理 / 培训计划 / 题库 / 试卷 / 我的学习）+ 内容区。
+// 学习子应用布局：顶部导航（课程 / 培训 / 题库 / 试卷 / 考试 / 判分 / 我的学习）+ 内容区。
 //
-// M1 提供课程域界面，M2 增培训计划，M3-1 增题库与试卷；考试 / 证书导航项随后续波次增量注册。
+// M1 提供课程域界面，M2 增培训计划，M3-1 增题库与试卷，M3-2 增考试与判分；
+// 证书 / 看板导航项随后续波次增量注册。
 
 import { Layout, Menu, Typography } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 const { Header, Content } = Layout;
 
-/** 导航项（与基座菜单 /lms/course、/lms/training、/lms/question、/lms/paper、/lms/my 对齐） */
+/** 导航项（与基座菜单 /lms/* 路径对齐） */
 const NAV_ITEMS = [
   { key: '/course', label: '课程管理' },
   { key: '/training', label: '培训计划' },
   { key: '/question', label: '题库' },
   { key: '/paper', label: '试卷' },
+  { key: '/exam', label: '考试' },
+  { key: '/grade', label: '判分' },
+  { key: '/my-exam', label: '我的考试' },
   { key: '/my', label: '我的学习' },
 ];
+
+/** 答题页归属于「考试」导航（路径前缀与导航项不同，单独映射） */
+const NAV_ALIAS: Record<string, string> = { '/attempt': '/exam' };
 
 /**
  * 解析当前导航选中项：取第一个路径前缀命中的导航项。
@@ -23,6 +30,10 @@ const NAV_ITEMS = [
  * @return 导航 key
  */
 function resolveSelected(pathname: string): string {
+  const alias = Object.keys(NAV_ALIAS).find((prefix) => pathname.startsWith(prefix));
+  if (alias) {
+    return NAV_ALIAS[alias];
+  }
   const hit = NAV_ITEMS.find((item) => pathname.startsWith(item.key));
   return hit?.key ?? '/course';
 }

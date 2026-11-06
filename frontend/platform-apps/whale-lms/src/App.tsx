@@ -1,14 +1,19 @@
-// 学习培训考试子应用根组件：课程管理 / 课程详情 / 我的学习 / 培训计划 / 题库 / 试卷
+// 学习培训考试子应用根组件：课程 / 培训 / 题库 / 试卷 / 考试 / 判分 / 我的考试
 //
 // M1 范围：课程 CRUD + 发布归档 + 章节课件 + 报名与进度（REQ-FUNC-087）。
 // M2 范围：培训班 / 场次 / 必修分配 / 面授签到 / 讲师课时（REQ-FUNC-088）。
-// M3-1 范围：题库（题目/选项）+ 试卷（手工加题 + 规则抽题）（REQ-FUNC-089）。
-// 考试与判分（M3-2）/ 证书学分（M4）路由后续波次增量注册。
+// M3-1 范围：题库（题目/选项）+ 试卷（手工加题 + 规则抽题）。
+// M3-2 范围：考试（时间窗/乱序）+ 作答 + 交卷判分 + 人工判分 + 成绩版本（REQ-FUNC-089）。
+// 证书学分（M4）/ 集成与看板（M5–M6）路由后续波次增量注册。
 
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import LmsLayout from './layout/LmsLayout';
 import CourseDetailPage from './pages/CourseDetailPage';
 import CourseListPage from './pages/CourseListPage';
+import ExamAttemptPage from './pages/ExamAttemptPage';
+import ExamListPage from './pages/ExamListPage';
+import GradePage from './pages/GradePage';
+import MyExamPage from './pages/MyExamPage';
 import MyLearningPage from './pages/MyLearningPage';
 import PaperDetailPage from './pages/PaperDetailPage';
 import PaperListPage from './pages/PaperListPage';
@@ -29,6 +34,10 @@ export default function App() {
           <Route path="question" element={<QuestionListPage />} />
           <Route path="paper" element={<PaperListPage />} />
           <Route path="paper/:id" element={<PaperDetailPage />} />
+          <Route path="exam" element={<ExamListPage />} />
+          <Route path="attempt/:attemptId" element={<ExamAttemptPage />} />
+          <Route path="grade" element={<GradePage />} />
+          <Route path="my-exam" element={<MyExamPage />} />
           <Route path="my" element={<MyLearningPage />} />
           <Route path="*" element={<Navigate to="/course" replace />} />
         </Route>

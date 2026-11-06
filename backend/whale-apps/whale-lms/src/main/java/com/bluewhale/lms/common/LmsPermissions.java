@@ -100,6 +100,36 @@ public final class LmsPermissions {
     /** 试卷发布 / 归档 */
     public static final String PAPER_PUBLISH = "sys:lms:paper:publish";
 
+    /** 考试列表 / 详情 */
+    public static final String EXAM_LIST = "sys:lms:exam:list";
+
+    /** 新建考试 */
+    public static final String EXAM_CREATE = "sys:lms:exam:create";
+
+    /** 编辑考试 */
+    public static final String EXAM_UPDATE = "sys:lms:exam:update";
+
+    /** 删除考试 */
+    public static final String EXAM_DELETE = "sys:lms:exam:delete";
+
+    /** 考试发布 / 结课 */
+    public static final String EXAM_PUBLISH = "sys:lms:exam:publish";
+
+    /** 开始作答 / 查看作答卷面 */
+    public static final String ATTEMPT_START = "sys:lms:attempt:start";
+
+    /** 作答中保存答案 */
+    public static final String ATTEMPT_SAVE = "sys:lms:attempt:save";
+
+    /** 交卷与查本人成绩 */
+    public static final String ATTEMPT_SUBMIT = "sys:lms:attempt:submit";
+
+    /** 待判分队列与判分明细查看 */
+    public static final String GRADE_LIST = "sys:lms:grade:list";
+
+    /** 提交人工判分 */
+    public static final String GRADE_SUBMIT = "sys:lms:grade:submit";
+
     /**
      * 私有构造器：常量类，禁止实例化。
      */

@@ -134,6 +134,21 @@ class LmsFlywayMigrationScriptTest {
         assertTrue(tables.containsAll(expected), "缺少题库 / 试卷核心表：" + expected);
     }
 
+    @Test
+    @DisplayName("M3-2 覆盖考试与判分四张表")
+    void examMigrationShouldCoverAttemptTables() throws IOException {
+        Set<String> tables = new LinkedHashSet<>();
+        for (Path script : migrationScripts()) {
+            Matcher matcher = CREATE_TABLE.matcher(Files.readString(script, StandardCharsets.UTF_8));
+            while (matcher.find()) {
+                tables.add(matcher.group(1));
+            }
+        }
+        Set<String> expected = Stream.of("lr_exam", "lr_exam_attempt",
+                "lr_exam_answer", "lr_score").collect(Collectors.toSet());
+        assertTrue(tables.containsAll(expected), "缺少考试 / 判分核心表：" + expected);
+    }
+
     /**
      * 列出迁移脚本。
      *

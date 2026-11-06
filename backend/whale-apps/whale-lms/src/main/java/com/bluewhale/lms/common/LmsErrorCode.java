@@ -108,6 +108,42 @@ public final class LmsErrorCode {
     /** 抽题候选不足（不静默补齐，直接失败） */
     public static final int PAPER_RULE_INSUFFICIENT = 42039;
 
+    /** 考试不存在或无权访问 */
+    public static final int EXAM_NOT_FOUND = 42040;
+
+    /** 考试编码已存在 */
+    public static final int EXAM_CODE_CONFLICT = 42041;
+
+    /** 考试状态不允许该操作 */
+    public static final int EXAM_STATE_CONFLICT = 42042;
+
+    /** 不在考试时间窗内 */
+    public static final int EXAM_WINDOW_CLOSED = 42043;
+
+    /** 作答次数已用尽 */
+    public static final int EXAM_ATTEMPT_LIMIT = 42044;
+
+    /** 作答记录不存在或无权访问 */
+    public static final int ATTEMPT_NOT_FOUND = 42045;
+
+    /** 作答状态不允许该操作（已交卷） */
+    public static final int ATTEMPT_STATE_CONFLICT = 42046;
+
+    /** 已超过本次作答截止时间 */
+    public static final int ATTEMPT_EXPIRED = 42047;
+
+    /** 答案不合法（题目不属于本卷 / 格式非法） */
+    public static final int ANSWER_INVALID = 42048;
+
+    /** 该题已判分，不可重复判 */
+    public static final int GRADE_NOT_PENDING = 42049;
+
+    /** 判分越界（超出本题分值或为负） */
+    public static final int GRADE_INVALID = 42050;
+
+    /** 考试 / 试卷参数不合法（时间窗、时长、次数） */
+    public static final int EXAM_INVALID = 42051;
+
     /** 错误码默认提示语表（List 级 switch 会顶到圈复杂度上限，统一走查表） */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(GATE_CLOSED, "需求门禁未通过，学习功能未开放"),
@@ -140,7 +176,19 @@ public final class LmsErrorCode {
             Map.entry(PAPER_STATE_CONFLICT, "试卷状态不允许该操作"),
             Map.entry(PAPER_INVALID, "试卷参数不合法"),
             Map.entry(PAPER_RULE_INVALID, "抽题规则不合法"),
-            Map.entry(PAPER_RULE_INSUFFICIENT, "抽题候选不足，请放宽条件或减少题量"));
+            Map.entry(PAPER_RULE_INSUFFICIENT, "抽题候选不足，请放宽条件或减少题量"),
+            Map.entry(EXAM_NOT_FOUND, "考试不存在或无权访问"),
+            Map.entry(EXAM_CODE_CONFLICT, "考试编码已存在"),
+            Map.entry(EXAM_STATE_CONFLICT, "考试状态不允许该操作"),
+            Map.entry(EXAM_WINDOW_CLOSED, "当前不在考试时间窗内"),
+            Map.entry(EXAM_ATTEMPT_LIMIT, "作答次数已用尽"),
+            Map.entry(ATTEMPT_NOT_FOUND, "作答记录不存在或无权访问"),
+            Map.entry(ATTEMPT_STATE_CONFLICT, "作答状态不允许该操作"),
+            Map.entry(ATTEMPT_EXPIRED, "已超过本次作答截止时间"),
+            Map.entry(ANSWER_INVALID, "答案不合法"),
+            Map.entry(GRADE_NOT_PENDING, "该题无需判分或已判分"),
+            Map.entry(GRADE_INVALID, "判分超出本题分值范围"),
+            Map.entry(EXAM_INVALID, "考试参数不合法"));
 
     /**
      * 私有构造器：常量类，禁止实例化。
