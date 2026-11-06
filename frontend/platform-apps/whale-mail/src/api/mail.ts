@@ -198,6 +198,21 @@ export function listFolders(accountId?: number): Promise<MailFolder[]> {
   return http.get<MailFolder[]>('/mail/folder/list', { accountId });
 }
 
+/** 文件夹与服务器对齐的结果统计 */
+export interface MailFolderSyncResult {
+  added: number;
+  updated: number;
+  removed: number;
+  remote: number;
+  total: number;
+}
+
+/** 立即探测服务器文件夹（用户在 Webmail 新建目录后无需等定时同步） */
+export function refreshFolders(accountId?: number): Promise<MailFolderSyncResult> {
+  const query = accountId ? `?accountId=${accountId}` : '';
+  return http.post<MailFolderSyncResult>(`/mail/folder/refresh${query}`);
+}
+
 /** 未读统计 */
 export function getUnread(): Promise<MailUnread> {
   return http.get<MailUnread>('/mail/message/unread');

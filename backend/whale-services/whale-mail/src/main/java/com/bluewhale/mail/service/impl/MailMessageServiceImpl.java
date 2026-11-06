@@ -191,11 +191,27 @@ public class MailMessageServiceImpl implements MailMessageService {
                 continue;
             }
             total += unread;
-            byFolder.merge(folder.getFolderCode(), unread, Long::sum);
+            byFolder.merge(folderKey(folder), unread, Long::sum);
         }
         vo.setTotal(total);
         vo.setByFolder(byFolder);
         return vo;
+    }
+
+    /**
+     * 未读统计的文件夹键
+     *
+     * <p>系统文件夹用稳定编码（{@code INBOX} 等），自定义文件夹用 {@code CUSTOM:<id>}：
+     * 自定义文件夹的编码都是 {@code CUSTOM}，只按编码聚合会让侧边栏每个自定义文件夹
+     * 显示同一个角标，未读总数也会被重复计入。</p>
+     *
+     * @param folder 文件夹
+     * @return 统计键
+     */
+    private static String folderKey(MailFolder folder) {
+        return "CUSTOM".equals(folder.getFolderType())
+                ? folder.getFolderCode() + ":" + folder.getId()
+                : folder.getFolderCode();
     }
 
     /**

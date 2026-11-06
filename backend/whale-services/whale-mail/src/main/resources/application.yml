@@ -72,6 +72,9 @@ whale:
       fixed-delay-millis: ${WHALE_MAIL_SYNC_INTERVAL_MS:300000}
       # 正文按需回源：同步阶段只拉 header，避免首同步流量与存储翻倍
       fetch-body: ${WHALE_MAIL_SYNC_FETCH_BODY:false}
+      # 自定义文件夹同步额度：归档目录多、历史深的账号靠这两个上限控制单轮耗时
+      max-custom-folders: ${WHALE_MAIL_SYNC_MAX_CUSTOM_FOLDERS:20}
+      custom-max-messages: ${WHALE_MAIL_SYNC_CUSTOM_MAX_MESSAGES:50}
     file:
       # 附件字节归 whale-file，本服务只存 fileId；内网直连，不经网关
       base-url: ${WHALE_MAIL_FILE_BASE_URL:http://whale-file:8085}

@@ -14,6 +14,7 @@ import com.bluewhale.mail.service.MailSyncService;
 import com.bluewhale.mail.support.FetchedMail;
 import com.bluewhale.mail.support.FetchResult;
 import com.bluewhale.mail.support.MailImapSupport;
+import com.bluewhale.mail.vo.MailFolderSyncVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -103,18 +104,25 @@ public class MailSyncServiceImpl implements MailSyncService {
      * @return 新增邮件数
      */
     private synchronized int doSync(MailAccount account) {
+        refreshFolders(account);
         List<MailFolder> folders = folderMapper.selectList(new LambdaQueryWrapper<MailFolder>()
                 .eq(MailFolder::getAccountId, account.getId())
                 .orderByAsc(MailFolder::getSortNo));
         int added = 0;
+        int customBudget = properties.getSync().getMaxCustomFolders();
         for (MailFolder folder : folders) {
-            if (!FOLDER_TYPE_SYSTEM.equals(folder.getFolderType())) {
-                // M0 只同步系统文件夹；自定义文件夹由用户显式订阅后再纳入
-                continue;
+            boolean custom = !FOLDER_TYPE_SYSTEM.equals(folder.getFolderType());
+            if (custom) {
+                if (customBudget <= 0) {
+                    // 归档目录过多时按排序号截断，剩下的仍可在界面看到（点开时按需回源）
+                    continue;
+                }
+                customBudget--;
             }
+            int limit = custom ? properties.getSync().getCustomMaxMessages() : properties.getMaxMessagesPerSync();
             FetchResult result;
             try {
-                result = imapSupport.fetchSince(account, folder, properties.getMaxMessagesPerSync());
+                result = imapSupport.fetchSince(account, folder, limit);
             } catch (Exception e) {
                 log.warn("文件夹同步失败: accountId={}, folder={}, reason={}",
                         account.getId(), folder.getFolderCode(), e.getMessage());
@@ -125,6 +133,27 @@ public class MailSyncServiceImpl implements MailSyncService {
         account.setLastSyncTime(LocalDateTime.now());
         accountMapper.updateById(account);
         return added;
+    }
+
+    /**
+     * 探测服务器文件夹并与本地对齐
+     *
+     * <p>探测失败只降级、不中断：本地索引里的位点仍然有效，按上一轮的文件夹集合继续增量，
+     * 比整轮同步失败要好。文件夹探测是「让索引更完整」的优化，不是同步的前置条件。</p>
+     *
+     * @param account 账号
+     */
+    private void refreshFolders(MailAccount account) {
+        try {
+            MailFolderSyncVO stat = folderService.syncFromServer(account);
+            if (stat.getAdded() > 0 || stat.getUpdated() > 0 || stat.getRemoved() > 0) {
+                log.info("文件夹对齐完成: accountId={}, added={}, updated={}, removed={}",
+                        account.getId(), stat.getAdded(), stat.getUpdated(), stat.getRemoved());
+            }
+        } catch (Exception e) {
+            log.warn("文件夹探测失败，按本地索引继续同步: accountId={}, reason={}",
+                    account.getId(), e.getMessage());
+        }
     }
 
     /**

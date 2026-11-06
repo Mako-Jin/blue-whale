@@ -68,6 +68,17 @@ public class MailProperties {
 
         /** 是否在同步阶段拉取正文（关闭时正文按需回源，推荐关闭） */
         private boolean fetchBody = false;
+
+        /**
+         * 单个账号最多同步的自定义文件夹数。
+         *
+         * <p>按排序号取前 N 个。用户把十几年邮件归档成几十个目录时，全量纳入会让单轮同步
+         * 从几十秒变成一个多小时；先保最近用的几个，剩下的在界面上仍可见、点开时按需拉取。</p>
+         */
+        private int maxCustomFolders = 20;
+
+        /** 自定义文件夹单次拉取上限（比收件箱小得多：归档目录的历史没必要一次回填完） */
+        private int customMaxMessages = 50;
     }
 
     /**

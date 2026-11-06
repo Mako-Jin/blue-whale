@@ -1,14 +1,18 @@
 // 邮箱主界面：文件夹 / 邮件列表 / 阅读区 三栏。
 //
-// 两个刻意的取舍：
-// 1. 文件夹与选中邮件写进 query string（`?folder=INBOX&id=12`），
-//    这样在子应用内刷新、或从基座切走再切回时不会丢上下文。
+// 三个刻意的取舍：
+// 1. 文件夹与选中邮件写进 query string（`?fid=12&folder=CUSTOM&id=5`）：
+//    `fid` 精确定位文件夹（自定义文件夹的 `folderCode` 都是 CUSTOM，光靠编码分不出来），
+//    `folder` 保留编码是为了兼容旧链接与草稿箱这类按编码判断的语义。
 // 2. 草稿箱有两个数据源——后端 `mail_draft`（本机草稿，写信框存的）与
 //    同步回来的服务器 DRAFT 文件夹邮件。M0 没有 IMAP APPEND，本机草稿发不出去到服务器，
 //    所以默认展示本机草稿，另给一个「服务器」页签避免数据看不见。
+// 3. 自定义文件夹随服务器变化：列表接口返回全部文件夹，用户新建的目录会出现在
+//    「我的文件夹」分组下；点刷新按钮可立即探测，不必等定时同步。
 
 import {
   Button,
+  Divider,
   Empty,
   Input,
   Pagination,
@@ -16,6 +20,7 @@ import {
   Segmented,
   Spin,
   Tag,
+  Tooltip,
   Typography,
   message as toast,
 } from 'antd';
@@ -31,6 +36,7 @@ import {
   markSeen,
   pageDrafts,
   pageMessages,
+  refreshFolders,
   removeDraft,
   removeMessage,
   syncAccount,
@@ -77,7 +83,9 @@ const PANE_STYLE: CSSProperties = {
 export default function MailPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const folderCode = searchParams.get('folder') ?? 'INBOX';
+  const fidParam = searchParams.get('fid');
+  const folderIdParam = fidParam ? Number(fidParam) : null;
+  const folderCodeParam = searchParams.get('folder') ?? 'INBOX';
   const idParam = searchParams.get('id');
   const selectedId = idParam ? Number(idParam) : null;
 
@@ -86,6 +94,17 @@ export default function MailPage() {
   const [accountLoaded, setAccountLoaded] = useState(false);
   const [folders, setFolders] = useState<MailFolder[]>([]);
   const [unread, setUnread] = useState<MailUnread>({ total: 0, byFolder: {} });
+
+  /** 精确选中的文件夹：fid 优先，只有 folder 编码的旧链接回落到编码匹配 */
+  const activeFolder = useMemo(() => {
+    if (folderIdParam) {
+      return folders.find((item) => item.id === folderIdParam) ?? null;
+    }
+    return folders.find((item) => item.folderCode === folderCodeParam) ?? null;
+  }, [folders, folderIdParam, folderCodeParam]);
+
+  const folderCode = activeFolder?.folderCode ?? folderCodeParam;
+  const activeFolderId = activeFolder?.id ?? folderIdParam ?? undefined;
 
   const [rows, setRows] = useState<MailMessage[]>([]);
   const [total, setTotal] = useState(0);
@@ -101,6 +120,7 @@ export default function MailPage() {
   const [detail, setDetail] = useState<MailMessage | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const [composeOpen, setComposeOpen] = useState(false);
   const [editingDraft, setEditingDraft] = useState<MailDraft | null>(null);
@@ -126,8 +146,9 @@ export default function MailPage() {
       return;
     }
     try {
-      const list = await listFolders(accountId);
-      setFolders(list.filter((item) => item.folderType === 'SYSTEM'));
+      // 不过滤 SYSTEM：自定义文件夹也要出现在侧边栏，否则用户在 Webmail 新建的目录
+      // 在平台里永远看不见
+      setFolders(await listFolders(accountId));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '文件夹加载失败');
     }
@@ -156,6 +177,7 @@ export default function MailPage() {
       } else {
         const page = await pageMessages({
           accountId,
+          folderId: activeFolderId,
           folderCode,
           keyword: keyword || undefined,
           current,
@@ -172,7 +194,7 @@ export default function MailPage() {
     } finally {
       setListLoading(false);
     }
-  }, [accountId, folderCode, keyword, current, localDraftView]);
+  }, [accountId, activeFolderId, folderCode, keyword, current, localDraftView]);
 
   useEffect(() => {
     void loadAccounts();
@@ -228,15 +250,27 @@ export default function MailPage() {
     };
   }, [selectedId, localDraftView, loadUnread]);
 
+  /** 文件夹维度的 URL 参数：folder 供语义判断（草稿箱等），fid 供精确定位 */
+  const folderParams = useCallback(
+    (extra?: Record<string, string>) => {
+      const params: Record<string, string> = { folder: folderCode };
+      if (activeFolderId) {
+        params.fid = String(activeFolderId);
+      }
+      return { ...params, ...extra };
+    },
+    [folderCode, activeFolderId],
+  );
+
   /** 切换文件夹（写回 URL 并清空选中邮件） */
-  const selectFolder = (code: string) => {
+  const selectFolder = (folder: MailFolder) => {
     setCurrent(1);
-    setSearchParams({ folder: code });
+    setSearchParams({ fid: String(folder.id), folder: folder.folderCode });
   };
 
   /** 选中邮件（写回 URL） */
   const selectMessage = (id: number) => {
-    setSearchParams({ folder: folderCode, id: String(id) });
+    setSearchParams(folderParams({ id: String(id) }));
   };
 
   /** 打开写信框 */
@@ -294,7 +328,7 @@ export default function MailPage() {
       await removeMessage(target.id);
       toast.success('已移入回收站');
       setDetail(null);
-      setSearchParams({ folder: folderCode });
+      setSearchParams(folderParams());
       await Promise.all([loadList(), loadFolders(), loadUnread()]);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '删除失败');
@@ -312,14 +346,81 @@ export default function MailPage() {
     }
   };
 
-  const folderItems = useMemo(
-    () =>
-      folders.map((folder) => ({
-        ...folder,
-        badge: unread.byFolder[folder.folderCode] ?? folder.unreadCount ?? 0,
-      })),
-    [folders, unread],
+  /** 文件夹刷新（只做 IMAP LIST + 对齐，不拉邮件，比同步快得多） */
+  const handleRefreshFolders = async () => {
+    if (!accountId) {
+      return;
+    }
+    setRefreshing(true);
+    try {
+      const result = await refreshFolders(accountId);
+      const next = await listFolders(accountId);
+      setFolders(next);
+      if (activeFolderId && !next.some((item) => item.id === activeFolderId)) {
+        // 当前选中的文件夹在服务器上被删了，退回收件箱比留在空白页合理
+        setSearchParams({ folder: 'INBOX' });
+      }
+      void loadUnread();
+      const changes: string[] = [];
+      if (result.added > 0) {
+        changes.push(`新增 ${result.added}`);
+      }
+      if (result.removed > 0) {
+        changes.push(`下线 ${result.removed}`);
+      }
+      toast.success(changes.length > 0 ? `文件夹已更新：${changes.join('、')}` : '文件夹已是最新');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '文件夹刷新失败，请检查 IMAP 连接');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const systemFolders = useMemo(
+    () => folders.filter((item) => item.folderType === 'SYSTEM'),
+    [folders],
   );
+
+  const customFolders = useMemo(
+    () => folders.filter((item) => item.folderType !== 'SYSTEM'),
+    [folders],
+  );
+
+  /** 渲染单个文件夹条目 */
+  const renderFolder = (folder: MailFolder) => {
+    const active = activeFolder ? folder.id === activeFolder.id : folder.folderCode === folderCode;
+    // 与后端 MailMessageServiceImpl#folderKey 对齐：自定义文件夹按 id 分桶，否则角标会互相覆盖
+    const badgeKey = folder.folderType === 'CUSTOM' ? `${folder.folderCode}:${folder.id}` : folder.folderCode;
+    const badge = unread.byFolder[badgeKey] ?? folder.unreadCount ?? 0;
+    return (
+      <div
+        key={folder.id}
+        onClick={() => selectFolder(folder)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 6,
+          padding: '8px 10px',
+          borderRadius: 6,
+          cursor: 'pointer',
+          background: active ? '#e6f4ff' : 'transparent',
+          color: active ? '#1677ff' : '#1f2328',
+          fontWeight: active ? 600 : 400,
+          marginBottom: 2,
+        }}
+      >
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {folder.name}
+        </span>
+        {badge > 0 ? (
+          <Tag color="red" style={{ marginInlineEnd: 0 }}>
+            {badge}
+          </Tag>
+        ) : null}
+      </div>
+    );
+  };
 
   if (accountLoaded && accounts.length === 0) {
     return (
@@ -346,39 +447,31 @@ export default function MailPage() {
           </Button>
         </div>
         <div style={{ flex: 1, overflow: 'auto', padding: 8 }}>
-          {folderItems.length === 0 ? (
+          {folders.length === 0 ? (
             <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无文件夹" />
           ) : (
-            folderItems.map((folder) => {
-              const active = folder.folderCode === folderCode;
-              return (
-                <div
-                  key={folder.id}
-                  onClick={() => selectFolder(folder.folderCode)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '8px 10px',
-                    borderRadius: 6,
-                    cursor: 'pointer',
-                    background: active ? '#e6f4ff' : 'transparent',
-                    color: active ? '#1677ff' : '#1f2328',
-                    fontWeight: active ? 600 : 400,
-                    marginBottom: 2,
-                  }}
-                >
-                  <span>{folder.name}</span>
-                  {folder.badge > 0 ? <Tag color="red">{folder.badge}</Tag> : null}
-                </div>
-              );
-            })
+            <>
+              {systemFolders.map(renderFolder)}
+              {customFolders.length > 0 ? (
+                <>
+                  <Divider plain style={{ margin: '10px 0 4px', fontSize: 12, color: '#8c8c8c' }}>
+                    我的文件夹
+                  </Divider>
+                  {customFolders.map(renderFolder)}
+                </>
+              ) : null}
+            </>
           )}
         </div>
-        <div style={{ padding: 8, borderTop: '1px solid #f0f0f0' }}>
-          <Button block loading={syncing} onClick={handleSync}>
+        <div style={{ padding: 8, borderTop: '1px solid #f0f0f0', display: 'flex', gap: 6 }}>
+          <Button style={{ flex: 1 }} loading={syncing} onClick={handleSync}>
             同步邮件
           </Button>
+          <Tooltip title="探测服务器上的新文件夹">
+            <Button loading={refreshing} onClick={handleRefreshFolders}>
+              刷新
+            </Button>
+          </Tooltip>
         </div>
       </div>
 

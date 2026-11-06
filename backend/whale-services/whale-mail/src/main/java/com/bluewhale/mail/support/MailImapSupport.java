@@ -57,6 +57,47 @@ public class MailImapSupport {
     private final MailCredentialResolver credentialResolver;
 
     /**
+     * 列出服务器上的全部可选文件夹。
+     *
+     * <p>用途是让本地索引跟上服务器变化：用户在 Webmail 或客户端新建的文件夹，
+     * 平台侧必须能发现，否则界面上永远只有系统文件夹。只返回可存邮件的节点，
+     * {@code \Noselect} 的纯容器（如只有子文件夹的父级）会被丢弃。</p>
+     *
+     * <p>失败直接抛异常：文件夹探测是同步的前置步骤，静默返回空列表会让调用方
+     * 误判「服务器上什么都没有」，进而把本地文件夹当成已删除。</p>
+     *
+     * @param account 邮箱账号
+     * @return 文件夹快照列表
+     */
+    public List<RemoteFolder> listFolders(MailAccount account) {
+        Store store = null;
+        try {
+            store = connect(account);
+            jakarta.mail.Folder[] found = store.getDefaultFolder().list("*");
+            List<RemoteFolder> result = new ArrayList<>();
+            for (jakarta.mail.Folder folder : found) {
+                if (folder == null) {
+                    continue;
+                }
+                String name = folder.getFullName();
+                if (name == null || name.isBlank()) {
+                    continue;
+                }
+                boolean selectable = (folder.getType() & jakarta.mail.Folder.HOLDS_MESSAGES) != 0;
+                char separator = folder.getSeparator();
+                // JavaMail 用 0 表示「该命名空间没有层级分隔符」，转成 null 让上层走默认口径
+                result.add(new RemoteFolder(name, separator == 0 ? null : String.valueOf(separator), selectable));
+            }
+            log.debug("IMAP 文件夹探测完成: accountId={}, count={}", account.getId(), result.size());
+            return result;
+        } catch (MessagingException e) {
+            throw new BizException(ErrorCode.SYSTEM_ERROR, "IMAP 文件夹探测失败：" + e.getMessage());
+        } finally {
+            closeStore(store);
+        }
+    }
+
+    /**
      * 增量拉取指定文件夹的邮件头部
      *
      * @param account 邮箱账号
