@@ -29,6 +29,17 @@ function formatSize(bytes?: number | null): string {
   return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
 }
 
+/** 退信类型的中文说明：HARD 重试无用，SOFT 通常可稍后重发 */
+function bounceLabel(type?: string | null): string {
+  if (type === 'HARD') {
+    return '永久失败';
+  }
+  if (type === 'SOFT') {
+    return '临时失败';
+  }
+  return '未知';
+}
+
 /**
  * 构造 iframe 的 srcdoc：注入 CSP、基础排版与 base target。
  *
@@ -145,6 +156,7 @@ export default function MailReader({
   }
 
   const attachments: MailAttachment[] = message.attachments ?? [];
+  const bounces = message.bounces ?? [];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
@@ -184,6 +196,36 @@ export default function MailReader({
           {message.ccAddrs ? <div>抄送：{message.ccAddrs}</div> : null}
         </div>
       </div>
+
+      {/* 退信通知：DSN 正文是一段 multipart/report，用户几乎读不出有用信息，
+          这里把「退给谁、什么类型、远端怎么说」结构化放到最上面 */}
+      {bounces.length > 0 ? (
+        <Alert
+          type="error"
+          showIcon
+          banner
+          message={`这是一封退信通知：${bounces.length} 个收件人未送达`}
+          description={
+            <div style={{ fontSize: 12, lineHeight: 1.8 }}>
+              {bounces.map((item) => (
+                <div key={item.id}>
+                  <Typography.Text strong>{item.recipient}</Typography.Text>
+                  <Tag
+                    color={item.bounceType === 'HARD' ? 'red' : 'orange'}
+                    style={{ marginLeft: 8 }}
+                  >
+                    {bounceLabel(item.bounceType)}
+                  </Tag>
+                  {item.statusCode ? <span style={{ marginLeft: 8 }}>{item.statusCode}</span> : null}
+                  {item.diagnostic ? (
+                    <div style={{ color: '#57606a', wordBreak: 'break-all' }}>{item.diagnostic}</div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          }
+        />
+      ) : null}
 
       {message.bodyHtml && !allowImages ? (
         <Alert

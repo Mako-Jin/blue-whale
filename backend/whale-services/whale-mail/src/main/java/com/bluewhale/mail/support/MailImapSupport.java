@@ -6,6 +6,7 @@ import com.bluewhale.mail.entity.MailAccount;
 import com.bluewhale.mail.entity.MailFolder;
 import jakarta.mail.Address;
 import jakarta.mail.Flags;
+import jakarta.mail.Header;
 import jakarta.mail.Message;
 import jakarta.mail.MessagingException;
 import jakarta.mail.Multipart;
@@ -18,12 +19,20 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Enumeration;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 
 /**
@@ -53,6 +62,9 @@ public class MailImapSupport {
 
     /** MIME 递归深度上限：防御畸形邮件的无限嵌套 */
     private static final int MAX_MIME_DEPTH = 6;
+
+    /** 退信状态段的读取上限（字节）：DSN 的 delivery-status 段正常只有几 KB */
+    private static final int MAX_REPORT_BYTES = 64 * 1024;
 
     private final MailCredentialResolver credentialResolver;
 
@@ -179,6 +191,259 @@ public class MailImapSupport {
         } finally {
             closeStore(store);
         }
+    }
+
+    /**
+     * 按 UID 回源退信回执（DSN，RFC 3464）。
+     *
+     * <p>只在顶层 Content-Type 是 {@code multipart/report} 时调用，所以整封下载的成本可以忽略——
+     * 退信在正常邮箱里是极少数。返回空表示「不是退信」或「解析不出收件人明细」，
+     * 两者都不是错误，调用方按「无需入库」处理即可。</p>
+     *
+     * <p>解析不依赖 MIME 结构的严格性：真实退信来自各种 MTA（Postfix、Exchange、腾讯企业邮），
+     * {@code message/delivery-status} 有时被 JavaMail 解析成 Multipart，有时只能拿到裸文本，
+     * 两条路径都走一遍再组装。</p>
+     *
+     * @param account 邮箱账号
+     * @param folder 本地文件夹
+     * @param uid IMAP UID
+     * @return 退信回执；非退信或失败返回 {@link Optional#empty()}
+     */
+    public Optional<BounceReport> fetchBounce(MailAccount account, MailFolder folder, long uid) {
+        Store store = null;
+        try {
+            store = connect(account);
+            jakarta.mail.Folder imapFolder = store.getFolder(folder.getImapName());
+            if (imapFolder == null || !imapFolder.exists()) {
+                return Optional.empty();
+            }
+            imapFolder.open(jakarta.mail.Folder.READ_ONLY);
+            try {
+                if (!(imapFolder instanceof UIDFolder uidFolder)) {
+                    return Optional.empty();
+                }
+                Message message = uidFolder.getMessageByUID(uid);
+                return message == null ? Optional.empty() : parseBounce(message);
+            } finally {
+                closeFolder(imapFolder);
+            }
+        } catch (Exception e) {
+            log.warn("退信回执解析失败: accountId={}, uid={}, reason={}", account.getId(), uid, e.getMessage());
+            return Optional.empty();
+        } finally {
+            closeStore(store);
+        }
+    }
+
+    /**
+     * 解析一封邮件是否为退信回执。
+     *
+     * @param message 邮件
+     * @return 退信回执；非退信返回空
+     * @throws MessagingException MIME 读取失败
+     * @throws IOException 内容读取失败
+     */
+    private Optional<BounceReport> parseBounce(Message message) throws MessagingException, IOException {
+        String contentType = message.getContentType();
+        if (contentType == null || !contentType.toLowerCase(Locale.ROOT).contains("multipart/report")) {
+            return Optional.empty();
+        }
+        if (!(message.getContent() instanceof Multipart multipart)) {
+            return Optional.empty();
+        }
+        String originalId = null;
+        String reportingMta = null;
+        List<BounceRecipient> recipients = new ArrayList<>();
+        for (int i = 0; i < multipart.getCount(); i++) {
+            Part part = multipart.getBodyPart(i);
+            String partType = part.getContentType() == null ? "" : part.getContentType().toLowerCase(Locale.ROOT);
+            if (partType.startsWith("message/delivery-status")) {
+                for (Map<String, String> block : readStatusBlocks(part)) {
+                    if (reportingMta == null) {
+                        reportingMta = afterSemicolon(block.get("reporting-mta"));
+                    }
+                    if (originalId == null) {
+                        originalId = block.get("original-message-id");
+                    }
+                    String recipient = firstNonNull(afterSemicolon(block.get("final-recipient")),
+                            afterSemicolon(block.get("original-recipient")));
+                    if (recipient == null || recipient.isBlank()) {
+                        continue;
+                    }
+                    recipients.add(new BounceRecipient(recipient, block.get("action"), block.get("status"),
+                            block.get("diagnostic-code"), afterSemicolon(block.get("remote-mta"))));
+                }
+            } else if (partType.startsWith("message/rfc822") && originalId == null) {
+                originalId = originalIdOf(part);
+            }
+        }
+        if (recipients.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(new BounceReport(stripAngleBrackets(originalId), reportingMta, recipients));
+    }
+
+    /**
+     * 读取 {@code message/delivery-status} 的各个 header 块。
+     *
+     * @param part 部件
+     * @return header 块列表（每块是 小写键 → 原值）
+     */
+    private List<Map<String, String>> readStatusBlocks(Part part) {
+        List<Map<String, String>> blocks = new ArrayList<>();
+        try {
+            Object content = part.getContent();
+            if (content instanceof Multipart multipart) {
+                for (int i = 0; i < multipart.getCount(); i++) {
+                    blocks.add(headersOf(multipart.getBodyPart(i)));
+                }
+            }
+        } catch (MessagingException | IOException e) {
+            log.debug("退信状态段按 MIME 解析失败，改走裸文本: reason={}", e.getMessage());
+        }
+        if (blocks.isEmpty()) {
+            blocks.addAll(parseHeaderBlocks(textOf(part)));
+        }
+        return blocks;
+    }
+
+    /**
+     * 读取部件的全部 header（键统一小写）。
+     *
+     * @param part 部件
+     * @return header 映射
+     * @throws MessagingException 读取失败
+     */
+    private Map<String, String> headersOf(Part part) throws MessagingException {
+        Map<String, String> headers = new LinkedHashMap<>();
+        Enumeration<Header> all = part.getAllHeaders();
+        while (all != null && all.hasMoreElements()) {
+            Header header = all.nextElement();
+            headers.putIfAbsent(header.getName().toLowerCase(Locale.ROOT), header.getValue());
+        }
+        return headers;
+    }
+
+    /**
+     * 按空行切分裸文本为 header 块（RFC 3464 的 delivery-status 本质就是连续的 header 块）。
+     *
+     * @param text 裸文本
+     * @return header 块列表
+     */
+    private List<Map<String, String>> parseHeaderBlocks(String text) {
+        List<Map<String, String>> blocks = new ArrayList<>();
+        if (text == null || text.isBlank()) {
+            return blocks;
+        }
+        for (String block : text.split("\\r?\\n\\r?\\n")) {
+            Map<String, String> headers = new LinkedHashMap<>();
+            String currentKey = null;
+            for (String line : block.split("\\r?\\n")) {
+                if (line.isBlank()) {
+                    continue;
+                }
+                if ((line.startsWith(" ") || line.startsWith("\t")) && currentKey != null) {
+                    headers.merge(currentKey, line.trim(), (a, b) -> a + " " + b);
+                    continue;
+                }
+                int colon = line.indexOf(':');
+                if (colon <= 0) {
+                    continue;
+                }
+                currentKey = line.substring(0, colon).trim().toLowerCase(Locale.ROOT);
+                headers.put(currentKey, line.substring(colon + 1).trim());
+            }
+            if (!headers.isEmpty()) {
+                blocks.add(headers);
+            }
+        }
+        return blocks;
+    }
+
+    /**
+     * 读取部件文本（限长，防御超大/畸形 MIME 把内存打满）。
+     *
+     * @param part 部件
+     * @return 文本；失败返回空串
+     */
+    private String textOf(Part part) {
+        try (InputStream stream = part.getInputStream()) {
+            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+            byte[] chunk = new byte[4096];
+            int read;
+            while ((read = stream.read(chunk)) > 0) {
+                if (buffer.size() + read > MAX_REPORT_BYTES) {
+                    break;
+                }
+                buffer.write(chunk, 0, read);
+            }
+            return buffer.toString(StandardCharsets.UTF_8);
+        } catch (IOException | MessagingException e) {
+            log.debug("退信状态段读取失败: reason={}", e.getMessage());
+            return "";
+        }
+    }
+
+    /**
+     * 从内嵌原邮件（message/rfc822）里取 Message-ID。
+     *
+     * @param part 部件
+     * @return Message-ID；取不到返回 {@code null}
+     */
+    private String originalIdOf(Part part) {
+        try {
+            Object content = part.getContent();
+            if (content instanceof Message original) {
+                return headerOf(original, "Message-ID");
+            }
+        } catch (MessagingException | IOException e) {
+            log.debug("内嵌原邮件解析失败: reason={}", e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * 取分号后的实际值（DSN 的地址型字段形如 {@code rfc822; user@example.com}）。
+     *
+     * @param raw 原值
+     * @return 分号后的值；无分号返回原值；空返回 {@code null}
+     */
+    private String afterSemicolon(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        int semi = raw.indexOf(';');
+        String value = semi >= 0 ? raw.substring(semi + 1) : raw;
+        value = value.trim();
+        return value.isEmpty() ? null : value;
+    }
+
+    /**
+     * 去掉 Message-ID 的尖括号。
+     *
+     * @param raw 原值
+     * @return 去括号后的值
+     */
+    private String stripAngleBrackets(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String value = raw.trim();
+        if (value.startsWith("<") && value.endsWith(">") && value.length() > 2) {
+            value = value.substring(1, value.length() - 1);
+        }
+        return value.isEmpty() ? null : value;
+    }
+
+    /**
+     * 返回第一个非空值。
+     *
+     * @param first 首选值
+     * @param second 备选值
+     * @return 非空值；都为空返回 {@code null}
+     */
+    private String firstNonNull(String first, String second) {
+        return first != null ? first : second;
     }
 
     /**
@@ -348,7 +613,8 @@ public class MailImapSupport {
                 sentTime,
                 rawSize > 0 ? rawSize : 0L,
                 flags != null && flags.contains(Flags.Flag.SEEN),
-                flags != null && flags.contains(Flags.Flag.FLAGGED));
+                flags != null && flags.contains(Flags.Flag.FLAGGED),
+                message.getContentType());
     }
 
     /**

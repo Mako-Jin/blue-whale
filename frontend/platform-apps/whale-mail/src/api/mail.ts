@@ -74,6 +74,25 @@ export interface MailMessage {
   bodyText?: string | null;
   bodyHtml?: string | null;
   attachments?: MailAttachment[];
+  /** 退信回执明细：非空表示这封是退信通知（仅详情返回） */
+  bounces?: MailBounce[];
+}
+
+/** 退信回执（一条对应一个被退回的收件人） */
+export interface MailBounce {
+  id: number;
+  notifyMessageId: number;
+  originalMessageId?: number | null;
+  originalRfcId?: string | null;
+  recipient: string;
+  action?: string | null;
+  statusCode?: string | null;
+  diagnostic?: string | null;
+  /** HARD 永久失败 / SOFT 临时失败 / UNKNOWN */
+  bounceType?: string | null;
+  reportingMta?: string | null;
+  remoteMta?: string | null;
+  createTime?: string | null;
 }
 
 /** 邮件附件 */
@@ -99,6 +118,8 @@ export interface MailMessageQuery {
   folderId?: number;
   folderCode?: string;
   keyword?: string;
+  /** 检索范围：FOLDER 当前文件夹（默认）/ ALL 全部文件夹 */
+  scope?: 'FOLDER' | 'ALL';
   seen?: number;
   hasAttachment?: number;
   current?: number;
@@ -225,6 +246,25 @@ export function getUnread(): Promise<MailUnread> {
 /** 邮件分页 */
 export function pageMessages(query: MailMessageQuery): Promise<PageResult<MailMessage>> {
   return http.get<PageResult<MailMessage>>('/mail/message/page', { ...query });
+}
+
+/** 检索引擎状态（决定是否显示「重建索引」） */
+export interface MailSearchStatus {
+  engine: string;
+  externalIndex: boolean;
+  maxHits: number;
+  likeFallback: boolean;
+}
+
+/** 查看检索引擎状态 */
+export function getSearchStatus(): Promise<MailSearchStatus> {
+  return http.get<MailSearchStatus>('/mail/search/status');
+}
+
+/** 重建当前账号的检索索引（MySQL 引擎返回 0） */
+export function reindexSearch(accountId?: number): Promise<number> {
+  const query = accountId ? `?accountId=${accountId}` : '';
+  return http.post<number>(`/mail/search/reindex${query}`);
 }
 
 /** 邮件详情（正文惰性回源，首次打开可能稍慢） */

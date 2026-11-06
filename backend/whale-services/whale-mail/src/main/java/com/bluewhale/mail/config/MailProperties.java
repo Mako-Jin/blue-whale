@@ -48,6 +48,9 @@ public class MailProperties {
     /** 同步参数 */
     private Sync sync = new Sync();
 
+    /** 全文检索参数 */
+    private Search search = new Search();
+
     /** 文件服务集成参数 */
     private FileClient file = new FileClient();
 
@@ -79,6 +82,42 @@ public class MailProperties {
 
         /** 自定义文件夹单次拉取上限（比收件箱小得多：归档目录的历史没必要一次回填完） */
         private int customMaxMessages = 50;
+    }
+
+    /**
+     * 全文检索参数。
+     *
+     * <p>两套引擎刻意都留着：MySQL ngram 全文索引零运维、与数据强一致，是默认；
+     * Lucene 在相关度排序和词项加权上更强，数据量上来后按需切换。
+     * 两者共用 {@code MailSearchService} 契约，切换只改配置不改调用方。</p>
+     */
+    @Data
+    public static class Search {
+
+        /** 检索引擎：mysql（ngram 全文索引）/ lucene（本地倒排索引） */
+        private String engine = "mysql";
+
+        /** 单次检索最多命中的邮件ID数（超出即截断，避免把整库 ID 拉进内存） */
+        private int maxHits = 2000;
+
+        /**
+         * 索引无命中时是否回退 LIKE。
+         *
+         * <p>两类场景必须回退：索引尚未随迁移建好；查询是单个汉字（ngram 默认 2-gram 必然搜不到）。
+         * 回退只在结果为空时发生，正常命中不受影响。</p>
+         */
+        private boolean likeFallback = true;
+
+        /** Lucene 索引目录（多实例需指向共享卷，否则各实例只看得到自己写的那部分） */
+        private String indexDir = "./data/mail-index";
+
+        /**
+         * 索引提交间隔（毫秒，仅 lucene 引擎生效）。
+         *
+         * <p>提交由定时任务驱动而非逐条 fsync：同步一万封时逐条提交会产生一万次落盘。
+         * 这里只做配置声明，实际节奏由 {@code @Scheduled} 的同名占位符控制。</p>
+         */
+        private long commitIntervalMillis = 30_000L;
     }
 
     /**

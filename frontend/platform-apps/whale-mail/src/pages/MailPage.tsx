@@ -111,6 +111,8 @@ export default function MailPage() {
   const [current, setCurrent] = useState(1);
   const [keywordInput, setKeywordInput] = useState('');
   const [keyword, setKeyword] = useState('');
+  /** 检索范围：默认只在当前文件夹内搜，切到全部才算跨目录 */
+  const [scope, setScope] = useState<'FOLDER' | 'ALL'>('FOLDER');
   const [listLoading, setListLoading] = useState(false);
 
   const [drafts, setDrafts] = useState<MailDraft[]>([]);
@@ -180,6 +182,7 @@ export default function MailPage() {
           folderId: activeFolderId,
           folderCode,
           keyword: keyword || undefined,
+          scope: keyword ? scope : undefined,
           current,
           size: PAGE_SIZE,
         });
@@ -194,7 +197,7 @@ export default function MailPage() {
     } finally {
       setListLoading(false);
     }
-  }, [accountId, activeFolderId, folderCode, keyword, current, localDraftView]);
+  }, [accountId, activeFolderId, folderCode, keyword, scope, current, localDraftView]);
 
   useEffect(() => {
     void loadAccounts();
@@ -480,7 +483,7 @@ export default function MailPage() {
         <div style={{ padding: 8, borderBottom: '1px solid #f0f0f0' }}>
           <Input.Search
             allowClear
-            placeholder="搜索主题 / 发件人 / 摘要"
+            placeholder="搜索主题 / 发件人 / 正文"
             value={keywordInput}
             onChange={(event) => setKeywordInput(event.target.value)}
             onSearch={(value) => {
@@ -489,6 +492,22 @@ export default function MailPage() {
             }}
             disabled={localDraftView}
           />
+          {!localDraftView && keyword ? (
+            <Segmented
+              block
+              size="small"
+              style={{ marginTop: 8 }}
+              value={scope}
+              onChange={(value) => {
+                setCurrent(1);
+                setScope(value as 'FOLDER' | 'ALL');
+              }}
+              options={[
+                { label: '当前文件夹', value: 'FOLDER' },
+                { label: '全部文件夹', value: 'ALL' },
+              ]}
+            />
+          ) : null}
           {folderCode === 'DRAFT' ? (
             <Segmented
               block

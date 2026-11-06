@@ -9,7 +9,9 @@ import com.bluewhale.mail.mapper.MailAccountMapper;
 import com.bluewhale.mail.mapper.MailFolderMapper;
 import com.bluewhale.mail.mapper.MailMessageMapper;
 import com.bluewhale.mail.service.MailAccountService;
+import com.bluewhale.mail.service.MailDeliveryReportService;
 import com.bluewhale.mail.service.MailFolderService;
+import com.bluewhale.mail.service.MailSearchService;
 import com.bluewhale.mail.service.MailSyncService;
 import com.bluewhale.mail.support.FetchedMail;
 import com.bluewhale.mail.support.FetchResult;
@@ -22,6 +24,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 
 /**
@@ -57,6 +60,10 @@ public class MailSyncServiceImpl implements MailSyncService {
     private final MailFolderService folderService;
 
     private final MailImapSupport imapSupport;
+
+    private final MailSearchService searchService;
+
+    private final MailDeliveryReportService deliveryReportService;
 
     private final MailProperties properties;
 
@@ -94,6 +101,30 @@ public class MailSyncServiceImpl implements MailSyncService {
         int added = syncAll();
         if (added > 0) {
             log.info("定时邮箱同步完成，新增邮件 {} 封", added);
+        }
+    }
+
+    /**
+     * 退信识别：只在顶层 Content-Type 是 {@code multipart/report} 时回源解析。
+     *
+     * <p>同步主流程不能被退信解析拖住甚至打断——退信是少数邮件，但一封畸形 DSN
+     * 让整轮同步失败是不可接受的。因此这里吞掉异常，只记日志。</p>
+     *
+     * @param account 账号
+     * @param folder 文件夹
+     * @param mail 服务器快照
+     * @param entity 已入库的邮件索引
+     */
+    private void ingestBounce(MailAccount account, MailFolder folder, FetchedMail mail, MailMessage entity) {
+        String contentType = mail.contentType();
+        if (contentType == null || !contentType.toLowerCase(Locale.ROOT).contains("multipart/report")) {
+            return;
+        }
+        try {
+            deliveryReportService.ingest(account, folder, entity);
+        } catch (Exception e) {
+            log.warn("退信回执处理失败: accountId={}, messageId={}, reason={}",
+                    account.getId(), entity.getId(), e.getMessage());
         }
     }
 
@@ -186,7 +217,11 @@ public class MailSyncServiceImpl implements MailSyncService {
                 // 本地发出的副本已占用同一 Message-ID
                 continue;
             }
-            messageMapper.insert(toEntity(account, folder, mail));
+            MailMessage entity = toEntity(account, folder, mail);
+            messageMapper.insert(entity);
+            // 同步入口也是检索索引的写入口：Lucene 引擎下不写这里，新邮件就搜不到
+            searchService.index(entity);
+            ingestBounce(account, folder, mail, entity);
             added++;
         }
         folder.setLastUid(maxUid);

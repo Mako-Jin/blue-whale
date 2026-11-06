@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
  * @param sizeBytes 大小
  * @param seen 已读
  * @param flagged 星标
+ * @param contentType 顶层 Content-Type（用于识别退信回执等特殊邮件，可为 {@code null}）
  * @author BlueWhale
  */
 public record FetchedMail(long uid,
@@ -28,5 +29,6 @@ public record FetchedMail(long uid,
                           LocalDateTime sentTime,
                           long sizeBytes,
                           boolean seen,
-                          boolean flagged) {
+                          boolean flagged,
+                          String contentType) {
 }

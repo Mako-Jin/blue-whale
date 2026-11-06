@@ -26,8 +26,16 @@ public class MailMessageQueryRequest extends PageQuery {
     /** 文件夹编码：INBOX/SENT/DRAFT/TRASH/JUNK/CUSTOM */
     private String folderCode;
 
-    /** 关键字（主题、发件人、摘要模糊匹配） */
+    /** 关键字（主题、发件人、摘要、正文全文检索） */
     private String keyword;
+
+    /**
+     * 检索范围：{@code FOLDER} 当前文件夹（默认）/ {@code ALL} 全部文件夹。
+     *
+     * <p>只在带关键字时生效。默认按当前文件夹更符合直觉——用户在「已发送」里搜，
+     * 不该被收件箱的结果淹没；但「我记得有这封邮件，忘了在哪个目录」也确实常见。</p>
+     */
+    private String scope;
 
     /** 已读状态：1 已读 / 0 未读；为空不筛选 */
     private Integer seen;

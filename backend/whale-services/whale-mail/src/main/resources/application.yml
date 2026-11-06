@@ -75,6 +75,16 @@ whale:
       # 自定义文件夹同步额度：归档目录多、历史深的账号靠这两个上限控制单轮耗时
       max-custom-folders: ${WHALE_MAIL_SYNC_MAX_CUSTOM_FOLDERS:20}
       custom-max-messages: ${WHALE_MAIL_SYNC_CUSTOM_MAX_MESSAGES:50}
+    search:
+      # 检索引擎：mysql 走 ngram 全文索引（零运维、与库强一致）；lucene 走本地倒排索引（相关度更好）
+      engine: ${WHALE_MAIL_SEARCH_ENGINE:mysql}
+      # 单次检索命中上限：超出即截断，避免把整库 ID 拉进内存
+      max-hits: ${WHALE_MAIL_SEARCH_MAX_HITS:2000}
+      # 索引无命中/单字查询时回退 LIKE：宁可慢一点，也不能让用户以为邮件丢了
+      like-fallback: ${WHALE_MAIL_SEARCH_LIKE_FALLBACK:true}
+      # lucene 引擎专用：多实例必须指向共享卷，否则各实例只看得到自己写入的部分
+      index-dir: ${WHALE_MAIL_SEARCH_INDEX_DIR:./data/mail-index}
+      commit-interval-millis: ${WHALE_MAIL_SEARCH_COMMIT_INTERVAL_MS:30000}
     file:
       # 附件字节归 whale-file，本服务只存 fileId；内网直连，不经网关
       base-url: ${WHALE_MAIL_FILE_BASE_URL:http://whale-file:8085}

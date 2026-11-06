@@ -69,4 +69,12 @@ public class MailMessageVO {
 
     /** 附件列表（仅详情） */
     private List<MailAttachmentVO> attachments;
+
+    /**
+     * 退信回执明细（仅详情）。
+     *
+     * <p>非空表示这封邮件是退信通知：前端据此在正文上方展示「哪封信、退给谁、为什么」，
+     * 而不是让用户自己去读一段机器生成的 DSN 文本。</p>
+     */
+    private List<MailDeliveryReportVO> bounces;
 }
