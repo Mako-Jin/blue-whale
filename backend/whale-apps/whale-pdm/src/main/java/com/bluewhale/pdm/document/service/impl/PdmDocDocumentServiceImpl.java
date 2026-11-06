@@ -19,7 +19,9 @@ import com.bluewhale.pdm.document.service.PdmDocDocumentService;
 import com.bluewhale.pdm.document.service.PdmDocFolderService;
 import com.bluewhale.pdm.document.support.PdmDocAclConstants;
 import com.bluewhale.pdm.document.support.PdmDocAclDecision;
+import com.bluewhale.pdm.document.support.PdmDocCsvWriter;
 import com.bluewhale.pdm.document.support.PdmDocDownload;
+import com.bluewhale.pdm.document.support.PdmDocExport;
 import com.bluewhale.pdm.document.support.PdmDocUploadFile;
 import com.bluewhale.pdm.document.support.PdmDocVersionNo;
 import com.bluewhale.pdm.document.support.PdmDocViewer;
@@ -36,6 +38,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -59,6 +62,12 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
 
     /** 最大每页条数 */
     private static final long MAX_PAGE_SIZE = 200L;
+
+    /** 导出最大行数 */
+    private static final int EXPORT_MAX_ROWS = 5000;
+
+    /** 导出分批查询每页条数 */
+    private static final long EXPORT_PAGE_SIZE = 200L;
 
     /** 文档状态：草稿 */
     private static final String STATUS_DRAFT = "DRAFT";
@@ -98,6 +107,42 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
     public PageResult<PdmDocDocumentVO> page(PdmDocDocumentQueryRequest request, PdmDocViewer viewer) {
         long current = request.getCurrent() <= 0 ? 1 : request.getCurrent();
         long size = request.getSize() <= 0 ? DEFAULT_PAGE_SIZE : Math.min(request.getSize(), MAX_PAGE_SIZE);
+        LambdaQueryWrapper<PdmDocDocument> wrapper = buildWrapper(request, viewer);
+        Page<PdmDocDocument> page = new Page<>(current, size);
+        Page<PdmDocDocument> result = documentMapper.selectPage(page, wrapper);
+        List<PdmDocDocumentVO> records = result.getRecords().stream()
+                .map(PdmConverter.INSTANCE::toDocumentVo)
+                .toList();
+        return PageResult.of(records, result.getTotal(), result.getCurrent(), result.getSize());
+    }
+
+    @Override
+    public PdmDocExport export(PdmDocDocumentQueryRequest request, PdmDocViewer viewer) {
+        LambdaQueryWrapper<PdmDocDocument> wrapper = buildWrapper(request, viewer);
+        List<PdmDocDocument> rows = new ArrayList<>(EXPORT_MAX_ROWS);
+        long total = 0L;
+        long current = 1L;
+        while (rows.size() < EXPORT_MAX_ROWS) {
+            long size = Math.min(EXPORT_PAGE_SIZE, EXPORT_MAX_ROWS - rows.size());
+            Page<PdmDocDocument> result = documentMapper.selectPage(new Page<>(current, size), wrapper);
+            total = result.getTotal();
+            rows.addAll(result.getRecords());
+            if (result.getRecords().size() < size) {
+                break;
+            }
+            current++;
+        }
+        return new PdmDocExport(PdmDocCsvWriter.toCsvBytes(rows), total > EXPORT_MAX_ROWS);
+    }
+
+    /**
+     * 构建文档查询条件（分页与导出共用，含 ACL DENY 过滤）
+     *
+     * @param request 查询条件
+     * @param viewer  访问者
+     * @return 查询条件
+     */
+    private LambdaQueryWrapper<PdmDocDocument> buildWrapper(PdmDocDocumentQueryRequest request, PdmDocViewer viewer) {
         LambdaQueryWrapper<PdmDocDocument> wrapper = new LambdaQueryWrapper<>();
         if (request.getFolderId() != null) {
             List<Long> folderIds = folderService.subtreeFolderIds(request.getFolderId());
@@ -139,12 +184,7 @@ public class PdmDocDocumentServiceImpl implements PdmDocDocumentService {
             wrapper.notIn(PdmDocDocument::getId, deniedDocuments);
         }
         wrapper.orderByDesc(PdmDocDocument::getUpdateTime).orderByDesc(PdmDocDocument::getId);
-        Page<PdmDocDocument> page = new Page<>(current, size);
-        Page<PdmDocDocument> result = documentMapper.selectPage(page, wrapper);
-        List<PdmDocDocumentVO> records = result.getRecords().stream()
-                .map(PdmConverter.INSTANCE::toDocumentVo)
-                .toList();
-        return PageResult.of(records, result.getTotal(), result.getCurrent(), result.getSize());
+        return wrapper;
     }
 
     @Override

@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.tenant.TenantContext;
+import com.bluewhale.pdm.config.PdmIntAlertProperties;
+import com.bluewhale.pdm.integration.client.PdmIntAlertClient;
 import com.bluewhale.pdm.integration.client.PdmIntErpClient;
 import com.bluewhale.pdm.integration.client.PdmIntErpItemResult;
 import com.bluewhale.pdm.integration.entity.PdmIntSyncLog;
@@ -25,11 +27,15 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -52,12 +58,18 @@ class PdmIntSyncServiceImplTest {
     @Mock
     private PdmPrcRouteService routeService;
 
+    @Mock
+    private PdmIntAlertClient alertClient;
+
+    private PdmIntAlertProperties alertProperties;
+
     private PdmIntSyncServiceImpl service;
 
     @BeforeEach
     void setUp() {
+        alertProperties = new PdmIntAlertProperties();
         service = new PdmIntSyncServiceImpl(syncLogMapper, erpClient, productService, routeService,
-                new ObjectMapper());
+                new ObjectMapper(), alertClient, alertProperties);
     }
 
     @BeforeAll
@@ -105,6 +117,63 @@ class PdmIntSyncServiceImplTest {
         verify(syncLogMapper).insert(captor.capture());
         assertEquals(PdmIntSyncStatus.FAILED, captor.getValue().getStatus());
         assertEquals("ERP 服务不可用", captor.getValue().getLastError());
+    }
+
+    @Test
+    void syncPartToErpFailureAlertsConfiguredRecipients() {
+        alertProperties.setUserIds(List.of(99L));
+        when(productService.getDetail(7L)).thenReturn(part());
+        when(erpClient.upsertItem(any(), any())).thenThrow(new BizException(
+                com.bluewhale.common.core.exception.ErrorCode.SYSTEM_ERROR, "ERP 服务不可用"));
+        when(syncLogMapper.selectOne(any())).thenReturn(null);
+
+        service.syncPartToErp(7L, 99L);
+
+        ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
+        verify(alertClient).send(any(), any(), any(), keyCaptor.capture(), any(), any(), any(), any());
+        assertEquals("PDM:ALERT:ERP:ERP:PART:P-001", keyCaptor.getValue());
+    }
+
+    @Test
+    void syncPartToErpFailureSkipsAlertWithoutRecipients() {
+        when(productService.getDetail(7L)).thenReturn(part());
+        when(erpClient.upsertItem(any(), any())).thenThrow(new BizException(
+                com.bluewhale.common.core.exception.ErrorCode.SYSTEM_ERROR, "ERP 服务不可用"));
+        when(syncLogMapper.selectOne(any())).thenReturn(null);
+
+        service.syncPartToErp(7L, 99L);
+
+        verifyNoInteractions(alertClient);
+    }
+
+    @Test
+    void repeatedSameFailureDoesNotAlertTwice() {
+        alertProperties.setUserIds(List.of(99L));
+        PdmIntSyncLog existing = new PdmIntSyncLog();
+        existing.setLastError("boom");
+        when(syncLogMapper.selectOne(any())).thenReturn(existing);
+
+        service.record("ERP", "UPSERT_PART", "OUT", "PART", 7L, "P-001", null,
+                "ERP:PART:P-001", null, null, null, "boom", 99L);
+
+        verifyNoInteractions(alertClient);
+    }
+
+    @Test
+    void alertFailureDoesNotBreakSyncLog() {
+        alertProperties.setUserIds(List.of(99L));
+        when(productService.getDetail(7L)).thenReturn(part());
+        when(erpClient.upsertItem(any(), any())).thenThrow(new BizException(
+                com.bluewhale.common.core.exception.ErrorCode.SYSTEM_ERROR, "ERP 服务不可用"));
+        when(syncLogMapper.selectOne(any())).thenReturn(null);
+        doThrow(new BizException(
+                com.bluewhale.common.core.exception.ErrorCode.SYSTEM_ERROR, "消息服务不可用"))
+                .when(alertClient).send(any(), any(), any(), any(), any(), any(), any(), any());
+
+        PdmIntErpPartResultVO result = service.syncPartToErp(7L, 99L);
+
+        assertEquals(PdmIntSyncStatus.FAILED, result.getStatus());
+        verify(syncLogMapper).insert(any(PdmIntSyncLog.class));
     }
 
     @Test

@@ -3,7 +3,7 @@
 // 版本动作（上传/检入/发布/回滚）走独立动作端点；下载为二进制响应，
 // 文件字节由 whale-file 保存，前端不感知内部文件 ID。
 
-import { download, http, upload, type PageResult } from './client';
+import { download, http, upload, type DownloadResult, type PageResult } from './client';
 
 /** 文档类型 */
 export type DocType = 'DRAWING' | 'DOC' | 'SPEC' | 'REPORT';
@@ -161,6 +161,11 @@ export function deleteFolder(id: number): Promise<void> {
 /** 分页查询文档 */
 export function pageDocuments(query: DocumentQuery): Promise<PageResult<PdmDocument>> {
   return http.get<PageResult<PdmDocument>>('/pdm/document/page', { ...query });
+}
+
+/** 导出文档列表（CSV，复用列表查询条件与 ACL 过滤，上限 5000 行） */
+export function exportDocuments(query: DocumentQuery): Promise<DownloadResult> {
+  return download('/pdm/document/export', { ...query });
 }
 
 /** 文档详情 */

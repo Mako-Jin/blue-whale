@@ -19,6 +19,7 @@ import {
   checkOut,
   deleteDocument,
   deleteFolder,
+  exportDocuments,
   listFolders,
   pageDocuments,
   type AclResourceType,
@@ -51,6 +52,16 @@ const STATUS_LABEL: Record<DocStatus, { color: string; label: string }> = {
 
 /** 全部文档（根节点） */
 const ALL_FOLDER_KEY = 0;
+
+/** 以浏览器下载方式保存 Blob */
+function saveBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
 
 /** 目录树数据装配（根节点固定为「全部文档」） */
 function buildTreeData(folders: DocFolder[]): TreeDataNode[] {
@@ -158,6 +169,21 @@ export default function DocumentCenter() {
     setStatus(undefined);
     setCurrent(1);
     refreshAll();
+  };
+
+  const handleExport = async () => {
+    try {
+      const result = await exportDocuments({
+        folderId: selectedFolderId === ALL_FOLDER_KEY ? undefined : selectedFolderId,
+        keyword: keyword || undefined,
+        docType,
+        status,
+      });
+      saveBlob(result.blob, result.filename || 'pdm-documents.csv');
+      message.success('导出成功');
+    } catch (error) {
+      showError(error);
+    }
   };
 
   const handleSelectFolder = (keys: Key[]) => {
@@ -460,6 +486,9 @@ export default function DocumentCenter() {
             查询
           </Button>
           <Button onClick={handleReset}>重置</Button>
+          {hasPermission('sys:pdm:doc:export') ? (
+            <Button onClick={() => void handleExport()}>导出</Button>
+          ) : null}
         </Space>
         <Table<PdmDocument>
           rowKey="id"

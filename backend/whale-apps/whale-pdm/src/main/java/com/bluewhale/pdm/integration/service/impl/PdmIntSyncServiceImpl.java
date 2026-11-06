@@ -6,6 +6,8 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.tenant.TenantContext;
+import com.bluewhale.pdm.config.PdmIntAlertProperties;
+import com.bluewhale.pdm.integration.client.PdmIntAlertClient;
 import com.bluewhale.pdm.integration.client.PdmIntErpClient;
 import com.bluewhale.pdm.integration.client.PdmIntErpItemRequest;
 import com.bluewhale.pdm.integration.client.PdmIntErpItemResult;
@@ -58,6 +60,10 @@ public class PdmIntSyncServiceImpl implements PdmIntSyncService {
 
     private final ObjectMapper objectMapper;
 
+    private final PdmIntAlertClient alertClient;
+
+    private final PdmIntAlertProperties alertProperties;
+
     @Override
     public PageResult<PdmIntSyncLogVO> page(PdmIntSyncQueryRequest request) {
         LambdaQueryWrapper<PdmIntSyncLog> wrapper = new LambdaQueryWrapper<>();
@@ -88,6 +94,7 @@ public class PdmIntSyncServiceImpl implements PdmIntSyncService {
                                   String checksum, String externalRef, String error, Long operatorId) {
         PdmIntSyncLog entity = findEntity(channel, idempotencyKey);
         boolean created = entity == null;
+        String previousError = created ? null : entity.getLastError();
         if (created) {
             entity = new PdmIntSyncLog();
             entity.setChannel(channel);
@@ -106,14 +113,44 @@ public class PdmIntSyncServiceImpl implements PdmIntSyncService {
         entity.setExternalRef(externalRef);
         entity.setOperatorId(operatorId);
         entity.setStatus(error == null ? PdmIntSyncStatus.SUCCESS : PdmIntSyncStatus.FAILED);
-        entity.setLastError(truncate(error));
+        String newError = truncate(error);
+        entity.setLastError(newError);
         entity.setFinishedAt(LocalDateTime.now());
         if (created) {
             syncLogMapper.insert(entity);
         } else {
             syncLogMapper.updateById(entity);
         }
+        if (error != null && (created || !newError.equals(previousError))) {
+            alert(channel, action, bizNo, idempotencyKey, error);
+        }
         return toVo(entity);
+    }
+
+    /**
+     * 投递同步失败告警（接收人为空或投递异常均不影响同步结果）
+     *
+     * @param channel        通道
+     * @param action         动作
+     * @param bizNo          业务编码
+     * @param idempotencyKey 幂等键
+     * @param error          失败原因
+     */
+    private void alert(String channel, String action, String bizNo, String idempotencyKey, String error) {
+        if (alertProperties.getUserIds() == null || alertProperties.getUserIds().isEmpty()) {
+            log.debug("PDM 同步失败告警跳过（未配置接收人）：key={}", idempotencyKey);
+            return;
+        }
+        try {
+            Long tenantId = TenantContext.get() == null ? 0L : TenantContext.get();
+            String title = "PDM 集成同步失败：" + channel + " " + action;
+            String content = "业务 " + (bizNo == null ? "-" : bizNo) + " 同步失败：" + error;
+            alertClient.send(tenantId, "PDM_INT_SYNC", idempotencyKey,
+                    "PDM:ALERT:" + channel + ":" + idempotencyKey, title, content,
+                    List.of(alertProperties.getChannel()), alertProperties.getUserIds());
+        } catch (RuntimeException ex) {
+            log.warn("PDM 同步失败告警投递失败：key={}，原因={}", idempotencyKey, ex.getMessage());
+        }
     }
 
     @Override

@@ -4,6 +4,7 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.pdm.document.dto.PdmDocDocumentQueryRequest;
 import com.bluewhale.pdm.document.dto.PdmDocDocumentSaveRequest;
 import com.bluewhale.pdm.document.support.PdmDocDownload;
+import com.bluewhale.pdm.document.support.PdmDocExport;
 import com.bluewhale.pdm.document.support.PdmDocUploadFile;
 import com.bluewhale.pdm.document.support.PdmDocViewer;
 import com.bluewhale.pdm.document.vo.PdmDocDocumentVO;
@@ -26,6 +27,15 @@ public interface PdmDocDocumentService {
      * @return 分页结果
      */
     PageResult<PdmDocDocumentVO> page(PdmDocDocumentQueryRequest request, PdmDocViewer viewer);
+
+    /**
+     * 导出文档列表（CSV，复用分页查询条件与 ACL 过滤）
+     *
+     * @param request 查询条件
+     * @param viewer  访问者
+     * @return 导出结果（含是否截断）
+     */
+    PdmDocExport export(PdmDocDocumentQueryRequest request, PdmDocViewer viewer);
 
     /**
      * 查询文档详情

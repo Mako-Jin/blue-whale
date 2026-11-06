@@ -52,9 +52,9 @@ export function upload<T>(url: string, form: FormData): Promise<T> {
   return request<T>(url, { method: 'POST', body: form });
 }
 
-/** 下载原始字节流（文件版本内容），返回 blob 与 Content-Disposition 文件名 */
-export function download(url: string): Promise<DownloadResult> {
-  return client.downloadBlob(url);
+/** 下载原始字节流（文件版本内容 / 导出），返回 blob 与 Content-Disposition 文件名 */
+export function download(url: string, query?: Record<string, unknown>): Promise<DownloadResult> {
+  return client.downloadBlob(url, query);
 }
 
 export type { DownloadResult, PageResult, Result } from '@bluewhale/http';

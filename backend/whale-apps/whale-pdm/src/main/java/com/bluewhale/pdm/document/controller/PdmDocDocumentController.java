@@ -11,6 +11,7 @@ import com.bluewhale.pdm.document.dto.PdmDocDocumentQueryRequest;
 import com.bluewhale.pdm.document.dto.PdmDocDocumentSaveRequest;
 import com.bluewhale.pdm.document.service.PdmDocDocumentService;
 import com.bluewhale.pdm.document.support.PdmDocDownload;
+import com.bluewhale.pdm.document.support.PdmDocExport;
 import com.bluewhale.pdm.document.support.PdmDocRequestContext;
 import com.bluewhale.pdm.document.support.PdmDocUploadFile;
 import com.bluewhale.pdm.document.support.PdmDocViewer;
@@ -37,6 +38,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /**
@@ -52,6 +55,12 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PdmDocDocumentController {
 
+    /** CSV 内容类型 */
+    private static final MediaType CSV_MEDIA_TYPE = MediaType.parseMediaType("text/csv;charset=UTF-8");
+
+    /** 导出文件名日期格式 */
+    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
+
     private final PdmDocDocumentService documentService;
 
     /**
@@ -65,6 +74,30 @@ public class PdmDocDocumentController {
     public Result<PageResult<PdmDocDocumentVO>> page(PdmDocDocumentQueryRequest request,
                                                      HttpServletRequest servletRequest) {
         return Result.ok(documentService.page(request, PdmDocViewer.of(servletRequest)));
+    }
+
+    /**
+     * 导出文档列表
+     *
+     * <p>查询条件与分页一致，最多导出 5000 行；超限时响应头 {@code X-Export-Truncated=true}。</p>
+     *
+     * @param request 查询条件
+     * @param servletRequest 当前请求
+     * @return CSV 文件流
+     */
+    @GetMapping("/export")
+    @RequirePermission("sys:pdm:doc:export")
+    @AuditLog(module = "PDM 图文档", type = OperateType.EXPORT, operation = "导出图文档列表")
+    public ResponseEntity<byte[]> export(PdmDocDocumentQueryRequest request, HttpServletRequest servletRequest) {
+        PdmDocExport export = documentService.export(request, PdmDocViewer.of(servletRequest));
+        ContentDisposition disposition = ContentDisposition.attachment()
+                .filename("pdm-documents-" + DATE_FORMAT.format(LocalDate.now()) + ".csv", StandardCharsets.UTF_8)
+                .build();
+        return ResponseEntity.ok()
+                .contentType(CSV_MEDIA_TYPE)
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+                .header("X-Export-Truncated", String.valueOf(export.truncated()))
+                .body(export.content());
     }
 
     /**

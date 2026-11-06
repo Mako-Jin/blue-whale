@@ -19,6 +19,7 @@ import com.bluewhale.pdm.document.service.PdmDocFolderService;
 import com.bluewhale.pdm.document.support.PdmDocAclConstants;
 import com.bluewhale.pdm.document.support.PdmDocAclDecision;
 import com.bluewhale.pdm.document.support.PdmDocDownload;
+import com.bluewhale.pdm.document.support.PdmDocExport;
 import com.bluewhale.pdm.document.support.PdmDocUploadFile;
 import com.bluewhale.pdm.document.support.PdmDocViewer;
 import com.bluewhale.pdm.document.vo.PdmDocDocumentVO;
@@ -35,11 +36,14 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -453,6 +457,54 @@ class PdmDocDocumentServiceImplTest {
 
         assertEquals("V0.1", view.getVersionNo());
         verify(versionMapper).insert(any(PdmDocVersion.class));
+    }
+
+    /**
+     * 导出复用 ACL 过滤，输出 UTF-8 BOM 与固定表头。
+     */
+    @Test
+    @DisplayName("导出输出 BOM 与表头且排除 DENY 资源")
+    void exportShouldRenderCsvWithBomAndAcl() {
+        PdmDocDocumentQueryRequest request = new PdmDocDocumentQueryRequest();
+        when(aclResolver.deniedFolderIds(any(PdmDocViewer.class))).thenReturn(List.of(2L));
+        when(aclResolver.deniedDocumentIds(any(PdmDocViewer.class))).thenReturn(List.of(9L));
+        Page<PdmDocDocument> page = new Page<>(1, 200);
+        page.setTotal(1L);
+        page.setRecords(List.of(document(3L, 7L)));
+        when(documentMapper.selectPage(any(), any())).thenReturn(page);
+
+        PdmDocExport export = documentService.export(request, viewer(7L));
+
+        assertFalse(export.truncated());
+        String csv = new String(export.content(), StandardCharsets.UTF_8);
+        assertTrue(csv.startsWith("\uFEFF文档编号,标题,类型,状态,所属目录ID,零件号,设计师,最新版本号,创建时间,更新时间"));
+        assertTrue(csv.contains("DOC-001,主机外壳装配图,DRAWING,DRAFT,1,,"));
+        ArgumentCaptor<Wrapper<PdmDocDocument>> captor = ArgumentCaptor.forClass(Wrapper.class);
+        verify(documentMapper).selectPage(any(), captor.capture());
+        assertTrue(captor.getValue().getSqlSegment().contains("NOT IN"));
+    }
+
+    /**
+     * 导出超过 5000 行时截断并标记。
+     */
+    @Test
+    @DisplayName("导出超过 5000 行截断")
+    void exportShouldTruncateBeyondLimit() {
+        PdmDocDocumentQueryRequest request = new PdmDocDocumentQueryRequest();
+        List<PdmDocDocument> batch = new ArrayList<>();
+        for (int index = 0; index < 200; index++) {
+            batch.add(document((long) index, 7L));
+        }
+        Page<PdmDocDocument> page = new Page<>(1, 200);
+        page.setTotal(6000L);
+        page.setRecords(batch);
+        when(documentMapper.selectPage(any(), any())).thenReturn(page);
+
+        PdmDocExport export = documentService.export(request, viewer(7L));
+
+        assertTrue(export.truncated());
+        String csv = new String(export.content(), StandardCharsets.UTF_8);
+        assertEquals(5001L, csv.lines().count());
     }
 
     /**
