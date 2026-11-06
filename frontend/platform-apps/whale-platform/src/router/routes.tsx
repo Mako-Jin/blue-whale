@@ -61,6 +61,8 @@ export const routes = [
       { path: 'scene/*', element: <SubAppContainer /> },
       // 学习培训考试（whale-lms 子应用，Wave 5.87 M1）
       { path: 'lms/*', element: <SubAppContainer /> },
+      // 党政工会（whale-party 子应用，Wave 5.88 M-P0 独立起服务）
+      { path: 'party/*', element: <SubAppContainer /> },
     ],
   },
 ];

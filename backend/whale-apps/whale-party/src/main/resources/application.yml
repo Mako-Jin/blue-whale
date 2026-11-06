@@ -1,0 +1,88 @@
+server:
+  # 网关注入的 X-Permission-Codes 随权限数量增长（超管可达 500+ 条），Tomcat 默认 8KB 头上限会导致 400
+  max-http-request-header-size: 64KB
+  port: ${SERVER_PORT:9009}
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: whale-party
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/bluewhale_party?useUnicode=true&characterEncoding=utf8&connectionCollation=utf8mb4_general_ci&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASSWORD:}
+    hikari:
+      pool-name: ${spring.application.name}-hikari
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:5}
+      minimum-idle: ${DB_POOL_MIN_IDLE:2}
+      connection-timeout: ${DB_POOL_CONNECTION_TIMEOUT_MS:30000}
+      validation-timeout: ${DB_POOL_VALIDATION_TIMEOUT_MS:5000}
+      idle-timeout: ${DB_POOL_IDLE_TIMEOUT_MS:600000}
+      max-lifetime: ${DB_POOL_MAX_LIFETIME_MS:1800000}
+      keepalive-time: ${DB_POOL_KEEPALIVE_MS:120000}
+      leak-detection-threshold: ${DB_POOL_LEAK_DETECTION_MS:60000}
+  # REQ-SEC-022：Flyway 版本化建表（V1 基线审计表，V2 起业务表）
+  flyway:
+    enabled: ${WHALE_FLYWAY_ENABLED:true}
+    locations: classpath:db/migration
+    table: flyway_schema_history
+    baseline-on-migrate: ${WHALE_FLYWAY_BASELINE_ON_MIGRATE:true}
+    baseline-version: 1
+    validate-on-migrate: true
+    clean-disabled: true
+    placeholder-replacement: false
+    connect-retries: 10
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+      config:
+        server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+        file-extension: yaml
+
+logging:
+  level:
+    com.bluewhale: debug
+
+whale:
+  permission:
+    header:
+      enabled: true
+  party:
+    # 需求门禁（REQ-FUNC-094 / REQ-ARCH-026 / REQ-SEC-036）已通过（Wave 5.88）；
+    # 置为 false 可一键回退到仅 /party/meta 的维护态
+    demand-gate-passed: ${WHALE_PARTY_DEMAND_GATE_PASSED:true}
+    # 支部层级深度上限（上级支部成环时防止无限上溯）
+    branch-max-depth: ${WHALE_PARTY_BRANCH_MAX_DEPTH:10}
+    # 各业务单页上限
+    branch-page-limit: ${WHALE_PARTY_BRANCH_PAGE_LIMIT:100}
+    member-page-limit: ${WHALE_PARTY_MEMBER_PAGE_LIMIT:100}
+    activity-page-limit: ${WHALE_PARTY_ACTIVITY_PAGE_LIMIT:100}
+    content-page-limit: ${WHALE_PARTY_CONTENT_PAGE_LIMIT:50}
+    union-page-limit: ${WHALE_PARTY_UNION_PAGE_LIMIT:100}
+    # 员工快照同步单页条数（对端 ERP 单页上限 500）
+    member-sync-page-size: ${WHALE_PARTY_MEMBER_SYNC_PAGE_SIZE:100}
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}

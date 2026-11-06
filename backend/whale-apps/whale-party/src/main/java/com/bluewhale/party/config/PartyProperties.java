@@ -1,0 +1,43 @@
+package com.bluewhale.party.config;
+
+import lombok.Data;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+
+/**
+ * 党政工会应用运行参数（配置前缀 {@code whale.party}）。
+ *
+ * <p>{@link #demandGatePassed} 是业务功能总开关。Wave 5.88 已确认需求门禁通过
+ * （REQ-FUNC-094 / REQ-ARCH-026 / REQ-SEC-036），但 M-P1 起才逐个开放业务接口；
+ * 生产环境可通过环境变量 {@code WHALE_PARTY_DEMAND_GATE_PASSED=false}
+ * 一键回退到仅暴露 {@code /party/meta} 的维护态。</p>
+ *
+ * @author BlueWhale
+ */
+@Data
+@ConfigurationProperties(prefix = "whale.party")
+public class PartyProperties {
+
+    /** 需求门禁是否通过；false 时仅暴露 /party/meta */
+    private boolean demandGatePassed = true;
+
+    /** 支部层级深度上限（防止上级支部成环时无限上溯） */
+    private int branchMaxDepth = 10;
+
+    /** 支部单页上限 */
+    private int branchPageLimit = 100;
+
+    /** 党员单页上限 */
+    private int memberPageLimit = 100;
+
+    /** 组织生活记录单页上限 */
+    private int activityPageLimit = 100;
+
+    /** 党建内容单页上限 */
+    private int contentPageLimit = 50;
+
+    /** 工会业务单页上限 */
+    private int unionPageLimit = 100;
+
+    /** 员工快照同步单页条数（对端 ERP 单页上限 500） */
+    private int memberSyncPageSize = 100;
+}
