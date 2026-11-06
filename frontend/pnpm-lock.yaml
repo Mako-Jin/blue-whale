@@ -680,6 +680,61 @@ importers:
         specifier: ^6.0.0
         version: 6.4.4(@types/node@22.20.5)
 
+  platform-apps/whale-mail:
+    dependencies:
+      '@bluewhale/http':
+        specifier: workspace:*
+        version: link:../../shared-packages/http
+      '@bluewhale/whale-auth':
+        specifier: workspace:*
+        version: link:../../shared-packages/whale-auth
+      '@bluewhale/whale-common-theme':
+        specifier: workspace:*
+        version: link:../../shared-packages/whale-common-theme
+      '@bluewhale/whale-log-sdk':
+        specifier: workspace:*
+        version: link:../../shared-packages/whale-log-sdk
+      '@bluewhale/whale-ui':
+        specifier: workspace:*
+        version: link:../../elemental/whale-ui
+      antd:
+        specifier: ^5.21.0
+        version: 5.29.3(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      dayjs:
+        specifier: ^1.11.13
+        version: 1.11.23
+      react:
+        specifier: ^19.0.0
+        version: 19.3.1
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.3.1(react@19.3.1)
+      react-router-dom:
+        specifier: ^6.27.0
+        version: 6.30.6(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      vite-plugin-qiankun:
+        specifier: ^1.0.15
+        version: 1.0.15(typescript@5.9.3)(vite@6.4.4(@types/node@22.20.5))
+    devDependencies:
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: ^19.0.0
+        version: 19.3.0(@types/react@19.3.0)
+      '@vitejs/plugin-react':
+        specifier: ^4.3.3
+        version: 4.7.0(vite@6.4.4(@types/node@22.20.5))
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.1.3
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+      vite:
+        specifier: ^6.0.0
+        version: 6.4.4(@types/node@22.20.5)
+
   platform-apps/whale-mes:
     dependencies:
       '@bluewhale/http':

@@ -73,6 +73,12 @@ export const menuConfig: MenuNode[] = [
   { key: '/contract', label: '合同管理', permission: 'sys:contract:list' },
   { key: '/doc', label: '文档中心', permission: 'sys:doc:space:list' },
   { key: '/music', label: '音乐中心', permission: 'sys:music:browse' },
+  // 邮箱（whale-mail 子应用，Wave 5.89 M0 独立起服务）
+  { key: '/mail', label: '邮箱', permission: 'sys:mail:message:list' },
+  // 学习培训（whale-lms 子应用，Wave 5.87；子应用内部自带横向导航，基座只留一个入口）
+  { key: '/lms', label: '学习培训', permission: 'sys:lms:browse' },
+  // 党政工会（whale-party 子应用，Wave 5.88；同上）
+  { key: '/party', label: '党政工会', permission: 'sys:party:browse' },
   {
     key: '/scene',
     label: '城池导航',

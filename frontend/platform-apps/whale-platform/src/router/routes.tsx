@@ -63,6 +63,8 @@ export const routes = [
       { path: 'lms/*', element: <SubAppContainer /> },
       // 党政工会（whale-party 子应用，Wave 5.88 M-P0 独立起服务）
       { path: 'party/*', element: <SubAppContainer /> },
+      // 邮箱（whale-mail 子应用，Wave 5.89 M0 独立起服务）
+      { path: 'mail/*', element: <SubAppContainer /> },
     ],
   },
 ];
