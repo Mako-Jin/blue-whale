@@ -1,7 +1,7 @@
 # PDM / MES / OA / CRM / ERP 待办总账与分步实施计划
 
 > 日期：2026-11-06　状态：**已批准，执行中**（Step 1 → Step 7 逐批实施，每批独立验证、提交、推送）
-> 进度：**Step 1 已完成**（2026-11-06，CRM 前端 8113 Step 1a 客户域 + Step 1b 销售域）；Step 2–7 未开始。
+> 进度：**Step 1 已完成**（2026-11-06，CRM 前端 8113 Step 1a 客户域 + Step 1b 销售域）；**Step 2 已完成**（2026-11-06，ERP MRP：BOM 展开 / 净需求 / 计划订单 / 追溯 / 运行记录）；Step 3–7 未开始。
 > 依据：[roadmap.md](roadmap.md) 状态对账（2026-11-06）、[PDM 计划 §十九](2026-11-04-wave5.80-pdm-panorama.md)、[MES 计划](2026-11-04-wave5.79-mes-panorama.md)、[OA 计划](2026-11-04-wave5.82-oa-panorama.md)、[CRM 计划](2026-11-04-wave5.83-crm-panorama.md)、[ERP 计划](2026-11-03-wave5.78-erp-panorama.md)
 > 纪律：每批动工前先做一次代码对账（文档标注 ⏸ 的项可能已被后续波次补齐），只做确认缺失的；只提交本批文件；每批结束输出四段式报告。
 
@@ -64,3 +64,49 @@
 3. ~~页面：客户（列表/详情/联系人/跟进/公海）、线索/转化、商机/阶段/漏斗、报价、预测、目标。~~（已完成：4 路由 + 页内 Tab）
 4. 权限：CRM 已有 1800–1899，按页面按钮补齐 `list/detail/add/edit/delete/export` 缺失项（只追加）。本次未新增权限号，仅登记菜单 413–420。
 5. 验证：前端 lint/build 已通过（1a、1b 各自验证）。
+
+---
+
+## 六、Step 2 实施明细（ERP MRP，2026-11-06 已完成）
+
+> 范围：按 PDM 内网契约拉取已发布 BOM 快照 → 多级用量展开 → 结合库存可用量计算净需求 → 生成计划订单并保留需求追溯 → MRP 运行记录可查询、可重跑 → 前端结果页。本期**不做**计划订单转采购/生产订单、CRP、自动读取 MPS、在途与安全库存占用、异步线程池。
+
+### 6.1 数据表（`whale-erp` Flyway `V13__mfg_mrp.sql`）
+
+| 表 | 用途 | 关键约束 |
+|---|---|---|
+| `erp_mfg_mrp_run` | MRP 运行记录（RUNNING/COMPLETED/FAILED、统计数、错误信息、起止时间） | UK(tenant_id, run_no) |
+| `erp_mfg_mrp_run_line` | 运行输入行（物料、BOM 号/版本、数量、需求日期） | 支撑重跑与复现；UK(tenant_id, run_id, line_no) |
+| `erp_mfg_mrp_planned_order` | 计划订单（采购/生产建议、毛需求/可用/净需求、层级、BOM、需求日期） | UK(tenant_id, order_no) |
+| `erp_mfg_mrp_trace` | 需求追溯（来源需求行、BOM path、depth、单位用量、损耗率、贡献量） | IDX(run_id, planned_order_id) |
+
+### 6.2 算法口径
+
+- 快照行按深度优先、`path` 形如 `1` / `1.1`；累计用量 `cum(path) = cum(parentPath) × qty × (1 + lossRate/100)`，根路径取 1，`lossRate` 为空按 0，4 位小数 HALF_UP。
+- 净需求 `net = max(0, 毛需求 − 可用量)`；可用量为 ERP 现有库存余额跨仓库汇总（不含在途、安全库存与已分配）。
+- 同一零件在一次运行中只扣一次可用量；仅 `net > 0` 生成计划订单。
+- 计划订单类型：本次快照中任一行 `parentPartNo` 命中的零件为 `PRODUCTION`，否则 `PURCHASE`。
+- PDM 不可达、快照缺行、快照产品编码与需求物料不一致、子件未在 ERP 维护 → 运行标记 `FAILED` 并记录错误，不产出错误计划。
+
+### 6.3 接口与权限
+
+| 方法与路径 | 权限码 | 说明 |
+|---|---|---|
+| `POST /erp/mfg/mrp/runs` | `sys:erp:mrp:run`（542） | 执行运算（同步），返回运行记录 |
+| `POST /erp/mfg/mrp/runs/{id}/rerun` | 542 | 按原输入重跑 |
+| `GET /erp/mfg/mrp/runs/page`、`/runs/{id}` | `sys:erp:mrp:run:list`（543） | 运行记录分页/详情（含输入行与计划订单概览） |
+| `GET /erp/mfg/mrp/orders/page`、`/orders/{id}` | `sys:erp:mrp:order:list`（544） | 计划订单分页/详情（含追溯） |
+
+- 菜单 104「MRP 运算」、105「计划订单」；脚本 `migration-5.78-erp-mrp.sql` 幂等，545–548 与菜单 106 预留。
+- 角色：`tenant_admin / erp_manager / erp_mfg` 授 542–544；`erp_member / erp_finance` 只授 543/544。
+
+### 6.4 前端
+
+`frontend/platform-apps/whale-erp` 新增 `MrpRunPage`（可编辑需求行 + 运行记录 + 详情抽屉 + 重跑）与 `MrpOrderPage`（筛选 + 计划订单 + 追溯抽屉），`api/mfg.ts` 增加 MRP 类型与 6 个函数，`App.tsx` 注册菜单与路由映射。
+
+### 6.5 验收
+
+- 后端 `mvn -o -pl backend/whale-apps/whale-erp test` 全绿（含多级累计、损耗率、净需求不为负、可用量只扣一次、类型判定、PDM 失败 FAILED、重跑）。
+- 前端 `pnpm --filter whale-erp lint` / `build` 通过。
+- 文档一致性脚本：除 `service-catalog.md` 待补 V13 记录外其余通过；该文件同时含未提交的商城 5.94 改动，本批不混提，待 5.94 落地时一并回填。
+

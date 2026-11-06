@@ -15,6 +15,9 @@ export const SCM_STATUS_LABEL: Record<string, string> = {
   COMPLETED: '已完工',
   CLOSED: '已关闭',
   CANCELLED: '已取消',
+  RUNNING: '运行中',
+  FAILED: '失败',
+  PLANNED: '计划中',
 };
 
 /** 单据状态颜色 */
@@ -22,9 +25,9 @@ export function scmStatusColor(status: string): string {
   if (status === 'RECEIVED' || status === 'SHIPPED' || status === 'POSTED'
     || status === 'PUBLISHED' || status === 'COMPLETED') return 'green';
   if (status === 'PARTIALLY_RECEIVED' || status === 'PARTIALLY_SHIPPED'
-    || status === 'IN_PROGRESS') return 'orange';
-  if (status === 'CANCELLED') return 'red';
-  if (status === 'APPROVED' || status === 'RELEASED') return 'blue';
+    || status === 'IN_PROGRESS' || status === 'RUNNING') return 'orange';
+  if (status === 'CANCELLED' || status === 'FAILED') return 'red';
+  if (status === 'APPROVED' || status === 'RELEASED' || status === 'PLANNED') return 'blue';
   return 'default';
 }
 

@@ -4,6 +4,7 @@ import com.bluewhale.erp.scm.domain.model.ScmQuery;
 import com.bluewhale.erp.scm.domain.model.StockBalance;
 import com.bluewhale.erp.scm.domain.model.StockMovement;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -14,6 +15,14 @@ import java.util.Optional;
  * @author BlueWhale
  */
 public interface StockRepository {
+
+    /**
+     * 汇总物料跨仓库现货数量（MRP 可用量口径）。
+     *
+     * @param itemId 物料主键
+     * @return 数量合计；无库存返回 0
+     */
+    BigDecimal sumQuantityByItemId(Long itemId);
 
     /**
      * 分页查询库存余额。

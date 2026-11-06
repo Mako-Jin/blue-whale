@@ -25,6 +25,8 @@ import SafetyStockPage from './pages/SafetyStockPage';
 import ForecastPage from './pages/ForecastPage';
 import MpsPage from './pages/MpsPage';
 import ProductionPage from './pages/ProductionPage';
+import MrpRunPage from './pages/MrpRunPage';
+import MrpOrderPage from './pages/MrpOrderPage';
 import EmployeePage from './pages/EmployeePage';
 import AttendancePage from './pages/AttendancePage';
 import PayrollPage from './pages/PayrollPage';
@@ -61,6 +63,8 @@ const menuItems: MenuProps['items'] = [
   { key: 'forecast', label: '需求预测' },
   { key: 'mps', label: '主生产计划' },
   { key: 'production', label: '生产订单' },
+  { key: 'mrp-run', label: 'MRP 运算' },
+  { key: 'mrp-order', label: '计划订单' },
   { key: 'hr-employee', label: '组织与员工' },
   { key: 'hr-attendance', label: '考勤汇总' },
   { key: 'hr-payroll', label: '薪资批次' },
@@ -95,6 +99,8 @@ type PageKind =
   | 'forecast'
   | 'mps'
   | 'production'
+  | 'mrp-run'
+  | 'mrp-order'
   | 'hr-employee'
   | 'hr-attendance'
   | 'hr-payroll'
@@ -125,6 +131,8 @@ function initialPage(): PageKind {
   if (path.includes('/erp/scm/stocktake')) return 'stocktake';
   if (path.includes('/erp/scm/transfer')) return 'transfer';
   if (path.includes('/erp/scm/stock')) return 'stock';
+  if (path.includes('/erp/mfg/mrp/planned-order')) return 'mrp-order';
+  if (path.includes('/erp/mfg/mrp')) return 'mrp-run';
   if (path.includes('/erp/mfg/forecast')) return 'forecast';
   if (path.includes('/erp/mfg/mps')) return 'mps';
   if (path.includes('/erp/mfg/production')) return 'production';
@@ -171,6 +179,8 @@ function pageOfKey(key: string): PageKind {
     || key === 'forecast'
     || key === 'mps'
     || key === 'production'
+    || key === 'mrp-run'
+    || key === 'mrp-order'
     || key === 'hr-employee'
     || key === 'hr-attendance'
     || key === 'hr-payroll'
@@ -210,6 +220,8 @@ const PAGE_TITLE: Record<PageKind, string> = {
   forecast: '需求预测',
   mps: '主生产计划',
   production: '生产订单',
+  'mrp-run': 'MRP 运算',
+  'mrp-order': '计划订单',
   'hr-employee': '组织与员工',
   'hr-attendance': '考勤汇总',
   'hr-payroll': '薪资批次',
@@ -323,6 +335,8 @@ export default function App() {
             {page === 'forecast' ? <ForecastPage /> : null}
             {page === 'mps' ? <MpsPage /> : null}
             {page === 'production' ? <ProductionPage /> : null}
+            {page === 'mrp-run' ? <MrpRunPage /> : null}
+            {page === 'mrp-order' ? <MrpOrderPage /> : null}
             {page === 'hr-employee' ? <EmployeePage /> : null}
             {page === 'hr-attendance' ? <AttendancePage /> : null}
             {page === 'hr-payroll' ? <PayrollPage /> : null}

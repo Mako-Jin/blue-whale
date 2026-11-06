@@ -28,6 +28,21 @@ public final class MfgStatus {
     /** 已取消 */
     public static final String CANCELLED = "CANCELLED";
 
+    /** 运行中（MRP） */
+    public static final String RUNNING = "RUNNING";
+
+    /** 运行失败（MRP） */
+    public static final String FAILED = "FAILED";
+
+    /** 已计划（MRP 计划订单） */
+    public static final String PLANNED = "PLANNED";
+
+    /** 计划订单建议类型：采购 */
+    public static final String ORDER_PURCHASE = "PURCHASE";
+
+    /** 计划订单建议类型：生产 */
+    public static final String ORDER_PRODUCTION = "PRODUCTION";
+
     /** 来源：生产领料 */
     public static final String SOURCE_PRODUCTION_ISSUE = "PRODUCTION_ISSUE";
 

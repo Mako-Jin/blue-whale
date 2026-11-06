@@ -107,6 +107,69 @@ export interface ProductionOrderInput {
   materials: { itemCode: string; requiredQuantity: number; uom?: string }[];
 }
 
+/** MRP 输入需求行 */
+export interface MrpRunLineView {
+  lineNo: number;
+  itemCode: string;
+  bomNo: string;
+  bomVersion: string;
+  quantity: number;
+  dueDate: string;
+}
+
+/** MRP 需求追溯 */
+export interface MrpTraceView {
+  demandLineNo: number;
+  bomPath: string;
+  depth: number;
+  unitQty: number;
+  lossRate: number;
+  grossQuantity: number;
+}
+
+/** MRP 计划订单 */
+export interface MrpPlannedOrderView {
+  id: number;
+  runId: number;
+  orderNo: string;
+  orderType: string;
+  itemId?: number;
+  itemCode: string;
+  itemName?: string;
+  uom?: string;
+  grossQuantity: number;
+  availableQuantity: number;
+  netQuantity: number;
+  itemLevel?: number;
+  bomNo?: string;
+  bomVersion?: string;
+  needDate: string;
+  status: string;
+  traces?: MrpTraceView[];
+}
+
+/** MRP 运行记录 */
+export interface MrpRunView {
+  id: number;
+  runNo: string;
+  status: string;
+  demandLineCount: number;
+  snapshotLineCount: number;
+  plannedOrderCount: number;
+  errorMessage?: string;
+  remark?: string;
+  startTime?: string;
+  endTime?: string;
+  lines?: MrpRunLineView[];
+  orders?: MrpPlannedOrderView[];
+}
+
+/** MRP 运算入参 */
+export interface MrpRunInput {
+  remark?: string;
+  lines: { itemCode: string; bomNo: string; versionNo: string; quantity: number; dueDate: string }[];
+}
+
 /** 生产计划查询参数 */
 export interface MfgQueryParams {
   current?: number;
@@ -118,6 +181,8 @@ export interface MfgQueryParams {
   warehouseId?: number;
   fromDate?: string;
   toDate?: string;
+  runId?: number;
+  orderType?: string;
 }
 
 /** 构造查询串（空值不下发，默认每页 20 条） */
@@ -233,4 +298,38 @@ export function closeProductionOrder(id: number): Promise<ProductionOrderView> {
 /** 取消生产订单 */
 export function cancelProductionOrder(id: number): Promise<ProductionOrderView> {
   return http.post<ProductionOrderView>(`/erp/mfg/production/${id}/cancel`);
+}
+
+/** 执行 MRP 运算 */
+export function runMrp(input: MrpRunInput): Promise<MrpRunView> {
+  return http.post<MrpRunView>('/erp/mfg/mrp/runs', input);
+}
+
+/** MRP 运行记录分页 */
+export function pageMrpRuns(params: MfgQueryParams = {}): Promise<PageResult<MrpRunView>> {
+  return http.get<PageResult<MrpRunView>>(`/erp/mfg/mrp/runs/page?${buildQuery(params)}`);
+}
+
+/** MRP 运行记录详情（含输入需求行与计划订单概览） */
+export function getMrpRun(id: number): Promise<MrpRunView> {
+  return http.get<MrpRunView>(`/erp/mfg/mrp/runs/${id}`);
+}
+
+/** 按原输入重跑 MRP */
+export function rerunMrp(id: number): Promise<MrpRunView> {
+  return http.post<MrpRunView>(`/erp/mfg/mrp/runs/${id}/rerun`);
+}
+
+/** MRP 计划订单分页 */
+export function pageMrpPlannedOrders(
+  params: MfgQueryParams = {},
+): Promise<PageResult<MrpPlannedOrderView>> {
+  return http.get<PageResult<MrpPlannedOrderView>>(
+    `/erp/mfg/mrp/orders/page?${buildQuery(params)}`,
+  );
+}
+
+/** MRP 计划订单详情（含需求追溯） */
+export function getMrpPlannedOrder(id: number): Promise<MrpPlannedOrderView> {
+  return http.get<MrpPlannedOrderView>(`/erp/mfg/mrp/orders/${id}`);
 }

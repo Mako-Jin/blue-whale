@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -31,6 +32,15 @@ public class StockRepositoryImpl implements StockRepository {
     private final StockBalanceMapper stockBalanceMapper;
 
     private final StockMovementMapper stockMovementMapper;
+
+    @Override
+    public BigDecimal sumQuantityByItemId(Long itemId) {
+        return stockBalanceMapper.selectList(new LambdaQueryWrapper<StockBalanceEntity>()
+                        .eq(StockBalanceEntity::getItemId, itemId)).stream()
+                .map(StockBalanceEntity::getQuantity)
+                .filter(quantity -> quantity != null)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
 
     @Override
     public List<StockBalance> pageBalances(ScmQuery query) {
