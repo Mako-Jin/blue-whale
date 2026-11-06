@@ -12,13 +12,13 @@
 |---|---|
 | 进程 | `WhaleMapApplication`（Spring Boot，JDK 21） |
 | 端口 | `SERVER_PORT`，默认 **8100** |
-| 库 | `bluewhale_map`（Flyway 自动建表，3 张） |
+| 库 | `bluewhale_map`（Flyway 自动建表，5 张：打点 / 解析缓存 / 配额 / 围栏 / Flyway 历史） |
 | 对外前缀 | `/map/**`（网关只转发不 StripPrefix） |
 | 内网接口 | M0 无。后续如需内部批量打点，用 `/map/internal/**` 并加入网关 `internal-deny` |
 | 依赖 | 腾讯位置服务 WebService API、高德开放平台 Web 服务 API（均出站 443） |
 | 被动依赖 | 无数据库以外的中间件；不需要 Redis |
 
-**它不负责什么**：底图与瓦片、路线导航 GUI、轨迹存储、地理围栏判定（M1）。前端只从它这里拿坐标和地址。
+**它不负责什么**：底图与瓦片、路线导航 GUI、轨迹存储。围栏配置与判定由本服务提供（见第六节），但「打卡成功与否」的最终判定属于考勤业务，不在这里。
 
 ---
 
@@ -170,7 +170,52 @@ DELETE FROM bluewhale_map.map_geocode_cache WHERE expire_time < NOW() LIMIT 1000
 
 ---
 
-## 六、监控
+## 六、围栏与打卡范围
+
+围栏用于「打卡范围、销售区域、配送范围」。M1-2 起可用，权限 `sys:map:fence:manage` / `sys:map:fence:query`。
+
+### 6.1 坐标口径（最容易出错的一处）
+
+| 环节 | 坐标系 | 谁负责转 |
+|---|---|---|
+| 前端从 GCJ-02 底图画围栏 | GCJ-02 | — |
+| 提交到 `/map/fence` | GCJ-02（声明 `coordType`） | 服务端转 WGS84 落库 |
+| 表 `map_fence.center_lng/points` | **WGS84** | 与 `map_location` 同源 |
+| 判定入参 `/map/fence/match` | GCJ-02（声明 `coordType`） | 服务端转 WGS84 再算 |
+| 返回前端（`FenceVO.points`） | **GCJ-02** | 服务端转回，供底图叠加 |
+
+**若围栏在底图上偏移 300–500 米**：不是画错了，是某一端漏了转换。检查 `map_fence.coord_type` 是否为 `WGS84`，以及调用方是否声明了 `coordType`。
+
+### 6.2 为什么判定不走 MySQL 空间函数
+
+`ST_Contains` 默认按「度」在笛卡尔平面算：经度 1 度在北京约 85 公里、在赤道约 111 公里，围栏在东西向会被拉伸；换成 SRID 4326 也得保证所有数据同源，而 SRID 写错不报错，只静默偏几百米。
+
+本服务改为：**bbox 粗筛（SQL）→ 局部等距投影 → 射线法（应用层）**，顺带给「离边界还有多远」。围栏数量在租户内是几十到几百量级，这点计算量远小于一次网络往返。
+
+### 6.3 bbox 跨 180 度经线
+
+跨线围栏的顶点一半在 179.x、一半在 -179.x。若按 min/max 写成 179 → -179，SQL 的 `min_lng <= ? AND max_lng >= ?` 永远为假，围栏会被**静默跳过**（不报错、不命中）。所以写入时识别跨线并把 bbox 放成 `-180`/`180`——粗筛宽松可以接受，漏判不行。
+
+### 6.4 打卡场景怎么调
+
+```bash
+# 我在哪些围栏里（只判该考勤组的围栏与通用围栏）
+curl -s -X POST http://127.0.0.1:8100/map/fence/match \
+  -H 'Content-Type: application/json' -H "X-Tenant-Id: 1" \
+  -d '{"lng":116.404,"lat":39.915,"coordType":"GCJ02","bizType":"OA_ATTEND","bizId":"12"}'
+```
+
+返回按 `distanceMeters` 降序（越靠中心越前），只含 `inside=true` 的围栏。**空数组表示不在任何范围内，不是错误**——调用方不要把它当异常处理。
+
+`distanceMeters` 是**有符号**的：`contains` 接口里为正表示在内且距边界多远，为负表示超出多少米。可以据此提示「还差 30 米」。
+
+### 6.5 围栏删除
+
+`POST /map/fence/{id}/remove` 是**逻辑删除**（与打点表相反）。原因：打卡记录、配送单会长期引用围栏，删掉后仍需指回一个能解释的名字；误删也要能恢复。同名的围栏允许并存，所以本表没有唯一键，逻辑删除不会引发撞键。
+
+---
+
+## 七、监控
 
 Prometheus job：`whale-map`（`127.0.0.1:8100/actuator/prometheus`）。
 
@@ -190,7 +235,7 @@ Prometheus job：`whale-map`（`127.0.0.1:8100/actuator/prometheus`）。
 
 ---
 
-## 七、合规与安全
+## 八、合规与安全
 
 1. **供应商白名单**：腾讯、高德、百度、天地图。Mapbox / Leaflet+OSM / Google 一律不可用（数据出境与测绘资质问题）。
 2. **Key 不进前端、不进日志、不进响应**。`ProviderHttp` 已剥掉异常信息里的 URL（URL 带 Key）。
