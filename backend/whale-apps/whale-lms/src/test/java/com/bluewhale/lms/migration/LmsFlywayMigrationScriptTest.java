@@ -163,6 +163,20 @@ class LmsFlywayMigrationScriptTest {
         assertTrue(tables.containsAll(expected), "缺少证书核心表：" + expected);
     }
 
+    @Test
+    @DisplayName("M4-2 覆盖学分规则与台账两张表")
+    void creditMigrationShouldCoverCreditTables() throws IOException {
+        Set<String> tables = new LinkedHashSet<>();
+        for (Path script : migrationScripts()) {
+            Matcher matcher = CREATE_TABLE.matcher(Files.readString(script, StandardCharsets.UTF_8));
+            while (matcher.find()) {
+                tables.add(matcher.group(1));
+            }
+        }
+        Set<String> expected = Stream.of("lr_credit_rule", "lr_credit_ledger").collect(Collectors.toSet());
+        assertTrue(tables.containsAll(expected), "缺少学分核心表：" + expected);
+    }
+
     /**
      * 列出迁移脚本。
      *

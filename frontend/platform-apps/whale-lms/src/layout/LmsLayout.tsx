@@ -1,7 +1,8 @@
 // 学习子应用布局：顶部导航（课程 / 培训 / 题库 / 试卷 / 考试 / 判分 / 证书 / 我的）+ 内容区。
 //
 // M1 提供课程域界面，M2 增培训计划，M3-1 增题库与试卷，M3-2 增考试与判分，
-// M4-1 增证书模板、证书管理与我的证书；学分与看板导航随后续波次增量注册。
+// M4-1 增证书模板、证书管理与我的证书，M4-2 增学分与我的学分；
+// 集成与看板导航随后续波次增量注册。
 // 导航项超过宽度时由 antd 的 horizontal Menu 自动收进「更多」，无需另行分组。
 
 import { Layout, Menu, Typography } from 'antd';
@@ -19,8 +20,10 @@ const NAV_ITEMS = [
   { key: '/grade', label: '判分' },
   { key: '/cert', label: '证书模板' },
   { key: '/certificate', label: '证书管理' },
+  { key: '/credit', label: '学分' },
   { key: '/my-exam', label: '我的考试' },
   { key: '/my-cert', label: '我的证书' },
+  { key: '/my-credit', label: '我的学分' },
   { key: '/my', label: '我的学习' },
 ];
 

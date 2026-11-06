@@ -172,6 +172,27 @@ public final class LmsErrorCode {
     /** 证书参数不合法（持证人、有效期） */
     public static final int CERTIFICATE_INVALID = 42068;
 
+    /** 学分规则不存在或无权访问 */
+    public static final int CREDIT_RULE_NOT_FOUND = 42069;
+
+    /** 学分规则编码已存在 */
+    public static final int CREDIT_RULE_CODE_CONFLICT = 42070;
+
+    /** 学分规则与同学分来源的既有规则冲突（同来源同对象只能一条） */
+    public static final int CREDIT_RULE_MATCH_CONFLICT = 42071;
+
+    /** 学分规则参数不合法（学分范围、来源类型） */
+    public static final int CREDIT_RULE_INVALID = 42072;
+
+    /** 学分规则已停用，不可用于记账 */
+    public static final int CREDIT_RULE_DISABLED = 42073;
+
+    /** 未配置匹配的学分规则，无法记账 */
+    public static final int CREDIT_RULE_MISSING = 42074;
+
+    /** 学分台账参数不合法（学员、学分、年度） */
+    public static final int CREDIT_INVALID = 42075;
+
     /** 错误码默认提示语表（List 级 switch 会顶到圈复杂度上限，统一走查表） */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(GATE_CLOSED, "需求门禁未通过，学习功能未开放"),
@@ -225,7 +246,14 @@ public final class LmsErrorCode {
             Map.entry(CERTIFICATE_STATE_CONFLICT, "证书状态不允许该操作"),
             Map.entry(CERTIFICATE_SOURCE_INVALID, "发证来源不满足发证条件"),
             Map.entry(CERTIFICATE_NO_CONFLICT, "证书编号分配冲突，请重试"),
-            Map.entry(CERTIFICATE_INVALID, "证书参数不合法"));
+            Map.entry(CERTIFICATE_INVALID, "证书参数不合法"),
+            Map.entry(CREDIT_RULE_NOT_FOUND, "学分规则不存在或无权访问"),
+            Map.entry(CREDIT_RULE_CODE_CONFLICT, "学分规则编码已存在"),
+            Map.entry(CREDIT_RULE_MATCH_CONFLICT, "该来源对象已配置学分规则"),
+            Map.entry(CREDIT_RULE_INVALID, "学分规则参数不合法"),
+            Map.entry(CREDIT_RULE_DISABLED, "学分规则已停用"),
+            Map.entry(CREDIT_RULE_MISSING, "未配置匹配的学分规则，无法记账"),
+            Map.entry(CREDIT_INVALID, "学分台账参数不合法"));
 
     /**
      * 私有构造器：常量类，禁止实例化。
