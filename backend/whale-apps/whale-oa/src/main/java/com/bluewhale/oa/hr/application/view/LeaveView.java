@@ -6,6 +6,7 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 请假申请视图。
@@ -64,6 +65,9 @@ public class LeaveView implements Serializable {
 
     /** 备注 */
     private String remark;
+
+    /** 附件 */
+    private List<LeaveAttachmentView> attachments;
 
     /** 创建时间 */
     private LocalDateTime createTime;

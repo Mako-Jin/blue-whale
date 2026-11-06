@@ -1,12 +1,18 @@
 package com.bluewhale.oa.hr.application.service.impl;
 
+import com.bluewhale.common.context.RequestContextHolder;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.oa.common.OaErrorCode;
+import com.bluewhale.oa.common.application.command.FileRefRegisterCommand;
+import com.bluewhale.oa.common.application.service.FileRefAppService;
+import com.bluewhale.oa.common.domain.model.FileRef;
+import com.bluewhale.oa.common.domain.repository.FileRefRepository;
 import com.bluewhale.oa.hr.application.command.LeaveSaveCommand;
 import com.bluewhale.oa.hr.application.command.LeaveStatusCommand;
 import com.bluewhale.oa.hr.application.service.LeaveAppService;
 import com.bluewhale.oa.hr.application.service.LeaveBalanceAppService;
 import com.bluewhale.oa.hr.application.service.WorkCalendarAppService;
+import com.bluewhale.oa.hr.application.view.LeaveAttachmentView;
 import com.bluewhale.oa.hr.application.view.LeaveView;
 import com.bluewhale.oa.hr.domain.model.Leave;
 import com.bluewhale.oa.hr.domain.model.LeaveQuery;
@@ -25,6 +31,9 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 请假申请应用服务实现。
@@ -45,6 +54,9 @@ public class LeaveAppServiceImpl implements LeaveAppService {
     /** 请假天数精度：与 oa_leave.days 的 DECIMAL(5,1) 对齐 */
     private static final int DAYS_SCALE = 1;
 
+    /** 单笔申请附件上限 */
+    private static final int MAX_ATTACHMENTS = 5;
+
     private final LeaveRepository leaveRepository;
 
     private final LeaveTypeRepository leaveTypeRepository;
@@ -54,6 +66,10 @@ public class LeaveAppServiceImpl implements LeaveAppService {
     private final WorkCalendarAppService workCalendarAppService;
 
     private final LeaveBalanceAppService leaveBalanceAppService;
+
+    private final FileRefAppService fileRefAppService;
+
+    private final FileRefRepository fileRefRepository;
 
     @Override
     public PageResult<LeaveView> page(LeaveQuery query) {
@@ -85,6 +101,7 @@ public class LeaveAppServiceImpl implements LeaveAppService {
         assertNoOverlap(leave, null);
         leave.submit();
         leaveRepository.insert(leave);
+        syncAttachments(leave, leaveType, command, true);
         if (leave.getApplicantId() != null) {
             leaveBalanceAppService.freeze(leave.getApplicantId(), leave.getLeaveTypeId(),
                     leave.getStartDate().getYear(), leave.getDays(), leaveType.allowNegative(),
@@ -126,6 +143,7 @@ public class LeaveAppServiceImpl implements LeaveAppService {
                     BIZ_TYPE_LEAVE, leave.getId());
         }
         leaveRepository.update(leave);
+        syncAttachments(leave, leaveType, command, false);
         log.info("请假申请已更新: id={}, code={}, days={}", id, leave.getCode(), leave.getDays());
         return toView(leave);
     }
@@ -166,6 +184,7 @@ public class LeaveAppServiceImpl implements LeaveAppService {
                     leave.getStartDate().getYear(), leave.getDays(), BIZ_TYPE_LEAVE, id);
         }
         leaveRepository.deleteById(id);
+        removeAttachments(id);
         log.info("请假申请已删除: id={}", id);
     }
 
@@ -335,8 +354,98 @@ public class LeaveAppServiceImpl implements LeaveAppService {
         view.setReason(leave.getReason());
         view.setStatus(leave.getStatus() == null ? null : leave.getStatus().name());
         view.setRemark(leave.getRemark());
+        view.setAttachments(loadAttachments(leave.getId()));
         view.setCreateTime(leave.getCreateTime());
         view.setUpdateTime(leave.getUpdateTime());
         return view;
+    }
+
+    /**
+     * 查询附件视图。
+     *
+     * @param leaveId 请假申请ID
+     * @return 附件列表
+     */
+    private List<LeaveAttachmentView> loadAttachments(Long leaveId) {
+        if (leaveId == null) {
+            return List.of();
+        }
+        return fileRefRepository.listByBiz(BIZ_TYPE_LEAVE, leaveId).stream()
+                .map(this::toAttachmentView).toList();
+    }
+
+    /**
+     * 文件引用转附件视图。
+     *
+     * @param fileRef 文件引用
+     * @return 附件视图
+     */
+    private LeaveAttachmentView toAttachmentView(FileRef fileRef) {
+        LeaveAttachmentView view = new LeaveAttachmentView();
+        view.setId(fileRef.getId());
+        view.setFileName(fileRef.getFileName());
+        view.setFileSize(fileRef.getFileSize());
+        view.setContentType(fileRef.getContentType());
+        return view;
+    }
+
+    /**
+     * 同步请假附件：删除未保留的引用并登记新上传文件。
+     *
+     * <p>{@code keepAttachmentIds} 为空缺省时保留全部既有附件；{@code fileIds} 为新增文件。
+     * 单笔申请附件总数不得超过 5 个，要求附件的假期类型不得为零附件。</p>
+     *
+     * @param leave 申请
+     * @param leaveType 假期类型
+     * @param command 保存命令
+     * @param creating 是否新增
+     */
+    private void syncAttachments(Leave leave, LeaveType leaveType, LeaveSaveCommand command, boolean creating) {
+        List<FileRef> existing = creating
+                ? List.of() : fileRefRepository.listByBiz(BIZ_TYPE_LEAVE, leave.getId());
+        List<Long> keepIds = command.getKeepAttachmentIds();
+        List<FileRef> kept = keepIds == null
+                ? existing : existing.stream().filter(ref -> keepIds.contains(ref.getId())).toList();
+        List<Long> fileIds = command.getFileIds() == null
+                ? List.of() : command.getFileIds().stream().filter(Objects::nonNull).distinct().toList();
+        int total = kept.size() + fileIds.size();
+        if (total > MAX_ATTACHMENTS) {
+            throw OaErrorCode.exception(OaErrorCode.LEAVE_INVALID, "附件最多 5 个");
+        }
+        if (leaveType.requiresAttachment() && total == 0) {
+            throw OaErrorCode.exception(OaErrorCode.LEAVE_INVALID,
+                    "该假期类型必须上传附件（1–5 个）");
+        }
+        Set<Long> keptRefIds = kept.stream().map(FileRef::getId).collect(Collectors.toSet());
+        existing.stream().filter(ref -> !keptRefIds.contains(ref.getId()))
+                .forEach(ref -> fileRefRepository.deleteById(ref.getId()));
+        Set<Long> existingFileIds = kept.stream().map(FileRef::getFileId).collect(Collectors.toSet());
+        fileIds.stream().filter(fileId -> !existingFileIds.contains(fileId))
+                .forEach(fileId -> registerAttachment(leave.getId(), fileId));
+    }
+
+    /**
+     * 登记附件引用。
+     *
+     * @param leaveId 请假申请ID
+     * @param fileId 文件ID
+     */
+    private void registerAttachment(Long leaveId, Long fileId) {
+        FileRefRegisterCommand registerCommand = new FileRefRegisterCommand();
+        registerCommand.setBizType(BIZ_TYPE_LEAVE);
+        registerCommand.setBizId(leaveId);
+        registerCommand.setFileId(fileId);
+        registerCommand.setUploadedBy(RequestContextHolder.getUserId());
+        fileRefAppService.register(registerCommand);
+    }
+
+    /**
+     * 删除请假申请下的全部附件引用。
+     *
+     * @param leaveId 请假申请ID
+     */
+    private void removeAttachments(Long leaveId) {
+        fileRefRepository.listByBiz(BIZ_TYPE_LEAVE, leaveId)
+                .forEach(ref -> fileRefRepository.deleteById(ref.getId()));
     }
 }

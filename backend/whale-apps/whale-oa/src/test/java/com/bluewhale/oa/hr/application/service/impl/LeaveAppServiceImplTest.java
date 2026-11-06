@@ -2,6 +2,10 @@ package com.bluewhale.oa.hr.application.service.impl;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.oa.common.OaErrorCode;
+import com.bluewhale.oa.common.application.command.FileRefRegisterCommand;
+import com.bluewhale.oa.common.application.service.FileRefAppService;
+import com.bluewhale.oa.common.domain.model.FileRef;
+import com.bluewhale.oa.common.domain.repository.FileRefRepository;
 import com.bluewhale.oa.hr.application.command.LeaveSaveCommand;
 import com.bluewhale.oa.hr.application.command.LeaveStatusCommand;
 import com.bluewhale.oa.hr.application.service.LeaveBalanceAppService;
@@ -61,6 +65,12 @@ class LeaveAppServiceImplTest {
     @Mock
     private LeaveBalanceAppService leaveBalanceAppService;
 
+    @Mock
+    private FileRefAppService fileRefAppService;
+
+    @Mock
+    private FileRefRepository fileRefRepository;
+
     private LeaveAppServiceImpl leaveAppService;
 
     /**
@@ -69,7 +79,8 @@ class LeaveAppServiceImplTest {
     @BeforeEach
     void setUp() {
         leaveAppService = new LeaveAppServiceImpl(leaveRepository, leaveTypeRepository,
-                employeeProfileRepository, workCalendarAppService, leaveBalanceAppService);
+                employeeProfileRepository, workCalendarAppService, leaveBalanceAppService,
+                fileRefAppService, fileRefRepository);
     }
 
     @Test
@@ -208,6 +219,85 @@ class LeaveAppServiceImplTest {
     }
 
     @Test
+    @DisplayName("create：要求附件的假期类型缺附件时拒绝")
+    void shouldRejectMissingAttachmentForSickLeave() {
+        LeaveSaveCommand command = sickRequest();
+        when(leaveRepository.existsByCode(anyString(), any())).thenReturn(false);
+        when(leaveTypeRepository.findByCode("SICK")).thenReturn(Optional.of(sickType()));
+        when(employeeProfileRepository.findByUserId(100L)).thenReturn(Optional.of(profile()));
+        when(workCalendarAppService.workdayFraction(any(), any())).thenReturn(BigDecimal.ONE);
+        when(leaveRepository.listOverlapping(anyString(), anyString(), any(), any(), any()))
+                .thenReturn(List.of());
+
+        BizException exception = assertThrows(BizException.class, () -> leaveAppService.create(command));
+
+        assertEquals(OaErrorCode.LEAVE_INVALID, exception.getCode());
+        verifyNoInteractions(fileRefAppService);
+    }
+
+    @Test
+    @DisplayName("create：附件超过 5 个时拒绝")
+    void shouldRejectTooManyAttachments() {
+        LeaveSaveCommand command = sickRequest();
+        command.setFileIds(List.of(1L, 2L, 3L, 4L, 5L, 6L));
+        when(leaveRepository.existsByCode(anyString(), any())).thenReturn(false);
+        when(leaveTypeRepository.findByCode("SICK")).thenReturn(Optional.of(sickType()));
+        when(employeeProfileRepository.findByUserId(100L)).thenReturn(Optional.of(profile()));
+        when(workCalendarAppService.workdayFraction(any(), any())).thenReturn(BigDecimal.ONE);
+        when(leaveRepository.listOverlapping(anyString(), anyString(), any(), any(), any()))
+                .thenReturn(List.of());
+
+        BizException exception = assertThrows(BizException.class, () -> leaveAppService.create(command));
+
+        assertEquals(OaErrorCode.LEAVE_INVALID, exception.getCode());
+        verifyNoInteractions(fileRefAppService);
+    }
+
+    @Test
+    @DisplayName("create：要求附件的类型携带附件时登记引用")
+    void shouldRegisterAttachment() {
+        LeaveSaveCommand command = sickRequest();
+        command.setFileIds(List.of(11L));
+        when(leaveRepository.existsByCode(anyString(), any())).thenReturn(false);
+        when(leaveTypeRepository.findByCode("SICK")).thenReturn(Optional.of(sickType()));
+        when(employeeProfileRepository.findByUserId(100L)).thenReturn(Optional.of(profile()));
+        when(workCalendarAppService.workdayFraction(any(), any())).thenReturn(BigDecimal.ONE);
+        when(leaveRepository.listOverlapping(anyString(), anyString(), any(), any(), any()))
+                .thenReturn(List.of());
+
+        leaveAppService.create(command);
+
+        ArgumentCaptor<FileRefRegisterCommand> captor = ArgumentCaptor.forClass(FileRefRegisterCommand.class);
+        verify(fileRefAppService).register(captor.capture());
+        assertEquals("LEAVE", captor.getValue().getBizType());
+        assertEquals(11L, captor.getValue().getFileId());
+    }
+
+    @Test
+    @DisplayName("update：只保留指定附件并登记新增文件")
+    void shouldReplaceAttachmentsOnUpdate() {
+        LeaveSaveCommand command = sickRequest();
+        command.setFileIds(List.of(9L));
+        command.setKeepAttachmentIds(List.of(1L));
+        when(leaveRepository.findById(1L)).thenReturn(Optional.of(pendingLeave()));
+        when(leaveRepository.existsByCode(anyString(), eq(1L))).thenReturn(false);
+        when(leaveTypeRepository.findByCode("SICK")).thenReturn(Optional.of(sickType()));
+        when(employeeProfileRepository.findByUserId(100L)).thenReturn(Optional.of(profile()));
+        when(workCalendarAppService.workdayFraction(any(), any())).thenReturn(BigDecimal.ONE);
+        when(leaveRepository.listOverlapping(anyString(), anyString(), any(), any(), any()))
+                .thenReturn(List.of());
+        when(fileRefRepository.listByBiz("LEAVE", 1L)).thenReturn(List.of(
+                fileRef(1L, 7L), fileRef(2L, 8L)));
+
+        leaveAppService.update(1L, command);
+
+        verify(fileRefRepository).deleteById(2L);
+        ArgumentCaptor<FileRefRegisterCommand> captor = ArgumentCaptor.forClass(FileRefRegisterCommand.class);
+        verify(fileRefAppService).register(captor.capture());
+        assertEquals(9L, captor.getValue().getFileId());
+    }
+
+    @Test
     @DisplayName("updateStatus：审批通过扣减额度")
     void shouldDeductWhenApproved() {
         when(leaveRepository.findById(1L)).thenReturn(Optional.of(pendingLeave()));
@@ -302,6 +392,45 @@ class LeaveAppServiceImplTest {
         command.setDays(new BigDecimal("2.0"));
         command.setReason("年假");
         return command;
+    }
+
+    /**
+     * 构造病假新增命令。
+     *
+     * @return 新增命令
+     */
+    private static LeaveSaveCommand sickRequest() {
+        LeaveSaveCommand command = request();
+        command.setLeaveType("SICK");
+        return command;
+    }
+
+    /**
+     * 构造要求附件的病假类型。
+     *
+     * @return 假期类型
+     */
+    private static LeaveType sickType() {
+        LeaveType leaveType = annualType();
+        leaveType.setCode("SICK");
+        leaveType.setName("病假");
+        leaveType.setRequiresAttachment(Boolean.TRUE);
+        return leaveType;
+    }
+
+    /**
+     * 构造文件引用。
+     *
+     * @param id 引用ID
+     * @param fileId 文件ID
+     * @return 文件引用
+     */
+    private static FileRef fileRef(Long id, Long fileId) {
+        FileRef fileRef = new FileRef();
+        fileRef.setId(id);
+        fileRef.setFileId(fileId);
+        fileRef.setFileName("attachment-" + fileId + ".pdf");
+        return fileRef;
     }
 
     /**

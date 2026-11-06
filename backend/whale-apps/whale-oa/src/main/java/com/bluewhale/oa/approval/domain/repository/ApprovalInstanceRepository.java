@@ -3,6 +3,7 @@ package com.bluewhale.oa.approval.domain.repository;
 import com.bluewhale.oa.approval.domain.model.ApprovalInstance;
 import com.bluewhale.oa.approval.domain.model.ApprovalInstanceQuery;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -61,6 +62,23 @@ public interface ApprovalInstanceRepository {
      * @return 审批实例列表
      */
     List<ApprovalInstance> findByWorkflowInstanceIds(List<Long> workflowInstanceIds);
+
+    /**
+     * 查询提交时间早于阈值且已绑定 Workflow 的审批中实例（自动催办用）。
+     *
+     * @param submittedBefore 提交时间上限
+     * @param limit 最大条数
+     * @return 审批实例列表（按提交时间升序）
+     */
+    List<ApprovalInstance> findRunningSubmittedBefore(LocalDateTime submittedBefore, int limit);
+
+    /**
+     * 查询已绑定 Workflow 的审批中实例（状态对账用）。
+     *
+     * @param limit 最大条数
+     * @return 审批实例列表
+     */
+    List<ApprovalInstance> findRunningWithWorkflow(int limit);
 
     /**
      * 新增审批实例；业务单据已有实例时不重复写入。

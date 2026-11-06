@@ -8,6 +8,7 @@ import com.bluewhale.oa.approval.application.command.ApprovalResultCommand;
 import com.bluewhale.oa.approval.application.command.ApprovalRollbackCommand;
 import com.bluewhale.oa.approval.application.command.ApprovalTransferCommand;
 import com.bluewhale.oa.approval.application.command.ApprovalUrgeCommand;
+import com.bluewhale.oa.approval.application.event.ApprovalUrgedEvent;
 import com.bluewhale.oa.approval.application.service.ApprovalBusinessDetailProvider;
 import com.bluewhale.oa.approval.application.service.ApprovalCenterAppService;
 import com.bluewhale.oa.approval.application.service.ApprovalInstanceAppService;
@@ -31,6 +32,7 @@ import com.bluewhale.oa.common.OaErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -84,6 +86,8 @@ public class ApprovalCenterAppServiceImpl implements ApprovalCenterAppService {
     private final ApprovalInstanceAppService approvalInstanceAppService;
 
     private final ObjectProvider<ApprovalBusinessDetailProvider> businessDetailProviders;
+
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Override
     public PageResult<ApprovalInstanceRowView> pageInitiated(ApprovalActor actor, ApprovalCenterQuery query) {
@@ -201,6 +205,8 @@ public class ApprovalCenterAppServiceImpl implements ApprovalCenterAppService {
         }
         workflowApprovalGateway.urge(workflowInstanceId, actor.getUsername(),
                 command.getTargetAccount(), command.getComment());
+        applicationEventPublisher.publishEvent(new ApprovalUrgedEvent(workflowInstanceId,
+                command.getTargetAccount(), command.getComment(), actor.getUsername()));
     }
 
     @Override

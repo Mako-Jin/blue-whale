@@ -1,6 +1,7 @@
 // OA 请假表单：antd Modal + Form，新增与编辑两态，接 6 端点中的 create/update
-import { useEffect } from 'react';
-import { App, DatePicker, Form, Input, InputNumber, Modal, Select } from 'antd';
+import { useEffect, useState } from 'react';
+import { App, Button, DatePicker, Form, Input, InputNumber, Modal, Select, Upload } from 'antd';
+import type { UploadFile, UploadProps } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import {
   createLeave,
@@ -11,6 +12,7 @@ import {
   type OaLeaveType,
 } from '../api/oa';
 import { getCurrentUser } from '../api/client';
+import { uploadOaFile } from '../api/file';
 
 /** 请假类型选项 */
 const TYPE_OPTIONS: { value: OaLeaveType; label: string }[] = [
@@ -24,6 +26,26 @@ const PERIOD_OPTIONS: { value: OaLeavePeriod; label: string }[] = [
   { value: 'AM', label: 'AM 上午' },
   { value: 'PM', label: 'PM 下午' },
 ];
+
+/** 单笔申请附件上限 */
+const MAX_ATTACHMENTS = 5;
+
+/** 单个附件大小上限：20MB */
+const MAX_ATTACHMENT_SIZE = 20 * 1024 * 1024;
+
+/** 后端登记了附件要求的假期类型（SICK 由 M0 种子数据置为 requires_attachment=1） */
+const REQUIRES_ATTACHMENT_TYPES: OaLeaveType[] = ['SICK'];
+
+/** 新上传文件响应 */
+interface UploadedResponse {
+  id: number;
+  fileName?: string;
+}
+
+/** 既有附件响应 */
+interface ExistingResponse {
+  refId: number;
+}
 
 /** 表单字段：日期用 RangePicker 承载，提交时拆成 startDate / endDate */
 interface FormValues {
@@ -54,6 +76,7 @@ interface FormModalProps {
 export default function FormModal({ open, initial, onCancel, onSaved }: FormModalProps) {
   const { message } = App.useApp();
   const [form] = Form.useForm<FormValues>();
+  const [fileList, setFileList] = useState<UploadFile[]>([]);
 
   // 弹窗打开时按编辑/新增初始化表单值
   useEffect(() => {
@@ -74,6 +97,12 @@ export default function FormModal({ open, initial, onCancel, onSaved }: FormModa
         reason: initial.reason,
         remark: initial.remark,
       });
+      setFileList((initial.attachments ?? []).map((attachment) => ({
+        uid: `ref-${attachment.id}`,
+        name: attachment.fileName,
+        status: 'done',
+        response: { refId: attachment.id } satisfies ExistingResponse,
+      })));
     } else {
       form.resetFields();
       form.setFieldsValue({
@@ -82,11 +111,61 @@ export default function FormModal({ open, initial, onCancel, onSaved }: FormModa
         startPeriod: 'AM',
         endPeriod: 'PM',
       });
+      setFileList([]);
     }
   }, [open, initial, form]);
 
+  /** 附件选择前置校验：超过 20MB 的文件不进入待上传列表 */
+  const handleBeforeUpload = (file: File) => {
+    if (file.size > MAX_ATTACHMENT_SIZE) {
+      message.error('单个附件不能超过 20MB');
+      return Upload.LIST_IGNORE;
+    }
+    return true;
+  };
+
+  /** 自定义上传：成功后把文件ID写入响应，失败时移出列表 */
+  const handleUpload: UploadProps['customRequest'] = (options) => {
+    const file = options.file as unknown as File & { uid: string };
+    void (async () => {
+      try {
+        const uploaded = await uploadOaFile(file);
+        setFileList((prev) => prev.map((item) => (item.uid === file.uid
+          ? { ...item, status: 'done', response: uploaded } : item)));
+        options.onSuccess?.(uploaded);
+      } catch (error) {
+        setFileList((prev) => prev.filter((item) => item.uid !== file.uid));
+        options.onError?.(error instanceof Error ? error : new Error('上传失败'));
+        message.error(error instanceof Error ? error.message : '附件上传失败');
+      }
+    })();
+  };
+
+  /** 受控列表变更：保留自定义上传写入的响应，避免 antd 回调覆盖 */
+  const handleFileListChange: UploadProps['onChange'] = ({ fileList: next }) => {
+    setFileList((prev) => next.map((item) => {
+      const previous = prev.find((candidate) => candidate.uid === item.uid);
+      return previous?.response ? { ...item, response: previous.response } : item;
+    }));
+  };
+
   const handleOk = async () => {
     const values = await form.validateFields();
+    const doneFiles = fileList.filter((item) => item.status === 'done');
+    if (fileList.some((item) => item.status === 'uploading')) {
+      message.warning('附件上传中，请稍候');
+      return;
+    }
+    if (REQUIRES_ATTACHMENT_TYPES.includes(values.leaveType) && doneFiles.length === 0) {
+      message.warning('病假必须上传附件（1–5 个）');
+      return;
+    }
+    const fileIds = doneFiles
+      .map((item) => (item.response as UploadedResponse | undefined)?.id)
+      .filter((id): id is number => typeof id === 'number');
+    const keepAttachmentIds = doneFiles
+      .map((item) => (item.response as ExistingResponse | undefined)?.refId)
+      .filter((id): id is number => typeof id === 'number');
     const payload: OaLeaveInput = {
       code: values.code.trim(),
       applicant: values.applicant.trim(),
@@ -100,6 +179,8 @@ export default function FormModal({ open, initial, onCancel, onSaved }: FormModa
       days: values.days,
       reason: values.reason?.trim() || undefined,
       remark: values.remark?.trim() || undefined,
+      fileIds,
+      keepAttachmentIds: initial ? keepAttachmentIds : undefined,
     };
     try {
       if (initial) {
@@ -109,6 +190,7 @@ export default function FormModal({ open, initial, onCancel, onSaved }: FormModa
       }
       message.success('保存成功');
       form.resetFields();
+      setFileList([]);
       onSaved();
     } catch (error) {
       message.error(error instanceof Error ? error.message : '保存失败');
@@ -191,6 +273,25 @@ export default function FormModal({ open, initial, onCancel, onSaved }: FormModa
         </Form.Item>
         <Form.Item name="remark" label="备注">
           <Input.TextArea rows={2} maxLength={255} showCount placeholder="选填" />
+        </Form.Item>
+        <Form.Item
+          label="附件"
+          extra="病假必须上传；最多 5 个，单个不超过 20MB"
+        >
+          <Upload
+            multiple
+            maxCount={MAX_ATTACHMENTS}
+            fileList={fileList}
+            beforeUpload={handleBeforeUpload}
+            customRequest={handleUpload}
+            onChange={handleFileListChange}
+            onRemove={(file) => {
+              setFileList((prev) => prev.filter((item) => item.uid !== file.uid));
+              return true;
+            }}
+          >
+            <Button>选择文件</Button>
+          </Upload>
         </Form.Item>
       </Form>
     </Modal>

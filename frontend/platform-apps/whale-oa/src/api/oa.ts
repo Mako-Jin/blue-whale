@@ -16,6 +16,14 @@ export type OaLeaveType = 'ANNUAL' | 'SICK' | 'PERSONAL';
 /** 请假时段 */
 export type OaLeavePeriod = 'AM' | 'PM';
 
+/** 请假附件（字段对齐 backend LeaveAttachmentView） */
+export interface OaLeaveAttachment {
+  id: number;
+  fileName: string;
+  fileSize?: number;
+  contentType?: string;
+}
+
 /** 请假申请（字段对齐 backend OaLeaveVO） */
 export interface OaLeave {
   id: number;
@@ -33,6 +41,7 @@ export interface OaLeave {
   reason?: string;
   status: OaLeaveStatus;
   remark?: string;
+  attachments?: OaLeaveAttachment[];
   createTime?: string;
   updateTime?: string;
 }
@@ -51,6 +60,10 @@ export interface OaLeaveInput {
   days: number;
   reason?: string;
   remark?: string;
+  /** 新上传附件文件ID（最多 5 个） */
+  fileIds?: number[];
+  /** 编辑时保留的既有附件引用ID；不传表示全部保留 */
+  keepAttachmentIds?: number[];
 }
 
 /** 分页查询入参 */

@@ -73,6 +73,7 @@ export const http = {
     request<T>(url, { method: 'POST', body: JSON.stringify(body) }),
   put: <T>(url: string, body?: unknown) =>
     request<T>(url, { method: 'PUT', body: JSON.stringify(body) }),
+  upload: <T>(url: string, body: FormData) => request<T>(url, { method: 'POST', body }),
   del: <T>(url: string) => request<T>(url, { method: 'DELETE' }),
 };
 

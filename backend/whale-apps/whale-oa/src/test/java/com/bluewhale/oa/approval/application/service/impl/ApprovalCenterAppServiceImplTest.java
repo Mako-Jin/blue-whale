@@ -4,6 +4,8 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.oa.approval.application.command.ApprovalActionCommand;
 import com.bluewhale.oa.approval.application.command.ApprovalCenterQuery;
+import com.bluewhale.oa.approval.application.command.ApprovalUrgeCommand;
+import com.bluewhale.oa.approval.application.event.ApprovalUrgedEvent;
 import com.bluewhale.oa.approval.application.service.ApprovalBusinessDetailProvider;
 import com.bluewhale.oa.approval.application.service.ApprovalInstanceAppService;
 import com.bluewhale.oa.approval.domain.gateway.WorkflowApprovalGateway;
@@ -21,6 +23,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.List;
 
@@ -55,8 +58,31 @@ class ApprovalCenterAppServiceImplTest {
     @Mock
     private ObjectProvider<ApprovalBusinessDetailProvider> businessDetailProviders;
 
+    @Mock
+    private ApplicationEventPublisher applicationEventPublisher;
+
     @InjectMocks
     private ApprovalCenterAppServiceImpl approvalCenterAppService;
+
+    @Test
+    @DisplayName("urge：发起人催办后发布催办事件")
+    void shouldPublishUrgedEvent() {
+        WorkflowInstanceSnapshot instance = new WorkflowInstanceSnapshot();
+        instance.setId(1L);
+        instance.setInitiator("zhangsan");
+        instance.setStatus(STATUS_RUNNING);
+        when(workflowApprovalGateway.getInstance(1L)).thenReturn(instance);
+        ApprovalUrgeCommand command = new ApprovalUrgeCommand();
+        command.setTargetAccount("lisi");
+        command.setComment("请尽快审批");
+
+        approvalCenterAppService.urge(1L, command, new ApprovalActor(1L, "zhangsan"));
+
+        ArgumentCaptor<ApprovalUrgedEvent> captor = ArgumentCaptor.forClass(ApprovalUrgedEvent.class);
+        verify(applicationEventPublisher).publishEvent(captor.capture());
+        assertEquals("lisi", captor.getValue().targetAccount());
+        assertEquals("请尽快审批", captor.getValue().comment());
+    }
 
     @Test
     @DisplayName("pagePending：强制按当前账号与运行中过滤")

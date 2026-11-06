@@ -14,6 +14,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -71,6 +72,27 @@ public class ApprovalInstanceRepositoryImpl implements ApprovalInstanceRepositor
         }
         return approvalInstanceMapper.selectList(new LambdaQueryWrapper<ApprovalInstanceEntity>()
                         .in(ApprovalInstanceEntity::getWorkflowInstanceId, workflowInstanceIds))
+                .stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public List<ApprovalInstance> findRunningSubmittedBefore(LocalDateTime submittedBefore, int limit) {
+        return approvalInstanceMapper.selectList(new LambdaQueryWrapper<ApprovalInstanceEntity>()
+                        .eq(ApprovalInstanceEntity::getStatus, ApprovalStatus.RUNNING.name())
+                        .isNotNull(ApprovalInstanceEntity::getWorkflowInstanceId)
+                        .le(ApprovalInstanceEntity::getSubmittedAt, submittedBefore)
+                        .orderByAsc(ApprovalInstanceEntity::getSubmittedAt)
+                        .last("limit " + Math.max(limit, 1)))
+                .stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public List<ApprovalInstance> findRunningWithWorkflow(int limit) {
+        return approvalInstanceMapper.selectList(new LambdaQueryWrapper<ApprovalInstanceEntity>()
+                        .eq(ApprovalInstanceEntity::getStatus, ApprovalStatus.RUNNING.name())
+                        .isNotNull(ApprovalInstanceEntity::getWorkflowInstanceId)
+                        .orderByAsc(ApprovalInstanceEntity::getSubmittedAt)
+                        .last("limit " + Math.max(limit, 1)))
                 .stream().map(this::toDomain).toList();
     }
 

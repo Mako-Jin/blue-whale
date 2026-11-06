@@ -77,6 +77,15 @@ public class LeaveType {
     }
 
     /**
+     * 是否必须上传附件。
+     *
+     * @return 必须上传返回 {@code true}
+     */
+    public boolean requiresAttachment() {
+        return Boolean.TRUE.equals(requiresAttachment);
+    }
+
+    /**
      * 是否允许负额度。
      *
      * @return 允许返回 {@code true}

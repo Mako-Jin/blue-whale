@@ -11,6 +11,7 @@ import lombok.Data;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 /**
  * 请假申请新增 / 更新命令。
@@ -72,4 +73,12 @@ public class LeaveSaveCommand implements Serializable {
     /** 备注 */
     @Size(max = 255, message = "备注长度不能超过 255")
     private String remark;
+
+    /** 新上传附件文件ID（最多 5 个） */
+    @Size(max = 5, message = "附件最多 5 个")
+    private List<Long> fileIds;
+
+    /** 编辑时保留的已有附件引用ID；为 {@code null} 表示全部保留 */
+    @Size(max = 5, message = "附件最多 5 个")
+    private List<Long> keepAttachmentIds;
 }

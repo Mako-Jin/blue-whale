@@ -5,6 +5,7 @@ import com.bluewhale.oa.approval.application.command.ApprovalInstanceRegisterCom
 import com.bluewhale.oa.approval.application.command.ApprovalResultCommand;
 import com.bluewhale.oa.approval.application.command.ApprovalRouteCommand;
 import com.bluewhale.oa.approval.application.event.ApprovalResultSyncedEvent;
+import com.bluewhale.oa.approval.application.event.ApprovalWorkflowAttachedEvent;
 import com.bluewhale.oa.approval.application.service.ApprovalConfigAppService;
 import com.bluewhale.oa.approval.application.service.ApprovalInstanceAppService;
 import com.bluewhale.oa.approval.application.view.ApprovalConfigView;
@@ -124,6 +125,8 @@ public class ApprovalInstanceAppServiceImpl implements ApprovalInstanceAppServic
         ApprovalInstance instance = requireInstance(id);
         if (instance.attachWorkflow(workflowInstanceId)) {
             approvalInstanceRepository.update(instance);
+            applicationEventPublisher.publishEvent(
+                    new ApprovalWorkflowAttachedEvent(instance.getId(), workflowInstanceId));
         }
         return toDetailView(instance);
     }

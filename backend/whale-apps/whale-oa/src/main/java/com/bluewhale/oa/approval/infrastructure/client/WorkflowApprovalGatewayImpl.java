@@ -12,6 +12,7 @@ import com.bluewhale.oa.approval.domain.model.WorkflowDelegateCommand;
 import com.bluewhale.oa.approval.domain.model.WorkflowDelegateRuleSnapshot;
 import com.bluewhale.oa.approval.domain.model.WorkflowInstanceQuery;
 import com.bluewhale.oa.approval.domain.model.WorkflowInstanceSnapshot;
+import com.bluewhale.oa.approval.domain.model.WorkflowInstanceStatusSnapshot;
 import com.bluewhale.oa.approval.domain.model.WorkflowTaskQuery;
 import com.bluewhale.oa.approval.domain.model.WorkflowTaskSnapshot;
 import com.bluewhale.oa.common.OaErrorCode;
@@ -36,6 +37,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Workflow 审批内网客户端实现。
@@ -64,6 +66,9 @@ public class WorkflowApprovalGatewayImpl implements WorkflowApprovalGateway {
 
     /** 单页最大条数 */
     private static final long MAX_PAGE_SIZE = 200L;
+
+    /** 批量状态查询上限 */
+    private static final int MAX_STATUS_BATCH = 100;
 
     private final DiscoveryClient discoveryClient;
 
@@ -118,6 +123,25 @@ public class WorkflowApprovalGatewayImpl implements WorkflowApprovalGateway {
         add(builder, "readFlag", query.getReadFlag());
         addPage(builder, query.getCurrent(), query.getSize());
         return page(builder, new TypeReference<PageResult<WorkflowCcSnapshot>>() {
+        });
+    }
+
+    @Override
+    public List<WorkflowInstanceStatusSnapshot> listInstanceStatuses(List<Long> instanceIds) {
+        if (instanceIds == null || instanceIds.isEmpty()) {
+            return List.of();
+        }
+        List<Long> ids = instanceIds.stream().filter(Objects::nonNull).distinct()
+                .limit(MAX_STATUS_BATCH).toList();
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        UriComponentsBuilder builder = UriComponentsBuilder
+                .fromUriString(baseUrl() + "/workflow/internal/instance/status");
+        builder.queryParam("instanceIds", ids.toArray());
+        Map<String, Object> response = get(builder.build().encode().toUri().toString());
+        Object data = requireSuccess(response);
+        return objectMapper.convertValue(data, new TypeReference<List<WorkflowInstanceStatusSnapshot>>() {
         });
     }
 

@@ -7,6 +7,7 @@ import com.bluewhale.oa.approval.domain.model.WorkflowDelegateCommand;
 import com.bluewhale.oa.approval.domain.model.WorkflowDelegateRuleSnapshot;
 import com.bluewhale.oa.approval.domain.model.WorkflowInstanceQuery;
 import com.bluewhale.oa.approval.domain.model.WorkflowInstanceSnapshot;
+import com.bluewhale.oa.approval.domain.model.WorkflowInstanceStatusSnapshot;
 import com.bluewhale.oa.approval.domain.model.WorkflowTaskQuery;
 import com.bluewhale.oa.approval.domain.model.WorkflowTaskSnapshot;
 
@@ -53,6 +54,14 @@ public interface WorkflowApprovalGateway {
      * @return 抄送分页
      */
     PageResult<WorkflowCcSnapshot> pageCcs(WorkflowCcQuery query);
+
+    /**
+     * 批量查询流程实例状态摘要（最多 100 个）。
+     *
+     * @param instanceIds 流程实例ID列表
+     * @return 状态摘要列表
+     */
+    List<WorkflowInstanceStatusSnapshot> listInstanceStatuses(List<Long> instanceIds);
 
     /**
      * 按主键查询抄送记录。
