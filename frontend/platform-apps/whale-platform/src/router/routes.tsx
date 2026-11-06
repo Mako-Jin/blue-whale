@@ -59,6 +59,8 @@ export const routes = [
       { path: 'video/*', element: <SubAppContainer /> },
       // 城池导航（whale-scene 子应用）
       { path: 'scene/*', element: <SubAppContainer /> },
+      // 学习培训考试（whale-lms 子应用，Wave 5.87 M1）
+      { path: 'lms/*', element: <SubAppContainer /> },
     ],
   },
 ];

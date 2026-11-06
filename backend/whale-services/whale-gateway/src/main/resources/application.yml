@@ -177,6 +177,13 @@ spring:
               uri: lb://whale-crm
               predicates:
                 - Path=/crm/**
+            # Wave 5.87 学习培训考试（M0 底座 + M1 课程与学习）：
+            # 自持 /lms 一级前缀（不含 StripPrefix，REQ-ARCH-003）；
+            # 内网 /lms/internal/** 由 internal-deny 统一 403
+            - id: whale-lms
+              uri: lb://whale-lms
+              predicates:
+                - Path=/lms/**
             # Wave 5.73 F-05 解冻：whale-config 业务配置管理服务（配置项 CRUD / 版本历史 / 回滚），
             # 自持 /config 一级前缀（不含 StripPrefix，REQ-ARCH-003）
             - id: whale-config
@@ -345,6 +352,8 @@ whale:
         - /scene/internal/**
         # Wave 5.77 客户关系内网通道：门禁通过后仅服务间内网直连 whale-crm
         - /crm/internal/**
+        # Wave 5.87 学习培训考试内网通道：员工目录/消息回查等仅服务间内网直连 whale-lms
+        - /lms/internal/**
         # Wave 5.80 图文档内网通道：文件引用/内部上传等仅服务间内网直连 whale-pdm
         - /pdm/internal/**
         # Wave 5.79 MES 工单接收内网通道：仅 ERP 经内网直连 whale-mes

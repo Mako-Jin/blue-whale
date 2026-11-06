@@ -24,5 +24,6 @@
         <module>whale-pm</module>
         <module>whale-contract</module>
         <module>whale-crm</module>
+        <module>whale-lms</module>
     </modules>
 </project>

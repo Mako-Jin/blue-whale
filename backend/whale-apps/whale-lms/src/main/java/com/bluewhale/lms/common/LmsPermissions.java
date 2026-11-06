@@ -1,0 +1,48 @@
+package com.bluewhale.lms.common;
+
+/**
+ * LMS 权限码常量（与 {@code migration-5.87-lms-m0.sql} 登记保持一致，段位 1900–1949）。
+ *
+ * @author BlueWhale
+ */
+public final class LmsPermissions {
+
+    /** 门禁状态查询 */
+    public static final String BROWSE = "sys:lms:browse";
+
+    /** 课程列表 / 详情 */
+    public static final String COURSE_LIST = "sys:lms:course:list";
+
+    /** 新建课程 */
+    public static final String COURSE_CREATE = "sys:lms:course:create";
+
+    /** 编辑课程 */
+    public static final String COURSE_UPDATE = "sys:lms:course:update";
+
+    /** 课程发布 / 归档 */
+    public static final String COURSE_STATUS = "sys:lms:course:status";
+
+    /** 逻辑删除课程 */
+    public static final String COURSE_DELETE = "sys:lms:course:delete";
+
+    /** 章节管理 */
+    public static final String CHAPTER_MANAGE = "sys:lms:chapter:manage";
+
+    /** 课件管理 */
+    public static final String WARE_MANAGE = "sys:lms:ware:manage";
+
+    /** 我的学习列表 / 进度查询 */
+    public static final String LEARNING_LIST = "sys:lms:learning:list";
+
+    /** 报名 */
+    public static final String LEARNING_ENROLL = "sys:lms:learning:enroll";
+
+    /** 学习进度上报 */
+    public static final String LEARNING_PROGRESS = "sys:lms:learning:progress";
+
+    /**
+     * 私有构造器：常量类，禁止实例化。
+     */
+    private LmsPermissions() {
+    }
+}

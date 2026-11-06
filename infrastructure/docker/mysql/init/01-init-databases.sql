@@ -101,4 +101,9 @@ CREATE DATABASE IF NOT EXISTS bluewhale_crm
   DEFAULT CHARACTER SET utf8mb4
   DEFAULT COLLATE utf8mb4_unicode_ci;
 
+-- ---- 学习培训考试（Wave 5.87 M0 底座 + M1 课程与学习） ----
+CREATE DATABASE IF NOT EXISTS bluewhale_lms
+  DEFAULT CHARACTER SET utf8mb4
+  DEFAULT COLLATE utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;
