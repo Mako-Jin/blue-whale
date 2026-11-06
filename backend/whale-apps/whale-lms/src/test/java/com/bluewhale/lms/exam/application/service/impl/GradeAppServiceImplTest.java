@@ -5,6 +5,7 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.lms.common.LmsActor;
 import com.bluewhale.lms.common.LmsErrorCode;
 import com.bluewhale.lms.config.LmsProperties;
+import com.bluewhale.lms.credit.application.service.CreditAppService;
 import com.bluewhale.lms.exam.application.command.GradeCommand;
 import com.bluewhale.lms.exam.application.command.GradeItemCommand;
 import com.bluewhale.lms.exam.application.support.ExamScoringSupport;
@@ -99,7 +100,8 @@ class GradeAppServiceImplTest {
         answerStore.add(subjectiveAnswer());
         stubRepositories(paperRepository, questionRepository);
         service = new GradeAppServiceImpl(attemptRepository, examRepository,
-                new ExamScoringSupport(paperRepository, questionRepository, scoreRepository), new LmsProperties());
+                new ExamScoringSupport(paperRepository, questionRepository, scoreRepository),
+                mock(CreditAppService.class), new LmsProperties());
     }
 
     @Test

@@ -65,6 +65,21 @@ public class EnrollmentRepositoryImpl implements EnrollmentRepository {
                 .eq(EnrollmentEntity::getUserId, userId));
     }
 
+    @Override
+    public long countAll() {
+        return enrollmentMapper.selectCount(null);
+    }
+
+    @Override
+    public long countDistinctLearners() {
+        return enrollmentMapper.countDistinctLearners();
+    }
+
+    @Override
+    public long countDistinctCompletedLearners() {
+        return enrollmentMapper.countDistinctCompletedLearners();
+    }
+
     /**
      * 实体转领域。
      *

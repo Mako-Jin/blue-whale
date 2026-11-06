@@ -90,6 +90,12 @@ public class MemberSnapshotRepositoryImpl implements MemberSnapshotRepository {
         return memberSnapshotMapper.selectCount(new LambdaQueryWrapper<>());
     }
 
+    @Override
+    public long countActive() {
+        return memberSnapshotMapper.selectCount(new LambdaQueryWrapper<MemberSnapshotEntity>()
+                .eq(MemberSnapshotEntity::getStatus, MemberStatus.ACTIVE.name()));
+    }
+
     /**
      * 组装查询条件。
      *

@@ -23,9 +23,9 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 @AnalyzeClasses(packages = "com.bluewhale.lms", importOptions = ImportOption.DoNotIncludeTests.class)
 class LmsArchitectureTest {
 
-    /** 五个业务上下文 */
+    /** 七个业务上下文（credit 于 M4-2、integration 于 M5、analytics 于 M6 加入） */
     private static final String[] CONTEXTS = {
-            "course", "training", "exam", "cert", "analytics"
+            "course", "training", "exam", "cert", "credit", "integration", "analytics"
     };
 
     /** 领域层不得依赖应用层、接口层与基础设施层 */

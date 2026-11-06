@@ -48,4 +48,14 @@ public interface MemberSnapshotAppService {
      * @return 可触达返回 {@code true}
      */
     boolean isReachable(Long userId);
+
+    /**
+     * 在职人数（看板覆盖率分母）。
+     *
+     * <p>只数快照里的 {@code ACTIVE}：分母必须是「平台上真实存在、还在职的人」，
+     * 用组织架构人数或历史花名册人数会把从未开通账号的人也算成「应学未学」。</p>
+     *
+     * @return 在职人数
+     */
+    long countActive();
 }

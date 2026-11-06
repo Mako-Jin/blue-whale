@@ -7,7 +7,9 @@ import com.bluewhale.lms.config.LmsProperties;
 import com.bluewhale.lms.credit.application.command.CreditAccrueCommand;
 import com.bluewhale.lms.credit.application.service.CreditAppService;
 import com.bluewhale.lms.credit.application.view.CreditLedgerView;
+import com.bluewhale.lms.credit.application.view.CreditMetricsView;
 import com.bluewhale.lms.credit.application.view.CreditSummaryView;
+import com.bluewhale.lms.credit.domain.model.CreditBucket;
 import com.bluewhale.lms.credit.domain.model.CreditLedger;
 import com.bluewhale.lms.credit.domain.model.CreditLedgerQuery;
 import com.bluewhale.lms.credit.domain.model.CreditRule;
@@ -15,11 +17,14 @@ import com.bluewhale.lms.credit.domain.model.CreditSource;
 import com.bluewhale.lms.credit.domain.repository.CreditLedgerRepository;
 import com.bluewhale.lms.credit.domain.repository.CreditRuleRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,9 +45,13 @@ import java.util.Optional;
  *
  * @author BlueWhale
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CreditAppServiceImpl implements CreditAppService {
+
+    /** 学分分布固定档位（与 Mapper 中的 CASE 分支一一对应，缺档补零） */
+    private static final List<String> BUCKET_LABELS = List.of("0-5", "5-10", "10-20", "20+");
 
     private final CreditLedgerRepository creditLedgerRepository;
 
@@ -101,6 +110,68 @@ public class CreditAppServiceImpl implements CreditAppService {
         assertGate();
         query.setUserId(actor.requireUserId());
         return doPage(query);
+    }
+
+    @Override
+    public void accrueQuietly(CreditSource source, Long sourceId, Long userId, String username) {
+        if (source == null || sourceId == null || sourceId <= 0 || userId == null || userId <= 0) {
+            return;
+        }
+        if (!properties.isDemandGatePassed()) {
+            return;
+        }
+        try {
+            if (creditLedgerRepository.findBySource(userId, source, sourceId).isPresent()) {
+                return;
+            }
+            Optional<CreditRule> rule = creditRuleRepository.findEffective(source, sourceId);
+            if (rule.isEmpty() || rule.get().getStatus() == null || !rule.get().getStatus().canAccrue()) {
+                // 没配规则或规则已停用：属于管理端待办，不是学员的错误，静默跳过
+                return;
+            }
+            creditLedgerRepository.save(CreditLedger.of(rule.get(), userId, username, sourceId,
+                    LocalDateTime.now(), null, "系统自动记账"));
+        } catch (DuplicateKeyException ex) {
+            // 并发重复触发：另一路已写入，等价于记账成功
+        } catch (RuntimeException ex) {
+            log.warn("自动记学分失败，已忽略: source={}, sourceId={}, userId={}, error={}",
+                    source, sourceId, userId, ex.getMessage());
+        }
+    }
+
+    @Override
+    public CreditMetricsView metrics() {
+        assertGate();
+        CreditMetricsView view = new CreditMetricsView();
+        view.setTotalCredit(creditLedgerRepository.sumTotal());
+        view.setEarners(creditLedgerRepository.countEarners());
+        view.setDistribution(fillBuckets(creditLedgerRepository.distribution()));
+        return view;
+    }
+
+    /**
+     * 补齐空档：SQL 只返回有人的档位，缺档直接不出现，看板图上会凭空少一根柱子。
+     *
+     * @param rows 数据库返回的档位
+     * @return 固定四档、按档位顺序排列的分布
+     */
+    private List<CreditBucket> fillBuckets(List<CreditBucket> rows) {
+        Map<String, Long> counted = new LinkedHashMap<>();
+        if (rows != null) {
+            for (CreditBucket row : rows) {
+                if (row != null && row.getLabel() != null) {
+                    counted.merge(row.getLabel(), row.getEarners(), Long::sum);
+                }
+            }
+        }
+        List<CreditBucket> buckets = new ArrayList<>();
+        for (String label : BUCKET_LABELS) {
+            CreditBucket bucket = new CreditBucket();
+            bucket.setLabel(label);
+            bucket.setEarners(counted.getOrDefault(label, 0L));
+            buckets.add(bucket);
+        }
+        return buckets;
     }
 
     /**

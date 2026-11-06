@@ -134,6 +134,11 @@ public class MemberSnapshotAppServiceImpl implements MemberSnapshotAppService {
                 .orElse(false);
     }
 
+    @Override
+    public long countActive() {
+        return memberSnapshotRepository.countActive();
+    }
+
     /**
      * 单条 upsert。
      *

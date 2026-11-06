@@ -6,6 +6,7 @@ import com.bluewhale.lms.exam.application.command.AttemptSaveCommand;
 import com.bluewhale.lms.exam.application.view.AttemptPaperView;
 import com.bluewhale.lms.exam.application.view.AttemptResultView;
 import com.bluewhale.lms.exam.application.view.AttemptView;
+import com.bluewhale.lms.exam.application.view.ExamMetricsView;
 import com.bluewhale.lms.exam.application.view.ScoreView;
 import com.bluewhale.lms.exam.domain.model.AttemptQuery;
 
@@ -80,4 +81,13 @@ public interface AttemptAppService {
      * @return 分页结果
      */
     PageResult<ScoreView> myScores(long current, long size, LmsActor actor);
+
+    /**
+     * 考试域指标（看板取数用）。
+     *
+     * <p>不带操作人参数：供 analytics 上下文内部调用，对外可见性由看板接口的权限码控制。</p>
+     *
+     * @return 考试域指标
+     */
+    ExamMetricsView metrics();
 }

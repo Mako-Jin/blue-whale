@@ -4,6 +4,8 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.lms.common.LmsActor;
 import com.bluewhale.lms.common.LmsErrorCode;
 import com.bluewhale.lms.config.LmsProperties;
+import com.bluewhale.lms.credit.application.service.CreditAppService;
+import com.bluewhale.lms.credit.domain.model.CreditSource;
 import com.bluewhale.lms.exam.application.command.GradeCommand;
 import com.bluewhale.lms.exam.application.command.GradeItemCommand;
 import com.bluewhale.lms.exam.application.service.GradeAppService;
@@ -53,6 +55,8 @@ public class GradeAppServiceImpl implements GradeAppService {
     private final ExamRepository examRepository;
 
     private final ExamScoringSupport scoringSupport;
+
+    private final CreditAppService creditAppService;
 
     private final LmsProperties properties;
 
@@ -135,7 +139,25 @@ public class GradeAppServiceImpl implements GradeAppService {
         ExamScore score = scoringSupport.writeScoreVersion(attempt, operatorId,
                 command.getRemark() == null || command.getRemark().isBlank()
                         ? "人工判分" : command.getRemark().trim());
+        accrueIfPassed(score, attempt);
         return ScoreView.from(score);
+    }
+
+    /**
+     * 判分后及格自动记学分。
+     *
+     * <p>与交卷路径共用同一幂等键（来源 = 考试 ID），所以「交卷已记过、判分又记一次」
+     * 不会产生第二条台账；主观题先交卷后判分的场景也只需在判分时补这一刀。</p>
+     *
+     * @param score 本次落库的成绩版本
+     * @param attempt 作答记录
+     */
+    private void accrueIfPassed(ExamScore score, ExamAttempt attempt) {
+        if (score == null || !score.isPassed() || score.getExamId() == null || attempt.getUserId() == null) {
+            return;
+        }
+        creditAppService.accrueQuietly(CreditSource.EXAM, score.getExamId(), attempt.getUserId(),
+                attempt.getUsername());
     }
 
     /**

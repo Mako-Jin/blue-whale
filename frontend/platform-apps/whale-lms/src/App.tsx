@@ -7,10 +7,11 @@
 // M4-1 范围：证书模板 + 发证 / 撤销 / 换发 + 我的证书（REQ-FUNC-090）。
 // M4-2 范围：学分规则 + 记账 + 台账 + 年度汇总（REQ-FUNC-090）。
 // M5 范围：员工只读快照 / 通知投递日志 / 未完成必修催办与请假冲突（REQ-FUNC-090）。
-// 看板（M6）路由后续波次增量注册。
+// M6 范围：学习看板（覆盖率 / 完成率 / 通过率 / 学分分布 + 趋势 + 导出）。
 
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import LmsLayout from './layout/LmsLayout';
+import AnalyticsPage from './pages/AnalyticsPage';
 import CertificateListPage from './pages/CertificateListPage';
 import CertTemplatePage from './pages/CertTemplatePage';
 import CourseDetailPage from './pages/CourseDetailPage';
@@ -53,6 +54,7 @@ export default function App() {
           <Route path="credit" element={<CreditPage />} />
           <Route path="my-credit" element={<MyCreditPage />} />
           <Route path="integration" element={<IntegrationPage />} />
+          <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="my" element={<MyLearningPage />} />
           <Route path="*" element={<Navigate to="/course" replace />} />
         </Route>

@@ -121,6 +121,16 @@ public class AttemptRepositoryImpl implements AttemptRepository {
                 .eq(ExamAnswerEntity::getGraded, 0));
     }
 
+    @Override
+    public long countDistinctTakers() {
+        return attemptMapper.countDistinctTakers();
+    }
+
+    @Override
+    public long countDistinctPassed() {
+        return attemptMapper.countDistinctPassed();
+    }
+
     /**
      * 组装作答记录查询条件。
      *

@@ -54,4 +54,25 @@ public interface EnrollmentRepository {
      * @return 总数
      */
     long countByUser(Long userId);
+
+    /**
+     * 统计全部报名记录数（看板完成率分母）。
+     *
+     * @return 报名总数
+     */
+    long countAll();
+
+    /**
+     * 统计学习人数（去重学员数）。
+     *
+     * @return 去重学员数
+     */
+    long countDistinctLearners();
+
+    /**
+     * 统计完成人数（名下报名涉及的章节全部学完的去重学员数）。
+     *
+     * @return 完成人数
+     */
+    long countDistinctCompletedLearners();
 }

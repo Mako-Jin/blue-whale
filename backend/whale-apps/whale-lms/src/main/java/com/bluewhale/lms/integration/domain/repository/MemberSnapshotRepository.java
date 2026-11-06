@@ -73,4 +73,11 @@ public interface MemberSnapshotRepository {
      * @return 总数
      */
     long countAll();
+
+    /**
+     * 统计在职人数（看板覆盖率分母）。
+     *
+     * @return 在职快照数
+     */
+    long countActive();
 }

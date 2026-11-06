@@ -7,6 +7,7 @@ import com.bluewhale.lms.config.LmsProperties;
 import com.bluewhale.lms.course.application.command.ProgressReportCommand;
 import com.bluewhale.lms.course.application.service.LearningAppService;
 import com.bluewhale.lms.course.application.view.EnrollmentView;
+import com.bluewhale.lms.course.application.view.LearningMetricsView;
 import com.bluewhale.lms.course.domain.model.Course;
 import com.bluewhale.lms.course.domain.model.CourseChapter;
 import com.bluewhale.lms.course.domain.model.Enrollment;
@@ -14,6 +15,8 @@ import com.bluewhale.lms.course.domain.model.LearningProgress;
 import com.bluewhale.lms.course.domain.repository.CourseRepository;
 import com.bluewhale.lms.course.domain.repository.EnrollmentRepository;
 import com.bluewhale.lms.course.domain.repository.ProgressRepository;
+import com.bluewhale.lms.credit.application.service.CreditAppService;
+import com.bluewhale.lms.credit.domain.model.CreditSource;
 import com.bluewhale.lms.integration.application.service.NotifyAppService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -43,6 +46,8 @@ public class LearningAppServiceImpl implements LearningAppService {
     private final ProgressRepository progressRepository;
 
     private final NotifyAppService notifyAppService;
+
+    private final CreditAppService creditAppService;
 
     private final LmsProperties properties;
 
@@ -108,7 +113,42 @@ public class LearningAppServiceImpl implements LearningAppService {
         progress.merge(command.getPercent());
         progress.setLastLearnedAt(LocalDateTime.now());
         progressRepository.save(progress);
-        return withProgress(enrollment);
+        EnrollmentView view = withProgress(enrollment);
+        accrueWhenCompleted(view, courseId, userId, actor.getUsername());
+        return view;
+    }
+
+    @Override
+    public LearningMetricsView metrics() {
+        assertGate();
+        LearningMetricsView view = new LearningMetricsView();
+        view.setEnrollTotal(enrollmentRepository.countAll());
+        view.setLearnerTotal(enrollmentRepository.countDistinctLearners());
+        view.setLearnerCompleted(enrollmentRepository.countDistinctCompletedLearners());
+        return view;
+    }
+
+    /**
+     * 课程学满时自动记学分。
+     *
+     * <p>三条约束：</p>
+     * <ol>
+     *   <li><b>只在整体进度达 100% 时触发</b>：中途每次上报都记账会把一门课记成十几次；</li>
+     *   <li><b>失败不影响进度上报</b>：学分是附加奖励，进度是学员的劳动成果，
+     *       不能因为「没配学分规则」把学习进度一起回滚掉；</li>
+     *   <li><b>未配规则静默跳过</b>：规则由管理员另行维护，学员不该看到「未配置学分规则」这种提示。</li>
+     * </ol>
+     *
+     * @param view 上报后的学习视图
+     * @param courseId 课程 ID
+     * @param userId 学员用户 ID
+     * @param username 学员用户名（快照到台账便于展示）
+     */
+    private void accrueWhenCompleted(EnrollmentView view, Long courseId, Long userId, String username) {
+        if (view.getOverallPercent() == null || view.getOverallPercent() < properties.getProgressMaxPercent()) {
+            return;
+        }
+        creditAppService.accrueQuietly(CreditSource.COURSE, courseId, userId, username);
     }
 
     /**

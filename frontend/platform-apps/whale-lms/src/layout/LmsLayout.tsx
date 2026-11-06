@@ -26,6 +26,7 @@ const NAV_ITEMS = [
   { key: '/my-credit', label: '我的学分' },
   { key: '/my', label: '我的学习' },
   { key: '/integration', label: '集成设置' },
+  { key: '/analytics', label: '学习看板' },
 ];
 
 /** 答题页归属于「考试」导航（路径前缀与导航项不同，单独映射） */

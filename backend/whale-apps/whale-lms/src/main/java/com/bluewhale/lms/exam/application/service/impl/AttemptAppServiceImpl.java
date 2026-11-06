@@ -5,6 +5,8 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.lms.common.LmsActor;
 import com.bluewhale.lms.common.LmsErrorCode;
 import com.bluewhale.lms.config.LmsProperties;
+import com.bluewhale.lms.credit.application.service.CreditAppService;
+import com.bluewhale.lms.credit.domain.model.CreditSource;
 import com.bluewhale.lms.exam.application.command.AttemptAnswerCommand;
 import com.bluewhale.lms.exam.application.command.AttemptSaveCommand;
 import com.bluewhale.lms.exam.application.service.AttemptAppService;
@@ -13,6 +15,7 @@ import com.bluewhale.lms.exam.application.view.AttemptPaperView;
 import com.bluewhale.lms.exam.application.view.AttemptQuestionView;
 import com.bluewhale.lms.exam.application.view.AttemptResultView;
 import com.bluewhale.lms.exam.application.view.AttemptView;
+import com.bluewhale.lms.exam.application.view.ExamMetricsView;
 import com.bluewhale.lms.exam.application.view.ResultQuestionView;
 import com.bluewhale.lms.exam.application.view.ScoreView;
 import com.bluewhale.lms.exam.domain.model.AttemptQuery;
@@ -20,6 +23,7 @@ import com.bluewhale.lms.exam.domain.model.AttemptStatus;
 import com.bluewhale.lms.exam.domain.model.Exam;
 import com.bluewhale.lms.exam.domain.model.ExamAnswer;
 import com.bluewhale.lms.exam.domain.model.ExamAttempt;
+import com.bluewhale.lms.exam.domain.model.ExamScore;
 import com.bluewhale.lms.exam.domain.model.Judge;
 import com.bluewhale.lms.exam.domain.model.Paper;
 import com.bluewhale.lms.exam.domain.model.PaperQuestion;
@@ -72,6 +76,8 @@ public class AttemptAppServiceImpl implements AttemptAppService {
     private final ScoreRepository scoreRepository;
 
     private final ExamScoringSupport scoringSupport;
+
+    private final CreditAppService creditAppService;
 
     private final LmsProperties properties;
 
@@ -189,9 +195,39 @@ public class AttemptAppServiceImpl implements AttemptAppService {
         attempt.applyScores(scoringSupport.objectiveTotal(answers), scoringSupport.subjectiveTotal(answers),
                 scoringSupport.passScoreOf(exam), allGraded);
         attemptRepository.save(attempt);
-        scoringSupport.writeScoreVersion(attempt, null,
+        ExamScore score = scoringSupport.writeScoreVersion(attempt, null,
                 allGraded ? "交卷自动判分" : "交卷自动判分，主观题待人工判分");
+        accrueIfPassed(score, attempt);
         return buildResult(attempt, exam);
+    }
+
+    @Override
+    public ExamMetricsView metrics() {
+        assertGate();
+        ExamMetricsView view = new ExamMetricsView();
+        view.setTakerTotal(attemptRepository.countDistinctTakers());
+        view.setPassedTotal(attemptRepository.countDistinctPassed());
+        return view;
+    }
+
+    /**
+     * 成绩及格时自动记学分。
+     *
+     * <p>按<b>考试</b>记账而不是按作答记录：补考通过仍是同一门考试，
+     * 按作答记录记会让补考的人拿两份学分（台账唯一键挡的是同来源同 ID，
+     * 而补考的 attemptId 是新值，挡不住）。</p>
+     *
+     * <p>失败只记日志：学分是附赠，不能让「没配规则」把已经交上去的卷子搞失败。</p>
+     *
+     * @param score 本次落库的成绩版本
+     * @param attempt 作答记录
+     */
+    private void accrueIfPassed(ExamScore score, ExamAttempt attempt) {
+        if (score == null || !score.isPassed() || score.getExamId() == null || attempt.getUserId() == null) {
+            return;
+        }
+        creditAppService.accrueQuietly(CreditSource.EXAM, score.getExamId(), attempt.getUserId(),
+                attempt.getUsername());
     }
 
     @Override

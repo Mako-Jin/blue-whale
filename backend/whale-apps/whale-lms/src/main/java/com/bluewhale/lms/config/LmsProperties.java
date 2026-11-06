@@ -73,4 +73,7 @@ public class LmsProperties {
 
     /** 单轮催办的培训班数上限（避免一次跑太久拖住后续调度） */
     private int urgeBatchSize = 200;
+
+    /** 指标快照分页上限 */
+    private int metricPageLimit = 100;
 }

@@ -1,7 +1,10 @@
 package com.bluewhale.lms.common;
 
 /**
- * LMS 权限码常量（与 {@code migration-5.87-lms-m0.sql} 登记保持一致，段位 1900–1949）。
+ * LMS 权限码常量（与 {@code migration-5.87-lms-m0.sql} 登记保持一致）。
+ *
+ * <p>号段：1900–1949 归 LMS 业务（M1–M5 已用满），2000–2019 为 M6 看板另申请段——
+ * LMS 原段已无空位，看板复用业务段的编号会让「谁的权限」变得不可读。</p>
  *
  * @author BlueWhale
  */
@@ -156,6 +159,15 @@ public final class LmsPermissions {
 
     /** 催办执行（手动触发与试跑） */
     public static final String URGE_MANAGE = "sys:lms:urge:manage";
+
+    /** 学习看板查看 */
+    public static final String ANALYTICS_VIEW = "sys:lms:analytics:view";
+
+    /** 指标快照刷新 */
+    public static final String ANALYTICS_REFRESH = "sys:lms:analytics:refresh";
+
+    /** 看板数据导出 */
+    public static final String ANALYTICS_EXPORT = "sys:lms:analytics:export";
 
     /**
      * 私有构造器：常量类，禁止实例化。

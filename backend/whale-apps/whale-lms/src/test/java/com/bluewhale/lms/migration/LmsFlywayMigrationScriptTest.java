@@ -191,6 +191,20 @@ class LmsFlywayMigrationScriptTest {
         assertTrue(tables.containsAll(expected), "缺少集成核心表：" + expected);
     }
 
+    @Test
+    @DisplayName("M6 覆盖看板指标快照表")
+    void analyticsMigrationShouldCoverMetricSnapshotTable() throws IOException {
+        Set<String> tables = new LinkedHashSet<>();
+        for (Path script : migrationScripts()) {
+            Matcher matcher = CREATE_TABLE.matcher(Files.readString(script, StandardCharsets.UTF_8));
+            while (matcher.find()) {
+                tables.add(matcher.group(1));
+            }
+        }
+        Set<String> expected = Stream.of("lr_metric_snapshot").collect(Collectors.toSet());
+        assertTrue(tables.containsAll(expected), "缺少看板核心表：" + expected);
+    }
+
     /**
      * 列出迁移脚本。
      *

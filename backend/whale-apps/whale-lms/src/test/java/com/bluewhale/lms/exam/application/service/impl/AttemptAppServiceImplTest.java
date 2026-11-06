@@ -4,6 +4,7 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.lms.common.LmsActor;
 import com.bluewhale.lms.common.LmsErrorCode;
 import com.bluewhale.lms.config.LmsProperties;
+import com.bluewhale.lms.credit.application.service.CreditAppService;
 import com.bluewhale.lms.exam.application.command.AttemptAnswerCommand;
 import com.bluewhale.lms.exam.application.command.AttemptSaveCommand;
 import com.bluewhale.lms.exam.application.support.ExamScoringSupport;
@@ -104,7 +105,8 @@ class AttemptAppServiceImplTest {
         stubAttemptRepository();
         stubScoreRepository();
         service = new AttemptAppServiceImpl(examRepository, paperRepository, attemptRepository, scoreRepository,
-                new ExamScoringSupport(paperRepository, questionRepository, scoreRepository), new LmsProperties());
+                new ExamScoringSupport(paperRepository, questionRepository, scoreRepository),
+                mock(CreditAppService.class), new LmsProperties());
     }
 
     @Test

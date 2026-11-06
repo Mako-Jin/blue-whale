@@ -10,7 +10,8 @@ import java.util.Map;
  * <p>段位约定：{@code 42xxx} 归 LMS；42000–42009 为门禁、身份与课程资源冲突
  * （跨租户一律按不存在处理），42010–42029 为培训计划（班级 / 场次 / 分配 / 签到），
  * 42030–42059 为题库 / 试卷 / 考试 / 判分，42060–42079 为证书与学分，
- * 42080–42089 为集成收口（员工快照 / 通知 / 催办），42090 起留给后续上下文。</p>
+ * 42080–42089 为集成收口（员工快照 / 通知 / 催办），42090–42099 为学习看板
+ * （指标快照 / 导出），42100 起留给后续上下文。</p>
  *
  * @author BlueWhale
  */
@@ -214,6 +215,9 @@ public final class LmsErrorCode {
     /** 外部系统只读查询失败（OA 请假等） */
     public static final int EXTERNAL_QUERY_FAILED = 42086;
 
+    /** 指标快照或导出参数不合法（统计日缺失、人数倒挂、天数越界） */
+    public static final int METRIC_INVALID = 42090;
+
     /** 错误码默认提示语表（List 级 switch 会顶到圈复杂度上限，统一走查表） */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(GATE_CLOSED, "需求门禁未通过，学习功能未开放"),
@@ -281,7 +285,8 @@ public final class LmsErrorCode {
             Map.entry(NOTIFY_INVALID, "通知参数不合法"),
             Map.entry(NOTIFY_FAILED, "通知投递失败"),
             Map.entry(URGE_INVALID, "催办参数不合法"),
-            Map.entry(EXTERNAL_QUERY_FAILED, "外部系统查询失败，请稍后重试"));
+            Map.entry(EXTERNAL_QUERY_FAILED, "外部系统查询失败，请稍后重试"),
+            Map.entry(METRIC_INVALID, "看板指标参数不合法"));
 
     /**
      * 私有构造器：常量类，禁止实例化。

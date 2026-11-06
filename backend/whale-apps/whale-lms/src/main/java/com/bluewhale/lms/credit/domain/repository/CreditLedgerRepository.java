@@ -1,9 +1,11 @@
 package com.bluewhale.lms.credit.domain.repository;
 
+import com.bluewhale.lms.credit.domain.model.CreditBucket;
 import com.bluewhale.lms.credit.domain.model.CreditLedger;
 import com.bluewhale.lms.credit.domain.model.CreditLedgerQuery;
 import com.bluewhale.lms.credit.domain.model.CreditSource;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -58,4 +60,25 @@ public interface CreditLedgerRepository {
      * @return 主键
      */
     Long save(CreditLedger ledger);
+
+    /**
+     * 学分总量（看板用）。
+     *
+     * @return 全部台账的学分合计
+     */
+    BigDecimal sumTotal();
+
+    /**
+     * 获学分人数（看板用）。
+     *
+     * @return 去重学员数
+     */
+    long countEarners();
+
+    /**
+     * 按人合计学分分档统计（看板学分分布用）。
+     *
+     * @return 档位列表（空档不出现在结果中，由调用方补零）
+     */
+    List<CreditBucket> distribution();
 }

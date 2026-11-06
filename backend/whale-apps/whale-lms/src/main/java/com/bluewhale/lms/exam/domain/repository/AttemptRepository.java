@@ -98,4 +98,18 @@ public interface AttemptRepository {
      * @return 待判数
      */
     long countPendingGrade(Long attemptId);
+
+    /**
+     * 参考人数（已交卷的去重学员数，看板用）。
+     *
+     * @return 去重学员数
+     */
+    long countDistinctTakers();
+
+    /**
+     * 通过人数（存在及格成绩的去重学员数，看板用）。
+     *
+     * @return 去重学员数
+     */
+    long countDistinctPassed();
 }
