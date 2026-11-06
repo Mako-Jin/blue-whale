@@ -35,4 +35,7 @@ public class TaskCompleteRequest implements Serializable {
 
     /** 操作来源，如 ESIGN_CALLBACK */
     private String source;
+
+    /** 操作类型：USER 人工 / SYSTEM 系统回调，默认 SYSTEM */
+    private String operatorType;
 }

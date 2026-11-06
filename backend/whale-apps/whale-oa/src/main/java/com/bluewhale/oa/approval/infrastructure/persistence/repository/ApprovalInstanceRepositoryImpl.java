@@ -55,6 +55,26 @@ public class ApprovalInstanceRepositoryImpl implements ApprovalInstanceRepositor
     }
 
     @Override
+    public Optional<ApprovalInstance> findByWorkflowInstanceId(Long workflowInstanceId) {
+        if (workflowInstanceId == null) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(approvalInstanceMapper.selectOne(new LambdaQueryWrapper<ApprovalInstanceEntity>()
+                .eq(ApprovalInstanceEntity::getWorkflowInstanceId, workflowInstanceId)
+                .last("limit 1"))).map(this::toDomain);
+    }
+
+    @Override
+    public List<ApprovalInstance> findByWorkflowInstanceIds(List<Long> workflowInstanceIds) {
+        if (workflowInstanceIds == null || workflowInstanceIds.isEmpty()) {
+            return List.of();
+        }
+        return approvalInstanceMapper.selectList(new LambdaQueryWrapper<ApprovalInstanceEntity>()
+                        .in(ApprovalInstanceEntity::getWorkflowInstanceId, workflowInstanceIds))
+                .stream().map(this::toDomain).toList();
+    }
+
+    @Override
     public boolean insertIfAbsent(ApprovalInstance instance) {
         if (findByBusiness(instance.getBusinessType(), instance.getBusinessId()).isPresent()) {
             return false;

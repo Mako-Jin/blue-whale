@@ -10,3 +10,8 @@ body,
   width: 100%;
   height: 100%;
 }
+
+/* 审批中心抄送未读行加粗提示 */
+.approval-unread-row > td {
+  font-weight: 600;
+}

@@ -105,6 +105,21 @@ public final class OaErrorCode {
     /** 工作日历参数非法 */
     public static final int WORK_CALENDAR_INVALID = 40010;
 
+    /** 无权操作该审批任务 */
+    public static final int APPROVAL_ACTION_FORBIDDEN = 40301;
+
+    /** 审批任务不存在或已不可操作 */
+    public static final int APPROVAL_TASK_NOT_FOUND = 40411;
+
+    /** 代理规则不存在或无权访问 */
+    public static final int APPROVAL_DELEGATE_NOT_FOUND = 40412;
+
+    /** 抄送记录不存在或无权访问 */
+    public static final int APPROVAL_CC_NOT_FOUND = 40413;
+
+    /** 流程服务暂不可用 */
+    public static final int APPROVAL_WORKFLOW_UNAVAILABLE = 50301;
+
     /** 错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(APPROVAL_CONFIG_NOT_FOUND, "审批配置不存在或无权访问"),
@@ -136,7 +151,12 @@ public final class OaErrorCode {
             Map.entry(LEAVE_STATUS_CONFLICT, "请假申请当前状态不允许该操作"),
             Map.entry(LEAVE_PERIOD_OVERLAP, "同一假期类型在所选时段内已有未结束的申请"),
             Map.entry(LEAVE_INVALID, "请假参数非法，请检查日期、时段与假期类型"),
-            Map.entry(WORK_CALENDAR_INVALID, "工作日历参数非法，请检查日期与工时"));
+            Map.entry(WORK_CALENDAR_INVALID, "工作日历参数非法，请检查日期与工时"),
+            Map.entry(APPROVAL_ACTION_FORBIDDEN, "无权操作该审批任务"),
+            Map.entry(APPROVAL_TASK_NOT_FOUND, "审批任务不存在或已不可操作"),
+            Map.entry(APPROVAL_DELEGATE_NOT_FOUND, "代理规则不存在或无权访问"),
+            Map.entry(APPROVAL_CC_NOT_FOUND, "抄送记录不存在或无权访问"),
+            Map.entry(APPROVAL_WORKFLOW_UNAVAILABLE, "流程服务暂不可用，请稍后重试"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。

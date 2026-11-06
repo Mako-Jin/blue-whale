@@ -47,6 +47,22 @@ public interface ApprovalInstanceRepository {
     Optional<ApprovalInstance> findByBusiness(String businessType, Long businessId);
 
     /**
+     * 按 Workflow 实例ID查询审批实例。
+     *
+     * @param workflowInstanceId Workflow 实例ID
+     * @return 审批实例
+     */
+    Optional<ApprovalInstance> findByWorkflowInstanceId(Long workflowInstanceId);
+
+    /**
+     * 批量按 Workflow 实例ID查询审批实例。
+     *
+     * @param workflowInstanceIds Workflow 实例ID集合
+     * @return 审批实例列表
+     */
+    List<ApprovalInstance> findByWorkflowInstanceIds(List<Long> workflowInstanceIds);
+
+    /**
      * 新增审批实例；业务单据已有实例时不重复写入。
      *
      * @param instance 审批实例

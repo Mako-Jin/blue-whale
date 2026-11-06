@@ -39,6 +39,17 @@ public class WorkflowInternalCcController {
     }
 
     /**
+     * 按主键查询抄送记录。
+     *
+     * @param id 抄送记录ID
+     * @return 抄送记录
+     */
+    @GetMapping("/{id}")
+    public Result<ProcessCcVO> get(@PathVariable Long id) {
+        return Result.ok(processCcService.get(id));
+    }
+
+    /**
      * 标记抄送已读（幂等）。
      *
      * @param id 抄送记录ID

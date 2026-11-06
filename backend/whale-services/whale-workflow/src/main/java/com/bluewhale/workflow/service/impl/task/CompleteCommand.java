@@ -37,6 +37,9 @@ public class CompleteCommand {
     /** 操作类型：系统/回调 */
     private static final String OPERATOR_SYSTEM = "SYSTEM";
 
+    /** 操作类型：人工 */
+    private static final String OPERATOR_USER = "USER";
+
     /** 默认操作来源 */
     private static final String DEFAULT_SOURCE = "INTERNAL";
 
@@ -111,7 +114,7 @@ public class CompleteCommand {
      */
     private void markOperator(ProcessTask task, TaskCompleteRequest command) {
         task.setOperatorId(parseOperatorId(command.getOperatorId()));
-        task.setOperatorType(OPERATOR_SYSTEM);
+        task.setOperatorType(resolveOperatorType(command.getOperatorType()));
         task.setOperatorSource(StringUtils.hasText(command.getSource()) ? command.getSource() : DEFAULT_SOURCE);
         processTaskMapper.updateById(task);
     }
@@ -124,6 +127,17 @@ public class CompleteCommand {
         approval.setComment(command.getComment());
         approval.setVariables(command.getVariables());
         return approval;
+    }
+
+    /**
+     * 解析操作类型：仅接受 USER，其余按系统回调。
+     *
+     * @param value 操作类型文本
+     * @return 操作类型
+     */
+    private String resolveOperatorType(String value) {
+        return StringUtils.hasText(value) && OPERATOR_USER.equalsIgnoreCase(value.trim())
+                ? OPERATOR_USER : OPERATOR_SYSTEM;
     }
 
     /**

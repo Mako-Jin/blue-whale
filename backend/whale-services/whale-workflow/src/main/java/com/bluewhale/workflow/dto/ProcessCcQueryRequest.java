@@ -4,6 +4,8 @@ import com.bluewhale.common.core.query.PageQuery;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+import java.util.List;
+
 /**
  * 抄送分页查询请求。
  *
@@ -20,6 +22,9 @@ public class ProcessCcQueryRequest extends PageQuery {
 
     /** 收件人（账号或用户ID文本，可选） */
     private String recipient;
+
+    /** 候选收件人（账号或用户ID文本，可选；非空时优先于 {@link #recipient}） */
+    private List<String> recipientCandidates;
 
     /** 已读标记：0 未读 / 1 已读（可选） */
     private Integer readFlag;

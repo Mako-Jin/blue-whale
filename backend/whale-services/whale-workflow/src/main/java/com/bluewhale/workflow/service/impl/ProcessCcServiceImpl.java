@@ -44,6 +44,9 @@ public class ProcessCcServiceImpl implements ProcessCcService {
     /** 已读标记 */
     private static final int READ_FLAG_READ = 1;
 
+    /** 候选收件人上限 */
+    private static final int MAX_RECIPIENT_CANDIDATES = 10;
+
     /** 抄送 Mapper */
     private final ProcessCcMapper processCcMapper;
 
@@ -52,9 +55,12 @@ public class ProcessCcServiceImpl implements ProcessCcService {
         ProcessCcQueryRequest condition = query == null ? new ProcessCcQueryRequest() : query;
         long current = Math.max(1L, condition.getCurrent());
         long size = condition.getSize() <= 0 ? DEFAULT_PAGE_SIZE : Math.min(condition.getSize(), MAX_PAGE_SIZE);
+        List<String> candidates = normalizeCandidates(condition.getRecipientCandidates());
+        boolean hasCandidates = !candidates.isEmpty();
         LambdaQueryWrapper<ProcessCc> wrapper = new LambdaQueryWrapper<ProcessCc>()
                 .eq(condition.getInstanceId() != null, ProcessCc::getInstanceId, condition.getInstanceId())
-                .eq(hasText(condition.getRecipient()), ProcessCc::getRecipient, condition.getRecipient())
+                .eq(!hasCandidates && hasText(condition.getRecipient()), ProcessCc::getRecipient, condition.getRecipient())
+                .in(hasCandidates, ProcessCc::getRecipient, candidates)
                 .eq(condition.getReadFlag() != null, ProcessCc::getReadFlag, condition.getReadFlag())
                 .orderByDesc(ProcessCc::getCreateTime)
                 .orderByDesc(ProcessCc::getId);
@@ -63,6 +69,15 @@ public class ProcessCcServiceImpl implements ProcessCcService {
                 .map(WorkflowConverter.INSTANCE::toCcVo)
                 .toList();
         return PageResult.of(records, page.getTotal(), current, size);
+    }
+
+    @Override
+    public ProcessCcVO get(Long id) {
+        ProcessCc cc = processCcMapper.selectById(id);
+        if (cc == null) {
+            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "抄送记录不存在");
+        }
+        return WorkflowConverter.INSTANCE.toCcVo(cc);
     }
 
     @Override
@@ -114,6 +129,24 @@ public class ProcessCcServiceImpl implements ProcessCcService {
                 // 唯一键命中视为已抄送，保持幂等
             }
         }
+    }
+
+    /**
+     * 规范化候选收件人：去空、trim、去重并限制上限。
+     *
+     * @param values 原始候选值
+     * @return 规范化后的候选列表；无有效值时返回空列表
+     */
+    private static List<String> normalizeCandidates(List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return List.of();
+        }
+        return values.stream()
+                .filter(ProcessCcServiceImpl::hasText)
+                .map(String::trim)
+                .distinct()
+                .limit(MAX_RECIPIENT_CANDIDATES)
+                .toList();
     }
 
     /**

@@ -135,8 +135,8 @@ public class ApprovalInstanceAppServiceImpl implements ApprovalInstanceAppServic
         ApprovalStatus target = ApprovalStatus.of(command.getStatus());
         if (instance.markResult(target)) {
             approvalInstanceRepository.update(instance);
+            publishResultSynced(instance, target);
         }
-        publishResultSynced(instance, target);
         return toDetailView(instance);
     }
 

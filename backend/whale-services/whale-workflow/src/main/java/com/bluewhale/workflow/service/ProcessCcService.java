@@ -22,6 +22,14 @@ public interface ProcessCcService {
     PageResult<ProcessCcVO> page(ProcessCcQueryRequest query);
 
     /**
+     * 按主键查询抄送记录。
+     *
+     * @param id 抄送记录ID
+     * @return 抄送记录
+     */
+    ProcessCcVO get(Long id);
+
+    /**
      * 标记抄送已读（幂等）。
      *
      * @param id 抄送记录ID
