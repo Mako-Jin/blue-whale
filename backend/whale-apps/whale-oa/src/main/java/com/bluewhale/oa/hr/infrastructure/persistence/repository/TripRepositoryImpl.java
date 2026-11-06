@@ -22,6 +22,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -159,6 +160,18 @@ public class TripRepositoryImpl implements TripRepository {
     @Override
     public void deleteById(Long id) {
         tripMapper.deleteById(id);
+    }
+
+    @Override
+    public List<Trip> listReportPendingEndedBefore(LocalDate deadline, int limit) {
+        int size = Math.max(limit, 1);
+        return tripMapper.selectList(new LambdaQueryWrapper<TripEntity>()
+                        .eq(TripEntity::getStatus, TripStatus.APPROVED.name())
+                        .eq(TripEntity::getReportStatus, TripReportStatus.PENDING.name())
+                        .le(TripEntity::getEndDate, deadline)
+                        .orderByAsc(TripEntity::getEndDate)
+                        .last("LIMIT " + size))
+                .stream().map(this::toDomain).toList();
     }
 
     /**

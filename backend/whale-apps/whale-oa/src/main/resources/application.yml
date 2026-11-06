@@ -58,6 +58,14 @@ whale:
   permission:
     header:
       enabled: true
+  # M1B-2b：出差报告未交提醒（每天按配置时间扫描，向申请人发站内信）
+  oa:
+    trip:
+      report-reminder:
+        enabled: ${OA_TRIP_REPORT_REMINDER_ENABLED:true}
+        cron: "${OA_TRIP_REPORT_REMINDER_CRON:0 0 9 * * *}"
+        days-after: ${OA_TRIP_REPORT_REMINDER_DAYS_AFTER:3}
+        batch-size: ${OA_TRIP_REPORT_REMINDER_BATCH_SIZE:100}
 
 mybatis-plus:
   configuration:

@@ -5,6 +5,7 @@ import com.bluewhale.oa.hr.domain.model.TripAdvance;
 import com.bluewhale.oa.hr.domain.model.TripItinerary;
 import com.bluewhale.oa.hr.domain.model.TripQuery;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -99,4 +100,13 @@ public interface TripRepository {
      * @param id 主键
      */
     void deleteById(Long id);
+
+    /**
+     * 查询已通过审批、报告待提交且出差结束日期不晚于截止日的申请。
+     *
+     * @param deadline 结束日期上限（含）
+     * @param limit 单次最大条数
+     * @return 待提醒申请列表
+     */
+    List<Trip> listReportPendingEndedBefore(LocalDate deadline, int limit);
 }

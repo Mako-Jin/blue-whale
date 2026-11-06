@@ -117,6 +117,33 @@ class MessageFlywayMigrationScriptTest {
     }
 
     /**
+     * OA M1B-2b 出差报告提醒模板种子包含模板编码与幂等保护
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("OA M1B-2b 出差报告提醒模板种子齐全")
+    void oaM1bTripReminderSeedShouldContainTemplate() throws IOException {
+        Path seed = Path.of("src/main/resources/db/migration-5.86-oa-m1b-trip-reminder.sql");
+        String script = Files.readString(seed, StandardCharsets.UTF_8);
+        assertTrue(script.contains("OA_TRIP_REPORT_REMINDER"), "5.86 种子缺少模板：OA_TRIP_REPORT_REMINDER");
+        assertTrue(script.contains("WHERE NOT EXISTS"), "模板种子必须使用 WHERE NOT EXISTS 保证幂等");
+        for (String placeholder : List.of("${applicant}", "${destination}", "${endDate}",
+                "${businessUrl}")) {
+            assertTrue(script.contains(placeholder), "出差报告提醒模板缺少占位符：" + placeholder);
+        }
+        for (String line : Files.readAllLines(seed, StandardCharsets.UTF_8)) {
+            String statement = line.trim().toUpperCase();
+            if (statement.startsWith("--") || statement.isEmpty()) {
+                continue;
+            }
+            assertFalse(statement.startsWith("DROP "), "5.86 种子含 DROP 语句：" + line);
+            assertFalse(statement.startsWith("TRUNCATE "), "5.86 种子含 TRUNCATE 语句：" + line);
+            assertFalse(statement.startsWith("DELETE "), "5.86 种子含 DELETE 语句：" + line);
+        }
+    }
+
+    /**
      * 列出迁移脚本并按文件名字典序返回
      *
      * @return 迁移脚本路径
