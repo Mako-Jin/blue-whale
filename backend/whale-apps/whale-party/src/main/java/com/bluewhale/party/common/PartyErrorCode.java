@@ -50,6 +50,33 @@ public final class PartyErrorCode {
     /** 党费参数非法（基数、比例或所属月份越界） */
     public static final int FEE_INVALID = 43010;
 
+    /** 党员状态不允许该操作（已转出只读、已停籍不可缴纳） */
+    public static final int MEMBER_STATE_CONFLICT = 43011;
+
+    /** 未匹配到党费标准（基数落在所有档位之外） */
+    public static final int FEE_RULE_MISSING = 43012;
+
+    /** 该月党费已生成，不重复生成 */
+    public static final int FEE_BILL_DUPLICATED = 43013;
+
+    /** 党费账单不存在或无权访问 */
+    public static final int FEE_BILL_NOT_FOUND = 43014;
+
+    /** 支部已停用，不可再接收党员或新建组织生活 */
+    public static final int BRANCH_INACTIVE = 43015;
+
+    /** 党费标准区间重叠（同一基数会命中多条规则） */
+    public static final int FEE_RULE_OVERLAP = 43016;
+
+    /** 支部当前状态不允许该操作（停用前须先转出党员与下级支部） */
+    public static final int BRANCH_STATE_CONFLICT = 43017;
+
+    /** 支部字段非法（编码 / 名称 / 备注为空或超长） */
+    public static final int BRANCH_INVALID = 43018;
+
+    /** 党员档案字段非法（编号/工号/姓名/日期/基数越界） */
+    public static final int MEMBER_INVALID = 43019;
+
     /** 业务错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(GATE_CLOSED, "需求门禁未通过，业务接口未开放"),
@@ -62,7 +89,16 @@ public final class PartyErrorCode {
             Map.entry(MEMBER_DUPLICATED, "该员工已有党员档案"),
             Map.entry(ACTIVITY_NOT_FOUND, "组织生活记录不存在或无权访问"),
             Map.entry(ACTIVITY_STATE_CONFLICT, "组织生活记录当前状态不允许该操作"),
-            Map.entry(FEE_INVALID, "党费参数不合法"));
+            Map.entry(FEE_INVALID, "党费参数不合法"),
+            Map.entry(MEMBER_STATE_CONFLICT, "党员当前状态不允许该操作"),
+            Map.entry(FEE_RULE_MISSING, "未匹配到党费标准，请先配置党费档位"),
+            Map.entry(FEE_BILL_DUPLICATED, "该月党费已生成，请勿重复生成"),
+            Map.entry(FEE_BILL_NOT_FOUND, "党费账单不存在或无权访问"),
+            Map.entry(BRANCH_INACTIVE, "支部已停用，不可再接收党员或新建组织生活"),
+            Map.entry(FEE_RULE_OVERLAP, "党费标准的基数区间存在重叠"),
+            Map.entry(BRANCH_STATE_CONFLICT, "支部当前状态不允许该操作，停用前请先转出党员与下级支部"),
+            Map.entry(BRANCH_INVALID, "支部信息不合法，请检查编码、名称与备注"),
+            Map.entry(MEMBER_INVALID, "党员档案信息不合法，请检查编号、工号、姓名与日期"));
 
     /**
      * 私有构造器：常量类，禁止实例化。

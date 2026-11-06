@@ -1,8 +1,8 @@
 // 党政工会子应用布局：顶部导航 + 内容区。
 //
-// M-P0 只有「工作台」一项：导航项跟随已落地页面增量注册，
-// 不预先放空菜单——点进去 404 比看不到入口更糟。
-// 后续波次预期增加：党建台账（M-P1）、党建内容（M-P2）、工会（M-P3）、看板（M-P4）。
+// 导航项跟随已落地页面增量注册，不预先放空菜单——点进去 404 比看不到入口更糟。
+// M-P0 工作台；M-P1 党建台账四项（支部 / 党员 / 组织生活 / 党费）；
+// 后续波次追加党建内容（M-P2）、工会（M-P3）、看板（M-P4）。
 
 import { Layout, Menu, Typography } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
@@ -10,7 +10,13 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 const { Header, Content } = Layout;
 
 /** 导航项（与基座菜单 /party/* 路径对齐） */
-const NAV_ITEMS = [{ key: '/', label: '工作台' }];
+const NAV_ITEMS = [
+  { key: '/', label: '工作台' },
+  { key: '/branch', label: '支部台账' },
+  { key: '/member', label: '党员档案' },
+  { key: '/activity', label: '组织生活' },
+  { key: '/fee', label: '党费台账' },
+];
 
 /**
  * 解析当前导航选中项。

@@ -11,7 +11,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { getMeta, type PartyMeta } from '../api/party';
 
 /** 已落地里程碑（随波次增量；这是前端对交付状态的声明，不是后端返回值） */
-const DONE_MILESTONES = new Set(['M-P0 底座']);
+const DONE_MILESTONES = new Set(['M-P0 底座', 'M-P1 党建台账']);
 
 /** 党政工会工作台页 */
 export default function PartyHomePage() {

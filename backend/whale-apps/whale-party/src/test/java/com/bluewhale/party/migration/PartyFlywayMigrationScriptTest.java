@@ -104,6 +104,33 @@ class PartyFlywayMigrationScriptTest {
     }
 
     @Test
+    @DisplayName("M-P1 覆盖党建台账六张表")
+    void ledgerMigrationShouldCoverPartyLedgerTables() throws IOException {
+        Set<String> tables = new LinkedHashSet<>();
+        for (Path script : migrationScripts()) {
+            Matcher matcher = CREATE_TABLE.matcher(Files.readString(script, StandardCharsets.UTF_8));
+            while (matcher.find()) {
+                tables.add(matcher.group(1));
+            }
+        }
+        Set<String> expected = Stream.of("pty_branch", "pty_member", "pty_activity",
+                "pty_activity_signin", "pty_fee_rule", "pty_fee_bill").collect(Collectors.toSet());
+        assertTrue(tables.containsAll(expected), "缺少党建台账表：" + expected);
+    }
+
+    @Test
+    @DisplayName("一人一档与月度账单唯一键覆盖到位")
+    void ledgerUniqueKeysShouldGuardDuplicates() throws IOException {
+        String content = Files.readString(MIGRATION_DIR.resolve("V3__party_ledger.sql"), StandardCharsets.UTF_8);
+        assertTrue(content.contains("uk_pty_member_employee (tenant_id, employee_no)"),
+                "党员档案须按员工编号做一人一档");
+        assertTrue(content.contains("uk_pty_fee_bill (tenant_id, member_id, period_month)"),
+                "党费账单须按人+月唯一，避免同月重复生成");
+        assertTrue(content.contains("uk_pty_activity_signin (tenant_id, activity_id, member_id)"),
+                "签到须按场次+人唯一，否则实到人数重复计数");
+    }
+
+    @Test
     @DisplayName("编号流水表唯一键不含 deleted（逻辑删除会让取号分裂）")
     void sequenceUniqueKeyShouldNotIncludeDeleted() throws IOException {
         String content = Files.readString(MIGRATION_DIR.resolve("V2__platform.sql"), StandardCharsets.UTF_8);
