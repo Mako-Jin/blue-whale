@@ -13,6 +13,8 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -72,6 +74,116 @@ public class PdmIntErpClientImpl implements PdmIntErpClient {
             throw failure("ERP 响应缺少物料数据");
         }
         return map;
+    }
+
+    @Override
+    public PdmIntErpItemInfo getItem(Long tenantId, String code) {
+        Map<String, Object> response = InternalTokenSupport.restClient()
+                .get()
+                .uri(baseUrl() + "/erp/internal/item/by-code?code={code}", code)
+                .header(WebHeaders.TENANT_ID, String.valueOf(tenantId))
+                .retrieve()
+                .body(new ParameterizedTypeReference<Map<String, Object>>() {
+                });
+        verifyReadResponse(response, "物料读取");
+        Object data = response.get("data");
+        if (!(data instanceof Map<?, ?> map)) {
+            return new PdmIntErpItemInfo(null, code, null, null, false);
+        }
+        Long id = map.get("id") instanceof Number number ? number.longValue() : null;
+        String itemCode = text(map.get("code"), code);
+        return new PdmIntErpItemInfo(id, itemCode, text(map.get("name"), null),
+                text(map.get("status"), null), true);
+    }
+
+    @Override
+    public PdmIntErpStockInfo getStock(Long tenantId, String itemCode) {
+        Map<String, Object> response = InternalTokenSupport.restClient()
+                .get()
+                .uri(baseUrl() + "/erp/internal/stock/by-code?itemCode={itemCode}", itemCode)
+                .header(WebHeaders.TENANT_ID, String.valueOf(tenantId))
+                .retrieve()
+                .body(new ParameterizedTypeReference<Map<String, Object>>() {
+                });
+        verifyReadResponse(response, "库存读取");
+        Object data = response.get("data");
+        if (!(data instanceof Map<?, ?> map)) {
+            throw readFailure("ERP 响应缺少库存数据");
+        }
+        List<PdmIntErpStockWarehouse> warehouses = new ArrayList<>();
+        Object rawWarehouses = map.get("warehouses");
+        if (rawWarehouses instanceof List<?> rows) {
+            for (Object row : rows) {
+                if (!(row instanceof Map<?, ?> warehouse)) {
+                    continue;
+                }
+                warehouses.add(new PdmIntErpStockWarehouse(
+                        warehouse.get("warehouseId") instanceof Number number ? number.longValue() : null,
+                        text(warehouse.get("warehouseCode"), null),
+                        text(warehouse.get("warehouseName"), null),
+                        decimal(warehouse.get("quantity"))));
+            }
+        }
+        return new PdmIntErpStockInfo(text(map.get("itemCode"), itemCode),
+                text(map.get("itemName"), null), decimal(map.get("totalQuantity")), warehouses);
+    }
+
+    /**
+     * 校验只读响应信封。
+     *
+     * @param response ERP 响应
+     * @param action   操作名
+     */
+    private void verifyReadResponse(Map<String, Object> response, String action) {
+        if (response == null) {
+            throw readFailure(action + "响应为空");
+        }
+        Object code = response.get("code");
+        if (!(code instanceof Number number) || number.intValue() != CODE_SUCCESS) {
+            throw readFailure(String.valueOf(response.get("message")));
+        }
+    }
+
+    /**
+     * 取字符串值。
+     *
+     * @param value       原值
+     * @param defaultText 默认值
+     * @return 字符串
+     */
+    private static String text(Object value, String defaultText) {
+        return value == null ? defaultText : String.valueOf(value);
+    }
+
+    /**
+     * 取数值。
+     *
+     * @param value 原值
+     * @return 数值，空值或非法值返回 0
+     */
+    private static BigDecimal decimal(Object value) {
+        if (value instanceof Number number) {
+            return new BigDecimal(number.toString());
+        }
+        if (value == null) {
+            return BigDecimal.ZERO;
+        }
+        try {
+            return new BigDecimal(String.valueOf(value));
+        } catch (NumberFormatException ex) {
+            return BigDecimal.ZERO;
+        }
+    }
+
+    /**
+     * 构造只读调用失败异常。
+     *
+     * @param message 失败原因
+     * @return 业务异常
+     */
+    private BizException readFailure(String message) {
+        String safe = StringUtils.hasText(message) ? message : "未知错误";
+        return new BizException(ErrorCode.SYSTEM_ERROR, "ERP 库存读取失败: " + safe);
     }
 
     /**

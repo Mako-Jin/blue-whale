@@ -50,6 +50,15 @@ public class StockRepositoryImpl implements StockRepository {
     }
 
     @Override
+    public List<StockBalance> listBalancesByItemCode(String itemCode) {
+        return stockBalanceMapper.selectList(new LambdaQueryWrapper<StockBalanceEntity>()
+                        .eq(StockBalanceEntity::getItemCode, itemCode)
+                        .orderByAsc(StockBalanceEntity::getWarehouseId)).stream()
+                .map(this::toDomain)
+                .toList();
+    }
+
+    @Override
     public Optional<LocalDateTime> lastOutboundAt(Long itemId, Long warehouseId) {
         return stockMovementMapper.selectList(new LambdaQueryWrapper<StockMovementEntity>()
                         .eq(StockMovementEntity::getItemId, itemId)

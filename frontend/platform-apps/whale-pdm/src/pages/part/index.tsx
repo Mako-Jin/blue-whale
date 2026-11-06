@@ -35,6 +35,7 @@ import {
 } from '../../api/part';
 import { hasPermission } from '../../utils/permission';
 import PartForm from './PartForm';
+import ErpStockModal from './ErpStockModal';
 
 /** 零件类型文案 */
 const PART_TYPE_LABEL: Record<PartType, string> = {
@@ -122,6 +123,7 @@ export default function PartLibrary() {
   const [whereUsedOpen, setWhereUsedOpen] = useState(false);
   const [whereUsedRows, setWhereUsedRows] = useState<PartWhereUsed[]>([]);
   const [whereUsedPart, setWhereUsedPart] = useState<PdmPart | null>(null);
+  const [erpStockPart, setErpStockPart] = useState<PdmPart | null>(null);
 
   const canAdd = hasPermission('sys:pdm:part:add');
   const canEdit = hasPermission('sys:pdm:part:edit');
@@ -192,7 +194,7 @@ export default function PartLibrary() {
     {
       title: '操作',
       key: 'action',
-      width: 220,
+      width: 300,
       render: (_, record) => (
         <Space size={0}>
           {canEdit ? (
@@ -217,6 +219,9 @@ export default function PartLibrary() {
             }}
           >
             使用处
+          </Button>
+          <Button type="link" onClick={() => setErpStockPart(record)}>
+            ERP 库存
           </Button>
           {canDelete ? (
             <Popconfirm
@@ -455,6 +460,8 @@ export default function PartLibrary() {
           ]}
         />
       </Modal>
+
+      <ErpStockModal part={erpStockPart} onClose={() => setErpStockPart(null)} />
 
       <Modal
         open={categoryModalOpen}

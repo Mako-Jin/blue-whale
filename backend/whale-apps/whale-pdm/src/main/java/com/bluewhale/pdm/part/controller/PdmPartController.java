@@ -10,7 +10,9 @@ import com.bluewhale.pdm.dto.PdmProductSaveRequest;
 import com.bluewhale.pdm.part.dto.PdmPartMergeRequest;
 import com.bluewhale.pdm.part.service.PdmBomService;
 import com.bluewhale.pdm.part.service.PdmPartDedupService;
+import com.bluewhale.pdm.part.service.PdmPartErpService;
 import com.bluewhale.pdm.part.vo.PdmPartDedupGroupVO;
+import com.bluewhale.pdm.part.vo.PdmPartErpStockVO;
 import com.bluewhale.pdm.part.vo.PdmPartMergeResultVO;
 import com.bluewhale.pdm.part.vo.PdmPartWhereUsedVO;
 import com.bluewhale.pdm.service.PdmProductService;
@@ -50,6 +52,8 @@ public class PdmPartController {
 
     private final PdmPartDedupService dedupService;
 
+    private final PdmPartErpService partErpService;
+
     /**
      * 分页查询零件
      *
@@ -84,6 +88,18 @@ public class PdmPartController {
     @RequirePermission("sys:pdm:part:list")
     public Result<List<PdmPartWhereUsedVO>> whereUsed(@PathVariable Long id) {
         return Result.ok(bomService.whereUsed(id));
+    }
+
+    /**
+     * 零件对应的 ERP 物料与库存（ERP 不可用时降级返回）
+     *
+     * @param id 零件ID
+     * @return ERP 物料与库存
+     */
+    @GetMapping("/{id}/erp-stock")
+    @RequirePermission("sys:pdm:part:list")
+    public Result<PdmPartErpStockVO> erpStock(@PathVariable Long id) {
+        return Result.ok(partErpService.getStock(id));
     }
 
     /**

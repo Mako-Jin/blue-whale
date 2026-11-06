@@ -40,6 +40,14 @@ public interface StockRepository {
     List<StockBalance> listBalances(ScmQuery query);
 
     /**
+     * 按物料编码查询全部仓库余额（内网只读契约）
+     *
+     * @param itemCode 物料编码
+     * @return 余额列表
+     */
+    List<StockBalance> listBalancesByItemCode(String itemCode);
+
+    /**
      * 查询物料在指定仓库的最近出库时间。
      *
      * @param itemId 物料主键

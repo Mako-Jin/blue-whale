@@ -132,6 +132,28 @@ export interface PartMergeResult {
   skippedReleasedLines: number;
 }
 
+/** ERP 仓库库存明细 */
+export interface PartErpWarehouse {
+  warehouseId?: string;
+  warehouseCode?: string;
+  warehouseName?: string;
+  quantity: number;
+}
+
+/** 零件对应的 ERP 物料与库存（ERP 不可用时 degraded=true） */
+export interface PartErpStock {
+  partId: string;
+  partCode: string;
+  erpItemCode?: string;
+  itemExists: boolean;
+  itemName?: string;
+  itemStatus?: string;
+  totalQuantity: number;
+  warehouses: PartErpWarehouse[];
+  degraded: boolean;
+  message?: string;
+}
+
 /** BOM 树节点 */
 export interface BomTreeNode {
   partId: string;
@@ -304,6 +326,11 @@ export function listDedupCandidates(): Promise<PartDedupGroup[]> {
 /** 人工合并零件（源件停用，草稿 BOM 引用改写） */
 export function mergeParts(input: PartMergeInput): Promise<PartMergeResult> {
   return http.post<PartMergeResult>('/pdm/part/merge', input);
+}
+
+/** 零件对应的 ERP 物料与库存（ERP 不可用时后端降级返回） */
+export function getPartErpStock(id: string): Promise<PartErpStock> {
+  return http.get<PartErpStock>(`/pdm/part/${id}/erp-stock`);
 }
 
 /** 物料分类树 */

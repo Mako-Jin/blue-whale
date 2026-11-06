@@ -58,6 +58,17 @@ public class ErpItemServiceImpl implements ErpItemService {
     }
 
     @Override
+    public ErpItemVO getByCode(String code) {
+        if (!StringUtils.hasText(code)) {
+            return null;
+        }
+        ErpItem item = erpItemMapper.selectOne(new LambdaQueryWrapper<ErpItem>()
+                .eq(ErpItem::getCode, code.trim())
+                .last("LIMIT 1"));
+        return item == null ? null : toVo(item);
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public ErpItemVO create(ErpItemSaveRequest request) {
         assertCodeUnique(request.getCode(), null);

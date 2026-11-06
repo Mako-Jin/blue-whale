@@ -4,11 +4,14 @@ import com.bluewhale.common.core.result.Result;
 import com.bluewhale.erp.dto.ErpInternalItemUpsertRequest;
 import com.bluewhale.erp.service.ErpItemService;
 import com.bluewhale.erp.vo.ErpInternalItemSyncVO;
+import com.bluewhale.erp.vo.ErpItemVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -35,5 +38,16 @@ public class ErpInternalItemController {
     @PostMapping("/upsert")
     public Result<ErpInternalItemSyncVO> upsert(@Valid @RequestBody ErpInternalItemUpsertRequest request) {
         return Result.ok(itemService.upsertFromPdm(request));
+    }
+
+    /**
+     * 按物料编码只读查询（供 PDM 回显 ERP 物料）
+     *
+     * @param code 物料编码
+     * @return 物料详情；不存在时 data 为 null
+     */
+    @GetMapping("/by-code")
+    public Result<ErpItemVO> byCode(@RequestParam("code") String code) {
+        return Result.ok(itemService.getByCode(code));
     }
 }

@@ -31,6 +31,14 @@ public interface ErpItemService {
     ErpItemVO getDetail(Long id);
 
     /**
+     * 按物料编码查询（内网只读契约）
+     *
+     * @param code 物料编码
+     * @return 物料详情；不存在返回 null
+     */
+    ErpItemVO getByCode(String code);
+
+    /**
      * 新增物料
      *
      * @param request 新增请求

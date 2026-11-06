@@ -5,6 +5,7 @@ import com.bluewhale.erp.scm.application.command.StockAdjustCommand;
 import com.bluewhale.erp.scm.application.view.StockBalanceView;
 import com.bluewhale.erp.scm.application.view.StockMovementView;
 import com.bluewhale.erp.scm.domain.model.ScmQuery;
+import com.bluewhale.erp.vo.ErpInternalStockView;
 
 /**
  * 库存应用服务。
@@ -37,4 +38,12 @@ public interface InventoryAppService {
      * @return 生成的流水
      */
     StockMovementView adjust(StockAdjustCommand command, Long operatorId);
+
+    /**
+     * 按物料编码聚合各仓库库存（内网只读契约）
+     *
+     * @param itemCode 物料编码
+     * @return 库存聚合视图
+     */
+    ErpInternalStockView stockByItemCode(String itemCode);
 }

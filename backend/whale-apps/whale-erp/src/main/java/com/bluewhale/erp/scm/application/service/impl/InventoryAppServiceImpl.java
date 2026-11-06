@@ -15,9 +15,11 @@ import com.bluewhale.erp.scm.domain.model.StockMovement;
 import com.bluewhale.erp.scm.domain.port.ItemCatalog;
 import com.bluewhale.erp.scm.domain.port.ItemSnapshot;
 import com.bluewhale.erp.scm.domain.repository.StockRepository;
+import com.bluewhale.erp.vo.ErpInternalStockView;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -112,6 +114,38 @@ public class InventoryAppServiceImpl implements InventoryAppService {
         }
         stockRepository.insertMovement(movement);
         return StockMovementView.of(movement);
+    }
+
+    @Override
+    public ErpInternalStockView stockByItemCode(String itemCode) {
+        ErpInternalStockView view = new ErpInternalStockView();
+        view.setItemCode(itemCode);
+        view.setTotalQuantity(BigDecimal.ZERO);
+        if (!StringUtils.hasText(itemCode)) {
+            return view;
+        }
+        String code = itemCode.trim();
+        view.setItemCode(code);
+        List<StockBalance> balances = stockRepository.listBalancesByItemCode(code);
+        if (balances.isEmpty()) {
+            return view;
+        }
+        view.setItemName(balances.get(0).getItemName());
+        BigDecimal total = BigDecimal.ZERO;
+        for (StockBalance balance : balances) {
+            BigDecimal quantity = balance.getQuantity() == null ? BigDecimal.ZERO : balance.getQuantity();
+            total = total.add(quantity);
+            ErpInternalStockView.WarehouseStock warehouseStock = new ErpInternalStockView.WarehouseStock();
+            warehouseStock.setWarehouseId(balance.getWarehouseId());
+            warehouseStock.setQuantity(quantity);
+            warehouseRepository.findById(balance.getWarehouseId()).ifPresent(warehouse -> {
+                warehouseStock.setWarehouseCode(warehouse.getCode());
+                warehouseStock.setWarehouseName(warehouse.getName());
+            });
+            view.getWarehouses().add(warehouseStock);
+        }
+        view.setTotalQuantity(total);
+        return view;
     }
 
     /**
