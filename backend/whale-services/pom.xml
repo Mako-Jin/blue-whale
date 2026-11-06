@@ -28,6 +28,7 @@
         <module>whale-im</module>
         <module>whale-archive</module>
         <module>whale-message</module>
+        <module>whale-mail</module>
         <module>whale-doc</module>
         <module>whale-music</module>
         <module>whale-video</module>

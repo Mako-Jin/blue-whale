@@ -56,6 +56,11 @@ CREATE DATABASE IF NOT EXISTS bluewhale_message
   DEFAULT CHARACTER SET utf8mb4
   DEFAULT COLLATE utf8mb4_unicode_ci;
 
+-- ---- 邮箱服务（Wave 5.89 M0：账号/文件夹/邮件索引/附件/草稿） ----
+CREATE DATABASE IF NOT EXISTS bluewhale_mail
+  DEFAULT CHARACTER SET utf8mb4
+  DEFAULT COLLATE utf8mb4_unicode_ci;
+
 -- ---- AGENT ----
 CREATE DATABASE IF NOT EXISTS bluewhale_agent
   DEFAULT CHARACTER SET utf8mb4

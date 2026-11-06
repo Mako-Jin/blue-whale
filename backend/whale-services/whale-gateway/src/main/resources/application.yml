@@ -107,6 +107,13 @@ spring:
               uri: lb://whale-message
               predicates:
                 - Path=/message/**
+            # Wave 5.89 邮箱服务：自持 /mail 一级前缀（不含 StripPrefix，REQ-ARCH-003）；
+            # 与 whale-message 严格分工：本路由承载邮箱域（账号/文件夹/邮件/草稿），
+            # 消息管控仍走 /message/**；内网 /mail/internal/** 由 internal-deny 统一 403
+            - id: whale-mail
+              uri: lb://whale-mail
+              predicates:
+                - Path=/mail/**
             # Wave 5.74 在线文档 / Wiki：自持 /doc 一级前缀（不含 StripPrefix，REQ-ARCH-003）；
             # M2 实时协作 WS 升级路由 order=-1 先于 REST 路由匹配（同前缀 /doc/ws）；
             # 内网 /doc/internal/** 由 internal-deny 统一 403
@@ -320,6 +327,7 @@ whale:
         - whale-audit
         - whale-archive
         - whale-message
+        - whale-mail
         - whale-doc
         - whale-music
     # T6 内网接口屏蔽（由 InternalApiDenyGlobalFilter 执行）：命中 patterns 的外部请求直接返回 403
@@ -349,6 +357,8 @@ whale:
         - /contract/internal/**
         # Wave 5.68 统一消息内网发送：仅业务服务经内网直连 whale-message
         - /message/internal/**
+        # Wave 5.89 邮箱内网通道：收发信事件 / 同步回执仅服务间内网直连 whale-mail
+        - /mail/internal/**
         # Wave 5.74 文档内网通道：知识源/文件引用等仅服务间内网直连 whale-doc
         - /doc/internal/**
         # Wave 5.75 音乐内网通道：曲库/播放票据等仅服务间内网直连 whale-music

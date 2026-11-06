@@ -78,6 +78,7 @@ jobs:
           - { service: whale-music, module: whale-services/whale-music, port: 8096 }
           - { service: whale-scene, module: whale-services/whale-scene, port: 8097 }
           - { service: whale-video, module: whale-services/whale-video, port: 8098 }
+          - { service: whale-mail, module: whale-services/whale-mail, port: 8099 }
           - { service: whale-erp, module: whale-apps/whale-erp, port: 9001 }
           - { service: whale-mes, module: whale-apps/whale-mes, port: 9002 }
           - { service: whale-pdm, module: whale-apps/whale-pdm, port: 9003 }
@@ -162,6 +163,7 @@ jobs:
           - { image: whale-music, app: whale-music, dir: platform-apps/whale-music, base: /music, namespace: frontend }
           - { image: whale-scene, app: whale-scene, dir: platform-apps/whale-scene, base: /scene, namespace: frontend }
           - { image: whale-video, app: whale-video, dir: platform-apps/whale-video, base: /video, namespace: frontend }
+          - { image: whale-mail, app: whale-mail, dir: platform-apps/whale-mail, base: /mail, namespace: frontend }
           - { image: whale-form-designer, app: whale-form-designer, dir: platform-apps/whale-form-designer, base: /, namespace: root }
           - { image: whale-workflow-designer, app: whale-workflow-designer, dir: platform-apps/whale-workflow-designer, base: /, namespace: root }
 

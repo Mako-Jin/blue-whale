@@ -65,6 +65,11 @@ scrape_configs:
     metrics_path: /actuator/prometheus
     static_configs:
       - targets: ['127.0.0.1:8094']
+  # Wave 5.89 邮箱服务（M0）：账号/文件夹/邮件索引/草稿
+  - job_name: whale-mail
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['127.0.0.1:8099']
   # Wave 5.74 在线文档 / Wiki 服务（M5 上线硬化）
   - job_name: whale-doc
     metrics_path: /actuator/prometheus

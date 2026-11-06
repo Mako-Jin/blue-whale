@@ -129,6 +129,14 @@ whale:
       exchange: ${WHALE_AUDIT_MQ_EXCHANGE:bluewhale.audit.exchange}
       routing-key: ${WHALE_AUDIT_MQ_ROUTING_KEY:audit.log}
 
+  # 建用户后自动开邮箱（Wave 5.89 M2）：监听 UserDomainEvent.CREATED，异步回调 whale-mail 内网代开。
+  # 默认关闭——邮件是可选能力，不能让「建用户」依赖邮件服务的健康度。
+  mail:
+    provision-enabled: ${WHALE_AUTH_MAIL_PROVISION_ENABLED:false}
+    provision-url: ${WHALE_AUTH_MAIL_PROVISION_URL:http://whale-mail:8099/mail/internal/provision}
+    connect-timeout-millis: ${WHALE_AUTH_MAIL_CONNECT_TIMEOUT_MS:2000}
+    read-timeout-millis: ${WHALE_AUTH_MAIL_READ_TIMEOUT_MS:8000}
+
   # Wave 5.50：国际化 SDK 自治化。启动时在本服务库幂等创建 sys_i18n_message，
   # 文案回退源为 classpath:i18n/auth/messages*；本地管理接口显式开启（默认关闭）。
   i18n:
