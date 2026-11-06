@@ -4,7 +4,8 @@ package com.bluewhale.map.common;
  * 地图服务业务错误码。
  *
  * <p>段位约定：{@code 44xxx} 归 {@code whale-map}，与 LMS 的 42xxx、党政工会的 43xxx 并列不交叉。
- * 44000–44009 为坐标与供应商选择，44010–44019 为地址解析与 POI，44020–44029 为打点与附近查询。</p>
+ * 44000–44009 为坐标与供应商选择，44010–44019 为地址解析与 POI，44020–44029 为打点与附近查询，
+ * 44030–44039 为围栏判定。</p>
  *
  * @author BlueWhale
  */
@@ -48,6 +49,18 @@ public final class MapErrorCode {
 
     /** 批量距离点数超过上限 */
     public static final int DISTANCE_BATCH_TOO_LARGE = 44023;
+
+    /** 围栏不存在（或已删除） */
+    public static final int FENCE_NOT_FOUND = 44030;
+
+    /** 围栏类型非法（只支持 CIRCLE / POLYGON） */
+    public static final int FENCE_TYPE_INVALID = 44031;
+
+    /** 围栏几何参数非法（圆心/半径/顶点缺失或越界） */
+    public static final int FENCE_GEOMETRY_INVALID = 44032;
+
+    /** 围栏数量超过租户上限 */
+    public static final int FENCE_LIMIT_EXCEEDED = 44033;
 
     /**
      * 私有构造器：常量类，禁止实例化
