@@ -120,6 +120,21 @@ public final class OaErrorCode {
     /** 月度加班时长超限 */
     public static final int OVERTIME_MONTHLY_LIMIT = 40913;
 
+    /** 出差申请参数非法 */
+    public static final int TRIP_INVALID = 40012;
+
+    /** 出差申请不存在 */
+    public static final int TRIP_NOT_FOUND = 40415;
+
+    /** 出差申请状态不允许该操作 */
+    public static final int TRIP_STATUS_CONFLICT = 40914;
+
+    /** 出差起止日期非法 */
+    public static final int TRIP_INVALID_PERIOD = 40915;
+
+    /** 出差报告不允许提交 */
+    public static final int TRIP_REPORT_NOT_ALLOWED = 40916;
+
     /** 无权操作该审批任务 */
     public static final int APPROVAL_ACTION_FORBIDDEN = 40301;
 
@@ -172,6 +187,11 @@ public final class OaErrorCode {
             Map.entry(OVERTIME_STATUS_CONFLICT, "加班申请当前状态不允许该操作"),
             Map.entry(OVERTIME_PERIOD_OVERLAP, "所选时段与当天已有加班申请重叠"),
             Map.entry(OVERTIME_MONTHLY_LIMIT, "本月加班时长已超过上限"),
+            Map.entry(TRIP_INVALID, "出差参数非法，请检查目的地、金额与行程"),
+            Map.entry(TRIP_NOT_FOUND, "出差申请不存在或无权访问"),
+            Map.entry(TRIP_STATUS_CONFLICT, "出差申请当前状态不允许该操作"),
+            Map.entry(TRIP_INVALID_PERIOD, "出差起止日期非法"),
+            Map.entry(TRIP_REPORT_NOT_ALLOWED, "出差报告当前不允许提交"),
             Map.entry(APPROVAL_ACTION_FORBIDDEN, "无权操作该审批任务"),
             Map.entry(APPROVAL_TASK_NOT_FOUND, "审批任务不存在或已不可操作"),
             Map.entry(APPROVAL_DELEGATE_NOT_FOUND, "代理规则不存在或无权访问"),

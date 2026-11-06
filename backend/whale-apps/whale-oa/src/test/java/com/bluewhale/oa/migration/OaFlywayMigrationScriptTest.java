@@ -192,6 +192,32 @@ class OaFlywayMigrationScriptTest {
     }
 
     /**
+     * V6 新建出差申请、行程与预支表，并种子 TRIP 审批配置
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("V6 出差表集合与审批种子完整")
+    void v6ShouldCreateTripTablesAndSeedConfigs() throws IOException {
+        Path v6 = MIGRATION_DIR.resolve("V6__oa_m1b_trip.sql");
+        Set<String> tables = extractTables(v6);
+        assertEquals(Set.of("oa_trip", "oa_trip_itinerary", "oa_trip_advance"), tables,
+                "V6 建表集合与 M1B-2 设计不一致");
+
+        String script = Files.readString(v6, StandardCharsets.UTF_8);
+        for (String column : List.of("tenant_id", "code", "applicant", "destination", "start_date",
+                "end_date", "days", "transport_type", "budget_amount", "advance_amount",
+                "report_status", "report_content", "report_time", "status", "approval_instance_id")) {
+            assertTrue(script.contains(column), "V6 oa_trip 应包含列：" + column);
+        }
+        assertTrue(script.contains("'TRIP'"), "V6 应种子 TRIP 业务类型");
+        assertTrue(script.contains("'OA_TRIP'"), "V6 应绑定 OA_TRIP 流程定义");
+        assertTrue(script.contains("DEPT_LEADER"), "V6 应种子部门负责人审批规则");
+        assertTrue(script.contains("uk_oa_trip_code"), "V6 应建立单号唯一索引");
+        assertTrue(script.contains("uk_oa_trip_advance_trip"), "V6 应保证每单最多一条预支记录");
+    }
+
+    /**
      * 列出迁移脚本并按文件名字典序返回
      *
      * @return 迁移脚本路径
