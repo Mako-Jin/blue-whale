@@ -40,6 +40,39 @@ public final class LmsPermissions {
     /** 学习进度上报 */
     public static final String LEARNING_PROGRESS = "sys:lms:learning:progress";
 
+    /** 培训班列表 / 详情 */
+    public static final String TRAINING_LIST = "sys:lms:training:list";
+
+    /** 新建培训班 */
+    public static final String TRAINING_CREATE = "sys:lms:training:create";
+
+    /** 编辑培训班 */
+    public static final String TRAINING_UPDATE = "sys:lms:training:update";
+
+    /** 逻辑删除培训班 */
+    public static final String TRAINING_DELETE = "sys:lms:training:delete";
+
+    /** 培训班发布 / 结课 */
+    public static final String TRAINING_STATUS = "sys:lms:training:status";
+
+    /** 场次维护 */
+    public static final String TRAINING_SESSION = "sys:lms:training:session";
+
+    /** 必修分配 */
+    public static final String TRAINING_ASSIGN = "sys:lms:training:assign";
+
+    /** 自助签到 */
+    public static final String TRAINING_CHECKIN = "sys:lms:training:checkin";
+
+    /** 补签与签到明细查看 */
+    public static final String TRAINING_CHECKIN_MANAGE = "sys:lms:training:checkin:manage";
+
+    /** 讲师课时台账 */
+    public static final String TRAINING_HOURS = "sys:lms:training:hours";
+
+    /** 完成认定（签到 + 课程进度） */
+    public static final String TRAINING_COMPLETION = "sys:lms:training:completion";
+
     /**
      * 私有构造器：常量类，禁止实例化。
      */

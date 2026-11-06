@@ -31,4 +31,10 @@ public class LmsProperties {
 
     /** 报进度百分比上限 */
     private int progressMaxPercent = 100;
+
+    /** 场次结束后允许自助签到的宽限分钟数（负数按 0 处理） */
+    private int checkinGraceMinutes = 30;
+
+    /** 单次必修分配的人数上限 */
+    private int assignBatchLimit = 500;
 }

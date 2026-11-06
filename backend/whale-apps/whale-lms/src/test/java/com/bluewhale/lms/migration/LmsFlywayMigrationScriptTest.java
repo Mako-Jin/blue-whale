@@ -104,6 +104,21 @@ class LmsFlywayMigrationScriptTest {
         assertTrue(tables.containsAll(expected), "缺少核心表：" + expected);
     }
 
+    @Test
+    @DisplayName("M2 覆盖培训五张表")
+    void trainingMigrationShouldCoverCoreTables() throws IOException {
+        Set<String> tables = new LinkedHashSet<>();
+        for (Path script : migrationScripts()) {
+            Matcher matcher = CREATE_TABLE.matcher(Files.readString(script, StandardCharsets.UTF_8));
+            while (matcher.find()) {
+                tables.add(matcher.group(1));
+            }
+        }
+        Set<String> expected = Stream.of("lr_training_class", "lr_class_session", "lr_assignment",
+                "lr_checkin", "lr_lecturer_hours").collect(Collectors.toSet());
+        assertTrue(tables.containsAll(expected), "缺少培训核心表：" + expected);
+    }
+
     /**
      * 列出迁移脚本。
      *
