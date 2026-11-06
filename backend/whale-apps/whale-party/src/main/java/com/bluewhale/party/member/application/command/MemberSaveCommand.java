@@ -40,6 +40,13 @@ public class MemberSaveCommand {
     /** 政治面貌：FULL_MEMBER / PROBATIONARY */
     private String politicalStatus;
 
+    /** 出生日期（年龄结构统计，可空） */
+    private LocalDate birthDate;
+
+    /** 学历编码（DOCTOR/MASTER/BACHELOR/COLLEGE/SECONDARY/OTHER，可空） */
+    @Size(max = 32, message = "学历编码不得超过 32 字符")
+    private String education;
+
     /** 入党日期 */
     @NotNull(message = "入党日期不能为空")
     private LocalDate joinPartyDate;

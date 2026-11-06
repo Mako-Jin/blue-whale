@@ -3,9 +3,14 @@ package com.bluewhale.party.union.application.service;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.party.common.PartyActor;
 import com.bluewhale.party.union.application.command.ActivitySaveCommand;
+import com.bluewhale.party.union.application.view.UnionActivityMetricView;
+import com.bluewhale.party.union.application.view.UnionActivityNoticeView;
 import com.bluewhale.party.union.application.view.UnionActivityView;
 import com.bluewhale.party.union.application.view.UnionSignupView;
 import com.bluewhale.party.union.domain.model.UnionActivityQuery;
+
+import java.time.LocalDate;
+import java.util.List;
 
 /**
  * 工会活动应用服务。
@@ -138,4 +143,29 @@ public interface UnionActivityAppService {
      * @return 分页结果
      */
     PageResult<UnionSignupView> my(Long current, Long size, PartyActor actor);
+
+    /**
+     * 工会活动统计（M-P4，年度内已结束活动）。
+     *
+     * @param statDate 统计日（空表示当天）
+     * @return 统计视图
+     */
+    UnionActivityMetricView metrics(LocalDate statDate);
+
+    /**
+     * 即将开始的已发布活动（活动通知扫描用）。
+     *
+     * @param asOf 基准日
+     * @return 活动列表
+     */
+    List<UnionActivityNoticeView> upcoming(LocalDate asOf);
+
+    /**
+     * 年度内去重参与人数（活动参与率分子）。
+     *
+     * @param from 起（含）
+     * @param to 止（不含）
+     * @return 去重参与人数
+     */
+    long distinctParticipants(LocalDate from, LocalDate to);
 }

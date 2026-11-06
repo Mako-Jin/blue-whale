@@ -44,6 +44,12 @@ public class MemberView {
     /** 政治面貌标签 */
     private String politicalLabel;
 
+    /** 出生日期 */
+    private LocalDate birthDate;
+
+    /** 学历编码 */
+    private String education;
+
     /** 入党日期 */
     private LocalDate joinPartyDate;
 
@@ -91,6 +97,8 @@ public class MemberView {
         view.setUserId(member.getUserId());
         view.setMemberName(member.getMemberName());
         view.setBranchId(member.getBranchId());
+        view.setBirthDate(member.getBirthDate());
+        view.setEducation(member.getEducation());
         view.setJoinPartyDate(member.getJoinPartyDate());
         view.setFullMemberDate(member.getFullMemberDate());
         view.setPartyAgeYears(member.partyAgeYears(LocalDate.now()));

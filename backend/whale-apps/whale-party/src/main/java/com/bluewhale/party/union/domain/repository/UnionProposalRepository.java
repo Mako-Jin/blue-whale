@@ -3,6 +3,7 @@ package com.bluewhale.party.union.domain.repository;
 import com.bluewhale.party.union.domain.model.UnionProposal;
 import com.bluewhale.party.union.domain.model.UnionProposalQuery;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -46,4 +47,13 @@ public interface UnionProposalRepository {
      * @return 主键
      */
     Long save(UnionProposal proposal);
+
+    /**
+     * 查询创建时间落在区间内的提案（办结率口径）。
+     *
+     * @param from 起始时间（含）
+     * @param to 结束时间（不含）
+     * @return 提案列表
+     */
+    List<UnionProposal> listByCreateTimeBetween(LocalDateTime from, LocalDateTime to);
 }

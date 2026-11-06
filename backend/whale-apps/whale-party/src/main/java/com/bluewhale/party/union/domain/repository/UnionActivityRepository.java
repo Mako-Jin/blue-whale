@@ -4,6 +4,7 @@ import com.bluewhale.party.union.domain.model.UnionActivity;
 import com.bluewhale.party.union.domain.model.UnionActivityQuery;
 import com.bluewhale.party.union.domain.model.UnionSignup;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -135,4 +136,21 @@ public interface UnionActivityRepository {
      * @return 总数
      */
     long countMySignups(Long userId);
+
+    /**
+     * 查询开始时间落在区间内的活动（参与率与活动通知口径）。
+     *
+     * @param from 起始时间（含）
+     * @param to 结束时间（不含）
+     * @return 活动列表
+     */
+    List<UnionActivity> listByStartBetween(LocalDateTime from, LocalDateTime to);
+
+    /**
+     * 按活动集合查询报名记录（参与率去重统计用）。
+     *
+     * @param activityIds 活动 ID 集合
+     * @return 报名列表
+     */
+    List<UnionSignup> listSignupsByActivityIds(Collection<Long> activityIds);
 }

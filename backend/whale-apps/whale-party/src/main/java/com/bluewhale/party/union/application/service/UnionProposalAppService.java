@@ -6,8 +6,11 @@ import com.bluewhale.party.union.application.command.ProposalFeedbackCommand;
 import com.bluewhale.party.union.application.command.ProposalHandleCommand;
 import com.bluewhale.party.union.application.command.ProposalRateCommand;
 import com.bluewhale.party.union.application.command.ProposalSaveCommand;
+import com.bluewhale.party.union.application.view.UnionProposalMetricView;
 import com.bluewhale.party.union.application.view.UnionProposalView;
 import com.bluewhale.party.union.domain.model.UnionProposalQuery;
+
+import java.time.LocalDate;
 
 /**
  * 职代会提案应用服务。
@@ -104,4 +107,12 @@ public interface UnionProposalAppService {
      * @return 视图
      */
     UnionProposalView rate(Long id, ProposalRateCommand command, PartyActor actor);
+
+    /**
+     * 提案办理统计（M-P4，年度内提交口径）。
+     *
+     * @param statDate 统计日（空表示当天）
+     * @return 统计视图
+     */
+    UnionProposalMetricView metrics(LocalDate statDate);
 }

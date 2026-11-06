@@ -8,7 +8,9 @@ import com.bluewhale.party.config.PartyProperties;
 import com.bluewhale.party.union.application.command.UnionMemberSaveCommand;
 import com.bluewhale.party.union.application.command.UnionMemberWithdrawCommand;
 import com.bluewhale.party.union.application.service.UnionMemberAppService;
+import com.bluewhale.party.union.application.view.UnionMemberMetricView;
 import com.bluewhale.party.union.application.view.UnionMemberView;
+import com.bluewhale.party.union.application.view.UnionNoticeTargetView;
 import com.bluewhale.party.union.domain.model.UnionMember;
 import com.bluewhale.party.union.domain.model.UnionMemberQuery;
 import com.bluewhale.party.union.domain.model.UnionMemberStatus;
@@ -102,6 +104,28 @@ public class UnionMemberAppServiceImpl implements UnionMemberAppService {
         member.withdraw(safe.getWithdrawDate());
         unionMemberRepository.save(member);
         return UnionMemberView.from(member);
+    }
+
+    @Override
+    public UnionMemberMetricView metrics() {
+        assertGate();
+        UnionMemberMetricView view = new UnionMemberMetricView();
+        view.setActiveMembers(unionMemberRepository.listActive().size());
+        return view;
+    }
+
+    @Override
+    public List<UnionNoticeTargetView> noticeTargets() {
+        assertGate();
+        return unionMemberRepository.listActive().stream()
+                .filter(member -> member.getUserId() != null && member.getUserId() > 0)
+                .map(member -> {
+                    UnionNoticeTargetView view = new UnionNoticeTargetView();
+                    view.setMemberId(member.getId());
+                    view.setMemberName(member.getMemberName());
+                    view.setUserId(member.getUserId());
+                    return view;
+                }).toList();
     }
 
     /**

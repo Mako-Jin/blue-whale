@@ -8,12 +8,15 @@ import com.bluewhale.party.config.PartyProperties;
 import com.bluewhale.party.fee.application.command.FeePayCommand;
 import com.bluewhale.party.fee.application.command.FeeRuleSaveCommand;
 import com.bluewhale.party.fee.application.service.FeeAppService;
+import com.bluewhale.party.fee.application.view.FeeBillNoticeView;
 import com.bluewhale.party.fee.application.view.FeeBillView;
 import com.bluewhale.party.fee.application.view.FeeGenerateResultView;
+import com.bluewhale.party.fee.application.view.FeeMetricView;
 import com.bluewhale.party.fee.application.view.FeeRuleView;
 import com.bluewhale.party.fee.domain.model.DuesCalculator;
 import com.bluewhale.party.fee.domain.model.FeeBill;
 import com.bluewhale.party.fee.domain.model.FeeBillQuery;
+import com.bluewhale.party.fee.domain.model.FeeBillStatus;
 import com.bluewhale.party.fee.domain.model.FeeRule;
 import com.bluewhale.party.fee.domain.repository.FeeBillRepository;
 import com.bluewhale.party.fee.domain.repository.FeeRuleRepository;
@@ -174,6 +177,58 @@ public class FeeAppServiceImpl implements FeeAppService {
         bill.validate();
         feeBillRepository.save(bill);
         return FeeBillView.from(bill);
+    }
+
+    @Override
+    public FeeMetricView metrics(String periodMonth, Long branchId) {
+        assertGate();
+        if (!FeeBill.isValidPeriod(periodMonth)) {
+            throw PartyErrorCode.exception(PartyErrorCode.FEE_INVALID, "所属月份格式应为 yyyyMM");
+        }
+        FeeMetricView view = new FeeMetricView();
+        for (FeeBill bill : feeBillRepository.listByPeriod(periodMonth, branchId)) {
+            if (bill.getStatus() == FeeBillStatus.WAIVED) {
+                continue;
+            }
+            view.setDueAmount(view.getDueAmount().add(amountOf(bill.getDueAmount())));
+            view.setPaidAmount(view.getPaidAmount().add(amountOf(bill.getPaidAmount())));
+            view.setDueBillCount(view.getDueBillCount() + 1);
+            if (bill.getStatus() == FeeBillStatus.PAID) {
+                view.setPaidBillCount(view.getPaidBillCount() + 1);
+            }
+        }
+        return view;
+    }
+
+    @Override
+    public List<FeeBillNoticeView> outstandingBills(String periodMonth) {
+        assertGate();
+        if (!FeeBill.isValidPeriod(periodMonth)) {
+            throw PartyErrorCode.exception(PartyErrorCode.FEE_INVALID, "所属月份格式应为 yyyyMM");
+        }
+        return feeBillRepository.listByPeriod(periodMonth, null).stream()
+                .filter(FeeBill::isOutstanding)
+                .map(bill -> {
+                    FeeBillNoticeView view = new FeeBillNoticeView();
+                    view.setBillId(bill.getId());
+                    view.setMemberId(bill.getMemberId());
+                    view.setMemberName(bill.getMemberName());
+                    view.setPeriodMonth(bill.getPeriodMonth());
+                    view.setDueAmount(amountOf(bill.getDueAmount()));
+                    view.setOutstandingAmount(amountOf(bill.getDueAmount())
+                            .subtract(amountOf(bill.getPaidAmount())));
+                    return view;
+                }).toList();
+    }
+
+    /**
+     * 金额空值按 0 处理。
+     *
+     * @param amount 金额
+     * @return 非空金额
+     */
+    private BigDecimal amountOf(BigDecimal amount) {
+        return amount == null ? BigDecimal.ZERO : amount;
     }
 
     /**

@@ -7,7 +7,7 @@
 //   sys:party:content:list/manage/audit（1959/1960/1961）。
 // 路径前缀 `/party` 由网关注入，网关不剥离一级前缀（REQ-ARCH-003）。
 
-import { http, type PageResult } from './client';
+import { getToken, http, type PageResult } from './client';
 
 /** 门禁状态 */
 export interface PartyMeta {
@@ -141,6 +141,8 @@ export interface MemberView {
   branchName?: string | null;
   politicalStatus: string;
   politicalLabel: string;
+  birthDate?: string | null;
+  education?: string | null;
   joinPartyDate: string;
   fullMemberDate?: string | null;
   partyAgeYears: number;
@@ -160,6 +162,8 @@ export interface MemberSaveCommand {
   memberName: string;
   branchId: number;
   politicalStatus?: string;
+  birthDate?: string | null;
+  education?: string | null;
   joinPartyDate: string;
   duesBase?: number | null;
   phone?: string | null;
@@ -1408,4 +1412,222 @@ export function pageUnionProposalPortal(
  */
 export function getUnionProposalPortal(id: number): Promise<UnionProposalView> {
   return http.get<UnionProposalView>(`/party/union/proposal/portal/${id}`);
+}
+
+// ---------------------------------------------------------------------
+// M-P4 看板与收口：统计快照 / 脱敏导出 / 通知留痕 / 员工快照同步
+// ---------------------------------------------------------------------
+
+/** 单项指标 */
+export interface MetricItemView {
+  metricType: string;
+  label: string;
+  numerator: number;
+  denominator: number;
+  rate: number;
+  ratio: boolean;
+}
+
+/** 趋势点 */
+export interface MetricTrendPointView {
+  statDate: string;
+  numerator: number;
+  denominator: number;
+  rate: number;
+}
+
+/** 看板总览（live=true 表示当日无快照、为实时计算） */
+export interface MetricOverviewView {
+  statDate: string;
+  scopeType: string;
+  scopeId: number;
+  scopeName: string;
+  live: boolean;
+  items: MetricItemView[];
+  trend: MetricTrendPointView[];
+}
+
+/** 通知留痕视图 */
+export interface NotifyLogView {
+  id: number;
+  scene?: string | null;
+  sceneLabel?: string | null;
+  idempotencyKey: string;
+  bizType?: string | null;
+  bizId?: number | null;
+  userId: number;
+  title: string;
+  sendStatus: string;
+  sendStatusLabel: string;
+  failReason?: string | null;
+  sentAt?: string | null;
+}
+
+/** 通知扫描结果 */
+export interface NoticeScanResultView {
+  sentByScene: Record<string, number>;
+  totalSent: number;
+}
+
+/** 员工快照同步结果 */
+export interface EmployeeSyncResultView {
+  sourceTotal: number;
+  created: number;
+  updated: number;
+  skipped: number;
+  activeTotal: number;
+}
+
+/** 通知留痕查询条件 */
+export interface NotifyLogQuery {
+  scene?: string;
+  userId?: number;
+  sendStatus?: string;
+  idempotencyKey?: string;
+  current?: number;
+  size?: number;
+}
+
+/**
+ * 党务看板总览。
+ *
+ * @param statDate 统计日
+ * @param branchId 支部 ID
+ * @returns 总览
+ */
+export function getPartyOverview(statDate?: string, branchId?: number): Promise<MetricOverviewView> {
+  return http.get<MetricOverviewView>('/party/metric/overview', { statDate, branchId });
+}
+
+/**
+ * 刷新党务快照（覆盖写当日数据）。
+ *
+ * @param statDate 统计日
+ * @returns 全租户指标
+ */
+export function refreshPartyMetric(statDate?: string): Promise<MetricItemView[]> {
+  return http.post<MetricItemView[]>(`/party/metric/refresh${statDate ? `?statDate=${statDate}` : ''}`);
+}
+
+/**
+ * 工会看板总览。
+ *
+ * @param statDate 统计日
+ * @returns 总览
+ */
+export function getUnionOverview(statDate?: string): Promise<MetricOverviewView> {
+  return http.get<MetricOverviewView>('/party/union/metric/overview', { statDate });
+}
+
+/**
+ * 刷新工会快照。
+ *
+ * @param statDate 统计日
+ * @returns 指标
+ */
+export function refreshUnionMetric(statDate?: string): Promise<MetricItemView[]> {
+  return http.post<MetricItemView[]>(`/party/union/metric/refresh${statDate ? `?statDate=${statDate}` : ''}`);
+}
+
+/**
+ * 通知留痕分页。
+ *
+ * @param query 查询条件
+ * @returns 分页结果
+ */
+export function pageNotifyLogs(query: NotifyLogQuery): Promise<PageResult<NotifyLogView>> {
+  return http.get<PageResult<NotifyLogView>>('/party/notice/page', { ...query });
+}
+
+/**
+ * 扫描并发送党务提醒（转正 / 党费 / 组织生活 / 换届）。
+ *
+ * @returns 扫描结果
+ */
+export function scanPartyNotices(): Promise<NoticeScanResultView> {
+  return http.post<NoticeScanResultView>('/party/notice/scan');
+}
+
+/**
+ * 扫描并发送工会活动提醒。
+ *
+ * @returns 扫描结果
+ */
+export function scanUnionNotices(): Promise<NoticeScanResultView> {
+  return http.post<NoticeScanResultView>('/party/union/notice/scan');
+}
+
+/**
+ * 同步 ERP 员工目录快照（覆盖率分母）。
+ *
+ * @returns 同步结果
+ */
+export function syncEmployeeSnapshot(): Promise<EmployeeSyncResultView> {
+  return http.post<EmployeeSyncResultView>('/party/integration/employee/sync');
+}
+
+/**
+ * 下载脱敏 CSV（聚合数，不含个人信息）。
+ *
+ * <p>导出接口直接返回文件字节而不是 Result 信封，因此不能复用 http 客户端；
+ * 这里手动带 token 取 blob 并触发浏览器下载。</p>
+ *
+ * @param path 导出路径
+ * @param filename 下载文件名
+ */
+async function downloadCsv(path: string, filename: string): Promise<void> {
+  const token = getToken();
+  const response = await fetch(path, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!response.ok) {
+    throw new Error(`导出失败（HTTP ${response.status}）`);
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * 导出党务看板 CSV。
+ *
+ * @param from 起始统计日
+ * @param to 结束统计日
+ * @param branchId 支部 ID
+ */
+export function exportPartyMetric(from?: string, to?: string, branchId?: number): Promise<void> {
+  const params = new URLSearchParams();
+  if (from) {
+    params.set('from', from);
+  }
+  if (to) {
+    params.set('to', to);
+  }
+  if (branchId) {
+    params.set('branchId', String(branchId));
+  }
+  const query = params.toString();
+  return downloadCsv(`/party/metric/export${query ? `?${query}` : ''}`, 'party-metric.csv');
+}
+
+/**
+ * 导出工会看板 CSV。
+ *
+ * @param from 起始统计日
+ * @param to 结束统计日
+ */
+export function exportUnionMetric(from?: string, to?: string): Promise<void> {
+  const params = new URLSearchParams();
+  if (from) {
+    params.set('from', from);
+  }
+  if (to) {
+    params.set('to', to);
+  }
+  const query = params.toString();
+  return downloadCsv(`/party/union/metric/export${query ? `?${query}` : ''}`, 'union-metric.csv');
 }

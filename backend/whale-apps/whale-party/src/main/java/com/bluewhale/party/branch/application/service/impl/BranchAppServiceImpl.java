@@ -3,6 +3,8 @@ package com.bluewhale.party.branch.application.service.impl;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.party.branch.application.command.BranchSaveCommand;
 import com.bluewhale.party.branch.application.service.BranchAppService;
+import com.bluewhale.party.branch.application.view.BranchScopeView;
+import com.bluewhale.party.branch.application.view.BranchTermDueView;
 import com.bluewhale.party.branch.application.view.BranchTreeView;
 import com.bluewhale.party.branch.application.view.BranchView;
 import com.bluewhale.party.branch.domain.model.Branch;
@@ -13,13 +15,17 @@ import com.bluewhale.party.common.PartyActor;
 import com.bluewhale.party.common.PartyErrorCode;
 import com.bluewhale.party.common.sequence.PartySequenceService;
 import com.bluewhale.party.config.PartyProperties;
+import com.bluewhale.party.member.domain.model.PartyMember;
 import com.bluewhale.party.member.domain.repository.PartyMemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -153,6 +159,76 @@ public class BranchAppServiceImpl implements BranchAppService {
         }
         branchRepository.save(branch);
         return BranchView.from(branch);
+    }
+
+    @Override
+    public List<BranchTermDueView> termDue(Integer withinDays, PartyActor actor) {
+        assertGate();
+        int days = withinDays == null || withinDays < 0 ? properties.getBranchTermReminderDays() : withinDays;
+        Long scopeBranchId = secretaryBranchId(actor);
+        if (scopeBranchId != null && scopeBranchId < 0) {
+            return List.of();
+        }
+        LocalDate today = LocalDate.now();
+        List<BranchTermDueView> list = new ArrayList<>();
+        for (Branch branch : branchRepository.listAll()) {
+            if (!branch.isActive() || branch.getEstablishedDate() == null) {
+                continue;
+            }
+            if (scopeBranchId != null && !scopeBranchId.equals(branch.getId())) {
+                continue;
+            }
+            LocalDate termDate = branch.getEstablishedDate().plusYears(properties.getBranchTermYears());
+            long remaining = ChronoUnit.DAYS.between(today, termDate);
+            if (remaining > days) {
+                continue;
+            }
+            BranchTermDueView view = new BranchTermDueView();
+            view.setBranchId(branch.getId());
+            view.setBranchName(branch.getBranchName());
+            view.setEstablishedDate(branch.getEstablishedDate());
+            view.setTermDate(termDate);
+            view.setRemainingDays(remaining);
+            view.setSecretaryName(branch.getSecretaryName());
+            view.setSecretaryUserId(branch.getSecretaryUserId());
+            list.add(view);
+        }
+        list.sort(Comparator.comparingLong(BranchTermDueView::getRemainingDays));
+        return list;
+    }
+
+    @Override
+    public List<BranchScopeView> activeScopes() {
+        assertGate();
+        List<BranchScopeView> scopes = new ArrayList<>();
+        for (Branch branch : branchRepository.listAll()) {
+            if (!branch.isActive()) {
+                continue;
+            }
+            BranchScopeView view = new BranchScopeView();
+            view.setBranchId(branch.getId());
+            view.setBranchName(branch.getBranchName());
+            scopes.add(view);
+        }
+        return scopes;
+    }
+
+    /**
+     * 支部书记的数据范围：全量角色返回 null，书记返回本人支部（无档案返回 -1）。
+     *
+     * @param actor 操作人
+     * @return 支部 ID；null 表示不限制
+     */
+    private Long secretaryBranchId(PartyActor actor) {
+        if (actor == null || actor.canManageAll() || !actor.isBranchSecretary()) {
+            return null;
+        }
+        if (actor.getUserId() == null) {
+            return -1L;
+        }
+        return memberRepository.findByUserId(actor.getUserId())
+                .map(PartyMember::getBranchId)
+                .orElse(-1L);
     }
 
     /**

@@ -4,6 +4,7 @@ import com.bluewhale.party.activity.domain.model.ActivitySignin;
 import com.bluewhale.party.activity.domain.model.PartyActivity;
 import com.bluewhale.party.activity.domain.model.PartyActivityQuery;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -71,4 +72,24 @@ public interface PartyActivityRepository {
      * @return 到会人数
      */
     long countPresent(Long activityId);
+
+    /**
+     * 查询计划日期落在区间内的组织生活（三会一课计划数口径）。
+     *
+     * @param from 起始日（含）
+     * @param to 结束日（不含）
+     * @param branchId 支部 ID（为空表示全租户）
+     * @return 列表
+     */
+    List<PartyActivity> listPlannedBetween(LocalDate from, LocalDate to, Long branchId);
+
+    /**
+     * 查询实际召开日期落在区间内的组织生活（开展数与参会率口径）。
+     *
+     * @param from 起始日（含）
+     * @param to 结束日（不含）
+     * @param branchId 支部 ID（为空表示全租户）
+     * @return 列表
+     */
+    List<PartyActivity> listHeldBetween(LocalDate from, LocalDate to, Long branchId);
 }

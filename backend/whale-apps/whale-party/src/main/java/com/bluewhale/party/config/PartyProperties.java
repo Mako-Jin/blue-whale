@@ -51,4 +51,31 @@ public class PartyProperties {
 
     /** 慰问审批流程定义编码（workflow，M-P3） */
     private String reliefDefinitionCode = "UNION_RELIEF";
+
+    /** 看板趋势展示天数（含统计日往前推算，M-P4） */
+    private int metricTrendDays = 30;
+
+    /** 单次导出统计区间上限（天，M-P4） */
+    private int exportMaxDays = 366;
+
+    /** 支部换届届期（年，M-P4） */
+    private int branchTermYears = 5;
+
+    /** 换届到期提前提醒天数（M-P4） */
+    private int branchTermReminderDays = 90;
+
+    /** 预备党员转正提前提醒天数（M-P4） */
+    private int probationReminderDays = 30;
+
+    /** 活动通知提前天数（仅通知该窗口内即将开始的活动，M-P4） */
+    private int activityNoticeDays = 7;
+
+    /** 通知留痕单页上限（M-P4） */
+    private int noticePageLimit = 100;
+
+    /** 通知扫描定时表达式（M-P4，默认每天 09:00） */
+    private String noticeCron = "0 0 9 * * *";
+
+    /** ERP 员工目录同步单页条数（M-P4） */
+    private int employeeSyncPageSize = 500;
 }

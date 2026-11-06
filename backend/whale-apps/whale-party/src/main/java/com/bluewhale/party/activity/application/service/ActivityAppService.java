@@ -3,11 +3,14 @@ package com.bluewhale.party.activity.application.service;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.party.activity.application.command.ActivitySaveCommand;
 import com.bluewhale.party.activity.application.command.ActivitySigninCommand;
+import com.bluewhale.party.activity.application.view.ActivityMetricView;
+import com.bluewhale.party.activity.application.view.ActivityNoticeView;
 import com.bluewhale.party.activity.application.view.ActivityView;
 import com.bluewhale.party.activity.domain.model.PartyActivityQuery;
 import com.bluewhale.party.common.PartyActor;
 
 import java.time.LocalDate;
+import java.util.List;
 
 /**
  * 组织生活应用服务（M-P1）。
@@ -82,4 +85,21 @@ public interface ActivityAppService {
      * @return 视图（含签到明细）
      */
     ActivityView signin(Long id, ActivitySigninCommand command, PartyActor actor);
+
+    /**
+     * 组织生活统计（M-P4，按统计日所在月份）。
+     *
+     * @param statDate 统计日（空表示当天）
+     * @param branchId 支部 ID（空表示全租户）
+     * @return 统计视图
+     */
+    ActivityMetricView metrics(LocalDate statDate, Long branchId);
+
+    /**
+     * 即将开始的党务活动（活动通知扫描用）。
+     *
+     * @param asOf 基准日
+     * @return 活动列表
+     */
+    List<ActivityNoticeView> upcoming(LocalDate asOf);
 }

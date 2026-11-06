@@ -76,6 +76,14 @@ public interface PartyMemberRepository {
     long countActiveByBranch(Long branchId);
 
     /**
+     * 查询在册党员（年龄/党龄/学历结构统计用）。
+     *
+     * @param branchId 支部 ID（为空表示全租户）
+     * @return 在册党员列表
+     */
+    List<PartyMember> listActive(Long branchId);
+
+    /**
      * 保存档案（主键为空时插入，否则更新）。
      *
      * @param member 档案

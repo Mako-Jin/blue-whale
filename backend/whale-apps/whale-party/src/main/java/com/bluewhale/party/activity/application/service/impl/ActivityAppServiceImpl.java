@@ -4,8 +4,11 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.party.activity.application.command.ActivitySaveCommand;
 import com.bluewhale.party.activity.application.command.ActivitySigninCommand;
 import com.bluewhale.party.activity.application.service.ActivityAppService;
+import com.bluewhale.party.activity.application.view.ActivityMetricView;
+import com.bluewhale.party.activity.application.view.ActivityNoticeView;
 import com.bluewhale.party.activity.application.view.ActivityView;
 import com.bluewhale.party.activity.domain.model.ActivitySignin;
+import com.bluewhale.party.activity.domain.model.ActivityStatus;
 import com.bluewhale.party.activity.domain.model.ActivityType;
 import com.bluewhale.party.activity.domain.model.PartyActivity;
 import com.bluewhale.party.activity.domain.model.PartyActivityQuery;
@@ -156,6 +159,47 @@ public class ActivityAppServiceImpl implements ActivityAppService {
             partyActivityRepository.saveSignin(signin);
         }
         return detail(id, actor);
+    }
+
+    @Override
+    public ActivityMetricView metrics(LocalDate statDate, Long branchId) {
+        assertGate();
+        LocalDate date = statDate == null ? LocalDate.now() : statDate;
+        LocalDate from = date.withDayOfMonth(1);
+        LocalDate to = from.plusMonths(1);
+        ActivityMetricView view = new ActivityMetricView();
+        view.setPlannedCount(partyActivityRepository.listPlannedBetween(from, to, branchId).size());
+        List<PartyActivity> held = partyActivityRepository.listHeldBetween(from, to, branchId);
+        view.setHeldCount(held.size());
+        long signinCount = 0L;
+        long presentCount = 0L;
+        for (PartyActivity activity : held) {
+            List<ActivitySignin> signins = partyActivityRepository.listSignins(activity.getId());
+            signinCount += signins.size();
+            presentCount += signins.stream().filter(ActivitySignin::isPresent).count();
+        }
+        view.setSigninCount(signinCount);
+        view.setPresentCount(presentCount);
+        return view;
+    }
+
+    @Override
+    public List<ActivityNoticeView> upcoming(LocalDate asOf) {
+        assertGate();
+        LocalDate date = asOf == null ? LocalDate.now() : asOf;
+        LocalDate to = date.plusDays(properties.getActivityNoticeDays()).plusDays(1);
+        Map<Long, String> branchNames = branchNameIndex();
+        return partyActivityRepository.listPlannedBetween(date, to, null).stream()
+                .filter(activity -> activity.getStatus() == ActivityStatus.PLANNED)
+                .map(activity -> {
+                    ActivityNoticeView view = new ActivityNoticeView();
+                    view.setActivityId(activity.getId());
+                    view.setTitle(activity.getTitle());
+                    view.setBranchId(activity.getBranchId());
+                    view.setBranchName(branchNames.get(activity.getBranchId()));
+                    view.setPlannedDate(activity.getPlannedDate());
+                    return view;
+                }).toList();
     }
 
     /**

@@ -16,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -97,6 +98,28 @@ public class PartyActivityRepositoryImpl implements PartyActivityRepository {
         return activitySigninMapper.selectCount(new LambdaQueryWrapper<ActivitySigninEntity>()
                 .eq(ActivitySigninEntity::getActivityId, activityId)
                 .eq(ActivitySigninEntity::getPresent, PRESENT));
+    }
+
+    @Override
+    public List<PartyActivity> listPlannedBetween(LocalDate from, LocalDate to, Long branchId) {
+        LambdaQueryWrapper<PartyActivityEntity> wrapper = new LambdaQueryWrapper<PartyActivityEntity>()
+                .ge(PartyActivityEntity::getPlannedDate, from)
+                .lt(PartyActivityEntity::getPlannedDate, to);
+        if (branchId != null) {
+            wrapper.eq(PartyActivityEntity::getBranchId, branchId);
+        }
+        return partyActivityMapper.selectList(wrapper).stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public List<PartyActivity> listHeldBetween(LocalDate from, LocalDate to, Long branchId) {
+        LambdaQueryWrapper<PartyActivityEntity> wrapper = new LambdaQueryWrapper<PartyActivityEntity>()
+                .ge(PartyActivityEntity::getHeldDate, from)
+                .lt(PartyActivityEntity::getHeldDate, to);
+        if (branchId != null) {
+            wrapper.eq(PartyActivityEntity::getBranchId, branchId);
+        }
+        return partyActivityMapper.selectList(wrapper).stream().map(this::toDomain).toList();
     }
 
     /**

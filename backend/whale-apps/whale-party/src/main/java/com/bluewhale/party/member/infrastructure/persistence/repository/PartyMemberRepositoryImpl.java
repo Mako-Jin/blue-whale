@@ -82,6 +82,16 @@ public class PartyMemberRepositoryImpl implements PartyMemberRepository {
     }
 
     @Override
+    public List<PartyMember> listActive(Long branchId) {
+        LambdaQueryWrapper<PartyMemberEntity> wrapper = new LambdaQueryWrapper<PartyMemberEntity>()
+                .eq(PartyMemberEntity::getStatus, MemberStatus.ACTIVE.name());
+        if (branchId != null) {
+            wrapper.eq(PartyMemberEntity::getBranchId, branchId);
+        }
+        return partyMemberMapper.selectList(wrapper).stream().map(this::toDomain).toList();
+    }
+
+    @Override
     public Long save(PartyMember member) {
         PartyMemberEntity entity = toEntity(member);
         if (entity.getId() == null) {
@@ -157,6 +167,8 @@ public class PartyMemberRepositoryImpl implements PartyMemberRepository {
         member.setMemberName(entity.getMemberName());
         member.setBranchId(entity.getBranchId());
         member.setPoliticalStatus(PoliticalStatus.parse(entity.getPoliticalStatus()));
+        member.setBirthDate(entity.getBirthDate());
+        member.setEducation(entity.getEducation());
         member.setJoinPartyDate(entity.getJoinPartyDate());
         member.setFullMemberDate(entity.getFullMemberDate());
         member.setDuesBase(entity.getDuesBase());
@@ -185,6 +197,8 @@ public class PartyMemberRepositoryImpl implements PartyMemberRepository {
         entity.setBranchId(member.getBranchId());
         entity.setPoliticalStatus(member.getPoliticalStatus() == null
                 ? PoliticalStatus.FULL_MEMBER.name() : member.getPoliticalStatus().name());
+        entity.setBirthDate(member.getBirthDate());
+        entity.setEducation(member.getEducation());
         entity.setJoinPartyDate(member.getJoinPartyDate());
         entity.setFullMemberDate(member.getFullMemberDate());
         entity.setDuesBase(member.getDuesBase());

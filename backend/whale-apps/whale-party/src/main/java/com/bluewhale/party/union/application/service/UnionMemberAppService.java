@@ -4,8 +4,12 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.party.common.PartyActor;
 import com.bluewhale.party.union.application.command.UnionMemberSaveCommand;
 import com.bluewhale.party.union.application.command.UnionMemberWithdrawCommand;
+import com.bluewhale.party.union.application.view.UnionMemberMetricView;
 import com.bluewhale.party.union.application.view.UnionMemberView;
+import com.bluewhale.party.union.application.view.UnionNoticeTargetView;
 import com.bluewhale.party.union.domain.model.UnionMemberQuery;
+
+import java.util.List;
 
 /**
  * 工会会员应用服务（M-P3）。
@@ -62,4 +66,18 @@ public interface UnionMemberAppService {
      * @return 视图
      */
     UnionMemberView withdraw(Long id, UnionMemberWithdrawCommand command, PartyActor actor);
+
+    /**
+     * 工会会员统计（M-P4，覆盖率分子）。
+     *
+     * @return 统计视图
+     */
+    UnionMemberMetricView metrics();
+
+    /**
+     * 工会活动通知接收人（全部在册且开通账号的会员）。
+     *
+     * @return 接收人列表
+     */
+    List<UnionNoticeTargetView> noticeTargets();
 }

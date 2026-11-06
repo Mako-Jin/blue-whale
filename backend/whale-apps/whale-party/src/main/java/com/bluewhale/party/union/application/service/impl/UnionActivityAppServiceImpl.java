@@ -7,6 +7,8 @@ import com.bluewhale.party.common.sequence.PartySequenceService;
 import com.bluewhale.party.config.PartyProperties;
 import com.bluewhale.party.union.application.command.ActivitySaveCommand;
 import com.bluewhale.party.union.application.service.UnionActivityAppService;
+import com.bluewhale.party.union.application.view.UnionActivityMetricView;
+import com.bluewhale.party.union.application.view.UnionActivityNoticeView;
 import com.bluewhale.party.union.application.view.UnionActivityView;
 import com.bluewhale.party.union.application.view.UnionSignupView;
 import com.bluewhale.party.union.domain.model.SignupStatus;
@@ -22,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -242,6 +245,65 @@ public class UnionActivityAppServiceImpl implements UnionActivityAppService {
                         titles.get(signup.getActivityId()), names.get(signup.getUnionMemberId())))
                 .toList();
         return PageResult.of(views, unionActivityRepository.countMySignups(userId), pageCurrent, pageSize);
+    }
+
+    @Override
+    public UnionActivityMetricView metrics(LocalDate statDate) {
+        assertGate();
+        LocalDate date = statDate == null ? LocalDate.now() : statDate;
+        LocalDate yearStart = date.withDayOfYear(1);
+        LocalDate nextYear = yearStart.plusYears(1);
+        List<UnionActivity> activities = unionActivityRepository.listByStartBetween(
+                yearStart.atStartOfDay(), nextYear.atStartOfDay());
+        List<UnionActivity> closed = activities.stream()
+                .filter(activity -> activity.getStatus() == UnionActivityStatus.CLOSED)
+                .toList();
+        UnionActivityMetricView view = new UnionActivityMetricView();
+        view.setClosedCount(closed.size());
+        if (!closed.isEmpty()) {
+            List<Long> ids = closed.stream().map(UnionActivity::getId).toList();
+            view.setSignupCount(unionActivityRepository.listSignupsByActivityIds(ids).stream()
+                    .filter(signup -> signup.getStatus() != null && signup.getStatus().isSigned())
+                    .count());
+        }
+        return view;
+    }
+
+    @Override
+    public List<UnionActivityNoticeView> upcoming(LocalDate asOf) {
+        assertGate();
+        LocalDate date = asOf == null ? LocalDate.now() : asOf;
+        LocalDateTime from = date.atStartOfDay();
+        LocalDateTime to = date.plusDays(properties.getActivityNoticeDays()).plusDays(1).atStartOfDay();
+        return unionActivityRepository.listByStartBetween(from, to).stream()
+                .filter(UnionActivity::isPublished)
+                .map(activity -> {
+                    UnionActivityNoticeView view = new UnionActivityNoticeView();
+                    view.setActivityId(activity.getId());
+                    view.setTitle(activity.getTitle());
+                    view.setStartTime(activity.getStartTime());
+                    view.setLocation(activity.getLocation());
+                    return view;
+                }).toList();
+    }
+
+    @Override
+    public long distinctParticipants(LocalDate from, LocalDate to) {
+        assertGate();
+        List<UnionActivity> activities = unionActivityRepository.listByStartBetween(
+                from.atStartOfDay(), to.atStartOfDay());
+        if (activities.isEmpty()) {
+            return 0L;
+        }
+        List<Long> ids = activities.stream().map(UnionActivity::getId).toList();
+        Set<Long> members = new LinkedHashSet<>();
+        for (UnionSignup signup : unionActivityRepository.listSignupsByActivityIds(ids)) {
+            if (signup.getStatus() != null && signup.getStatus().isSigned()
+                    && signup.getUnionMemberId() != null) {
+                members.add(signup.getUnionMemberId());
+            }
+        }
+        return members.size();
     }
 
     /**

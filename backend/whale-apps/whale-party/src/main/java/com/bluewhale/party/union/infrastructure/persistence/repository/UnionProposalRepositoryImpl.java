@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -60,6 +61,14 @@ public class UnionProposalRepositoryImpl implements UnionProposalRepository {
         proposal.setCreateTime(entity.getCreateTime());
         proposal.setUpdateTime(entity.getUpdateTime());
         return entity.getId();
+    }
+
+    @Override
+    public List<UnionProposal> listByCreateTimeBetween(LocalDateTime from, LocalDateTime to) {
+        return unionProposalMapper.selectList(new LambdaQueryWrapper<UnionProposalEntity>()
+                        .ge(UnionProposalEntity::getCreateTime, from)
+                        .lt(UnionProposalEntity::getCreateTime, to))
+                .stream().map(this::toDomain).toList();
     }
 
     /**

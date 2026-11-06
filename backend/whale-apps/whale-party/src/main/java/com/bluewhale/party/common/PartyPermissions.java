@@ -11,7 +11,9 @@ package com.bluewhale.party.common;
  *
  * <p>M-P0 只登记 1950–1953 四项基线；M-P1 追加 1954–1958（党员查看、组织生活查看/维护、
  * 党费查看/维护）；M-P2 追加 1959–1961（党建内容查看/维护/审核）；
- * M-P3 追加 1970–1980（工会浏览、会员/慰问/福利/活动/提案的查看与维护）。</p>
+ * M-P3 追加 1970–1980（工会浏览、会员/慰问/福利/活动/提案的查看与维护）；
+ * M-P4 追加 1962–1965（党务看板 / 刷新 / 导出 / 通知留痕）与 1981–1982
+ * （工会看板 / 刷新），均取本段空闲号，不越段占用。</p>
  *
  * @author BlueWhale
  */
@@ -53,6 +55,18 @@ public final class PartyPermissions {
     /** 党建内容审核：通过 / 退回（意见必填）/ 下线（1961） */
     public static final String CONTENT_AUDIT = "sys:party:content:audit";
 
+    /** 党务看板与换届到期查看：党员结构 / 收缴率 / 三会一课 / 参会率（1962） */
+    public static final String METRIC_LIST = "sys:party:metric:list";
+
+    /** 统计维护：刷新党务快照 / 触发党务提醒扫描 / ERP 员工同步（1963） */
+    public static final String METRIC_MANAGE = "sys:party:metric:manage";
+
+    /** 党务聚合数据脱敏导出（1964） */
+    public static final String METRIC_EXPORT = "sys:party:metric:export";
+
+    /** 通知留痕查看：场景 / 接收人 / 状态 / 失败原因（1965） */
+    public static final String NOTICE_LIST = "sys:party:notice:list";
+
     /** 工会园地浏览与自助：活动报名 / 提案提交 / 福利签收（1970） */
     public static final String UNION_BROWSE = "sys:union:browse";
 
@@ -85,6 +99,12 @@ public final class PartyPermissions {
 
     /** 提案办理：立案 / 办理 / 反馈（1980） */
     public static final String UNION_PROPOSAL_MANAGE = "sys:union:proposal:manage";
+
+    /** 工会看板查看与导出：会员覆盖率 / 活动参与率 / 提案办结率（1981） */
+    public static final String UNION_METRIC_LIST = "sys:union:metric:list";
+
+    /** 工会统计维护：刷新工会快照 / 触发工会活动通知（1982） */
+    public static final String UNION_METRIC_MANAGE = "sys:union:metric:manage";
 
     /**
      * 私有构造器：常量类，禁止实例化。

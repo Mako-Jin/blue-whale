@@ -16,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
@@ -168,6 +169,25 @@ public class UnionActivityRepositoryImpl implements UnionActivityRepository {
         }
         return unionSignupMapper.selectCount(new LambdaQueryWrapper<UnionSignupEntity>()
                 .eq(UnionSignupEntity::getUserId, userId));
+    }
+
+    @Override
+    public List<UnionActivity> listByStartBetween(LocalDateTime from, LocalDateTime to) {
+        return unionActivityMapper.selectList(new LambdaQueryWrapper<UnionActivityEntity>()
+                        .ge(UnionActivityEntity::getStartTime, from)
+                        .lt(UnionActivityEntity::getStartTime, to)
+                        .orderByAsc(UnionActivityEntity::getStartTime))
+                .stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public List<UnionSignup> listSignupsByActivityIds(Collection<Long> activityIds) {
+        if (activityIds == null || activityIds.isEmpty()) {
+            return List.of();
+        }
+        return unionSignupMapper.selectList(new LambdaQueryWrapper<UnionSignupEntity>()
+                        .in(UnionSignupEntity::getActivityId, activityIds))
+                .stream().map(this::toDomain).toList();
     }
 
     /**

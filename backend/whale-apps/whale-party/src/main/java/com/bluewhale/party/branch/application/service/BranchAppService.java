@@ -2,6 +2,8 @@ package com.bluewhale.party.branch.application.service;
 
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.party.branch.application.command.BranchSaveCommand;
+import com.bluewhale.party.branch.application.view.BranchScopeView;
+import com.bluewhale.party.branch.application.view.BranchTermDueView;
 import com.bluewhale.party.branch.application.view.BranchTreeView;
 import com.bluewhale.party.branch.application.view.BranchView;
 import com.bluewhale.party.branch.domain.model.BranchQuery;
@@ -73,4 +75,20 @@ public interface BranchAppService {
      * @return 支部视图
      */
     BranchView changeStatus(Long id, boolean active, PartyActor actor);
+
+    /**
+     * 换届到期支部（M-P4，M-P1 遗留）。
+     *
+     * @param withinDays 提前天数（空表示取配置值）
+     * @param actor 操作人
+     * @return 到期支部列表（按剩余天数升序）
+     */
+    List<BranchTermDueView> termDue(Integer withinDays, PartyActor actor);
+
+    /**
+     * 在册支部范围（看板按支部刷新与范围收敛用）。
+     *
+     * @return 支部范围列表
+     */
+    List<BranchScopeView> activeScopes();
 }

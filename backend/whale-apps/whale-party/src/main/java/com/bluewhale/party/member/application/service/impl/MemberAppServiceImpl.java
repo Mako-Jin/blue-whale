@@ -10,7 +10,10 @@ import com.bluewhale.party.config.PartyProperties;
 import com.bluewhale.party.member.application.command.MemberSaveCommand;
 import com.bluewhale.party.member.application.command.MemberTransferCommand;
 import com.bluewhale.party.member.application.service.MemberAppService;
+import com.bluewhale.party.member.application.view.MemberMetricView;
+import com.bluewhale.party.member.application.view.MemberNoticeTargetView;
 import com.bluewhale.party.member.application.view.MemberView;
+import com.bluewhale.party.member.application.view.ProbationCandidateView;
 import com.bluewhale.party.member.domain.model.MemberStatus;
 import com.bluewhale.party.member.domain.model.PartyMember;
 import com.bluewhale.party.member.domain.model.PartyMemberQuery;
@@ -22,7 +25,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -38,6 +43,21 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class MemberAppServiceImpl implements MemberAppService {
+
+    /** 年龄分桶（顺序固定，空桶也要出现在看板与导出里） */
+    private static final List<String> AGE_BUCKETS = List.of(
+            "UNDER_30", "30_39", "40_49", "50_59", "60_PLUS", "UNKNOWN");
+
+    /** 党龄分桶 */
+    private static final List<String> PARTY_AGE_BUCKETS = List.of(
+            "UNDER_5", "5_10", "11_20", "21_30", "31_PLUS", "UNKNOWN");
+
+    /** 学历分桶 */
+    private static final List<String> EDUCATION_BUCKETS = List.of(
+            "DOCTOR", "MASTER", "BACHELOR", "COLLEGE", "SECONDARY", "OTHER", "UNKNOWN");
+
+    /** 未知学历桶 */
+    private static final String EDUCATION_UNKNOWN = "UNKNOWN";
 
     private final PartyMemberRepository partyMemberRepository;
 
@@ -136,6 +156,113 @@ public class MemberAppServiceImpl implements MemberAppService {
         return withBranchName(member);
     }
 
+    @Override
+    public MemberMetricView metrics(LocalDate statDate, Long branchId) {
+        assertGate();
+        LocalDate date = statDate == null ? LocalDate.now() : statDate;
+        List<PartyMember> members = partyMemberRepository.listActive(branchId);
+        MemberMetricView view = new MemberMetricView();
+        view.setTotal(members.size());
+        view.setAgeBuckets(emptyBuckets(AGE_BUCKETS));
+        view.setPartyAgeBuckets(emptyBuckets(PARTY_AGE_BUCKETS));
+        view.setEducationBuckets(emptyBuckets(EDUCATION_BUCKETS));
+        long probationDue = 0L;
+        LocalDate probationDeadline = date.plusDays(properties.getProbationReminderDays());
+        for (PartyMember member : members) {
+            bump(view.getAgeBuckets(), ageBucket(member.ageYears(date)));
+            bump(view.getPartyAgeBuckets(), partyAgeBucket(member, date));
+            bump(view.getEducationBuckets(), member.getEducation() == null
+                    ? EDUCATION_UNKNOWN : member.getEducation());
+            if (member.isProbationaryPending()) {
+                LocalDate dueDate = probationDueDate(member);
+                if (dueDate != null && !dueDate.isAfter(probationDeadline)) {
+                    probationDue++;
+                }
+            }
+        }
+        view.setProbationDue(probationDue);
+        return view;
+    }
+
+    @Override
+    public List<ProbationCandidateView> probationCandidates(LocalDate asOf) {
+        assertGate();
+        LocalDate date = asOf == null ? LocalDate.now() : asOf;
+        LocalDate deadline = date.plusDays(properties.getProbationReminderDays());
+        Map<Long, Branch> branches = new HashMap<>();
+        for (Branch branch : branchRepository.listAll()) {
+            branches.put(branch.getId(), branch);
+        }
+        List<ProbationCandidateView> candidates = new ArrayList<>();
+        for (PartyMember member : partyMemberRepository.listActive(null)) {
+            if (!member.isProbationaryPending()) {
+                continue;
+            }
+            LocalDate dueDate = probationDueDate(member);
+            if (dueDate == null || dueDate.isAfter(deadline)) {
+                continue;
+            }
+            ProbationCandidateView view = new ProbationCandidateView();
+            view.setMemberId(member.getId());
+            view.setMemberName(member.getMemberName());
+            view.setUserId(member.getUserId());
+            view.setBranchId(member.getBranchId());
+            Branch branch = branches.get(member.getBranchId());
+            view.setBranchName(branch == null ? null : branch.getBranchName());
+            view.setSecretaryUserId(branch == null ? null : branch.getSecretaryUserId());
+            view.setJoinPartyDate(member.getJoinPartyDate());
+            view.setDueDate(dueDate);
+            candidates.add(view);
+        }
+        return candidates;
+    }
+
+    @Override
+    public List<MemberNoticeTargetView> noticeTargets(Long branchId) {
+        assertGate();
+        List<MemberNoticeTargetView> targets = new ArrayList<>();
+        for (PartyMember member : partyMemberRepository.listActive(branchId)) {
+            if (member.getUserId() == null || member.getUserId() <= 0) {
+                continue;
+            }
+            MemberNoticeTargetView view = new MemberNoticeTargetView();
+            view.setMemberId(member.getId());
+            view.setMemberName(member.getMemberName());
+            view.setUserId(member.getUserId());
+            targets.add(view);
+        }
+        return targets;
+    }
+
+    @Override
+    public MemberNoticeTargetView noticeTarget(Long memberId) {
+        if (memberId == null || memberId <= 0) {
+            return null;
+        }
+        return partyMemberRepository.findById(memberId)
+                .filter(member -> member.getUserId() != null && member.getUserId() > 0)
+                .map(member -> {
+                    MemberNoticeTargetView view = new MemberNoticeTargetView();
+                    view.setMemberId(member.getId());
+                    view.setMemberName(member.getMemberName());
+                    view.setUserId(member.getUserId());
+                    return view;
+                }).orElse(null);
+    }
+
+    @Override
+    public Long branchIdOf(Long userId) {
+        if (userId == null || userId <= 0) {
+            return null;
+        }
+        for (PartyMember member : partyMemberRepository.listActive(null)) {
+            if (userId.equals(member.getUserId())) {
+                return member.getBranchId();
+            }
+        }
+        return null;
+    }
+
     /**
      * 应用保存命令中的可写字段。
      *
@@ -148,6 +275,8 @@ public class MemberAppServiceImpl implements MemberAppService {
         member.setMemberName(command.getMemberName());
         member.setBranchId(command.getBranchId());
         member.setPoliticalStatus(PoliticalStatus.parse(command.getPoliticalStatus()));
+        member.setBirthDate(command.getBirthDate());
+        member.setEducation(StringUtils.hasText(command.getEducation()) ? command.getEducation() : null);
         member.setJoinPartyDate(command.getJoinPartyDate());
         member.setDuesBase(command.getDuesBase());
         member.setPhone(StringUtils.hasText(command.getPhone()) ? command.getPhone().trim() : null);
@@ -243,5 +372,91 @@ public class MemberAppServiceImpl implements MemberAppService {
         if (!properties.isDemandGatePassed()) {
             throw PartyErrorCode.exception(PartyErrorCode.GATE_CLOSED);
         }
+    }
+
+    /**
+     * 初始化分桶（全部置 0）。
+     *
+     * @param keys 桶键
+     * @return 有序分桶
+     */
+    private Map<String, Long> emptyBuckets(List<String> keys) {
+        Map<String, Long> buckets = new LinkedHashMap<>();
+        for (String key : keys) {
+            buckets.put(key, 0L);
+        }
+        return buckets;
+    }
+
+    /**
+     * 分桶计数 +1。
+     *
+     * @param buckets 分桶
+     * @param key 桶键
+     */
+    private void bump(Map<String, Long> buckets, String key) {
+        buckets.merge(key, 1L, Long::sum);
+    }
+
+    /**
+     * 年龄分桶（-1 表示出生日期为空）。
+     *
+     * @param age 周岁
+     * @return 桶键
+     */
+    private String ageBucket(long age) {
+        if (age < 0) {
+            return "UNKNOWN";
+        }
+        if (age < 30) {
+            return "UNDER_30";
+        }
+        if (age < 40) {
+            return "30_39";
+        }
+        if (age < 50) {
+            return "40_49";
+        }
+        if (age < 60) {
+            return "50_59";
+        }
+        return "60_PLUS";
+    }
+
+    /**
+     * 党龄分桶（入党日期为空归入未知）。
+     *
+     * @param member 党员档案
+     * @param asOf 计算基准日
+     * @return 桶键
+     */
+    private String partyAgeBucket(PartyMember member, LocalDate asOf) {
+        if (member.getJoinPartyDate() == null) {
+            return "UNKNOWN";
+        }
+        long years = member.partyAgeYears(asOf);
+        if (years < 5) {
+            return "UNDER_5";
+        }
+        if (years <= 10) {
+            return "5_10";
+        }
+        if (years <= 20) {
+            return "11_20";
+        }
+        if (years <= 30) {
+            return "21_30";
+        }
+        return "31_PLUS";
+    }
+
+    /**
+     * 应转正日期（入党日期满一年）。
+     *
+     * @param member 党员档案
+     * @return 应转正日期；入党日期为空返回 null
+     */
+    private LocalDate probationDueDate(PartyMember member) {
+        return member.getJoinPartyDate() == null ? null : member.getJoinPartyDate().plusYears(1);
     }
 }

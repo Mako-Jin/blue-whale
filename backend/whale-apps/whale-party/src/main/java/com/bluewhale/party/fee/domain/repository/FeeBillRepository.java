@@ -74,6 +74,15 @@ public interface FeeBillRepository {
     BigDecimal sumPaidByPeriod(String periodMonth);
 
     /**
+     * 查询某月账单明细（收缴率统计用，排除免缴口径由调用方判定）。
+     *
+     * @param periodMonth 所属月份 yyyyMM
+     * @param branchId 支部 ID（为空表示全租户）
+     * @return 账单列表
+     */
+    List<FeeBill> listByPeriod(String periodMonth, Long branchId);
+
+    /**
      * 保存账单。
      *
      * @param bill 账单

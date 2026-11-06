@@ -71,6 +71,16 @@ public class FeeBillRepositoryImpl implements FeeBillRepository {
     }
 
     @Override
+    public List<FeeBill> listByPeriod(String periodMonth, Long branchId) {
+        LambdaQueryWrapper<FeeBillEntity> wrapper = new LambdaQueryWrapper<FeeBillEntity>()
+                .eq(FeeBillEntity::getPeriodMonth, periodMonth);
+        if (branchId != null) {
+            wrapper.eq(FeeBillEntity::getBranchId, branchId);
+        }
+        return feeBillMapper.selectList(wrapper).stream().map(this::toDomain).toList();
+    }
+
+    @Override
     public Long save(FeeBill bill) {
         FeeBillEntity entity = toEntity(bill);
         if (entity.getId() == null) {

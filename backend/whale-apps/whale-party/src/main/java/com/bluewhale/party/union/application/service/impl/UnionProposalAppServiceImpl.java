@@ -5,11 +5,13 @@ import com.bluewhale.party.common.PartyActor;
 import com.bluewhale.party.common.PartyErrorCode;
 import com.bluewhale.party.common.sequence.PartySequenceService;
 import com.bluewhale.party.config.PartyProperties;
+import com.bluewhale.party.integration.application.service.NotifyAppService;
 import com.bluewhale.party.union.application.command.ProposalFeedbackCommand;
 import com.bluewhale.party.union.application.command.ProposalHandleCommand;
 import com.bluewhale.party.union.application.command.ProposalRateCommand;
 import com.bluewhale.party.union.application.command.ProposalSaveCommand;
 import com.bluewhale.party.union.application.service.UnionProposalAppService;
+import com.bluewhale.party.union.application.view.UnionProposalMetricView;
 import com.bluewhale.party.union.application.view.UnionProposalView;
 import com.bluewhale.party.union.domain.model.ProposalStatus;
 import com.bluewhale.party.union.domain.model.UnionProposal;
@@ -19,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -47,6 +50,8 @@ public class UnionProposalAppServiceImpl implements UnionProposalAppService {
     private final PartySequenceService sequenceService;
 
     private final PartyProperties properties;
+
+    private final NotifyAppService notifyAppService;
 
     @Override
     public PageResult<UnionProposalView> page(UnionProposalQuery query, Long current, Long size,
@@ -113,6 +118,9 @@ public class UnionProposalAppServiceImpl implements UnionProposalAppService {
         UnionProposal proposal = requireProposal(id);
         proposal.feedback(command.getFeedback());
         unionProposalRepository.save(proposal);
+        // 反馈已落库后异步式投递（失败只留痕，不回滚反馈结论）。
+        notifyAppService.notifyProposalFeedback(proposal.getId(), proposal.getSubmitterUserId(),
+                proposal.getProposalNo(), proposal.getFeedback());
         return UnionProposalView.from(proposal);
     }
 
@@ -154,6 +162,23 @@ public class UnionProposalAppServiceImpl implements UnionProposalAppService {
         proposal.rate(command.getRating());
         unionProposalRepository.save(proposal);
         return UnionProposalView.from(proposal);
+    }
+
+    @Override
+    public UnionProposalMetricView metrics(LocalDate statDate) {
+        assertGate();
+        LocalDate date = statDate == null ? LocalDate.now() : statDate;
+        LocalDate yearStart = date.withDayOfYear(1);
+        LocalDate nextYear = yearStart.plusYears(1);
+        List<UnionProposal> proposals = unionProposalRepository.listByCreateTimeBetween(
+                yearStart.atStartOfDay(), nextYear.atStartOfDay());
+        UnionProposalMetricView view = new UnionProposalMetricView();
+        view.setTotalCount(proposals.size());
+        view.setClosedCount(proposals.stream()
+                .filter(proposal -> proposal.getStatus() == ProposalStatus.FEEDBACK
+                        || proposal.getStatus() == ProposalStatus.RATED)
+                .count());
+        return view;
     }
 
     /**

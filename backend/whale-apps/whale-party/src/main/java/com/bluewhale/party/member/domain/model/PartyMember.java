@@ -7,6 +7,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.Locale;
+import java.util.Set;
 
 /**
  * 党员档案（一人一档）。
@@ -35,6 +37,10 @@ public class PartyMember {
     /** 党费基数保留小数位（与表列 DECIMAL(12,2) 一致） */
     public static final int DUES_BASE_SCALE = 2;
 
+    /** 合法学历编码（党内统计口径，空值表示未登记） */
+    public static final Set<String> EDUCATION_CODES =
+            Set.of("DOCTOR", "MASTER", "BACHELOR", "COLLEGE", "SECONDARY", "OTHER");
+
     /** 主键 */
     private Long id;
 
@@ -55,6 +61,12 @@ public class PartyMember {
 
     /** 政治面貌 */
     private PoliticalStatus politicalStatus;
+
+    /** 出生日期（年龄结构统计，可空） */
+    private LocalDate birthDate;
+
+    /** 学历编码（DOCTOR/MASTER/BACHELOR/COLLEGE/SECONDARY/OTHER，可空） */
+    private String education;
 
     /** 入党日期（党龄起算） */
     private LocalDate joinPartyDate;
@@ -122,9 +134,31 @@ public class PartyMember {
             throw PartyErrorCode.exception(PartyErrorCode.MEMBER_INVALID,
                     "备注不得超过 " + REMARK_MAX_LENGTH + " 字符");
         }
-        memberNo = memberNo.trim().toUpperCase(java.util.Locale.ROOT);
+        if (birthDate != null && birthDate.isAfter(LocalDate.now())) {
+            throw PartyErrorCode.exception(PartyErrorCode.MEMBER_INVALID, "出生日期不能晚于今天");
+        }
+        normalizeEducation();
+        memberNo = memberNo.trim().toUpperCase(Locale.ROOT);
         employeeNo = employeeNo.trim();
         memberName = memberName.trim();
+    }
+
+    /**
+     * 学历编码归一（空串视为未填，编码统一大写）。
+     */
+    private void normalizeEducation() {
+        if (education == null) {
+            return;
+        }
+        String code = education.trim().toUpperCase(Locale.ROOT);
+        if (code.isEmpty()) {
+            education = null;
+            return;
+        }
+        if (!EDUCATION_CODES.contains(code)) {
+            throw PartyErrorCode.exception(PartyErrorCode.MEMBER_INVALID, "学历编码不合法");
+        }
+        education = code;
     }
 
     /**
@@ -200,6 +234,23 @@ public class PartyMember {
             return 0L;
         }
         return ChronoUnit.YEARS.between(joinPartyDate, base);
+    }
+
+    /**
+     * 计算周岁年龄。
+     *
+     * @param asOf 计算基准日
+     * @return 年龄年数；出生日期为空返回 -1（统计时归入「未知」桶）
+     */
+    public long ageYears(LocalDate asOf) {
+        if (birthDate == null) {
+            return -1L;
+        }
+        LocalDate base = asOf == null ? LocalDate.now() : asOf;
+        if (base.isBefore(birthDate)) {
+            return 0L;
+        }
+        return ChronoUnit.YEARS.between(birthDate, base);
     }
 
     /**

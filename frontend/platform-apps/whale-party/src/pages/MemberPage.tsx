@@ -37,7 +37,20 @@ import {
 const PAGE_SIZE = 10;
 
 /** 表单值：日期字段在表单里是 Dayjs */
-type MemberFormValues = Omit<MemberSaveCommand, 'joinPartyDate'> & { joinPartyDate?: Dayjs };
+type MemberFormValues = Omit<MemberSaveCommand, 'joinPartyDate' | 'birthDate'> & {
+  joinPartyDate?: Dayjs;
+  birthDate?: Dayjs;
+};
+
+/** 学历选项（空值计入看板「未知」桶） */
+const EDUCATION_OPTIONS = [
+  { value: 'DOCTOR', label: '博士' },
+  { value: 'MASTER', label: '硕士' },
+  { value: 'BACHELOR', label: '本科' },
+  { value: 'COLLEGE', label: '大专' },
+  { value: 'SECONDARY', label: '中专及以下' },
+  { value: 'OTHER', label: '其他' },
+];
 
 /**
  * 把支部树拍平成下拉选项。
@@ -105,6 +118,8 @@ export default function MemberPage() {
       memberName: row.memberName,
       branchId: row.branchId,
       politicalStatus: row.politicalStatus,
+      birthDate: row.birthDate ? dayjs(row.birthDate) : undefined,
+      education: row.education ?? undefined,
       joinPartyDate: dayjs(row.joinPartyDate),
       duesBase: row.duesBase,
       phone: row.phone ?? undefined,
@@ -117,6 +132,7 @@ export default function MemberPage() {
     const values = await form.validateFields();
     const payload: MemberSaveCommand = {
       ...values,
+      birthDate: values.birthDate ? values.birthDate.format('YYYY-MM-DD') : null,
       joinPartyDate: values.joinPartyDate ? values.joinPartyDate.format('YYYY-MM-DD') : '',
     };
     try {
@@ -304,6 +320,12 @@ export default function MemberPage() {
                 { value: 'PROBATIONARY', label: '预备党员' },
               ]}
             />
+          </Form.Item>
+          <Form.Item name="birthDate" label="出生日期">
+            <DatePicker style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="education" label="学历">
+            <Select allowClear options={EDUCATION_OPTIONS} placeholder="未填写（看板计入未知）" />
           </Form.Item>
           <Form.Item
             name="joinPartyDate"

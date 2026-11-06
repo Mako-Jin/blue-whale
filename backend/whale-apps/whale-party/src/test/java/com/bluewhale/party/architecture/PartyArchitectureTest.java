@@ -25,9 +25,9 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 @AnalyzeClasses(packages = "com.bluewhale.party", importOptions = ImportOption.DoNotIncludeTests.class)
 class PartyArchitectureTest {
 
-    /** 七个业务上下文（六业务 + integration） */
+    /** 八个业务上下文（六业务 + integration + analytics） */
     private static final String[] CONTEXTS = {
-            "branch", "member", "activity", "fee", "content", "union", "integration"
+            "branch", "member", "activity", "fee", "content", "union", "integration", "analytics"
     };
 
     /** 领域层不得依赖应用层、接口层与基础设施层 */

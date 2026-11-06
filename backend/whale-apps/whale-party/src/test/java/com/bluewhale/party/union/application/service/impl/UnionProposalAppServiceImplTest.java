@@ -5,6 +5,7 @@ import com.bluewhale.party.common.PartyActor;
 import com.bluewhale.party.common.PartyErrorCode;
 import com.bluewhale.party.common.sequence.PartySequenceService;
 import com.bluewhale.party.config.PartyProperties;
+import com.bluewhale.party.integration.application.service.NotifyAppService;
 import com.bluewhale.party.union.application.command.ProposalHandleCommand;
 import com.bluewhale.party.union.application.command.ProposalRateCommand;
 import com.bluewhale.party.union.domain.model.ProposalStatus;
@@ -40,7 +41,7 @@ class UnionProposalAppServiceImplTest {
     void setUp() {
         unionProposalRepository = mock(UnionProposalRepository.class);
         service = new UnionProposalAppServiceImpl(unionProposalRepository,
-                mock(PartySequenceService.class), new PartyProperties());
+                mock(PartySequenceService.class), new PartyProperties(), mock(NotifyAppService.class));
     }
 
     @Test

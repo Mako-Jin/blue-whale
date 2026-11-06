@@ -193,6 +193,38 @@ class PartyFlywayMigrationScriptTest {
                 "pty_sequence 唯一键应为 (tenant_id, seq_key, seq_date)，不含 deleted");
     }
 
+    @Test
+    @DisplayName("M-P4 覆盖统计快照、通知留痕与员工快照三张表")
+    void metricMigrationShouldCoverAnalyticsTables() throws IOException {
+        Set<String> tables = new LinkedHashSet<>();
+        for (Path script : migrationScripts()) {
+            Matcher matcher = CREATE_TABLE.matcher(Files.readString(script, StandardCharsets.UTF_8));
+            while (matcher.find()) {
+                tables.add(matcher.group(1));
+            }
+        }
+        Set<String> expected = Stream.of("pty_metric_snapshot", "pty_notify_log", "pty_employee_snapshot")
+                .collect(Collectors.toSet());
+        assertTrue(tables.containsAll(expected), "缺少统计与集成表：" + expected);
+    }
+
+    @Test
+    @DisplayName("快照覆盖写与通知幂等唯一键到位，党员档案追加出生日期与学历")
+    void metricUniqueKeysShouldMatchBusinessRules() throws IOException {
+        String content = Files.readString(MIGRATION_DIR.resolve("V6__party_metric.sql"), StandardCharsets.UTF_8);
+        assertTrue(content.contains(
+                "uk_pty_metric_snapshot (tenant_id, stat_date, metric_type, scope_type, scope_id)"),
+                "统计快照须按租户+统计日+指标+范围唯一，重刷才能覆盖写不追加");
+        assertTrue(content.contains("uk_pty_notify_log (tenant_id, idempotency_key, user_id)"),
+                "通知留痕须按租户+幂等键+接收人唯一，同一提醒不重发");
+        assertTrue(content.contains("uk_pty_employee_snapshot (tenant_id, employee_no)"),
+                "员工快照须按租户+工号唯一，同步按工号 upsert");
+        assertTrue(content.contains("ADD COLUMN birth_date DATE"),
+                "pty_member 须追加出生日期（年龄结构统计）");
+        assertTrue(content.contains("ADD COLUMN education"),
+                "pty_member 须追加学历编码（学历结构统计）");
+    }
+
     /**
      * 列出迁移脚本。
      *

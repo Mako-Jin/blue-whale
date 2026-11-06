@@ -5,7 +5,7 @@
 //   工作台（M-P0）/ 支部台账、党员档案、组织生活、党费台账（M-P1）
 //   党建内容管理、党建园地（M-P2）
 //   工会会员、慰问帮扶、节日福利、工会活动、职代会提案（M-P3）
-// 后续波次：M-P4 看板与收口。
+//   党务看板、工会看板、通知与提醒（M-P4）
 //
 // 与 whale-oa 的关系：党政工会**独立成服务**，不在 OA 子应用内挂菜单；
 // 党建内容与 OA 公告各自独立，不互相同步。
@@ -15,10 +15,13 @@ import ActivityPage from './pages/ActivityPage';
 import BranchPage from './pages/BranchPage';
 import ContentPage from './pages/ContentPage';
 import ContentPortalPage from './pages/ContentPortalPage';
+import DashboardPage from './pages/DashboardPage';
 import FeePage from './pages/FeePage';
 import MemberPage from './pages/MemberPage';
+import NoticePage from './pages/NoticePage';
 import PartyHomePage from './pages/PartyHomePage';
 import UnionActivityPage from './pages/UnionActivityPage';
+import UnionDashboardPage from './pages/UnionDashboardPage';
 import UnionMemberPage from './pages/UnionMemberPage';
 import UnionProposalPage from './pages/UnionProposalPage';
 import UnionReliefPage from './pages/UnionReliefPage';
@@ -35,6 +38,8 @@ export default function App() {
           <Route path="member" element={<MemberPage />} />
           <Route path="activity" element={<ActivityPage />} />
           <Route path="fee" element={<FeePage />} />
+          <Route path="dashboard" element={<DashboardPage />} />
+          <Route path="notice" element={<NoticePage />} />
           <Route path="content" element={<ContentPage />} />
           <Route path="content/portal" element={<ContentPortalPage />} />
           <Route path="union/member" element={<UnionMemberPage />} />
@@ -42,6 +47,7 @@ export default function App() {
           <Route path="union/welfare" element={<UnionWelfarePage />} />
           <Route path="union/activity" element={<UnionActivityPage />} />
           <Route path="union/proposal" element={<UnionProposalPage />} />
+          <Route path="union/dashboard" element={<UnionDashboardPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

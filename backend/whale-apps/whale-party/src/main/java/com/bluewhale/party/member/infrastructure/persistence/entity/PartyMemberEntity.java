@@ -38,6 +38,12 @@ public class PartyMemberEntity extends BaseEntity {
     /** 政治面貌 */
     private String politicalStatus;
 
+    /** 出生日期 */
+    private LocalDate birthDate;
+
+    /** 学历编码 */
+    private String education;
+
     /** 入党日期 */
     private LocalDate joinPartyDate;
 

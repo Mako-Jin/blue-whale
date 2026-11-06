@@ -11,7 +11,8 @@ import java.util.Map;
  * 43000–43009 为门禁、身份、编号流水与支部 / 党员 / 组织生活基础；
  * 43010–43029 为党费与党建台账其余；43030–43049 为党建内容与先审后发；
  * 43050–43079 为工会（会员 / 慰问 / 福利 / 活动 / 提案）；
- * 43080–43089 为跨服务契约（ERP / 文件 / 通知 / 审批）；43090 起留给看板与后续上下文。</p>
+ * 43080–43089 为跨服务契约（ERP / 文件 / 通知 / 审批）；43090–43099 为看板统计、
+ * 通知扫描与员工快照同步；43100 起留给后续上下文。</p>
  *
  * @author BlueWhale
  */
@@ -176,6 +177,24 @@ public final class PartyErrorCode {
     /** 无权操作该提案（评价仅提交人本人） */
     public static final int UNION_PROPOSAL_FORBIDDEN = 43079;
 
+    /** 统计参数非法（统计日越界或指标范围不合法） */
+    public static final int METRIC_INVALID = 43090;
+
+    /** 导出天数超过上限（一次最多导出一段连续统计日） */
+    public static final int METRIC_EXPORT_LIMIT = 43091;
+
+    /** 通知场景非法（该接口不支持该场景或场景编码未知） */
+    public static final int NOTICE_SCENE_INVALID = 43092;
+
+    /** 通知投递失败（下游消息服务不可达或返回失败） */
+    public static final int NOTICE_SEND_FAILED = 43093;
+
+    /** ERP 员工目录拉取失败（保留旧快照，不清表） */
+    public static final int EMPLOYEE_SYNC_FAILED = 43094;
+
+    /** ERP 员工目录为空，视为异常并拒绝覆盖旧快照 */
+    public static final int EMPLOYEE_SYNC_EMPTY = 43095;
+
     /** 业务错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(GATE_CLOSED, "需求门禁未通过，业务接口未开放"),
@@ -230,7 +249,13 @@ public final class PartyErrorCode {
             Map.entry(UNION_PROPOSAL_NOT_FOUND, "职代会提案不存在或无权访问"),
             Map.entry(UNION_PROPOSAL_INVALID, "提案信息不合法，请检查标题与内容"),
             Map.entry(UNION_PROPOSAL_STATE_CONFLICT, "提案状态不允许该流转"),
-            Map.entry(UNION_PROPOSAL_FORBIDDEN, "无权操作该提案"));
+            Map.entry(UNION_PROPOSAL_FORBIDDEN, "无权操作该提案"),
+            Map.entry(METRIC_INVALID, "统计参数不合法，请检查统计日与统计范围"),
+            Map.entry(METRIC_EXPORT_LIMIT, "导出区间超出上限，请缩小区间"),
+            Map.entry(NOTICE_SCENE_INVALID, "通知场景不合法"),
+            Map.entry(NOTICE_SEND_FAILED, "通知投递失败，请稍后重试"),
+            Map.entry(EMPLOYEE_SYNC_FAILED, "ERP 员工目录拉取失败，已保留旧快照"),
+            Map.entry(EMPLOYEE_SYNC_EMPTY, "ERP 员工目录为空，已拒绝覆盖旧快照"));
 
     /**
      * 私有构造器：常量类，禁止实例化。

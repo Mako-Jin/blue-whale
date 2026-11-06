@@ -7,6 +7,7 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.party.branch.application.command.BranchSaveCommand;
 import com.bluewhale.party.branch.application.service.BranchAppService;
+import com.bluewhale.party.branch.application.view.BranchTermDueView;
 import com.bluewhale.party.branch.application.view.BranchTreeView;
 import com.bluewhale.party.branch.application.view.BranchView;
 import com.bluewhale.party.branch.domain.model.BranchQuery;
@@ -89,6 +90,21 @@ public class PartyBranchController {
     @RequirePermission(PartyPermissions.BRANCH_LIST)
     public Result<List<BranchTreeView>> tree(HttpServletRequest request) {
         return Result.ok(branchAppService.tree(actor(request)));
+    }
+
+    /**
+     * 换届到期支部（M-P4，落在看板查看权限下）。
+     *
+     * @param withinDays 提前天数
+     * @param request 当前请求
+     * @return 到期支部列表
+     */
+    @GetMapping("/term-due")
+    @RequirePermission(PartyPermissions.METRIC_LIST)
+    public Result<List<BranchTermDueView>> termDue(
+            @RequestParam(value = "withinDays", required = false) Integer withinDays,
+            HttpServletRequest request) {
+        return Result.ok(branchAppService.termDue(withinDays, actor(request)));
     }
 
     /**
