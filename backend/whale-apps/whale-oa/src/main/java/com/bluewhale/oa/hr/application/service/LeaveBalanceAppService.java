@@ -99,4 +99,16 @@ public interface LeaveBalanceAppService {
      * @param bizId 业务单据ID
      */
     void deduct(Long userId, Long leaveTypeId, Integer year, BigDecimal days, String bizType, Long bizId);
+
+    /**
+     * 增补额度（如加班审批通过调入调休），额度不存在时自动建零额度后增补。
+     *
+     * @param userId 用户ID
+     * @param leaveTypeId 假期类型ID
+     * @param year 额度年份
+     * @param days 增补天数（必须大于 0）
+     * @param bizType 业务类型
+     * @param bizId 业务单据ID
+     */
+    void grant(Long userId, Long leaveTypeId, Integer year, BigDecimal days, String bizType, Long bizId);
 }

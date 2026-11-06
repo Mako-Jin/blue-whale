@@ -145,6 +145,51 @@ public class LeaveBalanceAppServiceImpl implements LeaveBalanceAppService {
                 beforeTotal, beforeUsed, beforeFrozen, bizType, bizId, "审批通过扣减额度");
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void grant(Long userId, Long leaveTypeId, Integer year, BigDecimal days,
+                      String bizType, Long bizId) {
+        if (userId == null || leaveTypeId == null || year == null) {
+            throw OaErrorCode.exception(OaErrorCode.LEAVE_BALANCE_INVALID,
+                    "用户ID、假期类型与额度年份不能为空");
+        }
+        if (days == null || days.signum() <= 0) {
+            throw OaErrorCode.exception(OaErrorCode.LEAVE_BALANCE_INVALID, "增补天数必须大于 0");
+        }
+        LeaveBalance balance = leaveBalanceRepository.findByUserAndTypeAndYear(userId, leaveTypeId, year)
+                .orElseGet(() -> createZeroBalance(userId, leaveTypeId, year));
+        BigDecimal beforeTotal = balance.getTotalDays();
+        BigDecimal beforeUsed = balance.getUsedDays();
+        BigDecimal beforeFrozen = balance.getFrozenDays();
+        balance.adjust(orZero(beforeTotal).add(days));
+        leaveBalanceRepository.update(balance);
+        writeLog(balance, LeaveBalanceAction.GRANT, days,
+                beforeTotal, beforeUsed, beforeFrozen, bizType, bizId, "加班审批通过调入调休额度");
+        log.info("假期额度已增补: userId={}, leaveTypeId={}, year={}, days={}",
+                userId, leaveTypeId, year, days);
+    }
+
+    /**
+     * 额度不存在时创建零额度（不写 INIT 流水，本次增补统一记 GRANT）。
+     *
+     * @param userId 用户ID
+     * @param leaveTypeId 假期类型ID
+     * @param year 额度年份
+     * @return 新建额度
+     */
+    private LeaveBalance createZeroBalance(Long userId, Long leaveTypeId, Integer year) {
+        LeaveBalance balance = new LeaveBalance();
+        balance.setUserId(userId);
+        balance.setLeaveTypeId(leaveTypeId);
+        balance.setBalanceYear(year);
+        balance.setTotalDays(BigDecimal.ZERO);
+        balance.setUsedDays(BigDecimal.ZERO);
+        balance.setFrozenDays(BigDecimal.ZERO);
+        balance.setRemark("额度首次增补自动创建");
+        leaveBalanceRepository.insert(balance);
+        return balance;
+    }
+
     /**
      * 按主键查询额度，缺失时抛业务异常。
      *

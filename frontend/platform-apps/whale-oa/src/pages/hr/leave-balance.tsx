@@ -35,6 +35,7 @@ const ACTION_META: Record<LeaveBalanceAction, { text: string; color: string }> =
   FREEZE: { text: '冻结', color: 'processing' },
   RELEASE: { text: '释放', color: 'warning' },
   DEDUCT: { text: '扣减', color: 'success' },
+  GRANT: { text: '增补', color: 'cyan' },
 };
 
 /** 初始化表单字段 */

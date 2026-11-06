@@ -10,6 +10,7 @@ import LeaveTypeCenter from './pages/hr/leave-type';
 import LeaveBalanceCenter from './pages/hr/leave-balance';
 import ProfileCenter from './pages/hr/profile';
 import CalendarCenter from './pages/hr/calendar';
+import OvertimePage from './pages/hr/overtime';
 import { hasPermission } from './utils/permission';
 
 const { Header, Content, Sider } = Layout;
@@ -20,6 +21,7 @@ const MENU_ITEMS = [
   { key: '/approval/delegate', label: '代理设置', permission: 'sys:oa:approval:delegate' },
   { key: '/approval/monitor', label: '流程监控', permission: 'sys:oa:approval:monitor' },
   { key: '/hr/leave', label: '请假管理', permission: 'sys:oa:leave:list' },
+  { key: '/hr/overtime', label: '加班申请', permission: 'sys:oa:overtime:list' },
   { key: '/hr/leave-type', label: '假期类型', permission: 'sys:oa:hr:leave-type:list' },
   { key: '/hr/leave-balance', label: '额度台账', permission: 'sys:oa:hr:balance:list' },
   { key: '/hr/profile', label: '员工档案', permission: 'sys:oa:hr:profile:list' },
@@ -60,6 +62,7 @@ function OaLayout() {
             <Route path="/approval/delegate" element={<ApprovalDelegate />} />
             <Route path="/approval/monitor" element={<ApprovalMonitor />} />
             <Route path="/hr/leave" element={<LeaveCenter />} />
+            <Route path="/hr/overtime" element={<OvertimePage />} />
             <Route path="/hr/leave-type" element={<LeaveTypeCenter />} />
             <Route path="/hr/leave-balance" element={<LeaveBalanceCenter />} />
             <Route path="/hr/profile" element={<ProfileCenter />} />

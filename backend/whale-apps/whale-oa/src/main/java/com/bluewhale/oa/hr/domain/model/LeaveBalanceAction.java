@@ -6,7 +6,7 @@ import com.bluewhale.oa.common.OaErrorCode;
  * 假期额度流水动作。
  *
  * <p>{@code days} 恒为正数，动作决定额度增减方向：
- * {@code INIT/ADJUST} 调整总额度，{@code FREEZE} 增加冻结，
+ * {@code INIT/ADJUST/GRANT} 调整总额度，{@code FREEZE} 增加冻结，
  * {@code RELEASE} 减少冻结，{@code DEDUCT} 释放冻结并累加已使用。</p>
  *
  * @author BlueWhale
@@ -26,7 +26,10 @@ public enum LeaveBalanceAction {
     RELEASE,
 
     /** 扣减（审批通过） */
-    DEDUCT;
+    DEDUCT,
+
+    /** 增补（如加班审批通过调入调休额度） */
+    GRANT;
 
     /**
      * 解析流水动作文本。
@@ -42,7 +45,7 @@ public enum LeaveBalanceAction {
             return LeaveBalanceAction.valueOf(value);
         } catch (IllegalArgumentException exception) {
             throw OaErrorCode.exception(OaErrorCode.LEAVE_BALANCE_INVALID,
-                    "额度流水动作仅支持 INIT / ADJUST / FREEZE / RELEASE / DEDUCT");
+                    "额度流水动作仅支持 INIT / ADJUST / FREEZE / RELEASE / DEDUCT / GRANT");
         }
     }
 }

@@ -168,6 +168,30 @@ class OaFlywayMigrationScriptTest {
     }
 
     /**
+     * V5 新建加班申请表，并种子 OVERTIME 审批配置与调休假期类型
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("V5 加班申请表与审批/调休种子完整")
+    void v5ShouldCreateOvertimeTableAndSeedConfigs() throws IOException {
+        Path v5 = MIGRATION_DIR.resolve("V5__oa_m1b_overtime.sql");
+        Set<String> tables = extractTables(v5);
+        assertEquals(Set.of("oa_overtime"), tables, "V5 建表集合与 M1B 设计不一致");
+
+        String script = Files.readString(v5, StandardCharsets.UTF_8);
+        for (String column : List.of("tenant_id", "code", "applicant", "overtime_date", "start_time",
+                "end_time", "hours", "compensation", "status", "approval_instance_id")) {
+            assertTrue(script.contains(column), "V5 oa_overtime 应包含列：" + column);
+        }
+        assertTrue(script.contains("'OVERTIME'"), "V5 应种子 OVERTIME 业务类型");
+        assertTrue(script.contains("'OA_OVERTIME'"), "V5 应绑定 OA_OVERTIME 流程定义");
+        assertTrue(script.contains("DEPT_LEADER"), "V5 应种子部门负责人审批规则");
+        assertTrue(script.contains("'COMP_TIME'"), "V5 应种子调休假期类型");
+        assertTrue(script.contains("uk_oa_overtime_code"), "V5 应建立单号唯一索引");
+    }
+
+    /**
      * 列出迁移脚本并按文件名字典序返回
      *
      * @return 迁移脚本路径

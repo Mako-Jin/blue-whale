@@ -105,6 +105,21 @@ public final class OaErrorCode {
     /** 工作日历参数非法 */
     public static final int WORK_CALENDAR_INVALID = 40010;
 
+    /** 加班申请参数非法 */
+    public static final int OVERTIME_INVALID = 40011;
+
+    /** 加班申请不存在 */
+    public static final int OVERTIME_NOT_FOUND = 40414;
+
+    /** 加班申请状态不允许该操作 */
+    public static final int OVERTIME_STATUS_CONFLICT = 40911;
+
+    /** 加班时段与其他申请重叠 */
+    public static final int OVERTIME_PERIOD_OVERLAP = 40912;
+
+    /** 月度加班时长超限 */
+    public static final int OVERTIME_MONTHLY_LIMIT = 40913;
+
     /** 无权操作该审批任务 */
     public static final int APPROVAL_ACTION_FORBIDDEN = 40301;
 
@@ -152,6 +167,11 @@ public final class OaErrorCode {
             Map.entry(LEAVE_PERIOD_OVERLAP, "同一假期类型在所选时段内已有未结束的申请"),
             Map.entry(LEAVE_INVALID, "请假参数非法，请检查日期、时段与假期类型"),
             Map.entry(WORK_CALENDAR_INVALID, "工作日历参数非法，请检查日期与工时"),
+            Map.entry(OVERTIME_INVALID, "加班参数非法，请检查日期、起止时间与补偿方式"),
+            Map.entry(OVERTIME_NOT_FOUND, "加班申请不存在或无权访问"),
+            Map.entry(OVERTIME_STATUS_CONFLICT, "加班申请当前状态不允许该操作"),
+            Map.entry(OVERTIME_PERIOD_OVERLAP, "所选时段与当天已有加班申请重叠"),
+            Map.entry(OVERTIME_MONTHLY_LIMIT, "本月加班时长已超过上限"),
             Map.entry(APPROVAL_ACTION_FORBIDDEN, "无权操作该审批任务"),
             Map.entry(APPROVAL_TASK_NOT_FOUND, "审批任务不存在或已不可操作"),
             Map.entry(APPROVAL_DELEGATE_NOT_FOUND, "代理规则不存在或无权访问"),

@@ -11,7 +11,7 @@ export type EmploymentStatus = 'ACTIVE' | 'PROBATION' | 'REGULAR' | 'LEFT';
 export type LeaveTypeUnit = 'DAY' | 'HOUR';
 
 /** 额度流水动作 */
-export type LeaveBalanceAction = 'INIT' | 'ADJUST' | 'FREEZE' | 'RELEASE' | 'DEDUCT';
+export type LeaveBalanceAction = 'INIT' | 'ADJUST' | 'FREEZE' | 'RELEASE' | 'DEDUCT' | 'GRANT';
 
 /** 员工扩展档案（对齐 EmployeeProfileView） */
 export interface EmployeeProfile {
