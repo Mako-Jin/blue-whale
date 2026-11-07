@@ -9,6 +9,7 @@ import LeaveCenter from './pages/hr/leave';
 import LeaveTypeCenter from './pages/hr/leave-type';
 import LeaveBalanceCenter from './pages/hr/leave-balance';
 import ProfileCenter from './pages/hr/profile';
+import EmployeeChangePage from './pages/hr/change';
 import CalendarCenter from './pages/hr/calendar';
 import OvertimePage from './pages/hr/overtime';
 import TripPage from './pages/hr/trip';
@@ -51,6 +52,7 @@ const MENU_ITEMS = [
   { key: '/hr/leave-type', label: '假期类型', permission: 'sys:oa:hr:leave-type:list' },
   { key: '/hr/leave-balance', label: '额度台账', permission: 'sys:oa:hr:balance:list' },
   { key: '/hr/profile', label: '员工档案', permission: 'sys:oa:hr:profile:list' },
+  { key: '/hr/change', label: '人员异动', permission: 'sys:oa:hr:change:list' },
   { key: '/hr/calendar', label: '工作日历', permission: 'sys:oa:hr:calendar:list' },
   { key: '/attendance/punch', label: '打卡记录', permission: 'sys:oa:attendance:record:list' },
   { key: '/attendance/daily', label: '考勤日报', permission: 'sys:oa:attendance:daily:list' },
@@ -117,6 +119,7 @@ function OaLayout() {
             <Route path="/hr/leave-type" element={<LeaveTypeCenter />} />
             <Route path="/hr/leave-balance" element={<LeaveBalanceCenter />} />
             <Route path="/hr/profile" element={<ProfileCenter />} />
+            <Route path="/hr/change" element={<EmployeeChangePage />} />
             <Route path="/hr/calendar" element={<CalendarCenter />} />
             <Route path="/attendance/punch" element={<AttendancePunchPage />} />
             <Route path="/attendance/daily" element={<AttendanceDailyPage />} />

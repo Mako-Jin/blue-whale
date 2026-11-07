@@ -390,6 +390,22 @@ public final class OaErrorCode {
     /** 建议当前状态不允许该操作 */
     public static final int SUGGESTION_STATUS_CONFLICT = 40948;
 
+    /** 人员异动参数非法 */
+    public static final int HR_CHANGE_INVALID = 40027;
+
+    /** 人员异动单不存在或无权访问 */
+    public static final int HR_CHANGE_NOT_FOUND = 40441;
+
+    /** 人员异动单当前状态不允许该操作 */
+    public static final int HR_CHANGE_STATUS_CONFLICT = 40949;
+
+    /** 四眼原则：申请人与执行人不能为同一人 */
+    public static final int HR_CHANGE_FOUR_EYES = 40306;
+
+    /** Auth 人员生命周期服务暂不可用 */
+    public static final int HR_CHANGE_AUTH_UNAVAILABLE = 50309;
+
+
     /** 错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(APPROVAL_CONFIG_NOT_FOUND, "审批配置不存在或无权访问"),
@@ -516,7 +532,12 @@ public final class OaErrorCode {
             Map.entry(POLL_OPTION_REQUIRED, "投票选项不能为空或不属于该投票"),
             Map.entry(SUGGESTION_INVALID, "建议参数非法，请检查标题、类别与内容"),
             Map.entry(SUGGESTION_NOT_FOUND, "建议不存在或无权访问"),
-            Map.entry(SUGGESTION_STATUS_CONFLICT, "建议当前状态不允许该操作"));
+            Map.entry(SUGGESTION_STATUS_CONFLICT, "建议当前状态不允许该操作"),
+            Map.entry(HR_CHANGE_INVALID, "人员异动参数非法，请检查类型、员工、部门与生效日期"),
+            Map.entry(HR_CHANGE_NOT_FOUND, "人员异动单不存在或无权访问"),
+            Map.entry(HR_CHANGE_STATUS_CONFLICT, "人员异动单当前状态不允许该操作"),
+            Map.entry(HR_CHANGE_FOUR_EYES, "四眼原则：申请人与执行人不能为同一人"),
+            Map.entry(HR_CHANGE_AUTH_UNAVAILABLE, "Auth 人员生命周期服务暂不可用，稍后可重试执行"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。

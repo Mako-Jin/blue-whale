@@ -400,6 +400,29 @@ class OaFlywayMigrationScriptTest {
         assertTrue(script.contains("uk_oa_culture_wish_once"), "V13 应保证当天同类型同对象同发送人唯一");
     }
 
+    @Test
+    @DisplayName("V14 创建人员异动单与离职清单任务 2 张表")
+    void v14ShouldCreateEmployeeChangeTables() throws IOException {
+        Path v14 = MIGRATION_DIR.resolve("V14__hr_change.sql");
+        Set<String> tables = extractTables(v14);
+        assertEquals(Set.of("oa_employee_change", "oa_employee_change_task"), tables,
+                "V14 建表集合与 M5-7d-2 人员异动设计不一致");
+
+        String script = Files.readString(v14, StandardCharsets.UTF_8);
+        for (String column : List.of("change_no", "change_type", "user_id", "employee_name",
+                "from_dept_id", "to_dept_id", "from_status", "to_status", "effective_date",
+                "approval_instance_id", "applicant_id", "executor_id", "executed_time",
+                "execute_result", "task_code", "task_name", "done_time")) {
+            assertTrue(script.contains(column), "V14 人员异动表应包含列：" + column);
+        }
+        assertTrue(script.contains("uk_oa_employee_change_no"), "V14 应保证异动单号租户唯一");
+        assertTrue(script.contains("uk_oa_employee_change_task"), "V14 应保证同一异动单任务编码唯一");
+        assertTrue(script.contains("'HR_CHANGE'"), "V14 应种子 HR_CHANGE 业务类型");
+        assertTrue(script.contains("'OA_HR_CHANGE'"), "V14 应绑定 OA_HR_CHANGE 流程定义");
+        assertTrue(script.contains("DEPT_LEADER"), "V14 应种子部门负责人审批规则");
+        assertTrue(script.contains("'oa_hr_admin'"), "V14 应种子 HR 角色审批规则");
+    }
+
     /**
      * 列出迁移脚本并按版本号数值升序返回（避免 V10 排在 V1 之前）
      *

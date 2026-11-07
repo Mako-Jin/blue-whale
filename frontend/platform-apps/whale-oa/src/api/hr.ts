@@ -298,3 +298,152 @@ export function saveWorkCalendar(
 ): Promise<WorkCalendarView> {
   return http.put<WorkCalendarView>(`/oa/hr/calendar/${date}`, input);
 }
+
+/** 人员异动类型 */
+export type EmployeeChangeType = 'ONBOARD' | 'REGULAR' | 'TRANSFER' | 'LEAVE' | 'REHIRE';
+
+/** 人员异动状态 */
+export type EmployeeChangeStatus =
+  | 'DRAFT'
+  | 'SUBMITTED'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'EXECUTED'
+  | 'EXEC_FAILED';
+
+/** 离职清单任务状态 */
+export type EmployeeChangeTaskStatus = 'PENDING' | 'DONE';
+
+/** 人员异动任务（对齐 EmployeeChangeViews.Task） */
+export interface EmployeeChangeTask {
+  id: number;
+  taskCode: string;
+  taskName: string;
+  assigneeId?: number;
+  assigneeName?: string;
+  status?: EmployeeChangeTaskStatus;
+  doneTime?: string;
+  remark?: string;
+}
+
+/** 人员异动列表项（对齐 EmployeeChangeViews.ListItem） */
+export interface EmployeeChangeListItem {
+  id: number;
+  changeNo: string;
+  changeType: EmployeeChangeType;
+  changeTypeLabel?: string;
+  userId?: number;
+  employeeName: string;
+  effectiveDate?: string;
+  status: EmployeeChangeStatus;
+  applicantName?: string;
+  executedTime?: string;
+  createTime?: string;
+}
+
+/** 人员异动详情（对齐 EmployeeChangeViews.Detail） */
+export interface EmployeeChangeDetail {
+  id: number;
+  changeNo: string;
+  changeType: EmployeeChangeType;
+  changeTypeLabel?: string;
+  userId?: number;
+  employeeName: string;
+  username?: string;
+  fromDeptId?: number;
+  toDeptId?: number;
+  fromStatus?: EmploymentStatus;
+  toStatus?: EmploymentStatus;
+  effectiveDate?: string;
+  reason?: string;
+  status: EmployeeChangeStatus;
+  approvalInstanceId?: number;
+  applicantId?: number;
+  applicantName?: string;
+  executorId?: number;
+  executorName?: string;
+  executedTime?: string;
+  executeResult?: string;
+  remark?: string;
+  createTime?: string;
+  updateTime?: string;
+  tasks?: EmployeeChangeTask[];
+}
+
+/** 人员异动保存命令（对齐 EmployeeChangeCommands.Save） */
+export interface EmployeeChangeSaveCommand {
+  changeType: EmployeeChangeType;
+  userId?: number;
+  employeeName: string;
+  username?: string;
+  fromDeptId?: number;
+  toDeptId?: number;
+  fromStatus?: EmploymentStatus;
+  toStatus?: EmploymentStatus;
+  effectiveDate: string;
+  reason?: string;
+  remark?: string;
+}
+
+/** 人员异动查询入参 */
+export interface EmployeeChangeQuery {
+  current?: number;
+  size?: number;
+  keyword?: string;
+  changeType?: EmployeeChangeType | '';
+  status?: EmployeeChangeStatus | '';
+  userId?: number;
+}
+
+/** 人员异动执行结果（对齐 EmployeeChangeViews.ExecuteResult） */
+export interface EmployeeChangeExecuteResult {
+  id: number;
+  status: EmployeeChangeStatus;
+  message?: string;
+  temporaryPassword?: string;
+}
+
+/** 分页查询人员异动单 */
+export function pageChanges(
+  params: EmployeeChangeQuery = {},
+): Promise<PageResult<EmployeeChangeListItem>> {
+  return http.get<PageResult<EmployeeChangeListItem>>(`/oa/hr/change/page${buildQuery(params)}`);
+}
+
+/** 查询人员异动单详情 */
+export function getChange(id: number): Promise<EmployeeChangeDetail> {
+  return http.get<EmployeeChangeDetail>(`/oa/hr/change/${id}`);
+}
+
+/** 新建人员异动单 */
+export function createChange(input: EmployeeChangeSaveCommand): Promise<EmployeeChangeDetail> {
+  return http.post<EmployeeChangeDetail>('/oa/hr/change', input);
+}
+
+/** 编辑人员异动单 */
+export function updateChange(
+  id: number,
+  input: EmployeeChangeSaveCommand,
+): Promise<EmployeeChangeDetail> {
+  return http.put<EmployeeChangeDetail>(`/oa/hr/change/${id}`, input);
+}
+
+/** 提交人员异动审批 */
+export function submitChange(id: number): Promise<EmployeeChangeDetail> {
+  return http.post<EmployeeChangeDetail>(`/oa/hr/change/${id}/submit`);
+}
+
+/** 执行审批通过的人员异动 */
+export function executeChange(id: number): Promise<EmployeeChangeExecuteResult> {
+  return http.post<EmployeeChangeExecuteResult>(`/oa/hr/change/${id}/execute`);
+}
+
+/** 完成离职清单任务 */
+export function doneChangeTask(
+  changeId: number,
+  taskId: number,
+  remark?: string,
+): Promise<void> {
+  return http.put<void>(`/oa/hr/change/${changeId}/tasks/${taskId}/done`, { remark });
+}
+
