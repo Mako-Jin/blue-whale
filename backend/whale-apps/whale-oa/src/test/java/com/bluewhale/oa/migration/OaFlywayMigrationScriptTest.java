@@ -218,6 +218,32 @@ class OaFlywayMigrationScriptTest {
     }
 
     /**
+     * V7 新建考勤 10 张表，并种子默认班次/规则与补卡审批配置
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("V7 考勤表集合与审批种子完整")
+    void v7ShouldCreateAttendanceTablesAndSeedConfigs() throws IOException {
+        Path v7 = MIGRATION_DIR.resolve("V7__attendance.sql");
+        Set<String> tables = extractTables(v7);
+        assertEquals(Set.of("oa_att_shift", "oa_att_rule", "oa_att_location", "oa_att_device",
+                "oa_att_group", "oa_att_group_member", "oa_att_record", "oa_att_daily",
+                "oa_att_exception", "oa_att_correction"), tables, "V7 建表集合与 M2-5a 设计不一致");
+
+        String script = Files.readString(v7, StandardCharsets.UTF_8);
+        for (String column : List.of("work_start", "work_end", "flex_minutes", "max_corrections_per_month",
+                "punch_time", "punch_type", "work_date", "late_minutes", "early_minutes", "approval_instance_id")) {
+            assertTrue(script.contains(column), "V7 考勤表应包含列：" + column);
+        }
+        assertTrue(script.contains("'ATT_CORRECTION'"), "V7 应种子补卡业务类型");
+        assertTrue(script.contains("'OA_ATT_CORRECTION'"), "V7 应绑定补卡流程定义");
+        assertTrue(script.contains("DEPT_LEADER"), "V7 应种子部门负责人审批规则");
+        assertTrue(script.contains("uk_oa_att_record_punch"), "V7 应保证打卡幂等");
+        assertTrue(script.contains("uk_oa_att_daily_user_date"), "V7 应保证日汇总唯一");
+    }
+
+    /**
      * 列出迁移脚本并按文件名字典序返回
      *
      * @return 迁移脚本路径

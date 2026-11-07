@@ -174,6 +174,22 @@ public class TripRepositoryImpl implements TripRepository {
                 .stream().map(this::toDomain).toList();
     }
 
+    @Override
+    public List<Trip> listApprovedOverlapping(java.util.Collection<Long> applicantIds, LocalDate from,
+                                              LocalDate to, int limit) {
+        if (applicantIds == null || applicantIds.isEmpty()) {
+            return List.of();
+        }
+        int size = Math.max(limit, 1);
+        return tripMapper.selectList(new LambdaQueryWrapper<TripEntity>()
+                        .in(TripEntity::getApplicantId, applicantIds)
+                        .eq(TripEntity::getStatus, TripStatus.APPROVED.name())
+                        .le(TripEntity::getStartDate, to)
+                        .ge(TripEntity::getEndDate, from)
+                        .last("LIMIT " + size))
+                .stream().map(this::toDomain).toList();
+    }
+
     /**
      * 构造查询条件。
      *

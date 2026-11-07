@@ -109,4 +109,16 @@ public interface TripRepository {
      * @return 待提醒申请列表
      */
     List<Trip> listReportPendingEndedBefore(LocalDate deadline, int limit);
+
+    /**
+     * 按申请人批量查询已批准且与区间重叠的出差（考勤日报判定出差用）。
+     *
+     * @param applicantIds 申请人用户 ID 集合（空集直接返回空）
+     * @param from 区间起（含）
+     * @param to 区间止（含）
+     * @param limit 返回条数上限
+     * @return 出差列表
+     */
+    List<Trip> listApprovedOverlapping(java.util.Collection<Long> applicantIds, LocalDate from,
+                                       LocalDate to, int limit);
 }

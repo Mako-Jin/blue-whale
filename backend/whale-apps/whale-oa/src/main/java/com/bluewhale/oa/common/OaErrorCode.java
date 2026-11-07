@@ -150,6 +150,96 @@ public final class OaErrorCode {
     /** 流程服务暂不可用 */
     public static final int APPROVAL_WORKFLOW_UNAVAILABLE = 50301;
 
+    /** 考勤参数非法 */
+    public static final int ATT_INVALID = 40013;
+
+    /** 考勤主数据不存在 */
+    public static final int ATT_CONFIG_NOT_FOUND = 40416;
+
+    /** 考勤主数据编码已存在 */
+    public static final int ATT_CONFIG_EXISTS = 40917;
+
+    /** 班次不存在 */
+    public static final int ATT_SHIFT_NOT_FOUND = 40417;
+
+    /** 重复打卡 */
+    public static final int ATT_RECORD_DUPLICATE = 40918;
+
+    /** 补卡次数超过月度上限 */
+    public static final int ATT_CORRECTION_LIMIT = 40919;
+
+    /** 补卡申请不存在 */
+    public static final int ATT_CORRECTION_NOT_FOUND = 40418;
+
+    /** 补卡申请状态不允许该操作 */
+    public static final int ATT_CORRECTION_STATUS_CONFLICT = 40920;
+
+    /** 考勤异常不存在 */
+    public static final int ATT_EXCEPTION_NOT_FOUND = 40424;
+
+    /** 报销参数非法 */
+    public static final int EXPENSE_INVALID = 40014;
+
+    /** 报销单不存在 */
+    public static final int EXPENSE_NOT_FOUND = 40419;
+
+    /** 报销单状态不允许该操作 */
+    public static final int EXPENSE_STATUS_CONFLICT = 40921;
+
+    /** 发票重复 */
+    public static final int EXPENSE_INVOICE_DUPLICATE = 40922;
+
+    /** 超费用标准 */
+    public static final int EXPENSE_STANDARD_EXCEEDED = 40923;
+
+    /** 费用类别不存在 */
+    public static final int EXPENSE_CATEGORY_NOT_FOUND = 40420;
+
+    /** 费用类别编码已存在 */
+    public static final int EXPENSE_CATEGORY_EXISTS = 40924;
+
+    /** ERP 服务暂不可用 */
+    public static final int EXPENSE_ERP_UNAVAILABLE = 50302;
+
+    /** 用车参数非法 */
+    public static final int VEHICLE_INVALID = 40015;
+
+    /** 用车预约不存在 */
+    public static final int VEHICLE_BOOKING_NOT_FOUND = 40421;
+
+    /** 用车预约状态不允许该操作 */
+    public static final int VEHICLE_BOOKING_STATUS_CONFLICT = 40925;
+
+    /** 同一车辆时段冲突 */
+    public static final int VEHICLE_BOOKING_CONFLICT = 40926;
+
+    /** 用章参数非法 */
+    public static final int SEAL_INVALID = 40016;
+
+    /** 无该印章使用授权 */
+    public static final int SEAL_NOT_AUTHORIZED = 40302;
+
+    /** 用章已登记 */
+    public static final int SEAL_ALREADY_REGISTERED = 40927;
+
+    /** 用章申请不存在 */
+    public static final int SEAL_NOT_FOUND = 40425;
+
+    /** 用章申请状态不允许该操作 */
+    public static final int SEAL_STATUS_CONFLICT = 40928;
+
+    /** 合同服务暂不可用 */
+    public static final int SEAL_CONTRACT_UNAVAILABLE = 50303;
+
+    /** 采购申请参数非法 */
+    public static final int PURCHASE_INVALID = 40017;
+
+    /** 采购申请不存在 */
+    public static final int PURCHASE_NOT_FOUND = 40426;
+
+    /** 采购申请状态不允许该操作 */
+    public static final int PURCHASE_STATUS_CONFLICT = 40929;
+
     /** 错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(APPROVAL_CONFIG_NOT_FOUND, "审批配置不存在或无权访问"),
@@ -196,7 +286,37 @@ public final class OaErrorCode {
             Map.entry(APPROVAL_TASK_NOT_FOUND, "审批任务不存在或已不可操作"),
             Map.entry(APPROVAL_DELEGATE_NOT_FOUND, "代理规则不存在或无权访问"),
             Map.entry(APPROVAL_CC_NOT_FOUND, "抄送记录不存在或无权访问"),
-            Map.entry(APPROVAL_WORKFLOW_UNAVAILABLE, "流程服务暂不可用，请稍后重试"));
+            Map.entry(APPROVAL_WORKFLOW_UNAVAILABLE, "流程服务暂不可用，请稍后重试"),
+            Map.entry(ATT_INVALID, "考勤参数非法，请检查时间、类型与来源"),
+            Map.entry(ATT_CONFIG_NOT_FOUND, "考勤配置不存在或无权访问"),
+            Map.entry(ATT_CONFIG_EXISTS, "考勤配置编码已存在"),
+            Map.entry(ATT_SHIFT_NOT_FOUND, "班次不存在或无权访问"),
+            Map.entry(ATT_RECORD_DUPLICATE, "该时间已存在相同类型的打卡记录"),
+            Map.entry(ATT_CORRECTION_LIMIT, "本月补卡次数已超过上限"),
+            Map.entry(ATT_CORRECTION_NOT_FOUND, "补卡申请不存在或无权访问"),
+            Map.entry(ATT_CORRECTION_STATUS_CONFLICT, "补卡申请当前状态不允许该操作"),
+            Map.entry(ATT_EXCEPTION_NOT_FOUND, "考勤异常不存在或无权访问"),
+            Map.entry(EXPENSE_INVALID, "报销参数非法，请检查明细、发票与金额"),
+            Map.entry(EXPENSE_NOT_FOUND, "报销单不存在或无权访问"),
+            Map.entry(EXPENSE_STATUS_CONFLICT, "报销单当前状态不允许该操作"),
+            Map.entry(EXPENSE_INVOICE_DUPLICATE, "发票已在其他报销单中使用"),
+            Map.entry(EXPENSE_STANDARD_EXCEEDED, "超出费用标准，请调整后提交"),
+            Map.entry(EXPENSE_CATEGORY_NOT_FOUND, "费用类别不存在或无权访问"),
+            Map.entry(EXPENSE_CATEGORY_EXISTS, "费用类别编码已存在"),
+            Map.entry(EXPENSE_ERP_UNAVAILABLE, "ERP 服务暂不可用，稍后可重试推送"),
+            Map.entry(VEHICLE_INVALID, "用车参数非法，请检查时间、车辆与司机"),
+            Map.entry(VEHICLE_BOOKING_NOT_FOUND, "用车预约不存在或无权访问"),
+            Map.entry(VEHICLE_BOOKING_STATUS_CONFLICT, "用车预约当前状态不允许该操作"),
+            Map.entry(VEHICLE_BOOKING_CONFLICT, "该车辆在所选时段已有预约"),
+            Map.entry(SEAL_INVALID, "用章参数非法，请检查印章与文件"),
+            Map.entry(SEAL_NOT_AUTHORIZED, "无该印章的使用授权"),
+            Map.entry(SEAL_ALREADY_REGISTERED, "该用章申请已登记"),
+            Map.entry(SEAL_NOT_FOUND, "用章申请不存在或无权访问"),
+            Map.entry(SEAL_STATUS_CONFLICT, "用章申请当前状态不允许该操作"),
+            Map.entry(SEAL_CONTRACT_UNAVAILABLE, "合同服务暂不可用，请稍后重试"),
+            Map.entry(PURCHASE_INVALID, "采购申请参数非法，请检查明细与金额"),
+            Map.entry(PURCHASE_NOT_FOUND, "采购申请不存在或无权访问"),
+            Map.entry(PURCHASE_STATUS_CONFLICT, "采购申请当前状态不允许该操作"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。
