@@ -131,6 +131,20 @@ public class ProductionOrderController {
     }
 
     /**
+     * 同步 PDM 工艺路线。
+     *
+     * @param id 生产订单 ID
+     * @return 生产订单视图
+     */
+    @PostMapping("/{id}/routing/sync")
+    @RequirePermission("sys:erp:production:operation:sync")
+    @AuditLog(operation = "同步生产订单工艺路线", targetType = "erp_mfg_production_order",
+            type = OperateType.UPDATE)
+    public Result<ProductionOrderView> syncRouting(@PathVariable Long id) {
+        return Result.ok(productionOrderAppService.syncRouting(id));
+    }
+
+    /**
      * 生产订单结案。
      *
      * @param id 生产订单 ID

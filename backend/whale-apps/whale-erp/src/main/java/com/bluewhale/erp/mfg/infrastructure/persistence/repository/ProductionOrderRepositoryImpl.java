@@ -3,12 +3,16 @@ package com.bluewhale.erp.mfg.infrastructure.persistence.repository;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.erp.mfg.domain.model.MfgQuery;
+import com.bluewhale.erp.mfg.domain.model.MfgStatus;
 import com.bluewhale.erp.mfg.domain.model.ProductionMaterial;
+import com.bluewhale.erp.mfg.domain.model.ProductionOperation;
 import com.bluewhale.erp.mfg.domain.model.ProductionOrder;
 import com.bluewhale.erp.mfg.domain.repository.ProductionOrderRepository;
 import com.bluewhale.erp.mfg.infrastructure.persistence.entity.ProductionMaterialEntity;
+import com.bluewhale.erp.mfg.infrastructure.persistence.entity.ProductionOperationEntity;
 import com.bluewhale.erp.mfg.infrastructure.persistence.entity.ProductionOrderEntity;
 import com.bluewhale.erp.mfg.infrastructure.persistence.mapper.ProductionMaterialMapper;
+import com.bluewhale.erp.mfg.infrastructure.persistence.mapper.ProductionOperationMapper;
 import com.bluewhale.erp.mfg.infrastructure.persistence.mapper.ProductionOrderMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -38,6 +42,8 @@ public class ProductionOrderRepositoryImpl implements ProductionOrderRepository 
 
     private final ProductionMaterialMapper productionMaterialMapper;
 
+    private final ProductionOperationMapper productionOperationMapper;
+
     @Override
     public List<ProductionOrder> page(MfgQuery query) {
         Page<ProductionOrderEntity> page = productionOrderMapper.selectPage(
@@ -61,7 +67,24 @@ public class ProductionOrderRepositoryImpl implements ProductionOrderRepository 
                         .eq(ProductionMaterialEntity::getOrderId, id)
                         .orderByAsc(ProductionMaterialEntity::getLineNo))
                 .stream().map(this::toDomain).toList());
+        order.setOperations(operationsOf(id));
         return Optional.of(order);
+    }
+
+    @Override
+    public List<ProductionOrder> listActiveForCrp(LocalDate fromDate, LocalDate toDate) {
+        return productionOrderMapper.selectList(new LambdaQueryWrapper<ProductionOrderEntity>()
+                        .in(ProductionOrderEntity::getStatus, MfgStatus.RELEASED, MfgStatus.IN_PROGRESS)
+                        .le(ProductionOrderEntity::getPlanStartDate, toDate)
+                        .orderByAsc(ProductionOrderEntity::getPlanStartDate)
+                        .orderByAsc(ProductionOrderEntity::getOrderNo))
+                .stream()
+                .map(entity -> {
+                    ProductionOrder order = toDomain(entity);
+                    order.setOperations(operationsOf(entity.getId()));
+                    return order;
+                })
+                .toList();
     }
 
     @Override
@@ -83,6 +106,21 @@ public class ProductionOrderRepositoryImpl implements ProductionOrderRepository 
             fillMaterial(materialEntity, material);
             productionMaterialMapper.insert(materialEntity);
         }
+        insertOperations(order);
+    }
+
+    @Override
+    public void updateRouting(ProductionOrder order) {
+        ProductionOrderEntity entity = new ProductionOrderEntity();
+        entity.setId(order.getId());
+        entity.setRoutingNo(order.getRoutingNo());
+        entity.setRoutingVersion(order.getRoutingVersion());
+        entity.setRoutingStatus(order.getRoutingStatus());
+        productionOrderMapper.updateById(entity);
+        productionOperationMapper.delete(new LambdaQueryWrapper<ProductionOperationEntity>()
+                .eq(ProductionOperationEntity::getOrderId, order.getId()));
+        order.getOperations().forEach(operation ->
+                productionOperationMapper.insert(toEntity(order.getId(), operation)));
     }
 
     @Override
@@ -167,7 +205,82 @@ public class ProductionOrderRepositoryImpl implements ProductionOrderRepository 
         order.setCompleteDate(entity.getCompleteDate());
         order.setStatus(entity.getStatus());
         order.setRemark(entity.getRemark());
+        order.setRoutingNo(entity.getRoutingNo());
+        order.setRoutingVersion(entity.getRoutingVersion());
+        order.setRoutingStatus(entity.getRoutingStatus());
         return order;
+    }
+
+    /**
+     * 读取订单工序。
+     *
+     * @param orderId 订单 ID
+     * @return 工序列表
+     */
+    private List<ProductionOperation> operationsOf(Long orderId) {
+        return productionOperationMapper.selectList(new LambdaQueryWrapper<ProductionOperationEntity>()
+                        .eq(ProductionOperationEntity::getOrderId, orderId)
+                        .orderByAsc(ProductionOperationEntity::getStepNo))
+                .stream().map(this::toDomainOperation).toList();
+    }
+
+    /**
+     * 工序实体转领域模型。
+     *
+     * @param entity 实体
+     * @return 工序
+     */
+    private ProductionOperation toDomainOperation(ProductionOperationEntity entity) {
+        ProductionOperation operation = new ProductionOperation();
+        operation.setStepNo(entity.getStepNo());
+        operation.setName(entity.getName());
+        operation.setWorkCenterCode(entity.getWorkCenterCode());
+        operation.setStandardHours(entity.getStandardHours());
+        operation.setSetupHours(entity.getSetupHours());
+        operation.setPlannedQuantity(entity.getPlannedQuantity());
+        operation.setQualifiedQuantity(entity.getQualifiedQuantity());
+        operation.setScrappedQuantity(entity.getScrappedQuantity());
+        operation.setStatus(entity.getStatus());
+        operation.setFirstReportAt(entity.getFirstReportAt());
+        operation.setLastReportAt(entity.getLastReportAt());
+        return operation;
+    }
+
+    /**
+     * 工序领域模型转实体。
+     *
+     * @param orderId   订单 ID
+     * @param operation 工序
+     * @return 实体
+     */
+    private ProductionOperationEntity toEntity(Long orderId, ProductionOperation operation) {
+        ProductionOperationEntity entity = new ProductionOperationEntity();
+        entity.setOrderId(orderId);
+        entity.setStepNo(operation.getStepNo());
+        entity.setName(operation.getName());
+        entity.setWorkCenterCode(operation.getWorkCenterCode());
+        entity.setStandardHours(operation.getStandardHours());
+        entity.setSetupHours(operation.getSetupHours());
+        entity.setPlannedQuantity(operation.getPlannedQuantity());
+        entity.setQualifiedQuantity(operation.getQualifiedQuantity());
+        entity.setScrappedQuantity(operation.getScrappedQuantity());
+        entity.setStatus(operation.getStatus());
+        entity.setFirstReportAt(operation.getFirstReportAt());
+        entity.setLastReportAt(operation.getLastReportAt());
+        return entity;
+    }
+
+    /**
+     * 写入订单工序。
+     *
+     * @param order 订单
+     */
+    private void insertOperations(ProductionOrder order) {
+        if (order.getOperations() == null) {
+            return;
+        }
+        order.getOperations().forEach(operation ->
+                productionOperationMapper.insert(toEntity(order.getId(), operation)));
     }
 
     /**
@@ -212,6 +325,9 @@ public class ProductionOrderRepositoryImpl implements ProductionOrderRepository 
         entity.setCompleteDate(order.getCompleteDate());
         entity.setStatus(order.getStatus());
         entity.setRemark(order.getRemark());
+        entity.setRoutingNo(order.getRoutingNo());
+        entity.setRoutingVersion(order.getRoutingVersion());
+        entity.setRoutingStatus(order.getRoutingStatus());
     }
 
     /**

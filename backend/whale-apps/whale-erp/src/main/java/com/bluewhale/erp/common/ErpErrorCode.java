@@ -329,6 +329,33 @@ public final class ErpErrorCode {
     /** MRP 计划订单不存在 */
     public static final int MRP_PLANNED_ORDER_NOT_FOUND = 40442;
 
+    /** CRP 参数非法（日期区间越界或工作中心编码为空） */
+    public static final int CRP_INVALID = 40027;
+
+    /** PDM 工艺路线快照拉取失败 */
+    public static final int ROUTING_FETCH_FAILED = 40028;
+
+    /** 生产工序参数非法（报工数量为负或超出计划） */
+    public static final int OPERATION_INVALID = 40029;
+
+    /** 工作中心不存在 */
+    public static final int WORK_CENTER_NOT_FOUND = 40443;
+
+    /** 生产工序不存在 */
+    public static final int PRODUCTION_OPERATION_NOT_FOUND = 40444;
+
+    /** 工作中心编码已存在 */
+    public static final int WORK_CENTER_CODE_CONFLICT = 40942;
+
+    /** 工序报工数量超过计划数量 */
+    public static final int OPERATION_REPORT_EXCEEDED = 40943;
+
+    /** 退料数量超过已领数量 */
+    public static final int MATERIAL_RETURN_EXCEEDED = 40944;
+
+    /** 报废数量超过已领数量 */
+    public static final int MATERIAL_SCRAP_EXCEEDED = 40945;
+
     /** 错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(AMOUNT_INVALID, "金额必须大于 0，且最多保留 2 位小数"),
@@ -435,7 +462,16 @@ public final class ErpErrorCode {
             Map.entry(MRP_INVALID, "MRP 参数非法：请检查需求行、数量与 BOM 版本"),
             Map.entry(MRP_BOM_FETCH_FAILED, "PDM BOM 快照拉取失败或快照不完整，本次运算已终止"),
             Map.entry(MRP_RUN_NOT_FOUND, "MRP 运行记录不存在或无权访问"),
-            Map.entry(MRP_PLANNED_ORDER_NOT_FOUND, "MRP 计划订单不存在或无权访问"));
+            Map.entry(MRP_PLANNED_ORDER_NOT_FOUND, "MRP 计划订单不存在或无权访问"),
+            Map.entry(CRP_INVALID, "CRP 参数非法：查询区间不能超过 62 天，且开始日期不得晚于结束日期"),
+            Map.entry(ROUTING_FETCH_FAILED, "PDM 工艺路线快照拉取失败，请稍后重试"),
+            Map.entry(OPERATION_INVALID, "生产工序参数非法，请检查报工数量与工序顺序"),
+            Map.entry(WORK_CENTER_NOT_FOUND, "工作中心不存在或无权访问"),
+            Map.entry(PRODUCTION_OPERATION_NOT_FOUND, "生产工序不存在或无权访问"),
+            Map.entry(WORK_CENTER_CODE_CONFLICT, "工作中心编码已存在"),
+            Map.entry(OPERATION_REPORT_EXCEEDED, "工序累计报工数量超过计划数量"),
+            Map.entry(MATERIAL_RETURN_EXCEEDED, "退料数量超过已领数量"),
+            Map.entry(MATERIAL_SCRAP_EXCEEDED, "报废数量超过已领数量"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。

@@ -80,4 +80,14 @@ public interface ProductionOrderAppService {
      * @return 生产订单
      */
     ProductionOrderView cancel(Long id);
+
+    /**
+     * 重新拉取 PDM 工艺路线并覆盖订单工序快照。
+     *
+     * <p>仅草稿/已下达且尚无报工的订单可同步。</p>
+     *
+     * @param id 生产订单主键
+     * @return 生产订单视图
+     */
+    ProductionOrderView syncRouting(Long id);
 }

@@ -49,6 +49,27 @@ public final class MfgStatus {
     /** 来源：生产完工入库 */
     public static final String SOURCE_PRODUCTION_RECEIPT = "PRODUCTION_RECEIPT";
 
+    /** 来源：生产退料 */
+    public static final String SOURCE_PRODUCTION_RETURN = "PRODUCTION_RETURN";
+
+    /** 工作中心启用 */
+    public static final String ENABLED = "ENABLED";
+
+    /** 工作中心停用 */
+    public static final String DISABLED = "DISABLED";
+
+    /** 工艺路线：无已发布路线 */
+    public static final String ROUTING_NONE = "NONE";
+
+    /** 工艺路线：已冻结快照 */
+    public static final String ROUTING_SNAPSHOT = "SNAPSHOT";
+
+    /** 工艺路线：拉取失败 */
+    public static final String ROUTING_FAILED = "FAILED";
+
+    /** 工序待报工 */
+    public static final String PENDING = "PENDING";
+
     /**
      * 私有构造器：常量类，禁止实例化。
      */

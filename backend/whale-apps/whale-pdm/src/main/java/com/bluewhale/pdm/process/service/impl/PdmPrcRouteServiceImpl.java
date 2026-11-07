@@ -35,6 +35,7 @@ import com.bluewhale.pdm.process.support.PdmPrcPublishStatus;
 import com.bluewhale.pdm.process.support.PdmPrcStatus;
 import com.bluewhale.pdm.process.support.PdmPrcVersionNo;
 import com.bluewhale.pdm.process.vo.PdmPrcPublishVO;
+import com.bluewhale.pdm.process.vo.PdmPrcRouteSnapshotVO;
 import com.bluewhale.pdm.process.vo.PdmPrcRouteVO;
 import com.bluewhale.pdm.process.vo.PdmPrcSopVO;
 import com.bluewhale.pdm.process.vo.PdmPrcStepVO;
@@ -376,6 +377,69 @@ public class PdmPrcRouteServiceImpl implements PdmPrcRouteService {
             }
         }
         return assemble(route);
+    }
+
+    @Override
+    public PdmPrcRouteSnapshotVO snapshot(String routeNo, String versionNo) {
+        PdmPrcRoute route = routeMapper.selectList(new LambdaQueryWrapper<PdmPrcRoute>()
+                        .eq(PdmPrcRoute::getRouteNo, routeNo)
+                        .eq(PdmPrcRoute::getVersionNo, versionNo)
+                        .last("limit 1"))
+                .stream().findFirst()
+                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND, "工艺路线不存在或未发布"));
+        return toSnapshot(requireReleased(route));
+    }
+
+    @Override
+    public PdmPrcRouteSnapshotVO latestReleased(String partCode) {
+        PdmPrcRoute route = routeMapper.selectList(new LambdaQueryWrapper<PdmPrcRoute>()
+                        .eq(PdmPrcRoute::getPartCode, partCode)
+                        .eq(PdmPrcRoute::getStatus, PdmPrcStatus.RELEASED)
+                        .orderByDesc(PdmPrcRoute::getVersionSeq)
+                        .orderByDesc(PdmPrcRoute::getId)
+                        .last("limit 1"))
+                .stream().findFirst()
+                .orElseThrow(() -> new BizException(ErrorCode.NOT_FOUND,
+                        "零件 " + partCode + " 没有已发布工艺路线"));
+        return toSnapshot(requireReleased(route));
+    }
+
+    /**
+     * 校验路线已发布并返回。
+     *
+     * @param route 路线
+     * @return 已发布路线
+     */
+    private PdmPrcRoute requireReleased(PdmPrcRoute route) {
+        if (!PdmPrcStatus.RELEASED.equals(route.getStatus())) {
+            throw new BizException(ErrorCode.NOT_FOUND, "工艺路线不存在或未发布");
+        }
+        return route;
+    }
+
+    /**
+     * 路线转发布快照。
+     *
+     * @param route 已发布路线
+     * @return 快照
+     */
+    private PdmPrcRouteSnapshotVO toSnapshot(PdmPrcRoute route) {
+        PdmPrcRouteSnapshotVO snapshot = new PdmPrcRouteSnapshotVO();
+        snapshot.setRouteNo(route.getRouteNo());
+        snapshot.setVersionNo(route.getVersionNo());
+        snapshot.setPartCode(route.getPartCode());
+        snapshot.setPartName(route.getPartName());
+        snapshot.setReleasedAt(route.getReleasedAt());
+        for (PdmPrcStep step : stepsOf(route.getId())) {
+            PdmPrcRouteSnapshotVO.Step item = new PdmPrcRouteSnapshotVO.Step();
+            item.setStepNo(step.getStepNo());
+            item.setName(step.getName());
+            item.setWorkCenter(step.getWorkCenter());
+            item.setStandardHours(step.getStandardHours());
+            item.setSetupHours(step.getSetupHours());
+            snapshot.getSteps().add(item);
+        }
+        return snapshot;
     }
 
     /**

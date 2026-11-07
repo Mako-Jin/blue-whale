@@ -1,6 +1,7 @@
 package com.bluewhale.erp.mfg.application.view;
 
 import com.bluewhale.erp.mfg.domain.model.ProductionMaterial;
+import com.bluewhale.erp.mfg.domain.model.ProductionOperation;
 import com.bluewhale.erp.mfg.domain.model.ProductionOrder;
 import lombok.Data;
 
@@ -70,8 +71,20 @@ public class ProductionOrderView {
     /** 备注 */
     private String remark;
 
+    /** 工艺路线编号快照 */
+    private String routingNo;
+
+    /** 工艺路线版本快照 */
+    private String routingVersion;
+
+    /** 工艺路线状态：NONE / SNAPSHOT / FAILED */
+    private String routingStatus;
+
     /** 用料 */
     private List<MaterialView> materials;
+
+    /** 工序 */
+    private List<OperationView> operations;
 
     /**
      * 由领域对象构建视图。
@@ -99,10 +112,70 @@ public class ProductionOrderView {
         view.setCompleteDate(order.getCompleteDate());
         view.setStatus(order.getStatus());
         view.setRemark(order.getRemark());
+        view.setRoutingNo(order.getRoutingNo());
+        view.setRoutingVersion(order.getRoutingVersion());
+        view.setRoutingStatus(order.getRoutingStatus());
         if (order.getMaterials() != null) {
             view.setMaterials(order.getMaterials().stream().map(MaterialView::of).toList());
         }
+        if (order.getOperations() != null) {
+            view.setOperations(order.getOperations().stream().map(OperationView::of).toList());
+        }
         return view;
+    }
+
+    /**
+     * 生产工序视图。
+     */
+    @Data
+    public static class OperationView {
+
+        /** 工序序号 */
+        private Integer stepNo;
+
+        /** 工序名称 */
+        private String name;
+
+        /** 工作中心编码 */
+        private String workCenterCode;
+
+        /** 单件标准工时 */
+        private BigDecimal standardHours;
+
+        /** 准备工时 */
+        private BigDecimal setupHours;
+
+        /** 计划数量 */
+        private BigDecimal plannedQuantity;
+
+        /** 累计合格数量 */
+        private BigDecimal qualifiedQuantity;
+
+        /** 累计报废数量 */
+        private BigDecimal scrappedQuantity;
+
+        /** 状态 */
+        private String status;
+
+        /**
+         * 由领域对象构建视图。
+         *
+         * @param operation 工序
+         * @return 视图
+         */
+        public static OperationView of(ProductionOperation operation) {
+            OperationView view = new OperationView();
+            view.setStepNo(operation.getStepNo());
+            view.setName(operation.getName());
+            view.setWorkCenterCode(operation.getWorkCenterCode());
+            view.setStandardHours(operation.getStandardHours());
+            view.setSetupHours(operation.getSetupHours());
+            view.setPlannedQuantity(operation.getPlannedQuantity());
+            view.setQualifiedQuantity(operation.getQualifiedQuantity());
+            view.setScrappedQuantity(operation.getScrappedQuantity());
+            view.setStatus(operation.getStatus());
+            return view;
+        }
     }
 
     /**

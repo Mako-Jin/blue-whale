@@ -1,5 +1,6 @@
 package com.bluewhale.erp.mfg.application.service.impl;
 
+import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.erp.common.ErpErrorCode;
 import com.bluewhale.erp.finance.application.command.AutoVoucherCommand;
@@ -15,7 +16,11 @@ import com.bluewhale.erp.mfg.application.view.ProductionOrderView;
 import com.bluewhale.erp.mfg.domain.model.MfgQuery;
 import com.bluewhale.erp.mfg.domain.model.MfgStatus;
 import com.bluewhale.erp.mfg.domain.model.ProductionMaterial;
+import com.bluewhale.erp.mfg.domain.model.ProductionOperation;
 import com.bluewhale.erp.mfg.domain.model.ProductionOrder;
+import com.bluewhale.erp.mfg.domain.model.RoutingSnapshot;
+import com.bluewhale.erp.mfg.domain.model.RoutingStep;
+import com.bluewhale.erp.mfg.domain.port.RoutingCatalog;
 import com.bluewhale.erp.mfg.domain.repository.ProductionOrderRepository;
 import com.bluewhale.erp.scm.domain.model.ScmStatus;
 import com.bluewhale.erp.scm.domain.model.StockBalance;
@@ -32,6 +37,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -59,6 +65,8 @@ public class ProductionOrderAppServiceImpl implements ProductionOrderAppService 
     private final WarehouseRepository warehouseRepository;
 
     private final AutoVoucherAppService autoVoucherAppService;
+
+    private final RoutingCatalog routingCatalog;
 
     @Override
     public PageResult<ProductionOrderView> page(MfgQuery query) {
@@ -110,8 +118,29 @@ public class ProductionOrderAppServiceImpl implements ProductionOrderAppService 
         order.setStatus(MfgStatus.DRAFT);
         order.setRemark(command.getRemark());
         order.setMaterials(materials);
+        applyRouting(order);
         order.validateForCreate();
         productionOrderRepository.insert(order);
+        return ProductionOrderView.of(order);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ProductionOrderView syncRouting(Long id) {
+        ProductionOrder order = requireOrder(id);
+        boolean editable = MfgStatus.DRAFT.equals(order.getStatus()) || MfgStatus.RELEASED.equals(order.getStatus());
+        if (!editable) {
+            throw ErpErrorCode.exception(ErpErrorCode.MFG_INVALID, "仅草稿或已下达订单可同步工艺路线");
+        }
+        if (order.getOperations() != null && order.getOperations().stream()
+                .anyMatch(operation -> operation.reportedQuantity().signum() > 0)) {
+            throw ErpErrorCode.exception(ErpErrorCode.OPERATION_INVALID, "订单已有工序报工，不能覆盖工艺路线");
+        }
+        RoutingSnapshot snapshot = routingCatalog.latestReleased(order.getItemCode())
+                .orElseThrow(() -> ErpErrorCode.exception(ErpErrorCode.ROUTING_FETCH_FAILED,
+                        "零件 " + order.getItemCode() + " 没有已发布工艺路线"));
+        freezeRouting(order, snapshot);
+        productionOrderRepository.updateRouting(order);
         return ProductionOrderView.of(order);
     }
 
@@ -185,6 +214,60 @@ public class ProductionOrderAppServiceImpl implements ProductionOrderAppService 
         order.cancel();
         productionOrderRepository.update(order);
         return ProductionOrderView.of(order);
+    }
+
+    /**
+     * 建单时拉取工艺路线：成功冻结工序，404 记 NONE，不可达记 FAILED。
+     *
+     * @param order 生产订单
+     */
+    private void applyRouting(ProductionOrder order) {
+        try {
+            routingCatalog.latestReleased(order.getItemCode())
+                    .ifPresentOrElse(
+                            snapshot -> freezeRouting(order, snapshot),
+                            () -> {
+                                order.setRoutingStatus(MfgStatus.ROUTING_NONE);
+                                order.setOperations(new ArrayList<>());
+                            });
+        } catch (BizException ex) {
+            if (ex.getCode() != ErpErrorCode.ROUTING_FETCH_FAILED) {
+                throw ex;
+            }
+            order.setRoutingStatus(MfgStatus.ROUTING_FAILED);
+            order.setOperations(new ArrayList<>());
+        }
+    }
+
+    /**
+     * 冻结工艺路线到订单工序。
+     *
+     * @param order    生产订单
+     * @param snapshot 路线快照
+     */
+    private void freezeRouting(ProductionOrder order, RoutingSnapshot snapshot) {
+        order.setRoutingNo(snapshot.getRouteNo());
+        order.setRoutingVersion(snapshot.getVersionNo());
+        order.setRoutingStatus(MfgStatus.ROUTING_SNAPSHOT);
+        List<ProductionOperation> operations = new ArrayList<>();
+        snapshot.getSteps().stream()
+                .sorted(Comparator.comparing(RoutingStep::getStepNo))
+                .forEach(step -> {
+                    ProductionOperation operation = new ProductionOperation();
+                    operation.setStepNo(step.getStepNo());
+                    operation.setName(step.getName());
+                    operation.setWorkCenterCode(step.getWorkCenterCode());
+                    operation.setStandardHours(step.getStandardHours() == null
+                            ? BigDecimal.ZERO : step.getStandardHours());
+                    operation.setSetupHours(step.getSetupHours() == null
+                            ? BigDecimal.ZERO : step.getSetupHours());
+                    operation.setPlannedQuantity(order.getPlannedQuantity());
+                    operation.setQualifiedQuantity(BigDecimal.ZERO);
+                    operation.setScrappedQuantity(BigDecimal.ZERO);
+                    operation.setStatus(MfgStatus.PENDING);
+                    operations.add(operation);
+                });
+        order.setOperations(operations);
     }
 
     /**

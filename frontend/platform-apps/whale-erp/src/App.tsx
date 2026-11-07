@@ -27,6 +27,8 @@ import MpsPage from './pages/MpsPage';
 import ProductionPage from './pages/ProductionPage';
 import MrpRunPage from './pages/MrpRunPage';
 import MrpOrderPage from './pages/MrpOrderPage';
+import WorkCenterPage from './pages/WorkCenterPage';
+import CrpPage from './pages/CrpPage';
 import EmployeePage from './pages/EmployeePage';
 import AttendancePage from './pages/AttendancePage';
 import PayrollPage from './pages/PayrollPage';
@@ -63,6 +65,8 @@ const menuItems: MenuProps['items'] = [
   { key: 'forecast', label: '需求预测' },
   { key: 'mps', label: '主生产计划' },
   { key: 'production', label: '生产订单' },
+  { key: 'work-center', label: '工作中心' },
+  { key: 'crp', label: '产能负荷' },
   { key: 'mrp-run', label: 'MRP 运算' },
   { key: 'mrp-order', label: '计划订单' },
   { key: 'hr-employee', label: '组织与员工' },
@@ -99,6 +103,8 @@ type PageKind =
   | 'forecast'
   | 'mps'
   | 'production'
+  | 'work-center'
+  | 'crp'
   | 'mrp-run'
   | 'mrp-order'
   | 'hr-employee'
@@ -135,6 +141,8 @@ function initialPage(): PageKind {
   if (path.includes('/erp/mfg/mrp')) return 'mrp-run';
   if (path.includes('/erp/mfg/forecast')) return 'forecast';
   if (path.includes('/erp/mfg/mps')) return 'mps';
+  if (path.includes('/erp/mfg/work-center')) return 'work-center';
+  if (path.includes('/erp/mfg/crp')) return 'crp';
   if (path.includes('/erp/mfg/production')) return 'production';
   if (path.includes('/erp/hr/employee')) return 'hr-employee';
   if (path.includes('/erp/hr/attendance')) return 'hr-attendance';
@@ -179,6 +187,8 @@ function pageOfKey(key: string): PageKind {
     || key === 'forecast'
     || key === 'mps'
     || key === 'production'
+    || key === 'work-center'
+    || key === 'crp'
     || key === 'mrp-run'
     || key === 'mrp-order'
     || key === 'hr-employee'
@@ -220,6 +230,8 @@ const PAGE_TITLE: Record<PageKind, string> = {
   forecast: '需求预测',
   mps: '主生产计划',
   production: '生产订单',
+  'work-center': '工作中心',
+  crp: '产能负荷',
   'mrp-run': 'MRP 运算',
   'mrp-order': '计划订单',
   'hr-employee': '组织与员工',
@@ -335,6 +347,8 @@ export default function App() {
             {page === 'forecast' ? <ForecastPage /> : null}
             {page === 'mps' ? <MpsPage /> : null}
             {page === 'production' ? <ProductionPage /> : null}
+            {page === 'work-center' ? <WorkCenterPage /> : null}
+            {page === 'crp' ? <CrpPage /> : null}
             {page === 'mrp-run' ? <MrpRunPage /> : null}
             {page === 'mrp-order' ? <MrpOrderPage /> : null}
             {page === 'hr-employee' ? <EmployeePage /> : null}

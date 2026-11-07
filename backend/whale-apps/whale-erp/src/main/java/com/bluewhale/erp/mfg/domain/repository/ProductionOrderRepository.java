@@ -47,11 +47,27 @@ public interface ProductionOrderRepository {
     String nextOrderNo(LocalDate planStartDate);
 
     /**
+     * 查询 CRP 可用订单（已下达/生产中，且计划开工不晚于区间结束）。
+     *
+     * @param fromDate 区间开始
+     * @param toDate   区间结束
+     * @return 生产订单（含工序）
+     */
+    List<ProductionOrder> listActiveForCrp(LocalDate fromDate, LocalDate toDate);
+
+    /**
      * 新增生产订单与用料。
      *
      * @param order 生产订单
      */
     void insert(ProductionOrder order);
+
+    /**
+     * 覆盖订单工序与工艺路线快照（同步工艺时使用）。
+     *
+     * @param order 生产订单
+     */
+    void updateRouting(ProductionOrder order);
 
     /**
      * 更新生产订单状态、完工数据与用料已领数量。

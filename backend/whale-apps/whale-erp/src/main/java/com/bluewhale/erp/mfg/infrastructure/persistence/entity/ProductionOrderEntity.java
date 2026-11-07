@@ -70,4 +70,13 @@ public class ProductionOrderEntity extends BaseEntity {
 
     /** 备注 */
     private String remark;
+
+    /** 工艺路线编号快照 */
+    private String routingNo;
+
+    /** 工艺路线版本快照 */
+    private String routingVersion;
+
+    /** 工艺路线状态：NONE/SNAPSHOT/FAILED */
+    private String routingStatus;
 }

@@ -92,7 +92,24 @@ export interface ProductionOrderView {
   completeDate?: string;
   status: string;
   remark?: string;
+  routingNo?: string;
+  routingVersion?: string;
+  routingStatus?: string;
   materials?: ProductionMaterialView[];
+  operations?: ProductionOperationView[];
+}
+
+/** 生产订单工序 */
+export interface ProductionOperationView {
+  stepNo: number;
+  name: string;
+  workCenterCode?: string;
+  standardHours?: number;
+  setupHours?: number;
+  plannedQuantity: number;
+  qualifiedQuantity?: number;
+  scrappedQuantity?: number;
+  status?: string;
 }
 
 /** 生产订单入参 */
@@ -183,6 +200,7 @@ export interface MfgQueryParams {
   toDate?: string;
   runId?: number;
   orderType?: string;
+  workCenterCode?: string;
 }
 
 /** 构造查询串（空值不下发，默认每页 20 条） */
@@ -332,4 +350,104 @@ export function pageMrpPlannedOrders(
 /** MRP 计划订单详情（含需求追溯） */
 export function getMrpPlannedOrder(id: number): Promise<MrpPlannedOrderView> {
   return http.get<MrpPlannedOrderView>(`/erp/mfg/mrp/orders/${id}`);
+}
+
+/** 工作中心 */
+export interface WorkCenterView {
+  id: number;
+  code: string;
+  name: string;
+  department?: string;
+  dailyCapacityHours: number;
+  efficiencyRate: number;
+  workDays: string;
+  status: string;
+  remark?: string;
+}
+
+/** 工作中心入参 */
+export interface WorkCenterInput {
+  code: string;
+  name: string;
+  department?: string;
+  dailyCapacityHours: number;
+  efficiencyRate?: number;
+  workDays?: string;
+  status?: string;
+  remark?: string;
+}
+
+/** CRP 工作中心日负荷 */
+export interface CrpLoadView {
+  workCenterCode: string;
+  date: string;
+  capacityHours: number;
+  loadHours: number;
+  utilizationPercent: number;
+  overload: boolean;
+}
+
+/** CRP 工序排程 */
+export interface CrpScheduleView {
+  orderNo: string;
+  itemCode: string;
+  stepNo: number;
+  name: string;
+  workCenterCode: string;
+  quantity: number;
+  hours: number;
+  startDate: string;
+  endDate: string;
+  status: string;
+  delayed: boolean;
+}
+
+/** CRP 计算结果 */
+export interface CrpView {
+  loads: CrpLoadView[];
+  schedule: CrpScheduleView[];
+  excludedOrderCount: number;
+  beyondHorizonHours: number;
+}
+
+/** 工作中心分页 */
+export function pageWorkCenters(
+  params: MfgQueryParams = {},
+): Promise<PageResult<WorkCenterView>> {
+  return http.get<PageResult<WorkCenterView>>(
+    `/erp/mfg/work-centers/page?${buildQuery(params)}`,
+  );
+}
+
+/** 全部工作中心（下拉用） */
+export function listAllWorkCenters(): Promise<WorkCenterView[]> {
+  return http.get<WorkCenterView[]>('/erp/mfg/work-centers/all');
+}
+
+/** 新增工作中心 */
+export function createWorkCenter(input: WorkCenterInput): Promise<WorkCenterView> {
+  return http.post<WorkCenterView>('/erp/mfg/work-centers', input);
+}
+
+/** 编辑工作中心 */
+export function updateWorkCenter(
+  id: number,
+  input: WorkCenterInput,
+): Promise<WorkCenterView> {
+  return http.put<WorkCenterView>(`/erp/mfg/work-centers/${id}`, input);
+}
+
+/** 删除工作中心 */
+export function deleteWorkCenter(id: number): Promise<void> {
+  return http.del<void>(`/erp/mfg/work-centers/${id}`);
+}
+
+/** 查询产能负荷与工序排程 */
+export function getCrpLoad(params: MfgQueryParams = {}): Promise<CrpView> {
+  return http.get<CrpView>(`/erp/mfg/crp/load?${buildQuery(params)}`);
+}
+
+/** 同步生产订单工艺路线 */
+export function syncProductionRouting(id: number): Promise<ProductionOrderView> {
+  return http.post<ProductionOrderView>(`/erp/mfg/production/${id}/routing/sync`);
 }

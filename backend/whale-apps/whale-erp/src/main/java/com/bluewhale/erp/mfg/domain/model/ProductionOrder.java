@@ -79,8 +79,20 @@ public class ProductionOrder {
     /** 备注 */
     private String remark;
 
+    /** 工艺路线编号快照 */
+    private String routingNo;
+
+    /** 工艺路线版本快照 */
+    private String routingVersion;
+
+    /** 工艺路线状态：NONE / SNAPSHOT / FAILED */
+    private String routingStatus;
+
     /** 用料 */
     private List<ProductionMaterial> materials;
+
+    /** 工序（PDM 路线快照） */
+    private List<ProductionOperation> operations;
 
     /**
      * 校验建单数据。

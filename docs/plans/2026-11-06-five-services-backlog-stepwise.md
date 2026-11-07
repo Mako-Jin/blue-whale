@@ -1,7 +1,7 @@
 # PDM / MES / OA / CRM / ERP 待办总账与分步实施计划
 
 > 日期：2026-11-06　状态：**已批准，执行中**（Step 1 → Step 7 逐批实施，每批独立验证、提交、推送）
-> 进度：**Step 1 已完成**（2026-11-06，CRM 前端 8113 Step 1a 客户域 + Step 1b 销售域）；**Step 2 已完成**（2026-11-06，ERP MRP：BOM 展开 / 净需求 / 计划订单 / 追溯 / 运行记录）；Step 3–7 未开始。
+> 进度：**Step 1 已完成**（2026-11-06，CRM 前端 8113 Step 1a 客户域 + Step 1b 销售域）；**Step 2 已完成**（2026-11-06，ERP MRP：BOM 展开 / 净需求 / 计划订单 / 追溯 / 运行记录）；**Step 3 进行中**（2026-11-07，3a 已完成：PDM 工艺路线快照 / 工作中心 / 产能负荷与甘特 / 生产订单工序快照；3b 工序报工 / 倒冲领料 / 退料报废待做）；Step 4–7 未开始。
 > 依据：[roadmap.md](roadmap.md) 状态对账（2026-11-06）、[PDM 计划 §十九](2026-11-04-wave5.80-pdm-panorama.md)、[MES 计划](2026-11-04-wave5.79-mes-panorama.md)、[OA 计划](2026-11-04-wave5.82-oa-panorama.md)、[CRM 计划](2026-11-04-wave5.83-crm-panorama.md)、[ERP 计划](2026-11-03-wave5.78-erp-panorama.md)
 > 纪律：每批动工前先做一次代码对账（文档标注 ⏸ 的项可能已被后续波次补齐），只做确认缺失的；只提交本批文件；每批结束输出四段式报告。
 
@@ -27,7 +27,7 @@
 |---|---|---|---|---|
 | **Step 1** | CRM 前端 8113 | 脚手架（8113、qiankun 注册、登录/布局/路由）、客户/联系人/跟进/公海、线索/转化/商机/阶段/漏斗、报价/预测/目标共 10 页 + API 层 | 后端 M1/M2 已完成，仅缺前端 | 1 波（可拆 1a 客户域 / 1b 销售域）——**1a、1b 均已完成** |
 | **Step 2** | ERP MRP | BOM 展开（取 PDM `/pdm/internal/bom/**` 快照）、计划订单生成、净需求与需求追溯、MRP 运算 Job 与结果页 | PDM 快照契约已交付 | 1 波 |
-| **Step 3** | ERP CRP + 生产增强 | 工作中心/产能负荷（取 PDM 工艺路线）、排程与甘特；工序报工、倒冲领料、退料/报废 | PDM M3 工艺已交付 | 1–2 波 |
+| **Step 3** | ERP CRP + 生产增强 | 工作中心/产能负荷（取 PDM 工艺路线）、排程与甘特；工序报工、倒冲领料、退料/报废 | PDM M3 工艺已交付 | 1–2 波（**3a 已完成**，3b 待做） |
 | **Step 4** | ERP ↔ MES 打通 | ERP 生产订单下发 MES、MES 完工/报工回传 ERP、双向幂等与对账页 | ERP M3、MES M1–M2 已完成 | 1 波 |
 | **Step 5** | OA M2 首批 | 考勤 + 报销 + 用车/用章/采购申请的领域化（复用 Workflow/Form）；M1B 预算超限条件分支 | Workflow 条件表达式运行期求值 | 2–3 波 |
 | **Step 6** | MES 遗留增强 | 有限产能排程、采集推送通道（SSE/WS）、数据范围上下文过滤、谱系冲销/线边联动/设备追溯/开工门禁、归档清理 | auth `data-scope` 就绪（第 3 项） | 2 波 |
@@ -109,4 +109,62 @@
 - 后端 `mvn -o -pl backend/whale-apps/whale-erp test` 全绿（含多级累计、损耗率、净需求不为负、可用量只扣一次、类型判定、PDM 失败 FAILED、重跑）。
 - 前端 `pnpm --filter whale-erp lint` / `build` 通过。
 - 文档一致性脚本：除 `service-catalog.md` 待补 V13 记录外其余通过；该文件同时含未提交的商城 5.94 改动，本批不混提，待 5.94 落地时一并回填。
+
+---
+
+## 七、Step 3 实施明细（ERP CRP + 生产增强，3a 已完成 2026-11-07）
+
+> 分批：**3a（本批已完成）**= PDM 工艺路线内网快照 + 工作中心 + 产能负荷/排程甘特 + 生产订单工序快照；**3b（待做）**= 工序报工、倒冲领料、退料/报废。
+> 方案过程稿：`.trae/documents/erp-crp-step3-implementation.md`（不提交）。
+
+### 7.1 数据表（`V14__mfg_crp.sql`）
+
+| 表 | 用途 | 关键约束 |
+|---|---|---|
+| `erp_mfg_work_center` | 工作中心（编码、名称、日产能工时、效率率、工作日、启停） | UK(tenant_id, code)；效率 0–100；工作日 `1–7` 逗号串 |
+| `erp_mfg_production_operation` | 生产订单工序快照（工序号、名称、工作中心、标准/准备工时、计划/合格/报废量、首末报工时间） | UK(tenant_id, order_id, step_no) |
+| `erp_mfg_production_order` | 追加 `routing_no` / `routing_version` / `routing_status` | ALTER 追加列，允许空值（历史订单不受影响） |
+
+- `routing_status`：`NONE`（无已发布工艺）、`SNAPSHOT`（已冻结）、`FAILED`（PDM 拉取失败，可重试同步）。
+
+### 7.2 PDM 内网契约
+
+| 方法与路径 | 说明 |
+|---|---|
+| `GET /pdm/internal/process/routes/by-part/{partCode}` | 取该零件最新已发布（`RELEASED`）工艺路线快照；无则 404 |
+| `GET /pdm/internal/process/routes/{routeNo}/versions/{versionNo}` | 按路线号 + 版本号取指定快照 |
+
+- 响应 `{code,data}`，`data` 含 `routeNo/versionNo/partCode/partName/releasedAt` 与 `steps[]`（`stepNo/name/workCenter/standardHours/setupHours`）；PDM 只读、不新增表。
+
+### 7.3 CRP 算法口径
+
+- **无限负荷**：计划窗口内按工作中心工作日均摊「准备工时 + 标准工时 × 待完工数量」，用于识别每日超载（`overloaded`）与区间外/未排程工时。
+- **有限前推排程**：按订单/工序顺序逐日占用剩余产能，超出当日则顺延至下一工作日；排到窗口结束仍未完成标记 `delayed`。
+- 缺少工作中心档案的订单计入 `excludedOrderCount`，不参与负荷与排程；区间为空或跨度 > 62 天抛 `CRP_INVALID`；公开以今天的日期为默认起始，默认窗口 30 天。
+- 结果为**同步计算、不落库**；相同输入可复现。
+
+### 7.4 接口与权限
+
+| 方法与路径 | 权限码 | 说明 |
+|---|---|---|
+| `GET /erp/mfg/work-centers/page`、`/all` | `sys:erp:mfg:workcenter:list`（545） | 工作中心分页/下拉 |
+| `POST /erp/mfg/work-centers` | `sys:erp:mfg:workcenter:add`（546） | 新增（编码租户唯一，冲突 40942） |
+| `PUT /erp/mfg/work-centers/{id}` | `sys:erp:mfg:workcenter:edit`（547） | 编辑 |
+| `DELETE /erp/mfg/work-centers/{id}` | `sys:erp:mfg:workcenter:delete`（548） | 删除（不存在 40443） |
+| `GET /erp/mfg/crp/load` | `sys:erp:mfg:crp:view`（549） | 产能负荷 + 排程（`fromDate/toDate/workCenterCode` 可选） |
+| `POST /erp/mfg/production/{id}/routing/sync` | `sys:erp:production:operation:sync`（550） | 重新同步并冻结工艺路线（仅 DRAFT/RELEASED 且无报工） |
+
+- 脚本 `migration-5.78-erp-crp.sql`：权限 545–550、菜单 106「工作中心」/107「产能负荷」，全部 `NOT EXISTS` 幂等；`tenant_admin / erp_manager / erp_mfg` 授全量，`erp_member` 只授 545/549。
+- 建单时 best-effort 拉取工艺：无已发布路线 → `NONE`；PDM 不可达/契约失败 → `FAILED`，均不阻断建单。
+
+### 7.5 前端
+
+`frontend/platform-apps/whale-erp` 新增 `WorkCenterPage`（列表/搜索/状态筛选/新增编辑/删除）与 `CrpPage`（日期区间 + 工作中心筛选、负荷表与纯 CSS 甘特条带），`api/mfg.ts` 增补工作中心/CRP/工序类型与 8 个函数，`App.tsx` 注册 `work-center`、`crp` 菜单与初始路由。
+
+### 7.6 验收
+
+- 后端 `mvn -o -pl backend/whale-apps/whale-erp test` 全绿（479 + 14 新增）；PDM `mvn -o -pl backend/whale-apps/whale-pdm test` 全绿（含快照 4 新增）。
+- 前端 `pnpm --filter whale-erp lint` / `build` 通过。
+- `scripts/check-doc-consistency.ps1` → PASS（补记 V14）。
+- 3a 未做：工序报工、倒冲领料、退料/报废（V15、权限 551–553、生产页增强），见 3b。
 

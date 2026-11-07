@@ -24,6 +24,7 @@ import com.bluewhale.pdm.process.mapper.PdmPrcStepMapper;
 import com.bluewhale.pdm.process.mapper.PdmPrcToolingMapper;
 import com.bluewhale.pdm.process.support.PdmPrcPublishStatus;
 import com.bluewhale.pdm.process.support.PdmPrcStatus;
+import com.bluewhale.pdm.process.vo.PdmPrcRouteSnapshotVO;
 import com.bluewhale.pdm.process.vo.PdmPrcRouteVO;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.AfterAll;
@@ -277,6 +278,50 @@ class PdmPrcRouteServiceImplTest {
 
         assertEquals("工艺路线已发布，不能再修改", ex.getMessage());
         verify(routeMapper, never()).updateById(any(PdmPrcRoute.class));
+    }
+
+    @Test
+    void latestReleasedReturnsSnapshot() {
+        when(routeMapper.selectList(any()))
+                .thenReturn(List.of(route(5L, 11L, "V1.0", PdmPrcStatus.RELEASED)));
+        when(stepMapper.selectList(any())).thenReturn(List.of(step(1L, 5L, 10)));
+
+        PdmPrcRouteSnapshotVO snapshot = service.latestReleased("P-001");
+
+        assertEquals("RT-P-001", snapshot.getRouteNo());
+        assertEquals("V1.0", snapshot.getVersionNo());
+        assertEquals("P-001", snapshot.getPartCode());
+        assertEquals(1, snapshot.getSteps().size());
+        assertEquals(10, snapshot.getSteps().get(0).getStepNo());
+        assertEquals(new BigDecimal("1"), snapshot.getSteps().get(0).getStandardHours());
+    }
+
+    @Test
+    void latestReleasedRejectsWhenNoReleasedRoute() {
+        when(routeMapper.selectList(any())).thenReturn(List.of());
+
+        assertThrows(BizException.class, () -> service.latestReleased("P-001"));
+    }
+
+    @Test
+    void snapshotRejectsUnreleasedRoute() {
+        when(routeMapper.selectList(any()))
+                .thenReturn(List.of(route(5L, 11L, "V1.0", PdmPrcStatus.DRAFT)));
+
+        assertThrows(BizException.class, () -> service.snapshot("RT-P-001", "V1.0"));
+    }
+
+    @Test
+    void snapshotReturnsPinnedVersion() {
+        when(routeMapper.selectList(any()))
+                .thenReturn(List.of(route(5L, 11L, "V2.0", PdmPrcStatus.RELEASED)));
+        when(stepMapper.selectList(any()))
+                .thenReturn(List.of(step(1L, 5L, 10), step(2L, 5L, 20)));
+
+        PdmPrcRouteSnapshotVO snapshot = service.snapshot("RT-P-001", "V2.0");
+
+        assertEquals("V2.0", snapshot.getVersionNo());
+        assertEquals(2, snapshot.getSteps().size());
     }
 
     /**

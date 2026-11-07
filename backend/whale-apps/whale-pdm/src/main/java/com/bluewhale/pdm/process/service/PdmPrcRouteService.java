@@ -6,6 +6,7 @@ import com.bluewhale.pdm.process.dto.PdmPrcRouteSaveRequest;
 import com.bluewhale.pdm.process.dto.PdmPrcSopSaveRequest;
 import com.bluewhale.pdm.process.dto.PdmPrcStepSaveRequest;
 import com.bluewhale.pdm.process.dto.PdmPrcToolingSaveRequest;
+import com.bluewhale.pdm.process.vo.PdmPrcRouteSnapshotVO;
 import com.bluewhale.pdm.process.vo.PdmPrcRouteVO;
 
 /**
@@ -146,4 +147,21 @@ public interface PdmPrcRouteService {
      * @return 路线视图
      */
     PdmPrcRouteVO withdraw(Long id);
+
+    /**
+     * 读取已发布路线快照（按编号 + 版本）。
+     *
+     * @param routeNo   路线编号
+     * @param versionNo 版本号
+     * @return 路线快照
+     */
+    PdmPrcRouteSnapshotVO snapshot(String routeNo, String versionNo);
+
+    /**
+     * 读取零件最新已发布路线快照。
+     *
+     * @param partCode 零件编码
+     * @return 路线快照
+     */
+    PdmPrcRouteSnapshotVO latestReleased(String partCode);
 }
