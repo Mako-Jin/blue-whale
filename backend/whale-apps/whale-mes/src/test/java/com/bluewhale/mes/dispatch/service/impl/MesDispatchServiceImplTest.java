@@ -124,6 +124,47 @@ class MesDispatchServiceImplTest {
     }
 
     /**
+     * 工单进度查询：汇总任务累计数量并返回明细
+     */
+    @Test
+    @DisplayName("工单进度查询：汇总任务累计")
+    void progressShouldAggregateTasks() {
+        MesWorkOrder order = workOrder("IN_PROGRESS", "50");
+        MesWorkOrderTask first = task("IN_PROGRESS", "50");
+        first.setReportedQuantity(new BigDecimal("30"));
+        first.setQualifiedQuantity(new BigDecimal("28"));
+        first.setCompletedQuantity(new BigDecimal("20"));
+        MesWorkOrderTask second = task("IN_PROGRESS", "50");
+        second.setId(12L);
+        second.setTaskNo("T-2");
+        second.setSeqNo(2);
+        when(mesWorkOrderMapper.selectOne(any())).thenReturn(order);
+        when(taskMapper.selectList(any())).thenReturn(List.of(first, second));
+
+        var vo = dispatchService.progress("PO-1");
+
+        assertEquals("PO-1", vo.getErpOrderNo());
+        assertEquals("IN_PROGRESS", vo.getStatus());
+        assertEquals(new BigDecimal("30"), vo.getReportedQuantity());
+        assertEquals(new BigDecimal("28"), vo.getQualifiedQuantity());
+        assertEquals(new BigDecimal("20"), vo.getCompletedQuantity());
+        assertEquals(2, vo.getTasks().size());
+    }
+
+    /**
+     * 工单不存在：返回 404 业务码
+     */
+    @Test
+    @DisplayName("工单进度查询：不存在返回 404")
+    void progressShouldRejectMissingWorkOrder() {
+        when(mesWorkOrderMapper.selectOne(any())).thenReturn(null);
+
+        BizException exception = assertThrows(BizException.class, () -> dispatchService.progress("PO-X"));
+
+        assertEquals(404, exception.getCode());
+    }
+
+    /**
      * ERP 工单首次下发：默认 RECEIVED、NORMAL、version=1，编码按 ERP 单号生成
      */
     @Test

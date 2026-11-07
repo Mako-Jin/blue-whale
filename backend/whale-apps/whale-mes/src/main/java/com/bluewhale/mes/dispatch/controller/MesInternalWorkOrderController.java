@@ -3,9 +3,12 @@ package com.bluewhale.mes.dispatch.controller;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.mes.dispatch.dto.MesWorkOrderReceiveRequest;
 import com.bluewhale.mes.dispatch.service.MesDispatchService;
+import com.bluewhale.mes.dispatch.vo.MesWorkOrderProgressVO;
 import com.bluewhale.mes.vo.MesWorkOrderVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -35,5 +38,16 @@ public class MesInternalWorkOrderController {
     @PostMapping
     public Result<MesWorkOrderVO> receive(@Valid @RequestBody MesWorkOrderReceiveRequest request) {
         return Result.ok(dispatchService.receive(request));
+    }
+
+    /**
+     * 按 ERP 单号查询工单进度（供 ERP 对账拉取）
+     *
+     * @param erpOrderNo ERP 生产订单号
+     * @return 工单进度
+     */
+    @GetMapping("/{erpOrderNo}")
+    public Result<MesWorkOrderProgressVO> progress(@PathVariable String erpOrderNo) {
+        return Result.ok(dispatchService.progress(erpOrderNo));
     }
 }

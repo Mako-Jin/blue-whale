@@ -3,6 +3,7 @@ package com.bluewhale.mes.dispatch.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
+import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.mes.common.outbox.service.MesOutboxService;
 import com.bluewhale.mes.dispatch.entity.MesWorkOrderTask;
 import com.bluewhale.mes.dispatch.mapper.MesWorkOrderTaskMapper;
@@ -15,8 +16,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -96,6 +100,7 @@ public class MesTaskProgressServiceImpl implements MesTaskProgressService {
         if (target == null || ORDER_TRANSITIONS.getOrDefault(workOrder.getStatus(), Set.of()).contains(target)) {
             applyStatus(workOrder, target);
         }
+        enqueueProgress(workOrder, tasks);
     }
 
     /**
@@ -132,6 +137,7 @@ public class MesTaskProgressServiceImpl implements MesTaskProgressService {
         String from = workOrder.getStatus();
         workOrder.setStatus(target);
         if (mesWorkOrderMapper.updateById(workOrder) == 0) {
+            workOrder.setStatus(from);
             log.warn("工单状态回流冲突，忽略本次更新: id={}, from={}, to={}", workOrder.getId(), from, target);
             return;
         }
@@ -162,11 +168,84 @@ public class MesTaskProgressServiceImpl implements MesTaskProgressService {
                     "workOrderCode", workOrder.getCode(),
                     "itemCode", workOrder.getItemCode() == null ? "" : workOrder.getItemCode(),
                     "completedQuantity", completed,
-                    "uom", workOrder.getUom() == null ? "" : workOrder.getUom()));
+                    "uom", workOrder.getUom() == null ? "" : workOrder.getUom(),
+                    "tenantId", tenantId()));
         } catch (JsonProcessingException exception) {
             throw new BizException(ErrorCode.PARAM_ERROR, "完工回传报文序列化失败");
         }
         outboxService.enqueue("mes:work-order-completed:" + workOrder.getId(),
                 "WorkOrderCompleted", "mes_work_order", String.valueOf(workOrder.getId()), payload);
+    }
+
+    /**
+     * 写入进度回传事件（按工单 + 累计数量幂等，避免重复投递）。
+     *
+     * @param workOrder 工单
+     * @param tasks     工单任务
+     */
+    private void enqueueProgress(MesWorkOrder workOrder, List<MesWorkOrderTask> tasks) {
+        if (!StringUtils.hasText(workOrder.getErpOrderNo())) {
+            return;
+        }
+        BigDecimal reported = BigDecimal.ZERO;
+        BigDecimal qualified = BigDecimal.ZERO;
+        BigDecimal completed = BigDecimal.ZERO;
+        List<Map<String, Object>> taskViews = new ArrayList<>();
+        for (MesWorkOrderTask task : tasks) {
+            reported = reported.add(task.getReportedQuantity() == null ? BigDecimal.ZERO : task.getReportedQuantity());
+            qualified = qualified.add(task.getQualifiedQuantity() == null ? BigDecimal.ZERO : task.getQualifiedQuantity());
+            completed = completed.add(task.getCompletedQuantity() == null ? BigDecimal.ZERO : task.getCompletedQuantity());
+            Map<String, Object> view = new LinkedHashMap<>();
+            view.put("taskNo", task.getTaskNo());
+            view.put("seqNo", task.getSeqNo());
+            view.put("operationCode", task.getOperationCode());
+            view.put("plannedQuantity", task.getPlannedQuantity());
+            view.put("reportedQuantity", task.getReportedQuantity());
+            view.put("qualifiedQuantity", task.getQualifiedQuantity());
+            view.put("completedQuantity", task.getCompletedQuantity());
+            view.put("status", task.getStatus());
+            taskViews.add(view);
+        }
+        String key = "mes:work-order-progress:" + workOrder.getId()
+                + ":" + normalize(reported) + ":" + normalize(qualified) + ":" + normalize(completed)
+                + ":" + workOrder.getStatus();
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("erpOrderNo", workOrder.getErpOrderNo());
+        payload.put("workOrderId", workOrder.getId());
+        payload.put("workOrderCode", workOrder.getCode());
+        payload.put("status", workOrder.getStatus());
+        payload.put("plannedQuantity", workOrder.getPlannedQuantity());
+        payload.put("reportedQuantity", reported);
+        payload.put("qualifiedQuantity", qualified);
+        payload.put("completedQuantity", completed);
+        payload.put("tasks", taskViews);
+        payload.put("tenantId", tenantId());
+        String json;
+        try {
+            json = OBJECT_MAPPER.writeValueAsString(payload);
+        } catch (JsonProcessingException exception) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "进度回传报文序列化失败");
+        }
+        outboxService.enqueue(key, "WorkOrderProgress", "mes_work_order", String.valueOf(workOrder.getId()), json);
+    }
+
+    /**
+     * 数量归一化（去掉无意义的尾零，用于幂等键）。
+     *
+     * @param value 数量
+     * @return 字符串
+     */
+    private String normalize(BigDecimal value) {
+        return value.stripTrailingZeros().toPlainString();
+    }
+
+    /**
+     * 当前租户（后台/定时场景缺省租户 1）。
+     *
+     * @return 租户 ID
+     */
+    private Long tenantId() {
+        Long tenantId = TenantContext.get();
+        return tenantId == null ? TenantContext.DEFAULT_TENANT_ID : tenantId;
     }
 }

@@ -11,6 +11,7 @@ import com.bluewhale.erp.mfg.application.command.ProductionCompleteCommand;
 import com.bluewhale.erp.mfg.application.command.ProductionIssueCommand;
 import com.bluewhale.erp.mfg.application.command.ProductionMaterialAdjustCommand;
 import com.bluewhale.erp.mfg.application.command.ProductionOrderCreateCommand;
+import com.bluewhale.erp.mfg.application.event.ProductionOrderReleasedEvent;
 import com.bluewhale.erp.mfg.application.view.ProductionOrderView;
 import com.bluewhale.erp.mfg.domain.model.MfgQuery;
 import com.bluewhale.erp.mfg.domain.model.MfgStatus;
@@ -28,6 +29,7 @@ import com.bluewhale.erp.scm.domain.port.ItemSnapshot;
 import com.bluewhale.erp.scm.domain.repository.StockRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -62,8 +64,10 @@ class ProductionOrderAppServiceImplTest {
 
     private final RoutingCatalog routingCatalog = mock(RoutingCatalog.class);
 
+    private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
+
     private final ProductionOrderAppServiceImpl service = new ProductionOrderAppServiceImpl(productionOrderRepository,
-            stockRepository, itemCatalog, warehouseRepository, autoVoucherAppService, routingCatalog);
+            stockRepository, itemCatalog, warehouseRepository, autoVoucherAppService, routingCatalog, eventPublisher);
 
     @Test
     @DisplayName("新增生产订单：快照产出物料、用料与仓库")
@@ -94,6 +98,7 @@ class ProductionOrderAppServiceImplTest {
 
         assertEquals(MfgStatus.RELEASED, view.getStatus());
         verify(productionOrderRepository).update(any(ProductionOrder.class));
+        verify(eventPublisher).publishEvent(any(ProductionOrderReleasedEvent.class));
     }
 
     @Test

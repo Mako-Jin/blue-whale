@@ -356,6 +356,15 @@ public final class ErpErrorCode {
     /** 报废数量超过已领数量 */
     public static final int MATERIAL_SCRAP_EXCEEDED = 40945;
 
+    /** MES 下发或拉取失败（服务不可达、契约异常） */
+    public static final int MES_GATEWAY_FAILED = 40030;
+
+    /** MES 回传报文非法（事件键、单号或数量缺失） */
+    public static final int MES_CALLBACK_INVALID = 40031;
+
+    /** MES 回传与当前订单状态冲突（不可人工确认入库） */
+    public static final int MES_CALLBACK_STATE_CONFLICT = 40946;
+
     /** 错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(AMOUNT_INVALID, "金额必须大于 0，且最多保留 2 位小数"),
@@ -471,7 +480,10 @@ public final class ErpErrorCode {
             Map.entry(WORK_CENTER_CODE_CONFLICT, "工作中心编码已存在"),
             Map.entry(OPERATION_REPORT_EXCEEDED, "工序累计报工数量超过计划数量"),
             Map.entry(MATERIAL_RETURN_EXCEEDED, "退料数量超过已领数量"),
-            Map.entry(MATERIAL_SCRAP_EXCEEDED, "报废数量超过已领数量"));
+            Map.entry(MATERIAL_SCRAP_EXCEEDED, "报废数量超过已领数量"),
+            Map.entry(MES_GATEWAY_FAILED, "MES 服务不可达或返回异常，请稍后重试"),
+            Map.entry(MES_CALLBACK_INVALID, "MES 回传报文非法：缺少事件键、单号或数量"),
+            Map.entry(MES_CALLBACK_STATE_CONFLICT, "订单当前状态不允许 MES 完工确认"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。

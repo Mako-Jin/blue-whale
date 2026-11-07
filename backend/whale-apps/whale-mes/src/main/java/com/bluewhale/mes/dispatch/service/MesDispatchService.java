@@ -6,6 +6,7 @@ import com.bluewhale.mes.dispatch.dto.MesTaskQueryRequest;
 import com.bluewhale.mes.dispatch.dto.MesTaskSplitRequest;
 import com.bluewhale.mes.dispatch.dto.MesWorkOrderReceiveRequest;
 import com.bluewhale.mes.dispatch.vo.MesBoardVO;
+import com.bluewhale.mes.dispatch.vo.MesWorkOrderProgressVO;
 import com.bluewhale.mes.dispatch.vo.MesWorkOrderTaskVO;
 import com.bluewhale.mes.vo.MesWorkOrderVO;
 
@@ -25,6 +26,14 @@ public interface MesDispatchService {
      * @return 工单视图
      */
     MesWorkOrderVO receive(MesWorkOrderReceiveRequest request);
+
+    /**
+     * 按 ERP 单号查询工单进度（内网对账用）。
+     *
+     * @param erpOrderNo ERP 生产订单号
+     * @return 工单进度；不存在抛出 404 业务码
+     */
+    MesWorkOrderProgressVO progress(String erpOrderNo);
 
     /**
      * 拆分工单为工序任务

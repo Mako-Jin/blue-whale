@@ -90,6 +90,18 @@ public class ProductionOrder {
     /** 工艺路线状态：NONE / SNAPSHOT / FAILED */
     private String routingStatus;
 
+    /** MES 下发状态：NOT_SYNCED / PUSHED / FAILED */
+    private String mesSyncStatus;
+
+    /** MES 工单编码 */
+    private String mesWorkOrderCode;
+
+    /** 最近成功下发时间 */
+    private LocalDateTime mesSyncedAt;
+
+    /** 最近一次下发/拉取失败摘要 */
+    private String mesLastError;
+
     /** 用料 */
     private List<ProductionMaterial> materials;
 
@@ -126,6 +138,29 @@ public class ProductionOrder {
             throw ErpErrorCode.exception(ErpErrorCode.MFG_STATE_CONFLICT, "只有草稿生产订单可以下达");
         }
         status = MfgStatus.RELEASED;
+    }
+
+    /**
+     * 记录 MES 下发成功。
+     *
+     * @param workOrderCode MES 工单编码，可为空
+     * @param syncedAt      下发时间
+     */
+    public void markMesPushed(String workOrderCode, LocalDateTime syncedAt) {
+        mesSyncStatus = MesStatus.PUSHED;
+        mesWorkOrderCode = workOrderCode;
+        mesSyncedAt = syncedAt;
+        mesLastError = null;
+    }
+
+    /**
+     * 记录 MES 下发失败。
+     *
+     * @param error 失败摘要
+     */
+    public void markMesFailed(String error) {
+        mesSyncStatus = MesStatus.FAILED;
+        mesLastError = error;
     }
 
     /**

@@ -13,6 +13,7 @@ import com.bluewhale.erp.mfg.application.command.ProductionIssueCommand;
 import com.bluewhale.erp.mfg.application.command.ProductionMaterialAdjustCommand;
 import com.bluewhale.erp.mfg.application.command.ProductionOperationReportCommand;
 import com.bluewhale.erp.mfg.application.command.ProductionOrderCreateCommand;
+import com.bluewhale.erp.mfg.application.event.ProductionOrderReleasedEvent;
 import com.bluewhale.erp.mfg.application.service.ProductionOrderAppService;
 import com.bluewhale.erp.mfg.application.view.ProductionOrderView;
 import com.bluewhale.erp.mfg.domain.model.MaterialAdjustment;
@@ -32,6 +33,7 @@ import com.bluewhale.erp.scm.domain.port.ItemCatalog;
 import com.bluewhale.erp.scm.domain.port.ItemSnapshot;
 import com.bluewhale.erp.scm.domain.repository.StockRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -70,6 +72,8 @@ public class ProductionOrderAppServiceImpl implements ProductionOrderAppService 
     private final AutoVoucherAppService autoVoucherAppService;
 
     private final RoutingCatalog routingCatalog;
+
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public PageResult<ProductionOrderView> page(MfgQuery query) {
@@ -155,6 +159,7 @@ public class ProductionOrderAppServiceImpl implements ProductionOrderAppService 
         ProductionOrder order = requireOrder(id);
         order.release();
         productionOrderRepository.update(order);
+        eventPublisher.publishEvent(new ProductionOrderReleasedEvent(order.getId()));
         return ProductionOrderView.of(order);
     }
 

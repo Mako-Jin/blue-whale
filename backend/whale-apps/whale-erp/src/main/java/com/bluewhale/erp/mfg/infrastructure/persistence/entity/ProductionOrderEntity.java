@@ -7,6 +7,7 @@ import lombok.EqualsAndHashCode;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * 生产订单头实体，对应表 {@code erp_mfg_production_order}。
@@ -79,4 +80,16 @@ public class ProductionOrderEntity extends BaseEntity {
 
     /** 工艺路线状态：NONE/SNAPSHOT/FAILED */
     private String routingStatus;
+
+    /** MES 下发状态：NOT_SYNCED/PUSHED/FAILED */
+    private String mesSyncStatus;
+
+    /** MES 工单编码 */
+    private String mesWorkOrderCode;
+
+    /** 最近成功下发时间 */
+    private LocalDateTime mesSyncedAt;
+
+    /** 最近一次下发/拉取失败摘要 */
+    private String mesLastError;
 }

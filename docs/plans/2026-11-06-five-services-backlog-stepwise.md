@@ -1,7 +1,7 @@
 # PDM / MES / OA / CRM / ERP 待办总账与分步实施计划
 
 > 日期：2026-11-06　状态：**已批准，执行中**（Step 1 → Step 7 逐批实施，每批独立验证、提交、推送）
-> 进度：**Step 1 已完成**（2026-11-06，CRM 前端 8113 Step 1a 客户域 + Step 1b 销售域）；**Step 2 已完成**（2026-11-06，ERP MRP：BOM 展开 / 净需求 / 计划订单 / 追溯 / 运行记录）；**Step 3 已完成**（2026-11-07，3a PDM 工艺路线快照 / 工作中心 / 产能负荷与甘特 / 订单工序快照；3b 工序报工 / 倒冲领料 / 退料报废）；Step 4–7 未开始。
+> 进度：**Step 1 已完成**（2026-11-06，CRM 前端 8113 Step 1a 客户域 + Step 1b 销售域）；**Step 2 已完成**（2026-11-06，ERP MRP：BOM 展开 / 净需求 / 计划订单 / 追溯 / 运行记录）；**Step 3 已完成**（2026-11-07，3a PDM 工艺路线快照 / 工作中心 / 产能负荷与甘特 / 订单工序快照；3b 工序报工 / 倒冲领料 / 退料报废）；**Step 4 已完成**（2026-11-07，ERP 生产订单下发 MES / MES 完工与进度回传 / 双向幂等 / 对账页）；Step 5–7 未开始。
 > 依据：[roadmap.md](roadmap.md) 状态对账（2026-11-06）、[PDM 计划 §十九](2026-11-04-wave5.80-pdm-panorama.md)、[MES 计划](2026-11-04-wave5.79-mes-panorama.md)、[OA 计划](2026-11-04-wave5.82-oa-panorama.md)、[CRM 计划](2026-11-04-wave5.83-crm-panorama.md)、[ERP 计划](2026-11-03-wave5.78-erp-panorama.md)
 > 纪律：每批动工前先做一次代码对账（文档标注 ⏸ 的项可能已被后续波次补齐），只做确认缺失的；只提交本批文件；每批结束输出四段式报告。
 
@@ -28,7 +28,7 @@
 | **Step 1** | CRM 前端 8113 | 脚手架（8113、qiankun 注册、登录/布局/路由）、客户/联系人/跟进/公海、线索/转化/商机/阶段/漏斗、报价/预测/目标共 10 页 + API 层 | 后端 M1/M2 已完成，仅缺前端 | 1 波（可拆 1a 客户域 / 1b 销售域）——**1a、1b 均已完成** |
 | **Step 2** | ERP MRP | BOM 展开（取 PDM `/pdm/internal/bom/**` 快照）、计划订单生成、净需求与需求追溯、MRP 运算 Job 与结果页 | PDM 快照契约已交付 | 1 波 |
 | **Step 3** | ERP CRP + 生产增强 | 工作中心/产能负荷（取 PDM 工艺路线）、排程与甘特；工序报工、倒冲领料、退料/报废 | PDM M3 工艺已交付 | 2 波已完成（3a/3b，2026-11-07） |
-| **Step 4** | ERP ↔ MES 打通 | ERP 生产订单下发 MES、MES 完工/报工回传 ERP、双向幂等与对账页 | ERP M3、MES M1–M2 已完成 | 1 波 |
+| **Step 4** | ERP ↔ MES 打通 | ERP 生产订单下发 MES、MES 完工/报工回传 ERP、双向幂等与对账页 | ERP M3、MES M1–M2 已完成 | 1 波（已完成 2026-11-07） |
 | **Step 5** | OA M2 首批 | 考勤 + 报销 + 用车/用章/采购申请的领域化（复用 Workflow/Form）；M1B 预算超限条件分支 | Workflow 条件表达式运行期求值 | 2–3 波 |
 | **Step 6** | MES 遗留增强 | 有限产能排程、采集推送通道（SSE/WS）、数据范围上下文过滤、谱系冲销/线边联动/设备追溯/开工门禁、归档清理 | auth `data-scope` 就绪（第 3 项） | 2 波 |
 | **Step 7** | OA M3–M6 + CRM M3–M6 + ERP 批次/财务扩展 | 协同办公、公文档案、文化投票、报表试点；CRM 合同联动/售后/营销/分析；ERP 批次追溯与财务四切片（D5 定稿后） | 业务决策 D5/D6/D8/D11、真实联调环境 | 多波，按决策推进 |
@@ -204,4 +204,67 @@
 
 - 后端测试全绿（新增领域 6 例 + 应用 3 例）；前端 `lint` / `build` 通过；文档一致性 PASS（补记 V15）。
 - 未做：联产品/副产品、MES 回传、计划订单转单（归 M3 剩余后续批次）。
+
+---
+
+## 八、Step 4 实施明细（ERP ↔ MES 打通，2026-11-07 已完成）
+
+> 分批：**4a** ERP 表/下发/回执；**4b** MES 进度事件/投递器/内部查询；**4c** 对账接口/权限/前端；**4d** 文档回填、验证与提交。四批同窗口完成。
+> 方案过程稿：`.trae/documents/erp-mes-step4-implementation.md`（不提交）。
+
+### 8.1 数据表（`V16__mfg_mes.sql`）
+
+| 变更 | 用途 | 关键约束 |
+|---|---|---|
+| `erp_mfg_production_order` 追加 `mes_sync_status` / `mes_work_order_code` / `mes_synced_at` / `mes_last_error` | MES 下发状态（`NOT_SYNCED`/`PUSHED`/`FAILED`）、MES 工单号、最近成功下发时间、失败摘要 | 默认 `NOT_SYNCED`，历史订单不受影响 |
+| 新建 `erp_mfg_mes_callback` | MES 回调流水（完工/进度、事件 ID、处理态 `APPLIED`/`REJECTED`/`DUPLICATE`、原始 payload、错误、接收时间） | UK `uk_mfg_mes_callback_event(tenant_id, source_event_id)` + 单号/状态索引 |
+| 新建 `erp_mfg_mes_progress` | MES 进度快照（MES 状态、计划/报工/合格/完工数量、任务明细 JSON、最近事件 ID、接收时间） | UK `uk_mfg_mes_progress_order(tenant_id, erp_order_no)`，按单覆盖写 |
+
+### 8.2 双向契约
+
+| 方向 | 方法与路径 | 说明 |
+|---|---|---|
+| ERP → MES | `POST /mes/internal/work-order`（复用已有） | 下达后推送；MES 按 `erpOrderNo` 幂等建单/更新 |
+| MES → ERP | `POST /erp/internal/production-order/{erpOrderNo}/completion` | 完工回传，body `{eventId, payload}` |
+| MES → ERP | `POST /erp/internal/production-order/{erpOrderNo}/progress` | 进度回传（只记快照） |
+| ERP → MES | `GET /mes/internal/work-order/{erpOrderNo}` | 对账时拉取 MES 实时进度；无工单返回 404 |
+
+- 内网统一 `InternalTokenSupport.restClient()` + `DiscoveryClient("whale-mes")` + `WebHeaders.TENANT_ID`；响应 `{code,data}`，`code=0` 成功、`404` 视为无数据。
+- MES 发件箱 `MesOutboxDispatcher` 扩展 `WorkOrderProgress` → `/progress`、`WorkOrderCompleted` → `/completion`；后台投递无租户上下文，租户号由 payload `tenantId` 携带并写入请求头。
+- 进度事件幂等键按「工单 ID + 报工/合格/完工数量 + 状态」生成，数量或状态变化才产生新事件。
+
+### 8.3 业务口径
+
+- **下达后置推送**：`release()` 只发布 `ProductionOrderReleasedEvent`，由 `@TransactionalEventListener(AFTER_COMMIT, fallbackExecution=true)` 触发推送；外部调用失败不撤回下达、落 `FAILED` 并记录错误，可由对账页重推。
+- **完工按增量入库**：`delta = MES 累计完工 − ERP 已完工`；`delta ≤ 0` 记 `DUPLICATE`（重复事件或已入库），订单不存在/状态不允许记 `REJECTED`，人工确认可重放。
+- **入库事务隔离**：实际调用 `productionOrderAppService.complete` 用 `TransactionTemplate(PROPAGATION_REQUIRES_NEW)`，失败只回滚入库、不改写回调流水，便于定位与人工处理。
+- **进度只记快照**：MES 报工进度只写 `erp_mfg_mes_progress` 供对账展示，不回写 ERP 工序报工，避免与 ERP 手工报工双计。
+- **幂等**：回调统一先查 `(tenant_id, source_event_id)`，命中直接记 `DUPLICATE` 返回；唯一键兜底并发。
+- **对账差异**：`ERP 已完工 − MES 累计完工` 不为 0 时标记差异，同页可重推/拉取/人工确认入库。
+
+### 8.4 接口与权限
+
+| 方法与路径 | 权限码 | 说明 |
+|---|---|---|
+| `GET /erp/mfg/mes/reconcile/page` | `sys:erp:mes:reconcile:list`（554） | 对账分页（关键字/日期区间/MES 状态/下发状态） |
+| `GET /erp/mfg/mes/reconcile/{orderId}` | 554 | 详情：订单、回调流水、任务快照、差异 |
+| `POST /erp/mfg/mes/reconcile/{orderId}/push` | `sys:erp:mes:push`（555） | 手动重推 |
+| `POST /erp/mfg/mes/reconcile/{orderId}/pull` | `sys:erp:mes:pull`（556） | 手动拉取并刷新快照 |
+| `POST /erp/mfg/mes/reconcile/{orderId}/completion-apply` | `sys:erp:mes:complete`（557） | 人工确认完工入库 |
+
+- 脚本 `migration-5.78-erp-mes.sql`：权限 554–557、菜单 **108 MES 对账**，全部 `NOT EXISTS` 幂等；`tenant_admin / erp_manager / erp_mfg` 全授，`erp_member` 仅 554。
+- 内网回传接口 `/erp/internal/**` 不登记业务权限，由内网令牌保护。
+- 错误码：`MES_GATEWAY_FAILED=40030`、`MES_CALLBACK_INVALID=40031`、`MES_CALLBACK_STATE_CONFLICT=40946`（40026/40029/40444/40945 已被既有场景占用）。
+
+### 8.5 前端
+
+`frontend/platform-apps/whale-erp` 新增 `MesReconcilePage`：关键字/日期/MES 状态/下发状态筛选，差异标记，详情抽屉（回调流水 + 任务明细），行内重推/拉取，人工确认入库弹窗；`api/mfg.ts` 增补对账类型与 5 个函数、生产订单视图补 4 个 MES 字段；`App.tsx` 注册 `mes-reconcile` 菜单与 `/erp/mfg/mes-reconcile` 路由。
+
+### 8.6 验收
+
+- `mvn -o -pl backend/whale-apps/whale-erp test`：**509 项全绿**（新增集成服务 7 例）；Checkstyle/ArchUnit 随构建通过。
+- `mvn -o -pl backend/whale-apps/whale-mes test`：全绿（新增进度查询 2 例）。
+- `pnpm --filter whale-erp lint` / `build`：通过。
+- `scripts/check-doc-consistency.ps1`：PASS（`service-catalog.md` 补记 V16）；whale-mall V5 为商城 5.94 未跟踪文件，不在本批范围。
+- 未做：MES 侧对账视图（ERP 为准）、进度回写 ERP 工序报工（刻意不做）、实机联调（待环境）。
 

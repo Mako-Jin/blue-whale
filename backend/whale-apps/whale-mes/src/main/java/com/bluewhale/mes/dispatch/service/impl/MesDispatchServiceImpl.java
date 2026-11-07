@@ -20,6 +20,7 @@ import com.bluewhale.mes.dispatch.mapper.MesWorkOrderTaskMapper;
 import com.bluewhale.mes.dispatch.service.MesDispatchService;
 import com.bluewhale.mes.dispatch.service.MesTaskProgressService;
 import com.bluewhale.mes.dispatch.vo.MesBoardVO;
+import com.bluewhale.mes.dispatch.vo.MesWorkOrderProgressVO;
 import com.bluewhale.mes.dispatch.vo.MesWorkOrderTaskVO;
 import com.bluewhale.mes.entity.MesWorkOrder;
 import com.bluewhale.mes.execution.entity.MesExceptionEvent;
@@ -159,6 +160,49 @@ public class MesDispatchServiceImpl implements MesDispatchService {
         validatePlanWindow(workOrder.getPlannedStart(), workOrder.getPlannedEnd());
         mesWorkOrderMapper.insert(workOrder);
         return MesConverter.INSTANCE.toWorkOrderVo(workOrder);
+    }
+
+    @Override
+    public MesWorkOrderProgressVO progress(String erpOrderNo) {
+        MesWorkOrder workOrder = mesWorkOrderMapper.selectOne(new LambdaQueryWrapper<MesWorkOrder>()
+                .eq(MesWorkOrder::getErpOrderNo, erpOrderNo)
+                .last("LIMIT 1"));
+        if (workOrder == null) {
+            throw new BizException(ErrorCode.NOT_FOUND, "MES 工单不存在: " + erpOrderNo);
+        }
+        List<MesWorkOrderTask> tasks = taskMapper.selectList(new LambdaQueryWrapper<MesWorkOrderTask>()
+                .eq(MesWorkOrderTask::getWorkOrderId, workOrder.getId())
+                .orderByAsc(MesWorkOrderTask::getSeqNo));
+        MesWorkOrderProgressVO vo = new MesWorkOrderProgressVO();
+        vo.setErpOrderNo(workOrder.getErpOrderNo());
+        vo.setWorkOrderId(workOrder.getId());
+        vo.setWorkOrderCode(workOrder.getCode());
+        vo.setStatus(workOrder.getStatus());
+        vo.setPlannedQuantity(workOrder.getPlannedQuantity());
+        BigDecimal reported = BigDecimal.ZERO;
+        BigDecimal qualified = BigDecimal.ZERO;
+        BigDecimal completed = BigDecimal.ZERO;
+        List<MesWorkOrderProgressVO.Task> taskViews = new ArrayList<>();
+        for (MesWorkOrderTask task : tasks) {
+            reported = reported.add(task.getReportedQuantity() == null ? BigDecimal.ZERO : task.getReportedQuantity());
+            qualified = qualified.add(task.getQualifiedQuantity() == null ? BigDecimal.ZERO : task.getQualifiedQuantity());
+            completed = completed.add(task.getCompletedQuantity() == null ? BigDecimal.ZERO : task.getCompletedQuantity());
+            MesWorkOrderProgressVO.Task view = new MesWorkOrderProgressVO.Task();
+            view.setTaskNo(task.getTaskNo());
+            view.setSeqNo(task.getSeqNo());
+            view.setOperationCode(task.getOperationCode());
+            view.setPlannedQuantity(task.getPlannedQuantity());
+            view.setReportedQuantity(task.getReportedQuantity());
+            view.setQualifiedQuantity(task.getQualifiedQuantity());
+            view.setCompletedQuantity(task.getCompletedQuantity());
+            view.setStatus(task.getStatus());
+            taskViews.add(view);
+        }
+        vo.setReportedQuantity(reported);
+        vo.setQualifiedQuantity(qualified);
+        vo.setCompletedQuantity(completed);
+        vo.setTasks(taskViews);
+        return vo;
     }
 
     @Override

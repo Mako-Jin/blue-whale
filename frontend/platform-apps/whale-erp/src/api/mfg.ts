@@ -97,6 +97,10 @@ export interface ProductionOrderView {
   routingNo?: string;
   routingVersion?: string;
   routingStatus?: string;
+  mesSyncStatus?: string;
+  mesWorkOrderCode?: string;
+  mesSyncedAt?: string;
+  mesLastError?: string;
   materials?: ProductionMaterialView[];
   operations?: ProductionOperationView[];
 }
@@ -221,6 +225,8 @@ export interface MfgQueryParams {
   runId?: number;
   orderType?: string;
   workCenterCode?: string;
+  mesSyncStatus?: string;
+  mesStatus?: string;
 }
 
 /** 构造查询串（空值不下发，默认每页 20 条） */
@@ -495,4 +501,109 @@ export function scrapProductionMaterial(
   input: ProductionMaterialAdjustInput,
 ): Promise<ProductionOrderView> {
   return http.post<ProductionOrderView>(`/erp/mfg/production/${id}/material/scrap`, input);
+}
+
+/** MES 任务进度 */
+export interface MesTaskView {
+  taskNo?: string;
+  seqNo?: number;
+  operationCode?: string;
+  plannedQuantity?: number;
+  reportedQuantity?: number;
+  qualifiedQuantity?: number;
+  completedQuantity?: number;
+  status?: string;
+}
+
+/** MES 进度快照 */
+export interface MesProgressView {
+  erpOrderNo: string;
+  workOrderId?: number;
+  workOrderCode?: string;
+  mesStatus?: string;
+  plannedQuantity?: number;
+  reportedQuantity?: number;
+  qualifiedQuantity?: number;
+  completedQuantity?: number;
+  tasks?: MesTaskView[];
+  eventId?: string;
+  receivedAt?: string;
+}
+
+/** MES 回调流水 */
+export interface MesCallbackView {
+  orderId?: number;
+  erpOrderNo: string;
+  callbackType: string;
+  sourceEventId: string;
+  status: string;
+  payload?: string;
+  error?: string;
+  receivedAt?: string;
+}
+
+/** MES 对账行 */
+export interface MesReconcileView {
+  orderId: number;
+  orderNo: string;
+  itemCode: string;
+  itemName?: string;
+  plannedQuantity: number;
+  completedQuantity?: number;
+  status: string;
+  planStartDate?: string;
+  mesSyncStatus?: string;
+  mesWorkOrderCode?: string;
+  mesSyncedAt?: string;
+  mesLastError?: string;
+  mesStatus?: string;
+  mesReportedQuantity?: number;
+  mesQualifiedQuantity?: number;
+  mesCompletedQuantity?: number;
+  mesReceivedAt?: string;
+  completedMismatch?: boolean;
+  callbackRejected?: boolean;
+  lastCallbackStatus?: string;
+  lastCallbackError?: string;
+}
+
+/** MES 对账详情 */
+export interface MesReconcileDetailView {
+  order: ProductionOrderView;
+  progress?: MesProgressView | null;
+  callbacks: MesCallbackView[];
+}
+
+/** MES 对账分页 */
+export function pageMesReconcile(
+  params: MfgQueryParams = {},
+): Promise<PageResult<MesReconcileView>> {
+  return http.get<PageResult<MesReconcileView>>(
+    `/erp/mfg/mes/reconcile/page?${buildQuery(params)}`,
+  );
+}
+
+/** MES 对账详情 */
+export function getMesReconcileDetail(orderId: number): Promise<MesReconcileDetailView> {
+  return http.get<MesReconcileDetailView>(`/erp/mfg/mes/reconcile/${orderId}`);
+}
+
+/** 重推生产订单到 MES */
+export function pushMesOrder(orderId: number): Promise<ProductionOrderView> {
+  return http.post<ProductionOrderView>(`/erp/mfg/mes/reconcile/${orderId}/push`);
+}
+
+/** 从 MES 拉取工单进度 */
+export function pullMesOrder(orderId: number): Promise<MesProgressView | null> {
+  return http.post<MesProgressView | null>(`/erp/mfg/mes/reconcile/${orderId}/pull`);
+}
+
+/** 人工确认 MES 完工入库 */
+export function applyMesCompletion(
+  orderId: number,
+  quantity: number,
+): Promise<ProductionOrderView> {
+  return http.post<ProductionOrderView>(`/erp/mfg/mes/reconcile/${orderId}/completion-apply`, {
+    quantity,
+  });
 }

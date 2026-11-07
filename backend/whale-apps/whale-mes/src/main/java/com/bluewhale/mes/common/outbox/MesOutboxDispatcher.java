@@ -2,6 +2,7 @@ package com.bluewhale.mes.common.outbox;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bluewhale.common.internaltoken.InternalTokenSupport;
+import com.bluewhale.common.web.WebHeaders;
 import com.bluewhale.mes.common.outbox.entity.MesOutboxEvent;
 import com.bluewhale.mes.common.outbox.mapper.MesOutboxEventMapper;
 import com.bluewhale.mes.common.outbox.service.MesOutboxService;
@@ -16,6 +17,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -41,6 +43,12 @@ public class MesOutboxDispatcher {
 
     /** 完成事件类型 */
     private static final String EVENT_COMPLETED = "WorkOrderCompleted";
+
+    /** 进度事件类型 */
+    private static final String EVENT_PROGRESS = "WorkOrderProgress";
+
+    /** 缺省租户 */
+    private static final String DEFAULT_TENANT_ID = "1";
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
@@ -112,7 +120,12 @@ public class MesOutboxDispatcher {
      * @param event 发件箱事件
      */
     private void deliver(MesOutboxEvent event) {
-        if (!EVENT_COMPLETED.equals(event.getEventType())) {
+        String action;
+        if (EVENT_COMPLETED.equals(event.getEventType())) {
+            action = "completion";
+        } else if (EVENT_PROGRESS.equals(event.getEventType())) {
+            action = "progress";
+        } else {
             log.debug("MES 发件箱跳过不支持的事件类型: {}", event.getEventType());
             return;
         }
@@ -121,11 +134,15 @@ public class MesOutboxDispatcher {
             fail(event, "事件报文缺少 erpOrderNo");
             return;
         }
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("eventId", event.getSourceEventId());
+        body.put("payload", event.getPayload());
         try {
             restClient.post()
-                    .uri(erpBaseUrl + "/erp/internal/production-order/" + erpOrderNo + "/completion")
+                    .uri(erpBaseUrl + "/erp/internal/production-order/" + erpOrderNo + "/" + action)
+                    .header(WebHeaders.TENANT_ID, readTenantId(event.getPayload()))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(Map.of("payload", event.getPayload()))
+                    .body(body)
                     .retrieve()
                     .body(String.class);
             outboxService.markSent(event.getId());
@@ -163,6 +180,25 @@ public class MesOutboxDispatcher {
             return root.path("erpOrderNo").asText(null);
         } catch (Exception exception) {
             return null;
+        }
+    }
+
+    /**
+     * 从事件报文读取租户 ID（后台投递无租户上下文）。
+     *
+     * @param payload JSON 报文
+     * @return 租户 ID 字符串
+     */
+    private String readTenantId(String payload) {
+        if (!StringUtils.hasText(payload)) {
+            return DEFAULT_TENANT_ID;
+        }
+        try {
+            JsonNode root = OBJECT_MAPPER.readTree(payload);
+            String tenantId = root.path("tenantId").asText(DEFAULT_TENANT_ID);
+            return StringUtils.hasText(tenantId) ? tenantId : DEFAULT_TENANT_ID;
+        } catch (Exception exception) {
+            return DEFAULT_TENANT_ID;
         }
     }
 

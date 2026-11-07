@@ -3,16 +3,19 @@ package com.bluewhale.erp.mfg.infrastructure.persistence.repository;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.erp.mfg.domain.model.MaterialAdjustment;
+import com.bluewhale.erp.mfg.domain.model.MesReconcileQuery;
 import com.bluewhale.erp.mfg.domain.model.MfgQuery;
 import com.bluewhale.erp.mfg.domain.model.MfgStatus;
 import com.bluewhale.erp.mfg.domain.model.ProductionMaterial;
 import com.bluewhale.erp.mfg.domain.model.ProductionOperation;
 import com.bluewhale.erp.mfg.domain.model.ProductionOrder;
 import com.bluewhale.erp.mfg.domain.repository.ProductionOrderRepository;
+import com.bluewhale.erp.mfg.infrastructure.persistence.entity.MesProgressEntity;
 import com.bluewhale.erp.mfg.infrastructure.persistence.entity.ProductionMaterialAdjustmentEntity;
 import com.bluewhale.erp.mfg.infrastructure.persistence.entity.ProductionMaterialEntity;
 import com.bluewhale.erp.mfg.infrastructure.persistence.entity.ProductionOperationEntity;
 import com.bluewhale.erp.mfg.infrastructure.persistence.entity.ProductionOrderEntity;
+import com.bluewhale.erp.mfg.infrastructure.persistence.mapper.MesProgressMapper;
 import com.bluewhale.erp.mfg.infrastructure.persistence.mapper.ProductionMaterialAdjustmentMapper;
 import com.bluewhale.erp.mfg.infrastructure.persistence.mapper.ProductionMaterialMapper;
 import com.bluewhale.erp.mfg.infrastructure.persistence.mapper.ProductionOperationMapper;
@@ -53,6 +56,8 @@ public class ProductionOrderRepositoryImpl implements ProductionOrderRepository 
 
     private final ProductionMaterialAdjustmentMapper productionMaterialAdjustmentMapper;
 
+    private final MesProgressMapper mesProgressMapper;
+
     @Override
     public List<ProductionOrder> page(MfgQuery query) {
         Page<ProductionOrderEntity> page = productionOrderMapper.selectPage(
@@ -78,6 +83,72 @@ public class ProductionOrderRepositoryImpl implements ProductionOrderRepository 
                 .stream().map(this::toDomain).toList());
         order.setOperations(operationsOf(id));
         return Optional.of(order);
+    }
+
+    @Override
+    public Optional<ProductionOrder> findByOrderNo(String orderNo) {
+        ProductionOrderEntity entity = productionOrderMapper.selectOne(new LambdaQueryWrapper<ProductionOrderEntity>()
+                .eq(ProductionOrderEntity::getOrderNo, orderNo)
+                .last("limit 1"));
+        if (entity == null) {
+            return Optional.empty();
+        }
+        ProductionOrder order = toDomain(entity);
+        order.setMaterials(productionMaterialMapper.selectList(new LambdaQueryWrapper<ProductionMaterialEntity>()
+                        .eq(ProductionMaterialEntity::getOrderId, entity.getId())
+                        .orderByAsc(ProductionMaterialEntity::getLineNo))
+                .stream().map(this::toDomain).toList());
+        order.setOperations(operationsOf(entity.getId()));
+        return Optional.of(order);
+    }
+
+    @Override
+    public List<ProductionOrder> pageForMes(MesReconcileQuery query) {
+        Page<ProductionOrderEntity> page = productionOrderMapper.selectPage(
+                new Page<>(Math.max(query.getCurrent(), 1L), Math.max(query.getSize(), 1L)), filterForMes(query));
+        return page.getRecords().stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public long countForMes(MesReconcileQuery query) {
+        return productionOrderMapper.selectCount(filterForMes(query));
+    }
+
+    @Override
+    public void updateMesSync(ProductionOrder order) {
+        ProductionOrderEntity entity = new ProductionOrderEntity();
+        entity.setId(order.getId());
+        entity.setMesSyncStatus(order.getMesSyncStatus());
+        entity.setMesWorkOrderCode(order.getMesWorkOrderCode());
+        entity.setMesSyncedAt(order.getMesSyncedAt());
+        entity.setMesLastError(order.getMesLastError());
+        productionOrderMapper.updateById(entity);
+    }
+
+    /**
+     * 构建 MES 对账查询条件。
+     *
+     * @param query 查询条件
+     * @return Lambda 条件
+     */
+    private LambdaQueryWrapper<ProductionOrderEntity> filterForMes(MesReconcileQuery query) {
+        LambdaQueryWrapper<ProductionOrderEntity> wrapper = filter(query);
+        wrapper.in(ProductionOrderEntity::getStatus,
+                MfgStatus.RELEASED, MfgStatus.IN_PROGRESS, MfgStatus.COMPLETED, MfgStatus.CLOSED);
+        if (StringUtils.hasText(query.getMesSyncStatus())) {
+            wrapper.eq(ProductionOrderEntity::getMesSyncStatus, query.getMesSyncStatus());
+        }
+        if (StringUtils.hasText(query.getMesStatus())) {
+            List<String> orderNos = mesProgressMapper.selectList(new LambdaQueryWrapper<MesProgressEntity>()
+                            .eq(MesProgressEntity::getMesStatus, query.getMesStatus()))
+                    .stream().map(MesProgressEntity::getErpOrderNo).toList();
+            if (orderNos.isEmpty()) {
+                wrapper.eq(ProductionOrderEntity::getOrderNo, "__MES_NO_MATCH__");
+            } else {
+                wrapper.in(ProductionOrderEntity::getOrderNo, orderNos);
+            }
+        }
+        return wrapper;
     }
 
     @Override
@@ -273,6 +344,10 @@ public class ProductionOrderRepositoryImpl implements ProductionOrderRepository 
         order.setRoutingNo(entity.getRoutingNo());
         order.setRoutingVersion(entity.getRoutingVersion());
         order.setRoutingStatus(entity.getRoutingStatus());
+        order.setMesSyncStatus(entity.getMesSyncStatus());
+        order.setMesWorkOrderCode(entity.getMesWorkOrderCode());
+        order.setMesSyncedAt(entity.getMesSyncedAt());
+        order.setMesLastError(entity.getMesLastError());
         return order;
     }
 
@@ -395,6 +470,10 @@ public class ProductionOrderRepositoryImpl implements ProductionOrderRepository 
         entity.setRoutingNo(order.getRoutingNo());
         entity.setRoutingVersion(order.getRoutingVersion());
         entity.setRoutingStatus(order.getRoutingStatus());
+        entity.setMesSyncStatus(order.getMesSyncStatus());
+        entity.setMesWorkOrderCode(order.getMesWorkOrderCode());
+        entity.setMesSyncedAt(order.getMesSyncedAt());
+        entity.setMesLastError(order.getMesLastError());
     }
 
     /**

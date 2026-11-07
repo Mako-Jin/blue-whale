@@ -7,6 +7,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -80,6 +81,18 @@ public class ProductionOrderView {
     /** 工艺路线状态：NONE / SNAPSHOT / FAILED */
     private String routingStatus;
 
+    /** MES 下发状态 */
+    private String mesSyncStatus;
+
+    /** MES 工单编码 */
+    private String mesWorkOrderCode;
+
+    /** 最近成功下发时间 */
+    private LocalDateTime mesSyncedAt;
+
+    /** 最近一次下发/拉取失败摘要 */
+    private String mesLastError;
+
     /** 用料 */
     private List<MaterialView> materials;
 
@@ -115,6 +128,10 @@ public class ProductionOrderView {
         view.setRoutingNo(order.getRoutingNo());
         view.setRoutingVersion(order.getRoutingVersion());
         view.setRoutingStatus(order.getRoutingStatus());
+        view.setMesSyncStatus(order.getMesSyncStatus());
+        view.setMesWorkOrderCode(order.getMesWorkOrderCode());
+        view.setMesSyncedAt(order.getMesSyncedAt());
+        view.setMesLastError(order.getMesLastError());
         if (order.getMaterials() != null) {
             view.setMaterials(order.getMaterials().stream().map(MaterialView::of).toList());
         }

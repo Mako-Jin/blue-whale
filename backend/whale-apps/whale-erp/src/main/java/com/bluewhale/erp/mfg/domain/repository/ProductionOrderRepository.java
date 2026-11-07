@@ -1,6 +1,7 @@
 package com.bluewhale.erp.mfg.domain.repository;
 
 import com.bluewhale.erp.mfg.domain.model.MaterialAdjustment;
+import com.bluewhale.erp.mfg.domain.model.MesReconcileQuery;
 import com.bluewhale.erp.mfg.domain.model.MfgQuery;
 import com.bluewhale.erp.mfg.domain.model.ProductionOrder;
 
@@ -38,6 +39,37 @@ public interface ProductionOrderRepository {
      * @return 生产订单
      */
     Optional<ProductionOrder> findById(Long id);
+
+    /**
+     * 按生产订单号查询（含用料与工序）。
+     *
+     * @param orderNo 生产订单号
+     * @return 生产订单
+     */
+    Optional<ProductionOrder> findByOrderNo(String orderNo);
+
+    /**
+     * 分页查询 MES 对账订单（已下达及以后状态）。
+     *
+     * @param query 查询条件
+     * @return 生产订单
+     */
+    List<ProductionOrder> pageForMes(MesReconcileQuery query);
+
+    /**
+     * 统计 MES 对账订单数量。
+     *
+     * @param query 查询条件
+     * @return 总条数
+     */
+    long countForMes(MesReconcileQuery query);
+
+    /**
+     * 仅更新 MES 下发状态字段。
+     *
+     * @param order 生产订单
+     */
+    void updateMesSync(ProductionOrder order);
 
     /**
      * 生成生产订单号。
