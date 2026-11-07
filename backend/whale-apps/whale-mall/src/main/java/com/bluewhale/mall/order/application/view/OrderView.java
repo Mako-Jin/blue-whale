@@ -60,6 +60,12 @@ public class OrderView {
     /** 支付时间 */
     private LocalDateTime payTime;
 
+    /** 累计退款金额（部分退款时大于 0 且小于总额） */
+    private BigDecimal refundAmount;
+
+    /** 退款完成时间 */
+    private LocalDateTime refundTime;
+
     /** 发货时间 */
     private LocalDateTime shipTime;
 

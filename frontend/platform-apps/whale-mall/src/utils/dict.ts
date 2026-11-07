@@ -109,6 +109,55 @@ export const ORDER_STATUS_COLOR: Record<string, string> = {
   REFUNDED: 'purple',
 };
 
+/** 售后类型下拉选项 */
+export const AFTER_SALE_TYPE_OPTIONS = [
+  { value: 'REFUND_ONLY', label: '仅退款' },
+  { value: 'RETURN_REFUND', label: '退货退款' },
+];
+
+/** 售后类型文案 */
+export const AFTER_SALE_TYPE_LABEL: Record<string, string> = {
+  REFUND_ONLY: '仅退款',
+  RETURN_REFUND: '退货退款',
+};
+
+/** 售后状态下拉选项 */
+export const AFTER_SALE_STATUS_OPTIONS = [
+  { value: 'CREATED', label: '待审核' },
+  { value: 'APPROVED', label: '退款中' },
+  { value: 'REFUNDED', label: '已退款' },
+  { value: 'REJECTED', label: '已驳回' },
+  { value: 'CANCELLED', label: '已撤销' },
+];
+
+/** 售后状态文案 */
+export const AFTER_SALE_STATUS_LABEL: Record<string, string> = {
+  CREATED: '待审核',
+  APPROVED: '退款中',
+  REFUNDED: '已退款',
+  REJECTED: '已驳回',
+  CANCELLED: '已撤销',
+};
+
+/** 售后状态标签色 */
+export const AFTER_SALE_STATUS_COLOR: Record<string, string> = {
+  CREATED: 'gold',
+  APPROVED: 'orange',
+  REFUNDED: 'purple',
+  REJECTED: 'red',
+  CANCELLED: 'default',
+};
+
+/** 售后原因下拉选项（申请时选择） */
+export const AFTER_SALE_REASON_OPTIONS = [
+  { value: '质量问题', label: '质量问题' },
+  { value: '发错货', label: '发错货' },
+  { value: '少件/漏发', label: '少件/漏发' },
+  { value: '商品与描述不符', label: '商品与描述不符' },
+  { value: '不想要了', label: '不想要了' },
+  { value: '其他', label: '其他' },
+];
+
 /**
  * 金额格式化：按币种决定符号与小数位。
  *

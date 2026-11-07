@@ -48,6 +48,26 @@ public class OrderItem {
     /** 数量 */
     private Integer quantity;
 
+    /** 已退数量（累计，售后申请时占用） */
+    private Integer refundedQuantity;
+
+    /** 已退金额（累计） */
+    private BigDecimal refundedAmount;
+
     /** 小计 */
     private BigDecimal amount;
+
+    /**
+     * 当前可退数量。
+     *
+     * <p>申请售后时前端要按这个数限制可选项；返回 0 说明该行已退完。
+     * 数量为 null 时按 0 处理，避免历史数据缺列导致 NPE。</p>
+     *
+     * @return 可退数量
+     */
+    public int refundableQuantity() {
+        int total = quantity == null ? 0 : quantity;
+        int refunded = refundedQuantity == null ? 0 : refundedQuantity;
+        return Math.max(total - refunded, 0);
+    }
 }

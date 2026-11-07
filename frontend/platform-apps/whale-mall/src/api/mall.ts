@@ -339,6 +339,8 @@ export function selectCartItems(body: {
 
 /** 订单行 */
 export interface OrderLineView {
+  /** 订单明细 ID（申请售后时定位被退的行） */
+  id?: number;
   skuId: number;
   spuId: number;
   spuName: string;
@@ -348,6 +350,10 @@ export interface OrderLineView {
   priceType: string;
   unitPrice: Money;
   quantity: number;
+  /** 已退数量 */
+  refundedQuantity?: number;
+  /** 当前可退数量（售后申请上限） */
+  refundableQuantity?: number;
   amount: Money;
 }
 
@@ -466,4 +472,102 @@ export function shipOrder(id: number): Promise<void> {
 /** 确认收货（SHIPPED → COMPLETED） */
 export function completeOrder(id: number): Promise<void> {
   return http.post<void>(`/mall/order/${id}/complete`);
+}
+
+// ---------------------------------------------------------------------------
+// 售后
+// ---------------------------------------------------------------------------
+
+/** 售后行 */
+export interface AfterSaleLineView {
+  id: number;
+  orderItemId: number;
+  spuId: number;
+  skuId: number;
+  spuName: string;
+  skuCode: string;
+  unitPrice: Money;
+  /** 本次退数量 */
+  quantity: number;
+  /** 本次退金额 */
+  amount: Money;
+}
+
+/** 售后单 */
+export interface AfterSaleView {
+  id: number;
+  afterSaleNo: string;
+  orderId: number;
+  orderNo: string;
+  userId: number;
+  /** REFUND_ONLY 仅退款 / RETURN_REFUND 退货退款 */
+  type: string;
+  /** CREATED / APPROVED / REFUNDED / REJECTED / CANCELLED */
+  status: string;
+  refundAmount: Money;
+  reason?: string;
+  description?: string;
+  images?: string;
+  auditUserId?: number;
+  auditUserName?: string;
+  auditTime?: string;
+  auditRemark?: string;
+  refundNo?: string;
+  refundTime?: string;
+  returnLogisticsNo?: string;
+  createTime?: string;
+  items: AfterSaleLineView[];
+}
+
+/** 申请售后（金额由后端按订单行快照价计算，前端只传行与数量） */
+export function applyAfterSale(body: {
+  orderId: number;
+  type?: string;
+  reason?: string;
+  description?: string;
+  images?: string;
+  returnLogisticsNo?: string;
+  lines: Array<{ orderItemId: number; quantity: number }>;
+}): Promise<number> {
+  return http.post<number>('/mall/after-sale', body);
+}
+
+/** 我的售后分页 */
+export function pageMyAfterSale(query: {
+  status?: string;
+  keyword?: string;
+  current?: number;
+  size?: number;
+}): Promise<PageResult<AfterSaleView>> {
+  return http.get<PageResult<AfterSaleView>>('/mall/after-sale/page', query);
+}
+
+/** 全部售后分页（运营） */
+export function pageAfterSaleAdmin(query: {
+  status?: string;
+  keyword?: string;
+  current?: number;
+  size?: number;
+}): Promise<PageResult<AfterSaleView>> {
+  return http.get<PageResult<AfterSaleView>>('/mall/after-sale/admin/page', query);
+}
+
+/** 售后详情 */
+export function getAfterSale(id: number): Promise<AfterSaleView> {
+  return http.get<AfterSaleView>(`/mall/after-sale/${id}`);
+}
+
+/** 撤销售后（仅待审核，买家本人或运营） */
+export function cancelAfterSale(id: number): Promise<void> {
+  return http.post<void>(`/mall/after-sale/${id}/cancel`);
+}
+
+/** 审核通过并发起退款 */
+export function approveAfterSale(id: number, remark?: string): Promise<void> {
+  return http.post<void>(`/mall/after-sale/${id}/approve`, undefined, { remark });
+}
+
+/** 驳回售后 */
+export function rejectAfterSale(id: number, remark?: string): Promise<void> {
+  return http.post<void>(`/mall/after-sale/${id}/reject`, undefined, { remark });
 }

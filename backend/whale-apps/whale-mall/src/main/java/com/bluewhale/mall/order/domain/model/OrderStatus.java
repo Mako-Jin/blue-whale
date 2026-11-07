@@ -7,14 +7,16 @@ import java.util.Locale;
  *
  * <pre>
  * PENDING_PAYMENT ──pay──> PAID ──ship──> SHIPPED ──complete──> COMPLETED
- *        │                  │
- *        └──cancel──> CANCELLED    └──refund──> REFUNDING ──refund-callback──> REFUNDED
+ *        │                  │                │                    │
+ *        └──cancel──> CANCELLED              └────refund──────────┘
+ *                           └──refund──> REFUNDING ──refund-callback──> REFUNDED
  * </pre>
  *
- * <p>只允许这六条边。{@code PAID} 不能取消：钱已收，取消等于退款，
- * 而退款是带审批与流水记录的独立流程，塞进「取消」会让这个动作有时退钱有时不退。
- * {@code SHIPPED} 不能取消：货在路上，逆向走售后（M1 后续切片）。
- * {@code REFUNDING} 期间禁止发货与再次申请退款，防并发双退。</p>
+ * <p>只允许这几条边。{@code PAID} 不能取消：钱已收，取消等于退款，
+ * 而退款是带审批与流水记录的独立流程，塞进「取消」会让这个动作有时退钱有时不退。</p>
+ *
+ * <p>{@code REFUNDING} 的语义收窄为「整单退款进行中」（部分退款的订单保持原状态），
+ * 期间禁止发货与再次整单退款，防并发双退。部分退款的并发由行级额度条件更新兜住。</p>
  *
  * @author BlueWhale
  */
@@ -78,12 +80,16 @@ public enum OrderStatus {
     }
 
     /**
-     * 是否可申请整单退款。
+     * 是否可申请退款 / 售后。
      *
-     * @return 已支付返回 true
+     * <p>已支付、已发货、已完成都可以：货发出去了买家才发现问题是最常见的售后场景，
+     * 只放开「已支付」等于把退货全部堵死。已取消与待支付不可退——这两者没收到钱，
+     * 走退款只会把钱凭空送出去。</p>
+     *
+     * @return 已支付、已发货或已完成返回 true
      */
     public boolean canRefund() {
-        return this == PAID;
+        return this == PAID || this == SHIPPED || this == COMPLETED;
     }
 
     /**

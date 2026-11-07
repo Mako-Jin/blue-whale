@@ -1,14 +1,15 @@
 package com.bluewhale.mall.common;
 
 /**
- * 商城权限码常量（与 {@code migration-5.94-mall.sql} 登记保持一致）。
+ * 商城权限码常量（与 {@code migration-5.94-mall.sql}、{@code migration-5.95-mall-m1.sql}、
+ * {@code migration-5.96-mall-aftersale.sql} 登记保持一致）。
  *
- * <p>号段 **2200–2213**：2100–2108 归邮箱、2109 归邮件规则、2110–2115 归地图，
+ * <p>号段 **2200–2217**：2100–2108 归邮箱、2109 归邮件规则、2110–2115 归地图，
  * 故本服务从 2200 起。<b>不挪号</b>——权限号一旦发布就进了各租户的角色授权表，
  * 重排意味着线上授权全部错配。</p>
  *
- * <p>买家自助动作（购物车、下单、查自己的订单）与运营动作（建商品、发货）分开：
- * 前者给全员，后者只给运营角色。合成一个权限点会让「能买东西」等价于「能改商品」。</p>
+ * <p>买家自助动作（购物车、下单、查自己的订单、申请售后）与运营动作（建商品、发货、审核售后）
+ * 分开：前者给全员，后者只给运营角色。合成一个权限点会让「能买东西」等价于「能改商品」。</p>
  *
  * @author BlueWhale
  */
@@ -56,8 +57,17 @@ public final class MallPermissions {
     /** 订单取消（本人或运营）（2213） */
     public static final String ORDER_CANCEL = "sys:mall:order:cancel";
 
-    /** 整单退款（商城运营） */
+    /** 整单退款（商城运营，2214） */
     public static final String ORDER_REFUND = "sys:mall:order:refund";
+
+    /** 售后查看：本人售后单（2215，全员） */
+    public static final String AFTER_SALE_APPLY = "sys:mall:aftersale:apply";
+
+    /** 售后列表查看（2216，商城运营） */
+    public static final String AFTER_SALE_LIST = "sys:mall:aftersale:list";
+
+    /** 售后审核：通过 / 驳回（2217，商城运营） */
+    public static final String AFTER_SALE_AUDIT = "sys:mall:aftersale:audit";
 
 
     /**

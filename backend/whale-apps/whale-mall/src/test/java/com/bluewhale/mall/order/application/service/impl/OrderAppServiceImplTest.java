@@ -1,6 +1,7 @@
 package com.bluewhale.mall.order.application.service.impl;
 
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.mall.aftersale.application.service.AfterSaleAppService;
 import com.bluewhale.mall.cart.domain.model.CartItem;
 import com.bluewhale.mall.cart.domain.repository.CartRepository;
 import com.bluewhale.mall.catalog.application.model.SkuOffering;
@@ -43,6 +44,8 @@ import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -76,6 +79,9 @@ class OrderAppServiceImplTest {
 
     @Mock
     private PayInternalClient payInternalClient;
+
+    @Mock
+    private AfterSaleAppService afterSaleAppService;
 
     @Mock
     private MallProperties properties;
@@ -327,31 +333,32 @@ class OrderAppServiceImplTest {
     }
 
     /**
-     * 整单退款：订单进入 REFUNDING 并发起远端退款。
+     * 整单退款委托售后单：退款只保留一条实现路径。
      */
     @Test
-    @DisplayName("整单退款进入 REFUNDING 并发起远端退款")
-    void refundTransitionsToRefunding() {
+    @DisplayName("整单退款委托售后单，不再直接调支付侧")
+    void refundDelegatesToAfterSale() {
         MallOrder order = existingOrder();
         order.setStatus(OrderStatus.PAID);
         order.setPayNo("MO20261106000001");
-        order.setPayTime(java.time.LocalDateTime.now());
         when(orderRepository.findById(5L)).thenReturn(Optional.of(order));
 
         orderAppService.refund(5L, "商品质量问题", actor);
 
-        assertThat(order.getStatus()).isEqualTo(OrderStatus.REFUNDING);
-        verify(payInternalClient).refund("MO20261106000001", new BigDecimal("39.80"), "商品质量问题");
-        verify(orderRepository).update(any(MallOrder.class));
+        verify(afterSaleAppService).applyFullRefund(same(order), eq("商品质量问题"), same(actor));
+        verify(payInternalClient, never()).refund(anyString(), any(), anyString());
     }
 
     /**
-     * 非运营角色不能退款。
+     * 非运营角色退款：拒绝由售后侧判定，订单服务只透传。
      */
     @Test
-    @DisplayName("买家角色不能发起退款")
+    @DisplayName("非运营角色退款时售后侧拒绝，异常原样透传")
     void refundRejectsBuyer() {
         MallActor buyer = new MallActor(7L, "buyer", java.util.Set.of(), java.util.Set.of());
+        when(orderRepository.findById(5L)).thenReturn(Optional.of(existingOrder()));
+        when(afterSaleAppService.applyFullRefund(any(), any(), any()))
+                .thenThrow(MallErrorCode.exception(MallErrorCode.ORDER_FORBIDDEN));
 
         assertThatThrownBy(() -> orderAppService.refund(5L, "测试", buyer))
                 .isInstanceOf(BizException.class)
@@ -361,46 +368,41 @@ class OrderAppServiceImplTest {
     }
 
     /**
-     * 退款回调：REFUNDING → REFUNDED 并落退款金额。
+     * 退款回调委托售后结单：回调载荷里的 refundNo 即售后单号。
      */
     @Test
-    @DisplayName("退款回调推进到 REFUNDED 并落退款金额")
-    void markRefundedTransitionsToRefunded() {
-        MallOrder order = existingOrder();
-        order.setStatus(OrderStatus.REFUNDING);
-        when(orderRepository.findByOrderNo("MO20261106000001")).thenReturn(Optional.of(order));
+    @DisplayName("退款回调委托售后结单，refundNo 作为售后单号透传")
+    void markRefundedDelegatesToAfterSale() {
         com.bluewhale.mall.order.application.command.OrderRefundedCommand command =
                 new com.bluewhale.mall.order.application.command.OrderRefundedCommand();
         command.setOrderNo("MO20261106000001");
         command.setPayNo("MO20261106000001");
-        command.setRefundNo("RF20261107000001");
+        command.setRefundNo("AS20261107000001");
         command.setRefundAmount(new BigDecimal("39.80"));
 
         orderAppService.markRefunded(command);
 
-        assertThat(order.getStatus()).isEqualTo(OrderStatus.REFUNDED);
-        assertThat(order.getRefundAmount()).isEqualByComparingTo("39.80");
-        assertThat(order.getRefundTime()).isNotNull();
-        verify(orderRepository).update(any(MallOrder.class));
+        verify(afterSaleAppService).markRefunded("MO20261106000001", "AS20261107000001",
+                new BigDecimal("39.80"));
+        // 结单与累计都在售后侧，订单服务不得再直接改订单（否则两处各写一次）
+        verify(orderRepository, never()).update(any(MallOrder.class));
     }
 
     /**
-     * 退款回调幂等：已退款再次回调直接成功。
+     * 退款回调不再直接读订单：结单定位全部交给售后侧。
      */
     @Test
-    @DisplayName("已退款订单重复回调幂等成功")
-    void markRefundedIsIdempotent() {
-        MallOrder order = existingOrder();
-        order.setStatus(OrderStatus.REFUNDED);
-        order.setRefundAmount(new BigDecimal("39.80"));
-        when(orderRepository.findByOrderNo("MO20261106000001")).thenReturn(Optional.of(order));
+    @DisplayName("退款回调不再直接查询订单，避免与售后侧双写")
+    void markRefundedNoLongerTouchesOrderRepository() {
         com.bluewhale.mall.order.application.command.OrderRefundedCommand command =
                 new com.bluewhale.mall.order.application.command.OrderRefundedCommand();
         command.setOrderNo("MO20261106000001");
+        command.setRefundNo("AS20261107000002");
         command.setRefundAmount(new BigDecimal("39.80"));
 
         orderAppService.markRefunded(command);
 
+        verify(orderRepository, never()).findByOrderNo(anyString());
         verify(orderRepository, never()).update(any(MallOrder.class));
     }
 

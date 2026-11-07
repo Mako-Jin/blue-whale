@@ -74,10 +74,14 @@ public class PayRefundServiceImpl implements PayRefundService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public PayRefundVO refundByNo(String payOrderNo, BigDecimal amount, String reason) {
+    public PayRefundVO refundByNo(String payOrderNo, String refundNo, BigDecimal amount, String reason) {
         validateAmount(amount);
         PayOrder order = requireOrderByNo(payOrderNo);
-        PayRefund refund = createRefundRecord(order, amount, reason);
+        PayRefund replayed = findReplayedRefund(refundNo, amount);
+        if (replayed != null) {
+            return PayOrderConverter.INSTANCE.toRefundVo(replayed);
+        }
+        PayRefund refund = createRefundRecord(order, refundNo, amount, reason);
         PayChannelResult result = payChannelGateway.refund(order, refund.getRefundNo(), amount);
         refund.setStatus(PayRefundStatus.SUCCESS.code());
         refund.setChannelRefundNo(result.providerTradeNo());
@@ -108,7 +112,7 @@ public class PayRefundServiceImpl implements PayRefundService {
         if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
             throw new BizException(ErrorCode.PARAM_ERROR, "支付单已全额退款");
         }
-        return refundByNo(order.getOrderNo(), remaining, reason);
+        return refundByNo(order.getOrderNo(), null, remaining, reason);
     }
 
     @Override
@@ -135,16 +139,47 @@ public class PayRefundServiceImpl implements PayRefundService {
     }
 
     /**
+     * 幂等查询：同一业务退款请求号是否已经退过。
+     *
+     * <p>命中且金额一致说明是调用方重试（网络超时、回调重放），返回原退款单即可；
+     * 命中但金额不同说明请求号被挪用，直接拒绝——静默按原单返回会让调用方
+     * 以为新金额也退了。</p>
+     *
+     * <p>并发下两个同号请求可能都查不到，此时后插的那个会撞 {@code uk_tenant_refund_no}
+     * 抛重复键、整笔回滚，调用方重试即可拿到原单。「宁可失败不可多退」。</p>
+     *
+     * @param refundNo 业务退款请求号
+     * @param amount   本次退款金额
+     * @return 已存在的退款单，无则 null
+     */
+    private PayRefund findReplayedRefund(String refundNo, BigDecimal amount) {
+        if (!StringUtils.hasText(refundNo)) {
+            return null;
+        }
+        PayRefund existing = payRefundMapper.selectOne(new LambdaQueryWrapper<PayRefund>()
+                .eq(PayRefund::getRefundNo, refundNo));
+        if (existing == null) {
+            return null;
+        }
+        if (existing.getAmount().compareTo(amount) != 0) {
+            throw new BizException(ErrorCode.PARAM_ERROR,
+                    "退款请求号 " + refundNo + " 已用于金额 " + existing.getAmount() + " 的退款，不可改额重试");
+        }
+        return existing;
+    }
+
+    /**
      * 创建退款单记录（CREATED 态）。
      *
-     * @param order  支付单
-     * @param amount 退款金额
-     * @param reason 原因
+     * @param order    支付单
+     * @param refundNo 业务退款请求号（空则自动生成）
+     * @param amount   退款金额
+     * @param reason   原因
      * @return 退款单
      */
-    private PayRefund createRefundRecord(PayOrder order, BigDecimal amount, String reason) {
+    private PayRefund createRefundRecord(PayOrder order, String refundNo, BigDecimal amount, String reason) {
         PayRefund refund = new PayRefund();
-        refund.setRefundNo(newRefundNo());
+        refund.setRefundNo(StringUtils.hasText(refundNo) ? refundNo.trim() : newRefundNo());
         refund.setPayOrderId(order.getId());
         refund.setPayOrderNo(order.getOrderNo());
         refund.setAmount(amount);

@@ -49,6 +49,12 @@ public class OrderItemEntity extends BaseEntity {
     /** 数量 */
     private Integer quantity;
 
+    /** 已退数量（累计） */
+    private Integer refundedQuantity;
+
+    /** 已退金额（累计） */
+    private BigDecimal refundedAmount;
+
     /** 小计 */
     private BigDecimal amount;
 }

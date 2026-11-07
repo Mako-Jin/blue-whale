@@ -5,8 +5,10 @@ import {
   Card,
   Descriptions,
   Input,
+  InputNumber,
   Modal,
   Popconfirm,
+  Select,
   Space,
   Spin,
   Table,
@@ -17,6 +19,7 @@ import {
 import type { TableProps } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
+  applyAfterSale,
   cancelOrder,
   completeOrder,
   getOrder,
@@ -28,6 +31,8 @@ import {
 } from '../../api/mall';
 import { hasPermission } from '../../utils/permission';
 import {
+  AFTER_SALE_REASON_OPTIONS,
+  AFTER_SALE_TYPE_OPTIONS,
   MODE_LABEL,
   ORDER_STATUS_COLOR,
   ORDER_STATUS_LABEL,
@@ -37,6 +42,9 @@ import {
   formatMoney,
   formatSpec,
 } from '../../utils/dict';
+
+/** 可发起售后的订单状态（已收款才谈得上退款） */
+const AFTER_SALE_ALLOWED_STATUS = ['PAID', 'SHIPPED', 'COMPLETED'];
 
 /**
  * 读取错误文案。
@@ -58,10 +66,16 @@ export default function OrderDetailPage() {
   const [cancelReason, setCancelReason] = useState('');
   const [refundOpen, setRefundOpen] = useState(false);
   const [refundReason, setRefundReason] = useState('');
+  const [afterSaleOpen, setAfterSaleOpen] = useState(false);
+  const [afterSaleType, setAfterSaleType] = useState('REFUND_ONLY');
+  const [afterSaleReason, setAfterSaleReason] = useState('质量问题');
+  const [afterSaleDescription, setAfterSaleDescription] = useState('');
+  const [afterSaleQty, setAfterSaleQty] = useState<Record<number, number>>({});
 
   const canManage = hasPermission('sys:mall:order:manage');
   const canCancel = hasPermission('sys:mall:order:cancel');
   const canRefund = hasPermission('sys:mall:order:refund');
+  const canApplyAfterSale = hasPermission('sys:mall:aftersale:apply');
 
   /** 加载详情 */
   const load = useCallback(async () => {
@@ -137,9 +151,59 @@ export default function OrderDetailPage() {
     }
   };
 
-  /** 发货 / 完成 */
-  const run = async (action: 'ship' | 'complete') => {
+  /**
+   * 打开售后弹窗：默认按每行可退数量预填。
+   *
+   * <p>预填成 0 会让用户每次都要手动选，预填满额又容易误退整单，
+   * 折中为「预填 0、点行才计数」，提交时只收大于 0 的行。</p>
+   */
+  const openAfterSale = () => {
+    setAfterSaleQty({});
+    setAfterSaleType('REFUND_ONLY');
+    setAfterSaleReason('质量问题');
+    setAfterSaleDescription('');
+    setAfterSaleOpen(true);
+  };
+
+  /** 提交售后申请（金额由后端按行快照价计算） */
+  const submitAfterSale = async () => {
     if (!order) {
+      return;
+    }
+    const lines = (order.items ?? [])
+      .filter((row) => typeof row.id === 'number' && (afterSaleQty[row.id] ?? 0) > 0)
+      .map((row) => ({ orderItemId: row.id as number, quantity: afterSaleQty[row.id as number] }));
+    if (lines.length === 0) {
+      message.warning('请填写要退的商品数量');
+      return;
+    }
+    setBusy(true);
+    try {
+      await applyAfterSale({
+        orderId: order.id,
+        type: afterSaleType,
+        reason: afterSaleReason,
+        description: afterSaleDescription.trim() || undefined,
+        lines,
+      });
+      message.success('售后申请已提交，等待运营审核');
+      setAfterSaleOpen(false);
+      await load();
+    } catch (error) {
+      message.error(errorText(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /** 本次申请退款金额预估（与后端同一算法：行快照价 × 数量） */
+  const afterSalePreview = (order?.items ?? []).reduce((sum, row) => {
+    const qty = typeof row.id === 'number' ? afterSaleQty[row.id] ?? 0 : 0;
+    return sum + Number(row.unitPrice ?? 0) * qty;
+  }, 0);
+
+  /** 发货 / 完成 */
+  const run = async (action: 'ship' | 'complete') => {    if (!order) {
       return;
     }
     try {
@@ -180,6 +244,19 @@ export default function OrderDetailPage() {
     },
     { title: '数量', dataIndex: 'quantity', width: 80 },
     {
+      title: '已退',
+      dataIndex: 'refundedQuantity',
+      width: 80,
+      render: (value?: number) => value ?? 0,
+    },
+    {
+      title: '可退',
+      dataIndex: 'refundableQuantity',
+      width: 80,
+      render: (value: number | undefined, row) =>
+        value === undefined ? (row.quantity ?? 0) - (row.refundedQuantity ?? 0) : value,
+    },
+    {
       title: '小计',
       dataIndex: 'amount',
       width: 140,
@@ -200,11 +277,15 @@ export default function OrderDetailPage() {
               <Button type="primary">去支付</Button>
             </Popconfirm>
           )}
-          {canRefund && order?.status === 'PAID' && (
+          {canRefund && AFTER_SALE_ALLOWED_STATUS.includes(order?.status ?? '') && (
             <Button danger onClick={() => setRefundOpen(true)}>
               整单退款
             </Button>
           )}
+          {canApplyAfterSale && AFTER_SALE_ALLOWED_STATUS.includes(order?.status ?? '') && (
+            <Button onClick={openAfterSale}>申请售后</Button>
+          )}
+          <Button onClick={() => navigate('/aftersale')}>售后单</Button>
           {canCancel && order?.status === 'PENDING_PAYMENT' && (
             <Button danger onClick={() => setCancelOpen(true)}>
               取消订单
@@ -269,7 +350,7 @@ export default function OrderDetailPage() {
               商品明细
             </Typography.Title>
             <Table<OrderLineView>
-              rowKey={(row) => `${row.skuId}-${row.quantity}`}
+              rowKey={(row) => String(row.id ?? `${row.skuId}-${row.quantity}`)}
               size="small"
               columns={columns}
               dataSource={order.items ?? []}
@@ -317,6 +398,84 @@ export default function OrderDetailPage() {
           value={refundReason}
           onChange={(event) => setRefundReason(event.target.value)}
         />
+      </Modal>
+
+      <Modal
+        title="申请售后"
+        open={afterSaleOpen}
+        confirmLoading={busy}
+        onCancel={() => setAfterSaleOpen(false)}
+        onOk={submitAfterSale}
+        width={640}
+      >
+        <Typography.Paragraph type="secondary">
+          退款金额由后端按订单行成交价计算，提交后需运营审核，通过后原路退回。
+        </Typography.Paragraph>
+        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+          <Space>
+            <Typography.Text>售后类型</Typography.Text>
+            <Select
+              style={{ width: 140 }}
+              value={afterSaleType}
+              options={AFTER_SALE_TYPE_OPTIONS}
+              onChange={setAfterSaleType}
+            />
+            <Typography.Text>售后原因</Typography.Text>
+            <Select
+              style={{ width: 180 }}
+              value={afterSaleReason}
+              options={AFTER_SALE_REASON_OPTIONS}
+              onChange={setAfterSaleReason}
+            />
+          </Space>
+          <Input.TextArea
+            rows={2}
+            maxLength={500}
+            placeholder="问题描述（可选）"
+            value={afterSaleDescription}
+            onChange={(event) => setAfterSaleDescription(event.target.value)}
+          />
+          <Table<OrderLineView>
+            rowKey={(row) => String(row.id ?? `${row.skuId}-${row.quantity}`)}
+            size="small"
+            pagination={false}
+            dataSource={order?.items ?? []}
+            columns={[
+              { title: '商品', dataIndex: 'spuName' },
+              { title: '单价', dataIndex: 'unitPrice', width: 110, render: (value: number) => formatMoney(value) },
+              {
+                title: '可退',
+                width: 80,
+                render: (_: unknown, row) =>
+                  row.refundableQuantity ?? (row.quantity ?? 0) - (row.refundedQuantity ?? 0),
+              },
+              {
+                title: '本次退数量',
+                width: 140,
+                render: (_: unknown, row) => {
+                  const refundable = row.refundableQuantity ?? (row.quantity ?? 0) - (row.refundedQuantity ?? 0);
+                  if (typeof row.id !== 'number' || refundable <= 0) {
+                    return <Typography.Text type="secondary">不可退</Typography.Text>;
+                  }
+                  return (
+                    <InputNumber
+                      min={0}
+                      max={refundable}
+                      precision={0}
+                      value={afterSaleQty[row.id] ?? 0}
+                      onChange={(value) =>
+                        setAfterSaleQty((prev) => ({ ...prev, [row.id as number]: Number(value ?? 0) }))
+                      }
+                    />
+                  );
+                },
+              },
+            ]}
+          />
+          <Typography.Text>
+            预计退款：<Typography.Text strong>{formatMoney(afterSalePreview)}</Typography.Text>
+          </Typography.Text>
+        </Space>
       </Modal>
     </Card>
   );

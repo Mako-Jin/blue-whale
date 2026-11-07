@@ -251,6 +251,8 @@ public class OrderRepositoryImpl implements OrderRepository {
         item.setPriceType(entity.getPriceType());
         item.setUnitPrice(entity.getUnitPrice());
         item.setQuantity(entity.getQuantity());
+        item.setRefundedQuantity(entity.getRefundedQuantity());
+        item.setRefundedAmount(entity.getRefundedAmount());
         item.setAmount(entity.getAmount());
         return item;
     }

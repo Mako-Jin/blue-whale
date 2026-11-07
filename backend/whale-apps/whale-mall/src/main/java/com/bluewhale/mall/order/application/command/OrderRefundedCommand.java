@@ -8,6 +8,9 @@ import java.math.BigDecimal;
 /**
  * 退款回调命令（whale-pay 内网调用）。
  *
+ * <p>{@code refundNo} 是发起退款时传给支付侧的业务退款请求号，支付侧原样回传，
+ * 对商城而言它就是售后单号——回调靠它定位要结哪张售后单。</p>
+ *
  * @author BlueWhale
  */
 @Data
@@ -21,7 +24,7 @@ public class OrderRefundedCommand implements Serializable {
     /** 支付单号 */
     private String payNo;
 
-    /** 退款单号（whale-pay 侧） */
+    /** 业务退款请求号（即售后单号，支付侧原样回传） */
     private String refundNo;
 
     /** 累计退款金额 */

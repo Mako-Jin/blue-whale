@@ -23,8 +23,8 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 @AnalyzeClasses(packages = "com.bluewhale.mall", importOptions = ImportOption.DoNotIncludeTests.class)
 class MallArchitectureTest {
 
-    /** 四个业务上下文 */
-    private static final String[] CONTEXTS = {"catalog", "channel", "cart", "order"};
+    /** 五个业务上下文 */
+    private static final String[] CONTEXTS = {"catalog", "channel", "cart", "order", "aftersale"};
 
     /** 领域层不得依赖应用层、接口层与基础设施层 */
     @ArchTest

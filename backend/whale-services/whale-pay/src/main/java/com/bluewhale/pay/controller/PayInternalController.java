@@ -80,12 +80,14 @@ public class PayInternalController {
     /**
      * 创建退款单并执行（成功后投递 REFUNDED 业务通知）。
      *
+     * <p>{@code refundNo} 是调用方生成的幂等键，同号重试返回原退款单。</p>
+     *
      * @param request 退款请求
      * @return 退款单
      */
     @PostMapping("/refund")
     public Result<PayRefundVO> refund(@Valid @RequestBody PayInternalRefundRequest request) {
-        return Result.ok(payRefundService.refundByNo(request.getPayOrderNo(),
+        return Result.ok(payRefundService.refundByNo(request.getPayOrderNo(), request.getRefundNo(),
                 request.getAmount(), request.getReason()));
     }
 }

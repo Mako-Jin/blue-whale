@@ -121,17 +121,33 @@ public class PayInternalClient {
     }
 
     /**
-     * 发起退款。
+     * 发起退款（带幂等键）。
+     *
+     * <p>{@code refundNo} 用售后单号：网络超时后重试带同一个号，支付侧直接返回原退款单，
+     * 不会重复出账。整单退款也走这里，不再有「不带号的退款」调用路径。</p>
+     *
+     * @param orderNo  支付单号
+     * @param refundNo 业务退款请求号（幂等键）
+     * @param amount   退款金额
+     * @param reason   原因
+     */
+    public void refund(String orderNo, String refundNo, BigDecimal amount, String reason) {
+        post("/pay/internal/refund", Map.of(
+                "payOrderNo", orderNo,
+                "refundNo", refundNo == null ? "" : refundNo,
+                "amount", amount,
+                "reason", reason == null ? "" : reason));
+    }
+
+    /**
+     * 发起退款（不带幂等键，仅供不重试场景兜底）。
      *
      * @param orderNo 支付单号
      * @param amount  退款金额
      * @param reason  原因
      */
     public void refund(String orderNo, BigDecimal amount, String reason) {
-        post("/pay/internal/refund", Map.of(
-                "payOrderNo", orderNo,
-                "amount", amount,
-                "reason", reason == null ? "" : reason));
+        refund(orderNo, null, amount, reason);
     }
 
     /**

@@ -18,12 +18,29 @@ public interface PayRefundService {
     /**
      * 按支付单号退款（内网/管理端共用）。
      *
+     * <p>{@code refundNo} 为业务方生成的退款请求号，作为幂等键：
+     * 同号重复调用直接返回原退款单，不重复出账。为空则由支付侧自动生成，
+     * 适用于「一次性、不重试」的调用场景。</p>
+     *
+     * @param payOrderNo 支付单号
+     * @param refundNo   业务退款请求号（幂等键，可空）
+     * @param amount     本次退款金额
+     * @param reason     退款原因
+     * @return 退款单
+     */
+    PayRefundVO refundByNo(String payOrderNo, String refundNo, BigDecimal amount, String reason);
+
+    /**
+     * 按支付单号退款（不带幂等键，退款单号由支付侧生成）。
+     *
      * @param payOrderNo 支付单号
      * @param amount     本次退款金额
      * @param reason     退款原因
      * @return 退款单
      */
-    PayRefundVO refundByNo(String payOrderNo, BigDecimal amount, String reason);
+    default PayRefundVO refundByNo(String payOrderNo, BigDecimal amount, String reason) {
+        return refundByNo(payOrderNo, null, amount, reason);
+    }
 
     /**
      * 管理端整单退款（兼容原 {@code POST /pay/order/{id}/refund} 语义）。

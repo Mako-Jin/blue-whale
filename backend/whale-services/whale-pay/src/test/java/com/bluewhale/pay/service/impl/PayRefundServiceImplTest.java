@@ -222,4 +222,54 @@ class PayRefundServiceImplTest {
 
         verify(payNotifyService).dispatchAfterCommit(isNull());
     }
+
+    @Test
+    @DisplayName("refundByNo：同一退款请求号重复调用返回原单，不重复出账")
+    void shouldReplaySameRefundNo() {
+        PayOrder order = paidOrder();
+        PayRefund existing = new PayRefund();
+        existing.setRefundNo("AS20261107001");
+        existing.setAmount(new BigDecimal("30.00"));
+        existing.setStatus("SUCCESS");
+        when(payOrderMapper.selectOne(any())).thenReturn(order);
+        when(payRefundMapper.selectOne(any())).thenReturn(existing);
+
+        PayRefundVO vo = service.refundByNo("MO20261107001", "AS20261107001", new BigDecimal("30.00"), "网络重试");
+
+        assertEquals("AS20261107001", vo.getRefundNo());
+        assertEquals("SUCCESS", vo.getStatus());
+        verify(payRefundMapper, never()).insert(any(PayRefund.class));
+        verify(payChannelGateway, never()).refund(any(), any(), any());
+        verify(payOrderMapper, never()).applyRefund(any(), any());
+        verify(payTransactionMapper, never()).insert(any(PayTransaction.class));
+    }
+
+    @Test
+    @DisplayName("refundByNo：同一退款请求号换金额重试直接拒绝")
+    void shouldRejectReplayWithDifferentAmount() {
+        when(payOrderMapper.selectOne(any())).thenReturn(paidOrder());
+        PayRefund existing = new PayRefund();
+        existing.setRefundNo("AS20261107001");
+        existing.setAmount(new BigDecimal("30.00"));
+        when(payRefundMapper.selectOne(any())).thenReturn(existing);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> service.refundByNo("MO20261107001", "AS20261107001", new BigDecimal("50.00"), "重试"));
+
+        assertEquals(PARAM_ERROR_CODE, ex.getCode());
+        verify(payRefundMapper, never()).insert(any(PayRefund.class));
+    }
+
+    @Test
+    @DisplayName("refundByNo：调用方传入的退款请求号原样落库")
+    void shouldUseProvidedRefundNo() {
+        stubHappyPath();
+
+        service.refundByNo("MO20261107001", "AS20261107002", new BigDecimal("30.00"), "部分退款");
+
+        ArgumentCaptor<PayRefund> captor = ArgumentCaptor.forClass(PayRefund.class);
+        verify(payRefundMapper).insert(captor.capture());
+        assertEquals("AS20261107002", captor.getValue().getRefundNo());
+        assertEquals(new BigDecimal("30.00"), captor.getValue().getAmount());
+    }
 }

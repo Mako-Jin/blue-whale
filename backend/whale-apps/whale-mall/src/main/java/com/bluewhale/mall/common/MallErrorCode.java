@@ -121,6 +121,24 @@ public final class MallErrorCode {
     /** 退款发起失败（whale-pay 不可用或拒绝） */
     public static final int ORDER_REFUND_FAILED = 45040;
 
+    /** 售后单不存在或无权访问 */
+    public static final int AFTER_SALE_NOT_FOUND = 45050;
+
+    /** 售后单当前状态不允许该操作 */
+    public static final int AFTER_SALE_STATUS_INVALID = 45051;
+
+    /** 可退数量不足（该明细行已退数量已占满） */
+    public static final int AFTER_SALE_QUANTITY_EXCEEDED = 45052;
+
+    /** 可退金额不足（订单剩余可退金额小于本次申请） */
+    public static final int AFTER_SALE_AMOUNT_EXCEEDED = 45053;
+
+    /** 无权操作该售后单（非本人且非管理员） */
+    public static final int AFTER_SALE_NOT_OWNER = 45054;
+
+    /** 售后申请参数非法（明细为空、同一行重复提交、数量非正、类型无法识别） */
+    public static final int AFTER_SALE_INVALID = 45055;
+
     /** 业务错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(ACTOR_REQUIRED, "缺少操作人身份，无法执行该操作"),
@@ -157,7 +175,13 @@ public final class MallErrorCode {
             Map.entry(PAY_CALLBACK_INVALID, "支付回调参数不合法"),
             Map.entry(ORDER_REFUND_NOT_ALLOWED, "当前状态不允许退款"),
             Map.entry(ORDER_PAY_FAILED, "发起支付失败，请稍后重试"),
-            Map.entry(ORDER_REFUND_FAILED, "发起退款失败，请稍后重试"));
+            Map.entry(ORDER_REFUND_FAILED, "发起退款失败，请稍后重试"),
+            Map.entry(AFTER_SALE_NOT_FOUND, "售后单不存在或无权访问"),
+            Map.entry(AFTER_SALE_STATUS_INVALID, "售后单当前状态不允许该操作"),
+            Map.entry(AFTER_SALE_QUANTITY_EXCEEDED, "可退数量不足，请刷新后重新选择"),
+            Map.entry(AFTER_SALE_AMOUNT_EXCEEDED, "可退金额不足，订单剩余可退金额已不够本次申请"),
+            Map.entry(AFTER_SALE_NOT_OWNER, "无权操作该售后单"),
+            Map.entry(AFTER_SALE_INVALID, "售后申请信息不合法，请检查退换商品与数量"));
 
     /**
      * 私有构造器：常量类，禁止实例化。

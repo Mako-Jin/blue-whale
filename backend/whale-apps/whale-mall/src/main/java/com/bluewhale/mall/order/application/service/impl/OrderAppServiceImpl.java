@@ -1,6 +1,7 @@
 package com.bluewhale.mall.order.application.service.impl;
 
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.mall.aftersale.application.service.AfterSaleAppService;
 import com.bluewhale.mall.cart.domain.model.CartItem;
 import com.bluewhale.mall.cart.domain.repository.CartRepository;
 import com.bluewhale.mall.catalog.application.model.SkuOffering;
@@ -74,6 +75,9 @@ public class OrderAppServiceImpl implements OrderAppService {
 
     /** whale-pay 内网客户端（服务间直连） */
     private final PayInternalClient payInternalClient;
+
+    /** 售后应用服务（退款唯一入口） */
+    private final AfterSaleAppService afterSaleAppService;
 
     private final MallProperties properties;
 
@@ -194,21 +198,9 @@ public class OrderAppServiceImpl implements OrderAppService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void refund(Long id, String reason, MallActor actor) {
-        actor.requireUserId();
-        if (!actor.isOperator()) {
-            throw MallErrorCode.exception(MallErrorCode.ORDER_FORBIDDEN, "只有商城运营可以退款");
-        }
-        MallOrder order = requireOrder(id);
-        String from = statusName(order);
-        order.requestRefund();
-        orderRepository.update(order);
-        orderRepository.appendLog(order.getId(), log("REFUND", from, statusName(order), actor,
-                StringUtils.hasText(reason) ? reason : "整单退款"));
-        if (!StringUtils.hasText(order.getPayNo())) {
-            throw MallErrorCode.exception(MallErrorCode.ORDER_REFUND_FAILED, "订单尚未创建支付单，无法退款");
-        }
-        // 远端退款失败抛异常回滚，REFUNDING 状态一并撤销
-        payInternalClient.refund(order.getPayNo(), order.getTotalAmount(), reason);
+        // 整单退款不再是独立路径：生成覆盖全部可退行的售后单并直接通过审核，
+        // 行额度占用、退款幂等键、回调结单与买家申请走同一段代码
+        afterSaleAppService.applyFullRefund(requireOrder(id), reason, actor);
     }
 
     @Override
@@ -231,21 +223,9 @@ public class OrderAppServiceImpl implements OrderAppService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void markRefunded(OrderRefundedCommand command) {
-        MallOrder order = orderRepository.findByOrderNo(command.getOrderNo())
-                .orElseThrow(() -> MallErrorCode.exception(MallErrorCode.ORDER_NOT_FOUND));
-        if (order.getStatus() == OrderStatus.REFUNDED) {
-            // 通知会重试，已退款幂等成功
-            return;
-        }
-        if (order.getStatus() != OrderStatus.REFUNDING) {
-            throw MallErrorCode.exception(MallErrorCode.PAY_CALLBACK_INVALID,
-                    "订单当前状态（" + order.getStatus() + "）不接受退款回调");
-        }
-        String from = statusName(order);
-        order.markRefunded(command.getRefundAmount(), LocalDateTime.now());
-        orderRepository.update(order);
-        orderRepository.appendLog(order.getId(), systemLog("REFUND", from, statusName(order),
-                "退款回调" + (command.getRefundNo() == null ? "" : "：" + command.getRefundNo())));
+        // 结单与订单退款额累计都在售后侧：回调载荷里的 refundNo 就是售后单号，
+        // 找不到售后单时按 M1 历史退款单兼容处理，不抛错
+        afterSaleAppService.markRefunded(command.getOrderNo(), command.getRefundNo(), command.getRefundAmount());
     }
 
     @Override
@@ -609,6 +589,8 @@ public class OrderAppServiceImpl implements OrderAppService {
         view.setItemCount(order.getItemCount());
         view.setPayNo(order.getPayNo());
         view.setPayTime(order.getPayTime());
+        view.setRefundAmount(order.getRefundAmount());
+        view.setRefundTime(order.getRefundTime());
         view.setShipTime(order.getShipTime());
         view.setCompleteTime(order.getCompleteTime());
         view.setCancelTime(order.getCancelTime());
@@ -617,6 +599,7 @@ public class OrderAppServiceImpl implements OrderAppService {
         view.setCreateTime(order.getCreateTime());
         for (OrderItem item : order.getItems()) {
             OrderLineView line = new OrderLineView();
+            line.setId(item.getId());
             line.setSkuId(item.getSkuId());
             line.setSpuId(item.getSpuId());
             line.setSpuName(item.getSpuName());
@@ -626,6 +609,8 @@ public class OrderAppServiceImpl implements OrderAppService {
             line.setPriceType(item.getPriceType());
             line.setUnitPrice(item.getUnitPrice());
             line.setQuantity(item.getQuantity());
+            line.setRefundedQuantity(item.getRefundedQuantity());
+            line.setRefundableQuantity(item.refundableQuantity());
             line.setAmount(item.getAmount());
             view.getItems().add(line);
         }
