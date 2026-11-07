@@ -65,5 +65,8 @@ public class ProductionOrderCreateCommand {
 
         /** 计量单位 */
         private String uom;
+
+        /** 是否倒冲领料 */
+        private Boolean backflush;
     }
 }

@@ -1,5 +1,6 @@
 package com.bluewhale.erp.mfg.domain.repository;
 
+import com.bluewhale.erp.mfg.domain.model.MaterialAdjustment;
 import com.bluewhale.erp.mfg.domain.model.MfgQuery;
 import com.bluewhale.erp.mfg.domain.model.ProductionOrder;
 
@@ -70,9 +71,24 @@ public interface ProductionOrderRepository {
     void updateRouting(ProductionOrder order);
 
     /**
-     * 更新生产订单状态、完工数据与用料已领数量。
+     * 更新生产订单状态、完工数据、用料已领数量/成本与工序累计报工。
      *
      * @param order 生产订单
      */
     void update(ProductionOrder order);
+
+    /**
+     * 生成用料调整单号。
+     *
+     * @param occurredDate 发生日期
+     * @return 调整单号
+     */
+    String nextAdjustmentNo(LocalDate occurredDate);
+
+    /**
+     * 新增用料调整记录。
+     *
+     * @param adjustment 调整记录
+     */
+    void insertAdjustment(MaterialAdjustment adjustment);
 }

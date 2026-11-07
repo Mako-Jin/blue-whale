@@ -52,6 +52,12 @@ public final class MfgStatus {
     /** 来源：生产退料 */
     public static final String SOURCE_PRODUCTION_RETURN = "PRODUCTION_RETURN";
 
+    /** 用料调整：退料 */
+    public static final String ADJ_RETURN = "RETURN";
+
+    /** 用料调整：报废 */
+    public static final String ADJ_SCRAP = "SCRAP";
+
     /** 工作中心启用 */
     public static final String ENABLED = "ENABLED";
 

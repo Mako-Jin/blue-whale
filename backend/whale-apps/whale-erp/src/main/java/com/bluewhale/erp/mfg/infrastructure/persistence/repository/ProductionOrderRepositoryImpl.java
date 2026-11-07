@@ -2,15 +2,18 @@ package com.bluewhale.erp.mfg.infrastructure.persistence.repository;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bluewhale.erp.mfg.domain.model.MaterialAdjustment;
 import com.bluewhale.erp.mfg.domain.model.MfgQuery;
 import com.bluewhale.erp.mfg.domain.model.MfgStatus;
 import com.bluewhale.erp.mfg.domain.model.ProductionMaterial;
 import com.bluewhale.erp.mfg.domain.model.ProductionOperation;
 import com.bluewhale.erp.mfg.domain.model.ProductionOrder;
 import com.bluewhale.erp.mfg.domain.repository.ProductionOrderRepository;
+import com.bluewhale.erp.mfg.infrastructure.persistence.entity.ProductionMaterialAdjustmentEntity;
 import com.bluewhale.erp.mfg.infrastructure.persistence.entity.ProductionMaterialEntity;
 import com.bluewhale.erp.mfg.infrastructure.persistence.entity.ProductionOperationEntity;
 import com.bluewhale.erp.mfg.infrastructure.persistence.entity.ProductionOrderEntity;
+import com.bluewhale.erp.mfg.infrastructure.persistence.mapper.ProductionMaterialAdjustmentMapper;
 import com.bluewhale.erp.mfg.infrastructure.persistence.mapper.ProductionMaterialMapper;
 import com.bluewhale.erp.mfg.infrastructure.persistence.mapper.ProductionOperationMapper;
 import com.bluewhale.erp.mfg.infrastructure.persistence.mapper.ProductionOrderMapper;
@@ -18,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -35,6 +39,9 @@ public class ProductionOrderRepositoryImpl implements ProductionOrderRepository 
     /** 订单号前缀 */
     private static final String DOC_PREFIX = "MO-";
 
+    /** 用料调整单号前缀 */
+    private static final String ADJ_PREFIX = "MA-";
+
     /** 单号日期格式 */
     private static final DateTimeFormatter DOC_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
 
@@ -43,6 +50,8 @@ public class ProductionOrderRepositoryImpl implements ProductionOrderRepository 
     private final ProductionMaterialMapper productionMaterialMapper;
 
     private final ProductionOperationMapper productionOperationMapper;
+
+    private final ProductionMaterialAdjustmentMapper productionMaterialAdjustmentMapper;
 
     @Override
     public List<ProductionOrder> page(MfgQuery query) {
@@ -141,8 +150,64 @@ public class ProductionOrderRepositoryImpl implements ProductionOrderRepository 
                             .last("limit 1"));
             if (materialEntity != null) {
                 materialEntity.setIssuedQuantity(material.getIssuedQuantity());
+                materialEntity.setIssuedCost(material.getIssuedCost());
                 productionMaterialMapper.updateById(materialEntity);
             }
+        }
+        updateOperations(order);
+    }
+
+    @Override
+    public String nextAdjustmentNo(LocalDate occurredDate) {
+        String prefix = ADJ_PREFIX + occurredDate.format(DOC_DATE_FORMATTER) + "-";
+        long sequence = productionMaterialAdjustmentMapper.selectCount(
+                new LambdaQueryWrapper<ProductionMaterialAdjustmentEntity>()
+                        .likeRight(ProductionMaterialAdjustmentEntity::getDocNo, prefix)) + 1;
+        return String.format("%s%04d", prefix, sequence);
+    }
+
+    @Override
+    public void insertAdjustment(MaterialAdjustment adjustment) {
+        ProductionMaterialAdjustmentEntity entity = new ProductionMaterialAdjustmentEntity();
+        entity.setOrderId(adjustment.getOrderId());
+        entity.setDocNo(adjustment.getDocNo());
+        entity.setAdjType(adjustment.getAdjType());
+        entity.setLineNo(adjustment.getLineNo());
+        entity.setItemId(adjustment.getItemId());
+        entity.setItemCode(adjustment.getItemCode());
+        entity.setItemName(adjustment.getItemName());
+        entity.setQuantity(adjustment.getQuantity());
+        entity.setAmount(adjustment.getAmount());
+        entity.setReason(adjustment.getReason());
+        entity.setOperatorId(adjustment.getOperatorId());
+        entity.setOccurredAt(adjustment.getOccurredAt());
+        productionMaterialAdjustmentMapper.insert(entity);
+    }
+
+    /**
+     * 更新订单工序累计报工数量与状态。
+     *
+     * @param order 生产订单
+     */
+    private void updateOperations(ProductionOrder order) {
+        if (order.getOperations() == null) {
+            return;
+        }
+        for (ProductionOperation operation : order.getOperations()) {
+            ProductionOperationEntity entity = productionOperationMapper.selectOne(
+                    new LambdaQueryWrapper<ProductionOperationEntity>()
+                            .eq(ProductionOperationEntity::getOrderId, order.getId())
+                            .eq(ProductionOperationEntity::getStepNo, operation.getStepNo())
+                            .last("limit 1"));
+            if (entity == null) {
+                continue;
+            }
+            entity.setQualifiedQuantity(operation.getQualifiedQuantity());
+            entity.setScrappedQuantity(operation.getScrappedQuantity());
+            entity.setStatus(operation.getStatus());
+            entity.setFirstReportAt(operation.getFirstReportAt());
+            entity.setLastReportAt(operation.getLastReportAt());
+            productionOperationMapper.updateById(entity);
         }
     }
 
@@ -298,6 +363,8 @@ public class ProductionOrderRepositoryImpl implements ProductionOrderRepository 
         material.setUom(entity.getUom());
         material.setRequiredQuantity(entity.getRequiredQuantity());
         material.setIssuedQuantity(entity.getIssuedQuantity());
+        material.setIssuedCost(entity.getIssuedCost());
+        material.setBackflush(entity.getBackflush() != null && entity.getBackflush() == 1);
         return material;
     }
 
@@ -344,5 +411,7 @@ public class ProductionOrderRepositoryImpl implements ProductionOrderRepository 
         entity.setUom(material.getUom());
         entity.setRequiredQuantity(material.getRequiredQuantity());
         entity.setIssuedQuantity(material.getIssuedQuantity());
+        entity.setIssuedCost(material.getIssuedCost() == null ? BigDecimal.ZERO : material.getIssuedCost());
+        entity.setBackflush(Boolean.TRUE.equals(material.getBackflush()) ? 1 : 0);
     }
 }

@@ -10,9 +10,12 @@ import com.bluewhale.erp.masterdata.domain.model.Warehouse;
 import com.bluewhale.erp.masterdata.domain.repository.WarehouseRepository;
 import com.bluewhale.erp.mfg.application.command.ProductionCompleteCommand;
 import com.bluewhale.erp.mfg.application.command.ProductionIssueCommand;
+import com.bluewhale.erp.mfg.application.command.ProductionMaterialAdjustCommand;
+import com.bluewhale.erp.mfg.application.command.ProductionOperationReportCommand;
 import com.bluewhale.erp.mfg.application.command.ProductionOrderCreateCommand;
 import com.bluewhale.erp.mfg.application.service.ProductionOrderAppService;
 import com.bluewhale.erp.mfg.application.view.ProductionOrderView;
+import com.bluewhale.erp.mfg.domain.model.MaterialAdjustment;
 import com.bluewhale.erp.mfg.domain.model.MfgQuery;
 import com.bluewhale.erp.mfg.domain.model.MfgStatus;
 import com.bluewhale.erp.mfg.domain.model.ProductionMaterial;
@@ -98,6 +101,8 @@ public class ProductionOrderAppServiceImpl implements ProductionOrderAppService 
             material.setUom(source.getUom());
             material.setRequiredQuantity(source.getRequiredQuantity());
             material.setIssuedQuantity(BigDecimal.ZERO);
+            material.setIssuedCost(BigDecimal.ZERO);
+            material.setBackflush(Boolean.TRUE.equals(source.getBackflush()));
             materials.add(material);
         }
         ProductionOrder order = new ProductionOrder();
@@ -172,6 +177,7 @@ public class ProductionOrderAppServiceImpl implements ProductionOrderAppService 
             stockRepository.insertMovement(movement(orderNo, material, order.getIssueWarehouseId(), ScmStatus.OUT,
                     quantity, unitCost, cost, occurredAt, MfgStatus.SOURCE_PRODUCTION_ISSUE,
                     "生产领料：" + orderNo));
+            material.accumulateIssuedCost(cost);
             order.accumulateMaterialCost(cost);
         }
         productionOrderRepository.update(order);
@@ -183,6 +189,7 @@ public class ProductionOrderAppServiceImpl implements ProductionOrderAppService 
     public ProductionOrderView complete(Long id, ProductionCompleteCommand command, Long operatorId) {
         ProductionOrder order = requireOrder(id);
         BigDecimal quantity = command.getQuantity();
+        autoIssueBackflush(order, quantity);
         BigDecimal amount = order.complete(quantity, command.getCompleteDate());
         String orderNo = order.getOrderNo();
         BigDecimal unitCost = amount.divide(quantity, COST_SCALE, RoundingMode.HALF_UP);
@@ -195,6 +202,56 @@ public class ProductionOrderAppServiceImpl implements ProductionOrderAppService 
                 "生产完工入库：" + orderNo));
         productionOrderRepository.update(order);
         postVouchers(order, amount, operatorId);
+        return ProductionOrderView.of(order);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ProductionOrderView reportOperation(Long id, Integer stepNo, ProductionOperationReportCommand command) {
+        ProductionOrder order = requireOrder(id);
+        order.reportOperation(stepNo, command.getQualifiedQuantity(), command.getScrappedQuantity(),
+                LocalDateTime.now());
+        productionOrderRepository.update(order);
+        return ProductionOrderView.of(order);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ProductionOrderView returnMaterial(Long id, ProductionMaterialAdjustCommand command, Long operatorId) {
+        ProductionOrder order = requireOrder(id);
+        String docNo = productionOrderRepository.nextAdjustmentNo(LocalDate.now());
+        LocalDateTime occurredAt = LocalDateTime.now();
+        for (ProductionMaterialAdjustCommand.Line line : command.getLines()) {
+            ProductionMaterial material = requireMaterial(order, line.getLineNo());
+            BigDecimal cost = order.returnMaterial(material, line.getQuantity());
+            StockBalance balance = stockRepository.findBalance(material.getItemId(), order.getIssueWarehouseId())
+                    .orElseGet(() -> newMaterialBalance(order, material));
+            balance.inboundAt(line.getQuantity(), cost);
+            stockRepository.saveBalance(balance);
+            BigDecimal unitCost = cost.divide(line.getQuantity(), COST_SCALE, RoundingMode.HALF_UP);
+            stockRepository.insertMovement(movement(order.getOrderNo(), material, order.getIssueWarehouseId(),
+                    ScmStatus.IN, line.getQuantity(), unitCost, cost, occurredAt,
+                    MfgStatus.SOURCE_PRODUCTION_RETURN, "生产退料：" + order.getOrderNo()));
+            productionOrderRepository.insertAdjustment(adjustment(docNo, MfgStatus.ADJ_RETURN, order, material,
+                    line, cost, operatorId, occurredAt));
+        }
+        productionOrderRepository.update(order);
+        return ProductionOrderView.of(order);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ProductionOrderView scrapMaterial(Long id, ProductionMaterialAdjustCommand command, Long operatorId) {
+        ProductionOrder order = requireOrder(id);
+        String docNo = productionOrderRepository.nextAdjustmentNo(LocalDate.now());
+        LocalDateTime occurredAt = LocalDateTime.now();
+        for (ProductionMaterialAdjustCommand.Line line : command.getLines()) {
+            ProductionMaterial material = requireMaterial(order, line.getLineNo());
+            BigDecimal cost = order.scrapMaterial(material, line.getQuantity());
+            productionOrderRepository.insertAdjustment(adjustment(docNo, MfgStatus.ADJ_SCRAP, order, material,
+                    line, cost, operatorId, occurredAt));
+        }
+        productionOrderRepository.update(order);
         return ProductionOrderView.of(order);
     }
 
@@ -214,6 +271,110 @@ public class ProductionOrderAppServiceImpl implements ProductionOrderAppService 
         order.cancel();
         productionOrderRepository.update(order);
         return ProductionOrderView.of(order);
+    }
+
+    /**
+     * 完工前按完工比例自动领用倒冲料。
+     *
+     * @param order         生产订单
+     * @param batchQuantity 本次完工数量
+     */
+    private void autoIssueBackflush(ProductionOrder order, BigDecimal batchQuantity) {
+        if (order.getMaterials() == null) {
+            return;
+        }
+        BigDecimal completed = order.getCompletedQuantity() == null
+                ? BigDecimal.ZERO : order.getCompletedQuantity();
+        LocalDateTime occurredAt = LocalDateTime.now();
+        for (ProductionMaterial material : order.getMaterials()) {
+            if (!Boolean.TRUE.equals(material.getBackflush())) {
+                continue;
+            }
+            BigDecimal target = material.backflushTarget(completed, batchQuantity, order.getPlannedQuantity());
+            BigDecimal issued = material.getIssuedQuantity() == null
+                    ? BigDecimal.ZERO : material.getIssuedQuantity();
+            BigDecimal delta = target.subtract(issued);
+            if (delta.signum() <= 0) {
+                continue;
+            }
+            BigDecimal cost = outboundForBackflush(order, material, delta, occurredAt);
+            material.issue(delta);
+            material.accumulateIssuedCost(cost);
+            order.accumulateMaterialCost(cost);
+        }
+    }
+
+    /**
+     * 倒冲领料出库并写库存流水。
+     *
+     * @param order      生产订单
+     * @param material   用料
+     * @param quantity   领料数量
+     * @param occurredAt 发生时间
+     * @return 领料成本
+     */
+    private BigDecimal outboundForBackflush(ProductionOrder order, ProductionMaterial material, BigDecimal quantity,
+                                            LocalDateTime occurredAt) {
+        StockBalance balance = stockRepository.findBalance(material.getItemId(), order.getIssueWarehouseId())
+                .orElseThrow(() -> ErpErrorCode.exception(ErpErrorCode.STOCK_NOT_FOUND,
+                        "物料 " + material.getItemCode() + " 在领料仓无库存，倒冲领料失败"));
+        BigDecimal cost = balance.outbound(quantity);
+        stockRepository.saveBalance(balance);
+        BigDecimal unitCost = cost.divide(quantity, COST_SCALE, RoundingMode.HALF_UP);
+        stockRepository.insertMovement(movement(order.getOrderNo(), material, order.getIssueWarehouseId(), ScmStatus.OUT,
+                quantity, unitCost, cost, occurredAt, MfgStatus.SOURCE_PRODUCTION_ISSUE,
+                "倒冲领料：" + order.getOrderNo()));
+        return cost;
+    }
+
+    /**
+     * 构造退料入库新余额。
+     *
+     * @param order    生产订单
+     * @param material 用料
+     * @return 余额
+     */
+    private StockBalance newMaterialBalance(ProductionOrder order, ProductionMaterial material) {
+        StockBalance balance = new StockBalance();
+        balance.setItemId(material.getItemId());
+        balance.setItemCode(material.getItemCode());
+        balance.setItemName(material.getItemName());
+        balance.setWarehouseId(order.getIssueWarehouseId());
+        balance.setQuantity(BigDecimal.ZERO);
+        balance.setAmount(BigDecimal.ZERO);
+        return balance;
+    }
+
+    /**
+     * 构造用料调整记录。
+     *
+     * @param docNo      调整单号
+     * @param adjType    调整类型
+     * @param order      生产订单
+     * @param material   用料
+     * @param line       调整分录
+     * @param amount     调整金额
+     * @param operatorId 操作人 ID
+     * @param occurredAt 发生时间
+     * @return 调整记录
+     */
+    private MaterialAdjustment adjustment(String docNo, String adjType, ProductionOrder order,
+                                          ProductionMaterial material, ProductionMaterialAdjustCommand.Line line,
+                                          BigDecimal amount, Long operatorId, LocalDateTime occurredAt) {
+        MaterialAdjustment adjustment = new MaterialAdjustment();
+        adjustment.setDocNo(docNo);
+        adjustment.setAdjType(adjType);
+        adjustment.setOrderId(order.getId());
+        adjustment.setLineNo(material.getLineNo());
+        adjustment.setItemId(material.getItemId());
+        adjustment.setItemCode(material.getItemCode());
+        adjustment.setItemName(material.getItemName());
+        adjustment.setQuantity(line.getQuantity());
+        adjustment.setAmount(amount);
+        adjustment.setReason(line.getReason());
+        adjustment.setOperatorId(operatorId);
+        adjustment.setOccurredAt(occurredAt);
+        return adjustment;
     }
 
     /**

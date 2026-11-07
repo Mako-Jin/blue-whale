@@ -42,4 +42,10 @@ public class ProductionMaterialEntity extends BaseEntity {
 
     /** 已领数量 */
     private BigDecimal issuedQuantity;
+
+    /** 倒冲领料：0 否 / 1 是 */
+    private Integer backflush;
+
+    /** 累计已领成本 */
+    private BigDecimal issuedCost;
 }

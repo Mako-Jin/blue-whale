@@ -205,6 +205,12 @@ public class ProductionOrderView {
         /** 已领数量 */
         private BigDecimal issuedQuantity;
 
+        /** 累计已领成本 */
+        private BigDecimal issuedCost;
+
+        /** 是否倒冲领料 */
+        private Boolean backflush;
+
         /**
          * 由领域对象构建视图。
          *
@@ -220,6 +226,8 @@ public class ProductionOrderView {
             view.setUom(material.getUom());
             view.setRequiredQuantity(material.getRequiredQuantity());
             view.setIssuedQuantity(material.getIssuedQuantity());
+            view.setIssuedCost(material.getIssuedCost());
+            view.setBackflush(material.getBackflush());
             return view;
         }
     }

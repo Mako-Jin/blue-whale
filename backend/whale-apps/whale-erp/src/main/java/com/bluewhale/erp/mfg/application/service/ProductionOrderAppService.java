@@ -3,6 +3,8 @@ package com.bluewhale.erp.mfg.application.service;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.erp.mfg.application.command.ProductionCompleteCommand;
 import com.bluewhale.erp.mfg.application.command.ProductionIssueCommand;
+import com.bluewhale.erp.mfg.application.command.ProductionMaterialAdjustCommand;
+import com.bluewhale.erp.mfg.application.command.ProductionOperationReportCommand;
 import com.bluewhale.erp.mfg.application.command.ProductionOrderCreateCommand;
 import com.bluewhale.erp.mfg.application.view.ProductionOrderView;
 import com.bluewhale.erp.mfg.domain.model.MfgQuery;
@@ -64,6 +66,36 @@ public interface ProductionOrderAppService {
      * @return 生产订单
      */
     ProductionOrderView complete(Long id, ProductionCompleteCommand command, Long operatorId);
+
+    /**
+     * 工序报工（累计合格/报废，非首道不得超过前道累计合格量）。
+     *
+     * @param id      主键
+     * @param stepNo  工序号
+     * @param command 报工命令
+     * @return 生产订单
+     */
+    ProductionOrderView reportOperation(Long id, Integer stepNo, ProductionOperationReportCommand command);
+
+    /**
+     * 退料：按已领成本比例回冲库存与材料成本。
+     *
+     * @param id         主键
+     * @param command    退料命令
+     * @param operatorId 操作人 ID
+     * @return 生产订单
+     */
+    ProductionOrderView returnMaterial(Long id, ProductionMaterialAdjustCommand command, Long operatorId);
+
+    /**
+     * 报废：扣减已领数量与成本，不回库存。
+     *
+     * @param id         主键
+     * @param command    报废命令
+     * @param operatorId 操作人 ID
+     * @return 生产订单
+     */
+    ProductionOrderView scrapMaterial(Long id, ProductionMaterialAdjustCommand command, Long operatorId);
 
     /**
      * 结案。

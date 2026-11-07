@@ -1,7 +1,7 @@
 # PDM / MES / OA / CRM / ERP 待办总账与分步实施计划
 
 > 日期：2026-11-06　状态：**已批准，执行中**（Step 1 → Step 7 逐批实施，每批独立验证、提交、推送）
-> 进度：**Step 1 已完成**（2026-11-06，CRM 前端 8113 Step 1a 客户域 + Step 1b 销售域）；**Step 2 已完成**（2026-11-06，ERP MRP：BOM 展开 / 净需求 / 计划订单 / 追溯 / 运行记录）；**Step 3 进行中**（2026-11-07，3a 已完成：PDM 工艺路线快照 / 工作中心 / 产能负荷与甘特 / 生产订单工序快照；3b 工序报工 / 倒冲领料 / 退料报废待做）；Step 4–7 未开始。
+> 进度：**Step 1 已完成**（2026-11-06，CRM 前端 8113 Step 1a 客户域 + Step 1b 销售域）；**Step 2 已完成**（2026-11-06，ERP MRP：BOM 展开 / 净需求 / 计划订单 / 追溯 / 运行记录）；**Step 3 已完成**（2026-11-07，3a PDM 工艺路线快照 / 工作中心 / 产能负荷与甘特 / 订单工序快照；3b 工序报工 / 倒冲领料 / 退料报废）；Step 4–7 未开始。
 > 依据：[roadmap.md](roadmap.md) 状态对账（2026-11-06）、[PDM 计划 §十九](2026-11-04-wave5.80-pdm-panorama.md)、[MES 计划](2026-11-04-wave5.79-mes-panorama.md)、[OA 计划](2026-11-04-wave5.82-oa-panorama.md)、[CRM 计划](2026-11-04-wave5.83-crm-panorama.md)、[ERP 计划](2026-11-03-wave5.78-erp-panorama.md)
 > 纪律：每批动工前先做一次代码对账（文档标注 ⏸ 的项可能已被后续波次补齐），只做确认缺失的；只提交本批文件；每批结束输出四段式报告。
 
@@ -27,7 +27,7 @@
 |---|---|---|---|---|
 | **Step 1** | CRM 前端 8113 | 脚手架（8113、qiankun 注册、登录/布局/路由）、客户/联系人/跟进/公海、线索/转化/商机/阶段/漏斗、报价/预测/目标共 10 页 + API 层 | 后端 M1/M2 已完成，仅缺前端 | 1 波（可拆 1a 客户域 / 1b 销售域）——**1a、1b 均已完成** |
 | **Step 2** | ERP MRP | BOM 展开（取 PDM `/pdm/internal/bom/**` 快照）、计划订单生成、净需求与需求追溯、MRP 运算 Job 与结果页 | PDM 快照契约已交付 | 1 波 |
-| **Step 3** | ERP CRP + 生产增强 | 工作中心/产能负荷（取 PDM 工艺路线）、排程与甘特；工序报工、倒冲领料、退料/报废 | PDM M3 工艺已交付 | 1–2 波（**3a 已完成**，3b 待做） |
+| **Step 3** | ERP CRP + 生产增强 | 工作中心/产能负荷（取 PDM 工艺路线）、排程与甘特；工序报工、倒冲领料、退料/报废 | PDM M3 工艺已交付 | 2 波已完成（3a/3b，2026-11-07） |
 | **Step 4** | ERP ↔ MES 打通 | ERP 生产订单下发 MES、MES 完工/报工回传 ERP、双向幂等与对账页 | ERP M3、MES M1–M2 已完成 | 1 波 |
 | **Step 5** | OA M2 首批 | 考勤 + 报销 + 用车/用章/采购申请的领域化（复用 Workflow/Form）；M1B 预算超限条件分支 | Workflow 条件表达式运行期求值 | 2–3 波 |
 | **Step 6** | MES 遗留增强 | 有限产能排程、采集推送通道（SSE/WS）、数据范围上下文过滤、谱系冲销/线边联动/设备追溯/开工门禁、归档清理 | auth `data-scope` 就绪（第 3 项） | 2 波 |
@@ -166,5 +166,42 @@
 - 后端 `mvn -o -pl backend/whale-apps/whale-erp test` 全绿（479 + 14 新增）；PDM `mvn -o -pl backend/whale-apps/whale-pdm test` 全绿（含快照 4 新增）。
 - 前端 `pnpm --filter whale-erp lint` / `build` 通过。
 - `scripts/check-doc-consistency.ps1` → PASS（补记 V14）。
-- 3a 未做：工序报工、倒冲领料、退料/报废（V15、权限 551–553、生产页增强），见 3b。
+- 3b 见 §7.7。
+
+### 7.7 3b：生产增强（2026-11-07 完成）
+
+#### 数据表（`V15__mfg_production_enhance.sql`）
+
+| 变更 | 用途 |
+|---|---|
+| `erp_mfg_production_material` 追加 `backflush` / `issued_cost` | 倒冲标记与累计已领成本（退料/报废按成本冲减） |
+| 新建 `erp_mfg_production_material_adj` | 用料调整记录（`RETURN`/`SCRAP`、单号租户唯一、数量/金额/原因/操作人） |
+
+#### 业务规则
+
+- **工序报工**：仅 `RELEASED/IN_PROGRESS`；非首道工序累计合格量不得超过前道；报工后订单转 `IN_PROGRESS`。
+- **完工约束**：存在工序时「已完工 + 本批 ≤ 末道工序累计合格量」；无工序订单维持原有行为。
+- **倒冲领料**：完工时按 `需求 × (已完工+本批)/计划数量` 自动领料（最后一批取整单需求结清尾差），出库成本计入材料成本；领料仓库存不足整单回滚。
+- **退料**：仅 `RELEASED/IN_PROGRESS`；按 `已领成本 × 退料量 / 已领量` 冲减，全退结清尾差；回冲领料仓并写 `PRODUCTION_RETURN` 流水。
+- **报废**：同口径扣减已领数量与成本，不回库存，仅写调整记录。
+- 领料/完工凭证口径不变：完工凭证仍按当时「累计材料成本 ÷ 计划量 × 完工量」结转。
+
+#### 接口与权限
+
+| 方法与路径 | 权限码 |
+|---|---|
+| `POST /erp/mfg/production/{id}/operations/{stepNo}/report` | `sys:erp:production:operation:report`（551） |
+| `POST /erp/mfg/production/{id}/material/return` | `sys:erp:production:return`（552） |
+| `POST /erp/mfg/production/{id}/material/scrap` | `sys:erp:production:scrap`（553） |
+
+- 脚本 `migration-5.78-erp-production-enhance.sql` 幂等插入 551–553；`tenant_admin / erp_manager / erp_mfg` 授权，`erp_member` 不授；不新增菜单。
+
+#### 前端
+
+生产订单详情改为「用料 / 工序」Tabs：用料显示已领成本与倒冲标记，支持退料/报废行弹窗；工序表支持报工弹窗；详情头显示工艺路线与状态，`NONE/FAILED` 可「同步工艺」；建单用料行新增「倒冲」勾选。
+
+#### 验收
+
+- 后端测试全绿（新增领域 6 例 + 应用 3 例）；前端 `lint` / `build` 通过；文档一致性 PASS（补记 V15）。
+- 未做：联产品/副产品、MES 回传、计划订单转单（归 M3 剩余后续批次）。
 

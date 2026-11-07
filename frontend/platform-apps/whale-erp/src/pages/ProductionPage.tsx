@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   Button,
+  Checkbox,
   DatePicker,
   Form,
   Input,
@@ -11,6 +12,7 @@ import {
   Select,
   Space,
   Table,
+  Tabs,
   Tag,
   message,
 } from 'antd';
@@ -25,7 +27,12 @@ import {
   issueProduction,
   pageProductionOrders,
   releaseProductionOrder,
+  reportProductionOperation,
+  returnProductionMaterial,
+  scrapProductionMaterial,
+  syncProductionRouting,
   type ProductionMaterialView,
+  type ProductionOperationView,
   type ProductionOrderView,
 } from '../api/mfg';
 import { listErpItems, type ErpItem } from '../api/erp';
@@ -38,6 +45,7 @@ interface MaterialFormValues {
   itemCode: string;
   requiredQuantity?: number;
   uom?: string;
+  backflush?: boolean;
 }
 
 /** 生产订单表单值 */
@@ -68,6 +76,25 @@ interface CompleteFormValues {
   completeDate: Dayjs;
 }
 
+/** 用料调整模式 */
+type AdjustMode = 'return' | 'scrap';
+
+/** 退料/报废行编辑状态 */
+interface AdjustLineState {
+  lineNo: number;
+  itemCode: string;
+  itemName?: string;
+  issuedQuantity: number;
+  quantity: number;
+  reason?: string;
+}
+
+/** 工序报工表单值 */
+interface ReportFormValues {
+  qualifiedQuantity?: number;
+  scrappedQuantity?: number;
+}
+
 /** 剩余未领数量 */
 function remainingOf(material: ProductionMaterialView): number {
   return Math.max(
@@ -88,10 +115,14 @@ export default function ProductionPage() {
   const [issueTarget, setIssueTarget] = useState<ProductionOrderView | null>(null);
   const [issueLines, setIssueLines] = useState<IssueLineState[]>([]);
   const [completeTarget, setCompleteTarget] = useState<ProductionOrderView | null>(null);
+  const [adjustMode, setAdjustMode] = useState<AdjustMode | null>(null);
+  const [adjustLines, setAdjustLines] = useState<AdjustLineState[]>([]);
+  const [reportStep, setReportStep] = useState<number | null>(null);
   const [warehouses, setWarehouses] = useState<ErpWarehouse[]>([]);
   const [items, setItems] = useState<ErpItem[]>([]);
   const [form] = Form.useForm<ProductionFormValues>();
   const [completeForm] = Form.useForm<CompleteFormValues>();
+  const [reportForm] = Form.useForm<ReportFormValues>();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -137,6 +168,7 @@ export default function ProductionPage() {
         itemCode: material.itemCode,
         requiredQuantity: Number(material.requiredQuantity ?? 0),
         uom: material.uom,
+        backflush: Boolean(material.backflush),
       })),
     });
     message.success('生产订单已创建');
@@ -216,6 +248,86 @@ export default function ProductionPage() {
     await cancelProductionOrder(id);
     message.success('生产订单已取消');
     setVersion((value) => value + 1);
+  };
+
+  const refreshDetail = async (id: number) => {
+    setDetail(await getProductionOrder(id));
+    setVersion((value) => value + 1);
+  };
+
+  const openAdjust = (mode: AdjustMode) => {
+    if (!detail) return;
+    const lines = (detail.materials ?? [])
+      .filter((material) => Number(material.issuedQuantity ?? 0) > 0)
+      .map((material) => ({
+        lineNo: material.lineNo,
+        itemCode: material.itemCode,
+        itemName: material.itemName,
+        issuedQuantity: Number(material.issuedQuantity ?? 0),
+        quantity: 0,
+      }));
+    if (lines.length === 0) {
+      message.warning('暂无已领用料可调整');
+      return;
+    }
+    setAdjustLines(lines);
+    setAdjustMode(mode);
+  };
+
+  const handleAdjust = async () => {
+    if (!detail || !adjustMode) return;
+    const lines = adjustLines
+      .filter((line) => Number(line.quantity) > 0)
+      .map((line) => ({
+        lineNo: line.lineNo,
+        quantity: Number(line.quantity),
+        reason: line.reason,
+      }));
+    if (lines.length === 0) {
+      message.warning(adjustMode === 'return' ? '请填写退料数量' : '请填写报废数量');
+      return;
+    }
+    if (adjustMode === 'return') {
+      await returnProductionMaterial(detail.id, { lines });
+      message.success('退料已入库并冲减材料成本');
+    } else {
+      await scrapProductionMaterial(detail.id, { lines });
+      message.success('报废已扣减用料成本');
+    }
+    setAdjustMode(null);
+    await refreshDetail(detail.id);
+  };
+
+  const openReport = (operation: ProductionOperationView) => {
+    reportForm.resetFields();
+    setReportStep(operation.stepNo);
+    reportForm.setFieldsValue({
+      qualifiedQuantity: Math.max(
+        Number(operation.plannedQuantity ?? 0) - Number(operation.qualifiedQuantity ?? 0),
+        0,
+      ),
+      scrappedQuantity: 0,
+    });
+  };
+
+  const handleReport = async () => {
+    if (!detail || reportStep === null) return;
+    const values = await reportForm.validateFields().catch(() => null);
+    if (!values) return;
+    await reportProductionOperation(detail.id, reportStep, {
+      qualifiedQuantity: Number(values.qualifiedQuantity ?? 0),
+      scrappedQuantity: Number(values.scrappedQuantity ?? 0),
+    });
+    message.success('工序报工已登记');
+    setReportStep(null);
+    await refreshDetail(detail.id);
+  };
+
+  const handleSyncRouting = async () => {
+    if (!detail) return;
+    await syncProductionRouting(detail.id);
+    message.success('工艺路线已同步并冻结工序');
+    await refreshDetail(detail.id);
   };
 
   const columns: TableProps<ProductionOrderView>['columns'] = [
@@ -315,6 +427,77 @@ export default function ProductionPage() {
       width: 120,
       render: quantity,
     },
+    {
+      title: '已领成本',
+      dataIndex: 'issuedCost',
+      key: 'issuedCost',
+      width: 120,
+      render: money,
+    },
+    {
+      title: '倒冲',
+      dataIndex: 'backflush',
+      key: 'backflush',
+      width: 80,
+      render: (value) => (value ? <Tag color="blue">倒冲</Tag> : '-'),
+    },
+  ];
+
+  const operationColumns: TableProps<ProductionOperationView>['columns'] = [
+    { title: '工序号', dataIndex: 'stepNo', key: 'stepNo', width: 80 },
+    { title: '工序名称', dataIndex: 'name', key: 'name' },
+    { title: '工作中心', dataIndex: 'workCenterCode', key: 'workCenterCode', width: 110 },
+    {
+      title: '标准工时',
+      dataIndex: 'standardHours',
+      key: 'standardHours',
+      width: 100,
+      render: quantity,
+    },
+    {
+      title: '准备工时',
+      dataIndex: 'setupHours',
+      key: 'setupHours',
+      width: 100,
+      render: quantity,
+    },
+    {
+      title: '计划数量',
+      dataIndex: 'plannedQuantity',
+      key: 'plannedQuantity',
+      width: 100,
+      render: quantity,
+    },
+    {
+      title: '累计合格',
+      dataIndex: 'qualifiedQuantity',
+      key: 'qualifiedQuantity',
+      width: 100,
+      render: quantity,
+    },
+    {
+      title: '累计报废',
+      dataIndex: 'scrappedQuantity',
+      key: 'scrappedQuantity',
+      width: 100,
+      render: quantity,
+    },
+    { title: '状态', dataIndex: 'status', key: 'status', width: 90, render: (value) => value ?? '-' },
+    {
+      title: '操作',
+      key: 'action',
+      width: 90,
+      render: (_, record) => {
+        const reportable = detail
+          && (detail.status === 'RELEASED' || detail.status === 'IN_PROGRESS')
+          && hasPermission('sys:erp:production:operation:report');
+        return reportable ? (
+          <Button type="link" size="small" onClick={() => openReport(record)}>
+            报工
+          </Button>
+        ) : null;
+      },
+    },
   ];
 
   const issueColumns: TableProps<IssueLineState>['columns'] = [
@@ -350,6 +533,60 @@ export default function ProductionPage() {
             setIssueLines((current) =>
               current.map((line, lineIndex) =>
                 lineIndex === index ? { ...line, quantity: next } : line,
+              ),
+            );
+          }}
+        />
+      ),
+    },
+  ];
+
+  const adjustColumns: TableProps<AdjustLineState>['columns'] = [
+    { title: '行', dataIndex: 'lineNo', key: 'lineNo', width: 60 },
+    { title: '物料编码', dataIndex: 'itemCode', key: 'itemCode', width: 140 },
+    { title: '物料名称', dataIndex: 'itemName', key: 'itemName' },
+    {
+      title: '已领数量',
+      dataIndex: 'issuedQuantity',
+      key: 'issuedQuantity',
+      width: 110,
+      render: quantity,
+    },
+    {
+      title: '本次数量',
+      key: 'quantity',
+      width: 140,
+      render: (_, record, index) => (
+        <InputNumber
+          min={0}
+          max={record.issuedQuantity}
+          precision={4}
+          style={{ width: 120 }}
+          value={record.quantity}
+          onChange={(value) => {
+            const next = Number(value ?? 0);
+            setAdjustLines((current) =>
+              current.map((line, lineIndex) =>
+                lineIndex === index ? { ...line, quantity: next } : line,
+              ),
+            );
+          }}
+        />
+      ),
+    },
+    {
+      title: '原因',
+      key: 'reason',
+      render: (_, record, index) => (
+        <Input
+          maxLength={255}
+          placeholder="原因（可选）"
+          value={record.reason}
+          onChange={(event) => {
+            const next = event.target.value;
+            setAdjustLines((current) =>
+              current.map((line, lineIndex) =>
+                lineIndex === index ? { ...line, reason: next } : line,
               ),
             );
           }}
@@ -487,6 +724,9 @@ export default function ProductionPage() {
                     <Form.Item name={[field.name, 'uom']}>
                       <Input placeholder="单位" style={{ width: 90 }} maxLength={16} />
                     </Form.Item>
+                    <Form.Item name={[field.name, 'backflush']} valuePropName="checked">
+                      <Checkbox>倒冲</Checkbox>
+                    </Form.Item>
                     <Button type="link" danger onClick={() => remove(field.name)}>
                       删除
                     </Button>
@@ -528,12 +768,63 @@ export default function ProductionPage() {
               <span>计划完工：{detail.planEndDate ?? '-'}</span>
               <span>实际完工：{detail.completeDate ?? '-'}</span>
             </Space>
-            <Table<ProductionMaterialView>
-              rowKey="lineNo"
-              size="small"
-              columns={materialColumns}
-              dataSource={detail.materials ?? []}
-              pagination={false}
+            <Space size="large" wrap>
+              <span>
+                工艺：{detail.routingNo ?? '-'} / {detail.routingVersion ?? '-'}（{detail.routingStatus ?? 'NONE'}）
+              </span>
+              {detail.routingStatus !== 'SNAPSHOT'
+              && (detail.status === 'DRAFT' || detail.status === 'RELEASED')
+              && hasPermission('sys:erp:production:operation:sync') ? (
+                <Button size="small" onClick={handleSyncRouting}>
+                  同步工艺
+                </Button>
+              ) : null}
+            </Space>
+            <Tabs
+              items={[
+                {
+                  key: 'materials',
+                  label: `用料 (${detail.materials?.length ?? 0})`,
+                  children: (
+                    <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                      {detail.status === 'RELEASED' || detail.status === 'IN_PROGRESS' ? (
+                        <Space>
+                          {hasPermission('sys:erp:production:return') ? (
+                            <Button size="small" onClick={() => openAdjust('return')}>
+                              退料
+                            </Button>
+                          ) : null}
+                          {hasPermission('sys:erp:production:scrap') ? (
+                            <Button size="small" danger onClick={() => openAdjust('scrap')}>
+                              报废
+                            </Button>
+                          ) : null}
+                        </Space>
+                      ) : null}
+                      <Table<ProductionMaterialView>
+                        rowKey="lineNo"
+                        size="small"
+                        columns={materialColumns}
+                        dataSource={detail.materials ?? []}
+                        pagination={false}
+                      />
+                    </Space>
+                  ),
+                },
+                {
+                  key: 'operations',
+                  label: `工序 (${detail.operations?.length ?? 0})`,
+                  children: (
+                    <Table<ProductionOperationView>
+                      rowKey="stepNo"
+                      size="small"
+                      columns={operationColumns}
+                      dataSource={detail.operations ?? []}
+                      pagination={false}
+                    />
+                  ),
+                },
+              ]}
             />
           </Space>
         ) : null}
@@ -585,6 +876,51 @@ export default function ProductionPage() {
             </span>
           </Form>
         ) : null}
+      </Modal>
+      <Modal
+        open={adjustMode !== null}
+        title={adjustMode === 'return' ? '生产退料' : '生产报废'}
+        width={760}
+        onOk={handleAdjust}
+        onCancel={() => setAdjustMode(null)}
+        destroyOnHidden
+      >
+        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          <span>
+            {adjustMode === 'return'
+              ? '退料按已领成本比例回冲领料仓并冲减材料成本' : '报废仅扣减已领数量与成本，不回库存'}
+          </span>
+          <Table<AdjustLineState>
+            rowKey="lineNo"
+            size="small"
+            columns={adjustColumns}
+            dataSource={adjustLines}
+            pagination={false}
+          />
+        </Space>
+      </Modal>
+      <Modal
+        open={reportStep !== null}
+        title={`工序报工 ${reportStep ?? ''}`}
+        onOk={handleReport}
+        onCancel={() => setReportStep(null)}
+        destroyOnHidden
+      >
+        <Form form={reportForm} layout="vertical">
+          <Space size="large" wrap>
+            <Form.Item
+              name="qualifiedQuantity"
+              label="本次合格数量"
+              rules={[{ required: true, message: '请输入合格数量' }]}
+            >
+              <InputNumber min={0} precision={4} style={{ width: 150 }} />
+            </Form.Item>
+            <Form.Item name="scrappedQuantity" label="本次报废数量">
+              <InputNumber min={0} precision={4} style={{ width: 150 }} />
+            </Form.Item>
+          </Space>
+          <span>非首道工序的累计合格数量不得超过前道工序累计合格数量</span>
+        </Form>
       </Modal>
     </Space>
   );

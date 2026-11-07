@@ -8,6 +8,8 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -151,6 +153,65 @@ public class ProductionOrder {
     }
 
     /**
+     * 工序报工：累计合格/报废数量，非首道工序累计合格量不得超过前道。
+     *
+     * @param stepNo           工序序号
+     * @param qualifiedQuantity 本次合格数量
+     * @param scrappedQuantity  本次报废数量
+     * @param reportedAt       报工时间
+     */
+    public void reportOperation(Integer stepNo, BigDecimal qualifiedQuantity, BigDecimal scrappedQuantity,
+                                LocalDateTime reportedAt) {
+        if (!MfgStatus.RELEASED.equals(status) && !MfgStatus.IN_PROGRESS.equals(status)) {
+            throw ErpErrorCode.exception(ErpErrorCode.MFG_STATE_CONFLICT, "只有已下达或生产中的订单可以报工");
+        }
+        if (operations == null || operations.isEmpty()) {
+            throw ErpErrorCode.exception(ErpErrorCode.OPERATION_INVALID, "订单没有工序，无法报工");
+        }
+        int index = indexOfStep(stepNo);
+        ProductionOperation operation = operations.get(index);
+        BigDecimal qualified = qualifiedQuantity == null
+                ? BigDecimal.ZERO : Quantities.nonNegative(qualifiedQuantity, "报工合格数量");
+        BigDecimal prospective = (operation.getQualifiedQuantity() == null
+                ? BigDecimal.ZERO : operation.getQualifiedQuantity()).add(qualified);
+        if (index > 0) {
+            ProductionOperation previous = operations.get(index - 1);
+            BigDecimal previousQualified = previous.getQualifiedQuantity() == null
+                    ? BigDecimal.ZERO : previous.getQualifiedQuantity();
+            if (prospective.compareTo(previousQualified) > 0) {
+                throw ErpErrorCode.exception(ErpErrorCode.OPERATION_INVALID,
+                        "工序 " + stepNo + " 累计合格数量不能超过前道工序");
+            }
+        }
+        operation.report(qualified, scrappedQuantity, reportedAt);
+        status = MfgStatus.IN_PROGRESS;
+    }
+
+    /**
+     * 退料：按已领成本冲减，状态须为已下达或生产中。
+     *
+     * @param material 用料
+     * @param quantity 退料数量
+     * @return 冲减金额
+     */
+    public BigDecimal returnMaterial(ProductionMaterial material, BigDecimal quantity) {
+        requireAdjustableState("退料");
+        return reduceMaterialCost(material.reduceIssued(quantity, ErpErrorCode.MATERIAL_RETURN_EXCEEDED));
+    }
+
+    /**
+     * 报废：按已领成本冲减且不回库存，状态须为已下达或生产中。
+     *
+     * @param material 用料
+     * @param quantity 报废数量
+     * @return 冲减金额
+     */
+    public BigDecimal scrapMaterial(ProductionMaterial material, BigDecimal quantity) {
+        requireAdjustableState("报废");
+        return reduceMaterialCost(material.reduceIssued(quantity, ErpErrorCode.MATERIAL_SCRAP_EXCEEDED));
+    }
+
+    /**
      * 完工入库：返回本次入库金额，最后一批结转剩余材料成本。
      *
      * @param quantity 本次完工数量
@@ -161,6 +222,7 @@ public class ProductionOrder {
         if (!MfgStatus.IN_PROGRESS.equals(status)) {
             throw ErpErrorCode.exception(ErpErrorCode.MFG_STATE_CONFLICT, "只有生产中的订单可以完工入库");
         }
+        requireOperationsQualified(quantity);
         requireMaterialsIssued();
         Quantities.requirePositive(quantity, "完工数量");
         BigDecimal done = completedQuantity == null ? BigDecimal.ZERO : completedQuantity;
@@ -206,14 +268,78 @@ public class ProductionOrder {
     }
 
     /**
-     * 校验全部用料均已领完。
+     * 校验全部非倒冲用料均已领完。
      */
     private void requireMaterialsIssued() {
         for (ProductionMaterial material : materials) {
+            if (Boolean.TRUE.equals(material.getBackflush())) {
+                continue;
+            }
             if (!material.fullyIssued()) {
                 throw ErpErrorCode.exception(ErpErrorCode.MATERIAL_NOT_ISSUED,
                         "物料 " + material.getItemCode() + " 尚未领完，禁止完工入库");
             }
         }
+    }
+
+    /**
+     * 存在工序时，本批完工后累计完工量不得超过末道工序累计合格量。
+     *
+     * @param quantity 本批完工数量
+     */
+    private void requireOperationsQualified(BigDecimal quantity) {
+        if (operations == null || operations.isEmpty()) {
+            return;
+        }
+        ProductionOperation last = operations.stream()
+                .max(Comparator.comparing(ProductionOperation::getStepNo))
+                .orElse(null);
+        BigDecimal qualified = last == null || last.getQualifiedQuantity() == null
+                ? BigDecimal.ZERO : last.getQualifiedQuantity();
+        BigDecimal done = completedQuantity == null ? BigDecimal.ZERO : completedQuantity;
+        if (done.add(quantity).compareTo(qualified) > 0) {
+            throw ErpErrorCode.exception(ErpErrorCode.OPERATION_INVALID,
+                    "本批完工数量超过末道工序累计合格数量");
+        }
+    }
+
+    /**
+     * 按工序号查找下标。
+     *
+     * @param stepNo 工序号
+     * @return 下标
+     */
+    private int indexOfStep(Integer stepNo) {
+        for (int index = 0; index < operations.size(); index++) {
+            if (operations.get(index).getStepNo().equals(stepNo)) {
+                return index;
+            }
+        }
+        throw ErpErrorCode.exception(ErpErrorCode.PRODUCTION_OPERATION_NOT_FOUND);
+    }
+
+    /**
+     * 校验订单可执行退料 / 报废。
+     *
+     * @param action 动作名称
+     */
+    private void requireAdjustableState(String action) {
+        if (!MfgStatus.RELEASED.equals(status) && !MfgStatus.IN_PROGRESS.equals(status)) {
+            throw ErpErrorCode.exception(ErpErrorCode.MFG_STATE_CONFLICT,
+                    "只有已下达或生产中的订单可以" + action);
+        }
+    }
+
+    /**
+     * 冲减订单累计材料成本。
+     *
+     * @param amount 冲减金额
+     * @return 冲减金额
+     */
+    private BigDecimal reduceMaterialCost(BigDecimal amount) {
+        BigDecimal cost = totalMaterialCost == null ? BigDecimal.ZERO : totalMaterialCost;
+        BigDecimal remaining = cost.subtract(amount);
+        totalMaterialCost = remaining.signum() < 0 ? BigDecimal.ZERO : remaining;
+        return amount;
     }
 }

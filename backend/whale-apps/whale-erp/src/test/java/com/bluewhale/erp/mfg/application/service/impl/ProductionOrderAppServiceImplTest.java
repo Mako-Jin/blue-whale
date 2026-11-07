@@ -9,6 +9,7 @@ import com.bluewhale.erp.masterdata.domain.model.Warehouse;
 import com.bluewhale.erp.masterdata.domain.repository.WarehouseRepository;
 import com.bluewhale.erp.mfg.application.command.ProductionCompleteCommand;
 import com.bluewhale.erp.mfg.application.command.ProductionIssueCommand;
+import com.bluewhale.erp.mfg.application.command.ProductionMaterialAdjustCommand;
 import com.bluewhale.erp.mfg.application.command.ProductionOrderCreateCommand;
 import com.bluewhale.erp.mfg.application.view.ProductionOrderView;
 import com.bluewhale.erp.mfg.domain.model.MfgQuery;
@@ -38,6 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -264,6 +266,71 @@ class ProductionOrderAppServiceImplTest {
         assertThrows(BizException.class, () -> service.syncRouting(1L));
     }
 
+    @Test
+    @DisplayName("倒冲领料：完工按比例自动领料并计入成本")
+    void shouldAutoIssueBackflushOnComplete() {
+        ProductionOrder order = draftOrder();
+        order.setStatus(MfgStatus.IN_PROGRESS);
+        order.getMaterials().get(0).setBackflush(true);
+        when(productionOrderRepository.findById(1L)).thenReturn(Optional.of(order));
+        when(stockRepository.findBalance(4L, 7301L)).thenReturn(Optional.of(balance()));
+        when(stockRepository.findBalance(3L, 7302L)).thenReturn(Optional.empty());
+
+        ProductionOrderView view = service.complete(1L, completeCommand("5"), 99L);
+
+        assertEquals(0, view.getTotalMaterialCost().compareTo(new BigDecimal("25")));
+        assertEquals(0, view.getMaterials().get(0).getIssuedQuantity().compareTo(new BigDecimal("5")));
+        verify(stockRepository, times(2)).insertMovement(any(StockMovement.class));
+    }
+
+    @Test
+    @DisplayName("退料：按已领成本回冲库存并冲减材料成本")
+    void shouldReturnMaterial() {
+        ProductionOrder order = issuedOrder();
+        when(productionOrderRepository.findById(1L)).thenReturn(Optional.of(order));
+        when(productionOrderRepository.nextAdjustmentNo(any(LocalDate.class))).thenReturn("MA-20261104-0001");
+        when(stockRepository.findBalance(4L, 7301L)).thenReturn(Optional.of(balance()));
+
+        ProductionOrderView view = service.returnMaterial(1L, adjustCommand("3"), 99L);
+
+        assertEquals(0, view.getTotalMaterialCost().compareTo(new BigDecimal("70")));
+        assertEquals(0, view.getMaterials().get(0).getIssuedQuantity().compareTo(new BigDecimal("7")));
+        verify(stockRepository).saveBalance(any(StockBalance.class));
+        verify(stockRepository).insertMovement(any(StockMovement.class));
+        verify(productionOrderRepository).insertAdjustment(any());
+    }
+
+    @Test
+    @DisplayName("报废：扣减已领成本且不回库存")
+    void shouldScrapMaterial() {
+        ProductionOrder order = issuedOrder();
+        when(productionOrderRepository.findById(1L)).thenReturn(Optional.of(order));
+        when(productionOrderRepository.nextAdjustmentNo(any(LocalDate.class))).thenReturn("MA-20261104-0002");
+
+        ProductionOrderView view = service.scrapMaterial(1L, adjustCommand("3"), 99L);
+
+        assertEquals(0, view.getTotalMaterialCost().compareTo(new BigDecimal("70")));
+        verify(stockRepository, never()).saveBalance(any());
+        verify(stockRepository, never()).insertMovement(any());
+        verify(productionOrderRepository).insertAdjustment(any());
+    }
+
+    /**
+     * 构造用料调整命令。
+     *
+     * @param quantity 数量
+     * @return 命令
+     */
+    private ProductionMaterialAdjustCommand adjustCommand(String quantity) {
+        ProductionMaterialAdjustCommand command = new ProductionMaterialAdjustCommand();
+        ProductionMaterialAdjustCommand.Line line = new ProductionMaterialAdjustCommand.Line();
+        line.setLineNo(1);
+        line.setQuantity(new BigDecimal(quantity));
+        line.setReason("测试");
+        command.setLines(List.of(line));
+        return command;
+    }
+
     /**
      * 建单依赖桩。
      */
@@ -395,6 +462,7 @@ class ProductionOrderAppServiceImplTest {
         ProductionOrder order = draftOrder();
         order.setStatus(MfgStatus.RELEASED);
         order.issue(order.getMaterials().get(0), new BigDecimal("10"));
+        order.getMaterials().get(0).accumulateIssuedCost(new BigDecimal("100"));
         order.accumulateMaterialCost(new BigDecimal("100"));
         return order;
     }

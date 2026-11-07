@@ -70,6 +70,8 @@ export interface ProductionMaterialView {
   uom?: string;
   requiredQuantity: number;
   issuedQuantity?: number;
+  issuedCost?: number;
+  backflush?: boolean;
 }
 
 /** 生产订单 */
@@ -112,6 +114,24 @@ export interface ProductionOperationView {
   status?: string;
 }
 
+/** 工序报工入参 */
+export interface ProductionOperationReportInput {
+  qualifiedQuantity: number;
+  scrappedQuantity?: number;
+}
+
+/** 生产用料调整行 */
+export interface ProductionMaterialAdjustLineInput {
+  lineNo: number;
+  quantity: number;
+  reason?: string;
+}
+
+/** 生产用料调整入参 */
+export interface ProductionMaterialAdjustInput {
+  lines: ProductionMaterialAdjustLineInput[];
+}
+
 /** 生产订单入参 */
 export interface ProductionOrderInput {
   itemCode: string;
@@ -121,7 +141,7 @@ export interface ProductionOrderInput {
   planStartDate: string;
   planEndDate?: string;
   remark?: string;
-  materials: { itemCode: string; requiredQuantity: number; uom?: string }[];
+  materials: { itemCode: string; requiredQuantity: number; uom?: string; backflush?: boolean }[];
 }
 
 /** MRP 输入需求行 */
@@ -450,4 +470,29 @@ export function getCrpLoad(params: MfgQueryParams = {}): Promise<CrpView> {
 /** 同步生产订单工艺路线 */
 export function syncProductionRouting(id: number): Promise<ProductionOrderView> {
   return http.post<ProductionOrderView>(`/erp/mfg/production/${id}/routing/sync`);
+}
+
+/** 工序报工 */
+export function reportProductionOperation(
+  id: number,
+  stepNo: number,
+  input: ProductionOperationReportInput,
+): Promise<ProductionOrderView> {
+  return http.post<ProductionOrderView>(`/erp/mfg/production/${id}/operations/${stepNo}/report`, input);
+}
+
+/** 生产退料 */
+export function returnProductionMaterial(
+  id: number,
+  input: ProductionMaterialAdjustInput,
+): Promise<ProductionOrderView> {
+  return http.post<ProductionOrderView>(`/erp/mfg/production/${id}/material/return`, input);
+}
+
+/** 生产报废 */
+export function scrapProductionMaterial(
+  id: number,
+  input: ProductionMaterialAdjustInput,
+): Promise<ProductionOrderView> {
+  return http.post<ProductionOrderView>(`/erp/mfg/production/${id}/material/scrap`, input);
 }

@@ -9,6 +9,8 @@ import com.bluewhale.erp.interfaces.support.ErpUserContext;
 import com.bluewhale.erp.interfaces.support.PageParams;
 import com.bluewhale.erp.mfg.application.command.ProductionCompleteCommand;
 import com.bluewhale.erp.mfg.application.command.ProductionIssueCommand;
+import com.bluewhale.erp.mfg.application.command.ProductionMaterialAdjustCommand;
+import com.bluewhale.erp.mfg.application.command.ProductionOperationReportCommand;
 import com.bluewhale.erp.mfg.application.command.ProductionOrderCreateCommand;
 import com.bluewhale.erp.mfg.application.service.ProductionOrderAppService;
 import com.bluewhale.erp.mfg.application.view.ProductionOrderView;
@@ -142,6 +144,58 @@ public class ProductionOrderController {
             type = OperateType.UPDATE)
     public Result<ProductionOrderView> syncRouting(@PathVariable Long id) {
         return Result.ok(productionOrderAppService.syncRouting(id));
+    }
+
+    /**
+     * 工序报工。
+     *
+     * @param id 生产订单 ID
+     * @param stepNo 工序号
+     * @param command 报工命令
+     * @return 生产订单视图
+     */
+    @PostMapping("/{id}/operations/{stepNo}/report")
+    @RequirePermission("sys:erp:production:operation:report")
+    @AuditLog(operation = "生产工序报工", targetType = "erp_mfg_production_operation", type = OperateType.UPDATE)
+    public Result<ProductionOrderView> reportOperation(@PathVariable Long id, @PathVariable Integer stepNo,
+                                                       @Valid @RequestBody ProductionOperationReportCommand command) {
+        return Result.ok(productionOrderAppService.reportOperation(id, stepNo, command));
+    }
+
+    /**
+     * 生产退料。
+     *
+     * @param id 生产订单 ID
+     * @param command 退料命令
+     * @param request HTTP 请求（取操作人）
+     * @return 生产订单视图
+     */
+    @PostMapping("/{id}/material/return")
+    @RequirePermission("sys:erp:production:return")
+    @AuditLog(operation = "生产退料", targetType = "erp_mfg_production_material_adj", type = OperateType.CREATE)
+    public Result<ProductionOrderView> returnMaterial(@PathVariable Long id,
+                                                      @Valid @RequestBody ProductionMaterialAdjustCommand command,
+                                                      HttpServletRequest request) {
+        return Result.ok(productionOrderAppService.returnMaterial(id, command,
+                ErpUserContext.userId(request)));
+    }
+
+    /**
+     * 生产报废。
+     *
+     * @param id 生产订单 ID
+     * @param command 报废命令
+     * @param request HTTP 请求（取操作人）
+     * @return 生产订单视图
+     */
+    @PostMapping("/{id}/material/scrap")
+    @RequirePermission("sys:erp:production:scrap")
+    @AuditLog(operation = "生产报废", targetType = "erp_mfg_production_material_adj", type = OperateType.CREATE)
+    public Result<ProductionOrderView> scrapMaterial(@PathVariable Long id,
+                                                     @Valid @RequestBody ProductionMaterialAdjustCommand command,
+                                                     HttpServletRequest request) {
+        return Result.ok(productionOrderAppService.scrapMaterial(id, command,
+                ErpUserContext.userId(request)));
     }
 
     /**

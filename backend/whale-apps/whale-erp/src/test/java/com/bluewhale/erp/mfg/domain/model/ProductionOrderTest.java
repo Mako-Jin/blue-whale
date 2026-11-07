@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -134,6 +135,113 @@ class ProductionOrderTest {
         assertEquals(ErpErrorCode.MFG_STATE_CONFLICT, exception.getCode());
     }
 
+    @Test
+    @DisplayName("工序报工：非首道累计合格不得超过前道")
+    void shouldRejectOperationQualifiedExceeded() {
+        ProductionOrder order = orderWithOperations();
+        order.setStatus(MfgStatus.RELEASED);
+        order.reportOperation(10, new BigDecimal("5"), BigDecimal.ZERO, LocalDateTime.now());
+
+        BizException exception = assertThrows(BizException.class,
+                () -> order.reportOperation(20, new BigDecimal("6"), BigDecimal.ZERO, LocalDateTime.now()));
+
+        assertEquals(ErpErrorCode.OPERATION_INVALID, exception.getCode());
+    }
+
+    @Test
+    @DisplayName("工序报工：合法累计并进入生产中")
+    void shouldReportOperation() {
+        ProductionOrder order = orderWithOperations();
+        order.setStatus(MfgStatus.RELEASED);
+        order.reportOperation(10, new BigDecimal("4"), new BigDecimal("1"), LocalDateTime.now());
+        order.reportOperation(20, new BigDecimal("4"), BigDecimal.ZERO, LocalDateTime.now());
+
+        assertEquals(MfgStatus.IN_PROGRESS, order.getStatus());
+        assertEquals(0, order.getOperations().get(0).getQualifiedQuantity().compareTo(new BigDecimal("4")));
+        assertEquals(0, order.getOperations().get(1).getQualifiedQuantity().compareTo(new BigDecimal("4")));
+    }
+
+    @Test
+    @DisplayName("完工数量受末道工序累计合格限制")
+    void shouldRejectCompleteExceededOperationQualified() {
+        ProductionOrder order = issuedOrder();
+        order.setOperations(List.of(operation(10, new BigDecimal("4"))));
+
+        BizException exception = assertThrows(BizException.class,
+                () -> order.complete(new BigDecimal("5"), LocalDate.of(2026, 11, 4)));
+
+        assertEquals(ErpErrorCode.OPERATION_INVALID, exception.getCode());
+        assertEquals(0, order.complete(new BigDecimal("4"), LocalDate.of(2026, 11, 4))
+                .compareTo(new BigDecimal("40")));
+    }
+
+    @Test
+    @DisplayName("退料按已领成本比例冲减，全退结清尾差")
+    void shouldReturnMaterialByIssuedCost() {
+        ProductionOrder order = issuedOrder();
+        BigDecimal first = order.returnMaterial(order.getMaterials().get(0), new BigDecimal("3"));
+        BigDecimal rest = order.returnMaterial(order.getMaterials().get(0), new BigDecimal("7"));
+
+        assertEquals(0, first.compareTo(new BigDecimal("30")));
+        assertEquals(0, rest.compareTo(new BigDecimal("70")));
+        assertEquals(0, order.getTotalMaterialCost().compareTo(BigDecimal.ZERO));
+        assertEquals(0, order.getMaterials().get(0).getIssuedQuantity().compareTo(BigDecimal.ZERO));
+        assertEquals(0, order.getMaterials().get(0).getIssuedCost().compareTo(BigDecimal.ZERO));
+    }
+
+    @Test
+    @DisplayName("报废数量超过已领拒绝")
+    void shouldRejectScrapExceeded() {
+        ProductionOrder order = issuedOrder();
+
+        BizException exception = assertThrows(BizException.class,
+                () -> order.scrapMaterial(order.getMaterials().get(0), new BigDecimal("11")));
+
+        assertEquals(ErpErrorCode.MATERIAL_SCRAP_EXCEEDED, exception.getCode());
+    }
+
+    @Test
+    @DisplayName("倒冲目标按完工比例计算，最后一批取整单需求")
+    void shouldCalculateBackflushTarget() {
+        ProductionOrder order = newOrder();
+        ProductionMaterial material = order.getMaterials().get(0);
+
+        assertEquals(0, material.backflushTarget(BigDecimal.ZERO, new BigDecimal("5"),
+                new BigDecimal("10")).compareTo(new BigDecimal("5")));
+        assertEquals(0, material.backflushTarget(new BigDecimal("5"), new BigDecimal("5"),
+                new BigDecimal("10")).compareTo(new BigDecimal("10")));
+    }
+
+    /**
+     * 构造含两道工序的已领料订单。
+     *
+     * @return 生产订单
+     */
+    private ProductionOrder orderWithOperations() {
+        ProductionOrder order = issuedOrder();
+        order.setOperations(List.of(operation(10, BigDecimal.ZERO), operation(20, BigDecimal.ZERO)));
+        return order;
+    }
+
+    /**
+     * 构造工序。
+     *
+     * @param stepNo  工序号
+     * @param qualified 累计合格数量
+     * @return 工序
+     */
+    private ProductionOperation operation(int stepNo, BigDecimal qualified) {
+        ProductionOperation operation = new ProductionOperation();
+        operation.setStepNo(stepNo);
+        operation.setName("工序" + stepNo);
+        operation.setWorkCenterCode("WC-01");
+        operation.setPlannedQuantity(new BigDecimal("10"));
+        operation.setQualifiedQuantity(qualified);
+        operation.setScrappedQuantity(BigDecimal.ZERO);
+        operation.setStatus(MfgStatus.PENDING);
+        return operation;
+    }
+
     /**
      * 构造生产订单（草稿 + 一条用料）。
      *
@@ -175,6 +283,7 @@ class ProductionOrderTest {
         ProductionOrder order = newOrder();
         order.setStatus(MfgStatus.RELEASED);
         order.issue(order.getMaterials().get(0), new BigDecimal("10"));
+        order.getMaterials().get(0).accumulateIssuedCost(new BigDecimal("100"));
         order.accumulateMaterialCost(new BigDecimal("100"));
         return order;
     }

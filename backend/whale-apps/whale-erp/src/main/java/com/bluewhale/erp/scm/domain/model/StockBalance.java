@@ -54,6 +54,21 @@ public class StockBalance {
     }
 
     /**
+     * 按指定金额入库（生产退料按原领料成本回冲）。
+     *
+     * @param quantity 入库数量
+     * @param amount   入库金额
+     * @return 入库金额
+     */
+    public BigDecimal inboundAt(BigDecimal quantity, BigDecimal amount) {
+        Quantities.requirePositive(quantity, "入库数量");
+        Amounts.nonNegative(amount, "入库金额");
+        this.quantity = (this.quantity == null ? BigDecimal.ZERO : this.quantity).add(quantity);
+        this.amount = (this.amount == null ? BigDecimal.ZERO : this.amount).add(amount);
+        return amount;
+    }
+
+    /**
      * 出库：按移动加权平均结转成本。
      *
      * @param quantity 出库数量
