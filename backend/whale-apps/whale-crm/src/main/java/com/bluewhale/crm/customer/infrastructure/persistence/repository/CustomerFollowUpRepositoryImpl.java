@@ -1,6 +1,7 @@
 package com.bluewhale.crm.customer.infrastructure.persistence.repository;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.query.PageQuery;
 import com.bluewhale.crm.customer.domain.model.CustomerFollowUp;
@@ -13,7 +14,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 /**
- * 跟进记录仓储实现（append-only，不提供更新 / 删除）。
+ * 跟进记录仓储实现（append-only；仅合并场景允许整体改挂客户归属）。
  *
  * @author BlueWhale
  */
@@ -61,6 +62,14 @@ public class CustomerFollowUpRepositoryImpl implements CustomerFollowUpRepositor
         followUpMapper.insert(entity);
         followUp.setId(entity.getId());
         followUp.setCreateTime(entity.getCreateTime());
+    }
+
+    @Override
+    public int reassignCustomer(Long fromCustomerId, Long toCustomerId) {
+        LambdaUpdateWrapper<CustomerFollowUpEntity> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(CustomerFollowUpEntity::getCustomerId, fromCustomerId)
+                .set(CustomerFollowUpEntity::getCustomerId, toCustomerId);
+        return followUpMapper.update(null, wrapper);
     }
 
     /**

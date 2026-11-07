@@ -65,6 +65,8 @@ whale:
     pool-recycle-enabled: ${WHALE_CRM_POOL_RECYCLE_ENABLED:false}
     pool-recycle-cron: ${WHALE_CRM_POOL_RECYCLE_CRON:0 0 2 * * ?}
     pool-recycle-batch-size: ${WHALE_CRM_POOL_RECYCLE_BATCH_SIZE:200}
+    customer-import-max-rows: ${WHALE_CRM_CUSTOMER_IMPORT_MAX_ROWS:1000}
+    customer-export-max-rows: ${WHALE_CRM_CUSTOMER_EXPORT_MAX_ROWS:5000}
     # 报价折扣审批（whale-workflow）：关闭或缺少 definition-id 时提交审批失败关闭
     quote-approval:
       enabled: ${WHALE_CRM_QUOTE_APPROVAL_ENABLED:true}
@@ -115,6 +117,28 @@ whale:
       read-timeout-millis: ${WHALE_CRM_AR_READ_TIMEOUT:3000}
       sync-cron: ${WHALE_CRM_AR_SYNC_CRON:0 30 2 * * ?}
       batch-size: ${WHALE_CRM_AR_BATCH_SIZE:200}
+    # 营销管理（M5）：触达走 whale-message，同一活动同一联系人同一渠道只发一次
+    marketing:
+      enabled: ${WHALE_CRM_MARKETING_ENABLED:true}
+      send-batch-size: ${WHALE_CRM_MARKETING_SEND_BATCH_SIZE:200}
+      daily-frequency-limit: ${WHALE_CRM_MARKETING_DAILY_LIMIT:1}
+      default-channel: ${WHALE_CRM_MARKETING_DEFAULT_CHANNEL:EMAIL}
+      message-url: ${WHALE_MESSAGE_URL:http://127.0.0.1:8085}
+      connect-timeout-millis: ${WHALE_CRM_MESSAGE_CONNECT_TIMEOUT:1000}
+      read-timeout-millis: ${WHALE_CRM_MESSAGE_READ_TIMEOUT:3000}
+      auto-approve-report: ${WHALE_CRM_PARTNER_AUTO_APPROVE:false}
+    # 数据分析（M6）：每日 02:00 快照，保留 5 年，规则化行动计划
+    analytics:
+      enabled: ${WHALE_CRM_ANALYTICS_ENABLED:true}
+      snapshot-cron: ${WHALE_CRM_ANALYTICS_SNAPSHOT_CRON:0 0 2 * * ?}
+      action-plan-cron: ${WHALE_CRM_ACTION_PLAN_CRON:0 30 2 * * ?}
+      retention-years: ${WHALE_CRM_METRIC_RETENTION_YEARS:5}
+      export-max-rows: ${WHALE_CRM_EXPORT_MAX_ROWS:5000}
+      dashboard-lookback-days: ${WHALE_CRM_DASHBOARD_LOOKBACK_DAYS:90}
+      key-customer-idle-days: ${WHALE_CRM_KEY_CUSTOMER_IDLE_DAYS:30}
+      opportunity-overdue-days: ${WHALE_CRM_OPPORTUNITY_OVERDUE_DAYS:0}
+      contract-expire-days: ${WHALE_CRM_CONTRACT_EXPIRE_DAYS:90}
+      overdue-amount-threshold: ${WHALE_CRM_OVERDUE_AMOUNT_THRESHOLD:0}
 
 mybatis-plus:
   configuration:

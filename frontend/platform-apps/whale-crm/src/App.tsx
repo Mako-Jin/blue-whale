@@ -19,6 +19,10 @@ import ServiceSlaPage from './pages/service-sla';
 import KbPage from './pages/kb';
 import SatisfactionPage from './pages/satisfaction';
 import ReturnPage from './pages/return';
+import MarketingPage from './pages/marketing';
+import AnalyticsPage from './pages/analytics';
+import ActionPlanPage from './pages/action-plan';
+import CustomerToolsPage from './pages/customer/tools';
 import { hasPermission } from './utils/permission';
 
 const { Header, Content, Sider } = Layout;
@@ -26,6 +30,7 @@ const { Header, Content, Sider } = Layout;
 /** 全部菜单项：permission 为空表示登录即可见 */
 const MENU_ITEMS = [
   { key: '/customer', label: '客户管理', permission: 'sys:crm:customer:list' },
+  { key: '/customer/tools', label: '客户工具', permission: 'sys:crm:customer:import' },
   { key: '/pool', label: '公海客户', permission: 'sys:crm:pool:view' },
   { key: '/lead', label: '线索管理', permission: 'sys:crm:lead:list' },
   { key: '/opportunity', label: '商机管理', permission: 'sys:crm:opportunity:list' },
@@ -41,6 +46,18 @@ const MENU_ITEMS = [
   { key: '/kb', label: '知识库', permission: 'sys:crm:kb:list' },
   { key: '/satisfaction', label: '满意度', permission: 'sys:crm:survey:manage' },
   { key: '/return', label: '退换货', permission: 'sys:crm:return:list' },
+  { key: '/campaign', label: '营销活动', permission: 'sys:crm:campaign:list' },
+  { key: '/nurture', label: '培育任务', permission: 'sys:crm:nurture:manage' },
+  { key: '/marketing-send', label: '批量触达', permission: 'sys:crm:marketing:send' },
+  { key: '/partner', label: '渠道伙伴', permission: 'sys:crm:partner:manage' },
+  { key: '/dashboard', label: '销售看板', permission: 'sys:crm:analytics:dashboard' },
+  { key: '/analytics/funnel', label: '漏斗分析', permission: 'sys:crm:analytics:funnel' },
+  { key: '/analytics/customer', label: '客户分析', permission: 'sys:crm:analytics:customer' },
+  { key: '/analytics/ranking', label: '销售排行', permission: 'sys:crm:analytics:ranking' },
+  { key: '/analytics/collection', label: '回款分析', permission: 'sys:crm:analytics:collection' },
+  { key: '/action-plan', label: '行动计划', permission: 'sys:crm:action:plan' },
+  { key: '/analytics/snapshot', label: '指标快照', permission: 'sys:crm:analytics:dashboard' },
+  { key: '/analytics/export', label: '数据导出', permission: 'sys:crm:export' },
 ];
 
 /** 按权限过滤后的菜单 */
@@ -103,6 +120,42 @@ function resolveSelectedKey(pathname: string): string {
   if (pathname.startsWith('/return')) {
     return '/return';
   }
+  if (pathname.startsWith('/campaign')) {
+    return '/campaign';
+  }
+  if (pathname.startsWith('/nurture')) {
+    return '/nurture';
+  }
+  if (pathname.startsWith('/marketing-send')) {
+    return '/marketing-send';
+  }
+  if (pathname.startsWith('/partner')) {
+    return '/partner';
+  }
+  if (pathname.startsWith('/dashboard')) {
+    return '/dashboard';
+  }
+  if (pathname.startsWith('/analytics/funnel')) {
+    return '/analytics/funnel';
+  }
+  if (pathname.startsWith('/analytics/customer')) {
+    return '/analytics/customer';
+  }
+  if (pathname.startsWith('/analytics/ranking')) {
+    return '/analytics/ranking';
+  }
+  if (pathname.startsWith('/analytics/collection')) {
+    return '/analytics/collection';
+  }
+  if (pathname.startsWith('/analytics/snapshot')) {
+    return '/analytics/snapshot';
+  }
+  if (pathname.startsWith('/analytics/export')) {
+    return '/analytics/export';
+  }
+  if (pathname.startsWith('/action-plan')) {
+    return '/action-plan';
+  }
   return pathname;
 }
 
@@ -130,6 +183,7 @@ function CrmLayout() {
         <Content style={{ padding: 16, background: '#f5f6f8' }}>
           <Routes>
             <Route path="/customer" element={<CustomerList />} />
+            <Route path="/customer/tools" element={<CustomerToolsPage />} />
             <Route path="/customer/:id" element={<CustomerDetail />} />
             <Route path="/pool" element={<PoolList />} />
             <Route path="/lead" element={<LeadList />} />
@@ -147,6 +201,18 @@ function CrmLayout() {
             <Route path="/kb" element={<KbPage />} />
             <Route path="/satisfaction" element={<SatisfactionPage />} />
             <Route path="/return" element={<ReturnPage />} />
+            <Route path="/campaign" element={<MarketingPage tab="campaign" />} />
+            <Route path="/nurture" element={<MarketingPage tab="nurture" />} />
+            <Route path="/marketing-send" element={<MarketingPage tab="send" />} />
+            <Route path="/partner" element={<MarketingPage tab="partner" />} />
+            <Route path="/dashboard" element={<AnalyticsPage tab="dashboard" />} />
+            <Route path="/analytics/funnel" element={<AnalyticsPage tab="funnel" />} />
+            <Route path="/analytics/customer" element={<AnalyticsPage tab="customer" />} />
+            <Route path="/analytics/ranking" element={<AnalyticsPage tab="ranking" />} />
+            <Route path="/analytics/collection" element={<AnalyticsPage tab="collection" />} />
+            <Route path="/analytics/snapshot" element={<AnalyticsPage tab="snapshot" />} />
+            <Route path="/analytics/export" element={<AnalyticsPage tab="export" />} />
+            <Route path="/action-plan" element={<ActionPlanPage />} />
             <Route path="*" element={<Navigate to="/customer" replace />} />
           </Routes>
         </Content>

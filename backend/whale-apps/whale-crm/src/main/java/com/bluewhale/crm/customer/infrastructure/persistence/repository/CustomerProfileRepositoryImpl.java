@@ -1,6 +1,7 @@
 package com.bluewhale.crm.customer.infrastructure.persistence.repository;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.bluewhale.crm.common.CrmErrorCode;
 import com.bluewhale.crm.customer.domain.model.CustomerProfile;
 import com.bluewhale.crm.customer.domain.model.DecisionChainEntry;
@@ -54,6 +55,14 @@ public class CustomerProfileRepositoryImpl implements CustomerProfileRepository 
             profileMapper.updateById(entity);
         }
         profile.setId(entity.getId());
+    }
+
+    @Override
+    public int reassignCustomer(Long fromCustomerId, Long toCustomerId) {
+        LambdaUpdateWrapper<CustomerProfileEntity> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(CustomerProfileEntity::getCustomerId, fromCustomerId)
+                .set(CustomerProfileEntity::getCustomerId, toCustomerId);
+        return profileMapper.update(null, wrapper);
     }
 
     /**

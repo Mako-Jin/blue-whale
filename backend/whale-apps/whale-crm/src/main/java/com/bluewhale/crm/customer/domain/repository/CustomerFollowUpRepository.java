@@ -44,4 +44,13 @@ public interface CustomerFollowUpRepository {
      * @param followUp 跟进记录
      */
     void insert(CustomerFollowUp followUp);
+
+    /**
+     * 将跟进记录迁移到目标客户（合并场景，只更新归属，不删除）。
+     *
+     * @param fromCustomerId 源客户 ID
+     * @param toCustomerId 目标客户 ID
+     * @return 更新行数
+     */
+    int reassignCustomer(Long fromCustomerId, Long toCustomerId);
 }

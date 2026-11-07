@@ -40,4 +40,10 @@ public class CrmProperties {
 
     /** 单次公海回收最大条数 */
     private int poolRecycleBatchSize = 200;
+
+    /** 单次 CSV 导入最大行数 */
+    private int customerImportMaxRows = 1000;
+
+    /** 单次 CSV 导出最大行数 */
+    private int customerExportMaxRows = 5000;
 }

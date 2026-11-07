@@ -7,6 +7,8 @@ import com.bluewhale.crm.common.CrmActor;
 import com.bluewhale.crm.common.CrmPermissions;
 import com.bluewhale.crm.customer.application.command.CustomerSaveCommand;
 import com.bluewhale.crm.customer.application.service.CustomerAppService;
+import com.bluewhale.crm.customer.application.service.CustomerImportExportAppService;
+import com.bluewhale.crm.customer.application.service.CustomerMergeAppService;
 import com.bluewhale.crm.customer.application.view.CustomerView;
 import com.bluewhale.crm.customer.domain.model.CustomerQuery;
 import com.bluewhale.crm.interfaces.support.CustomerPageParams;
@@ -42,7 +44,10 @@ class CustomerControllerTest {
     @BeforeEach
     void setUp() {
         customerAppService = mock(CustomerAppService.class);
-        controller = new CustomerController(customerAppService);
+        controller = new CustomerController(
+                customerAppService,
+                mock(CustomerMergeAppService.class),
+                mock(CustomerImportExportAppService.class));
         request = new MockHttpServletRequest();
         request.addHeader(WebHeaders.USER_ID, "7");
         request.addHeader(WebHeaders.USERNAME, "sales");

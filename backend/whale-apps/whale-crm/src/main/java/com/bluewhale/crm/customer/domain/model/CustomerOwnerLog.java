@@ -18,7 +18,7 @@ public class CustomerOwnerLog {
     /** 客户 ID */
     private Long customerId;
 
-    /** 动作：CREATE / CLAIM / RELEASE / ASSIGN / RECYCLE */
+    /** 动作：CREATE / CLAIM / RELEASE / ASSIGN / RECYCLE / MERGE / IMPORT */
     private String action;
 
     /** 原负责人 */

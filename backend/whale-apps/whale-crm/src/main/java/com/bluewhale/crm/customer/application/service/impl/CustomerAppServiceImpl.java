@@ -217,6 +217,13 @@ public class CustomerAppServiceImpl implements CustomerAppService {
     public CustomerView changeStatus(Long id, CustomerStatusCommand command, CrmActor actor) {
         assertGate();
         Customer customer = requireCustomer(id, actor);
+        if (customer.merged()) {
+            CustomerStatus target = CustomerStatus.from(command.getStatus());
+            if (target == CustomerStatus.MERGED) {
+                throw CrmErrorCode.exception(CrmErrorCode.CUSTOMER_STATE_CONFLICT, "合并状态只能由合并流程写入");
+            }
+            throw CrmErrorCode.exception(CrmErrorCode.CUSTOMER_MERGED_READONLY);
+        }
         customer.changeStatus(command.getStatus());
         customerRepository.update(customer);
         return CustomerView.from(customer, actor.canViewSensitive());

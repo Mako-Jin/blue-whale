@@ -226,6 +226,60 @@ public final class CrmPermissions {
     /** 维护退换货申请（M4-4c） */
     public static final String RETURN_MANAGE = "sys:crm:return:manage";
 
+    /** 客户合并预览与执行（M1-4） */
+    public static final String CUSTOMER_MERGE = "sys:crm:customer:merge";
+
+    /** CSV 客户导入（M1-9） */
+    public static final String CUSTOMER_IMPORT = "sys:crm:customer:import";
+
+    /** CSV 客户导出（M1-9） */
+    public static final String CUSTOMER_EXPORT = "sys:crm:customer:export";
+
+    /** 查询营销活动 / 培育 / 触达（M5） */
+    public static final String CAMPAIGN_LIST = "sys:crm:campaign:list";
+
+    /** 新建与编辑营销活动（M5） */
+    public static final String CAMPAIGN_MANAGE = "sys:crm:campaign:manage";
+
+    /** 活动人群预览与锁定（M5） */
+    public static final String CAMPAIGN_AUDIENCE = "sys:crm:campaign:audience";
+
+    /** 活动启动 / 结束与 ROI 回填（M5） */
+    public static final String CAMPAIGN_STATUS = "sys:crm:campaign:status";
+
+    /** 培育任务维护（M5） */
+    public static final String NURTURE_MANAGE = "sys:crm:nurture:manage";
+
+    /** 批量触达任务创建与执行（M5） */
+    public static final String MARKETING_SEND = "sys:crm:marketing:send";
+
+    /** 渠道伙伴维护（M5） */
+    public static final String PARTNER_MANAGE = "sys:crm:partner:manage";
+
+    /** 渠道报单与冲突裁决（M5） */
+    public static final String PARTNER_REPORT = "sys:crm:partner:report";
+
+    /** 销售看板（M6） */
+    public static final String ANALYTICS_DASHBOARD = "sys:crm:analytics:dashboard";
+
+    /** 漏斗分析（M6） */
+    public static final String ANALYTICS_FUNNEL = "sys:crm:analytics:funnel";
+
+    /** 客户分析（M6） */
+    public static final String ANALYTICS_CUSTOMER = "sys:crm:analytics:customer";
+
+    /** 销售排行（M6） */
+    public static final String ANALYTICS_RANKING = "sys:crm:analytics:ranking";
+
+    /** 回款分析（M6） */
+    public static final String ANALYTICS_COLLECTION = "sys:crm:analytics:collection";
+
+    /** 行动计划与行动项（M6） */
+    public static final String ACTION_PLAN = "sys:crm:action:plan";
+
+    /** 分析导出（M6） */
+    public static final String ANALYTICS_EXPORT = "sys:crm:export";
+
     /**
      * 私有构造器：常量类，禁止实例化。
      */

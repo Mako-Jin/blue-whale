@@ -6,16 +6,24 @@ import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.crm.common.CrmPermissions;
+import com.bluewhale.crm.customer.application.command.CustomerImportCommand;
 import com.bluewhale.crm.customer.application.command.CustomerLevelCommand;
 import com.bluewhale.crm.customer.application.command.CustomerSaveCommand;
 import com.bluewhale.crm.customer.application.command.CustomerStatusCommand;
 import com.bluewhale.crm.customer.application.command.ProfileSaveCommand;
 import com.bluewhale.crm.customer.application.service.CustomerAppService;
+import com.bluewhale.crm.customer.application.service.CustomerImportExportAppService;
+import com.bluewhale.crm.customer.application.service.CustomerMergeAppService;
 import com.bluewhale.crm.customer.application.view.Customer360View;
 import com.bluewhale.crm.customer.application.view.CustomerDetailView;
+import com.bluewhale.crm.customer.application.view.CustomerImportPreviewView;
+import com.bluewhale.crm.customer.application.view.CustomerImportResultView;
+import com.bluewhale.crm.customer.application.view.CustomerMergeResultView;
 import com.bluewhale.crm.customer.application.view.CustomerProfileView;
 import com.bluewhale.crm.customer.application.view.CustomerView;
 import com.bluewhale.crm.customer.application.view.DuplicateCandidateView;
+import com.bluewhale.crm.customer.domain.model.CustomerMergeCommand;
+import com.bluewhale.crm.customer.domain.model.CustomerMergePreview;
 import com.bluewhale.crm.customer.domain.model.CustomerQuery;
 import com.bluewhale.crm.interfaces.support.CrmActorContext;
 import com.bluewhale.crm.interfaces.support.CustomerPageParams;
@@ -48,6 +56,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class CustomerController {
 
     private final CustomerAppService customerAppService;
+
+    private final CustomerMergeAppService customerMergeAppService;
+
+    private final CustomerImportExportAppService customerImportExportAppService;
 
     /**
      * 客户分页。
@@ -99,6 +111,83 @@ public class CustomerController {
             HttpServletRequest request) {
         return Result.ok(customerAppService.duplicateCheck(
                 name, website, taxNo, phone, email, excludeId, CrmActorContext.from(request)));
+    }
+
+    /**
+     * 客户合并预览（M1-4）。
+     *
+     * @param command 合并命令
+     * @param request 当前请求
+     * @return 合并预览
+     */
+    @PostMapping("/merge/preview")
+    @RequirePermission(CrmPermissions.CUSTOMER_MERGE)
+    public Result<CustomerMergePreview> mergePreview(@RequestBody CustomerMergeCommand command,
+                                                      HttpServletRequest request) {
+        return Result.ok(customerMergeAppService.preview(command, CrmActorContext.from(request)));
+    }
+
+    /**
+     * 执行客户合并（M1-4）。
+     *
+     * @param command 合并命令
+     * @param request 当前请求
+     * @return 合并结果
+     */
+    @PostMapping("/merge")
+    @RequirePermission(CrmPermissions.CUSTOMER_MERGE)
+    @AuditLog(operation = "合并客户", type = OperateType.UPDATE,
+            targetType = "crm_customer", targetId = "#command.targetId")
+    public Result<CustomerMergeResultView> merge(@RequestBody CustomerMergeCommand command,
+                                                 HttpServletRequest request) {
+        return Result.ok(customerMergeAppService.merge(command, CrmActorContext.from(request)));
+    }
+
+    /**
+     * CSV 导入预检（M1-9）。
+     *
+     * @param command 导入内容
+     * @param request 当前请求
+     * @return 预检结果
+     */
+    @PostMapping("/import/preview")
+    @RequirePermission(CrmPermissions.CUSTOMER_IMPORT)
+    public Result<CustomerImportPreviewView> importPreview(@Valid @RequestBody CustomerImportCommand command,
+                                                           HttpServletRequest request) {
+        return Result.ok(customerImportExportAppService.preview(command.getContent(),
+                CrmActorContext.from(request)));
+    }
+
+    /**
+     * 执行 CSV 导入（M1-9）。
+     *
+     * @param command 导入内容
+     * @param request 当前请求
+     * @return 导入结果
+     */
+    @PostMapping("/import/execute")
+    @RequirePermission(CrmPermissions.CUSTOMER_IMPORT)
+    @AuditLog(operation = "导入客户", type = OperateType.IMPORT,
+            targetType = "crm_customer", recordParams = false)
+    public Result<CustomerImportResultView> importExecute(@Valid @RequestBody CustomerImportCommand command,
+                                                         HttpServletRequest request) {
+        return Result.ok(customerImportExportAppService.execute(command.getContent(),
+                CrmActorContext.from(request)));
+    }
+
+    /**
+     * 导出客户 CSV（M1-9）。
+     *
+     * @param params 查询条件
+     * @param request 当前请求
+     * @return CSV 内容
+     */
+    @GetMapping("/export")
+    @RequirePermission(CrmPermissions.CUSTOMER_EXPORT)
+    @AuditLog(operation = "导出客户", type = OperateType.EXPORT, targetType = "crm_customer")
+    public Result<String> export(@ModelAttribute CustomerPageParams params, HttpServletRequest request) {
+        return Result.ok(customerImportExportAppService.export(params.toQuery(),
+                CrmActorContext.from(request)));
     }
 
     /**

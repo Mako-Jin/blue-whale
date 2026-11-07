@@ -205,6 +205,37 @@ class CrmFlywayMigrationScriptTest {
         assertTrue(content.contains("UNIQUE KEY uk_crm_return_item_no"), "退换货申请行号在租户内唯一");
     }
 
+    @Test
+    @DisplayName("V11 营销：一次建齐活动 / 人群 / 培育 / 触达 / 渠道八表，且不写种子数据")
+    void marketingShouldContainAllM5Tables() throws IOException {
+        Set<String> tables = extractTables(MIGRATION_DIR.resolve("V11__marketing.sql"));
+        assertEquals(Set.of("crm_campaign", "crm_campaign_audience", "crm_campaign_member",
+                "crm_nurture_task", "crm_marketing_send", "crm_marketing_send_item",
+                "crm_partner", "crm_partner_report"), tables);
+        String content = Files.readString(MIGRATION_DIR.resolve("V11__marketing.sql"), StandardCharsets.UTF_8);
+        assertFalse(content.toUpperCase().contains("INSERT INTO CRM_"),
+                "营销增量不得写入活动 / 渠道种子数据");
+        assertTrue(content.contains("UNIQUE KEY uk_crm_campaign_code"), "活动编码在租户内唯一");
+        assertTrue(content.contains("UNIQUE KEY uk_crm_send_item"),
+                "同一活动同一联系人同一渠道只允许触达一次");
+        assertTrue(content.contains("UNIQUE KEY uk_crm_partner_report_no"), "渠道报单号在租户内唯一");
+    }
+
+    @Test
+    @DisplayName("V12 分析：新增指标快照 / 行动规则 / 行动项 / 导出四表，且不写种子数据")
+    void analyticsShouldContainAllM6Tables() throws IOException {
+        Set<String> tables = extractTables(MIGRATION_DIR.resolve("V12__analytics.sql"));
+        assertEquals(Set.of("crm_metric_snapshot", "crm_action_rule", "crm_action_item",
+                "crm_analytics_export"), tables);
+        String content = Files.readString(MIGRATION_DIR.resolve("V12__analytics.sql"), StandardCharsets.UTF_8);
+        assertFalse(content.toUpperCase().contains("INSERT INTO CRM_"),
+                "分析增量不得写入指标快照 / 行动规则种子数据");
+        assertTrue(content.contains("UNIQUE KEY uk_crm_metric_snapshot"),
+                "指标快照按指标 + 日期 + 维度唯一，重跑幂等");
+        assertTrue(content.contains("UNIQUE KEY uk_crm_action_item_dedup"),
+                "行动项按去重键唯一，避免重复生成");
+    }
+
     /**
      * 列出迁移脚本。
      *

@@ -236,6 +236,78 @@ public final class CrmErrorCode {
     /** ERP 退货执行失败 */
     public static final int RETURN_ERP_FAILED = 41073;
 
+    /** 营销活动不存在或无权访问 */
+    public static final int CAMPAIGN_NOT_FOUND = 41074;
+
+    /** 营销活动当前状态不允许该操作 */
+    public static final int CAMPAIGN_STATE_CONFLICT = 41075;
+
+    /** 营销活动预算、周期或人群条件非法 */
+    public static final int CAMPAIGN_BUDGET_INVALID = 41076;
+
+    /** 活动人群快照不存在或已失效 */
+    public static final int AUDIENCE_NOT_FOUND = 41077;
+
+    /** 人群条件非法或快照已锁定不可变更 */
+    public static final int AUDIENCE_INVALID = 41078;
+
+    /** 培育任务不存在或无权访问 */
+    public static final int NURTURE_NOT_FOUND = 41079;
+
+    /** 培育任务当前状态不允许该操作 */
+    public static final int NURTURE_STATE_CONFLICT = 41080;
+
+    /** 批量触达任务不存在或无权访问 */
+    public static final int MARKETING_SEND_NOT_FOUND = 41081;
+
+    /** 该活动对同一联系人在同一渠道已触达，幂等拦截 */
+    public static final int MARKETING_SEND_DUPLICATE = 41082;
+
+    /** 触达任务参数非法（渠道、模板或人群为空） */
+    public static final int MARKETING_SEND_INVALID = 41083;
+
+    /** 渠道伙伴不存在或无权访问 */
+    public static final int PARTNER_NOT_FOUND = 41084;
+
+    /** 渠道报单不存在或无权访问 */
+    public static final int PARTNER_REPORT_NOT_FOUND = 41085;
+
+    /** 渠道报单存在冲突，需人工裁决 */
+    public static final int PARTNER_REPORT_CONFLICT = 41086;
+
+    /** 渠道伙伴或报单当前状态不允许该操作 */
+    public static final int PARTNER_STATE_CONFLICT = 41087;
+
+    /** 行动计划规则不存在或未启用 */
+    public static final int ACTION_RULE_NOT_FOUND = 41088;
+
+    /** 行动项不存在或无权访问 */
+    public static final int ACTION_ITEM_NOT_FOUND = 41089;
+
+    /** 行动项当前状态不允许该操作 */
+    public static final int ACTION_ITEM_STATE_CONFLICT = 41090;
+
+    /** 导出任务不存在或无权访问 */
+    public static final int EXPORT_TASK_NOT_FOUND = 41091;
+
+    /** 导出任务执行失败 */
+    public static final int EXPORT_TASK_FAILED = 41092;
+
+    /** 指标快照为空，请先生成快照 */
+    public static final int METRIC_SNAPSHOT_EMPTY = 41093;
+
+    /** 客户合并参数非法（源客户与目标客户不能相同） */
+    public static final int CUSTOMER_MERGE_INVALID = 41094;
+
+    /** 导入文件格式或列映射非法 */
+    public static final int CUSTOMER_IMPORT_INVALID = 41095;
+
+    /** 导入内容为空或未解析到有效行 */
+    public static final int CUSTOMER_IMPORT_EMPTY = 41096;
+
+    /** 导出条件非法或超出单次导出上限 */
+    public static final int CUSTOMER_EXPORT_INVALID = 41097;
+
     /** 错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(GATE_CLOSED, "需求门禁未通过，CRM 业务接口尚未开放"),
@@ -311,7 +383,31 @@ public final class CrmErrorCode {
             Map.entry(RETURN_STATE_CONFLICT, "退换货申请当前状态不允许该操作"),
             Map.entry(RETURN_QUANTITY_EXCEEDED, "退货数量超过订单行可退数量"),
             Map.entry(RETURN_ERP_UNAVAILABLE, "ERP 退货服务不可用，请稍后重试"),
-            Map.entry(RETURN_ERP_FAILED, "ERP 退货执行失败，请稍后重试"));
+            Map.entry(RETURN_ERP_FAILED, "ERP 退货执行失败，请稍后重试"),
+            Map.entry(CAMPAIGN_NOT_FOUND, "营销活动不存在或无权访问"),
+            Map.entry(CAMPAIGN_STATE_CONFLICT, "营销活动当前状态不允许该操作"),
+            Map.entry(CAMPAIGN_BUDGET_INVALID, "营销活动预算、周期或人群条件非法"),
+            Map.entry(AUDIENCE_NOT_FOUND, "活动人群快照不存在或已失效"),
+            Map.entry(AUDIENCE_INVALID, "人群条件非法或快照已锁定不可变更"),
+            Map.entry(NURTURE_NOT_FOUND, "培育任务不存在或无权访问"),
+            Map.entry(NURTURE_STATE_CONFLICT, "培育任务当前状态不允许该操作"),
+            Map.entry(MARKETING_SEND_NOT_FOUND, "批量触达任务不存在或无权访问"),
+            Map.entry(MARKETING_SEND_DUPLICATE, "该活动已对同一联系人在该渠道触达，已幂等拦截"),
+            Map.entry(MARKETING_SEND_INVALID, "触达任务参数非法，请检查渠道、模板与人群"),
+            Map.entry(PARTNER_NOT_FOUND, "渠道伙伴不存在或无权访问"),
+            Map.entry(PARTNER_REPORT_NOT_FOUND, "渠道报单不存在或无权访问"),
+            Map.entry(PARTNER_REPORT_CONFLICT, "渠道报单存在冲突，需人工裁决"),
+            Map.entry(PARTNER_STATE_CONFLICT, "渠道伙伴或报单当前状态不允许该操作"),
+            Map.entry(ACTION_RULE_NOT_FOUND, "行动计划规则不存在或未启用"),
+            Map.entry(ACTION_ITEM_NOT_FOUND, "行动项不存在或无权访问"),
+            Map.entry(ACTION_ITEM_STATE_CONFLICT, "行动项当前状态不允许该操作"),
+            Map.entry(EXPORT_TASK_NOT_FOUND, "导出任务不存在或无权访问"),
+            Map.entry(EXPORT_TASK_FAILED, "导出任务执行失败，请稍后重试"),
+            Map.entry(METRIC_SNAPSHOT_EMPTY, "暂无指标快照数据，请先生成快照"),
+            Map.entry(CUSTOMER_MERGE_INVALID, "客户合并参数非法，源客户与目标客户不能相同"),
+            Map.entry(CUSTOMER_IMPORT_INVALID, "导入文件格式或列映射非法"),
+            Map.entry(CUSTOMER_IMPORT_EMPTY, "导入内容为空或未解析到有效行"),
+            Map.entry(CUSTOMER_EXPORT_INVALID, "导出条件非法或超出单次导出上限"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。

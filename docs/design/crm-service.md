@@ -1,10 +1,10 @@
 # 客户关系服务设计（whale-crm）
 
-> 状态：**M0 底座 + M1 客户主数据 + M2 线索/商机/漏斗/报价/预测/目标已落地（Wave 5.83，后端）**；前端 8113、导入导出与客户合并待后续增量
+> 状态：**M0–M6 已落地（Wave 5.83，后端 + 前端 8113）**：含 M1-4 客户合并、M1-9 CSV 导入导出、M5 营销、M6 分析
 > 关联需求：REQ-FUNC-080..086、REQ-ARCH-024、REQ-SEC-034
 > 关联规划：[CRM 功能模块全景](crm-module-panorama.md) / [Wave 5.83 计划](../plans/2026-11-04-wave5.83-crm-panorama.md)
 > 关联决策：[CRM/SRM 与消息服务边界决策](../plans/2026-10-28-crm-srm-and-message-service-decisions.md)、REQ-ARCH-011
-> 实现位置：`backend/whale-apps/whale-crm`（**前端未创建**）
+> 实现位置：`backend/whale-apps/whale-crm`（后端）· `frontend/platform-apps/whale-crm`（前端 8113，base `/crm`）
 
 > **2026-11-04 门禁与范围更新**：收到用户《CRM 功能模块全景》后，D1 采纳全景口径（六上下文全规划、M1/M2 优先），
 > `whale.crm.demand-gate-passed` 已改为默认 `true`；§1 的旧门禁结论与“不做线索/营销/工单”承诺已由
@@ -46,20 +46,20 @@
 
 ---
 
-## 3. 本波已落地内容（Wave 5.83 M0 + M1 + M2）
+## 3. 已落地内容（Wave 5.83 M0–M6）
 
 | 项 | 内容 |
 |---|---|
 | 模块 | `backend/whale-apps/whale-crm`，端口 **9007**，前缀 `/crm/**`，库 `bluewhale_crm` |
 | 启动类 | `WhaleCrmApplication`（`@EnableScheduling`，供公海回收任务使用） |
-| 配置 | `CrmProperties`：门禁（默认 `true`）、客户编码前缀、跟进分页上限、合同引用开关、默认客户等级 `C`、公海回收开关/表达式/批大小 |
+| 配置 | `CrmProperties`：门禁（默认 `true`）、客户编码前缀、跟进分页上限、合同引用开关、默认客户等级 `C`、公海回收开关/表达式/批大小、CSV 导入/导出行数上限；`CrmMarketingProperties`（`whale.crm.marketing`）、`CrmAnalyticsProperties`（`whale.crm.analytics`） |
 | 元信息接口 | `GET /crm/meta`（权限 `sys:crm:browse`）→ 门禁状态、说明、里程碑、边界约束 |
-| DDL | `V1__baseline.sql` 四表 + 审计表；`V2__crm_foundation.sql` 补客户/联系人/跟进字段与归一化索引、集成四表；`V3__customer_profile.sql` 地址/画像/公海规则/负责人留痕；`V4__sales_process.sql` 线索/线索活动/商机阶段历史 + 商机补概率/来源/竞争/下次行动/阶段时间/乐观锁；`V5__quote.sql` 报价头/行/审批记录三表；`V6__forecast_target.sql` 预测快照/预测调整/销售目标/目标调整四表 |
-| 权限 | `migration-5.77-crm.sql`：337–354 保留；`migration-5.83-crm.sql`：1800 敏感明文 + 1810–1830 客户主数据；`migration-5.84-crm-sales.sql`：1840–1849 线索与商机；`migration-5.85-crm-quote.sql`：1850–1854 报价；`migration-5.86-crm-forecast-target.sql`：1855–1859 预测与目标 |
+| DDL | `V1__baseline.sql` 四表 + 审计表；`V2__crm_foundation.sql` 补客户/联系人/跟进字段与归一化索引、集成四表；`V3__customer_profile.sql` 地址/画像/公海规则/负责人留痕；`V4__sales_process.sql` 线索/线索活动/商机阶段历史 + 商机补概率/来源/竞争/下次行动/阶段时间/乐观锁；`V5__quote.sql` 报价头/行/审批记录三表；`V6__forecast_target.sql` 预测快照/预测调整/销售目标/目标调整四表；`V7`–`V10` 合同台账/订单/发票/售后；`V11__marketing.sql` 营销 8 表；`V12__analytics.sql` 分析 4 表 |
+| 权限 | `migration-5.77-crm.sql`：337–354 保留；`migration-5.83-crm.sql`：1800 敏感明文 + 1810–1830 客户主数据；`migration-5.84-crm-sales.sql`：1840–1849 线索与商机；`migration-5.85-crm-quote.sql`：1850–1854 报价；`migration-5.86-crm-forecast-target.sql`：1855–1859 预测与目标；`migration-5.83-crm-m1-merge-import.sql`：1831–1833 合并/导入/导出；`migration-5.83-crm-m5-marketing.sql`：1891–1898；`migration-5.83-crm-m6-analytics.sql`：1899–1905 |
 | 角色 | 25108 `crm_admin`、25109 `crm_member` 保留；新增 25128 `crm_sales`、25129 `crm_sales_manager`、25130 `crm_service`、25131 `crm_marketing`、25132 `crm_analyst` |
 | 网关 | `lb://whale-crm`，不配 `StripPrefix`；`/crm/internal/**` 由 internal-deny 403 |
-| 前端 | **未创建**；8113 仍为规划态。菜单 413–426 已预留但**不登记**，避免空入口 |
-| 测试 | 155 项（架构 9、迁移 8、公共 10、客户 56、销售 25、报价 13、预测 9、目标 8、Controller 17）；Checkstyle 通过 |
+| 前端 | 已创建：`frontend/platform-apps/whale-crm`，8113，base `/crm`，已接入基座菜单与 qiankun |
+| 测试 | 329 项（架构、迁移、公共、客户（含合并/导入导出）、销售、报价、预测、目标、商务、售后、营销、分析、Controller）；Checkstyle 通过 |
 
 ### 3.1 分层与上下文
 
@@ -72,7 +72,7 @@ com.bluewhale.crm
 ├── sales             # M2 线索 + 商机 + 漏斗（domain / application / infrastructure / interfaces）
 ├── integration       # M1 只需商机摘要端口适配器
 ├── commerce          # M2 报价（domain / application / infrastructure / interfaces）；M3 订单/回款/发票预留
-├── service / marketing / analytics   # M4–M6 预留，ArchUnit 规则已生效
+├── service / marketing / analytics   # M4 售后 / M5 营销 / M6 分析（domain / application / infrastructure / interfaces）
 └── WhaleCrmApplication
 ```
 
@@ -142,9 +142,9 @@ com.bluewhale.crm
 |---|---|---|---|
 | M0-5 数据范围 | auth 内网 `data-scope` 接口 + 部门树 | 角色判定：`tenant_admin/crm_admin/crm_sales_manager/crm_analyst` 全量，其余仅本人 | auth 内网数据范围接口尚未提供，先安全降级为本人范围 |
 | M0-6 集成底座 | 合同/ERP/工作流/消息/文件/文档 6 个客户端 + outbox 重试 | V2 已建 outbox / 同步日志 / 外部引用 / 幂等四表；仅商机摘要端口真实接读，其余在 360 中声明“不可用” | 按里程碑分阶段接入，避免未联调的空壳客户端 |
-| M1-4 客户合并 | 合并预览 + 引用重写 | **未实现**，仅硬/软查重与 `MERGED` 只读态 | 需联系人/商机/合同引用重写与审计，安排在后续增量 |
-| M1-9 导入导出 | CSV 预检 + 异步导出 | **未实现** | 需要异步任务与文件服务联通，安排在后续增量 |
-| M1-10 前端 | 8113 页面 | **未创建** | 后端先行；菜单 413–420 保留不登记 |
+| M1-4 客户合并 | 合并预览 + 引用重写 | **已实现**：合并预览 + 执行，`MergeReferencePort` 端口下发 `sales` / `commerce` / `service` 三个适配器重写引用；合同域需 `whale-contract` 提供内网接口后接入 | 权限 1831 |
+| M1-9 导入导出 | CSV 预检 + 异步导出 | **已实现**：CSV 解析/预检/落库与导出，受 `customer-import-max-rows` / `customer-export-max-rows` 限制，展示侧掩码 | 权限 1832–1833；异步任务与 `whale-file` 联通后置 |
+| M1-10 前端 | 8113 页面 | **已创建**：客户/销售/商务/售后/营销/分析/行动计划/客户工具页面，接入基座菜单与 qiankun | — |
 | M1-5 自动回收 | 定时回收默认开启 | 已实现任务，`whale.crm.pool-recycle-enabled` **默认 false** | 灰度先手动触发验证回收规则，再打开定时 |
 | M1-11 审计 | 全部写操作 `@AuditLog` | 18 个写接口已加注解（`crm_customer` / `crm_contact` / `crm_customer_address` / `crm_customer_profile` / 公海 / 跟进）；画像与联系人写接口 `recordParams=false`，避免备注、微信等自由文本落库 | 审计切面按字段名脱敏，自由文本无规则可依，直接关闭参数记录 |
 | M2 报价 | 报价头/行/版本、折扣审批、锁定、转订单 | **头/行/版本、折扣审批、审批后锁定、改价新版本已交付**；转订单未做 | 转订单依赖 M3 商务订单与 ERP 下发；权限 1850–1854 |
@@ -228,8 +228,8 @@ APPROVED 只读；APPROVED / REJECTED 可 revise 生成新版本（version+1，r
 
 > 完整请求/响应字段以 `customer.application.view` / `sales.application.view` / `commerce.application.view` 与 `interfaces.controller` 为准；权限码与 `CrmPermissions`、`migration-5.83-crm.sql` / `migration-5.84-crm-sales.sql` / `migration-5.85-crm-quote.sql` / `migration-5.86-crm-forecast-target.sql` 一致。
 
-**权限编号 1800–1899**（已用 1800 敏感明文、1810–1830 客户主数据、1840–1849 线索/商机、1850–1854 报价、1855–1859 预测与目标；337–354 为历史登记，保留不动）；
-**菜单 410–449**（413–426 预留未登记，前端交付时追加）。
+**权限编号 1800–1899**（已用 1800 敏感明文、1810–1830 客户主数据、1831–1833 合并/导入/导出、1840–1849 线索/商机、1850–1854 报价、1855–1859 预测与目标、1889–1890 退换货、1891–1898 营销、1899–1905 分析；337–354 为历史登记，保留不动）；
+**菜单 410–449**（413–426 为客户/销售/商务/售后页面，437–440 营销、441–449 分析）。
 不提前注册菜单，避免用户看到点击即 403 的空入口。
 
 ---
