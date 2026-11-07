@@ -327,6 +327,36 @@ public final class OaErrorCode {
     /** 通讯录服务不可用 */
     public static final int DIRECTORY_UNAVAILABLE = 50306;
 
+    /** 公文参数非法 */
+    public static final int DOC_INVALID = 40023;
+
+    /** 公文不存在或无权访问 */
+    public static final int DOC_NOT_FOUND = 40435;
+
+    /** 公文当前状态不允许该操作 */
+    public static final int DOC_STATUS_CONFLICT = 40941;
+
+    /** 文号规则不存在或无权访问 */
+    public static final int DOC_NO_RULE_NOT_FOUND = 40436;
+
+    /** 文号规则编码已存在 */
+    public static final int DOC_NO_RULE_EXISTS = 40942;
+
+    /** 公文模板不存在或无权访问 */
+    public static final int DOC_TEMPLATE_NOT_FOUND = 40437;
+
+    /** 公文模板同编码同版本已存在 */
+    public static final int DOC_TEMPLATE_EXISTS = 40943;
+
+    /** 无权操作该公文 */
+    public static final int DOC_FORBIDDEN = 40305;
+
+    /** 档案服务暂不可用 */
+    public static final int DOC_ARCHIVE_UNAVAILABLE = 50307;
+
+    /** 文件服务不可用或附件不可下载 */
+    public static final int DOC_FILE_UNAVAILABLE = 50308;
+
     /** 错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(APPROVAL_CONFIG_NOT_FOUND, "审批配置不存在或无权访问"),
@@ -432,7 +462,17 @@ public final class OaErrorCode {
             Map.entry(DRIVE_FILE_EXISTS, "该文件已在当前文件夹登记"),
             Map.entry(DRIVE_NAME_EXISTS, "同目录下已存在同名文件夹"),
             Map.entry(DRIVE_FILE_UNAVAILABLE, "文件服务暂不可用或文件不可下载，请稍后重试"),
-            Map.entry(DIRECTORY_UNAVAILABLE, "通讯录服务暂不可用，请稍后重试"));
+            Map.entry(DIRECTORY_UNAVAILABLE, "通讯录服务暂不可用，请稍后重试"),
+            Map.entry(DOC_INVALID, "公文参数非法，请检查标题、文种与收发单位"),
+            Map.entry(DOC_NOT_FOUND, "公文不存在或无权访问"),
+            Map.entry(DOC_STATUS_CONFLICT, "公文当前状态不允许该操作"),
+            Map.entry(DOC_NO_RULE_NOT_FOUND, "文号规则不存在或无权访问"),
+            Map.entry(DOC_NO_RULE_EXISTS, "文号规则编码已存在"),
+            Map.entry(DOC_TEMPLATE_NOT_FOUND, "公文模板不存在或无权访问"),
+            Map.entry(DOC_TEMPLATE_EXISTS, "公文模板同编码同版本已存在"),
+            Map.entry(DOC_FORBIDDEN, "无权操作该公文"),
+            Map.entry(DOC_ARCHIVE_UNAVAILABLE, "档案服务暂不可用，稍后可重试归档"),
+            Map.entry(DOC_FILE_UNAVAILABLE, "文件服务暂不可用或附件不可下载，请稍后重试"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。

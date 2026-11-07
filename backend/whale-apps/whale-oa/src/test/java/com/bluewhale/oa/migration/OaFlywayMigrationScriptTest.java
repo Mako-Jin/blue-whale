@@ -353,6 +353,35 @@ class OaFlywayMigrationScriptTest {
         assertTrue(script.contains("idx_oa_drive_folder_parent"), "V11 应按父目录建索引");
     }
 
+    @Test
+    @DisplayName("V12 创建公文模板、文号规则、发文、收文、附件与归档映射表")
+    void v12ShouldCreateDocumentTables() throws IOException {
+        Path v12 = MIGRATION_DIR.resolve("V12__document.sql");
+        Set<String> tables = extractTables(v12);
+        assertEquals(Set.of("oa_doc_template", "oa_doc_no_rule", "oa_doc_outgoing",
+                "oa_doc_incoming", "oa_doc_attachment", "oa_doc_archive_ref"), tables,
+                "V12 建表集合与 M4 公文设计不一致");
+
+        String script = Files.readString(v12, StandardCharsets.UTF_8);
+        for (String column : List.of("tenant_id", "code", "doc_type", "version", "header_text",
+                "footer_text", "body_template", "prefix", "period_format", "serial_length",
+                "doc_no", "title", "security_level", "urgency", "drafter_id", "main_recipients",
+                "copy_recipients", "signer", "incoming_no", "source_unit", "source_no",
+                "received_date", "assignee_id", "instruction", "file_id", "source_id",
+                "archive_item_id", "error_message")) {
+            assertTrue(script.contains(column), "V12 公文表应包含列：" + column);
+        }
+        assertTrue(script.contains("uk_oa_doc_template_code_version"), "V12 应保证模板编码+版本唯一");
+        assertTrue(script.contains("uk_oa_doc_no_rule_code"), "V12 应保证文号规则编码唯一");
+        assertTrue(script.contains("uk_oa_doc_outgoing_no"), "V12 应保证发文文号租户唯一");
+        assertTrue(script.contains("uk_oa_doc_incoming_no"), "V12 应保证收文文号租户唯一");
+        assertTrue(script.contains("uk_oa_doc_archive_doc"), "V12 应保证每单归档映射唯一");
+        assertTrue(script.contains("'DOC_OUTGOING'"), "V12 应种子发文审批业务类型");
+        assertTrue(script.contains("'OA_DOC_OUTGOING'"), "V12 应绑定发文流程定义");
+        assertTrue(script.contains("'OUT_DEFAULT'"), "V12 应种子默认发文文号规则");
+        assertTrue(script.contains("'IN_DEFAULT'"), "V12 应种子默认收文文号规则");
+    }
+
     /**
      * 列出迁移脚本并按版本号数值升序返回（避免 V10 排在 V1 之前）
      *

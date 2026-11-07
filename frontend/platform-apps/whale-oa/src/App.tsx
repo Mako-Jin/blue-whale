@@ -22,6 +22,10 @@ import ExpenseCategoryPage from './pages/expense/category';
 import VehicleAdminPage from './pages/admin/vehicle';
 import SealAdminPage from './pages/admin/seal';
 import PurchaseAdminPage from './pages/admin/purchase';
+import OutgoingDocPage from './pages/document/outgoing';
+import IncomingDocPage from './pages/document/incoming';
+import DocumentTemplatePage from './pages/document/template';
+import DocumentArchivePage from './pages/document/archive';
 import CollabMeetingPage from './pages/collab/meeting';
 import CollabNoticePage from './pages/collab/notice';
 import CollabTaskPage from './pages/collab/task';
@@ -55,6 +59,10 @@ const MENU_ITEMS = [
   { key: '/admin/vehicle', label: '用车管理', permission: 'sys:oa:vehicle:list' },
   { key: '/admin/seal', label: '用章申请', permission: 'sys:oa:seal:list' },
   { key: '/admin/purchase', label: '采购申请', permission: 'sys:oa:purchase:list' },
+  { key: '/document/outgoing', label: '发文管理', permission: 'sys:oa:document:list' },
+  { key: '/document/incoming', label: '收文管理', permission: 'sys:oa:document:list' },
+  { key: '/document/template', label: '公文模板', permission: 'sys:oa:document:template' },
+  { key: '/document/archive', label: '公文归档', permission: 'sys:oa:document:archive' },
   { key: '/collab/meeting', label: '会议管理', permission: 'sys:oa:meeting:list' },
   { key: '/collab/calendar', label: '日程管理', permission: 'sys:oa:calendar:list' },
   { key: '/collab/drive', label: '网盘', permission: 'sys:oa:drive:list' },
@@ -114,6 +122,10 @@ function OaLayout() {
             <Route path="/admin/vehicle" element={<VehicleAdminPage />} />
             <Route path="/admin/seal" element={<SealAdminPage />} />
             <Route path="/admin/purchase" element={<PurchaseAdminPage />} />
+            <Route path="/document/outgoing" element={<OutgoingDocPage />} />
+            <Route path="/document/incoming" element={<IncomingDocPage />} />
+            <Route path="/document/template" element={<DocumentTemplatePage />} />
+            <Route path="/document/archive" element={<DocumentArchivePage />} />
             <Route path="/collab/meeting" element={<CollabMeetingPage />} />
             <Route path="/collab/calendar" element={<CollabCalendarPage />} />
             <Route path="/collab/drive" element={<CollabDrivePage />} />

@@ -51,6 +51,9 @@ public final class ArchiveConstants {
     /** 来源类型：文档页面（M3 在线文档归档快照） */
     public static final String SOURCE_DOC_PAGE = "DOC_PAGE";
 
+    /** 来源类型：OA 公文（M4 发文/收文归档快照） */
+    public static final String SOURCE_OA_DOC = "OA_DOC";
+
     /** 文件角色：原件 */
     public static final String FILE_ROLE_ORIGINAL = "ORIGINAL";
 
