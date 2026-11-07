@@ -33,6 +33,8 @@ import com.bluewhale.mes.mapper.MesWorkOrderMapper;
 import com.bluewhale.mes.masterdata.entity.MesReasonCode;
 import com.bluewhale.mes.masterdata.mapper.MesReasonCodeMapper;
 import com.bluewhale.mes.masterdata.mapper.MesStationMapper;
+import com.bluewhale.mes.trace.dto.MesLineSideOperationRequest;
+import com.bluewhale.mes.trace.service.MesLineSideService;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -50,6 +52,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -113,6 +116,9 @@ class MesExecutionServiceImplTest {
 
     @Mock
     private MesEquipmentService equipmentService;
+
+    @Mock
+    private MesLineSideService lineSideService;
 
     @InjectMocks
     private MesExecutionServiceImpl executionService;
@@ -344,6 +350,64 @@ class MesExecutionServiceImplTest {
         assertTrue(issueNo.startsWith("MIS-"));
         verify(materialIssueMapper).insert(any(MesMaterialIssue.class));
         verify(materialIssueLineMapper).insert(any(MesMaterialIssueLine.class));
+        verify(lineSideService, never()).issue(any(MesLineSideOperationRequest.class));
+    }
+
+    /**
+     * 领料：绑定产线时联动扣减线边库存
+     */
+    @Test
+    @DisplayName("领料登记：绑定产线联动扣减线边库存")
+    void issueMaterialShouldIssueLineSideStock() {
+        MesWorkOrder workOrder = new MesWorkOrder();
+        workOrder.setId(WORK_ORDER_ID);
+        when(mesWorkOrderMapper.selectById(WORK_ORDER_ID)).thenReturn(workOrder);
+        MesMaterialIssueRequest request = new MesMaterialIssueRequest();
+        request.setWorkOrderId(WORK_ORDER_ID);
+        request.setWarehouseCode("WH01");
+        request.setLineId(9L);
+        request.setLineCode("LINE-01");
+        MesMaterialIssueRequest.Line line = new MesMaterialIssueRequest.Line();
+        line.setItemCode("M-1");
+        line.setQuantity(new BigDecimal("5"));
+        line.setBatchNo("B-1");
+        request.setLines(List.of(line));
+
+        executionService.issueMaterial(request);
+
+        verify(lineSideService).issue(argThat(lineRequest ->
+                Long.valueOf(9L).equals(lineRequest.getLineId())
+                        && "LINE-01".equals(lineRequest.getLineCode())
+                        && "M-1".equals(lineRequest.getItemCode())
+                        && new BigDecimal("5").compareTo(lineRequest.getQuantity()) == 0
+                        && "B-1".equals(lineRequest.getBatchNo())
+                        && lineRequest.getRemark().startsWith("生产领料联动：")));
+    }
+
+    /**
+     * 领料：产线 ID 与编码未成对填写时拒绝
+     */
+    @Test
+    @DisplayName("领料登记：产线 ID 与编码必须成对")
+    void issueMaterialShouldRejectUnpairedLine() {
+        MesWorkOrder workOrder = new MesWorkOrder();
+        workOrder.setId(WORK_ORDER_ID);
+        when(mesWorkOrderMapper.selectById(WORK_ORDER_ID)).thenReturn(workOrder);
+        MesMaterialIssueRequest request = new MesMaterialIssueRequest();
+        request.setWorkOrderId(WORK_ORDER_ID);
+        request.setWarehouseCode("WH01");
+        request.setLineId(9L);
+        MesMaterialIssueRequest.Line line = new MesMaterialIssueRequest.Line();
+        line.setItemCode("M-1");
+        line.setQuantity(new BigDecimal("5"));
+        request.setLines(List.of(line));
+
+        BizException exception = assertThrows(BizException.class,
+                () -> executionService.issueMaterial(request));
+
+        assertTrue(exception.getMessage().contains("必须同时填写"));
+        verify(materialIssueMapper, never()).insert(any(MesMaterialIssue.class));
+        verify(lineSideService, never()).issue(any(MesLineSideOperationRequest.class));
     }
 
     /**

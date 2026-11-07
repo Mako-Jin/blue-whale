@@ -32,6 +32,13 @@ public class MesMaterialIssueRequest {
     @Size(max = 64, message = "仓库编码长度不能超过 64")
     private String warehouseCode;
 
+    /** 产线 ID（填写时按线边仓扣减库存） */
+    private Long lineId;
+
+    /** 产线编码（与产线 ID 同时填写） */
+    @Size(max = 64, message = "产线编码长度不能超过 64")
+    private String lineCode;
+
     /** 类型：ISSUE 领料 / SUPPLEMENT 补料 */
     @Pattern(regexp = "ISSUE|SUPPLEMENT", message = "领料类型不合法")
     private String issueType;

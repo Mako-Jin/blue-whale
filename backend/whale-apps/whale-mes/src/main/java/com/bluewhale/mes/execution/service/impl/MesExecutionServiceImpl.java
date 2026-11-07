@@ -45,6 +45,8 @@ import com.bluewhale.mes.masterdata.entity.MesReasonCode;
 import com.bluewhale.mes.masterdata.entity.MesStation;
 import com.bluewhale.mes.masterdata.mapper.MesReasonCodeMapper;
 import com.bluewhale.mes.masterdata.mapper.MesStationMapper;
+import com.bluewhale.mes.trace.dto.MesLineSideOperationRequest;
+import com.bluewhale.mes.trace.service.MesLineSideService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -133,6 +135,8 @@ public class MesExecutionServiceImpl implements MesExecutionService {
     private final MesTaskProgressService progressService;
 
     private final MesEquipmentService equipmentService;
+
+    private final MesLineSideService lineSideService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -308,6 +312,7 @@ public class MesExecutionServiceImpl implements MesExecutionService {
     public String issueMaterial(MesMaterialIssueRequest request) {
         requireWorkOrder(request.getWorkOrderId());
         verifyTaskBelongsToOrder(request.getTaskId(), request.getWorkOrderId());
+        assertLineBinding(request.getLineId(), request.getLineCode());
         String issueType = request.getIssueType() == null ? ISSUE_TYPE_ISSUE : request.getIssueType();
         if (ISSUE_TYPE_SUPPLEMENT.equals(issueType) && !StringUtils.hasText(request.getReason())) {
             throw new BizException(ErrorCode.PARAM_ERROR, "补料必须填写补料原因");
@@ -333,7 +338,49 @@ public class MesExecutionServiceImpl implements MesExecutionService {
             entity.setBatchNo(line.getBatchNo());
             materialIssueLineMapper.insert(entity);
         }
+        if (request.getLineId() != null) {
+            issueLineSide(request, issue.getIssueNo());
+        }
         return issue.getIssueNo();
+    }
+
+    /**
+     * 校验产线绑定参数成对出现
+     *
+     * @param lineId   产线 ID
+     * @param lineCode 产线编码
+     */
+    private void assertLineBinding(Long lineId, String lineCode) {
+        if (lineId == null && !StringUtils.hasText(lineCode)) {
+            return;
+        }
+        if (lineId == null || !StringUtils.hasText(lineCode)) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "产线 ID 与产线编码必须同时填写");
+        }
+    }
+
+    /**
+     * 生产领料联动扣减线边仓库存
+     *
+     * @param request 领料请求
+     * @param issueNo 领料单号
+     */
+    private void issueLineSide(MesMaterialIssueRequest request, String issueNo) {
+        for (MesMaterialIssueRequest.Line line : request.getLines()) {
+            MesLineSideOperationRequest lineRequest = new MesLineSideOperationRequest();
+            lineRequest.setLineId(request.getLineId());
+            lineRequest.setLineCode(request.getLineCode());
+            lineRequest.setWarehouseCode(request.getWarehouseCode());
+            lineRequest.setItemCode(line.getItemCode());
+            lineRequest.setItemName(line.getItemName());
+            lineRequest.setBatchNo(line.getBatchNo());
+            lineRequest.setQuantity(line.getQuantity());
+            lineRequest.setUom(line.getUom());
+            lineRequest.setWorkOrderId(request.getWorkOrderId());
+            lineRequest.setTaskId(request.getTaskId());
+            lineRequest.setRemark("生产领料联动：" + issueNo);
+            lineSideService.issue(lineRequest);
+        }
     }
 
     @Override
