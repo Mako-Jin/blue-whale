@@ -450,8 +450,8 @@ public class CollabRepositoryImpl implements CollabRepository {
     }
 
     private LambdaQueryWrapper<MeetingEntity> meetingFilter(CollabQuery query) {
-        return new LambdaQueryWrapper<MeetingEntity>()
-                .and(StringUtils.hasText(query.getKeyword()), wrapper -> wrapper
+        LambdaQueryWrapper<MeetingEntity> wrapper = new LambdaQueryWrapper<MeetingEntity>()
+                .and(StringUtils.hasText(query.getKeyword()), item -> item
                         .like(MeetingEntity::getCode, query.getKeyword())
                         .or().like(MeetingEntity::getTitle, query.getKeyword()))
                 .eq(query.getRoomId() != null, MeetingEntity::getRoomId, query.getRoomId())
@@ -459,8 +459,18 @@ public class CollabRepositoryImpl implements CollabRepository {
                 .ge(query.getDateFrom() != null, MeetingEntity::getStartTime,
                         query.getDateFrom() == null ? null : query.getDateFrom().atStartOfDay())
                 .le(query.getDateTo() != null, MeetingEntity::getStartTime,
-                        query.getDateTo() == null ? null : query.getDateTo().atTime(23, 59, 59))
-                .orderByDesc(MeetingEntity::getStartTime)
+                        query.getDateTo() == null ? null : query.getDateTo().atTime(23, 59, 59));
+        if (query.getParticipantId() != null) {
+            List<Long> meetingIds = participantMapper.selectList(new LambdaQueryWrapper<MeetingParticipantEntity>()
+                            .eq(MeetingParticipantEntity::getUserId, query.getParticipantId()))
+                    .stream().map(MeetingParticipantEntity::getMeetingId).toList();
+            if (meetingIds.isEmpty()) {
+                wrapper.eq(MeetingEntity::getId, -1L);
+            } else {
+                wrapper.in(MeetingEntity::getId, meetingIds);
+            }
+        }
+        return wrapper.orderByDesc(MeetingEntity::getStartTime)
                 .orderByDesc(MeetingEntity::getId);
     }
 

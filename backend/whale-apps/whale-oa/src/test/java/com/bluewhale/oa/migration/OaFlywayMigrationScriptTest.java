@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -316,8 +317,25 @@ class OaFlywayMigrationScriptTest {
         assertTrue(script.contains("uk_oa_notice_recipient_user"), "V9 应保证公告接收人唯一");
     }
 
+    @Test
+    @DisplayName("V10 创建日程与日程共享表")
+    void v10ShouldCreateCalendarTables() throws IOException {
+        Path v10 = MIGRATION_DIR.resolve("V10__calendar.sql");
+        Set<String> tables = extractTables(v10);
+        assertEquals(Set.of("oa_calendar", "oa_calendar_share"), tables, "V10 建表集合与 M3-P2 日程设计不一致");
+
+        String script = Files.readString(v10, StandardCharsets.UTF_8);
+        for (String column : List.of("tenant_id", "owner_id", "owner_name", "title", "start_time",
+                "end_time", "all_day", "visibility", "remind_minutes", "source_id",
+                "calendar_id", "user_id", "user_name")) {
+            assertTrue(script.contains(column), "V10 日程表应包含列：" + column);
+        }
+        assertTrue(script.contains("uk_oa_calendar_share_user"), "V10 应保证同一日程对同一用户仅共享一次");
+        assertTrue(script.contains("idx_oa_calendar_owner_time"), "V10 应按所有者与时间建索引");
+    }
+
     /**
-     * 列出迁移脚本并按文件名字典序返回
+     * 列出迁移脚本并按版本号数值升序返回（避免 V10 排在 V1 之前）
      *
      * @return 迁移脚本路径
      * @throws IOException 读取目录失败
@@ -325,7 +343,7 @@ class OaFlywayMigrationScriptTest {
     private static List<Path> migrationScripts() throws IOException {
         try (var stream = Files.list(MIGRATION_DIR)) {
             return stream.filter(path -> path.getFileName().toString().endsWith(".sql"))
-                    .sorted()
+                    .sorted(Comparator.comparingLong(OaFlywayMigrationScriptTest::versionOf))
                     .collect(Collectors.toList());
         }
     }

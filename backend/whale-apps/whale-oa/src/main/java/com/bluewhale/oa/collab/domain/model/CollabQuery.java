@@ -36,6 +36,9 @@ public class CollabQuery extends PageQuery {
     /** 任务来源 */
     private String source;
 
+    /** 参会人用户ID（用于“我参与的会议”过滤） */
+    private Long participantId;
+
     /** 日期起（含） */
     private LocalDate dateFrom;
 

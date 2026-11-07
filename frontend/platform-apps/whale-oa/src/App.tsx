@@ -25,6 +25,7 @@ import PurchaseAdminPage from './pages/admin/purchase';
 import CollabMeetingPage from './pages/collab/meeting';
 import CollabNoticePage from './pages/collab/notice';
 import CollabTaskPage from './pages/collab/task';
+import CollabCalendarPage from './pages/collab/calendar';
 import { hasPermission } from './utils/permission';
 
 const { Header, Content, Sider } = Layout;
@@ -52,6 +53,7 @@ const MENU_ITEMS = [
   { key: '/admin/seal', label: '用章申请', permission: 'sys:oa:seal:list' },
   { key: '/admin/purchase', label: '采购申请', permission: 'sys:oa:purchase:list' },
   { key: '/collab/meeting', label: '会议管理', permission: 'sys:oa:meeting:list' },
+  { key: '/collab/calendar', label: '日程管理', permission: 'sys:oa:calendar:list' },
   { key: '/collab/notice', label: '公告管理', permission: 'sys:oa:notice:list' },
   { key: '/collab/task', label: '我的任务', permission: 'sys:oa:task:list' },
 ];
@@ -107,6 +109,7 @@ function OaLayout() {
             <Route path="/admin/seal" element={<SealAdminPage />} />
             <Route path="/admin/purchase" element={<PurchaseAdminPage />} />
             <Route path="/collab/meeting" element={<CollabMeetingPage />} />
+            <Route path="/collab/calendar" element={<CollabCalendarPage />} />
             <Route path="/collab/notice" element={<CollabNoticePage />} />
             <Route path="/collab/task" element={<CollabTaskPage />} />
             <Route path="*" element={<Navigate to={DEFAULT_PATH} replace />} />

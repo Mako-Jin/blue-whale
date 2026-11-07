@@ -288,6 +288,15 @@ public final class OaErrorCode {
     /** 任务状态不允许该操作 */
     public static final int TASK_STATUS_CONFLICT = 40936;
 
+    /** 日程参数非法 */
+    public static final int CALENDAR_INVALID = 40021;
+
+    /** 日程不存在或无权访问 */
+    public static final int CALENDAR_NOT_FOUND = 40432;
+
+    /** 无权操作该日程 */
+    public static final int CALENDAR_FORBIDDEN = 40303;
+
     /** 错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(APPROVAL_CONFIG_NOT_FOUND, "审批配置不存在或无权访问"),
@@ -380,7 +389,10 @@ public final class OaErrorCode {
             Map.entry(NOTICE_RECIPIENT_NOT_FOUND, "公告接收记录不存在或无权访问"),
             Map.entry(TASK_INVALID, "任务参数非法，请检查标题、负责人与截止日期"),
             Map.entry(TASK_NOT_FOUND, "任务不存在或无权访问"),
-            Map.entry(TASK_STATUS_CONFLICT, "任务当前状态不允许该操作"));
+            Map.entry(TASK_STATUS_CONFLICT, "任务当前状态不允许该操作"),
+            Map.entry(CALENDAR_INVALID, "日程参数非法，请检查时间区间、可见性与提醒设置"),
+            Map.entry(CALENDAR_NOT_FOUND, "日程不存在或无权访问"),
+            Map.entry(CALENDAR_FORBIDDEN, "无权操作该日程"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。

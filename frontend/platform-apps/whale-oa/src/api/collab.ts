@@ -39,6 +39,7 @@ export interface OaCollabQuery {
   roomId?: number;
   scopeType?: OaNoticeScopeType | '';
   source?: OaTaskSource | '';
+  participantId?: number;
   dateFrom?: string;
   dateTo?: string;
   userId?: number;
