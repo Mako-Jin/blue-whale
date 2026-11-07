@@ -7,6 +7,8 @@ import com.bluewhale.mes.dispatch.entity.MesWorkOrderTask;
 import com.bluewhale.mes.dispatch.mapper.MesWorkOrderTaskMapper;
 import com.bluewhale.mes.dispatch.service.MesTaskProgressService;
 import com.bluewhale.mes.entity.MesWorkOrder;
+import com.bluewhale.mes.equipment.service.MesEquipmentService;
+import com.bluewhale.mes.equipment.vo.MesEquipmentGateVO;
 import com.bluewhale.mes.execution.dto.MesExceptionActionRequest;
 import com.bluewhale.mes.execution.dto.MesExceptionCreateRequest;
 import com.bluewhale.mes.execution.dto.MesMaterialIssueRequest;
@@ -109,6 +111,9 @@ class MesExecutionServiceImplTest {
     @Mock
     private MesTaskProgressService progressService;
 
+    @Mock
+    private MesEquipmentService equipmentService;
+
     @InjectMocks
     private MesExecutionServiceImpl executionService;
 
@@ -153,6 +158,28 @@ class MesExecutionServiceImplTest {
                 () -> executionService.start(TASK_ID, new MesTaskActionRequest()));
 
         assertTrue(exception.getMessage().contains("不允许开工"));
+        verify(taskMapper, never()).updateById(any(MesWorkOrderTask.class));
+    }
+
+    /**
+     * 开工：设备门禁未通过拒绝开工
+     */
+    @Test
+    @DisplayName("任务开工：设备门禁未通过拒绝")
+    void startShouldRejectWhenEquipmentGateFails() {
+        MesWorkOrderTask task = task("DISPATCHED");
+        when(taskMapper.selectById(TASK_ID)).thenReturn(task);
+        MesEquipmentGateVO gate = new MesEquipmentGateVO();
+        gate.setPassed(false);
+        gate.setMessage("设备处于故障状态");
+        when(equipmentService.gate("EQ-01")).thenReturn(gate);
+        MesTaskActionRequest request = new MesTaskActionRequest();
+        request.setEquipmentCode("EQ-01");
+
+        BizException exception = assertThrows(BizException.class,
+                () -> executionService.start(TASK_ID, request));
+
+        assertTrue(exception.getMessage().contains("开工门禁未通过"));
         verify(taskMapper, never()).updateById(any(MesWorkOrderTask.class));
     }
 

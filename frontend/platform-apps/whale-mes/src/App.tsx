@@ -6,6 +6,7 @@ import type { MenuProps } from 'antd';
 import List from './pages/List';
 import MasterDataPage from './pages/MasterDataPage';
 import DispatchPage from './pages/DispatchPage';
+import SchedulingPage from './pages/SchedulingPage';
 import ExecutionPage from './pages/ExecutionPage';
 import BoardPage from './pages/BoardPage';
 import TracePage from './pages/TracePage';
@@ -24,6 +25,7 @@ const menuItems: MenuProps['items'] = [
   { key: '/dashboard', label: '综合看板' },
   { key: '/work-order', label: '生产工单' },
   { key: '/dispatch', label: '调度派工' },
+  { key: '/dispatch/schedule', label: '生产排程' },
   { key: '/execution', label: '生产执行' },
   { key: '/board', label: '生产看板' },
   { key: '/master-data', label: '基础主数据' },
@@ -60,6 +62,7 @@ const menuItems: MenuProps['items'] = [
 const MENU_KEYS = [
   '/dashboard',
   '/work-order',
+  '/dispatch/schedule',
   '/dispatch',
   '/execution',
   '/board',
@@ -148,6 +151,7 @@ function MesShell() {
             />
             <Route path="/master-data" element={<MasterDataPage />} />
             <Route path="/dispatch" element={<DispatchPage />} />
+            <Route path="/dispatch/schedule" element={<SchedulingPage />} />
             <Route path="/execution" element={<ExecutionPage />} />
             <Route path="/board" element={<BoardPage />} />
             <Route path="/trace" element={<TracePage initialTab="barcode" />} />

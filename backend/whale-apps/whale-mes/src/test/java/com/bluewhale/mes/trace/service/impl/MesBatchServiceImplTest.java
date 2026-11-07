@@ -115,6 +115,50 @@ class MesBatchServiceImplTest {
     }
 
     /**
+     * 冲销：回退父批次已消耗量并置链接为已冲销
+     */
+    @Test
+    @DisplayName("谱系冲销：回退消耗量")
+    void reverseShouldDecreaseConsumedQuantity() {
+        MesTraceLink link = new MesTraceLink();
+        link.setId(7L);
+        link.setParentBatchId(PARENT_ID);
+        link.setParentBatchNo("B-100");
+        link.setChildBatchNo("B-200");
+        link.setQuantity(new BigDecimal("20"));
+        link.setStatus("ACTIVE");
+        MesMaterialBatch parent = parent();
+        parent.setConsumedQuantity(new BigDecimal("50"));
+        when(linkMapper.selectById(7L)).thenReturn(link);
+        when(batchMapper.selectById(PARENT_ID)).thenReturn(parent);
+        when(batchMapper.updateById(any(MesMaterialBatch.class))).thenReturn(1);
+        when(linkMapper.updateById(any(MesTraceLink.class))).thenReturn(1);
+
+        batchService.reverseLink(7L, "返工冲销");
+
+        assertEquals(0, new BigDecimal("30").compareTo(parent.getConsumedQuantity()));
+        assertEquals("REVERSED", link.getStatus());
+        assertEquals("返工冲销", link.getRemark());
+    }
+
+    /**
+     * 冲销：已冲销链接幂等返回
+     */
+    @Test
+    @DisplayName("谱系冲销：重复冲销幂等")
+    void reverseShouldBeIdempotent() {
+        MesTraceLink link = new MesTraceLink();
+        link.setId(8L);
+        link.setStatus("REVERSED");
+        when(linkMapper.selectById(8L)).thenReturn(link);
+
+        batchService.reverseLink(8L, null);
+
+        verify(linkMapper, never()).updateById(any(MesTraceLink.class));
+        verify(batchMapper, never()).updateById(any(MesMaterialBatch.class));
+    }
+
+    /**
      * 建链：消耗量超过投入量拒绝
      */
     @Test

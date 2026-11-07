@@ -23,4 +23,8 @@ public class MesTaskActionRequest {
     /** 原因 / 备注 */
     @Size(max = 255, message = "原因长度不能超过 255")
     private String remark;
+
+    /** 开工设备编码（可选，填写时执行开工门禁） */
+    @Size(max = 64, message = "设备编码长度不能超过 64")
+    private String equipmentCode;
 }

@@ -51,6 +51,14 @@ public interface MesBatchService {
     Long link(MesTraceLinkRequest request);
 
     /**
+     * 冲销谱系链接（ACTIVE → REVERSED，回退上级批次已消耗量）
+     *
+     * @param id     链接 ID
+     * @param remark 冲销原因
+     */
+    void reverseLink(Long id, String remark);
+
+    /**
      * 正向追溯：从批次出发查下游成品
      *
      * @param batchNo 批次号

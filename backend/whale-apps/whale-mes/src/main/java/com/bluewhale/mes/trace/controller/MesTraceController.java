@@ -13,12 +13,15 @@ import com.bluewhale.mes.trace.dto.MesBatchSaveRequest;
 import com.bluewhale.mes.trace.dto.MesScanRuleSaveRequest;
 import com.bluewhale.mes.trace.dto.MesScanValidateRequest;
 import com.bluewhale.mes.trace.dto.MesTraceLinkRequest;
+import com.bluewhale.mes.trace.dto.MesTraceReverseRequest;
 import com.bluewhale.mes.trace.service.MesBarcodeService;
 import com.bluewhale.mes.trace.service.MesBatchService;
+import com.bluewhale.mes.trace.service.MesEquipmentTraceService;
 import com.bluewhale.mes.trace.service.MesScanService;
 import com.bluewhale.mes.trace.vo.MesBarcodeRuleVO;
 import com.bluewhale.mes.trace.vo.MesBarcodeVO;
 import com.bluewhale.mes.trace.vo.MesBatchVO;
+import com.bluewhale.mes.trace.vo.MesEquipmentTraceVO;
 import com.bluewhale.mes.trace.vo.MesScanRuleVO;
 import com.bluewhale.mes.trace.vo.MesScanValidateVO;
 import com.bluewhale.mes.trace.vo.MesTraceNodeVO;
@@ -53,6 +56,8 @@ public class MesTraceController {
     private final MesBarcodeService barcodeService;
 
     private final MesBatchService batchService;
+
+    private final MesEquipmentTraceService equipmentTraceService;
 
     private final MesScanService scanService;
 
@@ -176,6 +181,37 @@ public class MesTraceController {
     @AuditLog(operation = "MES 批次谱系建链", type = OperateType.CREATE, targetType = TARGET_TYPE)
     public Result<Long> link(@Valid @RequestBody MesTraceLinkRequest request) {
         return Result.ok(batchService.link(request));
+    }
+
+    /**
+     * 冲销批次谱系链接
+     *
+     * @param id      链接 ID
+     * @param request 冲销请求
+     * @return 空结果
+     */
+    @PostMapping("/trace/link/{id}/reverse")
+    @RequirePermission("sys:mes:trace:reverse")
+    @AuditLog(operation = "MES 批次谱系冲销", type = OperateType.UPDATE,
+            targetType = TARGET_TYPE, targetId = "#id")
+    public Result<Void> reverseLink(@PathVariable Long id,
+                                    @RequestBody(required = false) MesTraceReverseRequest request) {
+        batchService.reverseLink(id, request == null ? null : request.getRemark());
+        return Result.ok();
+    }
+
+    /**
+     * 设备维度追溯（按设备所在工位反查报工与批次）
+     *
+     * @param equipmentCode 设备编码
+     * @param limit         报工条数上限
+     * @return 设备维度追溯视图
+     */
+    @GetMapping("/trace/equipment/{equipmentCode}")
+    @RequirePermission("sys:mes:trace:equipment")
+    public Result<MesEquipmentTraceVO> equipmentTrace(@PathVariable String equipmentCode,
+                                                      @RequestParam(required = false) Integer limit) {
+        return Result.ok(equipmentTraceService.trace(equipmentCode, limit));
     }
 
     /**

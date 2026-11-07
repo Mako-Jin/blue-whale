@@ -11,6 +11,8 @@ import com.bluewhale.mes.dispatch.mapper.MesWorkOrderTaskMapper;
 import com.bluewhale.mes.dispatch.service.MesTaskProgressService;
 import com.bluewhale.mes.dispatch.vo.MesWorkOrderTaskVO;
 import com.bluewhale.mes.entity.MesWorkOrder;
+import com.bluewhale.mes.equipment.service.MesEquipmentService;
+import com.bluewhale.mes.equipment.vo.MesEquipmentGateVO;
 import com.bluewhale.mes.execution.dto.MesExceptionActionRequest;
 import com.bluewhale.mes.execution.dto.MesExceptionCreateRequest;
 import com.bluewhale.mes.execution.dto.MesMaterialIssueRequest;
@@ -130,11 +132,20 @@ public class MesExecutionServiceImpl implements MesExecutionService {
 
     private final MesTaskProgressService progressService;
 
+    private final MesEquipmentService equipmentService;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public MesWorkOrderTaskVO start(Long taskId, MesTaskActionRequest request) {
         MesWorkOrderTask task = requireTask(taskId);
         assertStatus(task, Set.of(TASK_DISPATCHED), "开工");
+        if (request != null && StringUtils.hasText(request.getEquipmentCode())) {
+            MesEquipmentGateVO gate = equipmentService.gate(request.getEquipmentCode());
+            if (!Boolean.TRUE.equals(gate.getPassed())) {
+                throw new BizException(ErrorCode.PARAM_ERROR,
+                        "开工门禁未通过：" + gate.getMessage());
+            }
+        }
         task.setStatus(TASK_IN_PROGRESS);
         updateTask(task);
         progressService.refreshWorkOrder(task.getWorkOrderId());

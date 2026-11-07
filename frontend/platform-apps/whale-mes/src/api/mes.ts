@@ -340,6 +340,96 @@ export function fetchMesBoard(params: { lineId?: string; teamId?: string } = {})
   return http.get<MesBoard>(`/mes/dispatch/board${queryString ? `?${queryString}` : ''}`);
 }
 
+/** 排程计划状态 */
+export type MesScheduleStatus = 'DRAFT' | 'LOCKED' | 'CANCELLED';
+
+/** 排程时段 */
+export interface MesScheduleSlot {
+  id: string;
+  planId: string;
+  taskId: string;
+  taskNo?: string;
+  operationCode?: string;
+  operationName?: string;
+  workCenterId: string;
+  workCenterCode?: string;
+  shiftId: string;
+  scheduleDate: string;
+  capacityQuantity: number | string;
+  allocatedQuantity: number | string;
+  status: 'RESERVED' | 'RELEASED';
+}
+
+/** 排程计划 */
+export interface MesSchedulePlan {
+  id: string;
+  planNo: string;
+  planDate: string;
+  workOrderId: string;
+  workOrderCode?: string;
+  status: MesScheduleStatus;
+  plannedBy?: string;
+  remark?: string;
+  createTime?: string;
+  slots?: MesScheduleSlot[];
+}
+
+/** 有限产能排程生成入参 */
+export interface MesScheduleGenerateInput {
+  planDate?: string;
+  days?: number;
+  workCenterIds?: string[];
+  plannedBy?: string;
+}
+
+/** 有限产能排程生成结果 */
+export interface MesScheduleGenerateResult {
+  planCount: number;
+  slotCount: number;
+  unscheduledTasks: number;
+  message: string;
+}
+
+/** 有限产能排程查询条件 */
+export interface MesScheduleQuery {
+  planDate?: string;
+  workOrderCode?: string;
+  status?: MesScheduleStatus;
+  current?: number;
+  size?: number;
+}
+
+/** 生成有限产能排程草稿 */
+export function generateMesSchedule(input: MesScheduleGenerateInput): Promise<MesScheduleGenerateResult> {
+  return http.post<MesScheduleGenerateResult>('/mes/dispatch/schedule/generate', input);
+}
+
+/** 分页查询排程计划 */
+export function pageMesSchedulePlans(query: MesScheduleQuery = {}): Promise<PageResult<MesSchedulePlan>> {
+  const queryString = toQueryString({ current: 1, size: 20, ...query });
+  return http.get<PageResult<MesSchedulePlan>>(`/mes/dispatch/schedule/plan/page?${queryString}`);
+}
+
+/** 查询排程计划详情（含时段） */
+export function getMesSchedulePlan(id: string): Promise<MesSchedulePlan> {
+  return http.get<MesSchedulePlan>(`/mes/dispatch/schedule/plan/${id}`);
+}
+
+/** 锁定排程计划 */
+export function lockMesSchedulePlan(id: string, remark?: string): Promise<MesSchedulePlan> {
+  return http.post<MesSchedulePlan>(`/mes/dispatch/schedule/plan/${id}/lock`, { remark });
+}
+
+/** 取消排程计划 */
+export function cancelMesSchedulePlan(id: string, remark?: string): Promise<MesSchedulePlan> {
+  return http.post<MesSchedulePlan>(`/mes/dispatch/schedule/plan/${id}/cancel`, { remark });
+}
+
+/** 设备维度追溯 */
+export function fetchMesEquipmentTrace(equipmentCode: string, limit = 50): Promise<unknown> {
+  return http.get<unknown>(`/mes/trace/trace/equipment/${encodeURIComponent(equipmentCode)}?limit=${limit}`);
+}
+
 /** 任务执行动作：start / pause / resume / complete / scrap */
 export type MesTaskAction = 'start' | 'pause' | 'resume' | 'complete' | 'scrap';
 

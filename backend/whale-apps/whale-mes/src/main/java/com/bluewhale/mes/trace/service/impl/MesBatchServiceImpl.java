@@ -54,6 +54,9 @@ public class MesBatchServiceImpl implements MesBatchService {
     /** 链接状态：有效 */
     private static final String LINK_ACTIVE = "ACTIVE";
 
+    /** 链接状态：已冲销 */
+    private static final String LINK_REVERSED = "REVERSED";
+
     /** 默认追溯层级 */
     private static final int DEFAULT_DEPTH = 3;
 
@@ -177,6 +180,42 @@ public class MesBatchServiceImpl implements MesBatchService {
         log.info("批次谱系建链: {} -> {}, quantity={}",
                 parent.getBatchNo(), child.getBatchNo(), request.getQuantity());
         return link.getId();
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void reverseLink(Long id, String remark) {
+        MesTraceLink link = linkMapper.selectById(id);
+        if (link == null) {
+            throw new BizException(ErrorCode.NOT_FOUND, "谱系链接不存在：" + id);
+        }
+        if (LINK_REVERSED.equals(link.getStatus())) {
+            return;
+        }
+        if (!LINK_ACTIVE.equals(link.getStatus())) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "谱系链接状态不允许冲销：" + link.getStatus());
+        }
+        MesMaterialBatch parent = batchMapper.selectById(link.getParentBatchId());
+        if (parent == null) {
+            throw new BizException(ErrorCode.NOT_FOUND, "上级批次不存在：" + link.getParentBatchNo());
+        }
+        BigDecimal quantity = link.getQuantity() == null ? BigDecimal.ZERO : link.getQuantity();
+        BigDecimal consumed = parent.getConsumedQuantity() == null ? BigDecimal.ZERO : parent.getConsumedQuantity();
+        BigDecimal after = consumed.subtract(quantity);
+        parent.setConsumedQuantity(after.signum() < 0 ? BigDecimal.ZERO : after);
+        if (batchMapper.updateById(parent) == 0) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "批次已被其他用户修改，请刷新后重试");
+        }
+        link.setStatus(LINK_REVERSED);
+        if (StringUtils.hasText(remark)) {
+            link.setRemark(remark);
+        }
+        if (linkMapper.updateById(link) == 0) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "谱系链接已被其他用户修改，请刷新后重试");
+        }
+        log.info("批次谱系冲销: linkId={}, {} -> {}, quantity={}",
+                id, link.getParentBatchNo(), link.getChildBatchNo(), quantity);
     }
 
     @Override

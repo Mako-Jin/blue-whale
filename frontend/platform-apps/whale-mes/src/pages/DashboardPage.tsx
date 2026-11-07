@@ -81,7 +81,6 @@ export default function DashboardPage() {
       if (controller.signal.aborted) {
         return;
       }
-      // eslint-disable-next-line no-console -- 临时调试：定位浏览器侧 SSE 中止原因
       console.error('[mes-dashboard] SSE 订阅失败', error);
       const text = error instanceof Error ? error.message : String(error);
       message.warning(`实时推送已断开：${text}`);
