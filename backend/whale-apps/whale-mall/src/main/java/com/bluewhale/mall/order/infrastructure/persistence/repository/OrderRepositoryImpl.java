@@ -215,6 +215,11 @@ public class OrderRepositoryImpl implements OrderRepository {
         order.setBuyerName(entity.getBuyerName());
         order.setStatus(OrderStatus.parse(entity.getStatus()));
         order.setTotalAmount(entity.getTotalAmount());
+        order.setGoodsAmount(entity.getGoodsAmount());
+        order.setDiscountAmount(entity.getDiscountAmount());
+        order.setFreightAmount(entity.getFreightAmount());
+        order.setCouponUserId(entity.getCouponUserId());
+        order.setCouponCode(entity.getCouponCode());
         order.setTotalQuantity(entity.getTotalQuantity());
         order.setItemCount(entity.getItemCount());
         order.setIdempotencyKey(entity.getIdempotencyKey());
@@ -254,6 +259,8 @@ public class OrderRepositoryImpl implements OrderRepository {
         item.setRefundedQuantity(entity.getRefundedQuantity());
         item.setRefundedAmount(entity.getRefundedAmount());
         item.setAmount(entity.getAmount());
+        item.setShareDiscount(entity.getShareDiscount());
+        item.setShareFreight(entity.getShareFreight());
         return item;
     }
 
@@ -294,6 +301,11 @@ public class OrderRepositoryImpl implements OrderRepository {
         entity.setBuyerName(order.getBuyerName());
         entity.setStatus(order.getStatus() == null ? null : order.getStatus().name());
         entity.setTotalAmount(order.getTotalAmount());
+        entity.setGoodsAmount(order.getGoodsAmount());
+        entity.setDiscountAmount(order.getDiscountAmount());
+        entity.setFreightAmount(order.getFreightAmount());
+        entity.setCouponUserId(order.getCouponUserId());
+        entity.setCouponCode(order.getCouponCode());
         entity.setTotalQuantity(order.getTotalQuantity());
         entity.setItemCount(order.getItemCount());
         entity.setIdempotencyKey(order.getIdempotencyKey());
@@ -331,6 +343,8 @@ public class OrderRepositoryImpl implements OrderRepository {
         entity.setUnitPrice(item.getUnitPrice());
         entity.setQuantity(item.getQuantity());
         entity.setAmount(item.getAmount());
+        entity.setShareDiscount(item.getShareDiscount());
+        entity.setShareFreight(item.getShareFreight());
         return entity;
     }
 }

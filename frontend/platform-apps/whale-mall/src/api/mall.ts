@@ -226,6 +226,8 @@ export interface ChannelView {
   mode: string;
   settlementType: string;
   currencyType: string;
+  /** 绑定的运费模板 ID（空 = 不收运费，积分商城恒为空） */
+  freightTemplateId?: number;
   status: string;
   remark?: string;
   createTime?: string;
@@ -237,6 +239,8 @@ export interface ChannelSavePayload {
   channelName: string;
   mode: string;
   settlementType: string;
+  /** 运费模板 ID（可空；积分商城会被后端强制清空） */
+  freightTemplateId?: number;
   remark?: string;
 }
 
@@ -354,7 +358,14 @@ export interface OrderLineView {
   refundedQuantity?: number;
   /** 当前可退数量（售后申请上限） */
   refundableQuantity?: number;
+  /** 小计（优惠与运费分摊前） */
   amount: Money;
+  /** 分摊优惠金额 */
+  shareDiscount?: Money;
+  /** 分摊运费 */
+  shareFreight?: Money;
+  /** 本行实付金额（售后可退上限） */
+  netAmount?: Money;
 }
 
 /** 结算预览 */
@@ -364,8 +375,21 @@ export interface OrderPreviewView {
   settlementType: string;
   currencyType: string;
   lines: OrderLineView[];
+  /** 商品总额（优惠与运费前） */
+  goodsAmount: Money;
+  /** 优惠金额 */
+  discountAmount: Money;
+  /** 运费 */
+  freightAmount: Money;
+  /** 应付金额 */
   totalAmount: Money;
   totalQuantity: number;
+  /** 本次选中的用户券 ID */
+  couponId?: number;
+  /** 本次选中的券名称 */
+  couponName?: string;
+  /** 当前订单可用的券（含不可用及原因） */
+  availableCoupons?: CouponUserView[];
 }
 
 /** 订单视图 */
@@ -380,7 +404,16 @@ export interface OrderView {
   buyerUserId: number;
   buyerName?: string;
   status: string;
+  /** 应付金额 */
   totalAmount: Money;
+  /** 商品总额 */
+  goodsAmount?: Money;
+  /** 优惠金额 */
+  discountAmount?: Money;
+  /** 运费 */
+  freightAmount?: Money;
+  /** 使用的券编码 */
+  couponCode?: string;
   totalQuantity: number;
   itemCount: number;
   payNo?: string;
@@ -400,6 +433,7 @@ export interface OrderView {
 export function previewOrder(body: {
   channelId: number;
   itemIds: number[];
+  couponId?: number;
 }): Promise<OrderPreviewView> {
   return http.post<OrderPreviewView>('/mall/order/preview', body);
 }
@@ -415,7 +449,7 @@ export function previewOrder(body: {
  * @returns 订单视图
  */
 export function createOrder(
-  body: { channelId: number; itemIds: number[]; remark?: string },
+  body: { channelId: number; itemIds: number[]; remark?: string; couponId?: number },
   idempotencyKey: string,
 ): Promise<OrderView> {
   return request<OrderView>('/mall/order', {
@@ -570,4 +604,187 @@ export function approveAfterSale(id: number, remark?: string): Promise<void> {
 /** 驳回售后 */
 export function rejectAfterSale(id: number, remark?: string): Promise<void> {
   return http.post<void>(`/mall/after-sale/${id}/reject`, undefined, { remark });
+}
+
+// ---------------------------------------------------------------------------
+// 运费模板
+// ---------------------------------------------------------------------------
+
+/** 运费模板 */
+export interface FreightTemplateView {
+  id: number;
+  templateName: string;
+  /** FREE 全免 / FIXED 固定 / THRESHOLD 满额包邮 */
+  chargeType: string;
+  /** 固定运费金额 */
+  baseAmount?: Money;
+  /** 包邮门槛 */
+  freeThreshold?: Money;
+  status: string;
+  remark?: string;
+  createTime?: string;
+  updateTime?: string;
+}
+
+/** 运费模板保存入参 */
+export interface FreightTemplateSaveBody {
+  templateName: string;
+  chargeType: string;
+  baseAmount?: number;
+  freeThreshold?: number;
+  status?: string;
+  remark?: string;
+}
+
+/** 运费模板分页 */
+export function pageFreightTemplate(query: {
+  keyword?: string;
+  chargeType?: string;
+  status?: string;
+  current?: number;
+  size?: number;
+}): Promise<PageResult<FreightTemplateView>> {
+  return http.get<PageResult<FreightTemplateView>>('/mall/freight-template/page', query);
+}
+
+/** 运费模板详情 */
+export function getFreightTemplate(id: number): Promise<FreightTemplateView> {
+  return http.get<FreightTemplateView>(`/mall/freight-template/${id}`);
+}
+
+/** 新建运费模板 */
+export function createFreightTemplate(body: FreightTemplateSaveBody): Promise<FreightTemplateView> {
+  return http.post<FreightTemplateView>('/mall/freight-template', body);
+}
+
+/** 编辑运费模板 */
+export function updateFreightTemplate(
+  id: number,
+  body: FreightTemplateSaveBody,
+): Promise<FreightTemplateView> {
+  return http.put<FreightTemplateView>(`/mall/freight-template/${id}`, body);
+}
+
+/** 启停运费模板 */
+export function changeFreightTemplateStatus(id: number, status: string): Promise<void> {
+  return http.post<void>(`/mall/freight-template/${id}/status`, undefined, { status });
+}
+
+// ---------------------------------------------------------------------------
+// 优惠券
+// ---------------------------------------------------------------------------
+
+/** 券模板 */
+export interface CouponView {
+  id: number;
+  couponCode: string;
+  couponName: string;
+  /** FULL_REDUCTION 满减 / DISCOUNT 折扣 */
+  couponType: string;
+  thresholdAmount?: Money;
+  faceAmount?: Money;
+  discountRate?: number;
+  maxDiscountAmount?: Money;
+  channelId?: number;
+  totalQty?: number;
+  issuedQty?: number;
+  perUserLimit?: number;
+  validFrom?: string;
+  validTo?: string;
+  status: string;
+  remark?: string;
+  createTime?: string;
+}
+
+/** 券模板保存入参 */
+export interface CouponSaveBody {
+  couponCode: string;
+  couponName: string;
+  couponType: string;
+  thresholdAmount?: number;
+  faceAmount?: number;
+  discountRate?: number;
+  maxDiscountAmount?: number;
+  channelId?: number;
+  totalQty?: number;
+  perUserLimit?: number;
+  /** 后端按 yyyy-MM-dd HH:mm:ss 解析 */
+  validFrom: string;
+  validTo: string;
+  status?: string;
+  remark?: string;
+}
+
+/** 我的券 / 下单可用券 */
+export interface CouponUserView {
+  /** 用户券 ID（下单时传它，不是模板 ID） */
+  id: number;
+  couponId: number;
+  couponCode: string;
+  couponName: string;
+  couponType: string;
+  thresholdAmount?: Money;
+  faceAmount?: Money;
+  discountRate?: number;
+  maxDiscountAmount?: Money;
+  channelId?: number;
+  validFrom?: string;
+  validTo?: string;
+  status: string;
+  orderNo?: string;
+  usedTime?: string;
+  /** 本单可减金额（仅下单可用券接口返回） */
+  discountAmount?: Money;
+  /** USABLE / USED / EXPIRED / CHANNEL_MISMATCH / THRESHOLD_NOT_MET */
+  usability?: string;
+  /** 不可用原因（给买家看） */
+  usabilityLabel?: string;
+}
+
+/** 券模板分页 */
+export function pageCoupon(query: {
+  keyword?: string;
+  couponType?: string;
+  status?: string;
+  current?: number;
+  size?: number;
+}): Promise<PageResult<CouponView>> {
+  return http.get<PageResult<CouponView>>('/mall/coupon/page', query);
+}
+
+/** 新建券模板 */
+export function createCoupon(body: CouponSaveBody): Promise<CouponView> {
+  return http.post<CouponView>('/mall/coupon', body);
+}
+
+/** 编辑券模板（不影响已领出的券） */
+export function updateCoupon(id: number, body: CouponSaveBody): Promise<CouponView> {
+  return http.put<CouponView>(`/mall/coupon/${id}`, body);
+}
+
+/** 启停券模板 */
+export function changeCouponStatus(id: number, status: string): Promise<void> {
+  return http.post<void>(`/mall/coupon/${id}/status`, undefined, { status });
+}
+
+/** 领取优惠券 */
+export function claimCoupon(id: number): Promise<CouponUserView> {
+  return http.post<CouponUserView>(`/mall/coupon/${id}/claim`);
+}
+
+/** 我的券分页 */
+export function pageMyCoupons(query: {
+  status?: string;
+  current?: number;
+  size?: number;
+}): Promise<PageResult<CouponUserView>> {
+  return http.get<PageResult<CouponUserView>>('/mall/coupon/mine', query);
+}
+
+/** 当前订单可用的券（含不可用及原因） */
+export function listAvailableCoupons(query: {
+  channelId: number;
+  amount?: number;
+}): Promise<CouponUserView[]> {
+  return http.get<CouponUserView[]>('/mall/coupon/available', query);
 }

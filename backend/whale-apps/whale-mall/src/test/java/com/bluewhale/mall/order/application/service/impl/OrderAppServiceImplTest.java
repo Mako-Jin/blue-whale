@@ -16,13 +16,18 @@ import com.bluewhale.mall.common.enums.MallMode;
 import com.bluewhale.mall.common.enums.SettlementType;
 import com.bluewhale.mall.common.sequence.MallSequenceService;
 import com.bluewhale.mall.config.MallProperties;
+import com.bluewhale.mall.coupon.application.service.CouponAppService;
+import com.bluewhale.mall.coupon.domain.model.CouponUser;
 import com.bluewhale.mall.order.application.command.OrderCreateCommand;
+import com.bluewhale.mall.order.application.command.OrderPreviewCommand;
+import com.bluewhale.mall.order.application.view.OrderPreviewView;
 import com.bluewhale.mall.order.application.view.OrderView;
 import com.bluewhale.mall.order.domain.model.MallOrder;
 import com.bluewhale.mall.order.domain.model.OrderItem;
 import com.bluewhale.mall.order.domain.model.OrderStatus;
 import com.bluewhale.mall.order.domain.repository.OrderRepository;
 import com.bluewhale.mall.order.infrastructure.client.PayInternalClient;
+import com.bluewhale.mall.pricing.application.service.FreightTemplateAppService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -82,6 +87,12 @@ class OrderAppServiceImplTest {
 
     @Mock
     private AfterSaleAppService afterSaleAppService;
+
+    @Mock
+    private CouponAppService couponAppService;
+
+    @Mock
+    private FreightTemplateAppService freightTemplateAppService;
 
     @Mock
     private MallProperties properties;
@@ -191,6 +202,146 @@ class OrderAppServiceImplTest {
         command.setChannelId(1L);
         command.setItemIds(new ArrayList<>());
         return command;
+    }
+
+    /**
+     * 下单带券：金额按券重算、券被核销、金额构成落库。
+     */
+    @Test
+    @DisplayName("下单时核销券并落金额构成")
+    void createConsumesCouponAndRecordsBreakdown() {
+        stubCreateBasics();
+        when(freightTemplateAppService.freightFor(any(), any())).thenReturn(new BigDecimal("12.00"));
+        when(couponAppService.requireUsable(eq(55L), eq(7L), eq(1L), any())).thenReturn(fullReductionCoupon());
+        OrderCreateCommand command = command();
+        command.setCouponId(55L);
+
+        OrderView view = orderAppService.create(command, "K-4", actor);
+
+        assertThat(view.getGoodsAmount()).isEqualByComparingTo("39.80");
+        assertThat(view.getDiscountAmount()).isEqualByComparingTo("20.00");
+        assertThat(view.getFreightAmount()).isEqualByComparingTo("12.00");
+        assertThat(view.getTotalAmount()).isEqualByComparingTo("31.80");
+        assertThat(view.getCouponCode()).isEqualTo("C100");
+        verify(couponAppService).use(55L, "MO20261106000002");
+    }
+
+    /**
+     * 积分商城不支持优惠券：传了券必须报错，不能悄悄按原价扣积分。
+     */
+    @Test
+    @DisplayName("积分商城带券下单直接拒绝")
+    void createRejectsCouponOnPointsChannel() {
+        when(orderRepository.findByIdempotency(anyLong(), anyString())).thenReturn(Optional.empty());
+        MallChannel points = channel();
+        points.setMode(MallMode.WELFARE);
+        points.setSettlementType(SettlementType.POINTS);
+        points.setCurrencyType(com.bluewhale.mall.common.enums.CurrencyType.POINTS);
+        when(channelRepository.findById(1L)).thenReturn(Optional.of(points));
+        when(cartRepository.list(1L, 7L)).thenReturn(List.of(cartItem(11L, 100L, 2)));
+        when(skuOfferingService.resolve(anyCollection(), any())).thenReturn(Map.of(100L, offering()));
+        when(skuOfferingService.requireSellable(any(SkuOffering.class), anyInt()))
+                .thenReturn(new BigDecimal("19.90"));
+        OrderCreateCommand command = command();
+        command.setCouponId(55L);
+
+        assertThatThrownBy(() -> orderAppService.create(command, "K-5", actor))
+                .isInstanceOf(BizException.class)
+                .satisfies(exception -> assertThat(((BizException) exception).getCode())
+                        .isEqualTo(MallErrorCode.COUPON_NOT_APPLICABLE));
+        verify(orderRepository, never()).insert(any(MallOrder.class));
+    }
+
+    /**
+     * 取消订单必须把券退回，否则用户改一次主意就永久损失一张券。
+     */
+    @Test
+    @DisplayName("取消订单回退券")
+    void cancelReleasesCoupon() {
+        MallOrder order = existingOrder();
+        order.setCouponUserId(55L);
+        order.setCouponCode("C100");
+        when(orderRepository.findById(5L)).thenReturn(Optional.of(order));
+
+        orderAppService.cancel(5L, "不想要了", actor);
+
+        verify(couponAppService).releaseByOrderNo("MO20261106000001");
+    }
+
+    /**
+     * 试算返回四项金额构成与可用券，前端才能展示「商品 - 优惠 + 运费」。
+     */
+    @Test
+    @DisplayName("试算返回金额构成与可用券")
+    void previewReturnsBreakdown() {
+        when(channelRepository.findById(1L)).thenReturn(Optional.of(channel()));
+        when(cartRepository.list(1L, 7L)).thenReturn(List.of(cartItem(11L, 100L, 2)));
+        when(skuOfferingService.resolve(anyCollection(), any())).thenReturn(Map.of(100L, offering()));
+        when(skuOfferingService.requireSellable(any(SkuOffering.class), anyInt()))
+                .thenReturn(new BigDecimal("19.90"));
+        when(freightTemplateAppService.freightFor(any(), any())).thenReturn(new BigDecimal("12.00"));
+        when(couponAppService.available(eq(1L), any(), any())).thenReturn(List.of());
+
+        OrderPreviewView view = orderAppService.preview(previewCommand(), actor);
+
+        assertThat(view.getGoodsAmount()).isEqualByComparingTo("39.80");
+        assertThat(view.getDiscountAmount()).isEqualByComparingTo("0.00");
+        assertThat(view.getFreightAmount()).isEqualByComparingTo("12.00");
+        assertThat(view.getTotalAmount()).isEqualByComparingTo("51.80");
+        assertThat(view.getAvailableCoupons()).isEmpty();
+        assertThat(view.getLines()).hasSize(1);
+        assertThat(view.getLines().get(0).getNetAmount()).isEqualByComparingTo("51.80");
+    }
+
+    /**
+     * 构造空的试算命令。
+     *
+     * @return 命令
+     */
+    private OrderPreviewCommand previewCommand() {
+        OrderPreviewCommand command = new OrderPreviewCommand();
+        command.setChannelId(1L);
+        command.setItemIds(new ArrayList<>());
+        return command;
+    }
+
+    /**
+     * 构造满 0 减 20 的用户券。
+     *
+     * @return 用户券
+     */
+    private CouponUser fullReductionCoupon() {
+        CouponUser coupon = new CouponUser();
+        coupon.setId(55L);
+        coupon.setUserId(7L);
+        coupon.setCouponCode("C100");
+        coupon.setCouponName("满 100 减 20");
+        coupon.setCouponType(com.bluewhale.mall.coupon.domain.model.CouponType.FULL_REDUCTION);
+        coupon.setThresholdAmount(BigDecimal.ZERO);
+        coupon.setFaceAmount(new BigDecimal("20.00"));
+        coupon.setValidFrom(java.time.LocalDateTime.now().minusDays(1));
+        coupon.setValidTo(java.time.LocalDateTime.now().plusDays(30));
+        coupon.setStatus(com.bluewhale.mall.coupon.domain.model.CouponUserStatus.UNUSED);
+        return coupon;
+    }
+
+    /**
+     * 下单用例的公共桩（幂等未命中、渠道、购物车、价目、库存、单号、插入）。
+     */
+    private void stubCreateBasics() {
+        when(orderRepository.findByIdempotency(anyLong(), anyString())).thenReturn(Optional.empty());
+        when(channelRepository.findById(1L)).thenReturn(Optional.of(channel()));
+        when(cartRepository.list(1L, 7L)).thenReturn(List.of(cartItem(11L, 100L, 2)));
+        when(skuOfferingService.resolve(anyCollection(), any())).thenReturn(Map.of(100L, offering()));
+        when(skuOfferingService.requireSellable(any(SkuOffering.class), anyInt()))
+                .thenReturn(new BigDecimal("19.90"));
+        when(skuStockRepository.reserve(100L, 2)).thenReturn(true);
+        when(sequenceService.nextOrderNo()).thenReturn("MO20261106000002");
+        when(orderRepository.insert(any(MallOrder.class))).thenAnswer(invocation -> {
+            MallOrder order = invocation.getArgument(0);
+            order.setId(99L);
+            return 99L;
+        });
     }
 
     /**

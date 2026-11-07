@@ -44,6 +44,7 @@ import {
 import {
   MODE_LABEL,
   PRICE_TYPE_LABEL,
+  formatCouponValue,
   formatMoney,
   formatSpec,
 } from '../../utils/dict';
@@ -101,6 +102,7 @@ export default function CartPage() {
   const [preview, setPreview] = useState<OrderPreviewView | null>(null);
   const [checkoutItemIds, setCheckoutItemIds] = useState<number[]>([]);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [couponId, setCouponId] = useState<number | undefined>(undefined);
   const [idempotencyKey, setIdempotencyKey] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const [products, setProducts] = useState<SpuView[]>([]);
@@ -206,12 +208,49 @@ export default function CartPage() {
       setPreview(data);
       // 下单接口的 itemIds 是**购物车行 ID**（后端据此取数量与 SKU），不是 SKU ID
       setCheckoutItemIds(itemIds);
+      setCouponId(undefined);
       setIdempotencyKey(newIdempotencyKey());
     } catch (error) {
       message.error(errorText(error));
     } finally {
       setPreviewLoading(false);
     }
+  };
+
+  /**
+   * 换券后重新试算。
+   *
+   * <p>券的可减金额由后端算：一张折扣券封顶后到底减多少、够不够门槛，
+   * 前端复算一遍必然与服务端不一致，所以每次换券都重新走一次预览。</p>
+   *
+   * @param nextCouponId 新的用户券 ID；undefined 表示不使用优惠券
+   */
+  const applyCoupon = async (nextCouponId?: number) => {
+    if (!channelId || checkoutItemIds.length === 0) {
+      return;
+    }
+    setPreviewLoading(true);
+    try {
+      const data = await previewOrder({
+        channelId,
+        itemIds: checkoutItemIds,
+        couponId: nextCouponId,
+      });
+      setPreview(data);
+      // 以后端返回的券为准：试算可能因为门槛变化悄悄退回了这张券
+      setCouponId(data.couponId);
+    } catch (error) {
+      message.error(errorText(error));
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  /** 关闭预览并清掉这一轮结算的临时状态 */
+  const closePreview = () => {
+    setPreview(null);
+    setCheckoutItemIds([]);
+    setCouponId(undefined);
   };
 
   /** 提交订单 */
@@ -226,12 +265,12 @@ export default function CartPage() {
           channelId,
           itemIds: checkoutItemIds,
           remark: '',
+          couponId,
         },
         idempotencyKey,
       );
       message.success(`下单成功：${order.orderNo}`);
-      setPreview(null);
-      setCheckoutItemIds([]);
+      closePreview();
       navigate(`/order/${order.id}`);
     } catch (error) {
       message.error(errorText(error));
@@ -285,6 +324,25 @@ export default function CartPage() {
   };
 
   const currencyType = cart?.currencyType ?? channel?.currencyType ?? 'CASH';
+
+  /** 积分商城不参与优惠与运费，直接不展示选券入口 */
+  const couponEnabled = preview !== null && preview.currencyType !== 'POINTS';
+
+  /** 券下拉项：不可用的一律置灰并写明原因，免得用户点了才被后端拒 */
+  const couponOptions = (preview?.availableCoupons ?? []).map((item) => {
+    const usable = (item.usability ?? 'USABLE') === 'USABLE';
+    const value = formatCouponValue({ ...item, currencyType: preview?.currencyType });
+    return {
+      value: item.id,
+      disabled: !usable,
+      label: usable
+        ? `${item.couponName}（${value}，本单减 ${formatMoney(
+            item.discountAmount ?? 0,
+            preview?.currencyType,
+          )}）`
+        : `${item.couponName}（${value}）· ${item.usabilityLabel ?? '不可用'}`,
+    };
+  });
 
   const columns: TableProps<CartItemView>['columns'] = [
     {
@@ -415,7 +473,7 @@ export default function CartPage() {
         width={720}
         confirmLoading={busy}
         okText="提交订单"
-        onCancel={() => setPreview(null)}
+        onCancel={closePreview}
         onOk={submitOrder}
       >
         {preview ? (
@@ -431,17 +489,62 @@ export default function CartPage() {
             <Descriptions column={1} size="small" bordered>
               {preview.lines.map((line) => (
                 <Descriptions.Item
-                  key={line.skuId}
+                  key={`${line.skuId}-${line.id ?? ''}`}
                   label={`${line.spuName} ${formatSpec(line.specJson)}`}
                 >
                   {formatMoney(line.unitPrice, preview.currencyType)} × {line.quantity} ={' '}
                   {formatMoney(line.amount, preview.currencyType)}
+                  {line.netAmount !== undefined && line.netAmount !== line.amount ? (
+                    <Typography.Text type="secondary" style={{ marginLeft: 8 }}>
+                      分摊后实付 {formatMoney(line.netAmount, preview.currencyType)}
+                    </Typography.Text>
+                  ) : null}
                 </Descriptions.Item>
               ))}
             </Descriptions>
-            <Typography.Title level={5} style={{ marginTop: 16 }}>
-              应付：{formatMoney(preview.totalAmount, preview.currencyType)}
-            </Typography.Title>
+
+            {couponEnabled ? (
+              <Space style={{ marginTop: 16, width: '100%' }} align="center">
+                <Typography.Text strong>优惠券</Typography.Text>
+                <Select
+                  style={{ width: 420 }}
+                  placeholder={
+                    couponOptions.length === 0 ? '暂无可用优惠券' : '不使用优惠券'
+                  }
+                  loading={previewLoading}
+                  allowClear
+                  disabled={couponOptions.length === 0}
+                  value={couponId}
+                  options={couponOptions}
+                  onChange={(value?: number) => void applyCoupon(value)}
+                />
+              </Space>
+            ) : null}
+
+            <Descriptions column={1} size="small" bordered style={{ marginTop: 16 }}>
+              <Descriptions.Item label="商品总额">
+                {formatMoney(preview.goodsAmount, preview.currencyType)}
+              </Descriptions.Item>
+              <Descriptions.Item label={preview.couponName ? `优惠（${preview.couponName}）` : '优惠'}>
+                -{formatMoney(preview.discountAmount, preview.currencyType)}
+              </Descriptions.Item>
+              <Descriptions.Item label="运费">
+                {preview.freightAmount > 0
+                  ? formatMoney(preview.freightAmount, preview.currencyType)
+                  : '免运费'}
+              </Descriptions.Item>
+              <Descriptions.Item label="应付">
+                <Typography.Text strong>
+                  {formatMoney(preview.totalAmount, preview.currencyType)}
+                </Typography.Text>
+              </Descriptions.Item>
+            </Descriptions>
+
+            {preview.currencyType === 'POINTS' ? (
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                积分商城按积分结算，不参与优惠券与运费。
+              </Typography.Text>
+            ) : null}
           </>
         ) : null}
       </Modal>

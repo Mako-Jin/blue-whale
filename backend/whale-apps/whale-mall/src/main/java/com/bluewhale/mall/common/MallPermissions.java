@@ -4,7 +4,7 @@ package com.bluewhale.mall.common;
  * 商城权限码常量（与 {@code migration-5.94-mall.sql}、{@code migration-5.95-mall-m1.sql}、
  * {@code migration-5.96-mall-aftersale.sql} 登记保持一致）。
  *
- * <p>号段 **2200–2217**：2100–2108 归邮箱、2109 归邮件规则、2110–2115 归地图，
+ * <p>号段 **2200–2222**：2100–2108 归邮箱、2109 归邮件规则、2110–2115 归地图，
  * 故本服务从 2200 起。<b>不挪号</b>——权限号一旦发布就进了各租户的角色授权表，
  * 重排意味着线上授权全部错配。</p>
  *
@@ -69,6 +69,20 @@ public final class MallPermissions {
     /** 售后审核：通过 / 驳回（2217，商城运营） */
     public static final String AFTER_SALE_AUDIT = "sys:mall:aftersale:audit";
 
+    /** 优惠券模板列表（2218，商城运营） */
+    public static final String COUPON_LIST = "sys:mall:coupon:list";
+
+    /** 优惠券模板维护：建券 / 改券 / 启停（2219，商城运营） */
+    public static final String COUPON_MANAGE = "sys:mall:coupon:manage";
+
+    /** 领券与我的券（2220，全员） */
+    public static final String COUPON_CLAIM = "sys:mall:coupon:claim";
+
+    /** 运费模板列表（2221，商城运营） */
+    public static final String FREIGHT_LIST = "sys:mall:freight:list";
+
+    /** 运费模板维护（2222，商城运营） */
+    public static final String FREIGHT_MANAGE = "sys:mall:freight:manage";
 
     /**
      * 私有构造器：常量类，禁止实例化。

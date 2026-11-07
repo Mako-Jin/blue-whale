@@ -57,4 +57,10 @@ public class OrderItemEntity extends BaseEntity {
 
     /** 小计 */
     private BigDecimal amount;
+
+    /** 分摊优惠金额 */
+    private BigDecimal shareDiscount;
+
+    /** 分摊运费 */
+    private BigDecimal shareFreight;
 }

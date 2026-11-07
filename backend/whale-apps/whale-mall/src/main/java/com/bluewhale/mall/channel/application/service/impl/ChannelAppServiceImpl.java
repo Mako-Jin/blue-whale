@@ -108,6 +108,7 @@ public class ChannelAppServiceImpl implements ChannelAppService {
         }
         channel.setMode(mode);
         channel.setSettlementType(settlement);
+        channel.setFreightTemplateId(command.getFreightTemplateId());
         channel.setRemark(command.getRemark());
     }
 
@@ -136,6 +137,7 @@ public class ChannelAppServiceImpl implements ChannelAppService {
         view.setMode(channel.getMode() == null ? null : channel.getMode().name());
         view.setSettlementType(channel.getSettlementType() == null ? null : channel.getSettlementType().name());
         view.setCurrencyType(channel.getCurrencyType() == null ? null : channel.getCurrencyType().name());
+        view.setFreightTemplateId(channel.getFreightTemplateId());
         view.setStatus(channel.getStatus() == null ? ChannelStatus.ACTIVE.name() : channel.getStatus().name());
         view.setRemark(channel.getRemark());
         view.setCreateTime(channel.getCreateTime());

@@ -32,6 +32,9 @@ public class ChannelEntity extends BaseEntity {
     /** 金额口径 */
     private String currencyType;
 
+    /** 运费模板 ID（空 = 不收运费） */
+    private Long freightTemplateId;
+
     /** 状态 */
     private String status;
 

@@ -13,9 +13,11 @@ import com.bluewhale.mall.aftersale.domain.repository.AfterSaleRepository;
 import com.bluewhale.mall.common.MallActor;
 import com.bluewhale.mall.common.MallErrorCode;
 import com.bluewhale.mall.config.MallProperties;
+import com.bluewhale.mall.coupon.application.service.CouponAppService;
 import com.bluewhale.mall.order.domain.model.MallOrder;
 import com.bluewhale.mall.order.domain.model.OrderItem;
 import com.bluewhale.mall.order.domain.model.OrderLog;
+import com.bluewhale.mall.order.domain.model.OrderStatus;
 import com.bluewhale.mall.order.domain.repository.OrderRepository;
 import com.bluewhale.mall.order.infrastructure.client.PayInternalClient;
 import lombok.RequiredArgsConstructor;
@@ -85,6 +87,9 @@ public class AfterSaleAppServiceImpl implements AfterSaleAppService {
 
     /** whale-pay 内网客户端（服务间直连） */
     private final PayInternalClient payInternalClient;
+
+    /** 优惠券应用服务（整单退满后退券） */
+    private final CouponAppService couponAppService;
 
     private final MallProperties properties;
 
@@ -248,6 +253,25 @@ public class AfterSaleAppServiceImpl implements AfterSaleAppService {
         }
         orderRepository.appendLog(order.getId(), systemLog(ACTION_REFUND, statusName(order), null,
                 "退款回调 " + afterSale.getAfterSaleNo() + "，本次 " + afterSale.getRefundAmount()));
+        releaseCouponIfFullyRefunded(order);
+    }
+
+    /**
+     * 整单退满后把券退回未使用。
+     *
+     * <p>只在退满时退券：部分退款时优惠已经按分摊折进了已退金额，
+     * 再把整张券还回去，等于让买家拿同一张券退两次钱。</p>
+     *
+     * @param order 订单（退款累计后的状态以库中为准）
+     */
+    private void releaseCouponIfFullyRefunded(MallOrder order) {
+        if (order.getCouponUserId() == null) {
+            return;
+        }
+        MallOrder refreshed = orderRepository.findById(order.getId()).orElse(order);
+        if (refreshed.getStatus() == OrderStatus.REFUNDED) {
+            couponAppService.releaseByOrderNo(refreshed.getOrderNo());
+        }
     }
 
     /**
@@ -273,6 +297,7 @@ public class AfterSaleAppServiceImpl implements AfterSaleAppService {
         }
         orderRepository.appendLog(order.getId(), systemLog(ACTION_REFUND, statusName(order), null,
                 "退款回调（无售后单，请求号 " + requestNo + "），本次 " + delta));
+        releaseCouponIfFullyRefunded(order);
     }
 
     /**
@@ -314,7 +339,7 @@ public class AfterSaleAppServiceImpl implements AfterSaleAppService {
     }
 
     /**
-     * 用订单行快照价构造售后行（金额在此算出，不接受外部传入）。
+     * 用订单行实付额构造售后行（金额在此算出，不接受外部传入）。
      *
      * @param orderItem 订单行
      * @param quantity  本次退数量
@@ -329,9 +354,35 @@ public class AfterSaleAppServiceImpl implements AfterSaleAppService {
         item.setSkuCode(orderItem.getSkuCode());
         item.setUnitPrice(orderItem.getUnitPrice());
         item.setQuantity(quantity);
-        item.setAmount(orderItem.getUnitPrice().multiply(BigDecimal.valueOf(quantity))
-                .setScale(AMOUNT_SCALE, RoundingMode.HALF_UP));
+        item.setAmount(refundableShare(orderItem, quantity));
         return item;
+    }
+
+    /**
+     * 本次退数量对应的可退金额。
+     *
+     * <p>基数用行实付额（小计 - 分摊优惠 + 分摊运费）而不是快照价：
+     * 按快照价退，一张 8 折券的订单会退给买家两成现金。</p>
+     *
+     * <p>分次退同一行时，最后一次直接取「剩余可退金额」而不是再按比例算一遍：
+     * 三次各按比例四舍五入，合计常常差一分钱，而对账时这一分钱要查半天。</p>
+     *
+     * @param orderItem 订单行
+     * @param quantity  本次退数量
+     * @return 本次退款金额
+     */
+    private BigDecimal refundableShare(OrderItem orderItem, int quantity) {
+        int total = orderItem.getQuantity() == null ? 0 : orderItem.getQuantity();
+        if (total <= 0) {
+            return BigDecimal.ZERO.setScale(AMOUNT_SCALE, RoundingMode.HALF_UP);
+        }
+        int refunded = orderItem.getRefundedQuantity() == null ? 0 : orderItem.getRefundedQuantity();
+        if (refunded + quantity >= total) {
+            return orderItem.refundableAmount();
+        }
+        return orderItem.netAmount()
+                .multiply(BigDecimal.valueOf(quantity))
+                .divide(BigDecimal.valueOf(total), AMOUNT_SCALE, RoundingMode.HALF_UP);
     }
 
     /**

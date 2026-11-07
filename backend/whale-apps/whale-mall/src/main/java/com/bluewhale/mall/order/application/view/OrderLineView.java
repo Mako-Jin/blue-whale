@@ -50,4 +50,13 @@ public class OrderLineView {
 
     /** 小计 */
     private BigDecimal amount;
+
+    /** 分摊优惠金额 */
+    private BigDecimal shareDiscount;
+
+    /** 分摊运费 */
+    private BigDecimal shareFreight;
+
+    /** 本行实付金额（小计 - 分摊优惠 + 分摊运费），售后可退上限 */
+    private BigDecimal netAmount;
 }

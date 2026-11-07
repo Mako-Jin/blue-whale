@@ -12,6 +12,7 @@ import com.bluewhale.mall.aftersale.domain.repository.AfterSaleRepository;
 import com.bluewhale.mall.common.MallActor;
 import com.bluewhale.mall.common.MallErrorCode;
 import com.bluewhale.mall.config.MallProperties;
+import com.bluewhale.mall.coupon.application.service.CouponAppService;
 import com.bluewhale.mall.order.domain.model.MallOrder;
 import com.bluewhale.mall.order.domain.model.OrderItem;
 import com.bluewhale.mall.order.domain.model.OrderLog;
@@ -64,6 +65,9 @@ class AfterSaleAppServiceImplTest {
 
     @Mock
     private PayInternalClient payInternalClient;
+
+    @Mock
+    private CouponAppService couponAppService;
 
     @Mock
     private MallProperties properties;
@@ -464,6 +468,113 @@ class AfterSaleAppServiceImplTest {
                 .isInstanceOf(BizException.class)
                 .satisfies(exception -> assertThat(((BizException) exception).getCode())
                         .isEqualTo(MallErrorCode.AFTER_SALE_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("部分退款按行实付额计算，不按快照价")
+    void applyUsesLineNetAmount() {
+        MallOrder order = discountedOrder();
+        when(orderRepository.findById(5L)).thenReturn(Optional.of(order));
+        when(afterSaleRepository.occupyItemQuota(eq(11L), eq(1), any())).thenReturn(true);
+        when(afterSaleRepository.insert(any(MallAfterSale.class))).thenAnswer(invocation -> {
+            MallAfterSale afterSale = invocation.getArgument(0);
+            afterSale.setId(88L);
+            return 1L;
+        });
+
+        afterSaleAppService.apply(command(11L, 1), buyer);
+
+        ArgumentCaptor<MallAfterSale> captor = ArgumentCaptor.forClass(MallAfterSale.class);
+        verify(afterSaleRepository).insert(captor.capture());
+        // 行实付 39.80 - 3.99 + 1.20 = 37.01，退 1 件 = 18.505 → 18.51
+        assertThat(captor.getValue().getRefundAmount()).isEqualByComparingTo("18.51");
+    }
+
+    @Test
+    @DisplayName("同一行分次退完：最后一次取剩余金额，合计等于行实付额")
+    void applyTakesRemainingOnFinalRefund() {
+        MallOrder order = discountedOrder();
+        order.getItems().get(0).setRefundedQuantity(1);
+        order.getItems().get(0).setRefundedAmount(new BigDecimal("18.51"));
+        when(orderRepository.findById(5L)).thenReturn(Optional.of(order));
+        when(afterSaleRepository.occupyItemQuota(eq(11L), eq(1), any())).thenReturn(true);
+        when(afterSaleRepository.insert(any(MallAfterSale.class))).thenAnswer(invocation -> {
+            MallAfterSale afterSale = invocation.getArgument(0);
+            afterSale.setId(89L);
+            return 1L;
+        });
+
+        afterSaleAppService.apply(command(11L, 1), buyer);
+
+        ArgumentCaptor<MallAfterSale> captor = ArgumentCaptor.forClass(MallAfterSale.class);
+        verify(afterSaleRepository).insert(captor.capture());
+        // 37.01 - 18.51 = 18.50，两次相加严格等于行实付额
+        assertThat(captor.getValue().getRefundAmount()).isEqualByComparingTo("18.50");
+    }
+
+    @Test
+    @DisplayName("整单退满后把券退回未使用")
+    void markRefundedReleasesCouponWhenFullyRefunded() {
+        MallOrder order = paidOrder();
+        order.setCouponUserId(77L);
+        order.setStatus(OrderStatus.REFUNDING);
+        when(orderRepository.findByOrderNo("MO20261106000001")).thenReturn(Optional.of(order));
+        when(afterSaleRepository.findByAfterSaleNo("AS20261107000001"))
+                .thenReturn(Optional.of(approvedAfterSale()));
+        when(afterSaleRepository.applyOrderRefund(eq(5L), any())).thenReturn(true);
+        MallOrder refunded = paidOrder();
+        refunded.setCouponUserId(77L);
+        refunded.setStatus(OrderStatus.REFUNDED);
+        when(orderRepository.findById(5L)).thenReturn(Optional.of(refunded));
+
+        afterSaleAppService.markRefunded("MO20261106000001", "AS20261107000001", new BigDecimal("39.80"));
+
+        verify(couponAppService).releaseByOrderNo("MO20261106000001");
+    }
+
+    @Test
+    @DisplayName("部分退款未退满时不动券")
+    void markRefundedKeepsCouponWhenPartiallyRefunded() {
+        MallOrder order = paidOrder();
+        order.setCouponUserId(77L);
+        when(orderRepository.findByOrderNo("MO20261106000001")).thenReturn(Optional.of(order));
+        when(afterSaleRepository.findByAfterSaleNo("AS20261107000001"))
+                .thenReturn(Optional.of(approvedAfterSale()));
+        when(afterSaleRepository.applyOrderRefund(eq(5L), any())).thenReturn(true);
+        MallOrder stillPaid = paidOrder();
+        stillPaid.setCouponUserId(77L);
+        stillPaid.setStatus(OrderStatus.PAID);
+        when(orderRepository.findById(5L)).thenReturn(Optional.of(stillPaid));
+
+        afterSaleAppService.markRefunded("MO20261106000001", "AS20261107000001", new BigDecimal("19.90"));
+
+        verify(couponAppService, never()).releaseByOrderNo(anyString());
+    }
+
+    /**
+     * 构造带优惠与运费分摊的已支付订单。
+     *
+     * <p>行实付 39.80 - 3.99 + 1.20 = 37.01，除不尽，用来验证末次取剩余。</p>
+     *
+     * @return 订单
+     */
+    private MallOrder discountedOrder() {
+        MallOrder order = paidOrder();
+        OrderItem item = order.getItems().get(0);
+        item.setShareDiscount(new BigDecimal("3.99"));
+        item.setShareFreight(new BigDecimal("1.20"));
+        return order;
+    }
+
+    /**
+     * 构造一张已审核通过的售后单（回调结单的前置状态）。
+     *
+     * @return 售后单
+     */
+    private MallAfterSale approvedAfterSale() {
+        MallAfterSale afterSale = approvedPending();
+        afterSale.approve(99L, "operator", "审核通过");
+        return afterSale;
     }
 
     /**

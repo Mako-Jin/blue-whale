@@ -56,6 +56,42 @@ function errorText(error: unknown): string {
   return error instanceof Error ? error.message : '加载失败';
 }
 
+/**
+ * 本次退数量对应的可退金额（与后端同一口径）。
+ *
+ * <p>基数用行实付额（小计 − 分摊优惠 + 分摊运费）而不是快照价：
+ * 一张 8 折券的订单按原价退，等于把两成优惠折现送给买家。</p>
+ *
+ * <p>分次退同一行时最后一次取剩余，不再按比例算一遍——
+ * 逐次四舍五入的合计常常差一分钱，对账时这一分钱最难查。前端拿不到
+ * 已退金额，这里按「实付 × 已退占比」估算，最终数字以售后单为准。</p>
+ *
+ * @param row 订单行
+ * @param quantity 本次退数量
+ * @returns 预估可退金额
+ */
+function refundableShare(row: OrderLineView, quantity: number): number {
+  const total = row.quantity ?? 0;
+  if (total <= 0 || quantity <= 0) {
+    return 0;
+  }
+  const net = row.netAmount ?? row.amount ?? 0;
+  const refunded = row.refundedQuantity ?? 0;
+  const raw =
+    refunded + quantity >= total ? Math.max(0, net - (net * refunded) / total) : (net * quantity) / total;
+  return Math.round(raw * 100) / 100;
+}
+
+/**
+ * 行实付额（老订单没有分摊字段时回落到小计）。
+ *
+ * @param row 订单行
+ * @returns 实付金额
+ */
+function netOf(row: OrderLineView): number {
+  return row.netAmount ?? row.amount ?? 0;
+}
+
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -196,14 +232,15 @@ export default function OrderDetailPage() {
     }
   };
 
-  /** 本次申请退款金额预估（与后端同一算法：行快照价 × 数量） */
+  /** 本次申请退款金额预估（与后端同一算法：行实付额 × 数量占比） */
   const afterSalePreview = (order?.items ?? []).reduce((sum, row) => {
     const qty = typeof row.id === 'number' ? afterSaleQty[row.id] ?? 0 : 0;
-    return sum + Number(row.unitPrice ?? 0) * qty;
+    return sum + refundableShare(row, qty);
   }, 0);
 
   /** 发货 / 完成 */
-  const run = async (action: 'ship' | 'complete') => {    if (!order) {
+  const run = async (action: 'ship' | 'complete') => {
+    if (!order) {
       return;
     }
     try {
@@ -262,6 +299,27 @@ export default function OrderDetailPage() {
       width: 140,
       render: (value: number, row) =>
         formatMoney(value, row.priceType === 'POINTS' ? 'POINTS' : 'CASH'),
+    },
+    {
+      title: '实付',
+      dataIndex: 'netAmount',
+      width: 160,
+      render: (_: unknown, row) => {
+        const discount = row.shareDiscount ?? 0;
+        const freight = row.shareFreight ?? 0;
+        return (
+          <Space direction="vertical" size={0}>
+            <Typography.Text>
+              {formatMoney(netOf(row), row.priceType === 'POINTS' ? 'POINTS' : 'CASH')}
+            </Typography.Text>
+            {discount !== 0 || freight !== 0 ? (
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                优惠 -{formatMoney(discount)} / 运费 +{formatMoney(freight)}
+              </Typography.Text>
+            ) : null}
+          </Space>
+        );
+      },
     },
   ];
 
@@ -347,6 +405,35 @@ export default function OrderDetailPage() {
             </Descriptions>
 
             <Typography.Title level={5} style={{ marginTop: 20 }}>
+              金额构成
+            </Typography.Title>
+            <Descriptions column={4} size="small" bordered>
+              <Descriptions.Item label="商品总额">
+                {formatMoney(order.goodsAmount ?? order.totalAmount, order.currencyType)}
+              </Descriptions.Item>
+              <Descriptions.Item label="优惠">
+                {order.discountAmount ? (
+                  <Typography.Text type="danger">
+                    -{formatMoney(order.discountAmount, order.currencyType)}
+                    {order.couponCode ? `（${order.couponCode}）` : ''}
+                  </Typography.Text>
+                ) : (
+                  '-'
+                )}
+              </Descriptions.Item>
+              <Descriptions.Item label="运费">
+                {order.freightAmount
+                  ? formatMoney(order.freightAmount, order.currencyType)
+                  : '免运费'}
+              </Descriptions.Item>
+              <Descriptions.Item label="应付">
+                <Typography.Text strong>
+                  {formatMoney(order.totalAmount, order.currencyType)}
+                </Typography.Text>
+              </Descriptions.Item>
+            </Descriptions>
+
+            <Typography.Title level={5} style={{ marginTop: 20 }}>
               商品明细
             </Typography.Title>
             <Table<OrderLineView>
@@ -409,7 +496,7 @@ export default function OrderDetailPage() {
         width={640}
       >
         <Typography.Paragraph type="secondary">
-          退款金额由后端按订单行成交价计算，提交后需运营审核，通过后原路退回。
+          退款金额由后端按「行实付额」计算（小计减去分摊优惠、加上分摊运费），提交后需运营审核，通过后原路退回。
         </Typography.Paragraph>
         <Space direction="vertical" style={{ width: '100%' }} size="middle">
           <Space>
@@ -442,7 +529,11 @@ export default function OrderDetailPage() {
             dataSource={order?.items ?? []}
             columns={[
               { title: '商品', dataIndex: 'spuName' },
-              { title: '单价', dataIndex: 'unitPrice', width: 110, render: (value: number) => formatMoney(value) },
+              {
+                title: '实付金额',
+                width: 120,
+                render: (_: unknown, row) => formatMoney(netOf(row)),
+              },
               {
                 title: '可退',
                 width: 80,
@@ -468,6 +559,14 @@ export default function OrderDetailPage() {
                       }
                     />
                   );
+                },
+              },
+              {
+                title: '本次退款',
+                width: 110,
+                render: (_: unknown, row) => {
+                  const qty = typeof row.id === 'number' ? afterSaleQty[row.id] ?? 0 : 0;
+                  return formatMoney(refundableShare(row, qty));
                 },
               },
             ]}

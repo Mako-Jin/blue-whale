@@ -30,6 +30,9 @@ public class ChannelSaveCommand {
     @NotBlank(message = "必须指定结算方式")
     private String settlementType;
 
+    /** 运费模板 ID（可空 = 不收运费；积分商城忽略） */
+    private Long freightTemplateId;
+
     /** 备注 */
     @Size(max = 255, message = "备注不得超过 255 字符")
     private String remark;

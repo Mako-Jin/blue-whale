@@ -202,3 +202,59 @@ export function formatSpec(specJson?: string | null): string {
     return specJson;
   }
 }
+
+/** 运费计费方式 */
+export const FREIGHT_CHARGE_TYPE_LABEL: Record<string, string> = {
+  FREE: '全免运费',
+  FIXED: '固定运费',
+  THRESHOLD: '满额包邮',
+};
+
+/** 优惠券类型 */
+export const COUPON_TYPE_LABEL: Record<string, string> = {
+  FULL_REDUCTION: '满减券',
+  DISCOUNT: '折扣券',
+};
+
+/** 券模板状态 */
+export const COUPON_STATUS_LABEL: Record<string, string> = {
+  ACTIVE: '启用',
+  DISABLED: '停用',
+};
+
+/** 用户券状态 */
+export const COUPON_USER_STATUS_LABEL: Record<string, string> = {
+  UNUSED: '未使用',
+  USED: '已使用',
+  EXPIRED: '已过期',
+};
+
+/** 用户券状态配色 */
+export const COUPON_USER_STATUS_COLOR: Record<string, string> = {
+  UNUSED: 'green',
+  USED: 'default',
+  EXPIRED: 'red',
+};
+
+/**
+ * 券面额的展示文案。
+ *
+ * <p>折扣率在库里存的是 0.85 这种小数，直接展示给买家会得到一个看不懂的数字，
+ * 统一折算成「8.5 折」。</p>
+ */
+export function formatCouponValue(coupon: {
+  couponType: string;
+  faceAmount?: number;
+  discountRate?: number;
+  maxDiscountAmount?: number;
+  currencyType?: string;
+}): string {
+  if (coupon.couponType === 'DISCOUNT') {
+    const rate = coupon.discountRate ?? 1;
+    const discount = `${(rate * 10).toFixed(1).replace(/\.0$/, '')} 折`;
+    return coupon.maxDiscountAmount
+      ? `${discount}（最高减 ${formatMoney(coupon.maxDiscountAmount, coupon.currencyType)}）`
+      : discount;
+  }
+  return formatMoney(coupon.faceAmount ?? 0, coupon.currencyType);
+}

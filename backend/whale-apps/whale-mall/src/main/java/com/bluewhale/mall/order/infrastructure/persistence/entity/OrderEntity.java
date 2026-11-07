@@ -47,8 +47,23 @@ public class OrderEntity extends BaseEntity {
     /** 状态 */
     private String status;
 
-    /** 订单总额 */
+    /** 订单总额（应付 = 商品总额 - 优惠 + 运费） */
     private BigDecimal totalAmount;
+
+    /** 商品总额 */
+    private BigDecimal goodsAmount;
+
+    /** 优惠金额 */
+    private BigDecimal discountAmount;
+
+    /** 运费 */
+    private BigDecimal freightAmount;
+
+    /** 使用的用户券 ID（快照） */
+    private Long couponUserId;
+
+    /** 使用的券编码（快照） */
+    private String couponCode;
 
     /** 商品总件数 */
     private Integer totalQuantity;

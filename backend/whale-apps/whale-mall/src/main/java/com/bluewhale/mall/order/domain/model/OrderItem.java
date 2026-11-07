@@ -57,6 +57,12 @@ public class OrderItem {
     /** 小计 */
     private BigDecimal amount;
 
+    /** 分摊优惠金额 */
+    private BigDecimal shareDiscount;
+
+    /** 分摊运费 */
+    private BigDecimal shareFreight;
+
     /**
      * 当前可退数量。
      *
@@ -69,5 +75,31 @@ public class OrderItem {
         int total = quantity == null ? 0 : quantity;
         int refunded = refundedQuantity == null ? 0 : refundedQuantity;
         return Math.max(total - refunded, 0);
+    }
+
+    /**
+     * 本行实付金额（小计 - 分摊优惠 + 分摊运费）。
+     *
+     * <p>售后可退上限用它而不是 {@link #amount}：一张 8 折券的订单如果按原价退，
+     * 商家要倒贴两成现金。分摊金额为 null 时按 0 处理（老订单无分摊数据）。</p>
+     *
+     * @return 实付金额
+     */
+    public BigDecimal netAmount() {
+        BigDecimal base = amount == null ? BigDecimal.ZERO : amount;
+        BigDecimal discount = shareDiscount == null ? BigDecimal.ZERO : shareDiscount;
+        BigDecimal freight = shareFreight == null ? BigDecimal.ZERO : shareFreight;
+        return base.subtract(discount).add(freight);
+    }
+
+    /**
+     * 本行剩余可退金额（实付金额 - 已退金额）。
+     *
+     * @return 可退金额，不小于 0
+     */
+    public BigDecimal refundableAmount() {
+        BigDecimal refunded = refundedAmount == null ? BigDecimal.ZERO : refundedAmount;
+        BigDecimal remaining = netAmount().subtract(refunded);
+        return remaining.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : remaining;
     }
 }

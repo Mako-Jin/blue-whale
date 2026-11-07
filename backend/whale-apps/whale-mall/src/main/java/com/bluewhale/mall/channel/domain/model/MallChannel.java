@@ -49,6 +49,9 @@ public class MallChannel {
     /** 金额口径（由结算方式推导） */
     private CurrencyType currencyType;
 
+    /** 运费模板 ID（空 = 不收运费；积分商城恒为空） */
+    private Long freightTemplateId;
+
     /** 状态 */
     private ChannelStatus status;
 
@@ -95,9 +98,24 @@ public class MallChannel {
         }
         channelCode = channelCode.trim().toUpperCase(Locale.ROOT);
         channelName = channelName.trim();
-        currencyType = settlementType == SettlementType.POINTS ? CurrencyType.POINTS : CurrencyType.CASH;
+        deriveCurrency();
         if (status == null) {
             status = ChannelStatus.ACTIVE;
+        }
+    }
+
+    /**
+     * 按结算方式推导币种口径，并清掉与口径冲突的运费绑定。
+     *
+     * <p>抽成独立方法只为一件事：{@link #validate()} 的分支数已经贴着圈复杂度门槛，
+     * 再往里塞判断会让它先变成一个读不懂的阶梯，然后被人整段复制到下一个实体。</p>
+     */
+    private void deriveCurrency() {
+        currencyType = settlementType == SettlementType.POINTS ? CurrencyType.POINTS : CurrencyType.CASH;
+        if (currencyType == CurrencyType.POINTS) {
+            // 积分商城不收运费：积分体系下「运费 12 元」无法解释，
+            // 绑定关系留着只会在计价时被强行绕过，不如在落库前清掉
+            freightTemplateId = null;
         }
     }
 

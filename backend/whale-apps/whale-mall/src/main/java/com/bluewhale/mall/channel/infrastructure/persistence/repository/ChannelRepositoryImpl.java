@@ -113,6 +113,7 @@ public class ChannelRepositoryImpl implements ChannelRepository {
         channel.setMode(MallMode.parse(entity.getMode()));
         channel.setSettlementType(SettlementType.parse(entity.getSettlementType()));
         channel.setCurrencyType(CurrencyType.parse(entity.getCurrencyType()));
+        channel.setFreightTemplateId(entity.getFreightTemplateId());
         channel.setStatus(ChannelStatus.parse(entity.getStatus()));
         channel.setRemark(entity.getRemark());
         channel.setCreateTime(entity.getCreateTime());
@@ -134,6 +135,7 @@ public class ChannelRepositoryImpl implements ChannelRepository {
         entity.setMode(channel.getMode() == null ? null : channel.getMode().name());
         entity.setSettlementType(channel.getSettlementType() == null ? null : channel.getSettlementType().name());
         entity.setCurrencyType(channel.getCurrencyType() == null ? null : channel.getCurrencyType().name());
+        entity.setFreightTemplateId(channel.getFreightTemplateId());
         entity.setStatus(channel.getStatus() == null ? ChannelStatus.ACTIVE.name() : channel.getStatus().name());
         entity.setRemark(channel.getRemark());
         return entity;

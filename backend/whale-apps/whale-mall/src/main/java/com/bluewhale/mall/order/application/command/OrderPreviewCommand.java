@@ -21,4 +21,7 @@ public class OrderPreviewCommand {
 
     /** 购物车条目 ID 列表（空表示已选中的全部） */
     private List<Long> itemIds = new ArrayList<>();
+
+    /** 预选的用户券 ID（可空；传了才按券计价，用于「选券后看实付」） */
+    private Long couponId;
 }

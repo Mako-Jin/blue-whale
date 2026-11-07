@@ -21,9 +21,11 @@ import {
   changeChannelStatus,
   createChannel,
   pageChannels,
+  pageFreightTemplate,
   updateChannel,
   type ChannelSavePayload,
   type ChannelView,
+  type FreightTemplateView,
 } from '../../api/mall';
 import { hasPermission } from '../../utils/permission';
 import {
@@ -35,6 +37,9 @@ import {
   SETTLEMENT_LABEL,
   formatDateTime,
 } from '../../utils/dict';
+
+/** 运费模板下拉上限：模板是低频配置，一次取全量比做远程搜索划算 */
+const TEMPLATE_PAGE_SIZE = 100;
 
 /** 形态下拉选项（取值以 /mall/meta 为准，这里只是中文文案） */
 const MODE_OPTIONS = [
@@ -70,6 +75,7 @@ export default function ChannelPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form] = Form.useForm<ChannelSavePayload>();
+  const [templates, setTemplates] = useState<FreightTemplateView[]>([]);
   const mode = Form.useWatch('mode', form);
 
   const canManage = hasPermission('sys:mall:channel:manage');
@@ -98,6 +104,18 @@ export default function ChannelPage() {
     void load();
   }, [load]);
 
+  // 运费模板只用于下拉选项，加载失败不该挡住渠道列表
+  useEffect(() => {
+    void (async () => {
+      try {
+        const result = await pageFreightTemplate({ current: 1, size: TEMPLATE_PAGE_SIZE, status: 'ACTIVE' });
+        setTemplates(result.records ?? []);
+      } catch {
+        setTemplates([]);
+      }
+    })();
+  }, []);
+
   /** 打开新建 */
   const openCreate = () => {
     setEditing(null);
@@ -106,6 +124,7 @@ export default function ChannelPage() {
       channelName: '',
       mode: 'RETAIL',
       settlementType: 'ONLINE',
+      freightTemplateId: undefined,
       remark: '',
     });
     setModalOpen(true);
@@ -119,6 +138,7 @@ export default function ChannelPage() {
       channelName: row.channelName,
       mode: row.mode,
       settlementType: row.settlementType,
+      freightTemplateId: row.freightTemplateId,
       remark: row.remark,
     });
     setModalOpen(true);
@@ -188,6 +208,15 @@ export default function ChannelPage() {
       dataIndex: 'currencyType',
       width: 100,
       render: (value: string) => CURRENCY_LABEL[value] ?? value,
+    },
+    {
+      title: '运费模板',
+      dataIndex: 'freightTemplateId',
+      width: 150,
+      render: (value?: number) =>
+        value === undefined || value === null
+          ? '不收运费'
+          : templates.find((item) => item.id === value)?.templateName ?? `#${value}`,
     },
     {
       title: '状态',
@@ -319,6 +348,18 @@ export default function ChannelPage() {
               options={SETTLEMENT_OPTIONS.filter((item) =>
                 mode === 'WELFARE' ? item.value === 'POINTS' : item.value !== 'POINTS',
               )}
+            />
+          </Form.Item>
+          <Form.Item
+            label="运费模板"
+            name="freightTemplateId"
+            extra={mode === 'WELFARE' ? '积分商城不收运费，保存时会被清空' : '留空表示不收运费'}
+          >
+            <Select
+              allowClear
+              disabled={mode === 'WELFARE'}
+              placeholder="不收运费"
+              options={templates.map((item) => ({ value: item.id, label: item.templateName }))}
             />
           </Form.Item>
           <Form.Item label="备注" name="remark">

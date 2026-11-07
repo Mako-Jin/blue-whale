@@ -14,6 +14,8 @@ import com.bluewhale.mall.common.MallErrorCode;
 import com.bluewhale.mall.common.enums.CurrencyType;
 import com.bluewhale.mall.common.sequence.MallSequenceService;
 import com.bluewhale.mall.config.MallProperties;
+import com.bluewhale.mall.coupon.application.service.CouponAppService;
+import com.bluewhale.mall.coupon.domain.model.CouponUser;
 import com.bluewhale.mall.order.application.command.OrderCreateCommand;
 import com.bluewhale.mall.order.application.command.OrderPaidCommand;
 import com.bluewhale.mall.order.application.command.OrderPreviewCommand;
@@ -28,13 +30,13 @@ import com.bluewhale.mall.order.domain.model.OrderLog;
 import com.bluewhale.mall.order.domain.model.OrderStatus;
 import com.bluewhale.mall.order.domain.repository.OrderRepository;
 import com.bluewhale.mall.order.infrastructure.client.PayInternalClient;
+import com.bluewhale.mall.pricing.application.service.FreightTemplateAppService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -79,6 +81,12 @@ public class OrderAppServiceImpl implements OrderAppService {
     /** 售后应用服务（退款唯一入口） */
     private final AfterSaleAppService afterSaleAppService;
 
+    /** 优惠券应用服务（券可用性与核销的唯一判断点） */
+    private final CouponAppService couponAppService;
+
+    /** 运费模板应用服务（运费计算的唯一入口） */
+    private final FreightTemplateAppService freightTemplateAppService;
+
     private final MallProperties properties;
 
     @Override
@@ -87,25 +95,38 @@ public class OrderAppServiceImpl implements OrderAppService {
         MallChannel channel = requireChannel(command.getChannelId());
         List<CartItem> items = loadSelectedItems(channel.getId(), command.getItemIds(), userId);
         assertLineLimit(items.size());
-        Map<Long, SkuOffering> offerings = skuOfferingService.resolve(skuIds(items), channel.getMode());
+        // 试算走与下单同一段组装与计价代码：两处各算一遍，迟早出现
+        // 「试算 80、下单 82」这种只有客诉能发现的不一致
+        MallOrder draft = newOrder(channel, userId, null, null);
+        draft.setExpireTime(null);
+        fillItems(draft, items, channel);
+        draft.recalculate();
+        BigDecimal goods = draft.getGoodsAmount();
+        BigDecimal freight = freightTemplateAppService.freightFor(channel.getFreightTemplateId(), goods);
+
         OrderPreviewView view = new OrderPreviewView();
         view.setChannelId(channel.getId());
         view.setMode(channel.getMode() == null ? null : channel.getMode().name());
         view.setSettlementType(channel.getSettlementType() == null ? null : channel.getSettlementType().name());
         view.setCurrencyType(channel.getCurrencyType() == null
                 ? CurrencyType.CASH.name() : channel.getCurrencyType().name());
-        BigDecimal total = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
-        int quantity = 0;
-        for (CartItem item : items) {
-            SkuOffering offering = offerings.get(item.getSkuId());
-            BigDecimal unitPrice = skuOfferingService.requireSellable(offering, item.getQuantity());
-            OrderLineView line = toLine(offering, unitPrice, item.getQuantity());
-            view.getLines().add(line);
-            total = total.add(line.getAmount());
-            quantity += item.getQuantity();
+        BigDecimal discount = BigDecimal.ZERO;
+        if (command.getCouponId() != null) {
+            CouponUser coupon = requireCouponForOrder(command.getCouponId(), userId, channel, goods);
+            discount = coupon.discountFor(goods);
+            view.setCouponId(coupon.getId());
+            view.setCouponName(coupon.getCouponName());
         }
-        view.setTotalAmount(total);
-        view.setTotalQuantity(quantity);
+        draft.recalculate(discount, freight);
+        for (OrderItem item : draft.getItems()) {
+            view.getLines().add(toLine(item));
+        }
+        view.setGoodsAmount(draft.getGoodsAmount());
+        view.setDiscountAmount(draft.getDiscountAmount());
+        view.setFreightAmount(draft.getFreightAmount());
+        view.setTotalAmount(draft.getTotalAmount());
+        view.setTotalQuantity(draft.getTotalQuantity());
+        view.setAvailableCoupons(couponAppService.available(channel.getId(), goods, actor));
         return view;
     }
 
@@ -127,9 +148,27 @@ public class OrderAppServiceImpl implements OrderAppService {
         MallOrder order = newOrder(channel, userId, key, command.getRemark());
         fillItems(order, items, channel);
         order.recalculate();
+        BigDecimal goods = order.getGoodsAmount();
+        BigDecimal freight = freightTemplateAppService.freightFor(channel.getFreightTemplateId(), goods);
+        BigDecimal discount = BigDecimal.ZERO;
+        CouponUser coupon = null;
+        if (command.getCouponId() != null) {
+            // 不信任前端传来的优惠金额，按券规则在服务端重算
+            coupon = requireCouponForOrder(command.getCouponId(), userId, channel, goods);
+            discount = coupon.discountFor(goods);
+        }
+        order.recalculate(discount, freight);
+        if (coupon != null) {
+            order.setCouponUserId(coupon.getId());
+            order.setCouponCode(coupon.getCouponCode());
+        }
         reserveStock(order);
         order.setOrderNo(sequenceService.nextOrderNo());
         orderRepository.insert(order);
+        if (coupon != null) {
+            // 核销与建单同一事务：核销失败说明券已被并发占用，整单回滚
+            couponAppService.use(coupon.getId(), order.getOrderNo());
+        }
         cartRepository.removeByIds(items.stream().map(CartItem::getId).toList());
         orderRepository.appendLog(order.getId(), log("CREATE", null, order.getStatus().name(), actor, "创建订单"));
         return toView(order);
@@ -168,6 +207,10 @@ public class OrderAppServiceImpl implements OrderAppService {
         // 已创建过支付单则联动取消；支付单不存在（未发起支付）或已取消均不阻塞订单取消
         if (StringUtils.hasText(order.getPayNo())) {
             payInternalClient.cancel(order.getPayNo());
+        }
+        // 券必须退回：不退回的话，用户改一次主意就永久损失一张券，只能找客服手工补
+        if (order.getCouponUserId() != null) {
+            couponAppService.releaseByOrderNo(order.getOrderNo());
         }
     }
 
@@ -296,6 +339,25 @@ public class OrderAppServiceImpl implements OrderAppService {
             BigDecimal unitPrice = skuOfferingService.requireSellable(offering, item.getQuantity());
             order.getItems().add(toOrderItem(offering, unitPrice, item.getQuantity()));
         }
+    }
+
+    /**
+     * 取本单可用的券。
+     *
+     * <p>积分商城直接拒绝而不是忽略：忽略会让用户以为用了券，实际按原价扣积分。</p>
+     *
+     * @param couponUserId 用户券 ID
+     * @param userId       下单用户
+     * @param channel      渠道
+     * @param goods        商品总额
+     * @return 可用的用户券
+     */
+    private CouponUser requireCouponForOrder(Long couponUserId, Long userId, MallChannel channel,
+                                             BigDecimal goods) {
+        if (channel.getCurrencyType() == CurrencyType.POINTS) {
+            throw MallErrorCode.exception(MallErrorCode.COUPON_NOT_APPLICABLE, "积分商城不支持优惠券");
+        }
+        return couponAppService.requireUsable(couponUserId, userId, channel.getId(), goods);
     }
 
     /**
@@ -543,26 +605,29 @@ public class OrderAppServiceImpl implements OrderAppService {
     }
 
     /**
-     * 可售单元转订单行视图。
+     * 订单明细转行视图（含分摊与行实付）。
      *
-     * @param offering 可售单元
-     * @param unitPrice 成交单价
-     * @param quantity 数量
+     * @param item 明细
      * @return 行视图
      */
-    private OrderLineView toLine(SkuOffering offering, BigDecimal unitPrice, Integer quantity) {
+    private OrderLineView toLine(OrderItem item) {
         OrderLineView line = new OrderLineView();
-        line.setSkuId(offering.getSku().getId());
-        line.setSpuId(offering.getSpuId());
-        line.setSpuName(offering.getSpuName());
-        line.setSkuCode(offering.getSku().getSkuCode());
-        line.setSpecJson(offering.getSku().getSpecJson());
-        line.setImageUrl(offering.getSku().getImageUrl() == null
-                ? offering.getMainImage() : offering.getSku().getImageUrl());
-        line.setPriceType(offering.getPriceType());
-        line.setUnitPrice(unitPrice);
-        line.setQuantity(quantity);
-        line.setAmount(unitPrice.multiply(BigDecimal.valueOf(quantity)).setScale(2, RoundingMode.HALF_UP));
+        line.setId(item.getId());
+        line.setSkuId(item.getSkuId());
+        line.setSpuId(item.getSpuId());
+        line.setSpuName(item.getSpuName());
+        line.setSkuCode(item.getSkuCode());
+        line.setSpecJson(item.getSpecJson());
+        line.setImageUrl(item.getImageUrl());
+        line.setPriceType(item.getPriceType());
+        line.setUnitPrice(item.getUnitPrice());
+        line.setQuantity(item.getQuantity());
+        line.setRefundedQuantity(item.getRefundedQuantity() == null ? 0 : item.getRefundedQuantity());
+        line.setRefundableQuantity(item.refundableQuantity());
+        line.setAmount(item.getAmount());
+        line.setShareDiscount(item.getShareDiscount());
+        line.setShareFreight(item.getShareFreight());
+        line.setNetAmount(item.netAmount());
         return line;
     }
 
@@ -585,6 +650,10 @@ public class OrderAppServiceImpl implements OrderAppService {
         view.setBuyerName(order.getBuyerName());
         view.setStatus(statusName(order));
         view.setTotalAmount(order.getTotalAmount());
+        view.setGoodsAmount(order.getGoodsAmount());
+        view.setDiscountAmount(order.getDiscountAmount());
+        view.setFreightAmount(order.getFreightAmount());
+        view.setCouponCode(order.getCouponCode());
         view.setTotalQuantity(order.getTotalQuantity());
         view.setItemCount(order.getItemCount());
         view.setPayNo(order.getPayNo());
@@ -598,21 +667,7 @@ public class OrderAppServiceImpl implements OrderAppService {
         view.setRemark(order.getRemark());
         view.setCreateTime(order.getCreateTime());
         for (OrderItem item : order.getItems()) {
-            OrderLineView line = new OrderLineView();
-            line.setId(item.getId());
-            line.setSkuId(item.getSkuId());
-            line.setSpuId(item.getSpuId());
-            line.setSpuName(item.getSpuName());
-            line.setSkuCode(item.getSkuCode());
-            line.setSpecJson(item.getSpecJson());
-            line.setImageUrl(item.getImageUrl());
-            line.setPriceType(item.getPriceType());
-            line.setUnitPrice(item.getUnitPrice());
-            line.setQuantity(item.getQuantity());
-            line.setRefundedQuantity(item.getRefundedQuantity());
-            line.setRefundableQuantity(item.refundableQuantity());
-            line.setAmount(item.getAmount());
-            view.getItems().add(line);
+            view.getItems().add(toLine(item));
         }
         return view;
     }

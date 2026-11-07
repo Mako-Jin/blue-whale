@@ -45,8 +45,20 @@ public class OrderView {
     /** 状态 */
     private String status;
 
-    /** 订单总额 */
+    /** 订单总额（应付 = 商品总额 - 优惠 + 运费） */
     private BigDecimal totalAmount;
+
+    /** 商品总额（不含优惠与运费，报表成交额看这个） */
+    private BigDecimal goodsAmount;
+
+    /** 优惠金额 */
+    private BigDecimal discountAmount;
+
+    /** 运费 */
+    private BigDecimal freightAmount;
+
+    /** 使用的券编码（快照） */
+    private String couponCode;
 
     /** 商品总件数 */
     private Integer totalQuantity;

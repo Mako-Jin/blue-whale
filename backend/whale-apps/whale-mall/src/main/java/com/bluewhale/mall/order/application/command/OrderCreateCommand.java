@@ -25,4 +25,12 @@ public class OrderCreateCommand {
     /** 买家备注 */
     @Size(max = 255, message = "备注不得超过 255 字符")
     private String remark;
+
+    /**
+     * 使用的用户券 ID（可空）。
+     *
+     * <p>只传券 ID，不传金额：金额由服务端按券规则重算。信前端传的优惠额，
+     * 等于把优惠额度开放给浏览器。</p>
+     */
+    private Long couponId;
 }
