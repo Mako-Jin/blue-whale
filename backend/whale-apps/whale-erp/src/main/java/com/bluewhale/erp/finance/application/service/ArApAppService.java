@@ -5,6 +5,7 @@ import com.bluewhale.erp.finance.application.command.PayableCreateCommand;
 import com.bluewhale.erp.finance.application.command.ReceivableCreateCommand;
 import com.bluewhale.erp.finance.application.command.SettleCommand;
 import com.bluewhale.erp.finance.application.view.AgingView;
+import com.bluewhale.erp.finance.application.view.CustomerReceivableView;
 import com.bluewhale.erp.finance.application.view.PayableView;
 import com.bluewhale.erp.finance.application.view.ReceivableView;
 import com.bluewhale.erp.finance.domain.model.ArApQuery;
@@ -84,6 +85,16 @@ public interface ArApAppService {
      * @return 按客户汇总的账龄
      */
     List<AgingView> receivableAging();
+
+    /**
+     * 按客户编码查询未结应收汇总（CRM 对账只读）。
+     *
+     * <p>客户不存在时返回空摘要，不抛异常，便于调用方降级。</p>
+     *
+     * @param customerCode 客户编码
+     * @return 客户应收汇总
+     */
+    CustomerReceivableView customerReceivable(String customerCode);
 
     /**
      * 查询客户未结应收合计（信用额度控制用）。

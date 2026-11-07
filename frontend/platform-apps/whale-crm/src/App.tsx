@@ -12,6 +12,8 @@ import ForecastPage from './pages/forecast';
 import ContractPage from './pages/contract';
 import CollectionPage from './pages/collection';
 import OrderPage from './pages/order';
+import InvoicePage from './pages/invoice';
+import ArPage from './pages/ar';
 import { hasPermission } from './utils/permission';
 
 const { Header, Content, Sider } = Layout;
@@ -27,6 +29,8 @@ const MENU_ITEMS = [
   { key: '/contract', label: '合同台账', permission: 'sys:crm:contract:list' },
   { key: '/collection', label: '回款计划', permission: 'sys:crm:collection:list' },
   { key: '/order', label: '商务订单', permission: 'sys:crm:order:list' },
+  { key: '/invoice', label: '发票与应收', permission: 'sys:crm:invoice:list' },
+  { key: '/ar', label: '客户应收对账', permission: 'sys:crm:ar:reconcile' },
 ];
 
 /** 按权限过滤后的菜单 */
@@ -68,6 +72,12 @@ function resolveSelectedKey(pathname: string): string {
   if (pathname.startsWith('/order')) {
     return '/order';
   }
+  if (pathname.startsWith('/invoice')) {
+    return '/invoice';
+  }
+  if (pathname.startsWith('/ar')) {
+    return '/ar';
+  }
   return pathname;
 }
 
@@ -105,6 +115,8 @@ function CrmLayout() {
             <Route path="/contract" element={<ContractPage />} />
             <Route path="/collection" element={<CollectionPage />} />
             <Route path="/order" element={<OrderPage />} />
+            <Route path="/invoice" element={<InvoicePage />} />
+            <Route path="/ar" element={<ArPage />} />
             <Route path="*" element={<Navigate to="/customer" replace />} />
           </Routes>
         </Content>

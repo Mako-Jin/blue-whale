@@ -182,6 +182,27 @@ public final class CrmErrorCode {
     /** 订单下发 ERP 失败 */
     public static final int ORDER_PUSH_FAILED = 41055;
 
+    /** 开票申请不存在或无权访问 */
+    public static final int INVOICE_NOT_FOUND = 41056;
+
+    /** 开票申请状态不允许该操作 */
+    public static final int INVOICE_STATE_CONFLICT = 41057;
+
+    /** 开票申请金额超过合同 / 订单可开票余额 */
+    public static final int INVOICE_AMOUNT_EXCEEDED = 41058;
+
+    /** 开票申请行非法（金额合计与表头不一致等） */
+    public static final int INVOICE_LINE_INVALID = 41059;
+
+    /** 开票审批不可用（未启用或缺少流程定义） */
+    public static final int INVOICE_APPROVAL_UNAVAILABLE = 41060;
+
+    /** 寄送登记参数非法 */
+    public static final int INVOICE_SEND_INVALID = 41061;
+
+    /** 应收对账失败（ERP 不可用或返回异常） */
+    public static final int INVOICE_RECONCILE_FAILED = 41062;
+
     /** 错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(GATE_CLOSED, "需求门禁未通过，CRM 业务接口尚未开放"),
@@ -239,7 +260,14 @@ public final class CrmErrorCode {
             Map.entry(ORDER_SOURCE_CONFLICT, "来源单据已生成商务订单，请勿重复创建"),
             Map.entry(ORDER_APPROVAL_UNAVAILABLE, "订单审批未启用或缺少流程定义，请联系管理员"),
             Map.entry(ORDER_APPROVAL_STATE_CONFLICT, "订单审批状态非法"),
-            Map.entry(ORDER_PUSH_FAILED, "商务订单下发 ERP 失败，请稍后重试"));
+            Map.entry(ORDER_PUSH_FAILED, "商务订单下发 ERP 失败，请稍后重试"),
+            Map.entry(INVOICE_NOT_FOUND, "开票申请不存在或无权访问"),
+            Map.entry(INVOICE_STATE_CONFLICT, "开票申请当前状态不允许该操作"),
+            Map.entry(INVOICE_AMOUNT_EXCEEDED, "开票金额超过合同或订单可开票余额"),
+            Map.entry(INVOICE_LINE_INVALID, "开票明细非法，行金额合计必须等于申请金额"),
+            Map.entry(INVOICE_APPROVAL_UNAVAILABLE, "开票审批未启用或缺少流程定义，请联系管理员"),
+            Map.entry(INVOICE_SEND_INVALID, "寄送登记参数非法，请填写快递公司与运单号"),
+            Map.entry(INVOICE_RECONCILE_FAILED, "应收对账失败，ERP 暂不可用"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。

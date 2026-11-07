@@ -175,6 +175,20 @@ class CrmFlywayMigrationScriptTest {
                 "同一来源单据只允许转换一次商务订单");
     }
 
+    @Test
+    @DisplayName("V9 发票与应收：新增开票申请 / 申请行 / 应收快照三表，且不写种子数据")
+    void invoiceShouldContainTables() throws IOException {
+        Set<String> tables = extractTables(MIGRATION_DIR.resolve("V9__invoice.sql"));
+        assertEquals(Set.of("crm_invoice_request", "crm_invoice_item", "crm_ar_snapshot"), tables);
+        String content = Files.readString(MIGRATION_DIR.resolve("V9__invoice.sql"), StandardCharsets.UTF_8);
+        assertFalse(content.toUpperCase().contains("INSERT INTO CRM_"),
+                "发票与应收增量不得写入开票申请种子数据");
+        assertTrue(content.contains("UNIQUE KEY uk_crm_invoice_request_no"),
+                "开票申请单号在租户内唯一");
+        assertTrue(content.contains("UNIQUE KEY uk_crm_ar_snapshot_day"),
+                "同一客户同一天同币种只允许一条应收快照");
+    }
+
     /**
      * 列出迁移脚本。
      *

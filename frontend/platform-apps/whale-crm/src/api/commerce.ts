@@ -325,3 +325,223 @@ export function retryOrder(id: number): Promise<SalesOrderView> {
 export function reconcileOrders(): Promise<number> {
   return http.post<number>('/crm/order/reconcile');
 }
+
+// ---------------------------------------------------------------------
+// 发票与应收对账（7f-3）
+// ---------------------------------------------------------------------
+
+/** 开票申请类型 */
+export type InvoiceRequestType = 'NORMAL' | 'RED_FLUSH';
+
+/** 开票申请状态 */
+export type InvoiceStatus =
+  | 'DRAFT'
+  | 'PENDING_APPROVAL'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'ISSUED'
+  | 'SENT'
+  | 'RED_FLUSHED'
+  | 'CANCELLED';
+
+/** 开票申请行视图 */
+export interface InvoiceItemView {
+  id?: number;
+  lineNo?: number;
+  itemName?: string | null;
+  specification?: string | null;
+  quantity?: number | string | null;
+  unitPrice?: number | string | null;
+  taxRate?: number | string | null;
+  taxAmount?: number | string | null;
+  amount?: number | string | null;
+  remark?: string | null;
+}
+
+/** 开票申请视图（InvoiceView） */
+export interface InvoiceView {
+  id: number;
+  invoiceNo: string;
+  requestType?: InvoiceRequestType | string | null;
+  originInvoiceId?: number | null;
+  sourceType?: string | null;
+  sourceId?: number | null;
+  sourceOrderNo?: string | null;
+  contractId?: number | null;
+  contractNo?: string | null;
+  customerId?: number | null;
+  customerCode?: string | null;
+  customerName?: string | null;
+  currency?: string | null;
+  amount?: number | string | null;
+  taxAmount?: number | string | null;
+  invoiceType?: string | null;
+  titleType?: string | null;
+  invoiceTitle?: string | null;
+  taxNo?: string | null;
+  status: InvoiceStatus | string;
+  approvalInstanceId?: number | null;
+  submittedAt?: string | null;
+  approvedAt?: string | null;
+  invoiceCode?: string | null;
+  invoiceNumber?: string | null;
+  issuedAt?: string | null;
+  issuedAmount?: number | string | null;
+  courier?: string | null;
+  trackingNo?: string | null;
+  sentAt?: string | null;
+  redFlushReason?: string | null;
+  redFlushedAt?: string | null;
+  ownerId?: number | null;
+  deptId?: number | null;
+  remark?: string | null;
+  availableAmount?: number | string | null;
+  items?: InvoiceItemView[];
+}
+
+/** 开票申请行入参 */
+export interface InvoiceItemInput {
+  itemName?: string;
+  specification?: string;
+  quantity: number;
+  unitPrice: number;
+  taxRate?: number;
+  taxAmount?: number;
+  remark?: string;
+}
+
+/** 新建 / 编辑开票申请入参 */
+export interface InvoiceSaveInput {
+  sourceType?: 'CONTRACT' | 'ORDER';
+  sourceId?: number | null;
+  currency?: string;
+  amount: number;
+  invoiceType?: string;
+  titleType?: string;
+  invoiceTitle?: string;
+  taxNo?: string;
+  remark?: string;
+  items?: InvoiceItemInput[];
+}
+
+/** 登记开票入参 */
+export interface InvoiceIssueInput {
+  invoiceCode?: string;
+  invoiceNumber?: string;
+  issuedAmount: number;
+  taxAmount?: number;
+}
+
+/** 登记寄送入参 */
+export interface InvoiceSendInput {
+  courier: string;
+  trackingNo: string;
+}
+
+/** 红冲入参 */
+export interface InvoiceRedFlushInput {
+  amount: number;
+  reason: string;
+}
+
+/** 开票申请分页查询 */
+export interface InvoicePageQuery {
+  keyword?: string;
+  customerId?: number | null;
+  contractId?: number | null;
+  status?: string;
+  requestType?: string;
+  current?: number;
+  size?: number;
+}
+
+/** 应收快照视图（ArSnapshotView） */
+export interface ArSnapshotView {
+  id: number;
+  customerId: number;
+  customerCode?: string | null;
+  customerName?: string | null;
+  snapshotDate?: string | null;
+  currency?: string | null;
+  receivableCount?: number | null;
+  totalRemaining?: number | string | null;
+  notDue?: number | string | null;
+  overdue1To30?: number | string | null;
+  overdue31To60?: number | string | null;
+  overdue61To90?: number | string | null;
+  overdueOver90?: number | string | null;
+  source?: string | null;
+  lastSyncAt?: string | null;
+}
+
+/** 应收快照分页查询 */
+export interface ArSnapshotPageQuery {
+  keyword?: string;
+  customerId?: number | null;
+  snapshotDate?: string;
+  current?: number;
+  size?: number;
+}
+
+/** 应收同步结果（ArSyncResultView） */
+export interface ArSyncResultView {
+  synced: number;
+  skipped: number;
+  failed: number;
+  message?: string | null;
+}
+
+/** 开票申请分页 */
+export function pageInvoices(query: InvoicePageQuery): Promise<PageResult<InvoiceView>> {
+  return http.get<PageResult<InvoiceView>>('/crm/invoice/page', query as Record<string, unknown>);
+}
+
+/** 开票申请详情 */
+export function getInvoice(id: number): Promise<InvoiceView> {
+  return http.get<InvoiceView>(`/crm/invoice/${id}`);
+}
+
+/** 新建开票申请 */
+export function createInvoice(payload: InvoiceSaveInput): Promise<InvoiceView> {
+  return http.post<InvoiceView>('/crm/invoice', payload);
+}
+
+/** 编辑草稿开票申请 */
+export function updateInvoice(id: number, payload: InvoiceSaveInput): Promise<InvoiceView> {
+  return http.put<InvoiceView>(`/crm/invoice/${id}`, payload);
+}
+
+/** 提交开票审批 */
+export function submitInvoice(id: number): Promise<InvoiceView> {
+  return http.post<InvoiceView>(`/crm/invoice/${id}/submit`);
+}
+
+/** 登记开票记录 */
+export function issueInvoice(id: number, payload: InvoiceIssueInput): Promise<InvoiceView> {
+  return http.post<InvoiceView>(`/crm/invoice/${id}/issue`, payload);
+}
+
+/** 登记发票寄送 */
+export function sendInvoice(id: number, payload: InvoiceSendInput): Promise<InvoiceView> {
+  return http.post<InvoiceView>(`/crm/invoice/${id}/send`, payload);
+}
+
+/** 发票红冲 */
+export function redFlushInvoice(id: number, payload: InvoiceRedFlushInput): Promise<InvoiceView> {
+  return http.post<InvoiceView>(`/crm/invoice/${id}/red-flush`, payload);
+}
+
+/** 取消开票申请 */
+export function cancelInvoice(id: number): Promise<InvoiceView> {
+  return http.post<InvoiceView>(`/crm/invoice/${id}/cancel`);
+}
+
+/** 应收快照分页 */
+export function pageArSnapshots(query: ArSnapshotPageQuery): Promise<PageResult<ArSnapshotView>> {
+  return http.get<PageResult<ArSnapshotView>>('/crm/ar/page', query as Record<string, unknown>);
+}
+
+/** 手动同步应收快照 */
+export function syncArSnapshots(): Promise<ArSyncResultView> {
+  return http.post<ArSyncResultView>('/crm/ar/sync');
+}

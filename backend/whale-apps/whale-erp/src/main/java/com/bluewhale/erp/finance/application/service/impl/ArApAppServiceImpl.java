@@ -9,6 +9,7 @@ import com.bluewhale.erp.finance.application.command.SettleCommand;
 import com.bluewhale.erp.finance.application.service.ArApAppService;
 import com.bluewhale.erp.finance.application.support.AgingCalculator;
 import com.bluewhale.erp.finance.application.view.AgingView;
+import com.bluewhale.erp.finance.application.view.CustomerReceivableView;
 import com.bluewhale.erp.finance.application.view.PayableView;
 import com.bluewhale.erp.finance.application.view.ReceivableView;
 import com.bluewhale.erp.finance.domain.model.ArApQuery;
@@ -28,6 +29,7 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -209,6 +211,49 @@ public class ArApAppServiceImpl implements ArApAppService {
         return grouped.values().stream()
                 .sorted(Comparator.comparing(AgingView::getTotal).reversed())
                 .toList();
+    }
+
+    @Override
+    public CustomerReceivableView customerReceivable(String customerCode) {
+        CustomerReceivableView view = new CustomerReceivableView();
+        view.setSnapshotTime(LocalDateTime.now());
+        view.setCurrency(DEFAULT_CURRENCY);
+        view.setReceivableCount(0);
+        view.setTotalRemaining(BigDecimal.ZERO);
+        view.setNotDue(BigDecimal.ZERO);
+        view.setOverdue1To30(BigDecimal.ZERO);
+        view.setOverdue31To60(BigDecimal.ZERO);
+        view.setOverdue61To90(BigDecimal.ZERO);
+        view.setOverdueOver90(BigDecimal.ZERO);
+        if (!StringUtils.hasText(customerCode)) {
+            return view;
+        }
+        Optional<Customer> customer = customerRepository.findByCode(customerCode.trim());
+        if (customer.isEmpty()) {
+            return view;
+        }
+        Customer found = customer.get();
+        view.setCustomerId(found.getId());
+        view.setCustomerCode(found.getCode());
+        view.setCustomerName(found.getName());
+        List<Receivable> outstanding = receivableRepository.listOutstandingByCustomer(found.getId());
+        LocalDate today = LocalDate.now();
+        AgingView aging = AgingCalculator.empty(DIMENSION_AR, found.getId(), found.getName());
+        for (Receivable receivable : outstanding) {
+            AgingCalculator.accumulate(aging, receivable.remaining(), receivable.overdueDays(today));
+            if (StringUtils.hasText(receivable.getCurrency())) {
+                view.setCurrency(receivable.getCurrency());
+            }
+            view.getReceivables().add(toView(receivable));
+        }
+        view.setReceivableCount(outstanding.size());
+        view.setTotalRemaining(aging.getTotal());
+        view.setNotDue(aging.getNotDue());
+        view.setOverdue1To30(aging.getOverdue1To30());
+        view.setOverdue31To60(aging.getOverdue31To60());
+        view.setOverdue61To90(aging.getOverdue61To90());
+        view.setOverdueOver90(aging.getOverdueOver90());
+        return view;
     }
 
     @Override

@@ -175,6 +175,27 @@ public final class CrmPermissions {
     /** 对账商务订单 */
     public static final String ORDER_RECONCILE = "sys:crm:order:reconcile";
 
+    /** 查询开票申请（列表 / 详情） */
+    public static final String INVOICE_LIST = "sys:crm:invoice:list";
+
+    /** 新建 / 编辑开票申请 */
+    public static final String INVOICE_CREATE = "sys:crm:invoice:create";
+
+    /** 提交开票审批 */
+    public static final String INVOICE_SUBMIT = "sys:crm:invoice:submit";
+
+    /** 登记开票记录 */
+    public static final String INVOICE_ISSUE = "sys:crm:invoice:issue";
+
+    /** 登记发票寄送 */
+    public static final String INVOICE_SEND = "sys:crm:invoice:send";
+
+    /** 发票红冲 */
+    public static final String INVOICE_RED_FLUSH = "sys:crm:invoice:red-flush";
+
+    /** 应收对账查询与同步 */
+    public static final String AR_RECONCILE = "sys:crm:ar:reconcile";
+
     /**
      * 私有构造器：常量类，禁止实例化。
      */

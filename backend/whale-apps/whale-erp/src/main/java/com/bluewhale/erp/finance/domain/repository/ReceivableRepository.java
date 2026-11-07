@@ -82,4 +82,12 @@ public interface ReceivableRepository {
      * @return 未结清应收单
      */
     List<Receivable> listOutstanding();
+
+    /**
+     * 按客户查询未结清应收单（CRM 应收对账只读用）。
+     *
+     * @param customerId ERP 客户 ID
+     * @return 该客户未结清应收单
+     */
+    List<Receivable> listOutstandingByCustomer(Long customerId);
 }

@@ -7,6 +7,7 @@ import com.bluewhale.erp.finance.application.command.PayableCreateCommand;
 import com.bluewhale.erp.finance.application.command.ReceivableCreateCommand;
 import com.bluewhale.erp.finance.application.command.SettleCommand;
 import com.bluewhale.erp.finance.application.view.AgingView;
+import com.bluewhale.erp.finance.application.view.CustomerReceivableView;
 import com.bluewhale.erp.finance.application.view.PayableView;
 import com.bluewhale.erp.finance.application.view.ReceivableView;
 import com.bluewhale.erp.finance.domain.model.ArApQuery;
@@ -252,6 +253,34 @@ class ArApAppServiceImplTest {
         assertEquals(new BigDecimal("900.00"), aging.get(0).getTotal());
         assertEquals(new BigDecimal("900.00"), aging.get(0).getOverdue31To60());
         assertEquals(new BigDecimal("100.00"), aging.get(1).getNotDue());
+    }
+
+    @Test
+    @DisplayName("按客户编码查询未结应收并分桶，客户不存在返回空摘要")
+    void shouldCustomerReceivable() {
+        Customer customer = customer(7201L, "客户A");
+        customer.setCode("CUS-2026-000001");
+        when(customerRepository.findByCode("CUS-2026-000001")).thenReturn(Optional.of(customer));
+        Receivable notDue = receivable("AR-001", 7201L, "客户A", "100.00");
+        notDue.setDueDate(LocalDate.now().plusDays(5));
+        Receivable overdue = receivable("AR-002", 7201L, "客户A", "900.00");
+        overdue.setDueDate(LocalDate.now().minusDays(45));
+        when(receivableRepository.listOutstandingByCustomer(7201L)).thenReturn(List.of(notDue, overdue));
+
+        CustomerReceivableView view = service.customerReceivable("CUS-2026-000001");
+
+        assertEquals(7201L, view.getCustomerId());
+        assertEquals("CUS-2026-000001", view.getCustomerCode());
+        assertEquals(2, view.getReceivableCount());
+        assertEquals(new BigDecimal("1000.00"), view.getTotalRemaining());
+        assertEquals(new BigDecimal("100.00"), view.getNotDue());
+        assertEquals(new BigDecimal("900.00"), view.getOverdue31To60());
+        assertEquals(2, view.getReceivables().size());
+
+        when(customerRepository.findByCode("CUS-MISSING")).thenReturn(Optional.empty());
+        CustomerReceivableView missing = service.customerReceivable("CUS-MISSING");
+        assertEquals(0, missing.getReceivableCount());
+        assertEquals(new BigDecimal("0"), missing.getTotalRemaining());
     }
 
     @Test

@@ -288,10 +288,10 @@ DRAFT → SCHEDULED → RUNNING → FINISHED → ARCHIVED
 | M0 | `V2__crm_foundation.sql` | `crm_common_outbox`、`crm_int_sync_log`、`crm_external_ref`、`crm_idempotency`；`ALTER crm_customer` 补 `short_name/website/scale/tax_no/province/city/region/normalized_name/normalized_domain/normalized_tax_no/version/pool_status/pool_at/last_follow_up_at`；`ALTER crm_contact` 补 `wechat/decision_role/is_decision_maker/normalized_phone/normalized_email/version`；`ALTER crm_follow_up` 补 `result/next_action`；补索引 |
 | M1 | `V3__customer_profile.sql` | `crm_customer_address`、`crm_customer_profile`、`crm_customer_merge_log`、`crm_customer_pool_rule`、`crm_customer_owner_log`、`crm_customer_import_task` |
 | M2 | `V4__sales_process.sql` + `V5__quote.sql` + `V6__forecast_target.sql` | **已落**：`crm_lead`、`crm_lead_activity`、`crm_opportunity_stage_history`、`crm_quote`、`crm_quote_line`、`crm_quote_approval`、`crm_forecast_snapshot`、`crm_forecast_adjustment`、`crm_sales_target`、`crm_sales_target_adjustment`，`crm_opportunity` 补 `probability/source/competitor/next_action_at/stage_entered_at/version`（转化结果直接写 `crm_lead.customer_id/opportunity_id`，不再单建 `crm_lead_convert_log`） |
-| M3 | `V7__commerce.sql`（7f-1）+ `V8__commerce_order.sql`（7f-2） | **已落**：`crm_contract`、`crm_collection_plan`、`crm_collection_action`（7f-1，合同台账投影 / 回款计划 / 催收动作）；`crm_sales_order`、`crm_sales_order_line`、`crm_order_push_log`（7f-2，商务订单 / 订单行 / 下发日志）。7f-3 发票与应收待落：`crm_invoice_request`、`crm_invoice_item`、`crm_ar_snapshot`（计划 `V12__invoice.sql`） |
-| M4 | `V9__service.sql` | `crm_ticket`、`crm_ticket_action`、`crm_ticket_sla`、`crm_service_calendar`、`crm_kb_ref`、`crm_satisfaction_survey`、`crm_satisfaction_response`、`crm_return_request`、`crm_return_item` |
-| M5 | `V10__marketing.sql` | `crm_campaign`、`crm_campaign_channel`、`crm_campaign_member`、`crm_campaign_cost`、`crm_nurture_task`、`crm_nurture_log`、`crm_marketing_send`、`crm_unsubscribe`、`crm_partner`、`crm_partner_authorization`、`crm_deal_registration`、`crm_partner_achievement` |
-| M6 | `V11__analytics.sql` | `crm_metric_snapshot`、`crm_action_plan`、`crm_action_item`、`crm_export_task`、`crm_dashboard_config` |
+| M3 | `V7__commerce.sql`（7f-1）+ `V8__commerce_order.sql`（7f-2）+ `V9__invoice.sql`（7f-3） | **已落**：`crm_contract`、`crm_collection_plan`、`crm_collection_action`（7f-1）；`crm_sales_order`、`crm_sales_order_line`、`crm_order_push_log`（7f-2）；`crm_invoice_request`、`crm_invoice_item`、`crm_ar_snapshot`（7f-3，开票申请 / 申请行 / 客户应收快照） |
+| M4 | `V10__service.sql` | `crm_ticket`、`crm_ticket_action`、`crm_ticket_sla`、`crm_service_calendar`、`crm_kb_ref`、`crm_satisfaction_survey`、`crm_satisfaction_response`、`crm_return_request`、`crm_return_item` |
+| M5 | `V11__marketing.sql` | `crm_campaign`、`crm_campaign_channel`、`crm_campaign_member`、`crm_campaign_cost`、`crm_nurture_task`、`crm_nurture_log`、`crm_marketing_send`、`crm_unsubscribe`、`crm_partner`、`crm_partner_authorization`、`crm_deal_registration`、`crm_partner_achievement` |
+| M6 | `V12__analytics.sql` | `crm_metric_snapshot`、`crm_action_plan`、`crm_action_item`、`crm_export_task`、`crm_dashboard_config` |
 
 > 合同模板与合同正文归 `whale-contract`；CRM 只建台账投影表 `crm_contract`，不复制正文。ERP 销售订单来源字段已在 ERP `V17__scm_crm_order_source.sql` 落地（`source_type/source_id/crm_order_no` + `uk_so_crm_order_no`），CRM 库不建 ERP 订单镜像表。ERP 客户映射（D2 决策）未定，7f-2 仅以 `customer_code` 快照调用 ERP 内网接口，不写客户同步代码。
 
@@ -306,6 +306,9 @@ DRAFT → SCHEDULED → RUNNING → FINISHED → ARCHIVED
 | `crm_opportunity` | `idx(tenant_id, customer_id, stage)`、`idx(tenant_id, owner_id, expected_close_date)`、`idx(tenant_id, stage, expected_close_date)` | 每年 1 万–5 万 |
 | `crm_quote` | `uk(tenant_id, quote_no, version)`、`idx(tenant_id, opportunity_id, status)` | 每年 1 万–5 万 |
 | `crm_sales_order` | `uk(tenant_id, order_no)`、`uk(tenant_id, source_order_no)`、`idx(tenant_id, customer_id, status)`、`idx(tenant_id, erp_order_no)` | 每年 1 万–3 万 |
+| `crm_invoice_request` | `uk(tenant_id, invoice_no)`、`idx(tenant_id, customer_id, status)`、`idx(tenant_id, contract_id, status)`、`idx(tenant_id, origin_invoice_id)`、`idx(tenant_id, approval_instance_id)` | 每年 1 万–3 万 |
+| `crm_invoice_item` | `uk(tenant_id, request_id, line_no)` | 每申请 0–20 行 |
+| `crm_ar_snapshot` | `uk(tenant_id, customer_id, snapshot_date, currency)`、`idx(tenant_id, snapshot_date)`、`idx(tenant_id, customer_id, snapshot_date)` | 每客户每日 1 条 |
 | `crm_collection_installment` | `idx(tenant_id, plan_id, due_date)`、`idx(tenant_id, status, due_date)` | 每合同 1–12 期 |
 | `crm_ticket` | `uk(tenant_id, ticket_no)`、`idx(tenant_id, status, assignee_id)`、`idx(tenant_id, sla_due_at, status)`、`idx(tenant_id, customer_id, create_time)` | 每年 1 万–5 万 |
 | `crm_campaign_member` | `uk(tenant_id, campaign_id, contact_id)`、`idx(tenant_id, campaign_id, status)` | 单活动 1 千–10 万人 |
@@ -517,13 +520,14 @@ com.bluewhale.crm
 | M0 底座 | 1800–1809 | 410–412 | 登记 25128–25132（按阶段启用） |
 | M1 客户 | 1810–1839 | 413–420 | 25128 `crm_sales`、25129 `crm_sales_manager` |
 | M2 销售 | 1840–1859 | 421–426 | 复用上述 + 25132 `crm_analyst`（只读） |
-| M3 商务 | 1860–1874 | 427–431 | 25129 |
-| M4 售后 | 1875–1884 | 432–436 | 25130 `crm_service` |
-| M5 营销 | 1885–1892 | 437–440 | 25131 `crm_marketing` |
-| M6 分析 | 1893–1899 | 441–449 | 25132 `crm_analyst` |
+| M3 商务 | 1860–1880 | 427–431 | 25129 |
+| M4 售后 | 1881–1890 | 432–436 | 25130 `crm_service` |
+| M5 营销 | 1891–1898 | 437–440 | 25131 `crm_marketing` |
+| M6 分析 | 1899 + 1900–1905（占用预留段） | 441–449 | 25132 `crm_analyst` |
 | 预留 | 1900–1999 | 450–469 | 后续增强 |
 
-- 权限码命名：`sys:crm:<context>:<action>`，例如 `sys:crm:customer:list`、`sys:crm:pool:claim`、`sys:crm:order:push`、`sys:crm:ticket:assign`、`sys:crm:campaign:send`、`sys:crm:analytics:export`。
+- 权限码命名：`sys:crm:<context>:<action>`，例如 `sys:crm:customer:list`、`sys:crm:pool:claim`、`sys:crm:order:push`、`sys:crm:invoice:issue`、`sys:crm:ticket:assign`、`sys:crm:campaign:send`、`sys:crm:analytics:export`。
+- 号段占用：7f-1 用 1860–1865，7f-2 用 1866–1873，7f-3 用 1874–1880（`sys:crm:invoice:list/create/submit/issue/send/red-flush` + `sys:crm:ar:reconcile`）；M4 由 1875–1884 顺延为 1881–1890，M5 / M6 同步顺延，M6 已触及 1899 上限需启用 1900+ 预留段，实施前统一复核。
 - 菜单只注册已交付页面；未交付页面不挂空入口，避免点击即 403。
 - 迁移脚本幂等：`INSERT ... SELECT ... WHERE NOT EXISTS`；只增不删；角色授权按最小权限。
 
@@ -583,3 +587,4 @@ com.bluewhale.crm
 | 2026-11-04 | M2 核心落地：线索 / 线索活动 / 转化 / 商机阶段机 / 阶段历史 / 漏斗；V4 新增三表并补商机七列；权限 1840–1849；报价、预测、目标仍为规划 |
 | 2026-11-04 | M2 报价增量：`commerce` 上下文落地报价头/行/审批三表（V5），状态机 `DRAFT→PENDING_APPROVAL→APPROVED/REJECTED`，折扣审批对接 workflow，审批后锁定与改价新版本；权限 1850–1854；转订单仍为规划 |
 | 2026-11-05 | M2 预测 / 目标增量：`sales` 上下文落地预测快照 / 预测调整 / 销售目标 / 目标调整四表（V6），月季周期、个人 / 部门范围、手工调整留痕、完成率（暂按赢单商机金额）；权限 1855–1859；M3–M6 迁移顺延 V7–V10 |
+| 2026-11-07 | M3 7f-3 发票与应收对账：`commerce` 上下文落地 `crm_invoice_request` / `crm_invoice_item` / `crm_ar_snapshot` 三表（V9），开票申请状态机、workflow 审批、开票 / 寄送 / 红冲、ERP 按客户应收只读快照与账龄对账；权限 1874–1880、菜单 430；M4–M6 迁移顺延 V10–V12，M4 权限顺延 1881–1890 |

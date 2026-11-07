@@ -298,3 +298,58 @@ export const ORDER_SOURCE_LABEL: Record<string, string> = {
   QUOTE: '报价转订单',
   CONTRACT: '合同转订单',
 };
+
+/** 开票申请状态下拉选项 */
+export const INVOICE_STATUS_OPTIONS = [
+  { value: 'DRAFT', label: '草稿' },
+  { value: 'PENDING_APPROVAL', label: '审批中' },
+  { value: 'APPROVED', label: '已通过' },
+  { value: 'REJECTED', label: '已驳回' },
+  { value: 'ISSUED', label: '已开票' },
+  { value: 'SENT', label: '已寄送' },
+  { value: 'RED_FLUSHED', label: '已红冲' },
+  { value: 'CANCELLED', label: '已取消' },
+];
+
+/** 开票申请状态文案 */
+export const INVOICE_STATUS_LABEL: Record<string, string> = {
+  DRAFT: '草稿',
+  PENDING_APPROVAL: '审批中',
+  APPROVED: '已通过',
+  REJECTED: '已驳回',
+  ISSUED: '已开票',
+  SENT: '已寄送',
+  RED_FLUSHED: '已红冲',
+  CANCELLED: '已取消',
+};
+
+/** 开票申请状态标签色 */
+export const INVOICE_STATUS_COLOR: Record<string, string> = {
+  DRAFT: 'default',
+  PENDING_APPROVAL: 'processing',
+  APPROVED: 'success',
+  REJECTED: 'error',
+  ISSUED: 'green',
+  SENT: 'cyan',
+  RED_FLUSHED: 'purple',
+  CANCELLED: 'default',
+};
+
+/** 开票申请类型文案 */
+export const INVOICE_REQUEST_TYPE_LABEL: Record<string, string> = {
+  NORMAL: '正常开票',
+  RED_FLUSH: '红冲',
+};
+
+/** 发票类型文案 */
+export const INVOICE_TYPE_LABEL: Record<string, string> = {
+  VAT_SPECIAL: '增值税专用发票',
+  VAT_NORMAL: '增值税普通发票',
+  ELECTRONIC: '电子发票',
+};
+
+/** 抬头类型文案 */
+export const INVOICE_TITLE_TYPE_LABEL: Record<string, string> = {
+  COMPANY: '单位',
+  PERSONAL: '个人',
+};

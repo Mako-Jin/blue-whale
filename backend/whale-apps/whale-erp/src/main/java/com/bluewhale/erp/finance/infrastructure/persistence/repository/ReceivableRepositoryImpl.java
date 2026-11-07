@@ -105,6 +105,19 @@ public class ReceivableRepositoryImpl implements ReceivableRepository {
                 .stream().map(this::toDomain).toList();
     }
 
+    @Override
+    public List<Receivable> listOutstandingByCustomer(Long customerId) {
+        if (customerId == null) {
+            return List.of();
+        }
+        return receivableMapper.selectList(new LambdaQueryWrapper<ReceivableEntity>()
+                        .eq(ReceivableEntity::getCustomerId, customerId)
+                        .in(ReceivableEntity::getStatus,
+                                FinanceStatus.LEDGER_OPEN, FinanceStatus.LEDGER_PARTIALLY_SETTLED)
+                        .orderByAsc(ReceivableEntity::getDueDate))
+                .stream().map(this::toDomain).toList();
+    }
+
     /**
      * 构建查询条件。
      *
