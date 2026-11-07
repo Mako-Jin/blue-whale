@@ -8,8 +8,8 @@
 -- ---------------------------------------------------------------------
 -- 1. 权限点：整单退款
 -- ---------------------------------------------------------------------
-INSERT INTO sys_permission (id, tenant_id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 2214, 1, 0, 'sys:mall:order:refund', '商城订单整单退款', 'API',
+INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+SELECT 2214, 0, 'sys:mall:order:refund', '商城订单整单退款', 'API',
        '/mall/order/*/refund', 'POST', 2214, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 2214)

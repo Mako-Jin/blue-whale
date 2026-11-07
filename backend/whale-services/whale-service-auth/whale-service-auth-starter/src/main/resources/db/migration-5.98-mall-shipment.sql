@@ -13,15 +13,15 @@
 -- ---------------------------------------------------------------------
 -- 1. 权限点
 -- ---------------------------------------------------------------------
-INSERT INTO sys_permission (id, tenant_id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 2223, 1, 0, 'sys:mall:shipment:list', '商城发货单列表', 'API',
+INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+SELECT 2223, 0, 'sys:mall:shipment:list', '商城发货单列表', 'API',
        '/mall/shipment/page,/mall/shipment/*', 'GET', 2223, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 2223)
   AND NOT EXISTS (SELECT 1 FROM sys_permission WHERE perm_code = 'sys:mall:shipment:list');
 
-INSERT INTO sys_permission (id, tenant_id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 2224, 1, 0, 'sys:mall:shipment:manage', '商城发货单维护', 'API',
+INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+SELECT 2224, 0, 'sys:mall:shipment:manage', '商城发货单维护', 'API',
        '/mall/shipment,/mall/shipment/*/delivered,/mall/shipment/*/cancel', 'POST', 2224, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 2224)

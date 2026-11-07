@@ -28,6 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -69,9 +70,13 @@ public class MesIntegrationAppServiceImpl implements MesIntegrationAppService {
     /**
      * 生产订单下达后自动下发 MES（事务提交后执行，失败不回滚下达）。
      *
+     * <p>Spring 7 要求 {@code @TransactionalEventListener} 上的 {@code @Transactional} 只能声明
+     * {@code REQUIRES_NEW} / {@code NOT_SUPPORTED}；此处用 REQUIRES_NEW 保证推送与回写独立成事务，
+     * 推送失败不影响下达本身，也不被下达事务回滚。</p>
+     *
      * @param event 下达事件
      */
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onReleased(ProductionOrderReleasedEvent event) {
         try {

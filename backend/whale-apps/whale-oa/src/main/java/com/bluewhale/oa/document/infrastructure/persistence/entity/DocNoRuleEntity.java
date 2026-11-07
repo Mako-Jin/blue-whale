@@ -1,5 +1,6 @@
 package com.bluewhale.oa.document.infrastructure.persistence.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.bluewhale.common.entity.BaseEntity;
 import lombok.Data;
@@ -27,6 +28,8 @@ public class DocNoRuleEntity extends BaseEntity {
 
     private Integer serialLength;
 
+    /** 前缀与流水之间的分隔符；separator 是 MySQL 关键字，列名需反引号转义 */
+    @TableField("`separator`")
     private String separator;
 
     private Integer enabled;

@@ -32,7 +32,7 @@ SELECT 1644, 0, 'sys:oa:approval:urge', '催办审批', 'API', '/oa/approval/cen
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 1644 OR perm_code = 'sys:oa:approval:urge');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 1645, 0, 'sys:oa:approval:delegate', '审批代理设置', 'API', '/oa/approval/delegate/page,/oa/approval/delegate,/oa/approval/delegate/{id}', 'GET/POST/PUT/DELETE', 1645, 1
+SELECT 1645, 0, 'sys:oa:approval:delegate', '审批代理设置', 'API', '/oa/approval/delegate/page,/oa/approval/delegate,/oa/approval/delegate/{id}', 'ALL', 1645, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 1645 OR perm_code = 'sys:oa:approval:delegate');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)

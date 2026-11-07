@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS oa_doc_no_rule (
     period_format VARCHAR(16)  NOT NULL DEFAULT 'MONTH'
                                                    COMMENT '期间格式：YEAR / MONTH / NONE',
     serial_length INT          NOT NULL DEFAULT 3  COMMENT '流水位数（3–6）',
-    separator     VARCHAR(8)   NOT NULL DEFAULT '-' COMMENT '前缀与流水之间分隔符',
+    `separator`   VARCHAR(8)   NOT NULL DEFAULT '-' COMMENT '前缀与流水之间分隔符',
     enabled       TINYINT      NOT NULL DEFAULT 1  COMMENT '是否启用：1 启用 / 0 停用',
     remark        VARCHAR(255) DEFAULT NULL        COMMENT '备注',
     create_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -176,7 +176,7 @@ CREATE TABLE IF NOT EXISTS oa_doc_archive_ref (
 -- 7. 种子：默认发文 / 收文文号规则
 -- ---------------------------------------------------------------------
 INSERT INTO oa_doc_no_rule
-    (id, tenant_id, code, name, doc_type, prefix, period_format, serial_length, separator,
+    (id, tenant_id, code, name, doc_type, prefix, period_format, serial_length, `separator`,
      enabled, remark, deleted)
 SELECT 900000000000001201, 1, 'OUT_DEFAULT', '默认发文文号', 'OUTGOING', 'BW-OUT-', 'YEAR', 3, '-',
        1, 'M4 种子：默认发文文号规则', 0
@@ -185,7 +185,7 @@ WHERE NOT EXISTS (
     SELECT 1 FROM oa_doc_no_rule WHERE tenant_id = 1 AND code = 'OUT_DEFAULT'
 );
 INSERT INTO oa_doc_no_rule
-    (id, tenant_id, code, name, doc_type, prefix, period_format, serial_length, separator,
+    (id, tenant_id, code, name, doc_type, prefix, period_format, serial_length, `separator`,
      enabled, remark, deleted)
 SELECT 900000000000001202, 1, 'IN_DEFAULT', '默认收文文号', 'INCOMING', 'BW-IN-', 'YEAR', 3, '-',
        1, 'M4 种子：默认收文文号规则', 0

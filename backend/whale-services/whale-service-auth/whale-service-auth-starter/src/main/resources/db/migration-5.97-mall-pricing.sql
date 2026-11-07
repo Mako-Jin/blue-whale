@@ -14,36 +14,36 @@
 -- ---------------------------------------------------------------------
 -- 1. 权限点
 -- ---------------------------------------------------------------------
-INSERT INTO sys_permission (id, tenant_id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 2218, 1, 0, 'sys:mall:coupon:list', '商城优惠券列表', 'API',
+INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+SELECT 2218, 0, 'sys:mall:coupon:list', '商城优惠券列表', 'API',
        '/mall/coupon/page', 'GET', 2218, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 2218)
   AND NOT EXISTS (SELECT 1 FROM sys_permission WHERE perm_code = 'sys:mall:coupon:list');
 
-INSERT INTO sys_permission (id, tenant_id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 2219, 1, 0, 'sys:mall:coupon:manage', '商城优惠券维护', 'API',
+INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+SELECT 2219, 0, 'sys:mall:coupon:manage', '商城优惠券维护', 'API',
        '/mall/coupon', 'POST', 2219, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 2219)
   AND NOT EXISTS (SELECT 1 FROM sys_permission WHERE perm_code = 'sys:mall:coupon:manage');
 
-INSERT INTO sys_permission (id, tenant_id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 2220, 1, 0, 'sys:mall:coupon:claim', '商城领券与我的券', 'API',
+INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+SELECT 2220, 0, 'sys:mall:coupon:claim', '商城领券与我的券', 'API',
        '/mall/coupon/mine', 'GET', 2220, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 2220)
   AND NOT EXISTS (SELECT 1 FROM sys_permission WHERE perm_code = 'sys:mall:coupon:claim');
 
-INSERT INTO sys_permission (id, tenant_id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 2221, 1, 0, 'sys:mall:freight:list', '商城运费模板列表', 'API',
+INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+SELECT 2221, 0, 'sys:mall:freight:list', '商城运费模板列表', 'API',
        '/mall/freight-template/page', 'GET', 2221, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 2221)
   AND NOT EXISTS (SELECT 1 FROM sys_permission WHERE perm_code = 'sys:mall:freight:list');
 
-INSERT INTO sys_permission (id, tenant_id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 2222, 1, 0, 'sys:mall:freight:manage', '商城运费模板维护', 'API',
+INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+SELECT 2222, 0, 'sys:mall:freight:manage', '商城运费模板维护', 'API',
        '/mall/freight-template', 'POST', 2222, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 2222)

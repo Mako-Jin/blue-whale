@@ -83,10 +83,10 @@
 
 | 子模块 | 现状 | 目标能力 | 归属 |
 |---|---|---|---|
-| 工单管理 | ❌ | 报修/投诉建单、分派、SLA、处理记录、升级、关闭、重开 | CRM `service` |
-| 知识库 | ❌ | FAQ 元数据、产品/故障标签、文档引用、搜索、命中统计；正文不复制 | CRM `service` 元数据；正文 `whale-doc` |
-| 满意度调查 | ❌ | 工单关闭触发、令牌化问卷、评分/评论、低分回访任务 | CRM `service` |
-| 退换货 | ❌ | 退货/换货申请、审批、ERP 销售退货执行、库存/应收红冲回读 | CRM `service` 申请；ERP 执行 |
+| 工单管理 | △ `crm_ticket` / `crm_ticket_action` / `crm_ticket_sla` / `crm_service_calendar` 已建，建单/分派/处理/暂停恢复/升级/解决/关闭/重开/取消与逾期派生已实现 | 报修/投诉建单、分派、SLA、处理记录、升级、关闭、重开 | CRM `service` |
+| 知识库 | △ `crm_kb_ref` 已建，whale-doc 版本引用、可用状态与命中统计已实现；正文预览未做 | FAQ 元数据、产品/故障标签、文档引用、搜索、命中统计；正文不复制 | CRM `service` 元数据；正文 `whale-doc` |
+| 满意度调查 | △ `crm_satisfaction_survey` / `crm_satisfaction_response` 已建，令牌问卷、答卷、低分回访标记已实现；匿名 H5 未做 | 工单关闭触发、令牌化问卷、评分/评论、低分回访任务 | CRM `service` |
+| 退换货 | △ `crm_return_request` / `crm_return_item` 已建，申请/审批/清单、outbox 幂等下发 ERP 退货、ERP 单号与状态回读、重试与对账已实现；换货执行未做（字段预留） | 退货/换货申请、审批、ERP 销售退货执行、库存/应收红冲回读 | CRM `service` 申请；ERP 执行 |
 
 ### 3.5 营销管理
 
@@ -590,3 +590,4 @@ com.bluewhale.crm
 | 2026-11-07 | M3 7f-3 发票与应收对账：`commerce` 上下文落地 `crm_invoice_request` / `crm_invoice_item` / `crm_ar_snapshot` 三表（V9），开票申请状态机、workflow 审批、开票 / 寄送 / 红冲、ERP 按客户应收只读快照与账龄对账；权限 1874–1880、菜单 430；M4–M6 迁移顺延 V10–V12，M4 权限顺延 1881–1890 |
 | 2026-11-07 | M4 7f-4a 工单与 SLA：`service` 上下文落地工单 / 处理记录 / SLA 策略 / 工作日历，V10 一次建齐 M4 九表（含 4b/4c 预留）；工单状态机（NEW→ASSIGNED→PROCESSING/WAITING_CUSTOMER→RESOLVED→CLOSED，重开/取消）、7×8 日历按工作分钟推进（含午休）、暂停恢复顺延、逾期只读派生；权限 1881–1890、菜单 432–436；4b 知识引用与满意度、4c 退换货待继续 |
 | 2026-11-07 | M4 7f-4b 知识引用与满意度：知识保存调用 whale-doc `/doc/internal/page/{id}` 校验并记录可用版本（不可用降级 `doc_available=false`，不复制正文），命中 `hit_count+1`；工单关闭自动签发 `CSAT-yyyyMMdd-%04d` 一次性令牌（HMAC-SHA256 含租户，默认 7 天），答卷一次后置 USED，重复 / 过期抛 41068，同 IP+工单 10 分钟 5 次限流；低分（总分 ≤3 或任一维度 ≤2）写 `follow_up_required` 并向原工单追加 `FOLLOW_UP` 动作；错误码 41067/41068、权限 1886–1888、前端知识库与满意度两页；4c 退换货待继续 |
+| 2026-11-08 | M4 7f-4c 退换货：复用 `V10` 已建 `crm_return_request` / `crm_return_item`；`ReturnRequest` 状态机（DRAFT→PENDING_APPROVAL→APPROVED/REJECTED→EXECUTING→COMPLETED/FAILED，CANCELLED），可退量按 `已申请量 + 本行 ≤ 订单行数量` 校验；审批回调同事务写 `crm_common_outbox`，按 `RET-yyyyMMdd-XXXX` 幂等下发 ERP `POST /erp/internal/scm/sales-return`（ERP `V18__scm_crm_return_source.sql` 增 `crm_return_no/source_type/source_id` 与 `uk_sr_crm_return_no`，复用退货 `create/post` 过账），失败指数退避重试、按单号回查对账并回写 `erpReturnNo/erpStatus`；错误码 41069–41073、权限 1889–1890、菜单 436、前端退换货页；提交 `e56e4994` |

@@ -41,7 +41,7 @@ SELECT 1948, 0, 'sys:lms:cert:mine', '我的证书', 'API', '/lms/certificate/mi
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 1948 OR perm_code = 'sys:lms:cert:mine');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 1949, 0, 'sys:lms:credit:manage', '学分规则与台账', 'API', '/lms/credit/**', 'GET,POST,PUT,DELETE', 1949, 1
+SELECT 1949, 0, 'sys:lms:credit:manage', '学分规则与台账', 'API', '/lms/credit/**', 'ALL', 1949, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 1949 OR perm_code = 'sys:lms:credit:manage');
 

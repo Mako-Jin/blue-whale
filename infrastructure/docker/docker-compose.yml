@@ -65,10 +65,11 @@ services:
     volumes:
       - redis_data:/data
       - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
-    # requirepass 由环境变量注入, 不落仓
-    command: ["sh", "-c", "exec redis-server /usr/local/etc/redis/redis.conf --requirepass \"$$REDIS_PASSWORD\""]
+    # 本机开发：gateway/auth 的 application.yml 仅配了 REDIS_HOST/PORT，未支持密码，
+    # 因此容器不启用 requirepass。若后续服务端补上 REDIS_PASSWORD 支持，再改回带密码启动。
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
       interval: 10s
       timeout: 5s
       retries: 6

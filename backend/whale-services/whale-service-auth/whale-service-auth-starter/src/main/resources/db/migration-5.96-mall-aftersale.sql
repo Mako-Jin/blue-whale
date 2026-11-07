@@ -11,22 +11,22 @@
 -- ---------------------------------------------------------------------
 -- 1. 权限点
 -- ---------------------------------------------------------------------
-INSERT INTO sys_permission (id, tenant_id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 2215, 1, 0, 'sys:mall:aftersale:apply', '商城售后申请', 'API',
+INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+SELECT 2215, 0, 'sys:mall:aftersale:apply', '商城售后申请', 'API',
        '/mall/after-sale/**', 'POST', 2215, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 2215)
   AND NOT EXISTS (SELECT 1 FROM sys_permission WHERE perm_code = 'sys:mall:aftersale:apply');
 
-INSERT INTO sys_permission (id, tenant_id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 2216, 1, 0, 'sys:mall:aftersale:list', '商城售后列表', 'API',
+INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+SELECT 2216, 0, 'sys:mall:aftersale:list', '商城售后列表', 'API',
        '/mall/after-sale/admin/page', 'GET', 2216, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 2216)
   AND NOT EXISTS (SELECT 1 FROM sys_permission WHERE perm_code = 'sys:mall:aftersale:list');
 
-INSERT INTO sys_permission (id, tenant_id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 2217, 1, 0, 'sys:mall:aftersale:audit', '商城售后审核', 'API',
+INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
+SELECT 2217, 0, 'sys:mall:aftersale:audit', '商城售后审核', 'API',
        '/mall/after-sale/*/approve', 'POST', 2217, 1
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 2217)
