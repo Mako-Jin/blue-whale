@@ -1,6 +1,7 @@
 package com.bluewhale.pay.service;
 
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.pay.dto.PayInternalCreateRequest;
 import com.bluewhale.pay.dto.PayOrderCreateRequest;
 import com.bluewhale.pay.dto.PayOrderQueryRequest;
 import com.bluewhale.pay.vo.PayOrderVO;
@@ -41,6 +42,38 @@ public interface PayOrderService {
     PayOrderVO create(PayOrderCreateRequest request);
 
     /**
+     * 内网创建支付单（业务服务调用；按 orderNo 幂等：已存在直接返回原单）
+     *
+     * @param request 内网创建请求
+     * @return 支付单视图对象
+     */
+    PayOrderVO createInternal(PayInternalCreateRequest request);
+
+    /**
+     * 按支付单号查询
+     *
+     * @param orderNo 支付单号
+     * @return 支付单视图对象
+     */
+    PayOrderVO getByOrderNo(String orderNo);
+
+    /**
+     * 按支付单号发起支付（成功后投递 PAID 业务通知）
+     *
+     * @param orderNo 支付单号
+     * @return 支付后的支付单视图对象
+     */
+    PayOrderVO payByOrderNo(String orderNo);
+
+    /**
+     * 按支付单号取消（已取消幂等成功）
+     *
+     * @param orderNo 支付单号
+     * @return 取消后的支付单视图对象
+     */
+    PayOrderVO cancelByOrderNo(String orderNo);
+
+    /**
      * 支付：仅允许 CREATED → PAID，流转后回填支付时间与渠道流水号
      *
      * @param id 支付单ID
@@ -57,7 +90,8 @@ public interface PayOrderService {
     PayOrderVO cancel(Long id);
 
     /**
-     * 退款：仅允许 PAID → REFUNDED，当前为全额退款
+     * 退款：仅允许 PAID 态；走退款单模型（当前管理端为整单退款），
+     * 成功后投递 REFUNDED 业务通知
      *
      * @param id 支付单ID
      * @return 退款后的支付单视图对象

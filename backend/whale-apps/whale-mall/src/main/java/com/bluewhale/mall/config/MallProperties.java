@@ -29,4 +29,7 @@ public class MallProperties {
 
     /** 列表分页单页上限 */
     private int pageLimit = 100;
+
+    /** 支付/退款成功回调地址（格式 &lt;服务名&gt;/&lt;路径&gt;，创建支付单时传给 whale-pay） */
+    private String payNotifyUrl = "whale-mall/mall/internal/order/paid";
 }

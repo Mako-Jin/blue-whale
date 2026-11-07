@@ -2,6 +2,7 @@ package com.bluewhale.mall.interfaces.controller;
 
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.mall.order.application.command.OrderPaidCommand;
+import com.bluewhale.mall.order.application.command.OrderRefundedCommand;
 import com.bluewhale.mall.order.application.service.OrderAppService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,18 @@ public class MallInternalController {
     @PostMapping("/order/paid")
     public Result<Void> orderPaid(@Valid @RequestBody OrderPaidCommand command) {
         orderAppService.markPaid(command);
+        return Result.ok();
+    }
+
+    /**
+     * 退款结果回调（供 {@code whale-pay} 调用，幂等）。
+     *
+     * @param command 回调命令
+     * @return 空结果
+     */
+    @PostMapping("/order/refunded")
+    public Result<Void> orderRefunded(@Valid @RequestBody OrderRefundedCommand command) {
+        orderAppService.markRefunded(command);
         return Result.ok();
     }
 }

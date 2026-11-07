@@ -56,6 +56,10 @@ public final class MallPermissions {
     /** 订单取消（本人或运营）（2213） */
     public static final String ORDER_CANCEL = "sys:mall:order:cancel";
 
+    /** 整单退款（商城运营） */
+    public static final String ORDER_REFUND = "sys:mall:order:refund";
+
+
     /**
      * 私有构造器：常量类，禁止实例化。
      */

@@ -83,6 +83,8 @@ export const ORDER_STATUS_OPTIONS = [
   { value: 'SHIPPED', label: '已发货' },
   { value: 'COMPLETED', label: '已完成' },
   { value: 'CANCELLED', label: '已取消' },
+  { value: 'REFUNDING', label: '退款中' },
+  { value: 'REFUNDED', label: '已退款' },
 ];
 
 /** 订单状态文案 */
@@ -92,6 +94,8 @@ export const ORDER_STATUS_LABEL: Record<string, string> = {
   SHIPPED: '已发货',
   COMPLETED: '已完成',
   CANCELLED: '已取消',
+  REFUNDING: '退款中',
+  REFUNDED: '已退款',
 };
 
 /** 订单状态标签色 */
@@ -101,6 +105,8 @@ export const ORDER_STATUS_COLOR: Record<string, string> = {
   SHIPPED: 'cyan',
   COMPLETED: 'green',
   CANCELLED: 'default',
+  REFUNDING: 'orange',
+  REFUNDED: 'purple',
 };
 
 /**

@@ -21,6 +21,7 @@ import com.bluewhale.mall.order.domain.model.MallOrder;
 import com.bluewhale.mall.order.domain.model.OrderItem;
 import com.bluewhale.mall.order.domain.model.OrderStatus;
 import com.bluewhale.mall.order.domain.repository.OrderRepository;
+import com.bluewhale.mall.order.infrastructure.client.PayInternalClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -74,6 +75,9 @@ class OrderAppServiceImplTest {
     private MallSequenceService sequenceService;
 
     @Mock
+    private PayInternalClient payInternalClient;
+
+    @Mock
     private MallProperties properties;
 
     @InjectMocks
@@ -88,6 +92,7 @@ class OrderAppServiceImplTest {
         lenient().when(properties.getOrderMaxLines()).thenReturn(50);
         lenient().when(properties.getOrderExpireMinutes()).thenReturn(30);
         lenient().when(properties.isIdempotencyRequired()).thenReturn(true);
+        lenient().when(properties.getPayNotifyUrl()).thenReturn("whale-mall/mall/internal/order/paid");
     }
 
     /**
@@ -266,5 +271,151 @@ class OrderAppServiceImplTest {
         item.setAmount(new BigDecimal("39.80"));
         order.setItems(new ArrayList<>(List.of(item)));
         return order;
+    }
+
+    /**
+     * 买家发起支付：创建支付单（幂等）并调起支付，落支付单号。
+     */
+    @Test
+    @DisplayName("买家支付创建支付单并调起支付")
+    void payCreatesPayOrderAndInvokesPay() {
+        MallOrder order = existingOrder();
+        when(orderRepository.findById(5L)).thenReturn(Optional.of(order));
+        when(payInternalClient.createPayOrder(anyString(), any(), anyString(), anyString()))
+                .thenReturn("MO20261106000001");
+
+        String payNo = orderAppService.pay(5L, actor);
+
+        assertThat(payNo).isEqualTo("MO20261106000001");
+        assertThat(order.getPayNo()).isEqualTo("MO20261106000001");
+        verify(payInternalClient).pay("MO20261106000001");
+        verify(orderRepository).update(any(MallOrder.class));
+    }
+
+    /**
+     * 已有支付单时不重复创建，直接调起支付。
+     */
+    @Test
+    @DisplayName("已有支付单时直接调起支付不重复创建")
+    void payReusesExistingPayOrder() {
+        MallOrder order = existingOrder();
+        order.setPayNo("MO20261106000001");
+        when(orderRepository.findById(5L)).thenReturn(Optional.of(order));
+
+        String payNo = orderAppService.pay(5L, actor);
+
+        assertThat(payNo).isEqualTo("MO20261106000001");
+        verify(payInternalClient, never()).createPayOrder(anyString(), any(), anyString(), anyString());
+        verify(payInternalClient).pay("MO20261106000001");
+    }
+
+    /**
+     * 非买家本人不能支付他人订单。
+     */
+    @Test
+    @DisplayName("不能支付他人订单")
+    void payRejectsForeignOrder() {
+        MallOrder order = existingOrder();
+        order.setBuyerUserId(8L);
+        when(orderRepository.findById(5L)).thenReturn(Optional.of(order));
+
+        assertThatThrownBy(() -> orderAppService.pay(5L, actor))
+                .isInstanceOf(BizException.class)
+                .satisfies(exception -> assertThat(((BizException) exception).getCode())
+                        .isEqualTo(MallErrorCode.ORDER_FORBIDDEN));
+        verify(payInternalClient, never()).pay(anyString());
+    }
+
+    /**
+     * 整单退款：订单进入 REFUNDING 并发起远端退款。
+     */
+    @Test
+    @DisplayName("整单退款进入 REFUNDING 并发起远端退款")
+    void refundTransitionsToRefunding() {
+        MallOrder order = existingOrder();
+        order.setStatus(OrderStatus.PAID);
+        order.setPayNo("MO20261106000001");
+        order.setPayTime(java.time.LocalDateTime.now());
+        when(orderRepository.findById(5L)).thenReturn(Optional.of(order));
+
+        orderAppService.refund(5L, "商品质量问题", actor);
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.REFUNDING);
+        verify(payInternalClient).refund("MO20261106000001", new BigDecimal("39.80"), "商品质量问题");
+        verify(orderRepository).update(any(MallOrder.class));
+    }
+
+    /**
+     * 非运营角色不能退款。
+     */
+    @Test
+    @DisplayName("买家角色不能发起退款")
+    void refundRejectsBuyer() {
+        MallActor buyer = new MallActor(7L, "buyer", java.util.Set.of(), java.util.Set.of());
+
+        assertThatThrownBy(() -> orderAppService.refund(5L, "测试", buyer))
+                .isInstanceOf(BizException.class)
+                .satisfies(exception -> assertThat(((BizException) exception).getCode())
+                        .isEqualTo(MallErrorCode.ORDER_FORBIDDEN));
+        verify(payInternalClient, never()).refund(anyString(), any(), anyString());
+    }
+
+    /**
+     * 退款回调：REFUNDING → REFUNDED 并落退款金额。
+     */
+    @Test
+    @DisplayName("退款回调推进到 REFUNDED 并落退款金额")
+    void markRefundedTransitionsToRefunded() {
+        MallOrder order = existingOrder();
+        order.setStatus(OrderStatus.REFUNDING);
+        when(orderRepository.findByOrderNo("MO20261106000001")).thenReturn(Optional.of(order));
+        com.bluewhale.mall.order.application.command.OrderRefundedCommand command =
+                new com.bluewhale.mall.order.application.command.OrderRefundedCommand();
+        command.setOrderNo("MO20261106000001");
+        command.setPayNo("MO20261106000001");
+        command.setRefundNo("RF20261107000001");
+        command.setRefundAmount(new BigDecimal("39.80"));
+
+        orderAppService.markRefunded(command);
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.REFUNDED);
+        assertThat(order.getRefundAmount()).isEqualByComparingTo("39.80");
+        assertThat(order.getRefundTime()).isNotNull();
+        verify(orderRepository).update(any(MallOrder.class));
+    }
+
+    /**
+     * 退款回调幂等：已退款再次回调直接成功。
+     */
+    @Test
+    @DisplayName("已退款订单重复回调幂等成功")
+    void markRefundedIsIdempotent() {
+        MallOrder order = existingOrder();
+        order.setStatus(OrderStatus.REFUNDED);
+        order.setRefundAmount(new BigDecimal("39.80"));
+        when(orderRepository.findByOrderNo("MO20261106000001")).thenReturn(Optional.of(order));
+        com.bluewhale.mall.order.application.command.OrderRefundedCommand command =
+                new com.bluewhale.mall.order.application.command.OrderRefundedCommand();
+        command.setOrderNo("MO20261106000001");
+        command.setRefundAmount(new BigDecimal("39.80"));
+
+        orderAppService.markRefunded(command);
+
+        verify(orderRepository, never()).update(any(MallOrder.class));
+    }
+
+    /**
+     * 取消订单联动取消支付单（已落支付单号时）。
+     */
+    @Test
+    @DisplayName("取消订单联动取消支付单")
+    void cancelAlsoCancelsPayOrder() {
+        MallOrder order = existingOrder();
+        order.setPayNo("MO20261106000001");
+        when(orderRepository.findById(5L)).thenReturn(Optional.of(order));
+
+        orderAppService.cancel(5L, "不想要了", actor);
+
+        verify(payInternalClient).cancel("MO20261106000001");
     }
 }

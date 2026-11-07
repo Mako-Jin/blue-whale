@@ -4,32 +4,43 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.pay.config.PayChannelProperties;
 import com.bluewhale.pay.entity.PayOrder;
-import com.bluewhale.pay.enums.PayOrderStatus;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.util.Locale;
-import java.util.UUID;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
- * 支付渠道网关（mock 实现）。
+ * 支付渠道网关（适配器路由）。
  *
- * <p>当前无真实渠道供应商，默认 {@code whale.pay.mock=true}：支付/退款只生成模拟渠道流水号，
- * 查询直接镜像本地状态。关闭 mock 后因为没有真实适配器，三类动作都会抛出明确的
- * {@code PARAM_ERROR}，避免真实资金动作被伪造为成功。</p>
+ * <p>不再自带渠道逻辑：按渠道号路由到 {@link PayChannelAdapter} 实现。
+ * 渠道还必须在 {@code whale.pay.allowed-channels} 允许列表内，双重校验。
+ * 渠道存在但无适配器（如未接真实渠道却传 ALIPAY）抛 {@code PARAM_ERROR}。</p>
  *
  * @author BlueWhale
  */
 @Component
-@RequiredArgsConstructor
 public class PayChannelGateway {
 
-    /** 模拟渠道流水号前缀 */
-    private static final String MOCK_TRADE_PREFIX = "MOCK-";
-
-
     private final PayChannelProperties properties;
+
+    private final Map<String, PayChannelAdapter> adapters;
+
+    /**
+     * 构造网关并按渠道号建立路由表。
+     *
+     * @param properties 渠道配置
+     * @param adapters   容器内全部适配器实现
+     */
+    public PayChannelGateway(PayChannelProperties properties, java.util.List<PayChannelAdapter> adapters) {
+        this.properties = properties;
+        this.adapters = adapters == null ? Map.of() : adapters.stream()
+                .collect(Collectors.toMap(adapter -> adapter.channel().toUpperCase(Locale.ROOT),
+                        Function.identity(), (a, b) -> a));
+    }
 
     /**
      * 判断渠道编码是否在允许列表中（不区分大小写）
@@ -55,55 +66,46 @@ public class PayChannelGateway {
      * @return 渠道结果
      */
     public PayChannelResult pay(PayOrder order) {
-        ensureMock(order);
-        return new PayChannelResult(newMockTradeNo(), PayOrderStatus.PAID.code());
+        return requireAdapter(order.getChannel()).pay(order);
     }
 
     /**
      * 发起退款
      *
-     * @param order 支付单
+     * @param order        支付单
+     * @param refundNo     退款单号
+     * @param refundAmount 退款金额
      * @return 渠道结果
      */
-    public PayChannelResult refund(PayOrder order) {
-        ensureMock(order);
-        String providerTradeNo = StringUtils.hasText(order.getChannelTradeNo())
-                ? order.getChannelTradeNo() : newMockTradeNo();
-        return new PayChannelResult(providerTradeNo, PayOrderStatus.REFUNDED.code());
+    public PayChannelResult refund(PayOrder order, String refundNo, BigDecimal refundAmount) {
+        return requireAdapter(order.getChannel()).refund(order, refundNo, refundAmount);
     }
 
     /**
-     * 查询渠道状态（mock 模式镜像本地状态）
+     * 查询渠道状态（mock 适配器镜像本地状态）
      *
      * @param order 支付单
      * @return 渠道状态
      */
     public String queryStatus(PayOrder order) {
-        ensureMock(order);
-        return order.getStatus();
+        return requireAdapter(order.getChannel()).queryStatus(order);
     }
 
     /**
-     * mock 前置校验：未开启 mock 时没有真实适配器，直接拒绝
+     * 按渠道号取适配器；白名单通过但无适配器实现视为渠道未接入
      *
-     * @param order 支付单
+     * @param channel 渠道编码
+     * @return 适配器
      */
-    private void ensureMock(PayOrder order) {
-        if (!properties.isMock()) {
+    private PayChannelAdapter requireAdapter(String channel) {
+        if (!isSupported(channel)) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "不支持的支付渠道: " + channel);
+        }
+        PayChannelAdapter adapter = adapters.get(channel.trim().toUpperCase(Locale.ROOT));
+        if (adapter == null) {
             throw new BizException(ErrorCode.PARAM_ERROR,
-                    "真实支付渠道尚未接入，请先实现渠道适配器或开启 whale.pay.mock");
+                    "渠道未接入适配器: " + channel + "（当前仅内置 MOCK）");
         }
-        if (!isSupported(order.getChannel())) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "不支持的支付渠道: " + order.getChannel());
-        }
-    }
-
-    /**
-     * 生成模拟渠道流水号（长度 37，符合库表 64 限制）
-     *
-     * @return 模拟流水号
-     */
-    private static String newMockTradeNo() {
-        return MOCK_TRADE_PREFIX + UUID.randomUUID().toString().replace("-", "");
+        return adapter;
     }
 }

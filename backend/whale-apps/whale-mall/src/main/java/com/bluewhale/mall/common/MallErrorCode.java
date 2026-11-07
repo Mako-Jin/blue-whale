@@ -112,6 +112,15 @@ public final class MallErrorCode {
     /** 支付回调参数非法（订单号 / 支付单号缺失或金额不匹配） */
     public static final int PAY_CALLBACK_INVALID = 45037;
 
+    /** 当前状态不允许退款（仅已支付订单可整单退款） */
+    public static final int ORDER_REFUND_NOT_ALLOWED = 45038;
+
+    /** 创建或发起支付失败（whale-pay 不可用或拒绝） */
+    public static final int ORDER_PAY_FAILED = 45039;
+
+    /** 退款发起失败（whale-pay 不可用或拒绝） */
+    public static final int ORDER_REFUND_FAILED = 45040;
+
     /** 业务错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(ACTOR_REQUIRED, "缺少操作人身份，无法执行该操作"),
@@ -145,7 +154,10 @@ public final class MallErrorCode {
             Map.entry(ORDER_AMOUNT_INVALID, "订单金额不合法"),
             Map.entry(ORDER_FORBIDDEN, "无权操作该订单"),
             Map.entry(ORDER_PRODUCT_UNAVAILABLE, "订单中部分商品已下架或渠道已停用"),
-            Map.entry(PAY_CALLBACK_INVALID, "支付回调参数不合法"));
+            Map.entry(PAY_CALLBACK_INVALID, "支付回调参数不合法"),
+            Map.entry(ORDER_REFUND_NOT_ALLOWED, "当前状态不允许退款"),
+            Map.entry(ORDER_PAY_FAILED, "发起支付失败，请稍后重试"),
+            Map.entry(ORDER_REFUND_FAILED, "发起退款失败，请稍后重试"));
 
     /**
      * 私有构造器：常量类，禁止实例化。

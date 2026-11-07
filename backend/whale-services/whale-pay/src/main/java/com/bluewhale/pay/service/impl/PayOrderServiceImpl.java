@@ -9,14 +9,18 @@ import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.pay.channel.PayChannelGateway;
 import com.bluewhale.pay.channel.PayChannelResult;
 import com.bluewhale.pay.converter.PayOrderConverter;
+import com.bluewhale.pay.dto.PayInternalCreateRequest;
 import com.bluewhale.pay.dto.PayOrderCreateRequest;
 import com.bluewhale.pay.dto.PayOrderQueryRequest;
 import com.bluewhale.pay.entity.PayOrder;
 import com.bluewhale.pay.entity.PayTransaction;
+import com.bluewhale.pay.enums.PayNotifyEvent;
 import com.bluewhale.pay.enums.PayOrderStatus;
 import com.bluewhale.pay.mapper.PayOrderMapper;
 import com.bluewhale.pay.mapper.PayTransactionMapper;
+import com.bluewhale.pay.service.PayNotifyService;
 import com.bluewhale.pay.service.PayOrderService;
+import com.bluewhale.pay.service.PayRefundService;
 import com.bluewhale.pay.vo.PayOrderVO;
 import com.bluewhale.pay.vo.PayReconcileVO;
 import com.bluewhale.pay.vo.PayTransactionVO;
@@ -77,6 +81,10 @@ public class PayOrderServiceImpl implements PayOrderService {
 
     private final PayChannelGateway payChannelGateway;
 
+    private final PayNotifyService payNotifyService;
+
+    private final PayRefundService payRefundService;
+
     @Override
     public PageResult<PayOrderVO> page(PayOrderQueryRequest request) {
         LambdaQueryWrapper<PayOrder> wrapper = new LambdaQueryWrapper<>();
@@ -134,6 +142,9 @@ public class PayOrderServiceImpl implements PayOrderService {
         existing.setChannelTradeNo(result.providerTradeNo());
         payOrderMapper.updateById(existing);
         recordTransaction(existing, TYPE_PAY, result);
+        com.bluewhale.pay.entity.PayNotifyTask task =
+                payNotifyService.enqueue(PayNotifyEvent.PAID, existing, null, null);
+        payNotifyService.dispatchAfterCommit(task == null ? null : task.getId());
         return toVo(payOrderMapper.selectById(id));
     }
 
@@ -151,17 +162,57 @@ public class PayOrderServiceImpl implements PayOrderService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public PayOrderVO refund(Long id) {
-        PayOrder existing = requireOrder(id);
-        ensureStatus(existing, PayOrderStatus.PAID.code(), "只有已支付的支付单可以退款");
-        // 条件更新抢占 PAID → REFUNDED：并发下只有一个事务能成功，防止重复退款
-        claimTransition(id, PayOrderStatus.PAID.code(), PayOrderStatus.REFUNDED.code(), "只有已支付的支付单可以退款");
-        existing.setStatus(PayOrderStatus.REFUNDED.code());
-        existing.setRefundAmount(existing.getAmount());
-        existing.setRefundTime(LocalDateTime.now());
-        PayChannelResult result = payChannelGateway.refund(existing);
-        payOrderMapper.updateById(existing);
-        recordTransaction(existing, TYPE_REFUND, result);
+        if (payOrderMapper.selectById(id) == null) {
+            throw new BizException(ErrorCode.NOT_FOUND);
+        }
+        payRefundService.refundFull(id, "管理端整单退款");
         return toVo(payOrderMapper.selectById(id));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public PayOrderVO createInternal(PayInternalCreateRequest request) {
+        String orderNo = request.getOrderNo().trim();
+        PayOrder existing = payOrderMapper.selectOne(new LambdaQueryWrapper<PayOrder>()
+                .eq(PayOrder::getOrderNo, orderNo));
+        if (existing != null) {
+            // 幂等创建：同单号重复创建直接返回原单，业务方重试是正常路径
+            return toVo(existing);
+        }
+        PayOrderCreateRequest adminRequest = new PayOrderCreateRequest();
+        adminRequest.setOrderNo(orderNo);
+        adminRequest.setBusinessKey(request.getBizType());
+        adminRequest.setAmount(request.getAmount());
+        adminRequest.setCurrency(request.getCurrency());
+        adminRequest.setChannel(request.getChannel());
+        adminRequest.setRemark(request.getRemark());
+        PayOrderVO created = create(adminRequest);
+        PayOrder fresh = payOrderMapper.selectById(created.getId());
+        fresh.setBizType(normalize(request.getBizType(), "MALL_ORDER"));
+        fresh.setNotifyUrl(request.getNotifyUrl().trim());
+        payOrderMapper.updateById(fresh);
+        return toVo(payOrderMapper.selectById(created.getId()));
+    }
+
+    @Override
+    public PayOrderVO getByOrderNo(String orderNo) {
+        PayOrder order = requireOrderByNo(orderNo);
+        return toVo(order);
+    }
+
+    @Override
+    public PayOrderVO payByOrderNo(String orderNo) {
+        return pay(requireOrderByNo(orderNo).getId());
+    }
+
+    @Override
+    public PayOrderVO cancelByOrderNo(String orderNo) {
+        PayOrder order = requireOrderByNo(orderNo);
+        if (PayOrderStatus.CANCELLED.code().equals(order.getStatus())) {
+            // 幂等取消：业务方重复取消直接成功
+            return toVo(order);
+        }
+        return cancel(order.getId());
     }
 
     @Override
@@ -217,6 +268,22 @@ public class PayOrderServiceImpl implements PayOrderService {
      */
     private PayOrder requireOrder(Long id) {
         PayOrder order = id == null ? null : payOrderMapper.selectById(id);
+        if (order == null) {
+            throw new BizException(ErrorCode.NOT_FOUND);
+        }
+        return order;
+    }
+
+    /**
+     * 按支付单号查询，不存在抛 NOT_FOUND。
+     *
+     * @param orderNo 支付单号
+     * @return 支付单
+     */
+    private PayOrder requireOrderByNo(String orderNo) {
+        PayOrder order = StringUtils.hasText(orderNo)
+                ? payOrderMapper.selectOne(new LambdaQueryWrapper<PayOrder>().eq(PayOrder::getOrderNo, orderNo.trim()))
+                : null;
         if (order == null) {
             throw new BizException(ErrorCode.NOT_FOUND);
         }

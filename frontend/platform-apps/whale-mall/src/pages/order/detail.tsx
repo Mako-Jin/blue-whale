@@ -20,6 +20,8 @@ import {
   cancelOrder,
   completeOrder,
   getOrder,
+  payOrder,
+  refundOrder,
   shipOrder,
   type OrderLineView,
   type OrderView,
@@ -54,9 +56,12 @@ export default function OrderDetailPage() {
   const [busy, setBusy] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
+  const [refundOpen, setRefundOpen] = useState(false);
+  const [refundReason, setRefundReason] = useState('');
 
   const canManage = hasPermission('sys:mall:order:manage');
   const canCancel = hasPermission('sys:mall:order:cancel');
+  const canRefund = hasPermission('sys:mall:order:refund');
 
   /** 加载详情 */
   const load = useCallback(async () => {
@@ -88,6 +93,42 @@ export default function OrderDetailPage() {
       message.success('订单已取消');
       setCancelOpen(false);
       setCancelReason('');
+      await load();
+    } catch (error) {
+      message.error(errorText(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /** 发起支付（MOCK 即时成功，随后 whale-pay 回调推进订单状态） */
+  const submitPay = async () => {
+    if (!order) {
+      return;
+    }
+    setBusy(true);
+    try {
+      const payNo = await payOrder(order.id);
+      message.success(`已发起支付：${payNo}，支付结果稍后自动刷新`);
+      await load();
+    } catch (error) {
+      message.error(errorText(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /** 整单退款 */
+  const submitRefund = async () => {
+    if (!order) {
+      return;
+    }
+    setBusy(true);
+    try {
+      await refundOrder(order.id, refundReason.trim() || undefined);
+      message.success('已发起整单退款，等待支付服务回调确认');
+      setRefundOpen(false);
+      setRefundReason('');
       await load();
     } catch (error) {
       message.error(errorText(error));
@@ -154,6 +195,16 @@ export default function OrderDetailPage() {
         <Space>
           <Button onClick={() => navigate('/order')}>返回列表</Button>
           <Button onClick={() => void load()}>刷新</Button>
+          {order?.status === 'PENDING_PAYMENT' && (
+            <Popconfirm title="确认发起支付？" onConfirm={() => void submitPay()}>
+              <Button type="primary">去支付</Button>
+            </Popconfirm>
+          )}
+          {canRefund && order?.status === 'PAID' && (
+            <Button danger onClick={() => setRefundOpen(true)}>
+              整单退款
+            </Button>
+          )}
           {canCancel && order?.status === 'PENDING_PAYMENT' && (
             <Button danger onClick={() => setCancelOpen(true)}>
               取消订单
@@ -238,7 +289,7 @@ export default function OrderDetailPage() {
         onOk={submitCancel}
       >
         <Typography.Paragraph type="secondary">
-          只有待支付订单可以取消；已支付订单请走退款流程（M1）。
+          只有待支付订单可以取消；已支付订单请走整单退款（运营权限）。
         </Typography.Paragraph>
         <Input.TextArea
           rows={2}
@@ -246,6 +297,25 @@ export default function OrderDetailPage() {
           placeholder="取消原因（可选）"
           value={cancelReason}
           onChange={(event) => setCancelReason(event.target.value)}
+        />
+      </Modal>
+
+      <Modal
+        title="整单退款"
+        open={refundOpen}
+        confirmLoading={busy}
+        onCancel={() => setRefundOpen(false)}
+        onOk={submitRefund}
+      >
+        <Typography.Paragraph type="secondary">
+          订单将进入「退款中」，退款成功由支付服务回调确认；退款中不可发货、不可再次退款。
+        </Typography.Paragraph>
+        <Input.TextArea
+          rows={2}
+          maxLength={255}
+          placeholder="退款原因（可选）"
+          value={refundReason}
+          onChange={(event) => setRefundReason(event.target.value)}
         />
       </Modal>
     </Card>

@@ -125,6 +125,48 @@ class MallOrderStateTest {
      * @param status 状态
      * @return 订单
      */
+    @Test
+    @DisplayName("退款边：已支付 → 退款中 → 已退款（终态）")
+    void refundPath() {
+        MallOrder order = order(OrderStatus.PAID);
+        order.setTotalAmount(new BigDecimal("39.80"));
+        order.requestRefund();
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.REFUNDING);
+        assertThat(order.getStatus().canShip()).isFalse();
+        order.markRefunded(new BigDecimal("39.80"), null);
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.REFUNDED);
+        assertThat(order.getRefundAmount()).isEqualByComparingTo("39.80");
+        assertThat(order.getRefundTime()).isNotNull();
+        assertThat(order.getStatus().isFinal()).isTrue();
+    }
+
+    @Test
+    @DisplayName("非法退款：待支付/已发货/已完成不能申请退款")
+    void refundOnlyFromPaid() {
+        assertThat(OrderStatus.PENDING_PAYMENT.canRefund()).isFalse();
+        assertThat(OrderStatus.SHIPPED.canRefund()).isFalse();
+        assertThat(OrderStatus.COMPLETED.canRefund()).isFalse();
+        assertThat(OrderStatus.REFUNDING.canRefund()).isFalse();
+        assertThatThrownBy(() -> order(OrderStatus.SHIPPED).requestRefund())
+                .isInstanceOf(BizException.class)
+                .satisfies(exception -> assertThat(((BizException) exception).getCode())
+                        .isEqualTo(MallErrorCode.ORDER_STATE_CONFLICT));
+    }
+
+    @Test
+    @DisplayName("退款回调只接受 REFUNDING 状态")
+    void refundCallbackOnlyFromRefunding() {
+        assertThatThrownBy(() -> order(OrderStatus.PAID).markRefunded(null, null))
+                .isInstanceOf(BizException.class)
+                .satisfies(exception -> assertThat(((BizException) exception).getCode())
+                        .isEqualTo(MallErrorCode.ORDER_STATE_CONFLICT));
+        // 金额缺省时取订单总额
+        MallOrder order = order(OrderStatus.REFUNDING);
+        order.setTotalAmount(new BigDecimal("39.80"));
+        order.markRefunded(null, null);
+        assertThat(order.getRefundAmount()).isEqualByComparingTo("39.80");
+    }
+
     private MallOrder order(OrderStatus status) {
         MallOrder order = new MallOrder();
         order.setOrderNo("MO20261106000001");

@@ -220,6 +220,8 @@ public class OrderRepositoryImpl implements OrderRepository {
         order.setIdempotencyKey(entity.getIdempotencyKey());
         order.setPayNo(entity.getPayNo());
         order.setPayTime(entity.getPayTime());
+        order.setRefundAmount(entity.getRefundAmount());
+        order.setRefundTime(entity.getRefundTime());
         order.setShipTime(entity.getShipTime());
         order.setCompleteTime(entity.getCompleteTime());
         order.setCancelTime(entity.getCancelTime());
@@ -295,6 +297,8 @@ public class OrderRepositoryImpl implements OrderRepository {
         entity.setIdempotencyKey(order.getIdempotencyKey());
         entity.setPayNo(order.getPayNo());
         entity.setPayTime(order.getPayTime());
+        entity.setRefundAmount(order.getRefundAmount());
+        entity.setRefundTime(order.getRefundTime());
         entity.setShipTime(order.getShipTime());
         entity.setCompleteTime(order.getCompleteTime());
         entity.setCancelTime(order.getCancelTime());

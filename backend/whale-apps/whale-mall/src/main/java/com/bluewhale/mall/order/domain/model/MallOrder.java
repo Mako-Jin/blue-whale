@@ -84,6 +84,12 @@ public class MallOrder {
     /** 支付时间 */
     private LocalDateTime payTime;
 
+    /** 累计退款金额 */
+    private BigDecimal refundAmount;
+
+    /** 退款完成时间 */
+    private LocalDateTime refundTime;
+
     /** 发货时间 */
     private LocalDateTime shipTime;
 
@@ -207,5 +213,35 @@ public class MallOrder {
      */
     public boolean belongsTo(Long userId) {
         return userId != null && userId.equals(buyerUserId);
+    }
+
+    /**
+     * 申请整单退款：PAID → REFUNDING。
+     *
+     * <p>REFUNDING 期间不可发货、不可再次申请退款（{@code canRefund} 只认 PAID），防并发双退。
+     * 实际退款金额以 whale-pay 回调为准。</p>
+     */
+    public void requestRefund() {
+        if (!status.canRefund()) {
+            throw MallErrorCode.exception(MallErrorCode.ORDER_STATE_CONFLICT,
+                    "订单当前状态（" + status + "）不允许退款");
+        }
+        this.status = OrderStatus.REFUNDING;
+    }
+
+    /**
+     * 退款回调确认：REFUNDING → REFUNDED，落累计退款金额与时间。
+     *
+     * @param refundedAmount 累计退款金额（空则取订单总额）
+     * @param refundedAt     退款完成时间（空则取当前时间）
+     */
+    public void markRefunded(BigDecimal refundedAmount, LocalDateTime refundedAt) {
+        if (this.status != OrderStatus.REFUNDING) {
+            throw MallErrorCode.exception(MallErrorCode.ORDER_STATE_CONFLICT,
+                    "订单当前状态（" + status + "）不接受退款回调");
+        }
+        this.refundAmount = refundedAmount == null ? totalAmount : refundedAmount;
+        this.refundTime = refundedAt == null ? LocalDateTime.now() : refundedAt;
+        this.status = OrderStatus.REFUNDED;
     }
 }

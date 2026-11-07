@@ -1,9 +1,13 @@
 package com.bluewhale.pay.converter;
 
 import com.bluewhale.pay.dto.PayOrderCreateRequest;
+import com.bluewhale.pay.entity.PayNotifyTask;
 import com.bluewhale.pay.entity.PayOrder;
+import com.bluewhale.pay.entity.PayRefund;
 import com.bluewhale.pay.entity.PayTransaction;
+import com.bluewhale.pay.vo.PayNotifyTaskVO;
 import com.bluewhale.pay.vo.PayOrderVO;
+import com.bluewhale.pay.vo.PayRefundVO;
 import com.bluewhale.pay.vo.PayTransactionVO;
 import org.mapstruct.Mapper;
 import org.mapstruct.factory.Mappers;
@@ -45,4 +49,20 @@ public interface PayOrderConverter {
      * @return 流水视图对象
      */
     PayTransactionVO toTransactionVo(PayTransaction transaction);
+
+    /**
+     * 退款单实体转视图对象
+     *
+     * @param refund 退款单实体
+     * @return 退款单视图对象
+     */
+    PayRefundVO toRefundVo(PayRefund refund);
+
+    /**
+     * 通知任务实体转视图对象
+     *
+     * @param task 任务实体
+     * @return 任务视图对象
+     */
+    PayNotifyTaskVO toNotifyTaskVo(PayNotifyTask task);
 }

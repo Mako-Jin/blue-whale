@@ -157,6 +157,36 @@ public class MallOrderController {
     }
 
     /**
+     * 买家发起支付（创建支付单并支付；成功后由 whale-pay 异步回调推进订单状态）。
+     *
+     * @param id 订单 ID
+     * @param request 当前请求
+     * @return 支付单号
+     */
+    @PostMapping("/{id}/pay")
+    @RequirePermission(MallPermissions.ORDER_LIST)
+    public Result<String> pay(@PathVariable("id") Long id, HttpServletRequest request) {
+        return Result.ok(orderAppService.pay(id, MallActorContext.from(request)));
+    }
+
+    /**
+     * 整单退款（商城运营）：订单进入 REFUNDING，退款成功由 whale-pay 回调终态。
+     *
+     * @param id 订单 ID
+     * @param reason 退款原因
+     * @param request 当前请求
+     * @return 空结果
+     */
+    @PostMapping("/{id}/refund")
+    @RequirePermission(MallPermissions.ORDER_REFUND)
+    public Result<Void> refund(@PathVariable("id") Long id,
+                               @RequestParam(value = "reason", required = false) String reason,
+                               HttpServletRequest request) {
+        orderAppService.refund(id, reason, MallActorContext.from(request));
+        return Result.ok();
+    }
+
+    /**
      * 发货。
      *
      * @param id 订单 ID

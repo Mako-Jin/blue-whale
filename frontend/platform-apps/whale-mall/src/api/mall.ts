@@ -379,6 +379,8 @@ export interface OrderView {
   itemCount: number;
   payNo?: string;
   payTime?: string;
+  refundAmount?: Money;
+  refundTime?: string;
   shipTime?: string;
   completeTime?: string;
   cancelTime?: string;
@@ -444,6 +446,16 @@ export function getOrder(id: number): Promise<OrderView> {
 /** 取消订单（只对未支付生效） */
 export function cancelOrder(id: number, reason?: string): Promise<void> {
   return http.post<void>(`/mall/order/${id}/cancel`, undefined, { reason });
+}
+
+/** 买家发起支付：创建支付单并调起支付，返回支付单号（成功后 whale-pay 异步回调推进状态） */
+export function payOrder(id: number): Promise<string> {
+  return http.post<string>(`/mall/order/${id}/pay`);
+}
+
+/** 整单退款（运营；PAID → REFUNDING，退款成功由 whale-pay 回调终态） */
+export function refundOrder(id: number, reason?: string): Promise<void> {
+  return http.post<void>(`/mall/order/${id}/refund`, undefined, { reason });
 }
 
 /** 发货（PAID → SHIPPED） */

@@ -389,6 +389,8 @@ whale:
         - /party/internal/**
         # Wave 5.94 商城内网通道：支付结果回调仅 whale-pay 经内网直连 whale-mall
         - /mall/internal/**
+        # Wave 5.95 支付内网通道：支付单创建/支付/取消/退款仅业务服务经内网直连 whale-pay
+        - /pay/internal/**
         # Wave 5.80 图文档内网通道：文件引用/内部上传等仅服务间内网直连 whale-pdm
         - /pdm/internal/**
         # Wave 5.79 MES 工单接收内网通道：仅 ERP 经内网直连 whale-mes

@@ -65,6 +65,12 @@ public class OrderEntity extends BaseEntity {
     /** 支付时间 */
     private LocalDateTime payTime;
 
+    /** 累计退款金额 */
+    private BigDecimal refundAmount;
+
+    /** 退款完成时间 */
+    private LocalDateTime refundTime;
+
     /** 发货时间 */
     private LocalDateTime shipTime;
 

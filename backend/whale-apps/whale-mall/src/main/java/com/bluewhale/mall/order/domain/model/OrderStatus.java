@@ -7,13 +7,14 @@ import java.util.Locale;
  *
  * <pre>
  * PENDING_PAYMENT ──pay──> PAID ──ship──> SHIPPED ──complete──> COMPLETED
- *        │
- *        └──cancel──> CANCELLED
+ *        │                  │
+ *        └──cancel──> CANCELLED    └──refund──> REFUNDING ──refund-callback──> REFUNDED
  * </pre>
  *
- * <p>只允许这四条边。{@code PAID} 不能取消：钱已收，取消等于退款，
+ * <p>只允许这六条边。{@code PAID} 不能取消：钱已收，取消等于退款，
  * 而退款是带审批与流水记录的独立流程，塞进「取消」会让这个动作有时退钱有时不退。
- * {@code SHIPPED} 不能取消：货在路上，逆向走售后。</p>
+ * {@code SHIPPED} 不能取消：货在路上，逆向走售后（M1 后续切片）。
+ * {@code REFUNDING} 期间禁止发货与再次申请退款，防并发双退。</p>
  *
  * @author BlueWhale
  */
@@ -32,7 +33,13 @@ public enum OrderStatus {
     COMPLETED,
 
     /** 已取消 */
-    CANCELLED;
+    CANCELLED,
+
+    /** 退款中（已向 whale-pay 发起整单退款，待回调确认） */
+    REFUNDING,
+
+    /** 已退款（终态） */
+    REFUNDED;
 
     /**
      * 是否可支付。
@@ -71,12 +78,21 @@ public enum OrderStatus {
     }
 
     /**
+     * 是否可申请整单退款。
+     *
+     * @return 已支付返回 true
+     */
+    public boolean canRefund() {
+        return this == PAID;
+    }
+
+    /**
      * 是否为终态。
      *
-     * @return 已完成或已取消返回 true
+     * @return 已完成、已取消或已退款返回 true
      */
     public boolean isFinal() {
-        return this == COMPLETED || this == CANCELLED;
+        return this == COMPLETED || this == CANCELLED || this == REFUNDED;
     }
 
     /**

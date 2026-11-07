@@ -16,6 +16,7 @@ import com.bluewhale.mall.config.MallProperties;
 import com.bluewhale.mall.order.application.command.OrderCreateCommand;
 import com.bluewhale.mall.order.application.command.OrderPaidCommand;
 import com.bluewhale.mall.order.application.command.OrderPreviewCommand;
+import com.bluewhale.mall.order.application.command.OrderRefundedCommand;
 import com.bluewhale.mall.order.application.service.OrderAppService;
 import com.bluewhale.mall.order.application.view.OrderLineView;
 import com.bluewhale.mall.order.application.view.OrderPreviewView;
@@ -25,6 +26,7 @@ import com.bluewhale.mall.order.domain.model.OrderItem;
 import com.bluewhale.mall.order.domain.model.OrderLog;
 import com.bluewhale.mall.order.domain.model.OrderStatus;
 import com.bluewhale.mall.order.domain.repository.OrderRepository;
+import com.bluewhale.mall.order.infrastructure.client.PayInternalClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -69,6 +71,9 @@ public class OrderAppServiceImpl implements OrderAppService {
     private final SkuStockRepository skuStockRepository;
 
     private final MallSequenceService sequenceService;
+
+    /** whale-pay 内网客户端（服务间直连） */
+    private final PayInternalClient payInternalClient;
 
     private final MallProperties properties;
 
@@ -156,6 +161,54 @@ public class OrderAppServiceImpl implements OrderAppService {
         orderRepository.update(order);
         orderRepository.appendLog(order.getId(), log("CANCEL", from, statusName(order), actor,
                 StringUtils.hasText(reason) ? reason : "买家取消"));
+        // 已创建过支付单则联动取消；支付单不存在（未发起支付）或已取消均不阻塞订单取消
+        if (StringUtils.hasText(order.getPayNo())) {
+            payInternalClient.cancel(order.getPayNo());
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public String pay(Long id, MallActor actor) {
+        MallOrder order = requireOrder(id);
+        if (!order.belongsTo(actor.requireUserId())) {
+            throw MallErrorCode.exception(MallErrorCode.ORDER_FORBIDDEN, "无权支付他人订单");
+        }
+        if (!order.getStatus().canPay()) {
+            throw MallErrorCode.exception(MallErrorCode.ORDER_STATE_CONFLICT,
+                    "订单当前状态（" + order.getStatus() + "）不允许支付");
+        }
+        String payNo = order.getPayNo();
+        if (!StringUtils.hasText(payNo)) {
+            // 幂等创建：同单号重复创建 whale-pay 直接返回原单
+            payNo = payInternalClient.createPayOrder(order.getOrderNo(), order.getTotalAmount(),
+                    order.getCurrencyType() == null ? "CNY" : order.getCurrencyType().name(),
+                    properties.getPayNotifyUrl());
+            order.setPayNo(payNo);
+            orderRepository.update(order);
+        }
+        payInternalClient.pay(payNo);
+        return payNo;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void refund(Long id, String reason, MallActor actor) {
+        actor.requireUserId();
+        if (!actor.isOperator()) {
+            throw MallErrorCode.exception(MallErrorCode.ORDER_FORBIDDEN, "只有商城运营可以退款");
+        }
+        MallOrder order = requireOrder(id);
+        String from = statusName(order);
+        order.requestRefund();
+        orderRepository.update(order);
+        orderRepository.appendLog(order.getId(), log("REFUND", from, statusName(order), actor,
+                StringUtils.hasText(reason) ? reason : "整单退款"));
+        if (!StringUtils.hasText(order.getPayNo())) {
+            throw MallErrorCode.exception(MallErrorCode.ORDER_REFUND_FAILED, "订单尚未创建支付单，无法退款");
+        }
+        // 远端退款失败抛异常回滚，REFUNDING 状态一并撤销
+        payInternalClient.refund(order.getPayNo(), order.getTotalAmount(), reason);
     }
 
     @Override
@@ -163,9 +216,9 @@ public class OrderAppServiceImpl implements OrderAppService {
     public void markPaid(OrderPaidCommand command) {
         MallOrder order = orderRepository.findByOrderNo(command.getOrderNo())
                 .orElseThrow(() -> MallErrorCode.exception(MallErrorCode.ORDER_NOT_FOUND));
-        if (order.getStatus() == OrderStatus.PAID || order.getStatus() == OrderStatus.SHIPPED
-                || order.getStatus() == OrderStatus.COMPLETED) {
-            // 支付方会重试，已支付不是错误；重复置位反而会覆盖支付时间
+        if (order.getStatus() != OrderStatus.PENDING_PAYMENT) {
+            // 支付方会重试；已支付/发货/完成/退款中/已退款均幂等返回成功，
+            // 重复置位反而会覆盖支付时间或把退款单打回已支付
             return;
         }
         assertPaidAmount(order, command.getPaidAmount());
@@ -173,6 +226,26 @@ public class OrderAppServiceImpl implements OrderAppService {
         order.pay(command.getPayNo(), LocalDateTime.now());
         orderRepository.update(order);
         orderRepository.appendLog(order.getId(), systemLog("PAY", from, statusName(order), "支付回调"));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void markRefunded(OrderRefundedCommand command) {
+        MallOrder order = orderRepository.findByOrderNo(command.getOrderNo())
+                .orElseThrow(() -> MallErrorCode.exception(MallErrorCode.ORDER_NOT_FOUND));
+        if (order.getStatus() == OrderStatus.REFUNDED) {
+            // 通知会重试，已退款幂等成功
+            return;
+        }
+        if (order.getStatus() != OrderStatus.REFUNDING) {
+            throw MallErrorCode.exception(MallErrorCode.PAY_CALLBACK_INVALID,
+                    "订单当前状态（" + order.getStatus() + "）不接受退款回调");
+        }
+        String from = statusName(order);
+        order.markRefunded(command.getRefundAmount(), LocalDateTime.now());
+        orderRepository.update(order);
+        orderRepository.appendLog(order.getId(), systemLog("REFUND", from, statusName(order),
+                "退款回调" + (command.getRefundNo() == null ? "" : "：" + command.getRefundNo())));
     }
 
     @Override

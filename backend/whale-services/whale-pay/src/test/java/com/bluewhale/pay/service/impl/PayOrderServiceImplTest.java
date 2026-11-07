@@ -5,7 +5,9 @@ import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.common.core.exception.BizException;
+import com.bluewhale.common.core.exception.ErrorCode;
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.pay.channel.MockPayChannelAdapter;
 import com.bluewhale.pay.channel.PayChannelGateway;
 import com.bluewhale.pay.config.PayChannelProperties;
 import com.bluewhale.pay.dto.PayOrderCreateRequest;
@@ -14,6 +16,8 @@ import com.bluewhale.pay.entity.PayOrder;
 import com.bluewhale.pay.entity.PayTransaction;
 import com.bluewhale.pay.mapper.PayOrderMapper;
 import com.bluewhale.pay.mapper.PayTransactionMapper;
+import com.bluewhale.pay.service.PayNotifyService;
+import com.bluewhale.pay.service.PayRefundService;
 import com.bluewhale.pay.vo.PayOrderVO;
 import com.bluewhale.pay.vo.PayReconcileVO;
 import com.bluewhale.pay.vo.PayTransactionVO;
@@ -63,10 +67,15 @@ class PayOrderServiceImplTest {
 
     private final PayTransactionMapper payTransactionMapper = mock(PayTransactionMapper.class);
 
-    private final PayChannelGateway payChannelGateway = new PayChannelGateway(new PayChannelProperties());
+    private final PayChannelGateway payChannelGateway = new PayChannelGateway(
+            new PayChannelProperties(), List.of(new MockPayChannelAdapter(new PayChannelProperties())));
 
-    private final PayOrderServiceImpl payOrderService =
-            new PayOrderServiceImpl(payOrderMapper, payTransactionMapper, payChannelGateway);
+    private final PayNotifyService payNotifyService = mock(PayNotifyService.class);
+
+    private final PayRefundService payRefundService = mock(PayRefundService.class);
+
+    private final PayOrderServiceImpl payOrderService = new PayOrderServiceImpl(
+            payOrderMapper, payTransactionMapper, payChannelGateway, payNotifyService, payRefundService);
 
     /**
      * 构造支付单实体桩对象。
@@ -258,7 +267,9 @@ class PayOrderServiceImplTest {
         PayChannelProperties properties = new PayChannelProperties();
         properties.setMock(false);
         PayOrderServiceImpl service = new PayOrderServiceImpl(
-                payOrderMapper, payTransactionMapper, new PayChannelGateway(properties));
+                payOrderMapper, payTransactionMapper,
+                new PayChannelGateway(properties, List.of(new MockPayChannelAdapter(properties))),
+                payNotifyService, payRefundService);
         when(payOrderMapper.selectById(1L)).thenReturn(order(1L, "PAY20261020001", "CREATED"));
         when(payOrderMapper.update(isNull(), ArgumentMatchers.<Wrapper<PayOrder>>any())).thenReturn(1);
 
@@ -309,52 +320,41 @@ class PayOrderServiceImplTest {
     }
 
     @Test
-    @DisplayName("refund：PAID → REFUNDED 并回填退款金额、退款时间与退款流水")
+    @DisplayName("refund：委托退款服务整单退款并回读最新状态")
     void shouldRefundFromPaid() {
         PayOrder existing = order(5L, "PAY20261020009", "PAID");
         existing.setChannelTradeNo("MOCK-9");
         PayOrder refunded = order(5L, "PAY20261020009", "REFUNDED");
+        refunded.setRefundAmount(new BigDecimal("100.00"));
         when(payOrderMapper.selectById(5L)).thenReturn(existing, refunded);
-        when(payOrderMapper.update(isNull(), ArgumentMatchers.<Wrapper<PayOrder>>any())).thenReturn(1);
-        when(payOrderMapper.updateById(any(PayOrder.class))).thenReturn(1);
-        when(payTransactionMapper.insert(any(PayTransaction.class))).thenReturn(1);
 
         PayOrderVO vo = payOrderService.refund(5L);
 
         assertEquals("REFUNDED", vo.getStatus());
-        ArgumentCaptor<PayOrder> captor = ArgumentCaptor.forClass(PayOrder.class);
-        verify(payOrderMapper).updateById(captor.capture());
-        assertEquals("REFUNDED", captor.getValue().getStatus());
-        assertEquals(new BigDecimal("100.00"), captor.getValue().getRefundAmount());
-        assertNotNull(captor.getValue().getRefundTime());
-        ArgumentCaptor<PayTransaction> txCaptor = ArgumentCaptor.forClass(PayTransaction.class);
-        verify(payTransactionMapper).insert(txCaptor.capture());
-        assertEquals("REFUND", txCaptor.getValue().getType());
+        verify(payRefundService).refundFull(5L, "管理端整单退款");
     }
 
     @Test
-    @DisplayName("refund：非 PAID 状态拒绝退款且不落库")
+    @DisplayName("refund：支付单不存在抛 NOT_FOUND")
     void shouldRejectRefundWhenNotPaid() {
-        when(payOrderMapper.selectById(6L)).thenReturn(order(6L, "PAY20261020010", "CREATED"));
+        when(payOrderMapper.selectById(6L)).thenReturn(null);
 
         BizException ex = assertThrows(BizException.class, () -> payOrderService.refund(6L));
 
-        assertEquals(PARAM_ERROR_CODE, ex.getCode());
-        verify(payOrderMapper, never()).updateById(any(PayOrder.class));
-        verify(payTransactionMapper, never()).insert(any(PayTransaction.class));
+        assertEquals(NOT_FOUND_CODE, ex.getCode());
+        verify(payRefundService, never()).refundFull(any(), any());
     }
 
     @Test
-    @DisplayName("refund：并发抢占失败（条件更新 0 行）拒绝退款且不落流水")
+    @DisplayName("refund：可退余额不足时透传退款服务异常且不落流水")
     void shouldRejectRefundWhenClaimLost() {
         when(payOrderMapper.selectById(6L)).thenReturn(order(6L, "PAY20261020010", "PAID"));
-        // 条件更新未命中：状态已被并发事务改变
-        when(payOrderMapper.update(isNull(), ArgumentMatchers.<Wrapper<PayOrder>>any())).thenReturn(0);
+        when(payRefundService.refundFull(6L, "管理端整单退款"))
+                .thenThrow(new BizException(ErrorCode.PARAM_ERROR, "退款失败：支付单不可退款或累计退款超出支付金额"));
 
         BizException ex = assertThrows(BizException.class, () -> payOrderService.refund(6L));
 
         assertEquals(PARAM_ERROR_CODE, ex.getCode());
-        verify(payOrderMapper, never()).updateById(any(PayOrder.class));
         verify(payTransactionMapper, never()).insert(any(PayTransaction.class));
     }
 

@@ -5,6 +5,7 @@ import com.bluewhale.mall.common.MallActor;
 import com.bluewhale.mall.order.application.command.OrderCreateCommand;
 import com.bluewhale.mall.order.application.command.OrderPaidCommand;
 import com.bluewhale.mall.order.application.command.OrderPreviewCommand;
+import com.bluewhale.mall.order.application.command.OrderRefundedCommand;
 import com.bluewhale.mall.order.application.view.OrderPreviewView;
 import com.bluewhale.mall.order.application.view.OrderView;
 
@@ -76,11 +77,37 @@ public interface OrderAppService {
     void cancel(Long id, String reason, MallActor actor);
 
     /**
-     * 支付结果回调（幂等：已支付直接返回成功）。
+     * 买家发起支付（对 PENDING_PAYMENT 订单创建支付单并支付；
+     * 支付成功由 whale-pay 异步回调推进状态）。
+     *
+     * @param id 订单 ID
+     * @param actor 操作人（须为订单买家）
+     * @return 支付单号
+     */
+    String pay(Long id, MallActor actor);
+
+    /**
+     * 整单退款（商城运营）：订单进入 REFUNDING，whale-pay 退款成功后回调终态。
+     *
+     * @param id 订单 ID
+     * @param reason 退款原因
+     * @param actor 操作人
+     */
+    void refund(Long id, String reason, MallActor actor);
+
+    /**
+     * 支付回调（whale-pay 内网调用）：PENDING_PAYMENT → PAID，重复回调幂等成功。
      *
      * @param command 回调命令
      */
     void markPaid(OrderPaidCommand command);
+
+    /**
+     * 退款回调（whale-pay 内网调用）：REFUNDING → REFUNDED，重复回调幂等成功。
+     *
+     * @param command 回调命令
+     */
+    void markRefunded(OrderRefundedCommand command);
 
     /**
      * 发货（扣减预占）。

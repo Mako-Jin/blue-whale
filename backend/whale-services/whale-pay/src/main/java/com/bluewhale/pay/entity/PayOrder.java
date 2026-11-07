@@ -29,6 +29,12 @@ public class PayOrder extends BaseEntity {
     /** 业务标识（外部订单号 / 业务键） */
     private String businessKey;
 
+    /** 业务方类型（MALL_ORDER 等，决定回调路由） */
+    private String bizType;
+
+    /** 业务回调地址（格式：&lt;服务名&gt;/&lt;路径&gt;，如 whale-mall/mall/internal/order/paid） */
+    private String notifyUrl;
+
     /** 支付金额 */
     private BigDecimal amount;
 
