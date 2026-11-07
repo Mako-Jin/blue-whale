@@ -27,6 +27,8 @@ import CollabNoticePage from './pages/collab/notice';
 import CollabTaskPage from './pages/collab/task';
 import CollabCalendarPage from './pages/collab/calendar';
 import CollabDrivePage from './pages/collab/drive';
+import CollabDirectoryPage from './pages/collab/directory';
+import CollabWorkbenchPage from './pages/collab/workbench';
 import { hasPermission } from './utils/permission';
 
 const { Header, Content, Sider } = Layout;
@@ -56,6 +58,8 @@ const MENU_ITEMS = [
   { key: '/collab/meeting', label: '会议管理', permission: 'sys:oa:meeting:list' },
   { key: '/collab/calendar', label: '日程管理', permission: 'sys:oa:calendar:list' },
   { key: '/collab/drive', label: '网盘', permission: 'sys:oa:drive:list' },
+  { key: '/collab/directory', label: '通讯录', permission: 'sys:oa:directory:view' },
+  { key: '/collab/workbench', label: '工作台', permission: 'sys:oa:workbench:view' },
   { key: '/collab/notice', label: '公告管理', permission: 'sys:oa:notice:list' },
   { key: '/collab/task', label: '我的任务', permission: 'sys:oa:task:list' },
 ];
@@ -113,6 +117,8 @@ function OaLayout() {
             <Route path="/collab/meeting" element={<CollabMeetingPage />} />
             <Route path="/collab/calendar" element={<CollabCalendarPage />} />
             <Route path="/collab/drive" element={<CollabDrivePage />} />
+            <Route path="/collab/directory" element={<CollabDirectoryPage />} />
+            <Route path="/collab/workbench" element={<CollabWorkbenchPage />} />
             <Route path="/collab/notice" element={<CollabNoticePage />} />
             <Route path="/collab/task" element={<CollabTaskPage />} />
             <Route path="*" element={<Navigate to={DEFAULT_PATH} replace />} />

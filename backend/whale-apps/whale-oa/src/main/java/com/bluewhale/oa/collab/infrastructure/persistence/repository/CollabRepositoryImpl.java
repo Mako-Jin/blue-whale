@@ -36,6 +36,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -51,9 +52,16 @@ public class CollabRepositoryImpl implements CollabRepository {
     /** 单页最大条数 */
     private static final long MAX_PAGE_SIZE = 200L;
 
+    /** 到期任务条数硬上限 */
+    private static final int MAX_DUE_TASK_LIMIT = 50;
+
     private static final String STATUS_CANCELLED = "CANCELLED";
 
     private static final String STATUS_PUBLISHED = "PUBLISHED";
+
+    private static final String STATUS_TODO = "TODO";
+
+    private static final String STATUS_DOING = "DOING";
 
     private final MeetingRoomMapper roomMapper;
 
@@ -369,6 +377,17 @@ public class CollabRepositoryImpl implements CollabRepository {
                 .eq(NoticeRecipientEntity::getNoticeId, noticeId));
     }
 
+    @Override
+    public long countUnreadNotices(Long userId) {
+        if (userId == null) {
+            return 0L;
+        }
+        Long total = recipientMapper.selectCount(new LambdaQueryWrapper<NoticeRecipientEntity>()
+                .eq(NoticeRecipientEntity::getUserId, userId)
+                .eq(NoticeRecipientEntity::getReadFlag, 0));
+        return total == null ? 0L : total;
+    }
+
     // ------------------------------------------------------------------ 任务
 
     @Override
@@ -377,6 +396,22 @@ public class CollabRepositoryImpl implements CollabRepository {
         List<OaTask> records = page.getRecords().stream().map(CollabRepositoryImpl::toTask).toList();
         Long total = taskMapper.selectCount(taskFilter(query));
         return PageResult.of(records, total == null ? 0L : total, query.getCurrent(), query.getSize());
+    }
+
+    @Override
+    public List<OaTask> listDueTasks(Long ownerId, LocalDate dueTo, int limit) {
+        if (ownerId == null) {
+            return List.of();
+        }
+        int capped = Math.min(Math.max(limit, 1), MAX_DUE_TASK_LIMIT);
+        Page<OaTaskEntity> page = taskMapper.selectPage(new Page<>(1L, capped, false),
+                new LambdaQueryWrapper<OaTaskEntity>()
+                        .eq(OaTaskEntity::getOwnerId, ownerId)
+                        .le(OaTaskEntity::getDueDate, dueTo)
+                        .in(OaTaskEntity::getStatus, STATUS_TODO, STATUS_DOING)
+                        .orderByAsc(OaTaskEntity::getDueDate)
+                        .orderByAsc(OaTaskEntity::getId));
+        return page.getRecords().stream().map(CollabRepositoryImpl::toTask).toList();
     }
 
     @Override

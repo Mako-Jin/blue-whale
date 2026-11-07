@@ -324,6 +324,9 @@ public final class OaErrorCode {
     /** 文件服务不可用或文件不可下载 */
     public static final int DRIVE_FILE_UNAVAILABLE = 50305;
 
+    /** 通讯录服务不可用 */
+    public static final int DIRECTORY_UNAVAILABLE = 50306;
+
     /** 错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(APPROVAL_CONFIG_NOT_FOUND, "审批配置不存在或无权访问"),
@@ -428,7 +431,8 @@ public final class OaErrorCode {
             Map.entry(DRIVE_QUOTA_EXCEEDED, "网盘配额已超限，请清理后重试"),
             Map.entry(DRIVE_FILE_EXISTS, "该文件已在当前文件夹登记"),
             Map.entry(DRIVE_NAME_EXISTS, "同目录下已存在同名文件夹"),
-            Map.entry(DRIVE_FILE_UNAVAILABLE, "文件服务暂不可用或文件不可下载，请稍后重试"));
+            Map.entry(DRIVE_FILE_UNAVAILABLE, "文件服务暂不可用或文件不可下载，请稍后重试"),
+            Map.entry(DIRECTORY_UNAVAILABLE, "通讯录服务暂不可用，请稍后重试"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。

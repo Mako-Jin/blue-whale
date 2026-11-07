@@ -12,6 +12,7 @@ import com.bluewhale.oa.collab.domain.model.NoticeRecipient;
 import com.bluewhale.oa.collab.domain.model.OaTask;
 import com.bluewhale.oa.collab.domain.model.TaskComment;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -279,6 +280,14 @@ public interface CollabRepository {
      */
     void deleteRecipients(Long noticeId);
 
+    /**
+     * 统计用户未读公告数。
+     *
+     * @param userId 用户ID
+     * @return 未读数量
+     */
+    long countUnreadNotices(Long userId);
+
     // ------------------------------------------------------------------ 任务
 
     /**
@@ -288,6 +297,16 @@ public interface CollabRepository {
      * @return 分页结果
      */
     PageResult<OaTask> pageTasks(CollabQuery query);
+
+    /**
+     * 查询负责人到期任务（{@code TODO/DOING}，按截止日期升序）。
+     *
+     * @param ownerId 负责人用户ID
+     * @param dueTo 截止日期上限（含）
+     * @param limit 返回条数上限
+     * @return 到期任务
+     */
+    List<OaTask> listDueTasks(Long ownerId, LocalDate dueTo, int limit);
 
     /**
      * 按主键查询任务。
