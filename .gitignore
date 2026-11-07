@@ -65,12 +65,19 @@ docker-compose.override.yml
 *.p12
 *.jks
 
+# ===== 本地数据目录（一律落工作空间、不入库，见 .workbuddy/memory/MEMORY.md 数据落盘规则）=====
+/.docker-data/
+/.cache/
+
 # ===== Build Output =====
 # 根锚定：无前导 / 会静默忽略任意层级同名目录（曾吞掉 src/*/data/、src/**/out/ 等合法源码目录）
 /build/
 /out/
 /coverage/
 *.lcov
+
+# ===== 本地工具链数据（依赖缓存/临时/下载物，一律落工作空间、不入库，见 AGENTS.md）=====
+/.toolchains/
 
 # ===== Local Runtime Data =====
 # whale-agent 本地 Lucene 索引（可重建，不入库；含 data/agent-index/）
