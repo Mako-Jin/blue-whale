@@ -426,3 +426,57 @@ export const TICKET_ACTION_LABEL: Record<string, string> = {
   CANCEL: '取消',
   FOLLOW_UP: '回访',
 };
+
+/** 知识引用可见范围下拉选项 */
+export const KB_VISIBLE_SCOPE_OPTIONS = [
+  { value: 'INTERNAL', label: '内部可见' },
+  { value: 'PUBLIC', label: '客户可见' },
+];
+
+/** 知识引用可见范围文案 */
+export const KB_VISIBLE_SCOPE_LABEL: Record<string, string> = {
+  INTERNAL: '内部可见',
+  PUBLIC: '客户可见',
+};
+
+/** 知识引用状态下拉选项 */
+export const KB_STATUS_OPTIONS = [
+  { value: 'ENABLED', label: '启用' },
+  { value: 'DISABLED', label: '停用' },
+];
+
+/** 知识引用状态文案 */
+export const KB_STATUS_LABEL: Record<string, string> = {
+  ENABLED: '启用',
+  DISABLED: '停用',
+};
+
+/** 知识引用状态标签色 */
+export const KB_STATUS_COLOR: Record<string, string> = {
+  ENABLED: 'green',
+  DISABLED: 'default',
+};
+
+/** 满意度问卷状态下拉选项 */
+export const SURVEY_STATUS_OPTIONS = [
+  { value: 'SENT', label: '待答卷' },
+  { value: 'USED', label: '已答卷' },
+  { value: 'EXPIRED', label: '已过期' },
+  { value: 'REVOKED', label: '已作废' },
+];
+
+/** 满意度问卷状态文案 */
+export const SURVEY_STATUS_LABEL: Record<string, string> = {
+  SENT: '待答卷',
+  USED: '已答卷',
+  EXPIRED: '已过期',
+  REVOKED: '已作废',
+};
+
+/** 满意度问卷状态标签色 */
+export const SURVEY_STATUS_COLOR: Record<string, string> = {
+  SENT: 'processing',
+  USED: 'green',
+  EXPIRED: 'orange',
+  REVOKED: 'default',
+};

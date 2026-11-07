@@ -16,6 +16,8 @@ import InvoicePage from './pages/invoice';
 import ArPage from './pages/ar';
 import TicketPage from './pages/ticket';
 import ServiceSlaPage from './pages/service-sla';
+import KbPage from './pages/kb';
+import SatisfactionPage from './pages/satisfaction';
 import { hasPermission } from './utils/permission';
 
 const { Header, Content, Sider } = Layout;
@@ -35,6 +37,8 @@ const MENU_ITEMS = [
   { key: '/ar', label: '客户应收对账', permission: 'sys:crm:ar:reconcile' },
   { key: '/ticket', label: '售后工单', permission: 'sys:crm:ticket:list' },
   { key: '/service-sla', label: 'SLA 设置', permission: 'sys:crm:service:sla:manage' },
+  { key: '/kb', label: '知识库', permission: 'sys:crm:kb:list' },
+  { key: '/satisfaction', label: '满意度', permission: 'sys:crm:survey:manage' },
 ];
 
 /** 按权限过滤后的菜单 */
@@ -88,6 +92,12 @@ function resolveSelectedKey(pathname: string): string {
   if (pathname.startsWith('/service-sla')) {
     return '/service-sla';
   }
+  if (pathname.startsWith('/kb')) {
+    return '/kb';
+  }
+  if (pathname.startsWith('/satisfaction')) {
+    return '/satisfaction';
+  }
   return pathname;
 }
 
@@ -129,6 +139,8 @@ function CrmLayout() {
             <Route path="/ar" element={<ArPage />} />
             <Route path="/ticket" element={<TicketPage />} />
             <Route path="/service-sla" element={<ServiceSlaPage />} />
+            <Route path="/kb" element={<KbPage />} />
+            <Route path="/satisfaction" element={<SatisfactionPage />} />
             <Route path="*" element={<Navigate to="/customer" replace />} />
           </Routes>
         </Content>

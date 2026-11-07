@@ -215,6 +215,12 @@ public final class CrmErrorCode {
     /** 工单处理人非法 */
     public static final int TICKET_ASSIGNEE_INVALID = 41066;
 
+    /** 知识引用不存在或无权访问 */
+    public static final int KB_REF_NOT_FOUND = 41067;
+
+    /** 满意度令牌无效、已使用或已过期 */
+    public static final int SURVEY_TOKEN_INVALID = 41068;
+
     /** 错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(GATE_CLOSED, "需求门禁未通过，CRM 业务接口尚未开放"),
@@ -283,7 +289,9 @@ public final class CrmErrorCode {
             Map.entry(TICKET_NOT_FOUND, "工单不存在或无权访问"),
             Map.entry(TICKET_STATE_CONFLICT, "工单当前状态不允许该操作"),
             Map.entry(TICKET_SLA_UNAVAILABLE, "SLA 策略或工作日历不可用"),
-            Map.entry(TICKET_ASSIGNEE_INVALID, "工单处理人非法"));
+            Map.entry(TICKET_ASSIGNEE_INVALID, "工单处理人非法"),
+            Map.entry(KB_REF_NOT_FOUND, "知识引用不存在或无权访问"),
+            Map.entry(SURVEY_TOKEN_INVALID, "满意度令牌无效、已使用或已过期"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。

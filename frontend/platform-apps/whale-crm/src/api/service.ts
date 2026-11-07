@@ -233,3 +233,174 @@ export function getServiceCalendar(): Promise<ServiceCalendarView> {
 export function saveServiceCalendar(payload: ServiceCalendarInput): Promise<ServiceCalendarView> {
   return http.put<ServiceCalendarView>('/crm/service/calendar', payload);
 }
+
+// ---------------------------------------------------------------------------
+// 知识引用（M4 / 7f-4b）：正文归 whale-doc，CRM 只维护元数据 / 版本引用 / 命中
+// ---------------------------------------------------------------------------
+
+/** 知识引用视图（KbRefView） */
+export interface KbRefView {
+  id: number;
+  title: string;
+  category?: string | null;
+  productTags?: string | null;
+  faultTags?: string | null;
+  visibleScope?: string | null;
+  docId?: number | null;
+  docVersion?: number | null;
+  docAvailable?: boolean | null;
+  hitCount?: number | null;
+  status?: string | null;
+  ownerId?: number | null;
+  deptId?: number | null;
+}
+
+/** 知识引用维护入参（KbRefCommand） */
+export interface KbRefInput {
+  title: string;
+  category?: string;
+  productTags?: string;
+  faultTags?: string;
+  visibleScope?: string;
+  docId?: number | null;
+  docVersion?: number | null;
+  status?: string;
+  ownerId?: number | null;
+  deptId?: number | null;
+}
+
+/** 知识引用分页查询 */
+export interface KbPageQuery {
+  keyword?: string;
+  category?: string;
+  visibleScope?: string;
+  status?: string;
+  current?: number;
+  size?: number;
+}
+
+/** 分页查询知识引用 */
+export function pageKbRefs(query: KbPageQuery): Promise<PageResult<KbRefView>> {
+  return http.get<PageResult<KbRefView>>('/crm/kb/page', query as Record<string, unknown>);
+}
+
+/** 按标题 / 标签检索启用中的知识引用 */
+export function searchKbRefs(keyword?: string): Promise<KbRefView[]> {
+  return http.get<KbRefView[]>('/crm/kb/search', { keyword });
+}
+
+/** 知识引用详情 */
+export function getKbRef(id: number): Promise<KbRefView> {
+  return http.get<KbRefView>(`/crm/kb/${id}`);
+}
+
+/** 新建知识引用 */
+export function createKbRef(payload: KbRefInput): Promise<KbRefView> {
+  return http.post<KbRefView>('/crm/kb', payload);
+}
+
+/** 更新知识引用 */
+export function updateKbRef(id: number, payload: KbRefInput): Promise<KbRefView> {
+  return http.put<KbRefView>(`/crm/kb/${id}`, payload);
+}
+
+/** 逻辑删除知识引用 */
+export function deleteKbRef(id: number): Promise<void> {
+  return http.del<void>(`/crm/kb/${id}`);
+}
+
+/** 记录一次引用命中 */
+export function hitKbRef(id: number): Promise<KbRefView> {
+  return http.post<KbRefView>(`/crm/kb/${id}/hit`);
+}
+
+// ---------------------------------------------------------------------------
+// 满意度问卷（M4 / 7f-4b）：工单关闭后生成一次性令牌，答卷提交后置 USED
+// ---------------------------------------------------------------------------
+
+/** 满意度答卷视图（SatisfactionResponseView） */
+export interface SatisfactionResponseView {
+  score?: number | null;
+  comment?: string | null;
+  speedScore?: number | null;
+  attitudeScore?: number | null;
+  professionalScore?: number | null;
+  lowScore?: boolean | null;
+  followUpRequired?: boolean | null;
+  submittedAt?: string | null;
+}
+
+/** 满意度问卷视图（SatisfactionSurveyView） */
+export interface SatisfactionSurveyView {
+  id: number;
+  surveyNo: string;
+  ticketId: number;
+  status: string;
+  sentAt?: string | null;
+  expiresAt?: string | null;
+  usedAt?: string | null;
+  token?: string | null;
+  response?: SatisfactionResponseView | null;
+}
+
+/** 生成 / 重发问卷入参 */
+export interface SatisfactionSurveyInput {
+  ticketId: number;
+}
+
+/** 令牌答卷入参（SurveyResponseCommand） */
+export interface SurveyResponseInput {
+  token: string;
+  score: number;
+  comment?: string;
+  speedScore?: number | null;
+  attitudeScore?: number | null;
+  professionalScore?: number | null;
+}
+
+/** 满意度问卷分页查询 */
+export interface SurveyPageQuery {
+  ticketId?: number | null;
+  status?: string;
+  current?: number;
+  size?: number;
+}
+
+/** 满意度统计视图（SurveyStatsView） */
+export interface SurveyStatsView {
+  sentCount?: number | null;
+  usedCount?: number | null;
+  averageScore?: number | null;
+  lowScoreCount?: number | null;
+  followUpCount?: number | null;
+}
+
+/** 分页查询问卷 */
+export function pageSurveys(query: SurveyPageQuery): Promise<PageResult<SatisfactionSurveyView>> {
+  return http.get<PageResult<SatisfactionSurveyView>>('/crm/satisfaction/page', query as Record<string, unknown>);
+}
+
+/** 满意度统计 */
+export function getSurveyStats(): Promise<SurveyStatsView> {
+  return http.get<SurveyStatsView>('/crm/satisfaction/stats');
+}
+
+/** 问卷详情（含答卷） */
+export function getSurvey(id: number): Promise<SatisfactionSurveyView> {
+  return http.get<SatisfactionSurveyView>(`/crm/satisfaction/${id}`);
+}
+
+/** 按工单生成或重发问卷 */
+export function sendSurvey(payload: SatisfactionSurveyInput): Promise<SatisfactionSurveyView> {
+  return http.post<SatisfactionSurveyView>('/crm/satisfaction/send', payload);
+}
+
+/** 按一次性令牌提交答卷 */
+export function submitSurveyResponse(payload: SurveyResponseInput): Promise<SatisfactionSurveyView> {
+  return http.post<SatisfactionSurveyView>('/crm/satisfaction/response', payload);
+}
+
+/** 作废问卷 */
+export function revokeSurvey(id: number): Promise<void> {
+  return http.post<void>(`/crm/satisfaction/${id}/revoke`);
+}

@@ -15,6 +15,7 @@ import com.bluewhale.crm.customer.application.view.CustomerView;
 import com.bluewhale.crm.service.application.command.TicketAssignCommand;
 import com.bluewhale.crm.service.application.command.TicketCreateCommand;
 import com.bluewhale.crm.service.application.command.TicketHandleCommand;
+import com.bluewhale.crm.service.application.service.SatisfactionAppService;
 import com.bluewhale.crm.service.application.view.TicketView;
 import com.bluewhale.crm.service.domain.model.Ticket;
 import com.bluewhale.crm.service.domain.model.TicketAction;
@@ -76,6 +77,9 @@ class TicketAppServiceImplTest {
     @Mock
     private SalesOrderRepository salesOrderRepository;
 
+    @Mock
+    private SatisfactionAppService satisfactionAppService;
+
     private CrmProperties properties;
 
     private CrmServiceProperties serviceProperties;
@@ -87,7 +91,8 @@ class TicketAppServiceImplTest {
         properties = new CrmProperties();
         serviceProperties = new CrmServiceProperties();
         service = new TicketAppServiceImpl(ticketRepository, ticketActionRepository, slaPolicyRepository,
-                serviceCalendarRepository, customerAppService, salesOrderRepository, properties, serviceProperties);
+                serviceCalendarRepository, customerAppService, salesOrderRepository, properties, serviceProperties,
+                satisfactionAppService);
     }
 
     @Test

@@ -12,6 +12,7 @@ import com.bluewhale.crm.customer.application.view.CustomerView;
 import com.bluewhale.crm.service.application.command.TicketAssignCommand;
 import com.bluewhale.crm.service.application.command.TicketCreateCommand;
 import com.bluewhale.crm.service.application.command.TicketHandleCommand;
+import com.bluewhale.crm.service.application.service.SatisfactionAppService;
 import com.bluewhale.crm.service.application.service.TicketAppService;
 import com.bluewhale.crm.service.application.view.TicketView;
 import com.bluewhale.crm.service.domain.model.ServiceCalendar;
@@ -70,6 +71,8 @@ public class TicketAppServiceImpl implements TicketAppService {
     private final CrmProperties properties;
 
     private final CrmServiceProperties serviceProperties;
+
+    private final SatisfactionAppService satisfactionAppService;
 
     @Override
     public PageResult<TicketView> page(TicketQuery query, CrmActor actor) {
@@ -244,6 +247,7 @@ public class TicketAppServiceImpl implements TicketAppService {
         ticket.close(command.getSolution(), LocalDateTime.now());
         ticketRepository.update(ticket);
         recordAction(ticket, TicketActionType.CLOSE, from, ticket.getStatus(), actor, ticket.getSolution());
+        satisfactionAppService.autoSend(ticket.getId());
         return TicketView.from(ticket, null, LocalDateTime.now());
     }
 
