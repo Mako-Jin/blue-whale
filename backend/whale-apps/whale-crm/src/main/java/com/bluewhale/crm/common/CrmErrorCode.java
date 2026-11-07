@@ -221,6 +221,21 @@ public final class CrmErrorCode {
     /** 满意度令牌无效、已使用或已过期 */
     public static final int SURVEY_TOKEN_INVALID = 41068;
 
+    /** 退换货申请不存在或无权访问 */
+    public static final int RETURN_REQUEST_NOT_FOUND = 41069;
+
+    /** 退换货申请当前状态不允许该操作 */
+    public static final int RETURN_STATE_CONFLICT = 41070;
+
+    /** 退货数量超过可退数量 */
+    public static final int RETURN_QUANTITY_EXCEEDED = 41071;
+
+    /** ERP 退货服务不可用（未启用或连接失败） */
+    public static final int RETURN_ERP_UNAVAILABLE = 41072;
+
+    /** ERP 退货执行失败 */
+    public static final int RETURN_ERP_FAILED = 41073;
+
     /** 错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(GATE_CLOSED, "需求门禁未通过，CRM 业务接口尚未开放"),
@@ -291,7 +306,12 @@ public final class CrmErrorCode {
             Map.entry(TICKET_SLA_UNAVAILABLE, "SLA 策略或工作日历不可用"),
             Map.entry(TICKET_ASSIGNEE_INVALID, "工单处理人非法"),
             Map.entry(KB_REF_NOT_FOUND, "知识引用不存在或无权访问"),
-            Map.entry(SURVEY_TOKEN_INVALID, "满意度令牌无效、已使用或已过期"));
+            Map.entry(SURVEY_TOKEN_INVALID, "满意度令牌无效、已使用或已过期"),
+            Map.entry(RETURN_REQUEST_NOT_FOUND, "退换货申请不存在或无权访问"),
+            Map.entry(RETURN_STATE_CONFLICT, "退换货申请当前状态不允许该操作"),
+            Map.entry(RETURN_QUANTITY_EXCEEDED, "退货数量超过订单行可退数量"),
+            Map.entry(RETURN_ERP_UNAVAILABLE, "ERP 退货服务不可用，请稍后重试"),
+            Map.entry(RETURN_ERP_FAILED, "ERP 退货执行失败，请稍后重试"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。

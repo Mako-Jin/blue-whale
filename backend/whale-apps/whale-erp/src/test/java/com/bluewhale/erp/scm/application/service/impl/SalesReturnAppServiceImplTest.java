@@ -6,6 +6,7 @@ import com.bluewhale.erp.finance.application.command.AutoVoucherCommand;
 import com.bluewhale.erp.finance.application.service.ArApAppService;
 import com.bluewhale.erp.finance.application.service.AutoVoucherAppService;
 import com.bluewhale.erp.scm.application.command.SalesReturnCreateCommand;
+import com.bluewhale.erp.scm.application.command.SalesReturnInternalCreateCommand;
 import com.bluewhale.erp.scm.application.view.SalesReturnView;
 import com.bluewhale.erp.scm.domain.model.SalesOrder;
 import com.bluewhale.erp.scm.domain.model.SalesOrderLine;
@@ -30,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -130,6 +132,44 @@ class SalesReturnAppServiceImplTest {
     }
 
     @Test
+    @DisplayName("内网建单：按 CRM 退货单号幂等返回原单")
+    void shouldReturnExistingByCrmReturnNo() {
+        SalesReturn existing = draftReturn();
+        existing.setCrmReturnNo("RET-20261107-0001");
+        when(returnRepository.findByCrmReturnNo("RET-20261107-0001")).thenReturn(Optional.of(existing));
+
+        SalesReturnView view = service.createInternal(internalCommand());
+
+        assertEquals("SR-001", view.getDocNo());
+        verify(returnRepository, never()).insert(any(SalesReturn.class));
+    }
+
+    @Test
+    @DisplayName("内网建单：新建后立即过账并固定 CRM 退货单号")
+    void shouldCreateAndPostForCrm() {
+        final SalesReturn[] created = new SalesReturn[1];
+        doAnswer(invocation -> {
+            SalesReturn salesReturn = invocation.getArgument(0);
+            salesReturn.setId(2L);
+            created[0] = salesReturn;
+            return null;
+        }).when(returnRepository).insert(any(SalesReturn.class));
+        when(orderRepository.findByDocNo("ERP-SO-1")).thenReturn(Optional.of(order()));
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(order()));
+        when(returnRepository.sumReturnedQuantity(1L, 1)).thenReturn(BigDecimal.ZERO);
+        when(returnRepository.findById(2L)).thenAnswer(invocation -> Optional.of(created[0]));
+
+        SalesReturnView view = service.createInternal(internalCommand());
+
+        assertEquals("CRM-SR-RET-20261107-0001", view.getDocNo());
+        assertEquals(ScmStatus.POSTED, view.getStatus());
+        assertEquals("RET-20261107-0001", created[0].getCrmReturnNo());
+        assertEquals("CRM", created[0].getSourceType());
+        assertEquals("RET-20261107-0001", created[0].getSourceId());
+        verify(autoVoucherAppService).postSalesReturn(any(AutoVoucherCommand.class));
+    }
+
+    @Test
     @DisplayName("分页查询返回总条数")
     void shouldPage() {
         when(returnRepository.page(any())).thenReturn(List.of(draftReturn()));
@@ -139,6 +179,24 @@ class SalesReturnAppServiceImplTest {
 
         assertEquals(1, page.getRecords().size());
         assertEquals(1L, page.getTotal());
+    }
+
+    /**
+     * 构造 CRM 内网建单命令。
+     *
+     * @return 命令
+     */
+    private SalesReturnInternalCreateCommand internalCommand() {
+        SalesReturnInternalCreateCommand command = new SalesReturnInternalCreateCommand();
+        command.setCrmReturnNo("RET-20261107-0001");
+        command.setErpOrderNo("ERP-SO-1");
+        command.setDocDate(LocalDate.of(2026, 11, 4));
+        command.setRemark("客户退货");
+        SalesReturnInternalCreateCommand.Line line = new SalesReturnInternalCreateCommand.Line();
+        line.setOrderLineNo(1);
+        line.setQuantity(new BigDecimal("5"));
+        command.setLines(List.of(line));
+        return command;
     }
 
     /**

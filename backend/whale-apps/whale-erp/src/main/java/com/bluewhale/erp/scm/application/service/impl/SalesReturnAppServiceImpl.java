@@ -7,6 +7,7 @@ import com.bluewhale.erp.finance.application.command.AutoVoucherCommand;
 import com.bluewhale.erp.finance.application.service.ArApAppService;
 import com.bluewhale.erp.finance.application.service.AutoVoucherAppService;
 import com.bluewhale.erp.scm.application.command.SalesReturnCreateCommand;
+import com.bluewhale.erp.scm.application.command.SalesReturnInternalCreateCommand;
 import com.bluewhale.erp.scm.application.service.SalesReturnAppService;
 import com.bluewhale.erp.scm.application.view.SalesReturnView;
 import com.bluewhale.erp.scm.domain.model.SalesOrder;
@@ -21,8 +22,10 @@ import com.bluewhale.erp.scm.domain.repository.SalesOrderRepository;
 import com.bluewhale.erp.scm.domain.repository.SalesReturnRepository;
 import com.bluewhale.erp.scm.domain.repository.StockRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -43,6 +46,12 @@ public class SalesReturnAppServiceImpl implements SalesReturnAppService {
 
     /** 默认币种 */
     private static final String DEFAULT_CURRENCY = "CNY";
+
+    /** CRM 退货单号前缀 */
+    private static final String CRM_DOC_PREFIX = "CRM-SR-";
+
+    /** 来源系统类型：CRM */
+    private static final String SOURCE_TYPE_CRM = "CRM";
 
     /** 成本小数位 */
     private static final int COST_SCALE = 4;
@@ -114,9 +123,52 @@ public class SalesReturnAppServiceImpl implements SalesReturnAppService {
         }
         salesReturn.setLines(lines);
         salesReturn.calculateTotal();
-        salesReturn.setDocNo(salesReturnRepository.nextDocNo(command.getDocDate()));
+        salesReturn.setDocNo(StringUtils.hasText(command.getDocNo())
+                ? command.getDocNo() : salesReturnRepository.nextDocNo(command.getDocDate()));
+        salesReturn.setCrmReturnNo(command.getCrmReturnNo());
+        salesReturn.setSourceType(command.getSourceType());
+        salesReturn.setSourceId(command.getSourceId());
         salesReturnRepository.insert(salesReturn);
         return SalesReturnView.of(salesReturn);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public SalesReturnView createInternal(SalesReturnInternalCreateCommand command) {
+        SalesReturnView existing = findByCrmReturnNo(command.getCrmReturnNo());
+        if (existing != null) {
+            return existing;
+        }
+        SalesOrder order = resolveOrder(command);
+        SalesReturnCreateCommand createCommand = new SalesReturnCreateCommand();
+        createCommand.setSalesOrderId(order.getId());
+        createCommand.setDocDate(command.getDocDate());
+        createCommand.setRemark(command.getRemark());
+        createCommand.setDocNo(CRM_DOC_PREFIX + command.getCrmReturnNo());
+        createCommand.setCrmReturnNo(command.getCrmReturnNo());
+        createCommand.setSourceType(SOURCE_TYPE_CRM);
+        createCommand.setSourceId(command.getCrmReturnNo());
+        for (SalesReturnInternalCreateCommand.Line line : command.getLines()) {
+            SalesReturnCreateCommand.Line target = new SalesReturnCreateCommand.Line();
+            target.setOrderLineNo(line.getOrderLineNo());
+            target.setQuantity(line.getQuantity());
+            createCommand.getLines().add(target);
+        }
+        try {
+            SalesReturnView created = create(createCommand);
+            return post(created.getId(), null);
+        } catch (DuplicateKeyException exception) {
+            SalesReturnView concurrent = findByCrmReturnNo(command.getCrmReturnNo());
+            if (concurrent != null) {
+                return concurrent;
+            }
+            throw exception;
+        }
+    }
+
+    @Override
+    public SalesReturnView findByCrmReturnNo(String crmReturnNo) {
+        return salesReturnRepository.findByCrmReturnNo(crmReturnNo).map(SalesReturnView::of).orElse(null);
     }
 
     @Override
@@ -183,6 +235,23 @@ public class SalesReturnAppServiceImpl implements SalesReturnAppService {
     private SalesReturn requireReturn(Long id) {
         return salesReturnRepository.findById(id)
                 .orElseThrow(() -> ErpErrorCode.exception(ErpErrorCode.SALES_RETURN_NOT_FOUND));
+    }
+
+    /**
+     * 解析内网命令中的源订单。
+     *
+     * @param command 内网创建命令
+     * @return 销售订单
+     */
+    private SalesOrder resolveOrder(SalesReturnInternalCreateCommand command) {
+        if (command.getSalesOrderId() != null) {
+            return requireOrder(command.getSalesOrderId());
+        }
+        if (StringUtils.hasText(command.getErpOrderNo())) {
+            return salesOrderRepository.findByDocNo(command.getErpOrderNo())
+                    .orElseThrow(() -> ErpErrorCode.exception(ErpErrorCode.SALES_ORDER_NOT_FOUND));
+        }
+        throw ErpErrorCode.exception(ErpErrorCode.SALES_ORDER_NOT_FOUND);
     }
 
     /**

@@ -404,3 +404,116 @@ export function submitSurveyResponse(payload: SurveyResponseInput): Promise<Sati
 export function revokeSurvey(id: number): Promise<void> {
   return http.post<void>(`/crm/satisfaction/${id}/revoke`);
 }
+
+// ---------------------------------------------------------------------------
+// 退换货申请（M4 / 7f-4c）：CRM 管申请与审批，库存 / 应收 / 凭证均由 ERP 退货过账完成
+// ---------------------------------------------------------------------------
+
+/** 退换货申请状态 */
+export type ReturnStatus =
+  | 'DRAFT'
+  | 'PENDING_APPROVAL'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'EXECUTING'
+  | 'COMPLETED'
+  | 'FAILED'
+  | 'CANCELLED';
+
+/** 退换货申请行视图（ReturnRequestView.Item） */
+export interface ReturnItemView {
+  lineNo?: number | null;
+  orderLineNo?: number | null;
+  itemCode?: string | null;
+  itemName?: string | null;
+  quantity?: number | string | null;
+  unitPrice?: number | string | null;
+  amount?: number | string | null;
+}
+
+/** 退换货申请视图（ReturnRequestView） */
+export interface ReturnRequestView {
+  id: number;
+  returnNo: string;
+  requestType?: string | null;
+  orderId?: number | null;
+  erpOrderNo?: string | null;
+  customerId?: number | null;
+  customerCode?: string | null;
+  customerName?: string | null;
+  reason?: string | null;
+  status: ReturnStatus | string;
+  approvalInstanceId?: number | null;
+  erpReturnNo?: string | null;
+  erpStatus?: string | null;
+  pushAttempts?: number | null;
+  lastError?: string | null;
+  totalAmount?: number | string | null;
+  ownerId?: number | null;
+  deptId?: number | null;
+  items?: ReturnItemView[];
+}
+
+/** 退换货申请行入参 */
+export interface ReturnLineInput {
+  orderLineNo: number;
+  quantity: number;
+}
+
+/** 新建 / 编辑退换货申请入参（ReturnRequestCommand） */
+export interface ReturnRequestInput {
+  requestType?: string;
+  orderId: number;
+  reason?: string;
+  lines: ReturnLineInput[];
+}
+
+/** 退换货申请分页查询 */
+export interface ReturnPageQuery {
+  keyword?: string;
+  status?: string;
+  customerId?: number | null;
+  orderId?: number | null;
+  current?: number;
+  size?: number;
+}
+
+/** 退换货申请分页 */
+export function pageReturns(query: ReturnPageQuery): Promise<PageResult<ReturnRequestView>> {
+  return http.get<PageResult<ReturnRequestView>>('/crm/return/page', query as Record<string, unknown>);
+}
+
+/** 退换货申请详情 */
+export function getReturn(id: number): Promise<ReturnRequestView> {
+  return http.get<ReturnRequestView>(`/crm/return/${id}`);
+}
+
+/** 新建退换货申请 */
+export function createReturn(payload: ReturnRequestInput): Promise<ReturnRequestView> {
+  return http.post<ReturnRequestView>('/crm/return', payload);
+}
+
+/** 编辑草稿退换货申请 */
+export function updateReturn(id: number, payload: ReturnRequestInput): Promise<ReturnRequestView> {
+  return http.put<ReturnRequestView>(`/crm/return/${id}`, payload);
+}
+
+/** 提交退换货审批 */
+export function submitReturn(id: number): Promise<ReturnRequestView> {
+  return http.post<ReturnRequestView>(`/crm/return/${id}/submit`);
+}
+
+/** 重试下发 ERP 退货 */
+export function retryReturn(id: number): Promise<ReturnRequestView> {
+  return http.post<ReturnRequestView>(`/crm/return/${id}/retry`);
+}
+
+/** 取消退换货申请 */
+export function cancelReturn(id: number): Promise<ReturnRequestView> {
+  return http.post<ReturnRequestView>(`/crm/return/${id}/cancel`);
+}
+
+/** 对账单张申请的 ERP 退货状态 */
+export function reconcileReturn(id: number): Promise<ReturnRequestView> {
+  return http.post<ReturnRequestView>(`/crm/return/${id}/reconcile`);
+}

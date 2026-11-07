@@ -29,6 +29,18 @@ public class SalesReturnCreateCommand {
     /** 备注 */
     private String remark;
 
+    /** 指定单号（内网 CRM 下发固定单号；为空时自动生成） */
+    private String docNo;
+
+    /** CRM 退换货申请单号（幂等键） */
+    private String crmReturnNo;
+
+    /** 来源系统类型 */
+    private String sourceType;
+
+    /** 来源单号 */
+    private String sourceId;
+
     /** 分录 */
     @Valid
     @NotEmpty

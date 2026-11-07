@@ -18,6 +18,7 @@ import TicketPage from './pages/ticket';
 import ServiceSlaPage from './pages/service-sla';
 import KbPage from './pages/kb';
 import SatisfactionPage from './pages/satisfaction';
+import ReturnPage from './pages/return';
 import { hasPermission } from './utils/permission';
 
 const { Header, Content, Sider } = Layout;
@@ -39,6 +40,7 @@ const MENU_ITEMS = [
   { key: '/service-sla', label: 'SLA 设置', permission: 'sys:crm:service:sla:manage' },
   { key: '/kb', label: '知识库', permission: 'sys:crm:kb:list' },
   { key: '/satisfaction', label: '满意度', permission: 'sys:crm:survey:manage' },
+  { key: '/return', label: '退换货', permission: 'sys:crm:return:list' },
 ];
 
 /** 按权限过滤后的菜单 */
@@ -98,6 +100,9 @@ function resolveSelectedKey(pathname: string): string {
   if (pathname.startsWith('/satisfaction')) {
     return '/satisfaction';
   }
+  if (pathname.startsWith('/return')) {
+    return '/return';
+  }
   return pathname;
 }
 
@@ -141,6 +146,7 @@ function CrmLayout() {
             <Route path="/service-sla" element={<ServiceSlaPage />} />
             <Route path="/kb" element={<KbPage />} />
             <Route path="/satisfaction" element={<SatisfactionPage />} />
+            <Route path="/return" element={<ReturnPage />} />
             <Route path="*" element={<Navigate to="/customer" replace />} />
           </Routes>
         </Content>

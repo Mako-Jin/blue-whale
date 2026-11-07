@@ -40,6 +40,14 @@ public interface SalesReturnRepository {
     Optional<SalesReturn> findById(Long id);
 
     /**
+     * 按 CRM 退换货申请单号查询退货单（幂等键）。
+     *
+     * @param crmReturnNo CRM 退换货申请单号
+     * @return 退货单
+     */
+    Optional<SalesReturn> findByCrmReturnNo(String crmReturnNo);
+
+    /**
      * 生成退货单号。
      *
      * @param docDate 退货日期

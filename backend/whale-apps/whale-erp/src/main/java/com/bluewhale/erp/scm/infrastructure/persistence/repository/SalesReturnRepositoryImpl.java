@@ -67,6 +67,22 @@ public class SalesReturnRepositoryImpl implements SalesReturnRepository {
     }
 
     @Override
+    public Optional<SalesReturn> findByCrmReturnNo(String crmReturnNo) {
+        SalesReturnEntity entity = returnMapper.selectOne(new LambdaQueryWrapper<SalesReturnEntity>()
+                .eq(SalesReturnEntity::getCrmReturnNo, crmReturnNo)
+                .last("limit 1"));
+        if (entity == null) {
+            return Optional.empty();
+        }
+        SalesReturn salesReturn = toDomain(entity);
+        salesReturn.setLines(returnLineMapper.selectList(new LambdaQueryWrapper<SalesReturnLineEntity>()
+                        .eq(SalesReturnLineEntity::getReturnId, entity.getId())
+                        .orderByAsc(SalesReturnLineEntity::getLineNo))
+                .stream().map(this::toDomain).toList());
+        return Optional.of(salesReturn);
+    }
+
+    @Override
     public String nextDocNo(LocalDate docDate) {
         long sequence = returnMapper.selectCount(new LambdaQueryWrapper<SalesReturnEntity>()
                 .eq(SalesReturnEntity::getDocDate, docDate)) + 1;
@@ -174,6 +190,9 @@ public class SalesReturnRepositoryImpl implements SalesReturnRepository {
         salesReturn.setCurrency(entity.getCurrency());
         salesReturn.setTotalAmount(entity.getTotalAmount());
         salesReturn.setRemark(entity.getRemark());
+        salesReturn.setCrmReturnNo(entity.getCrmReturnNo());
+        salesReturn.setSourceType(entity.getSourceType());
+        salesReturn.setSourceId(entity.getSourceId());
         return salesReturn;
     }
 
@@ -216,6 +235,9 @@ public class SalesReturnRepositoryImpl implements SalesReturnRepository {
         entity.setCurrency(salesReturn.getCurrency());
         entity.setTotalAmount(salesReturn.getTotalAmount());
         entity.setRemark(salesReturn.getRemark());
+        entity.setCrmReturnNo(salesReturn.getCrmReturnNo());
+        entity.setSourceType(salesReturn.getSourceType());
+        entity.setSourceId(salesReturn.getSourceId());
     }
 
     /**

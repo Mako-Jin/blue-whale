@@ -480,3 +480,45 @@ export const SURVEY_STATUS_COLOR: Record<string, string> = {
   EXPIRED: 'orange',
   REVOKED: 'default',
 };
+
+/** 退换货申请状态下拉选项 */
+export const RETURN_STATUS_OPTIONS = [
+  { value: 'DRAFT', label: '草稿' },
+  { value: 'PENDING_APPROVAL', label: '审批中' },
+  { value: 'APPROVED', label: '已通过' },
+  { value: 'REJECTED', label: '已驳回' },
+  { value: 'EXECUTING', label: '执行中' },
+  { value: 'COMPLETED', label: '已完成' },
+  { value: 'FAILED', label: '执行失败' },
+  { value: 'CANCELLED', label: '已取消' },
+];
+
+/** 退换货申请状态文案 */
+export const RETURN_STATUS_LABEL: Record<string, string> = {
+  DRAFT: '草稿',
+  PENDING_APPROVAL: '审批中',
+  APPROVED: '已通过',
+  REJECTED: '已驳回',
+  EXECUTING: '执行中',
+  COMPLETED: '已完成',
+  FAILED: '执行失败',
+  CANCELLED: '已取消',
+};
+
+/** 退换货申请状态标签色 */
+export const RETURN_STATUS_COLOR: Record<string, string> = {
+  DRAFT: 'default',
+  PENDING_APPROVAL: 'processing',
+  APPROVED: 'success',
+  REJECTED: 'error',
+  EXECUTING: 'processing',
+  COMPLETED: 'green',
+  FAILED: 'red',
+  CANCELLED: 'default',
+};
+
+/** 退换货申请类型文案（本期仅退货可执行） */
+export const RETURN_TYPE_LABEL: Record<string, string> = {
+  RETURN: '退货',
+  EXCHANGE: '换货',
+};

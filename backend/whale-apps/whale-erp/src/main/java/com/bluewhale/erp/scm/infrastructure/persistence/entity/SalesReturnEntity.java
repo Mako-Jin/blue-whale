@@ -49,4 +49,13 @@ public class SalesReturnEntity extends BaseEntity {
 
     /** 备注 */
     private String remark;
+
+    /** CRM 退换货申请单号（幂等键） */
+    private String crmReturnNo;
+
+    /** 来源系统类型 */
+    private String sourceType;
+
+    /** 来源单号 */
+    private String sourceId;
 }

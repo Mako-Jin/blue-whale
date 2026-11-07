@@ -2,8 +2,11 @@ package com.bluewhale.erp.controller;
 
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.erp.scm.application.command.SalesOrderInternalCreateCommand;
+import com.bluewhale.erp.scm.application.command.SalesReturnInternalCreateCommand;
 import com.bluewhale.erp.scm.application.service.SalesAppService;
+import com.bluewhale.erp.scm.application.service.SalesReturnAppService;
 import com.bluewhale.erp.scm.application.view.SalesOrderView;
+import com.bluewhale.erp.scm.application.view.SalesReturnView;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,6 +31,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class ErpInternalScmController {
 
     private final SalesAppService salesAppService;
+
+    private final SalesReturnAppService salesReturnAppService;
 
     /**
      * 按 CRM 商务订单号幂等创建销售订单。
@@ -62,5 +67,30 @@ public class ErpInternalScmController {
     @PostMapping("/sales-order/{docNo}/cancel")
     public Result<SalesOrderView> cancel(@PathVariable("docNo") String docNo) {
         return Result.ok(salesAppService.cancelByDocNo(docNo));
+    }
+
+    /**
+     * 按 CRM 退换货申请单号幂等创建并过账销售退货。
+     *
+     * <p>重复请求返回 ERP 已存在的退货单，不重复过账。</p>
+     *
+     * @param command 下发命令
+     * @return 销售退货视图
+     */
+    @PostMapping("/sales-return")
+    public Result<SalesReturnView> createReturn(
+            @Valid @RequestBody SalesReturnInternalCreateCommand command) {
+        return Result.ok(salesReturnAppService.createInternal(command));
+    }
+
+    /**
+     * 按 CRM 退换货申请单号查询销售退货单。
+     *
+     * @param crmReturnNo CRM 退换货申请单号
+     * @return 销售退货视图；不存在时 data 为 null
+     */
+    @GetMapping("/sales-return/by-crm-return-no")
+    public Result<SalesReturnView> byCrmReturnNo(@RequestParam("crmReturnNo") String crmReturnNo) {
+        return Result.ok(salesReturnAppService.findByCrmReturnNo(crmReturnNo));
     }
 }

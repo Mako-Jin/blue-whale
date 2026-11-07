@@ -2,6 +2,7 @@ package com.bluewhale.erp.scm.application.service;
 
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.erp.scm.application.command.SalesReturnCreateCommand;
+import com.bluewhale.erp.scm.application.command.SalesReturnInternalCreateCommand;
 import com.bluewhale.erp.scm.application.view.SalesReturnView;
 import com.bluewhale.erp.scm.domain.model.ScmQuery;
 
@@ -52,4 +53,20 @@ public interface SalesReturnAppService {
      * @return 视图
      */
     SalesReturnView cancel(Long id);
+
+    /**
+     * CRM 内网创建并立即过账（按 crmReturnNo 幂等）。
+     *
+     * @param command 内网创建命令
+     * @return 视图
+     */
+    SalesReturnView createInternal(SalesReturnInternalCreateCommand command);
+
+    /**
+     * 按 CRM 退换货申请单号查询退货单。
+     *
+     * @param crmReturnNo CRM 退换货申请单号
+     * @return 视图；不存在返回 {@code null}
+     */
+    SalesReturnView findByCrmReturnNo(String crmReturnNo);
 }
