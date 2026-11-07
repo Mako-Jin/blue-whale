@@ -116,4 +116,9 @@ CREATE DATABASE IF NOT EXISTS bluewhale_lms
   DEFAULT CHARACTER SET utf8mb4
   DEFAULT COLLATE utf8mb4_unicode_ci;
 
+-- ---- 商城（Wave 5.94 M0：商品/渠道/购物车/订单） ----
+CREATE DATABASE IF NOT EXISTS bluewhale_mall
+  DEFAULT CHARACTER SET utf8mb4
+  DEFAULT COLLATE utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;

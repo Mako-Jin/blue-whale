@@ -34,6 +34,7 @@ const DEV_PORTS = {
   'whale-lms': 8115,
   'whale-party': 8116,
   'whale-mail': 8117,
+  'whale-mall': 8119,
 } as const;
 
 type SubAppName = keyof typeof DEV_PORTS;
@@ -180,6 +181,13 @@ export const apps: WhaleMicroApp[] = [
     name: 'whale-crm',
     entry: subAppEntry('whale-crm', import.meta.env.VITE_SUBAPP_ENTRY_CRM),
     activeRule: '/crm',
+    container: '#subapp-container',
+    props: platformProps(),
+  },
+  {
+    name: 'whale-mall',
+    entry: subAppEntry('whale-mall', import.meta.env.VITE_SUBAPP_ENTRY_MALL),
+    activeRule: '/mall',
     container: '#subapp-container',
     props: platformProps(),
   },

@@ -26,5 +26,6 @@
         <module>whale-crm</module>
         <module>whale-lms</module>
         <module>whale-party</module>
+        <module>whale-mall</module>
     </modules>
 </project>

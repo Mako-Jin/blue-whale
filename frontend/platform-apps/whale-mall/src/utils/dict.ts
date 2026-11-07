@@ -1,0 +1,149 @@
+// 商城子应用文案 / 字典 / 金额与时间格式化
+//
+// 枚举取值以 `/mall/meta` 为准（后端 MallMode / SettlementType / PriceType 等），
+// 这里只做「中文文案 + 颜色」映射，不在前端重定义业务取值。
+
+/** 渠道形态文案（决定这一单按哪种价目计价） */
+export const MODE_LABEL: Record<string, string> = {
+  RETAIL: '零售',
+  B2B: '经销订货',
+  WELFARE: '员工福利',
+};
+
+/** 渠道形态标签色 */
+export const MODE_COLOR: Record<string, string> = {
+  RETAIL: 'blue',
+  B2B: 'gold',
+  WELFARE: 'purple',
+};
+
+/** 结算方式文案 */
+export const SETTLEMENT_LABEL: Record<string, string> = {
+  ONLINE: '在线支付',
+  CREDIT: '账期挂账',
+  POINTS: '积分结算',
+};
+
+/** 币种文案 */
+export const CURRENCY_LABEL: Record<string, string> = {
+  CASH: '人民币',
+  POINTS: '积分',
+};
+
+/** 价目类型文案 */
+export const PRICE_TYPE_LABEL: Record<string, string> = {
+  RETAIL: '零售价',
+  B2B: '经销价',
+  POINTS: '积分价',
+};
+
+/** 商品状态下拉选项 */
+export const SPU_STATUS_OPTIONS = [
+  { value: 'DRAFT', label: '草稿' },
+  { value: 'ON_SALE', label: '在售' },
+  { value: 'OFF_SALE', label: '已下架' },
+];
+
+/** 商品状态文案 */
+export const SPU_STATUS_LABEL: Record<string, string> = {
+  DRAFT: '草稿',
+  ON_SALE: '在售',
+  OFF_SALE: '已下架',
+};
+
+/** 商品状态标签色 */
+export const SPU_STATUS_COLOR: Record<string, string> = {
+  DRAFT: 'default',
+  ON_SALE: 'green',
+  OFF_SALE: 'orange',
+};
+
+/** 启用停用状态下拉选项（类目 / 渠道 / SKU 共用） */
+export const ENABLE_STATUS_OPTIONS = [
+  { value: 'ACTIVE', label: '启用' },
+  { value: 'DISABLED', label: '停用' },
+];
+
+/** 启用停用文案 */
+export const ENABLE_STATUS_LABEL: Record<string, string> = {
+  ACTIVE: '启用',
+  DISABLED: '停用',
+};
+
+/** 启用停用标签色 */
+export const ENABLE_STATUS_COLOR: Record<string, string> = {
+  ACTIVE: 'green',
+  DISABLED: 'red',
+};
+
+/** 订单状态下拉选项 */
+export const ORDER_STATUS_OPTIONS = [
+  { value: 'PENDING_PAYMENT', label: '待支付' },
+  { value: 'PAID', label: '待发货' },
+  { value: 'SHIPPED', label: '已发货' },
+  { value: 'COMPLETED', label: '已完成' },
+  { value: 'CANCELLED', label: '已取消' },
+];
+
+/** 订单状态文案 */
+export const ORDER_STATUS_LABEL: Record<string, string> = {
+  PENDING_PAYMENT: '待支付',
+  PAID: '待发货',
+  SHIPPED: '已发货',
+  COMPLETED: '已完成',
+  CANCELLED: '已取消',
+};
+
+/** 订单状态标签色 */
+export const ORDER_STATUS_COLOR: Record<string, string> = {
+  PENDING_PAYMENT: 'gold',
+  PAID: 'blue',
+  SHIPPED: 'cyan',
+  COMPLETED: 'green',
+  CANCELLED: 'default',
+};
+
+/**
+ * 金额格式化：按币种决定符号与小数位。
+ *
+ * <p>积分价后端强制整数，展示成 `120 积分` 而不是 `¥120.00`——
+ * 把积分显示成人民币是这类系统最容易被截图吐槽的错误。</p>
+ *
+ * @param amount 金额
+ * @param currencyType 币种（CASH / POINTS）
+ * @returns 带符号的金额文本
+ */
+export function formatMoney(amount?: number | null, currencyType = 'CASH'): string {
+  if (amount === undefined || amount === null) {
+    return '-';
+  }
+  if (currencyType === 'POINTS') {
+    return `${Math.round(Number(amount))} 积分`;
+  }
+  return `¥${Number(amount).toFixed(2)}`;
+}
+
+/** 格式化后端 LocalDateTime（兼容 ISO 与 yyyy-MM-dd HH:mm:ss） */
+export function formatDateTime(value?: string | null): string {
+  if (!value) {
+    return '-';
+  }
+  return value.replace('T', ' ').slice(0, 19);
+}
+
+/** 规格 JSON 转展示文本（`{"颜色":"黑"}` → `颜色: 黑`），解析失败原样返回 */
+export function formatSpec(specJson?: string | null): string {
+  if (!specJson) {
+    return '-';
+  }
+  try {
+    const parsed = JSON.parse(specJson) as Record<string, unknown>;
+    const entries = Object.entries(parsed);
+    if (entries.length === 0) {
+      return '-';
+    }
+    return entries.map(([key, value]) => `${key}: ${String(value)}`).join(' / ');
+  } catch {
+    return specJson;
+  }
+}

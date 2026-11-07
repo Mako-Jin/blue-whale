@@ -86,6 +86,7 @@ jobs:
           - { service: whale-pm, module: whale-apps/whale-pm, port: 9005 }
           - { service: whale-contract, module: whale-apps/whale-contract, port: 9006 }
           - { service: whale-crm, module: whale-apps/whale-crm, port: 9007 }
+          - { service: whale-mall, module: whale-apps/whale-mall, port: 9010 }
           - { service: whale-audit, module: whale-ops/whale-audit, port: 9101 }
           - { service: whale-monitor, module: whale-ops/whale-monitor, port: 9102 }
           - { service: whale-alert, module: whale-ops/whale-alert, port: 9103 }

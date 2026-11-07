@@ -42,7 +42,7 @@
 | 对象 | 规则 | 示例 |
 |---|---|---|
 | 表名 | 小写 snake_case、**单数**、带域前缀 | `sys_user`、`audit_log`、`api_log`、`outbound_log`、`frontend_log`、`behavior_log`、`erp_order` |
-| 前缀语义 | `sys_` 平台内建 RBAC；`audit_` 审计事件；`*_log` 多通道观测日志（Wave 5.10）；`<业务域>_` 业务应用（如 `mu_` 音乐、`vd_` 视频、`lr_` 学习培训考试、`pty_` 党政工会） | —— |
+| 前缀语义 | `sys_` 平台内建 RBAC；`audit_` 审计事件；`*_log` 多通道观测日志（Wave 5.10）；`<业务域>_` 业务应用（如 `mu_` 音乐、`vd_` 视频、`lr_` 学习培训考试、`pty_` 党政工会、`mall_` 商城） | —— |
 | 关联表 | `<主表>_<从表>`（均取单数） | `sys_user_role`、`sys_role_permission` |
 | 列名 | 小写 snake_case；布尔 `is_xxx`；时间 `xxx_time`；数量 `xxx_count`；外键 `<实体>_id` | `is_default`、`create_time`、`tenant_id` |
 | 必备列 | `id`（雪花，`BIGINT`）、`create_time`、`update_time`、`deleted`（逻辑删除） | 见 checklist E13 |
@@ -93,7 +93,7 @@ Maven 模块目录名 == artifactId == spring.application.name == Nacos 服务�
 |---|---|---|
 | `8080` | API 网关（唯一入口） | whale-gateway |
 | `8081–8099` | 核心服务 | auth 8081、job 8082、workflow 8083、form 8084、file 8085、pay 8086（8087 随 `whale-i18n` 删除释放，Wave 5.50）、agent 8090、im 8091、ai 8092（Python，仅内网）、archive 8093、message 8094、**doc 8095（Wave 5.74 M1 骨架）**、**music 8096（Wave 5.75 M0 骨架）**、**scene 8097（Wave 5.77 M1/M2 2D 已落地）**、**video 8098（Wave 5.77 M0–M5 已落地）** |
-| `9001–9099` | 业务应用 | erp 9001、mes 9002、pdm 9003、oa 9004、pm 9005、contract 9006、**crm 9007（Wave 5.77 门禁骨架）**、**lms 9008（Wave 5.87 学习培训考试）**、**party 9009（Wave 5.88 党政工会）** |
+| `9001–9099` | 业务应用 | erp 9001、mes 9002、pdm 9003、oa 9004、pm 9005、contract 9006、**crm 9007（Wave 5.77 门禁骨架）**、**lms 9008（Wave 5.87 学习培训考试）**、**party 9009（Wave 5.88 党政工会）**、**mall 9010（Wave 5.94 商城）** |
 | `9101–9199` | 运维服务 | audit 9101、monitor 9102、alert 9103 |
 | `9201–9299` | 注册/配置类辅助服务 | config 9201 |
 | `8848/8849/9848/9849` | Nacos 基础设施（非本平台服务） | Nacos 3.2.4 |
@@ -203,6 +203,7 @@ Maven 模块目录名 == artifactId == spring.application.name == Nacos 服务�
 | apps | **whale-crm**（Wave 5.77 门禁骨架） | `whale-crm` | `bluewhale_crm` | `com.bluewhale.crm` | 9007 |
 | apps | **whale-lms**（Wave 5.87 学习培训考试） | `whale-lms` | `bluewhale_lms` | `com.bluewhale.lms` | 9008 |
 | apps | **whale-party**（Wave 5.88 党政工会；原计划并入 OA，改独立） | `whale-party` | `bluewhale_party` | `com.bluewhale.party` | 9009 |
+| apps | **whale-mall**（Wave 5.94 商城；一套内核兼容零售 / 经销订货 / 员工福利） | `whale-mall` | `bluewhale_mall` | `com.bluewhale.mall` | 9010 |
 | infra | Nacos 3.2.4 | — | **`bluewhale_nacos`**（本波次整改，原 `nacos`） | — | 8848 / 8849（9848 / 9849） |
 | infra | Redis / MySQL | — | 不建业务库 | — | 6379 / 3306 |
 
