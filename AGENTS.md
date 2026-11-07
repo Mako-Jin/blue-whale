@@ -17,6 +17,7 @@
 | --- | --- |
 | npm 缓存 | `f:\blue-whale\.toolchains\npm-cache` |
 | pnpm store | `f:\blue-whale\.toolchains\pnpm\store` |
+| pnpm 全局目录 | `PNPM_HOME=F:\blue-whale\.toolchains\pnpm`；`C:\Users\<用户>\AppData\Local\pnpm` 仅保留目录联接（实体在 F 盘，不占 C 盘） |
 | Maven 仓库 | `F:\respository\maven`（`D:\maven\conf\settings.xml` 中 `localRepository`） |
 | Maven/JVM 临时目录 | `f:\blue-whale\.toolchains\tmp`（见 `.mvn/jvm.config`） |
 | 本地工具与下载物 | `f:\blue-whale\.toolchains\bluewhale-tools`（Memurai / Redis / 启动脚本） |
@@ -32,7 +33,7 @@
 ## 三、强制配置（已落地，修改前需评估）
 
 1. 仓库根 `.npmrc`：`cache=f:\blue-whale\.toolchains\npm-cache`、`registry=https://registry.npmmirror.com/`。
-2. 全局 npm/pnpm 配置：`npm config get cache`、`pnpm config get store-dir` 均指向 `.toolchains`。
+2. 全局 npm/pnpm 配置：`npm config get cache` 指向 `.toolchains`；`pnpm config get store-dir` 指向 `.toolchains`；`PNPM_HOME` 指向 `.toolchains\pnpm`，C 盘 `AppData\Local\pnpm` 只是目录联接（`mklink /J`），删除后必须重建。
 3. `.mvn/jvm.config`：`-Djava.io.tmpdir=F:\blue-whale\.toolchains\tmp`，Maven 及其派生 JVM 临时文件不落 C 盘。
 4. Maven 仓库由全局 `settings.xml` 固定为 `F:\respository\maven`，不得改回 `C:\Users\<用户>\.m2`。
 5. 启动脚本（`run-*.ps1`、`fetch-memurai.ps1`、`gateway-local.yml`）中所有路径必须使用 `f:\blue-whale\...`，禁止出现 `C:\Users\...`。
@@ -60,6 +61,7 @@
 ```powershell
 npm config get cache          # 期望 f:\blue-whale\.toolchains\npm-cache
 pnpm config get store-dir     # 期望 f:\blue-whale\.toolchains\pnpm\store
+(Get-Item "$env:LOCALAPPDATA\pnpm").LinkType   # 期望 Junction（指向 .toolchains\pnpm）
 mvn help:evaluate -Dexpression=settings.localRepository -q -DforceStdout
                               # 期望 F:\respository\maven
 ```
