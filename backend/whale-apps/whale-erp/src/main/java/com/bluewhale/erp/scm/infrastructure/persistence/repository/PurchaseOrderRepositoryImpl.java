@@ -71,6 +71,22 @@ public class PurchaseOrderRepositoryImpl implements PurchaseOrderRepository {
     }
 
     @Override
+    public Optional<PurchaseOrder> findByDocNo(String docNo) {
+        PurchaseOrderEntity entity = purchaseOrderMapper.selectOne(new LambdaQueryWrapper<PurchaseOrderEntity>()
+                .eq(PurchaseOrderEntity::getDocNo, docNo)
+                .last("limit 1"));
+        if (entity == null) {
+            return Optional.empty();
+        }
+        PurchaseOrder order = toDomain(entity);
+        order.setLines(purchaseOrderLineMapper.selectList(new LambdaQueryWrapper<PurchaseOrderLineEntity>()
+                        .eq(PurchaseOrderLineEntity::getOrderId, entity.getId())
+                        .orderByAsc(PurchaseOrderLineEntity::getLineNo))
+                .stream().map(this::toDomain).toList());
+        return Optional.of(order);
+    }
+
+    @Override
     public List<PurchasePriceRecord> listPurchasePrices(Long itemId, LocalDate fromDate) {
         List<PurchaseOrderLineEntity> lines = purchaseOrderLineMapper.selectList(
                 new LambdaQueryWrapper<PurchaseOrderLineEntity>()

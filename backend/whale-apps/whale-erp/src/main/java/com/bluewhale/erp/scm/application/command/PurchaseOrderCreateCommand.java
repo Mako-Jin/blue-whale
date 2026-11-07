@@ -20,6 +20,9 @@ import java.util.List;
 @Data
 public class PurchaseOrderCreateCommand {
 
+    /** 订单号（为空时自动生成；内网幂等创建时由上游指定） */
+    private String docNo;
+
     /** 供应商主键 */
     @NotNull
     private Long supplierId;

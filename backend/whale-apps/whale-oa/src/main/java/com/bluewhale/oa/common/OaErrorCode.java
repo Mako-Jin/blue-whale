@@ -240,6 +240,9 @@ public final class OaErrorCode {
     /** 采购申请状态不允许该操作 */
     public static final int PURCHASE_STATUS_CONFLICT = 40929;
 
+    /** ERP 采购订单推送暂不可用 */
+    public static final int PURCHASE_ERP_UNAVAILABLE = 50304;
+
     /** 错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(APPROVAL_CONFIG_NOT_FOUND, "审批配置不存在或无权访问"),
@@ -316,7 +319,8 @@ public final class OaErrorCode {
             Map.entry(SEAL_CONTRACT_UNAVAILABLE, "合同服务暂不可用，请稍后重试"),
             Map.entry(PURCHASE_INVALID, "采购申请参数非法，请检查明细与金额"),
             Map.entry(PURCHASE_NOT_FOUND, "采购申请不存在或无权访问"),
-            Map.entry(PURCHASE_STATUS_CONFLICT, "采购申请当前状态不允许该操作"));
+            Map.entry(PURCHASE_STATUS_CONFLICT, "采购申请当前状态不允许该操作"),
+            Map.entry(PURCHASE_ERP_UNAVAILABLE, "ERP 采购订单服务暂不可用，稍后可重试推送"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。

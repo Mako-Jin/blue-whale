@@ -203,6 +203,72 @@ public class SealServiceImpl implements SealService {
      * @param id 印章ID
      * @return 印章实体
      */
+    @Override
+    public boolean isGranted(Long sealId, Long userId) {
+        if (sealId == null || userId == null) {
+            return false;
+        }
+        CtSeal seal = sealMapper.selectById(sealId);
+        if (seal == null || !STATUS_ENABLED.equalsIgnoreCase(seal.getStatus())) {
+            return false;
+        }
+        LocalDate today = LocalDate.now();
+        if (seal.getValidFrom() != null && today.isBefore(seal.getValidFrom())) {
+            return false;
+        }
+        if (seal.getValidTo() != null && today.isAfter(seal.getValidTo())) {
+            return false;
+        }
+        return grantMapper.selectList(new LambdaQueryWrapper<CtSealGrant>()
+                        .eq(CtSealGrant::getSealId, sealId)
+                        .eq(CtSealGrant::getGranteeUserId, userId)
+                        .eq(CtSealGrant::getStatus, STATUS_ENABLED))
+                .stream().anyMatch(grant -> inValidity(grant, today));
+    }
+
+    @Override
+    public List<SealVO> grantedSeals(Long userId) {
+        if (userId == null) {
+            return List.of();
+        }
+        LocalDate today = LocalDate.now();
+        List<Long> sealIds = grantMapper.selectList(new LambdaQueryWrapper<CtSealGrant>()
+                        .eq(CtSealGrant::getGranteeUserId, userId)
+                        .eq(CtSealGrant::getStatus, STATUS_ENABLED))
+                .stream().filter(grant -> inValidity(grant, today))
+                .map(CtSealGrant::getSealId).distinct().toList();
+        if (sealIds.isEmpty()) {
+            return List.of();
+        }
+        return sealMapper.selectList(new LambdaQueryWrapper<CtSeal>()
+                        .in(CtSeal::getId, sealIds)
+                        .eq(CtSeal::getStatus, STATUS_ENABLED)
+                        .orderByAsc(CtSeal::getName))
+                .stream().filter(seal -> (seal.getValidFrom() == null || !today.isBefore(seal.getValidFrom()))
+                        && (seal.getValidTo() == null || !today.isAfter(seal.getValidTo())))
+                .map(SealServiceImpl::toVo).toList();
+    }
+
+    /**
+     * 判断授权是否在有效期内。
+     *
+     * @param grant 授权记录
+     * @param today 当前日期
+     * @return 是否有效
+     */
+    private static boolean inValidity(CtSealGrant grant, LocalDate today) {
+        if (grant.getValidFrom() != null && today.isBefore(grant.getValidFrom())) {
+            return false;
+        }
+        return grant.getValidTo() == null || !today.isAfter(grant.getValidTo());
+    }
+
+    /**
+     * 校验印章存在。
+     *
+     * @param id 印章ID
+     * @return 印章实体
+     */
     private CtSeal requireSeal(Long id) {
         CtSeal seal = sealMapper.selectById(id);
         if (seal == null) {

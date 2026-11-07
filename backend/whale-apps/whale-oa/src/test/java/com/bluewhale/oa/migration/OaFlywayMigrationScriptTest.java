@@ -244,34 +244,49 @@ class OaFlywayMigrationScriptTest {
     }
 
     /**
-     * V8 新建报销 5 张表，并种子费用类别/标准与报销审批配置
+     * V8 新建报销 5 张表与行政 8 张表，并种子费用类别/标准与三类行政审批配置
      *
      * @throws IOException 读取脚本失败
      */
     @Test
-    @DisplayName("V8 报销表集合与审批种子完整")
-    void v8ShouldCreateExpenseTablesAndSeedConfigs() throws IOException {
+    @DisplayName("V8 报销与行政表集合及审批种子完整")
+    void v8ShouldCreateExpenseAdminTablesAndSeedConfigs() throws IOException {
         Path v8 = MIGRATION_DIR.resolve("V8__expense_admin.sql");
         Set<String> tables = extractTables(v8);
         assertEquals(Set.of("oa_expense", "oa_expense_item", "oa_expense_invoice",
-                "oa_expense_category", "oa_expense_standard"), tables,
-                "V8 建表集合与 M2-5b 设计不一致");
+                "oa_expense_category", "oa_expense_standard",
+                "oa_vehicle", "oa_driver", "oa_vehicle_booking", "oa_vehicle_usage",
+                "oa_seal_use", "oa_seal_use_file", "oa_purchase_request", "oa_purchase_item"),
+                tables, "V8 建表集合与 M2-5b/5c 设计不一致");
 
         String script = Files.readString(v8, StandardCharsets.UTF_8);
         for (String column : List.of("code", "applicant", "total_amount", "currency", "status",
                 "approval_instance_id", "erp_push_status", "erp_payable_no", "line_no",
-                "invoice_no", "level_code", "limit_amount")) {
-            assertTrue(script.contains(column), "V8 报销表应包含列：" + column);
+                "invoice_no", "level_code", "limit_amount",
+                "plate_no", "current_mileage", "start_time", "end_time", "seal_id",
+                "registered_time", "item_code", "unit_price", "supplier_advice", "erp_po_no")) {
+            assertTrue(script.contains(column), "V8 表应包含列：" + column);
         }
         for (String code : List.of("'TRAVEL'", "'MEAL'", "'OFFICE'", "'OTHER'")) {
             assertTrue(script.contains(code), "V8 应种子费用类别：" + code);
         }
-        assertTrue(script.contains("'EXPENSE'"), "V8 应种子 EXPENSE 业务类型");
-        assertTrue(script.contains("'OA_EXPENSE'"), "V8 应绑定 OA_EXPENSE 流程定义");
+        for (String type : List.of("'EXPENSE'", "'VEHICLE'", "'SEAL_USE'", "'PURCHASE'")) {
+            assertTrue(script.contains(type), "V8 应种子业务类型：" + type);
+        }
+        for (String definition : List.of("'OA_EXPENSE'", "'OA_VEHICLE'", "'OA_SEAL'",
+                "'OA_PURCHASE'")) {
+            assertTrue(script.contains(definition), "V8 应绑定流程定义：" + definition);
+        }
         assertTrue(script.contains("DEPT_LEADER"), "V8 应种子部门负责人审批规则");
         assertTrue(script.contains("'oa_finance'"), "V8 应种子财务角色审批规则");
         assertTrue(script.contains("uk_oa_expense_code"), "V8 应建立报销单号唯一索引");
         assertTrue(script.contains("uk_oa_expense_invoice_no"), "V8 应建立发票查重唯一索引");
+        assertTrue(script.contains("uk_oa_vehicle_plate"), "V8 应建立车牌唯一索引");
+        assertTrue(script.contains("uk_oa_vehicle_booking_code"), "V8 应建立用车单号唯一索引");
+        assertTrue(script.contains("uk_oa_vehicle_usage_booking"), "V8 应用车登记幂等");
+        assertTrue(script.contains("uk_oa_seal_use_code"), "V8 应建立用章单号唯一索引");
+        assertTrue(script.contains("uk_oa_purchase_request_code"), "V8 应建立采购单号唯一索引");
+        assertTrue(script.contains("uk_oa_purchase_item_line"), "V8 应保证采购明细行号唯一");
     }
 
     /**

@@ -70,6 +70,23 @@ public interface SealService {
     List<SealGrantVO> grants(Long sealId);
 
     /**
+     * 判断用户是否拥有指定印章的有效授权（内网只读校验）。
+     *
+     * @param sealId 印章ID
+     * @param userId 用户ID
+     * @return 是否授权
+     */
+    boolean isGranted(Long sealId, Long userId);
+
+    /**
+     * 查询用户拥有有效授权的印章列表（内网只读）。
+     *
+     * @param userId 用户ID
+     * @return 印章列表
+     */
+    List<SealVO> grantedSeals(Long userId);
+
+    /**
      * 生成印章预览图（低分辨率 + 半透明水印）。
      *
      * @param id 印章ID

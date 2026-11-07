@@ -40,6 +40,14 @@ public interface PurchaseOrderRepository {
     Optional<PurchaseOrder> findById(Long id);
 
     /**
+     * 按订单号查询（含分录），用于内网幂等创建。
+     *
+     * @param docNo 订单号
+     * @return 采购订单
+     */
+    Optional<PurchaseOrder> findByDocNo(String docNo);
+
+    /**
      * 查询物料的历史采购价格记录（分录 + 订单头快照）。
      *
      * @param itemId 物料主键

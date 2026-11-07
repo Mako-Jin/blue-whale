@@ -41,6 +41,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -98,6 +99,12 @@ public class PurchaseAppServiceImpl implements PurchaseAppService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public PurchaseOrderView create(PurchaseOrderCreateCommand command) {
+        if (StringUtils.hasText(command.getDocNo())) {
+            Optional<PurchaseOrder> existing = purchaseOrderRepository.findByDocNo(command.getDocNo());
+            if (existing.isPresent()) {
+                return PurchaseOrderView.of(existing.get());
+            }
+        }
         SupplierSnapshot supplier = supplierCatalog.findById(command.getSupplierId())
                 .orElseThrow(() -> ErpErrorCode.exception(ErpErrorCode.SUPPLIER_INVALID));
         if (!MasterDataStatus.ENABLED.equals(supplier.getStatus())) {
@@ -105,7 +112,8 @@ public class PurchaseAppServiceImpl implements PurchaseAppService {
         }
         requireWarehouse(command.getWarehouseId());
         PurchaseOrder order = new PurchaseOrder();
-        order.setDocNo(purchaseOrderRepository.nextDocNo(command.getDocDate()));
+        order.setDocNo(StringUtils.hasText(command.getDocNo())
+                ? command.getDocNo() : purchaseOrderRepository.nextDocNo(command.getDocDate()));
         order.setSupplierId(supplier.getId());
         order.setSupplierName(supplier.getName());
         order.setDocDate(command.getDocDate());
