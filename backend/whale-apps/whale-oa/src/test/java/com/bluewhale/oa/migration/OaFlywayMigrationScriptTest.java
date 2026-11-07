@@ -382,6 +382,24 @@ class OaFlywayMigrationScriptTest {
         assertTrue(script.contains("'IN_DEFAULT'"), "V12 应种子默认收文文号规则");
     }
 
+    @Test
+    @DisplayName("V13 创建企业文化、投票与建议 7 张表")
+    void v13ShouldCreateCultureTables() throws IOException {
+        Path v13 = MIGRATION_DIR.resolve("V13__culture.sql");
+        Set<String> tables = extractTables(v13);
+        assertEquals(Set.of("oa_culture_event", "oa_culture_wish", "oa_poll", "oa_poll_option",
+                "oa_poll_vote", "oa_suggestion", "oa_suggestion_reply"), tables,
+                "V13 建表集合与 M5-7d-1 文化设计不一致");
+
+        String script = Files.readString(v13, StandardCharsets.UTF_8);
+        for (String column : List.of("event_type", "wish_type", "multiple_choice", "anonymous",
+                "max_choices", "option_text", "option_id", "submitter_id", "replier_id")) {
+            assertTrue(script.contains(column), "V13 文化表应包含列：" + column);
+        }
+        assertTrue(script.contains("uk_oa_poll_vote_option"), "V13 应保证同一用户对同一选项仅投一次");
+        assertTrue(script.contains("uk_oa_culture_wish_once"), "V13 应保证当天同类型同对象同发送人唯一");
+    }
+
     /**
      * 列出迁移脚本并按版本号数值升序返回（避免 V10 排在 V1 之前）
      *

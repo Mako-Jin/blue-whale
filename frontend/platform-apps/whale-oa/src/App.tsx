@@ -33,6 +33,9 @@ import CollabCalendarPage from './pages/collab/calendar';
 import CollabDrivePage from './pages/collab/drive';
 import CollabDirectoryPage from './pages/collab/directory';
 import CollabWorkbenchPage from './pages/collab/workbench';
+import CulturePage from './pages/culture';
+import PollPage from './pages/poll';
+import SuggestionPage from './pages/suggestion';
 import { hasPermission } from './utils/permission';
 
 const { Header, Content, Sider } = Layout;
@@ -70,6 +73,9 @@ const MENU_ITEMS = [
   { key: '/collab/workbench', label: '工作台', permission: 'sys:oa:workbench:view' },
   { key: '/collab/notice', label: '公告管理', permission: 'sys:oa:notice:list' },
   { key: '/collab/task', label: '我的任务', permission: 'sys:oa:task:list' },
+  { key: '/culture', label: '企业文化', permission: 'sys:oa:culture:list' },
+  { key: '/poll', label: '投票问卷', permission: 'sys:oa:poll:list' },
+  { key: '/suggestion', label: '建议箱', permission: 'sys:oa:suggestion:list' },
 ];
 
 /** 按权限过滤后的菜单 */
@@ -133,6 +139,9 @@ function OaLayout() {
             <Route path="/collab/workbench" element={<CollabWorkbenchPage />} />
             <Route path="/collab/notice" element={<CollabNoticePage />} />
             <Route path="/collab/task" element={<CollabTaskPage />} />
+            <Route path="/culture" element={<CulturePage />} />
+            <Route path="/poll" element={<PollPage />} />
+            <Route path="/suggestion" element={<SuggestionPage />} />
             <Route path="*" element={<Navigate to={DEFAULT_PATH} replace />} />
           </Routes>
         </Content>

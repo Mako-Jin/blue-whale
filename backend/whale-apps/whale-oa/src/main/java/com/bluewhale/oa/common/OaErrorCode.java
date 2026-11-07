@@ -357,6 +357,39 @@ public final class OaErrorCode {
     /** 文件服务不可用或附件不可下载 */
     public static final int DOC_FILE_UNAVAILABLE = 50308;
 
+    /** 文化动态参数非法 */
+    public static final int CULTURE_INVALID = 40024;
+
+    /** 文化动态不存在或无权访问 */
+    public static final int CULTURE_EVENT_NOT_FOUND = 40438;
+
+    /** 文化动态当前状态不允许该操作 */
+    public static final int CULTURE_EVENT_STATUS_CONFLICT = 40944;
+
+    /** 投票参数非法 */
+    public static final int POLL_INVALID = 40025;
+
+    /** 投票不存在或无权访问 */
+    public static final int POLL_NOT_FOUND = 40439;
+
+    /** 投票当前状态不允许该操作 */
+    public static final int POLL_STATUS_CONFLICT = 40945;
+
+    /** 同一用户已参与该投票 */
+    public static final int POLL_ALREADY_VOTED = 40946;
+
+    /** 投票选项缺失或不属于该投票 */
+    public static final int POLL_OPTION_REQUIRED = 40947;
+
+    /** 建议参数非法 */
+    public static final int SUGGESTION_INVALID = 40026;
+
+    /** 建议不存在或无权访问 */
+    public static final int SUGGESTION_NOT_FOUND = 40440;
+
+    /** 建议当前状态不允许该操作 */
+    public static final int SUGGESTION_STATUS_CONFLICT = 40948;
+
     /** 错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(APPROVAL_CONFIG_NOT_FOUND, "审批配置不存在或无权访问"),
@@ -472,7 +505,18 @@ public final class OaErrorCode {
             Map.entry(DOC_TEMPLATE_EXISTS, "公文模板同编码同版本已存在"),
             Map.entry(DOC_FORBIDDEN, "无权操作该公文"),
             Map.entry(DOC_ARCHIVE_UNAVAILABLE, "档案服务暂不可用，稍后可重试归档"),
-            Map.entry(DOC_FILE_UNAVAILABLE, "文件服务暂不可用或附件不可下载，请稍后重试"));
+            Map.entry(DOC_FILE_UNAVAILABLE, "文件服务暂不可用或附件不可下载，请稍后重试"),
+            Map.entry(CULTURE_INVALID, "文化动态参数非法，请检查类型、标题与日期"),
+            Map.entry(CULTURE_EVENT_NOT_FOUND, "文化动态不存在或无权访问"),
+            Map.entry(CULTURE_EVENT_STATUS_CONFLICT, "文化动态当前状态不允许该操作"),
+            Map.entry(POLL_INVALID, "投票参数非法，请检查选项、时间与可选数量"),
+            Map.entry(POLL_NOT_FOUND, "投票不存在或无权访问"),
+            Map.entry(POLL_STATUS_CONFLICT, "投票当前状态不允许该操作"),
+            Map.entry(POLL_ALREADY_VOTED, "您已参与该投票，不能重复投票"),
+            Map.entry(POLL_OPTION_REQUIRED, "投票选项不能为空或不属于该投票"),
+            Map.entry(SUGGESTION_INVALID, "建议参数非法，请检查标题、类别与内容"),
+            Map.entry(SUGGESTION_NOT_FOUND, "建议不存在或无权访问"),
+            Map.entry(SUGGESTION_STATUS_CONFLICT, "建议当前状态不允许该操作"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。
