@@ -203,6 +203,18 @@ public final class CrmErrorCode {
     /** 应收对账失败（ERP 不可用或返回异常） */
     public static final int INVOICE_RECONCILE_FAILED = 41062;
 
+    /** 工单不存在或无权访问 */
+    public static final int TICKET_NOT_FOUND = 41063;
+
+    /** 工单当前状态不允许该操作 */
+    public static final int TICKET_STATE_CONFLICT = 41064;
+
+    /** SLA 策略或工作日历不可用 */
+    public static final int TICKET_SLA_UNAVAILABLE = 41065;
+
+    /** 工单处理人非法 */
+    public static final int TICKET_ASSIGNEE_INVALID = 41066;
+
     /** 错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(GATE_CLOSED, "需求门禁未通过，CRM 业务接口尚未开放"),
@@ -267,7 +279,11 @@ public final class CrmErrorCode {
             Map.entry(INVOICE_LINE_INVALID, "开票明细非法，行金额合计必须等于申请金额"),
             Map.entry(INVOICE_APPROVAL_UNAVAILABLE, "开票审批未启用或缺少流程定义，请联系管理员"),
             Map.entry(INVOICE_SEND_INVALID, "寄送登记参数非法，请填写快递公司与运单号"),
-            Map.entry(INVOICE_RECONCILE_FAILED, "应收对账失败，ERP 暂不可用"));
+            Map.entry(INVOICE_RECONCILE_FAILED, "应收对账失败，ERP 暂不可用"),
+            Map.entry(TICKET_NOT_FOUND, "工单不存在或无权访问"),
+            Map.entry(TICKET_STATE_CONFLICT, "工单当前状态不允许该操作"),
+            Map.entry(TICKET_SLA_UNAVAILABLE, "SLA 策略或工作日历不可用"),
+            Map.entry(TICKET_ASSIGNEE_INVALID, "工单处理人非法"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。

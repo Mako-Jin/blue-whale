@@ -7,6 +7,7 @@ import com.bluewhale.crm.config.CrmInvoiceApprovalProperties;
 import com.bluewhale.crm.config.CrmOrderApprovalProperties;
 import com.bluewhale.crm.config.CrmProperties;
 import com.bluewhale.crm.config.CrmQuoteApprovalProperties;
+import com.bluewhale.crm.config.CrmServiceProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -28,7 +29,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 @EnableConfigurationProperties({CrmProperties.class, CrmQuoteApprovalProperties.class, CrmContractProperties.class,
         CrmErpProperties.class, CrmOrderApprovalProperties.class, CrmInvoiceApprovalProperties.class,
-        CrmArProperties.class})
+        CrmArProperties.class, CrmServiceProperties.class})
 public class WhaleCrmApplication {
 
     /**

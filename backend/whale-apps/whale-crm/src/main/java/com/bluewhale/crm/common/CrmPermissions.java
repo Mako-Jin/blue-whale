@@ -196,6 +196,36 @@ public final class CrmPermissions {
     /** 应收对账查询与同步 */
     public static final String AR_RECONCILE = "sys:crm:ar:reconcile";
 
+    /** 查询工单（列表 / 详情） */
+    public static final String TICKET_LIST = "sys:crm:ticket:list";
+
+    /** 新建工单 */
+    public static final String TICKET_CREATE = "sys:crm:ticket:create";
+
+    /** 工单分派 */
+    public static final String TICKET_ASSIGN = "sys:crm:ticket:assign";
+
+    /** 工单处理（处理 / 备注 / 暂停 / 恢复 / 升级 / 解决 / 关闭 / 重开 / 取消） */
+    public static final String TICKET_HANDLE = "sys:crm:ticket:handle";
+
+    /** SLA 策略与工作日历维护 */
+    public static final String SERVICE_SLA_MANAGE = "sys:crm:service:sla:manage";
+
+    /** 查询知识引用（M4-4b） */
+    public static final String KB_LIST = "sys:crm:kb:list";
+
+    /** 维护知识引用（M4-4b） */
+    public static final String KB_MANAGE = "sys:crm:kb:manage";
+
+    /** 满意度问卷管理与结果查询（M4-4b） */
+    public static final String SURVEY_MANAGE = "sys:crm:survey:manage";
+
+    /** 查询退换货申请（M4-4c） */
+    public static final String RETURN_LIST = "sys:crm:return:list";
+
+    /** 维护退换货申请（M4-4c） */
+    public static final String RETURN_MANAGE = "sys:crm:return:manage";
+
     /**
      * 私有构造器：常量类，禁止实例化。
      */

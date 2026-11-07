@@ -353,3 +353,76 @@ export const INVOICE_TITLE_TYPE_LABEL: Record<string, string> = {
   COMPANY: '单位',
   PERSONAL: '个人',
 };
+
+/** 工单优先级下拉选项 */
+export const TICKET_PRIORITY_OPTIONS = [
+  { value: 'P1', label: 'P1 紧急' },
+  { value: 'P2', label: 'P2 高' },
+  { value: 'P3', label: 'P3 普通' },
+];
+
+/** 工单优先级文案 */
+export const TICKET_PRIORITY_LABEL: Record<string, string> = {
+  P1: 'P1 紧急',
+  P2: 'P2 高',
+  P3: 'P3 普通',
+};
+
+/** 工单优先级标签色 */
+export const TICKET_PRIORITY_COLOR: Record<string, string> = {
+  P1: 'red',
+  P2: 'orange',
+  P3: 'default',
+};
+
+/** 工单状态下拉选项 */
+export const TICKET_STATUS_OPTIONS = [
+  { value: 'NEW', label: '新建' },
+  { value: 'ASSIGNED', label: '已分派' },
+  { value: 'PROCESSING', label: '处理中' },
+  { value: 'WAITING_CUSTOMER', label: '等待客户' },
+  { value: 'RESOLVED', label: '已解决' },
+  { value: 'CLOSED', label: '已关闭' },
+  { value: 'REOPENED', label: '已重开' },
+  { value: 'CANCELLED', label: '已取消' },
+];
+
+/** 工单状态文案 */
+export const TICKET_STATUS_LABEL: Record<string, string> = {
+  NEW: '新建',
+  ASSIGNED: '已分派',
+  PROCESSING: '处理中',
+  WAITING_CUSTOMER: '等待客户',
+  RESOLVED: '已解决',
+  CLOSED: '已关闭',
+  REOPENED: '已重开',
+  CANCELLED: '已取消',
+};
+
+/** 工单状态标签色 */
+export const TICKET_STATUS_COLOR: Record<string, string> = {
+  NEW: 'blue',
+  ASSIGNED: 'cyan',
+  PROCESSING: 'processing',
+  WAITING_CUSTOMER: 'gold',
+  RESOLVED: 'green',
+  CLOSED: 'default',
+  REOPENED: 'purple',
+  CANCELLED: 'default',
+};
+
+/** 工单处理动作文案 */
+export const TICKET_ACTION_LABEL: Record<string, string> = {
+  CREATE: '建单',
+  ASSIGN: '分派',
+  PROCESS: '处理',
+  COMMENT: '备注',
+  PAUSE: '暂停',
+  RESUME: '恢复',
+  ESCALATE: '升级',
+  RESOLVE: '解决',
+  CLOSE: '关闭',
+  REOPEN: '重开',
+  CANCEL: '取消',
+  FOLLOW_UP: '回访',
+};

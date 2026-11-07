@@ -189,6 +189,22 @@ class CrmFlywayMigrationScriptTest {
                 "同一客户同一天同币种只允许一条应收快照");
     }
 
+    @Test
+    @DisplayName("V10 售后服务：一次建齐工单 / SLA / 知识引用 / 满意度 / 退换货九表，且不写种子数据")
+    void serviceShouldContainAllM4Tables() throws IOException {
+        Set<String> tables = extractTables(MIGRATION_DIR.resolve("V10__service.sql"));
+        assertEquals(Set.of("crm_ticket", "crm_ticket_action", "crm_ticket_sla", "crm_service_calendar",
+                "crm_kb_ref", "crm_satisfaction_survey", "crm_satisfaction_response",
+                "crm_return_request", "crm_return_item"), tables);
+        String content = Files.readString(MIGRATION_DIR.resolve("V10__service.sql"), StandardCharsets.UTF_8);
+        assertFalse(content.toUpperCase().contains("INSERT INTO CRM_"),
+                "售后服务增量不得写入工单 / 知识库种子数据");
+        assertTrue(content.contains("UNIQUE KEY uk_crm_ticket_no"), "工单号在租户内唯一");
+        assertTrue(content.contains("UNIQUE KEY uk_crm_ticket_sla_priority"), "同一优先级只允许一条 SLA 策略");
+        assertTrue(content.contains("UNIQUE KEY uk_crm_survey_token"), "满意度令牌哈希在租户内唯一");
+        assertTrue(content.contains("UNIQUE KEY uk_crm_return_item_no"), "退换货申请行号在租户内唯一");
+    }
+
     /**
      * 列出迁移脚本。
      *

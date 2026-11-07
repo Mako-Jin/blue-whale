@@ -588,3 +588,4 @@ com.bluewhale.crm
 | 2026-11-04 | M2 报价增量：`commerce` 上下文落地报价头/行/审批三表（V5），状态机 `DRAFT→PENDING_APPROVAL→APPROVED/REJECTED`，折扣审批对接 workflow，审批后锁定与改价新版本；权限 1850–1854；转订单仍为规划 |
 | 2026-11-05 | M2 预测 / 目标增量：`sales` 上下文落地预测快照 / 预测调整 / 销售目标 / 目标调整四表（V6），月季周期、个人 / 部门范围、手工调整留痕、完成率（暂按赢单商机金额）；权限 1855–1859；M3–M6 迁移顺延 V7–V10 |
 | 2026-11-07 | M3 7f-3 发票与应收对账：`commerce` 上下文落地 `crm_invoice_request` / `crm_invoice_item` / `crm_ar_snapshot` 三表（V9），开票申请状态机、workflow 审批、开票 / 寄送 / 红冲、ERP 按客户应收只读快照与账龄对账；权限 1874–1880、菜单 430；M4–M6 迁移顺延 V10–V12，M4 权限顺延 1881–1890 |
+| 2026-11-07 | M4 7f-4a 工单与 SLA：`service` 上下文落地工单 / 处理记录 / SLA 策略 / 工作日历，V10 一次建齐 M4 九表（含 4b/4c 预留）；工单状态机（NEW→ASSIGNED→PROCESSING/WAITING_CUSTOMER→RESOLVED→CLOSED，重开/取消）、7×8 日历按工作分钟推进（含午休）、暂停恢复顺延、逾期只读派生；权限 1881–1890、菜单 432–436；4b 知识引用与满意度、4c 退换货待继续 |
