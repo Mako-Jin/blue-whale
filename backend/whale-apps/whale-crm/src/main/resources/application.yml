@@ -81,6 +81,25 @@ whale:
       expiring-days: ${WHALE_CRM_CONTRACT_EXPIRING_DAYS:30}
       sync-cron: ${WHALE_CRM_CONTRACT_SYNC_CRON:0 0 3 * * ?}
       sync-batch-size: ${WHALE_CRM_CONTRACT_SYNC_BATCH_SIZE:200}
+    # 商务订单审批（whale-workflow）：缺少 definition-id 时提交审批失败关闭
+    order-approval:
+      enabled: ${WHALE_CRM_ORDER_APPROVAL_ENABLED:true}
+      definition-id: ${WHALE_CRM_ORDER_DEFINITION_ID:}
+      workflow-url: ${WHALE_WORKFLOW_URL:http://127.0.0.1:8083}
+      connect-timeout-millis: ${WHALE_CRM_ORDER_APPROVAL_CONNECT_TIMEOUT:1000}
+      read-timeout-millis: ${WHALE_CRM_ORDER_APPROVAL_READ_TIMEOUT:3000}
+    # 商务订单下发 ERP（whale-erp 内网）：默认关闭，联调时开启
+    erp:
+      enabled: ${WHALE_CRM_ERP_ENABLED:false}
+      base-url: ${WHALE_ERP_URL:http://127.0.0.1:9001}
+      connect-timeout-millis: ${WHALE_CRM_ERP_CONNECT_TIMEOUT:1000}
+      read-timeout-millis: ${WHALE_CRM_ERP_READ_TIMEOUT:3000}
+      push-cron: ${WHALE_CRM_ERP_PUSH_CRON:0 * * * * ?}
+      reconcile-cron: ${WHALE_CRM_ERP_RECONCILE_CRON:0 */10 * * * ?}
+      batch-size: ${WHALE_CRM_ERP_BATCH_SIZE:100}
+      max-attempts: ${WHALE_CRM_ERP_MAX_ATTEMPTS:8}
+      backoff-base-minutes: ${WHALE_CRM_ERP_BACKOFF_BASE_MINUTES:1}
+      backoff-max-minutes: ${WHALE_CRM_ERP_BACKOFF_MAX_MINUTES:60}
 
 mybatis-plus:
   configuration:

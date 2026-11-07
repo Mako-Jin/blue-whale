@@ -151,6 +151,30 @@ public final class CrmPermissions {
     /** 登记承诺还款与催收记录 */
     public static final String COLLECTION_ACTION = "sys:crm:collection:action";
 
+    /** 查询商务订单 */
+    public static final String ORDER_LIST = "sys:crm:order:list";
+
+    /** 查看商务订单详情 */
+    public static final String ORDER_DETAIL = "sys:crm:order:detail";
+
+    /** 新建商务订单 */
+    public static final String ORDER_CREATE = "sys:crm:order:create";
+
+    /** 编辑商务订单 */
+    public static final String ORDER_UPDATE = "sys:crm:order:update";
+
+    /** 提交商务订单审批 */
+    public static final String ORDER_SUBMIT = "sys:crm:order:submit";
+
+    /** 重试下发商务订单 */
+    public static final String ORDER_RETRY = "sys:crm:order:retry";
+
+    /** 取消商务订单 */
+    public static final String ORDER_CANCEL = "sys:crm:order:cancel";
+
+    /** 对账商务订单 */
+    public static final String ORDER_RECONCILE = "sys:crm:order:reconcile";
+
     /**
      * 私有构造器：常量类，禁止实例化。
      */

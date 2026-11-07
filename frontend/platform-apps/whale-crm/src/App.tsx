@@ -11,6 +11,7 @@ import QuotePage from './pages/quote';
 import ForecastPage from './pages/forecast';
 import ContractPage from './pages/contract';
 import CollectionPage from './pages/collection';
+import OrderPage from './pages/order';
 import { hasPermission } from './utils/permission';
 
 const { Header, Content, Sider } = Layout;
@@ -25,6 +26,7 @@ const MENU_ITEMS = [
   { key: '/forecast', label: '销售预测', permission: 'sys:crm:forecast:list' },
   { key: '/contract', label: '合同台账', permission: 'sys:crm:contract:list' },
   { key: '/collection', label: '回款计划', permission: 'sys:crm:collection:list' },
+  { key: '/order', label: '商务订单', permission: 'sys:crm:order:list' },
 ];
 
 /** 按权限过滤后的菜单 */
@@ -63,6 +65,9 @@ function resolveSelectedKey(pathname: string): string {
   if (pathname.startsWith('/collection')) {
     return '/collection';
   }
+  if (pathname.startsWith('/order')) {
+    return '/order';
+  }
   return pathname;
 }
 
@@ -99,6 +104,7 @@ function CrmLayout() {
             <Route path="/forecast" element={<ForecastPage />} />
             <Route path="/contract" element={<ContractPage />} />
             <Route path="/collection" element={<CollectionPage />} />
+            <Route path="/order" element={<OrderPage />} />
             <Route path="*" element={<Navigate to="/customer" replace />} />
           </Routes>
         </Content>

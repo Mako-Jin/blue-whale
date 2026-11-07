@@ -10,6 +10,7 @@ import com.bluewhale.erp.masterdata.domain.model.Warehouse;
 import com.bluewhale.erp.masterdata.domain.repository.CustomerRepository;
 import com.bluewhale.erp.masterdata.domain.repository.WarehouseRepository;
 import com.bluewhale.erp.scm.application.command.SalesOrderCreateCommand;
+import com.bluewhale.erp.scm.application.command.SalesOrderInternalCreateCommand;
 import com.bluewhale.erp.scm.application.command.ShipCommand;
 import com.bluewhale.erp.scm.application.service.PriceListAppService;
 import com.bluewhale.erp.scm.application.view.CreditUsageView;
@@ -26,6 +27,7 @@ import com.bluewhale.erp.scm.domain.repository.SalesOrderRepository;
 import com.bluewhale.erp.scm.domain.repository.StockRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DuplicateKeyException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -39,7 +41,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -116,6 +120,65 @@ class SalesAppServiceImplTest {
         BizException exception = assertThrows(BizException.class, () -> service.create(commandWithoutPrice()));
 
         assertEquals(ErpErrorCode.PRICE_LIST_NOT_FOUND, exception.getCode());
+    }
+
+    @Test
+    @DisplayName("CRM 下发：按客户编码与缺省仓库建单并写来源字段")
+    void shouldCreateFromCrm() {
+        when(customerRepository.findByCode("CUS-001")).thenReturn(Optional.of(customer("0")));
+        when(customerRepository.findById(7201L)).thenReturn(Optional.of(customer("0")));
+        when(warehouseRepository.findFirstEnabled()).thenReturn(Optional.of(warehouse()));
+        when(warehouseRepository.findById(7301L)).thenReturn(Optional.of(warehouse()));
+        when(itemCatalog.findByCode("ERP-001")).thenReturn(Optional.of(item()));
+
+        SalesOrderView view = service.createFromCrm(crmCommand());
+
+        assertEquals("CRM-SO-SO-001", view.getDocNo());
+        assertEquals("CRM", view.getSourceType());
+        assertEquals("SO-001", view.getSourceId());
+        assertEquals("SO-001", view.getCrmOrderNo());
+        assertEquals(ScmStatus.DRAFT, view.getStatus());
+        verify(salesOrderRepository).insert(any(SalesOrder.class));
+    }
+
+    @Test
+    @DisplayName("CRM 下发：crmOrderNo 已存在时直接返回原单，不重复建单")
+    void shouldReturnExistingCrmOrder() {
+        when(salesOrderRepository.findByCrmOrderNo("SO-001")).thenReturn(Optional.of(existingCrmOrder()));
+
+        SalesOrderView view = service.createFromCrm(crmCommand());
+
+        assertEquals("CRM-SO-SO-001", view.getDocNo());
+        verify(salesOrderRepository, never()).insert(any(SalesOrder.class));
+    }
+
+    @Test
+    @DisplayName("CRM 下发：并发唯一键冲突后按 crmOrderNo 重查返回原单")
+    void shouldRequeryAfterDuplicateKey() {
+        when(salesOrderRepository.findByCrmOrderNo("SO-001"))
+                .thenReturn(Optional.empty(), Optional.of(existingCrmOrder()));
+        when(customerRepository.findByCode("CUS-001")).thenReturn(Optional.of(customer("0")));
+        when(customerRepository.findById(7201L)).thenReturn(Optional.of(customer("0")));
+        when(warehouseRepository.findFirstEnabled()).thenReturn(Optional.of(warehouse()));
+        when(warehouseRepository.findById(7301L)).thenReturn(Optional.of(warehouse()));
+        when(itemCatalog.findByCode("ERP-001")).thenReturn(Optional.of(item()));
+        doThrow(new DuplicateKeyException("uk_so_crm_order_no"))
+                .when(salesOrderRepository).insert(any(SalesOrder.class));
+
+        SalesOrderView view = service.createFromCrm(crmCommand());
+
+        assertEquals("CRM-SO-SO-001", view.getDocNo());
+    }
+
+    @Test
+    @DisplayName("CRM 下发：客户编码未在 ERP 维护时拒绝建单")
+    void shouldRejectCrmOrderWhenCustomerMissing() {
+        when(salesOrderRepository.findByCrmOrderNo("SO-001")).thenReturn(Optional.empty());
+        when(customerRepository.findByCode("CUS-001")).thenReturn(Optional.empty());
+
+        BizException exception = assertThrows(BizException.class, () -> service.createFromCrm(crmCommand()));
+
+        assertEquals(ErpErrorCode.CUSTOMER_NOT_FOUND, exception.getCode());
     }
 
     @Test
@@ -266,6 +329,38 @@ class SalesAppServiceImplTest {
         BizException exception = assertThrows(BizException.class, () -> service.ship(1L, shipCommand(), 99L));
 
         assertEquals(ErpErrorCode.STOCK_NOT_FOUND, exception.getCode());
+    }
+
+    /**
+     * 构造 CRM 下发命令。
+     *
+     * @return 命令
+     */
+    private SalesOrderInternalCreateCommand crmCommand() {
+        SalesOrderInternalCreateCommand command = new SalesOrderInternalCreateCommand();
+        command.setCrmOrderNo("SO-001");
+        command.setCrmCustomerCode("CUS-001");
+        command.setDocDate(LocalDate.of(2026, 11, 7));
+        SalesOrderInternalCreateCommand.Line line = new SalesOrderInternalCreateCommand.Line();
+        line.setItemCode("ERP-001");
+        line.setQuantity(new BigDecimal("2"));
+        line.setUnitPrice(new BigDecimal("10"));
+        command.setLines(List.of(line));
+        return command;
+    }
+
+    /**
+     * 构造 CRM 已下发的 ERP 原单。
+     *
+     * @return 订单
+     */
+    private SalesOrder existingCrmOrder() {
+        SalesOrder order = draftOrder();
+        order.setDocNo("CRM-SO-SO-001");
+        order.setSourceType("CRM");
+        order.setSourceId("SO-001");
+        order.setCrmOrderNo("SO-001");
+        return order;
     }
 
     /**

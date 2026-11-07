@@ -1,10 +1,12 @@
-// CRM 商务域 API 层（M3 / 7f-1）：合同台账投影 + 回款计划与催收
+// CRM 商务域 API 层（M3 / 7f-1、7f-2）：合同台账投影 + 回款计划与催收 + 商务订单
 //
 // 对应控制器：
-// - CrmContractController   /crm/contract
-// - CrmCollectionController /crm/collection
+// - CrmContractController    /crm/contract
+// - CrmCollectionController  /crm/collection
+// - CrmSalesOrderController  /crm/order
 //
-// 合同正文与签署归 whale-contract；实收与记账归 ERP，本层只读写 CRM 投影与计划。
+// 合同正文与签署归 whale-contract；实收与记账归 ERP，本层只读写 CRM 投影与计划；
+// 商务订单审批归 whale-workflow，履约 / 发货 / 库存 / 应收归 ERP，CRM 只保留下发与回写。
 
 import { http } from './client';
 import type { PageResult } from './client';
@@ -183,4 +185,143 @@ export function addCollectionAction(id: number, payload: CollectionActionInput):
 /** 查询催收记录 */
 export function listCollectionActions(id: number): Promise<CollectionActionView[]> {
   return http.get<CollectionActionView[]>(`/crm/collection/${id}/actions`);
+}
+
+// ---------------------------------------------------------------------
+// 商务订单（7f-2）
+// ---------------------------------------------------------------------
+
+/** 订单来源类型 */
+export type OrderSourceType = 'MANUAL' | 'QUOTE' | 'CONTRACT';
+
+/** 订单状态 */
+export type OrderStatus =
+  | 'DRAFT'
+  | 'PENDING_APPROVAL'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'PUSHING'
+  | 'PUSHED'
+  | 'PUSH_FAILED'
+  | 'CANCELLED';
+
+/** 订单行视图（SalesOrderView.LineView） */
+export interface SalesOrderLineView {
+  id?: number;
+  lineNo?: number;
+  itemCode?: string | null;
+  itemName?: string | null;
+  specification?: string | null;
+  uom?: string | null;
+  quantity?: number | string | null;
+  unitPrice?: number | string | null;
+  amount?: number | string | null;
+  remark?: string | null;
+}
+
+/** 商务订单视图（SalesOrderView） */
+export interface SalesOrderView {
+  id: number;
+  orderNo: string;
+  sourceType?: string | null;
+  sourceId?: number | null;
+  sourceOrderNo?: string | null;
+  customerId: number;
+  customerCode?: string | null;
+  title?: string | null;
+  currency?: string | null;
+  totalAmount?: number | string | null;
+  status: OrderStatus | string;
+  approvalInstanceId?: number | null;
+  submittedAt?: string | null;
+  approvedAt?: string | null;
+  erpOrderNo?: string | null;
+  erpOrderId?: number | null;
+  erpStatus?: string | null;
+  pushedAt?: string | null;
+  pushAttempts?: number | null;
+  lastPushError?: string | null;
+  ownerId?: number | null;
+  deptId?: number | null;
+  remark?: string | null;
+  lines?: SalesOrderLineView[];
+}
+
+/** 订单行入参 */
+export interface SalesOrderLineInput {
+  itemCode?: string;
+  itemName?: string;
+  specification?: string;
+  uom?: string;
+  quantity: number;
+  unitPrice: number;
+  remark?: string;
+}
+
+/** 新建订单入参：QUOTE 来源可省略行（复制报价行，物料编码待补录） */
+export interface SalesOrderCreateInput {
+  sourceType?: OrderSourceType;
+  sourceId?: number | null;
+  customerId?: number | null;
+  title?: string;
+  currency?: string;
+  remark?: string;
+  lines?: SalesOrderLineInput[];
+}
+
+/** 编辑订单入参（仅草稿） */
+export interface SalesOrderUpdateInput {
+  title?: string;
+  currency?: string;
+  remark?: string;
+  lines?: SalesOrderLineInput[];
+}
+
+/** 订单分页查询 */
+export interface SalesOrderPageQuery {
+  keyword?: string;
+  customerId?: number | null;
+  status?: string;
+  current?: number;
+  size?: number;
+}
+
+/** 订单分页 */
+export function pageOrders(query: SalesOrderPageQuery): Promise<PageResult<SalesOrderView>> {
+  return http.get<PageResult<SalesOrderView>>('/crm/order/page', query as Record<string, unknown>);
+}
+
+/** 订单详情 */
+export function getOrder(id: number): Promise<SalesOrderView> {
+  return http.get<SalesOrderView>(`/crm/order/${id}`);
+}
+
+/** 新建订单 */
+export function createOrder(payload: SalesOrderCreateInput): Promise<SalesOrderView> {
+  return http.post<SalesOrderView>('/crm/order', payload);
+}
+
+/** 编辑草稿订单 */
+export function updateOrder(id: number, payload: SalesOrderUpdateInput): Promise<SalesOrderView> {
+  return http.put<SalesOrderView>(`/crm/order/${id}`, payload);
+}
+
+/** 提交订单审批 */
+export function submitOrder(id: number): Promise<SalesOrderView> {
+  return http.post<SalesOrderView>(`/crm/order/${id}/submit`);
+}
+
+/** 取消订单 */
+export function cancelOrder(id: number): Promise<SalesOrderView> {
+  return http.post<SalesOrderView>(`/crm/order/${id}/cancel`);
+}
+
+/** 重试下发 ERP */
+export function retryOrder(id: number): Promise<SalesOrderView> {
+  return http.post<SalesOrderView>(`/crm/order/${id}/retry`);
+}
+
+/** 手动对账 */
+export function reconcileOrders(): Promise<number> {
+  return http.post<number>('/crm/order/reconcile');
 }

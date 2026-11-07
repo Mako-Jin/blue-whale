@@ -161,6 +161,20 @@ class CrmFlywayMigrationScriptTest {
                 "回款计划需按计划日期与状态检索");
     }
 
+    @Test
+    @DisplayName("V8 商务订单：新增订单头 / 订单行 / 下发日志三表，且不写种子数据")
+    void commerceOrderShouldContainTables() throws IOException {
+        Set<String> tables = extractTables(MIGRATION_DIR.resolve("V8__commerce_order.sql"));
+        assertEquals(Set.of("crm_sales_order", "crm_sales_order_line", "crm_order_push_log"), tables);
+        String content = Files.readString(MIGRATION_DIR.resolve("V8__commerce_order.sql"), StandardCharsets.UTF_8);
+        assertFalse(content.toUpperCase().contains("INSERT INTO CRM_"),
+                "商务订单增量不得写入订单种子数据");
+        assertTrue(content.contains("UNIQUE KEY uk_crm_sales_order_no"),
+                "订单编号在租户内唯一");
+        assertTrue(content.contains("UNIQUE KEY uk_crm_sales_order_source"),
+                "同一来源单据只允许转换一次商务订单");
+    }
+
     /**
      * 列出迁移脚本。
      *

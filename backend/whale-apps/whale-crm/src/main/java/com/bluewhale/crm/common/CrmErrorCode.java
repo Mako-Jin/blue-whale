@@ -161,6 +161,27 @@ public final class CrmErrorCode {
     /** 回款计划状态不允许该操作 */
     public static final int COLLECTION_STATE_CONFLICT = 41048;
 
+    /** 商务订单不存在或无权访问 */
+    public static final int ORDER_NOT_FOUND = 41049;
+
+    /** 商务订单状态不允许该操作 */
+    public static final int ORDER_STATE_CONFLICT = 41050;
+
+    /** 商务订单行非法（缺物料编码、数量或单价） */
+    public static final int ORDER_LINE_INVALID = 41051;
+
+    /** 来源单据已生成商务订单 */
+    public static final int ORDER_SOURCE_CONFLICT = 41052;
+
+    /** 订单审批不可用（未启用或缺少流程定义） */
+    public static final int ORDER_APPROVAL_UNAVAILABLE = 41053;
+
+    /** 订单审批状态非法 */
+    public static final int ORDER_APPROVAL_STATE_CONFLICT = 41054;
+
+    /** 订单下发 ERP 失败 */
+    public static final int ORDER_PUSH_FAILED = 41055;
+
     /** 错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(GATE_CLOSED, "需求门禁未通过，CRM 业务接口尚未开放"),
@@ -211,7 +232,14 @@ public final class CrmErrorCode {
             Map.entry(CONTRACT_AMOUNT_MISMATCH, "回款分期合计必须等于合同金额"),
             Map.entry(COLLECTION_NOT_FOUND, "回款计划不存在或无权访问"),
             Map.entry(COLLECTION_PLAN_INVALID, "回款计划分期非法，请检查期数、金额与日期"),
-            Map.entry(COLLECTION_STATE_CONFLICT, "回款计划当前状态不允许该操作"));
+            Map.entry(COLLECTION_STATE_CONFLICT, "回款计划当前状态不允许该操作"),
+            Map.entry(ORDER_NOT_FOUND, "商务订单不存在或无权访问"),
+            Map.entry(ORDER_STATE_CONFLICT, "商务订单当前状态不允许该操作"),
+            Map.entry(ORDER_LINE_INVALID, "商务订单行非法，请检查物料编码、数量与单价"),
+            Map.entry(ORDER_SOURCE_CONFLICT, "来源单据已生成商务订单，请勿重复创建"),
+            Map.entry(ORDER_APPROVAL_UNAVAILABLE, "订单审批未启用或缺少流程定义，请联系管理员"),
+            Map.entry(ORDER_APPROVAL_STATE_CONFLICT, "订单审批状态非法"),
+            Map.entry(ORDER_PUSH_FAILED, "商务订单下发 ERP 失败，请稍后重试"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。

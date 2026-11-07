@@ -12,6 +12,7 @@ import com.bluewhale.erp.masterdata.domain.model.MasterDataStatus;
 import com.bluewhale.erp.masterdata.domain.repository.CustomerRepository;
 import com.bluewhale.erp.masterdata.domain.repository.WarehouseRepository;
 import com.bluewhale.erp.scm.application.command.SalesOrderCreateCommand;
+import com.bluewhale.erp.scm.application.command.SalesOrderInternalCreateCommand;
 import com.bluewhale.erp.scm.application.command.ShipCommand;
 import com.bluewhale.erp.scm.application.service.PriceListAppService;
 import com.bluewhale.erp.scm.application.service.SalesAppService;
@@ -30,6 +31,7 @@ import com.bluewhale.erp.scm.domain.port.ItemSnapshot;
 import com.bluewhale.erp.scm.domain.repository.SalesOrderRepository;
 import com.bluewhale.erp.scm.domain.repository.StockRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -42,6 +44,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -69,6 +72,12 @@ public class SalesAppServiceImpl implements SalesAppService {
 
     /** 单位成本小数位 */
     private static final int COST_SCALE = 4;
+
+    /** CRM 下发订单号前缀 */
+    private static final String CRM_DOC_PREFIX = "CRM-SO-";
+
+    /** CRM 来源类型 */
+    private static final String CRM_SOURCE_TYPE = "CRM";
 
     private final SalesOrderRepository salesOrderRepository;
 
@@ -104,7 +113,8 @@ public class SalesAppServiceImpl implements SalesAppService {
         Customer customer = requireCustomer(command.getCustomerId());
         requireWarehouse(command.getWarehouseId());
         SalesOrder order = new SalesOrder();
-        order.setDocNo(salesOrderRepository.nextDocNo(command.getDocDate()));
+        order.setDocNo(StringUtils.hasText(command.getDocNo())
+                ? command.getDocNo() : salesOrderRepository.nextDocNo(command.getDocDate()));
         order.setCustomerId(customer.getId());
         order.setCustomerName(customer.getName());
         order.setDocDate(command.getDocDate());
@@ -113,6 +123,9 @@ public class SalesAppServiceImpl implements SalesAppService {
         order.setStatus(ScmStatus.DRAFT);
         order.setCurrency(StringUtils.hasText(command.getCurrency()) ? command.getCurrency() : DEFAULT_CURRENCY);
         order.setRemark(command.getRemark());
+        order.setSourceType(command.getSourceType());
+        order.setSourceId(command.getSourceId());
+        order.setCrmOrderNo(command.getCrmOrderNo());
         List<SalesOrderLine> lines = new ArrayList<>();
         int lineNo = 1;
         for (SalesOrderCreateCommand.Line lineCommand : command.getLines()) {
@@ -137,6 +150,73 @@ public class SalesAppServiceImpl implements SalesAppService {
         order.setLines(lines);
         order.calculateTotal();
         salesOrderRepository.insert(order);
+        return SalesOrderView.of(order);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public SalesOrderView createFromCrm(SalesOrderInternalCreateCommand command) {
+        Optional<SalesOrder> existing = salesOrderRepository.findByCrmOrderNo(command.getCrmOrderNo());
+        if (existing.isPresent()) {
+            return SalesOrderView.of(existing.get());
+        }
+        Customer customer = customerRepository.findByCode(command.getCrmCustomerCode())
+                .orElseThrow(() -> ErpErrorCode.exception(ErpErrorCode.CUSTOMER_NOT_FOUND,
+                        "CRM 客户编码 " + command.getCrmCustomerCode() + " 未在 ERP 维护"));
+        if (!customer.enabled()) {
+            throw ErpErrorCode.exception(ErpErrorCode.CUSTOMER_INVALID, "ERP 客户 " + customer.getCode() + " 已停用");
+        }
+        Long warehouseId = command.getWarehouseId();
+        if (warehouseId == null) {
+            warehouseId = warehouseRepository.findFirstEnabled()
+                    .orElseThrow(() -> ErpErrorCode.exception(ErpErrorCode.WAREHOUSE_NOT_FOUND, "ERP 未维护启用的仓库"))
+                    .getId();
+        }
+        SalesOrderCreateCommand createCommand = new SalesOrderCreateCommand();
+        createCommand.setCustomerId(customer.getId());
+        createCommand.setDocDate(command.getDocDate() == null ? LocalDate.now() : command.getDocDate());
+        createCommand.setDeliveryDate(command.getDeliveryDate());
+        createCommand.setWarehouseId(warehouseId);
+        createCommand.setCurrency(command.getCurrency());
+        createCommand.setRemark(command.getRemark());
+        createCommand.setDocNo(CRM_DOC_PREFIX + command.getCrmOrderNo());
+        createCommand.setSourceType(CRM_SOURCE_TYPE);
+        createCommand.setSourceId(command.getCrmOrderNo());
+        createCommand.setCrmOrderNo(command.getCrmOrderNo());
+        List<SalesOrderCreateCommand.Line> lines = new ArrayList<>();
+        for (SalesOrderInternalCreateCommand.Line source : command.getLines()) {
+            SalesOrderCreateCommand.Line line = new SalesOrderCreateCommand.Line();
+            line.setItemCode(source.getItemCode());
+            line.setQuantity(source.getQuantity());
+            line.setUnitPrice(source.getUnitPrice());
+            line.setUom(source.getUom());
+            lines.add(line);
+        }
+        createCommand.setLines(lines);
+        try {
+            return create(createCommand);
+        } catch (DuplicateKeyException exception) {
+            return salesOrderRepository.findByCrmOrderNo(command.getCrmOrderNo())
+                    .map(SalesOrderView::of)
+                    .orElseThrow(() -> ErpErrorCode.exception(ErpErrorCode.DOC_NO_CONFLICT));
+        }
+    }
+
+    @Override
+    public SalesOrderView findByCrmOrderNo(String crmOrderNo) {
+        return salesOrderRepository.findByCrmOrderNo(crmOrderNo).map(SalesOrderView::of).orElse(null);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public SalesOrderView cancelByDocNo(String docNo) {
+        SalesOrder order = salesOrderRepository.findByDocNo(docNo)
+                .orElseThrow(() -> ErpErrorCode.exception(ErpErrorCode.SALES_ORDER_NOT_FOUND));
+        if (ScmStatus.CANCELLED.equals(order.getStatus())) {
+            return SalesOrderView.of(order);
+        }
+        order.cancel();
+        salesOrderRepository.update(order);
         return SalesOrderView.of(order);
     }
 

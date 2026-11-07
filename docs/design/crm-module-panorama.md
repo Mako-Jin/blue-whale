@@ -288,12 +288,12 @@ DRAFT → SCHEDULED → RUNNING → FINISHED → ARCHIVED
 | M0 | `V2__crm_foundation.sql` | `crm_common_outbox`、`crm_int_sync_log`、`crm_external_ref`、`crm_idempotency`；`ALTER crm_customer` 补 `short_name/website/scale/tax_no/province/city/region/normalized_name/normalized_domain/normalized_tax_no/version/pool_status/pool_at/last_follow_up_at`；`ALTER crm_contact` 补 `wechat/decision_role/is_decision_maker/normalized_phone/normalized_email/version`；`ALTER crm_follow_up` 补 `result/next_action`；补索引 |
 | M1 | `V3__customer_profile.sql` | `crm_customer_address`、`crm_customer_profile`、`crm_customer_merge_log`、`crm_customer_pool_rule`、`crm_customer_owner_log`、`crm_customer_import_task` |
 | M2 | `V4__sales_process.sql` + `V5__quote.sql` + `V6__forecast_target.sql` | **已落**：`crm_lead`、`crm_lead_activity`、`crm_opportunity_stage_history`、`crm_quote`、`crm_quote_line`、`crm_quote_approval`、`crm_forecast_snapshot`、`crm_forecast_adjustment`、`crm_sales_target`、`crm_sales_target_adjustment`，`crm_opportunity` 补 `probability/source/competitor/next_action_at/stage_entered_at/version`（转化结果直接写 `crm_lead.customer_id/opportunity_id`，不再单建 `crm_lead_convert_log`） |
-| M3 | `V7__commerce.sql` | `crm_contract_ref`、`crm_sales_order`、`crm_sales_order_line`、`crm_order_push_log`、`crm_collection_plan`、`crm_collection_installment`、`crm_collection_record`、`crm_invoice_request`、`crm_invoice_item`、`crm_ar_snapshot` |
-| M4 | `V8__service.sql` | `crm_ticket`、`crm_ticket_action`、`crm_ticket_sla`、`crm_service_calendar`、`crm_kb_ref`、`crm_satisfaction_survey`、`crm_satisfaction_response`、`crm_return_request`、`crm_return_item` |
-| M5 | `V9__marketing.sql` | `crm_campaign`、`crm_campaign_channel`、`crm_campaign_member`、`crm_campaign_cost`、`crm_nurture_task`、`crm_nurture_log`、`crm_marketing_send`、`crm_unsubscribe`、`crm_partner`、`crm_partner_authorization`、`crm_deal_registration`、`crm_partner_achievement` |
-| M6 | `V10__analytics.sql` | `crm_metric_snapshot`、`crm_action_plan`、`crm_action_item`、`crm_export_task`、`crm_dashboard_config` |
+| M3 | `V7__commerce.sql`（7f-1）+ `V8__commerce_order.sql`（7f-2） | **已落**：`crm_contract`、`crm_collection_plan`、`crm_collection_action`（7f-1，合同台账投影 / 回款计划 / 催收动作）；`crm_sales_order`、`crm_sales_order_line`、`crm_order_push_log`（7f-2，商务订单 / 订单行 / 下发日志）。7f-3 发票与应收待落：`crm_invoice_request`、`crm_invoice_item`、`crm_ar_snapshot`（计划 `V12__invoice.sql`） |
+| M4 | `V9__service.sql` | `crm_ticket`、`crm_ticket_action`、`crm_ticket_sla`、`crm_service_calendar`、`crm_kb_ref`、`crm_satisfaction_survey`、`crm_satisfaction_response`、`crm_return_request`、`crm_return_item` |
+| M5 | `V10__marketing.sql` | `crm_campaign`、`crm_campaign_channel`、`crm_campaign_member`、`crm_campaign_cost`、`crm_nurture_task`、`crm_nurture_log`、`crm_marketing_send`、`crm_unsubscribe`、`crm_partner`、`crm_partner_authorization`、`crm_deal_registration`、`crm_partner_achievement` |
+| M6 | `V11__analytics.sql` | `crm_metric_snapshot`、`crm_action_plan`、`crm_action_item`、`crm_export_task`、`crm_dashboard_config` |
 
-> 合同模板、合同到期提醒、ERP 销售订单来源字段、ERP 客户映射属于跨服务增强，分别在 `whale-contract` 与 ERP 的后续迁移中落地，不在 CRM 库建表。
+> 合同模板与合同正文归 `whale-contract`；CRM 只建台账投影表 `crm_contract`，不复制正文。ERP 销售订单来源字段已在 ERP `V17__scm_crm_order_source.sql` 落地（`source_type/source_id/crm_order_no` + `uk_so_crm_order_no`），CRM 库不建 ERP 订单镜像表。ERP 客户映射（D2 决策）未定，7f-2 仅以 `customer_code` 快照调用 ERP 内网接口，不写客户同步代码。
 
 ### 6.3 关键索引与数据量假设
 

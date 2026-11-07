@@ -21,7 +21,10 @@ public enum QuoteStatus {
     APPROVED,
 
     /** 已驳回 */
-    REJECTED;
+    REJECTED,
+
+    /** 已转商务订单 */
+    CONVERTED;
 
     /**
      * 解析状态文本。

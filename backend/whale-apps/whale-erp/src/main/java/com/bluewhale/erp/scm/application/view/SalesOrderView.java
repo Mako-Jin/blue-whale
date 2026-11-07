@@ -52,6 +52,15 @@ public class SalesOrderView {
     /** 备注 */
     private String remark;
 
+    /** 来源系统类型 */
+    private String sourceType;
+
+    /** 来源单号 */
+    private String sourceId;
+
+    /** CRM 商务订单号 */
+    private String crmOrderNo;
+
     /** 分录 */
     private List<LineView> lines;
 
@@ -75,6 +84,9 @@ public class SalesOrderView {
         view.setTotalAmount(order.getTotalAmount());
         view.setShippedAmount(order.getShippedAmount());
         view.setRemark(order.getRemark());
+        view.setSourceType(order.getSourceType());
+        view.setSourceId(order.getSourceId());
+        view.setCrmOrderNo(order.getCrmOrderNo());
         if (order.getLines() != null) {
             view.setLines(order.getLines().stream().map(LineView::of).toList());
         }

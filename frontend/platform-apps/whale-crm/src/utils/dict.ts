@@ -255,3 +255,46 @@ export const COLLECTION_ACTION_LABEL: Record<string, string> = {
   REMINDER: '系统提醒',
   PROMISE: '承诺还款',
 };
+
+/** 商务订单状态下拉选项 */
+export const ORDER_STATUS_OPTIONS = [
+  { value: 'DRAFT', label: '草稿' },
+  { value: 'PENDING_APPROVAL', label: '审批中' },
+  { value: 'APPROVED', label: '已通过' },
+  { value: 'REJECTED', label: '已驳回' },
+  { value: 'PUSHING', label: '下发中' },
+  { value: 'PUSHED', label: '已下发' },
+  { value: 'PUSH_FAILED', label: '下发失败' },
+  { value: 'CANCELLED', label: '已取消' },
+];
+
+/** 商务订单状态文案 */
+export const ORDER_STATUS_LABEL: Record<string, string> = {
+  DRAFT: '草稿',
+  PENDING_APPROVAL: '审批中',
+  APPROVED: '已通过',
+  REJECTED: '已驳回',
+  PUSHING: '下发中',
+  PUSHED: '已下发',
+  PUSH_FAILED: '下发失败',
+  CANCELLED: '已取消',
+};
+
+/** 商务订单状态标签色 */
+export const ORDER_STATUS_COLOR: Record<string, string> = {
+  DRAFT: 'default',
+  PENDING_APPROVAL: 'processing',
+  APPROVED: 'success',
+  REJECTED: 'error',
+  PUSHING: 'processing',
+  PUSHED: 'green',
+  PUSH_FAILED: 'red',
+  CANCELLED: 'default',
+};
+
+/** 商务订单来源类型文案 */
+export const ORDER_SOURCE_LABEL: Record<string, string> = {
+  MANUAL: '手工创建',
+  QUOTE: '报价转订单',
+  CONTRACT: '合同转订单',
+};

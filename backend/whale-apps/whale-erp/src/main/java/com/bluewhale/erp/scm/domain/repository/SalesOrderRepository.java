@@ -40,6 +40,22 @@ public interface SalesOrderRepository {
     Optional<SalesOrder> findById(Long id);
 
     /**
+     * 按订单号查询（含分录）。
+     *
+     * @param docNo 订单号
+     * @return 销售订单
+     */
+    Optional<SalesOrder> findByDocNo(String docNo);
+
+    /**
+     * 按 CRM 商务订单号查询（含分录）。
+     *
+     * @param crmOrderNo CRM 商务订单号
+     * @return 销售订单
+     */
+    Optional<SalesOrder> findByCrmOrderNo(String crmOrderNo);
+
+    /**
      * 生成下一个订单号。
      *
      * @param docDate 单据日期

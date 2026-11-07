@@ -3,6 +3,7 @@ package com.bluewhale.erp.masterdata.infrastructure.persistence.repository;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.erp.masterdata.domain.model.MasterDataQuery;
+import com.bluewhale.erp.masterdata.domain.model.MasterDataStatus;
 import com.bluewhale.erp.masterdata.domain.model.Warehouse;
 import com.bluewhale.erp.masterdata.domain.repository.WarehouseRepository;
 import com.bluewhale.erp.masterdata.infrastructure.persistence.entity.WarehouseEntity;
@@ -46,6 +47,14 @@ public class WarehouseRepositoryImpl implements WarehouseRepository {
     public Optional<Warehouse> findByCode(String code) {
         return Optional.ofNullable(warehouseMapper.selectOne(new LambdaQueryWrapper<WarehouseEntity>()
                 .eq(WarehouseEntity::getCode, code))).map(this::toDomain);
+    }
+
+    @Override
+    public Optional<Warehouse> findFirstEnabled() {
+        return Optional.ofNullable(warehouseMapper.selectOne(new LambdaQueryWrapper<WarehouseEntity>()
+                .eq(WarehouseEntity::getStatus, MasterDataStatus.ENABLED)
+                .orderByAsc(WarehouseEntity::getCode)
+                .last("limit 1"))).map(this::toDomain);
     }
 
     @Override

@@ -103,6 +103,16 @@ public class Quote {
     }
 
     /**
+     * 标记报价已转商务订单。
+     */
+    public void markConverted() {
+        if (status != QuoteStatus.APPROVED) {
+            throw CrmErrorCode.exception(CrmErrorCode.QUOTE_STATE_CONFLICT, "仅审批通过的报价允许转商务订单");
+        }
+        this.status = QuoteStatus.CONVERTED;
+    }
+
+    /**
      * 校验当前报价可编辑。
      */
     public void requireEditable() {

@@ -52,4 +52,13 @@ public class SalesOrderEntity extends BaseEntity {
 
     /** 备注 */
     private String remark;
+
+    /** 来源系统类型 */
+    private String sourceType;
+
+    /** 来源单号 */
+    private String sourceId;
+
+    /** CRM 商务订单号（幂等键） */
+    private String crmOrderNo;
 }

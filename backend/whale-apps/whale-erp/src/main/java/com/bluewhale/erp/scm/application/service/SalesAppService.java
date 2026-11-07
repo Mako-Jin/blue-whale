@@ -2,6 +2,7 @@ package com.bluewhale.erp.scm.application.service;
 
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.erp.scm.application.command.SalesOrderCreateCommand;
+import com.bluewhale.erp.scm.application.command.SalesOrderInternalCreateCommand;
 import com.bluewhale.erp.scm.application.command.ShipCommand;
 import com.bluewhale.erp.scm.application.view.CreditUsageView;
 import com.bluewhale.erp.scm.application.view.SalesOrderView;
@@ -37,6 +38,30 @@ public interface SalesAppService {
      * @return 订单视图
      */
     SalesOrderView create(SalesOrderCreateCommand command);
+
+    /**
+     * CRM 商务订单幂等下发（按 {@code crmOrderNo} 去重）。
+     *
+     * @param command 内网下发命令
+     * @return 订单视图（重复请求返回已存在的原单）
+     */
+    SalesOrderView createFromCrm(SalesOrderInternalCreateCommand command);
+
+    /**
+     * 按 CRM 商务订单号查询履约摘要。
+     *
+     * @param crmOrderNo CRM 商务订单号
+     * @return 订单视图；不存在返回 {@code null}
+     */
+    SalesOrderView findByCrmOrderNo(String crmOrderNo);
+
+    /**
+     * 按 ERP 订单号取消订单（重复取消幂等）。
+     *
+     * @param docNo ERP 订单号
+     * @return 订单视图
+     */
+    SalesOrderView cancelByDocNo(String docNo);
 
     /**
      * 审核销售订单（校验客户信用额度）。

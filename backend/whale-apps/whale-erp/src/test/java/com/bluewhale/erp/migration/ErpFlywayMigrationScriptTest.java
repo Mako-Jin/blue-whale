@@ -332,6 +332,23 @@ class ErpFlywayMigrationScriptTest {
     }
 
     /**
+     * V17 CRM 来源字段与幂等唯一键校验
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("V17 销售订单来源字段与 CRM 单号唯一键一致")
+    void crmOrderSourceMigrationShouldAlterExpectedColumns() throws IOException {
+        String content = Files.readString(MIGRATION_DIR.resolve("V17__scm_crm_order_source.sql"),
+                StandardCharsets.UTF_8);
+        assertTrue(content.contains("source_type"), "V17 应补来源类型列");
+        assertTrue(content.contains("source_id"), "V17 应补来源单据 ID 列");
+        assertTrue(content.contains("crm_order_no"), "V17 应补 CRM 订单号列");
+        assertTrue(content.contains("UNIQUE KEY uk_so_crm_order_no"), "CRM 单号按租户唯一，保证重复下发幂等");
+        assertFalse(content.toUpperCase().contains("FOREIGN KEY ("), "来源字段不得建立物理外键");
+    }
+
+    /**
      * 列出迁移脚本并按版本号升序返回
      *
      * @return 迁移脚本路径

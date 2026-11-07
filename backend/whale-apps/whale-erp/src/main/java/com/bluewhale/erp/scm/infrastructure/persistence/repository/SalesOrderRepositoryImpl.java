@@ -54,13 +54,37 @@ public class SalesOrderRepositoryImpl implements SalesOrderRepository {
 
     @Override
     public Optional<SalesOrder> findById(Long id) {
-        SalesOrderEntity entity = salesOrderMapper.selectById(id);
+        return findOne(new LambdaQueryWrapper<SalesOrderEntity>().eq(SalesOrderEntity::getId, id));
+    }
+
+    @Override
+    public Optional<SalesOrder> findByDocNo(String docNo) {
+        return findOne(new LambdaQueryWrapper<SalesOrderEntity>()
+                .eq(SalesOrderEntity::getDocNo, docNo)
+                .last("limit 1"));
+    }
+
+    @Override
+    public Optional<SalesOrder> findByCrmOrderNo(String crmOrderNo) {
+        return findOne(new LambdaQueryWrapper<SalesOrderEntity>()
+                .eq(SalesOrderEntity::getCrmOrderNo, crmOrderNo)
+                .last("limit 1"));
+    }
+
+    /**
+     * 按条件查询订单头并装载分录。
+     *
+     * @param wrapper 查询条件
+     * @return 销售订单
+     */
+    private Optional<SalesOrder> findOne(LambdaQueryWrapper<SalesOrderEntity> wrapper) {
+        SalesOrderEntity entity = salesOrderMapper.selectOne(wrapper);
         if (entity == null) {
             return Optional.empty();
         }
         SalesOrder order = toDomain(entity);
         order.setLines(salesOrderLineMapper.selectList(new LambdaQueryWrapper<SalesOrderLineEntity>()
-                        .eq(SalesOrderLineEntity::getOrderId, id)
+                        .eq(SalesOrderLineEntity::getOrderId, entity.getId())
                         .orderByAsc(SalesOrderLineEntity::getLineNo))
                 .stream().map(this::toDomain).toList());
         return Optional.of(order);
@@ -180,6 +204,9 @@ public class SalesOrderRepositoryImpl implements SalesOrderRepository {
         order.setTotalAmount(entity.getTotalAmount());
         order.setShippedAmount(entity.getShippedAmount());
         order.setRemark(entity.getRemark());
+        order.setSourceType(entity.getSourceType());
+        order.setSourceId(entity.getSourceId());
+        order.setCrmOrderNo(entity.getCrmOrderNo());
         return order;
     }
 
@@ -221,6 +248,9 @@ public class SalesOrderRepositoryImpl implements SalesOrderRepository {
         entity.setTotalAmount(order.getTotalAmount());
         entity.setShippedAmount(order.getShippedAmount());
         entity.setRemark(order.getRemark());
+        entity.setSourceType(order.getSourceType());
+        entity.setSourceId(order.getSourceId());
+        entity.setCrmOrderNo(order.getCrmOrderNo());
     }
 
     /**

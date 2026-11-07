@@ -46,6 +46,13 @@ public interface WarehouseRepository {
     Optional<Warehouse> findByCode(String code);
 
     /**
+     * 查询第一个启用状态的仓库（内网下单未指定仓库时兜底）。
+     *
+     * @return 启用仓库
+     */
+    Optional<Warehouse> findFirstEnabled();
+
+    /**
      * 新增仓库。
      *
      * @param warehouse 仓库
