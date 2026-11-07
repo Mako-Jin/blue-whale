@@ -9,6 +9,8 @@ import LeadList from './pages/lead';
 import OpportunityPage from './pages/opportunity';
 import QuotePage from './pages/quote';
 import ForecastPage from './pages/forecast';
+import ContractPage from './pages/contract';
+import CollectionPage from './pages/collection';
 import { hasPermission } from './utils/permission';
 
 const { Header, Content, Sider } = Layout;
@@ -21,6 +23,8 @@ const MENU_ITEMS = [
   { key: '/opportunity', label: '商机管理', permission: 'sys:crm:opportunity:list' },
   { key: '/quote', label: '销售报价', permission: 'sys:crm:quote:list' },
   { key: '/forecast', label: '销售预测', permission: 'sys:crm:forecast:list' },
+  { key: '/contract', label: '合同台账', permission: 'sys:crm:contract:list' },
+  { key: '/collection', label: '回款计划', permission: 'sys:crm:collection:list' },
 ];
 
 /** 按权限过滤后的菜单 */
@@ -53,6 +57,12 @@ function resolveSelectedKey(pathname: string): string {
   if (pathname.startsWith('/forecast')) {
     return '/forecast';
   }
+  if (pathname.startsWith('/contract')) {
+    return '/contract';
+  }
+  if (pathname.startsWith('/collection')) {
+    return '/collection';
+  }
   return pathname;
 }
 
@@ -65,7 +75,7 @@ function CrmLayout() {
       <Header style={{ display: 'flex', alignItems: 'center', color: '#fff' }}>
         <span style={{ fontSize: 16, fontWeight: 600 }}>Whale CRM - 客户关系管理</span>
         <Typography.Text style={{ color: 'rgba(255,255,255,0.65)', marginLeft: 12 }}>
-          客户主数据 / 销售过程 / 报价与预测
+          客户主数据 / 销售过程 / 报价预测 / 合同回款
         </Typography.Text>
       </Header>
       <Layout>
@@ -87,6 +97,8 @@ function CrmLayout() {
             <Route path="/opportunity/funnel" element={<OpportunityPage />} />
             <Route path="/quote" element={<QuotePage />} />
             <Route path="/forecast" element={<ForecastPage />} />
+            <Route path="/contract" element={<ContractPage />} />
+            <Route path="/collection" element={<CollectionPage />} />
             <Route path="*" element={<Navigate to="/customer" replace />} />
           </Routes>
         </Content>

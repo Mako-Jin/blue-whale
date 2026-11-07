@@ -147,6 +147,20 @@ class CrmFlywayMigrationScriptTest {
                 "同周期同范围的销售目标必须唯一");
     }
 
+    @Test
+    @DisplayName("V7 商务：新增合同台账 / 回款计划 / 催收记录三表，且不写种子数据")
+    void commerceShouldContainTables() throws IOException {
+        Set<String> tables = extractTables(MIGRATION_DIR.resolve("V7__commerce.sql"));
+        assertEquals(Set.of("crm_contract", "crm_collection_plan", "crm_collection_action"), tables);
+        String content = Files.readString(MIGRATION_DIR.resolve("V7__commerce.sql"), StandardCharsets.UTF_8);
+        assertFalse(content.toUpperCase().contains("INSERT INTO CRM_"),
+                "商务增量不得写入合同 / 回款种子数据");
+        assertTrue(content.contains("UNIQUE KEY uk_crm_contract_source"),
+                "同一合同在租户内只允许一条台账投影");
+        assertTrue(content.contains("KEY idx_crm_collection_date"),
+                "回款计划需按计划日期与状态检索");
+    }
+
     /**
      * 列出迁移脚本。
      *

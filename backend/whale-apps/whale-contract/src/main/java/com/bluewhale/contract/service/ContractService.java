@@ -26,6 +26,15 @@ public interface ContractService {
     PageResult<ContractVO> page(ContractQueryRequest request);
 
     /**
+     * 按弱关联业务查询合同投影（内网只读）。
+     *
+     * @param bizType 业务类型，不能为空
+     * @param bizId 业务 ID，不能为空
+     * @return 合同视图列表（不加载相对方 / 版本 / 流程）
+     */
+    List<ContractVO> listByBiz(String bizType, String bizId);
+
+    /**
      * 合同详情（APPROVING 状态会主动同步一次审批结果）
      *
      * @param id 合同ID

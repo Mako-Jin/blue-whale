@@ -128,6 +128,8 @@ public class ContractServiceImpl implements ContractService {
         wrapper.eq(StringUtils.hasText(request.getStatus()), CtContract::getStatus, request.getStatus());
         wrapper.ge(request.getAmountMin() != null, CtContract::getAmount, request.getAmountMin());
         wrapper.le(request.getAmountMax() != null, CtContract::getAmount, request.getAmountMax());
+        wrapper.eq(StringUtils.hasText(request.getBizType()), CtContract::getBizType, request.getBizType());
+        wrapper.eq(StringUtils.hasText(request.getBizId()), CtContract::getBizId, request.getBizId());
         if (Boolean.TRUE.equals(request.getExpiringSoon())) {
             LocalDate today = LocalDate.now();
             wrapper.in(CtContract::getStatus, List.of(
@@ -143,6 +145,20 @@ public class ContractServiceImpl implements ContractService {
                 .map(ContractServiceImpl::toVo)
                 .toList();
         return PageResult.of(records, page.getTotal(), page.getCurrent(), page.getSize());
+    }
+
+    @Override
+    public List<ContractVO> listByBiz(String bizType, String bizId) {
+        if (!StringUtils.hasText(bizType) || !StringUtils.hasText(bizId)) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "bizType 与 bizId 不能为空");
+        }
+        LambdaQueryWrapper<CtContract> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CtContract::getBizType, bizType.trim());
+        wrapper.eq(CtContract::getBizId, bizId.trim());
+        wrapper.orderByDesc(CtContract::getCreateTime);
+        return contractMapper.selectList(wrapper).stream()
+                .map(ContractServiceImpl::toVo)
+                .toList();
     }
 
     @Override

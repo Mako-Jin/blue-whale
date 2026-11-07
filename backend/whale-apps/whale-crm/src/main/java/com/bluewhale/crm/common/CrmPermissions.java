@@ -133,6 +133,24 @@ public final class CrmPermissions {
     /** 删除销售目标 */
     public static final String TARGET_DELETE = "sys:crm:target:delete";
 
+    /** 查询合同台账与到期提醒 */
+    public static final String CONTRACT_LIST = "sys:crm:contract:list";
+
+    /** 同步合同投影 */
+    public static final String CONTRACT_SYNC = "sys:crm:contract:sync";
+
+    /** 标记合同续约 */
+    public static final String CONTRACT_RENEWAL = "sys:crm:contract:renewal";
+
+    /** 查询回款计划与催收记录 */
+    public static final String COLLECTION_LIST = "sys:crm:collection:list";
+
+    /** 维护回款计划分期 */
+    public static final String COLLECTION_MANAGE = "sys:crm:collection:manage";
+
+    /** 登记承诺还款与催收记录 */
+    public static final String COLLECTION_ACTION = "sys:crm:collection:action";
+
     /**
      * 私有构造器：常量类，禁止实例化。
      */

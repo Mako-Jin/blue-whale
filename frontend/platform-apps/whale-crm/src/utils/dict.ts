@@ -190,3 +190,68 @@ export const FORECAST_FIELD_LABEL: Record<string, string> = {
   BEST: '最佳金额',
   COMMIT: '承诺金额',
 };
+
+/** 合同续约状态下拉选项 */
+export const CONTRACT_RENEWAL_OPTIONS = [
+  { value: 'PENDING', label: '待续约' },
+  { value: 'RENEWED', label: '已续约' },
+  { value: 'NOT_RENEWED', label: '不续约' },
+];
+
+/** 合同续约状态文案 */
+export const CONTRACT_RENEWAL_LABEL: Record<string, string> = {
+  PENDING: '待续约',
+  RENEWED: '已续约',
+  NOT_RENEWED: '不续约',
+};
+
+/** 合同续约状态标签色 */
+export const CONTRACT_RENEWAL_COLOR: Record<string, string> = {
+  PENDING: 'gold',
+  RENEWED: 'green',
+  NOT_RENEWED: 'red',
+};
+
+/** 回款计划状态下拉选项 */
+export const COLLECTION_STATUS_OPTIONS = [
+  { value: 'OPEN', label: '进行中' },
+  { value: 'CANCELLED', label: '已取消' },
+];
+
+/** 回款计划状态文案 */
+export const COLLECTION_STATUS_LABEL: Record<string, string> = {
+  OPEN: '进行中',
+  CANCELLED: '已取消',
+};
+
+/** 回款催收优先级文案 */
+export const COLLECTION_PRIORITY_LABEL: Record<string, string> = {
+  HIGH: '高',
+  MEDIUM: '中',
+  LOW: '低',
+};
+
+/** 回款催收优先级标签色 */
+export const COLLECTION_PRIORITY_COLOR: Record<string, string> = {
+  HIGH: 'red',
+  MEDIUM: 'orange',
+  LOW: 'default',
+};
+
+/** 催收动作下拉选项 */
+export const COLLECTION_ACTION_OPTIONS = [
+  { value: 'CALL', label: '电话催收' },
+  { value: 'VISIT', label: '上门催收' },
+  { value: 'EMAIL', label: '邮件催收' },
+  { value: 'REMINDER', label: '系统提醒' },
+  { value: 'PROMISE', label: '承诺还款' },
+];
+
+/** 催收动作文案 */
+export const COLLECTION_ACTION_LABEL: Record<string, string> = {
+  CALL: '电话催收',
+  VISIT: '上门催收',
+  EMAIL: '邮件催收',
+  REMINDER: '系统提醒',
+  PROMISE: '承诺还款',
+};

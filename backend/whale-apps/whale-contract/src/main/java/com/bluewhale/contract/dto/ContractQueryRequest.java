@@ -38,4 +38,10 @@ public class ContractQueryRequest {
 
     /** 仅看 30 天内到期（EFFECTIVE / SIGNED / APPROVED） */
     private Boolean expiringSoon;
+
+    /** 弱关联业务类型（等值，如 CRM_CUSTOMER） */
+    private String bizType;
+
+    /** 弱关联业务 ID（等值） */
+    private String bizId;
 }

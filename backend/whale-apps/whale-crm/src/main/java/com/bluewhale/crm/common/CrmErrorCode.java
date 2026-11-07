@@ -143,6 +143,24 @@ public final class CrmErrorCode {
     /** 销售目标金额非法 */
     public static final int TARGET_AMOUNT_INVALID = 41042;
 
+    /** 合同台账不存在或无权访问 */
+    public static final int CONTRACT_NOT_FOUND = 41043;
+
+    /** 合同投影同步失败（合同服务不可用或返回异常） */
+    public static final int CONTRACT_SYNC_FAILED = 41044;
+
+    /** 回款分期合计与合同金额不一致 */
+    public static final int CONTRACT_AMOUNT_MISMATCH = 41045;
+
+    /** 回款计划不存在或无权访问 */
+    public static final int COLLECTION_NOT_FOUND = 41046;
+
+    /** 回款计划分期非法（期数、金额或日期） */
+    public static final int COLLECTION_PLAN_INVALID = 41047;
+
+    /** 回款计划状态不允许该操作 */
+    public static final int COLLECTION_STATE_CONFLICT = 41048;
+
     /** 错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(GATE_CLOSED, "需求门禁未通过，CRM 业务接口尚未开放"),
@@ -187,7 +205,13 @@ public final class CrmErrorCode {
             Map.entry(FORECAST_ADJUST_INVALID, "预测调整参数非法，请检查调整字段与金额"),
             Map.entry(TARGET_NOT_FOUND, "销售目标不存在或无权访问"),
             Map.entry(TARGET_DUPLICATE, "同一周期同一范围的销售目标已存在"),
-            Map.entry(TARGET_AMOUNT_INVALID, "销售目标金额不得为负数"));
+            Map.entry(TARGET_AMOUNT_INVALID, "销售目标金额不得为负数"),
+            Map.entry(CONTRACT_NOT_FOUND, "合同台账不存在或无权访问"),
+            Map.entry(CONTRACT_SYNC_FAILED, "合同投影同步失败，请稍后重试"),
+            Map.entry(CONTRACT_AMOUNT_MISMATCH, "回款分期合计必须等于合同金额"),
+            Map.entry(COLLECTION_NOT_FOUND, "回款计划不存在或无权访问"),
+            Map.entry(COLLECTION_PLAN_INVALID, "回款计划分期非法，请检查期数、金额与日期"),
+            Map.entry(COLLECTION_STATE_CONFLICT, "回款计划当前状态不允许该操作"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。

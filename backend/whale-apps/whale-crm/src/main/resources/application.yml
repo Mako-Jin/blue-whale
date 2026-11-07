@@ -72,6 +72,15 @@ whale:
       workflow-url: ${WHALE_WORKFLOW_URL:http://127.0.0.1:8083}
       connect-timeout-millis: ${WHALE_CRM_QUOTE_APPROVAL_CONNECT_TIMEOUT:1000}
       read-timeout-millis: ${WHALE_CRM_QUOTE_APPROVAL_READ_TIMEOUT:3000}
+    # 合同台账投影（whale-contract 内网）：默认关闭，联调时开启
+    contract:
+      enabled: ${WHALE_CRM_CONTRACT_SYNC_ENABLED:false}
+      base-url: ${WHALE_CONTRACT_URL:http://127.0.0.1:9006}
+      connect-timeout-millis: ${WHALE_CRM_CONTRACT_CONNECT_TIMEOUT:1000}
+      read-timeout-millis: ${WHALE_CRM_CONTRACT_READ_TIMEOUT:3000}
+      expiring-days: ${WHALE_CRM_CONTRACT_EXPIRING_DAYS:30}
+      sync-cron: ${WHALE_CRM_CONTRACT_SYNC_CRON:0 0 3 * * ?}
+      sync-batch-size: ${WHALE_CRM_CONTRACT_SYNC_BATCH_SIZE:200}
 
 mybatis-plus:
   configuration:
