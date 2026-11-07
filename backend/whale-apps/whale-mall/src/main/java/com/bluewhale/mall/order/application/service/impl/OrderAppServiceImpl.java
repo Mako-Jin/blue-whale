@@ -273,23 +273,6 @@ public class OrderAppServiceImpl implements OrderAppService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void ship(Long id, MallActor actor) {
-        actor.requireUserId();
-        if (!actor.isOperator()) {
-            throw MallErrorCode.exception(MallErrorCode.ORDER_FORBIDDEN, "只有商城运营可以发货");
-        }
-        MallOrder order = requireOrder(id);
-        String from = statusName(order);
-        order.ship(LocalDateTime.now());
-        for (OrderItem item : order.getItems()) {
-            skuStockRepository.ship(item.getSkuId(), item.getQuantity());
-        }
-        orderRepository.update(order);
-        orderRepository.appendLog(order.getId(), log("SHIP", from, statusName(order), actor, "已发货"));
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
     public void complete(Long id, MallActor actor) {
         MallOrder order = requireOrder(id);
         assertVisible(order, actor);
@@ -622,6 +605,8 @@ public class OrderAppServiceImpl implements OrderAppService {
         line.setPriceType(item.getPriceType());
         line.setUnitPrice(item.getUnitPrice());
         line.setQuantity(item.getQuantity());
+        line.setShippedQuantity(item.getShippedQuantity() == null ? 0 : item.getShippedQuantity());
+        line.setShippableQuantity(item.shippableQuantity());
         line.setRefundedQuantity(item.getRefundedQuantity() == null ? 0 : item.getRefundedQuantity());
         line.setRefundableQuantity(item.refundableQuantity());
         line.setAmount(item.getAmount());
@@ -655,6 +640,7 @@ public class OrderAppServiceImpl implements OrderAppService {
         view.setFreightAmount(order.getFreightAmount());
         view.setCouponCode(order.getCouponCode());
         view.setTotalQuantity(order.getTotalQuantity());
+        view.setShippedQuantity(order.shippedQuantity());
         view.setItemCount(order.getItemCount());
         view.setPayNo(order.getPayNo());
         view.setPayTime(order.getPayTime());

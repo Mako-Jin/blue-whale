@@ -34,6 +34,15 @@ public class MallSequenceServiceImpl implements MallSequenceService {
     /** 订单号流水宽度 */
     private static final int ORDER_SERIAL_WIDTH = 6;
 
+    /** 发货单号编号键 */
+    private static final String SEQ_KEY_SHIPMENT = "SHIPMENT";
+
+    /** 发货单号前缀 */
+    private static final String SHIPMENT_NO_PREFIX = "MS";
+
+    /** 发货单号流水宽度 */
+    private static final int SHIPMENT_SERIAL_WIDTH = 6;
+
     /** 编号键最大长度（与表列宽一致） */
     private static final int KEY_MAX_LENGTH = 64;
 
@@ -66,6 +75,13 @@ public class MallSequenceServiceImpl implements MallSequenceService {
         LocalDate today = LocalDate.now();
         long serial = next(SEQ_KEY_ORDER, today.format(DAY_FORMAT));
         return ORDER_NO_PREFIX + today.format(DAY_FORMAT) + pad(serial);
+    }
+
+    @Override
+    public String nextShipmentNo() {
+        LocalDate today = LocalDate.now();
+        long serial = next(SEQ_KEY_SHIPMENT, today.format(DAY_FORMAT));
+        return SHIPMENT_NO_PREFIX + today.format(DAY_FORMAT) + pad(serial, SHIPMENT_SERIAL_WIDTH);
     }
 
     /**
@@ -117,6 +133,17 @@ public class MallSequenceServiceImpl implements MallSequenceService {
      * @return 补零后的文本
      */
     private String pad(long serial) {
-        return String.format("%0" + ORDER_SERIAL_WIDTH + "d", serial);
+        return pad(serial, ORDER_SERIAL_WIDTH);
+    }
+
+    /**
+     * 补零到指定宽度。
+     *
+     * @param serial 流水号
+     * @param width 宽度
+     * @return 补零后的文本
+     */
+    private String pad(long serial, int width) {
+        return String.format("%0" + width + "d", serial);
     }
 }

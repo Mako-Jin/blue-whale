@@ -110,14 +110,6 @@ public interface OrderAppService {
     void markRefunded(OrderRefundedCommand command);
 
     /**
-     * 发货（扣减预占）。
-     *
-     * @param id 订单 ID
-     * @param actor 操作人
-     */
-    void ship(Long id, MallActor actor);
-
-    /**
      * 完成订单。
      *
      * @param id 订单 ID

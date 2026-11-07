@@ -90,4 +90,25 @@ public interface OrderRepository {
      * @return 流水列表（按时间正序）
      */
     List<OrderLog> listLogs(Long orderId);
+
+    /**
+     * 占用行级发货额度（建发货单时）。
+     *
+     * <p>与退款额度同一套写法：条件更新 {@code quantity - shipped_quantity >= ?}，
+     * 并发下后到的直接失败，而不是两张发货单都成功、拣货时才发现只够一份。</p>
+     *
+     * @param orderItemId 订单明细 ID
+     * @param quantity 本次发货数量
+     * @return 占用成功返回 true
+     */
+    boolean occupyShippedQuantity(Long orderItemId, int quantity);
+
+    /**
+     * 释放行级发货额度（发货单作废时）。
+     *
+     * @param orderItemId 订单明细 ID
+     * @param quantity 释放数量
+     * @return 释放成功返回 true
+     */
+    boolean releaseShippedQuantity(Long orderItemId, int quantity);
 }

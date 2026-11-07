@@ -57,6 +57,19 @@ public interface SkuStockMapper extends BaseMapper<SkuStockEntity> {
     int ship(@Param("skuId") Long skuId, @Param("quantity") int quantity);
 
     /**
+     * 撤回出库：预占加回（发货单作废时）。
+     *
+     * <p>可售数量不动：下单预占时已经扣过，这里再加回去会凭空多出一件可售库存。</p>
+     *
+     * @param skuId SKU ID
+     * @param quantity 数量
+     * @return 影响行数
+     */
+    @Update("UPDATE mall_sku_stock SET reserved_qty = reserved_qty + #{quantity} "
+            + "WHERE sku_id = #{skuId} AND deleted = 0")
+    int unship(@Param("skuId") Long skuId, @Param("quantity") int quantity);
+
+    /**
      * 运营调整可售数量（增量，调整后不得为负）。
      *
      * @param skuId SKU ID

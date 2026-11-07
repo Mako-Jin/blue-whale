@@ -9,6 +9,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -60,11 +61,44 @@ class MallOrderStateTest {
         order.pay("PAY-1", null);
         assertThat(order.getStatus()).isEqualTo(OrderStatus.PAID);
         assertThat(order.getPayNo()).isEqualTo("PAY-1");
-        order.ship(null);
+        assertThat(order.ship(null)).isTrue();
         assertThat(order.getStatus()).isEqualTo(OrderStatus.SHIPPED);
         order.complete(null);
         assertThat(order.getStatus()).isEqualTo(OrderStatus.COMPLETED);
         assertThat(order.getStatus().isFinal()).isTrue();
+    }
+
+    /**
+     * 拆包再发货：订单已是已发货时幂等，不抛错也不重写发货时间。
+     */
+    @Test
+    @DisplayName("重复发货幂等且保留首次发货时间")
+    void shipIsIdempotent() {
+        MallOrder order = order(OrderStatus.PAID);
+        assertThat(order.ship(null)).isTrue();
+        LocalDateTime first = order.getShipTime();
+
+        assertThat(order.ship(null)).isFalse();
+
+        assertThat(order.getShipTime()).isEqualTo(first);
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.SHIPPED);
+    }
+
+    /**
+     * 发货单全部作废后退回待发货。
+     */
+    @Test
+    @DisplayName("全部发货单作废后退回待发货")
+    void unShipRevertsToPaid() {
+        MallOrder order = order(OrderStatus.PAID);
+        order.ship(null);
+
+        order.unShip();
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PAID);
+        assertThat(order.getShipTime()).isNull();
+        assertThatThrownBy(() -> order(OrderStatus.COMPLETED).unShip())
+                .isInstanceOf(BizException.class);
     }
 
     /**

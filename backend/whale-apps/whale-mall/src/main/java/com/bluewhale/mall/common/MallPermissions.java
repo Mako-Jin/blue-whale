@@ -84,6 +84,12 @@ public final class MallPermissions {
     /** 运费模板维护（2222，商城运营） */
     public static final String FREIGHT_MANAGE = "sys:mall:freight:manage";
 
+    /** 发货单列表（2223，商城运营） */
+    public static final String SHIPMENT_LIST = "sys:mall:shipment:list";
+
+    /** 发货单维护：建单发货 / 签收 / 作废（2224，商城运营） */
+    public static final String SHIPMENT_MANAGE = "sys:mall:shipment:manage";
+
     /**
      * 私有构造器：常量类，禁止实例化。
      */

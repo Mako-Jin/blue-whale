@@ -49,6 +49,9 @@ public class OrderItemEntity extends BaseEntity {
     /** 数量 */
     private Integer quantity;
 
+    /** 已发数量（累计） */
+    private Integer shippedQuantity;
+
     /** 已退数量（累计） */
     private Integer refundedQuantity;
 

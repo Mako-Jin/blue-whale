@@ -43,6 +43,12 @@ public class OrderLineView {
     private Integer quantity;
 
     /** 已退数量（累计） */
+    /** 已发数量 */
+    private Integer shippedQuantity;
+
+    /** 可发数量（建发货单时的上限） */
+    private Integer shippableQuantity;
+
     private Integer refundedQuantity;
 
     /** 当前可退数量（前端据此限制售后可选上限） */

@@ -60,4 +60,35 @@ public interface OrderItemMapper extends BaseMapper<OrderItemEntity> {
     int releaseRefundQuota(@Param("itemId") Long itemId,
                            @Param("quantity") int quantity,
                            @Param("amount") BigDecimal amount);
+
+    /**
+     * 占用行级发货额度。
+     *
+     * <p>与退款额度同构的条件更新：{@code quantity - shipped_quantity >= 本次数量}。
+     * 同一订单行被两张发货单并发占用时，后到的影响 0 行直接失败——
+     * 而不是两张单都显示成功、仓库拣货时才发现只够一份。</p>
+     *
+     * @param itemId   订单明细 ID
+     * @param quantity 本次发货数量
+     * @return 影响行数（0 表示可发数量不足）
+     */
+    @Update("UPDATE mall_order_item SET shipped_quantity = shipped_quantity + #{quantity}, "
+            + "update_time = NOW() "
+            + "WHERE id = #{itemId} AND quantity - shipped_quantity >= #{quantity}")
+    int occupyShippedQty(@Param("itemId") Long itemId, @Param("quantity") int quantity);
+
+    /**
+     * 释放行级发货额度（发货单作废时回滚占用）。
+     *
+     * <p>条件 {@code shipped_quantity >= 本次数量} 防止释放超过占用把数量减成负数；
+     * 不释放则这一行的货再也发不出去（可发数量被一张不存在的包裹占着）。</p>
+     *
+     * @param itemId   订单明细 ID
+     * @param quantity 释放数量
+     * @return 影响行数（0 表示无可释放额度）
+     */
+    @Update("UPDATE mall_order_item SET shipped_quantity = shipped_quantity - #{quantity}, "
+            + "update_time = NOW() "
+            + "WHERE id = #{itemId} AND shipped_quantity >= #{quantity}")
+    int releaseShippedQty(@Param("itemId") Long itemId, @Param("quantity") int quantity);
 }

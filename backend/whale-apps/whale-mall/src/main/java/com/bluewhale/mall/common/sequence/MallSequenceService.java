@@ -22,4 +22,11 @@ public interface MallSequenceService {
      * @return 订单号
      */
     String nextOrderNo();
+
+    /**
+     * 生成发货单号（{@code MS} + 日期 + 6 位流水，按日重置）。
+     *
+     * @return 发货单号
+     */
+    String nextShipmentNo();
 }

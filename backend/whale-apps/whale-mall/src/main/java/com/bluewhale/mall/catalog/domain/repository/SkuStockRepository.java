@@ -86,6 +86,18 @@ public interface SkuStockRepository {
     boolean ship(Long skuId, int quantity);
 
     /**
+     * 撤回合约：发货单作废时把已出库的数量退回预占。
+     *
+     * <p>只加回 {@code reserved_qty}，不动 {@code available_qty}——可售数量在下单预占时
+     * 就已经扣掉了，这里再加回去等于凭空多出一件可售库存。</p>
+     *
+     * @param skuId SKU ID
+     * @param quantity 数量
+     * @return 是否成功
+     */
+    boolean unship(Long skuId, int quantity);
+
+    /**
      * 运营调整可售数量（增量，可为负）。
      *
      * @param skuId SKU ID

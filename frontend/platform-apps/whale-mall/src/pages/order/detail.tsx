@@ -25,20 +25,26 @@ import {
   getOrder,
   payOrder,
   refundOrder,
-  shipOrder,
+  createShipment,
+  listShipmentsByOrder,
   type OrderLineView,
   type OrderView,
+  type ShipmentView,
 } from '../../api/mall';
 import { hasPermission } from '../../utils/permission';
 import {
   AFTER_SALE_REASON_OPTIONS,
   AFTER_SALE_TYPE_OPTIONS,
+  CARRIER_OPTIONS,
   MODE_LABEL,
   ORDER_STATUS_COLOR,
   ORDER_STATUS_LABEL,
   PRICE_TYPE_LABEL,
   SETTLEMENT_LABEL,
+  SHIPMENT_STATUS_COLOR,
+  SHIPMENT_STATUS_LABEL,
   formatDateTime,
+  formatShipProgress,
   formatMoney,
   formatSpec,
 } from '../../utils/dict';
@@ -107,11 +113,23 @@ export default function OrderDetailPage() {
   const [afterSaleReason, setAfterSaleReason] = useState('质量问题');
   const [afterSaleDescription, setAfterSaleDescription] = useState('');
   const [afterSaleQty, setAfterSaleQty] = useState<Record<number, number>>({});
+  const [shipments, setShipments] = useState<ShipmentView[]>([]);
+  const [shipOpen, setShipOpen] = useState(false);
+  const [carrierCode, setCarrierCode] = useState('SF');
+  const [carrierName, setCarrierName] = useState('');
+  const [trackingNo, setTrackingNo] = useState('');
+  const [shipRemark, setShipRemark] = useState('');
+  const [shipQty, setShipQty] = useState<Record<number, number>>({});
 
   const canManage = hasPermission('sys:mall:order:manage');
   const canCancel = hasPermission('sys:mall:order:cancel');
   const canRefund = hasPermission('sys:mall:order:refund');
   const canApplyAfterSale = hasPermission('sys:mall:aftersale:apply');
+
+  /** 还有可发数量、且订单处于已支付/已发货时才允许继续发货（拆包） */
+  const canShipNow =
+    (order?.status === 'PAID' || order?.status === 'SHIPPED') &&
+    (order?.items ?? []).some((row) => (row.shippableQuantity ?? 0) > 0);
 
   /** 加载详情 */
   const load = useCallback(async () => {
@@ -120,7 +138,10 @@ export default function OrderDetailPage() {
     }
     setLoading(true);
     try {
-      setOrder(await getOrder(Number(id)));
+      const data = await getOrder(Number(id));
+      setOrder(data);
+      // 发货单单独查：列表视图不带明细，详情页要看到每个包裹发了哪几件
+      setShipments(await listShipmentsByOrder(data.orderNo).catch(() => []));
     } catch (error) {
       message.error(errorText(error));
     } finally {
@@ -238,22 +259,69 @@ export default function OrderDetailPage() {
     return sum + refundableShare(row, qty);
   }, 0);
 
-  /** 发货 / 完成 */
-  const run = async (action: 'ship' | 'complete') => {
+  /** 确认收货（买家动作；发货由发货单承载） */
+  const runComplete = async () => {
     if (!order) {
       return;
     }
     try {
-      if (action === 'ship') {
-        await shipOrder(order.id);
-        message.success('已发货');
-      } else {
-        await completeOrder(order.id);
-        message.success('订单已完成');
-      }
+      await completeOrder(order.id);
+      message.success('订单已完成');
       await load();
     } catch (error) {
       message.error(errorText(error));
+    }
+  };
+
+  /** 打开发货弹窗：默认按每行可发数量预填，运营只改要拆出去的 */
+  const openShip = () => {
+    const preset: Record<number, number> = {};
+    (order?.items ?? []).forEach((row) => {
+      if (typeof row.id === 'number') {
+        preset[row.id] = row.shippableQuantity ?? 0;
+      }
+    });
+    setShipQty(preset);
+    setCarrierCode('SF');
+    setCarrierName('');
+    setTrackingNo('');
+    setShipRemark('');
+    setShipOpen(true);
+  };
+
+  /** 提交发货：一次发货对应一个运单号，一个订单可发多次 */
+  const submitShip = async () => {
+    if (!order) {
+      return;
+    }
+    const items = (order.items ?? [])
+      .filter((row) => typeof row.id === 'number' && (shipQty[row.id] ?? 0) > 0)
+      .map((row) => ({ orderItemId: row.id as number, quantity: shipQty[row.id as number] }));
+    if (items.length === 0) {
+      message.warning('请填写本次要发的数量');
+      return;
+    }
+    if (!trackingNo.trim()) {
+      message.warning('请填写运单号');
+      return;
+    }
+    setBusy(true);
+    try {
+      await createShipment({
+        orderId: order.id,
+        carrierCode,
+        carrierName: carrierName.trim() || undefined,
+        trackingNo: trackingNo.trim(),
+        remark: shipRemark.trim() || undefined,
+        items,
+      });
+      message.success('已发货');
+      setShipOpen(false);
+      await load();
+    } catch (error) {
+      message.error(errorText(error));
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -280,6 +348,18 @@ export default function OrderDetailPage() {
         formatMoney(value, row.priceType === 'POINTS' ? 'POINTS' : 'CASH'),
     },
     { title: '数量', dataIndex: 'quantity', width: 80 },
+    {
+      title: '已发',
+      dataIndex: 'shippedQuantity',
+      width: 80,
+      render: (value?: number) => value ?? 0,
+    },
+    {
+      title: '可发',
+      dataIndex: 'shippableQuantity',
+      width: 80,
+      render: (value: number | undefined, row) => value ?? row.quantity,
+    },
     {
       title: '已退',
       dataIndex: 'refundedQuantity',
@@ -349,13 +429,13 @@ export default function OrderDetailPage() {
               取消订单
             </Button>
           )}
-          {canManage && order?.status === 'PAID' && (
-            <Popconfirm title="确认发货？" onConfirm={() => run('ship')}>
-              <Button type="primary">发货</Button>
-            </Popconfirm>
+          {canManage && canShipNow && (
+            <Button type="primary" onClick={openShip}>
+              发货
+            </Button>
           )}
           {order?.status === 'SHIPPED' && (
-            <Popconfirm title="确认收货？" onConfirm={() => run('complete')}>
+            <Popconfirm title="确认收货？" onConfirm={() => void runComplete()}>
               <Button type="primary">确认收货</Button>
             </Popconfirm>
           )}
@@ -432,6 +512,59 @@ export default function OrderDetailPage() {
                 </Typography.Text>
               </Descriptions.Item>
             </Descriptions>
+
+            <Typography.Title level={5} style={{ marginTop: 20 }}>
+              物流信息
+              <Typography.Text type="secondary" style={{ marginLeft: 12, fontSize: 13 }}>
+                {formatShipProgress(order.shippedQuantity, order.totalQuantity)}
+              </Typography.Text>
+            </Typography.Title>
+            <Table<ShipmentView>
+              rowKey="id"
+              size="small"
+              pagination={false}
+              dataSource={shipments}
+              locale={{
+                emptyText: (
+                  <Typography.Text type="secondary">
+                    还没有发货单；运营点上方「发货」建单，一个订单可拆成多个包裹。
+                  </Typography.Text>
+                ),
+              }}
+              columns={[
+                { title: '发货单号', dataIndex: 'shipmentNo', width: 190 },
+                { title: '承运商', dataIndex: 'carrierName', width: 130 },
+                { title: '运单号', dataIndex: 'trackingNo', width: 180 },
+                {
+                  title: '件数',
+                  dataIndex: 'totalQuantity',
+                  width: 80,
+                  render: (value: number) => `${value} 件`,
+                },
+                {
+                  title: '状态',
+                  dataIndex: 'status',
+                  width: 100,
+                  render: (value: string) => (
+                    <Tag color={SHIPMENT_STATUS_COLOR[value]}>
+                      {SHIPMENT_STATUS_LABEL[value] ?? value}
+                    </Tag>
+                  ),
+                },
+                {
+                  title: '发货时间',
+                  dataIndex: 'shippedTime',
+                  width: 170,
+                  render: (value?: string) => formatDateTime(value),
+                },
+                {
+                  title: '签收时间',
+                  dataIndex: 'deliveredTime',
+                  width: 170,
+                  render: (value?: string) => formatDateTime(value),
+                },
+              ]}
+            />
 
             <Typography.Title level={5} style={{ marginTop: 20 }}>
               商品明细
@@ -574,6 +707,96 @@ export default function OrderDetailPage() {
           <Typography.Text>
             预计退款：<Typography.Text strong>{formatMoney(afterSalePreview)}</Typography.Text>
           </Typography.Text>
+        </Space>
+      </Modal>
+
+      <Modal
+        title="发货"
+        open={shipOpen}
+        width={720}
+        confirmLoading={busy}
+        okText="确认发货"
+        onCancel={() => setShipOpen(false)}
+        onOk={submitShip}
+      >
+        <Typography.Paragraph type="secondary">
+          一张发货单对应一个运单号。要拆成两个包裹就发两次；默认按每行可发数量预填，
+          只把这次要发的行留下数量即可。
+        </Typography.Paragraph>
+        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+          <Space wrap>
+            <Typography.Text>承运商</Typography.Text>
+            <Select
+              style={{ width: 160 }}
+              value={carrierCode}
+              options={CARRIER_OPTIONS}
+              onChange={setCarrierCode}
+            />
+            {carrierCode === 'OTHER' ? (
+              <Input
+                style={{ width: 180 }}
+                maxLength={64}
+                placeholder="承运商名称"
+                value={carrierName}
+                onChange={(event) => setCarrierName(event.target.value)}
+              />
+            ) : null}
+            <Typography.Text>运单号</Typography.Text>
+            <Input
+              style={{ width: 220 }}
+              maxLength={64}
+              placeholder="必填；自送也填内部单号"
+              value={trackingNo}
+              onChange={(event) => setTrackingNo(event.target.value)}
+            />
+          </Space>
+          <Input
+            maxLength={255}
+            placeholder="备注（可选）"
+            value={shipRemark}
+            onChange={(event) => setShipRemark(event.target.value)}
+          />
+          <Table<OrderLineView>
+            rowKey={(row) => String(row.id ?? `${row.skuId}-${row.quantity}`)}
+            size="small"
+            pagination={false}
+            dataSource={order?.items ?? []}
+            columns={[
+              { title: '商品', dataIndex: 'spuName' },
+              {
+                title: '已发',
+                dataIndex: 'shippedQuantity',
+                width: 80,
+                render: (value?: number) => value ?? 0,
+              },
+              {
+                title: '可发',
+                width: 80,
+                render: (_: unknown, row) => row.shippableQuantity ?? row.quantity,
+              },
+              {
+                title: '本次发货',
+                width: 140,
+                render: (_: unknown, row) => {
+                  const shippable = row.shippableQuantity ?? row.quantity;
+                  if (typeof row.id !== 'number' || shippable <= 0) {
+                    return <Typography.Text type="secondary">不可发</Typography.Text>;
+                  }
+                  return (
+                    <InputNumber
+                      min={0}
+                      max={shippable}
+                      precision={0}
+                      value={shipQty[row.id] ?? 0}
+                      onChange={(value) =>
+                        setShipQty((prev) => ({ ...prev, [row.id as number]: Number(value ?? 0) }))
+                      }
+                    />
+                  );
+                },
+              },
+            ]}
+          />
         </Space>
       </Modal>
     </Card>

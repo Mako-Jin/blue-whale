@@ -63,6 +63,9 @@ public class OrderView {
     /** 商品总件数 */
     private Integer totalQuantity;
 
+    /** 已发总件数（< totalQuantity 即为部分发货） */
+    private Integer shippedQuantity;
+
     /** 明细行数 */
     private Integer itemCount;
 

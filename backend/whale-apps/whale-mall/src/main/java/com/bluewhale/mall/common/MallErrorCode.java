@@ -172,6 +172,30 @@ public final class MallErrorCode {
     /** 运费模板名称已存在 */
     public static final int FREIGHT_TEMPLATE_NAME_CONFLICT = 45072;
 
+    /** 发货单不存在 */
+    public static final int SHIPMENT_NOT_FOUND = 45080;
+
+    /** 发货单状态不允许该动作（已签收又签收 / 已作废又作废） */
+    public static final int SHIPMENT_STATE_INVALID = 45081;
+
+    /** 本次发货数量超过可发数量 */
+    public static final int SHIPMENT_QUANTITY_EXCEEDED = 45082;
+
+    /** 运单号已被其他发货单使用 */
+    public static final int SHIPMENT_TRACKING_CONFLICT = 45083;
+
+    /** 订单状态不允许发货 */
+    public static final int SHIPMENT_ORDER_STATE_INVALID = 45084;
+
+    /** 承运商非法 */
+    public static final int SHIPMENT_CARRIER_INVALID = 45085;
+
+    /** 发货明细行不属于该订单 */
+    public static final int SHIPMENT_ITEM_NOT_FOUND = 45086;
+
+    /** 发货单参数非法（明细为空、数量非正、运单号为空） */
+    public static final int SHIPMENT_INVALID = 45087;
+
     /** 业务错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(ACTOR_REQUIRED, "缺少操作人身份，无法执行该操作"),
@@ -225,7 +249,15 @@ public final class MallErrorCode {
             Map.entry(COUPON_CODE_CONFLICT, "优惠券编码已存在"),
             Map.entry(FREIGHT_TEMPLATE_NOT_FOUND, "运费模板不存在或已停用"),
             Map.entry(FREIGHT_TEMPLATE_INVALID, "运费模板信息不合法，请检查计费方式与金额"),
-            Map.entry(FREIGHT_TEMPLATE_NAME_CONFLICT, "运费模板名称已存在"));
+            Map.entry(FREIGHT_TEMPLATE_NAME_CONFLICT, "运费模板名称已存在"),
+            Map.entry(SHIPMENT_NOT_FOUND, "发货单不存在"),
+            Map.entry(SHIPMENT_STATE_INVALID, "发货单当前状态不允许该操作"),
+            Map.entry(SHIPMENT_QUANTITY_EXCEEDED, "发货数量超过可发数量"),
+            Map.entry(SHIPMENT_TRACKING_CONFLICT, "该运单号已被其他发货单使用"),
+            Map.entry(SHIPMENT_ORDER_STATE_INVALID, "订单当前状态不允许发货"),
+            Map.entry(SHIPMENT_CARRIER_INVALID, "请选择有效的承运商"),
+            Map.entry(SHIPMENT_ITEM_NOT_FOUND, "发货明细与订单不匹配"),
+            Map.entry(SHIPMENT_INVALID, "发货信息不合法，请检查运单号与数量"));
 
     /**
      * 私有构造器：常量类，禁止实例化。

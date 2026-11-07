@@ -64,10 +64,23 @@ public enum OrderStatus {
     /**
      * 是否可发货。
      *
-     * @return 已支付返回 true
+     * <p>已发货也返回 true：一个订单可以拆成多个包裹分批发出去，第二张发货单
+     * 到来时订单已经是 {@code SHIPPED}。真正的幂等判定在
+     * {@code MallOrder.ship} 里（已是 SHIPPED 就不再改时间）。</p>
+     *
+     * @return 已支付或已发货返回 true
      */
     public boolean canShip() {
-        return this == PAID;
+        return this == PAID || this == SHIPPED;
+    }
+
+    /**
+     * 是否已发货（含部分发货）。
+     *
+     * @return 已发货返回 true
+     */
+    public boolean shipped() {
+        return this == SHIPPED;
     }
 
     /**

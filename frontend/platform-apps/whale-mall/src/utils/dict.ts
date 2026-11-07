@@ -258,3 +258,67 @@ export function formatCouponValue(coupon: {
   }
   return formatMoney(coupon.faceAmount ?? 0, coupon.currencyType);
 }
+
+/** 承运商下拉项（与后端 CarrierType 对齐） */
+export const CARRIER_OPTIONS = [
+  { value: 'SF', label: '顺丰速运' },
+  { value: 'YTO', label: '圆通速递' },
+  { value: 'ZTO', label: '中通快递' },
+  { value: 'STO', label: '申通快递' },
+  { value: 'YD', label: '韵达速递' },
+  { value: 'JD', label: '京东物流' },
+  { value: 'EMS', label: '中国邮政EMS' },
+  { value: 'DBL', label: '德邦快递' },
+  { value: 'SELF', label: '商家自送' },
+  { value: 'OTHER', label: '其它' },
+];
+
+/** 承运商编码 → 名称 */
+export const CARRIER_LABEL: Record<string, string> = CARRIER_OPTIONS.reduce(
+  (acc, item) => ({ ...acc, [item.value]: item.label }),
+  {} as Record<string, string>,
+);
+
+/** 发货单状态 → 名称 */
+export const SHIPMENT_STATUS_LABEL: Record<string, string> = {
+  SHIPPED: '已发货',
+  DELIVERED: '已签收',
+  CANCELLED: '已作废',
+};
+
+/** 发货单状态 → 标签色 */
+export const SHIPMENT_STATUS_COLOR: Record<string, string> = {
+  SHIPPED: 'blue',
+  DELIVERED: 'green',
+  CANCELLED: 'default',
+};
+
+/** 发货单状态下拉项 */
+export const SHIPMENT_STATUS_OPTIONS = Object.entries(SHIPMENT_STATUS_LABEL).map(
+  ([value, label]) => ({ value, label }),
+);
+
+/**
+ * 拆包进度文案。
+ *
+ * <p>「已发货 2/3」比单独一个「已发货」有用：买家看到只发了两件，
+ * 就知道还有一件在路上，不用来问客服。</p>
+ *
+ * @param shipped 已发件数
+ * @param total 订单总件数
+ * @returns 文案
+ */
+export function formatShipProgress(shipped?: number, total?: number): string {
+  const shippedCount = shipped ?? 0;
+  const totalCount = total ?? 0;
+  if (totalCount <= 0) {
+    return '未发货';
+  }
+  if (shippedCount <= 0) {
+    return '未发货';
+  }
+  if (shippedCount >= totalCount) {
+    return `已发完 ${shippedCount}/${totalCount}`;
+  }
+  return `部分发货 ${shippedCount}/${totalCount}`;
+}

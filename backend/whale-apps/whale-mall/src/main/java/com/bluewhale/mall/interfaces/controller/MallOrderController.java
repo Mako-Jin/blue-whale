@@ -187,20 +187,6 @@ public class MallOrderController {
     }
 
     /**
-     * 发货。
-     *
-     * @param id 订单 ID
-     * @param request 当前请求
-     * @return 空结果
-     */
-    @PostMapping("/{id}/ship")
-    @RequirePermission(MallPermissions.ORDER_MANAGE)
-    public Result<Void> ship(@PathVariable("id") Long id, HttpServletRequest request) {
-        orderAppService.ship(id, MallActorContext.from(request));
-        return Result.ok();
-    }
-
-    /**
      * 完成订单。
      *
      * @param id 订单 ID

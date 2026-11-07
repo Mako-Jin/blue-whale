@@ -354,6 +354,10 @@ export interface OrderLineView {
   priceType: string;
   unitPrice: Money;
   quantity: number;
+  /** 已发数量 */
+  shippedQuantity?: number;
+  /** 可发数量（建发货单时的上限） */
+  shippableQuantity?: number;
   /** 已退数量 */
   refundedQuantity?: number;
   /** 当前可退数量（售后申请上限） */
@@ -415,6 +419,8 @@ export interface OrderView {
   /** 使用的券编码 */
   couponCode?: string;
   totalQuantity: number;
+  /** 已发总件数（< totalQuantity 即为部分发货） */
+  shippedQuantity?: number;
   itemCount: number;
   payNo?: string;
   payTime?: string;
@@ -787,4 +793,93 @@ export function listAvailableCoupons(query: {
   amount?: number;
 }): Promise<CouponUserView[]> {
   return http.get<CouponUserView[]>('/mall/coupon/available', query);
+}
+
+// ---------------------------------------------------------------------
+// 发货单与物流（Wave 5.98）
+//
+// 发货是履约的唯一入口：一个订单可以拆成多个包裹（多张发货单），
+// 每张单对应一个运单号。订单状态由发货单驱动，不再有独立的「订单发货」接口。
+// ---------------------------------------------------------------------
+
+/** 发货单明细 */
+export interface ShipmentItemView {
+  orderItemId: number;
+  spuId: number;
+  skuId: number;
+  spuName: string;
+  skuCode: string;
+  specJson?: string;
+  /** 本单发货数量 */
+  quantity: number;
+}
+
+/** 发货单 */
+export interface ShipmentView {
+  id: number;
+  shipmentNo: string;
+  orderId: number;
+  orderNo: string;
+  channelId: number;
+  /** 承运商编码 */
+  carrierCode: string;
+  /** 承运商名称（下单时的快照） */
+  carrierName: string;
+  /** 运单号 */
+  trackingNo: string;
+  /** SHIPPED / DELIVERED / CANCELLED */
+  status: string;
+  itemCount: number;
+  totalQuantity: number;
+  shippedTime?: string;
+  deliveredTime?: string;
+  cancelTime?: string;
+  cancelReason?: string;
+  remark?: string;
+  createTime?: string;
+  items: ShipmentItemView[];
+}
+
+/** 建发货单并发货 */
+export function createShipment(body: {
+  orderId: number;
+  carrierCode: string;
+  carrierName?: string;
+  trackingNo: string;
+  remark?: string;
+  items: { orderItemId: number; quantity: number }[];
+}): Promise<ShipmentView> {
+  return http.post<ShipmentView>('/mall/shipment', body);
+}
+
+/** 发货单分页 */
+export function pageShipments(query: {
+  keyword?: string;
+  status?: string;
+  carrierCode?: string;
+  orderId?: number;
+  current?: number;
+  size?: number;
+}): Promise<PageResult<ShipmentView>> {
+  return http.get<PageResult<ShipmentView>>('/mall/shipment/page', query);
+}
+
+/** 发货单详情 */
+export function getShipment(id: number): Promise<ShipmentView> {
+  return http.get<ShipmentView>(`/mall/shipment/${id}`);
+}
+
+/** 某订单的发货单列表（买家可看自己的） */
+export function listShipmentsByOrder(orderNo: string): Promise<ShipmentView[]> {
+  return http.get<ShipmentView[]>(`/mall/shipment/order/${orderNo}`);
+}
+
+/** 手工签收（物流平台未接通时的兜底） */
+export function deliverShipment(id: number): Promise<void> {
+  return http.post<void>(`/mall/shipment/${id}/delivered`);
+}
+
+/** 作废发货单（释放已发数量与预占库存） */
+export function cancelShipment(id: number, reason?: string): Promise<void> {
+  return http.post<void>(`/mall/shipment/${id}/cancel`, { reason });
 }

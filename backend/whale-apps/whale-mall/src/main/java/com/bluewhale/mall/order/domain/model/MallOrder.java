@@ -284,15 +284,72 @@ public class MallOrder {
     /**
      * 发货。
      *
+     * <p>幂等：已是 {@code SHIPPED} 时直接返回 {@code false}，<b>不重写 ship_time</b>。
+     * 一个订单拆成多个包裹分批发货，第二张发货单会再次走到这里；重写时间会让
+     * 「订单发货时间」变成最后一个包裹的发出时间，与买家看到的第一个包裹对不上。</p>
+     *
+     * <p>其余状态一律拒绝：待支付没收到钱不能发、退款中不能发（钱正在退）、
+     * 已完成不能再补发（否则库存与物流记录都会对不上）。</p>
+     *
      * @param shippedAt 发货时间
+     * @return 本次是否发生状态变更
      */
-    public void ship(LocalDateTime shippedAt) {
+    public boolean ship(LocalDateTime shippedAt) {
+        if (status == OrderStatus.SHIPPED) {
+            return false;
+        }
         if (!status.canShip()) {
             throw MallErrorCode.exception(MallErrorCode.ORDER_STATE_CONFLICT,
                     "订单当前状态（" + status + "）不允许发货");
         }
         this.shipTime = shippedAt == null ? LocalDateTime.now() : shippedAt;
         this.status = OrderStatus.SHIPPED;
+        return true;
+    }
+
+    /**
+     * 发货单全部作废后退回待发货。
+     *
+     * <p>不退回去的话订单显示「已发货」却一张有效发货单都没有，运营再也发不出去
+     * （状态看着像发过了），买家也查不到任何物流。</p>
+     */
+    public void unShip() {
+        if (status != OrderStatus.SHIPPED) {
+            throw MallErrorCode.exception(MallErrorCode.ORDER_STATE_CONFLICT,
+                    "只有已发货订单才能在发货单全部作废后退回待发货");
+        }
+        this.status = OrderStatus.PAID;
+        this.shipTime = null;
+    }
+
+    /**
+     * 是否所有行都已发满。
+     *
+     * <p>签收要驱动完成，前提是货真的全发出去了：只签收了一个包裹、
+     * 还有一行没发，此时把订单置为已完成，剩下的货就永远发不出去了
+     * （{@code COMPLETED} 不能再发货）。</p>
+     *
+     * @return 全部行发满返回 true
+     */
+    public boolean fullyShipped() {
+        if (items == null || items.isEmpty()) {
+            return false;
+        }
+        return items.stream().allMatch(item -> item.shippableQuantity() == 0);
+    }
+
+    /**
+     * 已发总件数。
+     *
+     * @return 已发件数之和
+     */
+    public int shippedQuantity() {
+        if (items == null) {
+            return 0;
+        }
+        return items.stream()
+                .mapToInt(item -> item.getShippedQuantity() == null ? 0 : item.getShippedQuantity())
+                .sum();
     }
 
     /**

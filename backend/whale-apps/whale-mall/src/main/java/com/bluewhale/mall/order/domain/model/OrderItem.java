@@ -48,6 +48,9 @@ public class OrderItem {
     /** 数量 */
     private Integer quantity;
 
+    /** 已发数量（累计，建发货单时占用） */
+    private Integer shippedQuantity;
+
     /** 已退数量（累计，售后申请时占用） */
     private Integer refundedQuantity;
 
@@ -75,6 +78,20 @@ public class OrderItem {
         int total = quantity == null ? 0 : quantity;
         int refunded = refundedQuantity == null ? 0 : refundedQuantity;
         return Math.max(total - refunded, 0);
+    }
+
+    /**
+     * 当前可发数量。
+     *
+     * <p>与 {@link #refundableQuantity()} 同构：发货按件占用、按件释放，拆包分批发货
+     * 靠的就是这个数。为 null 时按 0 处理，避免历史数据缺列导致 NPE。</p>
+     *
+     * @return 可发数量
+     */
+    public int shippableQuantity() {
+        int total = quantity == null ? 0 : quantity;
+        int shipped = shippedQuantity == null ? 0 : shippedQuantity;
+        return Math.max(total - shipped, 0);
     }
 
     /**

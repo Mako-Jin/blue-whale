@@ -174,6 +174,22 @@ public class OrderRepositoryImpl implements OrderRepository {
         return result;
     }
 
+    @Override
+    public boolean occupyShippedQuantity(Long orderItemId, int quantity) {
+        if (orderItemId == null || quantity <= 0) {
+            return false;
+        }
+        return orderItemMapper.occupyShippedQty(orderItemId, quantity) > 0;
+    }
+
+    @Override
+    public boolean releaseShippedQuantity(Long orderItemId, int quantity) {
+        if (orderItemId == null || quantity <= 0) {
+            return false;
+        }
+        return orderItemMapper.releaseShippedQty(orderItemId, quantity) > 0;
+    }
+
     /**
      * 组装查询条件。
      *
@@ -256,6 +272,7 @@ public class OrderRepositoryImpl implements OrderRepository {
         item.setPriceType(entity.getPriceType());
         item.setUnitPrice(entity.getUnitPrice());
         item.setQuantity(entity.getQuantity());
+        item.setShippedQuantity(entity.getShippedQuantity());
         item.setRefundedQuantity(entity.getRefundedQuantity());
         item.setRefundedAmount(entity.getRefundedAmount());
         item.setAmount(entity.getAmount());

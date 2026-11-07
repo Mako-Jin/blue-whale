@@ -13,6 +13,7 @@ import OrderDetailPage from './pages/order/detail';
 import AfterSalePage from './pages/aftersale';
 import CouponPage from './pages/coupon';
 import FreightTemplatePage from './pages/freight';
+import ShipmentPage from './pages/shipment';
 import { hasPermission } from './utils/permission';
 
 const { Header, Content, Sider } = Layout;
@@ -28,6 +29,7 @@ const MENU_ITEMS = [
   { key: '/aftersale', label: '售后单', permission: 'sys:mall:aftersale:apply' },
   { key: '/coupon', label: '优惠券', permission: 'sys:mall:coupon:claim' },
   { key: '/freight', label: '运费模板', permission: 'sys:mall:freight:list' },
+  { key: '/shipment', label: '发货管理', permission: 'sys:mall:shipment:list' },
 ];
 
 /** 当前账号可见的菜单 */
@@ -86,6 +88,7 @@ function MallLayout() {
             <Route path="/order" element={<OrderPage />} />
             <Route path="/order/:id" element={<OrderDetailPage />} />
             <Route path="/aftersale" element={<AfterSalePage />} />
+            <Route path="/shipment" element={<ShipmentPage />} />
             <Route path="/coupon" element={<CouponPage />} />
             <Route path="/freight" element={<FreightTemplatePage />} />
             <Route path="*" element={<Navigate to={HOME_PATH} replace />} />

@@ -108,6 +108,17 @@ public class SkuStockRepositoryImpl implements SkuStockRepository {
     }
 
     @Override
+    public boolean unship(Long skuId, int quantity) {
+        SkuStock.validateQuantity(quantity);
+        int affected = skuStockMapper.unship(skuId, quantity);
+        if (affected <= 0) {
+            throw MallErrorCode.exception(MallErrorCode.STOCK_NOT_FOUND,
+                    "撤回发货失败：SKU " + skuId + " 的库存记录不存在");
+        }
+        return true;
+    }
+
+    @Override
     public int adjust(Long skuId, int delta) {
         if (delta == 0) {
             return availableOf(skuId);
