@@ -22,6 +22,9 @@ import ExpenseCategoryPage from './pages/expense/category';
 import VehicleAdminPage from './pages/admin/vehicle';
 import SealAdminPage from './pages/admin/seal';
 import PurchaseAdminPage from './pages/admin/purchase';
+import CollabMeetingPage from './pages/collab/meeting';
+import CollabNoticePage from './pages/collab/notice';
+import CollabTaskPage from './pages/collab/task';
 import { hasPermission } from './utils/permission';
 
 const { Header, Content, Sider } = Layout;
@@ -48,6 +51,9 @@ const MENU_ITEMS = [
   { key: '/admin/vehicle', label: '用车管理', permission: 'sys:oa:vehicle:list' },
   { key: '/admin/seal', label: '用章申请', permission: 'sys:oa:seal:list' },
   { key: '/admin/purchase', label: '采购申请', permission: 'sys:oa:purchase:list' },
+  { key: '/collab/meeting', label: '会议管理', permission: 'sys:oa:meeting:list' },
+  { key: '/collab/notice', label: '公告管理', permission: 'sys:oa:notice:list' },
+  { key: '/collab/task', label: '我的任务', permission: 'sys:oa:task:list' },
 ];
 
 /** 按权限过滤后的菜单 */
@@ -100,6 +106,9 @@ function OaLayout() {
             <Route path="/admin/vehicle" element={<VehicleAdminPage />} />
             <Route path="/admin/seal" element={<SealAdminPage />} />
             <Route path="/admin/purchase" element={<PurchaseAdminPage />} />
+            <Route path="/collab/meeting" element={<CollabMeetingPage />} />
+            <Route path="/collab/notice" element={<CollabNoticePage />} />
+            <Route path="/collab/task" element={<CollabTaskPage />} />
             <Route path="*" element={<Navigate to={DEFAULT_PATH} replace />} />
           </Routes>
         </Content>

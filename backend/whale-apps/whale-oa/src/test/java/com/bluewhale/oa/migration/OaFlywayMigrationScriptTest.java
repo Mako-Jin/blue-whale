@@ -290,6 +290,33 @@ class OaFlywayMigrationScriptTest {
     }
 
     /**
+     * V9 新建协同办公 9 张表，并保证关键唯一索引
+     *
+     * @throws IOException 读取脚本失败
+     */
+    @Test
+    @DisplayName("V9 协同办公表集合与索引完整")
+    void v9ShouldCreateCollabTables() throws IOException {
+        Path v9 = MIGRATION_DIR.resolve("V9__collab.sql");
+        Set<String> tables = extractTables(v9);
+        assertEquals(Set.of("oa_meeting_room", "oa_meeting", "oa_meeting_participant",
+                "oa_meeting_minute", "oa_meeting_action", "oa_notice", "oa_notice_recipient",
+                "oa_task", "oa_task_comment"), tables, "V9 建表集合与 M3-P1 设计不一致");
+
+        String script = Files.readString(v9, StandardCharsets.UTF_8);
+        for (String column : List.of("tenant_id", "name", "capacity", "start_time", "end_time",
+                "participant", "read_flag", "read_time", "priority", "due_date", "source_id",
+                "finish_time", "task_id", "content")) {
+            assertTrue(script.contains(column), "V9 协同表应包含列：" + column);
+        }
+        assertTrue(script.contains("uk_oa_meeting_room_name"), "V9 应保证会议室名称租户唯一");
+        assertTrue(script.contains("uk_oa_meeting_code"), "V9 应保证会议单号租户唯一");
+        assertTrue(script.contains("uk_oa_meeting_participant_user"), "V9 应保证参会人唯一");
+        assertTrue(script.contains("uk_oa_meeting_minute_meeting"), "V9 应保证每场会议一份纪要");
+        assertTrue(script.contains("uk_oa_notice_recipient_user"), "V9 应保证公告接收人唯一");
+    }
+
+    /**
      * 列出迁移脚本并按文件名字典序返回
      *
      * @return 迁移脚本路径

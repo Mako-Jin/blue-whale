@@ -243,6 +243,51 @@ public final class OaErrorCode {
     /** ERP 采购订单推送暂不可用 */
     public static final int PURCHASE_ERP_UNAVAILABLE = 50304;
 
+    /** 协同参数非法 */
+    public static final int COLLAB_INVALID = 40018;
+
+    /** 会议室不存在 */
+    public static final int MEETING_ROOM_NOT_FOUND = 40427;
+
+    /** 会议室名称已存在 */
+    public static final int MEETING_ROOM_EXISTS = 40930;
+
+    /** 会议不存在 */
+    public static final int MEETING_NOT_FOUND = 40428;
+
+    /** 会议状态不允许该操作 */
+    public static final int MEETING_STATUS_CONFLICT = 40931;
+
+    /** 会议室时段冲突 */
+    public static final int MEETING_TIME_CONFLICT = 40932;
+
+    /** 会议参会人缺失 */
+    public static final int MEETING_PARTICIPANT_REQUIRED = 40933;
+
+    /** 公告参数非法 */
+    public static final int NOTICE_INVALID = 40019;
+
+    /** 公告不存在 */
+    public static final int NOTICE_NOT_FOUND = 40429;
+
+    /** 公告状态不允许该操作 */
+    public static final int NOTICE_STATUS_CONFLICT = 40934;
+
+    /** 公告接收人为空 */
+    public static final int NOTICE_RECIPIENT_EMPTY = 40935;
+
+    /** 公告接收人不存在或无权访问 */
+    public static final int NOTICE_RECIPIENT_NOT_FOUND = 40430;
+
+    /** 任务参数非法 */
+    public static final int TASK_INVALID = 40020;
+
+    /** 任务不存在 */
+    public static final int TASK_NOT_FOUND = 40431;
+
+    /** 任务状态不允许该操作 */
+    public static final int TASK_STATUS_CONFLICT = 40936;
+
     /** 错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(APPROVAL_CONFIG_NOT_FOUND, "审批配置不存在或无权访问"),
@@ -320,7 +365,22 @@ public final class OaErrorCode {
             Map.entry(PURCHASE_INVALID, "采购申请参数非法，请检查明细与金额"),
             Map.entry(PURCHASE_NOT_FOUND, "采购申请不存在或无权访问"),
             Map.entry(PURCHASE_STATUS_CONFLICT, "采购申请当前状态不允许该操作"),
-            Map.entry(PURCHASE_ERP_UNAVAILABLE, "ERP 采购订单服务暂不可用，稍后可重试推送"));
+            Map.entry(PURCHASE_ERP_UNAVAILABLE, "ERP 采购订单服务暂不可用，稍后可重试推送"),
+            Map.entry(COLLAB_INVALID, "协同参数非法，请检查时间、范围与人员"),
+            Map.entry(MEETING_ROOM_NOT_FOUND, "会议室不存在或无权访问"),
+            Map.entry(MEETING_ROOM_EXISTS, "会议室名称已存在"),
+            Map.entry(MEETING_NOT_FOUND, "会议不存在或无权访问"),
+            Map.entry(MEETING_STATUS_CONFLICT, "会议当前状态不允许该操作"),
+            Map.entry(MEETING_TIME_CONFLICT, "该会议室在所选时段已有会议"),
+            Map.entry(MEETING_PARTICIPANT_REQUIRED, "会议参会人不能为空"),
+            Map.entry(NOTICE_INVALID, "公告参数非法，请检查标题、正文与发布范围"),
+            Map.entry(NOTICE_NOT_FOUND, "公告不存在或无权访问"),
+            Map.entry(NOTICE_STATUS_CONFLICT, "公告当前状态不允许该操作"),
+            Map.entry(NOTICE_RECIPIENT_EMPTY, "公告接收人不能为空"),
+            Map.entry(NOTICE_RECIPIENT_NOT_FOUND, "公告接收记录不存在或无权访问"),
+            Map.entry(TASK_INVALID, "任务参数非法，请检查标题、负责人与截止日期"),
+            Map.entry(TASK_NOT_FOUND, "任务不存在或无权访问"),
+            Map.entry(TASK_STATUS_CONFLICT, "任务当前状态不允许该操作"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。
