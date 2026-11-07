@@ -297,6 +297,33 @@ public final class OaErrorCode {
     /** 无权操作该日程 */
     public static final int CALENDAR_FORBIDDEN = 40303;
 
+    /** 网盘参数非法 */
+    public static final int DRIVE_INVALID = 40022;
+
+    /** 网盘文件夹不存在或无权访问 */
+    public static final int DRIVE_FOLDER_NOT_FOUND = 40433;
+
+    /** 网盘文件不存在或无权访问 */
+    public static final int DRIVE_FILE_NOT_FOUND = 40434;
+
+    /** 无权操作该网盘资源 */
+    public static final int DRIVE_FORBIDDEN = 40304;
+
+    /** 网盘文件夹非空，不能删除 */
+    public static final int DRIVE_FOLDER_NOT_EMPTY = 40937;
+
+    /** 网盘配额已超限 */
+    public static final int DRIVE_QUOTA_EXCEEDED = 40938;
+
+    /** 该文件已在当前文件夹登记 */
+    public static final int DRIVE_FILE_EXISTS = 40939;
+
+    /** 同目录下文件夹名称已存在 */
+    public static final int DRIVE_NAME_EXISTS = 40940;
+
+    /** 文件服务不可用或文件不可下载 */
+    public static final int DRIVE_FILE_UNAVAILABLE = 50305;
+
     /** 错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
             Map.entry(APPROVAL_CONFIG_NOT_FOUND, "审批配置不存在或无权访问"),
@@ -392,7 +419,16 @@ public final class OaErrorCode {
             Map.entry(TASK_STATUS_CONFLICT, "任务当前状态不允许该操作"),
             Map.entry(CALENDAR_INVALID, "日程参数非法，请检查时间区间、可见性与提醒设置"),
             Map.entry(CALENDAR_NOT_FOUND, "日程不存在或无权访问"),
-            Map.entry(CALENDAR_FORBIDDEN, "无权操作该日程"));
+            Map.entry(CALENDAR_FORBIDDEN, "无权操作该日程"),
+            Map.entry(DRIVE_INVALID, "网盘参数非法，请检查文件夹名称、范围与授权设置"),
+            Map.entry(DRIVE_FOLDER_NOT_FOUND, "网盘文件夹不存在或无权访问"),
+            Map.entry(DRIVE_FILE_NOT_FOUND, "网盘文件不存在或无权访问"),
+            Map.entry(DRIVE_FORBIDDEN, "无权操作该网盘资源"),
+            Map.entry(DRIVE_FOLDER_NOT_EMPTY, "文件夹下仍有子文件夹或文件，不能删除"),
+            Map.entry(DRIVE_QUOTA_EXCEEDED, "网盘配额已超限，请清理后重试"),
+            Map.entry(DRIVE_FILE_EXISTS, "该文件已在当前文件夹登记"),
+            Map.entry(DRIVE_NAME_EXISTS, "同目录下已存在同名文件夹"),
+            Map.entry(DRIVE_FILE_UNAVAILABLE, "文件服务暂不可用或文件不可下载，请稍后重试"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。

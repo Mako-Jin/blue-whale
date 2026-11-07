@@ -334,6 +334,25 @@ class OaFlywayMigrationScriptTest {
         assertTrue(script.contains("idx_oa_calendar_owner_time"), "V10 应按所有者与时间建索引");
     }
 
+    @Test
+    @DisplayName("V11 创建网盘文件夹、文件登记与授权表")
+    void v11ShouldCreateDriveTables() throws IOException {
+        Path v11 = MIGRATION_DIR.resolve("V11__drive.sql");
+        Set<String> tables = extractTables(v11);
+        assertEquals(Set.of("oa_drive_folder", "oa_drive_file", "oa_drive_acl"), tables,
+                "V11 建表集合与 M3-P2 网盘设计不一致");
+
+        String script = Files.readString(v11, StandardCharsets.UTF_8);
+        for (String column : List.of("parent_id", "scope", "dept_id", "owner_id", "sort_no",
+                "folder_id", "file_id", "file_name", "file_size", "content_type", "uploader_id",
+                "subject_type", "subject_id", "effect", "permission")) {
+            assertTrue(script.contains(column), "V11 网盘表应包含列：" + column);
+        }
+        assertTrue(script.contains("uk_oa_drive_file_folder"), "V11 应保证同一文件夹内文件登记唯一");
+        assertTrue(script.contains("uk_oa_drive_acl_subject"), "V11 应保证同一主体授权唯一");
+        assertTrue(script.contains("idx_oa_drive_folder_parent"), "V11 应按父目录建索引");
+    }
+
     /**
      * 列出迁移脚本并按版本号数值升序返回（避免 V10 排在 V1 之前）
      *

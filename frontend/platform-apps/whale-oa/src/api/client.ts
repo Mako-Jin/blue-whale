@@ -77,4 +77,7 @@ export const http = {
   del: <T>(url: string) => request<T>(url, { method: 'DELETE' }),
 };
 
-export type { Result } from '@bluewhale/http';
+/** 下载原始字节流（带 Bearer 鉴权与 401 续期重放），返回字节流与文件名 */
+export const downloadBlob = client.downloadBlob;
+
+export type { DownloadResult, Result } from '@bluewhale/http';
