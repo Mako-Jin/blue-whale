@@ -37,6 +37,7 @@ import CollabWorkbenchPage from './pages/collab/workbench';
 import CulturePage from './pages/culture';
 import PollPage from './pages/poll';
 import SuggestionPage from './pages/suggestion';
+import ReportPage from './pages/report';
 import { hasPermission } from './utils/permission';
 
 const { Header, Content, Sider } = Layout;
@@ -78,6 +79,7 @@ const MENU_ITEMS = [
   { key: '/culture', label: '企业文化', permission: 'sys:oa:culture:list' },
   { key: '/poll', label: '投票问卷', permission: 'sys:oa:poll:list' },
   { key: '/suggestion', label: '建议箱', permission: 'sys:oa:suggestion:list' },
+  { key: '/report', label: '数据报表', permission: 'sys:oa:report:list' },
 ];
 
 /** 按权限过滤后的菜单 */
@@ -145,6 +147,7 @@ function OaLayout() {
             <Route path="/culture" element={<CulturePage />} />
             <Route path="/poll" element={<PollPage />} />
             <Route path="/suggestion" element={<SuggestionPage />} />
+            <Route path="/report" element={<ReportPage />} />
             <Route path="*" element={<Navigate to={DEFAULT_PATH} replace />} />
           </Routes>
         </Content>

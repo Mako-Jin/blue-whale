@@ -423,6 +423,23 @@ class OaFlywayMigrationScriptTest {
         assertTrue(script.contains("'oa_hr_admin'"), "V14 应种子 HR 角色审批规则");
     }
 
+    @Test
+    @DisplayName("V15 创建报表快照与导出记录 2 张表")
+    void v15ShouldCreateReportTables() throws IOException {
+        Path v15 = MIGRATION_DIR.resolve("V15__report.sql");
+        Set<String> tables = extractTables(v15);
+        assertEquals(Set.of("oa_report_snapshot", "oa_report_export_log"), tables,
+                "V15 建表集合与 M6 数据报表设计不一致");
+
+        String script = Files.readString(v15, StandardCharsets.UTF_8);
+        for (String column : List.of("report_code", "report_name", "period", "from_date", "to_date",
+                "row_count", "payload", "generated_by", "generated_by_name", "generated_at",
+                "export_format", "exported_by", "exported_by_name", "exported_at")) {
+            assertTrue(script.contains(column), "V15 报表表应包含列：" + column);
+        }
+        assertTrue(script.contains("uk_oa_report_snapshot"), "V15 应保证同租户同报表同期间快照唯一");
+    }
+
     /**
      * 列出迁移脚本并按版本号数值升序返回（避免 V10 排在 V1 之前）
      *

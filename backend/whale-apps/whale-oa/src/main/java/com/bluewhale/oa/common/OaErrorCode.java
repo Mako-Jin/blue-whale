@@ -405,6 +405,12 @@ public final class OaErrorCode {
     /** Auth 人员生命周期服务暂不可用 */
     public static final int HR_CHANGE_AUTH_UNAVAILABLE = 50309;
 
+    /** 报表参数非法（报表编码、期间或日期区间） */
+    public static final int REPORT_INVALID = 40028;
+
+    /** 报表快照不存在或无权访问 */
+    public static final int REPORT_SNAPSHOT_NOT_FOUND = 40442;
+
 
     /** 错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
@@ -537,7 +543,9 @@ public final class OaErrorCode {
             Map.entry(HR_CHANGE_NOT_FOUND, "人员异动单不存在或无权访问"),
             Map.entry(HR_CHANGE_STATUS_CONFLICT, "人员异动单当前状态不允许该操作"),
             Map.entry(HR_CHANGE_FOUR_EYES, "四眼原则：申请人与执行人不能为同一人"),
-            Map.entry(HR_CHANGE_AUTH_UNAVAILABLE, "Auth 人员生命周期服务暂不可用，稍后可重试执行"));
+            Map.entry(HR_CHANGE_AUTH_UNAVAILABLE, "Auth 人员生命周期服务暂不可用，稍后可重试执行"),
+            Map.entry(REPORT_INVALID, "报表参数非法，请检查报表类型、统计期间与日期区间"),
+            Map.entry(REPORT_SNAPSHOT_NOT_FOUND, "报表快照不存在或无权访问"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。
