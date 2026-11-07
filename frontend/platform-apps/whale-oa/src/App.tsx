@@ -12,6 +12,16 @@ import ProfileCenter from './pages/hr/profile';
 import CalendarCenter from './pages/hr/calendar';
 import OvertimePage from './pages/hr/overtime';
 import TripPage from './pages/hr/trip';
+import AttendancePunchPage from './pages/attendance/punch';
+import AttendanceDailyPage from './pages/attendance/daily';
+import AttendanceRulesPage from './pages/attendance/rules';
+import AttendanceCorrectionPage from './pages/attendance/correction';
+import ExpenseApplyPage from './pages/expense/apply';
+import ExpenseLedgerPage from './pages/expense/ledger';
+import ExpenseCategoryPage from './pages/expense/category';
+import VehicleAdminPage from './pages/admin/vehicle';
+import SealAdminPage from './pages/admin/seal';
+import PurchaseAdminPage from './pages/admin/purchase';
 import { hasPermission } from './utils/permission';
 
 const { Header, Content, Sider } = Layout;
@@ -28,6 +38,16 @@ const MENU_ITEMS = [
   { key: '/hr/leave-balance', label: '额度台账', permission: 'sys:oa:hr:balance:list' },
   { key: '/hr/profile', label: '员工档案', permission: 'sys:oa:hr:profile:list' },
   { key: '/hr/calendar', label: '工作日历', permission: 'sys:oa:hr:calendar:list' },
+  { key: '/attendance/punch', label: '打卡记录', permission: 'sys:oa:attendance:record:list' },
+  { key: '/attendance/daily', label: '考勤日报', permission: 'sys:oa:attendance:daily:list' },
+  { key: '/attendance/rules', label: '考勤配置', permission: 'sys:oa:attendance:config:list' },
+  { key: '/attendance/correction', label: '补卡与异常', permission: 'sys:oa:attendance:config:list' },
+  { key: '/expense/apply', label: '报销申请', permission: 'sys:oa:expense:list' },
+  { key: '/expense/ledger', label: '报销台账', permission: 'sys:oa:expense:list' },
+  { key: '/expense/category', label: '费用类别', permission: 'sys:oa:expense:category:list' },
+  { key: '/admin/vehicle', label: '用车管理', permission: 'sys:oa:vehicle:list' },
+  { key: '/admin/seal', label: '用章申请', permission: 'sys:oa:seal:list' },
+  { key: '/admin/purchase', label: '采购申请', permission: 'sys:oa:purchase:list' },
 ];
 
 /** 按权限过滤后的菜单 */
@@ -70,6 +90,16 @@ function OaLayout() {
             <Route path="/hr/leave-balance" element={<LeaveBalanceCenter />} />
             <Route path="/hr/profile" element={<ProfileCenter />} />
             <Route path="/hr/calendar" element={<CalendarCenter />} />
+            <Route path="/attendance/punch" element={<AttendancePunchPage />} />
+            <Route path="/attendance/daily" element={<AttendanceDailyPage />} />
+            <Route path="/attendance/rules" element={<AttendanceRulesPage />} />
+            <Route path="/attendance/correction" element={<AttendanceCorrectionPage />} />
+            <Route path="/expense/apply" element={<ExpenseApplyPage />} />
+            <Route path="/expense/ledger" element={<ExpenseLedgerPage />} />
+            <Route path="/expense/category" element={<ExpenseCategoryPage />} />
+            <Route path="/admin/vehicle" element={<VehicleAdminPage />} />
+            <Route path="/admin/seal" element={<SealAdminPage />} />
+            <Route path="/admin/purchase" element={<PurchaseAdminPage />} />
             <Route path="*" element={<Navigate to={DEFAULT_PATH} replace />} />
           </Routes>
         </Content>
