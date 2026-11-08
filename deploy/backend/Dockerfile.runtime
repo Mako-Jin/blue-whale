@@ -1,0 +1,26 @@
+# ============================================================
+# 蓝鲸后端服务运行时镜像（吃已构建好的 jar，不做 Maven 构建）
+# 适用：gateway / auth / pay / erp / oa / crm 等 Spring Boot 服务
+#
+# 构建（每个服务一次；context 只放该服务的一个 app.jar，避免 480MB 全量重复上传）：
+#   docker build -f deploy/backend/Dockerfile.runtime \
+#     -t bluewhale/whale-gateway:dev deploy/backend/jars/gateway
+#
+# 说明：
+#   1) docker build 的 -f 允许指向 context 之外的 Dockerfile，模板可复用。
+#   2) 本机 Docker Desktop 的 buildkit 在 RUN 层偶发 rpc EOF，因此镜像内不做 RUN，
+#      时区靠 ENV TZ（JVM 直接读取）+ 基础镜像自带的 /usr/share/zoneinfo。
+# ============================================================
+ARG JRE_IMAGE=docker.m.daocloud.io/library/eclipse-temurin:21-jre-alpine
+FROM ${JRE_IMAGE}
+
+# 16G 机器 + WSL 上限 6~8G：单容器堆固定 640m，避免 6 个服务同时按 1/4 内存起堆把 WSL 挤爆
+ENV TZ=Asia/Shanghai \
+    LANG=C.UTF-8 \
+    JAVA_OPTS="-Xms256m -Xmx640m -XX:MaxMetaspaceSize=320m -XX:+ExitOnOutOfMemoryError"
+
+WORKDIR /app
+COPY app.jar /app/app.jar
+
+EXPOSE 8080
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar"]

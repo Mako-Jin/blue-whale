@@ -1,0 +1,168 @@
+# ============================================================
+# 蓝鲸后端业务服务 - 容器编排（本地开发）
+#
+# 前置：中间件由 infrastructure/docker/docker-compose.yml 提供
+#   - Redis    → 容器 bw-redis    （docker 网络 bluewhale-dev_bw-net，无密码）
+#   - RabbitMQ → 容器 bw-rabbitmq （同上）
+#   - MySQL    → 宿主机原生实例   （0.0.0.0:3306，经 host.docker.internal 访问）
+#   - Nacos    → 宿主机原生实例   （0.0.0.0:8848，经 host.docker.internal 访问）
+#
+# 镜像需先用 deploy/backend/Dockerfile.runtime 构建：
+#   for s in gateway auth pay erp oa crm; do
+#     docker build -f deploy/backend/Dockerfile.runtime -t bluewhale/whale-$s:dev deploy/backend/jars/$s
+#   done
+#
+# 启动：docker compose -f deploy/backend/docker-compose.services.yml up -d
+# ============================================================
+
+name: bluewhale-app
+
+x-common: &common
+  restart: unless-stopped
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  networks:
+    - bw-net
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+  mem_limit: 1100m
+
+services:
+  # ---------------- 网关 ----------------
+  gateway:
+    <<: *common
+    image: bluewhale/whale-gateway:dev
+    container_name: bw-gateway
+    environment:
+      SERVER_PORT: "8080"
+      NACOS_SERVER: ${NACOS_SERVER}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: "6379"
+    ports:
+      - "127.0.0.1:8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 60s
+
+  # ---------------- 认证 ----------------
+  auth:
+    <<: *common
+    image: bluewhale/whale-auth:dev
+    container_name: bw-auth
+    environment:
+      SERVER_PORT: "8081"
+      NACOS_SERVER: ${NACOS_SERVER}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: "6379"
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      # auth 的 application.yml 里数据源 URL 是硬编码 127.0.0.1，必须用 Spring 标准变量覆盖
+      SPRING_DATASOURCE_URL: "jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/bluewhale_auth?useUnicode=true&characterEncoding=utf8&connectionCollation=utf8mb4_general_ci&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true"
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      MANAGEMENT_HEALTH_RABBIT_ENABLED: "false"
+    ports:
+      - "127.0.0.1:8081:8081"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8081/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 90s
+
+  # ---------------- 支付 ----------------
+  pay:
+    <<: *common
+    image: bluewhale/whale-pay:dev
+    container_name: bw-pay
+    environment:
+      SERVER_PORT: "8086"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "127.0.0.1:8086:8086"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8086/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 90s
+
+  # ---------------- ERP ----------------
+  erp:
+    <<: *common
+    image: bluewhale/whale-erp:dev
+    container_name: bw-erp
+    environment:
+      SERVER_PORT: "9001"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "127.0.0.1:9001:9001"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9001/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 90s
+
+  # ---------------- OA ----------------
+  oa:
+    <<: *common
+    image: bluewhale/whale-oa:dev
+    container_name: bw-oa
+    environment:
+      SERVER_PORT: "9004"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "127.0.0.1:9004:9004"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9004/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 90s
+
+  # ---------------- CRM ----------------
+  crm:
+    <<: *common
+    image: bluewhale/whale-crm:dev
+    container_name: bw-crm
+    environment:
+      SERVER_PORT: "9007"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "127.0.0.1:9007:9007"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9007/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 90s
+
+networks:
+  bw-net:
+    external: true
+    name: bluewhale-dev_bw-net
