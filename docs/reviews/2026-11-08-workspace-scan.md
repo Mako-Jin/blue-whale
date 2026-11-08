@@ -530,3 +530,62 @@ Spring Boot 4 用 Jackson 3（`tools.jackson.*`），不再自动注册 Jackson 
 （`SimpleClientHttpRequestFactory` 的 `Connect timed out`）都按连接层失败处理；
 读超时（`Read timed out`）保持不改派。单测 +1（`HttpJobHandlerTest` 6 项全绿，whale-job 98 项全绿）。
 `bw-job` 已重打包重建，重建后 3 分钟内调度零异常、流水全部 `status=1`。
+
+## 二十、补记（2026-11-09 01:00–02:00：权限号段撞号，两处静默失效）
+
+上一轮把「权限/菜单号段占用脚本化扫描」列在 P2，做的时候先写扫描器，扫完发现**不是待办，是两个正在生效的缺陷**。
+
+### 20.1 为什么会静默失效
+
+权限种子全部写成这种形态（176 份迁移脚本、800+ 权限点）：
+
+```sql
+INSERT INTO sys_permission (...) SELECT 1900, 0, 'sys:crm:analytics:funnel', ...
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 1900 OR perm_code = '...');
+```
+
+幂等条件同时判 `id` 和 `perm_code`：**只要 ID 被别的模块占了，这一行就整条跳过，脚本照样返回成功**。
+于是撞号的后果不是报错，而是「权限点根本不存在」——接口一路 403，建表与单测全绿，日志里一个字都没有。
+
+### 20.2 扫出两个真缺陷（都在库里可复现）
+
+| # | 撞号 | 实际后果（已对 `bluewhale_auth` 核实） |
+|---|---|---|
+| 1 | `migration-5.83-crm-m6-analytics.sql` 的 1899–1905 vs `migration-5.87-lms-m0.sql` 的 1900–1949 | 库里 1900–1910 全是 `sys:lms:*`，**CRM 的 7 个分析权限一个都没进去**（`sys:crm:analytics%` 查询 0 行），crm_analyst 打开销售看板/漏斗/排行全部 403；菜单 441–448 也从未登记（CRM 前端菜单树里没有分析入口） |
+| 2 | `migration-5.55-pm.sql` 的 172/173 vs `V3__tenant_password_policy.sql` | 库里 172/173 是 `sys:tenant:pwdpolicy:list/edit`，**`sys:pm:project:list` / `:add` 从未入库**；而 5.57/5.66 的授权按「172–202 区间」发放，于是 **pm_manager / pm_member 拿到了「租户密码策略查看」，pm_manager 还拿到了「编辑」**——项目经理能改全租户密码策略，同时看不到项目列表 |
+
+第 2 条是**跨模块越权**：不是权限缺失，是别人家的权限被发给了不该拿的角色。
+
+### 20.3 修法
+
+| 改动 | 内容 |
+|---|---|
+| `migration-5.83-crm-m6-analytics.sql` | 权限 1899–1905 → **2300–2306**（2200–2224 归商城，2300 起空闲）；菜单 441–448 保持；**授权语句从「按 ID 区间」改为「按 perm_code」**——同名 `sys:crm:export` 在存量库里是 352（Wave 5.77），按 ID 授权必然漏 |
+| `migration-5.55-pm.sql` | 两项改 **2320/2321（PM 续段）**，其余 174–202 不动；头部写明来龙去脉 |
+| `migration-5.57-pm-role-grant.sql` / `migration-5.66-pm-role-template.sql` | 授权区间 172–202 → 174–202 + 2320–2321（含 tenant_admin / pm_member 三处） |
+| `migration-2026-11-09-pm-perm-regrant.sql`（新） | 修既有库：**先删误授**（pm_* ↔ 172/173），再补 2320/2321，最后按 perm_code 重新授权 |
+| `scripts/security/scan-id-ranges.py`（新） | 静态扫 176 份迁移脚本：同 ID 被不同编码争用 = **ERROR**；同编码多 ID = WARN（提示授权要按编码）；同 ID 同编码多文件 = INFO（幂等重复声明的正常形态） |
+| `.github/workflows/code-quality.yml` | 新增 `permission-id-ranges` job，ERROR 即阻断（`--strict` 可把 WARN 也升级为失败） |
+
+### 20.4 验证
+
+- 扫描器：修前 `ERROR 18` / 修后 **`ERROR 0`**（827 权限点、17 权限菜单脚本、56 角色声明、122 份脚本）；
+- 库里复核（与 auth 的鉴权查询同口径 `role → sys_role_permission → sys_permission`）：
+  - `crm_analyst` 现有 `analytics:{dashboard,funnel,customer,ranking,collection}` 5 项（导出与行动计划另由 `sys:crm:export` / `sys:crm:action:plan` 承载）；
+  - `pm_manager` 现有 `project:{list,add,edit,delete}`，`pm_member` 有 `project:list`；
+  - `pm_manager`/`pm_member` 对 `sys:tenant:pwdpolicy%` 的授权 **0 行**（误授已清）。
+- 中文落库用 `HEX()` 核过：菜单 441 = `E99480E594AEE79C8BE69DBF`（销售看板）、448 = `E695B0E68DAEE5AFBCE587BA`（数据导出），不是 `?`。
+
+### 20.5 同批修复：CRM 三段配置未显式声明
+
+`whale.crm.service`（工单/SLA 时限）、`whale.crm.docs`（知识库正文引用）、`whale.crm.survey`（满意度问卷）三个 `@ConfigurationProperties`
+在 `application.yml` 里一个字都没写，全靠 Java 默认值——**运维看不到、也改不了**。已在 `application.yml` 显式声明并给全部键留环境变量口
+（`WHALE_CRM_SERVICE_P1_RESPONSE_HOURS` / `WHALE_DOC_URL` / `WHALE_CRM_SURVEY_SECRET` 等）。
+时间键必须加引号：YAML 1.1 把裸 `09:00` 当六十进制数解析成 `540`。
+
+### 20.6 仍未处理（有意）
+
+- `migration-5.77-crm.sql` 的 337–354 与 5.83/5.84 的 1810–1849 是**同编码两套 ID**（存量保留、后者 no-op）。已在扫描器里标 WARN 而非 ERROR；
+  要彻底消掉得把存量行改号并同步 `sys_role_permission`，属数据迁移，需单独窗口，不在本次「修缺陷」范围。
+- 心跳噪音、`WHALE_INTERNAL_TOKEN`、红冲/MES 实机验证：见 §19.7，理由未变。

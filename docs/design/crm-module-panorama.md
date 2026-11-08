@@ -527,7 +527,8 @@ com.bluewhale.crm
 | 预留 | 1900–1999 | 450–469 | 后续增强 |
 
 - 权限码命名：`sys:crm:<context>:<action>`，例如 `sys:crm:customer:list`、`sys:crm:pool:claim`、`sys:crm:order:push`、`sys:crm:invoice:issue`、`sys:crm:ticket:assign`、`sys:crm:campaign:send`、`sys:crm:analytics:export`。
-- 号段占用：7f-1 用 1860–1865，7f-2 用 1866–1873，7f-3 用 1874–1880（`sys:crm:invoice:list/create/submit/issue/send/red-flush` + `sys:crm:ar:reconcile`）；M4 由 1875–1884 顺延为 1881–1890，M5 / M6 同步顺延，M6 已触及 1899 上限需启用 1900+ 预留段，实施前统一复核。
+- 号段占用：7f-1 用 1860–1865，7f-2 用 1866–1873，7f-3 用 1874–1880（`sys:crm:invoice:list/create/submit/issue/send/red-flush` + `sys:crm:ar:reconcile`）；M4 由 1875–1884 顺延为 1881–1890，M5 同步顺延。
+- **M6 分析改为续段 2300–2306（2026-11-09）**：原计划「1800–1899 用尽后启用 1900 预留段」，实际 1900–1949 已归 LMS（`migration-5.87-lms-m0.sql`）。两者撞号时幂等条件 `WHERE id = ? OR perm_code = ?` 会让后执行者整条跳过——CRM 的 7 个分析权限因此从未入库，`crm_analyst` 打开看板全部 403。现固定为 **2300–2306**（2200–2224 归商城），授权一律按 `perm_code` 而非 ID 区间。号段占用可用 `scripts/security/scan-id-ranges.py` 复核，已接入 Code Quality 门禁。
 - 菜单只注册已交付页面；未交付页面不挂空入口，避免点击即 403。
 - 迁移脚本幂等：`INSERT ... SELECT ... WHERE NOT EXISTS`；只增不删；角色授权按最小权限。
 
