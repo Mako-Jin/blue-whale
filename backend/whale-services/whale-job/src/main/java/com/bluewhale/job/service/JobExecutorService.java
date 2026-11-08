@@ -68,4 +68,15 @@ public interface JobExecutorService {
      * @return 执行器列表
      */
     List<JobExecutorVO> list(Long tenantId, String appName);
+
+    /**
+     * 物理清理心跳长期过期的执行器行。
+     *
+     * <p>在线判定本身不依赖清理（查询时按「状态 + 心跳」双条件过滤），本方法只解决
+     * 表内残留问题：容器重建后旧地址会一直留在注册表里，管理端看着像「一堆离线实例」，
+     * 且地址复用时会被唯一键挡住注册。</p>
+     *
+     * @return 删除行数
+     */
+    int purgeStale();
 }

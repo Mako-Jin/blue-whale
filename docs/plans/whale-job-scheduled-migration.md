@@ -630,6 +630,117 @@ Auth 的 `PasswordExpiryNoticeJob` 仍待处理：读取该文件时审批超时
 
 ### 15.5 进度
 
-已迁 **26 / 27**，只剩 Auth 的 `PasswordExpiryNoticeJob`（文件读取被用户拒绝共享，本轮未改）。
+已迁 **26 / 27**，只剩 Auth 的 `PasswordExpiryNoticeJob`（文件读取被用户拒绝共享，移交 §16）。
 
 除它之外，业务侧还剩 10 个「进程内工作泵」按方案不迁：MES/消息/支付三个 outbox 派发、邮件同步、Lucene flush、权限缓存对账、job 自身 reconcile、音乐/视频播放数刷盘（2 个）、电子签 60s 轮询。
+
+---
+
+## 16. 第八批：Auth 口令到期提醒 + 8 个服务容器化（2026-11-08 21:10–21:50）
+
+上一批结束时 `job_info` 里还有 11 条任务 `status=0`，原因不是没迁，而是**执行器根本没常驻**：doc / video / music / archive / audit / lms / party / pdm 八个服务只在各自的验证阶段临时起过，验证完即 down。本批把它们纳入常态编排，让迁移后的任务真正跑在线上编排里。
+
+### 16.1 Auth 任务迁移（27/27 收口）
+
+| 服务 | 任务 code | 类.方法 | cron | 摘要字段 |
+|---|---|---|---|---|
+| whale-service-auth | `auth.password.expiry-notice` | `PasswordExpiryNoticeJob#notifyExpiringPasswords` | `${whale.auth.password.notice-cron:0 0 2 * * ?}` | `candidates=n, notified=n` |
+
+`@Scheduled` → `@ScheduledJob`，`void` 改返回执行摘要，两处提前 `return` 改成显式 `skipped:` / `candidates=0`。**移除方法级 `try/catch`**：原实现 `catch` 后只 `log.warn`，任务停摆会在调度侧长期记成成功——与 §15 同一条口径，异常一律上抛给调度中心。
+
+测试随之改口径：原 `shouldSwallowException` 断言「不抛」，与迁移后的语义直接冲突，改为 `shouldPropagateException`（`assertThrows`），并给两条跳过分支补返回值断言。
+
+### 16.2 八个服务容器化
+
+| 服务 | 端口 | 库 | 备注 |
+|---|---|---|---|
+| doc | 8095 | bluewhale_doc | 依赖 redis |
+| video | 8098 | bluewhale_video | 依赖 redis |
+| music | 8096 | bluewhale_music | 依赖 redis |
+| archive | 8093 | bluewhale_archive | **库原先不存在，本批新建并补进 `01-init-databases.sql`** |
+| audit | 9101 | bluewhale_audit | 依赖 redis + rabbitmq；数据源地址硬编码 |
+| lms | 9008 | bluewhale_lms | — |
+| party | 9009 | bluewhale_party | — |
+| pdm | 9003 | bluewhale_pdm | — |
+
+内存：Docker VM 上限 5.79G，原有 12 个容器已占 4.7G。八个新服务统一 `-Xms96m -Xmx256m -XX:MaxMetaspaceSize=192m`、`mem_limit: 480m`（默认 `x-common` 的 900m 会让总账爆），实测八个合计约 2.3G，加 `pageReporting` + 2G swap 后可稳定共存。
+
+定时任务侧：八个服务全部注入 `WHALE_SCHEDULE_LOCAL_ENABLED=false` / `TRIGGER_ENABLED=true` / `EXECUTOR_REGISTER_ENABLED=true` / `EXECUTOR_SERVER_URL=http://bw-job:8082`。
+
+### 16.3 容器化过程中暴露的四个既有缺陷
+
+这八个服务此前从未在容器里常态化运行过，「起得来」本身就是一次体检：
+
+1. **`whale-pdm` 起不来**：`PdmIntSyncServiceImpl` 按 Jackson 2 类型注入 `ObjectMapper`，Spring Boot 4 只注册 Jackson 3，容器里没有该 Bean → 补 `Jackson2CompatConfig`（与 lms 同一处置）。
+2. **`pdm.change.effective` 一执行就报 `Unknown column 'tenant_id'`**：多租户插件对 `pdm_chg_job_lock` 自动追加租户列，而这表是全局调度锁、本就没有租户维度 → 把表名加进 `TenantSqlProperties` 的忽略白名单（不是改 Mapper，也不是给表加列——加列会破坏锁键的全局唯一语义）。
+3. **`whale-audit` 起不来**：yml 里没有 `spring.data.redis.*`，Redisson starter 回落到 `localhost:6379` → compose 里显式注入 `SPRING_DATA_REDIS_HOST/PORT`。**不要设 password 键**：无密码 Redis 下 Redisson 会发 AUTH 被拒。
+4. **`auth.password.expiry-notice` 派发 401**：auth 的 `SecurityFilterChain` 白名单只有 `/tenant/internal/**`、`/user/internal/**`，不含调度中心用的 `/internal/**`，触发请求被 `ExceptionTranslationFilter` 拦成 401；调度侧表现为任务挂到超时才落终态 → 白名单补 `/internal/**`（外部访问仍由网关 `internal-deny` 阻断，服务侧仍由 `InternalTokenGuard` 校验令牌）。
+
+另有两处**工程陷阱**，都容易误判成「改了没生效」：
+
+- **`mvn package` 会复用旧的 spring-boot 产物**。改了 `whale-spring-boot-starter` 后重打包 pdm，`app.jar` 内嵌的 starter 仍是旧版（182577 vs 182602 字节），表现为修复完全没生效。涉及 starter 变更时必须 `clean package`。
+- **执行器应用名必须与 `spring.application.name` 严格一致**。auth 的 yml 里是 `whale-service-auth`，种子按习惯写成 `whale-auth`，调度侧寻址为空、直接记「找不到可用实例」。已应用过的 V9 不改（会破坏 Flyway checksum），新增 `V10__fix_auth_job_executor_app.sql` 幂等修正，`init.sql` 同源改对。
+
+### 16.4 实机结果
+
+`job_info` 29 条（2 条内置 + 27 条迁移任务），**全部 `status=1`**；`job_executor` 九个应用均在线注册。
+
+| 任务 | 结果 |
+|---|---|
+| `doc.recycle.cleanup` | `status=1, removed=0` |
+| `doc.orphan-attachment.cleanup` | `status=1, result=0` |
+| `audit.log.retention` | `status=1, clean=false, archive=true, days=30`（清理开关默认关，只跑归档水位） |
+| `music.play-history.cleanup` | `status=1, removed=0` |
+| `video.license-expiry.offline` | `status=1, scanned=0, offline=0, failed=0` |
+| `video.watch-history.cleanup` | `status=1, deleted=0, batches=1` |
+| `lms.urge.daily` | `status=1, day=2026-11-08, scanned=0, urgent=0, notified=0, failed=0` |
+| `party.notice.scan` | `status=1, party=0, union=0` |
+| `pdm.change.effective` | `status=1`（耗时约 5 分钟，扫描全量变更单） |
+| `archive.sync` | `status=1, pulled=4, archived=0, failed=4`——4 条失败全部是 `bw-form:8084` 未部署（表单服务不在本轮范围） |
+| `archive.file-lock-reconcile` | `status=1, tenants=1, locked=0, failedTenants=0` |
+| `auth.password.expiry-notice` | `status=1, candidates=0, notified=0` |
+
+`archive` 两个任务的方法级开关默认 false（关时只返回 `skipped`），compose 里显式打开 `WHALE_ARCHIVE_SYNC_ENABLED` / `WHALE_ARCHIVE_LOCK_RECONCILE_ENABLED`——否则任务虽然 `status=1`，实际是空转。
+
+### 16.5 留下的运维噪音
+
+`bw-job` 启动时会尝试写 `bluewhale_job.audit_log`，该表不存在，每次触发都打一段 `BadSqlGrammarException` 堆栈。不影响调度结果（任务本身照常执行），属于审计日志组件的既有缺口，待后续统一处理。
+
+### 16.6 门禁与进度
+
+`whale-service-auth`（`PasswordExpiryNoticeJobTest` 6 例）、`whale-job` 84、`whale-pdm`、`whale-spring-boot-starter` 全绿，Checkstyle 0。
+
+**进度 27 / 27，业务侧定时任务迁移收口。** 余下 10 个「进程内工作泵」按方案不迁：MES/消息/支付三个 outbox 派发、邮件同步、Lucene flush、权限缓存对账、job 自身 reconcile、音乐/视频播放数刷盘（2 个）、电子签 60s 轮询。
+
+---
+
+## 17. 后续小项（2026-11-08 21:50–22:00）
+
+### 17.1 注册表过期执行器行清理
+
+在线判定本来就是「状态在线 + 心跳未超时」双条件，过期行不会被寻址，但会一直堆在表里：管理端看着像「一堆离线实例」，而且**地址被新容器复用时会被唯一键挡住注册**。
+
+- `JobExecutorMapper#deleteStale` 用原生 `DELETE`：唯一键 `(tenant_id, app_name, address)` 不含 `deleted`，逻辑删除会把同一地址的重新注册挡在唯一键上。
+- 阈值 = `heartbeatTimeoutSeconds × staleMultiplier`（默认 90 × 10 = 15 分钟），倍数配 0 或负数时按 1 倍处理，避免退化成「删全部」。
+- 挂在 `JobScheduleReconcileJob` 上跑，与重对齐同周期（5 分钟），清理失败只 warn、不影响重对齐。
+
+实测：一次清理删掉 10 条历史残留，剩 11 条全部在线。
+
+### 17.2 顺带修掉的 F-02 失效缺陷
+
+查清理为什么没生效时发现：**`whale-job` 的启动类从来没有 `@EnableScheduling`**。调度中心自己的业务任务由自研 `JobScheduler` 按 cron 驱动，不依赖 Spring 调度器，所以一直没人发现——但方案里明确保留的「进程内工作泵」全部依赖 `@Scheduled`，包括 F-02 的多实例断连重对齐。也就是说**断连重对齐自上线起从未执行过**。
+
+补注解后首轮日志：`定时任务调度的数据库重对齐完成: running=29, canceled=0, rescheduled=0`。
+
+### 17.3 job 库补建 `audit_log`
+
+`AuditLogAspect` 在 job 上是装配的（管理端改 cron、启停任务都带 `@AuditLog`），但 job 库一直没有这张表，每次操作都抛 `BadSqlTranslationException: Table 'bluewhale_job.audit_log' doesn't exist`——审计没落库，日志里全是堆栈。
+
+`V11__audit_log.sql` 按 `AuditLogRecord` 建表（append-only：无 `update_time`、无 `deleted`），结构与 auth / crm 各库一致；`init.sql` 同步。实测管理端触发任务后审计正常落库，报错归零。
+
+### 17.4 门禁
+
+`whale-job` 88（原 84 + `JobExecutorServiceImplTest` 2 + 迁移脚本用例修正）、`whale-service-auth` 6 例、Checkstyle 0、ArchUnit 绿。
+
+迁移脚本门禁顺带修了一处**断言口径**：原用例按文件名字符串顺序校验版本号严格递增，两位数版本（V10）排在 V2 之前必然失败。改为先按数值排序再校验递增——断言的是版本号单调性，而不是目录遍历顺序。
+

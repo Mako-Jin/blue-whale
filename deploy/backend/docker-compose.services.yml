@@ -71,6 +71,11 @@ services:
       RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
       MANAGEMENT_HEALTH_RABBIT_ENABLED: "false"
+      # 定时任务迁入 whale-job：口令到期提醒（auth.password.expiry-notice）
+      WHALE_SCHEDULE_LOCAL_ENABLED: "false"
+      WHALE_SCHEDULE_TRIGGER_ENABLED: "true"
+      WHALE_SCHEDULE_EXECUTOR_REGISTER_ENABLED: "true"
+      WHALE_SCHEDULE_EXECUTOR_SERVER_URL: "http://bw-job:8082"
     ports:
       - "127.0.0.1:8081:8081"
     healthcheck:
@@ -294,6 +299,252 @@ services:
       timeout: 8s
       retries: 12
       start_period: 90s
+
+  # ============================================================
+  # 以下 8 个服务原先只在验证时临时起过，现纳入常态编排。
+  # 内存约束：Docker VM 上限约 5.8G，故堆压到 320m / mem_limit 600m，
+  # 仅保留必要依赖（Redis / RabbitMQ / MySQL），不使用默认 900m 配额。
+  # 定时任务：进程内 cron 全关，只留内网触发端点 + 执行器注册。
+  # ============================================================
+
+  # ---------------- 在线文档 / Wiki ----------------
+  doc:
+    <<: *common
+    image: bluewhale/whale-doc:dev
+    container_name: bw-doc
+    mem_limit: 480m
+    environment:
+      JAVA_OPTS: "-Xms96m -Xmx256m -XX:MaxMetaspaceSize=192m -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "8095"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      WHALE_SCHEDULE_LOCAL_ENABLED: "false"
+      WHALE_SCHEDULE_TRIGGER_ENABLED: "true"
+      WHALE_SCHEDULE_EXECUTOR_REGISTER_ENABLED: "true"
+      WHALE_SCHEDULE_EXECUTOR_SERVER_URL: "http://bw-job:8082"
+    ports:
+      - "127.0.0.1:8095:8095"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8095/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 120s
+
+  # ---------------- 视频平台 ----------------
+  video:
+    <<: *common
+    image: bluewhale/whale-video:dev
+    container_name: bw-video
+    mem_limit: 480m
+    environment:
+      JAVA_OPTS: "-Xms96m -Xmx256m -XX:MaxMetaspaceSize=192m -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "8098"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      WHALE_SCHEDULE_LOCAL_ENABLED: "false"
+      WHALE_SCHEDULE_TRIGGER_ENABLED: "true"
+      WHALE_SCHEDULE_EXECUTOR_REGISTER_ENABLED: "true"
+      WHALE_SCHEDULE_EXECUTOR_SERVER_URL: "http://bw-job:8082"
+    ports:
+      - "127.0.0.1:8098:8098"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8098/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 120s
+
+  # ---------------- 音乐平台 ----------------
+  music:
+    <<: *common
+    image: bluewhale/whale-music:dev
+    container_name: bw-music
+    mem_limit: 480m
+    environment:
+      JAVA_OPTS: "-Xms96m -Xmx256m -XX:MaxMetaspaceSize=192m -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "8096"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      WHALE_SCHEDULE_LOCAL_ENABLED: "false"
+      WHALE_SCHEDULE_TRIGGER_ENABLED: "true"
+      WHALE_SCHEDULE_EXECUTOR_REGISTER_ENABLED: "true"
+      WHALE_SCHEDULE_EXECUTOR_SERVER_URL: "http://bw-job:8082"
+    ports:
+      - "127.0.0.1:8096:8096"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8096/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 120s
+
+  # ---------------- 归档 ----------------
+  # 跨服务地址必须用容器名：容器内 127.0.0.1 不等于宿主机
+  archive:
+    <<: *common
+    image: bluewhale/whale-archive:dev
+    container_name: bw-archive
+    mem_limit: 480m
+    environment:
+      JAVA_OPTS: "-Xms96m -Xmx256m -XX:MaxMetaspaceSize=192m -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "8093"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      # 两个任务的方法级开关默认关闭，关时只返回 skipped 空转，这里显式打开
+      WHALE_ARCHIVE_SYNC_ENABLED: "true"
+      WHALE_ARCHIVE_LOCK_RECONCILE_ENABLED: "true"
+      WHALE_ARCHIVE_WORKFLOW_URL: "http://bw-workflow:8083"
+      WHALE_ARCHIVE_AUTH_URL: "http://bw-auth:8081"
+      WHALE_ARCHIVE_FILE_URL: "http://bw-file:8085"
+      WHALE_ARCHIVE_FORM_URL: "http://bw-form:8084"
+      WHALE_SCHEDULE_LOCAL_ENABLED: "false"
+      WHALE_SCHEDULE_TRIGGER_ENABLED: "true"
+      WHALE_SCHEDULE_EXECUTOR_REGISTER_ENABLED: "true"
+      WHALE_SCHEDULE_EXECUTOR_SERVER_URL: "http://bw-job:8082"
+    ports:
+      - "127.0.0.1:8093:8093"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8093/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 120s
+
+  # ---------------- 审计 ----------------
+  # 数据源地址在 yml 里硬编码 127.0.0.1，必须整条覆盖
+  audit:
+    <<: *common
+    image: bluewhale/whale-audit:dev
+    container_name: bw-audit
+    mem_limit: 480m
+    environment:
+      JAVA_OPTS: "-Xms96m -Xmx256m -XX:MaxMetaspaceSize=192m -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "9101"
+      NACOS_SERVER: ${NACOS_SERVER}
+      SPRING_DATASOURCE_URL: "jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/bluewhale_audit?useUnicode=true&characterEncoding=utf8&connectionCollation=utf8mb4_general_ci&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true"
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      WHALE_AUDIT_EXPORT_FILE_SERVICE_URL: "http://bw-file:8085"
+      # audit 的 yml 没有显式 redis 配置，Redisson starter 会回落到 localhost:6379，
+      # 必须整条覆盖；无密码 Redis 不要设 password 键，否则 Redisson 会发 AUTH 被拒。
+      SPRING_DATA_REDIS_HOST: ${REDIS_HOST}
+      SPRING_DATA_REDIS_PORT: ${REDIS_PORT}
+      WHALE_SCHEDULE_LOCAL_ENABLED: "false"
+      WHALE_SCHEDULE_TRIGGER_ENABLED: "true"
+      WHALE_SCHEDULE_EXECUTOR_REGISTER_ENABLED: "true"
+      WHALE_SCHEDULE_EXECUTOR_SERVER_URL: "http://bw-job:8082"
+    ports:
+      - "127.0.0.1:9101:9101"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9101/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 120s
+
+  # ---------------- 学习培训 ----------------
+  lms:
+    <<: *common
+    image: bluewhale/whale-lms:dev
+    container_name: bw-lms
+    mem_limit: 480m
+    environment:
+      JAVA_OPTS: "-Xms96m -Xmx256m -XX:MaxMetaspaceSize=192m -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "9008"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      WHALE_SCHEDULE_LOCAL_ENABLED: "false"
+      WHALE_SCHEDULE_TRIGGER_ENABLED: "true"
+      WHALE_SCHEDULE_EXECUTOR_REGISTER_ENABLED: "true"
+      WHALE_SCHEDULE_EXECUTOR_SERVER_URL: "http://bw-job:8082"
+    ports:
+      - "127.0.0.1:9008:9008"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9008/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 120s
+
+  # ---------------- 党建 / 工会 ----------------
+  party:
+    <<: *common
+    image: bluewhale/whale-party:dev
+    container_name: bw-party
+    mem_limit: 480m
+    environment:
+      JAVA_OPTS: "-Xms96m -Xmx256m -XX:MaxMetaspaceSize=192m -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "9009"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      WHALE_SCHEDULE_LOCAL_ENABLED: "false"
+      WHALE_SCHEDULE_TRIGGER_ENABLED: "true"
+      WHALE_SCHEDULE_EXECUTOR_REGISTER_ENABLED: "true"
+      WHALE_SCHEDULE_EXECUTOR_SERVER_URL: "http://bw-job:8082"
+    ports:
+      - "127.0.0.1:9009:9009"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9009/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 120s
+
+  # ---------------- 产品数据管理 ----------------
+  pdm:
+    <<: *common
+    image: bluewhale/whale-pdm:dev
+    container_name: bw-pdm
+    mem_limit: 480m
+    environment:
+      JAVA_OPTS: "-Xms96m -Xmx256m -XX:MaxMetaspaceSize=192m -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "9003"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      WHALE_SCHEDULE_LOCAL_ENABLED: "false"
+      WHALE_SCHEDULE_TRIGGER_ENABLED: "true"
+      WHALE_SCHEDULE_EXECUTOR_REGISTER_ENABLED: "true"
+      WHALE_SCHEDULE_EXECUTOR_SERVER_URL: "http://bw-job:8082"
+    ports:
+      - "127.0.0.1:9003:9003"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9003/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 120s
 
 networks:
   bw-net:

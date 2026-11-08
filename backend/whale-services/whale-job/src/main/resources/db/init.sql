@@ -216,7 +216,10 @@ VALUES
  '迁移自 PurchaseOrderPushJob#push（按申请单号幂等，开关 whale.oa.purchase.push.enabled）'),
 (9100000000000000026, 1, 'OA 报销单推送 ERP 应付', 'OA', 'whale-oa', 'oa.expense.payable-push',
  '0 */10 * * * *', 'httpJobHandler', '{"timeoutMillis":1800000}', 'DO_NOTHING', 2, 60, 1, 1,
- '迁移自 ExpensePayablePushJob#push（单条失败置 FAILED 继续后续，开关 whale.oa.expense.push.enabled）');
+ '迁移自 ExpensePayablePushJob#push（单条失败置 FAILED 继续后续，开关 whale.oa.expense.push.enabled）'),
+(9100000000000000027, 1, 'Auth 口令到期提醒', 'AUTH', 'whale-service-auth', 'auth.password.expiry-notice',
+ '0 0 2 * * ?', 'httpJobHandler', '{"timeoutMillis":1800000}', 'FIRE_ONCE', 1, 300, 1, 1,
+ '迁移自 PasswordExpiryNoticeJob#notifyExpiringPasswords（按日幂等，重复触发不重复提醒；cron 可配 whale.auth.password.notice-cron）');
 
 -- ---------------------------------------------------------------------
 -- 5. 执行器注册表（对齐 xxl-job executor：谁在线、谁支持哪些任务）
@@ -269,3 +272,41 @@ CREATE TABLE api_log (
     KEY idx_tenant_create (tenant_id, create_time),
     KEY idx_biz_status (biz_status)
 ) COMMENT='后端接口日志表';
+
+-- ---------------------------------------------------------------------
+-- 7. 操作审计日志（append-only：无 update_time、无 deleted）
+--    对齐 starter 的 AuditLogRecord；缺表会让管理端操作审计全部落空
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS audit_log;
+CREATE TABLE audit_log (
+    id             BIGINT       NOT NULL                COMMENT '主键ID（雪花算法）',
+    trace_id       VARCHAR(64)  DEFAULT NULL             COMMENT '链路追踪ID',
+    user_id        BIGINT       DEFAULT NULL             COMMENT '操作用户ID（匿名为 NULL）',
+    tenant_id      BIGINT       DEFAULT NULL             COMMENT '租户ID',
+    username       VARCHAR(64)  DEFAULT NULL             COMMENT '操作用户名',
+    module         VARCHAR(64)  DEFAULT NULL             COMMENT '业务模块',
+    operation      VARCHAR(128) DEFAULT NULL             COMMENT '操作描述',
+    operate_type   VARCHAR(32)  DEFAULT NULL             COMMENT '操作类型',
+    method         VARCHAR(255) DEFAULT NULL             COMMENT '请求方法（全限定类名#方法名）',
+    request_uri    VARCHAR(255) DEFAULT NULL             COMMENT '请求URI',
+    http_method    VARCHAR(16)  DEFAULT NULL             COMMENT 'HTTP 方法',
+    target_type    VARCHAR(64)  DEFAULT NULL             COMMENT '操作对象类型',
+    target_id      VARCHAR(64)  DEFAULT NULL             COMMENT '操作对象ID',
+    request_params TEXT         DEFAULT NULL             COMMENT '请求参数（JSON，已脱敏）',
+    result_body    TEXT         DEFAULT NULL             COMMENT '返回体（JSON，已脱敏截断）',
+    response_code  INT          DEFAULT NULL             COMMENT '响应状态码',
+    biz_status     TINYINT      NOT NULL DEFAULT 1       COMMENT '业务结果：1 成功 / 0 失败',
+    error_msg      VARCHAR(512) DEFAULT NULL             COMMENT '失败原因',
+    ip             VARCHAR(64)  DEFAULT NULL             COMMENT '操作IP',
+    user_agent     VARCHAR(512) DEFAULT NULL             COMMENT '用户代理',
+    cost_ms        BIGINT       DEFAULT NULL             COMMENT '接口耗时（毫秒）',
+    create_time    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '操作时间',
+    PRIMARY KEY (id),
+    KEY idx_audit_log_trace (trace_id),
+    KEY idx_audit_log_user (user_id),
+    KEY idx_audit_log_tenant (tenant_id),
+    KEY idx_audit_log_module (module),
+    KEY idx_audit_log_type (operate_type),
+    KEY idx_audit_log_status (biz_status),
+    KEY idx_audit_log_time (create_time)
+) COMMENT='操作审计日志（append-only）';

@@ -16,7 +16,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -86,7 +87,7 @@ class PasswordExpiryNoticeJobTest {
         when(tenantPasswordPolicyService.effectivePolicies())
                 .thenReturn(Map.of(TENANT_A, new TenantPasswordPolicy(TENANT_A, 0, 0)));
 
-        job.notifyExpiringPasswords();
+        assertEquals("skipped: no tenant has password expiry enabled", job.notifyExpiringPasswords());
 
         verifyNoInteractions(passwordExpiryQuery);
     }
@@ -140,17 +141,17 @@ class PasswordExpiryNoticeJobTest {
         when(tenantPasswordPolicyService.effectivePolicies()).thenReturn(policies());
         when(passwordExpiryQuery.findCandidates(any())).thenReturn(List.of());
 
-        job.notifyExpiringPasswords();
+        assertEquals("candidates=0, notified=0", job.notifyExpiringPasswords());
 
         verify(passwordExpiryQuery, never()).markNoticed(any(), any());
     }
 
     @Test
-    @DisplayName("任务异常不向调度线程抛出")
-    void shouldSwallowException() {
+    @DisplayName("任务异常上抛给调度层，避免停摆被记成成功")
+    void shouldPropagateException() {
         when(tenantPasswordPolicyService.effectivePolicies())
                 .thenThrow(new IllegalStateException("db down"));
 
-        assertDoesNotThrow(job::notifyExpiringPasswords);
+        assertThrows(IllegalStateException.class, job::notifyExpiringPasswords);
     }
 }

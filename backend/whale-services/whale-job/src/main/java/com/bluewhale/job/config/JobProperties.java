@@ -38,6 +38,12 @@ public class JobProperties {
         /** 心跳超时秒数：超过该时长未心跳的实例视为离线，调度时不再寻址到它 */
         private int heartbeatTimeoutSeconds = 90;
 
+        /**
+         * 过期行清理倍数：心跳超过 {@code heartbeatTimeoutSeconds × 该倍数} 的执行器行
+         * 会被物理删除，避免容器重建留下的旧地址长期堆积在注册表里。
+         */
+        private int staleMultiplier = 10;
+
         /** HTTP 执行器默认读取超时毫秒数：任务参数未指定时使用 */
         private int httpTimeoutMillis = 60000;
 

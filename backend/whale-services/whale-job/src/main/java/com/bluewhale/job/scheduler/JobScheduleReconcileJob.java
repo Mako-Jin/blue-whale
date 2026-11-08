@@ -1,5 +1,6 @@
 package com.bluewhale.job.scheduler;
 
+import com.bluewhale.job.service.JobExecutorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -12,6 +13,9 @@ import org.springframework.stereotype.Component;
  * <p>多实例通过 Redis Pub/Sub 广播调度变更；断连期间的消息会丢失，且 Redis Pub/Sub 不保证补发。
  * 本任务周期性按数据库运行中任务全量重对齐本地 {@link JobScheduler} 的注册状态，
  * 单轮异常只记录日志，不影响后续调度。</p>
+ *
+ * <p>顺带清理心跳长期过期的执行器行：容器重建后旧地址会一直留在注册表里，
+ * 除了让管理端看着像「一堆离线实例」，地址复用时还会撞唯一键。</p>
  *
  * <p>默认开启，可通过 {@code whale.job.schedule-reconcile.enabled=false} 关闭。</p>
  *
@@ -26,6 +30,8 @@ public class JobScheduleReconcileJob {
 
     private final JobScheduler jobScheduler;
 
+    private final JobExecutorService jobExecutorService;
+
     /**
      * 周期重对齐本地调度：默认首次延迟 60 秒，之后每 5 分钟一次
      */
@@ -36,6 +42,11 @@ public class JobScheduleReconcileJob {
             jobScheduler.reconcileWithDatabase();
         } catch (Exception e) {
             log.warn("定时任务调度重对齐失败，等待下一周期重试: reason={}", e.getMessage(), e);
+        }
+        try {
+            jobExecutorService.purgeStale();
+        } catch (Exception e) {
+            log.warn("清理过期执行器行失败，等待下一周期重试: reason={}", e.getMessage());
         }
     }
 }

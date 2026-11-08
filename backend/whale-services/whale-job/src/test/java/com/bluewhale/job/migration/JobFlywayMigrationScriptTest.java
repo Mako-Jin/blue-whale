@@ -55,8 +55,12 @@ class JobFlywayMigrationScriptTest {
                 .map(JobFlywayMigrationScriptTest::versionOf)
                 .collect(Collectors.toList());
         assertEquals(versions.size(), Set.copyOf(versions).size(), "版本号不可重复：" + versions);
-        for (int i = 1; i < versions.size(); i++) {
-            assertTrue(versions.get(i) > versions.get(i - 1), "脚本版本号必须严格递增：" + versions);
+        // 文件名是字符串排序，两位数版本（V10）会排在 V2 之前，因此先按数值排序再校验递增，
+        // 否则断言的是「目录遍历顺序」，而不是版本号本身的单调性。
+        List<Long> sortedVersions = versions.stream().sorted().toList();
+        for (int i = 1; i < sortedVersions.size(); i++) {
+            assertTrue(sortedVersions.get(i) > sortedVersions.get(i - 1),
+                    "脚本版本号必须严格递增：" + sortedVersions);
         }
         for (Path script : scripts) {
             for (String line : Files.readAllLines(script, StandardCharsets.UTF_8)) {

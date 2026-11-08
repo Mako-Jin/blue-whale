@@ -196,6 +196,18 @@ public class JobExecutorServiceImpl implements JobExecutorService {
         return LocalDateTime.now().minusSeconds(jobProperties.getExecutor().getHeartbeatTimeoutSeconds());
     }
 
+    @Override
+    public int purgeStale() {
+        int multiplier = Math.max(jobProperties.getExecutor().getStaleMultiplier(), 1);
+        long staleSeconds = (long) jobProperties.getExecutor().getHeartbeatTimeoutSeconds() * multiplier;
+        LocalDateTime threshold = LocalDateTime.now().minusSeconds(staleSeconds);
+        int rows = jobExecutorMapper.deleteStale(threshold);
+        if (rows > 0) {
+            log.info("清理过期执行器行: rows={}, threshold={}, staleSeconds={}", rows, threshold, staleSeconds);
+        }
+        return rows;
+    }
+
     /**
      * 归一租户ID
      *

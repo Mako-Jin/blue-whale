@@ -4,9 +4,9 @@ import com.bluewhale.auth.application.user.password.TenantPasswordPolicy;
 import com.bluewhale.auth.application.user.password.TenantPasswordPolicyService;
 import com.bluewhale.auth.application.user.password.port.PasswordExpiryQuery;
 import com.bluewhale.auth.application.user.password.port.PasswordExpiryQuery.PasswordExpiryCandidate;
+import com.bluewhale.common.jobschedule.ScheduledJob;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -41,30 +41,29 @@ public class PasswordExpiryNoticeJob {
     /**
      * 扫描并在口令到期前 {@code warnDays} 天输出告警；已到期账号按「已过期」分级告警
      */
-    @Scheduled(cron = "${whale.auth.password.notice-cron:0 0 2 * * ?}")
-    public void notifyExpiringPasswords() {
-        try {
-            Map<Long, TenantPasswordPolicy> policies = tenantPasswordPolicyService.effectivePolicies();
-            int minWindowDays = minReminderWindowDays(policies);
-            if (minWindowDays < 0) {
-                return;
-            }
-            LocalDateTime now = LocalDateTime.now();
-            List<PasswordExpiryCandidate> candidates =
-                    passwordExpiryQuery.findCandidates(now.minusDays(minWindowDays));
-            if (candidates.isEmpty()) {
-                return;
-            }
-            int notified = 0;
-            for (PasswordExpiryCandidate candidate : candidates) {
-                if (notifyIfDue(candidate, now, policies.get(candidate.tenantId()))) {
-                    notified++;
-                }
-            }
-            log.warn("口令到期提醒完成: 本次提醒账号数={}", notified);
-        } catch (Exception ex) {
-            log.warn("口令到期提醒任务执行失败: {}", ex.getMessage());
+    @ScheduledJob(code = "auth.password.expiry-notice",
+            cron = "${whale.auth.password.notice-cron:0 0 2 * * ?}",
+            timeoutSeconds = 1800)
+    public String notifyExpiringPasswords() {
+        Map<Long, TenantPasswordPolicy> policies = tenantPasswordPolicyService.effectivePolicies();
+        int minWindowDays = minReminderWindowDays(policies);
+        if (minWindowDays < 0) {
+            return "skipped: no tenant has password expiry enabled";
         }
+        LocalDateTime now = LocalDateTime.now();
+        List<PasswordExpiryCandidate> candidates =
+                passwordExpiryQuery.findCandidates(now.minusDays(minWindowDays));
+        if (candidates.isEmpty()) {
+            return "candidates=0, notified=0";
+        }
+        int notified = 0;
+        for (PasswordExpiryCandidate candidate : candidates) {
+            if (notifyIfDue(candidate, now, policies.get(candidate.tenantId()))) {
+                notified++;
+            }
+        }
+        log.info("口令到期提醒完成: 候选账号数={}, 本次提醒账号数={}", candidates.size(), notified);
+        return "candidates=" + candidates.size() + ", notified=" + notified;
     }
 
     /**
