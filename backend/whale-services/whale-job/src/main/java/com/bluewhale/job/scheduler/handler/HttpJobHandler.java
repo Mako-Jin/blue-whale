@@ -21,10 +21,13 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.net.ConnectException;
 import java.net.NoRouteToHostException;
+import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
+import java.net.http.HttpConnectTimeoutException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -346,9 +349,28 @@ public class HttpJobHandler implements JobHandler {
                     || cause instanceof UnknownHostException) {
                 return true;
             }
+            // 连接阶段超时同样是「一个字节都没发出去」，改派安全。
+            // JDK HttpClient 抛 HttpConnectTimeoutException；SimpleClientHttpRequestFactory 抛
+            // SocketTimeoutException("Connect timed out")，需按消息区分于读超时("Read timed out")。
+            if (cause instanceof HttpConnectTimeoutException) {
+                return true;
+            }
+            if (cause instanceof SocketTimeoutException && isConnectPhaseTimeout(cause.getMessage())) {
+                return true;
+            }
             cause = cause.getCause();
         }
         return false;
+    }
+
+    /**
+     * 判断超时异常是否发生在连接阶段（据 JVM 固定英文消息 "Connect timed out"）。
+     *
+     * @param message 异常消息
+     * @return true 表示连接阶段超时
+     */
+    private boolean isConnectPhaseTimeout(String message) {
+        return message != null && message.toLowerCase(Locale.ROOT).contains("connect");
     }
 
     /**

@@ -512,3 +512,21 @@ Spring Boot 4 用 Jackson 3（`tools.jackson.*`），不再自动注册 Jackson 
 | 心跳噪音（11 服务各一条 `StringHttpMessageConverter`） | 根治要改 starter 的心跳读取方式并**重打包全部服务**，收益是一个自愈 25 秒的 WARN |
 | 红冲 / MES 乱序的**实机**验证 | dev 库没有 `ISSUED` 状态的发票（`/crm/invoice/page?status=ISSUED` 返回 total=0），造一张要先走审批+开票；MES 链路要真工单。两者都由单测覆盖，实机留到有数据时 |
 | 商城前端、ERP M3 3b、MES 数据范围/归档清理、CRM 前端 3 项 | 都是功能开发，不是「修」；需要产品口径确认，不宜半夜自己拍 |
+
+### 19.8 补修：连接阶段超时未判为可改派（§十七 P0-1 的残留）
+
+重建容器窗口里 `bw-job` 日志暴露了上一轮故障转移的一个漏判：
+
+```
+执行器响应超时，请求可能已在对端执行，不做改派:
+  http://172.18.0.20:8093/internal/job/archive.sync/run ... Connect timed out
+```
+
+`Connect timed out` 是**连接阶段**超时（对端端口还没监听），一个字节都没发出去，
+改派完全安全；但 `isConnectFailure` 只认 `ConnectException` / `NoRouteToHost` / `UnknownHost`，
+把它当成了「读超时」，于是既不改派也不摘除死地址。
+
+补法：`HttpConnectTimeoutException`（JDK HttpClient）+ `SocketTimeoutException` 且消息含 `connect`
+（`SimpleClientHttpRequestFactory` 的 `Connect timed out`）都按连接层失败处理；
+读超时（`Read timed out`）保持不改派。单测 +1（`HttpJobHandlerTest` 6 项全绿，whale-job 98 项全绿）。
+`bw-job` 已重打包重建，重建后 3 分钟内调度零异常、流水全部 `status=1`。

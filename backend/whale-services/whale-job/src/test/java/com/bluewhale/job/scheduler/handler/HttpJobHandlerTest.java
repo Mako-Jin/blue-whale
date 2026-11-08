@@ -13,6 +13,7 @@ import org.springframework.web.client.ResourceAccessException;
 
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
+import java.net.http.HttpConnectTimeoutException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -119,10 +120,10 @@ class HttpJobHandlerTest {
     }
 
     /**
-     * 连接被拒算连接层失败；读超时不属于，改派会导致重复执行。
+     * 连接被拒、连接阶段超时都算连接层失败；读超时不属于，改派会导致重复执行。
      */
     @Test
-    @DisplayName("连接失败判定：拒连为真、超时为假")
+    @DisplayName("连接失败判定：拒连/连接超时为真，读超时为假")
     void shouldDistinguishConnectFailureFromTimeout() {
         HttpJobHandler handler = newHandler();
 
@@ -131,6 +132,21 @@ class HttpJobHandlerTest {
         assertFalse(handler.isConnectFailure(
                 new ResourceAccessException("I/O error", new SocketTimeoutException("Read timed out"))));
         assertFalse(handler.isConnectFailure(new ResourceAccessException("I/O error")));
+    }
+
+    /**
+     * 容器重建窗口里对端还没监听，表现为「Connect timed out」——一个字节都没发出去，必须允许改派。
+     * 这条是 2026-11-09 实机暴露的回归：archive.sync 打到旧 IP 时被判成读超时，因此没有摘除死地址。
+     */
+    @Test
+    @DisplayName("连接失败判定：连接阶段超时按可改派处理")
+    void shouldTreatConnectTimeoutAsConnectFailure() {
+        HttpJobHandler handler = newHandler();
+
+        assertTrue(handler.isConnectFailure(
+                new ResourceAccessException("I/O error", new SocketTimeoutException("Connect timed out"))));
+        assertTrue(handler.isConnectFailure(
+                new ResourceAccessException("I/O error", new HttpConnectTimeoutException("HTTP connect timed out"))));
     }
 
     /**
