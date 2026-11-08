@@ -102,6 +102,13 @@ whale:
       max-attempts: ${WHALE_CRM_ERP_MAX_ATTEMPTS:8}
       backoff-base-minutes: ${WHALE_CRM_ERP_BACKOFF_BASE_MINUTES:1}
       backoff-max-minutes: ${WHALE_CRM_ERP_BACKOFF_MAX_MINUTES:60}
+    # 退换货审批（whale-workflow）：缺少 definition-id 时提交审批失败关闭
+    return-approval:
+      enabled: ${WHALE_CRM_RETURN_APPROVAL_ENABLED:true}
+      definition-id: ${WHALE_CRM_RETURN_DEFINITION_ID:}
+      workflow-url: ${WHALE_WORKFLOW_URL:http://127.0.0.1:8083}
+      connect-timeout-millis: ${WHALE_CRM_RETURN_APPROVAL_CONNECT_TIMEOUT:1000}
+      read-timeout-millis: ${WHALE_CRM_RETURN_APPROVAL_READ_TIMEOUT:3000}
     # 开票审批（whale-workflow）：缺少 definition-id 时提交审批失败关闭
     invoice-approval:
       enabled: ${WHALE_CRM_INVOICE_APPROVAL_ENABLED:true}

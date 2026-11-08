@@ -1,5 +1,6 @@
 package com.bluewhale.erp.masterdata.infrastructure.persistence.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.bluewhale.common.entity.BaseEntity;
 import lombok.Data;
@@ -32,7 +33,8 @@ public class AccountEntity extends BaseEntity {
     /** 上级科目编码 */
     private String parentCode;
 
-    /** 是否末级科目 */
+    /** 是否末级科目（库列 leaf_flag） */
+    @TableField("leaf_flag")
     private Boolean leaf;
 
     /** 状态 */

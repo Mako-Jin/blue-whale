@@ -146,6 +146,30 @@ services:
       retries: 12
       start_period: 90s
 
+  # ---------------- 工作流 ----------------
+  # CRM 商务订单 / 报价 / 退换货 / 开票审批依赖本服务（内网直连 8083，不经网关）
+  workflow:
+    <<: *common
+    image: bluewhale/whale-workflow:dev
+    container_name: bw-workflow
+    environment:
+      JAVA_OPTS: "-Xms192m -Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "8083"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      # 8083 落在 Windows 保留端口段（Hyper-V 动态排除），宿主侧映射到 18083
+      - "127.0.0.1:18083:8083"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8083/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 90s
+
   # ---------------- CRM ----------------
   crm:
     <<: *common
@@ -159,6 +183,15 @@ services:
       MYSQL_PORT: ${MYSQL_PORT}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      # 内网直连：ERP（订单/退货/应收）与 workflow（订单/退换货/开票审批）
+      WHALE_CRM_ERP_ENABLED: "true"
+      WHALE_ERP_URL: "http://bw-erp:9001"
+      WHALE_WORKFLOW_URL: "http://bw-workflow:8083"
+      WHALE_CRM_AR_ENABLED: "true"
+      # 流程定义 ID 由 /workflow/internal/definition/ensure 幂等种子产生（bluewhale_workflow）
+      WHALE_CRM_ORDER_DEFINITION_ID: "2119255494021709826"
+      WHALE_CRM_RETURN_DEFINITION_ID: "2119328771817082881"
+      WHALE_CRM_INVOICE_DEFINITION_ID: "2119328772467200001"
     ports:
       - "127.0.0.1:9007:9007"
     healthcheck:

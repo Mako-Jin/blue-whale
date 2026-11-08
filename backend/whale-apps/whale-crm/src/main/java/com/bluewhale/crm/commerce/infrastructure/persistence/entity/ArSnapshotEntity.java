@@ -1,5 +1,6 @@
 package com.bluewhale.crm.commerce.infrastructure.persistence.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.bluewhale.common.entity.BaseEntity;
 import lombok.Data;
@@ -48,16 +49,20 @@ public class ArSnapshotEntity extends BaseEntity {
     /** 未到期 */
     private BigDecimal notDue;
 
-    /** 逾期 1-30 天 */
+    /** 逾期 1-30 天（库列 overdue_1_30，数字段需显式映射） */
+    @TableField("overdue_1_30")
     private BigDecimal overdue1To30;
 
-    /** 逾期 31-60 天 */
+    /** 逾期 31-60 天（库列 overdue_31_60） */
+    @TableField("overdue_31_60")
     private BigDecimal overdue31To60;
 
-    /** 逾期 61-90 天 */
+    /** 逾期 61-90 天（库列 overdue_61_90） */
+    @TableField("overdue_61_90")
     private BigDecimal overdue61To90;
 
-    /** 逾期 90 天以上 */
+    /** 逾期 90 天以上（库列 overdue_over_90） */
+    @TableField("overdue_over_90")
     private BigDecimal overdueOver90;
 
     /** 数据来源 */

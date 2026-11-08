@@ -1,5 +1,7 @@
 package com.bluewhale.crm.commerce.infrastructure.persistence.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.bluewhale.common.entity.BaseEntity;
 import lombok.Data;
@@ -77,7 +79,8 @@ public class SalesOrderEntity extends BaseEntity {
     /** 下发尝试次数 */
     private Integer pushAttempts;
 
-    /** 最近失败原因 */
+    /** 最近失败原因（成功后需落 NULL，故更新策略固定写入） */
+    @TableField(value = "last_push_error", updateStrategy = FieldStrategy.ALWAYS)
     private String lastPushError;
 
     /** 负责人 */
