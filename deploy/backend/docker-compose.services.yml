@@ -76,6 +76,10 @@ services:
       WHALE_SCHEDULE_TRIGGER_ENABLED: "true"
       WHALE_SCHEDULE_EXECUTOR_REGISTER_ENABLED: "true"
       WHALE_SCHEDULE_EXECUTOR_SERVER_URL: "http://bw-job:8082"
+      # 执行日志落盘目录：挂命名卷，容器重建不丢（调度中心按流水回捞依赖它）
+      WHALE_SCHEDULE_EXECUTOR_LOG_DIR: "/var/log/whale-job"
+    volumes:
+      - auth-joblogs:/var/log/whale-job
     ports:
       - "127.0.0.1:8081:8081"
     healthcheck:
@@ -147,6 +151,10 @@ services:
       WHALE_SCHEDULE_TRIGGER_ENABLED: "true"
       WHALE_SCHEDULE_EXECUTOR_REGISTER_ENABLED: "true"
       WHALE_SCHEDULE_EXECUTOR_SERVER_URL: "http://bw-job:8082"
+      # 执行日志落盘目录：挂命名卷，容器重建不丢（调度中心按流水回捞依赖它）
+      WHALE_SCHEDULE_EXECUTOR_LOG_DIR: "/var/log/whale-job"
+    volumes:
+      - oa-joblogs:/var/log/whale-job
     ports:
       - "127.0.0.1:9004:9004"
     healthcheck:
@@ -291,6 +299,10 @@ services:
       WHALE_SCHEDULE_TRIGGER_ENABLED: "true"
       WHALE_SCHEDULE_EXECUTOR_REGISTER_ENABLED: "true"
       WHALE_SCHEDULE_EXECUTOR_SERVER_URL: "http://bw-job:8082"
+      # 执行日志落盘目录：挂命名卷，容器重建不丢（调度中心按流水回捞依赖它）
+      WHALE_SCHEDULE_EXECUTOR_LOG_DIR: "/var/log/whale-job"
+    volumes:
+      - crm-joblogs:/var/log/whale-job
     ports:
       - "127.0.0.1:9007:9007"
     healthcheck:
@@ -327,6 +339,10 @@ services:
       WHALE_SCHEDULE_TRIGGER_ENABLED: "true"
       WHALE_SCHEDULE_EXECUTOR_REGISTER_ENABLED: "true"
       WHALE_SCHEDULE_EXECUTOR_SERVER_URL: "http://bw-job:8082"
+      # 执行日志落盘目录：挂命名卷，容器重建不丢（调度中心按流水回捞依赖它）
+      WHALE_SCHEDULE_EXECUTOR_LOG_DIR: "/var/log/whale-job"
+    volumes:
+      - doc-joblogs:/var/log/whale-job
     ports:
       - "127.0.0.1:8095:8095"
     healthcheck:
@@ -356,6 +372,10 @@ services:
       WHALE_SCHEDULE_TRIGGER_ENABLED: "true"
       WHALE_SCHEDULE_EXECUTOR_REGISTER_ENABLED: "true"
       WHALE_SCHEDULE_EXECUTOR_SERVER_URL: "http://bw-job:8082"
+      # 执行日志落盘目录：挂命名卷，容器重建不丢（调度中心按流水回捞依赖它）
+      WHALE_SCHEDULE_EXECUTOR_LOG_DIR: "/var/log/whale-job"
+    volumes:
+      - video-joblogs:/var/log/whale-job
     ports:
       - "127.0.0.1:8098:8098"
     healthcheck:
@@ -385,6 +405,10 @@ services:
       WHALE_SCHEDULE_TRIGGER_ENABLED: "true"
       WHALE_SCHEDULE_EXECUTOR_REGISTER_ENABLED: "true"
       WHALE_SCHEDULE_EXECUTOR_SERVER_URL: "http://bw-job:8082"
+      # 执行日志落盘目录：挂命名卷，容器重建不丢（调度中心按流水回捞依赖它）
+      WHALE_SCHEDULE_EXECUTOR_LOG_DIR: "/var/log/whale-job"
+    volumes:
+      - music-joblogs:/var/log/whale-job
     ports:
       - "127.0.0.1:8096:8096"
     healthcheck:
@@ -420,6 +444,10 @@ services:
       WHALE_SCHEDULE_TRIGGER_ENABLED: "true"
       WHALE_SCHEDULE_EXECUTOR_REGISTER_ENABLED: "true"
       WHALE_SCHEDULE_EXECUTOR_SERVER_URL: "http://bw-job:8082"
+      # 执行日志落盘目录：挂命名卷，容器重建不丢（调度中心按流水回捞依赖它）
+      WHALE_SCHEDULE_EXECUTOR_LOG_DIR: "/var/log/whale-job"
+    volumes:
+      - archive-joblogs:/var/log/whale-job
     ports:
       - "127.0.0.1:8093:8093"
     healthcheck:
@@ -456,6 +484,10 @@ services:
       WHALE_SCHEDULE_TRIGGER_ENABLED: "true"
       WHALE_SCHEDULE_EXECUTOR_REGISTER_ENABLED: "true"
       WHALE_SCHEDULE_EXECUTOR_SERVER_URL: "http://bw-job:8082"
+      # 执行日志落盘目录：挂命名卷，容器重建不丢（调度中心按流水回捞依赖它）
+      WHALE_SCHEDULE_EXECUTOR_LOG_DIR: "/var/log/whale-job"
+    volumes:
+      - audit-joblogs:/var/log/whale-job
     ports:
       - "127.0.0.1:9101:9101"
     healthcheck:
@@ -483,6 +515,10 @@ services:
       WHALE_SCHEDULE_TRIGGER_ENABLED: "true"
       WHALE_SCHEDULE_EXECUTOR_REGISTER_ENABLED: "true"
       WHALE_SCHEDULE_EXECUTOR_SERVER_URL: "http://bw-job:8082"
+      # 执行日志落盘目录：挂命名卷，容器重建不丢（调度中心按流水回捞依赖它）
+      WHALE_SCHEDULE_EXECUTOR_LOG_DIR: "/var/log/whale-job"
+    volumes:
+      - lms-joblogs:/var/log/whale-job
     ports:
       - "127.0.0.1:9008:9008"
     healthcheck:
@@ -510,6 +546,10 @@ services:
       WHALE_SCHEDULE_TRIGGER_ENABLED: "true"
       WHALE_SCHEDULE_EXECUTOR_REGISTER_ENABLED: "true"
       WHALE_SCHEDULE_EXECUTOR_SERVER_URL: "http://bw-job:8082"
+      # 执行日志落盘目录：挂命名卷，容器重建不丢（调度中心按流水回捞依赖它）
+      WHALE_SCHEDULE_EXECUTOR_LOG_DIR: "/var/log/whale-job"
+    volumes:
+      - party-joblogs:/var/log/whale-job
     ports:
       - "127.0.0.1:9009:9009"
     healthcheck:
@@ -537,6 +577,10 @@ services:
       WHALE_SCHEDULE_TRIGGER_ENABLED: "true"
       WHALE_SCHEDULE_EXECUTOR_REGISTER_ENABLED: "true"
       WHALE_SCHEDULE_EXECUTOR_SERVER_URL: "http://bw-job:8082"
+      # 执行日志落盘目录：挂命名卷，容器重建不丢（调度中心按流水回捞依赖它）
+      WHALE_SCHEDULE_EXECUTOR_LOG_DIR: "/var/log/whale-job"
+    volumes:
+      - pdm-joblogs:/var/log/whale-job
     ports:
       - "127.0.0.1:9003:9003"
     healthcheck:
@@ -569,6 +613,30 @@ services:
       timeout: 8s
       retries: 12
       start_period: 120s
+
+volumes:
+  auth-joblogs:
+    name: bw-auth-joblogs
+  oa-joblogs:
+    name: bw-oa-joblogs
+  crm-joblogs:
+    name: bw-crm-joblogs
+  doc-joblogs:
+    name: bw-doc-joblogs
+  video-joblogs:
+    name: bw-video-joblogs
+  music-joblogs:
+    name: bw-music-joblogs
+  archive-joblogs:
+    name: bw-archive-joblogs
+  audit-joblogs:
+    name: bw-audit-joblogs
+  lms-joblogs:
+    name: bw-lms-joblogs
+  party-joblogs:
+    name: bw-party-joblogs
+  pdm-joblogs:
+    name: bw-pdm-joblogs
 
 networks:
   bw-net:

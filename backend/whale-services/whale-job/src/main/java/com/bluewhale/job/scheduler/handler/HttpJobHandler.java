@@ -19,7 +19,11 @@ import org.springframework.web.client.RestClientResponseException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import java.net.ConnectException;
+import java.net.NoRouteToHostException;
+import java.net.UnknownHostException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -111,13 +115,59 @@ public class HttpJobHandler implements JobHandler {
     @Override
     public String executeWithContext(JobExecutionContext context) throws Exception {
         JsonNode paramNode = parseParam(context.getParam());
-        String url = resolveUrl(context, paramNode);
+        List<DispatchTarget> targets = resolveTargets(context, paramNode);
         int timeoutMillis = resolveTimeout(paramNode);
         String body = resolveBody(paramNode);
         Long tenantId = context.getTenantId() == null ? currentTenant() : context.getTenantId();
-        log.info("HTTP 执行器触发: jobId={}, jobCode={}, url={}, timeout={}ms",
-                context.getJobId(), context.getJobCode(), url, timeoutMillis);
-        return call(url, timeoutMillis, tenantId, body);
+        log.info("HTTP 执行器触发: jobId={}, jobCode={}, candidates={}, timeout={}ms",
+                context.getJobId(), context.getJobCode(), targets.size(), timeoutMillis);
+        return dispatch(context, targets,
+                target -> call(target.url(), timeoutMillis, tenantId, body));
+    }
+
+    /**
+     * 按候选地址逐个派发，**仅**在连接层失败时换下一个候选。
+     *
+     * <p>为什么需要：容器重建后 IP 会重排，而注册表与 Nacos 两侧都会残留旧地址
+     * （注册表靠 90s 心跳判活、Nacos 靠实例摘除延迟），交集过滤拦不住「刚死 30s」的实例。
+     * 2026-11-08 实测：容器重建后 8 个任务被派到旧 IP 全部 {@code Connection refused}，
+     * 任务各记一次失败——寻址再准也躲不过时序，只能失败即换。</p>
+     *
+     * <p>为什么**只**在连接层失败时换：连接被拒说明请求没发出去，换实例不会重复执行；
+     * 而读超时的请求可能已经在对端跑完，换实例会变成两个实例各跑一遍，
+     * 对「推单 / 扣减 / 发通知」类任务就是重复副作用。所以超时一律直接上抛。</p>
+     *
+     * <p>连接失败的地址会立即摘除（{@code status=0}），下一轮心跳若实例仍活着会自愈回在线，
+     * 因此摘除是「临时回避」而不是「判死刑」。</p>
+     *
+     * @param context 执行上下文
+     * @param targets 候选地址（按优先级）
+     * @param caller  单次调用
+     * @return 执行结果摘要
+     */
+    String dispatch(JobExecutionContext context, List<DispatchTarget> targets, DispatchCall caller) {
+        if (targets.isEmpty()) {
+            throw new JobNotDispatchableException("无可用执行器地址: jobCode=" + context.getJobCode());
+        }
+        ExecutorUnreachableException lastUnreachable = null;
+        for (int i = 0; i < targets.size(); i++) {
+            DispatchTarget target = targets.get(i);
+            context.setResolvedAddress(target.address());
+            try {
+                return caller.call(target);
+            } catch (ExecutorUnreachableException e) {
+                lastUnreachable = e;
+                int remain = targets.size() - i - 1;
+                log.warn("执行器不可达，改派下一候选: jobCode={}, address={}, remain={}, reason={}",
+                        context.getJobCode(), target.address(), remain, e.getMessage());
+                if (target.address() != null) {
+                    String appName = context.getExecutorApp();
+                    Long tenantId = context.getTenantId() == null ? currentTenant() : context.getTenantId();
+                    jobExecutorService.markUnreachable(tenantId, appName, target.address());
+                }
+            }
+        }
+        throw lastUnreachable;
     }
 
     /**
@@ -138,13 +188,13 @@ public class HttpJobHandler implements JobHandler {
     }
 
     /**
-     * 解析目标地址：优先按注册表寻址，其次按参数直连。
+     * 解析候选目标：优先按注册表寻址，其次按参数直连。
      *
      * @param context   执行上下文
      * @param paramNode 执行器参数
-     * @return 目标 URL
+     * @return 候选地址列表（首个为首选，其余为其备选）
      */
-    private String resolveUrl(JobExecutionContext context, JsonNode paramNode) {
+    private List<DispatchTarget> resolveTargets(JobExecutionContext context, JsonNode paramNode) {
         String executorApp = context.getExecutorApp();
         String jobCode = context.getJobCode();
         if (StringUtils.hasText(executorApp) && StringUtils.hasText(jobCode)) {
@@ -152,21 +202,21 @@ public class HttpJobHandler implements JobHandler {
         }
         String directUrl = paramNode.path(PARAM_URL).asText(null);
         if (StringUtils.hasText(directUrl)) {
-            return directUrl;
+            return List.of(new DispatchTarget(null, directUrl));
         }
         throw new JobNotDispatchableException("任务未配置执行器：请填写 executor_app 与 job_code，"
                 + "或在执行器参数中提供 url");
     }
 
     /**
-     * 按注册表寻址：在线实例与 Nacos 实例取交集后选择其一。
+     * 按注册表寻址：在线实例与 Nacos 实例取交集后排序，全部作为候选返回。
      *
      * @param context     执行上下文
      * @param executorApp 执行器应用名
      * @param jobCode     任务编码
-     * @return 目标 URL
+     * @return 候选目标列表（首选在前，其余按环形顺序补齐）
      */
-    private String resolveByRegistry(JobExecutionContext context, String executorApp, String jobCode) {
+    private List<DispatchTarget> resolveByRegistry(JobExecutionContext context, String executorApp, String jobCode) {
         List<String> candidates = jobExecutorService.dispatchableAddresses(
                 context.getTenantId(), executorApp, jobCode);
         if (candidates.isEmpty()) {
@@ -179,28 +229,32 @@ public class HttpJobHandler implements JobHandler {
             throw new JobNotDispatchableException("执行器无在线实例: app=" + executorApp
                     + "（检查业务服务是否已开启注册、心跳是否正常）");
         }
-        String address = pick(candidates, context.getShardIndex(), context.getShardTotal());
-        context.setResolvedAddress(address);
-        return "http://" + address + String.format(TRIGGER_PATH, jobCode);
+        String path = String.format(TRIGGER_PATH, jobCode);
+        int size = candidates.size();
+        int start = pickIndex(size, context.getShardIndex(), context.getShardTotal());
+        List<DispatchTarget> targets = new ArrayList<>(size);
+        for (int i = 0; i < size; i++) {
+            String address = candidates.get((start + i) % size);
+            targets.add(new DispatchTarget(address, "http://" + address + path));
+        }
+        return targets;
     }
 
     /**
-     * 选择实例：分片场景按分片号取模保证确定性，否则轮询。
+     * 选择首选实例下标：分片场景按分片号取模保证确定性，否则轮询。
      *
-     * @param candidates 候选地址
+     * @param size       候选数量
      * @param shardIndex 分片序号
      * @param shardTotal 分片总数
-     * @return 选中的地址
+     * @return 首选下标
      */
-    private String pick(List<String> candidates, int shardIndex, int shardTotal) {
-        int size = candidates.size();
-        if (size == 1) {
-            return candidates.get(0);
+    private int pickIndex(int size, int shardIndex, int shardTotal) {
+        if (size <= 1) {
+            return 0;
         }
-        int index = shardTotal > 1
+        return shardTotal > 1
                 ? Math.floorMod(shardIndex, size)
                 : Math.floorMod(roundRobin.getAndIncrement(), size);
-        return candidates.get(index);
     }
 
     /**
@@ -267,9 +321,34 @@ public class HttpJobHandler implements JobHandler {
             throw new IllegalStateException("执行器调用失败" + hint + ": HTTP "
                     + e.getStatusCode().value() + ", body=" + abbreviate(e.getResponseBodyAsString()), e);
         } catch (ResourceAccessException e) {
-            throw new IllegalStateException("执行器不可达: " + url + ", reason=" + e.getMessage(), e);
+            if (isConnectFailure(e)) {
+                throw new ExecutorUnreachableException("执行器不可达: " + url + ", reason=" + e.getMessage(), e);
+            }
+            throw new IllegalStateException("执行器响应超时，请求可能已在对端执行，不做改派: " + url
+                    + ", reason=" + e.getMessage(), e);
         }
         return assertBusinessSuccess(responseBody);
+    }
+
+    /**
+     * 判定是否为「连接层失败」：这类失败请求一定没有送到对端，可以安全改派。
+     *
+     * <p>读超时不算——请求可能已经执行完只是响应没回来，改派会导致重复副作用。</p>
+     *
+     * @param e 访问异常
+     * @return 连接被拒 / 主机不可达 / 域名不可解析时返回 {@code true}
+     */
+    boolean isConnectFailure(ResourceAccessException e) {
+        Throwable cause = e.getCause();
+        while (cause != null) {
+            if (cause instanceof ConnectException
+                    || cause instanceof NoRouteToHostException
+                    || cause instanceof UnknownHostException) {
+                return true;
+            }
+            cause = cause.getCause();
+        }
+        return false;
     }
 
     /**
@@ -312,5 +391,45 @@ public class HttpJobHandler implements JobHandler {
             return "";
         }
         return text.length() > MAX_SUMMARY_LENGTH ? text.substring(0, MAX_SUMMARY_LENGTH) : text;
+    }
+
+    /**
+     * 派发候选目标。
+     *
+     * @param address 执行器地址（{@code host:port}）；按参数直连时为 {@code null}
+     * @param url     触发地址
+     */
+    record DispatchTarget(String address, String url) {
+    }
+
+    /**
+     * 单次派发调用：把「连接失败即改派」的决策与真实 HTTP 解耦，便于单测覆盖。
+     */
+    @FunctionalInterface
+    interface DispatchCall {
+
+        /**
+         * 执行一次派发。
+         *
+         * @param target 候选目标
+         * @return 执行结果摘要
+         */
+        String call(DispatchTarget target);
+    }
+
+    /**
+     * 执行器连接失败：请求未送出，可安全改派到其他实例。
+     */
+    static class ExecutorUnreachableException extends IllegalStateException {
+
+        /**
+         * 构造异常。
+         *
+         * @param message 描述
+         * @param cause   原始异常
+         */
+        ExecutorUnreachableException(String message, Throwable cause) {
+            super(message, cause);
+        }
     }
 }

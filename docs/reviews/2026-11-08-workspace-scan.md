@@ -226,3 +226,119 @@
 **剩余 P1**：① 25 个任务分批迁移；② 执行日志回捞；③ 动态分片；④ 生产必须配置 `WHALE_INTERNAL_TOKEN`（dev 下空令牌 fail-open）。
 
 清单见 `docs/plans/whale-job-scheduled-migration.md`。
+
+## 十六、补记（同日 22:57：全量复扫，定时任务迁移已 27/27 收口）
+
+> 本节的 §十五 之后又有 6 个提交（`3e3cdc20` … `89d4da47`），§十五 的「已迁 2/27」已被取代。以下为本轮实测状态。
+
+### 16.1 扫描证据
+
+| 项 | 结果 |
+|---|---|
+| 分支 / HEAD | `main` / `89d4da47`（feat(job): 执行日志回捞） |
+| 工作区 | **干净**：0 个已修改/未跟踪文件 |
+| 容器 | **21 个全部 healthy**（19 个服务 + redis + rabbitmq），无重启中的异常实例 |
+| 定时任务 | 业务侧 `@ScheduledJob` **27 个**（已全迁）；残留 `@Scheduled` **10 个**，与方案 §2.1 的「进程内工作泵」清单逐一对应，属**有意不迁** |
+| 代码标记 | 主代码**无**未实现 `TODO/FIXME`（`whale-pm`/OA 的 `TODO` 为业务状态码与常量名，非待办） |
+| 文档门禁 | `check-doc-consistency.ps1` → **DOC-CONSISTENCY-PASS**（boot 4.0.8 / cloud 2025.1.2 / alibaba 2025.1.0.0） |
+| 容器化覆盖 | 服务目录 32 个，compose 覆盖 **19 个**；`whale-file`/`whale-contract`/`whale-mall`/`whale-pm`/`whale-mail`/`whale-im`/`whale-map`/`whale-scene`/`whale-agent`/`whale-alert`/`whale-monitor` **未进常态编排** |
+
+### 16.2 待办
+
+**P0（下一批收口）**
+
+| # | 事项 | 依据 |
+|---|---|---|
+| 1 | 修「调度派发到已死地址」：容器重建后 IP 重排，`bw-job` 在 22:49–22:50 对 8 个任务（CRM 5 / OA 3）派发到旧 IP（`172.18.0.9:9007`、`172.18.0.12:9004`）全部 `Connection refused`，任务各记一次失败。现象已自愈（心跳 90s 覆盖），但**重启窗口内的失败是真的**，需查 Nacos 旧实例摘除延迟或寻址加存活校验 | 本次 `docker logs bw-job` |
+| 2 | 执行日志落容器 `${java.io.tmpdir}`，**容器重建即丢**：长期留存需给执行器挂卷 + `WHALE_SCHEDULE_EXECUTOR_LOG_DIR` | 方案 §19.5 |
+| 3 | 生产必须配 `WHALE_INTERNAL_TOKEN`（dev 下空令牌 **fail-open**，内网触发端点裸奔） | §15 剩余项 ④ |
+| 4 | `whale-file` 与 `whale-contract` 进常态编排：CRM 分析导出、客户合并、OA 网盘/公文、LMS 课件、PDM 附件、商城素材全部依赖 `whale-file`；目前只能靠 `docker-compose.verify.yml` 临时起 | 服务目录 vs compose |
+| 5 | 计划文档状态漂移 2 处：`whale-job-scheduled-migration.md` 头部仍写「已迁 8 个」（实为 27/27）；`2026-11-06-five-services-backlog-stepwise.md` 仍写「CRM M5/M6 未开始」（已交付） | 本次比对 |
+
+**P1**
+
+| # | 事项 |
+|---|---|
+| 1 | 商城 `whale-mall` 从未在编排里起过：M0–5.98（60 端点 / 18 表）**零实机冒烟**；遗留 8 项（退货物流回写/WMS、换货、售后超时关闭、举证图片、退款分摊、券叠加/品类券、按件重计运费、报表口径拆分） |
+| 2 | ERP M3 3b（工序报工、倒冲领料、退料/报废）+ M2 批次追溯/财务扩展（待 D5） |
+| 3 | MES：数据范围过滤与归档物理清理（依赖 auth `data-scope`）；**工艺路线同步链路未实机验证**（`routingStatus=FAILED` 时靠人工 split） |
+| 4 | CRM 前端 3 项：跟进记录编辑/删除、公海释放免手填 ID、日期字段改 DatePicker；后端：红冲后原单不标记（`redFlushReason/redFlushedAt` 空）、`service/docs/survey` 三段配置未显式声明 |
+| 5 | `whale-pm`（9005，M1–M5 已交付）与 `whale-mail`（8099）/`whale-im`/`whale-map`/`whale-scene` 均「可启动、未起服」，无容器基线 |
+| 6 | LMS / 党政工会：真实库跑迁移 + 起服冒烟 + 试点支部复盘；课件/封面/附件接 `whale-file` 上传控件 |
+| 7 | OA M6 剩余（安全/性能加固、试点部门验证）、M1A-6 移动端适配 |
+
+**P2**
+
+PDM 6 项外部依赖（CAD 插件、3D/Office 转换、ngram/OCR、下载票据、DEPT ACL、真实联调）；OA M3–M6 打磨；文档治理 DOC-01–DOC-10；`whale-scene` M3 3D（F-09 冻结）；权限/菜单号段占用脚本化扫描；`whale-games-core` 2 处 TODO（F-07 冻结）。
+
+### 16.3 阻塞
+
+| # | 阻塞 | 影响 |
+|---|---|---|
+| 1 | **Docker VM 内存 5.79G，已用约 5.1G** | 无法起第二副本做「多实例动态分片 / 广播 / 互斥」实机验证，只能靠单测；任何新服务容器化都要先腾内存 |
+| 2 | 跨模块依赖：D2 客户主数据映射、D5 ERP 批次/财务扩展、Workflow 条件表达式求值、auth `data-scope`、D14 分区/对象存储、PDM 六项外部依赖 | 对应功能只能做到「骨架 + 关闭态」 |
+| 3 | 跨服务契约：加班费月汇总推 ERP（待 M2 薪资契约）、报销冲抵预支（待 M2）、PDM 库存预占口径（待 ERP 模型）、OA 报销推 ERP 与用章授权（待内网端点实机验证） | 推单链路不通 |
+| 4 | 真实渠道回执：`mock=true` 下 EMAIL/SMS 无真实 `providerMessageId`，回执只能验到站内信 | 「送达率」类验证不可信 |
+| 5 | prod compose 覆盖层缺 Let's Encrypt 证书（V-09 唯一未闭环项） | 生产部署无法实跑 |
+| 6 | 范围性不做（已决策）：CA/TSA、真实实名与意愿、真实短信/邮件、合同供应商沙箱、Gitee Go | 不做，不算欠账 |
+
+### 16.4 BUG 与风险
+
+| 级别 | 问题 | 说明 |
+|---|---|---|
+| 中 | **调度派发命中旧 IP**（详见 §16.2 P0-1） | 重启窗口内任务失败一次，非静默丢数据；建议排期查服务发现摘除延迟 |
+| 中 | 执行器心跳噪音：`job` 重启瞬间 11 个服务各报一条 `StringHttpMessageConverter` 拒绝转换（`application/octet-stream`） | 25s 内自愈；根治要改 starter 心跳为 `exchange` 直读字节流 + 19 服务全量重打包，收益不抵风险，**记录不修** |
+| 中 | MES 进度快照按「最后到达的事件」覆盖，乱序事件会被当新事件接受 | outbox 顺序投递下暂不触发 |
+| 低 | 红冲不标记原单（额度靠 `sumRedFlushed` 回补） | 功能安全、视图无痕迹 |
+| 低 | `MO-20261109-0001` 保留 `completedMismatch=true` 作为差异证据，未修补数据 | 有意保留 |
+| 观察 | `/auth/refresh` HTTP 200 + 业务码 401、`Result` 统一包装 | 既有约定，勿单独改动 |
+| 红线 | stash `pre-pull-local-edits-20261106` **不可 pop**；提交按文件暂存，禁止整目录 `git add` | 工作区约定 |
+
+### 16.5 与 §二 相比已闭环
+
+§二 P0 全部闭环（P0 1–4 于 §十–§十四实机通过；§二 P0「定时任务验证」升级为整体迁移并 **27/27 收口**）；§四 三个 BUG（OA 附件归属、考勤测试覆盖、JaCoCo 零测试盲区）已修；§二 P1 的 LMS/党政工会「起服冒烟」已由容器化覆盖（`bw-lms`/`bw-party` healthy）。
+
+## 十七、补记（同日 23:30：§十六 P0 修复结果）
+
+### 17.1 P0-1 调度派发命中旧地址 —— 已修并实机验证
+
+**根因**：容器重建后 IP 重排，注册表（靠 90s 心跳判活）与 Nacos（实例摘除有延迟）**两侧同时残留旧地址**，`dispatchableAddresses` 的交集过滤拦不住「刚死 30 秒」的实例；而寻址只选一个地址、连接失败即整个任务失败。
+
+**修法（派发级故障转移，不依赖寻址精度）**：
+
+| 改动 | 内容 |
+|---|---|
+| `HttpJobHandler#resolveTargets` | 返回**候选列表**（首选在前，其余环形补齐），不再返回单个 URL；直连模式候选数为 1 |
+| `HttpJobHandler#dispatch` | 逐个候选尝试，**仅连接层失败**才换下一个 |
+| `HttpJobHandler#isConnectFailure` | 沿 cause 链判定 `ConnectException/NoRouteToHostException/UnknownHostException`；**读超时不改派**——请求可能已在对端执行完，改派等于重复副作用 |
+| `JobExecutorService#markUnreachable` | 连不上的地址立即置 `status=0` 摘除；心跳 30s 后自动回在线，属临时回避而非判死刑 |
+| `JobExecutionContext#resolvedAddress` | 改为「每次尝试后回填」，失败时也记下实际打到的地址，日志回捞仍能定位 |
+
+**新增单测** `HttpJobHandlerTest` 5 例（97 项全绿，原 92）：改派成功并摘除死地址 / 业务失败不改派 / 全部不可达抛最后原因 / 拒连与超时的判定差异 / 空候选抛不可派发。Checkstyle 0。
+
+**实机验证（真事，不是构造）**：23:14–23:18 重建 11 个执行器容器，IP 全部重排。23:16:00 CRM 两个任务（`crm.order.push`、`crm.approval.reconcile`）被打到旧地址 `172.18.0.12:9007`：
+
+- 日志出现 `执行器不可达，改派下一候选（remain=0）` + `执行器连接失败，临时摘除`；
+- 单副本场景没有备选，任务失败一次，由调度中心重试在 23:16:45 新实例注册后**补跑成功**（流水 `status=1, retry=1, pushed=0`）；
+- 23:18 起全部任务 `status=1`，`job_info` 29 条全部启用。
+
+即：**多副本时可无缝改派；单副本时退化为「失败一次 + 重试成功」，不会再出现连续多轮撞死地址**。
+
+### 17.2 P0-2 执行日志容器重建即丢 —— 已修
+
+`deploy/backend/docker-compose.services.yml` 给 11 个执行器服务（auth / oa / crm / doc / video / music / archive / audit / lms / party / pdm）统一注入 `WHALE_SCHEDULE_EXECUTOR_LOG_DIR=/var/log/whale-job` 并挂**按服务独立的命名卷** `bw-<svc>-joblogs`（不共用卷是刻意的：`JobExecutionLogStore` 按「任务编码保留最近 20 份」轮转，共卷会让两个实例互相删对方的日志）。
+
+实测 `bw-party`：触发 `party.notice.scan` → 卷内落 `20261108/party.notice.scan-20261108231452234-240376d1.log`；`--force-recreate` 重建容器后文件仍在。11 个服务已全部按新编排重建并就位。
+
+### 17.3 P0-5 计划文档漂移 —— 已修
+
+- `whale-job-scheduled-migration.md` 头部状态：实施中（8/27）→ **已收口 27/27**；
+- `2026-11-06-five-services-backlog-stepwise.md`：CRM 行与结论段更新为「M5 营销 / M6 分析 / M1-4 合并 / M1-9 导入导出已交付」。
+
+### 17.4 仍未修（有明确原因，非遗漏）
+
+| 项 | 状态 | 原因 |
+|---|---|---|
+| P0-3 生产 `WHALE_INTERNAL_TOKEN` | 不改代码 | `InternalTokenProperties` 已实现「非 dev 无令牌拒绝启动」fail-fast，属**部署前检查清单**而非代码缺口；在 dev compose 里统一注入需同时重建全部 21 个容器，收益只覆盖本地环境，留给上线时与真实密钥一起配 |
+| P0-4 `whale-file` / `whale-contract` 进编排 | 阻塞 | Docker VM 5.79G、当前已用约 5.1G，再加两服务（各 ~300MiB）会把余量压到几百兆，重启窗口有 OOM 风险；需先扩 VM 内存或停用部分非常用服务 |
+| 心跳 `String` 转换噪音 | 记录不修 | 要改 starter 心跳为 `exchange` 直读字节流 + 19 服务重打包，收益不抵风险（§18.4） |

@@ -79,6 +79,21 @@ public interface JobExecutorService {
     List<String> dispatchableAddresses(Long tenantId, String appName, String jobCode);
 
     /**
+     * 把指定地址临时置为离线（派发时连接失败后调用）。
+     *
+     * <p>注册表与 Nacos 都可能残留「刚死不久」的实例，交集过滤拦不住；
+     * 派发侧一旦连不上就应立刻摘除，避免同一窗口内后续任务继续撞同一死地址。</p>
+     *
+     * <p>摘除是临时的：实例活着的话下一轮心跳（默认 30s）会把状态改回在线，
+     * 因此不会因为一次网络抖动就把健康实例永久踢出。</p>
+     *
+     * @param tenantId 租户ID
+     * @param appName  执行器应用名
+     * @param address  执行器地址（{@code host:port}）
+     */
+    void markUnreachable(Long tenantId, String appName, String address);
+
+    /**
      * 查询指定应用的执行器详情（含离线实例，供管理端展示）。
      *
      * @param tenantId 租户ID

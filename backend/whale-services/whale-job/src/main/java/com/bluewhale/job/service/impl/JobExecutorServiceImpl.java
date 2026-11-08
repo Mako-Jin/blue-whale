@@ -196,6 +196,21 @@ public class JobExecutorServiceImpl implements JobExecutorService {
     }
 
     @Override
+    public void markUnreachable(Long tenantId, String appName, String address) {
+        if (!StringUtils.hasText(appName) || !StringUtils.hasText(address)) {
+            return;
+        }
+        int rows = jobExecutorMapper.update(null, new LambdaUpdateWrapper<JobExecutor>()
+                .eq(JobExecutor::getTenantId, tenantIdOf(tenantId))
+                .eq(JobExecutor::getAppName, appName)
+                .eq(JobExecutor::getAddress, address)
+                .set(JobExecutor::getStatus, STATUS_OFFLINE));
+        if (rows > 0) {
+            log.warn("执行器连接失败，临时摘除: app={}, address={}（心跳恢复后自动回到在线）", appName, address);
+        }
+    }
+
+    @Override
     public List<JobExecutorVO> list(Long tenantId, String appName) {
         LambdaQueryWrapper<JobExecutor> wrapper = new LambdaQueryWrapper<JobExecutor>()
                 .eq(JobExecutor::getTenantId, tenantIdOf(tenantId))
