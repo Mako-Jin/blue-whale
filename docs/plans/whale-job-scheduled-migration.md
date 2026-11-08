@@ -580,3 +580,56 @@ Auth 的 `PasswordExpiryNoticeJob` 仍待处理：读取该文件时审批超时
 ### 14.6 进度
 
 已迁 20 / 27，**剩余 7 个**：CRM 推送/对账 4、OA 推送 2（这 6 个都向 ERP/MES 推单，留最后一批逐个验幂等）、Auth 1（`PasswordExpiryNoticeJob`，文件读取被用户拒绝共享，未改）。
+
+---
+
+## 15. 第七批：推送/对账 6 个（最后一批业务任务，2026-11-08 21:00–21:10）
+
+方案里排在最后的推送类一次做完。这批的特殊性在于「重复执行会向 ERP 重复建单」，因此重点不是跑通，而是**幂等与开关语义**。
+
+### 15.1 改动清单
+
+| 服务 | 任务 code | 类.方法 | cron | 摘要字段 |
+|---|---|---|---|---|
+| whale-crm | `crm.order.push` | `CrmOrderSyncJob#pushPending` | `${whale.crm.erp.push-cron:0 * * * * ?}` | `pushed=n` |
+| whale-crm | `crm.order.reconcile` | `CrmOrderSyncJob#reconcile` | `${whale.crm.erp.reconcile-cron:0 */10 * * * ?}` | `refreshed=n` |
+| whale-crm | `crm.return.push` | `CrmReturnSyncJob#pushPending` | `${whale.crm.erp.push-cron:0 */5 * * * ?}` | `pushed=n` |
+| whale-crm | `crm.return.reconcile` | `CrmReturnSyncJob#reconcile` | `${whale.crm.erp.reconcile-cron:0 0/30 * * * ?}` | `refreshed=n` |
+| whale-oa | `oa.purchase.push` | `PurchaseOrderPushJob#push` | `${whale.oa.purchase.push.cron:0 */10 * * * *}` | `pushed=n` |
+| whale-oa | `oa.expense.payable-push` | `ExpensePayablePushJob#push` | `${whale.oa.expense.push.cron:0 */10 * * * *}` | `pushed=n` |
+
+配套：`V8__seed_push_jobs.sql`（6 条 `job_info`，按 `job_code` 判重），`init.sql` 同步同源种子，`job_info` 共 26 条。
+
+### 15.2 四处实现判断
+
+- **开关关闭返回 `skipped` 而不是 `pushed=0`**：CRM 的两个类原本是 `if (!enabled) return;`。迁移后若沿用，`job_log.result` 会是一串 `pushed=0`，运维分不清「配置没开」与「真的没东西可推」。改成显式 `skipped: crm erp disabled` 之后，日志本身就是配置快照。OA 的两个类同理（`purchase/expense push disabled`）。
+- **推送 `max_retry=2`、对账 `max_retry=2` 但语义不同**：推送靠 outbox + 外部单号在 ERP 侧幂等，业务上允许多次尝试；对账是纯读，重试只是「再读一次」。两者都设 2 次、间隔 60s，避免一次 ERP 抖动就让整轮失败。
+- **misfire 全部 `DO_NOTHING`**：与原来 `@Scheduled` 一致。推送错过一轮无所谓（下一分钟/五分钟还会扫到 outbox），没有「必须补跑」的一次性语义。
+- **`crm.order.*` 与 `crm.return.*` 共用同一组 cron 配置键**（`whale.crm.erp.push-cron` / `reconcile-cron`），但**默认值不同**。这是原代码就有的设计（订单每分钟、退换货每五分钟），迁移时保留：`${}` 占位符各自带默认值，注册器按方法注解解析，互不影响。
+
+### 15.3 实机结果
+
+`bw-crm` / `bw-oa` / `bw-job` 均重启为新镜像并 healthy；`V8` 迁移 success，`job_info` 26 条。
+
+| 验证项 | 结果 |
+|---|---|
+| CRM 能力集 | `whale-crm 172.18.0.9:9007`，10 个 code（analytics 2 + 回收/快照/合同/审批 4 + 本批 4） |
+| OA 能力集 | `whale-oa 172.18.0.12:9004`，5 个 code（催办/对账/出差报告 + 本批 2） |
+| `crm.order.push` | `status=1, result="pushed=0"`；CRON 每分钟触发同样 `status=1` |
+| `crm.order.reconcile` | `status=1, result="refreshed=2"`——**真回读了 ERP 的 2 张销售订单** |
+| `crm.return.push` / `crm.return.reconcile` | `pushed=0` / `refreshed=0` |
+| `oa.purchase.push` / `oa.expense.payable-push` | `pushed=0` / `pushed=0`（无待推送单据） |
+| 对账可重入 | 连续触发三次 `crm.order.reconcile`，三次均 `refreshed=2`，无副作用 |
+| 无双跑 | CRM 10 次、OA 2 次日志全部是 `远程触发任务完成`，无本地 cron 痕迹 |
+
+**说明**：dev 库没有处于「审批通过待推送」状态的订单/采购/报销单，所以推送路径实测只走到「空转返回 0」。推单幂等性由 outbox 状态机 + ERP 侧外部单号去重保证，本轮以单测覆盖「开关关闭跳过 / 开关开启返回条数」两条分支，未构造真实推单场景（需要一套完整的订货-审批-发货数据，成本高于收益）。
+
+### 15.4 门禁
+
+`whale-crm` 360（原 356 + 新增 4：`CrmOrderSyncJobTest` 2 例、`CrmReturnSyncJobTest` 2 例）、`whale-oa` 283（原 279 + 新增 4：`PurchaseOrderPushJobTest` 2 例、`ExpensePayablePushJobTest` 2 例）、`whale-job` 84 全绿，Checkstyle 0，ArchUnit 绿。
+
+### 15.5 进度
+
+已迁 **26 / 27**，只剩 Auth 的 `PasswordExpiryNoticeJob`（文件读取被用户拒绝共享，本轮未改）。
+
+除它之外，业务侧还剩 10 个「进程内工作泵」按方案不迁：MES/消息/支付三个 outbox 派发、邮件同步、Lucene flush、权限缓存对账、job 自身 reconcile、音乐/视频播放数刷盘（2 个）、电子签 60s 轮询。

@@ -131,7 +131,8 @@ VALUES (2, '执行日志归档', 'SYSTEM', '0 0 4 * * ?', 'jobLogArchiveHandler'
         'SMART', 1, '内置任务：导出过期 job_log 至 whale-file 后清理，保留天数见 whale.job.log-retention-days');
 
 -- 已迁移业务任务（与 db/migration/V3__seed_migrated_jobs.sql、V4__seed_crm_jobs.sql、
--- V5__seed_pdm_archive_jobs.sql、V6__seed_oa_jobs.sql、V7__seed_lms_party_jobs.sql 同源）：
+-- V5__seed_pdm_archive_jobs.sql、V6__seed_oa_jobs.sql、V7__seed_lms_party_jobs.sql、
+-- V8__seed_push_jobs.sql 同源）：
 -- executor_app 为 Nacos 服务名，job_code 对应业务侧 @ScheduledJob.code()，
 -- 地址不落库（由 job_executor 注册表 + Nacos 实例交集解析）。
 INSERT INTO job_info (id, tenant_id, job_name, job_group, executor_app, job_code,
@@ -197,7 +198,25 @@ VALUES
  '迁移自 LmsUrgeJob#urgeDaily（按日幂等，重复触发不重复发；cron 可配 whale.lms.urge.cron）'),
 (9100000000000000020, 1, 'Party 党务/工会通知扫描', 'PARTY', 'whale-party', 'party.notice.scan',
  '0 0 9 * * *', 'httpJobHandler', '{"timeoutMillis":1800000}', 'FIRE_ONCE', 1, 300, 1, 1,
- '迁移自 PartyNoticeJob#scan（按场景去重，重复扫描当日回 0；cron 可配 whale.party.notice-cron）');
+ '迁移自 PartyNoticeJob#scan（按场景去重，重复扫描当日回 0；cron 可配 whale.party.notice-cron）'),
+(9100000000000000021, 1, 'CRM 商务订单下发 ERP', 'CRM', 'whale-crm', 'crm.order.push',
+ '0 * * * * ?', 'httpJobHandler', '{"timeoutMillis":1800000}', 'DO_NOTHING', 2, 60, 1, 1,
+ '迁移自 CrmOrderSyncJob#pushPending（outbox 幂等，开关 whale.crm.erp.enabled）'),
+(9100000000000000022, 1, 'CRM 商务订单履约对账', 'CRM', 'whale-crm', 'crm.order.reconcile',
+ '0 */10 * * * ?', 'httpJobHandler', '{"timeoutMillis":1800000}', 'DO_NOTHING', 2, 60, 1, 1,
+ '迁移自 CrmOrderSyncJob#reconcile（只读回读 ERP 状态，开关 whale.crm.erp.enabled）'),
+(9100000000000000023, 1, 'CRM 退换货下发 ERP', 'CRM', 'whale-crm', 'crm.return.push',
+ '0 */5 * * * ?', 'httpJobHandler', '{"timeoutMillis":1800000}', 'DO_NOTHING', 2, 60, 1, 1,
+ '迁移自 CrmReturnSyncJob#pushPending（outbox 幂等，开关 whale.crm.erp.enabled）'),
+(9100000000000000024, 1, 'CRM 退换货履约对账', 'CRM', 'whale-crm', 'crm.return.reconcile',
+ '0 0/30 * * * ?', 'httpJobHandler', '{"timeoutMillis":1800000}', 'DO_NOTHING', 2, 60, 1, 1,
+ '迁移自 CrmReturnSyncJob#reconcile（只读对账，开关 whale.crm.erp.enabled）'),
+(9100000000000000025, 1, 'OA 采购申请推送 ERP 订单', 'OA', 'whale-oa', 'oa.purchase.push',
+ '0 */10 * * * *', 'httpJobHandler', '{"timeoutMillis":1800000}', 'DO_NOTHING', 2, 60, 1, 1,
+ '迁移自 PurchaseOrderPushJob#push（按申请单号幂等，开关 whale.oa.purchase.push.enabled）'),
+(9100000000000000026, 1, 'OA 报销单推送 ERP 应付', 'OA', 'whale-oa', 'oa.expense.payable-push',
+ '0 */10 * * * *', 'httpJobHandler', '{"timeoutMillis":1800000}', 'DO_NOTHING', 2, 60, 1, 1,
+ '迁移自 ExpensePayablePushJob#push（单条失败置 FAILED 继续后续，开关 whale.oa.expense.push.enabled）');
 
 -- ---------------------------------------------------------------------
 -- 5. 执行器注册表（对齐 xxl-job executor：谁在线、谁支持哪些任务）
