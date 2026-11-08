@@ -206,7 +206,7 @@ public class ProjectController {
      * @return 新增后的流转
      */
     @PostMapping("/{id}/transition")
-    @RequirePermission("sys:pm:transition:edit")
+    @RequirePermission("sys:pm:transition:add")
     @AuditLog(operation = "新增状态流转", type = OperateType.CREATE, targetType = "pm_transition")
     public Result<TransitionVO> addTransition(@PathVariable Long id,
             @Valid @RequestBody TransitionSaveRequest request) {

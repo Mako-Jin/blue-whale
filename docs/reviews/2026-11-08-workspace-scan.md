@@ -589,3 +589,21 @@ WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 1900 OR perm_code = '.
 - `migration-5.77-crm.sql` 的 337–354 与 5.83/5.84 的 1810–1849 是**同编码两套 ID**（存量保留、后者 no-op）。已在扫描器里标 WARN 而非 ERROR；
   要彻底消掉得把存量行改号并同步 `sys_role_permission`，属数据迁移，需单独窗口，不在本次「修缺陷」范围。
 - 心跳噪音、`WHALE_INTERNAL_TOKEN`、红冲/MES 实机验证：见 §19.7，理由未变。
+
+### 20.7 顺着同一条线又查出两类「代码有、库里没有」
+
+号段写完不过瘾，又做了一次**权限码覆盖检查**：把 `backend/**/src/main` 里所有
+`@RequirePermission("sys:...")` 字面量抓出来，和 `sys_permission` 台账比。878 个编码里 29 个查无此项。
+
+| 类型 | 明细 | 判读 |
+|---|---|---|
+| 种子从未执行（28 项） | CRM M1 导入导出、M3 发票 6 项、M4 工单/知识库/SLA/问卷、M5 营销/培育/伙伴 —— `migration-5.83-crm-m{1-merge-import,3-invoice,4-service,5-marketing}.sql` 等 9 份脚本**从未在这个库上跑过** | 不是撞号，是部署漏跑。已按顺序补跑 9 份脚本（全部 `executed` 无 ERR），CRM 发票/工单/营销端点对 `crm_*` 角色从 403 恢复 |
+| 权限码拼错（1 项） | `ProjectController#addTransition` 写的是 `sys:pm:transition:edit`，种子里只有 `transition:add/delete/list` | 改成 `sys:pm:transition:add`（该端点是「新增状态流转」）。拼错的后果同样是「除超管外全 403」，而编译、启动、单测都正常 |
+
+补跑后覆盖检查：**代码 878 个编码 / 库 893 个 → 缺失 0**。
+
+同时新增 `scripts/security/check-perm-coverage.py`（吃库里 `SELECT perm_code` 的导出文件做比对），
+与号段扫描分工：一个查「ID 是否被抢」，一个查「编码是否真的存在」。
+
+**这类缺陷的共同点**：都可能只表现为某个按钮点了 403，而且**静态编译、服务启动、全量单测三条线全绿**。
+两个脚本合起来才算把「权限配置」纳入可验证范围。
