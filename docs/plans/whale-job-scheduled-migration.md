@@ -529,3 +529,54 @@ Auth 的 `PasswordExpiryNoticeJob` 仍待处理：读取该文件时审批超时
 ### 13.5 进度
 
 已迁 18 / 27，**剩余 9 个**：CRM 推送/对账 4（order push / order reconcile / return push / return reconcile）、OA 推送 2（purchase push / expense payable push）、LMS 1、Party 1、Auth 1。
+
+---
+
+## 14. 第六批：LMS 催办 + Party 通知扫描（2026-11-08 20:48–20:56）
+
+推送类留最后，本批先做两个「按日幂等通知」任务。
+
+### 14.1 改动清单
+
+| 服务 | 任务 code | 类.方法 | cron | 摘要字段 |
+|---|---|---|---|---|
+| whale-lms | `lms.urge.daily` | `LmsUrgeJob#urgeDaily` | `${whale.lms.urge.cron:0 0 9 * * *}` | `day/scanned/urgent/notified/failed` |
+| whale-party | `party.notice.scan` | `PartyNoticeJob#scan` | `${whale.party.notice-cron:0 0 9 * * *}` | `party/union` 发送条数 |
+
+配套：`V7__seed_lms_party_jobs.sql`（2 条 `job_info`，按 `job_code` 判重），`init.sql` 同步同源种子，`job_info` 共 20 条；`01-init-databases.sql` 补建 `bluewhale_party`。
+
+### 14.2 三处实现判断
+
+- **两个类原注释写着「不用注册到 whale-job」**，理由分别是「催办是 LMS 领域动作」「手工扫描与定时扫描走同一应用服务」。这两条只说明业务逻辑自洽，不构成留在进程内的理由——幂等和领域归属都不依赖触发方式；迁走后入口只剩「调应用服务 + 返回摘要」，反而更薄。注释已按现状重写。
+- **`LmsUrgeJob` 的 `catch (RuntimeException)` 改为上抛**：原写法是为「避免 `@Scheduled` 线程抛异常后静默终止」，迁到调度中心后这个顾虑消失——异常上抛才有重试与失败可见性，否则催办停摆会被记成一连串成功。
+- **`PartyNoticeJob` 保持「党务 → 工会」先后顺序**：`scanParty` 失败时本轮不再执行 `scanUnion`，与原来 `try` 包住两段的行为一致；差别只是由「只记 warn」变成「调度侧记失败并带原因」。
+- **misfire 均设 `FIRE_ONCE`**：按日幂等的通知任务错过当日应补跑一次，重复触发只会让当日已发场景返回 0。
+
+### 14.3 顺带修掉一个既有启动缺陷（whale-lms）
+
+`whale-lms` 在本机**根本起不来**：`PaperAppServiceImpl` 按 Jackson 2 类型构造注入 `com.fasterxml.jackson.databind.ObjectMapper`，而 Spring Boot 4 只提供 Jackson 3（`tools.jackson.*`），容器里没有该 Bean → `APPLICATION FAILED TO START`。与本次迁移无关，但阻塞端到端验证。
+
+修法沿用既有模式（crm / erp / oa / pay 都已有 `Jackson2CompatConfig`）：给 whale-lms 补一个 `@ConditionalOnMissingBean` 的 Jackson 2 `ObjectMapper`。
+
+值得记一笔的是：这个缺陷只有在「库齐了、真去起服务」之后才会暴露——之前 `bluewhale_lms` 建了库但从没起过 whale-lms，看起来一切正常。补这一批的同时把 `bluewhale_party` 库也补进 `01-init-databases.sql`（此前只在本机手工建过）。
+
+### 14.4 实机结果
+
+| 验证项 | 结果 |
+|---|---|
+| Flyway V7 | `Migrating to 7 - seed lms party jobs` → success，`job_info` 20 条 |
+| whale-party 起服 | `bluewhale_party` 从 v0 迁到 v6（baseline/platform/ledger/content/union/metric）→ success，注册 `172.18.0.15:9009 codes=[party.notice.scan]` |
+| whale-lms 起服 | 补 Jackson 2 兼容 Bean 后正常启动，注册 `172.18.0.14:9008 codes=[lms.urge.daily]` |
+| `lms.urge.daily` | `status=1`、`result="day=2026-11-08, scanned=0, urgent=0, notified=0, failed=0"` |
+| `party.notice.scan` | `status=1`、`result="party=0, union=0"`；服务日志给出逐场景明细 `{PARTY_PROBATION=0, PARTY_FEE=0, ...}` |
+| 无双跑 | 两侧只有 `远程触发任务完成`，无本地 cron 注册记录 |
+
+验证实例用完即 down；两个任务 `job_info.status` 重置为 0（这两个服务未进 `docker-compose.services.yml`，避免每轮触发失败告警）。
+
+### 14.5 门禁
+
+`whale-lms` 239（新增 `LmsUrgeJobTest` 3 例）、`whale-party` 160（新增 `PartyNoticeJobTest` 2 例）、`whale-job` 84 全绿，Checkstyle 0，ArchUnit 绿。
+
+### 14.6 进度
+
+已迁 20 / 27，**剩余 7 个**：CRM 推送/对账 4、OA 推送 2（这 6 个都向 ERP/MES 推单，留最后一批逐个验幂等）、Auth 1（`PasswordExpiryNoticeJob`，文件读取被用户拒绝共享，未改）。

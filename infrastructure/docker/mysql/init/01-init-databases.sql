@@ -116,6 +116,11 @@ CREATE DATABASE IF NOT EXISTS bluewhale_lms
   DEFAULT CHARACTER SET utf8mb4
   DEFAULT COLLATE utf8mb4_unicode_ci;
 
+-- ---- 党建 / 工会（whale-party：表由服务启动时 Flyway 建立） ----
+CREATE DATABASE IF NOT EXISTS bluewhale_party
+  DEFAULT CHARACTER SET utf8mb4
+  DEFAULT COLLATE utf8mb4_unicode_ci;
+
 -- ---- 商城（Wave 5.94 M0：商品/渠道/购物车/订单） ----
 CREATE DATABASE IF NOT EXISTS bluewhale_mall
   DEFAULT CHARACTER SET utf8mb4

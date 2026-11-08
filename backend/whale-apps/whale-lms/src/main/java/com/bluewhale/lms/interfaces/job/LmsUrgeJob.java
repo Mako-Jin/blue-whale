@@ -1,21 +1,21 @@
 package com.bluewhale.lms.interfaces.job;
 
+import com.bluewhale.common.jobschedule.ScheduledJob;
 import com.bluewhale.lms.integration.application.service.UrgeAppService;
 import com.bluewhale.lms.integration.application.view.UrgeRunView;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
  * 未完成必修催办任务（默认每日 09:00）。
  *
- * <p>用应用内 {@code @Scheduled} 而不是注册到 whale-job：催办是 LMS 自己的领域动作，
- * 需要读培训认定、员工快照与通知留痕三张本地表，走外部调度反而要为一个已经
- * 幂等的任务再维护一层远程回调。任务本身幂等，重复触发不会重复发。</p>
+ * <p>由 whale-job 调度中心触发，本类只做入口：幂等判定与通知留痕都在
+ * {@link UrgeAppService} 内完成，重复触发不会重复发。返回值是执行摘要，
+ * 直接落 {@code job_log.result}。</p>
  *
- * <p>异常在此处吞掉并记日志：调度线程抛出异常会静默终止后续执行，
- * 而催办本该第二天继续跑。</p>
+ * <p>整轮异常不再吞掉：原先 {@code catch} 后只记 warn，催办停摆会被调度侧
+ * 长期记成成功。抛出后由调度中心记失败并按重试策略处理，次日 cron 仍照常。</p>
  *
  * @author BlueWhale
  */
@@ -28,21 +28,24 @@ public class LmsUrgeJob {
 
     /**
      * 每日催办。
+     *
+     * @return 执行摘要（{@code day/scanned/urgent/notified/failed}）
      */
-    @Scheduled(cron = "${whale.lms.urge.cron:0 0 9 * * *}")
-    public void urgeDaily() {
-        try {
-            UrgeRunView result = urgeAppService.runScheduled();
-            if (result == null) {
-                return;
-            }
-            if (result.getNotified() > 0 || result.getFailedClasses() > 0) {
-                log.info("每日催办完成: day={}, scanned={}, urgent={}, notified={}, failed={}",
-                        result.getDay(), result.getScannedClasses(), result.getUrgentClasses(),
-                        result.getNotified(), result.getFailedClasses());
-            }
-        } catch (RuntimeException exception) {
-            log.warn("每日催办异常终止: error={}", exception.getMessage());
+    @ScheduledJob(code = "lms.urge.daily",
+            cron = "${whale.lms.urge.cron:0 0 9 * * *}",
+            timeoutSeconds = 1800)
+    public String urgeDaily() {
+        UrgeRunView result = urgeAppService.runScheduled();
+        if (result == null) {
+            return "skipped: no urge result";
         }
+        log.info("每日催办完成: day={}, scanned={}, urgent={}, notified={}, failed={}",
+                result.getDay(), result.getScannedClasses(), result.getUrgentClasses(),
+                result.getNotified(), result.getFailedClasses());
+        return "day=" + result.getDay()
+                + ", scanned=" + result.getScannedClasses()
+                + ", urgent=" + result.getUrgentClasses()
+                + ", notified=" + result.getNotified()
+                + ", failed=" + result.getFailedClasses();
     }
 }
