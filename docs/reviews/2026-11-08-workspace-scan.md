@@ -155,3 +155,15 @@
 3. 历史单 `MO-20261109-0001` 保留 `completedMismatch=true` 作为差异识别证据，未做数据修补。
 
 **P0 剩余**：CRM 营销发送投递回执（依赖 `whale-message` 容器，尚未纳入 compose）、`snapshot-cron` / `action-plan-cron` 定时触发验证。
+
+## 十二、补记（同日 16:55：CRM 定时任务 cron 实机验证通过）
+
+**结论：P0「snapshot-cron / action-plan-cron 定时触发验证」闭环。** 用分钟级 cron 起隔离实例（不注册 Nacos，宿主 9108），连续 4 轮触发：
+
+- 快照 job：按昨日生成 12 条指标快照，重复触发只 upsert 不新增（`create_time` 不变、`update_time` 前移）。
+- 行动计划 job：首轮自动补建 6 条规则并命中 `CONTRACT_EXPIRE` 生成 1 条 `OPEN` 行动项；重复触发不重复生成；已关闭项不再生成；条件解除后自动关闭（`条件已解除，系统自动关闭`）。
+- 手工端点与 cron 口径一致：`POST /crm/analytics/snapshot` 返回 12（upsert）、`POST /crm/action-plan/generate` 同日返回 0；未来日期被拒（`41019`）。
+
+**新识别风险（P1，未修）**：全仓库无 ShedLock/Redisson，`@Scheduled` 共 21 处，**多副本部署会 N 倍执行**。副作用靠业务幂等兜底（快照 upsert、行动项 dedupKey、ERP 建单按 `crm_order_no` 唯一），实测未产生重复数据，但会产生重复 RPC/DB 负载。建议给有副作用的 job 加分布式锁，或加「仅主实例注册调度」开关。
+
+**P0 剩余**：CRM 营销发送投递回执 —— 已确认仓库**没有 whale-message 模块**，CRM 的 `whale.crm.marketing.message-url` 默认指向 `127.0.0.1:8085`（该端口现被 `bw-file` 占用）。已决定方案：**先建最小 whale-message 服务**（模块 + 表 + 发送/回执接口 + compose 段，端口避开 8085），再验 CRM 触达状态机与回执幂等。
