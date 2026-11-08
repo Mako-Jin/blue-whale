@@ -12,8 +12,8 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.internaltoken.InternalTokenSupport;
 import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.mall.common.MallErrorCode;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 import java.net.URI;
@@ -200,7 +200,7 @@ public class PayInternalClient {
             return root.path("data");
         } catch (BizException ex) {
             throw ex;
-        } catch (RuntimeException | com.fasterxml.jackson.core.JsonProcessingException ex) {
+        } catch (RuntimeException ex) {
             log.error("支付内网响应解析失败: path={}", path, ex);
             throw MallErrorCode.exception(MallErrorCode.ORDER_PAY_FAILED, "支付服务响应异常");
         }

@@ -307,16 +307,18 @@ class AfterSaleAppServiceImplTest {
     }
 
     @Test
-    @DisplayName("驳回：释放行额度，商品可以重新申请售后")
+    @DisplayName("驳回：释放行额度，商品可以重新申请售后；订单轨迹必须带终态")
     void rejectReleasesQuota() {
         MallAfterSale afterSale = approvedPending();
         when(afterSaleRepository.findById(88L)).thenReturn(Optional.of(afterSale));
+        when(orderRepository.findById(5L)).thenReturn(Optional.of(paidOrder()));
 
         afterSaleAppService.reject(88L, "不符合条件", operator);
 
         assertThat(afterSale.getStatus()).isEqualTo(AfterSaleStatus.REJECTED);
         verify(afterSaleRepository).releaseItemQuota(eq(11L), eq(2), any());
         verify(payInternalClient, never()).refund(anyString(), anyString(), any(), anyString());
+        assertThat(capturedOrderLog().getToStatus()).isNotBlank();
     }
 
     @Test
@@ -324,11 +326,13 @@ class AfterSaleAppServiceImplTest {
     void cancelReleasesQuota() {
         MallAfterSale afterSale = approvedPending();
         when(afterSaleRepository.findById(88L)).thenReturn(Optional.of(afterSale));
+        when(orderRepository.findById(5L)).thenReturn(Optional.of(paidOrder()));
 
         afterSaleAppService.cancel(88L, buyer);
 
         assertThat(afterSale.getStatus()).isEqualTo(AfterSaleStatus.CANCELLED);
         verify(afterSaleRepository).releaseItemQuota(eq(11L), eq(2), any());
+        assertThat(capturedOrderLog().getToStatus()).isNotBlank();
     }
 
     @Test
@@ -598,5 +602,19 @@ class AfterSaleAppServiceImplTest {
                 AfterSaleType.REFUND_ONLY, "质量问题", "描述", null, items);
         afterSale.setId(88L);
         return afterSale;
+    }
+
+    /**
+     * 取出写入的订单轨迹，用于断言轨迹字段完整。
+     *
+     * <p>{@code mall_order_log.to_status} 是 NOT NULL 列，写入 null 会让整笔业务事务
+     * 在建库约束上回滚（驳回/撤销售后曾因此直接 500）。</p>
+     *
+     * @return 订单轨迹
+     */
+    private OrderLog capturedOrderLog() {
+        ArgumentCaptor<OrderLog> captor = ArgumentCaptor.forClass(OrderLog.class);
+        verify(orderRepository).appendLog(anyLong(), captor.capture());
+        return captor.getValue();
     }
 }

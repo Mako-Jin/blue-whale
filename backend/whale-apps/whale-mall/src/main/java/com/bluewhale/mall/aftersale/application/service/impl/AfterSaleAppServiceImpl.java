@@ -141,8 +141,11 @@ public class AfterSaleAppServiceImpl implements AfterSaleAppService {
         afterSale.reject(actor.getUserId(), actor.getUsername(), remark);
         afterSaleRepository.update(afterSale);
         releaseQuota(afterSale);
-        orderRepository.appendLog(afterSale.getOrderId(), actorLog(ACTION_APPLY, null, null, actor,
-                "售后 " + afterSale.getAfterSaleNo() + " 已驳回：" + (remark == null ? "" : remark)));
+        // 驳回不改订单状态，轨迹的起止状态都取订单当前状态；
+        // to_status 是 NOT NULL 列，写 null 会让整笔驳回事务回滚
+        MallOrder order = requireOrder(afterSale.getOrderId());
+        orderRepository.appendLog(order.getId(), actorLog(ACTION_APPLY, statusName(order), statusName(order),
+                actor, "售后 " + afterSale.getAfterSaleNo() + " 已驳回：" + (remark == null ? "" : remark)));
     }
 
     @Override
@@ -156,8 +159,10 @@ public class AfterSaleAppServiceImpl implements AfterSaleAppService {
         afterSale.cancel();
         afterSaleRepository.update(afterSale);
         releaseQuota(afterSale);
-        orderRepository.appendLog(afterSale.getOrderId(), actorLog(ACTION_APPLY, null, null, actor,
-                "售后 " + afterSale.getAfterSaleNo() + " 已撤销"));
+        // 同上：撤销不改订单状态，但不能给 NOT NULL 的 to_status 写 null
+        MallOrder order = requireOrder(afterSale.getOrderId());
+        orderRepository.appendLog(order.getId(), actorLog(ACTION_APPLY, statusName(order), statusName(order),
+                actor, "售后 " + afterSale.getAfterSaleNo() + " 已撤销"));
     }
 
     @Override
@@ -247,11 +252,15 @@ public class AfterSaleAppServiceImpl implements AfterSaleAppService {
         }
         afterSale.markRefunded(requestNo, LocalDateTime.now());
         afterSaleRepository.update(afterSale);
+        String from = statusName(order);
         if (!afterSaleRepository.applyOrderRefund(order.getId(), afterSale.getRefundAmount())) {
             throw MallErrorCode.exception(MallErrorCode.ORDER_REFUND_FAILED,
                     "订单累计退款失败：可退金额不足或状态不允许");
         }
-        orderRepository.appendLog(order.getId(), systemLog(ACTION_REFUND, statusName(order), null,
+        // 退款是条件更新，订单是否转 REFUNDED 取决于累计退款额，必须回读真实状态写入轨迹；
+        // to_status 是 NOT NULL 列，留空会让整笔回调事务回滚、支付方无限重投
+        MallOrder refunded = orderRepository.findById(order.getId()).orElse(order);
+        orderRepository.appendLog(order.getId(), systemLog(ACTION_REFUND, from, statusName(refunded),
                 "退款回调 " + afterSale.getAfterSaleNo() + "，本次 " + afterSale.getRefundAmount()));
         releaseCouponIfFullyRefunded(order);
     }
@@ -291,11 +300,13 @@ public class AfterSaleAppServiceImpl implements AfterSaleAppService {
         if (delta.compareTo(BigDecimal.ZERO) <= 0) {
             return;
         }
+        String from = statusName(order);
         if (!afterSaleRepository.applyOrderRefund(order.getId(), delta)) {
             throw MallErrorCode.exception(MallErrorCode.ORDER_REFUND_FAILED,
                     "订单累计退款失败：可退金额不足或状态不允许");
         }
-        orderRepository.appendLog(order.getId(), systemLog(ACTION_REFUND, statusName(order), null,
+        MallOrder refunded = orderRepository.findById(order.getId()).orElse(order);
+        orderRepository.appendLog(order.getId(), systemLog(ACTION_REFUND, from, statusName(refunded),
                 "退款回调（无售后单，请求号 " + requestNo + "），本次 " + delta));
         releaseCouponIfFullyRefunded(order);
     }

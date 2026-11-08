@@ -27,6 +27,9 @@ public enum ErrorCode {
     /** 资源不存在 */
     NOT_FOUND(404, "资源不存在"),
 
+    /** 请求方法不支持（路径存在但 HTTP 方法不匹配） */
+    METHOD_NOT_ALLOWED(405, "请求方法不支持"),
+
     /** 并发冲突：分布式锁获取失败（资源被占用，快速失败） */
     LOCK_ACQUIRE_FAILED(429, "系统繁忙，请稍后重试"),
 

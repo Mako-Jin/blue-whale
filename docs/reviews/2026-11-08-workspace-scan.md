@@ -342,3 +342,100 @@ PDM 6 项外部依赖（CAD 插件、3D/Office 转换、ngram/OCR、下载票据
 | P0-3 生产 `WHALE_INTERNAL_TOKEN` | 不改代码 | `InternalTokenProperties` 已实现「非 dev 无令牌拒绝启动」fail-fast，属**部署前检查清单**而非代码缺口；在 dev compose 里统一注入需同时重建全部 21 个容器，收益只覆盖本地环境，留给上线时与真实密钥一起配 |
 | P0-4 `whale-file` / `whale-contract` 进编排 | 阻塞 | Docker VM 5.79G、当前已用约 5.1G，再加两服务（各 ~300MiB）会把余量压到几百兆，重启窗口有 OOM 风险；需先扩 VM 内存或停用部分非常用服务 |
 | 心跳 `String` 转换噪音 | 记录不修 | 要改 starter 心跳为 `exchange` 直读字节流 + 19 服务重打包，收益不抵风险（§18.4） |
+
+## 十八、补记（同日 23:20–次日 00:15：商城 M0–5.98 首次实机运行）
+
+商城此前是「代码齐、从未跑过」的大块：12 个控制器 / 60 个端点 / V1–V6 迁移，建过库但没有一次进程内验证。
+本轮把它真正跑起来，暴露出 4 个静态检查与单测都抓不到的缺陷。
+
+### 18.1 启动即失败：Jackson 2 没有 Bean
+
+```
+Parameter 1 of constructor in PayInternalClient required a bean of type
+'com.fasterxml.jackson.databind.ObjectMapper' that could not be found
+```
+
+Spring Boot 4 用 Jackson 3（`tools.jackson.*`），不再自动注册 Jackson 2 的 `ObjectMapper`。
+商城是**新代码**，按红线直接迁到 Jackson 3，而不是像历史服务那样补 `Jackson2CompatConfig`：
+
+- `SpuRepositoryImpl`：`ObjectMapper` / `TypeReference` → `tools.jackson.*`；
+- `PayInternalClient`：`ObjectMapper` / `JsonNode` → `tools.jackson.*`；Jackson 3 的异常是非受检的，
+  原来的 `catch (RuntimeException | JsonProcessingException)` 编译不过，收敛为 `catch (RuntimeException)`。
+
+### 18.2 全量覆盖保存撞唯一键（500）
+
+商品编辑按契约是「提交的 SKU 列表即最终列表」。仓储实现是**先插新行、再删旧行**，
+于是调用方只回传编码不回传 ID（复制商品、脚本直调、或前端漏带 id）时，
+旧行还在就被 `uk_mall_sku_code` 挡住：`Duplicate entry '1-SMOKE-SKU-A-…'`。
+
+修法：`saveSkus` 插入前先按 `(spu_id, sku_code)` 查本商品已有行并复用其 ID，
+语义上真正变成「按编码 upsert」，SKU 主键也保持稳定（历史订单明细引用不漂移）。
+
+### 18.3 售后驳回 / 撤销 / 退款回调必然 500（最严重）
+
+`mall_order_log.to_status` 是 `NOT NULL` 列，但这三处写轨迹时传了 `null`：
+
+| 位置 | 后果 |
+|---|---|
+| `reject` | 驳回售后整笔事务回滚 → **驳回功能完全不可用** |
+| `cancel` | 撤销售后整笔事务回滚 → **撤销功能完全不可用** |
+| `markRefunded`（含无售后单兼容分支） | 退款回调回滚 → 支付方按失败重投，**永远退不成功** |
+
+单测全绿却漏了它：Mockito 不校验建库约束。
+修法：退款回调在 `applyOrderRefund` 后**回读订单真实状态**写入 `to_status`（部分退款时状态不变，`from == to` 才是事实）；
+驳回/撤销不改订单状态，起止状态都取订单当前状态。同时给这两个用例补了「轨迹必须带终态」断言。
+
+### 18.4 客户端错误被兜成 500
+
+`GlobalExceptionHandler` 只处理了 `BizException` / 参数校验 / 404 / 兜底，其余全部落到 500「系统异常」：
+
+- 请求体解析失败（JSON 语法错、日期格式不符）→ 500
+- 路径变量类型不符（`/mall/product/abc`）→ 500
+- 缺必填参数 → 500
+- 方法不支持（GET 打 POST 端点）→ 500
+
+四类都是调用方的错，排障时却被误读成服务端崩了。已在 `whale-common` 统一补齐：
+前三类归 `PARAM_ERROR(400)`，方法不支持新增 `METHOD_NOT_ALLOWED(405)`。
+这是公共组件，**只有重新打包过的服务才会生效**，其余服务下次构建时自动获得。
+
+### 18.5 冒烟结果：77/77
+
+脚本 `scripts/mall-smoke.py`（本轮入库，可重复执行：数据带运行序号，不依赖上轮残留）：
+
+| 段 | 覆盖 |
+|---|---|
+| A 元数据/类目 | meta、类目树、增改删 |
+| B 商品/库存 | 建档（双 SKU 双价目）、列表、详情、**编辑（不带 id）**、上下架、库存调整 |
+| C 运费/渠道 | 模板增查改启停、渠道建档改启停 |
+| D 优惠券 | 建档、改、启停、可用券查询、领取、我的券 |
+| E 购物车 | 加购、查看、改数量、选中、（另建）删除 |
+| F 订单主链路 | 预览、下单、**幂等重放**、我的/运营列表、详情、发起支付、支付回调 + 幂等、发货、**再开单并取消**、签收（内网回调）、完成 |
+| G 售后/退款 | 申请、我的/运营列表、详情、通过（真发退款给 whale-pay）、驳回、撤销、整单退款、退款回调 |
+| H 清理 | 下架后删除商品、删除类目 |
+| I 负向契约 | 畸形 JSON / 非法路径变量 / 缺参 均返回 400 |
+
+结论：**73 项业务断言 + 4 项负向断言全通过**，商城主链路（下单→支付→发货→签收→完成→售后→退款）首次跑通。
+
+### 18.6 事故：VM 内存打满时 `docker build` 把引擎拖死
+
+- 现象：`docker build` 卡住 19 分钟零 CPU，`docker version` / `docker ps` 全部返回
+  `500 Internal Server Error`；宿主日志 `apiproxy` 反复 `dialing 192.168.65.7:2376: no route to host`。
+- 起因：当时 VM（上限 6GB）只剩 **374MB** 可用，同时 22 个容器在跑，buildkit 一起就撑爆。
+- 恢复：`docker-desktop desktop restart` → 5 秒内引擎恢复；19 个 compose 容器凭
+  `restart: unless-stopped` **自动全部回来**，`docker-compose.verify.yml` 的 `restart: "no"` 容器需手工拉起。
+- 规矩：**`docker build` 前先看 `MemAvailable`，低于 1G 先停掉非必需容器**（本轮验证栈就是这样腾出来的）。
+
+### 18.7 现场与门禁
+
+- 商城 205 项单测全绿（含新增「售后轨迹必须带终态」断言）；`whale-common-core` / `whale-spring-boot-starter` /
+  `whale-mall` 三个模块 Checkstyle **0 违规**。
+- 收尾已回滚临时改动：`docker-compose.verify.yml` 栈 `down`，`bw-music` / `bw-party` 重新拉起，
+  常态编排 **21 个容器**全在线。
+
+### 18.8 仍未做
+
+| 项 | 状态 | 原因 |
+|---|---|---|
+| 商城进常态编排 | 阻塞 | 与 §17.4 P0-4 同一约束：VM 6GB、常态 21 容器已占约 5G；再常驻 mall/file/contract（约 900MB）会立刻回到 OOM 边缘 |
+| 商城前端页面 | 未开始 | 端到端已通，但 `frontend/platform-apps` 下没有商城应用，运营侧仍只能靠接口 |
+| 本地复跑冒烟 | 手工步骤 | 需先停 2 个低频服务腾内存 → 起 verify 栈 → `python scripts/mall-smoke.py` → 收尾；建议后续写进 `scripts/` 一键脚本 |

@@ -16,8 +16,8 @@ import com.bluewhale.mall.catalog.infrastructure.persistence.entity.SpuEntity;
 import com.bluewhale.mall.catalog.infrastructure.persistence.mapper.SkuMapper;
 import com.bluewhale.mall.catalog.infrastructure.persistence.mapper.SkuPriceMapper;
 import com.bluewhale.mall.catalog.infrastructure.persistence.mapper.SpuMapper;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
@@ -209,8 +209,14 @@ public class SpuRepositoryImpl implements SpuRepository {
      */
     private List<Long> saveSkus(Spu spu) {
         List<Long> kept = new ArrayList<>(spu.getSkus().size());
+        Map<String, Long> existingByCode = existingSkuIdsByCode(spu.getId());
         for (Sku sku : spu.getSkus()) {
             SkuEntity entity = toSkuEntity(sku, spu.getId());
+            // 全量覆盖语义下，调用方可以只回传 SKU 编码不带 ID（如从别处复制、或脚本直调）：
+            // 此时按编码复用本商品已有的行，否则旧行还在就会被唯一键 uk_mall_sku_code 挡住
+            if (entity.getId() == null) {
+                entity.setId(existingByCode.get(entity.getSkuCode()));
+            }
             if (entity.getId() == null) {
                 skuMapper.insert(entity);
                 sku.setId(entity.getId());
@@ -225,6 +231,25 @@ public class SpuRepositoryImpl implements SpuRepository {
             skuStockRepository.init(entity.getId());
         }
         return kept;
+    }
+
+    /**
+     * 加载本商品现有 SKU 的「编码 → ID」映射，用于按编码复用旧行。
+     *
+     * @param spuId 商品 ID
+     * @return 编码到 ID 的映射；商品新建时为空白映射
+     */
+    private Map<String, Long> existingSkuIdsByCode(Long spuId) {
+        if (spuId == null) {
+            return Map.of();
+        }
+        List<SkuEntity> existing = skuMapper.selectList(new LambdaQueryWrapper<SkuEntity>()
+                .eq(SkuEntity::getSpuId, spuId));
+        Map<String, Long> byCode = new HashMap<>(existing.size());
+        for (SkuEntity sku : existing) {
+            byCode.put(sku.getSkuCode(), sku.getId());
+        }
+        return byCode;
     }
 
     /**
