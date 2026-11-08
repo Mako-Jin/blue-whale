@@ -744,3 +744,45 @@ Auth 的 `PasswordExpiryNoticeJob` 仍待处理：读取该文件时审批超时
 
 迁移脚本门禁顺带修了一处**断言口径**：原用例按文件名字符串顺序校验版本号严格递增，两位数版本（V10）排在 V2 之前必然失败。改为先按数值排序再校验递增——断言的是版本号单调性，而不是目录遍历顺序。
 
+---
+
+## 18. 后续小项第二批：动态分片 + 表单服务容器化（2026-11-08 22:08–22:30）
+
+### 18.1 `shard_total = -1` 动态分片
+
+原实现把 `shard_total` 归一成 `[1, 16]` 的固定值，分片数改了配置才变。新增哨兵值 `-1`：**每次执行时按该任务当前可派发实例数决定分片数**，扩容后下一轮自动多分片、缩容自动收敛。
+
+关键是把「候选实例」的口径收敛到一处。此前 `HttpJobHandler` 自己做了「注册表 ∩ Nacos」，调度器若另算一遍就会出现「按 3 个分片跑、实际只有 2 个候选」的两套口径。因此下沉为 `JobExecutorService#dispatchableAddresses`，寻址与分片数都基于它：
+
+- 交集为空 → 回退注册表并告警（服务发现配置问题不该让任务整体失败）；
+- 服务发现抛异常 → 同样回退；
+- 兜底：未配 `executor_app`、无在线实例、查询抛异常，一律按单分片执行——分片是负载分摊手段，不能因为它让任务跑不起来。
+
+DTO 侧 `@Min(1)` 会拦住 `-1`，同步放开为 `@Min(-1)` 并改语义说明。
+
+### 18.2 表单服务容器化（`bw-form`）
+
+`archive.sync` 上批的 4 条失败全部来自 `bw-form:8084` 未部署。form 无定时任务、无 redis/rabbit 依赖，只需 mysql + nacos，接入成本低：
+
+| 服务 | 端口 | 库 | 备注 |
+|---|---|---|---|
+| form | 8084 | bluewhale_form | 无 `@Scheduled`，不注入 `WHALE_SCHEDULE_*` |
+
+实机：`bw-form` 启动 15.9s 健康，Flyway 正常；`archive.sync` 由 `pulled=4, failed=4` 变为 `pulled=0, failed=0`（无待同步记录），链路通。
+
+### 18.3 动态分片实机验证
+
+单实例下动态分片取到 1 → 与静态单分片等价，`doc.recycle.cleanup` 临时置 `-1` 触发得 `status=1, shardIndex=0, removed=0`，验证后已恢复 `1`。
+
+多实例分摊由单测覆盖（`JobSchedulerTest` 新增 3 例：3 实例 → 3 分片 / 无实例 → 1 分片 / 静态分片不查注册表），实机未起第二副本——内存已到 5.1G / 5.79G。
+
+### 18.4 观察到但不修的噪音
+
+`job` 容器重启的瞬间，11 个服务各报一条 `执行器心跳失败: reason=Error while extracting response for type [java.lang.String] and content type [application/octet-stream]`。心跳间隔 30s、判活阈值 90s，下一轮即自愈，注册表 `last_beat` 均正常刷新。
+
+根因是心跳用 `body(String.class)` 读取，重启窗口里对端返回了无 JSON content-type 的响应，`StringHttpMessageConverter` 拒绝转换。要彻底消除得把心跳改为 `exchange` 直读字节流——属于 starter 改动，需要全量重打包 19 个服务，收益不抵风险，只记录。
+
+### 18.5 门禁
+
+`whale-job` 92 例（原 86 + 动态分片 3 + 派发地址解析 3）、Checkstyle 0、ArchUnit 绿。
+

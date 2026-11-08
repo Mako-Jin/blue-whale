@@ -9,8 +9,6 @@ import com.bluewhale.job.scheduler.JobHandler;
 import com.bluewhale.job.service.JobExecutorService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.cloud.client.ServiceInstance;
-import org.springframework.cloud.client.discovery.DiscoveryClient;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
@@ -22,9 +20,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.Duration;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -86,30 +82,25 @@ public class HttpJobHandler implements JobHandler {
 
     private final RestClient.Builder restClientBuilder;
 
-    private final ObjectProvider<DiscoveryClient> discoveryClientProvider;
-
     /** 轮询计数器：多实例分摊，避免总是打到地址列表的第一个 */
     private final AtomicInteger roundRobin = new AtomicInteger();
 
     /**
      * 构造执行器。
      *
-     * @param jobExecutorService       执行器注册表服务
+     * @param jobExecutorService       执行器注册表服务（含与 Nacos 的交集解析）
      * @param jobProperties            任务服务配置
      * @param objectMapper             JSON 序列化器
      * @param restClientBuilderProvider RestClient 构造器（缺失时回退默认构造）
-     * @param discoveryClientProvider  服务发现客户端（缺失时只用注册表寻址）
      */
     public HttpJobHandler(JobExecutorService jobExecutorService,
                           JobProperties jobProperties,
                           ObjectMapper objectMapper,
-                          ObjectProvider<RestClient.Builder> restClientBuilderProvider,
-                          ObjectProvider<DiscoveryClient> discoveryClientProvider) {
+                          ObjectProvider<RestClient.Builder> restClientBuilderProvider) {
         this.jobExecutorService = jobExecutorService;
         this.jobProperties = jobProperties;
         this.objectMapper = objectMapper;
         this.restClientBuilder = restClientBuilderProvider.getIfAvailable(RestClient::builder);
-        this.discoveryClientProvider = discoveryClientProvider;
     }
 
     @Override
@@ -180,8 +171,8 @@ public class HttpJobHandler implements JobHandler {
      */
     private String resolveByRegistry(Long tenantId, String executorApp, String jobCode,
                                      int shardIndex, int shardTotal) {
-        List<String> registered = jobExecutorService.onlineAddresses(tenantId, executorApp, jobCode);
-        if (registered.isEmpty()) {
+        List<String> candidates = jobExecutorService.dispatchableAddresses(tenantId, executorApp, jobCode);
+        if (candidates.isEmpty()) {
             List<String> anyOnline = jobExecutorService.onlineAddresses(tenantId, executorApp);
             if (!anyOnline.isEmpty()) {
                 throw new JobNotDispatchableException("执行器在线但不支持该任务: app=" + executorApp
@@ -191,46 +182,8 @@ public class HttpJobHandler implements JobHandler {
             throw new JobNotDispatchableException("执行器无在线实例: app=" + executorApp
                     + "（检查业务服务是否已开启注册、心跳是否正常）");
         }
-        List<String> candidates = intersectWithDiscovery(executorApp, registered);
         String address = pick(candidates, shardIndex, shardTotal);
         return "http://" + address + String.format(TRIGGER_PATH, jobCode);
-    }
-
-    /**
-     * 与 Nacos 实例列表取交集，过滤掉注册表里残留但已下线的实例。
-     *
-     * <p>取交集为空时回退到注册表并告警：宁可多一次告警，也不要因为服务发现配置问题
-     * 让所有任务直接失败。</p>
-     *
-     * @param executorApp 执行器应用名
-     * @param registered  注册表给出的在线地址
-     * @return 可用地址列表
-     */
-    private List<String> intersectWithDiscovery(String executorApp, List<String> registered) {
-        DiscoveryClient discoveryClient = discoveryClientProvider.getIfAvailable();
-        if (discoveryClient == null) {
-            return registered;
-        }
-        Set<String> live = new LinkedHashSet<>();
-        try {
-            for (ServiceInstance instance : discoveryClient.getInstances(executorApp)) {
-                live.add(instance.getHost() + ":" + instance.getPort());
-            }
-        } catch (RuntimeException e) {
-            log.warn("服务发现不可用，回退注册表寻址: app={}, reason={}", executorApp, e.getMessage());
-            return registered;
-        }
-        if (live.isEmpty()) {
-            log.warn("Nacos 无该服务实例，回退注册表寻址: app={}, registry={}", executorApp, registered);
-            return registered;
-        }
-        List<String> matched = registered.stream().filter(live::contains).toList();
-        if (matched.isEmpty()) {
-            log.warn("注册表与 Nacos 实例不一致，回退注册表寻址: app={}, registry={}, nacos={}",
-                    executorApp, registered, live);
-            return registered;
-        }
-        return matched;
     }
 
     /**

@@ -58,8 +58,13 @@ public class JobInfoCreateRequest {
     @Min(value = 0, message = "重试间隔不能小于 0")
     private Integer retryIntervalSeconds;
 
-    /** 分片总数，默认 1（不分片） */
-    @Min(value = 1, message = "分片总数不能小于 1")
+    /**
+     * 分片总数，默认 1（不分片）。
+     *
+     * <p>取 {@code -1} 表示动态分片：每次执行按该任务当前可派发的执行器实例数决定分片数，
+     * 扩容缩容后自动跟随，无需改配置。</p>
+     */
+    @Min(value = -1, message = "分片总数取 1~16，或 -1 表示按在线实例动态分片")
     @Max(value = 16, message = "分片总数不能超过 16")
     private Integer shardTotal;
 

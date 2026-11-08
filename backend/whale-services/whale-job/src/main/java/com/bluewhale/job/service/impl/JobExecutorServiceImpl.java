@@ -10,15 +10,19 @@ import com.bluewhale.job.entity.JobExecutor;
 import com.bluewhale.job.mapper.JobExecutorMapper;
 import com.bluewhale.job.service.JobExecutorService;
 import com.bluewhale.job.vo.JobExecutorVO;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.cloud.client.ServiceInstance;
+import org.springframework.cloud.client.discovery.DiscoveryClient;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 执行器注册表服务实现。
@@ -33,7 +37,6 @@ import java.util.List;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class JobExecutorServiceImpl implements JobExecutorService {
 
     /** 默认租户ID */
@@ -51,6 +54,23 @@ public class JobExecutorServiceImpl implements JobExecutorService {
     private final JobExecutorMapper jobExecutorMapper;
 
     private final JobProperties jobProperties;
+
+    private final ObjectProvider<DiscoveryClient> discoveryClientProvider;
+
+    /**
+     * 构造服务：服务发现客户端允许缺失（单机部署或测试环境只用注册表寻址）
+     *
+     * @param jobExecutorMapper      执行器注册表 Mapper
+     * @param jobProperties          任务服务配置
+     * @param discoveryClientProvider 服务发现客户端
+     */
+    public JobExecutorServiceImpl(JobExecutorMapper jobExecutorMapper,
+                                  JobProperties jobProperties,
+                                  ObjectProvider<DiscoveryClient> discoveryClientProvider) {
+        this.jobExecutorMapper = jobExecutorMapper;
+        this.jobProperties = jobProperties;
+        this.discoveryClientProvider = discoveryClientProvider;
+    }
 
     @Override
     public void register(ExecutorRegisterRequest request) {
@@ -141,6 +161,38 @@ public class JobExecutorServiceImpl implements JobExecutorService {
             }
         }
         return false;
+    }
+
+    @Override
+    public List<String> dispatchableAddresses(Long tenantId, String appName, String jobCode) {
+        List<String> registered = onlineAddresses(tenantId, appName, jobCode);
+        if (registered.isEmpty()) {
+            return registered;
+        }
+        DiscoveryClient discoveryClient = discoveryClientProvider.getIfAvailable();
+        if (discoveryClient == null) {
+            return registered;
+        }
+        Set<String> live = new LinkedHashSet<>();
+        try {
+            for (ServiceInstance instance : discoveryClient.getInstances(appName)) {
+                live.add(instance.getHost() + ":" + instance.getPort());
+            }
+        } catch (RuntimeException e) {
+            log.warn("服务发现不可用，回退注册表寻址: app={}, reason={}", appName, e.getMessage());
+            return registered;
+        }
+        if (live.isEmpty()) {
+            log.warn("Nacos 无该服务实例，回退注册表寻址: app={}, registry={}", appName, registered);
+            return registered;
+        }
+        List<String> matched = registered.stream().filter(live::contains).toList();
+        if (matched.isEmpty()) {
+            log.warn("注册表与 Nacos 实例不一致，回退注册表寻址: app={}, registry={}, nacos={}",
+                    appName, registered, live);
+            return registered;
+        }
+        return matched;
     }
 
     @Override

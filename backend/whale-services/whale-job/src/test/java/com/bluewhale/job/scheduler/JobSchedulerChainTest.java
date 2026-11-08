@@ -9,6 +9,7 @@ import com.bluewhale.job.entity.JobLog;
 import com.bluewhale.job.mapper.JobDependencyMapper;
 import com.bluewhale.job.mapper.JobInfoMapper;
 import com.bluewhale.job.mapper.JobLogMapper;
+import com.bluewhale.job.service.JobExecutorService;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -65,6 +66,8 @@ class JobSchedulerChainTest {
 
     private final JobExecutionGuard executionGuard = new JobExecutionGuard();
 
+    private final JobExecutorService jobExecutorService = mock(JobExecutorService.class);
+
     private final JobAlertNotifier jobAlertNotifier = mock(JobAlertNotifier.class);
 
     @SuppressWarnings("unchecked")
@@ -74,7 +77,8 @@ class JobSchedulerChainTest {
     private final JobScheduleBroadcaster jobScheduleBroadcaster = new JobScheduleBroadcaster(redissonClientProvider);
 
     private final JobScheduler scheduler = new JobScheduler(jobInfoMapper, jobLogMapper, jobDependencyMapper,
-            jobHandlerRegistry, executionGuard, redissonClientProvider, jobAlertNotifier, jobScheduleBroadcaster);
+            jobHandlerRegistry, executionGuard, jobExecutorService, redissonClientProvider, jobAlertNotifier,
+            jobScheduleBroadcaster);
 
     /**
      * 注册实体元信息缓存：Lambda 条件构造器会立即按实体解析列名，纯单测无 MyBatis 环境需手动初始化 TableInfo。

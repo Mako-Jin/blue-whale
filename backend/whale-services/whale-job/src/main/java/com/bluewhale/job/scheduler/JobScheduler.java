@@ -12,6 +12,7 @@ import com.bluewhale.job.mapper.JobDependencyMapper;
 import com.bluewhale.job.mapper.JobInfoMapper;
 import com.bluewhale.job.mapper.JobLogMapper;
 import com.bluewhale.job.scheduler.handler.JobNotDispatchableException;
+import com.bluewhale.job.service.JobExecutorService;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
@@ -57,7 +58,8 @@ import java.util.concurrent.TimeUnit;
  * 每次尝试都回写 {@code job_log.retry_count}；重试全程持有实例内互斥与分布式锁，
  * 因此重试期间不会与其他触发并发执行；超过上限后回写失败终态（{@code status=-1}）。
  * 分片：按 {@code shard_total} 串行执行各分片，分片序号写入 {@code job_log.shard_index}，
- * 并经 {@link JobExecutionContext} 透传给执行器；单分片行为与旧逻辑一致。</p>
+ * 并经 {@link JobExecutionContext} 透传给执行器；单分片行为与旧逻辑一致。
+ * {@code shard_total=-1} 为动态分片，每次执行按当前可派发实例数决定分片数。</p>
  *
  * <p>依赖编排：根触发（cron / 手动）生成 {@code runId}；存在上游依赖的任务不注册自身 cron，
  * 仅在上游任务全部分片成功且其所有上游在同一 {@code runId} 下均成功后，以 {@code CHAIN}
@@ -106,6 +108,9 @@ public class JobScheduler {
     /** 默认分片总数：1 表示不分片 */
     private static final int DEFAULT_SHARD_TOTAL = 1;
 
+    /** 动态分片标记：分片数在每次执行时按在线执行器实例数决定 */
+    private static final int DYNAMIC_SHARD_TOTAL = -1;
+
     /** 分片总数上限 */
     private static final int MAX_SHARD_TOTAL = 16;
 
@@ -139,6 +144,8 @@ public class JobScheduler {
     private final JobHandlerRegistry jobHandlerRegistry;
 
     private final JobExecutionGuard executionGuard;
+
+    private final JobExecutorService jobExecutorService;
 
     private final ObjectProvider<RedissonClient> redissonClientProvider;
 
@@ -532,7 +539,10 @@ public class JobScheduler {
      * @param depth 依赖链深度
      */
     void doExecute(JobInfo job, String runId, String triggerType, int depth) {
-        int shardTotal = resolveShardTotal(job.getShardTotal());
+        int shardTotal = resolveShardTotal(job);
+        if (shardTotal > 1) {
+            log.info("任务分片执行: jobId={}, shardTotal={}", job.getId(), shardTotal);
+        }
         int failedShards = 0;
         for (int shardIndex = 0; shardIndex < shardTotal; shardIndex++) {
             if (!executeShard(job, shardIndex, shardTotal, runId, triggerType)) {
@@ -837,16 +847,51 @@ public class JobScheduler {
     }
 
     /**
-     * 归一化分片总数
+     * 解析本次执行的分片总数。
      *
-     * @param shardTotal 配置值（可为空）
-     * @return 空或小于 1 返回 1，超过上限按上限截断
+     * <p>配置为 {@value #DYNAMIC_SHARD_TOTAL} 时按「当前可派发实例数」决定分片数：扩容后
+     * 下一轮自动多分片、缩容后自动收敛，无需改配置。取不到执行器信息（未配 executor_app、
+     * 注册表查询异常）时退回单分片——分片是负载分摊手段，不能因为它让任务整体跑不起来。</p>
+     *
+     * @param job 任务定义
+     * @return 分片总数，取值 {@code [1, MAX_SHARD_TOTAL]}
      */
-    private static int resolveShardTotal(Integer shardTotal) {
-        if (shardTotal == null || shardTotal < DEFAULT_SHARD_TOTAL) {
+    private int resolveShardTotal(JobInfo job) {
+        Integer configured = job.getShardTotal();
+        if (configured != null && configured == DYNAMIC_SHARD_TOTAL) {
+            return resolveDynamicShardTotal(job);
+        }
+        if (configured == null || configured < DEFAULT_SHARD_TOTAL) {
             return DEFAULT_SHARD_TOTAL;
         }
-        return Math.min(shardTotal, MAX_SHARD_TOTAL);
+        return Math.min(configured, MAX_SHARD_TOTAL);
+    }
+
+    /**
+     * 按在线执行器实例数计算动态分片数。
+     *
+     * @param job 任务定义
+     * @return 分片总数；无可用实例或查询失败时返回 1
+     */
+    private int resolveDynamicShardTotal(JobInfo job) {
+        if (!StringUtils.hasText(job.getExecutorApp())) {
+            log.warn("动态分片需要 executor_app，未配置则按单分片执行: jobId={}", job.getId());
+            return DEFAULT_SHARD_TOTAL;
+        }
+        try {
+            int online = jobExecutorService
+                    .dispatchableAddresses(job.getTenantId(), job.getExecutorApp(), job.getJobCode())
+                    .size();
+            if (online <= 0) {
+                log.warn("动态分片未取到在线执行器，按单分片执行: jobId={}, executorApp={}",
+                        job.getId(), job.getExecutorApp());
+                return DEFAULT_SHARD_TOTAL;
+            }
+            return Math.min(online, MAX_SHARD_TOTAL);
+        } catch (RuntimeException e) {
+            log.warn("动态分片查询执行器失败，按单分片执行: jobId={}, reason={}", job.getId(), e.getMessage());
+            return DEFAULT_SHARD_TOTAL;
+        }
     }
 
     /**

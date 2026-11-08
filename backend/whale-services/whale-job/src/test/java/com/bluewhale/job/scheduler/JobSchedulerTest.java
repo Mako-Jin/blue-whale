@@ -7,6 +7,7 @@ import com.bluewhale.job.entity.JobLog;
 import com.bluewhale.job.mapper.JobDependencyMapper;
 import com.bluewhale.job.mapper.JobInfoMapper;
 import com.bluewhale.job.mapper.JobLogMapper;
+import com.bluewhale.job.service.JobExecutorService;
 import com.bluewhale.job.scheduler.handler.JobNotDispatchableException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -57,6 +58,8 @@ class JobSchedulerTest {
 
     private final JobExecutionGuard executionGuard = new JobExecutionGuard();
 
+    private final JobExecutorService jobExecutorService = mock(JobExecutorService.class);
+
     private final JobAlertNotifier jobAlertNotifier = mock(JobAlertNotifier.class);
 
     @SuppressWarnings("unchecked")
@@ -66,7 +69,8 @@ class JobSchedulerTest {
     private final JobScheduleBroadcaster jobScheduleBroadcaster = new JobScheduleBroadcaster(redissonClientProvider);
 
     private final JobScheduler scheduler = new JobScheduler(jobInfoMapper, jobLogMapper, jobDependencyMapper,
-            jobHandlerRegistry, executionGuard, redissonClientProvider, jobAlertNotifier, jobScheduleBroadcaster);
+            jobHandlerRegistry, executionGuard, jobExecutorService, redissonClientProvider, jobAlertNotifier,
+            jobScheduleBroadcaster);
 
     @AfterEach
     void tearDown() {
@@ -332,6 +336,74 @@ class JobSchedulerTest {
         List<Integer> shardIndexes = insertCaptor.getAllValues().stream()
                 .map(JobLog::getShardIndex).toList();
         assertEquals(List.of(0, 1, 2), shardIndexes);
+    }
+
+    @Test
+    @DisplayName("分片：shardTotal=-1 时按可派发实例数动态决定分片数")
+    void shouldResolveDynamicShardTotalFromOnlineExecutors() {
+        List<JobExecutionContext> contexts = collectContexts();
+        JobInfo job = job(1L, "SMART");
+        job.setExecutorApp("whale-crm");
+        job.setJobCode("crm.order.reconcile");
+        job.setShardTotal(-1);
+        when(jobExecutorService.dispatchableAddresses(any(), anyString(), anyString()))
+                .thenReturn(List.of("bw-crm-1:9007", "bw-crm-2:9007", "bw-crm-3:9007"));
+
+        scheduler.doExecute(job);
+
+        assertEquals(3, contexts.size());
+        assertEquals(3, contexts.get(0).getShardTotal());
+        assertEquals(List.of(0, 1, 2), contexts.stream().map(JobExecutionContext::getShardIndex).toList());
+    }
+
+    @Test
+    @DisplayName("分片：动态分片取不到在线实例时退回单分片，任务照常执行")
+    void shouldFallbackToSingleShardWhenNoOnlineExecutor() {
+        List<JobExecutionContext> contexts = collectContexts();
+        JobInfo job = job(1L, "SMART");
+        job.setExecutorApp("whale-crm");
+        job.setJobCode("crm.order.reconcile");
+        job.setShardTotal(-1);
+        when(jobExecutorService.dispatchableAddresses(any(), anyString(), anyString()))
+                .thenReturn(List.of());
+
+        scheduler.doExecute(job);
+
+        assertEquals(1, contexts.size());
+        assertEquals(1, contexts.get(0).getShardTotal());
+    }
+
+    @Test
+    @DisplayName("分片：未配置 executor_app 的静态任务不查询注册表")
+    void shouldNotQueryRegistryForStaticShardTotal() {
+        List<JobExecutionContext> contexts = collectContexts();
+        JobInfo job = job(1L, "SMART");
+        job.setShardTotal(2);
+
+        scheduler.doExecute(job);
+
+        assertEquals(2, contexts.size());
+        verify(jobExecutorService, never()).dispatchableAddresses(any(), anyString(), anyString());
+    }
+
+    /**
+     * 注册一个记录执行上下文的执行器，返回收集列表
+     */
+    private List<JobExecutionContext> collectContexts() {
+        List<JobExecutionContext> contexts = new ArrayList<>();
+        when(jobHandlerRegistry.resolve("demoJobHandler")).thenReturn(new JobHandler() {
+            @Override
+            public String execute(String param) {
+                return "unused";
+            }
+
+            @Override
+            public String executeWithContext(JobExecutionContext context) {
+                contexts.add(context);
+                return "shard-" + context.getShardIndex();
+            }
+        });
+        return contexts;
     }
 
     @Test

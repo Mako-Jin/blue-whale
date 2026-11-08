@@ -53,7 +53,11 @@ public class JobInfo extends BaseEntity {
     /** 重试间隔秒数 */
     private Integer retryIntervalSeconds;
 
-    /** 分片总数：1 表示不分片，分片间串行执行 */
+    /**
+     * 分片总数：1 表示不分片，分片间串行执行。
+     *
+     * <p>{@code -1} 为动态分片，执行时按可派发实例数决定分片数。</p>
+     */
     private Integer shardTotal;
 
     /** 任务状态：1 运行中 / 0 已停止 */

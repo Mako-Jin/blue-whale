@@ -546,6 +546,30 @@ services:
       retries: 12
       start_period: 120s
 
+  # ---------------- 表单 ----------------
+  # 无定时任务、无 redis/rabbit 依赖；archive 的归档同步依赖它读表单值与字段定义
+  form:
+    <<: *common
+    image: bluewhale/whale-form:dev
+    container_name: bw-form
+    mem_limit: 480m
+    environment:
+      JAVA_OPTS: "-Xms96m -Xmx256m -XX:MaxMetaspaceSize=192m -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "8084"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "127.0.0.1:8084:8084"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8084/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 120s
+
 networks:
   bw-net:
     external: true
