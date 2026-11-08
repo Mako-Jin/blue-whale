@@ -7,8 +7,11 @@ import com.bluewhale.oa.approval.application.command.ApprovalRouteCommand;
 import com.bluewhale.oa.approval.application.service.ApprovalConfigAppService;
 import com.bluewhale.oa.approval.application.view.ApprovalConfigView;
 import com.bluewhale.oa.approval.application.view.ApprovalInstanceView;
+import com.bluewhale.oa.approval.domain.gateway.WorkflowApprovalGateway;
 import com.bluewhale.oa.approval.domain.model.ApprovalInstance;
 import com.bluewhale.oa.approval.domain.model.ApprovalStatus;
+import com.bluewhale.oa.approval.domain.model.WorkflowInstanceSnapshot;
+import com.bluewhale.oa.approval.domain.model.WorkflowTaskSnapshot;
 import com.bluewhale.oa.approval.domain.repository.ApprovalEffectRepository;
 import com.bluewhale.oa.approval.domain.repository.ApprovalInstanceRepository;
 import com.bluewhale.oa.approval.domain.repository.ApprovalRouteRepository;
@@ -20,8 +23,10 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
@@ -44,11 +49,14 @@ class ApprovalInstanceAppServiceImplTest {
 
     private final ApprovalConfigAppService approvalConfigAppService = mock(ApprovalConfigAppService.class);
 
+    private final WorkflowApprovalGateway workflowApprovalGateway = mock(WorkflowApprovalGateway.class);
+
     private final ApplicationEventPublisher applicationEventPublisher = mock(ApplicationEventPublisher.class);
 
     private final ApprovalInstanceAppServiceImpl approvalInstanceAppService =
             new ApprovalInstanceAppServiceImpl(approvalInstanceRepository, approvalRouteRepository,
-                    approvalEffectRepository, approvalConfigAppService, applicationEventPublisher);
+                    approvalEffectRepository, approvalConfigAppService, workflowApprovalGateway,
+                    applicationEventPublisher);
 
     @Test
     @DisplayName("register：落审批实例与审批人快照，标题按模板渲染")
@@ -203,6 +211,57 @@ class ApprovalInstanceAppServiceImplTest {
         config.setBusinessUrl("/oa/hr/leave");
         config.setEnabled(true);
         return config;
+    }
+
+    @Test
+    @DisplayName("isParticipant：发起人与审批人快照命中即参与，未登记实例返回 false")
+    void shouldJudgeParticipantByInitiatorAndSnapshot() {
+        ApprovalInstance instance = runningInstance(9L);
+        instance.setInitiatorId(5L);
+        instance.setCurrentAssignees("leader_a,leader_b");
+        when(approvalInstanceRepository.findByBusiness("DOC_OUTGOING", 11L)).thenReturn(Optional.of(instance));
+
+        assertTrue(approvalInstanceAppService.isParticipant("DOC_OUTGOING", 11L, 5L, "zhangsan"));
+        assertTrue(approvalInstanceAppService.isParticipant("DOC_OUTGOING", 11L, 8L, "leader_a"));
+        assertFalse(approvalInstanceAppService.isParticipant("DOC_OUTGOING", 11L, 9L, "nobody"));
+        assertFalse(approvalInstanceAppService.isParticipant("DOC_OUTGOING", 11L, null, null));
+        assertFalse(approvalInstanceAppService.isParticipant(" ", 11L, 5L, "zhangsan"));
+
+        when(approvalInstanceRepository.findByBusiness("LEAVE", 12L)).thenReturn(Optional.empty());
+        assertFalse(approvalInstanceAppService.isParticipant("LEAVE", 12L, 5L, "zhangsan"));
+    }
+
+    @Test
+    @DisplayName("isParticipant：审批快照为空时按 Workflow 任务处理人判定")
+    void shouldJudgeParticipantByWorkflowTasks() {
+        ApprovalInstance instance = runningInstance(9L);
+        instance.setInitiatorId(5L);
+        instance.setWorkflowInstanceId(88L);
+        when(approvalInstanceRepository.findByBusiness("DOC_OUTGOING", 11L)).thenReturn(Optional.of(instance));
+
+        WorkflowTaskSnapshot task = new WorkflowTaskSnapshot();
+        task.setAssignee("zhangsan");
+        task.setDelegateFrom("lisi");
+        WorkflowInstanceSnapshot snapshot = new WorkflowInstanceSnapshot();
+        snapshot.setInitiator("someone");
+        snapshot.setTasks(List.of(task));
+        when(workflowApprovalGateway.getInstance(88L)).thenReturn(snapshot);
+
+        assertTrue(approvalInstanceAppService.isParticipant("DOC_OUTGOING", 11L, 21L, "zhangsan"));
+        assertTrue(approvalInstanceAppService.isParticipant("DOC_OUTGOING", 11L, null, "lisi"));
+        assertFalse(approvalInstanceAppService.isParticipant("DOC_OUTGOING", 11L, 21L, "other"));
+    }
+
+    @Test
+    @DisplayName("isParticipant：工作流查询异常时按非参与人处理")
+    void shouldFailClosedWhenWorkflowUnavailable() {
+        ApprovalInstance instance = runningInstance(9L);
+        instance.setInitiatorId(5L);
+        instance.setWorkflowInstanceId(88L);
+        when(approvalInstanceRepository.findByBusiness("DOC_OUTGOING", 11L)).thenReturn(Optional.of(instance));
+        when(workflowApprovalGateway.getInstance(88L)).thenThrow(new IllegalStateException("工作流不可用"));
+
+        assertFalse(approvalInstanceAppService.isParticipant("DOC_OUTGOING", 11L, 21L, "zhangsan"));
     }
 
     /**

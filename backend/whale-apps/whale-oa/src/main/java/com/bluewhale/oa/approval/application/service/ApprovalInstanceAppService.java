@@ -39,6 +39,20 @@ public interface ApprovalInstanceAppService {
     ApprovalInstanceView findByBusiness(String businessType, Long businessId);
 
     /**
+     * 判断用户是否属于该业务单据审批的参与者。
+     *
+     * <p>判定口径：审批发起人、审批人快照命中、Workflow 流程实例的发起人 / 任务处理人
+     * （含所属人、委派来源）。业务上下文（如公文附件下载）据此决定未办结单据的可读范围。</p>
+     *
+     * @param businessType 业务类型
+     * @param businessId 业务单据ID
+     * @param userId 用户ID，可为空
+     * @param username 用户名，可为空
+     * @return 属于参与者返回 {@code true}；未登记审批实例或工作流不可用时返回 {@code false}
+     */
+    boolean isParticipant(String businessType, Long businessId, Long userId, String username);
+
+    /**
      * 登记审批实例（同一业务单据幂等，重复登记返回既有实例）。
      *
      * @param command 登记命令

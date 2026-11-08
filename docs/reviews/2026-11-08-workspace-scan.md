@@ -91,5 +91,12 @@
 | §二 P0：分析导出接 whale-file | ✅ 已落地（V13 + `AnalyticsFilePort` + 代理下载端点 + 前端 blob 下载），实机联调待环境 |
 | §二 P0：客户合并接 whale-contract | ✅ 已落地（contract 侧 count/rewrite 内网端点 + CRM 适配器，受 `whale.crm.contract.enabled` 门控），实机联调待环境 |
 | 新发现 | 存量架构违规（`78a58d82`：审批对账应用层直依赖 infra 客户端）已修复，`CrmArchitectureTest` 9/9 转绿 |
+| 新遗留：公文代理下载无调用者可见性 | ✅ 已修复（§八）：`DocReadAccessGuard` + 审批侧 `isParticipant`，草稿/驳回与秘密级公文限拟稿人/承办人/审批参与人 |
 
-**仍未解决**：§三 全部阻塞（实机联调、真实库迁移、跨服务契约、V-09 证书、D 编号依赖）；公文代理下载的调用者可见性校验（新增遗留）。详见 devlog 2026-11-08 §七。
+## 八、补记（同日 14:15：公文附件可见性 + 架构门禁回归）
+
+- **公文附件下载可见性**：`DocAttachmentController` 原先只比对 `docType/docId`，持 `sys:oa:document:download` 的用户可枚举 `attachmentId` 取到未发布草稿或密级公文附件。新增 `document/application/service/DocReadAccessGuard`：发文 `DRAFT/REJECTED` 与密级=3（秘密）限拟稿人 / 承办人 / 审批参与人；`PENDING` 及之后对持权限用户开放（避免流程查询抖动卡住审批人）；收文登记后开放，秘密级限承办人。
+- **审批参与人判定下沉**：`ApprovalInstanceAppService` 新增 `isParticipant(businessType, businessId, userId, username)`，口径 = 发起人 / 审批人快照 / Workflow 实例任务处理人（含 owner、delegateFrom），工作流不可用时 fail-closed。
+- **回归修复**：上一批 `AttachmentOwnershipGuard`（application）直依赖 `OaFileMetadataClient`（infrastructure），触发 `OaArchitectureTest.application_must_not_depend_on_infrastructure`（7 处违规，全量测试才暴露）。新增端口 `common/domain/gateway/FileMetadataGateway` + 领域记录 `FileMetadata`，客户端实现端口，守卫改依赖端口 → 架构 8/8 转绿。
+
+**仍未解决**：§三 全部阻塞（实机联调、真实库迁移、跨服务契约、V-09 证书、D 编号依赖）；B4/B5 真实库联调。详见 devlog 2026-11-08 §八。

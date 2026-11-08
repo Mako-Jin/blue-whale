@@ -3,6 +3,8 @@ package com.bluewhale.oa.common.infrastructure.client;
 import com.bluewhale.common.internaltoken.InternalTokenSupport;
 import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.oa.common.OaErrorCode;
+import com.bluewhale.oa.common.domain.gateway.FileMetadataGateway;
+import com.bluewhale.oa.common.domain.model.FileMetadata;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.client.ServiceInstance;
@@ -26,7 +28,7 @@ import java.util.Optional;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class OaFileMetadataClient {
+public class OaFileMetadataClient implements FileMetadataGateway {
 
     /** 成功业务码 */
     private static final int CODE_SUCCESS = 0;
@@ -40,24 +42,13 @@ public class OaFileMetadataClient {
     private final DiscoveryClient discoveryClient;
 
     /**
-     * 附件文件元数据。
-     *
-     * @param fileId      文件ID
-     * @param originalName 原始文件名
-     * @param uploaderId  上传人用户ID（可为 {@code null}）
-     * @param deleted     逻辑删除标记（0 未删除）
-     * @param status      状态（1 正常）
-     */
-    public record FileMeta(Long fileId, String originalName, Long uploaderId, int deleted, int status) {
-    }
-
-    /**
      * 查询文件元数据；文件不存在（含 404）时返回空。
      *
      * @param fileId 文件ID
      * @return 元数据；缺失返回空
      */
-    public Optional<FileMeta> findFile(Long fileId) {
+    @Override
+    public Optional<FileMetadata> findFile(Long fileId) {
         if (fileId == null || fileId <= 0) {
             return Optional.empty();
         }
@@ -92,7 +83,7 @@ public class OaFileMetadataClient {
         if (!(data instanceof Map<?, ?> row)) {
             return Optional.empty();
         }
-        return Optional.of(new FileMeta(
+        return Optional.of(new FileMetadata(
                 fileId,
                 text(row.get("originalName")),
                 parseNullableLong(row.get("uploaderId")),

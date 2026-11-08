@@ -1,7 +1,8 @@
 package com.bluewhale.oa.common.application.service;
 
 import com.bluewhale.oa.common.OaErrorCode;
-import com.bluewhale.oa.common.infrastructure.client.OaFileMetadataClient;
+import com.bluewhale.oa.common.domain.gateway.FileMetadataGateway;
+import com.bluewhale.oa.common.domain.model.FileMetadata;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -26,7 +27,7 @@ public class AttachmentOwnershipGuard {
     /** 逻辑删除：未删除 */
     private static final int NOT_DELETED = 0;
 
-    private final OaFileMetadataClient fileMetadataClient;
+    private final FileMetadataGateway fileMetadataGateway;
 
     /**
      * 校验文件可被当前用户引用；{@code fileId} 为空时跳过（由调用方决定必填性）。
@@ -38,7 +39,7 @@ public class AttachmentOwnershipGuard {
         if (fileId == null || fileId <= 0) {
             return;
         }
-        OaFileMetadataClient.FileMeta meta = fileMetadataClient.findFile(fileId)
+        FileMetadata meta = fileMetadataGateway.findFile(fileId)
                 .orElseThrow(() -> OaErrorCode.exception(OaErrorCode.ATTACHMENT_NOT_FOUND));
         if (meta.deleted() != NOT_DELETED || meta.status() != FILE_STATUS_NORMAL) {
             throw OaErrorCode.exception(OaErrorCode.ATTACHMENT_NOT_FOUND);

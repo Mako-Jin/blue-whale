@@ -17,6 +17,9 @@ import com.bluewhale.oa.approval.domain.model.ApprovalInstance;
 import com.bluewhale.oa.approval.domain.model.ApprovalInstanceQuery;
 import com.bluewhale.oa.approval.domain.model.ApprovalRoute;
 import com.bluewhale.oa.approval.domain.model.ApprovalStatus;
+import com.bluewhale.oa.approval.domain.model.WorkflowInstanceSnapshot;
+import com.bluewhale.oa.approval.domain.model.WorkflowTaskSnapshot;
+import com.bluewhale.oa.approval.domain.gateway.WorkflowApprovalGateway;
 import com.bluewhale.oa.approval.domain.repository.ApprovalEffectRepository;
 import com.bluewhale.oa.approval.domain.repository.ApprovalInstanceRepository;
 import com.bluewhale.oa.approval.domain.repository.ApprovalRouteRepository;
@@ -62,6 +65,8 @@ public class ApprovalInstanceAppServiceImpl implements ApprovalInstanceAppServic
 
     private final ApprovalConfigAppService approvalConfigAppService;
 
+    private final WorkflowApprovalGateway workflowApprovalGateway;
+
     private final ApplicationEventPublisher applicationEventPublisher;
 
     @Override
@@ -82,6 +87,26 @@ public class ApprovalInstanceAppServiceImpl implements ApprovalInstanceAppServic
         ApprovalInstance instance = approvalInstanceRepository.findByBusiness(businessType, businessId)
                 .orElseThrow(() -> OaErrorCode.exception(OaErrorCode.APPROVAL_INSTANCE_NOT_FOUND));
         return toDetailView(instance);
+    }
+
+    @Override
+    public boolean isParticipant(String businessType, Long businessId, Long userId, String username) {
+        if (!StringUtils.hasText(businessType) || businessId == null
+                || (userId == null && !StringUtils.hasText(username))) {
+            return false;
+        }
+        Optional<ApprovalInstance> existing = approvalInstanceRepository.findByBusiness(businessType, businessId);
+        if (existing.isEmpty()) {
+            return false;
+        }
+        ApprovalInstance instance = existing.get();
+        if (userId != null && userId.equals(instance.getInitiatorId())) {
+            return true;
+        }
+        if (matchesAccount(instance.getCurrentAssignees(), userId, username)) {
+            return true;
+        }
+        return participatesInWorkflow(instance.getWorkflowInstanceId(), userId, username);
     }
 
     @Override
@@ -209,6 +234,64 @@ public class ApprovalInstanceAppServiceImpl implements ApprovalInstanceAppServic
                 .map(ApprovalRoute::getAssigneeAccount)
                 .collect(Collectors.joining(ASSIGNEE_SEPARATOR));
         instance.setCurrentAssignees(assignees);
+    }
+
+    /**
+     * 判定用户是否为 Workflow 流程实例的参与人（发起人或任务处理人）。
+     *
+     * @param workflowInstanceId 流程实例ID
+     * @param userId             用户ID
+     * @param username           用户名
+     * @return 参与返回 {@code true}；未绑定流程或工作流不可用时返回 {@code false}
+     */
+    private boolean participatesInWorkflow(Long workflowInstanceId, Long userId, String username) {
+        if (workflowInstanceId == null) {
+            return false;
+        }
+        WorkflowInstanceSnapshot snapshot;
+        try {
+            snapshot = workflowApprovalGateway.getInstance(workflowInstanceId);
+        } catch (RuntimeException exception) {
+            return false;
+        }
+        if (snapshot == null) {
+            return false;
+        }
+        if (matchesAccount(snapshot.getInitiator(), userId, username)) {
+            return true;
+        }
+        List<WorkflowTaskSnapshot> tasks = snapshot.getTasks();
+        return tasks != null && tasks.stream().anyMatch(task ->
+                matchesAccount(task.getAssignee(), userId, username)
+                        || matchesAccount(task.getOwnerId(), userId, username)
+                        || matchesAccount(task.getDelegateFrom(), userId, username));
+    }
+
+    /**
+     * 判断账号快照中是否含当前用户（账号为用户名或用户ID文本，支持逗号分隔）。
+     *
+     * @param accounts 账号快照
+     * @param userId   用户ID
+     * @param username 用户名
+     * @return 命中返回 {@code true}
+     */
+    private static boolean matchesAccount(String accounts, Long userId, String username) {
+        if (!StringUtils.hasText(accounts)) {
+            return false;
+        }
+        for (String item : accounts.split(ASSIGNEE_SEPARATOR)) {
+            String account = item.trim();
+            if (account.isEmpty()) {
+                continue;
+            }
+            if (userId != null && account.equals(String.valueOf(userId))) {
+                return true;
+            }
+            if (username != null && account.equalsIgnoreCase(username)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

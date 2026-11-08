@@ -1,10 +1,9 @@
 package com.bluewhale.oa.document.interfaces.controller;
 
 import com.bluewhale.auth.sdk.annotation.RequirePermission;
-import com.bluewhale.oa.common.OaErrorCode;
+import com.bluewhale.oa.document.application.service.DocReadAccessGuard;
 import com.bluewhale.oa.document.domain.gateway.DocumentFileGateway;
 import com.bluewhale.oa.document.domain.model.DocAttachment;
-import com.bluewhale.oa.document.domain.repository.DocumentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -27,12 +26,15 @@ import java.nio.charset.StandardCharsets;
 @RequiredArgsConstructor
 public class DocAttachmentController {
 
-    private final DocumentRepository repository;
+    private final DocReadAccessGuard readAccessGuard;
 
     private final DocumentFileGateway fileGateway;
 
     /**
      * 下载公文附件。
+     *
+     * <p>菜单权限之外还需通过可见性守卫：未发布发文、秘密级公文仅拟稿人 / 承办人 /
+     * 审批参与人可取附件，避免持下载权限的用户枚举附件 ID 越权取文件。</p>
      *
      * @param docType      单据类型
      * @param docId        单据ID
@@ -44,11 +46,7 @@ public class DocAttachmentController {
     public ResponseEntity<byte[]> download(@PathVariable String docType,
                                            @PathVariable Long docId,
                                            @PathVariable Long attachmentId) {
-        DocAttachment attachment = repository.findAttachment(attachmentId);
-        if (attachment == null || !attachment.getDocType().equalsIgnoreCase(docType)
-                || !attachment.getDocId().equals(docId)) {
-            throw OaErrorCode.exception(OaErrorCode.DOC_NOT_FOUND);
-        }
+        DocAttachment attachment = readAccessGuard.requireAttachment(docType, docId, attachmentId);
         byte[] content = fileGateway.content(attachment.getFileId());
         String fileName = attachment.getFileName() == null ? "attachment" : attachment.getFileName();
         String encoded = URLEncoder.encode(fileName, StandardCharsets.UTF_8).replace("+", "%20");

@@ -2,7 +2,8 @@ package com.bluewhale.oa.common.application.service;
 
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.oa.common.OaErrorCode;
-import com.bluewhale.oa.common.infrastructure.client.OaFileMetadataClient;
+import com.bluewhale.oa.common.domain.gateway.FileMetadataGateway;
+import com.bluewhale.oa.common.domain.model.FileMetadata;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,7 +28,7 @@ import static org.mockito.Mockito.when;
 class AttachmentOwnershipGuardTest {
 
     @Mock
-    private OaFileMetadataClient fileMetadataClient;
+    private FileMetadataGateway fileMetadataGateway;
 
     private AttachmentOwnershipGuard guard;
 
@@ -36,7 +37,7 @@ class AttachmentOwnershipGuardTest {
      */
     @BeforeEach
     void setUp() {
-        guard = new AttachmentOwnershipGuard(fileMetadataClient);
+        guard = new AttachmentOwnershipGuard(fileMetadataGateway);
     }
 
     @Test
@@ -45,13 +46,13 @@ class AttachmentOwnershipGuardTest {
         guard.assertReferable(null, 100L);
         guard.assertReferable(0L, 100L);
 
-        verifyNoInteractions(fileMetadataClient);
+        verifyNoInteractions(fileMetadataGateway);
     }
 
     @Test
     @DisplayName("文件不存在时拒绝引用（40443）")
     void shouldRejectWhenFileMissing() {
-        when(fileMetadataClient.findFile(1L)).thenReturn(Optional.empty());
+        when(fileMetadataGateway.findFile(1L)).thenReturn(Optional.empty());
 
         BizException ex = assertThrows(BizException.class, () -> guard.assertReferable(1L, 100L));
 
@@ -61,8 +62,8 @@ class AttachmentOwnershipGuardTest {
     @Test
     @DisplayName("文件已删除或停用时拒绝引用（40443）")
     void shouldRejectWhenFileDeletedOrDisabled() {
-        when(fileMetadataClient.findFile(2L)).thenReturn(Optional.of(meta(2L, 100L, 1, 1)));
-        when(fileMetadataClient.findFile(3L)).thenReturn(Optional.of(meta(3L, 100L, 0, 0)));
+        when(fileMetadataGateway.findFile(2L)).thenReturn(Optional.of(meta(2L, 100L, 1, 1)));
+        when(fileMetadataGateway.findFile(3L)).thenReturn(Optional.of(meta(3L, 100L, 0, 0)));
 
         BizException deleted = assertThrows(BizException.class, () -> guard.assertReferable(2L, 100L));
         BizException disabled = assertThrows(BizException.class, () -> guard.assertReferable(3L, 100L));
@@ -74,8 +75,8 @@ class AttachmentOwnershipGuardTest {
     @Test
     @DisplayName("上传人为空或非本人时禁止引用（40307）")
     void shouldRejectWhenNotOwnedByCurrentUser() {
-        when(fileMetadataClient.findFile(4L)).thenReturn(Optional.of(meta(4L, null, 0, 1)));
-        when(fileMetadataClient.findFile(5L)).thenReturn(Optional.of(meta(5L, 200L, 0, 1)));
+        when(fileMetadataGateway.findFile(4L)).thenReturn(Optional.of(meta(4L, null, 0, 1)));
+        when(fileMetadataGateway.findFile(5L)).thenReturn(Optional.of(meta(5L, 200L, 0, 1)));
 
         BizException anonymous = assertThrows(BizException.class, () -> guard.assertReferable(4L, 100L));
         BizException foreign = assertThrows(BizException.class, () -> guard.assertReferable(5L, 100L));
@@ -87,7 +88,7 @@ class AttachmentOwnershipGuardTest {
     @Test
     @DisplayName("本人上传且文件正常时放行")
     void shouldPassWhenOwnedByCurrentUser() {
-        when(fileMetadataClient.findFile(6L)).thenReturn(Optional.of(meta(6L, 100L, 0, 1)));
+        when(fileMetadataGateway.findFile(6L)).thenReturn(Optional.of(meta(6L, 100L, 0, 1)));
 
         assertDoesNotThrow(() -> guard.assertReferable(6L, 100L));
     }
@@ -101,7 +102,7 @@ class AttachmentOwnershipGuardTest {
      * @param status 状态
      * @return 元数据
      */
-    private static OaFileMetadataClient.FileMeta meta(Long fileId, Long uploaderId, int deleted, int status) {
-        return new OaFileMetadataClient.FileMeta(fileId, "a.pdf", uploaderId, deleted, status);
+    private static FileMetadata meta(Long fileId, Long uploaderId, int deleted, int status) {
+        return new FileMetadata(fileId, "a.pdf", uploaderId, deleted, status);
     }
 }
