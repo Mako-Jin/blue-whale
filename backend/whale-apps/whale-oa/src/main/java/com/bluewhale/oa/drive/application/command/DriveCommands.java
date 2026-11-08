@@ -14,6 +14,9 @@ import java.util.List;
  */
 public final class DriveCommands {
 
+    /**
+     * 工具类私有构造器。
+     */
     private DriveCommands() {
     }
 

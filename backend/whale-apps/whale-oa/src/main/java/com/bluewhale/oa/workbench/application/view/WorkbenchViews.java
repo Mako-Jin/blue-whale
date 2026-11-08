@@ -13,6 +13,9 @@ import java.util.List;
  */
 public final class WorkbenchViews {
 
+    /**
+     * 工具类私有构造器。
+     */
     private WorkbenchViews() {
     }
 

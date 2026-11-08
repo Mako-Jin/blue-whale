@@ -155,6 +155,12 @@ public class DocIncomingAppServiceImpl implements DocIncomingAppService {
         return detail(id);
     }
 
+    /**
+     * 按ID查询收文，不存在时抛出业务异常。
+     *
+     * @param id 收文ID
+     * @return 收文实体
+     */
     private DocIncoming requireIncoming(Long id) {
         DocIncoming incoming = repository.findIncoming(id);
         if (incoming == null) {
@@ -163,6 +169,12 @@ public class DocIncomingAppServiceImpl implements DocIncomingAppService {
         return incoming;
     }
 
+    /**
+     * 将保存命令中的字段写入收文实体，未填写的密级、紧急程度与收文日期取默认值。
+     *
+     * @param incoming 收文实体
+     * @param command 保存命令
+     */
     private void apply(DocIncoming incoming, DocumentCommands.IncomingSave command) {
         incoming.setSourceUnit(command.getSourceUnit().trim());
         incoming.setSourceNo(command.getSourceNo());
@@ -174,6 +186,12 @@ public class DocIncomingAppServiceImpl implements DocIncomingAppService {
         incoming.setRemark(command.getRemark());
     }
 
+    /**
+     * 重建收文的附件列表，按顺序写入排序号。
+     *
+     * @param docId 收文ID
+     * @param attachments 附件保存命令列表
+     */
     private void replaceAttachments(Long docId, List<DocumentCommands.AttachmentSave> attachments) {
         repository.deleteAttachments(DocStatus.TYPE_INCOMING, docId);
         if (attachments == null || attachments.isEmpty()) {
@@ -193,12 +211,24 @@ public class DocIncomingAppServiceImpl implements DocIncomingAppService {
         }
     }
 
+    /**
+     * 将收文实体转换为基础视图。
+     *
+     * @param incoming 收文实体
+     * @return 收文视图
+     */
     private DocumentViews.Incoming toView(DocIncoming incoming) {
         DocumentViews.Incoming view = new DocumentViews.Incoming();
         BeanUtils.copyProperties(incoming, view);
         return view;
     }
 
+    /**
+     * 将收文实体转换为包含附件与归档信息的详情视图。
+     *
+     * @param incoming 收文实体
+     * @return 收文详情视图
+     */
     private DocumentViews.Incoming toDetail(DocIncoming incoming) {
         DocumentViews.Incoming view = toView(incoming);
         view.setAttachments(repository.listAttachments(DocStatus.TYPE_INCOMING, incoming.getId()).stream()
@@ -208,6 +238,12 @@ public class DocIncomingAppServiceImpl implements DocIncomingAppService {
         return view;
     }
 
+    /**
+     * 将附件实体转换为附件视图。
+     *
+     * @param attachment 附件实体
+     * @return 附件视图
+     */
     private DocumentViews.Attachment toAttachmentView(DocAttachment attachment) {
         DocumentViews.Attachment view = new DocumentViews.Attachment();
         BeanUtils.copyProperties(attachment, view);

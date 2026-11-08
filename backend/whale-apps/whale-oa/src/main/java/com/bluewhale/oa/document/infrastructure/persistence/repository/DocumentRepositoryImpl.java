@@ -319,36 +319,72 @@ public class DocumentRepositoryImpl implements DocumentRepository {
         archiveRefMapper.updateById(entity);
     }
 
+    /**
+     * 将公文模板实体转换为领域模型。
+     *
+     * @param entity 公文模板实体
+     * @return 公文模板领域模型
+     */
     private DocTemplate toTemplate(DocTemplateEntity entity) {
         DocTemplate model = new DocTemplate();
         BeanUtils.copyProperties(entity, model);
         return model;
     }
 
+    /**
+     * 将文号规则实体转换为领域模型。
+     *
+     * @param entity 文号规则实体
+     * @return 文号规则领域模型
+     */
     private DocNoRule toRule(DocNoRuleEntity entity) {
         DocNoRule model = new DocNoRule();
         BeanUtils.copyProperties(entity, model);
         return model;
     }
 
+    /**
+     * 将发文实体转换为领域模型。
+     *
+     * @param entity 发文实体
+     * @return 发文领域模型
+     */
     private DocOutgoing toOutgoing(DocOutgoingEntity entity) {
         DocOutgoing model = new DocOutgoing();
         BeanUtils.copyProperties(entity, model);
         return model;
     }
 
+    /**
+     * 将收文实体转换为领域模型。
+     *
+     * @param entity 收文实体
+     * @return 收文领域模型
+     */
     private DocIncoming toIncoming(DocIncomingEntity entity) {
         DocIncoming model = new DocIncoming();
         BeanUtils.copyProperties(entity, model);
         return model;
     }
 
+    /**
+     * 将公文附件实体转换为领域模型。
+     *
+     * @param entity 公文附件实体
+     * @return 公文附件领域模型
+     */
     private DocAttachment toAttachment(DocAttachmentEntity entity) {
         DocAttachment model = new DocAttachment();
         BeanUtils.copyProperties(entity, model);
         return model;
     }
 
+    /**
+     * 将归档关联实体转换为领域模型。
+     *
+     * @param entity 归档关联实体
+     * @return 归档关联领域模型
+     */
     private DocArchiveRef toArchiveRef(DocArchiveRefEntity entity) {
         DocArchiveRef model = new DocArchiveRef();
         BeanUtils.copyProperties(entity, model);

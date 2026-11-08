@@ -9,7 +9,6 @@ import com.bluewhale.oa.approval.application.view.ApprovalBusinessDetailView;
 import com.bluewhale.oa.approval.application.view.ApprovalDetailFieldView;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -61,6 +60,12 @@ public class AdministrativeApprovalBusinessDetailProvider implements ApprovalBus
         return null;
     }
 
+    /**
+     * 构建用车申请的审批业务详情。
+     *
+     * @param businessId 用车预约主键
+     * @return 审批业务详情，业务不存在时返回 null
+     */
     private ApprovalBusinessDetailView vehicleDetail(Long businessId) {
         AdministrativeViews.BookingView booking;
         try {
@@ -83,6 +88,12 @@ public class AdministrativeApprovalBusinessDetailProvider implements ApprovalBus
         return view;
     }
 
+    /**
+     * 构建用章申请的审批业务详情。
+     *
+     * @param businessId 用章申请主键
+     * @return 审批业务详情，业务不存在时返回 null
+     */
     private ApprovalBusinessDetailView sealDetail(Long businessId) {
         AdministrativeViews.SealUseView sealUse;
         try {
@@ -103,6 +114,12 @@ public class AdministrativeApprovalBusinessDetailProvider implements ApprovalBus
         return view;
     }
 
+    /**
+     * 构建采购申请的审批业务详情。
+     *
+     * @param businessId 采购申请主键
+     * @return 审批业务详情，业务不存在时返回 null
+     */
     private ApprovalBusinessDetailView purchaseDetail(Long businessId) {
         AdministrativeViews.PurchaseView purchase;
         try {
@@ -126,6 +143,16 @@ public class AdministrativeApprovalBusinessDetailProvider implements ApprovalBus
         return view;
     }
 
+    /**
+     * 构建审批业务详情的基础字段。
+     *
+     * @param businessType 业务类型编码
+     * @param businessId 业务主键
+     * @param status 业务状态
+     * @param url 详情页跳转地址
+     * @param summary 审批摘要
+     * @return 填充了基础字段的审批业务详情
+     */
     private ApprovalBusinessDetailView baseView(String businessType, Long businessId, String status,
                                                 String url, String summary) {
         ApprovalBusinessDetailView view = new ApprovalBusinessDetailView();
@@ -137,6 +164,12 @@ public class AdministrativeApprovalBusinessDetailProvider implements ApprovalBus
         return view;
     }
 
+    /**
+     * 将 null 转为空字符串。
+     *
+     * @param value 原始值
+     * @return 原值或空字符串
+     */
     private String nullToEmpty(String value) {
         return value == null ? "" : value;
     }

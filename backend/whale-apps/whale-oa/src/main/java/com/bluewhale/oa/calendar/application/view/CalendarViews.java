@@ -13,6 +13,9 @@ import java.util.List;
  */
 public final class CalendarViews {
 
+    /**
+     * 私有构造器，避免视图集合类被实例化。
+     */
     private CalendarViews() {
     }
 

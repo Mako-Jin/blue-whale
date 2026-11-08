@@ -17,6 +17,9 @@ import java.util.List;
  */
 public final class CultureCommands {
 
+    /**
+     * 工具类私有构造器。
+     */
     private CultureCommands() {
     }
 

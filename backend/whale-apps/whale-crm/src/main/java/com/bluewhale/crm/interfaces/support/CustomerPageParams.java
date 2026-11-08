@@ -28,6 +28,9 @@ public class CustomerPageParams {
     /** 行业 */
     private String industry;
 
+    /** 负责人用户ID */
+    private Long ownerId;
+
     /** 创建时间起 */
     private LocalDateTime createdFrom;
 
@@ -52,6 +55,7 @@ public class CustomerPageParams {
         query.setLevel(level);
         query.setSource(source);
         query.setIndustry(industry);
+        query.setOwnerId(ownerId);
         query.setCreatedFrom(createdFrom);
         query.setCreatedTo(createdTo);
         query.setCurrent(current == null || current < 1 ? 1L : current);

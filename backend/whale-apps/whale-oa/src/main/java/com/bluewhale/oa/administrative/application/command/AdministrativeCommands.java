@@ -20,6 +20,9 @@ import java.util.List;
  */
 public final class AdministrativeCommands {
 
+    /**
+     * 工具类私有构造器。
+     */
     private AdministrativeCommands() {
     }
 

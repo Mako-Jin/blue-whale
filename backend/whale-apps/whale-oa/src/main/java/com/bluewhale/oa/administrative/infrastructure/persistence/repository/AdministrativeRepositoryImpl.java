@@ -370,11 +370,24 @@ public class AdministrativeRepositoryImpl implements AdministrativeRepository {
                 .stream().map(AdministrativeRepositoryImpl::toPurchase).toList();
     }
 
+    /**
+     * 构造分页参数，页大小限制在 {@code [1, MAX_PAGE_SIZE]} 区间内。
+     *
+     * @param query 查询条件
+     * @param <T> 分页记录类型
+     * @return 分页对象
+     */
     private <T> Page<T> page(AdministrativeQuery query) {
         long size = Math.min(Math.max(query.getSize(), 1L), MAX_PAGE_SIZE);
         return new Page<>(Math.max(query.getCurrent(), 1L), size, false);
     }
 
+    /**
+     * 构造车辆查询条件，支持车牌号模糊匹配与状态过滤。
+     *
+     * @param query 查询条件
+     * @return 车辆查询包装器
+     */
     private LambdaQueryWrapper<VehicleEntity> vehicleFilter(AdministrativeQuery query) {
         return new LambdaQueryWrapper<VehicleEntity>()
                 .and(StringUtils.hasText(query.getKeyword()), wrapper -> wrapper
@@ -383,6 +396,12 @@ public class AdministrativeRepositoryImpl implements AdministrativeRepository {
                 .orderByDesc(VehicleEntity::getId);
     }
 
+    /**
+     * 构造司机查询条件，支持姓名或手机号模糊匹配与状态过滤。
+     *
+     * @param query 查询条件
+     * @return 司机查询包装器
+     */
     private LambdaQueryWrapper<DriverEntity> driverFilter(AdministrativeQuery query) {
         return new LambdaQueryWrapper<DriverEntity>()
                 .and(StringUtils.hasText(query.getKeyword()), wrapper -> wrapper
@@ -392,6 +411,12 @@ public class AdministrativeRepositoryImpl implements AdministrativeRepository {
                 .orderByDesc(DriverEntity::getId);
     }
 
+    /**
+     * 构造用车申请查询条件，支持单号或目的地模糊匹配，以及状态、申请人、车辆过滤。
+     *
+     * @param query 查询条件
+     * @return 用车申请查询包装器
+     */
     private LambdaQueryWrapper<VehicleBookingEntity> bookingFilter(AdministrativeQuery query) {
         return new LambdaQueryWrapper<VehicleBookingEntity>()
                 .and(StringUtils.hasText(query.getKeyword()), wrapper -> wrapper
@@ -403,6 +428,12 @@ public class AdministrativeRepositoryImpl implements AdministrativeRepository {
                 .orderByDesc(VehicleBookingEntity::getId);
     }
 
+    /**
+     * 构造用章查询条件，支持单号或印章名称模糊匹配，以及状态、申请人过滤。
+     *
+     * @param query 查询条件
+     * @return 用章查询包装器
+     */
     private LambdaQueryWrapper<SealUseEntity> sealFilter(AdministrativeQuery query) {
         return new LambdaQueryWrapper<SealUseEntity>()
                 .and(StringUtils.hasText(query.getKeyword()), wrapper -> wrapper
@@ -413,6 +444,12 @@ public class AdministrativeRepositoryImpl implements AdministrativeRepository {
                 .orderByDesc(SealUseEntity::getId);
     }
 
+    /**
+     * 构造采购申请查询条件，支持单号或采购事由模糊匹配，以及状态、ERP 推送状态、申请人过滤。
+     *
+     * @param query 查询条件
+     * @return 采购申请查询包装器
+     */
     private LambdaQueryWrapper<PurchaseRequestEntity> purchaseFilter(AdministrativeQuery query) {
         return new LambdaQueryWrapper<PurchaseRequestEntity>()
                 .and(StringUtils.hasText(query.getKeyword()), wrapper -> wrapper
@@ -425,6 +462,12 @@ public class AdministrativeRepositoryImpl implements AdministrativeRepository {
                 .orderByDesc(PurchaseRequestEntity::getId);
     }
 
+    /**
+     * 将车辆持久化实体转换为车辆领域模型。
+     *
+     * @param entity 车辆实体
+     * @return 车辆领域模型
+     */
     private static Vehicle toVehicle(VehicleEntity entity) {
         Vehicle model = new Vehicle();
         model.setId(entity.getId());
@@ -440,6 +483,12 @@ public class AdministrativeRepositoryImpl implements AdministrativeRepository {
         return model;
     }
 
+    /**
+     * 用车辆领域模型的可写字段填充车辆持久化实体。
+     *
+     * @param entity 车辆实体
+     * @param model 车辆领域模型
+     */
     private static void fill(VehicleEntity entity, Vehicle model) {
         entity.setPlateNo(model.getPlateNo());
         entity.setVehicleType(model.getVehicleType());
@@ -450,6 +499,12 @@ public class AdministrativeRepositoryImpl implements AdministrativeRepository {
         entity.setRemark(model.getRemark());
     }
 
+    /**
+     * 将司机持久化实体转换为司机领域模型。
+     *
+     * @param entity 司机实体
+     * @return 司机领域模型
+     */
     private static Driver toDriver(DriverEntity entity) {
         Driver model = new Driver();
         model.setId(entity.getId());
@@ -464,6 +519,12 @@ public class AdministrativeRepositoryImpl implements AdministrativeRepository {
         return model;
     }
 
+    /**
+     * 用司机领域模型的可写字段填充司机持久化实体。
+     *
+     * @param entity 司机实体
+     * @param model 司机领域模型
+     */
     private static void fill(DriverEntity entity, Driver model) {
         entity.setName(model.getName());
         entity.setPhone(model.getPhone());
@@ -473,6 +534,12 @@ public class AdministrativeRepositoryImpl implements AdministrativeRepository {
         entity.setRemark(model.getRemark());
     }
 
+    /**
+     * 将用车申请持久化实体转换为用车申请领域模型。
+     *
+     * @param entity 用车申请实体
+     * @return 用车申请领域模型
+     */
     private static VehicleBooking toBooking(VehicleBookingEntity entity) {
         VehicleBooking model = new VehicleBooking();
         model.setId(entity.getId());
@@ -495,6 +562,12 @@ public class AdministrativeRepositoryImpl implements AdministrativeRepository {
         return model;
     }
 
+    /**
+     * 用用车申请领域模型的可写字段填充用车申请持久化实体。
+     *
+     * @param entity 用车申请实体
+     * @param model 用车申请领域模型
+     */
     private static void fill(VehicleBookingEntity entity, VehicleBooking model) {
         entity.setCode(model.getCode());
         entity.setApplicant(model.getApplicant());
@@ -512,6 +585,12 @@ public class AdministrativeRepositoryImpl implements AdministrativeRepository {
         entity.setRemark(model.getRemark());
     }
 
+    /**
+     * 将用车记录持久化实体转换为用车记录领域模型。
+     *
+     * @param entity 用车记录实体
+     * @return 用车记录领域模型
+     */
     private static VehicleUsage toUsage(VehicleUsageEntity entity) {
         VehicleUsage model = new VehicleUsage();
         model.setId(entity.getId());
@@ -526,6 +605,12 @@ public class AdministrativeRepositoryImpl implements AdministrativeRepository {
         return model;
     }
 
+    /**
+     * 用用车记录领域模型的可写字段填充用车记录持久化实体。
+     *
+     * @param entity 用车记录实体
+     * @param model 用车记录领域模型
+     */
     private static void fill(VehicleUsageEntity entity, VehicleUsage model) {
         entity.setBookingId(model.getBookingId());
         entity.setVehicleId(model.getVehicleId());
@@ -535,6 +620,12 @@ public class AdministrativeRepositoryImpl implements AdministrativeRepository {
         entity.setRemark(model.getRemark());
     }
 
+    /**
+     * 将用章持久化实体转换为用章领域模型。
+     *
+     * @param entity 用章实体
+     * @return 用章领域模型
+     */
     private static SealUse toSealUse(SealUseEntity entity) {
         SealUse model = new SealUse();
         model.setId(entity.getId());
@@ -557,6 +648,12 @@ public class AdministrativeRepositoryImpl implements AdministrativeRepository {
         return model;
     }
 
+    /**
+     * 用用章领域模型的可写字段填充用章持久化实体。
+     *
+     * @param entity 用章实体
+     * @param model 用章领域模型
+     */
     private static void fill(SealUseEntity entity, SealUse model) {
         entity.setCode(model.getCode());
         entity.setApplicant(model.getApplicant());
@@ -574,6 +671,12 @@ public class AdministrativeRepositoryImpl implements AdministrativeRepository {
         entity.setRemark(model.getRemark());
     }
 
+    /**
+     * 将用章附件持久化实体转换为用章附件领域模型。
+     *
+     * @param entity 用章附件实体
+     * @return 用章附件领域模型
+     */
     private static SealUseFile toSealUseFile(SealUseFileEntity entity) {
         SealUseFile model = new SealUseFile();
         model.setId(entity.getId());
@@ -585,6 +688,12 @@ public class AdministrativeRepositoryImpl implements AdministrativeRepository {
         return model;
     }
 
+    /**
+     * 将采购申请持久化实体转换为采购申请领域模型。
+     *
+     * @param entity 采购申请实体
+     * @return 采购申请领域模型
+     */
     private static PurchaseRequest toPurchase(PurchaseRequestEntity entity) {
         PurchaseRequest model = new PurchaseRequest();
         model.setId(entity.getId());
@@ -608,6 +717,12 @@ public class AdministrativeRepositoryImpl implements AdministrativeRepository {
         return model;
     }
 
+    /**
+     * 用采购申请领域模型的可写字段填充采购申请持久化实体。
+     *
+     * @param entity 采购申请实体
+     * @param model 采购申请领域模型
+     */
     private static void fill(PurchaseRequestEntity entity, PurchaseRequest model) {
         entity.setCode(model.getCode());
         entity.setApplicant(model.getApplicant());
@@ -626,6 +741,12 @@ public class AdministrativeRepositoryImpl implements AdministrativeRepository {
         entity.setRemark(model.getRemark());
     }
 
+    /**
+     * 将采购明细持久化实体转换为采购明细领域模型。
+     *
+     * @param entity 采购明细实体
+     * @return 采购明细领域模型
+     */
     private static PurchaseItem toPurchaseItem(PurchaseItemEntity entity) {
         PurchaseItem model = new PurchaseItem();
         model.setId(entity.getId());
@@ -642,6 +763,12 @@ public class AdministrativeRepositoryImpl implements AdministrativeRepository {
         return model;
     }
 
+    /**
+     * 用采购明细领域模型的可写字段填充采购明细持久化实体。
+     *
+     * @param entity 采购明细实体
+     * @param model 采购明细领域模型
+     */
     private static void fill(PurchaseItemEntity entity, PurchaseItem model) {
         entity.setLineNo(model.getLineNo());
         entity.setItemCode(model.getItemCode());

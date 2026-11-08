@@ -94,12 +94,28 @@ public class CultureWishAppServiceImpl implements CultureWishAppService {
         return toView(wish);
     }
 
+    /**
+     * 判断两个日期在月、日上是否相同（用于生日/入职纪念日匹配）。
+     *
+     * @param source 待比较日期，可为空
+     * @param target 目标日期
+     * @return 月、日相同时返回 {@code true}
+     */
     private static boolean matches(LocalDate source, LocalDate target) {
         return source != null
                 && source.getMonthValue() == target.getMonthValue()
                 && source.getDayOfMonth() == target.getDayOfMonth();
     }
 
+    /**
+     * 组装生日/入职纪念日条目。
+     *
+     * @param profile 员工档案
+     * @param names 用户标识到姓名的映射
+     * @param type 关怀类型
+     * @param years 周年数
+     * @return 生日/纪念日视图
+     */
     private static CultureViews.Birthday toBirthday(CultureEmployeeProfile profile, Map<Long, String> names,
                                                     CultureWishType type, Integer years) {
         CultureViews.Birthday view = new CultureViews.Birthday();
@@ -113,6 +129,12 @@ public class CultureWishAppServiceImpl implements CultureWishAppService {
         return view;
     }
 
+    /**
+     * 将祝福实体转换为祝福视图。
+     *
+     * @param wish 祝福实体
+     * @return 祝福视图
+     */
     private static CultureViews.Wish toView(CultureWish wish) {
         CultureViews.Wish view = new CultureViews.Wish();
         view.setId(wish.getId());

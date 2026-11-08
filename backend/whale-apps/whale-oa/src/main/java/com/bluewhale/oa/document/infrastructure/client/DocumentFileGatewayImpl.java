@@ -49,6 +49,11 @@ public class DocumentFileGatewayImpl implements DocumentFileGateway {
         }
     }
 
+    /**
+     * 解析文件服务的基础地址，服务无可用实例时抛出异常。
+     *
+     * @return 文件服务基础地址
+     */
     private String baseUrl() {
         List<ServiceInstance> instances = discoveryClient.getInstances(SERVICE_NAME);
         if (instances.isEmpty()) {

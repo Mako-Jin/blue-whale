@@ -138,6 +138,12 @@ public class SealUseAppServiceImpl implements SealUseAppService {
         return contractSealGateway.grantedSeals(userId);
     }
 
+    /**
+     * 校验申请人是否具备所申请印章的使用授权。
+     *
+     * @param sealId 印章ID
+     * @param applicantId 申请人用户ID
+     */
     private void assertGranted(Long sealId, Long applicantId) {
         if (sealId == null || applicantId == null) {
             throw OaErrorCode.exception(OaErrorCode.SEAL_INVALID, "印章与申请人不能为空");
@@ -147,6 +153,12 @@ public class SealUseAppServiceImpl implements SealUseAppService {
         }
     }
 
+    /**
+     * 将保存命令中的字段写入用章实体。
+     *
+     * @param sealUse 用章实体
+     * @param command 保存命令
+     */
     private void apply(SealUse sealUse, AdministrativeCommands.SealUseSaveCommand command) {
         sealUse.setApplicant(command.getApplicant());
         sealUse.setApplicantId(command.getApplicantId());
@@ -158,6 +170,12 @@ public class SealUseAppServiceImpl implements SealUseAppService {
         sealUse.setRemark(command.getRemark());
     }
 
+    /**
+     * 将附件命令列表转换为用章附件实体列表。
+     *
+     * @param commands 附件命令列表
+     * @return 用章附件实体列表
+     */
     private List<SealUseFile> buildFiles(List<AdministrativeCommands.SealUseFileCommand> commands) {
         if (commands == null) {
             return List.of();
@@ -170,6 +188,11 @@ public class SealUseAppServiceImpl implements SealUseAppService {
         }).toList();
     }
 
+    /**
+     * 为用章申请登记审批实例，已存在审批实例时直接跳过。
+     *
+     * @param sealUse 用章实体
+     */
     private void registerApproval(SealUse sealUse) {
         if (sealUse.getApprovalInstanceId() != null) {
             return;
@@ -188,11 +211,23 @@ public class SealUseAppServiceImpl implements SealUseAppService {
         repository.updateSealUse(sealUse);
     }
 
+    /**
+     * 按ID查询用章申请，不存在时抛出业务异常。
+     *
+     * @param id 用章申请ID
+     * @return 用章实体
+     */
     private SealUse requireSealUse(Long id) {
         return repository.findSealUseById(id)
                 .orElseThrow(() -> OaErrorCode.exception(OaErrorCode.SEAL_NOT_FOUND));
     }
 
+    /**
+     * 将用章实体转换为视图对象。
+     *
+     * @param sealUse 用章实体
+     * @return 用章申请视图
+     */
     private AdministrativeViews.SealUseView toView(SealUse sealUse) {
         AdministrativeViews.SealUseView view = new AdministrativeViews.SealUseView();
         view.setId(sealUse.getId());

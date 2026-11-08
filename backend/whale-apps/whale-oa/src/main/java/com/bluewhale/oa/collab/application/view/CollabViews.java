@@ -14,6 +14,9 @@ import java.util.List;
  */
 public final class CollabViews {
 
+    /**
+     * 工具类私有构造器。
+     */
     private CollabViews() {
     }
 

@@ -15,6 +15,9 @@ import java.time.LocalDate;
  */
 public final class EmployeeChangeCommands {
 
+    /**
+     * 工具类私有构造器。
+     */
     private EmployeeChangeCommands() {
     }
 

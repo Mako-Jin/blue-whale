@@ -89,6 +89,12 @@ public class DocTemplateAppServiceImpl implements DocTemplateAppService {
         repository.deleteTemplate(id);
     }
 
+    /**
+     * 按ID查询公文模板，不存在时抛出业务异常。
+     *
+     * @param id 模板ID
+     * @return 模板实体
+     */
     private DocTemplate requireTemplate(Long id) {
         DocTemplate template = repository.findTemplate(id);
         if (template == null) {
@@ -97,6 +103,12 @@ public class DocTemplateAppServiceImpl implements DocTemplateAppService {
         return template;
     }
 
+    /**
+     * 将保存命令中的字段填充到模板实体，编码与名称去除首尾空格。
+     *
+     * @param template 模板实体
+     * @param command  模板保存命令
+     */
     private void apply(DocTemplate template, DocumentCommands.TemplateSave command) {
         template.setCode(command.getCode().trim());
         template.setName(command.getName().trim());
@@ -106,6 +118,12 @@ public class DocTemplateAppServiceImpl implements DocTemplateAppService {
         template.setRemark(command.getRemark());
     }
 
+    /**
+     * 归一化公文类型，为空时取默认发文并校验取值合法性。
+     *
+     * @param docType 公文类型
+     * @return 归一化后的公文类型
+     */
     private String normalizeDocType(String docType) {
         String value = StringUtils.hasText(docType) ? docType.trim().toUpperCase() : DocStatus.TYPE_OUTGOING;
         if (!DOC_TYPES.contains(value)) {
@@ -114,6 +132,12 @@ public class DocTemplateAppServiceImpl implements DocTemplateAppService {
         return value;
     }
 
+    /**
+     * 归一化模板状态，为空时取默认草稿并校验取值合法性。
+     *
+     * @param status 模板状态
+     * @return 归一化后的模板状态
+     */
     private String normalizeStatus(String status) {
         String value = StringUtils.hasText(status) ? status.trim().toUpperCase() : DocStatus.TEMPLATE_DRAFT;
         if (!STATUSES.contains(value)) {
@@ -122,6 +146,12 @@ public class DocTemplateAppServiceImpl implements DocTemplateAppService {
         return value;
     }
 
+    /**
+     * 将模板实体转换为视图对象。
+     *
+     * @param template 模板实体
+     * @return 模板视图
+     */
     private DocumentViews.Template toView(DocTemplate template) {
         DocumentViews.Template view = new DocumentViews.Template();
         BeanUtils.copyProperties(template, view);

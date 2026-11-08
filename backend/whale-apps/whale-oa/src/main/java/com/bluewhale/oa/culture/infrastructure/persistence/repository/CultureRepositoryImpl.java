@@ -286,6 +286,12 @@ public class CultureRepositoryImpl implements CultureRepository {
 
     // ---------------------------------------------------------------- 公共方法
 
+    /**
+     * 构造文化活动查询条件，支持标题或正文模糊匹配，以及状态、活动类型过滤。
+     *
+     * @param query 查询条件
+     * @return 文化活动查询包装器
+     */
     private LambdaQueryWrapper<CultureEventEntity> eventFilter(CultureQuery query) {
         return new LambdaQueryWrapper<CultureEventEntity>()
                 .and(StringUtils.hasText(query.getKeyword()), wrapper -> wrapper
@@ -298,6 +304,12 @@ public class CultureRepositoryImpl implements CultureRepository {
                 .orderByDesc(CultureEventEntity::getId);
     }
 
+    /**
+     * 构造祝福查询条件，支持对象姓名或祝福内容模糊匹配，以及祝福类型、接收人过滤。
+     *
+     * @param query 查询条件
+     * @return 祝福查询包装器
+     */
     private LambdaQueryWrapper<CultureWishEntity> wishFilter(CultureQuery query) {
         return new LambdaQueryWrapper<CultureWishEntity>()
                 .and(StringUtils.hasText(query.getKeyword()), wrapper -> wrapper
@@ -311,6 +323,12 @@ public class CultureRepositoryImpl implements CultureRepository {
                 .orderByDesc(CultureWishEntity::getId);
     }
 
+    /**
+     * 构造投票查询条件，支持标题或说明模糊匹配与状态过滤。
+     *
+     * @param query 查询条件
+     * @return 投票查询包装器
+     */
     private LambdaQueryWrapper<PollEntity> pollFilter(CultureQuery query) {
         return new LambdaQueryWrapper<PollEntity>()
                 .and(StringUtils.hasText(query.getKeyword()), wrapper -> wrapper
@@ -321,6 +339,13 @@ public class CultureRepositoryImpl implements CultureRepository {
                 .orderByDesc(PollEntity::getId);
     }
 
+    /**
+     * 构造合理化建议查询条件，支持标题或内容模糊匹配，以及状态、分类、提交人过滤。
+     *
+     * @param query 查询条件
+     * @param submitterId 提交人标识，为空时不限制
+     * @return 合理化建议查询包装器
+     */
     private LambdaQueryWrapper<SuggestionEntity> suggestionFilter(CultureQuery query, Long submitterId) {
         return new LambdaQueryWrapper<SuggestionEntity>()
                 .and(StringUtils.hasText(query.getKeyword()), wrapper -> wrapper
@@ -334,42 +359,84 @@ public class CultureRepositoryImpl implements CultureRepository {
                 .orderByDesc(SuggestionEntity::getId);
     }
 
+    /**
+     * 将文化活动持久化实体转换为文化活动领域模型。
+     *
+     * @param entity 文化活动实体
+     * @return 文化活动领域模型
+     */
     private static CultureEvent toEvent(CultureEventEntity entity) {
         CultureEvent model = new CultureEvent();
         BeanUtils.copyProperties(entity, model);
         return model;
     }
 
+    /**
+     * 将祝福持久化实体转换为祝福领域模型。
+     *
+     * @param entity 祝福实体
+     * @return 祝福领域模型
+     */
     private static CultureWish toWish(CultureWishEntity entity) {
         CultureWish model = new CultureWish();
         BeanUtils.copyProperties(entity, model);
         return model;
     }
 
+    /**
+     * 将投票持久化实体转换为投票领域模型。
+     *
+     * @param entity 投票实体
+     * @return 投票领域模型
+     */
     private static Poll toPoll(PollEntity entity) {
         Poll model = new Poll();
         BeanUtils.copyProperties(entity, model);
         return model;
     }
 
+    /**
+     * 将投票选项持久化实体转换为投票选项领域模型。
+     *
+     * @param entity 投票选项实体
+     * @return 投票选项领域模型
+     */
     private static PollOption toOption(PollOptionEntity entity) {
         PollOption model = new PollOption();
         BeanUtils.copyProperties(entity, model);
         return model;
     }
 
+    /**
+     * 将投票记录持久化实体转换为投票记录领域模型。
+     *
+     * @param entity 投票记录实体
+     * @return 投票记录领域模型
+     */
     private static PollVote toVote(PollVoteEntity entity) {
         PollVote model = new PollVote();
         BeanUtils.copyProperties(entity, model);
         return model;
     }
 
+    /**
+     * 将合理化建议持久化实体转换为合理化建议领域模型。
+     *
+     * @param entity 合理化建议实体
+     * @return 合理化建议领域模型
+     */
     private static Suggestion toSuggestion(SuggestionEntity entity) {
         Suggestion model = new Suggestion();
         BeanUtils.copyProperties(entity, model);
         return model;
     }
 
+    /**
+     * 将建议回复持久化实体转换为建议回复领域模型。
+     *
+     * @param entity 建议回复实体
+     * @return 建议回复领域模型
+     */
     private static SuggestionReply toReply(SuggestionReplyEntity entity) {
         SuggestionReply model = new SuggestionReply();
         BeanUtils.copyProperties(entity, model);

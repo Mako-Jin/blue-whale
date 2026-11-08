@@ -9,6 +9,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * 全局异常处理器
@@ -57,6 +58,18 @@ public class GlobalExceptionHandler {
                 .map(violation -> violation.getMessage())
                 .orElse(ErrorCode.PARAM_ERROR.getMessage());
         return Result.fail(ErrorCode.PARAM_ERROR.getCode(), message);
+    }
+
+    /**
+     * 处理静态资源 / 路径不存在异常，避免被兜底处理器包装成 500
+     *
+     * @param e 资源不存在异常
+     * @return 携带 404 错误码与消息的失败响应
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public Result<Void> handleNoResourceFoundException(NoResourceFoundException e) {
+        log.warn("资源不存在: {}", e.getResourcePath());
+        return Result.fail(ErrorCode.NOT_FOUND);
     }
 
     /**

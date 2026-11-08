@@ -22,6 +22,9 @@ public final class ReportCsvWriter {
     /** CSV 换行 */
     private static final String CRLF = "\r\n";
 
+    /**
+     * 工具类私有构造器。
+     */
     private ReportCsvWriter() {
     }
 

@@ -16,6 +16,9 @@ import java.util.List;
  */
 public final class CollabCommands {
 
+    /**
+     * 工具类私有构造器。
+     */
     private CollabCommands() {
     }
 

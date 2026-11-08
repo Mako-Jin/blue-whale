@@ -36,18 +36,36 @@ public class PurchaseController {
 
     private final PurchaseAppService purchaseAppService;
 
+    /**
+     * 分页查询采购申请。
+     *
+     * @param query 查询条件
+     * @return 采购申请分页结果
+     */
     @GetMapping("/page")
     @RequirePermission("sys:oa:purchase:list")
     public Result<PageResult<AdministrativeViews.PurchaseView>> page(AdministrativeQuery query) {
         return Result.ok(purchaseAppService.page(query));
     }
 
+    /**
+     * 查询采购申请详情。
+     *
+     * @param id 采购申请主键
+     * @return 采购申请详情
+     */
     @GetMapping("/{id}")
     @RequirePermission("sys:oa:purchase:list")
     public Result<AdministrativeViews.PurchaseView> detail(@PathVariable Long id) {
         return Result.ok(purchaseAppService.detail(id));
     }
 
+    /**
+     * 新建采购申请。
+     *
+     * @param command 采购申请保存命令
+     * @return 新建的采购申请
+     */
     @PostMapping
     @RequirePermission("sys:oa:purchase:add")
     @AuditLog(operation = "新建采购申请", type = OperateType.CREATE, targetType = TARGET_TYPE)
@@ -56,6 +74,13 @@ public class PurchaseController {
         return Result.ok(purchaseAppService.create(command));
     }
 
+    /**
+     * 更新采购申请。
+     *
+     * @param id 采购申请主键
+     * @param command 采购申请保存命令
+     * @return 更新后的采购申请
+     */
     @PutMapping("/{id}")
     @RequirePermission("sys:oa:purchase:edit")
     @AuditLog(operation = "更新采购申请", type = OperateType.UPDATE, targetType = TARGET_TYPE, targetId = "#id")
@@ -64,6 +89,12 @@ public class PurchaseController {
         return Result.ok(purchaseAppService.update(id, command));
     }
 
+    /**
+     * 删除采购申请。
+     *
+     * @param id 采购申请主键
+     * @return 操作结果
+     */
     @DeleteMapping("/{id}")
     @RequirePermission("sys:oa:purchase:delete")
     @AuditLog(operation = "删除采购申请", type = OperateType.DELETE, targetType = TARGET_TYPE, targetId = "#id")
@@ -72,6 +103,13 @@ public class PurchaseController {
         return Result.ok();
     }
 
+    /**
+     * 变更采购申请状态。
+     *
+     * @param id 采购申请主键
+     * @param command 状态变更命令
+     * @return 操作结果
+     */
     @PutMapping("/{id}/status")
     @RequirePermission("sys:oa:purchase:edit")
     @AuditLog(operation = "变更采购状态", type = OperateType.UPDATE, targetType = TARGET_TYPE, targetId = "#id")
@@ -81,6 +119,12 @@ public class PurchaseController {
         return Result.ok();
     }
 
+    /**
+     * 重试推送采购订单至 ERP。
+     *
+     * @param id 采购申请主键
+     * @return 推送后的采购申请
+     */
     @PostMapping("/{id}/push-retry")
     @RequirePermission("sys:oa:purchase:push")
     @AuditLog(operation = "重试推送采购订单", type = OperateType.UPDATE, targetType = TARGET_TYPE,

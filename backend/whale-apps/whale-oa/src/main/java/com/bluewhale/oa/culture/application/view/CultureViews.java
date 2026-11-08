@@ -14,6 +14,9 @@ import java.util.List;
  */
 public final class CultureViews {
 
+    /**
+     * 私有构造器，避免视图集合类被实例化。
+     */
     private CultureViews() {
     }
 

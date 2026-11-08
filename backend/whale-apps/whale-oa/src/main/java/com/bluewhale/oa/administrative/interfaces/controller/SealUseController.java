@@ -41,18 +41,36 @@ public class SealUseController {
 
     private final SealUseAppService sealUseAppService;
 
+    /**
+     * 分页查询用章申请。
+     *
+     * @param query 查询条件
+     * @return 用章申请分页结果
+     */
     @GetMapping("/page")
     @RequirePermission("sys:oa:seal:list")
     public Result<PageResult<AdministrativeViews.SealUseView>> page(AdministrativeQuery query) {
         return Result.ok(sealUseAppService.page(query));
     }
 
+    /**
+     * 用章申请详情。
+     *
+     * @param id 用章申请ID
+     * @return 用章申请详情
+     */
     @GetMapping("/{id}")
     @RequirePermission("sys:oa:seal:list")
     public Result<AdministrativeViews.SealUseView> detail(@PathVariable Long id) {
         return Result.ok(sealUseAppService.detail(id));
     }
 
+    /**
+     * 新建用章申请并登记审批。
+     *
+     * @param command 用章申请保存命令
+     * @return 新建后的用章申请
+     */
     @PostMapping
     @RequirePermission("sys:oa:seal:add")
     @AuditLog(operation = "新建用章申请", type = OperateType.CREATE, targetType = TARGET_TYPE)
@@ -61,6 +79,13 @@ public class SealUseController {
         return Result.ok(sealUseAppService.create(command));
     }
 
+    /**
+     * 修改用章申请。
+     *
+     * @param id      用章申请ID
+     * @param command 用章申请保存命令
+     * @return 修改后的用章申请
+     */
     @PutMapping("/{id}")
     @RequirePermission("sys:oa:seal:edit")
     @AuditLog(operation = "更新用章申请", type = OperateType.UPDATE, targetType = TARGET_TYPE, targetId = "#id")
@@ -69,6 +94,12 @@ public class SealUseController {
         return Result.ok(sealUseAppService.update(id, command));
     }
 
+    /**
+     * 删除用章申请。
+     *
+     * @param id 用章申请ID
+     * @return 空结果
+     */
     @DeleteMapping("/{id}")
     @RequirePermission("sys:oa:seal:delete")
     @AuditLog(operation = "删除用章申请", type = OperateType.DELETE, targetType = TARGET_TYPE, targetId = "#id")
@@ -77,6 +108,13 @@ public class SealUseController {
         return Result.ok();
     }
 
+    /**
+     * 变更用章申请状态。
+     *
+     * @param id      用章申请ID
+     * @param command 状态变更命令
+     * @return 空结果
+     */
     @PutMapping("/{id}/status")
     @RequirePermission("sys:oa:seal:edit")
     @AuditLog(operation = "变更用章状态", type = OperateType.UPDATE, targetType = TARGET_TYPE, targetId = "#id")
@@ -86,6 +124,12 @@ public class SealUseController {
         return Result.ok();
     }
 
+    /**
+     * 登记用印，仅审批通过的申请可登记且只登记一次。
+     *
+     * @param id 用章申请ID
+     * @return 登记后的用章申请
+     */
     @PostMapping("/{id}/register")
     @RequirePermission("sys:oa:seal:register")
     @AuditLog(operation = "用印登记", type = OperateType.UPDATE, targetType = TARGET_TYPE, targetId = "#id")
@@ -93,6 +137,12 @@ public class SealUseController {
         return Result.ok(sealUseAppService.register(id, RequestContextHolder.getUserId()));
     }
 
+    /**
+     * 查询指定用户可用的印章列表，用户ID为空时取当前登录人。
+     *
+     * @param userId 用户ID，可为空
+     * @return 可用印章列表
+     */
     @GetMapping("/available-seals")
     @RequirePermission("sys:oa:seal:list")
     public Result<List<ContractSealGateway.SealInfo>> availableSeals(

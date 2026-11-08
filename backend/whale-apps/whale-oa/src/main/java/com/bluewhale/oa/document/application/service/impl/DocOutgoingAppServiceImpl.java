@@ -184,6 +184,12 @@ public class DocOutgoingAppServiceImpl implements DocOutgoingAppService {
         repository.updateOutgoing(outgoing);
     }
 
+    /**
+     * 查询发文，不存在时抛出业务异常。
+     *
+     * @param id 发文主键
+     * @return 发文实体
+     */
     private DocOutgoing requireOutgoing(Long id) {
         DocOutgoing outgoing = repository.findOutgoing(id);
         if (outgoing == null) {
@@ -192,12 +198,22 @@ public class DocOutgoingAppServiceImpl implements DocOutgoingAppService {
         return outgoing;
     }
 
+    /**
+     * 校验发文当前状态是否允许编辑。
+     *
+     * @param status 发文状态
+     */
     private void assertEditable(String status) {
         if (!DocStatus.OUTGOING_DRAFT.equals(status) && !DocStatus.OUTGOING_REJECTED.equals(status)) {
             throw OaErrorCode.exception(OaErrorCode.DOC_STATUS_CONFLICT);
         }
     }
 
+    /**
+     * 为发文登记审批实例并回写实例标识。
+     *
+     * @param outgoing 发文实体
+     */
     private void registerApproval(DocOutgoing outgoing) {
         ApprovalInstanceRegisterCommand command = new ApprovalInstanceRegisterCommand();
         command.setBusinessType(BUSINESS_TYPE);
@@ -212,6 +228,12 @@ public class DocOutgoingAppServiceImpl implements DocOutgoingAppService {
         repository.updateOutgoing(outgoing);
     }
 
+    /**
+     * 用保存命令填充发文实体。
+     *
+     * @param outgoing 待填充的发文实体
+     * @param command 发文保存命令
+     */
     private void apply(DocOutgoing outgoing, DocumentCommands.OutgoingSave command) {
         outgoing.setTitle(command.getTitle().trim());
         outgoing.setDocType(normalizeCategory(command.getDocType()));
@@ -235,12 +257,24 @@ public class DocOutgoingAppServiceImpl implements DocOutgoingAppService {
         }
     }
 
+    /**
+     * 归一化公文分类，非法值回退为通知。
+     *
+     * @param docType 公文分类
+     * @return 归一化后的公文分类
+     */
     private String normalizeCategory(String docType) {
         String value = StringUtils.hasText(docType)
                 ? docType.trim().toUpperCase() : "NOTICE";
         return DOC_CATEGORIES.contains(value) ? value : "NOTICE";
     }
 
+    /**
+     * 重建发文的附件列表。
+     *
+     * @param docId 发文主键
+     * @param attachments 附件保存命令列表
+     */
     private void replaceAttachments(Long docId, List<DocumentCommands.AttachmentSave> attachments) {
         repository.deleteAttachments(DocStatus.TYPE_OUTGOING, docId);
         if (attachments == null || attachments.isEmpty()) {
@@ -260,12 +294,24 @@ public class DocOutgoingAppServiceImpl implements DocOutgoingAppService {
         }
     }
 
+    /**
+     * 将发文实体转换为列表视图。
+     *
+     * @param outgoing 发文实体
+     * @return 发文视图
+     */
     private DocumentViews.Outgoing toView(DocOutgoing outgoing) {
         DocumentViews.Outgoing view = new DocumentViews.Outgoing();
         BeanUtils.copyProperties(outgoing, view);
         return view;
     }
 
+    /**
+     * 将发文实体转换为包含附件与归档信息的详情视图。
+     *
+     * @param outgoing 发文实体
+     * @return 发文详情视图
+     */
     private DocumentViews.Outgoing toDetail(DocOutgoing outgoing) {
         DocumentViews.Outgoing view = toView(outgoing);
         view.setAttachments(repository.listAttachments(DocStatus.TYPE_OUTGOING, outgoing.getId()).stream()
@@ -275,6 +321,12 @@ public class DocOutgoingAppServiceImpl implements DocOutgoingAppService {
         return view;
     }
 
+    /**
+     * 将附件实体转换为附件视图。
+     *
+     * @param attachment 附件实体
+     * @return 附件视图
+     */
     private DocumentViews.Attachment toAttachmentView(DocAttachment attachment) {
         DocumentViews.Attachment view = new DocumentViews.Attachment();
         BeanUtils.copyProperties(attachment, view);

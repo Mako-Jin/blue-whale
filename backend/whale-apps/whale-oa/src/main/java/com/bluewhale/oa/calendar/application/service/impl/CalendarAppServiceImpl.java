@@ -152,6 +152,13 @@ public class CalendarAppServiceImpl implements CalendarAppService {
                 .map(CalendarAppServiceImpl::toView).toList();
     }
 
+    /**
+     * 查询日程并校验操作人是否为所有者。
+     *
+     * @param id         日程ID
+     * @param operatorId 操作人用户ID
+     * @return 日程实体
+     */
     private CalendarEntry requireOwned(Long id, Long operatorId) {
         CalendarEntry entry = repository.findEntry(id);
         if (entry == null) {
@@ -163,6 +170,13 @@ public class CalendarAppServiceImpl implements CalendarAppService {
         return entry;
     }
 
+    /**
+     * 从共享命令中取出指定用户的姓名。
+     *
+     * @param command 共享保存命令
+     * @param userId  用户ID
+     * @return 用户姓名，未匹配到时返回 {@code null}
+     */
     private static String findUserName(CalendarCommands.ShareSaveCommand command, Long userId) {
         if (command.getUsers() == null) {
             return null;
@@ -173,6 +187,12 @@ public class CalendarAppServiceImpl implements CalendarAppService {
                 .findFirst().orElse(null);
     }
 
+    /**
+     * 将保存命令中的字段填充到日程实体，并校验时间区间与提醒分钟数。
+     *
+     * @param entry   日程实体
+     * @param command 日程保存命令
+     */
     private static void fillEntry(CalendarEntry entry, CalendarCommands.EntrySaveCommand command) {
         entry.setTitle(command.getTitle().trim());
         entry.setDescription(StringUtils.hasText(command.getDescription())
@@ -190,12 +210,24 @@ public class CalendarAppServiceImpl implements CalendarAppService {
         entry.assertTimeRange();
     }
 
+    /**
+     * 将日程实体转换为视图对象。
+     *
+     * @param entry 日程实体
+     * @return 日程视图
+     */
     private static CalendarViews.EntryView toView(CalendarEntry entry) {
         CalendarViews.EntryView view = new CalendarViews.EntryView();
         fillView(view, entry);
         return view;
     }
 
+    /**
+     * 将日程实体的字段复制到视图对象。
+     *
+     * @param view  日程视图
+     * @param entry 日程实体
+     */
     private static void fillView(CalendarViews.EntryView view, CalendarEntry entry) {
         view.setId(entry.getId());
         view.setOwnerId(entry.getOwnerId());
@@ -213,6 +245,12 @@ public class CalendarAppServiceImpl implements CalendarAppService {
         view.setCreateTime(entry.getCreateTime());
     }
 
+    /**
+     * 将日程共享实体转换为共享视图对象。
+     *
+     * @param share 日程共享实体
+     * @return 共享视图
+     */
     private static CalendarViews.ShareView toShareView(CalendarShare share) {
         CalendarViews.ShareView view = new CalendarViews.ShareView();
         view.setUserId(share.getUserId());

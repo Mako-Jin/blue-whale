@@ -11,6 +11,9 @@ import java.util.List;
  */
 public final class DirectoryViews {
 
+    /**
+     * 工具类私有构造器。
+     */
     private DirectoryViews() {
     }
 

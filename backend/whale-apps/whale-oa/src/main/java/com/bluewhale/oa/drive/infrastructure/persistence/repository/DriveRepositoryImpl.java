@@ -207,11 +207,26 @@ public class DriveRepositoryImpl implements DriveRepository {
                 .sum();
     }
 
+    /**
+     * 构造当前页大小受限的分页对象。
+     *
+     * @param query 查询条件
+     * @return 分页对象
+     */
     private Page<DriveFileEntity> page(DriveQuery query) {
         long size = Math.min(Math.max(query.getSize(), 1L), MAX_PAGE_SIZE);
         return new Page<>(Math.max(query.getCurrent(), 1L), size, false);
     }
 
+    /**
+     * 判断文件夹是否属于用户可见范围。
+     *
+     * @param folder 文件夹
+     * @param userId 用户主键
+     * @param deptId 部门主键
+     * @param allowedFolderIds 已授权可见的文件夹主键集合
+     * @return 是否可见
+     */
     private static boolean visibleAsCandidate(DriveFolder folder, Long userId, Long deptId,
                                               Set<Long> allowedFolderIds) {
         if (userId != null && folder.getOwnerId() != null && folder.getOwnerId().equals(userId)) {
@@ -224,6 +239,12 @@ public class DriveRepositoryImpl implements DriveRepository {
         return allowedFolderIds.contains(folder.getId());
     }
 
+    /**
+     * 将文件夹实体转换为领域模型。
+     *
+     * @param entity 文件夹实体
+     * @return 文件夹领域模型
+     */
     private static DriveFolder toFolder(DriveFolderEntity entity) {
         DriveFolder folder = new DriveFolder();
         folder.setId(entity.getId());
@@ -239,6 +260,12 @@ public class DriveRepositoryImpl implements DriveRepository {
         return folder;
     }
 
+    /**
+     * 用文件夹领域模型填充文件夹实体。
+     *
+     * @param entity 待填充的文件夹实体
+     * @param folder 文件夹领域模型
+     */
     private static void fill(DriveFolderEntity entity, DriveFolder folder) {
         entity.setParentId(folder.getParentId());
         entity.setName(folder.getName());
@@ -249,6 +276,12 @@ public class DriveRepositoryImpl implements DriveRepository {
         entity.setSortNo(folder.getSortNo());
     }
 
+    /**
+     * 将文件实体转换为领域模型。
+     *
+     * @param entity 文件实体
+     * @return 文件领域模型
+     */
     private static DriveFile toFile(DriveFileEntity entity) {
         DriveFile file = new DriveFile();
         file.setId(entity.getId());
@@ -264,6 +297,12 @@ public class DriveRepositoryImpl implements DriveRepository {
         return file;
     }
 
+    /**
+     * 用文件领域模型填充文件实体。
+     *
+     * @param entity 待填充的文件实体
+     * @param file 文件领域模型
+     */
     private static void fill(DriveFileEntity entity, DriveFile file) {
         entity.setFolderId(file.getFolderId());
         entity.setFileId(file.getFileId());
@@ -274,6 +313,12 @@ public class DriveRepositoryImpl implements DriveRepository {
         entity.setUploaderName(file.getUploaderName());
     }
 
+    /**
+     * 将权限实体转换为领域模型。
+     *
+     * @param entity 权限实体
+     * @return 权限领域模型
+     */
     private static DriveAcl toAcl(DriveAclEntity entity) {
         DriveAcl acl = new DriveAcl();
         acl.setId(entity.getId());

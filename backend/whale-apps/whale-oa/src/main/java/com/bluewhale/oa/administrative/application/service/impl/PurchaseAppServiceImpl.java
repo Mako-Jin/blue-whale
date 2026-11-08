@@ -180,6 +180,11 @@ public class PurchaseAppServiceImpl implements PurchaseAppService {
         updateStatus(purchaseId, command);
     }
 
+    /**
+     * 将单条采购申请推送至 ERP，成功后回写 ERP 单号并更新推送状态。
+     *
+     * @param purchase 采购申请
+     */
     private void pushOne(PurchaseRequest purchase) {
         if (PurchasePushStatus.of(purchase.getErpPushStatus()) == PurchasePushStatus.SENT) {
             return;
@@ -202,6 +207,12 @@ public class PurchaseAppServiceImpl implements PurchaseAppService {
         }
     }
 
+    /**
+     * 依据采购申请组装 ERP 采购订单草稿请求。
+     *
+     * @param purchase 采购申请
+     * @return ERP 采购订单请求
+     */
     private ErpPurchaseOrderRequest buildRequest(PurchaseRequest purchase) {
         ErpPurchaseOrderRequest request = new ErpPurchaseOrderRequest();
         request.setSourceType(ERP_SOURCE_TYPE);
@@ -224,6 +235,12 @@ public class PurchaseAppServiceImpl implements PurchaseAppService {
         return request;
     }
 
+    /**
+     * 将保存命令中的字段填充到采购申请实体。
+     *
+     * @param purchase 采购申请
+     * @param command  采购申请保存命令
+     */
     private void apply(PurchaseRequest purchase, AdministrativeCommands.PurchaseSaveCommand command) {
         purchase.setApplicant(command.getApplicant());
         purchase.setApplicantId(command.getApplicantId());
@@ -236,6 +253,12 @@ public class PurchaseAppServiceImpl implements PurchaseAppService {
         purchase.setRemark(command.getRemark());
     }
 
+    /**
+     * 将采购明细命令转换为采购明细实体，并按顺序编排行号。
+     *
+     * @param commands 采购明细命令集合
+     * @return 采购明细实体集合
+     */
     private List<PurchaseItem> buildItems(List<AdministrativeCommands.PurchaseItemCommand> commands) {
         int lineNo = 1;
         List<PurchaseItem> items = new java.util.ArrayList<>();
@@ -252,6 +275,11 @@ public class PurchaseAppServiceImpl implements PurchaseAppService {
         return items;
     }
 
+    /**
+     * 为采购申请登记审批实例，并回写审批实例ID。
+     *
+     * @param purchase 采购申请
+     */
     private void registerApproval(PurchaseRequest purchase) {
         if (purchase.getApprovalInstanceId() != null) {
             return;
@@ -269,6 +297,11 @@ public class PurchaseAppServiceImpl implements PurchaseAppService {
         repository.updatePurchase(purchase);
     }
 
+    /**
+     * 追加采购审批通过事件至 Outbox，供下游异步消费。
+     *
+     * @param purchase 采购申请
+     */
     private void appendApprovedEvent(PurchaseRequest purchase) {
         OutboxAppendCommand command = new OutboxAppendCommand();
         command.setEventKey("purchase:" + purchase.getId());
@@ -279,6 +312,12 @@ public class PurchaseAppServiceImpl implements PurchaseAppService {
         outboxAppService.append(command);
     }
 
+    /**
+     * 将采购申请的关键字段序列化为 Outbox 事件载荷。
+     *
+     * @param purchase 采购申请
+     * @return JSON 载荷，序列化失败时返回 {@code null}
+     */
     private String payload(PurchaseRequest purchase) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("purchaseId", purchase.getId());
@@ -293,11 +332,23 @@ public class PurchaseAppServiceImpl implements PurchaseAppService {
         }
     }
 
+    /**
+     * 按ID查询采购申请，不存在时抛出业务异常。
+     *
+     * @param id 采购申请ID
+     * @return 采购申请
+     */
     private PurchaseRequest requirePurchase(Long id) {
         return repository.findPurchaseById(id)
                 .orElseThrow(() -> OaErrorCode.exception(OaErrorCode.PURCHASE_NOT_FOUND));
     }
 
+    /**
+     * 将采购申请实体转换为视图对象，含采购明细。
+     *
+     * @param purchase 采购申请
+     * @return 采购申请视图
+     */
     private AdministrativeViews.PurchaseView toView(PurchaseRequest purchase) {
         AdministrativeViews.PurchaseView view = new AdministrativeViews.PurchaseView();
         view.setId(purchase.getId());
