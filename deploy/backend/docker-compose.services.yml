@@ -7,12 +7,18 @@
 #   - MySQL    → 宿主机原生实例   （0.0.0.0:3306，经 host.docker.internal 访问）
 #   - Nacos    → 宿主机原生实例   （0.0.0.0:8848，经 host.docker.internal 访问）
 #
-# 镜像需先用 deploy/backend/Dockerfile.runtime 构建：
-#   for s in gateway auth pay erp oa crm; do
+# 镜像需先用 deploy/backend/Dockerfile.runtime 构建（context 只放一个 app.jar）：
+#   for s in gateway auth pay erp oa crm mes doc video archive audit lms pdm form job \
+#            file contract mall; do
 #     docker build -f deploy/backend/Dockerfile.runtime -t bluewhale/whale-$s:dev deploy/backend/jars/$s
 #   done
 #
-# 启动：docker compose -f deploy/backend/docker-compose.services.yml up -d
+# 启动：docker compose -f deploy/backend/docker-compose.services.yml --env-file .env up -d
+#   默认 22 个服务；whale-music / whale-party 是演示模块，需显式带 profile：
+#   docker compose ... --profile demo up -d music party
+#
+# 内存：Docker VM 上限 8GB（~/.wslconfig）。22 个 Spring 服务约占 7.2G，余量不足 1G，
+#   因此 build 前先看 MemAvailable，低于 1G 要先停非必需容器（否则 buildkit 会把引擎拖死）。
 # ============================================================
 
 name: bluewhale-app
