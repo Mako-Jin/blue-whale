@@ -135,3 +135,23 @@
 **新增环境要点**：workflow 首次容器化（宿主 8083 被 Windows 保留端口段占用，映射 18083）；ERP 旧镜像不含 4c 端点导致 `NoResourceFoundException`→500，**联调前必须按当日源码重建涉改模块镜像**；退货前置是原订单已发货（需库存）；D2 客户/物料主数据未映射时订单下发首跳即失败；应收对账仅覆盖「有合同台账的客户」。
 
 **新遗留**：红冲后原单不标记（`redFlushReason/redFlushedAt` 空、状态仍 SENT，额度靠 `sumRedFlushed` 回补）——功能安全、视图无痕迹，低优；`whale.crm.service/docs/survey` 三段配置同样未显式声明（有默认值），建议统一补占位符。详见 devlog 2026-11-08 §十。
+
+## 十一、补记（同日 16:45：ERP↔MES 下达/完工实机联调通过）
+
+**结论：P0「ERP↔MES 下达/完工」闭环。** 订单 `MO-20261109-0002` 实机跑通「建单 → 下达 → 领料 → MES 拆分/派工/开工/报工/完工 → outbox 回传 → ERP 完工入库」，ERP 落 `COMPLETED`、`completedQuantity=5`，对账台账 `completedMismatch=false`。
+
+**本轮修复 3 处缺陷**（提交 `5f1ac01f`）：
+
+1. MES 工单完工数量按工序累加（两道工序各 5 → 10）：改为取末道工序并以计划数封顶。
+2. ERP 完工回传的幂等分支写 `DUPLICATE` 流水撞 `uk_mfg_mes_callback_event` → 500，MES 会无限重投：改为重复事件幂等成功返回，写流水冲突同样忽略。
+3. 完工回传对 `RELEASED` 的拒绝原因不区分「没开工」与「状态不允许」：给出可执行提示（先在 ERP 领料）。
+
+**环境补齐**：MES 首次容器化（`bw-mes`，宿主 9002，Flyway V1–V9 首个可用版本）；`whale.mes.outbox/integration` 配置段此前完全缺失，已补；compose 增加 `mes` 服务段。
+
+**新识别风险（未处理，记录待评估）**：
+
+1. 进度快照以「最后到达的事件」覆盖，乱序事件会被当作新事件接受（outbox 顺序投递下暂不触发）。
+2. 生产订单 `routingStatus=FAILED`（PDM 缺工艺路线）时 MES 需人工 `split`，工艺路线同步链路仍未实机验证。
+3. 历史单 `MO-20261109-0001` 保留 `completedMismatch=true` 作为差异识别证据，未做数据修补。
+
+**P0 剩余**：CRM 营销发送投递回执（依赖 `whale-message` 容器，尚未纳入 compose）、`snapshot-cron` / `action-plan-cron` 定时触发验证。
