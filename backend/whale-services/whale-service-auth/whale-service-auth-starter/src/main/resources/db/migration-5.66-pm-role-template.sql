@@ -51,7 +51,7 @@ WHERE NOT EXISTS (SELECT 1 FROM sys_role tgt WHERE tgt.id = src.id OR (tgt.tenan
 -- ---------------------------------------------------------------------
 INSERT INTO sys_role_permission (id, role_id, permission_id)
 SELECT src.id, src.role_id, src.permission_id
-FROM (SELECT CAST(CONV(SUBSTR(MD5(CONCAT(r.id, ':', p.id)), 1, 15), 16, 10) AS UNSIGNED) AS id, r.id AS role_id, p.id AS permission_id FROM sys_role r JOIN sys_permission p ON p.deleted = 0 AND p.status = 1 WHERE r.deleted = 0 AND r.status = 1 AND ( (r.role_code = 'pm_manager' AND (p.id BETWEEN 172 AND 202 OR p.id = 44)) OR (r.role_code = 'pm_member' AND (p.id IN (172, 176, 180, 184, 187, 188, 189, 191, 192, 193, 195, 196, 197, 199, 201, 202) OR p.id = 44)) OR (r.role_code = 'tenant_admin' AND (p.id BETWEEN 172 AND 202 OR p.id IN (165, 166) OR p.id = 44)) )) src
+FROM (SELECT CAST(CONV(SUBSTR(MD5(CONCAT(r.id, ':', p.id)), 1, 15), 16, 10) AS UNSIGNED) AS id, r.id AS role_id, p.id AS permission_id FROM sys_role r JOIN sys_permission p ON p.deleted = 0 AND p.status = 1 WHERE r.deleted = 0 AND r.status = 1 AND ( (r.role_code = 'pm_manager' AND (p.id BETWEEN 174 AND 202 OR p.id IN (2320, 2321) OR p.id = 44)) OR (r.role_code = 'pm_member' AND (p.id IN (2320, 176, 180, 184, 187, 188, 189, 191, 192, 193, 195, 196, 197, 199, 201, 202) OR p.id = 44)) OR (r.role_code = 'tenant_admin' AND (p.id BETWEEN 174 AND 202 OR p.id IN (2320, 2321, 165, 166) OR p.id = 44)) )) src
 WHERE NOT EXISTS (SELECT 1 FROM sys_role_permission tgt WHERE tgt.id = src.id OR (tgt.role_id = src.role_id AND tgt.permission_id = src.permission_id));
 
 -- =====================================================================
@@ -82,7 +82,7 @@ WHERE NOT EXISTS (SELECT 1 FROM sys_role_permission tgt WHERE tgt.id = src.id OR
 --   SELECT r.tenant_id, COUNT(DISTINCT rp.permission_id)
 --   FROM sys_role r JOIN sys_role_permission rp ON rp.role_id = r.id
 --   WHERE r.role_code = 'tenant_admin' AND r.deleted = 0
---     AND (rp.permission_id BETWEEN 172 AND 202 OR rp.permission_id IN (165, 166, 44))
+--     AND (rp.permission_id BETWEEN 174 AND 202 OR rp.permission_id IN (2320, 2321, 165, 166, 44))
 --   GROUP BY r.tenant_id;
 --   -- 期望：每个 tenant_admin ≥ 34（31 PM + 165/166 + workflow 44）
 -- =====================================================================

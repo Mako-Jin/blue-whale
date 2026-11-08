@@ -9,21 +9,28 @@
 --            + 权限点 197–200（迭代 / 看板 共 4 个）+ 菜单 22–23
 --            + 权限点 201（报表查看）+ 菜单 24
 --            + 权限点 202（发起工作项审批）。
--- 编号约定 : 172–186 为 M1 占用；187–196 为 M2 占用；197–200 为 M3 占用；
---            201 为 M4 占用；202 为 M5 占用；M6+ 从 203 起编。
+-- 编号约定 : 174–186 为 M1 占用；187–196 为 M2 占用；197–200 为 M3 占用；
+--            201 为 M4 占用；202 为 M5 占用。
+--
+--   ⚠ 号码变更（2026-11-09）：前两个权限点原用 172/173，与 `V3__tenant_password_policy.sql`
+--     （租户密码策略）**撞号**。幂等条件 `WHERE id = ? OR perm_code = ?` 让后执行者整条跳过：
+--     库里的 172/173 是租户密码策略，而 `sys:pm:project:list` / `:add` 从未入库；
+--     5.57 / 5.66 的授权又按「172–202 区间」给 pm_manager 发权限，
+--     结果是**项目经理拿到了租户密码策略的查看与编辑权**，同时看不到项目列表。
+--     这两项改为 **2320/2321（PM 续段）**，其余 174–202 不动。
 -- 授权说明 : 遵循既有约定，本脚本不写 sys_role_permission；上线后请在
---            「角色管理」为租户管理员 / 业务角色勾选 172–202。
+--            「角色管理」为租户管理员 / 业务角色勾选 174–202 与 2320–2321。
 -- 前置条件 : bluewhale_pm 库已执行 backend/whale-apps/whale-pm/src/main/resources/db/init.sql。
 -- =====================================================================
 
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 172, 0, 'sys:pm:project:list', '查询项目', 'API', '/pm/project/page,/pm/project/{id}', 'GET', 172, 1
+SELECT 2320, 0, 'sys:pm:project:list', '查询项目', 'API', '/pm/project/page,/pm/project/{id}', 'GET', 2320, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 172 OR perm_code = 'sys:pm:project:list');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 2320 OR perm_code = 'sys:pm:project:list');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 173, 0, 'sys:pm:project:add', '新增项目', 'API', '/pm/project', 'POST', 173, 1
+SELECT 2321, 0, 'sys:pm:project:add', '新增项目', 'API', '/pm/project', 'POST', 2321, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 173 OR perm_code = 'sys:pm:project:add');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 2321 OR perm_code = 'sys:pm:project:add');
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
 SELECT 174, 0, 'sys:pm:project:edit', '编辑/归档项目', 'API', '/pm/project/{id},/pm/project/{id}/status', 'PUT', 174, 1
 FROM DUAL
@@ -190,6 +197,6 @@ WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 202 OR perm_code = 'sy
 
 -- =====================================================================
 -- 完成。校验建议：
---   SELECT id, perm_code FROM sys_permission WHERE id BETWEEN 172 AND 202;
+--   SELECT id, perm_code FROM sys_permission WHERE id BETWEEN 174 AND 202 OR id IN (2320, 2321);
 --   SELECT id, name, path FROM sys_menu WHERE id BETWEEN 18 AND 24;
 -- =====================================================================

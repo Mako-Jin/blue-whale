@@ -61,6 +61,36 @@ whale:
     follow-up-page-limit: ${WHALE_CRM_FOLLOW_UP_PAGE_LIMIT:100}
     contract-reference-enabled: ${WHALE_CRM_CONTRACT_REFERENCE_ENABLED:false}
     default-customer-level: ${WHALE_CRM_DEFAULT_CUSTOMER_LEVEL:C}
+    # 售后服务（M4 工单 / SLA）：D7 默认口径 P1 2h/8h、P2 4h/24h、P3 8h/72h，7×8 工作时段
+    # （时间值必须加引号：YAML 1.1 把裸 `09:00` 当六十进制数解析成 540）
+    service:
+      enabled: ${WHALE_CRM_SERVICE_ENABLED:true}
+      default-calendar-code: ${WHALE_CRM_SERVICE_CALENDAR:DEFAULT}
+      workday-start: '${WHALE_CRM_SERVICE_WORKDAY_START:09:00}'
+      workday-end: '${WHALE_CRM_SERVICE_WORKDAY_END:18:00}'
+      break-minutes: ${WHALE_CRM_SERVICE_BREAK_MINUTES:60}
+      weekdays: ${WHALE_CRM_SERVICE_WEEKDAYS:1,2,3,4,5,6,7}
+      p1-response-hours: ${WHALE_CRM_SERVICE_P1_RESPONSE_HOURS:2}
+      p1-resolve-hours: ${WHALE_CRM_SERVICE_P1_RESOLVE_HOURS:8}
+      p2-response-hours: ${WHALE_CRM_SERVICE_P2_RESPONSE_HOURS:4}
+      p2-resolve-hours: ${WHALE_CRM_SERVICE_P2_RESOLVE_HOURS:24}
+      p3-response-hours: ${WHALE_CRM_SERVICE_P3_RESPONSE_HOURS:8}
+      p3-resolve-hours: ${WHALE_CRM_SERVICE_P3_RESOLVE_HOURS:72}
+    # 知识库正文引用（whale-doc 内网）：正文归文档服务，CRM 只存 docId/版本；
+    # 关闭或文档服务不可用时降级为 doc_available=false
+    docs:
+      enabled: ${WHALE_CRM_DOCS_ENABLED:false}
+      doc-url: ${WHALE_DOC_URL:http://127.0.0.1:8095}
+      connect-timeout-millis: ${WHALE_CRM_DOCS_CONNECT_TIMEOUT:1000}
+      read-timeout-millis: ${WHALE_CRM_DOCS_READ_TIMEOUT:2000}
+    # 满意度问卷：默认关闭避免误发；secret 留空则进程内随机生成（重启后历史令牌失效），
+    # 生产必须显式配置 WHALE_CRM_SURVEY_SECRET
+    survey:
+      enabled: ${WHALE_CRM_SURVEY_ENABLED:false}
+      expire-days: ${WHALE_CRM_SURVEY_EXPIRE_DAYS:7}
+      secret: ${WHALE_CRM_SURVEY_SECRET:}
+      rate-limit-minutes: ${WHALE_CRM_SURVEY_RATE_LIMIT_MINUTES:10}
+      rate-limit-count: ${WHALE_CRM_SURVEY_RATE_LIMIT_COUNT:5}
     # 公海自动回收：默认关闭，由运维确认规则后开启
     pool-recycle-enabled: ${WHALE_CRM_POOL_RECYCLE_ENABLED:false}
     pool-recycle-cron: ${WHALE_CRM_POOL_RECYCLE_CRON:0 0 2 * * ?}

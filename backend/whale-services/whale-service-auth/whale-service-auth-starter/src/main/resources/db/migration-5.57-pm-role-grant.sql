@@ -22,16 +22,16 @@ SELECT 17202, 1, 'pm_member', '项目成员', 'PM 协作子集：查询 + 工作
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_role WHERE id = 17202 OR (tenant_id = 1 AND role_code = 'pm_member'));
 
--- pm_manager：172–202 全量（id 采用 17201000+权限ID 的确定性区间，幂等可重放）
+-- pm_manager：174–202 + 续段 2320–2321 全量（id 采用 17201000+权限ID 的确定性区间，幂等可重放）
 INSERT INTO sys_role_permission (id, role_id, permission_id)
 SELECT src.id, src.role_id, src.permission_id
-FROM (SELECT 17201000 + id AS id, 17201 AS role_id, id AS permission_id FROM sys_permission WHERE id BETWEEN 172 AND 202) src
+FROM (SELECT 17201000 + id AS id, 17201 AS role_id, id AS permission_id FROM sys_permission WHERE (id BETWEEN 174 AND 202 OR id IN (2320, 2321))) src
 WHERE NOT EXISTS (SELECT 1 FROM sys_role_permission tgt WHERE tgt.id = src.id OR (tgt.role_id = src.role_id AND tgt.permission_id = src.permission_id));
 
 -- pm_member：协作子集 16 项（id 区间 17202000+权限ID）
 INSERT INTO sys_role_permission (id, role_id, permission_id)
 SELECT src.id, src.role_id, src.permission_id
-FROM (SELECT 17202000 + id AS id, 17202 AS role_id, id AS permission_id FROM sys_permission WHERE id IN (172, 176, 180, 184, 187, 188, 189, 191, 192, 193, 195, 196, 197, 199, 201, 202)) src
+FROM (SELECT 17202000 + id AS id, 17202 AS role_id, id AS permission_id FROM sys_permission WHERE id IN (2320, 176, 180, 184, 187, 188, 189, 191, 192, 193, 195, 196, 197, 199, 201, 202)) src
 WHERE NOT EXISTS (SELECT 1 FROM sys_role_permission tgt WHERE tgt.id = src.id OR (tgt.role_id = src.role_id AND tgt.permission_id = src.permission_id));
 
 -- 配套授权：sys:pm:item:approval(202) 的履约依赖 whale-workflow 的发起权限
