@@ -1,5 +1,6 @@
 package com.bluewhale.doc.scheduler;
 
+import com.bluewhale.common.jobschedule.ScheduledJob;
 import com.bluewhale.doc.application.service.DocRecycleService;
 import com.bluewhale.doc.config.DocProperties;
 import com.bluewhale.doc.infrastructure.persistence.query.DocTrashRootRow;
@@ -7,7 +8,6 @@ import com.bluewhale.doc.support.DocMetrics;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -39,9 +39,13 @@ public class DocRecycleCleanupJob {
 
     /**
      * 按 Cron 清理到期回收站子树。
+     *
+     * @return 执行摘要（清除的回收站子树数量）
      */
-    @Scheduled(cron = "${whale.doc.recycle-cleanup-cron:0 30 3 * * *}")
-    public void cleanup() {
+    @ScheduledJob(code = "doc.recycle.cleanup",
+            cron = "${whale.doc.recycle-cleanup-cron:0 30 3 * * *}",
+            timeoutSeconds = 1800)
+    public String cleanup() {
         LocalDateTime cutoff = LocalDateTime.now().minusDays(docProperties.getRecycleRetentionDays());
         int removed = 0;
         for (int round = 0; round < MAX_ROUNDS; round++) {
@@ -54,6 +58,7 @@ public class DocRecycleCleanupJob {
         }
         docMetrics.recordRecyclePurged(removed);
         log.info("回收站到期清理完成: removed={}, cutoff={}", removed, cutoff);
+        return "removed=" + removed;
     }
 
     /**

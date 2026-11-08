@@ -1,5 +1,6 @@
 package com.bluewhale.doc.scheduler;
 
+import com.bluewhale.common.jobschedule.ScheduledJob;
 import com.bluewhale.doc.config.DocProperties;
 import com.bluewhale.doc.infrastructure.persistence.mapper.DocPageAttachmentMapper;
 import com.bluewhale.doc.infrastructure.persistence.query.DocOrphanAttachmentRow;
@@ -7,7 +8,6 @@ import com.bluewhale.doc.support.DocMetrics;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -44,9 +44,15 @@ public class DocOrphanAttachmentCleanupJob {
     /**
      * 按 Cron 清理无主附件引用。
      *
+     * <p>返回值保留「删除行数」而非摘要文本：内网运维端点
+     * {@code POST /doc/internal/ops/orphan-attachment-cleanup} 直接把它回给调用方，
+     * 调度中心侧同样把它当作执行摘要写进 {@code job_log.result}。</p>
+     *
      * @return 本轮删除的附件引用行数
      */
-    @Scheduled(cron = "${whale.doc.orphan-cleanup-cron:0 30 4 * * *}")
+    @ScheduledJob(code = "doc.orphan-attachment.cleanup",
+            cron = "${whale.doc.orphan-cleanup-cron:0 30 4 * * *}",
+            timeoutSeconds = 1800)
     public int cleanup() {
         LocalDateTime cutoff = LocalDateTime.now()
                 .minusHours(docProperties.getOrphanAttachmentRetentionHours());

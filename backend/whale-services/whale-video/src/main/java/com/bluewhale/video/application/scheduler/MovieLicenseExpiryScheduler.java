@@ -1,12 +1,12 @@
 package com.bluewhale.video.application.scheduler;
 
+import com.bluewhale.common.jobschedule.ScheduledJob;
 import com.bluewhale.video.domain.model.Content;
 import com.bluewhale.video.domain.model.PublishState;
 import com.bluewhale.video.domain.repository.ContentRepository;
 import com.bluewhale.video.domain.repository.MovieRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -36,9 +36,11 @@ public class MovieLicenseExpiryScheduler {
 
     /**
      * 每日 03:10 下线授权已到期的电影（单个失败不影响其余内容）。
+     *
+     * @return 执行摘要（扫描数 / 下线数 / 失败数）
      */
-    @Scheduled(cron = "0 10 3 * * ?")
-    public void offlineExpired() {
+    @ScheduledJob(code = "video.license-expiry.offline", cron = "0 10 3 * * ?", timeoutSeconds = 1800)
+    public String offlineExpired() {
         LocalDateTime now = LocalDateTime.now();
         List<Long> contentIds = movieRepository.listExpiredLicenseContentIds(now, BATCH_LIMIT);
         int offline = 0;
@@ -55,6 +57,7 @@ public class MovieLicenseExpiryScheduler {
         }
         log.info("电影授权到期自动下线完成: scanned={}, offline={}, failed={}",
                 contentIds.size(), offline, failed);
+        return "scanned=" + contentIds.size() + ", offline=" + offline + ", failed=" + failed;
     }
 
     /**

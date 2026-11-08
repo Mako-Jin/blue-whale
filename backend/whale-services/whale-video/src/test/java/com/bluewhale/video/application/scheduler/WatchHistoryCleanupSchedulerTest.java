@@ -13,6 +13,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -100,14 +101,14 @@ class WatchHistoryCleanupSchedulerTest {
     }
 
     /**
-     * 清理异常只告警，不向调度框架抛出（避免后续调度被抑制）。
+     * 清理异常向上抛出：调度中心据此判定失败并重试/告警，吞掉会让执行流水长期显示成功。
      */
     @Test
-    void shouldSwallowCleanupFailure() {
+    void shouldPropagateCleanupFailure() {
         when(watchHistoryRepository.deleteWatchedBefore(any(LocalDateTime.class), anyInt()))
                 .thenThrow(new IllegalStateException("数据库抖动"));
 
-        scheduler.cleanup();
+        assertThrows(IllegalStateException.class, () -> scheduler.cleanup());
 
         verify(watchHistoryRepository).deleteWatchedBefore(any(LocalDateTime.class), anyInt());
     }

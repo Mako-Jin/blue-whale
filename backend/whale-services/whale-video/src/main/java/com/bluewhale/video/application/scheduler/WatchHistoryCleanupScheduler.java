@@ -1,10 +1,10 @@
 package com.bluewhale.video.application.scheduler;
 
+import com.bluewhale.common.jobschedule.ScheduledJob;
 import com.bluewhale.video.config.VideoProperties;
 import com.bluewhale.video.domain.repository.WatchHistoryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -35,9 +35,15 @@ public class WatchHistoryCleanupScheduler {
 
     /**
      * 清理超过保留期的观看历史。
+     *
+     * <p>整轮失败不再吞掉：调度中心按「业务码非 0 / 异常」判定失败并决定是否重试与告警，
+     * 吞异常会让执行流水长期显示成功，清理静默停摆。进程内模式由注册器兜底捕获，
+     * 不会中断调度线程。</p>
+     *
+     * @return 执行摘要（删除条数与批数）
      */
-    @Scheduled(cron = "0 40 4 * * ?")
-    public void cleanup() {
+    @ScheduledJob(code = "video.watch-history.cleanup", cron = "0 40 4 * * ?", timeoutSeconds = 1800)
+    public String cleanup() {
         int retentionDays = Math.max(videoProperties.getHistoryRetentionDays(), 1);
         LocalDateTime cutoff = LocalDateTime.now().minusDays(retentionDays);
         int deleted = 0;
@@ -51,11 +57,13 @@ public class WatchHistoryCleanupScheduler {
                     break;
                 }
             }
-            log.info("观看历史清理完成: retentionDays={}, cutoff={}, batches={}, deleted={}",
-                    retentionDays, cutoff, batches, deleted);
         } catch (RuntimeException ex) {
-            log.warn("观看历史清理失败: retentionDays={}, cutoff={}, deleted={}",
+            log.error("观看历史清理失败: retentionDays={}, cutoff={}, deleted={}",
                     retentionDays, cutoff, deleted, ex);
+            throw ex;
         }
+        log.info("观看历史清理完成: retentionDays={}, cutoff={}, batches={}, deleted={}",
+                retentionDays, cutoff, batches, deleted);
+        return "deleted=" + deleted + ", batches=" + batches;
     }
 }

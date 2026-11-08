@@ -130,6 +130,38 @@ INSERT INTO job_info (id, job_name, job_group, cron_expression, handler_bean, ha
 VALUES (2, '执行日志归档', 'SYSTEM', '0 0 4 * * ?', 'jobLogArchiveHandler', NULL,
         'SMART', 1, '内置任务：导出过期 job_log 至 whale-file 后清理，保留天数见 whale.job.log-retention-days');
 
+-- 已迁移业务任务（与 db/migration/V3__seed_migrated_jobs.sql 同源）：
+-- executor_app 为 Nacos 服务名，job_code 对应业务侧 @ScheduledJob.code()，
+-- 地址不落库（由 job_executor 注册表 + Nacos 实例交集解析）。
+INSERT INTO job_info (id, tenant_id, job_name, job_group, executor_app, job_code,
+                      cron_expression, handler_bean, handler_param,
+                      misfire_policy, max_retry, retry_interval_seconds, shard_total, status, remark)
+VALUES
+(9100000000000000001, 1, 'CRM 经营快照', 'CRM', 'whale-crm', 'crm.analytics.snapshot',
+ '0 0 2 * * ?', 'httpJobHandler', '{"timeoutMillis":600000}', 'DO_NOTHING', 2, 300, 1, 1,
+ '迁移自 AnalyticsSnapshotJob#generateSnapshots'),
+(9100000000000000002, 1, 'CRM 行动项生成', 'CRM', 'whale-crm', 'crm.analytics.action-plan',
+ '0 30 2 * * ?', 'httpJobHandler', '{"timeoutMillis":600000}', 'DO_NOTHING', 2, 300, 1, 1,
+ '迁移自 AnalyticsSnapshotJob#generateActionItems'),
+(9100000000000000003, 1, '文档回收站到期清理', 'DOC', 'whale-doc', 'doc.recycle.cleanup',
+ '0 30 3 * * *', 'httpJobHandler', '{"timeoutMillis":1800000}', 'DO_NOTHING', 1, 300, 1, 1,
+ '迁移自 DocRecycleCleanupJob#cleanup'),
+(9100000000000000004, 1, '文档孤儿附件清理', 'DOC', 'whale-doc', 'doc.orphan-attachment.cleanup',
+ '0 30 4 * * *', 'httpJobHandler', '{"timeoutMillis":1800000}', 'DO_NOTHING', 1, 300, 1, 1,
+ '迁移自 DocOrphanAttachmentCleanupJob#cleanup'),
+(9100000000000000005, 1, '审计日志保留期清理', 'AUDIT', 'whale-audit', 'audit.log.retention',
+ '0 0 3 * * ?', 'httpJobHandler', '{"timeoutMillis":1800000}', 'DO_NOTHING', 1, 300, 1, 1,
+ '迁移自 LogRetentionScheduler#cleanExpiredLogs（清理/归档开关仍由配置决定）'),
+(9100000000000000006, 1, '音乐播放历史清理', 'MUSIC', 'whale-music', 'music.play-history.cleanup',
+ '0 0 3 * * ?', 'httpJobHandler', '{"timeoutMillis":900000}', 'DO_NOTHING', 0, 60, 1, 1,
+ '迁移自 PlayHistoryCleanupScheduler#purgeExpiredHistory'),
+(9100000000000000007, 1, '电影授权到期下线', 'VIDEO', 'whale-video', 'video.license-expiry.offline',
+ '0 10 3 * * ?', 'httpJobHandler', '{"timeoutMillis":1800000}', 'DO_NOTHING', 1, 300, 1, 1,
+ '迁移自 MovieLicenseExpiryScheduler#offlineExpired'),
+(9100000000000000008, 1, '观看历史保留期清理', 'VIDEO', 'whale-video', 'video.watch-history.cleanup',
+ '0 40 4 * * ?', 'httpJobHandler', '{"timeoutMillis":1800000}', 'DO_NOTHING', 1, 300, 1, 1,
+ '迁移自 WatchHistoryCleanupScheduler#cleanup');
+
 -- ---------------------------------------------------------------------
 -- 5. 执行器注册表（对齐 xxl-job executor：谁在线、谁支持哪些任务）
 -- ---------------------------------------------------------------------

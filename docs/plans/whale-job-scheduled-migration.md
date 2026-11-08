@@ -1,6 +1,6 @@
 # 定时任务迁移到 whale-job 方案
 
-> 状态：待评审 ｜ 编写：2026-11-08 ｜ 涉及：`whale-spring-boot-starter`、`whale-job`、17 个业务模块
+> 状态：实施中（27 个目标已迁 8 个，见 §8/§9） ｜ 编写：2026-11-08 ｜ 涉及：`whale-spring-boot-starter`、`whale-job`、17 个业务模块
 
 ## 0. 先澄清一个前提
 
@@ -321,3 +321,56 @@ Nacos 只能回答「这个服务有几个实例」，回答不了「这个实�
 - 执行日志回捞（executor 落文件、调度中心代理读取）；
 - `shard_total=-1` 动态分片（按在线实例数）；
 - **生产必须配置 `WHALE_INTERNAL_TOKEN`**：当前 dev 环境下令牌为空时过滤器 fail-open。
+
+---
+
+## 9. 第二批：清理类 6 个（2026-11-08 19:00–19:40）
+
+按 §2.2 的迁移顺序，第二批取「只读 / 可重入」的清理类，共 6 个任务、4 个服务。
+
+### 9.1 改动清单
+
+| 服务 | 任务 code | 类.方法 | cron | 摘要字段 |
+|---|---|---|---|---|
+| whale-doc | `doc.recycle.cleanup` | `DocRecycleCleanupJob#cleanup` | `${whale.doc.recycle-cleanup-cron:0 30 3 * * *}` | `removed=n` |
+| whale-doc | `doc.orphan-attachment.cleanup` | `DocOrphanAttachmentCleanupJob#cleanup` | `${whale.doc.orphan-cleanup-cron:0 30 4 * * *}` | 行数（`int`） |
+| whale-audit | `audit.log.retention` | `LogRetentionScheduler#cleanExpiredLogs` | `${whale.audit.retention.cron}` | `clean=…, archive=…, days=…` |
+| whale-music | `music.play-history.cleanup` | `PlayHistoryCleanupScheduler#purgeExpiredHistory` | `0 0 3 * * ?` | `removed=n, before=…` |
+| whale-video | `video.license-expiry.offline` | `MovieLicenseExpiryScheduler#offlineExpired` | `0 10 3 * * ?` | `scanned/offline/failed` |
+| whale-video | `video.watch-history.cleanup` | `WatchHistoryCleanupScheduler#cleanup` | `0 40 4 * * ?` | `deleted=n, batches=n` |
+
+配套：
+
+1. `V3__seed_migrated_jobs.sql`：8 条 `job_info` 种子（首批 CRM 2 + 本批 6），**按 `job_code` 判重**（`INSERT … SELECT … WHERE NOT EXISTS`），老库里已有的手工行不会被重复插入；同源内容写进 `db/init.sql`，保证新库可复现。
+2. 四个服务的部署侧 env 与 CRM 一致（`WHALE_SCHEDULE_LOCAL_ENABLED=false / TRIGGER_ENABLED=true / EXECUTOR_REGISTER_ENABLED=true / EXECUTOR_SERVER_URL=http://bw-job:8082`）；yml 不写死，走 relaxed binding。
+3. 返回值改「执行摘要字符串」（`void` → `String`），直接落 `job_log.result`；唯一例外见下条。
+
+### 9.2 三处实现判断
+
+- **`DocOrphanAttachmentCleanupJob` 保留 `int` 返回**：内网运维端点 `POST /doc/internal/ops/orphan-attachment-cleanup` 直接把行数回给调用方，改成字符串会破坏该契约。
+- **`WatchHistoryCleanupScheduler` 整轮失败改为上抛**：原来 `catch` 后只打 warn，调度中心会把「清理静默停摆」长期记成成功。现在整轮异常 rethrow（进程内模式由 `ScheduledJobRegistrar` 兜底捕获，不会中断调度线程），调度侧按失败重试/告警。单条失败仍计数不抛（`MovieLicenseExpiryScheduler`）与逐租户隔离（doc 两个任务）保持原样。
+- **cron 仍用 `${}` 占位符**：`ScheduledJobRegistrar` 用 `Environment.resolvePlaceholders` 解析，进程内与远程两种模式的 cron 口径一致；`job_info.cron_expression` 存解析后的字面量。
+
+### 9.3 实机结果
+
+| 验证项 | 结果 |
+|---|---|
+| Flyway V3 | `bw-job` 重启后 `Migrating to 3 - seed migrated jobs` → success，job 表 10 条（2 内置 + 8 迁移），CRM 原有两条**未重复插入**（id 仍为 `2119379191092592641`） |
+| 执行器注册 | `whale-audit` → `172.18.0.14:9101 codes=[audit.log.retention]`；`whale-music` → `172.18.0.15:8096 codes=[music.play-history.cleanup]` |
+| 远程触发（audit） | `status=1`、`triggerType=MANUAL`、`result="clean=false, archive=true, days=30"`，audit 侧日志 `远程触发任务完成 costMs=408`，`api_log` 记录该内网调用 200 |
+| 远程触发（music） | `status=1`、`result="removed=0, before=2026-08-10T19:26:20"`，music 侧 `播放历史清理完成 retentionDays=90` |
+| 无本地双跑 | 两服务日志均无本地 cron 注册记录，只有 `远程触发任务完成` |
+
+### 9.4 本批暴露的两个既有问题（未在本次修复）
+
+1. **`PlayAppServiceImplTest.shouldRejectTicketForInvisibleContent` 在 HEAD 上就是红的**：期望 `CONTENT_NOT_FOUND(40401)`，实际 `CONTENT_NOT_PLAYABLE(40303)`——草稿内容对作者本人 `visibleTo` 为真，走到「不可播放」分支。属代码与测试口径分歧（实现合理、测试过期或反之），与本次迁移无关，单独决策后再改。`whale-video` 其余 150 例通过。
+2. **dev 环境缺 `bluewhale_doc` / `bluewhale_video` 库**：`infrastructure/docker/mysql/init/01-init-databases.sql` 未创建这两个库，`bw-video-verify` 启动即 `Unknown database 'bluewhale_video'`。因此 doc / video 的这 4 个任务只做到「编译 + 单测 + 种子就位」，端到端触发验证要等库补齐（属环境缺口，不是迁移代码问题）。
+
+### 9.5 门禁
+
+`whale-job` 83、`whale-doc` 416、`whale-music` 198、`whale-audit` 77 单测全绿，`whale-video` 调度相关 7 例全绿（模块 151 例中 1 例为上述既有失败），Checkstyle 0。
+
+### 9.6 进度
+
+已迁 8 / 27（CRM 2 + 清理类 6），**剩余 19 个**：CRM 7（回收/对账/快照）、OA 5、LMS 1、Party 1、PDM 1、Archive 2、Auth 1、CRM 推送 3 + OA 推送 2（最后一批）。
+

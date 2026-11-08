@@ -1,10 +1,10 @@
 package com.bluewhale.music.application.scheduler;
 
+import com.bluewhale.common.jobschedule.ScheduledJob;
 import com.bluewhale.music.config.MusicProperties;
 import com.bluewhale.music.domain.repository.PlayHistoryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -28,12 +28,15 @@ public class PlayHistoryCleanupScheduler {
 
     /**
      * 每日凌晨 3 点清理过期播放历史。
+     *
+     * @return 执行摘要（删除条数与截止时间）
      */
-    @Scheduled(cron = "0 0 3 * * ?")
-    public void purgeExpiredHistory() {
+    @ScheduledJob(code = "music.play-history.cleanup", cron = "0 0 3 * * ?")
+    public String purgeExpiredHistory() {
         int days = Math.max(musicProperties.getPlayHistoryRetentionDays(), 1);
         LocalDateTime before = LocalDateTime.now().minusDays(days);
         int removed = playHistoryRepository.purgeBefore(before);
         log.info("播放历史清理完成: retentionDays={}, before={}, removed={}", days, before, removed);
+        return "removed=" + removed + ", before=" + before;
     }
 }

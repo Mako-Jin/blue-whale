@@ -1,10 +1,10 @@
 package com.bluewhale.audit.retention;
 
 import com.bluewhale.audit.config.RetentionProperties;
+import com.bluewhale.common.jobschedule.ScheduledJob;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
@@ -36,9 +36,13 @@ public class LogRetentionScheduler {
 
     /**
      * 按配置 cron 触发：清理开关开启时清理 4 张日志表，归档开关开启时导出 {@code audit_log} 过期记录
+     *
+     * @return 执行摘要（实际生效的开关与保留天数）
      */
-    @Scheduled(cron = "${whale.audit.retention.cron}")
-    public void cleanExpiredLogs() {
+    @ScheduledJob(code = "audit.log.retention",
+            cron = "${whale.audit.retention.cron}",
+            timeoutSeconds = 1800)
+    public String cleanExpiredLogs() {
         log.info("触发日志保留期任务: 清理={}, 保留天数={}, 归档={}",
                 properties.isEnabled(), properties.getDays(), properties.isArchiveEnabled());
         if (properties.isEnabled()) {
@@ -47,5 +51,7 @@ public class LogRetentionScheduler {
         if (properties.isArchiveEnabled()) {
             archiver.archive(properties.getDays());
         }
+        return "clean=" + properties.isEnabled() + ", archive=" + properties.isArchiveEnabled()
+                + ", days=" + properties.getDays();
     }
 }
