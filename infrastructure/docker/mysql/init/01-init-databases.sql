@@ -121,4 +121,14 @@ CREATE DATABASE IF NOT EXISTS bluewhale_mall
   DEFAULT CHARACTER SET utf8mb4
   DEFAULT COLLATE utf8mb4_unicode_ci;
 
+-- ---- 在线文档 / Wiki（whale-doc：表由服务启动时 Flyway 建立） ----
+CREATE DATABASE IF NOT EXISTS bluewhale_doc
+  DEFAULT CHARACTER SET utf8mb4
+  DEFAULT COLLATE utf8mb4_unicode_ci;
+
+-- ---- 视频平台（whale-video：表由服务启动时 Flyway 建立） ----
+CREATE DATABASE IF NOT EXISTS bluewhale_video
+  DEFAULT CHARACTER SET utf8mb4
+  DEFAULT COLLATE utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;
