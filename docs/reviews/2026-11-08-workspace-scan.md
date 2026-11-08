@@ -99,4 +99,14 @@
 - **审批参与人判定下沉**：`ApprovalInstanceAppService` 新增 `isParticipant(businessType, businessId, userId, username)`，口径 = 发起人 / 审批人快照 / Workflow 实例任务处理人（含 owner、delegateFrom），工作流不可用时 fail-closed。
 - **回归修复**：上一批 `AttachmentOwnershipGuard`（application）直依赖 `OaFileMetadataClient`（infrastructure），触发 `OaArchitectureTest.application_must_not_depend_on_infrastructure`（7 处违规，全量测试才暴露）。新增端口 `common/domain/gateway/FileMetadataGateway` + 领域记录 `FileMetadata`，客户端实现端口，守卫改依赖端口 → 架构 8/8 转绿。
 
-**仍未解决**：§三 全部阻塞（实机联调、真实库迁移、跨服务契约、V-09 证书、D 编号依赖）；B4/B5 真实库联调。详见 devlog 2026-11-08 §八。
+**仍未解决**：§三 其余阻塞（真实库累计迁移、跨服务契约、V-09 证书、D 编号依赖）；§二 P0 其余实机项（退换货→发票对账、ERP↔MES、营销发送投递回执、定时任务）。详见 devlog 2026-11-08 §九。
+
+## 九、补记（同日 15:10：B4/B5/B7 实机联调通过）
+
+| 链路 | 结论 |
+|---|---|
+| CRM 分析导出 → whale-file | ✅ 实机通过：导出经 `fileId/fileName/fileSize` 落库（V13 已在真实库生效），代理下载 235B CSV、`Content-Disposition` 正确 |
+| 客户合并 → whale-contract | ✅ 实机通过：`merge/preview` 的 `references` 含「合同服务」，whale-contract 日志出现 `ct_contract` 按 `biz_type/biz_id` 的计数 SQL；重写端点幂等返回 0 |
+| 公文附件可见性 | ✅ 实机通过：草稿他人 40305 / 拟稿人 200；提交后他人 200；秘密级他人 40305；跨用户引用附件 40307 |
+
+环境要点：whale-file 需 `SPRING_DATA_REDIS_HOST/PORT`（yml 无 `REDIS_HOST` 占位）；容器内跨服务地址用容器名；验证实例必须 `SPRING_CLOUD_NACOS_DISCOVERY_REGISTER_ENABLED=false`。临时编排 `deploy/backend/docker-compose.verify.yml` 已留存，主栈 8 容器未改动。

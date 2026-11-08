@@ -1,0 +1,136 @@
+# ============================================================
+# 联调验证专用编排（临时）：whale-file / whale-contract + CRM/OA 验证实例
+#
+# 目的：在不影响 bluewhale-app 既有服务的前提下，验证
+#   1) CRM 分析导出 → whale-file 上传/代理下载（V13）
+#   2) 客户合并 → whale-contract 合同引用重写
+#   3) OA 公文附件下载可见性（草稿/秘密级 403）
+#
+# CRM/OA 验证实例不注册 Nacos（避免与 bw-crm / bw-oa 抢路由），直接按端口调用。
+# 启动：docker compose -f deploy/backend/docker-compose.verify.yml up -d
+# 清理：docker compose -f deploy/backend/docker-compose.verify.yml down
+# ============================================================
+
+name: bluewhale-verify
+
+x-common: &common
+  restart: "no"
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  networks:
+    - bw-net
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "2"
+  mem_limit: 900m
+
+services:
+  file:
+    <<: *common
+    image: bluewhale/whale-file:dev
+    container_name: bw-file
+    environment:
+      JAVA_OPTS: "-Xms192m -Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "8085"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      # whale-file 用共享 starter 的 Spring 标准属性（yml 无 REDIS_HOST 占位）
+      SPRING_DATA_REDIS_HOST: ${REDIS_HOST}
+      SPRING_DATA_REDIS_PORT: ${REDIS_PORT}
+    ports:
+      - "127.0.0.1:8085:8085"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8085/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 8s
+      retries: 20
+      start_period: 60s
+
+  contract:
+    <<: *common
+    image: bluewhale/whale-contract:dev
+    container_name: bw-contract
+    environment:
+      JAVA_OPTS: "-Xms192m -Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "9006"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "127.0.0.1:9006:9006"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9006/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 8s
+      retries: 20
+      start_period: 60s
+
+  crm-verify:
+    <<: *common
+    image: bluewhale/whale-crm:dev
+    container_name: bw-crm-verify
+    depends_on:
+      file:
+        condition: service_started
+      contract:
+        condition: service_started
+    environment:
+      JAVA_OPTS: "-Xms192m -Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "9007"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      # 不注册 Nacos，避免与 bw-crm 竞争网关路由
+      SPRING_CLOUD_NACOS_DISCOVERY_REGISTER_ENABLED: "false"
+      # 内网直连验证实例（同一 docker 网络按容器名解析）
+      WHALE_FILE_URL: "http://bw-file:8085"
+      WHALE_CONTRACT_URL: "http://bw-contract:9006"
+      WHALE_CRM_CONTRACT_SYNC_ENABLED: "true"
+      WHALE_CRM_CONTRACT_REFERENCE_ENABLED: "true"
+    ports:
+      - "127.0.0.1:9107:9007"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9007/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 8s
+      retries: 20
+      start_period: 90s
+
+  oa-verify:
+    <<: *common
+    image: bluewhale/whale-oa:dev
+    container_name: bw-oa-verify
+    depends_on:
+      file:
+        condition: service_started
+    environment:
+      JAVA_OPTS: "-Xms192m -Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "9004"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      SPRING_CLOUD_NACOS_DISCOVERY_REGISTER_ENABLED: "false"
+    ports:
+      - "127.0.0.1:9104:9004"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9004/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 8s
+      retries: 20
+      start_period: 90s
+
+networks:
+  bw-net:
+    external: true
+    name: bluewhale-dev_bw-net
