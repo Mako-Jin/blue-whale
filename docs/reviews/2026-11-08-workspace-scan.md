@@ -166,4 +166,18 @@
 
 **新识别风险（P1，未修）**：全仓库无 ShedLock/Redisson，`@Scheduled` 共 21 处，**多副本部署会 N 倍执行**。副作用靠业务幂等兜底（快照 upsert、行动项 dedupKey、ERP 建单按 `crm_order_no` 唯一），实测未产生重复数据，但会产生重复 RPC/DB 负载。建议给有副作用的 job 加分布式锁，或加「仅主实例注册调度」开关。
 
-**P0 剩余**：CRM 营销发送投递回执 —— 已确认仓库**没有 whale-message 模块**，CRM 的 `whale.crm.marketing.message-url` 默认指向 `127.0.0.1:8085`（该端口现被 `bw-file` 占用）。已决定方案：**先建最小 whale-message 服务**（模块 + 表 + 发送/回执接口 + compose 段，端口避开 8085），再验 CRM 触达状态机与回执幂等。
+**P0 剩余**：CRM 营销发送投递回执。~~已确认仓库没有 whale-message 模块~~ —— **该判断有误**：`whale-message` 位于 `backend/whale-services/whale-message`（端口 8094，库 `bluewhale_message`，54 个类，含内网 `/message/internal/send`、模板、公告、站内信、四渠道 sender），此前只查了 `whale-apps` 与 compose 才漏判。真实缺口是：① 服务未容器化（compose 无 `message` 段）；② CRM 客户端报文与消息服务契约不一致；③ 平台侧没有异步「送达回执（DELIVERED）」状态，只有提交态 SENT/FAILED/SKIPPED/MOCKED。第 ①② 项已在同日晚间解决，见第十三节。
+
+## 十三、补记（同日 17:15：CRM 营销触达 × whale-message 打通）
+
+**结论：CRM→消息服务的投递链路打通，但「送达回执」仍是平台侧空缺。**
+
+- 修正上一节的漏判：`whale-message` 在 `backend/whale-services/whale-message`（端口 8094、库 `bluewhale_message`、四渠道 sender）。
+- 已修：① 服务容器化（compose `message` 段 + 首次 `SPRING_FLYWAY_BASELINE_VERSION=0` 补建 `msg_announcement`）；② **CRM 客户端报文与消息服务契约不一致**（CRM 发扁平单收件人报文，消息服务要 `channels[]/recipients[]/idempotencyKey`）已按平台契约改写；③ 投递结果判定过宽（`code=0` 即 `SENT`）已收紧，`MOCKED/FAILED/SKIPPED` 一律判失败。
+- 实测 `MS-VERIFY-0001`：INBOX 明细 `SENT`（真实站内信）、EMAIL 明细 `FAILED / 消息通道处于 mock 模式，未真实投递`；重复执行不产生重复投递（`msg_delivery` 3 条不变）。CRM 334 单测、whale-message 37 单测均 0 失败，Checkstyle 均 0。
+
+**新缺口（P1，需立项）**：平台消息服务只有提交态（`SENT/FAILED/SKIPPED/MOCKED`），**没有 `DELIVERED` 状态、没有渠道回执端点、没有回执表**，所以「投递回执」只能到「已提交渠道」。补齐需在 whale-message 增加回执端点 + 状态机 + 反向通知业务方。
+
+**顺带发现（存量配置冲突）**：`whale.crm.marketing.message-url` 默认 `127.0.0.1:8085`，与 `bw-file` 端口冲突；已通过 `WHALE_CRM_MARKETING_MESSAGE_URL` 覆盖，建议把默认值改成 8094。
+
+**P0 状态**：退换货/发票对账、ERP↔MES、定时任务、营销发送投递（到提交态）均已实机验证；剩余待立项的是「送达回执」能力与「P1 定时任务分布式锁」。
