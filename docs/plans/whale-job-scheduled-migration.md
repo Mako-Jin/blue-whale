@@ -424,3 +424,43 @@ Nacos 只能回答「这个服务有几个实例」，回答不了「这个实�
 ### 10.6 进度
 
 已迁 12 / 27（CRM 2 + 清理类 6 + 快照类 4），**剩余 15 个**：CRM 推送/对账 4（order push、order reconcile、return push、return reconcile）、OA 5、LMS 1、Party 1、PDM 1、Archive 2、Auth 1。下一批建议先做 Archive 2（只读同步/对账，风险最低），推送类仍留最后。
+
+---
+
+## 11. 第四批：PDM 变更生效 + Archive 2 个（2026-11-08 20:07–20:25）
+
+§10.5 遗留的 PDM 任务重新授权后补做；Archive 两个任务按「只读同步/对账风险最低」的排序一并迁完。
+
+### 11.1 改动清单
+
+| 服务 | 任务 code | 类.方法 | cron | 摘要字段 |
+|---|---|---|---|---|
+| whale-pdm | `pdm.change.effective` | `PdmChgEffectiveJob#scheduledRun` | `${pdm.change.effective-cron:0 0 2 * * ?}` | `due/effective/failed` |
+| whale-archive | `archive.sync` | `ArchiveSyncScheduler#sync` | `${whale.archive.sync.cron:0 */5 * * * *}` | `tenants/archived/failedTenants` |
+| whale-archive | `archive.file-lock-reconcile` | `ArchiveFileLockReconcileScheduler#reconcile` | `${whale.archive.lock-reconcile.cron:0 30 3 * * *}` | `tenants/locked/failedTenants` |
+
+配套：`V5__seed_pdm_archive_jobs.sql`（3 条 `job_info`，按 `job_code` 判重），`init.sql` 同步同源种子，`job_info` 共 17 条。
+
+### 11.2 三处实现判断
+
+- **PDM 的开关只关定时入口**：`pdm.change.effective-job-enabled` 原来用 `@ConditionalOnProperty`，迁移后同样会让任务从执行器能力集消失。改为在 `scheduledRun()` 内判断并返回 `skipped`，而 `execute()` 作为手工/运维入口**不受开关限制**——两者语义分开，现有 3 个单测（都调 `execute()`）无需改动。
+- **Archive 两个任务保留「逐租户隔离 + 计数」**：单租户异常仍只记日志，但摘要里给出 `failedTenants`，调度侧能看出部分失败；整轮不会因为一个租户而全红。
+- **`ArchiveFileLockReconcileScheduler` 的补锁计数做了空值保护**：`ArchiveFileLockReconcileVO.lockedFiles` 是 `Integer` 包装类型，测试只设置 `scannedItems/hasMore/nextAfterId` 时它是 `null`，直接累加会 NPE，被外层 per-tenant `catch` 吞掉，表现成「只跑了一批就结束」。改为 `locked += value == null ? 0 : value`。
+
+### 11.3 验证
+
+| 验证项 | 结果 |
+|---|---|
+| Flyway V5 | `Migrating to 5 - seed pdm archive jobs` → success，`job_info` 共 17 条（2 内置 + 15 迁移） |
+| 种子正确性 | `pdm.change.effective`→`whale-pdm`、`archive.sync`/`archive.file-lock-reconcile`→`whale-archive`，cron 与注解一致，status=1 |
+| 端到端触发 | **未做**：dev 的 `docker-compose.services.yml` 没有 `whale-pdm` / `whale-archive` 段（这两个服务未容器化），也没有 `bluewhale_pdm` / `bluewhale_archive` 库。种子就位后，服务一旦启动即注册执行器、任务即可被调度 |
+
+### 11.4 门禁
+
+`whale-pdm` 224 单测（原 222 + 新增 2：定时入口关闭空转、执行摘要）、`whale-archive` 74 单测（原 73 + 新增 1：开关关闭空转；既有 3 例改在开关开启下运行）、`whale-job` 83 全绿，Checkstyle 0，ArchUnit 绿。
+
+### 11.5 进度
+
+已迁 15 / 27（CRM 6 + 清理类 6 + PDM 1 + Archive 2），**剩余 12 个**：CRM 推送/对账 4、OA 5、LMS 1、Party 1、Auth 1。
+
+Auth 的 `PasswordExpiryNoticeJob` 仍待处理：读取该文件时审批超时，按规则未重试、未绕过，需重新授权后再做。

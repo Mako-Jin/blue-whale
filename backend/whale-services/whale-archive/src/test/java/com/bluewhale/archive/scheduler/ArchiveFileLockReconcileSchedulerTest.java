@@ -15,7 +15,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -42,6 +46,7 @@ class ArchiveFileLockReconcileSchedulerTest {
     @BeforeEach
     void setUp() {
         properties = new ArchiveProperties();
+        properties.getLockReconcile().setEnabled(true);
         properties.getLockReconcile().setBatchSize(50);
         properties.getLockReconcile().setMaxBatches(3);
         properties.getLockReconcile().setTenantIds(List.of(TENANT_ID));
@@ -91,6 +96,15 @@ class ArchiveFileLockReconcileSchedulerTest {
         scheduler.reconcile();
 
         verify(reconcileService).reconcile(50, null);
+    }
+
+    @Test
+    @DisplayName("开关关闭时定时入口空转，返回 skipped")
+    void shouldSkipWhenDisabled() {
+        properties.getLockReconcile().setEnabled(false);
+
+        assertEquals("skipped: lock-reconcile disabled", scheduler.reconcile());
+        verify(reconcileService, never()).reconcile(anyInt(), any());
     }
 
     /**

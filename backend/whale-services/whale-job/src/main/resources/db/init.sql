@@ -130,7 +130,8 @@ INSERT INTO job_info (id, job_name, job_group, cron_expression, handler_bean, ha
 VALUES (2, '执行日志归档', 'SYSTEM', '0 0 4 * * ?', 'jobLogArchiveHandler', NULL,
         'SMART', 1, '内置任务：导出过期 job_log 至 whale-file 后清理，保留天数见 whale.job.log-retention-days');
 
--- 已迁移业务任务（与 db/migration/V3__seed_migrated_jobs.sql、V4__seed_crm_jobs.sql 同源）：
+-- 已迁移业务任务（与 db/migration/V3__seed_migrated_jobs.sql、V4__seed_crm_jobs.sql、
+-- V5__seed_pdm_archive_jobs.sql 同源）：
 -- executor_app 为 Nacos 服务名，job_code 对应业务侧 @ScheduledJob.code()，
 -- 地址不落库（由 job_executor 注册表 + Nacos 实例交集解析）。
 INSERT INTO job_info (id, tenant_id, job_name, job_group, executor_app, job_code,
@@ -172,7 +173,16 @@ VALUES
  '迁移自 CrmContractSyncJob#reconcile（开关 whale.crm.contract.enabled）'),
 (9100000000000000012, 1, 'CRM 审批结果对账', 'CRM', 'whale-crm', 'crm.approval.reconcile',
  '0 */2 * * * ?', 'httpJobHandler', '{"timeoutMillis":600000}', 'DO_NOTHING', 2, 120, 1, 1,
- '迁移自 CrmApprovalReconcileJob#reconcile（回调幂等，失败可重试；开关 reconcile-enabled）');
+ '迁移自 CrmApprovalReconcileJob#reconcile（回调幂等，失败可重试；开关 reconcile-enabled）'),
+(9100000000000000013, 1, 'PDM 变更到期生效', 'PDM', 'whale-pdm', 'pdm.change.effective',
+ '0 0 2 * * ?', 'httpJobHandler', '{"timeoutMillis":1800000}', 'DO_NOTHING', 1, 300, 1, 1,
+ '迁移自 PdmChgEffectiveJob#scheduledRun（库内锁 pdm_chg_job_lock 仍在，开关 effective-job-enabled）'),
+(9100000000000000014, 1, '档案归档同步', 'ARCHIVE', 'whale-archive', 'archive.sync',
+ '0 */5 * * * *', 'httpJobHandler', '{"timeoutMillis":1800000}', 'DO_NOTHING', 1, 300, 1, 1,
+ '迁移自 ArchiveSyncScheduler#sync（逐租户执行，开关 whale.archive.sync.enabled 默认关闭）'),
+(9100000000000000015, 1, '档案文件锁定补扫', 'ARCHIVE', 'whale-archive', 'archive.file-lock-reconcile',
+ '0 30 3 * * *', 'httpJobHandler', '{"timeoutMillis":1800000}', 'DO_NOTHING', 1, 300, 1, 1,
+ '迁移自 ArchiveFileLockReconcileScheduler#reconcile（逐租户游标补锁，开关 lock-reconcile.enabled）');
 
 -- ---------------------------------------------------------------------
 -- 5. 执行器注册表（对齐 xxl-job executor：谁在线、谁支持哪些任务）

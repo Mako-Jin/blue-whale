@@ -10,10 +10,12 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
@@ -95,5 +97,30 @@ class PdmChgEffectiveJobTest {
         notice.setNoticeNo("CN-" + id);
         notice.setEffectiveFrom(LocalDateTime.now().minusHours(1));
         return notice;
+    }
+
+    /**
+     * 定时入口开关关闭时空转，返回 skipped；手工入口 execute() 不受影响。
+     */
+    @Test
+    void scheduledRunShouldSkipWhenDisabled() {
+        ReflectionTestUtils.setField(effectiveJob, "effectiveJobEnabled", false);
+
+        assertEquals("skipped: effective-job disabled", effectiveJob.scheduledRun());
+        verify(noticeService, never()).dueNotices();
+    }
+
+    /**
+     * 定时入口返回执行摘要：到期数、生效数、失败数。
+     */
+    @Test
+    void scheduledRunShouldReturnSummary() {
+        ReflectionTestUtils.setField(effectiveJob, "effectiveJobEnabled", true);
+        when(jobLockMapper.acquire(anyString(), anyString(), any())).thenReturn(1);
+        when(noticeService.dueNotices()).thenReturn(List.of(notice(3L), notice(4L)));
+        when(noticeService.effective(3L, null)).thenReturn(null);
+        when(noticeService.effective(4L, null)).thenThrow(new RuntimeException("生效失败"));
+
+        assertEquals("due=2, effective=1, failed=1", effectiveJob.scheduledRun());
     }
 }
