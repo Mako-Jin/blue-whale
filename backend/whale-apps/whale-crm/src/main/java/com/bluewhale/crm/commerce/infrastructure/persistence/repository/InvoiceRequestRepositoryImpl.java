@@ -73,6 +73,18 @@ public class InvoiceRequestRepositoryImpl implements InvoiceRequestRepository {
     }
 
     @Override
+    public List<InvoiceRequest> findByStatuses(List<String> statuses, int limit) {
+        if (statuses == null || statuses.isEmpty()) {
+            return List.of();
+        }
+        return invoiceRequestMapper.selectList(new LambdaQueryWrapper<InvoiceRequestEntity>()
+                        .in(InvoiceRequestEntity::getStatus, statuses)
+                        .orderByAsc(InvoiceRequestEntity::getUpdateTime)
+                        .last("limit " + Math.max(1, limit)))
+                .stream().map(this::toDomain).toList();
+    }
+
+    @Override
     public void insert(InvoiceRequest request) {
         InvoiceRequestEntity entity = toEntity(request);
         invoiceRequestMapper.insert(entity);

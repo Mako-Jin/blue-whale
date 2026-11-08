@@ -56,6 +56,15 @@ public interface InvoiceRequestRepository {
     InvoiceRequest findByApprovalInstanceId(Long instanceId);
 
     /**
+     * 按状态列表查询申请（审批结果对账用，按更新时间升序截断）。
+     *
+     * @param statuses 状态名列表
+     * @param limit 最大条数
+     * @return 申请列表
+     */
+    List<InvoiceRequest> findByStatuses(List<String> statuses, int limit);
+
+    /**
      * 插入申请头与行。
      *
      * @param request 申请

@@ -4,6 +4,7 @@ import com.bluewhale.crm.commerce.domain.model.QuoteApproval;
 import com.bluewhale.crm.commerce.domain.model.QuoteApprovalStatus;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 报价审批记录仓储端口。
@@ -18,6 +19,14 @@ public interface QuoteApprovalRepository {
      * @param approval 审批记录
      */
     void insert(QuoteApproval approval);
+
+    /**
+     * 查询待决策审批记录（审批结果对账用，按提交时间升序截断）。
+     *
+     * @param limit 最大条数
+     * @return 待决策记录列表
+     */
+    List<QuoteApproval> findPendingBatch(int limit);
 
     /**
      * 按流程实例查询待决策记录。

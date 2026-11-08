@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 报价审批记录仓储实现。
@@ -46,9 +47,25 @@ public class QuoteApprovalRepositoryImpl implements QuoteApprovalRepository {
                 .eq(QuoteApprovalEntity::getInstanceId, instanceId)
                 .eq(QuoteApprovalEntity::getStatus, QuoteApprovalStatus.PENDING.name())
                 .last("LIMIT 1"));
-        if (entity == null) {
-            return null;
-        }
+        return entity == null ? null : toDomain(entity);
+    }
+
+    @Override
+    public List<QuoteApproval> findPendingBatch(int limit) {
+        return approvalMapper.selectList(new LambdaQueryWrapper<QuoteApprovalEntity>()
+                        .eq(QuoteApprovalEntity::getStatus, QuoteApprovalStatus.PENDING.name())
+                        .orderByAsc(QuoteApprovalEntity::getSubmittedAt)
+                        .last("LIMIT " + Math.max(1, limit)))
+                .stream().map(this::toDomain).toList();
+    }
+
+    /**
+     * 实体转审批记录领域对象。
+     *
+     * @param entity 实体
+     * @return 审批记录
+     */
+    private QuoteApproval toDomain(QuoteApprovalEntity entity) {
         QuoteApproval approval = new QuoteApproval();
         approval.setId(entity.getId());
         approval.setQuoteId(entity.getQuoteId());

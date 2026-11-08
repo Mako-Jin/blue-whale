@@ -23,6 +23,9 @@ public class CrmOrderApprovalProperties {
     /** whale-workflow 内网服务地址（直连，不经网关） */
     private String workflowUrl = "http://127.0.0.1:8083";
 
+    /** 是否启用审批结果对账定时拉取（workflow 实例办结无主动回调，靠对账兜底同步） */
+    private boolean reconcileEnabled = true;
+
     /** 连接超时（毫秒） */
     private int connectTimeoutMillis = 1000;
 
