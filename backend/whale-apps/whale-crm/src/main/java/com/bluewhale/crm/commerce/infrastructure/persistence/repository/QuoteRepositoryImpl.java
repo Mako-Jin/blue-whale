@@ -82,8 +82,9 @@ public class QuoteRepositoryImpl implements QuoteRepository {
 
     @Override
     public void replaceLines(Long quoteId, List<QuoteLine> lines) {
-        quoteLineMapper.delete(new LambdaQueryWrapper<QuoteLineEntity>()
-                .eq(QuoteLineEntity::getQuoteId, quoteId));
+        // 行表挂 BaseEntity 的 @TableLogic：BaseMapper.delete 是逻辑删除，旧行仍物理存在，
+        // 会顶住报价行唯一键导致重插冲突；明细行随主单留痕即可，改物理删除。
+        quoteLineMapper.deletePhysicallyByQuoteId(quoteId);
         for (QuoteLine line : lines) {
             QuoteLineEntity entity = toEntity(line);
             entity.setQuoteId(quoteId);

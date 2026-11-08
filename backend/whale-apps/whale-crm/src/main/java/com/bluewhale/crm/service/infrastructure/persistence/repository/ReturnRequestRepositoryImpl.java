@@ -82,8 +82,9 @@ public class ReturnRequestRepositoryImpl implements ReturnRequestRepository {
 
     @Override
     public void replaceItems(ReturnRequest request) {
-        returnRequestItemMapper.delete(new LambdaQueryWrapper<ReturnRequestItemEntity>()
-                .eq(ReturnRequestItemEntity::getRequestId, request.getId()));
+        // 行表挂 BaseEntity 的 @TableLogic：BaseMapper.delete 是逻辑删除，旧行仍物理存在，
+        // 会顶住申请行唯一键导致重插冲突；明细行随主单留痕即可，改物理删除。
+        returnRequestItemMapper.deletePhysicallyByRequestId(request.getId());
         insertItems(request);
     }
 
