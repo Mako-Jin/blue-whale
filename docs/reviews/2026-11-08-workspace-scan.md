@@ -110,3 +110,28 @@
 | 公文附件可见性 | ✅ 实机通过：草稿他人 40305 / 拟稿人 200；提交后他人 200；秘密级他人 40305；跨用户引用附件 40307 |
 
 环境要点：whale-file 需 `SPRING_DATA_REDIS_HOST/PORT`（yml 无 `REDIS_HOST` 占位）；容器内跨服务地址用容器名；验证实例必须 `SPRING_CLOUD_NACOS_DISCOVERY_REGISTER_ENABLED=false`。临时编排 `deploy/backend/docker-compose.verify.yml` 已留存，主栈 8 容器未改动。
+
+## 十、补记（同日 15:50：CRM 4c/4b 实机联调通过 + 4 个存量缺陷修复）
+
+| 链路 | 结果 |
+|---|---|
+| 4c 退换货 → ERP 退货过账 | ✅ `RET-20261108-0001` → `PENDING_APPROVAL` → 审批回调 → `COMPLETED`，`erpReturnNo=CRM-SR-RET-20261108-0001`、`POSTED`；库存 `+10 → -1 → +1 = 10`；应收 800 → 0/SETTLED；`reconcile` 与 ERP 建单均幂等 |
+| 4b 开票全流程 | ✅ `INV-20261108-0001`：DRAFT → APPROVED（workflow 实例）→ ISSUED → SENT → 红冲生成 `INV-20261108-0002`（-800），原单可开票额度回补 800 |
+| 4b 应收对账 | ✅ `POST /crm/ar/sync` `synced=1`；快照 `notDue=1500`；改到期日造逾期 68 天后 `overdue61To90=1500`（账龄分桶正确），已还原 |
+
+**本轮修复缺陷（均为联调暴露的存量 bug）**
+
+| 级别 | 问题 | 修复 |
+|---|---|---|
+| 高 | `AccountEntity.leaf` → 列 `leaf_flag` 映射错，**所有过账路径**（发货/入库）500 | `@TableField("leaf_flag")` |
+| 高 | `ArSnapshotEntity` 四个逾期字段映射成 `overdue1_to30` 等，与库列 `overdue_1_30` 不符，应收快照全表不可用 | 四字段显式 `@TableField` |
+| 中 | `whale.crm.return-approval` 配置段在 `application.yml` 缺失，退换货审批无法启用 | 补齐配置段与 `WHALE_CRM_RETURN_*` 占位符 |
+| 中 | 订单 `last_push_error` / 退货 `last_error` 成功后不落 NULL（MyBatis-Plus `NOT_NULL` 策略），状态已成功却残留旧错误 | 两字段 `updateStrategy = FieldStrategy.ALWAYS` |
+
+**新增扫描方法**：`.workbuddy/tmp/ScanOrmMismatch.java`（解析 `@TableName`/`@TableField` 与 `information_schema` 比对）。结果：ERP 78 实体 1 处、CRM 51 实体 4 处、OA 72 实体 0 处——上述高优两处即由它发现，建议后续纳入 CI 门禁（可作为静态检查脚本）。
+
+**§二 P0 更新**：`CRM 4c 退换货 → ERP 退货过账`、`CRM 4b/发票对账` 两项**已闭环**；剩余实机项为 ERP↔MES 下达/完工、CRM M5 营销发送投递回执、`snapshot-cron`/`action-plan-cron` 定时触发验证。
+
+**新增环境要点**：workflow 首次容器化（宿主 8083 被 Windows 保留端口段占用，映射 18083）；ERP 旧镜像不含 4c 端点导致 `NoResourceFoundException`→500，**联调前必须按当日源码重建涉改模块镜像**；退货前置是原订单已发货（需库存）；D2 客户/物料主数据未映射时订单下发首跳即失败；应收对账仅覆盖「有合同台账的客户」。
+
+**新遗留**：红冲后原单不标记（`redFlushReason/redFlushedAt` 空、状态仍 SENT，额度靠 `sumRedFlushed` 回补）——功能安全、视图无痕迹，低优；`whale.crm.service/docs/survey` 三段配置同样未显式声明（有默认值），建议统一补占位符。详见 devlog 2026-11-08 §十。
