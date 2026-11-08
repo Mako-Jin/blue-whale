@@ -35,6 +35,28 @@ public interface ContractService {
     List<ContractVO> listByBiz(String bizType, String bizId);
 
     /**
+     * 按弱关联业务统计引用合同数（内网只读）。
+     *
+     * @param bizType 业务类型，不能为空
+     * @param bizId 业务 ID，不能为空
+     * @return 引用合同数
+     */
+    long countByBiz(String bizType, String bizId);
+
+    /**
+     * 把弱关联业务引用从源业务 ID 批量重写到目标业务 ID（内网写，幂等：重复执行返回 0）。
+     *
+     * <p>当前供 CRM 客户合并使用：{@code biz_type=CRM_CUSTOMER} 的合同
+     * {@code biz_id} 由源客户 ID 改写为目标客户 ID；只更新不删除。</p>
+     *
+     * @param bizType 业务类型，不能为空
+     * @param sourceBizId 源业务 ID
+     * @param targetBizId 目标业务 ID
+     * @return 受影响行数
+     */
+    int rewriteBizReferences(String bizType, String sourceBizId, String targetBizId);
+
+    /**
      * 合同详情（APPROVING 状态会主动同步一次审批结果）
      *
      * @param id 合同ID

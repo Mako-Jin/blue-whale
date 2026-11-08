@@ -16,7 +16,7 @@ import com.bluewhale.crm.commerce.domain.model.SalesOrderStatus;
 import com.bluewhale.crm.commerce.domain.repository.InvoiceRequestRepository;
 import com.bluewhale.crm.commerce.domain.repository.QuoteApprovalRepository;
 import com.bluewhale.crm.commerce.domain.repository.SalesOrderRepository;
-import com.bluewhale.crm.commerce.infrastructure.client.WorkflowInstanceStatusClient;
+import com.bluewhale.crm.commerce.domain.port.WorkflowStatusPort;
 import com.bluewhale.crm.service.application.command.ReturnApprovalCallbackCommand;
 import com.bluewhale.crm.service.application.service.ReturnRequestAppService;
 import com.bluewhale.crm.service.domain.model.ReturnRequest;
@@ -65,7 +65,7 @@ public class ApprovalReconcileAppServiceImpl implements ApprovalReconcileAppServ
 
     private final ReturnRequestAppService returnRequestAppService;
 
-    private final WorkflowInstanceStatusClient workflowInstanceStatusClient;
+    private final WorkflowStatusPort workflowStatusPort;
 
     @Override
     public int reconcileAll() {
@@ -90,19 +90,19 @@ public class ApprovalReconcileAppServiceImpl implements ApprovalReconcileAppServ
         List<Long> instanceIds = new ArrayList<>();
         salesOrderRepository.findByStatuses(
                         List.of(SalesOrderStatus.PENDING_APPROVAL.name()),
-                        WorkflowInstanceStatusClient.MAX_BATCH_SIZE).stream()
+                        WorkflowStatusPort.MAX_BATCH_SIZE).stream()
                 .map(SalesOrder::getApprovalInstanceId).filter(id -> id != null).forEach(instanceIds::add);
         invoiceRequestRepository.findByStatuses(
                         List.of(InvoiceStatus.PENDING_APPROVAL.name()),
-                        WorkflowInstanceStatusClient.MAX_BATCH_SIZE).stream()
+                        WorkflowStatusPort.MAX_BATCH_SIZE).stream()
                 .map(InvoiceRequest::getApprovalInstanceId).filter(id -> id != null).forEach(instanceIds::add);
         returnRequestRepository.findByStatuses(
                         List.of(ReturnStatus.PENDING_APPROVAL.name()),
-                        WorkflowInstanceStatusClient.MAX_BATCH_SIZE).stream()
+                        WorkflowStatusPort.MAX_BATCH_SIZE).stream()
                 .map(ReturnRequest::getApprovalInstanceId).filter(id -> id != null).forEach(instanceIds::add);
-        quoteApprovalRepository.findPendingBatch(WorkflowInstanceStatusClient.MAX_BATCH_SIZE).stream()
+        quoteApprovalRepository.findPendingBatch(WorkflowStatusPort.MAX_BATCH_SIZE).stream()
                 .map(QuoteApproval::getInstanceId).filter(id -> id != null).forEach(instanceIds::add);
-        return workflowInstanceStatusClient.batchStatus(instanceIds);
+        return workflowStatusPort.batchStatus(instanceIds);
     }
 
     /**
@@ -115,7 +115,7 @@ public class ApprovalReconcileAppServiceImpl implements ApprovalReconcileAppServ
         int synced = 0;
         for (SalesOrder order : salesOrderRepository.findByStatuses(
                 List.of(SalesOrderStatus.PENDING_APPROVAL.name()),
-                WorkflowInstanceStatusClient.MAX_BATCH_SIZE)) {
+                WorkflowStatusPort.MAX_BATCH_SIZE)) {
             Integer status = resolveFinished(order.getApprovalInstanceId(), statusMap, "crm-order", order.getId());
             if (status == null) {
                 continue;
@@ -124,7 +124,7 @@ public class ApprovalReconcileAppServiceImpl implements ApprovalReconcileAppServ
             try {
                 SalesOrderApprovalCallbackCommand command = new SalesOrderApprovalCallbackCommand();
                 command.setInstanceId(order.getApprovalInstanceId());
-                command.setApproved(status == WorkflowInstanceStatusClient.STATUS_APPROVED);
+                command.setApproved(status == WorkflowStatusPort.STATUS_APPROVED);
                 command.setComment(RECONCILE_COMMENT);
                 if (salesOrderAppService.handleApprovalCallback(command)) {
                     synced++;
@@ -148,7 +148,7 @@ public class ApprovalReconcileAppServiceImpl implements ApprovalReconcileAppServ
         int synced = 0;
         for (InvoiceRequest request : invoiceRequestRepository.findByStatuses(
                 List.of(InvoiceStatus.PENDING_APPROVAL.name()),
-                WorkflowInstanceStatusClient.MAX_BATCH_SIZE)) {
+                WorkflowStatusPort.MAX_BATCH_SIZE)) {
             Integer status = resolveFinished(request.getApprovalInstanceId(), statusMap, "crm-invoice", request.getId());
             if (status == null) {
                 continue;
@@ -157,7 +157,7 @@ public class ApprovalReconcileAppServiceImpl implements ApprovalReconcileAppServ
             try {
                 InvoiceApprovalCallbackCommand command = new InvoiceApprovalCallbackCommand();
                 command.setInstanceId(request.getApprovalInstanceId());
-                command.setApproved(status == WorkflowInstanceStatusClient.STATUS_APPROVED);
+                command.setApproved(status == WorkflowStatusPort.STATUS_APPROVED);
                 command.setComment(RECONCILE_COMMENT);
                 if (invoiceAppService.handleApprovalCallback(command)) {
                     synced++;
@@ -181,7 +181,7 @@ public class ApprovalReconcileAppServiceImpl implements ApprovalReconcileAppServ
         int synced = 0;
         for (ReturnRequest request : returnRequestRepository.findByStatuses(
                 List.of(ReturnStatus.PENDING_APPROVAL.name()),
-                WorkflowInstanceStatusClient.MAX_BATCH_SIZE)) {
+                WorkflowStatusPort.MAX_BATCH_SIZE)) {
             Integer status = resolveFinished(request.getApprovalInstanceId(), statusMap, "crm-return", request.getId());
             if (status == null) {
                 continue;
@@ -190,7 +190,7 @@ public class ApprovalReconcileAppServiceImpl implements ApprovalReconcileAppServ
             try {
                 ReturnApprovalCallbackCommand command = new ReturnApprovalCallbackCommand();
                 command.setInstanceId(request.getApprovalInstanceId());
-                command.setApproved(status == WorkflowInstanceStatusClient.STATUS_APPROVED);
+                command.setApproved(status == WorkflowStatusPort.STATUS_APPROVED);
                 command.setComment(RECONCILE_COMMENT);
                 if (returnRequestAppService.handleApprovalCallback(command)) {
                     synced++;
@@ -213,7 +213,7 @@ public class ApprovalReconcileAppServiceImpl implements ApprovalReconcileAppServ
     private int reconcileQuotes(Map<Long, Integer> statusMap) {
         int synced = 0;
         for (QuoteApproval approval : quoteApprovalRepository.findPendingBatch(
-                WorkflowInstanceStatusClient.MAX_BATCH_SIZE)) {
+                WorkflowStatusPort.MAX_BATCH_SIZE)) {
             Integer status = resolveFinished(approval.getInstanceId(), statusMap, "crm-quote", approval.getQuoteId());
             if (status == null) {
                 continue;
@@ -247,10 +247,10 @@ public class ApprovalReconcileAppServiceImpl implements ApprovalReconcileAppServ
             return null;
         }
         Integer status = statusMap.get(instanceId);
-        if (status == null || status == WorkflowInstanceStatusClient.STATUS_RUNNING) {
+        if (status == null || status == WorkflowStatusPort.STATUS_RUNNING) {
             return null;
         }
-        if (status == WorkflowInstanceStatusClient.STATUS_CANCELLED) {
+        if (status == WorkflowStatusPort.STATUS_CANCELLED) {
             log.warn("流程实例已撤销，单据保持待审批待人工处理 docType={} docId={} instanceId={}",
                     docType, docId, instanceId);
             return null;

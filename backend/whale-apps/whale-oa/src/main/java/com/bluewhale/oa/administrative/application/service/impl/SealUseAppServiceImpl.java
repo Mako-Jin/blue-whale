@@ -1,5 +1,6 @@
 package com.bluewhale.oa.administrative.application.service.impl;
 
+import com.bluewhale.common.context.RequestContextHolder;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.oa.administrative.application.command.AdministrativeCommands;
 import com.bluewhale.oa.administrative.application.service.SealUseAppService;
@@ -14,6 +15,7 @@ import com.bluewhale.oa.approval.application.command.ApprovalInstanceRegisterCom
 import com.bluewhale.oa.approval.application.service.ApprovalInstanceAppService;
 import com.bluewhale.oa.approval.application.view.ApprovalInstanceView;
 import com.bluewhale.oa.common.OaErrorCode;
+import com.bluewhale.oa.common.application.service.AttachmentOwnershipGuard;
 import com.bluewhale.oa.common.application.service.SequenceAppService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,6 +50,8 @@ public class SealUseAppServiceImpl implements SealUseAppService {
     private final SequenceAppService sequenceAppService;
 
     private final ContractSealGateway contractSealGateway;
+
+    private final AttachmentOwnershipGuard attachmentOwnershipGuard;
 
     @Override
     public PageResult<AdministrativeViews.SealUseView> page(AdministrativeQuery query) {
@@ -181,6 +185,7 @@ public class SealUseAppServiceImpl implements SealUseAppService {
             return List.of();
         }
         return commands.stream().map(command -> {
+            attachmentOwnershipGuard.assertReferable(command.getFileId(), RequestContextHolder.getUserId());
             SealUseFile file = new SealUseFile();
             file.setFileId(command.getFileId());
             file.setFileName(command.getFileName());

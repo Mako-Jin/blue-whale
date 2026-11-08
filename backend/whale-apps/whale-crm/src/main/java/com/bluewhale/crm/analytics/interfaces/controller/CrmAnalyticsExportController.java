@@ -12,7 +12,11 @@ import com.bluewhale.crm.common.CrmPermissions;
 import com.bluewhale.crm.interfaces.support.CrmActorContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -53,11 +57,30 @@ public class CrmAnalyticsExportController {
      *
      * @param id 导出任务 ID
      * @param request 当前请求
-     * @return 导出任务（含 CSV）
+     * @return 导出任务（新导出为文件引用，历史导出含 CSV）
      */
     @GetMapping("/{id}/content")
     @RequirePermission(CrmPermissions.ANALYTICS_EXPORT)
     public Result<AnalyticsExport> content(@PathVariable("id") Long id, HttpServletRequest request) {
         return Result.ok(analyticsExportAppService.content(id, CrmActorContext.from(request)));
+    }
+
+    /**
+     * 代理下载导出文件（流式回传，带 Content-Disposition）。
+     *
+     * @param id 导出任务 ID
+     * @param request 当前请求
+     * @return CSV 文件流
+     */
+    @GetMapping("/{id}/download")
+    @RequirePermission(CrmPermissions.ANALYTICS_EXPORT)
+    public ResponseEntity<byte[]> download(@PathVariable("id") Long id, HttpServletRequest request) {
+        AnalyticsExportAppService.ExportDownload payload =
+                analyticsExportAppService.download(id, CrmActorContext.from(request));
+        String encoded = URLEncoder.encode(payload.getFileName(), StandardCharsets.UTF_8).replace("+", "%20");
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename*=UTF-8''" + encoded)
+                .contentType(MediaType.parseMediaType(payload.getContentType()))
+                .body(payload.getContent());
     }
 }

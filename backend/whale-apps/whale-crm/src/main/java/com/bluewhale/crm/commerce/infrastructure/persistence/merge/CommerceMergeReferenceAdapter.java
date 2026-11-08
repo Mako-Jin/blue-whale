@@ -24,7 +24,8 @@ import java.util.Map;
  * 商务上下文客户合并引用适配器（M1-4）。
  *
  * <p>覆盖 {@code crm_quote / crm_contract / crm_sales_order / crm_collection_plan /
- * crm_invoice_request} 的 {@code customer_id} 外键，只更新，不删不建。</p>
+ * crm_invoice_request} 的 {@code customer_id} 外键，只更新，不删不建；
+ * 合同台账同步重写弱关联 {@code biz_id}（客户 ID 字符串），避免双列不一致。</p>
  *
  * @author BlueWhale
  */
@@ -80,7 +81,7 @@ public class CommerceMergeReferenceAdapter implements MergeReferencePort {
     public Map<String, Long> rewriteReferences(Long sourceId, Long targetId) {
         Map<String, Long> counts = new LinkedHashMap<>();
         counts.put(QUOTE, update(quoteMapper, sourceId, targetId));
-        counts.put(CONTRACT, update(contractMapper, sourceId, targetId));
+        counts.put(CONTRACT, updateContractLedger(sourceId, targetId));
         counts.put(ORDER, update(orderMapper, sourceId, targetId));
         counts.put(COLLECTION, update(collectionMapper, sourceId, targetId));
         counts.put(INVOICE, update(invoiceMapper, sourceId, targetId));
@@ -99,5 +100,20 @@ public class CommerceMergeReferenceAdapter implements MergeReferencePort {
         UpdateWrapper<T> wrapper = new UpdateWrapper<>();
         wrapper.eq("customer_id", sourceId).set("customer_id", targetId);
         return mapper.update(null, wrapper);
+    }
+
+    /**
+     * 合同台账重写：customer_id 与弱关联 biz_id（客户 ID 字符串）同步改写，保持双列一致。
+     *
+     * @param sourceId 源客户 ID
+     * @param targetId 目标客户 ID
+     * @return 更新行数
+     */
+    private long updateContractLedger(Long sourceId, Long targetId) {
+        UpdateWrapper<ContractLedgerEntity> wrapper = new UpdateWrapper<>();
+        wrapper.eq("customer_id", sourceId)
+                .set("customer_id", targetId)
+                .set("biz_id", String.valueOf(targetId));
+        return contractMapper.update(null, wrapper);
     }
 }

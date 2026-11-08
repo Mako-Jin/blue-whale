@@ -411,6 +411,15 @@ public final class OaErrorCode {
     /** 报表快照不存在或无权访问 */
     public static final int REPORT_SNAPSHOT_NOT_FOUND = 40442;
 
+    /** 附件文件不存在、已删除或已停用 */
+    public static final int ATTACHMENT_NOT_FOUND = 40443;
+
+    /** 附件不属于当前用户，禁止引用 */
+    public static final int ATTACHMENT_FORBIDDEN = 40307;
+
+    /** 文件服务暂不可用，无法核验附件归属 */
+    public static final int ATTACHMENT_UNAVAILABLE = 50310;
+
 
     /** 错误码与默认提示语 */
     private static final Map<Integer, String> MESSAGES = Map.ofEntries(
@@ -545,7 +554,10 @@ public final class OaErrorCode {
             Map.entry(HR_CHANGE_FOUR_EYES, "四眼原则：申请人与执行人不能为同一人"),
             Map.entry(HR_CHANGE_AUTH_UNAVAILABLE, "Auth 人员生命周期服务暂不可用，稍后可重试执行"),
             Map.entry(REPORT_INVALID, "报表参数非法，请检查报表类型、统计期间与日期区间"),
-            Map.entry(REPORT_SNAPSHOT_NOT_FOUND, "报表快照不存在或无权访问"));
+            Map.entry(REPORT_SNAPSHOT_NOT_FOUND, "报表快照不存在或无权访问"),
+            Map.entry(ATTACHMENT_NOT_FOUND, "附件文件不存在、已删除或已停用"),
+            Map.entry(ATTACHMENT_FORBIDDEN, "附件不属于当前用户，禁止引用"),
+            Map.entry(ATTACHMENT_UNAVAILABLE, "文件服务暂不可用，无法核验附件归属，请稍后重试"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。

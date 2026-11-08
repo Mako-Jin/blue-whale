@@ -1,6 +1,7 @@
 package com.bluewhale.contract.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.contract.converter.ContractConverter;
 import com.bluewhale.common.core.exception.BizException;
@@ -159,6 +160,33 @@ public class ContractServiceImpl implements ContractService {
         return contractMapper.selectList(wrapper).stream()
                 .map(ContractServiceImpl::toVo)
                 .toList();
+    }
+
+    @Override
+    public long countByBiz(String bizType, String bizId) {
+        if (!StringUtils.hasText(bizType) || !StringUtils.hasText(bizId)) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "bizType 与 bizId 不能为空");
+        }
+        return contractMapper.selectCount(new LambdaQueryWrapper<CtContract>()
+                .eq(CtContract::getBizType, bizType.trim())
+                .eq(CtContract::getBizId, bizId.trim()));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int rewriteBizReferences(String bizType, String sourceBizId, String targetBizId) {
+        if (!StringUtils.hasText(bizType) || !StringUtils.hasText(sourceBizId)
+                || !StringUtils.hasText(targetBizId)) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "bizType 与源/目标业务 ID 不能为空");
+        }
+        if (sourceBizId.trim().equals(targetBizId.trim())) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "源与目标业务 ID 不能相同");
+        }
+        UpdateWrapper<CtContract> wrapper = new UpdateWrapper<>();
+        wrapper.eq("biz_type", bizType.trim())
+                .eq("biz_id", sourceBizId.trim())
+                .set("biz_id", targetBizId.trim());
+        return contractMapper.update(null, wrapper);
     }
 
     @Override

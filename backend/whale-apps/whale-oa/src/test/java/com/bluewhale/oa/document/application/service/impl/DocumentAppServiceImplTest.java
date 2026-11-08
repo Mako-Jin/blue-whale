@@ -4,6 +4,7 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.oa.approval.application.service.ApprovalInstanceAppService;
 import com.bluewhale.oa.approval.application.view.ApprovalInstanceView;
 import com.bluewhale.oa.common.OaErrorCode;
+import com.bluewhale.oa.common.application.service.AttachmentOwnershipGuard;
 import com.bluewhale.oa.common.domain.repository.SequenceRepository;
 import com.bluewhale.oa.document.application.command.DocumentCommands;
 import com.bluewhale.oa.document.application.service.DocArchiveAppService;
@@ -76,6 +77,9 @@ class DocumentAppServiceImplTest {
     @Mock
     private ArchiveGateway archiveGateway;
 
+    @Mock
+    private AttachmentOwnershipGuard attachmentOwnershipGuard;
+
     private DocTemplateAppServiceImpl templateAppService;
 
     private DocNoAppServiceImpl docNoService;
@@ -91,8 +95,10 @@ class DocumentAppServiceImplTest {
         templateAppService = new DocTemplateAppServiceImpl(repository);
         docNoService = new DocNoAppServiceImpl(repository, sequenceRepository);
         outgoingAppService = new DocOutgoingAppServiceImpl(
-                repository, docNoAppService, docArchiveAppService, approvalInstanceAppService);
-        incomingAppService = new DocIncomingAppServiceImpl(repository, docNoAppService, docArchiveAppService);
+                repository, docNoAppService, docArchiveAppService, approvalInstanceAppService,
+                attachmentOwnershipGuard);
+        incomingAppService = new DocIncomingAppServiceImpl(repository, docNoAppService,
+                docArchiveAppService, attachmentOwnershipGuard);
         archiveAppService = new DocArchiveAppServiceImpl(repository, archiveGateway, new ObjectMapper());
     }
 

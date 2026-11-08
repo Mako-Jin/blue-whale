@@ -1,10 +1,14 @@
 package com.bluewhale.contract.controller;
 
 import com.bluewhale.common.core.result.Result;
+import com.bluewhale.contract.dto.ContractCustomerRewriteRequest;
 import com.bluewhale.contract.service.ContractService;
 import com.bluewhale.contract.vo.ContractVO;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -14,9 +18,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Contract 面向 CRM 的合同投影内网只读接口。
+ * Contract 面向 CRM 的合同投影内网接口。
  *
- * <p>仅返回台账级字段，不返回合同正文、相对方、版本与流程记录；
+ * <p>投影查询为只读；客户引用重写为写接口（CRM 客户合并调用，按源/目标幂等）。
  * 仅限服务间 Nacos 直连，网关 {@code internal-deny} 统一拦截外部访问。</p>
  *
  * @author BlueWhale
@@ -25,6 +29,8 @@ import java.util.Map;
 @RequestMapping("/contract/internal")
 @RequiredArgsConstructor
 public class ContractInternalController {
+
+    private static final String BIZ_TYPE_CRM_CUSTOMER = "CRM_CUSTOMER";
 
     private final ContractService contractService;
 
@@ -40,6 +46,33 @@ public class ContractInternalController {
                                                   @RequestParam String bizId) {
         List<ContractVO> contracts = contractService.listByBiz(bizType, bizId);
         return Result.ok(contracts.stream().map(ContractInternalController::toProjection).toList());
+    }
+
+    /**
+     * 统计客户被合同引用的行数（客户合并预览用）。
+     *
+     * @param bizId 客户 ID
+     * @return 引用合同数
+     */
+    @GetMapping("/customers/references/count")
+    public Result<Long> countCustomerReferences(@RequestParam("bizId") Long bizId) {
+        return Result.ok(contractService.countByBiz(BIZ_TYPE_CRM_CUSTOMER, String.valueOf(bizId)));
+    }
+
+    /**
+     * 客户合并：把源客户合同引用重写到目标客户（幂等，重复执行返回 0）。
+     *
+     * @param request 重写请求（源/目标客户 ID）
+     * @return 受影响行数
+     */
+    @PostMapping("/customers/references/rewrite")
+    public Result<Map<String, Object>> rewriteCustomerReferences(
+            @Valid @RequestBody ContractCustomerRewriteRequest request) {
+        int rewritten = contractService.rewriteBizReferences(BIZ_TYPE_CRM_CUSTOMER,
+                String.valueOf(request.getSourceId()), String.valueOf(request.getTargetId()));
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("rewritten", rewritten);
+        return Result.ok(payload);
     }
 
     /**

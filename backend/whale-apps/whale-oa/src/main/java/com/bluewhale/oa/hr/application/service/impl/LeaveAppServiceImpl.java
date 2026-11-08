@@ -4,6 +4,7 @@ import com.bluewhale.common.context.RequestContextHolder;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.oa.common.OaErrorCode;
 import com.bluewhale.oa.common.application.command.FileRefRegisterCommand;
+import com.bluewhale.oa.common.application.service.AttachmentOwnershipGuard;
 import com.bluewhale.oa.common.application.service.FileRefAppService;
 import com.bluewhale.oa.common.domain.model.FileRef;
 import com.bluewhale.oa.common.domain.repository.FileRefRepository;
@@ -70,6 +71,8 @@ public class LeaveAppServiceImpl implements LeaveAppService {
     private final FileRefAppService fileRefAppService;
 
     private final FileRefRepository fileRefRepository;
+
+    private final AttachmentOwnershipGuard attachmentOwnershipGuard;
 
     @Override
     public PageResult<LeaveView> page(LeaveQuery query) {
@@ -431,6 +434,7 @@ public class LeaveAppServiceImpl implements LeaveAppService {
      * @param fileId 文件ID
      */
     private void registerAttachment(Long leaveId, Long fileId) {
+        attachmentOwnershipGuard.assertReferable(fileId, RequestContextHolder.getUserId());
         FileRefRegisterCommand registerCommand = new FileRefRegisterCommand();
         registerCommand.setBizType(BIZ_TYPE_LEAVE);
         registerCommand.setBizId(leaveId);

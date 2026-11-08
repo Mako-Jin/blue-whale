@@ -1,7 +1,9 @@
 package com.bluewhale.oa.document.application.service.impl;
 
+import com.bluewhale.common.context.RequestContextHolder;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.oa.common.OaErrorCode;
+import com.bluewhale.oa.common.application.service.AttachmentOwnershipGuard;
 import com.bluewhale.oa.document.application.command.DocumentCommands;
 import com.bluewhale.oa.document.application.service.DocArchiveAppService;
 import com.bluewhale.oa.document.application.service.DocIncomingAppService;
@@ -42,6 +44,8 @@ public class DocIncomingAppServiceImpl implements DocIncomingAppService {
     private final DocNoAppService docNoAppService;
 
     private final DocArchiveAppService docArchiveAppService;
+
+    private final AttachmentOwnershipGuard attachmentOwnershipGuard;
 
     @Override
     public PageResult<DocumentViews.Incoming> page(DocQuery query) {
@@ -199,6 +203,7 @@ public class DocIncomingAppServiceImpl implements DocIncomingAppService {
         }
         int sortNo = 0;
         for (DocumentCommands.AttachmentSave item : attachments) {
+            attachmentOwnershipGuard.assertReferable(item.getFileId(), RequestContextHolder.getUserId());
             DocAttachment attachment = new DocAttachment();
             attachment.setDocType(DocStatus.TYPE_INCOMING);
             attachment.setDocId(docId);

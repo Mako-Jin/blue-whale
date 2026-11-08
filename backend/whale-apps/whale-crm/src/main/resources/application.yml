@@ -139,6 +139,12 @@ whale:
       opportunity-overdue-days: ${WHALE_CRM_OPPORTUNITY_OVERDUE_DAYS:0}
       contract-expire-days: ${WHALE_CRM_CONTRACT_EXPIRE_DAYS:90}
       overdue-amount-threshold: ${WHALE_CRM_OVERDUE_AMOUNT_THRESHOLD:0}
+    # whale-file 文件服务（分析导出产物上传与代理下载）
+    file:
+      base-url: ${WHALE_FILE_URL:http://127.0.0.1:8085}
+      bucket: ${WHALE_CRM_EXPORT_BUCKET:bluewhale-crm-export}
+      connect-timeout-millis: ${WHALE_CRM_FILE_CONNECT_TIMEOUT:1000}
+      read-timeout-millis: ${WHALE_CRM_FILE_READ_TIMEOUT:5000}
 
 mybatis-plus:
   configuration:

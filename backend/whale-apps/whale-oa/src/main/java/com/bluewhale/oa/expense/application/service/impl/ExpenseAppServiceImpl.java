@@ -1,10 +1,12 @@
 package com.bluewhale.oa.expense.application.service.impl;
 
+import com.bluewhale.common.context.RequestContextHolder;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.oa.approval.application.command.ApprovalInstanceRegisterCommand;
 import com.bluewhale.oa.approval.application.service.ApprovalInstanceAppService;
 import com.bluewhale.oa.approval.application.view.ApprovalInstanceView;
 import com.bluewhale.oa.common.OaErrorCode;
+import com.bluewhale.oa.common.application.service.AttachmentOwnershipGuard;
 import com.bluewhale.oa.common.application.service.SequenceAppService;
 import com.bluewhale.oa.expense.application.command.ExpenseCommands;
 import com.bluewhale.oa.expense.application.service.ExpenseAppService;
@@ -96,6 +98,8 @@ public class ExpenseAppServiceImpl implements ExpenseAppService {
     private final SequenceAppService sequenceAppService;
 
     private final ErpPayableGateway erpPayableGateway;
+
+    private final AttachmentOwnershipGuard attachmentOwnershipGuard;
 
     /** 独立 JSON 解析器：支持 Java 时间类型 */
     private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
@@ -427,6 +431,7 @@ public class ExpenseAppServiceImpl implements ExpenseAppService {
             invoice.setInvoiceDate(command.getInvoiceDate());
             invoice.setAmount(command.getAmount() == null ? BigDecimal.ZERO : command.getAmount());
             invoice.setTaxAmount(command.getTaxAmount() == null ? BigDecimal.ZERO : command.getTaxAmount());
+            attachmentOwnershipGuard.assertReferable(command.getFileId(), RequestContextHolder.getUserId());
             invoice.setFileId(command.getFileId());
             invoices.add(invoice);
         }

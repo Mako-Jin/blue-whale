@@ -23,6 +23,7 @@ import type { TableProps } from 'antd';
 import { hasPermission } from '../../utils/permission';
 import {
   createExport,
+  downloadExport,
   generateSnapshot,
   getCollectionAnalysis,
   getCustomerAnalysis,
@@ -469,17 +470,21 @@ function ExportPanel() {
     }
   };
 
-  const download = () => {
-    if (!content?.content) {
+  const download = async () => {
+    if (!task) {
       return;
     }
-    const blob = new Blob(['\uFEFF', content.content], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${content.exportNo || 'export'}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    try {
+      const { blob, filename } = await downloadExport(task.id);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename || `${task.exportNo || 'export'}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      message.error(errorText(error));
+    }
   };
 
   return (
@@ -499,7 +504,7 @@ function ExportPanel() {
         />
         {hasPermission('sys:crm:export') && <Button type="primary" onClick={() => void handleCreate()}>创建导出</Button>}
         {task && <Button onClick={() => void handleContent()}>查看内容</Button>}
-        {content?.content && <Button type="primary" ghost onClick={download}>下载 CSV</Button>}
+        {task && task.status === 'COMPLETED' && <Button type="primary" ghost onClick={() => void download()}>下载 CSV</Button>}
       </Space>
       {task && (
         <Descriptions bordered size="small" column={2}>

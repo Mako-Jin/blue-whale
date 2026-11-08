@@ -4,6 +4,7 @@ import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.oa.approval.application.service.ApprovalInstanceAppService;
 import com.bluewhale.oa.approval.application.view.ApprovalInstanceView;
 import com.bluewhale.oa.common.OaErrorCode;
+import com.bluewhale.oa.common.application.service.AttachmentOwnershipGuard;
 import com.bluewhale.oa.common.application.service.SequenceAppService;
 import com.bluewhale.oa.expense.application.command.ExpenseCommands;
 import com.bluewhale.oa.expense.application.view.ExpenseViews;
@@ -68,6 +69,9 @@ class ExpenseAppServiceImplTest {
     @Mock
     private ErpPayableGateway erpPayableGateway;
 
+    @Mock
+    private AttachmentOwnershipGuard attachmentOwnershipGuard;
+
     private ExpenseAppServiceImpl expenseAppService;
 
     /**
@@ -76,7 +80,8 @@ class ExpenseAppServiceImplTest {
     @BeforeEach
     void setUp() {
         expenseAppService = new ExpenseAppServiceImpl(expenseRepository, categoryRepository,
-                approvalInstanceAppService, outboxAppService, sequenceAppService, erpPayableGateway);
+                approvalInstanceAppService, outboxAppService, sequenceAppService, erpPayableGateway,
+                attachmentOwnershipGuard);
     }
 
     @Test

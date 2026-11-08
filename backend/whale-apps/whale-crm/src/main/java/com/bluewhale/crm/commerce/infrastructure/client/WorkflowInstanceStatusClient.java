@@ -2,6 +2,7 @@ package com.bluewhale.crm.commerce.infrastructure.client;
 
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.common.internaltoken.InternalTokenSupport;
+import com.bluewhale.crm.commerce.domain.port.WorkflowStatusPort;
 import com.bluewhale.crm.config.CrmOrderApprovalProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
@@ -24,7 +25,7 @@ import java.util.Map;
  */
 @Slf4j
 @Component
-public class WorkflowInstanceStatusClient {
+public class WorkflowInstanceStatusClient implements WorkflowStatusPort {
 
     /** 批量状态查询路径 */
     private static final String STATUS_PATH = "/workflow/internal/instance/status";

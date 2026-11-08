@@ -6,6 +6,7 @@ import com.bluewhale.crm.analytics.domain.model.ExportStatus;
 import com.bluewhale.crm.analytics.domain.model.ExportTable;
 import com.bluewhale.crm.analytics.domain.model.ExportType;
 import com.bluewhale.crm.analytics.domain.port.AnalyticsSourcePort;
+import com.bluewhale.crm.analytics.domain.port.AnalyticsFilePort;
 import com.bluewhale.crm.analytics.domain.repository.AnalyticsExportRepository;
 import com.bluewhale.crm.common.CrmActor;
 import com.bluewhale.crm.common.CrmErrorCode;
@@ -15,6 +16,7 @@ import com.bluewhale.crm.config.CrmProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -23,8 +25,8 @@ import java.util.List;
  * 分析导出应用服务实现。
  *
  * <p>同步生成 UTF-8 CSV（可选 BOM），手机号与邮箱无条件脱敏；超过
- * {@code whale.crm.analytics.export-max-rows} 直接拒绝。CSV 内容暂时落库，
- * 后续接入 whale-file 后改为文件 ID。</p>
+ * {@code whale.crm.analytics.export-max-rows} 直接拒绝。V13 起产物上传 whale-file，
+ * 仅落 {@code fileId / fileName / fileSize} 引用；下载经 CRM 代理流式转发。</p>
  *
  * @author BlueWhale
  */
@@ -52,6 +54,7 @@ public class AnalyticsExportAppServiceImpl implements AnalyticsExportAppService 
 
     private final AnalyticsExportRepository analyticsExportRepository;
     private final AnalyticsSourcePort analyticsSourcePort;
+    private final AnalyticsFilePort analyticsFilePort;
     private final CrmProperties crmProperties;
     private final CrmAnalyticsProperties analyticsProperties;
 
@@ -92,7 +95,10 @@ public class AnalyticsExportAppServiceImpl implements AnalyticsExportAppService 
         export.setRequestedBy(userId);
         try {
             String csv = toCsv(table);
-            export.complete(csv, table.getRowCount());
+            byte[] bytes = csv.getBytes(StandardCharsets.UTF_8);
+            String fileName = export.getExportNo() + ".csv";
+            Long fileId = analyticsFilePort.upload(bytes, fileName, userId);
+            export.completeToFile(fileId, fileName, (long) bytes.length, table.getRowCount());
         } catch (RuntimeException exception) {
             export.fail(exception.getMessage());
             analyticsExportRepository.insert(export);
@@ -100,6 +106,29 @@ public class AnalyticsExportAppServiceImpl implements AnalyticsExportAppService 
         }
         analyticsExportRepository.insert(export);
         return export;
+    }
+
+    /**
+     * 代理下载导出文件：新导出回读 whale-file，历史导出回退落库内容。
+     *
+     * @param id 导出任务主键
+     * @param actor 操作人
+     * @return 下载载荷
+     */
+    @Override
+    public ExportDownload download(Long id, CrmActor actor) {
+        AnalyticsExport export = content(id, actor);
+        byte[] bytes;
+        if (export.getFileId() != null) {
+            bytes = analyticsFilePort.download(export.getFileId());
+        } else {
+            bytes = export.getContent() == null ? null : export.getContent().getBytes(StandardCharsets.UTF_8);
+        }
+        if (bytes == null || bytes.length == 0) {
+            throw CrmErrorCode.exception(CrmErrorCode.EXPORT_TASK_FAILED, "导出内容为空");
+        }
+        return new ExportDownload(bytes, export.getFileName() == null
+                ? export.getExportNo() + ".csv" : export.getFileName());
     }
 
     /**

@@ -35,8 +35,17 @@ public class AnalyticsExportEntity extends BaseEntity {
     /** 数据行数 */
     private Integer rowCount;
 
-    /** CSV 内容 */
+    /** CSV 内容（V13 前历史导出） */
     private String content;
+
+    /** 导出文件ID（whale-file） */
+    private Long fileId;
+
+    /** 导出文件名 */
+    private String fileName;
+
+    /** 导出文件大小（字节） */
+    private Long fileSize;
 
     /** 失败原因 */
     private String error;

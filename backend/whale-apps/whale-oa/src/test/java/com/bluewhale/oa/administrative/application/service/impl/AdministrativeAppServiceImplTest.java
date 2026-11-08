@@ -18,6 +18,7 @@ import com.bluewhale.oa.administrative.domain.model.VehicleUsage;
 import com.bluewhale.oa.administrative.domain.repository.AdministrativeRepository;
 import com.bluewhale.oa.approval.application.service.ApprovalInstanceAppService;
 import com.bluewhale.oa.common.OaErrorCode;
+import com.bluewhale.oa.common.application.service.AttachmentOwnershipGuard;
 import com.bluewhale.oa.common.application.service.SequenceAppService;
 import com.bluewhale.oa.integration.application.service.OutboxAppService;
 import org.junit.jupiter.api.BeforeEach;
@@ -66,6 +67,9 @@ class AdministrativeAppServiceImplTest {
     @Mock
     private OutboxAppService outboxAppService;
 
+    @Mock
+    private AttachmentOwnershipGuard attachmentOwnershipGuard;
+
     private VehicleAppServiceImpl vehicleAppService;
 
     private SealUseAppServiceImpl sealUseAppService;
@@ -80,7 +84,7 @@ class AdministrativeAppServiceImplTest {
         vehicleAppService = new VehicleAppServiceImpl(repository, approvalInstanceAppService,
                 sequenceAppService);
         sealUseAppService = new SealUseAppServiceImpl(repository, approvalInstanceAppService,
-                sequenceAppService, contractSealGateway);
+                sequenceAppService, contractSealGateway, attachmentOwnershipGuard);
         purchaseAppService = new PurchaseAppServiceImpl(repository, approvalInstanceAppService,
                 sequenceAppService, outboxAppService, erpPurchaseGateway);
     }

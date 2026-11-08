@@ -1002,4 +1002,34 @@ class ContractServiceImplTest {
         flow.setCreateTime(FIXED_TIME);
         return flow;
     }
+
+    /**
+     * 客户引用重写：按源/目标批量更新 biz_id，参数非法或同值时拒绝。
+     */
+    @Test
+    void rewriteBizReferencesShouldUpdateAndValidate() {
+        when(contractMapper.update(eq(null), any())).thenReturn(4);
+
+        int rewritten = service.rewriteBizReferences("CRM_CUSTOMER", "100", "200");
+
+        assertEquals(4, rewritten);
+        assertThrows(BizException.class,
+                () -> service.rewriteBizReferences("CRM_CUSTOMER", "100", "100"));
+        assertThrows(BizException.class,
+                () -> service.rewriteBizReferences("CRM_CUSTOMER", " ", "200"));
+        assertThrows(BizException.class,
+                () -> service.rewriteBizReferences(null, "100", "200"));
+    }
+
+    /**
+     * 客户引用计数：按 bizType+bizId 统计，参数缺失拒绝。
+     */
+    @Test
+    void countByBizShouldCountAndValidate() {
+        when(contractMapper.selectCount(any())).thenReturn(3L);
+
+        assertEquals(3L, service.countByBiz("CRM_CUSTOMER", "100"));
+        assertThrows(BizException.class, () -> service.countByBiz("CRM_CUSTOMER", null));
+        assertThrows(BizException.class, () -> service.countByBiz(" ", "100"));
+    }
 }

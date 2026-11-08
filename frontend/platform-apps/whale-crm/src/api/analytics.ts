@@ -4,7 +4,7 @@
 // 指标口径：赢单额按商机 WON 且关闭时间落在区间；合同/订单/开票取台账；
 // 回款取回款计划已收金额；应收逾期取最新快照；CSAT 取满意度均分。
 
-import { http } from './client';
+import { download, http } from './client';
 import type { PageResult } from './client';
 
 /** 指标快照 */
@@ -213,4 +213,9 @@ export function createExport(exportType: string, filtersJson?: string): Promise<
 /** 读取导出内容 */
 export function getExportContent(id: number): Promise<AnalyticsExport> {
   return http.get<AnalyticsExport>(`/crm/analytics/export/${id}/content`);
+}
+
+/** 代理下载导出文件（V13 起走 whale-file；历史导出回退 CSV 内容） */
+export function downloadExport(id: number) {
+  return download(`/crm/analytics/export/${id}/download`);
 }
