@@ -298,4 +298,19 @@ public class InvoiceRequest {
         this.redFlushedAt = at;
         this.issuedAt = at;
     }
+
+    /**
+     * 标记原单已被全额红冲。
+     *
+     * <p>部分红冲不改原单状态（剩余余额仍可继续红冲），只有累计红冲额冲满开票额时调用。
+     * 与 {@link #markRedFlushed} 的区别：<b>不改 issuedAt</b>，原单的实际开票时间必须保留作审计口径。</p>
+     *
+     * @param reason 最后一次红冲原因
+     * @param at 红冲时间
+     */
+    public void markOriginFullyRedFlushed(String reason, LocalDateTime at) {
+        this.status = InvoiceStatus.RED_FLUSHED;
+        this.redFlushReason = reason == null ? null : reason.trim();
+        this.redFlushedAt = at;
+    }
 }

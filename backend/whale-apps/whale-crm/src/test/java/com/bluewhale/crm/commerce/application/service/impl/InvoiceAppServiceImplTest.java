@@ -207,6 +207,50 @@ class InvoiceAppServiceImplTest {
         verify(invoiceRequestRepository).insert(any(InvoiceRequest.class));
     }
 
+    @Test
+    @DisplayName("红冲：全额冲完后原单标记为已红冲并保留原开票时间")
+    void shouldMarkOriginRedFlushedWhenFullyFlushed() {
+        InvoiceRequest origin = issuedInvoice();
+        origin.setIssuedAt(java.time.LocalDateTime.of(2026, 11, 1, 9, 0));
+        when(invoiceRequestRepository.findById(1L)).thenReturn(origin);
+        when(invoiceRequestRepository.sumRedFlushed(1L)).thenReturn(BigDecimal.ZERO);
+        when(invoiceRequestRepository.maxSequence(anyString())).thenReturn(0L);
+        when(contractLedgerRepository.findById(11L)).thenReturn(contract(100));
+        when(invoiceRequestRepository.sumOccupiedAmount("CONTRACT", 11L)).thenReturn(BigDecimal.ZERO);
+
+        InvoiceRedFlushCommand command = new InvoiceRedFlushCommand();
+        command.setAmount(new BigDecimal("30.00"));
+        command.setReason("客户整单退货");
+
+        service.redFlush(1L, command, ACTOR);
+
+        assertEquals(InvoiceStatus.RED_FLUSHED, origin.getStatus());
+        assertEquals("客户整单退货", origin.getRedFlushReason());
+        assertEquals(java.time.LocalDateTime.of(2026, 11, 1, 9, 0), origin.getIssuedAt(),
+                "原单实际开票时间不得被红冲时间覆盖");
+        verify(invoiceRequestRepository).update(origin);
+    }
+
+    @Test
+    @DisplayName("红冲：部分冲减不改原单状态，余额仍可继续冲")
+    void shouldKeepOriginIssuedOnPartialRedFlush() {
+        InvoiceRequest origin = issuedInvoice();
+        when(invoiceRequestRepository.findById(1L)).thenReturn(origin);
+        when(invoiceRequestRepository.sumRedFlushed(1L)).thenReturn(BigDecimal.ZERO);
+        when(invoiceRequestRepository.maxSequence(anyString())).thenReturn(0L);
+        when(contractLedgerRepository.findById(11L)).thenReturn(contract(100));
+        when(invoiceRequestRepository.sumOccupiedAmount("CONTRACT", 11L)).thenReturn(new BigDecimal("-10.00"));
+
+        InvoiceRedFlushCommand command = new InvoiceRedFlushCommand();
+        command.setAmount(new BigDecimal("10.00"));
+        command.setReason("部分退货");
+
+        service.redFlush(1L, command, ACTOR);
+
+        assertEquals(InvoiceStatus.ISSUED, origin.getStatus());
+        verify(invoiceRequestRepository, never()).update(origin);
+    }
+
     /**
      * 构造新建命令。
      *

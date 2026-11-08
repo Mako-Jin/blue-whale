@@ -279,6 +279,12 @@ public class InvoiceAppServiceImpl implements InvoiceAppService {
         redFlush.setIssuedAmount(redFlush.getAmount());
         redFlush.markRedFlushed(command.getReason(), LocalDateTime.now());
         invoiceRequestRepository.insert(redFlush);
+        // 原单必须留下被红冲的痕迹：否则列表/对账里它仍显示为「已开票」，看不出已作废，
+        // 也无法阻止对同一张票重复发起红冲。部分红冲只保留 ISSUED（余额仍可继续冲）。
+        if (flushed.add(amount).compareTo(issued) >= 0) {
+            origin.markOriginFullyRedFlushed(command.getReason(), LocalDateTime.now());
+            invoiceRequestRepository.update(origin);
+        }
         return view(redFlush, redFlush.getItems(),
                 availableAmount(redFlush.getSourceType(), redFlush.getSourceId()));
     }

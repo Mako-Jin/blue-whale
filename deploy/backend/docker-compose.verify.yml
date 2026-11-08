@@ -1,14 +1,19 @@
 # ============================================================
-# 联调验证专用编排（临时）：whale-file / whale-contract + CRM/OA 验证实例
+# 联调验证专用编排（临时）：CRM / OA 多副本验证实例
 #
-# 目的：在不影响 bluewhale-app 既有服务的前提下，验证
+# 目的：在不影响 bluewhale-app 常态服务的前提下，用同镜像、不同端口起第二副本，
+# 验证：
 #   1) CRM 分析导出 → whale-file 上传/代理下载（V13）
 #   2) 客户合并 → whale-contract 合同引用重写
 #   3) OA 公文附件下载可见性（草稿/秘密级 403）
 #
-# CRM/OA 验证实例不注册 Nacos（避免与 bw-crm / bw-oa 抢路由），直接按端口调用。
-# 启动：docker compose -f deploy/backend/docker-compose.verify.yml up -d
-# 清理：docker compose -f deploy/backend/docker-compose.verify.yml down
+# 前置：whale-file / whale-contract / whale-mall 已进常态编排（docker-compose.services.yml），
+#   这里直接复用 bluewhale-dev_bw-net 上的 bw-file / bw-contract，不再重复定义，
+#   否则会与常态容器争抢同名 container_name。
+#
+# 验证实例不注册 Nacos（避免与常态副本抢路由），直接按 910x 端口调用。
+# 启动：docker compose -f deploy/backend/docker-compose.verify.yml --env-file .env up -d
+# 清理：docker compose -f deploy/backend/docker-compose.verify.yml --env-file .env down
 # ============================================================
 
 name: bluewhale-verify
@@ -27,60 +32,10 @@ x-common: &common
   mem_limit: 900m
 
 services:
-  file:
-    <<: *common
-    image: bluewhale/whale-file:dev
-    container_name: bw-file
-    environment:
-      JAVA_OPTS: "-Xms192m -Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
-      SERVER_PORT: "8085"
-      NACOS_SERVER: ${NACOS_SERVER}
-      MYSQL_HOST: ${MYSQL_HOST}
-      MYSQL_PORT: ${MYSQL_PORT}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      # whale-file 用共享 starter 的 Spring 标准属性（yml 无 REDIS_HOST 占位）
-      SPRING_DATA_REDIS_HOST: ${REDIS_HOST}
-      SPRING_DATA_REDIS_PORT: ${REDIS_PORT}
-    ports:
-      - "127.0.0.1:8085:8085"
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8085/actuator/health || exit 1"]
-      interval: 15s
-      timeout: 8s
-      retries: 20
-      start_period: 60s
-
-  contract:
-    <<: *common
-    image: bluewhale/whale-contract:dev
-    container_name: bw-contract
-    environment:
-      JAVA_OPTS: "-Xms192m -Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
-      SERVER_PORT: "9006"
-      NACOS_SERVER: ${NACOS_SERVER}
-      MYSQL_HOST: ${MYSQL_HOST}
-      MYSQL_PORT: ${MYSQL_PORT}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-    ports:
-      - "127.0.0.1:9006:9006"
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9006/actuator/health || exit 1"]
-      interval: 15s
-      timeout: 8s
-      retries: 20
-      start_period: 60s
-
   crm-verify:
     <<: *common
     image: bluewhale/whale-crm:dev
     container_name: bw-crm-verify
-    depends_on:
-      file:
-        condition: service_started
-      contract:
-        condition: service_started
     environment:
       JAVA_OPTS: "-Xms192m -Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "9007"
@@ -109,11 +64,8 @@ services:
     <<: *common
     image: bluewhale/whale-oa:dev
     container_name: bw-oa-verify
-    depends_on:
-      file:
-        condition: service_started
     environment:
-      JAVA_OPTS: "-Xms192m -Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
+      JAVA_OPTS: "-Xms192m -Xmx512m -XX:MaxMetaspaceSize:256m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "9004"
       NACOS_SERVER: ${NACOS_SERVER}
       MYSQL_HOST: ${MYSQL_HOST}
@@ -121,6 +73,7 @@ services:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       SPRING_CLOUD_NACOS_DISCOVERY_REGISTER_ENABLED: "false"
+      WHALE_FILE_URL: "http://bw-file:8085"
     ports:
       - "127.0.0.1:9104:9004"
     healthcheck:
@@ -128,38 +81,6 @@ services:
       interval: 15s
       timeout: 8s
       retries: 20
-      start_period: 90s
-
-  # 商城：M0–5.98 全部端点从未实机运行过，首次冒烟用临时编排，不进常态 compose
-  mall:
-    <<: *common
-    image: bluewhale/whale-mall:dev
-    container_name: bw-mall
-    depends_on:
-      file:
-        condition: service_started
-    environment:
-      JAVA_OPTS: "-Xms256m -Xmx512m -XX:MaxMetaspaceSize=384m -XX:+ExitOnOutOfMemoryError"
-      SERVER_PORT: "9010"
-      NACOS_SERVER: ${NACOS_SERVER}
-      MYSQL_HOST: ${MYSQL_HOST}
-      MYSQL_PORT: ${MYSQL_PORT}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      SPRING_DATA_REDIS_HOST: ${REDIS_HOST}
-      SPRING_DATA_REDIS_PORT: ${REDIS_PORT}
-      # 首次启动：库由 01-init-databases.sql 建成但无 flyway 历史，需 baseline
-      WHALE_FLYWAY_BASELINE_ON_MIGRATE: "true"
-      # 支付内网客户端直连容器，跳过服务发现
-      WHALE_MALL_PAY_BASE_URL: "http://bw-pay:8086"
-      WHALE_FILE_URL: "http://bw-file:8085"
-    ports:
-      - "127.0.0.1:9010:9010"
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9010/actuator/health || exit 1"]
-      interval: 15s
-      timeout: 8s
-      retries: 24
       start_period: 90s
 
 networks:

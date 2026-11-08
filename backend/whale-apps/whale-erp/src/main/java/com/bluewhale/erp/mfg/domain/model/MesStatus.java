@@ -31,6 +31,9 @@ public final class MesStatus {
     /** 回调处理：重复事件 */
     public static final String DUPLICATE = "DUPLICATE";
 
+    /** 回调处理：乱序陈旧的进度事件（累计数量落后于已存快照，丢弃不覆盖） */
+    public static final String STALE = "STALE";
+
     /** 回传系统操作人（审计口径） */
     public static final long SYSTEM_OPERATOR_ID = 0L;
 

@@ -386,7 +386,10 @@ services:
       start_period: 120s
 
   # ---------------- 音乐平台 ----------------
+  # 演示模块，默认不启动：8G 的 VM 要留出内存给 file / contract / mall（高频依赖）。
+  # 需要时显式带 profile：docker compose --profile demo up -d music
   music:
+    profiles: ["demo"]
     <<: *common
     image: bluewhale/whale-music:dev
     container_name: bw-music
@@ -529,7 +532,9 @@ services:
       start_period: 120s
 
   # ---------------- 党建 / 工会 ----------------
+  # 演示模块，默认不启动，同 music。需要时：docker compose --profile demo up -d party
   party:
+    profiles: ["demo"]
     <<: *common
     image: bluewhale/whale-party:dev
     container_name: bw-party
@@ -613,6 +618,89 @@ services:
       timeout: 8s
       retries: 12
       start_period: 120s
+
+  # ---------------- 文件服务 ----------------
+  # 跨服务高频依赖：CRM 分析导出 / 客户合并、OA 网盘与公文附件、LMS 课件、PDM 附件、
+  # archive 归档、audit 导出、job 附件清理都走它。原先不在常态编排里，
+  # 上面几处 WHALE_*_FILE_SERVICE_URL 全部指向一个不存在的容器（功能实际不可用）。
+  file:
+    <<: *common
+    image: bluewhale/whale-file:dev
+    container_name: bw-file
+    environment:
+      JAVA_OPTS: "-Xms192m -Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "8085"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      # 该服务用共享 starter 的 Spring 标准属性（yml 无 REDIS_HOST 占位）
+      SPRING_DATA_REDIS_HOST: ${REDIS_HOST}
+      SPRING_DATA_REDIS_PORT: ${REDIS_PORT}
+    ports:
+      - "127.0.0.1:8085:8085"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8085/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 90s
+
+  # ---------------- 合同 ----------------
+  # CRM 客户合并要重写合同引用，依赖它在线
+  contract:
+    <<: *common
+    image: bluewhale/whale-contract:dev
+    container_name: bw-contract
+    environment:
+      JAVA_OPTS: "-Xms192m -Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "9006"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "127.0.0.1:9006:9006"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9006/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 90s
+
+  # ---------------- 商城 ----------------
+  mall:
+    <<: *common
+    image: bluewhale/whale-mall:dev
+    container_name: bw-mall
+    depends_on:
+      file:
+        condition: service_started
+    environment:
+      JAVA_OPTS: "-Xms256m -Xmx512m -XX:MaxMetaspaceSize=384m -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "9010"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      SPRING_DATA_REDIS_HOST: ${REDIS_HOST}
+      SPRING_DATA_REDIS_PORT: ${REDIS_PORT}
+      # 库由 01-init-databases.sql 建成但首启无 flyway 历史，需 baseline（有历史后是空操作）
+      WHALE_FLYWAY_BASELINE_ON_MIGRATE: "true"
+      # 内网直连容器，跳过服务发现
+      WHALE_MALL_PAY_BASE_URL: "http://bw-pay:8086"
+      WHALE_FILE_URL: "http://bw-file:8085"
+    ports:
+      - "127.0.0.1:9010:9010"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9010/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 18
+      start_period: 90s
 
 volumes:
   auth-joblogs:

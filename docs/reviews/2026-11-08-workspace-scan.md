@@ -439,3 +439,76 @@ Spring Boot 4 用 Jackson 3（`tools.jackson.*`），不再自动注册 Jackson 
 | 商城进常态编排 | 阻塞 | 与 §17.4 P0-4 同一约束：VM 6GB、常态 21 容器已占约 5G；再常驻 mall/file/contract（约 900MB）会立刻回到 OOM 边缘 |
 | 商城前端页面 | 未开始 | 端到端已通，但 `frontend/platform-apps` 下没有商城应用，运营侧仍只能靠接口 |
 | 本地复跑冒烟 | 手工步骤 | 需先停 2 个低频服务腾内存 → 起 verify 栈 → `python scripts/mall-smoke.py` → 收尾；建议后续写进 `scripts/` 一键脚本 |
+
+## 十九、补记（2026-11-09 00:20–01:00：收口 §十七/§十八 的剩余 P0 与两个数据一致性缺陷）
+
+### 19.1 前置：Docker VM 6GB → 8GB
+
+发现引擎**整个没在跑**（`dockerDesktopLinuxEngine` 管道不存在，21 个容器全停），宿主反而空出 8.3G。
+这是扩容的最好窗口——不会打断任何容器。
+
+- `~/.wslconfig`：`memory=6GB` → `memory=8GB`（备份 `.workbuddy/tmp/wslconfig.bak`），`processors=6`、`swap=2GB` 不变；
+- `docker-desktop desktop start` → 5 秒引擎就绪，**21 个容器凭 `restart: unless-stopped` 自动回来了**，145 秒后全 healthy；
+- VM 上限实测 `8330022912` 字节（7.76GiB），宿主 `vmmem` 7.82G、宿主剩余仅 0.34G。
+  ⇒ **不能再往上加**：宿主机总内存 15.92G，加到 10G 会让 Windows 进交换，用户会在睡梦中被拖慢。
+
+### 19.2 三个服务进常态编排，两个演示模块让位（§17.4 P0-4 收口）
+
+内存算账：8G 装不下 24 个 Spring 服务（每个 RSS 约 330–390MB）。取舍标准是**「谁被别的服务依赖」**：
+
+| 动作 | 服务 | 依据 |
+|---|---|---|
+| 进默认编排 | `whale-file`(8085)、`whale-contract`(9006)、`whale-mall`(9010) | file 被 4 处配置引用（`WHALE_JOB_FILE_SERVICE_URL` / `WHALE_ARCHIVE_FILE_URL` / `WHALE_AUDIT_EXPORT_FILE_SERVICE_URL` / CRM 营销），此前**全部指向不存在的容器**——CRM 分析导出、客户合并、OA 网盘与公文附件、LMS 课件、PDM 附件、archive 归档、audit 导出、job 附件清理实际都不可用 |
+| 改 `profiles: ["demo"]` | `whale-music`(8096)、`whale-party`(9009) | 演示模块，无下游依赖，共约 640MB |
+
+结果：默认 **22 个容器**全 healthy，VM 余量 **891MB**（重建后实测）。要起演示模块：
+`docker compose --profile demo -f docker-compose.services.yml up -d music party`。
+
+同批修正：
+- `docker-compose.verify.yml` 里原本也定义了 file/contract/mall，与常态容器**撞 `container_name`**，已删掉这三个块，只保留 CRM/OA 第二副本（9107/9104），这两个副本复用网络上的 `bw-file`/`bw-contract`；
+- 调度侧同步：`party.notice.scan`、`music.play-history.cleanup` 的 `job_info.status` 置 0（按既有约定「dev 未常驻的服务任务停用」），否则每次 cron 都会记一条「执行器无在线实例」失败。
+
+### 19.3 验证：两个可重复执行的回归基线
+
+- `scripts/mall-smoke.py` 在**常态栈**上重跑 → **77/77**（此前只在临时 verify 栈上跑过）；
+- 新增 `scripts/file-smoke.py` → **9/9**：上传（含大小校验）/下载（含 `Content-Disposition`）/preview/预签名/配额/内网上传/不存在文件 404。
+  两个坑：① `fileSize` 等长整型按**字符串**序列化，比较前要 `int()`；② `presigned` 在本地存储插件下必然返回 `400 当前存储插件不支持预签名下载: local`，这是配置限制不是缺陷，脚本按「预期跳过」记通过。
+- 跨容器可达性实测：`bw-crm` / `bw-oa` / `bw-archive` / `bw-audit` / `bw-job` 均能访问 `http://bw-file:8085/actuator/health`。
+
+### 19.4 修 MES 进度快照被乱序事件覆盖（§十六 BUG 表中级）
+
+`MesIntegrationAppServiceImpl#handleProgress` 对快照是**无条件覆盖**，而进度事件是「累计值快照」且报文里没有事件时间戳：
+先收到 T2 再收到迟到的 T1，快照就被写回退（报工 8 → 5），对账页面与「完工数是否一致」的判定全部跟着错。
+
+修法（`MesStatus` 新增 `STALE`）：
+- 累计量天然单调，按 **完工 → 报工 → 合格** 的优先级逐级比较，任何一级比已存值小即判定落后，**丢弃并写 STALE 流水**（不是 DUPLICATE——事件键确实不同，只是到达顺序错）；
+- 数量完全相等时再看状态：MES 终态（`COMPLETED` / `CLOSED`）不允许被非终态事件降级；
+- 正常的进度前进照旧覆盖（已有用例覆盖）。
+
+单测 +3（乱序丢弃 / 终态不降级 / 前进仍覆盖），`MesIntegrationAppServiceImplTest` 11 项全绿。
+
+### 19.5 修 CRM 红冲后原单不标记（§十六 P1）
+
+`redFlush` 只插入一张负数红冲单并 `markRedFlushed` 自己，**原单一个字都没改**：
+列表和详情里它仍显示「已开票」，看不出已作废；对账口径也没有「已全额红冲」这个事实。
+
+修法：
+- 新增 `InvoiceRequest#markOriginFullyRedFlushed(reason, at)`：置 `RED_FLUSHED` + 红冲原因/时间，**但不动 `issuedAt`**（原单的实际开票时间必须留作审计口径，`markRedFlushed` 会把它覆盖成红冲时间，所以不能复用）；
+- `redFlush` 在插入后判断「历史已冲 + 本次 ≥ 开票额」→ 标记原单并 `update`；**部分红冲不改原单状态**（剩余余额仍可继续冲，`sumOccupiedAmount` 的净额算法已经把负数红冲单算进去了，不需要额外调额度）。
+
+单测 +2（全额冲完标记且保留 issuedAt / 部分冲减不改状态），`InvoiceAppServiceImplTest` 11 项全绿。
+
+### 19.6 门禁与现场
+
+- `whale-crm` 全量单测 **362 项**、`whale-erp` 全量通过；`whale-crm`/`whale-erp`/`whale-job` Checkstyle **0 违规**；
+- CRM/ERP 已重新打包、重建镜像并重启（`target/` 里的旧 jar 不作验收依据这条红线）；
+- 现场 **22 个容器全 healthy**，2 个演示模块容器 stopped（profile 外），`job_info` 29 条中 2 条停用。
+
+### 19.7 这批没做，以及为什么
+
+| 项 | 原因 |
+|---|---|
+| 生产 `WHALE_INTERNAL_TOKEN`（§17.4 P0-3） | 出站拦截器 `InternalTokenSupport` 需要业务侧全部改用它的 `restClient()`，仓里仍有直接 `RestClient.create()` 的内网调用；夜里一次性开启会让 CRM→pay、mall→pay、MES→ERP、调度→执行器**同时**开始带令牌，任何一处漏改就是断链。保留现有「非 dev 无令牌拒绝启动」的 fail-fast，按上线清单处理 |
+| 心跳噪音（11 服务各一条 `StringHttpMessageConverter`） | 根治要改 starter 的心跳读取方式并**重打包全部服务**，收益是一个自愈 25 秒的 WARN |
+| 红冲 / MES 乱序的**实机**验证 | dev 库没有 `ISSUED` 状态的发票（`/crm/invoice/page?status=ISSUED` 返回 total=0），造一张要先走审批+开票；MES 链路要真工单。两者都由单测覆盖，实机留到有数据时 |
+| 商城前端、ERP M3 3b、MES 数据范围/归档清理、CRM 前端 3 项 | 都是功能开发，不是「修」；需要产品口径确认，不宜半夜自己拍 |

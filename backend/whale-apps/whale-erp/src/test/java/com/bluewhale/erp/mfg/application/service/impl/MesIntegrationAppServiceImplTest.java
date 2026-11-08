@@ -180,6 +180,47 @@ class MesIntegrationAppServiceImplTest {
     }
 
     @Test
+    @DisplayName("进度回传：乱序的旧事件不覆盖新快照，记 STALE")
+    void shouldDiscardStaleProgress() {
+        ProductionOrder order = order(MfgStatus.IN_PROGRESS);
+        when(productionOrderRepository.findByOrderNo("MO-1")).thenReturn(Optional.of(order));
+        when(mesSyncRepository.findProgress("MO-1")).thenReturn(Optional.of(snapshot("IN_PROGRESS", "8", "8", "6")));
+
+        service.handleProgress("e-5", progressPayload("IN_PROGRESS", "5", "5", "3"));
+
+        verify(mesSyncRepository, never()).upsertProgress(any(MesProgressSnapshot.class));
+        ArgumentCaptor<MesCallbackLog> captor = ArgumentCaptor.forClass(MesCallbackLog.class);
+        verify(mesSyncRepository).insertCallback(captor.capture());
+        assertEquals(MesStatus.STALE, captor.getValue().getStatus());
+    }
+
+    @Test
+    @DisplayName("进度回传：终态不会被乱序的非终态事件降级")
+    void shouldNotDowngradeTerminalStatus() {
+        ProductionOrder order = order(MfgStatus.IN_PROGRESS);
+        when(productionOrderRepository.findByOrderNo("MO-1")).thenReturn(Optional.of(order));
+        when(mesSyncRepository.findProgress("MO-1")).thenReturn(Optional.of(snapshot("COMPLETED", "10", "10", "10")));
+
+        service.handleProgress("e-6", progressPayload("IN_PROGRESS", "10", "10", "10"));
+
+        verify(mesSyncRepository, never()).upsertProgress(any(MesProgressSnapshot.class));
+    }
+
+    @Test
+    @DisplayName("进度回传：累计量前进时正常覆盖")
+    void shouldApplyForwardProgress() {
+        ProductionOrder order = order(MfgStatus.IN_PROGRESS);
+        when(productionOrderRepository.findByOrderNo("MO-1")).thenReturn(Optional.of(order));
+        when(mesSyncRepository.findProgress("MO-1")).thenReturn(Optional.of(snapshot("IN_PROGRESS", "3", "3", "2")));
+
+        service.handleProgress("e-7", progressPayload("IN_PROGRESS", "6", "6", "4"));
+
+        ArgumentCaptor<MesProgressSnapshot> captor = ArgumentCaptor.forClass(MesProgressSnapshot.class);
+        verify(mesSyncRepository).upsertProgress(captor.capture());
+        assertEquals(new BigDecimal("6"), captor.getValue().getReportedQuantity());
+    }
+
+    @Test
     @DisplayName("对账分页：完工数量不一致时标记差异")
     void shouldMarkMismatch() {
         ProductionOrder order = order(MfgStatus.IN_PROGRESS);
@@ -223,6 +264,25 @@ class MesIntegrationAppServiceImplTest {
     }
 
     /**
+     * 构建进度快照。
+     *
+     * @param mesStatus MES 工单状态
+     * @param reported  累计报工
+     * @param qualified 累计合格
+     * @param completed 累计完工
+     * @return 快照
+     */
+    private MesProgressSnapshot snapshot(String mesStatus, String reported, String qualified, String completed) {
+        MesProgressSnapshot snapshot = new MesProgressSnapshot();
+        snapshot.setErpOrderNo("MO-1");
+        snapshot.setMesStatus(mesStatus);
+        snapshot.setReportedQuantity(new BigDecimal(reported));
+        snapshot.setQualifiedQuantity(new BigDecimal(qualified));
+        snapshot.setCompletedQuantity(new BigDecimal(completed));
+        return snapshot;
+    }
+
+    /**
      * 完工回传报文。
      *
      * @param completed 累计完工数量
@@ -248,15 +308,28 @@ class MesIntegrationAppServiceImplTest {
      * @return JSON
      */
     private String progressPayload() {
+        return progressPayload("IN_PROGRESS", "3", "3", "2");
+    }
+
+    /**
+     * 指定进度数值的进度回传报文。
+     *
+     * @param status    MES 工单状态
+     * @param reported  累计报工
+     * @param qualified 累计合格
+     * @param completed 累计完工
+     * @return JSON
+     */
+    private String progressPayload(String status, String reported, String qualified, String completed) {
         MesProgressCallback callback = new MesProgressCallback();
         callback.setErpOrderNo("MO-1");
         callback.setWorkOrderId(9L);
         callback.setWorkOrderCode("MES-MO-1");
-        callback.setStatus("IN_PROGRESS");
+        callback.setStatus(status);
         callback.setPlannedQuantity(new BigDecimal("10"));
-        callback.setReportedQuantity(new BigDecimal("3"));
-        callback.setQualifiedQuantity(new BigDecimal("3"));
-        callback.setCompletedQuantity(new BigDecimal("2"));
+        callback.setReportedQuantity(new BigDecimal(reported));
+        callback.setQualifiedQuantity(new BigDecimal(qualified));
+        callback.setCompletedQuantity(new BigDecimal(completed));
         callback.setTasks(List.of());
         try {
             return objectMapper.writeValueAsString(callback);

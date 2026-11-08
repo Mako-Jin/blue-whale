@@ -56,6 +56,12 @@ public class MesIntegrationAppServiceImpl implements MesIntegrationAppService {
     /** 错误摘要最大长度 */
     private static final int ERROR_MAX_LENGTH = 255;
 
+    /** MES 工单终态：已完成 */
+    private static final String MES_STATUS_COMPLETED = "COMPLETED";
+
+    /** MES 工单终态：已关闭 */
+    private static final String MES_STATUS_CLOSED = "CLOSED";
+
     private final ProductionOrderRepository productionOrderRepository;
 
     private final MesSyncRepository mesSyncRepository;
@@ -238,6 +244,17 @@ public class MesIntegrationAppServiceImpl implements MesIntegrationAppService {
         snapshot.setTasks(callback.getTasks());
         snapshot.setEventId(eventId);
         snapshot.setReceivedAt(LocalDateTime.now());
+        // 进度事件是「累计值快照」，没有事件时间戳：乱序到达时（先收到 T2 再收到 T1）直接覆盖
+        // 会把进度写回退。累计量本身单调，用它判新旧；终态不允许被非终态事件降级。
+        Optional<MesProgressSnapshot> previous = mesSyncRepository.findProgress(order.getOrderNo());
+        if (previous.isPresent() && isStale(previous.get(), snapshot)) {
+            log.warn("生产订单 {} 进度事件 {} 落后于已存快照（已存报工={}，本次报工={}），丢弃",
+                    order.getOrderNo(), eventId,
+                    previous.get().getReportedQuantity(), snapshot.getReportedQuantity());
+            writeCallback(order.getId(), order.getOrderNo(), MesStatus.CALLBACK_PROGRESS, eventId,
+                    MesStatus.STALE, payload, "乱序事件：累计数量落后于已存快照");
+            return;
+        }
         mesSyncRepository.upsertProgress(snapshot);
         if (StringUtils.hasText(callback.getWorkOrderCode())) {
             order.markMesPushed(callback.getWorkOrderCode(), LocalDateTime.now());
@@ -245,6 +262,56 @@ public class MesIntegrationAppServiceImpl implements MesIntegrationAppService {
         }
         writeCallback(order.getId(), order.getOrderNo(), MesStatus.CALLBACK_PROGRESS, eventId,
                 MesStatus.APPLIED, payload, null);
+    }
+
+    /**
+     * 判断进度事件是否落后于已存快照。
+     *
+     * <p>累计量天然单调，按「完工 → 报工 → 合格」的优先级逐级比较：任何一级比已存值小，
+     * 说明这条事件产生得更早，覆盖会让进度回退。数量完全相等时再看状态，
+     * 终态（COMPLETED / CLOSED）不允许被非终态事件覆盖。</p>
+     *
+     * @param stored   已存快照
+     * @param incoming 本次事件
+     * @return true 表示落后，应丢弃
+     */
+    private boolean isStale(MesProgressSnapshot stored, MesProgressSnapshot incoming) {
+        int byCompleted = compareQuantity(stored.getCompletedQuantity(), incoming.getCompletedQuantity());
+        if (byCompleted != 0) {
+            return byCompleted > 0;
+        }
+        int byReported = compareQuantity(stored.getReportedQuantity(), incoming.getReportedQuantity());
+        if (byReported != 0) {
+            return byReported > 0;
+        }
+        int byQualified = compareQuantity(stored.getQualifiedQuantity(), incoming.getQualifiedQuantity());
+        if (byQualified != 0) {
+            return byQualified > 0;
+        }
+        return isMesTerminal(stored.getMesStatus()) && !isMesTerminal(incoming.getMesStatus());
+    }
+
+    /**
+     * 按数值比较两个累计量（null 视为 0）。
+     *
+     * @param stored   已存值
+     * @param incoming 本次值
+     * @return 正数表示已存更大
+     */
+    private int compareQuantity(BigDecimal stored, BigDecimal incoming) {
+        BigDecimal left = stored == null ? BigDecimal.ZERO : stored;
+        BigDecimal right = incoming == null ? BigDecimal.ZERO : incoming;
+        return left.compareTo(right);
+    }
+
+    /**
+     * 判断 MES 工单状态是否为终态。
+     *
+     * @param mesStatus MES 工单状态
+     * @return true 表示终态
+     */
+    private boolean isMesTerminal(String mesStatus) {
+        return MES_STATUS_COMPLETED.equals(mesStatus) || MES_STATUS_CLOSED.equals(mesStatus);
     }
 
     @Override
