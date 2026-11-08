@@ -45,7 +45,8 @@ CREATE TABLE IF NOT EXISTS msg_record (
     content          TEXT          DEFAULT NULL            COMMENT '消息正文',
     payload_json     TEXT          DEFAULT NULL            COMMENT '模板变量 JSON',
     channels         VARCHAR(128)  DEFAULT NULL            COMMENT '渠道列表（大写逗号分隔，如 INAPP,IM）',
-    status           VARCHAR(16)   NOT NULL DEFAULT 'PENDING' COMMENT '消息状态：PENDING / SENT / PARTIAL / FAILED / MOCKED / SKIPPED',
+    status           VARCHAR(16)   NOT NULL DEFAULT 'PENDING' COMMENT '消息状态：PENDING / SENT / DELIVERED / PARTIAL / FAILED / MOCKED / SKIPPED',
+    callback_url     VARCHAR(512)  DEFAULT NULL            COMMENT '回执回调地址（业务方内网端点；空表示不回传）',
     create_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted          TINYINT       NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',
@@ -64,11 +65,13 @@ CREATE TABLE IF NOT EXISTS msg_delivery (
     message_id         BIGINT       NOT NULL                COMMENT '消息ID（逻辑关联 msg_record.id）',
     channel            VARCHAR(16)  NOT NULL                COMMENT '渠道：INAPP / EMAIL / SMS / IM',
     recipient          VARCHAR(128) NOT NULL                COMMENT '接收标识：用户ID / 邮箱 / 手机号',
-    status             VARCHAR(16)  NOT NULL                COMMENT '投递状态：SENT / FAILED / SKIPPED / MOCKED',
+    status             VARCHAR(16)  NOT NULL                COMMENT '投递状态：SENT / DELIVERED / READ / BOUNCED / FAILED / SKIPPED / MOCKED',
     provider_message_id VARCHAR(128) DEFAULT NULL           COMMENT '渠道回执标识（可选）',
     error_message      VARCHAR(512) DEFAULT NULL            COMMENT '失败/跳过原因摘要',
     attempts           INT          NOT NULL DEFAULT 1      COMMENT '尝试次数',
     sent_at            DATETIME     DEFAULT NULL            COMMENT '投递时间',
+    delivered_at       DATETIME     DEFAULT NULL            COMMENT '渠道确认送达时间',
+    read_at            DATETIME     DEFAULT NULL            COMMENT '接收人阅读时间（仅可回传阅读态的渠道）',
     read_flag          TINYINT      NOT NULL DEFAULT 0      COMMENT '站内信已读标记：0 未读 / 1 已读（非 INAPP 渠道恒为 0）',
     create_time        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -77,6 +80,7 @@ CREATE TABLE IF NOT EXISTS msg_delivery (
     UNIQUE KEY uk_message_channel_recipient (message_id, channel, recipient),
     KEY idx_tenant_message (tenant_id, message_id),
     KEY idx_tenant_status (tenant_id, status),
+    KEY idx_tenant_provider (tenant_id, channel, provider_message_id),
     KEY idx_create_time (create_time)
 ) COMMENT='消息投递记录表';
 
@@ -98,6 +102,57 @@ CREATE TABLE IF NOT EXISTS msg_announcement (
     KEY idx_tenant_status (tenant_id, status),
     KEY idx_publish_time (publish_time)
 ) COMMENT='系统公告表';
+
+-- ---------------------------------------------------------------------
+-- 3.2 送达回执流水（V2）
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS msg_receipt (
+    id                  BIGINT       NOT NULL                COMMENT '主键ID（雪花算法）',
+    tenant_id           BIGINT       NOT NULL DEFAULT 1      COMMENT '租户ID（行级隔离）',
+    receipt_key         VARCHAR(160) NOT NULL                COMMENT '回执幂等键：渠道:回执ID',
+    channel             VARCHAR(16)  NOT NULL                COMMENT '渠道：INAPP / EMAIL / SMS / IM',
+    provider_message_id VARCHAR(128) DEFAULT NULL            COMMENT '渠道侧消息标识',
+    delivery_id         BIGINT       DEFAULT NULL            COMMENT '匹配到的投递记录ID',
+    message_id          BIGINT       DEFAULT NULL            COMMENT '匹配到的消息ID',
+    receipt_status      VARCHAR(16)  NOT NULL                COMMENT '回执状态：DELIVERED / READ / BOUNCED / UNMATCHED',
+    match_status        VARCHAR(16)  NOT NULL DEFAULT 'MATCHED' COMMENT '匹配结果：MATCHED / UNMATCHED',
+    receipt_time        DATETIME     DEFAULT NULL            COMMENT '渠道回执时间',
+    error_code          VARCHAR(64)  DEFAULT NULL            COMMENT '返信错误码',
+    error_message       VARCHAR(512) DEFAULT NULL            COMMENT '返信错误说明',
+    raw_payload         TEXT         DEFAULT NULL            COMMENT '渠道原始回执报文',
+    create_time         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted             TINYINT      NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_tenant_receipt_key (tenant_id, receipt_key),
+    KEY idx_tenant_delivery (tenant_id, delivery_id),
+    KEY idx_tenant_provider_msg (tenant_id, channel, provider_message_id),
+    KEY idx_create_time (create_time)
+) COMMENT='消息送达回执流水表';
+
+-- ---------------------------------------------------------------------
+-- 3.3 回执回调任务（V2，outbox）
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS msg_callback_task (
+    id            BIGINT       NOT NULL                COMMENT '主键ID（雪花算法）',
+    tenant_id     BIGINT       NOT NULL DEFAULT 1      COMMENT '租户ID（行级隔离）',
+    message_id    BIGINT       NOT NULL                COMMENT '消息ID',
+    delivery_id   BIGINT       DEFAULT NULL            COMMENT '投递记录ID',
+    receipt_id    BIGINT       NOT NULL                COMMENT '触发本回调的回执流水ID',
+    callback_url  VARCHAR(512) NOT NULL                COMMENT '回调地址',
+    payload_json  TEXT         DEFAULT NULL            COMMENT '回调报文 JSON',
+    status        VARCHAR(16)  NOT NULL DEFAULT 'PENDING' COMMENT '回调状态：PENDING / SENT / FAILED / GAVE_UP',
+    attempts      INT          NOT NULL DEFAULT 0      COMMENT '已尝试次数',
+    next_retry_at DATETIME     DEFAULT NULL            COMMENT '下次重试时间',
+    last_error    VARCHAR(512) DEFAULT NULL            COMMENT '最近一次失败原因',
+    create_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted       TINYINT      NOT NULL DEFAULT 0      COMMENT '逻辑删除：0 未删除 / 1 已删除',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_tenant_receipt_delivery (tenant_id, receipt_id, delivery_id),
+    KEY idx_status_retry (status, next_retry_at),
+    KEY idx_tenant_message (tenant_id, message_id)
+) COMMENT='消息回执回调任务表（outbox）';
 
 -- ---------------------------------------------------------------------
 -- 4. 内置模板（平台租户共享）

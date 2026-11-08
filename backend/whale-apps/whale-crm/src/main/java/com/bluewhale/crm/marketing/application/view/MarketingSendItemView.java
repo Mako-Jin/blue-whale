@@ -37,11 +37,20 @@ public class MarketingSendItemView {
     /** 明细状态 */
     private String status;
 
+    /** 消息服务消息ID */
+    private Long msgId;
+
     /** 失败原因 */
     private String error;
 
     /** 发送时间 */
     private LocalDateTime sentAt;
+
+    /** 渠道确认送达时间 */
+    private LocalDateTime deliveredAt;
+
+    /** 已读标记：0 未读 / 1 已读 */
+    private Integer readFlag;
 
     /**
      * 由领域对象构建视图。
@@ -59,8 +68,11 @@ public class MarketingSendItemView {
         view.setRecipient(item.getRecipient());
         view.setChannel(item.getChannel() == null ? null : item.getChannel().name());
         view.setStatus(item.getStatus() == null ? null : item.getStatus().name());
+        view.setMsgId(item.getMsgId());
         view.setError(item.getError());
         view.setSentAt(item.getSentAt());
+        view.setDeliveredAt(item.getDeliveredAt());
+        view.setReadFlag(item.getReadFlag());
         return view;
     }
 }

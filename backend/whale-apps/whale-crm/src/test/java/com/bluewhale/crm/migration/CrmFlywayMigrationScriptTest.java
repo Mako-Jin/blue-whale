@@ -236,6 +236,22 @@ class CrmFlywayMigrationScriptTest {
                 "行动项按去重键唯一，避免重复生成");
     }
 
+    @Test
+    @DisplayName("V14 触达回执：明细补消息ID/送达/已读列，任务补送达/退信/已读计数")
+    void marketingReceiptShouldExtendSendTables() throws IOException {
+        String content = Files.readString(MIGRATION_DIR.resolve("V14__marketing_delivery_receipt.sql"),
+                StandardCharsets.UTF_8);
+        String upper = content.toUpperCase();
+        assertTrue(upper.contains("ADD COLUMN `DELIVERED_COUNT`"), "任务需补已送达计数");
+        assertTrue(upper.contains("ADD COLUMN `BOUNCED_COUNT`"), "任务需补退信计数");
+        assertTrue(upper.contains("ADD COLUMN `READ_COUNT`"), "任务需补已读计数");
+        assertTrue(upper.contains("ADD COLUMN `MSG_ID`"), "明细需补消息服务消息ID作为回执匹配键");
+        assertTrue(upper.contains("ADD COLUMN `DELIVERED_AT`"), "明细需补送达时间");
+        assertTrue(upper.contains("ADD COLUMN `READ_FLAG`"), "明细需补已读标记");
+        assertTrue(upper.contains("IDX_CRM_SEND_ITEM_MSG"), "回执按 msg_id 匹配需建索引");
+        assertFalse(upper.contains("INSERT INTO CRM_"), "回执增量不得写入业务种子数据");
+    }
+
     /**
      * 列出迁移脚本。
      *

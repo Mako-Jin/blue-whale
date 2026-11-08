@@ -79,6 +79,18 @@ whale:
       # whale-im 内网地址；未配置时 IM 渠道记为 SKIPPED
       base-url: ${WHALE_MESSAGE_IM_BASE_URL:}
       timeout-millis: ${WHALE_MESSAGE_IM_TIMEOUT_MILLIS:3000}
+    # 送达回执（V2）：渠道确认送达/阅读/退信经 /message/internal/receipt 上报，
+    # 状态单向推进并异步回调业务方登记的回调地址（outbox + 指数退避重试）。
+    receipt:
+      enabled: ${WHALE_MESSAGE_RECEIPT_ENABLED:true}
+      callback-enabled: ${WHALE_MESSAGE_RECEIPT_CALLBACK_ENABLED:true}
+      dispatch-interval-millis: ${WHALE_MESSAGE_RECEIPT_DISPATCH_INTERVAL_MS:15000}
+      dispatch-initial-delay-millis: ${WHALE_MESSAGE_RECEIPT_DISPATCH_INITIAL_DELAY_MS:20000}
+      dispatch-batch-size: ${WHALE_MESSAGE_RECEIPT_DISPATCH_BATCH_SIZE:50}
+      max-attempts: ${WHALE_MESSAGE_RECEIPT_MAX_ATTEMPTS:5}
+      retry-backoff-seconds: ${WHALE_MESSAGE_RECEIPT_RETRY_BACKOFF_SECONDS:30}
+      connect-timeout-millis: ${WHALE_MESSAGE_RECEIPT_CONNECT_TIMEOUT_MS:1000}
+      read-timeout-millis: ${WHALE_MESSAGE_RECEIPT_READ_TIMEOUT_MS:3000}
 
 mybatis-plus:
   configuration:

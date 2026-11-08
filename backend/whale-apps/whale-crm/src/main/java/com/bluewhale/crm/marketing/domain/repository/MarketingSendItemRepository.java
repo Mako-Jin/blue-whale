@@ -43,4 +43,13 @@ public interface MarketingSendItemRepository {
      * @return 已触达返回 true
      */
     boolean existsByCampaignContactChannel(Long campaignId, Long contactId, SendChannel channel);
+
+    /**
+     * 按消息服务消息ID与渠道查明细（回执匹配）。
+     *
+     * @param msgId 消息服务消息ID
+     * @param channel 渠道
+     * @return 明细；不存在返回 null
+     */
+    MarketingSendItem findByMsgId(Long msgId, SendChannel channel);
 }

@@ -7,8 +7,10 @@ import com.bluewhale.crm.config.CrmMarketingProperties;
 import com.bluewhale.crm.config.CrmProperties;
 import com.bluewhale.crm.customer.application.service.CustomerAppService;
 import com.bluewhale.crm.customer.application.view.ContactView;
+import com.bluewhale.crm.marketing.application.command.DeliveryReceiptCommand;
 import com.bluewhale.crm.marketing.application.command.MarketingSendCreateCommand;
 import com.bluewhale.crm.marketing.application.service.MarketingSendAppService;
+import com.bluewhale.crm.marketing.application.view.DeliveryReceiptView;
 import com.bluewhale.crm.marketing.application.view.MarketingSendView;
 import com.bluewhale.crm.marketing.domain.model.Campaign;
 import com.bluewhale.crm.marketing.domain.model.CampaignAudience;
@@ -175,6 +177,7 @@ public class MarketingSendAppServiceImpl implements MarketingSendAppService {
                 result = MessageDispatchResult.failed("消息服务无返回");
             }
             if (result.status() == SendItemStatus.SENT) {
+                item.setMsgId(result.messageId());
                 item.markSent(now);
                 sent++;
             } else if (result.status() == SendItemStatus.SKIPPED) {
@@ -192,11 +195,106 @@ public class MarketingSendAppServiceImpl implements MarketingSendAppService {
         return MarketingSendView.from(send, marketingSendItemRepository.findBySend(send.getId()));
     }
 
+    @Override
+    @Transactional
+    public DeliveryReceiptView applyDeliveryReceipt(DeliveryReceiptCommand command) {
+        SendChannel channel = SendChannel.fromMessageChannel(command.getChannel());
+        SendItemStatus target = SendItemStatus.fromReceipt(command.getStatus());
+        MarketingSendItem item = resolveReceiptItem(command, channel);
+        if (item == null) {
+            return DeliveryReceiptView.of(false, null, null, null, "未匹配到触达明细");
+        }
+        String current = item.getStatus() == null ? null : item.getStatus().name();
+        LocalDateTime at = command.getReceiptTime() == null ? LocalDateTime.now() : command.getReceiptTime();
+        if (!item.applyReceipt(target, at, command.getErrorMessage())) {
+            return DeliveryReceiptView.of(false, item.getId(), item.getSendId(), current,
+                    "当前状态不可推进到 " + target.name());
+        }
+        marketingSendItemRepository.update(item);
+        refreshReceiptCounters(item.getSendId());
+        return DeliveryReceiptView.of(true, item.getId(), item.getSendId(), target.name(), null);
+    }
+
+    /**
+     * 定位回执对应的触达明细：优先按消息服务消息ID，缺失时按业务标识（触达任务ID）+
+     * 渠道 + 收件人兜底，兼容 V14 之前未落 {@code msg_id} 的历史明细。
+     *
+     * <p>兜底命中后顺带回填 {@code msgId}，让历史明细在首次回执后自动收敛到主匹配路径。</p>
+     *
+     * @param command 回执命令
+     * @param channel 渠道
+     * @return 明细；无法定位返回 {@code null}
+     */
+    private MarketingSendItem resolveReceiptItem(DeliveryReceiptCommand command, SendChannel channel) {
+        MarketingSendItem item = marketingSendItemRepository.findByMsgId(command.getMessageId(), channel);
+        if (item != null) {
+            return item;
+        }
+        Long sendId = parseLong(command.getBizId());
+        if (sendId == null) {
+            return null;
+        }
+        MarketingSendItem matched = marketingSendItemRepository.findBySend(sendId).stream()
+                .filter(candidate -> candidate.getChannel() == channel)
+                .filter(candidate -> candidate.getStatus() != null && candidate.getStatus().isReached())
+                .filter(candidate -> command.getRecipient() == null
+                        || command.getRecipient().equals(candidate.getRecipient()))
+                .findFirst().orElse(null);
+        if (matched != null && matched.getMsgId() == null && command.getMessageId() != null) {
+            matched.setMsgId(command.getMessageId());
+        }
+        return matched;
+    }
+
+    /**
+     * 按明细状态重算任务侧的回执计数（送达 / 退信 / 已读）。
+     *
+     * @param sendId 触达任务 ID
+     */
+    private void refreshReceiptCounters(Long sendId) {
+        MarketingSend send = sendId == null ? null : marketingSendRepository.findById(sendId);
+        if (send == null) {
+            return;
+        }
+        int delivered = 0;
+        int bounced = 0;
+        int read = 0;
+        for (MarketingSendItem item : marketingSendItemRepository.findBySend(sendId)) {
+            SendItemStatus status = item.getStatus();
+            if (status == SendItemStatus.DELIVERED) {
+                delivered++;
+            } else if (status == SendItemStatus.READ) {
+                delivered++;
+                read++;
+            } else if (status == SendItemStatus.BOUNCED) {
+                bounced++;
+            }
+        }
+        send.applyReceiptCounters(delivered, bounced, read);
+        marketingSendRepository.update(send);
+    }
+
+    /**
+     * 解析长整型标识。
+     *
+     * @param value 文本
+     * @return 数值；无法解析返回 {@code null}
+     */
+    private Long parseLong(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        try {
+            return Long.parseLong(value.trim());
+        } catch (NumberFormatException exception) {
+            return null;
+        }
+    }
+
     /**
      * 校验需求门禁与营销开关。
      */
-    private void ensureGate() {
-        if (!crmProperties.isDemandGatePassed() || !marketingProperties.isEnabled()) {
+    private void ensureGate() {        if (!crmProperties.isDemandGatePassed() || !marketingProperties.isEnabled()) {
             throw CrmErrorCode.exception(CrmErrorCode.GATE_CLOSED);
         }
     }

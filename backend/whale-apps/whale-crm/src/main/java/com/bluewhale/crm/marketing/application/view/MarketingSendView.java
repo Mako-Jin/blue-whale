@@ -54,6 +54,15 @@ public class MarketingSendView {
     /** 失败数量 */
     private Integer failedCount;
 
+    /** 已送达数量（含已读） */
+    private Integer deliveredCount;
+
+    /** 退信数量 */
+    private Integer bouncedCount;
+
+    /** 已读数量 */
+    private Integer readCount;
+
     /** 执行时间 */
     private LocalDateTime executedAt;
 
@@ -97,6 +106,9 @@ public class MarketingSendView {
         view.setSentCount(send.getSentCount());
         view.setSkippedCount(send.getSkippedCount());
         view.setFailedCount(send.getFailedCount());
+        view.setDeliveredCount(send.getDeliveredCount());
+        view.setBouncedCount(send.getBouncedCount());
+        view.setReadCount(send.getReadCount());
         view.setExecutedAt(send.getExecutedAt());
         view.setLastError(send.getLastError());
         view.setOwnerId(send.getOwnerId());

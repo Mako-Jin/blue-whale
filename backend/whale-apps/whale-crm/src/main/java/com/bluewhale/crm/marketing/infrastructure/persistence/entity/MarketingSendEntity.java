@@ -59,6 +59,15 @@ public class MarketingSendEntity extends BaseEntity {
     /** 失败数量 */
     private Integer failedCount;
 
+    /** 已送达数量 */
+    private Integer deliveredCount;
+
+    /** 退信数量 */
+    private Integer bouncedCount;
+
+    /** 已读数量 */
+    private Integer readCount;
+
     /** 执行时间 */
     private LocalDateTime executedAt;
 

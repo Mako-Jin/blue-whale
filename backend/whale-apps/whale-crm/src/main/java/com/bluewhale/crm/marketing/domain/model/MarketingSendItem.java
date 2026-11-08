@@ -45,11 +45,20 @@ public class MarketingSendItem {
     /** 明细状态 */
     private SendItemStatus status;
 
+    /** 消息服务消息ID（回执匹配键，发送成功时回填） */
+    private Long msgId;
+
     /** 失败原因 */
     private String error;
 
     /** 发送时间 */
     private LocalDateTime sentAt;
+
+    /** 渠道确认送达时间 */
+    private LocalDateTime deliveredAt;
+
+    /** 已读标记：0 未读 / 1 已读 */
+    private Integer readFlag;
 
     /** 创建时间 */
     private LocalDateTime createTime;
@@ -95,6 +104,35 @@ public class MarketingSendItem {
      */
     public boolean isPending() {
         return status == null || status == SendItemStatus.PENDING;
+    }
+
+    /**
+     * 承接渠道回执：单向推进明细状态。
+     *
+     * <p>提交态之外的状态（PENDING / SKIPPED / FAILED）不承接回执，避免把未提交的明细
+     * 标记成已送达；同一状态重复回调与状态回退同样视为未推进。</p>
+     *
+     * @param target      目标回执态
+     * @param at          回执时间
+     * @param errorReason 退信原因
+     * @return 实际推进返回 true
+     */
+    public boolean applyReceipt(SendItemStatus target, LocalDateTime at, String errorReason) {
+        if (status == null || !status.canAdvanceTo(target)) {
+            return false;
+        }
+        this.status = target;
+        if (target == SendItemStatus.DELIVERED) {
+            this.deliveredAt = at;
+            this.error = null;
+        } else if (target == SendItemStatus.READ) {
+            this.deliveredAt = deliveredAt == null ? at : deliveredAt;
+            this.readFlag = 1;
+            this.error = null;
+        } else if (target == SendItemStatus.BOUNCED) {
+            this.error = truncate(errorReason == null ? "渠道退信" : errorReason);
+        }
+        return true;
     }
 
     /**

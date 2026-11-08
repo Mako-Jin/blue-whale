@@ -57,7 +57,22 @@ public class MarketingSendItemRepositoryImpl implements MarketingSendItemReposit
                 .eq(MarketingSendItemEntity::getCampaignId, campaignId)
                 .eq(MarketingSendItemEntity::getContactId, contactId)
                 .eq(MarketingSendItemEntity::getChannel, channel.name())
-                .eq(MarketingSendItemEntity::getStatus, SendItemStatus.SENT.name())) > 0;
+                .in(MarketingSendItemEntity::getStatus, SendItemStatus.SENT.name(),
+                        SendItemStatus.DELIVERED.name(), SendItemStatus.READ.name())) > 0;
+    }
+
+    @Override
+    public MarketingSendItem findByMsgId(Long msgId, SendChannel channel) {
+        if (msgId == null || channel == null) {
+            return null;
+        }
+        MarketingSendItemEntity entity = marketingSendItemMapper.selectOne(
+                new LambdaQueryWrapper<MarketingSendItemEntity>()
+                        .eq(MarketingSendItemEntity::getMsgId, msgId)
+                        .eq(MarketingSendItemEntity::getChannel, channel.name())
+                        .orderByAsc(MarketingSendItemEntity::getId)
+                        .last("LIMIT 1"));
+        return entity == null ? null : toDomain(entity);
     }
 
     /**
@@ -78,8 +93,11 @@ public class MarketingSendItemRepositoryImpl implements MarketingSendItemReposit
         item.setRecipient(entity.getRecipient());
         item.setChannel(entity.getChannel() == null ? null : SendChannel.from(entity.getChannel()));
         item.setStatus(entity.getStatus() == null ? null : SendItemStatus.from(entity.getStatus()));
+        item.setMsgId(entity.getMsgId());
         item.setError(entity.getError());
         item.setSentAt(entity.getSentAt());
+        item.setDeliveredAt(entity.getDeliveredAt());
+        item.setReadFlag(entity.getReadFlag());
         item.setCreateTime(entity.getCreateTime());
         item.setUpdateTime(entity.getUpdateTime());
         return item;
@@ -103,8 +121,11 @@ public class MarketingSendItemRepositoryImpl implements MarketingSendItemReposit
         entity.setRecipient(item.getRecipient());
         entity.setChannel(item.getChannel() == null ? null : item.getChannel().name());
         entity.setStatus(item.getStatus() == null ? null : item.getStatus().name());
+        entity.setMsgId(item.getMsgId());
         entity.setError(item.getError());
         entity.setSentAt(item.getSentAt());
+        entity.setDeliveredAt(item.getDeliveredAt());
+        entity.setReadFlag(item.getReadFlag());
         return entity;
     }
 }

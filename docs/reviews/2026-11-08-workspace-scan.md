@@ -181,3 +181,29 @@
 **顺带发现（存量配置冲突）**：`whale.crm.marketing.message-url` 默认 `127.0.0.1:8085`，与 `bw-file` 端口冲突；已通过 `WHALE_CRM_MARKETING_MESSAGE_URL` 覆盖，建议把默认值改成 8094。
 
 **P0 状态**：退换货/发票对账、ERP↔MES、定时任务、营销发送投递（到提交态）均已实机验证；剩余待立项的是「送达回执」能力与「P1 定时任务分布式锁」。
+
+## 十四、补记（同日 18:00：送达回执能力落地，P0「营销发送投递回执」闭环）
+
+**结论：第十三节列的「平台侧没有 DELIVERED、没有回执端点、没有回执表」已补齐并实机验证。**
+
+| 侧 | 落地内容 |
+|---|---|
+| whale-message | `V2__delivery_receipt.sql`（`msg_record.callback_url`、`msg_delivery.delivered_at/read_at`、新表 `msg_receipt` 与 `msg_callback_task`）；`DeliveryStatus` 增 `DELIVERED/READ/BOUNCED` 且只允许前进；`POST /message/internal/receipt` 批量受理（幂等键 `receipt_key`）；回调 outbox 派发器（指数退避、5 次后 `GAVE_UP`） |
+| whale-crm | `V14__marketing_delivery_receipt.sql`（明细 `msg_id/delivered_at/read_flag`、任务 `delivered/bounced/read_count`）；`SendItemStatus` 增三个回执态 + `isReached`；`POST /crm/internal/marketing/delivery-callback`；发送成功回填 `msg_id`，回执推进后按明细重算计数 |
+
+**实机结果**（`bw-message` v2 / `bw-crm` v14）：发送 → `DELIVERED`（`advanced=1, callbackQueued=1`）→ 15s 内回调落地 CRM 明细 `DELIVERED`、`deliveredCount=1` → `READ`（`readCount=1, readFlag=1`）→ 重复回执 `duplicated=1` 全 0 副作用 → 乱序 `DELIVERED` `advanced=0` 不回退 → 未知 `providerMessageId` `unmatched=1` 仅落库。
+
+**本轮修复的 2 个真实缺陷**：
+
+| 级别 | 问题 | 修复 |
+|---|---|---|
+| 高 | 渠道编码两侧不一致（消息服务 `INAPP`/`IM` vs CRM `INBOX`），回调被 CRM 拒为 `41083 触达渠道非法`，回执静默丢失 | `SendChannel.fromMessageChannel` 归一 `INAPP/IM → INBOX` |
+| 高 | 派发器只看 HTTP 状态，业务方「HTTP 200 + 非 0 业务码」被当成回调成功，回执静默丢弃 | 解析响应体 `code`，非 0 抛错走重试（实测 `reason=业务方返回失败: code=500`） |
+
+**顺带修掉的存量隐患**：`existsByCampaignContactChannel` 原来只比 `status=SENT`，明细推进到 `DELIVERED/READ` 后同一活动同一联系人会被**二次触达** → 改为 `in (SENT, DELIVERED, READ)`；`whale.crm.marketing.message-url` 默认值 `8085`（与 `bw-file` 冲突）改为 `8094`。
+
+**门禁**：whale-message 46 单测 / whale-crm 346 单测 0 失败，Checkstyle 0 违规，ArchUnit 全绿。
+
+**P0 状态：§二 P0 全部实机闭环**（退换货→退货过账、发票对账、ERP↔MES、定时任务、营销发送投递回执）。
+
+**剩余 P1**：① `@Scheduled` 无分布式锁（21 处，含新增回执派发器）；② 真实渠道回执接入（`mock=true` 下 EMAIL/SMS 无真实 `providerMessageId`）。

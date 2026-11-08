@@ -46,9 +46,18 @@ public class MarketingSendItemEntity extends BaseEntity {
     /** 明细状态 */
     private String status;
 
+    /** 消息服务消息ID（回执匹配键） */
+    private Long msgId;
+
     /** 失败原因 */
     private String error;
 
     /** 发送时间 */
     private LocalDateTime sentAt;
+
+    /** 渠道确认送达时间 */
+    private LocalDateTime deliveredAt;
+
+    /** 已读标记：0 未读 / 1 已读 */
+    private Integer readFlag;
 }

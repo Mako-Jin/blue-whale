@@ -219,6 +219,7 @@ public class MessageSendServiceImpl implements MessageSendService {
         record.setPayloadJson(toJson(request.getPayload()));
         record.setChannels(normalizeChannels(request.getChannels()));
         record.setStatus(MessageStatus.PENDING.name());
+        record.setCallbackUrl(request.getCallbackUrl());
         return record;
     }
 

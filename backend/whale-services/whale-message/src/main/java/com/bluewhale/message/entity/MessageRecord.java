@@ -43,4 +43,7 @@ public class MessageRecord extends BaseEntity {
 
     /** 消息状态：PENDING / SENT / PARTIAL / FAILED / MOCKED / SKIPPED */
     private String status;
+
+    /** 回执回调地址（业务方内网端点；空表示不回传回执） */
+    private String callbackUrl;
 }

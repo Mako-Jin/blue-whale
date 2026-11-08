@@ -1,10 +1,12 @@
 package com.bluewhale.message;
 
 import com.bluewhale.message.config.MessageChannelProperties;
+import com.bluewhale.message.config.MessageReceiptProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * 统一消息服务启动类。
@@ -16,7 +18,8 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
  */
 @SpringBootApplication
 @EnableDiscoveryClient
-@EnableConfigurationProperties(MessageChannelProperties.class)
+@EnableScheduling
+@EnableConfigurationProperties({MessageChannelProperties.class, MessageReceiptProperties.class})
 public class WhaleMessageApplication {
 
     /**

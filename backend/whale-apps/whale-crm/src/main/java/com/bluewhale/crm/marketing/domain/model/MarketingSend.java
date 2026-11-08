@@ -61,6 +61,15 @@ public class MarketingSend {
     /** 失败数量 */
     private Integer failedCount;
 
+    /** 已送达数量（渠道回执聚合） */
+    private Integer deliveredCount;
+
+    /** 退信数量（渠道回执聚合） */
+    private Integer bouncedCount;
+
+    /** 已读数量（渠道回执聚合） */
+    private Integer readCount;
+
     /** 执行时间 */
     private LocalDateTime executedAt;
 
@@ -128,6 +137,21 @@ public class MarketingSend {
         this.status = MarketingSendStatus.FAILED;
         this.lastError = truncate(error);
         this.executedAt = at;
+    }
+
+    /**
+     * 回写渠道回执聚合计数。
+     *
+     * <p>计数由明细状态重算得出（而非自增），重复回执或并发回调都不会把计数放大。</p>
+     *
+     * @param delivered 已送达数量（含已读）
+     * @param bounced   退信数量
+     * @param read      已读数量
+     */
+    public void applyReceiptCounters(int delivered, int bounced, int read) {
+        this.deliveredCount = delivered;
+        this.bouncedCount = bounced;
+        this.readCount = read;
     }
 
     /**

@@ -60,4 +60,8 @@ public class SendMessageRequest implements Serializable {
     @NotEmpty(message = "接收人不能为空")
     @Size(max = 100, message = "单次接收人不能超过 100 人")
     private List<@Valid MessageRecipient> recipients;
+
+    /** 回执回调地址（可选，业务方内网端点；为空表示不回传达送回执） */
+    @Size(max = 512, message = "回调地址长度不能超过 512")
+    private String callbackUrl;
 }

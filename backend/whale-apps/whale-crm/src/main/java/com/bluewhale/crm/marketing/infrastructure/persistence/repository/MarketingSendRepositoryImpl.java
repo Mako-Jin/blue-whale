@@ -107,6 +107,9 @@ public class MarketingSendRepositoryImpl implements MarketingSendRepository {
         send.setSentCount(entity.getSentCount());
         send.setSkippedCount(entity.getSkippedCount());
         send.setFailedCount(entity.getFailedCount());
+        send.setDeliveredCount(entity.getDeliveredCount());
+        send.setBouncedCount(entity.getBouncedCount());
+        send.setReadCount(entity.getReadCount());
         send.setExecutedAt(entity.getExecutedAt());
         send.setLastError(entity.getLastError());
         send.setOwnerId(entity.getOwnerId());
@@ -139,6 +142,9 @@ public class MarketingSendRepositoryImpl implements MarketingSendRepository {
         entity.setSentCount(send.getSentCount());
         entity.setSkippedCount(send.getSkippedCount());
         entity.setFailedCount(send.getFailedCount());
+        entity.setDeliveredCount(send.getDeliveredCount());
+        entity.setBouncedCount(send.getBouncedCount());
+        entity.setReadCount(send.getReadCount());
         entity.setExecutedAt(send.getExecutedAt());
         entity.setLastError(send.getLastError());
         entity.setOwnerId(send.getOwnerId());

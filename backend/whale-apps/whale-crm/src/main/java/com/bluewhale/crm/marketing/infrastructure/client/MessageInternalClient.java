@@ -44,6 +44,12 @@ public class MessageInternalClient implements MessageDispatchPort {
     /** 响应体数据节点 */
     private static final String FIELD_DATA = "data";
 
+    /** 响应体消息ID节点 */
+    private static final String FIELD_MESSAGE_ID = "messageId";
+
+    /** 响应体投递明细节点 */
+    private static final String FIELD_DELIVERIES = "deliveries";
+
     /** 投递失败状态 */
     private static final String STATUS_FAILED = "FAILED";
 
@@ -120,6 +126,9 @@ public class MessageInternalClient implements MessageDispatchPort {
         body.put("payload", payload);
         body.put("channels", List.of(channelCode));
         body.put("recipients", List.of(recipient));
+        if (properties.getCallbackUrl() != null && !properties.getCallbackUrl().isBlank()) {
+            body.put("callbackUrl", properties.getCallbackUrl());
+        }
         try {
             Map<String, Object> response = restClient.post()
                     .uri(SEND_PATH)
@@ -144,6 +153,9 @@ public class MessageInternalClient implements MessageDispatchPort {
     /**
      * 判定投递明细：全部成功才算 SENT；出现失败/跳过时返回失败原因，不伪造成功。
      *
+     * <p>成功时回填 {@code messageId} 与渠道侧 {@code providerMessageId}，供后续
+     * 送达回执回调反查触达明细。</p>
+     *
      * @param data 响应体 data 节点
      * @return 投递结果
      */
@@ -152,25 +164,50 @@ public class MessageInternalClient implements MessageDispatchPort {
         if (!(data instanceof Map<?, ?> result)) {
             return MessageDispatchResult.sent();
         }
-        Object deliveries = ((Map<String, Object>) result).get("deliveries");
-        if (!(deliveries instanceof List<?> list) || list.isEmpty()) {
-            return MessageDispatchResult.sent();
+        Long messageId = parseMessageId(((Map<String, Object>) result).get(FIELD_MESSAGE_ID));
+        Object deliveries = ((Map<String, Object>) result).get(FIELD_DELIVERIES);
+        String providerMessageId = null;
+        if (deliveries instanceof List<?> list) {
+            for (Object element : list) {
+                if (!(element instanceof Map<?, ?> delivery)) {
+                    continue;
+                }
+                Object status = delivery.get("status");
+                if (STATUS_MOCKED.equals(status)) {
+                    return MessageDispatchResult.failed("消息通道处于 mock 模式，未真实投递");
+                }
+                if (STATUS_FAILED.equals(status) || STATUS_SKIPPED.equals(status)) {
+                    Object error = delivery.get("errorMessage");
+                    return MessageDispatchResult.failed(error == null
+                            ? "消息投递结果 " + status : String.valueOf(error));
+                }
+                if (providerMessageId == null) {
+                    Object providerId = delivery.get("providerMessageId");
+                    providerMessageId = providerId == null ? null : String.valueOf(providerId);
+                }
+            }
         }
-        for (Object element : list) {
-            if (!(element instanceof Map<?, ?> delivery)) {
-                continue;
-            }
-            Object status = delivery.get("status");
-            if (STATUS_MOCKED.equals(status)) {
-                return MessageDispatchResult.failed("消息通道处于 mock 模式，未真实投递");
-            }
-            if (STATUS_FAILED.equals(status) || STATUS_SKIPPED.equals(status)) {
-                Object error = delivery.get("errorMessage");
-                return MessageDispatchResult.failed(error == null
-                        ? "消息投递结果 " + status : String.valueOf(error));
+        return MessageDispatchResult.sent(messageId, providerMessageId);
+    }
+
+    /**
+     * 解析消息服务返回的消息ID。
+     *
+     * @param node 节点值
+     * @return 消息ID；无法解析返回 {@code null}
+     */
+    private Long parseMessageId(Object node) {
+        if (node instanceof Number number) {
+            return number.longValue();
+        }
+        if (node instanceof String text && !text.isBlank()) {
+            try {
+                return Long.parseLong(text.trim());
+            } catch (NumberFormatException exception) {
+                return null;
             }
         }
-        return MessageDispatchResult.sent();
+        return null;
     }
 
     /**

@@ -28,7 +28,10 @@ public class CrmMarketingProperties {
     private String defaultChannel = "EMAIL";
 
     /** 消息服务内网地址 */
-    private String messageUrl = "http://127.0.0.1:8085";
+    private String messageUrl = "http://127.0.0.1:8094";
+
+    /** 送达回执回调地址（消息服务回传渠道回执的内网端点；为空则不再回传） */
+    private String callbackUrl = "http://127.0.0.1:9007/crm/internal/marketing/delivery-callback";
 
     /** 消息服务连接超时（毫秒） */
     private int connectTimeoutMillis = 1000;

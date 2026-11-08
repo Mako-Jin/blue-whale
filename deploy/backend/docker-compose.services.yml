@@ -242,6 +242,8 @@ services:
       # 营销触达投递：whale-message 内网地址（application.yml 未声明该段，靠 relaxed binding 注入，
       # 落到 CrmMarketingProperties#messageUrl；默认值 127.0.0.1:8085 已被 bw-file 占用）
       WHALE_CRM_MARKETING_MESSAGE_URL: "http://bw-message:8094"
+      # 送达回执回调：消息服务按 providerMessageId 匹配投递记录后回调本端点（容器内走容器名）
+      WHALE_CRM_MARKETING_CALLBACK_URL: "http://bw-crm:9007/crm/internal/marketing/delivery-callback"
       WHALE_CRM_AR_ENABLED: "true"
       # 流程定义 ID 由 /workflow/internal/definition/ensure 幂等种子产生（bluewhale_workflow）
       WHALE_CRM_ORDER_DEFINITION_ID: "2119255494021709826"

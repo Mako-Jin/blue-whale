@@ -130,7 +130,9 @@ whale:
       send-batch-size: ${WHALE_CRM_MARKETING_SEND_BATCH_SIZE:200}
       daily-frequency-limit: ${WHALE_CRM_MARKETING_DAILY_LIMIT:1}
       default-channel: ${WHALE_CRM_MARKETING_DEFAULT_CHANNEL:EMAIL}
-      message-url: ${WHALE_MESSAGE_URL:http://127.0.0.1:8085}
+      message-url: ${WHALE_MESSAGE_URL:http://127.0.0.1:8094}
+      # 送达回执回调：消息服务按 providerMessageId 匹配投递记录后回调本端点（内网直连）
+      callback-url: ${WHALE_CRM_MARKETING_CALLBACK_URL:http://127.0.0.1:9007/crm/internal/marketing/delivery-callback}
       connect-timeout-millis: ${WHALE_CRM_MESSAGE_CONNECT_TIMEOUT:1000}
       read-timeout-millis: ${WHALE_CRM_MESSAGE_READ_TIMEOUT:3000}
       auto-approve-report: ${WHALE_CRM_PARTNER_AUTO_APPROVE:false}

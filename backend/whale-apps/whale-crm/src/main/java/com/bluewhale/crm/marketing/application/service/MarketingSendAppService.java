@@ -2,7 +2,9 @@ package com.bluewhale.crm.marketing.application.service;
 
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.crm.common.CrmActor;
+import com.bluewhale.crm.marketing.application.command.DeliveryReceiptCommand;
 import com.bluewhale.crm.marketing.application.command.MarketingSendCreateCommand;
+import com.bluewhale.crm.marketing.application.view.DeliveryReceiptView;
 import com.bluewhale.crm.marketing.application.view.MarketingSendView;
 import com.bluewhale.crm.marketing.domain.model.MarketingSendQuery;
 
@@ -48,4 +50,12 @@ public interface MarketingSendAppService {
      * @return 视图
      */
     MarketingSendView execute(Long id, CrmActor actor);
+
+    /**
+     * 承接渠道送达回执（幂等，单向推进明细状态并重算任务计数）。
+     *
+     * @param command 回执回调命令
+     * @return 处理结果
+     */
+    DeliveryReceiptView applyDeliveryReceipt(DeliveryReceiptCommand command);
 }

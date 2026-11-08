@@ -13,6 +13,9 @@ public enum MessageStatus {
     /** 至少一条投递成功，且无失败 */
     SENT,
 
+    /** 全部投递均已被渠道确认送达（回执聚合而来，无待送达/退信/失败） */
+    DELIVERED,
+
     /** 部分投递失败 */
     PARTIAL,
 

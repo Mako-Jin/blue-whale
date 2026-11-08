@@ -72,21 +72,27 @@ class MessageFlywayMigrationScriptTest {
     }
 
     /**
-     * 基线一致性：V1 建表集合与 init.sql 一致
+     * 基线一致性：全部迁移脚本建表集合与 init.sql 一致
+     *
+     * <p>V1 之后的增量脚本（如 V2 回执表）同样要回写 {@code init.sql}——手工空库初始化
+     * 与 Flyway 增量部署必须收敛到同一份表结构，否则两条部署路径会分叉。</p>
      *
      * @throws IOException 读取脚本失败
      */
     @Test
-    @DisplayName("V1 基线表集合一致")
+    @DisplayName("迁移脚本建表集合与 init.sql 一致")
     void baselineShouldMatchInitScript() throws IOException {
         Set<String> initTables = extractTables(INIT_SCRIPT);
-        Set<String> baselineTables = extractTables(MIGRATION_DIR.resolve("V1__baseline.sql"));
+        Set<String> migratedTables = new LinkedHashSet<>();
+        for (Path script : migrationScripts()) {
+            migratedTables.addAll(extractTables(script));
+        }
         assertFalse(initTables.isEmpty(), "init.sql 未解析到建表语句");
-        assertEquals(initTables, baselineTables, "V1 基线与 init.sql 的建表集合不一致");
-        assertEquals(6, baselineTables.size(), "消息服务 基线应包含 6 张表");
+        assertEquals(initTables, migratedTables, "迁移脚本与 init.sql 的建表集合不一致");
+        assertEquals(8, migratedTables.size(), "消息服务 迁移脚本应包含 8 张表");
         for (String table : List.of("msg_template", "msg_record", "msg_delivery",
-                "msg_announcement")) {
-            assertTrue(baselineTables.contains(table), "基线必须包含表：" + table);
+                "msg_announcement", "msg_receipt", "msg_callback_task")) {
+            assertTrue(migratedTables.contains(table), "迁移脚本必须包含表：" + table);
         }
 
     }
