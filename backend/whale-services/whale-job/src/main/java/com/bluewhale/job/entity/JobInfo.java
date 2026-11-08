@@ -29,6 +29,12 @@ public class JobInfo extends BaseEntity {
     /** 任务分组，便于分类管理 */
     private String jobGroup;
 
+    /** 执行器应用名（Nacos 服务名），HTTP 型任务据此寻址 */
+    private String executorApp;
+
+    /** 任务编码（对应 @ScheduledJob.code），为空时按执行器参数直连 */
+    private String jobCode;
+
     /** Cron 执行表达式，如 {@code 0 0/5 * * * ?} */
     private String cronExpression;
 

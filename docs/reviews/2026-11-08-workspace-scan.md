@@ -207,3 +207,22 @@
 **P0 状态：§二 P0 全部实机闭环**（退换货→退货过账、发票对账、ERP↔MES、定时任务、营销发送投递回执）。
 
 **剩余 P1**：① `@Scheduled` 无分布式锁（21 处，含新增回执派发器）；② 真实渠道回执接入（`mock=true` 下 EMAIL/SMS 无真实 `providerMessageId`）。
+
+## 十五、补记（同日 19:10：定时任务迁入统一调度中心）
+
+**原 P1「`@Scheduled` 无分布式锁」进入收敛通道**：实测全仓 **37 个** `@Scheduled` 方法（此前记的 21 处偏少），已完成调度中心容器化与执行器协议，并迁入首批 2 个任务。
+
+| 侧 | 落地 |
+|---|---|
+| 调度中心 | `bw-job` 首次容器化（8082）；`job_executor` 注册表 + `job_info.executor_app/job_code`；注册/心跳/注销/查询内网接口 |
+| 执行器 | `HttpJobHandler`：注册表 ∩ Nacos 寻址、按 `job_codes` 做能力校验、解业务码、租户头、强制读超时 |
+| SDK | starter `@ScheduledJob` 双模式（`whale.schedule.local-enabled`），内网触发端点与注册器默认关闭，既有服务零感知 |
+| 试点 | CRM `crm.analytics.snapshot` / `crm.analytics.action-plan` |
+
+**实机**：注册成功 → 手动触发 `status=1` → cron `18:44:00` 自动成功 → 故意错配任务编码时 `status=-1/retry=1` 且错误信息可读 → 新镜像后「能力校验」直接拦截 → 假地址 90s 自动离线。
+
+**关键判断**：37 个任务里 **10 个「进程内工作泵」不应迁移**（outbox 泵、索引 flush、缓存对账、播放数刷盘、60s 外部轮询），它们需要「每实例各跑」，远程调度只会放大延迟与故障面。**该迁 27 个，已迁 2 个，剩 25 个。**
+
+**剩余 P1**：① 25 个任务分批迁移；② 执行日志回捞；③ 动态分片；④ 生产必须配置 `WHALE_INTERNAL_TOKEN`（dev 下空令牌 fail-open）。
+
+清单见 `docs/plans/whale-job-scheduled-migration.md`。

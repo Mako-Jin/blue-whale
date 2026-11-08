@@ -14,3 +14,4 @@ com.bluewhale.common.log.config.WhaleLogAutoConfiguration
 com.bluewhale.common.security.WhalePermissionAutoConfiguration
 com.bluewhale.common.security.DataSourcePasswordGuardAutoConfiguration
 com.bluewhale.common.internaltoken.config.InternalTokenAutoConfiguration
+com.bluewhale.common.jobschedule.config.JobScheduleAutoConfiguration

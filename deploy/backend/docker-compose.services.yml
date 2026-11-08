@@ -222,6 +222,33 @@ services:
       retries: 12
       start_period: 90s
 
+  # ---------------- 定时任务调度中心 ----------------
+  job:
+    <<: *common
+    image: bluewhale/whale-job:dev
+    container_name: bw-job
+    environment:
+      JAVA_OPTS: "-Xms192m -Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "8082"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      # application.yml 里数据源地址硬编码 127.0.0.1，容器内必须整条覆盖
+      SPRING_DATASOURCE_URL: "jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/bluewhale_job?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true"
+      SPRING_DATA_REDIS_HOST: ${REDIS_HOST}
+      SPRING_DATA_REDIS_PORT: "6379"
+      # 既有库由 db/init.sql 建、无 flyway 历史，基线从 0 开始补 V1 + V2
+      SPRING_FLYWAY_BASELINE_VERSION: "0"
+      WHALE_JOB_FILE_SERVICE_URL: "http://bw-file:8085"
+    ports:
+      - "127.0.0.1:8082:8082"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8082/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 90s
+
   # ---------------- CRM ----------------
   crm:
     <<: *common
@@ -249,6 +276,11 @@ services:
       WHALE_CRM_ORDER_DEFINITION_ID: "2119255494021709826"
       WHALE_CRM_RETURN_DEFINITION_ID: "2119328771817082881"
       WHALE_CRM_INVOICE_DEFINITION_ID: "2119328772467200001"
+      # 定时任务迁入 whale-job：关闭进程内 cron、开放内网触发端点、向调度中心注册执行器
+      WHALE_SCHEDULE_LOCAL_ENABLED: "false"
+      WHALE_SCHEDULE_TRIGGER_ENABLED: "true"
+      WHALE_SCHEDULE_EXECUTOR_REGISTER_ENABLED: "true"
+      WHALE_SCHEDULE_EXECUTOR_SERVER_URL: "http://bw-job:8082"
     ports:
       - "127.0.0.1:9007:9007"
     healthcheck:

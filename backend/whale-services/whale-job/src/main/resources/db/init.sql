@@ -21,6 +21,8 @@ CREATE TABLE job_info (
     tenant_id       BIGINT        NOT NULL DEFAULT 1     COMMENT '租户ID（行级隔离；调度时绑定对应租户上下文）',
     job_name        VARCHAR(64)   NOT NULL               COMMENT '任务名称',
     job_group       VARCHAR(64)   NOT NULL DEFAULT 'DEFAULT' COMMENT '任务分组，便于分类管理',
+    executor_app    VARCHAR(64)   DEFAULT NULL           COMMENT '执行器应用名（Nacos 服务名），HTTP 型任务据此寻址',
+    job_code        VARCHAR(128)  DEFAULT NULL           COMMENT '任务编码（对应 @ScheduledJob.code），为空时按执行器参数直连',
     cron_expression VARCHAR(64)   DEFAULT NULL           COMMENT 'Cron 执行表达式，如 0 0/5 * * * ?',
     handler_bean    VARCHAR(128)  NOT NULL               COMMENT '执行器 Bean 名称（Spring 容器中的处理器）',
     handler_param   VARCHAR(512)  DEFAULT NULL           COMMENT '执行器参数（任务执行时透传）',
@@ -127,6 +129,27 @@ INSERT INTO job_info (id, job_name, job_group, cron_expression, handler_bean, ha
                       misfire_policy, status, remark)
 VALUES (2, '执行日志归档', 'SYSTEM', '0 0 4 * * ?', 'jobLogArchiveHandler', NULL,
         'SMART', 1, '内置任务：导出过期 job_log 至 whale-file 后清理，保留天数见 whale.job.log-retention-days');
+
+-- ---------------------------------------------------------------------
+-- 5. 执行器注册表（对齐 xxl-job executor：谁在线、谁支持哪些任务）
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS job_executor;
+CREATE TABLE job_executor (
+    id          BIGINT        NOT NULL               COMMENT '主键ID（雪花算法）',
+    tenant_id   BIGINT        NOT NULL DEFAULT 1     COMMENT '租户ID',
+    app_name    VARCHAR(64)   NOT NULL               COMMENT '执行器应用名（Nacos 服务名），如 whale-crm',
+    address     VARCHAR(128)  NOT NULL               COMMENT '实例地址 host:port',
+    job_codes   VARCHAR(2048) DEFAULT NULL           COMMENT '该实例支持的任务编码，逗号分隔',
+    last_beat   DATETIME      NOT NULL               COMMENT '最近心跳时间（超时未心跳视为离线）',
+    status      TINYINT       NOT NULL DEFAULT 1     COMMENT '状态：1 在线 / 0 已注销',
+    create_time DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted     TINYINT       NOT NULL DEFAULT 0     COMMENT '逻辑删除：0 未删除 / 1 已删除',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_tenant_app_address (tenant_id, app_name, address),
+    KEY idx_tenant_app (tenant_id, app_name),
+    KEY idx_last_beat (last_beat)
+) COMMENT='执行器注册表';
 
 -- ---------------------------------------------------------------------
 -- 后端接口日志表（whale-spring-boot-starter ApiLogFilter 采集，结构与 bluewhale_auth.api_log 一致）

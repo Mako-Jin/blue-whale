@@ -23,6 +23,14 @@ public class JobInfoUpdateRequest {
     @Size(max = 64, message = "任务分组长度不能超过 64")
     private String jobGroup;
 
+    /** 执行器应用名（Nacos 服务名）：配置后按注册表寻址 */
+    @Size(max = 64, message = "执行器应用名长度不能超过 64")
+    private String executorApp;
+
+    /** 任务编码（对应业务侧 @ScheduledJob.code） */
+    @Size(max = 128, message = "任务编码长度不能超过 128")
+    private String jobCode;
+
     /** Cron 执行表达式 */
     @NotBlank(message = "Cron 表达式不能为空")
     @Size(max = 64, message = "Cron 表达式长度不能超过 64")

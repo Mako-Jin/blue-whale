@@ -371,6 +371,8 @@ whale:
         - /contract/internal/**
         # Wave 5.68 统一消息内网发送：仅业务服务经内网直连 whale-message
         - /message/internal/**
+        # 执行器注册与任务触发：仅业务服务与调度中心之间的内网直连
+        - /job/internal/**
         # Wave 5.89 邮箱内网通道：收发信事件 / 同步回执仅服务间内网直连 whale-mail
         - /mail/internal/**
         # Wave 5.74 文档内网通道：知识源/文件引用等仅服务间内网直连 whale-doc

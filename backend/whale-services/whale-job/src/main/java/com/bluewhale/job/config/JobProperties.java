@@ -24,6 +24,27 @@ public class JobProperties {
     /** 失败告警配置 */
     private Alert alert = new Alert();
 
+    /** 执行器注册配置 */
+    private Executor executor = new Executor();
+
+    /**
+     * 执行器注册配置项。
+     *
+     * @author BlueWhale
+     */
+    @Data
+    public static class Executor {
+
+        /** 心跳超时秒数：超过该时长未心跳的实例视为离线，调度时不再寻址到它 */
+        private int heartbeatTimeoutSeconds = 90;
+
+        /** HTTP 执行器默认读取超时毫秒数：任务参数未指定时使用 */
+        private int httpTimeoutMillis = 60000;
+
+        /** HTTP 执行器连接超时毫秒数 */
+        private int httpConnectTimeoutMillis = 5000;
+    }
+
     /**
      * 失败告警配置项。
      *

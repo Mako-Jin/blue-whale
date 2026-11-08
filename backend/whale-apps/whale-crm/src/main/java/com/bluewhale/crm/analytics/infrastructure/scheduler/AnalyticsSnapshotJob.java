@@ -1,12 +1,12 @@
 package com.bluewhale.crm.analytics.infrastructure.scheduler;
 
+import com.bluewhale.common.jobschedule.ScheduledJob;
 import com.bluewhale.crm.analytics.application.service.ActionPlanAppService;
 import com.bluewhale.crm.analytics.application.service.AnalyticsAppService;
 import com.bluewhale.crm.common.CrmActor;
 import com.bluewhale.crm.config.CrmAnalyticsProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -32,23 +32,32 @@ public class AnalyticsSnapshotJob {
 
     /**
      * 生成昨日指标快照。
+     *
+     * @return 执行摘要
      */
-    @Scheduled(cron = "${whale.crm.analytics.snapshot-cron:0 0 2 * * ?}")
-    public void generateSnapshots() {
+    @ScheduledJob(code = "crm.analytics.snapshot",
+            cron = "${whale.crm.analytics.snapshot-cron:0 0 2 * * ?}", timeoutSeconds = 600)
+    public String generateSnapshots() {
         if (!analyticsProperties.isEnabled()) {
-            return;
+            return "SKIPPED: whale.crm.analytics.enabled=false";
         }
-        analyticsAppService.generateSnapshots(LocalDate.now().minusDays(1));
+        LocalDate target = LocalDate.now().minusDays(1);
+        analyticsAppService.generateSnapshots(target);
+        return "OK: snapshot " + target;
     }
 
     /**
      * 生成行动计划。
+     *
+     * @return 执行摘要
      */
-    @Scheduled(cron = "${whale.crm.analytics.action-plan-cron:0 30 2 * * ?}")
-    public void generateActionItems() {
+    @ScheduledJob(code = "crm.analytics.action-plan",
+            cron = "${whale.crm.analytics.action-plan-cron:0 30 2 * * ?}", timeoutSeconds = 600)
+    public String generateActionItems() {
         if (!analyticsProperties.isEnabled()) {
-            return;
+            return "SKIPPED: whale.crm.analytics.enabled=false";
         }
         actionPlanAppService.generate(new CrmActor(0L, "system", Set.of("tenant_admin"), Set.of()));
+        return "OK: action plan generated";
     }
 }

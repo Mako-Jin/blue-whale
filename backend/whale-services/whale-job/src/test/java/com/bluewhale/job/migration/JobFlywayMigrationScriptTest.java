@@ -72,22 +72,33 @@ class JobFlywayMigrationScriptTest {
     }
 
     /**
-     * 基线一致性：V1 建表集合与 init.sql 一致
+     * 建表集合一致性：init.sql 必须等于「全部迁移脚本建表的总和」。
+     *
+     * <p>init.sql 面向新库一次性建表，迁移脚本面向老库增量升级；两者若不一致，
+     * 会出现「新库能跑、老库升级后缺表」或反过来的漂移。这里以迁移脚本为权威，
+     * 要求 init.sql 恰好覆盖 V1 与后续增量脚本的建表并集。</p>
      *
      * @throws IOException 读取脚本失败
      */
     @Test
-    @DisplayName("V1 基线表集合一致")
+    @DisplayName("init.sql 覆盖全部迁移脚本的建表集合")
     void baselineShouldMatchInitScript() throws IOException {
         Set<String> initTables = extractTables(INIT_SCRIPT);
         Set<String> baselineTables = extractTables(MIGRATION_DIR.resolve("V1__baseline.sql"));
         assertFalse(initTables.isEmpty(), "init.sql 未解析到建表语句");
-        assertEquals(initTables, baselineTables, "V1 基线与 init.sql 的建表集合不一致");
         assertEquals(5, baselineTables.size(), "任务调度 基线应包含 5 张表");
         for (String table : List.of("job_info", "job_log", "job_dependency")) {
             assertTrue(baselineTables.contains(table), "基线必须包含表：" + table);
         }
-
+        Set<String> migrationTables = new java.util.HashSet<>(baselineTables);
+        for (Path script : migrationScripts()) {
+            if (!script.getFileName().toString().startsWith("V1__")) {
+                migrationTables.addAll(extractTables(script));
+            }
+        }
+        assertEquals(migrationTables, initTables,
+                "init.sql 与迁移脚本建表集合不一致（多出或缺失）");
+        assertTrue(initTables.contains("job_executor"), "init.sql 必须包含 V2 新增的 job_executor");
     }
 
     /**

@@ -24,6 +24,12 @@ public class JobInfoVO implements Serializable {
     /** 任务分组 */
     private String jobGroup;
 
+    /** 执行器应用名（Nacos 服务名） */
+    private String executorApp;
+
+    /** 任务编码（对应业务侧 @ScheduledJob.code） */
+    private String jobCode;
+
     /** Cron 执行表达式 */
     private String cronExpression;
 

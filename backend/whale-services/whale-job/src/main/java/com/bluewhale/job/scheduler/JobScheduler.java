@@ -709,7 +709,8 @@ public class JobScheduler {
     private String invokeHandler(JobInfo job, int shardIndex, int shardTotal, int retryCount) throws Exception {
         JobHandler handler = jobHandlerRegistry.resolve(job.getHandlerBean());
         JobExecutionContext context = new JobExecutionContext(job.getId(), job.getJobName(),
-                job.getHandlerParam(), shardIndex, shardTotal, retryCount);
+                job.getHandlerParam(), shardIndex, shardTotal, retryCount,
+                job.getTenantId(), job.getExecutorApp(), job.getJobCode());
         return handler.executeWithContext(context);
     }
 
