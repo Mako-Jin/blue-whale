@@ -7,6 +7,7 @@ import com.bluewhale.job.entity.JobLog;
 import com.bluewhale.job.mapper.JobDependencyMapper;
 import com.bluewhale.job.mapper.JobInfoMapper;
 import com.bluewhale.job.mapper.JobLogMapper;
+import com.bluewhale.job.scheduler.handler.JobNotDispatchableException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -208,6 +209,29 @@ class JobSchedulerTest {
         scheduler.runOnce(1L);
 
         verify(jobLogMapper, timeout(5000)).updateById(any(JobLog.class));
+    }
+
+    @Test
+    @DisplayName("投递失败：执行器未部署时直接终态，不占着调度线程等重试间隔")
+    void shouldFailFastWhenNotDispatchable() {
+        AtomicInteger attempts = new AtomicInteger();
+        when(jobHandlerRegistry.resolve("demoJobHandler")).thenReturn(param -> {
+            attempts.incrementAndGet();
+            throw new JobNotDispatchableException("执行器无在线实例: app=whale-archive");
+        });
+        JobInfo job = job(1L, "SMART");
+        job.setMaxRetry(3);
+        job.setRetryIntervalSeconds(300);
+
+        long startedAt = System.currentTimeMillis();
+        scheduler.doExecute(job);
+
+        assertTrue(System.currentTimeMillis() - startedAt < 5000);
+        assertEquals(1, attempts.get());
+        ArgumentCaptor<JobLog> updateCaptor = ArgumentCaptor.forClass(JobLog.class);
+        verify(jobLogMapper).updateById(updateCaptor.capture());
+        assertEquals(LOG_STATUS_FAILURE, updateCaptor.getValue().getStatus());
+        assertEquals(0, updateCaptor.getValue().getRetryCount().intValue());
     }
 
     @Test

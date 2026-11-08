@@ -1,10 +1,10 @@
 package com.bluewhale.oa.hr.interfaces.job;
 
+import com.bluewhale.common.jobschedule.ScheduledJob;
 import com.bluewhale.oa.hr.application.service.TripReportReminderAppService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -38,11 +38,15 @@ public class TripReportReminderJob {
 
     /**
      * 扫描并提醒逾期未提交报告的出差单。
+     *
+     * @return 执行摘要（{@code skipped} 或截止日/提醒条数）
      */
-    @Scheduled(cron = "${whale.oa.trip.report-reminder.cron:0 0 9 * * *}")
-    public void remind() {
+    @ScheduledJob(code = "oa.trip.report-reminder",
+            cron = "${whale.oa.trip.report-reminder.cron:0 0 9 * * *}",
+            timeoutSeconds = 900)
+    public String remind() {
         if (!enabled) {
-            return;
+            return "skipped: report-reminder disabled";
         }
         LocalDate deadline = LocalDate.now().minusDays(Math.max(daysAfter, 0L));
         int notified = tripReportReminderAppService
@@ -50,5 +54,6 @@ public class TripReportReminderJob {
         if (notified > 0) {
             log.info("出差报告提醒任务完成: deadline={}, notified={}", deadline, notified);
         }
+        return "deadline=" + deadline + ", notified=" + notified;
     }
 }

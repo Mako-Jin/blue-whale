@@ -127,13 +127,29 @@ class PlayAppServiceImplTest {
     }
 
     /**
-     * 草稿等不可见内容不签发票据，避免泄露存在性。
+     * 作者本人的草稿：内容存在且对自己可见，但未发布 → 按「不可播放」拒绝（40303）。
+     *
+     * <p>与「他人草稿」区分：后者连存在性都不能暴露，才返回 40401。</p>
      */
     @Test
-    void shouldRejectTicketForInvisibleContent() {
-        when(contentRepository.findById(CONTENT_ID)).thenReturn(Optional.of(draftContent()));
+    void shouldRejectTicketForOwnDraftAsNotPlayable() {
+        when(contentRepository.findById(DRAFT_ID)).thenReturn(Optional.of(draftContent()));
         BizException exception = assertThrows(BizException.class,
-                () -> playAppService.issueTicket(CONTENT_ID, USER_ID, TENANT_ID));
+                () -> playAppService.issueTicket(DRAFT_ID, USER_ID, TENANT_ID));
+        assertEquals(VideoErrorCode.CONTENT_NOT_PLAYABLE, exception.getCode());
+        verify(playTicketRepository, never()).issue(any(), anyInt());
+    }
+
+    /**
+     * 他人草稿对当前用户不可见，返回 40401 避免泄露内容存在性。
+     */
+    @Test
+    void shouldRejectTicketForOthersDraftAsNotFound() {
+        Content othersDraft = draftContent();
+        othersDraft.setUploaderId(USER_ID + 1);
+        when(contentRepository.findById(DRAFT_ID)).thenReturn(Optional.of(othersDraft));
+        BizException exception = assertThrows(BizException.class,
+                () -> playAppService.issueTicket(DRAFT_ID, USER_ID, TENANT_ID));
         assertEquals(VideoErrorCode.CONTENT_NOT_FOUND, exception.getCode());
         verify(playTicketRepository, never()).issue(any(), anyInt());
     }

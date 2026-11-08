@@ -464,3 +464,68 @@ Nacos 只能回答「这个服务有几个实例」，回答不了「这个实�
 已迁 15 / 27（CRM 6 + 清理类 6 + PDM 1 + Archive 2），**剩余 12 个**：CRM 推送/对账 4、OA 5、LMS 1、Party 1、Auth 1。
 
 Auth 的 `PasswordExpiryNoticeJob` 仍待处理：读取该文件时审批超时，按规则未重试、未绕过，需重新授权后再做。
+
+---
+
+## 12. 第五批：OA 提醒/对账 3 个（2026-11-08 20:20–20:28）
+
+| 服务 | 任务 code | 类.方法 | cron | 摘要字段 |
+|---|---|---|---|---|
+| whale-oa | `oa.approval.auto-urge` | `ApprovalMaintenanceJob#autoUrge` | `0 0 */2 * * *` | `total/notified` |
+| whale-oa | `oa.approval.reconcile` | `ApprovalMaintenanceJob#reconcile` | `0 */30 * * * *` | `scanned/synced` |
+| whale-oa | `oa.trip.report-reminder` | `TripReportReminderJob#remind` | `0 0 9 * * *` | `deadline/notified` |
+
+配套：`V6__seed_oa_jobs.sql`（3 条，按 `job_code` 判重）；`docker-compose.services.yml` 的 `oa` 段补 `WHALE_SCHEDULE_*` 四个环境变量。
+
+实机：`whale-oa` 注册 `172.18.0.9:9004`、能力集 3 个 code；三个任务手动触发全部 `status=1`：
+`deadline=2026-11-05, notified=0` / `scanned=0, synced=0` / `total=0, notified=0`。
+
+**OA 还剩 2 个推送 ERP 的任务**（`oa.purchase.push`、`oa.expense.payable-push`），与 CRM 4 个推送/对账一起留到最后的推送批。
+
+---
+
+## 13. 补验与修正（2026-11-08 20:28–20:45）
+
+### 13.1 dev 建库后端到端验证 doc / video 4 个任务
+
+`bluewhale_doc`、`bluewhale_video` 两个库此前缺失（`01-init-databases.sql` 未建），本轮补齐（`utf8mb4/utf8mb4_unicode_ci`，用一次性 Java 工具建，不落任何业务数据）。随后临时起两个验证实例：
+
+| 验证项 | 结果 |
+|---|---|
+| whale-video 起服 | Flyway `bluewhale_video` 从 v0 迁到 **v4**（baseline / series / movie collection / watch-history 索引）→ success |
+| whale-doc 起服 | `bluewhale_doc` 建表完成，执行器注册 `172.18.0.14:8095`，能力集 2 个 code |
+| video 注册 | `172.18.0.15:8098`，能力集 2 个 code |
+| `doc.recycle.cleanup` | `status=1`、`removed=0` |
+| `doc.orphan-attachment.cleanup` | `status=1`、返回值 `0`（`int` 契约保持） |
+| `video.license-expiry.offline` | `status=1`、`scanned=0, offline=0, failed=0` |
+| `video.watch-history.cleanup` | `status=1`、`deleted=0, batches=1` |
+
+验证实例用完即 down；这四个任务在 `job_info` 里**重置为 status=0**（服务未常驻 compose，避免每轮触发失败告警）。启用方式：服务起好后把对应行的 `status` 置 1。
+
+### 13.2 调度侧：投递不出去的任务不再白等重试
+
+**问题**：`archive.sync`（服务未部署）每次 CRON 触发都走「失败 → 睡满 300s 再重试」；调度线程池只有 4 个，几个未部署的服务就能把调度饿死，且执行流水长时间停在 `status=0`（running）。
+
+**修法**：新增 `JobNotDispatchableException`（执行器未部署 / 在线但不支持该任务 / 未配置寻址），`HttpJobHandler` 三处寻址失败改抛该异常；`JobScheduler.executeShard` 识别后**直接记失败终态、不重试**，并沿 cause 链判断。
+
+**实机对照**：
+
+| 场景 | 修复前 | 修复后 |
+|---|---|---|
+| `archive.sync` 手动触发 | `status=0`，5 分钟后才转 `-1` | `status=-1`，`retry=0`，`errorMsg=JobNotDispatchableException: 执行器无在线实例: app=whale-archive（检查业务服务是否已开启注册、心跳是否正常）` |
+
+### 13.3 video 测试口径修正（实现不改）
+
+`PlayAppServiceImplTest.shouldRejectTicketForInvisibleContent` 在 HEAD 上就红：期望 `40401`、实得 `40303`。
+
+**判定：实现正确，错的是测试夹具。** 两个错误码语义不同：`40401` 表示「对你不可见」，连存在性都不暴露；`40303` 表示「你看得见但不可播」。`visibleTo()` 明确让上传者看到自己的草稿（否则作者无法编辑/发布自己的草稿），所以「作者看自己的草稿」走 `40303` 是对的；而测试用的 `draftContent()` 上传者正是当前用户，用例名说的「不可见」并不成立。
+
+改法：拆成两例——`shouldRejectTicketForOwnDraftAsNotPlayable`（作者本人草稿 → `40303`）与 `shouldRejectTicketForOthersDraftAsNotFound`（他人草稿 → `40401`，覆盖「不泄露存在性」）。
+
+### 13.4 门禁
+
+`whale-oa` 279、`whale-job` 84（新增快速失败 1 例）、`whale-video` 全模块绿（原 151 例中那 1 例既有失败已按口径修好），Checkstyle 0、ArchUnit 绿。
+
+### 13.5 进度
+
+已迁 18 / 27，**剩余 9 个**：CRM 推送/对账 4（order push / order reconcile / return push / return reconcile）、OA 推送 2（purchase push / expense payable push）、LMS 1、Party 1、Auth 1。

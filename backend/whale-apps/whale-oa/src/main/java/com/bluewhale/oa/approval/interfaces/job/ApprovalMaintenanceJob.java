@@ -1,5 +1,6 @@
 package com.bluewhale.oa.approval.interfaces.job;
 
+import com.bluewhale.common.jobschedule.ScheduledJob;
 import com.bluewhale.oa.approval.application.command.ApprovalResultCommand;
 import com.bluewhale.oa.approval.application.service.ApprovalInstanceAppService;
 import com.bluewhale.oa.approval.application.service.ApprovalNotificationAppService;
@@ -10,7 +11,6 @@ import com.bluewhale.oa.approval.domain.repository.ApprovalInstanceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -72,11 +72,15 @@ public class ApprovalMaintenanceJob {
 
     /**
      * 自动催办：为超阈值未处理的审批发送提醒（消息服务按天去重）。
+     *
+     * @return 执行摘要（{@code skipped} 或扫描/提醒条数）
      */
-    @Scheduled(cron = "${whale.oa.approval.auto-urge.cron:0 0 */2 * * *}")
-    public void autoUrge() {
+    @ScheduledJob(code = "oa.approval.auto-urge",
+            cron = "${whale.oa.approval.auto-urge.cron:0 0 */2 * * *}",
+            timeoutSeconds = 1800)
+    public String autoUrge() {
         if (!autoUrgeEnabled) {
-            return;
+            return "skipped: auto-urge disabled";
         }
         LocalDateTime threshold = LocalDateTime.now().minusHours(Math.max(autoUrgeThresholdHours, 1L));
         List<ApprovalInstance> instances = approvalInstanceRepository
@@ -94,15 +98,20 @@ public class ApprovalMaintenanceJob {
         if (notified > 0) {
             log.info("自动催办完成: total={}, notified={}", instances.size(), notified);
         }
+        return "total=" + instances.size() + ", notified=" + notified;
     }
 
     /**
      * 状态对账：把 Workflow 终态回写本地审批实例并触发业务结果同步。
+     *
+     * @return 执行摘要（{@code skipped} 或扫描/回写条数）
      */
-    @Scheduled(cron = "${whale.oa.approval.reconcile.cron:0 */30 * * * *}")
-    public void reconcile() {
+    @ScheduledJob(code = "oa.approval.reconcile",
+            cron = "${whale.oa.approval.reconcile.cron:0 */30 * * * *}",
+            timeoutSeconds = 1800)
+    public String reconcile() {
         if (!reconcileEnabled) {
-            return;
+            return "skipped: reconcile disabled";
         }
         List<ApprovalInstance> instances = approvalInstanceRepository
                 .findRunningWithWorkflow(Math.max(reconcileBatchSize, 1));
@@ -115,6 +124,7 @@ public class ApprovalMaintenanceJob {
         if (synced > 0) {
             log.info("审批状态对账完成: scanned={}, synced={}", instances.size(), synced);
         }
+        return "scanned=" + instances.size() + ", synced=" + synced;
     }
 
     /**

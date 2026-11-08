@@ -131,7 +131,7 @@ VALUES (2, '执行日志归档', 'SYSTEM', '0 0 4 * * ?', 'jobLogArchiveHandler'
         'SMART', 1, '内置任务：导出过期 job_log 至 whale-file 后清理，保留天数见 whale.job.log-retention-days');
 
 -- 已迁移业务任务（与 db/migration/V3__seed_migrated_jobs.sql、V4__seed_crm_jobs.sql、
--- V5__seed_pdm_archive_jobs.sql 同源）：
+-- V5__seed_pdm_archive_jobs.sql、V6__seed_oa_jobs.sql 同源）：
 -- executor_app 为 Nacos 服务名，job_code 对应业务侧 @ScheduledJob.code()，
 -- 地址不落库（由 job_executor 注册表 + Nacos 实例交集解析）。
 INSERT INTO job_info (id, tenant_id, job_name, job_group, executor_app, job_code,
@@ -182,7 +182,16 @@ VALUES
  '迁移自 ArchiveSyncScheduler#sync（逐租户执行，开关 whale.archive.sync.enabled 默认关闭）'),
 (9100000000000000015, 1, '档案文件锁定补扫', 'ARCHIVE', 'whale-archive', 'archive.file-lock-reconcile',
  '0 30 3 * * *', 'httpJobHandler', '{"timeoutMillis":1800000}', 'DO_NOTHING', 1, 300, 1, 1,
- '迁移自 ArchiveFileLockReconcileScheduler#reconcile（逐租户游标补锁，开关 lock-reconcile.enabled）');
+ '迁移自 ArchiveFileLockReconcileScheduler#reconcile（逐租户游标补锁，开关 lock-reconcile.enabled）'),
+(9100000000000000016, 1, 'OA 审批自动催办', 'OA', 'whale-oa', 'oa.approval.auto-urge',
+ '0 0 */2 * * *', 'httpJobHandler', '{"timeoutMillis":1800000}', 'DO_NOTHING', 1, 300, 1, 1,
+ '迁移自 ApprovalMaintenanceJob#autoUrge（消息服务按天去重，开关 auto-urge.enabled）'),
+(9100000000000000017, 1, 'OA 审批状态对账', 'OA', 'whale-oa', 'oa.approval.reconcile',
+ '0 */30 * * * *', 'httpJobHandler', '{"timeoutMillis":1800000}', 'DO_NOTHING', 2, 300, 1, 1,
+ '迁移自 ApprovalMaintenanceJob#reconcile（回写幂等，失败可重试；开关 reconcile.enabled）'),
+(9100000000000000018, 1, 'OA 出差报告未交提醒', 'OA', 'whale-oa', 'oa.trip.report-reminder',
+ '0 0 9 * * *', 'httpJobHandler', '{"timeoutMillis":900000}', 'DO_NOTHING', 1, 300, 1, 1,
+ '迁移自 TripReportReminderJob#remind（开关 report-reminder.enabled）');
 
 -- ---------------------------------------------------------------------
 -- 5. 执行器注册表（对齐 xxl-job executor：谁在线、谁支持哪些任务）

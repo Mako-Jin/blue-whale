@@ -137,6 +137,11 @@ services:
       MYSQL_PORT: ${MYSQL_PORT}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      # 定时任务迁入 whale-job：关闭进程内 cron、开放内网触发端点、向调度中心注册执行器
+      WHALE_SCHEDULE_LOCAL_ENABLED: "false"
+      WHALE_SCHEDULE_TRIGGER_ENABLED: "true"
+      WHALE_SCHEDULE_EXECUTOR_REGISTER_ENABLED: "true"
+      WHALE_SCHEDULE_EXECUTOR_SERVER_URL: "http://bw-job:8082"
     ports:
       - "127.0.0.1:9004:9004"
     healthcheck:

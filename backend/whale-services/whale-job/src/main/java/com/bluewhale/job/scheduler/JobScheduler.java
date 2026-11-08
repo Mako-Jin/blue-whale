@@ -11,6 +11,7 @@ import com.bluewhale.job.entity.JobLog;
 import com.bluewhale.job.mapper.JobDependencyMapper;
 import com.bluewhale.job.mapper.JobInfoMapper;
 import com.bluewhale.job.mapper.JobLogMapper;
+import com.bluewhale.job.scheduler.handler.JobNotDispatchableException;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
@@ -654,6 +655,12 @@ public class JobScheduler {
                 markSuccess(jobLog, result, retryCount);
                 return true;
             } catch (Exception e) {
+                if (isNotDispatchable(e)) {
+                    markFailure(job, jobLog, e, retryCount);
+                    log.warn("任务无法投递，直接记失败且不重试: jobId={}, jobName={}, reason={}",
+                            job.getId(), job.getJobName(), e.getMessage());
+                    return false;
+                }
                 if (retryCount >= maxRetry) {
                     markFailure(job, jobLog, e, retryCount);
                     log.warn("任务执行失败且重试已耗尽: jobId={}, jobName={}, shardIndex={}/{}, retryCount={}",
@@ -670,6 +677,26 @@ public class JobScheduler {
                 }
             }
         }
+    }
+
+    /**
+     * 判断异常是否属于「投递不出去」：执行器未部署 / 不支持该任务 / 未配置寻址。
+     *
+     * <p>这类失败重试无意义，等待重试间隔只会白占调度线程（线程池仅 4 个），
+     * 因此直接记失败终态。沿 cause 链判断，兼容执行器内部包装。</p>
+     *
+     * @param error 执行期异常
+     * @return 不可投递返回 {@code true}
+     */
+    private static boolean isNotDispatchable(Throwable error) {
+        Throwable current = error;
+        while (current != null) {
+            if (current instanceof JobNotDispatchableException) {
+                return true;
+            }
+            current = current.getCause() == current ? null : current.getCause();
+        }
+        return false;
     }
 
     /**

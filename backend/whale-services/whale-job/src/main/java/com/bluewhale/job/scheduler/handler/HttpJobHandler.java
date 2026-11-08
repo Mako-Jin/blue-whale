@@ -164,7 +164,7 @@ public class HttpJobHandler implements JobHandler {
         if (StringUtils.hasText(directUrl)) {
             return directUrl;
         }
-        throw new IllegalStateException("任务未配置执行器：请填写 executor_app 与 job_code，"
+        throw new JobNotDispatchableException("任务未配置执行器：请填写 executor_app 与 job_code，"
                 + "或在执行器参数中提供 url");
     }
 
@@ -184,11 +184,11 @@ public class HttpJobHandler implements JobHandler {
         if (registered.isEmpty()) {
             List<String> anyOnline = jobExecutorService.onlineAddresses(tenantId, executorApp);
             if (!anyOnline.isEmpty()) {
-                throw new IllegalStateException("执行器在线但不支持该任务: app=" + executorApp
+                throw new JobNotDispatchableException("执行器在线但不支持该任务: app=" + executorApp
                         + ", jobCode=" + jobCode
                         + "（检查任务所在 Bean 是否被条件配置关闭，或该版本尚未发布该任务）");
             }
-            throw new IllegalStateException("执行器无在线实例: app=" + executorApp
+            throw new JobNotDispatchableException("执行器无在线实例: app=" + executorApp
                     + "（检查业务服务是否已开启注册、心跳是否正常）");
         }
         List<String> candidates = intersectWithDiscovery(executorApp, registered);
