@@ -38,7 +38,8 @@ import static org.mockito.Mockito.when;
 
 /**
  * {@link JwtAuthGlobalFilter} 单元测试：黑名单命中 401、正常放行注入身份头、
- * 拒绝 refreshToken 冒充访问令牌（REQ-SEC-003 / T5.7）。
+ * 拒绝 refreshToken 冒充访问令牌（REQ-SEC-003 / T5.7）、
+ * 改密撤销优先于强制改密 403。
  *
  * @author BlueWhale
  */
@@ -308,16 +309,35 @@ class JwtAuthGlobalFilterTest {
     }
 
     @Test
-    @DisplayName("filter：强制改密令牌访问业务接口返回 403，且不查黑名单、不转发下游")
+    @DisplayName("filter：强制改密令牌访问业务接口返回 403（通过全部撤销校验后）")
     void shouldReturnForbiddenWhenPasswordChangeRequired() {
         String accessToken = passwordChangeRequiredToken();
         MockServerWebExchange exchange = exchangeWithBearer(accessToken);
         GatewayFilterChain chain = mock(GatewayFilterChain.class);
+        when(tokenBlacklistChecker.isBlacklisted(accessToken)).thenReturn(Mono.just(Boolean.FALSE));
+        when(tenantStatusChecker.isUnavailable(anyString())).thenReturn(Mono.just(Boolean.FALSE));
 
         filter.filter(exchange, chain).block();
 
         assertEquals(HttpStatus.FORBIDDEN, exchange.getResponse().getStatusCode());
-        verifyNoInteractions(chain, tokenBlacklistChecker);
+        verifyNoInteractions(chain);
+    }
+
+    @Test
+    @DisplayName("filter：改密后旧令牌已撤销时返回 401，优先于强制改密 403")
+    void shouldReturnUnauthorizedWhenUserRevokedEvenIfPasswordChangeRequired() {
+        String accessToken = passwordChangeRequiredToken();
+        MockServerWebExchange exchange = exchangeWithBearer(accessToken);
+        GatewayFilterChain chain = mock(GatewayFilterChain.class);
+        when(tokenBlacklistChecker.isBlacklisted(accessToken)).thenReturn(Mono.just(Boolean.FALSE));
+        when(tenantStatusChecker.isUnavailable(anyString())).thenReturn(Mono.just(Boolean.FALSE));
+        when(userAccessRevocationChecker.isRevoked(eq(String.valueOf(USER_ID)), any()))
+                .thenReturn(Mono.just(Boolean.TRUE));
+
+        filter.filter(exchange, chain).block();
+
+        assertEquals(HttpStatus.UNAUTHORIZED, exchange.getResponse().getStatusCode());
+        verifyNoInteractions(chain);
     }
 
     @Test

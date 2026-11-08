@@ -35,7 +35,9 @@ import java.util.Date;
  * 认证通过后向下游注入 X-User-Id、X-Username、X-User-Roles（先清除外部伪造的同名入站头）。
  * <p>校验顺序：签名/过期 → 令牌类型必须为 access（拒绝以 refreshToken 冒充访问令牌）→
  * 查询分布式登出黑名单（REQ-SEC-003）→ 租户停用校验 → 租户成员撤销校验 →
- * 用户级撤销校验 → 注入身份头放行。</p>
+ * 用户级撤销校验 → 强制改密拦截（REQ-SEC-023）→ 注入身份头放行。
+ * 强制改密拦截置于全部撤销校验之后：改密后旧令牌已撤销，应返回 401
+ * （未认证）而非 403（强制改密），避免客户端误弹改密对话框。</p>
  *
  * @author BlueWhale
  */
@@ -131,12 +133,6 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
                 log.warn("accessToken 缺少 userId claim: path={}", path);
                 return unauthorized(exchange);
             }
-            // REQ-SEC-023：强制改密/口令到期时网关侧第一层拦截（auth 服务侧还有第二层拦截）
-            if (Boolean.parseBoolean(stringify(claims.get(CLAIM_PWD_CHANGE_REQUIRED)))
-                    && !isPasswordChangeAllowed(path)) {
-                log.warn("令牌携带强制改密标记，拒绝访问业务接口: path={}, userId={}", path, userId);
-                return forbidden(exchange);
-            }
             return tokenBlacklistChecker.isBlacklisted(token)
                     .flatMap(blacklisted -> {
                         if (Boolean.TRUE.equals(blacklisted)) {
@@ -161,7 +157,7 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * 校验租户成员撤销与用户级撤销，通过后注入身份头并转发下游。
+     * 校验租户成员撤销与用户级撤销，再执行强制改密拦截，通过后注入身份头并转发下游。
      *
      * @param exchange 当前交换对象
      * @param request 原始请求
@@ -189,6 +185,15 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
                                     log.warn("用户已停用/删除/改密，拒绝存量令牌访问: path={}, userId={}",
                                             path, userId);
                                     return unauthorized(exchange);
+                                }
+                                // REQ-SEC-023：强制改密/口令到期拦截（auth 服务侧还有第二层拦截）。
+                                // 置于撤销校验之后：已改密/停用的旧令牌（撤销生效）优先 401，
+                                // 仅对「身份有效且未撤销」的强制改密令牌返回 403
+                                if (Boolean.parseBoolean(stringify(claims.get(CLAIM_PWD_CHANGE_REQUIRED)))
+                                        && !isPasswordChangeAllowed(path)) {
+                                    log.warn("令牌携带强制改密标记，拒绝访问业务接口: path={}, userId={}",
+                                            path, userId);
+                                    return forbidden(exchange);
                                 }
                                 ServerHttpRequest mutatedRequest =
                                         withIdentityHeaders(request, claims, tenantId);
