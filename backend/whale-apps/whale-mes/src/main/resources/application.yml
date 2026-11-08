@@ -58,6 +58,14 @@ whale:
   permission:
     header:
       enabled: true
+  mes:
+    # MES → ERP 完工/进度回传：默认关闭，联调与生产需显式开启并给 erp-base-url
+    outbox:
+      enabled: ${WHALE_MES_OUTBOX_ENABLED:false}
+      batch-size: ${WHALE_MES_OUTBOX_BATCH_SIZE:20}
+    integration:
+      # ERP 内网基地址（容器内用容器名，如 http://bw-erp:9001）；为空时不回传
+      erp-base-url: ${WHALE_ERP_URL:}
 
 mybatis-plus:
   configuration:

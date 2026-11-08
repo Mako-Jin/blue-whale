@@ -25,6 +25,7 @@ import com.bluewhale.erp.mfg.domain.repository.ProductionOrderRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -167,13 +168,17 @@ public class MesIntegrationAppServiceImpl implements MesIntegrationAppService {
         }
         ProductionOrder order = found.get();
         if (mesSyncRepository.existsEvent(eventId)) {
-            writeCallback(order.getId(), order.getOrderNo(), MesStatus.CALLBACK_COMPLETION, eventId,
-                    MesStatus.DUPLICATE, payload, null);
+            // 唯一键 uk_mfg_mes_callback_event 已按 (租户, 事件键) 去重，重复事件不再写流水，
+            // 直接按幂等成功返回，避免 MES 重试收到 500 后无限重投。
+            log.info("生产订单 {} 完工回传事件 {} 已处理，忽略重复回调", order.getOrderNo(), eventId);
             return;
         }
-        if (!MfgStatus.RELEASED.equals(order.getStatus()) && !MfgStatus.IN_PROGRESS.equals(order.getStatus())) {
+        if (!MfgStatus.IN_PROGRESS.equals(order.getStatus())) {
+            String reason = MfgStatus.RELEASED.equals(order.getStatus())
+                    ? "订单尚未开工（需先在 ERP 领料）"
+                    : "订单状态 " + order.getStatus() + " 不允许完工回传";
             writeCallback(order.getId(), order.getOrderNo(), MesStatus.CALLBACK_COMPLETION, eventId,
-                    MesStatus.REJECTED, payload, "订单状态 " + order.getStatus() + " 不允许完工回传");
+                    MesStatus.REJECTED, payload, reason);
             return;
         }
         BigDecimal delta = callback.getCompletedQuantity()
@@ -217,8 +222,7 @@ public class MesIntegrationAppServiceImpl implements MesIntegrationAppService {
             return;
         }
         if (mesSyncRepository.existsEvent(eventId)) {
-            writeCallback(order.getId(), order.getOrderNo(), MesStatus.CALLBACK_PROGRESS, eventId,
-                    MesStatus.DUPLICATE, payload, null);
+            log.info("生产订单 {} 进度回传事件 {} 已处理，忽略重复回调", order.getOrderNo(), eventId);
             return;
         }
         MesProgressSnapshot snapshot = new MesProgressSnapshot();
@@ -296,7 +300,13 @@ public class MesIntegrationAppServiceImpl implements MesIntegrationAppService {
         record.setPayload(payload);
         record.setError(error);
         record.setReceivedAt(LocalDateTime.now());
-        mesSyncRepository.insertCallback(record);
+        try {
+            mesSyncRepository.insertCallback(record);
+        } catch (DuplicateKeyException e) {
+            // 并发下两个线程同时通过 existsEvent 预检时，后写的一方会撞唯一键，
+            // 语义上等同「事件已处理」，按幂等忽略即可，不能让回调接口 500。
+            log.info("回调流水已存在，忽略：eventId={}, type={}", eventId, callbackType);
+        }
     }
 
     /**

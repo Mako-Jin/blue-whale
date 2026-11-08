@@ -20,6 +20,7 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -153,13 +154,9 @@ public class MesTaskProgressServiceImpl implements MesTaskProgressService {
      * @param workOrder 已完工工单
      */
     private void enqueueCompleted(MesWorkOrder workOrder) {
-        BigDecimal completed = BigDecimal.ZERO;
         LambdaQueryWrapper<MesWorkOrderTask> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(MesWorkOrderTask::getWorkOrderId, workOrder.getId());
-        for (MesWorkOrderTask task : taskMapper.selectList(wrapper)) {
-            completed = completed.add(task.getCompletedQuantity() == null
-                    ? BigDecimal.ZERO : task.getCompletedQuantity());
-        }
+        BigDecimal completed = finishedQuantity(workOrder, taskMapper.selectList(wrapper));
         String payload;
         try {
             payload = OBJECT_MAPPER.writeValueAsString(Map.of(
@@ -194,7 +191,6 @@ public class MesTaskProgressServiceImpl implements MesTaskProgressService {
         for (MesWorkOrderTask task : tasks) {
             reported = reported.add(task.getReportedQuantity() == null ? BigDecimal.ZERO : task.getReportedQuantity());
             qualified = qualified.add(task.getQualifiedQuantity() == null ? BigDecimal.ZERO : task.getQualifiedQuantity());
-            completed = completed.add(task.getCompletedQuantity() == null ? BigDecimal.ZERO : task.getCompletedQuantity());
             Map<String, Object> view = new LinkedHashMap<>();
             view.put("taskNo", task.getTaskNo());
             view.put("seqNo", task.getSeqNo());
@@ -206,6 +202,8 @@ public class MesTaskProgressServiceImpl implements MesTaskProgressService {
             view.put("status", task.getStatus());
             taskViews.add(view);
         }
+        // 产成品完工数量取末道工序，避免多工序累加把工序次数当成产出
+        completed = finishedQuantity(workOrder, tasks);
         String key = "mes:work-order-progress:" + workOrder.getId()
                 + ":" + normalize(reported) + ":" + normalize(qualified) + ":" + normalize(completed)
                 + ":" + workOrder.getStatus();
@@ -237,6 +235,29 @@ public class MesTaskProgressServiceImpl implements MesTaskProgressService {
      */
     private String normalize(BigDecimal value) {
         return value.stripTrailingZeros().toPlainString();
+    }
+
+    /**
+     * 工单产成品完工数量：取末道工序（seqNo 最大）的完工数量，且不超过计划数量。
+     *
+     * <p>多工序工单每道工序都会报完工，直接累加会把「工序次数」当成「产成品数量」
+     * （两道工序各完工 5 会得到 10，而产成品仍是 5）；因此以末道工序为准。</p>
+     *
+     * @param workOrder 工单
+     * @param tasks     工单任务
+     * @return 产成品完工数量
+     */
+    private BigDecimal finishedQuantity(MesWorkOrder workOrder, List<MesWorkOrderTask> tasks) {
+        BigDecimal finished = tasks.stream()
+                .filter(task -> task.getSeqNo() != null)
+                .max(Comparator.comparing(MesWorkOrderTask::getSeqNo))
+                .map(task -> task.getCompletedQuantity() == null ? BigDecimal.ZERO : task.getCompletedQuantity())
+                .orElse(BigDecimal.ZERO);
+        BigDecimal planned = workOrder.getPlannedQuantity();
+        if (planned != null && planned.signum() > 0 && finished.compareTo(planned) > 0) {
+            return planned;
+        }
+        return finished;
     }
 
     /**

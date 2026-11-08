@@ -170,6 +170,32 @@ services:
       retries: 12
       start_period: 90s
 
+  # ---------------- MES ----------------
+  # ERP 生产订单下达 → MES 工单；MES 完工/进度经 outbox 回传 ERP 内网端点
+  mes:
+    <<: *common
+    image: bluewhale/whale-mes:dev
+    container_name: bw-mes
+    environment:
+      JAVA_OPTS: "-Xms192m -Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "9002"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      # 完工/进度回传走 outbox（默认关闭，此处显式开启）
+      WHALE_MES_OUTBOX_ENABLED: "true"
+      WHALE_ERP_URL: "http://bw-erp:9001"
+    ports:
+      - "127.0.0.1:9002:9002"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9002/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 90s
+
   # ---------------- CRM ----------------
   crm:
     <<: *common

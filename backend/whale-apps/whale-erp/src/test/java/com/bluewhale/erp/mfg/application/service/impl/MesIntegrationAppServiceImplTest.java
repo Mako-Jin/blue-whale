@@ -24,6 +24,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.SimpleTransactionStatus;
 
@@ -36,6 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -104,18 +106,33 @@ class MesIntegrationAppServiceImplTest {
     }
 
     @Test
-    @DisplayName("完工回传：重复事件直接返回 DUPLICATE")
-    void shouldRejectDuplicateCompletion() {
+    @DisplayName("完工回传：重复事件按幂等成功返回，不写流水也不重复入库")
+    void shouldIgnoreDuplicateCompletion() {
         ProductionOrder order = order(MfgStatus.IN_PROGRESS);
         when(productionOrderRepository.findByOrderNo("MO-1")).thenReturn(Optional.of(order));
         when(mesSyncRepository.existsEvent("e-1")).thenReturn(true);
 
         service.handleCompletion("e-1", completionPayload("10"));
 
-        ArgumentCaptor<MesCallbackLog> captor = ArgumentCaptor.forClass(MesCallbackLog.class);
-        verify(mesSyncRepository).insertCallback(captor.capture());
-        assertEquals(MesStatus.DUPLICATE, captor.getValue().getStatus());
+        verify(mesSyncRepository, never()).insertCallback(any());
         verify(productionOrderAppService, never()).complete(any(), any(), any());
+        verify(productionOrderRepository, never()).updateMesSync(any());
+    }
+
+    @Test
+    @DisplayName("完工回传：流水唯一键冲突时按幂等忽略，不抛异常")
+    void shouldSwallowDuplicateKeyOnCallbackInsert() {
+        ProductionOrder order = order(MfgStatus.IN_PROGRESS);
+        order.setCompletedQuantity(new BigDecimal("4"));
+        when(productionOrderRepository.findByOrderNo("MO-1")).thenReturn(Optional.of(order));
+        when(transactionManager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
+        doThrow(new DuplicateKeyException("uk_mfg_mes_callback_event"))
+                .when(mesSyncRepository).insertCallback(any());
+
+        service.handleCompletion("e-3", completionPayload("10"));
+
+        verify(mesSyncRepository).insertCallback(any());
+        verify(productionOrderAppService).complete(any(), any(), any());
     }
 
     @Test
