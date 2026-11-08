@@ -16,6 +16,7 @@ import com.bluewhale.job.service.JobAlertService;
 import com.bluewhale.job.service.JobDependencyService;
 import com.bluewhale.job.service.JobInfoService;
 import com.bluewhale.job.service.JobLogService;
+import com.bluewhale.job.vo.ExecutorLogVO;
 import com.bluewhale.job.vo.JobAlertVO;
 import com.bluewhale.job.vo.JobDependencyVO;
 import com.bluewhale.job.vo.JobInfoVO;
@@ -119,6 +120,18 @@ public class JobController {
     @RequirePermission("sys:job:log:list")
     public Result<PageResult<JobLogVO>> logPage(JobLogQueryRequest request) {
         return Result.ok(jobLogService.page(request));
+    }
+
+    /**
+     * 回捞某次执行在执行器侧保存的完整日志。
+     *
+     * <p>执行流水的 result / error_msg 落库截断到 2000 字，完整堆栈与业务日志只在执行器本地；
+     * 本接口按流水里记录的实例地址精确回捞。</p>
+     */
+    @GetMapping("/log/{id}/detail")
+    @RequirePermission("sys:job:log:list")
+    public Result<ExecutorLogVO> logDetail(@PathVariable Long id) {
+        return Result.ok(jobLogService.executorLog(id));
     }
 
     /** 查询任务依赖关系（上游与下游） */

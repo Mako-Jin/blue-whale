@@ -1,10 +1,14 @@
 package com.bluewhale.common.jobschedule.config;
 
+import ch.qos.logback.classic.LoggerContext;
+import com.bluewhale.common.jobschedule.JobExecutionLogStore;
 import com.bluewhale.common.jobschedule.JobExecutorRegistrar;
+import com.bluewhale.common.jobschedule.JobLogCaptureAppender;
 import com.bluewhale.common.jobschedule.JobScheduleProperties;
 import com.bluewhale.common.jobschedule.JobTriggerController;
 import com.bluewhale.common.jobschedule.RemoteJobRegistry;
 import com.bluewhale.common.jobschedule.ScheduledJobRegistrar;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -63,16 +67,49 @@ public class JobScheduleAutoConfiguration {
     }
 
     /**
+     * 执行日志采集器：仅在暴露内网触发端点时需要（日志由远程触发产生）。
+     *
+     * @param properties 配置项
+     * @return 日志采集与落盘器
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "whale.schedule", name = "trigger-enabled", havingValue = "true")
+    public JobExecutionLogStore jobExecutionLogStore(JobScheduleProperties properties) {
+        return new JobExecutionLogStore(properties.getExecutor());
+    }
+
+    /**
+     * 执行日志 appender：挂到 root logger，按 MDC 里的执行批次ID决定是否采集。
+     *
+     * <p>不是 logback 时（极少见）静默跳过：日志回捞是辅助能力，不能让应用起不来。</p>
+     *
+     * @param logStore 日志采集与落盘器
+     * @return 日志采集 appender
+     */
+    @Bean(destroyMethod = "detach")
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "whale.schedule", name = "trigger-enabled", havingValue = "true")
+    public JobLogCaptureAppender jobLogCaptureAppender(JobExecutionLogStore logStore) {
+        JobLogCaptureAppender appender = new JobLogCaptureAppender(logStore);
+        if (LoggerFactory.getILoggerFactory() instanceof LoggerContext context) {
+            appender.attach(context);
+        }
+        return appender;
+    }
+
+    /**
      * 内网触发端点：默认关闭，仅迁移中的服务显式开启。
      *
      * @param registry 任务注册表
+     * @param logStore 日志采集与落盘器
      * @return 触发端点控制器
      */
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = "whale.schedule", name = "trigger-enabled", havingValue = "true")
-    public JobTriggerController jobTriggerController(RemoteJobRegistry registry) {
-        return new JobTriggerController(registry);
+    public JobTriggerController jobTriggerController(RemoteJobRegistry registry, JobExecutionLogStore logStore) {
+        return new JobTriggerController(registry, logStore);
     }
 
     /**

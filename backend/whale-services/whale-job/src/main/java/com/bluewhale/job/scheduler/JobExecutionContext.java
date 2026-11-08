@@ -46,6 +46,15 @@ public class JobExecutionContext {
     private final String jobCode;
 
     /**
+     * 实际派发到的执行器地址（{@code host:port}），由 HTTP 执行器寻址成功后回填。
+     *
+     * <p>调度中心据此把地址落进 {@code job_log.executor_address}：执行日志落在执行器本地，
+     * 多副本时只有「跑过这一次」的那台才有对应文件，回捞必须按地址精确请求，
+     * 否则会拿到别的实例的日志或直接 404。</p>
+     */
+    private String resolvedAddress;
+
+    /**
      * 兼容旧签名的构造：执行器定位信息为空，HTTP 型执行器将回退到按参数直连。
      *
      * @param jobId      任务ID
@@ -85,5 +94,14 @@ public class JobExecutionContext {
         this.tenantId = tenantId;
         this.executorApp = executorApp;
         this.jobCode = jobCode;
+    }
+
+    /**
+     * 回填实际派发地址。
+     *
+     * @param resolvedAddress 派发到的执行器地址（{@code host:port}），按参数直连时为 {@code null}
+     */
+    public void setResolvedAddress(String resolvedAddress) {
+        this.resolvedAddress = resolvedAddress;
     }
 }

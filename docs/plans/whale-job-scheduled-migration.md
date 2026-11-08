@@ -786,3 +786,53 @@ DTO 侧 `@Min(1)` 会拦住 `-1`，同步放开为 `@Min(-1)` 并改语义说明
 
 `whale-job` 92 例（原 86 + 动态分片 3 + 派发地址解析 3）、Checkstyle 0、ArchUnit 绿。
 
+---
+
+## 19. 执行日志回捞（2026-11-08 22:30–23:00）
+
+### 19.1 为什么需要
+
+`job_log.result` / `error_msg` 落库前截断到 2000 字，业务方法里的日志只留在各服务容器 stdout。排障时要 `docker logs` 翻半天、还要自己在时间轴上对齐「哪一段属于这次触发」。本批把「一次远程触发线程内的日志」采集成本地文件，调度中心按流水回捞。
+
+### 19.2 分层
+
+| 位置 | 类 | 职责 |
+|---|---|---|
+| starter | `JobExecutionLogStore` | 采集缓冲、落盘、保留策略、按任务编码读最近一份 |
+| starter | `JobLogCaptureAppender` | 挂 root logger，按 MDC 的 `job.run.id` 决定是否采集 |
+| starter | `JobTriggerController` | 触发前后 begin/finish，新增 `GET /internal/job/{code}/log/latest` |
+| job | `ExecutorLogClient` | 按地址回捞（只读旁路，超时 5s，失败软返回） |
+| job | `JobLogService#executorLog` + `GET /job/log/{id}/detail` | 管理端口径的查询入口 |
+
+采集边界（写进类注释，避免误解）：
+
+- 只采集**执行线程内**的日志——靠 MDC 传递，业务里新起的线程/线程池不继承 MDC，其日志不进快照；
+- 没有 `job.run.id` 的日志零成本跳过（一次 map 查找），所以挂 root logger 不影响普通请求；
+- 单次上限 `whale.schedule.executor.log-max-file-bytes`（默认 256KB），超出丢弃并一次性标注截断；
+- 每任务编码保留最近 `log-max-files`（默认 20）份，超出删最旧。
+
+### 19.3 多副本定位
+
+执行日志是**实例本地**的，多副本时只有跑过这一次的那台有文件。所以 `job_log` 必须记录实际派发地址：
+
+- `JobExecutionContext` 增加 `resolvedAddress`，`HttpJobHandler` 寻址成功后回填；
+- `JobScheduler#invokeHandler` 在 finally 里写进 `jobLog.executorAddress`（成功与失败都记，失败时更需要）；
+- `V12__job_log_executor_address.sql` 加列，`init.sql` 同步；
+- 回捞优先用该地址精确请求；地址为空（V12 之前的历史流水、按参数直连模式）退化为注册表任选一台，并在 `note` 里说明。
+
+### 19.4 实机验证
+
+| 场景 | 结果 |
+|---|---|
+| `doc.recycle.cleanup` | `executor_address=172.18.0.9:8095`，回捞 2.4K 字符，含 MyBatis SQL、任务日志、执行结论 |
+| `crm.order.reconcile` | `executor_address=172.18.0.12:9007`，回捞 4166 字符，尾部为「商务订单对账完成，刷新 2 单」 |
+| 无 `executor_address` 的历史流水 | 回退注册表寻址成功，取到该实例最近一份日志 |
+| 不存在的流水 | `code=404, message=执行流水不存在: 1` |
+
+### 19.5 代价与注意
+
+- 改动 starter ⇒ 11 个执行器服务全部重打镜像并重启（form/gateway/pay/erp/mes/message/workflow 无任务，不涉及）。
+- 重打包必须 `clean`：auth 用 `-pl auth-starter` 而不加 `-am` 时，Maven 用的是本地仓库里的旧 domain jar，报 `找不到符号 markMustChangePassword()`——这不是代码坏了，是依赖没跟着构建。
+- 日志落在容器内默认 `${java.io.tmpdir}/whale-job-exec-logs`，**容器重建即丢**。要长期留存需给执行器挂卷并把 `WHALE_SCHEDULE_EXECUTOR_LOG_DIR` 指到卷上。
+- 采集的是 logback 日志事件，不是容器 stdout 全量；`System.out.println` 不会被采集。
+

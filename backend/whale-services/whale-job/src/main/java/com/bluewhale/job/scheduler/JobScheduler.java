@@ -661,7 +661,7 @@ public class JobScheduler {
         long intervalMillis = resolveRetryIntervalSeconds(job.getRetryIntervalSeconds()) * MILLIS_PER_SECOND;
         for (int retryCount = 0; ; retryCount++) {
             try {
-                String result = invokeHandler(job, shardIndex, shardTotal, retryCount);
+                String result = invokeHandler(job, jobLog, shardIndex, shardTotal, retryCount);
                 markSuccess(jobLog, result, retryCount);
                 return true;
             } catch (Exception e) {
@@ -734,21 +734,30 @@ public class JobScheduler {
     }
 
     /**
-     * 调用执行器：将分片与重试信息封装为上下文透传
+     * 调用执行器：将分片与重试信息封装为上下文透传。
+     *
+     * <p>执行器若按注册表寻址，会把实际派发地址回填到上下文，这里顺手记进执行流水——
+     * 执行日志落在执行器本地，多副本下只有跑过这一次的那台才有文件，回捞要靠这个地址定位。</p>
      *
      * @param job        任务定义
+     * @param jobLog     本次执行的流水（用于回填派发地址）
      * @param shardIndex 当前分片序号
      * @param shardTotal 分片总数
      * @param retryCount 本次执行已重试次数
      * @return 执行结果摘要
      * @throws Exception 执行器执行失败时抛出
      */
-    private String invokeHandler(JobInfo job, int shardIndex, int shardTotal, int retryCount) throws Exception {
+    private String invokeHandler(JobInfo job, JobLog jobLog, int shardIndex, int shardTotal,
+                                 int retryCount) throws Exception {
         JobHandler handler = jobHandlerRegistry.resolve(job.getHandlerBean());
         JobExecutionContext context = new JobExecutionContext(job.getId(), job.getJobName(),
                 job.getHandlerParam(), shardIndex, shardTotal, retryCount,
                 job.getTenantId(), job.getExecutorApp(), job.getJobCode());
-        return handler.executeWithContext(context);
+        try {
+            return handler.executeWithContext(context);
+        } finally {
+            jobLog.setExecutorAddress(context.getResolvedAddress());
+        }
     }
 
     /**

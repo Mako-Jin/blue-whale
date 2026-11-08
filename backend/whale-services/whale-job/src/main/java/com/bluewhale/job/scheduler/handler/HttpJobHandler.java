@@ -148,8 +148,7 @@ public class HttpJobHandler implements JobHandler {
         String executorApp = context.getExecutorApp();
         String jobCode = context.getJobCode();
         if (StringUtils.hasText(executorApp) && StringUtils.hasText(jobCode)) {
-            return resolveByRegistry(context.getTenantId(), executorApp, jobCode,
-                    context.getShardIndex(), context.getShardTotal());
+            return resolveByRegistry(context, executorApp, jobCode);
         }
         String directUrl = paramNode.path(PARAM_URL).asText(null);
         if (StringUtils.hasText(directUrl)) {
@@ -162,18 +161,16 @@ public class HttpJobHandler implements JobHandler {
     /**
      * 按注册表寻址：在线实例与 Nacos 实例取交集后选择其一。
      *
-     * @param tenantId   租户ID
+     * @param context     执行上下文
      * @param executorApp 执行器应用名
-     * @param jobCode    任务编码
-     * @param shardIndex 分片序号
-     * @param shardTotal 分片总数
+     * @param jobCode     任务编码
      * @return 目标 URL
      */
-    private String resolveByRegistry(Long tenantId, String executorApp, String jobCode,
-                                     int shardIndex, int shardTotal) {
-        List<String> candidates = jobExecutorService.dispatchableAddresses(tenantId, executorApp, jobCode);
+    private String resolveByRegistry(JobExecutionContext context, String executorApp, String jobCode) {
+        List<String> candidates = jobExecutorService.dispatchableAddresses(
+                context.getTenantId(), executorApp, jobCode);
         if (candidates.isEmpty()) {
-            List<String> anyOnline = jobExecutorService.onlineAddresses(tenantId, executorApp);
+            List<String> anyOnline = jobExecutorService.onlineAddresses(context.getTenantId(), executorApp);
             if (!anyOnline.isEmpty()) {
                 throw new JobNotDispatchableException("执行器在线但不支持该任务: app=" + executorApp
                         + ", jobCode=" + jobCode
@@ -182,7 +179,8 @@ public class HttpJobHandler implements JobHandler {
             throw new JobNotDispatchableException("执行器无在线实例: app=" + executorApp
                     + "（检查业务服务是否已开启注册、心跳是否正常）");
         }
-        String address = pick(candidates, shardIndex, shardTotal);
+        String address = pick(candidates, context.getShardIndex(), context.getShardTotal());
+        context.setResolvedAddress(address);
         return "http://" + address + String.format(TRIGGER_PATH, jobCode);
     }
 

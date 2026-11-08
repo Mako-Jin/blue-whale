@@ -53,6 +53,14 @@ public class JobLog extends BaseEntity {
     /** 当前分片序号（从 0 开始；不分片为 0） */
     private Integer shardIndex;
 
+    /**
+     * 实际派发到的执行器地址（{@code host:port}）。
+     *
+     * <p>多副本时执行日志只落在跑过这一次的那台实例，回捞按该地址精确请求；
+     * 按参数直连或旧记录为空时回退到注册表寻址。</p>
+     */
+    private String executorAddress;
+
     /** 失败原因（异常信息摘要） */
     private String errorMsg;
 

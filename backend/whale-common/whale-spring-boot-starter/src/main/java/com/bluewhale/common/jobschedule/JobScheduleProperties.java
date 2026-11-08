@@ -52,5 +52,22 @@ public class JobScheduleProperties {
 
         /** 内网调用超时毫秒数 */
         private int timeoutMillis = 3000;
+
+        /**
+         * 执行日志落盘目录：为空时取 {@code ${java.io.tmpdir}/whale-job-exec-logs}。
+         *
+         * <p>容器内建议挂命名卷，否则容器重建后历史日志丢失。</p>
+         */
+        private String logDir = "";
+
+        /**
+         * 单次执行日志的采集上限（字节）：超出后丢弃后续内容并标记截断。
+         *
+         * <p>调度中心回捞的是一段文本，无上限会让一次刷屏式任务把磁盘和接口都拖垮。</p>
+         */
+        private int logMaxFileBytes = 262144;
+
+        /** 单个任务编码保留的日志文件数，超出后删除最旧的文件 */
+        private int logMaxFiles = 20;
     }
 }

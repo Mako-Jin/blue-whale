@@ -57,6 +57,7 @@ CREATE TABLE job_log (
     status       TINYINT       NOT NULL DEFAULT 0     COMMENT '执行状态：1 成功 / 0 执行中 / -1 失败',
     retry_count  INT           NOT NULL DEFAULT 0     COMMENT '本次执行已重试次数（首次执行为 0）',
     shard_index  INT           NOT NULL DEFAULT 0     COMMENT '当前分片序号（从 0 开始；不分片为 0）',
+    executor_address VARCHAR(128) DEFAULT NULL        COMMENT '实际派发到的执行器地址（host:port），回捞执行日志用',
     error_msg    TEXT          NULL                   COMMENT '失败原因（异常信息摘要）',
     result       TEXT          NULL                   COMMENT '执行结果（返回数据摘要）',
     create_time  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间（与 start_time 同步写入）',
