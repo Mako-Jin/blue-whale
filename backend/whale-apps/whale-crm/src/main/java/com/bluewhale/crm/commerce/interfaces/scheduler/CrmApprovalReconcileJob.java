@@ -1,10 +1,10 @@
 package com.bluewhale.crm.commerce.interfaces.scheduler;
 
+import com.bluewhale.common.jobschedule.ScheduledJob;
 import com.bluewhale.crm.commerce.application.service.ApprovalReconcileAppService;
 import com.bluewhale.crm.config.CrmOrderApprovalProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
@@ -27,12 +27,17 @@ public class CrmApprovalReconcileJob {
 
     /**
      * 执行审批结果对账。
+     *
+     * @return 执行摘要（{@code skipped} 或本轮处理单据数）
      */
-    @Scheduled(cron = "${whale.crm.order-approval.reconcile-cron:0 */2 * * * ?}")
-    public void reconcile() {
+    @ScheduledJob(code = "crm.approval.reconcile",
+            cron = "${whale.crm.order-approval.reconcile-cron:0 */2 * * * ?}",
+            timeoutSeconds = 600)
+    public String reconcile() {
         if (!orderApprovalProperties.isReconcileEnabled()) {
-            return;
+            return "skipped: approval reconcile disabled";
         }
-        approvalReconcileAppService.reconcileAll();
+        int reconciled = approvalReconcileAppService.reconcileAll();
+        return "reconciled=" + reconciled;
     }
 }

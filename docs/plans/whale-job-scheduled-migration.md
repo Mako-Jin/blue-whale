@@ -317,7 +317,7 @@ Nacos 只能回答「这个服务有几个实例」，回答不了「这个实�
 
 ### 8.5 下一步
 
-- 剩余 **25 个**任务按 §2.2 顺序分批迁移（先清理/对账类，最后推送类）；
+- 剩余任务按 §2.2 顺序分批迁移（先清理/对账类，最后推送类），逐批进度见 §9、§10 各批次的「进度」小节；
 - 执行日志回捞（executor 落文件、调度中心代理读取）；
 - `shard_total=-1` 动态分片（按在线实例数）；
 - **生产必须配置 `WHALE_INTERNAL_TOKEN`**：当前 dev 环境下令牌为空时过滤器 fail-open。
@@ -374,3 +374,53 @@ Nacos 只能回答「这个服务有几个实例」，回答不了「这个实�
 
 已迁 8 / 27（CRM 2 + 清理类 6），**剩余 19 个**：CRM 7（回收/对账/快照）、OA 5、LMS 1、Party 1、PDM 1、Archive 2、Auth 1、CRM 推送 3 + OA 推送 2（最后一批）。
 
+
+---
+
+## 10. 第三批：快照/生成类（CRM 4 个，2026-11-08 19:40–20:00）
+
+按 §2.2 的迁移顺序，第三批取「一次执行会改动全局业务状态、多跑一次无收益」的快照/对账类。
+本批计划 6 个，实际完成 4 个；PDM 与 Auth 两个文件读取时涉及敏感内容被拒，**未改动、未验证**，待单独安排（见 §10.5）。
+
+### 10.1 改动清单
+
+| 服务 | 任务 code | 类.方法 | cron | 摘要字段 |
+|---|---|---|---|---|
+| whale-crm | `crm.pool.recycle` | `CrmPoolRecycleJob#recycle` | `${whale.crm.pool-recycle-cron:0 0 2 * * ?}` | `rule=…, recycled=n` |
+| whale-crm | `crm.ar.snapshot` | `CrmArSnapshotJob#sync` | `${whale.crm.ar.sync-cron:0 30 2 * * ?}` | `synced/skipped/failed` |
+| whale-crm | `crm.contract.sync` | `CrmContractSyncJob#reconcile` | `${whale.crm.contract.sync-cron:0 0 3 * * ?}` | `synced=n` |
+| whale-crm | `crm.approval.reconcile` | `CrmApprovalReconcileJob#reconcile` | `${whale.crm.order-approval.reconcile-cron:0 */2 * * * ?}` | `reconciled=n` |
+
+配套：`V4__seed_crm_jobs.sql`（4 条 `job_info`，按 `job_code` 判重），`db/init.sql` 同步同源种子。
+
+### 10.2 三处实现判断
+
+- **`CrmPoolRecycleJob` 去掉 `@ConditionalOnProperty`，开关判断移进方法**：原先靠条件装配决定 Bean 是否注册，迁到调度中心后这会让任务**根本不出现在执行器能力集里**，调度侧只能看到「执行器在线但不支持该任务」，无法区分「开关没开」与「服务没部署」。现在 Bean 常驻、任务常登记，关闭时返回 `skipped: pool-recycle disabled`——与 audit 保留期「开关只决定做不做，不决定是否存在」的口径一致。四个任务一律采用这个形态。
+- **`CrmContractSyncJob` 整轮异常改为上抛**：原先 `catch (Exception)` 只 warn，合同服务长期不可用会被记成一连串成功。单客户失败仍由服务层吞掉并计数，不影响本轮。
+- **`crm.ar.snapshot` 的 misfire 设为 `FIRE_ONCE`**：当日账龄快照错过应补跑一次，其余三个任务保持 `DO_NOTHING`（与 `@Scheduled` 语义一致）。
+
+### 10.3 实机结果
+
+| 验证项 | 结果 |
+|---|---|
+| Flyway V4 | `Migrating to 4 - seed crm jobs` → success，`job_info` 共 14 条（2 内置 + 12 迁移） |
+| 执行器注册 | `whale-crm` → `172.18.0.12:9007`，`codes` 6 个（analytics 2 + 本批 4） |
+| 公海回收 | `status=1`、`result="skipped: pool-recycle disabled"`（`WHALE_CRM_POOL_RECYCLE_ENABLED` 默认 false） |
+| 应收快照 | `status=1`、`result="synced=1, skipped=0, failed=0"`（真实调 ERP，dev 有 1 个客户有未结应收） |
+| 合同投影对账 | `status=1`、`result="skipped: contract sync disabled"`（dev 未部署 `bw-contract`） |
+| 审批结果对账 | `status=1`、`result="reconciled=0"`；同期 `CRON` 触发（每 2 分钟）同样 `status=1` |
+| 无双跑 | CRM 日志只有 `远程触发任务完成`，无本地 cron 注册记录 |
+
+### 10.4 门禁
+
+新增 4 个单测类（`CrmPoolRecycleJobTest` 3 例、`CrmArSnapshotJobTest` 2 例、`CrmContractSyncJobTest` 3 例、`CrmApprovalReconcileJobTest` 2 例），覆盖「关闭空转 / 开启摘要 / 失败上抛」三条路径。
+
+`whale-crm` 356 单测（原 346 + 新增 10）全绿，`whale-job` 83 全绿，Checkstyle 0，ArchUnit 绿。
+
+### 10.5 PDM / Auth 两个任务未处理
+
+`PdmChgEffectiveJob`、`PasswordExpiryNoticeJob` 的文件读取被拒（涉及敏感内容校验），按规则不重试、不绕过，因此本批未改这两个任务。它们仍以原 `@Scheduled` 形式运行，不影响已迁移部分。
+
+### 10.6 进度
+
+已迁 12 / 27（CRM 2 + 清理类 6 + 快照类 4），**剩余 15 个**：CRM 推送/对账 4（order push、order reconcile、return push、return reconcile）、OA 5、LMS 1、Party 1、PDM 1、Archive 2、Auth 1。下一批建议先做 Archive 2（只读同步/对账，风险最低），推送类仍留最后。

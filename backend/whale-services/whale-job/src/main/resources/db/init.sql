@@ -130,7 +130,7 @@ INSERT INTO job_info (id, job_name, job_group, cron_expression, handler_bean, ha
 VALUES (2, '执行日志归档', 'SYSTEM', '0 0 4 * * ?', 'jobLogArchiveHandler', NULL,
         'SMART', 1, '内置任务：导出过期 job_log 至 whale-file 后清理，保留天数见 whale.job.log-retention-days');
 
--- 已迁移业务任务（与 db/migration/V3__seed_migrated_jobs.sql 同源）：
+-- 已迁移业务任务（与 db/migration/V3__seed_migrated_jobs.sql、V4__seed_crm_jobs.sql 同源）：
 -- executor_app 为 Nacos 服务名，job_code 对应业务侧 @ScheduledJob.code()，
 -- 地址不落库（由 job_executor 注册表 + Nacos 实例交集解析）。
 INSERT INTO job_info (id, tenant_id, job_name, job_group, executor_app, job_code,
@@ -160,7 +160,19 @@ VALUES
  '迁移自 MovieLicenseExpiryScheduler#offlineExpired'),
 (9100000000000000008, 1, '观看历史保留期清理', 'VIDEO', 'whale-video', 'video.watch-history.cleanup',
  '0 40 4 * * ?', 'httpJobHandler', '{"timeoutMillis":1800000}', 'DO_NOTHING', 1, 300, 1, 1,
- '迁移自 WatchHistoryCleanupScheduler#cleanup');
+ '迁移自 WatchHistoryCleanupScheduler#cleanup'),
+(9100000000000000009, 1, 'CRM 公海自动回收', 'CRM', 'whale-crm', 'crm.pool.recycle',
+ '0 0 2 * * ?', 'httpJobHandler', '{"timeoutMillis":1800000}', 'DO_NOTHING', 1, 300, 1, 1,
+ '迁移自 CrmPoolRecycleJob#recycle（开关 whale.crm.pool-recycle-enabled，关闭时返回 skipped）'),
+(9100000000000000010, 1, 'CRM 应收快照对账', 'CRM', 'whale-crm', 'crm.ar.snapshot',
+ '0 30 2 * * ?', 'httpJobHandler', '{"timeoutMillis":1800000}', 'FIRE_ONCE', 2, 300, 1, 1,
+ '迁移自 CrmArSnapshotJob#sync（当日账龄快照错过需补跑一次；开关 whale.crm.ar.enabled）'),
+(9100000000000000011, 1, 'CRM 合同投影对账', 'CRM', 'whale-crm', 'crm.contract.sync',
+ '0 0 3 * * ?', 'httpJobHandler', '{"timeoutMillis":1800000}', 'DO_NOTHING', 1, 300, 1, 1,
+ '迁移自 CrmContractSyncJob#reconcile（开关 whale.crm.contract.enabled）'),
+(9100000000000000012, 1, 'CRM 审批结果对账', 'CRM', 'whale-crm', 'crm.approval.reconcile',
+ '0 */2 * * * ?', 'httpJobHandler', '{"timeoutMillis":600000}', 'DO_NOTHING', 2, 120, 1, 1,
+ '迁移自 CrmApprovalReconcileJob#reconcile（回调幂等，失败可重试；开关 reconcile-enabled）');
 
 -- ---------------------------------------------------------------------
 -- 5. 执行器注册表（对齐 xxl-job executor：谁在线、谁支持哪些任务）
