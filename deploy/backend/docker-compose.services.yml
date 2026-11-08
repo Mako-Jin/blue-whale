@@ -196,6 +196,32 @@ services:
       retries: 12
       start_period: 90s
 
+  # ---------------- Message ----------------
+  # 统一消息服务：CRM 营销 / OA 待办 / 合同签署的邮件、短信、站内信投递
+  # 首次对既有库（db/init.sql 初始化，缺 msg_announcement）启动时用 SPRING_FLYWAY_BASELINE_VERSION=0
+  # 让 V1 基线脚本补建缺表；补完后可去掉该变量
+  message:
+    <<: *common
+    image: bluewhale/whale-message:dev
+    container_name: bw-message
+    environment:
+      JAVA_OPTS: "-Xms192m -Xmx512m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "8094"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      SPRING_FLYWAY_BASELINE_VERSION: "0"
+    ports:
+      - "127.0.0.1:8094:8094"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8094/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 90s
+
   # ---------------- CRM ----------------
   crm:
     <<: *common
@@ -213,6 +239,9 @@ services:
       WHALE_CRM_ERP_ENABLED: "true"
       WHALE_ERP_URL: "http://bw-erp:9001"
       WHALE_WORKFLOW_URL: "http://bw-workflow:8083"
+      # 营销触达投递：whale-message 内网地址（application.yml 未声明该段，靠 relaxed binding 注入，
+      # 落到 CrmMarketingProperties#messageUrl；默认值 127.0.0.1:8085 已被 bw-file 占用）
+      WHALE_CRM_MARKETING_MESSAGE_URL: "http://bw-message:8094"
       WHALE_CRM_AR_ENABLED: "true"
       # 流程定义 ID 由 /workflow/internal/definition/ensure 幂等种子产生（bluewhale_workflow）
       WHALE_CRM_ORDER_DEFINITION_ID: "2119255494021709826"
