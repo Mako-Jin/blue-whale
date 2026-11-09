@@ -156,4 +156,9 @@ CREATE DATABASE IF NOT EXISTS bluewhale_iot
   DEFAULT CHARACTER SET utf8mb4
   DEFAULT COLLATE utf8mb4_unicode_ci;
 
+-- ---- 项目管理（whale-pm：表由服务启动时 Flyway 建立） ----
+CREATE DATABASE IF NOT EXISTS bluewhale_pm
+  DEFAULT CHARACTER SET utf8mb4
+  DEFAULT COLLATE utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;

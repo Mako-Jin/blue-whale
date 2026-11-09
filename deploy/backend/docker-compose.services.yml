@@ -7,17 +7,17 @@
 #   - MySQL    → 宿主机原生实例   （0.0.0.0:3306，经 host.docker.internal 访问）
 #   - Nacos    → 宿主机原生实例   （0.0.0.0:8848，经 host.docker.internal 访问）
 #
-# 镜像需先用 deploy/backend/Dockerfile.runtime 构建（context 只放一个 app.jar）：
-#   for s in gateway auth pay erp oa crm mes doc video archive audit lms pdm form job \
-#            file contract mall; do
-#     docker build -f deploy/backend/Dockerfile.runtime -t bluewhale/whale-$s:dev deploy/backend/jars/$s
-#   done
+# 镜像需先用 deploy/backend/Dockerfile.runtime 构建（context 只放一个 app.jar）。
+# 推荐用脚本一次构建 32 个服务（内含 VM 余量校验）：
+#   scripts/dev/build-service-images.sh              # 全部
+#   scripts/dev/build-service-images.sh crm pm mail  # 指定服务
 #
 # 启动：docker compose -f deploy/backend/docker-compose.services.yml --env-file .env up -d
-#   默认 22 个服务；whale-music / whale-party 是演示模块，需显式带 profile：
-#   docker compose ... --profile demo up -d music party
+#   默认 20 个核心服务（music / party 属 demo profile，需 --profile demo 显式起）。
+#   另有 10 个扩展服务按域分组挂在 ops / collab / aiot / biz / ext 下，默认关闭：
+#   8G 的 Docker VM 装不下 32 个 Spring 进程，一次只起一组，预算见 README。
 #
-# 内存：Docker VM 上限 8GB（~/.wslconfig）。22 个 Spring 服务约占 7.2G，余量不足 1G，
+# 内存：Docker VM 上限 8GB（~/.wslconfig）。20 个核心服务约占 7.2G，余量不足 1G，
 #   因此 build 前先看 MemAvailable，低于 1G 要先停非必需容器（否则 buildkit 会把引擎拖死）。
 # ============================================================
 
@@ -708,6 +708,306 @@ services:
       retries: 18
       start_period: 90s
 
+  # ============================================================
+  # 扩展服务（Wave 6 及之后交付，默认不启动）
+  #
+  # 为什么默认不启动：Docker VM 上限 8GB（~/.wslconfig），22 个核心服务已占约 7.2G，
+  # 余量不足 1G。10 个扩展服务合计需 5~6G，物理上无法与核心服务同时常驻，
+  # 硬塞进默认集会直接把引擎拖死（历史事故：MemAvailable < 1G 时 docker ps 全 500）。
+  # 因此全部纳入本编排文件统一管理，但按域分组，一次起一组：
+  #
+  #   --profile ops      alert(9103) / monitor(9102)                   预算 ~1.0G
+  #   --profile collab   im(8091) / mail(8099) / assistant(8087)       预算 ~1.9G
+  #   --profile aiot     agent(8090) / iot(8088) / scene(8097)         预算 ~1.7G
+  #   --profile biz      pm(9005) / map(8100)                          预算 ~1.1G
+  #   --profile ext      以上全部（需先停掉若干核心服务腾出余量）
+  #
+  # 起组前先看余量，不足先 `docker compose stop <非关键服务>`：
+  #   docker exec bw-redis grep MemAvailable /proc/meminfo
+  #
+  # 组内不写跨 profile 的 depends_on：依赖服务不在同一 profile 时 compose 会拒绝起服，
+  # 一律靠容器名直连 + 客户端重试兜底（与 core 服务同一口径）。
+  # ============================================================
+
+  # ---------------- 项目管理 ----------------
+  # 站内通知走 whale-im，审批走 whale-workflow（均为内网直连）
+  pm:
+    <<: *common
+    image: bluewhale/whale-pm:dev
+    container_name: bw-pm
+    profiles: ["biz", "ext"]
+    mem_limit: 700m
+    environment:
+      JAVA_OPTS: "-Xms128m -Xmx384m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "9005"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      SPRING_DATA_REDIS_HOST: ${REDIS_HOST}
+      SPRING_DATA_REDIS_PORT: ${REDIS_PORT}
+      PM_NOTIFY_IM_URL: "http://bw-im:8091"
+      PM_APPROVAL_WORKFLOW_URL: "http://bw-workflow:8083"
+    ports:
+      - "127.0.0.1:9005:9005"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9005/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 90s
+
+  # ---------------- 地图 ----------------
+  # 底图/逆地理走腾讯与高德公网 API，密钥缺省时相关能力关闭，服务本身可起
+  map:
+    <<: *common
+    image: bluewhale/whale-map:dev
+    container_name: bw-map
+    profiles: ["biz", "ext"]
+    mem_limit: 600m
+    environment:
+      JAVA_OPTS: "-Xms128m -Xmx384m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "8100"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      TENCENT_MAP_KEY: ${TENCENT_MAP_KEY:-}
+      AMAP_MAP_KEY: ${AMAP_MAP_KEY:-}
+    ports:
+      - "127.0.0.1:8100:8100"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8100/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 90s
+
+  # ---------------- 告警 ----------------
+  # Alertmanager 入站 → 落库去重 → 邮件/Webhook/短信三渠道（渠道默认全关，按需开）
+  alert:
+    <<: *common
+    image: bluewhale/whale-alert:dev
+    container_name: bw-alert
+    profiles: ["ops", "ext"]
+    mem_limit: 700m
+    environment:
+      JAVA_OPTS: "-Xms128m -Xmx384m -XX:MaxMetaspaceSize:256m -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "9103"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      # Alertmanager 入站令牌：默认值仅本地可用，非本机部署必须覆盖
+      ALERT_WEBHOOK_TOKEN: ${ALERT_WEBHOOK_TOKEN:-bluewhale-alert-token}
+    ports:
+      - "127.0.0.1:9103:9103"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9103/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 90s
+
+  # ---------------- 监控聚合 ----------------
+  # 无库采集型服务：仅聚合 Nacos 服务发现与 actuator 指标，不持有业务库
+  monitor:
+    <<: *common
+    image: bluewhale/whale-monitor:dev
+    container_name: bw-monitor
+    profiles: ["ops", "ext"]
+    mem_limit: 500m
+    environment:
+      JAVA_OPTS: "-Xms128m -Xmx320m -XX:MaxMetaspaceSize:256m -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "9102"
+      NACOS_SERVER: ${NACOS_SERVER}
+    ports:
+      - "127.0.0.1:9102:9102"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9102/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 90s
+
+  # ---------------- 即时通讯 ----------------
+  # WebSocket 长连接 + Redis 在线态；用户名册校验走 whale-service-auth，机器人走 whale-agent
+  im:
+    <<: *common
+    image: bluewhale/whale-im:dev
+    container_name: bw-im
+    profiles: ["collab", "ext"]
+    mem_limit: 800m
+    environment:
+      JAVA_OPTS: "-Xms192m -Xmx448m -XX:MaxMetaspaceSize:288m -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "8091"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      SPRING_DATA_REDIS_HOST: ${REDIS_HOST}
+      SPRING_DATA_REDIS_PORT: ${REDIS_PORT}
+      WHALE_IM_AUTH_BASE_URL: "http://bw-auth:8081"
+      WHALE_IM_AGENT_BASE_URL: "http://bw-agent:8090"
+    ports:
+      - "127.0.0.1:8091:8091"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8091/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 90s
+
+  # ---------------- 邮件 ----------------
+  # IMAP/SMTP 账号由业务侧维护，邮件服务器（Mailcow）不在本编排内；
+  # 附件读写走 whale-file，全文索引为进程内 Lucene（落盘目录挂命名卷）
+  mail:
+    <<: *common
+    image: bluewhale/whale-mail:dev
+    container_name: bw-mail
+    profiles: ["collab", "ext"]
+    mem_limit: 800m
+    environment:
+      JAVA_OPTS: "-Xms192m -Xmx448m -XX:MaxMetaspaceSize:288m -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "8099"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      WHALE_MAIL_FILE_BASE_URL: "http://bw-file:8085"
+      # 收信同步默认关闭（whale.mail.sync-enabled 默认 false），容器化后由运维按账号启用
+      WHALE_MAIL_SYNC_ENABLED: ${WHALE_MAIL_SYNC_ENABLED:-false}
+      # Lucene 索引落盘位置（引擎默认 mysql，切 lucene 时才使用；多实例必须共享卷）
+      WHALE_MAIL_SEARCH_INDEX_DIR: "/app/data/mail-index"
+    volumes:
+      - mail-index:/app/data/mail-index
+    ports:
+      - "127.0.0.1:8099:8099"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8099/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 90s
+
+  # ---------------- 智能助手 ----------------
+  # 只做助手定义/会话/授权/用量，LLM 编排委托 whale-ai（内网 8092，不在本仓库/编排内）；
+  # 未接 whale-ai 时服务可正常起服，对话类接口返回上游不可用
+  assistant:
+    <<: *common
+    image: bluewhale/whale-assistant:dev
+    container_name: bw-assistant
+    profiles: ["collab", "ext"]
+    mem_limit: 600m
+    environment:
+      JAVA_OPTS: "-Xms128m -Xmx384m -XX:MaxMetaspaceSize:256m -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "8087"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      WHALE_AI_BASE_URL: ${WHALE_AI_BASE_URL:-http://bw-ai:8092}
+    ports:
+      - "127.0.0.1:8087:8087"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8087/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 90s
+
+  # ---------------- 智能体 ----------------
+  # 知识库采集 whale-file / whale-doc，租户目录查 whale-service-auth；
+  # LLM 走外部 OpenAI 兼容端点（WHALE_AGENT_LLM_BASE_URL / WHALE_AGENT_LLM_API_KEY 配了才可用）
+  agent:
+    <<: *common
+    image: bluewhale/whale-agent:dev
+    container_name: bw-agent
+    profiles: ["aiot", "ext"]
+    mem_limit: 800m
+    environment:
+      JAVA_OPTS: "-Xms192m -Xmx448m -XX:MaxMetaspaceSize:320m -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "8090"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      WHALE_AGENT_FILE_URL: "http://bw-file:8085"
+      WHALE_AGENT_AUTH_URL: "http://bw-auth:8081"
+      WHALE_AGENT_DOC_URL: "http://bw-doc:8095"
+      WHALE_AGENT_LLM_BASE_URL: ${WHALE_AGENT_LLM_BASE_URL:-https://api.openai.com/v1}
+      WHALE_AGENT_LLM_API_KEY: ${WHALE_AGENT_LLM_API_KEY:-}
+    ports:
+      - "127.0.0.1:8090:8090"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8090/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 90s
+
+  # ---------------- 物联网 ----------------
+  # 不做常驻 MQTT 客户端：遥测经 EMQX（infrastructure 编排的 bw-emqx）Webhook 转发到
+  # /iot/internal/emqx/**，设备超限告警回调 whale-alert
+  iot:
+    <<: *common
+    image: bluewhale/whale-iot:dev
+    container_name: bw-iot
+    profiles: ["aiot", "ext"]
+    mem_limit: 600m
+    environment:
+      JAVA_OPTS: "-Xms128m -Xmx384m -XX:MaxMetaspaceSize:256m -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "8088"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      WHALE_IOT_EMQX_API: "http://bw-emqx:18083"
+      WHALE_IOT_EMQX_MQTT_HOST: "bw-emqx"
+      WHALE_IOT_EMQX_MQTT_PORT: "1883"
+      WHALE_IOT_ALERT_BASE_URL: "http://bw-alert:9103"
+    ports:
+      - "127.0.0.1:8088:8088"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8088/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 90s
+
+  # ---------------- 场景编排 ----------------
+  # 2D 首屏预算校验；3D（three-d-enabled）默认关闭，M3 解冻评审通过后才开
+  scene:
+    <<: *common
+    image: bluewhale/whale-scene:dev
+    container_name: bw-scene
+    profiles: ["aiot", "ext"]
+    mem_limit: 600m
+    environment:
+      JAVA_OPTS: "-Xms128m -Xmx384m -XX:MaxMetaspaceSize:256m -XX:+ExitOnOutOfMemoryError"
+      SERVER_PORT: "8097"
+      NACOS_SERVER: ${NACOS_SERVER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "127.0.0.1:8097:8097"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8097/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 8s
+      retries: 12
+      start_period: 90s
+
 volumes:
   auth-joblogs:
     name: bw-auth-joblogs
@@ -731,6 +1031,9 @@ volumes:
     name: bw-party-joblogs
   pdm-joblogs:
     name: bw-pdm-joblogs
+  # Lucene 全文索引落盘：容器重建不丢，重建索引需全量重同步邮件
+  mail-index:
+    name: bw-mail-index
 
 networks:
   bw-net:
