@@ -5,6 +5,7 @@ import com.bluewhale.common.tenant.TenantContext;
 import com.bluewhale.common.web.WebHeaders;
 import com.bluewhale.crm.config.CrmMarketingProperties;
 import com.bluewhale.crm.marketing.domain.model.MarketingMessage;
+import com.bluewhale.crm.marketing.domain.model.SendChannel;
 import com.bluewhale.crm.marketing.domain.port.MessageDispatchPort;
 import com.bluewhale.crm.marketing.domain.port.MessageDispatchResult;
 import org.springframework.core.ParameterizedTypeReference;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -38,6 +40,12 @@ public class MessageInternalClient implements MessageDispatchPort {
 
     /** 成功状态码 */
     private static final int CODE_SUCCESS = 0;
+
+    /** 业务类型：CRM 营销触达 */
+    private static final String BIZ_TYPE_CRM_MARKETING = "CRM_MARKETING";
+
+    /** 消息服务站内信渠道名 */
+    private static final String MESSAGE_CHANNEL_INAPP = "INAPP";
 
     /** 默认租户 ID */
     private static final long DEFAULT_TENANT_ID = 1L;
@@ -72,15 +80,8 @@ public class MessageInternalClient implements MessageDispatchPort {
         if (message == null || message.getRecipient() == null || message.getRecipient().isBlank()) {
             return MessageDispatchResult.failed("收件人为空");
         }
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("to", message.getRecipient());
-        body.put("channel", message.getChannel() == null ? null : message.getChannel().name());
-        body.put("templateCode", message.getTemplateCode());
-        body.put("subject", message.getSubject());
-        body.put("contentDocId", message.getContentDocId());
-        body.put("bizType", "CRM_MARKETING");
-        body.put("bizId", message.getSendId());
         try {
+            Map<String, Object> body = buildBody(message);
             Map<String, Object> response = restClient.post()
                     .uri(SEND_PATH)
                     .contentType(MediaType.APPLICATION_JSON)
@@ -102,12 +103,70 @@ public class MessageInternalClient implements MessageDispatchPort {
     }
 
     /**
+     * 按消息服务 {@code SendMessageRequest} 契约组装请求体。
+     *
+     * <p>渠道映射：CRM 站内信（INBOX）对应消息服务 INAPP；
+     * 接收人按渠道取 userId / email / phone。</p>
+     *
+     * @param message 营销消息
+     * @return 请求体
+     */
+    private Map<String, Object> buildBody(MarketingMessage message) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("tenantId", tenantIdValue());
+        body.put("bizType", BIZ_TYPE_CRM_MARKETING);
+        body.put("bizId", message.getSendId());
+        body.put("templateCode", message.getTemplateCode());
+        body.put("title", message.getSubject());
+        body.put("channels", List.of(messageChannel(message.getChannel())));
+        body.put("recipients", List.of(recipientBody(message)));
+        return body;
+    }
+
+    /**
+     * 组装单个接收人。
+     *
+     * @param message 营销消息
+     * @return 接收人结构
+     */
+    private Map<String, Object> recipientBody(MarketingMessage message) {
+        Map<String, Object> recipient = new LinkedHashMap<>();
+        if (message.getChannel() == SendChannel.INBOX) {
+            recipient.put("userId", Long.valueOf(message.getRecipient()));
+        } else if (message.getChannel() == SendChannel.SMS) {
+            recipient.put("phone", message.getRecipient());
+        } else {
+            recipient.put("email", message.getRecipient());
+        }
+        return recipient;
+    }
+
+    /**
+     * CRM 触达渠道到消息服务渠道的映射。
+     *
+     * @param channel 触达渠道
+     * @return 消息服务渠道名
+     */
+    private static String messageChannel(SendChannel channel) {
+        return channel == SendChannel.INBOX ? MESSAGE_CHANNEL_INAPP : channel.name();
+    }
+
+    /**
+     * 当前租户 ID 值。
+     *
+     * @return 租户 ID；未设置时取默认租户
+     */
+    private Long tenantIdValue() {
+        Long tenantId = TenantContext.get();
+        return tenantId == null ? DEFAULT_TENANT_ID : tenantId;
+    }
+
+    /**
      * 当前租户头值。
      *
      * @return 租户 ID 文本
      */
     private String tenantHeader() {
-        Long tenantId = TenantContext.get();
-        return String.valueOf(tenantId == null ? DEFAULT_TENANT_ID : tenantId);
+        return String.valueOf(tenantIdValue());
     }
 }

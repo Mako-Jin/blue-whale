@@ -19,12 +19,6 @@ public class CrmAnalyticsProperties {
     /** 分析模块开关 */
     private boolean enabled = true;
 
-    /** 指标快照定时任务 Cron（默认每日 02:00） */
-    private String snapshotCron = "0 0 2 * * ?";
-
-    /** 行动计划生成任务 Cron（默认每日 02:30） */
-    private String actionPlanCron = "0 30 2 * * ?";
-
     /** 指标快照保留年数 */
     private int retentionYears = 5;
 

@@ -123,15 +123,14 @@ whale:
       send-batch-size: ${WHALE_CRM_MARKETING_SEND_BATCH_SIZE:200}
       daily-frequency-limit: ${WHALE_CRM_MARKETING_DAILY_LIMIT:1}
       default-channel: ${WHALE_CRM_MARKETING_DEFAULT_CHANNEL:EMAIL}
-      message-url: ${WHALE_MESSAGE_URL:http://127.0.0.1:8085}
+      message-url: ${WHALE_MESSAGE_URL:http://127.0.0.1:8094}
       connect-timeout-millis: ${WHALE_CRM_MESSAGE_CONNECT_TIMEOUT:1000}
       read-timeout-millis: ${WHALE_CRM_MESSAGE_READ_TIMEOUT:3000}
       auto-approve-report: ${WHALE_CRM_PARTNER_AUTO_APPROVE:false}
-    # 数据分析（M6）：每日 02:00 快照，保留 5 年，规则化行动计划
+    # 数据分析（M6）：快照/行动计划经 whale-job 调度（job_info 1001/1002）触发本服务
+    # /crm/internal/analytics/**，保留 5 年，规则化行动计划
     analytics:
       enabled: ${WHALE_CRM_ANALYTICS_ENABLED:true}
-      snapshot-cron: ${WHALE_CRM_ANALYTICS_SNAPSHOT_CRON:0 0 2 * * ?}
-      action-plan-cron: ${WHALE_CRM_ACTION_PLAN_CRON:0 30 2 * * ?}
       retention-years: ${WHALE_CRM_METRIC_RETENTION_YEARS:5}
       export-max-rows: ${WHALE_CRM_EXPORT_MAX_ROWS:5000}
       dashboard-lookback-days: ${WHALE_CRM_DASHBOARD_LOOKBACK_DAYS:90}
