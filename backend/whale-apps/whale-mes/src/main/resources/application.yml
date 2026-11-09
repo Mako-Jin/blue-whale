@@ -58,6 +58,13 @@ whale:
   permission:
     header:
       enabled: true
+  mes:
+    outbox:
+      enabled: ${WHALE_MES_OUTBOX_ENABLED:true}
+      interval-ms: 30000
+      batch-size: 20
+    integration:
+      erp-base-url: ${WHALE_ERP_BASE_URL:http://127.0.0.1:9001}
 
 mybatis-plus:
   configuration:
