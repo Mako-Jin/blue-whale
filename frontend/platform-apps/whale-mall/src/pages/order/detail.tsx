@@ -14,9 +14,10 @@ import {
   Table,
   Tag,
   Typography,
+  Upload,
   message,
 } from 'antd';
-import type { TableProps } from 'antd';
+import type { TableProps, UploadFile } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   applyAfterSale,
@@ -27,6 +28,7 @@ import {
   refundOrder,
   createShipment,
   listShipmentsByOrder,
+  uploadAfterSaleImage,
   type OrderLineView,
   type OrderView,
   type ShipmentView,
@@ -113,6 +115,8 @@ export default function OrderDetailPage() {
   const [afterSaleReason, setAfterSaleReason] = useState('质量问题');
   const [afterSaleDescription, setAfterSaleDescription] = useState('');
   const [afterSaleQty, setAfterSaleQty] = useState<Record<number, number>>({});
+  const [afterSaleFiles, setAfterSaleFiles] = useState<UploadFile[]>([]);
+  const [afterSaleImageUrls, setAfterSaleImageUrls] = useState<string[]>([]);
   const [shipments, setShipments] = useState<ShipmentView[]>([]);
   const [shipOpen, setShipOpen] = useState(false);
   const [carrierCode, setCarrierCode] = useState('SF');
@@ -219,6 +223,8 @@ export default function OrderDetailPage() {
     setAfterSaleType('REFUND_ONLY');
     setAfterSaleReason('质量问题');
     setAfterSaleDescription('');
+    setAfterSaleFiles([]);
+    setAfterSaleImageUrls([]);
     setAfterSaleOpen(true);
   };
 
@@ -241,10 +247,13 @@ export default function OrderDetailPage() {
         type: afterSaleType,
         reason: afterSaleReason,
         description: afterSaleDescription.trim() || undefined,
+        images: afterSaleImageUrls.length > 0 ? afterSaleImageUrls.join(',') : undefined,
         lines,
       });
       message.success('售后申请已提交，等待运营审核');
       setAfterSaleOpen(false);
+      setAfterSaleFiles([]);
+      setAfterSaleImageUrls([]);
       await load();
     } catch (error) {
       message.error(errorText(error));
@@ -655,6 +664,31 @@ export default function OrderDetailPage() {
             value={afterSaleDescription}
             onChange={(event) => setAfterSaleDescription(event.target.value)}
           />
+          <div>
+            <Typography.Text style={{ display: 'block', marginBottom: 8 }}>凭证图片（最多 9 张）</Typography.Text>
+            <Upload
+              accept="image/*"
+              listType="picture-card"
+              maxCount={9}
+              fileList={afterSaleFiles}
+              onChange={({ fileList }) => setAfterSaleFiles(fileList)}
+              customRequest={async ({ file, onSuccess, onError }) => {
+                try {
+                  const url = await uploadAfterSaleImage(file as File);
+                  setAfterSaleImageUrls((prev) => [...prev, url]);
+                  onSuccess?.(url);
+                } catch (error) {
+                  message.error(errorText(error));
+                  onError?.(error as Error);
+                }
+              }}
+              onRemove={(file) => {
+                setAfterSaleImageUrls((prev) => prev.filter((url) => url !== file.response));
+              }}
+            >
+              {afterSaleFiles.length < 9 && <span>上传图片</span>}
+            </Upload>
+          </div>
           <Table<OrderLineView>
             rowKey={(row) => String(row.id ?? `${row.skuId}-${row.quantity}`)}
             size="small"
