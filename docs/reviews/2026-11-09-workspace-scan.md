@@ -93,7 +93,7 @@
 4. ~~**Wave 5.98 无 devlog 章节**，mall 端点与测试总数未回填 `service-catalog.md`。~~ 复核（2026-11-09）：`docs/devlog/2026-11-07.md` Step 6 已存在；`service-catalog.md` 记 18 表 / 60 端点，与迁移脚本及 12 个 Controller 的 60 个映射一致，无需回填。
 5. **OA V12 迁移**：若本地库留有失败记录，执行前需 `flyway repair` 或清理 `flyway_schema_history` 失败行。
 6. **上线必检**：`docs/design/network-boundary.md`（直连业务端口收口）；prod compose 证书（V-09）。
-7. **audit_log 迁移缺口（2026-11-09 第七批登记）**：15 个服务库（oa/mes/pdm/pm/workflow/job/file/form/i18n/mail/map/video/music/im/scene）的 baseline 均未含审计表 DDL，本次为联调手工补表。需在后续批次补 baseline 或独立迁移，否则新环境起服后审计切面写库仍会失败。
+7. ~~**audit_log 迁移缺口（2026-11-09 第七批登记）**：15 个服务库（oa/mes/pdm/pm/workflow/job/file/form/i18n/mail/map/video/music/im/scene）的 baseline 均未含审计表 DDL，本次为联调手工补表。~~ ✅ 已闭环（2026-11-09 第九批）：14 个服务各补 `V{n}__audit_log.sql`（IF NOT EXISTS 幂等），13 服务脚本约定测试全绿，job/map 实机重放 success；i18n 无独立服务模块，其库保持手工表。
 
 ## 七、本轮核实已闭环（从旧清单移除）
 
