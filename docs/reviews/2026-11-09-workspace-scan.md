@@ -91,8 +91,8 @@
 2. ~~**五服务总账 §四红线过期**：仍写「5.89 邮箱 / 5.91 地图未提交不得 `git add`」，实际已在 pom、网关与 `migration-5.89/5.91` 中。~~ ✅ 已订正（2026-11-09）：红线标记闭环，并补号段扫描要求。
 3. ~~**5.89 文档自相矛盾**：§8 写「不支持附件发送/接收（M1）」，§10 又把「附件收发」划为已完成。~~ ✅ 已订正（2026-11-09）：§8 该行标记「M1 已落地，见 §12」。
 4. ~~**Wave 5.98 无 devlog 章节**，mall 端点与测试总数未回填 `service-catalog.md`。~~ 复核（2026-11-09）：`docs/devlog/2026-11-07.md` Step 6 已存在；`service-catalog.md` 记 18 表 / 60 端点，与迁移脚本及 12 个 Controller 的 60 个映射一致，无需回填。
-5. **OA V12 迁移**：若本地库留有失败记录，执行前需 `flyway repair` 或清理 `flyway_schema_history` 失败行。
-6. **上线必检**：`docs/design/network-boundary.md`（直连业务端口收口）；prod compose 证书（V-09）。
+5. ~~**OA V12 迁移**：若本地库留有失败记录，执行前需 `flyway repair` 或清理 `flyway_schema_history` 失败行。~~ ✅ 已核实（2026-11-09 第十批）：实查实机 `flyway_schema_history`，OA V11–V15 全部 success、无失败行，无需 repair。
+6. ~~**上线必检**：`docs/design/network-boundary.md`（直连业务端口收口）。~~ ✅ 应用层两道防线已实测（2026-11-09 第十批）：网关 internal-deny 通配收口后 403 矩阵 8/8（含 `/audit/log/ingest/**`，非 internal 路径不误伤）；服务侧 `InternalTokenFilter` 直连 9007 无令牌 403 / 带令牌 200；启动脚本注入本地联调共享令牌。部署边界（K8s NetworkPolicy / 安全组）与 prod compose 证书（V-09）仍为上线前部署动作。
 7. ~~**audit_log 迁移缺口（2026-11-09 第七批登记）**：15 个服务库（oa/mes/pdm/pm/workflow/job/file/form/i18n/mail/map/video/music/im/scene）的 baseline 均未含审计表 DDL，本次为联调手工补表。~~ ✅ 已闭环（2026-11-09 第九批）：14 个服务各补 `V{n}__audit_log.sql`（IF NOT EXISTS 幂等），13 服务脚本约定测试全绿，job/map 实机重放 success；i18n 无独立服务模块，其库保持手工表。
 
 ## 七、本轮核实已闭环（从旧清单移除）
