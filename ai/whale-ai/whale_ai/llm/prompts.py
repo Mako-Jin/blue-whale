@@ -15,12 +15,22 @@ SYSTEM_PROMPT = (
 
 MAX_SNIPPET_CHARS = 800
 
+# 引用契约：无论助手是否自定义 system prompt，都必须遵守 [S1] 标记约定，
+# 否则 verify_citations 节点的引用校验无法对齐（Wave 6.01 多助手口径）。
+CITATION_CONTRACT = (
+    "回答规范：\n"
+    "1. 每条结论后用 [S1] 形式标注来源，编号必须来自本次证据清单；\n"
+    "2. 证据不足时明确说明缺少什么，不得编造路径、行号或配置；\n"
+    "3. 使用简洁的中文 Markdown 回答。"
+)
+
 
 def build_messages(
     question: str,
     citations: list[dict[str, Any]],
     history: list[dict[str, str]] | None = None,
     summary: str = "",
+    system_prompt: str | None = None,
 ) -> list[dict[str, str]]:
     """组装模型消息（system + 可选历史 + 带证据的当前问题）。
 
@@ -29,11 +39,16 @@ def build_messages(
         citations: 本次证据清单。
         history: 最近若干轮问答（``question``/``answer``）。
         summary: 更早轮次压缩后的摘要。
+        system_prompt: 助手自定义系统提示词（Wave 6.01）；缺省用 ``SYSTEM_PROMPT``。
+            自定义时引用契约仍作为独立 system 消息追加，保证引用校验可用。
 
     Returns:
         OpenAI 协议消息列表。
     """
-    messages: list[dict[str, str]] = [{"role": "system", "content": SYSTEM_PROMPT}]
+    persona = (system_prompt or "").strip() or SYSTEM_PROMPT
+    messages: list[dict[str, str]] = [{"role": "system", "content": persona}]
+    if system_prompt and system_prompt.strip() and system_prompt.strip() != SYSTEM_PROMPT:
+        messages.append({"role": "system", "content": CITATION_CONTRACT})
     if summary:
         messages.append({"role": "system", "content": f"更早对话摘要：\n{summary}"})
     for turn in history or []:

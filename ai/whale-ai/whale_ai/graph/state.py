@@ -17,6 +17,8 @@ class AgentState(TypedDict, total=False):
     scope: str | None
     user_id: str | None
     permission_codes: str | None
+    # Wave 6.01：助手配置（system prompt / 模型参数 / 工具白名单），缺省 = 默认平台助手
+    assistant: dict[str, Any] | None
     intent: str
     answer: str
     citations: list[dict[str, Any]]

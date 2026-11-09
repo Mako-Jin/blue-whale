@@ -1,0 +1,97 @@
+server:
+  # 网关注入的 X-Permission-Codes 随权限数量增长，Tomcat 默认 8KB 头上限会导致 400（对齐 whale-agent）
+  max-http-request-header-size: 64KB
+  port: ${SERVER_PORT:8088}
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: whale-iot
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/bluewhale_iot?useUnicode=true&characterEncoding=utf8&connectionCollation=utf8mb4_general_ci&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USER:root}
+    # P1-2 安全默认值：不提供 root 默认口令；未设置 MYSQL_PASSWORD 时由 starter 的
+    # DataSourcePasswordGuard 启动守卫给出明确报错（与 whale-agent 同一口径）
+    password: ${MYSQL_PASSWORD:}
+    # T-13 连接池基线：显式池名/上限/超时/泄漏检测（对齐 whale-agent）
+    hikari:
+      pool-name: ${spring.application.name}-hikari
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:5}
+      minimum-idle: ${DB_POOL_MIN_IDLE:2}
+      connection-timeout: ${DB_POOL_CONNECTION_TIMEOUT_MS:30000}
+      validation-timeout: ${DB_POOL_VALIDATION_TIMEOUT_MS:5000}
+      idle-timeout: ${DB_POOL_IDLE_TIMEOUT_MS:600000}
+      max-lifetime: ${DB_POOL_MAX_LIFETIME_MS:1800000}
+      keepalive-time: ${DB_POOL_KEEPALIVE_MS:120000}
+      leak-detection-threshold: ${DB_POOL_LEAK_DETECTION_MS:60000}
+  # REQ-SEC-022：Flyway 数据库版本化管理。仅扫描 classpath:db/migration。
+  flyway:
+    enabled: ${WHALE_FLYWAY_ENABLED:true}
+    locations: classpath:db/migration
+    table: flyway_schema_history
+    baseline-on-migrate: ${WHALE_FLYWAY_BASELINE_ON_MIGRATE:true}
+    baseline-version: 1
+    validate-on-migrate: true
+    clean-disabled: true
+    placeholder-replacement: false
+    connect-retries: 10
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+      config:
+        server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+        file-extension: yaml
+
+logging:
+  level:
+    com.bluewhale: debug
+
+# V-02 内网令牌：EMQX 认证/鉴权 Webhook 回调挂在 /iot/internal/emqx/** 下，
+# starter 默认模式 /**/internal/** 已覆盖；设备侧只连 1883 端口 MQTT，不经本服务。
+bluewhale:
+  internal-token:
+    path-patterns:
+      - /**/internal/**
+
+# AUTH-06：启用 starter 的 RequirePermissionInterceptor（默认 false，须显式开启），
+# 按网关注入的 X-Permission-Codes 判定本服务 sys:iot:* 权限。
+whale:
+  permission:
+    header:
+      enabled: true
+  iot:
+    # Wave 6.02 M1：EMQX（compose bw-emqx）连接信息。whale-iot 不做常驻 MQTT 客户端，
+    # M2 遥测上行走 EMQX Webhook/HTTP 桥接转发到本服务 internal 接口（见 wave6.02 设计文档）。
+    emqx:
+      api-base-url: ${WHALE_IOT_EMQX_API:http://127.0.0.1:18083}
+      # EMQX Dashboard/REST API 口令（管理面），未配置时管理面功能不可用（安全默认）
+      api-key: ${WHALE_IOT_EMQX_API_KEY:}
+      mqtt-host: ${WHALE_IOT_EMQX_MQTT_HOST:127.0.0.1}
+      mqtt-port: ${WHALE_IOT_EMQX_MQTT_PORT:1883}
+    # 单设备遥测单次上报条目上限（防超大批次拖垮落库）
+    telemetry-max-batch: ${WHALE_IOT_TELEMETRY_MAX_BATCH:100}
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}

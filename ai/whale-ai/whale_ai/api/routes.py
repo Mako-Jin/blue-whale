@@ -89,6 +89,9 @@ async def _stream(
     def produce() -> None:
         started = time.monotonic()
         try:
+            assistant = (
+                request.assistant.model_dump(exclude_none=True) if request.assistant else None
+            )
             state = run_agent(
                 request.question,
                 request.conversation_id,
@@ -96,6 +99,7 @@ async def _stream(
                 user_id=user_id,
                 permission_codes=permission_codes,
                 emit=emit,
+                assistant=assistant,
             )
             answer = state.get("answer") or ""
             conversation_id = state.get("conversation_id")

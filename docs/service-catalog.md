@@ -79,12 +79,16 @@
 | 31 | `whale-map` | whale-services | `whale-services/whale-map` | **8100** | `/map/**` | ✅ `lb://whale-map`（Wave 5.91 M0；**不配 `StripPrefix`**；M0 无内网接口） | **`bluewhale_map`**（V1 基线 3 张：`map_location`/`map_geocode_cache`/`map_quota_usage`；V2 增 `map_fence` 围栏） | `WhaleMapApplication` | 地图服务：地址解析 / 逆地理 / POI 检索 / 路径规划 / 批量距离 / 业务打点与附近查询 / 围栏与范围判定。**Key 与坐标系收敛在服务端**：前端只调 `/map/**`，不直连腾讯/高德，也不在页面出现明文 Key。M0：腾讯与高德两个适配器（统一契约 WGS84，适配器内做 GCJ-02/BD-09 换算）、能力路由（`GEOCODE/REGEO/POI/ROUTE` 可分配到不同供应商，`DISTANCE` 本地计算）、降级链（主供应商超时/超配额/空结果换下一家）、按天配额原子计数、地址解析库表缓存（90 天 TTL、按供应商分键）、打点幂等覆盖（唯一键 `(tenant, biz_type, biz_id)`）、附近查询（geohash 九宫格 + 球面精筛）、供应商健康与配额查询。M1-2：围栏（圆/多边形），bbox 粗筛 + 局部等距投影 + 射线法判定，**不用 MySQL `ST_Contains`**（按度在笛卡尔平面算，东西向被拉伸且 SRID 写错不报错）、跨 180 度经线 bbox 放全球避免粗筛静默漏判、有符号距离（内正外负）、`/map/fence/match` 反查命中围栏（打卡）。**非目标**：底图渲染与瓦片（前端 SDK 负责）、轨迹、行政区边界判定、打卡结果落库（属考勤业务）、供应商白名单外的地图（Mapbox/Google/OSM 一律不可用） | **M0 + M1-2 已落地 / 可启动**（Wave 5.91/5.92；8100 / `/map/**`；15 个接口；`mvn verify` 通过、单测 51 项；实机待 Key 注入） |
 | 32 | `whale-mall` | whale-apps | `whale-apps/whale-mall` | **9010** | `/mall/**` | ✅ `lb://whale-mall`（Wave 5.94 M0；**不配 `StripPrefix`**，`/mall/internal/**` 由 internal-deny 403） | **`bluewhale_mall`**（V1 基线 `audit_log`/`api_log` 2 张 + V2 商城 11 张：`mall_category`/`mall_spu`/`mall_sku`/`mall_sku_price`/`mall_sku_stock`/`mall_channel`/`mall_cart_item`/`mall_order`/`mall_order_item`/`mall_order_log`/`mall_sequence` + V3 订单退款列（`mall_order.refund_amount`/`refund_time`）+ V4 售后 2 张：`mall_after_sale`/`mall_after_sale_item`，并给 `mall_order_item` 补 `refunded_quantity`/`refunded_amount`；V5 计价 3 张：`mall_freight_template`/`mall_coupon`/`mall_coupon_user`，并给 `mall_order` 补 `goods_amount`/`discount_amount`/`freight_amount`/`coupon_user_id`/`coupon_code`、`mall_order_item` 补 `share_discount`/`share_freight`、`mall_channel` 补 `freight_template_id`；V6 物流 2 张：`mall_shipment`/`mall_shipment_item`，并给 `mall_order_item` 补 `shipped_quantity`（可发 = quantity - shipped_quantity），共 **18 张业务表**） | `WhaleMallApplication` | 商城服务：**一套内核兼容零售 / 经销订货 / 员工福利三种形态**，差异只落在 `mall_channel.mode`（`RETAIL`/`B2B`/`WELFARE`）+ `settlement_type`（现金/积分）+ `mall_sku_price.price_type`（`RETAIL`/`B2B`/`POINTS`）三个枚举上，不建三套表也不建三个服务。M0：类目树、商品（SPU+SKU+多价目）、渠道、库存、购物车、下单/支付回调/发货/完成（31 端点）。**关键口径**：① 价目按形态解析——`RETAIL→RETAIL`、`B2B→B2B 缺失回落 RETAIL`、`WELFARE→POINTS 缺失直接失败`（福利场景用现金价是错误而不是降级）；② 金额只认明细：`recalculate()` 由明细重算，拒绝 0 元单；积分价强制整数；③ 库存 `available`（可售）与 `reserved`（已卖未发）分离，扣减走 `WHERE available_qty >= ?` 条件更新防超卖；④ 幂等下单靠唯一键 `uk_mall_order_idem(tenant_id,buyer_user_id,idempotency_key)`，冲突返回已有订单而非 409，不占 Redis；⑤ 购物车 `mall_cart_item` 与库存行**物理删除/覆盖写**、不挂逻辑删除（否则唯一键在「删掉再加购」时撞键），商品/类目/订单软删时把编码改写为 `原编码#D{id}` 释放唯一键；⑥ 商品中心自持，**不与 ERP 商品/库存双写**（M0 明确不做 ERP 库存对账）。支付归 `whale-pay`（回调 `POST /mall/internal/order/paid` 内网直连）、素材归 `whale-file` | 可启动（Wave 5.94 M0 + 5.95 M1 + 5.96 售后 + 5.97 计价 + 5.98 物流；9010 / `/mall/**`；18 张表 / **60 端点**（M0 31 + 5.95 支付与退款 3 + 售后 7 + 运费模板 5 + 优惠券 8 + 发货单 6 + 内网签收 1 − 移除订单侧 `/ship` 1 = 60）；权限 **2200–2224**、菜单 491–503（`migration-5.94-mall.sql`/`5.95-mall-m1.sql`/`5.96-mall-aftersale.sql`/`5.97-mall-pricing.sql`/`5.98-mall-shipment.sql` 幂等）；5.98 单测 **205 项**、Checkstyle 0、ArchUnit 4/4（8 上下文）、覆盖率行 **51.2%** / 分支 **46.7%**（whale-pay 43 项 / 行 66.0% / 分支 54.8%，5.97 未改 pay 侧），`-Pcoverage-gate verify` BUILD SUCCESS；前端子应用 8119 已落地（含售后申请与审核、优惠券与运费模板、下单选券与金额四项、订单详情金额构成、发货管理与拆包发货，tsc + build + lint 通过）。**售后口径**：① 整单退款降级为售后单特例（覆盖全部可退行 + 直接通过审核），退款只保留一条实现路径；② 行级退款额度用条件更新占用（`quantity - refunded_quantity >= ?`），驳回/撤销必须释放，否则商品被拒一次就再也退不了；③ 部分退款订单**保持原状态**只累加 `refund_amount`，累计达 `total_amount` 才转 `REFUNDED`；④ 售后单号即支付侧退款幂等键，网络重试不会重复出账）。**计价口径（5.97）**：① `total_amount` 语义收窄为「应付」= `goods_amount` − `discount_amount` + `freight_amount`，字段名与取值不变，支付单金额与退款额度继续读它，无券无运费时与商品总额相等，老订单无需改值即自洽；② 优惠与运费**按行分摊**（`share_discount`/`share_freight`），前 n−1 行按占比 `DOWN` 保留 2 位、**末行吃尾差**，保证「Σ 分摊 = 总额」「Σ 行实付 = 应付」两个恒等式；③ 优惠封顶 `商品总额 − 0.01`（whale-pay 侧 `amount > 0` 是硬约束）；④ 售后可退基数由「快照价 × 数量」改为**行实付额**，同行分次退末次取剩余，杜绝按原价退导致商家倒贴优惠；⑤ 券模板 `mall_coupon` 与用户券 `mall_coupon_user` 分表、用户券**落快照**（面额/门槛/折扣/渠道/有效期），运营改券不篡改已领出的承诺；核销与回退走 `WHERE status = 'UNUSED'/'USED'` 条件更新，一券两单直接失败；订单取消与整单退满回退券，部分退款不回退；⑥ 发放量用 `issued_qty < total_qty` 条件占用，并发重复领取靠 `uk_mall_coupon_user(tenant_id,coupon_id,user_id,claim_seq)` 挡；⑦ 运费三型 `FREE`/`FIXED`/`THRESHOLD`，满额包邮门槛分母取**用券前**商品总额（避免「领券反而多付运费」），模板为空/停用/不存在一律 0 元——配置疏漏不阻断下单；⑧ 积分商城（`currencyType = POINTS`）强制清空运费绑定、带券下单直接 `COUPON_NOT_APPLICABLE`。**履约口径（5.98）**：① 发货是独立单据，订单 1:N 发货单，一张单一个运单号，支持拆包分批；② 行上 `shipped_quantity` 与 `refunded_quantity` 同构，占用走条件更新防并发超发；③ 订单状态由发货单驱动（首次发货 SHIPPED 幂等不重写时间 / 全发满且全签收 COMPLETED / 全部作废退回 PAID）；④ 发货单三态无草稿，签收按单号幂等，作废释放已发数量与预占库存；⑤ 运单号必填且租户内承运商维度唯一；存量已发货订单不回填已发数量） |
 
+| 33 | `whale-assistant` | whale-services | `whale-services/whale-assistant` | **8087** | `/assistant/**` | ✅ `lb://whale-assistant`（Wave 6.01 M0；**不配 `StripPrefix`**，`/assistant/internal/**` 由 internal-deny 403） | **`bluewhale_assistant`**（V1 基线 5 张：`asst_definition`/`asst_session`/`asst_message`/`asst_tool_grant`/`asst_usage`） | `WhaleAssistantApplication` | AI 助手平台：助手定义与生命周期、会话与消息持久化、工具授权、面向业务应用的开放 API 与用量统计。**不持模型凭据**：LLM 编排委托 `whale-ai`（8092，仅内网），知识检索委托 `whale-agent`（8090）；8087 为 `whale-i18n` 服务删除后释放的空位。规划：[docs/plans/wave6-iot-twin-ai-assistant-plan.md](plans/wave6-iot-twin-ai-assistant-plan.md) | **M0 骨架已落地 / 可启动**（Wave 6.01；8087 / `/assistant/**`；`mvn compile` 通过，实机待启动） |
+
+| 34 | `whale-iot` | whale-services | `whale-services/whale-iot` | **8088** | `/iot/**` | ✅ `lb://whale-iot`（Wave 6.02 M0；**不配 `StripPrefix`**，`/iot/internal/**` 由 internal-deny 403） | **`bluewhale_iot`**（V1 基线 6 张：`iot_product`/`iot_thing_model`/`iot_device`/`iot_telemetry`（按月分区）/`iot_command`/`iot_rule`） | `WhaleIotApplication` | IoT 设备联网平台：设备接入与认证（EMQX 认证 Webhook 提供方）、物模型（属性/事件/服务）、遥测上下行、设备影子、指令下发与回执、规则引擎（条件→动作，告警对接 `whale-alert` `/alert/internal`）。不做业务语义（MES 设备台账仍归 MES）；首期仅 MQTT，协议网关留 M4。MQTT Broker 为 EMQX（compose `bw-emqx`，1883/1884/18083）。规划：[docs/plans/wave6.02-iot.md](plans/wave6.02-iot.md) | **M0 骨架已落地 / 可启动**（Wave 6.02；8088 / `/iot/**`；M1 已落地：产品/物模型/设备 CRUD + 三元组签发 + EMQX 认证 Webhook，`mvn test` 34 项全绿；实机待启动） |
+
 > 「对外一级前缀」= 服务自持的前缀，网关**只转发、不剥离**（REQ-ARCH-003）。
 > 网关 `discovery.locator.enabled=true` 已开启服务发现路由：`lb://whale-<域>` → `http://<服务实例>`。
 
 ---
 
-## 二、网关路由映射（`whale-gateway`，现配 33 条，无规划路由）
+## 二、网关路由映射（`whale-gateway`，现配 34 条，含 1 条规划路由）
 
 | 路由 id | 断言前缀 | 目标 URI | 对应服务 | 状态 |
 |---|---|---|---|---|
@@ -99,6 +103,8 @@
 | `whale-monitor` | `Path=/monitor/**` | `lb://whale-monitor` | whale-monitor | ✅ 已配 |
 | `whale-audit` | `Path=/audit/**` | `lb://whale-audit` | whale-audit | ✅ 已配 |
 | `whale-agent` | `Path=/agent/**` | `lb://whale-agent` | whale-agent | ✅ 已配（Wave 5.47） |
+| `whale-assistant` | `Path=/assistant/**` | `lb://whale-assistant` | whale-assistant | 🟡 规划（Wave 6.01；**不配 `StripPrefix`**，内网 `/assistant/internal/**` 由 internal-deny 403；服务 M0 骨架已落地，实机待启动） |
+| `whale-iot` | `Path=/iot/**` | `lb://whale-iot` | whale-iot | 🟡 规划（Wave 6.02；**不配 `StripPrefix`**，内网 `/iot/internal/**` 由 internal-deny 403；服务 M0 骨架已落地，实机待启动） |
 | `whale-im` | `Path=/im/**`（**排除** `/im/ws`） | `lb://whale-im` | whale-im | 🟡 规划（Wave 5.52；**不配 `StripPrefix`**） |
 | `whale-im-ws` | `Path=/im/ws` | `lb:ws://whale-im` | whale-im | 🟡 规划（Wave 5.52；保留 `Upgrade`/`Connection` 头，鉴权走 60s 一次性 ticket） |
 | `whale-archive` | `Path=/archive/**` | `lb://whale-archive` | whale-archive | ✅ 已配（Wave 5.53 M1；**不配 `StripPrefix`**，内网 `/archive/internal/**` 由 internal-deny 403） |
@@ -150,6 +156,7 @@
 
 | 22 | whale-mail | `frontend/platform-apps/whale-mail` | `whale-mail` | qiankun **子应用**（邮箱：文件夹 / 邮件列表 / 阅读区三栏、写信与回复、本机草稿、手动同步、账号绑定与解绑；邮件正文在 `sandbox` iframe 内渲染并默认屏蔽远程图片） | **8117** | `/mail` | 微应用名 `whale-mail`（Wave 5.89 M0；tsc + lint + build 待本机验证） |
 | 23 | whale-mall | `frontend/platform-apps/whale-mall` | `whale-mall` | qiankun **子应用**（商城：商品列表与详情 / 类目管理 / 库存管理 / 渠道管理（零售·经销·福利，绑定运费模板）/ 购物车与下单（订单预览·幂等键·**选券**·金额四项）/ 订单列表与详情（**发货弹窗·物流区块**·完成·取消·金额构成与行实付）/ 售后申请与审核 / 优惠券（券模板 + 我的券）/ 运费模板 / **发货管理（签收·作废）**） | **8119** | `/mall` | 微应用名 `whale-mall`（Wave 5.94 M0 + 5.96 售后 + 5.97 计价 + 5.98 物流；tsc + lint + build 已通过，已接入基座 qiankun 与菜单 491–503） |
+| 24 | whale-assistant | `frontend/platform-apps/whale-assistant` | `whale-assistant` | qiankun **子应用**（AI 助手平台：会话工作台——选助手 / 建会话 / 流式问答（SSE POST 手工分帧）/ 引用标签渲染 / 会话列表与删除；助手 admin 管理页在 `frontend/admin`） | **8120** | `/assistant` | 微应用名 `whale-assistant`（Wave 6.01 M1 工作台已落地；M3 修正端口 8117→8120，8117 归 whale-mail；tsc + build 已通过） |
 
 共享包（不占端口）：`frontend/shared-packages/whale-common-tools`、`whale-common-theme`、`whale-log-sdk`、`frontend/shared-packages/whale-map`（地图：坐标转换 / `/map/**` 客户端 / 底图引擎抽象 / 围栏与地点组件，Wave 5.93）、`frontend/elemental/whale-ui`（NPM scope `@bluewhale/`）。
 冻结共享包（无消费方，不删除代码、不升级依赖）：`frontend/shared-packages/whale-common-three`（F-09）、`frontend/games/whale-games-core`（F-07）。
@@ -160,7 +167,7 @@
 
 | # | 组件 | 用途 | 端口 | 版本 | 部署方式 | 本机状态 |
 |---|---|---|---|---|---|---|
-| 1 | **MySQL** | 业务库 + Nacos 外置存储 | **3306**（TCP） | 8.0.45（本机 `D:\mysql8`）／镜像 8.4（compose） | 本机原生；compose `bw-mysql` | **已运行**。库：`bluewhale_auth`、`bluewhale_audit`、`bluewhale_nacos`、`bluewhale_agent`、**`bluewhale_im`（规划，Wave 5.52）**、**`bluewhale_message`（M0，脚本已就绪）**、**`bluewhale_doc`（Wave 5.74，已建）**、**`bluewhale_music`（Wave 5.75 M0–M5，已建库 14 表）**、**`bluewhale_video`（Wave 5.77 M0–M5，Flyway `V1`–`V4` 就绪，待建库）**、**`bluewhale_scene`（Wave 5.77 M1/M2，Flyway `V1__baseline.sql` 5 表 + 审计/API 日志，初始化脚本已登记）**、**`bluewhale_crm`（Wave 5.77 门禁骨架，4 表 DDL 无业务种子）**（另有外部遗留 `yc-sts-db-auth` / `yc-sts-db-flow`，登记不改名） |
+| 1 | **MySQL** | 业务库 + Nacos 外置存储 | **3306**（TCP） | 8.0.45（本机 `D:\mysql8`）／镜像 8.4（compose） | 本机原生；compose `bw-mysql` | **已运行**。库：`bluewhale_auth`、`bluewhale_audit`、`bluewhale_nacos`、`bluewhale_agent`、**`bluewhale_im`（规划，Wave 5.52）**、**`bluewhale_message`（M0，脚本已就绪）**、**`bluewhale_doc`（Wave 5.74，已建）**、**`bluewhale_music`（Wave 5.75 M0–M5，已建库 14 表）**、**`bluewhale_video`（Wave 5.77 M0–M5，Flyway `V1`–`V4` 就绪，待建库）**、**`bluewhale_scene`（Wave 5.77 M1/M2，Flyway `V1__baseline.sql` 5 表 + 审计/API 日志，初始化脚本已登记）**、**`bluewhale_crm`（Wave 5.77 门禁骨架，4 表 DDL 无业务种子）**、**`bluewhale_iot`（Wave 6.02，Flyway `V1` 6 表就绪，待建库）**（另有外部遗留 `yc-sts-db-auth` / `yc-sts-db-flow`，登记不改名） |
 | 2 | **Redis** | 令牌黑名单、i18n 缓存、分布式锁 | **6379**（TCP） | 5.0.14.1（本机 `tools/`）／镜像 7-alpine（compose） | 本机原生；compose `bw-redis` | **已运行** |
 | 3 | **Nacos** | 服务注册发现 + 配置中心 | **8848**（HTTP OpenAPI + 主服务）<br>**8849**（控制台，仅 3.x 独立控制台）<br>**9848**（gRPC 客户端→服务端）<br>**9849**（gRPC 服务端→服务端，集群） | 3.2.4（本机 `tools/nacos`）／镜像 3.2.4（compose） | 本机原生（standalone + MySQL 外置存储）；compose `bw-nacos` | **已运行**（3.2.4 实机启动验证：8848/8849 监听、`started successfully ... with external storage`；已注册 `whale-gateway` / `whale-service-auth` / `whale-audit`） |
 | 4 | **RabbitMQ** | 审计日志汇聚、异步消息（规划） | **5672**（AMQP）<br>**15672**（Management 控制台） | 4-management-alpine | compose `bw-rabbitmq` | ⚠ **未启动**（compose 服务已定义，本机未拉起） |
@@ -169,6 +176,7 @@
 | 7 | **Grafana** | 监控看板 | **3000**（默认，`GRAFANA_HOST_PORT` 可覆盖） | 11.2.0（compose `GRAFANA_IMAGE`） | compose `bw-grafana`（provisioning 自动装配 Prometheus 数据源） | **已运行**（`/api/health` ok；数据源 `BlueWhale Prometheus` 已装配） |
 | 8 | **Alertmanager** | 告警路由（webhook → `whale-alert`） | **9093**（默认，`ALERTMANAGER_HOST_PORT` 可覆盖） | v0.27.0（compose `ALERTMANAGER_IMAGE`） | compose `bw-alertmanager`（挂载 `infrastructure/prometheus/alertmanager-docker.yml`） | **已运行**（`amtool check-config` SUCCESS，`/-/ready` 200） |
 | 9 | **Sentinel Dashboard** | 流控/熔断控制台（REQ-ARCH 限流方案） | **8858**（默认） | —— | **未引入**（`whale-gateway` 未接 Sentinel） | 规划 |
+| 10 | **EMQX** | MQTT Broker（IoT 设备接入，Wave 6.02） | **1883**（MQTT）<br>**1884**（MQTT over WS；容器内 8083，宿主机映射避让后端 8083-8085 号段）<br>**18083**（Dashboard/REST API） | 5.8（compose `EMQX_IMAGE`） | compose `bw-emqx`（`infrastructure/docker/docker-compose.yml`） | 🟡 **已定义未启动**（`.env` 需配置 `EMQX_DASHBOARD_PASSWORD`；认证 Webhook 对接 whale-iot `/iot/internal/emqx/**`） |
 
 > Nacos 版本以本机实装 **3.2.4**（`tools/nacos` 解压体，JAR MANIFEST `Implementation-Version: 3.2.4`）为准，compose 镜像已统一 v3.2.4（T-16 口径变更，2026-10-30 实机启动验证通过）；健康检查使用 `/nacos/actuator/health`，控制台为独立端口 8849。
 
@@ -196,6 +204,8 @@
 | **8084** | `whale-form` | 后端 | 动态表单 |
 | **8085** | `whale-file` | 后端 | 文件服务 |
 | **8086** | `whale-pay` | 后端 | 支付 |
+| **8087** | `whale-assistant` | 后端 | AI 助手平台（Wave 6.01 规划，i18n 服务删除后释放的空位） |
+| **8088** | `whale-iot` | 后端 | IoT 设备联网平台（Wave 6.02 M0，可启动） |
 | **8090** | `whale-agent` | 后端 | 知识 Agent |
 | **8091** | `whale-im` | 后端 | WebIM（规划） |
 | **8092** | `whale-ai` | 后端（Python） | LangChain 智能体（仅内网，规划） |
@@ -279,8 +289,8 @@
 | **3306 / 6379 / 5672 / 15672** | MySQL / Redis / RabbitMQ | 3306、6379 已运行；5672/15672 未运行 |
 | **8000–8099** | **前端 dev server**：基座 `8000`、admin `8001`、form-designer `8002`、workflow-designer `8003`、agent `8004` | 已落地（C-01 已解） |
 | **8080** | **网关（唯一后端入口）** | 已运行 |
-| **8081–8099** | **核心服务** | auth 8081、job 8082、workflow 8083、form 8084、file 8085、pay 8086、**agent 8090、im 8091、ai 8092（Python）、archive 8093、message 8094、doc 8095（M1 骨架）、music 8096（M0–M5 已落地）、scene 8097（M1/M2 2D 已落地）、video 8098（M0–M5 已落地）**（8087 已随 `whale-i18n` 服务删除释放，Wave 5.50） |
-| **8101–8199** | **qiankun 子应用 + 运维端** | portal 8101、erp 8102、oa 8103、ops 8104、mes 8105、pdm 8106、**im 8107、pm 8108、contract 8109、doc 8110、music 8111（M0–M5 已落地）、scene 8112（M1/M2 已落地）、crm 8113（Step 1a/1b + M3 + M4-4a + M5 + M6 已落地）、video 8114（M0–M5 已落地）** |
+| **8081–8099** | **核心服务** | auth 8081、job 8082、workflow 8083、form 8084、file 8085、pay 8086、**assistant 8087（M0 骨架，Wave 6.01）、iot 8088（M0 骨架，Wave 6.02）、agent 8090、im 8091、ai 8092（Python）、archive 8093、message 8094、doc 8095（M1 骨架）、music 8096（M0–M5 已落地）、scene 8097（M1/M2 2D 已落地）、video 8098（M0–M5 已落地）**（8087 曾随 `whale-i18n` 服务删除释放，Wave 5.50；现由 `whale-assistant` 复用，Wave 6.01） |
+| **8101–8199** | **qiankun 子应用 + 运维端** | portal 8101、erp 8102、oa 8103、ops 8104、mes 8105、pdm 8106、**im 8107、pm 8108、contract 8109、doc 8110、music 8111（M0–M5 已落地）、scene 8112（M1/M2 已落地）、crm 8113（Step 1a/1b + M3 + M4-4a + M5 + M6 已落地）、video 8114（M0–M5 已落地）、assistant 8120（M1 工作台已落地，Wave 6.01；8117 已被 whale-mail 占用，M3 修正）** |
 | **8848 / 8849 / 9848 / 9849** | **Nacos** | 已运行 |
 | **9001–9099** | **业务应用** | erp 9001、mes 9002、pdm 9003、oa 9004、**pm 9005、contract 9006、crm 9007（M0–M6 已落地）** |
 | **9101–9199** | **运维（ops）** | audit 9101、monitor 9102、alert 9103 |

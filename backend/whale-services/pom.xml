@@ -25,6 +25,9 @@
         <module>whale-pay</module>
         <module>whale-gateway</module>
         <module>whale-agent</module>
+        <module>whale-iot</module>
+        <!-- Wave 6.01 AI 助手平台：助手定义/会话/工具授权/用量 -->
+        <module>whale-assistant</module>
         <module>whale-im</module>
         <module>whale-archive</module>
         <module>whale-message</module>
