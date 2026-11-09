@@ -259,6 +259,7 @@ public class ProductAppServiceImpl implements ProductAppService {
         sku.setImageUrl(command.getImageUrl());
         sku.setStatus(command.getStatus() == null ? "ENABLED" : command.getStatus().toUpperCase(Locale.ROOT));
         sku.setSortNo(command.getSortNo() == null ? 0 : command.getSortNo());
+        sku.setWeightKg(command.getWeightKg());
         List<SkuPrice> prices = new ArrayList<>(command.getPrices().size());
         for (PriceCommand priceCommand : command.getPrices()) {
             PriceType priceType = PriceType.parse(priceCommand.getPriceType());
@@ -310,6 +311,7 @@ public class ProductAppServiceImpl implements ProductAppService {
         view.setImageUrl(sku.getImageUrl());
         view.setStatus(sku.isEnabled() ? "ENABLED" : "DISABLED");
         view.setSortNo(sku.getSortNo());
+        view.setWeightKg(sku.getWeightKg());
         view.setAvailableQty(stock == null ? 0 : stock.getAvailableQty());
         view.setReservedQty(stock == null ? 0 : stock.getReservedQty());
         for (SkuPrice price : sku.getPrices()) {

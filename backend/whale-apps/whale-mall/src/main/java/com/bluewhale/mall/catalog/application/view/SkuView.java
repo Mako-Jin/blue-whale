@@ -2,6 +2,7 @@ package com.bluewhale.mall.catalog.application.view;
 
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,6 +31,9 @@ public class SkuView {
 
     /** 排序号 */
     private Integer sortNo;
+
+    /** 单件重量（千克，按重运费计价用；可空） */
+    private BigDecimal weightKg;
 
     /** 可售数量 */
     private Integer availableQty;

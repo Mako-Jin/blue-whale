@@ -1,10 +1,13 @@
 package com.bluewhale.mall.catalog.application.command;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -34,6 +37,11 @@ public class SkuCommand {
 
     /** 状态：ENABLED / DISABLED */
     private String status;
+
+    /** 单件重量（千克，按重运费计价用；可空） */
+    @DecimalMin(value = "0.001", message = "单件重量必须大于 0")
+    @Digits(integer = 8, fraction = 3, message = "单件重量最多 3 位小数")
+    private BigDecimal weightKg;
 
     /** 排序号 */
     private Integer sortNo;

@@ -246,7 +246,7 @@
 | **9007** | `whale-crm` | 后端 | 客户关系（M0 底座 + M1 客户主数据：客户 / 联系人 / 地址 / 画像 / 公海 / 跟进 / 360；M2 销售域：线索 / 商机与漏斗 / 报价 / 预测 / 目标；M3 7f-1：合同台账投影 / 续约提醒 / 回款计划 / 催收；7f-2：商务订单审批后 outbox 幂等下发 ERP；7f-3：开票申请 / 审批 / 开票 / 寄送 / 红冲 + ERP 应收只读快照与账龄对账；M4-4a：售后工单状态机 / 分派 / 暂停恢复 / 升级 / 解决关闭重开 / SLA 7×8 工作日历与逾期派生） |
 | **9008** | `whale-lms` | 后端 | 学习培训考试（Wave 5.87 M0–M6：课程学习 / 培训计划 / 题库试卷 / 考试判分 / 证书学分 / 集成收口 / 学习看板；27 表） |
 | **9009** | `whale-party` | 后端 | 党政工会（Wave 5.88 M-P0 门禁与编号流水 + M-P1 支部/党员/组织生活/党费台账 + M-P2 党建内容与先审后发 + M-P3 工会会员/慰问帮扶/节日福利/工会活动/职代会提案 + M-P4 看板/通知/换届提醒/试点收口，共 20 张表 / 95 端点） |
-| **9010** | `whale-mall` | 后端 | 商城（Wave 5.94 M0 + 5.95 支付退款 + 5.96 售后 + 5.97 计价 + 5.98 物流：一套内核兼容零售 / 经销订货 / 员工福利，类目 / 商品与多价目 / 渠道（含运费模板绑定）/ 库存 / 购物车 / 订单与金额四项 / 售后 / 优惠券 / 运费模板 / 发货单与签收，共 18 张表 / 60 端点；支付归 `whale-pay`） |
+| **9010** | `whale-mall` | 后端 | 商城（Wave 5.94 M0 + 5.95 支付退款 + 5.96 售后 + 5.97 计价 + 5.98 物流 + 5.99 组合计价：一套内核兼容零售 / 经销订货 / 员工福利，类目 / 商品与多价目（含会员价）/ 渠道（含运费模板绑定）/ 库存（含 WMS 内网入库）/ 购物车 / 订单与金额四项（含活动价·原价·让利对账口径）/ 售后（含凭证图片）/ 优惠券（含商品券 SKU 范围）/ 运费模板（按件/按重/区域）/ 发货单与签收，共 23 张表 / 73 端点；支付归 `whale-pay`） |
 | **9090** | Prometheus | 基础设施 | 指标采集（compose `bw-prometheus`） |
 | **9093** | Alertmanager | 基础设施 | 告警路由（compose `bw-alertmanager`） |
 | **9101** | `whale-audit` | 后端 | 审计日志 |
@@ -271,6 +271,7 @@
 | `whale-doc`（规划） | `whale-file` | `POST /file/internal/upload`、`GET /file/internal/{id}/content` | 附件/图片上传与代理读取；桶 `whale-doc`（Nacos 直连，不经网关） |
 | `whale-mall` | `whale-pay` | `POST /pay/internal/order`、`/order/{no}/pay`、`/order/{no}/cancel`、`POST /pay/internal/refund`（Nacos 直连，不经网关） | 支付单归属 `whale-pay`：mall 创建支付单（金额=订单应付，按单号幂等）、发起支付、取消联动、整单退款；全链路 M1 已落地 |
 | `whale-pay` | `whale-mall` | `POST /mall/internal/order/paid`、`POST /mall/internal/order/refunded`（Nacos 直连，不经网关） | 支付/退款结果回调：任务表 + 指数退避重试（6 次后 DEAD，可手工重试），**只能单向推进状态**，重复回调幂等；网关已列入 `internal-deny`，外部访问 403 |
+| WMS（外部/内网） | `whale-mall` | `POST /mall/internal/stock/inbound`（Nacos 直连或内网直连，`X-Internal-Token`，不经网关） | 入库单推送：以 `docNo` 幂等（重复推送返回首次结果），行按 skuId 或 skuCode 精确匹配入库并落 `mall_stock_inbound(+item)`（Wave 5.99） |
 | `whale-doc`（规划） | `whale-message` | `POST /message/internal/send` | M3 评论提及/审批通知；显式传 `tenantId`，幂等键由文档服务生成 |
 | `whale-doc`（规划） | `whale-workflow` | `/workflow/**` + 回调 | M3 发布审批；`businessKey=doc:{pageId}:v{revision}` |
 | `whale-doc`（规划） | `whale-archive` | `POST /archive/internal/items` | M3 发布页快照入档；`sourceType=DOC_PAGE` |
