@@ -24,8 +24,10 @@ STATE="$ROOT/.workbuddy/tmp/profile-swap.state"
 
 # VM 余量红线：低于此值 build/起服都会把引擎拖死（历史事故：docker ps 全部 500）
 RESERVE_MB=${RESERVE_MB:-512}
-# mem_limit 是上限，实测常驻约为上限的 55%~65%；起服瞬间按上限算会误判，按比例折算
-RATIO_PCT=${RATIO_PCT:-60}
+# mem_limit 是上限，不是实际占用：实测稳态约为上限的 38%~43%
+#（bw-crm 340/900、bw-oa 343/900、bw-auth 371/900、bw-job 392/900；480 上限的约 200/480）
+# 取 45% 作预算（含 3~7 个百分点余量）。按 60% 算会把「20 核心 + 一组扩展」判成永远放不下。
+RATIO_PCT=${RATIO_PCT:-45}
 # 已运行服务的稳态占上限比例（用于算「预热还会再涨多少」）
 WARM_PCT=${WARM_PCT:-45}
 # 启动不足这么多秒的容器，其 MemAvailable 读数不可信
@@ -58,7 +60,9 @@ info() { echo "  $*"; }
 compose() { docker compose -f "$COMPOSE" --env-file "$ENVFILE" "$@"; }
 
 py() {
-  if command -v python3 >/dev/null 2>&1; then python3 "$@"; else python "$@"; fi
+  # Windows 上的 python 输出 CRLF，被 bash 读进 $(...) 后数字会带 \r 导致算术判断报
+  # "invalid arithmetic operator"，出口统一削掉
+  if command -v python3 >/dev/null 2>&1; then python3 "$@"; else python "$@"; fi | tr -d '\r'
 }
 
 docker_up() { docker info >/dev/null 2>&1; }
@@ -160,6 +164,18 @@ warming_count() {
     [ $(( $(date +%s) - s )) -lt "${WARMUP_SEC}" ] && n=$((n+1))
   done <<< "$(docker ps --format '{{.Names}}' 2>/dev/null)"
   echo "$n"
+}
+
+# 本次 up 会带起来的服务：默认组（无 profiles）+ 目标 profile 自有服务
+up_targets() {
+  compose --profile "$1" config --format json 2>/dev/null | py -c '
+import json,sys
+d=json.load(sys.stdin)
+prof=sys.argv[1]
+for n,s in sorted(d.get("services",{}).items()):
+    if (not s.get("profiles")) or prof in s["profiles"]:
+        print(n)
+' "$1"
 }
 
 # 目标 profile「自有服务」的 mem_limit 合计（默认组默认起，不计入扩展组预算）
@@ -267,8 +283,22 @@ MISSING_IMG="$(missing_images "$PROFILE")"
 [ -z "$MISSING_IMG" ] || die "缺镜像：$MISSING_IMG
   先执行：scripts/dev/build-service-images.sh ${MISSING_IMG%%(*}"
 
-NEED_LIMIT_MB="$(profile_delta_mb "$PROFILE")"
-NEED_MB=$((NEED_LIMIT_MB * RATIO_PCT / 100))
+# —— 显式计算本次要启动的集合 ——
+# 不能只算 profile 自有服务：核心组若被停过，--profile up -d 会把 20 个一起拉起来，
+# 预算若只算扩展组就会严重低估（实测核心 20 个稳态约 6.6G，扩展组才 1.2G）。
+declare -A LIMIT=()
+while IFS=$'\t' read -r n m; do [ -n "$n" ] && LIMIT[$n]="$m"; done <<< "$(service_limits)"
+
+sum_limits() {
+  local tot=0 n
+  for n in $1; do tot=$((tot + ${LIMIT[$n]:-0})); done
+  echo "$tot"
+}
+
+ALL_TARGETS="$(up_targets "$PROFILE")"
+RUNNING="$(running_services)"
+TO_START="$(printf '%s\n' "$ALL_TARGETS" | grep -vxF -f <(printf '%s\n' "$RUNNING") || true)"
+
 AVAIL_MB="$(vm_avail_mb)"
 GROWTH_MB="$(growth_reserve_mb)"
 # 预热补偿：刚起的服务 RSS 只有稳态的一半左右，直接用 MemAvailable 会把「虚高余量」当真实余量
@@ -276,58 +306,71 @@ EFF_AVAIL_MB=$((AVAIL_MB - GROWTH_MB))
 WARMING="$(warming_count)"
 
 echo "== 计划 =="
-info "目标 profile：$PROFILE（新增服务上限 ${NEED_LIMIT_MB}MB，按 ${RATIO_PCT}% 估算实需 ${NEED_MB}MB）"
-info "当前 VM 可用：${AVAIL_MB}MB；已运行服务预热后还会再涨约 ${GROWTH_MB}MB → 有效余量 ${EFF_AVAIL_MB}MB"
-info "预留红线 ${RESERVE_MB}MB"
+info "目标 profile：$PROFILE"
+info "待启动 $(printf '%s\n' "$TO_START" | grep -c .) 个（默认组 + ${PROFILE} 自有，已运行的跳过）"
+info "VM 可用 ${AVAIL_MB}MB；预热还会再涨约 ${GROWTH_MB}MB → 有效余量 ${EFF_AVAIL_MB}MB，红线 ${RESERVE_MB}MB"
 if [ "${WARMING:-0}" -gt 0 ]; then
-  info "注意：${WARMING} 个容器启动不足 ${WARMUP_SEC}s，若读数为负说明系统在换页，先等预热完成更稳"
+  info "注意：${WARMING} 个容器启动不足 ${WARMUP_SEC}s，读数可能偏低"
 fi
 
-TO_STOP=()
-STOPPED_LIMIT=0
-while [ "$((EFF_AVAIL_MB + STOPPED_LIMIT * RATIO_PCT / 100 - RESERVE_MB))" -lt "$NEED_MB" ]; do
-  [ "${#TO_STOP[@]}" -ge "$MAX_STOP" ] && break
+DROPPED=()
+while :; do
+  NEED_MB=$(( $(sum_limits "$TO_START") * RATIO_PCT / 100 ))
+  [ "$((EFF_AVAIL_MB - RESERVE_MB))" -ge "$NEED_MB" ] && break
+  [ "${#DROPPED[@]}" -ge "$MAX_STOP" ] && break
   pick=""
   for entry in "${STOP_CANDIDATES[@]}"; do
     cand="${entry%%|*}"
-    if ! printf '%s\n' "${TO_STOP[@]:-}" | grep -qx "$cand"; then pick="$cand"; pick_reason="${entry#*|}"; break; fi
+    if printf '%s\n' "$TO_START" | grep -qx "$cand"; then pick="$cand"; pick_reason="${entry#*|}"; break; fi
   done
   [ -z "$pick" ] && break
-  TO_STOP+=("$pick")
-  STOPPED_LIMIT=$((STOPPED_LIMIT + $(mem_of "$pick")))
-  info "→ 停 $pick（$(mem_of "$pick")MB）：$pick_reason"
+  TO_START="$(printf '%s\n' "$TO_START" | grep -vxF "$pick")"
+  DROPPED+=("$pick")
+  info "→ 让出 $pick（$(mem_of "$pick")MB）：$pick_reason"
 done
 
-if [ "$((EFF_AVAIL_MB + STOPPED_LIMIT * RATIO_PCT / 100 - RESERVE_MB))" -lt "$NEED_MB" ]; then
-  echo "余量仍不足：有效余量 ${EFF_AVAIL_MB}MB + 停用释放约 $((STOPPED_LIMIT * RATIO_PCT / 100))MB - 红线 ${RESERVE_MB}MB < 需 ${NEED_MB}MB" >&2
+NEED_MB=$(( $(sum_limits "$TO_START") * RATIO_PCT / 100 ))
+if [ "$((EFF_AVAIL_MB - RESERVE_MB))" -lt "$NEED_MB" ]; then
+  echo "余量仍不足：有效余量 ${EFF_AVAIL_MB}MB - 红线 ${RESERVE_MB}MB < 实需 ${NEED_MB}MB" >&2
   echo "调大 --max-stop，或改起更小的组（ops ≈1.0G / biz ≈1.1G）" >&2
   exit 2
 fi
-
-[ "${#TO_STOP[@]}" -eq 0 ] && info "余量已够，无需停核心服务"
+info "待启动上限 $(sum_limits "$TO_START")MB，按 ${RATIO_PCT}% 估算实需 ${NEED_MB}MB"
+[ "${#DROPPED[@]}" -eq 0 ] && info "余量已够，无需让出核心服务"
 
 if [ "$DRY_RUN" -eq 1 ]; then
   echo "--dry-run：不做任何变更"
   exit 0
 fi
 if [ "$AUTO_YES" -ne 1 ]; then
-  printf '继续？停 [%s] 并起 profile %s [y/N] ' "${TO_STOP[*]:-无}" "$PROFILE"
+  printf '继续？让出 [%s] 并启动上述服务 [y/N] ' "${DROPPED[*]:-无}"
   read -r ans || ans=""
   case "$ans" in y|Y|yes|YES) ;; *) echo "已取消"; exit 0 ;; esac
 fi
 
 mkdir -p "$(dirname "$STATE")"
-if [ "${#TO_STOP[@]}" -gt 0 ]; then
-  compose stop "${TO_STOP[@]}"
-  printf 'stopped=%s\nprofile=%s\ntime=%s\n' "${TO_STOP[*]}" "$PROFILE" "$(date '+%F %T')" > "$STATE"
+if [ "${#DROPPED[@]}" -gt 0 ]; then
+  RUN_DROP=""
+  for d in "${DROPPED[@]}"; do
+    printf '%s\n' "$RUNNING" | grep -qx "$d" && RUN_DROP="$RUN_DROP $d"
+  done
+  # 没在跑的只是不启动，在跑的才需要真停
+  # shellcheck disable=SC2086
+  [ -n "${RUN_DROP// /}" ] && compose stop $RUN_DROP
+  printf 'stopped=%s\nprofile=%s\ntime=%s\n' "${DROPPED[*]}" "$PROFILE" "$(date '+%F %T')" > "$STATE"
 fi
 
-compose --profile "$PROFILE" up -d
+if [ -z "${TO_START//[[:space:]]/}" ]; then
+  info "目标服务都已在运行，不需要 up"
+else
+  # shellcheck disable=SC2086
+  compose up -d $TO_START
+fi
 
 echo "== 起服后 =="
 sleep 5
 info "VM 可用：$(vm_avail_mb)MB（红线 ${RESERVE_MB}MB）"
 docker ps --filter 'label=com.docker.compose.project=bluewhale-app' \
   --format '{{.Names}}\t{{.Status}}' | sort | tail -20
-[ "${#TO_STOP[@]}" -gt 0 ] && echo "回滚：scripts/dev/profile-swap.sh --restore（会拉回 ${TO_STOP[*]}）"
+[ "${#DROPPED[@]}" -gt 0 ] && echo "回滚：scripts/dev/profile-swap.sh --restore（会拉回 ${DROPPED[*]}）"
 exit 0

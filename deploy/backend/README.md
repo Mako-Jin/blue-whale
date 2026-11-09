@@ -69,14 +69,17 @@ Docker VM 上限 **8GB**（`~/.wslconfig`），20 个核心服务已占约 **7.2
 
 因此这 10 个服务全部纳入本编排文件统一管理，但按域分组、默认关闭：
 
-| profile | 服务（端口） | 预算 | 起法 |
-|---|---|---|---|
-| （默认） | 核心 20 个 | ~7.2G | `up -d` |
-| `ops` | alert(9103) / monitor(9102) | ~1.0G | `--profile ops up -d` |
-| `collab` | im(8091) / mail(8099) / assistant(8087) | ~1.9G | `--profile collab up -d` |
-| `aiot` | agent(8090) / iot(8088) / scene(8097) | ~1.7G | `--profile aiot up -d` |
-| `biz` | pm(9005) / map(8100) | ~1.1G | `--profile biz up -d` |
-| `ext` | 以上 10 个全部 | ~5.7G | `--profile ext up -d`（需先停核心服务） |
+| profile | 服务（端口） | mem_limit 上限 | 实测常驻 | 起法 |
+|---|---|---|---|---|
+| （默认） | 核心 20 个 | 15.0G | ~6.4G | `up -d` |
+| `ops` | alert(9103) / monitor(9102) | 1.2G | ~0.6G | `--profile ops up -d` |
+| `collab` | im(8091) / mail(8099) / assistant(8087) | 2.2G | ~1.0G | `--profile collab up -d` |
+| `aiot` | agent(8090) / iot(8088) / scene(8097) | 2.0G | ~0.9G | `--profile aiot up -d` |
+| `biz` | pm(9005) / map(8100) | 1.3G | ~0.6G | `--profile biz up -d` |
+| `ext` | 以上 10 个全部 | 6.7G | ~3.0G | `--profile ext up -d`（需先停 6 个以上核心） |
+
+「实测常驻」按 `docker stats` 稳态读数：900 上限的服务 340~390MB（38~43%），480 上限的约 200MB。
+`mem_limit` 加总远超 VM 8G 是正常的——它是硬上限，不是预留。
 
 `music`(8096) / `party`(9009) 是演示模块，单独挂在 `demo` profile。
 
