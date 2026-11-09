@@ -39,4 +39,10 @@ public class CrmAnalyticsProperties {
 
     /** 逾期应收提醒金额阈值 */
     private String overdueAmountThreshold = "0";
+
+    /** whale-file 服务地址（导出的 CSV 归文件服务统一存储） */
+    private String fileServiceUrl = "http://127.0.0.1:8085";
+
+    /** 导出文件对象存储桶 */
+    private String fileBucket = "bluewhale";
 }

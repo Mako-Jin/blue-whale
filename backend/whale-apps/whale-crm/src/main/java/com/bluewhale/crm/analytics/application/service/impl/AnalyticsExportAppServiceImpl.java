@@ -5,6 +5,7 @@ import com.bluewhale.crm.analytics.domain.model.AnalyticsExport;
 import com.bluewhale.crm.analytics.domain.model.ExportStatus;
 import com.bluewhale.crm.analytics.domain.model.ExportTable;
 import com.bluewhale.crm.analytics.domain.model.ExportType;
+import com.bluewhale.crm.analytics.domain.port.AnalyticsExportFilePort;
 import com.bluewhale.crm.analytics.domain.port.AnalyticsSourcePort;
 import com.bluewhale.crm.analytics.domain.repository.AnalyticsExportRepository;
 import com.bluewhale.crm.common.CrmActor;
@@ -15,6 +16,7 @@ import com.bluewhale.crm.config.CrmProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -23,8 +25,8 @@ import java.util.List;
  * 分析导出应用服务实现。
  *
  * <p>同步生成 UTF-8 CSV（可选 BOM），手机号与邮箱无条件脱敏；超过
- * {@code whale.crm.analytics.export-max-rows} 直接拒绝。CSV 内容暂时落库，
- * 后续接入 whale-file 后改为文件 ID。</p>
+ * {@code whale.crm.analytics.export-max-rows} 直接拒绝。CSV 上传 whale-file，
+ * 本地只保存文件 ID 与文件名引用，不再把内容落库。</p>
  *
  * @author BlueWhale
  */
@@ -50,8 +52,12 @@ public class AnalyticsExportAppServiceImpl implements AnalyticsExportAppService 
     /** 邮箱表头 */
     private static final String EMAIL_HEADER = "邮箱";
 
+    /** CSV 文件扩展名 */
+    private static final String CSV_SUFFIX = ".csv";
+
     private final AnalyticsExportRepository analyticsExportRepository;
     private final AnalyticsSourcePort analyticsSourcePort;
+    private final AnalyticsExportFilePort analyticsExportFilePort;
     private final CrmProperties crmProperties;
     private final CrmAnalyticsProperties analyticsProperties;
 
@@ -92,7 +98,10 @@ public class AnalyticsExportAppServiceImpl implements AnalyticsExportAppService 
         export.setRequestedBy(userId);
         try {
             String csv = toCsv(table);
-            export.complete(csv, table.getRowCount());
+            String fileName = export.getExportNo() + CSV_SUFFIX;
+            Long fileId = analyticsExportFilePort.upload(fileName, csv.getBytes(StandardCharsets.UTF_8),
+                    userId, export.getTenantId());
+            export.complete(fileId, fileName, table.getRowCount());
         } catch (RuntimeException exception) {
             export.fail(exception.getMessage());
             analyticsExportRepository.insert(export);

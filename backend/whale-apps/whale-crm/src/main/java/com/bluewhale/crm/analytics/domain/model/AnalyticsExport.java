@@ -7,8 +7,8 @@ import java.time.LocalDateTime;
 /**
  * 分析导出任务。
  *
- * <p>{@code content} 为阶段性临时存储，接入 whale-file 后改为 fileId 引用；
- * 单次导出行数受 {@code whale.crm.analytics.export-max-rows} 约束。</p>
+ * <p>CSV 文件归 whale-file，本地只保留 {@code fileId} / {@code fileName} 引用，
+ * 不再把内容落库；单次导出行数受 {@code whale.crm.analytics.export-max-rows} 约束。</p>
  *
  * @author BlueWhale
  */
@@ -36,8 +36,11 @@ public class AnalyticsExport {
     /** 数据行数 */
     private Integer rowCount;
 
-    /** CSV 内容 */
-    private String content;
+    /** whale-file 文件 ID */
+    private Long fileId;
+
+    /** 导出文件名（下载用） */
+    private String fileName;
 
     /** 失败原因 */
     private String error;
@@ -54,12 +57,14 @@ public class AnalyticsExport {
     /**
      * 标记导出完成。
      *
-     * @param csv 已脱敏的 CSV 内容
-     * @param rows 数据行数
+     * @param fileId   已上传到 whale-file 的文件 ID
+     * @param fileName 导出文件名
+     * @param rows     数据行数
      */
-    public void complete(String csv, int rows) {
+    public void complete(Long fileId, String fileName, int rows) {
         this.status = ExportStatus.COMPLETED;
-        this.content = csv;
+        this.fileId = fileId;
+        this.fileName = fileName;
         this.rowCount = rows;
         this.error = null;
     }

@@ -82,7 +82,8 @@ public class AnalyticsExportRepositoryImpl implements AnalyticsExportRepository 
         export.setFiltersJson(entity.getFiltersJson());
         export.setStatus(ExportStatus.from(entity.getStatus()));
         export.setRowCount(entity.getRowCount());
-        export.setContent(entity.getContent());
+        export.setFileId(entity.getFileId());
+        export.setFileName(entity.getFileName());
         export.setError(entity.getError());
         export.setRequestedBy(entity.getRequestedBy());
         export.setCreateTime(entity.getCreateTime());
@@ -105,7 +106,8 @@ public class AnalyticsExportRepositoryImpl implements AnalyticsExportRepository 
         entity.setFiltersJson(export.getFiltersJson());
         entity.setStatus(export.getStatus() == null ? null : export.getStatus().name());
         entity.setRowCount(export.getRowCount());
-        entity.setContent(export.getContent());
+        entity.setFileId(export.getFileId());
+        entity.setFileName(export.getFileName());
         entity.setError(export.getError());
         entity.setRequestedBy(export.getRequestedBy());
         return entity;

@@ -4,8 +4,8 @@
 // 指标口径：赢单额按商机 WON 且关闭时间落在区间；合同/订单/开票取台账；
 // 回款取回款计划已收金额；应收逾期取最新快照；CSAT 取满意度均分。
 
-import { http } from './client';
-import type { PageResult } from './client';
+import { download, http } from './client';
+import type { DownloadResult, PageResult } from './client';
 
 /** 指标快照 */
 export interface MetricSnapshot {
@@ -139,7 +139,10 @@ export interface AnalyticsExport {
   exportType?: string | null;
   status?: string | null;
   rowCount?: number | null;
-  content?: string | null;
+  /** 导出文件 ID（CSV 归 whale-file 存储，下载走 /file/{fileId}/download） */
+  fileId?: number | null;
+  /** 导出文件名（如 EXP-20261109-0001.csv） */
+  fileName?: string | null;
   error?: string | null;
   createTime?: string | null;
 }
@@ -210,7 +213,7 @@ export function createExport(exportType: string, filtersJson?: string): Promise<
   return http.post<AnalyticsExport>('/crm/analytics/export', { exportType, filtersJson });
 }
 
-/** 读取导出内容 */
-export function getExportContent(id: number): Promise<AnalyticsExport> {
-  return http.get<AnalyticsExport>(`/crm/analytics/export/${id}/content`);
+/** 下载导出文件：CSV 归 whale-file 存储，带 JWT 拉取字节流 */
+export function downloadExport(fileId: number): Promise<DownloadResult> {
+  return download(`/file/${fileId}/download`);
 }

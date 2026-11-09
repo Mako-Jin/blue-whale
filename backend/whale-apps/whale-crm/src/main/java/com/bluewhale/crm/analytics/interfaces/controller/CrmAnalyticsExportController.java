@@ -49,11 +49,14 @@ public class CrmAnalyticsExportController {
     }
 
     /**
-     * 查询导出内容。
+     * 查询导出任务的文件引用。
+     *
+     * <p>返回的 {@code fileId} / {@code fileName} 用于下载
+     * {@code GET /file/{fileId}/download}，CSV 内容不再随响应返回。</p>
      *
      * @param id 导出任务 ID
      * @param request 当前请求
-     * @return 导出任务（含 CSV）
+     * @return 导出任务（含文件引用）
      */
     @GetMapping("/{id}/content")
     @RequirePermission(CrmPermissions.ANALYTICS_EXPORT)

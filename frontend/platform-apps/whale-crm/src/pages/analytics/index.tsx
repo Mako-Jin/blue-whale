@@ -23,11 +23,11 @@ import type { TableProps } from 'antd';
 import { hasPermission } from '../../utils/permission';
 import {
   createExport,
+  downloadExport,
   generateSnapshot,
   getCollectionAnalysis,
   getCustomerAnalysis,
   getDashboard,
-  getExportContent,
   getFunnel,
   getRanking,
   pageSnapshots,
@@ -445,7 +445,6 @@ function SnapshotPanel() {
 /** 导出面板 */
 function ExportPanel() {
   const [task, setTask] = useState<AnalyticsExport | null>(null);
-  const [content, setContent] = useState<AnalyticsExport | null>(null);
   const [exportType, setExportType] = useState('CUSTOMER');
 
   const handleCreate = async () => {
@@ -458,28 +457,21 @@ function ExportPanel() {
     }
   };
 
-  const handleContent = async () => {
-    if (!task) {
+  const handleDownload = async () => {
+    if (!task?.fileId) {
       return;
     }
     try {
-      setContent(await getExportContent(task.id));
+      const result = await downloadExport(task.fileId);
+      const url = URL.createObjectURL(result.blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = task.fileName || result.filename || `${task.exportNo || 'export'}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
     } catch (error) {
       message.error(errorText(error));
     }
-  };
-
-  const download = () => {
-    if (!content?.content) {
-      return;
-    }
-    const blob = new Blob(['\uFEFF', content.content], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${content.exportNo || 'export'}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
   };
 
   return (
@@ -498,8 +490,7 @@ function ExportPanel() {
           ]}
         />
         {hasPermission('sys:crm:export') && <Button type="primary" onClick={() => void handleCreate()}>创建导出</Button>}
-        {task && <Button onClick={() => void handleContent()}>查看内容</Button>}
-        {content?.content && <Button type="primary" ghost onClick={download}>下载 CSV</Button>}
+        {task?.fileId && <Button type="primary" ghost onClick={() => void handleDownload()}>下载 CSV</Button>}
       </Space>
       {task && (
         <Descriptions bordered size="small" column={2}>
@@ -511,20 +502,14 @@ function ExportPanel() {
             </Tag>
           </Descriptions.Item>
           <Descriptions.Item label="行数">{task.rowCount ?? '-'}</Descriptions.Item>
+          <Descriptions.Item label="文件">{task.fileName || '-'}</Descriptions.Item>
+          <Descriptions.Item label="文件 ID">{task.fileId ?? '-'}</Descriptions.Item>
           <Descriptions.Item label="错误" span={2}>{task.error || '-'}</Descriptions.Item>
         </Descriptions>
       )}
-      {content?.content && (
-        <Input.TextArea
-          style={{ marginTop: 16 }}
-          rows={12}
-          readOnly
-          value={content.content.slice(0, 4000)}
-        />
-      )}
       <Typography.Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
         单次导出上限由 whale.crm.analytics.export-max-rows 控制；手机号 / 邮箱默认脱敏。
-        当前内容暂存数据库，接入 whale-file 后改为 fileId 下载。
+        导出文件由 whale-file 统一存储，点击“下载 CSV”按 fileId 拉取。
       </Typography.Text>
     </Card>
   );

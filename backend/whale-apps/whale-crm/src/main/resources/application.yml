@@ -133,6 +133,8 @@ whale:
       opportunity-overdue-days: ${WHALE_CRM_OPPORTUNITY_OVERDUE_DAYS:0}
       contract-expire-days: ${WHALE_CRM_CONTRACT_EXPIRE_DAYS:90}
       overdue-amount-threshold: ${WHALE_CRM_OVERDUE_AMOUNT_THRESHOLD:0}
+      file-service-url: ${WHALE_CRM_ANALYTICS_FILE_SERVICE_URL:http://127.0.0.1:8085}
+      file-bucket: ${WHALE_CRM_ANALYTICS_FILE_BUCKET:bluewhale}
 
 mybatis-plus:
   configuration:
