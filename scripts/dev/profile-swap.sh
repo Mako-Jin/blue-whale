@@ -26,6 +26,10 @@ STATE="$ROOT/.workbuddy/tmp/profile-swap.state"
 RESERVE_MB=${RESERVE_MB:-512}
 # mem_limit 是上限，实测常驻约为上限的 55%~65%；起服瞬间按上限算会误判，按比例折算
 RATIO_PCT=${RATIO_PCT:-60}
+# 已运行服务的稳态占上限比例（用于算「预热还会再涨多少」）
+WARM_PCT=${WARM_PCT:-45}
+# 启动不足这么多秒的容器，其 MemAvailable 读数不可信
+WARMUP_SEC=${WARMUP_SEC:-240}
 MAX_STOP=2
 DRY_RUN=0
 MODE_ACTION=""
@@ -109,6 +113,55 @@ running_services() {
   docker ps --format '{{.Label "com.docker.compose.service"}}' 2>/dev/null | grep -v '^$' | sort -u
 }
 
+# 已运行服务的「还会再涨多少」：刚起的 JVM RSS 只有稳态的 1/3，此时 MemAvailable 虚高，
+# 直接用会把「看起来够」判成真的够，等预热完就 OOM。按 WARM_PCT 的稳态估量补差额。
+growth_reserve_mb() {
+  local limits
+  # 用 compose 里的 mem_limit（容器名 = bw-<service>）；stats 报的「上限」对无 mem_limit 的
+  # 中间件是 VM 总量，直接拿来算会把 redis 当成能涨 3.5G，必须按服务表取
+  limits="$(service_limits | awk -F'\t' '{printf "bw-%s=%s ", $1, $2}')"
+  docker stats --no-stream --format '{{.Name}}\t{{.MemUsage}}' 2>/dev/null | py -c '
+import sys
+WARM=float(sys.argv[1])
+lim={}
+for kv in sys.argv[2].split():
+    if "=" in kv:
+        k,v=kv.split("=",1)
+        lim[k]=float(v)
+def mb(x):
+    for u,f in (("GiB",1024.0),("MiB",1.0),("KiB",1/1024.0)):
+        if x.endswith(u):
+            try: return float(x[:-len(u)])*f
+            except ValueError: return 0.0
+    return 0.0
+tot=0.0
+for line in sys.stdin:
+    line=line.strip()
+    if not line or "\t" not in line: continue
+    name,usage=line.split("\t",1)
+    limit=lim.get(name)
+    if not limit: continue
+    parts=[p.strip() for p in usage.split("/")]
+    if len(parts)!=2: continue
+    tot+=max(0.0, limit*WARM/100.0-mb(parts[0]))
+print(int(tot))
+' "$WARM_PCT" "$limits"
+}
+
+# 启动时间不足 WARMUP_SEC 的容器数（读数不可信）
+warming_count() {
+  local n=0 age
+  while read -r c; do
+    age="$(docker inspect "$c" --format '{{.State.StartedAt}}' 2>/dev/null || true)"
+    [ -z "$age" ] && continue
+    local s
+    s="$(date -d "$age" +%s 2>/dev/null || true)"
+    [ -z "$s" ] && continue
+    [ $(( $(date +%s) - s )) -lt "${WARMUP_SEC}" ] && n=$((n+1))
+  done <<< "$(docker ps --format '{{.Names}}' 2>/dev/null)"
+  echo "$n"
+}
+
 # 目标 profile「自有服务」的 mem_limit 合计（默认组默认起，不计入扩展组预算）
 profile_delta_mb() {
   local prof="$1"
@@ -143,8 +196,11 @@ show_status() {
   docker_up || die "Docker 引擎未运行（先启动 Docker Desktop）"
   local total avail
   total="$(vm_total_mb)"; avail="$(vm_avail_mb)"
+  local growth eff
+  growth="$(growth_reserve_mb)"; eff=$((avail - growth))
   echo "== Docker VM =="
   info "总量 ${total}MB / 可用 ${avail}MB / 红线 ${RESERVE_MB}MB"
+  info "已运行服务预热后还会再涨约 ${growth}MB → 有效余量 ${eff}MB"
   echo "== 依赖前置 =="
   info "Nacos 8848：$(nacos_up && echo 'UP' || echo 'DOWN ← 所有服务会注册失败死循环')"
   info "RabbitMQ/Redis：$(docker ps --format '{{.Names}}' | grep -cE 'bw-(redis|rabbitmq)' ) / 2 容器在线"
@@ -214,14 +270,22 @@ MISSING_IMG="$(missing_images "$PROFILE")"
 NEED_LIMIT_MB="$(profile_delta_mb "$PROFILE")"
 NEED_MB=$((NEED_LIMIT_MB * RATIO_PCT / 100))
 AVAIL_MB="$(vm_avail_mb)"
+GROWTH_MB="$(growth_reserve_mb)"
+# 预热补偿：刚起的服务 RSS 只有稳态的一半左右，直接用 MemAvailable 会把「虚高余量」当真实余量
+EFF_AVAIL_MB=$((AVAIL_MB - GROWTH_MB))
+WARMING="$(warming_count)"
 
 echo "== 计划 =="
 info "目标 profile：$PROFILE（新增服务上限 ${NEED_LIMIT_MB}MB，按 ${RATIO_PCT}% 估算实需 ${NEED_MB}MB）"
-info "当前 VM 可用：${AVAIL_MB}MB，预留红线 ${RESERVE_MB}MB"
+info "当前 VM 可用：${AVAIL_MB}MB；已运行服务预热后还会再涨约 ${GROWTH_MB}MB → 有效余量 ${EFF_AVAIL_MB}MB"
+info "预留红线 ${RESERVE_MB}MB"
+if [ "${WARMING:-0}" -gt 0 ]; then
+  info "注意：${WARMING} 个容器启动不足 ${WARMUP_SEC}s，若读数为负说明系统在换页，先等预热完成更稳"
+fi
 
 TO_STOP=()
 STOPPED_LIMIT=0
-while [ "$((AVAIL_MB + STOPPED_LIMIT * RATIO_PCT / 100 - RESERVE_MB))" -lt "$NEED_MB" ]; do
+while [ "$((EFF_AVAIL_MB + STOPPED_LIMIT * RATIO_PCT / 100 - RESERVE_MB))" -lt "$NEED_MB" ]; do
   [ "${#TO_STOP[@]}" -ge "$MAX_STOP" ] && break
   pick=""
   for entry in "${STOP_CANDIDATES[@]}"; do
@@ -234,8 +298,8 @@ while [ "$((AVAIL_MB + STOPPED_LIMIT * RATIO_PCT / 100 - RESERVE_MB))" -lt "$NEE
   info "→ 停 $pick（$(mem_of "$pick")MB）：$pick_reason"
 done
 
-if [ "$((AVAIL_MB + STOPPED_LIMIT * RATIO_PCT / 100 - RESERVE_MB))" -lt "$NEED_MB" ]; then
-  echo "余量仍不足：可用 ${AVAIL_MB}MB + 停用释放约 $((STOPPED_LIMIT * RATIO_PCT / 100))MB - 红线 ${RESERVE_MB}MB < 需 ${NEED_MB}MB" >&2
+if [ "$((EFF_AVAIL_MB + STOPPED_LIMIT * RATIO_PCT / 100 - RESERVE_MB))" -lt "$NEED_MB" ]; then
+  echo "余量仍不足：有效余量 ${EFF_AVAIL_MB}MB + 停用释放约 $((STOPPED_LIMIT * RATIO_PCT / 100))MB - 红线 ${RESERVE_MB}MB < 需 ${NEED_MB}MB" >&2
   echo "调大 --max-stop，或改起更小的组（ops ≈1.0G / biz ≈1.1G）" >&2
   exit 2
 fi
