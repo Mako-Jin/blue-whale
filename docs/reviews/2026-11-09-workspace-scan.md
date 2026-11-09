@@ -126,8 +126,8 @@
 结论：任务没有漏调度，4 个 `/crm/internal/**` 控制器是同一批能力的**手工触发入口**，不是调度链路。
 残留风险在「已应用过旧种子脚本的环境」——删脚本不删行，那些环境会两套行并存、同一任务跑两遍；
 `whale-job` 的 `V13__disable_legacy_http_invoke_jobs.sql` 按「等价 job_code 已启用」为条件停用旧行（幂等）。
-这些环境还需一次 `flyway repair` 清掉 V2/V3/V4 的历史行（脚本已删），否则校验期拒启；
-`validate-on-migrate` 已改为可被 `WHALE_FLYWAY_VALIDATE_ON_MIGRATE` 临时覆盖。
+这些环境还需清掉 V2/V3/V4 的历史行（脚本已删），否则校验期拒启——**已改为启动自动清理，
+不再需要人工 `flyway repair`，详见 §10.2**。
 
 ### 9.2 OA 附件归属校验收敛为唯一实现
 
@@ -138,3 +138,55 @@
 `FILE_REF_FORBIDDEN` / `FILE_REF_UNAVAILABLE` 两个别名常量与映射一并删除（同码值双常量正是上次类初始化失败的根因）。
 
 验证：`whale-oa` 288 用例、`whale-job` 102 用例全绿；三模块 `checkstyle:check` 0 违例。
+
+## 十、编排补齐与遗留环境自愈（21:40 更新）
+
+### 10.1 10 个服务纳入常态编排（订正 §七「不在编排」）
+
+原缺口：`pm / alert / monitor / agent / assistant / im / iot / mail / map / scene` 有主类、端口、
+库与网关路由，但既不在 `docker-compose.services.yml`，也没有 jar 构建上下文，只能临时编排。
+
+补齐后的事实（`docker compose config --services` 实测）：
+
+| 集合 | 数量 | 说明 |
+|---|---|---|
+| 默认（`up -d`） | 20 | 原 22 减去 music/party（`demo` profile） |
+| `--profile ops` | 22 | + alert(9103) / monitor(9102) |
+| `--profile collab` | 23 | + im(8091) / mail(8099) / assistant(8087) |
+| `--profile aiot` | 23 | + agent(8090) / iot(8088) / scene(8097) |
+| `--profile biz` | 22 | + pm(9005) / map(8100) |
+| `--profile ext` | 30 | 以上 10 个全部 |
+
+**为什么默认不启动**：Docker VM 上限 8GB，20 个核心服务已占约 7.2G，余量不足 1G；
+10 个扩展服务需 5~6G。硬塞进默认集必然 OOMKilled，甚至让引擎整体失联
+（历史事故：MemAvailable < 1G 时 `docker ps` 全 500）。因此「在编排里」与「默认常驻」分开：
+统一文件管理、按域 profile 起、一次一组，预算写进 `deploy/backend/README.md`。
+
+配套：
+- `scripts/dev/build-service-images.sh` 覆盖 32 个服务，内含 VM 余量红线校验（< 1G 直接拒绝构建）；
+- 端口 9005/9103/9102/8090/8087/8091/8088/8099/8100/8097 与现有 22 个服务无冲突；
+- 扩展服务不写跨 profile 的 `depends_on`（依赖未启用时 compose 拒绝起服），一律容器名直连；
+- `01-init-databases.sql` 补 `bluewhale_pm`（此前 30 个库里唯独缺它，新环境起服报 Unknown database）。
+
+扩展服务的外部依赖（不补齐则对应能力降级，服务本身可起）：assistant/im 机器人依赖
+`whale-ai`（内网 8092，**不在本仓库**）、agent 依赖外部 LLM 端点、mail 依赖 Mailcow、
+iot 依赖 `bw-emqx`、map 依赖腾讯/高德 Key。
+
+### 10.2 并行环境不再需要人工 flyway repair（订正 §9.1 末段）
+
+§9.1 写的「需一次 `flyway repair`」不准确——真正的后果比缺 3 行历史更重：
+
+1. 远程的 `V2` 只做种子，**不建 `job_executor` 表、不补 `job_info.executor_app`/`job_code` 两列**；
+   这两件事只在本地 `V2__job_executor.sql` 里。历史行占着版本号 2，本地 V2 就永远不会执行，
+   服务即便起来也会在运行期报列不存在。
+2. 因此正确做法不是「忽略缺失」，而是**删掉这 3 行让本地 V2/V3/V4 补跑**。可行性已核对：
+   远程 V1 基线的 `job_info` 确实没有这两列，`ALTER TABLE ADD COLUMN` 不会撞车；
+   `job_executor` 用 `CREATE TABLE IF NOT EXISTS`；V3/V4 的种子用 `WHERE NOT EXISTS(job_code)` 判重。
+
+实现：`FlywayLegacyRepairConfig`（whale-job）替换默认 `FlywayMigrationStrategy`，migrate 前
+检测历史表是否含 `V2__seed_crm_remote_jobs.sql` / `V3__audit_log.sql` / `V4__seed_crm_sync_jobs.sql`，
+命中才删除对应行（含同版本 `success=0` 残行），随后正常 migrate；未命中的环境完全走默认路径。
+
+实测（`bluewhale_job_sim` 库伪造遗留现场后跑自愈）：12 个迁移补跑成功，`job_executor` 表、
+两列、`audit_log` 全部就位，`job_code` 种子 27 条，3 条遗留历史行清零，无失败行。
+临时库已删除，dev 库未受影响。

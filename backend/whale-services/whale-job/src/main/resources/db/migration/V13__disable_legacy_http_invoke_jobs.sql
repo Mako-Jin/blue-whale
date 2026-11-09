@@ -17,9 +17,10 @@
 -- 找不到替代的旧行保持原状（不制造功能缺口），由人工判断。
 --
 -- 运维提示：删除脚本会让已应用环境在 Flyway 校验期报
--- 「Detected applied migration not resolved locally: 2/3/4」，
--- 需在该环境执行一次 `flyway repair`（或临时关掉
--- WHALE_FLYWAY_VALIDATE_ON_MIGRATE）后再启动，否则 bw-job 起不来。
+-- 「Detected applied migration not resolved locally: 2/3/4」。
+-- 无需人工 repair：FlywayLegacyRepairConfig 会在 migrate 前清掉这三行，
+-- 让本地 V2/V3/V4 补跑（建 job_executor 表与 executor_app/job_code 列）；
+-- 本迁移随后执行，此时 job_code 行已就位，能正确停用旧行。
 -- =====================================================================
 
 UPDATE job_info AS j

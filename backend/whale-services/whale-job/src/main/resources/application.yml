@@ -43,8 +43,9 @@ spring:
     table: flyway_schema_history
     baseline-on-migrate: ${WHALE_FLYWAY_BASELINE_ON_MIGRATE:true}
     baseline-version: 1
-    # 默认开启校验；已应用旧版种子脚本（V2/V3/V4 重复版本已删除）的环境可临时置 false 起服，
-    # 随后执行一次 flyway repair 清理历史行，再恢复默认
+    # 校验默认开启。双线合并删除了远程重复的 V2/V3/V4 脚本，应用过它们的库会在校验期
+    # 报「applied migration not resolved locally」；FlywayLegacyRepairConfig 会在 migrate
+    # 前自动清掉这三行并补跑本地脚本，无需人工 repair。此处保留开关仅作极端情况逃生口。
     validate-on-migrate: ${WHALE_FLYWAY_VALIDATE_ON_MIGRATE:true}
     clean-disabled: true
     placeholder-replacement: false
