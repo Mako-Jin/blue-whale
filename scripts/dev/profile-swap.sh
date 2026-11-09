@@ -59,6 +59,26 @@ py() {
 
 docker_up() { docker info >/dev/null 2>&1; }
 
+# Nacos 是硬前置：缺它所有 Spring 服务会卡在「注册失败 → 退出 → restart 重试」的死循环，
+# 表现是 docker ps 里 Up N seconds 一路递增、内存被反复分配的启动堆吃满（实测把 7G 余量吃到 711MB）。
+nacos_up() { (exec 3<>/dev/tcp/127.0.0.1/8848) 2>/dev/null && exec 3>&- && return 0 || return 1; }
+
+# 目标 profile 的镜像是否都已构建（编排里没有 build 段，缺镜像 up -d 会直接报错）
+missing_images() {
+  compose --profile "$1" config --format json 2>/dev/null | py -c '
+import json,sys,subprocess
+d=json.load(sys.stdin)
+have={l.split()[0] for l in subprocess.run(["docker","images","--format","{{.Repository}}:{{.Tag}}"],
+     capture_output=True,text=True).stdout.splitlines() if l.strip()}
+miss=[]
+for n,s in d.get("services",{}).items():
+    img=s.get("image")
+    if img and img not in have:
+        miss.append(n+"("+img+")")
+print(" ".join(miss))
+' "$1"
+}
+
 vm_avail_mb() {
   local c kb
   c="$(docker ps --format '{{.Names}}' 2>/dev/null | head -1 || true)"
@@ -89,21 +109,23 @@ running_services() {
   docker ps --format '{{.Label "com.docker.compose.service"}}' 2>/dev/null | grep -v '^$' | sort -u
 }
 
-# 目标 profile 新增服务的 mem_limit 合计（已运行的不重复计）
+# 目标 profile「自有服务」的 mem_limit 合计（默认组默认起，不计入扩展组预算）
 profile_delta_mb() {
   local prof="$1"
   compose --profile "$prof" config --format json 2>/dev/null | py -c '
-import json,sys,subprocess
+import json,sys
 d=json.load(sys.stdin)
 prof=sys.argv[1]
 running=set(sys.argv[2].split())
 tot=0
 for n,s in d.get("services",{}).items():
+    if prof not in (s.get("profiles") or []):
+        continue
+    if n in running:
+        continue
     m=s.get("mem_limit",0)
     if isinstance(m,str):
         m=int(m.rstrip("mM")) if m[:-1].isdigit() else int(m)
-    if n in running:
-        continue
     tot+=m//1048576
 print(tot)
 ' "$prof" "$(running_services | tr '\n' ' ')"
@@ -123,6 +145,9 @@ show_status() {
   total="$(vm_total_mb)"; avail="$(vm_avail_mb)"
   echo "== Docker VM =="
   info "总量 ${total}MB / 可用 ${avail}MB / 红线 ${RESERVE_MB}MB"
+  echo "== 依赖前置 =="
+  info "Nacos 8848：$(nacos_up && echo 'UP' || echo 'DOWN ← 所有服务会注册失败死循环')"
+  info "RabbitMQ/Redis：$(docker ps --format '{{.Names}}' | grep -cE 'bw-(redis|rabbitmq)' ) / 2 容器在线"
   echo "== 运行中的服务 =="
   running_services | tr '\n' ' '; echo
   echo "== 扩展组预算（需新增内存，上限口径） =="
@@ -180,6 +205,11 @@ PROFILE="${PROFILE:-}"
 printf '%s\n' "${VALID_PROFILES[@]}" | grep -qx "$PROFILE" || die "未知 profile：$PROFILE"
 
 docker_up || die "Docker 引擎未运行（先启动 Docker Desktop，再执行本脚本）"
+nacos_up || die "Nacos 8848 未就绪。缺它所有 Spring 服务会「注册失败→退出→重启」死循环，起多少都白起。
+  先执行：powershell -ExecutionPolicy Bypass -File scripts/dev/start-nacos.ps1"
+MISSING_IMG="$(missing_images "$PROFILE")"
+[ -z "$MISSING_IMG" ] || die "缺镜像：$MISSING_IMG
+  先执行：scripts/dev/build-service-images.sh ${MISSING_IMG%%(*}"
 
 NEED_LIMIT_MB="$(profile_delta_mb "$PROFILE")"
 NEED_MB=$((NEED_LIMIT_MB * RATIO_PCT / 100))

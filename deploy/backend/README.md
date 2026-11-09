@@ -25,8 +25,9 @@ bw-emqx     1883/18083 ┤
 cd F:/blue-whale/infrastructure/docker
 docker compose up -d redis rabbitmq emqx
 
-# 2. 宿主机 Nacos（见 .workbuddy/memory/MEMORY.md「起服手册」，必须带 loader.path 与 nacos.home）
-#    确认 8848 已监听后再继续
+# 2. 宿主机 Nacos（硬前置，见下）
+powershell -ExecutionPolicy Bypass -File scripts\dev\start-nacos.ps1
+#    必须确认 8848 已监听再继续：缺 Nacos 时所有服务卡在「注册失败→退出→restart」死循环
 
 # 3. 核心服务（默认 20 个）
 cd F:/blue-whale/deploy/backend
@@ -38,6 +39,27 @@ for p in 8080 8081 8086 9001 9004 9007; do
   curl -s "http://127.0.0.1:$p/actuator/health"; echo
 done
 ```
+
+### 缺 Nacos 的表现（别误判成内存问题）
+
+服务只传 `NACOS_SERVER`（无用户名/口令，宿主机 Nacos 认证是关的）。Nacos 没起时
+每个服务启动到最后一步抛：
+
+```
+Caused by: ErrCode:-401, ErrMsg:Client not connected, current status:STARTING
+  at com.alibaba.nacos.client.naming.remote.gprc.NamingGrpcClientProxy.registerService
+```
+
+随后整个 Spring 上下文回滚退出，`restart: unless-stopped` 拉起重来。症状是
+`docker ps` 里 `Up 40 seconds (health: starting)` 一批接一批、`RestartCount` 一路上涨，
+**启动期堆反复分配会把 7G 余量吃到 700MB**（实测），此时若再叠加 `docker build` 就能把引擎拖死。
+
+处理顺序：先 `docker compose stop` 止住抖动 → 起 Nacos → `docker compose start` 拉回。
+`scripts/dev/profile-swap.sh` 已内置 8848 探测，Nacos 未就绪直接拒绝执行。
+
+Nacos 起不来/换容器版 `bw-nacos` 的代价：容器版默认开认证（`NACOS_AUTH_ENABLE=true`），
+而服务侧不带凭据 → 会以同样方式 403 死循环，需额外关认证且存储换成本地 derby，
+与既有 `tools/nacos` 数据分叉，**不推荐**。
 
 ## 服务分组：为什么 10 个服务默认不启动
 
