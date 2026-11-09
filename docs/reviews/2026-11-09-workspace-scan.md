@@ -26,8 +26,8 @@
 | CRM M0–M6 | 已交付（V1–V12，前端 8113，329 单测） |
 | PDM M0–M5 + 收口 | 无仓库内代码缺口，剩 6 项外部依赖 |
 | MES M0–M5 + Step 6a/6b | 已交付，剩数据范围过滤与归档清理（依赖未就绪） |
-| LMS M0–M6 | 代码已交付（27 表 / 92 端点），真实库与试点复盘待环境 |
-| 党政工会 M-P0–M-P4 | 代码已交付（20 表 / 95 端点 / 前端 14 页 / 158 单测） |
+| LMS M0–M6 | 已交付并实机验证（2026-11-09 第十二批：9 迁移 28 表 / 起服 UP / 网关冒烟 4/4）；剩试点复盘待运营 |
+| 党政工会 M-P0–M-P4 | 已交付并实机验证（2026-11-09 第十二批：6 迁移 23 表 / 起服 UP / 网关冒烟通过） |
 | 邮箱 5.89/5.90、地图 5.91–5.93 | 已落地并入库，实机与 MTA 待环境 |
 
 ## 三、任务
@@ -40,7 +40,7 @@
 | 商城 5.95–5.98 实机冒烟 | ✅ 大幅完成（2026-11-09 第六批）：下单→支付（MOCK）→回调 PAID、退货退款全链（pay_refund SUCCESS / pay_order REFUNDED / 售后 APPROVED 结单）、换货全链（EXCHANGING→补发→EXCHANGED）经网关 8080 实测通过；并修复 V8 引入的 7 处订单流水 `to_status` 空 BUG（264 单测全绿）。剩余：前端页面联调、券叠加/品类券 E2E 造数验证 |
 | CRM 联调 | ✅ 深链路实机验证（2026-11-09 第七批）：客户+联系人→活动→人群锁定（乐观锁）→触达任务 EMAIL→执行 COMPLETED/3 SENT→`bluewhale_message.msg_record`（biz_type=CRM_MARKETING）+ `msg_delivery` MOCKED 回执，全链经网关实测通过。**分析 cron 已迁移 whale-job 并实机验证（2026-11-09 第八批）**：`snapshot-cron`/`action-plan-cron` 进程内 `@Scheduled` 迁出为 job_info 1001/1002（`httpInvokeJobHandler` 经 Nacos 直连 `/crm/internal/analytics/**`），手动触发快照 12 条落库、幂等复测通过。**其余 @Scheduled 已全量迁移（2026-11-09 第十一批）**：退换货/商务订单下发与对账、应收快照、合同投影、公海回收 7 个触发点迁出为 job_info 1003–1009（V4 种子），MANUAL 7/7 SUCCESS + 每分钟任务 CRON 自动派发实测通过，CRM `@EnableScheduling` 移除、进程内调度清零。剩余：分析导出暂存 `MEDIUMTEXT`，待接 `whale-file`；**客户合并→whale-contract 重写确认双向未接入**（CRM 合并仅重写本地台账并实测通过；CRM 未调用 contract、contract 亦无「按客户重写」内网端点，功能缺口待立项，见 devlog 第七批遗留） |
 | ERP↔MES 链路 | ✅ 深链路实机验证（2026-11-09 第七批）：ERP 建单→release→issue（领料转 IN_PROGRESS）→MES 收单→拆分/派工/开工/报工/完工→outbox 3 事件 SENT→ERP 4 回调全 APPLIED→订单 COMPLETED / completed_quantity=100 / mesSyncStatus=PUSHED→对账 page 与 `/{orderId}` 正常，全链经网关实测通过 |
-| LMS / 党政工会 | 真实库跑迁移、起服冒烟、试点支部与学员复盘 |
+| LMS / 党政工会 | ✅ 真实库迁移 + 起服冒烟（2026-11-09 第十二批）：lms 9 迁移全 success（28 表）、party 6 迁移全 success（23 表），双服务 UP（9008/9009），网关冒烟 4/4（meta + 业务 page），internal 路径 403 生效；剩余试点支部与学员复盘为运营事项 |
 | 邮箱 MTA | Mailcow 部署、域名/PTR/SPF/DKIM/DMARC、Auth 建用户自动开户；方案文档仍标「待评审」 |
 
 ### 3.2 规划中、未开工
