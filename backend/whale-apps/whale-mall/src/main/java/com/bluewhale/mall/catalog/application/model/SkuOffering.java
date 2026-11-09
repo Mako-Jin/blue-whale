@@ -41,6 +41,9 @@ public class SkuOffering {
     /** 成交单价（不可售时为空） */
     private BigDecimal unitPrice;
 
+    /** 会员价覆盖前的原价（仅会员价命中时非空，订单行原价快照用） */
+    private BigDecimal listPrice;
+
     /** 可售数量 */
     private Integer availableQty;
 

@@ -45,11 +45,14 @@ public class OrderCoupon {
     /** 券类型（快照） */
     private String couponType;
 
-    /** 适用范围（快照）：ALL 全场 / CHANNEL 单渠道 / CATEGORY 品类 */
+    /** 适用范围（快照）：ALL 全场 / CHANNEL 店铺（单渠道）/ CATEGORY 品类 / SKU 商品 */
     private String scope;
 
     /** 适用类目 ID（快照，逗号分隔，仅品类券） */
     private String categoryIds;
+
+    /** 适用 SKU ID（快照，逗号分隔，仅商品券） */
+    private String skuIds;
 
     /** 该券本单生效优惠额 */
     private BigDecimal discountAmount;
@@ -67,6 +70,34 @@ public class OrderCoupon {
      */
     public boolean isCategoryScoped() {
         return "CATEGORY".equals(scope);
+    }
+
+    /**
+     * 是否为商品券。
+     *
+     * @return 商品券返回 true
+     */
+    public boolean isSkuScoped() {
+        return "SKU".equals(scope);
+    }
+
+    /**
+     * 快照里的适用 SKU ID 集合。
+     *
+     * @return SKU ID 集合（非商品券或未绑定返回空）
+     */
+    public Set<Long> skuIdSet() {
+        if (skuIds == null || skuIds.isBlank()) {
+            return Set.of();
+        }
+        Set<Long> result = new HashSet<>();
+        for (String part : skuIds.split(",")) {
+            String trimmed = part.trim();
+            if (!trimmed.isEmpty()) {
+                result.add(Long.valueOf(trimmed));
+            }
+        }
+        return result;
     }
 
     /**

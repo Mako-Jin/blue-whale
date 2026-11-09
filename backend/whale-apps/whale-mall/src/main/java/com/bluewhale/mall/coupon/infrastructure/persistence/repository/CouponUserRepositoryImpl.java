@@ -131,6 +131,7 @@ public class CouponUserRepositoryImpl implements CouponUserRepository {
         coupon.setChannelId(entity.getChannelId());
         coupon.setScope(CouponScope.parse(entity.getScope()));
         coupon.setCategoryIds(parseCategoryIds(entity.getCategoryIds()));
+        coupon.setSkuIds(parseCategoryIds(entity.getSkuIds()));
         coupon.setValidFrom(entity.getValidFrom());
         coupon.setValidTo(entity.getValidTo());
         coupon.setStatus(CouponUserStatus.parse(entity.getStatus()));
@@ -163,6 +164,7 @@ public class CouponUserRepositoryImpl implements CouponUserRepository {
         entity.setChannelId(coupon.getChannelId());
         entity.setScope(coupon.getScope() == null ? null : coupon.getScope().name());
         entity.setCategoryIds(joinCategoryIds(coupon.getCategoryIds()));
+        entity.setSkuIds(joinCategoryIds(coupon.getSkuIds()));
         entity.setValidFrom(coupon.getValidFrom());
         entity.setValidTo(coupon.getValidTo());
         entity.setStatus(coupon.getStatus() == null

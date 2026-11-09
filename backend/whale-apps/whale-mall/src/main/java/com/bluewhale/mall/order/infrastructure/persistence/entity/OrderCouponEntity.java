@@ -46,6 +46,9 @@ public class OrderCouponEntity extends BaseEntity {
     /** 适用类目 ID（快照，逗号分隔，仅品类券） */
     private String categoryIds;
 
+    /** 适用 SKU ID（快照，逗号分隔，仅商品券） */
+    private String skuIds;
+
     /** 该券本单生效优惠额 */
     private BigDecimal discountAmount;
 }

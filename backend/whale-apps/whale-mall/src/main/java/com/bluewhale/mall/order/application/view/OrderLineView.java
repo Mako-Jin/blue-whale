@@ -39,6 +39,21 @@ public class OrderLineView {
     /** 成交单价 */
     private BigDecimal unitPrice;
 
+    /** 原单价（快照，活动/会员价覆盖前） */
+    private BigDecimal listPrice;
+
+    /** 命中活动 ID（快照） */
+    private Long activityId;
+
+    /** 命中活动名称（快照） */
+    private String activityName;
+
+    /** 成交价来源：LIST 价目 / MEMBER 会员价 / ACTIVITY 活动 */
+    private String priceSource;
+
+    /** 单件重量 kg（快照） */
+    private BigDecimal weightKg;
+
     /** 数量 */
     private Integer quantity;
 

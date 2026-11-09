@@ -66,6 +66,9 @@ public class CouponUser {
     /** 适用类目 ID（快照，仅 CATEGORY 用） */
     private List<Long> categoryIds;
 
+    /** 适用 SKU ID（快照，仅 SKU 商品券用） */
+    private List<Long> skuIds;
+
     /** 生效时间（快照） */
     private LocalDateTime validFrom;
 
@@ -111,6 +114,7 @@ public class CouponUser {
         coupon.setScope(template.getScope() == null
                 ? (template.getChannelId() == null ? CouponScope.ALL : CouponScope.CHANNEL) : template.getScope());
         coupon.setCategoryIds(template.getCategoryIds() == null ? null : List.copyOf(template.getCategoryIds()));
+        coupon.setSkuIds(template.getSkuIds() == null ? null : List.copyOf(template.getSkuIds()));
         coupon.setValidFrom(template.getValidFrom());
         coupon.setValidTo(template.getValidTo());
         coupon.setStatus(CouponUserStatus.UNUSED);
@@ -146,6 +150,25 @@ public class CouponUser {
      */
     public CouponUsability checkForOrder(Long orderChannelId, Set<Long> orderCategoryIds,
                                          BigDecimal matchedGoods, LocalDateTime now) {
+        return checkForOrder(orderChannelId, orderCategoryIds, null, matchedGoods, now);
+    }
+
+    /**
+     * 按订单上下文判定可用性（含品类券与商品券口径）。
+     *
+     * <p>商品券（{@link CouponScope#SKU}）与品类券同构：门槛分母取命中 SKU
+     * 行的小计（可空 = 不判门槛），适用性要求订单 SKU 集合与券快照的
+     * {@code skuIds} 有交集，否则直接判不适用。</p>
+     *
+     * @param orderChannelId    订单渠道 ID
+     * @param orderCategoryIds  订单商品类目 ID 集合（无上下文时为空）
+     * @param orderSkuIds       订单商品 SKU ID 集合（无上下文时为空）
+     * @param matchedGoods      本券适用范围内的商品小计（门槛分母，可空 = 不判门槛）
+     * @param now               当前时间
+     * @return 判定结果
+     */
+    public CouponUsability checkForOrder(Long orderChannelId, Set<Long> orderCategoryIds, Set<Long> orderSkuIds,
+                                         BigDecimal matchedGoods, LocalDateTime now) {
         if (status == CouponUserStatus.USED) {
             return CouponUsability.USED;
         }
@@ -154,9 +177,31 @@ public class CouponUser {
         }
         CouponScope effectiveScope = scope == null
                 ? (channelId == null ? CouponScope.ALL : CouponScope.CHANNEL) : scope;
-        // channelId 非空时即使 scope 标了 ALL 也按受限处理：只能收紧不能放宽，
-        // 否则 scope 与 channelId 不一致的老数据会绕过渠道校验
-        if (effectiveScope != CouponScope.CATEGORY && channelId != null
+        CouponUsability scopeResult = checkScope(effectiveScope, orderChannelId, orderCategoryIds, orderSkuIds);
+        if (scopeResult != null) {
+            return scopeResult;
+        }
+        if (matchedGoods == null || rule().meetsThreshold(matchedGoods)) {
+            return CouponUsability.USABLE;
+        }
+        return CouponUsability.THRESHOLD_NOT_MET;
+    }
+
+    /**
+     * 按券范围判定订单命中情况（命中且无范围冲突返回 null，继续判门槛）。
+     *
+     * <p>channelId 非空时即使 scope 标了 ALL 也按受限处理：只能收紧不能放宽，
+     * 否则 scope 与 channelId 不一致的老数据会绕过渠道校验。</p>
+     *
+     * @param effectiveScope   有效范围
+     * @param orderChannelId   订单渠道 ID
+     * @param orderCategoryIds 订单商品类目 ID 集合
+     * @param orderSkuIds      订单商品 SKU ID 集合
+     * @return 不适用的判定结果；命中返回 null
+     */
+    private CouponUsability checkScope(CouponScope effectiveScope, Long orderChannelId,
+                                       Set<Long> orderCategoryIds, Set<Long> orderSkuIds) {
+        if (effectiveScope != CouponScope.CATEGORY && effectiveScope != CouponScope.SKU && channelId != null
                 && !Objects.equals(channelId, orderChannelId)) {
             return CouponUsability.CHANNEL_MISMATCH;
         }
@@ -165,10 +210,12 @@ public class CouponUser {
                 || categoryIds == null || categoryIds.stream().noneMatch(orderCategoryIds::contains))) {
             return CouponUsability.CATEGORY_NOT_MATCHED;
         }
-        if (matchedGoods == null || rule().meetsThreshold(matchedGoods)) {
-            return CouponUsability.USABLE;
+        if (effectiveScope == CouponScope.SKU
+                && (orderSkuIds == null || orderSkuIds.isEmpty()
+                || skuIds == null || skuIds.stream().noneMatch(orderSkuIds::contains))) {
+            return CouponUsability.SKU_NOT_MATCHED;
         }
-        return CouponUsability.THRESHOLD_NOT_MET;
+        return null;
     }
 
     /**

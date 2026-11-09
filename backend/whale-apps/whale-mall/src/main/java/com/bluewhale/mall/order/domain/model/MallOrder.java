@@ -74,8 +74,14 @@ public class MallOrder {
     /** 订单总额（应付 = 商品总额 - 优惠 + 运费） */
     private BigDecimal totalAmount;
 
-    /** 商品总额（各行小计之和，不含优惠与运费） */
+    /** 商品总额（各行小计之和，不含优惠与运费；活动/会员价已体现在成交单价中） */
     private BigDecimal goodsAmount;
+
+    /** 原价合计（Σ原单价×数量，未含活动与会员让利；对账口径） */
+    private BigDecimal listAmount;
+
+    /** 活动与会员价让利合计（list_amount - goods_amount，对账口径） */
+    private BigDecimal activityDiscount;
 
     /** 优惠金额 */
     private BigDecimal discountAmount;
@@ -240,6 +246,7 @@ public class MallOrder {
      */
     private BigDecimal computeLineAmounts() {
         BigDecimal goods = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        BigDecimal list = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         int quantity = 0;
         for (OrderItem item : items) {
             if (item.getUnitPrice() == null || item.getQuantity() == null || item.getQuantity() < 1) {
@@ -250,6 +257,9 @@ public class MallOrder {
                     .setScale(2, RoundingMode.HALF_UP);
             item.setAmount(amount);
             goods = goods.add(amount);
+            // 原价快照缺失（老数据/未覆盖）按成交价计，让 list_amount 恒等 goods_amount
+            BigDecimal listPrice = item.getListPrice() == null ? item.getUnitPrice() : item.getListPrice();
+            list = list.add(listPrice.multiply(BigDecimal.valueOf(item.getQuantity())).setScale(2, RoundingMode.HALF_UP));
             quantity += item.getQuantity();
         }
         if (goods.compareTo(BigDecimal.ZERO) <= 0) {
@@ -257,7 +267,27 @@ public class MallOrder {
         }
         this.totalQuantity = quantity;
         this.itemCount = items.size();
+        this.listAmount = list;
+        this.activityDiscount = list.subtract(goods).setScale(2, RoundingMode.HALF_UP);
         return goods;
+    }
+
+    /**
+     * 订单重量合计（kg，单件重量快照 × 数量；行重量缺失按 0 计）。
+     *
+     * @return 重量合计，两位小数
+     */
+    public BigDecimal totalWeightKg() {
+        BigDecimal weight = BigDecimal.ZERO.setScale(3, RoundingMode.HALF_UP);
+        for (OrderItem item : items) {
+            if (item.getWeightKg() == null || item.getQuantity() == null) {
+                continue;
+            }
+            weight = weight.add(item.getWeightKg()
+                    .multiply(BigDecimal.valueOf(item.getQuantity())))
+                    .setScale(3, RoundingMode.HALF_UP);
+        }
+        return weight;
     }
 
     /**
@@ -281,18 +311,65 @@ public class MallOrder {
      * @return 适用范围商品小计
      */
     private BigDecimal matchedGoods(OrderCoupon coupon, BigDecimal goods) {
-        if (!coupon.isCategoryScoped()) {
+        if (!coupon.isSkuScoped() && !coupon.isCategoryScoped()) {
             return goods;
         }
-        Set<Long> scoped = coupon.categoryIdSet();
+        List<OrderItem> targets = couponTargets(coupon, goods);
         BigDecimal matched = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
-        for (OrderItem item : items) {
-            if (item.getCategoryId() != null && scoped.contains(item.getCategoryId())) {
-                matched = matched.add(item.getAmount() == null
-                        ? BigDecimal.ZERO : item.getAmount());
-            }
+        for (OrderItem item : targets) {
+            matched = matched.add(item.getAmount() == null ? BigDecimal.ZERO : item.getAmount());
         }
         return matched;
+    }
+
+    /**
+     * 求一张券的命中行（商品券按 SKU、品类券按类目、全场/渠道券为全部行）。
+     *
+     * @param coupon 用券明细
+     * @param goods  整单商品小计（全场/渠道券命中全部行）
+     * @return 命中行列表
+     */
+    private List<OrderItem> couponTargets(OrderCoupon coupon, BigDecimal goods) {
+        List<OrderItem> targets = new ArrayList<>();
+        if (coupon.isSkuScoped()) {
+            Set<Long> scoped = coupon.skuIdSet();
+            for (OrderItem item : items) {
+                if (item.getSkuId() != null && scoped.contains(item.getSkuId())) {
+                    targets.add(item);
+                }
+            }
+            return targets;
+        }
+        if (coupon.isCategoryScoped()) {
+            Set<Long> scoped = coupon.categoryIdSet();
+            for (OrderItem item : items) {
+                if (item.getCategoryId() != null && scoped.contains(item.getCategoryId())) {
+                    targets.add(item);
+                }
+            }
+            return targets;
+        }
+        targets.addAll(items);
+        return targets;
+    }
+
+    /**
+     * 求一张券的分摊基数（命中行小计之和；全场/渠道券为整单商品小计）。
+     *
+     * @param coupon  用券明细
+     * @param targets 命中行
+     * @param goods   整单商品小计
+     * @return 分摊基数
+     */
+    private BigDecimal matchedBase(OrderCoupon coupon, List<OrderItem> targets, BigDecimal goods) {
+        if (!coupon.isSkuScoped() && !coupon.isCategoryScoped()) {
+            return goods;
+        }
+        BigDecimal base = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        for (OrderItem item : targets) {
+            base = base.add(item.getAmount() == null ? BigDecimal.ZERO : item.getAmount());
+        }
+        return base;
     }
 
     /**
@@ -348,20 +425,8 @@ public class MallOrder {
         if (discount.signum() <= 0) {
             return;
         }
-        List<OrderItem> targets = new ArrayList<>();
-        BigDecimal base = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
-        if (coupon.isCategoryScoped()) {
-            Set<Long> scoped = coupon.categoryIdSet();
-            for (OrderItem item : items) {
-                if (item.getCategoryId() != null && scoped.contains(item.getCategoryId())) {
-                    targets.add(item);
-                    base = base.add(item.getAmount() == null ? BigDecimal.ZERO : item.getAmount());
-                }
-            }
-        } else {
-            targets.addAll(items);
-            base = goods;
-        }
+        List<OrderItem> targets = couponTargets(coupon, goods);
+        BigDecimal base = matchedBase(coupon, targets, goods);
         if (targets.isEmpty() || base.signum() <= 0) {
             return;
         }

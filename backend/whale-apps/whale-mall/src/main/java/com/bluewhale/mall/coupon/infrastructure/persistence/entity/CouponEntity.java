@@ -50,6 +50,9 @@ public class CouponEntity extends BaseEntity {
     /** 适用类目 ID（逗号分隔，仅 CATEGORY） */
     private String categoryIds;
 
+    /** 适用 SKU ID（逗号分隔，仅 SKU 商品券） */
+    private String skuIds;
+
     /** 发行量 */
     private Integer totalQty;
 

@@ -85,4 +85,20 @@ public interface FreightTemplateAppService {
      * @return 运费金额，不小于 0
      */
     BigDecimal freightFor(Long freightTemplateId, BigDecimal goodsAmount, Integer quantity);
+
+    /**
+     * 按渠道绑定的模板计算运费（组合计价全量口径：含重量与收货区域）。
+     *
+     * <p>BY_WEIGHT 计费传订单行重量快照合计，REGIONAL 计费传收货省/区域；
+     * 其余计费方式忽略这两个参数。</p>
+     *
+     * @param freightTemplateId 运费模板 ID（可空）
+     * @param goodsAmount       商品总额（优惠前）
+     * @param quantity          商品件数（可空）
+     * @param totalWeightKg     订单重量合计 kg（可空，仅 BY_WEIGHT 需要）
+     * @param region            收货区域（可空，仅 REGIONAL 需要）
+     * @return 运费金额，不小于 0
+     */
+    BigDecimal freightFor(Long freightTemplateId, BigDecimal goodsAmount, Integer quantity,
+                          BigDecimal totalWeightKg, String region);
 }

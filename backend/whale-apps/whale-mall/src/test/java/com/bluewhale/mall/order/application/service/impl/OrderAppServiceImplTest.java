@@ -5,6 +5,8 @@ import com.bluewhale.mall.aftersale.application.service.AfterSaleAppService;
 import com.bluewhale.mall.cart.domain.model.CartItem;
 import com.bluewhale.mall.cart.domain.repository.CartRepository;
 import com.bluewhale.mall.catalog.application.model.SkuOffering;
+import com.bluewhale.mall.catalog.application.service.ActivityAppService;
+import com.bluewhale.mall.catalog.application.service.MemberAppService;
 import com.bluewhale.mall.catalog.application.service.SkuOfferingService;
 import com.bluewhale.mall.catalog.domain.model.Sku;
 import com.bluewhale.mall.catalog.domain.repository.SkuStockRepository;
@@ -45,6 +47,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -95,6 +98,12 @@ class OrderAppServiceImplTest {
     private FreightTemplateAppService freightTemplateAppService;
 
     @Mock
+    private ActivityAppService activityAppService;
+
+    @Mock
+    private MemberAppService memberAppService;
+
+    @Mock
     private MallProperties properties;
 
     @InjectMocks
@@ -105,6 +114,13 @@ class OrderAppServiceImplTest {
     @BeforeEach
     void setUp() {
         actor = new MallActor(7L, "buyer", java.util.Set.of("mall_operator"), java.util.Set.of());
+        // 会员判定默认非会员（多数用例只关心价目价路径）
+        lenient().when(memberAppService.isMember(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(false);
+        // 活动匹配默认不命中（活动价路径由组合计价专项用例覆盖）
+        lenient().when(activityAppService.matching(org.mockito.ArgumentMatchers.anyCollection(),
+                        org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(java.util.Map.of());
         // 三条阈值只在部分用例里被读到，用 lenient 声明避免严格模式误判
         lenient().when(properties.getOrderMaxLines()).thenReturn(50);
         lenient().when(properties.getOrderExpireMinutes()).thenReturn(30);
@@ -137,7 +153,7 @@ class OrderAppServiceImplTest {
         when(orderRepository.findByIdempotency(anyLong(), anyString())).thenReturn(Optional.empty());
         when(channelRepository.findById(1L)).thenReturn(Optional.of(channel()));
         when(cartRepository.list(1L, 7L)).thenReturn(List.of(cartItem(11L, 100L, 2)));
-        when(skuOfferingService.resolve(anyCollection(), any())).thenReturn(Map.of(100L, offering()));
+        when(skuOfferingService.resolve(anyCollection(), any(), anyBoolean())).thenReturn(Map.of(100L, offering()));
         when(skuOfferingService.requireSellable(any(SkuOffering.class), anyInt()))
                 .thenReturn(new BigDecimal("19.90"));
         when(skuStockRepository.reserve(100L, 2)).thenReturn(true);
@@ -166,7 +182,7 @@ class OrderAppServiceImplTest {
         when(orderRepository.findByIdempotency(anyLong(), anyString())).thenReturn(Optional.empty());
         when(channelRepository.findById(1L)).thenReturn(Optional.of(channel()));
         when(cartRepository.list(1L, 7L)).thenReturn(List.of(cartItem(11L, 100L, 2)));
-        when(skuOfferingService.resolve(anyCollection(), any())).thenReturn(Map.of(100L, offering()));
+        when(skuOfferingService.resolve(anyCollection(), any(), anyBoolean())).thenReturn(Map.of(100L, offering()));
         when(skuOfferingService.requireSellable(any(SkuOffering.class), anyInt()))
                 .thenReturn(new BigDecimal("19.90"));
         when(skuStockRepository.reserve(100L, 2)).thenReturn(false);
@@ -211,8 +227,8 @@ class OrderAppServiceImplTest {
     @DisplayName("下单时核销券并落金额构成")
     void createConsumesCouponAndRecordsBreakdown() {
         stubCreateBasics();
-        when(freightTemplateAppService.freightFor(any(), any(), any())).thenReturn(new BigDecimal("12.00"));
-        when(couponAppService.requireUsable(eq(55L), eq(7L), eq(1L), any(), any()))
+        when(freightTemplateAppService.freightFor(any(), any(), any(), any(), any())).thenReturn(new BigDecimal("12.00"));
+        when(couponAppService.requireUsable(eq(55L), eq(7L), eq(1L), any(), any(), any()))
                 .thenReturn(fullReductionCoupon());
         OrderCreateCommand command = command();
         command.setCouponId(55L);
@@ -240,7 +256,7 @@ class OrderAppServiceImplTest {
         points.setCurrencyType(com.bluewhale.mall.common.enums.CurrencyType.POINTS);
         when(channelRepository.findById(1L)).thenReturn(Optional.of(points));
         when(cartRepository.list(1L, 7L)).thenReturn(List.of(cartItem(11L, 100L, 2)));
-        when(skuOfferingService.resolve(anyCollection(), any())).thenReturn(Map.of(100L, offering()));
+        when(skuOfferingService.resolve(anyCollection(), any(), anyBoolean())).thenReturn(Map.of(100L, offering()));
         when(skuOfferingService.requireSellable(any(SkuOffering.class), anyInt()))
                 .thenReturn(new BigDecimal("19.90"));
         OrderCreateCommand command = command();
@@ -277,11 +293,11 @@ class OrderAppServiceImplTest {
     void previewReturnsBreakdown() {
         when(channelRepository.findById(1L)).thenReturn(Optional.of(channel()));
         when(cartRepository.list(1L, 7L)).thenReturn(List.of(cartItem(11L, 100L, 2)));
-        when(skuOfferingService.resolve(anyCollection(), any())).thenReturn(Map.of(100L, offering()));
+        when(skuOfferingService.resolve(anyCollection(), any(), anyBoolean())).thenReturn(Map.of(100L, offering()));
         when(skuOfferingService.requireSellable(any(SkuOffering.class), anyInt()))
                 .thenReturn(new BigDecimal("19.90"));
-        when(freightTemplateAppService.freightFor(any(), any(), any())).thenReturn(new BigDecimal("12.00"));
-        when(couponAppService.available(eq(1L), any(), any(), any())).thenReturn(List.of());
+        when(freightTemplateAppService.freightFor(any(), any(), any(), any(), any())).thenReturn(new BigDecimal("12.00"));
+        when(couponAppService.available(eq(1L), any(), any(), any(), any())).thenReturn(List.of());
 
         OrderPreviewView view = orderAppService.preview(previewCommand(), actor);
 
@@ -333,7 +349,7 @@ class OrderAppServiceImplTest {
         when(orderRepository.findByIdempotency(anyLong(), anyString())).thenReturn(Optional.empty());
         when(channelRepository.findById(1L)).thenReturn(Optional.of(channel()));
         when(cartRepository.list(1L, 7L)).thenReturn(List.of(cartItem(11L, 100L, 2)));
-        when(skuOfferingService.resolve(anyCollection(), any())).thenReturn(Map.of(100L, offering()));
+        when(skuOfferingService.resolve(anyCollection(), any(), anyBoolean())).thenReturn(Map.of(100L, offering()));
         when(skuOfferingService.requireSellable(any(SkuOffering.class), anyInt()))
                 .thenReturn(new BigDecimal("19.90"));
         when(skuStockRepository.reserve(100L, 2)).thenReturn(true);

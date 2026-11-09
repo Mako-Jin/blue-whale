@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * 运费模板保存命令。
@@ -35,10 +36,38 @@ public class FreightTemplateSaveCommand {
     /** 包邮件数门槛（仅 BY_PIECE 可选，达到则免运费） */
     private Integer pieceFreeThreshold;
 
+    /** 首重重量 kg（仅 BY_WEIGHT 必填且大于 0，首重费收 baseAmount） */
+    private BigDecimal firstWeightKg;
+
+    /** 续重步长 kg（仅 BY_WEIGHT 可选，不配则超首重不加价） */
+    private BigDecimal continuedWeightKg;
+
+    /** 续重每步运费（仅 BY_WEIGHT 配置续重步长时必填） */
+    private BigDecimal continuedAmount;
+
+    /** 区域费率（仅 REGIONAL 用；未命中区域回落 baseAmount） */
+    private List<RegionRateCommand> regionRates;
+
     /** 状态：ACTIVE / DISABLED */
     private String status;
 
     /** 备注 */
     @Size(max = 255, message = "备注不得超过 255 字符")
     private String remark;
+
+    /**
+     * 区域费率命令。
+     */
+    @Data
+    public static class RegionRateCommand {
+
+        /** 区域（省/直辖市名，模板内唯一） */
+        private String region;
+
+        /** 该区域运费 */
+        private BigDecimal amount;
+
+        /** 该区域满额包邮门槛（可空） */
+        private BigDecimal freeThreshold;
+    }
 }

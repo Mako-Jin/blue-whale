@@ -4,6 +4,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 运费模板视图。
@@ -34,6 +35,18 @@ public class FreightTemplateView {
     /** 包邮件数门槛（仅 BY_PIECE 可选） */
     private Integer pieceFreeThreshold;
 
+    /** 首重重量 kg（仅 BY_WEIGHT） */
+    private BigDecimal firstWeightKg;
+
+    /** 续重步长 kg（仅 BY_WEIGHT） */
+    private BigDecimal continuedWeightKg;
+
+    /** 续重每步运费（仅 BY_WEIGHT） */
+    private BigDecimal continuedAmount;
+
+    /** 区域费率（仅 REGIONAL） */
+    private List<RegionRateView> regionRates;
+
     /** 状态 */
     private String status;
 
@@ -45,4 +58,23 @@ public class FreightTemplateView {
 
     /** 更新时间 */
     private LocalDateTime updateTime;
+
+    /**
+     * 区域费率视图。
+     */
+    @Data
+    public static class RegionRateView {
+
+        /** 主键 */
+        private Long id;
+
+        /** 区域 */
+        private String region;
+
+        /** 该区域运费 */
+        private BigDecimal amount;
+
+        /** 该区域满额包邮门槛（可空） */
+        private BigDecimal freeThreshold;
+    }
 }

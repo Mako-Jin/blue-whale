@@ -51,11 +51,14 @@ public class CouponSaveCommand {
     /** 适用渠道 ID（仅 CHANNEL 用；空 = 全场通用） */
     private Long channelId;
 
-    /** 适用范围：ALL 全场 / CHANNEL 单渠道 / CATEGORY 品类（空按 channelId 回落） */
+    /** 适用范围：ALL 全场 / CHANNEL 店铺（单渠道）/ CATEGORY 品类 / SKU 商品（空按 channelId 回落） */
     private String scope;
 
     /** 适用类目 ID（仅 CATEGORY 必填） */
     private List<Long> categoryIds;
+
+    /** 适用 SKU ID（仅 SKU 商品券必填） */
+    private List<Long> skuIds;
 
     /** 发行量（0 = 不限） */
     private Integer totalQty;

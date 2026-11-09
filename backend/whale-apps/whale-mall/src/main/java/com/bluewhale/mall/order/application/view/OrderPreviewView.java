@@ -36,6 +36,12 @@ public class OrderPreviewView {
     /** 商品总额 */
     private BigDecimal goodsAmount;
 
+    /** 原价合计（未含活动与会员让利，对账口径） */
+    private BigDecimal listAmount;
+
+    /** 活动与会员价让利合计 */
+    private BigDecimal activityDiscount;
+
     /** 优惠金额 */
     private BigDecimal discountAmount;
 

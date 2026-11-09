@@ -1,6 +1,9 @@
 package com.bluewhale.mall.interfaces.controller;
 
 import com.bluewhale.common.core.result.Result;
+import com.bluewhale.mall.catalog.application.command.StockInboundCommand;
+import com.bluewhale.mall.catalog.application.service.StockAppService;
+import com.bluewhale.mall.catalog.application.view.StockInboundView;
 import com.bluewhale.mall.order.application.command.OrderPaidCommand;
 import com.bluewhale.mall.order.application.command.OrderRefundedCommand;
 import com.bluewhale.mall.order.application.service.OrderAppService;
@@ -26,6 +29,8 @@ public class MallInternalController {
     private final OrderAppService orderAppService;
 
     private final ShipmentAppService shipmentAppService;
+
+    private final StockAppService stockAppService;
 
     /**
      * 支付结果回调（供 {@code whale-pay} 调用，幂等）。
@@ -64,5 +69,19 @@ public class MallInternalController {
     public Result<Void> shipmentDelivered(@Valid @RequestBody ShipmentDeliveredCommand command) {
         shipmentAppService.markDelivered(command);
         return Result.ok();
+    }
+
+    /**
+     * WMS 入库联动（供 WMS/ERP 调用，docNo 幂等）。
+     *
+     * <p>把入库数量加回商城可售库存：重复推送同一单号直接返回首次入库结果
+     * （duplicated = true），绝不二次加库存——这是库存类接口唯一能安全重试的方式。</p>
+     *
+     * @param command 入库命令
+     * @return 入库结果
+     */
+    @PostMapping("/stock/inbound")
+    public Result<StockInboundView> stockInbound(@Valid @RequestBody StockInboundCommand command) {
+        return Result.ok(stockAppService.inbound(command));
     }
 }

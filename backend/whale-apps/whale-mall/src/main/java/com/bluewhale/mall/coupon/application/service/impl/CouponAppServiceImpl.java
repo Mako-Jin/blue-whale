@@ -146,17 +146,25 @@ public class CouponAppServiceImpl implements CouponAppService {
     @Override
     public List<CouponUserView> available(Long channelId, BigDecimal goodsAmount, Set<Long> categoryIds,
                                           MallActor actor) {
+        return available(channelId, goodsAmount, categoryIds, null, actor);
+    }
+
+    @Override
+    public List<CouponUserView> available(Long channelId, BigDecimal goodsAmount, Set<Long> categoryIds,
+                                          Set<Long> skuIds, MallActor actor) {
         Long userId = actor.requireUserId();
         LocalDateTime now = LocalDateTime.now();
         BigDecimal goods = goodsAmount == null ? BigDecimal.ZERO : goodsAmount;
         List<CouponUser> candidates = couponUserRepository.listUsable(userId, now);
         List<CouponUserView> views = new ArrayList<>(candidates.size());
         for (CouponUser coupon : candidates) {
-            // 品类券在试算列表里没有「勾选后命中多少行」的上下文，分母按 0：
-            // 命中类目时显示未达门槛，未命中显示无适用类目，都不该按整单金额误判成可用
-            BigDecimal matched = coupon.getScope() == CouponScope.CATEGORY
+            // 品类券/商品券在试算列表里没有「勾选后命中多少行」的上下文，分母按 0：
+            // 命中类目/商品时显示未达门槛，未命中显示无适用范围，都不该按整单金额误判成可用
+            boolean scopeMatchedOnly = coupon.getScope() == CouponScope.CATEGORY
+                    || coupon.getScope() == CouponScope.SKU;
+            BigDecimal matched = scopeMatchedOnly
                     ? BigDecimal.ZERO.setScale(2, java.math.RoundingMode.HALF_UP) : goods;
-            CouponUsability usability = coupon.checkForOrder(channelId, categoryIds, matched, now);
+            CouponUsability usability = coupon.checkForOrder(channelId, categoryIds, skuIds, matched, now);
             BigDecimal discount = usability.usable() ? coupon.discountFor(goods) : null;
             views.add(toUserView(coupon, discount, usability));
         }
@@ -171,13 +179,20 @@ public class CouponAppServiceImpl implements CouponAppService {
     @Override
     public CouponUser requireUsable(Long couponUserId, Long userId, Long channelId,
                                     Set<Long> categoryIds, BigDecimal matchedGoods) {
+        return requireUsable(couponUserId, userId, channelId, categoryIds, null, matchedGoods);
+    }
+
+    @Override
+    public CouponUser requireUsable(Long couponUserId, Long userId, Long channelId,
+                                    Set<Long> categoryIds, Set<Long> skuIds, BigDecimal matchedGoods) {
         CouponUser coupon = couponUserRepository.findById(couponUserId)
                 .orElseThrow(() -> MallErrorCode.exception(MallErrorCode.COUPON_NOT_FOUND));
         if (!userId.equals(coupon.getUserId())) {
             // 用别人的券不解释成「不存在」，否则买家永远不知道是自己传错了 id
             throw MallErrorCode.exception(MallErrorCode.COUPON_NOT_FOUND, "该优惠券不属于当前用户");
         }
-        CouponUsability usability = coupon.checkForOrder(channelId, categoryIds, matchedGoods, LocalDateTime.now());
+        CouponUsability usability = coupon.checkForOrder(channelId, categoryIds, skuIds, matchedGoods,
+                LocalDateTime.now());
         switch (usability) {
             case USABLE -> {
                 return coupon;
@@ -186,6 +201,7 @@ public class CouponAppServiceImpl implements CouponAppService {
             case EXPIRED -> throw MallErrorCode.exception(MallErrorCode.COUPON_STATE_INVALID, "该优惠券已过期");
             case CHANNEL_MISMATCH -> throw MallErrorCode.exception(MallErrorCode.COUPON_CHANNEL_MISMATCH);
             case CATEGORY_NOT_MATCHED -> throw MallErrorCode.exception(MallErrorCode.COUPON_CATEGORY_NOT_MATCHED);
+            case SKU_NOT_MATCHED -> throw MallErrorCode.exception(MallErrorCode.COUPON_SKU_NOT_MATCHED);
             default -> throw MallErrorCode.exception(MallErrorCode.COUPON_THRESHOLD_NOT_MET);
         }
     }
@@ -239,6 +255,7 @@ public class CouponAppServiceImpl implements CouponAppService {
         coupon.setChannelId(command.getChannelId());
         coupon.setScope(CouponScope.parse(command.getScope()));
         coupon.setCategoryIds(command.getCategoryIds() == null ? null : List.copyOf(command.getCategoryIds()));
+        coupon.setSkuIds(command.getSkuIds() == null ? null : List.copyOf(command.getSkuIds()));
         coupon.setTotalQty(command.getTotalQty() == null ? 0 : command.getTotalQty());
         coupon.setIssuedQty(coupon.getIssuedQty() == null ? 0 : coupon.getIssuedQty());
         coupon.setPerUserLimit(command.getPerUserLimit() == null ? 1 : command.getPerUserLimit());
@@ -288,6 +305,7 @@ public class CouponAppServiceImpl implements CouponAppService {
         view.setChannelId(coupon.getChannelId());
         view.setScope(coupon.getScope() == null ? null : coupon.getScope().name());
         view.setCategoryIds(coupon.getCategoryIds());
+        view.setSkuIds(coupon.getSkuIds());
         view.setTotalQty(coupon.getTotalQty());
         view.setIssuedQty(coupon.getIssuedQty());
         view.setPerUserLimit(coupon.getPerUserLimit());
@@ -322,6 +340,7 @@ public class CouponAppServiceImpl implements CouponAppService {
         view.setChannelId(coupon.getChannelId());
         view.setScope(coupon.getScope() == null ? null : coupon.getScope().name());
         view.setCategoryIds(coupon.getCategoryIds());
+        view.setSkuIds(coupon.getSkuIds());
         view.setValidFrom(coupon.getValidFrom());
         view.setValidTo(coupon.getValidTo());
         view.setStatus(coupon.getStatus() == null ? null : coupon.getStatus().name());

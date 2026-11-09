@@ -5,6 +5,8 @@ import com.bluewhale.common.entity.BaseEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+import java.math.BigDecimal;
+
 /**
  * 规格实体，对应表 {@code mall_sku}。
  *
@@ -28,6 +30,9 @@ public class SkuEntity extends BaseEntity {
 
     /** SKU 图 */
     private String imageUrl;
+
+    /** 单件重量（kg，按重运费用） */
+    private BigDecimal weightKg;
 
     /** 状态 */
     private String status;

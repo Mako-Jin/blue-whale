@@ -1,5 +1,6 @@
 package com.bluewhale.mall.order.application.command;
 
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.util.ArrayList;
@@ -27,4 +28,8 @@ public class OrderPreviewCommand {
 
     /** 预选的叠加用户券 ID 列表（可空，最多 2 张且折扣券最多 1 张） */
     private List<Long> couponIds;
+
+    /** 收货区域（省/直辖市名，可空；区域运费模板按此计收，未传按兜底运费） */
+    @Size(max = 64, message = "收货区域不得超过 64 字符")
+    private String region;
 }

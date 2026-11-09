@@ -181,6 +181,18 @@ public final class MallErrorCode {
     /** 运费模板名称已存在 */
     public static final int FREIGHT_TEMPLATE_NAME_CONFLICT = 45072;
 
+    /** 订单中没有券适用商品的商品（商品券） */
+    public static final int COUPON_SKU_NOT_MATCHED = 45073;
+
+    /** 活动参数非法（编码、SKU、活动价、时间窗） */
+    public static final int ACTIVITY_INVALID = 45075;
+
+    /** 会员登记参数非法（用户、会员号） */
+    public static final int MEMBER_INVALID = 45076;
+
+    /** 入库单参数非法（单号、明细、数量） */
+    public static final int INBOUND_INVALID = 45077;
+
     /** 发货单不存在 */
     public static final int SHIPMENT_NOT_FOUND = 45080;
 
@@ -262,6 +274,10 @@ public final class MallErrorCode {
             Map.entry(FREIGHT_TEMPLATE_NOT_FOUND, "运费模板不存在或已停用"),
             Map.entry(FREIGHT_TEMPLATE_INVALID, "运费模板信息不合法，请检查计费方式与金额"),
             Map.entry(FREIGHT_TEMPLATE_NAME_CONFLICT, "运费模板名称已存在"),
+            Map.entry(COUPON_SKU_NOT_MATCHED, "订单中没有该商品券适用商品"),
+            Map.entry(ACTIVITY_INVALID, "活动信息不合法，请检查编码、SKU、活动价与时间窗"),
+            Map.entry(MEMBER_INVALID, "会员登记信息不合法，请检查用户与会员号"),
+            Map.entry(INBOUND_INVALID, "入库单信息不合法，请检查单号、明细与数量"),
             Map.entry(SHIPMENT_NOT_FOUND, "发货单不存在"),
             Map.entry(SHIPMENT_STATE_INVALID, "发货单当前状态不允许该操作"),
             Map.entry(SHIPMENT_QUANTITY_EXCEEDED, "发货数量超过可发数量"),

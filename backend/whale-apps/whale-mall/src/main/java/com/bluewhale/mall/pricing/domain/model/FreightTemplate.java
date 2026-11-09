@@ -6,7 +6,11 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * 运费模板。
@@ -51,6 +55,18 @@ public class FreightTemplate {
     /** 包邮件数门槛（仅 BY_PIECE 可选，达到则免运费） */
     private Integer pieceFreeThreshold;
 
+    /** 首重重量 kg（仅 BY_WEIGHT 用；首重费收 baseAmount） */
+    private BigDecimal firstWeightKg;
+
+    /** 续重步长 kg（仅 BY_WEIGHT 用，不足一步按一步） */
+    private BigDecimal continuedWeightKg;
+
+    /** 续重每步运费（仅 BY_WEIGHT 用） */
+    private BigDecimal continuedAmount;
+
+    /** 区域费率（仅 REGIONAL 用；模板内区域唯一，未命中区域回落 baseAmount） */
+    private List<FreightRegionRate> regionRates = new ArrayList<>();
+
     /** 状态 */
     private FreightTemplateStatus status;
 
@@ -90,13 +106,100 @@ public class FreightTemplate {
             freeThreshold = null;
             piecePrice = null;
             pieceFreeThreshold = null;
+            firstWeightKg = null;
+            continuedWeightKg = null;
+            continuedAmount = null;
+            regionRates = new ArrayList<>();
             return;
         }
         if (chargeType == FreightChargeType.BY_PIECE) {
             validatePieceCharge();
             return;
         }
+        if (chargeType == FreightChargeType.BY_WEIGHT) {
+            validateWeightCharge();
+            return;
+        }
+        if (chargeType == FreightChargeType.REGIONAL) {
+            validateRegionalCharge();
+            return;
+        }
         validateAmountCharge();
+    }
+
+    /**
+     * 校验按重计费参数（首重费复用 baseAmount，其余类型字段清空）。
+     *
+     * <p>首重内固定收一笔（baseAmount），超出首重按续重步长向上取整累加。
+     * 续重参数缺失时计价回落为「只收首重」，比直接报错更适合促销期临时模板。</p>
+     */
+    private void validateWeightCharge() {
+        freeThreshold = null;
+        piecePrice = null;
+        pieceFreeThreshold = null;
+        regionRates = new ArrayList<>();
+        if (baseAmount == null || baseAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw MallErrorCode.exception(MallErrorCode.FREIGHT_TEMPLATE_INVALID, "首重运费必须大于 0");
+        }
+        baseAmount = baseAmount.setScale(2, RoundingMode.HALF_UP);
+        if (firstWeightKg == null || firstWeightKg.compareTo(BigDecimal.ZERO) <= 0) {
+            throw MallErrorCode.exception(MallErrorCode.FREIGHT_TEMPLATE_INVALID, "首重重量必须大于 0");
+        }
+        firstWeightKg = firstWeightKg.setScale(2, RoundingMode.HALF_UP);
+        if (continuedWeightKg != null && continuedWeightKg.compareTo(BigDecimal.ZERO) > 0) {
+            if (continuedAmount == null || continuedAmount.compareTo(BigDecimal.ZERO) <= 0) {
+                throw MallErrorCode.exception(MallErrorCode.FREIGHT_TEMPLATE_INVALID, "配置了续重步长就必须配置续重运费");
+            }
+            continuedWeightKg = continuedWeightKg.setScale(2, RoundingMode.HALF_UP);
+            continuedAmount = continuedAmount.setScale(2, RoundingMode.HALF_UP);
+        } else {
+            // 不配续重 = 超首重不再加价，等价于「按首重一口价」
+            continuedWeightKg = null;
+            continuedAmount = null;
+        }
+    }
+
+    /**
+     * 校验区域运费参数（baseAmount 作为未命中区域的兜底运费）。
+     */
+    private void validateRegionalCharge() {
+        freeThreshold = null;
+        piecePrice = null;
+        pieceFreeThreshold = null;
+        firstWeightKg = null;
+        continuedWeightKg = null;
+        continuedAmount = null;
+        if (baseAmount == null || baseAmount.compareTo(BigDecimal.ZERO) < 0) {
+            throw MallErrorCode.exception(MallErrorCode.FREIGHT_TEMPLATE_INVALID, "兜底运费不能为空且不能为负");
+        }
+        baseAmount = baseAmount.setScale(2, RoundingMode.HALF_UP);
+        if (regionRates == null) {
+            regionRates = new ArrayList<>();
+            return;
+        }
+        Set<String> seen = new HashSet<>();
+        for (FreightRegionRate rate : regionRates) {
+            if (rate == null || rate.getRegion() == null || rate.getRegion().isBlank()) {
+                throw MallErrorCode.exception(MallErrorCode.FREIGHT_TEMPLATE_INVALID, "区域费率必须指定区域");
+            }
+            rate.setRegion(rate.getRegion().trim());
+            if (!seen.add(rate.getRegion().toUpperCase(Locale.ROOT))) {
+                throw MallErrorCode.exception(MallErrorCode.FREIGHT_TEMPLATE_INVALID,
+                        "区域费率重复：" + rate.getRegion());
+            }
+            if (rate.getAmount() == null || rate.getAmount().compareTo(BigDecimal.ZERO) < 0) {
+                throw MallErrorCode.exception(MallErrorCode.FREIGHT_TEMPLATE_INVALID,
+                        "区域运费不能为空且不能为负：" + rate.getRegion());
+            }
+            rate.setAmount(rate.getAmount().setScale(2, RoundingMode.HALF_UP));
+            if (rate.getFreeThreshold() != null) {
+                if (rate.getFreeThreshold().compareTo(BigDecimal.ZERO) <= 0) {
+                    throw MallErrorCode.exception(MallErrorCode.FREIGHT_TEMPLATE_INVALID,
+                            "区域包邮门槛必须大于 0：" + rate.getRegion());
+                }
+                rate.setFreeThreshold(rate.getFreeThreshold().setScale(2, RoundingMode.HALF_UP));
+            }
+        }
     }
 
     /**
@@ -158,20 +261,36 @@ public class FreightTemplate {
      * @return 运费金额，不小于 0
      */
     public BigDecimal freightFor(BigDecimal goodsAmount, Integer quantity) {
+        return freightFor(goodsAmount, quantity, null, null);
+    }
+
+    /**
+     * 按商品总额、件数、重量与收货区域计算运费（组合计价全量口径）。
+     *
+     * <p>BY_WEIGHT：重量未知或为 0 时按首重收一笔（宁可多收退差价，不可少收）；
+     * 超出首重按续重步长<b>向上取整</b>累加（0.1kg 也按一步收，快递就是这么算的）。
+     * REGIONAL：命中区域费率按区域计收（可选区域满额包邮），未命中回落 baseAmount。
+     * 其余类型忽略重量与区域。</p>
+     *
+     * @param goodsAmount 商品总额（优惠前，不含运费）
+     * @param quantity    商品件数（可空，仅 BY_PIECE 需要）
+     * @param totalWeightKg 订单重量合计 kg（可空，仅 BY_WEIGHT 需要）
+     * @param region      收货区域（省/直辖市名，可空，仅 REGIONAL 需要）
+     * @return 运费金额，不小于 0
+     */
+    public BigDecimal freightFor(BigDecimal goodsAmount, Integer quantity, BigDecimal totalWeightKg, String region) {
         BigDecimal zero = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         if (chargeType == null || chargeType == FreightChargeType.FREE) {
             return zero;
         }
         if (chargeType == FreightChargeType.BY_PIECE) {
-            int pieces = quantity == null ? 0 : quantity;
-            if (pieces <= 0) {
-                return zero;
-            }
-            if (pieceFreeThreshold != null && pieces >= pieceFreeThreshold) {
-                return zero;
-            }
-            BigDecimal price = piecePrice == null ? BigDecimal.ZERO : piecePrice;
-            return price.multiply(BigDecimal.valueOf(pieces)).setScale(2, RoundingMode.HALF_UP);
+            return freightByPiece(quantity, zero);
+        }
+        if (chargeType == FreightChargeType.BY_WEIGHT) {
+            return freightByWeight(totalWeightKg, zero);
+        }
+        if (chargeType == FreightChargeType.REGIONAL) {
+            return freightByRegion(goodsAmount, region, zero);
         }
         BigDecimal base = baseAmount == null ? BigDecimal.ZERO : baseAmount;
         if (chargeType == FreightChargeType.FIXED) {
@@ -180,6 +299,57 @@ public class FreightTemplate {
         BigDecimal threshold = freeThreshold == null ? BigDecimal.ZERO : freeThreshold;
         BigDecimal amount = goodsAmount == null ? BigDecimal.ZERO : goodsAmount;
         return amount.compareTo(threshold) >= 0 ? zero : base.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * 按件计费：件数为 0 免运费，可选「满 N 件包邮」。
+     */
+    private BigDecimal freightByPiece(Integer quantity, BigDecimal zero) {
+        int pieces = quantity == null ? 0 : quantity;
+        if (pieces <= 0) {
+            return zero;
+        }
+        if (pieceFreeThreshold != null && pieces >= pieceFreeThreshold) {
+            return zero;
+        }
+        BigDecimal price = piecePrice == null ? BigDecimal.ZERO : piecePrice;
+        return price.multiply(BigDecimal.valueOf(pieces)).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * 按重计费：首重收一笔，超出部分按续重步长向上取整累加。
+     */
+    private BigDecimal freightByWeight(BigDecimal totalWeightKg, BigDecimal zero) {
+        BigDecimal firstFee = baseAmount == null ? BigDecimal.ZERO : baseAmount;
+        BigDecimal weight = totalWeightKg == null ? BigDecimal.ZERO : totalWeightKg;
+        BigDecimal first = firstWeightKg == null ? BigDecimal.ZERO : firstWeightKg;
+        if (weight.compareTo(first) <= 0 || continuedWeightKg == null || continuedAmount == null) {
+            return firstFee.setScale(2, RoundingMode.HALF_UP);
+        }
+        BigDecimal over = weight.subtract(first);
+        BigDecimal steps = over.divide(continuedWeightKg, 0, RoundingMode.CEILING);
+        return firstFee.add(continuedAmount.multiply(steps)).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * 区域计费：命中区域费率按区域计收（可选区域满额包邮），未命中回落基础运费。
+     */
+    private BigDecimal freightByRegion(BigDecimal goodsAmount, String region, BigDecimal zero) {
+        BigDecimal base = baseAmount == null ? BigDecimal.ZERO : baseAmount;
+        if (region == null || region.isBlank() || regionRates == null || regionRates.isEmpty()) {
+            return base.setScale(2, RoundingMode.HALF_UP);
+        }
+        String wanted = region.trim().toUpperCase(Locale.ROOT);
+        for (FreightRegionRate rate : regionRates) {
+            if (rate.getRegion() != null && rate.getRegion().trim().toUpperCase(Locale.ROOT).equals(wanted)) {
+                BigDecimal amount = goodsAmount == null ? BigDecimal.ZERO : goodsAmount;
+                if (rate.getFreeThreshold() != null && amount.compareTo(rate.getFreeThreshold()) >= 0) {
+                    return zero;
+                }
+                return rate.getAmount().setScale(2, RoundingMode.HALF_UP);
+            }
+        }
+        return base.setScale(2, RoundingMode.HALF_UP);
     }
 
     /**

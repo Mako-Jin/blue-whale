@@ -37,6 +37,15 @@ public class FreightTemplateEntity extends BaseEntity {
     /** 包邮件数门槛（仅 BY_PIECE 可选） */
     private Integer pieceFreeThreshold;
 
+    /** 首重重量 kg（仅 BY_WEIGHT） */
+    private BigDecimal firstWeightKg;
+
+    /** 续重步长 kg（仅 BY_WEIGHT） */
+    private BigDecimal continuedWeightKg;
+
+    /** 续重每步运费（仅 BY_WEIGHT） */
+    private BigDecimal continuedAmount;
+
     /** 状态 */
     private String status;
 

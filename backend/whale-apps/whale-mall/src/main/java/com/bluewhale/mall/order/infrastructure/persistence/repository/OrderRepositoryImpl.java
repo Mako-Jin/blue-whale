@@ -356,6 +356,8 @@ public class OrderRepositoryImpl implements OrderRepository {
         order.setStatus(OrderStatus.parse(entity.getStatus()));
         order.setTotalAmount(entity.getTotalAmount());
         order.setGoodsAmount(entity.getGoodsAmount());
+        order.setListAmount(entity.getListAmount());
+        order.setActivityDiscount(entity.getActivityDiscount());
         order.setDiscountAmount(entity.getDiscountAmount());
         order.setFreightAmount(entity.getFreightAmount());
         order.setCouponUserId(entity.getCouponUserId());
@@ -396,6 +398,11 @@ public class OrderRepositoryImpl implements OrderRepository {
         item.setImageUrl(entity.getImageUrl());
         item.setPriceType(entity.getPriceType());
         item.setUnitPrice(entity.getUnitPrice());
+        item.setListPrice(entity.getListPrice());
+        item.setActivityId(entity.getActivityId());
+        item.setActivityName(entity.getActivityName());
+        item.setPriceSource(entity.getPriceSource());
+        item.setWeightKg(entity.getWeightKg());
         item.setQuantity(entity.getQuantity());
         item.setShippedQuantity(entity.getShippedQuantity());
         item.setRefundedQuantity(entity.getRefundedQuantity());
@@ -444,6 +451,8 @@ public class OrderRepositoryImpl implements OrderRepository {
         entity.setStatus(order.getStatus() == null ? null : order.getStatus().name());
         entity.setTotalAmount(order.getTotalAmount());
         entity.setGoodsAmount(order.getGoodsAmount());
+        entity.setListAmount(order.getListAmount());
+        entity.setActivityDiscount(order.getActivityDiscount());
         entity.setDiscountAmount(order.getDiscountAmount());
         entity.setFreightAmount(order.getFreightAmount());
         entity.setCouponUserId(order.getCouponUserId());
@@ -484,6 +493,11 @@ public class OrderRepositoryImpl implements OrderRepository {
         entity.setImageUrl(item.getImageUrl());
         entity.setPriceType(item.getPriceType());
         entity.setUnitPrice(item.getUnitPrice());
+        entity.setListPrice(item.getListPrice());
+        entity.setActivityId(item.getActivityId());
+        entity.setActivityName(item.getActivityName());
+        entity.setPriceSource(item.getPriceSource());
+        entity.setWeightKg(item.getWeightKg());
         entity.setQuantity(item.getQuantity());
         entity.setAmount(item.getAmount());
         entity.setShareDiscount(item.getShareDiscount());
@@ -509,6 +523,7 @@ public class OrderRepositoryImpl implements OrderRepository {
         coupon.setCouponType(entity.getCouponType());
         coupon.setScope(entity.getScope());
         coupon.setCategoryIds(entity.getCategoryIds());
+        coupon.setSkuIds(entity.getSkuIds());
         coupon.setDiscountAmount(entity.getDiscountAmount());
         coupon.setCreateTime(entity.getCreateTime());
         return coupon;
@@ -532,6 +547,7 @@ public class OrderRepositoryImpl implements OrderRepository {
         entity.setCouponType(coupon.getCouponType());
         entity.setScope(coupon.getScope());
         entity.setCategoryIds(coupon.getCategoryIds());
+        entity.setSkuIds(coupon.getSkuIds());
         entity.setDiscountAmount(coupon.getDiscountAmount() == null
                 ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP) : coupon.getDiscountAmount());
         return entity;

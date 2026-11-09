@@ -5,13 +5,17 @@ import com.bluewhale.mall.aftersale.application.service.AfterSaleAppService;
 import com.bluewhale.mall.cart.domain.model.CartItem;
 import com.bluewhale.mall.cart.domain.repository.CartRepository;
 import com.bluewhale.mall.catalog.application.model.SkuOffering;
+import com.bluewhale.mall.catalog.application.service.ActivityAppService;
+import com.bluewhale.mall.catalog.application.service.MemberAppService;
 import com.bluewhale.mall.catalog.application.service.SkuOfferingService;
+import com.bluewhale.mall.catalog.domain.model.Activity;
 import com.bluewhale.mall.catalog.domain.repository.SkuStockRepository;
 import com.bluewhale.mall.channel.domain.model.MallChannel;
 import com.bluewhale.mall.channel.domain.repository.ChannelRepository;
 import com.bluewhale.mall.common.MallActor;
 import com.bluewhale.mall.common.MallErrorCode;
 import com.bluewhale.mall.common.enums.CurrencyType;
+import com.bluewhale.mall.common.enums.MallMode;
 import com.bluewhale.mall.common.sequence.MallSequenceService;
 import com.bluewhale.mall.config.MallProperties;
 import com.bluewhale.mall.coupon.application.service.CouponAppService;
@@ -69,6 +73,15 @@ public class OrderAppServiceImpl implements OrderAppService {
     /** 支付回调的操作人名称 */
     private static final String SYSTEM_OPERATOR = "SYSTEM";
 
+    /** 成交价来源：按渠道价目成交 */
+    private static final String PRICE_SOURCE_LIST = "LIST";
+
+    /** 成交价来源：会员价成交 */
+    private static final String PRICE_SOURCE_MEMBER = "MEMBER";
+
+    /** 成交价来源：活动价成交 */
+    private static final String PRICE_SOURCE_ACTIVITY = "ACTIVITY";
+
     private final OrderRepository orderRepository;
 
     private final CartRepository cartRepository;
@@ -90,6 +103,12 @@ public class OrderAppServiceImpl implements OrderAppService {
     /** 优惠券应用服务（券可用性与核销的唯一判断点） */
     private final CouponAppService couponAppService;
 
+    /** 限时特价活动应用服务（组合计价的活动价来源） */
+    private final ActivityAppService activityAppService;
+
+    /** 商城会员应用服务（会员价生效判定） */
+    private final MemberAppService memberAppService;
+
     /** 运费模板应用服务（运费计算的唯一入口） */
     private final FreightTemplateAppService freightTemplateAppService;
 
@@ -105,14 +124,17 @@ public class OrderAppServiceImpl implements OrderAppService {
         // 「试算 80、下单 82」这种只有客诉能发现的不一致
         MallOrder draft = newOrder(channel, userId, null, null);
         draft.setExpireTime(null);
-        fillItems(draft, items, channel);
+        fillItems(draft, items, channel, memberAppService.isMember(userId, LocalDateTime.now()));
         draft.recalculate();
         BigDecimal goods = draft.getGoodsAmount();
         BigDecimal freight = freightTemplateAppService.freightFor(
-                channel.getFreightTemplateId(), goods, draft.getTotalQuantity());
+                channel.getFreightTemplateId(), goods, draft.getTotalQuantity(),
+                draft.totalWeightKg(), command.getRegion());
         Set<Long> categoryIds = orderCategoryIds(draft.getItems());
+        Set<Long> skuIdSet = orderSkuIds(draft.getItems());
         List<CouponUser> selectedCoupons = requireCouponsForOrder(
-                normalizeCouponIds(command.getCouponIds(), command.getCouponId()), userId, channel, categoryIds);
+                normalizeCouponIds(command.getCouponIds(), command.getCouponId()), userId, channel,
+                categoryIds, skuIdSet);
         List<OrderCoupon> couponRecords = buildCouponRecords(selectedCoupons);
         draft.recalculateWithCoupons(couponRecords, freight);
 
@@ -134,11 +156,13 @@ public class OrderAppServiceImpl implements OrderAppService {
             view.getLines().add(toLine(item));
         }
         view.setGoodsAmount(draft.getGoodsAmount());
+        view.setListAmount(draft.getListAmount());
+        view.setActivityDiscount(draft.getActivityDiscount());
         view.setDiscountAmount(draft.getDiscountAmount());
         view.setFreightAmount(draft.getFreightAmount());
         view.setTotalAmount(draft.getTotalAmount());
         view.setTotalQuantity(draft.getTotalQuantity());
-        view.setAvailableCoupons(couponAppService.available(channel.getId(), goods, categoryIds, actor));
+        view.setAvailableCoupons(couponAppService.available(channel.getId(), goods, categoryIds, skuIdSet, actor));
         return view;
     }
 
@@ -158,15 +182,18 @@ public class OrderAppServiceImpl implements OrderAppService {
         List<CartItem> items = loadSelectedItems(channel.getId(), command.getItemIds(), userId);
         assertLineLimit(items.size());
         MallOrder order = newOrder(channel, userId, key, command.getRemark());
-        fillItems(order, items, channel);
+        fillItems(order, items, channel, memberAppService.isMember(userId, LocalDateTime.now()));
         order.recalculate();
         BigDecimal goods = order.getGoodsAmount();
         BigDecimal freight = freightTemplateAppService.freightFor(
-                channel.getFreightTemplateId(), goods, order.getTotalQuantity());
+                channel.getFreightTemplateId(), goods, order.getTotalQuantity(),
+                order.totalWeightKg(), command.getRegion());
         Set<Long> categoryIds = orderCategoryIds(order.getItems());
+        Set<Long> skuIdSet = orderSkuIds(order.getItems());
         // 不信任前端传来的优惠金额，按券规则在服务端重算
         List<CouponUser> selectedCoupons = requireCouponsForOrder(
-                normalizeCouponIds(command.getCouponIds(), command.getCouponId()), userId, channel, categoryIds);
+                normalizeCouponIds(command.getCouponIds(), command.getCouponId()), userId, channel,
+                categoryIds, skuIdSet);
         List<OrderCoupon> couponRecords = buildCouponRecords(selectedCoupons);
         order.recalculateWithCoupons(couponRecords, freight);
         if (!couponRecords.isEmpty()) {
@@ -320,18 +347,28 @@ public class OrderAppServiceImpl implements OrderAppService {
     }
 
     /**
-     * 按购物车条目填充订单明细（价格实时解析并落快照）。
+     * 按购物车条目填充订单明细（价格实时解析并落快照，组合计价顺序：会员价 → 活动价 → 价目价）。
+     *
+     * <p>会员价只在零售形态生效（积分/B2B 渠道不参与），活动价只在零售现金渠道命中；
+     * 活动价必须低于会员价之后的成交价才覆盖——让利方向永远向下，绝不因叠加组合涨价。</p>
      *
      * @param order 订单
      * @param items 购物车条目
      * @param channel 渠道
+     * @param memberPrice 下单用户是否为有效会员
      */
-    private void fillItems(MallOrder order, List<CartItem> items, MallChannel channel) {
-        Map<Long, SkuOffering> offerings = skuOfferingService.resolve(skuIds(items), channel.getMode());
+    private void fillItems(MallOrder order, List<CartItem> items, MallChannel channel, boolean memberPrice) {
+        Map<Long, SkuOffering> offerings = skuOfferingService.resolve(skuIds(items), channel.getMode(), memberPrice);
+        boolean activityAllowed = channel.getMode() == MallMode.RETAIL
+                && channel.getCurrencyType() != CurrencyType.POINTS;
+        Map<Long, Activity> activities = activityAllowed
+                ? activityAppService.matching(skuIds(items), channel.getId(), LocalDateTime.now())
+                : Map.of();
         for (CartItem item : items) {
             SkuOffering offering = offerings.get(item.getSkuId());
             BigDecimal unitPrice = skuOfferingService.requireSellable(offering, item.getQuantity());
-            order.getItems().add(toOrderItem(offering, unitPrice, item.getQuantity()));
+            order.getItems().add(toOrderItem(offering, unitPrice, item.getQuantity(),
+                    activities.get(item.getSkuId())));
         }
     }
 
@@ -384,10 +421,11 @@ public class OrderAppServiceImpl implements OrderAppService {
      * @param userId      下单用户
      * @param channel     渠道
      * @param categoryIds 订单商品类目 ID 集合
+     * @param skuIds      订单商品 SKU ID 集合
      * @return 可用的用户券列表（与传入顺序一致）
      */
     private List<CouponUser> requireCouponsForOrder(List<Long> couponIds, Long userId, MallChannel channel,
-                                                    Set<Long> categoryIds) {
+                                                    Set<Long> categoryIds, Set<Long> skuIds) {
         if (couponIds.isEmpty()) {
             return List.of();
         }
@@ -400,7 +438,7 @@ public class OrderAppServiceImpl implements OrderAppService {
         for (Long couponUserId : couponIds) {
             // 门槛分母传空：状态/归属/范围在这里判定，门槛在计价阶段按命中行小计判定
             CouponUser coupon = couponAppService.requireUsable(couponUserId, userId, channel.getId(),
-                    categoryIds, null);
+                    categoryIds, skuIds, null);
             if (coupon.getCouponType() == CouponType.DISCOUNT) {
                 discountCount++;
             }
@@ -429,6 +467,7 @@ public class OrderAppServiceImpl implements OrderAppService {
             record.setCouponType(coupon.getCouponType() == null ? null : coupon.getCouponType().name());
             record.setScope(coupon.getScope() == null ? null : coupon.getScope().name());
             record.setCategoryIds(joinCategoryIds(coupon.getCategoryIds()));
+            record.setSkuIds(joinCategoryIds(coupon.getSkuIds()));
             record.setRule(coupon.rule());
             records.add(record);
         }
@@ -462,6 +501,22 @@ public class OrderAppServiceImpl implements OrderAppService {
             }
         }
         return categoryIds;
+    }
+
+    /**
+     * 收集订单明细的 SKU ID 集合（商品券命中判定用）。
+     *
+     * @param items 订单明细
+     * @return SKU ID 集合
+     */
+    private Set<Long> orderSkuIds(List<OrderItem> items) {
+        Set<Long> skuIdSet = new LinkedHashSet<>();
+        for (OrderItem item : items) {
+            if (item.getSkuId() != null) {
+                skuIdSet.add(item.getSkuId());
+            }
+        }
+        return skuIdSet;
     }
 
     /**
@@ -704,14 +759,19 @@ public class OrderAppServiceImpl implements OrderAppService {
     }
 
     /**
-     * 可售单元转订单明细。
+     * 可售单元转订单明细（组合计价快照：原价/活动/会员价来源/重量）。
+     *
+     * <p>活动价必须低于当前成交价才覆盖；会员价命中时原价快照取覆盖前的
+     * 普通价目，让 {@code list_amount} 与 {@code activity_discount} 能完整
+     * 解释「这单让了多少利、让在哪」。</p>
      *
      * @param offering 可售单元
      * @param unitPrice 成交单价
      * @param quantity 数量
+     * @param activity 命中活动（可为空）
      * @return 明细
      */
-    private OrderItem toOrderItem(SkuOffering offering, BigDecimal unitPrice, Integer quantity) {
+    private OrderItem toOrderItem(SkuOffering offering, BigDecimal unitPrice, Integer quantity, Activity activity) {
         OrderItem item = new OrderItem();
         item.setSpuId(offering.getSpuId());
         item.setSkuId(offering.getSku().getId());
@@ -723,6 +783,18 @@ public class OrderAppServiceImpl implements OrderAppService {
                 ? offering.getMainImage() : offering.getSku().getImageUrl());
         item.setPriceType(offering.getPriceType());
         item.setUnitPrice(unitPrice);
+        item.setWeightKg(offering.getSku().getWeightKg());
+        item.setListPrice(offering.getListPrice() == null ? unitPrice : offering.getListPrice());
+        if (activity != null && activity.getActivityPrice().compareTo(unitPrice) < 0) {
+            item.setUnitPrice(activity.getActivityPrice());
+            item.setActivityId(activity.getId());
+            item.setActivityName(activity.getActivityName());
+            item.setPriceSource(PRICE_SOURCE_ACTIVITY);
+        } else if (offering.getListPrice() != null) {
+            item.setPriceSource(PRICE_SOURCE_MEMBER);
+        } else {
+            item.setPriceSource(PRICE_SOURCE_LIST);
+        }
         item.setQuantity(quantity);
         return item;
     }
@@ -744,6 +816,11 @@ public class OrderAppServiceImpl implements OrderAppService {
         line.setImageUrl(item.getImageUrl());
         line.setPriceType(item.getPriceType());
         line.setUnitPrice(item.getUnitPrice());
+        line.setListPrice(item.getListPrice());
+        line.setActivityId(item.getActivityId());
+        line.setActivityName(item.getActivityName());
+        line.setPriceSource(item.getPriceSource());
+        line.setWeightKg(item.getWeightKg());
         line.setQuantity(item.getQuantity());
         line.setShippedQuantity(item.getShippedQuantity() == null ? 0 : item.getShippedQuantity());
         line.setShippableQuantity(item.shippableQuantity());
@@ -776,6 +853,8 @@ public class OrderAppServiceImpl implements OrderAppService {
         view.setStatus(statusName(order));
         view.setTotalAmount(order.getTotalAmount());
         view.setGoodsAmount(order.getGoodsAmount());
+        view.setListAmount(order.getListAmount());
+        view.setActivityDiscount(order.getActivityDiscount());
         view.setDiscountAmount(order.getDiscountAmount());
         view.setFreightAmount(order.getFreightAmount());
         view.setCouponCode(order.getCouponCode());

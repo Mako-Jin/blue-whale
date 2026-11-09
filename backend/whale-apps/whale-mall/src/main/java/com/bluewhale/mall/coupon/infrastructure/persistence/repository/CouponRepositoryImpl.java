@@ -124,6 +124,7 @@ public class CouponRepositoryImpl implements CouponRepository {
         coupon.setChannelId(entity.getChannelId());
         coupon.setScope(CouponScope.parse(entity.getScope()));
         coupon.setCategoryIds(parseCategoryIds(entity.getCategoryIds()));
+        coupon.setSkuIds(parseCategoryIds(entity.getSkuIds()));
         coupon.setTotalQty(entity.getTotalQty());
         coupon.setIssuedQty(entity.getIssuedQty());
         coupon.setPerUserLimit(entity.getPerUserLimit());
@@ -155,6 +156,7 @@ public class CouponRepositoryImpl implements CouponRepository {
         entity.setChannelId(coupon.getChannelId());
         entity.setScope(coupon.getScope() == null ? null : coupon.getScope().name());
         entity.setCategoryIds(joinCategoryIds(coupon.getCategoryIds()));
+        entity.setSkuIds(joinCategoryIds(coupon.getSkuIds()));
         entity.setTotalQty(coupon.getTotalQty());
         entity.setIssuedQty(coupon.getIssuedQty());
         entity.setPerUserLimit(coupon.getPerUserLimit());

@@ -26,6 +26,9 @@ public enum CouponUsability {
     /** 订单中没有券适用类目的商品（品类券） */
     CATEGORY_NOT_MATCHED("订单中没有适用类目的商品"),
 
+    /** 订单中没有券适用商品的商品（商品券） */
+    SKU_NOT_MATCHED("订单中没有适用商品"),
+
     /** 未达到使用门槛 */
     THRESHOLD_NOT_MET("订单金额未达门槛");
 

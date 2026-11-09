@@ -41,11 +41,14 @@ public class CouponView {
     /** 适用渠道 ID（仅 CHANNEL；空 = 全场） */
     private Long channelId;
 
-    /** 适用范围：ALL 全场 / CHANNEL 单渠道 / CATEGORY 品类 */
+    /** 适用范围：ALL 全场 / CHANNEL 店铺（单渠道）/ CATEGORY 品类 / SKU 商品 */
     private String scope;
 
     /** 适用类目 ID（仅 CATEGORY） */
     private List<Long> categoryIds;
+
+    /** 适用 SKU ID（仅 SKU 商品券） */
+    private List<Long> skuIds;
 
     /** 发行量（0 = 不限） */
     private Integer totalQty;
