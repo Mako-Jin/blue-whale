@@ -420,11 +420,11 @@ public final class OaErrorCode {
     /** 附件文件不存在、已删除或已停用 */
     public static final int ATTACHMENT_NOT_FOUND = 40443;
 
-    /** 附件不属于当前用户，禁止引用 */
-    public static final int ATTACHMENT_FORBIDDEN = 40307;
+    /** 附件不属于当前用户，禁止引用（与文件引用校验同码，别名） */
+    public static final int ATTACHMENT_FORBIDDEN = FILE_REF_FORBIDDEN;
 
-    /** 文件服务暂不可用，无法核验附件归属 */
-    public static final int ATTACHMENT_UNAVAILABLE = 50310;
+    /** 文件服务暂不可用，无法核验附件归属（与文件引用校验同码，别名） */
+    public static final int ATTACHMENT_UNAVAILABLE = FILE_REF_UNAVAILABLE;
 
 
     /** 错误码与默认提示语 */
@@ -563,9 +563,7 @@ public final class OaErrorCode {
             Map.entry(HR_CHANGE_AUTH_UNAVAILABLE, "Auth 人员生命周期服务暂不可用，稍后可重试执行"),
             Map.entry(REPORT_INVALID, "报表参数非法，请检查报表类型、统计期间与日期区间"),
             Map.entry(REPORT_SNAPSHOT_NOT_FOUND, "报表快照不存在或无权访问"),
-            Map.entry(ATTACHMENT_NOT_FOUND, "附件文件不存在、已删除或已停用"),
-            Map.entry(ATTACHMENT_FORBIDDEN, "附件不属于当前用户，禁止引用"),
-            Map.entry(ATTACHMENT_UNAVAILABLE, "文件服务暂不可用，无法核验附件归属，请稍后重试"));
+            Map.entry(ATTACHMENT_NOT_FOUND, "附件文件不存在、已删除或已停用"));
 
     /**
      * 私有构造器：错误码常量类，禁止实例化。
