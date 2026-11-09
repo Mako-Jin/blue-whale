@@ -295,6 +295,12 @@ public class VehicleAppServiceImpl implements VehicleAppService {
                 .orElseThrow(() -> OaErrorCode.exception(OaErrorCode.VEHICLE_BOOKING_NOT_FOUND, "该用车单尚无回车登记"));
     }
 
+    /**
+     * 将保存命令中的字段应用到用车申请。
+     *
+     * @param booking 用车申请
+     * @param command 用车申请保存命令
+     */
     private void applyBooking(VehicleBooking booking, AdministrativeCommands.BookingSaveCommand command) {
         booking.setApplicant(command.getApplicant());
         booking.setApplicantId(command.getApplicantId());
@@ -307,6 +313,11 @@ public class VehicleAppServiceImpl implements VehicleAppService {
         booking.setRemark(command.getRemark());
     }
 
+    /**
+     * 为用车申请注册审批实例。
+     *
+     * @param booking 用车申请
+     */
     private void registerApproval(VehicleBooking booking) {
         if (booking.getApprovalInstanceId() != null) {
             return;
@@ -325,21 +336,45 @@ public class VehicleAppServiceImpl implements VehicleAppService {
         repository.updateBooking(booking);
     }
 
+    /**
+     * 查询车辆，不存在时抛出业务异常。
+     *
+     * @param id 车辆 ID
+     * @return 车辆
+     */
     private Vehicle requireVehicle(Long id) {
         return repository.findVehicleById(id)
                 .orElseThrow(() -> OaErrorCode.exception(OaErrorCode.VEHICLE_INVALID, "车辆不存在：" + id));
     }
 
+    /**
+     * 查询司机，不存在时抛出业务异常。
+     *
+     * @param id 司机 ID
+     * @return 司机
+     */
     private Driver requireDriver(Long id) {
         return repository.findDriverById(id)
                 .orElseThrow(() -> OaErrorCode.exception(OaErrorCode.VEHICLE_INVALID, "司机不存在：" + id));
     }
 
+    /**
+     * 查询用车申请，不存在时抛出业务异常。
+     *
+     * @param id 用车申请 ID
+     * @return 用车申请
+     */
     private VehicleBooking requireBooking(Long id) {
         return repository.findBookingById(id)
                 .orElseThrow(() -> OaErrorCode.exception(OaErrorCode.VEHICLE_BOOKING_NOT_FOUND));
     }
 
+    /**
+     * 将车辆领域对象转换为视图。
+     *
+     * @param vehicle 车辆
+     * @return 车辆视图
+     */
     private static AdministrativeViews.VehicleView toVehicleView(Vehicle vehicle) {
         AdministrativeViews.VehicleView view = new AdministrativeViews.VehicleView();
         view.setId(vehicle.getId());
@@ -354,6 +389,12 @@ public class VehicleAppServiceImpl implements VehicleAppService {
         return view;
     }
 
+    /**
+     * 将司机领域对象转换为视图。
+     *
+     * @param driver 司机
+     * @return 司机视图
+     */
     private static AdministrativeViews.DriverView toDriverView(Driver driver) {
         AdministrativeViews.DriverView view = new AdministrativeViews.DriverView();
         view.setId(driver.getId());
@@ -367,6 +408,12 @@ public class VehicleAppServiceImpl implements VehicleAppService {
         return view;
     }
 
+    /**
+     * 将用车申请领域对象转换为视图。
+     *
+     * @param booking 用车申请
+     * @return 用车申请视图
+     */
     private static AdministrativeViews.BookingView toBookingView(VehicleBooking booking) {
         AdministrativeViews.BookingView view = new AdministrativeViews.BookingView();
         view.setId(booking.getId());
@@ -388,6 +435,12 @@ public class VehicleAppServiceImpl implements VehicleAppService {
         return view;
     }
 
+    /**
+     * 将用车使用记录领域对象转换为视图。
+     *
+     * @param usage 用车使用记录
+     * @return 用车使用记录视图
+     */
     private static AdministrativeViews.UsageView toUsageView(VehicleUsage usage) {
         AdministrativeViews.UsageView view = new AdministrativeViews.UsageView();
         view.setId(usage.getId());

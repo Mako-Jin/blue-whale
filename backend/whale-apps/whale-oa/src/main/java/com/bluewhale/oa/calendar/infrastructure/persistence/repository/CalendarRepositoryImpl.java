@@ -126,11 +126,23 @@ public class CalendarRepositoryImpl implements CalendarRepository {
                 .toList();
     }
 
+    /**
+     * 构造分页参数，并约束单页条数上限。
+     *
+     * @param query 日程查询条件
+     * @return 分页参数
+     */
     private Page<CalendarEntryEntity> page(CalendarQuery query) {
         long size = Math.min(Math.max(query.getSize(), 1L), MAX_PAGE_SIZE);
         return new Page<>(Math.max(query.getCurrent(), 1L), size, false);
     }
 
+    /**
+     * 构造日程查询条件（含可见性、关键字与时间范围过滤）。
+     *
+     * @param query 日程查询条件
+     * @return 查询包装器
+     */
     private LambdaQueryWrapper<CalendarEntryEntity> entryFilter(CalendarQuery query) {
         List<Long> sharedIds = query.getUserId() == null ? List.of()
                 : shareMapper.selectList(new LambdaQueryWrapper<CalendarShareEntity>()
@@ -159,6 +171,12 @@ public class CalendarRepositoryImpl implements CalendarRepository {
         return wrapper;
     }
 
+    /**
+     * 将持久化实体转换为日程模型。
+     *
+     * @param entity 日程实体
+     * @return 日程模型
+     */
     private static CalendarEntry toEntry(CalendarEntryEntity entity) {
         CalendarEntry model = new CalendarEntry();
         model.setId(entity.getId());
@@ -179,6 +197,12 @@ public class CalendarRepositoryImpl implements CalendarRepository {
         return model;
     }
 
+    /**
+     * 将日程模型字段填充到持久化实体。
+     *
+     * @param entity 日程实体
+     * @param model 日程模型
+     */
     private static void fill(CalendarEntryEntity entity, CalendarEntry model) {
         entity.setOwnerId(model.getOwnerId());
         entity.setOwnerName(model.getOwnerName());
@@ -194,6 +218,12 @@ public class CalendarRepositoryImpl implements CalendarRepository {
         entity.setSourceId(model.getSourceId());
     }
 
+    /**
+     * 将共享持久化实体转换为共享模型。
+     *
+     * @param entity 共享实体
+     * @return 共享模型
+     */
     private static CalendarShare toShare(CalendarShareEntity entity) {
         CalendarShare model = new CalendarShare();
         model.setId(entity.getId());

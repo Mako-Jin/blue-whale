@@ -1,0 +1,15 @@
+# 权限/菜单撞号基线（2026-11-09 首次扫描）
+# 下列 11 处为历史遗留的真实撞号：迁移均以 `WHERE NOT EXISTS` 幂等写入，后写入的号段被静默跳过。
+# 基线内的条目不再阻塞门禁；新增撞号一律 FAIL，必须在本批次内解决。
+# 历史项清理需单独 RBAC 数据治理批次，涉及已应用环境的数据修复与角色重授权。
+id:sys_permission:172
+id:sys_permission:173
+id:sys_menu:35
+code:sys_permission:sys:crm:customer:list
+code:sys_permission:sys:crm:customer:delete
+code:sys_permission:sys:crm:customer:merge
+code:sys_permission:sys:crm:contact:list
+code:sys_permission:sys:crm:contact:manage
+code:sys_permission:sys:crm:opportunity:list
+code:sys_permission:sys:crm:opportunity:stage
+code:sys_permission:sys:crm:export

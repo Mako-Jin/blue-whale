@@ -24,7 +24,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -236,6 +235,12 @@ public class MeetingAppServiceImpl implements MeetingAppService {
 
     // ---------------------------------------------------------------- 私有方法
 
+    /**
+     * 校验会议关联会议室是否存在、已启用且时段不冲突；未指定会议室时跳过。
+     *
+     * @param meeting 待校验的会议
+     * @param excludeId 冲突校验时需排除的会议ID（编辑场景）
+     */
     private void validateRoomAndConflict(Meeting meeting, Long excludeId) {
         if (meeting.getRoomId() != null) {
             MeetingRoom room = repository.findRoom(meeting.getRoomId());
@@ -249,6 +254,12 @@ public class MeetingAppServiceImpl implements MeetingAppService {
         }
     }
 
+    /**
+     * 构建参会人模型列表，校验参会人非空、用户ID有效且不重复，初始状态为已邀请。
+     *
+     * @param commands 参会人命令列表
+     * @return 参会人模型列表
+     */
     private List<MeetingParticipant> buildParticipants(List<CollabCommands.ParticipantCommand> commands) {
         if (commands == null || commands.isEmpty()) {
             throw OaErrorCode.exception(OaErrorCode.MEETING_PARTICIPANT_REQUIRED);
@@ -269,6 +280,13 @@ public class MeetingAppServiceImpl implements MeetingAppService {
         return new ArrayList<>(unique.values());
     }
 
+    /**
+     * 构建会议行动项列表，需要生成任务的行动项会同步落库个人任务。
+     *
+     * @param meeting 所属会议
+     * @param command 会议纪要命令
+     * @return 行动项模型列表
+     */
     private List<MeetingAction> buildActions(Meeting meeting, CollabCommands.MinuteSaveCommand command) {
         List<MeetingAction> actions = new ArrayList<>();
         if (command.getActions() == null || command.getActions().isEmpty()) {
@@ -292,6 +310,13 @@ public class MeetingAppServiceImpl implements MeetingAppService {
         return actions;
     }
 
+    /**
+     * 根据会议行动项构建来源为会议的待办个人任务。
+     *
+     * @param item 行动项命令
+     * @param meeting 所属会议
+     * @return 个人任务模型
+     */
     private OaTask buildTask(CollabCommands.ActionCommand item, Meeting meeting) {
         OaTask task = new OaTask();
         String content = item.getContent().trim();
@@ -309,6 +334,12 @@ public class MeetingAppServiceImpl implements MeetingAppService {
         return task;
     }
 
+    /**
+     * 查询会议室，不存在时抛出业务异常。
+     *
+     * @param id 会议室ID
+     * @return 会议室模型
+     */
     private MeetingRoom requireRoom(Long id) {
         MeetingRoom room = repository.findRoom(id);
         if (room == null) {
@@ -317,6 +348,12 @@ public class MeetingAppServiceImpl implements MeetingAppService {
         return room;
     }
 
+    /**
+     * 查询会议，不存在时抛出业务异常。
+     *
+     * @param id 会议ID
+     * @return 会议模型
+     */
     private Meeting requireMeeting(Long id) {
         Meeting meeting = repository.findMeeting(id);
         if (meeting == null) {
@@ -325,6 +362,13 @@ public class MeetingAppServiceImpl implements MeetingAppService {
         return meeting;
     }
 
+    /**
+     * 将会议室命令字段填充到会议室模型，并校验容纳人数与状态合法性。
+     *
+     * @param room 目标会议室模型
+     * @param command 会议室保存命令
+     * @param name 已去除首尾空白后的会议室名称
+     */
     private static void fillRoom(MeetingRoom room, CollabCommands.RoomSaveCommand command, String name) {
         room.setName(name);
         room.setLocation(command.getLocation());
@@ -341,6 +385,12 @@ public class MeetingAppServiceImpl implements MeetingAppService {
         room.setRemark(command.getRemark());
     }
 
+    /**
+     * 将会议模型转换为列表视图，并补充会议室名称与参会人数。
+     *
+     * @param meeting 会议模型
+     * @return 会议视图
+     */
     private CollabViews.MeetingView toMeetingView(Meeting meeting) {
         CollabViews.MeetingView view = new CollabViews.MeetingView();
         view.setId(meeting.getId());
@@ -361,6 +411,12 @@ public class MeetingAppServiceImpl implements MeetingAppService {
         return view;
     }
 
+    /**
+     * 查询会议室名称，会议室ID为空或会议室不存在时返回 {@code null}。
+     *
+     * @param roomId 会议室ID
+     * @return 会议室名称
+     */
     private String roomName(Long roomId) {
         if (roomId == null) {
             return null;
@@ -369,6 +425,12 @@ public class MeetingAppServiceImpl implements MeetingAppService {
         return room == null ? null : room.getName();
     }
 
+    /**
+     * 将会议模型转换为详情视图，补充参会人、纪要与行动项。
+     *
+     * @param meeting 会议模型
+     * @return 会议详情视图
+     */
     private CollabViews.MeetingDetailView toMeetingDetail(Meeting meeting) {
         List<MeetingParticipant> participants = meeting.getParticipants() == null
                 ? repository.listParticipants(meeting.getId()) : meeting.getParticipants();
@@ -399,6 +461,12 @@ public class MeetingAppServiceImpl implements MeetingAppService {
         return view;
     }
 
+    /**
+     * 将会议室模型转换为会议室视图。
+     *
+     * @param room 会议室模型
+     * @return 会议室视图
+     */
     private static CollabViews.RoomView toRoomView(MeetingRoom room) {
         CollabViews.RoomView view = new CollabViews.RoomView();
         view.setId(room.getId());
@@ -411,6 +479,12 @@ public class MeetingAppServiceImpl implements MeetingAppService {
         return view;
     }
 
+    /**
+     * 将参会人模型转换为参会人视图。
+     *
+     * @param participant 参会人模型
+     * @return 参会人视图
+     */
     private static CollabViews.ParticipantView toParticipantView(MeetingParticipant participant) {
         CollabViews.ParticipantView view = new CollabViews.ParticipantView();
         view.setId(participant.getId());
@@ -422,6 +496,12 @@ public class MeetingAppServiceImpl implements MeetingAppService {
         return view;
     }
 
+    /**
+     * 将会议纪要模型转换为纪要视图。
+     *
+     * @param minute 会议纪要模型
+     * @return 纪要视图
+     */
     private static CollabViews.MinuteView toMinuteView(MeetingMinute minute) {
         CollabViews.MinuteView view = new CollabViews.MinuteView();
         view.setId(minute.getId());
@@ -433,6 +513,12 @@ public class MeetingAppServiceImpl implements MeetingAppService {
         return view;
     }
 
+    /**
+     * 将会议行动项模型转换为行动项视图。
+     *
+     * @param action 行动项模型
+     * @return 行动项视图
+     */
     private static CollabViews.ActionView toActionView(MeetingAction action) {
         CollabViews.ActionView view = new CollabViews.ActionView();
         view.setId(action.getId());

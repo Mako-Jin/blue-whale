@@ -14,6 +14,7 @@ import java.util.List;
  */
 public final class AdministrativeViews {
 
+    /** 工具类，禁止实例化。 */
     private AdministrativeViews() {
     }
 

@@ -90,6 +90,12 @@ public class ErpPurchaseGatewayImpl implements ErpPurchaseGateway {
         return String.valueOf(poNo);
     }
 
+    /**
+     * 发起 ERP 服务内网 POST 请求。
+     *
+     * @param body 请求体
+     * @return 响应信封
+     */
     private Map<String, Object> post(Object body) {
         try {
             return restClient().post().uri(baseUrl() + PURCHASE_PATH).headers(this::applyIdentity)
@@ -102,6 +108,11 @@ public class ErpPurchaseGatewayImpl implements ErpPurchaseGateway {
         }
     }
 
+    /**
+     * 填充当前请求上下文的租户、用户与用户名请求头。
+     *
+     * @param headers HTTP 请求头
+     */
     private void applyIdentity(HttpHeaders headers) {
         Long tenantId = RequestContextHolder.getTenantId();
         if (tenantId != null) {
@@ -117,6 +128,12 @@ public class ErpPurchaseGatewayImpl implements ErpPurchaseGateway {
         }
     }
 
+    /**
+     * 校验响应信封的业务码并返回数据体。
+     *
+     * @param response 响应信封
+     * @return 响应数据体
+     */
     private Object requireSuccess(Map<String, Object> response) {
         if (response == null) {
             throw OaErrorCode.exception(OaErrorCode.PURCHASE_ERP_UNAVAILABLE);
@@ -131,10 +148,20 @@ public class ErpPurchaseGatewayImpl implements ErpPurchaseGateway {
         return response.get("data");
     }
 
+    /**
+     * 获取带内网令牌的 REST 客户端。
+     *
+     * @return REST 客户端
+     */
     private RestClient restClient() {
         return InternalTokenSupport.restClient();
     }
 
+    /**
+     * 获取 ERP 服务实例的基础地址。
+     *
+     * @return ERP 服务基础地址
+     */
     private String baseUrl() {
         List<ServiceInstance> instances = discoveryClient.getInstances(SERVICE_NAME);
         if (instances.isEmpty()) {

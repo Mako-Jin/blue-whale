@@ -17,6 +17,7 @@ import java.util.List;
  */
 public final class CalendarCommands {
 
+    /** 工具类，禁止实例化。 */
     private CalendarCommands() {
     }
 

@@ -211,8 +211,7 @@ export interface CrmMetaView {
 /**
  * 客户 / 公海分页查询参数（CustomerPageParams）。
  *
- * ownerId 在领域查询（CustomerQuery）中已存在，但当前 CustomerPageParams 未绑定该字段，
- * 服务端数据范围仍由登录人身份决定；此处保留参数以便后端补齐绑定。
+ * ownerId 由后端绑定到 CustomerQuery；无全量数据权限的账号仍会被服务端数据范围覆盖为本人。
  */
 export interface CustomerPageQuery {
   keyword?: string;

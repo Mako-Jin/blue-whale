@@ -36,18 +36,36 @@ public class VehicleController {
 
     private final VehicleAppService vehicleAppService;
 
+    /**
+     * 分页查询车辆。
+     *
+     * @param query 查询条件
+     * @return 车辆分页结果
+     */
     @GetMapping("/page")
     @RequirePermission("sys:oa:vehicle:list")
     public Result<PageResult<AdministrativeViews.VehicleView>> page(AdministrativeQuery query) {
         return Result.ok(vehicleAppService.pageVehicles(query));
     }
 
+    /**
+     * 查询车辆详情。
+     *
+     * @param id 车辆 ID
+     * @return 车辆详情
+     */
     @GetMapping("/{id}")
     @RequirePermission("sys:oa:vehicle:list")
     public Result<AdministrativeViews.VehicleView> detail(@PathVariable Long id) {
         return Result.ok(vehicleAppService.vehicleDetail(id));
     }
 
+    /**
+     * 创建车辆。
+     *
+     * @param command 车辆保存命令
+     * @return 创建后的车辆
+     */
     @PostMapping
     @RequirePermission("sys:oa:vehicle:add")
     @AuditLog(operation = "新增车辆", type = OperateType.CREATE, targetType = TARGET_TYPE)
@@ -56,6 +74,13 @@ public class VehicleController {
         return Result.ok(vehicleAppService.createVehicle(command));
     }
 
+    /**
+     * 更新车辆。
+     *
+     * @param id 车辆 ID
+     * @param command 车辆保存命令
+     * @return 更新后的车辆
+     */
     @PutMapping("/{id}")
     @RequirePermission("sys:oa:vehicle:edit")
     @AuditLog(operation = "更新车辆", type = OperateType.UPDATE, targetType = TARGET_TYPE, targetId = "#id")
@@ -64,6 +89,11 @@ public class VehicleController {
         return Result.ok(vehicleAppService.updateVehicle(id, command));
     }
 
+    /**
+     * 删除车辆。
+     *
+     * @param id 车辆 ID
+     */
     @DeleteMapping("/{id}")
     @RequirePermission("sys:oa:vehicle:delete")
     @AuditLog(operation = "删除车辆", type = OperateType.DELETE, targetType = TARGET_TYPE, targetId = "#id")
@@ -72,12 +102,24 @@ public class VehicleController {
         return Result.ok();
     }
 
+    /**
+     * 分页查询司机。
+     *
+     * @param query 查询条件
+     * @return 司机分页结果
+     */
     @GetMapping("/drivers/page")
     @RequirePermission("sys:oa:vehicle:list")
     public Result<PageResult<AdministrativeViews.DriverView>> driverPage(AdministrativeQuery query) {
         return Result.ok(vehicleAppService.pageDrivers(query));
     }
 
+    /**
+     * 创建司机。
+     *
+     * @param command 司机保存命令
+     * @return 创建后的司机
+     */
     @PostMapping("/drivers")
     @RequirePermission("sys:oa:vehicle:add")
     @AuditLog(operation = "新增司机", type = OperateType.CREATE, targetType = "oa_driver")
@@ -86,6 +128,13 @@ public class VehicleController {
         return Result.ok(vehicleAppService.createDriver(command));
     }
 
+    /**
+     * 更新司机。
+     *
+     * @param id 司机 ID
+     * @param command 司机保存命令
+     * @return 更新后的司机
+     */
     @PutMapping("/drivers/{id}")
     @RequirePermission("sys:oa:vehicle:edit")
     @AuditLog(operation = "更新司机", type = OperateType.UPDATE, targetType = "oa_driver", targetId = "#id")
@@ -94,6 +143,11 @@ public class VehicleController {
         return Result.ok(vehicleAppService.updateDriver(id, command));
     }
 
+    /**
+     * 删除司机。
+     *
+     * @param id 司机 ID
+     */
     @DeleteMapping("/drivers/{id}")
     @RequirePermission("sys:oa:vehicle:delete")
     @AuditLog(operation = "删除司机", type = OperateType.DELETE, targetType = "oa_driver", targetId = "#id")
@@ -102,18 +156,36 @@ public class VehicleController {
         return Result.ok();
     }
 
+    /**
+     * 分页查询用车申请。
+     *
+     * @param query 查询条件
+     * @return 用车申请分页结果
+     */
     @GetMapping("/bookings/page")
     @RequirePermission("sys:oa:vehicle:list")
     public Result<PageResult<AdministrativeViews.BookingView>> bookingPage(AdministrativeQuery query) {
         return Result.ok(vehicleAppService.pageBookings(query));
     }
 
+    /**
+     * 查询用车申请详情。
+     *
+     * @param id 用车申请 ID
+     * @return 用车申请详情
+     */
     @GetMapping("/bookings/{id}")
     @RequirePermission("sys:oa:vehicle:list")
     public Result<AdministrativeViews.BookingView> bookingDetail(@PathVariable Long id) {
         return Result.ok(vehicleAppService.bookingDetail(id));
     }
 
+    /**
+     * 创建用车申请。
+     *
+     * @param command 用车申请保存命令
+     * @return 创建后的用车申请
+     */
     @PostMapping("/bookings")
     @RequirePermission("sys:oa:vehicle:booking:add")
     @AuditLog(operation = "新建用车申请", type = OperateType.CREATE, targetType = "oa_vehicle_booking")
@@ -122,6 +194,13 @@ public class VehicleController {
         return Result.ok(vehicleAppService.createBooking(command));
     }
 
+    /**
+     * 更新用车申请。
+     *
+     * @param id 用车申请 ID
+     * @param command 用车申请保存命令
+     * @return 更新后的用车申请
+     */
     @PutMapping("/bookings/{id}")
     @RequirePermission("sys:oa:vehicle:booking:edit")
     @AuditLog(operation = "更新用车申请", type = OperateType.UPDATE, targetType = "oa_vehicle_booking",
@@ -131,6 +210,11 @@ public class VehicleController {
         return Result.ok(vehicleAppService.updateBooking(id, command));
     }
 
+    /**
+     * 删除用车申请。
+     *
+     * @param id 用车申请 ID
+     */
     @DeleteMapping("/bookings/{id}")
     @RequirePermission("sys:oa:vehicle:booking:edit")
     @AuditLog(operation = "删除用车申请", type = OperateType.DELETE, targetType = "oa_vehicle_booking",
@@ -140,6 +224,12 @@ public class VehicleController {
         return Result.ok();
     }
 
+    /**
+     * 变更用车申请状态。
+     *
+     * @param id 用车申请 ID
+     * @param command 状态变更命令
+     */
     @PutMapping("/bookings/{id}/status")
     @RequirePermission("sys:oa:vehicle:booking:edit")
     @AuditLog(operation = "变更用车状态", type = OperateType.UPDATE, targetType = "oa_vehicle_booking",
@@ -150,6 +240,13 @@ public class VehicleController {
         return Result.ok();
     }
 
+    /**
+     * 派车调度。
+     *
+     * @param id 用车申请 ID
+     * @param command 派车命令
+     * @return 派车后的用车申请
+     */
     @PostMapping("/bookings/{id}/dispatch")
     @RequirePermission("sys:oa:vehicle:dispatch")
     @AuditLog(operation = "派车", type = OperateType.UPDATE, targetType = "oa_vehicle_booking", targetId = "#id")
@@ -158,6 +255,13 @@ public class VehicleController {
         return Result.ok(vehicleAppService.dispatch(id, command));
     }
 
+    /**
+     * 归还车辆并登记回车。
+     *
+     * @param id 用车申请 ID
+     * @param command 归还命令
+     * @return 用车使用记录
+     */
     @PostMapping("/bookings/{id}/return")
     @RequirePermission("sys:oa:vehicle:return")
     @AuditLog(operation = "回车登记", type = OperateType.UPDATE, targetType = "oa_vehicle_booking",
@@ -167,6 +271,12 @@ public class VehicleController {
         return Result.ok(vehicleAppService.returnVehicle(id, command));
     }
 
+    /**
+     * 查询用车使用记录。
+     *
+     * @param id 用车申请 ID
+     * @return 用车使用记录
+     */
     @GetMapping("/bookings/{id}/usage")
     @RequirePermission("sys:oa:vehicle:list")
     public Result<AdministrativeViews.UsageView> usage(@PathVariable Long id) {

@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
  */
 public final class DriveViews {
 
+    /** 工具类，禁止实例化。 */
     private DriveViews() {
     }
 

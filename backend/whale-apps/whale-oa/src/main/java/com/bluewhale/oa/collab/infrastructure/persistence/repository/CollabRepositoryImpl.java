@@ -470,11 +470,23 @@ public class CollabRepositoryImpl implements CollabRepository {
 
     // ---------------------------------------------------------------- 公共方法
 
+    /**
+     * 根据查询条件构造分页对象，并对页码与每页条数做边界限制。
+     *
+     * @param query 分页查询条件
+     * @return 分页对象
+     */
     private <T> Page<T> page(CollabQuery query) {
         long size = Math.min(Math.max(query.getSize(), 1L), MAX_PAGE_SIZE);
         return new Page<>(Math.max(query.getCurrent(), 1L), size, false);
     }
 
+    /**
+     * 构造会议室查询条件：关键字匹配名称或位置，可叠加状态过滤。
+     *
+     * @param query 查询条件
+     * @return 会议室查询条件构造器
+     */
     private LambdaQueryWrapper<MeetingRoomEntity> roomFilter(CollabQuery query) {
         return new LambdaQueryWrapper<MeetingRoomEntity>()
                 .and(StringUtils.hasText(query.getKeyword()), wrapper -> wrapper
@@ -484,6 +496,12 @@ public class CollabRepositoryImpl implements CollabRepository {
                 .orderByDesc(MeetingRoomEntity::getId);
     }
 
+    /**
+     * 构造会议查询条件：关键字、会议室、状态、时间区间与参会人过滤。
+     *
+     * @param query 查询条件
+     * @return 会议查询条件构造器
+     */
     private LambdaQueryWrapper<MeetingEntity> meetingFilter(CollabQuery query) {
         LambdaQueryWrapper<MeetingEntity> wrapper = new LambdaQueryWrapper<MeetingEntity>()
                 .and(StringUtils.hasText(query.getKeyword()), item -> item
@@ -509,6 +527,12 @@ public class CollabRepositoryImpl implements CollabRepository {
                 .orderByDesc(MeetingEntity::getId);
     }
 
+    /**
+     * 构造公告查询条件：关键字、状态、范围类型与发布时间区间过滤。
+     *
+     * @param query 查询条件
+     * @return 公告查询条件构造器
+     */
     private LambdaQueryWrapper<NoticeEntity> noticeFilter(CollabQuery query) {
         return new LambdaQueryWrapper<NoticeEntity>()
                 .and(StringUtils.hasText(query.getKeyword()), wrapper -> wrapper
@@ -523,6 +547,12 @@ public class CollabRepositoryImpl implements CollabRepository {
                 .orderByDesc(NoticeEntity::getId);
     }
 
+    /**
+     * 构造任务查询条件：关键字、负责人、状态、优先级、来源与到期日期过滤。
+     *
+     * @param query 查询条件
+     * @return 任务查询条件构造器
+     */
     private LambdaQueryWrapper<OaTaskEntity> taskFilter(CollabQuery query) {
         return new LambdaQueryWrapper<OaTaskEntity>()
                 .like(StringUtils.hasText(query.getKeyword()), OaTaskEntity::getTitle, query.getKeyword())
@@ -538,6 +568,12 @@ public class CollabRepositoryImpl implements CollabRepository {
                 .orderByDesc(OaTaskEntity::getId);
     }
 
+    /**
+     * 将会议室实体转换为领域模型。
+     *
+     * @param entity 会议室实体
+     * @return 会议室领域模型
+     */
     private static MeetingRoom toRoom(MeetingRoomEntity entity) {
         MeetingRoom model = new MeetingRoom();
         model.setId(entity.getId());
@@ -551,6 +587,12 @@ public class CollabRepositoryImpl implements CollabRepository {
         return model;
     }
 
+    /**
+     * 将会议室领域模型字段写入实体。
+     *
+     * @param entity 目标会议室实体
+     * @param model 会议室领域模型
+     */
     private static void fill(MeetingRoomEntity entity, MeetingRoom model) {
         entity.setName(model.getName());
         entity.setLocation(model.getLocation());
@@ -559,6 +601,12 @@ public class CollabRepositoryImpl implements CollabRepository {
         entity.setRemark(model.getRemark());
     }
 
+    /**
+     * 将会议实体转换为领域模型。
+     *
+     * @param entity 会议实体
+     * @return 会议领域模型
+     */
     private static Meeting toMeeting(MeetingEntity entity) {
         Meeting model = new Meeting();
         model.setId(entity.getId());
@@ -578,6 +626,12 @@ public class CollabRepositoryImpl implements CollabRepository {
         return model;
     }
 
+    /**
+     * 将会议领域模型字段写入实体。
+     *
+     * @param entity 目标会议实体
+     * @param model 会议领域模型
+     */
     private static void fill(MeetingEntity entity, Meeting model) {
         entity.setCode(model.getCode());
         entity.setTitle(model.getTitle());
@@ -592,6 +646,12 @@ public class CollabRepositoryImpl implements CollabRepository {
         entity.setRemark(model.getRemark());
     }
 
+    /**
+     * 将参会人实体转换为领域模型。
+     *
+     * @param entity 参会人实体
+     * @return 参会人领域模型
+     */
     private static MeetingParticipant toParticipant(MeetingParticipantEntity entity) {
         MeetingParticipant model = new MeetingParticipant();
         model.setId(entity.getId());
@@ -606,6 +666,12 @@ public class CollabRepositoryImpl implements CollabRepository {
         return model;
     }
 
+    /**
+     * 将参会人领域模型字段写入实体。
+     *
+     * @param entity 目标参会人实体
+     * @param model 参会人领域模型
+     */
     private static void fill(MeetingParticipantEntity entity, MeetingParticipant model) {
         entity.setMeetingId(model.getMeetingId());
         entity.setUserId(model.getUserId());
@@ -615,6 +681,12 @@ public class CollabRepositoryImpl implements CollabRepository {
         entity.setRemark(model.getRemark());
     }
 
+    /**
+     * 将会议纪要实体转换为领域模型。
+     *
+     * @param entity 会议纪要实体
+     * @return 会议纪要领域模型
+     */
     private static MeetingMinute toMinute(MeetingMinuteEntity entity) {
         MeetingMinute model = new MeetingMinute();
         model.setId(entity.getId());
@@ -627,6 +699,12 @@ public class CollabRepositoryImpl implements CollabRepository {
         return model;
     }
 
+    /**
+     * 将会议纪要领域模型字段写入实体。
+     *
+     * @param entity 目标会议纪要实体
+     * @param model 会议纪要领域模型
+     */
     private static void fill(MeetingMinuteEntity entity, MeetingMinute model) {
         entity.setMeetingId(model.getMeetingId());
         entity.setContent(model.getContent());
@@ -634,6 +712,12 @@ public class CollabRepositoryImpl implements CollabRepository {
         entity.setAuthorId(model.getAuthorId());
     }
 
+    /**
+     * 将会议行动项实体转换为领域模型。
+     *
+     * @param entity 会议行动项实体
+     * @return 会议行动项领域模型
+     */
     private static MeetingAction toAction(MeetingActionEntity entity) {
         MeetingAction model = new MeetingAction();
         model.setId(entity.getId());
@@ -649,6 +733,12 @@ public class CollabRepositoryImpl implements CollabRepository {
         return model;
     }
 
+    /**
+     * 将会议行动项领域模型字段写入实体。
+     *
+     * @param entity 目标会议行动项实体
+     * @param model 会议行动项领域模型
+     */
     private static void fill(MeetingActionEntity entity, MeetingAction model) {
         entity.setMeetingId(model.getMeetingId());
         entity.setContent(model.getContent());
@@ -659,6 +749,12 @@ public class CollabRepositoryImpl implements CollabRepository {
         entity.setTaskId(model.getTaskId());
     }
 
+    /**
+     * 将公告实体转换为领域模型。
+     *
+     * @param entity 公告实体
+     * @return 公告领域模型
+     */
     private static Notice toNotice(NoticeEntity entity) {
         Notice model = new Notice();
         model.setId(entity.getId());
@@ -676,6 +772,12 @@ public class CollabRepositoryImpl implements CollabRepository {
         return model;
     }
 
+    /**
+     * 将公告领域模型字段写入实体。
+     *
+     * @param entity 目标公告实体
+     * @param model 公告领域模型
+     */
     private static void fill(NoticeEntity entity, Notice model) {
         entity.setTitle(model.getTitle());
         entity.setContent(model.getContent());
@@ -688,6 +790,12 @@ public class CollabRepositoryImpl implements CollabRepository {
         entity.setRemark(model.getRemark());
     }
 
+    /**
+     * 将公告接收人实体转换为领域模型。
+     *
+     * @param entity 公告接收人实体
+     * @return 公告接收人领域模型
+     */
     private static NoticeRecipient toRecipient(NoticeRecipientEntity entity) {
         NoticeRecipient model = new NoticeRecipient();
         model.setId(entity.getId());
@@ -701,6 +809,12 @@ public class CollabRepositoryImpl implements CollabRepository {
         return model;
     }
 
+    /**
+     * 将公告接收人领域模型字段写入实体。
+     *
+     * @param entity 目标公告接收人实体
+     * @param model 公告接收人领域模型
+     */
     private static void fill(NoticeRecipientEntity entity, NoticeRecipient model) {
         entity.setNoticeId(model.getNoticeId());
         entity.setUserId(model.getUserId());
@@ -709,6 +823,12 @@ public class CollabRepositoryImpl implements CollabRepository {
         entity.setReadTime(model.getReadTime());
     }
 
+    /**
+     * 将任务实体转换为领域模型。
+     *
+     * @param entity 任务实体
+     * @return 任务领域模型
+     */
     private static OaTask toTask(OaTaskEntity entity) {
         OaTask model = new OaTask();
         model.setId(entity.getId());
@@ -729,6 +849,12 @@ public class CollabRepositoryImpl implements CollabRepository {
         return model;
     }
 
+    /**
+     * 将任务领域模型字段写入实体。
+     *
+     * @param entity 目标任务实体
+     * @param model 任务领域模型
+     */
     private static void fill(OaTaskEntity entity, OaTask model) {
         entity.setTitle(model.getTitle());
         entity.setDescription(model.getDescription());
@@ -744,6 +870,12 @@ public class CollabRepositoryImpl implements CollabRepository {
         entity.setFinishTime(model.getFinishTime());
     }
 
+    /**
+     * 将任务评论实体转换为领域模型。
+     *
+     * @param entity 任务评论实体
+     * @return 任务评论领域模型
+     */
     private static TaskComment toComment(TaskCommentEntity entity) {
         TaskComment model = new TaskComment();
         model.setId(entity.getId());
@@ -755,6 +887,12 @@ public class CollabRepositoryImpl implements CollabRepository {
         return model;
     }
 
+    /**
+     * 将任务评论领域模型字段写入实体。
+     *
+     * @param entity 目标任务评论实体
+     * @param model 任务评论领域模型
+     */
     private static void fill(TaskCommentEntity entity, TaskComment model) {
         entity.setTaskId(model.getTaskId());
         entity.setUserId(model.getUserId());

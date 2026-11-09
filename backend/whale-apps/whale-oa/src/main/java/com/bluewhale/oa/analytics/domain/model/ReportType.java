@@ -42,6 +42,11 @@ public enum ReportType {
     /** 报表中文名称 */
     private final String title;
 
+    /**
+     * 构造报表类型。
+     *
+     * @param title 报表中文名称
+     */
     ReportType(String title) {
         this.title = title;
     }

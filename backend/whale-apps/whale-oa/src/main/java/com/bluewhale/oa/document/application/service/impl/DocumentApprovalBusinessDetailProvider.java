@@ -60,6 +60,12 @@ public class DocumentApprovalBusinessDetailProvider implements ApprovalBusinessD
         return view;
     }
 
+    /**
+     * 将 null 字符串转换为空串。
+     *
+     * @param value 原始字符串，可为 null
+     * @return 非空字符串
+     */
     private String nullToEmpty(String value) {
         return value == null ? "" : value;
     }

@@ -523,11 +523,11 @@ com.bluewhale.crm
 | M3 商务 | 1860–1880 | 427–431 | 25129 |
 | M4 售后 | 1881–1890 | 432–436 | 25130 `crm_service` |
 | M5 营销 | 1891–1898 | 437–440 | 25131 `crm_marketing` |
-| M6 分析 | 1899 + 1900–1905（占用预留段） | 441–449 | 25132 `crm_analyst` |
-| 预留 | 1900–1999 | 450–469 | 后续增强 |
+| M6 分析 | 1899 + 1834–1839 | 441–449 | 25132 `crm_analyst` |
+| 预留 | 1801–1809 | 450–469 | 1900–1999 已归 LMS（1900–1949）与党建工会（1950–1999），CRM 不得占用 |
 
 - 权限码命名：`sys:crm:<context>:<action>`，例如 `sys:crm:customer:list`、`sys:crm:pool:claim`、`sys:crm:order:push`、`sys:crm:invoice:issue`、`sys:crm:ticket:assign`、`sys:crm:campaign:send`、`sys:crm:analytics:export`。
-- 号段占用：7f-1 用 1860–1865，7f-2 用 1866–1873，7f-3 用 1874–1880（`sys:crm:invoice:list/create/submit/issue/send/red-flush` + `sys:crm:ar:reconcile`）；M4 由 1875–1884 顺延为 1881–1890，M5 / M6 同步顺延，M6 已触及 1899 上限需启用 1900+ 预留段，实施前统一复核。
+- 号段占用：7f-1 用 1860–1865，7f-2 用 1866–1873，7f-3 用 1874–1880（`sys:crm:invoice:list/create/submit/issue/send/red-flush` + `sys:crm:ar:reconcile`）；M4 由 1875–1884 顺延为 1881–1890，M5 顺延为 1891–1898；M6 原用 1899 + 1900–1905 与 LMS 5.87 登记的 1900–1949 撞号，2026-11-09 回收至 1899 + 1834–1839（5.83 迁移脚本与角色授权同步调整）。
 - 菜单只注册已交付页面；未交付页面不挂空入口，避免点击即 403。
 - 迁移脚本幂等：`INSERT ... SELECT ... WHERE NOT EXISTS`；只增不删；角色授权按最小权限。
 

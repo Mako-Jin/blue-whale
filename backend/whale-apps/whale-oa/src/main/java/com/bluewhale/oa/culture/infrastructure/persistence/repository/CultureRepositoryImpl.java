@@ -286,6 +286,12 @@ public class CultureRepositoryImpl implements CultureRepository {
 
     // ---------------------------------------------------------------- 公共方法
 
+    /**
+     * 构建文化动态分页查询条件，支持关键字、状态与类型过滤。
+     *
+     * @param query 文化查询条件
+     * @return 文化动态查询包装器
+     */
     private LambdaQueryWrapper<CultureEventEntity> eventFilter(CultureQuery query) {
         return new LambdaQueryWrapper<CultureEventEntity>()
                 .and(StringUtils.hasText(query.getKeyword()), wrapper -> wrapper
@@ -298,6 +304,12 @@ public class CultureRepositoryImpl implements CultureRepository {
                 .orderByDesc(CultureEventEntity::getId);
     }
 
+    /**
+     * 构建祝福分页查询条件，支持关键字、祝福类型与祝福对象过滤。
+     *
+     * @param query 文化查询条件
+     * @return 祝福查询包装器
+     */
     private LambdaQueryWrapper<CultureWishEntity> wishFilter(CultureQuery query) {
         return new LambdaQueryWrapper<CultureWishEntity>()
                 .and(StringUtils.hasText(query.getKeyword()), wrapper -> wrapper
@@ -311,6 +323,12 @@ public class CultureRepositoryImpl implements CultureRepository {
                 .orderByDesc(CultureWishEntity::getId);
     }
 
+    /**
+     * 构建投票分页查询条件，支持关键字与状态过滤。
+     *
+     * @param query 文化查询条件
+     * @return 投票查询包装器
+     */
     private LambdaQueryWrapper<PollEntity> pollFilter(CultureQuery query) {
         return new LambdaQueryWrapper<PollEntity>()
                 .and(StringUtils.hasText(query.getKeyword()), wrapper -> wrapper
@@ -321,6 +339,13 @@ public class CultureRepositoryImpl implements CultureRepository {
                 .orderByDesc(PollEntity::getId);
     }
 
+    /**
+     * 构建建议分页查询条件，支持关键字、状态、类别与提交人过滤。
+     *
+     * @param query 文化查询条件
+     * @param submitterId 提交人用户ID，为空时不按提交人过滤
+     * @return 建议查询包装器
+     */
     private LambdaQueryWrapper<SuggestionEntity> suggestionFilter(CultureQuery query, Long submitterId) {
         return new LambdaQueryWrapper<SuggestionEntity>()
                 .and(StringUtils.hasText(query.getKeyword()), wrapper -> wrapper
@@ -334,42 +359,84 @@ public class CultureRepositoryImpl implements CultureRepository {
                 .orderByDesc(SuggestionEntity::getId);
     }
 
+    /**
+     * 将文化动态实体转换为领域模型。
+     *
+     * @param entity 文化动态实体
+     * @return 文化动态领域模型
+     */
     private static CultureEvent toEvent(CultureEventEntity entity) {
         CultureEvent model = new CultureEvent();
         BeanUtils.copyProperties(entity, model);
         return model;
     }
 
+    /**
+     * 将祝福实体转换为领域模型。
+     *
+     * @param entity 祝福实体
+     * @return 祝福领域模型
+     */
     private static CultureWish toWish(CultureWishEntity entity) {
         CultureWish model = new CultureWish();
         BeanUtils.copyProperties(entity, model);
         return model;
     }
 
+    /**
+     * 将投票实体转换为领域模型。
+     *
+     * @param entity 投票实体
+     * @return 投票领域模型
+     */
     private static Poll toPoll(PollEntity entity) {
         Poll model = new Poll();
         BeanUtils.copyProperties(entity, model);
         return model;
     }
 
+    /**
+     * 将投票选项实体转换为领域模型。
+     *
+     * @param entity 投票选项实体
+     * @return 投票选项领域模型
+     */
     private static PollOption toOption(PollOptionEntity entity) {
         PollOption model = new PollOption();
         BeanUtils.copyProperties(entity, model);
         return model;
     }
 
+    /**
+     * 将投票记录实体转换为领域模型。
+     *
+     * @param entity 投票记录实体
+     * @return 投票记录领域模型
+     */
     private static PollVote toVote(PollVoteEntity entity) {
         PollVote model = new PollVote();
         BeanUtils.copyProperties(entity, model);
         return model;
     }
 
+    /**
+     * 将建议实体转换为领域模型。
+     *
+     * @param entity 建议实体
+     * @return 建议领域模型
+     */
     private static Suggestion toSuggestion(SuggestionEntity entity) {
         Suggestion model = new Suggestion();
         BeanUtils.copyProperties(entity, model);
         return model;
     }
 
+    /**
+     * 将建议回复实体转换为领域模型。
+     *
+     * @param entity 建议回复实体
+     * @return 建议回复领域模型
+     */
     private static SuggestionReply toReply(SuggestionReplyEntity entity) {
         SuggestionReply model = new SuggestionReply();
         BeanUtils.copyProperties(entity, model);

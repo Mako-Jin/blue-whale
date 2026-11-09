@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -439,6 +438,14 @@ public class DriveAppServiceImpl implements DriveAppService {
         return value.trim().toUpperCase();
     }
 
+    /**
+     * 将文件夹模型转换为文件夹视图。
+     *
+     * @param folder 文件夹模型
+     * @param writable 当前用户是否可写
+     * @param manageable 当前用户是否可管理
+     * @return 文件夹视图
+     */
     private static DriveViews.FolderView toFolderView(DriveFolder folder, boolean writable, boolean manageable) {
         DriveViews.FolderView view = new DriveViews.FolderView();
         view.setId(folder.getId());
@@ -455,6 +462,12 @@ public class DriveAppServiceImpl implements DriveAppService {
         return view;
     }
 
+    /**
+     * 将文件模型转换为文件视图。
+     *
+     * @param file 文件模型
+     * @return 文件视图
+     */
     private static DriveViews.FileView toFileView(DriveFile file) {
         DriveViews.FileView view = new DriveViews.FileView();
         view.setId(file.getId());
@@ -469,6 +482,12 @@ public class DriveAppServiceImpl implements DriveAppService {
         return view;
     }
 
+    /**
+     * 将授权模型转换为授权视图。
+     *
+     * @param acl 授权模型
+     * @return 授权视图
+     */
     private static DriveViews.AclView toAclView(DriveAcl acl) {
         DriveViews.AclView view = new DriveViews.AclView();
         view.setSubjectType(acl.getSubjectType());

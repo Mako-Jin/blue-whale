@@ -207,11 +207,26 @@ public class DriveRepositoryImpl implements DriveRepository {
                 .sum();
     }
 
+    /**
+     * 构造分页参数，并约束单页条数上限。
+     *
+     * @param query 文件查询条件
+     * @return 分页参数
+     */
     private Page<DriveFileEntity> page(DriveQuery query) {
         long size = Math.min(Math.max(query.getSize(), 1L), MAX_PAGE_SIZE);
         return new Page<>(Math.max(query.getCurrent(), 1L), size, false);
     }
 
+    /**
+     * 判断文件夹是否对当前用户可见。
+     *
+     * @param folder 文件夹
+     * @param userId 用户ID
+     * @param deptId 部门ID
+     * @param allowedFolderIds 已授权文件夹ID集合
+     * @return 可见返回 true
+     */
     private static boolean visibleAsCandidate(DriveFolder folder, Long userId, Long deptId,
                                               Set<Long> allowedFolderIds) {
         if (userId != null && folder.getOwnerId() != null && folder.getOwnerId().equals(userId)) {
@@ -224,6 +239,12 @@ public class DriveRepositoryImpl implements DriveRepository {
         return allowedFolderIds.contains(folder.getId());
     }
 
+    /**
+     * 将文件夹持久化实体转换为文件夹模型。
+     *
+     * @param entity 文件夹实体
+     * @return 文件夹模型
+     */
     private static DriveFolder toFolder(DriveFolderEntity entity) {
         DriveFolder folder = new DriveFolder();
         folder.setId(entity.getId());
@@ -239,6 +260,12 @@ public class DriveRepositoryImpl implements DriveRepository {
         return folder;
     }
 
+    /**
+     * 将文件夹模型字段填充到持久化实体。
+     *
+     * @param entity 文件夹实体
+     * @param folder 文件夹模型
+     */
     private static void fill(DriveFolderEntity entity, DriveFolder folder) {
         entity.setParentId(folder.getParentId());
         entity.setName(folder.getName());
@@ -249,6 +276,12 @@ public class DriveRepositoryImpl implements DriveRepository {
         entity.setSortNo(folder.getSortNo());
     }
 
+    /**
+     * 将文件持久化实体转换为文件模型。
+     *
+     * @param entity 文件实体
+     * @return 文件模型
+     */
     private static DriveFile toFile(DriveFileEntity entity) {
         DriveFile file = new DriveFile();
         file.setId(entity.getId());
@@ -264,6 +297,12 @@ public class DriveRepositoryImpl implements DriveRepository {
         return file;
     }
 
+    /**
+     * 将文件模型字段填充到持久化实体。
+     *
+     * @param entity 文件实体
+     * @param file 文件模型
+     */
     private static void fill(DriveFileEntity entity, DriveFile file) {
         entity.setFolderId(file.getFolderId());
         entity.setFileId(file.getFileId());
@@ -274,6 +313,12 @@ public class DriveRepositoryImpl implements DriveRepository {
         entity.setUploaderName(file.getUploaderName());
     }
 
+    /**
+     * 将授权持久化实体转换为授权模型。
+     *
+     * @param entity 授权实体
+     * @return 授权模型
+     */
     private static DriveAcl toAcl(DriveAclEntity entity) {
         DriveAcl acl = new DriveAcl();
         acl.setId(entity.getId());

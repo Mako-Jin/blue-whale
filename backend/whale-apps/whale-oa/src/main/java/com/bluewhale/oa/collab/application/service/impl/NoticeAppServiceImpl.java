@@ -153,6 +153,12 @@ public class NoticeAppServiceImpl implements NoticeAppService {
 
     // ---------------------------------------------------------------- 私有方法
 
+    /**
+     * 将公告命令字段填充到公告模型，并校验部门公告必须指定部门。
+     *
+     * @param notice 目标公告模型
+     * @param command 公告保存命令
+     */
     private void fillNotice(Notice notice, CollabCommands.NoticeSaveCommand command) {
         String scope = StringUtils.hasText(command.getScopeType())
                 ? NoticeScopeType.of(command.getScopeType()).name() : NoticeScopeType.ALL.name();
@@ -166,6 +172,13 @@ public class NoticeAppServiceImpl implements NoticeAppService {
         notice.setRemark(command.getRemark());
     }
 
+    /**
+     * 构建公告接收人快照列表，校验用户ID有效且不重复。
+     *
+     * @param noticeId 公告ID
+     * @param commands 接收人命令列表
+     * @return 接收人快照列表
+     */
     private List<NoticeRecipient> buildRecipients(Long noticeId, List<CollabCommands.RecipientCommand> commands) {
         Map<Long, NoticeRecipient> unique = new LinkedHashMap<>();
         for (CollabCommands.RecipientCommand item : commands) {
@@ -182,6 +195,12 @@ public class NoticeAppServiceImpl implements NoticeAppService {
         return List.copyOf(unique.values());
     }
 
+    /**
+     * 按公告范围解析接收人：仅全员公告从通讯录拉取，其它范围返回空列表。
+     *
+     * @param notice 公告模型
+     * @return 解析得到的接收人快照列表
+     */
     private List<NoticeRecipient> resolveRecipients(Notice notice) {
         if (NoticeScopeType.of(notice.getScopeType()) != NoticeScopeType.ALL) {
             return List.of();
@@ -198,6 +217,12 @@ public class NoticeAppServiceImpl implements NoticeAppService {
         }).toList();
     }
 
+    /**
+     * 查询公告，不存在时抛出业务异常。
+     *
+     * @param id 公告ID
+     * @return 公告模型
+     */
     private Notice requireNotice(Long id) {
         Notice notice = repository.findNotice(id);
         if (notice == null) {
@@ -206,6 +231,12 @@ public class NoticeAppServiceImpl implements NoticeAppService {
         return notice;
     }
 
+    /**
+     * 将公告模型转换为详情视图，补充接收人列表、接收数与已读数。
+     *
+     * @param notice 公告模型
+     * @return 公告详情视图
+     */
     private CollabViews.NoticeDetailView toNoticeDetail(Notice notice) {
         List<NoticeRecipient> recipients = repository.listRecipients(notice.getId());
         CollabViews.NoticeDetailView view = new CollabViews.NoticeDetailView();
@@ -230,6 +261,12 @@ public class NoticeAppServiceImpl implements NoticeAppService {
         return view;
     }
 
+    /**
+     * 将公告模型转换为公告视图。
+     *
+     * @param notice 公告模型
+     * @return 公告视图
+     */
     private static CollabViews.NoticeView toNoticeView(Notice notice) {
         CollabViews.NoticeView view = new CollabViews.NoticeView();
         view.setId(notice.getId());
@@ -248,6 +285,12 @@ public class NoticeAppServiceImpl implements NoticeAppService {
         return view;
     }
 
+    /**
+     * 将公告接收人模型转换为接收人视图。
+     *
+     * @param recipient 公告接收人模型
+     * @return 接收人视图
+     */
     private static CollabViews.RecipientView toRecipientView(NoticeRecipient recipient) {
         CollabViews.RecipientView view = new CollabViews.RecipientView();
         view.setId(recipient.getId());
@@ -258,6 +301,12 @@ public class NoticeAppServiceImpl implements NoticeAppService {
         return view;
     }
 
+    /**
+     * 将通讯录用户候选模型转换为候选视图。
+     *
+     * @param candidate 通讯录用户候选模型
+     * @return 候选视图
+     */
     private static CollabViews.CandidateView toCandidateView(UserCandidate candidate) {
         CollabViews.CandidateView view = new CollabViews.CandidateView();
         view.setUserId(candidate.getUserId());

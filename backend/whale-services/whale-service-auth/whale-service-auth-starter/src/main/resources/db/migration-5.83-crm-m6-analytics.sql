@@ -18,34 +18,34 @@ FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 1899 OR perm_code = 'sys:crm:analytics:dashboard');
 
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 1900, 0, 'sys:crm:analytics:funnel', '漏斗分析', 'API', '/crm/analytics/funnel', 'GET', 1900, 1
+SELECT 1834, 0, 'sys:crm:analytics:funnel', '漏斗分析', 'API', '/crm/analytics/funnel', 'GET', 1834, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 1900 OR perm_code = 'sys:crm:analytics:funnel');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 1834 OR perm_code = 'sys:crm:analytics:funnel');
 
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 1901, 0, 'sys:crm:analytics:customer', '客户分析', 'API', '/crm/analytics/customer', 'GET', 1901, 1
+SELECT 1835, 0, 'sys:crm:analytics:customer', '客户分析', 'API', '/crm/analytics/customer', 'GET', 1835, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 1901 OR perm_code = 'sys:crm:analytics:customer');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 1835 OR perm_code = 'sys:crm:analytics:customer');
 
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 1902, 0, 'sys:crm:analytics:ranking', '销售排行', 'API', '/crm/analytics/ranking', 'GET', 1902, 1
+SELECT 1836, 0, 'sys:crm:analytics:ranking', '销售排行', 'API', '/crm/analytics/ranking', 'GET', 1836, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 1902 OR perm_code = 'sys:crm:analytics:ranking');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 1836 OR perm_code = 'sys:crm:analytics:ranking');
 
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 1903, 0, 'sys:crm:analytics:collection', '回款分析', 'API', '/crm/analytics/collection', 'GET', 1903, 1
+SELECT 1837, 0, 'sys:crm:analytics:collection', '回款分析', 'API', '/crm/analytics/collection', 'GET', 1837, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 1903 OR perm_code = 'sys:crm:analytics:collection');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 1837 OR perm_code = 'sys:crm:analytics:collection');
 
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 1904, 0, 'sys:crm:action:plan', '行动计划与行动项', 'API', '/crm/action-plan/**', 'GET,POST', 1904, 1
+SELECT 1838, 0, 'sys:crm:action:plan', '行动计划与行动项', 'API', '/crm/action-plan/**', 'GET,POST', 1838, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 1904 OR perm_code = 'sys:crm:action:plan');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 1838 OR perm_code = 'sys:crm:action:plan');
 
 INSERT INTO sys_permission (id, parent_id, perm_code, perm_name, perm_type, path, method, sort_no, status)
-SELECT 1905, 0, 'sys:crm:export', '分析数据导出', 'API', '/crm/analytics/export/**', 'GET,POST', 1905, 1
+SELECT 1839, 0, 'sys:crm:export', '分析数据导出', 'API', '/crm/analytics/export/**', 'GET,POST', 1839, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 1905 OR perm_code = 'sys:crm:export');
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE id = 1839 OR perm_code = 'sys:crm:export');
 
 -- ---------------------------------------------------------------------
 -- 2. 菜单（441 销售看板 / 442 漏斗分析 / 443 客户分析 / 444 销售排行 /
@@ -102,9 +102,9 @@ WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE id = 448);
 
 -- ---------------------------------------------------------------------
 -- 3. 授权
---    tenant_admin / crm_admin / crm_analyst / crm_sales_manager：1899–1905
---    crm_sales：1899、1900、1902、1904（看板 / 漏斗 / 排行 / 行动计划）
---    crm_marketing：1899、1900、1904（看板 / 漏斗 / 行动计划）
+--    tenant_admin / crm_admin / crm_analyst / crm_sales_manager：1899、1834–1839
+--    crm_sales：1899、1834、1836、1838（看板 / 漏斗 / 排行 / 行动计划）
+--    crm_marketing：1899、1834、1838（看板 / 漏斗 / 行动计划）
 -- ---------------------------------------------------------------------
 INSERT INTO sys_role_permission (id, role_id, permission_id)
 SELECT src.id, src.role_id, src.permission_id
@@ -112,7 +112,7 @@ FROM (
     SELECT CAST(CONV(SUBSTR(MD5(CONCAT(r.id, ':', p.id)), 1, 15), 16, 10) AS UNSIGNED) AS id,
            r.id AS role_id, p.id AS permission_id
     FROM sys_role r
-    JOIN sys_permission p ON p.id BETWEEN 1899 AND 1905
+    JOIN sys_permission p ON (p.id BETWEEN 1834 AND 1839 OR p.id = 1899)
          AND p.deleted = 0 AND p.status = 1
     WHERE r.deleted = 0 AND r.status = 1
       AND r.role_code IN ('tenant_admin', 'crm_admin', 'crm_analyst', 'crm_sales_manager')
@@ -128,7 +128,7 @@ FROM (
     SELECT CAST(CONV(SUBSTR(MD5(CONCAT(r.id, ':', p.id)), 1, 15), 16, 10) AS UNSIGNED) AS id,
            r.id AS role_id, p.id AS permission_id
     FROM sys_role r
-    JOIN sys_permission p ON p.id IN (1899, 1900, 1902, 1904)
+    JOIN sys_permission p ON p.id IN (1899, 1834, 1836, 1838)
          AND p.deleted = 0 AND p.status = 1
     WHERE r.deleted = 0 AND r.status = 1
       AND r.role_code = 'crm_sales'
@@ -144,7 +144,7 @@ FROM (
     SELECT CAST(CONV(SUBSTR(MD5(CONCAT(r.id, ':', p.id)), 1, 15), 16, 10) AS UNSIGNED) AS id,
            r.id AS role_id, p.id AS permission_id
     FROM sys_role r
-    JOIN sys_permission p ON p.id IN (1899, 1900, 1904)
+    JOIN sys_permission p ON p.id IN (1899, 1834, 1838)
          AND p.deleted = 0 AND p.status = 1
     WHERE r.deleted = 0 AND r.status = 1
       AND r.role_code = 'crm_marketing'

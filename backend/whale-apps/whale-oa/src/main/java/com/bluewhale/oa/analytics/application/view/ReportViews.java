@@ -14,6 +14,7 @@ import java.util.Map;
  */
 public final class ReportViews {
 
+    /** 工具类，禁止实例化。 */
     private ReportViews() {
     }
 

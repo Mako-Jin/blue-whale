@@ -82,6 +82,12 @@ public class CultureEventAppServiceImpl implements CultureEventAppService {
         return toView(event);
     }
 
+    /**
+     * 按主键查询文化动态，不存在时抛出业务异常。
+     *
+     * @param id 文化动态主键
+     * @return 文化动态领域对象
+     */
     private CultureEvent requireEvent(Long id) {
         CultureEvent event = repository.findEvent(id);
         if (event == null) {
@@ -90,6 +96,12 @@ public class CultureEventAppServiceImpl implements CultureEventAppService {
         return event;
     }
 
+    /**
+     * 用保存命令回填文化动态字段，并校验标题与类型。
+     *
+     * @param event 待填充的文化动态
+     * @param command 文化动态保存命令
+     */
     private void fill(CultureEvent event, CultureCommands.EventSave command) {
         String type = StringUtils.hasText(command.getEventType())
                 ? CultureEventType.of(command.getEventType()).name() : CultureEventType.ACTIVITY.name();
@@ -103,6 +115,12 @@ public class CultureEventAppServiceImpl implements CultureEventAppService {
         event.setRemark(command.getRemark());
     }
 
+    /**
+     * 将文化动态领域对象转换为视图对象。
+     *
+     * @param event 文化动态领域对象
+     * @return 文化动态视图
+     */
     private static CultureViews.Event toView(CultureEvent event) {
         CultureViews.Event view = new CultureViews.Event();
         view.setId(event.getId());
