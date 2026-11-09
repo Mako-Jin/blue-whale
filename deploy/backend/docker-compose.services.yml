@@ -794,7 +794,7 @@ services:
     profiles: ["ops", "ext"]
     mem_limit: 700m
     environment:
-      JAVA_OPTS: "-Xms128m -Xmx384m -XX:MaxMetaspaceSize:256m -XX:+ExitOnOutOfMemoryError"
+      JAVA_OPTS: "-Xms128m -Xmx384m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "9103"
       NACOS_SERVER: ${NACOS_SERVER}
       MYSQL_HOST: ${MYSQL_HOST}
@@ -821,7 +821,7 @@ services:
     profiles: ["ops", "ext"]
     mem_limit: 500m
     environment:
-      JAVA_OPTS: "-Xms128m -Xmx320m -XX:MaxMetaspaceSize:256m -XX:+ExitOnOutOfMemoryError"
+      JAVA_OPTS: "-Xms128m -Xmx320m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "9102"
       NACOS_SERVER: ${NACOS_SERVER}
     ports:
@@ -842,7 +842,7 @@ services:
     profiles: ["collab", "ext"]
     mem_limit: 800m
     environment:
-      JAVA_OPTS: "-Xms192m -Xmx448m -XX:MaxMetaspaceSize:288m -XX:+ExitOnOutOfMemoryError"
+      JAVA_OPTS: "-Xms192m -Xmx448m -XX:MaxMetaspaceSize=288m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "8091"
       NACOS_SERVER: ${NACOS_SERVER}
       MYSQL_HOST: ${MYSQL_HOST}
@@ -872,7 +872,7 @@ services:
     profiles: ["collab", "ext"]
     mem_limit: 800m
     environment:
-      JAVA_OPTS: "-Xms192m -Xmx448m -XX:MaxMetaspaceSize:288m -XX:+ExitOnOutOfMemoryError"
+      JAVA_OPTS: "-Xms192m -Xmx448m -XX:MaxMetaspaceSize=288m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "8099"
       NACOS_SERVER: ${NACOS_SERVER}
       MYSQL_HOST: ${MYSQL_HOST}
@@ -905,7 +905,7 @@ services:
     profiles: ["collab", "ext"]
     mem_limit: 600m
     environment:
-      JAVA_OPTS: "-Xms128m -Xmx384m -XX:MaxMetaspaceSize:256m -XX:+ExitOnOutOfMemoryError"
+      JAVA_OPTS: "-Xms128m -Xmx384m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "8087"
       NACOS_SERVER: ${NACOS_SERVER}
       MYSQL_HOST: ${MYSQL_HOST}
@@ -932,7 +932,7 @@ services:
     profiles: ["aiot", "ext"]
     mem_limit: 800m
     environment:
-      JAVA_OPTS: "-Xms192m -Xmx448m -XX:MaxMetaspaceSize:320m -XX:+ExitOnOutOfMemoryError"
+      JAVA_OPTS: "-Xms192m -Xmx448m -XX:MaxMetaspaceSize=320m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "8090"
       NACOS_SERVER: ${NACOS_SERVER}
       MYSQL_HOST: ${MYSQL_HOST}
@@ -963,7 +963,7 @@ services:
     profiles: ["aiot", "ext"]
     mem_limit: 600m
     environment:
-      JAVA_OPTS: "-Xms128m -Xmx384m -XX:MaxMetaspaceSize:256m -XX:+ExitOnOutOfMemoryError"
+      JAVA_OPTS: "-Xms128m -Xmx384m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "8088"
       NACOS_SERVER: ${NACOS_SERVER}
       MYSQL_HOST: ${MYSQL_HOST}
@@ -992,7 +992,7 @@ services:
     profiles: ["aiot", "ext"]
     mem_limit: 600m
     environment:
-      JAVA_OPTS: "-Xms128m -Xmx384m -XX:MaxMetaspaceSize:256m -XX:+ExitOnOutOfMemoryError"
+      JAVA_OPTS: "-Xms128m -Xmx384m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "8097"
       NACOS_SERVER: ${NACOS_SERVER}
       MYSQL_HOST: ${MYSQL_HOST}
