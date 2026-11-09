@@ -225,6 +225,34 @@ services:
       - bw-net
 
   # ----------------------------------------------------------
+  # EMQX 5 (MQTT Broker, IoT 设备接入；Wave 6.02)
+  # 端口避让：MQTT-over-WS 宿主机映射 1884（容器内 8083/8085 号段已被后端服务占用）
+  # ----------------------------------------------------------
+  emqx:
+    image: ${EMQX_IMAGE:-emqx/emqx:5.8}
+    container_name: bw-emqx
+    restart: unless-stopped
+    environment:
+      # 弱口令回退已移除（安全加固）：未在 .env 配置时直接启动失败，而非以 public/public 上线
+      EMQX_DASHBOARD__DEFAULT_PASSWORD: ${EMQX_DASHBOARD_PASSWORD:?请在 .env 中配置 EMQX_DASHBOARD_PASSWORD}
+      TZ: Asia/Shanghai
+    ports:
+      - "127.0.0.1:${EMQX_MQTT_HOST_PORT:-1883}:1883"
+      - "127.0.0.1:${EMQX_WS_HOST_PORT:-1884}:8083"
+      - "127.0.0.1:${EMQX_DASHBOARD_HOST_PORT:-18083}:18083"
+    volumes:
+      - emqx_data:/opt/emqx/data
+    healthcheck:
+      test: ["CMD", "emqx", "ctl", "status"]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+      start_period: 40s
+    logging: *default-logging
+    networks:
+      - bw-net
+
+  # ----------------------------------------------------------
   # Nginx 网关 (反向代理 + 静态资源 + HTTPS)
   # 注意: 后端服务默认运行在宿主机, upstream 指向 host.docker.internal
   # ----------------------------------------------------------
@@ -261,6 +289,7 @@ volumes:
   redis_data:
   nacos_data:
   rabbitmq_data:
+  emqx_data:
   prometheus_data:
   alertmanager_data:
   grafana_data:
