@@ -19,15 +19,21 @@ public class FreightTemplateSaveCommand {
     @Size(max = 64, message = "模板名称不得超过 64 字符")
     private String templateName;
 
-    /** 计费方式：FREE / FIXED / THRESHOLD */
+    /** 计费方式：FREE / FIXED / THRESHOLD / BY_PIECE */
     @NotBlank(message = "必须指定计费方式")
     private String chargeType;
 
-    /** 固定运费金额（FREE 时忽略） */
+    /** 固定运费金额（FREE/BY_PIECE 时忽略） */
     private BigDecimal baseAmount;
 
     /** 包邮门槛（仅 THRESHOLD 必填） */
     private BigDecimal freeThreshold;
+
+    /** 每件运费（仅 BY_PIECE 必填且大于 0） */
+    private BigDecimal piecePrice;
+
+    /** 包邮件数门槛（仅 BY_PIECE 可选，达到则免运费） */
+    private Integer pieceFreeThreshold;
 
     /** 状态：ACTIVE / DISABLED */
     private String status;

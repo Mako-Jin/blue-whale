@@ -211,8 +211,9 @@ class OrderAppServiceImplTest {
     @DisplayName("下单时核销券并落金额构成")
     void createConsumesCouponAndRecordsBreakdown() {
         stubCreateBasics();
-        when(freightTemplateAppService.freightFor(any(), any())).thenReturn(new BigDecimal("12.00"));
-        when(couponAppService.requireUsable(eq(55L), eq(7L), eq(1L), any())).thenReturn(fullReductionCoupon());
+        when(freightTemplateAppService.freightFor(any(), any(), any())).thenReturn(new BigDecimal("12.00"));
+        when(couponAppService.requireUsable(eq(55L), eq(7L), eq(1L), any(), any()))
+                .thenReturn(fullReductionCoupon());
         OrderCreateCommand command = command();
         command.setCouponId(55L);
 
@@ -279,8 +280,8 @@ class OrderAppServiceImplTest {
         when(skuOfferingService.resolve(anyCollection(), any())).thenReturn(Map.of(100L, offering()));
         when(skuOfferingService.requireSellable(any(SkuOffering.class), anyInt()))
                 .thenReturn(new BigDecimal("19.90"));
-        when(freightTemplateAppService.freightFor(any(), any())).thenReturn(new BigDecimal("12.00"));
-        when(couponAppService.available(eq(1L), any(), any())).thenReturn(List.of());
+        when(freightTemplateAppService.freightFor(any(), any(), any())).thenReturn(new BigDecimal("12.00"));
+        when(couponAppService.available(eq(1L), any(), any(), any())).thenReturn(List.of());
 
         OrderPreviewView view = orderAppService.preview(previewCommand(), actor);
 

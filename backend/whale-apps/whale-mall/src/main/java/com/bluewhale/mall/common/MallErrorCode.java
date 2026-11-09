@@ -136,8 +136,11 @@ public final class MallErrorCode {
     /** 无权操作该售后单（非本人且非管理员） */
     public static final int AFTER_SALE_NOT_OWNER = 45054;
 
-    /** 售后申请参数非法（明细为空、同一行重复提交、数量非正、类型无法识别） */
+    /** 售后申请参数非法（明细为空、同一行重复提交、数量非正、类型无法识别、图片超限） */
     public static final int AFTER_SALE_INVALID = 45055;
+
+    /** 同一商品行已有进行中的换货单（防换货行超占） */
+    public static final int AFTER_SALE_EXCHANGE_IN_PROGRESS = 45056;
 
     /** 优惠券模板或用户券不存在 */
     public static final int COUPON_NOT_FOUND = 45060;
@@ -162,6 +165,12 @@ public final class MallErrorCode {
 
     /** 券编码已存在 */
     public static final int COUPON_CODE_CONFLICT = 45067;
+
+    /** 订单中没有券适用类目的商品（品类券） */
+    public static final int COUPON_CATEGORY_NOT_MATCHED = 45068;
+
+    /** 一单用券张数或折扣券张数超出上限 */
+    public static final int COUPON_STACK_EXCEEDED = 45069;
 
     /** 运费模板不存在或已停用 */
     public static final int FREIGHT_TEMPLATE_NOT_FOUND = 45070;
@@ -239,6 +248,7 @@ public final class MallErrorCode {
             Map.entry(AFTER_SALE_AMOUNT_EXCEEDED, "可退金额不足，订单剩余可退金额已不够本次申请"),
             Map.entry(AFTER_SALE_NOT_OWNER, "无权操作该售后单"),
             Map.entry(AFTER_SALE_INVALID, "售后申请信息不合法，请检查退换商品与数量"),
+            Map.entry(AFTER_SALE_EXCHANGE_IN_PROGRESS, "该商品行已有进行中的换货单，请等待处理完成"),
             Map.entry(COUPON_NOT_FOUND, "优惠券不存在或无权访问"),
             Map.entry(COUPON_STATE_INVALID, "优惠券已使用、已过期或已停用"),
             Map.entry(COUPON_THRESHOLD_NOT_MET, "订单金额未达到优惠券使用门槛"),
@@ -247,6 +257,8 @@ public final class MallErrorCode {
             Map.entry(COUPON_NOT_APPLICABLE, "该优惠券不适用于当前订单"),
             Map.entry(COUPON_INVALID, "优惠券信息不合法，请检查面额、折扣与有效期"),
             Map.entry(COUPON_CODE_CONFLICT, "优惠券编码已存在"),
+            Map.entry(COUPON_CATEGORY_NOT_MATCHED, "订单中没有该品类券适用类目的商品"),
+            Map.entry(COUPON_STACK_EXCEEDED, "一单最多叠加 2 张券且折扣券最多 1 张"),
             Map.entry(FREIGHT_TEMPLATE_NOT_FOUND, "运费模板不存在或已停用"),
             Map.entry(FREIGHT_TEMPLATE_INVALID, "运费模板信息不合法，请检查计费方式与金额"),
             Map.entry(FREIGHT_TEMPLATE_NAME_CONFLICT, "运费模板名称已存在"),

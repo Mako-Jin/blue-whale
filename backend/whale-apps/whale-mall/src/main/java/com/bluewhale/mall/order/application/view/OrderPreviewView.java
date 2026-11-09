@@ -48,11 +48,14 @@ public class OrderPreviewView {
     /** 合计件数 */
     private Integer totalQuantity;
 
-    /** 本次选中的用户券 ID */
+    /** 本次选中的主券用户券 ID（兼容口径，多券明细见 coupons） */
     private Long couponId;
 
-    /** 本次选中的券名称 */
+    /** 本次选中的主券名称（含义同 couponId） */
     private String couponName;
+
+    /** 本次选中的用券明细（一单多券，逐张生效优惠） */
+    private List<OrderCouponView> coupons = new ArrayList<>();
 
     /** 当前订单可用的券（含不可用及原因） */
     private List<CouponUserView> availableCoupons = new ArrayList<>();

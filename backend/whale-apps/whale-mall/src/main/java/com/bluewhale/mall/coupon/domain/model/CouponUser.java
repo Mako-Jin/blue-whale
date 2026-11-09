@@ -5,7 +5,9 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * 用户券（领取实例）。
@@ -55,8 +57,14 @@ public class CouponUser {
     /** 折扣封顶（快照） */
     private BigDecimal maxDiscountAmount;
 
-    /** 适用渠道（快照，空 = 全场） */
+    /** 适用渠道（快照，空 = 全场，仅 CHANNEL 用） */
     private Long channelId;
+
+    /** 适用范围（快照） */
+    private CouponScope scope;
+
+    /** 适用类目 ID（快照，仅 CATEGORY 用） */
+    private List<Long> categoryIds;
 
     /** 生效时间（快照） */
     private LocalDateTime validFrom;
@@ -100,6 +108,9 @@ public class CouponUser {
         coupon.setDiscountRate(template.getDiscountRate());
         coupon.setMaxDiscountAmount(template.getMaxDiscountAmount());
         coupon.setChannelId(template.getChannelId());
+        coupon.setScope(template.getScope() == null
+                ? (template.getChannelId() == null ? CouponScope.ALL : CouponScope.CHANNEL) : template.getScope());
+        coupon.setCategoryIds(template.getCategoryIds() == null ? null : List.copyOf(template.getCategoryIds()));
         coupon.setValidFrom(template.getValidFrom());
         coupon.setValidTo(template.getValidTo());
         coupon.setStatus(CouponUserStatus.UNUSED);
@@ -115,16 +126,49 @@ public class CouponUser {
      * @return 判定结果
      */
     public CouponUsability check(Long orderChannelId, BigDecimal goodsAmount, LocalDateTime now) {
+        return checkForOrder(orderChannelId, null, goodsAmount, now);
+    }
+
+    /**
+     * 按订单上下文判定可用性（含品类券口径）。
+     *
+     * <p>门槛分母由调用方按券的范围给：<b>全场/渠道券传整单商品小计，
+     * 品类券传命中类目商品行的小计</b>。范围与分母在调用方分开决定，
+     * 是因为「订单里有哪些类目」是订单域的事实，券域只认结论。
+     * matchedGoods 为空表示调用方把门槛判定推迟到计价阶段
+     * （品类券的分母依赖券自身的类目快照，取券之前算不出命中小计），此时不判门槛。</p>
+     *
+     * @param orderChannelId    订单渠道 ID
+     * @param orderCategoryIds  订单商品类目 ID 集合（无上下文时为空）
+     * @param matchedGoods      本券适用范围内的商品小计（门槛分母，可空 = 不判门槛）
+     * @param now               当前时间
+     * @return 判定结果
+     */
+    public CouponUsability checkForOrder(Long orderChannelId, Set<Long> orderCategoryIds,
+                                         BigDecimal matchedGoods, LocalDateTime now) {
         if (status == CouponUserStatus.USED) {
             return CouponUsability.USED;
         }
         if (expired(now)) {
             return CouponUsability.EXPIRED;
         }
-        if (channelId != null && !Objects.equals(channelId, orderChannelId)) {
+        CouponScope effectiveScope = scope == null
+                ? (channelId == null ? CouponScope.ALL : CouponScope.CHANNEL) : scope;
+        // channelId 非空时即使 scope 标了 ALL 也按受限处理：只能收紧不能放宽，
+        // 否则 scope 与 channelId 不一致的老数据会绕过渠道校验
+        if (effectiveScope != CouponScope.CATEGORY && channelId != null
+                && !Objects.equals(channelId, orderChannelId)) {
             return CouponUsability.CHANNEL_MISMATCH;
         }
-        return rule().meetsThreshold(goodsAmount) ? CouponUsability.USABLE : CouponUsability.THRESHOLD_NOT_MET;
+        if (effectiveScope == CouponScope.CATEGORY
+                && (orderCategoryIds == null || orderCategoryIds.isEmpty()
+                || categoryIds == null || categoryIds.stream().noneMatch(orderCategoryIds::contains))) {
+            return CouponUsability.CATEGORY_NOT_MATCHED;
+        }
+        if (matchedGoods == null || rule().meetsThreshold(matchedGoods)) {
+            return CouponUsability.USABLE;
+        }
+        return CouponUsability.THRESHOLD_NOT_MET;
     }
 
     /**

@@ -3,6 +3,8 @@ package com.bluewhale.mall.aftersale.application.service.impl;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.mall.aftersale.application.command.AfterSaleApplyCommand;
+import com.bluewhale.mall.aftersale.application.command.AfterSaleExchangeShipCommand;
+import com.bluewhale.mall.aftersale.application.command.AfterSaleReturnLogisticsCommand;
 import com.bluewhale.mall.aftersale.application.view.AfterSaleView;
 import com.bluewhale.mall.aftersale.domain.model.AfterSaleItem;
 import com.bluewhale.mall.aftersale.domain.model.AfterSaleStatus;
@@ -19,6 +21,9 @@ import com.bluewhale.mall.order.domain.model.OrderLog;
 import com.bluewhale.mall.order.domain.model.OrderStatus;
 import com.bluewhale.mall.order.domain.repository.OrderRepository;
 import com.bluewhale.mall.order.infrastructure.client.PayInternalClient;
+import com.bluewhale.mall.shipment.application.command.ShipmentCreateCommand;
+import com.bluewhale.mall.shipment.application.service.ShipmentAppService;
+import com.bluewhale.mall.shipment.application.view.ShipmentView;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,6 +34,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -37,6 +43,7 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -68,6 +75,9 @@ class AfterSaleAppServiceImplTest {
 
     @Mock
     private CouponAppService couponAppService;
+
+    @Mock
+    private ShipmentAppService shipmentAppService;
 
     @Mock
     private MallProperties properties;
@@ -311,6 +321,7 @@ class AfterSaleAppServiceImplTest {
     void rejectReleasesQuota() {
         MallAfterSale afterSale = approvedPending();
         when(afterSaleRepository.findById(88L)).thenReturn(Optional.of(afterSale));
+        when(orderRepository.findById(5L)).thenReturn(Optional.of(paidOrder()));
 
         afterSaleAppService.reject(88L, "不符合条件", operator);
 
@@ -324,6 +335,7 @@ class AfterSaleAppServiceImplTest {
     void cancelReleasesQuota() {
         MallAfterSale afterSale = approvedPending();
         when(afterSaleRepository.findById(88L)).thenReturn(Optional.of(afterSale));
+        when(orderRepository.findById(5L)).thenReturn(Optional.of(paidOrder()));
 
         afterSaleAppService.cancel(88L, buyer);
 
@@ -549,6 +561,325 @@ class AfterSaleAppServiceImplTest {
         afterSaleAppService.markRefunded("MO20261106000001", "AS20261107000001", new BigDecimal("19.90"));
 
         verify(couponAppService, never()).releaseByOrderNo(anyString());
+    }
+
+    // ------------------------------------------------------------------
+    // 退货闭环：回填物流 → 确认收货 → 退款
+    // ------------------------------------------------------------------
+
+    @Test
+    @DisplayName("退货退款审核通过：进入待退货且不发起退款（钱和货只能先动一个）")
+    void approveReturnRefundEntersWaitReturnWithoutRefund() {
+        MallAfterSale afterSale = pendingReturnRefund();
+        when(afterSaleRepository.findById(88L)).thenReturn(Optional.of(afterSale));
+        when(orderRepository.findById(5L)).thenReturn(Optional.of(paidOrder()));
+
+        afterSaleAppService.approve(88L, "同意", operator);
+
+        assertThat(afterSale.getStatus()).isEqualTo(AfterSaleStatus.WAIT_RETURN);
+        verify(payInternalClient, never()).refund(anyString(), anyString(), any(), anyString());
+        verify(afterSaleRepository).update(afterSale);
+    }
+
+    @Test
+    @DisplayName("回填退货物流：买家本人回填成功并落库")
+    void fillReturnLogisticsByBuyer() {
+        MallAfterSale afterSale = pendingReturnRefund();
+        afterSale.approve(99L, "operator", "同意");
+        when(afterSaleRepository.findById(88L)).thenReturn(Optional.of(afterSale));
+        when(orderRepository.findById(5L)).thenReturn(Optional.of(paidOrder()));
+        AfterSaleReturnLogisticsCommand logistics = new AfterSaleReturnLogisticsCommand();
+        logistics.setReturnLogisticsNo("SF123456789");
+
+        afterSaleAppService.fillReturnLogistics(88L, logistics, buyer);
+
+        assertThat(afterSale.getReturnLogisticsNo()).isEqualTo("SF123456789");
+        verify(afterSaleRepository).update(afterSale);
+        verify(orderRepository).appendLog(eq(5L), any(OrderLog.class));
+    }
+
+    @Test
+    @DisplayName("回填退货物流：非本人且非运营拒绝")
+    void fillReturnLogisticsRejectsStranger() {
+        MallAfterSale afterSale = pendingReturnRefund();
+        afterSale.approve(99L, "operator", "同意");
+        when(afterSaleRepository.findById(88L)).thenReturn(Optional.of(afterSale));
+        MallActor stranger = new MallActor(8L, "stranger", Set.of(), Set.of());
+        AfterSaleReturnLogisticsCommand logistics = new AfterSaleReturnLogisticsCommand();
+        logistics.setReturnLogisticsNo("SF123456789");
+
+        assertThatThrownBy(() -> afterSaleAppService.fillReturnLogistics(88L, logistics, stranger))
+                .isInstanceOf(BizException.class)
+                .satisfies(exception -> assertThat(((BizException) exception).getCode())
+                        .isEqualTo(MallErrorCode.AFTER_SALE_NOT_OWNER));
+        verify(afterSaleRepository, never()).update(any(MallAfterSale.class));
+    }
+
+    @Test
+    @DisplayName("确认收货：退货退款回到审核通过并按原路径发起退款")
+    void confirmReturnRefundTriggersRefund() {
+        MallAfterSale afterSale = pendingReturnRefund();
+        afterSale.approve(99L, "operator", "同意");
+        when(afterSaleRepository.findById(88L)).thenReturn(Optional.of(afterSale));
+        when(orderRepository.findById(5L)).thenReturn(Optional.of(paidOrder()));
+
+        afterSaleAppService.confirmReturn(88L, operator);
+
+        assertThat(afterSale.getStatus()).isEqualTo(AfterSaleStatus.APPROVED);
+        verify(payInternalClient).refund("MO20261106000001", afterSale.getAfterSaleNo(),
+                afterSale.getRefundAmount(), "质量问题");
+        verify(afterSaleRepository).update(afterSale);
+    }
+
+    @Test
+    @DisplayName("确认收货：非运营拒绝")
+    void confirmReturnRejectsBuyer() {
+        assertThatThrownBy(() -> afterSaleAppService.confirmReturn(88L, buyer))
+                .isInstanceOf(BizException.class)
+                .satisfies(exception -> assertThat(((BizException) exception).getCode())
+                        .isEqualTo(MallErrorCode.ORDER_FORBIDDEN));
+    }
+
+    @Test
+    @DisplayName("存量兼容：上线前 RETURN_REFUND 已 APPROVED 的在途单，退款回调照常结单")
+    void legacyApprovedReturnRefundStillClosesByCallback() {
+        MallAfterSale afterSale = pendingReturnRefund();
+        // 模拟旧版本审核即退款的存量在途单（APPROVED，无退货物流）
+        afterSale.setStatus(AfterSaleStatus.APPROVED);
+        when(orderRepository.findByOrderNo("MO20261106000001")).thenReturn(Optional.of(paidOrder()));
+        when(afterSaleRepository.findByAfterSaleNo("AS20261107000001")).thenReturn(Optional.of(afterSale));
+        when(afterSaleRepository.applyOrderRefund(eq(5L), any())).thenReturn(true);
+
+        afterSaleAppService.markRefunded("MO20261106000001", "AS20261107000001", new BigDecimal("39.80"));
+
+        assertThat(afterSale.getStatus()).isEqualTo(AfterSaleStatus.REFUNDED);
+    }
+
+    // ------------------------------------------------------------------
+    // 换货：查重、零金额、补发、终态
+    // ------------------------------------------------------------------
+
+    /**
+     * 构造换货申请命令。
+     *
+     * @param orderItemId 订单明细 ID
+     * @param quantity    数量
+     * @return 命令
+     */
+    private AfterSaleApplyCommand exchangeCommand(long orderItemId, int quantity) {
+        AfterSaleApplyCommand command = command(orderItemId, quantity);
+        command.setType("EXCHANGE");
+        return command;
+    }
+
+    /**
+     * 构造一张退货退款待审核售后单（一行 19.90 × 2）。
+     *
+     * @return 售后单
+     */
+    private MallAfterSale pendingReturnRefund() {
+        MallAfterSale afterSale = approvedPending();
+        afterSale.setType(AfterSaleType.RETURN_REFUND);
+        return afterSale;
+    }
+
+    @Test
+    @DisplayName("申请换货：金额记 0、不占退款额度")
+    void applyExchangeWithoutQuota() {
+        when(orderRepository.findById(5L)).thenReturn(Optional.of(paidOrder()));
+        when(afterSaleRepository.existsActiveExchange(anyCollection())).thenReturn(false);
+        when(afterSaleRepository.insert(any(MallAfterSale.class))).thenAnswer(invocation -> {
+            MallAfterSale afterSale = invocation.getArgument(0);
+            afterSale.setId(88L);
+            return 88L;
+        });
+
+        afterSaleAppService.apply(exchangeCommand(11L, 1), buyer);
+
+        ArgumentCaptor<MallAfterSale> captor = ArgumentCaptor.forClass(MallAfterSale.class);
+        verify(afterSaleRepository).insert(captor.capture());
+        assertThat(captor.getValue().getRefundAmount()).isEqualByComparingTo("0");
+        assertThat(captor.getValue().getType()).isEqualTo(AfterSaleType.EXCHANGE);
+        assertThat(captor.getValue().getItems().get(0).getAmount()).isEqualByComparingTo("0");
+        verify(afterSaleRepository, never()).occupyItemQuota(anyLong(), anyInt(), any());
+    }
+
+    @Test
+    @DisplayName("申请换货：同一行存在进行中换货单拒绝（防两头补发）")
+    void applyExchangeRejectsDuplicate() {
+        when(orderRepository.findById(5L)).thenReturn(Optional.of(paidOrder()));
+        when(afterSaleRepository.existsActiveExchange(anyCollection())).thenReturn(true);
+
+        assertThatThrownBy(() -> afterSaleAppService.apply(exchangeCommand(11L, 1), buyer))
+                .isInstanceOf(BizException.class)
+                .satisfies(exception -> assertThat(((BizException) exception).getCode())
+                        .isEqualTo(MallErrorCode.AFTER_SALE_EXCHANGE_IN_PROGRESS));
+        verify(afterSaleRepository, never()).insert(any(MallAfterSale.class));
+    }
+
+    @Test
+    @DisplayName("换货审核通过：进入待退货且不退款")
+    void approveExchangeEntersWaitReturn() {
+        MallAfterSale afterSale = pendingExchange();
+        when(afterSaleRepository.findById(88L)).thenReturn(Optional.of(afterSale));
+        when(orderRepository.findById(5L)).thenReturn(Optional.of(paidOrder()));
+
+        afterSaleAppService.approve(88L, "同意换货", operator);
+
+        assertThat(afterSale.getStatus()).isEqualTo(AfterSaleStatus.WAIT_RETURN);
+        verify(payInternalClient, never()).refund(anyString(), anyString(), any(), anyString());
+    }
+
+    @Test
+    @DisplayName("换货确认收货：进入补发等待位且不退款")
+    void confirmReturnExchangeEntersExchanging() {
+        MallAfterSale afterSale = pendingExchange();
+        afterSale.approve(99L, "operator", "同意换货");
+        when(afterSaleRepository.findById(88L)).thenReturn(Optional.of(afterSale));
+        when(orderRepository.findById(5L)).thenReturn(Optional.of(paidOrder()));
+
+        afterSaleAppService.confirmReturn(88L, operator);
+
+        assertThat(afterSale.getStatus()).isEqualTo(AfterSaleStatus.EXCHANGING);
+        verify(payInternalClient, never()).refund(anyString(), anyString(), any(), anyString());
+    }
+
+    @Test
+    @DisplayName("换货驳回/撤销：不释放退款额度（从未占用）")
+    void rejectAndCancelExchangeNeverReleaseQuota() {
+        MallAfterSale afterSale = pendingExchange();
+        when(afterSaleRepository.findById(88L)).thenReturn(Optional.of(afterSale));
+        when(orderRepository.findById(5L)).thenReturn(Optional.of(paidOrder()));
+
+        afterSaleAppService.reject(88L, "不换", operator);
+        assertThat(afterSale.getStatus()).isEqualTo(AfterSaleStatus.REJECTED);
+        verify(afterSaleRepository, never()).releaseItemQuota(anyLong(), anyInt(), any());
+
+        MallAfterSale second = pendingExchange();
+        when(afterSaleRepository.findById(89L)).thenReturn(Optional.of(second));
+        second.setId(89L);
+        afterSaleAppService.cancel(89L, buyer);
+        assertThat(second.getStatus()).isEqualTo(AfterSaleStatus.CANCELLED);
+        verify(afterSaleRepository, never()).releaseItemQuota(anyLong(), anyInt(), any());
+    }
+
+    @Test
+    @DisplayName("换货补发：复用发货链路创建发货单并结到已换货终态")
+    void createExchangeShipmentClosesAfterSale() {
+        MallAfterSale afterSale = pendingExchange();
+        afterSale.setId(88L);
+        afterSale.approve(99L, "operator", "同意换货");
+        afterSale.confirmReturn();
+        when(afterSaleRepository.findById(88L)).thenReturn(Optional.of(afterSale));
+        when(orderRepository.findById(5L)).thenReturn(Optional.of(paidOrder()));
+        ShipmentView shipment = new ShipmentView();
+        shipment.setShipmentNo("MSH20261107000001");
+        when(shipmentAppService.create(any(ShipmentCreateCommand.class), eq(operator))).thenReturn(shipment);
+        AfterSaleExchangeShipCommand shipCommand = new AfterSaleExchangeShipCommand();
+        shipCommand.setCarrierCode("SF");
+        shipCommand.setTrackingNo("SF987654321");
+
+        ShipmentView result = afterSaleAppService.createExchangeShipment(88L, shipCommand, operator);
+
+        assertThat(result.getShipmentNo()).isEqualTo("MSH20261107000001");
+        assertThat(afterSale.getStatus()).isEqualTo(AfterSaleStatus.EXCHANGED);
+        ArgumentCaptor<ShipmentCreateCommand> captor = ArgumentCaptor.forClass(ShipmentCreateCommand.class);
+        verify(shipmentAppService).create(captor.capture(), eq(operator));
+        assertThat(captor.getValue().getOrderId()).isEqualTo(5L);
+        assertThat(captor.getValue().getCarrierCode()).isEqualTo("SF");
+        assertThat(captor.getValue().getTrackingNo()).isEqualTo("SF987654321");
+        assertThat(captor.getValue().getItems()).hasSize(1);
+        assertThat(captor.getValue().getItems().get(0).getOrderItemId()).isEqualTo(11L);
+        assertThat(captor.getValue().getItems().get(0).getQuantity()).isEqualTo(2);
+        verify(afterSaleRepository).update(afterSale);
+    }
+
+    @Test
+    @DisplayName("换货补发：非换货单拒绝")
+    void createExchangeShipmentRejectsNonExchange() {
+        MallAfterSale afterSale = approvedPending();
+        when(afterSaleRepository.findById(88L)).thenReturn(Optional.of(afterSale));
+        AfterSaleExchangeShipCommand shipCommand = new AfterSaleExchangeShipCommand();
+        shipCommand.setCarrierCode("SF");
+        shipCommand.setTrackingNo("SF987654321");
+
+        assertThatThrownBy(() -> afterSaleAppService.createExchangeShipment(88L, shipCommand, operator))
+                .isInstanceOf(BizException.class)
+                .satisfies(exception -> assertThat(((BizException) exception).getCode())
+                        .isEqualTo(MallErrorCode.AFTER_SALE_STATUS_INVALID));
+        verify(shipmentAppService, never()).create(any(ShipmentCreateCommand.class), any(MallActor.class));
+    }
+
+    @Test
+    @DisplayName("整单退款与进行中换货不互斥：整单退款只按可退行计算，不做换货查重")
+    void applyFullRefundNotBlockedByActiveExchange() {
+        MallOrder order = paidOrder();
+        when(afterSaleRepository.occupyItemQuota(eq(11L), eq(2), any())).thenReturn(true);
+        when(afterSaleRepository.insert(any(MallAfterSale.class))).thenAnswer(invocation -> {
+            MallAfterSale afterSale = invocation.getArgument(0);
+            afterSale.setId(88L);
+            return 88L;
+        });
+
+        String afterSaleNo = afterSaleAppService.applyFullRefund(order, "整单退款", operator);
+
+        assertThat(afterSaleNo).startsWith("AS");
+        verify(payInternalClient).refund(eq("MO20261106000001"), eq(afterSaleNo), any(), anyString());
+        // 换货不占退款额度（refundedQuantity 未动），整单退款的可退行不受进行中换货影响
+        verify(afterSaleRepository, never()).existsActiveExchange(anyCollection());
+    }
+
+    // ------------------------------------------------------------------
+    // 超时自动关闭
+    // ------------------------------------------------------------------
+
+    @Test
+    @DisplayName("超时自动关闭：关闭单张售后单并释放额度、补系统流水")
+    void closeExpiredCancelsAndReleasesQuota() {
+        MallAfterSale afterSale = approvedPending();
+        when(afterSaleRepository.findById(88L)).thenReturn(Optional.of(afterSale));
+        when(orderRepository.findById(5L)).thenReturn(Optional.of(paidOrder()));
+
+        afterSaleAppService.closeExpired(88L);
+
+        assertThat(afterSale.getStatus()).isEqualTo(AfterSaleStatus.CANCELLED);
+        verify(afterSaleRepository).releaseItemQuota(eq(11L), eq(2), any());
+        verify(orderRepository).appendLog(eq(5L), any(OrderLog.class));
+    }
+
+    @Test
+    @DisplayName("超时扫描：按小时数与上限透传仓库查询")
+    void listExpiredCreatedDelegates() {
+        when(afterSaleRepository.listExpiredCreated(any(LocalDateTime.class), eq(200)))
+                .thenReturn(List.of(approvedPending()));
+
+        List<MallAfterSale> expired = afterSaleAppService.listExpiredCreated(48, 200);
+
+        assertThat(expired).hasSize(1);
+        verify(afterSaleRepository).listExpiredCreated(any(LocalDateTime.class), eq(200));
+    }
+
+    /**
+     * 构造一张换货待审核售后单（一行 19.90 × 2，金额 0）。
+     *
+     * @return 售后单
+     */
+    private MallAfterSale pendingExchange() {
+        AfterSaleItem item = new AfterSaleItem();
+        item.setOrderItemId(11L);
+        item.setSpuId(31L);
+        item.setSkuId(21L);
+        item.setSpuName("测试商品");
+        item.setSkuCode("SKU-1");
+        item.setUnitPrice(new BigDecimal("19.90"));
+        item.setQuantity(2);
+        item.setAmount(BigDecimal.ZERO);
+        List<AfterSaleItem> items = new ArrayList<>();
+        items.add(item);
+        MallAfterSale afterSale = MallAfterSale.create("AS20261107000001", 5L, "MO20261106000001", 7L,
+                AfterSaleType.EXCHANGE, "质量问题", "描述", null, items);
+        afterSale.setId(88L);
+        return afterSale;
     }
 
     /**

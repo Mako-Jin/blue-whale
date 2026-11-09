@@ -26,6 +26,9 @@ public class SkuOffering {
     /** 商品名称 */
     private String spuName;
 
+    /** 商品类目 ID（订单落快照，品类券判定用） */
+    private Long categoryId;
+
     /** 商品主图 */
     private String mainImage;
 

@@ -31,6 +31,12 @@ public class FreightTemplateEntity extends BaseEntity {
     /** 包邮门槛 */
     private BigDecimal freeThreshold;
 
+    /** 每件运费（仅 BY_PIECE） */
+    private BigDecimal piecePrice;
+
+    /** 包邮件数门槛（仅 BY_PIECE 可选） */
+    private Integer pieceFreeThreshold;
+
     /** 状态 */
     private String status;
 

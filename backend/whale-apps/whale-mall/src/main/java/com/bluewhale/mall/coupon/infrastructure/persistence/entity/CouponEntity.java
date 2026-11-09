@@ -44,6 +44,12 @@ public class CouponEntity extends BaseEntity {
     /** 适用渠道 ID */
     private Long channelId;
 
+    /** 适用范围：ALL 全场 / CHANNEL 单渠道 / CATEGORY 品类 */
+    private String scope;
+
+    /** 适用类目 ID（逗号分隔，仅 CATEGORY） */
+    private String categoryIds;
+
     /** 发行量 */
     private Integer totalQty;
 

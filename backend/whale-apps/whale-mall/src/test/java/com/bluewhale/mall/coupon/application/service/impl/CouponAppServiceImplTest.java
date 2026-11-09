@@ -7,6 +7,7 @@ import com.bluewhale.mall.config.MallProperties;
 import com.bluewhale.mall.coupon.application.command.CouponSaveCommand;
 import com.bluewhale.mall.coupon.application.view.CouponUserView;
 import com.bluewhale.mall.coupon.domain.model.Coupon;
+import com.bluewhale.mall.coupon.domain.model.CouponScope;
 import com.bluewhale.mall.coupon.domain.model.CouponType;
 import com.bluewhale.mall.coupon.domain.model.CouponUser;
 import com.bluewhale.mall.coupon.domain.model.CouponUserStatus;
@@ -27,6 +28,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -146,7 +148,7 @@ class CouponAppServiceImplTest {
         other.setUserId(99L);
         when(couponUserRepository.findById(5L)).thenReturn(Optional.of(other));
 
-        assertThatThrownBy(() -> couponAppService.requireUsable(5L, 7L, 1L, new BigDecimal("200.00")))
+        assertThatThrownBy(() -> couponAppService.requireUsable(5L, 7L, 1L, null, new BigDecimal("200.00")))
                 .isInstanceOf(BizException.class)
                 .satisfies(exception -> assertThat(((BizException) exception).getCode())
                         .isEqualTo(MallErrorCode.COUPON_NOT_FOUND));
@@ -160,7 +162,7 @@ class CouponAppServiceImplTest {
         used.setStatus(CouponUserStatus.USED);
         when(couponUserRepository.findById(5L)).thenReturn(Optional.of(used));
 
-        assertThatThrownBy(() -> couponAppService.requireUsable(5L, 7L, 1L, new BigDecimal("200.00")))
+        assertThatThrownBy(() -> couponAppService.requireUsable(5L, 7L, 1L, null, new BigDecimal("200.00")))
                 .isInstanceOf(BizException.class)
                 .satisfies(exception -> assertThat(((BizException) exception).getCode())
                         .isEqualTo(MallErrorCode.COUPON_STATE_INVALID));
@@ -172,10 +174,36 @@ class CouponAppServiceImplTest {
     void requireUsableRejectsThreshold() {
         when(couponUserRepository.findById(5L)).thenReturn(Optional.of(coupon()));
 
-        assertThatThrownBy(() -> couponAppService.requireUsable(5L, 7L, 1L, new BigDecimal("50.00")))
+        assertThatThrownBy(() -> couponAppService.requireUsable(5L, 7L, 1L, null, new BigDecimal("50.00")))
                 .isInstanceOf(BizException.class)
                 .satisfies(exception -> assertThat(((BizException) exception).getCode())
                         .isEqualTo(MallErrorCode.COUPON_THRESHOLD_NOT_MET));
+    }
+
+    /** 门槛分母为空（推迟到计价阶段判定）：状态与范围通过即放行 */
+    @Test
+    @DisplayName("门槛分母为空时不判门槛")
+    void requireUsableAllowsNullMatchedGoods() {
+        when(couponUserRepository.findById(5L)).thenReturn(Optional.of(coupon()));
+
+        CouponUser coupon = couponAppService.requireUsable(5L, 7L, 1L, null, null);
+
+        assertThat(coupon.getUserId()).isEqualTo(7L);
+    }
+
+    /** 品类券：订单类目与券类目无交集拒绝 */
+    @Test
+    @DisplayName("品类券无命中类目拒绝使用")
+    void requireUsableRejectsCategoryMiss() {
+        CouponUser scoped = coupon();
+        scoped.setScope(CouponScope.CATEGORY);
+        scoped.setCategoryIds(List.of(901L));
+        when(couponUserRepository.findById(5L)).thenReturn(Optional.of(scoped));
+
+        assertThatThrownBy(() -> couponAppService.requireUsable(5L, 7L, 1L, Set.of(801L), null))
+                .isInstanceOf(BizException.class)
+                .satisfies(exception -> assertThat(((BizException) exception).getCode())
+                        .isEqualTo(MallErrorCode.COUPON_CATEGORY_NOT_MATCHED));
     }
 
     /** 渠道不符 */
@@ -186,7 +214,7 @@ class CouponAppServiceImplTest {
         scoped.setChannelId(2L);
         when(couponUserRepository.findById(5L)).thenReturn(Optional.of(scoped));
 
-        assertThatThrownBy(() -> couponAppService.requireUsable(5L, 7L, 1L, new BigDecimal("200.00")))
+        assertThatThrownBy(() -> couponAppService.requireUsable(5L, 7L, 1L, null, new BigDecimal("200.00")))
                 .isInstanceOf(BizException.class)
                 .satisfies(exception -> assertThat(((BizException) exception).getCode())
                         .isEqualTo(MallErrorCode.COUPON_CHANNEL_MISMATCH));
@@ -220,7 +248,7 @@ class CouponAppServiceImplTest {
         when(couponUserRepository.listUsable(eq(7L), any(LocalDateTime.class)))
                 .thenReturn(List.of(small, low, big));
 
-        List<CouponUserView> views = couponAppService.available(1L, new BigDecimal("200.00"), BUYER);
+        List<CouponUserView> views = couponAppService.available(1L, new BigDecimal("200.00"), null, BUYER);
 
         assertThat(views).hasSize(3);
         assertThat(views.get(0).getId()).isEqualTo(2L);

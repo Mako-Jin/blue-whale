@@ -3,6 +3,7 @@ package com.bluewhale.mall.coupon.domain;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.mall.common.MallErrorCode;
 import com.bluewhale.mall.coupon.domain.model.Coupon;
+import com.bluewhale.mall.coupon.domain.model.CouponScope;
 import com.bluewhale.mall.coupon.domain.model.CouponStatus;
 import com.bluewhale.mall.coupon.domain.model.CouponType;
 import com.bluewhale.mall.coupon.domain.model.CouponUsability;
@@ -13,6 +14,8 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -210,6 +213,122 @@ class MallCouponTest {
         coupon.release();
 
         assertThat(coupon.getStatus()).isEqualTo(CouponUserStatus.UNUSED);
+    }
+
+    /** 品类券必须绑定类目，且不允许再绑渠道 */
+    @Test
+    @DisplayName("品类券缺少类目绑定拒绝保存")
+    void categoryCouponRequiresCategoryIds() {
+        Coupon coupon = fullReduction("100.00", "20.00");
+        coupon.setScope(CouponScope.CATEGORY);
+
+        assertThatThrownBy(coupon::validate)
+                .isInstanceOf(BizException.class)
+                .satisfies(exception -> assertThat(((BizException) exception).getCode())
+                        .isEqualTo(MallErrorCode.COUPON_INVALID));
+
+        Coupon empty = fullReduction("100.00", "20.00");
+        empty.setScope(CouponScope.CATEGORY);
+        empty.setCategoryIds(List.of());
+        assertThatThrownBy(empty::validate).isInstanceOf(BizException.class);
+    }
+
+    /** 单渠道券必须指定渠道；全场券清掉渠道与类目 */
+    @Test
+    @DisplayName("渠道券必须指定渠道，全场券清掉范围参数")
+    void channelAndAllScopeNormalization() {
+        Coupon channel = fullReduction("100.00", "20.00");
+        channel.setScope(CouponScope.CHANNEL);
+        assertThatThrownBy(channel::validate).isInstanceOf(BizException.class);
+
+        channel.setChannelId(2L);
+        channel.validate();
+        assertThat(channel.getChannelId()).isEqualTo(2L);
+        assertThat(channel.getCategoryIds()).isNull();
+
+        Coupon all = fullReduction("100.00", "20.00");
+        all.setScope(CouponScope.ALL);
+        all.setChannelId(2L);
+        all.setCategoryIds(List.of(901L));
+        all.validate();
+        assertThat(all.getChannelId()).isNull();
+        assertThat(all.getCategoryIds()).isNull();
+    }
+
+    /** scope 缺省按老数据口径回落：channelId 非空即渠道券 */
+    @Test
+    @DisplayName("scope 缺省按 channelId 回落")
+    void scopeFallbackFromChannelId() {
+        Coupon coupon = fullReduction("100.00", "20.00");
+        coupon.setChannelId(3L);
+        coupon.validate();
+
+        assertThat(coupon.getScope()).isEqualTo(CouponScope.CHANNEL);
+    }
+
+    /** 用户券落范围快照：模板改类目后，已领出去的券类目不变 */
+    @Test
+    @DisplayName("用户券快照包含范围与类目")
+    void issuedCouponKeepsScopeSnapshot() {
+        Coupon template = fullReduction("0.00", "10.00");
+        template.setId(9L);
+        template.setScope(CouponScope.CATEGORY);
+        template.setCategoryIds(List.of(901L, 902L));
+        template.validate();
+        CouponUser issued = CouponUser.issue(template, 7L, 1);
+
+        template.setCategoryIds(List.of(999L));
+
+        assertThat(issued.getScope()).isEqualTo(CouponScope.CATEGORY);
+        assertThat(issued.getCategoryIds()).containsExactly(901L, 902L);
+    }
+
+    /** 品类券的可用性判定：按订单类目命中与否分流 */
+    @Test
+    @DisplayName("品类券按订单类目命中判定可用性")
+    void categoryCouponUsability() {
+        LocalDateTime now = LocalDateTime.of(2026, 11, 7, 10, 0);
+        Coupon template = fullReduction("50.00", "10.00");
+        template.setScope(CouponScope.CATEGORY);
+        template.setCategoryIds(List.of(901L));
+        CouponUser coupon = issued(template);
+
+        // 类目命中且达门槛（分母是品类小计 60）
+        assertThat(coupon.checkForOrder(1L, Set.of(901L, 801L), new BigDecimal("60.00"), now))
+                .isEqualTo(CouponUsability.USABLE);
+
+        // 类目命中但品类小计未达门槛：整单其他商品凑单没用
+        assertThat(coupon.checkForOrder(1L, Set.of(901L), new BigDecimal("49.99"), now))
+                .isEqualTo(CouponUsability.THRESHOLD_NOT_MET);
+
+        // 订单没有命中类目
+        assertThat(coupon.checkForOrder(1L, Set.of(801L), new BigDecimal("200.00"), now))
+                .isEqualTo(CouponUsability.CATEGORY_NOT_MATCHED);
+
+        // 无类目上下文（老订单）
+        assertThat(coupon.checkForOrder(1L, null, new BigDecimal("200.00"), now))
+                .isEqualTo(CouponUsability.CATEGORY_NOT_MATCHED);
+    }
+
+    /** 渠道券走 checkForOrder 仍是渠道不符拒绝；全场券不受类目影响 */
+    @Test
+    @DisplayName("checkForOrder 对渠道券与全场券的判定")
+    void checkForOrderNonCategoryScopes() {
+        LocalDateTime now = LocalDateTime.of(2026, 11, 7, 10, 0);
+
+        CouponUser scoped = issued(fullReduction("100.00", "20.00"));
+        scoped.setChannelId(2L);
+        assertThat(scoped.checkForOrder(1L, Set.of(901L), new BigDecimal("200.00"), now))
+                .isEqualTo(CouponUsability.CHANNEL_MISMATCH);
+        assertThat(scoped.checkForOrder(2L, Set.of(901L), new BigDecimal("200.00"), now))
+                .isEqualTo(CouponUsability.USABLE);
+
+        CouponUser all = issued(fullReduction("100.00", "20.00"));
+        assertThat(all.checkForOrder(1L, Set.of(901L), new BigDecimal("200.00"), now))
+                .isEqualTo(CouponUsability.USABLE);
+
+        // 分母为空 = 推迟到计价阶段判门槛
+        assertThat(all.checkForOrder(1L, null, null, now)).isEqualTo(CouponUsability.USABLE);
     }
 
     /**

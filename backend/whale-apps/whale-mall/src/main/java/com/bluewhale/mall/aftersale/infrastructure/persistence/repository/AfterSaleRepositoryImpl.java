@@ -18,13 +18,17 @@ import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 售后单仓储实现（MyBatis-Plus）。
@@ -36,6 +40,12 @@ import java.util.Optional;
 @Repository
 @RequiredArgsConstructor
 public class AfterSaleRepositoryImpl implements AfterSaleRepository {
+
+    /** 换货进行中状态集合（查重口径：这些状态下同一订单行不允许再开换货单） */
+    private static final List<String> ACTIVE_EXCHANGE_STATUS_NAMES = List.of(
+            AfterSaleStatus.CREATED.name(),
+            AfterSaleStatus.WAIT_RETURN.name(),
+            AfterSaleStatus.EXCHANGING.name());
 
     private final AfterSaleMapper afterSaleMapper;
 
@@ -129,6 +139,50 @@ public class AfterSaleRepositoryImpl implements AfterSaleRepository {
     @Override
     public boolean applyOrderRefund(Long orderId, BigDecimal amount) {
         return orderMapper.applyRefund(orderId, amount) > 0;
+    }
+
+    @Override
+    public List<MallAfterSale> listExpiredCreated(LocalDateTime deadline, int limit) {
+        Page<AfterSaleEntity> page = afterSaleMapper.selectPage(new Page<>(1, Math.max(limit, 1)),
+                new LambdaQueryWrapper<AfterSaleEntity>()
+                        .eq(AfterSaleEntity::getStatus, AfterSaleStatus.CREATED.name())
+                        .lt(AfterSaleEntity::getCreateTime, deadline)
+                        .orderByAsc(AfterSaleEntity::getId));
+        List<AfterSaleEntity> records = page.getRecords();
+        if (records.isEmpty()) {
+            return List.of();
+        }
+        List<Long> ids = records.stream().map(AfterSaleEntity::getId).toList();
+        Map<Long, List<AfterSaleItem>> items = loadItems(ids);
+        List<MallAfterSale> result = new ArrayList<>(records.size());
+        for (AfterSaleEntity entity : records) {
+            MallAfterSale afterSale = toDomain(entity);
+            afterSale.setItems(items.getOrDefault(entity.getId(), new ArrayList<>()));
+            result.add(afterSale);
+        }
+        return result;
+    }
+
+    @Override
+    public boolean existsActiveExchange(Collection<Long> orderItemIds) {
+        if (orderItemIds == null || orderItemIds.isEmpty()) {
+            return false;
+        }
+        List<AfterSaleItemEntity> items = afterSaleItemMapper.selectList(
+                new LambdaQueryWrapper<AfterSaleItemEntity>()
+                        .select(AfterSaleItemEntity::getAfterSaleId)
+                        .in(AfterSaleItemEntity::getOrderItemId, new LinkedHashSet<>(orderItemIds)));
+        if (items.isEmpty()) {
+            return false;
+        }
+        Set<Long> afterSaleIds = items.stream()
+                .map(AfterSaleItemEntity::getAfterSaleId)
+                .collect(Collectors.toSet());
+        Long count = afterSaleMapper.selectCount(new LambdaQueryWrapper<AfterSaleEntity>()
+                .in(AfterSaleEntity::getId, afterSaleIds)
+                .eq(AfterSaleEntity::getType, AfterSaleType.EXCHANGE.name())
+                .in(AfterSaleEntity::getStatus, ACTIVE_EXCHANGE_STATUS_NAMES));
+        return count != null && count > 0;
     }
 
     /**

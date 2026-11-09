@@ -1,8 +1,10 @@
 package com.bluewhale.mall.order.domain.repository;
 
+import com.bluewhale.mall.order.domain.model.DailyReportStat;
 import com.bluewhale.mall.order.domain.model.MallOrder;
 import com.bluewhale.mall.order.domain.model.OrderLog;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -111,4 +113,16 @@ public interface OrderRepository {
      * @return 释放成功返回 true
      */
     boolean releaseShippedQuantity(Long orderItemId, int quantity);
+
+    /**
+     * 运营日报表（按日聚合订单头）。
+     *
+     * <p>from 缺省为 7 天前；to 缺省视为当天；from 晚于 to 的乱序区间返回空列表
+     * （报表场景不把参数错误当业务异常抛，前端选错日期看到空表即知）。</p>
+     *
+     * @param from 起始日期（含）
+     * @param to 截止日期（含）
+     * @return 按日统计列表
+     */
+    List<DailyReportStat> dailyReport(LocalDate from, LocalDate to);
 }

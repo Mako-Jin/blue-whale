@@ -64,7 +64,7 @@ public interface FreightTemplateAppService {
     void changeStatus(Long id, String status, MallActor actor);
 
     /**
-     * 按渠道绑定的模板计算运费。
+     * 按渠道绑定的模板计算运费（件数未知场景）。
      *
      * <p>模板为空、已删除或已停用时返回 0：运费配置是运营侧的疏漏，
      * 不该阻断买家下单。这一条与「停用券模板不影响已领券」是同一个取舍——
@@ -75,4 +75,14 @@ public interface FreightTemplateAppService {
      * @return 运费金额，不小于 0
      */
     BigDecimal freightFor(Long freightTemplateId, BigDecimal goodsAmount);
+
+    /**
+     * 按渠道绑定的模板计算运费（含件数，BY_PIECE 计费必须走本方法）。
+     *
+     * @param freightTemplateId 运费模板 ID（可空）
+     * @param goodsAmount       商品总额（优惠前）
+     * @param quantity          商品件数（可空）
+     * @return 运费金额，不小于 0
+     */
+    BigDecimal freightFor(Long freightTemplateId, BigDecimal goodsAmount, Integer quantity);
 }

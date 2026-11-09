@@ -10,6 +10,7 @@ import com.bluewhale.mall.coupon.domain.model.CouponUser;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 优惠券应用服务。
@@ -94,12 +95,17 @@ public interface CouponAppService {
     /**
      * 当前订单可用的券（含不可用及原因），按可减金额降序。
      *
-     * @param channelId   渠道 ID
-     * @param goodsAmount 商品总额
-     * @param actor       操作人
+     * <p>全场/渠道券的门槛分母是整单商品总额；品类券因试算时还没有
+     * 「用户选中哪些券」的上下文，只按订单类目判定命中、门槛分母传 0
+     * 自然显示不适用——是否凑够门槛在勾选券后的试算里才见分晓。</p>
+     *
+     * @param channelId     渠道 ID
+     * @param goodsAmount   商品总额
+     * @param categoryIds   订单商品类目 ID 集合（无上下文时为空）
+     * @param actor         操作人
      * @return 券列表
      */
-    List<CouponUserView> available(Long channelId, BigDecimal goodsAmount, MallActor actor);
+    List<CouponUserView> available(Long channelId, BigDecimal goodsAmount, Set<Long> categoryIds, MallActor actor);
 
     /**
      * 取出可用于本单的券，不可用直接抛对应业务异常。
@@ -107,10 +113,12 @@ public interface CouponAppService {
      * @param couponUserId 用户券 ID
      * @param userId       下单用户 ID
      * @param channelId    渠道 ID
-     * @param goodsAmount  商品总额
+     * @param categoryIds  订单商品类目 ID 集合（品类券判定用）
+     * @param matchedGoods 本券适用范围内的商品小计（全场/渠道券为整单商品总额）
      * @return 用户券
      */
-    CouponUser requireUsable(Long couponUserId, Long userId, Long channelId, BigDecimal goodsAmount);
+    CouponUser requireUsable(Long couponUserId, Long userId, Long channelId,
+                             Set<Long> categoryIds, BigDecimal matchedGoods);
 
     /**
      * 核销券（条件更新，已被并发使用则抛错）。

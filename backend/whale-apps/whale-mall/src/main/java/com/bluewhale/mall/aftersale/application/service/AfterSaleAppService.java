@@ -2,11 +2,16 @@ package com.bluewhale.mall.aftersale.application.service;
 
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.mall.aftersale.application.command.AfterSaleApplyCommand;
+import com.bluewhale.mall.aftersale.application.command.AfterSaleExchangeShipCommand;
+import com.bluewhale.mall.aftersale.application.command.AfterSaleReturnLogisticsCommand;
 import com.bluewhale.mall.aftersale.application.view.AfterSaleView;
+import com.bluewhale.mall.aftersale.domain.model.MallAfterSale;
 import com.bluewhale.mall.common.MallActor;
 import com.bluewhale.mall.order.domain.model.MallOrder;
+import com.bluewhale.mall.shipment.application.view.ShipmentView;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * 售后应用服务。
@@ -29,7 +34,10 @@ public interface AfterSaleAppService {
     Long apply(AfterSaleApplyCommand command, MallActor actor);
 
     /**
-     * 审核通过并发起退款。
+     * 审核通过。
+     *
+     * <p>按类型分流：仅退款审核即发起退款；退货类（退货退款 / 换货）进入待退货，
+     * 等买家寄回商品、确认收货后再走退款或补发。</p>
      *
      * @param id     售后单 ID
      * @param remark 审核意见
@@ -40,6 +48,8 @@ public interface AfterSaleAppService {
     /**
      * 驳回售后。
      *
+     * <p>允许对待审核与待退货的售后单驳回，驳回即释放退款额度。</p>
+     *
      * @param id     售后单 ID
      * @param remark 驳回原因
      * @param actor  操作人
@@ -47,12 +57,64 @@ public interface AfterSaleAppService {
     void reject(Long id, String remark, MallActor actor);
 
     /**
-     * 买家撤销售后（仅待审核）。
+     * 买家撤销售后。
+     *
+     * <p>仅待审核可撤；换货单在待退货阶段也可撤（不占退款额度，撤了不留悬账）。</p>
      *
      * @param id    售后单 ID
      * @param actor 操作人
      */
     void cancel(Long id, MallActor actor);
+
+    /**
+     * 买家回填退货物流单号（待退货状态可调）。
+     *
+     * @param id      售后单 ID
+     * @param command 回填命令
+     * @param actor   操作人
+     */
+    void fillReturnLogistics(Long id, AfterSaleReturnLogisticsCommand command, MallActor actor);
+
+    /**
+     * 运营确认收到退货。
+     *
+     * <p>退货退款回到审核通过状态并立即发起退款；换货进入换货补发中。</p>
+     *
+     * @param id    售后单 ID
+     * @param actor 操作人
+     */
+    void confirmReturn(Long id, MallActor actor);
+
+    /**
+     * 换货补发：创建补发发货单并把售后单结到已换货。
+     *
+     * <p>复用发货链路占用行可发数量（条件更新），发货与终态同事务。</p>
+     *
+     * @param id      售后单 ID
+     * @param command 补发命令（承运商 / 运单号）
+     * @param actor   操作人
+     * @return 补发发货单视图
+     */
+    ShipmentView createExchangeShipment(Long id, AfterSaleExchangeShipCommand command, MallActor actor);
+
+    /**
+     * 扫描超时未审核的售后单列表。
+     *
+     * <p>只扫 CREATED；逐单关闭由 {@link #closeExpired(Long)} 独立事务处理，
+     * 单笔失败不影响其余。</p>
+     *
+     * @param expireHours 超时时长（小时）
+     * @param limit       本次最多处理条数
+     * @return 超时售后单列表
+     */
+    List<MallAfterSale> listExpiredCreated(int expireHours, int limit);
+
+    /**
+     * 关闭一张超时未审核的售后单（独立事务：转已撤销、释放额度、补系统流水）。
+     *
+     * @param id 售后单 ID
+     */
+    void closeExpired(Long id);
 
     /**
      * 分页查询售后单。

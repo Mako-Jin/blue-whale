@@ -91,6 +91,7 @@ public class SkuOfferingServiceImpl implements SkuOfferingService {
         offering.setSku(sku);
         offering.setSpuId(spu.getId());
         offering.setSpuName(spu.getSpuName());
+        offering.setCategoryId(spu.getCategoryId());
         offering.setMainImage(spu.getMainImage());
         offering.setSpuStatus(spu.getStatus());
         offering.setAvailableQty(stock == null ? 0 : stock.getAvailableQty());

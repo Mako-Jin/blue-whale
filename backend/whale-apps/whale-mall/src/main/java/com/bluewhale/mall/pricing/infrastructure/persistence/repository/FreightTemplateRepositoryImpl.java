@@ -110,6 +110,8 @@ public class FreightTemplateRepositoryImpl implements FreightTemplateRepository 
         template.setChargeType(parseChargeType(entity.getChargeType()));
         template.setBaseAmount(entity.getBaseAmount());
         template.setFreeThreshold(entity.getFreeThreshold());
+        template.setPiecePrice(entity.getPiecePrice());
+        template.setPieceFreeThreshold(entity.getPieceFreeThreshold());
         template.setStatus(FreightTemplateStatus.parse(entity.getStatus()));
         template.setRemark(entity.getRemark());
         template.setCreateTime(entity.getCreateTime());
@@ -130,6 +132,8 @@ public class FreightTemplateRepositoryImpl implements FreightTemplateRepository 
         entity.setChargeType(template.getChargeType() == null ? null : template.getChargeType().name());
         entity.setBaseAmount(template.getBaseAmount());
         entity.setFreeThreshold(template.getFreeThreshold());
+        entity.setPiecePrice(template.getPiecePrice());
+        entity.setPieceFreeThreshold(template.getPieceFreeThreshold());
         entity.setStatus(template.getStatus() == null
                 ? FreightTemplateStatus.ACTIVE.name() : template.getStatus().name());
         entity.setRemark(template.getRemark());

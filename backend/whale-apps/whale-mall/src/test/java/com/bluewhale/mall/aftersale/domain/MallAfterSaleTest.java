@@ -196,4 +196,249 @@ class MallAfterSaleTest {
         assertThat(AfterSaleStatus.parse(" ")).isNull();
         assertThat(AfterSaleStatus.parse("nope")).isNull();
     }
+
+    // ------------------------------------------------------------------
+    // 举证图片校验（服务端归一化）
+    // ------------------------------------------------------------------
+
+    @Test
+    @DisplayName("图片归一化：去空、去重、保留有效 URL")
+    void createNormalizesImages() {
+        MallAfterSale afterSale = MallAfterSale.create("AS20261107000001", 5L, "MO20261106000001", 7L,
+                AfterSaleType.REFUND_ONLY, "质量问题", "描述",
+                " http://a.png , http://b.png ,,http://a.png, ", pendingItems());
+
+        assertThat(afterSale.getImages()).isEqualTo("http://a.png,http://b.png");
+    }
+
+    @Test
+    @DisplayName("图片归一化：空白串归为 null")
+    void createBlankImagesAsNull() {
+        MallAfterSale afterSale = MallAfterSale.create("AS20261107000001", 5L, "MO20261106000001", 7L,
+                AfterSaleType.REFUND_ONLY, "质量问题", "描述", " , ,, ", pendingItems());
+
+        assertThat(afterSale.getImages()).isNull();
+    }
+
+    @Test
+    @DisplayName("图片校验：超过 6 张拒绝")
+    void createRejectsTooManyImages() {
+        String images = "http://1.png,http://2.png,http://3.png,http://4.png,http://5.png,http://6.png,http://7.png";
+
+        assertThatThrownBy(() -> MallAfterSale.create("AS20261107000001", 5L, "MO20261106000001", 7L,
+                AfterSaleType.REFUND_ONLY, "质量问题", "描述", images, pendingItems()))
+                .isInstanceOf(BizException.class)
+                .satisfies(exception -> assertThat(((BizException) exception).getCode())
+                        .isEqualTo(MallErrorCode.AFTER_SALE_INVALID));
+    }
+
+    @Test
+    @DisplayName("图片校验：单张 URL 超过 500 字符拒绝")
+    void createRejectsOverlongImageUrl() {
+        String longUrl = "http://example.com/" + "a".repeat(500);
+
+        assertThatThrownBy(() -> MallAfterSale.create("AS20261107000001", 5L, "MO20261106000001", 7L,
+                AfterSaleType.REFUND_ONLY, "质量问题", "描述", longUrl, pendingItems()))
+                .isInstanceOf(BizException.class)
+                .satisfies(exception -> assertThat(((BizException) exception).getCode())
+                        .isEqualTo(MallErrorCode.AFTER_SALE_INVALID));
+    }
+
+    // ------------------------------------------------------------------
+    // 退货闭环新状态机（WAIT_RETURN / EXCHANGING / EXCHANGED）
+    // ------------------------------------------------------------------
+
+    /**
+     * 构造指定类型的待审核售后单。
+     *
+     * @param type 售后类型
+     * @return 售后单
+     */
+    private MallAfterSale pendingOfType(AfterSaleType type) {
+        return MallAfterSale.create("AS20261107000001", 5L, "MO20261106000001", 7L,
+                type, "质量问题", "描述", null, pendingItems());
+    }
+
+    /**
+     * 构造一条售后明细（19.90 × 2）。
+     *
+     * @return 明细列表
+     */
+    private List<AfterSaleItem> pendingItems() {
+        List<AfterSaleItem> items = new ArrayList<>();
+        items.add(item(11L, "19.90", 2));
+        return items;
+    }
+
+    @Test
+    @DisplayName("退货退款审核通过：进入待退货而不是退款执行中")
+    void approveReturnRefundEntersWaitReturn() {
+        MallAfterSale afterSale = pendingOfType(AfterSaleType.RETURN_REFUND);
+
+        afterSale.approve(99L, "运营甲", "同意");
+
+        assertThat(afterSale.getStatus()).isEqualTo(AfterSaleStatus.WAIT_RETURN);
+        assertThatThrownBy(afterSale::cancel).isInstanceOf(BizException.class);
+    }
+
+    @Test
+    @DisplayName("仅退款审核通过：仍直接进入退款执行中（原路径不变）")
+    void approveRefundOnlyStaysApproved() {
+        MallAfterSale afterSale = pendingOfType(AfterSaleType.REFUND_ONLY);
+
+        afterSale.approve(99L, "运营甲", "同意");
+
+        assertThat(afterSale.getStatus()).isEqualTo(AfterSaleStatus.APPROVED);
+    }
+
+    @Test
+    @DisplayName("回填退货物流：待退货可回填并清洗首尾空白")
+    void fillReturnLogisticsFromWaitReturn() {
+        MallAfterSale afterSale = pendingOfType(AfterSaleType.RETURN_REFUND);
+        afterSale.approve(99L, "运营甲", "同意");
+
+        afterSale.fillReturnLogistics("  SF123456789  ");
+
+        assertThat(afterSale.getReturnLogisticsNo()).isEqualTo("SF123456789");
+    }
+
+    @Test
+    @DisplayName("回填退货物流：单号为空或超长拒绝")
+    void fillReturnLogisticsRejectsBlankOrOverlong() {
+        MallAfterSale afterSale = pendingOfType(AfterSaleType.RETURN_REFUND);
+        afterSale.approve(99L, "运营甲", "同意");
+
+        assertThatThrownBy(() -> afterSale.fillReturnLogistics("  "))
+                .isInstanceOf(BizException.class)
+                .satisfies(exception -> assertThat(((BizException) exception).getCode())
+                        .isEqualTo(MallErrorCode.AFTER_SALE_INVALID));
+        assertThatThrownBy(() -> afterSale.fillReturnLogistics("a".repeat(65)))
+                .isInstanceOf(BizException.class)
+                .satisfies(exception -> assertThat(((BizException) exception).getCode())
+                        .isEqualTo(MallErrorCode.AFTER_SALE_INVALID));
+    }
+
+    @Test
+    @DisplayName("回填退货物流：待审核与已通过状态拒绝")
+    void fillReturnLogisticsRejectsWrongState() {
+        MallAfterSale created = pendingOfType(AfterSaleType.RETURN_REFUND);
+        assertThatThrownBy(() -> created.fillReturnLogistics("SF123")).isInstanceOf(BizException.class);
+
+        MallAfterSale approved = pendingOfType(AfterSaleType.RETURN_REFUND);
+        approved.approve(99L, "运营甲", "同意");
+        approved.confirmReturn();
+        assertThatThrownBy(() -> approved.fillReturnLogistics("SF123")).isInstanceOf(BizException.class);
+    }
+
+    @Test
+    @DisplayName("确认收货：退货退款回到退款执行中，换货进入补发等待位")
+    void confirmReturnBranchesByType() {
+        MallAfterSale returnRefund = pendingOfType(AfterSaleType.RETURN_REFUND);
+        returnRefund.approve(99L, "运营甲", "同意");
+        returnRefund.confirmReturn();
+        assertThat(returnRefund.getStatus()).isEqualTo(AfterSaleStatus.APPROVED);
+
+        MallAfterSale exchange = pendingOfType(AfterSaleType.EXCHANGE);
+        exchange.approve(99L, "运营甲", "同意");
+        assertThat(exchange.getStatus()).isEqualTo(AfterSaleStatus.WAIT_RETURN);
+        exchange.confirmReturn();
+        assertThat(exchange.getStatus()).isEqualTo(AfterSaleStatus.EXCHANGING);
+    }
+
+    @Test
+    @DisplayName("确认收货：待审核状态拒绝（货还没批给退）")
+    void confirmReturnRejectsCreated() {
+        MallAfterSale afterSale = pendingOfType(AfterSaleType.RETURN_REFUND);
+
+        assertThatThrownBy(afterSale::confirmReturn)
+                .isInstanceOf(BizException.class)
+                .satisfies(exception -> assertThat(((BizException) exception).getCode())
+                        .isEqualTo(MallErrorCode.AFTER_SALE_STATUS_INVALID));
+    }
+
+    @Test
+    @DisplayName("标记换货完成：补发中 → 已换货终态；非补发中拒绝")
+    void markExchangedTerminal() {
+        MallAfterSale afterSale = pendingOfType(AfterSaleType.EXCHANGE);
+        afterSale.approve(99L, "运营甲", "同意");
+
+        // 待退货状态不能直接结到已换货（必须先确认收货、补发发货）
+        assertThatThrownBy(afterSale::markExchanged).isInstanceOf(BizException.class);
+
+        afterSale.confirmReturn();
+        afterSale.markExchanged();
+        assertThat(afterSale.getStatus()).isEqualTo(AfterSaleStatus.EXCHANGED);
+        assertThat(afterSale.getStatus().isFinal()).isTrue();
+    }
+
+    @Test
+    @DisplayName("驳回：待退货也可驳（买家寄错货），已通过不可驳")
+    void rejectAllowsWaitReturn() {
+        MallAfterSale afterSale = pendingOfType(AfterSaleType.RETURN_REFUND);
+        afterSale.approve(99L, "运营甲", "同意");
+
+        afterSale.reject(99L, "运营甲", "寄错商品");
+        assertThat(afterSale.getStatus()).isEqualTo(AfterSaleStatus.REJECTED);
+
+        MallAfterSale approved = pendingOfType(AfterSaleType.REFUND_ONLY);
+        approved.approve(99L, "运营甲", "同意");
+        assertThatThrownBy(() -> approved.reject(99L, "运营甲", "晚了一步"))
+                .isInstanceOf(BizException.class);
+    }
+
+    @Test
+    @DisplayName("撤销：换货在待退货可撤（没占额度），退货退款在待退货不可撤")
+    void cancelExchangeInWaitReturnOnly() {
+        MallAfterSale exchange = pendingOfType(AfterSaleType.EXCHANGE);
+        exchange.approve(99L, "运营甲", "同意");
+        exchange.cancel();
+        assertThat(exchange.getStatus()).isEqualTo(AfterSaleStatus.CANCELLED);
+
+        MallAfterSale returnRefund = pendingOfType(AfterSaleType.RETURN_REFUND);
+        returnRefund.approve(99L, "运营甲", "同意");
+        assertThatThrownBy(returnRefund::cancel).isInstanceOf(BizException.class);
+    }
+
+    @Test
+    @DisplayName("超时自动关闭：仅待审核可关，待退货不可关（买家可能已寄回）")
+    void expireCancelOnlyFromCreated() {
+        MallAfterSale afterSale = pendingOfType(AfterSaleType.RETURN_REFUND);
+        afterSale.expireCancel();
+        assertThat(afterSale.getStatus()).isEqualTo(AfterSaleStatus.CANCELLED);
+
+        MallAfterSale waiting = pendingOfType(AfterSaleType.RETURN_REFUND);
+        waiting.approve(99L, "运营甲", "同意");
+        assertThatThrownBy(waiting::expireCancel).isInstanceOf(BizException.class);
+    }
+
+    @Test
+    @DisplayName("标记退款完成：待退货状态拒绝（货还没收），审核通过照常")
+    void markRefundedStillRequiresApproved() {
+        MallAfterSale waiting = pendingOfType(AfterSaleType.RETURN_REFUND);
+        waiting.approve(99L, "运营甲", "同意");
+
+        assertThatThrownBy(() -> waiting.markRefunded("AS20261107000001", null))
+                .isInstanceOf(BizException.class)
+                .satisfies(exception -> assertThat(((BizException) exception).getCode())
+                        .isEqualTo(MallErrorCode.AFTER_SALE_STATUS_INVALID));
+
+        waiting.confirmReturn();
+        waiting.markRefunded("AS20261107000001", null);
+        assertThat(waiting.getStatus()).isEqualTo(AfterSaleStatus.REFUNDED);
+    }
+
+    @Test
+    @DisplayName("类型解析：换货需退回商品且标记为换货")
+    void exchangeTypeSemantics() {
+        assertThat(AfterSaleType.parse("exchange")).isEqualTo(AfterSaleType.EXCHANGE);
+        assertThat(AfterSaleType.EXCHANGE.requiresReturn()).isTrue();
+        assertThat(AfterSaleType.EXCHANGE.isExchange()).isTrue();
+        assertThat(AfterSaleType.REFUND_ONLY.isExchange()).isFalse();
+        assertThat(AfterSaleStatus.parse("wait_return")).isEqualTo(AfterSaleStatus.WAIT_RETURN);
+        assertThat(AfterSaleStatus.parse("exchanging")).isEqualTo(AfterSaleStatus.EXCHANGING);
+        assertThat(AfterSaleStatus.WAIT_RETURN.isActiveExchangeState()).isTrue();
+        assertThat(AfterSaleStatus.EXCHANGED.isActiveExchangeState()).isFalse();
+        assertThat(AfterSaleStatus.EXCHANGED.canFillReturnLogistics()).isFalse();
+        assertThat(AfterSaleStatus.WAIT_RETURN.canFillReturnLogistics()).isTrue();
+    }
 }

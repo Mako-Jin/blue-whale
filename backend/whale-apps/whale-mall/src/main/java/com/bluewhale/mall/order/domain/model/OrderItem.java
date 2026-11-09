@@ -27,6 +27,9 @@ public class OrderItem {
     /** SKU ID */
     private Long skuId;
 
+    /** 商品类目 ID（快照，品类券判定用） */
+    private Long categoryId;
+
     /** 商品名称（快照） */
     private String spuName;
 

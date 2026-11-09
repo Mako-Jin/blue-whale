@@ -4,6 +4,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 用户券视图（我的券与下单可用券共用）。
@@ -43,8 +44,14 @@ public class CouponUserView {
     /** 折扣封顶 */
     private BigDecimal maxDiscountAmount;
 
-    /** 适用渠道（空 = 全场） */
+    /** 适用渠道（仅 CHANNEL；空 = 全场） */
     private Long channelId;
+
+    /** 适用范围：ALL 全场 / CHANNEL 单渠道 / CATEGORY 品类 */
+    private String scope;
+
+    /** 适用类目 ID（仅 CATEGORY） */
+    private List<Long> categoryIds;
 
     /** 生效时间 */
     private LocalDateTime validFrom;

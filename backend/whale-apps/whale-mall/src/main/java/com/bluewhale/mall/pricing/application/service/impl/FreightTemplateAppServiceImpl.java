@@ -99,13 +99,18 @@ public class FreightTemplateAppServiceImpl implements FreightTemplateAppService 
 
     @Override
     public BigDecimal freightFor(Long freightTemplateId, BigDecimal goodsAmount) {
+        return freightFor(freightTemplateId, goodsAmount, null);
+    }
+
+    @Override
+    public BigDecimal freightFor(Long freightTemplateId, BigDecimal goodsAmount, Integer quantity) {
         BigDecimal zero = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         if (freightTemplateId == null || goodsAmount == null) {
             return zero;
         }
         return freightTemplateRepository.findById(freightTemplateId)
                 .filter(FreightTemplate::isActive)
-                .map(template -> template.freightFor(goodsAmount))
+                .map(template -> template.freightFor(goodsAmount, quantity))
                 .orElse(zero);
     }
 
@@ -131,6 +136,8 @@ public class FreightTemplateAppServiceImpl implements FreightTemplateAppService 
         template.setChargeType(parseChargeType(command.getChargeType()));
         template.setBaseAmount(command.getBaseAmount());
         template.setFreeThreshold(command.getFreeThreshold());
+        template.setPiecePrice(command.getPiecePrice());
+        template.setPieceFreeThreshold(command.getPieceFreeThreshold());
         template.setStatus(FreightTemplateStatus.parse(command.getStatus()));
         template.setRemark(command.getRemark() == null ? null : command.getRemark().trim());
     }
@@ -166,6 +173,8 @@ public class FreightTemplateAppServiceImpl implements FreightTemplateAppService 
         view.setChargeType(template.getChargeType() == null ? null : template.getChargeType().name());
         view.setBaseAmount(template.getBaseAmount());
         view.setFreeThreshold(template.getFreeThreshold());
+        view.setPiecePrice(template.getPiecePrice());
+        view.setPieceFreeThreshold(template.getPieceFreeThreshold());
         view.setStatus(template.getStatus() == null ? null : template.getStatus().name());
         view.setRemark(template.getRemark());
         view.setCreateTime(template.getCreateTime());

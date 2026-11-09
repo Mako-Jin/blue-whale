@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.mall.coupon.domain.model.Coupon;
 import com.bluewhale.mall.coupon.domain.model.CouponQuery;
+import com.bluewhale.mall.coupon.domain.model.CouponScope;
 import com.bluewhale.mall.coupon.domain.model.CouponStatus;
 import com.bluewhale.mall.coupon.domain.model.CouponType;
 import com.bluewhale.mall.coupon.domain.repository.CouponRepository;
@@ -13,9 +14,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * 优惠券模板仓储实现（MyBatis-Plus）。
@@ -119,6 +122,8 @@ public class CouponRepositoryImpl implements CouponRepository {
         coupon.setDiscountRate(entity.getDiscountRate());
         coupon.setMaxDiscountAmount(entity.getMaxDiscountAmount());
         coupon.setChannelId(entity.getChannelId());
+        coupon.setScope(CouponScope.parse(entity.getScope()));
+        coupon.setCategoryIds(parseCategoryIds(entity.getCategoryIds()));
         coupon.setTotalQty(entity.getTotalQty());
         coupon.setIssuedQty(entity.getIssuedQty());
         coupon.setPerUserLimit(entity.getPerUserLimit());
@@ -148,6 +153,8 @@ public class CouponRepositoryImpl implements CouponRepository {
         entity.setDiscountRate(coupon.getDiscountRate());
         entity.setMaxDiscountAmount(coupon.getMaxDiscountAmount());
         entity.setChannelId(coupon.getChannelId());
+        entity.setScope(coupon.getScope() == null ? null : coupon.getScope().name());
+        entity.setCategoryIds(joinCategoryIds(coupon.getCategoryIds()));
         entity.setTotalQty(coupon.getTotalQty());
         entity.setIssuedQty(coupon.getIssuedQty());
         entity.setPerUserLimit(coupon.getPerUserLimit());
@@ -156,5 +163,35 @@ public class CouponRepositoryImpl implements CouponRepository {
         entity.setStatus(coupon.getStatus() == null ? CouponStatus.ACTIVE.name() : coupon.getStatus().name());
         entity.setRemark(coupon.getRemark());
         return entity;
+    }
+
+    /**
+     * 类目 ID 列表转逗号分隔文本（品类券落库用）。
+     *
+     * @param categoryIds 类目 ID 列表
+     * @return 逗号分隔文本，空为 null
+     */
+    private String joinCategoryIds(List<Long> categoryIds) {
+        if (categoryIds == null || categoryIds.isEmpty()) {
+            return null;
+        }
+        return categoryIds.stream().map(String::valueOf).collect(Collectors.joining(","));
+    }
+
+    /**
+     * 逗号分隔文本转类目 ID 列表。
+     *
+     * @param value 逗号分隔文本
+     * @return 类目 ID 列表，空为 null
+     */
+    private List<Long> parseCategoryIds(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        return Arrays.stream(value.split(","))
+                .map(String::trim)
+                .filter(part -> !part.isEmpty())
+                .map(Long::valueOf)
+                .toList();
     }
 }

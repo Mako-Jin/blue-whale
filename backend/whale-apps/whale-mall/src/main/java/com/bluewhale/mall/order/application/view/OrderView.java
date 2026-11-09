@@ -57,8 +57,11 @@ public class OrderView {
     /** 运费 */
     private BigDecimal freightAmount;
 
-    /** 使用的券编码（快照） */
+    /** 使用的券编码（快照，主券口径） */
     private String couponCode;
+
+    /** 本单用券明细（一单多券；单券订单只有一条） */
+    private List<OrderCouponView> coupons = new ArrayList<>();
 
     /** 商品总件数 */
     private Integer totalQuantity;
