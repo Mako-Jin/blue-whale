@@ -1,8 +1,24 @@
 # 网关边界与业务端口收口清单（S-06）
 
-- 日期：2026-10-27
+- 日期：2026-10-27（2026-11-09 增补 GW-06 通配收口与 dev 令牌口径）
 - 关联：待办 S-06「绕过网关直连业务端口」
 - 结论：这是**部署网络边界**问题，代码侧无法可靠替代；本清单作为上线前必检项。
+
+## 0. 应用层两道防线（已落地，2026-11-09 实测）
+
+部署边界之外，应用层已有两道防线，上线前需按「验收」章节复测：
+
+1. **网关第一道（GW-06）**：`InternalApiDenyGlobalFilter` 对 `whale.gateway.internal-deny.patterns`
+   命中的外部请求直接 403。patterns 已收敛为单段通配（`<单段>/internal/**`，星号不跨段）+
+   `/audit/log/ingest/**`，覆盖全部服务的 `<service>/internal/**`；新服务内网端点按该命名约定
+   自动纳管，无需改配置。`discovery.locator` 服务名前缀形态由过滤器剥前缀兜底（V-01）。
+   实测：经网关访问任意服务 internal 端点均 403，非 internal 形态不受影响。
+2. **服务侧第二道（V-02）**：`InternalTokenFilter`（common starter 自动装配，最高优先级）
+   对 `/**/internal/**` 与 `/audit/log/ingest/**` 校验 `X-Internal-Token` 常量时间比较；
+   服务间出站经 `InternalTokenSupport` 自动携带同源令牌。令牌解析：`bluewhale.internal-token.token`
+   优先，回退环境变量 `WHALE_INTERNAL_TOKEN`。**dev 未配置令牌时 fail-open（InternalTokenGuard
+   告警），非 dev 拒绝启动**——本地联调由 `.toolchains/start-all-services.ps1` 统一注入
+   `WHALE_INTERNAL_TOKEN`（联调占位值），生产必须替换为随机值并同样注入各服务实例。
 
 ## 1. 风险
 
