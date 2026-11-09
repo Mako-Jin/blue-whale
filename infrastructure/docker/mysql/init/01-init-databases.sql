@@ -141,4 +141,19 @@ CREATE DATABASE IF NOT EXISTS bluewhale_video
   DEFAULT CHARACTER SET utf8mb4
   DEFAULT COLLATE utf8mb4_unicode_ci;
 
+-- ---- 即时通讯（whale-im：表由服务启动时 Flyway 建立） ----
+CREATE DATABASE IF NOT EXISTS bluewhale_im
+  DEFAULT CHARACTER SET utf8mb4
+  DEFAULT COLLATE utf8mb4_unicode_ci;
+
+-- ---- AI 助手平台（whale-assistant，Wave 6.01：表由服务启动时 Flyway 建立） ----
+CREATE DATABASE IF NOT EXISTS bluewhale_assistant
+  DEFAULT CHARACTER SET utf8mb4
+  DEFAULT COLLATE utf8mb4_unicode_ci;
+
+-- ---- IoT 设备联网（whale-iot，Wave 6.02：表由服务启动时 Flyway 建立） ----
+CREATE DATABASE IF NOT EXISTS bluewhale_iot
+  DEFAULT CHARACTER SET utf8mb4
+  DEFAULT COLLATE utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;
