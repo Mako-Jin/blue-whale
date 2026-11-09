@@ -80,21 +80,46 @@ services:
   # ----------------------------------------------------------
   # Nacos 3.2.4 (单机模式, 内置存储; 控制台独立 8080 未映射)
   # ----------------------------------------------------------
+  # Nacos 3.x（服务发现 + 配置中心）
+  #
+  # 存储用宿主机 MySQL 的 bluewhale_nacos 库 —— 与「宿主机 tools/nacos」是同一份数据，
+  # 两种起法可互换但**不能同时占 8848**：
+  #   - 容器：docker compose up -d nacos（推荐，随 Docker 自启，无需手工跑 startup.cmd）
+  #   - 宿主机：tools/nacos/bin/startup.cmd -m standalone（preflight 起不来时的退路）
+  # tools/nacos/conf/application.properties 里 spring.sql.init.platform=mysql 且
+  # db.url.0 指向 bluewhale_nacos，证明数据本就在 MySQL，容器版只是换了进程载体。
+  # ----------------------------------------------------------
   nacos:
     image: ${NACOS_IMAGE:-nacos/nacos-server:v3.2.4}
     container_name: bw-nacos
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       MODE: standalone
       PREFER_HOST_MODE: hostname
       TZ: Asia/Shanghai
-      NACOS_AUTH_ENABLE: "true"
+      # 认证：宿主机 Nacos 的 conf 里 nacos.core.auth.enabled=false，服务侧只传 NACOS_SERVER
+      # 不带用户名口令。此处必须保持一致，否则服务注册 403 → 重启死循环。
+      NACOS_AUTH_ENABLE: ${NACOS_AUTH_ENABLE:-false}
       NACOS_AUTH_IDENTITY_KEY: ${NACOS_AUTH_IDENTITY_KEY}
       NACOS_AUTH_IDENTITY_VALUE: ${NACOS_AUTH_IDENTITY_VALUE}
       NACOS_AUTH_TOKEN: ${NACOS_AUTH_TOKEN}
-      JVM_XMS: 512m
-      JVM_XMX: 1024m
-      JVM_XMN: 256m
+      # 外置 MySQL（bluewhale_nacos）
+      SPRING_DATASOURCE_PLATFORM: mysql
+      MYSQL_SERVICE_HOST: ${NACOS_DB_HOST:-host.docker.internal}
+      MYSQL_SERVICE_PORT: ${MYSQL_PORT:-3306}
+      MYSQL_SERVICE_DB_NAME: ${NACOS_DB_NAME:-bluewhale_nacos}
+      MYSQL_SERVICE_USER: ${NACOS_DB_USER:-root}
+      MYSQL_SERVICE_PASSWORD: ${NACOS_DB_PASSWORD:-}
+      # allowPublicKeyRetrieval 必需：MySQL 8 的 caching_sha2_password 走非 SSL 连接
+      MYSQL_SERVICE_DB_PARAM: "characterEncoding=utf8&connectTimeout=3000&socketTimeout=5000&autoReconnect=true&useUnicode=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai"
+      # 堆压到 256/512：8G VM 里要和 22 个 Spring 服务共存，1G 堆会把余量吃到红线以下
+      # （实测 1G 堆 RSS 约 700MB，等效于多塞一个核心服务）。本机只做注册中心 + 配置中心，
+      # 512 上限足够；Nacos 服务端不做业务计算。
+      JVM_XMS: 256m
+      JVM_XMX: 512m
+      JVM_XMN: 128m
     ports:
       - "127.0.0.1:${NACOS_HOST_PORT:-8848}:8848"
       - "127.0.0.1:${NACOS_GRPC_HOST_PORT:-9848}:9848"
