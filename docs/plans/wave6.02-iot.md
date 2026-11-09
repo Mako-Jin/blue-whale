@@ -1,6 +1,6 @@
 # Wave 6.02 — IoT 设备联网平台（whale-iot）详细设计
 
-> 状态：**实施中（M0 + M1 + M2 已落地）** · 起草：2026-11-09
+> 状态：**M0–M3 已落地（Wave 6.02 交付完成）** · 起草：2026-11-09
 > 总体规划：[wave6-iot-twin-ai-assistant-plan.md](wave6-iot-twin-ai-assistant-plan.md)（§二 平台一）
 
 ---
@@ -96,7 +96,7 @@
 | 设备 | `POST/GET/PATCH/DELETE /devices`、`POST /devices/{id}/secret` | `sys:iot:device` | M1 |
 | 影子/遥测 | `GET /devices/{id}/shadow`、`GET /devices/{id}/telemetry?identifier=&range=`、`GET /devices/{id}/stream`（SSE，对齐 MES 先例） | `sys:iot:device` | M2 |
 | 指令 | `POST /devices/{id}/commands`（同步落 pending，EMQX 桥接出网后转 sent）、`GET /commands?deviceId=` | `sys:iot:device` | M2 |
-| 规则 | `POST/GET/PATCH/DELETE /rules`、`POST /rules/{id}/enable` | `sys:iot:rule` | M3 |
+| 规则 | `POST/GET/PUT/DELETE /rules`、`POST /rules/{id}/enable?enabled=` | `sys:iot:rule` | M3 ✅ |
 | internal | `/iot/internal/emqx/auth|webhook|telemetry`、`/iot/internal/device/state`（twin/assistant 只读实时态，M4 工具化） | 内网令牌 | M1/M2 |
 
 状态机：产品 `draft→published⇄disabled`（已发布产品禁止修改物模型，需先停用）；设备无状态机，仅 active/disabled 开关。
@@ -107,6 +107,18 @@
 - 动作首期 `alert`：调 whale-alert `/alert/internal`（9103，内网令牌）创建告警记录，携带设备/产品/规则上下文；`webhook` 动作留配置位。
 - 限流去重：同规则距 `last_fired_time` 不足静默期（默认 300s，规则可配）不重复触发。
 
+**M3 落地细节**
+
+- **评估时机**：`IotTelemetryService.ingestProperties` 落库 + 影子 + 推送之后同步调 `IotRuleEngine.evaluate(device, points)`；引擎逐规则吞异常，遥测链路不会因规则失败而回滚（规则是旁路）。
+- **作用域三级**：设备级（`device_id` 非空）→ 产品级（`product_id` 非空、`device_id` 空）→ 全局（两者皆空）；加载按「`enabled=1` 且作用域匹配」一次查询，不做缓存（规则量级小，命中率靠 `idx_tenant_enabled`）。
+- **去抖状态**：连续满足计时存进程内 `ConcurrentHashMap<ruleId:deviceId:identifier, 首次满足毫秒>`，不落库；多实例各算各的，跨实例重复由静默期兜底。
+- **静默期**：动作配置 `silenceSeconds` 优先，缺省取 `whale.iot.rule-silence-seconds`（300s），上限 86400s；命中静默期保留计时（不重置，避免「静默一结束又要重新累计」）。
+- **比较语义**：仅支持数值比较（`> >= < <= == !=`，`==` 用 1e-9 容差）；文本型遥测先尝试转数值，转不了视为不命中（事件 `event:*` 不参与规则）。
+- **告警指纹**：`SHA-256("iot|ruleId|deviceId|identifier")`，同规则同设备同属性恒定，供 alert 侧窗口去重；告警 `ruleCode` 形如 `iot:rule:11`，`source=iot`。
+- **失败策略**：`AlertNotifyClient` 任何异常只记日志返回 false；未成功落库则**不更新** `last_fired_time`/`fired_count`，下一批遥测可重试。
+- **alert 侧配套**：新增 `POST /alert/internal/record`（`AlertInternalRecordController` → `AlertRecordService#create`），负责租户归属（`X-Tenant-Id` + 请求体 `tenantId`）、级别归一化（未知值回落 WARN）、内容截断（512）、指纹窗口去重（复用 `alert.notify.dedup`），命中启用告警规则时才走通知通道。
+- **前端**：`frontend/platform-apps/whale-iot`（8121，四页），基座 `apps.ts`/`menu.ts` 注册；**不新增 admin 页面**——IoT 是业务管理面，入口由基座静态菜单承载，`sys_menu` 只登记权限码（避免 admin 动态路由指向不存在的组件）。
+
 ## 七、里程碑与验收
 
 | 里程碑 | 内容 | 验收 |
@@ -114,7 +126,7 @@
 | M0 ✅ | 模块骨架 + EMQX 进 compose + 网关路由 + 登记 | compile/test 通过；compose `up -d emqx` 可启动（实机待环境） |
 | M1 ✅ | 产品/物模型/设备 CRUD + 三元组签发 + EMQX 认证 Webhook | 后端 34 项单测全绿；设备用三元组 connect 1883 的实机验收随联调 |
 | M2 ✅ | 遥测落库 + 影子 + SSE 实时推送 + 指令下发/回执 | 后端 62 项单测全绿（影子/遥测/指令/推送 28 项新增）；设备发遥测后 SSE 即时可见、指令回执转 success 的**实机验收随 EMQX 联调**（无 Broker 时下发降级为 pending，链路可测） |
-| M3 | 规则引擎（→whale-alert）+ 前端子应用 8121（产品/设备/遥测/规则四页）+ admin/基座接入 | 一条规则可触发一条告警 |
+| M3 ✅ | 规则引擎（→whale-alert）+ 前端子应用 8121（产品/设备/遥测/规则四页）+ 基座接入 | 后端 76 项单测全绿（规则引擎/规则服务 14 项新增，alert 侧 39 项含内网创建 3 项）；一条规则触发一条告警的**实机验收随 EMQX 联调**（无 Broker 时手动触发遥测亦可验证落库链路）；前端 tsc + build 通过 |
 | M4（远期） | 协议网关、边缘接入、遥测冷热分层、AI/Twin 只读工具注册 | 另立 wave 计划 |
 
 ## 八、风险与备注
@@ -125,3 +137,5 @@
 - **EMQX 镜像拉取**：国内网络可把 `.env` 的 `EMQX_IMAGE` 指向镜像站前缀（对齐 NGINX_BASE_IMAGE 惯例）。
 - **遥测量级**：首期单分区索引 `(device_id, identifier, ts)` 覆盖设备视角查询；租户级报表走 `iot_telemetry` 聚合 SQL，不够再补汇总表。
 - **与 MES 边界**：MES 设备台账（业务语义）与 IoT 设备实例（接入语义）各自独立；如需关联，MES 侧存 `iot_device_id` 引用，不做双写。
+- **规则告警的通知渠道**：IoT 规则写告警记录用 `ruleCode=iot:rule:{id}`，通常不命中 `alert_rule`（告警通知规则），因此**只落库、不走邮件/Webhook 通知**；如需通知，在 whale-alert 建同名 `ruleCode` 的告警规则即可（无需改 IoT 侧）。
+- **多实例规则去重**：连续时长计时是进程内状态，两个实例各自累计，可能出现「同一条件在两侧都触发一次」；静默期（默认 300s）使其不会刷屏，若要求严格一次需把计时外移到 Redis（M4 可选）。

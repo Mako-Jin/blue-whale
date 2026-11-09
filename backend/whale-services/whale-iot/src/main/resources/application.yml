@@ -85,6 +85,14 @@ whale:
     stream-heartbeat-seconds: ${WHALE_IOT_STREAM_HEARTBEAT_SECONDS:30}
     # 指令默认超时（秒），用于展示与 M3 超时扫描
     command-timeout-seconds: ${WHALE_IOT_COMMAND_TIMEOUT_SECONDS:30}
+    # 规则引擎总开关（关闭后遥测链路不再评估规则，仅落库/推送）
+    rule-enabled: ${WHALE_IOT_RULE_ENABLED:true}
+    # 规则默认静默期（秒）：规则动作配置未指定时按此去重
+    rule-silence-seconds: ${WHALE_IOT_RULE_SILENCE_SECONDS:300}
+    # 告警动作：调 whale-alert 内网 /alert/internal/record 落告警记录
+    alert:
+      base-url: ${WHALE_IOT_ALERT_BASE_URL:http://127.0.0.1:9103}
+      timeout-seconds: ${WHALE_IOT_ALERT_TIMEOUT_SECONDS:3}
 
 mybatis-plus:
   configuration:

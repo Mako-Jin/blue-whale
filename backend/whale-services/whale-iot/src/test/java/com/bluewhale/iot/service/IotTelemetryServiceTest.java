@@ -55,6 +55,8 @@ class IotTelemetryServiceTest {
 
     private IotCommandService commandService;
 
+    private IotRuleEngine ruleEngine;
+
     private IotTelemetryService service;
 
     @BeforeEach
@@ -66,8 +68,9 @@ class IotTelemetryServiceTest {
         shadowService = mock(IotShadowService.class);
         streamService = mock(IotStreamService.class);
         commandService = mock(IotCommandService.class);
+        ruleEngine = mock(IotRuleEngine.class);
         service = new IotTelemetryService(telemetryMapper, thingModelMapper, deviceMapper, productMapper,
-                shadowService, streamService, commandService, new IotProperties());
+                shadowService, streamService, commandService, ruleEngine, new IotProperties());
     }
 
     @Test

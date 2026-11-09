@@ -32,6 +32,7 @@ const GATEWAY_PREFIXES = [
   '/config',
   '/music',
   '/scene',
+  '/iot',
 ];
 
 interface ProxyRequest {

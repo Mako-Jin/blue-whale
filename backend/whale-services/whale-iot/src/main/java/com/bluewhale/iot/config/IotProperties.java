@@ -30,6 +30,15 @@ public class IotProperties {
     /** 指令默认超时（秒），仅用于展示与后续超时扫描 */
     private int commandTimeoutSeconds = 30;
 
+    /** 规则引擎总开关（关闭后遥测链路不再评估规则） */
+    private boolean ruleEnabled = true;
+
+    /** 规则默认静默期（秒）：规则动作配置未指定时按此值去重 */
+    private int ruleSilenceSeconds = 300;
+
+    /** 告警动作对接配置（whale-alert 内网接口） */
+    private final Alert alert = new Alert();
+
     /**
      * EMQX 管理面配置。
      *
@@ -59,5 +68,24 @@ public class IotProperties {
 
         /** 发布超时（秒） */
         private int publishTimeoutSeconds = 5;
+    }
+
+    /**
+     * 告警动作配置。
+     *
+     * <p>规则命中后调用 whale-alert 内网接口 {@code POST /alert/internal/record}
+     * 落一条告警记录（告警的渠道分发由 whale-alert 负责）。调用失败只记日志、
+     * 不回滚遥测，也不影响其它规则。</p>
+     *
+     * @author BlueWhale
+     */
+    @Data
+    public static class Alert {
+
+        /** whale-alert 基地址（internal 路径由本服务拼接） */
+        private String baseUrl = "http://127.0.0.1:9103";
+
+        /** 调用超时（秒） */
+        private int timeoutSeconds = 3;
     }
 }

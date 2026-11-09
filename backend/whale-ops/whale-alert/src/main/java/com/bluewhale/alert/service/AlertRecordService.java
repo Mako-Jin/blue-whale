@@ -1,5 +1,6 @@
 package com.bluewhale.alert.service;
 
+import com.bluewhale.alert.dto.AlertRecordCreateRequest;
 import com.bluewhale.alert.dto.AlertRecordQueryRequest;
 import com.bluewhale.alert.dto.PrometheusWebhookPayload;
 import com.bluewhale.alert.vo.AlertRecordVO;
@@ -30,4 +31,15 @@ public interface AlertRecordService {
      * @return 落库条数
      */
     int ingest(PrometheusWebhookPayload payload);
+
+    /**
+     * 内网创建一条触发中告警记录（供其他服务的规则动作调用）。
+     *
+     * <p>调用方已完成条件评估与静默期控制，本方法只做租户归属、指纹去重与落库；
+     * 命中通知规则时按既有通道分发，未命中只落库。</p>
+     *
+     * @param request 创建请求
+     * @return 落库条数（1 落库 / 0 判定为窗口内重复）
+     */
+    int create(AlertRecordCreateRequest request);
 }

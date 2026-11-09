@@ -92,6 +92,8 @@ public class IotTelemetryService {
 
     private final IotCommandService commandService;
 
+    private final IotRuleEngine ruleEngine;
+
     private final IotProperties properties;
 
     /**
@@ -220,6 +222,12 @@ public class IotTelemetryService {
             device.setLastReportTime(LocalDateTime.now());
             shadowService.applyReported(device, reported, ts);
             streamService.publish(device.getId(), IotStreamService.EVENT_TELEMETRY, points);
+            // 规则评估是遥测链路的旁路：内部已逐规则吞异常，这里再兜一层防极端情况
+            try {
+                ruleEngine.evaluate(device, points);
+            } catch (RuntimeException e) {
+                log.warn("规则评估异常（忽略）：deviceId={}, reason={}", device.getId(), e.getMessage());
+            }
         }
         return TelemetryIngestResult.builder().accepted(accepted).rejected(rejected).build();
     }

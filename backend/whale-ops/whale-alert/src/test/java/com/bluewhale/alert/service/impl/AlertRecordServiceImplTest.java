@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.alert.config.AlertNotifyProperties;
+import com.bluewhale.alert.dto.AlertRecordCreateRequest;
 import com.bluewhale.alert.dto.AlertRecordQueryRequest;
 import com.bluewhale.alert.dto.PrometheusWebhookPayload;
 import com.bluewhale.alert.entity.AlertRecord;
@@ -246,5 +247,63 @@ class AlertRecordServiceImplTest {
         payload.setStatus(alert.getStatus());
         payload.setAlerts(List.of(alert));
         return payload;
+    }
+
+    @Test
+    @DisplayName("create：内网告警落库为 FIRING 并补齐指纹与级别")
+    void shouldCreateFiringRecord() {
+        when(alertRecordMapper.selectCount(any())).thenReturn(0L);
+        when(alertRuleMapper.selectOne(any())).thenReturn(null);
+
+        int inserted = alertRecordService.create(createRequest());
+
+        assertEquals(1, inserted);
+        ArgumentCaptor<AlertRecord> captor = ArgumentCaptor.forClass(AlertRecord.class);
+        verify(alertRecordMapper).insert(captor.capture());
+        AlertRecord record = captor.getValue();
+        assertEquals("iot:rule:11", record.getRuleCode());
+        assertEquals("ERROR", record.getAlertLevel());
+        assertEquals("FIRING", record.getStatus());
+        assertEquals("温度超限", record.getContent());
+        assertNotNull(record.getFingerprint());
+        assertNotNull(record.getTriggerTime());
+    }
+
+    @Test
+    @DisplayName("create：窗口内同指纹重复告警不落库")
+    void shouldSkipDuplicateCreate() {
+        when(alertRecordMapper.selectCount(any())).thenReturn(1L);
+
+        int inserted = alertRecordService.create(createRequest());
+
+        assertEquals(0, inserted);
+        verify(alertRecordMapper, never()).insert(any(AlertRecord.class));
+    }
+
+    @Test
+    @DisplayName("create：内容为空直接忽略")
+    void shouldIgnoreEmptyCreate() {
+        AlertRecordCreateRequest request =
+                new AlertRecordCreateRequest();
+
+        assertEquals(0, alertRecordService.create(request));
+        verify(alertRecordMapper, never()).insert(any(AlertRecord.class));
+    }
+
+    /**
+     * 构造内网告警创建请求。
+     *
+     * @return 创建请求
+     */
+    private static AlertRecordCreateRequest createRequest() {
+        AlertRecordCreateRequest request =
+                new AlertRecordCreateRequest();
+        request.setSource("iot");
+        request.setRuleCode("iot:rule:11");
+        request.setAlertLevel("error");
+        request.setContent("温度超限");
+        request.setFingerprint("abc123");
+        request.setTenantId(1L);
+        return request;
     }
 }
