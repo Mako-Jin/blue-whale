@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -173,7 +174,8 @@ class MesFlywayMigrationScriptTest {
         for (Path script : migrationScripts()) {
             total += extractTables(script).size();
         }
-        assertEquals(68, total, "空库累计应为 68 张业务表（V1 2 + V2 12 + V3 1 + V4 13 + V5 8 + V6 10 + V7 15 + V8 6 + V9 1）");
+        assertEquals(69, total,
+                "空库累计应为 69 张业务表（V1 2 + V2 12 + V3 1 + V4 13 + V5 8 + V6 10 + V7 15 + V8 6 + V9 1 + V10 0 + V11 1）");
     }
 
     /**
@@ -253,7 +255,7 @@ class MesFlywayMigrationScriptTest {
     }
 
     /**
-     * 列出迁移脚本并按文件名字典序返回
+     * 列出迁移脚本并按版本号数值升序返回（文件名字典序会把 V10 排在 V2 之前）
      *
      * @return 迁移脚本路径
      * @throws IOException 读取目录失败
@@ -261,7 +263,7 @@ class MesFlywayMigrationScriptTest {
     private static List<Path> migrationScripts() throws IOException {
         try (var stream = Files.list(MIGRATION_DIR)) {
             return stream.filter(path -> path.getFileName().toString().endsWith(".sql"))
-                    .sorted()
+                    .sorted(Comparator.comparingLong(MesFlywayMigrationScriptTest::versionOf))
                     .collect(Collectors.toList());
         }
     }
