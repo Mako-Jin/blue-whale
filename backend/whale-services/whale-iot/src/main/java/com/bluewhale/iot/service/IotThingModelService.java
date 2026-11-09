@@ -39,6 +39,9 @@ public class IotThingModelService {
     /** 模型类别：属性 */
     public static final String KIND_PROPERTY = "property";
 
+    /** 模型类别：服务（指令下发按此校验标识符） */
+    public static final String KIND_SERVICE = "service";
+
     private final IotThingModelMapper thingModelMapper;
 
     private final IotProductService productService;

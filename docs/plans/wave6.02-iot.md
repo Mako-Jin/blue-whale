@@ -1,6 +1,6 @@
 # Wave 6.02 — IoT 设备联网平台（whale-iot）详细设计
 
-> 状态：**实施中（M0 + M1 已落地）** · 起草：2026-11-09
+> 状态：**实施中（M0 + M1 + M2 已落地）** · 起草：2026-11-09
 > 总体规划：[wave6-iot-twin-ai-assistant-plan.md](wave6-iot-twin-ai-assistant-plan.md)（§二 平台一）
 
 ---
@@ -40,6 +40,20 @@
 | 验证 | `mvn test` **34/34 全绿**（产品 7 + 物模型 7 + 设备 5 + EMQX 11 + ArchUnit 4），Checkstyle 通过 |
 
 **EMQX 联调配置（M1 验收用）**：Authentication → HTTP Server → `POST http://whale-iot:8088/iot/internal/emqx/auth`（携带 `X-Internal-Token`）；Webhook → `POST http://whale-iot:8088/iot/internal/emqx/webhook`（事件 `client.connected` / `client.disconnected`）。设备侧用 `{productCode}/{deviceName}` + HMAC 口令连接 1883。
+
+## 二之三、M2 落地清单
+
+| 项 | 内容 |
+|---|---|
+| 遥测入库 | `IotTelemetryService`：EMQX `message.publish` 桥接 → 解析主题定位设备 → 按物模型 `data_type` 分流（`int`/`double` → `value`，其余 → `value_text`）→ 落 `iot_telemetry`（按月分区）→ 更新影子与 `last_report_time`。**脏数据丢弃计数**（未知标识符 / 类型不符 / 超批次上限），接口恒 200，避免 Broker 重投风暴 |
+| 设备影子 | `IotShadowService`：`shadow_json` = `{reported, desired, version, reportedTime, updatedTime}`；上报命中期望值即从 desired 移除（期望值只在未达成时存在）；指令参数中与属性同名的键写入 desired；设备上线（`client.connected`）若有未达成期望，经 EMQX 发布 `down/shadow` 补推 |
+| 实时推送 | `IotStreamService` + `GET /iot/devices/{id}/stream`（SSE，单设备粒度）：事件 `ready` / `telemetry` / `event` / `command`；连接不设超时，按 `stream-heartbeat-seconds`（默认 30s）发注释帧保活，写回失败即摘除连接 |
+| 指令下发 | `IotCommandService` + `POST /iot/devices/{id}/commands`：`message_id` 幂等（重复返回既有指令）、物模型 service 校验（模型无服务定义时不限制）、落 `pending` → EMQX REST `/api/v5/publish` 出网成功后转 `sent`；**投递失败保持 `pending`**（报文没出去不判定设备失败，留待 M3 重投） |
+| 指令回执 | 设备上报 `up/reply`（`{"id":"消息ID","code":0,"data":{...}}`）→ 按 `message_id` 收敛 `success`/`failed`，重复回执幂等忽略，状态变化经 SSE 推 `command` |
+| EMQX 出网 | `EmqxPublishClient`（`POST /api/v5/publish`，Basic 认证 API Key/Secret）：**不建常驻 MQTT 客户端**；凭据未配置时降级为只落库不投递（本地无 Broker 也能跑通链路） |
+| 内网只读 | `GET /iot/internal/device/state`（`deviceId` 或 `productCode+deviceName`）返回影子实时态，供数字孪生 / AI 助手工具化调用（M4 正式接入） |
+| 配置 | `whale.iot.*` 收敛到 `IotProperties`（EMQX 地址/凭据、遥测批次与查询上限、SSE 心跳、指令超时）；新增 `WHALE_IOT_EMQX_API_SECRET` 等环境变量 |
+| 验证 | `mvn test` **62/62 全绿**（M1 34 + M2 28：影子 7 / 遥测 7 / 指令 10 / 推送 4），Checkstyle 0，ArchUnit 4/4 |
 
 ## 三、数据模型要点
 
@@ -99,13 +113,15 @@
 |---|---|---|
 | M0 ✅ | 模块骨架 + EMQX 进 compose + 网关路由 + 登记 | compile/test 通过；compose `up -d emqx` 可启动（实机待环境） |
 | M1 ✅ | 产品/物模型/设备 CRUD + 三元组签发 + EMQX 认证 Webhook | 后端 34 项单测全绿；设备用三元组 connect 1883 的实机验收随联调 |
-| M2 | 遥测落库 + 影子 + SSE 实时推送 + 指令下发/回执 | 模拟设备发遥测，前端实时可见；指令有回执 |
+| M2 ✅ | 遥测落库 + 影子 + SSE 实时推送 + 指令下发/回执 | 后端 62 项单测全绿（影子/遥测/指令/推送 28 项新增）；设备发遥测后 SSE 即时可见、指令回执转 success 的**实机验收随 EMQX 联调**（无 Broker 时下发降级为 pending，链路可测） |
 | M3 | 规则引擎（→whale-alert）+ 前端子应用 8121（产品/设备/遥测/规则四页）+ admin/基座接入 | 一条规则可触发一条告警 |
 | M4（远期） | 协议网关、边缘接入、遥测冷热分层、AI/Twin 只读工具注册 | 另立 wave 计划 |
 
 ## 八、风险与备注
 
-- **实机依赖**：本机 Docker 环境（EMQX 拉镜像）与 MySQL `bluewhale_iot` 建库在联调时完成；M0 交付以编译/测试/文档为准。
+- **实机依赖**：本机 Docker 环境（EMQX 拉镜像）与 MySQL `bluewhale_iot` 建库在联调时完成；M0–M2 交付以编译/测试/文档为准。
+- **EMQX 出网凭据**：指令与影子补推走 REST `/api/v5/publish`，需在 EMQX Dashboard → API Keys 生成 Key/Secret 并配 `WHALE_IOT_EMQX_API_KEY` / `WHALE_IOT_EMQX_API_SECRET`；未配时链路降级为「只落库 pending」，不报错也不丢数据。
+- **遥测桥接形态**：首期用 Webhook `message.publish`（同步转发，EMQX 侧配置主题过滤 `up/property|event|reply`）；单设备高频上报（>50 msg/s）时改 Data-Bridges HTTP 批量投递，接口契约不变。
 - **EMQX 镜像拉取**：国内网络可把 `.env` 的 `EMQX_IMAGE` 指向镜像站前缀（对齐 NGINX_BASE_IMAGE 惯例）。
 - **遥测量级**：首期单分区索引 `(device_id, identifier, ts)` 覆盖设备视角查询；租户级报表走 `iot_telemetry` 聚合 SQL，不够再补汇总表。
 - **与 MES 边界**：MES 设备台账（业务语义）与 IoT 设备实例（接入语义）各自独立；如需关联，MES 侧存 `iot_device_id` 引用，不做双写。

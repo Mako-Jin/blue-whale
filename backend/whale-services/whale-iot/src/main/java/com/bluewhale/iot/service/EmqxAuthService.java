@@ -43,6 +43,8 @@ public class EmqxAuthService {
 
     private final IotProductMapper productMapper;
 
+    private final IotShadowService shadowService;
+
     /**
      * 认证一台设备（EMQX HTTP Authentication 回调）。
      *
@@ -96,6 +98,7 @@ public class EmqxAuthService {
         device.setOnline(1);
         device.setLastOnlineTime(LocalDateTime.now());
         deviceMapper.updateById(device);
+        shadowService.syncDesiredOnConnect(device);
     }
 
     /**

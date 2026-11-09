@@ -22,6 +22,15 @@ public class IotDevice extends BaseEntity {
 
     private static final long serialVersionUID = 1L;
 
+    /**
+     * 租户ID（行级隔离）。
+     *
+     * <p>写入由租户插件接管（实体侧留空即不参与 INSERT 列）；M2 的 EMQX 内网回调
+     * 无网关注入的租户头，需先读出本字段再用 {@code TenantContext.set} 回填，
+     * 否则遥测/影子写入会落到默认租户。</p>
+     */
+    private Long tenantId;
+
     /** 所属产品ID（iot_product.id） */
     private Long productId;
 

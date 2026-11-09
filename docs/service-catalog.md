@@ -81,7 +81,7 @@
 
 | 33 | `whale-assistant` | whale-services | `whale-services/whale-assistant` | **8087** | `/assistant/**` | ✅ `lb://whale-assistant`（Wave 6.01 M0；**不配 `StripPrefix`**，`/assistant/internal/**` 由 internal-deny 403） | **`bluewhale_assistant`**（V1 基线 5 张：`asst_definition`/`asst_session`/`asst_message`/`asst_tool_grant`/`asst_usage`） | `WhaleAssistantApplication` | AI 助手平台：助手定义与生命周期、会话与消息持久化、工具授权、面向业务应用的开放 API 与用量统计。**不持模型凭据**：LLM 编排委托 `whale-ai`（8092，仅内网），知识检索委托 `whale-agent`（8090）；8087 为 `whale-i18n` 服务删除后释放的空位。规划：[docs/plans/wave6-iot-twin-ai-assistant-plan.md](plans/wave6-iot-twin-ai-assistant-plan.md) | **M0 骨架已落地 / 可启动**（Wave 6.01；8087 / `/assistant/**`；`mvn compile` 通过，实机待启动） |
 
-| 34 | `whale-iot` | whale-services | `whale-services/whale-iot` | **8088** | `/iot/**` | ✅ `lb://whale-iot`（Wave 6.02 M0；**不配 `StripPrefix`**，`/iot/internal/**` 由 internal-deny 403） | **`bluewhale_iot`**（V1 基线 6 张：`iot_product`/`iot_thing_model`/`iot_device`/`iot_telemetry`（按月分区）/`iot_command`/`iot_rule`） | `WhaleIotApplication` | IoT 设备联网平台：设备接入与认证（EMQX 认证 Webhook 提供方）、物模型（属性/事件/服务）、遥测上下行、设备影子、指令下发与回执、规则引擎（条件→动作，告警对接 `whale-alert` `/alert/internal`）。不做业务语义（MES 设备台账仍归 MES）；首期仅 MQTT，协议网关留 M4。MQTT Broker 为 EMQX（compose `bw-emqx`，1883/1884/18083）。规划：[docs/plans/wave6.02-iot.md](plans/wave6.02-iot.md) | **M0 骨架已落地 / 可启动**（Wave 6.02；8088 / `/iot/**`；M1 已落地：产品/物模型/设备 CRUD + 三元组签发 + EMQX 认证 Webhook，`mvn test` 34 项全绿；实机待启动） |
+| 34 | `whale-iot` | whale-services | `whale-services/whale-iot` | **8088** | `/iot/**` | ✅ `lb://whale-iot`（Wave 6.02 M0；**不配 `StripPrefix`**，`/iot/internal/**` 由 internal-deny 403） | **`bluewhale_iot`**（V1 基线 6 张：`iot_product`/`iot_thing_model`/`iot_device`/`iot_telemetry`（按月分区）/`iot_command`/`iot_rule`） | `WhaleIotApplication` | IoT 设备联网平台：设备接入与认证（EMQX 认证 Webhook 提供方）、物模型（属性/事件/服务）、遥测上下行、设备影子、指令下发与回执、规则引擎（条件→动作，告警对接 `whale-alert` `/alert/internal`）。不做业务语义（MES 设备台账仍归 MES）；首期仅 MQTT，协议网关留 M4。MQTT Broker 为 EMQX（compose `bw-emqx`，1883/1884/18083）。规划：[docs/plans/wave6.02-iot.md](plans/wave6.02-iot.md) | **M0 骨架已落地 / 可启动 + M1/M2 已落地**（Wave 6.02；8088 / `/iot/**`；M1：产品/物模型/设备 CRUD + 三元组签发 + EMQX 认证 Webhook；M2：遥测落库（物模型分流）+ 设备影子（reported/desired）+ 单设备 SSE 实时推送 + 指令下发（`message_id` 幂等）/回执收敛 + 内网实时态只读；`mvn test` **62 项全绿**；实机待 EMQX 联调） |
 
 > 「对外一级前缀」= 服务自持的前缀，网关**只转发、不剥离**（REQ-ARCH-003）。
 > 网关 `discovery.locator.enabled=true` 已开启服务发现路由：`lb://whale-<域>` → `http://<服务实例>`。
@@ -103,8 +103,8 @@
 | `whale-monitor` | `Path=/monitor/**` | `lb://whale-monitor` | whale-monitor | ✅ 已配 |
 | `whale-audit` | `Path=/audit/**` | `lb://whale-audit` | whale-audit | ✅ 已配 |
 | `whale-agent` | `Path=/agent/**` | `lb://whale-agent` | whale-agent | ✅ 已配（Wave 5.47） |
-| `whale-assistant` | `Path=/assistant/**` | `lb://whale-assistant` | whale-assistant | 🟡 规划（Wave 6.01；**不配 `StripPrefix`**，内网 `/assistant/internal/**` 由 internal-deny 403；服务 M0 骨架已落地，实机待启动） |
-| `whale-iot` | `Path=/iot/**` | `lb://whale-iot` | whale-iot | 🟡 规划（Wave 6.02；**不配 `StripPrefix`**，内网 `/iot/internal/**` 由 internal-deny 403；服务 M0 骨架已落地，实机待启动） |
+| `whale-assistant` | `Path=/assistant/**` | `lb://whale-assistant` | whale-assistant | ✅ 已配（Wave 6.01；**不配 `StripPrefix`**，内网 `/assistant/internal/**` 由 internal-deny 403；服务可启动） |
+| `whale-iot` | `Path=/iot/**` | `lb://whale-iot` | whale-iot | ✅ 已配（Wave 6.02；**不配 `StripPrefix`**，内网 `/iot/internal/**` 由 internal-deny 403；服务可启动，M2 已落地） |
 | `whale-im` | `Path=/im/**`（**排除** `/im/ws`） | `lb://whale-im` | whale-im | 🟡 规划（Wave 5.52；**不配 `StripPrefix`**） |
 | `whale-im-ws` | `Path=/im/ws` | `lb:ws://whale-im` | whale-im | 🟡 规划（Wave 5.52；保留 `Upgrade`/`Connection` 头，鉴权走 60s 一次性 ticket） |
 | `whale-archive` | `Path=/archive/**` | `lb://whale-archive` | whale-archive | ✅ 已配（Wave 5.53 M1；**不配 `StripPrefix`**，内网 `/archive/internal/**` 由 internal-deny 403） |

@@ -1,7 +1,9 @@
 package com.bluewhale.iot;
 
+import com.bluewhale.iot.config.IotProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 
 /**
@@ -15,10 +17,14 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
  * （条件→动作，告警动作对接 whale-alert 9103 内网接口）。不做业务语义
  * （MES 设备台账仍归 MES），协议网关（Modbus/HTTP 等）留 M4 之后。</p>
  *
+ * <p>M2 起接入链路为「EMQX Webhook → 本服务 internal 接口」，本服务<b>不建常驻
+ * MQTT 客户端</b>；下行（指令、影子期望值）经 EMQX REST API 发布。</p>
+ *
  * @author BlueWhale
  */
 @SpringBootApplication
 @EnableDiscoveryClient
+@EnableConfigurationProperties(IotProperties.class)
 public class WhaleIotApplication {
 
     /**

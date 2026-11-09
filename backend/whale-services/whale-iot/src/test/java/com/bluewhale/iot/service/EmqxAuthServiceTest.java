@@ -31,13 +31,16 @@ class EmqxAuthServiceTest {
 
     private IotProductMapper productMapper;
 
+    private IotShadowService shadowService;
+
     private EmqxAuthService service;
 
     @BeforeEach
     void setUp() {
         deviceMapper = mock(IotDeviceMapper.class);
         productMapper = mock(IotProductMapper.class);
-        service = new EmqxAuthService(deviceMapper, productMapper);
+        shadowService = mock(IotShadowService.class);
+        service = new EmqxAuthService(deviceMapper, productMapper, shadowService);
     }
 
     @Test
@@ -110,6 +113,7 @@ class EmqxAuthServiceTest {
         assertEquals(1, device.getOnline());
         assertEquals(LocalDateTime.now().toLocalDate(), device.getLastOnlineTime().toLocalDate());
         verify(deviceMapper).updateById(device);
+        verify(shadowService).syncDesiredOnConnect(device);
     }
 
     @Test

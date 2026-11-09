@@ -68,15 +68,23 @@ whale:
       enabled: true
   iot:
     # Wave 6.02 M1：EMQX（compose bw-emqx）连接信息。whale-iot 不做常驻 MQTT 客户端，
-    # M2 遥测上行走 EMQX Webhook/HTTP 桥接转发到本服务 internal 接口（见 wave6.02 设计文档）。
+    # M2 遥测上行走 EMQX Webhook（message.publish）转发到 /iot/internal/emqx/webhook。
+    # 下行（指令 down/command、影子 down/shadow）经 EMQX REST API /api/v5/publish 发布。
     emqx:
       api-base-url: ${WHALE_IOT_EMQX_API:http://127.0.0.1:18083}
-      # EMQX Dashboard/REST API 口令（管理面），未配置时管理面功能不可用（安全默认）
+      # Dashboard → API Keys 生成的 Key/Secret（Basic 认证）；未配置时下发链路降级为只落库不投递
       api-key: ${WHALE_IOT_EMQX_API_KEY:}
+      api-secret: ${WHALE_IOT_EMQX_API_SECRET:}
       mqtt-host: ${WHALE_IOT_EMQX_MQTT_HOST:127.0.0.1}
       mqtt-port: ${WHALE_IOT_EMQX_MQTT_PORT:1883}
     # 单设备遥测单次上报条目上限（防超大批次拖垮落库）
     telemetry-max-batch: ${WHALE_IOT_TELEMETRY_MAX_BATCH:100}
+    # 遥测查询单次返回条数上限
+    telemetry-query-max: ${WHALE_IOT_TELEMETRY_QUERY_MAX:500}
+    # SSE 心跳间隔（秒）：空闲连接按此发注释帧，避免中间代理掐链
+    stream-heartbeat-seconds: ${WHALE_IOT_STREAM_HEARTBEAT_SECONDS:30}
+    # 指令默认超时（秒），用于展示与 M3 超时扫描
+    command-timeout-seconds: ${WHALE_IOT_COMMAND_TIMEOUT_SECONDS:30}
 
 mybatis-plus:
   configuration:
