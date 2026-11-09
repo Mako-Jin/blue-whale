@@ -13,12 +13,15 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 商务域同步调度触发控制器（仅内网：whale-job 调度中心）。
+ * 商务域同步内网运维入口（仅内网：内部令牌 + 网关 internal-deny）。
  *
- * <p>原进程内 {@code @Scheduled}（订单下发 / 对账、应收快照、合同投影对账）
- * 已于 2026-11-09 第十一批迁移至 whale-job（job_info 1005–1008，经
- * httpInvokeJobHandler 服务发现直连本控制器）；调度参数（cron / 重试 /
- * misfire / 执行日志）由调度中心统一管理。</p>
+ * <p><b>定时调度不经过本控制器</b>：订单下发 / 对账、应收快照、合同投影对账的调度行是
+ * {@code job_code=crm.order.push / crm.order.reconcile / crm.ar.snapshot / crm.contract.sync}
+ * + {@code httpJobHandler}，由调度中心按执行器寻址后调 {@code POST /internal/job/{code}/run}，
+ * 进入对应 {@code @ScheduledJob} 方法并直接调用应用服务。本控制器只是同一应用服务的
+ * 手工触发入口（排查 / 补跑）；早期 job_info 1005–1008 走 {@code httpInvokeJobHandler}
+ * 直连此处，该通道已于 2026-11-09 合并收口
+ * （见 {@code V13__disable_legacy_http_invoke_jobs.sql}）。</p>
  *
  * @author BlueWhale
  */

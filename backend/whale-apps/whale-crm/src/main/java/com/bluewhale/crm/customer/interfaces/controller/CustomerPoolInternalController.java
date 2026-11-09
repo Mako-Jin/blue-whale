@@ -13,12 +13,16 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Set;
 
 /**
- * 公海自动回收调度触发控制器（仅内网：whale-job 调度中心）。
+ * 公海回收内网运维入口（仅内网：内部令牌 + 网关 internal-deny）。
  *
- * <p>原进程内 {@code @Scheduled}（pool-recycle-cron，{@code @ConditionalOnProperty}
- * 门控 Bean 注册）已于 2026-11-09 第十一批迁移至 whale-job（job_info 1009，经
- * httpInvokeJobHandler 服务发现直连本控制器）；回收开关改在端点内运行期判断，
- * 多租户部署可由调度平台逐租户扩展 handler_param。当前按默认租户执行。</p>
+ * <p><b>定时调度不经过本控制器</b>：公海自动回收的调度行是
+ * {@code job_code=crm.pool.recycle} + {@code httpJobHandler}，由调度中心按执行器寻址后调
+ * {@code POST /internal/job/{code}/run}，进入 {@code CrmPoolRecycleJob} 的
+ * {@code @ScheduledJob} 方法并直接调用应用服务（开关
+ * {@code whale.crm.pool-recycle-enabled} 在方法内判断，关闭返回 skipped）。
+ * 本控制器只是同一应用服务的手工触发入口（排查 / 补跑）；早期 job_info 1009 走
+ * {@code httpInvokeJobHandler} 直连此处，该通道已于 2026-11-09 合并收口
+ * （见 {@code V13__disable_legacy_http_invoke_jobs.sql}）。</p>
  *
  * @author BlueWhale
  */

@@ -43,7 +43,9 @@ spring:
     table: flyway_schema_history
     baseline-on-migrate: ${WHALE_FLYWAY_BASELINE_ON_MIGRATE:true}
     baseline-version: 1
-    validate-on-migrate: true
+    # 默认开启校验；已应用旧版种子脚本（V2/V3/V4 重复版本已删除）的环境可临时置 false 起服，
+    # 随后执行一次 flyway repair 清理历史行，再恢复默认
+    validate-on-migrate: ${WHALE_FLYWAY_VALIDATE_ON_MIGRATE:true}
     clean-disabled: true
     placeholder-replacement: false
     connect-retries: 10

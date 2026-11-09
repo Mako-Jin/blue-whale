@@ -111,3 +111,30 @@
 3. 订正 5 处文档失真（roadmap 8.7/8.8、五服务 §四、5.89 §8、5.98 devlog、catalog 数字）。
 4. 起 MySQL/Redis/Nacos + 按 §3.1 清单跑迁移与冒烟，解除实机阻塞。
 5. 再开功能缺口：ERP M3 剩余 / MES 两项 / Mall 售后增强。
+
+## 九、合并收口增补（21:30 更新）
+
+### 9.1 CRM 定时任务只有一套通道（订正 §二 与 devlog 1001–1009 的叙述）
+
+库里 27 条启用任务**全部**是 `job_code + httpJobHandler`，0 条 `httpInvokeJobHandler`：
+
+| 通道 | 形态 | 状态 |
+|---|---|---|
+| 新（现行） | `job_info.job_code=crm.*` + `httpJobHandler` → 执行器寻址 → `POST /internal/job/{code}/run` → `@ScheduledJob` 方法直调应用服务 | 10/10 存在且启用 |
+| 旧（已被取代） | `job_info` 1001–1009 + `httpInvokeJobHandler` → 直连 `/crm/internal/**` 控制器 | 无行；种子脚本因版本撞号在合并时删除 |
+
+结论：任务没有漏调度，4 个 `/crm/internal/**` 控制器是同一批能力的**手工触发入口**，不是调度链路。
+残留风险在「已应用过旧种子脚本的环境」——删脚本不删行，那些环境会两套行并存、同一任务跑两遍；
+`whale-job` 的 `V13__disable_legacy_http_invoke_jobs.sql` 按「等价 job_code 已启用」为条件停用旧行（幂等）。
+这些环境还需一次 `flyway repair` 清掉 V2/V3/V4 的历史行（脚本已删），否则校验期拒启；
+`validate-on-migrate` 已改为可被 `WHALE_FLYWAY_VALIDATE_ON_MIGRATE` 临时覆盖。
+
+### 9.2 OA 附件归属校验收敛为唯一实现
+
+删除远程并行实现的 `FileMetaGateway` / `FileMetaGatewayImpl`（第二份 whale-file 客户端、无租户头），
+`FileRefAppServiceImpl.register` 改为委托 `AttachmentOwnershipGuard`（守卫返回元数据，文件名/大小/MIME 复用，
+一次请求只回查一次文件服务）；请假登记处不再「先守卫再登记」重复校验两次。
+错误码收敛为 `ATTACHMENT_NOT_FOUND(40443)` / `ATTACHMENT_FORBIDDEN(40307)` / `ATTACHMENT_UNAVAILABLE(50310)`，
+`FILE_REF_FORBIDDEN` / `FILE_REF_UNAVAILABLE` 两个别名常量与映射一并删除（同码值双常量正是上次类初始化失败的根因）。
+
+验证：`whale-oa` 288 用例、`whale-job` 102 用例全绿；三模块 `checkstyle:check` 0 违例。
