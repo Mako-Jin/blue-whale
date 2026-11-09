@@ -61,9 +61,8 @@ whale:
     follow-up-page-limit: ${WHALE_CRM_FOLLOW_UP_PAGE_LIMIT:100}
     contract-reference-enabled: ${WHALE_CRM_CONTRACT_REFERENCE_ENABLED:false}
     default-customer-level: ${WHALE_CRM_DEFAULT_CUSTOMER_LEVEL:C}
-    # 公海自动回收：默认关闭，由运维确认规则后开启
+    # 公海自动回收：默认关闭，由运维确认规则后开启；调度已迁移 whale-job（job_info 1009）
     pool-recycle-enabled: ${WHALE_CRM_POOL_RECYCLE_ENABLED:false}
-    pool-recycle-cron: ${WHALE_CRM_POOL_RECYCLE_CRON:0 0 2 * * ?}
     pool-recycle-batch-size: ${WHALE_CRM_POOL_RECYCLE_BATCH_SIZE:200}
     customer-import-max-rows: ${WHALE_CRM_CUSTOMER_IMPORT_MAX_ROWS:1000}
     customer-export-max-rows: ${WHALE_CRM_CUSTOMER_EXPORT_MAX_ROWS:5000}
@@ -81,7 +80,6 @@ whale:
       connect-timeout-millis: ${WHALE_CRM_CONTRACT_CONNECT_TIMEOUT:1000}
       read-timeout-millis: ${WHALE_CRM_CONTRACT_READ_TIMEOUT:3000}
       expiring-days: ${WHALE_CRM_CONTRACT_EXPIRING_DAYS:30}
-      sync-cron: ${WHALE_CRM_CONTRACT_SYNC_CRON:0 0 3 * * ?}
       sync-batch-size: ${WHALE_CRM_CONTRACT_SYNC_BATCH_SIZE:200}
     # 商务订单审批（whale-workflow）：缺少 definition-id 时提交审批失败关闭
     order-approval:
@@ -90,14 +88,12 @@ whale:
       workflow-url: ${WHALE_WORKFLOW_URL:http://127.0.0.1:8083}
       connect-timeout-millis: ${WHALE_CRM_ORDER_APPROVAL_CONNECT_TIMEOUT:1000}
       read-timeout-millis: ${WHALE_CRM_ORDER_APPROVAL_READ_TIMEOUT:3000}
-    # 商务订单下发 ERP（whale-erp 内网）：默认关闭，联调时开启
+    # 商务订单下发 ERP（whale-erp 内网）：默认关闭，联调时开启；调度已迁移 whale-job（job_info 1005/1006）
     erp:
       enabled: ${WHALE_CRM_ERP_ENABLED:false}
       base-url: ${WHALE_ERP_URL:http://127.0.0.1:9001}
       connect-timeout-millis: ${WHALE_CRM_ERP_CONNECT_TIMEOUT:1000}
       read-timeout-millis: ${WHALE_CRM_ERP_READ_TIMEOUT:3000}
-      push-cron: ${WHALE_CRM_ERP_PUSH_CRON:0 * * * * ?}
-      reconcile-cron: ${WHALE_CRM_ERP_RECONCILE_CRON:0 */10 * * * ?}
       batch-size: ${WHALE_CRM_ERP_BATCH_SIZE:100}
       max-attempts: ${WHALE_CRM_ERP_MAX_ATTEMPTS:8}
       backoff-base-minutes: ${WHALE_CRM_ERP_BACKOFF_BASE_MINUTES:1}
@@ -109,13 +105,12 @@ whale:
       workflow-url: ${WHALE_WORKFLOW_URL:http://127.0.0.1:8083}
       connect-timeout-millis: ${WHALE_CRM_INVOICE_APPROVAL_CONNECT_TIMEOUT:1000}
       read-timeout-millis: ${WHALE_CRM_INVOICE_APPROVAL_READ_TIMEOUT:3000}
-    # 应收快照对账（whale-erp 内网只读）：默认关闭，联调时开启
+    # 应收快照对账（whale-erp 内网只读）：默认关闭，联调时开启；调度已迁移 whale-job（job_info 1007）
     ar:
       enabled: ${WHALE_CRM_AR_ENABLED:false}
       base-url: ${WHALE_ERP_URL:http://127.0.0.1:9001}
       connect-timeout-millis: ${WHALE_CRM_AR_CONNECT_TIMEOUT:1000}
       read-timeout-millis: ${WHALE_CRM_AR_READ_TIMEOUT:3000}
-      sync-cron: ${WHALE_CRM_AR_SYNC_CRON:0 30 2 * * ?}
       batch-size: ${WHALE_CRM_AR_BATCH_SIZE:200}
     # 营销管理（M5）：触达走 whale-message，同一活动同一联系人同一渠道只发一次
     marketing:

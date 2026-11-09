@@ -28,12 +28,6 @@ public class CrmErpProperties {
     /** 读取超时（毫秒） */
     private int readTimeoutMillis = 3000;
 
-    /** 下发扫描 Cron */
-    private String pushCron = "0 * * * * ?";
-
-    /** 对账 Cron */
-    private String reconcileCron = "0 */10 * * * ?";
-
     /** 单批扫描条数 */
     private int batchSize = 100;
 

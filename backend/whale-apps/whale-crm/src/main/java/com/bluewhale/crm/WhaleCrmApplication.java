@@ -17,7 +17,6 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
-import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * 客户关系应用启动类（Wave 5.83，M0 底座 + M1 客户主数据）。
@@ -31,7 +30,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  */
 @SpringBootApplication
 @EnableDiscoveryClient
-@EnableScheduling
+// 定时任务已全部迁移 whale-job 调度中心（2026-11-09 第八/十一批），不再需要 @EnableScheduling
 @EnableConfigurationProperties({CrmProperties.class, CrmQuoteApprovalProperties.class, CrmContractProperties.class,
         CrmErpProperties.class, CrmOrderApprovalProperties.class, CrmInvoiceApprovalProperties.class,
         CrmArProperties.class, CrmServiceProperties.class, CrmDocsProperties.class, CrmSurveyProperties.class,

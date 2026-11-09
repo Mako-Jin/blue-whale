@@ -28,9 +28,6 @@ public class CrmArProperties {
     /** 读取超时（毫秒） */
     private int readTimeoutMillis = 3000;
 
-    /** 定时同步 Cron（默认每天 02:30） */
-    private String syncCron = "0 30 2 * * ?";
-
     /** 单次同步最大客户数 */
     private int batchSize = 200;
 }
