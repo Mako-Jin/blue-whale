@@ -37,10 +37,10 @@ public class VehicleController {
     private final VehicleAppService vehicleAppService;
 
     /**
-     * 车辆分页查询。
+     * 分页查询车辆。
      *
      * @param query 查询条件
-     * @return 分页结果
+     * @return 车辆分页结果
      */
     @GetMapping("/page")
     @RequirePermission("sys:oa:vehicle:list")
@@ -49,10 +49,10 @@ public class VehicleController {
     }
 
     /**
-     * 车辆详情。
+     * 查询车辆详情。
      *
-     * @param id 车辆ID
-     * @return 车辆视图
+     * @param id 车辆 ID
+     * @return 车辆详情
      */
     @GetMapping("/{id}")
     @RequirePermission("sys:oa:vehicle:list")
@@ -61,10 +61,10 @@ public class VehicleController {
     }
 
     /**
-     * 新增车辆。
+     * 创建车辆。
      *
-     * @param command 保存命令
-     * @return 车辆视图
+     * @param command 车辆保存命令
+     * @return 创建后的车辆
      */
     @PostMapping
     @RequirePermission("sys:oa:vehicle:add")
@@ -77,9 +77,9 @@ public class VehicleController {
     /**
      * 更新车辆。
      *
-     * @param id 车辆ID
-     * @param command 保存命令
-     * @return 车辆视图
+     * @param id 车辆 ID
+     * @param command 车辆保存命令
+     * @return 更新后的车辆
      */
     @PutMapping("/{id}")
     @RequirePermission("sys:oa:vehicle:edit")
@@ -92,7 +92,7 @@ public class VehicleController {
     /**
      * 删除车辆。
      *
-     * @param id 车辆ID
+     * @param id 车辆 ID
      */
     @DeleteMapping("/{id}")
     @RequirePermission("sys:oa:vehicle:delete")
@@ -103,10 +103,10 @@ public class VehicleController {
     }
 
     /**
-     * 司机分页查询。
+     * 分页查询司机。
      *
      * @param query 查询条件
-     * @return 分页结果
+     * @return 司机分页结果
      */
     @GetMapping("/drivers/page")
     @RequirePermission("sys:oa:vehicle:list")
@@ -115,10 +115,10 @@ public class VehicleController {
     }
 
     /**
-     * 新增司机。
+     * 创建司机。
      *
-     * @param command 保存命令
-     * @return 司机视图
+     * @param command 司机保存命令
+     * @return 创建后的司机
      */
     @PostMapping("/drivers")
     @RequirePermission("sys:oa:vehicle:add")
@@ -131,9 +131,9 @@ public class VehicleController {
     /**
      * 更新司机。
      *
-     * @param id 司机ID
-     * @param command 保存命令
-     * @return 司机视图
+     * @param id 司机 ID
+     * @param command 司机保存命令
+     * @return 更新后的司机
      */
     @PutMapping("/drivers/{id}")
     @RequirePermission("sys:oa:vehicle:edit")
@@ -146,7 +146,7 @@ public class VehicleController {
     /**
      * 删除司机。
      *
-     * @param id 司机ID
+     * @param id 司机 ID
      */
     @DeleteMapping("/drivers/{id}")
     @RequirePermission("sys:oa:vehicle:delete")
@@ -157,10 +157,10 @@ public class VehicleController {
     }
 
     /**
-     * 用车申请分页查询。
+     * 分页查询用车申请。
      *
      * @param query 查询条件
-     * @return 分页结果
+     * @return 用车申请分页结果
      */
     @GetMapping("/bookings/page")
     @RequirePermission("sys:oa:vehicle:list")
@@ -169,10 +169,10 @@ public class VehicleController {
     }
 
     /**
-     * 用车申请详情。
+     * 查询用车申请详情。
      *
-     * @param id 用车申请ID
-     * @return 用车申请视图
+     * @param id 用车申请 ID
+     * @return 用车申请详情
      */
     @GetMapping("/bookings/{id}")
     @RequirePermission("sys:oa:vehicle:list")
@@ -181,10 +181,10 @@ public class VehicleController {
     }
 
     /**
-     * 新建用车申请。
+     * 创建用车申请。
      *
-     * @param command 保存命令
-     * @return 用车申请视图
+     * @param command 用车申请保存命令
+     * @return 创建后的用车申请
      */
     @PostMapping("/bookings")
     @RequirePermission("sys:oa:vehicle:booking:add")
@@ -197,9 +197,9 @@ public class VehicleController {
     /**
      * 更新用车申请。
      *
-     * @param id 用车申请ID
-     * @param command 保存命令
-     * @return 用车申请视图
+     * @param id 用车申请 ID
+     * @param command 用车申请保存命令
+     * @return 更新后的用车申请
      */
     @PutMapping("/bookings/{id}")
     @RequirePermission("sys:oa:vehicle:booking:edit")
@@ -213,7 +213,7 @@ public class VehicleController {
     /**
      * 删除用车申请。
      *
-     * @param id 用车申请ID
+     * @param id 用车申请 ID
      */
     @DeleteMapping("/bookings/{id}")
     @RequirePermission("sys:oa:vehicle:booking:edit")
@@ -227,7 +227,7 @@ public class VehicleController {
     /**
      * 变更用车申请状态。
      *
-     * @param id 用车申请ID
+     * @param id 用车申请 ID
      * @param command 状态变更命令
      */
     @PutMapping("/bookings/{id}/status")
@@ -241,11 +241,11 @@ public class VehicleController {
     }
 
     /**
-     * 用车派车。
+     * 派车调度。
      *
-     * @param id 用车申请ID
+     * @param id 用车申请 ID
      * @param command 派车命令
-     * @return 用车申请视图
+     * @return 派车后的用车申请
      */
     @PostMapping("/bookings/{id}/dispatch")
     @RequirePermission("sys:oa:vehicle:dispatch")
@@ -256,11 +256,11 @@ public class VehicleController {
     }
 
     /**
-     * 回车登记。
+     * 归还车辆并登记回车。
      *
-     * @param id 用车申请ID
-     * @param command 回车命令
-     * @return 用车记录视图
+     * @param id 用车申请 ID
+     * @param command 归还命令
+     * @return 用车使用记录
      */
     @PostMapping("/bookings/{id}/return")
     @RequirePermission("sys:oa:vehicle:return")
@@ -272,10 +272,10 @@ public class VehicleController {
     }
 
     /**
-     * 查询用车记录详情。
+     * 查询用车使用记录。
      *
-     * @param id 用车申请ID
-     * @return 用车记录视图
+     * @param id 用车申请 ID
+     * @return 用车使用记录
      */
     @GetMapping("/bookings/{id}/usage")
     @RequirePermission("sys:oa:vehicle:list")

@@ -15,9 +15,7 @@ import java.time.LocalDateTime;
  */
 public final class ReportRows {
 
-    /**
-     * 私有构造器，避免工具类被实例化。
-     */
+    /** 工具类，禁止实例化。 */
     private ReportRows() {
     }
 

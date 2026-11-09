@@ -6,6 +6,7 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -60,8 +61,17 @@ public class Coupon {
     /** 折扣封顶金额 */
     private BigDecimal maxDiscountAmount;
 
-    /** 适用渠道 ID（空 = 全场通用） */
+    /** 适用渠道 ID（空 = 全场通用，仅 CHANNEL 用） */
     private Long channelId;
+
+    /** 适用范围 */
+    private CouponScope scope;
+
+    /** 适用类目 ID（仅 CATEGORY 用；品类券门槛与优惠只看命中类目商品行） */
+    private List<Long> categoryIds;
+
+    /** 适用 SKU ID（仅 SKU 商品券用；门槛与优惠只看命中 SKU 行） */
+    private List<Long> skuIds;
 
     /** 发行量（0 = 不限） */
     private Integer totalQty;
@@ -103,6 +113,7 @@ public class Coupon {
             throw MallErrorCode.exception(MallErrorCode.COUPON_INVALID, "使用门槛不能为负");
         }
         validateAmountRule();
+        validateScope();
         validatePeriod();
         if (perUserLimit == null || perUserLimit < 1) {
             throw MallErrorCode.exception(MallErrorCode.COUPON_INVALID, "每人限领张数至少为 1");
@@ -215,6 +226,46 @@ public class Coupon {
         }
         maxDiscountAmount = scale(maxDiscountAmount);
         faceAmount = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * 校验适用范围。
+     *
+     * <p>scope 缺省时按老数据口径回落（channelId 非空即单渠道券）；
+     * 品类券必须绑定类目、商品券必须绑定 SKU 且都不允许再绑渠道，单渠道券必须给出渠道——
+     * 半配置的券放出去，买家在渠道 B 用了 A 的渠道券，口径就再也说不清了。</p>
+     */
+    private void validateScope() {
+        if (scope == null) {
+            scope = channelId == null ? CouponScope.ALL : CouponScope.CHANNEL;
+        }
+        if (scope == CouponScope.CHANNEL) {
+            if (channelId == null) {
+                throw MallErrorCode.exception(MallErrorCode.COUPON_INVALID, "单渠道券必须指定适用渠道");
+            }
+            categoryIds = null;
+            skuIds = null;
+            return;
+        }
+        if (scope == CouponScope.CATEGORY) {
+            if (categoryIds == null || categoryIds.isEmpty() || categoryIds.stream().anyMatch(id -> id == null || id <= 0)) {
+                throw MallErrorCode.exception(MallErrorCode.COUPON_INVALID, "品类券必须绑定至少一个有效类目");
+            }
+            channelId = null;
+            skuIds = null;
+            return;
+        }
+        if (scope == CouponScope.SKU) {
+            if (skuIds == null || skuIds.isEmpty() || skuIds.stream().anyMatch(id -> id == null || id <= 0)) {
+                throw MallErrorCode.exception(MallErrorCode.COUPON_INVALID, "商品券必须绑定至少一个有效 SKU");
+            }
+            channelId = null;
+            categoryIds = null;
+            return;
+        }
+        channelId = null;
+        categoryIds = null;
+        skuIds = null;
     }
 
     /**

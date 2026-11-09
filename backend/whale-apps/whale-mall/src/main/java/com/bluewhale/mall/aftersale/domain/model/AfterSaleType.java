@@ -5,9 +5,16 @@ import java.util.Locale;
 /**
  * 售后类型。
  *
- * <p>两者流程同构（申请 → 审核 → 退款），差异只在审核时的检查项：
- * 退货退款要等商品退回才能完成，仅退款不需要。用类型字段区分而不是拆两张表，
- * 后续接 WMS 退货入库时也只对 {@code RETURN_REFUND} 生效。</p>
+ * <p>三种类型的差异只在「是否退回商品」与「是否退钱」：</p>
+ * <ul>
+ *   <li>{@code REFUND_ONLY}：不退货，审核通过立即退款。</li>
+ *   <li>{@code RETURN_REFUND}：退货 + 退款，审核通过先进入待退货，确认收货后才退款。</li>
+ *   <li>{@code EXCHANGE}：退货 + 补发新货，不退钱——不占退款额度，
+ *       防超占靠「同一订单行进行中换货单查重」。</li>
+ * </ul>
+ *
+ * <p>用类型字段区分而不是拆多张表：三者的申请、审核、图片、明细完全同构，
+ * 差异只在审核后的走向，拆表只会把同一套额度逻辑复制三份各修各的 bug。</p>
  *
  * @author BlueWhale
  */
@@ -17,15 +24,27 @@ public enum AfterSaleType {
     REFUND_ONLY,
 
     /** 退货退款（需退回商品） */
-    RETURN_REFUND;
+    RETURN_REFUND,
+
+    /** 换货（退回原货、补发新货，不退钱） */
+    EXCHANGE;
 
     /**
      * 是否需要退回商品。
      *
-     * @return 退货退款返回 true
+     * @return 退货退款或换货返回 true
      */
     public boolean requiresReturn() {
-        return this == RETURN_REFUND;
+        return this == RETURN_REFUND || this == EXCHANGE;
+    }
+
+    /**
+     * 是否为换货（不退钱，不占退款额度）。
+     *
+     * @return 换货返回 true
+     */
+    public boolean isExchange() {
+        return this == EXCHANGE;
     }
 
     /**

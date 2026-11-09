@@ -62,8 +62,12 @@ whale:
     order-max-lines: ${WHALE_MALL_ORDER_MAX_LINES:50}
     # 待支付订单自动关闭时长（分钟，0 表示不自动关闭；自动关闭在 M1 由 whale-job 触发）
     order-expire-minutes: ${WHALE_MALL_ORDER_EXPIRE_MINUTES:30}
+    # 待审核售后单超时自动关闭时长（小时，0 表示不自动关闭；应用内定时任务每 5 分钟扫描）
+    after-sale-expire-hours: ${WHALE_MALL_AFTER_SALE_EXPIRE_HOURS:48}
     # 列表分页上限
     page-limit: ${WHALE_MALL_PAGE_LIMIT:100}
+    # 一单最多叠加的优惠券张数（折扣券固定最多 1 张，写在代码里）
+    coupon-max-per-order: ${WHALE_MALL_COUPON_MAX_PER_ORDER:2}
     # 支付/退款成功回调地址（<服务名>/<路径>，创建支付单时传给 whale-pay）
     pay-notify-url: ${WHALE_MALL_PAY_NOTIFY_URL:whale-mall/mall/internal/order/paid}
     # whale-pay 内网客户端（服务间直连，不经网关）

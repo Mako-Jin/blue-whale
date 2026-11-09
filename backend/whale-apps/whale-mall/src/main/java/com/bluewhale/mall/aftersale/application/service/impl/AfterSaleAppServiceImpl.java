@@ -2,6 +2,8 @@ package com.bluewhale.mall.aftersale.application.service.impl;
 
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.mall.aftersale.application.command.AfterSaleApplyCommand;
+import com.bluewhale.mall.aftersale.application.command.AfterSaleExchangeShipCommand;
+import com.bluewhale.mall.aftersale.application.command.AfterSaleReturnLogisticsCommand;
 import com.bluewhale.mall.aftersale.application.service.AfterSaleAppService;
 import com.bluewhale.mall.aftersale.application.view.AfterSaleLineView;
 import com.bluewhale.mall.aftersale.application.view.AfterSaleView;
@@ -20,7 +22,12 @@ import com.bluewhale.mall.order.domain.model.OrderLog;
 import com.bluewhale.mall.order.domain.model.OrderStatus;
 import com.bluewhale.mall.order.domain.repository.OrderRepository;
 import com.bluewhale.mall.order.infrastructure.client.PayInternalClient;
+import com.bluewhale.mall.shipment.application.command.ShipmentCreateCommand;
+import com.bluewhale.mall.shipment.application.command.ShipmentLineCommand;
+import com.bluewhale.mall.shipment.application.service.ShipmentAppService;
+import com.bluewhale.mall.shipment.application.view.ShipmentView;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -33,6 +40,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -44,16 +52,20 @@ import java.util.Set;
  * <p>三条不变量贯穿全流程：</p>
  * <ol>
  *   <li><b>金额只有一个算源</b>：{@code refundAmount} 由明细汇总，明细金额由订单行快照价 × 数量算，
- *       命令里传不了金额。</li>
+ *       命令里传不了金额。换货是唯一例外——换货不退钱，明细金额记 0，防超占改走查重。</li>
  *   <li><b>额度只在数据库里判断</b>：行级可退数量走条件更新，先查再改在并发下必然超额。</li>
  *   <li><b>驳回和撤销必须还额度</b>：占了不还，商品被驳回一次就再也申请不了售后。</li>
  * </ol>
+ *
+ * <p>退货类（退货退款 / 换货）审核通过不再立即退款：先进待退货，买家寄回、运营确认
+ * 收货后，退货退款才发起退款，换货走补发发货单。仅退款行为不变。</p>
  *
  * <p>整单退款不单独实现，只是「覆盖全部可退行 + 直接通过审核」的一次应用，
  * 与买家申请走同一段代码。</p>
  *
  * @author BlueWhale
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AfterSaleAppServiceImpl implements AfterSaleAppService {
@@ -91,6 +103,9 @@ public class AfterSaleAppServiceImpl implements AfterSaleAppService {
     /** 优惠券应用服务（整单退满后退券） */
     private final CouponAppService couponAppService;
 
+    /** 发货单应用服务（换货补发复用发货链路） */
+    private final ShipmentAppService shipmentAppService;
+
     private final MallProperties properties;
 
     @Override
@@ -102,12 +117,20 @@ public class AfterSaleAppServiceImpl implements AfterSaleAppService {
             throw MallErrorCode.exception(MallErrorCode.AFTER_SALE_NOT_OWNER);
         }
         assertRefundable(order);
+        AfterSaleType type = parseType(command.getType());
         List<AfterSaleItem> items = buildItems(order, command.getLines());
+        if (type.isExchange()) {
+            // 换货不占退款额度，防超占靠查重：同一行存在进行中换货单则拒绝
+            assertNoActiveExchange(items);
+            zeroExchangeAmounts(items);
+        }
         MallAfterSale afterSale = MallAfterSale.create(newAfterSaleNo(), order.getId(), order.getOrderNo(),
-                userId, parseType(command.getType()), command.getReason(), command.getDescription(),
+                userId, type, command.getReason(), command.getDescription(),
                 command.getImages(), items);
         afterSale.setReturnLogisticsNo(command.getReturnLogisticsNo());
-        occupyQuota(afterSale, order);
+        if (!type.isExchange()) {
+            occupyQuota(afterSale, order);
+        }
         afterSaleRepository.insert(afterSale);
         orderRepository.appendLog(order.getId(), actorLog(ACTION_APPLY, statusName(order), statusName(order),
                 actor, "申请售后 " + afterSale.getAfterSaleNo() + "，金额 " + afterSale.getRefundAmount()));
@@ -121,8 +144,14 @@ public class AfterSaleAppServiceImpl implements AfterSaleAppService {
         MallAfterSale afterSale = requireAfterSale(id);
         MallOrder order = requireOrder(afterSale.getOrderId());
         afterSale.approve(actor.getUserId(), actor.getUsername(), remark);
-        assertRemainingAmount(order, afterSale.getRefundAmount());
         afterSaleRepository.update(afterSale);
+        if (afterSale.getType() != null && afterSale.getType().requiresReturn()) {
+            // 退货类先进待退货：钱和货只能先动一个，确认收货后才走退款或补发
+            orderRepository.appendLog(order.getId(), actorLog(ACTION_APPLY, statusName(order), statusName(order),
+                    actor, "售后 " + afterSale.getAfterSaleNo() + " 审核通过，等待买家退回商品"));
+            return;
+        }
+        assertRemainingAmount(order, afterSale.getRefundAmount());
         orderRepository.appendLog(order.getId(), actorLog(ACTION_APPLY, statusName(order), statusName(order),
                 actor, "售后 " + afterSale.getAfterSaleNo() + " 审核通过，发起退款"));
         if (!StringUtils.hasText(order.getPayNo())) {
@@ -131,6 +160,97 @@ public class AfterSaleAppServiceImpl implements AfterSaleAppService {
         // 远端失败抛异常回滚，售后单状态与行额度占用一并撤销
         payInternalClient.refund(order.getPayNo(), afterSale.getAfterSaleNo(),
                 afterSale.getRefundAmount(), afterSale.getReason());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void fillReturnLogistics(Long id, AfterSaleReturnLogisticsCommand command, MallActor actor) {
+        Long userId = actor.requireUserId();
+        MallAfterSale afterSale = requireAfterSale(id);
+        if (!userId.equals(afterSale.getUserId()) && !actor.isOperator()) {
+            throw MallErrorCode.exception(MallErrorCode.AFTER_SALE_NOT_OWNER);
+        }
+        afterSale.fillReturnLogistics(command == null ? null : command.getReturnLogisticsNo());
+        afterSaleRepository.update(afterSale);
+        MallOrder order = requireOrder(afterSale.getOrderId());
+        orderRepository.appendLog(afterSale.getOrderId(), actorLog(ACTION_APPLY, statusName(order), statusName(order), actor,
+                "售后 " + afterSale.getAfterSaleNo() + " 已回填退货物流单号 " + afterSale.getReturnLogisticsNo()));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void confirmReturn(Long id, MallActor actor) {
+        requireOperator(actor, "只有商城运营可以确认退货收货");
+        MallAfterSale afterSale = requireAfterSale(id);
+        MallOrder order = requireOrder(afterSale.getOrderId());
+        afterSale.confirmReturn();
+        afterSaleRepository.update(afterSale);
+        if (afterSale.getType() != null && afterSale.getType().isExchange()) {
+            // 换货：收到退货后进补发等待位，不退钱
+            orderRepository.appendLog(order.getId(), actorLog(ACTION_APPLY, statusName(order), statusName(order), actor,
+                    "售后 " + afterSale.getAfterSaleNo() + " 已确认收货，待补发新货"));
+            return;
+        }
+        // 退货退款：确认收货后走既有退款路径（与仅退款审核通过同构）
+        assertRemainingAmount(order, afterSale.getRefundAmount());
+        orderRepository.appendLog(order.getId(), actorLog(ACTION_APPLY, statusName(order), statusName(order), actor,
+                "售后 " + afterSale.getAfterSaleNo() + " 确认收货，发起退款"));
+        if (!StringUtils.hasText(order.getPayNo())) {
+            throw MallErrorCode.exception(MallErrorCode.ORDER_REFUND_FAILED, "订单尚未创建支付单，无法退款");
+        }
+        payInternalClient.refund(order.getPayNo(), afterSale.getAfterSaleNo(),
+                afterSale.getRefundAmount(), afterSale.getReason());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ShipmentView createExchangeShipment(Long id, AfterSaleExchangeShipCommand command, MallActor actor) {
+        requireOperator(actor, "只有商城运营可以补发换货");
+        MallAfterSale afterSale = requireAfterSale(id);
+        if (afterSale.getType() == null || !afterSale.getType().isExchange()) {
+            throw MallErrorCode.exception(MallErrorCode.AFTER_SALE_STATUS_INVALID, "只有换货单可以创建补发发货单");
+        }
+        // 明细固定为售后单的换货行，服务端构造，不给「补发别的商品」留口子；
+        // 行可发数量的占用复用发货链路的条件更新，语义不变
+        ShipmentCreateCommand shipmentCommand = new ShipmentCreateCommand();
+        shipmentCommand.setOrderId(afterSale.getOrderId());
+        shipmentCommand.setCarrierCode(command.getCarrierCode());
+        shipmentCommand.setCarrierName(command.getCarrierName());
+        shipmentCommand.setTrackingNo(command.getTrackingNo());
+        shipmentCommand.setRemark(command.getRemark());
+        List<ShipmentLineCommand> lines = new ArrayList<>(afterSale.getItems().size());
+        for (AfterSaleItem item : afterSale.getItems()) {
+            ShipmentLineCommand line = new ShipmentLineCommand();
+            line.setOrderItemId(item.getOrderItemId());
+            line.setQuantity(item.getQuantity());
+            lines.add(line);
+        }
+        shipmentCommand.setItems(lines);
+        ShipmentView shipment = shipmentAppService.create(shipmentCommand, actor);
+        afterSale.markExchanged();
+        afterSaleRepository.update(afterSale);
+        MallOrder order = requireOrder(afterSale.getOrderId());
+        orderRepository.appendLog(afterSale.getOrderId(), actorLog(ACTION_APPLY, statusName(order), statusName(order), actor,
+                "换货 " + afterSale.getAfterSaleNo() + " 补发发货单 " + shipment.getShipmentNo()));
+        return shipment;
+    }
+
+    @Override
+    public List<MallAfterSale> listExpiredCreated(int expireHours, int limit) {
+        LocalDateTime deadline = LocalDateTime.now().minusHours(expireHours);
+        return afterSaleRepository.listExpiredCreated(deadline, limit);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void closeExpired(Long id) {
+        MallAfterSale afterSale = requireAfterSale(id);
+        afterSale.expireCancel();
+        afterSaleRepository.update(afterSale);
+        releaseQuota(afterSale);
+        MallOrder order = requireOrder(afterSale.getOrderId());
+        orderRepository.appendLog(afterSale.getOrderId(), systemLog(ACTION_APPLY, statusName(order), statusName(order),
+                "售后 " + afterSale.getAfterSaleNo() + " 超时未审核，已自动关闭"));
     }
 
     @Override
@@ -415,13 +535,51 @@ public class AfterSaleAppServiceImpl implements AfterSaleAppService {
     }
 
     /**
-     * 释还全部行的退款额度（驳回或撤销时）。
+     * 释还全部行的退款额度（驳回、撤销或超时关闭时）。
+     *
+     * <p>换货单从未占用额度，释放反而会把明细数量减成负占用——按类型跳过。</p>
      *
      * @param afterSale 售后单
      */
     private void releaseQuota(MallAfterSale afterSale) {
+        if (afterSale.getType() != null && afterSale.getType().isExchange()) {
+            return;
+        }
         for (AfterSaleItem item : afterSale.getItems()) {
             afterSaleRepository.releaseItemQuota(item.getOrderItemId(), item.getQuantity(), item.getAmount());
+        }
+    }
+
+    /**
+     * 校验换货行没有进行中的换货单。
+     *
+     * <p>换货不占退款额度，防超占只能靠查重：同一行两头补发，仓库会把同一件货
+     * 发两次。资金类售后靠条件更新挡并发，换货靠这里的先查后插（复核在插入前，
+     * 极端并发下最多多一张单，运营审核时可见）。</p>
+     *
+     * @param items 售后明细
+     */
+    private void assertNoActiveExchange(List<AfterSaleItem> items) {
+        Set<Long> orderItemIds = new LinkedHashSet<>();
+        for (AfterSaleItem item : items) {
+            orderItemIds.add(item.getOrderItemId());
+        }
+        if (afterSaleRepository.existsActiveExchange(orderItemIds)) {
+            throw MallErrorCode.exception(MallErrorCode.AFTER_SALE_EXCHANGE_IN_PROGRESS);
+        }
+    }
+
+    /**
+     * 换货行金额一律记 0。
+     *
+     * <p>换货不退钱：金额留在明细上会被汇总进 {@code refundAmount}，
+     * 占用退款额度甚至发起真退款。数量照记——补发要按它占用可发数量。</p>
+     *
+     * @param items 售后明细
+     */
+    private void zeroExchangeAmounts(List<AfterSaleItem> items) {
+        for (AfterSaleItem item : items) {
+            item.setAmount(BigDecimal.ZERO.setScale(AMOUNT_SCALE, RoundingMode.HALF_UP));
         }
     }
 
@@ -530,18 +688,22 @@ public class AfterSaleAppServiceImpl implements AfterSaleAppService {
     /**
      * 构造操作人流水。
      *
+     * <p>订单流水表 {@code mall_order_log.from_status/to_status} 均为非空列；
+     * 售后动作不改变订单状态，from/to 统一记订单当前状态（与发货单取消的同状态记法一致）。</p>
+     *
      * @param action 动作
-     * @param from   原状态
+     * @param from   原状态（可为空，回落到 to）
      * @param to     新状态
      * @param actor  操作人
      * @param remark 说明
      * @return 流水
      */
     private OrderLog actorLog(String action, String from, String to, MallActor actor, String remark) {
+        String status = to != null ? to : from;
         OrderLog log = new OrderLog();
         log.setAction(action);
-        log.setFromStatus(from);
-        log.setToStatus(to);
+        log.setFromStatus(status);
+        log.setToStatus(status);
         log.setOperatorId(actor.getUserId());
         log.setOperatorName(actor.getUsername());
         log.setRemark(remark);
@@ -586,6 +748,7 @@ public class AfterSaleAppServiceImpl implements AfterSaleAppService {
         view.setReason(afterSale.getReason());
         view.setDescription(afterSale.getDescription());
         view.setImages(afterSale.getImages());
+        view.setImagesList(splitImages(afterSale.getImages()));
         view.setAuditUserId(afterSale.getAuditUserId());
         view.setAuditUserName(afterSale.getAuditUserName());
         view.setAuditTime(afterSale.getAuditTime());
@@ -608,5 +771,24 @@ public class AfterSaleAppServiceImpl implements AfterSaleAppService {
             view.getItems().add(line);
         }
         return view;
+    }
+
+    /**
+     * 逗号分隔图片串拆列表（前端展示用）。
+     *
+     * @param images 图片串
+     * @return 图片 URL 列表（空串返回空列表）
+     */
+    private List<String> splitImages(String images) {
+        List<String> result = new ArrayList<>();
+        if (!StringUtils.hasText(images)) {
+            return result;
+        }
+        for (String part : images.split(",")) {
+            if (StringUtils.hasText(part)) {
+                result.add(part.trim());
+            }
+        }
+        return result;
     }
 }

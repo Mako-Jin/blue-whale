@@ -153,10 +153,10 @@ public class CalendarAppServiceImpl implements CalendarAppService {
     }
 
     /**
-     * 查询日程并校验操作人是否为所有者。
+     * 读取日程并校验操作者为所有者。
      *
-     * @param id         日程ID
-     * @param operatorId 操作人用户ID
+     * @param id 日程ID
+     * @param operatorId 操作者用户ID
      * @return 日程实体
      */
     private CalendarEntry requireOwned(Long id, Long operatorId) {
@@ -171,11 +171,11 @@ public class CalendarAppServiceImpl implements CalendarAppService {
     }
 
     /**
-     * 从共享命令中取出指定用户的姓名。
+     * 从共享命令中查找指定用户的姓名。
      *
-     * @param command 共享保存命令
-     * @param userId  用户ID
-     * @return 用户姓名，未匹配到时返回 {@code null}
+     * @param command 共享名单保存命令
+     * @param userId 用户ID
+     * @return 用户姓名，未找到时返回 null
      */
     private static String findUserName(CalendarCommands.ShareSaveCommand command, Long userId) {
         if (command.getUsers() == null) {
@@ -188,9 +188,9 @@ public class CalendarAppServiceImpl implements CalendarAppService {
     }
 
     /**
-     * 将保存命令中的字段填充到日程实体，并校验时间区间与提醒分钟数。
+     * 将保存命令的字段填充到日程实体，并校验时间范围。
      *
-     * @param entry   日程实体
+     * @param entry 日程实体
      * @param command 日程保存命令
      */
     private static void fillEntry(CalendarEntry entry, CalendarCommands.EntrySaveCommand command) {
@@ -211,10 +211,10 @@ public class CalendarAppServiceImpl implements CalendarAppService {
     }
 
     /**
-     * 将日程实体转换为视图对象。
+     * 将日程实体转换为日程列表视图。
      *
      * @param entry 日程实体
-     * @return 日程视图
+     * @return 日程列表视图
      */
     private static CalendarViews.EntryView toView(CalendarEntry entry) {
         CalendarViews.EntryView view = new CalendarViews.EntryView();
@@ -223,9 +223,9 @@ public class CalendarAppServiceImpl implements CalendarAppService {
     }
 
     /**
-     * 将日程实体的字段复制到视图对象。
+     * 将日程实体的字段填充到日程列表视图。
      *
-     * @param view  日程视图
+     * @param view 日程列表视图
      * @param entry 日程实体
      */
     private static void fillView(CalendarViews.EntryView view, CalendarEntry entry) {
@@ -246,10 +246,10 @@ public class CalendarAppServiceImpl implements CalendarAppService {
     }
 
     /**
-     * 将日程共享实体转换为共享视图对象。
+     * 将共享实体转换为共享用户视图。
      *
-     * @param share 日程共享实体
-     * @return 共享视图
+     * @param share 共享实体
+     * @return 共享用户视图
      */
     private static CalendarViews.ShareView toShareView(CalendarShare share) {
         CalendarViews.ShareView view = new CalendarViews.ShareView();

@@ -143,10 +143,10 @@ public class SealUseAppServiceImpl implements SealUseAppService {
     }
 
     /**
-     * 校验申请人是否具备所申请印章的使用授权。
+     * 校验印章与申请人非空且申请人已被授予该印章权限。
      *
-     * @param sealId 印章ID
-     * @param applicantId 申请人用户ID
+     * @param sealId 印章 ID
+     * @param applicantId 申请人 ID
      */
     private void assertGranted(Long sealId, Long applicantId) {
         if (sealId == null || applicantId == null) {
@@ -158,10 +158,10 @@ public class SealUseAppServiceImpl implements SealUseAppService {
     }
 
     /**
-     * 将保存命令中的字段写入用章实体。
+     * 将保存命令中的字段应用到用章申请。
      *
-     * @param sealUse 用章实体
-     * @param command 保存命令
+     * @param sealUse 用章申请
+     * @param command 用章申请保存命令
      */
     private void apply(SealUse sealUse, AdministrativeCommands.SealUseSaveCommand command) {
         sealUse.setApplicant(command.getApplicant());
@@ -175,10 +175,10 @@ public class SealUseAppServiceImpl implements SealUseAppService {
     }
 
     /**
-     * 将附件命令列表转换为用章附件实体列表。
+     * 将用章文件命令转换为用章文件领域对象。
      *
-     * @param commands 附件命令列表
-     * @return 用章附件实体列表
+     * @param commands 用章文件命令列表
+     * @return 用章文件列表
      */
     private List<SealUseFile> buildFiles(List<AdministrativeCommands.SealUseFileCommand> commands) {
         if (commands == null) {
@@ -194,9 +194,9 @@ public class SealUseAppServiceImpl implements SealUseAppService {
     }
 
     /**
-     * 为用章申请登记审批实例，已存在审批实例时直接跳过。
+     * 为用章申请注册审批实例。
      *
-     * @param sealUse 用章实体
+     * @param sealUse 用章申请
      */
     private void registerApproval(SealUse sealUse) {
         if (sealUse.getApprovalInstanceId() != null) {
@@ -217,10 +217,10 @@ public class SealUseAppServiceImpl implements SealUseAppService {
     }
 
     /**
-     * 按ID查询用章申请，不存在时抛出业务异常。
+     * 查询用章申请，不存在时抛出业务异常。
      *
-     * @param id 用章申请ID
-     * @return 用章实体
+     * @param id 用章申请 ID
+     * @return 用章申请
      */
     private SealUse requireSealUse(Long id) {
         return repository.findSealUseById(id)
@@ -228,9 +228,9 @@ public class SealUseAppServiceImpl implements SealUseAppService {
     }
 
     /**
-     * 将用章实体转换为视图对象。
+     * 将用章申请领域对象转换为视图。
      *
-     * @param sealUse 用章实体
+     * @param sealUse 用章申请
      * @return 用章申请视图
      */
     private AdministrativeViews.SealUseView toView(SealUse sealUse) {

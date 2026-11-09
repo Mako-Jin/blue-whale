@@ -572,6 +572,27 @@ export function applyAfterSale(body: {
   return http.post<number>('/mall/after-sale', body);
 }
 
+/** whale-file 上传结果（与后端 FileUploadVO 字段对齐，售后凭证只需要 id） */
+export interface MallUploadedFile {
+  id: number;
+  fileName?: string;
+  originalName?: string;
+  fileSize?: number;
+  contentType?: string;
+}
+
+/** 上传售后凭证图片（复用平台 /file/upload，返回可访问的下载 URL） */
+export function uploadAfterSaleImage(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', file);
+  return http.upload<MallUploadedFile>('/file/upload', formData).then((result) => {
+    if (!result?.id) {
+      throw new Error('上传成功但未返回文件标识');
+    }
+    return `/file/${result.id}/download`;
+  });
+}
+
 /** 我的售后分页 */
 export function pageMyAfterSale(query: {
   status?: string;

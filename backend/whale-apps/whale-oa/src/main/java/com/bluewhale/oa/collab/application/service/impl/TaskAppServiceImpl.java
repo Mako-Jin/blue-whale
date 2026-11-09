@@ -142,10 +142,10 @@ public class TaskAppServiceImpl implements TaskAppService {
     // ---------------------------------------------------------------- 私有方法
 
     /**
-     * 按标识获取任务，不存在时抛出业务异常。
+     * 查询任务，不存在时抛出业务异常。
      *
-     * @param id 任务标识
-     * @return 任务实体
+     * @param id 任务ID
+     * @return 任务模型
      */
     private OaTask requireTask(Long id) {
         OaTask task = repository.findTask(id);
@@ -156,9 +156,9 @@ public class TaskAppServiceImpl implements TaskAppService {
     }
 
     /**
-     * 将任务实体转换为任务视图。
+     * 将任务模型转换为任务视图。
      *
-     * @param task 任务实体
+     * @param task 任务模型
      * @return 任务视图
      */
     private static CollabViews.TaskView toTaskView(OaTask task) {
@@ -181,9 +181,9 @@ public class TaskAppServiceImpl implements TaskAppService {
     }
 
     /**
-     * 将任务评论实体转换为评论视图。
+     * 将任务评论模型转换为评论视图。
      *
-     * @param comment 任务评论实体
+     * @param comment 评论模型
      * @return 评论视图
      */
     private static CollabViews.CommentView toCommentView(TaskComment comment) {

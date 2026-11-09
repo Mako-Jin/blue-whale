@@ -3,6 +3,7 @@ package com.bluewhale.alert.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.alert.config.AlertNotifyProperties;
+import com.bluewhale.alert.dto.AlertRecordCreateRequest;
 import com.bluewhale.alert.dto.AlertRecordQueryRequest;
 import com.bluewhale.alert.dto.PrometheusWebhookPayload;
 import com.bluewhale.alert.converter.AlertConverter;
@@ -376,6 +377,103 @@ public class AlertRecordServiceImpl implements AlertRecordService {
         } catch (Exception e) {
             log.warn("告警时间解析失败，使用当前时间: value={}", value);
             return defaultValue;
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int create(AlertRecordCreateRequest request) {
+        if (request == null || !StringUtils.hasText(request.getContent())) {
+            log.warn("内网告警创建请求内容为空，忽略");
+            return 0;
+        }
+        Long previousTenant = TenantContext.get();
+        TenantContext.set(request.getTenantId() == null
+                ? (previousTenant == null ? TenantContext.DEFAULT_TENANT_ID : previousTenant)
+                : request.getTenantId());
+        try {
+            AlertRecord record = new AlertRecord();
+            record.setRuleCode(normalizeRuleCode(request.getRuleCode()));
+            record.setAlertLevel(normalizeLevel(request.getAlertLevel()));
+            record.setContent(truncateContent(request.getContent()));
+            record.setStatus(STATUS_FIRING);
+            record.setFingerprint(resolveFingerprint(request));
+            record.setTriggerTime(request.getTriggerTime() == null
+                    ? LocalDateTime.now() : request.getTriggerTime());
+            if (isDuplicate(record)) {
+                log.info("窗口内重复内网告警已去重: ruleCode={}, fingerprint={}",
+                        record.getRuleCode(), record.getFingerprint());
+                return 0;
+            }
+            alertRecordMapper.insert(record);
+            AlertRule rule = StringUtils.hasText(record.getRuleCode())
+                    ? findRule(record.getRuleCode()) : null;
+            if (rule != null && rule.getStatus() != null && rule.getStatus() == RULE_ENABLED) {
+                alertNotifyService.notify(rule, record);
+            }
+            return 1;
+        } finally {
+            TenantContext.set(previousTenant);
+        }
+    }
+
+    /**
+     * 归一化规则编码（空值记为 {@code external}，便于按来源检索）。
+     *
+     * @param ruleCode 原始规则编码
+     * @return 规则编码
+     */
+    private static String normalizeRuleCode(String ruleCode) {
+        return StringUtils.hasText(ruleCode) ? ruleCode.trim() : "external";
+    }
+
+    /**
+     * 归一化告警级别（未知值回落 {@code WARN}）。
+     *
+     * @param level 原始级别
+     * @return INFO / WARN / ERROR / CRITICAL
+     */
+    private static String normalizeLevel(String level) {
+        if (!StringUtils.hasText(level)) {
+            return "WARN";
+        }
+        String normalized = level.trim().toUpperCase(Locale.ROOT);
+        return switch (normalized) {
+            case "INFO", "WARN", "ERROR", "CRITICAL" -> normalized;
+            default -> "WARN";
+        };
+    }
+
+    /**
+     * 截断告警内容到列宽。
+     *
+     * @param content 原始内容
+     * @return 最长 {@value #MAX_CONTENT_LENGTH} 字符
+     */
+    private static String truncateContent(String content) {
+        String trimmed = content.trim();
+        return trimmed.length() > MAX_CONTENT_LENGTH
+                ? trimmed.substring(0, MAX_CONTENT_LENGTH) : trimmed;
+    }
+
+    /**
+     * 解析内网告警指纹：请求已带则直接用，否则按「规则编码 + 内容」计算 SHA-256。
+     *
+     * @param request 创建请求
+     * @return 最长 64 字符指纹
+     */
+    private static String resolveFingerprint(AlertRecordCreateRequest request) {
+        if (StringUtils.hasText(request.getFingerprint())) {
+            return truncateFingerprint(request.getFingerprint().trim());
+        }
+        String canonical = normalizeRuleCode(request.getRuleCode()) + "|" + request.getContent().trim();
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(canonical.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException e) {
+            log.warn("内网告警指纹计算失败（SHA-256 不可用）: reason={}", e.getMessage());
+            return truncateFingerprint(canonical);
         }
     }
 

@@ -91,10 +91,10 @@ public class ErpPurchaseGatewayImpl implements ErpPurchaseGateway {
     }
 
     /**
-     * 向 ERP 内网提交采购订单草稿请求。
+     * 发起 ERP 服务内网 POST 请求。
      *
      * @param body 请求体
-     * @return ERP 响应信封
+     * @return 响应信封
      */
     private Map<String, Object> post(Object body) {
         try {
@@ -109,9 +109,9 @@ public class ErpPurchaseGatewayImpl implements ErpPurchaseGateway {
     }
 
     /**
-     * 将当前请求上下文的租户、用户信息写入内网请求头。
+     * 填充当前请求上下文的租户、用户与用户名请求头。
      *
-     * @param headers 请求头
+     * @param headers HTTP 请求头
      */
     private void applyIdentity(HttpHeaders headers) {
         Long tenantId = RequestContextHolder.getTenantId();
@@ -129,10 +129,10 @@ public class ErpPurchaseGatewayImpl implements ErpPurchaseGateway {
     }
 
     /**
-     * 校验 ERP 响应信封的业务码并取出数据部分。
+     * 校验响应信封的业务码并返回数据体。
      *
-     * @param response ERP 响应信封
-     * @return 响应中的数据部分
+     * @param response 响应信封
+     * @return 响应数据体
      */
     private Object requireSuccess(Map<String, Object> response) {
         if (response == null) {
@@ -149,7 +149,7 @@ public class ErpPurchaseGatewayImpl implements ErpPurchaseGateway {
     }
 
     /**
-     * 构建携带内网令牌的 REST 客户端。
+     * 获取带内网令牌的 REST 客户端。
      *
      * @return REST 客户端
      */
@@ -158,9 +158,9 @@ public class ErpPurchaseGatewayImpl implements ErpPurchaseGateway {
     }
 
     /**
-     * 解析 ERP 服务的实例地址。
+     * 获取 ERP 服务实例的基础地址。
      *
-     * @return 服务基础地址
+     * @return ERP 服务基础地址
      */
     private String baseUrl() {
         List<ServiceInstance> instances = discoveryClient.getInstances(SERVICE_NAME);

@@ -109,6 +109,9 @@ public class MallCouponController {
     /**
      * 当前订单可用的券（含不可用及原因）。
      *
+     * <p>该端点没有订单类目上下文，品类券只会显示「无适用类目/未达门槛」，
+     * 精确的判定在下单试算里进行。</p>
+     *
      * @param channelId   渠道 ID
      * @param goodsAmount 商品总额
      * @param request     当前请求
@@ -120,7 +123,8 @@ public class MallCouponController {
             @RequestParam("channelId") Long channelId,
             @RequestParam(value = "amount", required = false) BigDecimal goodsAmount,
             HttpServletRequest request) {
-        return Result.ok(couponAppService.available(channelId, goodsAmount, MallActorContext.from(request)));
+        return Result.ok(couponAppService.available(channelId, goodsAmount, null,
+                MallActorContext.from(request)));
     }
 
     /**

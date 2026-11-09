@@ -320,10 +320,10 @@ public class DocumentRepositoryImpl implements DocumentRepository {
     }
 
     /**
-     * 将公文模板实体转换为领域模型。
+     * 将模板实体转换为领域模型。
      *
-     * @param entity 公文模板实体
-     * @return 公文模板领域模型
+     * @param entity 模板实体
+     * @return 模板领域模型
      */
     private DocTemplate toTemplate(DocTemplateEntity entity) {
         DocTemplate model = new DocTemplate();
@@ -368,10 +368,10 @@ public class DocumentRepositoryImpl implements DocumentRepository {
     }
 
     /**
-     * 将公文附件实体转换为领域模型。
+     * 将附件实体转换为领域模型。
      *
-     * @param entity 公文附件实体
-     * @return 公文附件领域模型
+     * @param entity 附件实体
+     * @return 附件领域模型
      */
     private DocAttachment toAttachment(DocAttachmentEntity entity) {
         DocAttachment model = new DocAttachment();
@@ -380,10 +380,10 @@ public class DocumentRepositoryImpl implements DocumentRepository {
     }
 
     /**
-     * 将归档关联实体转换为领域模型。
+     * 将归档记录实体转换为领域模型。
      *
-     * @param entity 归档关联实体
-     * @return 归档关联领域模型
+     * @param entity 归档记录实体
+     * @return 归档记录领域模型
      */
     private DocArchiveRef toArchiveRef(DocArchiveRefEntity entity) {
         DocArchiveRef model = new DocArchiveRef();

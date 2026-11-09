@@ -28,7 +28,7 @@ public class CustomerPageParams {
     /** 行业 */
     private String industry;
 
-    /** 负责人用户ID */
+    /** 负责人（数据范围外的取值由服务端数据权限覆盖） */
     private Long ownerId;
 
     /** 创建时间起 */

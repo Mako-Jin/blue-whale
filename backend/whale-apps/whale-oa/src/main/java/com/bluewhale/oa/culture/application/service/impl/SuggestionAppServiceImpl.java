@@ -106,10 +106,10 @@ public class SuggestionAppServiceImpl implements SuggestionAppService {
     }
 
     /**
-     * 按ID查询建议，不存在时抛出业务异常。
+     * 按主键查询建议，不存在时抛出业务异常。
      *
-     * @param id 建议ID
-     * @return 建议实体
+     * @param id 建议主键
+     * @return 建议领域对象
      */
     private Suggestion requireSuggestion(Long id) {
         Suggestion suggestion = repository.findSuggestion(id);
@@ -120,9 +120,9 @@ public class SuggestionAppServiceImpl implements SuggestionAppService {
     }
 
     /**
-     * 将建议实体转换为视图对象。
+     * 将建议领域对象转换为视图对象。
      *
-     * @param suggestion 建议实体
+     * @param suggestion 建议领域对象
      * @return 建议视图
      */
     private static CultureViews.Suggestion toView(Suggestion suggestion) {
@@ -132,10 +132,10 @@ public class SuggestionAppServiceImpl implements SuggestionAppService {
     }
 
     /**
-     * 将建议实体的字段复制到视图，匿名提交时隐藏提交人信息。
+     * 将建议领域对象字段回填到建议视图，匿名时隐藏提交人信息。
      *
-     * @param view       建议视图
-     * @param suggestion 建议实体
+     * @param view 待填充的建议视图
+     * @param suggestion 建议领域对象
      */
     private static void fillView(CultureViews.Suggestion view, Suggestion suggestion) {
         view.setId(suggestion.getId());
@@ -154,9 +154,9 @@ public class SuggestionAppServiceImpl implements SuggestionAppService {
     }
 
     /**
-     * 将建议回复实体转换为回复视图对象。
+     * 将建议回复领域对象转换为回复视图。
      *
-     * @param reply 建议回复实体
+     * @param reply 建议回复领域对象
      * @return 建议回复视图
      */
     private static CultureViews.SuggestionReply toReplyView(SuggestionReply reply) {

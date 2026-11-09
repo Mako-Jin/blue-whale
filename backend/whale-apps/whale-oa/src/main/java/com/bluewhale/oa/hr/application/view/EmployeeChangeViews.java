@@ -15,9 +15,7 @@ import java.util.List;
  */
 public final class EmployeeChangeViews {
 
-    /**
-     * 私有构造器，避免视图集合类被实例化。
-     */
+    /** 工具类，禁止实例化。 */
     private EmployeeChangeViews() {
     }
 

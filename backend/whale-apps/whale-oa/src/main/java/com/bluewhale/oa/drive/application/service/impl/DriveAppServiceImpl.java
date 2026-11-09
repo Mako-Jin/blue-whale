@@ -439,11 +439,11 @@ public class DriveAppServiceImpl implements DriveAppService {
     }
 
     /**
-     * 将文件夹实体转换为文件夹视图，并附加当前用户的写/管理标记。
+     * 将文件夹模型转换为文件夹视图。
      *
-     * @param folder 文件夹实体
-     * @param writable 是否可写
-     * @param manageable 是否可管理
+     * @param folder 文件夹模型
+     * @param writable 当前用户是否可写
+     * @param manageable 当前用户是否可管理
      * @return 文件夹视图
      */
     private static DriveViews.FolderView toFolderView(DriveFolder folder, boolean writable, boolean manageable) {
@@ -463,9 +463,9 @@ public class DriveAppServiceImpl implements DriveAppService {
     }
 
     /**
-     * 将文件实体转换为文件视图。
+     * 将文件模型转换为文件视图。
      *
-     * @param file 文件实体
+     * @param file 文件模型
      * @return 文件视图
      */
     private static DriveViews.FileView toFileView(DriveFile file) {
@@ -483,10 +483,10 @@ public class DriveAppServiceImpl implements DriveAppService {
     }
 
     /**
-     * 将访问控制实体转换为访问控制视图。
+     * 将授权模型转换为授权视图。
      *
-     * @param acl 访问控制实体
-     * @return 访问控制视图
+     * @param acl 授权模型
+     * @return 授权视图
      */
     private static DriveViews.AclView toAclView(DriveAcl acl) {
         DriveViews.AclView view = new DriveViews.AclView();

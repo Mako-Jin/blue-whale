@@ -1,6 +1,8 @@
 package com.bluewhale.mall.catalog.application.service;
 
 import com.bluewhale.common.core.result.PageResult;
+import com.bluewhale.mall.catalog.application.command.StockInboundCommand;
+import com.bluewhale.mall.catalog.application.view.StockInboundView;
 import com.bluewhale.mall.catalog.application.view.StockView;
 import com.bluewhale.mall.common.MallActor;
 
@@ -31,4 +33,15 @@ public interface StockAppService {
      * @return 调整后的可售数量
      */
     int adjust(Long skuId, int delta, MallActor actor);
+
+    /**
+     * WMS 入库联动（docNo 幂等）。
+     *
+     * <p>把 WMS/ERP 推送的入库数量加回商城可售库存：重复推送同一单号
+     * 直接返回首次入库结果（duplicated = true），绝不二次加库存。</p>
+     *
+     * @param command 入库命令
+     * @return 入库结果
+     */
+    StockInboundView inbound(StockInboundCommand command);
 }

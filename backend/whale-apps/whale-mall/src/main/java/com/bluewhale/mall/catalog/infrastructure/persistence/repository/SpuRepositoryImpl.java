@@ -404,6 +404,7 @@ public class SpuRepositoryImpl implements SpuRepository {
         sku.setSkuCode(entity.getSkuCode());
         sku.setSpecJson(entity.getSpecJson());
         sku.setImageUrl(entity.getImageUrl());
+        sku.setWeightKg(entity.getWeightKg());
         sku.setStatus(entity.getStatus());
         sku.setSortNo(entity.getSortNo());
         sku.setCreateTime(entity.getCreateTime());
@@ -446,6 +447,7 @@ public class SpuRepositoryImpl implements SpuRepository {
         entity.setSkuCode(sku.getSkuCode());
         entity.setSpecJson(sku.getSpecJson());
         entity.setImageUrl(sku.getImageUrl());
+        entity.setWeightKg(sku.getWeightKg());
         entity.setStatus(sku.isEnabled() ? "ENABLED" : "DISABLED");
         entity.setSortNo(sku.getSortNo() == null ? 0 : sku.getSortNo());
         return entity;

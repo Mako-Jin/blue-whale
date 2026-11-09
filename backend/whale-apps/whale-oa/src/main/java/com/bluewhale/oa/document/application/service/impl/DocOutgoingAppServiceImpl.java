@@ -189,10 +189,10 @@ public class DocOutgoingAppServiceImpl implements DocOutgoingAppService {
     }
 
     /**
-     * 查询发文，不存在时抛出业务异常。
+     * 按主键查询发文，不存在时抛出业务异常。
      *
      * @param id 发文主键
-     * @return 发文实体
+     * @return 发文领域对象
      */
     private DocOutgoing requireOutgoing(Long id) {
         DocOutgoing outgoing = repository.findOutgoing(id);
@@ -203,9 +203,9 @@ public class DocOutgoingAppServiceImpl implements DocOutgoingAppService {
     }
 
     /**
-     * 校验发文当前状态是否允许编辑。
+     * 校验发文状态是否可编辑，仅拟稿或审核退回状态允许编辑。
      *
-     * @param status 发文状态
+     * @param status 发文当前状态
      */
     private void assertEditable(String status) {
         if (!DocStatus.OUTGOING_DRAFT.equals(status) && !DocStatus.OUTGOING_REJECTED.equals(status)) {
@@ -214,9 +214,9 @@ public class DocOutgoingAppServiceImpl implements DocOutgoingAppService {
     }
 
     /**
-     * 为发文登记审批实例并回写实例标识。
+     * 为发文登记审批实例，并回写审批实例ID。
      *
-     * @param outgoing 发文实体
+     * @param outgoing 发文领域对象
      */
     private void registerApproval(DocOutgoing outgoing) {
         ApprovalInstanceRegisterCommand command = new ApprovalInstanceRegisterCommand();
@@ -233,9 +233,9 @@ public class DocOutgoingAppServiceImpl implements DocOutgoingAppService {
     }
 
     /**
-     * 用保存命令填充发文实体。
+     * 用保存命令回填发文字段，并解析模板信息。
      *
-     * @param outgoing 待填充的发文实体
+     * @param outgoing 待填充的发文
      * @param command 发文保存命令
      */
     private void apply(DocOutgoing outgoing, DocumentCommands.OutgoingSave command) {
@@ -262,10 +262,10 @@ public class DocOutgoingAppServiceImpl implements DocOutgoingAppService {
     }
 
     /**
-     * 归一化公文分类，非法值回退为通知。
+     * 归一化发文文种，非法或缺失时回落到通知。
      *
-     * @param docType 公文分类
-     * @return 归一化后的公文分类
+     * @param docType 原始文种
+     * @return 归一化后的文种
      */
     private String normalizeCategory(String docType) {
         String value = StringUtils.hasText(docType)
@@ -274,10 +274,10 @@ public class DocOutgoingAppServiceImpl implements DocOutgoingAppService {
     }
 
     /**
-     * 重建发文的附件列表。
+     * 覆盖重建发文附件：先删除既有附件，再按顺序保存新附件。
      *
      * @param docId 发文主键
-     * @param attachments 附件保存命令列表
+     * @param attachments 附件保存命令列表，可为 null
      */
     private void replaceAttachments(Long docId, List<DocumentCommands.AttachmentSave> attachments) {
         repository.deleteAttachments(DocStatus.TYPE_OUTGOING, docId);
@@ -300,9 +300,9 @@ public class DocOutgoingAppServiceImpl implements DocOutgoingAppService {
     }
 
     /**
-     * 将发文实体转换为列表视图。
+     * 将发文领域对象转换为视图对象。
      *
-     * @param outgoing 发文实体
+     * @param outgoing 发文领域对象
      * @return 发文视图
      */
     private DocumentViews.Outgoing toView(DocOutgoing outgoing) {
@@ -312,9 +312,9 @@ public class DocOutgoingAppServiceImpl implements DocOutgoingAppService {
     }
 
     /**
-     * 将发文实体转换为包含附件与归档信息的详情视图。
+     * 将发文领域对象转换为详情视图，附带附件与归档记录。
      *
-     * @param outgoing 发文实体
+     * @param outgoing 发文领域对象
      * @return 发文详情视图
      */
     private DocumentViews.Outgoing toDetail(DocOutgoing outgoing) {
@@ -327,9 +327,9 @@ public class DocOutgoingAppServiceImpl implements DocOutgoingAppService {
     }
 
     /**
-     * 将附件实体转换为附件视图。
+     * 将附件领域对象转换为附件视图。
      *
-     * @param attachment 附件实体
+     * @param attachment 附件领域对象
      * @return 附件视图
      */
     private DocumentViews.Attachment toAttachmentView(DocAttachment attachment) {

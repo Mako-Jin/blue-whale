@@ -6,9 +6,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * {@link BizException} 与 {@link ErrorCode} 单元测试。
- *
- * @author BlueWhale
+ * 通用错误码与业务异常构造语义测试。
  */
 class BizExceptionTest {
 

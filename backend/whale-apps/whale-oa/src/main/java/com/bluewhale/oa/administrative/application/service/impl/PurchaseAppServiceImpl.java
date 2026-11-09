@@ -181,7 +181,7 @@ public class PurchaseAppServiceImpl implements PurchaseAppService {
     }
 
     /**
-     * 将单条采购申请推送至 ERP，成功后回写 ERP 单号并更新推送状态。
+     * 推送单个采购申请至 ERP 创建采购订单草稿。
      *
      * @param purchase 采购申请
      */
@@ -208,7 +208,7 @@ public class PurchaseAppServiceImpl implements PurchaseAppService {
     }
 
     /**
-     * 依据采购申请组装 ERP 采购订单草稿请求。
+     * 构建 ERP 采购订单请求。
      *
      * @param purchase 采购申请
      * @return ERP 采购订单请求
@@ -236,10 +236,10 @@ public class PurchaseAppServiceImpl implements PurchaseAppService {
     }
 
     /**
-     * 将保存命令中的字段填充到采购申请实体。
+     * 将保存命令中的字段应用到采购申请。
      *
      * @param purchase 采购申请
-     * @param command  采购申请保存命令
+     * @param command 采购申请保存命令
      */
     private void apply(PurchaseRequest purchase, AdministrativeCommands.PurchaseSaveCommand command) {
         purchase.setApplicant(command.getApplicant());
@@ -254,10 +254,10 @@ public class PurchaseAppServiceImpl implements PurchaseAppService {
     }
 
     /**
-     * 将采购明细命令转换为采购明细实体，并按顺序编排行号。
+     * 将采购明细命令转换为采购明细领域对象。
      *
-     * @param commands 采购明细命令集合
-     * @return 采购明细实体集合
+     * @param commands 采购明细命令列表
+     * @return 采购明细列表
      */
     private List<PurchaseItem> buildItems(List<AdministrativeCommands.PurchaseItemCommand> commands) {
         int lineNo = 1;
@@ -276,7 +276,7 @@ public class PurchaseAppServiceImpl implements PurchaseAppService {
     }
 
     /**
-     * 为采购申请登记审批实例，并回写审批实例ID。
+     * 为采购申请注册审批实例。
      *
      * @param purchase 采购申请
      */
@@ -298,7 +298,7 @@ public class PurchaseAppServiceImpl implements PurchaseAppService {
     }
 
     /**
-     * 追加采购审批通过事件至 Outbox，供下游异步消费。
+     * 追加采购审批通过的 Outbox 事件。
      *
      * @param purchase 采购申请
      */
@@ -313,10 +313,10 @@ public class PurchaseAppServiceImpl implements PurchaseAppService {
     }
 
     /**
-     * 将采购申请的关键字段序列化为 Outbox 事件载荷。
+     * 序列化采购 Outbox 事件载荷。
      *
      * @param purchase 采购申请
-     * @return JSON 载荷，序列化失败时返回 {@code null}
+     * @return JSON 载荷，序列化失败时返回 null
      */
     private String payload(PurchaseRequest purchase) {
         Map<String, Object> data = new LinkedHashMap<>();
@@ -333,9 +333,9 @@ public class PurchaseAppServiceImpl implements PurchaseAppService {
     }
 
     /**
-     * 按ID查询采购申请，不存在时抛出业务异常。
+     * 查询采购申请，不存在时抛出业务异常。
      *
-     * @param id 采购申请ID
+     * @param id 采购申请 ID
      * @return 采购申请
      */
     private PurchaseRequest requirePurchase(Long id) {
@@ -344,7 +344,7 @@ public class PurchaseAppServiceImpl implements PurchaseAppService {
     }
 
     /**
-     * 将采购申请实体转换为视图对象，含采购明细。
+     * 将采购申请领域对象转换为视图。
      *
      * @param purchase 采购申请
      * @return 采购申请视图

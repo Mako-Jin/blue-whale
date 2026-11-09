@@ -89,6 +89,10 @@ export const menuConfig: MenuNode[] = [
       { key: '/scene/visibility', label: '可见性', permission: 'sys:scene:visibility:manage' },
     ],
   },
+  // AI 助手（whale-assistant 子应用，Wave 6.01；问答入口，定义/用量管理在 admin）
+  { key: '/assistant', label: 'AI 助手', permission: 'sys:assistant:chat' },
+  // IoT 设备联网（whale-iot 子应用，Wave 6.02；产品/设备/遥测/规则四页由子应用内部导航承载）
+  { key: '/iot', label: 'IoT 设备', permission: 'sys:iot:device' },
 ];
 
 /**

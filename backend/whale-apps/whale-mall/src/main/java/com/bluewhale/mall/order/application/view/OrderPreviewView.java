@@ -36,6 +36,12 @@ public class OrderPreviewView {
     /** 商品总额 */
     private BigDecimal goodsAmount;
 
+    /** 原价合计（未含活动与会员让利，对账口径） */
+    private BigDecimal listAmount;
+
+    /** 活动与会员价让利合计 */
+    private BigDecimal activityDiscount;
+
     /** 优惠金额 */
     private BigDecimal discountAmount;
 
@@ -48,11 +54,14 @@ public class OrderPreviewView {
     /** 合计件数 */
     private Integer totalQuantity;
 
-    /** 本次选中的用户券 ID */
+    /** 本次选中的主券用户券 ID（兼容口径，多券明细见 coupons） */
     private Long couponId;
 
-    /** 本次选中的券名称 */
+    /** 本次选中的主券名称（含义同 couponId） */
     private String couponName;
+
+    /** 本次选中的用券明细（一单多券，逐张生效优惠） */
+    private List<OrderCouponView> coupons = new ArrayList<>();
 
     /** 当前订单可用的券（含不可用及原因） */
     private List<CouponUserView> availableCoupons = new ArrayList<>();

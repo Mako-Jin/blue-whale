@@ -30,10 +30,10 @@ public class AfterSaleView {
     /** 买家用户 ID */
     private Long userId;
 
-    /** 类型：REFUND_ONLY / RETURN_REFUND */
+    /** 类型：REFUND_ONLY / RETURN_REFUND / EXCHANGE */
     private String type;
 
-    /** 状态：CREATED / APPROVED / REFUNDED / REJECTED / CANCELLED */
+    /** 状态：CREATED / WAIT_RETURN / APPROVED / REFUNDED / EXCHANGING / EXCHANGED / REJECTED / CANCELLED */
     private String status;
 
     /** 本次申请退款金额 */
@@ -45,8 +45,11 @@ public class AfterSaleView {
     /** 问题描述 */
     private String description;
 
-    /** 凭证图片 */
+    /** 凭证图片（逗号分隔原始串） */
     private String images;
+
+    /** 凭证图片列表（images 拆分，前端直接渲染） */
+    private List<String> imagesList = new ArrayList<>();
 
     /** 审核人 ID */
     private Long auditUserId;

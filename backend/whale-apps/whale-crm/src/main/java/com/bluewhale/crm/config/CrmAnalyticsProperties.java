@@ -19,12 +19,6 @@ public class CrmAnalyticsProperties {
     /** 分析模块开关 */
     private boolean enabled = true;
 
-    /** 指标快照定时任务 Cron（默认每日 02:00） */
-    private String snapshotCron = "0 0 2 * * ?";
-
-    /** 行动计划生成任务 Cron（默认每日 02:30） */
-    private String actionPlanCron = "0 30 2 * * ?";
-
     /** 指标快照保留年数 */
     private int retentionYears = 5;
 
@@ -45,4 +39,10 @@ public class CrmAnalyticsProperties {
 
     /** 逾期应收提醒金额阈值 */
     private String overdueAmountThreshold = "0";
+
+    /** whale-file 服务地址（导出的 CSV 归文件服务统一存储） */
+    private String fileServiceUrl = "http://127.0.0.1:8085";
+
+    /** 导出文件对象存储桶 */
+    private String fileBucket = "bluewhale";
 }

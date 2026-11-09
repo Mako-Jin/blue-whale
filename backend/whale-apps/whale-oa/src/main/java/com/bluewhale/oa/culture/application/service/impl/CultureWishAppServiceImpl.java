@@ -95,11 +95,11 @@ public class CultureWishAppServiceImpl implements CultureWishAppService {
     }
 
     /**
-     * 判断两个日期在月、日上是否相同（用于生日/入职纪念日匹配）。
+     * 判断来源日期与目标日期的月、日是否相同。
      *
-     * @param source 待比较日期，可为空
+     * @param source 来源日期，可为 null
      * @param target 目标日期
-     * @return 月、日相同时返回 {@code true}
+     * @return 月日相同时返回 true
      */
     private static boolean matches(LocalDate source, LocalDate target) {
         return source != null
@@ -108,13 +108,13 @@ public class CultureWishAppServiceImpl implements CultureWishAppService {
     }
 
     /**
-     * 组装生日/入职纪念日条目。
+     * 将员工档案组装为生日 / 入职周年视图。
      *
      * @param profile 员工档案
-     * @param names 用户标识到姓名的映射
-     * @param type 关怀类型
-     * @param years 周年数
-     * @return 生日/纪念日视图
+     * @param names 用户ID到姓名的映射
+     * @param type 祝福类型
+     * @param years 入职周年年限，生日时可为 null
+     * @return 生日 / 入职周年视图
      */
     private static CultureViews.Birthday toBirthday(CultureEmployeeProfile profile, Map<Long, String> names,
                                                     CultureWishType type, Integer years) {
@@ -130,9 +130,9 @@ public class CultureWishAppServiceImpl implements CultureWishAppService {
     }
 
     /**
-     * 将祝福实体转换为祝福视图。
+     * 将祝福领域对象转换为视图对象。
      *
-     * @param wish 祝福实体
+     * @param wish 祝福领域对象
      * @return 祝福视图
      */
     private static CultureViews.Wish toView(CultureWish wish) {

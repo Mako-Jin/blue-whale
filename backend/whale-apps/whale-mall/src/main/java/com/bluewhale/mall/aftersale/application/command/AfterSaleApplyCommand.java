@@ -27,7 +27,7 @@ public class AfterSaleApplyCommand implements Serializable {
     @NotNull(message = "订单不能为空")
     private Long orderId;
 
-    /** 售后类型：REFUND_ONLY 仅退款 / RETURN_REFUND 退货退款 */
+    /** 售后类型：REFUND_ONLY 仅退款 / RETURN_REFUND 退货退款 / EXCHANGE 换货 */
     private String type;
 
     /** 售后原因 */

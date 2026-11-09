@@ -137,9 +137,9 @@ public class DocArchiveAppServiceImpl implements DocArchiveAppService {
     }
 
     /**
-     * 校验公文状态是否满足归档条件。
+     * 校验单据状态是否允许归档：已归档直接放行，仅签发后的发文或办结后的收文可归档。
      *
-     * @param status 公文状态
+     * @param status 单据当前状态
      */
     private void assertArchivable(String status) {
         if (DocStatus.OUTGOING_ARCHIVED.equals(status) || DocStatus.INCOMING_ARCHIVED.equals(status)) {
@@ -151,10 +151,10 @@ public class DocArchiveAppServiceImpl implements DocArchiveAppService {
     }
 
     /**
-     * 按ID查询发文，不存在时抛出业务异常。
+     * 按主键查询发文，不存在时抛出业务异常。
      *
-     * @param id 发文ID
-     * @return 发文实体
+     * @param id 发文主键
+     * @return 发文领域对象
      */
     private DocOutgoing requireOutgoing(Long id) {
         DocOutgoing outgoing = repository.findOutgoing(id);
@@ -165,10 +165,10 @@ public class DocArchiveAppServiceImpl implements DocArchiveAppService {
     }
 
     /**
-     * 按ID查询收文，不存在时抛出业务异常。
+     * 按主键查询收文，不存在时抛出业务异常。
      *
-     * @param id 收文ID
-     * @return 收文实体
+     * @param id 收文主键
+     * @return 收文领域对象
      */
     private DocIncoming requireIncoming(Long id) {
         DocIncoming incoming = repository.findIncoming(id);
@@ -179,9 +179,9 @@ public class DocArchiveAppServiceImpl implements DocArchiveAppService {
     }
 
     /**
-     * 由发文构造归档推送命令，包含元数据快照与附件信息。
+     * 由发文组装归档推送命令，含快照、关键词与附件。
      *
-     * @param outgoing 发文实体
+     * @param outgoing 发文领域对象
      * @return 归档推送命令
      */
     private ArchivePushCommand buildOutgoing(DocOutgoing outgoing) {
@@ -210,9 +210,9 @@ public class DocArchiveAppServiceImpl implements DocArchiveAppService {
     }
 
     /**
-     * 由收文构造归档推送命令，包含元数据快照与附件信息。
+     * 由收文组装归档推送命令，含快照、关键词与附件。
      *
-     * @param incoming 收文实体
+     * @param incoming 收文领域对象
      * @return 归档推送命令
      */
     private ArchivePushCommand buildIncoming(DocIncoming incoming) {
@@ -239,15 +239,15 @@ public class DocArchiveAppServiceImpl implements DocArchiveAppService {
     }
 
     /**
-     * 组装归档推送命令的公共字段，如来源、密级、业务键与快照文件名。
+     * 构建归档推送命令的公共字段，包括来源、标题、密级与业务主键等。
      *
-     * @param docType       公文类型
-     * @param docId         公文ID
-     * @param businessKey   业务键（文号）
-     * @param title         标题
-     * @param securityLevel 密级
-     * @param initiator     发起人标识
-     * @param summary       归档摘要
+     * @param docType 单据类型
+     * @param docId 单据主键
+     * @param businessKey 业务主键（文号）
+     * @param title 标题
+     * @param securityLevel 密级，为空时默认为 2
+     * @param initiator 发起人标识
+     * @param summary 归档摘要
      * @return 归档推送命令
      */
     private ArchivePushCommand baseCommand(String docType, Long docId, String businessKey, String title,
@@ -267,11 +267,11 @@ public class DocArchiveAppServiceImpl implements DocArchiveAppService {
     }
 
     /**
-     * 取公文的首个附件，写入归档命令的原始文件信息。
+     * 将单据的首个附件作为归档原件信息填入推送命令。
      *
      * @param command 归档推送命令
-     * @param docType 公文类型
-     * @param docId   公文ID
+     * @param docType 单据类型
+     * @param docId 单据主键
      */
     private void applyAttachment(ArchivePushCommand command, String docType, Long docId) {
         List<DocAttachment> attachments = repository.listAttachments(docType, docId);
@@ -286,11 +286,11 @@ public class DocArchiveAppServiceImpl implements DocArchiveAppService {
     }
 
     /**
-     * 生成归档来源ID，按公文类型加 {@code OUT-} / {@code IN-} 前缀。
+     * 按单据类型与主键生成归档来源标识。
      *
-     * @param docType 公文类型
-     * @param docId   公文ID
-     * @return 归档来源ID
+     * @param docType 单据类型
+     * @param docId 单据主键
+     * @return 归档来源标识
      */
     private String sourceId(String docType, Long docId) {
         return (DocStatus.TYPE_OUTGOING.equals(docType) ? "OUT-" : "IN-") + docId;
@@ -299,7 +299,7 @@ public class DocArchiveAppServiceImpl implements DocArchiveAppService {
     /**
      * 将归档快照序列化为 JSON，失败时抛出归档不可用异常。
      *
-     * @param snapshot 快照数据
+     * @param snapshot 归档快照
      * @return JSON 字符串
      */
     private String toJson(Map<String, Object> snapshot) {
@@ -312,9 +312,9 @@ public class DocArchiveAppServiceImpl implements DocArchiveAppService {
     }
 
     /**
-     * 截断错误信息，避免超出归档接口的长度限制。
+     * 截断超长错误信息到失败原因最大长度。
      *
-     * @param message 原始错误信息
+     * @param message 原始错误信息，可为 null
      * @return 截断后的错误信息
      */
     private String truncate(String message) {
@@ -325,9 +325,9 @@ public class DocArchiveAppServiceImpl implements DocArchiveAppService {
     }
 
     /**
-     * 将归档记录转换为视图对象，并按公文类型回填文号与标题。
+     * 将归档记录转换为视图，并补全关联单据的文号与标题。
      *
-     * @param ref 归档记录实体
+     * @param ref 归档记录
      * @return 归档记录视图
      */
     private DocumentViews.ArchiveRef toView(DocArchiveRef ref) {

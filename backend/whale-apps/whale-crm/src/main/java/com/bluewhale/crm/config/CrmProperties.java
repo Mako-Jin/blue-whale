@@ -35,9 +35,6 @@ public class CrmProperties {
     /** 公海自动回收是否启用 */
     private boolean poolRecycleEnabled = false;
 
-    /** 公海自动回收 Cron（默认每天 02:00） */
-    private String poolRecycleCron = "0 0 2 * * ?";
-
     /** 单次公海回收最大条数 */
     private int poolRecycleBatchSize = 200;
 

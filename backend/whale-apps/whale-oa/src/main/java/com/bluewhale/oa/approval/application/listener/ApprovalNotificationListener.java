@@ -13,7 +13,8 @@ import org.springframework.transaction.event.TransactionalEventListener;
 /**
  * 审批通知监听器。
  *
- * <p>把审批领域事件转换为站内通知；通知服务内部已做异常兜底，监听器不阻塞事件发布方。</p>
+ * <p>把审批领域事件转换为站内通知。事件在事务提交后、由独立线程池异步投递，
+ * 通知服务内部已做异常兜底，监听器不阻塞事件发布方，也不影响审批事务结果。</p>
  *
  * <p>监听改为 {@code @Async + @TransactionalEventListener(AFTER_COMMIT)}：通知发送不再阻塞审批主链路，
  * 且在事务提交后才执行（事务内发布的事件发布方尚未提交时，同步监听会读不到未提交数据）；
@@ -32,7 +33,7 @@ public class ApprovalNotificationListener {
      *
      * @param event 绑定事件
      */
-    @Async
+    @Async("oaNotificationExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onWorkflowAttached(ApprovalWorkflowAttachedEvent event) {
         approvalNotificationAppService.notifyTodo(event.workflowInstanceId());
@@ -44,7 +45,7 @@ public class ApprovalNotificationListener {
      *
      * @param event 结果同步事件
      */
-    @Async
+    @Async("oaNotificationExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onResultSynced(ApprovalResultSyncedEvent event) {
         approvalNotificationAppService.notifyResult(event.businessType(), event.businessId(), event.result());
@@ -55,7 +56,7 @@ public class ApprovalNotificationListener {
      *
      * @param event 催办事件
      */
-    @Async
+    @Async("oaNotificationExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onUrged(ApprovalUrgedEvent event) {
         approvalNotificationAppService.notifyUrge(event.workflowInstanceId(), event.targetAccount(),

@@ -165,10 +165,10 @@ public class PollAppServiceImpl implements PollAppService {
     }
 
     /**
-     * 查询投票，不存在时抛出业务异常。
+     * 按主键查询投票，不存在时抛出业务异常。
      *
      * @param id 投票主键
-     * @return 投票实体
+     * @return 投票领域对象
      */
     private Poll requirePoll(Long id) {
         Poll poll = repository.findPoll(id);
@@ -179,9 +179,9 @@ public class PollAppServiceImpl implements PollAppService {
     }
 
     /**
-     * 用保存命令填充投票实体并校验必填项与时间区间。
+     * 用保存命令回填投票字段，并校验标题、可选数量与起止时间。
      *
-     * @param poll 待填充的投票实体
+     * @param poll 待填充的投票
      * @param command 投票保存命令
      */
     private void fill(Poll poll, CultureCommands.PollSave command) {
@@ -209,10 +209,10 @@ public class PollAppServiceImpl implements PollAppService {
     }
 
     /**
-     * 根据选项保存命令构建投票选项列表。
+     * 将选项命令列表构建为投票选项领域对象。
      *
-     * @param commands 选项保存命令列表
-     * @return 投票选项实体列表，命令为空时返回空列表
+     * @param commands 选项保存命令列表，可为 null
+     * @return 构建后的选项列表，无选项时返回空列表
      */
     private static List<PollOption> buildOptions(List<CultureCommands.PollOptionSave> commands) {
         if (commands == null || commands.isEmpty()) {
@@ -234,9 +234,9 @@ public class PollAppServiceImpl implements PollAppService {
     }
 
     /**
-     * 将投票实体转换为投票视图。
+     * 将投票领域对象转换为视图对象。
      *
-     * @param poll 投票实体
+     * @param poll 投票领域对象
      * @return 投票视图
      */
     private static CultureViews.Poll toView(Poll poll) {
@@ -246,10 +246,10 @@ public class PollAppServiceImpl implements PollAppService {
     }
 
     /**
-     * 用投票实体填充投票视图字段。
+     * 将投票领域对象的基础字段回填到投票视图。
      *
      * @param view 待填充的投票视图
-     * @param poll 投票实体
+     * @param poll 投票领域对象
      */
     private static void fillView(CultureViews.Poll view, Poll poll) {
         view.setId(poll.getId());
@@ -267,11 +267,11 @@ public class PollAppServiceImpl implements PollAppService {
     }
 
     /**
-     * 将投票选项实体转换为带票数统计的选项视图。
+     * 将投票选项领域对象转换为选项视图。
      *
-     * @param option 选项实体
-     * @param voteCount 该选项的得票数
-     * @param myChoice 当前用户是否选择了该选项
+     * @param option 投票选项领域对象
+     * @param voteCount 该选项得票数
+     * @param myChoice 当前用户是否选择该选项
      * @return 投票选项视图
      */
     private static CultureViews.PollOption toOptionView(PollOption option, Long voteCount, boolean myChoice) {

@@ -23,9 +23,9 @@ public enum EmployeeChangeType {
     private final String label;
 
     /**
-     * 构造人员异动类型。
+     * 构造异动类型。
      *
-     * @param label 类型中文名称
+     * @param label 中文名称
      */
     EmployeeChangeType(String label) {
         this.label = label;

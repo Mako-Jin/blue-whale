@@ -4,6 +4,7 @@ import {
   Button,
   Card,
   Descriptions,
+  Image,
   Input,
   Modal,
   Select,
@@ -292,6 +293,21 @@ export default function AfterSalePage() {
               <Descriptions.Item label="问题描述" span={2}>
                 {detail.description || '-'}
               </Descriptions.Item>
+              {(detail.images ?? '').trim() !== '' && (
+                <Descriptions.Item label="凭证图片" span={2}>
+                  <Image.PreviewGroup>
+                    <Space wrap>
+                      {(detail.images ?? '')
+                        .split(',')
+                        .map((url) => url.trim())
+                        .filter(Boolean)
+                        .map((url) => (
+                          <Image key={url} src={url} width={64} height={64} style={{ objectFit: 'cover' }} />
+                        ))}
+                    </Space>
+                  </Image.PreviewGroup>
+                </Descriptions.Item>
+              )}
               <Descriptions.Item label="审核意见" span={2}>
                 {detail.auditRemark || '-'}
               </Descriptions.Item>

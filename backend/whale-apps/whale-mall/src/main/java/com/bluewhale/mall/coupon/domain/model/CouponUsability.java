@@ -23,6 +23,12 @@ public enum CouponUsability {
     /** 不适用于当前渠道 */
     CHANNEL_MISMATCH("不适用于该商城"),
 
+    /** 订单中没有券适用类目的商品（品类券） */
+    CATEGORY_NOT_MATCHED("订单中没有适用类目的商品"),
+
+    /** 订单中没有券适用商品的商品（商品券） */
+    SKU_NOT_MATCHED("订单中没有适用商品"),
+
     /** 未达到使用门槛 */
     THRESHOLD_NOT_MET("订单金额未达门槛");
 

@@ -20,9 +20,7 @@ import java.util.List;
  */
 public final class AdministrativeCommands {
 
-    /**
-     * 工具类私有构造器。
-     */
+    /** 工具类，禁止实例化。 */
     private AdministrativeCommands() {
     }
 

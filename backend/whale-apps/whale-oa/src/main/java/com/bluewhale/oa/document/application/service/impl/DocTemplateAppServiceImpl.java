@@ -90,10 +90,10 @@ public class DocTemplateAppServiceImpl implements DocTemplateAppService {
     }
 
     /**
-     * 按ID查询公文模板，不存在时抛出业务异常。
+     * 按主键查询公文模板，不存在时抛出业务异常。
      *
-     * @param id 模板ID
-     * @return 模板实体
+     * @param id 模板主键
+     * @return 模板领域对象
      */
     private DocTemplate requireTemplate(Long id) {
         DocTemplate template = repository.findTemplate(id);
@@ -104,10 +104,10 @@ public class DocTemplateAppServiceImpl implements DocTemplateAppService {
     }
 
     /**
-     * 将保存命令中的字段填充到模板实体，编码与名称去除首尾空格。
+     * 用保存命令回填模板的编码、名称、页眉页脚与正文模板等字段。
      *
-     * @param template 模板实体
-     * @param command  模板保存命令
+     * @param template 待填充的模板
+     * @param command 模板保存命令
      */
     private void apply(DocTemplate template, DocumentCommands.TemplateSave command) {
         template.setCode(command.getCode().trim());
@@ -119,10 +119,10 @@ public class DocTemplateAppServiceImpl implements DocTemplateAppService {
     }
 
     /**
-     * 归一化公文类型，为空时取默认发文并校验取值合法性。
+     * 归一化模板适用范围，非法值抛出业务异常。
      *
-     * @param docType 公文类型
-     * @return 归一化后的公文类型
+     * @param docType 原始适用范围
+     * @return 归一化后的适用范围
      */
     private String normalizeDocType(String docType) {
         String value = StringUtils.hasText(docType) ? docType.trim().toUpperCase() : DocStatus.TYPE_OUTGOING;
@@ -133,9 +133,9 @@ public class DocTemplateAppServiceImpl implements DocTemplateAppService {
     }
 
     /**
-     * 归一化模板状态，为空时取默认草稿并校验取值合法性。
+     * 归一化模板状态，非法值抛出业务异常。
      *
-     * @param status 模板状态
+     * @param status 原始模板状态
      * @return 归一化后的模板状态
      */
     private String normalizeStatus(String status) {
@@ -147,9 +147,9 @@ public class DocTemplateAppServiceImpl implements DocTemplateAppService {
     }
 
     /**
-     * 将模板实体转换为视图对象。
+     * 将模板领域对象转换为视图对象。
      *
-     * @param template 模板实体
+     * @param template 模板领域对象
      * @return 模板视图
      */
     private DocumentViews.Template toView(DocTemplate template) {

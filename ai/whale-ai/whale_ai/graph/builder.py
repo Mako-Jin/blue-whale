@@ -55,6 +55,7 @@ def run_agent(
     tool_client: Any = None,
     llm_client: Any = None,
     memory_store: Any = None,
+    assistant: dict[str, Any] | None = None,
 ) -> AgentState:
     """执行一次问答图。
 
@@ -68,6 +69,8 @@ def run_agent(
         tool_client: 可选工具客户端替身（测试用）。
         llm_client: 可选模型客户端替身（测试用）。
         memory_store: 可选记忆存储替身（测试用），默认取 Redis 单例。
+        assistant: 可选助手配置（Wave 6.01，``whale-assistant`` 随请求下发），
+            结构见 ``api.schemas.AssistantConfig#model_dump``；缺省 = 默认平台助手。
 
     Returns:
         合并后的运行状态（含 ``citations``、``answer``、``degraded``）。
@@ -82,6 +85,7 @@ def run_agent(
             "scope": scope,
             "user_id": user_id,
             "permission_codes": permission_codes,
+            "assistant": assistant,
             "history": memory["turns"],
             "memory_summary": memory["summary"],
             "tool_steps": 0,

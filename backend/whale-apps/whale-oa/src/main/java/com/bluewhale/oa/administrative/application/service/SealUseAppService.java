@@ -16,75 +16,75 @@ import java.util.List;
 public interface SealUseAppService {
 
     /**
-     * 用章申请分页查询。
+     * 分页查询用章申请。
      *
-     * @param query 查询条件
-     * @return 分页结果
+     * @param query 分页与筛选条件
+     * @return 用章申请分页结果
      */
     PageResult<AdministrativeViews.SealUseView> page(AdministrativeQuery query);
 
     /**
      * 查询用章申请详情。
      *
-     * @param id 用章申请ID
-     * @return 用章申请视图
+     * @param id 用章申请 ID
+     * @return 用章申请详情
      */
     AdministrativeViews.SealUseView detail(Long id);
 
     /**
-     * 新增用章申请。
+     * 创建用章申请。
      *
-     * @param command 保存命令
-     * @return 用章申请视图
+     * @param command 用章申请保存命令
+     * @return 创建后的用章申请
      */
     AdministrativeViews.SealUseView create(AdministrativeCommands.SealUseSaveCommand command);
 
     /**
-     * 编辑用章申请。
+     * 更新用章申请。
      *
-     * @param id 用章申请ID
-     * @param command 保存命令
-     * @return 用章申请视图
+     * @param id 用章申请 ID
+     * @param command 用章申请保存命令
+     * @return 更新后的用章申请
      */
     AdministrativeViews.SealUseView update(Long id, AdministrativeCommands.SealUseSaveCommand command);
 
     /**
      * 删除用章申请。
      *
-     * @param id 用章申请ID
+     * @param id 用章申请 ID
      */
     void delete(Long id);
 
     /**
-     * 变更用章申请状态。
+     * 更新用章申请状态。
      *
-     * @param id 用章申请ID
+     * @param id 用章申请 ID
      * @param command 状态变更命令
      */
     void updateStatus(Long id, AdministrativeCommands.SealUseStatusCommand command);
 
     /**
-     * 登记用章。
+     * 登记用章使用记录。
      *
-     * @param id 用章申请ID
-     * @param operatorId 登记人用户ID
-     * @return 用章申请视图
+     * @param id 用章申请 ID
+     * @param operatorId 操作人 ID
+     * @return 登记后的用章申请
      */
     AdministrativeViews.SealUseView register(Long id, Long operatorId);
 
     /**
-     * 同步审批结果到用章申请。
+     * 同步外部审批结果至用章申请。
      *
-     * @param sealUseId 用章申请ID
-     * @param result 审批结果状态
+     * @param sealUseId 用章申请 ID
+     * @param result 审批结果
      */
     void syncApprovalResult(Long sealUseId, String result);
 
     /**
      * 查询用户可用的印章列表。
      *
-     * @param userId 用户ID
-     * @return 已授权印章列表
+     * @param userId 用户 ID
+     * @return 可用印章列表
      */
     List<ContractSealGateway.SealInfo> availableSeals(Long userId);
 }

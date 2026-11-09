@@ -11,6 +11,7 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.function.BiConsumer;
 
 /**
@@ -73,8 +74,14 @@ public class MallOrder {
     /** 订单总额（应付 = 商品总额 - 优惠 + 运费） */
     private BigDecimal totalAmount;
 
-    /** 商品总额（各行小计之和，不含优惠与运费） */
+    /** 商品总额（各行小计之和，不含优惠与运费；活动/会员价已体现在成交单价中） */
     private BigDecimal goodsAmount;
+
+    /** 原价合计（Σ原单价×数量，未含活动与会员让利；对账口径） */
+    private BigDecimal listAmount;
+
+    /** 活动与会员价让利合计（list_amount - goods_amount，对账口径） */
+    private BigDecimal activityDiscount;
 
     /** 优惠金额 */
     private BigDecimal discountAmount;
@@ -82,10 +89,10 @@ public class MallOrder {
     /** 运费 */
     private BigDecimal freightAmount;
 
-    /** 使用的用户券 ID（快照） */
+    /** 使用的用户券 ID（主券快照：单券订单即该券；多券订单为首张券） */
     private Long couponUserId;
 
-    /** 使用的券编码（快照） */
+    /** 使用的券编码（主券快照，含义同 couponUserId） */
     private String couponCode;
 
     /** 商品总件数 */
@@ -133,6 +140,9 @@ public class MallOrder {
     /** 明细 */
     private List<OrderItem> items = new ArrayList<>();
 
+    /** 本单用券明细（一单最多 2 张；单券订单与老数据只有首张一条） */
+    private List<OrderCoupon> coupons = new ArrayList<>();
+
     /**
      * 按明细重算金额与件数（无优惠、无运费）。
      *
@@ -157,7 +167,86 @@ public class MallOrder {
      * @param freight  运费（可为空）
      */
     public void recalculate(BigDecimal discount, BigDecimal freight) {
+        BigDecimal goods = computeLineAmounts();
+        BigDecimal appliedDiscount = capDiscount(discount, goods);
+        BigDecimal appliedFreight = normalizeFreight(freight);
+        allocate(appliedDiscount, goods, OrderItem::setShareDiscount);
+        allocate(appliedFreight, goods, OrderItem::setShareFreight);
+        this.goodsAmount = goods;
+        this.discountAmount = appliedDiscount;
+        this.freightAmount = appliedFreight;
+        this.totalAmount = goods.subtract(appliedDiscount).add(appliedFreight);
+    }
+
+    /**
+     * 按多张券叠加重算金额构成，并把各券优惠按适用范围分摊到行。
+     *
+     * <p>口径四条，缺一不可：</p>
+     * <ol>
+     * <li>门槛按各自适用范围判定：全场/渠道券的分母是整单商品小计，
+     * 品类券的分母是命中类目商品行小计——其他商品凑单不能替品类券抬门槛；</li>
+     * <li>优惠只摊到命中行：品类券的优惠如果摊给全部行，「退掉未命中商品行」
+     * 时该退多少就永远算不清了；</li>
+     * <li>合计优惠封顶在「商品总额 - 0.01」：超出时按比例缩减，
+     * 尾差挂在最后一张券上，保证 Σ各券优惠 = discount_amount 这个恒等式成立；</li>
+     * <li>各券优惠累加写入行分摊（shareDiscount），而不是覆盖——
+     * 两张券同时命中一行时，行分摊是两笔之和。</li>
+     * </ol>
+     *
+     * @param coupons 本单用券明细（每张必须带计价规则）
+     * @param freight 运费（可为空）
+     */
+    public void recalculateWithCoupons(List<OrderCoupon> coupons, BigDecimal freight) {
+        BigDecimal goods = computeLineAmounts();
+        BigDecimal appliedFreight = normalizeFreight(freight);
+        // 1. 逐券按适用范围算门槛分母与优惠
+        BigDecimal rawTotal = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        for (OrderCoupon coupon : coupons) {
+            if (coupon.getRule() == null) {
+                throw MallErrorCode.exception(MallErrorCode.ORDER_AMOUNT_INVALID,
+                        "用券明细缺少计价规则：" + coupon.getCouponCode());
+            }
+            BigDecimal matched = matchedGoods(coupon, goods);
+            if (!coupon.getRule().meetsThreshold(matched)) {
+                throw MallErrorCode.exception(MallErrorCode.COUPON_THRESHOLD_NOT_MET,
+                        "订单未达到优惠券使用门槛：" + coupon.getCouponName());
+            }
+            BigDecimal discount = coupon.getRule().discountFor(matched);
+            coupon.setDiscountAmount(discount);
+            rawTotal = rawTotal.add(discount);
+        }
+        // 2. 合计封顶：超出按比例缩减，前 n-1 张向下取整、末张吃尾差
+        BigDecimal cap = goods.subtract(MIN_PAYABLE_AMOUNT);
+        if (rawTotal.compareTo(cap) > 0) {
+            shrinkToCap(coupons, rawTotal, cap);
+        }
+        // 3. 分摊：品类券只摊命中行，其余摊全部行；运费仍按全部行分摊
+        resetShareDiscount();
+        for (OrderCoupon coupon : coupons) {
+            allocateCoupon(coupon, goods);
+        }
+        allocate(appliedFreight, goods, OrderItem::setShareFreight);
+        BigDecimal totalDiscount = coupons.stream()
+                .map(coupon -> coupon.getDiscountAmount() == null
+                        ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP) : coupon.getDiscountAmount())
+                .reduce(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP), BigDecimal::add);
+        this.goodsAmount = goods;
+        this.discountAmount = totalDiscount;
+        this.freightAmount = appliedFreight;
+        this.totalAmount = goods.subtract(totalDiscount).add(appliedFreight);
+        this.totalQuantity = totalQuantity();
+        this.itemCount = items.size();
+        this.coupons = coupons;
+    }
+
+    /**
+     * 计算各明细行小计并汇总商品总额（叠加计价与单券计价共用的行级口径）。
+     *
+     * @return 商品总额
+     */
+    private BigDecimal computeLineAmounts() {
         BigDecimal goods = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        BigDecimal list = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         int quantity = 0;
         for (OrderItem item : items) {
             if (item.getUnitPrice() == null || item.getQuantity() == null || item.getQuantity() < 1) {
@@ -168,21 +257,197 @@ public class MallOrder {
                     .setScale(2, RoundingMode.HALF_UP);
             item.setAmount(amount);
             goods = goods.add(amount);
+            // 原价快照缺失（老数据/未覆盖）按成交价计，让 list_amount 恒等 goods_amount
+            BigDecimal listPrice = item.getListPrice() == null ? item.getUnitPrice() : item.getListPrice();
+            list = list.add(listPrice.multiply(BigDecimal.valueOf(item.getQuantity())).setScale(2, RoundingMode.HALF_UP));
             quantity += item.getQuantity();
         }
         if (goods.compareTo(BigDecimal.ZERO) <= 0) {
             throw MallErrorCode.exception(MallErrorCode.ORDER_AMOUNT_INVALID, "订单金额必须大于 0");
         }
-        BigDecimal appliedDiscount = capDiscount(discount, goods);
-        BigDecimal appliedFreight = normalizeFreight(freight);
-        allocate(appliedDiscount, goods, OrderItem::setShareDiscount);
-        allocate(appliedFreight, goods, OrderItem::setShareFreight);
-        this.goodsAmount = goods;
-        this.discountAmount = appliedDiscount;
-        this.freightAmount = appliedFreight;
-        this.totalAmount = goods.subtract(appliedDiscount).add(appliedFreight);
         this.totalQuantity = quantity;
         this.itemCount = items.size();
+        this.listAmount = list;
+        this.activityDiscount = list.subtract(goods).setScale(2, RoundingMode.HALF_UP);
+        return goods;
+    }
+
+    /**
+     * 订单重量合计（kg，单件重量快照 × 数量；行重量缺失按 0 计）。
+     *
+     * @return 重量合计，两位小数
+     */
+    public BigDecimal totalWeightKg() {
+        BigDecimal weight = BigDecimal.ZERO.setScale(3, RoundingMode.HALF_UP);
+        for (OrderItem item : items) {
+            if (item.getWeightKg() == null || item.getQuantity() == null) {
+                continue;
+            }
+            weight = weight.add(item.getWeightKg()
+                    .multiply(BigDecimal.valueOf(item.getQuantity())))
+                    .setScale(3, RoundingMode.HALF_UP);
+        }
+        return weight;
+    }
+
+    /**
+     * 本单商品总件数。
+     *
+     * @return 件数之和
+     */
+    private int totalQuantity() {
+        int quantity = 0;
+        for (OrderItem item : items) {
+            quantity += item.getQuantity() == null ? 0 : item.getQuantity();
+        }
+        return quantity;
+    }
+
+    /**
+     * 计算一张券适用范围内的商品小计（门槛分母与优惠基数）。
+     *
+     * @param coupon 用券明细
+     * @param goods  整单商品小计
+     * @return 适用范围商品小计
+     */
+    private BigDecimal matchedGoods(OrderCoupon coupon, BigDecimal goods) {
+        if (!coupon.isSkuScoped() && !coupon.isCategoryScoped()) {
+            return goods;
+        }
+        List<OrderItem> targets = couponTargets(coupon, goods);
+        BigDecimal matched = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        for (OrderItem item : targets) {
+            matched = matched.add(item.getAmount() == null ? BigDecimal.ZERO : item.getAmount());
+        }
+        return matched;
+    }
+
+    /**
+     * 求一张券的命中行（商品券按 SKU、品类券按类目、全场/渠道券为全部行）。
+     *
+     * @param coupon 用券明细
+     * @param goods  整单商品小计（全场/渠道券命中全部行）
+     * @return 命中行列表
+     */
+    private List<OrderItem> couponTargets(OrderCoupon coupon, BigDecimal goods) {
+        List<OrderItem> targets = new ArrayList<>();
+        if (coupon.isSkuScoped()) {
+            Set<Long> scoped = coupon.skuIdSet();
+            for (OrderItem item : items) {
+                if (item.getSkuId() != null && scoped.contains(item.getSkuId())) {
+                    targets.add(item);
+                }
+            }
+            return targets;
+        }
+        if (coupon.isCategoryScoped()) {
+            Set<Long> scoped = coupon.categoryIdSet();
+            for (OrderItem item : items) {
+                if (item.getCategoryId() != null && scoped.contains(item.getCategoryId())) {
+                    targets.add(item);
+                }
+            }
+            return targets;
+        }
+        targets.addAll(items);
+        return targets;
+    }
+
+    /**
+     * 求一张券的分摊基数（命中行小计之和；全场/渠道券为整单商品小计）。
+     *
+     * @param coupon  用券明细
+     * @param targets 命中行
+     * @param goods   整单商品小计
+     * @return 分摊基数
+     */
+    private BigDecimal matchedBase(OrderCoupon coupon, List<OrderItem> targets, BigDecimal goods) {
+        if (!coupon.isSkuScoped() && !coupon.isCategoryScoped()) {
+            return goods;
+        }
+        BigDecimal base = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        for (OrderItem item : targets) {
+            base = base.add(item.getAmount() == null ? BigDecimal.ZERO : item.getAmount());
+        }
+        return base;
+    }
+
+    /**
+     * 多券合计优惠超出封顶时按比例缩减。
+     *
+     * <p>前 n-1 张按「单券优惠 × 缩减系数」向下取整，最后一张拿
+     * 「封顶 - 前面之和」：分摊误差全部落在一张券上，
+     * 明细合计才始终等于订单优惠额。</p>
+     *
+     * @param coupons  用券明细
+     * @param rawTotal 原始合计优惠
+     * @param cap      封顶金额
+     */
+    private void shrinkToCap(List<OrderCoupon> coupons, BigDecimal rawTotal, BigDecimal cap) {
+        BigDecimal scaled = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        for (int index = 0; index < coupons.size(); index++) {
+            OrderCoupon coupon = coupons.get(index);
+            if (index == coupons.size() - 1) {
+                coupon.setDiscountAmount(cap.subtract(scaled));
+            } else {
+                BigDecimal shrunk = coupon.getDiscountAmount()
+                        .multiply(cap)
+                        .divide(rawTotal, 2, RoundingMode.DOWN);
+                coupon.setDiscountAmount(shrunk);
+                scaled = scaled.add(shrunk);
+            }
+        }
+    }
+
+    /**
+     * 清空各行分摊优惠（叠加计价从零开始累加）。
+     */
+    private void resetShareDiscount() {
+        for (OrderItem item : items) {
+            item.setShareDiscount(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
+        }
+    }
+
+    /**
+     * 把一张券的优惠分摊到命中行。
+     *
+     * <p>品类券的分摊基数是命中行小计之和、只写命中行；全场/渠道券的基数是
+     * 整单商品小计、写全部行。行内金额前 n-1 行向下取整、末行吃尾差，
+     * 保证 Σ行分摊 = 该券优惠额；命中行为空（老数据无类目快照）时按未命中处理，
+     * 不抛错——宁可少摊也不能摊错。</p>
+     *
+     * @param coupon 用券明细（已带最终生效优惠额）
+     * @param goods  整单商品小计（全场/渠道券的分摊基数）
+     */
+    private void allocateCoupon(OrderCoupon coupon, BigDecimal goods) {
+        BigDecimal discount = coupon.getDiscountAmount() == null
+                ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP) : coupon.getDiscountAmount();
+        if (discount.signum() <= 0) {
+            return;
+        }
+        List<OrderItem> targets = couponTargets(coupon, goods);
+        BigDecimal base = matchedBase(coupon, targets, goods);
+        if (targets.isEmpty() || base.signum() <= 0) {
+            return;
+        }
+        BigDecimal remaining = discount;
+        for (int index = 0; index < targets.size(); index++) {
+            OrderItem item = targets.get(index);
+            BigDecimal share;
+            if (index == targets.size() - 1) {
+                share = remaining;
+            } else {
+                BigDecimal lineBase = item.getAmount() == null ? BigDecimal.ZERO : item.getAmount();
+                share = discount.multiply(lineBase).divide(base, 2, RoundingMode.DOWN);
+                if (share.compareTo(remaining) > 0) {
+                    share = remaining;
+                }
+            }
+            remaining = remaining.subtract(share);
+            BigDecimal current = item.getShareDiscount() == null
+                    ? BigDecimal.ZERO : item.getShareDiscount();
+            item.setShareDiscount(current.add(share));
+        }
     }
 
     /**

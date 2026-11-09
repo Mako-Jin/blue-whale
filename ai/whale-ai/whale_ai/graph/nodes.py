@@ -60,11 +60,13 @@ def intent_node(state: AgentState) -> dict[str, Any]:
         intent = "SEMANTIC"
     client = state.get("llm_client") or get_llm_client()
     degraded = not client.available
+    assistant = state.get("assistant") or {}
     _emit(
         state,
         "meta",
         {
             "conversationId": _text(state.get("conversation_id")),
+            "assistantId": _text(assistant.get("assistant_id")),
             "intent": intent,
             "degraded": degraded,
             "citations": [],
@@ -74,7 +76,11 @@ def intent_node(state: AgentState) -> dict[str, Any]:
 
 
 def retrieve_node(state: AgentState) -> dict[str, Any]:
-    """调用只读工具取证，生成编号 S1..Sn 的引用。"""
+    """调用只读工具取证，生成编号 S1..Sn 的引用。
+
+    Wave 6.01：助手配置了 ``tool_whitelist`` 时，白名单外的工具直接跳过
+    （白名单只能收敛、不能放大；缺省 = 全部放行）。
+    """
     question = state.get("question") or ""
     settings = get_settings()
     context = ToolContext(
@@ -82,11 +88,12 @@ def retrieve_node(state: AgentState) -> dict[str, Any]:
         permission_codes=state.get("permission_codes"),
     )
     tool_client = state.get("tool_client")
+    whitelist = (state.get("assistant") or {}).get("tool_whitelist")
     citations: list[dict[str, Any]] = []
     steps = 0
 
     fact_type = _fact_type(question)
-    if fact_type:
+    if fact_type and _tool_allowed(whitelist, "fact_get"):
         steps += 1
         started = time.monotonic()
         try:
@@ -103,21 +110,24 @@ def retrieve_node(state: AgentState) -> dict[str, Any]:
             logger.warning("事实查询工具失败：%s", exc)
             _emit_tool(state, "fact_get", "error", 0, started)
 
-    steps += 1
-    started = time.monotonic()
-    try:
-        data = execute_tool(
-            "knowledge_search",
-            {"query": question, "top_k": settings.search_top_k},
-            context,
-            client=tool_client,
-        )
-        hits = data.get("items") or []
-        citations.extend(_chunk_citations(hits, len(citations) + 1))
-        _emit_tool(state, "knowledge_search", "ok", len(hits), started)
-    except ToolError as exc:
-        logger.warning("知识检索工具失败：%s", exc)
-        _emit_tool(state, "knowledge_search", "error", 0, started)
+    if _tool_allowed(whitelist, "knowledge_search"):
+        steps += 1
+        started = time.monotonic()
+        try:
+            data = execute_tool(
+                "knowledge_search",
+                {"query": question, "top_k": settings.search_top_k},
+                context,
+                client=tool_client,
+            )
+            hits = data.get("items") or []
+            citations.extend(_chunk_citations(hits, len(citations) + 1))
+            _emit_tool(state, "knowledge_search", "ok", len(hits), started)
+        except ToolError as exc:
+            logger.warning("知识检索工具失败：%s", exc)
+            _emit_tool(state, "knowledge_search", "error", 0, started)
+    elif whitelist is not None:
+        logger.warning("工具 knowledge_search 不在助手白名单内，已跳过")
 
     return {
         "citations": validate_citations(citations, settings.repo_root),
@@ -126,9 +136,17 @@ def retrieve_node(state: AgentState) -> dict[str, Any]:
 
 
 def answer_node(state: AgentState) -> dict[str, Any]:
-    """模型流式生成；未配置或失败时回落检索摘要。"""
+    """模型流式生成；未配置或失败时回落检索摘要。
+
+    Wave 6.01：助手可自定义 system prompt 与模型参数（model/temperature/max_tokens），
+    ``base_url`` / ``api_key`` 仍取全局配置。
+    """
     citations = state.get("citations") or []
-    client = state.get("llm_client") or get_llm_client()
+    assistant = state.get("assistant") or {}
+    if state.get("llm_client"):
+        client = state["llm_client"]
+    else:
+        client = get_llm_client(assistant.get("model_params"))
     if client.available and citations:
         buffer: list[str] = []
         messages = build_messages(
@@ -136,6 +154,7 @@ def answer_node(state: AgentState) -> dict[str, Any]:
             citations,
             state.get("history") or [],
             str(state.get("memory_summary") or ""),
+            system_prompt=assistant.get("system_prompt"),
         )
         try:
             for delta in client.stream(messages):
@@ -223,6 +242,13 @@ def _fact_type(question: str) -> str | None:
         if any(word in lower for word in words):
             return fact_type
     return None
+
+
+def _tool_allowed(whitelist: list[str] | None, name: str) -> bool:
+    """判断工具是否在助手白名单内（白名单缺省/为空 = 全部放行）。"""
+    if whitelist is None:
+        return True
+    return name in whitelist
 
 
 def _degrade_reason(client: Any) -> str:

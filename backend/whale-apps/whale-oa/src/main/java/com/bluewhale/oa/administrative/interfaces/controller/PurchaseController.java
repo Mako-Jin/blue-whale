@@ -51,7 +51,7 @@ public class PurchaseController {
     /**
      * 查询采购申请详情。
      *
-     * @param id 采购申请主键
+     * @param id 采购申请 ID
      * @return 采购申请详情
      */
     @GetMapping("/{id}")
@@ -61,10 +61,10 @@ public class PurchaseController {
     }
 
     /**
-     * 新建采购申请。
+     * 创建采购申请。
      *
      * @param command 采购申请保存命令
-     * @return 新建的采购申请
+     * @return 创建后的采购申请
      */
     @PostMapping
     @RequirePermission("sys:oa:purchase:add")
@@ -77,7 +77,7 @@ public class PurchaseController {
     /**
      * 更新采购申请。
      *
-     * @param id 采购申请主键
+     * @param id 采购申请 ID
      * @param command 采购申请保存命令
      * @return 更新后的采购申请
      */
@@ -92,8 +92,7 @@ public class PurchaseController {
     /**
      * 删除采购申请。
      *
-     * @param id 采购申请主键
-     * @return 操作结果
+     * @param id 采购申请 ID
      */
     @DeleteMapping("/{id}")
     @RequirePermission("sys:oa:purchase:delete")
@@ -106,9 +105,8 @@ public class PurchaseController {
     /**
      * 变更采购申请状态。
      *
-     * @param id 采购申请主键
+     * @param id 采购申请 ID
      * @param command 状态变更命令
-     * @return 操作结果
      */
     @PutMapping("/{id}/status")
     @RequirePermission("sys:oa:purchase:edit")
@@ -120,9 +118,9 @@ public class PurchaseController {
     }
 
     /**
-     * 重试推送采购订单至 ERP。
+     * 重试推送采购申请至 ERP。
      *
-     * @param id 采购申请主键
+     * @param id 采购申请 ID
      * @return 推送后的采购申请
      */
     @PostMapping("/{id}/push-retry")

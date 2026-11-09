@@ -54,10 +54,10 @@ public class NoticeController {
     }
 
     /**
-     * 分页查询当前用户可见的公告。
+     * 分页查询当前登录用户的公告。
      *
      * @param query 查询条件
-     * @param request 请求上下文
+     * @param request 当前请求，用于解析登录用户
      * @return 公告分页结果
      */
     @GetMapping("/my/page")
@@ -68,12 +68,12 @@ public class NoticeController {
     }
 
     /**
-     * 查询公告接收人候选列表。
+     * 查询公告接收人候选，供发布时选择接收人。
      *
-     * @param keyword 姓名或工号关键字
-     * @param deptId 部门标识
+     * @param keyword 用户名或昵称关键字
+     * @param deptId 部门ID
      * @param limit 返回条数上限
-     * @return 候选接收人列表
+     * @return 接收人候选列表
      */
     @GetMapping("/recipients")
     @RequirePermission("sys:oa:notice:manage")
@@ -87,7 +87,7 @@ public class NoticeController {
     /**
      * 查询公告详情。
      *
-     * @param id 公告标识
+     * @param id 公告ID
      * @return 公告详情视图
      */
     @GetMapping("/{id}")
@@ -97,10 +97,10 @@ public class NoticeController {
     }
 
     /**
-     * 新建公告。
+     * 新建公告（草稿）。
      *
      * @param command 公告保存命令
-     * @return 公告视图
+     * @return 新建的公告视图
      */
     @PostMapping
     @RequirePermission("sys:oa:notice:manage")
@@ -112,9 +112,9 @@ public class NoticeController {
     /**
      * 编辑公告。
      *
-     * @param id 公告标识
+     * @param id 公告ID
      * @param command 公告保存命令
-     * @return 公告视图
+     * @return 更新后的公告视图
      */
     @PutMapping("/{id}")
     @RequirePermission("sys:oa:notice:manage")
@@ -125,11 +125,11 @@ public class NoticeController {
     }
 
     /**
-     * 发布公告。
+     * 发布公告，以当前登录用户作为发布人。
      *
-     * @param id 公告标识
-     * @param request 请求上下文
-     * @return 公告视图
+     * @param id 公告ID
+     * @param request 当前请求，用于解析登录用户
+     * @return 发布后的公告视图
      */
     @PutMapping("/{id}/publish")
     @RequirePermission("sys:oa:notice:manage")
@@ -140,10 +140,10 @@ public class NoticeController {
     }
 
     /**
-     * 撤回已发布的公告。
+     * 撤回公告。
      *
-     * @param id 公告标识
-     * @return 公告视图
+     * @param id 公告ID
+     * @return 撤回后的公告视图
      */
     @PutMapping("/{id}/withdraw")
     @RequirePermission("sys:oa:notice:manage")
@@ -153,10 +153,10 @@ public class NoticeController {
     }
 
     /**
-     * 标记公告为已读。
+     * 将公告标记为当前登录用户已读。
      *
-     * @param id 公告标识
-     * @param request 请求上下文
+     * @param id 公告ID
+     * @param request 当前请求，用于解析登录用户
      * @return 空结果
      */
     @PutMapping("/{id}/read")
@@ -168,9 +168,9 @@ public class NoticeController {
     }
 
     /**
-     * 查询公告阅读统计。
+     * 查询公告阅读统计，详情中携带接收人与已读数据。
      *
-     * @param id 公告标识
+     * @param id 公告ID
      * @return 含阅读统计的公告详情视图
      */
     @GetMapping("/{id}/stats")

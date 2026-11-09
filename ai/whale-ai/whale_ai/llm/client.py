@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterator
+from typing import Any
 
 import httpx
 
@@ -95,15 +96,26 @@ def parse_line(line: str) -> str | None:
     return content if isinstance(content, str) and content else None
 
 
-def get_llm_client() -> LlmClient:
-    """按 ``WHALE_AGENT_LLM_*`` 配置创建客户端。"""
+def get_llm_client(model_params: dict[str, Any] | None = None) -> LlmClient:
+    """按 ``WHALE_AGENT_LLM_*`` 配置创建客户端。
+
+    Args:
+        model_params: 助手级覆盖参数（Wave 6.01，仅 model/temperature/max_tokens）；
+            缺省字段回落全局配置，``base_url`` / ``api_key`` 永远取全局配置。
+    """
     settings = get_llm_settings()
+    params = model_params or {}
+    override_model = params.get("model")
+    override_temperature = params.get("temperature")
+    override_max_tokens = params.get("max_tokens")
     return LlmClient(
         base_url=settings.base_url,
         api_key=settings.api_key,
-        model=settings.model,
+        model=str(override_model) if override_model else settings.model,
         timeout_seconds=settings.timeout_millis / 1000,
         enabled=settings.enabled,
-        max_tokens=settings.max_tokens,
-        temperature=settings.temperature,
+        max_tokens=int(override_max_tokens) if override_max_tokens is not None else settings.max_tokens,
+        temperature=(
+            float(override_temperature) if override_temperature is not None else settings.temperature
+        ),
     )

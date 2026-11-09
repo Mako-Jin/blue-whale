@@ -84,6 +84,18 @@ spring:
               uri: lb://whale-agent
               predicates:
                 - Path=/agent/**
+            # Wave 6.01 AI 助手平台：自持 /assistant 一级前缀（不含 StripPrefix，REQ-ARCH-003）；
+            # 内网 /assistant/internal/** 由 internal-deny 统一 403
+            - id: whale-assistant
+              uri: lb://whale-assistant
+              predicates:
+                - Path=/assistant/**
+            # Wave 6.02 IoT 设备联网平台：自持 /iot 一级前缀（不含 StripPrefix，REQ-ARCH-003）；
+            # 内网 /iot/internal/**（含 EMQX 认证 Webhook 回调）由 internal-deny 统一 403
+            - id: whale-iot
+              uri: lb://whale-iot
+              predicates:
+                - Path=/iot/**
             # Wave 5.52 自研 WebIM：WS 升级路由 order=-1 先于 REST 路由匹配（同前缀 /im/ws）；
             # 两条路由均不含 StripPrefix，服务自持 /im 一级前缀（REQ-ARCH-003）
             - id: whale-im-ws
@@ -345,62 +357,18 @@ whale:
         - whale-music
         - whale-map
     # T6 内网接口屏蔽（由 InternalApiDenyGlobalFilter 执行）：命中 patterns 的外部请求直接返回 403
+    # 2026-11-09 第九批收口（上线必检 network-boundary）：原为逐 Wave 累积的 20+ 条显式清单，
+    # 新服务易漏配；现收敛为单段星号通配（星号不跨段）覆盖全部 /<service>/internal/** 形态，
+    # 新服务内网端点按该命名约定自动纳管；discovery.locator 服务名前缀形态由过滤器剥前缀兜底（V-01）。
+    # 服务侧 InternalTokenFilter 校验 X-Internal-Token 为第二道防线（default-filters 已剥外部伪造头）。
     internal-deny:
       enabled: ${WHALE_GATEWAY_INTERNAL_DENY_ENABLED:true}
       patterns:
-        - /file/internal/**
-        # Wave 5.53 档案同步只读通道：workflow / form / file / archive 的 /internal/** 仅限 Nacos 内网直连
-        - /workflow/internal/**
-        - /form/internal/**
-        - /archive/internal/**
-        # P1-3 审计汇聚摄入端点：仅服务间内网调用，经网关访问一律 403
+        # 单段通配：覆盖 erp/mes/crm/oa/pm/contract/pdm/lms/party/mall/pay/im/music/video/
+        # scene/map/doc/mail/message/file/user/dept/tenant/workflow/form/archive/alert 等全部前缀
+        - /*/internal/**
+        # P1-3 审计汇聚摄入端点：非 /internal 命名，单独收口
         - /audit/log/ingest/**
-        # Wave 5.52 IM 群成员合法性校验：仅 whale-im 经内网直连 whale-service-auth 调用
-        - /user/internal/**
-        # Wave 5.82 M0-5 OA 审批人解析：部门树/负责人员仅服务间内网直连 whale-service-auth
-        - /dept/internal/**
-        # Wave 5.55 IM 站内通知通道：仅业务服务（如 whale-pm）经内网直连 whale-im 投递
-        - /im/internal/**
-        # Wave 5.54 租户目录：仅档案/知识库等后台任务经内网直连 whale-service-auth 查询可用租户
-        - /tenant/internal/**
-        # REQ-ARCH-007：Prometheus Alertmanager 入站告警仅限内网直连 whale-alert
-        - /alert/internal/**
-        # Wave 5.55 项目管理内网通道：仅服务间内网直连 whale-pm
-        - /pm/internal/**
-        # Wave 5.61 合同内网通道：仅服务间内网直连 whale-contract（到期提醒等）
-        - /contract/internal/**
-        # Wave 5.68 统一消息内网发送：仅业务服务经内网直连 whale-message
-        - /message/internal/**
-        # 执行器注册与任务触发：仅业务服务与调度中心之间的内网直连
-        - /job/internal/**
-        # Wave 5.89 邮箱内网通道：收发信事件 / 同步回执仅服务间内网直连 whale-mail
-        - /mail/internal/**
-        # Wave 5.74 文档内网通道：知识源/文件引用等仅服务间内网直连 whale-doc
-        - /doc/internal/**
-        # Wave 5.75 音乐内网通道：曲库/播放票据等仅服务间内网直连 whale-music
-        - /music/internal/**
-        # Wave 5.77 视频内网通道：内容检索 / 消息回查等仅服务间内网直连 whale-video
-        - /video/internal/**
-        # Wave 5.77 场景内网通道：布局快照 / 入口解析仅服务间内网直连 whale-scene
-        - /scene/internal/**
-        # Wave 5.77 客户关系内网通道：门禁通过后仅服务间内网直连 whale-crm
-        - /crm/internal/**
-        # Wave 5.87 学习培训考试内网通道：员工目录/消息回查等仅服务间内网直连 whale-lms
-        - /lms/internal/**
-        # Wave 5.88 党政工会内网通道：员工目录同步/消息投递仅服务间内网直连 whale-party
-        - /party/internal/**
-        # Wave 5.94 商城内网通道：支付结果回调仅 whale-pay 经内网直连 whale-mall
-        - /mall/internal/**
-        # Wave 5.95 支付内网通道：支付单创建/支付/取消/退款仅业务服务经内网直连 whale-pay
-        - /pay/internal/**
-        # Wave 5.80 图文档内网通道：文件引用/内部上传等仅服务间内网直连 whale-pdm
-        - /pdm/internal/**
-        # Wave 5.79 MES 工单接收内网通道：仅 ERP 经内网直连 whale-mes
-        - /mes/internal/**
-        # Wave 5.80 M5 ERP 物料同步内网通道：仅 PDM 经内网直连 whale-erp
-        - /erp/internal/**
-        # Wave 5.87 M5 学习域请假冲突只读通道：仅 LMS 经内网直连 whale-oa
-        - /oa/internal/**
 
 management:
   endpoints:

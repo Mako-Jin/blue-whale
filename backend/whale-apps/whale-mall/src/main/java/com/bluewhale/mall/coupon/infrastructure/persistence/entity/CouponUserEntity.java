@@ -53,6 +53,15 @@ public class CouponUserEntity extends BaseEntity {
     /** 适用渠道（快照） */
     private Long channelId;
 
+    /** 适用范围（快照）：ALL 全场 / CHANNEL 单渠道 / CATEGORY 品类 */
+    private String scope;
+
+    /** 适用类目 ID（快照，逗号分隔，仅 CATEGORY） */
+    private String categoryIds;
+
+    /** 适用 SKU ID（快照，逗号分隔，仅 SKU 商品券） */
+    private String skuIds;
+
     /** 生效时间（快照） */
     private LocalDateTime validFrom;
 

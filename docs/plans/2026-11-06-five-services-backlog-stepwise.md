@@ -51,9 +51,9 @@
 
 ## 四、工作区红线（每批必须遵守）
 
-- 5.89 邮箱与 5.91 地图未提交内容不得 `git add`：`backend/whale-services/pom.xml`、`whale-gateway/application.yml`、`deploy/monitoring/prometheus.yml`、`infrastructure/docker/mysql/init/01-init-databases.sql`、`backend/whale-services/whale-map/`、`migration-5.91-map-m0.sql`。
-- `.trae/documents/crm-frontend-8113-implementation.md` 与 `docs/plans/2026-06-06-mail-server-and-map-service.md` 不提交；stash `pre-pull-local-edits-20261106` 不得 pop。
-- 新功能一律先文档（计划/ADR/权限号段）后代码；权限号段与菜单号段先查 `naming-conventions`，避免与 5.89/5.91 冲突。
+- ~~5.89 邮箱与 5.91 地图未提交内容不得 `git add`~~ → **已闭环（2026-11-09）**：`backend/whale-services/pom.xml`、网关路由、`deploy/monitoring/prometheus.yml`、`infrastructure/docker/mysql/init/01-init-databases.sql`、`backend/whale-services/whale-map/`、`migration-5.89`–`5.99` 均已随 Wave 5.89–5.93 提交入库。
+- ~~`.trae/documents/crm-frontend-8113-implementation.md` 与 `docs/plans/2026-11-06-mail-server-and-map-service.md` 不提交；stash `pre-pull-local-edits-20261106` 不得 pop~~ → **已闭环（2026-11-09）**：方案文档已入库，本地临时稿不存在，`git stash list` 为空。
+- 新功能一律先文档（计划/ADR/权限号段）后代码；权限号段与菜单号段先查 `naming-conventions`，改动迁移前先脚本扫描全仓号段占用，避免撞号后被 `WHERE NOT EXISTS` 静默吞掉。
 
 ---
 

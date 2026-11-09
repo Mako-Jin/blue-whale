@@ -83,10 +83,10 @@ public class CultureEventAppServiceImpl implements CultureEventAppService {
     }
 
     /**
-     * 按ID查询文化动态，不存在时抛出业务异常。
+     * 按主键查询文化动态，不存在时抛出业务异常。
      *
-     * @param id 文化动态ID
-     * @return 文化动态实体
+     * @param id 文化动态主键
+     * @return 文化动态领域对象
      */
     private CultureEvent requireEvent(Long id) {
         CultureEvent event = repository.findEvent(id);
@@ -97,10 +97,10 @@ public class CultureEventAppServiceImpl implements CultureEventAppService {
     }
 
     /**
-     * 将保存命令中的字段写入文化动态实体，并校验标题非空。
+     * 用保存命令回填文化动态字段，并校验标题与类型。
      *
-     * @param event 文化动态实体
-     * @param command 保存命令
+     * @param event 待填充的文化动态
+     * @param command 文化动态保存命令
      */
     private void fill(CultureEvent event, CultureCommands.EventSave command) {
         String type = StringUtils.hasText(command.getEventType())
@@ -116,9 +116,9 @@ public class CultureEventAppServiceImpl implements CultureEventAppService {
     }
 
     /**
-     * 将文化动态实体转换为视图对象。
+     * 将文化动态领域对象转换为视图对象。
      *
-     * @param event 文化动态实体
+     * @param event 文化动态领域对象
      * @return 文化动态视图
      */
     private static CultureViews.Event toView(CultureEvent event) {

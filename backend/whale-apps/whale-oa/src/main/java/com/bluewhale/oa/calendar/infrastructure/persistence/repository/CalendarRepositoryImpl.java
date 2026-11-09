@@ -127,10 +127,10 @@ public class CalendarRepositoryImpl implements CalendarRepository {
     }
 
     /**
-     * 构造分页参数，页大小限制在 {@code [1, MAX_PAGE_SIZE]} 区间内。
+     * 构造分页参数，并约束单页条数上限。
      *
-     * @param query 查询条件
-     * @return 分页对象
+     * @param query 日程查询条件
+     * @return 分页参数
      */
     private Page<CalendarEntryEntity> page(CalendarQuery query) {
         long size = Math.min(Math.max(query.getSize(), 1L), MAX_PAGE_SIZE);
@@ -138,10 +138,10 @@ public class CalendarRepositoryImpl implements CalendarRepository {
     }
 
     /**
-     * 构造日程查询条件，按可见范围（本人、公开、共享）、关键字、可见性与日期区间过滤。
+     * 构造日程查询条件（含可见性、关键字与时间范围过滤）。
      *
-     * @param query 查询条件
-     * @return 日程查询包装器
+     * @param query 日程查询条件
+     * @return 查询包装器
      */
     private LambdaQueryWrapper<CalendarEntryEntity> entryFilter(CalendarQuery query) {
         List<Long> sharedIds = query.getUserId() == null ? List.of()
@@ -172,10 +172,10 @@ public class CalendarRepositoryImpl implements CalendarRepository {
     }
 
     /**
-     * 将日程持久化实体转换为日程领域模型。
+     * 将持久化实体转换为日程模型。
      *
      * @param entity 日程实体
-     * @return 日程领域模型
+     * @return 日程模型
      */
     private static CalendarEntry toEntry(CalendarEntryEntity entity) {
         CalendarEntry model = new CalendarEntry();
@@ -198,10 +198,10 @@ public class CalendarRepositoryImpl implements CalendarRepository {
     }
 
     /**
-     * 用日程领域模型的可写字段填充日程持久化实体。
+     * 将日程模型字段填充到持久化实体。
      *
      * @param entity 日程实体
-     * @param model 日程领域模型
+     * @param model 日程模型
      */
     private static void fill(CalendarEntryEntity entity, CalendarEntry model) {
         entity.setOwnerId(model.getOwnerId());
@@ -219,10 +219,10 @@ public class CalendarRepositoryImpl implements CalendarRepository {
     }
 
     /**
-     * 将日程共享持久化实体转换为日程共享领域模型。
+     * 将共享持久化实体转换为共享模型。
      *
-     * @param entity 日程共享实体
-     * @return 日程共享领域模型
+     * @param entity 共享实体
+     * @return 共享模型
      */
     private static CalendarShare toShare(CalendarShareEntity entity) {
         CalendarShare model = new CalendarShare();

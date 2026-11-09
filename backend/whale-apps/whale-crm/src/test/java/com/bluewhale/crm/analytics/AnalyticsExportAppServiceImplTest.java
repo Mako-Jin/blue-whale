@@ -114,6 +114,25 @@ class AnalyticsExportAppServiceImplTest {
     }
 
     @Test
+    @DisplayName("导出：文件上传失败时任务置失败并抛 EXPORT_TASK_FAILED")
+    void shouldMarkFailedWhenUploadFails() {
+        when(analyticsSourcePort.exportTable(eq(ExportType.CUSTOMER), any(), eq(MAX_ROWS)))
+                .thenReturn(table(1));
+        when(analyticsExportRepository.countByPrefix(anyString())).thenReturn(0L);
+        when(analyticsFilePort.upload(any(byte[].class), anyString(), eq(1L)))
+                .thenThrow(CrmErrorCode.exception(CrmErrorCode.EXPORT_TASK_FAILED, "文件服务不可用"));
+
+        BizException exception = assertThrows(BizException.class,
+                () -> service.create(ExportType.CUSTOMER, null, adminActor()));
+
+        assertEquals(CrmErrorCode.EXPORT_TASK_FAILED, exception.getCode());
+        ArgumentCaptor<AnalyticsExport> saved = ArgumentCaptor.forClass(AnalyticsExport.class);
+        verify(analyticsExportRepository).insert(saved.capture());
+        assertEquals(ExportStatus.FAILED, saved.getValue().getStatus());
+        assertTrue(saved.getValue().getError().contains("文件服务不可用"));
+    }
+
+    @Test
     @DisplayName("导出内容：任务未完成时返回 EXPORT_TASK_FAILED")
     void shouldRejectContentOfUnfinishedExport() {
         AnalyticsExport export = new AnalyticsExport();

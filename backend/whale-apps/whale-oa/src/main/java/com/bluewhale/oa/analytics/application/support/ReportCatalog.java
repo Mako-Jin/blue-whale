@@ -105,9 +105,7 @@ public final class ReportCatalog {
         DESCRIPTIONS.put(ReportType.DRIVE_QUOTA, "按上传人统计网盘已用容量与配额占用（当前时点）");
     }
 
-    /**
-     * 私有构造器，禁止实例化工具类。
-     */
+    /** 工具类，禁止实例化。 */
     private ReportCatalog() {
     }
 

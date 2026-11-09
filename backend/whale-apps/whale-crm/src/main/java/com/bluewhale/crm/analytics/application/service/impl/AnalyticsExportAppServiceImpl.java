@@ -5,8 +5,8 @@ import com.bluewhale.crm.analytics.domain.model.AnalyticsExport;
 import com.bluewhale.crm.analytics.domain.model.ExportStatus;
 import com.bluewhale.crm.analytics.domain.model.ExportTable;
 import com.bluewhale.crm.analytics.domain.model.ExportType;
-import com.bluewhale.crm.analytics.domain.port.AnalyticsSourcePort;
 import com.bluewhale.crm.analytics.domain.port.AnalyticsFilePort;
+import com.bluewhale.crm.analytics.domain.port.AnalyticsSourcePort;
 import com.bluewhale.crm.analytics.domain.repository.AnalyticsExportRepository;
 import com.bluewhale.crm.common.CrmActor;
 import com.bluewhale.crm.common.CrmErrorCode;
@@ -25,8 +25,8 @@ import java.util.List;
  * 分析导出应用服务实现。
  *
  * <p>同步生成 UTF-8 CSV（可选 BOM），手机号与邮箱无条件脱敏；超过
- * {@code whale.crm.analytics.export-max-rows} 直接拒绝。V13 起产物上传 whale-file，
- * 仅落 {@code fileId / fileName / fileSize} 引用；下载经 CRM 代理流式转发。</p>
+ * {@code whale.crm.analytics.export-max-rows} 直接拒绝。CSV 上传 whale-file，
+ * 本地只保存文件 ID 与文件名引用，不再把内容落库。</p>
  *
  * @author BlueWhale
  */
@@ -51,6 +51,9 @@ public class AnalyticsExportAppServiceImpl implements AnalyticsExportAppService 
 
     /** 邮箱表头 */
     private static final String EMAIL_HEADER = "邮箱";
+
+    /** CSV 文件扩展名 */
+    private static final String CSV_SUFFIX = ".csv";
 
     private final AnalyticsExportRepository analyticsExportRepository;
     private final AnalyticsSourcePort analyticsSourcePort;

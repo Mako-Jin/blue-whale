@@ -4,11 +4,14 @@ import com.bluewhale.auth.sdk.annotation.RequirePermission;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.mall.aftersale.application.command.AfterSaleApplyCommand;
+import com.bluewhale.mall.aftersale.application.command.AfterSaleExchangeShipCommand;
+import com.bluewhale.mall.aftersale.application.command.AfterSaleReturnLogisticsCommand;
 import com.bluewhale.mall.aftersale.application.service.AfterSaleAppService;
 import com.bluewhale.mall.aftersale.application.view.AfterSaleView;
 import com.bluewhale.mall.common.MallPermissions;
 import com.bluewhale.mall.interfaces.support.MallActorContext;
 import com.bluewhale.mall.interfaces.support.PageParams;
+import com.bluewhale.mall.shipment.application.view.ShipmentView;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,8 +26,9 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 售后接口。
  *
- * <p>买家侧（申请、我的售后、详情、撤销）与运营侧（全量列表、审核）分成两组路径：
- * 合成一组会让「能申请售后」和「能审核别人的售后」共用一个权限点。</p>
+ * <p>买家侧（申请、我的售后、详情、撤销、回填退货物流）与运营侧（全量列表、审核、
+ * 确认收货、换货补发）分成两组路径：合成一组会让「能申请售后」和「能审核别人的售后」
+ * 共用一个权限点。</p>
  *
  * @author BlueWhale
  */
@@ -121,7 +125,7 @@ public class MallAfterSaleController {
     }
 
     /**
-     * 买家撤销（仅待审核）。
+     * 买家撤销（仅待审核；换货单在待退货阶段也可撤销）。
      *
      * @param id      售后单 ID
      * @param request 当前请求
@@ -135,7 +139,24 @@ public class MallAfterSaleController {
     }
 
     /**
-     * 审核通过并发起退款。
+     * 买家回填退货物流单号（待退货状态）。
+     *
+     * @param id      售后单 ID
+     * @param command 回填命令
+     * @param request 当前请求
+     * @return 空结果
+     */
+    @PostMapping("/{id}/return-logistics")
+    @RequirePermission(MallPermissions.AFTER_SALE_APPLY)
+    public Result<Void> fillReturnLogistics(@PathVariable("id") Long id,
+                                            @Valid @RequestBody AfterSaleReturnLogisticsCommand command,
+                                            HttpServletRequest request) {
+        afterSaleAppService.fillReturnLogistics(id, command, MallActorContext.from(request));
+        return Result.ok();
+    }
+
+    /**
+     * 审核通过（仅退款立即退款；退货类进入待退货）。
      *
      * @param id      售后单 ID
      * @param remark  审核意见
@@ -152,7 +173,7 @@ public class MallAfterSaleController {
     }
 
     /**
-     * 驳回售后。
+     * 驳回售后（待审核与待退货均可驳）。
      *
      * @param id      售后单 ID
      * @param remark  驳回原因
@@ -166,5 +187,38 @@ public class MallAfterSaleController {
                                HttpServletRequest request) {
         afterSaleAppService.reject(id, remark, MallActorContext.from(request));
         return Result.ok();
+    }
+
+    /**
+     * 运营确认收到退货（待退货 → 审核通过并发起退款 / 换货补发中）。
+     *
+     * @param id      售后单 ID
+     * @param request 当前请求
+     * @return 空结果
+     */
+    @PostMapping("/{id}/confirm-return")
+    @RequirePermission(MallPermissions.AFTER_SALE_AUDIT)
+    public Result<Void> confirmReturn(@PathVariable("id") Long id, HttpServletRequest request) {
+        afterSaleAppService.confirmReturn(id, MallActorContext.from(request));
+        return Result.ok();
+    }
+
+    /**
+     * 换货补发：创建补发发货单并把售后单结到已换货。
+     *
+     * <p>补发明细固定为售后单的换货行，命令里只传承运商与运单号。
+     * 权限沿用发货管理：补发实质上是一张发货单。</p>
+     *
+     * @param id      售后单 ID
+     * @param command 补发命令
+     * @param request 当前请求
+     * @return 补发发货单视图
+     */
+    @PostMapping("/{id}/exchange-shipment")
+    @RequirePermission(MallPermissions.SHIPMENT_MANAGE)
+    public Result<ShipmentView> createExchangeShipment(@PathVariable("id") Long id,
+                                                       @Valid @RequestBody AfterSaleExchangeShipCommand command,
+                                                       HttpServletRequest request) {
+        return Result.ok(afterSaleAppService.createExchangeShipment(id, command, MallActorContext.from(request)));
     }
 }

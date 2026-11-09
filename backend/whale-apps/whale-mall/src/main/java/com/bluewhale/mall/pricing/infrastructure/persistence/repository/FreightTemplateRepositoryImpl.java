@@ -3,11 +3,14 @@ package com.bluewhale.mall.pricing.infrastructure.persistence.repository;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.mall.pricing.domain.model.FreightChargeType;
+import com.bluewhale.mall.pricing.domain.model.FreightRegionRate;
 import com.bluewhale.mall.pricing.domain.model.FreightTemplate;
 import com.bluewhale.mall.pricing.domain.model.FreightTemplateQuery;
 import com.bluewhale.mall.pricing.domain.model.FreightTemplateStatus;
 import com.bluewhale.mall.pricing.domain.repository.FreightTemplateRepository;
+import com.bluewhale.mall.pricing.infrastructure.persistence.entity.FreightRegionRateEntity;
 import com.bluewhale.mall.pricing.infrastructure.persistence.entity.FreightTemplateEntity;
+import com.bluewhale.mall.pricing.infrastructure.persistence.mapper.FreightRegionRateMapper;
 import com.bluewhale.mall.pricing.infrastructure.persistence.mapper.FreightTemplateMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -27,6 +30,7 @@ import java.util.Optional;
 public class FreightTemplateRepositoryImpl implements FreightTemplateRepository {
 
     private final FreightTemplateMapper freightTemplateMapper;
+    private final FreightRegionRateMapper freightRegionRateMapper;
 
     @Override
     public List<FreightTemplate> page(FreightTemplateQuery query, long offset, int size) {
@@ -65,6 +69,9 @@ public class FreightTemplateRepositoryImpl implements FreightTemplateRepository 
             freightTemplateMapper.updateById(entity);
         }
         template.setId(entity.getId());
+        // 区域费率整体替换：REGIONAL 保存新费率，其他类型清空历史费率
+        replaceRegionRates(entity.getId(), template.getRegionRates() == null
+                ? List.of() : template.getRegionRates());
         return entity.getId();
     }
 
@@ -74,6 +81,29 @@ public class FreightTemplateRepositoryImpl implements FreightTemplateRepository 
         entity.setId(id);
         entity.setStatus(status);
         freightTemplateMapper.updateById(entity);
+    }
+
+    @Override
+    public List<FreightRegionRate> regionRates(Long templateId) {
+        if (templateId == null) {
+            return List.of();
+        }
+        return freightRegionRateMapper.selectList(new LambdaQueryWrapper<FreightRegionRateEntity>()
+                        .eq(FreightRegionRateEntity::getTemplateId, templateId)
+                        .orderByAsc(FreightRegionRateEntity::getRegion))
+                .stream().map(this::toRateDomain).toList();
+    }
+
+    @Override
+    public void replaceRegionRates(Long templateId, List<FreightRegionRate> rates) {
+        freightRegionRateMapper.delete(new LambdaQueryWrapper<FreightRegionRateEntity>()
+                .eq(FreightRegionRateEntity::getTemplateId, templateId));
+        for (FreightRegionRate rate : rates) {
+            FreightRegionRateEntity entity = toRateEntity(rate);
+            entity.setId(null);
+            entity.setTemplateId(templateId);
+            freightRegionRateMapper.insert(entity);
+        }
     }
 
     /**
@@ -110,6 +140,11 @@ public class FreightTemplateRepositoryImpl implements FreightTemplateRepository 
         template.setChargeType(parseChargeType(entity.getChargeType()));
         template.setBaseAmount(entity.getBaseAmount());
         template.setFreeThreshold(entity.getFreeThreshold());
+        template.setPiecePrice(entity.getPiecePrice());
+        template.setPieceFreeThreshold(entity.getPieceFreeThreshold());
+        template.setFirstWeightKg(entity.getFirstWeightKg());
+        template.setContinuedWeightKg(entity.getContinuedWeightKg());
+        template.setContinuedAmount(entity.getContinuedAmount());
         template.setStatus(FreightTemplateStatus.parse(entity.getStatus()));
         template.setRemark(entity.getRemark());
         template.setCreateTime(entity.getCreateTime());
@@ -130,9 +165,46 @@ public class FreightTemplateRepositoryImpl implements FreightTemplateRepository 
         entity.setChargeType(template.getChargeType() == null ? null : template.getChargeType().name());
         entity.setBaseAmount(template.getBaseAmount());
         entity.setFreeThreshold(template.getFreeThreshold());
+        entity.setPiecePrice(template.getPiecePrice());
+        entity.setPieceFreeThreshold(template.getPieceFreeThreshold());
+        entity.setFirstWeightKg(template.getFirstWeightKg());
+        entity.setContinuedWeightKg(template.getContinuedWeightKg());
+        entity.setContinuedAmount(template.getContinuedAmount());
         entity.setStatus(template.getStatus() == null
                 ? FreightTemplateStatus.ACTIVE.name() : template.getStatus().name());
         entity.setRemark(template.getRemark());
+        return entity;
+    }
+
+    /**
+     * 区域费率实体转领域模型。
+     *
+     * @param entity 实体
+     * @return 领域模型
+     */
+    private FreightRegionRate toRateDomain(FreightRegionRateEntity entity) {
+        FreightRegionRate rate = new FreightRegionRate();
+        rate.setId(entity.getId());
+        rate.setTemplateId(entity.getTemplateId());
+        rate.setRegion(entity.getRegion());
+        rate.setAmount(entity.getAmount());
+        rate.setFreeThreshold(entity.getFreeThreshold());
+        return rate;
+    }
+
+    /**
+     * 区域费率领域模型转实体。
+     *
+     * @param rate 领域模型
+     * @return 实体
+     */
+    private FreightRegionRateEntity toRateEntity(FreightRegionRate rate) {
+        FreightRegionRateEntity entity = new FreightRegionRateEntity();
+        entity.setId(rate.getId());
+        entity.setTemplateId(rate.getTemplateId());
+        entity.setRegion(rate.getRegion());
+        entity.setAmount(rate.getAmount());
+        entity.setFreeThreshold(rate.getFreeThreshold());
         return entity;
     }
 

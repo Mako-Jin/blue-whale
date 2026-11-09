@@ -26,6 +26,9 @@ public class SkuOffering {
     /** 商品名称 */
     private String spuName;
 
+    /** 商品类目 ID（订单落快照，品类券判定用） */
+    private Long categoryId;
+
     /** 商品主图 */
     private String mainImage;
 
@@ -37,6 +40,9 @@ public class SkuOffering {
 
     /** 成交单价（不可售时为空） */
     private BigDecimal unitPrice;
+
+    /** 会员价覆盖前的原价（仅会员价命中时非空，订单行原价快照用） */
+    private BigDecimal listPrice;
 
     /** 可售数量 */
     private Integer availableQty;

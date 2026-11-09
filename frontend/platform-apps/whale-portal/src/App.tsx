@@ -8,12 +8,13 @@ import Dashboard from './pages/Dashboard';
 import Todo from './pages/Todo';
 import Notice from './pages/Notice';
 import Inbox, { INAPP_READ_EVENT } from './pages/Inbox';
+import Assistant from './pages/Assistant';
 import { getInAppUnreadCount } from './api/inapp';
 
 const { Header, Content, Sider } = Layout;
 
 /** 导航路径（同时用作菜单 key） */
-const NAV_KEYS = ['/', '/todo', '/notice', '/inbox'] as const;
+const NAV_KEYS = ['/', '/todo', '/notice', '/inbox', '/assistant'] as const;
 
 /** 未读数轮询间隔（毫秒） */
 const UNREAD_POLL_INTERVAL = 30_000;
@@ -57,6 +58,8 @@ function Shell() {
         </Badge>
       ),
     },
+    // AI 助手内嵌演示入口（embed 来源会话，Wave 6.01 M3）
+    { key: '/assistant', label: 'AI 助手' },
   ];
 
   return (
@@ -80,6 +83,8 @@ function Shell() {
             <Route path="/todo" element={<Todo />} />
             <Route path="/notice" element={<Notice />} />
             <Route path="/inbox" element={<Inbox />} />
+            {/* AI 助手内嵌演示入口（embed 来源，Wave 6.01 M3） */}
+            <Route path="/assistant" element={<Assistant />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Content>

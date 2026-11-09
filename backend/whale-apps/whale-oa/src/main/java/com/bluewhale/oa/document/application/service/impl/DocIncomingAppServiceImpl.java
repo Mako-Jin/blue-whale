@@ -160,10 +160,10 @@ public class DocIncomingAppServiceImpl implements DocIncomingAppService {
     }
 
     /**
-     * 按ID查询收文，不存在时抛出业务异常。
+     * 按主键查询收文，不存在时抛出业务异常。
      *
-     * @param id 收文ID
-     * @return 收文实体
+     * @param id 收文主键
+     * @return 收文领域对象
      */
     private DocIncoming requireIncoming(Long id) {
         DocIncoming incoming = repository.findIncoming(id);
@@ -174,10 +174,10 @@ public class DocIncomingAppServiceImpl implements DocIncomingAppService {
     }
 
     /**
-     * 将保存命令中的字段写入收文实体，未填写的密级、紧急程度与收文日期取默认值。
+     * 用保存命令回填收文字段，并为密级、紧急程度与收文日期提供默认值。
      *
-     * @param incoming 收文实体
-     * @param command 保存命令
+     * @param incoming 待填充的收文
+     * @param command 收文保存命令
      */
     private void apply(DocIncoming incoming, DocumentCommands.IncomingSave command) {
         incoming.setSourceUnit(command.getSourceUnit().trim());
@@ -191,10 +191,10 @@ public class DocIncomingAppServiceImpl implements DocIncomingAppService {
     }
 
     /**
-     * 重建收文的附件列表，按顺序写入排序号。
+     * 覆盖重建收文附件：先删除既有附件，再按顺序保存新附件。
      *
-     * @param docId 收文ID
-     * @param attachments 附件保存命令列表
+     * @param docId 收文主键
+     * @param attachments 附件保存命令列表，可为 null
      */
     private void replaceAttachments(Long docId, List<DocumentCommands.AttachmentSave> attachments) {
         repository.deleteAttachments(DocStatus.TYPE_INCOMING, docId);
@@ -217,9 +217,9 @@ public class DocIncomingAppServiceImpl implements DocIncomingAppService {
     }
 
     /**
-     * 将收文实体转换为基础视图。
+     * 将收文领域对象转换为视图对象。
      *
-     * @param incoming 收文实体
+     * @param incoming 收文领域对象
      * @return 收文视图
      */
     private DocumentViews.Incoming toView(DocIncoming incoming) {
@@ -229,9 +229,9 @@ public class DocIncomingAppServiceImpl implements DocIncomingAppService {
     }
 
     /**
-     * 将收文实体转换为包含附件与归档信息的详情视图。
+     * 将收文领域对象转换为详情视图，附带附件与归档记录。
      *
-     * @param incoming 收文实体
+     * @param incoming 收文领域对象
      * @return 收文详情视图
      */
     private DocumentViews.Incoming toDetail(DocIncoming incoming) {
@@ -244,9 +244,9 @@ public class DocIncomingAppServiceImpl implements DocIncomingAppService {
     }
 
     /**
-     * 将附件实体转换为附件视图。
+     * 将附件领域对象转换为附件视图。
      *
-     * @param attachment 附件实体
+     * @param attachment 附件领域对象
      * @return 附件视图
      */
     private DocumentViews.Attachment toAttachmentView(DocAttachment attachment) {

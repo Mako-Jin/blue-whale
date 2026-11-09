@@ -32,9 +32,6 @@ public class CrmContractProperties {
     /** 到期提醒默认天数 */
     private int expiringDays = 30;
 
-    /** 定时对账 Cron */
-    private String syncCron = "0 0 3 * * ?";
-
     /** 单次对账客户批量 */
     private int syncBatchSize = 200;
 }

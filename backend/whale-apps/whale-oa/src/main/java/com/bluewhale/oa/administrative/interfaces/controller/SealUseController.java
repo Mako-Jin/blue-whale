@@ -54,9 +54,9 @@ public class SealUseController {
     }
 
     /**
-     * 用章申请详情。
+     * 查询用章申请详情。
      *
-     * @param id 用章申请ID
+     * @param id 用章申请 ID
      * @return 用章申请详情
      */
     @GetMapping("/{id}")
@@ -66,10 +66,10 @@ public class SealUseController {
     }
 
     /**
-     * 新建用章申请并登记审批。
+     * 创建用章申请。
      *
      * @param command 用章申请保存命令
-     * @return 新建后的用章申请
+     * @return 创建后的用章申请
      */
     @PostMapping
     @RequirePermission("sys:oa:seal:add")
@@ -80,11 +80,11 @@ public class SealUseController {
     }
 
     /**
-     * 修改用章申请。
+     * 更新用章申请。
      *
-     * @param id      用章申请ID
+     * @param id 用章申请 ID
      * @param command 用章申请保存命令
-     * @return 修改后的用章申请
+     * @return 更新后的用章申请
      */
     @PutMapping("/{id}")
     @RequirePermission("sys:oa:seal:edit")
@@ -97,8 +97,7 @@ public class SealUseController {
     /**
      * 删除用章申请。
      *
-     * @param id 用章申请ID
-     * @return 空结果
+     * @param id 用章申请 ID
      */
     @DeleteMapping("/{id}")
     @RequirePermission("sys:oa:seal:delete")
@@ -111,9 +110,8 @@ public class SealUseController {
     /**
      * 变更用章申请状态。
      *
-     * @param id      用章申请ID
+     * @param id 用章申请 ID
      * @param command 状态变更命令
-     * @return 空结果
      */
     @PutMapping("/{id}/status")
     @RequirePermission("sys:oa:seal:edit")
@@ -125,9 +123,9 @@ public class SealUseController {
     }
 
     /**
-     * 登记用印，仅审批通过的申请可登记且只登记一次。
+     * 用印登记。
      *
-     * @param id 用章申请ID
+     * @param id 用章申请 ID
      * @return 登记后的用章申请
      */
     @PostMapping("/{id}/register")
@@ -138,9 +136,9 @@ public class SealUseController {
     }
 
     /**
-     * 查询指定用户可用的印章列表，用户ID为空时取当前登录人。
+     * 查询用户可用印章。
      *
-     * @param userId 用户ID，可为空
+     * @param userId 用户 ID，为空时取当前登录用户
      * @return 可用印章列表
      */
     @GetMapping("/available-seals")

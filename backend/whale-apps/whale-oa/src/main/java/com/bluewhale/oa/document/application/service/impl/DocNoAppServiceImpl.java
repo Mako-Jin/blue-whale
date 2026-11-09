@@ -113,9 +113,9 @@ public class DocNoAppServiceImpl implements DocNoAppService {
     }
 
     /**
-     * 生成兜底文号，格式为 {@code 前缀 + yyyyMM + "-" + 三位序号}。
+     * 生成回落文号：固定前缀 + 年月 + 三位流水。
      *
-     * @return 兜底文号
+     * @return 回落文号
      */
     private String fallbackNo() {
         String period = LocalDate.now().format(MONTH_FORMATTER);
@@ -124,10 +124,10 @@ public class DocNoAppServiceImpl implements DocNoAppService {
     }
 
     /**
-     * 将保存命令写入编号规则实体，并对可选字段填入默认值。
+     * 用保存命令回填文号规则，并归一化单据类型、期间与流水长度等字段。
      *
-     * @param rule 编号规则实体
-     * @param command 编号规则保存命令
+     * @param rule 待填充的文号规则
+     * @param command 文号规则保存命令
      */
     private void apply(DocNoRule rule, DocumentCommands.NoRuleSave command) {
         rule.setCode(command.getCode().trim());
@@ -142,10 +142,10 @@ public class DocNoAppServiceImpl implements DocNoAppService {
     }
 
     /**
-     * 规范化文种，缺省为发文，非法文种抛出业务异常。
+     * 归一化文号适用单据类型，非法值抛出业务异常。
      *
-     * @param docType 文种
-     * @return 规范化后的文种
+     * @param docType 原始单据类型
+     * @return 归一化后的单据类型
      */
     private String normalizeDocType(String docType) {
         String value = StringUtils.hasText(docType) ? docType.trim().toUpperCase() : DocStatus.TYPE_OUTGOING;
@@ -156,10 +156,10 @@ public class DocNoAppServiceImpl implements DocNoAppService {
     }
 
     /**
-     * 规范化期间格式，缺省为按月，非法格式抛出业务异常。
+     * 归一化文号期间格式，非法值抛出业务异常。
      *
-     * @param periodFormat 期间格式
-     * @return 规范化后的期间格式
+     * @param periodFormat 原始期间格式
+     * @return 归一化后的期间格式
      */
     private String normalizePeriod(String periodFormat) {
         String value = StringUtils.hasText(periodFormat)
@@ -171,10 +171,10 @@ public class DocNoAppServiceImpl implements DocNoAppService {
     }
 
     /**
-     * 按期间格式计算当前期间值，无期间时返回空串。
+     * 按期间格式计算当前期间值（年或年月），无期间时返回空串。
      *
      * @param periodFormat 期间格式
-     * @return 期间值
+     * @return 当前期间值
      */
     private String periodValue(String periodFormat) {
         return switch (periodFormat) {
@@ -185,10 +185,10 @@ public class DocNoAppServiceImpl implements DocNoAppService {
     }
 
     /**
-     * 将编号规则实体转换为编号规则视图。
+     * 将文号规则领域对象转换为视图对象。
      *
-     * @param rule 编号规则实体
-     * @return 编号规则视图
+     * @param rule 文号规则领域对象
+     * @return 文号规则视图
      */
     private DocumentViews.NoRule toView(DocNoRule rule) {
         DocumentViews.NoRule view = new DocumentViews.NoRule();

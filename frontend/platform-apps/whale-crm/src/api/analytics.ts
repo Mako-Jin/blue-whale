@@ -139,7 +139,10 @@ export interface AnalyticsExport {
   exportType?: string | null;
   status?: string | null;
   rowCount?: number | null;
-  content?: string | null;
+  /** 导出文件 ID（CSV 归 whale-file 存储，下载走 /file/{fileId}/download） */
+  fileId?: number | null;
+  /** 导出文件名（如 EXP-20261109-0001.csv） */
+  fileName?: string | null;
   error?: string | null;
   createTime?: string | null;
 }
@@ -208,11 +211,6 @@ export function listActionRules(): Promise<ActionRule[]> {
 /** 创建导出任务 */
 export function createExport(exportType: string, filtersJson?: string): Promise<AnalyticsExport> {
   return http.post<AnalyticsExport>('/crm/analytics/export', { exportType, filtersJson });
-}
-
-/** 读取导出内容 */
-export function getExportContent(id: number): Promise<AnalyticsExport> {
-  return http.get<AnalyticsExport>(`/crm/analytics/export/${id}/content`);
 }
 
 /** 代理下载导出文件（V13 起走 whale-file；历史导出回退 CSV 内容） */

@@ -8,6 +8,7 @@ import com.bluewhale.mall.pricing.application.command.FreightTemplateSaveCommand
 import com.bluewhale.mall.pricing.application.service.FreightTemplateAppService;
 import com.bluewhale.mall.pricing.application.view.FreightTemplateView;
 import com.bluewhale.mall.pricing.domain.model.FreightChargeType;
+import com.bluewhale.mall.pricing.domain.model.FreightRegionRate;
 import com.bluewhale.mall.pricing.domain.model.FreightTemplate;
 import com.bluewhale.mall.pricing.domain.model.FreightTemplateQuery;
 import com.bluewhale.mall.pricing.domain.model.FreightTemplateStatus;
@@ -56,7 +57,9 @@ public class FreightTemplateAppServiceImpl implements FreightTemplateAppService 
     @Override
     public FreightTemplateView detail(Long id, MallActor actor) {
         actor.requireUserId();
-        return toView(requireTemplate(id));
+        FreightTemplate template = requireTemplate(id);
+        template.setRegionRates(freightTemplateRepository.regionRates(template.getId()));
+        return toView(template);
     }
 
     @Override
@@ -99,13 +102,31 @@ public class FreightTemplateAppServiceImpl implements FreightTemplateAppService 
 
     @Override
     public BigDecimal freightFor(Long freightTemplateId, BigDecimal goodsAmount) {
+        return freightFor(freightTemplateId, goodsAmount, null);
+    }
+
+    @Override
+    public BigDecimal freightFor(Long freightTemplateId, BigDecimal goodsAmount, Integer quantity) {
+        return freightFor(freightTemplateId, goodsAmount, quantity, null, null);
+    }
+
+    @Override
+    public BigDecimal freightFor(Long freightTemplateId, BigDecimal goodsAmount, Integer quantity,
+                                 BigDecimal totalWeightKg, String region) {
         BigDecimal zero = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         if (freightTemplateId == null || goodsAmount == null) {
             return zero;
         }
         return freightTemplateRepository.findById(freightTemplateId)
                 .filter(FreightTemplate::isActive)
-                .map(template -> template.freightFor(goodsAmount))
+                .map(template -> {
+                    // REGIONAL 计费需要区域费率，计价前加载（模板未配费率时按兜底价）
+                    if (template.getChargeType() == FreightChargeType.REGIONAL
+                            && (template.getRegionRates() == null || template.getRegionRates().isEmpty())) {
+                        template.setRegionRates(freightTemplateRepository.regionRates(freightTemplateId));
+                    }
+                    return template.freightFor(goodsAmount, quantity, totalWeightKg, region);
+                })
                 .orElse(zero);
     }
 
@@ -131,6 +152,12 @@ public class FreightTemplateAppServiceImpl implements FreightTemplateAppService 
         template.setChargeType(parseChargeType(command.getChargeType()));
         template.setBaseAmount(command.getBaseAmount());
         template.setFreeThreshold(command.getFreeThreshold());
+        template.setPiecePrice(command.getPiecePrice());
+        template.setPieceFreeThreshold(command.getPieceFreeThreshold());
+        template.setFirstWeightKg(command.getFirstWeightKg());
+        template.setContinuedWeightKg(command.getContinuedWeightKg());
+        template.setContinuedAmount(command.getContinuedAmount());
+        template.setRegionRates(toRegionRates(command.getRegionRates()));
         template.setStatus(FreightTemplateStatus.parse(command.getStatus()));
         template.setRemark(command.getRemark() == null ? null : command.getRemark().trim());
     }
@@ -154,6 +181,52 @@ public class FreightTemplateAppServiceImpl implements FreightTemplateAppService 
     }
 
     /**
+     * 区域费率命令转领域模型。
+     *
+     * @param rates 命令列表
+     * @return 领域模型列表
+     */
+    private List<FreightRegionRate> toRegionRates(List<FreightTemplateSaveCommand.RegionRateCommand> rates) {
+        if (rates == null) {
+            return new ArrayList<>();
+        }
+        List<FreightRegionRate> result = new ArrayList<>(rates.size());
+        for (FreightTemplateSaveCommand.RegionRateCommand rate : rates) {
+            if (rate == null) {
+                continue;
+            }
+            FreightRegionRate domain = new FreightRegionRate();
+            domain.setRegion(rate.getRegion());
+            domain.setAmount(rate.getAmount());
+            domain.setFreeThreshold(rate.getFreeThreshold());
+            result.add(domain);
+        }
+        return result;
+    }
+
+    /**
+     * 区域费率领域模型转视图。
+     *
+     * @param rates 领域模型列表
+     * @return 视图列表
+     */
+    private List<FreightTemplateView.RegionRateView> toRegionRateViews(List<FreightRegionRate> rates) {
+        if (rates == null || rates.isEmpty()) {
+            return List.of();
+        }
+        List<FreightTemplateView.RegionRateView> views = new ArrayList<>(rates.size());
+        for (FreightRegionRate rate : rates) {
+            FreightTemplateView.RegionRateView view = new FreightTemplateView.RegionRateView();
+            view.setId(rate.getId());
+            view.setRegion(rate.getRegion());
+            view.setAmount(rate.getAmount());
+            view.setFreeThreshold(rate.getFreeThreshold());
+            views.add(view);
+        }
+        return views;
+    }
+
+    /**
      * 领域模型转视图。
      *
      * @param template 模板
@@ -166,6 +239,12 @@ public class FreightTemplateAppServiceImpl implements FreightTemplateAppService 
         view.setChargeType(template.getChargeType() == null ? null : template.getChargeType().name());
         view.setBaseAmount(template.getBaseAmount());
         view.setFreeThreshold(template.getFreeThreshold());
+        view.setPiecePrice(template.getPiecePrice());
+        view.setPieceFreeThreshold(template.getPieceFreeThreshold());
+        view.setFirstWeightKg(template.getFirstWeightKg());
+        view.setContinuedWeightKg(template.getContinuedWeightKg());
+        view.setContinuedAmount(template.getContinuedAmount());
+        view.setRegionRates(toRegionRateViews(template.getRegionRates()));
         view.setStatus(template.getStatus() == null ? null : template.getStatus().name());
         view.setRemark(template.getRemark());
         view.setCreateTime(template.getCreateTime());

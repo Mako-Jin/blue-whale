@@ -63,8 +63,8 @@ public class AdministrativeApprovalBusinessDetailProvider implements ApprovalBus
     /**
      * 构建用车申请的审批业务详情。
      *
-     * @param businessId 用车预约主键
-     * @return 审批业务详情，业务不存在时返回 null
+     * @param businessId 用车申请 ID
+     * @return 审批业务详情，查询失败时返回 null
      */
     private ApprovalBusinessDetailView vehicleDetail(Long businessId) {
         AdministrativeViews.BookingView booking;
@@ -91,8 +91,8 @@ public class AdministrativeApprovalBusinessDetailProvider implements ApprovalBus
     /**
      * 构建用章申请的审批业务详情。
      *
-     * @param businessId 用章申请主键
-     * @return 审批业务详情，业务不存在时返回 null
+     * @param businessId 用章申请 ID
+     * @return 审批业务详情，查询失败时返回 null
      */
     private ApprovalBusinessDetailView sealDetail(Long businessId) {
         AdministrativeViews.SealUseView sealUse;
@@ -117,8 +117,8 @@ public class AdministrativeApprovalBusinessDetailProvider implements ApprovalBus
     /**
      * 构建采购申请的审批业务详情。
      *
-     * @param businessId 采购申请主键
-     * @return 审批业务详情，业务不存在时返回 null
+     * @param businessId 采购申请 ID
+     * @return 审批业务详情，查询失败时返回 null
      */
     private ApprovalBusinessDetailView purchaseDetail(Long businessId) {
         AdministrativeViews.PurchaseView purchase;
@@ -144,14 +144,14 @@ public class AdministrativeApprovalBusinessDetailProvider implements ApprovalBus
     }
 
     /**
-     * 构建审批业务详情的基础字段。
+     * 构建审批业务详情基础信息。
      *
-     * @param businessType 业务类型编码
-     * @param businessId 业务主键
+     * @param businessType 业务类型
+     * @param businessId 业务 ID
      * @param status 业务状态
-     * @param url 详情页跳转地址
-     * @param summary 审批摘要
-     * @return 填充了基础字段的审批业务详情
+     * @param url 业务详情页地址
+     * @param summary 业务摘要
+     * @return 审批业务详情
      */
     private ApprovalBusinessDetailView baseView(String businessType, Long businessId, String status,
                                                 String url, String summary) {
@@ -167,8 +167,8 @@ public class AdministrativeApprovalBusinessDetailProvider implements ApprovalBus
     /**
      * 将 null 转为空字符串。
      *
-     * @param value 原始值
-     * @return 原值或空字符串
+     * @param value 原始字符串
+     * @return 非 null 的字符串
      */
     private String nullToEmpty(String value) {
         return value == null ? "" : value;

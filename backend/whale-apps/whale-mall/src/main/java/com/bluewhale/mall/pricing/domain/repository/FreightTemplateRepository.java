@@ -1,5 +1,6 @@
 package com.bluewhale.mall.pricing.domain.repository;
 
+import com.bluewhale.mall.pricing.domain.model.FreightRegionRate;
 import com.bluewhale.mall.pricing.domain.model.FreightTemplate;
 import com.bluewhale.mall.pricing.domain.model.FreightTemplateQuery;
 
@@ -63,4 +64,20 @@ public interface FreightTemplateRepository {
      * @param status 状态
      */
     void updateStatus(Long id, String status);
+
+    /**
+     * 查询模板的区域费率（仅 REGIONAL 用）。
+     *
+     * @param templateId 模板主键
+     * @return 区域费率列表（无则空列表）
+     */
+    List<FreightRegionRate> regionRates(Long templateId);
+
+    /**
+     * 整体替换模板的区域费率（先删后插，保存模板时调用）。
+     *
+     * @param templateId 模板主键
+     * @param rates      区域费率列表（REGIONAL 时为模板新费率；其他类型传空表）
+     */
+    void replaceRegionRates(Long templateId, List<FreightRegionRate> rates);
 }

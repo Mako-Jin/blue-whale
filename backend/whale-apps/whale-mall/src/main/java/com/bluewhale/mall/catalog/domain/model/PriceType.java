@@ -25,6 +25,9 @@ public enum PriceType {
     /** 经销价（元） */
     B2B(CurrencyType.CASH),
 
+    /** 会员价（元，仅零售形态生效；登记在 {@code mall_member} 的用户在有效期内按此价成交） */
+    MEMBER(CurrencyType.CASH),
+
     /** 福利积分价（积分） */
     POINTS(CurrencyType.POINTS);
 

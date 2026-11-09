@@ -42,6 +42,9 @@ public class Sku {
     /** SKU 图 */
     private String imageUrl;
 
+    /** 单件重量（kg，按重运费计量用；可空，空则按重模板退回首重价） */
+    private BigDecimal weightKg;
+
     /** 状态：ENABLED / DISABLED */
     private String status;
 
@@ -79,6 +82,9 @@ public class Sku {
                     "规格描述不得超过 " + SPEC_MAX_LENGTH + " 字符");
         }
         skuCode = skuCode.trim().toUpperCase(Locale.ROOT);
+        if (weightKg != null && weightKg.compareTo(BigDecimal.ZERO) <= 0) {
+            throw MallErrorCode.exception(MallErrorCode.PRODUCT_INVALID, "单件重量必须大于 0（kg），不计量请留空");
+        }
         if (status == null || status.isBlank()) {
             status = "ENABLED";
         }
@@ -124,6 +130,28 @@ public class Sku {
         }
         throw MallErrorCode.exception(MallErrorCode.PRICE_MISSING,
                 "SKU " + skuCode + " 未配置 " + safeMode.priceType() + " 价目");
+    }
+
+    /**
+     * 按商城形态解析成交价（含会员价口径）。
+     *
+     * <p>零售形态下 {@code memberPrice} 为 true 且配置了 {@link PriceType#MEMBER}
+     * 价目时按会员价成交；其他形态或未配置会员价目一律回落到
+     * {@link #resolvePrice(MallMode)} 的普通解析（绝不因会员身份提价或报错）。</p>
+     *
+     * @param mode        商城形态
+     * @param memberPrice 下单用户是否为有效会员
+     * @return 命中的价目
+     */
+    public SkuPrice resolvePrice(MallMode mode, boolean memberPrice) {
+        MallMode safeMode = mode == null ? MallMode.RETAIL : mode;
+        if (memberPrice && safeMode.priceType() == PriceType.RETAIL) {
+            SkuPrice member = findPrice(PriceType.MEMBER);
+            if (member != null) {
+                return member;
+            }
+        }
+        return resolvePrice(mode);
     }
 
     /**

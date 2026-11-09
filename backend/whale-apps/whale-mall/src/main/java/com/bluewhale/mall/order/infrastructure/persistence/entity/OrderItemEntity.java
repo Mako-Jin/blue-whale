@@ -28,6 +28,9 @@ public class OrderItemEntity extends BaseEntity {
     /** SKU ID */
     private Long skuId;
 
+    /** 商品类目 ID（快照，品类券判定用） */
+    private Long categoryId;
+
     /** 商品名称（快照） */
     private String spuName;
 
@@ -45,6 +48,21 @@ public class OrderItemEntity extends BaseEntity {
 
     /** 成交单价 */
     private BigDecimal unitPrice;
+
+    /** 原单价（快照，活动/会员价覆盖前） */
+    private BigDecimal listPrice;
+
+    /** 命中活动 ID（快照） */
+    private Long activityId;
+
+    /** 命中活动名称（快照） */
+    private String activityName;
+
+    /** 成交价来源：LIST / ACTIVITY / MEMBER */
+    private String priceSource;
+
+    /** 单件重量 kg（快照） */
+    private BigDecimal weightKg;
 
     /** 数量 */
     private Integer quantity;

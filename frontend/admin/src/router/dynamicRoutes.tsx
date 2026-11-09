@@ -12,6 +12,8 @@ import ArchivePendingList from '../pages/archive/PendingList';
 import ArchiveRuleList from '../pages/archive/RuleList';
 import ArchiveSyncStatus from '../pages/archive/SyncStatus';
 import ComponentsDemo from '../pages/demo/ComponentsDemo';
+import AssistantDefinitionList from '../pages/assistant/DefinitionList';
+import AssistantUsageBoard from '../pages/assistant/UsageBoard';
 import ConfigItemList from '../pages/config/ItemList';
 import DeptList from '../pages/dept/DeptList';
 import FileList from '../pages/file/FileList';
@@ -56,6 +58,8 @@ const COMPONENT_MAP: Record<
   | 'message/announce'
   | 'pay/order'
   | 'config/item'
+  | 'assistant/definition'
+  | 'assistant/usage'
   | 'archive/category'
   | 'archive/rule'
   | 'archive/item'
@@ -88,6 +92,8 @@ const COMPONENT_MAP: Record<
   'message/announce': AnnouncementList,
   'pay/order': OrderList,
   'config/item': ConfigItemList,
+  'assistant/definition': AssistantDefinitionList,
+  'assistant/usage': AssistantUsageBoard,
   'archive/category': ArchiveCategoryList,
   'archive/rule': ArchiveRuleList,
   'archive/item': ArchiveItemList,

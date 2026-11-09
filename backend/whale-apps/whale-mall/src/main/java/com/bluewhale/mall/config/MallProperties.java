@@ -27,8 +27,14 @@ public class MallProperties {
     /** 待支付订单自动关闭时长（分钟，0 表示不自动关闭） */
     private int orderExpireMinutes = 30;
 
+    /** 待审核售后单超时自动关闭时长（小时，0 表示不自动关闭） */
+    private int afterSaleExpireHours = 48;
+
     /** 列表分页单页上限 */
     private int pageLimit = 100;
+
+    /** 一单最多叠加的优惠券张数 */
+    private int couponMaxPerOrder = 2;
 
     /** 支付/退款成功回调地址（格式 &lt;服务名&gt;/&lt;路径&gt;，创建支付单时传给 whale-pay） */
     private String payNotifyUrl = "whale-mall/mall/internal/order/paid";

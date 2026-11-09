@@ -51,14 +51,23 @@ public class OrderView {
     /** 商品总额（不含优惠与运费，报表成交额看这个） */
     private BigDecimal goodsAmount;
 
+    /** 原价合计（未含活动与会员让利，对账口径） */
+    private BigDecimal listAmount;
+
+    /** 活动与会员价让利合计 */
+    private BigDecimal activityDiscount;
+
     /** 优惠金额 */
     private BigDecimal discountAmount;
 
     /** 运费 */
     private BigDecimal freightAmount;
 
-    /** 使用的券编码（快照） */
+    /** 使用的券编码（快照，主券口径） */
     private String couponCode;
+
+    /** 本单用券明细（一单多券；单券订单只有一条） */
+    private List<OrderCouponView> coupons = new ArrayList<>();
 
     /** 商品总件数 */
     private Integer totalQuantity;

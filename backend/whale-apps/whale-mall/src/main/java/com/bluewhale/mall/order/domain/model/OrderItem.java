@@ -27,6 +27,9 @@ public class OrderItem {
     /** SKU ID */
     private Long skuId;
 
+    /** 商品类目 ID（快照，品类券判定用） */
+    private Long categoryId;
+
     /** 商品名称（快照） */
     private String spuName;
 
@@ -44,6 +47,21 @@ public class OrderItem {
 
     /** 成交单价（快照） */
     private BigDecimal unitPrice;
+
+    /** 原单价（快照，活动/会员价覆盖前的价目；未覆盖为空） */
+    private BigDecimal listPrice;
+
+    /** 命中活动 ID（快照，未命中为空） */
+    private Long activityId;
+
+    /** 命中活动名称（快照） */
+    private String activityName;
+
+    /** 成交价来源：LIST 价目 / ACTIVITY 活动 / MEMBER 会员价（快照） */
+    private String priceSource;
+
+    /** 单件重量 kg（快照，按重运费计算依据） */
+    private BigDecimal weightKg;
 
     /** 数量 */
     private Integer quantity;

@@ -9,9 +9,8 @@ import org.springframework.context.annotation.Configuration;
  * Jackson 2 兼容配置。
  *
  * <p>Spring Boot 4 默认使用 Jackson 3（{@code tools.jackson.*}），不再自动注册
- * {@code com.fasterxml.jackson.databind.ObjectMapper} Bean。本服务仍有个别组件
- * （如 {@code PdmIntSyncServiceImpl}）按 Jackson 2 类型构造注入，这里补一个最小实例，
- * 避免启动期因缺少依赖直接失败。</p>
+ * {@code com.fasterxml.jackson.databind.ObjectMapper} Bean。本服务仍有个别组件按 Jackson 2 类型
+ * 构造注入，这里补一个最小实例，避免启动期因缺少依赖而失败。</p>
  *
  * <p>待这些组件迁移到 Jackson 3 后可移除本配置。</p>
  *

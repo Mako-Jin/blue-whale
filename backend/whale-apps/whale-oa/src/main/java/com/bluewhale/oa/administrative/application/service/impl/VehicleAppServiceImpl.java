@@ -296,9 +296,9 @@ public class VehicleAppServiceImpl implements VehicleAppService {
     }
 
     /**
-     * 将保存命令中的字段写入用车申请实体。
+     * 将保存命令中的字段应用到用车申请。
      *
-     * @param booking 用车申请实体
+     * @param booking 用车申请
      * @param command 用车申请保存命令
      */
     private void applyBooking(VehicleBooking booking, AdministrativeCommands.BookingSaveCommand command) {
@@ -314,11 +314,9 @@ public class VehicleAppServiceImpl implements VehicleAppService {
     }
 
     /**
-     * 为用车申请注册审批实例并回写实例标识。
+     * 为用车申请注册审批实例。
      *
-     * <p>已存在审批实例时直接跳过，避免重复注册。</p>
-     *
-     * @param booking 用车申请实体
+     * @param booking 用车申请
      */
     private void registerApproval(VehicleBooking booking) {
         if (booking.getApprovalInstanceId() != null) {
@@ -339,10 +337,10 @@ public class VehicleAppServiceImpl implements VehicleAppService {
     }
 
     /**
-     * 按标识获取车辆，不存在时抛出业务异常。
+     * 查询车辆，不存在时抛出业务异常。
      *
-     * @param id 车辆标识
-     * @return 车辆实体
+     * @param id 车辆 ID
+     * @return 车辆
      */
     private Vehicle requireVehicle(Long id) {
         return repository.findVehicleById(id)
@@ -350,10 +348,10 @@ public class VehicleAppServiceImpl implements VehicleAppService {
     }
 
     /**
-     * 按标识获取司机，不存在时抛出业务异常。
+     * 查询司机，不存在时抛出业务异常。
      *
-     * @param id 司机标识
-     * @return 司机实体
+     * @param id 司机 ID
+     * @return 司机
      */
     private Driver requireDriver(Long id) {
         return repository.findDriverById(id)
@@ -361,10 +359,10 @@ public class VehicleAppServiceImpl implements VehicleAppService {
     }
 
     /**
-     * 按标识获取用车申请，不存在时抛出业务异常。
+     * 查询用车申请，不存在时抛出业务异常。
      *
-     * @param id 用车申请标识
-     * @return 用车申请实体
+     * @param id 用车申请 ID
+     * @return 用车申请
      */
     private VehicleBooking requireBooking(Long id) {
         return repository.findBookingById(id)
@@ -372,9 +370,9 @@ public class VehicleAppServiceImpl implements VehicleAppService {
     }
 
     /**
-     * 将车辆实体转换为车辆视图。
+     * 将车辆领域对象转换为视图。
      *
-     * @param vehicle 车辆实体
+     * @param vehicle 车辆
      * @return 车辆视图
      */
     private static AdministrativeViews.VehicleView toVehicleView(Vehicle vehicle) {
@@ -392,9 +390,9 @@ public class VehicleAppServiceImpl implements VehicleAppService {
     }
 
     /**
-     * 将司机实体转换为司机视图。
+     * 将司机领域对象转换为视图。
      *
-     * @param driver 司机实体
+     * @param driver 司机
      * @return 司机视图
      */
     private static AdministrativeViews.DriverView toDriverView(Driver driver) {
@@ -411,9 +409,9 @@ public class VehicleAppServiceImpl implements VehicleAppService {
     }
 
     /**
-     * 将用车申请实体转换为用车申请视图。
+     * 将用车申请领域对象转换为视图。
      *
-     * @param booking 用车申请实体
+     * @param booking 用车申请
      * @return 用车申请视图
      */
     private static AdministrativeViews.BookingView toBookingView(VehicleBooking booking) {
@@ -438,10 +436,10 @@ public class VehicleAppServiceImpl implements VehicleAppService {
     }
 
     /**
-     * 将用车记录实体转换为用车记录视图。
+     * 将用车使用记录领域对象转换为视图。
      *
-     * @param usage 用车记录实体
-     * @return 用车记录视图
+     * @param usage 用车使用记录
+     * @return 用车使用记录视图
      */
     private static AdministrativeViews.UsageView toUsageView(VehicleUsage usage) {
         AdministrativeViews.UsageView view = new AdministrativeViews.UsageView();

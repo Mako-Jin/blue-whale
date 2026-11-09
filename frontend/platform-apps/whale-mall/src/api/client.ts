@@ -54,6 +54,8 @@ export const http = {
     request<T>(url, { method: 'PUT', body, query }),
   del: <T>(url: string, query?: Record<string, unknown>) =>
     request<T>(url, { method: 'DELETE', query }),
+  /** multipart 文件上传（如售后凭证图片，走 whale-file /file/upload） */
+  upload: <T>(url: string, body: FormData) => request<T>(url, { method: 'POST', body }),
 };
 
 /** 下载原始字节流（导出），返回 blob 与 Content-Disposition 文件名 */

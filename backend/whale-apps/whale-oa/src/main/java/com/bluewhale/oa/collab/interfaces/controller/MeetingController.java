@@ -39,10 +39,10 @@ public class MeetingController {
     private final MeetingAppService meetingAppService;
 
     /**
-     * 会议室分页查询。
+     * 分页查询会议室。
      *
      * @param query 查询条件
-     * @return 分页结果
+     * @return 会议室分页结果
      */
     @GetMapping("/rooms/page")
     @RequirePermission("sys:oa:meeting:room:list")
@@ -51,7 +51,7 @@ public class MeetingController {
     }
 
     /**
-     * 会议室下拉列表。
+     * 查询会议室列表，未指定状态时默认仅返回启用状态的会议室。
      *
      * @param query 查询条件
      * @return 会议室列表
@@ -65,8 +65,8 @@ public class MeetingController {
     /**
      * 新增会议室。
      *
-     * @param command 保存命令
-     * @return 会议室视图
+     * @param command 会议室保存命令
+     * @return 新增的会议室视图
      */
     @PostMapping("/rooms")
     @RequirePermission("sys:oa:meeting:room:manage")
@@ -79,8 +79,8 @@ public class MeetingController {
      * 编辑会议室。
      *
      * @param id 会议室ID
-     * @param command 保存命令
-     * @return 会议室视图
+     * @param command 会议室保存命令
+     * @return 更新后的会议室视图
      */
     @PutMapping("/rooms/{id}")
     @RequirePermission("sys:oa:meeting:room:manage")
@@ -94,6 +94,7 @@ public class MeetingController {
      * 删除会议室。
      *
      * @param id 会议室ID
+     * @return 空结果
      */
     @DeleteMapping("/rooms/{id}")
     @RequirePermission("sys:oa:meeting:room:manage")
@@ -104,10 +105,10 @@ public class MeetingController {
     }
 
     /**
-     * 会议分页查询。
+     * 分页查询会议。
      *
      * @param query 查询条件
-     * @return 分页结果
+     * @return 会议分页结果
      */
     @GetMapping("/page")
     @RequirePermission("sys:oa:meeting:list")
@@ -116,7 +117,7 @@ public class MeetingController {
     }
 
     /**
-     * 会议详情。
+     * 查询会议详情。
      *
      * @param id 会议ID
      * @return 会议详情视图
@@ -130,8 +131,8 @@ public class MeetingController {
     /**
      * 创建会议。
      *
-     * @param command 保存命令
-     * @return 会议详情视图
+     * @param command 会议保存命令
+     * @return 创建后的会议详情视图
      */
     @PostMapping
     @RequirePermission("sys:oa:meeting:manage")
@@ -145,8 +146,8 @@ public class MeetingController {
      * 编辑会议。
      *
      * @param id 会议ID
-     * @param command 保存命令
-     * @return 会议详情视图
+     * @param command 会议保存命令
+     * @return 更新后的会议详情视图
      */
     @PutMapping("/{id}")
     @RequirePermission("sys:oa:meeting:manage")
@@ -160,8 +161,8 @@ public class MeetingController {
      * 变更会议状态。
      *
      * @param id 会议ID
-     * @param command 状态变更命令
-     * @return 是否变更成功
+     * @param command 会议状态变更命令
+     * @return 状态是否实际发生变更
      */
     @PutMapping("/{id}/status")
     @RequirePermission("sys:oa:meeting:manage")
@@ -176,8 +177,8 @@ public class MeetingController {
      *
      * @param id 会议ID
      * @param userId 参会人用户ID
-     * @param command 参会状态命令
-     * @return 参会人视图
+     * @param command 参会状态变更命令
+     * @return 更新后的参会人视图
      */
     @PutMapping("/{id}/participants/{userId}/status")
     @RequirePermission("sys:oa:meeting:manage")
@@ -189,11 +190,11 @@ public class MeetingController {
     }
 
     /**
-     * 保存会议纪要。
+     * 保存会议纪要，并整体替换会议行动项。
      *
      * @param id 会议ID
-     * @param command 纪要保存命令
-     * @return 会议详情视图
+     * @param command 会议纪要保存命令
+     * @return 更新后的会议详情视图
      */
     @PutMapping("/{id}/minute")
     @RequirePermission("sys:oa:meeting:manage")

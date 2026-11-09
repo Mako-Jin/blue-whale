@@ -7,8 +7,8 @@ import java.time.LocalDateTime;
 /**
  * 分析导出任务。
  *
- * <p>V13 起新导出接入 whale-file，产物以 {@code fileId / fileName / fileSize} 引用，
- * 下载经 CRM 代理流式转发；{@code content} 仅保留 V13 前的历史导出，读取时向后兼容。</p>
+ * <p>CSV 文件归 whale-file，本地只保留 {@code fileId} / {@code fileName} 引用，
+ * 不再把内容落库；单次导出行数受 {@code whale.crm.analytics.export-max-rows} 约束。</p>
  *
  * @author BlueWhale
  */
@@ -63,12 +63,14 @@ public class AnalyticsExport {
     /**
      * 标记导出完成（历史口径：内容落库）。
      *
-     * @param csv 已脱敏的 CSV 内容
-     * @param rows 数据行数
+     * @param fileId   已上传到 whale-file 的文件 ID
+     * @param fileName 导出文件名
+     * @param rows     数据行数
      */
-    public void complete(String csv, int rows) {
+    public void complete(Long fileId, String fileName, int rows) {
         this.status = ExportStatus.COMPLETED;
-        this.content = csv;
+        this.fileId = fileId;
+        this.fileName = fileName;
         this.rowCount = rows;
         this.error = null;
     }

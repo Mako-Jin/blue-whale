@@ -3,6 +3,8 @@ package com.bluewhale.mall.aftersale.domain.repository;
 import com.bluewhale.mall.aftersale.domain.model.MallAfterSale;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -99,4 +101,26 @@ public interface AfterSaleRepository {
      * @return 累计成功返回 true；订单状态不允许或可退金额不足返回 false
      */
     boolean applyOrderRefund(Long orderId, BigDecimal amount);
+
+    /**
+     * 列出创建时间早于截止时间且仍待审核的售后单（超时自动关闭扫描用）。
+     *
+     * <p>只扫 CREATED：待退货、换货补发中说明买家可能已寄回商品，不自动关。</p>
+     *
+     * @param deadline 截止时间（create_time 早于该值即超时）
+     * @param limit    本次最多处理条数
+     * @return 待关闭售后单列表（含明细）
+     */
+    List<MallAfterSale> listExpiredCreated(LocalDateTime deadline, int limit);
+
+    /**
+     * 是否存在覆盖任一订单行的进行中换货单（换货查重用）。
+     *
+     * <p>换货不占退款额度，防超占只能靠查重：同一行存在 CREATED / WAIT_RETURN /
+     * EXCHANGING 状态的换货单时，再申请换货会两头补发。</p>
+     *
+     * @param orderItemIds 订单明细 ID 集合
+     * @return 存在进行中换货单返回 true
+     */
+    boolean existsActiveExchange(Collection<Long> orderItemIds);
 }

@@ -8,6 +8,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 优惠券模板保存命令。
@@ -47,8 +48,17 @@ public class CouponSaveCommand {
     /** 折扣封顶（DISCOUNT 必填） */
     private BigDecimal maxDiscountAmount;
 
-    /** 适用渠道 ID（空 = 全场通用） */
+    /** 适用渠道 ID（仅 CHANNEL 用；空 = 全场通用） */
     private Long channelId;
+
+    /** 适用范围：ALL 全场 / CHANNEL 店铺（单渠道）/ CATEGORY 品类 / SKU 商品（空按 channelId 回落） */
+    private String scope;
+
+    /** 适用类目 ID（仅 CATEGORY 必填） */
+    private List<Long> categoryIds;
+
+    /** 适用 SKU ID（仅 SKU 商品券必填） */
+    private List<Long> skuIds;
 
     /** 发行量（0 = 不限） */
     private Integer totalQty;

@@ -283,13 +283,23 @@ public class WorkflowApprovalGatewayImpl implements WorkflowApprovalGateway {
     /**
      * 发起 GET 请求。
      *
-     * @param uri 完整地址
+     * @param uri 请求地址；相对路径时自动补服务基地址
      * @return 响应信封
      */
     private Map<String, Object> get(String uri) {
-        return exchange(() -> restClient().get().uri(uri).headers(this::applyIdentity)
+        return exchange(() -> restClient().get().uri(absoluteUri(uri)).headers(this::applyIdentity)
                 .retrieve().body(new ParameterizedTypeReference<Map<String, Object>>() {
                 }));
+    }
+
+    /**
+     * 相对路径补全为带服务基地址的完整地址。
+     *
+     * @param uri 请求地址
+     * @return 完整地址
+     */
+    private String absoluteUri(String uri) {
+        return uri.startsWith("http://") || uri.startsWith("https://") ? uri : baseUrl() + uri;
     }
 
     /**

@@ -27,6 +27,18 @@ public final class MallPermissions {
     /** 商品查看（2203） */
     public static final String PRODUCT_LIST = "sys:mall:product:list";
 
+    /** 活动列表 */
+    public static final String ACTIVITY_LIST = "sys:mall:activity:list";
+
+    /** 活动维护 */
+    public static final String ACTIVITY_MANAGE = "sys:mall:activity:manage";
+
+    /** 会员列表 */
+    public static final String MEMBER_LIST = "sys:mall:member:list";
+
+    /** 会员维护 */
+    public static final String MEMBER_MANAGE = "sys:mall:member:manage";
+
     /** 商品维护：新建 / 编辑 SKU 与价目（2204） */
     public static final String PRODUCT_MANAGE = "sys:mall:product:manage";
 

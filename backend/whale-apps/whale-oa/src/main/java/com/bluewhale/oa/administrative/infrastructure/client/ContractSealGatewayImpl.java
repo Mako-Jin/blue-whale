@@ -95,10 +95,10 @@ public class ContractSealGatewayImpl implements ContractSealGateway {
     }
 
     /**
-     * 调用 Contract 内网只读接口并解析为通用响应结构。
+     * 发起合同服务内网 GET 请求。
      *
-     * @param path 接口路径（含查询参数）
-     * @return 接口响应体
+     * @param path 请求路径
+     * @return 响应信封
      */
     private Map<String, Object> get(String path) {
         try {
@@ -113,9 +113,9 @@ public class ContractSealGatewayImpl implements ContractSealGateway {
     }
 
     /**
-     * 将当前请求上下文中的租户、用户信息写入内网调用请求头。
+     * 填充当前请求上下文的租户、用户与用户名请求头。
      *
-     * @param headers 请求头
+     * @param headers HTTP 请求头
      */
     private void applyIdentity(HttpHeaders headers) {
         Long tenantId = RequestContextHolder.getTenantId();
@@ -133,10 +133,10 @@ public class ContractSealGatewayImpl implements ContractSealGateway {
     }
 
     /**
-     * 校验响应业务码，成功时返回数据部分。
+     * 校验响应信封的业务码并返回数据体。
      *
-     * @param response 接口响应体
-     * @return 响应中的数据部分
+     * @param response 响应信封
+     * @return 响应数据体
      */
     private Object requireSuccess(Map<String, Object> response) {
         if (response == null) {
@@ -153,7 +153,7 @@ public class ContractSealGatewayImpl implements ContractSealGateway {
     }
 
     /**
-     * 构建携带内网令牌的 REST 客户端。
+     * 获取带内网令牌的 REST 客户端。
      *
      * @return REST 客户端
      */
@@ -162,9 +162,9 @@ public class ContractSealGatewayImpl implements ContractSealGateway {
     }
 
     /**
-     * 从注册中心解析 Contract 服务实例，得到可访问的基础地址。
+     * 获取合同服务实例的基础地址。
      *
-     * @return 服务基础地址
+     * @return 合同服务基础地址
      */
     private String baseUrl() {
         List<ServiceInstance> instances = discoveryClient.getInstances(SERVICE_NAME);

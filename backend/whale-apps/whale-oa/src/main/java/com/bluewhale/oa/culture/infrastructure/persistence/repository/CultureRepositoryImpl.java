@@ -287,10 +287,10 @@ public class CultureRepositoryImpl implements CultureRepository {
     // ---------------------------------------------------------------- 公共方法
 
     /**
-     * 构造文化活动查询条件，支持标题或正文模糊匹配，以及状态、活动类型过滤。
+     * 构建文化动态分页查询条件，支持关键字、状态与类型过滤。
      *
-     * @param query 查询条件
-     * @return 文化活动查询包装器
+     * @param query 文化查询条件
+     * @return 文化动态查询包装器
      */
     private LambdaQueryWrapper<CultureEventEntity> eventFilter(CultureQuery query) {
         return new LambdaQueryWrapper<CultureEventEntity>()
@@ -305,9 +305,9 @@ public class CultureRepositoryImpl implements CultureRepository {
     }
 
     /**
-     * 构造祝福查询条件，支持对象姓名或祝福内容模糊匹配，以及祝福类型、接收人过滤。
+     * 构建祝福分页查询条件，支持关键字、祝福类型与祝福对象过滤。
      *
-     * @param query 查询条件
+     * @param query 文化查询条件
      * @return 祝福查询包装器
      */
     private LambdaQueryWrapper<CultureWishEntity> wishFilter(CultureQuery query) {
@@ -324,9 +324,9 @@ public class CultureRepositoryImpl implements CultureRepository {
     }
 
     /**
-     * 构造投票查询条件，支持标题或说明模糊匹配与状态过滤。
+     * 构建投票分页查询条件，支持关键字与状态过滤。
      *
-     * @param query 查询条件
+     * @param query 文化查询条件
      * @return 投票查询包装器
      */
     private LambdaQueryWrapper<PollEntity> pollFilter(CultureQuery query) {
@@ -340,11 +340,11 @@ public class CultureRepositoryImpl implements CultureRepository {
     }
 
     /**
-     * 构造合理化建议查询条件，支持标题或内容模糊匹配，以及状态、分类、提交人过滤。
+     * 构建建议分页查询条件，支持关键字、状态、类别与提交人过滤。
      *
-     * @param query 查询条件
-     * @param submitterId 提交人标识，为空时不限制
-     * @return 合理化建议查询包装器
+     * @param query 文化查询条件
+     * @param submitterId 提交人用户ID，为空时不按提交人过滤
+     * @return 建议查询包装器
      */
     private LambdaQueryWrapper<SuggestionEntity> suggestionFilter(CultureQuery query, Long submitterId) {
         return new LambdaQueryWrapper<SuggestionEntity>()
@@ -360,10 +360,10 @@ public class CultureRepositoryImpl implements CultureRepository {
     }
 
     /**
-     * 将文化活动持久化实体转换为文化活动领域模型。
+     * 将文化动态实体转换为领域模型。
      *
-     * @param entity 文化活动实体
-     * @return 文化活动领域模型
+     * @param entity 文化动态实体
+     * @return 文化动态领域模型
      */
     private static CultureEvent toEvent(CultureEventEntity entity) {
         CultureEvent model = new CultureEvent();
@@ -372,7 +372,7 @@ public class CultureRepositoryImpl implements CultureRepository {
     }
 
     /**
-     * 将祝福持久化实体转换为祝福领域模型。
+     * 将祝福实体转换为领域模型。
      *
      * @param entity 祝福实体
      * @return 祝福领域模型
@@ -384,7 +384,7 @@ public class CultureRepositoryImpl implements CultureRepository {
     }
 
     /**
-     * 将投票持久化实体转换为投票领域模型。
+     * 将投票实体转换为领域模型。
      *
      * @param entity 投票实体
      * @return 投票领域模型
@@ -396,7 +396,7 @@ public class CultureRepositoryImpl implements CultureRepository {
     }
 
     /**
-     * 将投票选项持久化实体转换为投票选项领域模型。
+     * 将投票选项实体转换为领域模型。
      *
      * @param entity 投票选项实体
      * @return 投票选项领域模型
@@ -408,7 +408,7 @@ public class CultureRepositoryImpl implements CultureRepository {
     }
 
     /**
-     * 将投票记录持久化实体转换为投票记录领域模型。
+     * 将投票记录实体转换为领域模型。
      *
      * @param entity 投票记录实体
      * @return 投票记录领域模型
@@ -420,10 +420,10 @@ public class CultureRepositoryImpl implements CultureRepository {
     }
 
     /**
-     * 将合理化建议持久化实体转换为合理化建议领域模型。
+     * 将建议实体转换为领域模型。
      *
-     * @param entity 合理化建议实体
-     * @return 合理化建议领域模型
+     * @param entity 建议实体
+     * @return 建议领域模型
      */
     private static Suggestion toSuggestion(SuggestionEntity entity) {
         Suggestion model = new Suggestion();
@@ -432,7 +432,7 @@ public class CultureRepositoryImpl implements CultureRepository {
     }
 
     /**
-     * 将建议回复持久化实体转换为建议回复领域模型。
+     * 将建议回复实体转换为领域模型。
      *
      * @param entity 建议回复实体
      * @return 建议回复领域模型

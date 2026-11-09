@@ -44,10 +44,10 @@ public class TaskController {
     private final TaskAppService taskAppService;
 
     /**
-     * 分页查询任务列表。
+     * 分页查询任务，{@code mine} 为 true 时仅查询当前登录用户负责的任务。
      *
      * @param query 查询条件
-     * @param mine 是否仅查询当前用户的任务
+     * @param mine 是否仅查询我的任务
      * @param request 当前请求，用于解析登录用户
      * @return 任务分页结果
      */
@@ -65,8 +65,8 @@ public class TaskController {
     /**
      * 查询任务详情。
      *
-     * @param id 任务主键
-     * @return 任务详情
+     * @param id 任务ID
+     * @return 任务视图
      */
     @GetMapping("/{id}")
     @RequirePermission("sys:oa:task:list")
@@ -75,11 +75,11 @@ public class TaskController {
     }
 
     /**
-     * 创建任务。
+     * 创建任务，创建人取自当前登录用户。
      *
      * @param command 任务保存命令
-     * @param request 当前请求，用于解析创建人信息
-     * @return 创建的任务
+     * @param request 当前请求，用于解析登录用户
+     * @return 创建后的任务视图
      */
     @PostMapping
     @RequirePermission("sys:oa:task:manage")
@@ -94,9 +94,9 @@ public class TaskController {
     /**
      * 编辑任务。
      *
-     * @param id 任务主键
+     * @param id 任务ID
      * @param command 任务保存命令
-     * @return 更新后的任务
+     * @return 更新后的任务视图
      */
     @PutMapping("/{id}")
     @RequirePermission("sys:oa:task:manage")
@@ -109,8 +109,8 @@ public class TaskController {
     /**
      * 删除任务。
      *
-     * @param id 任务主键
-     * @return 操作结果
+     * @param id 任务ID
+     * @return 空结果
      */
     @DeleteMapping("/{id}")
     @RequirePermission("sys:oa:task:manage")
@@ -123,9 +123,9 @@ public class TaskController {
     /**
      * 变更任务状态。
      *
-     * @param id 任务主键
-     * @param command 状态变更命令
-     * @return 是否变更成功
+     * @param id 任务ID
+     * @param command 任务状态变更命令
+     * @return 状态是否实际发生变更
      */
     @PutMapping("/{id}/status")
     @RequirePermission("sys:oa:task:manage")
@@ -136,10 +136,10 @@ public class TaskController {
     }
 
     /**
-     * 查询任务的评论列表。
+     * 查询任务评论列表。
      *
-     * @param id 任务主键
-     * @return 评论列表
+     * @param id 任务ID
+     * @return 评论视图列表
      */
     @GetMapping("/{id}/comments")
     @RequirePermission("sys:oa:task:list")
@@ -148,12 +148,12 @@ public class TaskController {
     }
 
     /**
-     * 新增任务评论。
+     * 新增任务评论，评论人取自当前登录用户。
      *
-     * @param id 任务主键
+     * @param id 任务ID
      * @param command 评论保存命令
-     * @param request 当前请求，用于解析评论人信息
-     * @return 新增的评论
+     * @param request 当前请求，用于解析登录用户
+     * @return 新增的评论视图
      */
     @PostMapping("/{id}/comments")
     @RequirePermission("sys:oa:task:comment")
@@ -171,9 +171,9 @@ public class TaskController {
     /**
      * 删除任务评论。
      *
-     * @param id 任务主键
-     * @param commentId 评论主键
-     * @return 操作结果
+     * @param id 任务ID
+     * @param commentId 评论ID
+     * @return 空结果
      */
     @DeleteMapping("/{id}/comments/{commentId}")
     @RequirePermission("sys:oa:task:comment")

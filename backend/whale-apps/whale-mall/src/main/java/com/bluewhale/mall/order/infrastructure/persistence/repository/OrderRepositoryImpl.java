@@ -5,14 +5,18 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bluewhale.mall.common.enums.CurrencyType;
 import com.bluewhale.mall.common.enums.MallMode;
 import com.bluewhale.mall.common.enums.SettlementType;
+import com.bluewhale.mall.order.domain.model.DailyReportStat;
 import com.bluewhale.mall.order.domain.model.MallOrder;
+import com.bluewhale.mall.order.domain.model.OrderCoupon;
 import com.bluewhale.mall.order.domain.model.OrderItem;
 import com.bluewhale.mall.order.domain.model.OrderLog;
 import com.bluewhale.mall.order.domain.model.OrderStatus;
 import com.bluewhale.mall.order.domain.repository.OrderRepository;
+import com.bluewhale.mall.order.infrastructure.persistence.entity.OrderCouponEntity;
 import com.bluewhale.mall.order.infrastructure.persistence.entity.OrderEntity;
 import com.bluewhale.mall.order.infrastructure.persistence.entity.OrderItemEntity;
 import com.bluewhale.mall.order.infrastructure.persistence.entity.OrderLogEntity;
+import com.bluewhale.mall.order.infrastructure.persistence.mapper.OrderCouponMapper;
 import com.bluewhale.mall.order.infrastructure.persistence.mapper.OrderItemMapper;
 import com.bluewhale.mall.order.infrastructure.persistence.mapper.OrderLogMapper;
 import com.bluewhale.mall.order.infrastructure.persistence.mapper.OrderMapper;
@@ -20,6 +24,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -46,6 +54,8 @@ public class OrderRepositoryImpl implements OrderRepository {
 
     private final OrderLogMapper orderLogMapper;
 
+    private final OrderCouponMapper orderCouponMapper;
+
     @Override
     public Long insert(MallOrder order) {
         OrderEntity entity = toEntity(order);
@@ -56,6 +66,13 @@ public class OrderRepositoryImpl implements OrderRepository {
             orderItemMapper.insert(itemEntity);
             item.setId(itemEntity.getId());
             item.setOrderId(entity.getId());
+        }
+        for (OrderCoupon coupon : order.getCoupons()) {
+            // rule 是计价期瞬态字段，优惠结果已固化进 discountAmount，不落库
+            coupon.setOrderId(entity.getId());
+            OrderCouponEntity couponEntity = toCouponEntity(coupon, order.getOrderNo());
+            orderCouponMapper.insert(couponEntity);
+            coupon.setId(couponEntity.getId());
         }
         return entity.getId();
     }
@@ -87,6 +104,7 @@ public class OrderRepositoryImpl implements OrderRepository {
         }
         MallOrder order = toDomain(entity);
         order.setItems(loadItems(List.of(entity.getId())).getOrDefault(entity.getId(), new ArrayList<>()));
+        order.setCoupons(loadCoupons(List.of(entity.getId())).getOrDefault(entity.getId(), new ArrayList<>()));
         return Optional.of(order);
     }
 
@@ -102,6 +120,7 @@ public class OrderRepositoryImpl implements OrderRepository {
         }
         MallOrder order = toDomain(entity);
         order.setItems(loadItems(List.of(entity.getId())).getOrDefault(entity.getId(), new ArrayList<>()));
+        order.setCoupons(loadCoupons(List.of(entity.getId())).getOrDefault(entity.getId(), new ArrayList<>()));
         return Optional.of(order);
     }
 
@@ -118,6 +137,7 @@ public class OrderRepositoryImpl implements OrderRepository {
         }
         MallOrder order = toDomain(entity);
         order.setItems(loadItems(List.of(entity.getId())).getOrDefault(entity.getId(), new ArrayList<>()));
+        order.setCoupons(loadCoupons(List.of(entity.getId())).getOrDefault(entity.getId(), new ArrayList<>()));
         return Optional.of(order);
     }
 
@@ -132,10 +152,12 @@ public class OrderRepositoryImpl implements OrderRepository {
         }
         List<Long> ids = records.stream().map(OrderEntity::getId).toList();
         Map<Long, List<OrderItem>> items = loadItems(ids);
+        Map<Long, List<OrderCoupon>> coupons = loadCoupons(ids);
         List<MallOrder> orders = new ArrayList<>(records.size());
         for (OrderEntity entity : records) {
             MallOrder order = toDomain(entity);
             order.setItems(items.getOrDefault(entity.getId(), new ArrayList<>()));
+            order.setCoupons(coupons.getOrDefault(entity.getId(), new ArrayList<>()));
             orders.add(order);
         }
         return orders;
@@ -172,6 +194,108 @@ public class OrderRepositoryImpl implements OrderRepository {
             result.computeIfAbsent(item.getOrderId(), key -> new ArrayList<>()).add(toDomain(item));
         }
         return result;
+    }
+
+    /**
+     * 批量加载用券明细并按订单分组。
+     *
+     * @param orderIds 订单 ID 列表
+     * @return 订单 ID → 用券明细列表
+     */
+    private Map<Long, List<OrderCoupon>> loadCoupons(List<Long> orderIds) {
+        Map<Long, List<OrderCoupon>> result = new HashMap<>();
+        if (orderIds == null || orderIds.isEmpty()) {
+            return result;
+        }
+        List<OrderCouponEntity> coupons = orderCouponMapper.selectList(new LambdaQueryWrapper<OrderCouponEntity>()
+                .in(OrderCouponEntity::getOrderId, new LinkedHashSet<>(orderIds))
+                .orderByAsc(OrderCouponEntity::getId));
+        for (OrderCouponEntity coupon : coupons) {
+            result.computeIfAbsent(coupon.getOrderId(), key -> new ArrayList<>()).add(toDomain(coupon));
+        }
+        return result;
+    }
+
+    @Override
+    public List<DailyReportStat> dailyReport(LocalDate from, LocalDate to) {
+        // to 为空视为只查 from 当天；from 晚于 to 的乱序区间直接返回空
+        LocalDate effectiveFrom = from == null ? LocalDate.now().minusDays(6) : from;
+        LocalDate effectiveTo = to == null ? effectiveFrom : to;
+        if (effectiveFrom.isAfter(effectiveTo)) {
+            return List.of();
+        }
+        LocalDateTime start = effectiveFrom.atStartOfDay();
+        LocalDateTime end = effectiveTo.plusDays(1).atStartOfDay();
+        List<Map<String, Object>> rows = orderMapper.dailyReport(start, end);
+        List<DailyReportStat> stats = new ArrayList<>(rows.size());
+        for (Map<String, Object> row : rows) {
+            stats.add(toStat(row));
+        }
+        return stats;
+    }
+
+    /**
+     * 聚合行转报表统计模型。
+     *
+     * <p>列名取自 SQL 小写别名，但也兼容驼峰键（数据源方言或下游包装
+     * 可能改写键名）；数值列做 2 位小数规整，日期列兼容 java.sql.Date 与
+     * LocalDateTime 两种驱动返回。</p>
+     *
+     * @param row 聚合行
+     * @return 报表统计模型
+     */
+    private DailyReportStat toStat(Map<String, Object> row) {
+        DailyReportStat stat = new DailyReportStat();
+        Object date = firstNonNull(row, "stat_date", "statDate");
+        if (date instanceof LocalDate localDate) {
+            stat.setStatDate(localDate);
+        } else if (date instanceof LocalDateTime localDateTime) {
+            stat.setStatDate(localDateTime.toLocalDate());
+        } else if (date instanceof java.sql.Date sqlDate) {
+            stat.setStatDate(sqlDate.toLocalDate());
+        }
+        stat.setOrderCount(row.get("order_count") instanceof Number number ? number.longValue()
+                : (row.get("orderCount") instanceof Number camel ? camel.longValue() : 0L));
+        stat.setGoodsAmount(decimalOf(row, "goods_amount", "goodsAmount"));
+        stat.setFreightAmount(decimalOf(row, "freight_amount", "freightAmount"));
+        stat.setCouponDiscount(decimalOf(row, "coupon_discount", "couponDiscount"));
+        stat.setPaidAmount(decimalOf(row, "paid_amount", "paidAmount"));
+        stat.setRefundAmount(decimalOf(row, "refund_amount", "refundAmount"));
+        return stat;
+    }
+
+    /**
+     * 从聚合行取第一个非空键值（兼容下划线与驼峰列名）。
+     *
+     * @param row  聚合行
+     * @param keys 候选键
+     * @return 第一个非空值
+     */
+    private Object firstNonNull(Map<String, Object> row, String... keys) {
+        for (String key : keys) {
+            if (row.containsKey(key) && row.get(key) != null) {
+                return row.get(key);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 从聚合行取数值列并规整为 2 位小数。
+     *
+     * @param row  聚合行
+     * @param keys 候选键
+     * @return 金额（空行按 0）
+     */
+    private BigDecimal decimalOf(Map<String, Object> row, String... keys) {
+        Object value = firstNonNull(row, keys);
+        if (value instanceof BigDecimal decimal) {
+            return decimal.setScale(2, RoundingMode.HALF_UP);
+        }
+        if (value instanceof Number number) {
+            return BigDecimal.valueOf(number.doubleValue()).setScale(2, RoundingMode.HALF_UP);
+        }
+        return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
     }
 
     @Override
@@ -232,6 +356,8 @@ public class OrderRepositoryImpl implements OrderRepository {
         order.setStatus(OrderStatus.parse(entity.getStatus()));
         order.setTotalAmount(entity.getTotalAmount());
         order.setGoodsAmount(entity.getGoodsAmount());
+        order.setListAmount(entity.getListAmount());
+        order.setActivityDiscount(entity.getActivityDiscount());
         order.setDiscountAmount(entity.getDiscountAmount());
         order.setFreightAmount(entity.getFreightAmount());
         order.setCouponUserId(entity.getCouponUserId());
@@ -265,12 +391,18 @@ public class OrderRepositoryImpl implements OrderRepository {
         item.setOrderId(entity.getOrderId());
         item.setSpuId(entity.getSpuId());
         item.setSkuId(entity.getSkuId());
+        item.setCategoryId(entity.getCategoryId());
         item.setSpuName(entity.getSpuName());
         item.setSkuCode(entity.getSkuCode());
         item.setSpecJson(entity.getSpecJson());
         item.setImageUrl(entity.getImageUrl());
         item.setPriceType(entity.getPriceType());
         item.setUnitPrice(entity.getUnitPrice());
+        item.setListPrice(entity.getListPrice());
+        item.setActivityId(entity.getActivityId());
+        item.setActivityName(entity.getActivityName());
+        item.setPriceSource(entity.getPriceSource());
+        item.setWeightKg(entity.getWeightKg());
         item.setQuantity(entity.getQuantity());
         item.setShippedQuantity(entity.getShippedQuantity());
         item.setRefundedQuantity(entity.getRefundedQuantity());
@@ -319,6 +451,8 @@ public class OrderRepositoryImpl implements OrderRepository {
         entity.setStatus(order.getStatus() == null ? null : order.getStatus().name());
         entity.setTotalAmount(order.getTotalAmount());
         entity.setGoodsAmount(order.getGoodsAmount());
+        entity.setListAmount(order.getListAmount());
+        entity.setActivityDiscount(order.getActivityDiscount());
         entity.setDiscountAmount(order.getDiscountAmount());
         entity.setFreightAmount(order.getFreightAmount());
         entity.setCouponUserId(order.getCouponUserId());
@@ -352,16 +486,70 @@ public class OrderRepositoryImpl implements OrderRepository {
         entity.setOrderId(orderId);
         entity.setSpuId(item.getSpuId());
         entity.setSkuId(item.getSkuId());
+        entity.setCategoryId(item.getCategoryId());
         entity.setSpuName(item.getSpuName());
         entity.setSkuCode(item.getSkuCode());
         entity.setSpecJson(item.getSpecJson());
         entity.setImageUrl(item.getImageUrl());
         entity.setPriceType(item.getPriceType());
         entity.setUnitPrice(item.getUnitPrice());
+        entity.setListPrice(item.getListPrice());
+        entity.setActivityId(item.getActivityId());
+        entity.setActivityName(item.getActivityName());
+        entity.setPriceSource(item.getPriceSource());
+        entity.setWeightKg(item.getWeightKg());
         entity.setQuantity(item.getQuantity());
         entity.setAmount(item.getAmount());
         entity.setShareDiscount(item.getShareDiscount());
         entity.setShareFreight(item.getShareFreight());
+        return entity;
+    }
+
+    /**
+     * 用券明细实体转领域模型。
+     *
+     * @param entity 实体
+     * @return 领域模型
+     */
+    private OrderCoupon toDomain(OrderCouponEntity entity) {
+        OrderCoupon coupon = new OrderCoupon();
+        coupon.setId(entity.getId());
+        coupon.setOrderId(entity.getOrderId());
+        coupon.setOrderNo(entity.getOrderNo());
+        coupon.setCouponUserId(entity.getCouponUserId());
+        coupon.setCouponId(entity.getCouponId());
+        coupon.setCouponCode(entity.getCouponCode());
+        coupon.setCouponName(entity.getCouponName());
+        coupon.setCouponType(entity.getCouponType());
+        coupon.setScope(entity.getScope());
+        coupon.setCategoryIds(entity.getCategoryIds());
+        coupon.setSkuIds(entity.getSkuIds());
+        coupon.setDiscountAmount(entity.getDiscountAmount());
+        coupon.setCreateTime(entity.getCreateTime());
+        return coupon;
+    }
+
+    /**
+     * 领域模型转用券明细实体。
+     *
+     * @param coupon  用券明细
+     * @param orderNo 订单号（冗余落一份，按单对账不用先查订单头）
+     * @return 实体
+     */
+    private OrderCouponEntity toCouponEntity(OrderCoupon coupon, String orderNo) {
+        OrderCouponEntity entity = new OrderCouponEntity();
+        entity.setOrderId(coupon.getOrderId());
+        entity.setOrderNo(orderNo);
+        entity.setCouponUserId(coupon.getCouponUserId());
+        entity.setCouponId(coupon.getCouponId());
+        entity.setCouponCode(coupon.getCouponCode());
+        entity.setCouponName(coupon.getCouponName());
+        entity.setCouponType(coupon.getCouponType());
+        entity.setScope(coupon.getScope());
+        entity.setCategoryIds(coupon.getCategoryIds());
+        entity.setSkuIds(coupon.getSkuIds());
+        entity.setDiscountAmount(coupon.getDiscountAmount() == null
+                ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP) : coupon.getDiscountAmount());
         return entity;
     }
 }

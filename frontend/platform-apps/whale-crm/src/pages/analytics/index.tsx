@@ -28,7 +28,6 @@ import {
   getCollectionAnalysis,
   getCustomerAnalysis,
   getDashboard,
-  getExportContent,
   getFunnel,
   getRanking,
   pageSnapshots,
@@ -446,7 +445,6 @@ function SnapshotPanel() {
 /** 导出面板 */
 function ExportPanel() {
   const [task, setTask] = useState<AnalyticsExport | null>(null);
-  const [content, setContent] = useState<AnalyticsExport | null>(null);
   const [exportType, setExportType] = useState('CUSTOMER');
 
   const handleCreate = async () => {
@@ -454,17 +452,6 @@ function ExportPanel() {
       const created = await createExport(exportType);
       setTask(created);
       message.success(`导出任务已完成：${created.exportNo}`);
-    } catch (error) {
-      message.error(errorText(error));
-    }
-  };
-
-  const handleContent = async () => {
-    if (!task) {
-      return;
-    }
-    try {
-      setContent(await getExportContent(task.id));
     } catch (error) {
       message.error(errorText(error));
     }
@@ -503,7 +490,6 @@ function ExportPanel() {
           ]}
         />
         {hasPermission('sys:crm:export') && <Button type="primary" onClick={() => void handleCreate()}>创建导出</Button>}
-        {task && <Button onClick={() => void handleContent()}>查看内容</Button>}
         {task && task.status === 'COMPLETED' && <Button type="primary" ghost onClick={() => void download()}>下载 CSV</Button>}
       </Space>
       {task && (
@@ -516,20 +502,14 @@ function ExportPanel() {
             </Tag>
           </Descriptions.Item>
           <Descriptions.Item label="行数">{task.rowCount ?? '-'}</Descriptions.Item>
+          <Descriptions.Item label="文件">{task.fileName || '-'}</Descriptions.Item>
+          <Descriptions.Item label="文件 ID">{task.fileId ?? '-'}</Descriptions.Item>
           <Descriptions.Item label="错误" span={2}>{task.error || '-'}</Descriptions.Item>
         </Descriptions>
       )}
-      {content?.content && (
-        <Input.TextArea
-          style={{ marginTop: 16 }}
-          rows={12}
-          readOnly
-          value={content.content.slice(0, 4000)}
-        />
-      )}
       <Typography.Text type="secondary" style={{ display: 'block', marginTop: 12 }}>
         单次导出上限由 whale.crm.analytics.export-max-rows 控制；手机号 / 邮箱默认脱敏。
-        当前内容暂存数据库，接入 whale-file 后改为 fileId 下载。
+        导出文件由 whale-file 统一存储，点击“下载 CSV”按 fileId 拉取。
       </Typography.Text>
     </Card>
   );
