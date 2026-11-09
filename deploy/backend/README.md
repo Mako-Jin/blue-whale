@@ -58,15 +58,33 @@ Docker VM 上限 **8GB**（`~/.wslconfig`），20 个核心服务已占约 **7.2
 
 `music`(8096) / `party`(9009) 是演示模块，单独挂在 `demo` profile。
 
-起扩展组前先看余量，不足先停非关键核心服务腾空间：
+起扩展组前先腾内存。**不要手工挑服务停**，用换位脚本（按影响面排序停核心服务 → 起目标组 → 可回滚）：
 
 ```bash
-docker exec bw-redis grep MemAvailable /proc/meminfo
-docker compose -f docker-compose.services.yml stop video music doc   # 按需
-docker compose -f docker-compose.services.yml --profile collab up -d
+scripts/dev/profile-swap.sh --status        # 余量 / 各组预算 / 当前可起哪组
+scripts/dev/profile-swap.sh ops             # 停够核心服务后起 ops 组（默认最多停 2 个）
+scripts/dev/profile-swap.sh collab --max-stop 3
+scripts/dev/profile-swap.sh --restore       # 把上次停掉的核心服务拉回来（compose start，不重建）
 ```
 
-**一次只起一组**：两组叠加必然超预算。
+停用顺序按「入站依赖数 + 调度任务数」从小到大排，脚本按此顺序自动挑：
+
+| 顺序 | 服务 | 停用影响 |
+|---|---|---|
+| 1 | `mall` | 无入站依赖、无调度任务；期间 CRM 的 `order.push` / `order.reconcile` 两个任务失败 |
+| 2 | `contract` | 无入站依赖、无调度任务；期间 CRM 的 `contract.sync` 任务失败 |
+| 3 | `pay` | 只被 mall 引用；mall 已停时完全无损 |
+| 4 | `audit` | 审计事件走 MQ 排队不丢，仅导出/清理任务暂停 |
+| 5~8 | `video` / `lms` / `pdm` / `archive` | 各自的定时任务暂停，`misfire` 策略下恢复后补跑 |
+| 9~10 | `doc` / `form` | 只被 agent / archive 引用，起 aiot、biz 组时脚本不会选它们 |
+
+`gateway` / `auth` / `file` / `job` / `crm` / `erp` / `message` / `workflow` 永不入列（入站依赖 6~13 个）。
+
+脚本判据：`MemAvailable ≥ 新增服务 mem_limit 合计 × 60% + 512MB 红线`，最多停 `--max-stop` 个（默认 2）。
+停用记录落在 `.workbuddy/tmp/profile-swap.state`，`--restore` 用 `compose start` 拉回，不重建镜像。
+停到上限仍不够时脚本退出码 2 并提示改起更小的组，**不要硬起**——MemAvailable < 1G 时引擎会整体失联。
+
+**一次只起一组**：两组叠加必然超预算（ops+biz 已 2.1G）。
 
 ### 扩展服务的外部依赖
 
@@ -147,6 +165,7 @@ docker inspect bw-<svc> --format 'Restart={{.RestartCount}} OOM={{.State.OOMKill
 - `deploy/backend/docker-compose.services.yml` — 32 服务编排（4 个扩展 profile + demo）
 - `deploy/backend/docker-compose.verify.yml` — 多副本验证编排（只放第二副本）
 - `scripts/dev/build-service-images.sh` — jar → 镜像构建脚本
+- `scripts/dev/profile-swap.sh` — 扩展 profile 换位（停核心服务腾内存 → 起扩展组 → 可回滚）
 - `deploy/backend/.env` — 凭据与主机名（已 gitignore）
 - `deploy/backend/jars/<svc>/app.jar` — 构建上下文（`*.jar` 已 gitignore）
 - `infrastructure/docker/` — 中间件编排、`.env`、redis 配置
