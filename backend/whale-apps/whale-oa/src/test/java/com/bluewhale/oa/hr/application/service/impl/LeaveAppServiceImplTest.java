@@ -3,7 +3,6 @@ package com.bluewhale.oa.hr.application.service.impl;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.oa.common.OaErrorCode;
 import com.bluewhale.oa.common.application.command.FileRefRegisterCommand;
-import com.bluewhale.oa.common.application.service.AttachmentOwnershipGuard;
 import com.bluewhale.oa.common.application.service.FileRefAppService;
 import com.bluewhale.oa.common.domain.model.FileRef;
 import com.bluewhale.oa.common.domain.repository.FileRefRepository;
@@ -73,8 +72,6 @@ class LeaveAppServiceImplTest {
     private FileRefRepository fileRefRepository;
 
     @Mock
-    private AttachmentOwnershipGuard attachmentOwnershipGuard;
-
     private LeaveAppServiceImpl leaveAppService;
 
     /**
@@ -84,7 +81,7 @@ class LeaveAppServiceImplTest {
     void setUp() {
         leaveAppService = new LeaveAppServiceImpl(leaveRepository, leaveTypeRepository,
                 employeeProfileRepository, workCalendarAppService, leaveBalanceAppService,
-                fileRefAppService, fileRefRepository, attachmentOwnershipGuard);
+                fileRefAppService, fileRefRepository);
     }
 
     @Test

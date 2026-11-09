@@ -3,7 +3,9 @@ package com.bluewhale.oa.common.application.service.impl;
 import com.bluewhale.common.core.exception.BizException;
 import com.bluewhale.oa.common.OaErrorCode;
 import com.bluewhale.oa.common.application.command.FileRefRegisterCommand;
-import com.bluewhale.oa.common.domain.gateway.FileMetaGateway;
+import com.bluewhale.oa.common.application.service.AttachmentOwnershipGuard;
+import com.bluewhale.oa.common.domain.gateway.FileMetadataGateway;
+import com.bluewhale.oa.common.domain.model.FileMetadata;
 import com.bluewhale.oa.common.domain.model.FileRef;
 import com.bluewhale.oa.common.domain.repository.FileRefRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,6 +26,9 @@ import static org.mockito.Mockito.when;
 
 /**
  * 附件引用登记校验测试：文件存在性、状态与上传人归属。
+ *
+ * <p>归属校验由 {@link AttachmentOwnershipGuard} 统一承担，本测试装配真实守卫
+ * 与模拟的文件服务端口，验证登记链路的拒绝/放行分支与错误码口径。</p>
  */
 @ExtendWith(MockitoExtension.class)
 class FileRefAppServiceImplTest {
@@ -32,7 +37,7 @@ class FileRefAppServiceImplTest {
     private FileRefRepository fileRefRepository;
 
     @Mock
-    private FileMetaGateway fileMetaGateway;
+    private FileMetadataGateway fileMetadataGateway;
 
     private FileRefAppServiceImpl fileRefAppService;
 
@@ -41,53 +46,54 @@ class FileRefAppServiceImplTest {
      */
     @BeforeEach
     void setUp() {
-        fileRefAppService = new FileRefAppServiceImpl(fileRefRepository, fileMetaGateway);
+        fileRefAppService = new FileRefAppServiceImpl(fileRefRepository,
+                new AttachmentOwnershipGuard(fileMetadataGateway));
     }
 
     @Test
     @DisplayName("register：文件不存在时拒绝登记")
     void shouldRejectWhenFileMissing() {
-        when(fileMetaGateway.findFile(9L)).thenReturn(Optional.empty());
+        when(fileMetadataGateway.findFile(9L)).thenReturn(Optional.empty());
 
         BizException exception = assertThrows(BizException.class, () -> fileRefAppService.register(command()));
 
-        assertEquals(OaErrorCode.FILE_REF_INVALID, exception.getCode());
+        assertEquals(OaErrorCode.ATTACHMENT_NOT_FOUND, exception.getCode());
     }
 
     @Test
     @DisplayName("register：已删除文件拒绝登记")
     void shouldRejectDeletedFile() {
-        when(fileMetaGateway.findFile(9L)).thenReturn(Optional.of(meta(100L, 1, 1)));
+        when(fileMetadataGateway.findFile(9L)).thenReturn(Optional.of(meta(100L, 1, 1)));
 
         BizException exception = assertThrows(BizException.class, () -> fileRefAppService.register(command()));
 
-        assertEquals(OaErrorCode.FILE_REF_INVALID, exception.getCode());
+        assertEquals(OaErrorCode.ATTACHMENT_NOT_FOUND, exception.getCode());
     }
 
     @Test
     @DisplayName("register：非正常状态（归档锁定）拒绝登记")
     void shouldRejectLockedFile() {
-        when(fileMetaGateway.findFile(9L)).thenReturn(Optional.of(meta(100L, 0, 2)));
+        when(fileMetadataGateway.findFile(9L)).thenReturn(Optional.of(meta(100L, 0, 2)));
 
         BizException exception = assertThrows(BizException.class, () -> fileRefAppService.register(command()));
 
-        assertEquals(OaErrorCode.FILE_REF_INVALID, exception.getCode());
+        assertEquals(OaErrorCode.ATTACHMENT_NOT_FOUND, exception.getCode());
     }
 
     @Test
     @DisplayName("register：非本人上传的文件拒绝登记")
     void shouldRejectOtherUsersFile() {
-        when(fileMetaGateway.findFile(9L)).thenReturn(Optional.of(meta(200L, 0, 1)));
+        when(fileMetadataGateway.findFile(9L)).thenReturn(Optional.of(meta(200L, 0, 1)));
 
         BizException exception = assertThrows(BizException.class, () -> fileRefAppService.register(command()));
 
-        assertEquals(OaErrorCode.FILE_REF_FORBIDDEN, exception.getCode());
+        assertEquals(OaErrorCode.ATTACHMENT_FORBIDDEN, exception.getCode());
     }
 
     @Test
     @DisplayName("register：本人文件登记成功，文件名/大小/MIME 以文件服务元数据为准")
     void shouldRegisterWithServerMeta() {
-        when(fileMetaGateway.findFile(9L)).thenReturn(Optional.of(meta(100L, 0, 1)));
+        when(fileMetadataGateway.findFile(9L)).thenReturn(Optional.of(meta(100L, 0, 1)));
         when(fileRefRepository.insertIfAbsent(any(FileRef.class)))
                 .thenAnswer(invocation -> Optional.of(invocation.getArgument(0)));
 
@@ -127,8 +133,8 @@ class FileRefAppServiceImplTest {
      * @param status     文件状态
      * @return 元数据
      */
-    private static FileMetaGateway.FileMeta meta(Long uploaderId, int deleted, int status) {
-        return new FileMetaGateway.FileMeta(9L, "服务端原始文件名.pdf", 2048L,
+    private static FileMetadata meta(Long uploaderId, int deleted, int status) {
+        return new FileMetadata(9L, "服务端原始文件名.pdf", 2048L,
                 "application/pdf", uploaderId, deleted, status);
     }
 }

@@ -86,6 +86,8 @@ public class OaFileMetadataClient implements FileMetadataGateway {
         return Optional.of(new FileMetadata(
                 fileId,
                 text(row.get("originalName")),
+                parseNullableLong(row.get("fileSize")),
+                text(row.get("contentType")),
                 parseNullableLong(row.get("uploaderId")),
                 (int) parseLong(row.get("deleted")),
                 (int) parseLong(row.get("status"))));

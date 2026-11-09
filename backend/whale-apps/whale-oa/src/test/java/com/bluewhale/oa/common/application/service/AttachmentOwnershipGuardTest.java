@@ -103,6 +103,6 @@ class AttachmentOwnershipGuardTest {
      * @return 元数据
      */
     private static FileMetadata meta(Long fileId, Long uploaderId, int deleted, int status) {
-        return new FileMetadata(fileId, "a.pdf", uploaderId, deleted, status);
+        return new FileMetadata(fileId, "a.pdf", 2048L, "application/pdf", uploaderId, deleted, status);
     }
 }

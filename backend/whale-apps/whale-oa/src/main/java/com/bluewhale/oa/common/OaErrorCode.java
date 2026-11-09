@@ -57,12 +57,6 @@ public final class OaErrorCode {
     /** 文件引用参数非法 */
     public static final int FILE_REF_INVALID = 40004;
 
-    /** 文件引用禁止：不是本人上传的文件 */
-    public static final int FILE_REF_FORBIDDEN = 40307;
-
-    /** 文件引用登记时文件服务不可用 */
-    public static final int FILE_REF_UNAVAILABLE = 50310;
-
     /** 序列号参数非法 */
     public static final int SEQUENCE_INVALID = 40005;
 
@@ -420,11 +414,11 @@ public final class OaErrorCode {
     /** 附件文件不存在、已删除或已停用 */
     public static final int ATTACHMENT_NOT_FOUND = 40443;
 
-    /** 附件不属于当前用户，禁止引用（与文件引用校验同码，别名） */
-    public static final int ATTACHMENT_FORBIDDEN = FILE_REF_FORBIDDEN;
+    /** 附件不属于当前用户，禁止引用 */
+    public static final int ATTACHMENT_FORBIDDEN = 40307;
 
-    /** 文件服务暂不可用，无法核验附件归属（与文件引用校验同码，别名） */
-    public static final int ATTACHMENT_UNAVAILABLE = FILE_REF_UNAVAILABLE;
+    /** 文件服务暂不可用，无法核验附件归属 */
+    public static final int ATTACHMENT_UNAVAILABLE = 50310;
 
 
     /** 错误码与默认提示语 */
@@ -443,8 +437,8 @@ public final class OaErrorCode {
             Map.entry(FILE_REF_EXISTS, "该文件已关联到当前业务"),
             Map.entry(FILE_REF_NOT_FOUND, "文件引用不存在或无权访问"),
             Map.entry(FILE_REF_INVALID, "文件引用参数非法"),
-            Map.entry(FILE_REF_FORBIDDEN, "只能引用本人上传的文件"),
-            Map.entry(FILE_REF_UNAVAILABLE, "文件服务暂不可用，附件登记失败，请稍后重试"),
+            Map.entry(ATTACHMENT_FORBIDDEN, "只能引用本人上传的文件"),
+            Map.entry(ATTACHMENT_UNAVAILABLE, "文件服务暂不可用，无法核验附件归属，请稍后重试"),
             Map.entry(SEQUENCE_INVALID, "序列号参数非法"),
             Map.entry(OUTBOX_EVENT_EXISTS, "集成事件已存在"),
             Map.entry(OUTBOX_EVENT_NOT_FOUND, "集成事件不存在或无权访问"),
