@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.beans.factory.ObjectProvider;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
@@ -40,6 +41,9 @@ class TwinSceneServiceTest {
 
     private TwinEntityMapper entityMapper;
 
+    @SuppressWarnings("unchecked")
+    private final ObjectProvider<TwinSnapshotService> snapshotProvider = mock(ObjectProvider.class);
+
     private TwinSceneService service;
 
     @BeforeAll
@@ -52,7 +56,7 @@ class TwinSceneServiceTest {
     void setUp() {
         sceneMapper = mock(TwinSceneMapper.class);
         entityMapper = mock(TwinEntityMapper.class);
-        service = new TwinSceneService(sceneMapper, entityMapper);
+        service = new TwinSceneService(sceneMapper, entityMapper, snapshotProvider);
     }
 
     @Test
@@ -97,6 +101,32 @@ class TwinSceneServiceTest {
         SceneVO vo = service.update(1L, request("plant-demo"));
 
         assertEquals(2, vo.getVersion());
+        verify(sceneMapper).updateById(scene);
+    }
+
+    @Test
+    void publishRejectsAlreadyPublishedScene() {
+        when(sceneMapper.selectById(1L)).thenReturn(publishedScene());
+
+        BizException exception = assertThrows(BizException.class,
+                () -> service.publish(1L, "重复发布", 7L));
+
+        assertTrue(exception.getMessage().contains("已是发布状态"));
+        verify(snapshotProvider, never()).getObject();
+    }
+
+    @Test
+    void publishFreezesSnapshotViaProvider() {
+        TwinScene scene = publishedScene();
+        scene.setStatus(TwinSceneService.STATUS_DISABLED);
+        when(sceneMapper.selectById(1L)).thenReturn(scene);
+        when(entityMapper.selectCount(any())).thenReturn(2L);
+        when(snapshotProvider.getObject()).thenReturn(Mockito.mock(TwinSnapshotService.class));
+
+        SceneVO vo = service.publish(1L, "首发版本", 7L);
+
+        assertEquals("published", vo.getStatus());
+        verify(snapshotProvider).getObject();
         verify(sceneMapper).updateById(scene);
     }
 

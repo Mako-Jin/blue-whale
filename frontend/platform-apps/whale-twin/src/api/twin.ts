@@ -72,7 +72,8 @@ export const sceneApi = {
   create: (body: SceneSaveRequest) => http.post<SceneVO>('/twin/scenes', body),
   update: (id: string, body: SceneSaveRequest) =>
     http.put<SceneVO>(`/twin/scenes/${id}`, body),
-  publish: (id: string) => http.post<SceneVO>(`/twin/scenes/${id}/publish`),
+  publish: (id: string, body?: { remark?: string }) =>
+    http.post<SceneVO>(`/twin/scenes/${id}/publish`, body ?? {}),
   disable: (id: string) => http.post<SceneVO>(`/twin/scenes/${id}/disable`),
   remove: (id: string) => http.del<void>(`/twin/scenes/${id}`),
 };
@@ -242,3 +243,61 @@ export async function subscribeSceneStream(
     }
   }
 }
+
+// ---- 标注/热点（M3）----
+
+/** 标注视图对象（对齐后端 MarkerVO） */
+export interface MarkerVO {
+  id: string;
+  sceneId: string;
+  entityId?: string | null;
+  entityCode?: string | null;
+  entityName?: string | null;
+  markerType: 'label' | 'hotspot' | 'alarm';
+  content?: string | null;
+  positionJson?: string | null;
+  linkUrl?: string | null;
+  enabled: number;
+  createTime?: string | null;
+}
+
+/** 标注保存请求 */
+export interface MarkerSaveRequest {
+  entityId?: number | null;
+  markerType: 'label' | 'hotspot' | 'alarm';
+  content?: string | null;
+  positionJson?: string | null;
+  linkUrl?: string | null;
+  enabled?: number;
+}
+
+export const markerApi = {
+  list: (sceneId: string) => http.get<MarkerVO[]>(`/twin/scenes/${sceneId}/markers`),
+  create: (sceneId: string, body: MarkerSaveRequest) =>
+    http.post<MarkerVO>(`/twin/scenes/${sceneId}/markers`, body),
+  update: (sceneId: string, id: string, body: MarkerSaveRequest) =>
+    http.put<MarkerVO>(`/twin/scenes/${sceneId}/markers/${id}`, body),
+  remove: (sceneId: string, id: string) =>
+    http.del<void>(`/twin/scenes/${sceneId}/markers/${id}`),
+};
+
+// ---- 发布快照（M3）----
+
+/** 快照视图对象（对齐后端 SnapshotVO；snapshotJson 仅详情返回） */
+export interface SnapshotVO {
+  id: string;
+  sceneId: string;
+  version: number;
+  remark?: string | null;
+  publishedBy?: string | null;
+  publishTime?: string | null;
+  snapshotJson?: string | null;
+}
+
+export const snapshotApi = {
+  list: (sceneId: string) => http.get<SnapshotVO[]>(`/twin/scenes/${sceneId}/snapshots`),
+  get: (sceneId: string, id: string) =>
+    http.get<SnapshotVO>(`/twin/scenes/${sceneId}/snapshots/${id}`),
+  rollback: (sceneId: string, id: string) =>
+    http.post<SnapshotVO>(`/twin/scenes/${sceneId}/snapshots/${id}/rollback`),
+};

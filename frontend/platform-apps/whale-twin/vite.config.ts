@@ -37,5 +37,15 @@ export default defineConfig({
   build: {
     target: 'esnext',
     sourcemap: false,
+    rollupOptions: {
+      output: {
+        // three 全家桶（含 addons）单独拆 chunk，业务主包不再被 600KB+ 渲染库拖累
+        manualChunks(id) {
+          if (id.includes('node_modules/three') || id.includes('node_modules/.pnpm/three')) {
+            return 'three';
+          }
+        },
+      },
+    },
   },
 });

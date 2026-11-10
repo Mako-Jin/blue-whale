@@ -11,6 +11,7 @@ import com.bluewhale.twin.entity.TwinScene;
 import com.bluewhale.twin.mapper.TwinEntityMapper;
 import com.bluewhale.twin.mapper.TwinSceneMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -46,6 +47,12 @@ public class TwinSceneService {
     private final TwinSceneMapper sceneMapper;
 
     private final TwinEntityMapper entityMapper;
+
+    /**
+     * 快照服务（{@link ObjectProvider} 打断循环依赖：快照服务构造注入
+     * 本服务做存在性校验，本服务仅在发布瞬间向其要实例做整包冻结）。
+     */
+    private final ObjectProvider<TwinSnapshotService> snapshotServiceProvider;
 
     /**
      * 创建场景（草稿态，版本号 1）。
@@ -95,15 +102,22 @@ public class TwinSceneService {
     }
 
     /**
-     * 发布场景（draft/disabled → published；内容随之冻结进快照由 M3 补齐）。
+     * 发布场景（draft/disabled → published），并把当前整包
+     * （场景配置 + 实体树 + 绑定 + 标注）冻结进 {@code twin_snapshot}。
      *
-     * @param id 场景ID
+     * @param id     场景ID
+     * @param remark 发布说明（可空）
+     * @param userId 发布人
      * @return 视图对象
      */
-    public SceneVO publish(Long id) {
+    public SceneVO publish(Long id, String remark, Long userId) {
         TwinScene scene = requireExists(id);
+        if (STATUS_PUBLISHED.equals(scene.getStatus())) {
+            throw new BizException("场景已是发布状态");
+        }
         scene.setStatus(STATUS_PUBLISHED);
         sceneMapper.updateById(scene);
+        snapshotServiceProvider.getObject().freeze(scene, remark, userId);
         return toVo(scene, countEntities(id));
     }
 

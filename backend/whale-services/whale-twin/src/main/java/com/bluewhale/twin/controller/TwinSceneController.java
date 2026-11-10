@@ -6,6 +6,7 @@ import com.bluewhale.common.audit.enums.OperateType;
 import com.bluewhale.common.core.result.PageResult;
 import com.bluewhale.common.core.result.Result;
 import com.bluewhale.common.web.UserContext;
+import com.bluewhale.twin.dto.PublishRequest;
 import com.bluewhale.twin.dto.SceneSaveRequest;
 import com.bluewhale.twin.dto.SceneVO;
 import com.bluewhale.twin.service.TwinSceneService;
@@ -96,16 +97,21 @@ public class TwinSceneController {
     }
 
     /**
-     * 发布场景。
+     * 发布场景（整包冻结进发布快照）。
      *
-     * @param id 场景ID
+     * @param id          场景ID
+     * @param request     发布请求（说明可空）
+     * @param httpRequest 当前请求
      * @return 视图对象
      */
     @PostMapping("/{id}/publish")
     @RequirePermission("sys:twin:scene")
     @AuditLog(operation = "发布孪生场景", type = OperateType.UPDATE, targetType = "twin_scene")
-    public Result<SceneVO> publish(@PathVariable("id") Long id) {
-        return Result.ok(sceneService.publish(id));
+    public Result<SceneVO> publish(@PathVariable("id") Long id,
+                                   @Valid @RequestBody(required = false) PublishRequest request,
+                                   HttpServletRequest httpRequest) {
+        String remark = request == null ? null : request.getRemark();
+        return Result.ok(sceneService.publish(id, remark, UserContext.requireUserId(httpRequest)));
     }
 
     /**

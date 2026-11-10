@@ -1,11 +1,13 @@
-// 3D 查看器页：左实体树 + 右 three.js 画布 + 数据绑定与实时联动（M2）
+// 3D 查看器页：左实体树 + 右 three.js 画布 + 数据绑定与实时联动（M2）+ 标注热点（M3）
 //
 // 渲染规则：
 //   - 有 modelFileId 的实体：从 /file/{id}/preview 拉流为 Blob → GLTFLoader 加载；
 //   - 无模型的实体：占位立方体；
 //   - transformJson 约定：{"position":[x,y,z],"rotation":[x,y,z],"scale":[x,y,z]}
 //     （rotation 为弧度欧拉角；缺省分量按 0/1 处理）；
-//   - 相机：OrbitControls（three/addons），鼠标拖拽旋转、滚轮缩放。
+//   - 相机：OrbitControls（three/addons），鼠标拖拽旋转、滚轮缩放；
+//   - 标注（M3）：twin_marker 按 positionJson 渲染为文字 Sprite（label 黄 /
+//     hotspot 青 / alarm 红），热点带 linkUrl 时点击 Sprite 新窗口打开。
 //
 // 实时联动（M2）：
 //   - 订阅 /twin/scenes/{id}/stream（fetch 读流手工分帧，EventSource 带不了头）；
@@ -31,12 +33,27 @@ import {
 import type { DataNode } from 'antd/es/tree';
 import { WhaleSceneManager, loadGltf } from '@bluewhale/whale-common-three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { Box3, BoxGeometry, Color, Group, Mesh, MeshStandardMaterial, Object3D, Vector3 } from 'three';
+import {
+  Box3,
+  BoxGeometry,
+  CanvasTexture,
+  Color,
+  Group,
+  Mesh,
+  MeshStandardMaterial,
+  Object3D,
+  Raycaster,
+  Sprite,
+  SpriteMaterial,
+  Vector2,
+  Vector3,
+} from 'three';
 import {
   bindingApi,
   entityApi,
   fetchIotDevices,
   fetchModelUrl,
+  markerApi,
   revokeModelUrl,
   sceneApi,
   subscribeSceneStream,
@@ -46,6 +63,8 @@ import {
   type EntitySaveRequest,
   type EntityVO,
   type IotDeviceItem,
+  type MarkerSaveRequest,
+  type MarkerVO,
   type SceneVO,
 } from '../api/twin';
 
@@ -114,6 +133,96 @@ function resolveEmissive(
   return 0x18a999;
 }
 
+/** 标注类型 → 描边/文字色（label 黄 / hotspot 青 / alarm 红） */
+const MARKER_COLORS: Record<MarkerVO['markerType'], string> = {
+  label: '#f1c40f',
+  hotspot: '#18a999',
+  alarm: '#e74c3c',
+};
+
+/** 标注类型缺省文案 */
+const MARKER_LABELS: Record<MarkerVO['markerType'], string> = {
+  label: '标签',
+  hotspot: '热点',
+  alarm: '告警',
+};
+
+/** 解析标注坐标 JSON（支持 {"x","y","z"} 与 [x,y,z] 两种形态；非法返回 null） */
+function parseMarkerPosition(json: string | null | undefined): [number, number, number] | null {
+  if (!json) return null;
+  try {
+    const parsed = JSON.parse(json) as unknown;
+    if (Array.isArray(parsed) && parsed.length === 3 && parsed.every((n) => typeof n === 'number')) {
+      return [parsed[0], parsed[1], parsed[2]];
+    }
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      const object = parsed as Record<string, unknown>;
+      const x = Number(object.x);
+      const y = Number(object.y);
+      const z = Number(object.z);
+      if ([x, y, z].every((n) => Number.isFinite(n))) return [x, y, z];
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/** 画布圆角矩形路径 */
+function traceRoundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+/** 构建标注文字 Sprite（离屏 canvas → CanvasTexture；纹理挂在 userData 便于释放） */
+function buildMarkerSprite(marker: MarkerVO): Sprite {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 96;
+  const ctx = canvas.getContext('2d');
+  const color = MARKER_COLORS[marker.markerType] ?? MARKER_COLORS.label;
+  if (ctx) {
+    const text = (marker.content ?? MARKER_LABELS[marker.markerType] ?? '标注').slice(0, 12);
+    traceRoundRect(ctx, 10, 18, 236, 60, 14);
+    ctx.fillStyle = 'rgba(12, 22, 32, 0.85)';
+    ctx.fill();
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = color;
+    ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.font = 'bold 30px "PingFang SC", "Microsoft YaHei", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, 128, 49);
+  }
+  const texture = new CanvasTexture(canvas);
+  const sprite = new Sprite(
+    new SpriteMaterial({ map: texture, transparent: true, depthTest: false }),
+  );
+  sprite.scale.set(3.2, 1.2, 1);
+  sprite.userData.__texture = texture;
+  sprite.userData.__linkUrl = marker.linkUrl ?? null;
+  return sprite;
+}
+
+/** 释放 Sprite 的纹理与材质（重建/卸载时调用） */
+function disposeMarkerSprites(group: Group | null): void {
+  if (!group) return;
+  for (const child of group.children) {
+    const sprite = child as Sprite;
+    const material = sprite.material as SpriteMaterial | undefined;
+    const texture = sprite.userData?.__texture as CanvasTexture | undefined;
+    texture?.dispose();
+    material?.dispose();
+  }
+  group.clear();
+}
+
 /** antd 树节点装配（附加原始实体引用便于选中编辑） */
 interface EntityNode extends DataNode {
   key: string;
@@ -162,6 +271,16 @@ interface BindingFormValues {
   enabled?: boolean;
 }
 
+/** 标注表单值（与 MarkerSaveRequest 对齐） */
+interface MarkerFormValues {
+  entityId?: string | null;
+  markerType: MarkerVO['markerType'];
+  content?: string;
+  positionJson?: string;
+  linkUrl?: string;
+  enabled?: boolean;
+}
+
 export default function ViewerPage({ initialSceneId }: { initialSceneId: string | null }) {
   const { message } = App.useApp();
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -189,6 +308,13 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
   const [bindingDrawerOpen, setBindingDrawerOpen] = useState(false);
   const [editingBinding, setEditingBinding] = useState<BindingVO | null>(null);
   const [bindingForm] = Form.useForm<BindingFormValues>();
+
+  // ---- M3：标注/热点 ----
+  const markersRootRef = useRef<Group | null>(null);
+  const [markers, setMarkers] = useState<MarkerVO[]>([]);
+  const [markerDrawerOpen, setMarkerDrawerOpen] = useState(false);
+  const [editingMarker, setEditingMarker] = useState<MarkerVO | null>(null);
+  const [markerForm] = Form.useForm<MarkerFormValues>();
 
   // 1) 场景下拉数据（含从场景页带入的初始场景）
   useEffect(() => {
@@ -222,16 +348,42 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
     controls.enableDamping = true;
     const root = new Group();
     manager.getScene().add(root);
+    // 标注根节点（独立于实体 root：实体重建 root.clear() 不影响标注）
+    const markersRoot = new Group();
+    manager.getScene().add(markersRoot);
+    // 热点点击：Raycaster 命中 Sprite 且带 linkUrl 时新窗口打开
+    const raycaster = new Raycaster();
+    const pointer = new Vector2();
+    const domElement = manager.getRenderer().domElement;
+    const handleClick = (event: MouseEvent) => {
+      if (markersRoot.children.length === 0) return;
+      const rect = domElement.getBoundingClientRect();
+      pointer.set(
+        ((event.clientX - rect.left) / rect.width) * 2 - 1,
+        -((event.clientY - rect.top) / rect.height) * 2 + 1,
+      );
+      raycaster.setFromCamera(pointer, manager.getCamera());
+      const hits = raycaster.intersectObjects(markersRoot.children, false);
+      const link = hits[0]?.object.userData?.__linkUrl;
+      if (typeof link === 'string' && link) {
+        window.open(link, '_blank', 'noopener');
+      }
+    };
+    domElement.addEventListener('click', handleClick);
     manager.onFrame(() => controls.update());
     manager.start();
     managerRef.current = manager;
     controlsRef.current = controls;
     rootGroupRef.current = root;
+    markersRootRef.current = markersRoot;
     return () => {
+      domElement.removeEventListener('click', handleClick);
+      disposeMarkerSprites(markersRootRef.current);
       manager.dispose();
       managerRef.current = null;
       controlsRef.current = null;
       rootGroupRef.current = null;
+      markersRootRef.current = null;
     };
   }, []);
 
@@ -341,12 +493,40 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
     [message],
   );
 
+  const loadMarkers = useCallback(
+    async (id: string) => {
+      try {
+        setMarkers(await markerApi.list(id));
+      } catch (error) {
+        message.error(`加载标注失败：${String(error)}`);
+      }
+    },
+    [message],
+  );
+
   useEffect(() => {
     if (!sceneId) return;
     void loadTree(sceneId);
     void buildSceneObjects(sceneId);
     void loadBindings(sceneId);
-  }, [sceneId, loadTree, buildSceneObjects, loadBindings]);
+    void loadMarkers(sceneId);
+  }, [sceneId, loadTree, buildSceneObjects, loadBindings, loadMarkers]);
+
+  // M3：标注 Sprite 重建（标注列表或场景变化时；释放旧纹理避免泄漏）
+  useEffect(() => {
+    const group = markersRootRef.current;
+    if (!group) return;
+    disposeMarkerSprites(group);
+    if (!sceneId) return;
+    for (const marker of markers) {
+      if (marker.enabled !== 1) continue;
+      const position = parseMarkerPosition(marker.positionJson);
+      if (!position) continue;
+      const sprite = buildMarkerSprite(marker);
+      sprite.position.set(...position);
+      group.add(sprite);
+    }
+  }, [markers, sceneId]);
 
   // 卸载时释放 objectURL 与实时流
   useEffect(
@@ -550,6 +730,68 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
     }
   };
 
+  // 8) 标注抽屉（M3）
+  const openMarkerCreate = () => {
+    setEditingMarker(null);
+    markerForm.resetFields();
+    markerForm.setFieldsValue({
+      markerType: 'label',
+      enabled: true,
+      entityId: selected?.id ?? null,
+    });
+    setMarkerDrawerOpen(true);
+  };
+
+  const openMarkerEdit = (marker: MarkerVO) => {
+    setEditingMarker(marker);
+    markerForm.setFieldsValue({
+      entityId: marker.entityId ?? null,
+      markerType: marker.markerType,
+      content: marker.content ?? undefined,
+      positionJson: marker.positionJson ?? undefined,
+      linkUrl: marker.linkUrl ?? undefined,
+      enabled: marker.enabled === 1,
+    });
+    setMarkerDrawerOpen(true);
+  };
+
+  const submitMarker = async () => {
+    if (!sceneId) return;
+    const values = await markerForm.validateFields();
+    const body: MarkerSaveRequest = {
+      entityId: values.entityId ? Number(values.entityId) : null,
+      markerType: values.markerType,
+      content: values.content?.trim() || null,
+      positionJson: values.positionJson?.trim() || null,
+      linkUrl: values.linkUrl?.trim() || null,
+      enabled: values.enabled === false ? 0 : 1,
+    };
+    try {
+      if (editingMarker) {
+        await markerApi.update(sceneId, editingMarker.id, body);
+        message.success('标注已更新');
+      } else {
+        await markerApi.create(sceneId, body);
+        message.success('标注已创建');
+      }
+      setMarkerDrawerOpen(false);
+      void loadMarkers(sceneId);
+    } catch (error) {
+      message.error(`保存标注失败：${String(error)}`);
+    }
+  };
+
+  const removeMarker = async (marker: MarkerVO) => {
+    if (!sceneId) return;
+    try {
+      await markerApi.remove(sceneId, marker.id);
+      message.success('标注已删除');
+      void loadMarkers(sceneId);
+    } catch (error) {
+      message.error(`删除标注失败：${String(error)}`);
+    }
+  };
+
   const flatEntities = flatten(tree);
   const liveItems = Object.values(liveStates);
 
@@ -573,6 +815,9 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
             </Button>
             <Button size="small" disabled={!sceneId} onClick={openBindingCreate}>
               数据绑定
+            </Button>
+            <Button size="small" disabled={!sceneId} onClick={openMarkerCreate}>
+              标注热点
             </Button>
             {streaming ? (
               <Button size="small" danger onClick={stopStream}>
@@ -805,6 +1050,111 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
                   编辑
                 </Button>
                 <Popconfirm title="确认删除该绑定？" onConfirm={() => void removeBinding(binding)}>
+                  <Button size="small" type="link" danger>
+                    删除
+                  </Button>
+                </Popconfirm>
+              </Space>
+            </div>
+          ))}
+        </div>
+      </Drawer>
+      {/* 标注抽屉（M3） */}
+      <Drawer
+        title="标注 / 热点"
+        width={520}
+        open={markerDrawerOpen}
+        onClose={() => setMarkerDrawerOpen(false)}
+        extra={
+          <Space>
+            <Button onClick={() => setMarkerDrawerOpen(false)}>关闭</Button>
+            <Button type="primary" onClick={() => void submitMarker()}>
+              {editingMarker ? '保存修改' : '创建标注'}
+            </Button>
+          </Space>
+        }
+      >
+        <Form<MarkerFormValues> form={markerForm} layout="vertical">
+          <Form.Item name="markerType" label="类型" rules={[{ required: true }]}>
+            <Select
+              options={[
+                { value: 'label', label: '标签（文本说明）' },
+                { value: 'hotspot', label: '热点（可跳转）' },
+                { value: 'alarm', label: '告警定位' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item name="entityId" label="挂靠实体" extra="留空为场景级锚点">
+            <Select
+              allowClear
+              placeholder="场景级锚点"
+              options={flatEntities.map((item) => ({
+                value: item.entity.id,
+                label: `${item.entity.name}（${item.entity.entityCode}）`,
+              }))}
+            />
+          </Form.Item>
+          <Form.Item name="content" label="标注内容" extra="Sprite 文案，超 12 字截断">
+            <Input placeholder="1号锅炉·超温告警" maxLength={1024} />
+          </Form.Item>
+          <Form.Item
+            name="positionJson"
+            label="三维坐标 JSON"
+            rules={[
+              {
+                validator: (_, value: string | undefined) => {
+                  if (!value) return Promise.resolve();
+                  try {
+                    const parsed = JSON.parse(value) as unknown;
+                    const object = parsed as Record<string, unknown>;
+                    if (
+                      !parsed ||
+                      typeof parsed !== 'object' ||
+                      Array.isArray(parsed) ||
+                      !Number.isFinite(Number(object.x)) ||
+                      !Number.isFinite(Number(object.y)) ||
+                      !Number.isFinite(Number(object.z))
+                    ) {
+                      return Promise.reject(new Error('需要含数字 x/y/z 的 JSON 对象'));
+                    }
+                    return Promise.resolve();
+                  } catch {
+                    return Promise.reject(new Error('不是合法的 JSON'));
+                  }
+                },
+              },
+            ]}
+            extra='{"x":0,"y":2,"z":0}（也支持 [x,y,z]；填了才会在 3D 场景渲染）'
+          >
+            <Input.TextArea rows={2} placeholder='{"x":0,"y":2,"z":0}' />
+          </Form.Item>
+          <Form.Item name="linkUrl" label="跳转地址" extra="热点点击时新窗口打开（可空）">
+            <Input placeholder="https://… 或 /iot/devices" />
+          </Form.Item>
+          <Form.Item name="enabled" label="启用" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+        </Form>
+        <div style={{ marginTop: 16 }}>
+          <h4 style={{ marginBottom: 8 }}>场景标注（{markers.length}）</h4>
+          {markers.map((marker) => (
+            <div key={marker.id} className="twin-live-item">
+              <Badge
+                status={marker.enabled === 1 ? 'success' : 'default'}
+                color={MARKER_COLORS[marker.markerType]}
+              />
+              <span className="twin-live-code">
+                {marker.content ?? MARKER_LABELS[marker.markerType]}
+              </span>
+              <span className="twin-live-value">
+                {MARKER_LABELS[marker.markerType]}
+                {marker.entityName ? ` · ${marker.entityName}` : ' · 场景级'}
+              </span>
+              <Space size="small" style={{ float: 'right' }}>
+                <Button size="small" type="link" onClick={() => openMarkerEdit(marker)}>
+                  编辑
+                </Button>
+                <Popconfirm title="确认删除该标注？" onConfirm={() => void removeMarker(marker)}>
                   <Button size="small" type="link" danger>
                     删除
                   </Button>
