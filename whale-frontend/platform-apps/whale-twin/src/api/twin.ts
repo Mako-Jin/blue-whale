@@ -260,6 +260,73 @@ export const alertOverviewApi = {
   summary: () => http.get<TwinAlertSummaryVO>('/twin/alerts/summary'),
 };
 
+// ---- 告警通知设置与投递记录（6.10 M2）----
+
+/** 告警级别门槛 */
+export type AlertNotifyLevel = 'warn' | 'critical';
+
+/** 通道 */
+export type AlertDispatchChannel = 'WEBHOOK' | 'INAPP';
+
+/** 投递结果 */
+export type AlertDispatchStatus = 'SUCCESS' | 'FAILED' | 'SKIPPED';
+
+/**
+ * 场景级通知设置（对齐后端 TwinAlertNotifySettingsVO）。
+ *
+ * <p>原始字段为 {@code null} 表示「跟随全局」；{@code effective*} 是叠加全局后的实际生效值
+ * （场景只能收紧：关通道、抬门槛，突破不了全局开关）。</p>
+ */
+export interface TwinAlertNotifySettingsVO {
+  sceneId: string;
+  webhookEnabled?: boolean | null;
+  inappEnabled?: boolean | null;
+  minLevel?: AlertNotifyLevel | null;
+  userIds: string[];
+  fallbackToCreator: boolean;
+  effectiveWebhookEnabled: boolean;
+  effectiveInappEnabled: boolean;
+  effectiveMinLevel: AlertNotifyLevel;
+  globalMinLevel: AlertNotifyLevel;
+  globalWebhookReady: boolean;
+  globalInappEnabled: boolean;
+}
+
+/** 保存请求（null/缺省 = 清除该项，回到跟随全局） */
+export interface TwinAlertNotifySettingsRequest {
+  webhookEnabled?: boolean | null;
+  inappEnabled?: boolean | null;
+  minLevel?: AlertNotifyLevel | null;
+  userIds?: number[] | null;
+}
+
+/** 投递记录（对齐后端 TwinAlertDispatchVO） */
+export interface TwinAlertDispatchVO {
+  id: string;
+  alertId?: string | null;
+  sceneId?: string | null;
+  stateKey?: string | null;
+  level?: string | null;
+  channel: AlertDispatchChannel;
+  target?: string | null;
+  status: AlertDispatchStatus;
+  messageId?: string | null;
+  errorMsg?: string | null;
+  createTime?: string | null;
+}
+
+export const notifyApi = {
+  /** 读取场景通知设置 */
+  getSettings: (sceneId: string) =>
+    http.get<TwinAlertNotifySettingsVO>(`/twin/scenes/${sceneId}/alert-notify`),
+  /** 保存场景通知设置（整体覆盖，null = 清除） */
+  saveSettings: (sceneId: string, body: TwinAlertNotifySettingsRequest) =>
+    http.put<TwinAlertNotifySettingsVO>(`/twin/scenes/${sceneId}/alert-notify`, body),
+  /** 投递记录列表（时间倒序，可按结果/通道过滤） */
+  dispatches: (sceneId: string, query?: Record<string, unknown>) =>
+    http.get<TwinAlertDispatchVO[]>(`/twin/scenes/${sceneId}/alert-dispatches`, query),
+};
+
 /**
  * GET 流式订阅场景实时事件（SSE）：EventSource 不支持自定义请求头，
  * 手工读流分帧（对齐 whale-iot 子应用同款实现）。

@@ -9,13 +9,14 @@ import com.bluewhale.twin.entity.TwinEntity;
 import com.bluewhale.twin.entity.TwinScene;
 import com.bluewhale.twin.mapper.TwinEntityMapper;
 import com.bluewhale.twin.support.AssistantChatClient;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -108,7 +109,7 @@ public class TwinInsightService {
                     "assistantCode", properties.getAssistant().getAssistantCode(),
                     "question", question,
                     "channelRef", channelRef));
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new BizException("解读请求序列化失败：" + e.getMessage());
         }
         executor.submit(() -> relayStream(body, userId, tenantId, emitter));

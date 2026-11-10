@@ -59,6 +59,8 @@ public class TwinAlertNotifyService {
 
     private final TwinAlertDispatchService dispatchService;
 
+    private final TwinAlertNotifySettingsService settingsService;
+
     private final TwinAlertNotifyFilter filter;
 
     private final Executor executor;
@@ -74,13 +76,15 @@ public class TwinAlertNotifyService {
      * @param messageClient     whale-message 内网客户端
      * @param recipientResolver 接收人解析
      * @param dispatchService   投递记录服务
+     * @param settingsService   场景级通知设置
      */
     @Autowired
     public TwinAlertNotifyService(TwinProperties properties, TwinAlertWebhookSender sender,
                                   TwinMessageClient messageClient,
                                   TwinAlertRecipientResolver recipientResolver,
-                                  TwinAlertDispatchService dispatchService) {
-        this(properties, sender, messageClient, recipientResolver, dispatchService,
+                                  TwinAlertDispatchService dispatchService,
+                                  TwinAlertNotifySettingsService settingsService) {
+        this(properties, sender, messageClient, recipientResolver, dispatchService, settingsService,
                 Executors.newVirtualThreadPerTaskExecutor());
     }
 
@@ -92,18 +96,21 @@ public class TwinAlertNotifyService {
      * @param messageClient     whale-message 内网客户端
      * @param recipientResolver 接收人解析
      * @param dispatchService   投递记录服务
+     * @param settingsService   场景级通知设置
      * @param executor          任务执行器
      */
     TwinAlertNotifyService(TwinProperties properties, TwinAlertWebhookSender sender,
                            TwinMessageClient messageClient,
                            TwinAlertRecipientResolver recipientResolver,
                            TwinAlertDispatchService dispatchService,
+                           TwinAlertNotifySettingsService settingsService,
                            Executor executor) {
         this.properties = properties;
         this.sender = sender;
         this.messageClient = messageClient;
         this.recipientResolver = recipientResolver;
         this.dispatchService = dispatchService;
+        this.settingsService = settingsService;
         this.executor = executor;
         TwinProperties.AlertNotify config = properties.getAlertNotify();
         this.filter = new TwinAlertNotifyFilter(config.getMinLevel(), config.getCooldownSeconds());
@@ -122,10 +129,16 @@ public class TwinAlertNotifyService {
             return;
         }
         TwinProperties.AlertNotify config = properties.getAlertNotify();
+        // 场景级设置只能收紧：关通道 / 抬高门槛，突破不了全局开关
+        TwinAlertNotifySettingsService.SceneSettings sceneSettings = settingsService.current(sceneId);
         List<String> urls = config.getWebhookUrls();
-        boolean webhookReady = config.isEnabled() && urls != null && !urls.isEmpty();
-        boolean inappReady = config.isInappEnabled();
+        boolean webhookReady = config.isEnabled() && urls != null && !urls.isEmpty()
+                && settingsService.webhookAllowed(sceneSettings);
+        boolean inappReady = config.isInappEnabled() && settingsService.inappAllowed(sceneSettings);
         if (!webhookReady && !inappReady) {
+            return;
+        }
+        if (!settingsService.reachesMinLevel(alert.getLevel(), sceneSettings)) {
             return;
         }
         if (!filter.accept(sceneId, alert.getStateKey(), alert.getLevel(), System.currentTimeMillis())) {
@@ -134,7 +147,8 @@ public class TwinAlertNotifyService {
         Map<String, Object> payload = buildPayload(sceneId, tenantId, alert);
         List<String> targets = webhookReady ? List.copyOf(urls) : List.of();
         try {
-            executor.execute(() -> dispatchAll(sceneId, tenantId, alertId, alert, payload, targets));
+            executor.execute(() -> dispatchAll(sceneId, tenantId, alertId, alert, payload,
+                    targets, inappReady));
         } catch (RejectedExecutionException error) {
             // 关停中：丢弃即可，落库与页面可见性不受影响
             log.debug("告警外发执行器已关闭，丢弃本次投递：sceneId={}, stateKey={}",
@@ -161,9 +175,10 @@ public class TwinAlertNotifyService {
      * @param alert    告警内容
      * @param payload  事件载荷
      * @param urls     webhook 地址列表（空表示该通道未启用）
+     * @param inapp    站内信通道是否生效（已叠加场景开关）
      */
     private void dispatchAll(Long sceneId, Long tenantId, Long alertId, BindingAlertVO alert,
-                             Map<String, Object> payload, List<String> urls) {
+                             Map<String, Object> payload, List<String> urls, boolean inapp) {
         for (String url : urls) {
             boolean sent = sender.send(url, payload);
             recordDispatch(tenantId, sceneId, alertId, alert, TwinAlertDispatchService.CHANNEL_WEBHOOK,
@@ -171,7 +186,7 @@ public class TwinAlertNotifyService {
                             : TwinAlertDispatchService.STATUS_FAILED,
                     null, sent ? null : "webhook 投递失败（HTTP 非 2xx 或连接异常）");
         }
-        if (properties.getAlertNotify().isInappEnabled()) {
+        if (inapp) {
             sendInapp(sceneId, tenantId, alertId, alert, payload);
         }
     }

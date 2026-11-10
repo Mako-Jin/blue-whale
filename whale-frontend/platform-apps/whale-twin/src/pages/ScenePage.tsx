@@ -21,7 +21,10 @@ import {
   Modal,
   Popconfirm,
   Radio,
+  Select,
   Space,
+  Spin,
+  Switch,
   Table,
   Tag,
   Tooltip,
@@ -30,11 +33,16 @@ import type { ColumnsType } from 'antd/es/table';
 import {
   alertApi,
   alertOverviewApi,
+  notifyApi,
   sceneApi,
   snapshotApi,
+  type AlertDispatchStatus,
   type SceneSaveRequest,
   type SceneVO,
   type SnapshotVO,
+  type TwinAlertDispatchVO,
+  type TwinAlertNotifySettingsRequest,
+  type TwinAlertNotifySettingsVO,
   type TwinAlertSummaryVO,
   type TwinAlertVO,
 } from '../api/twin';
@@ -97,6 +105,23 @@ export default function ScenePage({ onOpenViewer }: Props) {
   const [overviewUnackedOnly, setOverviewUnackedOnly] = useState(false);
   /** 抽屉的场景限定（从某一行角标点进来时只看该场景） */
   const [overviewScene, setOverviewScene] = useState<{ id: string; name: string } | null>(null);
+
+  // ---- 6.10 M2：场景通知设置 + 投递记录 ----
+  const [notifyScene, setNotifyScene] = useState<SceneVO | null>(null);
+  const [notifySettings, setNotifySettings] = useState<TwinAlertNotifySettingsVO | null>(null);
+  const [notifyLoading, setNotifyLoading] = useState(false);
+  const [notifySaving, setNotifySaving] = useState(false);
+  /** 本场景关闭 webhook / 站内信（后端 false = 关闭，null = 跟随全局） */
+  const [webhookOff, setWebhookOff] = useState(false);
+  const [inappOff, setInappOff] = useState(false);
+  /** 场景级门槛：跟随全局 或 仅严重 */
+  const [minLevelOverride, setMinLevelOverride] = useState<'follow' | 'critical'>('follow');
+  /** 接收人（逗号分隔的用户ID；空 = 回退场景创建人） */
+  const [recipientText, setRecipientText] = useState('');
+  const [dispatchRows, setDispatchRows] = useState<TwinAlertDispatchVO[]>([]);
+  const [dispatchLoading, setDispatchLoading] = useState(false);
+  const [dispatchStatus, setDispatchStatus] = useState<'all' | AlertDispatchStatus>('all');
+  const [dispatchOpen, setDispatchOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -233,6 +258,96 @@ export default function ScenePage({ onOpenViewer }: Props) {
     const loaded = overviewRows.filter((item) => item.sceneId === overviewScene.id).length;
     return Math.max((row.unresolvedAlerts ?? 0) - loaded, 0);
   }, [overviewScene, rows, overviewRows]);
+
+  /**
+   * 打开场景通知设置抽屉（6.10 M2）：读回场景级配置并回填表单。
+   *
+   * @param scene 目标场景
+   */
+  const openNotify = async (scene: SceneVO) => {
+    setNotifyScene(scene);
+    setNotifySettings(null);
+    setDispatchRows([]);
+    setDispatchStatus('all');
+    setNotifyLoading(true);
+    try {
+      const settings = await notifyApi.getSettings(scene.id);
+      setNotifySettings(settings);
+      setWebhookOff(settings.webhookEnabled === false);
+      setInappOff(settings.inappEnabled === false);
+      setMinLevelOverride(settings.minLevel === 'critical' ? 'critical' : 'follow');
+      setRecipientText(settings.userIds.join(','));
+    } catch (error) {
+      message.error(`加载通知设置失败：${String(error)}`);
+    } finally {
+      setNotifyLoading(false);
+    }
+  };
+
+  /** 保存场景通知设置：null 表示清除该项、回到跟随全局 */
+  const saveNotify = async () => {
+    if (!notifyScene) {
+      return;
+    }
+    const ids = recipientText
+      .split(/[,，\s]+/)
+      .filter(Boolean)
+      .map((item) => Number(item));
+    if (ids.some((id) => !Number.isInteger(id) || id <= 0)) {
+      message.error('接收人只能是正整数用户ID，多个用逗号分隔');
+      return;
+    }
+    const body: TwinAlertNotifySettingsRequest = {
+      webhookEnabled: webhookOff ? false : null,
+      inappEnabled: inappOff ? false : null,
+      minLevel: minLevelOverride === 'critical' ? 'critical' : null,
+      userIds: ids.length > 0 ? ids : null,
+    };
+    setNotifySaving(true);
+    try {
+      setNotifySettings(await notifyApi.saveSettings(notifyScene.id, body));
+      message.success('通知设置已保存');
+    } catch (error) {
+      message.error(`保存失败：${String(error)}`);
+    } finally {
+      setNotifySaving(false);
+    }
+  };
+
+  /**
+   * 拉取当前场景的投递记录。
+   *
+   * @param status 结果过滤（all = 全部）
+   */
+  const loadDispatches = useCallback(
+    async (status: 'all' | AlertDispatchStatus) => {
+      const sceneId = notifyScene?.id;
+      if (!sceneId) {
+        return;
+      }
+      setDispatchLoading(true);
+      try {
+        setDispatchRows(
+          await notifyApi.dispatches(sceneId, {
+            status: status === 'all' ? undefined : status,
+            limit: 100,
+          }),
+        );
+      } catch (error) {
+        message.error(`加载投递记录失败：${String(error)}`);
+      } finally {
+        setDispatchLoading(false);
+      }
+    },
+    [message, notifyScene?.id],
+  );
+
+  /** 打开投递记录弹层（沿用当前抽屉里的场景） */
+  const openDispatches = () => {
+    setDispatchOpen(true);
+    setDispatchStatus('all');
+    void loadDispatches('all');
+  };
 
   const openCreate = () => {
     setEditing(null);
@@ -393,7 +508,7 @@ export default function ScenePage({ onOpenViewer }: Props) {
     {
       title: '操作',
       key: 'action',
-      width: 320,
+      width: 370,
       render: (_, scene) => (
         <Space size="small">
           <Button size="small" type="link" onClick={() => onOpenViewer(scene.id)}>
@@ -408,6 +523,10 @@ export default function ScenePage({ onOpenViewer }: Props) {
           <Button size="small" type="link" onClick={() => void openSnapshots(scene)}>
             快照
           </Button>
+          {/* 6.10 M2：通知设置与投递记录（运营配置，已发布场景也可改） */}
+          <Button size="small" type="link" onClick={() => void openNotify(scene)}>
+            通知
+          </Button>
           <Popconfirm title="确认删除该场景？" onConfirm={() => void remove(scene)}>
             <Button size="small" type="link" danger>
               删除
@@ -415,6 +534,52 @@ export default function ScenePage({ onOpenViewer }: Props) {
           </Popconfirm>
         </Space>
       ),
+    },
+  ];
+
+  /** 投递记录列（结果/通道用标签，失败原因直接可读） */
+  const dispatchColumns: ColumnsType<TwinAlertDispatchVO> = [
+    { title: '时间', dataIndex: 'createTime', width: 170 },
+    {
+      title: '通道',
+      dataIndex: 'channel',
+      width: 90,
+      render: (channel: TwinAlertDispatchVO['channel']) => (
+        <Tag color={channel === 'INAPP' ? 'blue' : 'geekblue'}>
+          {channel === 'INAPP' ? '站内信' : 'Webhook'}
+        </Tag>
+      ),
+    },
+    {
+      title: '结果',
+      dataIndex: 'status',
+      width: 90,
+      render: (status: TwinAlertDispatchVO['status']) => {
+        const meta =
+          status === 'SUCCESS'
+            ? { color: 'green', label: '成功' }
+            : status === 'FAILED'
+              ? { color: 'red', label: '失败' }
+              : { color: 'default', label: '跳过' };
+        return <Tag color={meta.color}>{meta.label}</Tag>;
+      },
+    },
+    {
+      title: '级别',
+      dataIndex: 'level',
+      width: 80,
+      render: (level: string | null) => {
+        const meta = ALERT_LEVEL_META[level ?? ''] ?? { color: 'default', label: level ?? '-' };
+        return <Tag color={meta.color}>{meta.label}</Tag>;
+      },
+    },
+    { title: '点位', dataIndex: 'stateKey', width: 140, ellipsis: true },
+    { title: '目标', dataIndex: 'target', ellipsis: true },
+    {
+      title: '失败原因',
+      dataIndex: 'errorMsg',
+      ellipsis: true,
+      render: (text: string | null) => text ?? '—',
     },
   ];
 
@@ -740,6 +905,115 @@ export default function ScenePage({ onOpenViewer }: Props) {
           </p>
         )}
       </Drawer>
+
+      {/* 6.10 M2：场景级通知设置（通道开关 / 门槛 / 接收人） */}
+      <Drawer
+        title={notifyScene ? `通知设置 · ${notifyScene.name}` : '通知设置'}
+        width={460}
+        open={!!notifyScene}
+        onClose={() => setNotifyScene(null)}
+        extra={
+          <Space>
+            <Button onClick={openDispatches}>投递记录</Button>
+            <Button type="primary" loading={notifySaving} onClick={() => void saveNotify()}>
+              保存
+            </Button>
+          </Space>
+        }
+      >
+        {notifyLoading || !notifySettings ? (
+          <Spin />
+        ) : (
+          <Space direction="vertical" size="large" style={{ width: '100%' }}>
+            <div className="twin-live-off">
+              全局口径：Webhook {notifySettings.globalWebhookReady ? '已配置' : '未配置'}｜站内信{' '}
+              {notifySettings.globalInappEnabled ? '已开启' : '未开启'}｜最低级别{' '}
+              {notifySettings.globalMinLevel === 'critical' ? '仅严重' : '预警及以上'}
+              <br />
+              场景只能收紧（关通道 / 抬高门槛），全局未开启时这里设了什么都不会外发。
+            </div>
+            <div>
+              <div style={{ marginBottom: 8 }}>本场景关闭 Webhook</div>
+              <Space>
+                <Switch checked={webhookOff} onChange={setWebhookOff} />
+                <Tag color={notifySettings.effectiveWebhookEnabled ? 'green' : 'default'}>
+                  {notifySettings.effectiveWebhookEnabled ? '当前会外发' : '当前不外发'}
+                </Tag>
+              </Space>
+            </div>
+            <div>
+              <div style={{ marginBottom: 8 }}>本场景关闭站内信</div>
+              <Space>
+                <Switch checked={inappOff} onChange={setInappOff} />
+                <Tag color={notifySettings.effectiveInappEnabled ? 'green' : 'default'}>
+                  {notifySettings.effectiveInappEnabled ? '当前会外发' : '当前不外发'}
+                </Tag>
+              </Space>
+            </div>
+            <div>
+              <div style={{ marginBottom: 8 }}>最低外发级别</div>
+              <Radio.Group
+                value={minLevelOverride}
+                onChange={(event) => setMinLevelOverride(event.target.value)}
+              >
+                <Radio value="follow">跟随全局</Radio>
+                <Radio value="critical">仅严重</Radio>
+              </Radio.Group>
+              <div className="twin-live-off" style={{ marginTop: 4 }}>
+                实际生效：{notifySettings.effectiveMinLevel === 'critical' ? '仅严重' : '预警及以上'}
+              </div>
+            </div>
+            <div>
+              <div style={{ marginBottom: 8 }}>接收人（用户ID，逗号分隔）</div>
+              <Input
+                value={recipientText}
+                onChange={(event) => setRecipientText(event.target.value)}
+                placeholder="留空则发给场景创建人"
+                allowClear
+              />
+              <div className="twin-live-off" style={{ marginTop: 4 }}>
+                {notifySettings.fallbackToCreator ? '当前：回退场景创建人' : `当前：${notifySettings.userIds.length} 人`}
+              </div>
+            </div>
+          </Space>
+        )}
+      </Drawer>
+
+      {/* 6.10 M2：投递记录（twin_alert_dispatch 场景维度） */}
+      <Modal
+        title={notifyScene ? `投递记录 · ${notifyScene.name}` : '投递记录'}
+        open={dispatchOpen}
+        width={920}
+        footer={null}
+        onCancel={() => setDispatchOpen(false)}
+      >
+        <Space style={{ marginBottom: 12 }}>
+          <Select<'all' | AlertDispatchStatus>
+            value={dispatchStatus}
+            style={{ width: 160 }}
+            onChange={(value) => {
+              setDispatchStatus(value);
+              void loadDispatches(value);
+            }}
+            options={[
+              { value: 'all', label: '全部结果' },
+              { value: 'SUCCESS', label: '成功' },
+              { value: 'FAILED', label: '失败' },
+              { value: 'SKIPPED', label: '跳过' },
+            ]}
+          />
+          <Button onClick={() => void loadDispatches(dispatchStatus)}>刷新</Button>
+          <span className="twin-live-off">最多展示最近 100 条</span>
+        </Space>
+        <Table<TwinAlertDispatchVO>
+          rowKey="id"
+          size="small"
+          loading={dispatchLoading}
+          columns={dispatchColumns}
+          dataSource={dispatchRows}
+          pagination={{ pageSize: 10, showSizeChanger: false }}
+        />
+      </Modal>
     </div>
   );
 }

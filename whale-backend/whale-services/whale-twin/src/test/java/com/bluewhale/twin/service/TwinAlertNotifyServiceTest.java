@@ -3,6 +3,8 @@ package com.bluewhale.twin.service;
 import com.bluewhale.twin.config.TwinProperties;
 import com.bluewhale.twin.dto.BindingAlertVO;
 import com.bluewhale.twin.entity.TwinAlertDispatch;
+import com.bluewhale.twin.entity.TwinScene;
+import com.bluewhale.twin.mapper.TwinSceneMapper;
 import com.bluewhale.twin.support.TwinAlertRecipientResolver;
 import com.bluewhale.twin.support.TwinAlertWebhookSender;
 import com.bluewhale.twin.support.TwinMessageClient;
@@ -56,6 +58,10 @@ class TwinAlertNotifyServiceTest {
 
     private TwinAlertDispatchService dispatchService;
 
+    private TwinSceneMapper sceneMapper;
+
+    private TwinAlertNotifySettingsService settingsService;
+
     @BeforeEach
     void setUp() {
         properties = new TwinProperties();
@@ -63,6 +69,9 @@ class TwinAlertNotifyServiceTest {
         messageClient = mock(TwinMessageClient.class);
         recipientResolver = mock(TwinAlertRecipientResolver.class);
         dispatchService = mock(TwinAlertDispatchService.class);
+        sceneMapper = mock(TwinSceneMapper.class);
+        // 用真实设置服务：场景级收紧逻辑（关通道/抬门槛）就是被测行为，mock 掉会失去意义
+        settingsService = new TwinAlertNotifySettingsService(sceneMapper, properties);
         when(recipientResolver.resolve(SCENE_ID))
                 .thenReturn(new TwinAlertRecipientResolver.Recipients(List.of(USER_ID), "示范场景"));
     }
@@ -202,6 +211,42 @@ class TwinAlertNotifyServiceTest {
         verify(dispatchService, never()).record(any());
     }
 
+    @Test
+    void sceneCanDisableWebhookChannelOnly() {
+        properties.getAlertNotify().setEnabled(true);
+        properties.getAlertNotify().setWebhookUrls(List.of(URL));
+        properties.getAlertNotify().setInappEnabled(true);
+        properties.getAlertNotify().setCooldownSeconds(0);
+        when(sceneMapper.selectById(SCENE_ID))
+                .thenReturn(sceneWith("{\"alertNotify\":{\"webhookEnabled\":false}}"));
+        when(messageClient.sendInapp(any(), anyString(), anyString(), anyString(), anyMap(), anyList()))
+                .thenReturn(new TwinMessageClient.SendOutcome(556L, "SENT", null));
+
+        service().notify(SCENE_ID, TENANT_ID, ALERT_ID, alert("critical"));
+
+        // webhook 被场景关掉，站内信仍发（M2 单向收紧语义）
+        verify(sender, never()).send(anyString(), any());
+        verify(messageClient).sendInapp(any(), anyString(), anyString(), anyString(), anyMap(), anyList());
+    }
+
+    @Test
+    void sceneRaisesMinLevelAboveGlobal() {
+        properties.getAlertNotify().setEnabled(true);
+        properties.getAlertNotify().setWebhookUrls(List.of(URL));
+        properties.getAlertNotify().setCooldownSeconds(0);
+        when(sceneMapper.selectById(SCENE_ID))
+                .thenReturn(sceneWith("{\"alertNotify\":{\"minLevel\":\"critical\"}}"));
+
+        service().notify(SCENE_ID, TENANT_ID, ALERT_ID, alert("warn"));
+
+        // 全局门槛是 warn，但场景抬到 critical → warn 不外发
+        verify(sender, never()).send(anyString(), any());
+
+        service().notify(SCENE_ID, TENANT_ID, ALERT_ID, alert("critical"));
+
+        verify(sender, times(1)).send(eq(URL), any());
+    }
+
     /**
      * 构造被测服务（同步执行器）。
      *
@@ -209,7 +254,22 @@ class TwinAlertNotifyServiceTest {
      */
     private TwinAlertNotifyService service() {
         return new TwinAlertNotifyService(properties, sender, messageClient, recipientResolver,
-                dispatchService, Runnable::run);
+                dispatchService, settingsService, Runnable::run);
+    }
+
+    /**
+     * 造一个带通知配置的场景行。
+     *
+     * @param sceneConfig sceneConfig JSON
+     * @return 场景实体
+     */
+    private TwinScene sceneWith(String sceneConfig) {
+        TwinScene scene = new TwinScene();
+        scene.setId(SCENE_ID);
+        scene.setName("示范场景");
+        scene.setSceneConfig(sceneConfig);
+        scene.setCreatedBy(USER_ID);
+        return scene;
     }
 
     /**

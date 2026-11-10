@@ -1018,7 +1018,7 @@ services:
     profiles: ["aiot", "ext"]
     mem_limit: 700m
     environment:
-      JAVA_OPTS: "-Xms128m -Xmx448m -XX:MaxMetaspaceSize:256m -XX:+ExitOnOutOfMemoryError"
+      JAVA_OPTS: "-Xms128m -Xmx448m -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError"
       SERVER_PORT: "8089"
       NACOS_SERVER: ${NACOS_SERVER}
       MYSQL_HOST: ${MYSQL_HOST}
