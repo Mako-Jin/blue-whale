@@ -61,7 +61,8 @@ jobs:
       contents: read
     defaults:
       run:
-        working-directory: frontend
+        # 2026-11-10 目录重命名：frontend/ → whale-frontend/
+        working-directory: whale-frontend
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -144,9 +145,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    defaults:
-      run:
-        working-directory: backend
+    # 不设 defaults.run.working-directory：2026-11-10 目录重命名后 backend/ 已不存在，
+    # 所有命令统一从仓库根执行，需要模块入口时用 -f whale-backend/pom.xml 指定。
     steps:
       - name: Checkout
         uses: actions/checkout@v4

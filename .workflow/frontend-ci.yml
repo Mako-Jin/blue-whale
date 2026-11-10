@@ -5,8 +5,10 @@
 # 阶段: pnpm 安装 -> Lint -> 构建
 #
 # 说明（T5.16 / AUTH-28）:
-#   - 前端工作区根目录为 frontend/（仓库根无 pnpm-workspace.yaml），与 Actions 的
-#     defaults.run.working-directory: frontend 对齐；故命令前缀 cd frontend。
+#   - 前端工作区根目录为 whale-frontend/（仓库根无 pnpm-workspace.yaml），与 Actions 的
+#     defaults.run.working-directory: whale-frontend 对齐；故命令前缀 cd whale-frontend。
+#   - 2026-11-10 目录重命名（frontend/ → whale-frontend/）后同步本文件，旧路径会导致
+#     云端编译在第一步 cd 就失败。
 #   - 版本对齐现有 Actions（Node 24 / pnpm），但 Gitee Go 官方云端编译插件文档
 #     当前列出 Node 上限为 15.12.0（build@nodejs），故 nodeVersion: '24' 的可用性
 #     需在 Gitee 侧实机确认；若插件不支持 24，需回退或改用自带镜像的 shell 步骤。
@@ -48,10 +50,10 @@ stages:
         displayName: pnpm 安装与 Lint
         nodeVersion: '24'
         commands:
-          - cd frontend && corepack enable
-          - cd frontend && corepack prepare pnpm@latest --activate
-          - cd frontend && pnpm install --frozen-lockfile
-          - cd frontend && pnpm -r lint
+          - cd whale-frontend && corepack enable
+          - cd whale-frontend && corepack prepare pnpm@latest --activate
+          - cd whale-frontend && pnpm install --frozen-lockfile
+          - cd whale-frontend && pnpm -r lint
 
   # 阶段二：构建（turbo）
   - name: build
@@ -65,8 +67,8 @@ stages:
         displayName: turbo 构建
         nodeVersion: '24'
         commands:
-          - cd frontend && pnpm turbo run build
+          - cd whale-frontend && pnpm turbo run build
         artifacts:
           - name: FRONTEND_DIST
             path:
-              - ./frontend/**/dist/
+              - ./whale-frontend/**/dist/
