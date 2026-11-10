@@ -301,3 +301,26 @@ export const snapshotApi = {
   rollback: (sceneId: string, id: string) =>
     http.post<SnapshotVO>(`/twin/scenes/${sceneId}/snapshots/${id}/rollback`),
 };
+
+// ---- AI 解读（Wave 6.04 M1）----
+
+/** AI 解读请求 */
+export interface InsightRequest {
+  entityId?: number | null;
+  question?: string | null;
+}
+
+/** AI 解读结果（对齐后端 InsightVO） */
+export interface InsightVO {
+  answer: string;
+  degraded: boolean;
+  tokens: number;
+  elapsedMillis: number;
+  sessionId?: string | null;
+  citations?: Record<string, unknown>[] | null;
+}
+
+export const insightApi = {
+  ask: (sceneId: string, body: InsightRequest) =>
+    http.post<InsightVO>(`/twin/scenes/${sceneId}/ai/insight`, body),
+};

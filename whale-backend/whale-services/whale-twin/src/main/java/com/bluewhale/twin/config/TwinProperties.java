@@ -21,6 +21,27 @@ public class TwinProperties {
     /** 绑定轮询运行时配置 */
     private final Runtime runtime = new Runtime();
 
+    /** AI 解读（whale-assistant 开放 API）配置 */
+    private final Assistant assistant = new Assistant();
+
+    /**
+     * AI 解读配置。
+     *
+     * @author BlueWhale
+     */
+    @Data
+    public static class Assistant {
+
+        /** whale-assistant 基础地址（内网直连，不经网关） */
+        private String baseUrl = "http://127.0.0.1:8087";
+
+        /** 目标助手编码（须为已发布助手；为空表示未启用 AI 解读） */
+        private String assistantCode = "";
+
+        /** 单次问答超时（秒） */
+        private int timeoutSeconds = 60;
+    }
+
     /**
      * whale-iot 内网接口配置。
      *

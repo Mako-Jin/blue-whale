@@ -1,4 +1,4 @@
-// 3D 查看器页：左实体树 + 右 three.js 画布 + 数据绑定与实时联动（M2）+ 标注热点（M3）
+// 3D 查看器页：左实体树 + 右 three.js 画布 + 数据绑定与实时联动（M2）+ 标注热点（M3）+ AI 解读（6.04 M1）
 //
 // 渲染规则：
 //   - 有 modelFileId 的实体：从 /file/{id}/preview 拉流为 Blob → GLTFLoader 加载；
@@ -24,10 +24,12 @@ import {
   Form,
   Input,
   InputNumber,
+  Modal,
   Popconfirm,
   Select,
   Space,
   Switch,
+  Tag,
   Tree,
 } from 'antd';
 import type { DataNode } from 'antd/es/tree';
@@ -53,6 +55,7 @@ import {
   entityApi,
   fetchIotDevices,
   fetchModelUrl,
+  insightApi,
   markerApi,
   revokeModelUrl,
   sceneApi,
@@ -63,6 +66,8 @@ import {
   type EntitySaveRequest,
   type EntityVO,
   type IotDeviceItem,
+  type InsightRequest,
+  type InsightVO,
   type MarkerSaveRequest,
   type MarkerVO,
   type SceneVO,
@@ -315,6 +320,12 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
   const [markerDrawerOpen, setMarkerDrawerOpen] = useState(false);
   const [editingMarker, setEditingMarker] = useState<MarkerVO | null>(null);
   const [markerForm] = Form.useForm<MarkerFormValues>();
+
+  // AI 解读（6.04 M1）：服务端组装上下文（实体 + 实时态）调 assistant 开放问答
+  const [insightOpen, setInsightOpen] = useState(false);
+  const [insightLoading, setInsightLoading] = useState(false);
+  const [insightResult, setInsightResult] = useState<InsightVO | null>(null);
+  const [insightQuestion, setInsightQuestion] = useState('');
 
   // 1) 场景下拉数据（含从场景页带入的初始场景）
   useEffect(() => {
@@ -742,6 +753,31 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
     setMarkerDrawerOpen(true);
   };
 
+  /** 打开 AI 解读弹窗（携带当前选中实体上下文） */
+  const openInsight = () => {
+    setInsightResult(null);
+    setInsightQuestion('');
+    setInsightOpen(true);
+  };
+
+  /** 请求 AI 解读（服务端组装上下文；同步聚合返回） */
+  const askInsight = async () => {
+    if (!sceneId) return;
+    setInsightLoading(true);
+    try {
+      const body: InsightRequest = {
+        entityId: selected ? Number(selected.id) : null,
+        question: insightQuestion.trim() || null,
+      };
+      const result = await insightApi.ask(sceneId, body);
+      setInsightResult(result);
+    } catch (error) {
+      message.error(`AI 解读失败：${String(error)}`);
+    } finally {
+      setInsightLoading(false);
+    }
+  };
+
   const openMarkerEdit = (marker: MarkerVO) => {
     setEditingMarker(marker);
     markerForm.setFieldsValue({
@@ -818,6 +854,9 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
             </Button>
             <Button size="small" disabled={!sceneId} onClick={openMarkerCreate}>
               标注热点
+            </Button>
+            <Button size="small" disabled={!sceneId} onClick={openInsight}>
+              AI 解读{selected ? `：${selected.name}` : '（整场景）'}
             </Button>
             {streaming ? (
               <Button size="small" danger onClick={stopStream}>
@@ -1164,6 +1203,68 @@ export default function ViewerPage({ initialSceneId }: { initialSceneId: string 
           ))}
         </div>
       </Drawer>
+
+      <Modal
+        title={selected ? `AI 解读：${selected.name}` : 'AI 解读（整场景概要）'}
+        open={insightOpen}
+        onCancel={() => !insightLoading && setInsightOpen(false)}
+        width={640}
+        footer={
+          <Space>
+            <Button disabled={insightLoading} onClick={() => setInsightOpen(false)}>
+              关闭
+            </Button>
+            <Button type="primary" loading={insightLoading} onClick={() => void askInsight()}>
+              {insightResult ? '重新解读' : '开始解读'}
+            </Button>
+          </Space>
+        }
+      >
+        <Input
+          placeholder="追问（可空，默认解读当前状态并给出处置建议）"
+          value={insightQuestion}
+          maxLength={500}
+          showCount
+          onChange={(e) => setInsightQuestion(e.target.value)}
+          onPressEnter={() => void askInsight()}
+        />
+        {insightResult && (
+          <div style={{ marginTop: 12 }}>
+            <Space size="small" wrap style={{ marginBottom: 8 }}>
+              {insightResult.degraded && <Tag color="warning">降级回答（检索摘要）</Tag>}
+              <Tag>{insightResult.tokens} tokens</Tag>
+              <Tag>{(insightResult.elapsedMillis / 1000).toFixed(1)}s</Tag>
+              {insightResult.citations && insightResult.citations.length > 0 && (
+                <Tag color="blue">{insightResult.citations.length} 条引用</Tag>
+              )}
+            </Space>
+            <div
+              style={{
+                whiteSpace: 'pre-wrap',
+                maxHeight: 380,
+                overflowY: 'auto',
+                padding: 12,
+                background: 'rgba(128,128,128,0.08)',
+                borderRadius: 8,
+                fontSize: 13,
+                lineHeight: 1.7,
+              }}
+            >
+              {insightResult.answer}
+            </div>
+          </div>
+        )}
+        {!insightResult && !insightLoading && (
+          <div style={{ marginTop: 12, color: 'rgba(128,128,128,0.9)', fontSize: 12 }}>
+            将把{selected ? '选中实体' : '整场景'}的实时绑定状态发给 AI 助手解读；内网令牌留在服务端，不经前端。
+          </div>
+        )}
+        {insightLoading && (
+          <div style={{ marginTop: 12, color: 'rgba(128,128,128,0.9)', fontSize: 12 }}>
+            正在调用 AI 助手解读（含实时态上下文组装），请稍候…
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

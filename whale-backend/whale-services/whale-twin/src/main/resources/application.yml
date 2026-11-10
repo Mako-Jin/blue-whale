@@ -80,6 +80,11 @@ whale:
       tick-ms: ${WHALE_TWIN_RUNTIME_TICK_MS:5000}
       # 单场景单 tick 允许触达的最大设备数
       max-devices-per-scene: ${WHALE_TWIN_MAX_DEVICES_PER_SCENE:50}
+    # M1（Wave 6.04）：AI 解读（whale-assistant 开放 API，内网直连；assistant-code 为空则前端入口禁用）
+    assistant:
+      base-url: ${WHALE_TWIN_ASSISTANT_BASE_URL:http://127.0.0.1:8087}
+      assistant-code: ${WHALE_TWIN_ASSISTANT_CODE:}
+      timeout-seconds: ${WHALE_TWIN_ASSISTANT_TIMEOUT_SECONDS:60}
 
 mybatis-plus:
   configuration:
