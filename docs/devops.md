@@ -39,6 +39,7 @@ cd whale-frontend && pnpm install && pnpm run dev
 - 生产覆盖层：`docker-compose.prod.yml`（Nginx TLS + 前端容器 + 资源限额）；**前置条件**为宿主机 Let's Encrypt 证书（`fullchain.pem`/`privkey.pem`）挂载，未挂载不得 `up`（V-09）。
 - 变更前契约检查：`scripts/ci/bw-deploy-contract-check.ps1`；镜像矩阵后端 21 + 前端 14 由 GitHub Actions `docker-deploy` 构建推送 GHCR。
 - 上线必检：网络边界（直连业务端口 403、`/internal/**` 令牌校验），清单见 [network-boundary.md](design/network-boundary.md) 与 `scripts/smoke/bw-network-boundary-check.ps1`。
+- 内网端点口径门禁：`python scripts/check-internal-boundary.py`（网关收口 / 令牌模式 / auth 白名单 / 权限注解冲突 / CI 工作目录），CI 作业 `internal-boundary`。
 
 ## 运维手册索引
 

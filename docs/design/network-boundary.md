@@ -1,6 +1,6 @@
 # 网关边界与业务端口收口清单（S-06）
 
-- 日期：2026-10-27（2026-11-09 增补 GW-06 通配收口与 dev 令牌口径）
+- 日期：2026-10-27（2026-11-09 增补 GW-06 通配收口与 dev 令牌口径；2026-11-11 增补 auth 白名单陷阱与静态门禁）
 - 关联：待办 S-06「绕过网关直连业务端口」
 - 结论：这是**部署网络边界**问题，代码侧无法可靠替代；本清单作为上线前必检项。
 
@@ -19,6 +19,16 @@
    优先，回退环境变量 `WHALE_INTERNAL_TOKEN`。**dev 未配置令牌时 fail-open（InternalTokenGuard
    告警），非 dev 拒绝启动**——本地联调由 `.toolchains/start-all-services.ps1` 统一注入
    `WHALE_INTERNAL_TOKEN`（联调占位值），生产必须替换为随机值并同样注入各服务实例。
+3. **auth 的 Spring Security 白名单（第三处，易漏）**：`whale-service-auth` 是唯一启用
+   Spring Security 的服务，内网端点必须同时在 `SecurityConfig.permitAll` 里显式列出
+   （`/tenant/internal/**`、`/user/internal/**`、`/dept/internal/**`）。漏配时 Spring Security
+   会在令牌过滤器之前返回 401 —— 端点「写了但永远打不通」，且调用方多数把 401 折算成空数据，
+   **不报错也不告警**（2026-11-10 的 `/dept/internal/**` 就是这样静默了数月，影响 OA 的
+   审批人/部门解析）。新增 auth 内网控制器必须同步白名单。
+
+   另注意两条 `**` 语义不同：网关 `/*/internal/**` 的星号**不跨段**，`/**/internal/**`
+   跨段。因此 `/twin/notify/internal/x` 这类多段命名网关拦不住，只剩令牌一层——
+   内网端点一律按 `/<service>/internal/**` 命名。
 
 ## 1. 风险
 
@@ -90,3 +100,22 @@ pwsh -NoProfile -File scripts/smoke/bw-network-boundary-check.ps1 `
 脚本会逐端口检查默认业务端口不可达，并走网关验证“无令牌 + 伪造身份头”被拒绝。
 `-PublicHost` 禁止使用 `localhost`/回环地址；自签证书环境可临时加 `-SkipCertificateCheck`，
 生产验收不要开启。
+
+## 6. 静态门禁（2026-11-11 起为 CI 阻断项）
+
+上面三处口径靠人眼读代码对不齐（三份配置分散在网关、starter、auth），因此加了静态核对：
+
+```bash
+python scripts/check-internal-boundary.py          # 全量核对
+python scripts/check-internal-boundary.py --verbose # 逐条打印内网端点
+```
+
+检查项：网关收口覆盖、服务令牌模式覆盖、auth 白名单覆盖、内网控制器不得标
+`@RequirePermission`（服务间调用没有用户权限码，标了必 403）、CI 里 `working-directory`
+指向的目录是否存在。CI 作业名 `internal-boundary`（`.github/workflows/code-quality.yml`）。
+
+当前基线：118 条内网端点 / 24 个前缀全部三层一致；`/alert/internal/prometheus` 为
+WARN（Alertmanager 入站自带 webhook token，属设计的令牌豁免）。
+
+静态门禁与本文第 5 节的部署侧取证互补：前者保证「配置口径对齐」，后者证明「网络上真的拦得住」，
+上线前两者都要过。
